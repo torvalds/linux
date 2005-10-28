@@ -259,10 +259,27 @@ static void __init clps7500_init_irq(void)
 }
 
 static struct map_desc cl7500_io_desc[] __initdata = {
-	{ IO_BASE,	IO_START,	IO_SIZE,    MT_DEVICE },	/* IO space	*/
-	{ ISA_BASE,	ISA_START,	ISA_SIZE,   MT_DEVICE },	/* ISA space	*/
-	{ FLASH_BASE,	FLASH_START,	FLASH_SIZE, MT_DEVICE },	/* Flash	*/
-	{ LED_BASE,	LED_START,	LED_SIZE,   MT_DEVICE } 	/* LED		*/
+	{ 	/* IO space	*/
+		.virtual	= IO_BASE,
+		.pfn		= __phys_to_pfn(IO_START),
+		.length		= IO_SIZE,
+		.type		= MT_DEVICE
+	}, {	/* ISA space	*/
+		.virtual	= ISA_BASE,
+		.pfn		= __phys_to_pfn(ISA_START),
+		.length		= ISA_SIZE,
+		.type		= MT_DEVICE
+	}, {	/* Flash	*/
+		.virtual	= FLASH_BASE,
+		.pfn		= __phys_to_pfn(FLASH_START),
+		.length		= FLASH_SIZE,
+		.type		= MT_DEVICE
+	}, {	/* LED		*/
+		.virtual	= LED_BASE,
+		.pfn		= __phys_to_pfn(LED_START),
+		.length		= LED_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init clps7500_map_io(void)

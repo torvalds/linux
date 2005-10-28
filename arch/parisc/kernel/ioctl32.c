@@ -104,12 +104,9 @@ static int drm32_version(unsigned int fd, unsigned int cmd, unsigned long arg)
 	}
 
 out:
-	if (kversion.name)
-		kfree(kversion.name);
-	if (kversion.date)
-		kfree(kversion.date);
-	if (kversion.desc)
-		kfree(kversion.desc);
+	kfree(kversion.name);
+	kfree(kversion.date);
+	kfree(kversion.desc);
 	return ret;
 }
 
@@ -166,9 +163,7 @@ static int drm32_getsetunique(unsigned int fd, unsigned int cmd, unsigned long a
 			ret = -EFAULT;
 	}
 
-	if (karg.unique != NULL)
-		kfree(karg.unique);
-
+	kfree(karg.unique);
 	return ret;
 }
 
@@ -265,7 +260,6 @@ static int drm32_info_bufs(unsigned int fd, unsigned int cmd, unsigned long arg)
 	}
 
 	kfree(karg.list);
-
 	return ret;
 }
 
@@ -305,7 +299,6 @@ static int drm32_free_bufs(unsigned int fd, unsigned int cmd, unsigned long arg)
 
 out:
 	kfree(karg.list);
-
 	return ret;
 }
 
@@ -494,15 +487,10 @@ static int drm32_dma(unsigned int fd, unsigned int cmd, unsigned long arg)
 	}
 
 out:
-	if (karg.send_indices)
-		kfree(karg.send_indices);
-	if (karg.send_sizes)
-		kfree(karg.send_sizes);
-	if (karg.request_indices)
-		kfree(karg.request_indices);
-	if (karg.request_sizes)
-		kfree(karg.request_sizes);
-
+	kfree(karg.send_indices);
+	kfree(karg.send_sizes);
+	kfree(karg.request_indices);
+	kfree(karg.request_sizes);
 	return ret;
 }
 
@@ -555,9 +543,7 @@ static int drm32_res_ctx(unsigned int fd, unsigned int cmd, unsigned long arg)
 			ret = -EFAULT;
 	}
 
-	if (karg.contexts)
-		kfree(karg.contexts);
-
+	kfree(karg.contexts);
 	return ret;
 }
 

@@ -1140,11 +1140,11 @@ dm9000_phy_write(struct net_device *dev, int phyaddr_unused, int reg, int value)
 }
 
 static int
-dm9000_drv_suspend(struct device *dev, pm_message_t state, u32 level)
+dm9000_drv_suspend(struct device *dev, pm_message_t state)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 
-	if (ndev && level == SUSPEND_DISABLE) {
+	if (ndev) {
 		if (netif_running(ndev)) {
 			netif_device_detach(ndev);
 			dm9000_shutdown(ndev);
@@ -1154,12 +1154,12 @@ dm9000_drv_suspend(struct device *dev, pm_message_t state, u32 level)
 }
 
 static int
-dm9000_drv_resume(struct device *dev, u32 level)
+dm9000_drv_resume(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 	board_info_t *db = (board_info_t *) ndev->priv;
 
-	if (ndev && level == RESUME_ENABLE) {
+	if (ndev) {
 
 		if (netif_running(ndev)) {
 			dm9000_reset(db);

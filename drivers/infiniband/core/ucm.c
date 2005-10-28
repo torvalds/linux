@@ -1300,7 +1300,7 @@ static int __init ib_ucm_init(void)
 		goto err_class;
 	}
 
-	class_device_create(ib_ucm_class, IB_UCM_DEV, NULL, "ucm");
+	class_device_create(ib_ucm_class, NULL, IB_UCM_DEV, NULL, "ucm");
 
 	idr_init(&ctx_id_table);
 	init_MUTEX(&ctx_id_mutex);

@@ -275,23 +275,23 @@ static int pxa2xx_ac97_do_resume(snd_card_t *card)
 	return 0;
 }
 
-static int pxa2xx_ac97_suspend(struct device *_dev, pm_message_t state, u32 level)
+static int pxa2xx_ac97_suspend(struct device *_dev, pm_message_t state)
 {
 	snd_card_t *card = dev_get_drvdata(_dev);
 	int ret = 0;
 
-	if (card && level == SUSPEND_DISABLE)
+	if (card)
 		ret = pxa2xx_ac97_do_suspend(card, PMSG_SUSPEND);
 
 	return ret;
 }
 
-static int pxa2xx_ac97_resume(struct device *_dev, u32 level)
+static int pxa2xx_ac97_resume(struct device *_dev)
 {
 	snd_card_t *card = dev_get_drvdata(_dev);
 	int ret = 0;
 
-	if (card && level == RESUME_ENABLE)
+	if (card)
 		ret = pxa2xx_ac97_do_resume(card);
 
 	return ret;

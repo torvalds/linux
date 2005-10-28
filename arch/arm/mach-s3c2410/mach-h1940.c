@@ -25,6 +25,7 @@
  *     14-Jan-2005 BJD  Added clock init
  *     10-Mar-2005 LCVR Changed S3C2410_VA to S3C24XX_VA
  *     20-Sep-2005 BJD  Added static to non-exported items
+ *     26-Oct-2005 BJD  Changed name of fb init call
 */
 
 #include <linux/kernel.h>
@@ -164,7 +165,7 @@ static void __init h1940_init_irq(void)
 
 static void __init h1940_init(void)
 {
-	set_s3c2410fb_info(&h1940_lcdcfg);
+	s3c24xx_fb_set_platdata(&h1940_lcdcfg);
 }
 
 MACHINE_START(H1940, "IPAQ-H1940")

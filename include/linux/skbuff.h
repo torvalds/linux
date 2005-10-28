@@ -137,6 +137,8 @@ struct skb_shared_info {
 	unsigned int	nr_frags;
 	unsigned short	tso_size;
 	unsigned short	tso_segs;
+	unsigned short  ufo_size;
+	unsigned int    ip6_frag_id;
 	struct sk_buff	*frag_list;
 	skb_frag_t	frags[MAX_SKB_FRAGS];
 };
@@ -340,6 +342,11 @@ extern void	      skb_over_panic(struct sk_buff *skb, int len,
 				     void *here);
 extern void	      skb_under_panic(struct sk_buff *skb, int len,
 				      void *here);
+
+extern int skb_append_datato_frags(struct sock *sk, struct sk_buff *skb,
+			int getfrag(void *from, char *to, int offset,
+			int len,int odd, struct sk_buff *skb),
+			void *from, int length);
 
 struct skb_seq_state
 {

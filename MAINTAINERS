@@ -197,6 +197,15 @@ M:	Thorsten Knabe <linux@thorsten-knabe.de>
 W:	http://linux.thorsten-knabe.de
 S:	Maintained
 
+AD1889 SOUND DRIVER
+P:	Kyle McMartin
+M:	kyle@parisc-linux.org
+P:	Thibaut Varene
+M:	T-Bone@parisc-linux.org
+W:	http://wiki.parisc-linux.org/AD1889
+L:	parisc-linux@lists.parisc-linux.org
+S:	Maintained
+
 ADM1025 HARDWARE MONITOR DRIVER
 P:	Jean Delvare
 M:	khali@linux-fr.org
@@ -2725,6 +2734,12 @@ S:	Odd fixes
 VIA RHINE NETWORK DRIVER
 P:	Roger Luethi
 M:	rl@hellgate.ch
+S:	Maintained
+
+VIAPRO SMBUS DRIVER
+P:	Jean Delvare
+M:	khali@linux-fr.org
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
 UCLINUX (AND M68KNOMMU)

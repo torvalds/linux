@@ -151,6 +151,40 @@ static void exca_writew(struct yenta_socket *socket, unsigned reg, u16 val)
 	readb(socket->base + 0x800 + reg + 1);
 }
 
+static ssize_t show_yenta_registers(struct device *yentadev, struct device_attribute *attr, char *buf)
+{
+	struct pci_dev *dev = to_pci_dev(yentadev);
+	struct yenta_socket *socket = pci_get_drvdata(dev);
+	int offset = 0, i;
+
+	offset = snprintf(buf, PAGE_SIZE, "CB registers:");
+	for (i = 0; i < 0x24; i += 4) {
+		unsigned val;
+		if (!(i & 15))
+			offset += snprintf(buf + offset, PAGE_SIZE - offset, "\n%02x:", i);
+		val = cb_readl(socket, i);
+		offset += snprintf(buf + offset, PAGE_SIZE - offset, " %08x", val);
+	}
+
+	offset += snprintf(buf + offset, PAGE_SIZE - offset, "\n\nExCA registers:");
+	for (i = 0; i < 0x45; i++) {
+		unsigned char val;
+		if (!(i & 7)) {
+			if (i & 8) {
+				memcpy(buf + offset, " -", 2);
+				offset += 2;
+			} else
+				offset += snprintf(buf + offset, PAGE_SIZE - offset, "\n%02x:", i);
+		}
+		val = exca_readb(socket, i);
+		offset += snprintf(buf + offset, PAGE_SIZE - offset, " %02x", val);
+	}
+	buf[offset++] = '\n';
+	return offset;
+}
+
+static DEVICE_ATTR(yenta_registers, S_IRUSR, show_yenta_registers, NULL);
+
 /*
  * Ugh, mixed-mode cardbus and 16-bit pccard state: things depend
  * on what kind of card is inserted..
@@ -765,6 +799,9 @@ static void yenta_close(struct pci_dev *dev)
 {
 	struct yenta_socket *sock = pci_get_drvdata(dev);
 
+	/* Remove the register attributes */
+	device_remove_file(&dev->dev, &dev_attr_yenta_registers);
+
 	/* we don't want a dying socket registered */
 	pcmcia_unregister_socket(&sock->socket);
 	
@@ -1138,8 +1175,11 @@ static int __devinit yenta_probe (struct pci_dev *dev, const struct pci_device_i
 
 	/* Register it with the pcmcia layer.. */
 	ret = pcmcia_register_socket(&socket->socket);
-	if (ret == 0)
+	if (ret == 0) {
+		/* Add the yenta register attributes */
+		device_create_file(&dev->dev, &dev_attr_yenta_registers);
 		goto out;
+	}
 
  unmap:
 	iounmap(socket->base);

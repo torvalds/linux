@@ -28,7 +28,9 @@
 /*
  * pxa_cpu_suspend()
  *
- * Forces CPU into sleep state
+ * Forces CPU into sleep state.
+ *
+ * r0 = value for PWRMODE M field for desired sleep state
  */
 
 ENTRY(pxa_cpu_suspend)
@@ -53,6 +55,7 @@ ENTRY(pxa_cpu_suspend)
 	mov	r10, sp
 	stmfd	sp!, {r3 - r10}
 
+	mov r5, r0				@ save sleep mode
 	@ preserve phys address of stack
 	mov	r0, sp
 	bl	sleep_phys_sp
@@ -66,7 +69,7 @@ ENTRY(pxa_cpu_suspend)
 	@ (also workaround for sighting 28071)
 
 	@ prepare value for sleep mode
-	mov	r1, #3				@ sleep mode
+	mov	r1, r5				@ sleep mode
 
 	@ prepare pointer to physical address 0 (virtual mapping in generic.c)
 	mov	r2, #UNCACHED_PHYS_0

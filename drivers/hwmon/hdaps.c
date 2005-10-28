@@ -296,11 +296,9 @@ static int hdaps_probe(struct device *dev)
 	return 0;
 }
 
-static int hdaps_resume(struct device *dev, u32 level)
+static int hdaps_resume(struct device *dev)
 {
-	if (level == RESUME_ENABLE)
-		return hdaps_device_init();
-	return 0;
+	return hdaps_device_init();
 }
 
 static struct device_driver hdaps_driver = {

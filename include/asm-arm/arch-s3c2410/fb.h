@@ -13,6 +13,7 @@
  *	07-Sep-2004	RTP	Created file
  *	03-Nov-2004	BJD	Updated and minor cleanups
  *	03-Aug-2005     RTP     Renamed to fb.h
+ *	26-Oct-2005	BJD	Changed name of platdata init
 */
 
 #ifndef __ASM_ARM_FB_H
@@ -64,6 +65,6 @@ struct s3c2410fb_mach_info {
 	unsigned long	lpcsel;
 };
 
-void __init set_s3c2410fb_info(struct s3c2410fb_mach_info *hard_s3c2410fb_info);
+extern void __init s3c24xx_fb_set_platdata(struct s3c2410fb_mach_info *);
 
 #endif /* __ASM_ARM_FB_H */

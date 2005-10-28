@@ -21,7 +21,7 @@
 ENTRY(pxa_cpu_standby)
 	ldr	r0, =PSSR
 	mov	r1, #(PSSR_PH | PSSR_STS)
-	mov	r2, #2
+	mov	r2, #PWRMODE_STANDBY
 	mov	r3, #UNCACHED_PHYS_0	@ Read mem context in.
 	ldr	ip, [r3]
 	b	1f

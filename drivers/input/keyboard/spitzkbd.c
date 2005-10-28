@@ -85,7 +85,7 @@ static int spitz_senses[] = {
 
 struct spitzkbd {
 	unsigned char keycode[ARRAY_SIZE(spitzkbd_keycode)];
-	struct input_dev input;
+	struct input_dev *input;
 	char phys[32];
 
 	spinlock_t lock;
@@ -187,8 +187,7 @@ static void spitzkbd_scankeyboard(struct spitzkbd *spitzkbd_data, struct pt_regs
 
 	spin_lock_irqsave(&spitzkbd_data->lock, flags);
 
-	if (regs)
-		input_regs(&spitzkbd_data->input, regs);
+	input_regs(spitzkbd_data->input, regs);
 
 	num_pressed = 0;
 	for (col = 0; col < KB_COLS; col++) {
@@ -210,7 +209,7 @@ static void spitzkbd_scankeyboard(struct spitzkbd *spitzkbd_data, struct pt_regs
 			scancode = SCANCODE(row, col);
 			pressed = rowd & KB_ROWMASK(row);
 
-			input_report_key(&spitzkbd_data->input, spitzkbd_data->keycode[scancode], pressed);
+			input_report_key(spitzkbd_data->input, spitzkbd_data->keycode[scancode], pressed);
 
 			if (pressed)
 				num_pressed++;
@@ -220,15 +219,15 @@ static void spitzkbd_scankeyboard(struct spitzkbd *spitzkbd_data, struct pt_regs
 
 	spitzkbd_activate_all();
 
-	input_report_key(&spitzkbd_data->input, SPITZ_KEY_SYNC, (GPLR(SPITZ_GPIO_SYNC) & GPIO_bit(SPITZ_GPIO_SYNC)) != 0 );
-	input_report_key(&spitzkbd_data->input, KEY_SUSPEND, pwrkey);
+	input_report_key(spitzkbd_data->input, SPITZ_KEY_SYNC, (GPLR(SPITZ_GPIO_SYNC) & GPIO_bit(SPITZ_GPIO_SYNC)) != 0 );
+	input_report_key(spitzkbd_data->input, KEY_SUSPEND, pwrkey);
 
 	if (pwrkey && time_after(jiffies, spitzkbd_data->suspend_jiffies + msecs_to_jiffies(1000))) {
-		input_event(&spitzkbd_data->input, EV_PWR, KEY_SUSPEND, 1);
+		input_event(spitzkbd_data->input, EV_PWR, KEY_SUSPEND, 1);
 		spitzkbd_data->suspend_jiffies = jiffies;
 	}
 
-	input_sync(&spitzkbd_data->input);
+	input_sync(spitzkbd_data->input);
 
 	/* if any keys are pressed, enable the timer */
 	if (num_pressed)
@@ -259,6 +258,7 @@ static irqreturn_t spitzkbd_interrupt(int irq, void *dev_id, struct pt_regs *reg
 static void spitzkbd_timer_callback(unsigned long data)
 {
 	struct spitzkbd *spitzkbd_data = (struct spitzkbd *) data;
+
 	spitzkbd_scankeyboard(spitzkbd_data, NULL);
 }
 
@@ -298,9 +298,9 @@ static void spitzkbd_hinge_timer(unsigned long data)
 	if (hinge_count >= HINGE_STABLE_COUNT) {
 		spin_lock_irqsave(&spitzkbd_data->lock, flags);
 
-		input_report_switch(&spitzkbd_data->input, SW_0, ((GPLR(SPITZ_GPIO_SWA) & GPIO_bit(SPITZ_GPIO_SWA)) != 0));
-		input_report_switch(&spitzkbd_data->input, SW_1, ((GPLR(SPITZ_GPIO_SWB) & GPIO_bit(SPITZ_GPIO_SWB)) != 0));
-		input_sync(&spitzkbd_data->input);
+		input_report_switch(spitzkbd_data->input, SW_0, ((GPLR(SPITZ_GPIO_SWA) & GPIO_bit(SPITZ_GPIO_SWA)) != 0));
+		input_report_switch(spitzkbd_data->input, SW_1, ((GPLR(SPITZ_GPIO_SWB) & GPIO_bit(SPITZ_GPIO_SWB)) != 0));
+		input_sync(spitzkbd_data->input);
 
 		spin_unlock_irqrestore(&spitzkbd_data->lock, flags);
 	} else {
@@ -309,34 +309,32 @@ static void spitzkbd_hinge_timer(unsigned long data)
 }
 
 #ifdef CONFIG_PM
-static int spitzkbd_suspend(struct device *dev, pm_message_t state, uint32_t level)
+static int spitzkbd_suspend(struct device *dev, pm_message_t state)
 {
-	if (level == SUSPEND_POWER_DOWN) {
-		int i;
-		struct spitzkbd *spitzkbd = dev_get_drvdata(dev);
-		spitzkbd->suspended = 1;
+	int i;
+	struct spitzkbd *spitzkbd = dev_get_drvdata(dev);
+	spitzkbd->suspended = 1;
 
-		/* Set Strobe lines as inputs - *except* strobe line 0 leave this
-		   enabled so we can detect a power button press for resume */
-		for (i = 1; i < SPITZ_KEY_STROBE_NUM; i++)
-			pxa_gpio_mode(spitz_strobes[i] | GPIO_IN);
-	}
+	/* Set Strobe lines as inputs - *except* strobe line 0 leave this
+	   enabled so we can detect a power button press for resume */
+	for (i = 1; i < SPITZ_KEY_STROBE_NUM; i++)
+		pxa_gpio_mode(spitz_strobes[i] | GPIO_IN);
+
 	return 0;
 }
 
-static int spitzkbd_resume(struct device *dev, uint32_t level)
+static int spitzkbd_resume(struct device *dev)
 {
-	if (level == RESUME_POWER_ON) {
-		int i;
-		struct spitzkbd *spitzkbd = dev_get_drvdata(dev);
+	int i;
+	struct spitzkbd *spitzkbd = dev_get_drvdata(dev);
 
-		for (i = 0; i < SPITZ_KEY_STROBE_NUM; i++)
-			pxa_gpio_mode(spitz_strobes[i] | GPIO_OUT | GPIO_DFLT_HIGH);
+	for (i = 0; i < SPITZ_KEY_STROBE_NUM; i++)
+		pxa_gpio_mode(spitz_strobes[i] | GPIO_OUT | GPIO_DFLT_HIGH);
 
-		/* Upon resume, ignore the suspend key for a short while */
-		spitzkbd->suspend_jiffies = jiffies;
-		spitzkbd->suspended = 0;
-	}
+	/* Upon resume, ignore the suspend key for a short while */
+	spitzkbd->suspend_jiffies = jiffies;
+	spitzkbd->suspended = 0;
+
 	return 0;
 }
 #else
@@ -346,14 +344,21 @@ static int spitzkbd_resume(struct device *dev, uint32_t level)
 
 static int __init spitzkbd_probe(struct device *dev)
 {
-	int i;
 	struct spitzkbd *spitzkbd;
+	struct input_dev *input_dev;
+	int i;
 
 	spitzkbd = kzalloc(sizeof(struct spitzkbd), GFP_KERNEL);
 	if (!spitzkbd)
 		return -ENOMEM;
 
-	dev_set_drvdata(dev,spitzkbd);
+	input_dev = input_allocate_device();
+	if (!input_dev) {
+		kfree(spitzkbd);
+		return -ENOMEM;
+	}
+
+	dev_set_drvdata(dev, spitzkbd);
 	strcpy(spitzkbd->phys, "spitzkbd/input0");
 
 	spin_lock_init(&spitzkbd->lock);
@@ -368,30 +373,34 @@ static int __init spitzkbd_probe(struct device *dev)
 	spitzkbd->htimer.function = spitzkbd_hinge_timer;
 	spitzkbd->htimer.data = (unsigned long) spitzkbd;
 
-	spitzkbd->suspend_jiffies=jiffies;
+	spitzkbd->suspend_jiffies = jiffies;
 
-	init_input_dev(&spitzkbd->input);
-	spitzkbd->input.private = spitzkbd;
-	spitzkbd->input.name = "Spitz Keyboard";
-	spitzkbd->input.dev = dev;
-	spitzkbd->input.phys = spitzkbd->phys;
-	spitzkbd->input.id.bustype = BUS_HOST;
-	spitzkbd->input.id.vendor = 0x0001;
-	spitzkbd->input.id.product = 0x0001;
-	spitzkbd->input.id.version = 0x0100;
-	spitzkbd->input.evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_PWR) | BIT(EV_SW);
-	spitzkbd->input.keycode = spitzkbd->keycode;
-	spitzkbd->input.keycodesize = sizeof(unsigned char);
-	spitzkbd->input.keycodemax = ARRAY_SIZE(spitzkbd_keycode);
+	spitzkbd->input = input_dev;
+
+	input_dev->private = spitzkbd;
+	input_dev->name = "Spitz Keyboard";
+	input_dev->phys = spitzkbd->phys;
+	input_dev->cdev.dev = dev;
+
+	input_dev->id.bustype = BUS_HOST;
+	input_dev->id.vendor = 0x0001;
+	input_dev->id.product = 0x0001;
+	input_dev->id.version = 0x0100;
+
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_PWR) | BIT(EV_SW);
+	input_dev->keycode = spitzkbd->keycode;
+	input_dev->keycodesize = sizeof(unsigned char);
+	input_dev->keycodemax = ARRAY_SIZE(spitzkbd_keycode);
 
 	memcpy(spitzkbd->keycode, spitzkbd_keycode, sizeof(spitzkbd->keycode));
 	for (i = 0; i < ARRAY_SIZE(spitzkbd_keycode); i++)
-		set_bit(spitzkbd->keycode[i], spitzkbd->input.keybit);
-	clear_bit(0, spitzkbd->input.keybit);
-	set_bit(SW_0, spitzkbd->input.swbit);
-	set_bit(SW_1, spitzkbd->input.swbit);
+		set_bit(spitzkbd->keycode[i], input_dev->keybit);
+	clear_bit(0, input_dev->keybit);
+	set_bit(SW_0, input_dev->swbit);
+	set_bit(SW_1, input_dev->swbit);
 
-	input_register_device(&spitzkbd->input);
+	input_register_device(input_dev);
+
 	mod_timer(&spitzkbd->htimer, jiffies + msecs_to_jiffies(HINGE_SCAN_INTERVAL));
 
 	/* Setup sense interrupts - RisingEdge Detect, sense lines as inputs */
@@ -444,7 +453,7 @@ static int spitzkbd_remove(struct device *dev)
 	del_timer_sync(&spitzkbd->htimer);
 	del_timer_sync(&spitzkbd->timer);
 
-	input_unregister_device(&spitzkbd->input);
+	input_unregister_device(spitzkbd->input);
 
 	kfree(spitzkbd);
 

@@ -57,11 +57,9 @@ static unsigned char nkbd_keycode[128] = {
 	KEY_LEFT, KEY_RIGHT, KEY_DOWN, KEY_UP, 0
 };
 
-static char *nkbd_name = "Newton Keyboard";
-
 struct nkbd {
 	unsigned char keycode[128];
-	struct input_dev dev;
+	struct input_dev *dev;
 	struct serio *serio;
 	char phys[32];
 };
@@ -73,13 +71,13 @@ static irqreturn_t nkbd_interrupt(struct serio *serio,
 
 	/* invalid scan codes are probably the init sequence, so we ignore them */
 	if (nkbd->keycode[data & NKBD_KEY]) {
-		input_regs(&nkbd->dev, regs);
-		input_report_key(&nkbd->dev, nkbd->keycode[data & NKBD_KEY], data & NKBD_PRESS);
-		input_sync(&nkbd->dev);
+		input_regs(nkbd->dev, regs);
+		input_report_key(nkbd->dev, nkbd->keycode[data & NKBD_KEY], data & NKBD_PRESS);
+		input_sync(nkbd->dev);
 	}
 
 	else if (data == 0xe7) /* end of init sequence */
-		printk(KERN_INFO "input: %s on %s\n", nkbd_name, serio->phys);
+		printk(KERN_INFO "input: %s on %s\n", nkbd->dev->name, serio->phys);
 	return IRQ_HANDLED;
 
 }
@@ -87,62 +85,59 @@ static irqreturn_t nkbd_interrupt(struct serio *serio,
 static int nkbd_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct nkbd *nkbd;
+	struct input_dev *input_dev;
+	int err = -ENOMEM;
 	int i;
-	int err;
 
-	if (!(nkbd = kmalloc(sizeof(struct nkbd), GFP_KERNEL)))
-		return -ENOMEM;
-
-	memset(nkbd, 0, sizeof(struct nkbd));
-
-	nkbd->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
+	nkbd = kzalloc(sizeof(struct nkbd), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!nkbd || !input_dev)
+		goto fail;
 
 	nkbd->serio = serio;
+	nkbd->dev = input_dev;
+	sprintf(nkbd->phys, "%s/input0", serio->phys);
+	memcpy(nkbd->keycode, nkbd_keycode, sizeof(nkbd->keycode));
 
-	init_input_dev(&nkbd->dev);
-	nkbd->dev.keycode = nkbd->keycode;
-	nkbd->dev.keycodesize = sizeof(unsigned char);
-	nkbd->dev.keycodemax = ARRAY_SIZE(nkbd_keycode);
-	nkbd->dev.private = nkbd;
+	input_dev->name = "Newton Keyboard";
+	input_dev->phys = nkbd->phys;
+	input_dev->id.bustype = BUS_RS232;
+	input_dev->id.vendor = SERIO_NEWTON;
+	input_dev->id.product = 0x0001;
+	input_dev->id.version = 0x0100;
+	input_dev->cdev.dev = &serio->dev;
+	input_dev->private = nkbd;
+
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
+	input_dev->keycode = nkbd->keycode;
+	input_dev->keycodesize = sizeof(unsigned char);
+	input_dev->keycodemax = ARRAY_SIZE(nkbd_keycode);
+	for (i = 0; i < 128; i++)
+		set_bit(nkbd->keycode[i], input_dev->keybit);
+	clear_bit(0, input_dev->keybit);
 
 	serio_set_drvdata(serio, nkbd);
 
 	err = serio_open(serio, drv);
-	if (err) {
-		serio_set_drvdata(serio, NULL);
-		kfree(nkbd);
-		return err;
-	}
+	if (err)
+		goto fail;
 
-	memcpy(nkbd->keycode, nkbd_keycode, sizeof(nkbd->keycode));
-	for (i = 0; i < 128; i++)
-		set_bit(nkbd->keycode[i], nkbd->dev.keybit);
-	clear_bit(0, nkbd->dev.keybit);
-
-	sprintf(nkbd->phys, "%s/input0", serio->phys);
-
-	nkbd->dev.name = nkbd_name;
-	nkbd->dev.phys = nkbd->phys;
-	nkbd->dev.id.bustype = BUS_RS232;
-	nkbd->dev.id.vendor = SERIO_NEWTON;
-	nkbd->dev.id.product = 0x0001;
-	nkbd->dev.id.version = 0x0100;
-	nkbd->dev.dev = &serio->dev;
-
-	input_register_device(&nkbd->dev);
-
-	printk(KERN_INFO "input: %s on %s\n", nkbd_name, serio->phys);
-
+	input_register_device(nkbd->dev);
 	return 0;
+
+ fail:	serio_set_drvdata(serio, NULL);
+	input_free_device(input_dev);
+	kfree(nkbd);
+	return err;
 }
 
 static void nkbd_disconnect(struct serio *serio)
 {
 	struct nkbd *nkbd = serio_get_drvdata(serio);
 
-	input_unregister_device(&nkbd->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
+	input_unregister_device(nkbd->dev);
 	kfree(nkbd);
 }
 

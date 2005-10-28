@@ -64,7 +64,7 @@
 
 struct budget_ci {
 	struct budget budget;
-	struct input_dev input_dev;
+	struct input_dev *input_dev;
 	struct tasklet_struct msp430_irq_tasklet;
 	struct tasklet_struct ciintf_irq_tasklet;
 	int slot_status;
@@ -145,7 +145,7 @@ static void msp430_ir_debounce(unsigned long data)
 static void msp430_ir_interrupt(unsigned long data)
 {
 	struct budget_ci *budget_ci = (struct budget_ci *) data;
-	struct input_dev *dev = &budget_ci->input_dev;
+	struct input_dev *dev = budget_ci->input_dev;
 	unsigned int code =
 		ttpci_budget_debiread(&budget_ci->budget, DEBINOSWAP, DEBIADDR_IR, 2, 1, 0) >> 8;
 
@@ -181,25 +181,27 @@ static void msp430_ir_interrupt(unsigned long data)
 static int msp430_ir_init(struct budget_ci *budget_ci)
 {
 	struct saa7146_dev *saa = budget_ci->budget.dev;
+	struct input_dev *input_dev;
 	int i;
 
-	memset(&budget_ci->input_dev, 0, sizeof(struct input_dev));
+	budget_ci->input_dev = input_dev = input_allocate_device();
+	if (!input_dev)
+		return -ENOMEM;
 
 	sprintf(budget_ci->ir_dev_name, "Budget-CI dvb ir receiver %s", saa->name);
-	budget_ci->input_dev.name = budget_ci->ir_dev_name;
 
-	set_bit(EV_KEY, budget_ci->input_dev.evbit);
+	input_dev->name = budget_ci->ir_dev_name;
 
-	for (i = 0; i < sizeof(key_map) / sizeof(*key_map); i++)
+	set_bit(EV_KEY, input_dev->evbit);
+	for (i = 0; i < ARRAY_SIZE(key_map); i++)
 		if (key_map[i])
-			set_bit(key_map[i], budget_ci->input_dev.keybit);
+			set_bit(key_map[i], input_dev->keybit);
 
-	input_register_device(&budget_ci->input_dev);
+	input_register_device(budget_ci->input_dev);
 
-	budget_ci->input_dev.timer.function = msp430_ir_debounce;
+	input_dev->timer.function = msp430_ir_debounce;
 
 	saa7146_write(saa, IER, saa7146_read(saa, IER) | MASK_06);
-
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_IRQHI);
 
 	return 0;
@@ -208,7 +210,7 @@ static int msp430_ir_init(struct budget_ci *budget_ci)
 static void msp430_ir_deinit(struct budget_ci *budget_ci)
 {
 	struct saa7146_dev *saa = budget_ci->budget.dev;
-	struct input_dev *dev = &budget_ci->input_dev;
+	struct input_dev *dev = budget_ci->input_dev;
 
 	saa7146_write(saa, IER, saa7146_read(saa, IER) & ~MASK_06);
 	saa7146_setgpio(saa, 3, SAA7146_GPIO_INPUT);

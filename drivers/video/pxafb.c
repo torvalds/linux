@@ -981,21 +981,19 @@ pxafb_freq_policy(struct notifier_block *nb, unsigned long val, void *data)
  * Power management hooks.  Note that we won't be called from IRQ context,
  * unlike the blank functions above, so we may sleep.
  */
-static int pxafb_suspend(struct device *dev, pm_message_t state, u32 level)
+static int pxafb_suspend(struct device *dev, pm_message_t state)
 {
 	struct pxafb_info *fbi = dev_get_drvdata(dev);
 
-	if (level == SUSPEND_DISABLE || level == SUSPEND_POWER_DOWN)
-		set_ctrlr_state(fbi, C_DISABLE_PM);
+	set_ctrlr_state(fbi, C_DISABLE_PM);
 	return 0;
 }
 
-static int pxafb_resume(struct device *dev, u32 level)
+static int pxafb_resume(struct device *dev)
 {
 	struct pxafb_info *fbi = dev_get_drvdata(dev);
 
-	if (level == RESUME_ENABLE)
-		set_ctrlr_state(fbi, C_ENABLE_PM);
+	set_ctrlr_state(fbi, C_ENABLE_PM);
 	return 0;
 }
 #else

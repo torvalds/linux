@@ -315,7 +315,7 @@ static struct i2c_driver adm1026_driver = {
 	.detach_client  = adm1026_detach_client,
 };
 
-int adm1026_attach_adapter(struct i2c_adapter *adapter)
+static int adm1026_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON)) {
 		return 0;
@@ -323,7 +323,7 @@ int adm1026_attach_adapter(struct i2c_adapter *adapter)
 	return i2c_probe(adapter, &addr_data, adm1026_detect);
 }
 
-int adm1026_detach_client(struct i2c_client *client)
+static int adm1026_detach_client(struct i2c_client *client)
 {
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->class_dev);
@@ -332,7 +332,7 @@ int adm1026_detach_client(struct i2c_client *client)
 	return 0;
 }
 
-int adm1026_read_value(struct i2c_client *client, u8 reg)
+static int adm1026_read_value(struct i2c_client *client, u8 reg)
 {
 	int res;
 
@@ -346,7 +346,7 @@ int adm1026_read_value(struct i2c_client *client, u8 reg)
 	return res;
 }
 
-int adm1026_write_value(struct i2c_client *client, u8 reg, int value)
+static int adm1026_write_value(struct i2c_client *client, u8 reg, int value)
 {
 	int res;
 
@@ -360,7 +360,7 @@ int adm1026_write_value(struct i2c_client *client, u8 reg, int value)
 	return res;
 }
 
-void adm1026_init_client(struct i2c_client *client)
+static void adm1026_init_client(struct i2c_client *client)
 {
 	int value, i;
 	struct adm1026_data *data = i2c_get_clientdata(client);
@@ -460,7 +460,7 @@ void adm1026_init_client(struct i2c_client *client)
 	}
 }
 
-void adm1026_print_gpio(struct i2c_client *client)
+static void adm1026_print_gpio(struct i2c_client *client)
 {
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	int  i;
@@ -492,7 +492,7 @@ void adm1026_print_gpio(struct i2c_client *client)
 	}
 }
 
-void adm1026_fixup_gpio(struct i2c_client *client)
+static void adm1026_fixup_gpio(struct i2c_client *client)
 {
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	int  i;
@@ -1452,8 +1452,8 @@ static DEVICE_ATTR(temp1_auto_point2_pwm, S_IRUGO, show_auto_pwm_max, NULL);
 static DEVICE_ATTR(temp2_auto_point2_pwm, S_IRUGO, show_auto_pwm_max, NULL);
 static DEVICE_ATTR(temp3_auto_point2_pwm, S_IRUGO, show_auto_pwm_max, NULL);
 
-int adm1026_detect(struct i2c_adapter *adapter, int address,
-		int kind)
+static int adm1026_detect(struct i2c_adapter *adapter, int address,
+			  int kind)
 {
 	int company, verstep;
 	struct i2c_client *new_client;
@@ -1470,12 +1470,10 @@ int adm1026_detect(struct i2c_adapter *adapter, int address,
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access adm1026_{read,write}_value. */
 
-	if (!(data = kmalloc(sizeof(struct adm1026_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct adm1026_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-
-	memset(data, 0, sizeof(struct adm1026_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);

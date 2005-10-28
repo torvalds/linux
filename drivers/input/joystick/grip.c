@@ -55,7 +55,7 @@ MODULE_LICENSE("GPL");
 
 struct grip {
 	struct gameport *gameport;
-	struct input_dev dev[2];
+	struct input_dev *dev[2];
 	unsigned char mode[2];
 	int reads;
 	int bads;
@@ -190,7 +190,7 @@ static void grip_poll(struct gameport *gameport)
 
 	for (i = 0; i < 2; i++) {
 
-		dev = grip->dev + i;
+		dev = grip->dev[i];
 		grip->reads++;
 
 		switch (grip->mode[i]) {
@@ -297,6 +297,7 @@ static void grip_close(struct input_dev *dev)
 static int grip_connect(struct gameport *gameport, struct gameport_driver *drv)
 {
 	struct grip *grip;
+	struct input_dev *input_dev;
 	unsigned int data[GRIP_LENGTH_XT];
 	int i, j, t;
 	int err;
@@ -339,48 +340,56 @@ static int grip_connect(struct gameport *gameport, struct gameport_driver *drv)
 	gameport_set_poll_handler(gameport, grip_poll);
 	gameport_set_poll_interval(gameport, 20);
 
-	for (i = 0; i < 2; i++)
-		if (grip->mode[i]) {
+	for (i = 0; i < 2; i++) {
+		if (!grip->mode[i])
+			continue;
 
-			sprintf(grip->phys[i], "%s/input%d", gameport->phys, i);
-
-			grip->dev[i].private = grip;
-
-			grip->dev[i].open = grip_open;
-			grip->dev[i].close = grip_close;
-
-			grip->dev[i].name = grip_name[grip->mode[i]];
-			grip->dev[i].phys = grip->phys[i];
-			grip->dev[i].id.bustype = BUS_GAMEPORT;
-			grip->dev[i].id.vendor = GAMEPORT_ID_VENDOR_GRAVIS;
-			grip->dev[i].id.product = grip->mode[i];
-			grip->dev[i].id.version = 0x0100;
-
-			grip->dev[i].evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-
-			for (j = 0; (t = grip_abs[grip->mode[i]][j]) >= 0; j++) {
-
-				if (j < grip_cen[grip->mode[i]])
-					input_set_abs_params(&grip->dev[i], t, 14, 52, 1, 2);
-				else if (j < grip_anx[grip->mode[i]])
-					input_set_abs_params(&grip->dev[i], t, 3, 57, 1, 0);
-				else
-					input_set_abs_params(&grip->dev[i], t, -1, 1, 0, 0);
-			}
-
-			for (j = 0; (t = grip_btn[grip->mode[i]][j]) >= 0; j++)
-				if (t > 0)
-					set_bit(t, grip->dev[i].keybit);
-
-			printk(KERN_INFO "input: %s on %s\n",
-				grip_name[grip->mode[i]], gameport->phys);
-			input_register_device(grip->dev + i);
+		grip->dev[i] = input_dev = input_allocate_device();
+		if (!input_dev) {
+			err = -ENOMEM;
+			goto fail3;
 		}
+
+		sprintf(grip->phys[i], "%s/input%d", gameport->phys, i);
+
+		input_dev->name = grip_name[grip->mode[i]];
+		input_dev->phys = grip->phys[i];
+		input_dev->id.bustype = BUS_GAMEPORT;
+		input_dev->id.vendor = GAMEPORT_ID_VENDOR_GRAVIS;
+		input_dev->id.product = grip->mode[i];
+		input_dev->id.version = 0x0100;
+		input_dev->cdev.dev = &gameport->dev;
+		input_dev->private = grip;
+
+		input_dev->open = grip_open;
+		input_dev->close = grip_close;
+
+		input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+
+		for (j = 0; (t = grip_abs[grip->mode[i]][j]) >= 0; j++) {
+
+			if (j < grip_cen[grip->mode[i]])
+				input_set_abs_params(input_dev, t, 14, 52, 1, 2);
+			else if (j < grip_anx[grip->mode[i]])
+				input_set_abs_params(input_dev, t, 3, 57, 1, 0);
+			else
+				input_set_abs_params(input_dev, t, -1, 1, 0, 0);
+		}
+
+		for (j = 0; (t = grip_btn[grip->mode[i]][j]) >= 0; j++)
+			if (t > 0)
+				set_bit(t, input_dev->keybit);
+
+		input_register_device(grip->dev[i]);
+	}
 
 	return 0;
 
-fail2:	gameport_close(gameport);
-fail1:	gameport_set_drvdata(gameport, NULL);
+ fail3: for (i = 0; i < 2; i++)
+		if (grip->dev[i])
+			input_unregister_device(grip->dev[i]);
+ fail2:	gameport_close(gameport);
+ fail1:	gameport_set_drvdata(gameport, NULL);
 	kfree(grip);
 	return err;
 }
@@ -391,8 +400,8 @@ static void grip_disconnect(struct gameport *gameport)
 	int i;
 
 	for (i = 0; i < 2; i++)
-		if (grip->mode[i])
-			input_unregister_device(grip->dev + i);
+		if (grip->dev[i])
+			input_unregister_device(grip->dev[i]);
 	gameport_close(gameport);
 	gameport_set_drvdata(gameport, NULL);
 	kfree(grip);

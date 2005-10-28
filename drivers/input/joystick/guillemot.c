@@ -67,7 +67,7 @@ struct guillemot_type {
 
 struct guillemot {
 	struct gameport *gameport;
-	struct input_dev dev;
+	struct input_dev *dev;
 	int bads;
 	int reads;
 	struct guillemot_type *type;
@@ -123,7 +123,7 @@ static int guillemot_read_packet(struct gameport *gameport, u8 *data)
 static void guillemot_poll(struct gameport *gameport)
 {
 	struct guillemot *guillemot = gameport_get_drvdata(gameport);
-	struct input_dev *dev = &guillemot->dev;
+	struct input_dev *dev = guillemot->dev;
 	u8 data[GUILLEMOT_MAX_LENGTH];
 	int i;
 
@@ -179,14 +179,20 @@ static void guillemot_close(struct input_dev *dev)
 static int guillemot_connect(struct gameport *gameport, struct gameport_driver *drv)
 {
 	struct guillemot *guillemot;
+	struct input_dev *input_dev;
 	u8 data[GUILLEMOT_MAX_LENGTH];
 	int i, t;
 	int err;
 
-	if (!(guillemot = kzalloc(sizeof(struct guillemot), GFP_KERNEL)))
-		return -ENOMEM;
+	guillemot = kzalloc(sizeof(struct guillemot), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!guillemot || !input_dev) {
+		err = -ENOMEM;
+		goto fail1;
+	}
 
 	guillemot->gameport = gameport;
+	guillemot->dev = input_dev;
 
 	gameport_set_drvdata(gameport, guillemot);
 
@@ -216,41 +222,40 @@ static int guillemot_connect(struct gameport *gameport, struct gameport_driver *
 	gameport_set_poll_interval(gameport, 20);
 
 	sprintf(guillemot->phys, "%s/input0", gameport->phys);
-
 	guillemot->type = guillemot_type + i;
 
-	guillemot->dev.private = guillemot;
-	guillemot->dev.open = guillemot_open;
-	guillemot->dev.close = guillemot_close;
+	input_dev->name = guillemot_type[i].name;
+	input_dev->phys = guillemot->phys;
+	input_dev->id.bustype = BUS_GAMEPORT;
+	input_dev->id.vendor = GAMEPORT_ID_VENDOR_GUILLEMOT;
+	input_dev->id.product = guillemot_type[i].id;
+	input_dev->id.version = (int)data[14] << 8 | data[15];
+	input_dev->cdev.dev = &gameport->dev;
+	input_dev->private = guillemot;
 
-	guillemot->dev.name = guillemot_type[i].name;
-	guillemot->dev.phys = guillemot->phys;
-	guillemot->dev.id.bustype = BUS_GAMEPORT;
-	guillemot->dev.id.vendor = GAMEPORT_ID_VENDOR_GUILLEMOT;
-	guillemot->dev.id.product = guillemot_type[i].id;
-	guillemot->dev.id.version = (int)data[14] << 8 | data[15];
+	input_dev->open = guillemot_open;
+	input_dev->close = guillemot_close;
 
-	guillemot->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 
 	for (i = 0; (t = guillemot->type->abs[i]) >= 0; i++)
-		input_set_abs_params(&guillemot->dev, t, 0, 255, 0, 0);
+		input_set_abs_params(input_dev, t, 0, 255, 0, 0);
 
 	if (guillemot->type->hat) {
-		input_set_abs_params(&guillemot->dev, ABS_HAT0X, -1, 1, 0, 0);
-		input_set_abs_params(&guillemot->dev, ABS_HAT0Y, -1, 1, 0, 0);
+		input_set_abs_params(input_dev, ABS_HAT0X, -1, 1, 0, 0);
+		input_set_abs_params(input_dev, ABS_HAT0Y, -1, 1, 0, 0);
 	}
 
 	for (i = 0; (t = guillemot->type->btn[i]) >= 0; i++)
-		set_bit(t, guillemot->dev.keybit);
+		set_bit(t, input_dev->keybit);
 
-	input_register_device(&guillemot->dev);
-	printk(KERN_INFO "input: %s ver %d.%02d on %s\n",
-		guillemot->type->name, data[14], data[15], gameport->phys);
+	input_register_device(guillemot->dev);
 
 	return 0;
 
 fail2:	gameport_close(gameport);
 fail1:  gameport_set_drvdata(gameport, NULL);
+	input_free_device(input_dev);
 	kfree(guillemot);
 	return err;
 }
@@ -260,7 +265,7 @@ static void guillemot_disconnect(struct gameport *gameport)
 	struct guillemot *guillemot = gameport_get_drvdata(gameport);
 
 	printk(KERN_INFO "guillemot.c: Failed %d reads out of %d on %s\n", guillemot->reads, guillemot->bads, guillemot->phys);
-	input_unregister_device(&guillemot->dev);
+	input_unregister_device(guillemot->dev);
 	gameport_close(gameport);
 	kfree(guillemot);
 }

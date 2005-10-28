@@ -6,6 +6,7 @@
  * thanks to Philipp Rumpf, Mike Shaver and various others
  * sorry about the wall, puffin..
  */
+#include <linux/config.h> /* for CONFIG_SMP */
 
 #include <asm/asm-offsets.h>
 #include <asm/unistd.h>
@@ -22,15 +23,13 @@
 	 */
 #define KILL_INSN	break	0,0
 
-#include <linux/config.h> /* for CONFIG_SMP */
-
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	.level          2.0w
 #else
 	.level		1.1
 #endif
 
-#ifndef __LP64__
+#ifndef CONFIG_64BIT
 	.macro fixup_branch,lbl
 	b	    \lbl
 	.endm
@@ -103,7 +102,7 @@ linux_gateway_entry:
 	mfsp    %sr7,%r1                        /* save user sr7 */
 	mtsp    %r1,%sr3                        /* and store it in sr3 */
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	/* for now we can *always* set the W bit on entry to the syscall
 	 * since we don't support wide userland processes.  We could
 	 * also save the current SM other than in r0 and restore it on
@@ -155,7 +154,7 @@ linux_gateway_entry:
 	STREG	%r19, TASK_PT_GR19(%r1)
 
 	LDREGM	-FRAME_SIZE(%r30), %r2		/* get users sp back */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	extrd,u	%r2,63,1,%r19			/* W hidden in bottom bit */
 #if 0
 	xor	%r19,%r2,%r2			/* clear bottom bit */
@@ -186,7 +185,7 @@ linux_gateway_entry:
 
 	loadgp
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29			/* Reference param save area */
 	copy	%r19,%r2			/* W bit back to r2 */
 #else
@@ -205,7 +204,7 @@ linux_gateway_entry:
 	/* Note!  We cannot use the syscall table that is mapped
 	nearby since the gateway page is mapped execute-only. */
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	ldil	L%sys_call_table, %r1
 	or,=	%r2,%r2,%r2
 	addil	L%(sys_call_table64-sys_call_table), %r1
@@ -321,7 +320,7 @@ tracesys_next:
 	LDREG   TASK_PT_GR25(%r1), %r25
 	LDREG   TASK_PT_GR24(%r1), %r24
 	LDREG   TASK_PT_GR23(%r1), %r23
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	LDREG   TASK_PT_GR22(%r1), %r22
 	LDREG   TASK_PT_GR21(%r1), %r21
 	ldo	-16(%r30),%r29			/* Reference param save area */
@@ -350,7 +349,7 @@ tracesys_next:
 tracesys_exit:
 	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
 	LDREG	TI_TASK(%r1), %r1
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif
 	bl	syscall_trace, %r2
@@ -371,7 +370,7 @@ tracesys_exit:
 tracesys_sigexit:
 	ldo     -THREAD_SZ_ALGN-FRAME_SIZE(%r30),%r1      /* get task ptr */
 	LDREG	0(%r1), %r1
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	ldo	-16(%r30),%r29			/* Reference param save area */
 #endif
 	bl	syscall_trace, %r2
@@ -404,7 +403,7 @@ lws_start:
 	gate	.+8, %r0
 	depi	3, 31, 2, %r31	/* Ensure we return to userspace */
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	/* FIXME: If we are a 64-bit kernel just
 	 *        turn this on unconditionally.
 	 */
@@ -440,7 +439,7 @@ lws_exit_nosys:
 	/* Fall through: Return to userspace */
 
 lws_exit:
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	/* decide whether to reset the wide mode bit
 	 *
 	 * For a syscall, the W bit is stored in the lowest bit
@@ -486,7 +485,7 @@ lws_exit:
 
 	/* ELF64 Process entry path */
 lws_compare_and_swap64:
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	b,n	lws_compare_and_swap
 #else
 	/* If we are not a 64-bit kernel, then we don't
@@ -497,7 +496,7 @@ lws_compare_and_swap64:
 
 	/* ELF32 Process entry path */
 lws_compare_and_swap32:
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	/* Clip all the input registers */
 	depdi	0, 31, 32, %r26
 	depdi	0, 31, 32, %r25
@@ -608,7 +607,7 @@ cas_action:
 	   the other for the store. Either return -EFAULT.
 	   Each of the entries must be relocated. */
 	.section __ex_table,"aw"
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	/* Pad the address calculation */
 	.word	0,(2b - linux_gateway_page)
 	.word	0,(3b - linux_gateway_page)
@@ -619,7 +618,7 @@ cas_action:
 	.previous
 
 	.section __ex_table,"aw"
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	/* Pad the address calculation */
 	.word	0,(1b - linux_gateway_page)
 	.word	0,(3b - linux_gateway_page)
@@ -638,7 +637,7 @@ end_linux_gateway_page:
 
 	/* Relocate symbols assuming linux_gateway_page is mapped
 	   to virtual address 0x0 */
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	/* FIXME: The code will always be on the gateay page
 		  and thus it will be on the first 4k, the
 		  assembler seems to think that the final
@@ -666,7 +665,7 @@ lws_table:
 sys_call_table:
 #include "syscall_table.S"
 
-#ifdef __LP64__
+#ifdef CONFIG_64BIT
 	.align 4096
 	.export sys_call_table64
 .Lsys_call_table64:

@@ -93,6 +93,20 @@ int ethtool_op_get_perm_addr(struct net_device *dev, struct ethtool_perm_addr *a
 }
  
 
+u32 ethtool_op_get_ufo(struct net_device *dev)
+{
+	return (dev->features & NETIF_F_UFO) != 0;
+}
+
+int ethtool_op_set_ufo(struct net_device *dev, u32 data)
+{
+	if (data)
+		dev->features |= NETIF_F_UFO;
+	else
+		dev->features &= ~NETIF_F_UFO;
+	return 0;
+}
+
 /* Handlers for each ethtool command */
 
 static int ethtool_get_settings(struct net_device *dev, void __user *useraddr)
@@ -483,6 +497,11 @@ static int __ethtool_set_sg(struct net_device *dev, u32 data)
 			return err;
 	}
 
+	if (!data && dev->ethtool_ops->set_ufo) {
+		err = dev->ethtool_ops->set_ufo(dev, 0);
+		if (err)
+			return err;
+	}
 	return dev->ethtool_ops->set_sg(dev, data);
 }
 
@@ -567,6 +586,32 @@ static int ethtool_set_tso(struct net_device *dev, char __user *useraddr)
 		return -EINVAL;
 
 	return dev->ethtool_ops->set_tso(dev, edata.data);
+}
+
+static int ethtool_get_ufo(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_value edata = { ETHTOOL_GTSO };
+
+	if (!dev->ethtool_ops->get_ufo)
+		return -EOPNOTSUPP;
+	edata.data = dev->ethtool_ops->get_ufo(dev);
+	if (copy_to_user(useraddr, &edata, sizeof(edata)))
+		 return -EFAULT;
+	return 0;
+}
+static int ethtool_set_ufo(struct net_device *dev, char __user *useraddr)
+{
+	struct ethtool_value edata;
+
+	if (!dev->ethtool_ops->set_ufo)
+		return -EOPNOTSUPP;
+	if (copy_from_user(&edata, useraddr, sizeof(edata)))
+		return -EFAULT;
+	if (edata.data && !(dev->features & NETIF_F_SG))
+		return -EINVAL;
+	if (edata.data && !(dev->features & NETIF_F_HW_CSUM))
+		return -EINVAL;
+	return dev->ethtool_ops->set_ufo(dev, edata.data);
 }
 
 static int ethtool_self_test(struct net_device *dev, char __user *useraddr)
@@ -854,6 +899,12 @@ int dev_ethtool(struct ifreq *ifr)
 	case ETHTOOL_GPERMADDR:
 		rc = ethtool_get_perm_addr(dev, useraddr);
 		break;
+	case ETHTOOL_GUFO:
+		rc = ethtool_get_ufo(dev, useraddr);
+		break;
+	case ETHTOOL_SUFO:
+		rc = ethtool_set_ufo(dev, useraddr);
+		break;
 	default:
 		rc =  -EOPNOTSUPP;
 	}
@@ -882,3 +933,5 @@ EXPORT_SYMBOL(ethtool_op_set_sg);
 EXPORT_SYMBOL(ethtool_op_set_tso);
 EXPORT_SYMBOL(ethtool_op_set_tx_csum);
 EXPORT_SYMBOL(ethtool_op_set_tx_hw_csum);
+EXPORT_SYMBOL(ethtool_op_set_ufo);
+EXPORT_SYMBOL(ethtool_op_get_ufo);

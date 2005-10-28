@@ -395,6 +395,12 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 
 		if (mp->nohomeok && !test_bit(META_forcewrite, &mp->flag)) {
 			redirty = 1;
+			/*
+			 * Make sure this page isn't blocked indefinitely.
+			 * If the journal isn't undergoing I/O, push it
+			 */
+			if (mp->log && !(mp->log->cflag & logGC_PAGEOUT))
+				jfs_flush_journal(mp->log, 0);
 			continue;
 		}
 
