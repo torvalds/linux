@@ -44,7 +44,7 @@ static u64 xpc_sh2_IPI_access3;
 
 
 /* original protection values for each node */
-u64 xpc_prot_vec[MAX_COMPACT_NODES];
+u64 xpc_prot_vec[MAX_NUMNODES];
 
 
 /* this partition's reserved page */

@@ -14,7 +14,7 @@
 extern void * sn_io_addr(unsigned long port) __attribute_const__; /* Forward definition */
 extern void __sn_mmiowb(void); /* Forward definition */
 
-extern int numionodes;
+extern int num_cnodes;
 
 #define __sn_mf_a()   ia64_mfa()
 
