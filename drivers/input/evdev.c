@@ -686,9 +686,9 @@ static struct input_handle *evdev_connect(struct input_handler *handler, struct 
 
 	evdev_table[minor] = evdev;
 
-	class_device_create(input_class, NULL,
+	class_device_create(&input_dev_class, &dev->cdev,
 			MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor),
-			dev->dev, "event%d", minor);
+			dev->cdev.dev, "event%d", minor);
 
 	return &evdev->handle;
 }
@@ -698,7 +698,7 @@ static void evdev_disconnect(struct input_handle *handle)
 	struct evdev *evdev = handle->private;
 	struct evdev_list *list;
 
-	class_device_destroy(input_class,
+	class_device_destroy(&input_dev_class,
 			MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + evdev->minor));
 	evdev->exist = 0;
 

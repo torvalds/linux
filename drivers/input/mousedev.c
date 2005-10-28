@@ -648,9 +648,9 @@ static struct input_handle *mousedev_connect(struct input_handler *handler, stru
 
 	mousedev_table[minor] = mousedev;
 
-	class_device_create(input_class, NULL,
+	class_device_create(&input_dev_class, &dev->cdev,
 			MKDEV(INPUT_MAJOR, MOUSEDEV_MINOR_BASE + minor),
-			dev->dev, "mouse%d", minor);
+			dev->cdev.dev, "mouse%d", minor);
 
 	return &mousedev->handle;
 }
@@ -660,7 +660,7 @@ static void mousedev_disconnect(struct input_handle *handle)
 	struct mousedev *mousedev = handle->private;
 	struct mousedev_list *list;
 
-	class_device_destroy(input_class,
+	class_device_destroy(&input_dev_class,
 			MKDEV(INPUT_MAJOR, MOUSEDEV_MINOR_BASE + mousedev->minor));
 	mousedev->exist = 0;
 
@@ -734,7 +734,7 @@ static int __init mousedev_init(void)
 	mousedev_mix.exist = 1;
 	mousedev_mix.minor = MOUSEDEV_MIX;
 
-	class_device_create(input_class, NULL,
+	class_device_create(&input_dev_class, NULL,
 			MKDEV(INPUT_MAJOR, MOUSEDEV_MINOR_BASE + MOUSEDEV_MIX), NULL, "mice");
 
 #ifdef CONFIG_INPUT_MOUSEDEV_PSAUX
@@ -753,7 +753,7 @@ static void __exit mousedev_exit(void)
 	if (psaux_registered)
 		misc_deregister(&psaux_mouse);
 #endif
-	class_device_destroy(input_class,
+	class_device_destroy(&input_dev_class,
 			MKDEV(INPUT_MAJOR, MOUSEDEV_MINOR_BASE + MOUSEDEV_MIX));
 	input_unregister_handler(&mousedev_handler);
 }

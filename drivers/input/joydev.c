@@ -513,9 +513,9 @@ static struct input_handle *joydev_connect(struct input_handler *handler, struct
 
 	joydev_table[minor] = joydev;
 
-	class_device_create(input_class, NULL,
+	class_device_create(&input_dev_class, &dev->cdev,
 			MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + minor),
-			dev->dev, "js%d", minor);
+			dev->cdev.dev, "js%d", minor);
 
 	return &joydev->handle;
 }
@@ -525,7 +525,7 @@ static void joydev_disconnect(struct input_handle *handle)
 	struct joydev *joydev = handle->private;
 	struct joydev_list *list;
 
-	class_device_destroy(input_class, MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + joydev->minor));
+	class_device_destroy(&input_dev_class, MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + joydev->minor));
 	joydev->exist = 0;
 
 	if (joydev->open) {
