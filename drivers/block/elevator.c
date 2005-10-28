@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/compiler.h>
+#include <linux/delay.h>
 
 #include <asm/uaccess.h>
 
@@ -131,11 +132,7 @@ static int elevator_attach(request_queue_t *q, struct elevator_type *e,
 	eq->ops = &e->ops;
 	eq->elevator_type = e;
 
-	INIT_LIST_HEAD(&q->queue_head);
-	q->last_merge = NULL;
 	q->elevator = eq;
-	q->end_sector = 0;
-	q->boundary_rq = NULL;
 
 	if (eq->ops->elevator_init_fn)
 		ret = eq->ops->elevator_init_fn(q, eq);
@@ -183,6 +180,11 @@ int elevator_init(request_queue_t *q, char *name)
 	struct elevator_type *e = NULL;
 	struct elevator_queue *eq;
 	int ret = 0;
+
+	INIT_LIST_HEAD(&q->queue_head);
+	q->last_merge = NULL;
+	q->end_sector = 0;
+	q->boundary_rq = NULL;
 
 	elevator_setup_default();
 
@@ -336,22 +338,13 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 			q->end_sector = rq_end_sector(rq);
 			q->boundary_rq = rq;
 		}
-	}
+	} else if (!(rq->flags & REQ_ELVPRIV) && where == ELEVATOR_INSERT_SORT)
+		where = ELEVATOR_INSERT_BACK;
 
 	if (plug)
 		blk_plug_device(q);
 
 	rq->q = q;
-
-	if (unlikely(test_bit(QUEUE_FLAG_DRAIN, &q->queue_flags))) {
-		/*
-		 * if drain is set, store the request "locally". when the drain
-		 * is finished, the requests will be handed ordered to the io
-		 * scheduler
-		 */
-		list_add_tail(&rq->queuelist, &q->drain_list);
-		return;
-	}
 
 	switch (where) {
 	case ELEVATOR_INSERT_FRONT:
@@ -659,43 +652,42 @@ EXPORT_SYMBOL_GPL(elv_unregister);
  * switch to new_e io scheduler. be careful not to introduce deadlocks -
  * we don't free the old io scheduler, before we have allocated what we
  * need for the new one. this way we have a chance of going back to the old
- * one, if the new one fails init for some reason. we also do an intermediate
- * switch to noop to ensure safety with stack-allocated requests, since they
- * don't originate from the block layer allocator. noop is safe here, because
- * it never needs to touch the elevator itself for completion events. DRAIN
- * flags will make sure we don't touch it for additions either.
+ * one, if the new one fails init for some reason.
  */
 static void elevator_switch(request_queue_t *q, struct elevator_type *new_e)
 {
-	elevator_t *e = kmalloc(sizeof(elevator_t), GFP_KERNEL);
-	struct elevator_type *noop_elevator = NULL;
-	elevator_t *old_elevator;
+	elevator_t *old_elevator, *e;
 
+	/*
+	 * Allocate new elevator
+	 */
+	e = kmalloc(sizeof(elevator_t), GFP_KERNEL);
 	if (!e)
 		goto error;
 
 	/*
-	 * first step, drain requests from the block freelist
+	 * Turn on BYPASS and drain all requests w/ elevator private data
 	 */
-	blk_wait_queue_drained(q, 0);
+	spin_lock_irq(q->queue_lock);
+
+	set_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
+
+	while (q->elevator->ops->elevator_dispatch_fn(q, 1))
+		;
+
+	while (q->rq.elvpriv) {
+		spin_unlock_irq(q->queue_lock);
+		msleep(10);
+		spin_lock_irq(q->queue_lock);
+	}
+
+	spin_unlock_irq(q->queue_lock);
 
 	/*
 	 * unregister old elevator data
 	 */
 	elv_unregister_queue(q);
 	old_elevator = q->elevator;
-
-	/*
- 	 * next step, switch to noop since it uses no private rq structures
-	 * and doesn't allocate any memory for anything. then wait for any
-	 * non-fs requests in-flight
- 	 */
-	noop_elevator = elevator_get("noop");
-	spin_lock_irq(q->queue_lock);
-	elevator_attach(q, noop_elevator, e);
-	spin_unlock_irq(q->queue_lock);
-
-	blk_wait_queue_drained(q, 1);
 
 	/*
 	 * attach and start new elevator
@@ -707,11 +699,10 @@ static void elevator_switch(request_queue_t *q, struct elevator_type *new_e)
 		goto fail_register;
 
 	/*
-	 * finally exit old elevator and start queue again
+	 * finally exit old elevator and turn off BYPASS.
 	 */
 	elevator_exit(old_elevator);
-	blk_finish_queue_drain(q);
-	elevator_put(noop_elevator);
+	clear_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
 	return;
 
 fail_register:
@@ -720,13 +711,13 @@ fail_register:
 	 * one again (along with re-adding the sysfs dir)
 	 */
 	elevator_exit(e);
+	e = NULL;
 fail:
 	q->elevator = old_elevator;
 	elv_register_queue(q);
-	blk_finish_queue_drain(q);
+	clear_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
+	kfree(e);
 error:
-	if (noop_elevator)
-		elevator_put(noop_elevator);
 	elevator_put(new_e);
 	printk(KERN_ERR "elevator: switch to %s failed\n",new_e->elevator_name);
 }

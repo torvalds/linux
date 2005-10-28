@@ -107,9 +107,9 @@ typedef void (rq_end_io_fn)(struct request *);
 struct request_list {
 	int count[2];
 	int starved[2];
+	int elvpriv;
 	mempool_t *rq_pool;
 	wait_queue_head_t wait[2];
-	wait_queue_head_t drain;
 };
 
 #define BLK_MAX_CDB	16
@@ -211,6 +211,7 @@ enum rq_flag_bits {
 	__REQ_STARTED,		/* drive already may have started this one */
 	__REQ_DONTPREP,		/* don't call prep for this one */
 	__REQ_QUEUED,		/* uses queueing */
+	__REQ_ELVPRIV,		/* elevator private data attached */
 	/*
 	 * for ATA/ATAPI devices
 	 */
@@ -244,6 +245,7 @@ enum rq_flag_bits {
 #define REQ_STARTED	(1 << __REQ_STARTED)
 #define REQ_DONTPREP	(1 << __REQ_DONTPREP)
 #define REQ_QUEUED	(1 << __REQ_QUEUED)
+#define REQ_ELVPRIV	(1 << __REQ_ELVPRIV)
 #define REQ_PC		(1 << __REQ_PC)
 #define REQ_BLOCK_PC	(1 << __REQ_BLOCK_PC)
 #define REQ_SENSE	(1 << __REQ_SENSE)
@@ -413,8 +415,6 @@ struct request_queue
 	unsigned int		sg_reserved_size;
 	int			node;
 
-	struct list_head	drain_list;
-
 	/*
 	 * reserved for flush operations
 	 */
@@ -442,7 +442,7 @@ enum {
 #define QUEUE_FLAG_DEAD		5	/* queue being torn down */
 #define QUEUE_FLAG_REENTER	6	/* Re-entrancy avoidance */
 #define QUEUE_FLAG_PLUGGED	7	/* queue is plugged */
-#define QUEUE_FLAG_DRAIN	8	/* draining queue for sched switch */
+#define QUEUE_FLAG_ELVSWITCH	8	/* don't use elevator, just do FIFO */
 #define QUEUE_FLAG_FLUSH	9	/* doing barrier flush sequence */
 
 #define blk_queue_plugged(q)	test_bit(QUEUE_FLAG_PLUGGED, &(q)->queue_flags)
@@ -668,8 +668,6 @@ extern void blk_dump_rq_flags(struct request *, char *);
 extern void generic_unplug_device(request_queue_t *);
 extern void __generic_unplug_device(request_queue_t *);
 extern long nr_blockdev_pages(void);
-extern void blk_wait_queue_drained(request_queue_t *, int);
-extern void blk_finish_queue_drain(request_queue_t *);
 
 int blk_get_queue(request_queue_t *);
 request_queue_t *blk_alloc_queue(gfp_t);
