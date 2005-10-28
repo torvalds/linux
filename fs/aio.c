@@ -1397,6 +1397,9 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb)
 		if (unlikely(!access_ok(VERIFY_WRITE, kiocb->ki_buf,
 			kiocb->ki_left)))
 			break;
+		ret = security_file_permission(file, MAY_READ);
+		if (unlikely(ret))
+			break;
 		ret = -EINVAL;
 		if (file->f_op->aio_read)
 			kiocb->ki_retry = aio_pread;
@@ -1408,6 +1411,9 @@ static ssize_t aio_setup_iocb(struct kiocb *kiocb)
 		ret = -EFAULT;
 		if (unlikely(!access_ok(VERIFY_READ, kiocb->ki_buf,
 			kiocb->ki_left)))
+			break;
+		ret = security_file_permission(file, MAY_WRITE);
+		if (unlikely(ret))
 			break;
 		ret = -EINVAL;
 		if (file->f_op->aio_write)

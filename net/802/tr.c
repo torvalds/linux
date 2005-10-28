@@ -340,9 +340,10 @@ static void tr_add_rif_info(struct trh_hdr *trh, struct net_device *dev)
 	unsigned int hash, rii_p = 0;
 	unsigned long flags;
 	struct rif_cache *entry;
-
+	unsigned char saddr0;
 
 	spin_lock_irqsave(&rif_lock, flags);
+	saddr0 = trh->saddr[0];
 	
 	/*
 	 *	Firstly see if the entry exists
@@ -395,7 +396,6 @@ printk("adding rif_entry: addr:%02X:%02X:%02X:%02X:%02X:%02X rcf:%04X\n",
 			entry->rcf = trh->rcf & htons((unsigned short)~TR_RCF_BROADCAST_MASK);
 			memcpy(&(entry->rseg[0]),&(trh->rseg[0]),8*sizeof(unsigned short));
 			entry->local_ring = 0;
-			trh->saddr[0]|=TR_RII; /* put the routing indicator back for tcpdump */
 		}
 		else
 		{
@@ -422,6 +422,7 @@ printk("updating rif_entry: addr:%02X:%02X:%02X:%02X:%02X:%02X rcf:%04X\n",
 		    }                                         
            	entry->last_used=jiffies;               
 	}
+	trh->saddr[0]=saddr0; /* put the routing indicator back for tcpdump */
 	spin_unlock_irqrestore(&rif_lock, flags);
 }
 

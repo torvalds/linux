@@ -873,11 +873,9 @@ static inline void netif_rx_complete(struct net_device *dev)
 
 static inline void netif_poll_disable(struct net_device *dev)
 {
-	while (test_and_set_bit(__LINK_STATE_RX_SCHED, &dev->state)) {
+	while (test_and_set_bit(__LINK_STATE_RX_SCHED, &dev->state))
 		/* No hurry. */
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(1);
-	}
+		schedule_timeout_interruptible(1);
 }
 
 static inline void netif_poll_enable(struct net_device *dev)

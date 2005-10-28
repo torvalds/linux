@@ -96,8 +96,8 @@ struct io_context {
 
 void put_io_context(struct io_context *ioc);
 void exit_io_context(void);
-struct io_context *current_io_context(int gfp_flags);
-struct io_context *get_io_context(int gfp_flags);
+struct io_context *current_io_context(gfp_t gfp_flags);
+struct io_context *get_io_context(gfp_t gfp_flags);
 void copy_io_context(struct io_context **pdst, struct io_context **psrc);
 void swap_io_context(struct io_context **ioc1, struct io_context **ioc2);
 
@@ -107,9 +107,9 @@ typedef void (rq_end_io_fn)(struct request *);
 struct request_list {
 	int count[2];
 	int starved[2];
+	int elvpriv;
 	mempool_t *rq_pool;
 	wait_queue_head_t wait[2];
-	wait_queue_head_t drain;
 };
 
 #define BLK_MAX_CDB	16
@@ -203,6 +203,7 @@ struct request {
 enum rq_flag_bits {
 	__REQ_RW,		/* not set, read. set, write */
 	__REQ_FAILFAST,		/* no low level driver retries */
+	__REQ_SORTED,		/* elevator knows about this request */
 	__REQ_SOFTBARRIER,	/* may not be passed by ioscheduler */
 	__REQ_HARDBARRIER,	/* may not be passed by drive either */
 	__REQ_CMD,		/* is a regular fs rw request */
@@ -210,6 +211,7 @@ enum rq_flag_bits {
 	__REQ_STARTED,		/* drive already may have started this one */
 	__REQ_DONTPREP,		/* don't call prep for this one */
 	__REQ_QUEUED,		/* uses queueing */
+	__REQ_ELVPRIV,		/* elevator private data attached */
 	/*
 	 * for ATA/ATAPI devices
 	 */
@@ -235,6 +237,7 @@ enum rq_flag_bits {
 
 #define REQ_RW		(1 << __REQ_RW)
 #define REQ_FAILFAST	(1 << __REQ_FAILFAST)
+#define REQ_SORTED	(1 << __REQ_SORTED)
 #define REQ_SOFTBARRIER	(1 << __REQ_SOFTBARRIER)
 #define REQ_HARDBARRIER	(1 << __REQ_HARDBARRIER)
 #define REQ_CMD		(1 << __REQ_CMD)
@@ -242,6 +245,7 @@ enum rq_flag_bits {
 #define REQ_STARTED	(1 << __REQ_STARTED)
 #define REQ_DONTPREP	(1 << __REQ_DONTPREP)
 #define REQ_QUEUED	(1 << __REQ_QUEUED)
+#define REQ_ELVPRIV	(1 << __REQ_ELVPRIV)
 #define REQ_PC		(1 << __REQ_PC)
 #define REQ_BLOCK_PC	(1 << __REQ_BLOCK_PC)
 #define REQ_SENSE	(1 << __REQ_SENSE)
@@ -333,6 +337,12 @@ struct request_queue
 	end_flush_fn		*end_flush_fn;
 
 	/*
+	 * Dispatch queue sorting
+	 */
+	sector_t		end_sector;
+	struct request		*boundary_rq;
+
+	/*
 	 * Auto-unplugging state
 	 */
 	struct timer_list	unplug_timer;
@@ -354,7 +364,7 @@ struct request_queue
 	 * queue needs bounce pages for pages above this limit
 	 */
 	unsigned long		bounce_pfn;
-	unsigned int		bounce_gfp;
+	gfp_t			bounce_gfp;
 
 	/*
 	 * various queue flags, see QUEUE_* below
@@ -405,8 +415,6 @@ struct request_queue
 	unsigned int		sg_reserved_size;
 	int			node;
 
-	struct list_head	drain_list;
-
 	/*
 	 * reserved for flush operations
 	 */
@@ -434,7 +442,7 @@ enum {
 #define QUEUE_FLAG_DEAD		5	/* queue being torn down */
 #define QUEUE_FLAG_REENTER	6	/* Re-entrancy avoidance */
 #define QUEUE_FLAG_PLUGGED	7	/* queue is plugged */
-#define QUEUE_FLAG_DRAIN	8	/* draining queue for sched switch */
+#define QUEUE_FLAG_ELVSWITCH	8	/* don't use elevator, just do FIFO */
 #define QUEUE_FLAG_FLUSH	9	/* doing barrier flush sequence */
 
 #define blk_queue_plugged(q)	test_bit(QUEUE_FLAG_PLUGGED, &(q)->queue_flags)
@@ -454,6 +462,7 @@ enum {
 #define blk_pm_request(rq)	\
 	((rq)->flags & (REQ_PM_SUSPEND | REQ_PM_RESUME))
 
+#define blk_sorted_rq(rq)	((rq)->flags & REQ_SORTED)
 #define blk_barrier_rq(rq)	((rq)->flags & REQ_HARDBARRIER)
 #define blk_barrier_preflush(rq)	((rq)->flags & REQ_BAR_PREFLUSH)
 #define blk_barrier_postflush(rq)	((rq)->flags & REQ_BAR_POSTFLUSH)
@@ -550,7 +559,7 @@ extern void generic_make_request(struct bio *bio);
 extern void blk_put_request(struct request *);
 extern void blk_end_sync_rq(struct request *rq);
 extern void blk_attempt_remerge(request_queue_t *, struct request *);
-extern struct request *blk_get_request(request_queue_t *, int, int);
+extern struct request *blk_get_request(request_queue_t *, int, gfp_t);
 extern void blk_insert_request(request_queue_t *, struct request *, int, void *);
 extern void blk_requeue_request(request_queue_t *, struct request *);
 extern void blk_plug_device(request_queue_t *);
@@ -565,7 +574,7 @@ extern void blk_run_queue(request_queue_t *);
 extern void blk_queue_activity_fn(request_queue_t *, activity_fn *, void *);
 extern int blk_rq_map_user(request_queue_t *, struct request *, void __user *, unsigned int);
 extern int blk_rq_unmap_user(struct bio *, unsigned int);
-extern int blk_rq_map_kern(request_queue_t *, struct request *, void *, unsigned int, unsigned int);
+extern int blk_rq_map_kern(request_queue_t *, struct request *, void *, unsigned int, gfp_t);
 extern int blk_rq_map_user_iov(request_queue_t *, struct request *, struct sg_iovec *, int);
 extern int blk_execute_rq(request_queue_t *, struct gendisk *,
 			  struct request *, int);
@@ -611,12 +620,21 @@ extern void end_request(struct request *req, int uptodate);
 
 static inline void blkdev_dequeue_request(struct request *req)
 {
-	BUG_ON(list_empty(&req->queuelist));
+	elv_dequeue_request(req->q, req);
+}
 
-	list_del_init(&req->queuelist);
+/*
+ * This should be in elevator.h, but that requires pulling in rq and q
+ */
+static inline void elv_dispatch_add_tail(struct request_queue *q,
+					 struct request *rq)
+{
+	if (q->last_merge == rq)
+		q->last_merge = NULL;
 
-	if (req->rl)
-		elv_remove_request(req->q, req);
+	q->end_sector = rq_end_sector(rq);
+	q->boundary_rq = rq;
+	list_add_tail(&rq->queuelist, &q->queue_head);
 }
 
 /*
@@ -650,12 +668,10 @@ extern void blk_dump_rq_flags(struct request *, char *);
 extern void generic_unplug_device(request_queue_t *);
 extern void __generic_unplug_device(request_queue_t *);
 extern long nr_blockdev_pages(void);
-extern void blk_wait_queue_drained(request_queue_t *, int);
-extern void blk_finish_queue_drain(request_queue_t *);
 
 int blk_get_queue(request_queue_t *);
-request_queue_t *blk_alloc_queue(int gfp_mask);
-request_queue_t *blk_alloc_queue_node(int,int);
+request_queue_t *blk_alloc_queue(gfp_t);
+request_queue_t *blk_alloc_queue_node(gfp_t, int);
 #define blk_put_queue(q) blk_cleanup_queue((q))
 
 /*

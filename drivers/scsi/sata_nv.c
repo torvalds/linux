@@ -238,7 +238,7 @@ static Scsi_Host_Template nv_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations nv_ops = {
+static const struct ata_port_operations nv_ops = {
 	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
@@ -331,7 +331,7 @@ static u32 nv_scr_read (struct ata_port *ap, unsigned int sc_reg)
 		return 0xffffffffU;
 
 	if (host->host_flags & NV_HOST_FLAGS_SCR_MMIO)
-		return readl((void*)ap->ioaddr.scr_addr + (sc_reg * 4));
+		return readl((void __iomem *)ap->ioaddr.scr_addr + (sc_reg * 4));
 	else
 		return inl(ap->ioaddr.scr_addr + (sc_reg * 4));
 }
@@ -345,7 +345,7 @@ static void nv_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 		return;
 
 	if (host->host_flags & NV_HOST_FLAGS_SCR_MMIO)
-		writel(val, (void*)ap->ioaddr.scr_addr + (sc_reg * 4));
+		writel(val, (void __iomem *)ap->ioaddr.scr_addr + (sc_reg * 4));
 	else
 		outl(val, ap->ioaddr.scr_addr + (sc_reg * 4));
 }

@@ -462,14 +462,12 @@ prism54_get_range(struct net_device *ndev, struct iw_request_info *info,
 	/* txpower is supported in dBm's */
 	range->txpower_capa = IW_TXPOW_DBM;
 
-#if WIRELESS_EXT > 16
 	/* Event capability (kernel + driver) */
 	range->event_capa[0] = (IW_EVENT_CAPA_K_0 |
 	IW_EVENT_CAPA_MASK(SIOCGIWTHRSPY) |
 	IW_EVENT_CAPA_MASK(SIOCGIWAP));
 	range->event_capa[1] = IW_EVENT_CAPA_K_1;
 	range->event_capa[4] = IW_EVENT_CAPA_MASK(IWEVCUSTOM);
-#endif /* WIRELESS_EXT > 16 */
 
 	if (islpci_get_state(priv) < PRV_STATE_INIT)
 		return 0;
@@ -693,14 +691,13 @@ prism54_get_scan(struct net_device *ndev, struct iw_request_info *info,
 						   extra + dwrq->length,
 						   &(bsslist->bsslist[i]),
 						   noise);
-#if WIRELESS_EXT > 16
+
 		/* Check if there is space for one more entry */
 		if((extra + dwrq->length - current_ev) <= IW_EV_ADDR_LEN) {
 			/* Ask user space to try again with a bigger buffer */
 			rvalue = -E2BIG;
 			break;
 		}
-#endif /* WIRELESS_EXT > 16 */
 	}
 
 	kfree(bsslist);
@@ -2727,12 +2724,7 @@ const struct iw_handler_def prism54_handler_def = {
 	.standard = (iw_handler *) prism54_handler,
 	.private = (iw_handler *) prism54_private_handler,
 	.private_args = (struct iw_priv_args *) prism54_private_args,
-#if WIRELESS_EXT > 16
 	.get_wireless_stats = prism54_get_wireless_stats,
-#endif /* WIRELESS_EXT > 16 */
-#if WIRELESS_EXT == 16
-	.spy_offset = offsetof(islpci_private, spy_data),
-#endif /* WIRELESS_EXT == 16 */
 };
 
 /* For wpa_supplicant */

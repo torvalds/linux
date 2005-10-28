@@ -60,7 +60,7 @@ void usb_init_urb(struct urb *urb)
  *
  * The driver must call usb_free_urb() when it is finished with the urb.
  */
-struct urb *usb_alloc_urb(int iso_packets, unsigned mem_flags)
+struct urb *usb_alloc_urb(int iso_packets, gfp_t mem_flags)
 {
 	struct urb *urb;
 
@@ -224,7 +224,7 @@ struct urb * usb_get_urb(struct urb *urb)
  *      GFP_NOIO, unless b) or c) apply
  *
  */
-int usb_submit_urb(struct urb *urb, unsigned mem_flags)
+int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 {
 	int			pipe, temp, max;
 	struct usb_device	*dev;

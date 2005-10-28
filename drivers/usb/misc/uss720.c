@@ -137,7 +137,7 @@ static void async_complete(struct urb *urb, struct pt_regs *ptregs)
 
 static struct uss720_async_request *submit_async_request(struct parport_uss720_private *priv,
 							 __u8 request, __u8 requesttype, __u16 value, __u16 index,
-							 unsigned int mem_flags)
+							 gfp_t mem_flags)
 {
 	struct usb_device *usbdev;
 	struct uss720_async_request *rq;
@@ -204,7 +204,7 @@ static unsigned int kill_all_async_requests_priv(struct parport_uss720_private *
 
 /* --------------------------------------------------------------------- */
 
-static int get_1284_register(struct parport *pp, unsigned char reg, unsigned char *val, unsigned int mem_flags)
+static int get_1284_register(struct parport *pp, unsigned char reg, unsigned char *val, gfp_t mem_flags)
 {
 	struct parport_uss720_private *priv;
 	struct uss720_async_request *rq;
@@ -238,7 +238,7 @@ static int get_1284_register(struct parport *pp, unsigned char reg, unsigned cha
 	return -EIO;
 }
 
-static int set_1284_register(struct parport *pp, unsigned char reg, unsigned char val, unsigned int mem_flags)
+static int set_1284_register(struct parport *pp, unsigned char reg, unsigned char val, gfp_t mem_flags)
 {
 	struct parport_uss720_private *priv;
 	struct uss720_async_request *rq;

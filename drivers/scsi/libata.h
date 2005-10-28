@@ -48,7 +48,7 @@ extern int ata_qc_issue(struct ata_queued_cmd *qc);
 extern int ata_check_atapi_dma(struct ata_queued_cmd *qc);
 extern void ata_dev_select(struct ata_port *ap, unsigned int device,
                            unsigned int wait, unsigned int can_sleep);
-extern void ata_tf_to_host_nolock(struct ata_port *ap, struct ata_taskfile *tf);
+extern void ata_tf_to_host_nolock(struct ata_port *ap, const struct ata_taskfile *tf);
 extern void swap_buf_le16(u16 *buf, unsigned int buf_words);
 
 

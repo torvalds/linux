@@ -62,10 +62,8 @@ int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		
 		skb->h.raw = skb_push(skb, dccp_header_size);
 		dh = dccp_hdr(skb);
-		/*
-		 * Data packets are not cloned as they are never retransmitted
-		 */
-		if (skb_cloned(skb))
+
+		if (!skb->sk)
 			skb_set_owner_w(skb, sk);
 
 		/* Build DCCP header and checksum it. */
@@ -102,6 +100,7 @@ int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 
 		DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 
+		memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
 		err = ip_queue_xmit(skb, 0);
 		if (err <= 0)
 			return err;
@@ -243,7 +242,8 @@ int dccp_write_xmit(struct sock *sk, struct sk_buff *skb, long *timeo)
 
 		err = dccp_transmit_skb(sk, skb);
 		ccid_hc_tx_packet_sent(dp->dccps_hc_tx_ccid, sk, 0, len);
-	}
+	} else
+		kfree_skb(skb);
 
 	return err;
 }
@@ -495,7 +495,7 @@ void dccp_send_close(struct sock *sk, const int active)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct sk_buff *skb;
-	const unsigned int prio = active ? GFP_KERNEL : GFP_ATOMIC;
+	const gfp_t prio = active ? GFP_KERNEL : GFP_ATOMIC;
 
 	skb = alloc_skb(sk->sk_prot->max_header, prio);
 	if (skb == NULL)

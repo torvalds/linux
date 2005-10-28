@@ -4241,6 +4241,43 @@ out:
 	return 0;
 }
 
+static void bond_activebackup_xmit_copy(struct sk_buff *skb,
+                                        struct bonding *bond,
+                                        struct slave *slave)
+{
+	struct sk_buff *skb2 = skb_copy(skb, GFP_ATOMIC);
+	struct ethhdr *eth_data;
+	u8 *hwaddr;
+	int res;
+
+	if (!skb2) {
+		printk(KERN_ERR DRV_NAME ": Error: "
+		       "bond_activebackup_xmit_copy(): skb_copy() failed\n");
+		return;
+	}
+
+	skb2->mac.raw = (unsigned char *)skb2->data;
+	eth_data = eth_hdr(skb2);
+
+	/* Pick an appropriate source MAC address
+	 *	-- use slave's perm MAC addr, unless used by bond
+	 *	-- otherwise, borrow active slave's perm MAC addr
+	 *	   since that will not be used
+	 */
+	hwaddr = slave->perm_hwaddr;
+	if (!memcmp(eth_data->h_source, hwaddr, ETH_ALEN))
+		hwaddr = bond->curr_active_slave->perm_hwaddr;
+
+	/* Set source MAC address appropriately */
+	memcpy(eth_data->h_source, hwaddr, ETH_ALEN);
+
+	res = bond_dev_queue_xmit(bond, skb2, slave->dev);
+	if (res)
+		dev_kfree_skb(skb2);
+
+	return;
+}
+
 /*
  * in active-backup mode, we know that bond->curr_active_slave is always valid if
  * the bond has a usable interface.
@@ -4257,9 +4294,25 @@ static int bond_xmit_activebackup(struct sk_buff *skb, struct net_device *bond_d
 		goto out;
 	}
 
-	if (bond->curr_active_slave) { /* one usable interface */
-		res = bond_dev_queue_xmit(bond, skb, bond->curr_active_slave->dev);
+	if (!bond->curr_active_slave)
+		goto out;
+
+	/* Xmit IGMP frames on all slaves to ensure rapid fail-over
+	   for multicast traffic on snooping switches */
+	if (skb->protocol == __constant_htons(ETH_P_IP) &&
+	    skb->nh.iph->protocol == IPPROTO_IGMP) {
+		struct slave *slave, *active_slave;
+		int i;
+
+		active_slave = bond->curr_active_slave;
+		bond_for_each_slave_from_to(bond, slave, i, active_slave->next,
+		                            active_slave->prev)
+			if (IS_UP(slave->dev) &&
+			    (slave->link == BOND_LINK_UP))
+				bond_activebackup_xmit_copy(skb, bond, slave);
 	}
+
+	res = bond_dev_queue_xmit(bond, skb, bond->curr_active_slave->dev);
 
 out:
 	if (res) {

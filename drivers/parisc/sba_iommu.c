@@ -986,7 +986,7 @@ sba_unmap_single(struct device *dev, dma_addr_t iova, size_t size,
  * See Documentation/DMA-mapping.txt
  */
 static void *sba_alloc_consistent(struct device *hwdev, size_t size,
-					dma_addr_t *dma_handle, int gfp)
+					dma_addr_t *dma_handle, gfp_t gfp)
 {
 	void *ret;
 

@@ -35,7 +35,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"sata_mv"
-#define DRV_VERSION	"0.24"
+#define DRV_VERSION	"0.25"
 
 enum {
 	/* BAR's are enumerated in terms of pci_resource_start() terms */
@@ -291,7 +291,7 @@ static Scsi_Host_Template mv_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations mv_ops = {
+static const struct ata_port_operations mv_ops = {
 	.port_disable		= ata_port_disable,
 
 	.tf_load		= ata_tf_load,
@@ -801,7 +801,8 @@ static void mv_fill_sg(struct ata_queued_cmd *qc)
 		pp->sg_tbl[i].flags_size = cpu_to_le32(sg_len);
 	}
 	if (0 < qc->n_elem) {
-		pp->sg_tbl[qc->n_elem - 1].flags_size |= EPRD_FLAG_END_OF_TBL;
+		pp->sg_tbl[qc->n_elem - 1].flags_size |= 
+			cpu_to_le32(EPRD_FLAG_END_OF_TBL);
 	}
 }
 

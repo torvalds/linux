@@ -42,13 +42,18 @@ enum {
 	ATA_SECT_SIZE		= 512,
 
 	ATA_ID_WORDS		= 256,
-	ATA_ID_PROD_OFS		= 27,
-	ATA_ID_FW_REV_OFS	= 23,
 	ATA_ID_SERNO_OFS	= 10,
-	ATA_ID_MAJOR_VER	= 80,
-	ATA_ID_PIO_MODES	= 64,
+	ATA_ID_FW_REV_OFS	= 23,
+	ATA_ID_PROD_OFS		= 27,
+	ATA_ID_OLD_PIO_MODES	= 51,
+	ATA_ID_FIELD_VALID	= 53,
 	ATA_ID_MWDMA_MODES	= 63,
+	ATA_ID_PIO_MODES	= 64,
+	ATA_ID_EIDE_DMA_MIN	= 65,
+	ATA_ID_EIDE_PIO		= 67,
+	ATA_ID_EIDE_PIO_IORDY	= 68,
 	ATA_ID_UDMA_MODES	= 88,
+	ATA_ID_MAJOR_VER	= 80,
 	ATA_ID_PIO4		= (1 << 1),
 
 	ATA_PCI_CTL_OFS		= 2,
@@ -259,7 +264,7 @@ struct ata_taskfile {
 
 #define ata_id_cdb_intr(id)	(((id)[0] & 0x60) == 0x20)
 
-static inline int ata_id_current_chs_valid(u16 *id)
+static inline int ata_id_current_chs_valid(const u16 *id)
 {
 	/* For ATA-1 devices, if the INITIALIZE DEVICE PARAMETERS command 
 	   has not been issued to the device then the values of 
@@ -271,7 +276,7 @@ static inline int ata_id_current_chs_valid(u16 *id)
 		id[56];    /* sectors in current translation */
 }
 
-static inline int atapi_cdb_len(u16 *dev_id)
+static inline int atapi_cdb_len(const u16 *dev_id)
 {
 	u16 tmp = dev_id[0] & 0x3;
 	switch (tmp) {
@@ -281,7 +286,7 @@ static inline int atapi_cdb_len(u16 *dev_id)
 	}
 }
 
-static inline int is_atapi_taskfile(struct ata_taskfile *tf)
+static inline int is_atapi_taskfile(const struct ata_taskfile *tf)
 {
 	return (tf->protocol == ATA_PROT_ATAPI) ||
 	       (tf->protocol == ATA_PROT_ATAPI_NODATA) ||

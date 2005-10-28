@@ -77,7 +77,7 @@ struct mthca_icm_iter {
 struct mthca_dev;
 
 struct mthca_icm *mthca_alloc_icm(struct mthca_dev *dev, int npages,
-				  unsigned int gfp_mask);
+				  gfp_t gfp_mask);
 void mthca_free_icm(struct mthca_dev *dev, struct mthca_icm *icm);
 
 struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,

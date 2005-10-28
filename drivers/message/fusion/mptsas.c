@@ -257,8 +257,8 @@ static void mptsas_print_device_pg0(SasDevicePage0_t *pg0)
 	printk("SAS Address=0x%llX\n", le64_to_cpu(sas_address));
 	printk("Target ID=0x%X\n", pg0->TargetID);
 	printk("Bus=0x%X\n", pg0->Bus);
-	printk("PhyNum=0x%X\n", pg0->PhyNum);
-	printk("AccessStatus=0x%X\n", le16_to_cpu(pg0->AccessStatus));
+	printk("Parent Phy Num=0x%X\n", pg0->PhyNum);
+	printk("Access Status=0x%X\n", le16_to_cpu(pg0->AccessStatus));
 	printk("Device Info=0x%X\n", le32_to_cpu(pg0->DeviceInfo));
 	printk("Flags=0x%X\n", le16_to_cpu(pg0->Flags));
 	printk("Physical Port=0x%X\n", pg0->PhysicalPort);
@@ -270,7 +270,7 @@ static void mptsas_print_expander_pg1(SasExpanderPage1_t *pg1)
 	printk("---- SAS EXPANDER PAGE 1 ------------\n");
 
 	printk("Physical Port=0x%X\n", pg1->PhysicalPort);
-	printk("PHY Identifier=0x%X\n", pg1->Phy);
+	printk("PHY Identifier=0x%X\n", pg1->PhyIdentifier);
 	printk("Negotiated Link Rate=0x%X\n", pg1->NegotiatedLinkRate);
 	printk("Programmed Link Rate=0x%X\n", pg1->ProgrammedLinkRate);
 	printk("Hardware Link Rate=0x%X\n", pg1->HwLinkRate);
@@ -604,7 +604,7 @@ mptsas_sas_expander_pg1(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info,
 	mptsas_print_expander_pg1(buffer);
 
 	/* save config data */
-	phy_info->phy_id = buffer->Phy;
+	phy_info->phy_id = buffer->PhyIdentifier;
 	phy_info->port_id = buffer->PhysicalPort;
 	phy_info->negotiated_link_rate = buffer->NegotiatedLinkRate;
 	phy_info->programmed_link_rate = buffer->ProgrammedLinkRate;
@@ -825,6 +825,8 @@ mptsas_probe_hba_phys(MPT_ADAPTER *ioc, int *index)
 		mptsas_sas_device_pg0(ioc, &port_info->phy_info[i].identify,
 			(MPI_SAS_DEVICE_PGAD_FORM_GET_NEXT_HANDLE <<
 			 MPI_SAS_DEVICE_PGAD_FORM_SHIFT), handle);
+		port_info->phy_info[i].identify.phy_id =
+		    port_info->phy_info[i].phy_id;
 		handle = port_info->phy_info[i].identify.handle;
 
 		if (port_info->phy_info[i].attached.handle) {
@@ -881,6 +883,8 @@ mptsas_probe_expander_phys(MPT_ADAPTER *ioc, u32 *handle, int *index)
 				(MPI_SAS_DEVICE_PGAD_FORM_HANDLE <<
 				 MPI_SAS_DEVICE_PGAD_FORM_SHIFT),
 				port_info->phy_info[i].identify.handle);
+			port_info->phy_info[i].identify.phy_id =
+			    port_info->phy_info[i].phy_id;
 		}
 
 		if (port_info->phy_info[i].attached.handle) {

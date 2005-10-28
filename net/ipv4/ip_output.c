@@ -391,6 +391,9 @@ static void ip_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 	to->nfct = from->nfct;
 	nf_conntrack_get(to->nfct);
 	to->nfctinfo = from->nfctinfo;
+#if defined(CONFIG_IP_VS) || defined(CONFIG_IP_VS_MODULE)
+	to->ipvs_property = from->ipvs_property;
+#endif
 #ifdef CONFIG_BRIDGE_NETFILTER
 	nf_bridge_put(to->nf_bridge);
 	to->nf_bridge = from->nf_bridge;
@@ -1020,10 +1023,7 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 			int alloclen;
 
 			skb_prev = skb;
-			if (skb_prev)
-				fraggap = skb_prev->len - maxfraglen;
-			else
-				fraggap = 0;
+			fraggap = skb_prev->len - maxfraglen;
 
 			alloclen = fragheaderlen + hh_len + fraggap + 15;
 			skb = sock_wmalloc(sk, alloclen, 1, sk->sk_allocation);

@@ -288,7 +288,7 @@ EXPORT_SYMBOL_GPL(usbnet_defer_kevent);
 
 static void rx_complete (struct urb *urb, struct pt_regs *regs);
 
-static void rx_submit (struct usbnet *dev, struct urb *urb, unsigned flags)
+static void rx_submit (struct usbnet *dev, struct urb *urb, gfp_t flags)
 {
 	struct sk_buff		*skb;
 	struct skb_data		*entry;

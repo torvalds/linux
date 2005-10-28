@@ -221,7 +221,7 @@ static void sppp_clear_timeout(struct sppp *p)
  *	here.
  */
  
-void sppp_input (struct net_device *dev, struct sk_buff *skb)
+static void sppp_input (struct net_device *dev, struct sk_buff *skb)
 {
 	struct ppp_header *h;
 	struct sppp *sp = (struct sppp *)sppp_of(dev);
@@ -354,8 +354,6 @@ done:
 	sppp_flush_xmit();
 	return;
 }
-
-EXPORT_SYMBOL(sppp_input);
 
 /*
  *	Handle transmit packets.
@@ -990,15 +988,13 @@ EXPORT_SYMBOL(sppp_reopen);
  *	the mtu is out of range.
  */
  
-int sppp_change_mtu(struct net_device *dev, int new_mtu)
+static int sppp_change_mtu(struct net_device *dev, int new_mtu)
 {
 	if(new_mtu<128||new_mtu>PPP_MTU||(dev->flags&IFF_UP))
 		return -EINVAL;
 	dev->mtu=new_mtu;
 	return 0;
 }
-
-EXPORT_SYMBOL(sppp_change_mtu);
 
 /**
  *	sppp_do_ioctl - Ioctl handler for ppp/hdlc
@@ -1456,7 +1452,7 @@ static int sppp_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_t
 	return 0;
 }
 
-struct packet_type sppp_packet_type = {
+static struct packet_type sppp_packet_type = {
 	.type	= __constant_htons(ETH_P_WAN_PPP),
 	.func	= sppp_rcv,
 };

@@ -548,9 +548,6 @@ svc_write_space(struct sock *sk)
 /*
  * Receive a datagram from a UDP socket.
  */
-extern int
-csum_partial_copy_to_xdr(struct xdr_buf *xdr, struct sk_buff *skb);
-
 static int
 svc_udp_recvfrom(struct svc_rqst *rqstp)
 {
@@ -587,7 +584,7 @@ svc_udp_recvfrom(struct svc_rqst *rqstp)
 		struct timeval tv;
 
 		tv.tv_sec = xtime.tv_sec;
-		tv.tv_usec = xtime.tv_nsec * 1000;
+		tv.tv_usec = xtime.tv_nsec / NSEC_PER_USEC;
 		skb_set_timestamp(skb, &tv);
 		/* Don't enable netstamp, sunrpc doesn't 
 		   need that much accuracy */

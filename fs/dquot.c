@@ -500,7 +500,7 @@ static void prune_dqcache(int count)
  * more memory
  */
 
-static int shrink_dqcache_memory(int nr, unsigned int gfp_mask)
+static int shrink_dqcache_memory(int nr, gfp_t gfp_mask)
 {
 	if (nr) {
 		spin_lock(&dq_list_lock);

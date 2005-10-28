@@ -287,7 +287,8 @@ static void scsi_host_dev_release(struct device *dev)
 struct Scsi_Host *scsi_host_alloc(struct scsi_host_template *sht, int privsize)
 {
 	struct Scsi_Host *shost;
-	int gfp_mask = GFP_KERNEL, rval;
+	gfp_t gfp_mask = GFP_KERNEL;
+	int rval;
 
 	if (sht->unchecked_isa_dma && privsize)
 		gfp_mask |= __GFP_DMA;

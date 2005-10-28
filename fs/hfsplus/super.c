@@ -50,6 +50,7 @@ static void hfsplus_read_inode(struct inode *inode)
 	init_MUTEX(&HFSPLUS_I(inode).extents_lock);
 	HFSPLUS_I(inode).flags = 0;
 	HFSPLUS_I(inode).rsrc_inode = NULL;
+	atomic_set(&HFSPLUS_I(inode).opencnt, 0);
 
 	if (inode->i_ino >= HFSPLUS_FIRSTUSER_CNID) {
 	read_inode:

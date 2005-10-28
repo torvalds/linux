@@ -45,7 +45,7 @@ static inline void ehci_qtd_init (struct ehci_qtd *qtd, dma_addr_t dma)
 	INIT_LIST_HEAD (&qtd->qtd_list);
 }
 
-static struct ehci_qtd *ehci_qtd_alloc (struct ehci_hcd *ehci, int flags)
+static struct ehci_qtd *ehci_qtd_alloc (struct ehci_hcd *ehci, gfp_t flags)
 {
 	struct ehci_qtd		*qtd;
 	dma_addr_t		dma;
@@ -79,7 +79,7 @@ static void qh_destroy (struct kref *kref)
 	dma_pool_free (ehci->qh_pool, qh, qh->qh_dma);
 }
 
-static struct ehci_qh *ehci_qh_alloc (struct ehci_hcd *ehci, int flags)
+static struct ehci_qh *ehci_qh_alloc (struct ehci_hcd *ehci, gfp_t flags)
 {
 	struct ehci_qh		*qh;
 	dma_addr_t		dma;
@@ -161,7 +161,7 @@ static void ehci_mem_cleanup (struct ehci_hcd *ehci)
 }
 
 /* remember to add cleanup code (above) if you add anything here */
-static int ehci_mem_init (struct ehci_hcd *ehci, int flags)
+static int ehci_mem_init (struct ehci_hcd *ehci, gfp_t flags)
 {
 	int i;
 

@@ -377,7 +377,7 @@ int filemap_write_and_wait_range(struct address_space *mapping,
  * This function does not add the page to the LRU.  The caller must do that.
  */
 int add_to_page_cache(struct page *page, struct address_space *mapping,
-		pgoff_t offset, int gfp_mask)
+		pgoff_t offset, gfp_t gfp_mask)
 {
 	int error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
 
@@ -401,7 +401,7 @@ int add_to_page_cache(struct page *page, struct address_space *mapping,
 EXPORT_SYMBOL(add_to_page_cache);
 
 int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
-				pgoff_t offset, int gfp_mask)
+				pgoff_t offset, gfp_t gfp_mask)
 {
 	int ret = add_to_page_cache(page, mapping, offset, gfp_mask);
 	if (ret == 0)
@@ -591,7 +591,7 @@ EXPORT_SYMBOL(find_lock_page);
  * memory exhaustion.
  */
 struct page *find_or_create_page(struct address_space *mapping,
-		unsigned long index, unsigned int gfp_mask)
+		unsigned long index, gfp_t gfp_mask)
 {
 	struct page *page, *cached_page = NULL;
 	int err;
@@ -683,7 +683,7 @@ struct page *
 grab_cache_page_nowait(struct address_space *mapping, unsigned long index)
 {
 	struct page *page = find_get_page(mapping, index);
-	unsigned int gfp_mask;
+	gfp_t gfp_mask;
 
 	if (page) {
 		if (!TestSetPageLocked(page))

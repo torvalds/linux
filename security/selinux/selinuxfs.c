@@ -879,7 +879,7 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 	if (sscanf(page, "%d", &new_value) != 1)
 		goto out;
 
-	if (new_value) {
+	if (new_value && bool_pending_values) {
 		security_set_bools(bool_num, bool_pending_values);
 	}
 
@@ -952,6 +952,7 @@ static int sel_make_bools(void)
 
 	/* remove any existing files */
 	kfree(bool_pending_values);
+	bool_pending_values = NULL;
 
 	sel_remove_bools(dir);
 
@@ -1002,6 +1003,7 @@ out:
 	}
 	return ret;
 err:
+	kfree(values);
 	d_genocide(dir);
 	ret = -ENOMEM;
 	goto out;

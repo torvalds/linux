@@ -768,7 +768,7 @@ static int dummy_socket_getpeersec(struct socket *sock, char __user *optval,
 	return -ENOPROTOOPT;
 }
 
-static inline int dummy_sk_alloc_security (struct sock *sk, int family, int priority)
+static inline int dummy_sk_alloc_security (struct sock *sk, int family, gfp_t priority)
 {
 	return 0;
 }

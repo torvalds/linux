@@ -151,13 +151,6 @@ struct au1000_private *au_macs[NUM_ETH_INTERFACES];
 	SUPPORTED_100baseT_Half | SUPPORTED_100baseT_Full | \
 	SUPPORTED_Autoneg
 
-static char *phy_link[] = 
-{	"unknown", 
-	"10Base2", "10BaseT", 
-	"AUI",
-	"100BaseT", "100BaseTX", "100BaseFX"
-};
-
 int bcm_5201_init(struct net_device *dev, int phy_addr)
 {
 	s16 data;
@@ -785,6 +778,7 @@ static struct mii_chip_info {
 	{"Broadcom BCM5201 10/100 BaseT PHY",0x0040,0x6212, &bcm_5201_ops,0},
 	{"Broadcom BCM5221 10/100 BaseT PHY",0x0040,0x61e4, &bcm_5201_ops,0},
 	{"Broadcom BCM5222 10/100 BaseT PHY",0x0040,0x6322, &bcm_5201_ops,1},
+	{"NS DP83847 PHY", 0x2000, 0x5c30, &bcm_5201_ops ,0},
 	{"AMD 79C901 HomePNA PHY",0x0000,0x35c8, &am79c901_ops,0},
 	{"AMD 79C874 10/100 BaseT PHY",0x0022,0x561b, &am79c874_ops,0},
 	{"LSI 80227 10/100 BaseT PHY",0x0016,0xf840, &lsi_80227_ops,0},
@@ -1045,7 +1039,7 @@ found:
 #endif
 
 	if (aup->mii->chip_info == NULL) {
-		printk(KERN_ERR "%s: Au1x No MII transceivers found!\n",
+		printk(KERN_ERR "%s: Au1x No known MII transceivers found!\n",
 				dev->name);
 		return -1;
 	}
@@ -1546,6 +1540,9 @@ au1000_probe(u32 ioaddr, int irq, int port_num)
 		printk(KERN_ERR "%s: out of memory\n", dev->name);
 		goto err_out;
 	}
+	aup->mii->next = NULL;
+	aup->mii->chip_info = NULL;
+	aup->mii->status = 0;
 	aup->mii->mii_control_reg = 0;
 	aup->mii->mii_data_reg = 0;
 

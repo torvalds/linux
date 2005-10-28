@@ -69,7 +69,7 @@ static int write_sq_block_size_half, write_sq_block_size_quarter;
 /*** Low level stuff *********************************************************/
 
 
-static void *AmiAlloc(unsigned int size, int flags);
+static void *AmiAlloc(unsigned int size, gfp_t flags);
 static void AmiFree(void *obj, unsigned int size);
 static int AmiIrqInit(void);
 #ifdef MODULE
@@ -317,7 +317,7 @@ static inline void StopDMA(void)
 	enable_heartbeat();
 }
 
-static void *AmiAlloc(unsigned int size, int flags)
+static void *AmiAlloc(unsigned int size, gfp_t flags)
 {
 	return amiga_chip_alloc((long)size, "dmasound [Paula]");
 }

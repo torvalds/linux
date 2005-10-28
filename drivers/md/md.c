@@ -3063,6 +3063,7 @@ static int md_thread(void * arg)
 	 * many dirty RAID5 blocks.
 	 */
 
+	allow_signal(SIGKILL);
 	complete(thread->event);
 	while (!kthread_should_stop()) {
 		void (*run)(mddev_t *);
@@ -3111,7 +3112,7 @@ mdk_thread_t *md_register_thread(void (*run) (mddev_t *), mddev_t *mddev,
 	thread->mddev = mddev;
 	thread->name = name;
 	thread->timeout = MAX_SCHEDULE_TIMEOUT;
-	thread->tsk = kthread_run(md_thread, thread, mdname(thread->mddev));
+	thread->tsk = kthread_run(md_thread, thread, name, mdname(thread->mddev));
 	if (IS_ERR(thread->tsk)) {
 		kfree(thread);
 		return NULL;
@@ -3567,8 +3568,10 @@ static void md_do_sync(mddev_t *mddev)
 		mddev->curr_resync = 2;
 
 	try_again:
-		if (signal_pending(current)) {
+		if (signal_pending(current) ||
+		    kthread_should_stop()) {
 			flush_signals(current);
+			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 			goto skip;
 		}
 		ITERATE_MDDEV(mddev2,tmp) {
@@ -3588,8 +3591,9 @@ static void md_do_sync(mddev_t *mddev)
 					 */
 					continue;
 				prepare_to_wait(&resync_wait, &wq, TASK_INTERRUPTIBLE);
-				if (!signal_pending(current)
-				    && mddev2->curr_resync >= mddev->curr_resync) {
+				if (!signal_pending(current) &&
+				    !kthread_should_stop() &&
+				    mddev2->curr_resync >= mddev->curr_resync) {
 					printk(KERN_INFO "md: delaying resync of %s"
 					       " until %s has finished resync (they"
 					       " share one or more physical units)\n",
@@ -3695,7 +3699,7 @@ static void md_do_sync(mddev_t *mddev)
 		}
 
 
-		if (signal_pending(current)) {
+		if (signal_pending(current) || kthread_should_stop()) {
 			/*
 			 * got a signal, exit.
 			 */

@@ -1108,11 +1108,8 @@ void __init icmp_init(struct net_proto_family *ops)
 	struct inet_sock *inet;
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++) {
+	for_each_cpu(i) {
 		int err;
-
-		if (!cpu_possible(i))
-			continue;
 
 		err = sock_create_kern(PF_INET, SOCK_RAW, IPPROTO_ICMP,
 				       &per_cpu(__icmp_socket, i));

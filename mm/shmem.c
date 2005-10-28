@@ -85,7 +85,7 @@ enum sgp_type {
 static int shmem_getpage(struct inode *inode, unsigned long idx,
 			 struct page **pagep, enum sgp_type sgp, int *type);
 
-static inline struct page *shmem_dir_alloc(unsigned int gfp_mask)
+static inline struct page *shmem_dir_alloc(gfp_t gfp_mask)
 {
 	/*
 	 * The above definition of ENTRIES_PER_PAGE, and the use of
@@ -898,7 +898,7 @@ struct page *shmem_swapin(struct shmem_inode_info *info, swp_entry_t entry,
 }
 
 static struct page *
-shmem_alloc_page(unsigned long gfp, struct shmem_inode_info *info,
+shmem_alloc_page(gfp_t gfp, struct shmem_inode_info *info,
 		 unsigned long idx)
 {
 	struct vm_area_struct pvma;

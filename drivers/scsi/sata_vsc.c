@@ -86,7 +86,7 @@ static u32 vsc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
 {
 	if (sc_reg > SCR_CONTROL)
 		return 0xffffffffU;
-	return readl((void *) ap->ioaddr.scr_addr + (sc_reg * 4));
+	return readl((void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 
@@ -95,16 +95,16 @@ static void vsc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg,
 {
 	if (sc_reg > SCR_CONTROL)
 		return;
-	writel(val, (void *) ap->ioaddr.scr_addr + (sc_reg * 4));
+	writel(val, (void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 
 static void vsc_intr_mask_update(struct ata_port *ap, u8 ctl)
 {
-	unsigned long mask_addr;
+	void __iomem *mask_addr;
 	u8 mask;
 
-	mask_addr = (unsigned long) ap->host_set->mmio_base +
+	mask_addr = ap->host_set->mmio_base +
 		VSC_SATA_INT_MASK_OFFSET + ap->port_no;
 	mask = readb(mask_addr);
 	if (ctl & ATA_NIEN)
@@ -115,7 +115,7 @@ static void vsc_intr_mask_update(struct ata_port *ap, u8 ctl)
 }
 
 
-static void vsc_sata_tf_load(struct ata_port *ap, struct ata_taskfile *tf)
+static void vsc_sata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	unsigned int is_addr = tf->flags & ATA_TFLAG_ISADDR;
@@ -231,7 +231,7 @@ static Scsi_Host_Template vsc_sata_sht = {
 };
 
 
-static struct ata_port_operations vsc_sata_ops = {
+static const struct ata_port_operations vsc_sata_ops = {
 	.port_disable		= ata_port_disable,
 	.tf_load		= vsc_sata_tf_load,
 	.tf_read		= vsc_sata_tf_read,
@@ -283,7 +283,7 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	struct ata_probe_ent *probe_ent = NULL;
 	unsigned long base;
 	int pci_dev_busy = 0;
-	void *mmio_base;
+	void __iomem *mmio_base;
 	int rc;
 
 	if (!printed_version++)

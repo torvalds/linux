@@ -72,7 +72,7 @@ static void free_layer(struct idr *idp, struct idr_layer *p)
  * If the system is REALLY out of memory this function returns 0,
  * otherwise 1.
  */
-int idr_pre_get(struct idr *idp, unsigned gfp_mask)
+int idr_pre_get(struct idr *idp, gfp_t gfp_mask)
 {
 	while (idp->id_free_cnt < IDR_FREE_MAX) {
 		struct idr_layer *new;
@@ -344,6 +344,19 @@ void idr_remove(struct idr *idp, int id)
 	}
 }
 EXPORT_SYMBOL(idr_remove);
+
+/**
+ * idr_destroy - release all cached layers within an idr tree
+ * idp: idr handle
+ */
+void idr_destroy(struct idr *idp)
+{
+	while (idp->id_free_cnt) {
+		struct idr_layer *p = alloc_layer(idp);
+		kmem_cache_free(idr_layer_cache, p);
+	}
+}
+EXPORT_SYMBOL(idr_destroy);
 
 /**
  * idr_find - return pointer for given id

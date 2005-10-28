@@ -435,17 +435,7 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	int nsize, old_factor;
 	u16 flags;
 
-	if (unlikely(len >= skb->len)) {
-		if (net_ratelimit()) {
-			printk(KERN_DEBUG "TCP: seg_size=%u, mss=%u, seq=%u, "
-			       "end_seq=%u, skb->len=%u.\n", len, mss_now,
-			       TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq,
-			       skb->len);
-			WARN_ON(1);
-		}
-		return 0;
-	}
-
+	BUG_ON(len > skb->len);
 	nsize = skb_headlen(skb) - len;
 	if (nsize < 0)
 		nsize = 0;

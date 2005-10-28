@@ -62,7 +62,7 @@
  */
 
 static struct sk_buff *
-zaurus_tx_fixup(struct usbnet *dev, struct sk_buff *skb, unsigned flags)
+zaurus_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 {
 	int			padlen;
 	struct sk_buff		*skb2;
