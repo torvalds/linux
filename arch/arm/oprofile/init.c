@@ -17,7 +17,7 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	int ret = -ENODEV;
 
 #ifdef CONFIG_CPU_XSCALE
-	ret = pmu_init(ops, &op_xscale_spec);
+	ret = op_arm_init(ops, &op_xscale_spec);
 #endif
 
 	ops->backtrace = arm_backtrace;
@@ -28,6 +28,6 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 void oprofile_arch_exit(void)
 {
 #ifdef CONFIG_CPU_XSCALE
-	pmu_exit();
+	op_arm_exit();
 #endif
 }
