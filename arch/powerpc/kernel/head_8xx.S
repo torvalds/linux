@@ -175,7 +175,7 @@ label:						\
 
 #define EXC_XFER_TEMPLATE(n, hdlr, trap, copyee, tfer, ret)	\
 	li	r10,trap;					\
-	stw	r10,TRAP(r11);					\
+	stw	r10,_TRAP(r11);					\
 	li	r10,MSR_KERNEL;					\
 	copyee(r10, r9);					\
 	bl	tfer;						\

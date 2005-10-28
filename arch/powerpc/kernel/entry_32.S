@@ -278,7 +278,7 @@ ret_from_fork:
 syscall_dotrace:
 	SAVE_NVGPRS(r1)
 	li	r0,0xc00
-	stw	r0,TRAP(r1)
+	stw	r0,_TRAP(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_syscall_trace_enter
 	lwz	r0,GPR0(r1)	/* Restore original registers */
@@ -299,12 +299,12 @@ syscall_exit_work:
 	ori	r10,r10,MSR_EE
 	SYNC
 	MTMSRD(r10)		/* re-enable interrupts */
-	lwz	r4,TRAP(r1)
+	lwz	r4,_TRAP(r1)
 	andi.	r4,r4,1
 	beq	4f
 	SAVE_NVGPRS(r1)
 	li	r4,0xc00
-	stw	r4,TRAP(r1)
+	stw	r4,_TRAP(r1)
 4:
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	do_syscall_trace_leave
@@ -410,49 +410,49 @@ show_syscalls_task:
 	.globl	ppc_sigsuspend
 ppc_sigsuspend:
 	SAVE_NVGPRS(r1)
-	lwz	r0,TRAP(r1)
+	lwz	r0,_TRAP(r1)
 	rlwinm	r0,r0,0,0,30		/* clear LSB to indicate full */
-	stw	r0,TRAP(r1)		/* register set saved */
+	stw	r0,_TRAP(r1)		/* register set saved */
 	b	sys_sigsuspend
 
 	.globl	ppc_rt_sigsuspend
 ppc_rt_sigsuspend:
 	SAVE_NVGPRS(r1)
-	lwz	r0,TRAP(r1)
+	lwz	r0,_TRAP(r1)
 	rlwinm	r0,r0,0,0,30
-	stw	r0,TRAP(r1)
+	stw	r0,_TRAP(r1)
 	b	sys_rt_sigsuspend
 
 	.globl	ppc_fork
 ppc_fork:
 	SAVE_NVGPRS(r1)
-	lwz	r0,TRAP(r1)
+	lwz	r0,_TRAP(r1)
 	rlwinm	r0,r0,0,0,30		/* clear LSB to indicate full */
-	stw	r0,TRAP(r1)		/* register set saved */
+	stw	r0,_TRAP(r1)		/* register set saved */
 	b	sys_fork
 
 	.globl	ppc_vfork
 ppc_vfork:
 	SAVE_NVGPRS(r1)
-	lwz	r0,TRAP(r1)
+	lwz	r0,_TRAP(r1)
 	rlwinm	r0,r0,0,0,30		/* clear LSB to indicate full */
-	stw	r0,TRAP(r1)		/* register set saved */
+	stw	r0,_TRAP(r1)		/* register set saved */
 	b	sys_vfork
 
 	.globl	ppc_clone
 ppc_clone:
 	SAVE_NVGPRS(r1)
-	lwz	r0,TRAP(r1)
+	lwz	r0,_TRAP(r1)
 	rlwinm	r0,r0,0,0,30		/* clear LSB to indicate full */
-	stw	r0,TRAP(r1)		/* register set saved */
+	stw	r0,_TRAP(r1)		/* register set saved */
 	b	sys_clone
 
 	.globl	ppc_swapcontext
 ppc_swapcontext:
 	SAVE_NVGPRS(r1)
-	lwz	r0,TRAP(r1)
+	lwz	r0,_TRAP(r1)
 	rlwinm	r0,r0,0,0,30		/* clear LSB to indicate full */
-	stw	r0,TRAP(r1)		/* register set saved */
+	stw	r0,_TRAP(r1)		/* register set saved */
 	b	sys_swapcontext
 
 /*
@@ -469,9 +469,9 @@ handle_page_fault:
 	cmpwi	r3,0
 	beq+	ret_from_except
 	SAVE_NVGPRS(r1)
-	lwz	r0,TRAP(r1)
+	lwz	r0,_TRAP(r1)
 	clrrwi	r0,r0,1
-	stw	r0,TRAP(r1)
+	stw	r0,_TRAP(r1)
 	mr	r5,r3
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	lwz	r4,_DAR(r1)
@@ -617,7 +617,7 @@ BEGIN_FTR_SECTION
 	b	2b
 END_FTR_SECTION_IFSET(CPU_FTR_601)
 	li	r10,-1
-	stw	r10,TRAP(r11)
+	stw	r10,_TRAP(r11)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
 	lis	r10,MSR_KERNEL@h
 	ori	r10,r10,MSR_KERNEL@l
@@ -899,12 +899,12 @@ do_user_signal:			/* r10 contains MSR_KERNEL here */
 	SYNC
 	MTMSRD(r10)		/* hard-enable interrupts */
 	/* save r13-r31 in the exception frame, if not already done */
-	lwz	r3,TRAP(r1)
+	lwz	r3,_TRAP(r1)
 	andi.	r0,r3,1
 	beq	2f
 	SAVE_NVGPRS(r1)
 	rlwinm	r3,r3,0,0,30
-	stw	r3,TRAP(r1)
+	stw	r3,_TRAP(r1)
 2:	li	r3,0
 	addi	r4,r1,STACK_FRAME_OVERHEAD
 	bl	do_signal
@@ -936,12 +936,12 @@ nonrecoverable:
 BEGIN_FTR_SECTION
 	blr
 END_FTR_SECTION_IFSET(CPU_FTR_601)
-	lwz	r3,TRAP(r1)
+	lwz	r3,_TRAP(r1)
 	andi.	r0,r3,1
 	beq	4f
 	SAVE_NVGPRS(r1)
 	rlwinm	r3,r3,0,0,30
-	stw	r3,TRAP(r1)
+	stw	r3,_TRAP(r1)
 4:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	nonrecoverable_exception
 	/* shouldn't return */

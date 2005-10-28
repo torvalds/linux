@@ -214,7 +214,7 @@ label:
 
 #define EXC_XFER_TEMPLATE(hdlr, trap, msr, copyee, tfer, ret)	\
 	li	r10,trap;					\
-	stw	r10,TRAP(r11);					\
+	stw	r10,_TRAP(r11);					\
 	lis	r10,msr@h;					\
 	ori	r10,r10,msr@l;					\
 	copyee(r10, r9);					\
