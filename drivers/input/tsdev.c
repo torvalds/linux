@@ -368,6 +368,7 @@ static struct input_handle *tsdev_connect(struct input_handler *handler,
 					  struct input_device_id *id)
 {
 	struct tsdev *tsdev;
+	struct class_device *cdev;
 	int minor, delta;
 
 	for (minor = 0; minor < TSDEV_MINORS/2 && tsdev_table[minor];
@@ -409,9 +410,13 @@ static struct input_handle *tsdev_connect(struct input_handler *handler,
 
 	tsdev_table[minor] = tsdev;
 
-	class_device_create(&input_class, &dev->cdev,
+	cdev = class_device_create(&input_class, &dev->cdev,
 			MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + minor),
-			dev->cdev.dev, "ts%d", minor);
+			dev->cdev.dev, tsdev->name);
+
+	/* temporary symlink to keep userspace happy */
+	sysfs_create_link(&input_class.subsys.kset.kobj, &cdev->kobj,
+			  tsdev->name);
 
 	return &tsdev->handle;
 }
@@ -421,6 +426,7 @@ static void tsdev_disconnect(struct input_handle *handle)
 	struct tsdev *tsdev = handle->private;
 	struct tsdev_list *list;
 
+	sysfs_remove_link(&input_class.subsys.kset.kobj, tsdev->name);
 	class_device_destroy(&input_class,
 			MKDEV(INPUT_MAJOR, TSDEV_MINOR_BASE + tsdev->minor));
 	tsdev->exist = 0;

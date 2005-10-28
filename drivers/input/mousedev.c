@@ -620,6 +620,7 @@ static struct file_operations mousedev_fops = {
 static struct input_handle *mousedev_connect(struct input_handler *handler, struct input_dev *dev, struct input_device_id *id)
 {
 	struct mousedev *mousedev;
+	struct class_device *cdev;
 	int minor = 0;
 
 	for (minor = 0; minor < MOUSEDEV_MINORS && mousedev_table[minor]; minor++);
@@ -648,9 +649,13 @@ static struct input_handle *mousedev_connect(struct input_handler *handler, stru
 
 	mousedev_table[minor] = mousedev;
 
-	class_device_create(&input_class, &dev->cdev,
+	cdev = class_device_create(&input_class, &dev->cdev,
 			MKDEV(INPUT_MAJOR, MOUSEDEV_MINOR_BASE + minor),
-			dev->cdev.dev, "mouse%d", minor);
+			dev->cdev.dev, mousedev->name);
+
+	/* temporary symlink to keep userspace happy */
+	sysfs_create_link(&input_class.subsys.kset.kobj, &cdev->kobj,
+			  mousedev->name);
 
 	return &mousedev->handle;
 }
@@ -660,6 +665,7 @@ static void mousedev_disconnect(struct input_handle *handle)
 	struct mousedev *mousedev = handle->private;
 	struct mousedev_list *list;
 
+	sysfs_remove_link(&input_class.subsys.kset.kobj, mousedev->name);
 	class_device_destroy(&input_class,
 			MKDEV(INPUT_MAJOR, MOUSEDEV_MINOR_BASE + mousedev->minor));
 	mousedev->exist = 0;

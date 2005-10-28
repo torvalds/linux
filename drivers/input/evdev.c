@@ -661,6 +661,7 @@ static struct file_operations evdev_fops = {
 static struct input_handle *evdev_connect(struct input_handler *handler, struct input_dev *dev, struct input_device_id *id)
 {
 	struct evdev *evdev;
+	struct class_device *cdev;
 	int minor;
 
 	for (minor = 0; minor < EVDEV_MINORS && evdev_table[minor]; minor++);
@@ -686,9 +687,13 @@ static struct input_handle *evdev_connect(struct input_handler *handler, struct 
 
 	evdev_table[minor] = evdev;
 
-	class_device_create(&input_class, &dev->cdev,
+	cdev = class_device_create(&input_class, &dev->cdev,
 			MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor),
-			dev->cdev.dev, "event%d", minor);
+			dev->cdev.dev, evdev->name);
+
+	/* temporary symlink to keep userspace happy */
+	sysfs_create_link(&input_class.subsys.kset.kobj, &cdev->kobj,
+			  evdev->name);
 
 	return &evdev->handle;
 }
@@ -698,6 +703,7 @@ static void evdev_disconnect(struct input_handle *handle)
 	struct evdev *evdev = handle->private;
 	struct evdev_list *list;
 
+	sysfs_remove_link(&input_class.subsys.kset.kobj, evdev->name);
 	class_device_destroy(&input_class,
 			MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + evdev->minor));
 	evdev->exist = 0;
