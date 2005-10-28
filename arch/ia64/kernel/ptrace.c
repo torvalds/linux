@@ -587,7 +587,7 @@ thread_matches (struct task_struct *thread, unsigned long addr)
 static struct task_struct *
 find_thread_for_addr (struct task_struct *child, unsigned long addr)
 {
-	struct task_struct *g, *p;
+	struct task_struct *p;
 	struct mm_struct *mm;
 	struct list_head *this, *next;
 	int mm_users;
