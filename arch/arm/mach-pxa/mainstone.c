@@ -317,7 +317,12 @@ static void __init mainstone_init(void)
 
 
 static struct map_desc mainstone_io_desc[] __initdata = {
-  { MST_FPGA_VIRT, MST_FPGA_PHYS, 0x00100000, MT_DEVICE }, /* CPLD */
+  	{	/* CPLD */
+		.virtual	=  MST_FPGA_VIRT,
+		.pfn		= __phys_to_pfn(MST_FPGA_PHYS),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init mainstone_map_io(void)

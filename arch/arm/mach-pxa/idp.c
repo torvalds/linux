@@ -152,16 +152,17 @@ static void __init idp_init_irq(void)
 }
 
 static struct map_desc idp_io_desc[] __initdata = {
- /* virtual     physical    length      type */
-
-  { IDP_COREVOLT_VIRT,
-    IDP_COREVOLT_PHYS,
-    IDP_COREVOLT_SIZE,
-    MT_DEVICE },
-  { IDP_CPLD_VIRT,
-    IDP_CPLD_PHYS,
-    IDP_CPLD_SIZE,
-    MT_DEVICE }
+  	{
+		.virtual	=  IDP_COREVOLT_VIRT,
+		.pfn		= __phys_to_pfn(IDP_COREVOLT_PHYS),
+		.length		= IDP_COREVOLT_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	=  IDP_CPLD_VIRT,
+		.pfn		= __phys_to_pfn(IDP_CPLD_PHYS),
+		.length		= IDP_CPLD_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init idp_map_io(void)

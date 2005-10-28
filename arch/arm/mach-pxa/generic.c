@@ -92,14 +92,42 @@ EXPORT_SYMBOL(pxa_set_cken);
  *         and cache flush area.
  */
 static struct map_desc standard_io_desc[] __initdata = {
- /* virtual     physical    length      type */
-  { 0xf2000000, 0x40000000, 0x02000000, MT_DEVICE }, /* Devs */
-  { 0xf4000000, 0x44000000, 0x00100000, MT_DEVICE }, /* LCD */
-  { 0xf6000000, 0x48000000, 0x00100000, MT_DEVICE }, /* Mem Ctl */
-  { 0xf8000000, 0x4c000000, 0x00100000, MT_DEVICE }, /* USB host */
-  { 0xfa000000, 0x50000000, 0x00100000, MT_DEVICE }, /* Camera */
-  { 0xfe000000, 0x58000000, 0x00100000, MT_DEVICE }, /* IMem ctl */
-  { 0xff000000, 0x00000000, 0x00100000, MT_DEVICE }  /* UNCACHED_PHYS_0 */
+  	{	/* Devs */
+		.virtual	=  0xf2000000,
+		.pfn		= __phys_to_pfn(0x40000000),
+		.length		= 0x02000000,
+		.type		= MT_DEVICE
+	}, {	/* LCD */
+		.virtual	=  0xf4000000,
+		.pfn		= __phys_to_pfn(0x44000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* Mem Ctl */
+		.virtual	=  0xf6000000,
+		.pfn		= __phys_to_pfn(0x48000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* USB host */
+		.virtual	=  0xf8000000,
+		.pfn		= __phys_to_pfn(0x4c000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* Camera */
+		.virtual	=  0xfa000000,
+		.pfn		= __phys_to_pfn(0x50000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* IMem ctl */
+		.virtual	=  0xfe000000,
+		.pfn		= __phys_to_pfn(0x58000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* UNCACHED_PHYS_0 */
+		.virtual	= 0xff000000,
+		.pfn		= __phys_to_pfn(0x00000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}
 };
 
 void __init pxa_map_io(void)
