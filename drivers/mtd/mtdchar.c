@@ -24,10 +24,10 @@ static void mtd_notify_add(struct mtd_info* mtd)
 	if (!mtd)
 		return;
 
-	class_device_create(mtd_class, MKDEV(MTD_CHAR_MAJOR, mtd->index*2),
+	class_device_create(mtd_class, NULL, MKDEV(MTD_CHAR_MAJOR, mtd->index*2),
 			    NULL, "mtd%d", mtd->index);
 	
-	class_device_create(mtd_class, 
+	class_device_create(mtd_class, NULL,
 			    MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1),
 			    NULL, "mtd%dro", mtd->index);
 }

@@ -500,11 +500,10 @@ tps65010_probe(struct i2c_adapter *bus, int address, int kind)
 		return 0;
 	}
 
-	tps = kmalloc(sizeof *tps, GFP_KERNEL);
+	tps = kzalloc(sizeof *tps, GFP_KERNEL);
 	if (!tps)
 		return 0;
 
-	memset(tps, 0, sizeof *tps);
 	init_MUTEX(&tps->lock);
 	INIT_WORK(&tps->work, tps65010_work, tps);
 	tps->irq = -1;

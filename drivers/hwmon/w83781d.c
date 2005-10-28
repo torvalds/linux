@@ -889,12 +889,11 @@ w83781d_detect_subclients(struct i2c_adapter *adapter, int address, int kind,
 	const char *client_name = "";
 	struct w83781d_data *data = i2c_get_clientdata(new_client);
 
-	data->lm75[0] = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	data->lm75[0] = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (!(data->lm75[0])) {
 		err = -ENOMEM;
 		goto ERROR_SC_0;
 	}
-	memset(data->lm75[0], 0x00, sizeof (struct i2c_client));
 
 	id = i2c_adapter_id(adapter);
 
@@ -919,13 +918,11 @@ w83781d_detect_subclients(struct i2c_adapter *adapter, int address, int kind,
 	}
 
 	if (kind != w83783s) {
-
-		data->lm75[1] = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+		data->lm75[1] = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 		if (!(data->lm75[1])) {
 			err = -ENOMEM;
 			goto ERROR_SC_1;
 		}
-		memset(data->lm75[1], 0x0, sizeof(struct i2c_client));
 
 		if (force_subclients[0] == id &&
 		    force_subclients[1] == address) {
@@ -1064,11 +1061,10 @@ w83781d_detect(struct i2c_adapter *adapter, int address, int kind)
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access w83781d_{read,write}_value. */
 
-	if (!(data = kmalloc(sizeof(struct w83781d_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct w83781d_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto ERROR1;
 	}
-	memset(data, 0, sizeof(struct w83781d_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
@@ -1451,7 +1447,6 @@ w83781d_write_value(struct i2c_client *client, u16 reg, u16 value)
 	return 0;
 }
 
-/* Called when we have found a new W83781D. It should set limits, etc. */
 static void
 w83781d_init_client(struct i2c_client *client)
 {

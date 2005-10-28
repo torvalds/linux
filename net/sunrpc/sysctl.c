@@ -119,8 +119,18 @@ done:
 	return 0;
 }
 
+unsigned int xprt_udp_slot_table_entries = RPC_DEF_SLOT_TABLE;
+unsigned int xprt_tcp_slot_table_entries = RPC_DEF_SLOT_TABLE;
+unsigned int xprt_min_resvport = RPC_DEF_MIN_RESVPORT;
+EXPORT_SYMBOL(xprt_min_resvport);
+unsigned int xprt_max_resvport = RPC_DEF_MAX_RESVPORT;
+EXPORT_SYMBOL(xprt_max_resvport);
+
+
 static unsigned int min_slot_table_size = RPC_MIN_SLOT_TABLE;
 static unsigned int max_slot_table_size = RPC_MAX_SLOT_TABLE;
+static unsigned int xprt_min_resvport_limit = RPC_MIN_RESVPORT;
+static unsigned int xprt_max_resvport_limit = RPC_MAX_RESVPORT;
 
 static ctl_table debug_table[] = {
 	{
@@ -176,6 +186,28 @@ static ctl_table debug_table[] = {
 		.strategy	= &sysctl_intvec,
 		.extra1		= &min_slot_table_size,
 		.extra2		= &max_slot_table_size
+	},
+	{
+		.ctl_name	= CTL_MIN_RESVPORT,
+		.procname	= "min_resvport",
+		.data		= &xprt_min_resvport,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &xprt_min_resvport_limit,
+		.extra2		= &xprt_max_resvport_limit
+	},
+	{
+		.ctl_name	= CTL_MAX_RESVPORT,
+		.procname	= "max_resvport",
+		.data		= &xprt_max_resvport,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &xprt_min_resvport_limit,
+		.extra2		= &xprt_max_resvport_limit
 	},
 	{ .ctl_name = 0 }
 };

@@ -53,10 +53,8 @@ __obsolete_setup("amijoy=");
 
 static int amijoy_used;
 static DECLARE_MUTEX(amijoy_sem);
-static struct input_dev amijoy_dev[2];
+static struct input_dev *amijoy_dev[2];
 static char *amijoy_phys[2] = { "amijoy/input0", "amijoy/input1" };
-
-static char *amijoy_name = "Amiga joystick";
 
 static irqreturn_t amijoy_interrupt(int irq, void *dummy, struct pt_regs *fp)
 {
@@ -70,15 +68,15 @@ static irqreturn_t amijoy_interrupt(int irq, void *dummy, struct pt_regs *fp)
 				case 1: data = ~custom.joy1dat; button = (~ciaa.pra >> 7) & 1; break;
 			}
 
-			input_regs(amijoy_dev + i, fp);
+			input_regs(amijoy_dev[i], fp);
 
-			input_report_key(amijoy_dev + i, BTN_TRIGGER, button);
+			input_report_key(amijoy_dev[i], BTN_TRIGGER, button);
 
-			input_report_abs(amijoy_dev + i, ABS_X, ((data >> 1) & 1) - ((data >> 9) & 1));
+			input_report_abs(amijoy_dev[i], ABS_X, ((data >> 1) & 1) - ((data >> 9) & 1));
 			data = ~(data ^ (data << 1));
-			input_report_abs(amijoy_dev + i, ABS_Y, ((data >> 1) & 1) - ((data >> 9) & 1));
+			input_report_abs(amijoy_dev[i], ABS_Y, ((data >> 1) & 1) - ((data >> 9) & 1));
 
-			input_sync(amijoy_dev + i);
+			input_sync(amijoy_dev[i]);
 		}
 	return IRQ_HANDLED;
 }
@@ -114,39 +112,52 @@ static void amijoy_close(struct input_dev *dev)
 static int __init amijoy_init(void)
 {
 	int i, j;
+	int err;
 
-	for (i = 0; i < 2; i++)
-		if (amijoy[i]) {
-			if (!request_mem_region(CUSTOM_PHYSADDR+10+i*2, 2,
-						"amijoy [Denise]")) {
-				if (i == 1 && amijoy[0]) {
-					input_unregister_device(amijoy_dev);
-					release_mem_region(CUSTOM_PHYSADDR+10, 2);
-				}
-				return -EBUSY;
-			}
+	for (i = 0; i < 2; i++) {
+		if (!amijoy[i])
+			continue;
 
-			amijoy_dev[i].open = amijoy_open;
-			amijoy_dev[i].close = amijoy_close;
-			amijoy_dev[i].evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-			amijoy_dev[i].absbit[0] = BIT(ABS_X) | BIT(ABS_Y);
-			amijoy_dev[i].keybit[LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
-			for (j = 0; j < 2; j++) {
-				amijoy_dev[i].absmin[ABS_X + j] = -1;
-				amijoy_dev[i].absmax[ABS_X + j] = 1;
-			}
-
-			amijoy_dev[i].name = amijoy_name;
-			amijoy_dev[i].phys = amijoy_phys[i];
-			amijoy_dev[i].id.bustype = BUS_AMIGA;
-			amijoy_dev[i].id.vendor = 0x0001;
-			amijoy_dev[i].id.product = 0x0003;
-			amijoy_dev[i].id.version = 0x0100;
-
-			input_register_device(amijoy_dev + i);
-			printk(KERN_INFO "input: %s at joy%ddat\n", amijoy_name, i);
+		amijoy_dev[i] = input_allocate_device();
+		if (!amijoy_dev[i]) {
+			err = -ENOMEM;
+			goto fail;
 		}
+
+		if (!request_mem_region(CUSTOM_PHYSADDR + 10 + i * 2, 2, "amijoy [Denise]")) {
+			input_free_device(amijoy_dev[i]);
+			err = -EBUSY;
+			goto fail;
+		}
+
+		amijoy_dev[i]->name = "Amiga joystick";
+		amijoy_dev[i]->phys = amijoy_phys[i];
+		amijoy_dev[i]->id.bustype = BUS_AMIGA;
+		amijoy_dev[i]->id.vendor = 0x0001;
+		amijoy_dev[i]->id.product = 0x0003;
+		amijoy_dev[i]->id.version = 0x0100;
+
+		amijoy_dev[i]->open = amijoy_open;
+		amijoy_dev[i]->close = amijoy_close;
+
+		amijoy_dev[i]->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+		amijoy_dev[i]->absbit[0] = BIT(ABS_X) | BIT(ABS_Y);
+		amijoy_dev[i]->keybit[LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
+		for (j = 0; j < 2; j++) {
+			amijoy_dev[i]->absmin[ABS_X + j] = -1;
+			amijoy_dev[i]->absmax[ABS_X + j] = 1;
+		}
+
+		input_register_device(amijoy_dev[i]);
+	}
 	return 0;
+
+ fail:	while (--i >= 0)
+		if (amijoy[i]) {
+			input_unregister_device(amijoy_dev[i]);
+			release_mem_region(CUSTOM_PHYSADDR + 10 + i * 2, 2);
+		}
+	return err;
 }
 
 static void __exit amijoy_exit(void)
@@ -155,8 +166,8 @@ static void __exit amijoy_exit(void)
 
 	for (i = 0; i < 2; i++)
 		if (amijoy[i]) {
-			input_unregister_device(amijoy_dev + i);
-			release_mem_region(CUSTOM_PHYSADDR+10+i*2, 2);
+			input_unregister_device(amijoy_dev[i]);
+			release_mem_region(CUSTOM_PHYSADDR + 10 + i * 2, 2);
 		}
 }
 

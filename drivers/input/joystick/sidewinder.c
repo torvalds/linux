@@ -113,7 +113,7 @@ static struct {
 
 struct sw {
 	struct gameport *gameport;
-	struct input_dev dev[4];
+	struct input_dev *dev[4];
 	char name[64];
 	char phys[4][32];
 	int length;
@@ -301,7 +301,7 @@ static int sw_check(__u64 t)
 static int sw_parse(unsigned char *buf, struct sw *sw)
 {
 	int hat, i, j;
-	struct input_dev *dev = sw->dev;
+	struct input_dev *dev;
 
 	switch (sw->type) {
 
@@ -309,6 +309,8 @@ static int sw_parse(unsigned char *buf, struct sw *sw)
 
 			if (sw_check(GB(0,64)) || (hat = (GB(6,1) << 3) | GB(60,3)) > 8)
 				return -1;
+
+			dev = sw->dev[0];
 
 			input_report_abs(dev, ABS_X,        (GB( 3,3) << 7) | GB(16,7));
 			input_report_abs(dev, ABS_Y,        (GB( 0,3) << 7) | GB(24,7));
@@ -335,13 +337,13 @@ static int sw_parse(unsigned char *buf, struct sw *sw)
 				if (sw_parity(GB(i*15,15)))
 					return -1;
 
-				input_report_abs(dev + i, ABS_X, GB(i*15+3,1) - GB(i*15+2,1));
-				input_report_abs(dev + i, ABS_Y, GB(i*15+0,1) - GB(i*15+1,1));
+				input_report_abs(sw->dev[i], ABS_X, GB(i*15+3,1) - GB(i*15+2,1));
+				input_report_abs(sw->dev[i], ABS_Y, GB(i*15+0,1) - GB(i*15+1,1));
 
 				for (j = 0; j < 10; j++)
-					input_report_key(dev + i, sw_btn[SW_ID_GP][j], !GB(i*15+j+4,1));
+					input_report_key(sw->dev[i], sw_btn[SW_ID_GP][j], !GB(i*15+j+4,1));
 
-				input_sync(dev + i);
+				input_sync(sw->dev[i]);
 			}
 
 			return 0;
@@ -352,6 +354,7 @@ static int sw_parse(unsigned char *buf, struct sw *sw)
 			if (!sw_parity(GB(0,48)) || (hat = GB(42,4)) > 8)
 				return -1;
 
+			dev = sw->dev[0];
 			input_report_abs(dev, ABS_X,        GB( 9,10));
 			input_report_abs(dev, ABS_Y,        GB(19,10));
 			input_report_abs(dev, ABS_RZ,       GB(36, 6));
@@ -372,6 +375,7 @@ static int sw_parse(unsigned char *buf, struct sw *sw)
 			if (!sw_parity(GB(0,43)) || (hat = GB(28,4)) > 8)
 				return -1;
 
+			dev = sw->dev[0];
 			input_report_abs(dev, ABS_X,        GB( 0,10));
 			input_report_abs(dev, ABS_Y,        GB(16,10));
 			input_report_abs(dev, ABS_THROTTLE, GB(32, 6));
@@ -396,6 +400,7 @@ static int sw_parse(unsigned char *buf, struct sw *sw)
 			if (!sw_parity(GB(0,33)))
 				return -1;
 
+			dev = sw->dev[0];
 			input_report_abs(dev, ABS_RX,       GB( 0,10));
 			input_report_abs(dev, ABS_RUDDER,   GB(10, 6));
 			input_report_abs(dev, ABS_THROTTLE, GB(16, 6));
@@ -581,6 +586,7 @@ static int sw_guess_mode(unsigned char *buf, int len)
 static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 {
 	struct sw *sw;
+	struct input_dev *input_dev;
 	int i, j, k, l;
 	int err;
 	unsigned char *buf = NULL;	/* [SW_LENGTH] */
@@ -729,42 +735,50 @@ static int sw_connect(struct gameport *gameport, struct gameport_driver *drv)
 		sprintf(sw->name, "Microsoft SideWinder %s", sw_name[sw->type]);
 		sprintf(sw->phys[i], "%s/input%d", gameport->phys, i);
 
-		sw->dev[i].private = sw;
+		input_dev = input_allocate_device();
+		if (!input_dev) {
+			err = -ENOMEM;
+			goto fail3;
+		}
 
-		sw->dev[i].open = sw_open;
-		sw->dev[i].close = sw_close;
+		input_dev->name = sw->name;
+		input_dev->phys = sw->phys[i];
+		input_dev->id.bustype = BUS_GAMEPORT;
+		input_dev->id.vendor = GAMEPORT_ID_VENDOR_MICROSOFT;
+		input_dev->id.product = sw->type;
+		input_dev->id.version = 0x0100;
+		input_dev->cdev.dev = &gameport->dev;
+		input_dev->private = sw;
 
-		sw->dev[i].name = sw->name;
-		sw->dev[i].phys = sw->phys[i];
-		sw->dev[i].id.bustype = BUS_GAMEPORT;
-		sw->dev[i].id.vendor = GAMEPORT_ID_VENDOR_MICROSOFT;
-		sw->dev[i].id.product = sw->type;
-		sw->dev[i].id.version = 0x0100;
+		input_dev->open = sw_open;
+		input_dev->close = sw_close;
 
-		sw->dev[i].evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+		input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 
 		for (j = 0; (bits = sw_bit[sw->type][j]); j++) {
 			code = sw_abs[sw->type][j];
-			set_bit(code, sw->dev[i].absbit);
-			sw->dev[i].absmax[code] = (1 << bits) - 1;
-			sw->dev[i].absmin[code] = (bits == 1) ? -1 : 0;
-			sw->dev[i].absfuzz[code] = ((bits >> 1) >= 2) ? (1 << ((bits >> 1) - 2)) : 0;
+			set_bit(code, input_dev->absbit);
+			input_dev->absmax[code] = (1 << bits) - 1;
+			input_dev->absmin[code] = (bits == 1) ? -1 : 0;
+			input_dev->absfuzz[code] = ((bits >> 1) >= 2) ? (1 << ((bits >> 1) - 2)) : 0;
 			if (code != ABS_THROTTLE)
-				sw->dev[i].absflat[code] = (bits >= 5) ? (1 << (bits - 5)) : 0;
+				input_dev->absflat[code] = (bits >= 5) ? (1 << (bits - 5)) : 0;
 		}
 
 		for (j = 0; (code = sw_btn[sw->type][j]); j++)
-			set_bit(code, sw->dev[i].keybit);
+			set_bit(code, input_dev->keybit);
 
-		input_register_device(sw->dev + i);
-		printk(KERN_INFO "input: %s%s on %s [%d-bit id %d data %d]\n",
-			sw->name, comment, gameport->phys, m, l, k);
+		dbg("%s%s [%d-bit id %d data %d]\n", sw->name, comment, m, l, k);
+
+		input_register_device(sw->dev[i]);
 	}
 
 	return 0;
 
-fail2:	gameport_close(gameport);
-fail1:	gameport_set_drvdata(gameport, NULL);
+ fail3: while (--i >= 0)
+		input_unregister_device(sw->dev[i]);
+ fail2:	gameport_close(gameport);
+ fail1:	gameport_set_drvdata(gameport, NULL);
 	kfree(sw);
 	kfree(buf);
 	kfree(idbuf);
@@ -777,7 +791,7 @@ static void sw_disconnect(struct gameport *gameport)
 	int i;
 
 	for (i = 0; i < sw->number; i++)
-		input_unregister_device(sw->dev + i);
+		input_unregister_device(sw->dev[i]);
 	gameport_close(gameport);
 	gameport_set_drvdata(gameport, NULL);
 	kfree(sw);

@@ -34,10 +34,7 @@ MODULE_DESCRIPTION("Amiga mouse driver");
 MODULE_LICENSE("GPL");
 
 static int amimouse_lastx, amimouse_lasty;
-static struct input_dev amimouse_dev;
-
-static char *amimouse_name = "Amiga mouse";
-static char *amimouse_phys = "amimouse/input0";
+static struct input_dev *amimouse_dev;
 
 static irqreturn_t amimouse_interrupt(int irq, void *dummy, struct pt_regs *fp)
 {
@@ -62,16 +59,16 @@ static irqreturn_t amimouse_interrupt(int irq, void *dummy, struct pt_regs *fp)
 
 	potgor = custom.potgor;
 
-	input_regs(&amimouse_dev, fp);
+	input_regs(amimouse_dev, fp);
 
-	input_report_rel(&amimouse_dev, REL_X, dx);
-	input_report_rel(&amimouse_dev, REL_Y, dy);
+	input_report_rel(amimouse_dev, REL_X, dx);
+	input_report_rel(amimouse_dev, REL_Y, dy);
 
-	input_report_key(&amimouse_dev, BTN_LEFT,   ciaa.pra & 0x40);
-	input_report_key(&amimouse_dev, BTN_MIDDLE, potgor & 0x0100);
-	input_report_key(&amimouse_dev, BTN_RIGHT,  potgor & 0x0400);
+	input_report_key(amimouse_dev, BTN_LEFT,   ciaa.pra & 0x40);
+	input_report_key(amimouse_dev, BTN_MIDDLE, potgor & 0x0100);
+	input_report_key(amimouse_dev, BTN_RIGHT,  potgor & 0x0400);
 
-	input_sync(&amimouse_dev);
+	input_sync(amimouse_dev);
 
 	return IRQ_HANDLED;
 }
@@ -103,28 +100,30 @@ static int __init amimouse_init(void)
 	if (!MACH_IS_AMIGA || !AMIGAHW_PRESENT(AMI_MOUSE))
 		return -ENODEV;
 
-	amimouse_dev.evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
-	amimouse_dev.relbit[0] = BIT(REL_X) | BIT(REL_Y);
-	amimouse_dev.keybit[LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
-	amimouse_dev.open = amimouse_open;
-	amimouse_dev.close = amimouse_close;
+	if (!(amimouse_dev = input_allocate_device()))
+		return -ENOMEM;
 
-	amimouse_dev.name = amimouse_name;
-	amimouse_dev.phys = amimouse_phys;
-	amimouse_dev.id.bustype = BUS_AMIGA;
-	amimouse_dev.id.vendor = 0x0001;
-	amimouse_dev.id.product = 0x0002;
-	amimouse_dev.id.version = 0x0100;
+	amimouse_dev->name = "Amiga mouse";
+	amimouse_dev->phys = "amimouse/input0";
+	amimouse_dev->id.bustype = BUS_AMIGA;
+	amimouse_dev->id.vendor = 0x0001;
+	amimouse_dev->id.product = 0x0002;
+	amimouse_dev->id.version = 0x0100;
 
-	input_register_device(&amimouse_dev);
+	amimouse_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
+	amimouse_dev->relbit[0] = BIT(REL_X) | BIT(REL_Y);
+	amimouse_dev->keybit[LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
+	amimouse_dev->open = amimouse_open;
+	amimouse_dev->close = amimouse_close;
 
-        printk(KERN_INFO "input: %s at joy0dat\n", amimouse_name);
+	input_register_device(amimouse_dev);
+
 	return 0;
 }
 
 static void __exit amimouse_exit(void)
 {
-        input_unregister_device(&amimouse_dev);
+        input_unregister_device(amimouse_dev);
 }
 
 module_init(amimouse_init);

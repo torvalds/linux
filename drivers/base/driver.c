@@ -28,6 +28,7 @@ static struct device * next_device(struct klist_iter * i)
 /**
  *	driver_for_each_device - Iterator for devices bound to a driver.
  *	@drv:	Driver we're iterating.
+ *	@start: Device to begin with
  *	@data:	Data to pass to the callback.
  *	@fn:	Function to call for each device.
  *
@@ -57,7 +58,7 @@ EXPORT_SYMBOL_GPL(driver_for_each_device);
 
 /**
  * driver_find_device - device iterator for locating a particular device.
- * @driver: The device's driver
+ * @drv: The device's driver
  * @start: Device to begin with
  * @data: Data to pass to match function
  * @match: Callback function to check device

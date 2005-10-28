@@ -477,13 +477,13 @@ static int kaweth_reset(struct kaweth_device *kaweth)
 }
 
 static void kaweth_usb_receive(struct urb *, struct pt_regs *regs);
-static int kaweth_resubmit_rx_urb(struct kaweth_device *, unsigned);
+static int kaweth_resubmit_rx_urb(struct kaweth_device *, gfp_t);
 
 /****************************************************************
 	int_callback
 *****************************************************************/
 
-static void kaweth_resubmit_int_urb(struct kaweth_device *kaweth, int mf)
+static void kaweth_resubmit_int_urb(struct kaweth_device *kaweth, gfp_t mf)
 {
 	int status;
 
@@ -550,7 +550,7 @@ static void kaweth_resubmit_tl(void *d)
  *     kaweth_resubmit_rx_urb
  ****************************************************************/
 static int kaweth_resubmit_rx_urb(struct kaweth_device *kaweth,
-						unsigned mem_flags)
+						gfp_t mem_flags)
 {
 	int result;
 

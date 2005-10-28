@@ -100,8 +100,12 @@ static void __init cerf_init_irq(void)
 }
 
 static struct map_desc cerf_io_desc[] __initdata = {
-  /* virtual	 physical    length	 type */
-  { 0xf0000000, 0x08000000, 0x00100000, MT_DEVICE }  /* Crystal Ethernet Chip */
+  	{	/* Crystal Ethernet Chip */
+		.virtual	=  0xf0000000,
+		.pfn		= __phys_to_pfn(0x08000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init cerf_map_io(void)

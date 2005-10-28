@@ -21,8 +21,6 @@
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi> and even
    Frodo Looijaard <frodol@dds.nl> */
 
-/* $Id: i2c-algo-bit.h,v 1.10 2003/01/21 08:08:16 kmalkki Exp $ */
-
 #ifndef _LINUX_I2C_ALGO_BIT_H
 #define _LINUX_I2C_ALGO_BIT_H
 
@@ -45,8 +43,6 @@ struct i2c_algo_bit_data {
 	int mdelay;		/* in millisecs, unused */
 	int timeout;		/* in jiffies */
 };
-
-#define I2C_BIT_ADAP_MAX	16
 
 int i2c_bit_add_bus(struct i2c_adapter *);
 int i2c_bit_del_bus(struct i2c_adapter *);

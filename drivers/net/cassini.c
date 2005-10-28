@@ -489,7 +489,7 @@ static int cas_page_free(struct cas *cp, cas_page_t *page)
 /* local page allocation routines for the receive buffers. jumbo pages
  * require at least 8K contiguous and 8K aligned buffers.
  */
-static cas_page_t *cas_page_alloc(struct cas *cp, const int flags)
+static cas_page_t *cas_page_alloc(struct cas *cp, const gfp_t flags)
 {
 	cas_page_t *page;
 
@@ -561,7 +561,7 @@ static void cas_spare_free(struct cas *cp)
 }
 
 /* replenish spares if needed */
-static void cas_spare_recover(struct cas *cp, const int flags)
+static void cas_spare_recover(struct cas *cp, const gfp_t flags)
 {
 	struct list_head list, *elem, *tmp;
 	int needed, i;

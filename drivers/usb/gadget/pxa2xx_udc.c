@@ -332,7 +332,7 @@ static int pxa2xx_ep_disable (struct usb_ep *_ep)
  * 	pxa2xx_ep_alloc_request - allocate a request data structure
  */
 static struct usb_request *
-pxa2xx_ep_alloc_request (struct usb_ep *_ep, unsigned gfp_flags)
+pxa2xx_ep_alloc_request (struct usb_ep *_ep, gfp_t gfp_flags)
 {
 	struct pxa2xx_request *req;
 
@@ -367,7 +367,7 @@ pxa2xx_ep_free_request (struct usb_ep *_ep, struct usb_request *_req)
  */
 static void *
 pxa2xx_ep_alloc_buffer(struct usb_ep *_ep, unsigned bytes,
-	dma_addr_t *dma, unsigned gfp_flags)
+	dma_addr_t *dma, gfp_t gfp_flags)
 {
 	char			*retval;
 
@@ -422,7 +422,7 @@ static inline void ep0_idle (struct pxa2xx_udc *dev)
 }
 
 static int
-write_packet(volatile unsigned long *uddr, struct pxa2xx_request *req, unsigned max)
+write_packet(volatile u32 *uddr, struct pxa2xx_request *req, unsigned max)
 {
 	u8		*buf;
 	unsigned	length, count;
@@ -874,7 +874,7 @@ done:
 /*-------------------------------------------------------------------------*/
 
 static int
-pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, unsigned gfp_flags)
+pxa2xx_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 {
 	struct pxa2xx_request	*req;
 	struct pxa2xx_ep	*ep;
@@ -2602,24 +2602,23 @@ static int __exit pxa2xx_udc_remove(struct device *_dev)
  * VBUS IRQs should probably be ignored so that the PXA device just acts
  * "dead" to USB hosts until system resume.
  */
-static int pxa2xx_udc_suspend(struct device *dev, pm_message_t state, u32 level)
+static int pxa2xx_udc_suspend(struct device *dev, pm_message_t state)
 {
 	struct pxa2xx_udc	*udc = dev_get_drvdata(dev);
 
-	if (level == SUSPEND_POWER_DOWN) {
-		if (!udc->mach->udc_command)
-			WARN("USB host won't detect disconnect!\n");
-		pullup(udc, 0);
-	}
+	if (!udc->mach->udc_command)
+		WARN("USB host won't detect disconnect!\n");
+	pullup(udc, 0);
+
 	return 0;
 }
 
-static int pxa2xx_udc_resume(struct device *dev, u32 level)
+static int pxa2xx_udc_resume(struct device *dev)
 {
 	struct pxa2xx_udc	*udc = dev_get_drvdata(dev);
 
-	if (level == RESUME_POWER_ON)
-		pullup(udc, 1);
+	pullup(udc, 1);
+
 	return 0;
 }
 

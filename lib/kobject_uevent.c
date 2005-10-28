@@ -54,7 +54,7 @@ static char *action_to_string(enum kobject_action action)
 static struct sock *uevent_sock;
 
 /**
- * send_uevent - notify userspace by sending event trough netlink socket
+ * send_uevent - notify userspace by sending event through netlink socket
  *
  * @signal: signal name
  * @obj: object path (kobject)
@@ -62,7 +62,7 @@ static struct sock *uevent_sock;
  * @gfp_mask:
  */
 static int send_uevent(const char *signal, const char *obj,
-		       char **envp, int gfp_mask)
+		       char **envp, gfp_t gfp_mask)
 {
 	struct sk_buff *skb;
 	char *pos;
@@ -98,7 +98,7 @@ static int send_uevent(const char *signal, const char *obj,
 }
 
 static int do_kobject_uevent(struct kobject *kobj, enum kobject_action action, 
-			     struct attribute *attr, int gfp_mask)
+			     struct attribute *attr, gfp_t gfp_mask)
 {
 	char *path;
 	char *attrpath;

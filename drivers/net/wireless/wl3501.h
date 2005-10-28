@@ -548,7 +548,7 @@ struct wl3501_80211_tx_plcp_hdr {
 
 struct wl3501_80211_tx_hdr {
 	struct wl3501_80211_tx_plcp_hdr	pclp_hdr;
-	struct ieee80211_hdr		mac_hdr;
+	struct ieee80211_hdr_4addr		mac_hdr;
 } __attribute__ ((packed));
 
 /*

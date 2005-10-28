@@ -99,7 +99,8 @@ struct class * class_get(struct class * cls)
 
 void class_put(struct class * cls)
 {
-	subsys_put(&cls->subsys);
+	if (cls)
+		subsys_put(&cls->subsys);
 }
 
 
@@ -165,12 +166,23 @@ void class_unregister(struct class * cls)
 
 static void class_create_release(struct class *cls)
 {
+	pr_debug("%s called for %s\n", __FUNCTION__, cls->name);
 	kfree(cls);
 }
 
 static void class_device_create_release(struct class_device *class_dev)
 {
+	pr_debug("%s called for %s\n", __FUNCTION__, class_dev->class_id);
 	kfree(class_dev);
+}
+
+/* needed to allow these devices to have parent class devices */
+static int class_device_create_hotplug(struct class_device *class_dev,
+				       char **envp, int num_envp,
+				       char *buffer, int buffer_size)
+{
+	pr_debug("%s called for %s\n", __FUNCTION__, class_dev->class_id);
+	return 0;
 }
 
 /**
@@ -301,10 +313,12 @@ static void class_dev_release(struct kobject * kobj)
 	kfree(cd->devt_attr);
 	cd->devt_attr = NULL;
 
-	if (cls->release)
+	if (cd->release)
+		cd->release(cd);
+	else if (cls->release)
 		cls->release(cd);
 	else {
-		printk(KERN_ERR "Device class '%s' does not have a release() function, "
+		printk(KERN_ERR "Class Device '%s' does not have a release() function, "
 			"it is broken and must be fixed.\n",
 			cd->class_id);
 		WARN_ON(1);
@@ -382,14 +396,18 @@ static int class_hotplug(struct kset *kset, struct kobject *kobj, char **envp,
 	buffer = &buffer[length];
 	buffer_size -= length;
 
-	if (class_dev->class->hotplug) {
-		/* have the bus specific function add its stuff */
-		retval = class_dev->class->hotplug (class_dev, envp, num_envp,
-						    buffer, buffer_size);
-			if (retval) {
-			pr_debug ("%s - hotplug() returned %d\n",
-				  __FUNCTION__, retval);
-		}
+	if (class_dev->hotplug) {
+		/* have the class device specific function add its stuff */
+		retval = class_dev->hotplug(class_dev, envp, num_envp,
+					    buffer, buffer_size);
+		if (retval)
+			pr_debug("class_dev->hotplug() returned %d\n", retval);
+	} else if (class_dev->class->hotplug) {
+		/* have the class specific function add its stuff */
+		retval = class_dev->class->hotplug(class_dev, envp, num_envp,
+						   buffer, buffer_size);
+		if (retval)
+			pr_debug("class->hotplug() returned %d\n", retval);
 	}
 
 	return retval;
@@ -442,6 +460,13 @@ static ssize_t show_dev(struct class_device *class_dev, char *buf)
 	return print_dev_t(buf, class_dev->devt);
 }
 
+static ssize_t store_uevent(struct class_device *class_dev,
+			    const char *buf, size_t count)
+{
+	kobject_hotplug(&class_dev->kobj, KOBJ_ADD);
+	return count;
+}
+
 void class_device_initialize(struct class_device *class_dev)
 {
 	kobj_set_kset_s(class_dev, class_obj_subsys);
@@ -469,34 +494,45 @@ static char *make_class_name(struct class_device *class_dev)
 
 int class_device_add(struct class_device *class_dev)
 {
-	struct class * parent = NULL;
-	struct class_interface * class_intf;
+	struct class *parent_class = NULL;
+	struct class_device *parent_class_dev = NULL;
+	struct class_interface *class_intf;
 	char *class_name = NULL;
-	int error;
+	int error = -EINVAL;
 
 	class_dev = class_device_get(class_dev);
 	if (!class_dev)
 		return -EINVAL;
 
-	if (!strlen(class_dev->class_id)) {
-		error = -EINVAL;
+	if (!strlen(class_dev->class_id))
 		goto register_done;
-	}
 
-	parent = class_get(class_dev->class);
+	parent_class = class_get(class_dev->class);
+	if (!parent_class)
+		goto register_done;
+	parent_class_dev = class_device_get(class_dev->parent);
 
 	pr_debug("CLASS: registering class device: ID = '%s'\n",
 		 class_dev->class_id);
 
 	/* first, register with generic layer. */
 	kobject_set_name(&class_dev->kobj, "%s", class_dev->class_id);
-	if (parent)
-		class_dev->kobj.parent = &parent->subsys.kset.kobj;
+	if (parent_class_dev)
+		class_dev->kobj.parent = &parent_class_dev->kobj;
+	else
+		class_dev->kobj.parent = &parent_class->subsys.kset.kobj;
 
-	if ((error = kobject_add(&class_dev->kobj)))
+	error = kobject_add(&class_dev->kobj);
+	if (error)
 		goto register_done;
 
 	/* add the needed attributes to this device */
+	class_dev->uevent_attr.attr.name = "uevent";
+	class_dev->uevent_attr.attr.mode = S_IWUSR;
+	class_dev->uevent_attr.attr.owner = parent_class->owner;
+	class_dev->uevent_attr.store = store_uevent;
+	class_device_create_file(class_dev, &class_dev->uevent_attr);
+
 	if (MAJOR(class_dev->devt)) {
 		struct class_device_attribute *attr;
 		attr = kzalloc(sizeof(*attr), GFP_KERNEL);
@@ -505,12 +541,10 @@ int class_device_add(struct class_device *class_dev)
 			kobject_del(&class_dev->kobj);
 			goto register_done;
 		}
-
 		attr->attr.name = "dev";
 		attr->attr.mode = S_IRUGO;
-		attr->attr.owner = parent->owner;
+		attr->attr.owner = parent_class->owner;
 		attr->show = show_dev;
-		attr->store = NULL;
 		class_device_create_file(class_dev, attr);
 		class_dev->devt_attr = attr;
 	}
@@ -524,20 +558,23 @@ int class_device_add(struct class_device *class_dev)
 				  class_name);
 	}
 
-	/* notify any interfaces this device is now here */
-	if (parent) {
-		down(&parent->sem);
-		list_add_tail(&class_dev->node, &parent->children);
-		list_for_each_entry(class_intf, &parent->interfaces, node)
-			if (class_intf->add)
-				class_intf->add(class_dev);
-		up(&parent->sem);
-	}
 	kobject_hotplug(&class_dev->kobj, KOBJ_ADD);
 
+	/* notify any interfaces this device is now here */
+	if (parent_class) {
+		down(&parent_class->sem);
+		list_add_tail(&class_dev->node, &parent_class->children);
+		list_for_each_entry(class_intf, &parent_class->interfaces, node)
+			if (class_intf->add)
+				class_intf->add(class_dev, class_intf);
+		up(&parent_class->sem);
+	}
+
  register_done:
-	if (error && parent)
-		class_put(parent);
+	if (error) {
+		class_put(parent_class);
+		class_device_put(parent_class_dev);
+	}
 	class_device_put(class_dev);
 	kfree(class_name);
 	return error;
@@ -552,21 +589,28 @@ int class_device_register(struct class_device *class_dev)
 /**
  * class_device_create - creates a class device and registers it with sysfs
  * @cs: pointer to the struct class that this device should be registered to.
+ * @parent: pointer to the parent struct class_device of this new device, if any.
  * @dev: the dev_t for the char device to be added.
  * @device: a pointer to a struct device that is assiociated with this class device.
  * @fmt: string for the class device's name
  *
  * This function can be used by char device classes.  A struct
  * class_device will be created in sysfs, registered to the specified
- * class.  A "dev" file will be created, showing the dev_t for the
- * device.  The pointer to the struct class_device will be returned from
- * the call.  Any further sysfs files that might be required can be
- * created using this pointer.
+ * class.
+ * A "dev" file will be created, showing the dev_t for the device, if
+ * the dev_t is not 0,0.
+ * If a pointer to a parent struct class_device is passed in, the newly
+ * created struct class_device will be a child of that device in sysfs.
+ * The pointer to the struct class_device will be returned from the
+ * call.  Any further sysfs files that might be required can be created
+ * using this pointer.
  *
  * Note: the struct class passed to this function must have previously
  * been created with a call to class_create().
  */
-struct class_device *class_device_create(struct class *cls, dev_t devt,
+struct class_device *class_device_create(struct class *cls,
+					 struct class_device *parent,
+					 dev_t devt,
 					 struct device *device, char *fmt, ...)
 {
 	va_list args;
@@ -585,6 +629,9 @@ struct class_device *class_device_create(struct class *cls, dev_t devt,
 	class_dev->devt = devt;
 	class_dev->dev = device;
 	class_dev->class = cls;
+	class_dev->parent = parent;
+	class_dev->release = class_device_create_release;
+	class_dev->hotplug = class_device_create_hotplug;
 
 	va_start(args, fmt);
 	vsnprintf(class_dev->class_id, BUS_ID_SIZE, fmt, args);
@@ -602,17 +649,18 @@ error:
 
 void class_device_del(struct class_device *class_dev)
 {
-	struct class * parent = class_dev->class;
-	struct class_interface * class_intf;
+	struct class *parent_class = class_dev->class;
+	struct class_device *parent_device = class_dev->parent;
+	struct class_interface *class_intf;
 	char *class_name = NULL;
 
-	if (parent) {
-		down(&parent->sem);
+	if (parent_class) {
+		down(&parent_class->sem);
 		list_del_init(&class_dev->node);
-		list_for_each_entry(class_intf, &parent->interfaces, node)
+		list_for_each_entry(class_intf, &parent_class->interfaces, node)
 			if (class_intf->remove)
-				class_intf->remove(class_dev);
-		up(&parent->sem);
+				class_intf->remove(class_dev, class_intf);
+		up(&parent_class->sem);
 	}
 
 	if (class_dev->dev) {
@@ -620,6 +668,7 @@ void class_device_del(struct class_device *class_dev)
 		sysfs_remove_link(&class_dev->kobj, "device");
 		sysfs_remove_link(&class_dev->dev->kobj, class_name);
 	}
+	class_device_remove_file(class_dev, &class_dev->uevent_attr);
 	if (class_dev->devt_attr)
 		class_device_remove_file(class_dev, class_dev->devt_attr);
 	class_device_remove_attrs(class_dev);
@@ -627,8 +676,8 @@ void class_device_del(struct class_device *class_dev)
 	kobject_hotplug(&class_dev->kobj, KOBJ_REMOVE);
 	kobject_del(&class_dev->kobj);
 
-	if (parent)
-		class_put(parent);
+	class_device_put(parent_device);
+	class_put(parent_class);
 	kfree(class_name);
 }
 
@@ -708,7 +757,8 @@ struct class_device * class_device_get(struct class_device *class_dev)
 
 void class_device_put(struct class_device *class_dev)
 {
-	kobject_put(&class_dev->kobj);
+	if (class_dev)
+		kobject_put(&class_dev->kobj);
 }
 
 
@@ -728,7 +778,7 @@ int class_interface_register(struct class_interface *class_intf)
 	list_add_tail(&class_intf->node, &parent->interfaces);
 	if (class_intf->add) {
 		list_for_each_entry(class_dev, &parent->children, node)
-			class_intf->add(class_dev);
+			class_intf->add(class_dev, class_intf);
 	}
 	up(&parent->sem);
 
@@ -747,7 +797,7 @@ void class_interface_unregister(struct class_interface *class_intf)
 	list_del_init(&class_intf->node);
 	if (class_intf->remove) {
 		list_for_each_entry(class_dev, &parent->children, node)
-			class_intf->remove(class_dev);
+			class_intf->remove(class_dev, class_intf);
 	}
 	up(&parent->sem);
 

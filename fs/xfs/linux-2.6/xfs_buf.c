@@ -64,7 +64,7 @@
 
 STATIC kmem_cache_t *pagebuf_zone;
 STATIC kmem_shaker_t pagebuf_shake;
-STATIC int xfsbufd_wakeup(int, unsigned int);
+STATIC int xfsbufd_wakeup(int, gfp_t);
 STATIC void pagebuf_delwri_queue(xfs_buf_t *, int);
 
 STATIC struct workqueue_struct *xfslogd_workqueue;
@@ -383,7 +383,7 @@ _pagebuf_lookup_pages(
 	size_t			blocksize = bp->pb_target->pbr_bsize;
 	size_t			size = bp->pb_count_desired;
 	size_t			nbytes, offset;
-	int			gfp_mask = pb_to_gfp(flags);
+	gfp_t			gfp_mask = pb_to_gfp(flags);
 	unsigned short		page_count, i;
 	pgoff_t			first;
 	loff_t			end;
@@ -1749,8 +1749,8 @@ STATIC int xfsbufd_force_sleep;
 
 STATIC int
 xfsbufd_wakeup(
-	int			priority,
-	unsigned int		mask)
+	int		priority,
+	gfp_t		mask)
 {
 	if (xfsbufd_force_sleep)
 		return 0;

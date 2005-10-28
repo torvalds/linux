@@ -75,7 +75,7 @@ static struct vm_region consistent_head = {
 };
 
 static struct vm_region *
-vm_region_alloc(struct vm_region *head, size_t size, int gfp)
+vm_region_alloc(struct vm_region *head, size_t size, gfp_t gfp)
 {
 	unsigned long addr = head->vm_start, end = head->vm_end - size;
 	unsigned long flags;
@@ -133,7 +133,7 @@ static struct vm_region *vm_region_find(struct vm_region *head, unsigned long ad
 #endif
 
 static void *
-__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, int gfp,
+__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 	    pgprot_t prot)
 {
 	struct page *page;
@@ -251,7 +251,7 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, int gfp,
  * virtual and bus address for that space.
  */
 void *
-dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, int gfp)
+dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp)
 {
 	return __dma_alloc(dev, size, handle, gfp,
 			   pgprot_noncached(pgprot_kernel));
@@ -263,7 +263,7 @@ EXPORT_SYMBOL(dma_alloc_coherent);
  * dma_alloc_coherent above.
  */
 void *
-dma_alloc_writecombine(struct device *dev, size_t size, dma_addr_t *handle, int gfp)
+dma_alloc_writecombine(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp)
 {
 	return __dma_alloc(dev, size, handle, gfp,
 			   pgprot_writecombine(pgprot_kernel));

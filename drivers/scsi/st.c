@@ -3577,7 +3577,8 @@ static long st_compat_ioctl(struct file *file, unsigned int cmd, unsigned long a
 static struct st_buffer *
  new_tape_buffer(int from_initialization, int need_dma, int max_sg)
 {
-	int i, priority, got = 0, segs = 0;
+	int i, got = 0, segs = 0;
+	gfp_t priority;
 	struct st_buffer *tb;
 
 	if (from_initialization)
@@ -3610,7 +3611,8 @@ static struct st_buffer *
 /* Try to allocate enough space in the tape buffer */
 static int enlarge_buffer(struct st_buffer * STbuffer, int new_size, int need_dma)
 {
-	int segs, nbr, max_segs, b_size, priority, order, got;
+	int segs, nbr, max_segs, b_size, order, got;
+	gfp_t priority;
 
 	if (new_size <= STbuffer->buffer_size)
 		return 1;
@@ -4375,7 +4377,7 @@ static void do_create_class_files(struct scsi_tape *STp, int dev_num, int mode)
 		snprintf(name, 10, "%s%s%s", rew ? "n" : "",
 			 STp->disk->disk_name, st_formats[i]);
 		st_class_member =
-			class_device_create(st_sysfs_class,
+			class_device_create(st_sysfs_class, NULL,
 					    MKDEV(SCSI_TAPE_MAJOR,
 						  TAPE_MINOR(dev_num, mode, rew)),
 					    &STp->device->sdev_gendev, "%s", name);

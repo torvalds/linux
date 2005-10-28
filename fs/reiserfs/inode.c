@@ -2842,7 +2842,7 @@ static int reiserfs_set_page_dirty(struct page *page)
  * even in -o notail mode, we can't be sure an old mount without -o notail
  * didn't create files with tails.
  */
-static int reiserfs_releasepage(struct page *page, int unused_gfp_flags)
+static int reiserfs_releasepage(struct page *page, gfp_t unused_gfp_flags)
 {
 	struct inode *inode = page->mapping->host;
 	struct reiserfs_journal *j = SB_JOURNAL(inode->i_sb);

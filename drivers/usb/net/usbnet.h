@@ -107,7 +107,7 @@ struct driver_info {
 
 	/* fixup tx packet (add framing) */
 	struct sk_buff	*(*tx_fixup)(struct usbnet *dev,
-				struct sk_buff *skb, unsigned flags);
+				struct sk_buff *skb, gfp_t flags);
 
 	/* for new devices, use the descriptor-reading code instead */
 	int		in;		/* rx endpoint */

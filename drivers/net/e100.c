@@ -2201,6 +2201,7 @@ static struct ethtool_ops e100_ethtool_ops = {
 	.phys_id		= e100_phys_id,
 	.get_stats_count	= e100_get_stats_count,
 	.get_ethtool_stats	= e100_get_ethtool_stats,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static int e100_do_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
@@ -2351,7 +2352,8 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	e100_phy_init(nic);
 
 	memcpy(netdev->dev_addr, nic->eeprom, ETH_ALEN);
-	if(!is_valid_ether_addr(netdev->dev_addr)) {
+	memcpy(netdev->perm_addr, nic->eeprom, ETH_ALEN);
+	if(!is_valid_ether_addr(netdev->perm_addr)) {
 		DPRINTK(PROBE, ERR, "Invalid MAC address from "
 			"EEPROM, aborting.\n");
 		err = -EAGAIN;

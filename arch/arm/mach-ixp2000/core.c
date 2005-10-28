@@ -83,42 +83,42 @@ void ixp2000_release_slowport(struct slowport_cfg *old_cfg)
 static struct map_desc ixp2000_io_desc[] __initdata = {
 	{
 		.virtual	= IXP2000_CAP_VIRT_BASE,
-		.physical	= IXP2000_CAP_PHYS_BASE,
+		.pfn		= __phys_to_pfn(IXP2000_CAP_PHYS_BASE),
 		.length		= IXP2000_CAP_SIZE,
 		.type		= MT_DEVICE
 	}, {
 		.virtual	= IXP2000_INTCTL_VIRT_BASE,
-		.physical	= IXP2000_INTCTL_PHYS_BASE,
+		.pfn		= __phys_to_pfn(IXP2000_INTCTL_PHYS_BASE),
 		.length		= IXP2000_INTCTL_SIZE,
 		.type		= MT_DEVICE
 	}, {
 		.virtual	= IXP2000_PCI_CREG_VIRT_BASE,
-		.physical	= IXP2000_PCI_CREG_PHYS_BASE,
+		.pfn		= __phys_to_pfn(IXP2000_PCI_CREG_PHYS_BASE),
 		.length		= IXP2000_PCI_CREG_SIZE,
 		.type		= MT_DEVICE
 	}, {
 		.virtual	= IXP2000_PCI_CSR_VIRT_BASE,
-		.physical	= IXP2000_PCI_CSR_PHYS_BASE,
+		.pfn		= __phys_to_pfn(IXP2000_PCI_CSR_PHYS_BASE),
 		.length		= IXP2000_PCI_CSR_SIZE,
 		.type		= MT_DEVICE
 	}, {
 		.virtual	= IXP2000_MSF_VIRT_BASE,
-		.physical	= IXP2000_MSF_PHYS_BASE,
+		.pfn		= __phys_to_pfn(IXP2000_MSF_PHYS_BASE),
 		.length		= IXP2000_MSF_SIZE,
 		.type		= MT_DEVICE
 	}, {
 		.virtual	= IXP2000_PCI_IO_VIRT_BASE,
-		.physical	= IXP2000_PCI_IO_PHYS_BASE,
+		.pfn		= __phys_to_pfn(IXP2000_PCI_IO_PHYS_BASE),
 		.length		= IXP2000_PCI_IO_SIZE,
 		.type		= MT_DEVICE
 	}, {
 		.virtual	= IXP2000_PCI_CFG0_VIRT_BASE,
-		.physical	= IXP2000_PCI_CFG0_PHYS_BASE,
+		.pfn		= __phys_to_pfn(IXP2000_PCI_CFG0_PHYS_BASE),
 		.length		= IXP2000_PCI_CFG0_SIZE,
 		.type		= MT_DEVICE
 	}, {
 		.virtual	= IXP2000_PCI_CFG1_VIRT_BASE,
-		.physical	= IXP2000_PCI_CFG1_PHYS_BASE,
+		.pfn		= __phys_to_pfn(IXP2000_PCI_CFG1_PHYS_BASE),
 		.length		= IXP2000_PCI_CFG1_SIZE,
 		.type		= MT_DEVICE
 	}

@@ -425,9 +425,9 @@ static int build_key(struct saa7134_dev *dev)
 
 	if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 	    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-		ir_input_keydown(&ir->dev,&ir->ir,data,data);
+		ir_input_keydown(ir->dev, &ir->ir, data, data);
 	} else {
-		ir_input_nokey(&ir->dev,&ir->ir);
+		ir_input_nokey(ir->dev, &ir->ir);
 	}
 	return 0;
 }
@@ -456,6 +456,7 @@ static void saa7134_input_timer(unsigned long data)
 int saa7134_input_init1(struct saa7134_dev *dev)
 {
 	struct saa7134_ir *ir;
+	struct input_dev *input_dev;
 	IR_KEYTAB_TYPE *ir_codes = NULL;
 	u32 mask_keycode = 0;
 	u32 mask_keydown = 0;
@@ -535,10 +536,13 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		return -ENODEV;
 	}
 
-	ir = kmalloc(sizeof(*ir),GFP_KERNEL);
-	if (NULL == ir)
+	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!ir || !input_dev) {
+		kfree(ir);
+		input_free_device(input_dev);
 		return -ENOMEM;
-	memset(ir,0,sizeof(*ir));
+	}
 
 	/* init hardware-specific stuff */
 	ir->mask_keycode = mask_keycode;
@@ -552,19 +556,19 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(dev->pci));
 
-	ir_input_init(&ir->dev, &ir->ir, ir_type, ir_codes);
-	ir->dev.name = ir->name;
-	ir->dev.phys = ir->phys;
-	ir->dev.id.bustype = BUS_PCI;
-	ir->dev.id.version = 1;
+	ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
+	input_dev->name = ir->name;
+	input_dev->phys = ir->phys;
+	input_dev->id.bustype = BUS_PCI;
+	input_dev->id.version = 1;
 	if (dev->pci->subsystem_vendor) {
-		ir->dev.id.vendor  = dev->pci->subsystem_vendor;
-		ir->dev.id.product = dev->pci->subsystem_device;
+		input_dev->id.vendor  = dev->pci->subsystem_vendor;
+		input_dev->id.product = dev->pci->subsystem_device;
 	} else {
-		ir->dev.id.vendor  = dev->pci->vendor;
-		ir->dev.id.product = dev->pci->device;
+		input_dev->id.vendor  = dev->pci->vendor;
+		input_dev->id.product = dev->pci->device;
 	}
-	ir->dev.dev = &dev->pci->dev;
+	input_dev->cdev.dev = &dev->pci->dev;
 
 	/* all done */
 	dev->remote = ir;
@@ -576,8 +580,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		add_timer(&ir->timer);
 	}
 
-	input_register_device(&dev->remote->dev);
-	printk("%s: registered input device for IR\n",dev->name);
+	input_register_device(ir->dev);
 	return 0;
 }
 
@@ -586,9 +589,9 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 	if (NULL == dev->remote)
 		return;
 
-	input_unregister_device(&dev->remote->dev);
 	if (dev->remote->polling)
 		del_timer_sync(&dev->remote->timer);
+	input_unregister_device(dev->remote->dev);
 	kfree(dev->remote);
 	dev->remote = NULL;
 }

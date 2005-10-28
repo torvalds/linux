@@ -98,7 +98,6 @@ struct as_data {
 
 	struct as_rq *next_arq[2];	/* next in sort order */
 	sector_t last_sector[2];	/* last REQ_SYNC & REQ_ASYNC sectors */
-	struct list_head *dispatch;	/* driver dispatch queue */
 	struct list_head *hash;		/* request hash */
 
 	unsigned long exit_prob;	/* probability a task will exit while
@@ -239,6 +238,25 @@ static struct io_context *as_get_io_context(void)
 	return ioc;
 }
 
+static void as_put_io_context(struct as_rq *arq)
+{
+	struct as_io_context *aic;
+
+	if (unlikely(!arq->io_context))
+		return;
+
+	aic = arq->io_context->aic;
+
+	if (arq->is_sync == REQ_SYNC && aic) {
+		spin_lock(&aic->lock);
+		set_bit(AS_TASK_IORUNNING, &aic->state);
+		aic->last_end_request = jiffies;
+		spin_unlock(&aic->lock);
+	}
+
+	put_io_context(arq->io_context);
+}
+
 /*
  * the back merge hash support functions
  */
@@ -259,14 +277,6 @@ static inline void as_del_arq_hash(struct as_rq *arq)
 {
 	if (arq->on_hash)
 		__as_del_arq_hash(arq);
-}
-
-static void as_remove_merge_hints(request_queue_t *q, struct as_rq *arq)
-{
-	as_del_arq_hash(arq);
-
-	if (q->last_merge == arq->request)
-		q->last_merge = NULL;
 }
 
 static void as_add_arq_hash(struct as_data *ad, struct as_rq *arq)
@@ -312,7 +322,7 @@ static struct request *as_find_arq_hash(struct as_data *ad, sector_t offset)
 		BUG_ON(!arq->on_hash);
 
 		if (!rq_mergeable(__rq)) {
-			as_remove_merge_hints(ad->q, arq);
+			as_del_arq_hash(arq);
 			continue;
 		}
 
@@ -950,22 +960,11 @@ static void as_completed_request(request_queue_t *q, struct request *rq)
 
 	WARN_ON(!list_empty(&rq->queuelist));
 
-	if (arq->state == AS_RQ_PRESCHED) {
-		WARN_ON(arq->io_context);
-		goto out;
-	}
-
-	if (arq->state == AS_RQ_MERGED)
-		goto out_ioc;
-
 	if (arq->state != AS_RQ_REMOVED) {
 		printk("arq->state %d\n", arq->state);
 		WARN_ON(1);
 		goto out;
 	}
-
-	if (!blk_fs_request(rq))
-		goto out;
 
 	if (ad->changed_batch && ad->nr_dispatched == 1) {
 		kblockd_schedule_work(&ad->antic_work);
@@ -1001,21 +1000,7 @@ static void as_completed_request(request_queue_t *q, struct request *rq)
 		}
 	}
 
-out_ioc:
-	if (!arq->io_context)
-		goto out;
-
-	if (arq->is_sync == REQ_SYNC) {
-		struct as_io_context *aic = arq->io_context->aic;
-		if (aic) {
-			spin_lock(&aic->lock);
-			set_bit(AS_TASK_IORUNNING, &aic->state);
-			aic->last_end_request = jiffies;
-			spin_unlock(&aic->lock);
-		}
-	}
-
-	put_io_context(arq->io_context);
+	as_put_io_context(arq);
 out:
 	arq->state = AS_RQ_POSTSCHED;
 }
@@ -1047,70 +1032,8 @@ static void as_remove_queued_request(request_queue_t *q, struct request *rq)
 		ad->next_arq[data_dir] = as_find_next_arq(ad, arq);
 
 	list_del_init(&arq->fifo);
-	as_remove_merge_hints(q, arq);
+	as_del_arq_hash(arq);
 	as_del_arq_rb(ad, arq);
-}
-
-/*
- * as_remove_dispatched_request is called to remove a request which has gone
- * to the dispatch list.
- */
-static void as_remove_dispatched_request(request_queue_t *q, struct request *rq)
-{
-	struct as_rq *arq = RQ_DATA(rq);
-	struct as_io_context *aic;
-
-	if (!arq) {
-		WARN_ON(1);
-		return;
-	}
-
-	WARN_ON(arq->state != AS_RQ_DISPATCHED);
-	WARN_ON(ON_RB(&arq->rb_node));
-	if (arq->io_context && arq->io_context->aic) {
-		aic = arq->io_context->aic;
-		if (aic) {
-			WARN_ON(!atomic_read(&aic->nr_dispatched));
-			atomic_dec(&aic->nr_dispatched);
-		}
-	}
-}
-
-/*
- * as_remove_request is called when a driver has finished with a request.
- * This should be only called for dispatched requests, but for some reason
- * a POWER4 box running hwscan it does not.
- */
-static void as_remove_request(request_queue_t *q, struct request *rq)
-{
-	struct as_rq *arq = RQ_DATA(rq);
-
-	if (unlikely(arq->state == AS_RQ_NEW))
-		goto out;
-
-	if (ON_RB(&arq->rb_node)) {
-		if (arq->state != AS_RQ_QUEUED) {
-			printk("arq->state %d\n", arq->state);
-			WARN_ON(1);
-			goto out;
-		}
-		/*
-		 * We'll lose the aliased request(s) here. I don't think this
-		 * will ever happen, but if it does, hopefully someone will
-		 * report it.
-		 */
-		WARN_ON(!list_empty(&rq->queuelist));
-		as_remove_queued_request(q, rq);
-	} else {
-		if (arq->state != AS_RQ_DISPATCHED) {
-			printk("arq->state %d\n", arq->state);
-			WARN_ON(1);
-			goto out;
-		}
-		as_remove_dispatched_request(q, rq);
-	}
-out:
-	arq->state = AS_RQ_REMOVED;
 }
 
 /*
@@ -1165,7 +1088,6 @@ static inline int as_batch_expired(struct as_data *ad)
 static void as_move_to_dispatch(struct as_data *ad, struct as_rq *arq)
 {
 	struct request *rq = arq->request;
-	struct list_head *insert;
 	const int data_dir = arq->is_sync;
 
 	BUG_ON(!ON_RB(&arq->rb_node));
@@ -1198,13 +1120,13 @@ static void as_move_to_dispatch(struct as_data *ad, struct as_rq *arq)
 	/*
 	 * take it off the sort and fifo list, add to dispatch queue
 	 */
-	insert = ad->dispatch->prev;
-
 	while (!list_empty(&rq->queuelist)) {
 		struct request *__rq = list_entry_rq(rq->queuelist.next);
 		struct as_rq *__arq = RQ_DATA(__rq);
 
-		list_move_tail(&__rq->queuelist, ad->dispatch);
+		list_del(&__rq->queuelist);
+
+		elv_dispatch_add_tail(ad->q, __rq);
 
 		if (__arq->io_context && __arq->io_context->aic)
 			atomic_inc(&__arq->io_context->aic->nr_dispatched);
@@ -1218,7 +1140,8 @@ static void as_move_to_dispatch(struct as_data *ad, struct as_rq *arq)
 	as_remove_queued_request(ad->q, rq);
 	WARN_ON(arq->state != AS_RQ_QUEUED);
 
-	list_add(&rq->queuelist, insert);
+	elv_dispatch_sort(ad->q, rq);
+
 	arq->state = AS_RQ_DISPATCHED;
 	if (arq->io_context && arq->io_context->aic)
 		atomic_inc(&arq->io_context->aic->nr_dispatched);
@@ -1230,11 +1153,41 @@ static void as_move_to_dispatch(struct as_data *ad, struct as_rq *arq)
  * read/write expire, batch expire, etc, and moves it to the dispatch
  * queue. Returns 1 if a request was found, 0 otherwise.
  */
-static int as_dispatch_request(struct as_data *ad)
+static int as_dispatch_request(request_queue_t *q, int force)
 {
+	struct as_data *ad = q->elevator->elevator_data;
 	struct as_rq *arq;
 	const int reads = !list_empty(&ad->fifo_list[REQ_SYNC]);
 	const int writes = !list_empty(&ad->fifo_list[REQ_ASYNC]);
+
+	if (unlikely(force)) {
+		/*
+		 * Forced dispatch, accounting is useless.  Reset
+		 * accounting states and dump fifo_lists.  Note that
+		 * batch_data_dir is reset to REQ_SYNC to avoid
+		 * screwing write batch accounting as write batch
+		 * accounting occurs on W->R transition.
+		 */
+		int dispatched = 0;
+
+		ad->batch_data_dir = REQ_SYNC;
+		ad->changed_batch = 0;
+		ad->new_batch = 0;
+
+		while (ad->next_arq[REQ_SYNC]) {
+			as_move_to_dispatch(ad, ad->next_arq[REQ_SYNC]);
+			dispatched++;
+		}
+		ad->last_check_fifo[REQ_SYNC] = jiffies;
+
+		while (ad->next_arq[REQ_ASYNC]) {
+			as_move_to_dispatch(ad, ad->next_arq[REQ_ASYNC]);
+			dispatched++;
+		}
+		ad->last_check_fifo[REQ_ASYNC] = jiffies;
+
+		return dispatched;
+	}
 
 	/* Signal that the write batch was uncontended, so we can't time it */
 	if (ad->batch_data_dir == REQ_ASYNC && !reads) {
@@ -1359,20 +1312,6 @@ fifo_expired:
 	return 1;
 }
 
-static struct request *as_next_request(request_queue_t *q)
-{
-	struct as_data *ad = q->elevator->elevator_data;
-	struct request *rq = NULL;
-
-	/*
-	 * if there are still requests on the dispatch queue, grab the first
-	 */
-	if (!list_empty(ad->dispatch) || as_dispatch_request(ad))
-		rq = list_entry_rq(ad->dispatch->next);
-
-	return rq;
-}
-
 /*
  * Add arq to a list behind alias
  */
@@ -1404,16 +1343,24 @@ as_add_aliased_request(struct as_data *ad, struct as_rq *arq, struct as_rq *alia
 	/*
 	 * Don't want to have to handle merges.
 	 */
-	as_remove_merge_hints(ad->q, arq);
+	as_del_arq_hash(arq);
 }
 
 /*
  * add arq to rbtree and fifo
  */
-static void as_add_request(struct as_data *ad, struct as_rq *arq)
+static void as_add_request(request_queue_t *q, struct request *rq)
 {
+	struct as_data *ad = q->elevator->elevator_data;
+	struct as_rq *arq = RQ_DATA(rq);
 	struct as_rq *alias;
 	int data_dir;
+
+	if (arq->state != AS_RQ_PRESCHED) {
+		printk("arq->state: %d\n", arq->state);
+		WARN_ON(1);
+	}
+	arq->state = AS_RQ_NEW;
 
 	if (rq_data_dir(arq->request) == READ
 			|| current->flags&PF_SYNCWRITE)
@@ -1437,12 +1384,8 @@ static void as_add_request(struct as_data *ad, struct as_rq *arq)
 		arq->expires = jiffies + ad->fifo_expire[data_dir];
 		list_add_tail(&arq->fifo, &ad->fifo_list[data_dir]);
 
-		if (rq_mergeable(arq->request)) {
+		if (rq_mergeable(arq->request))
 			as_add_arq_hash(ad, arq);
-
-			if (!ad->q->last_merge)
-				ad->q->last_merge = arq->request;
-		}
 		as_update_arq(ad, arq); /* keep state machine up to date */
 
 	} else {
@@ -1463,96 +1406,24 @@ static void as_add_request(struct as_data *ad, struct as_rq *arq)
 	arq->state = AS_RQ_QUEUED;
 }
 
+static void as_activate_request(request_queue_t *q, struct request *rq)
+{
+	struct as_rq *arq = RQ_DATA(rq);
+
+	WARN_ON(arq->state != AS_RQ_DISPATCHED);
+	arq->state = AS_RQ_REMOVED;
+	if (arq->io_context && arq->io_context->aic)
+		atomic_dec(&arq->io_context->aic->nr_dispatched);
+}
+
 static void as_deactivate_request(request_queue_t *q, struct request *rq)
 {
-	struct as_data *ad = q->elevator->elevator_data;
 	struct as_rq *arq = RQ_DATA(rq);
 
-	if (arq) {
-		if (arq->state == AS_RQ_REMOVED) {
-			arq->state = AS_RQ_DISPATCHED;
-			if (arq->io_context && arq->io_context->aic)
-				atomic_inc(&arq->io_context->aic->nr_dispatched);
-		}
-	} else
-		WARN_ON(blk_fs_request(rq)
-			&& (!(rq->flags & (REQ_HARDBARRIER|REQ_SOFTBARRIER))) );
-
-	/* Stop anticipating - let this request get through */
-	as_antic_stop(ad);
-}
-
-/*
- * requeue the request. The request has not been completed, nor is it a
- * new request, so don't touch accounting.
- */
-static void as_requeue_request(request_queue_t *q, struct request *rq)
-{
-	as_deactivate_request(q, rq);
-	list_add(&rq->queuelist, &q->queue_head);
-}
-
-/*
- * Account a request that is inserted directly onto the dispatch queue.
- * arq->io_context->aic->nr_dispatched should not need to be incremented
- * because only new requests should come through here: requeues go through
- * our explicit requeue handler.
- */
-static void as_account_queued_request(struct as_data *ad, struct request *rq)
-{
-	if (blk_fs_request(rq)) {
-		struct as_rq *arq = RQ_DATA(rq);
-		arq->state = AS_RQ_DISPATCHED;
-		ad->nr_dispatched++;
-	}
-}
-
-static void
-as_insert_request(request_queue_t *q, struct request *rq, int where)
-{
-	struct as_data *ad = q->elevator->elevator_data;
-	struct as_rq *arq = RQ_DATA(rq);
-
-	if (arq) {
-		if (arq->state != AS_RQ_PRESCHED) {
-			printk("arq->state: %d\n", arq->state);
-			WARN_ON(1);
-		}
-		arq->state = AS_RQ_NEW;
-	}
-
-	/* barriers must flush the reorder queue */
-	if (unlikely(rq->flags & (REQ_SOFTBARRIER | REQ_HARDBARRIER)
-			&& where == ELEVATOR_INSERT_SORT)) {
-		WARN_ON(1);
-		where = ELEVATOR_INSERT_BACK;
-	}
-
-	switch (where) {
-		case ELEVATOR_INSERT_BACK:
-			while (ad->next_arq[REQ_SYNC])
-				as_move_to_dispatch(ad, ad->next_arq[REQ_SYNC]);
-
-			while (ad->next_arq[REQ_ASYNC])
-				as_move_to_dispatch(ad, ad->next_arq[REQ_ASYNC]);
-
-			list_add_tail(&rq->queuelist, ad->dispatch);
-			as_account_queued_request(ad, rq);
-			as_antic_stop(ad);
-			break;
-		case ELEVATOR_INSERT_FRONT:
-			list_add(&rq->queuelist, ad->dispatch);
-			as_account_queued_request(ad, rq);
-			as_antic_stop(ad);
-			break;
-		case ELEVATOR_INSERT_SORT:
-			BUG_ON(!blk_fs_request(rq));
-			as_add_request(ad, arq);
-			break;
-		default:
-			BUG();
-			return;
-	}
+	WARN_ON(arq->state != AS_RQ_REMOVED);
+	arq->state = AS_RQ_DISPATCHED;
+	if (arq->io_context && arq->io_context->aic)
+		atomic_inc(&arq->io_context->aic->nr_dispatched);
 }
 
 /*
@@ -1565,12 +1436,8 @@ static int as_queue_empty(request_queue_t *q)
 {
 	struct as_data *ad = q->elevator->elevator_data;
 
-	if (!list_empty(&ad->fifo_list[REQ_ASYNC])
-		|| !list_empty(&ad->fifo_list[REQ_SYNC])
-		|| !list_empty(ad->dispatch))
-			return 0;
-
-	return 1;
+	return list_empty(&ad->fifo_list[REQ_ASYNC])
+		&& list_empty(&ad->fifo_list[REQ_SYNC]);
 }
 
 static struct request *
@@ -1608,15 +1475,6 @@ as_merge(request_queue_t *q, struct request **req, struct bio *bio)
 	int ret;
 
 	/*
-	 * try last_merge to avoid going to hash
-	 */
-	ret = elv_try_last_merge(q, bio);
-	if (ret != ELEVATOR_NO_MERGE) {
-		__rq = q->last_merge;
-		goto out_insert;
-	}
-
-	/*
 	 * see if the merge hash can satisfy a back merge
 	 */
 	__rq = as_find_arq_hash(ad, bio->bi_sector);
@@ -1644,9 +1502,6 @@ as_merge(request_queue_t *q, struct request **req, struct bio *bio)
 
 	return ELEVATOR_NO_MERGE;
 out:
-	if (rq_mergeable(__rq))
-		q->last_merge = __rq;
-out_insert:
 	if (ret) {
 		if (rq_mergeable(__rq))
 			as_hot_arq_hash(ad, RQ_DATA(__rq));
@@ -1693,9 +1548,6 @@ static void as_merged_request(request_queue_t *q, struct request *req)
 		 * behind the disk head. We currently don't bother adjusting.
 		 */
 	}
-
-	if (arq->on_hash)
-		q->last_merge = req;
 }
 
 static void
@@ -1763,6 +1615,7 @@ as_merged_requests(request_queue_t *q, struct request *req,
 	 * kill knowledge of next, this one is a goner
 	 */
 	as_remove_queued_request(q, next);
+	as_put_io_context(anext);
 
 	anext->state = AS_RQ_MERGED;
 }
@@ -1782,7 +1635,7 @@ static void as_work_handler(void *data)
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
-	if (as_next_request(q))
+	if (!as_queue_empty(q))
 		q->request_fn(q);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
@@ -1797,7 +1650,9 @@ static void as_put_request(request_queue_t *q, struct request *rq)
 		return;
 	}
 
-	if (arq->state != AS_RQ_POSTSCHED && arq->state != AS_RQ_PRESCHED) {
+	if (unlikely(arq->state != AS_RQ_POSTSCHED &&
+		     arq->state != AS_RQ_PRESCHED &&
+		     arq->state != AS_RQ_MERGED)) {
 		printk("arq->state %d\n", arq->state);
 		WARN_ON(1);
 	}
@@ -1807,7 +1662,7 @@ static void as_put_request(request_queue_t *q, struct request *rq)
 }
 
 static int as_set_request(request_queue_t *q, struct request *rq,
-			  struct bio *bio, int gfp_mask)
+			  struct bio *bio, gfp_t gfp_mask)
 {
 	struct as_data *ad = q->elevator->elevator_data;
 	struct as_rq *arq = mempool_alloc(ad->arq_pool, gfp_mask);
@@ -1907,7 +1762,6 @@ static int as_init_queue(request_queue_t *q, elevator_t *e)
 	INIT_LIST_HEAD(&ad->fifo_list[REQ_ASYNC]);
 	ad->sort_list[REQ_SYNC] = RB_ROOT;
 	ad->sort_list[REQ_ASYNC] = RB_ROOT;
-	ad->dispatch = &q->queue_head;
 	ad->fifo_expire[REQ_SYNC] = default_read_expire;
 	ad->fifo_expire[REQ_ASYNC] = default_write_expire;
 	ad->antic_expire = default_antic_expire;
@@ -2072,10 +1926,9 @@ static struct elevator_type iosched_as = {
 		.elevator_merge_fn = 		as_merge,
 		.elevator_merged_fn =		as_merged_request,
 		.elevator_merge_req_fn =	as_merged_requests,
-		.elevator_next_req_fn =		as_next_request,
-		.elevator_add_req_fn =		as_insert_request,
-		.elevator_remove_req_fn =	as_remove_request,
-		.elevator_requeue_req_fn = 	as_requeue_request,
+		.elevator_dispatch_fn =		as_dispatch_request,
+		.elevator_add_req_fn =		as_add_request,
+		.elevator_activate_req_fn =	as_activate_request,
 		.elevator_deactivate_req_fn = 	as_deactivate_request,
 		.elevator_queue_empty_fn =	as_queue_empty,
 		.elevator_completed_req_fn =	as_completed_request,

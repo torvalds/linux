@@ -213,8 +213,8 @@ static int  smsc_ircc_probe_transceiver_smsc_ircc_atc(int fir_base);
 
 /* Power Management */
 
-static int smsc_ircc_suspend(struct device *dev, pm_message_t state, u32 level);
-static int smsc_ircc_resume(struct device *dev, u32 level);
+static int smsc_ircc_suspend(struct device *dev, pm_message_t state);
+static int smsc_ircc_resume(struct device *dev);
 
 static struct device_driver smsc_ircc_driver = {
 	.name		= SMSC_IRCC2_DRIVER_NAME,
@@ -1646,13 +1646,13 @@ static int smsc_ircc_net_close(struct net_device *dev)
 	return 0;
 }
 
-static int smsc_ircc_suspend(struct device *dev, pm_message_t state, u32 level)
+static int smsc_ircc_suspend(struct device *dev, pm_message_t state)
 {
 	struct smsc_ircc_cb *self = dev_get_drvdata(dev);
 
 	IRDA_MESSAGE("%s, Suspending\n", driver_name);
 
-	if (level == SUSPEND_DISABLE && !self->io.suspended) {
+	if (!self->io.suspended) {
 		smsc_ircc_net_close(self->netdev);
 		self->io.suspended = 1;
 	}
@@ -1660,11 +1660,11 @@ static int smsc_ircc_suspend(struct device *dev, pm_message_t state, u32 level)
 	return 0;
 }
 
-static int smsc_ircc_resume(struct device *dev, u32 level)
+static int smsc_ircc_resume(struct device *dev)
 {
 	struct smsc_ircc_cb *self = dev_get_drvdata(dev);
 
-	if (level == RESUME_ENABLE && self->io.suspended) {
+	if (self->io.suspended) {
 
 		smsc_ircc_net_open(self->netdev);
 		self->io.suspended = 0;

@@ -44,13 +44,11 @@ MODULE_LICENSE("GPL");
 #define COBRA_MAX_STROBE	45	/* 45 us max wait for first strobe */
 #define COBRA_LENGTH		36
 
-static char* cobra_name = "Creative Labs Blaster GamePad Cobra";
-
 static int cobra_btn[] = { BTN_START, BTN_SELECT, BTN_TL, BTN_TR, BTN_X, BTN_Y, BTN_Z, BTN_A, BTN_B, BTN_C, BTN_TL2, BTN_TR2, 0 };
 
 struct cobra {
 	struct gameport *gameport;
-	struct input_dev dev[2];
+	struct input_dev *dev[2];
 	int reads;
 	int bads;
 	unsigned char exists;
@@ -128,7 +126,7 @@ static void cobra_poll(struct gameport *gameport)
 	for (i = 0; i < 2; i++)
 		if (cobra->exists & r & (1 << i)) {
 
-			dev = cobra->dev + i;
+			dev = cobra->dev[i];
 
 			input_report_abs(dev, ABS_X, ((data[i] >> 4) & 1) - ((data[i] >> 3) & 1));
 			input_report_abs(dev, ABS_Y, ((data[i] >> 2) & 1) - ((data[i] >> 1) & 1));
@@ -159,11 +157,13 @@ static void cobra_close(struct input_dev *dev)
 static int cobra_connect(struct gameport *gameport, struct gameport_driver *drv)
 {
 	struct cobra *cobra;
+	struct input_dev *input_dev;
 	unsigned int data[2];
 	int i, j;
 	int err;
 
-	if (!(cobra = kzalloc(sizeof(struct cobra), GFP_KERNEL)))
+	cobra = kzalloc(sizeof(struct cobra), GFP_KERNEL);
+	if (!cobra)
 		return -ENOMEM;
 
 	cobra->gameport = gameport;
@@ -191,38 +191,46 @@ static int cobra_connect(struct gameport *gameport, struct gameport_driver *drv)
 	gameport_set_poll_handler(gameport, cobra_poll);
 	gameport_set_poll_interval(gameport, 20);
 
-	for (i = 0; i < 2; i++)
-		if ((cobra->exists >> i) & 1) {
+	for (i = 0; i < 2; i++) {
+		if (~(cobra->exists >> i) & 1)
+			continue;
 
-			sprintf(cobra->phys[i], "%s/input%d", gameport->phys, i);
-
-			cobra->dev[i].private = cobra;
-			cobra->dev[i].open = cobra_open;
-			cobra->dev[i].close = cobra_close;
-
-			cobra->dev[i].name = cobra_name;
-			cobra->dev[i].phys = cobra->phys[i];
-			cobra->dev[i].id.bustype = BUS_GAMEPORT;
-			cobra->dev[i].id.vendor = GAMEPORT_ID_VENDOR_CREATIVE;
-			cobra->dev[i].id.product = 0x0008;
-			cobra->dev[i].id.version = 0x0100;
-
-			cobra->dev[i].evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-
-			input_set_abs_params(&cobra->dev[i], ABS_X, -1, 1, 0, 0);
-			input_set_abs_params(&cobra->dev[i], ABS_Y, -1, 1, 0, 0);
-
-			for (j = 0; cobra_btn[j]; j++)
-				set_bit(cobra_btn[j], cobra->dev[i].keybit);
-
-			input_register_device(&cobra->dev[i]);
-			printk(KERN_INFO "input: %s on %s\n", cobra_name, gameport->phys);
+		cobra->dev[i] = input_dev = input_allocate_device();
+		if (!input_dev) {
+			err = -ENOMEM;
+			goto fail3;
 		}
+
+		sprintf(cobra->phys[i], "%s/input%d", gameport->phys, i);
+
+		input_dev->name = "Creative Labs Blaster GamePad Cobra";
+		input_dev->phys = cobra->phys[i];
+		input_dev->id.bustype = BUS_GAMEPORT;
+		input_dev->id.vendor = GAMEPORT_ID_VENDOR_CREATIVE;
+		input_dev->id.product = 0x0008;
+		input_dev->id.version = 0x0100;
+		input_dev->cdev.dev = &gameport->dev;
+		input_dev->private = cobra;
+
+		input_dev->open = cobra_open;
+		input_dev->close = cobra_close;
+
+		input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+		input_set_abs_params(input_dev, ABS_X, -1, 1, 0, 0);
+		input_set_abs_params(input_dev, ABS_Y, -1, 1, 0, 0);
+		for (j = 0; cobra_btn[j]; j++)
+			set_bit(cobra_btn[j], input_dev->keybit);
+
+		input_register_device(cobra->dev[i]);
+	}
 
 	return 0;
 
-fail2:	gameport_close(gameport);
-fail1:	gameport_set_drvdata(gameport, NULL);
+ fail3:	for (i = 0; i < 2; i++)
+		if (cobra->dev[i])
+			input_unregister_device(cobra->dev[i]);
+ fail2:	gameport_close(gameport);
+ fail1:	gameport_set_drvdata(gameport, NULL);
 	kfree(cobra);
 	return err;
 }
@@ -234,7 +242,7 @@ static void cobra_disconnect(struct gameport *gameport)
 
 	for (i = 0; i < 2; i++)
 		if ((cobra->exists >> i) & 1)
-			input_unregister_device(cobra->dev + i);
+			input_unregister_device(cobra->dev[i]);
 	gameport_close(gameport);
 	gameport_set_drvdata(gameport, NULL);
 	kfree(cobra);

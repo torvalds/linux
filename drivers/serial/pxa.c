@@ -358,6 +358,9 @@ static int serial_pxa_startup(struct uart_port *port)
 	unsigned long flags;
 	int retval;
 
+	if (port->line == 3) /* HWUART */
+		up->mcr |= UART_MCR_AFE;
+	else
 	up->mcr = 0;
 
 	/*
@@ -481,8 +484,10 @@ serial_pxa_set_termios(struct uart_port *port, struct termios *termios,
 
 	if ((up->port.uartclk / quot) < (2400 * 16))
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_PXAR1;
-	else
+	else if ((up->port.uartclk / quot) < (230400 * 16))
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_PXAR8;
+	else
+		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_PXAR32;
 
 	/*
 	 * Ok, we're now changing the port state.  Do it with
@@ -772,6 +777,20 @@ static struct uart_pxa_port serial_pxa_ports[] = {
 		.ops		= &serial_pxa_pops,
 		.line		= 2,
 	},
+  }, {  /* HWUART */
+	.name	= "HWUART",
+	.cken	= CKEN4_HWUART,
+	.port = {
+		.type		= PORT_PXA,
+		.iotype		= UPIO_MEM,
+		.membase	= (void *)&HWUART,
+		.mapbase	= __PREG(HWUART),
+		.irq		= IRQ_HWUART,
+		.uartclk	= 921600 * 16,
+		.fifosize	= 64,
+		.ops		= &serial_pxa_pops,
+		.line		= 3,
+	},
   }
 };
 
@@ -786,21 +805,21 @@ static struct uart_driver serial_pxa_reg = {
 	.cons		= PXA_CONSOLE,
 };
 
-static int serial_pxa_suspend(struct device *_dev, pm_message_t state, u32 level)
+static int serial_pxa_suspend(struct device *_dev, pm_message_t state)
 {
         struct uart_pxa_port *sport = dev_get_drvdata(_dev);
 
-        if (sport && level == SUSPEND_DISABLE)
+        if (sport)
                 uart_suspend_port(&serial_pxa_reg, &sport->port);
 
         return 0;
 }
 
-static int serial_pxa_resume(struct device *_dev, u32 level)
+static int serial_pxa_resume(struct device *_dev)
 {
         struct uart_pxa_port *sport = dev_get_drvdata(_dev);
 
-        if (sport && level == RESUME_ENABLE)
+        if (sport)
                 uart_resume_port(&serial_pxa_reg, &sport->port);
 
         return 0;

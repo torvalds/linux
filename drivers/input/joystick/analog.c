@@ -111,7 +111,7 @@ static short analog_joy_btn[] = { BTN_TRIGGER, BTN_THUMB, BTN_TOP, BTN_TOP2, BTN
 static unsigned char analog_chf[] = { 0xf, 0x0, 0x1, 0x9, 0x2, 0x4, 0xc, 0x8, 0x3, 0x5, 0xb, 0x7, 0xd, 0xe, 0xa, 0x6 };
 
 struct analog {
-	struct input_dev dev;
+	struct input_dev *dev;
 	int mask;
 	short *buttons;
 	char name[ANALOG_MAX_NAME_LENGTH];
@@ -182,7 +182,7 @@ static unsigned long analog_faketime = 0;
 
 static void analog_decode(struct analog *analog, int *axes, int *initial, int buttons)
 {
-	struct input_dev *dev = &analog->dev;
+	struct input_dev *dev = analog->dev;
 	int i, j;
 
 	if (analog->mask & ANALOG_HAT_FCS)
@@ -428,27 +428,30 @@ static void analog_name(struct analog *analog)
  * analog_init_device()
  */
 
-static void analog_init_device(struct analog_port *port, struct analog *analog, int index)
+static int analog_init_device(struct analog_port *port, struct analog *analog, int index)
 {
+	struct input_dev *input_dev;
 	int i, j, t, v, w, x, y, z;
 
 	analog_name(analog);
 	sprintf(analog->phys, "%s/input%d", port->gameport->phys, index);
 	analog->buttons = (analog->mask & ANALOG_GAMEPAD) ? analog_pad_btn : analog_joy_btn;
 
-	init_input_dev(&analog->dev);
+	analog->dev = input_dev = input_allocate_device();
+	if (!input_dev)
+		return -ENOMEM;
 
-	analog->dev.name = analog->name;
-	analog->dev.phys = analog->phys;
-	analog->dev.id.bustype = BUS_GAMEPORT;
-	analog->dev.id.vendor = GAMEPORT_ID_VENDOR_ANALOG;
-	analog->dev.id.product = analog->mask >> 4;
-	analog->dev.id.version = 0x0100;
+	input_dev->name = analog->name;
+	input_dev->phys = analog->phys;
+	input_dev->id.bustype = BUS_GAMEPORT;
+	input_dev->id.vendor = GAMEPORT_ID_VENDOR_ANALOG;
+	input_dev->id.product = analog->mask >> 4;
+	input_dev->id.version = 0x0100;
 
-	analog->dev.open = analog_open;
-	analog->dev.close = analog_close;
-	analog->dev.private = port;
-	analog->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->open = analog_open;
+	input_dev->close = analog_close;
+	input_dev->private = port;
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
 
 	for (i = j = 0; i < 4; i++)
 		if (analog->mask & (1 << i)) {
@@ -461,8 +464,6 @@ static void analog_init_device(struct analog_port *port, struct analog *analog, 
 			v = (x >> 3);
 			w = (x >> 3);
 
-			set_bit(t, analog->dev.absbit);
-
 			if ((i == 2 || i == 3) && (j == 2 || j == 3) && (z > (y >> 3)))
 				x = y;
 
@@ -472,11 +473,7 @@ static void analog_init_device(struct analog_port *port, struct analog *analog, 
 				w = (x >> 4);
 			}
 
-			analog->dev.absmax[t] = (x << 1) - v;
-			analog->dev.absmin[t] = v;
-			analog->dev.absfuzz[t] = port->fuzz;
-			analog->dev.absflat[t] = w;
-
+			input_set_abs_params(input_dev, t, v, (x << 1) - v, port->fuzz, w);
 			j++;
 		}
 
@@ -484,41 +481,30 @@ static void analog_init_device(struct analog_port *port, struct analog *analog, 
 		if (analog->mask & analog_exts[i])
 			for (x = 0; x < 2; x++) {
 				t = analog_hats[j++];
-				set_bit(t, analog->dev.absbit);
-				analog->dev.absmax[t] = 1;
-				analog->dev.absmin[t] = -1;
+				input_set_abs_params(input_dev, t, -1, 1, 0, 0);
 			}
 
 	for (i = j = 0; i < 4; i++)
 		if (analog->mask & (0x10 << i))
-			set_bit(analog->buttons[j++], analog->dev.keybit);
+			set_bit(analog->buttons[j++], input_dev->keybit);
 
 	if (analog->mask & ANALOG_BTNS_CHF)
 		for (i = 0; i < 2; i++)
-			set_bit(analog->buttons[j++], analog->dev.keybit);
+			set_bit(analog->buttons[j++], input_dev->keybit);
 
 	if (analog->mask & ANALOG_HBTN_CHF)
 		for (i = 0; i < 4; i++)
-			set_bit(analog->buttons[j++], analog->dev.keybit);
+			set_bit(analog->buttons[j++], input_dev->keybit);
 
 	for (i = 0; i < 4; i++)
 		if (analog->mask & (ANALOG_BTN_TL << i))
-			set_bit(analog_pads[i], analog->dev.keybit);
+			set_bit(analog_pads[i], input_dev->keybit);
 
 	analog_decode(analog, port->axes, port->initial, port->buttons);
 
-	input_register_device(&analog->dev);
+	input_register_device(analog->dev);
 
-	printk(KERN_INFO "input: %s at %s", analog->name, port->gameport->phys);
-
-	if (port->cooked)
-		printk(" [ADC port]\n");
-	else
-		printk(" [%s timer, %d %sHz clock, %d ns res]\n", TIME_NAME,
-		port->speed > 10000 ? (port->speed + 800) / 1000 : port->speed,
-		port->speed > 10000 ? "M" : "k",
-		port->speed > 10000 ? (port->loop * 1000) / (port->speed / 1000)
-				    : (port->loop * 1000000) / port->speed);
+	return 0;
 }
 
 /*
@@ -659,37 +645,41 @@ static int analog_connect(struct gameport *gameport, struct gameport_driver *drv
 		return - ENOMEM;
 
 	err = analog_init_port(gameport, drv, port);
-	if (err) {
-		kfree(port);
-		return err;
-	}
+	if (err)
+		goto fail1;
 
 	err = analog_init_masks(port);
-	if (err) {
-		gameport_close(gameport);
-		gameport_set_drvdata(gameport, NULL);
-		kfree(port);
-		return err;
-	}
+	if (err)
+		goto fail2;
 
 	gameport_set_poll_handler(gameport, analog_poll);
 	gameport_set_poll_interval(gameport, 10);
 
 	for (i = 0; i < 2; i++)
-		if (port->analog[i].mask)
-			analog_init_device(port, port->analog + i, i);
+		if (port->analog[i].mask) {
+			err = analog_init_device(port, port->analog + i, i);
+			if (err)
+				goto fail3;
+		}
 
 	return 0;
+
+ fail3: while (--i >= 0)
+		input_unregister_device(port->analog[i].dev);
+ fail2:	gameport_close(gameport);
+ fail1:	gameport_set_drvdata(gameport, NULL);
+	kfree(port);
+	return err;
 }
 
 static void analog_disconnect(struct gameport *gameport)
 {
-	int i;
 	struct analog_port *port = gameport_get_drvdata(gameport);
+	int i;
 
 	for (i = 0; i < 2; i++)
 		if (port->analog[i].mask)
-			input_unregister_device(&port->analog[i].dev);
+			input_unregister_device(port->analog[i].dev);
 	gameport_close(gameport);
 	gameport_set_drvdata(gameport, NULL);
 	printk(KERN_INFO "analog.c: %d out of %d reads (%d%%) on %s failed\n",

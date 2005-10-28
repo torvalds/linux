@@ -29,7 +29,7 @@
  */
 
 void *
-dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, int gfp)
+dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp)
 {
 	void *ret;
 

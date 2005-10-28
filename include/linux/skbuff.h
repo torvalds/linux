@@ -137,6 +137,8 @@ struct skb_shared_info {
 	unsigned int	nr_frags;
 	unsigned short	tso_size;
 	unsigned short	tso_segs;
+	unsigned short  ufo_size;
+	unsigned int    ip6_frag_id;
 	struct sk_buff	*frag_list;
 	skb_frag_t	frags[MAX_SKB_FRAGS];
 };
@@ -171,7 +173,6 @@ enum {
  *	struct sk_buff - socket buffer
  *	@next: Next buffer in list
  *	@prev: Previous buffer in list
- *	@list: List we are on
  *	@sk: Socket we are owned by
  *	@tstamp: Time we arrived
  *	@dev: Device we arrived on/are leaving by
@@ -190,6 +191,7 @@ enum {
  *	@cloned: Head may be cloned (check refcnt to be sure)
  *	@nohdr: Payload reference only, must not modify header
  *	@pkt_type: Packet class
+ *	@fclone: skbuff clone status
  *	@ip_summed: Driver fed us an IP checksum
  *	@priority: Packet queueing priority
  *	@users: User count - see {datagram,tcp}.c
@@ -202,6 +204,7 @@ enum {
  *	@destructor: Destruct function
  *	@nfmark: Can be used for communication between hooks
  *	@nfct: Associated connection, if any
+ *	@ipvs_property: skbuff is owned by ipvs
  *	@nfctinfo: Relationship of this skb to the connection
  *	@nf_bridge: Saved data about a bridged frame - see br_netfilter.c
  *	@tc_index: Traffic control index
@@ -339,6 +342,11 @@ extern void	      skb_over_panic(struct sk_buff *skb, int len,
 				     void *here);
 extern void	      skb_under_panic(struct sk_buff *skb, int len,
 				      void *here);
+
+extern int skb_append_datato_frags(struct sock *sk, struct sk_buff *skb,
+			int getfrag(void *from, char *to, int offset,
+			int len,int odd, struct sk_buff *skb),
+			void *from, int length);
 
 struct skb_seq_state
 {

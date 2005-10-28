@@ -142,12 +142,12 @@ struct hcd_timeout {	/* timeouts we allocate */
 
 struct usb_operations {
 	int (*get_frame_number) (struct usb_device *usb_dev);
-	int (*submit_urb) (struct urb *urb, unsigned mem_flags);
+	int (*submit_urb) (struct urb *urb, gfp_t mem_flags);
 	int (*unlink_urb) (struct urb *urb, int status);
 
 	/* allocate dma-consistent buffer for URB_DMA_NOMAPPING */
 	void *(*buffer_alloc)(struct usb_bus *bus, size_t size,
-			unsigned mem_flags,
+			gfp_t mem_flags,
 			dma_addr_t *dma);
 	void (*buffer_free)(struct usb_bus *bus, size_t size,
 			void *addr, dma_addr_t dma);
@@ -200,7 +200,7 @@ struct hc_driver {
 	int	(*urb_enqueue) (struct usb_hcd *hcd,
 					struct usb_host_endpoint *ep,
 					struct urb *urb,
-					unsigned mem_flags);
+					gfp_t mem_flags);
 	int	(*urb_dequeue) (struct usb_hcd *hcd, struct urb *urb);
 
 	/* hw synch, freeing endpoint resources that urb_dequeue can't */
@@ -247,7 +247,7 @@ int hcd_buffer_create (struct usb_hcd *hcd);
 void hcd_buffer_destroy (struct usb_hcd *hcd);
 
 void *hcd_buffer_alloc (struct usb_bus *bus, size_t size,
-	unsigned mem_flags, dma_addr_t *dma);
+	gfp_t mem_flags, dma_addr_t *dma);
 void hcd_buffer_free (struct usb_bus *bus, size_t size,
 	void *addr, dma_addr_t dma);
 

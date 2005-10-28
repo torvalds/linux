@@ -69,6 +69,17 @@ config EP72XX_ROM_BOOT
 
 	  You almost surely want to say N here.
 
+config MACH_MP1000
+	bool "MACH_MP1000"
+	help
+	  Say Y if you intend to run the kernel on the Comdial MP1000 platform.
+
+config MP1000_90MHZ
+	bool "MP1000_90MHZ"
+	depends on MACH_MP1000
+	help
+	  Say Y if you have the MP1000 configured to be set at 90MHZ rather than 74MHZ
+
 endmenu
 
 endif

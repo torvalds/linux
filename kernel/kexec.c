@@ -90,7 +90,7 @@ int kexec_should_crash(struct task_struct *p)
 static int kimage_is_destination_range(struct kimage *image,
 				       unsigned long start, unsigned long end);
 static struct page *kimage_alloc_page(struct kimage *image,
-				       unsigned int gfp_mask,
+				       gfp_t gfp_mask,
 				       unsigned long dest);
 
 static int do_kimage_alloc(struct kimage **rimage, unsigned long entry,
@@ -326,8 +326,7 @@ static int kimage_is_destination_range(struct kimage *image,
 	return 0;
 }
 
-static struct page *kimage_alloc_pages(unsigned int gfp_mask,
-					unsigned int order)
+static struct page *kimage_alloc_pages(gfp_t gfp_mask, unsigned int order)
 {
 	struct page *pages;
 
@@ -654,7 +653,7 @@ static kimage_entry_t *kimage_dst_used(struct kimage *image,
 }
 
 static struct page *kimage_alloc_page(struct kimage *image,
-					unsigned int gfp_mask,
+					gfp_t gfp_mask,
 					unsigned long destination)
 {
 	/*

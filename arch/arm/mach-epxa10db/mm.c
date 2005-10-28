@@ -31,12 +31,37 @@
 /* Page table mapping for I/O region */
  
 static struct map_desc epxa10db_io_desc[] __initdata = {
- { IO_ADDRESS(EXC_REGISTERS_BASE),   EXC_REGISTERS_BASE,    SZ_16K, MT_DEVICE }, 
- { IO_ADDRESS(EXC_PLD_BLOCK0_BASE),  EXC_PLD_BLOCK0_BASE,   SZ_16K, MT_DEVICE }, 
- { IO_ADDRESS(EXC_PLD_BLOCK1_BASE),  EXC_PLD_BLOCK1_BASE,   SZ_16K, MT_DEVICE }, 
- { IO_ADDRESS(EXC_PLD_BLOCK2_BASE),  EXC_PLD_BLOCK2_BASE,   SZ_16K, MT_DEVICE }, 
- { IO_ADDRESS(EXC_PLD_BLOCK3_BASE),  EXC_PLD_BLOCK3_BASE,   SZ_16K, MT_DEVICE }, 
- { FLASH_VADDR(EXC_EBI_BLOCK0_BASE), EXC_EBI_BLOCK0_BASE,   SZ_16M, MT_DEVICE }
+	{
+		.virtual	= IO_ADDRESS(EXC_REGISTERS_BASE),
+		.pfn		= __phys_to_pfn(EXC_REGISTERS_BASE),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IO_ADDRESS(EXC_PLD_BLOCK0_BASE),
+		.pfn		= __phys_to_pfn(EXC_PLD_BLOCK0_BASE),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IO_ADDRESS(EXC_PLD_BLOCK1_BASE),
+		.pfn		=__phys_to_pfn(EXC_PLD_BLOCK1_BASE),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IO_ADDRESS(EXC_PLD_BLOCK2_BASE),
+		.physical	= __phys_to_pfn(EXC_PLD_BLOCK2_BASE),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IO_ADDRESS(EXC_PLD_BLOCK3_BASE),
+		.pfn		= __phys_to_pfn(EXC_PLD_BLOCK3_BASE),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= FLASH_VADDR(EXC_EBI_BLOCK0_BASE),
+		.pfn		= __phys_to_pfn(EXC_EBI_BLOCK0_BASE),
+		.length		= SZ_16M,
+		.type		= MT_DEVICE
+	}
 };
 
 void __init epxa10db_map_io(void)

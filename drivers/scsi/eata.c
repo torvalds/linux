@@ -1357,7 +1357,7 @@ static int port_detect(unsigned long port_base, unsigned int j,
 
 	for (i = 0; i < shost->can_queue; i++) {
 		size_t sz = shost->sg_tablesize *sizeof(struct sg_list);
-		unsigned int gfp_mask = (shost->unchecked_isa_dma ? GFP_DMA : 0) | GFP_ATOMIC;
+		gfp_t gfp_mask = (shost->unchecked_isa_dma ? GFP_DMA : 0) | GFP_ATOMIC;
 		ha->cp[i].sglist = kmalloc(sz, gfp_mask);
 		if (!ha->cp[i].sglist) {
 			printk

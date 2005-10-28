@@ -111,7 +111,7 @@ struct wacom_features {
 struct wacom {
 	signed char *data;
 	dma_addr_t data_dma;
-	struct input_dev dev;
+	struct input_dev *dev;
 	struct usb_device *usbdev;
 	struct urb *irq;
 	struct wacom_features *features;
@@ -135,7 +135,7 @@ static void wacom_pl_irq(struct urb *urb, struct pt_regs *regs)
 {
 	struct wacom *wacom = urb->context;
 	unsigned char *data = wacom->data;
-	struct input_dev *dev = &wacom->dev;
+	struct input_dev *dev = wacom->dev;
 	int prox, pressure;
 	int retval;
 
@@ -225,7 +225,7 @@ static void wacom_ptu_irq(struct urb *urb, struct pt_regs *regs)
 {
 	struct wacom *wacom = urb->context;
 	unsigned char *data = wacom->data;
-	struct input_dev *dev = &wacom->dev;
+	struct input_dev *dev = wacom->dev;
 	int retval;
 
 	switch (urb->status) {
@@ -275,7 +275,7 @@ static void wacom_penpartner_irq(struct urb *urb, struct pt_regs *regs)
 {
 	struct wacom *wacom = urb->context;
 	unsigned char *data = wacom->data;
-	struct input_dev *dev = &wacom->dev;
+	struct input_dev *dev = wacom->dev;
 	int retval;
 
 	switch (urb->status) {
@@ -318,7 +318,7 @@ static void wacom_graphire_irq(struct urb *urb, struct pt_regs *regs)
 {
 	struct wacom *wacom = urb->context;
 	unsigned char *data = wacom->data;
-	struct input_dev *dev = &wacom->dev;
+	struct input_dev *dev = wacom->dev;
 	int x, y;
 	int retval;
 
@@ -397,7 +397,7 @@ static int wacom_intuos_inout(struct urb *urb)
 {
 	struct wacom *wacom = urb->context;
 	unsigned char *data = wacom->data;
-	struct input_dev *dev = &wacom->dev;
+	struct input_dev *dev = wacom->dev;
 	int idx;
 
 	/* tool number */
@@ -479,7 +479,7 @@ static void wacom_intuos_general(struct urb *urb)
 {
 	struct wacom *wacom = urb->context;
 	unsigned char *data = wacom->data;
-	struct input_dev *dev = &wacom->dev;
+	struct input_dev *dev = wacom->dev;
 	unsigned int t;
 
 	/* general pen packet */
@@ -509,7 +509,7 @@ static void wacom_intuos_irq(struct urb *urb, struct pt_regs *regs)
 {
 	struct wacom *wacom = urb->context;
 	unsigned char *data = wacom->data;
-	struct input_dev *dev = &wacom->dev;
+	struct input_dev *dev = wacom->dev;
 	unsigned int t;
 	int idx;
 	int retval;
@@ -738,94 +738,82 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct usb_endpoint_descriptor *endpoint;
-	char rep_data[2] = {0x02, 0x02};
 	struct wacom *wacom;
-	char path[64];
+	struct input_dev *input_dev;
+	char rep_data[2] = {0x02, 0x02};
 
-	if (!(wacom = kmalloc(sizeof(struct wacom), GFP_KERNEL)))
-		return -ENOMEM;
-	memset(wacom, 0, sizeof(struct wacom));
+	wacom = kzalloc(sizeof(struct wacom), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!wacom || !input_dev)
+		goto fail1;
 
 	wacom->data = usb_buffer_alloc(dev, 10, GFP_KERNEL, &wacom->data_dma);
-	if (!wacom->data) {
-		kfree(wacom);
-		return -ENOMEM;
-	}
+	if (!wacom->data)
+		goto fail1;
 
 	wacom->irq = usb_alloc_urb(0, GFP_KERNEL);
-	if (!wacom->irq) {
-		usb_buffer_free(dev, 10, wacom->data, wacom->data_dma);
-		kfree(wacom);
-		return -ENOMEM;
-	}
+	if (!wacom->irq)
+		goto fail2;
+
+	wacom->usbdev = dev;
+	wacom->dev = input_dev;
+	usb_make_path(dev, wacom->phys, sizeof(wacom->phys));
+	strlcat(wacom->phys, "/input0", sizeof(wacom->phys));
 
 	wacom->features = wacom_features + (id - wacom_ids);
+	if (wacom->features->pktlen > 10)
+		BUG();
 
-	wacom->dev.evbit[0] |= BIT(EV_KEY) | BIT(EV_ABS);
-	wacom->dev.absbit[0] |= BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE);
-	wacom->dev.keybit[LONG(BTN_DIGI)] |= BIT(BTN_TOOL_PEN) | BIT(BTN_TOUCH) | BIT(BTN_STYLUS);
+	input_dev->name = wacom->features->name;
+	usb_to_input_id(dev, &input_dev->id);
+
+	input_dev->cdev.dev = &intf->dev;
+	input_dev->private = wacom;
+	input_dev->open = wacom_open;
+	input_dev->close = wacom_close;
+
+	input_dev->evbit[0] |= BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->keybit[LONG(BTN_DIGI)] |= BIT(BTN_TOOL_PEN) | BIT(BTN_TOUCH) | BIT(BTN_STYLUS);
+	input_set_abs_params(input_dev, ABS_X, 0, wacom->features->y_max, 4, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, wacom->features->y_max, 4, 0);
+	input_set_abs_params(input_dev, ABS_PRESSURE, 0, wacom->features->pressure_max, 0, 0);
 
 	switch (wacom->features->type) {
 		case GRAPHIRE:
-			wacom->dev.evbit[0] |= BIT(EV_REL);
-			wacom->dev.relbit[0] |= BIT(REL_WHEEL);
-			wacom->dev.absbit[0] |= BIT(ABS_DISTANCE);
-			wacom->dev.keybit[LONG(BTN_LEFT)] |= BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_MIDDLE);
-			wacom->dev.keybit[LONG(BTN_DIGI)] |= BIT(BTN_TOOL_RUBBER) | BIT(BTN_TOOL_MOUSE) | BIT(BTN_STYLUS2);
+			input_dev->evbit[0] |= BIT(EV_REL);
+			input_dev->relbit[0] |= BIT(REL_WHEEL);
+			input_dev->keybit[LONG(BTN_LEFT)] |= BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_MIDDLE);
+			input_dev->keybit[LONG(BTN_DIGI)] |= BIT(BTN_TOOL_RUBBER) | BIT(BTN_TOOL_MOUSE) | BIT(BTN_STYLUS2);
+			input_set_abs_params(input_dev, ABS_DISTANCE, 0, wacom->features->distance_max, 0, 0);
 			break;
 
 		case INTUOS3:
 		case CINTIQ:
-			wacom->dev.keybit[LONG(BTN_DIGI)] |= BIT(BTN_TOOL_FINGER);
-			wacom->dev.keybit[LONG(BTN_LEFT)] |= BIT(BTN_0) | BIT(BTN_1) | BIT(BTN_2) | BIT(BTN_3) | BIT(BTN_4) | BIT(BTN_5) | BIT(BTN_6) | BIT(BTN_7);
-			wacom->dev.absbit[0] |= BIT(ABS_RX) | BIT(ABS_RY);
+			input_dev->keybit[LONG(BTN_DIGI)] |= BIT(BTN_TOOL_FINGER);
+			input_dev->keybit[LONG(BTN_LEFT)] |= BIT(BTN_0) | BIT(BTN_1) | BIT(BTN_2) | BIT(BTN_3) | BIT(BTN_4) | BIT(BTN_5) | BIT(BTN_6) | BIT(BTN_7);
+			input_set_abs_params(input_dev, ABS_RX, 0, 4097, 0, 0);
+			input_set_abs_params(input_dev, ABS_RY, 0, 4097, 0, 0);
 			/* fall through */
 
 		case INTUOS:
-			wacom->dev.evbit[0] |= BIT(EV_MSC) | BIT(EV_REL);
-			wacom->dev.mscbit[0] |= BIT(MSC_SERIAL);
-			wacom->dev.relbit[0] |= BIT(REL_WHEEL);
-			wacom->dev.keybit[LONG(BTN_LEFT)] |= BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_MIDDLE) | BIT(BTN_SIDE) | BIT(BTN_EXTRA);
-			wacom->dev.keybit[LONG(BTN_DIGI)] |= BIT(BTN_TOOL_RUBBER) | BIT(BTN_TOOL_MOUSE)	| BIT(BTN_TOOL_BRUSH)
+			input_dev->evbit[0] |= BIT(EV_MSC) | BIT(EV_REL);
+			input_dev->mscbit[0] |= BIT(MSC_SERIAL);
+			input_dev->relbit[0] |= BIT(REL_WHEEL);
+			input_dev->keybit[LONG(BTN_LEFT)] |= BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_MIDDLE) | BIT(BTN_SIDE) | BIT(BTN_EXTRA);
+			input_dev->keybit[LONG(BTN_DIGI)] |= BIT(BTN_TOOL_RUBBER) | BIT(BTN_TOOL_MOUSE)	| BIT(BTN_TOOL_BRUSH)
 							  | BIT(BTN_TOOL_PENCIL) | BIT(BTN_TOOL_AIRBRUSH) | BIT(BTN_TOOL_LENS) | BIT(BTN_STYLUS2);
-			wacom->dev.absbit[0] |= BIT(ABS_DISTANCE) | BIT(ABS_WHEEL) | BIT(ABS_TILT_X) | BIT(ABS_TILT_Y) | BIT(ABS_RZ) | BIT(ABS_THROTTLE);
+			input_set_abs_params(input_dev, ABS_DISTANCE, 0, wacom->features->distance_max, 0, 0);
+			input_set_abs_params(input_dev, ABS_WHEEL, 0, 1023, 0, 0);
+			input_set_abs_params(input_dev, ABS_TILT_X, 0, 127, 0, 0);
+			input_set_abs_params(input_dev, ABS_TILT_Y, 0, 127, 0, 0);
+			input_set_abs_params(input_dev, ABS_RZ, -900, 899, 0, 0);
+			input_set_abs_params(input_dev, ABS_THROTTLE, -1023, 1023, 0, 0);
 			break;
 
 		case PL:
-			wacom->dev.keybit[LONG(BTN_DIGI)] |= BIT(BTN_STYLUS2) | BIT(BTN_TOOL_RUBBER);
+			input_dev->keybit[LONG(BTN_DIGI)] |= BIT(BTN_STYLUS2) | BIT(BTN_TOOL_RUBBER);
 			break;
 	}
-
-	wacom->dev.absmax[ABS_X] = wacom->features->x_max;
-	wacom->dev.absmax[ABS_Y] = wacom->features->y_max;
-	wacom->dev.absmax[ABS_PRESSURE] = wacom->features->pressure_max;
-	wacom->dev.absmax[ABS_DISTANCE] = wacom->features->distance_max;
-	wacom->dev.absmax[ABS_TILT_X] = 127;
-	wacom->dev.absmax[ABS_TILT_Y] = 127;
-	wacom->dev.absmax[ABS_WHEEL] = 1023;
-
-	wacom->dev.absmax[ABS_RX] = 4097;
-	wacom->dev.absmax[ABS_RY] = 4097;
-	wacom->dev.absmin[ABS_RZ] = -900;
-	wacom->dev.absmax[ABS_RZ] = 899;
-	wacom->dev.absmin[ABS_THROTTLE] = -1023;
-	wacom->dev.absmax[ABS_THROTTLE] = 1023;
-
-	wacom->dev.absfuzz[ABS_X] = 4;
-	wacom->dev.absfuzz[ABS_Y] = 4;
-
-	wacom->dev.private = wacom;
-	wacom->dev.open = wacom_open;
-	wacom->dev.close = wacom_close;
-
-	usb_make_path(dev, path, 64);
-	sprintf(wacom->phys, "%s/input0", path);
-
-	wacom->dev.name = wacom->features->name;
-	wacom->dev.phys = wacom->phys;
-	usb_to_input_id(dev, &wacom->dev.id);
-	wacom->dev.dev = &intf->dev;
-	wacom->usbdev = dev;
 
 	endpoint = &intf->cur_altsetting->endpoint[0].desc;
 
@@ -839,18 +827,20 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	wacom->irq->transfer_dma = wacom->data_dma;
 	wacom->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	input_register_device(&wacom->dev);
+	input_register_device(wacom->dev);
 
 	/* ask the tablet to report tablet data */
 	usb_set_report(intf, 3, 2, rep_data, 2);
 	/* repeat once (not sure why the first call often fails) */
 	usb_set_report(intf, 3, 2, rep_data, 2);
 
-	printk(KERN_INFO "input: %s on %s\n", wacom->features->name, path);
-
 	usb_set_intfdata(intf, wacom);
-
 	return 0;
+
+fail2:	usb_buffer_free(dev, 10, wacom->data, wacom->data_dma);
+fail1:	input_free_device(input_dev);
+	kfree(wacom);
+	return -ENOMEM;
 }
 
 static void wacom_disconnect(struct usb_interface *intf)
@@ -860,7 +850,7 @@ static void wacom_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 	if (wacom) {
 		usb_kill_urb(wacom->irq);
-		input_unregister_device(&wacom->dev);
+		input_unregister_device(wacom->dev);
 		usb_free_urb(wacom->irq);
 		usb_buffer_free(interface_to_usbdev(intf), 10, wacom->data, wacom->data_dma);
 		kfree(wacom);

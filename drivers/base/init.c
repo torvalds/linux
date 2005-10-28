@@ -10,14 +10,8 @@
 #include <linux/device.h>
 #include <linux/init.h>
 
-extern int devices_init(void);
-extern int buses_init(void);
-extern int classes_init(void);
-extern int firmware_init(void);
-extern int platform_bus_init(void);
-extern int system_bus_init(void);
-extern int cpu_dev_init(void);
-extern int attribute_container_init(void);
+#include "base.h"
+
 /**
  *	driver_init - initialize driver model.
  *

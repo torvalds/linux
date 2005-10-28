@@ -470,7 +470,7 @@ static int dummy_disable (struct usb_ep *_ep)
 }
 
 static struct usb_request *
-dummy_alloc_request (struct usb_ep *_ep, unsigned mem_flags)
+dummy_alloc_request (struct usb_ep *_ep, gfp_t mem_flags)
 {
 	struct dummy_ep		*ep;
 	struct dummy_request	*req;
@@ -507,7 +507,7 @@ dummy_alloc_buffer (
 	struct usb_ep *_ep,
 	unsigned bytes,
 	dma_addr_t *dma,
-	unsigned mem_flags
+	gfp_t mem_flags
 ) {
 	char			*retval;
 	struct dummy_ep		*ep;
@@ -541,7 +541,7 @@ fifo_complete (struct usb_ep *ep, struct usb_request *req)
 
 static int
 dummy_queue (struct usb_ep *_ep, struct usb_request *_req,
-		unsigned mem_flags)
+		gfp_t mem_flags)
 {
 	struct dummy_ep		*ep;
 	struct dummy_request	*req;
@@ -935,13 +935,9 @@ static int dummy_udc_remove (struct device *dev)
 	return 0;
 }
 
-static int dummy_udc_suspend (struct device *dev, pm_message_t state,
-		u32 level)
+static int dummy_udc_suspend (struct device *dev, pm_message_t state)
 {
 	struct dummy	*dum = dev_get_drvdata(dev);
-
-	if (level != SUSPEND_DISABLE)
-		return 0;
 
 	dev_dbg (dev, "%s\n", __FUNCTION__);
 	spin_lock_irq (&dum->lock);
@@ -954,12 +950,9 @@ static int dummy_udc_suspend (struct device *dev, pm_message_t state,
 	return 0;
 }
 
-static int dummy_udc_resume (struct device *dev, u32 level)
+static int dummy_udc_resume (struct device *dev)
 {
 	struct dummy	*dum = dev_get_drvdata(dev);
-
-	if (level != RESUME_ENABLE)
-		return 0;
 
 	dev_dbg (dev, "%s\n", __FUNCTION__);
 	spin_lock_irq (&dum->lock);
@@ -999,7 +992,7 @@ static int dummy_urb_enqueue (
 	struct usb_hcd			*hcd,
 	struct usb_host_endpoint	*ep,
 	struct urb			*urb,
-	unsigned			mem_flags
+	gfp_t				mem_flags
 ) {
 	struct dummy	*dum;
 	struct urbp	*urbp;
@@ -1936,13 +1929,9 @@ static int dummy_hcd_remove (struct device *dev)
 	return 0;
 }
 
-static int dummy_hcd_suspend (struct device *dev, pm_message_t state,
-		u32 level)
+static int dummy_hcd_suspend (struct device *dev, pm_message_t state)
 {
 	struct usb_hcd		*hcd;
-
-	if (level != SUSPEND_DISABLE)
-		return 0;
 
 	dev_dbg (dev, "%s\n", __FUNCTION__);
 	hcd = dev_get_drvdata (dev);
@@ -1958,12 +1947,9 @@ static int dummy_hcd_suspend (struct device *dev, pm_message_t state,
 	return 0;
 }
 
-static int dummy_hcd_resume (struct device *dev, u32 level)
+static int dummy_hcd_resume (struct device *dev)
 {
 	struct usb_hcd		*hcd;
-
-	if (level != RESUME_ENABLE)
-		return 0;
 
 	dev_dbg (dev, "%s\n", __FUNCTION__);
 	hcd = dev_get_drvdata (dev);

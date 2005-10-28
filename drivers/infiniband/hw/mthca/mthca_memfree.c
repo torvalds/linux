@@ -82,7 +82,7 @@ void mthca_free_icm(struct mthca_dev *dev, struct mthca_icm *icm)
 }
 
 struct mthca_icm *mthca_alloc_icm(struct mthca_dev *dev, int npages,
-				  unsigned int gfp_mask)
+				  gfp_t gfp_mask)
 {
 	struct mthca_icm *icm;
 	struct mthca_icm_chunk *chunk = NULL;

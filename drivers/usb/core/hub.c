@@ -1020,9 +1020,15 @@ void usb_set_device_state(struct usb_device *udev,
 	spin_lock_irqsave(&device_state_lock, flags);
 	if (udev->state == USB_STATE_NOTATTACHED)
 		;	/* do nothing */
-	else if (new_state != USB_STATE_NOTATTACHED)
+	else if (new_state != USB_STATE_NOTATTACHED) {
 		udev->state = new_state;
-	else
+		if (new_state == USB_STATE_CONFIGURED)
+			device_init_wakeup(&udev->dev,
+				(udev->actconfig->desc.bmAttributes
+				 & USB_CONFIG_ATT_WAKEUP));
+		else if (new_state != USB_STATE_SUSPENDED)
+			device_init_wakeup(&udev->dev, 0);
+	} else
 		recursively_mark_NOTATTACHED(udev);
 	spin_unlock_irqrestore(&device_state_lock, flags);
 }
@@ -1546,11 +1552,7 @@ static int hub_port_suspend(struct usb_hub *hub, int port1,
 	 * NOTE:  OTG devices may issue remote wakeup (or SRP) even when
 	 * we don't explicitly enable it here.
 	 */
-	if (udev->actconfig
-			// && FIXME (remote wakeup enabled on this bus)
-			// ... currently assuming it's always appropriate
-			&& (udev->actconfig->desc.bmAttributes
-				& USB_CONFIG_ATT_WAKEUP) != 0) {
+	if (device_may_wakeup(&udev->dev)) {
 		status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				USB_REQ_SET_FEATURE, USB_RECIP_DEVICE,
 				USB_DEVICE_REMOTE_WAKEUP, 0,
