@@ -314,12 +314,18 @@ static int nfs_stat_to_errno(int);
 				encode_putfh_maxsz + \
 				encode_savefh_maxsz + \
 				encode_putfh_maxsz + \
-				encode_rename_maxsz)
+				encode_rename_maxsz + \
+				encode_getattr_maxsz + \
+				encode_restorefh_maxsz + \
+				encode_getattr_maxsz)
 #define NFS4_dec_rename_sz	(compound_decode_hdr_maxsz + \
 				decode_putfh_maxsz + \
 				decode_savefh_maxsz + \
 				decode_putfh_maxsz + \
-				decode_rename_maxsz)
+				decode_rename_maxsz + \
+				decode_getattr_maxsz + \
+				decode_restorefh_maxsz + \
+				decode_getattr_maxsz)
 #define NFS4_enc_link_sz	(compound_encode_hdr_maxsz + \
 				encode_putfh_maxsz + \
 				encode_savefh_maxsz + \
@@ -1339,7 +1345,7 @@ static int nfs4_xdr_enc_rename(struct rpc_rqst *req, uint32_t *p, const struct n
 {
 	struct xdr_stream xdr;
 	struct compound_hdr hdr = {
-		.nops = 4,
+		.nops = 7,
 	};
 	int status;
 
@@ -1351,7 +1357,13 @@ static int nfs4_xdr_enc_rename(struct rpc_rqst *req, uint32_t *p, const struct n
 		goto out;
 	if ((status = encode_putfh(&xdr, args->new_dir)) != 0)
 		goto out;
-	status = encode_rename(&xdr, args->old_name, args->new_name);
+	if ((status = encode_rename(&xdr, args->old_name, args->new_name)) != 0)
+		goto out;
+	if ((status = encode_getfattr(&xdr, args->bitmask)) != 0)
+		goto out;
+	if ((status = encode_restorefh(&xdr)) != 0)
+		goto out;
+	status = encode_getfattr(&xdr, args->bitmask);
 out:
 	return status;
 }
@@ -3533,7 +3545,14 @@ static int nfs4_xdr_dec_rename(struct rpc_rqst *rqstp, uint32_t *p, struct nfs4_
 		goto out;
 	if ((status = decode_putfh(&xdr)) != 0)
 		goto out;
-	status = decode_rename(&xdr, &res->old_cinfo, &res->new_cinfo);
+	if ((status = decode_rename(&xdr, &res->old_cinfo, &res->new_cinfo)) != 0)
+		goto out;
+	/* Current FH is target directory */
+	if (decode_getfattr(&xdr, res->new_fattr, res->server) != 0)
+		goto out;
+	if ((status = decode_restorefh(&xdr)) != 0)
+		goto out;
+	decode_getfattr(&xdr, res->old_fattr, res->server);
 out:
 	return status;
 }

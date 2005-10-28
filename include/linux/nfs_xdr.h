@@ -630,11 +630,15 @@ struct nfs4_rename_arg {
 	const struct nfs_fh *		new_dir;
 	const struct qstr *		old_name;
 	const struct qstr *		new_name;
+	const u32 *			bitmask;
 };
 
 struct nfs4_rename_res {
+	const struct nfs_server *	server;
 	struct nfs4_change_info		old_cinfo;
+	struct nfs_fattr *		old_fattr;
 	struct nfs4_change_info		new_cinfo;
+	struct nfs_fattr *		new_fattr;
 };
 
 struct nfs4_setclientid {
