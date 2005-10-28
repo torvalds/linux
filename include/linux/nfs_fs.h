@@ -141,6 +141,7 @@ struct nfs_inode {
 	unsigned long		attrtimeo_timestamp;
 	__u64			change_attr;		/* v4 only */
 
+	unsigned long		last_updated;
 	/* "Generation counter" for the attribute cache. This is
 	 * bumped whenever we update the metadata on the
 	 * server.
@@ -319,6 +320,7 @@ extern u32 root_nfs_parse_addr(char *name); /*__init*/
 static inline void nfs_fattr_init(struct nfs_fattr *fattr)
 {
 	fattr->valid = 0;
+	fattr->time_start = jiffies;
 }
 
 /*

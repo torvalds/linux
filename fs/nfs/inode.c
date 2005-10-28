@@ -785,7 +785,8 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr)
 		else
 			init_special_inode(inode, inode->i_mode, fattr->rdev);
 
-		nfsi->read_cache_jiffies = fattr->timestamp;
+		nfsi->read_cache_jiffies = fattr->time_start;
+		nfsi->last_updated = jiffies;
 		inode->i_atime = fattr->atime;
 		inode->i_mtime = fattr->mtime;
 		inode->i_ctime = fattr->ctime;
@@ -1120,14 +1121,15 @@ __nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 		goto out;
 	}
 
+	spin_lock(&inode->i_lock);
 	status = nfs_update_inode(inode, &fattr, verifier);
 	if (status) {
+		spin_unlock(&inode->i_lock);
 		dfprintk(PAGECACHE, "nfs_revalidate_inode: (%s/%Ld) refresh failed, error=%d\n",
 			 inode->i_sb->s_id,
 			 (long long)NFS_FILEID(inode), status);
 		goto out;
 	}
-	spin_lock(&inode->i_lock);
 	cache_validity = nfsi->cache_validity;
 	nfsi->cache_validity &= ~NFS_INO_REVAL_PAGECACHE;
 
@@ -1247,7 +1249,7 @@ void nfs_end_data_update(struct inode *inode)
 }
 
 /**
- * nfs_refresh_inode - verify consistency of the inode attribute cache
+ * nfs_check_inode_attributes - verify consistency of the inode attribute cache
  * @inode - pointer to inode
  * @fattr - updated attributes
  *
@@ -1255,13 +1257,12 @@ void nfs_end_data_update(struct inode *inode)
  * so that fattr carries weak cache consistency data, then it may
  * also update the ctime/mtime/change_attribute.
  */
-int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
+static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fattr)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	loff_t cur_size, new_isize;
 	int data_unstable;
 
-	spin_lock(&inode->i_lock);
 
 	/* Are we in the process of updating data on the server? */
 	data_unstable = nfs_caches_unstable(inode);
@@ -1325,9 +1326,38 @@ int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
 	if (!timespec_equal(&inode->i_atime, &fattr->atime))
 		nfsi->cache_validity |= NFS_INO_INVALID_ATIME;
 
-	nfsi->read_cache_jiffies = fattr->timestamp;
-	spin_unlock(&inode->i_lock);
+	nfsi->read_cache_jiffies = fattr->time_start;
 	return 0;
+}
+
+/**
+ * nfs_refresh_inode - try to update the inode attribute cache
+ * @inode - pointer to inode
+ * @fattr - updated attributes
+ *
+ * Check that an RPC call that returned attributes has not overlapped with
+ * other recent updates of the inode metadata, then decide whether it is
+ * safe to do a full update of the inode attributes, or whether just to
+ * call nfs_check_inode_attributes.
+ */
+int nfs_refresh_inode(struct inode *inode, struct nfs_fattr *fattr)
+{
+	struct nfs_inode *nfsi = NFS_I(inode);
+	int status;
+
+	if ((fattr->valid & NFS_ATTR_FATTR) == 0)
+		return 0;
+	spin_lock(&inode->i_lock);
+	nfsi->cache_validity &= ~NFS_INO_REVAL_PAGECACHE;
+	if (nfs_verify_change_attribute(inode, fattr->time_start))
+		nfsi->cache_validity &= ~(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ATIME);
+	if (time_after(fattr->time_start, nfsi->last_updated))
+		status = nfs_update_inode(inode, fattr, fattr->time_start);
+	else
+		status = nfs_check_inode_attributes(inode, fattr);
+
+	spin_unlock(&inode->i_lock);
+	return status;
 }
 
 /*
@@ -1365,20 +1395,17 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr, unsign
 		goto out_err;
 	}
 
-	spin_lock(&inode->i_lock);
-
 	/*
 	 * Make sure the inode's type hasn't changed.
 	 */
-	if ((inode->i_mode & S_IFMT) != (fattr->mode & S_IFMT)) {
-		spin_unlock(&inode->i_lock);
+	if ((inode->i_mode & S_IFMT) != (fattr->mode & S_IFMT))
 		goto out_changed;
-	}
 
 	/*
 	 * Update the read time so we don't revalidate too often.
 	 */
-	nfsi->read_cache_jiffies = fattr->timestamp;
+	nfsi->read_cache_jiffies = fattr->time_start;
+	nfsi->last_updated = jiffies;
 
 	/* Are we racing with known updates of the metadata on the server? */
 	data_unstable = ! (nfs_verify_change_attribute(inode, verifier) ||
@@ -1467,7 +1494,6 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr, unsign
 	if (!nfs_have_delegation(inode, FMODE_READ))
 		nfsi->cache_validity |= invalid;
 
-	spin_unlock(&inode->i_lock);
 	return 0;
  out_changed:
 	/*

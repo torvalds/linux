@@ -2799,10 +2799,8 @@ static int decode_getfattr(struct xdr_stream *xdr, struct nfs_fattr *fattr, cons
 		goto xdr_error;
 	if ((status = decode_attr_time_modify(xdr, bitmap, &fattr->mtime)) != 0)
 		goto xdr_error;
-	if ((status = verify_attr_len(xdr, savep, attrlen)) == 0) {
+	if ((status = verify_attr_len(xdr, savep, attrlen)) == 0)
 		fattr->valid = NFS_ATTR_FATTR | NFS_ATTR_FATTR_V3 | NFS_ATTR_FATTR_V4;
-		fattr->timestamp = jiffies;
-	}
 xdr_error:
 	if (status != 0)
 		printk(KERN_NOTICE "%s: xdr error %d!\n", __FUNCTION__, -status);
