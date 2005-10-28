@@ -17,6 +17,8 @@
 #include <linux/bootmem.h>
 #include <linux/err.h>
 
+#include "base.h"
+
 struct device platform_bus = {
 	.bus_id		= "platform",
 };
@@ -279,13 +281,9 @@ static int platform_suspend(struct device * dev, pm_message_t state)
 {
 	int ret = 0;
 
-	if (dev->driver && dev->driver->suspend) {
-		ret = dev->driver->suspend(dev, state, SUSPEND_DISABLE);
-		if (ret == 0)
-			ret = dev->driver->suspend(dev, state, SUSPEND_SAVE_STATE);
-		if (ret == 0)
-			ret = dev->driver->suspend(dev, state, SUSPEND_POWER_DOWN);
-	}
+	if (dev->driver && dev->driver->suspend)
+		ret = dev->driver->suspend(dev, state);
+
 	return ret;
 }
 
@@ -293,13 +291,9 @@ static int platform_resume(struct device * dev)
 {
 	int ret = 0;
 
-	if (dev->driver && dev->driver->resume) {
-		ret = dev->driver->resume(dev, RESUME_POWER_ON);
-		if (ret == 0)
-			ret = dev->driver->resume(dev, RESUME_RESTORE_STATE);
-		if (ret == 0)
-			ret = dev->driver->resume(dev, RESUME_ENABLE);
-	}
+	if (dev->driver && dev->driver->resume)
+		ret = dev->driver->resume(dev);
+
 	return ret;
 }
 

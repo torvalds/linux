@@ -117,7 +117,7 @@ struct iforce_device {
 };
 
 struct iforce {
-	struct input_dev dev;		/* Input device interface */
+	struct input_dev *dev;		/* Input device interface */
 	struct iforce_device *type;
 	int bus;
 

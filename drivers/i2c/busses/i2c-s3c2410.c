@@ -879,14 +879,12 @@ static int s3c24xx_i2c_remove(struct device *dev)
 }
 
 #ifdef CONFIG_PM
-static int s3c24xx_i2c_resume(struct device *dev, u32 level)
+static int s3c24xx_i2c_resume(struct device *dev)
 {
 	struct s3c24xx_i2c *i2c = dev_get_drvdata(dev);
-	
-	if (i2c != NULL && level == RESUME_ENABLE) {
-		dev_dbg(dev, "resume: level %d\n", level);
+
+	if (i2c != NULL)
 		s3c24xx_i2c_init(i2c);
-	}
 
 	return 0;
 }

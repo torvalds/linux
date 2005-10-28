@@ -102,7 +102,7 @@ static int ctrlclick_volume = 100; /* % */
 module_param (ctrlclick_volume, int, 0);
 MODULE_PARM_DESC (ctrlclick_volume, "Ctrlclick volume (in %), default is 100%");
 
-static int lk201_compose_is_alt = 0;
+static int lk201_compose_is_alt;
 module_param (lk201_compose_is_alt, int, 0);
 MODULE_PARM_DESC (lk201_compose_is_alt, "If set non-zero, LK201' Compose key "
 		"will act as an Alt key");
@@ -274,7 +274,7 @@ static lk_keycode_t lkkbd_keycode[LK_NUM_KEYCODES] = {
 };
 
 #define CHECK_LED(LED, BITS) do {		\
-	if (test_bit (LED, lk->dev.led))	\
+	if (test_bit (LED, lk->dev->led))	\
 		leds_on |= BITS;		\
 	else					\
 		leds_off |= BITS;		\
@@ -287,7 +287,7 @@ struct lkkbd {
 	lk_keycode_t keycode[LK_NUM_KEYCODES];
 	int ignore_bytes;
 	unsigned char id[LK_NUM_IGNORE_BYTES];
-	struct input_dev dev;
+	struct input_dev *dev;
 	struct serio *serio;
 	struct work_struct tq;
 	char name[64];
@@ -423,8 +423,7 @@ lkkbd_interrupt (struct serio *serio, unsigned char data, unsigned int flags,
 	DBG (KERN_INFO "Got byte 0x%02x\n", data);
 
 	if (lk->ignore_bytes > 0) {
-		DBG (KERN_INFO "Ignoring a byte on %s\n",
-				lk->name);
+		DBG (KERN_INFO "Ignoring a byte on %s\n", lk->name);
 		lk->id[LK_NUM_IGNORE_BYTES - lk->ignore_bytes--] = data;
 
 		if (lk->ignore_bytes == 0)
@@ -435,14 +434,14 @@ lkkbd_interrupt (struct serio *serio, unsigned char data, unsigned int flags,
 
 	switch (data) {
 		case LK_ALL_KEYS_UP:
-			input_regs (&lk->dev, regs);
+			input_regs (lk->dev, regs);
 			for (i = 0; i < ARRAY_SIZE (lkkbd_keycode); i++)
 				if (lk->keycode[i] != KEY_RESERVED)
-					input_report_key (&lk->dev, lk->keycode[i], 0);
-			input_sync (&lk->dev);
+					input_report_key (lk->dev, lk->keycode[i], 0);
+			input_sync (lk->dev);
 			break;
 		case LK_METRONOME:
-			DBG (KERN_INFO "Got LK_METRONOME and don't "
+			DBG (KERN_INFO "Got %#d and don't "
 					"know how to handle...\n");
 			break;
 		case LK_OUTPUT_ERROR:
@@ -482,12 +481,12 @@ lkkbd_interrupt (struct serio *serio, unsigned char data, unsigned int flags,
 
 		default:
 			if (lk->keycode[data] != KEY_RESERVED) {
-				input_regs (&lk->dev, regs);
-				if (!test_bit (lk->keycode[data], lk->dev.key))
-					input_report_key (&lk->dev, lk->keycode[data], 1);
+				input_regs (lk->dev, regs);
+				if (!test_bit (lk->keycode[data], lk->dev->key))
+					input_report_key (lk->dev, lk->keycode[data], 1);
 				else
-					input_report_key (&lk->dev, lk->keycode[data], 0);
-				input_sync (&lk->dev);
+					input_report_key (lk->dev, lk->keycode[data], 0);
+				input_sync (lk->dev);
                         } else
                                 printk (KERN_WARNING "%s: Unknown key with "
 						"scancode 0x%02x on %s.\n",
@@ -605,7 +604,7 @@ lkkbd_reinit (void *data)
 	lk->serio->write (lk->serio, volume_to_hw (lk->bell_volume));
 
 	/* Enable/disable keyclick (and possibly set volume) */
-	if (test_bit (SND_CLICK, lk->dev.snd)) {
+	if (test_bit (SND_CLICK, lk->dev->snd)) {
 		lk->serio->write (lk->serio, LK_CMD_ENABLE_KEYCLICK);
 		lk->serio->write (lk->serio, volume_to_hw (lk->keyclick_volume));
 		lk->serio->write (lk->serio, LK_CMD_ENABLE_CTRCLICK);
@@ -616,7 +615,7 @@ lkkbd_reinit (void *data)
 	}
 
 	/* Sound the bell if needed */
-	if (test_bit (SND_BELL, lk->dev.snd))
+	if (test_bit (SND_BELL, lk->dev->snd))
 		lk->serio->write (lk->serio, LK_CMD_SOUND_BELL);
 }
 
@@ -627,71 +626,70 @@ static int
 lkkbd_connect (struct serio *serio, struct serio_driver *drv)
 {
 	struct lkkbd *lk;
+	struct input_dev *input_dev;
 	int i;
 	int err;
 
-	if (!(lk = kmalloc (sizeof (struct lkkbd), GFP_KERNEL)))
-		return -ENOMEM;
-
-	memset (lk, 0, sizeof (struct lkkbd));
-
-	init_input_dev (&lk->dev);
-	set_bit (EV_KEY, lk->dev.evbit);
-	set_bit (EV_LED, lk->dev.evbit);
-	set_bit (EV_SND, lk->dev.evbit);
-	set_bit (EV_REP, lk->dev.evbit);
-	set_bit (LED_CAPSL, lk->dev.ledbit);
-	set_bit (LED_SLEEP, lk->dev.ledbit);
-	set_bit (LED_COMPOSE, lk->dev.ledbit);
-	set_bit (LED_SCROLLL, lk->dev.ledbit);
-	set_bit (SND_BELL, lk->dev.sndbit);
-	set_bit (SND_CLICK, lk->dev.sndbit);
+	lk = kzalloc (sizeof (struct lkkbd), GFP_KERNEL);
+	input_dev = input_allocate_device ();
+	if (!lk || !input_dev) {
+		err = -ENOMEM;
+		goto fail;
+	}
 
 	lk->serio = serio;
-
+	lk->dev = input_dev;
 	INIT_WORK (&lk->tq, lkkbd_reinit, lk);
-
 	lk->bell_volume = bell_volume;
 	lk->keyclick_volume = keyclick_volume;
 	lk->ctrlclick_volume = ctrlclick_volume;
+	memcpy (lk->keycode, lkkbd_keycode, sizeof (lk_keycode_t) * LK_NUM_KEYCODES);
 
-	lk->dev.keycode = lk->keycode;
-	lk->dev.keycodesize = sizeof (lk_keycode_t);
-	lk->dev.keycodemax = LK_NUM_KEYCODES;
+	strlcpy (lk->name, "DEC LK keyboard", sizeof(lk->name));
+	snprintf (lk->phys, sizeof(lk->phys), "%s/input0", serio->phys);
 
-	lk->dev.event = lkkbd_event;
-	lk->dev.private = lk;
+	input_dev->name = lk->name;
+	input_dev->phys = lk->phys;
+	input_dev->id.bustype = BUS_RS232;
+	input_dev->id.vendor = SERIO_LKKBD;
+	input_dev->id.product = 0;
+	input_dev->id.version = 0x0100;
+	input_dev->cdev.dev = &serio->dev;
+	input_dev->event = lkkbd_event;
+	input_dev->private = lk;
+
+	set_bit (EV_KEY, input_dev->evbit);
+	set_bit (EV_LED, input_dev->evbit);
+	set_bit (EV_SND, input_dev->evbit);
+	set_bit (EV_REP, input_dev->evbit);
+	set_bit (LED_CAPSL, input_dev->ledbit);
+	set_bit (LED_SLEEP, input_dev->ledbit);
+	set_bit (LED_COMPOSE, input_dev->ledbit);
+	set_bit (LED_SCROLLL, input_dev->ledbit);
+	set_bit (SND_BELL, input_dev->sndbit);
+	set_bit (SND_CLICK, input_dev->sndbit);
+
+	input_dev->keycode = lk->keycode;
+	input_dev->keycodesize = sizeof (lk_keycode_t);
+	input_dev->keycodemax = LK_NUM_KEYCODES;
+	for (i = 0; i < LK_NUM_KEYCODES; i++)
+		set_bit (lk->keycode[i], input_dev->keybit);
 
 	serio_set_drvdata (serio, lk);
 
 	err = serio_open (serio, drv);
-	if (err) {
-		serio_set_drvdata (serio, NULL);
-		kfree (lk);
-		return err;
-	}
+	if (err)
+		goto fail;
 
-	sprintf (lk->name, "DEC LK keyboard");
-	sprintf (lk->phys, "%s/input0", serio->phys);
-
-	memcpy (lk->keycode, lkkbd_keycode, sizeof (lk_keycode_t) * LK_NUM_KEYCODES);
-	for (i = 0; i < LK_NUM_KEYCODES; i++)
-		set_bit (lk->keycode[i], lk->dev.keybit);
-
-	lk->dev.name = lk->name;
-	lk->dev.phys = lk->phys;
-	lk->dev.id.bustype = BUS_RS232;
-	lk->dev.id.vendor = SERIO_LKKBD;
-	lk->dev.id.product = 0;
-	lk->dev.id.version = 0x0100;
-	lk->dev.dev = &serio->dev;
-
-	input_register_device (&lk->dev);
-
-	printk (KERN_INFO "input: %s on %s, initiating reset\n", lk->name, serio->phys);
+	input_register_device (lk->dev);
 	lk->serio->write (lk->serio, LK_CMD_POWERCYCLE_RESET);
 
 	return 0;
+
+ fail:	serio_set_drvdata (serio, NULL);
+	input_free_device (input_dev);
+	kfree (lk);
+	return err;
 }
 
 /*
@@ -702,9 +700,11 @@ lkkbd_disconnect (struct serio *serio)
 {
 	struct lkkbd *lk = serio_get_drvdata (serio);
 
-	input_unregister_device (&lk->dev);
+	input_get_device (lk->dev);
+	input_unregister_device (lk->dev);
 	serio_close (serio);
 	serio_set_drvdata (serio, NULL);
+	input_put_device (lk->dev);
 	kfree (lk);
 }
 

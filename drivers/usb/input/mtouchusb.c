@@ -98,7 +98,7 @@ struct mtouch_usb {
 	dma_addr_t data_dma;
 	struct urb *irq;
 	struct usb_device *udev;
-	struct input_dev input;
+	struct input_dev *input;
 	char name[128];
 	char phys[64];
 };
@@ -135,14 +135,14 @@ static void mtouchusb_irq(struct urb *urb, struct pt_regs *regs)
 		goto exit;
 	}
 
-	input_regs(&mtouch->input, regs);
-	input_report_key(&mtouch->input, BTN_TOUCH,
+	input_regs(mtouch->input, regs);
+	input_report_key(mtouch->input, BTN_TOUCH,
 			 MTOUCHUSB_GET_TOUCHED(mtouch->data));
-	input_report_abs(&mtouch->input, ABS_X, MTOUCHUSB_GET_XC(mtouch->data));
-	input_report_abs(&mtouch->input, ABS_Y,
+	input_report_abs(mtouch->input, ABS_X, MTOUCHUSB_GET_XC(mtouch->data));
+	input_report_abs(mtouch->input, ABS_Y,
 			 (raw_coordinates ? MTOUCHUSB_MAX_RAW_YC : MTOUCHUSB_MAX_CALIB_YC)
 			 - MTOUCHUSB_GET_YC(mtouch->data));
-	input_sync(&mtouch->input);
+	input_sync(mtouch->input);
 
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
@@ -195,10 +195,10 @@ static void mtouchusb_free_buffers(struct usb_device *udev, struct mtouch_usb *m
 static int mtouchusb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct mtouch_usb *mtouch;
+	struct input_dev *input_dev;
 	struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *endpoint;
 	struct usb_device *udev = interface_to_usbdev(intf);
-	char path[64];
 	int nRet;
 
 	dbg("%s - called", __FUNCTION__);
@@ -209,57 +209,55 @@ static int mtouchusb_probe(struct usb_interface *intf, const struct usb_device_i
 	dbg("%s - setting endpoint", __FUNCTION__);
 	endpoint = &interface->endpoint[0].desc;
 
-	if (!(mtouch = kmalloc(sizeof(struct mtouch_usb), GFP_KERNEL))) {
+	mtouch = kzalloc(sizeof(struct mtouch_usb), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!mtouch || !input_dev) {
 		err("%s - Out of memory.", __FUNCTION__);
-		return -ENOMEM;
+		goto fail1;
 	}
-
-	memset(mtouch, 0, sizeof(struct mtouch_usb));
-	mtouch->udev = udev;
 
 	dbg("%s - allocating buffers", __FUNCTION__);
-	if (mtouchusb_alloc_buffers(udev, mtouch)) {
-		mtouchusb_free_buffers(udev, mtouch);
-		kfree(mtouch);
-		return -ENOMEM;
-	}
+	if (mtouchusb_alloc_buffers(udev, mtouch))
+		goto fail2;
 
-	mtouch->input.private = mtouch;
-	mtouch->input.open = mtouchusb_open;
-	mtouch->input.close = mtouchusb_close;
-
-	usb_make_path(udev, path, 64);
-	sprintf(mtouch->phys, "%s/input0", path);
-
-	mtouch->input.name = mtouch->name;
-	mtouch->input.phys = mtouch->phys;
-	usb_to_input_id(udev, &mtouch->input.id);
-	mtouch->input.dev = &intf->dev;
-
-	mtouch->input.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	mtouch->input.absbit[0] = BIT(ABS_X) | BIT(ABS_Y);
-	mtouch->input.keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
-
-	/* Used to Scale Compensated Data and Flip Y */
-	mtouch->input.absmin[ABS_X] = MTOUCHUSB_MIN_XC;
-	mtouch->input.absmax[ABS_X] = raw_coordinates ?
-					MTOUCHUSB_MAX_RAW_XC : MTOUCHUSB_MAX_CALIB_XC;
-	mtouch->input.absfuzz[ABS_X] = MTOUCHUSB_XC_FUZZ;
-	mtouch->input.absflat[ABS_X] = MTOUCHUSB_XC_FLAT;
-	mtouch->input.absmin[ABS_Y] = MTOUCHUSB_MIN_YC;
-	mtouch->input.absmax[ABS_Y] = raw_coordinates ?
-					MTOUCHUSB_MAX_RAW_YC : MTOUCHUSB_MAX_CALIB_YC;
-	mtouch->input.absfuzz[ABS_Y] = MTOUCHUSB_YC_FUZZ;
-	mtouch->input.absflat[ABS_Y] = MTOUCHUSB_YC_FLAT;
+	mtouch->udev = udev;
+	mtouch->input = input_dev;
 
 	if (udev->manufacturer)
-		strcat(mtouch->name, udev->manufacturer);
-	if (udev->product)
-		sprintf(mtouch->name, "%s %s", mtouch->name, udev->product);
+		strlcpy(mtouch->name, udev->manufacturer, sizeof(mtouch->name));
+
+	if (udev->product) {
+		if (udev->manufacturer)
+			strlcat(mtouch->name, " ", sizeof(mtouch->name));
+		strlcat(mtouch->name, udev->product, sizeof(mtouch->name));
+	}
 
 	if (!strlen(mtouch->name))
-		sprintf(mtouch->name, "USB Touchscreen %04x:%04x",
-			mtouch->input.id.vendor, mtouch->input.id.product);
+		snprintf(mtouch->name, sizeof(mtouch->name),
+			"USB Touchscreen %04x:%04x",
+			le16_to_cpu(udev->descriptor.idVendor),
+			le16_to_cpu(udev->descriptor.idProduct));
+
+	usb_make_path(udev, mtouch->phys, sizeof(mtouch->phys));
+	strlcpy(mtouch->phys, "/input0", sizeof(mtouch->phys));
+
+	input_dev->name = mtouch->name;
+	input_dev->phys = mtouch->phys;
+	usb_to_input_id(udev, &input_dev->id);
+	input_dev->cdev.dev = &intf->dev;
+	input_dev->private = mtouch;
+
+	input_dev->open = mtouchusb_open;
+	input_dev->close = mtouchusb_close;
+
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
+	input_set_abs_params(input_dev, ABS_X, MTOUCHUSB_MIN_XC,
+		raw_coordinates ? MTOUCHUSB_MAX_RAW_XC : MTOUCHUSB_MAX_CALIB_XC,
+				MTOUCHUSB_XC_FUZZ, MTOUCHUSB_XC_FLAT);
+	input_set_abs_params(input_dev, ABS_Y, MTOUCHUSB_MIN_YC,
+		raw_coordinates ? MTOUCHUSB_MAX_RAW_YC : MTOUCHUSB_MAX_CALIB_YC,
+		MTOUCHUSB_YC_FUZZ, MTOUCHUSB_YC_FLAT);
 
 	nRet = usb_control_msg(mtouch->udev, usb_rcvctrlpipe(udev, 0),
 			       MTOUCHUSB_RESET,
@@ -272,9 +270,7 @@ static int mtouchusb_probe(struct usb_interface *intf, const struct usb_device_i
 	mtouch->irq = usb_alloc_urb(0, GFP_KERNEL);
 	if (!mtouch->irq) {
 		dbg("%s - usb_alloc_urb failed: mtouch->irq", __FUNCTION__);
-		mtouchusb_free_buffers(udev, mtouch);
-		kfree(mtouch);
-		return -ENOMEM;
+		goto fail2;
 	}
 
 	dbg("%s - usb_fill_int_urb", __FUNCTION__);
@@ -284,7 +280,7 @@ static int mtouchusb_probe(struct usb_interface *intf, const struct usb_device_i
 			 mtouchusb_irq, mtouch, endpoint->bInterval);
 
 	dbg("%s - input_register_device", __FUNCTION__);
-	input_register_device(&mtouch->input);
+	input_register_device(mtouch->input);
 
 	nRet = usb_control_msg(mtouch->udev, usb_rcvctrlpipe(udev, 0),
 			       MTOUCHUSB_ASYNC_REPORT,
@@ -293,10 +289,13 @@ static int mtouchusb_probe(struct usb_interface *intf, const struct usb_device_i
 	dbg("%s - usb_control_msg - MTOUCHUSB_ASYNC_REPORT - bytes|err: %d",
 	    __FUNCTION__, nRet);
 
-	printk(KERN_INFO "input: %s on %s\n", mtouch->name, path);
 	usb_set_intfdata(intf, mtouch);
-
 	return 0;
+
+fail2:	mtouchusb_free_buffers(udev, mtouch);
+fail1:	input_free_device(input_dev);
+	kfree(mtouch);
+	return -ENOMEM;
 }
 
 static void mtouchusb_disconnect(struct usb_interface *intf)
@@ -308,7 +307,7 @@ static void mtouchusb_disconnect(struct usb_interface *intf)
 	if (mtouch) {
 		dbg("%s - mtouch is initialized, cleaning up", __FUNCTION__);
 		usb_kill_urb(mtouch->irq);
-		input_unregister_device(&mtouch->input);
+		input_unregister_device(mtouch->input);
 		usb_free_urb(mtouch->irq);
 		mtouchusb_free_buffers(interface_to_usbdev(intf), mtouch);
 		kfree(mtouch);

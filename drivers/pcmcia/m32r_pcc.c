@@ -695,28 +695,11 @@ static struct pccard_operations pcc_operations = {
 
 /*====================================================================*/
 
-static int m32r_pcc_suspend(struct device *dev, pm_message_t state, u32 level)
-{
-	int ret = 0;
-	if (level == SUSPEND_SAVE_STATE)
-		ret = pcmcia_socket_dev_suspend(dev, state);
-	return ret;
-}
-
-static int m32r_pcc_resume(struct device *dev, u32 level)
-{
-	int ret = 0;
-	if (level == RESUME_RESTORE_STATE)
-		ret = pcmcia_socket_dev_resume(dev);
-	return ret;
-}
-
-
 static struct device_driver pcc_driver = {
 	.name = "pcc",
 	.bus = &platform_bus_type,
-	.suspend = m32r_pcc_suspend,
-	.resume = m32r_pcc_resume,
+	.suspend = pcmcia_socket_dev_suspend,
+	.resume = pcmcia_socket_dev_resume,
 };
 
 static struct platform_device pcc_device = {

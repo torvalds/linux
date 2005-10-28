@@ -12,6 +12,7 @@
 #ifdef __KERNEL__
 #include <linux/time.h>
 #include <linux/list.h>
+#include <linux/device.h>
 #else
 #include <sys/time.h>
 #include <sys/ioctl.h>
@@ -890,11 +891,15 @@ struct input_dev {
 	struct semaphore sem;	/* serializes open and close operations */
 	unsigned int users;
 
-	struct device *dev;
+	struct class_device cdev;
+	struct device *dev;	/* will be removed soon */
+
+	int dynalloc;	/* temporarily */
 
 	struct list_head	h_list;
 	struct list_head	node;
 };
+#define to_input_dev(d) container_of(d, struct input_dev, cdev)
 
 /*
  * Structure for hotplug & device<->driver matching.
@@ -985,6 +990,23 @@ static inline void init_input_dev(struct input_dev *dev)
 	INIT_LIST_HEAD(&dev->node);
 }
 
+struct input_dev *input_allocate_device(void);
+
+static inline void input_free_device(struct input_dev *dev)
+{
+	kfree(dev);
+}
+
+static inline struct input_dev *input_get_device(struct input_dev *dev)
+{
+	return to_input_dev(class_device_get(&dev->cdev));
+}
+
+static inline void input_put_device(struct input_dev *dev)
+{
+	class_device_put(&dev->cdev);
+}
+
 void input_register_device(struct input_dev *);
 void input_unregister_device(struct input_dev *);
 
@@ -1053,7 +1075,7 @@ static inline void input_set_abs_params(struct input_dev *dev, int axis, int min
 	dev->absbit[LONG(axis)] |= BIT(axis);
 }
 
-extern struct class *input_class;
+extern struct class input_class;
 
 #endif
 #endif

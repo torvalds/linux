@@ -781,22 +781,22 @@ mpc52xx_uart_remove(struct device *dev)
 
 #ifdef CONFIG_PM
 static int
-mpc52xx_uart_suspend(struct device *dev, pm_message_t state, u32 level)
+mpc52xx_uart_suspend(struct device *dev, pm_message_t state)
 {
 	struct uart_port *port = (struct uart_port *) dev_get_drvdata(dev);
 
-	if (sport && level == SUSPEND_DISABLE)
+	if (sport)
 		uart_suspend_port(&mpc52xx_uart_driver, port);
 
 	return 0;
 }
 
 static int
-mpc52xx_uart_resume(struct device *dev, u32 level)
+mpc52xx_uart_resume(struct device *dev)
 {
 	struct uart_port *port = (struct uart_port *) dev_get_drvdata(dev);
 
-	if (port && level == RESUME_ENABLE)
+	if (port)
 		uart_resume_port(&mpc52xx_uart_driver, port);
 
 	return 0;

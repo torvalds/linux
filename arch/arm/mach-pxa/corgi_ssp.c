@@ -222,24 +222,22 @@ static int corgi_ssp_remove(struct device *dev)
 	return 0;
 }
 
-static int corgi_ssp_suspend(struct device *dev, pm_message_t state, u32 level)
+static int corgi_ssp_suspend(struct device *dev, pm_message_t state)
 {
-	if (level == SUSPEND_POWER_DOWN) {
-		ssp_flush(&corgi_ssp_dev);
-		ssp_save_state(&corgi_ssp_dev,&corgi_ssp_state);
-	}
+	ssp_flush(&corgi_ssp_dev);
+	ssp_save_state(&corgi_ssp_dev,&corgi_ssp_state);
+
 	return 0;
 }
 
-static int corgi_ssp_resume(struct device *dev, u32 level)
+static int corgi_ssp_resume(struct device *dev)
 {
-	if (level == RESUME_POWER_ON) {
-		GPSR(ssp_machinfo->cs_lcdcon) = GPIO_bit(ssp_machinfo->cs_lcdcon);  /* High - Disable LCD Control/Timing Gen */
-		GPSR(ssp_machinfo->cs_max1111) = GPIO_bit(ssp_machinfo->cs_max1111); /* High - Disable MAX1111*/
-		GPSR(ssp_machinfo->cs_ads7846) = GPIO_bit(ssp_machinfo->cs_ads7846); /* High - Disable ADS7846*/
-		ssp_restore_state(&corgi_ssp_dev,&corgi_ssp_state);
-		ssp_enable(&corgi_ssp_dev);
-	}
+	GPSR(ssp_machinfo->cs_lcdcon) = GPIO_bit(ssp_machinfo->cs_lcdcon);  /* High - Disable LCD Control/Timing Gen */
+	GPSR(ssp_machinfo->cs_max1111) = GPIO_bit(ssp_machinfo->cs_max1111); /* High - Disable MAX1111*/
+	GPSR(ssp_machinfo->cs_ads7846) = GPIO_bit(ssp_machinfo->cs_ads7846); /* High - Disable ADS7846*/
+	ssp_restore_state(&corgi_ssp_dev,&corgi_ssp_state);
+	ssp_enable(&corgi_ssp_dev);
+
 	return 0;
 }
 

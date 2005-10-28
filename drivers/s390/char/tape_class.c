@@ -72,6 +72,7 @@ struct tape_class_device *register_tape_dev(
 
 	tcd->class_device = class_device_create(
 				tape_class,
+				NULL,
 				tcd->char_device->dev,
 				device,
 				"%s", tcd->device_name

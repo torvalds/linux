@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/smp_lock.h>
 #include <linux/device.h>
-#include <linux/devfs_fs_kernel.h>
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("Joystick device interfaces");
@@ -449,6 +448,7 @@ static struct file_operations joydev_fops = {
 static struct input_handle *joydev_connect(struct input_handler *handler, struct input_dev *dev, struct input_device_id *id)
 {
 	struct joydev *joydev;
+	struct class_device *cdev;
 	int i, j, t, minor;
 
 	for (minor = 0; minor < JOYDEV_MINORS && joydev_table[minor]; minor++);
@@ -514,11 +514,13 @@ static struct input_handle *joydev_connect(struct input_handler *handler, struct
 
 	joydev_table[minor] = joydev;
 
-	devfs_mk_cdev(MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + minor),
-			S_IFCHR|S_IRUGO|S_IWUSR, "input/js%d", minor);
-	class_device_create(input_class,
+	cdev = class_device_create(&input_class, &dev->cdev,
 			MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + minor),
-			dev->dev, "js%d", minor);
+			dev->cdev.dev, joydev->name);
+
+	/* temporary symlink to keep userspace happy */
+	sysfs_create_link(&input_class.subsys.kset.kobj, &cdev->kobj,
+			  joydev->name);
 
 	return &joydev->handle;
 }
@@ -528,8 +530,8 @@ static void joydev_disconnect(struct input_handle *handle)
 	struct joydev *joydev = handle->private;
 	struct joydev_list *list;
 
-	class_device_destroy(input_class, MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + joydev->minor));
-	devfs_remove("input/js%d", joydev->minor);
+	sysfs_remove_link(&input_class.subsys.kset.kobj, joydev->name);
+	class_device_destroy(&input_class, MKDEV(INPUT_MAJOR, JOYDEV_MINOR_BASE + joydev->minor));
 	joydev->exist = 0;
 
 	if (joydev->open) {

@@ -104,8 +104,8 @@ static int sg_allow_dio = SG_ALLOW_DIO_DEF;
 
 #define SG_DEV_ARR_LUMP 32	/* amount to over allocate sg_dev_arr by */
 
-static int sg_add(struct class_device *);
-static void sg_remove(struct class_device *);
+static int sg_add(struct class_device *, struct class_interface *);
+static void sg_remove(struct class_device *, struct class_interface *);
 
 static Scsi_Request *dummy_cmdp;	/* only used for sizeof */
 
@@ -1506,7 +1506,7 @@ static int sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 }
 
 static int
-sg_add(struct class_device *cl_dev)
+sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 {
 	struct scsi_device *scsidp = to_scsi_device(cl_dev->dev);
 	struct gendisk *disk;
@@ -1550,7 +1550,7 @@ sg_add(struct class_device *cl_dev)
 	if (sg_sysfs_valid) {
 		struct class_device * sg_class_member;
 
-		sg_class_member = class_device_create(sg_sysfs_class,
+		sg_class_member = class_device_create(sg_sysfs_class, NULL,
 				MKDEV(SCSI_GENERIC_MAJOR, k), 
 				cl_dev->dev, "%s", 
 				disk->disk_name);
@@ -1582,7 +1582,7 @@ out:
 }
 
 static void
-sg_remove(struct class_device *cl_dev)
+sg_remove(struct class_device *cl_dev, struct class_interface *cl_intf)
 {
 	struct scsi_device *scsidp = to_scsi_device(cl_dev->dev);
 	Sg_device *sdp = NULL;

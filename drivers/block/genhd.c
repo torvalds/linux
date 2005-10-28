@@ -337,10 +337,30 @@ static ssize_t disk_attr_show(struct kobject *kobj, struct attribute *attr,
 	return ret;
 }
 
+static ssize_t disk_attr_store(struct kobject * kobj, struct attribute * attr,
+			       const char *page, size_t count)
+{
+	struct gendisk *disk = to_disk(kobj);
+	struct disk_attribute *disk_attr =
+		container_of(attr,struct disk_attribute,attr);
+	ssize_t ret = 0;
+
+	if (disk_attr->store)
+		ret = disk_attr->store(disk, page, count);
+	return ret;
+}
+
 static struct sysfs_ops disk_sysfs_ops = {
 	.show	= &disk_attr_show,
+	.store	= &disk_attr_store,
 };
 
+static ssize_t disk_uevent_store(struct gendisk * disk,
+				 const char *buf, size_t count)
+{
+	kobject_hotplug(&disk->kobj, KOBJ_ADD);
+	return count;
+}
 static ssize_t disk_dev_read(struct gendisk * disk, char *page)
 {
 	dev_t base = MKDEV(disk->major, disk->first_minor); 
@@ -382,6 +402,10 @@ static ssize_t disk_stats_read(struct gendisk * disk, char *page)
 		jiffies_to_msecs(disk_stat_read(disk, io_ticks)),
 		jiffies_to_msecs(disk_stat_read(disk, time_in_queue)));
 }
+static struct disk_attribute disk_attr_uevent = {
+	.attr = {.name = "uevent", .mode = S_IWUSR },
+	.store	= disk_uevent_store
+};
 static struct disk_attribute disk_attr_dev = {
 	.attr = {.name = "dev", .mode = S_IRUGO },
 	.show	= disk_dev_read
@@ -404,6 +428,7 @@ static struct disk_attribute disk_attr_stat = {
 };
 
 static struct attribute * default_attrs[] = {
+	&disk_attr_uevent.attr,
 	&disk_attr_dev.attr,
 	&disk_attr_range.attr,
 	&disk_attr_removable.attr,

@@ -519,30 +519,13 @@ static int au1x00_drv_pcmcia_probe(struct device *dev)
 }
 
 
-static int au1x00_drv_pcmcia_suspend(struct device *dev, pm_message_t state, u32 level)
-{
-	int ret = 0;
-	if (level == SUSPEND_SAVE_STATE)
-		ret = pcmcia_socket_dev_suspend(dev, state);
-	return ret;
-}
-
-static int au1x00_drv_pcmcia_resume(struct device *dev, u32 level)
-{
-	int ret = 0;
-	if (level == RESUME_RESTORE_STATE)
-		ret = pcmcia_socket_dev_resume(dev);
-	return ret;
-}
-
-
 static struct device_driver au1x00_pcmcia_driver = {
 	.probe		= au1x00_drv_pcmcia_probe,
 	.remove		= au1x00_drv_pcmcia_remove,
 	.name		= "au1x00-pcmcia",
 	.bus		= &platform_bus_type,
-	.suspend	= au1x00_drv_pcmcia_suspend,
-	.resume		= au1x00_drv_pcmcia_resume
+	.suspend	= pcmcia_socket_dev_suspend,
+	.resume		= pcmcia_socket_dev_resume,
 };
 
 static struct platform_device au1x00_device = {

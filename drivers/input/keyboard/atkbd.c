@@ -185,12 +185,12 @@ static struct {
 
 struct atkbd {
 
-	struct ps2dev	ps2dev;
+	struct ps2dev ps2dev;
+	struct input_dev *dev;
 
 	/* Written only during init */
 	char name[64];
 	char phys[32];
-	struct input_dev dev;
 
 	unsigned short id;
 	unsigned char keycode[512];
@@ -290,7 +290,7 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 	if (!atkbd->enabled)
 		goto out;
 
-	input_event(&atkbd->dev, EV_MSC, MSC_RAW, code);
+	input_event(atkbd->dev, EV_MSC, MSC_RAW, code);
 
 	if (atkbd->translated) {
 
@@ -326,10 +326,10 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 			atkbd->release = 1;
 			goto out;
 		case ATKBD_RET_HANGUEL:
-			atkbd_report_key(&atkbd->dev, regs, KEY_HANGUEL, 3);
+			atkbd_report_key(atkbd->dev, regs, KEY_HANGUEL, 3);
 			goto out;
 		case ATKBD_RET_HANJA:
-			atkbd_report_key(&atkbd->dev, regs, KEY_HANJA, 3);
+			atkbd_report_key(atkbd->dev, regs, KEY_HANJA, 3);
 			goto out;
 		case ATKBD_RET_ERR:
 			printk(KERN_DEBUG "atkbd.c: Keyboard on %s reports too many keys pressed.\n", serio->phys);
@@ -345,7 +345,7 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 	}
 
 	if (atkbd->keycode[code] != ATKBD_KEY_NULL)
-		input_event(&atkbd->dev, EV_MSC, MSC_SCAN, code);
+		input_event(atkbd->dev, EV_MSC, MSC_SCAN, code);
 
 	switch (atkbd->keycode[code]) {
 		case ATKBD_KEY_NULL:
@@ -365,7 +365,7 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 				       "to make it known.\n",
 				       code & 0x80 ? "e0" : "", code & 0x7f);
 			}
-			input_sync(&atkbd->dev);
+			input_sync(atkbd->dev);
 			break;
 		case ATKBD_SCR_1:
 			scroll = 1 - atkbd->release * 2;
@@ -390,7 +390,7 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 			break;
 		default:
 			value = atkbd->release ? 0 :
-				(1 + (!atkbd->softrepeat && test_bit(atkbd->keycode[code], atkbd->dev.key)));
+				(1 + (!atkbd->softrepeat && test_bit(atkbd->keycode[code], atkbd->dev->key)));
 
 			switch (value) {	/* Workaround Toshiba laptop multiple keypress */
 				case 0:
@@ -398,7 +398,7 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 					break;
 				case 1:
 					atkbd->last = code;
-					atkbd->time = jiffies + msecs_to_jiffies(atkbd->dev.rep[REP_DELAY]) / 2;
+					atkbd->time = jiffies + msecs_to_jiffies(atkbd->dev->rep[REP_DELAY]) / 2;
 					break;
 				case 2:
 					if (!time_after(jiffies, atkbd->time) && atkbd->last == code)
@@ -406,16 +406,16 @@ static irqreturn_t atkbd_interrupt(struct serio *serio, unsigned char data,
 					break;
 			}
 
-			atkbd_report_key(&atkbd->dev, regs, atkbd->keycode[code], value);
+			atkbd_report_key(atkbd->dev, regs, atkbd->keycode[code], value);
 	}
 
 	if (atkbd->scroll) {
-		input_regs(&atkbd->dev, regs);
+		input_regs(atkbd->dev, regs);
 		if (click != -1)
-			input_report_key(&atkbd->dev, BTN_MIDDLE, click);
-		input_report_rel(&atkbd->dev, REL_WHEEL, scroll);
-		input_report_rel(&atkbd->dev, REL_HWHEEL, hscroll);
-		input_sync(&atkbd->dev);
+			input_report_key(atkbd->dev, BTN_MIDDLE, click);
+		input_report_rel(atkbd->dev, REL_WHEEL, scroll);
+		input_report_rel(atkbd->dev, REL_HWHEEL, hscroll);
+		input_sync(atkbd->dev);
 	}
 
 	atkbd->release = 0;
@@ -462,7 +462,6 @@ static int atkbd_event(struct input_dev *dev, unsigned int type, unsigned int co
 			}
 
 			return 0;
-
 
 		case EV_REP:
 
@@ -693,7 +692,7 @@ static void atkbd_disconnect(struct serio *serio)
 	device_remove_file(&serio->dev, &atkbd_attr_softrepeat);
 	device_remove_file(&serio->dev, &atkbd_attr_softraw);
 
-	input_unregister_device(&atkbd->dev);
+	input_unregister_device(atkbd->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
 	kfree(atkbd);
@@ -701,7 +700,7 @@ static void atkbd_disconnect(struct serio *serio)
 
 
 /*
- * atkbd_set_device_attrs() initializes keyboard's keycode table
+ * atkbd_set_keycode_table() initializes keyboard's keycode table
  * according to the selected scancode set
  */
 
@@ -737,53 +736,58 @@ static void atkbd_set_keycode_table(struct atkbd *atkbd)
 
 static void atkbd_set_device_attrs(struct atkbd *atkbd)
 {
+	struct input_dev *input_dev = atkbd->dev;
 	int i;
 
-	memset(&atkbd->dev, 0, sizeof(struct input_dev));
+	if (atkbd->extra)
+		sprintf(atkbd->name, "AT Set 2 Extra keyboard");
+	else
+		sprintf(atkbd->name, "AT %s Set %d keyboard",
+			atkbd->translated ? "Translated" : "Raw", atkbd->set);
 
-	init_input_dev(&atkbd->dev);
+	sprintf(atkbd->phys, "%s/input0", atkbd->ps2dev.serio->phys);
 
-	atkbd->dev.name = atkbd->name;
-	atkbd->dev.phys = atkbd->phys;
-	atkbd->dev.id.bustype = BUS_I8042;
-	atkbd->dev.id.vendor = 0x0001;
-	atkbd->dev.id.product = atkbd->translated ? 1 : atkbd->set;
-	atkbd->dev.id.version = atkbd->id;
-	atkbd->dev.event = atkbd_event;
-	atkbd->dev.private = atkbd;
-	atkbd->dev.dev = &atkbd->ps2dev.serio->dev;
+	input_dev->name = atkbd->name;
+	input_dev->phys = atkbd->phys;
+	input_dev->id.bustype = BUS_I8042;
+	input_dev->id.vendor = 0x0001;
+	input_dev->id.product = atkbd->translated ? 1 : atkbd->set;
+	input_dev->id.version = atkbd->id;
+	input_dev->event = atkbd_event;
+	input_dev->private = atkbd;
+	input_dev->cdev.dev = &atkbd->ps2dev.serio->dev;
 
-	atkbd->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_MSC);
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_MSC);
 
 	if (atkbd->write) {
-		atkbd->dev.evbit[0] |= BIT(EV_LED);
-		atkbd->dev.ledbit[0] = BIT(LED_NUML) | BIT(LED_CAPSL) | BIT(LED_SCROLLL);
+		input_dev->evbit[0] |= BIT(EV_LED);
+		input_dev->ledbit[0] = BIT(LED_NUML) | BIT(LED_CAPSL) | BIT(LED_SCROLLL);
 	}
 
 	if (atkbd->extra)
-		atkbd->dev.ledbit[0] |= BIT(LED_COMPOSE) | BIT(LED_SUSPEND) |
+		input_dev->ledbit[0] |= BIT(LED_COMPOSE) | BIT(LED_SUSPEND) |
 					BIT(LED_SLEEP) | BIT(LED_MUTE) | BIT(LED_MISC);
 
 	if (!atkbd->softrepeat) {
-		atkbd->dev.rep[REP_DELAY] = 250;
-		atkbd->dev.rep[REP_PERIOD] = 33;
+		input_dev->rep[REP_DELAY] = 250;
+		input_dev->rep[REP_PERIOD] = 33;
 	}
 
-	atkbd->dev.mscbit[0] = atkbd->softraw ? BIT(MSC_SCAN) : BIT(MSC_RAW) | BIT(MSC_SCAN);
+	input_dev->mscbit[0] = atkbd->softraw ? BIT(MSC_SCAN) : BIT(MSC_RAW) | BIT(MSC_SCAN);
 
 	if (atkbd->scroll) {
-		atkbd->dev.evbit[0] |= BIT(EV_REL);
-		atkbd->dev.relbit[0] = BIT(REL_WHEEL) | BIT(REL_HWHEEL);
-		set_bit(BTN_MIDDLE, atkbd->dev.keybit);
+		input_dev->evbit[0] |= BIT(EV_REL);
+		input_dev->relbit[0] = BIT(REL_WHEEL) | BIT(REL_HWHEEL);
+		set_bit(BTN_MIDDLE, input_dev->keybit);
 	}
 
-	atkbd->dev.keycode = atkbd->keycode;
-	atkbd->dev.keycodesize = sizeof(unsigned char);
-	atkbd->dev.keycodemax = ARRAY_SIZE(atkbd_set2_keycode);
+	input_dev->keycode = atkbd->keycode;
+	input_dev->keycodesize = sizeof(unsigned char);
+	input_dev->keycodemax = ARRAY_SIZE(atkbd_set2_keycode);
 
 	for (i = 0; i < 512; i++)
 		if (atkbd->keycode[i] && atkbd->keycode[i] < ATKBD_SPECIAL)
-			set_bit(atkbd->keycode[i], atkbd->dev.keybit);
+			set_bit(atkbd->keycode[i], input_dev->keybit);
 }
 
 /*
@@ -796,13 +800,15 @@ static void atkbd_set_device_attrs(struct atkbd *atkbd)
 static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct atkbd *atkbd;
-	int err;
+	struct input_dev *dev;
+	int err = -ENOMEM;
 
-	if (!(atkbd = kmalloc(sizeof(struct atkbd), GFP_KERNEL)))
-		return - ENOMEM;
+	atkbd = kzalloc(sizeof(struct atkbd), GFP_KERNEL);
+	dev = input_allocate_device();
+	if (!atkbd || !dev)
+		goto fail;
 
-	memset(atkbd, 0, sizeof(struct atkbd));
-
+	atkbd->dev = dev;
 	ps2_init(&atkbd->ps2dev, serio);
 
 	switch (serio->id.type) {
@@ -828,19 +834,15 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 	serio_set_drvdata(serio, atkbd);
 
 	err = serio_open(serio, drv);
-	if (err) {
-		serio_set_drvdata(serio, NULL);
-		kfree(atkbd);
-		return err;
-	}
+	if (err)
+		goto fail;
 
 	if (atkbd->write) {
 
 		if (atkbd_probe(atkbd)) {
 			serio_close(serio);
-			serio_set_drvdata(serio, NULL);
-			kfree(atkbd);
-			return -ENODEV;
+			err = -ENODEV;
+			goto fail;
 		}
 
 		atkbd->set = atkbd_select_set(atkbd, atkbd_set, atkbd_extra);
@@ -851,18 +853,8 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 		atkbd->id = 0xab00;
 	}
 
-	if (atkbd->extra)
-		sprintf(atkbd->name, "AT Set 2 Extra keyboard");
-	else
-		sprintf(atkbd->name, "AT %s Set %d keyboard",
-			atkbd->translated ? "Translated" : "Raw", atkbd->set);
-
-	sprintf(atkbd->phys, "%s/input0", serio->phys);
-
 	atkbd_set_keycode_table(atkbd);
 	atkbd_set_device_attrs(atkbd);
-
-	input_register_device(&atkbd->dev);
 
 	device_create_file(&serio->dev, &atkbd_attr_extra);
 	device_create_file(&serio->dev, &atkbd_attr_scroll);
@@ -872,9 +864,14 @@ static int atkbd_connect(struct serio *serio, struct serio_driver *drv)
 
 	atkbd_enable(atkbd);
 
-	printk(KERN_INFO "input: %s on %s\n", atkbd->name, serio->phys);
+	input_register_device(atkbd->dev);
 
 	return 0;
+
+ fail:	serio_set_drvdata(serio, NULL);
+	input_free_device(dev);
+	kfree(atkbd);
+	return err;
 }
 
 /*
@@ -896,9 +893,9 @@ static int atkbd_reconnect(struct serio *serio)
 	atkbd_disable(atkbd);
 
 	if (atkbd->write) {
-		param[0] = (test_bit(LED_SCROLLL, atkbd->dev.led) ? 1 : 0)
-		         | (test_bit(LED_NUML,    atkbd->dev.led) ? 2 : 0)
-		         | (test_bit(LED_CAPSL,   atkbd->dev.led) ? 4 : 0);
+		param[0] = (test_bit(LED_SCROLLL, atkbd->dev->led) ? 1 : 0)
+		         | (test_bit(LED_NUML,    atkbd->dev->led) ? 2 : 0)
+		         | (test_bit(LED_CAPSL,   atkbd->dev->led) ? 4 : 0);
 
 		if (atkbd_probe(atkbd))
 			return -1;
@@ -1008,6 +1005,7 @@ static ssize_t atkbd_show_extra(struct atkbd *atkbd, char *buf)
 
 static ssize_t atkbd_set_extra(struct atkbd *atkbd, const char *buf, size_t count)
 {
+	struct input_dev *new_dev;
 	unsigned long value;
 	char *rest;
 
@@ -1019,12 +1017,19 @@ static ssize_t atkbd_set_extra(struct atkbd *atkbd, const char *buf, size_t coun
 		return -EINVAL;
 
 	if (atkbd->extra != value) {
-		/* unregister device as it's properties will change */
-		input_unregister_device(&atkbd->dev);
+		/*
+		 * Since device's properties will change we need to
+		 * unregister old device. But allocate new one first
+		 * to make sure we have it.
+		 */
+		if (!(new_dev = input_allocate_device()))
+			return -ENOMEM;
+		input_unregister_device(atkbd->dev);
+		atkbd->dev = new_dev;
 		atkbd->set = atkbd_select_set(atkbd, atkbd->set, value);
 		atkbd_activate(atkbd);
 		atkbd_set_device_attrs(atkbd);
-		input_register_device(&atkbd->dev);
+		input_register_device(atkbd->dev);
 	}
 	return count;
 }
@@ -1036,6 +1041,7 @@ static ssize_t atkbd_show_scroll(struct atkbd *atkbd, char *buf)
 
 static ssize_t atkbd_set_scroll(struct atkbd *atkbd, const char *buf, size_t count)
 {
+	struct input_dev *new_dev;
 	unsigned long value;
 	char *rest;
 
@@ -1044,12 +1050,14 @@ static ssize_t atkbd_set_scroll(struct atkbd *atkbd, const char *buf, size_t cou
 		return -EINVAL;
 
 	if (atkbd->scroll != value) {
-		/* unregister device as it's properties will change */
-		input_unregister_device(&atkbd->dev);
+		if (!(new_dev = input_allocate_device()))
+			return -ENOMEM;
+		input_unregister_device(atkbd->dev);
+		atkbd->dev = new_dev;
 		atkbd->scroll = value;
 		atkbd_set_keycode_table(atkbd);
 		atkbd_set_device_attrs(atkbd);
-		input_register_device(&atkbd->dev);
+		input_register_device(atkbd->dev);
 	}
 	return count;
 }
@@ -1061,6 +1069,7 @@ static ssize_t atkbd_show_set(struct atkbd *atkbd, char *buf)
 
 static ssize_t atkbd_set_set(struct atkbd *atkbd, const char *buf, size_t count)
 {
+	struct input_dev *new_dev;
 	unsigned long value;
 	char *rest;
 
@@ -1072,13 +1081,15 @@ static ssize_t atkbd_set_set(struct atkbd *atkbd, const char *buf, size_t count)
 		return -EINVAL;
 
 	if (atkbd->set != value) {
-		/* unregister device as it's properties will change */
-		input_unregister_device(&atkbd->dev);
+		if (!(new_dev = input_allocate_device()))
+			return -ENOMEM;
+		input_unregister_device(atkbd->dev);
+		atkbd->dev = new_dev;
 		atkbd->set = atkbd_select_set(atkbd, value, atkbd->extra);
 		atkbd_activate(atkbd);
 		atkbd_set_keycode_table(atkbd);
 		atkbd_set_device_attrs(atkbd);
-		input_register_device(&atkbd->dev);
+		input_register_device(atkbd->dev);
 	}
 	return count;
 }
@@ -1090,6 +1101,7 @@ static ssize_t atkbd_show_softrepeat(struct atkbd *atkbd, char *buf)
 
 static ssize_t atkbd_set_softrepeat(struct atkbd *atkbd, const char *buf, size_t count)
 {
+	struct input_dev *new_dev;
 	unsigned long value;
 	char *rest;
 
@@ -1101,15 +1113,16 @@ static ssize_t atkbd_set_softrepeat(struct atkbd *atkbd, const char *buf, size_t
 		return -EINVAL;
 
 	if (atkbd->softrepeat != value) {
-		/* unregister device as it's properties will change */
-		input_unregister_device(&atkbd->dev);
+		if (!(new_dev = input_allocate_device()))
+			return -ENOMEM;
+		input_unregister_device(atkbd->dev);
+		atkbd->dev = new_dev;
 		atkbd->softrepeat = value;
 		if (atkbd->softrepeat)
 			atkbd->softraw = 1;
 		atkbd_set_device_attrs(atkbd);
-		input_register_device(&atkbd->dev);
+		input_register_device(atkbd->dev);
 	}
-
 	return count;
 }
 
@@ -1121,6 +1134,7 @@ static ssize_t atkbd_show_softraw(struct atkbd *atkbd, char *buf)
 
 static ssize_t atkbd_set_softraw(struct atkbd *atkbd, const char *buf, size_t count)
 {
+	struct input_dev *new_dev;
 	unsigned long value;
 	char *rest;
 
@@ -1129,11 +1143,13 @@ static ssize_t atkbd_set_softraw(struct atkbd *atkbd, const char *buf, size_t co
 		return -EINVAL;
 
 	if (atkbd->softraw != value) {
-		/* unregister device as it's properties will change */
-		input_unregister_device(&atkbd->dev);
+		if (!(new_dev = input_allocate_device()))
+			return -ENOMEM;
+		input_unregister_device(atkbd->dev);
+		atkbd->dev = new_dev;
 		atkbd->softraw = value;
 		atkbd_set_device_attrs(atkbd);
-		input_register_device(&atkbd->dev);
+		input_register_device(atkbd->dev);
 	}
 	return count;
 }

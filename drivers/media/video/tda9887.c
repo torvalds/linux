@@ -784,13 +784,13 @@ tda9887_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int tda9887_suspend(struct device * dev, pm_message_t state, u32 level)
+static int tda9887_suspend(struct device * dev, pm_message_t state)
 {
 	dprintk("tda9887: suspend\n");
 	return 0;
 }
 
-static int tda9887_resume(struct device * dev, u32 level)
+static int tda9887_resume(struct device * dev)
 {
 	struct i2c_client *c = container_of(dev, struct i2c_client, dev);
 	struct tda9887 *t = i2c_get_clientdata(c);
