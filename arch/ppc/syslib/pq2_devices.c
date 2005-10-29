@@ -13,7 +13,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/ioport.h>
 #include <asm/cpm2.h>
 #include <asm/irq.h>

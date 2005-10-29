@@ -39,6 +39,8 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/ethtool.h>
+#include <linux/platform_device.h>
+
 #include <asm/io.h>
 #include <asm/types.h>
 #include <asm/pgtable.h>

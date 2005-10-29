@@ -19,7 +19,7 @@
  * This file is licenced under the GPL.
  */
 
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/arch/pxa-regs.h>

@@ -81,7 +81,7 @@
 #include <linux/if_vlan.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>

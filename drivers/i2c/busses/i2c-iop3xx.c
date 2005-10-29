@@ -35,7 +35,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/i2c.h>
 
 #include <asm/io.h>

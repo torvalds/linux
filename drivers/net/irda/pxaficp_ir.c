@@ -22,6 +22,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 #include <linux/pm.h>
 
 #include <net/irda/irda.h>

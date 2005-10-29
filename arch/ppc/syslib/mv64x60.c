@@ -19,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/mv643xx.h>
+#include <linux/platform_device.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>

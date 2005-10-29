@@ -17,6 +17,7 @@
 #include <linux/pm.h>
 #include <linux/cpufreq.h>
 #include <linux/ioport.h>
+#include <linux/platform_device.h>
 
 #include <asm/div64.h>
 #include <asm/hardware.h>

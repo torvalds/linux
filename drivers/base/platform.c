@@ -10,7 +10,7 @@
  * information.
  */
 
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>

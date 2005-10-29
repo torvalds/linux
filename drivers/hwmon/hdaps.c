@@ -27,7 +27,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>

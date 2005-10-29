@@ -13,7 +13,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/err.h>
 
 #include <linux/mtd/mtd.h>

@@ -33,7 +33,7 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/err.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>

@@ -37,7 +37,7 @@
 #include <asm/errno.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/hd64465/hd64465.h>

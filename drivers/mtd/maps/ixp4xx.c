@@ -24,7 +24,7 @@
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 #include <linux/ioport.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <asm/io.h>
 #include <asm/mach/flash.h>
 

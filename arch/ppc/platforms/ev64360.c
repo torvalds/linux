@@ -25,6 +25,7 @@
 #include <linux/bootmem.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mv643xx.h>
+#include <linux/platform_device.h>
 #ifdef CONFIG_BOOTIMG
 #include <linux/bootimg.h>
 #endif
