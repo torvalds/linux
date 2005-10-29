@@ -637,18 +637,16 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
  */
 int page_is_ram(unsigned long pfn)
 {
-	unsigned long paddr = (pfn << PAGE_SHIFT);
-
-	return paddr < __pa(high_memory);
+	return pfn < max_pfn;
 }
 
-pgprot_t phys_mem_access_prot(struct file *file, unsigned long addr,
+pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 			      unsigned long size, pgprot_t vma_prot)
 {
 	if (ppc_md.phys_mem_access_prot)
-		return ppc_md.phys_mem_access_prot(file, addr, size, vma_prot);
+		return ppc_md.phys_mem_access_prot(file, pfn, size, vma_prot);
 
-	if (!page_is_ram(addr >> PAGE_SHIFT))
+	if (!page_is_ram(pfn))
 		vma_prot = __pgprot(pgprot_val(vma_prot)
 				    | _PAGE_GUARDED | _PAGE_NO_CACHE);
 	return vma_prot;

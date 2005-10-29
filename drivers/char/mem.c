@@ -231,9 +231,7 @@ static ssize_t write_mem(struct file * file, const char __user * buf,
 static int mmap_mem(struct file * file, struct vm_area_struct * vma)
 {
 #if defined(__HAVE_PHYS_MEM_ACCESS_PROT)
-	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
-
-	vma->vm_page_prot = phys_mem_access_prot(file, offset,
+	vma->vm_page_prot = phys_mem_access_prot(file, vma->vm_pgoff,
 						 vma->vm_end - vma->vm_start,
 						 vma->vm_page_prot);
 #elif defined(pgprot_noncached)

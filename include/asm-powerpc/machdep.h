@@ -144,7 +144,7 @@ struct machdep_calls {
 	
 	/* Get access protection for /dev/mem */
 	pgprot_t	(*phys_mem_access_prot)(struct file *file,
-						unsigned long offset,
+						unsigned long pfn,
 						unsigned long size,
 						pgprot_t vma_prot);
 

@@ -1594,16 +1594,17 @@ static pgprot_t __pci_mmap_set_pgprot(struct pci_dev *dev, struct resource *rp,
  * above routine
  */
 pgprot_t pci_phys_mem_access_prot(struct file *file,
-				  unsigned long offset,
+				  unsigned long pfn,
 				  unsigned long size,
 				  pgprot_t protection)
 {
 	struct pci_dev *pdev = NULL;
 	struct resource *found = NULL;
 	unsigned long prot = pgprot_val(protection);
+	unsigned long offset = pfn << PAGE_SHIFT;
 	int i;
 
-	if (page_is_ram(offset >> PAGE_SHIFT))
+	if (page_is_ram(pfn))
 		return prot;
 
 	prot |= _PAGE_NO_CACHE | _PAGE_GUARDED;
