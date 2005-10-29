@@ -130,7 +130,7 @@ struct sa_subdev_info {
 	char name[16];
 	struct map_info map;
 	struct mtd_info *mtd;
-	struct flash_platform_data *data;
+	struct flash_platform_data *plat;
 };
 
 struct sa_info {
@@ -143,7 +143,7 @@ struct sa_info {
 static void sa1100_set_vpp(struct map_info *map, int on)
 {
 	struct sa_subdev_info *subdev = container_of(map, struct sa_subdev_info, map);
-	subdev->data->set_vpp(on);
+	subdev->plat->set_vpp(on);
 }
 
 static void sa1100_destroy_subdev(struct sa_subdev_info *subdev)
@@ -187,7 +187,7 @@ static int sa1100_probe_subdev(struct sa_subdev_info *subdev, struct resource *r
 		goto out;
 	}
 
-	if (subdev->data->set_vpp)
+	if (subdev->plat->set_vpp)
 		subdev->map.set_vpp = sa1100_set_vpp;
 
 	subdev->map.phys = phys;
@@ -204,7 +204,7 @@ static int sa1100_probe_subdev(struct sa_subdev_info *subdev, struct resource *r
 	 * Now let's probe for the actual flash.  Do it here since
 	 * specific machine settings might have been set above.
 	 */
-	subdev->mtd = do_map_probe(subdev->data->map_name, &subdev->map);
+	subdev->mtd = do_map_probe(subdev->plat->map_name, &subdev->map);
 	if (subdev->mtd == NULL) {
 		ret = -ENXIO;
 		goto err;
@@ -245,7 +245,7 @@ static void sa1100_destroy(struct sa_info *info)
 }
 
 static struct sa_info *__init
-sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *flash)
+sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *plat)
 {
 	struct sa_info *info;
 	int nr, size, i, ret = 0;
@@ -288,7 +288,7 @@ sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *flash
 
 		subdev->map.name = subdev->name;
 		sprintf(subdev->name, "sa1100-%d", i);
-		subdev->data = flash;
+		subdev->plat = plat;
 
 		ret = sa1100_probe_subdev(subdev, res);
 		if (ret)
@@ -346,16 +346,16 @@ static const char *part_probes[] = { "cmdlinepart", "RedBoot", NULL };
 static int __init sa1100_mtd_probe(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	struct flash_platform_data *flash = pdev->dev.platform_data;
+	struct flash_platform_data *plat = pdev->dev.platform_data;
 	struct mtd_partition *parts;
 	const char *part_type = NULL;
 	struct sa_info *info;
 	int err, nr_parts = 0;
 
-	if (!flash)
+	if (!plat)
 		return -ENODEV;
 
-	info = sa1100_setup_mtd(pdev, flash);
+	info = sa1100_setup_mtd(pdev, plat);
 	if (IS_ERR(info)) {
 		err = PTR_ERR(info);
 		goto out;
@@ -372,8 +372,8 @@ static int __init sa1100_mtd_probe(struct device *dev)
 	} else
 #endif
 	{
-		parts = flash->parts;
-		nr_parts = flash->nr_parts;
+		parts = plat->parts;
+		nr_parts = plat->nr_parts;
 		part_type = "static";
 	}
 
