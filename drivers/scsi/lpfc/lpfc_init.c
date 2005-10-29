@@ -766,10 +766,12 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 {
 	lpfc_vpd_t *vp;
 	uint32_t id;
+	uint8_t hdrtype;
 	char str[16];
 
 	vp = &phba->vpd;
 	pci_read_config_dword(phba->pcidev, PCI_VENDOR_ID, &id);
+	pci_read_config_byte(phba->pcidev, PCI_HEADER_TYPE, &hdrtype);
 
 	switch ((id >> 16) & 0xffff) {
 	case PCI_DEVICE_ID_FIREFLY:
@@ -797,7 +799,10 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 		strcpy(str, "LP9802 2");
 		break;
 	case PCI_DEVICE_ID_THOR:
-		strcpy(str, "LP10000 2");
+		if (hdrtype == 0x80)
+			strcpy(str, "LP10000DC 2");
+		else
+			strcpy(str, "LP10000 2");
 		break;
 	case PCI_DEVICE_ID_VIPER:
 		strcpy(str, "LPX1000 10");
@@ -806,10 +811,16 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 		strcpy(str, "LP982 2");
 		break;
 	case PCI_DEVICE_ID_TFLY:
-		strcpy(str, "LP1050 2");
+		if (hdrtype == 0x80)
+			strcpy(str, "LP1050DC 2");
+		else
+			strcpy(str, "LP1050 2");
 		break;
 	case PCI_DEVICE_ID_HELIOS:
-		strcpy(str, "LP11000 4");
+		if (hdrtype == 0x80)
+			strcpy(str, "LP11002 4");
+		else
+			strcpy(str, "LP11000 4");
 		break;
 	case PCI_DEVICE_ID_BMID:
 		strcpy(str, "LP1150 4");
@@ -818,13 +829,16 @@ lpfc_get_hba_model_desc(struct lpfc_hba * phba, uint8_t * mdp, uint8_t * descp)
 		strcpy(str, "LP111 4");
 		break;
 	case PCI_DEVICE_ID_ZEPHYR:
-		strcpy(str, "LP11000e 4");
+		if (hdrtype == 0x80)
+			strcpy(str, "LPe11002 4");
+		else
+			strcpy(str, "LPe11000 4");
 		break;
 	case PCI_DEVICE_ID_ZMID:
-		strcpy(str, "LP1150e 4");
+		strcpy(str, "LPe1150 4");
 		break;
 	case PCI_DEVICE_ID_ZSMB:
-		strcpy(str, "LP111e 4");
+		strcpy(str, "LPe111 4");
 		break;
 	case PCI_DEVICE_ID_LP101:
 		strcpy(str, "LP101 2");
