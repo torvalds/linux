@@ -21,6 +21,7 @@
 #include <asm/procinfo.h>
 #include <asm/ptrace.h>
 #include <asm/asm-offsets.h>
+#include <asm/memory.h>
 #include <asm/thread_info.h>
 #include <asm/system.h>
 
@@ -76,7 +77,7 @@
 	.equ	swapper_pg_dir, DATAADDR - 0x4000
 
 	.macro	pgtbl, rd, phys
-	ldr	\rd, =((DATAADDR - 0x4000) - VIRT_OFFSET)
+	ldr	\rd, =((DATAADDR - 0x4000) - PAGE_OFFSET)
 	add	\rd, \rd, \phys
 	.endm
 #endif
@@ -324,7 +325,7 @@ __create_page_tables:
 	/*
 	 * Then map first 1MB of ram in case it contains our boot params.
 	 */
-	add	r0, r4, #VIRT_OFFSET >> 18
+	add	r0, r4, #PAGE_OFFSET >> 18
 	orr	r6, r5, r7
 	str	r6, [r0]
 
