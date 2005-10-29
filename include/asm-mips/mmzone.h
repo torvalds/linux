@@ -5,6 +5,7 @@
 #ifndef _ASM_MMZONE_H_
 #define _ASM_MMZONE_H_
 
+#include <linux/config.h>
 #include <asm/page.h>
 #include <mmzone.h>
 

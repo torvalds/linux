@@ -9,17 +9,16 @@
 #ifndef _ASM_SPINLOCK_H
 #define _ASM_SPINLOCK_H
 
-#include <linux/config.h>
 #include <asm/war.h>
 
 /*
  * Your basic SMP spinlocks, allowing only a single CPU anywhere
  */
 
-#define __raw_spin_is_locked(x)	((x)->lock != 0)
+#define __raw_spin_is_locked(x)       ((x)->lock != 0)
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 #define __raw_spin_unlock_wait(x) \
-		do { cpu_relax(); } while ((x)->lock)
+	do { cpu_relax(); } while ((x)->lock)
 
 /*
  * Simple spin lock operations.  There are two variants, one clears IRQ's
