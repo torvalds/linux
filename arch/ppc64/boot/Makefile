@@ -24,7 +24,7 @@
 HOSTCC		:= gcc
 BOOTCFLAGS	:= $(HOSTCFLAGS) -fno-builtin -nostdinc -isystem $(shell $(CROSS32CC) -print-file-name=include) -fPIC
 BOOTAFLAGS	:= -D__ASSEMBLY__ $(BOOTCFLAGS) -traditional -nostdinc
-BOOTLFLAGS	:= -Ttext 0x00400000 -e _start -T $(srctree)/$(src)/zImage.lds
+BOOTLFLAGS	:= -T $(srctree)/$(src)/zImage.lds
 OBJCOPYFLAGS    := contents,alloc,load,readonly,data
 
 zlib       := infblock.c infcodes.c inffast.c inflate.c inftrees.c infutil.c
@@ -34,7 +34,7 @@ zliblinuxheader := zlib.h zconf.h zutil.h
 $(addprefix $(obj)/,$(zlib) main.o): $(addprefix $(obj)/,$(zliblinuxheader)) $(addprefix $(obj)/,$(zlibheader))
 #$(addprefix $(obj)/,main.o): $(addprefix $(obj)/,zlib.h)
 
-src-boot := crt0.S string.S prom.c main.c div64.S
+src-boot := string.S prom.c main.c div64.S crt0.S
 src-boot += $(zlib)
 src-boot := $(addprefix $(obj)/, $(src-boot))
 obj-boot := $(addsuffix .o, $(basename $(src-boot)))

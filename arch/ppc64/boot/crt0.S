@@ -12,8 +12,8 @@
 #include "ppc_asm.h"
 
 	.text
-	.globl	_start
-_start:
+	.globl	_zimage_start
+_zimage_start:
 	bl	reloc_offset
 
 reloc_offset:
