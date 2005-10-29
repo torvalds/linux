@@ -5819,7 +5819,7 @@ static int osst_probe(struct device *dev)
 	}
 	drive->number = devfs_register_tape(SDp->devfs_name);
 
-	sdev_printk(KERN_INFO, &SDp,
+	sdev_printk(KERN_INFO, SDp,
 		"osst :I: Attached OnStream %.5s tape as %s\n",
 		SDp->model, tape_name(tpnt));
 
