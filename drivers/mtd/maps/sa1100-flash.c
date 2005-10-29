@@ -440,9 +440,17 @@ static int sa1100_mtd_resume(struct device *dev)
 		info->mtd->resume(info->mtd);
 	return 0;
 }
+
+static void sa1100_mtd_shutdown(struct device *dev)
+{
+	struct sa_info *info = dev_get_drvdata(dev);
+	if (info && info->mtd->suspend(info->mtd) == 0)
+		info->mtd->resume(info->mtd);
+}
 #else
 #define sa1100_mtd_suspend NULL
 #define sa1100_mtd_resume  NULL
+#define sa1100_mtd_shutdown NULL
 #endif
 
 static struct device_driver sa1100_mtd_driver = {
@@ -452,6 +460,7 @@ static struct device_driver sa1100_mtd_driver = {
 	.remove		= __exit_p(sa1100_mtd_remove),
 	.suspend	= sa1100_mtd_suspend,
 	.resume		= sa1100_mtd_resume,
+	.shutdown	= sa1100_mtd_shutdown,
 };
 
 static int __init sa1100_mtd_init(void)
