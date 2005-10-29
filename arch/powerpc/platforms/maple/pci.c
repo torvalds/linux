@@ -25,6 +25,8 @@
 #include <asm/iommu.h>
 #include <asm/ppc-pci.h>
 
+#include "maple.h"
+
 #ifdef DEBUG
 #define DBG(x...) printk(x)
 #else

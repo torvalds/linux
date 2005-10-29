@@ -36,6 +36,8 @@
 #include <asm/machdep.h>
 #include <asm/time.h>
 
+#include "maple.h"
+
 #ifdef DEBUG
 #define DBG(x...) printk(x)
 #else
