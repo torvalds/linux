@@ -687,8 +687,8 @@
 #define __NR_shmget             (__NR_Linux + 194)
 #define __NR_shmctl             (__NR_Linux + 195)
 
-#define __NR_getpmsg            (__NR_Linux + 196)      /* some people actually want streams */
-#define __NR_putpmsg            (__NR_Linux + 197)      /* some people actually want streams */
+#define __NR_getpmsg		(__NR_Linux + 196) /* Somebody *wants* streams? */
+#define __NR_putpmsg		(__NR_Linux + 197)
 
 #define __NR_lstat64            (__NR_Linux + 198)
 #define __NR_truncate64         (__NR_Linux + 199)
@@ -755,8 +755,14 @@
 #define __NR_mbind		(__NR_Linux + 260)
 #define __NR_get_mempolicy	(__NR_Linux + 261)
 #define __NR_set_mempolicy	(__NR_Linux + 262)
+#define __NR_vserver		(__NR_Linux + 263)
+#define __NR_add_key		(__NR_Linux + 264)
+#define __NR_request_key	(__NR_Linux + 265)
+#define __NR_keyctl		(__NR_Linux + 266)
+#define __NR_ioprio_set		(__NR_Linux + 267)
+#define __NR_ioprio_get		(__NR_Linux + 268)
 
-#define __NR_Linux_syscalls     263
+#define __NR_Linux_syscalls     269
 
 #define HPUX_GATEWAY_ADDR       0xC0000004
 #define LINUX_GATEWAY_ADDR      0x100
@@ -807,10 +813,10 @@
 #define K_INLINE_SYSCALL(name, nr, args...)	({			\
 	long __sys_res;							\
 	{								\
-		register unsigned long __res asm("r28");		\
+		register unsigned long __res __asm__("r28");		\
 		K_LOAD_ARGS_##nr(args)					\
 		/* FIXME: HACK stw/ldw r19 around syscall */		\
-		asm volatile(						\
+		__asm__ volatile(					\
 			K_STW_ASM_PIC					\
 			"	ble  0x100(%%sr2, %%r0)\n"		\
 			"	ldi %1, %%r20\n"			\

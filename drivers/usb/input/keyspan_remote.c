@@ -20,6 +20,7 @@
 #include <linux/moduleparam.h>
 #include <linux/input.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 
 #define DRIVER_VERSION	"v0.1"
 #define DRIVER_AUTHOR	"Michael Downey <downey@zymeta.com>"
@@ -75,7 +76,7 @@ struct usb_keyspan {
 	char				name[128];
 	char				phys[64];
 	struct usb_device*		udev;
-	struct input_dev		input;
+	struct input_dev		*input;
 	struct usb_interface*		interface;
 	struct usb_endpoint_descriptor* in_endpoint;
 	struct urb*			irq_urb;
@@ -136,12 +137,11 @@ static struct usb_driver keyspan_driver;
  */
 static void keyspan_print(struct usb_keyspan* dev) /*unsigned char* data)*/
 {
-	char codes[4*RECV_SIZE];
+	char codes[4 * RECV_SIZE];
 	int i;
 
-	for (i = 0; i < RECV_SIZE; i++) {
-		snprintf(codes+i*3, 4, "%02x ", dev->in_buffer[i]);
-	}
+	for (i = 0; i < RECV_SIZE; i++)
+		snprintf(codes + i * 3, 4, "%02x ", dev->in_buffer[i]);
 
 	dev_info(&dev->udev->dev, "%s\n", codes);
 }
@@ -153,7 +153,7 @@ static void keyspan_print(struct usb_keyspan* dev) /*unsigned char* data)*/
 static int keyspan_load_tester(struct usb_keyspan* dev, int bits_needed)
 {
 	if (dev->data.bits_left >= bits_needed)
-		return(0);
+		return 0;
 
 	/*
 	 * Somehow we've missed the last message. The message will be repeated
@@ -162,7 +162,7 @@ static int keyspan_load_tester(struct usb_keyspan* dev, int bits_needed)
 	if (dev->data.pos >= dev->data.len) {
 		dev_dbg(&dev->udev, "%s - Error ran out of data. pos: %d, len: %d\n",
 			__FUNCTION__, dev->data.pos, dev->data.len);
-		return(-1);
+		return -1;
 	}
 
 	/* Load as much as we can into the tester. */
@@ -172,7 +172,7 @@ static int keyspan_load_tester(struct usb_keyspan* dev, int bits_needed)
 		dev->data.bits_left += 8;
 	}
 
-	return(0);
+	return 0;
 }
 
 /*
@@ -311,10 +311,10 @@ static void keyspan_check_data(struct usb_keyspan *remote, struct pt_regs *regs)
 			__FUNCTION__, message.system, message.button, message.toggle);
 
 		if (message.toggle != remote->toggle) {
-			input_regs(&remote->input, regs);
-			input_report_key(&remote->input, keyspan_key_table[message.button], 1);
-			input_report_key(&remote->input, keyspan_key_table[message.button], 0);
-			input_sync(&remote->input);
+			input_regs(remote->input, regs);
+			input_report_key(remote->input, keyspan_key_table[message.button], 1);
+			input_report_key(remote->input, keyspan_key_table[message.button], 0);
+			input_sync(remote->input);
 			remote->toggle = message.toggle;
 		}
 
@@ -397,14 +397,9 @@ static int keyspan_open(struct input_dev *dev)
 {
 	struct usb_keyspan *remote = dev->private;
 
-	if (remote->open++)
-		return 0;
-
 	remote->irq_urb->dev = remote->udev;
-	if (usb_submit_urb(remote->irq_urb, GFP_KERNEL)) {
-		remote->open--;
+	if (usb_submit_urb(remote->irq_urb, GFP_KERNEL))
 		return -EIO;
-	}
 
 	return 0;
 }
@@ -413,8 +408,26 @@ static void keyspan_close(struct input_dev *dev)
 {
 	struct usb_keyspan *remote = dev->private;
 
-	if (!--remote->open)
-		usb_kill_urb(remote->irq_urb);
+	usb_kill_urb(remote->irq_urb);
+}
+
+static struct usb_endpoint_descriptor *keyspan_get_in_endpoint(struct usb_host_interface *iface)
+{
+
+	struct usb_endpoint_descriptor *endpoint;
+	int i;
+
+	for (i = 0; i < iface->desc.bNumEndpoints; ++i) {
+		endpoint = &iface->endpoint[i].desc;
+
+		if ((endpoint->bEndpointAddress & USB_DIR_IN) &&
+		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)) {
+			/* we found our interrupt in endpoint */
+			return endpoint;
+		}
+	}
+
+	return NULL;
 }
 
 /*
@@ -422,110 +435,78 @@ static void keyspan_close(struct input_dev *dev)
  */
 static int keyspan_probe(struct usb_interface *interface, const struct usb_device_id *id)
 {
-	int i;
-	int retval = -ENOMEM;
-	char path[64];
-	char *buf;
-	struct usb_keyspan *remote = NULL;
-	struct usb_host_interface *iface_desc;
+	struct usb_device *udev = interface_to_usbdev(interface);
 	struct usb_endpoint_descriptor *endpoint;
-	struct usb_device *udev = usb_get_dev(interface_to_usbdev(interface));
+	struct usb_keyspan *remote;
+	struct input_dev *input_dev;
+	int i, retval;
 
-	/* allocate memory for our device state and initialize it */
-	remote = kmalloc(sizeof(*remote), GFP_KERNEL);
-	if (remote == NULL) {
-		err("Out of memory\n");
-		goto error;
+	endpoint = keyspan_get_in_endpoint(interface->cur_altsetting);
+	if (!endpoint)
+		return -ENODEV;
+
+	remote = kzalloc(sizeof(*remote), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!remote || !input_dev) {
+		retval = -ENOMEM;
+		goto fail1;
 	}
-	memset(remote, 0x00, sizeof(*remote));
 
 	remote->udev = udev;
+	remote->input = input_dev;
 	remote->interface = interface;
+	remote->in_endpoint = endpoint;
 	remote->toggle = -1;	/* Set to -1 so we will always not match the toggle from the first remote message. */
 
-	/* set up the endpoint information */
-	/* use only the first in interrupt endpoint */
-	iface_desc = interface->cur_altsetting;
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (!remote->in_endpoint &&
-		    (endpoint->bEndpointAddress & USB_DIR_IN) &&
-		    ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == USB_ENDPOINT_XFER_INT)) {
-			/* we found our interrupt in endpoint */
-			remote->in_endpoint = endpoint;
-
-			remote->in_buffer = usb_buffer_alloc(remote->udev, RECV_SIZE, SLAB_ATOMIC, &remote->in_dma);
-			if (!remote->in_buffer) {
-				retval = -ENOMEM;
-				goto error;
-			}
-		}
-	}
-
-	if (!remote->in_endpoint) {
-		err("Could not find interrupt input endpoint.\n");
-		retval = -ENODEV;
-		goto error;
+	remote->in_buffer = usb_buffer_alloc(udev, RECV_SIZE, SLAB_ATOMIC, &remote->in_dma);
+	if (!remote->in_buffer) {
+		retval = -ENOMEM;
+		goto fail1;
 	}
 
 	remote->irq_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!remote->irq_urb) {
-		err("Failed to allocate urb.\n");
 		retval = -ENOMEM;
-		goto error;
+		goto fail2;
 	}
 
-	retval = keyspan_setup(remote->udev);
+	retval = keyspan_setup(udev);
 	if (retval) {
-		err("Failed to setup device.\n");
 		retval = -ENODEV;
-		goto error;
+		goto fail3;
 	}
 
-	/*
-	 * Setup the input system with the bits we are going to be reporting
-	 */
-	remote->input.evbit[0] = BIT(EV_KEY);		/* We will only report KEY events. */
-	for (i = 0; i < 32; ++i) {
-		if (keyspan_key_table[i] != KEY_RESERVED) {
-			set_bit(keyspan_key_table[i], remote->input.keybit);
-		}
+	if (udev->manufacturer)
+		strlcpy(remote->name, udev->manufacturer, sizeof(remote->name));
+
+	if (udev->product) {
+		if (udev->manufacturer)
+			strlcat(remote->name, " ", sizeof(remote->name));
+		strlcat(remote->name, udev->product, sizeof(remote->name));
 	}
-
-	remote->input.private = remote;
-	remote->input.open = keyspan_open;
-	remote->input.close = keyspan_close;
-
-	usb_make_path(remote->udev, path, 64);
-	sprintf(remote->phys, "%s/input0", path);
-
-	remote->input.name = remote->name;
-	remote->input.phys = remote->phys;
-	remote->input.id.bustype = BUS_USB;
-	remote->input.id.vendor = le16_to_cpu(remote->udev->descriptor.idVendor);
-	remote->input.id.product = le16_to_cpu(remote->udev->descriptor.idProduct);
-	remote->input.id.version = le16_to_cpu(remote->udev->descriptor.bcdDevice);
-
-	if (!(buf = kmalloc(63, GFP_KERNEL))) {
-		usb_buffer_free(remote->udev, RECV_SIZE, remote->in_buffer, remote->in_dma);
-		kfree(remote);
-		return -ENOMEM;
-	}
-
-	if (remote->udev->descriptor.iManufacturer &&
-	    usb_string(remote->udev, remote->udev->descriptor.iManufacturer, buf, 63) > 0)
-		strcat(remote->name, buf);
-
-	if (remote->udev->descriptor.iProduct &&
-	    usb_string(remote->udev, remote->udev->descriptor.iProduct, buf, 63) > 0)
-		sprintf(remote->name, "%s %s", remote->name, buf);
 
 	if (!strlen(remote->name))
-		sprintf(remote->name, "USB Keyspan Remote %04x:%04x",
-			remote->input.id.vendor, remote->input.id.product);
+		snprintf(remote->name, sizeof(remote->name),
+			 "USB Keyspan Remote %04x:%04x",
+			 le16_to_cpu(udev->descriptor.idVendor),
+			 le16_to_cpu(udev->descriptor.idProduct));
 
-	kfree(buf);
+	usb_make_path(udev, remote->phys, sizeof(remote->phys));
+	strlcat(remote->phys, "/input0", sizeof(remote->phys));
+
+	input_dev->name = remote->name;
+	input_dev->phys = remote->phys;
+	usb_to_input_id(udev, &input_dev->id);
+	input_dev->cdev.dev = &interface->dev;
+
+	input_dev->evbit[0] = BIT(EV_KEY);		/* We will only report KEY events. */
+	for (i = 0; i < ARRAY_SIZE(keyspan_key_table); i++)
+		if (keyspan_key_table[i] != KEY_RESERVED)
+			set_bit(keyspan_key_table[i], input_dev->keybit);
+
+	input_dev->private = remote;
+	input_dev->open = keyspan_open;
+	input_dev->close = keyspan_close;
 
 	/*
 	 * Initialize the URB to access the device. The urb gets sent to the device in keyspan_open()
@@ -538,27 +519,17 @@ static int keyspan_probe(struct usb_interface *interface, const struct usb_devic
 	remote->irq_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	/* we can register the device now, as it is ready */
-	input_register_device(&remote->input);
+	input_register_device(remote->input);
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, remote);
 
-	/* let the user know what node this device is now attached to */
-	info("connected: %s on %s", remote->name, path);
 	return 0;
 
-error:
-	/*
-	 * In case of error we need to clean up any allocated buffers
-	 */
-	if (remote->irq_urb)
-		usb_free_urb(remote->irq_urb);
-
-	if (remote->in_buffer)
-		usb_buffer_free(remote->udev, RECV_SIZE, remote->in_buffer, remote->in_dma);
-
-	if (remote)
-		kfree(remote);
+ fail3:	usb_free_urb(remote->irq_urb);
+ fail2:	usb_buffer_free(udev, RECV_SIZE, remote->in_buffer, remote->in_dma);
+ fail1:	kfree(remote);
+	input_free_device(input_dev);
 
 	return retval;
 }
@@ -570,23 +541,16 @@ static void keyspan_disconnect(struct usb_interface *interface)
 {
 	struct usb_keyspan *remote;
 
-	/* prevent keyspan_open() from racing keyspan_disconnect() */
-	lock_kernel();
-
 	remote = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
 
 	if (remote) {	/* We have a valid driver structure so clean up everything we allocated. */
-		input_unregister_device(&remote->input);
+		input_unregister_device(remote->input);
 		usb_kill_urb(remote->irq_urb);
 		usb_free_urb(remote->irq_urb);
-		usb_buffer_free(interface_to_usbdev(interface), RECV_SIZE, remote->in_buffer, remote->in_dma);
+		usb_buffer_free(remote->udev, RECV_SIZE, remote->in_buffer, remote->in_dma);
 		kfree(remote);
 	}
-
-	unlock_kernel();
-
-	info("USB Keyspan now disconnected");
 }
 
 /*

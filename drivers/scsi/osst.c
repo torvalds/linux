@@ -5629,7 +5629,7 @@ static void osst_sysfs_add(dev_t dev, struct device *device, struct osst_tape * 
 
 	if (!osst_sysfs_valid) return;
 
-	osst_class_member = class_device_create(osst_sysfs_class, dev, device, "%s", name);
+	osst_class_member = class_device_create(osst_sysfs_class, NULL, dev, device, "%s", name);
 	if (IS_ERR(osst_class_member)) {
 		printk(KERN_WARNING "osst :W: Unable to add sysfs class member %s\n", name);
 		return;

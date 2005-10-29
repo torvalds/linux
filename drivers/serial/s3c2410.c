@@ -1134,23 +1134,22 @@ static int s3c24xx_serial_remove(struct device *_dev)
 
 #ifdef CONFIG_PM
 
-static int s3c24xx_serial_suspend(struct device *dev, pm_message_t state,
-				  u32 level)
+static int s3c24xx_serial_suspend(struct device *dev, pm_message_t state)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(dev);
 
-	if (port && level == SUSPEND_DISABLE)
+	if (port)
 		uart_suspend_port(&s3c24xx_uart_drv, port);
 
 	return 0;
 }
 
-static int s3c24xx_serial_resume(struct device *dev, u32 level)
+static int s3c24xx_serial_resume(struct device *dev)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(dev);
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
-	if (port && level == RESUME_ENABLE) {
+	if (port) {
 		clk_enable(ourport->clk);
 		s3c24xx_serial_resetport(port, s3c24xx_port_to_cfg(port));
 		clk_disable(ourport->clk);

@@ -2717,6 +2717,20 @@ int register_netdevice(struct net_device *dev)
 		       dev->name);
 		dev->features &= ~NETIF_F_TSO;
 	}
+	if (dev->features & NETIF_F_UFO) {
+		if (!(dev->features & NETIF_F_HW_CSUM)) {
+			printk(KERN_ERR "%s: Dropping NETIF_F_UFO since no "
+					"NETIF_F_HW_CSUM feature.\n",
+							dev->name);
+			dev->features &= ~NETIF_F_UFO;
+		}
+		if (!(dev->features & NETIF_F_SG)) {
+			printk(KERN_ERR "%s: Dropping NETIF_F_UFO since no "
+					"NETIF_F_SG feature.\n",
+					dev->name);
+			dev->features &= ~NETIF_F_UFO;
+		}
+	}
 
 	/*
 	 *	nil rebuild_header routine,

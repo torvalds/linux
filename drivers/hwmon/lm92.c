@@ -300,11 +300,10 @@ static int lm92_detect(struct i2c_adapter *adapter, int address, int kind)
 					    | I2C_FUNC_SMBUS_WORD_DATA))
 		goto exit;
 
-	if (!(data = kmalloc(sizeof(struct lm92_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct lm92_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct lm92_data));
 
 	/* Fill in enough client fields so that we can read from the chip,
 	   which is required for identication */

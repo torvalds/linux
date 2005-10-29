@@ -13,18 +13,26 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/device.h>
 #include <linux/list.h>
 #include <linux/errno.h>
+#include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/timex.h>
 #include <linux/signal.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
+#include <asm/sizes.h>
+#include <asm/hardware/amba.h>
 
+#include <asm/mach/flash.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
+
+#include "core.h"
+#include "clock.h"
 
 /*
  * Common I/O mapping:
@@ -40,9 +48,17 @@
  * default mapping provided here.
  */
 static struct map_desc standard_io_desc[] __initdata = {
- /* virtual         physical       length           type */
-  { VIO_APB_BASE,   PIO_APB_BASE,  IO_APB_LENGTH,   MT_DEVICE },
-  { VIO_AHB_BASE,   PIO_AHB_BASE,  IO_AHB_LENGTH,   MT_DEVICE }
+	{
+		.virtual	= VIO_APB_BASE,
+		.physical	= __phys_to_pfn(PIO_APB_BASE),
+		.length		= IO_APB_LENGTH,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= VIO_AHB_BASE,
+		.physical	= __phys_to_pfn(PIO_AHB_BASE),
+		.length		= IO_AHB_LENGTH,
+		.type		= MT_DEVICE
+	}
 };
 
 void __init aaec2000_map_io(void)
@@ -154,4 +170,117 @@ struct sys_timer aaec2000_timer = {
 	.init		= aaec2000_timer_init,
 	.offset		= aaec2000_gettimeoffset,
 };
+
+static struct clcd_panel mach_clcd_panel;
+
+static int aaec2000_clcd_setup(struct clcd_fb *fb)
+{
+	dma_addr_t dma;
+
+	fb->panel = &mach_clcd_panel;
+
+	fb->fb.screen_base = dma_alloc_writecombine(&fb->dev->dev, SZ_1M,
+			&dma, GFP_KERNEL);
+
+	if (!fb->fb.screen_base) {
+		printk(KERN_ERR "CLCD: unable to map framebuffer\n");
+		return -ENOMEM;
+	}
+
+	fb->fb.fix.smem_start = dma;
+	fb->fb.fix.smem_len = SZ_1M;
+
+	return 0;
+}
+
+static int aaec2000_clcd_mmap(struct clcd_fb *fb, struct vm_area_struct *vma)
+{
+	return dma_mmap_writecombine(&fb->dev->dev, vma,
+			fb->fb.screen_base,
+			fb->fb.fix.smem_start,
+			fb->fb.fix.smem_len);
+}
+
+static void aaec2000_clcd_remove(struct clcd_fb *fb)
+{
+	dma_free_writecombine(&fb->dev->dev, fb->fb.fix.smem_len,
+			fb->fb.screen_base, fb->fb.fix.smem_start);
+}
+
+static struct clcd_board clcd_plat_data = {
+	.name	= "AAEC-2000",
+	.check	= clcdfb_check,
+	.decode	= clcdfb_decode,
+	.setup	= aaec2000_clcd_setup,
+	.mmap	= aaec2000_clcd_mmap,
+	.remove	= aaec2000_clcd_remove,
+};
+
+static struct amba_device clcd_device = {
+	.dev		= {
+		.bus_id			= "mb:16",
+		.coherent_dma_mask	= ~0,
+		.platform_data		= &clcd_plat_data,
+	},
+	.res		= {
+		.start			= AAEC_CLCD_PHYS,
+		.end			= AAEC_CLCD_PHYS + SZ_4K - 1,
+		.flags			= IORESOURCE_MEM,
+	},
+	.irq		= { INT_LCD, NO_IRQ },
+	.periphid	= 0x41110,
+};
+
+static struct amba_device *amba_devs[] __initdata = {
+	&clcd_device,
+};
+
+static struct clk aaec2000_clcd_clk = {
+	.name = "CLCDCLK",
+};
+
+void __init aaec2000_set_clcd_plat_data(struct aaec2000_clcd_info *clcd)
+{
+	clcd_plat_data.enable = clcd->enable;
+	clcd_plat_data.disable = clcd->disable;
+	memcpy(&mach_clcd_panel, &clcd->panel, sizeof(struct clcd_panel));
+}
+
+static struct flash_platform_data aaec2000_flash_data = {
+	.map_name	= "cfi_probe",
+	.width		= 4,
+};
+
+static struct resource aaec2000_flash_resource = {
+	.start		= AAEC_FLASH_BASE,
+	.end		= AAEC_FLASH_BASE + AAEC_FLASH_SIZE,
+	.flags		= IORESOURCE_MEM,
+};
+
+static struct platform_device aaec2000_flash_device = {
+	.name		= "armflash",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &aaec2000_flash_data,
+	},
+	.num_resources	= 1,
+	.resource	= &aaec2000_flash_resource,
+};
+
+static int __init aaec2000_init(void)
+{
+	int i;
+
+	clk_register(&aaec2000_clcd_clk);
+
+	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
+		struct amba_device *d = amba_devs[i];
+		amba_device_register(d, &iomem_resource);
+	}
+
+	platform_device_register(&aaec2000_flash_device);
+
+	return 0;
+};
+arch_initcall(aaec2000_init);
 

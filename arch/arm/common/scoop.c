@@ -102,26 +102,24 @@ static void check_scoop_reg(struct scoop_dev *sdev)
 }
 
 #ifdef CONFIG_PM
-static int scoop_suspend(struct device *dev, pm_message_t state, uint32_t level)
+static int scoop_suspend(struct device *dev, pm_message_t state)
 {
-	if (level == SUSPEND_POWER_DOWN) {
-		struct scoop_dev *sdev = dev_get_drvdata(dev);
+	struct scoop_dev *sdev = dev_get_drvdata(dev);
 
-		check_scoop_reg(sdev);
-  		sdev->scoop_gpwr = SCOOP_REG(sdev->base, SCOOP_GPWR);
-		SCOOP_REG(sdev->base, SCOOP_GPWR) = (sdev->scoop_gpwr & ~sdev->suspend_clr) | sdev->suspend_set;
-	}
+	check_scoop_reg(sdev);
+	sdev->scoop_gpwr = SCOOP_REG(sdev->base, SCOOP_GPWR);
+	SCOOP_REG(sdev->base, SCOOP_GPWR) = (sdev->scoop_gpwr & ~sdev->suspend_clr) | sdev->suspend_set;
+
 	return 0;
 }
 
-static int scoop_resume(struct device *dev, uint32_t level)
+static int scoop_resume(struct device *dev)
 {
-	if (level == RESUME_POWER_ON) {
-		struct scoop_dev *sdev = dev_get_drvdata(dev);
+	struct scoop_dev *sdev = dev_get_drvdata(dev);
 
-		check_scoop_reg(sdev);
-		SCOOP_REG(sdev->base,SCOOP_GPWR) = sdev->scoop_gpwr;
-	}
+	check_scoop_reg(sdev);
+	SCOOP_REG(sdev->base,SCOOP_GPWR) = sdev->scoop_gpwr;
+
 	return 0;
 }
 #else

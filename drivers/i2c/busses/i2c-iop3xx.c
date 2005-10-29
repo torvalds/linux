@@ -43,7 +43,7 @@
 #include "i2c-iop3xx.h"
 
 /* global unit counter */
-static int i2c_id = 0;
+static int i2c_id;
 
 static inline unsigned char 
 iic_cook_addr(struct i2c_msg *msg) 
@@ -440,19 +440,17 @@ iop3xx_i2c_probe(struct device *dev)
 	struct i2c_adapter *new_adapter;
 	struct i2c_algo_iop3xx_data *adapter_data;
 
-	new_adapter = kmalloc(sizeof(struct i2c_adapter), GFP_KERNEL);
+	new_adapter = kzalloc(sizeof(struct i2c_adapter), GFP_KERNEL);
 	if (!new_adapter) {
 		ret = -ENOMEM;
 		goto out;
 	}
-	memset((void*)new_adapter, 0, sizeof(*new_adapter));
 
-	adapter_data = kmalloc(sizeof(struct i2c_algo_iop3xx_data), GFP_KERNEL);
+	adapter_data = kzalloc(sizeof(struct i2c_algo_iop3xx_data), GFP_KERNEL);
 	if (!adapter_data) {
 		ret = -ENOMEM;
 		goto free_adapter;
 	}
-	memset((void*)adapter_data, 0, sizeof(*adapter_data));
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -525,6 +523,7 @@ out:
 
 
 static struct device_driver iop3xx_i2c_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "IOP3xx-I2C",
 	.bus		= &platform_bus_type,
 	.probe		= iop3xx_i2c_probe,

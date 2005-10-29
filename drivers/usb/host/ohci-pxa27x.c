@@ -309,7 +309,7 @@ static int ohci_hcd_pxa27x_drv_remove(struct device *dev)
 	return 0;
 }
 
-static int ohci_hcd_pxa27x_drv_suspend(struct device *dev, pm_message_t state, u32 level)
+static int ohci_hcd_pxa27x_drv_suspend(struct device *dev, pm_message_t state)
 {
 //	struct platform_device *pdev = to_platform_device(dev);
 //	struct usb_hcd *hcd = dev_get_drvdata(dev);
@@ -318,7 +318,7 @@ static int ohci_hcd_pxa27x_drv_suspend(struct device *dev, pm_message_t state, u
 	return 0;
 }
 
-static int ohci_hcd_pxa27x_drv_resume(struct device *dev, u32 level)
+static int ohci_hcd_pxa27x_drv_resume(struct device *dev)
 {
 //	struct platform_device *pdev = to_platform_device(dev);
 //	struct usb_hcd *hcd = dev_get_drvdata(dev);

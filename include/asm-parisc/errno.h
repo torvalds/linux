@@ -114,6 +114,7 @@
 
 #define ENOTSUP		252	/* Function not implemented (POSIX.4 / HPUX) */
 #define ECANCELLED	253	/* aio request was canceled before complete (POSIX.4 / HPUX) */
+#define ECANCELED	ECANCELLED	/* SuSv3 and Solaris wants one 'L' */
 
 /* for robust mutexes */
 #define EOWNERDEAD	254	/* Owner died */

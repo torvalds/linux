@@ -243,11 +243,10 @@ static int ds1337_detect(struct i2c_adapter *adapter, int address, int kind)
 				     I2C_FUNC_I2C))
 		goto exit;
 
-	if (!(data = kmalloc(sizeof(struct ds1337_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct ds1337_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct ds1337_data));
 	INIT_LIST_HEAD(&data->list);
 
 	/* The common I2C client data is placed right before the

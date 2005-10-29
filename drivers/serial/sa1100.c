@@ -834,21 +834,21 @@ static struct uart_driver sa1100_reg = {
 	.cons			= SA1100_CONSOLE,
 };
 
-static int sa1100_serial_suspend(struct device *_dev, pm_message_t state, u32 level)
+static int sa1100_serial_suspend(struct device *_dev, pm_message_t state)
 {
 	struct sa1100_port *sport = dev_get_drvdata(_dev);
 
-	if (sport && level == SUSPEND_DISABLE)
+	if (sport)
 		uart_suspend_port(&sa1100_reg, &sport->port);
 
 	return 0;
 }
 
-static int sa1100_serial_resume(struct device *_dev, u32 level)
+static int sa1100_serial_resume(struct device *_dev)
 {
 	struct sa1100_port *sport = dev_get_drvdata(_dev);
 
-	if (sport && level == RESUME_ENABLE)
+	if (sport)
 		uart_resume_port(&sa1100_reg, &sport->port);
 
 	return 0;

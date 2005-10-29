@@ -255,22 +255,19 @@ static void hid_lgff_input_init(struct hid_device* hid)
 	u16 idVendor = le16_to_cpu(hid->dev->descriptor.idVendor);
 	u16 idProduct = le16_to_cpu(hid->dev->descriptor.idProduct);
 	struct hid_input *hidinput = list_entry(hid->inputs.next, struct hid_input, list);
+	struct input_dev *input_dev = hidinput->input;
 
 	while (dev->idVendor && (idVendor != dev->idVendor || idProduct != dev->idProduct))
 		dev++;
 
-	ff = dev->ff;
+	for (ff = dev->ff; *ff >= 0; ff++)
+		set_bit(*ff, input_dev->ffbit);
 
-	while (*ff >= 0) {
-		set_bit(*ff, hidinput->input.ffbit);
-		++ff;
-	}
+	input_dev->upload_effect = hid_lgff_upload_effect;
+	input_dev->flush = hid_lgff_flush;
 
-	hidinput->input.upload_effect = hid_lgff_upload_effect;
-	hidinput->input.flush = hid_lgff_flush;
-
-	set_bit(EV_FF, hidinput->input.evbit);
-	hidinput->input.ff_effects_max = LGFF_EFFECTS;
+	set_bit(EV_FF, input_dev->evbit);
+	input_dev->ff_effects_max = LGFF_EFFECTS;
 }
 
 static void hid_lgff_exit(struct hid_device* hid)

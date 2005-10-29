@@ -178,33 +178,27 @@ static int neponset_probe(struct device *dev)
 /*
  * LDM power management.
  */
-static int neponset_suspend(struct device *dev, pm_message_t state, u32 level)
+static int neponset_suspend(struct device *dev, pm_message_t state)
 {
 	/*
 	 * Save state.
 	 */
-	if (level == SUSPEND_SAVE_STATE ||
-	    level == SUSPEND_DISABLE ||
-	    level == SUSPEND_POWER_DOWN) {
-		if (!dev->power.saved_state)
-			dev->power.saved_state = kmalloc(sizeof(unsigned int), GFP_KERNEL);
-		if (!dev->power.saved_state)
-			return -ENOMEM;
+	if (!dev->power.saved_state)
+		dev->power.saved_state = kmalloc(sizeof(unsigned int), GFP_KERNEL);
+	if (!dev->power.saved_state)
+		return -ENOMEM;
 
-		*(unsigned int *)dev->power.saved_state = NCR_0;
-	}
+	*(unsigned int *)dev->power.saved_state = NCR_0;
 
 	return 0;
 }
 
-static int neponset_resume(struct device *dev, u32 level)
+static int neponset_resume(struct device *dev)
 {
-	if (level == RESUME_RESTORE_STATE || level == RESUME_ENABLE) {
-		if (dev->power.saved_state) {
-			NCR_0 = *(unsigned int *)dev->power.saved_state;
-			kfree(dev->power.saved_state);
-			dev->power.saved_state = NULL;
-		}
+	if (dev->power.saved_state) {
+		NCR_0 = *(unsigned int *)dev->power.saved_state;
+		kfree(dev->power.saved_state);
+		dev->power.saved_state = NULL;
 	}
 
 	return 0;
@@ -331,9 +325,17 @@ static int __init neponset_init(void)
 subsys_initcall(neponset_init);
 
 static struct map_desc neponset_io_desc[] __initdata = {
- /* virtual     physical    length type */
-  { 0xf3000000, 0x10000000, SZ_1M, MT_DEVICE }, /* System Registers */
-  { 0xf4000000, 0x40000000, SZ_1M, MT_DEVICE }  /* SA-1111 */
+	{	/* System Registers */
+		.virtual	=  0xf3000000,
+		.pfn		= __phys_to_pfn(0x10000000),
+		.length		= SZ_1M,
+		.type		= MT_DEVICE
+	}, {	/* SA-1111 */
+		.virtual	=  0xf4000000,
+		.pfn		= __phys_to_pfn(0x40000000),
+		.length		= SZ_1M,
+		.type		= MT_DEVICE
+	}
 };
 
 void __init neponset_map_io(void)

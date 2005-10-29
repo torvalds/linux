@@ -847,37 +847,32 @@ static int s3c2410fb_remove(struct device *dev)
 
 /* suspend and resume support for the lcd controller */
 
-static int s3c2410fb_suspend(struct device *dev, pm_message_t state, u32 level)
+static int s3c2410fb_suspend(struct device *dev, pm_message_t state)
 {
 	struct fb_info	   *fbinfo = dev_get_drvdata(dev);
 	struct s3c2410fb_info *info = fbinfo->par;
 
-	if (level == SUSPEND_DISABLE || level == SUSPEND_POWER_DOWN) {
-		s3c2410fb_stop_lcd();
+	s3c2410fb_stop_lcd();
 
-		/* sleep before disabling the clock, we need to ensure
-		 * the LCD DMA engine is not going to get back on the bus
-		 * before the clock goes off again (bjd) */
+	/* sleep before disabling the clock, we need to ensure
+	 * the LCD DMA engine is not going to get back on the bus
+	 * before the clock goes off again (bjd) */
 
-		msleep(1);
-		clk_disable(info->clk);
-	}
+	msleep(1);
+	clk_disable(info->clk);
 
 	return 0;
 }
 
-static int s3c2410fb_resume(struct device *dev, u32 level)
+static int s3c2410fb_resume(struct device *dev)
 {
 	struct fb_info	   *fbinfo = dev_get_drvdata(dev);
 	struct s3c2410fb_info *info = fbinfo->par;
 
-	if (level == RESUME_ENABLE) {
-		clk_enable(info->clk);
-		msleep(1);
+	clk_enable(info->clk);
+	msleep(1);
 
-		s3c2410fb_init_registers(info);
-
-	}
+	s3c2410fb_init_registers(info);
 
 	return 0;
 }

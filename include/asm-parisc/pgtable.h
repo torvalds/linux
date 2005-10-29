@@ -501,6 +501,8 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, 
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
 
+#define pgprot_noncached(prot) __pgprot(pgprot_val(prot) | _PAGE_NO_CACHE)
+
 #define MK_IOSPACE_PFN(space, pfn)	(pfn)
 #define GET_IOSPACE(pfn)		0
 #define GET_PFN(pfn)			(pfn)

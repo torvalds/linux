@@ -1955,14 +1955,14 @@ static void __devexit wbsd_pnp_remove(struct pnp_dev * dev)
  */
 
 #ifdef CONFIG_PM
-static int wbsd_suspend(struct device *dev, pm_message_t state, u32 level)
+static int wbsd_suspend(struct device *dev, pm_message_t state)
 {
 	DBGF("Not yet supported\n");
 
 	return 0;
 }
 
-static int wbsd_resume(struct device *dev, u32 level)
+static int wbsd_resume(struct device *dev)
 {
 	DBGF("Not yet supported\n");
 

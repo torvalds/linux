@@ -174,7 +174,7 @@ static int sound_insert_unit(struct sound_unit **list, struct file_operations *f
 
 	devfs_mk_cdev(MKDEV(SOUND_MAJOR, s->unit_minor),
 			S_IFCHR | mode, s->name);
-	class_device_create(sound_class, MKDEV(SOUND_MAJOR, s->unit_minor),
+	class_device_create(sound_class, NULL, MKDEV(SOUND_MAJOR, s->unit_minor),
 			    dev, s->name+6);
 	return r;
 

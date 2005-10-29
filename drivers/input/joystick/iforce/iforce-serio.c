@@ -131,10 +131,9 @@ static int iforce_serio_connect(struct serio *serio, struct serio_driver *drv)
 	struct iforce *iforce;
 	int err;
 
-	if (!(iforce = kmalloc(sizeof(struct iforce), GFP_KERNEL)))
+	iforce = kzalloc(sizeof(struct iforce), GFP_KERNEL);
+	if (!iforce)
 		return -ENOMEM;
-
-	memset(iforce, 0, sizeof(struct iforce));
 
 	iforce->bus = IFORCE_232;
 	iforce->serio = serio;
@@ -148,7 +147,8 @@ static int iforce_serio_connect(struct serio *serio, struct serio_driver *drv)
 		return err;
 	}
 
-	if (iforce_init_device(iforce)) {
+	err = iforce_init_device(iforce);
+	if (err) {
 		serio_close(serio);
 		serio_set_drvdata(serio, NULL);
 		kfree(iforce);
@@ -162,7 +162,7 @@ static void iforce_serio_disconnect(struct serio *serio)
 {
 	struct iforce *iforce = serio_get_drvdata(serio);
 
-	input_unregister_device(&iforce->dev);
+	input_unregister_device(iforce->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
 	kfree(iforce);

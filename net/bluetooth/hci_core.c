@@ -87,7 +87,7 @@ int hci_unregister_notifier(struct notifier_block *nb)
 	return notifier_chain_unregister(&hci_notifier, nb);
 }
 
-void hci_notify(struct hci_dev *hdev, int event)
+static void hci_notify(struct hci_dev *hdev, int event)
 {
 	notifier_call_chain(&hci_notifier, event, hdev);
 }
@@ -1347,7 +1347,7 @@ static inline void hci_scodata_packet(struct hci_dev *hdev, struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
-void hci_rx_task(unsigned long arg)
+static void hci_rx_task(unsigned long arg)
 {
 	struct hci_dev *hdev = (struct hci_dev *) arg;
 	struct sk_buff *skb;
