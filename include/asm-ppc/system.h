@@ -70,6 +70,7 @@ extern void _set_L3CR(unsigned long);
 #endif
 extern void via_cuda_init(void);
 extern void pmac_nvram_init(void);
+extern void chrp_nvram_init(void);
 extern void read_rtc_time(void);
 extern void pmac_find_display(void);
 extern void giveup_fpu(struct task_struct *);

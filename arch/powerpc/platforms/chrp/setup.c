@@ -55,13 +55,8 @@
 #include <asm/rtas.h>
 #include <asm/xmon.h>
 
-void chrp_get_rtc_time(struct rtc_time *);
-int chrp_set_rtc_time(struct rtc_time *);
-void chrp_calibrate_decr(void);
-long chrp_time_init(void);
+#include "chrp.h"
 
-void chrp_find_bridges(void);
-void chrp_event_scan(void);
 void rtas_indicator_progress(char *, unsigned short);
 void btext_progress(char *, unsigned short);
 
@@ -469,6 +464,10 @@ void __init chrp_init_IRQ(void)
 void __init
 chrp_init2(void)
 {
+#ifdef CONFIG_NVRAM
+	chrp_nvram_init();
+#endif
+
 	request_region(0x20,0x20,"pic1");
 	request_region(0xa0,0x20,"pic2");
 	request_region(0x00,0x20,"dma1");

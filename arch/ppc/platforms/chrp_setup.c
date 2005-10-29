@@ -454,8 +454,7 @@ void __init
 chrp_init2(void)
 {
 #ifdef CONFIG_NVRAM
-// XX replace this in a more saner way
-//	pmac_nvram_init();
+	chrp_nvram_init();
 #endif
 
 	request_region(0x20,0x20,"pic1");
