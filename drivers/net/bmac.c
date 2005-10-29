@@ -1658,6 +1658,7 @@ static struct of_device_id bmac_match[] =
 	},
 	{},
 };
+MODULE_DEVICE_TABLE (of, bmac_match);
 
 static struct macio_driver bmac_driver = 
 {
