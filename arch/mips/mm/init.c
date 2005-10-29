@@ -131,7 +131,7 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 		j = 0;
 	}
 }
-#endif /* CONFIG_64BIT */
+#endif /* CONFIG_32BIT */
 #endif /* CONFIG_HIGHMEM */
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
