@@ -21,9 +21,7 @@
 #include <asm/cputable.h>
 
 struct cpu_spec* cur_cpu_spec = NULL;
-#ifdef CONFIG_PPC64
 EXPORT_SYMBOL(cur_cpu_spec);
-#endif
 
 /* NOTE:
  * Unlike ppc32, ppc64 will only call this once for the boot CPU, it's
