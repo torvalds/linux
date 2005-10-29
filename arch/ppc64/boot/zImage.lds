@@ -13,7 +13,9 @@ SECTIONS
     *(.rodata*)
     *(.data*)
     *(.sdata*)
-    *(.got*)
+    __got2_start = .;
+    *(.got2)
+    __got2_end = .;
   }
 
   . = ALIGN(4096);
