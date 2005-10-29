@@ -301,7 +301,7 @@ sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *plat)
 			break;
 
 		subdev->map.name = subdev->name;
-		sprintf(subdev->name, "sa1100-%d", i);
+		sprintf(subdev->name, "%s-%d", plat->name, i);
 		subdev->plat = plat;
 
 		ret = sa1100_probe_subdev(subdev, res);
@@ -323,7 +323,7 @@ sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *plat)
 	 * otherwise fail.  Either way, it'll be called "sa1100".
 	 */
 	if (info->num_subdev == 1) {
-		strcpy(info->subdev[0].name, "sa1100");
+		strcpy(info->subdev[0].name, plat->name);
 		info->mtd = info->subdev[0].mtd;
 		ret = 0;
 	} else if (info->num_subdev > 1) {
@@ -336,7 +336,7 @@ sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *plat)
 			cdev[i] = info->subdev[i].mtd;
 
 		info->mtd = mtd_concat_create(cdev, info->num_subdev,
-					      "sa1100");
+					      plat->name);
 		if (info->mtd == NULL)
 			ret = -ENXIO;
 #else
