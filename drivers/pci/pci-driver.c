@@ -37,7 +37,7 @@ struct pci_dynid {
  * Adds a new dynamic pci device ID to this driver,
  * and causes the driver to probe for all devices again.
  */
-static inline ssize_t
+static ssize_t
 store_new_id(struct device_driver *driver, const char *buf, size_t count)
 {
 	struct pci_dynid *dynid;
