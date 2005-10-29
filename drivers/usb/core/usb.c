@@ -107,10 +107,19 @@ static int usb_probe_interface(struct device *dev)
 	id = usb_match_id (intf, driver->id_table);
 	if (id) {
 		dev_dbg (dev, "%s - got id\n", __FUNCTION__);
+
+		/* Interface "power state" doesn't correspond to any hardware
+		 * state whatsoever.  We use it to record when it's bound to
+		 * a driver that may start I/0:  it's not frozen/quiesced.
+		 */
+		mark_active(intf);
 		intf->condition = USB_INTERFACE_BINDING;
 		error = driver->probe (intf, id);
-		intf->condition = error ? USB_INTERFACE_UNBOUND :
-				USB_INTERFACE_BOUND;
+		if (error) {
+			mark_quiesced(intf);
+			intf->condition = USB_INTERFACE_UNBOUND;
+		} else
+			intf->condition = USB_INTERFACE_BOUND;
 	}
 
 	return error;
@@ -136,6 +145,7 @@ static int usb_unbind_interface(struct device *dev)
 			0);
 	usb_set_intfdata(intf, NULL);
 	intf->condition = USB_INTERFACE_UNBOUND;
+	mark_quiesced(intf);
 
 	return 0;
 }
@@ -299,6 +309,7 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 	dev->driver = &driver->driver;
 	usb_set_intfdata(iface, priv);
 	iface->condition = USB_INTERFACE_BOUND;
+	mark_active(iface);
 
 	/* if interface was already added, bind now; else let
 	 * the future device_add() bind it, bypassing probe()
@@ -345,6 +356,7 @@ void usb_driver_release_interface(struct usb_driver *driver,
 	dev->driver = NULL;
 	usb_set_intfdata(iface, NULL);
 	iface->condition = USB_INTERFACE_UNBOUND;
+	mark_quiesced(iface);
 }
 
 /**
@@ -557,6 +569,7 @@ static int usb_hotplug (struct device *dev, char **envp, int num_envp,
 {
 	struct usb_interface *intf;
 	struct usb_device *usb_dev;
+	struct usb_host_interface *alt;
 	int i = 0;
 	int length = 0;
 
@@ -573,7 +586,8 @@ static int usb_hotplug (struct device *dev, char **envp, int num_envp,
 
 	intf = to_usb_interface(dev);
 	usb_dev = interface_to_usbdev (intf);
-	
+	alt = intf->cur_altsetting;
+
 	if (usb_dev->devnum < 0) {
 		pr_debug ("usb %s: already deleted?\n", dev->bus_id);
 		return -ENODEV;
@@ -615,46 +629,27 @@ static int usb_hotplug (struct device *dev, char **envp, int num_envp,
 				usb_dev->descriptor.bDeviceProtocol))
 		return -ENOMEM;
 
-	if (usb_dev->descriptor.bDeviceClass == 0) {
-		struct usb_host_interface *alt = intf->cur_altsetting;
+	if (add_hotplug_env_var(envp, num_envp, &i,
+				buffer, buffer_size, &length,
+				"INTERFACE=%d/%d/%d",
+				alt->desc.bInterfaceClass,
+				alt->desc.bInterfaceSubClass,
+				alt->desc.bInterfaceProtocol))
+		return -ENOMEM;
 
-		/* 2.4 only exposed interface zero.  in 2.5, hotplug
-		 * agents are called for all interfaces, and can use
-		 * $DEVPATH/bInterfaceNumber if necessary.
-		 */
-		if (add_hotplug_env_var(envp, num_envp, &i,
-					buffer, buffer_size, &length,
-					"INTERFACE=%d/%d/%d",
-					alt->desc.bInterfaceClass,
-					alt->desc.bInterfaceSubClass,
-					alt->desc.bInterfaceProtocol))
-			return -ENOMEM;
-
-		if (add_hotplug_env_var(envp, num_envp, &i,
-					buffer, buffer_size, &length,
-					"MODALIAS=usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02X",
-					le16_to_cpu(usb_dev->descriptor.idVendor),
-					le16_to_cpu(usb_dev->descriptor.idProduct),
-					le16_to_cpu(usb_dev->descriptor.bcdDevice),
-					usb_dev->descriptor.bDeviceClass,
-					usb_dev->descriptor.bDeviceSubClass,
-					usb_dev->descriptor.bDeviceProtocol,
-					alt->desc.bInterfaceClass,
-					alt->desc.bInterfaceSubClass,
-					alt->desc.bInterfaceProtocol))
-			return -ENOMEM;
- 	} else {
-		if (add_hotplug_env_var(envp, num_envp, &i,
-					buffer, buffer_size, &length,
-					"MODALIAS=usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic*isc*ip*",
-					le16_to_cpu(usb_dev->descriptor.idVendor),
-					le16_to_cpu(usb_dev->descriptor.idProduct),
-					le16_to_cpu(usb_dev->descriptor.bcdDevice),
-					usb_dev->descriptor.bDeviceClass,
-					usb_dev->descriptor.bDeviceSubClass,
-					usb_dev->descriptor.bDeviceProtocol))
-			return -ENOMEM;
-	}
+	if (add_hotplug_env_var(envp, num_envp, &i,
+				buffer, buffer_size, &length,
+				"MODALIAS=usb:v%04Xp%04Xd%04Xdc%02Xdsc%02Xdp%02Xic%02Xisc%02Xip%02X",
+				le16_to_cpu(usb_dev->descriptor.idVendor),
+				le16_to_cpu(usb_dev->descriptor.idProduct),
+				le16_to_cpu(usb_dev->descriptor.bcdDevice),
+				usb_dev->descriptor.bDeviceClass,
+				usb_dev->descriptor.bDeviceSubClass,
+				usb_dev->descriptor.bDeviceProtocol,
+				alt->desc.bInterfaceClass,
+				alt->desc.bInterfaceSubClass,
+				alt->desc.bInterfaceProtocol))
+		return -ENOMEM;
 
 	envp[i] = NULL;
 
@@ -709,11 +704,9 @@ usb_alloc_dev(struct usb_device *parent, struct usb_bus *bus, unsigned port1)
 {
 	struct usb_device *dev;
 
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return NULL;
-
-	memset(dev, 0, sizeof(*dev));
 
 	bus = usb_bus_get(bus);
 	if (!bus) {
@@ -1402,13 +1395,30 @@ void usb_buffer_unmap_sg (struct usb_device *dev, unsigned pipe,
 			usb_pipein (pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 }
 
+static int verify_suspended(struct device *dev, void *unused)
+{
+	return (dev->power.power_state.event == PM_EVENT_ON) ? -EBUSY : 0;
+}
+
 static int usb_generic_suspend(struct device *dev, pm_message_t message)
 {
-	struct usb_interface *intf;
-	struct usb_driver *driver;
+	struct usb_interface	*intf;
+	struct usb_driver	*driver;
+	int			status;
 
-	if (dev->driver == &usb_generic_driver)
-		return usb_suspend_device (to_usb_device(dev), message);
+	/* USB devices enter SUSPEND state through their hubs, but can be
+	 * marked for FREEZE as soon as their children are already idled.
+	 * But those semantics are useless, so we equate the two (sigh).
+	 */
+	if (dev->driver == &usb_generic_driver) {
+		if (dev->power.power_state.event == message.event)
+			return 0;
+		/* we need to rule out bogus requests through sysfs */
+		status = device_for_each_child(dev, NULL, verify_suspended);
+		if (status)
+			return status;
+ 		return usb_suspend_device (to_usb_device(dev));
+	}
 
 	if ((dev->driver == NULL) ||
 	    (dev->driver_data == &usb_generic_driver_data))
@@ -1417,23 +1427,44 @@ static int usb_generic_suspend(struct device *dev, pm_message_t message)
 	intf = to_usb_interface(dev);
 	driver = to_usb_driver(dev->driver);
 
-	/* there's only one USB suspend state */
-	if (intf->dev.power.power_state.event)
+	/* with no hardware, USB interfaces only use FREEZE and ON states */
+	if (!is_active(intf))
 		return 0;
 
-	if (driver->suspend)
-		return driver->suspend(intf, message);
-	return 0;
+	if (driver->suspend && driver->resume) {
+		status = driver->suspend(intf, message);
+		if (status)
+			dev_err(dev, "%s error %d\n", "suspend", status);
+		else
+			mark_quiesced(intf);
+	} else {
+		// FIXME else if there's no suspend method, disconnect...
+		dev_warn(dev, "no %s?\n", "suspend");
+		status = 0;
+	}
+	return status;
 }
 
 static int usb_generic_resume(struct device *dev)
 {
-	struct usb_interface *intf;
-	struct usb_driver *driver;
+	struct usb_interface	*intf;
+	struct usb_driver	*driver;
+	struct usb_device	*udev;
+	int			status;
 
-	/* devices resume through their hub */
-	if (dev->driver == &usb_generic_driver)
+	if (dev->power.power_state.event == PM_EVENT_ON)
+		return 0;
+
+	/* mark things as "on" immediately, no matter what errors crop up */
+	dev->power.power_state.event = PM_EVENT_ON;
+
+	/* devices resume through their hubs */
+	if (dev->driver == &usb_generic_driver) {
+		udev = to_usb_device(dev);
+		if (udev->state == USB_STATE_NOTATTACHED)
+			return 0;
 		return usb_resume_device (to_usb_device(dev));
+	}
 
 	if ((dev->driver == NULL) ||
 	    (dev->driver_data == &usb_generic_driver_data))
@@ -1442,8 +1473,22 @@ static int usb_generic_resume(struct device *dev)
 	intf = to_usb_interface(dev);
 	driver = to_usb_driver(dev->driver);
 
-	if (driver->resume)
-		return driver->resume(intf);
+	udev = interface_to_usbdev(intf);
+	if (udev->state == USB_STATE_NOTATTACHED)
+		return 0;
+
+	/* if driver was suspended, it has a resume method;
+	 * however, sysfs can wrongly mark things as suspended
+	 * (on the "no suspend method" FIXME path above)
+	 */
+	if (driver->resume) {
+		status = driver->resume(intf);
+		if (status) {
+			dev_err(dev, "%s error %d\n", "resume", status);
+			mark_quiesced(intf);
+		}
+	} else
+		dev_warn(dev, "no %s?\n", "resume");
 	return 0;
 }
 

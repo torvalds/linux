@@ -1784,6 +1784,9 @@ static struct hid_device *usb_hid_configure(struct usb_interface *intf)
 	hid->urbctrl->transfer_dma = hid->ctrlbuf_dma;
 	hid->urbctrl->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
 
+	/* May be needed for some devices */
+	usb_clear_halt(hid->dev, hid->urbin->pipe);
+
 	return hid;
 
 fail:
@@ -1887,7 +1890,6 @@ static int hid_suspend(struct usb_interface *intf, pm_message_t message)
 	struct hid_device *hid = usb_get_intfdata (intf);
 
 	usb_kill_urb(hid->urbin);
-	intf->dev.power.power_state = PMSG_SUSPEND;
 	dev_dbg(&intf->dev, "suspend\n");
 	return 0;
 }
@@ -1897,7 +1899,6 @@ static int hid_resume(struct usb_interface *intf)
 	struct hid_device *hid = usb_get_intfdata (intf);
 	int status;
 
-	intf->dev.power.power_state = PMSG_ON;
 	if (hid->open)
 		status = usb_submit_urb(hid->urbin, GFP_NOIO);
 	else

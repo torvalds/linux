@@ -36,6 +36,7 @@ void dpm_runtime_resume(struct device * dev)
 	runtime_resume(dev);
 	up(&dpm_sem);
 }
+EXPORT_SYMBOL(dpm_runtime_resume);
 
 
 /**

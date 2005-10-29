@@ -983,6 +983,7 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 		reqp->number = i % NUM_SUBCASES;
 		reqp->expected = expected;
 		u->setup_packet = (char *) &reqp->setup;
+		u->transfer_flags |= URB_NO_SETUP_DMA_MAP;
 
 		u->context = &context;
 		u->complete = ctrl_complete;
@@ -1948,21 +1949,11 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 
 static int usbtest_suspend (struct usb_interface *intf, pm_message_t message)
 {
-	struct usbtest_dev	*dev = usb_get_intfdata (intf);
-
-	down (&dev->sem);
-	intf->dev.power.power_state = PMSG_SUSPEND;
-	up (&dev->sem);
 	return 0;
 }
 
 static int usbtest_resume (struct usb_interface *intf)
 {
-	struct usbtest_dev	*dev = usb_get_intfdata (intf);
-
-	down (&dev->sem);
-	intf->dev.power.power_state = PMSG_ON;
-	up (&dev->sem);
 	return 0;
 }
 

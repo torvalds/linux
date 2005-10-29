@@ -112,8 +112,12 @@ void usb_release_interface_cache(struct kref *ref)
 	struct usb_interface_cache *intfc = ref_to_usb_interface_cache(ref);
 	int j;
 
-	for (j = 0; j < intfc->num_altsetting; j++)
-		kfree(intfc->altsetting[j].endpoint);
+	for (j = 0; j < intfc->num_altsetting; j++) {
+		struct usb_host_interface *alt = &intfc->altsetting[j];
+
+		kfree(alt->endpoint);
+		kfree(alt->string);
+	}
 	kfree(intfc);
 }
 
@@ -188,10 +192,9 @@ static int usb_parse_interface(struct device *ddev, int cfgno,
 	}
 
 	len = sizeof(struct usb_host_endpoint) * num_ep;
-	alt->endpoint = kmalloc(len, GFP_KERNEL);
+	alt->endpoint = kzalloc(len, GFP_KERNEL);
 	if (!alt->endpoint)
 		return -ENOMEM;
-	memset(alt->endpoint, 0, len);
 
 	/* Parse all the endpoint descriptors */
 	n = 0;
@@ -353,10 +356,9 @@ static int usb_parse_configuration(struct device *ddev, int cfgidx,
 		}
 
 		len = sizeof(*intfc) + sizeof(struct usb_host_interface) * j;
-		config->intf_cache[i] = intfc = kmalloc(len, GFP_KERNEL);
+		config->intf_cache[i] = intfc = kzalloc(len, GFP_KERNEL);
 		if (!intfc)
 			return -ENOMEM;
-		memset(intfc, 0, len);
 		kref_init(&intfc->ref);
 	}
 
@@ -422,8 +424,6 @@ void usb_destroy_configuration(struct usb_device *dev)
 		struct usb_host_config *cf = &dev->config[c];
 
 		kfree(cf->string);
-		cf->string = NULL;
-
 		for (i = 0; i < cf->desc.bNumInterfaces; i++) {
 			if (cf->intf_cache[i])
 				kref_put(&cf->intf_cache[i]->ref, 
@@ -459,16 +459,14 @@ int usb_get_configuration(struct usb_device *dev)
 	}
 
 	length = ncfg * sizeof(struct usb_host_config);
-	dev->config = kmalloc(length, GFP_KERNEL);
+	dev->config = kzalloc(length, GFP_KERNEL);
 	if (!dev->config)
 		goto err2;
-	memset(dev->config, 0, length);
 
 	length = ncfg * sizeof(char *);
-	dev->rawdescriptors = kmalloc(length, GFP_KERNEL);
+	dev->rawdescriptors = kzalloc(length, GFP_KERNEL);
 	if (!dev->rawdescriptors)
 		goto err2;
-	memset(dev->rawdescriptors, 0, length);
 
 	buffer = kmalloc(USB_DT_CONFIG_SIZE, GFP_KERNEL);
 	if (!buffer)

@@ -2154,7 +2154,7 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	 * input_handles associated with this input device.
 	 * What identifies an evdev input_handler is that it begins
 	 * with 'event', continues with a digit, and that in turn
-	 * is mapped to /{devfs}/input/eventN.
+	 * is mapped to input/eventN.
 	 */
 	list_for_each_safe(node, next, &inputdev->h_list) {
 		inputhandle = to_handle(node);

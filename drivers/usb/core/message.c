@@ -187,21 +187,37 @@ int usb_control_msg(struct usb_device *dev, unsigned int pipe, __u8 request, __u
  *      If a thread in your driver uses this call, make sure your disconnect()
  *      method can wait for it to complete.  Since you don't have a handle on
  *      the URB used, you can't cancel the request.
+ *
+ *	Because there is no usb_interrupt_msg() and no USBDEVFS_INTERRUPT
+ *	ioctl, users are forced to abuse this routine by using it to submit
+ *	URBs for interrupt endpoints.  We will take the liberty of creating
+ *	an interrupt URB (with the default interval) if the target is an
+ *	interrupt endpoint.
  */
 int usb_bulk_msg(struct usb_device *usb_dev, unsigned int pipe, 
 			void *data, int len, int *actual_length, int timeout)
 {
 	struct urb *urb;
+	struct usb_host_endpoint *ep;
 
-	if (len < 0)
+	ep = (usb_pipein(pipe) ? usb_dev->ep_in : usb_dev->ep_out)
+			[usb_pipeendpoint(pipe)];
+	if (!ep || len < 0)
 		return -EINVAL;
 
-	urb=usb_alloc_urb(0, GFP_KERNEL);
+	urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!urb)
 		return -ENOMEM;
 
-	usb_fill_bulk_urb(urb, usb_dev, pipe, data, len,
-			  usb_api_blocking_completion, NULL);
+	if ((ep->desc.bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) ==
+			USB_ENDPOINT_XFER_INT) {
+		pipe = (pipe & ~(3 << 30)) | (PIPE_INTERRUPT << 30);
+		usb_fill_int_urb(urb, usb_dev, pipe, data, len,
+				usb_api_blocking_completion, NULL,
+				ep->desc.bInterval);
+	} else
+		usb_fill_bulk_urb(urb, usb_dev, pipe, data, len,
+				usb_api_blocking_completion, NULL);
 
 	return usb_start_wait_urb(urb, timeout, actual_length);
 }
@@ -771,6 +787,31 @@ int usb_string(struct usb_device *dev, int index, char *buf, size_t size)
 	return err;
 }
 
+/**
+ * usb_cache_string - read a string descriptor and cache it for later use
+ * @udev: the device whose string descriptor is being read
+ * @index: the descriptor index
+ *
+ * Returns a pointer to a kmalloc'ed buffer containing the descriptor string,
+ * or NULL if the index is 0 or the string could not be read.
+ */
+char *usb_cache_string(struct usb_device *udev, int index)
+{
+	char *buf;
+	char *smallbuf = NULL;
+	int len;
+
+	if (index > 0 && (buf = kmalloc(256, GFP_KERNEL)) != NULL) {
+		if ((len = usb_string(udev, index, buf, 256)) > 0) {
+			if ((smallbuf = kmalloc(++len, GFP_KERNEL)) == NULL)
+				return buf;
+			memcpy(smallbuf, buf, len);
+		}
+		kfree(buf);
+	}
+	return smallbuf;
+}
+
 /*
  * usb_get_device_descriptor - (re)reads the device descriptor (usbcore)
  * @dev: the device whose device descriptor is being updated
@@ -992,8 +1033,6 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 			dev_dbg (&dev->dev, "unregistering interface %s\n",
 				interface->dev.bus_id);
 			usb_remove_sysfs_intf_files(interface);
-			kfree(interface->cur_altsetting->string);
-			interface->cur_altsetting->string = NULL;
 			device_del (&interface->dev);
 		}
 
@@ -1133,6 +1172,8 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 */
 
 	/* prevent submissions using previous endpoint settings */
+	if (device_is_registered(&iface->dev))
+		usb_remove_sysfs_intf_files(iface);
 	usb_disable_interface(dev, iface);
 
 	iface->cur_altsetting = alt;
@@ -1168,6 +1209,8 @@ int usb_set_interface(struct usb_device *dev, int interface, int alternate)
 	 * (Likewise, EP0 never "halts" on well designed devices.)
 	 */
 	usb_enable_interface(dev, iface);
+	if (device_is_registered(&iface->dev))
+		usb_create_sysfs_intf_files(iface);
 
 	return 0;
 }
@@ -1217,10 +1260,8 @@ int usb_reset_configuration(struct usb_device *dev)
 			USB_REQ_SET_CONFIGURATION, 0,
 			config->desc.bConfigurationValue, 0,
 			NULL, 0, USB_CTRL_SET_TIMEOUT);
-	if (retval < 0) {
-		usb_set_device_state(dev, USB_STATE_ADDRESS);
+	if (retval < 0)
 		return retval;
-	}
 
 	dev->toggle[0] = dev->toggle[1] = 0;
 
@@ -1229,6 +1270,8 @@ int usb_reset_configuration(struct usb_device *dev)
 		struct usb_interface *intf = config->interface[i];
 		struct usb_host_interface *alt;
 
+		if (device_is_registered(&intf->dev))
+			usb_remove_sysfs_intf_files(intf);
 		alt = usb_altnum_to_altsetting(intf, 0);
 
 		/* No altsetting 0?  We'll assume the first altsetting.
@@ -1241,6 +1284,8 @@ int usb_reset_configuration(struct usb_device *dev)
 
 		intf->cur_altsetting = alt;
 		usb_enable_interface(dev, intf);
+		if (device_is_registered(&intf->dev))
+			usb_create_sysfs_intf_files(intf);
 	}
 	return 0;
 }
@@ -1328,7 +1373,7 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 		}
 
 		for (; n < nintf; ++n) {
-			new_interfaces[n] = kmalloc(
+			new_interfaces[n] = kzalloc(
 					sizeof(struct usb_interface),
 					GFP_KERNEL);
 			if (!new_interfaces[n]) {
@@ -1369,7 +1414,6 @@ free_interfaces:
 			struct usb_host_interface *alt;
 
 			cp->interface[i] = intf = new_interfaces[i];
-			memset(intf, 0, sizeof(*intf));
 			intfc = cp->intf_cache[i];
 			intf->altsetting = intfc->altsetting;
 			intf->num_altsetting = intfc->num_altsetting;
@@ -1393,6 +1437,7 @@ free_interfaces:
 			intf->dev.dma_mask = dev->dev.dma_mask;
 			intf->dev.release = release_interface;
 			device_initialize (&intf->dev);
+			mark_quiesced(intf);
 			sprintf (&intf->dev.bus_id[0], "%d-%s:%d.%d",
 				 dev->bus->busnum, dev->devpath,
 				 configuration,
@@ -1400,12 +1445,9 @@ free_interfaces:
 		}
 		kfree(new_interfaces);
 
-		if ((cp->desc.iConfiguration) &&
-		    (cp->string == NULL)) {
-			cp->string = kmalloc(256, GFP_KERNEL);
-			if (cp->string)
-				usb_string(dev, cp->desc.iConfiguration, cp->string, 256);
-		}
+		if (cp->string == NULL)
+			cp->string = usb_cache_string(dev,
+					cp->desc.iConfiguration);
 
 		/* Now that all the interfaces are set up, register them
 		 * to trigger binding of drivers to interfaces.  probe()
@@ -1415,13 +1457,12 @@ free_interfaces:
 		 */
 		for (i = 0; i < nintf; ++i) {
 			struct usb_interface *intf = cp->interface[i];
-			struct usb_interface_descriptor *desc;
+			struct usb_host_interface *alt = intf->cur_altsetting;
 
-			desc = &intf->altsetting [0].desc;
 			dev_dbg (&dev->dev,
 				"adding %s (config #%d, interface %d)\n",
 				intf->dev.bus_id, configuration,
-				desc->bInterfaceNumber);
+				alt->desc.bInterfaceNumber);
 			ret = device_add (&intf->dev);
 			if (ret != 0) {
 				dev_err(&dev->dev,
@@ -1429,13 +1470,6 @@ free_interfaces:
 					intf->dev.bus_id,
 					ret);
 				continue;
-			}
-			if ((intf->cur_altsetting->desc.iInterface) &&
-			    (intf->cur_altsetting->string == NULL)) {
-				intf->cur_altsetting->string = kmalloc(256, GFP_KERNEL);
-				if (intf->cur_altsetting->string)
-					usb_string(dev, intf->cur_altsetting->desc.iInterface,
-						   intf->cur_altsetting->string, 256);
 			}
 			usb_create_sysfs_intf_files (intf);
 		}
