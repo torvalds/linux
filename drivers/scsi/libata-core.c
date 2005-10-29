@@ -4258,11 +4258,10 @@ int ata_device_add(const struct ata_probe_ent *ent)
 
 	DPRINTK("ENTER\n");
 	/* alloc a container for our list of ATA ports (buses) */
-	host_set = kmalloc(sizeof(struct ata_host_set) +
+	host_set = kzalloc(sizeof(struct ata_host_set) +
 			   (ent->n_ports * sizeof(void *)), GFP_KERNEL);
 	if (!host_set)
 		return 0;
-	memset(host_set, 0, sizeof(struct ata_host_set) + (ent->n_ports * sizeof(void *)));
 	spin_lock_init(&host_set->lock);
 
 	host_set->dev = dev;
@@ -4302,10 +4301,8 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		count++;
 	}
 
-	if (!count) {
-		kfree(host_set);
-		return 0;
-	}
+	if (!count)
+		goto err_free_ret;
 
 	/* obtain irq, that is shared between channels */
 	if (request_irq(ent->irq, ent->port_ops->irq_handler, ent->irq_flags,
@@ -4363,6 +4360,7 @@ err_out:
 		ata_host_remove(host_set->ports[i], 1);
 		scsi_host_put(host_set->ports[i]->host);
 	}
+err_free_ret:
 	kfree(host_set);
 	VPRINTK("EXIT, returning 0\n");
 	return 0;
@@ -4472,14 +4470,12 @@ ata_probe_ent_alloc(struct device *dev, const struct ata_port_info *port)
 {
 	struct ata_probe_ent *probe_ent;
 
-	probe_ent = kmalloc(sizeof(*probe_ent), GFP_KERNEL);
+	probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
 	if (!probe_ent) {
 		printk(KERN_ERR DRV_NAME "(%s): out of memory\n",
 		       kobject_name(&(dev->kobj)));
 		return NULL;
 	}
-
-	memset(probe_ent, 0, sizeof(*probe_ent));
 
 	INIT_LIST_HEAD(&probe_ent->node);
 	probe_ent->dev = dev;
