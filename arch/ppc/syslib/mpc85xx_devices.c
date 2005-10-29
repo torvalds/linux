@@ -25,19 +25,20 @@
 /* We use offsets for IORESOURCE_MEM since we do not know at compile time
  * what CCSRBAR is, will get fixed up by mach_mpc85xx_fixup
  */
+struct gianfar_mdio_data mpc85xx_mdio_pdata = {
+	.paddr = MPC85xx_MIIM_OFFSET,
+};
 
 static struct gianfar_platform_data mpc85xx_tsec1_pdata = {
 	.device_flags = FSL_GIANFAR_DEV_HAS_GIGABIT |
 	    FSL_GIANFAR_DEV_HAS_COALESCE | FSL_GIANFAR_DEV_HAS_RMON |
 	    FSL_GIANFAR_DEV_HAS_MULTI_INTR,
-	.phy_reg_addr = MPC85xx_ENET1_OFFSET,
 };
 
 static struct gianfar_platform_data mpc85xx_tsec2_pdata = {
 	.device_flags = FSL_GIANFAR_DEV_HAS_GIGABIT |
 	    FSL_GIANFAR_DEV_HAS_COALESCE | FSL_GIANFAR_DEV_HAS_RMON |
 	    FSL_GIANFAR_DEV_HAS_MULTI_INTR,
-	.phy_reg_addr = MPC85xx_ENET1_OFFSET,
 };
 
 static struct gianfar_platform_data mpc85xx_etsec1_pdata = {
@@ -46,7 +47,6 @@ static struct gianfar_platform_data mpc85xx_etsec1_pdata = {
 	    FSL_GIANFAR_DEV_HAS_MULTI_INTR |
 	    FSL_GIANFAR_DEV_HAS_CSUM | FSL_GIANFAR_DEV_HAS_VLAN |
 	    FSL_GIANFAR_DEV_HAS_EXTENDED_HASH,
-	.phy_reg_addr = MPC85xx_ENET1_OFFSET,
 };
 
 static struct gianfar_platform_data mpc85xx_etsec2_pdata = {
@@ -55,7 +55,6 @@ static struct gianfar_platform_data mpc85xx_etsec2_pdata = {
 	    FSL_GIANFAR_DEV_HAS_MULTI_INTR |
 	    FSL_GIANFAR_DEV_HAS_CSUM | FSL_GIANFAR_DEV_HAS_VLAN |
 	    FSL_GIANFAR_DEV_HAS_EXTENDED_HASH,
-	.phy_reg_addr = MPC85xx_ENET1_OFFSET,
 };
 
 static struct gianfar_platform_data mpc85xx_etsec3_pdata = {
@@ -64,7 +63,6 @@ static struct gianfar_platform_data mpc85xx_etsec3_pdata = {
 	    FSL_GIANFAR_DEV_HAS_MULTI_INTR |
 	    FSL_GIANFAR_DEV_HAS_CSUM | FSL_GIANFAR_DEV_HAS_VLAN |
 	    FSL_GIANFAR_DEV_HAS_EXTENDED_HASH,
-	.phy_reg_addr = MPC85xx_ENET1_OFFSET,
 };
 
 static struct gianfar_platform_data mpc85xx_etsec4_pdata = {
@@ -73,11 +71,10 @@ static struct gianfar_platform_data mpc85xx_etsec4_pdata = {
 	    FSL_GIANFAR_DEV_HAS_MULTI_INTR |
 	    FSL_GIANFAR_DEV_HAS_CSUM | FSL_GIANFAR_DEV_HAS_VLAN |
 	    FSL_GIANFAR_DEV_HAS_EXTENDED_HASH,
-	.phy_reg_addr = MPC85xx_ENET1_OFFSET,
 };
 
 static struct gianfar_platform_data mpc85xx_fec_pdata = {
-	.phy_reg_addr = MPC85xx_ENET1_OFFSET,
+	.device_flags = 0,
 };
 
 static struct fsl_i2c_platform_data mpc85xx_fsl_i2c_pdata = {
@@ -718,6 +715,12 @@ struct platform_device ppc_sys_platform_devices[] = {
 				.flags	= IORESOURCE_IRQ,
 			},
 		},
+	},
+	[MPC85xx_MDIO] = {
+		.name = "fsl-gianfar_mdio",
+		.id = 0,
+		.dev.platform_data = &mpc85xx_mdio_pdata,
+		.num_resources = 0,
 	},
 };
 
