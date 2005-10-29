@@ -68,6 +68,13 @@
 #error Top of user space clashes with start of module space
 #endif
 
+/*
+ * The XIP kernel gets mapped at the bottom of the module vm area.
+ * Since we use sections to map it, this macro replaces the physical address
+ * with its virtual address while keeping offset from the base section.
+ */
+#define XIP_VIRT_ADDR(physaddr)  (MODULE_START + ((physaddr) & 0x000fffff))
+
 #ifndef __ASSEMBLY__
 
 /*

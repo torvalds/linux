@@ -6,14 +6,23 @@
 #include <asm-generic/vmlinux.lds.h>
 #include <linux/config.h>
 #include <asm/thread_info.h>
+#include <asm/memory.h>
 	
 OUTPUT_ARCH(arm)
 ENTRY(stext)
+
 #ifndef __ARMEB__
 jiffies = jiffies_64;
 #else
 jiffies = jiffies_64 + 4;
 #endif
+
+#ifdef CONFIG_XIP_KERNEL
+#define TEXTADDR  XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR)
+#else
+#define TEXTADDR  KERNEL_RAM_ADDR
+#endif
+
 SECTIONS
 {
 	. = TEXTADDR;
@@ -95,7 +104,7 @@ SECTIONS
 
 #ifdef CONFIG_XIP_KERNEL
 	__data_loc = ALIGN(4);		/* location in binary */
-	. = DATAADDR;
+	. = KERNEL_RAM_ADDR;
 #else
 	. = ALIGN(THREAD_SIZE);
 	__data_loc = .;
