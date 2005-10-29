@@ -32,8 +32,6 @@ extern char _vmlinux_start[];
 extern char _vmlinux_end[];
 extern char _initrd_start[];
 extern char _initrd_end[];
-extern unsigned long vmlinux_filesize;
-extern unsigned long vmlinux_memsize;
 
 struct addr_range {
 	unsigned long addr;
@@ -45,6 +43,7 @@ static struct addr_range vmlinuz = {0, 0, 0};
 static struct addr_range initrd  = {0, 0, 0};
 
 static char scratch[46912];	/* scratch space for gunzip, from zlib_inflate_workspacesize() */
+static char elfheader[256];
 
 
 typedef void (*kernel_entry_t)( unsigned long,
@@ -78,6 +77,7 @@ static unsigned long try_claim(unsigned long size)
 void start(unsigned long a1, unsigned long a2, void *promptr)
 {
 	unsigned long i;
+	int len;
 	kernel_entry_t kernel_entry;
 	Elf64_Ehdr *elf64;
 	Elf64_Phdr *elf64ph;
@@ -113,25 +113,45 @@ void start(unsigned long a1, unsigned long a2, void *promptr)
 		claim_base = PROG_START;
 #endif
 
-	/*
-	 * Now we try to claim some memory for the kernel itself
-	 * our "vmlinux_memsize" is the memory footprint in RAM, _HOWEVER_, what
-	 * our Makefile stuffs in is an image containing all sort of junk including
-	 * an ELF header. We need to do some calculations here to find the right
-	 * size... In practice we add 1Mb, that is enough, but we should really
-	 * consider fixing the Makefile to put a _raw_ kernel in there !
-	 */
-	vmlinux_memsize += ONE_MB;
-	printf("Allocating 0x%lx bytes for kernel ...\n\r", vmlinux_memsize);
-	vmlinux.addr = try_claim(vmlinux_memsize);
+	vmlinuz.addr = (unsigned long)_vmlinux_start;
+	vmlinuz.size = (unsigned long)(_vmlinux_end - _vmlinux_start);
+
+	/* gunzip the ELF header of the kernel */
+	if (*(unsigned short *)vmlinuz.addr == 0x1f8b) {
+		len = vmlinuz.size;
+		gunzip(elfheader, sizeof(elfheader),
+				(unsigned char *)vmlinuz.addr, &len);
+	} else
+		memcpy(elfheader, (const void *)vmlinuz.addr, sizeof(elfheader));
+
+	elf64 = (Elf64_Ehdr *)elfheader;
+	if ( elf64->e_ident[EI_MAG0]  != ELFMAG0	||
+	     elf64->e_ident[EI_MAG1]  != ELFMAG1	||
+	     elf64->e_ident[EI_MAG2]  != ELFMAG2	||
+	     elf64->e_ident[EI_MAG3]  != ELFMAG3	||
+	     elf64->e_ident[EI_CLASS] != ELFCLASS64	||
+	     elf64->e_ident[EI_DATA]  != ELFDATA2MSB	||
+	     elf64->e_type            != ET_EXEC	||
+	     elf64->e_machine         != EM_PPC64 )
+	{
+		printf("Error: not a valid PPC64 ELF file!\n\r");
+		exit();
+	}
+
+	elf64ph = (Elf64_Phdr *)((unsigned long)elf64 +
+				(unsigned long)elf64->e_phoff);
+	for(i=0; i < (unsigned int)elf64->e_phnum ;i++,elf64ph++) {
+		if (elf64ph->p_type == PT_LOAD && elf64ph->p_offset != 0)
+			break;
+	}
+	vmlinux.size = (unsigned long)elf64ph->p_filesz;
+	vmlinux.memsize = (unsigned long)elf64ph->p_memsz;
+	printf("Allocating 0x%lx bytes for kernel ...\n\r", vmlinux.memsize);
+	vmlinux.addr = try_claim(vmlinux.memsize);
 	if (vmlinux.addr == 0) {
 		printf("Can't allocate memory for kernel image !\n\r");
 		exit();
 	}
-	vmlinuz.addr = (unsigned long)_vmlinux_start;
-	vmlinuz.size = (unsigned long)(_vmlinux_end - _vmlinux_start);
-	vmlinux.size = PAGE_ALIGN(vmlinux_filesize);
-	vmlinux.memsize = vmlinux_memsize;
 
 	/*
 	 * Now we try to claim memory for the initrd (and copy it there)
@@ -155,11 +175,10 @@ void start(unsigned long a1, unsigned long a2, void *promptr)
 
 	/* Eventually gunzip the kernel */
 	if (*(unsigned short *)vmlinuz.addr == 0x1f8b) {
-		int len;
 		printf("gunzipping (0x%lx <- 0x%lx:0x%0lx)...",
 		       vmlinux.addr, vmlinuz.addr, vmlinuz.addr+vmlinuz.size);
 		len = vmlinuz.size;
-		gunzip((void *)vmlinux.addr, vmlinux.size,
+		gunzip((void *)vmlinux.addr, vmlinux.memsize,
 			(unsigned char *)vmlinuz.addr, &len);
 		printf("done 0x%lx bytes\n\r", len);
 	} else {
@@ -167,32 +186,11 @@ void start(unsigned long a1, unsigned long a2, void *promptr)
 	}
 
 	/* Skip over the ELF header */
-	elf64 = (Elf64_Ehdr *)vmlinux.addr;
-	if ( elf64->e_ident[EI_MAG0]  != ELFMAG0	||
-	     elf64->e_ident[EI_MAG1]  != ELFMAG1	||
-	     elf64->e_ident[EI_MAG2]  != ELFMAG2	||
-	     elf64->e_ident[EI_MAG3]  != ELFMAG3	||
-	     elf64->e_ident[EI_CLASS] != ELFCLASS64	||
-	     elf64->e_ident[EI_DATA]  != ELFDATA2MSB	||
-	     elf64->e_type            != ET_EXEC	||
-	     elf64->e_machine         != EM_PPC64 )
-	{
-		printf("Error: not a valid PPC64 ELF file!\n\r");
-		exit();
-	}
-
-	elf64ph = (Elf64_Phdr *)((unsigned long)elf64 +
-				(unsigned long)elf64->e_phoff);
-	for(i=0; i < (unsigned int)elf64->e_phnum ;i++,elf64ph++) {
-		if (elf64ph->p_type == PT_LOAD && elf64ph->p_offset != 0)
-			break;
-	}
 #ifdef DEBUG
 	printf("... skipping 0x%lx bytes of ELF header\n\r",
 			(unsigned long)elf64ph->p_offset);
 #endif
 	vmlinux.addr += (unsigned long)elf64ph->p_offset;
-	vmlinux.size -= (unsigned long)elf64ph->p_offset;
 
 	flush_cache((void *)vmlinux.addr, vmlinux.size);
 
@@ -263,7 +261,7 @@ static void gunzip(void *dst, int dstlen, unsigned char *src, int *lenp)
 	s.avail_in = *lenp - i;
 	s.next_out = dst;
 	s.avail_out = dstlen;
-	r = zlib_inflate(&s, Z_FINISH);
+	r = zlib_inflate(&s, Z_FULL_FLUSH);
 	if (r != Z_OK && r != Z_STREAM_END) {
 		printf("inflate returned %d msg: %s\n\r", r, s.msg);
 		exit();

@@ -34,7 +34,7 @@ zliblinuxheader := zlib.h zconf.h zutil.h
 $(addprefix $(obj)/,$(zlib) main.o): $(addprefix $(obj)/,$(zliblinuxheader)) $(addprefix $(obj)/,$(zlibheader))
 #$(addprefix $(obj)/,main.o): $(addprefix $(obj)/,zlib.h)
 
-src-boot := crt0.S string.S prom.c main.c imagesize.c div64.S
+src-boot := crt0.S string.S prom.c main.c div64.S
 src-boot += $(zlib)
 src-boot := $(addprefix $(obj)/, $(src-boot))
 obj-boot := $(addsuffix .o, $(basename $(src-boot)))
@@ -87,7 +87,7 @@ src-sec = $(foreach section, $(1), $(patsubst %,$(obj)/kernel-%.c, $(section)))
 gz-sec  = $(foreach section, $(1), $(patsubst %,$(obj)/kernel-%.gz, $(section)))
 
 hostprogs-y		:= addnote addRamDisk
-targets 		+= zImage.vmode zImage.initrd.vmode zImage zImage.initrd imagesize.c \
+targets 		+= zImage.vmode zImage.initrd.vmode zImage zImage.initrd \
 			   $(patsubst $(obj)/%,%, $(call obj-sec, $(required) $(initrd))) \
 			   $(patsubst $(obj)/%,%, $(call src-sec, $(required) $(initrd))) \
 			   $(patsubst $(obj)/%,%, $(call gz-sec, $(required) $(initrd))) \
@@ -100,9 +100,9 @@ quiet_cmd_ramdisk = RAMDISK $@
 quiet_cmd_stripvm = STRIP   $@
       cmd_stripvm = $(STRIP) -s $< -o $@
 
-vmlinux.strip: vmlinux FORCE
+vmlinux.strip: vmlinux
 	$(call if_changed,stripvm)
-$(obj)/vmlinux.initrd: vmlinux.strip $(obj)/addRamDisk $(obj)/ramdisk.image.gz FORCE
+$(obj)/vmlinux.initrd: vmlinux.strip $(obj)/addRamDisk $(obj)/ramdisk.image.gz
 	$(call if_changed,ramdisk)
 
 quiet_cmd_addsection = ADDSEC  $@
@@ -110,47 +110,37 @@ quiet_cmd_addsection = ADDSEC  $@
 		--add-section=.kernel:$(strip $(patsubst $(obj)/kernel-%.o,%, $@))=$(patsubst %.o,%.gz, $@) \
 		--set-section-flags=.kernel:$(strip $(patsubst $(obj)/kernel-%.o,%, $@))=$(OBJCOPYFLAGS)
 
-quiet_cmd_imagesize = GENSIZE $@
-      cmd_imagesize = ls -l vmlinux.strip | \
-		awk '{printf "/* generated -- do not edit! */\n" "unsigned long vmlinux_filesize = %d;\n", $$5}' \
-		> $(obj)/imagesize.c && \
-		$(CROSS_COMPILE)nm -n vmlinux | tail -n 1 | \
-		awk '{printf "unsigned long vmlinux_memsize = 0x%s;\n", substr($$1,8)}' >> $(obj)/imagesize.c
-
 quiet_cmd_addnote = ADDNOTE $@
       cmd_addnote = $(obj)/addnote $@
 
-$(call gz-sec, $(required)): $(obj)/kernel-%.gz: % FORCE
+$(call gz-sec, $(required)): $(obj)/kernel-%.gz: %
 	$(call if_changed,gzip)
 
 $(obj)/kernel-initrd.gz: $(obj)/ramdisk.image.gz
 	cp -f $(obj)/ramdisk.image.gz $@
 
-$(call src-sec, $(required) $(initrd)): $(obj)/kernel-%.c: $(obj)/kernel-%.gz FORCE
+$(call src-sec, $(required) $(initrd)): $(obj)/kernel-%.c: $(obj)/kernel-%.gz
 	@touch $@
 
-$(call obj-sec, $(required) $(initrd)): $(obj)/kernel-%.o: $(obj)/kernel-%.c FORCE
+$(call obj-sec, $(required) $(initrd)): $(obj)/kernel-%.o: $(obj)/kernel-%.c
 	$(call if_changed_dep,bootcc)
 	$(call cmd,addsection)
 
 $(obj)/zImage.vmode: obj-boot += $(call obj-sec, $(required))
-$(obj)/zImage.vmode: $(call obj-sec, $(required)) $(obj-boot) FORCE
+$(obj)/zImage.vmode: $(call obj-sec, $(required)) $(obj-boot)
 	$(call cmd,bootld,$(obj-boot))
 
 $(obj)/zImage.initrd.vmode: obj-boot += $(call obj-sec, $(required) $(initrd))
-$(obj)/zImage.initrd.vmode: $(call obj-sec, $(required) $(initrd)) $(obj-boot) FORCE
+$(obj)/zImage.initrd.vmode: $(call obj-sec, $(required) $(initrd)) $(obj-boot)
 	$(call cmd,bootld,$(obj-boot))
 
-$(obj)/zImage: $(obj)/zImage.vmode $(obj)/addnote FORCE
+$(obj)/zImage: $(obj)/zImage.vmode $(obj)/addnote
 	@cp -f $< $@
 	$(call if_changed,addnote)
 
-$(obj)/zImage.initrd: $(obj)/zImage.initrd.vmode $(obj)/addnote FORCE
+$(obj)/zImage.initrd: $(obj)/zImage.initrd.vmode $(obj)/addnote
 	@cp -f $< $@
 	$(call if_changed,addnote)
-
-$(obj)/imagesize.c: vmlinux.strip
-	$(call cmd,imagesize)
 
 install: $(CONFIGURE) $(BOOTIMAGE)
 	sh -x $(srctree)/$(src)/install.sh "$(KERNELRELEASE)" vmlinux System.map "$(INSTALL_PATH)" "$(BOOTIMAGE)"
