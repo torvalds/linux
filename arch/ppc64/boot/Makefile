@@ -27,9 +27,40 @@ BOOTAFLAGS	:= -D__ASSEMBLY__ $(BOOTCFLAGS) -traditional -nostdinc
 BOOTLFLAGS	:= -Ttext 0x00400000 -e _start -T $(srctree)/$(src)/zImage.lds
 OBJCOPYFLAGS    := contents,alloc,load,readonly,data
 
-src-boot := crt0.S string.S prom.c main.c zlib.c imagesize.c div64.S
+zlib       := infblock.c infcodes.c inffast.c inflate.c inftrees.c infutil.c
+zlibheader := infblock.h infcodes.h inffast.h inftrees.h infutil.h
+zliblinuxheader := zlib.h zconf.h zutil.h
+
+$(addprefix $(obj)/,$(zlib) main.o): $(addprefix $(obj)/,$(zliblinuxheader)) $(addprefix $(obj)/,$(zlibheader))
+#$(addprefix $(obj)/,main.o): $(addprefix $(obj)/,zlib.h)
+
+src-boot := crt0.S string.S prom.c main.c imagesize.c div64.S
+src-boot += $(zlib)
 src-boot := $(addprefix $(obj)/, $(src-boot))
 obj-boot := $(addsuffix .o, $(basename $(src-boot)))
+
+BOOTCFLAGS	+= -I$(obj) -I$(srctree)/$(obj)
+
+quiet_cmd_copy_zlib = COPY    $@
+      cmd_copy_zlib = sed "s@__attribute_used__@@;s@<linux/\([^>]\+\).*@\"\1\"@" $< > $@
+
+quiet_cmd_copy_zlibheader = COPY    $@
+      cmd_copy_zlibheader = sed "s@<linux/\([^>]\+\).*@\"\1\"@" $< > $@
+# stddef.h for NULL
+quiet_cmd_copy_zliblinuxheader = COPY    $@
+      cmd_copy_zliblinuxheader = sed "s@<linux/string.h>@\"string.h\"@;s@<linux/kernel.h>@<stddef.h>@;s@<linux/\([^>]\+\).*@\"\1\"@" $< > $@
+
+$(addprefix $(obj)/,$(zlib)): $(obj)/%: $(srctree)/lib/zlib_inflate/%
+	$(call cmd,copy_zlib)
+
+$(addprefix $(obj)/,$(zlibheader)): $(obj)/%: $(srctree)/lib/zlib_inflate/%
+	$(call cmd,copy_zlibheader)
+
+$(addprefix $(obj)/,$(zliblinuxheader)): $(obj)/%: $(srctree)/include/linux/%
+	$(call cmd,copy_zliblinuxheader)
+
+clean-files := $(zlib) $(zlibheader) $(zliblinuxheader)
+
 
 quiet_cmd_bootcc = BOOTCC  $@
       cmd_bootcc = $(CROSS32CC) -Wp,-MD,$(depfile) $(BOOTCFLAGS) -c -o $@ $<
