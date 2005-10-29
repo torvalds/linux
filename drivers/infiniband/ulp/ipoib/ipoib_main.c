@@ -551,11 +551,8 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ipoib_neigh *neigh;
 	unsigned long flags;
 
-	local_irq_save(flags);
-	if (!spin_trylock(&priv->tx_lock)) {
-		local_irq_restore(flags);
+	if (!spin_trylock_irqsave(&priv->tx_lock, flags))
 		return NETDEV_TX_LOCKED;
-	}
 
 	/*
 	 * Check if our queue is stopped.  Since we have the LLTX bit
