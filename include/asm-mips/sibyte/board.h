@@ -21,8 +21,6 @@
 
 #include <linux/config.h>
 
-#ifdef CONFIG_SIBYTE_BOARD
-
 #if defined(CONFIG_SIBYTE_SWARM) || defined(CONFIG_SIBYTE_PTSWARM) || \
     defined(CONFIG_SIBYTE_CRHONE) || defined(CONFIG_SIBYTE_CRHINE) || \
     defined(CONFIG_SIBYTE_LITTLESUR)
@@ -53,18 +51,6 @@
 #else
 #define setleds(t0,t1,c0,c1,c2,c3)
 #endif /* LEDS_PHYS */
-
-#else
-
-#ifdef LEDS_PHYS
-extern void setleds(char *str);
-#else
-#define setleds(s) do { } while (0)
-#endif /* LEDS_PHYS */
-
-#endif /* __ASSEMBLY__ */
-
-#endif /* CONFIG_SIBYTE_BOARD */
 
 #endif /* __ASSEMBLY__ */
 
