@@ -620,19 +620,6 @@ config SCSI_OMIT_FLASHPOINT
 	  substantial, so users of MultiMaster Host Adapters may wish to omit
 	  it.
 
-#
-# This is marked broken because it uses over 4kB of stack in
-# just two routines:
-#     2076  CpqTsProcessIMQEntry
-#     2052  PeekIMQEntry
-#
-config SCSI_CPQFCTS
-	tristate "Compaq Fibre Channel 64-bit/66Mhz HBA support"
-	depends on PCI && SCSI && BROKEN
-	help
-	  Say Y here to compile in support for the Compaq StorageWorks Fibre
-	  Channel 64-bit/66Mhz Host Bus Adapter.
-
 config SCSI_DMX3191D
 	tristate "DMX3191D SCSI support"
 	depends on PCI && SCSI
