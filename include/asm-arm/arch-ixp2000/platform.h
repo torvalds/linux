@@ -26,6 +26,31 @@ static inline void ixp2000_reg_write(volatile void *reg, unsigned long val)
 }
 
 /*
+ * On the IXP2400, we can't use XCB=000 due to chip bugs.  We use
+ * XCB=101 instead, but that makes all I/O accesses bufferable.  This
+ * is not a problem in general, but we do have to be slightly more
+ * careful because I/O writes are no longer automatically flushed out
+ * of the write buffer.
+ *
+ * In cases where we want to make sure that a write has been flushed
+ * out of the write buffer before we proceed, for example when masking
+ * a device interrupt before re-enabling IRQs in CPSR, we can use this
+ * function, ixp2000_reg_wrb, which performs a write, a readback, and
+ * issues a dummy instruction dependent on the value of the readback
+ * (mov rX, rX) to make sure that the readback has completed before we
+ * continue.
+ */
+static inline void ixp2000_reg_wrb(volatile void *reg, unsigned long val)
+{
+	unsigned long dummy;
+
+	*((volatile unsigned long *)reg) = val;
+
+	dummy = *((volatile unsigned long *)reg);
+	__asm__ __volatile__("mov %0, %0" : "+r" (dummy));
+}
+
+/*
  * Boards may multiplex different devices on the 2nd channel of 
  * the slowport interface that each need different configuration 
  * settings.  For example, the IXDP2400 uses channel 2 on the interface 
