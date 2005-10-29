@@ -199,7 +199,7 @@ static int __init amikbd_init(void)
 	if (!request_mem_region(CIAA_PHYSADDR-1+0xb00, 0x100, "amikeyb"))
 		return -EBUSY;
 
-	amikbd_dev = input_dev_allocate();
+	amikbd_dev = input_allocate_device();
 	if (!amikbd_dev) {
 		printk(KERN_ERR "amikbd: not enough memory for input device\n");
 		release_mem_region(CIAA_PHYSADDR - 1 + 0xb00, 0x100);
