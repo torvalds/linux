@@ -245,8 +245,6 @@ lpfc_board_online_show(struct class_device *cdev, char *buf)
 	struct Scsi_Host *host = class_to_shost(cdev);
 	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata[0];
 
-	if (!phba) return 0;
-
 	if (phba->fc_flag & FC_OFFLINE_MODE)
 		return snprintf(buf, PAGE_SIZE, "0\n");
 	else
@@ -263,7 +261,7 @@ lpfc_board_online_store(struct class_device *cdev, const char *buf,
 	int val=0, status=0;
 
 	if (sscanf(buf, "%d", &val) != 1)
-		return 0;
+		return -EINVAL;
 
 	init_completion(&online_compl);
 
@@ -277,7 +275,7 @@ lpfc_board_online_store(struct class_device *cdev, const char *buf,
 	if (!status)
 		return strlen(buf);
 	else
-		return 0;
+		return -EIO;
 }
 
 
@@ -293,7 +291,7 @@ lpfc_##attr##_show(struct class_device *cdev, char *buf) \
 		return snprintf(buf, PAGE_SIZE, "%d\n",\
 				phba->cfg_##attr);\
 	}\
-	return 0;\
+	return -EPERM;\
 }
 
 #define lpfc_param_store(attr, minval, maxval)	\
@@ -308,13 +306,11 @@ lpfc_##attr##_store(struct class_device *cdev, const char *buf, size_t count) \
 	if (sscanf(buf, "0x%x", &val) != 1)\
 		if (sscanf(buf, "%d", &val) != 1)\
 			return -EINVAL;\
-	if (phba){\
-		if (val >= minval && val <= maxval) {\
-			phba->cfg_##attr = val;\
-			return strlen(buf);\
-		}\
+	if (val >= minval && val <= maxval) {\
+		phba->cfg_##attr = val;\
+		return strlen(buf);\
 	}\
-	return 0;\
+	return -EINVAL;\
 }
 
 #define LPFC_ATTR_R_NOINIT(name, desc) \
