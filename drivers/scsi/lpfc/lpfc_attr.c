@@ -223,7 +223,7 @@ lpfc_issue_lip(struct Scsi_Host *host)
 	if (mbxstatus == MBX_TIMEOUT)
 		pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	else
-		mempool_free( pmboxq, phba->mbox_mem_pool);
+		mempool_free(pmboxq, phba->mbox_mem_pool);
 
 	if (mbxstatus == MBXERR_ERROR)
 		return -EIO;
@@ -984,7 +984,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	struct fc_host_statistics *hs = &phba->link_stats;
 	LPFC_MBOXQ_t *pmboxq;
 	MAILBOX_t *pmb;
-	int rc=0;
+	int rc = 0;
 
 	pmboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!pmboxq)
@@ -997,18 +997,16 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	pmboxq->context1 = NULL;
 
 	if ((phba->fc_flag & FC_OFFLINE_MODE) ||
-	    (!(psli->sli_flag & LPFC_SLI2_ACTIVE))){
+		(!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
-	} else
+	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
 
 	if (rc != MBX_SUCCESS) {
-		if (pmboxq) {
-			if (rc == MBX_TIMEOUT)
-				pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-			else
-				mempool_free( pmboxq, phba->mbox_mem_pool);
-		}
+		if (rc == MBX_TIMEOUT)
+			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		else
+			mempool_free(pmboxq, phba->mbox_mem_pool);
 		return NULL;
 	}
 
@@ -1019,24 +1017,22 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	hs->rx_frames = pmb->un.varRdStatus.rcvFrameCnt;
 	hs->rx_words = (pmb->un.varRdStatus.rcvByteCnt * 256);
 
-	memset((void *)pmboxq, 0, sizeof (LPFC_MBOXQ_t));
+	memset(pmboxq, 0, sizeof (LPFC_MBOXQ_t));
 	pmb->mbxCommand = MBX_READ_LNK_STAT;
 	pmb->mbxOwner = OWN_HOST;
 	pmboxq->context1 = NULL;
 
 	if ((phba->fc_flag & FC_OFFLINE_MODE) ||
-	    (!(psli->sli_flag & LPFC_SLI2_ACTIVE))) {
+	    (!(psli->sli_flag & LPFC_SLI2_ACTIVE)))
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
-	} else
+	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
 
 	if (rc != MBX_SUCCESS) {
-		if (pmboxq) {
-			if (rc == MBX_TIMEOUT)
-				pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-			else
-				mempool_free( pmboxq, phba->mbox_mem_pool);
-		}
+		if (rc == MBX_TIMEOUT)
+			pmboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		else
+			mempool_free( pmboxq, phba->mbox_mem_pool);
 		return NULL;
 	}
 
