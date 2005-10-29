@@ -546,7 +546,7 @@ static int __emac_mdio_read(struct ocp_enet_private *dev, u8 id, u8 reg)
 
 	/* Wait for management interface to become idle */
 	n = 10;
-	while (!(in_be32(&p->stacr) & EMAC_STACR_OC)) {
+	while (!emac_phy_done(in_be32(&p->stacr))) {
 		udelay(1);
 		if (!--n)
 			goto to;
@@ -556,11 +556,12 @@ static int __emac_mdio_read(struct ocp_enet_private *dev, u8 id, u8 reg)
 	out_be32(&p->stacr,
 		 EMAC_STACR_BASE(emac_opb_mhz()) | EMAC_STACR_STAC_READ |
 		 (reg & EMAC_STACR_PRA_MASK)
-		 | ((id & EMAC_STACR_PCDA_MASK) << EMAC_STACR_PCDA_SHIFT));
+		 | ((id & EMAC_STACR_PCDA_MASK) << EMAC_STACR_PCDA_SHIFT)
+		 | EMAC_STACR_START);
 
 	/* Wait for read to complete */
 	n = 100;
-	while (!((r = in_be32(&p->stacr)) & EMAC_STACR_OC)) {
+	while (!emac_phy_done(r = in_be32(&p->stacr))) {
 		udelay(1);
 		if (!--n)
 			goto to;
@@ -594,7 +595,7 @@ static void __emac_mdio_write(struct ocp_enet_private *dev, u8 id, u8 reg,
 
 	/* Wait for management interface to be idle */
 	n = 10;
-	while (!(in_be32(&p->stacr) & EMAC_STACR_OC)) {
+	while (!emac_phy_done(in_be32(&p->stacr))) {
 		udelay(1);
 		if (!--n)
 			goto to;
@@ -605,11 +606,11 @@ static void __emac_mdio_write(struct ocp_enet_private *dev, u8 id, u8 reg,
 		 EMAC_STACR_BASE(emac_opb_mhz()) | EMAC_STACR_STAC_WRITE |
 		 (reg & EMAC_STACR_PRA_MASK) |
 		 ((id & EMAC_STACR_PCDA_MASK) << EMAC_STACR_PCDA_SHIFT) |
-		 (val << EMAC_STACR_PHYD_SHIFT));
+		 (val << EMAC_STACR_PHYD_SHIFT) | EMAC_STACR_START);
 
 	/* Wait for write to complete */
 	n = 100;
-	while (!(in_be32(&p->stacr) & EMAC_STACR_OC)) {
+	while (!emac_phy_done(in_be32(&p->stacr))) {
 		udelay(1);
 		if (!--n)
 			goto to;
