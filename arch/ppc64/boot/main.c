@@ -38,9 +38,9 @@ struct addr_range {
 	unsigned long size;
 	unsigned long memsize;
 };
-static struct addr_range vmlinux = {0, 0, 0};
-static struct addr_range vmlinuz = {0, 0, 0};
-static struct addr_range initrd  = {0, 0, 0};
+static struct addr_range vmlinux;
+static struct addr_range vmlinuz;
+static struct addr_range initrd;
 
 static char scratch[46912];	/* scratch space for gunzip, from zlib_inflate_workspacesize() */
 static char elfheader[256];
