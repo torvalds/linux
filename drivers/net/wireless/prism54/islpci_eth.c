@@ -241,12 +241,10 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	return 0;
 
       drop_free:
-	/* free the skbuf structure before aborting */
-	dev_kfree_skb(skb);
-	skb = NULL;
-
 	priv->statistics.tx_dropped++;
 	spin_unlock_irqrestore(&priv->slock, flags);
+	dev_kfree_skb(skb);
+	skb = NULL;
 	return err;
 }
 
