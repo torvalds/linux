@@ -361,7 +361,6 @@ static int __init set_preferred_console(void)
 
  		if (reg && compat && (strcmp(compat, "hvterm-protocol") == 0)) {
  			/* Host Virtual Serial Interface */
- 			int offset;
  			switch (reg[0]) {
  				case 0x30000000:
  					offset = 0;
