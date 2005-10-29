@@ -108,7 +108,7 @@ $(boottargets-y): vmlinux
 bootimage-$(CONFIG_PPC_PSERIES) := $(boot)/zImage
 bootimage-$(CONFIG_PPC_PMAC) := vmlinux
 bootimage-$(CONFIG_PPC_MAPLE) := $(boot)/zImage
-bootimage-$(CONFIG_PPC_BPA) := zImage
+bootimage-$(CONFIG_PPC_BPA) := $(boot)/zImage
 bootimage-$(CONFIG_PPC_ISERIES) := vmlinux
 BOOTIMAGE := $(bootimage-y)
 install: vmlinux
