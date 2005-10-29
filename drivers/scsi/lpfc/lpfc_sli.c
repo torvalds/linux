@@ -936,7 +936,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 		 * structure.  The copy involves a byte-swap since the
 		 * network byte order and pci byte orders are different.
 		 */
-		entry = (IOCB_t *) IOCB_ENTRY(pring->rspringaddr, pring->rspidx);
+		entry = IOCB_ENTRY(pring->rspringaddr, pring->rspidx);
 		lpfc_sli_pcimem_bcopy((uint32_t *) entry,
 				      (uint32_t *) &rspiocbq.iocb,
 				      sizeof (IOCB_t));
