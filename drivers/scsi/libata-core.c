@@ -370,6 +370,8 @@ static void ata_tf_read_pio(struct ata_port *ap, struct ata_taskfile *tf)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 
+	tf->command = ata_check_status(ap);
+	tf->feature = ata_chk_err(ap);
 	tf->nsect = inb(ioaddr->nsect_addr);
 	tf->lbal = inb(ioaddr->lbal_addr);
 	tf->lbam = inb(ioaddr->lbam_addr);
@@ -402,6 +404,8 @@ static void ata_tf_read_mmio(struct ata_port *ap, struct ata_taskfile *tf)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 
+	tf->command = ata_check_status(ap);
+	tf->feature = ata_chk_err(ap);
 	tf->nsect = readb((void __iomem *)ioaddr->nsect_addr);
 	tf->lbal = readb((void __iomem *)ioaddr->lbal_addr);
 	tf->lbam = readb((void __iomem *)ioaddr->lbam_addr);
