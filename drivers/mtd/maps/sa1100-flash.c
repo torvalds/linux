@@ -137,6 +137,7 @@ struct sa_info {
 	struct mtd_partition	*parts;
 	struct mtd_info		*mtd;
 	int			num_subdev;
+	unsigned int		nr_parts;
 	struct sa_subdev_info	subdev[0];
 };
 
@@ -228,8 +229,12 @@ static void sa1100_destroy(struct sa_info *info, struct flash_platform_data *pla
 	int i;
 
 	if (info->mtd) {
-		del_mtd_partitions(info->mtd);
-
+		if (info->nr_parts == 0)
+			del_mtd_device(info->mtd);
+#ifdef CONFIG_MTD_PARTITIONS
+		else
+			del_mtd_partitions(info->mtd);
+#endif
 #ifdef CONFIG_MTD_CONCAT
 		if (info->mtd != info->subdev[0].mtd)
 			mtd_concat_destroy(info->mtd);
@@ -395,6 +400,8 @@ static int __init sa1100_mtd_probe(struct device *dev)
 			"definition\n", part_type);
 		add_mtd_partitions(info->mtd, parts, nr_parts);
 	}
+
+	info->nr_parts = nr_parts;
 
 	dev_set_drvdata(dev, info);
 	err = 0;
