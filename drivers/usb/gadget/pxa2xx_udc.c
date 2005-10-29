@@ -2631,6 +2631,7 @@ static int pxa2xx_udc_resume(struct device *dev)
 
 static struct device_driver udc_driver = {
 	.name		= "pxa2xx-udc",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= pxa2xx_udc_probe,
 	.shutdown	= pxa2xx_udc_shutdown,

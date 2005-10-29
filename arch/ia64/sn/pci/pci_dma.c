@@ -326,6 +326,29 @@ int sn_pci_legacy_read(struct pci_bus *bus, u16 port, u32 *val, u8 size)
 {
 	unsigned long addr;
 	int ret;
+	struct ia64_sal_retval isrv;
+
+	/*
+	 * First, try the SN_SAL_IOIF_PCI_SAFE SAL call which can work
+	 * around hw issues at the pci bus level.  SGI proms older than
+	 * 4.10 don't implment this.
+	 */
+
+	SAL_CALL(isrv, SN_SAL_IOIF_PCI_SAFE,
+		pci_domain_nr(bus), bus->number,
+		0, /* io */
+		0, /* read */
+		port, size, __pa(val));
+
+	if (isrv.status == 0)
+		return size;
+
+	/*
+	 * If the above failed, retry using the SAL_PROBE call which should
+	 * be present in all proms (but which cannot work round PCI chipset
+	 * bugs).  This code is retained for compatability with old
+	 * pre-4.10 proms, and should be removed at some point in the future.
+	 */
 
 	if (!SN_PCIBUS_BUSSOFT(bus))
 		return -ENODEV;
@@ -349,6 +372,29 @@ int sn_pci_legacy_write(struct pci_bus *bus, u16 port, u32 val, u8 size)
 	int ret = size;
 	unsigned long paddr;
 	unsigned long *addr;
+	struct ia64_sal_retval isrv;
+
+	/*
+	 * First, try the SN_SAL_IOIF_PCI_SAFE SAL call which can work
+	 * around hw issues at the pci bus level.  SGI proms older than
+	 * 4.10 don't implment this.
+	 */
+
+	SAL_CALL(isrv, SN_SAL_IOIF_PCI_SAFE,
+		pci_domain_nr(bus), bus->number,
+		0, /* io */
+		1, /* write */
+		port, size, __pa(&val));
+
+	if (isrv.status == 0)
+		return size;
+
+	/*
+	 * If the above failed, retry using the SAL_PROBE call which should
+	 * be present in all proms (but which cannot work round PCI chipset
+	 * bugs).  This code is retained for compatability with old
+	 * pre-4.10 proms, and should be removed at some point in the future.
+	 */
 
 	if (!SN_PCIBUS_BUSSOFT(bus)) {
 		ret = -ENODEV;

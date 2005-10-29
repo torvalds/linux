@@ -102,15 +102,15 @@ do {						\
 
 #ifdef CONFIG_VIRTUAL_MEM_MAP
 extern int ia64_pfn_valid (unsigned long pfn);
-#else
+#elif defined(CONFIG_FLATMEM)
 # define ia64_pfn_valid(pfn) 1
 #endif
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_FLATMEM
 # define pfn_valid(pfn)		(((pfn) < max_mapnr) && ia64_pfn_valid(pfn))
 # define page_to_pfn(page)	((unsigned long) (page - mem_map))
 # define pfn_to_page(pfn)	(mem_map + (pfn))
-#else
+#elif defined(CONFIG_DISCONTIGMEM)
 extern struct page *vmem_map;
 extern unsigned long max_low_pfn;
 # define pfn_valid(pfn)		(((pfn) < max_low_pfn) && ia64_pfn_valid(pfn))

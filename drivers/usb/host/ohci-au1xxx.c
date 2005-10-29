@@ -214,6 +214,11 @@ static const struct hc_driver ohci_au1xxx_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
+#ifdef	CONFIG_PM
+	.bus_suspend =		ohci_bus_suspend,
+	.bus_resume =		ohci_bus_resume,
+#endif
+	.start_port_reset =	ohci_start_port_reset,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -259,6 +264,7 @@ static int ohci_hcd_au1xxx_drv_resume(struct device *dev)
 
 static struct device_driver ohci_hcd_au1xxx_driver = {
 	.name		= "au1xxx-ohci",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= ohci_hcd_au1xxx_drv_probe,
 	.remove		= ohci_hcd_au1xxx_drv_remove,

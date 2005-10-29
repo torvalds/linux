@@ -237,7 +237,8 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	    (dev->state < USB_STATE_DEFAULT) ||
 	    (!dev->bus) || (dev->devnum <= 0))
 		return -ENODEV;
-	if (dev->state == USB_STATE_SUSPENDED)
+	if (dev->bus->controller->power.power_state.event != PM_EVENT_ON
+			|| dev->state == USB_STATE_SUSPENDED)
 		return -EHOSTUNREACH;
 	if (!(op = dev->bus->op) || !op->submit_urb)
 		return -ENODEV;

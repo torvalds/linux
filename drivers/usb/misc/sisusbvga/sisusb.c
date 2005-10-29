@@ -2440,7 +2440,7 @@ int
 sisusb_reset_text_mode(struct sisusb_usb_data *sisusb, int init)
 {
 	int ret = 0, slot = sisusb->font_slot, i;
-	struct font_desc *myfont;
+	const struct font_desc *myfont;
 	u8 *tempbuf;
 	u16 *tempbufb;
 	size_t written;
@@ -3239,12 +3239,7 @@ static struct file_operations usb_sisusb_fops = {
 };
 
 static struct usb_class_driver usb_sisusb_class = {
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,13)
-	.name =		"usb/sisusbvga%d",
-	.mode =		S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP,
-#else
 	.name =		"sisusbvga%d",
-#endif
 	.fops =		&usb_sisusb_fops,
 	.minor_base =	SISUSB_MINOR
 };

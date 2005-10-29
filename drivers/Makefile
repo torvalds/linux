@@ -5,7 +5,7 @@
 # Rewritten to use lists instead of if-statements.
 #
 
-obj-$(CONFIG_PCI)		+= pci/
+obj-$(CONFIG_PCI)		+= pci/ usb/
 obj-$(CONFIG_PARISC)		+= parisc/
 obj-y				+= video/
 obj-$(CONFIG_ACPI)		+= acpi/

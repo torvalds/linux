@@ -1517,8 +1517,6 @@ running once the system is up.
 	uart6850=	[HW,OSS]
 			Format: <io>,<irq>
 
-	usb-handoff	[HW] Enable early USB BIOS -> OS handoff
-
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.
 

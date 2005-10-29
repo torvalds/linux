@@ -116,12 +116,6 @@ M:	ajk@iehk.rwth-aachen.de
 L:	linux-hams@vger.kernel.org
 S:	Maintained
 
-YEALINK PHONE DRIVER
-P:	Henk Vergonet
-M:	Henk.Vergonet@gmail.com
-L:	usbb2k-api-dev@nongnu.org
-S:	Maintained
-
 8139CP 10/100 FAST ETHERNET DRIVER
 P:	Jeff Garzik
 M:	jgarzik@pobox.com
@@ -2495,14 +2489,6 @@ L:	linux-kernel@vger.kernel.org
 L:	linux-usb-devel@lists.sourceforge.net
 S:	Supported
 
-USB BLUETOOTH TTY CONVERTER DRIVER
-P:	Greg Kroah-Hartman
-M:	greg@kroah.com
-L:	linux-usb-users@lists.sourceforge.net
-L:	linux-usb-devel@lists.sourceforge.net
-S:	Maintained
-W:	http://www.kroah.com/linux-usb/
-
 USB CDC ETHERNET DRIVER
 P:	Greg Kroah-Hartman
 M:	greg@kroah.com
@@ -2861,6 +2847,12 @@ YAM DRIVER FOR AX.25
 P:	Jean-Paul Roubelat
 M:	jpr@f6fbb.org
 L:	linux-hams@vger.kernel.org
+S:	Maintained
+
+YEALINK PHONE DRIVER
+P:	Henk Vergonet
+M:	Henk.Vergonet@gmail.com
+L:	usbb2k-api-dev@nongnu.org
 S:	Maintained
 
 YMFPCI YAMAHA PCI SOUND (Use ALSA instead)

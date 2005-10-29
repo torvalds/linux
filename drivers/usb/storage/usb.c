@@ -54,6 +54,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/kthread.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
@@ -110,11 +111,6 @@ MODULE_PARM_DESC(delay_use, "seconds to delay before using a new device");
 static atomic_t total_threads = ATOMIC_INIT(0);
 static DECLARE_COMPLETION(threads_gone);
 
-
-static int storage_probe(struct usb_interface *iface,
-			 const struct usb_device_id *id);
-
-static void storage_disconnect(struct usb_interface *iface);
 
 /* The entries in this table, except for final ones here
  * (USB_MASS_STORAGE_CLASS and the empty entry), correspond,
@@ -233,13 +229,40 @@ static struct us_unusual_dev us_unusual_dev_list[] = {
 	{ NULL }
 };
 
-static struct usb_driver usb_storage_driver = {
-	.owner =	THIS_MODULE,
-	.name =		"usb-storage",
-	.probe =	storage_probe,
-	.disconnect =	storage_disconnect,
-	.id_table =	storage_usb_ids,
-};
+
+#ifdef CONFIG_PM	/* Minimal support for suspend and resume */
+
+static int storage_suspend(struct usb_interface *iface, pm_message_t message)
+{
+	struct us_data *us = usb_get_intfdata(iface);
+
+	/* Wait until no command is running */
+	down(&us->dev_semaphore);
+
+	US_DEBUGP("%s\n", __FUNCTION__);
+	iface->dev.power.power_state.event = message.event;
+
+	/* When runtime PM is working, we'll set a flag to indicate
+	 * whether we should autoresume when a SCSI request arrives. */
+
+	up(&us->dev_semaphore);
+	return 0;
+}
+
+static int storage_resume(struct usb_interface *iface)
+{
+	struct us_data *us = usb_get_intfdata(iface);
+
+	down(&us->dev_semaphore);
+
+	US_DEBUGP("%s\n", __FUNCTION__);
+	iface->dev.power.power_state.event = PM_EVENT_ON;
+
+	up(&us->dev_semaphore);
+	return 0;
+}
+
+#endif /* CONFIG_PM */
 
 /*
  * fill_inquiry_response takes an unsigned char array (which must
@@ -288,22 +311,7 @@ static int usb_stor_control_thread(void * __us)
 	struct us_data *us = (struct us_data *)__us;
 	struct Scsi_Host *host = us_to_host(us);
 
-	lock_kernel();
-
-	/*
-	 * This thread doesn't need any user-level access,
-	 * so get rid of all our resources.
-	 */
-	daemonize("usb-storage");
 	current->flags |= PF_NOFREEZE;
-	unlock_kernel();
-
-	/* acquire a reference to the host, so it won't be deallocated
-	 * until we're ready to exit */
-	scsi_host_get(host);
-
-	/* signal that we've started the thread */
-	complete(&(us->notify));
 
 	for(;;) {
 		US_DEBUGP("*** thread sleeping.\n");
@@ -467,6 +475,12 @@ static int associate_dev(struct us_data *us, struct usb_interface *intf)
 		US_DEBUGP("I/O buffer allocation failed\n");
 		return -ENOMEM;
 	}
+
+	us->sensebuf = kmalloc(US_SENSE_SIZE, GFP_KERNEL);
+	if (!us->sensebuf) {
+		US_DEBUGP("Sense buffer allocation failed\n");
+		return -ENOMEM;
+	}
 	return 0;
 }
 
@@ -555,8 +569,8 @@ static int get_transport(struct us_data *us)
 		break;
 
 #ifdef CONFIG_USB_STORAGE_USBAT
-	case US_PR_SCM_ATAPI:
-		us->transport_name = "SCM/ATAPI";
+	case US_PR_USBAT:
+		us->transport_name = "Shuttle USBAT";
 		us->transport = usbat_transport;
 		us->transport_reset = usb_stor_CB_reset;
 		us->max_lun = 1;
@@ -740,6 +754,7 @@ static int get_pipes(struct us_data *us)
 static int usb_stor_acquire_resources(struct us_data *us)
 {
 	int p;
+	struct task_struct *th;
 
 	us->current_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!us->current_urb) {
@@ -747,38 +762,28 @@ static int usb_stor_acquire_resources(struct us_data *us)
 		return -ENOMEM;
 	}
 
-	/* Lock the device while we carry out the next two operations */
-	down(&us->dev_semaphore);
-
-	/* For bulk-only devices, determine the max LUN value */
-	if (us->protocol == US_PR_BULK) {
-		p = usb_stor_Bulk_max_lun(us);
-		if (p < 0) {
-			up(&us->dev_semaphore);
-			return p;
-		}
-		us->max_lun = p;
-	}
-
 	/* Just before we start our control thread, initialize
 	 * the device if it needs initialization */
-	if (us->unusual_dev->initFunction)
-		us->unusual_dev->initFunction(us);
-
-	up(&us->dev_semaphore);
+	if (us->unusual_dev->initFunction) {
+		p = us->unusual_dev->initFunction(us);
+		if (p)
+			return p;
+	}
 
 	/* Start up our control thread */
-	p = kernel_thread(usb_stor_control_thread, us, CLONE_VM);
-	if (p < 0) {
+	th = kthread_create(usb_stor_control_thread, us, "usb-storage");
+	if (IS_ERR(th)) {
 		printk(KERN_WARNING USB_STORAGE 
 		       "Unable to start control thread\n");
-		return p;
+		return PTR_ERR(th);
 	}
-	us->pid = p;
-	atomic_inc(&total_threads);
 
-	/* Wait for the thread to start */
-	wait_for_completion(&(us->notify));
+	/* Take a reference to the host for the control thread and
+	 * count it among all the threads we have launched.  Then
+	 * start it up. */
+	scsi_host_get(us_to_host(us));
+	atomic_inc(&total_threads);
+	wake_up_process(th);
 
 	return 0;
 }
@@ -811,6 +816,8 @@ static void usb_stor_release_resources(struct us_data *us)
 static void dissociate_dev(struct us_data *us)
 {
 	US_DEBUGP("-- %s\n", __FUNCTION__);
+
+	kfree(us->sensebuf);
 
 	/* Free the device-related DMA-mapped buffers */
 	if (us->cr)
@@ -872,21 +879,6 @@ static int usb_stor_scan_thread(void * __us)
 {
 	struct us_data *us = (struct us_data *)__us;
 
-	/*
-	 * This thread doesn't need any user-level access,
-	 * so get rid of all our resources.
-	 */
-	lock_kernel();
-	daemonize("usb-stor-scan");
-	unlock_kernel();
-
-	/* Acquire a reference to the host, so it won't be deallocated
-	 * until we're ready to exit */
-	scsi_host_get(us_to_host(us));
-
-	/* Signal that we've started the thread */
-	complete(&(us->notify));
-
 	printk(KERN_DEBUG
 		"usb-storage: device found at %d\n", us->pusb_dev->devnum);
 
@@ -904,6 +896,14 @@ retry:
 
 	/* If the device is still connected, perform the scanning */
 	if (!test_bit(US_FLIDX_DISCONNECTING, &us->flags)) {
+
+		/* For bulk-only devices, determine the max LUN value */
+		if (us->protocol == US_PR_BULK &&
+				!(us->flags & US_FL_SINGLE_LUN)) {
+			down(&us->dev_semaphore);
+			us->max_lun = usb_stor_Bulk_max_lun(us);
+			up(&us->dev_semaphore);
+		}
 		scsi_scan_host(us_to_host(us));
 		printk(KERN_DEBUG "usb-storage: device scan complete\n");
 
@@ -923,6 +923,7 @@ static int storage_probe(struct usb_interface *intf,
 	struct us_data *us;
 	const int id_index = id - storage_usb_ids; 
 	int result;
+	struct task_struct *th;
 
 	US_DEBUGP("USB Mass Storage device detected\n");
 
@@ -1003,17 +1004,21 @@ static int storage_probe(struct usb_interface *intf,
 	}
 
 	/* Start up the thread for delayed SCSI-device scanning */
-	result = kernel_thread(usb_stor_scan_thread, us, CLONE_VM);
-	if (result < 0) {
+	th = kthread_create(usb_stor_scan_thread, us, "usb-stor-scan");
+	if (IS_ERR(th)) {
 		printk(KERN_WARNING USB_STORAGE 
 		       "Unable to start the device-scanning thread\n");
 		quiesce_and_remove_host(us);
+		result = PTR_ERR(th);
 		goto BadDevice;
 	}
-	atomic_inc(&total_threads);
 
-	/* Wait for the thread to start */
-	wait_for_completion(&(us->notify));
+	/* Take a reference to the host for the scanning thread and
+	 * count it among all the threads we have launched.  Then
+	 * start it up. */
+	scsi_host_get(us_to_host(us));
+	atomic_inc(&total_threads);
+	wake_up_process(th);
 
 	return 0;
 
@@ -1037,6 +1042,18 @@ static void storage_disconnect(struct usb_interface *intf)
 /***********************************************************************
  * Initialization and registration
  ***********************************************************************/
+
+static struct usb_driver usb_storage_driver = {
+	.owner =	THIS_MODULE,
+	.name =		"usb-storage",
+	.probe =	storage_probe,
+	.disconnect =	storage_disconnect,
+#ifdef CONFIG_PM
+	.suspend =	storage_suspend,
+	.resume =	storage_resume,
+#endif
+	.id_table =	storage_usb_ids,
+};
 
 static int __init usb_stor_init(void)
 {
