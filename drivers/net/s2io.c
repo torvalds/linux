@@ -705,8 +705,7 @@ static void free_shared_mem(struct s2io_nic *nic)
 			}
 			kfree(mac_control->rings[i].ba[j]);
 		}
-		if (mac_control->rings[i].ba)
-			kfree(mac_control->rings[i].ba);
+		kfree(mac_control->rings[i].ba);
 	}
 #endif
 

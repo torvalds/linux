@@ -235,8 +235,7 @@ static int irport_close(struct irport_cb *self)
 		   __FUNCTION__, self->io.sir_base);
 	release_region(self->io.sir_base, self->io.sir_ext);
 
-	if (self->tx_buff.head)
-		kfree(self->tx_buff.head);
+	kfree(self->tx_buff.head);
 	
 	if (self->rx_buff.skb)
 		kfree_skb(self->rx_buff.skb);

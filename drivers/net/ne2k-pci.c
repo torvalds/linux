@@ -675,7 +675,6 @@ static int ne2k_pci_resume (struct pci_dev *pdev)
 	pci_set_power_state(pdev, 0);
 	pci_restore_state(pdev);
 	pci_enable_device(pdev);
-	pci_set_master(pdev);
 	NS8390_init(dev, 1);
 	netif_device_attach(dev);
 

@@ -4030,6 +4030,10 @@ static struct ipw_rx_queue *ipw_rx_queue_alloc(struct ipw_priv *priv)
 	int i;
 
 	rxq = (struct ipw_rx_queue *)kmalloc(sizeof(*rxq), GFP_KERNEL);
+	if (unlikely(!rxq)) {
+		IPW_ERROR("memory allocation failed\n");
+		return NULL;
+	}
 	memset(rxq, 0, sizeof(*rxq));
 	spin_lock_init(&rxq->lock);
 	INIT_LIST_HEAD(&rxq->rx_free);

@@ -860,12 +860,9 @@ static int allocate_buffers(struct strip *strip_info, int mtu)
 		strip_info->mtu = dev->mtu = mtu;
 		return (1);
 	}
-	if (r)
-		kfree(r);
-	if (s)
-		kfree(s);
-	if (t)
-		kfree(t);
+	kfree(r);
+	kfree(s);
+	kfree(t);
 	return (0);
 }
 
@@ -922,13 +919,9 @@ static int strip_change_mtu(struct net_device *dev, int new_mtu)
 	printk(KERN_NOTICE "%s: strip MTU changed fom %d to %d.\n",
 	       strip_info->dev->name, old_mtu, strip_info->mtu);
 
-	if (orbuff)
-		kfree(orbuff);
-	if (osbuff)
-		kfree(osbuff);
-	if (otbuff)
-		kfree(otbuff);
-
+	kfree(orbuff);
+	kfree(osbuff);
+	kfree(otbuff);
 	return 0;
 }
 
@@ -2498,18 +2491,13 @@ static int strip_close_low(struct net_device *dev)
 	/*
 	 * Free all STRIP frame buffers.
 	 */
-	if (strip_info->rx_buff) {
-		kfree(strip_info->rx_buff);
-		strip_info->rx_buff = NULL;
-	}
-	if (strip_info->sx_buff) {
-		kfree(strip_info->sx_buff);
-		strip_info->sx_buff = NULL;
-	}
-	if (strip_info->tx_buff) {
-		kfree(strip_info->tx_buff);
-		strip_info->tx_buff = NULL;
-	}
+	kfree(strip_info->rx_buff);
+	strip_info->rx_buff = NULL;
+	kfree(strip_info->sx_buff);
+	strip_info->sx_buff = NULL;
+	kfree(strip_info->tx_buff);
+	strip_info->tx_buff = NULL;
+
 	del_timer(&strip_info->idle_timer);
 	return 0;
 }
