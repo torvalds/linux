@@ -39,6 +39,7 @@
 #ifndef __AGENT_H_
 #define __AGENT_H_
 
+#include <linux/err.h>
 #include <rdma/ib_mad.h>
 
 extern int ib_agent_port_open(struct ib_device *device, int port_num);
