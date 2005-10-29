@@ -41,6 +41,7 @@ struct lpfc_iocbq {
 	uint8_t iocb_flag;
 #define LPFC_IO_LIBDFC	1	/* libdfc iocb */
 #define LPFC_IO_WAKE	2	/* High Priority Queue signal flag */
+#define LPFC_IO_FCP	4	/* FCP command -- iocbq in scsi_buf */
 
 	uint8_t abort_count;
 	uint8_t rsvd2;

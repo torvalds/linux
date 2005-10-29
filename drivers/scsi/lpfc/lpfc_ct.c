@@ -224,13 +224,12 @@ lpfc_gen_req(struct lpfc_hba *phba, struct lpfc_dmabuf *bmp,
 
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring *pring = &psli->ring[LPFC_ELS_RING];
-	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
 	IOCB_t *icmd;
-	struct lpfc_iocbq *geniocb = NULL;
+	struct lpfc_iocbq *geniocb;
 
 	/* Allocate buffer for  command iocb */
 	spin_lock_irq(phba->host->host_lock);
-	list_remove_head(lpfc_iocb_list, geniocb, struct lpfc_iocbq, list);
+	geniocb = lpfc_sli_get_iocbq(phba);
 	spin_unlock_irq(phba->host->host_lock);
 
 	if (geniocb == NULL)

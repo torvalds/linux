@@ -102,9 +102,8 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba,
 		   uint16_t cmdSize,
 		   uint8_t retry, struct lpfc_nodelist * ndlp, uint32_t elscmd)
 {
-	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
 	struct lpfc_sli_ring *pring;
-	struct lpfc_iocbq *elsiocb = NULL;
+	struct lpfc_iocbq *elsiocb;
 	struct lpfc_dmabuf *pcmd, *prsp, *pbuflist;
 	struct ulp_bde64 *bpl;
 	IOCB_t *icmd;
@@ -114,10 +113,9 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba,
 	if (phba->hba_state < LPFC_LINK_UP)
 		return  NULL;
 
-
 	/* Allocate buffer for  command iocb */
 	spin_lock_irq(phba->host->host_lock);
-	list_remove_head(lpfc_iocb_list, elsiocb, struct lpfc_iocbq, list);
+	elsiocb = lpfc_sli_get_iocbq(phba);
 	spin_unlock_irq(phba->host->host_lock);
 
 	if (elsiocb == NULL)

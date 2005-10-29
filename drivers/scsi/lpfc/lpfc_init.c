@@ -870,8 +870,7 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 		 int type)
 {
 	IOCB_t *icmd;
-	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
-	struct lpfc_iocbq *iocb = NULL;
+	struct lpfc_iocbq *iocb;
 	struct lpfc_dmabuf *mp1, *mp2;
 
 	cnt += pring->missbufcnt;
@@ -880,7 +879,7 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 	while (cnt > 0) {
 		/* Allocate buffer for  command iocb */
 		spin_lock_irq(phba->host->host_lock);
-		list_remove_head(lpfc_iocb_list, iocb, struct lpfc_iocbq, list);
+		iocb = lpfc_sli_get_iocbq(phba);
 		spin_unlock_irq(phba->host->host_lock);
 		if (iocb == NULL) {
 			pring->missbufcnt = cnt;
