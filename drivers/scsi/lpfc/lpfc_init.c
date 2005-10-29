@@ -1429,6 +1429,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	if (!phba->slim2p)
 		goto out_iounmap;
 
+	memset(phba->slim2p, 0, SLI2_SLIM_SIZE);
 
 	/* Initialize the SLI Layer to run with lpfc HBAs. */
 	lpfc_sli_setup(phba);

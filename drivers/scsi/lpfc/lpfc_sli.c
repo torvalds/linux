@@ -335,7 +335,7 @@ lpfc_sli_submit_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	 * driver will put a command into.
 	 */
 	pring->cmdidx = pring->next_cmdidx;
-	writeb(pring->cmdidx, phba->MBslimaddr
+	writel(pring->cmdidx, phba->MBslimaddr
 	       + (SLIMOFF + (pring->ringno * 2)) * 4);
 }
 
@@ -1033,7 +1033,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 
 		to_slim = phba->MBslimaddr +
 			(SLIMOFF + (pring->ringno * 2) + 1) * 4;
-		writeb(pring->rspidx, to_slim);
+		writel(pring->rspidx, to_slim);
 
 		if (pring->rspidx == portRspPut)
 			portRspPut = le32_to_cpu(pgp->rspPutInx);
@@ -1147,7 +1147,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 
 		to_slim = phba->MBslimaddr + (SLIMOFF + (pring->ringno * 2)
 					      + 1) * 4;
-		writeb(pring->rspidx, to_slim);
+		writel(pring->rspidx, to_slim);
 
 		if (list_empty(&(pring->iocb_continueq))) {
 			list_add(&rspiocbp->list, &(pring->iocb_continueq));

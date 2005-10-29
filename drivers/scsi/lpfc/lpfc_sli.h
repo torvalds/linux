@@ -125,10 +125,10 @@ struct lpfc_sli_ring {
 
 	uint32_t local_getidx;   /* last available cmd index (from cmdGetInx) */
 	uint32_t next_cmdidx;    /* next_cmd index */
+	uint32_t rspidx;	/* current index in response ring */
+	uint32_t cmdidx;	/* current index in command ring */
 	uint8_t rsvd;
 	uint8_t ringno;		/* ring number */
-	uint8_t rspidx;		/* current index in response ring */
-	uint8_t cmdidx;		/* current index in command ring */
 	uint16_t numCiocb;	/* number of command iocb's per ring */
 	uint16_t numRiocb;	/* number of rsp iocb's per ring */
 
