@@ -462,11 +462,11 @@ static void __devinit quirk_vt82c686_acpi(struct pci_dev *dev)
 
 	pci_read_config_word(dev, 0x70, &hm);
 	hm &= PCI_BASE_ADDRESS_IO_MASK;
-	quirk_io_region(dev, hm, 128, PCI_BRIDGE_RESOURCES + 1, "vt82c868 HW-mon");
+	quirk_io_region(dev, hm, 128, PCI_BRIDGE_RESOURCES + 1, "vt82c686 HW-mon");
 
 	pci_read_config_dword(dev, 0x90, &smb);
 	smb &= PCI_BASE_ADDRESS_IO_MASK;
-	quirk_io_region(dev, smb, 16, PCI_BRIDGE_RESOURCES + 2, "vt82c868 SMB");
+	quirk_io_region(dev, smb, 16, PCI_BRIDGE_RESOURCES + 2, "vt82c686 SMB");
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA,	PCI_DEVICE_ID_VIA_82C686_4,	quirk_vt82c686_acpi );
 
