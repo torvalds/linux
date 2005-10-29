@@ -12,3 +12,9 @@ config FEC_8XX_DM9161_PHY
 	bool "Support DM9161 PHY"
 	depends on FEC_8XX
 	default n
+
+config FEC_8XX_LXT971_PHY
+	bool "Support LXT971/LXT972 PHY"
+	depends on FEC_8XX
+	default n
+
