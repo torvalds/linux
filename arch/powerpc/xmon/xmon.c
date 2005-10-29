@@ -210,7 +210,6 @@ Commands:\n\
   s	single step\n\
   S	print special registers\n\
   t	print backtrace\n\
-  T	Enable/Disable PPCDBG flags\n\
   x	exit monitor and recover\n\
   X	exit monitor and dont recover\n"
 #ifdef CONFIG_PPC64
