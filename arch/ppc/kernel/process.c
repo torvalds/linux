@@ -347,11 +347,13 @@ struct task_struct *__switch_to(struct task_struct *prev,
 #endif /* CONFIG_SPE */
 #endif /* CONFIG_SMP */
 
+#ifdef CONFIG_ALTIVEC
 	/* Avoid the trap.  On smp this this never happens since
 	 * we don't set last_task_used_altivec -- Cort
 	 */
 	if (new->thread.regs && last_task_used_altivec == new)
 		new->thread.regs->msr |= MSR_VEC;
+#endif
 #ifdef CONFIG_SPE
 	/* Avoid the trap.  On smp this this never happens since
 	 * we don't set last_task_used_spe
