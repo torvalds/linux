@@ -1533,6 +1533,9 @@ static int mv643xx_eth_probe(struct device *ddev)
 	printk(KERN_NOTICE "%s: RX NAPI Enabled \n", dev->name);
 #endif
 
+	if (mp->tx_sram_size > 0)
+		printk(KERN_NOTICE "%s: Using SRAM\n", dev->name);
+
 	return 0;
 
 out:
