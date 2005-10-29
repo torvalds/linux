@@ -637,12 +637,9 @@ lpfc_scsi_tgt_reset(struct lpfc_scsi_buf * lpfc_cmd, struct lpfc_hba * phba)
 	if (!iocbqrsp)
 		return FAILED;
 
-	iocbq->iocb_flag |= LPFC_IO_POLL;
-	ret = lpfc_sli_issue_iocb_wait_high_priority(phba,
-		     &phba->sli.ring[phba->sli.fcp_ring],
-		     iocbq, SLI_IOCB_HIGH_PRIORITY,
-		     iocbqrsp,
-		     lpfc_cmd->timeout);
+	ret = lpfc_sli_issue_iocb_wait(phba,
+				       &phba->sli.ring[phba->sli.fcp_ring],
+				       iocbq, iocbqrsp, lpfc_cmd->timeout);
 	if (ret != IOCB_SUCCESS) {
 		lpfc_cmd->status = IOSTAT_DRIVER_REJECT;
 		ret = FAILED;
@@ -922,7 +919,6 @@ __lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 {
 	struct Scsi_Host *shost = cmnd->device->host;
 	struct lpfc_hba *phba = (struct lpfc_hba *)shost->hostdata[0];
-	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_scsi_buf *lpfc_cmd = NULL;
 	struct list_head *scsi_buf_list = &phba->lpfc_scsi_buf_list;
 	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
@@ -969,12 +965,9 @@ __lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 	if (iocbqrsp == NULL)
 		goto out_free_scsi_buf;
 
-	iocbq->iocb_flag |= LPFC_IO_POLL;
-	iocbq->iocb_cmpl = lpfc_sli_wake_iocb_high_priority;
-
-	ret = lpfc_sli_issue_iocb_wait_high_priority(phba,
-		     &phba->sli.ring[psli->fcp_ring],
-		     iocbq, 0, iocbqrsp, 60);
+	ret = lpfc_sli_issue_iocb_wait(phba,
+				       &phba->sli.ring[phba->sli.fcp_ring],
+				       iocbq, iocbqrsp, lpfc_cmd->timeout);
 	if (ret == IOCB_SUCCESS)
 		ret = SUCCESS;
 

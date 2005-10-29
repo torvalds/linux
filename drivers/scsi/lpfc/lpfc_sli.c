@@ -839,9 +839,6 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba * phba, struct lpfc_sli_ring * pring,
 				spin_lock_irqsave(phba->host->host_lock, iflag);
 			}
 			else {
-				if (cmdiocbp->iocb_flag & LPFC_IO_POLL)
-					rc = 0;
-
 				spin_unlock_irqrestore(phba->host->host_lock,
 						       iflag);
 				(cmdiocbp->iocb_cmpl) (phba, cmdiocbp, saveq);
@@ -874,6 +871,7 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba * phba, struct lpfc_sli_ring * pring,
 				saveq->iocb.ulpContext);
 		}
 	}
+
 	spin_unlock_irqrestore(phba->host->host_lock, iflag);
 	return rc;
 }
@@ -2592,84 +2590,99 @@ lpfc_sli_abort_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	return errcnt;
 }
 
-void
-lpfc_sli_wake_iocb_high_priority(struct lpfc_hba * phba,
-				 struct lpfc_iocbq * queue1,
-				 struct lpfc_iocbq * queue2)
+static void
+lpfc_sli_wake_iocb_wait(struct lpfc_hba *phba,
+			struct lpfc_iocbq *cmdiocbq,
+			struct lpfc_iocbq *rspiocbq)
 {
-	struct lpfc_iocbq *save_iocbq = queue1->context2;
-	if (save_iocbq && queue2)
-		memcpy(&save_iocbq->iocb, &queue2->iocb, sizeof(queue2->iocb));
+	wait_queue_head_t *pdone_q;
+	unsigned long iflags;
 
-	/* The waiter is looking for LPFC_IO_HIPRI bit to be set
-	   as a signal to wake up */
-	queue1->iocb_flag |= LPFC_IO_HIPRI;
+	spin_lock_irqsave(phba->host->host_lock, iflags);
+	cmdiocbq->iocb_flag |= LPFC_IO_WAKE;
+	if (cmdiocbq->context2 && rspiocbq)
+		memcpy(&((struct lpfc_iocbq *)cmdiocbq->context2)->iocb,
+		       &rspiocbq->iocb, sizeof(IOCB_t));
+
+	pdone_q = cmdiocbq->context_un.wait_queue;
+	spin_unlock_irqrestore(phba->host->host_lock, iflags);
+	if (pdone_q)
+		wake_up(pdone_q);
 	return;
 }
 
+/*
+ * Issue the caller's iocb and wait for its completion, but no longer than the
+ * caller's timeout.  Note that iocb_flags is cleared before the
+ * lpfc_sli_issue_call since the wake routine sets a unique value and by
+ * definition this is a wait function.
+ */
 int
-lpfc_sli_issue_iocb_wait_high_priority(struct lpfc_hba * phba,
-				       struct lpfc_sli_ring * pring,
-				       struct lpfc_iocbq * piocb,
-				       uint32_t flag,
-				       struct lpfc_iocbq * prspiocbq,
-				       uint32_t timeout)
+lpfc_sli_issue_iocb_wait(struct lpfc_hba * phba,
+			 struct lpfc_sli_ring * pring,
+			 struct lpfc_iocbq * piocb,
+			 struct lpfc_iocbq * prspiocbq,
+			 uint32_t timeout)
 {
-	int j, delay_time,  retval = IOCB_ERROR;
-
-	/* The caller must left context1 empty.  */
-	if (piocb->context_un.hipri_wait_queue != 0) {
-		return IOCB_ERROR;
-	}
+	DECLARE_WAIT_QUEUE_HEAD(done_q);
+	long timeleft, timeout_req = 0;
+	int retval = IOCB_SUCCESS;
 
 	/*
-	 * If the caller has provided a response iocbq buffer, context2 must
-	 * be NULL or its an error.
+	 * If the caller has provided a response iocbq buffer, then context2
+	 * is NULL or its an error.
 	 */
-	if (prspiocbq && piocb->context2) {
-		return IOCB_ERROR;
+	if (prspiocbq) {
+		if (piocb->context2)
+			return IOCB_ERROR;
+		piocb->context2 = prspiocbq;
 	}
 
-	piocb->context2 = prspiocbq;
+	piocb->iocb_cmpl = lpfc_sli_wake_iocb_wait;
+	piocb->context_un.wait_queue = &done_q;
+	piocb->iocb_flag &= ~LPFC_IO_WAKE;
 
-	/* Setup callback routine and issue the command. */
-	piocb->iocb_cmpl = lpfc_sli_wake_iocb_high_priority;
-	retval = lpfc_sli_issue_iocb(phba, pring, piocb,
-					flag | SLI_IOCB_HIGH_PRIORITY);
-	if (retval != IOCB_SUCCESS) {
-		piocb->context2 = NULL;
-		return IOCB_ERROR;
-	}
+	retval = lpfc_sli_issue_iocb(phba, pring, piocb, 0);
+	if (retval == IOCB_SUCCESS) {
+		timeout_req = timeout * HZ;
+		spin_unlock_irq(phba->host->host_lock);
+		timeleft = wait_event_timeout(done_q,
+				piocb->iocb_flag & LPFC_IO_WAKE,
+				timeout_req);
+		spin_lock_irq(phba->host->host_lock);
 
-	/*
-	 * This high-priority iocb was sent out-of-band.  Poll for its
-	 * completion rather than wait for a signal.  Note that the host_lock
-	 * is held by the midlayer and must be released here to allow the
-	 * interrupt handlers to complete the IO and signal this routine via
-	 * the iocb_flag.
-	 * Also, the delay_time is computed to be one second longer than
-	 * the scsi command timeout to give the FW time to abort on
-	 * timeout rather than the driver just giving up.  Typically,
-	 * the midlayer does not specify a time for this command so the
-	 * driver is free to enforce its own timeout.
-	 */
-
-	delay_time = ((timeout + 1) * 1000) >> 6;
-	retval = IOCB_ERROR;
-	spin_unlock_irq(phba->host->host_lock);
-	for (j = 0; j < 64; j++) {
-		msleep(delay_time);
-		if (piocb->iocb_flag & LPFC_IO_HIPRI) {
-			piocb->iocb_flag &= ~LPFC_IO_HIPRI;
-			retval = IOCB_SUCCESS;
-			break;
+		if (timeleft == 0) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"%d:0329 IOCB wait timeout error - no "
+					"wake response Data x%x\n",
+					phba->brd_no, timeout);
+			retval = IOCB_TIMEDOUT;
+		} else if (!(piocb->iocb_flag & LPFC_IO_WAKE)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"%d:0330 IOCB wake NOT set, "
+					"Data x%x x%lx\n", phba->brd_no,
+					timeout, (timeleft / jiffies));
+			retval = IOCB_TIMEDOUT;
+		} else {
+			lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+					"%d:0331 IOCB wake signaled\n",
+					phba->brd_no);
 		}
+	} else {
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"%d:0332 IOCB wait issue failed, Data x%x\n",
+				phba->brd_no, retval);
+		retval = IOCB_ERROR;
 	}
 
-	spin_lock_irq(phba->host->host_lock);
-	piocb->context2 = NULL;
+	if (prspiocbq)
+		piocb->context2 = NULL;
+
+	piocb->context_un.wait_queue = NULL;
+	piocb->iocb_cmpl = NULL;
 	return retval;
 }
+
 int
 lpfc_sli_issue_mbox_wait(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq,
 			 uint32_t timeout)

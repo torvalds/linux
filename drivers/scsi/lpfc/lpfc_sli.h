@@ -39,10 +39,8 @@ struct lpfc_iocbq {
 	IOCB_t iocb;		/* IOCB cmd */
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
 	uint8_t iocb_flag;
-#define LPFC_IO_POLL	1	/* Polling mode iocb */
-#define LPFC_IO_LIBDFC	2	/* libdfc iocb */
-#define LPFC_IO_WAIT	4
-#define LPFC_IO_HIPRI	8	/* High Priority Queue signal flag */
+#define LPFC_IO_LIBDFC	1	/* libdfc iocb */
+#define LPFC_IO_WAKE	2	/* High Priority Queue signal flag */
 
 	uint8_t abort_count;
 	uint8_t rsvd2;
@@ -51,8 +49,7 @@ struct lpfc_iocbq {
 	void *context2;		/* caller context information */
 	void *context3;		/* caller context information */
 	union {
-		wait_queue_head_t *hipri_wait_queue; /* High Priority Queue wait
-							queue */
+		wait_queue_head_t  *wait_queue;
 		struct lpfc_iocbq  *rsp_iocb;
 		struct lpfcMboxq   *mbox;
 	} context_un;

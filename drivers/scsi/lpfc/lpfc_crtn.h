@@ -180,15 +180,11 @@ struct lpfc_nodelist *lpfc_findnode_did(struct lpfc_hba * phba, uint32_t order,
 int lpfc_sli_issue_mbox_wait(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq,
 			 uint32_t timeout);
 
-int lpfc_sli_issue_iocb_wait_high_priority(struct lpfc_hba * phba,
-					   struct lpfc_sli_ring * pring,
-					   struct lpfc_iocbq * piocb,
-					   uint32_t flag,
-					   struct lpfc_iocbq * prspiocbq,
-					   uint32_t timeout);
-void lpfc_sli_wake_iocb_high_priority(struct lpfc_hba * phba,
-				      struct lpfc_iocbq * queue1,
-				      struct lpfc_iocbq * queue2);
+int lpfc_sli_issue_iocb_wait(struct lpfc_hba * phba,
+			     struct lpfc_sli_ring * pring,
+			     struct lpfc_iocbq * piocb,
+			     struct lpfc_iocbq * prspiocbq,
+			     uint32_t timeout);
 void lpfc_sli_abort_fcp_cmpl(struct lpfc_hba * phba,
 			     struct lpfc_iocbq * cmdiocb,
 			     struct lpfc_iocbq * rspiocb);
