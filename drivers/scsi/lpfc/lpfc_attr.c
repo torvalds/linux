@@ -434,7 +434,7 @@ LPFC_ATTR_R(scan_down, 1, 0, 1,
 
 /*
 # lpfc_nodev_tmo: If set, it will hold all I/O errors on devices that disappear
-# until the timer expires. Value range is [0,255]. Default value is 20.
+# until the timer expires. Value range is [0,255]. Default value is 30.
 # NOTE: this MUST be less then the SCSI Layer command timeout - 1.
 */
 LPFC_ATTR_RW(nodev_tmo, 30, 0, 255,
