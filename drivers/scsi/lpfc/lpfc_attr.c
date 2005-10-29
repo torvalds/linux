@@ -291,6 +291,18 @@ lpfc_##attr##_show(struct class_device *cdev, char *buf) \
 			phba->cfg_##attr);\
 }
 
+#define lpfc_param_hex_show(attr)	\
+static ssize_t \
+lpfc_##attr##_show(struct class_device *cdev, char *buf) \
+{ \
+	struct Scsi_Host *host = class_to_shost(cdev);\
+	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata[0];\
+	int val = 0;\
+	val = phba->cfg_##attr;\
+	return snprintf(buf, PAGE_SIZE, "%#x\n",\
+			phba->cfg_##attr);\
+}
+
 #define lpfc_param_init(attr, default, minval, maxval)	\
 static int \
 lpfc_##attr##_init(struct lpfc_hba *phba, int val) \
@@ -329,8 +341,10 @@ lpfc_##attr##_store(struct class_device *cdev, const char *buf, size_t count) \
 	struct Scsi_Host *host = class_to_shost(cdev);\
 	struct lpfc_hba *phba = (struct lpfc_hba*)host->hostdata[0];\
 	int val=0;\
-	if (sscanf(buf, "%d", &val) != 1)\
-	return -EPERM;\
+	if (!isdigit(buf[0]))\
+		return -EINVAL;\
+	if (sscanf(buf, "%i", &val) != 1)\
+		return -EINVAL;\
 	if (lpfc_##attr##_set(phba, val) == 0) \
 		return strlen(buf);\
 	else \
@@ -356,6 +370,25 @@ static int lpfc_##name = defval;\
 module_param(lpfc_##name, int, 0);\
 MODULE_PARM_DESC(lpfc_##name, desc);\
 lpfc_param_show(name)\
+lpfc_param_init(name, defval, minval, maxval)\
+lpfc_param_set(name, defval, minval, maxval)\
+lpfc_param_store(name)\
+static CLASS_DEVICE_ATTR(lpfc_##name, S_IRUGO | S_IWUSR,\
+			 lpfc_##name##_show, lpfc_##name##_store)
+
+#define LPFC_ATTR_HEX_R(name, defval, minval, maxval, desc) \
+static int lpfc_##name = defval;\
+module_param(lpfc_##name, int, 0);\
+MODULE_PARM_DESC(lpfc_##name, desc);\
+lpfc_param_hex_show(name)\
+lpfc_param_init(name, defval, minval, maxval)\
+static CLASS_DEVICE_ATTR(lpfc_##name, S_IRUGO , lpfc_##name##_show, NULL)
+
+#define LPFC_ATTR_HEX_RW(name, defval, minval, maxval, desc) \
+static int lpfc_##name = defval;\
+module_param(lpfc_##name, int, 0);\
+MODULE_PARM_DESC(lpfc_##name, desc);\
+lpfc_param_hex_show(name)\
 lpfc_param_init(name, defval, minval, maxval)\
 lpfc_param_set(name, defval, minval, maxval)\
 lpfc_param_store(name)\
@@ -403,7 +436,7 @@ static CLASS_DEVICE_ATTR(board_online, S_IRUGO | S_IWUSR,
 # LOG_LIBDFC                    0x2000     LIBDFC events
 # LOG_ALL_MSG                   0xffff     LOG all messages
 */
-LPFC_ATTR_RW(log_verbose, 0x0, 0x0, 0xffff, "Verbose logging bit-mask");
+LPFC_ATTR_HEX_RW(log_verbose, 0x0, 0x0, 0xffff, "Verbose logging bit-mask");
 
 /*
 # lun_queue_depth:  This parameter is used to limit the number of outstanding
