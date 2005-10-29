@@ -886,7 +886,6 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 			pring->missbufcnt = cnt;
 			return cnt;
 		}
-		memset(iocb, 0, sizeof (struct lpfc_iocbq));
 		icmd = &iocb->iocb;
 
 		/* 2 buffers can be posted per command */
@@ -899,7 +898,7 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 			if (mp1)
 				kfree(mp1);
 			spin_lock_irq(phba->host->host_lock);
-			list_add_tail(&iocb->list, lpfc_iocb_list);
+			lpfc_sli_release_iocbq(phba, iocb);
 			spin_unlock_irq(phba->host->host_lock);
 			pring->missbufcnt = cnt;
 			return cnt;
@@ -918,7 +917,7 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 				lpfc_mbuf_free(phba, mp1->virt, mp1->phys);
 				kfree(mp1);
 				spin_lock_irq(phba->host->host_lock);
-				list_add_tail(&iocb->list, lpfc_iocb_list);
+				lpfc_sli_release_iocbq(phba, iocb);
 				spin_unlock_irq(phba->host->host_lock);
 				pring->missbufcnt = cnt;
 				return cnt;
@@ -955,7 +954,7 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 				kfree(mp2);
 				cnt++;
 			}
-			list_add_tail(&iocb->list, lpfc_iocb_list);
+			lpfc_sli_release_iocbq(phba, iocb);
 			pring->missbufcnt = cnt;
 			spin_unlock_irq(phba->host->host_lock);
 			return cnt;
@@ -1328,6 +1327,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	unsigned long bar0map_len, bar2map_len;
 	int error = -ENODEV, retval;
 	int i;
+	uint16_t iotag;
 
 	if (pci_enable_device(pdev))
 		goto out;
@@ -1452,6 +1452,15 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		}
 
 		memset(iocbq_entry, 0, sizeof(struct lpfc_iocbq));
+		iotag = lpfc_sli_next_iotag(phba, iocbq_entry);
+		if (iotag == 0) {
+			kfree (iocbq_entry);
+			printk(KERN_ERR "%s: failed to allocate IOTAG. "
+			       "Unloading driver.\n",
+				__FUNCTION__);
+			error = -ENOMEM;
+			goto out_free_iocbq;
+		}
 		spin_lock_irq(phba->host->host_lock);
 		list_add(&iocbq_entry->list, &phba->lpfc_iocb_list);
 		phba->total_iocbq_bufs++;

@@ -122,7 +122,6 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba,
 
 	if (elsiocb == NULL)
 		return NULL;
-	memset(elsiocb, 0, sizeof (struct lpfc_iocbq));
 	icmd = &elsiocb->iocb;
 
 	/* fill in BDEs for command */
@@ -133,7 +132,9 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba,
 		if (pcmd)
 			kfree(pcmd);
 
-		list_add_tail(&elsiocb->list, lpfc_iocb_list);
+		spin_lock_irq(phba->host->host_lock);
+		lpfc_sli_release_iocbq(phba, elsiocb);
+		spin_unlock_irq(phba->host->host_lock);
 		return NULL;
 	}
 
@@ -150,7 +151,9 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba,
 				kfree(prsp);
 			lpfc_mbuf_free(phba, pcmd->virt, pcmd->phys);
 			kfree(pcmd);
-			list_add_tail(&elsiocb->list, lpfc_iocb_list);
+			spin_lock_irq(phba->host->host_lock);
+			lpfc_sli_release_iocbq(phba, elsiocb);
+			spin_unlock_irq(phba->host->host_lock);
 			return NULL;
 		}
 		INIT_LIST_HEAD(&prsp->list);
@@ -164,7 +167,9 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba,
 	    pbuflist->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
 					     &pbuflist->phys);
 	if (pbuflist == 0 || pbuflist->virt == 0) {
-		list_add_tail(&elsiocb->list, lpfc_iocb_list);
+		spin_lock_irq(phba->host->host_lock);
+		lpfc_sli_release_iocbq(phba, elsiocb);
+		spin_unlock_irq(phba->host->host_lock);
 		lpfc_mbuf_free(phba, pcmd->virt, pcmd->phys);
 		lpfc_mbuf_free(phba, prsp->virt, prsp->phys);
 		kfree(pcmd);
@@ -596,10 +601,8 @@ lpfc_els_abort_flogi(struct lpfc_hba * phba)
 					spin_unlock_irq(phba->host->host_lock);
 					(iocb->iocb_cmpl) (phba, iocb, iocb);
 					spin_lock_irq(phba->host->host_lock);
-				} else {
-					list_add_tail(&iocb->list,
-						      &phba->lpfc_iocb_list);
-				}
+				} else
+					lpfc_sli_release_iocbq(phba, iocb);
 			}
 		}
 	}
@@ -1713,7 +1716,7 @@ lpfc_els_free_iocb(struct lpfc_hba * phba, struct lpfc_iocbq * elsiocb)
 		kfree(buf_ptr);
 	}
 	spin_lock_irq(phba->host->host_lock);
-	list_add_tail(&elsiocb->list, &phba->lpfc_iocb_list);
+	lpfc_sli_release_iocbq(phba, elsiocb);
 	spin_unlock_irq(phba->host->host_lock);
 	return 0;
 }
@@ -2929,9 +2932,8 @@ lpfc_els_timeout_handler(struct lpfc_hba *phba)
 			spin_unlock_irq(phba->host->host_lock);
 			(piocb->iocb_cmpl) (phba, piocb, piocb);
 			spin_lock_irq(phba->host->host_lock);
-		} else {
-			list_add_tail(&piocb->list, &phba->lpfc_iocb_list);
-		}
+		} else
+			lpfc_sli_release_iocbq(phba, piocb);
 	}
 	if (phba->sli.ring[LPFC_ELS_RING].txcmplq_cnt) {
 		phba->els_tmofunc.expires = jiffies + HZ * timeout;
@@ -2996,7 +2998,7 @@ lpfc_els_flush_cmd(struct lpfc_hba * phba)
 			spin_lock_irq(phba->host->host_lock);
 		}
 		else
-			list_add_tail(&piocb->list, &phba->lpfc_iocb_list);
+			lpfc_sli_release_iocbq(phba, piocb);
 	}
 
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
@@ -3033,7 +3035,7 @@ lpfc_els_flush_cmd(struct lpfc_hba * phba)
 			spin_lock_irq(phba->host->host_lock);
 		}
 		else
-			list_add_tail(&piocb->list, &phba->lpfc_iocb_list);
+			lpfc_sli_release_iocbq(phba, piocb);
 	}
 	spin_unlock_irq(phba->host->host_lock);
 	return;

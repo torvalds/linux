@@ -56,6 +56,7 @@ lpfc_get_scsi_buf(struct lpfc_hba * phba)
 	struct ulp_bde64 *bpl;
 	IOCB_t *iocb;
 	dma_addr_t pdma_phys;
+	uint16_t iotag;
 
 	psb = kmalloc(sizeof(struct lpfc_scsi_buf), GFP_KERNEL);
 	if (!psb)
@@ -78,6 +79,15 @@ lpfc_get_scsi_buf(struct lpfc_hba * phba)
 
 	/* Initialize virtual ptrs to dma_buf region. */
 	memset(psb->data, 0, phba->cfg_sg_dma_buf_size);
+
+	/* Allocate iotag for psb->cur_iocbq. */
+	iotag = lpfc_sli_next_iotag(phba, &psb->cur_iocbq);
+	if (iotag == 0) {
+		pci_pool_free(phba->lpfc_scsi_dma_buf_pool,
+			      psb->data, psb->dma_handle);
+		kfree (psb);
+		return NULL;
+	}
 
 	psb->fcp_cmnd = psb->data;
 	psb->fcp_rsp = psb->data + sizeof(struct fcp_cmnd);
@@ -626,7 +636,6 @@ lpfc_scsi_tgt_reset(struct lpfc_scsi_buf * lpfc_cmd, struct lpfc_hba * phba)
 	list_remove_head(lpfc_iocb_list, iocbqrsp, struct lpfc_iocbq, list);
 	if (!iocbqrsp)
 		return FAILED;
-	memset(iocbqrsp, 0, sizeof (struct lpfc_iocbq));
 
 	iocbq->iocb_flag |= LPFC_IO_POLL;
 	ret = lpfc_sli_issue_iocb_wait_high_priority(phba,
@@ -655,8 +664,7 @@ lpfc_scsi_tgt_reset(struct lpfc_scsi_buf * lpfc_cmd, struct lpfc_hba * phba)
 			    lpfc_cmd->pCmd->device->id,
 			    lpfc_cmd->pCmd->device->lun, 0, LPFC_CTX_TGT);
 
-	/* Return response IOCB to free list. */
-	list_add_tail(&iocbqrsp->list, lpfc_iocb_list);
+	lpfc_sli_release_iocbq(phba, iocbqrsp);
 	return ret;
 }
 
@@ -818,9 +826,8 @@ __lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 		list_del_init(&iocb->list);
 		pring->txq_cnt--;
-		if (!iocb->iocb_cmpl) {
-			list_add_tail(&iocb->list, lpfc_iocb_list);
-		}
+		if (!iocb->iocb_cmpl)
+			lpfc_sli_release_iocbq(phba, iocb);
 		else {
 			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
 			cmd->un.ulpWord[4] = IOERR_SLI_ABORTED;
@@ -833,8 +840,6 @@ __lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	list_remove_head(lpfc_iocb_list, abtsiocb, struct lpfc_iocbq, list);
 	if (abtsiocb == NULL)
 		return FAILED;
-
-	memset(abtsiocb, 0, sizeof (struct lpfc_iocbq));
 
 	/*
 	 * The scsi command was not in the txq.  Check the txcmplq and if it is
@@ -861,7 +866,7 @@ __lpfc_abort_handler(struct scsi_cmnd *cmnd)
 		abtsiocb->iocb_cmpl = lpfc_sli_abort_fcp_cmpl;
 		if (lpfc_sli_issue_iocb(phba, pring, abtsiocb, 0) ==
 								IOCB_ERROR) {
-			list_add_tail(&abtsiocb->list, lpfc_iocb_list);
+			lpfc_sli_release_iocbq(phba, abtsiocb);
 			ret = IOCB_ERROR;
 			break;
 		}
@@ -964,8 +969,6 @@ __lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 	if (iocbqrsp == NULL)
 		goto out_free_scsi_buf;
 
-	memset(iocbqrsp, 0, sizeof (struct lpfc_iocbq));
-
 	iocbq->iocb_flag |= LPFC_IO_POLL;
 	iocbq->iocb_cmpl = lpfc_sli_wake_iocb_high_priority;
 
@@ -1011,7 +1014,7 @@ __lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 			phba->brd_no, cnt);
 	}
 
-	list_add_tail(&iocbqrsp->list, lpfc_iocb_list);
+	lpfc_sli_release_iocbq(phba, iocbqrsp);
 
 out_free_scsi_buf:
 	lpfc_printf_log(phba, KERN_ERR, LOG_FCP,

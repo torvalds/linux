@@ -33,6 +33,9 @@ typedef enum _lpfc_ctx_cmd {
 struct lpfc_iocbq {
 	/* lpfc_iocbqs are used in double linked lists */
 	struct list_head list;
+	uint16_t iotag;         /* pre-assigned IO tag */
+	uint16_t rsvd1;
+
 	IOCB_t iocb;		/* IOCB cmd */
 	uint8_t retry;		/* retry counter for IOCB cmd - if needed */
 	uint8_t iocb_flag;
@@ -200,6 +203,11 @@ struct lpfc_sli {
 					   cmd */
 
 	uint32_t *MBhostaddr;	/* virtual address for mbox cmds */
+
+#define LPFC_IOCBQ_LOOKUP_INCREMENT  1024
+	struct lpfc_iocbq ** iocbq_lookup; /* array to lookup IOCB by IOTAG */
+	size_t iocbq_lookup_len;           /* current lengs of the array */
+	uint16_t  last_iotag;              /* last allocated IOTAG */
 };
 
 /* Given a pointer to the start of the ring, and the slot number of
