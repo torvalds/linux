@@ -15,39 +15,10 @@
 
 #ifndef __ASSEMBLY__
 
-/*
- * The IXP2400 B0 silicon contains an erratum (#66) that causes writes
- * to on-chip I/O register to not complete fully. What this means is
- * that if you have a write to on-chip I/O followed by a back-to-back
- * read or write, the first write will happen twice. OR...if it's
- * not a back-to-back transaction, the read or write will generate
- * incorrect data.
- *
- * The official work around for this is to set the on-chip I/O regions
- * as XCB=101 and then force a read-back from the register.
- *
- */
-#if defined(CONFIG_ARCH_ENP2611) || defined(CONFIG_ARCH_IXDP2400) || defined(CONFIG_ARCH_IXDP2401)
-
-#include <asm/system.h>		/* Pickup local_irq_ functions */
-
-static inline void ixp2000_reg_write(volatile void *reg, unsigned long val)
-{
-	unsigned long dummy;
-	unsigned long flags;
-
-	local_irq_save(flags);
-	*((volatile unsigned long *)reg) = val;
-	barrier();
-	dummy = *((volatile unsigned long *)reg);
-	local_irq_restore(flags);
-}
-#else
 static inline void ixp2000_reg_write(volatile void *reg, unsigned long val)
 {
 	*((volatile unsigned long *)reg) = val;
 }
-#endif	/* IXDP2400 || IXDP2401 */
 #define ixp2000_reg_read(reg)	(*((volatile unsigned long *)reg))
 
 /*
