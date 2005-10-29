@@ -54,5 +54,6 @@ clear_caches:
 	sync
 	isync
 
+	mr	r6,r1
 	b	start
 

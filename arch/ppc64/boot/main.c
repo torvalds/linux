@@ -131,7 +131,7 @@ static unsigned long try_claim(unsigned long size)
 	return addr;
 }
 
-void start(unsigned long a1, unsigned long a2, void *promptr)
+void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 {
 	unsigned long i;
 	int len;
@@ -151,7 +151,7 @@ void start(unsigned long a1, unsigned long a2, void *promptr)
 	if (getprop(chosen_handle, "stdin", &stdin, sizeof(stdin)) != 4)
 		exit();
 
-	printf("\n\rzImage starting: loaded at 0x%lx\n\r", (unsigned long) _start);
+	printf("\n\rzImage starting: loaded at 0x%p (sp: 0x%p)\n\r", _start, sp);
 
 	/*
 	 * The first available claim_base must be above the end of the
