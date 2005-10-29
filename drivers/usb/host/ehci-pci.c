@@ -252,7 +252,7 @@ static int ehci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
 	(void) usb_suspend_device (hcd->self.root_hub);
 #else
 	usb_lock_device (hcd->self.root_hub);
-	(void) ehci_hub_suspend (hcd);
+	(void) ehci_bus_suspend (hcd);
 	usb_unlock_device (hcd->self.root_hub);
 #endif
 
@@ -285,7 +285,7 @@ static int ehci_pci_resume (struct usb_hcd *hcd)
 			continue;
 		if (status & (PORT_SUSPEND | PORT_OWNER)) {
 			down (&hcd->self.root_hub->serialize);
-			retval = ehci_hub_resume (hcd);
+			retval = ehci_bus_resume (hcd);
 			up (&hcd->self.root_hub->serialize);
 			break;
 		}
