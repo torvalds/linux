@@ -44,6 +44,11 @@
 #include <linux/ioport.h>
 #include <linux/param.h>	/* for HZ */
 #include <linux/delay.h>
+#ifdef CONFIG_SERIAL_TXX9
+#include <linux/tty.h>
+#include <linux/serial.h>
+#include <linux/serial_core.h>
+#endif
 
 #include <asm/addrspace.h>
 #include <asm/time.h>
@@ -193,7 +198,7 @@ static void jmr3927_board_init(void);
 extern struct resource pci_io_resource;
 extern struct resource pci_mem_resource;
 
-static void __init jmr3927_setup(void)
+void __init plat_setup(void)
 {
 	char *argptr;
 
@@ -211,8 +216,8 @@ static void __init jmr3927_setup(void)
 	 */
 	ioport_resource.start = pci_io_resource.start;
 	ioport_resource.end = pci_io_resource.end;
-	iomem_resource.start = pci_mem_resource.start;
-	iomem_resource.end = pci_mem_resource.end;
+	iomem_resource.start = 0;
+	iomem_resource.end = 0xffffffff;
 
 	/* Reboot on panic */
 	panic_timeout = 180;
@@ -265,17 +270,34 @@ static void __init jmr3927_setup(void)
 		strcat(argptr, " ip=bootp");
 	}
 
-#ifdef CONFIG_TXX927_SERIAL_CONSOLE
+#ifdef CONFIG_SERIAL_TXX9
+	{
+		extern int early_serial_txx9_setup(struct uart_port *port);
+		int i;
+		struct uart_port req;
+		for(i = 0; i < 2; i++) {
+			memset(&req, 0, sizeof(req));
+			req.line = i;
+			req.iotype = UPIO_MEM;
+			req.membase = (char *)TX3927_SIO_REG(i);
+			req.mapbase = TX3927_SIO_REG(i);
+			req.irq = i == 0 ?
+				JMR3927_IRQ_IRC_SIO0 : JMR3927_IRQ_IRC_SIO1;
+			if (i == 0)
+				req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
+			req.uartclk = JMR3927_IMCLK;
+			early_serial_txx9_setup(&req);
+		}
+	}
+#ifdef CONFIG_SERIAL_TXX9_CONSOLE
 	argptr = prom_getcmdline();
 	if ((argptr = strstr(argptr, "console=")) == NULL) {
 		argptr = prom_getcmdline();
 		strcat(argptr, " console=ttyS1,115200");
 	}
 #endif
+#endif
 }
-
-early_initcall(jmr3927_setup);
-
 
 static void tx3927_setup(void);
 
@@ -335,7 +357,7 @@ static void __init jmr3927_board_init(void)
 		       jmr3927_io_dipsw());
 }
 
-static void __init tx3927_setup(void)
+void __init plat_setup(void)
 {
 	int i;
 

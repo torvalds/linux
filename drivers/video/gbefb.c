@@ -1126,7 +1126,7 @@ static int __init gbefb_probe(struct device *dev)
 	gbefb_setup(options);
 #endif
 
-	if (!request_mem_region(GBE_BASE, sizeof(struct sgi_gbe), "GBE")) {
+	if (!request_region(GBE_BASE, sizeof(struct sgi_gbe), "GBE")) {
 		printk(KERN_ERR "gbefb: couldn't reserve mmio region\n");
 		ret = -EBUSY;
 		goto out_release_framebuffer;
@@ -1152,24 +1152,30 @@ static int __init gbefb_probe(struct device *dev)
 	if (gbe_mem_phys) {
 		/* memory was allocated at boot time */
 		gbe_mem = ioremap_nocache(gbe_mem_phys, gbe_mem_size);
+		if (!gbe_mem) {
+			printk(KERN_ERR "gbefb: couldn't map framebuffer\n");
+			ret = -ENOMEM;
+			goto out_tiles_free;
+		}
+
 		gbe_dma_addr = 0;
 	} else {
 		/* try to allocate memory with the classical allocator
 		 * this has high chance to fail on low memory machines */
 		gbe_mem = dma_alloc_coherent(NULL, gbe_mem_size, &gbe_dma_addr,
 					     GFP_KERNEL);
+		if (!gbe_mem) {
+			printk(KERN_ERR "gbefb: couldn't allocate framebuffer memory\n");
+			ret = -ENOMEM;
+			goto out_tiles_free;
+		}
+
 		gbe_mem_phys = (unsigned long) gbe_dma_addr;
 	}
 
 #ifdef CONFIG_X86
 	mtrr_add(gbe_mem_phys, gbe_mem_size, MTRR_TYPE_WRCOMB, 1);
 #endif
-
-	if (!gbe_mem) {
-		printk(KERN_ERR "gbefb: couldn't map framebuffer\n");
-		ret = -ENXIO;
-		goto out_tiles_free;
-	}
 
 	/* map framebuffer memory into tiles table */
 	for (i = 0; i < (gbe_mem_size >> TILE_SHIFT); i++)

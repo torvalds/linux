@@ -23,16 +23,15 @@
 #ifndef _ASM_FPU_EMULATOR_H
 #define _ASM_FPU_EMULATOR_H
 
-struct mips_fpu_emulator_private {
-	unsigned int eir;
-	struct {
-		unsigned int emulated;
-		unsigned int loads;
-		unsigned int stores;
-		unsigned int cp1ops;
-		unsigned int cp1xops;
-		unsigned int errors;
-	} stats;
+struct mips_fpu_emulator_stats {
+	unsigned int emulated;
+	unsigned int loads;
+	unsigned int stores;
+	unsigned int cp1ops;
+	unsigned int cp1xops;
+	unsigned int errors;
 };
+
+extern struct mips_fpu_emulator_stats fpuemustats;
 
 #endif /* _ASM_FPU_EMULATOR_H */

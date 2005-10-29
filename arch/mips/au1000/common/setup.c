@@ -32,6 +32,7 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 
 #include <asm/cpu.h>
 #include <asm/bootinfo.h>
@@ -57,7 +58,7 @@ extern void au1xxx_time_init(void);
 extern void au1xxx_timer_setup(struct irqaction *irq);
 extern void set_cpuspec(void);
 
-static int __init au1x00_setup(void)
+void __init plat_setup(void)
 {
 	struct	cpu_spec *sp;
 	char *argptr;
@@ -106,8 +107,6 @@ static int __init au1x00_setup(void)
         /*strcat(argptr, " video=au1100fb:panel:Sharp_320x240_16");*/
 #ifdef CONFIG_MIPS_HYDROGEN3
          strcat(argptr, " video=au1100fb:panel:Hydrogen_3_NEC_panel_320x240,nohwcursor");
-#else
-        strcat(argptr, " video=au1100fb:panel:s10,nohwcursor");
 #endif
     }
 #endif
@@ -153,15 +152,11 @@ static int __init au1x00_setup(void)
 	au_sync();
 	while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_T0S);
 	au_writel(0, SYS_TOYTRIM);
-
-	return 0;
 }
-
-early_initcall(au1x00_setup);
 
 #if defined(CONFIG_64BIT_PHYS_ADDR)
 /* This routine should be valid for all Au1x based boards */
-phys_t fixup_bigphys_addr(phys_t phys_addr, phys_t size)
+phys_t __fixup_bigphys_addr(phys_t phys_addr, phys_t size)
 {
 	u32 start, end;
 
@@ -192,4 +187,5 @@ phys_t fixup_bigphys_addr(phys_t phys_addr, phys_t size)
 	/* default nop */
 	return phys_addr;
 }
+EXPORT_SYMBOL(__fixup_bigphys_addr);
 #endif

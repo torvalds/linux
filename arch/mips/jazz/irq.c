@@ -58,14 +58,13 @@ static void end_r4030_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type r4030_irq_type = {
-	"R4030",
-	startup_r4030_irq,
-	shutdown_r4030_irq,
-	enable_r4030_irq,
-	disable_r4030_irq,
-	mask_and_ack_r4030_irq,
-	end_r4030_irq,
-	NULL
+	.typename = "R4030",
+	.startup = startup_r4030_irq,
+	.shutdown = shutdown_r4030_irq,
+	.enable = enable_r4030_irq,
+	.disable = disable_r4030_irq,
+	.ack = mask_and_ack_r4030_irq,
+	.end = end_r4030_irq,
 };
 
 void __init init_r4030_ints(void)

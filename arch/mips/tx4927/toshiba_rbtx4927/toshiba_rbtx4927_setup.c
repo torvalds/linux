@@ -77,6 +77,11 @@
 #include <linux/hdreg.h>
 #include <linux/ide.h>
 #endif
+#ifdef CONFIG_SERIAL_TXX9
+#include <linux/tty.h>
+#include <linux/serial.h>
+#include <linux/serial_core.h>
+#endif
 
 #undef TOSHIBA_RBTX4927_SETUP_DEBUG
 
@@ -920,11 +925,29 @@ void __init toshiba_rbtx4927_setup(void)
 
 #endif /* CONFIG_PCI */
 
+#ifdef CONFIG_SERIAL_TXX9
+	{
+		extern int early_serial_txx9_setup(struct uart_port *port);
+		int i;
+		struct uart_port req;
+		for(i = 0; i < 2; i++) {
+			memset(&req, 0, sizeof(req));
+			req.line = i;
+			req.iotype = UPIO_MEM;
+			req.membase = (char *)(0xff1ff300 + i * 0x100);
+			req.mapbase = 0xff1ff300 + i * 0x100;
+			req.irq = 32 + i;
+			req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
+			req.uartclk = 50000000;
+			early_serial_txx9_setup(&req);
+		}
+	}
 #ifdef CONFIG_SERIAL_TXX9_CONSOLE
         argptr = prom_getcmdline();
         if (strstr(argptr, "console=") == NULL) {
                 strcat(argptr, " console=ttyS0,38400");
         }
+#endif
 #endif
 
 #ifdef CONFIG_ROOT_NFS

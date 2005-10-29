@@ -9,10 +9,10 @@
  */
 #include <linux/config.h>
 #include <linux/types.h>
+#include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/string.h>
-#include <linux/pci.h>
 
 #include <asm/cache.h>
 #include <asm/io.h>

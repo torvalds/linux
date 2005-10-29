@@ -28,7 +28,7 @@ enum major_op {
 	sdl_op, sdr_op, swr_op, cache_op,
 	ll_op, lwc1_op, lwc2_op, pref_op,
 	lld_op, ldc1_op, ldc2_op, ld_op,
-	sc_op, swc1_op, swc2_op, major_3b_op, /* Opcode 0x3b is unused */
+	sc_op, swc1_op, swc2_op, rdhwr_op,
 	scd_op, sdc1_op, sdc2_op, sd_op
 };
 
@@ -62,10 +62,10 @@ enum rt_op {
 	spimi_op, unused_rt_op_0x05, unused_rt_op_0x06, unused_rt_op_0x07,
 	tgei_op, tgeiu_op, tlti_op, tltiu_op,
 	teqi_op, unused_0x0d_rt_op, tnei_op, unused_0x0f_rt_op,
-	bltzal_op, bgezal_op, bltzall_op, bgezall_op
-	/*
-	 * The others (0x14 - 0x1f) are unused.
- 	 */
+	bltzal_op, bgezal_op, bltzall_op, bgezall_op,
+	rt_op_0x14, rt_op_0x15, rt_op_0x16, rt_op_0x17,
+	rt_op_0x18, rt_op_0x19, rt_op_0x1a, rt_op_0x1b,
+	bposge32_op, rt_op_0x1d, rt_op_0x1e, rt_op_0x1f
 };
 
 /*

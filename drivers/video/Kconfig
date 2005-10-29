@@ -1376,7 +1376,7 @@ config FB_HIT
 
 config FB_PMAG_AA
 	bool "PMAG-AA TURBOchannel framebuffer support"
-	depends on (FB = y) && MACH_DECSTATION && TC
+	depends on (FB = y) && TC
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT
@@ -1387,7 +1387,7 @@ config FB_PMAG_AA
 
 config FB_PMAG_BA
 	bool "PMAG-BA TURBOchannel framebuffer support"
-	depends on (FB = y) && MACH_DECSTATION && TC
+	depends on (FB = y) && TC
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT
@@ -1398,7 +1398,7 @@ config FB_PMAG_BA
 
 config FB_PMAGB_B
 	bool "PMAGB-B TURBOchannel framebuffer support"
-	depends on (FB = y) && MACH_DECSTATION && TC
+	depends on (FB = y) && TC
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT
@@ -1410,7 +1410,7 @@ config FB_PMAGB_B
 
 config FB_MAXINE
 	bool "Maxine (Personal DECstation) onboard framebuffer support"
-	depends on (FB = y) && MACH_DECSTATION && TC
+	depends on (FB = y) && MACH_DECSTATION
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT

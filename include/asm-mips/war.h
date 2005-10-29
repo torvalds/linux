@@ -177,6 +177,17 @@
 #endif
 
 /*
+ * The RM9000 has a bug (though PMC-Sierra opposes it being called that)
+ * where invalid instructions in the same I-cache line worth of instructions
+ * being fetched may case spurious exceptions.
+ */
+#if defined(CONFIG_MOMENCO_JAGUAR_ATX) || defined(CONFIG_MOMENCO_OCELOT_3) || \
+    defined(CONFIG_PMC_YOSEMITE)
+#define ICACHE_REFILLS_WORKAROUND_WAR	1
+#endif
+
+
+/*
  * ON the R10000 upto version 2.6 (not sure about 2.7) there is a bug that
  * may cause ll / sc and lld / scd sequences to execute non-atomically.
  */
@@ -187,6 +198,9 @@
 /*
  * Workarounds default to off
  */
+#ifndef ICACHE_REFILLS_WORKAROUND_WAR
+#define ICACHE_REFILLS_WORKAROUND_WAR	0
+#endif
 #ifndef R4600_V1_INDEX_ICACHEOP_WAR
 #define R4600_V1_INDEX_ICACHEOP_WAR	0
 #endif

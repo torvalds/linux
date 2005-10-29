@@ -105,22 +105,7 @@ dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
 {
 	unsigned long addr = (unsigned long) ptr;
 
-	switch (direction) {
-	case DMA_TO_DEVICE:
-		dma_cache_wback(addr, size);
-		break;
-
-	case DMA_FROM_DEVICE:
-		dma_cache_inv(addr, size);
-		break;
-
-	case DMA_BIDIRECTIONAL:
-		dma_cache_wback_inv(addr, size);
-		break;
-
-	default:
-		BUG();
-	}
+	__dma_sync(addr, size, direction);
 
 	return virt_to_phys(ptr);
 }
@@ -133,22 +118,7 @@ void dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 	unsigned long addr;
 	addr = dma_addr + PAGE_OFFSET;
 
-	switch (direction) {
-	case DMA_TO_DEVICE:
-		//dma_cache_wback(addr, size);
-		break;
-
-	case DMA_FROM_DEVICE:
-		//dma_cache_inv(addr, size);
-		break;
-
-	case DMA_BIDIRECTIONAL:
-		//dma_cache_wback_inv(addr, size);
-		break;
-
-	default:
-		BUG();
-	}
+	//__dma_sync(addr, size, direction);
 }
 
 EXPORT_SYMBOL(dma_unmap_single);
@@ -164,10 +134,11 @@ int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 		unsigned long addr;
 
 		addr = (unsigned long) page_address(sg->page);
-		if (addr)
+		if (addr) {
 			__dma_sync(addr + sg->offset, sg->length, direction);
-		sg->dma_address = (dma_addr_t)
-			(page_to_phys(sg->page) + sg->offset);
+			sg->dma_address = (dma_addr_t)page_to_phys(sg->page)
+					  + sg->offset;
+		}
 	}
 
 	return nents;
@@ -218,9 +189,8 @@ void dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nhwentries,
 
 	for (i = 0; i < nhwentries; i++, sg++) {
 		addr = (unsigned long) page_address(sg->page);
-		if (!addr)
-			continue;
-		dma_cache_wback_inv(addr + sg->offset, sg->length);
+		if (addr)
+			__dma_sync(addr + sg->offset, sg->length, direction);
 	}
 }
 

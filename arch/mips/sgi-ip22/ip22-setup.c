@@ -53,7 +53,7 @@ EXPORT_SYMBOL(ip22_do_break);
 extern void ip22_be_init(void) __init;
 extern void ip22_time_init(void) __init;
 
-static int __init ip22_setup(void)
+void __init plat_setup(void)
 {
 	char *ctype;
 
@@ -137,8 +137,4 @@ static int __init ip22_setup(void)
 		}
 	}
 #endif
-
-	return 0;
 }
-
-early_initcall(ip22_setup);

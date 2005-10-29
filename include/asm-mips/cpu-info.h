@@ -7,6 +7,7 @@
  * Copyright (C) 1995, 1996, 1997, 1998, 1999, 2001, 2002, 2003 Ralf Baechle
  * Copyright (C) 1996 Paul M. Antoine
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
+ * Copyright (C) 2004  Maciej W. Rozycki
  */
 #ifndef __ASM_CPU_INFO_H
 #define __ASM_CPU_INFO_H
@@ -61,6 +62,7 @@ struct cpuinfo_mips {
 	 * Capability and feature descriptor structure for MIPS CPU
 	 */
 	unsigned long		options;
+	unsigned long		ases;
 	unsigned int		processor_id;
 	unsigned int		fpu_id;
 	unsigned int		cputype;

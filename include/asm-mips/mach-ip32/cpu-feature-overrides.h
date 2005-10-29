@@ -37,5 +37,6 @@
 #define cpu_has_ejtag		0
 #define cpu_has_vtag_icache	0
 #define cpu_has_ic_fills_f_dc	0
+#define cpu_has_dsp		0
 
 #endif /* __ASM_MACH_IP32_CPU_FEATURE_OVERRIDES_H */

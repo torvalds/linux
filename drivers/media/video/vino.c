@@ -26,14 +26,15 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/interrupt.h>
-#include <linux/dma-mapping.h>
-#include <linux/time.h>
 #include <linux/moduleparam.h>
+#include <linux/time.h>
+#include <linux/version.h>
 
 #ifdef CONFIG_KMOD
 #include <linux/kmod.h>

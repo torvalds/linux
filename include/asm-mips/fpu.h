@@ -80,9 +80,14 @@ do {									\
 
 #define clear_fpu_owner()	clear_thread_flag(TIF_USEDFPU)
 
+static inline int __is_fpu_owner(void)
+{
+	return test_thread_flag(TIF_USEDFPU);
+}
+
 static inline int is_fpu_owner(void)
 {
-	return cpu_has_fpu && test_thread_flag(TIF_USEDFPU);
+	return cpu_has_fpu && __is_fpu_owner();
 }
 
 static inline void own_fpu(void)
@@ -127,7 +132,7 @@ static inline void restore_fp(struct task_struct *tsk)
 static inline fpureg_t *get_fpu_regs(struct task_struct *tsk)
 {
 	if (cpu_has_fpu) {
-		if ((tsk == current) && is_fpu_owner())
+		if ((tsk == current) && __is_fpu_owner())
 			_save_fp(current);
 		return tsk->thread.fpu.hard.fpr;
 	}

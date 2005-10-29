@@ -1,0 +1,54 @@
+#config SGI_SN0_XXL
+#	bool "IP27 XXL"
+#	depends on SGI_IP27
+#	  This options adds support for userspace processes upto 16TB size.
+#	  Normally the limit is just .5TB.
+
+config SGI_SN0_N_MODE
+	bool "IP27 N-Mode"
+	depends on SGI_IP27
+	help
+	  The nodes of Origin 200, Origin 2000 and Onyx 2 systems can be
+	  configured in either N-Modes which allows for more nodes or M-Mode
+	  which allows for more memory.  Your system is most probably
+	  running in M-Mode, so you should say N here.
+
+config ARCH_DISCONTIGMEM_ENABLE
+	bool
+	default y if SGI_IP27
+	help
+	  Say Y to upport efficient handling of discontiguous physical memory,
+	  for architectures which are either NUMA (Non-Uniform Memory Access)
+	  or have huge holes in the physical address space for other reasons.
+	  See <file:Documentation/vm/numa> for more.
+
+config NUMA
+	bool "NUMA Support"
+	depends on SGI_IP27
+	help
+	  Say Y to compile the kernel to support NUMA (Non-Uniform Memory
+	  Access).  This option is for configuring high-end multiprocessor
+	  server machines.  If in doubt, say N.
+
+config MAPPED_KERNEL
+	bool "Mapped kernel support"
+	depends on SGI_IP27
+	help
+	  Change the way a Linux kernel is loaded into memory on a MIPS64
+	  machine.  This is required in order to support text replication and
+	  NUMA.  If you need to understand it, read the source code.
+
+config REPLICATE_KTEXT
+	bool "Kernel text replication support"
+	depends on SGI_IP27
+	help
+	  Say Y here to enable replicating the kernel text across multiple
+	  nodes in a NUMA cluster.  This trades memory for speed.
+
+config REPLICATE_EXHANDLERS
+	bool "Exception handler replication support"
+	depends on SGI_IP27
+	help
+	  Say Y here to enable replicating the kernel exception handlers
+	  across multiple nodes in a NUMA cluster. This trades memory for
+	  speed.
