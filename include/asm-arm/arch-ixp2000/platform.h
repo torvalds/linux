@@ -15,11 +15,15 @@
 
 #ifndef __ASSEMBLY__
 
+static inline unsigned long ixp2000_reg_read(volatile void *reg)
+{
+	return *((volatile unsigned long *)reg);
+}
+
 static inline void ixp2000_reg_write(volatile void *reg, unsigned long val)
 {
 	*((volatile unsigned long *)reg) = val;
 }
-#define ixp2000_reg_read(reg)	(*((volatile unsigned long *)reg))
 
 /*
  * Boards may multiplex different devices on the 2nd channel of 
