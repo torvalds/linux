@@ -75,6 +75,9 @@ else
 	CFLAGS += $(call cc-option,-mtune=power4)
 endif
 
+# No AltiVec instruction when building kernel
+CFLAGS	+= $(call cc-option, -mno-altivec)
+
 # Enable unit-at-a-time mode when possible. It shrinks the
 # kernel considerably.
 CFLAGS += $(call cc-option,-funit-at-a-time)
