@@ -119,6 +119,10 @@
 #define	EOWNERDEAD	165	/* Owner died */
 #define	ENOTRECOVERABLE	166	/* State not recoverable */
 
+/* for robust mutexes */
+#define	EOWNERDEAD	165	/* Owner died */
+#define	ENOTRECOVERABLE	166	/* State not recoverable */
+
 #define EDQUOT		1133	/* Quota exceeded */
 
 #ifdef __KERNEL__

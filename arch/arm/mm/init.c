@@ -363,20 +363,16 @@ static void __init bootmem_init(struct meminfo *mi)
 
 	memcpy(&meminfo, mi, sizeof(meminfo));
 
-#ifdef CONFIG_XIP_KERNEL
-#error needs fixing
-	p->pfn        = __phys_to_pfn(CONFIG_XIP_PHYS_ADDR & PMD_MASK);
-	p->virtual    = (unsigned long)&_stext & PMD_MASK;
-	p->length     = ((unsigned long)&_etext - p->virtual + ~PMD_MASK) & PMD_MASK;
-	p->type       = MT_ROM;
-	p ++;
-#endif
-
 	/*
 	 * Clear out all the mappings below the kernel image.
-	 * FIXME: what about XIP?
 	 */
-	for (addr = 0; addr < PAGE_OFFSET; addr += PGDIR_SIZE)
+	for (addr = 0; addr < MODULE_START; addr += PGDIR_SIZE)
+		pmd_clear(pmd_off_k(addr));
+#ifdef CONFIG_XIP_KERNEL
+	/* The XIP kernel is mapped in the module area -- skip over it */
+	addr = ((unsigned long)&_etext + PGDIR_SIZE - 1) & PGDIR_MASK;
+#endif
+	for ( ; addr < PAGE_OFFSET; addr += PGDIR_SIZE)
 		pmd_clear(pmd_off_k(addr));
 
 	/*
@@ -434,6 +430,18 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 
 	for (addr = VMALLOC_END; addr; addr += PGDIR_SIZE)
 		pmd_clear(pmd_off_k(addr));
+
+	/*
+	 * Map the kernel if it is XIP.
+	 * It is always first in the modulearea.
+	 */
+#ifdef CONFIG_XIP_KERNEL
+	map.pfn = __phys_to_pfn(CONFIG_XIP_PHYS_ADDR & PGDIR_MASK);
+	map.virtual = MODULE_START;
+	map.length = ((unsigned long)&_etext - map.virtual + ~PGDIR_MASK) & PGDIR_MASK;
+	map.type = MT_ROM;
+	create_mapping(&map);
+#endif
 
 	/*
 	 * Map the cache flushing regions.

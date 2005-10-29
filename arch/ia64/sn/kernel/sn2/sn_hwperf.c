@@ -476,8 +476,8 @@ static int sn_topology_show(struct seq_file *s, void *d)
 				for_each_online_cpu(j) {
 					seq_printf(s, j ? ":%d" : ", dist %d",
 						node_distance(
-						    cpuid_to_cnodeid(i),
-						    cpuid_to_cnodeid(j)));
+						    cpu_to_node(i),
+						    cpu_to_node(j)));
 				}
 				seq_putc(s, '\n');
 			}

@@ -1606,8 +1606,7 @@ err_out:
 	/* here we should have a valid dev plus aup-> register addresses
 	 * so we can reset the mac properly.*/
 	reset_mac(dev);
-	if (aup->mii)
-		kfree(aup->mii);
+	kfree(aup->mii);
 	for (i = 0; i < NUM_RX_DMA; i++) {
 		if (aup->rx_db_inuse[i])
 			ReleaseDB(aup, aup->rx_db_inuse[i]);
@@ -1806,8 +1805,7 @@ static void __exit au1000_cleanup_module(void)
 		if (dev) {
 			aup = (struct au1000_private *) dev->priv;
 			unregister_netdev(dev);
-			if (aup->mii)
-				kfree(aup->mii);
+			kfree(aup->mii);
 			for (j = 0; j < NUM_RX_DMA; j++) {
 				if (aup->rx_db_inuse[j])
 					ReleaseDB(aup, aup->rx_db_inuse[j]);

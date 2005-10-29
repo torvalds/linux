@@ -212,7 +212,7 @@ static void __init py_late_time_init(void)
 	py_rtc_setup();
 }
 
-static int __init pmc_yosemite_setup(void)
+void __init plat_setup(void)
 {
 	board_time_init = yosemite_time_init;
 	late_time_init = py_late_time_init;
@@ -228,8 +228,4 @@ static int __init pmc_yosemite_setup(void)
 	OCD_WRITE(RM9000x2_OCD_HTBAR0, HYPERTRANSPORT_BAR0_ADDR);
 	OCD_WRITE(RM9000x2_OCD_HTMASK0, HYPERTRANSPORT_SIZE0);
 #endif
-
-	return 0;
 }
-
-early_initcall(pmc_yosemite_setup);

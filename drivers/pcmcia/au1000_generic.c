@@ -490,7 +490,7 @@ int au1x00_drv_pcmcia_remove(struct device *dev)
 		flush_scheduled_work();
 		skt->ops->hw_shutdown(skt);
 		au1x00_pcmcia_config_skt(skt, &dead_socket);
-		iounmap(skt->virt_io);
+		iounmap(skt->virt_io + (u32)mips_io_port_base);
 		skt->virt_io = NULL;
 	}
 
@@ -528,10 +528,6 @@ static struct device_driver au1x00_pcmcia_driver = {
 	.resume		= pcmcia_socket_dev_resume,
 };
 
-static struct platform_device au1x00_device = {
-	.name = "au1x00-pcmcia",
-	.id = 0,
-};
 
 /* au1x00_pcmcia_init()
  *
@@ -545,7 +541,6 @@ static int __init au1x00_pcmcia_init(void)
 	int error = 0;
 	if ((error = driver_register(&au1x00_pcmcia_driver)))
 		return error;
-	platform_device_register(&au1x00_device);
 	return error;
 }
 
@@ -556,7 +551,6 @@ static int __init au1x00_pcmcia_init(void)
 static void __exit au1x00_pcmcia_exit(void)
 {
 	driver_unregister(&au1x00_pcmcia_driver);
-	platform_device_unregister(&au1x00_device);
 }
 
 module_init(au1x00_pcmcia_init);

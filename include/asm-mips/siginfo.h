@@ -11,6 +11,7 @@
 
 #include <linux/config.h>
 
+#define __ARCH_SIGEV_PREAMBLE_SIZE (sizeof(long) + 2*sizeof(int))
 #undef __ARCH_SI_TRAPNO	/* exception code needs to fill this ...  */
 
 #define HAVE_ARCH_SIGINFO_T

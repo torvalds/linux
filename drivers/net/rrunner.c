@@ -1710,10 +1710,8 @@ static int rr_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			error = -EFAULT;
 		}
 	wf_out:
-		if (oldimage)
-			kfree(oldimage);
-		if (image)
-			kfree(image);
+		kfree(oldimage);
+		kfree(image);
 		return error;
 		
 	case SIOCRRID:

@@ -15,6 +15,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
+#include <linux/cache.h>
+#include <linux/sched.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
@@ -36,6 +38,7 @@
 #include <asm/system.h>
 #include <asm/fpu.h>
 #include <asm/cpu-features.h>
+#include <asm/war.h>
 
 #include "signal-common.h"
 
@@ -62,17 +65,18 @@ struct ucontextn32 {
 	sigset_t            uc_sigmask;   /* mask last for extensibility */
 };
 
-#if PLAT_TRAMPOLINE_STUFF_LINE
-#define __tramp __attribute__((aligned(PLAT_TRAMPOLINE_STUFF_LINE)))
-#else
-#define __tramp
-#endif
-
 struct rt_sigframe_n32 {
 	u32 rs_ass[4];			/* argument save space for o32 */
-	u32 rs_code[2] __tramp;		/* signal trampoline */
-	struct siginfo rs_info __tramp;
+#if ICACHE_REFILLS_WORKAROUND_WAR
+	u32 rs_pad[2];
+#else
+	u32 rs_code[2];			/* signal trampoline */
+#endif
+	struct siginfo rs_info;
 	struct ucontextn32 rs_uc;
+#if ICACHE_REFILLS_WORKAROUND_WAR
+	u32 rs_code[8] ____cacheline_aligned;		/* signal trampoline */
+#endif
 };
 
 save_static_function(sysn32_rt_sigreturn);
@@ -126,7 +130,7 @@ badframe:
 	force_sig(SIGSEGV, current);
 }
 
-void setup_rt_frame_n32(struct k_sigaction * ka,
+int setup_rt_frame_n32(struct k_sigaction * ka,
 	struct pt_regs *regs, int signr, sigset_t *set, siginfo_t *info)
 {
 	struct rt_sigframe_n32 *frame;
@@ -137,17 +141,7 @@ void setup_rt_frame_n32(struct k_sigaction * ka,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		goto give_sigsegv;
 
-	/*
-	 * Set up the return code ...
-	 *
-	 *         li      v0, __NR_rt_sigreturn
-	 *         syscall
-	 */
-	if (PLAT_TRAMPOLINE_STUFF_LINE)
-		__clear_user(frame->rs_code, PLAT_TRAMPOLINE_STUFF_LINE);
-	err |= __put_user(0x24020000 + __NR_N32_rt_sigreturn, frame->rs_code + 0);
-	err |= __put_user(0x0000000c                        , frame->rs_code + 1);
-	flush_cache_sigtramp((unsigned long) frame->rs_code);
+	install_sigtramp(frame->rs_code, __NR_N32_rt_sigreturn);
 
 	/* Create siginfo.  */
 	err |= copy_siginfo_to_user(&frame->rs_info, info);
@@ -190,8 +184,9 @@ void setup_rt_frame_n32(struct k_sigaction * ka,
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, regs->regs[31]);
 #endif
-	return;
+	return 1;
 
 give_sigsegv:
 	force_sigsegv(signr, current);
+	return 0;
 }

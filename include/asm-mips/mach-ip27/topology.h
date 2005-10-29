@@ -9,6 +9,9 @@
 #define parent_node(node)	(node)
 #define node_to_cpumask(node)	(hub_data(node)->h_cpus)
 #define node_to_first_cpu(node)	(first_cpu(node_to_cpumask(node)))
+struct pci_bus;
+extern int pcibus_to_node(struct pci_bus *);
+
 #define pcibus_to_cpumask(bus)	(cpu_online_map)
 
 extern unsigned char __node_distances[MAX_COMPACT_NODES][MAX_COMPACT_NODES];

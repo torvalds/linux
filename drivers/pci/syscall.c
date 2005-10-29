@@ -13,7 +13,7 @@
 #include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <asm/uaccess.h>
-
+#include "pci.h"
 
 asmlinkage long
 sys_pciconfig_read(unsigned long bus, unsigned long dfn,
@@ -38,13 +38,13 @@ sys_pciconfig_read(unsigned long bus, unsigned long dfn,
 	lock_kernel();
 	switch (len) {
 	case 1:
-		cfg_ret = pci_read_config_byte(dev, off, &byte);
+		cfg_ret = pci_user_read_config_byte(dev, off, &byte);
 		break;
 	case 2:
-		cfg_ret = pci_read_config_word(dev, off, &word);
+		cfg_ret = pci_user_read_config_word(dev, off, &word);
 		break;
 	case 4:
-		cfg_ret = pci_read_config_dword(dev, off, &dword);
+		cfg_ret = pci_user_read_config_dword(dev, off, &dword);
 		break;
 	default:
 		err = -EINVAL;
@@ -112,7 +112,7 @@ sys_pciconfig_write(unsigned long bus, unsigned long dfn,
 		err = get_user(byte, (u8 __user *)buf);
 		if (err)
 			break;
-		err = pci_write_config_byte(dev, off, byte);
+		err = pci_user_write_config_byte(dev, off, byte);
 		if (err != PCIBIOS_SUCCESSFUL)
 			err = -EIO;
 		break;
@@ -121,7 +121,7 @@ sys_pciconfig_write(unsigned long bus, unsigned long dfn,
 		err = get_user(word, (u16 __user *)buf);
 		if (err)
 			break;
-		err = pci_write_config_word(dev, off, word);
+		err = pci_user_write_config_word(dev, off, word);
 		if (err != PCIBIOS_SUCCESSFUL)
 			err = -EIO;
 		break;
@@ -130,7 +130,7 @@ sys_pciconfig_write(unsigned long bus, unsigned long dfn,
 		err = get_user(dword, (u32 __user *)buf);
 		if (err)
 			break;
-		err = pci_write_config_dword(dev, off, dword);
+		err = pci_user_write_config_dword(dev, off, dword);
 		if (err != PCIBIOS_SUCCESSFUL)
 			err = -EIO;
 		break;

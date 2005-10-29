@@ -1384,7 +1384,6 @@ static int pegasus_suspend (struct usb_interface *intf, pm_message_t message)
 		usb_kill_urb(pegasus->rx_urb);
 		usb_kill_urb(pegasus->intr_urb);
 	}
-	intf->dev.power.power_state = PMSG_SUSPEND;
 	return 0;
 }
 
@@ -1392,7 +1391,6 @@ static int pegasus_resume (struct usb_interface *intf)
 {
 	struct pegasus *pegasus = usb_get_intfdata(intf);
 
-	intf->dev.power.power_state = PMSG_ON;
 	netif_device_attach (pegasus->net);
 	if (netif_running(pegasus->net)) {
 		pegasus->rx_urb->status = 0;

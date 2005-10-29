@@ -2381,14 +2381,10 @@ void stop_airo_card( struct net_device *dev, int freeres )
 			dev_kfree_skb(skb);
 	}
 
-	if (ai->flash)
-		kfree(ai->flash);
-	if (ai->rssi)
-		kfree(ai->rssi);
-	if (ai->APList)
-		kfree(ai->APList);
-	if (ai->SSID)
-		kfree(ai->SSID);
+	kfree(ai->flash);
+	kfree(ai->rssi);
+	kfree(ai->APList);
+	kfree(ai->SSID);
 	if (freeres) {
 		/* PCMCIA frees this stuff, so only for PCI and ISA */
 	        release_region( dev->base_addr, 64 );
@@ -3626,10 +3622,8 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 	int rc;
 
 	memset( &mySsid, 0, sizeof( mySsid ) );
-	if (ai->flash) {
-		kfree (ai->flash);
-		ai->flash = NULL;
-	}
+	kfree (ai->flash);
+	ai->flash = NULL;
 
 	/* The NOP is the first step in getting the card going */
 	cmd.cmd = NOP;
@@ -3666,14 +3660,10 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 		tdsRssiRid rssi_rid;
 		CapabilityRid cap_rid;
 
-		if (ai->APList) {
-			kfree(ai->APList);
-			ai->APList = NULL;
-		}
-		if (ai->SSID) {
-			kfree(ai->SSID);
-			ai->SSID = NULL;
-		}
+		kfree(ai->APList);
+		ai->APList = NULL;
+		kfree(ai->SSID);
+		ai->SSID = NULL;
 		// general configuration (read/modify/write)
 		status = readConfigRid(ai, lock);
 		if ( status != SUCCESS ) return ERROR;
@@ -3687,10 +3677,8 @@ static u16 setup_card(struct airo_info *ai, u8 *mac, int lock)
 				memcpy(ai->rssi, (u8*)&rssi_rid + 2, 512); /* Skip RID length member */
 		}
 		else {
-			if (ai->rssi) {
-				kfree(ai->rssi);
-				ai->rssi = NULL;
-			}
+			kfree(ai->rssi);
+			ai->rssi = NULL;
 			if (cap_rid.softCap & 8)
 				ai->config.rmode |= RXMODE_NORMALIZED_RSSI;
 			else
@@ -5369,11 +5357,13 @@ static int proc_BSSList_open( struct inode *inode, struct file *file ) {
 
 static int proc_close( struct inode *inode, struct file *file )
 {
-	struct proc_data *data = (struct proc_data *)file->private_data;
-	if ( data->on_close != NULL ) data->on_close( inode, file );
-	if ( data->rbuffer ) kfree( data->rbuffer );
-	if ( data->wbuffer ) kfree( data->wbuffer );
-	kfree( data );
+	struct proc_data *data = file->private_data;
+
+	if (data->on_close != NULL)
+		data->on_close(inode, file);
+	kfree(data->rbuffer);
+	kfree(data->wbuffer);
+	kfree(data);
 	return 0;
 }
 

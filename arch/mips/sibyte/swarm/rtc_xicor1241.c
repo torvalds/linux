@@ -57,52 +57,52 @@
 
 #define X1241_CCR_ADDRESS	0x6F
 
-#define SMB_CSR(reg) ((u8 *) (IOADDR(A_SMB_REGISTER(1, reg))))
+#define SMB_CSR(reg)	IOADDR(A_SMB_REGISTER(1, reg))
 
 static int xicor_read(uint8_t addr)
 {
-        while (bus_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
+        while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
                 ;
 
-	bus_writeq((addr >> 8) & 0x7, SMB_CSR(R_SMB_CMD));
-	bus_writeq((addr & 0xff), SMB_CSR(R_SMB_DATA));
-	bus_writeq((V_SMB_ADDR(X1241_CCR_ADDRESS) | V_SMB_TT_WR2BYTE),
-		   SMB_CSR(R_SMB_START));
+	__raw_writeq((addr >> 8) & 0x7, SMB_CSR(R_SMB_CMD));
+	__raw_writeq(addr & 0xff, SMB_CSR(R_SMB_DATA));
+	__raw_writeq(V_SMB_ADDR(X1241_CCR_ADDRESS) | V_SMB_TT_WR2BYTE,
+		     SMB_CSR(R_SMB_START));
 
-        while (bus_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
+        while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
                 ;
 
-	bus_writeq((V_SMB_ADDR(X1241_CCR_ADDRESS) | V_SMB_TT_RD1BYTE),
-		   SMB_CSR(R_SMB_START));
+	__raw_writeq(V_SMB_ADDR(X1241_CCR_ADDRESS) | V_SMB_TT_RD1BYTE,
+		     SMB_CSR(R_SMB_START));
 
-        while (bus_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
+        while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
                 ;
 
-        if (bus_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_ERROR) {
+        if (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_ERROR) {
                 /* Clear error bit by writing a 1 */
-                bus_writeq(M_SMB_ERROR, SMB_CSR(R_SMB_STATUS));
+                __raw_writeq(M_SMB_ERROR, SMB_CSR(R_SMB_STATUS));
                 return -1;
         }
 
-	return (bus_readq(SMB_CSR(R_SMB_DATA)) & 0xff);
+	return (__raw_readq(SMB_CSR(R_SMB_DATA)) & 0xff);
 }
 
 static int xicor_write(uint8_t addr, int b)
 {
-        while (bus_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
+        while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
                 ;
 
-	bus_writeq(addr, SMB_CSR(R_SMB_CMD));
-	bus_writeq((addr & 0xff) | ((b & 0xff) << 8), SMB_CSR(R_SMB_DATA));
-	bus_writeq(V_SMB_ADDR(X1241_CCR_ADDRESS) | V_SMB_TT_WR3BYTE,
-		   SMB_CSR(R_SMB_START));
+	__raw_writeq(addr, SMB_CSR(R_SMB_CMD));
+	__raw_writeq((addr & 0xff) | ((b & 0xff) << 8), SMB_CSR(R_SMB_DATA));
+	__raw_writeq(V_SMB_ADDR(X1241_CCR_ADDRESS) | V_SMB_TT_WR3BYTE,
+		     SMB_CSR(R_SMB_START));
 
-        while (bus_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
+        while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
                 ;
 
-        if (bus_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_ERROR) {
+        if (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_ERROR) {
                 /* Clear error bit by writing a 1 */
-                bus_writeq(M_SMB_ERROR, SMB_CSR(R_SMB_STATUS));
+                __raw_writeq(M_SMB_ERROR, SMB_CSR(R_SMB_STATUS));
                 return -1;
         } else {
 		return 0;

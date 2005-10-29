@@ -637,8 +637,11 @@ static void ipoib_timeout(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
-	ipoib_warn(priv, "transmit timeout: latency %ld\n",
-		   jiffies - dev->trans_start);
+	ipoib_warn(priv, "transmit timeout: latency %d msecs\n",
+		   jiffies_to_msecs(jiffies - dev->trans_start));
+	ipoib_warn(priv, "queue stopped %d, tx_head %u, tx_tail %u\n",
+		   netif_queue_stopped(dev),
+		   priv->tx_head, priv->tx_tail);
 	/* XXX reset QP, etc. */
 }
 
@@ -729,7 +732,7 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 
 	/* Allocate RX/TX "rings" to hold queued skbs */
 
-	priv->rx_ring =	kmalloc(IPOIB_RX_RING_SIZE * sizeof (struct ipoib_buf),
+	priv->rx_ring =	kmalloc(IPOIB_RX_RING_SIZE * sizeof (struct ipoib_rx_buf),
 				GFP_KERNEL);
 	if (!priv->rx_ring) {
 		printk(KERN_WARNING "%s: failed to allocate RX ring (%d entries)\n",
@@ -737,9 +740,9 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 		goto out;
 	}
 	memset(priv->rx_ring, 0,
-	       IPOIB_RX_RING_SIZE * sizeof (struct ipoib_buf));
+	       IPOIB_RX_RING_SIZE * sizeof (struct ipoib_rx_buf));
 
-	priv->tx_ring = kmalloc(IPOIB_TX_RING_SIZE * sizeof (struct ipoib_buf),
+	priv->tx_ring = kmalloc(IPOIB_TX_RING_SIZE * sizeof (struct ipoib_tx_buf),
 				GFP_KERNEL);
 	if (!priv->tx_ring) {
 		printk(KERN_WARNING "%s: failed to allocate TX ring (%d entries)\n",
@@ -747,7 +750,7 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 		goto out_rx_ring_cleanup;
 	}
 	memset(priv->tx_ring, 0,
-	       IPOIB_TX_RING_SIZE * sizeof (struct ipoib_buf));
+	       IPOIB_TX_RING_SIZE * sizeof (struct ipoib_tx_buf));
 
 	/* priv->tx_head & tx_tail are already 0 */
 

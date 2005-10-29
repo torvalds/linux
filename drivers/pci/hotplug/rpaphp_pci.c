@@ -319,20 +319,15 @@ static void rpaphp_eeh_remove_bus_device(struct pci_dev *dev)
 	return;
 }
 
-int rpaphp_unconfig_pci_adapter(struct slot *slot)
+int rpaphp_unconfig_pci_adapter(struct pci_bus *bus)
 {
 	struct pci_dev *dev, *tmp;
-	int retval = 0;
 
-	list_for_each_entry_safe(dev, tmp, slot->pci_devs, bus_list) {
+	list_for_each_entry_safe(dev, tmp, &bus->devices, bus_list) {
 		rpaphp_eeh_remove_bus_device(dev);
 		pci_remove_bus_device(dev);
 	}
-
-	slot->state = NOT_CONFIGURED;
-	info("%s: devices in slot[%s] unconfigured.\n", __FUNCTION__,
-	     slot->name);
-	return retval;
+	return 0;
 }
 
 static int setup_pci_hotplug_slot_info(struct slot *slot)

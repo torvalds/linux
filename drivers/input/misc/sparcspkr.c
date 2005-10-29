@@ -143,7 +143,7 @@ static int __init init_isa_beep(struct sparc_isa_device *isa_dev)
 	sparcspkr_dev->name = "Sparc ISA Speaker";
 	sparcspkr_dev->event = isa_spkr_event;
 
-	input_register_device(&sparcspkr_dev);
+	input_register_device(sparcspkr_dev);
 
 	return 0;
 }

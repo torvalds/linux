@@ -554,7 +554,7 @@ struct sctp_chunk *sctp_make_datafrag_empty(struct sctp_association *asoc,
 	dp.ppid   = sinfo->sinfo_ppid;
 
 	/* Set the flags for an unordered send.  */
-	if (sinfo->sinfo_flags & MSG_UNORDERED) {
+	if (sinfo->sinfo_flags & SCTP_UNORDERED) {
 		flags |= SCTP_DATA_UNORDERED;
 		dp.ssn = 0;
 	} else

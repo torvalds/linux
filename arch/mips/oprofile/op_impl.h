@@ -10,6 +10,11 @@
 #ifndef OP_IMPL_H
 #define OP_IMPL_H 1
 
+struct pt_regs;
+
+extern void null_perf_irq(struct pt_regs *regs);
+extern void (*perf_irq)(struct pt_regs *regs);
+
 /* Per-counter configuration as set via oprofilefs.  */
 struct op_counter_config {
 	unsigned long enabled;

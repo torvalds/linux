@@ -52,7 +52,6 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
 #include <asm/processor.h>
 #include <linux/module.h>
-#include <linux/config.h>
 #include <linux/elfcore.h>
 #include <linux/compat.h>
 
@@ -115,5 +114,8 @@ MODULE_AUTHOR("Ralf Baechle (ralf@linux-mips.org)");
 
 #undef MODULE_DESCRIPTION
 #undef MODULE_AUTHOR
+
+#undef TASK_SIZE
+#define TASK_SIZE TASK_SIZE32
 
 #include "../../../fs/binfmt_elf.c"

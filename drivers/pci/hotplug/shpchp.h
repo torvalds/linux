@@ -32,8 +32,6 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <asm/semaphore.h>
-#include <asm/io.h>		
 #include "pci_hotplug.h"
 
 #if !defined(MODULE)
@@ -52,54 +50,24 @@ extern int shpchp_debug;
 #define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
 
-struct pci_func {
-	struct pci_func *next;
-	u8 bus;
-	u8 device;
-	u8 function;
-	u8 is_a_board;
-	u16 status;
-	u8 configured;
-	u8 switch_save;
-	u8 presence_save;
-	u8 pwr_save;
-	u32 base_length[0x06];
-	u8 base_type[0x06];
-	u16 reserved2;
-	u32 config_space[0x20];
-	struct pci_resource *mem_head;
-	struct pci_resource *p_mem_head;
-	struct pci_resource *io_head;
-	struct pci_resource *bus_head;
-	struct pci_dev* pci_dev;
-};
-
 #define SLOT_MAGIC	0x67267321
 struct slot {
 	u32 magic;
 	struct slot *next;
 	u8 bus;
 	u8 device;
+	u16 status;
 	u32 number;
 	u8 is_a_board;
-	u8 configured;
 	u8 state;
-	u8 switch_save;
 	u8 presence_save;
-	u32 capabilities;
-	u16 reserved2;
+	u8 pwr_save;
 	struct timer_list task_event;
 	u8 hp_slot;
 	struct controller *ctrl;
 	struct hpc_ops *hpc_ops;
 	struct hotplug_slot *hotplug_slot;
 	struct list_head	slot_list;
-};
-
-struct pci_resource {
-	struct pci_resource * next;
-	u32 base;
-	u32 length;
 };
 
 struct event_info {
@@ -110,13 +78,9 @@ struct event_info {
 struct controller {
 	struct controller *next;
 	struct semaphore crit_sect;	/* critical section semaphore */
-	void * hpc_ctlr_handle;		/* HPC controller handle */
+	struct php_ctlr_state_s *hpc_ctlr_handle; /* HPC controller handle */
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */
-	struct pci_resource *mem_head;
-	struct pci_resource *p_mem_head;
-	struct pci_resource *io_head;
-	struct pci_resource *bus_head;
 	struct pci_dev *pci_dev;
 	struct pci_bus *pci_bus;
 	struct event_info event_queue[10];
@@ -124,33 +88,21 @@ struct controller {
 	struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
 	u8 next_event;
-	u8 seg;
 	u8 bus;
 	u8 device;
 	u8 function;
-	u8 rev;
 	u8 slot_device_offset;
 	u8 add_support;
 	enum pci_bus_speed speed;
 	u32 first_slot;		/* First physical slot number */
 	u8 slot_bus;		/* Bus where the slots handled by this controller sit */
-	u8 push_flag;
-	u16 ctlrcap;
-	u16 vendor_id;
 };
 
-struct irq_mapping {
-	u8 barber_pole;
-	u8 valid_INT;
-	u8 interrupt[4];
-};
-
-struct resource_lists {
-	struct pci_resource *mem_head;
-	struct pci_resource *p_mem_head;
-	struct pci_resource *io_head;
-	struct pci_resource *bus_head;
-	struct irq_mapping *irqs;
+struct hotplug_params {
+	u8	cache_line_size;
+	u8	latency_timer;
+	u8	enable_serr;
+	u8	enable_perr;
 };
 
 /* Define AMD SHPC ID  */
@@ -194,24 +146,16 @@ struct resource_lists {
  * error Messages
  */
 #define msg_initialization_err	"Initialization failure, error=%d\n"
-#define msg_HPC_rev_error	"Unsupported revision of the PCI hot plug controller found.\n"
-#define msg_HPC_non_shpc	"The PCI hot plug controller is not supported by this driver.\n"
-#define msg_HPC_not_supported	"This system is not supported by this version of shpcphd mdoule. Upgrade to a newer version of shpchpd\n"
-#define msg_unable_to_save	"Unable to store PCI hot plug add resource information. This system must be rebooted before adding any PCI devices.\n"
 #define msg_button_on		"PCI slot #%d - powering on due to button press.\n"
 #define msg_button_off		"PCI slot #%d - powering off due to button press.\n"
 #define msg_button_cancel	"PCI slot #%d - action canceled due to button press.\n"
-#define msg_button_ignore	"PCI slot #%d - button press ignored.  (action in progress...)\n"
 
 /* sysfs functions for the hotplug controller info */
 extern void shpchp_create_ctrl_files	(struct controller *ctrl);
 
 /* controller functions */
-extern int	shpchprm_find_available_resources(struct controller *ctrl);
 extern int	shpchp_event_start_thread(void);
 extern void	shpchp_event_stop_thread(void);
-extern struct 	pci_func *shpchp_slot_create(unsigned char busnumber);
-extern struct 	pci_func *shpchp_slot_find(unsigned char bus, unsigned char device, unsigned char index);
 extern int	shpchp_enable_slot(struct slot *slot);
 extern int	shpchp_disable_slot(struct slot *slot);
 
@@ -220,29 +164,20 @@ extern u8	shpchp_handle_switch_change(u8 hp_slot, void *inst_id);
 extern u8	shpchp_handle_presence_change(u8 hp_slot, void *inst_id);
 extern u8	shpchp_handle_power_fault(u8 hp_slot, void *inst_id);
 
-/* resource functions */
-extern int	shpchp_resource_sort_and_combine(struct pci_resource **head);
-
 /* pci functions */
-extern int	shpchp_set_irq(u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num);
-/*extern int	shpchp_get_bus_dev(struct controller *ctrl, u8 *bus_num, u8 *dev_num, struct slot *slot);*/
 extern int	shpchp_save_config(struct controller *ctrl, int busnumber, int num_ctlr_slots, int first_device_num);
-extern int	shpchp_save_used_resources(struct controller *ctrl, struct pci_func * func, int flag);
-extern int	shpchp_save_slot_config(struct controller *ctrl, struct pci_func * new_slot);
-extern void	shpchp_destroy_board_resources(struct pci_func * func);
-extern int	shpchp_return_board_resources(struct pci_func * func, struct resource_lists * resources);
-extern void	shpchp_destroy_resource_list(struct resource_lists * resources);
-extern int	shpchp_configure_device(struct controller* ctrl, struct pci_func* func);
-extern int	shpchp_unconfigure_device(struct pci_func* func);
+extern int	shpchp_configure_device(struct slot *p_slot);
+extern int	shpchp_unconfigure_device(struct slot *p_slot);
+extern void	get_hp_hw_control_from_firmware(struct pci_dev *dev);
+extern void	get_hp_params_from_firmware(struct pci_dev *dev,
+		struct hotplug_params *hpp);
+extern int	shpchprm_get_physical_slot_number(struct controller *ctrl,
+		u32 *sun, u8 busnum, u8 devnum);
+extern void	shpchp_remove_ctrl_files(struct controller *ctrl);
 
 
 /* Global variables */
 extern struct controller *shpchp_ctrl_list;
-extern struct pci_func *shpchp_slot_list[256];
-
-/* These are added to support AMD shpc */
-extern u8 shpchp_nic_irq;
-extern u8 shpchp_disk_irq;
 
 struct ctrl_reg {
 	volatile u32 base_offset;
@@ -298,7 +233,7 @@ enum ctrl_offsets {
 	SLOT11 =	offsetof(struct ctrl_reg, slot11),
 	SLOT12 =	offsetof(struct ctrl_reg, slot12),
 };
-typedef u8(*php_intr_callback_t) (unsigned int change_id, void *instance_id);
+typedef u8(*php_intr_callback_t) (u8 hp_slot, void *instance_id);
 struct php_ctlr_state_s {
 	struct php_ctlr_state_s *pnext;
 	struct pci_dev *pci_dev;
@@ -359,12 +294,9 @@ static inline struct slot *shpchp_find_slot (struct controller *ctrl, u8 device)
 
 	p_slot = ctrl->slot;
 
-	dbg("p_slot = %p\n", p_slot);
-
 	while (p_slot && (p_slot->device != device)) {
 		tmp_slot = p_slot;
 		p_slot = p_slot->next;
-		dbg("In while loop, p_slot = %p\n", p_slot);
 	}
 	if (p_slot == NULL) {
 		err("ERROR: shpchp_find_slot device=0x%x\n", device);
@@ -379,8 +311,6 @@ static inline int wait_for_ctrl_irq (struct controller *ctrl)
     DECLARE_WAITQUEUE(wait, current);
 	int retval = 0;
 
-	dbg("%s : start\n",__FUNCTION__);
-
 	add_wait_queue(&ctrl->queue, &wait);
 
 	if (!shpchp_poll_mode) {
@@ -394,17 +324,7 @@ static inline int wait_for_ctrl_irq (struct controller *ctrl)
 	if (signal_pending(current))
 		retval =  -EINTR;
 
-	dbg("%s : end\n", __FUNCTION__);
 	return retval;
-}
-
-/* Puts node back in the resource list pointed to by head */
-static inline void return_resource(struct pci_resource **head, struct pci_resource *node)
-{
-	if (!node || !head)
-		return;
-	node->next = *head;
-	*head = node;
 }
 
 #define SLOT_NAME_SIZE 10
@@ -420,11 +340,7 @@ enum php_ctlr_type {
 	ACPI
 };
 
-int shpc_init( struct controller *ctrl, struct pci_dev *pdev,
-		php_intr_callback_t attention_button_callback,
-		php_intr_callback_t switch_change_callback,
-		php_intr_callback_t presence_change_callback,
-		php_intr_callback_t power_fault_callback);
+int shpc_init( struct controller *ctrl, struct pci_dev *pdev);
 
 int shpc_get_ctlr_slot_config( struct controller *ctrl,
 		int *num_ctlr_slots,
@@ -437,8 +353,6 @@ struct hpc_ops {
 	int	(*power_on_slot )		(struct slot *slot);
 	int	(*slot_enable )			(struct slot *slot);
 	int	(*slot_disable )		(struct slot *slot);
-	int	(*enable_all_slots)		(struct slot *slot);
-	int	(*pwr_on_all_slots)		(struct slot *slot);
 	int	(*set_bus_speed_mode)	(struct slot *slot, enum pci_bus_speed speed);
 	int	(*get_power_status)		(struct slot *slot, u8 *status);
 	int	(*get_attention_status)	(struct slot *slot, u8 *status);

@@ -112,23 +112,13 @@ ohci_pci_start (struct usb_hcd *hcd)
 
 static int ohci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
 {
-	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
+	/* root hub was already suspended */
 
-	/* suspend root hub, hoping it keeps power during suspend */
-	if (time_before (jiffies, ohci->next_statechange))
-		msleep (100);
-
-#ifdef	CONFIG_USB_SUSPEND
-	(void) usb_suspend_device (hcd->self.root_hub, message);
-#else
-	usb_lock_device (hcd->self.root_hub);
-	(void) ohci_hub_suspend (hcd);
-	usb_unlock_device (hcd->self.root_hub);
-#endif
-
-	/* let things settle down a bit */
-	msleep (100);
-	
+	/* FIXME these PMAC things get called in the wrong places.  ASIC
+	 * clocks should be turned off AFTER entering D3, and on BEFORE
+	 * trying to enter D0.  Evidently the PCI layer doesn't currently
+	 * provide the right sort of platform hooks for this ...
+	 */
 #ifdef CONFIG_PPC_PMAC
 	if (_machine == _MACH_Pmac) {
 	   	struct device_node	*of_node;
@@ -145,9 +135,6 @@ static int ohci_pci_suspend (struct usb_hcd *hcd, pm_message_t message)
 
 static int ohci_pci_resume (struct usb_hcd *hcd)
 {
-	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
-	int			retval = 0;
-
 #ifdef CONFIG_PPC_PMAC
 	if (_machine == _MACH_Pmac) {
 		struct device_node *of_node;
@@ -159,19 +146,8 @@ static int ohci_pci_resume (struct usb_hcd *hcd)
 	}
 #endif /* CONFIG_PPC_PMAC */
 
-	/* resume root hub */
-	if (time_before (jiffies, ohci->next_statechange))
-		msleep (100);
-#ifdef	CONFIG_USB_SUSPEND
-	/* get extra cleanup even if remote wakeup isn't in use */
-	retval = usb_resume_device (hcd->self.root_hub);
-#else
-	usb_lock_device (hcd->self.root_hub);
-	retval = ohci_hub_resume (hcd);
-	usb_unlock_device (hcd->self.root_hub);
-#endif
-
-	return retval;
+	usb_hcd_resume_root_hub(hcd);
+	return 0;
 }
 
 #endif	/* CONFIG_PM */
@@ -218,9 +194,9 @@ static const struct hc_driver ohci_pci_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
-#ifdef	CONFIG_USB_SUSPEND
-	.hub_suspend =		ohci_hub_suspend,
-	.hub_resume =		ohci_hub_resume,
+#ifdef	CONFIG_PM
+	.bus_suspend =		ohci_bus_suspend,
+	.bus_resume =		ohci_bus_resume,
 #endif
 	.start_port_reset =	ohci_start_port_reset,
 };
@@ -240,6 +216,7 @@ MODULE_DEVICE_TABLE (pci, pci_ids);
 static struct pci_driver ohci_pci_driver = {
 	.name =		(char *) hcd_name,
 	.id_table =	pci_ids,
+	.owner =	THIS_MODULE,
 
 	.probe =	usb_hcd_pci_probe,
 	.remove =	usb_hcd_pci_remove,

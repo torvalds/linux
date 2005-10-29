@@ -338,8 +338,7 @@ static const struct {
 				[UC]  = (IB_QP_AV                  |
 					 IB_QP_PATH_MTU            |
 					 IB_QP_DEST_QPN            |
-					 IB_QP_RQ_PSN              |
-					 IB_QP_MAX_DEST_RD_ATOMIC),
+					 IB_QP_RQ_PSN),
 				[RC]  = (IB_QP_AV                  |
 					 IB_QP_PATH_MTU            |
 					 IB_QP_DEST_QPN            |
@@ -368,8 +367,7 @@ static const struct {
 			.trans = MTHCA_TRANS_RTR2RTS,
 			.req_param = {
 				[UD]  = IB_QP_SQ_PSN,
-				[UC]  = (IB_QP_SQ_PSN            |
-					 IB_QP_MAX_QP_RD_ATOMIC),
+				[UC]  = IB_QP_SQ_PSN,
 				[RC]  = (IB_QP_TIMEOUT           |
 					 IB_QP_RETRY_CNT         |
 					 IB_QP_RNR_RETRY         |
@@ -446,8 +444,6 @@ static const struct {
 				[UD]  = (IB_QP_PKEY_INDEX            |
 					 IB_QP_QKEY),
 				[UC]  = (IB_QP_AV                    |
-					 IB_QP_MAX_QP_RD_ATOMIC      |
-					 IB_QP_MAX_DEST_RD_ATOMIC    |
 					 IB_QP_CUR_STATE             |
 					 IB_QP_ALT_PATH              |
 					 IB_QP_ACCESS_FLAGS          |
@@ -478,7 +474,7 @@ static const struct {
 			.opt_param = {
 				[UD]  = (IB_QP_CUR_STATE             |
 					 IB_QP_QKEY),
-				[UC]  = (IB_QP_CUR_STATE),
+				[UC]  = IB_QP_CUR_STATE,
 				[RC]  = (IB_QP_CUR_STATE             |
 					 IB_QP_MIN_RNR_TIMER),
 				[MLX] = (IB_QP_CUR_STATE             |
@@ -1112,8 +1108,10 @@ static int mthca_set_qp_size(struct mthca_dev *dev, struct ib_qp_cap *cap,
 			     struct mthca_qp *qp)
 {
 	/* Sanity check QP size before proceeding */
-	if (cap->max_send_wr  > 65536 || cap->max_recv_wr  > 65536 ||
-	    cap->max_send_sge > 64    || cap->max_recv_sge > 64)
+	if (cap->max_send_wr  > dev->limits.max_wqes ||
+	    cap->max_recv_wr  > dev->limits.max_wqes ||
+	    cap->max_send_sge > dev->limits.max_sg   ||
+	    cap->max_recv_sge > dev->limits.max_sg)
 		return -EINVAL;
 
 	if (mthca_is_memfree(dev)) {

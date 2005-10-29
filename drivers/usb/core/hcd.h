@@ -154,10 +154,6 @@ struct usb_operations {
 
 	void (*disable)(struct usb_device *udev,
 			struct usb_host_endpoint *ep);
-
-	/* global suspend/resume of bus */
-	int (*hub_suspend)(struct usb_bus *);
-	int (*hub_resume)(struct usb_bus *);
 };
 
 /* each driver provides one of these, and hardware init support */
@@ -182,12 +178,12 @@ struct hc_driver {
 	int	(*start) (struct usb_hcd *hcd);
 
 	/* NOTE:  these suspend/resume calls relate to the HC as
-	 * a whole, not just the root hub; they're for bus glue.
+	 * a whole, not just the root hub; they're for PCI bus glue.
 	 */
-	/* called after all devices were suspended */
+	/* called after suspending the hub, before entering D3 etc */
 	int	(*suspend) (struct usb_hcd *hcd, pm_message_t message);
 
-	/* called before any devices get resumed */
+	/* called after entering D0 (etc), before resuming the hub */
 	int	(*resume) (struct usb_hcd *hcd);
 
 	/* cleanly make HCD stop writing memory and doing I/O */
@@ -212,8 +208,8 @@ struct hc_driver {
 	int		(*hub_control) (struct usb_hcd *hcd,
 				u16 typeReq, u16 wValue, u16 wIndex,
 				char *buf, u16 wLength);
-	int		(*hub_suspend)(struct usb_hcd *);
-	int		(*hub_resume)(struct usb_hcd *);
+	int		(*bus_suspend)(struct usb_hcd *);
+	int		(*bus_resume)(struct usb_hcd *);
 	int		(*start_port_reset)(struct usb_hcd *, unsigned port_num);
 	void		(*hub_irq_enable)(struct usb_hcd *);
 		/* Needed only if port-change IRQs are level-triggered */
@@ -355,8 +351,6 @@ extern long usb_calc_bus_time (int speed, int is_input,
 
 extern struct usb_bus *usb_alloc_bus (struct usb_operations *);
 
-extern void usb_hcd_resume_root_hub (struct usb_hcd *hcd);
-
 extern void usb_set_device_state(struct usb_device *udev,
 		enum usb_device_state new_state);
 
@@ -378,6 +372,33 @@ extern int usb_find_interface_driver (struct usb_device *dev,
 
 #define usb_endpoint_out(ep_dir)	(!((ep_dir) & USB_DIR_IN))
 
+#ifdef CONFIG_PM
+extern void usb_hcd_suspend_root_hub (struct usb_hcd *hcd);
+extern void usb_hcd_resume_root_hub (struct usb_hcd *hcd);
+extern int hcd_bus_suspend (struct usb_bus *bus);
+extern int hcd_bus_resume (struct usb_bus *bus);
+#else
+static inline void usb_hcd_suspend_root_hub(struct usb_hcd *hcd)
+{
+	return;
+}
+
+static inline void usb_hcd_resume_root_hub(struct usb_hcd *hcd)
+{
+	return;
+}
+
+static inline int hcd_bus_suspend(struct usb_bus *bus)
+{
+	return 0;
+}
+
+static inline int hcd_bus_resume (struct usb_bus *bus)
+{
+	return 0;
+}
+#endif /* CONFIG_PM */
+
 /*
  * USB device fs stuff
  */
@@ -388,23 +409,13 @@ extern int usb_find_interface_driver (struct usb_device *dev,
  * these are expected to be called from the USB core/hub thread
  * with the kernel lock held
  */
-extern void usbfs_add_bus(struct usb_bus *bus);
-extern void usbfs_remove_bus(struct usb_bus *bus);
-extern void usbfs_add_device(struct usb_device *dev);
-extern void usbfs_remove_device(struct usb_device *dev);
 extern void usbfs_update_special (void);
-
 extern int usbfs_init(void);
 extern void usbfs_cleanup(void);
 
 #else /* CONFIG_USB_DEVICEFS */
 
-static inline void usbfs_add_bus(struct usb_bus *bus) {}
-static inline void usbfs_remove_bus(struct usb_bus *bus) {}
-static inline void usbfs_add_device(struct usb_device *dev) {}
-static inline void usbfs_remove_device(struct usb_device *dev) {}
 static inline void usbfs_update_special (void) {}
-
 static inline int usbfs_init(void) { return 0; }
 static inline void usbfs_cleanup(void) { }
 
@@ -419,8 +430,6 @@ struct usb_mon_operations {
 	void (*urb_submit_error)(struct usb_bus *bus, struct urb *urb, int err);
 	void (*urb_complete)(struct usb_bus *bus, struct urb *urb);
 	/* void (*urb_unlink)(struct usb_bus *bus, struct urb *urb); */
-	void (*bus_add)(struct usb_bus *bus);
-	void (*bus_remove)(struct usb_bus *bus);
 };
 
 extern struct usb_mon_operations *mon_ops;
@@ -443,18 +452,6 @@ static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb)
 	if (bus->monitored)
 		(*mon_ops->urb_complete)(bus, urb);
 }
- 
-static inline void usbmon_notify_bus_add(struct usb_bus *bus)
-{
-	if (mon_ops)
-		(*mon_ops->bus_add)(bus);
-}
-
-static inline void usbmon_notify_bus_remove(struct usb_bus *bus)
-{
-	if (mon_ops)
-		(*mon_ops->bus_remove)(bus);
-}
 
 int usb_mon_register(struct usb_mon_operations *ops);
 void usb_mon_deregister(void);
@@ -465,8 +462,6 @@ static inline void usbmon_urb_submit(struct usb_bus *bus, struct urb *urb) {}
 static inline void usbmon_urb_submit_error(struct usb_bus *bus, struct urb *urb,
     int error) {}
 static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb) {}
-static inline void usbmon_notify_bus_add(struct usb_bus *bus) {}
-static inline void usbmon_notify_bus_remove(struct usb_bus *bus) {}
 
 #endif /* CONFIG_USB_MON */
 
