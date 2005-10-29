@@ -50,6 +50,7 @@ struct machine_desc {
  */
 #define MACHINE_START(_type,_name)			\
 static const struct machine_desc __mach_desc_##_type	\
+ __attribute_used__					\
  __attribute__((__section__(".arch.info.init"))) = {	\
 	.nr		= MACH_TYPE_##_type,		\
 	.name		= _name,

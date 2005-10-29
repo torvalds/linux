@@ -37,9 +37,9 @@
  * Physical DRAM offset.
  */
 #if defined(CONFIG_ARCH_OMAP1)
-#define PHYS_OFFSET		(0x10000000UL)
+#define PHYS_OFFSET		UL(0x10000000)
 #elif defined(CONFIG_ARCH_OMAP2)
-#define PHYS_OFFSET		(0x80000000UL)
+#define PHYS_OFFSET		UL(0x80000000)
 #endif
 
 /*
@@ -66,7 +66,7 @@
 /*
  * OMAP-1510 Local Bus address offset
  */
-#define OMAP1510_LB_OFFSET	(0x30000000UL)
+#define OMAP1510_LB_OFFSET	UL(0x30000000)
 
 #define virt_to_lbus(x)		((x) - PAGE_OFFSET + OMAP1510_LB_OFFSET)
 #define lbus_to_virt(x)		((x) - OMAP1510_LB_OFFSET + PAGE_OFFSET)
