@@ -1152,24 +1152,33 @@ lpfc_slave_alloc(struct scsi_device *sdev)
 	/*
 	 * Populate the cmds_per_lun count scsi_bufs into this host's globally
 	 * available list of scsi buffers.  Don't allocate more than the
-	 * HBA limit conveyed to the midlayer via the host structure.  Note
-	 * that this list of scsi bufs exists for the lifetime of the driver.
+	 * HBA limit conveyed to the midlayer via the host structure.  The
+	 * formula accounts for the lun_queue_depth + error handlers + 1
+	 * extra.  This list of scsi bufs exists for the lifetime of the driver.
 	 */
 	total = phba->total_scsi_bufs;
-	num_to_alloc = LPFC_CMD_PER_LUN;
+	num_to_alloc = phba->cfg_lun_queue_depth + 2;
 	if (total >= phba->cfg_hba_queue_depth) {
-		printk(KERN_WARNING "%s, At config limitation of "
-		       "%d allocated scsi_bufs\n", __FUNCTION__, total);
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP,
+				"%d:0704 At limitation of %d preallocated "
+				"command buffers\n", phba->brd_no, total);
 		return 0;
 	} else if (total + num_to_alloc > phba->cfg_hba_queue_depth) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_FCP,
+				"%d:0705 Allocation request of %d command "
+				"buffers will exceed max of %d.  Reducing "
+				"allocation request to %d.\n", phba->brd_no,
+				num_to_alloc, phba->cfg_hba_queue_depth,
+				(phba->cfg_hba_queue_depth - total));
 		num_to_alloc = phba->cfg_hba_queue_depth - total;
 	}
 
 	for (i = 0; i < num_to_alloc; i++) {
 		scsi_buf = lpfc_get_scsi_buf(phba);
 		if (!scsi_buf) {
-			printk(KERN_ERR "%s, failed to allocate "
-			       "scsi_buf\n", __FUNCTION__);
+			lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+					"%d:0706 Failed to allocate command "
+					"buffer\n", phba->brd_no);
 			break;
 		}
 
