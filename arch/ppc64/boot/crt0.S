@@ -25,24 +25,5 @@ _start:
 	sync
 	isync
 
-	## Clear out the BSS as per ANSI C requirements
-
-	lis	r7,_end@ha
-	addi    r7,r7,_end@l		# r7 = &_end 
-	lis	r8,__bss_start@ha	# 
-	addi    r8,r8,__bss_start@l	# r8 = &_bss_start
-
-	## Determine how large an area, in number of words, to clear
-
-	subf	r7,r8,r7		# r7 = &_end - &_bss_start + 1 
-	addi	r7,r7,3			# r7 += 3 
-	srwi.	r7,r7,2			# r7 = size in words.
-	beq	3f			# If the size is zero, don't bother
-	addi	r8,r8,-4		# r8 -= 4 
-	mtctr	r7			# SPRN_CTR = number of words to clear
-	li	r0,0			# r0 = 0
-2:	stwu	r0,4(r8)		# Clear out a word
-	bdnz	2b			# Keep clearing until done
-3:
 	b	start
 

@@ -26,6 +26,7 @@ extern void flush_cache(void *, unsigned long);
 #define	ONE_MB		0x100000
 
 extern char _start[];
+extern char __bss_start[];
 extern char _end[];
 extern char _vmlinux_start[];
 extern char _vmlinux_end[];
@@ -137,6 +138,8 @@ void start(unsigned long a1, unsigned long a2, void *promptr)
 	kernel_entry_t kernel_entry;
 	Elf64_Ehdr *elf64;
 	Elf64_Phdr *elf64ph;
+
+	memset(__bss_start, 0, _end - __bss_start);
 
 	prom = (int (*)(void *)) promptr;
 	chosen_handle = finddevice("/chosen");
