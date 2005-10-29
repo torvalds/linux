@@ -890,10 +890,7 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 
 	pmb->context1 = NULL;
 
-	if (ndlp->nlp_rpi != 0)
-		lpfc_findnode_remove_rpi(phba, ndlp->nlp_rpi);
 	ndlp->nlp_rpi = mb->un.varWords[0];
-	lpfc_addnode_rpi(phba, ndlp, ndlp->nlp_rpi);
 	ndlp->nlp_type |= NLP_FABRIC;
 	ndlp->nlp_state = NLP_STE_UNMAPPED_NODE;
 	lpfc_nlp_list(phba, ndlp, NLP_UNMAPPED_LIST);
@@ -981,10 +978,7 @@ lpfc_mbx_cmpl_ns_reg_login(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 
 	pmb->context1 = NULL;
 
-	if (ndlp->nlp_rpi != 0)
-		lpfc_findnode_remove_rpi(phba, ndlp->nlp_rpi);
 	ndlp->nlp_rpi = mb->un.varWords[0];
-	lpfc_addnode_rpi(phba, ndlp, ndlp->nlp_rpi);
 	ndlp->nlp_type |= NLP_FABRIC;
 	ndlp->nlp_state = NLP_STE_UNMAPPED_NODE;
 	lpfc_nlp_list(phba, ndlp, NLP_UNMAPPED_LIST);
@@ -1488,7 +1482,6 @@ lpfc_unreg_rpi(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp)
 			if (rc == MBX_NOT_FINISHED)
 				mempool_free( mbox, phba->mbox_mem_pool);
 		}
-		lpfc_findnode_remove_rpi(phba, ndlp->nlp_rpi);
 		lpfc_no_rpi(phba, ndlp);
 		ndlp->nlp_rpi = 0;
 		return 1;
@@ -2434,10 +2427,7 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 
 	pmb->context1 = NULL;
 
-	if (ndlp->nlp_rpi != 0)
-		lpfc_findnode_remove_rpi(phba, ndlp->nlp_rpi);
 	ndlp->nlp_rpi = mb->un.varWords[0];
-	lpfc_addnode_rpi(phba, ndlp, ndlp->nlp_rpi);
 	ndlp->nlp_type |= NLP_FABRIC;
 	ndlp->nlp_state = NLP_STE_UNMAPPED_NODE;
 	lpfc_nlp_list(phba, ndlp, NLP_UNMAPPED_LIST);
@@ -2463,75 +2453,28 @@ lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 }
 
 /*
- * This routine looks up the ndlp hash
- * table for the given RPI. If rpi found
+ * This routine looks up the ndlp  lists
+ * for the given RPI. If rpi found
  * it return the node list pointer
- * else return 0.
+ * else return NULL.
  */
 struct lpfc_nodelist *
 lpfc_findnode_rpi(struct lpfc_hba * phba, uint16_t rpi)
 {
-	struct lpfc_nodelist *ret;
+	struct lpfc_nodelist *ndlp;
+	struct list_head * lists[]={&phba->fc_nlpunmap_list,
+				    &phba->fc_nlpmap_list,
+				    &phba->fc_plogi_list,
+				    &phba->fc_adisc_list,
+				    &phba->fc_reglogin_list};
+	int i;
 
-	ret = phba->fc_nlplookup[LPFC_RPI_HASH_FUNC(rpi)];
-	while ((ret != 0) && (ret->nlp_rpi != rpi)) {
-		ret = ret->nlp_rpi_hash_next;
-	}
-	return ret;
-}
+	for (i = 0; i < ARRAY_SIZE(lists); i++ )
+		list_for_each_entry(ndlp, lists[i], nlp_listp)
+			if (ndlp->nlp_rpi == rpi)
+				return (ndlp);
 
-/*
- * This routine looks up the ndlp hash table for the
- * given RPI. If rpi found it return the node list
- * pointer else return 0 after deleting the entry
- * from hash table.
- */
-struct lpfc_nodelist *
-lpfc_findnode_remove_rpi(struct lpfc_hba * phba, uint16_t rpi)
-{
-	struct lpfc_nodelist *ret, *temp;;
-
-	ret = phba->fc_nlplookup[LPFC_RPI_HASH_FUNC(rpi)];
-	if (ret == 0)
-		return NULL;
-
-	if (ret->nlp_rpi == rpi) {
-		phba->fc_nlplookup[LPFC_RPI_HASH_FUNC(rpi)] =
-		    ret->nlp_rpi_hash_next;
-		ret->nlp_rpi_hash_next = NULL;
-		return ret;
-	}
-
-	while ((ret->nlp_rpi_hash_next != 0) &&
-	       (ret->nlp_rpi_hash_next->nlp_rpi != rpi)) {
-		ret = ret->nlp_rpi_hash_next;
-	}
-
-	if (ret->nlp_rpi_hash_next != 0) {
-		temp = ret->nlp_rpi_hash_next;
-		ret->nlp_rpi_hash_next = temp->nlp_rpi_hash_next;
-		temp->nlp_rpi_hash_next = NULL;
-		return temp;
-	} else {
-		return NULL;
-	}
-}
-
-/*
- * This routine adds the node list entry to the
- * ndlp hash table.
- */
-void
-lpfc_addnode_rpi(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp,
-		 uint16_t rpi)
-{
-
-	uint32_t index;
-
-	index = LPFC_RPI_HASH_FUNC(rpi);
-	ndlp->nlp_rpi_hash_next = phba->fc_nlplookup[index];
-	phba->fc_nlplookup[index] = ndlp;
-	return;
+	return NULL;
 }
 
 void

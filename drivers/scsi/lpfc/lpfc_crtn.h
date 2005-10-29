@@ -62,10 +62,6 @@ void lpfc_disc_timeout(unsigned long);
 void lpfc_scan_timeout(unsigned long);
 
 struct lpfc_nodelist *lpfc_findnode_rpi(struct lpfc_hba * phba, uint16_t rpi);
-struct lpfc_nodelist *lpfc_findnode_remove_rpi(struct lpfc_hba * phba,
-					       uint16_t rpi);
-void lpfc_addnode_rpi(struct lpfc_hba * phba, struct lpfc_nodelist * ndlp,
-		      uint16_t rpi);
 
 int lpfc_workq_post_event(struct lpfc_hba *, void *, void *, uint32_t);
 int lpfc_do_work(void *);
