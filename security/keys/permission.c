@@ -10,6 +10,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/security.h>
 #include "internal.h"
 
 /*****************************************************************************/
@@ -63,7 +64,11 @@ use_these_perms:
 
 	kperm = kperm & perm & KEY_ALL;
 
-	return kperm == perm;
+	if (kperm != perm)
+		return -EACCES;
+
+	/* let LSM be the final arbiter */
+	return security_key_permission(key_ref, context, perm);
 
 } /* end key_task_permission() */
 

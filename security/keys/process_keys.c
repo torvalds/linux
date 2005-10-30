@@ -39,7 +39,7 @@ struct key root_user_keyring = {
 	.type		= &key_type_keyring,
 	.user		= &root_key_user,
 	.sem		= __RWSEM_INITIALIZER(root_user_keyring.sem),
-	.perm		= KEY_POS_ALL | KEY_USR_ALL,
+	.perm		= (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_ALL,
 	.flags		= 1 << KEY_FLAG_INSTANTIATED,
 	.description	= "_uid.0",
 #ifdef KEY_DEBUGGING
@@ -54,7 +54,7 @@ struct key root_session_keyring = {
 	.type		= &key_type_keyring,
 	.user		= &root_key_user,
 	.sem		= __RWSEM_INITIALIZER(root_session_keyring.sem),
-	.perm		= KEY_POS_ALL | KEY_USR_ALL,
+	.perm		= (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_ALL,
 	.flags		= 1 << KEY_FLAG_INSTANTIATED,
 	.description	= "_uid_ses.0",
 #ifdef KEY_DEBUGGING
@@ -666,9 +666,8 @@ key_ref_t lookup_user_key(struct task_struct *context, key_serial_t id,
 		goto invalid_key;
 
 	/* check the permissions */
-	ret = -EACCES;
-
-	if (!key_task_permission(key_ref, context, perm))
+	ret = key_task_permission(key_ref, context, perm);
+	if (ret < 0)
 		goto invalid_key;
 
 error:

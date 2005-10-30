@@ -30,6 +30,7 @@
 #include <linux/shm.h>
 #include <linux/msg.h>
 #include <linux/sched.h>
+#include <linux/key.h>
 
 struct ctl_table;
 
@@ -788,6 +789,27 @@ struct swap_info_struct;
  * @sk_free_security:
  *	Deallocate security structure.
  *
+ * Security hooks affecting all Key Management operations
+ *
+ * @key_alloc:
+ *	Permit allocation of a key and assign security data. Note that key does
+ *	not have a serial number assigned at this point.
+ *	@key points to the key.
+ *	Return 0 if permission is granted, -ve error otherwise.
+ * @key_free:
+ *	Notification of destruction; free security data.
+ *	@key points to the key.
+ *	No return value.
+ * @key_permission:
+ *	See whether a specific operational right is granted to a process on a
+ *      key.
+ *	@key_ref refers to the key (key pointer + possession attribute bit).
+ *	@context points to the process to provide the context against which to
+ *       evaluate the security data on the key.
+ *	@perm describes the combination of permissions required of this key.
+ *	Return 1 if permission granted, 0 if permission denied and -ve it the
+ *      normal permissions model should be effected.
+ *
  * Security hooks affecting all System V IPC operations.
  *
  * @ipc_permission:
@@ -1216,6 +1238,17 @@ struct security_operations {
 	int (*sk_alloc_security) (struct sock *sk, int family, gfp_t priority);
 	void (*sk_free_security) (struct sock *sk);
 #endif	/* CONFIG_SECURITY_NETWORK */
+
+	/* key management security hooks */
+#ifdef CONFIG_KEYS
+	int (*key_alloc)(struct key *key);
+	void (*key_free)(struct key *key);
+	int (*key_permission)(key_ref_t key_ref,
+			      struct task_struct *context,
+			      key_perm_t perm);
+
+#endif	/* CONFIG_KEYS */
+
 };
 
 /* global variables */
@@ -2763,6 +2796,46 @@ static inline void security_sk_free(struct sock *sk)
 {
 }
 #endif	/* CONFIG_SECURITY_NETWORK */
+
+#ifdef CONFIG_KEYS
+#ifdef CONFIG_SECURITY
+static inline int security_key_alloc(struct key *key)
+{
+	return security_ops->key_alloc(key);
+}
+
+static inline void security_key_free(struct key *key)
+{
+	security_ops->key_free(key);
+}
+
+static inline int security_key_permission(key_ref_t key_ref,
+					  struct task_struct *context,
+					  key_perm_t perm)
+{
+	return security_ops->key_permission(key_ref, context, perm);
+}
+
+#else
+
+static inline int security_key_alloc(struct key *key)
+{
+	return 0;
+}
+
+static inline void security_key_free(struct key *key)
+{
+}
+
+static inline int security_key_permission(key_ref_t key_ref,
+					  struct task_struct *context,
+					  key_perm_t perm)
+{
+	return 0;
+}
+
+#endif
+#endif /* CONFIG_KEYS */
 
 #endif /* ! __LINUX_SECURITY_H */
 
