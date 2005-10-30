@@ -174,7 +174,7 @@ config FRAME_POINTER
 	default y if DEBUG_INFO && UML
 	help
 	  If you say Y here the resulting kernel image will be slightly larger
-	  and slower, but it might give very useful debugging information
-	  on some architectures or you use external debuggers.
+	  and slower, but it might give very useful debugging information on
+	  some architectures or if you use external debuggers.
 	  If you don't debug the kernel, you can say N.
 
