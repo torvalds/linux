@@ -1609,7 +1609,7 @@ static inline void flush_unauthorized_files(struct files_struct * files)
 
 	if (tty) {
 		file_list_lock();
-		file = list_entry(tty->tty_files.next, typeof(*file), f_list);
+		file = list_entry(tty->tty_files.next, typeof(*file), f_u.fu_list);
 		if (file) {
 			/* Revalidate access to controlling tty.
 			   Use inode_has_perm on the tty inode directly rather

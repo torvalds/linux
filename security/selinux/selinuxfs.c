@@ -914,7 +914,7 @@ static void sel_remove_bools(struct dentry *de)
 
 	file_list_lock();
 	list_for_each(p, &sb->s_files) {
-		struct file * filp = list_entry(p, struct file, f_list);
+		struct file * filp = list_entry(p, struct file, f_u.fu_list);
 		struct dentry * dentry = filp->f_dentry;
 
 		if (dentry->d_parent != de) {
