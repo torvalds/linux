@@ -807,86 +807,82 @@ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
 
 /*
  * Do a quick page-table lookup for a single page.
- * mm->page_table_lock must be held.
  */
-struct page *follow_page(struct mm_struct *mm, unsigned long address, int write)
+struct page *follow_page(struct mm_struct *mm, unsigned long address,
+			unsigned int flags)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *ptep, pte;
+	spinlock_t *ptl;
 	unsigned long pfn;
 	struct page *page;
 
-	page = follow_huge_addr(mm, address, write);
-	if (! IS_ERR(page))
-		return page;
+	page = follow_huge_addr(mm, address, flags & FOLL_WRITE);
+	if (!IS_ERR(page)) {
+		BUG_ON(flags & FOLL_GET);
+		goto out;
+	}
 
+	page = NULL;
 	pgd = pgd_offset(mm, address);
 	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
-		goto out;
+		goto no_page_table;
 
 	pud = pud_offset(pgd, address);
 	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
-		goto out;
+		goto no_page_table;
 	
 	pmd = pmd_offset(pud, address);
 	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
-		goto out;
-	if (pmd_huge(*pmd))
-		return follow_huge_pmd(mm, address, pmd, write);
+		goto no_page_table;
 
-	ptep = pte_offset_map(pmd, address);
+	if (pmd_huge(*pmd)) {
+		BUG_ON(flags & FOLL_GET);
+		page = follow_huge_pmd(mm, address, pmd, flags & FOLL_WRITE);
+		goto out;
+	}
+
+	ptep = pte_offset_map_lock(mm, pmd, address, &ptl);
 	if (!ptep)
 		goto out;
 
 	pte = *ptep;
-	pte_unmap(ptep);
-	if (pte_present(pte)) {
-		if (write && !pte_write(pte))
-			goto out;
-		pfn = pte_pfn(pte);
-		if (pfn_valid(pfn)) {
-			page = pfn_to_page(pfn);
-			if (write && !pte_dirty(pte) &&!PageDirty(page))
-				set_page_dirty(page);
-			mark_page_accessed(page);
-			return page;
-		}
+	if (!pte_present(pte))
+		goto unlock;
+	if ((flags & FOLL_WRITE) && !pte_write(pte))
+		goto unlock;
+	pfn = pte_pfn(pte);
+	if (!pfn_valid(pfn))
+		goto unlock;
+
+	page = pfn_to_page(pfn);
+	if (flags & FOLL_GET)
+		get_page(page);
+	if (flags & FOLL_TOUCH) {
+		if ((flags & FOLL_WRITE) &&
+		    !pte_dirty(pte) && !PageDirty(page))
+			set_page_dirty(page);
+		mark_page_accessed(page);
 	}
-
+unlock:
+	pte_unmap_unlock(ptep, ptl);
 out:
-	return NULL;
-}
+	return page;
 
-static inline int
-untouched_anonymous_page(struct mm_struct* mm, struct vm_area_struct *vma,
-			 unsigned long address)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-
-	/* Check if the vma is for an anonymous mapping. */
-	if (vma->vm_ops && vma->vm_ops->nopage)
-		return 0;
-
-	/* Check if page directory entry exists. */
-	pgd = pgd_offset(mm, address);
-	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
-		return 1;
-
-	pud = pud_offset(pgd, address);
-	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
-		return 1;
-
-	/* Check if page middle directory entry exists. */
-	pmd = pmd_offset(pud, address);
-	if (pmd_none(*pmd) || unlikely(pmd_bad(*pmd)))
-		return 1;
-
-	/* There is a pte slot for 'address' in 'mm'. */
-	return 0;
+no_page_table:
+	/*
+	 * When core dumping an enormous anonymous area that nobody
+	 * has touched so far, we don't want to allocate page tables.
+	 */
+	if (flags & FOLL_ANON) {
+		page = ZERO_PAGE(address);
+		if (flags & FOLL_GET)
+			get_page(page);
+		BUG_ON(flags & FOLL_WRITE);
+	}
+	return page;
 }
 
 int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
@@ -894,18 +890,19 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		struct page **pages, struct vm_area_struct **vmas)
 {
 	int i;
-	unsigned int flags;
+	unsigned int vm_flags;
 
 	/* 
 	 * Require read or write permissions.
 	 * If 'force' is set, we only require the "MAY" flags.
 	 */
-	flags = write ? (VM_WRITE | VM_MAYWRITE) : (VM_READ | VM_MAYREAD);
-	flags &= force ? (VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
+	vm_flags  = write ? (VM_WRITE | VM_MAYWRITE) : (VM_READ | VM_MAYREAD);
+	vm_flags &= force ? (VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
 	i = 0;
 
 	do {
-		struct vm_area_struct *	vma;
+		struct vm_area_struct *vma;
+		unsigned int foll_flags;
 
 		vma = find_extend_vma(mm, start);
 		if (!vma && in_gate_area(tsk, start)) {
@@ -946,7 +943,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		}
 
 		if (!vma || (vma->vm_flags & (VM_IO | VM_RESERVED))
-				|| !(flags & vma->vm_flags))
+				|| !(vm_flags & vma->vm_flags))
 			return i ? : -EFAULT;
 
 		if (is_vm_hugetlb_page(vma)) {
@@ -954,29 +951,25 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 						&start, &len, i);
 			continue;
 		}
-		spin_lock(&mm->page_table_lock);
+
+		foll_flags = FOLL_TOUCH;
+		if (pages)
+			foll_flags |= FOLL_GET;
+		if (!write && !(vma->vm_flags & VM_LOCKED) &&
+		    (!vma->vm_ops || !vma->vm_ops->nopage))
+			foll_flags |= FOLL_ANON;
+
 		do {
-			int write_access = write;
 			struct page *page;
 
-			cond_resched_lock(&mm->page_table_lock);
-			while (!(page = follow_page(mm, start, write_access))) {
+			if (write)
+				foll_flags |= FOLL_WRITE;
+
+			cond_resched();
+			while (!(page = follow_page(mm, start, foll_flags))) {
 				int ret;
-
-				/*
-				 * Shortcut for anonymous pages. We don't want
-				 * to force the creation of pages tables for
-				 * insanely big anonymously mapped areas that
-				 * nobody touched so far. This is important
-				 * for doing a core dump for these mappings.
-				 */
-				if (!write && untouched_anonymous_page(mm,vma,start)) {
-					page = ZERO_PAGE(start);
-					break;
-				}
-				spin_unlock(&mm->page_table_lock);
-				ret = __handle_mm_fault(mm, vma, start, write_access);
-
+				ret = __handle_mm_fault(mm, vma, start,
+						foll_flags & FOLL_WRITE);
 				/*
 				 * The VM_FAULT_WRITE bit tells us that do_wp_page has
 				 * broken COW when necessary, even if maybe_mkwrite
@@ -984,7 +977,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 				 * subsequent page lookups as if they were reads.
 				 */
 				if (ret & VM_FAULT_WRITE)
-					write_access = 0;
+					foll_flags &= ~FOLL_WRITE;
 				
 				switch (ret & ~VM_FAULT_WRITE) {
 				case VM_FAULT_MINOR:
@@ -1000,12 +993,10 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 				default:
 					BUG();
 				}
-				spin_lock(&mm->page_table_lock);
 			}
 			if (pages) {
 				pages[i] = page;
 				flush_dcache_page(page);
-				page_cache_get(page);
 			}
 			if (vmas)
 				vmas[i] = vma;
@@ -1013,7 +1004,6 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			start += PAGE_SIZE;
 			len--;
 		} while (len && start < vma->vm_end);
-		spin_unlock(&mm->page_table_lock);
 	} while (len);
 	return i;
 }

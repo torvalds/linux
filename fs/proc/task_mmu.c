@@ -419,7 +419,6 @@ static struct numa_maps *get_numa_maps(const struct vm_area_struct *vma)
 	for_each_node(i)
 		md->node[i] =0;
 
-	spin_lock(&mm->page_table_lock);
  	for (vaddr = vma->vm_start; vaddr < vma->vm_end; vaddr += PAGE_SIZE) {
 		page = follow_page(mm, vaddr, 0);
 		if (page) {
@@ -434,8 +433,8 @@ static struct numa_maps *get_numa_maps(const struct vm_area_struct *vma)
 				md->anon++;
 			md->node[page_to_nid(page)]++;
 		}
+		cond_resched();
 	}
-	spin_unlock(&mm->page_table_lock);
 	return md;
 }
 

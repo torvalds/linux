@@ -1049,7 +1049,8 @@ struct vm_area_struct *find_vma(struct mm_struct *mm, unsigned long addr)
 
 EXPORT_SYMBOL(find_vma);
 
-struct page * follow_page(struct mm_struct *mm, unsigned long addr, int write)
+struct page *follow_page(struct mm_struct *mm, unsigned long address,
+			unsigned int foll_flags)
 {
 	return NULL;
 }

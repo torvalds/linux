@@ -938,14 +938,18 @@ static inline unsigned long vma_pages(struct vm_area_struct *vma)
 	return (vma->vm_end - vma->vm_start) >> PAGE_SHIFT;
 }
 
-extern struct vm_area_struct *find_extend_vma(struct mm_struct *mm, unsigned long addr);
+struct vm_area_struct *find_extend_vma(struct mm_struct *, unsigned long addr);
+struct page *vmalloc_to_page(void *addr);
+unsigned long vmalloc_to_pfn(void *addr);
+int remap_pfn_range(struct vm_area_struct *, unsigned long addr,
+			unsigned long pfn, unsigned long size, pgprot_t);
 
-extern struct page * vmalloc_to_page(void *addr);
-extern unsigned long vmalloc_to_pfn(void *addr);
-extern struct page * follow_page(struct mm_struct *mm, unsigned long address,
-		int write);
-int remap_pfn_range(struct vm_area_struct *, unsigned long,
-		unsigned long, unsigned long, pgprot_t);
+struct page *follow_page(struct mm_struct *, unsigned long address,
+			unsigned int foll_flags);
+#define FOLL_WRITE	0x01	/* check pte is writable */
+#define FOLL_TOUCH	0x02	/* mark page accessed */
+#define FOLL_GET	0x04	/* do get_page on page */
+#define FOLL_ANON	0x08	/* give ZERO_PAGE if no pgtable */
 
 #ifdef CONFIG_PROC_FS
 void vm_stat_account(struct mm_struct *, unsigned long, struct file *, long);
