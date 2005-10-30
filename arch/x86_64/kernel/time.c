@@ -481,9 +481,9 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static unsigned int cyc2ns_scale;
 #define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
 
-static inline void set_cyc2ns_scale(unsigned long cpu_mhz)
+static inline void set_cyc2ns_scale(unsigned long cpu_khz)
 {
-	cyc2ns_scale = (1000 << CYC2NS_SCALE_FACTOR)/cpu_mhz;
+	cyc2ns_scale = (1000000 << CYC2NS_SCALE_FACTOR)/cpu_khz;
 }
 
 static inline unsigned long long cycles_2_ns(unsigned long long cyc)
@@ -655,7 +655,7 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 			vxtime.tsc_quot = (1000L << 32) / cpu_khz;
 	}
 	
-	set_cyc2ns_scale(cpu_khz_ref / 1000);
+	set_cyc2ns_scale(cpu_khz_ref);
 
 	return 0;
 }
@@ -939,7 +939,7 @@ void __init time_init(void)
 	rdtscll_sync(&vxtime.last_tsc);
 	setup_irq(0, &irq0);
 
-	set_cyc2ns_scale(cpu_khz / 1000);
+	set_cyc2ns_scale(cpu_khz);
 
 #ifndef CONFIG_SMP
 	time_init_gtod();
