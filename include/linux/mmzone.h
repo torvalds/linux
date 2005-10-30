@@ -273,6 +273,16 @@ typedef struct pglist_data {
 	struct page *node_mem_map;
 #endif
 	struct bootmem_data *bdata;
+#ifdef CONFIG_MEMORY_HOTPLUG
+	/*
+	 * Must be held any time you expect node_start_pfn, node_present_pages
+	 * or node_spanned_pages stay constant.  Holding this will also
+	 * guarantee that any pfn_valid() stays that way.
+	 *
+	 * Nests above zone->lock and zone->size_seqlock.
+	 */
+	spinlock_t node_size_lock;
+#endif
 	unsigned long node_start_pfn;
 	unsigned long node_present_pages; /* total number of physical pages */
 	unsigned long node_spanned_pages; /* total size of physical page
@@ -292,6 +302,8 @@ typedef struct pglist_data {
 #define pgdat_page_nr(pgdat, pagenr)	pfn_to_page((pgdat)->node_start_pfn + (pagenr))
 #endif
 #define nid_page_nr(nid, pagenr) 	pgdat_page_nr(NODE_DATA(nid),(pagenr))
+
+#include <linux/memory_hotplug.h>
 
 extern struct pglist_data *pgdat_list;
 

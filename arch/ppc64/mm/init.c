@@ -104,6 +104,8 @@ void show_mem(void)
 	show_free_areas();
 	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	for_each_pgdat(pgdat) {
+		unsigned long flags;
+		pgdat_resize_lock(pgdat, &flags);
 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
 			page = pgdat_page_nr(pgdat, i);
 			total++;
@@ -114,6 +116,7 @@ void show_mem(void)
 			else if (page_count(page))
 				shared += page_count(page) - 1;
 		}
+		pgdat_resize_unlock(pgdat, &flags);
 	}
 	printk("%ld pages of RAM\n", total);
 	printk("%ld reserved pages\n", reserved);
@@ -647,11 +650,14 @@ void __init mem_init(void)
 #endif
 
 	for_each_pgdat(pgdat) {
+		unsigned long flags;
+		pgdat_resize_lock(pgdat, &flags);
 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
 			page = pgdat_page_nr(pgdat, i);
 			if (PageReserved(page))
 				reservedpages++;
 		}
+		pgdat_resize_unlock(pgdat, &flags);
 	}
 
 	codesize = (unsigned long)&_etext - (unsigned long)&_stext;
