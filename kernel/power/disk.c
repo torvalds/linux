@@ -92,10 +92,7 @@ static void free_some_memory(void)
 	printk("Freeing memory...  ");
 	while ((tmp = shrink_all_memory(10000))) {
 		pages += tmp;
-		printk("\b%c", p[i]);
-		i++;
-		if (i > 3)
-			i = 0;
+		printk("\b%c", p[i++ % 4]);
 	}
 	printk("\bdone (%li pages freed)\n", pages);
 }
@@ -177,13 +174,12 @@ int pm_suspend_disk(void)
 		goto Done;
 
 	if (in_suspend) {
+		device_resume();
 		pr_debug("PM: writing image.\n");
 		error = swsusp_write();
 		if (!error)
 			power_down(pm_disk_mode);
 		else {
-		/* swsusp_write can not fail in device_resume,
-		   no need to do second device_resume */
 			swsusp_free();
 			unprepare_processes();
 			return error;

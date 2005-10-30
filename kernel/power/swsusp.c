@@ -562,7 +562,7 @@ int enough_swap(unsigned nr_pages)
 int swsusp_write(void)
 {
 	int error;
-	device_resume();
+
 	lock_swapdevices();
 	error = write_suspend_image();
 	/* This will unlock ignored swap devices since writing is finished */
