@@ -3,9 +3,44 @@
 
 #ifdef __KERNEL__
 
+#include <linux/config.h>
 #include <linux/futex.h>
 #include <asm/errno.h>
 #include <asm/uaccess.h>
+
+#ifdef CONFIG_SMP
+#define __FUTEX_SMP_SYNC "	sync					\n"
+#else
+#define __FUTEX_SMP_SYNC
+#endif
+
+#define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)		\
+{									\
+	__asm__ __volatile__(						\
+	"	.set	push					\n"	\
+	"	.set	noat					\n"	\
+	"	.set	mips3					\n"	\
+	"1:	ll	%1, (%3)	# __futex_atomic_op1	\n"	\
+	"	.set	mips0					\n"	\
+	"	" insn	"					\n"	\
+	"	.set	mips3					\n"	\
+	"2:	sc	$1, (%3)				\n"	\
+	"	beqzl	$1, 1b					\n"	\
+	__FUTEX_SMP_SYNC						\
+	"3:							\n"	\
+	"	.set	pop					\n"	\
+	"	.set	mips0					\n"	\
+	"	.section .fixup,\"ax\"				\n"	\
+	"4:	li	%0, %5					\n"	\
+	"	j	2b					\n"	\
+	"	.previous					\n"	\
+	"	.section __ex_table,\"a\"			\n"	\
+	"	"__UA_ADDR "\t1b, 4b				\n"	\
+	"	"__UA_ADDR "\t2b, 4b				\n"	\
+	"	.previous					\n"	\
+	: "=r" (ret), "=r" (oldval)					\
+	: "0" (0), "r" (uaddr), "Jr" (oparg), "i" (-EFAULT));		\
+}
 
 static inline int
 futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
@@ -25,10 +60,25 @@ futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 
 	switch (op) {
 	case FUTEX_OP_SET:
+		__futex_atomic_op("move	$1, %z4", ret, oldval, uaddr, oparg);
+		break;
+
 	case FUTEX_OP_ADD:
+		__futex_atomic_op("addu	$1, %1, %z4",
+		                  ret, oldval, uaddr, oparg);
+		break;
 	case FUTEX_OP_OR:
+		__futex_atomic_op("or	$1, %1, %z4",
+		                  ret, oldval, uaddr, oparg);
+		break;
 	case FUTEX_OP_ANDN:
+		__futex_atomic_op("and	$1, %1, %z4",
+		                  ret, oldval, uaddr, ~oparg);
+		break;
 	case FUTEX_OP_XOR:
+		__futex_atomic_op("xor	$1, %1, %z4",
+		                  ret, oldval, uaddr, oparg);
+		break;
 	default:
 		ret = -ENOSYS;
 	}

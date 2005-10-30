@@ -1192,46 +1192,6 @@ int xfrm_bundle_ok(struct xfrm_dst *first, struct flowi *fl, int family)
 
 EXPORT_SYMBOL(xfrm_bundle_ok);
 
-/* Well... that's _TASK_. We need to scan through transformation
- * list and figure out what mss tcp should generate in order to
- * final datagram fit to mtu. Mama mia... :-)
- *
- * Apparently, some easy way exists, but we used to choose the most
- * bizarre ones. :-) So, raising Kalashnikov... tra-ta-ta.
- *
- * Consider this function as something like dark humour. :-)
- */
-static int xfrm_get_mss(struct dst_entry *dst, u32 mtu)
-{
-	int res = mtu - dst->header_len;
-
-	for (;;) {
-		struct dst_entry *d = dst;
-		int m = res;
-
-		do {
-			struct xfrm_state *x = d->xfrm;
-			if (x) {
-				spin_lock_bh(&x->lock);
-				if (x->km.state == XFRM_STATE_VALID &&
-				    x->type && x->type->get_max_size)
-					m = x->type->get_max_size(d->xfrm, m);
-				else
-					m += x->props.header_len;
-				spin_unlock_bh(&x->lock);
-			}
-		} while ((d = d->child) != NULL);
-
-		if (m <= mtu)
-			break;
-		res -= (m - mtu);
-		if (res < 88)
-			return mtu;
-	}
-
-	return res + dst->header_len;
-}
-
 int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 {
 	int err = 0;
@@ -1252,8 +1212,6 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 			dst_ops->negative_advice = xfrm_negative_advice;
 		if (likely(dst_ops->link_failure == NULL))
 			dst_ops->link_failure = xfrm_link_failure;
-		if (likely(dst_ops->get_mss == NULL))
-			dst_ops->get_mss = xfrm_get_mss;
 		if (likely(afinfo->garbage_collect == NULL))
 			afinfo->garbage_collect = __xfrm_garbage_collect;
 		xfrm_policy_afinfo[afinfo->family] = afinfo;
@@ -1281,7 +1239,6 @@ int xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo)
 			dst_ops->check = NULL;
 			dst_ops->negative_advice = NULL;
 			dst_ops->link_failure = NULL;
-			dst_ops->get_mss = NULL;
 			afinfo->garbage_collect = NULL;
 		}
 	}

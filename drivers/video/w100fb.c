@@ -438,36 +438,34 @@ static void w100fb_restore_vidmem(struct w100fb_par *par)
 	}
 }
 
-static int w100fb_suspend(struct device *dev, pm_message_t state, uint32_t level)
+static int w100fb_suspend(struct device *dev, pm_message_t state)
 {
-	if (level == SUSPEND_POWER_DOWN) {
-		struct fb_info *info = dev_get_drvdata(dev);
-		struct w100fb_par *par=info->par;
-		struct w100_tg_info *tg = par->mach->tg;
+	struct fb_info *info = dev_get_drvdata(dev);
+	struct w100fb_par *par=info->par;
+	struct w100_tg_info *tg = par->mach->tg;
 
-		w100fb_save_vidmem(par);
-		if(tg && tg->suspend)
-			tg->suspend(par);
-		w100_suspend(W100_SUSPEND_ALL);
-		par->blanked = 1;
-	}
+	w100fb_save_vidmem(par);
+	if(tg && tg->suspend)
+		tg->suspend(par);
+	w100_suspend(W100_SUSPEND_ALL);
+	par->blanked = 1;
+
 	return 0;
 }
 
-static int w100fb_resume(struct device *dev, uint32_t level)
+static int w100fb_resume(struct device *dev)
 {
-	if (level == RESUME_POWER_ON) {
-		struct fb_info *info = dev_get_drvdata(dev);
-		struct w100fb_par *par=info->par;
-		struct w100_tg_info *tg = par->mach->tg;
+	struct fb_info *info = dev_get_drvdata(dev);
+	struct w100fb_par *par=info->par;
+	struct w100_tg_info *tg = par->mach->tg;
 
-		w100_hw_init(par);
-		w100fb_activate_var(par);
-		w100fb_restore_vidmem(par);
-		if(tg && tg->resume)
-			tg->resume(par);
-		par->blanked = 0;
-	}
+	w100_hw_init(par);
+	w100fb_activate_var(par);
+	w100fb_restore_vidmem(par);
+	if(tg && tg->resume)
+		tg->resume(par);
+	par->blanked = 0;
+
 	return 0;
 }
 #else

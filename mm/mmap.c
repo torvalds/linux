@@ -181,26 +181,36 @@ static void __remove_shared_vm_struct(struct vm_area_struct *vma,
 }
 
 /*
- * Remove one vm structure and free it.
+ * Unlink a file-based vm structure from its prio_tree, to hide
+ * vma from rmap and vmtruncate before freeing its page tables.
  */
-static void remove_vm_struct(struct vm_area_struct *vma)
+void unlink_file_vma(struct vm_area_struct *vma)
 {
 	struct file *file = vma->vm_file;
 
-	might_sleep();
 	if (file) {
 		struct address_space *mapping = file->f_mapping;
 		spin_lock(&mapping->i_mmap_lock);
 		__remove_shared_vm_struct(vma, file, mapping);
 		spin_unlock(&mapping->i_mmap_lock);
 	}
+}
+
+/*
+ * Close a vm structure and free it, returning the next.
+ */
+static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
+{
+	struct vm_area_struct *next = vma->vm_next;
+
+	might_sleep();
 	if (vma->vm_ops && vma->vm_ops->close)
 		vma->vm_ops->close(vma);
-	if (file)
-		fput(file);
-	anon_vma_unlink(vma);
+	if (vma->vm_file)
+		fput(vma->vm_file);
 	mpol_free(vma_policy(vma));
 	kmem_cache_free(vm_area_cachep, vma);
+	return next;
 }
 
 asmlinkage unsigned long sys_brk(unsigned long brk)
@@ -832,7 +842,7 @@ none:
 }
 
 #ifdef CONFIG_PROC_FS
-void __vm_stat_account(struct mm_struct *mm, unsigned long flags,
+void vm_stat_account(struct mm_struct *mm, unsigned long flags,
 						struct file *file, long pages)
 {
 	const unsigned long stack_flags
@@ -1070,6 +1080,17 @@ munmap_back:
 		error = file->f_op->mmap(file, vma);
 		if (error)
 			goto unmap_and_free_vma;
+		if ((vma->vm_flags & (VM_SHARED | VM_WRITE | VM_RESERVED))
+						== (VM_WRITE | VM_RESERVED)) {
+			printk(KERN_WARNING "program %s is using MAP_PRIVATE, "
+				"PROT_WRITE mmap of VM_RESERVED memory, which "
+				"is deprecated. Please report this to "
+				"linux-kernel@vger.kernel.org\n",current->comm);
+			if (vma->vm_ops && vma->vm_ops->close)
+				vma->vm_ops->close(vma);
+			error = -EACCES;
+			goto unmap_and_free_vma;
+		}
 	} else if (vm_flags & VM_SHARED) {
 		error = shmem_zero_setup(vma);
 		if (error)
@@ -1110,7 +1131,7 @@ munmap_back:
 	}
 out:	
 	mm->total_vm += len >> PAGE_SHIFT;
-	__vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
+	vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
 	if (vm_flags & VM_LOCKED) {
 		mm->locked_vm += len >> PAGE_SHIFT;
 		make_pages_present(addr, addr + len);
@@ -1475,15 +1496,19 @@ static int acct_stack_growth(struct vm_area_struct * vma, unsigned long size, un
 	mm->total_vm += grow;
 	if (vma->vm_flags & VM_LOCKED)
 		mm->locked_vm += grow;
-	__vm_stat_account(mm, vma->vm_flags, vma->vm_file, grow);
+	vm_stat_account(mm, vma->vm_flags, vma->vm_file, grow);
 	return 0;
 }
 
-#ifdef CONFIG_STACK_GROWSUP
+#if defined(CONFIG_STACK_GROWSUP) || defined(CONFIG_IA64)
 /*
- * vma is the first one with address > vma->vm_end.  Have to extend vma.
+ * PA-RISC uses this for its stack; IA64 for its Register Backing Store.
+ * vma is the last one with address > vma->vm_end.  Have to extend vma.
  */
-int expand_stack(struct vm_area_struct * vma, unsigned long address)
+#ifdef CONFIG_STACK_GROWSUP
+static inline
+#endif
+int expand_upwards(struct vm_area_struct *vma, unsigned long address)
 {
 	int error;
 
@@ -1520,6 +1545,13 @@ int expand_stack(struct vm_area_struct * vma, unsigned long address)
 	}
 	anon_vma_unlock(vma);
 	return error;
+}
+#endif /* CONFIG_STACK_GROWSUP || CONFIG_IA64 */
+
+#ifdef CONFIG_STACK_GROWSUP
+int expand_stack(struct vm_area_struct *vma, unsigned long address)
+{
+	return expand_upwards(vma, address);
 }
 
 struct vm_area_struct *
@@ -1603,36 +1635,24 @@ find_extend_vma(struct mm_struct * mm, unsigned long addr)
 }
 #endif
 
-/* Normal function to fix up a mapping
- * This function is the default for when an area has no specific
- * function.  This may be used as part of a more specific routine.
- *
- * By the time this function is called, the area struct has been
- * removed from the process mapping list.
- */
-static void unmap_vma(struct mm_struct *mm, struct vm_area_struct *area)
-{
-	size_t len = area->vm_end - area->vm_start;
-
-	area->vm_mm->total_vm -= len >> PAGE_SHIFT;
-	if (area->vm_flags & VM_LOCKED)
-		area->vm_mm->locked_vm -= len >> PAGE_SHIFT;
-	vm_stat_unaccount(area);
-	remove_vm_struct(area);
-}
-
 /*
- * Update the VMA and inode share lists.
- *
- * Ok - we have the memory areas we should free on the 'free' list,
+ * Ok - we have the memory areas we should free on the vma list,
  * so release them, and do the vma updates.
+ *
+ * Called with the mm semaphore held.
  */
-static void unmap_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
+static void remove_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
 {
+	/* Update high watermark before we lower total_vm */
+	update_hiwater_vm(mm);
 	do {
-		struct vm_area_struct *next = vma->vm_next;
-		unmap_vma(mm, vma);
-		vma = next;
+		long nrpages = vma_pages(vma);
+
+		mm->total_vm -= nrpages;
+		if (vma->vm_flags & VM_LOCKED)
+			mm->locked_vm -= nrpages;
+		vm_stat_account(mm, vma->vm_flags, vma->vm_file, -nrpages);
+		vma = remove_vma(vma);
 	} while (vma);
 	validate_mm(mm);
 }
@@ -1651,14 +1671,13 @@ static void unmap_region(struct mm_struct *mm,
 	unsigned long nr_accounted = 0;
 
 	lru_add_drain();
-	spin_lock(&mm->page_table_lock);
 	tlb = tlb_gather_mmu(mm, 0);
-	unmap_vmas(&tlb, mm, vma, start, end, &nr_accounted, NULL);
+	update_hiwater_rss(mm);
+	unmap_vmas(&tlb, vma, start, end, &nr_accounted, NULL);
 	vm_unacct_memory(nr_accounted);
 	free_pgtables(&tlb, vma, prev? prev->vm_end: FIRST_USER_ADDRESS,
 				 next? next->vm_start: 0);
 	tlb_finish_mmu(tlb, start, end);
-	spin_unlock(&mm->page_table_lock);
 }
 
 /*
@@ -1799,7 +1818,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 	unmap_region(mm, vma, prev, start, end);
 
 	/* Fix up all other VM information */
-	unmap_vma_list(mm, vma);
+	remove_vma_list(mm, vma);
 
 	return 0;
 }
@@ -1933,34 +1952,21 @@ void exit_mmap(struct mm_struct *mm)
 	unsigned long end;
 
 	lru_add_drain();
-
-	spin_lock(&mm->page_table_lock);
-
 	flush_cache_mm(mm);
 	tlb = tlb_gather_mmu(mm, 1);
+	/* Don't update_hiwater_rss(mm) here, do_exit already did */
 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
-	end = unmap_vmas(&tlb, mm, vma, 0, -1, &nr_accounted, NULL);
+	end = unmap_vmas(&tlb, vma, 0, -1, &nr_accounted, NULL);
 	vm_unacct_memory(nr_accounted);
 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, 0);
 	tlb_finish_mmu(tlb, 0, end);
 
-	mm->mmap = mm->mmap_cache = NULL;
-	mm->mm_rb = RB_ROOT;
-	set_mm_counter(mm, rss, 0);
-	mm->total_vm = 0;
-	mm->locked_vm = 0;
-
-	spin_unlock(&mm->page_table_lock);
-
 	/*
-	 * Walk the list again, actually closing and freeing it
-	 * without holding any MM locks.
+	 * Walk the list again, actually closing and freeing it,
+	 * with preemption enabled, without holding any MM locks.
 	 */
-	while (vma) {
-		struct vm_area_struct *next = vma->vm_next;
-		remove_vm_struct(vma);
-		vma = next;
-	}
+	while (vma)
+		vma = remove_vma(vma);
 
 	BUG_ON(mm->nr_ptes > (FIRST_USER_ADDRESS+PMD_SIZE-1)>>PMD_SHIFT);
 }

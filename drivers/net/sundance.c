@@ -80,7 +80,7 @@
 	  I/O access could affect performance in ARM-based system
 	- Add Linux software VLAN support
 	
-	Version LK1.08 (D-Link):
+	Version LK1.08 (Philippe De Muyter phdm@macqel.be):
 	- Fix bug of custom mac address 
 	(StationAddr register only accept word write) 
 
@@ -91,11 +91,14 @@
 	Version LK1.09a (ICPlus):
 	- Add the delay time in reading the contents of EEPROM
 
+	Version LK1.10 (Philippe De Muyter phdm@macqel.be):
+	- Make 'unblock interface after Tx underrun' work
+
 */
 
 #define DRV_NAME	"sundance"
-#define DRV_VERSION	"1.01+LK1.09a"
-#define DRV_RELDATE	"10-Jul-2003"
+#define DRV_VERSION	"1.01+LK1.10"
+#define DRV_RELDATE	"28-Oct-2005"
 
 
 /* The user-configurable values.
@@ -263,8 +266,10 @@ IV. Notes
 IVb. References
 
 The Sundance ST201 datasheet, preliminary version.
-http://cesdis.gsfc.nasa.gov/linux/misc/100mbps.html
-http://cesdis.gsfc.nasa.gov/linux/misc/NWay.html
+The Kendin KS8723 datasheet, preliminary version.
+The ICplus IP100 datasheet, preliminary version.
+http://www.scyld.com/expert/100mbps.html
+http://www.scyld.com/expert/NWay.html
 
 IVc. Errata
 
@@ -500,6 +505,25 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int  netdev_close(struct net_device *dev);
 static struct ethtool_ops ethtool_ops;
 
+static void sundance_reset(struct net_device *dev, unsigned long reset_cmd)
+{
+	struct netdev_private *np = netdev_priv(dev);
+	void __iomem *ioaddr = np->base + ASICCtrl;
+	int countdown;
+
+	/* ST201 documentation states ASICCtrl is a 32bit register */
+	iowrite32 (reset_cmd | ioread32 (ioaddr), ioaddr);
+	/* ST201 documentation states reset can take up to 1 ms */
+	countdown = 10 + 1;
+	while (ioread32 (ioaddr) & (ResetBusy << 16)) {
+		if (--countdown == 0) {
+			printk(KERN_WARNING "%s : reset not completed !!\n", dev->name);
+			break;
+		}
+		udelay(100);
+	}
+}
+
 static int __devinit sundance_probe1 (struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
@@ -518,6 +542,7 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 #else
 	int bar = 1;
 #endif
+	int phy, phy_idx = 0;
 
 
 /* when built into the kernel, we only print version if device is found */
@@ -549,6 +574,7 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 	for (i = 0; i < 3; i++)
 		((u16 *)dev->dev_addr)[i] =
 			le16_to_cpu(eeprom_read(ioaddr, i + EEPROM_SA_OFFSET));
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	dev->base_addr = (unsigned long)ioaddr;
 	dev->irq = irq;
@@ -605,32 +631,30 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 			printk("%2.2x:", dev->dev_addr[i]);
 	printk("%2.2x, IRQ %d.\n", dev->dev_addr[i], irq);
 
-	if (1) {
-		int phy, phy_idx = 0;
-		np->phys[0] = 1;		/* Default setting */
-		np->mii_preamble_required++;
-		for (phy = 1; phy < 32 && phy_idx < MII_CNT; phy++) {
-			int mii_status = mdio_read(dev, phy, MII_BMSR);
-			if (mii_status != 0xffff  &&  mii_status != 0x0000) {
-				np->phys[phy_idx++] = phy;
-				np->mii_if.advertising = mdio_read(dev, phy, MII_ADVERTISE);
-				if ((mii_status & 0x0040) == 0)
-					np->mii_preamble_required++;
-				printk(KERN_INFO "%s: MII PHY found at address %d, status "
-					   "0x%4.4x advertising %4.4x.\n",
-					   dev->name, phy, mii_status, np->mii_if.advertising);
-			}
+	np->phys[0] = 1;		/* Default setting */
+	np->mii_preamble_required++;
+	for (phy = 1; phy <= 32 && phy_idx < MII_CNT; phy++) {
+		int mii_status = mdio_read(dev, phy, MII_BMSR);
+		int phyx = phy & 0x1f;
+		if (mii_status != 0xffff  &&  mii_status != 0x0000) {
+			np->phys[phy_idx++] = phyx;
+			np->mii_if.advertising = mdio_read(dev, phyx, MII_ADVERTISE);
+			if ((mii_status & 0x0040) == 0)
+				np->mii_preamble_required++;
+			printk(KERN_INFO "%s: MII PHY found at address %d, status "
+				   "0x%4.4x advertising %4.4x.\n",
+				   dev->name, phyx, mii_status, np->mii_if.advertising);
 		}
-		np->mii_preamble_required--;
-
-		if (phy_idx == 0) {
-			printk(KERN_INFO "%s: No MII transceiver found, aborting.  ASIC status %x\n",
-				   dev->name, ioread32(ioaddr + ASICCtrl));
-			goto err_out_unregister;
-		}
-
-		np->mii_if.phy_id = np->phys[0];
 	}
+	np->mii_preamble_required--;
+
+	if (phy_idx == 0) {
+		printk(KERN_INFO "%s: No MII transceiver found, aborting.  ASIC status %x\n",
+			   dev->name, ioread32(ioaddr + ASICCtrl));
+		goto err_out_unregister;
+	}
+
+	np->mii_if.phy_id = np->phys[0];
 
 	/* Parse override configuration */
 	np->an_enable = 1;
@@ -692,7 +716,7 @@ static int __devinit sundance_probe1 (struct pci_dev *pdev,
 	/* Reset the chip to erase previous misconfiguration. */
 	if (netif_msg_hw(np))
 		printk("ASIC Control is %x.\n", ioread32(ioaddr + ASICCtrl));
-	iowrite16(0x007f, ioaddr + ASICCtrl + 2);
+	iowrite16(0x00ff, ioaddr + ASICCtrl + 2);
 	if (netif_msg_hw(np))
 		printk("ASIC Control is now %x.\n", ioread32(ioaddr + ASICCtrl));
 
@@ -1190,23 +1214,33 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 					    ("%s: Transmit status is %2.2x.\n",
 				     	dev->name, tx_status);
 				if (tx_status & 0x1e) {
+					if (netif_msg_tx_err(np))
+						printk("%s: Transmit error status %4.4x.\n",
+							   dev->name, tx_status);
 					np->stats.tx_errors++;
 					if (tx_status & 0x10)
 						np->stats.tx_fifo_errors++;
 					if (tx_status & 0x08)
 						np->stats.collisions++;
+					if (tx_status & 0x04)
+						np->stats.tx_fifo_errors++;
 					if (tx_status & 0x02)
 						np->stats.tx_window_errors++;
-					/* This reset has not been verified!. */
-					if (tx_status & 0x10) {	/* Reset the Tx. */
-						np->stats.tx_fifo_errors++;
-						spin_lock(&np->lock);
-						reset_tx(dev);
-						spin_unlock(&np->lock);
+					/*
+					** This reset has been verified on
+					** DFE-580TX boards ! phdm@macqel.be.
+					*/
+					if (tx_status & 0x10) {	/* TxUnderrun */
+						unsigned short txthreshold;
+
+						txthreshold = ioread16 (ioaddr + TxStartThresh);
+						/* Restart Tx FIFO and transmitter */
+						sundance_reset(dev, (NetworkReset|FIFOReset|TxReset) << 16);
+						iowrite16 (txthreshold, ioaddr + TxStartThresh);
+						/* No need to reset the Tx pointer here */
 					}
-					if (tx_status & 0x1e)	/* Restart the Tx. */
-						iowrite16 (TxEnable,
-							ioaddr + MACCtrl1);
+					/* Restart the Tx. */
+					iowrite16 (TxEnable, ioaddr + MACCtrl1);
 				}
 				/* Yup, this is a documentation bug.  It cost me *hours*. */
 				iowrite16 (0, ioaddr + TxStatus);
@@ -1619,6 +1653,7 @@ static struct ethtool_ops ethtool_ops = {
 	.get_link = get_link,
 	.get_msglevel = get_msglevel,
 	.set_msglevel = set_msglevel,
+	.get_perm_addr = ethtool_op_get_perm_addr,
 };
 
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)

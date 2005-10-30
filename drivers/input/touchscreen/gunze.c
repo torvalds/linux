@@ -48,14 +48,12 @@ MODULE_LICENSE("GPL");
 
 #define	GUNZE_MAX_LENGTH	10
 
-static char *gunze_name = "Gunze AHL-51S TouchScreen";
-
 /*
  * Per-touchscreen data.
  */
 
 struct gunze {
-	struct input_dev dev;
+	struct input_dev *dev;
 	struct serio *serio;
 	int idx;
 	unsigned char data[GUNZE_MAX_LENGTH];
@@ -64,7 +62,7 @@ struct gunze {
 
 static void gunze_process_packet(struct gunze* gunze, struct pt_regs *regs)
 {
-	struct input_dev *dev = &gunze->dev;
+	struct input_dev *dev = gunze->dev;
 
 	if (gunze->idx != GUNZE_MAX_LENGTH || gunze->data[5] != ',' ||
 		(gunze->data[0] != 'T' && gunze->data[0] != 'R')) {
@@ -100,11 +98,13 @@ static irqreturn_t gunze_interrupt(struct serio *serio,
 
 static void gunze_disconnect(struct serio *serio)
 {
-	struct gunze* gunze = serio_get_drvdata(serio);
+	struct gunze *gunze = serio_get_drvdata(serio);
 
-	input_unregister_device(&gunze->dev);
+	input_get_device(gunze->dev);
+	input_unregister_device(gunze->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
+	input_put_device(gunze->dev);
 	kfree(gunze);
 }
 
@@ -117,45 +117,45 @@ static void gunze_disconnect(struct serio *serio)
 static int gunze_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct gunze *gunze;
+	struct input_dev *input_dev;
 	int err;
 
-	if (!(gunze = kmalloc(sizeof(struct gunze), GFP_KERNEL)))
-		return -ENOMEM;
-
-	memset(gunze, 0, sizeof(struct gunze));
-
-	init_input_dev(&gunze->dev);
-	gunze->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	gunze->dev.keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
-	input_set_abs_params(&gunze->dev, ABS_X, 24, 1000, 0, 0);
-	input_set_abs_params(&gunze->dev, ABS_Y, 24, 1000, 0, 0);
+	gunze = kzalloc(sizeof(struct gunze), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!gunze || !input_dev) {
+		err = -ENOMEM;
+		goto fail;
+	}
 
 	gunze->serio = serio;
-
+	gunze->dev = input_dev;
 	sprintf(gunze->phys, "%s/input0", serio->phys);
 
-	gunze->dev.private = gunze;
-	gunze->dev.name = gunze_name;
-	gunze->dev.phys = gunze->phys;
-	gunze->dev.id.bustype = BUS_RS232;
-	gunze->dev.id.vendor = SERIO_GUNZE;
-	gunze->dev.id.product = 0x0051;
-	gunze->dev.id.version = 0x0100;
+	input_dev->private = gunze;
+	input_dev->name = "Gunze AHL-51S TouchScreen";
+	input_dev->phys = gunze->phys;
+	input_dev->id.bustype = BUS_RS232;
+	input_dev->id.vendor = SERIO_GUNZE;
+	input_dev->id.product = 0x0051;
+	input_dev->id.version = 0x0100;
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
+	input_set_abs_params(input_dev, ABS_X, 24, 1000, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, 24, 1000, 0, 0);
 
 	serio_set_drvdata(serio, gunze);
 
 	err = serio_open(serio, drv);
-	if (err) {
-		serio_set_drvdata(serio, NULL);
-		kfree(gunze);
-		return err;
-	}
+	if (err)
+		goto fail;
 
-	input_register_device(&gunze->dev);
-
-	printk(KERN_INFO "input: %s on %s\n", gunze_name, serio->phys);
-
+	input_register_device(gunze->dev);
 	return 0;
+
+ fail:	serio_set_drvdata(serio, NULL);
+	input_free_device(input_dev);
+	kfree(gunze);
+	return err;
 }
 
 /*

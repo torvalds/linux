@@ -262,7 +262,7 @@ static void superblock_free_security(struct super_block *sb)
 }
 
 #ifdef CONFIG_SECURITY_NETWORK
-static int sk_alloc_security(struct sock *sk, int family, int priority)
+static int sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 {
 	struct sk_security_struct *ssec;
 
@@ -3380,7 +3380,7 @@ out:
 	return err;
 }
 
-static int selinux_sk_alloc_security(struct sock *sk, int family, int priority)
+static int selinux_sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 {
 	return sk_alloc_security(sk, family, priority);
 }

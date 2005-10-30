@@ -1,13 +1,14 @@
 /*
- * ibm_emac_core.c
+ * drivers/net/ibm_emac/ibm_emac_core.c
  *
- * Ethernet driver for the built in ethernet on the IBM 4xx PowerPC
- * processors.
- * 
- * (c) 2003 Benjamin Herrenschmidt <benh@kernel.crashing.org>
+ * Driver for PowerPC 4xx on-chip ethernet controller.
+ *
+ * Copyright (c) 2004, 2005 Zultys Technologies.
+ * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  *
  * Based on original work by
- *
+ * 	Matt Porter <mporter@kernel.crashing.org>
+ *	(c) 2003 Benjamin Herrenschmidt <benh@kernel.crashing.org>
  *      Armin Kuster <akuster@mvista.com>
  * 	Johnnie Peters <jpeters@mvista.com>
  *
@@ -15,29 +16,24 @@
  * under  the terms of  the GNU General  Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
- * TODO
- *       - Check for races in the "remove" code path
- *       - Add some Power Management to the MAC and the PHY
- *       - Audit remaining of non-rewritten code (--BenH)
- *       - Cleanup message display using msglevel mecanism
- *       - Address all errata
- *       - Audit all register update paths to ensure they
- *         are being written post soft reset if required.
+ *
  */
+
+#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/string.h>
-#include <linux/timer.h>
-#include <linux/ptrace.h>
 #include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/types.h>
-#include <linux/dma-mapping.h>
+#include <linux/pci.h>
+#include <linux/netdevice.h>
+#include <linux/etherdevice.h>
+#include <linux/skbuff.h>
+#include <linux/crc32.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/bitops.h>
@@ -45,1691 +41,1893 @@
 #include <asm/processor.h>
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <asm/ocp.h>
 
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/skbuff.h>
-#include <linux/crc32.h>
-
 #include "ibm_emac_core.h"
-
-//#define MDIO_DEBUG(fmt) printk fmt
-#define MDIO_DEBUG(fmt)
-
-//#define LINK_DEBUG(fmt) printk fmt
-#define LINK_DEBUG(fmt)
-
-//#define PKT_DEBUG(fmt) printk fmt
-#define PKT_DEBUG(fmt)
-
-#define DRV_NAME        "emac"
-#define DRV_VERSION     "2.0"
-#define DRV_AUTHOR      "Benjamin Herrenschmidt <benh@kernel.crashing.org>"
-#define DRV_DESC        "IBM EMAC Ethernet driver"
+#include "ibm_emac_debug.h"
 
 /*
- * When mdio_idx >= 0, contains a list of emac ocp_devs
- * that have had their initialization deferred until the
- * common MDIO controller has been initialized.
+ * Lack of dma_unmap_???? calls is intentional.
+ *
+ * API-correct usage requires additional support state information to be 
+ * maintained for every RX and TX buffer descriptor (BD). Unfortunately, due to
+ * EMAC design (e.g. TX buffer passed from network stack can be split into
+ * several BDs, dma_map_single/dma_map_page can be used to map particular BD),
+ * maintaining such information will add additional overhead.
+ * Current DMA API implementation for 4xx processors only ensures cache coherency
+ * and dma_unmap_???? routines are empty and are likely to stay this way.
+ * I decided to omit dma_unmap_??? calls because I don't want to add additional
+ * complexity just for the sake of following some abstract API, when it doesn't
+ * add any real benefit to the driver. I understand that this decision maybe 
+ * controversial, but I really tried to make code API-correct and efficient 
+ * at the same time and didn't come up with code I liked :(.                --ebs
  */
-LIST_HEAD(emac_init_list);
 
-MODULE_AUTHOR(DRV_AUTHOR);
+#define DRV_NAME        "emac"
+#define DRV_VERSION     "3.53"
+#define DRV_DESC        "PPC 4xx OCP EMAC driver"
+
 MODULE_DESCRIPTION(DRV_DESC);
+MODULE_AUTHOR
+    ("Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>");
 MODULE_LICENSE("GPL");
 
-static int skb_res = SKB_RES;
-module_param(skb_res, int, 0444);
-MODULE_PARM_DESC(skb_res, "Amount of data to reserve on skb buffs\n"
-		 "The 405 handles a misaligned IP header fine but\n"
-		 "this can help if you are routing to a tunnel or a\n"
-		 "device that needs aligned data. 0..2");
+/* minimum number of free TX descriptors required to wake up TX process */
+#define EMAC_TX_WAKEUP_THRESH		(NUM_TX_BUFF / 4)
 
-#define RGMII_PRIV(ocpdev) ((struct ibm_ocp_rgmii*)ocp_get_drvdata(ocpdev))
-
-static unsigned int rgmii_enable[] = {
-	RGMII_RTBI,
-	RGMII_RGMII,
-	RGMII_TBI,
-	RGMII_GMII
-};
-
-static unsigned int rgmii_speed_mask[] = {
-	RGMII_MII2_SPDMASK,
-	RGMII_MII3_SPDMASK
-};
-
-static unsigned int rgmii_speed100[] = {
-	RGMII_MII2_100MB,
-	RGMII_MII3_100MB
-};
-
-static unsigned int rgmii_speed1000[] = {
-	RGMII_MII2_1000MB,
-	RGMII_MII3_1000MB
-};
-
-#define ZMII_PRIV(ocpdev) ((struct ibm_ocp_zmii*)ocp_get_drvdata(ocpdev))
-
-static unsigned int zmii_enable[][4] = {
-	{ZMII_SMII0, ZMII_RMII0, ZMII_MII0,
-	 ~(ZMII_MDI1 | ZMII_MDI2 | ZMII_MDI3)},
-	{ZMII_SMII1, ZMII_RMII1, ZMII_MII1,
-	 ~(ZMII_MDI0 | ZMII_MDI2 | ZMII_MDI3)},
-	{ZMII_SMII2, ZMII_RMII2, ZMII_MII2,
-	 ~(ZMII_MDI0 | ZMII_MDI1 | ZMII_MDI3)},
-	{ZMII_SMII3, ZMII_RMII3, ZMII_MII3, ~(ZMII_MDI0 | ZMII_MDI1 | ZMII_MDI2)}
-};
-
-static unsigned int mdi_enable[] = {
-	ZMII_MDI0,
-	ZMII_MDI1,
-	ZMII_MDI2,
-	ZMII_MDI3
-};
-
-static unsigned int zmii_speed = 0x0;
-static unsigned int zmii_speed100[] = {
-	ZMII_MII0_100MB,
-	ZMII_MII1_100MB,
-	ZMII_MII2_100MB,
-	ZMII_MII3_100MB
-};
+/* If packet size is less than this number, we allocate small skb and copy packet 
+ * contents into it instead of just sending original big skb up
+ */
+#define EMAC_RX_COPY_THRESH		CONFIG_IBM_EMAC_RX_COPY_THRESHOLD
 
 /* Since multiple EMACs share MDIO lines in various ways, we need
  * to avoid re-using the same PHY ID in cases where the arch didn't
  * setup precise phy_map entries
  */
-static u32 busy_phy_map = 0;
-
-/* If EMACs share a common MDIO device, this points to it */
-static struct net_device *mdio_ndev = NULL;
-
-struct emac_def_dev {
-	struct list_head link;
-	struct ocp_device *ocpdev;
-	struct ibm_ocp_mal *mal;
-};
-
-static struct net_device_stats *emac_stats(struct net_device *dev)
-{
-	struct ocp_enet_private *fep = dev->priv;
-	return &fep->stats;
-};
-
-static int
-emac_init_rgmii(struct ocp_device *rgmii_dev, int input, int phy_mode)
-{
-	struct ibm_ocp_rgmii *rgmii = RGMII_PRIV(rgmii_dev);
-	const char *mode_name[] = { "RTBI", "RGMII", "TBI", "GMII" };
-	int mode = -1;
-
-	if (!rgmii) {
-		rgmii = kmalloc(sizeof(struct ibm_ocp_rgmii), GFP_KERNEL);
-
-		if (rgmii == NULL) {
-			printk(KERN_ERR
-			       "rgmii%d: Out of memory allocating RGMII structure!\n",
-			       rgmii_dev->def->index);
-			return -ENOMEM;
-		}
-
-		memset(rgmii, 0, sizeof(*rgmii));
-
-		rgmii->base =
-		    (struct rgmii_regs *)ioremap(rgmii_dev->def->paddr,
-						 sizeof(*rgmii->base));
-		if (rgmii->base == NULL) {
-			printk(KERN_ERR
-			       "rgmii%d: Cannot ioremap bridge registers!\n",
-			       rgmii_dev->def->index);
-
-			kfree(rgmii);
-			return -ENOMEM;
-		}
-		ocp_set_drvdata(rgmii_dev, rgmii);
-	}
-
-	if (phy_mode) {
-		switch (phy_mode) {
-		case PHY_MODE_GMII:
-			mode = GMII;
-			break;
-		case PHY_MODE_TBI:
-			mode = TBI;
-			break;
-		case PHY_MODE_RTBI:
-			mode = RTBI;
-			break;
-		case PHY_MODE_RGMII:
-		default:
-			mode = RGMII;
-		}
-		rgmii->base->fer &= ~RGMII_FER_MASK(input);
-		rgmii->base->fer |= rgmii_enable[mode] << (4 * input);
-	} else {
-		switch ((rgmii->base->fer & RGMII_FER_MASK(input)) >> (4 *
-								       input)) {
-		case RGMII_RTBI:
-			mode = RTBI;
-			break;
-		case RGMII_RGMII:
-			mode = RGMII;
-			break;
-		case RGMII_TBI:
-			mode = TBI;
-			break;
-		case RGMII_GMII:
-			mode = GMII;
-		}
-	}
-
-	/* Set mode to RGMII if nothing valid is detected */
-	if (mode < 0)
-		mode = RGMII;
-
-	printk(KERN_NOTICE "rgmii%d: input %d in %s mode\n",
-	       rgmii_dev->def->index, input, mode_name[mode]);
-
-	rgmii->mode[input] = mode;
-	rgmii->users++;
-
-	return 0;
-}
-
-static void
-emac_rgmii_port_speed(struct ocp_device *ocpdev, int input, int speed)
-{
-	struct ibm_ocp_rgmii *rgmii = RGMII_PRIV(ocpdev);
-	unsigned int rgmii_speed;
-
-	rgmii_speed = in_be32(&rgmii->base->ssr);
-
-	rgmii_speed &= ~rgmii_speed_mask[input];
-
-	if (speed == 1000)
-		rgmii_speed |= rgmii_speed1000[input];
-	else if (speed == 100)
-		rgmii_speed |= rgmii_speed100[input];
-
-	out_be32(&rgmii->base->ssr, rgmii_speed);
-}
-
-static void emac_close_rgmii(struct ocp_device *ocpdev)
-{
-	struct ibm_ocp_rgmii *rgmii = RGMII_PRIV(ocpdev);
-	BUG_ON(!rgmii || rgmii->users == 0);
-
-	if (!--rgmii->users) {
-		ocp_set_drvdata(ocpdev, NULL);
-		iounmap((void *)rgmii->base);
-		kfree(rgmii);
-	}
-}
-
-static int emac_init_zmii(struct ocp_device *zmii_dev, int input, int phy_mode)
-{
-	struct ibm_ocp_zmii *zmii = ZMII_PRIV(zmii_dev);
-	const char *mode_name[] = { "SMII", "RMII", "MII" };
-	int mode = -1;
-
-	if (!zmii) {
-		zmii = kmalloc(sizeof(struct ibm_ocp_zmii), GFP_KERNEL);
-		if (zmii == NULL) {
-			printk(KERN_ERR
-			       "zmii%d: Out of memory allocating ZMII structure!\n",
-			       zmii_dev->def->index);
-			return -ENOMEM;
-		}
-		memset(zmii, 0, sizeof(*zmii));
-
-		zmii->base =
-		    (struct zmii_regs *)ioremap(zmii_dev->def->paddr,
-						sizeof(*zmii->base));
-		if (zmii->base == NULL) {
-			printk(KERN_ERR
-			       "zmii%d: Cannot ioremap bridge registers!\n",
-			       zmii_dev->def->index);
-
-			kfree(zmii);
-			return -ENOMEM;
-		}
-		ocp_set_drvdata(zmii_dev, zmii);
-	}
-
-	if (phy_mode) {
-		switch (phy_mode) {
-		case PHY_MODE_MII:
-			mode = MII;
-			break;
-		case PHY_MODE_RMII:
-			mode = RMII;
-			break;
-		case PHY_MODE_SMII:
-		default:
-			mode = SMII;
-		}
-		zmii->base->fer &= ~ZMII_FER_MASK(input);
-		zmii->base->fer |= zmii_enable[input][mode];
-	} else {
-		switch ((zmii->base->fer & ZMII_FER_MASK(input)) << (4 * input)) {
-		case ZMII_MII0:
-			mode = MII;
-			break;
-		case ZMII_RMII0:
-			mode = RMII;
-			break;
-		case ZMII_SMII0:
-			mode = SMII;
-		}
-	}
-
-	/* Set mode to SMII if nothing valid is detected */
-	if (mode < 0)
-		mode = SMII;
-
-	printk(KERN_NOTICE "zmii%d: input %d in %s mode\n",
-	       zmii_dev->def->index, input, mode_name[mode]);
-
-	zmii->mode[input] = mode;
-	zmii->users++;
-
-	return 0;
-}
-
-static void emac_enable_zmii_port(struct ocp_device *ocpdev, int input)
-{
-	u32 mask;
-	struct ibm_ocp_zmii *zmii = ZMII_PRIV(ocpdev);
-
-	mask = in_be32(&zmii->base->fer);
-	mask &= zmii_enable[input][MDI];	/* turn all non enabled MDI's off */
-	mask |= zmii_enable[input][zmii->mode[input]] | mdi_enable[input];
-	out_be32(&zmii->base->fer, mask);
-}
-
-static void
-emac_zmii_port_speed(struct ocp_device *ocpdev, int input, int speed)
-{
-	struct ibm_ocp_zmii *zmii = ZMII_PRIV(ocpdev);
-
-	if (speed == 100)
-		zmii_speed |= zmii_speed100[input];
-	else
-		zmii_speed &= ~zmii_speed100[input];
-
-	out_be32(&zmii->base->ssr, zmii_speed);
-}
-
-static void emac_close_zmii(struct ocp_device *ocpdev)
-{
-	struct ibm_ocp_zmii *zmii = ZMII_PRIV(ocpdev);
-	BUG_ON(!zmii || zmii->users == 0);
-
-	if (!--zmii->users) {
-		ocp_set_drvdata(ocpdev, NULL);
-		iounmap((void *)zmii->base);
-		kfree(zmii);
-	}
-}
-
-int emac_phy_read(struct net_device *dev, int mii_id, int reg)
-{
-	int count;
-	uint32_t stacr;
-	struct ocp_enet_private *fep = dev->priv;
-	emac_t *emacp = fep->emacp;
-
-	MDIO_DEBUG(("%s: phy_read, id: 0x%x, reg: 0x%x\n", dev->name, mii_id,
-		    reg));
-
-	/* Enable proper ZMII port */
-	if (fep->zmii_dev)
-		emac_enable_zmii_port(fep->zmii_dev, fep->zmii_input);
-
-	/* Use the EMAC that has the MDIO port */
-	if (fep->mdio_dev) {
-		dev = fep->mdio_dev;
-		fep = dev->priv;
-		emacp = fep->emacp;
-	}
-
-	count = 0;
-	while ((((stacr = in_be32(&emacp->em0stacr)) & EMAC_STACR_OC) == 0)
-					&& (count++ < MDIO_DELAY))
-		udelay(1);
-	MDIO_DEBUG((" (count was %d)\n", count));
-
-	if ((stacr & EMAC_STACR_OC) == 0) {
-		printk(KERN_WARNING "%s: PHY read timeout #1!\n", dev->name);
-		return -1;
-	}
-
-	/* Clear the speed bits and make a read request to the PHY */
-	stacr = ((EMAC_STACR_READ | (reg & 0x1f)) & ~EMAC_STACR_CLK_100MHZ);
-	stacr |= ((mii_id & 0x1F) << 5);
-
-	out_be32(&emacp->em0stacr, stacr);
-
-	count = 0;
-	while ((((stacr = in_be32(&emacp->em0stacr)) & EMAC_STACR_OC) == 0)
-					&& (count++ < MDIO_DELAY))
-		udelay(1);
-	MDIO_DEBUG((" (count was %d)\n", count));
-
-	if ((stacr & EMAC_STACR_OC) == 0) {
-		printk(KERN_WARNING "%s: PHY read timeout #2!\n", dev->name);
-		return -1;
-	}
-
-	/* Check for a read error */
-	if (stacr & EMAC_STACR_PHYE) {
-		MDIO_DEBUG(("EMAC MDIO PHY error !\n"));
-		return -1;
-	}
-
-	MDIO_DEBUG((" -> 0x%x\n", stacr >> 16));
-
-	return (stacr >> 16);
-}
-
-void emac_phy_write(struct net_device *dev, int mii_id, int reg, int data)
-{
-	int count;
-	uint32_t stacr;
-	struct ocp_enet_private *fep = dev->priv;
-	emac_t *emacp = fep->emacp;
-
-	MDIO_DEBUG(("%s phy_write, id: 0x%x, reg: 0x%x, data: 0x%x\n",
-		    dev->name, mii_id, reg, data));
-
-	/* Enable proper ZMII port */
-	if (fep->zmii_dev)
-		emac_enable_zmii_port(fep->zmii_dev, fep->zmii_input);
-
-	/* Use the EMAC that has the MDIO port */
-	if (fep->mdio_dev) {
-		dev = fep->mdio_dev;
-		fep = dev->priv;
-		emacp = fep->emacp;
-	}
-
-	count = 0;
-	while ((((stacr = in_be32(&emacp->em0stacr)) & EMAC_STACR_OC) == 0)
-					&& (count++ < MDIO_DELAY))
-		udelay(1);
-	MDIO_DEBUG((" (count was %d)\n", count));
-
-	if ((stacr & EMAC_STACR_OC) == 0) {
-		printk(KERN_WARNING "%s: PHY write timeout #2!\n", dev->name);
-		return;
-	}
-
-	/* Clear the speed bits and make a read request to the PHY */
-
-	stacr = ((EMAC_STACR_WRITE | (reg & 0x1f)) & ~EMAC_STACR_CLK_100MHZ);
-	stacr |= ((mii_id & 0x1f) << 5) | ((data & 0xffff) << 16);
-
-	out_be32(&emacp->em0stacr, stacr);
-
-	count = 0;
-	while ((((stacr = in_be32(&emacp->em0stacr)) & EMAC_STACR_OC) == 0)
-					&& (count++ < MDIO_DELAY))
-		udelay(1);
-	MDIO_DEBUG((" (count was %d)\n", count));
-
-	if ((stacr & EMAC_STACR_OC) == 0)
-		printk(KERN_WARNING "%s: PHY write timeout #2!\n", dev->name);
-
-	/* Check for a write error */
-	if ((stacr & EMAC_STACR_PHYE) != 0) {
-		MDIO_DEBUG(("EMAC MDIO PHY error !\n"));
-	}
-}
-
-static void emac_txeob_dev(void *param, u32 chanmask)
-{
-	struct net_device *dev = param;
-	struct ocp_enet_private *fep = dev->priv;
-	unsigned long flags;
-
-	spin_lock_irqsave(&fep->lock, flags);
-
-	PKT_DEBUG(("emac_txeob_dev() entry, tx_cnt: %d\n", fep->tx_cnt));
-
-	while (fep->tx_cnt &&
-	       !(fep->tx_desc[fep->ack_slot].ctrl & MAL_TX_CTRL_READY)) {
-
-		if (fep->tx_desc[fep->ack_slot].ctrl & MAL_TX_CTRL_LAST) {
-			/* Tell the system the transmit completed. */
-			dma_unmap_single(&fep->ocpdev->dev,
-					 fep->tx_desc[fep->ack_slot].data_ptr,
-					 fep->tx_desc[fep->ack_slot].data_len,
-					 DMA_TO_DEVICE);
-			dev_kfree_skb_irq(fep->tx_skb[fep->ack_slot]);
-
-			if (fep->tx_desc[fep->ack_slot].ctrl &
-			    (EMAC_TX_ST_EC | EMAC_TX_ST_MC | EMAC_TX_ST_SC))
-				fep->stats.collisions++;
-		}
-
-		fep->tx_skb[fep->ack_slot] = (struct sk_buff *)NULL;
-		if (++fep->ack_slot == NUM_TX_BUFF)
-			fep->ack_slot = 0;
-
-		fep->tx_cnt--;
-	}
-	if (fep->tx_cnt < NUM_TX_BUFF)
-		netif_wake_queue(dev);
-
-	PKT_DEBUG(("emac_txeob_dev() exit, tx_cnt: %d\n", fep->tx_cnt));
-
-	spin_unlock_irqrestore(&fep->lock, flags);
-}
-
-/*
-  Fill/Re-fill the rx chain with valid ctrl/ptrs.
-  This function will fill from rx_slot up to the parm end.
-  So to completely fill the chain pre-set rx_slot to 0 and
-  pass in an end of 0.
+static u32 busy_phy_map;
+
+#if defined(CONFIG_IBM_EMAC_PHY_RX_CLK_FIX) && (defined(CONFIG_405EP) || defined(CONFIG_440EP))
+/* 405EP has "EMAC to PHY Control Register" (CPC0_EPCTL) which can help us
+ * with PHY RX clock problem.
+ * 440EP has more sane SDR0_MFR register implementation than 440GX, which
+ * also allows controlling each EMAC clock
  */
-static void emac_rx_fill(struct net_device *dev, int end)
+static inline void EMAC_RX_CLK_TX(int idx)
 {
-	int i;
-	struct ocp_enet_private *fep = dev->priv;
-
-	i = fep->rx_slot;
-	do {
-		/* We don't want the 16 bytes skb_reserve done by dev_alloc_skb,
-		 * it breaks our cache line alignement. However, we still allocate
-		 * +16 so that we end up allocating the exact same size as
-		 * dev_alloc_skb() would do.
-		 * Also, because of the skb_res, the max DMA size we give to EMAC
-		 * is slighly wrong, causing it to potentially DMA 2 more bytes
-		 * from a broken/oversized packet. These 16 bytes will take care
-		 * that we don't walk on somebody else toes with that.
-		 */
-		fep->rx_skb[i] =
-		    alloc_skb(fep->rx_buffer_size + 16, GFP_ATOMIC);
-
-		if (fep->rx_skb[i] == NULL) {
-			/* Keep rx_slot here, the next time clean/fill is called
-			 * we will try again before the MAL wraps back here
-			 * If the MAL tries to use this descriptor with
-			 * the EMPTY bit off it will cause the
-			 * rxde interrupt.  That is where we will
-			 * try again to allocate an sk_buff.
-			 */
-			break;
-
-		}
-
-		if (skb_res)
-			skb_reserve(fep->rx_skb[i], skb_res);
-
-		/* We must NOT dma_map_single the cache line right after the
-		 * buffer, so we must crop our sync size to account for the
-		 * reserved space
-		 */
-		fep->rx_desc[i].data_ptr =
-		    (unsigned char *)dma_map_single(&fep->ocpdev->dev,
-						    (void *)fep->rx_skb[i]->
-						    data,
-						    fep->rx_buffer_size -
-						    skb_res, DMA_FROM_DEVICE);
-
-		/*
-		 * Some 4xx implementations use the previously
-		 * reserved bits in data_len to encode the MS
-		 * 4-bits of a 36-bit physical address (ERPN)
-		 * This must be initialized.
-		 */
-		fep->rx_desc[i].data_len = 0;
-		fep->rx_desc[i].ctrl = MAL_RX_CTRL_EMPTY | MAL_RX_CTRL_INTR |
-		    (i == (NUM_RX_BUFF - 1) ? MAL_RX_CTRL_WRAP : 0);
-
-	} while ((i = (i + 1) % NUM_RX_BUFF) != end);
-
-	fep->rx_slot = i;
-}
-
-static void
-emac_rx_csum(struct net_device *dev, unsigned short ctrl, struct sk_buff *skb)
-{
-	struct ocp_enet_private *fep = dev->priv;
-
-	/* Exit if interface has no TAH engine */
-	if (!fep->tah_dev) {
-		skb->ip_summed = CHECKSUM_NONE;
-		return;
-	}
-
-	/* Check for TCP/UDP/IP csum error */
-	if (ctrl & EMAC_CSUM_VER_ERROR) {
-		/* Let the stack verify checksum errors */
-		skb->ip_summed = CHECKSUM_NONE;
-/*		adapter->hw_csum_err++; */
-	} else {
-		/* Csum is good */
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-/*		adapter->hw_csum_good++; */
-	}
-}
-
-static int emac_rx_clean(struct net_device *dev)
-{
-	int i, b, bnum = 0, buf[6];
-	int error, frame_length;
-	struct ocp_enet_private *fep = dev->priv;
-	unsigned short ctrl;
-
-	i = fep->rx_slot;
-
-	PKT_DEBUG(("emac_rx_clean() entry, rx_slot: %d\n", fep->rx_slot));
-
-	do {
-		if (fep->rx_skb[i] == NULL)
-			continue;	/*we have already handled the packet but haved failed to alloc */
-		/* 
-		   since rx_desc is in uncached mem we don't keep reading it directly 
-		   we pull out a local copy of ctrl and do the checks on the copy.
-		 */
-		ctrl = fep->rx_desc[i].ctrl;
-		if (ctrl & MAL_RX_CTRL_EMPTY)
-			break;	/*we don't have any more ready packets */
-
-		if (EMAC_IS_BAD_RX_PACKET(ctrl)) {
-			fep->stats.rx_errors++;
-			fep->stats.rx_dropped++;
-
-			if (ctrl & EMAC_RX_ST_OE)
-				fep->stats.rx_fifo_errors++;
-			if (ctrl & EMAC_RX_ST_AE)
-				fep->stats.rx_frame_errors++;
-			if (ctrl & EMAC_RX_ST_BFCS)
-				fep->stats.rx_crc_errors++;
-			if (ctrl & (EMAC_RX_ST_RP | EMAC_RX_ST_PTL |
-				    EMAC_RX_ST_ORE | EMAC_RX_ST_IRE))
-				fep->stats.rx_length_errors++;
-		} else {
-			if ((ctrl & (MAL_RX_CTRL_FIRST | MAL_RX_CTRL_LAST)) ==
-			    (MAL_RX_CTRL_FIRST | MAL_RX_CTRL_LAST)) {
-				/* Single descriptor packet */
-				emac_rx_csum(dev, ctrl, fep->rx_skb[i]);
-				/* Send the skb up the chain. */
-				frame_length = fep->rx_desc[i].data_len - 4;
-				skb_put(fep->rx_skb[i], frame_length);
-				fep->rx_skb[i]->dev = dev;
-				fep->rx_skb[i]->protocol =
-				    eth_type_trans(fep->rx_skb[i], dev);
-				error = netif_rx(fep->rx_skb[i]);
-
-				if ((error == NET_RX_DROP) ||
-				    (error == NET_RX_BAD)) {
-					fep->stats.rx_dropped++;
-				} else {
-					fep->stats.rx_packets++;
-					fep->stats.rx_bytes += frame_length;
-				}
-				fep->rx_skb[i] = NULL;
-			} else {
-				/* Multiple descriptor packet */
-				if (ctrl & MAL_RX_CTRL_FIRST) {
-					if (fep->rx_desc[(i + 1) % NUM_RX_BUFF].
-					    ctrl & MAL_RX_CTRL_EMPTY)
-						break;
-					bnum = 0;
-					buf[bnum] = i;
-					++bnum;
-					continue;
-				}
-				if (((ctrl & MAL_RX_CTRL_FIRST) !=
-				     MAL_RX_CTRL_FIRST) &&
-				    ((ctrl & MAL_RX_CTRL_LAST) !=
-				     MAL_RX_CTRL_LAST)) {
-					if (fep->rx_desc[(i + 1) %
-							 NUM_RX_BUFF].ctrl &
-					    MAL_RX_CTRL_EMPTY) {
-						i = buf[0];
-						break;
-					}
-					buf[bnum] = i;
-					++bnum;
-					continue;
-				}
-				if (ctrl & MAL_RX_CTRL_LAST) {
-					buf[bnum] = i;
-					++bnum;
-					skb_put(fep->rx_skb[buf[0]],
-						fep->rx_desc[buf[0]].data_len);
-					for (b = 1; b < bnum; b++) {
-						/*
-						 * MAL is braindead, we need
-						 * to copy the remainder
-						 * of the packet from the
-						 * latter descriptor buffers
-						 * to the first skb. Then
-						 * dispose of the source
-						 * skbs.
-						 *
-						 * Once the stack is fixed
-						 * to handle frags on most
-						 * protocols we can generate
-						 * a fragmented skb with
-						 * no copies.
-						 */
-						memcpy(fep->rx_skb[buf[0]]->
-						       data +
-						       fep->rx_skb[buf[0]]->len,
-						       fep->rx_skb[buf[b]]->
-						       data,
-						       fep->rx_desc[buf[b]].
-						       data_len);
-						skb_put(fep->rx_skb[buf[0]],
-							fep->rx_desc[buf[b]].
-							data_len);
-						dma_unmap_single(&fep->ocpdev->
-								 dev,
-								 fep->
-								 rx_desc[buf
-									 [b]].
-								 data_ptr,
-								 fep->
-								 rx_desc[buf
-									 [b]].
-								 data_len,
-								 DMA_FROM_DEVICE);
-						dev_kfree_skb(fep->
-							      rx_skb[buf[b]]);
-					}
-					emac_rx_csum(dev, ctrl,
-						     fep->rx_skb[buf[0]]);
-
-					fep->rx_skb[buf[0]]->dev = dev;
-					fep->rx_skb[buf[0]]->protocol =
-					    eth_type_trans(fep->rx_skb[buf[0]],
-							   dev);
-					error = netif_rx(fep->rx_skb[buf[0]]);
-
-					if ((error == NET_RX_DROP)
-					    || (error == NET_RX_BAD)) {
-						fep->stats.rx_dropped++;
-					} else {
-						fep->stats.rx_packets++;
-						fep->stats.rx_bytes +=
-						    fep->rx_skb[buf[0]]->len;
-					}
-					for (b = 0; b < bnum; b++)
-						fep->rx_skb[buf[b]] = NULL;
-				}
-			}
-		}
-	} while ((i = (i + 1) % NUM_RX_BUFF) != fep->rx_slot);
-
-	PKT_DEBUG(("emac_rx_clean() exit, rx_slot: %d\n", fep->rx_slot));
-
-	return i;
-}
-
-static void emac_rxeob_dev(void *param, u32 chanmask)
-{
-	struct net_device *dev = param;
-	struct ocp_enet_private *fep = dev->priv;
 	unsigned long flags;
+	local_irq_save(flags);
+
+#if defined(CONFIG_405EP)
+	mtdcr(0xf3, mfdcr(0xf3) | (1 << idx));
+#else /* CONFIG_440EP */
+	SDR_WRITE(DCRN_SDR_MFR, SDR_READ(DCRN_SDR_MFR) | (0x08000000 >> idx));
+#endif
+
+	local_irq_restore(flags);
+}
+
+static inline void EMAC_RX_CLK_DEFAULT(int idx)
+{
+	unsigned long flags;
+	local_irq_save(flags);
+
+#if defined(CONFIG_405EP)
+	mtdcr(0xf3, mfdcr(0xf3) & ~(1 << idx));
+#else /* CONFIG_440EP */
+	SDR_WRITE(DCRN_SDR_MFR, SDR_READ(DCRN_SDR_MFR) & ~(0x08000000 >> idx));
+#endif
+
+	local_irq_restore(flags);
+}
+#else
+#define EMAC_RX_CLK_TX(idx)		((void)0)
+#define EMAC_RX_CLK_DEFAULT(idx)	((void)0)
+#endif
+
+#if defined(CONFIG_IBM_EMAC_PHY_RX_CLK_FIX) && defined(CONFIG_440GX)
+/* We can switch Ethernet clock to the internal source through SDR0_MFR[ECS],
+ * unfortunately this is less flexible than 440EP case, because it's a global 
+ * setting for all EMACs, therefore we do this clock trick only during probe.
+ */
+#define EMAC_CLK_INTERNAL		SDR_WRITE(DCRN_SDR_MFR, \
+					    SDR_READ(DCRN_SDR_MFR) | 0x08000000)
+#define EMAC_CLK_EXTERNAL		SDR_WRITE(DCRN_SDR_MFR, \
+					    SDR_READ(DCRN_SDR_MFR) & ~0x08000000)
+#else
+#define EMAC_CLK_INTERNAL		((void)0)
+#define EMAC_CLK_EXTERNAL		((void)0)
+#endif
+
+/* I don't want to litter system log with timeout errors 
+ * when we have brain-damaged PHY.
+ */
+static inline void emac_report_timeout_error(struct ocp_enet_private *dev,
+					     const char *error)
+{
+#if defined(CONFIG_IBM_EMAC_PHY_RX_CLK_FIX)
+	DBG("%d: %s" NL, dev->def->index, error);
+#else
+	if (net_ratelimit())
+		printk(KERN_ERR "emac%d: %s\n", dev->def->index, error);
+#endif
+}
+
+/* PHY polling intervals */
+#define PHY_POLL_LINK_ON	HZ
+#define PHY_POLL_LINK_OFF	(HZ / 5)
+
+/* Please, keep in sync with struct ibm_emac_stats/ibm_emac_error_stats */
+static const char emac_stats_keys[EMAC_ETHTOOL_STATS_COUNT][ETH_GSTRING_LEN] = {
+	"rx_packets", "rx_bytes", "tx_packets", "tx_bytes", "rx_packets_csum",
+	"tx_packets_csum", "tx_undo", "rx_dropped_stack", "rx_dropped_oom",
+	"rx_dropped_error", "rx_dropped_resize", "rx_dropped_mtu",
+	"rx_stopped", "rx_bd_errors", "rx_bd_overrun", "rx_bd_bad_packet",
+	"rx_bd_runt_packet", "rx_bd_short_event", "rx_bd_alignment_error",
+	"rx_bd_bad_fcs", "rx_bd_packet_too_long", "rx_bd_out_of_range",
+	"rx_bd_in_range", "rx_parity", "rx_fifo_overrun", "rx_overrun",
+	"rx_bad_packet", "rx_runt_packet", "rx_short_event",
+	"rx_alignment_error", "rx_bad_fcs", "rx_packet_too_long",
+	"rx_out_of_range", "rx_in_range", "tx_dropped", "tx_bd_errors",
+	"tx_bd_bad_fcs", "tx_bd_carrier_loss", "tx_bd_excessive_deferral",
+	"tx_bd_excessive_collisions", "tx_bd_late_collision",
+	"tx_bd_multple_collisions", "tx_bd_single_collision",
+	"tx_bd_underrun", "tx_bd_sqe", "tx_parity", "tx_underrun", "tx_sqe",
+	"tx_errors"
+};
+
+static irqreturn_t emac_irq(int irq, void *dev_instance, struct pt_regs *regs);
+static void emac_clean_tx_ring(struct ocp_enet_private *dev);
+
+static inline int emac_phy_supports_gige(int phy_mode)
+{
+	return  phy_mode == PHY_MODE_GMII ||
+		phy_mode == PHY_MODE_RGMII ||
+		phy_mode == PHY_MODE_TBI ||
+		phy_mode == PHY_MODE_RTBI;
+}
+
+static inline int emac_phy_gpcs(int phy_mode)
+{
+	return  phy_mode == PHY_MODE_TBI ||
+		phy_mode == PHY_MODE_RTBI;
+}
+
+static inline void emac_tx_enable(struct ocp_enet_private *dev)
+{
+	struct emac_regs *p = dev->emacp;
+	unsigned long flags;
+	u32 r;
+
+	local_irq_save(flags);
+
+	DBG("%d: tx_enable" NL, dev->def->index);
+
+	r = in_be32(&p->mr0);
+	if (!(r & EMAC_MR0_TXE))
+		out_be32(&p->mr0, r | EMAC_MR0_TXE);
+	local_irq_restore(flags);
+}
+
+static void emac_tx_disable(struct ocp_enet_private *dev)
+{
+	struct emac_regs *p = dev->emacp;
+	unsigned long flags;
+	u32 r;
+
+	local_irq_save(flags);
+
+	DBG("%d: tx_disable" NL, dev->def->index);
+
+	r = in_be32(&p->mr0);
+	if (r & EMAC_MR0_TXE) {
+		int n = 300;
+		out_be32(&p->mr0, r & ~EMAC_MR0_TXE);
+		while (!(in_be32(&p->mr0) & EMAC_MR0_TXI) && n)
+			--n;
+		if (unlikely(!n))
+			emac_report_timeout_error(dev, "TX disable timeout");
+	}
+	local_irq_restore(flags);
+}
+
+static void emac_rx_enable(struct ocp_enet_private *dev)
+{
+	struct emac_regs *p = dev->emacp;
+	unsigned long flags;
+	u32 r;
+
+	local_irq_save(flags);
+	if (unlikely(dev->commac.rx_stopped))
+		goto out;
+
+	DBG("%d: rx_enable" NL, dev->def->index);
+
+	r = in_be32(&p->mr0);
+	if (!(r & EMAC_MR0_RXE)) {
+		if (unlikely(!(r & EMAC_MR0_RXI))) {
+			/* Wait if previous async disable is still in progress */
+			int n = 100;
+			while (!(r = in_be32(&p->mr0) & EMAC_MR0_RXI) && n)
+				--n;
+			if (unlikely(!n))
+				emac_report_timeout_error(dev,
+							  "RX disable timeout");
+		}
+		out_be32(&p->mr0, r | EMAC_MR0_RXE);
+	}
+      out:
+	local_irq_restore(flags);
+}
+
+static void emac_rx_disable(struct ocp_enet_private *dev)
+{
+	struct emac_regs *p = dev->emacp;
+	unsigned long flags;
+	u32 r;
+
+	local_irq_save(flags);
+
+	DBG("%d: rx_disable" NL, dev->def->index);
+
+	r = in_be32(&p->mr0);
+	if (r & EMAC_MR0_RXE) {
+		int n = 300;
+		out_be32(&p->mr0, r & ~EMAC_MR0_RXE);
+		while (!(in_be32(&p->mr0) & EMAC_MR0_RXI) && n)
+			--n;
+		if (unlikely(!n))
+			emac_report_timeout_error(dev, "RX disable timeout");
+	}
+	local_irq_restore(flags);
+}
+
+static inline void emac_rx_disable_async(struct ocp_enet_private *dev)
+{
+	struct emac_regs *p = dev->emacp;
+	unsigned long flags;
+	u32 r;
+
+	local_irq_save(flags);
+
+	DBG("%d: rx_disable_async" NL, dev->def->index);
+
+	r = in_be32(&p->mr0);
+	if (r & EMAC_MR0_RXE)
+		out_be32(&p->mr0, r & ~EMAC_MR0_RXE);
+	local_irq_restore(flags);
+}
+
+static int emac_reset(struct ocp_enet_private *dev)
+{
+	struct emac_regs *p = dev->emacp;
+	unsigned long flags;
+	int n = 20;
+
+	DBG("%d: reset" NL, dev->def->index);
+
+	local_irq_save(flags);
+
+	if (!dev->reset_failed) {
+		/* 40x erratum suggests stopping RX channel before reset,
+		 * we stop TX as well
+		 */
+		emac_rx_disable(dev);
+		emac_tx_disable(dev);
+	}
+
+	out_be32(&p->mr0, EMAC_MR0_SRST);
+	while ((in_be32(&p->mr0) & EMAC_MR0_SRST) && n)
+		--n;
+	local_irq_restore(flags);
+
+	if (n) {
+		dev->reset_failed = 0;
+		return 0;
+	} else {
+		emac_report_timeout_error(dev, "reset timeout");
+		dev->reset_failed = 1;
+		return -ETIMEDOUT;
+	}
+}
+
+static void emac_hash_mc(struct ocp_enet_private *dev)
+{
+	struct emac_regs *p = dev->emacp;
+	u16 gaht[4] = { 0 };
+	struct dev_mc_list *dmi;
+
+	DBG("%d: hash_mc %d" NL, dev->def->index, dev->ndev->mc_count);
+
+	for (dmi = dev->ndev->mc_list; dmi; dmi = dmi->next) {
+		int bit;
+		DBG2("%d: mc %02x:%02x:%02x:%02x:%02x:%02x" NL,
+		     dev->def->index,
+		     dmi->dmi_addr[0], dmi->dmi_addr[1], dmi->dmi_addr[2],
+		     dmi->dmi_addr[3], dmi->dmi_addr[4], dmi->dmi_addr[5]);
+
+		bit = 63 - (ether_crc(ETH_ALEN, dmi->dmi_addr) >> 26);
+		gaht[bit >> 4] |= 0x8000 >> (bit & 0x0f);
+	}
+	out_be32(&p->gaht1, gaht[0]);
+	out_be32(&p->gaht2, gaht[1]);
+	out_be32(&p->gaht3, gaht[2]);
+	out_be32(&p->gaht4, gaht[3]);
+}
+
+static inline u32 emac_iff2rmr(struct net_device *ndev)
+{
+	u32 r = EMAC_RMR_SP | EMAC_RMR_SFCS | EMAC_RMR_IAE | EMAC_RMR_BAE |
+	    EMAC_RMR_BASE;
+
+	if (ndev->flags & IFF_PROMISC)
+		r |= EMAC_RMR_PME;
+	else if (ndev->flags & IFF_ALLMULTI || ndev->mc_count > 32)
+		r |= EMAC_RMR_PMME;
+	else if (ndev->mc_count > 0)
+		r |= EMAC_RMR_MAE;
+
+	return r;
+}
+
+static inline int emac_opb_mhz(void)
+{
+	return (ocp_sys_info.opb_bus_freq + 500000) / 1000000;
+}
+
+/* BHs disabled */
+static int emac_configure(struct ocp_enet_private *dev)
+{
+	struct emac_regs *p = dev->emacp;
+	struct net_device *ndev = dev->ndev;
+	int gige;
+	u32 r;
+
+	DBG("%d: configure" NL, dev->def->index);
+
+	if (emac_reset(dev) < 0)
+		return -ETIMEDOUT;
+
+	tah_reset(dev->tah_dev);
+
+	/* Mode register */
+	r = EMAC_MR1_BASE(emac_opb_mhz()) | EMAC_MR1_VLE | EMAC_MR1_IST;
+	if (dev->phy.duplex == DUPLEX_FULL)
+		r |= EMAC_MR1_FDE;
+	switch (dev->phy.speed) {
+	case SPEED_1000:
+		if (emac_phy_gpcs(dev->phy.mode)) {
+			r |= EMAC_MR1_MF_1000GPCS |
+			    EMAC_MR1_MF_IPPA(dev->phy.address);
+
+			/* Put some arbitrary OUI, Manuf & Rev IDs so we can
+			 * identify this GPCS PHY later.
+			 */
+			out_be32(&p->ipcr, 0xdeadbeef);
+		} else
+			r |= EMAC_MR1_MF_1000;
+		r |= EMAC_MR1_RFS_16K;
+		gige = 1;
+		
+		if (dev->ndev->mtu > ETH_DATA_LEN)
+			r |= EMAC_MR1_JPSM;
+		break;
+	case SPEED_100:
+		r |= EMAC_MR1_MF_100;
+		/* Fall through */
+	default:
+		r |= EMAC_MR1_RFS_4K;
+		gige = 0;
+		break;
+	}
+
+	if (dev->rgmii_dev)
+		rgmii_set_speed(dev->rgmii_dev, dev->rgmii_input,
+				dev->phy.speed);
+	else
+		zmii_set_speed(dev->zmii_dev, dev->zmii_input, dev->phy.speed);
+
+#if !defined(CONFIG_40x)
+	/* on 40x erratum forces us to NOT use integrated flow control, 
+	 * let's hope it works on 44x ;)
+	 */
+	if (dev->phy.duplex == DUPLEX_FULL) {
+		if (dev->phy.pause)
+			r |= EMAC_MR1_EIFC | EMAC_MR1_APP;
+		else if (dev->phy.asym_pause)
+			r |= EMAC_MR1_APP;
+	}
+#endif
+	out_be32(&p->mr1, r);
+
+	/* Set individual MAC address */
+	out_be32(&p->iahr, (ndev->dev_addr[0] << 8) | ndev->dev_addr[1]);
+	out_be32(&p->ialr, (ndev->dev_addr[2] << 24) |
+		 (ndev->dev_addr[3] << 16) | (ndev->dev_addr[4] << 8) |
+		 ndev->dev_addr[5]);
+
+	/* VLAN Tag Protocol ID */
+	out_be32(&p->vtpid, 0x8100);
+
+	/* Receive mode register */
+	r = emac_iff2rmr(ndev);
+	if (r & EMAC_RMR_MAE)
+		emac_hash_mc(dev);
+	out_be32(&p->rmr, r);
+
+	/* FIFOs thresholds */
+	r = EMAC_TMR1((EMAC_MAL_BURST_SIZE / EMAC_FIFO_ENTRY_SIZE) + 1,
+		      EMAC_TX_FIFO_SIZE / 2 / EMAC_FIFO_ENTRY_SIZE);
+	out_be32(&p->tmr1, r);
+	out_be32(&p->trtr, EMAC_TRTR(EMAC_TX_FIFO_SIZE / 2));
+
+	/* PAUSE frame is sent when RX FIFO reaches its high-water mark,
+	   there should be still enough space in FIFO to allow the our link
+	   partner time to process this frame and also time to send PAUSE 
+	   frame itself.
+
+	   Here is the worst case scenario for the RX FIFO "headroom"
+	   (from "The Switch Book") (100Mbps, without preamble, inter-frame gap):
+
+	   1) One maximum-length frame on TX                    1522 bytes
+	   2) One PAUSE frame time                                64 bytes
+	   3) PAUSE frame decode time allowance                   64 bytes
+	   4) One maximum-length frame on RX                    1522 bytes
+	   5) Round-trip propagation delay of the link (100Mb)    15 bytes
+	   ----------       
+	   3187 bytes
+
+	   I chose to set high-water mark to RX_FIFO_SIZE / 4 (1024 bytes)
+	   low-water mark  to RX_FIFO_SIZE / 8 (512 bytes)
+	 */
+	r = EMAC_RWMR(EMAC_RX_FIFO_SIZE(gige) / 8 / EMAC_FIFO_ENTRY_SIZE,
+		      EMAC_RX_FIFO_SIZE(gige) / 4 / EMAC_FIFO_ENTRY_SIZE);
+	out_be32(&p->rwmr, r);
+
+	/* Set PAUSE timer to the maximum */
+	out_be32(&p->ptr, 0xffff);
+
+	/* IRQ sources */
+	out_be32(&p->iser, EMAC_ISR_TXPE | EMAC_ISR_RXPE | /* EMAC_ISR_TXUE |
+		 EMAC_ISR_RXOE | */ EMAC_ISR_OVR | EMAC_ISR_BP | EMAC_ISR_SE |
+		 EMAC_ISR_ALE | EMAC_ISR_BFCS | EMAC_ISR_PTLE | EMAC_ISR_ORE |
+		 EMAC_ISR_IRE | EMAC_ISR_TE);
+		 
+	/* We need to take GPCS PHY out of isolate mode after EMAC reset */
+	if (emac_phy_gpcs(dev->phy.mode)) 
+		mii_reset_phy(&dev->phy);
+		 
+	return 0;
+}
+
+/* BHs disabled */
+static void emac_reinitialize(struct ocp_enet_private *dev)
+{
+	DBG("%d: reinitialize" NL, dev->def->index);
+
+	if (!emac_configure(dev)) {
+		emac_tx_enable(dev);
+		emac_rx_enable(dev);
+	}
+}
+
+/* BHs disabled */
+static void emac_full_tx_reset(struct net_device *ndev)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+	struct ocp_func_emac_data *emacdata = dev->def->additions;
+
+	DBG("%d: full_tx_reset" NL, dev->def->index);
+
+	emac_tx_disable(dev);
+	mal_disable_tx_channel(dev->mal, emacdata->mal_tx_chan);
+	emac_clean_tx_ring(dev);
+	dev->tx_cnt = dev->tx_slot = dev->ack_slot = 0;
+
+	emac_configure(dev);
+
+	mal_enable_tx_channel(dev->mal, emacdata->mal_tx_chan);
+	emac_tx_enable(dev);
+	emac_rx_enable(dev);
+
+	netif_wake_queue(ndev);
+}
+
+static int __emac_mdio_read(struct ocp_enet_private *dev, u8 id, u8 reg)
+{
+	struct emac_regs *p = dev->emacp;
+	u32 r;
 	int n;
 
-	spin_lock_irqsave(&fep->lock, flags);
-	if ((n = emac_rx_clean(dev)) != fep->rx_slot)
-		emac_rx_fill(dev, n);
-	spin_unlock_irqrestore(&fep->lock, flags);
-}
+	DBG2("%d: mdio_read(%02x,%02x)" NL, dev->def->index, id, reg);
 
-/*
- * This interrupt should never occurr, we don't program
- * the MAL for contiunous mode.
- */
-static void emac_txde_dev(void *param, u32 chanmask)
-{
-	struct net_device *dev = param;
-	struct ocp_enet_private *fep = dev->priv;
+	/* Enable proper MDIO port */
+	zmii_enable_mdio(dev->zmii_dev, dev->zmii_input);
 
-	printk(KERN_WARNING "%s: transmit descriptor error\n", dev->name);
-
-	emac_mac_dump(dev);
-	emac_mal_dump(dev);
-
-	/* Reenable the transmit channel */
-	mal_enable_tx_channels(fep->mal, fep->commac.tx_chan_mask);
-}
-
-/*
- * This interrupt should be very rare at best.  This occurs when
- * the hardware has a problem with the receive descriptors.  The manual
- * states that it occurs when the hardware cannot the receive descriptor
- * empty bit is not set.  The recovery mechanism will be to
- * traverse through the descriptors, handle any that are marked to be
- * handled and reinitialize each along the way.  At that point the driver
- * will be restarted.
- */
-static void emac_rxde_dev(void *param, u32 chanmask)
-{
-	struct net_device *dev = param;
-	struct ocp_enet_private *fep = dev->priv;
-	unsigned long flags;
-
-	if (net_ratelimit()) {
-		printk(KERN_WARNING "%s: receive descriptor error\n",
-		       fep->ndev->name);
-
-		emac_mac_dump(dev);
-		emac_mal_dump(dev);
-		emac_desc_dump(dev);
+	/* Wait for management interface to become idle */
+	n = 10;
+	while (!(in_be32(&p->stacr) & EMAC_STACR_OC)) {
+		udelay(1);
+		if (!--n)
+			goto to;
 	}
 
-	/* Disable RX channel */
-	spin_lock_irqsave(&fep->lock, flags);
-	mal_disable_rx_channels(fep->mal, fep->commac.rx_chan_mask);
+	/* Issue read command */
+	out_be32(&p->stacr,
+		 EMAC_STACR_BASE(emac_opb_mhz()) | EMAC_STACR_STAC_READ |
+		 (reg & EMAC_STACR_PRA_MASK)
+		 | ((id & EMAC_STACR_PCDA_MASK) << EMAC_STACR_PCDA_SHIFT));
 
-	/* For now, charge the error against all emacs */
-	fep->stats.rx_errors++;
+	/* Wait for read to complete */
+	n = 100;
+	while (!((r = in_be32(&p->stacr)) & EMAC_STACR_OC)) {
+		udelay(1);
+		if (!--n)
+			goto to;
+	}
 
-	/* so do we have any good packets still? */
-	emac_rx_clean(dev);
+	if (unlikely(r & EMAC_STACR_PHYE)) {
+		DBG("%d: mdio_read(%02x, %02x) failed" NL, dev->def->index,
+		    id, reg);
+		return -EREMOTEIO;
+	}
 
-	/* When the interface is restarted it resets processing to the
-	 *  first descriptor in the table.
+	r = ((r >> EMAC_STACR_PHYD_SHIFT) & EMAC_STACR_PHYD_MASK);
+	DBG2("%d: mdio_read -> %04x" NL, dev->def->index, r);
+	return r;
+      to:
+	DBG("%d: MII management interface timeout (read)" NL, dev->def->index);
+	return -ETIMEDOUT;
+}
+
+static void __emac_mdio_write(struct ocp_enet_private *dev, u8 id, u8 reg,
+			      u16 val)
+{
+	struct emac_regs *p = dev->emacp;
+	int n;
+
+	DBG2("%d: mdio_write(%02x,%02x,%04x)" NL, dev->def->index, id, reg,
+	     val);
+
+	/* Enable proper MDIO port */
+	zmii_enable_mdio(dev->zmii_dev, dev->zmii_input);
+
+	/* Wait for management interface to be idle */
+	n = 10;
+	while (!(in_be32(&p->stacr) & EMAC_STACR_OC)) {
+		udelay(1);
+		if (!--n)
+			goto to;
+	}
+
+	/* Issue write command */
+	out_be32(&p->stacr,
+		 EMAC_STACR_BASE(emac_opb_mhz()) | EMAC_STACR_STAC_WRITE |
+		 (reg & EMAC_STACR_PRA_MASK) |
+		 ((id & EMAC_STACR_PCDA_MASK) << EMAC_STACR_PCDA_SHIFT) |
+		 (val << EMAC_STACR_PHYD_SHIFT));
+
+	/* Wait for write to complete */
+	n = 100;
+	while (!(in_be32(&p->stacr) & EMAC_STACR_OC)) {
+		udelay(1);
+		if (!--n)
+			goto to;
+	}
+	return;
+      to:
+	DBG("%d: MII management interface timeout (write)" NL, dev->def->index);
+}
+
+static int emac_mdio_read(struct net_device *ndev, int id, int reg)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+	int res;
+
+	local_bh_disable();
+	res = __emac_mdio_read(dev->mdio_dev ? dev->mdio_dev : dev, (u8) id,
+			       (u8) reg);
+	local_bh_enable();
+	return res;
+}
+
+static void emac_mdio_write(struct net_device *ndev, int id, int reg, int val)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+
+	local_bh_disable();
+	__emac_mdio_write(dev->mdio_dev ? dev->mdio_dev : dev, (u8) id,
+			  (u8) reg, (u16) val);
+	local_bh_enable();
+}
+
+/* BHs disabled */
+static void emac_set_multicast_list(struct net_device *ndev)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+	struct emac_regs *p = dev->emacp;
+	u32 rmr = emac_iff2rmr(ndev);
+
+	DBG("%d: multicast %08x" NL, dev->def->index, rmr);
+	BUG_ON(!netif_running(dev->ndev));
+
+	/* I decided to relax register access rules here to avoid
+	 * full EMAC reset.
+	 *
+	 * There is a real problem with EMAC4 core if we use MWSW_001 bit 
+	 * in MR1 register and do a full EMAC reset.
+	 * One TX BD status update is delayed and, after EMAC reset, it 
+	 * never happens, resulting in TX hung (it'll be recovered by TX 
+	 * timeout handler eventually, but this is just gross).
+	 * So we either have to do full TX reset or try to cheat here :)
+	 *
+	 * The only required change is to RX mode register, so I *think* all
+	 * we need is just to stop RX channel. This seems to work on all
+	 * tested SoCs.                                                --ebs
 	 */
-
-	fep->rx_slot = 0;
-	emac_rx_fill(dev, 0);
-
-	set_mal_dcrn(fep->mal, DCRN_MALRXEOBISR, fep->commac.rx_chan_mask);
-	set_mal_dcrn(fep->mal, DCRN_MALRXDEIR, fep->commac.rx_chan_mask);
-
-	/* Reenable the receive channels */
-	mal_enable_rx_channels(fep->mal, fep->commac.rx_chan_mask);
-	spin_unlock_irqrestore(&fep->lock, flags);
+	emac_rx_disable(dev);
+	if (rmr & EMAC_RMR_MAE)
+		emac_hash_mc(dev);
+	out_be32(&p->rmr, rmr);
+	emac_rx_enable(dev);
 }
 
-static irqreturn_t
-emac_mac_irq(int irq, void *dev_instance, struct pt_regs *regs)
+/* BHs disabled */
+static int emac_resize_rx_ring(struct ocp_enet_private *dev, int new_mtu)
 {
-	struct net_device *dev = dev_instance;
-	struct ocp_enet_private *fep = dev->priv;
-	emac_t *emacp = fep->emacp;
-	unsigned long tmp_em0isr;
+	struct ocp_func_emac_data *emacdata = dev->def->additions;
+	int rx_sync_size = emac_rx_sync_size(new_mtu);
+	int rx_skb_size = emac_rx_skb_size(new_mtu);
+	int i, ret = 0;
 
-	/* EMAC interrupt */
-	tmp_em0isr = in_be32(&emacp->em0isr);
-	if (tmp_em0isr & (EMAC_ISR_TE0 | EMAC_ISR_TE1)) {
-		/* This error is a hard transmit error - could retransmit */
-		fep->stats.tx_errors++;
+	emac_rx_disable(dev);
+	mal_disable_rx_channel(dev->mal, emacdata->mal_rx_chan);
 
-		/* Reenable the transmit channel */
-		mal_enable_tx_channels(fep->mal, fep->commac.tx_chan_mask);
-
-	} else {
-		fep->stats.rx_errors++;
+	if (dev->rx_sg_skb) {
+		++dev->estats.rx_dropped_resize;
+		dev_kfree_skb(dev->rx_sg_skb);
+		dev->rx_sg_skb = NULL;
 	}
 
-	if (tmp_em0isr & EMAC_ISR_RP)
-		fep->stats.rx_length_errors++;
-	if (tmp_em0isr & EMAC_ISR_ALE)
-		fep->stats.rx_frame_errors++;
-	if (tmp_em0isr & EMAC_ISR_BFCS)
-		fep->stats.rx_crc_errors++;
-	if (tmp_em0isr & EMAC_ISR_PTLE)
-		fep->stats.rx_length_errors++;
-	if (tmp_em0isr & EMAC_ISR_ORE)
-		fep->stats.rx_length_errors++;
-	if (tmp_em0isr & EMAC_ISR_TE0)
-		fep->stats.tx_aborted_errors++;
+	/* Make a first pass over RX ring and mark BDs ready, dropping 
+	 * non-processed packets on the way. We need this as a separate pass
+	 * to simplify error recovery in the case of allocation failure later.
+	 */
+	for (i = 0; i < NUM_RX_BUFF; ++i) {
+		if (dev->rx_desc[i].ctrl & MAL_RX_CTRL_FIRST)
+			++dev->estats.rx_dropped_resize;
 
-	emac_err_dump(dev, tmp_em0isr);
+		dev->rx_desc[i].data_len = 0;
+		dev->rx_desc[i].ctrl = MAL_RX_CTRL_EMPTY |
+		    (i == (NUM_RX_BUFF - 1) ? MAL_RX_CTRL_WRAP : 0);
+	}
 
-	out_be32(&emacp->em0isr, tmp_em0isr);
+	/* Reallocate RX ring only if bigger skb buffers are required */
+	if (rx_skb_size <= dev->rx_skb_size)
+		goto skip;
+
+	/* Second pass, allocate new skbs */
+	for (i = 0; i < NUM_RX_BUFF; ++i) {
+		struct sk_buff *skb = alloc_skb(rx_skb_size, GFP_ATOMIC);
+		if (!skb) {
+			ret = -ENOMEM;
+			goto oom;
+		}
+
+		BUG_ON(!dev->rx_skb[i]);
+		dev_kfree_skb(dev->rx_skb[i]);
+
+		skb_reserve(skb, EMAC_RX_SKB_HEADROOM + 2);
+		dev->rx_desc[i].data_ptr =
+		    dma_map_single(dev->ldev, skb->data - 2, rx_sync_size,
+				   DMA_FROM_DEVICE) + 2;
+		dev->rx_skb[i] = skb;
+	}
+      skip:
+	/* Check if we need to change "Jumbo" bit in MR1 */
+	if ((new_mtu > ETH_DATA_LEN) ^ (dev->ndev->mtu > ETH_DATA_LEN)) {
+		/* This is to prevent starting RX channel in emac_rx_enable() */
+		dev->commac.rx_stopped = 1;
+
+		dev->ndev->mtu = new_mtu;
+		emac_full_tx_reset(dev->ndev);
+	}
+
+	mal_set_rcbs(dev->mal, emacdata->mal_rx_chan, emac_rx_size(new_mtu));
+      oom:
+	/* Restart RX */
+	dev->commac.rx_stopped = dev->rx_slot = 0;
+	mal_enable_rx_channel(dev->mal, emacdata->mal_rx_chan);
+	emac_rx_enable(dev);
+
+	return ret;
+}
+
+/* Process ctx, rtnl_lock semaphore */
+static int emac_change_mtu(struct net_device *ndev, int new_mtu)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+	int ret = 0;
+
+	if (new_mtu < EMAC_MIN_MTU || new_mtu > EMAC_MAX_MTU)
+		return -EINVAL;
+
+	DBG("%d: change_mtu(%d)" NL, dev->def->index, new_mtu);
+
+	local_bh_disable();
+	if (netif_running(ndev)) {
+		/* Check if we really need to reinitalize RX ring */
+		if (emac_rx_skb_size(ndev->mtu) != emac_rx_skb_size(new_mtu))
+			ret = emac_resize_rx_ring(dev, new_mtu);
+	}
+
+	if (!ret) {
+		ndev->mtu = new_mtu;
+		dev->rx_skb_size = emac_rx_skb_size(new_mtu);
+		dev->rx_sync_size = emac_rx_sync_size(new_mtu);
+	}	
+	local_bh_enable();
+
+	return ret;
+}
+
+static void emac_clean_tx_ring(struct ocp_enet_private *dev)
+{
+	int i;
+	for (i = 0; i < NUM_TX_BUFF; ++i) {
+		if (dev->tx_skb[i]) {
+			dev_kfree_skb(dev->tx_skb[i]);
+			dev->tx_skb[i] = NULL;
+			if (dev->tx_desc[i].ctrl & MAL_TX_CTRL_READY)
+				++dev->estats.tx_dropped;
+		}
+		dev->tx_desc[i].ctrl = 0;
+		dev->tx_desc[i].data_ptr = 0;
+	}
+}
+
+static void emac_clean_rx_ring(struct ocp_enet_private *dev)
+{
+	int i;
+	for (i = 0; i < NUM_RX_BUFF; ++i)
+		if (dev->rx_skb[i]) {
+			dev->rx_desc[i].ctrl = 0;
+			dev_kfree_skb(dev->rx_skb[i]);
+			dev->rx_skb[i] = NULL;
+			dev->rx_desc[i].data_ptr = 0;
+		}
+
+	if (dev->rx_sg_skb) {
+		dev_kfree_skb(dev->rx_sg_skb);
+		dev->rx_sg_skb = NULL;
+	}
+}
+
+static inline int emac_alloc_rx_skb(struct ocp_enet_private *dev, int slot,
+				    int flags)
+{
+	struct sk_buff *skb = alloc_skb(dev->rx_skb_size, flags);
+	if (unlikely(!skb))
+		return -ENOMEM;
+
+	dev->rx_skb[slot] = skb;
+	dev->rx_desc[slot].data_len = 0;
+
+	skb_reserve(skb, EMAC_RX_SKB_HEADROOM + 2);
+	dev->rx_desc[slot].data_ptr = 
+	    dma_map_single(dev->ldev, skb->data - 2, dev->rx_sync_size, 
+			   DMA_FROM_DEVICE) + 2;
+	barrier();
+	dev->rx_desc[slot].ctrl = MAL_RX_CTRL_EMPTY |
+	    (slot == (NUM_RX_BUFF - 1) ? MAL_RX_CTRL_WRAP : 0);
+
+	return 0;
+}
+
+static void emac_print_link_status(struct ocp_enet_private *dev)
+{
+	if (netif_carrier_ok(dev->ndev))
+		printk(KERN_INFO "%s: link is up, %d %s%s\n",
+		       dev->ndev->name, dev->phy.speed,
+		       dev->phy.duplex == DUPLEX_FULL ? "FDX" : "HDX",
+		       dev->phy.pause ? ", pause enabled" :
+		       dev->phy.asym_pause ? ", assymetric pause enabled" : "");
+	else
+		printk(KERN_INFO "%s: link is down\n", dev->ndev->name);
+}
+
+/* Process ctx, rtnl_lock semaphore */
+static int emac_open(struct net_device *ndev)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+	struct ocp_func_emac_data *emacdata = dev->def->additions;
+	int err, i;
+
+	DBG("%d: open" NL, dev->def->index);
+
+	/* Setup error IRQ handler */
+	err = request_irq(dev->def->irq, emac_irq, 0, "EMAC", dev);
+	if (err) {
+		printk(KERN_ERR "%s: failed to request IRQ %d\n",
+		       ndev->name, dev->def->irq);
+		return err;
+	}
+
+	/* Allocate RX ring */
+	for (i = 0; i < NUM_RX_BUFF; ++i)
+		if (emac_alloc_rx_skb(dev, i, GFP_KERNEL)) {
+			printk(KERN_ERR "%s: failed to allocate RX ring\n",
+			       ndev->name);
+			goto oom;
+		}
+
+	local_bh_disable();
+	dev->tx_cnt = dev->tx_slot = dev->ack_slot = dev->rx_slot =
+	    dev->commac.rx_stopped = 0;
+	dev->rx_sg_skb = NULL;
+
+	if (dev->phy.address >= 0) {
+		int link_poll_interval;
+		if (dev->phy.def->ops->poll_link(&dev->phy)) {
+			dev->phy.def->ops->read_link(&dev->phy);
+			EMAC_RX_CLK_DEFAULT(dev->def->index);
+			netif_carrier_on(dev->ndev);
+			link_poll_interval = PHY_POLL_LINK_ON;
+		} else {
+			EMAC_RX_CLK_TX(dev->def->index);
+			netif_carrier_off(dev->ndev);
+			link_poll_interval = PHY_POLL_LINK_OFF;
+		}
+		mod_timer(&dev->link_timer, jiffies + link_poll_interval);
+		emac_print_link_status(dev);
+	} else
+		netif_carrier_on(dev->ndev);
+
+	emac_configure(dev);
+	mal_poll_add(dev->mal, &dev->commac);
+	mal_enable_tx_channel(dev->mal, emacdata->mal_tx_chan);
+	mal_set_rcbs(dev->mal, emacdata->mal_rx_chan, emac_rx_size(ndev->mtu));
+	mal_enable_rx_channel(dev->mal, emacdata->mal_rx_chan);
+	emac_tx_enable(dev);
+	emac_rx_enable(dev);
+	netif_start_queue(ndev);
+	local_bh_enable();
+
+	return 0;
+      oom:
+	emac_clean_rx_ring(dev);
+	free_irq(dev->def->irq, dev);
+	return -ENOMEM;
+}
+
+/* BHs disabled */
+static int emac_link_differs(struct ocp_enet_private *dev)
+{
+	u32 r = in_be32(&dev->emacp->mr1);
+
+	int duplex = r & EMAC_MR1_FDE ? DUPLEX_FULL : DUPLEX_HALF;
+	int speed, pause, asym_pause;
+
+	if (r & (EMAC_MR1_MF_1000 | EMAC_MR1_MF_1000GPCS))
+		speed = SPEED_1000;
+	else if (r & EMAC_MR1_MF_100)
+		speed = SPEED_100;
+	else
+		speed = SPEED_10;
+
+	switch (r & (EMAC_MR1_EIFC | EMAC_MR1_APP)) {
+	case (EMAC_MR1_EIFC | EMAC_MR1_APP):
+		pause = 1;
+		asym_pause = 0;
+		break;
+	case EMAC_MR1_APP:
+		pause = 0;
+		asym_pause = 1;
+		break;
+	default:
+		pause = asym_pause = 0;
+	}
+	return speed != dev->phy.speed || duplex != dev->phy.duplex ||
+	    pause != dev->phy.pause || asym_pause != dev->phy.asym_pause;
+}
+
+/* BHs disabled */
+static void emac_link_timer(unsigned long data)
+{
+	struct ocp_enet_private *dev = (struct ocp_enet_private *)data;
+	int link_poll_interval;
+
+	DBG2("%d: link timer" NL, dev->def->index);
+
+	if (dev->phy.def->ops->poll_link(&dev->phy)) {
+		if (!netif_carrier_ok(dev->ndev)) {
+			EMAC_RX_CLK_DEFAULT(dev->def->index);
+
+			/* Get new link parameters */
+			dev->phy.def->ops->read_link(&dev->phy);
+
+			if (dev->tah_dev || emac_link_differs(dev))
+				emac_full_tx_reset(dev->ndev);
+
+			netif_carrier_on(dev->ndev);
+			emac_print_link_status(dev);
+		}
+		link_poll_interval = PHY_POLL_LINK_ON;
+	} else {
+		if (netif_carrier_ok(dev->ndev)) {
+			EMAC_RX_CLK_TX(dev->def->index);
+#if defined(CONFIG_IBM_EMAC_PHY_RX_CLK_FIX)
+			emac_reinitialize(dev);
+#endif
+			netif_carrier_off(dev->ndev);
+			emac_print_link_status(dev);
+		}
+
+		/* Retry reset if the previous attempt failed.
+		 * This is needed mostly for CONFIG_IBM_EMAC_PHY_RX_CLK_FIX
+		 * case, but I left it here because it shouldn't trigger for
+		 * sane PHYs anyway.
+		 */
+		if (unlikely(dev->reset_failed))
+			emac_reinitialize(dev);
+
+		link_poll_interval = PHY_POLL_LINK_OFF;
+	}
+	mod_timer(&dev->link_timer, jiffies + link_poll_interval);
+}
+
+/* BHs disabled */
+static void emac_force_link_update(struct ocp_enet_private *dev)
+{
+	netif_carrier_off(dev->ndev);
+	if (timer_pending(&dev->link_timer))
+		mod_timer(&dev->link_timer, jiffies + PHY_POLL_LINK_OFF);
+}
+
+/* Process ctx, rtnl_lock semaphore */
+static int emac_close(struct net_device *ndev)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+	struct ocp_func_emac_data *emacdata = dev->def->additions;
+
+	DBG("%d: close" NL, dev->def->index);
+
+	local_bh_disable();
+
+	if (dev->phy.address >= 0)
+		del_timer_sync(&dev->link_timer);
+
+	netif_stop_queue(ndev);
+	emac_rx_disable(dev);
+	emac_tx_disable(dev);
+	mal_disable_rx_channel(dev->mal, emacdata->mal_rx_chan);
+	mal_disable_tx_channel(dev->mal, emacdata->mal_tx_chan);
+	mal_poll_del(dev->mal, &dev->commac);
+	local_bh_enable();
+
+	emac_clean_tx_ring(dev);
+	emac_clean_rx_ring(dev);
+	free_irq(dev->def->irq, dev);
+
+	return 0;
+}
+
+static inline u16 emac_tx_csum(struct ocp_enet_private *dev,
+			       struct sk_buff *skb)
+{
+#if defined(CONFIG_IBM_EMAC_TAH)
+	if (skb->ip_summed == CHECKSUM_HW) {
+		++dev->stats.tx_packets_csum;
+		return EMAC_TX_CTRL_TAH_CSUM;
+	}
+#endif
+	return 0;
+}
+
+static inline int emac_xmit_finish(struct ocp_enet_private *dev, int len)
+{
+	struct emac_regs *p = dev->emacp;
+	struct net_device *ndev = dev->ndev;
+
+	/* Send the packet out */
+	out_be32(&p->tmr0, EMAC_TMR0_XMIT);
+
+	if (unlikely(++dev->tx_cnt == NUM_TX_BUFF)) {
+		netif_stop_queue(ndev);
+		DBG2("%d: stopped TX queue" NL, dev->def->index);
+	}
+
+	ndev->trans_start = jiffies;
+	++dev->stats.tx_packets;
+	dev->stats.tx_bytes += len;
+
+	return 0;
+}
+
+/* BHs disabled */
+static int emac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+	unsigned int len = skb->len;
+	int slot;
+
+	u16 ctrl = EMAC_TX_CTRL_GFCS | EMAC_TX_CTRL_GP | MAL_TX_CTRL_READY |
+	    MAL_TX_CTRL_LAST | emac_tx_csum(dev, skb);
+
+	slot = dev->tx_slot++;
+	if (dev->tx_slot == NUM_TX_BUFF) {
+		dev->tx_slot = 0;
+		ctrl |= MAL_TX_CTRL_WRAP;
+	}
+
+	DBG2("%d: xmit(%u) %d" NL, dev->def->index, len, slot);
+
+	dev->tx_skb[slot] = skb;
+	dev->tx_desc[slot].data_ptr = dma_map_single(dev->ldev, skb->data, len,
+						     DMA_TO_DEVICE);
+	dev->tx_desc[slot].data_len = (u16) len;
+	barrier();
+	dev->tx_desc[slot].ctrl = ctrl;
+
+	return emac_xmit_finish(dev, len);
+}
+
+#if defined(CONFIG_IBM_EMAC_TAH)
+static inline int emac_xmit_split(struct ocp_enet_private *dev, int slot,
+				  u32 pd, int len, int last, u16 base_ctrl)
+{
+	while (1) {
+		u16 ctrl = base_ctrl;
+		int chunk = min(len, MAL_MAX_TX_SIZE);
+		len -= chunk;
+
+		slot = (slot + 1) % NUM_TX_BUFF;
+
+		if (last && !len)
+			ctrl |= MAL_TX_CTRL_LAST;
+		if (slot == NUM_TX_BUFF - 1)
+			ctrl |= MAL_TX_CTRL_WRAP;
+
+		dev->tx_skb[slot] = NULL;
+		dev->tx_desc[slot].data_ptr = pd;
+		dev->tx_desc[slot].data_len = (u16) chunk;
+		dev->tx_desc[slot].ctrl = ctrl;
+		++dev->tx_cnt;
+
+		if (!len)
+			break;
+
+		pd += chunk;
+	}
+	return slot;
+}
+
+/* BHs disabled (SG version for TAH equipped EMACs) */
+static int emac_start_xmit_sg(struct sk_buff *skb, struct net_device *ndev)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+	int nr_frags = skb_shinfo(skb)->nr_frags;
+	int len = skb->len, chunk;
+	int slot, i;
+	u16 ctrl;
+	u32 pd;
+
+	/* This is common "fast" path */
+	if (likely(!nr_frags && len <= MAL_MAX_TX_SIZE))
+		return emac_start_xmit(skb, ndev);
+
+	len -= skb->data_len;
+
+	/* Note, this is only an *estimation*, we can still run out of empty
+	 * slots because of the additional fragmentation into
+	 * MAL_MAX_TX_SIZE-sized chunks
+	 */
+	if (unlikely(dev->tx_cnt + nr_frags + mal_tx_chunks(len) > NUM_TX_BUFF))
+		goto stop_queue;
+
+	ctrl = EMAC_TX_CTRL_GFCS | EMAC_TX_CTRL_GP | MAL_TX_CTRL_READY |
+	    emac_tx_csum(dev, skb);
+	slot = dev->tx_slot;
+
+	/* skb data */
+	dev->tx_skb[slot] = NULL;
+	chunk = min(len, MAL_MAX_TX_SIZE);
+	dev->tx_desc[slot].data_ptr = pd =
+	    dma_map_single(dev->ldev, skb->data, len, DMA_TO_DEVICE);
+	dev->tx_desc[slot].data_len = (u16) chunk;
+	len -= chunk;
+	if (unlikely(len))
+		slot = emac_xmit_split(dev, slot, pd + chunk, len, !nr_frags,
+				       ctrl);
+	/* skb fragments */
+	for (i = 0; i < nr_frags; ++i) {
+		struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+		len = frag->size;
+
+		if (unlikely(dev->tx_cnt + mal_tx_chunks(len) >= NUM_TX_BUFF))
+			goto undo_frame;
+
+		pd = dma_map_page(dev->ldev, frag->page, frag->page_offset, len,
+				  DMA_TO_DEVICE);
+
+		slot = emac_xmit_split(dev, slot, pd, len, i == nr_frags - 1,
+				       ctrl);
+	}
+
+	DBG2("%d: xmit_sg(%u) %d - %d" NL, dev->def->index, skb->len,
+	     dev->tx_slot, slot);
+
+	/* Attach skb to the last slot so we don't release it too early */
+	dev->tx_skb[slot] = skb;
+
+	/* Send the packet out */
+	if (dev->tx_slot == NUM_TX_BUFF - 1)
+		ctrl |= MAL_TX_CTRL_WRAP;
+	barrier();
+	dev->tx_desc[dev->tx_slot].ctrl = ctrl;
+	dev->tx_slot = (slot + 1) % NUM_TX_BUFF;
+
+	return emac_xmit_finish(dev, skb->len);
+
+      undo_frame:
+	/* Well, too bad. Our previous estimation was overly optimistic. 
+	 * Undo everything.
+	 */
+	while (slot != dev->tx_slot) {
+		dev->tx_desc[slot].ctrl = 0;
+		--dev->tx_cnt;
+		if (--slot < 0)
+			slot = NUM_TX_BUFF - 1;
+	}
+	++dev->estats.tx_undo;
+
+      stop_queue:
+	netif_stop_queue(ndev);
+	DBG2("%d: stopped TX queue" NL, dev->def->index);
+	return 1;
+}
+#else
+# define emac_start_xmit_sg	emac_start_xmit
+#endif	/* !defined(CONFIG_IBM_EMAC_TAH) */
+
+/* BHs disabled */
+static void emac_parse_tx_error(struct ocp_enet_private *dev, u16 ctrl)
+{
+	struct ibm_emac_error_stats *st = &dev->estats;
+	DBG("%d: BD TX error %04x" NL, dev->def->index, ctrl);
+
+	++st->tx_bd_errors;
+	if (ctrl & EMAC_TX_ST_BFCS)
+		++st->tx_bd_bad_fcs;
+	if (ctrl & EMAC_TX_ST_LCS)
+		++st->tx_bd_carrier_loss;
+	if (ctrl & EMAC_TX_ST_ED)
+		++st->tx_bd_excessive_deferral;
+	if (ctrl & EMAC_TX_ST_EC)
+		++st->tx_bd_excessive_collisions;
+	if (ctrl & EMAC_TX_ST_LC)
+		++st->tx_bd_late_collision;
+	if (ctrl & EMAC_TX_ST_MC)
+		++st->tx_bd_multple_collisions;
+	if (ctrl & EMAC_TX_ST_SC)
+		++st->tx_bd_single_collision;
+	if (ctrl & EMAC_TX_ST_UR)
+		++st->tx_bd_underrun;
+	if (ctrl & EMAC_TX_ST_SQE)
+		++st->tx_bd_sqe;
+}
+
+static void emac_poll_tx(void *param)
+{
+	struct ocp_enet_private *dev = param;
+	DBG2("%d: poll_tx, %d %d" NL, dev->def->index, dev->tx_cnt,
+	     dev->ack_slot);
+
+	if (dev->tx_cnt) {
+		u16 ctrl;
+		int slot = dev->ack_slot, n = 0;
+	      again:
+		ctrl = dev->tx_desc[slot].ctrl;
+		if (!(ctrl & MAL_TX_CTRL_READY)) {
+			struct sk_buff *skb = dev->tx_skb[slot];
+			++n;
+
+			if (skb) {
+				dev_kfree_skb(skb);
+				dev->tx_skb[slot] = NULL;
+			}
+			slot = (slot + 1) % NUM_TX_BUFF;
+
+			if (unlikely(EMAC_IS_BAD_TX(ctrl)))
+				emac_parse_tx_error(dev, ctrl);
+
+			if (--dev->tx_cnt)
+				goto again;
+		}
+		if (n) {
+			dev->ack_slot = slot;
+			if (netif_queue_stopped(dev->ndev) &&
+			    dev->tx_cnt < EMAC_TX_WAKEUP_THRESH)
+				netif_wake_queue(dev->ndev);
+
+			DBG2("%d: tx %d pkts" NL, dev->def->index, n);
+		}
+	}
+}
+
+static inline void emac_recycle_rx_skb(struct ocp_enet_private *dev, int slot,
+				       int len)
+{
+	struct sk_buff *skb = dev->rx_skb[slot];
+	DBG2("%d: recycle %d %d" NL, dev->def->index, slot, len);
+
+	if (len) 
+		dma_map_single(dev->ldev, skb->data - 2, 
+			       EMAC_DMA_ALIGN(len + 2), DMA_FROM_DEVICE);
+
+	dev->rx_desc[slot].data_len = 0;
+	barrier();
+	dev->rx_desc[slot].ctrl = MAL_RX_CTRL_EMPTY |
+	    (slot == (NUM_RX_BUFF - 1) ? MAL_RX_CTRL_WRAP : 0);
+}
+
+static void emac_parse_rx_error(struct ocp_enet_private *dev, u16 ctrl)
+{
+	struct ibm_emac_error_stats *st = &dev->estats;
+	DBG("%d: BD RX error %04x" NL, dev->def->index, ctrl);
+
+	++st->rx_bd_errors;
+	if (ctrl & EMAC_RX_ST_OE)
+		++st->rx_bd_overrun;
+	if (ctrl & EMAC_RX_ST_BP)
+		++st->rx_bd_bad_packet;
+	if (ctrl & EMAC_RX_ST_RP)
+		++st->rx_bd_runt_packet;
+	if (ctrl & EMAC_RX_ST_SE)
+		++st->rx_bd_short_event;
+	if (ctrl & EMAC_RX_ST_AE)
+		++st->rx_bd_alignment_error;
+	if (ctrl & EMAC_RX_ST_BFCS)
+		++st->rx_bd_bad_fcs;
+	if (ctrl & EMAC_RX_ST_PTL)
+		++st->rx_bd_packet_too_long;
+	if (ctrl & EMAC_RX_ST_ORE)
+		++st->rx_bd_out_of_range;
+	if (ctrl & EMAC_RX_ST_IRE)
+		++st->rx_bd_in_range;
+}
+
+static inline void emac_rx_csum(struct ocp_enet_private *dev,
+				struct sk_buff *skb, u16 ctrl)
+{
+#if defined(CONFIG_IBM_EMAC_TAH)
+	if (!ctrl && dev->tah_dev) {
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+		++dev->stats.rx_packets_csum;
+	}
+#endif
+}
+
+static inline int emac_rx_sg_append(struct ocp_enet_private *dev, int slot)
+{
+	if (likely(dev->rx_sg_skb != NULL)) {
+		int len = dev->rx_desc[slot].data_len;
+		int tot_len = dev->rx_sg_skb->len + len;
+
+		if (unlikely(tot_len + 2 > dev->rx_skb_size)) {
+			++dev->estats.rx_dropped_mtu;
+			dev_kfree_skb(dev->rx_sg_skb);
+			dev->rx_sg_skb = NULL;
+		} else {
+			cacheable_memcpy(dev->rx_sg_skb->tail,
+					 dev->rx_skb[slot]->data, len);
+			skb_put(dev->rx_sg_skb, len);
+			emac_recycle_rx_skb(dev, slot, len);
+			return 0;
+		}
+	}
+	emac_recycle_rx_skb(dev, slot, 0);
+	return -1;
+}
+
+/* BHs disabled */
+static int emac_poll_rx(void *param, int budget)
+{
+	struct ocp_enet_private *dev = param;
+	int slot = dev->rx_slot, received = 0;
+
+	DBG2("%d: poll_rx(%d)" NL, dev->def->index, budget);
+
+      again:
+	while (budget > 0) {
+		int len;
+		struct sk_buff *skb;
+		u16 ctrl = dev->rx_desc[slot].ctrl;
+
+		if (ctrl & MAL_RX_CTRL_EMPTY)
+			break;
+
+		skb = dev->rx_skb[slot];
+		barrier();
+		len = dev->rx_desc[slot].data_len;
+
+		if (unlikely(!MAL_IS_SINGLE_RX(ctrl)))
+			goto sg;
+
+		ctrl &= EMAC_BAD_RX_MASK;
+		if (unlikely(ctrl && ctrl != EMAC_RX_TAH_BAD_CSUM)) {
+			emac_parse_rx_error(dev, ctrl);
+			++dev->estats.rx_dropped_error;
+			emac_recycle_rx_skb(dev, slot, 0);
+			len = 0;
+			goto next;
+		}
+
+		if (len && len < EMAC_RX_COPY_THRESH) {
+			struct sk_buff *copy_skb =
+			    alloc_skb(len + EMAC_RX_SKB_HEADROOM + 2, GFP_ATOMIC);
+			if (unlikely(!copy_skb))
+				goto oom;
+
+			skb_reserve(copy_skb, EMAC_RX_SKB_HEADROOM + 2);
+			cacheable_memcpy(copy_skb->data - 2, skb->data - 2,
+					 len + 2);
+			emac_recycle_rx_skb(dev, slot, len);
+			skb = copy_skb;
+		} else if (unlikely(emac_alloc_rx_skb(dev, slot, GFP_ATOMIC)))
+			goto oom;
+
+		skb_put(skb, len);
+	      push_packet:
+		skb->dev = dev->ndev;
+		skb->protocol = eth_type_trans(skb, dev->ndev);
+		emac_rx_csum(dev, skb, ctrl);
+
+		if (unlikely(netif_receive_skb(skb) == NET_RX_DROP))
+			++dev->estats.rx_dropped_stack;
+	      next:
+		++dev->stats.rx_packets;
+	      skip:
+		dev->stats.rx_bytes += len;
+		slot = (slot + 1) % NUM_RX_BUFF;
+		--budget;
+		++received;
+		continue;
+	      sg:
+		if (ctrl & MAL_RX_CTRL_FIRST) {
+			BUG_ON(dev->rx_sg_skb);
+			if (unlikely(emac_alloc_rx_skb(dev, slot, GFP_ATOMIC))) {
+				DBG("%d: rx OOM %d" NL, dev->def->index, slot);
+				++dev->estats.rx_dropped_oom;
+				emac_recycle_rx_skb(dev, slot, 0);
+			} else {
+				dev->rx_sg_skb = skb;
+				skb_put(skb, len);
+			}
+		} else if (!emac_rx_sg_append(dev, slot) &&
+			   (ctrl & MAL_RX_CTRL_LAST)) {
+
+			skb = dev->rx_sg_skb;
+			dev->rx_sg_skb = NULL;
+
+			ctrl &= EMAC_BAD_RX_MASK;
+			if (unlikely(ctrl && ctrl != EMAC_RX_TAH_BAD_CSUM)) {
+				emac_parse_rx_error(dev, ctrl);
+				++dev->estats.rx_dropped_error;
+				dev_kfree_skb(skb);
+				len = 0;
+			} else
+				goto push_packet;
+		}
+		goto skip;
+	      oom:
+		DBG("%d: rx OOM %d" NL, dev->def->index, slot);
+		/* Drop the packet and recycle skb */
+		++dev->estats.rx_dropped_oom;
+		emac_recycle_rx_skb(dev, slot, 0);
+		goto next;
+	}
+
+	if (received) {
+		DBG2("%d: rx %d BDs" NL, dev->def->index, received);
+		dev->rx_slot = slot;
+	}
+
+	if (unlikely(budget && dev->commac.rx_stopped)) {
+		struct ocp_func_emac_data *emacdata = dev->def->additions;
+
+		barrier();
+		if (!(dev->rx_desc[slot].ctrl & MAL_RX_CTRL_EMPTY)) {
+			DBG2("%d: rx restart" NL, dev->def->index);
+			received = 0;
+			goto again;
+		}
+
+		if (dev->rx_sg_skb) {
+			DBG2("%d: dropping partial rx packet" NL,
+			     dev->def->index);
+			++dev->estats.rx_dropped_error;
+			dev_kfree_skb(dev->rx_sg_skb);
+			dev->rx_sg_skb = NULL;
+		}
+
+		dev->commac.rx_stopped = 0;
+		mal_enable_rx_channel(dev->mal, emacdata->mal_rx_chan);
+		emac_rx_enable(dev);
+		dev->rx_slot = 0;
+	}
+	return received;
+}
+
+/* BHs disabled */
+static int emac_peek_rx(void *param)
+{
+	struct ocp_enet_private *dev = param;
+	return !(dev->rx_desc[dev->rx_slot].ctrl & MAL_RX_CTRL_EMPTY);
+}
+
+/* BHs disabled */
+static int emac_peek_rx_sg(void *param)
+{
+	struct ocp_enet_private *dev = param;
+	int slot = dev->rx_slot;
+	while (1) {
+		u16 ctrl = dev->rx_desc[slot].ctrl;
+		if (ctrl & MAL_RX_CTRL_EMPTY)
+			return 0;
+		else if (ctrl & MAL_RX_CTRL_LAST)
+			return 1;
+
+		slot = (slot + 1) % NUM_RX_BUFF;
+
+		/* I'm just being paranoid here :) */
+		if (unlikely(slot == dev->rx_slot))
+			return 0;
+	}
+}
+
+/* Hard IRQ */
+static void emac_rxde(void *param)
+{
+	struct ocp_enet_private *dev = param;
+	++dev->estats.rx_stopped;
+	emac_rx_disable_async(dev);
+}
+
+/* Hard IRQ */
+static irqreturn_t emac_irq(int irq, void *dev_instance, struct pt_regs *regs)
+{
+	struct ocp_enet_private *dev = dev_instance;
+	struct emac_regs *p = dev->emacp;
+	struct ibm_emac_error_stats *st = &dev->estats;
+
+	u32 isr = in_be32(&p->isr);
+	out_be32(&p->isr, isr);
+
+	DBG("%d: isr = %08x" NL, dev->def->index, isr);
+
+	if (isr & EMAC_ISR_TXPE)
+		++st->tx_parity;
+	if (isr & EMAC_ISR_RXPE)
+		++st->rx_parity;
+	if (isr & EMAC_ISR_TXUE)
+		++st->tx_underrun;
+	if (isr & EMAC_ISR_RXOE)
+		++st->rx_fifo_overrun;
+	if (isr & EMAC_ISR_OVR)
+		++st->rx_overrun;
+	if (isr & EMAC_ISR_BP)
+		++st->rx_bad_packet;
+	if (isr & EMAC_ISR_RP)
+		++st->rx_runt_packet;
+	if (isr & EMAC_ISR_SE)
+		++st->rx_short_event;
+	if (isr & EMAC_ISR_ALE)
+		++st->rx_alignment_error;
+	if (isr & EMAC_ISR_BFCS)
+		++st->rx_bad_fcs;
+	if (isr & EMAC_ISR_PTLE)
+		++st->rx_packet_too_long;
+	if (isr & EMAC_ISR_ORE)
+		++st->rx_out_of_range;
+	if (isr & EMAC_ISR_IRE)
+		++st->rx_in_range;
+	if (isr & EMAC_ISR_SQE)
+		++st->tx_sqe;
+	if (isr & EMAC_ISR_TE)
+		++st->tx_errors;
 
 	return IRQ_HANDLED;
 }
 
-static int emac_start_xmit(struct sk_buff *skb, struct net_device *dev)
+static struct net_device_stats *emac_stats(struct net_device *ndev)
 {
-	unsigned short ctrl;
-	unsigned long flags;
-	struct ocp_enet_private *fep = dev->priv;
-	emac_t *emacp = fep->emacp;
-	int len = skb->len;
-	unsigned int offset = 0, size, f, tx_slot_first;
-	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
+	struct ocp_enet_private *dev = ndev->priv;
+	struct ibm_emac_stats *st = &dev->stats;
+	struct ibm_emac_error_stats *est = &dev->estats;
+	struct net_device_stats *nst = &dev->nstats;
 
-	spin_lock_irqsave(&fep->lock, flags);
+	DBG2("%d: stats" NL, dev->def->index);
 
-	len -= skb->data_len;
+	/* Compute "legacy" statistics */
+	local_irq_disable();
+	nst->rx_packets = (unsigned long)st->rx_packets;
+	nst->rx_bytes = (unsigned long)st->rx_bytes;
+	nst->tx_packets = (unsigned long)st->tx_packets;
+	nst->tx_bytes = (unsigned long)st->tx_bytes;
+	nst->rx_dropped = (unsigned long)(est->rx_dropped_oom +
+					  est->rx_dropped_error +
+					  est->rx_dropped_resize +
+					  est->rx_dropped_mtu);
+	nst->tx_dropped = (unsigned long)est->tx_dropped;
 
-	if ((fep->tx_cnt + nr_frags + len / DESC_BUF_SIZE + 1) > NUM_TX_BUFF) {
-		PKT_DEBUG(("emac_start_xmit() stopping queue\n"));
-		netif_stop_queue(dev);
-		spin_unlock_irqrestore(&fep->lock, flags);
-		return -EBUSY;
-	}
+	nst->rx_errors = (unsigned long)est->rx_bd_errors;
+	nst->rx_fifo_errors = (unsigned long)(est->rx_bd_overrun +
+					      est->rx_fifo_overrun +
+					      est->rx_overrun);
+	nst->rx_frame_errors = (unsigned long)(est->rx_bd_alignment_error +
+					       est->rx_alignment_error);
+	nst->rx_crc_errors = (unsigned long)(est->rx_bd_bad_fcs +
+					     est->rx_bad_fcs);
+	nst->rx_length_errors = (unsigned long)(est->rx_bd_runt_packet +
+						est->rx_bd_short_event +
+						est->rx_bd_packet_too_long +
+						est->rx_bd_out_of_range +
+						est->rx_bd_in_range +
+						est->rx_runt_packet +
+						est->rx_short_event +
+						est->rx_packet_too_long +
+						est->rx_out_of_range +
+						est->rx_in_range);
 
-	tx_slot_first = fep->tx_slot;
-
-	while (len) {
-		size = min(len, DESC_BUF_SIZE);
-
-		fep->tx_desc[fep->tx_slot].data_len = (short)size;
-		fep->tx_desc[fep->tx_slot].data_ptr =
-		    (unsigned char *)dma_map_single(&fep->ocpdev->dev,
-						    (void *)((unsigned int)skb->
-							     data + offset),
-						    size, DMA_TO_DEVICE);
-
-		ctrl = EMAC_TX_CTRL_DFLT;
-		if (fep->tx_slot != tx_slot_first)
-			ctrl |= MAL_TX_CTRL_READY;
-		if ((NUM_TX_BUFF - 1) == fep->tx_slot)
-			ctrl |= MAL_TX_CTRL_WRAP;
-		if (!nr_frags && (len == size)) {
-			ctrl |= MAL_TX_CTRL_LAST;
-			fep->tx_skb[fep->tx_slot] = skb;
-		}
-		if (skb->ip_summed == CHECKSUM_HW)
-			ctrl |= EMAC_TX_CTRL_TAH_CSUM;
-
-		fep->tx_desc[fep->tx_slot].ctrl = ctrl;
-
-		len -= size;
-		offset += size;
-
-		/* Bump tx count */
-		if (++fep->tx_cnt == NUM_TX_BUFF)
-			netif_stop_queue(dev);
-
-		/* Next descriptor */
-		if (++fep->tx_slot == NUM_TX_BUFF)
-			fep->tx_slot = 0;
-	}
-
-	for (f = 0; f < nr_frags; f++) {
-		struct skb_frag_struct *frag;
-
-		frag = &skb_shinfo(skb)->frags[f];
-		len = frag->size;
-		offset = 0;
-
-		while (len) {
-			size = min(len, DESC_BUF_SIZE);
-
-			dma_map_page(&fep->ocpdev->dev,
-				     frag->page,
-				     frag->page_offset + offset,
-				     size, DMA_TO_DEVICE);
-
-			ctrl = EMAC_TX_CTRL_DFLT | MAL_TX_CTRL_READY;
-			if ((NUM_TX_BUFF - 1) == fep->tx_slot)
-				ctrl |= MAL_TX_CTRL_WRAP;
-			if ((f == (nr_frags - 1)) && (len == size)) {
-				ctrl |= MAL_TX_CTRL_LAST;
-				fep->tx_skb[fep->tx_slot] = skb;
-			}
-
-			if (skb->ip_summed == CHECKSUM_HW)
-				ctrl |= EMAC_TX_CTRL_TAH_CSUM;
-
-			fep->tx_desc[fep->tx_slot].data_len = (short)size;
-			fep->tx_desc[fep->tx_slot].data_ptr =
-			    (char *)((page_to_pfn(frag->page) << PAGE_SHIFT) +
-				     frag->page_offset + offset);
-			fep->tx_desc[fep->tx_slot].ctrl = ctrl;
-
-			len -= size;
-			offset += size;
-
-			/* Bump tx count */
-			if (++fep->tx_cnt == NUM_TX_BUFF)
-				netif_stop_queue(dev);
-
-			/* Next descriptor */
-			if (++fep->tx_slot == NUM_TX_BUFF)
-				fep->tx_slot = 0;
-		}
-	}
-
-	/*
-	 * Deferred set READY on first descriptor of packet to
-	 * avoid TX MAL race.
-	 */
-	fep->tx_desc[tx_slot_first].ctrl |= MAL_TX_CTRL_READY;
-
-	/* Send the packet out. */
-	out_be32(&emacp->em0tmr0, EMAC_TMR0_XMIT);
-
-	fep->stats.tx_packets++;
-	fep->stats.tx_bytes += skb->len;
-
-	PKT_DEBUG(("emac_start_xmit() exitn"));
-
-	spin_unlock_irqrestore(&fep->lock, flags);
-
-	return 0;
+	nst->tx_errors = (unsigned long)(est->tx_bd_errors + est->tx_errors);
+	nst->tx_fifo_errors = (unsigned long)(est->tx_bd_underrun +
+					      est->tx_underrun);
+	nst->tx_carrier_errors = (unsigned long)est->tx_bd_carrier_loss;
+	nst->collisions = (unsigned long)(est->tx_bd_excessive_deferral +
+					  est->tx_bd_excessive_collisions +
+					  est->tx_bd_late_collision +
+					  est->tx_bd_multple_collisions);
+	local_irq_enable();
+	return nst;
 }
 
-static int emac_adjust_to_link(struct ocp_enet_private *fep)
+static void emac_remove(struct ocp_device *ocpdev)
 {
-	emac_t *emacp = fep->emacp;
-	unsigned long mode_reg;
-	int full_duplex, speed;
+	struct ocp_enet_private *dev = ocp_get_drvdata(ocpdev);
 
-	full_duplex = 0;
-	speed = SPEED_10;
+	DBG("%d: remove" NL, dev->def->index);
 
-	/* set mode register 1 defaults */
-	mode_reg = EMAC_M1_DEFAULT;
+	ocp_set_drvdata(ocpdev, 0);
+	unregister_netdev(dev->ndev);
 
-	/* Read link mode on PHY */
-	if (fep->phy_mii.def->ops->read_link(&fep->phy_mii) == 0) {
-		/* If an error occurred, we don't deal with it yet */
-		full_duplex = (fep->phy_mii.duplex == DUPLEX_FULL);
-		speed = fep->phy_mii.speed;
-	}
+	tah_fini(dev->tah_dev);
+	rgmii_fini(dev->rgmii_dev, dev->rgmii_input);
+	zmii_fini(dev->zmii_dev, dev->zmii_input);
 
+	emac_dbg_register(dev->def->index, 0);
 
-	/* set speed (default is 10Mb) */
-	switch (speed) {
-	case SPEED_1000:
-		mode_reg |= EMAC_M1_RFS_16K;
-		if (fep->rgmii_dev) {
-			struct ibm_ocp_rgmii *rgmii = RGMII_PRIV(fep->rgmii_dev);
-
-			if ((rgmii->mode[fep->rgmii_input] == RTBI)
-			    || (rgmii->mode[fep->rgmii_input] == TBI))
-				mode_reg |= EMAC_M1_MF_1000GPCS;
-			else
-				mode_reg |= EMAC_M1_MF_1000MBPS;
-
-			emac_rgmii_port_speed(fep->rgmii_dev, fep->rgmii_input,
-					      1000);
-		}
-		break;
-	case SPEED_100:
-		mode_reg |= EMAC_M1_MF_100MBPS | EMAC_M1_RFS_4K;
-		if (fep->rgmii_dev)
-			emac_rgmii_port_speed(fep->rgmii_dev, fep->rgmii_input,
-					      100);
-		if (fep->zmii_dev)
-			emac_zmii_port_speed(fep->zmii_dev, fep->zmii_input,
-					     100);
-		break;
-	case SPEED_10:
-	default:
-		mode_reg = (mode_reg & ~EMAC_M1_MF_100MBPS) | EMAC_M1_RFS_4K;
-		if (fep->rgmii_dev)
-			emac_rgmii_port_speed(fep->rgmii_dev, fep->rgmii_input,
-					      10);
-		if (fep->zmii_dev)
-			emac_zmii_port_speed(fep->zmii_dev, fep->zmii_input,
-					     10);
-	}
-
-	if (full_duplex)
-		mode_reg |= EMAC_M1_FDE | EMAC_M1_EIFC | EMAC_M1_IST;
-	else
-		mode_reg &= ~(EMAC_M1_FDE | EMAC_M1_EIFC | EMAC_M1_ILE);
-
-	LINK_DEBUG(("%s: adjust to link, speed: %d, duplex: %d, opened: %d\n",
-		    fep->ndev->name, speed, full_duplex, fep->opened));
-
-	printk(KERN_INFO "%s: Speed: %d, %s duplex.\n",
-	       fep->ndev->name, speed, full_duplex ? "Full" : "Half");
-	if (fep->opened)
-		out_be32(&emacp->em0mr1, mode_reg);
-
-	return 0;
+	mal_unregister_commac(dev->mal, &dev->commac);
+	iounmap((void *)dev->emacp);
+	kfree(dev->ndev);
 }
 
-static int emac_set_mac_address(struct net_device *ndev, void *p)
+static struct mal_commac_ops emac_commac_ops = {
+	.poll_tx = &emac_poll_tx,
+	.poll_rx = &emac_poll_rx,
+	.peek_rx = &emac_peek_rx,
+	.rxde = &emac_rxde,
+};
+
+static struct mal_commac_ops emac_commac_sg_ops = {
+	.poll_tx = &emac_poll_tx,
+	.poll_rx = &emac_poll_rx,
+	.peek_rx = &emac_peek_rx_sg,
+	.rxde = &emac_rxde,
+};
+
+/* Ethtool support */
+static int emac_ethtool_get_settings(struct net_device *ndev,
+				     struct ethtool_cmd *cmd)
 {
-	struct ocp_enet_private *fep = ndev->priv;
-	emac_t *emacp = fep->emacp;
-	struct sockaddr *addr = p;
+	struct ocp_enet_private *dev = ndev->priv;
 
-	if (!is_valid_ether_addr(addr->sa_data))
-		return -EADDRNOTAVAIL;
-
-	memcpy(ndev->dev_addr, addr->sa_data, ndev->addr_len);
-
-	/* set the high address */
-	out_be32(&emacp->em0iahr,
-		 (fep->ndev->dev_addr[0] << 8) | fep->ndev->dev_addr[1]);
-
-	/* set the low address */
-	out_be32(&emacp->em0ialr,
-		 (fep->ndev->dev_addr[2] << 24) | (fep->ndev->dev_addr[3] << 16)
-		 | (fep->ndev->dev_addr[4] << 8) | fep->ndev->dev_addr[5]);
-
-	return 0;
-}
-
-static int emac_change_mtu(struct net_device *dev, int new_mtu)
-{
-	struct ocp_enet_private *fep = dev->priv;
-	int old_mtu = dev->mtu;
-	unsigned long mode_reg;
-	emac_t *emacp = fep->emacp;
-	u32 em0mr0;
-	int i, full;
-	unsigned long flags;
-
-	if ((new_mtu < EMAC_MIN_MTU) || (new_mtu > EMAC_MAX_MTU)) {
-		printk(KERN_ERR
-		       "emac: Invalid MTU setting, MTU must be between %d and %d\n",
-		       EMAC_MIN_MTU, EMAC_MAX_MTU);
-		return -EINVAL;
-	}
-
-	if (old_mtu != new_mtu && netif_running(dev)) {
-		/* Stop rx engine */
-		em0mr0 = in_be32(&emacp->em0mr0);
-		out_be32(&emacp->em0mr0, em0mr0 & ~EMAC_M0_RXE);
-
-		/* Wait for descriptors to be empty */
-		do {
-			full = 0;
-			for (i = 0; i < NUM_RX_BUFF; i++)
-				if (!(fep->rx_desc[i].ctrl & MAL_RX_CTRL_EMPTY)) {
-					printk(KERN_NOTICE
-					       "emac: RX ring is still full\n");
-					full = 1;
-				}
-		} while (full);
-
-		spin_lock_irqsave(&fep->lock, flags);
-
-		mal_disable_rx_channels(fep->mal, fep->commac.rx_chan_mask);
-
-		/* Destroy all old rx skbs */
-		for (i = 0; i < NUM_RX_BUFF; i++) {
-			dma_unmap_single(&fep->ocpdev->dev,
-					 fep->rx_desc[i].data_ptr,
-					 fep->rx_desc[i].data_len,
-					 DMA_FROM_DEVICE);
-			dev_kfree_skb(fep->rx_skb[i]);
-			fep->rx_skb[i] = NULL;
-		}
-
-		/* Set new rx_buffer_size, jumbo cap, and advertise new mtu */
-		mode_reg = in_be32(&emacp->em0mr1);
-		if (new_mtu > ENET_DEF_MTU_SIZE) {
-			mode_reg |= EMAC_M1_JUMBO_ENABLE;
-			fep->rx_buffer_size = EMAC_MAX_FRAME;
-		} else {
-			mode_reg &= ~EMAC_M1_JUMBO_ENABLE;
-			fep->rx_buffer_size = ENET_DEF_BUF_SIZE;
-		}
-		dev->mtu = new_mtu;
-		out_be32(&emacp->em0mr1, mode_reg);
-
-		/* Re-init rx skbs */
-		fep->rx_slot = 0;
-		emac_rx_fill(dev, 0);
-
-		/* Restart the rx engine */
-		mal_enable_rx_channels(fep->mal, fep->commac.rx_chan_mask);
-		out_be32(&emacp->em0mr0, em0mr0 | EMAC_M0_RXE);
-
-		spin_unlock_irqrestore(&fep->lock, flags);
-	}
-
-	return 0;
-}
-
-static void __emac_set_multicast_list(struct net_device *dev)
-{
-	struct ocp_enet_private *fep = dev->priv;
-	emac_t *emacp = fep->emacp;
-	u32 rmr = in_be32(&emacp->em0rmr);
-
-	/* First clear all special bits, they can be set later */
-	rmr &= ~(EMAC_RMR_PME | EMAC_RMR_PMME | EMAC_RMR_MAE);
-
-	if (dev->flags & IFF_PROMISC) {
-		rmr |= EMAC_RMR_PME;
-	} else if (dev->flags & IFF_ALLMULTI || 32 < dev->mc_count) {
-		/*
-		 * Must be setting up to use multicast
-		 * Now check for promiscuous multicast
-		 */
-		rmr |= EMAC_RMR_PMME;
-	} else if (dev->flags & IFF_MULTICAST && 0 < dev->mc_count) {
-		unsigned short em0gaht[4] = { 0, 0, 0, 0 };
-		struct dev_mc_list *dmi;
-
-		/* Need to hash on the multicast address. */
-		for (dmi = dev->mc_list; dmi; dmi = dmi->next) {
-			unsigned long mc_crc;
-			unsigned int bit_number;
-
-			mc_crc = ether_crc(6, (char *)dmi->dmi_addr);
-			bit_number = 63 - (mc_crc >> 26);	/* MSB: 0 LSB: 63 */
-			em0gaht[bit_number >> 4] |=
-			    0x8000 >> (bit_number & 0x0f);
-		}
-		emacp->em0gaht1 = em0gaht[0];
-		emacp->em0gaht2 = em0gaht[1];
-		emacp->em0gaht3 = em0gaht[2];
-		emacp->em0gaht4 = em0gaht[3];
-
-		/* Turn on multicast addressing */
-		rmr |= EMAC_RMR_MAE;
-	}
-	out_be32(&emacp->em0rmr, rmr);
-}
-
-static int emac_init_tah(struct ocp_enet_private *fep)
-{
-	tah_t *tahp;
-
-	/* Initialize TAH and enable checksum verification */
-	tahp = (tah_t *) ioremap(fep->tah_dev->def->paddr, sizeof(*tahp));
-
-	if (tahp == NULL) {
-		printk(KERN_ERR "tah%d: Cannot ioremap TAH registers!\n",
-		       fep->tah_dev->def->index);
-
-		return -ENOMEM;
-	}
-
-	out_be32(&tahp->tah_mr, TAH_MR_SR);
-
-	/* wait for reset to complete */
-	while (in_be32(&tahp->tah_mr) & TAH_MR_SR) ;
-
-	/* 10KB TAH TX FIFO accomodates the max MTU of 9000 */
-	out_be32(&tahp->tah_mr,
-		 TAH_MR_CVR | TAH_MR_ST_768 | TAH_MR_TFS_10KB | TAH_MR_DTFP |
-		 TAH_MR_DIG);
-
-	iounmap(tahp);
-
-	return 0;
-}
-
-static void emac_init_rings(struct net_device *dev)
-{
-	struct ocp_enet_private *ep = dev->priv;
-	int loop;
-
-	ep->tx_desc = (struct mal_descriptor *)((char *)ep->mal->tx_virt_addr +
-						(ep->mal_tx_chan *
-						 MAL_DT_ALIGN));
-	ep->rx_desc =
-	    (struct mal_descriptor *)((char *)ep->mal->rx_virt_addr +
-				      (ep->mal_rx_chan * MAL_DT_ALIGN));
-
-	/* Fill in the transmit descriptor ring. */
-	for (loop = 0; loop < NUM_TX_BUFF; loop++) {
-		if (ep->tx_skb[loop]) {
-			dma_unmap_single(&ep->ocpdev->dev,
-					 ep->tx_desc[loop].data_ptr,
-					 ep->tx_desc[loop].data_len,
-					 DMA_TO_DEVICE);
-			dev_kfree_skb_irq(ep->tx_skb[loop]);
-		}
-		ep->tx_skb[loop] = NULL;
-		ep->tx_desc[loop].ctrl = 0;
-		ep->tx_desc[loop].data_len = 0;
-		ep->tx_desc[loop].data_ptr = NULL;
-	}
-	ep->tx_desc[loop - 1].ctrl |= MAL_TX_CTRL_WRAP;
-
-	/* Format the receive descriptor ring. */
-	ep->rx_slot = 0;
-	/* Default is MTU=1500 + Ethernet overhead */
-	ep->rx_buffer_size = dev->mtu + ENET_HEADER_SIZE + ENET_FCS_SIZE;
-	emac_rx_fill(dev, 0);
-	if (ep->rx_slot != 0) {
-		printk(KERN_ERR
-		       "%s: Not enough mem for RxChain durning Open?\n",
-		       dev->name);
-		/*We couldn't fill the ring at startup?
-		 *We could clean up and fail to open but right now we will try to
-		 *carry on. It may be a sign of a bad NUM_RX_BUFF value
-		 */
-	}
-
-	ep->tx_cnt = 0;
-	ep->tx_slot = 0;
-	ep->ack_slot = 0;
-}
-
-static void emac_reset_configure(struct ocp_enet_private *fep)
-{
-	emac_t *emacp = fep->emacp;
-	int i;
-
-	mal_disable_tx_channels(fep->mal, fep->commac.tx_chan_mask);
-	mal_disable_rx_channels(fep->mal, fep->commac.rx_chan_mask);
-
-	/*
-	 * Check for a link, some PHYs don't provide a clock if
-	 * no link is present.  Some EMACs will not come out of
-	 * soft reset without a PHY clock present.
-	 */
-	if (fep->phy_mii.def->ops->poll_link(&fep->phy_mii)) {
-		/* Reset the EMAC */
-		out_be32(&emacp->em0mr0, EMAC_M0_SRST);
-		udelay(20);
-		for (i = 0; i < 100; i++) {
-			if ((in_be32(&emacp->em0mr0) & EMAC_M0_SRST) == 0)
-				break;
-			udelay(10);
-		}
-
-		if (i >= 100) {
-			printk(KERN_ERR "%s: Cannot reset EMAC\n",
-			       fep->ndev->name);
-			return;
-		}
-	}
-
-	/* Switch IRQs off for now */
-	out_be32(&emacp->em0iser, 0);
-
-	/* Configure MAL rx channel */
-	mal_set_rcbs(fep->mal, fep->mal_rx_chan, DESC_BUF_SIZE_REG);
-
-	/* set the high address */
-	out_be32(&emacp->em0iahr,
-		 (fep->ndev->dev_addr[0] << 8) | fep->ndev->dev_addr[1]);
-
-	/* set the low address */
-	out_be32(&emacp->em0ialr,
-		 (fep->ndev->dev_addr[2] << 24) | (fep->ndev->dev_addr[3] << 16)
-		 | (fep->ndev->dev_addr[4] << 8) | fep->ndev->dev_addr[5]);
-
-	/* Adjust to link */
-	if (netif_carrier_ok(fep->ndev))
-		emac_adjust_to_link(fep);
-
-	/* enable broadcast/individual address and RX FIFO defaults */
-	out_be32(&emacp->em0rmr, EMAC_RMR_DEFAULT);
-
-	/* set transmit request threshold register */
-	out_be32(&emacp->em0trtr, EMAC_TRTR_DEFAULT);
-
-	/* Reconfigure multicast */
-	__emac_set_multicast_list(fep->ndev);
-
-	/* Set receiver/transmitter defaults */
-	out_be32(&emacp->em0rwmr, EMAC_RWMR_DEFAULT);
-	out_be32(&emacp->em0tmr0, EMAC_TMR0_DEFAULT);
-	out_be32(&emacp->em0tmr1, EMAC_TMR1_DEFAULT);
-
-	/* set frame gap */
-	out_be32(&emacp->em0ipgvr, CONFIG_IBM_EMAC_FGAP);
-	
-	/* set VLAN Tag Protocol Identifier */
-	out_be32(&emacp->em0vtpid, 0x8100);
-
-	/* Init ring buffers */
-	emac_init_rings(fep->ndev);
-}
-
-static void emac_kick(struct ocp_enet_private *fep)
-{
-	emac_t *emacp = fep->emacp;
-	unsigned long emac_ier;
-
-	emac_ier = EMAC_ISR_PP | EMAC_ISR_BP | EMAC_ISR_RP |
-	    EMAC_ISR_SE | EMAC_ISR_PTLE | EMAC_ISR_ALE |
-	    EMAC_ISR_BFCS | EMAC_ISR_ORE | EMAC_ISR_IRE;
-
-	out_be32(&emacp->em0iser, emac_ier);
-
-	/* enable all MAL transmit and receive channels */
-	mal_enable_tx_channels(fep->mal, fep->commac.tx_chan_mask);
-	mal_enable_rx_channels(fep->mal, fep->commac.rx_chan_mask);
-
-	/* set transmit and receive enable */
-	out_be32(&emacp->em0mr0, EMAC_M0_TXE | EMAC_M0_RXE);
-}
-
-static void
-emac_start_link(struct ocp_enet_private *fep, struct ethtool_cmd *ep)
-{
-	u32 advertise;
-	int autoneg;
-	int forced_speed;
-	int forced_duplex;
-
-	/* Default advertise */
-	advertise = ADVERTISED_10baseT_Half | ADVERTISED_10baseT_Full |
-	    ADVERTISED_100baseT_Half | ADVERTISED_100baseT_Full |
-	    ADVERTISED_1000baseT_Half | ADVERTISED_1000baseT_Full;
-	autoneg = fep->want_autoneg;
-	forced_speed = fep->phy_mii.speed;
-	forced_duplex = fep->phy_mii.duplex;
-
-	/* Setup link parameters */
-	if (ep) {
-		if (ep->autoneg == AUTONEG_ENABLE) {
-			advertise = ep->advertising;
-			autoneg = 1;
-		} else {
-			autoneg = 0;
-			forced_speed = ep->speed;
-			forced_duplex = ep->duplex;
-		}
-	}
-
-	/* Configure PHY & start aneg */
-	fep->want_autoneg = autoneg;
-	if (autoneg) {
-		LINK_DEBUG(("%s: start link aneg, advertise: 0x%x\n",
-			    fep->ndev->name, advertise));
-		fep->phy_mii.def->ops->setup_aneg(&fep->phy_mii, advertise);
-	} else {
-		LINK_DEBUG(("%s: start link forced, speed: %d, duplex: %d\n",
-			    fep->ndev->name, forced_speed, forced_duplex));
-		fep->phy_mii.def->ops->setup_forced(&fep->phy_mii, forced_speed,
-						    forced_duplex);
-	}
-	fep->timer_ticks = 0;
-	mod_timer(&fep->link_timer, jiffies + HZ);
-}
-
-static void emac_link_timer(unsigned long data)
-{
-	struct ocp_enet_private *fep = (struct ocp_enet_private *)data;
-	int link;
-
-	if (fep->going_away)
-		return;
-
-	spin_lock_irq(&fep->lock);
-
-	link = fep->phy_mii.def->ops->poll_link(&fep->phy_mii);
-	LINK_DEBUG(("%s: poll_link: %d\n", fep->ndev->name, link));
-
-	if (link == netif_carrier_ok(fep->ndev)) {
-		if (!link && fep->want_autoneg && (++fep->timer_ticks) > 10)
-			emac_start_link(fep, NULL);
-		goto out;
-	}
-	printk(KERN_INFO "%s: Link is %s\n", fep->ndev->name,
-	       link ? "Up" : "Down");
-	if (link) {
-		netif_carrier_on(fep->ndev);
-		/* Chip needs a full reset on config change. That sucks, so I
-		 * should ultimately move that to some tasklet to limit
-		 * latency peaks caused by this code
-		 */
-		emac_reset_configure(fep);
-		if (fep->opened)
-			emac_kick(fep);
-	} else {
-		fep->timer_ticks = 0;
-		netif_carrier_off(fep->ndev);
-	}
-      out:
-	mod_timer(&fep->link_timer, jiffies + HZ);
-	spin_unlock_irq(&fep->lock);
-}
-
-static void emac_set_multicast_list(struct net_device *dev)
-{
-	struct ocp_enet_private *fep = dev->priv;
-
-	spin_lock_irq(&fep->lock);
-	__emac_set_multicast_list(dev);
-	spin_unlock_irq(&fep->lock);
-}
-
-static int emac_get_settings(struct net_device *ndev, struct ethtool_cmd *cmd)
-{
-	struct ocp_enet_private *fep = ndev->priv;
-
-	cmd->supported = fep->phy_mii.def->features;
+	cmd->supported = dev->phy.features;
 	cmd->port = PORT_MII;
-	cmd->transceiver = XCVR_EXTERNAL;
-	cmd->phy_address = fep->mii_phy_addr;
-	spin_lock_irq(&fep->lock);
-	cmd->autoneg = fep->want_autoneg;
-	cmd->speed = fep->phy_mii.speed;
-	cmd->duplex = fep->phy_mii.duplex;
-	spin_unlock_irq(&fep->lock);
+	cmd->phy_address = dev->phy.address;
+	cmd->transceiver =
+	    dev->phy.address >= 0 ? XCVR_EXTERNAL : XCVR_INTERNAL;
+
+	local_bh_disable();
+	cmd->advertising = dev->phy.advertising;
+	cmd->autoneg = dev->phy.autoneg;
+	cmd->speed = dev->phy.speed;
+	cmd->duplex = dev->phy.duplex;
+	local_bh_enable();
+
 	return 0;
 }
 
-static int emac_set_settings(struct net_device *ndev, struct ethtool_cmd *cmd)
+static int emac_ethtool_set_settings(struct net_device *ndev,
+				     struct ethtool_cmd *cmd)
 {
-	struct ocp_enet_private *fep = ndev->priv;
-	unsigned long features = fep->phy_mii.def->features;
+	struct ocp_enet_private *dev = ndev->priv;
+	u32 f = dev->phy.features;
 
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
+	DBG("%d: set_settings(%d, %d, %d, 0x%08x)" NL, dev->def->index,
+	    cmd->autoneg, cmd->speed, cmd->duplex, cmd->advertising);
 
+	/* Basic sanity checks */
+	if (dev->phy.address < 0)
+		return -EOPNOTSUPP;
 	if (cmd->autoneg != AUTONEG_ENABLE && cmd->autoneg != AUTONEG_DISABLE)
 		return -EINVAL;
 	if (cmd->autoneg == AUTONEG_ENABLE && cmd->advertising == 0)
 		return -EINVAL;
 	if (cmd->duplex != DUPLEX_HALF && cmd->duplex != DUPLEX_FULL)
 		return -EINVAL;
-	if (cmd->autoneg == AUTONEG_DISABLE)
+
+	if (cmd->autoneg == AUTONEG_DISABLE) {
 		switch (cmd->speed) {
 		case SPEED_10:
-			if (cmd->duplex == DUPLEX_HALF &&
-			    (features & SUPPORTED_10baseT_Half) == 0)
+			if (cmd->duplex == DUPLEX_HALF
+			    && !(f & SUPPORTED_10baseT_Half))
 				return -EINVAL;
-			if (cmd->duplex == DUPLEX_FULL &&
-			    (features & SUPPORTED_10baseT_Full) == 0)
+			if (cmd->duplex == DUPLEX_FULL
+			    && !(f & SUPPORTED_10baseT_Full))
 				return -EINVAL;
 			break;
 		case SPEED_100:
-			if (cmd->duplex == DUPLEX_HALF &&
-			    (features & SUPPORTED_100baseT_Half) == 0)
+			if (cmd->duplex == DUPLEX_HALF
+			    && !(f & SUPPORTED_100baseT_Half))
 				return -EINVAL;
-			if (cmd->duplex == DUPLEX_FULL &&
-			    (features & SUPPORTED_100baseT_Full) == 0)
+			if (cmd->duplex == DUPLEX_FULL
+			    && !(f & SUPPORTED_100baseT_Full))
 				return -EINVAL;
 			break;
 		case SPEED_1000:
-			if (cmd->duplex == DUPLEX_HALF &&
-			    (features & SUPPORTED_1000baseT_Half) == 0)
+			if (cmd->duplex == DUPLEX_HALF
+			    && !(f & SUPPORTED_1000baseT_Half))
 				return -EINVAL;
-			if (cmd->duplex == DUPLEX_FULL &&
-			    (features & SUPPORTED_1000baseT_Full) == 0)
+			if (cmd->duplex == DUPLEX_FULL
+			    && !(f & SUPPORTED_1000baseT_Full))
 				return -EINVAL;
 			break;
 		default:
 			return -EINVAL;
-	} else if ((features & SUPPORTED_Autoneg) == 0)
-		return -EINVAL;
-	spin_lock_irq(&fep->lock);
-	emac_start_link(fep, cmd);
-	spin_unlock_irq(&fep->lock);
+		}
+
+		local_bh_disable();
+		dev->phy.def->ops->setup_forced(&dev->phy, cmd->speed,
+						cmd->duplex);
+
+	} else {
+		if (!(f & SUPPORTED_Autoneg))
+			return -EINVAL;
+
+		local_bh_disable();
+		dev->phy.def->ops->setup_aneg(&dev->phy,
+					      (cmd->advertising & f) |
+					      (dev->phy.advertising &
+					       (ADVERTISED_Pause |
+						ADVERTISED_Asym_Pause)));
+	}
+	emac_force_link_update(dev);
+	local_bh_enable();
+
 	return 0;
 }
 
-static void
-emac_get_drvinfo(struct net_device *ndev, struct ethtool_drvinfo *info)
+static void emac_ethtool_get_ringparam(struct net_device *ndev,
+				       struct ethtool_ringparam *rp)
 {
-	struct ocp_enet_private *fep = ndev->priv;
+	rp->rx_max_pending = rp->rx_pending = NUM_RX_BUFF;
+	rp->tx_max_pending = rp->tx_pending = NUM_TX_BUFF;
+}
 
-	strcpy(info->driver, DRV_NAME);
+static void emac_ethtool_get_pauseparam(struct net_device *ndev,
+					struct ethtool_pauseparam *pp)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+
+	local_bh_disable();
+	if ((dev->phy.features & SUPPORTED_Autoneg) &&
+	    (dev->phy.advertising & (ADVERTISED_Pause | ADVERTISED_Asym_Pause)))
+		pp->autoneg = 1;
+
+	if (dev->phy.duplex == DUPLEX_FULL) {
+		if (dev->phy.pause)
+			pp->rx_pause = pp->tx_pause = 1;
+		else if (dev->phy.asym_pause)
+			pp->tx_pause = 1;
+	}
+	local_bh_enable();
+}
+
+static u32 emac_ethtool_get_rx_csum(struct net_device *ndev)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+	return dev->tah_dev != 0;
+}
+
+static int emac_get_regs_len(struct ocp_enet_private *dev)
+{
+	return sizeof(struct emac_ethtool_regs_subhdr) + EMAC_ETHTOOL_REGS_SIZE;
+}
+
+static int emac_ethtool_get_regs_len(struct net_device *ndev)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+	return sizeof(struct emac_ethtool_regs_hdr) +
+	    emac_get_regs_len(dev) + mal_get_regs_len(dev->mal) +
+	    zmii_get_regs_len(dev->zmii_dev) +
+	    rgmii_get_regs_len(dev->rgmii_dev) +
+	    tah_get_regs_len(dev->tah_dev);
+}
+
+static void *emac_dump_regs(struct ocp_enet_private *dev, void *buf)
+{
+	struct emac_ethtool_regs_subhdr *hdr = buf;
+
+	hdr->version = EMAC_ETHTOOL_REGS_VER;
+	hdr->index = dev->def->index;
+	memcpy_fromio(hdr + 1, dev->emacp, EMAC_ETHTOOL_REGS_SIZE);
+	return ((void *)(hdr + 1) + EMAC_ETHTOOL_REGS_SIZE);
+}
+
+static void emac_ethtool_get_regs(struct net_device *ndev,
+				  struct ethtool_regs *regs, void *buf)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+	struct emac_ethtool_regs_hdr *hdr = buf;
+
+	hdr->components = 0;
+	buf = hdr + 1;
+
+	local_irq_disable();
+	buf = mal_dump_regs(dev->mal, buf);
+	buf = emac_dump_regs(dev, buf);
+	if (dev->zmii_dev) {
+		hdr->components |= EMAC_ETHTOOL_REGS_ZMII;
+		buf = zmii_dump_regs(dev->zmii_dev, buf);
+	}
+	if (dev->rgmii_dev) {
+		hdr->components |= EMAC_ETHTOOL_REGS_RGMII;
+		buf = rgmii_dump_regs(dev->rgmii_dev, buf);
+	}
+	if (dev->tah_dev) {
+		hdr->components |= EMAC_ETHTOOL_REGS_TAH;
+		buf = tah_dump_regs(dev->tah_dev, buf);
+	}
+	local_irq_enable();
+}
+
+static int emac_ethtool_nway_reset(struct net_device *ndev)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+	int res = 0;
+
+	DBG("%d: nway_reset" NL, dev->def->index);
+
+	if (dev->phy.address < 0)
+		return -EOPNOTSUPP;
+
+	local_bh_disable();
+	if (!dev->phy.autoneg) {
+		res = -EINVAL;
+		goto out;
+	}
+
+	dev->phy.def->ops->setup_aneg(&dev->phy, dev->phy.advertising);
+	emac_force_link_update(dev);
+
+      out:
+	local_bh_enable();
+	return res;
+}
+
+static int emac_ethtool_get_stats_count(struct net_device *ndev)
+{
+	return EMAC_ETHTOOL_STATS_COUNT;
+}
+
+static void emac_ethtool_get_strings(struct net_device *ndev, u32 stringset,
+				     u8 * buf)
+{
+	if (stringset == ETH_SS_STATS)
+		memcpy(buf, &emac_stats_keys, sizeof(emac_stats_keys));
+}
+
+static void emac_ethtool_get_ethtool_stats(struct net_device *ndev,
+					   struct ethtool_stats *estats,
+					   u64 * tmp_stats)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+	local_irq_disable();
+	memcpy(tmp_stats, &dev->stats, sizeof(dev->stats));
+	tmp_stats += sizeof(dev->stats) / sizeof(u64);
+	memcpy(tmp_stats, &dev->estats, sizeof(dev->estats));
+	local_irq_enable();
+}
+
+static void emac_ethtool_get_drvinfo(struct net_device *ndev,
+				     struct ethtool_drvinfo *info)
+{
+	struct ocp_enet_private *dev = ndev->priv;
+
+	strcpy(info->driver, "ibm_emac");
 	strcpy(info->version, DRV_VERSION);
 	info->fw_version[0] = '\0';
-	sprintf(info->bus_info, "IBM EMAC %d", fep->ocpdev->def->index);
-	info->regdump_len = 0;
-}
-
-static int emac_nway_reset(struct net_device *ndev)
-{
-	struct ocp_enet_private *fep = ndev->priv;
-
-	if (!fep->want_autoneg)
-		return -EINVAL;
-	spin_lock_irq(&fep->lock);
-	emac_start_link(fep, NULL);
-	spin_unlock_irq(&fep->lock);
-	return 0;
-}
-
-static u32 emac_get_link(struct net_device *ndev)
-{
-	return netif_carrier_ok(ndev);
+	sprintf(info->bus_info, "PPC 4xx EMAC %d", dev->def->index);
+	info->n_stats = emac_ethtool_get_stats_count(ndev);
+	info->regdump_len = emac_ethtool_get_regs_len(ndev);
 }
 
 static struct ethtool_ops emac_ethtool_ops = {
-	.get_settings = emac_get_settings,
-	.set_settings = emac_set_settings,
-	.get_drvinfo = emac_get_drvinfo,
-	.nway_reset = emac_nway_reset,
-	.get_link = emac_get_link
+	.get_settings = emac_ethtool_get_settings,
+	.set_settings = emac_ethtool_set_settings,
+	.get_drvinfo = emac_ethtool_get_drvinfo,
+
+	.get_regs_len = emac_ethtool_get_regs_len,
+	.get_regs = emac_ethtool_get_regs,
+
+	.nway_reset = emac_ethtool_nway_reset,
+
+	.get_ringparam = emac_ethtool_get_ringparam,
+	.get_pauseparam = emac_ethtool_get_pauseparam,
+
+	.get_rx_csum = emac_ethtool_get_rx_csum,
+
+	.get_strings = emac_ethtool_get_strings,
+	.get_stats_count = emac_ethtool_get_stats_count,
+	.get_ethtool_stats = emac_ethtool_get_ethtool_stats,
+
+	.get_link = ethtool_op_get_link,
+	.get_tx_csum = ethtool_op_get_tx_csum,
+	.get_sg = ethtool_op_get_sg,
 };
 
-static int emac_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+static int emac_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 {
-	struct ocp_enet_private *fep = dev->priv;
+	struct ocp_enet_private *dev = ndev->priv;
 	uint16_t *data = (uint16_t *) & rq->ifr_ifru;
+
+	DBG("%d: ioctl %08x" NL, dev->def->index, cmd);
+
+	if (dev->phy.address < 0)
+		return -EOPNOTSUPP;
 
 	switch (cmd) {
 	case SIOCGMIIPHY:
-		data[0] = fep->mii_phy_addr;
+	case SIOCDEVPRIVATE:
+		data[0] = dev->phy.address;
 		/* Fall through */
 	case SIOCGMIIREG:
-		data[3] = emac_phy_read(dev, fep->mii_phy_addr, data[1]);
+	case SIOCDEVPRIVATE + 1:
+		data[3] = emac_mdio_read(ndev, dev->phy.address, data[1]);
 		return 0;
+
 	case SIOCSMIIREG:
+	case SIOCDEVPRIVATE + 2:
 		if (!capable(CAP_NET_ADMIN))
 			return -EPERM;
-
-		emac_phy_write(dev, fep->mii_phy_addr, data[1], data[2]);
+		emac_mdio_write(ndev, dev->phy.address, data[1], data[2]);
 		return 0;
 	default:
 		return -EOPNOTSUPP;
 	}
 }
 
-static int emac_open(struct net_device *dev)
+static int __init emac_probe(struct ocp_device *ocpdev)
 {
-	struct ocp_enet_private *fep = dev->priv;
-	int rc;
-
-	spin_lock_irq(&fep->lock);
-
-	fep->opened = 1;
-	netif_carrier_off(dev);
-
-	/* Reset & configure the chip */
-	emac_reset_configure(fep);
-
-	spin_unlock_irq(&fep->lock);
-
-	/* Request our interrupt lines */
-	rc = request_irq(dev->irq, emac_mac_irq, 0, "IBM EMAC MAC", dev);
-	if (rc != 0) {
-		printk("dev->irq %d failed\n", dev->irq);
-		goto bail;
-	}
-	/* Kick the chip rx & tx channels into life */
-	spin_lock_irq(&fep->lock);
-	emac_kick(fep);
-	spin_unlock_irq(&fep->lock);
-
-	netif_start_queue(dev);
-      bail:
-	return rc;
-}
-
-static int emac_close(struct net_device *dev)
-{
-	struct ocp_enet_private *fep = dev->priv;
-	emac_t *emacp = fep->emacp;
-
-	/* XXX Stop IRQ emitting here */
-	spin_lock_irq(&fep->lock);
-	fep->opened = 0;
-	mal_disable_tx_channels(fep->mal, fep->commac.tx_chan_mask);
-	mal_disable_rx_channels(fep->mal, fep->commac.rx_chan_mask);
-	netif_carrier_off(dev);
-	netif_stop_queue(dev);
-
-	/*
-	 * Check for a link, some PHYs don't provide a clock if
-	 * no link is present.  Some EMACs will not come out of
-	 * soft reset without a PHY clock present.
-	 */
-	if (fep->phy_mii.def->ops->poll_link(&fep->phy_mii)) {
-		out_be32(&emacp->em0mr0, EMAC_M0_SRST);
-		udelay(10);
-
-		if (emacp->em0mr0 & EMAC_M0_SRST) {
-			/*not sure what to do here hopefully it clears before another open */
-			printk(KERN_ERR
-			       "%s: Phy SoftReset didn't clear, no link?\n",
-			       dev->name);
-		}
-	}
-
-	/* Free the irq's */
-	free_irq(dev->irq, dev);
-
-	spin_unlock_irq(&fep->lock);
-
-	return 0;
-}
-
-static void emac_remove(struct ocp_device *ocpdev)
-{
-	struct net_device *dev = ocp_get_drvdata(ocpdev);
-	struct ocp_enet_private *ep = dev->priv;
-
-	/* FIXME: locking, races, ... */
-	ep->going_away = 1;
-	ocp_set_drvdata(ocpdev, NULL);
-	if (ep->rgmii_dev)
-		emac_close_rgmii(ep->rgmii_dev);
-	if (ep->zmii_dev)
-		emac_close_zmii(ep->zmii_dev);
-
-	unregister_netdev(dev);
-	del_timer_sync(&ep->link_timer);
-	mal_unregister_commac(ep->mal, &ep->commac);
-	iounmap((void *)ep->emacp);
-	kfree(dev);
-}
-
-struct mal_commac_ops emac_commac_ops = {
-	.txeob = &emac_txeob_dev,
-	.txde = &emac_txde_dev,
-	.rxeob = &emac_rxeob_dev,
-	.rxde = &emac_rxde_dev,
-};
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void emac_netpoll(struct net_device *ndev)
-{
-	emac_rxeob_dev((void *)ndev, 0);
-	emac_txeob_dev((void *)ndev, 0);
-}
-#endif
-
-static int emac_init_device(struct ocp_device *ocpdev, struct ibm_ocp_mal *mal)
-{
-	int deferred_init = 0;
-	int rc = 0, i;
+	struct ocp_func_emac_data *emacdata = ocpdev->def->additions;
 	struct net_device *ndev;
-	struct ocp_enet_private *ep;
-	struct ocp_func_emac_data *emacdata;
-	int commac_reg = 0;
-	u32 phy_map;
+	struct ocp_device *maldev;
+	struct ocp_enet_private *dev;
+	int err, i;
 
-	emacdata = (struct ocp_func_emac_data *)ocpdev->def->additions;
+	DBG("%d: probe" NL, ocpdev->def->index);
+
 	if (!emacdata) {
 		printk(KERN_ERR "emac%d: Missing additional data!\n",
 		       ocpdev->def->index);
@@ -1738,304 +1936,312 @@ static int emac_init_device(struct ocp_device *ocpdev, struct ibm_ocp_mal *mal)
 
 	/* Allocate our net_device structure */
 	ndev = alloc_etherdev(sizeof(struct ocp_enet_private));
-	if (ndev == NULL) {
-		printk(KERN_ERR
-		       "emac%d: Could not allocate ethernet device.\n",
+	if (!ndev) {
+		printk(KERN_ERR "emac%d: could not allocate ethernet device!\n",
 		       ocpdev->def->index);
 		return -ENOMEM;
 	}
-	ep = ndev->priv;
-	ep->ndev = ndev;
-	ep->ocpdev = ocpdev;
-	ndev->irq = ocpdev->def->irq;
-	ep->wol_irq = emacdata->wol_irq;
-	if (emacdata->mdio_idx >= 0) {
-		if (emacdata->mdio_idx == ocpdev->def->index) {
-			/* Set the common MDIO net_device */
-			mdio_ndev = ndev;
-			deferred_init = 1;
+	dev = ndev->priv;
+	dev->ndev = ndev;
+	dev->ldev = &ocpdev->dev;
+	dev->def = ocpdev->def;
+	SET_MODULE_OWNER(ndev);
+
+	/* Find MAL device we are connected to */
+	maldev =
+	    ocp_find_device(OCP_VENDOR_IBM, OCP_FUNC_MAL, emacdata->mal_idx);
+	if (!maldev) {
+		printk(KERN_ERR "emac%d: unknown mal%d device!\n",
+		       dev->def->index, emacdata->mal_idx);
+		err = -ENODEV;
+		goto out;
+	}
+	dev->mal = ocp_get_drvdata(maldev);
+	if (!dev->mal) {
+		printk(KERN_ERR "emac%d: mal%d hasn't been initialized yet!\n",
+		       dev->def->index, emacdata->mal_idx);
+		err = -ENODEV;
+		goto out;
+	}
+
+	/* Register with MAL */
+	dev->commac.ops = &emac_commac_ops;
+	dev->commac.dev = dev;
+	dev->commac.tx_chan_mask = MAL_CHAN_MASK(emacdata->mal_tx_chan);
+	dev->commac.rx_chan_mask = MAL_CHAN_MASK(emacdata->mal_rx_chan);
+	err = mal_register_commac(dev->mal, &dev->commac);
+	if (err) {
+		printk(KERN_ERR "emac%d: failed to register with mal%d!\n",
+		       dev->def->index, emacdata->mal_idx);
+		goto out;
+	}
+	dev->rx_skb_size = emac_rx_skb_size(ndev->mtu);
+	dev->rx_sync_size = emac_rx_sync_size(ndev->mtu);
+
+	/* Get pointers to BD rings */
+	dev->tx_desc =
+	    dev->mal->bd_virt + mal_tx_bd_offset(dev->mal,
+						 emacdata->mal_tx_chan);
+	dev->rx_desc =
+	    dev->mal->bd_virt + mal_rx_bd_offset(dev->mal,
+						 emacdata->mal_rx_chan);
+
+	DBG("%d: tx_desc %p" NL, ocpdev->def->index, dev->tx_desc);
+	DBG("%d: rx_desc %p" NL, ocpdev->def->index, dev->rx_desc);
+
+	/* Clean rings */
+	memset(dev->tx_desc, 0, NUM_TX_BUFF * sizeof(struct mal_descriptor));
+	memset(dev->rx_desc, 0, NUM_RX_BUFF * sizeof(struct mal_descriptor));
+
+	/* If we depend on another EMAC for MDIO, check whether it was probed already */
+	if (emacdata->mdio_idx >= 0 && emacdata->mdio_idx != ocpdev->def->index) {
+		struct ocp_device *mdiodev =
+		    ocp_find_device(OCP_VENDOR_IBM, OCP_FUNC_EMAC,
+				    emacdata->mdio_idx);
+		if (!mdiodev) {
+			printk(KERN_ERR "emac%d: unknown emac%d device!\n",
+			       dev->def->index, emacdata->mdio_idx);
+			err = -ENODEV;
+			goto out2;
 		}
-		ep->mdio_dev = mdio_ndev;
-	} else {
-		ep->mdio_dev = ndev;
-	}
-
-	ocp_set_drvdata(ocpdev, ndev);
-
-	spin_lock_init(&ep->lock);
-
-	/* Fill out MAL informations and register commac */
-	ep->mal = mal;
-	ep->mal_tx_chan = emacdata->mal_tx_chan;
-	ep->mal_rx_chan = emacdata->mal_rx_chan;
-	ep->commac.ops = &emac_commac_ops;
-	ep->commac.dev = ndev;
-	ep->commac.tx_chan_mask = MAL_CHAN_MASK(ep->mal_tx_chan);
-	ep->commac.rx_chan_mask = MAL_CHAN_MASK(ep->mal_rx_chan);
-	rc = mal_register_commac(ep->mal, &ep->commac);
-	if (rc != 0)
-		goto bail;
-	commac_reg = 1;
-
-	/* Map our MMIOs */
-	ep->emacp = (emac_t *) ioremap(ocpdev->def->paddr, sizeof(emac_t));
-
-	/* Check if we need to attach to a ZMII */
-	if (emacdata->zmii_idx >= 0) {
-		ep->zmii_input = emacdata->zmii_mux;
-		ep->zmii_dev =
-		    ocp_find_device(OCP_ANY_ID, OCP_FUNC_ZMII,
-				    emacdata->zmii_idx);
-		if (ep->zmii_dev == NULL)
-			printk(KERN_WARNING
-			       "emac%d: ZMII %d requested but not found !\n",
-			       ocpdev->def->index, emacdata->zmii_idx);
-		else if ((rc =
-			  emac_init_zmii(ep->zmii_dev, ep->zmii_input,
-					 emacdata->phy_mode)) != 0)
-			goto bail;
-	}
-
-	/* Check if we need to attach to a RGMII */
-	if (emacdata->rgmii_idx >= 0) {
-		ep->rgmii_input = emacdata->rgmii_mux;
-		ep->rgmii_dev =
-		    ocp_find_device(OCP_ANY_ID, OCP_FUNC_RGMII,
-				    emacdata->rgmii_idx);
-		if (ep->rgmii_dev == NULL)
-			printk(KERN_WARNING
-			       "emac%d: RGMII %d requested but not found !\n",
-			       ocpdev->def->index, emacdata->rgmii_idx);
-		else if ((rc =
-			  emac_init_rgmii(ep->rgmii_dev, ep->rgmii_input,
-					  emacdata->phy_mode)) != 0)
-			goto bail;
-	}
-
-	/* Check if we need to attach to a TAH */
-	if (emacdata->tah_idx >= 0) {
-		ep->tah_dev =
-		    ocp_find_device(OCP_ANY_ID, OCP_FUNC_TAH,
-				    emacdata->tah_idx);
-		if (ep->tah_dev == NULL)
-			printk(KERN_WARNING
-			       "emac%d: TAH %d requested but not found !\n",
-			       ocpdev->def->index, emacdata->tah_idx);
-		else if ((rc = emac_init_tah(ep)) != 0)
-			goto bail;
-	}
-
-	if (deferred_init) {
-		if (!list_empty(&emac_init_list)) {
-			struct list_head *entry;
-			struct emac_def_dev *ddev;
-
-			list_for_each(entry, &emac_init_list) {
-				ddev =
-				    list_entry(entry, struct emac_def_dev,
-					       link);
-				emac_init_device(ddev->ocpdev, ddev->mal);
-			}
+		dev->mdio_dev = ocp_get_drvdata(mdiodev);
+		if (!dev->mdio_dev) {
+			printk(KERN_ERR
+			       "emac%d: emac%d hasn't been initialized yet!\n",
+			       dev->def->index, emacdata->mdio_idx);
+			err = -ENODEV;
+			goto out2;
 		}
 	}
 
-	/* Init link monitoring timer */
-	init_timer(&ep->link_timer);
-	ep->link_timer.function = emac_link_timer;
-	ep->link_timer.data = (unsigned long)ep;
-	ep->timer_ticks = 0;
+	/* Attach to ZMII, if needed */
+	if ((err = zmii_attach(dev)) != 0)
+		goto out2;
 
-	/* Fill up the mii_phy structure */
-	ep->phy_mii.dev = ndev;
-	ep->phy_mii.mdio_read = emac_phy_read;
-	ep->phy_mii.mdio_write = emac_phy_write;
-	ep->phy_mii.mode = emacdata->phy_mode;
+	/* Attach to RGMII, if needed */
+	if ((err = rgmii_attach(dev)) != 0)
+		goto out3;
 
-	/* Find PHY */
-	phy_map = emacdata->phy_map | busy_phy_map;
-	for (i = 0; i <= 0x1f; i++, phy_map >>= 1) {
-		if ((phy_map & 0x1) == 0) {
-			int val = emac_phy_read(ndev, i, MII_BMCR);
-			if (val != 0xffff && val != -1)
-				break;
-		}
-	}
-	if (i == 0x20) {
-		printk(KERN_WARNING "emac%d: Can't find PHY.\n",
-		       ocpdev->def->index);
-		rc = -ENODEV;
-		goto bail;
-	}
-	busy_phy_map |= 1 << i;
-	ep->mii_phy_addr = i;
-	rc = mii_phy_probe(&ep->phy_mii, i);
-	if (rc) {
-		printk(KERN_WARNING "emac%d: Failed to probe PHY type.\n",
-		       ocpdev->def->index);
-		rc = -ENODEV;
-		goto bail;
-	}
-	
-	/* Disable any PHY features not supported by the platform */
-	ep->phy_mii.def->features &= ~emacdata->phy_feat_exc;
+	/* Attach to TAH, if needed */
+	if ((err = tah_attach(dev)) != 0)
+		goto out4;
 
-	/* Setup initial PHY config & startup aneg */
-	if (ep->phy_mii.def->ops->init)
-		ep->phy_mii.def->ops->init(&ep->phy_mii);
-	netif_carrier_off(ndev);
-	if (ep->phy_mii.def->features & SUPPORTED_Autoneg)
-		ep->want_autoneg = 1;
-	else {
-		ep->want_autoneg = 0;
-		
-		/* Select highest supported speed/duplex */
-		if (ep->phy_mii.def->features & SUPPORTED_1000baseT_Full) {
-			ep->phy_mii.speed = SPEED_1000;
-			ep->phy_mii.duplex = DUPLEX_FULL;
-		} else if (ep->phy_mii.def->features & 
-			   SUPPORTED_1000baseT_Half) {
-			ep->phy_mii.speed = SPEED_1000;
-			ep->phy_mii.duplex = DUPLEX_HALF;
-		} else if (ep->phy_mii.def->features & 
-			   SUPPORTED_100baseT_Full) {
-			ep->phy_mii.speed = SPEED_100;
-			ep->phy_mii.duplex = DUPLEX_FULL;
-		} else if (ep->phy_mii.def->features & 
-			   SUPPORTED_100baseT_Half) {
-			ep->phy_mii.speed = SPEED_100;
-			ep->phy_mii.duplex = DUPLEX_HALF;
-		} else if (ep->phy_mii.def->features & 
-			   SUPPORTED_10baseT_Full) {
-			ep->phy_mii.speed = SPEED_10;
-			ep->phy_mii.duplex = DUPLEX_FULL;
-		} else {
-			ep->phy_mii.speed = SPEED_10;
-			ep->phy_mii.duplex = DUPLEX_HALF;
-		}
+	/* Map EMAC regs */
+	dev->emacp =
+	    (struct emac_regs *)ioremap(dev->def->paddr,
+					sizeof(struct emac_regs));
+	if (!dev->emacp) {
+		printk(KERN_ERR "emac%d: could not ioremap device registers!\n",
+		       dev->def->index);
+		err = -ENOMEM;
+		goto out5;
 	}
-	emac_start_link(ep, NULL);
 
-	/* read the MAC Address */
-	for (i = 0; i < 6; i++)
+	/* Fill in MAC address */
+	for (i = 0; i < 6; ++i)
 		ndev->dev_addr[i] = emacdata->mac_addr[i];
+
+	/* Set some link defaults before we can find out real parameters */
+	dev->phy.speed = SPEED_100;
+	dev->phy.duplex = DUPLEX_FULL;
+	dev->phy.autoneg = AUTONEG_DISABLE;
+	dev->phy.pause = dev->phy.asym_pause = 0;
+	init_timer(&dev->link_timer);
+	dev->link_timer.function = emac_link_timer;
+	dev->link_timer.data = (unsigned long)dev;
+
+	/* Find PHY if any */
+	dev->phy.dev = ndev;
+	dev->phy.mode = emacdata->phy_mode;
+	if (emacdata->phy_map != 0xffffffff) {
+		u32 phy_map = emacdata->phy_map | busy_phy_map;
+		u32 adv;
+
+		DBG("%d: PHY maps %08x %08x" NL, dev->def->index,
+		    emacdata->phy_map, busy_phy_map);
+
+		EMAC_RX_CLK_TX(dev->def->index);
+
+		dev->phy.mdio_read = emac_mdio_read;
+		dev->phy.mdio_write = emac_mdio_write;
+
+		/* Configure EMAC with defaults so we can at least use MDIO
+		 * This is needed mostly for 440GX
+		 */
+		if (emac_phy_gpcs(dev->phy.mode)) {
+			/* XXX
+			 * Make GPCS PHY address equal to EMAC index.
+			 * We probably should take into account busy_phy_map
+			 * and/or phy_map here.
+			 */
+			dev->phy.address = dev->def->index;
+		}
+		
+		emac_configure(dev);
+
+		for (i = 0; i < 0x20; phy_map >>= 1, ++i)
+			if (!(phy_map & 1)) {
+				int r;
+				busy_phy_map |= 1 << i;
+
+				/* Quick check if there is a PHY at the address */
+				r = emac_mdio_read(dev->ndev, i, MII_BMCR);
+				if (r == 0xffff || r < 0)
+					continue;
+				if (!mii_phy_probe(&dev->phy, i))
+					break;
+			}
+		if (i == 0x20) {
+			printk(KERN_WARNING "emac%d: can't find PHY!\n",
+			       dev->def->index);
+			goto out6;
+		}
+
+		/* Init PHY */
+		if (dev->phy.def->ops->init)
+			dev->phy.def->ops->init(&dev->phy);
+		
+		/* Disable any PHY features not supported by the platform */
+		dev->phy.def->features &= ~emacdata->phy_feat_exc;
+
+		/* Setup initial link parameters */
+		if (dev->phy.features & SUPPORTED_Autoneg) {
+			adv = dev->phy.features;
+#if !defined(CONFIG_40x)
+			adv |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
+#endif
+			/* Restart autonegotiation */
+			dev->phy.def->ops->setup_aneg(&dev->phy, adv);
+		} else {
+			u32 f = dev->phy.def->features;
+			int speed = SPEED_10, fd = DUPLEX_HALF;
+
+			/* Select highest supported speed/duplex */
+			if (f & SUPPORTED_1000baseT_Full) {
+				speed = SPEED_1000;
+				fd = DUPLEX_FULL;
+			} else if (f & SUPPORTED_1000baseT_Half)
+				speed = SPEED_1000;
+			else if (f & SUPPORTED_100baseT_Full) {
+				speed = SPEED_100;
+				fd = DUPLEX_FULL;
+			} else if (f & SUPPORTED_100baseT_Half)
+				speed = SPEED_100;
+			else if (f & SUPPORTED_10baseT_Full)
+				fd = DUPLEX_FULL;
+
+			/* Force link parameters */
+			dev->phy.def->ops->setup_forced(&dev->phy, speed, fd);
+		}
+	} else {
+		emac_reset(dev);
+
+		/* PHY-less configuration.
+		 * XXX I probably should move these settings to emacdata
+		 */
+		dev->phy.address = -1;
+		dev->phy.features = SUPPORTED_100baseT_Full | SUPPORTED_MII;
+		dev->phy.pause = 1;
+	}
 
 	/* Fill in the driver function table */
 	ndev->open = &emac_open;
-	ndev->hard_start_xmit = &emac_start_xmit;
+	if (dev->tah_dev) {
+		ndev->hard_start_xmit = &emac_start_xmit_sg;
+		ndev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
+	} else
+		ndev->hard_start_xmit = &emac_start_xmit;
+	ndev->tx_timeout = &emac_full_tx_reset;
+	ndev->watchdog_timeo = 5 * HZ;
 	ndev->stop = &emac_close;
 	ndev->get_stats = &emac_stats;
-	if (emacdata->jumbo)
-		ndev->change_mtu = &emac_change_mtu;
-	ndev->set_mac_address = &emac_set_mac_address;
 	ndev->set_multicast_list = &emac_set_multicast_list;
 	ndev->do_ioctl = &emac_ioctl;
+	if (emac_phy_supports_gige(emacdata->phy_mode)) {
+		ndev->change_mtu = &emac_change_mtu;
+		dev->commac.ops = &emac_commac_sg_ops;
+	}
 	SET_ETHTOOL_OPS(ndev, &emac_ethtool_ops);
-	if (emacdata->tah_idx >= 0)
-		ndev->features = NETIF_F_IP_CSUM | NETIF_F_SG;
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	ndev->poll_controller = emac_netpoll;
-#endif
 
-	SET_MODULE_OWNER(ndev);
+	netif_carrier_off(ndev);
+	netif_stop_queue(ndev);
 
-	rc = register_netdev(ndev);
-	if (rc != 0)
-		goto bail;
+	err = register_netdev(ndev);
+	if (err) {
+		printk(KERN_ERR "emac%d: failed to register net device (%d)!\n",
+		       dev->def->index, err);
+		goto out6;
+	}
 
-	printk("%s: IBM emac, MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
-	       ndev->name,
+	ocp_set_drvdata(ocpdev, dev);
+
+	printk("%s: emac%d, MAC %02x:%02x:%02x:%02x:%02x:%02x\n",
+	       ndev->name, dev->def->index,
 	       ndev->dev_addr[0], ndev->dev_addr[1], ndev->dev_addr[2],
 	       ndev->dev_addr[3], ndev->dev_addr[4], ndev->dev_addr[5]);
-	printk(KERN_INFO "%s: Found %s PHY (0x%02x)\n",
-	       ndev->name, ep->phy_mii.def->name, ep->mii_phy_addr);
 
-      bail:
-	if (rc && commac_reg)
-		mal_unregister_commac(ep->mal, &ep->commac);
-	if (rc && ndev)
-		kfree(ndev);
+	if (dev->phy.address >= 0)
+		printk("%s: found %s PHY (0x%02x)\n", ndev->name,
+		       dev->phy.def->name, dev->phy.address);
 
-	return rc;
-}
-
-static int emac_probe(struct ocp_device *ocpdev)
-{
-	struct ocp_device *maldev;
-	struct ibm_ocp_mal *mal;
-	struct ocp_func_emac_data *emacdata;
-
-	emacdata = (struct ocp_func_emac_data *)ocpdev->def->additions;
-	if (emacdata == NULL) {
-		printk(KERN_ERR "emac%d: Missing additional datas !\n",
-		       ocpdev->def->index);
-		return -ENODEV;
-	}
-
-	/* Get the MAL device  */
-	maldev = ocp_find_device(OCP_ANY_ID, OCP_FUNC_MAL, emacdata->mal_idx);
-	if (maldev == NULL) {
-		printk("No maldev\n");
-		return -ENODEV;
-	}
-	/*
-	 * Get MAL driver data, it must be here due to link order.
-	 * When the driver is modularized, symbol dependencies will
-	 * ensure the MAL driver is already present if built as a
-	 * module.
-	 */
-	mal = (struct ibm_ocp_mal *)ocp_get_drvdata(maldev);
-	if (mal == NULL) {
-		printk("No maldrv\n");
-		return -ENODEV;
-	}
-
-	/* If we depend on another EMAC for MDIO, wait for it to show up */
-	if (emacdata->mdio_idx >= 0 &&
-	    (emacdata->mdio_idx != ocpdev->def->index) && !mdio_ndev) {
-		struct emac_def_dev *ddev;
-		/* Add this index to the deferred init table */
-		ddev = kmalloc(sizeof(struct emac_def_dev), GFP_KERNEL);
-		ddev->ocpdev = ocpdev;
-		ddev->mal = mal;
-		list_add_tail(&ddev->link, &emac_init_list);
-	} else {
-		emac_init_device(ocpdev, mal);
-	}
+	emac_dbg_register(dev->def->index, dev);
 
 	return 0;
+      out6:
+	iounmap((void *)dev->emacp);
+      out5:
+	tah_fini(dev->tah_dev);
+      out4:
+	rgmii_fini(dev->rgmii_dev, dev->rgmii_input);
+      out3:
+	zmii_fini(dev->zmii_dev, dev->zmii_input);
+      out2:
+	mal_unregister_commac(dev->mal, &dev->commac);
+      out:
+	kfree(ndev);
+	return err;
 }
 
-/* Structure for a device driver */
 static struct ocp_device_id emac_ids[] = {
-	{.vendor = OCP_ANY_ID,.function = OCP_FUNC_EMAC},
-	{.vendor = OCP_VENDOR_INVALID}
+	{ .vendor = OCP_VENDOR_IBM, .function = OCP_FUNC_EMAC },
+	{ .vendor = OCP_VENDOR_INVALID}
 };
 
 static struct ocp_driver emac_driver = {
 	.name = "emac",
 	.id_table = emac_ids,
-
 	.probe = emac_probe,
 	.remove = emac_remove,
 };
 
 static int __init emac_init(void)
 {
-	printk(KERN_INFO DRV_NAME ": " DRV_DESC ", version " DRV_VERSION "\n");
-	printk(KERN_INFO "Maintained by " DRV_AUTHOR "\n");
+	printk(KERN_INFO DRV_DESC ", version " DRV_VERSION "\n");
 
-	if (skb_res > 2) {
-		printk(KERN_WARNING "Invalid skb_res: %d, cropping to 2\n",
-		       skb_res);
-		skb_res = 2;
+	DBG(": init" NL);
+
+	if (mal_init())
+		return -ENODEV;
+
+	EMAC_CLK_INTERNAL;
+	if (ocp_register_driver(&emac_driver)) {
+		EMAC_CLK_EXTERNAL;
+		ocp_unregister_driver(&emac_driver);
+		mal_exit();
+		return -ENODEV;
 	}
+	EMAC_CLK_EXTERNAL;
 
-	return ocp_register_driver(&emac_driver);
+	emac_init_debug();
+	return 0;
 }
 
 static void __exit emac_exit(void)
 {
+	DBG(": exit" NL);
 	ocp_unregister_driver(&emac_driver);
+	mal_exit();
+	emac_fini_debug();
 }
 
 module_init(emac_init);

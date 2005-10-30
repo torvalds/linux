@@ -936,7 +936,7 @@ static int ch_probe(struct device *dev)
 	if (init)
 		ch_init_elem(ch);
 
-	class_device_create(ch_sysfs_class,
+	class_device_create(ch_sysfs_class, NULL,
 			    MKDEV(SCSI_CHANGER_MAJOR,ch->minor),
 			    dev, "s%s", ch->name);
 

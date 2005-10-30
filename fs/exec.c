@@ -126,8 +126,7 @@ asmlinkage long sys_uselib(const char __user * library)
 	struct nameidata nd;
 	int error;
 
-	nd.intent.open.flags = FMODE_READ;
-	error = __user_walk(library, LOOKUP_FOLLOW|LOOKUP_OPEN, &nd);
+	error = __user_path_lookup_open(library, LOOKUP_FOLLOW, &nd, FMODE_READ);
 	if (error)
 		goto out;
 
@@ -139,7 +138,7 @@ asmlinkage long sys_uselib(const char __user * library)
 	if (error)
 		goto exit;
 
-	file = dentry_open(nd.dentry, nd.mnt, O_RDONLY);
+	file = nameidata_to_filp(&nd, O_RDONLY);
 	error = PTR_ERR(file);
 	if (IS_ERR(file))
 		goto out;
@@ -167,6 +166,7 @@ asmlinkage long sys_uselib(const char __user * library)
 out:
   	return error;
 exit:
+	release_open_intent(&nd);
 	path_release(&nd);
 	goto out;
 }
@@ -309,40 +309,36 @@ void install_arg_page(struct vm_area_struct *vma,
 	pud_t * pud;
 	pmd_t * pmd;
 	pte_t * pte;
+	spinlock_t *ptl;
 
 	if (unlikely(anon_vma_prepare(vma)))
-		goto out_sig;
+		goto out;
 
 	flush_dcache_page(page);
 	pgd = pgd_offset(mm, address);
-
-	spin_lock(&mm->page_table_lock);
 	pud = pud_alloc(mm, pgd, address);
 	if (!pud)
 		goto out;
 	pmd = pmd_alloc(mm, pud, address);
 	if (!pmd)
 		goto out;
-	pte = pte_alloc_map(mm, pmd, address);
+	pte = pte_alloc_map_lock(mm, pmd, address, &ptl);
 	if (!pte)
 		goto out;
 	if (!pte_none(*pte)) {
-		pte_unmap(pte);
+		pte_unmap_unlock(pte, ptl);
 		goto out;
 	}
-	inc_mm_counter(mm, rss);
+	inc_mm_counter(mm, anon_rss);
 	lru_cache_add_active(page);
 	set_pte_at(mm, address, pte, pte_mkdirty(pte_mkwrite(mk_pte(
 					page, vma->vm_page_prot))));
 	page_add_anon_rmap(page, vma, address);
-	pte_unmap(pte);
-	spin_unlock(&mm->page_table_lock);
+	pte_unmap_unlock(pte, ptl);
 
 	/* no need for flush_tlb */
 	return;
 out:
-	spin_unlock(&mm->page_table_lock);
-out_sig:
 	__free_page(page);
 	force_sig(SIGKILL, current);
 }
@@ -490,8 +486,7 @@ struct file *open_exec(const char *name)
 	int err;
 	struct file *file;
 
-	nd.intent.open.flags = FMODE_READ;
-	err = path_lookup(name, LOOKUP_FOLLOW|LOOKUP_OPEN, &nd);
+	err = path_lookup_open(name, LOOKUP_FOLLOW, &nd, FMODE_READ);
 	file = ERR_PTR(err);
 
 	if (!err) {
@@ -504,7 +499,7 @@ struct file *open_exec(const char *name)
 				err = -EACCES;
 			file = ERR_PTR(err);
 			if (!err) {
-				file = dentry_open(nd.dentry, nd.mnt, O_RDONLY);
+				file = nameidata_to_filp(&nd, O_RDONLY);
 				if (!IS_ERR(file)) {
 					err = deny_write_access(file);
 					if (err) {
@@ -516,6 +511,7 @@ out:
 				return file;
 			}
 		}
+		release_open_intent(&nd);
 		path_release(&nd);
 	}
 	goto out;
@@ -1207,7 +1203,6 @@ int do_execve(char * filename,
 		/* execve success */
 		security_bprm_free(bprm);
 		acct_update_integrals(current);
-		update_mem_hiwater(current);
 		kfree(bprm);
 		return retval;
 	}

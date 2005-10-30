@@ -1689,10 +1689,8 @@ static void __exit bmac_exit(void)
 {
 	macio_unregister_driver(&bmac_driver);
 
-	if (bmac_emergency_rxbuf != NULL) {
-		kfree(bmac_emergency_rxbuf);
-		bmac_emergency_rxbuf = NULL;
-	}
+	kfree(bmac_emergency_rxbuf);
+	bmac_emergency_rxbuf = NULL;
 }
 
 MODULE_AUTHOR("Randy Gobbel/Paul Mackerras");

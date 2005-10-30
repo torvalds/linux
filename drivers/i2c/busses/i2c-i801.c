@@ -52,10 +52,6 @@
 #include <linux/i2c.h>
 #include <asm/io.h>
 
-#ifdef I2C_FUNC_SMBUS_BLOCK_DATA_PEC
-#define HAVE_PEC
-#endif
-
 /* I801 SMBus address offsets */
 #define SMBHSTSTS	(0 + i801_smba)
 #define SMBHSTCNT	(2 + i801_smba)
@@ -106,10 +102,11 @@ MODULE_PARM_DESC(force_addr,
 		 "EXTREMELY DANGEROUS!");
 
 static int i801_transaction(void);
-static int i801_block_transaction(union i2c_smbus_data *data,
-				  char read_write, int command);
+static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
+				  int command, int hwpec);
 
 static unsigned short i801_smba;
+static struct pci_driver i801_driver;
 static struct pci_dev *I801_dev;
 static int isich4;
 
@@ -143,7 +140,7 @@ static int i801_setup(struct pci_dev *dev)
 		}
 	}
 
-	if (!request_region(i801_smba, (isich4 ? 16 : 8), "i801-smbus")) {
+	if (!request_region(i801_smba, (isich4 ? 16 : 8), i801_driver.name)) {
 		dev_err(&dev->dev, "I801_smb region 0x%x already in use!\n",
 			i801_smba);
 		error_return = -EBUSY;
@@ -252,7 +249,7 @@ static int i801_transaction(void)
 
 /* All-inclusive block transaction function */
 static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
-				  int command)
+				  int command, int hwpec)
 {
 	int i, len;
 	int smbcmd;
@@ -391,8 +388,7 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 			goto END;
 	}
 
-#ifdef HAVE_PEC
-	if(isich4 && command == I2C_SMBUS_BLOCK_DATA_PEC) {
+	if (hwpec) {
 		/* wait for INTR bit as advised by Intel */
 		timeout = 0;
 		do {
@@ -406,7 +402,6 @@ static int i801_block_transaction(union i2c_smbus_data *data, char read_write,
 		}
 		outb_p(temp, SMBHSTSTS); 
 	}
-#endif
 	result = 0;
 END:
 	if (command == I2C_SMBUS_I2C_BLOCK_DATA) {
@@ -421,14 +416,13 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 		       unsigned short flags, char read_write, u8 command,
 		       int size, union i2c_smbus_data * data)
 {
-	int hwpec = 0;
+	int hwpec;
 	int block = 0;
 	int ret, xact = 0;
 
-#ifdef HAVE_PEC
-	if(isich4)
-		hwpec = (flags & I2C_CLIENT_PEC) != 0;
-#endif
+	hwpec = isich4 && (flags & I2C_CLIENT_PEC)
+		&& size != I2C_SMBUS_QUICK
+		&& size != I2C_SMBUS_I2C_BLOCK_DATA;
 
 	switch (size) {
 	case I2C_SMBUS_QUICK:
@@ -463,11 +457,6 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 		break;
 	case I2C_SMBUS_BLOCK_DATA:
 	case I2C_SMBUS_I2C_BLOCK_DATA:
-#ifdef HAVE_PEC
-	case I2C_SMBUS_BLOCK_DATA_PEC:
-		if(hwpec && size == I2C_SMBUS_BLOCK_DATA)
-			size = I2C_SMBUS_BLOCK_DATA_PEC;
-#endif
 		outb_p(((addr & 0x7f) << 1) | (read_write & 0x01),
 		       SMBHSTADD);
 		outb_p(command, SMBHSTCMD);
@@ -479,27 +468,18 @@ static s32 i801_access(struct i2c_adapter * adap, u16 addr,
 		return -1;
 	}
 
-#ifdef HAVE_PEC
-	if(isich4 && hwpec) {
-		if(size != I2C_SMBUS_QUICK &&
-		   size != I2C_SMBUS_I2C_BLOCK_DATA)
-			outb_p(1, SMBAUXCTL);	/* enable HW PEC */
-	}
-#endif
+	if (hwpec)
+		outb_p(1, SMBAUXCTL);	/* enable hardware PEC */
+
 	if(block)
-		ret = i801_block_transaction(data, read_write, size);
+		ret = i801_block_transaction(data, read_write, size, hwpec);
 	else {
 		outb_p(xact | ENABLE_INT9, SMBHSTCNT);
 		ret = i801_transaction();
 	}
 
-#ifdef HAVE_PEC
-	if(isich4 && hwpec) {
-		if(size != I2C_SMBUS_QUICK &&
-		   size != I2C_SMBUS_I2C_BLOCK_DATA)
-			outb_p(0, SMBAUXCTL);
-	}
-#endif
+	if (hwpec)
+		outb_p(0, SMBAUXCTL);	/* disable hardware PEC */
 
 	if(block)
 		return ret;
@@ -526,12 +506,7 @@ static u32 i801_func(struct i2c_adapter *adapter)
 	return I2C_FUNC_SMBUS_QUICK | I2C_FUNC_SMBUS_BYTE |
 	    I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA |
 	    I2C_FUNC_SMBUS_BLOCK_DATA | I2C_FUNC_SMBUS_WRITE_I2C_BLOCK
-#ifdef HAVE_PEC
-	     | (isich4 ? I2C_FUNC_SMBUS_BLOCK_DATA_PEC |
-	                 I2C_FUNC_SMBUS_HWPEC_CALC
-	               : 0)
-#endif
-	    ;
+	     | (isich4 ? I2C_FUNC_SMBUS_HWPEC_CALC : 0);
 }
 
 static struct i2c_algorithm smbus_algorithm = {
@@ -543,7 +518,6 @@ static struct i2c_adapter i801_adapter = {
 	.owner		= THIS_MODULE,
 	.class		= I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
-	.name		= "unset",
 };
 
 static struct pci_device_id i801_ids[] = {
@@ -586,6 +560,7 @@ static void __devexit i801_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver i801_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "i801_smbus",
 	.id_table	= i801_ids,
 	.probe		= i801_probe,

@@ -879,14 +879,12 @@ static int s3c24xx_i2c_remove(struct device *dev)
 }
 
 #ifdef CONFIG_PM
-static int s3c24xx_i2c_resume(struct device *dev, u32 level)
+static int s3c24xx_i2c_resume(struct device *dev)
 {
 	struct s3c24xx_i2c *i2c = dev_get_drvdata(dev);
-	
-	if (i2c != NULL && level == RESUME_ENABLE) {
-		dev_dbg(dev, "resume: level %d\n", level);
+
+	if (i2c != NULL)
 		s3c24xx_i2c_init(i2c);
-	}
 
 	return 0;
 }
@@ -898,6 +896,7 @@ static int s3c24xx_i2c_resume(struct device *dev, u32 level)
 /* device driver for platform bus bits */
 
 static struct device_driver s3c2410_i2c_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "s3c2410-i2c",
 	.bus		= &platform_bus_type,
 	.probe		= s3c24xx_i2c_probe,
@@ -906,6 +905,7 @@ static struct device_driver s3c2410_i2c_driver = {
 };
 
 static struct device_driver s3c2440_i2c_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "s3c2440-i2c",
 	.bus		= &platform_bus_type,
 	.probe		= s3c24xx_i2c_probe,

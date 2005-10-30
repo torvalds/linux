@@ -408,7 +408,11 @@ static struct uart_port clps711x_ports[UART_NR] = {
 	{
 		.iobase		= SYSCON1,
 		.irq		= IRQ_UTXINT1, /* IRQ_URXINT1, IRQ_UMSINT */
+#ifdef CONFIG_MP1000_90MHZ
+		.uartclk	= 4515840,
+#else
 		.uartclk	= 3686400,
+#endif
 		.fifosize	= 16,
 		.ops		= &clps711x_pops,
 		.line		= 0,
@@ -417,7 +421,11 @@ static struct uart_port clps711x_ports[UART_NR] = {
 	{
 		.iobase		= SYSCON2,
 		.irq		= IRQ_UTXINT2, /* IRQ_URXINT2 */
+#ifdef CONFIG_MP1000_90MHZ
+		.uartclk	= 4515840,
+#else
 		.uartclk	= 3686400,
+#endif
 		.fifosize	= 16,
 		.ops		= &clps711x_pops,
 		.line		= 1,
@@ -551,6 +559,7 @@ console_initcall(clps711xuart_console_init);
 static struct uart_driver clps711x_reg = {
 	.driver_name		= "ttyCL",
 	.dev_name		= "ttyCL",
+	.devfs_name		= "ttyCL",
 	.major			= SERIAL_CLPS711X_MAJOR,
 	.minor			= SERIAL_CLPS711X_MINOR,
 	.nr			= UART_NR,

@@ -92,7 +92,7 @@ int ipoib_mcast_detach(struct net_device *dev, u16 mlid, union ib_gid *mgid)
 	return ret;
 }
 
-int ipoib_qp_create(struct net_device *dev)
+int ipoib_init_qp(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int ret;
@@ -149,10 +149,11 @@ int ipoib_qp_create(struct net_device *dev)
 	return 0;
 
 out_fail:
-	ib_destroy_qp(priv->qp);
-	priv->qp = NULL;
+	qp_attr.qp_state = IB_QPS_RESET;
+	if (ib_modify_qp(priv->qp, &qp_attr, IB_QP_STATE))
+		ipoib_warn(priv, "Failed to modify QP to RESET state\n");
 
-	return -EINVAL;
+	return ret;
 }
 
 int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)

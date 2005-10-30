@@ -521,7 +521,7 @@ static int zd1201_setconfig(struct zd1201 *zd, int rid, void *buf, int len, int 
 	int reqlen;
 	char seq=0;
 	struct urb *urb;
-	unsigned int gfp_mask = wait ? GFP_NOIO : GFP_ATOMIC;
+	gfp_t gfp_mask = wait ? GFP_NOIO : GFP_ATOMIC;
 
 	len += 4;			/* first 4 are for header */
 

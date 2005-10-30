@@ -237,8 +237,7 @@ typedef struct ax25_cb {
 static __inline__ void ax25_cb_put(ax25_cb *ax25)
 {
 	if (atomic_dec_and_test(&ax25->refcount)) {
-		if (ax25->digipeat)
-			kfree(ax25->digipeat);
+		kfree(ax25->digipeat);
 		kfree(ax25);
 	}
 }

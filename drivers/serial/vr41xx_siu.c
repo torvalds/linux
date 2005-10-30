@@ -976,13 +976,10 @@ static int siu_remove(struct device *dev)
 	return 0;
 }
 
-static int siu_suspend(struct device *dev, pm_message_t state, u32 level)
+static int siu_suspend(struct device *dev, pm_message_t state)
 {
 	struct uart_port *port;
 	int i;
-
-	if (level != SUSPEND_DISABLE)
-		return 0;
 
 	for (i = 0; i < siu_uart_driver.nr; i++) {
 		port = &siu_uart_ports[i];
@@ -995,13 +992,10 @@ static int siu_suspend(struct device *dev, pm_message_t state, u32 level)
 	return 0;
 }
 
-static int siu_resume(struct device *dev, u32 level)
+static int siu_resume(struct device *dev)
 {
 	struct uart_port *port;
 	int i;
-
-	if (level != RESUME_ENABLE)
-		return 0;
 
 	for (i = 0; i < siu_uart_driver.nr; i++) {
 		port = &siu_uart_ports[i];

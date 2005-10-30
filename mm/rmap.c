@@ -32,7 +32,7 @@
  *   page->flags PG_locked (lock_page)
  *     mapping->i_mmap_lock
  *       anon_vma->lock
- *         mm->page_table_lock
+ *         mm->page_table_lock or pte_lock
  *           zone->lru_lock (in mark_page_accessed)
  *           swap_lock (in swap_duplicate, swap_info_get)
  *             mmlist_lock (in mmput, drain_mmlist and others)
@@ -244,37 +244,44 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 /*
  * Check that @page is mapped at @address into @mm.
  *
- * On success returns with mapped pte and locked mm->page_table_lock.
+ * On success returns with pte mapped and locked.
  */
 pte_t *page_check_address(struct page *page, struct mm_struct *mm,
-			  unsigned long address)
+			  unsigned long address, spinlock_t **ptlp)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
+	spinlock_t *ptl;
 
-	/*
-	 * We need the page_table_lock to protect us from page faults,
-	 * munmap, fork, etc...
-	 */
-	spin_lock(&mm->page_table_lock);
 	pgd = pgd_offset(mm, address);
-	if (likely(pgd_present(*pgd))) {
-		pud = pud_offset(pgd, address);
-		if (likely(pud_present(*pud))) {
-			pmd = pmd_offset(pud, address);
-			if (likely(pmd_present(*pmd))) {
-				pte = pte_offset_map(pmd, address);
-				if (likely(pte_present(*pte) &&
-					   page_to_pfn(page) == pte_pfn(*pte)))
-					return pte;
-				pte_unmap(pte);
-			}
-		}
+	if (!pgd_present(*pgd))
+		return NULL;
+
+	pud = pud_offset(pgd, address);
+	if (!pud_present(*pud))
+		return NULL;
+
+	pmd = pmd_offset(pud, address);
+	if (!pmd_present(*pmd))
+		return NULL;
+
+	pte = pte_offset_map(pmd, address);
+	/* Make a quick check before getting the lock */
+	if (!pte_present(*pte)) {
+		pte_unmap(pte);
+		return NULL;
 	}
-	spin_unlock(&mm->page_table_lock);
-	return ERR_PTR(-ENOENT);
+
+	ptl = pte_lockptr(mm, pmd);
+	spin_lock(ptl);
+	if (pte_present(*pte) && page_to_pfn(page) == pte_pfn(*pte)) {
+		*ptlp = ptl;
+		return pte;
+	}
+	pte_unmap_unlock(pte, ptl);
+	return NULL;
 }
 
 /*
@@ -287,24 +294,28 @@ static int page_referenced_one(struct page *page,
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long address;
 	pte_t *pte;
+	spinlock_t *ptl;
 	int referenced = 0;
 
 	address = vma_address(page, vma);
 	if (address == -EFAULT)
 		goto out;
 
-	pte = page_check_address(page, mm, address);
-	if (!IS_ERR(pte)) {
-		if (ptep_clear_flush_young(vma, address, pte))
-			referenced++;
+	pte = page_check_address(page, mm, address, &ptl);
+	if (!pte)
+		goto out;
 
-		if (mm != current->mm && !ignore_token && has_swap_token(mm))
-			referenced++;
+	if (ptep_clear_flush_young(vma, address, pte))
+		referenced++;
 
-		(*mapcount)--;
-		pte_unmap(pte);
-		spin_unlock(&mm->page_table_lock);
-	}
+	/* Pretend the page is referenced if the task has the
+	   swap token and is in the middle of a page fault. */
+	if (mm != current->mm && !ignore_token && has_swap_token(mm) &&
+			rwsem_is_locked(&mm->mmap_sem))
+		referenced++;
+
+	(*mapcount)--;
+	pte_unmap_unlock(pte, ptl);
 out:
 	return referenced;
 }
@@ -434,15 +445,11 @@ int page_referenced(struct page *page, int is_locked, int ignore_token)
  * @vma:	the vm area in which the mapping is added
  * @address:	the user virtual address mapped
  *
- * The caller needs to hold the mm->page_table_lock.
+ * The caller needs to hold the pte lock.
  */
 void page_add_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address)
 {
-	BUG_ON(PageReserved(page));
-
-	inc_mm_counter(vma->vm_mm, anon_rss);
-
 	if (atomic_inc_and_test(&page->_mapcount)) {
 		struct anon_vma *anon_vma = vma->anon_vma;
 
@@ -461,13 +468,12 @@ void page_add_anon_rmap(struct page *page,
  * page_add_file_rmap - add pte mapping to a file page
  * @page: the page to add the mapping to
  *
- * The caller needs to hold the mm->page_table_lock.
+ * The caller needs to hold the pte lock.
  */
 void page_add_file_rmap(struct page *page)
 {
 	BUG_ON(PageAnon(page));
-	if (!pfn_valid(page_to_pfn(page)) || PageReserved(page))
-		return;
+	BUG_ON(!pfn_valid(page_to_pfn(page)));
 
 	if (atomic_inc_and_test(&page->_mapcount))
 		inc_page_state(nr_mapped);
@@ -477,12 +483,10 @@ void page_add_file_rmap(struct page *page)
  * page_remove_rmap - take down pte mapping from a page
  * @page: page to remove mapping from
  *
- * Caller needs to hold the mm->page_table_lock.
+ * The caller needs to hold the pte lock.
  */
 void page_remove_rmap(struct page *page)
 {
-	BUG_ON(PageReserved(page));
-
 	if (atomic_add_negative(-1, &page->_mapcount)) {
 		BUG_ON(page_mapcount(page) < 0);
 		/*
@@ -510,14 +514,15 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 	unsigned long address;
 	pte_t *pte;
 	pte_t pteval;
+	spinlock_t *ptl;
 	int ret = SWAP_AGAIN;
 
 	address = vma_address(page, vma);
 	if (address == -EFAULT)
 		goto out;
 
-	pte = page_check_address(page, mm, address);
-	if (IS_ERR(pte))
+	pte = page_check_address(page, mm, address, &ptl);
+	if (!pte)
 		goto out;
 
 	/*
@@ -541,8 +546,11 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 	if (pte_dirty(pteval))
 		set_page_dirty(page);
 
+	/* Update high watermark before we lower rss */
+	update_hiwater_rss(mm);
+
 	if (PageAnon(page)) {
-		swp_entry_t entry = { .val = page->private };
+		swp_entry_t entry = { .val = page_private(page) };
 		/*
 		 * Store the swap location in the pte.
 		 * See handle_pte_fault() ...
@@ -551,21 +559,21 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 		swap_duplicate(entry);
 		if (list_empty(&mm->mmlist)) {
 			spin_lock(&mmlist_lock);
-			list_add(&mm->mmlist, &init_mm.mmlist);
+			if (list_empty(&mm->mmlist))
+				list_add(&mm->mmlist, &init_mm.mmlist);
 			spin_unlock(&mmlist_lock);
 		}
 		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
 		BUG_ON(pte_file(*pte));
 		dec_mm_counter(mm, anon_rss);
-	}
+	} else
+		dec_mm_counter(mm, file_rss);
 
-	dec_mm_counter(mm, rss);
 	page_remove_rmap(page);
 	page_cache_release(page);
 
 out_unmap:
-	pte_unmap(pte);
-	spin_unlock(&mm->page_table_lock);
+	pte_unmap_unlock(pte, ptl);
 out:
 	return ret;
 }
@@ -599,18 +607,13 @@ static void try_to_unmap_cluster(unsigned long cursor,
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte, *original_pte;
+	pte_t *pte;
 	pte_t pteval;
+	spinlock_t *ptl;
 	struct page *page;
 	unsigned long address;
 	unsigned long end;
 	unsigned long pfn;
-
-	/*
-	 * We need the page_table_lock to protect us from page faults,
-	 * munmap, fork, etc...
-	 */
-	spin_lock(&mm->page_table_lock);
 
 	address = (vma->vm_start + cursor) & CLUSTER_MASK;
 	end = address + CLUSTER_SIZE;
@@ -621,30 +624,33 @@ static void try_to_unmap_cluster(unsigned long cursor,
 
 	pgd = pgd_offset(mm, address);
 	if (!pgd_present(*pgd))
-		goto out_unlock;
+		return;
 
 	pud = pud_offset(pgd, address);
 	if (!pud_present(*pud))
-		goto out_unlock;
+		return;
 
 	pmd = pmd_offset(pud, address);
 	if (!pmd_present(*pmd))
-		goto out_unlock;
+		return;
 
-	for (original_pte = pte = pte_offset_map(pmd, address);
-			address < end; pte++, address += PAGE_SIZE) {
+	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
 
+	/* Update high watermark before we lower rss */
+	update_hiwater_rss(mm);
+
+	for (; address < end; pte++, address += PAGE_SIZE) {
 		if (!pte_present(*pte))
 			continue;
 
 		pfn = pte_pfn(*pte);
-		if (!pfn_valid(pfn))
+		if (unlikely(!pfn_valid(pfn))) {
+			print_bad_pte(vma, *pte, address);
 			continue;
+		}
 
 		page = pfn_to_page(pfn);
 		BUG_ON(PageAnon(page));
-		if (PageReserved(page))
-			continue;
 
 		if (ptep_clear_flush_young(vma, address, pte))
 			continue;
@@ -663,13 +669,10 @@ static void try_to_unmap_cluster(unsigned long cursor,
 
 		page_remove_rmap(page);
 		page_cache_release(page);
-		dec_mm_counter(mm, rss);
+		dec_mm_counter(mm, file_rss);
 		(*mapcount)--;
 	}
-
-	pte_unmap(original_pte);
-out_unlock:
-	spin_unlock(&mm->page_table_lock);
+	pte_unmap_unlock(pte - 1, ptl);
 }
 
 static int try_to_unmap_anon(struct page *page)
@@ -806,7 +809,6 @@ int try_to_unmap(struct page *page)
 {
 	int ret;
 
-	BUG_ON(PageReserved(page));
 	BUG_ON(!PageLocked(page));
 
 	if (PageAnon(page))

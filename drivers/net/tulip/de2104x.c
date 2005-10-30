@@ -1787,9 +1787,14 @@ static void __init de21041_get_srom_info (struct de_private *de)
 	/* DEC now has a specification but early board makers
 	   just put the address in the first EEPROM locations. */
 	/* This does  memcmp(eedata, eedata+16, 8) */
+
+#ifndef CONFIG_MIPS_COBALT
+
 	for (i = 0; i < 8; i ++)
 		if (ee_data[i] != ee_data[16+i])
 			sa_offset = 20;
+
+#endif
 
 	/* store MAC address */
 	for (i = 0; i < 6; i ++)
@@ -2071,8 +2076,7 @@ static int __init de_init_one (struct pci_dev *pdev,
 	return 0;
 
 err_out_iomap:
-	if (de->ee_data)
-		kfree(de->ee_data);
+	kfree(de->ee_data);
 	iounmap(regs);
 err_out_res:
 	pci_release_regions(pdev);
@@ -2091,8 +2095,7 @@ static void __exit de_remove_one (struct pci_dev *pdev)
 	if (!dev)
 		BUG();
 	unregister_netdev(dev);
-	if (de->ee_data)
-		kfree(de->ee_data);
+	kfree(de->ee_data);
 	iounmap(de->regs);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

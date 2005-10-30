@@ -91,7 +91,8 @@ int swap_writepage(struct page *page, struct writeback_control *wbc)
 		unlock_page(page);
 		goto out;
 	}
-	bio = get_swap_bio(GFP_NOIO, page->private, page, end_swap_bio_write);
+	bio = get_swap_bio(GFP_NOIO, page_private(page), page,
+				end_swap_bio_write);
 	if (bio == NULL) {
 		set_page_dirty(page);
 		unlock_page(page);
@@ -115,7 +116,8 @@ int swap_readpage(struct file *file, struct page *page)
 
 	BUG_ON(!PageLocked(page));
 	ClearPageUptodate(page);
-	bio = get_swap_bio(GFP_KERNEL, page->private, page, end_swap_bio_read);
+	bio = get_swap_bio(GFP_KERNEL, page_private(page), page,
+				end_swap_bio_read);
 	if (bio == NULL) {
 		unlock_page(page);
 		ret = -ENOMEM;

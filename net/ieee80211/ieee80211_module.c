@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-  Copyright(c) 2004 Intel Corporation. All rights reserved.
+  Copyright(c) 2004-2005 Intel Corporation. All rights reserved.
 
   Portions of this file are based on the WEP enablement code provided by the
   Host AP project hostap-drivers v0.1.3
@@ -53,12 +53,15 @@
 
 #include <net/ieee80211.h>
 
-MODULE_DESCRIPTION("802.11 data/management/control stack");
-MODULE_AUTHOR
-    ("Copyright (C) 2004 Intel Corporation <jketreno@linux.intel.com>");
-MODULE_LICENSE("GPL");
+#define DRV_DESCRIPTION "802.11 data/management/control stack"
+#define DRV_NAME        "ieee80211"
+#define DRV_VERSION	IEEE80211_VERSION
+#define DRV_COPYRIGHT   "Copyright (C) 2004-2005 Intel Corporation <jketreno@linux.intel.com>"
 
-#define DRV_NAME "ieee80211"
+MODULE_VERSION(DRV_VERSION);
+MODULE_DESCRIPTION(DRV_DESCRIPTION);
+MODULE_AUTHOR(DRV_COPYRIGHT);
+MODULE_LICENSE("GPL");
 
 static inline int ieee80211_networks_allocate(struct ieee80211_device *ieee)
 {
@@ -126,26 +129,34 @@ struct net_device *alloc_ieee80211(int sizeof_priv)
 
 	/* Default fragmentation threshold is maximum payload size */
 	ieee->fts = DEFAULT_FTS;
+	ieee->rts = DEFAULT_FTS;
 	ieee->scan_age = DEFAULT_MAX_SCAN_AGE;
 	ieee->open_wep = 1;
 
 	/* Default to enabling full open WEP with host based encrypt/decrypt */
 	ieee->host_encrypt = 1;
 	ieee->host_decrypt = 1;
+	ieee->host_mc_decrypt = 1;
+
+	/* Host fragementation in Open mode. Default is enabled.
+	 * Note: host fragmentation is always enabled if host encryption
+	 * is enabled. For cards can do hardware encryption, they must do
+	 * hardware fragmentation as well. So we don't need a variable
+	 * like host_enc_frag. */
+	ieee->host_open_frag = 1;
 	ieee->ieee802_1x = 1;	/* Default to supporting 802.1x */
 
 	INIT_LIST_HEAD(&ieee->crypt_deinit_list);
 	init_timer(&ieee->crypt_deinit_timer);
 	ieee->crypt_deinit_timer.data = (unsigned long)ieee;
 	ieee->crypt_deinit_timer.function = ieee80211_crypt_deinit_handler;
+	ieee->crypt_quiesced = 0;
 
 	spin_lock_init(&ieee->lock);
 
 	ieee->wpa_enabled = 0;
-	ieee->tkip_countermeasures = 0;
 	ieee->drop_unencrypted = 0;
 	ieee->privacy_invoked = 0;
-	ieee->ieee802_1x = 1;
 
 	return dev;
 
@@ -161,6 +172,7 @@ void free_ieee80211(struct net_device *dev)
 
 	int i;
 
+	ieee80211_crypt_quiescing(ieee);
 	del_timer_sync(&ieee->crypt_deinit_timer);
 	ieee80211_crypt_deinit_entries(ieee, 1);
 
@@ -195,38 +207,26 @@ static int show_debug_level(char *page, char **start, off_t offset,
 static int store_debug_level(struct file *file, const char __user * buffer,
 			     unsigned long count, void *data)
 {
-	char buf[] = "0x00000000";
-	char *p = (char *)buf;
+	char buf[] = "0x00000000\n";
+	unsigned long len = min((unsigned long)sizeof(buf) - 1, count);
 	unsigned long val;
 
-	if (count > sizeof(buf) - 1)
-		count = sizeof(buf) - 1;
-
-	if (copy_from_user(buf, buffer, count))
+	if (copy_from_user(buf, buffer, len))
 		return count;
-	buf[count] = 0;
-	/*
-	 * what a FPOS...  What, sscanf(buf, "%i", &val) would be too
-	 * scary?
-	 */
-	if (p[1] == 'x' || p[1] == 'X' || p[0] == 'x' || p[0] == 'X') {
-		p++;
-		if (p[0] == 'x' || p[0] == 'X')
-			p++;
-		val = simple_strtoul(p, &p, 16);
-	} else
-		val = simple_strtoul(p, &p, 10);
-	if (p == buf)
+	buf[len] = 0;
+	if (sscanf(buf, "%li", &val) != 1)
 		printk(KERN_INFO DRV_NAME
 		       ": %s is not in hex or decimal form.\n", buf);
 	else
 		ieee80211_debug_level = val;
 
-	return strlen(buf);
+	return strnlen(buf, len);
 }
+#endif				/* CONFIG_IEEE80211_DEBUG */
 
 static int __init ieee80211_init(void)
 {
+#ifdef CONFIG_IEEE80211_DEBUG
 	struct proc_dir_entry *e;
 
 	ieee80211_debug_level = debug;
@@ -246,26 +246,33 @@ static int __init ieee80211_init(void)
 	e->read_proc = show_debug_level;
 	e->write_proc = store_debug_level;
 	e->data = NULL;
+#endif				/* CONFIG_IEEE80211_DEBUG */
+
+	printk(KERN_INFO DRV_NAME ": " DRV_DESCRIPTION ", " DRV_VERSION "\n");
+	printk(KERN_INFO DRV_NAME ": " DRV_COPYRIGHT "\n");
 
 	return 0;
 }
 
 static void __exit ieee80211_exit(void)
 {
+#ifdef CONFIG_IEEE80211_DEBUG
 	if (ieee80211_proc) {
 		remove_proc_entry("debug_level", ieee80211_proc);
 		remove_proc_entry(DRV_NAME, proc_net);
 		ieee80211_proc = NULL;
 	}
+#endif				/* CONFIG_IEEE80211_DEBUG */
 }
 
+#ifdef CONFIG_IEEE80211_DEBUG
 #include <linux/moduleparam.h>
 module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "debug output mask");
+#endif				/* CONFIG_IEEE80211_DEBUG */
 
 module_exit(ieee80211_exit);
 module_init(ieee80211_init);
-#endif
 
 const char *escape_essid(const char *essid, u8 essid_len)
 {

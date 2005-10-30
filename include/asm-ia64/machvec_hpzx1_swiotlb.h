@@ -2,7 +2,6 @@
 #define _ASM_IA64_MACHVEC_HPZX1_SWIOTLB_h
 
 extern ia64_mv_setup_t				dig_setup;
-extern ia64_mv_dma_init				hwsw_init;
 extern ia64_mv_dma_alloc_coherent		hwsw_alloc_coherent;
 extern ia64_mv_dma_free_coherent		hwsw_free_coherent;
 extern ia64_mv_dma_map_single			hwsw_map_single;
@@ -26,7 +25,7 @@ extern ia64_mv_dma_sync_sg_for_device		hwsw_sync_sg_for_device;
 #define platform_name				"hpzx1_swiotlb"
 
 #define platform_setup				dig_setup
-#define platform_dma_init			hwsw_init
+#define platform_dma_init			machvec_noop
 #define platform_dma_alloc_coherent		hwsw_alloc_coherent
 #define platform_dma_free_coherent		hwsw_free_coherent
 #define platform_dma_map_single			hwsw_map_single

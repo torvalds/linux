@@ -76,5 +76,30 @@ enum rpc_auth_stat {
 
 #define RPC_MAXNETNAMELEN	256
 
+/*
+ * From RFC 1831:
+ *
+ * "A record is composed of one or more record fragments.  A record
+ *  fragment is a four-byte header followed by 0 to (2**31) - 1 bytes of
+ *  fragment data.  The bytes encode an unsigned binary number; as with
+ *  XDR integers, the byte order is from highest to lowest.  The number
+ *  encodes two values -- a boolean which indicates whether the fragment
+ *  is the last fragment of the record (bit value 1 implies the fragment
+ *  is the last fragment) and a 31-bit unsigned binary value which is the
+ *  length in bytes of the fragment's data.  The boolean value is the
+ *  highest-order bit of the header; the length is the 31 low-order bits.
+ *  (Note that this record specification is NOT in XDR standard form!)"
+ *
+ * The Linux RPC client always sends its requests in a single record
+ * fragment, limiting the maximum payload size for stream transports to
+ * 2GB.
+ */
+
+typedef u32	rpc_fraghdr;
+
+#define	RPC_LAST_STREAM_FRAGMENT	(1U << 31)
+#define	RPC_FRAGMENT_SIZE_MASK		(~RPC_LAST_STREAM_FRAGMENT)
+#define	RPC_MAX_FRAGMENT_SIZE		((1U << 31) - 1)
+
 #endif /* __KERNEL__ */
 #endif /* _LINUX_SUNRPC_MSGPROT_H_ */

@@ -35,6 +35,7 @@
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/lubbock.h>
 #include <asm/arch/udc.h>
+#include <asm/arch/irda.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/mmc.h>
 
@@ -237,16 +238,40 @@ static struct pxamci_platform_data lubbock_mci_platform_data = {
 	.init 		= lubbock_mci_init,
 };
 
+static void lubbock_irda_transceiver_mode(struct device *dev, int mode)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	if (mode & IR_SIRMODE) {
+		LUB_MISC_WR &= ~(1 << 4);
+	} else if (mode & IR_FIRMODE) {
+		LUB_MISC_WR |= 1 << 4;
+	}
+	local_irq_restore(flags);
+}
+
+static struct pxaficp_platform_data lubbock_ficp_platform_data = {
+	.transceiver_cap  = IR_SIRMODE | IR_FIRMODE,
+	.transceiver_mode = lubbock_irda_transceiver_mode,
+};
+
 static void __init lubbock_init(void)
 {
 	pxa_set_udc_info(&udc_info);
 	set_pxa_fb_info(&sharp_lm8v31);
 	pxa_set_mci_info(&lubbock_mci_platform_data);
+	pxa_set_ficp_info(&lubbock_ficp_platform_data);
 	(void) platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
 static struct map_desc lubbock_io_desc[] __initdata = {
-  { LUBBOCK_FPGA_VIRT, LUBBOCK_FPGA_PHYS, 0x00100000, MT_DEVICE }, /* CPLD */
+  	{	/* CPLD */
+		.virtual	=  LUBBOCK_FPGA_VIRT,
+		.pfn		= __phys_to_pfn(LUBBOCK_FPGA_PHYS),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init lubbock_map_io(void)

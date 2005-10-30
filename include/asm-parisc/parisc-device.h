@@ -1,7 +1,7 @@
 #include <linux/device.h>
 
 struct parisc_device {
-	unsigned long   hpa;		/* Hard Physical Address */
+	struct resource hpa;		/* Hard Physical Address */
 	struct parisc_device_id id;
 	struct parisc_driver *driver;	/* Driver for this device */
 	char		name[80];	/* The hardware description */
@@ -38,6 +38,11 @@ struct parisc_driver {
 #define to_parisc_device(d)	container_of(d, struct parisc_device, dev)
 #define to_parisc_driver(d)	container_of(d, struct parisc_driver, drv)
 #define parisc_parent(d)	to_parisc_device(d->dev.parent)
+
+static inline char *parisc_pathname(struct parisc_device *d)
+{
+	return d->dev.bus_id;
+}
 
 static inline void
 parisc_set_drvdata(struct parisc_device *d, void *p)

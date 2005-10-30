@@ -18,15 +18,15 @@
 #include <asm/cobalt/cobalt.h>
 
 /*
- * Accessing device 31 hangs the GT64120.  Not sure if this will also hang
- * the GT64111, let's be paranoid for now.
+ * Device 31 on the GT64111 is used to generate PCI special
+ * cycles, so we shouldn't expected to find a device there ...
  */
 static inline int pci_range_ck(struct pci_bus *bus, unsigned int devfn)
 {
-	if (bus->number == 0 && devfn == PCI_DEVFN(31, 0))
-		return -1;
+	if (bus->number == 0 && PCI_SLOT(devfn) < 31)
+		return 0;
 
-	return 0;
+	return -1;
 }
 
 static int gt64111_pci_read_config(struct pci_bus *bus, unsigned int devfn,

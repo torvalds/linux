@@ -1685,7 +1685,7 @@ qla2x00_nvram_config(scsi_qla_host_t *ha)
  * Returns a pointer to the allocated fcport, or NULL, if none available.
  */
 fc_port_t *
-qla2x00_alloc_fcport(scsi_qla_host_t *ha, int flags)
+qla2x00_alloc_fcport(scsi_qla_host_t *ha, gfp_t flags)
 {
 	fc_port_t *fcport;
 

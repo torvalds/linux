@@ -2982,10 +2982,12 @@ static unsigned int edge_buf_get(struct edge_buf *eb, char *buf,
 }
 
 
-static struct usb_serial_device_type edgeport_1port_device = {
-	.owner			= THIS_MODULE,
-	.name			= "Edgeport TI 1 port adapter",
-	.short_name		= "edgeport_ti_1",
+static struct usb_serial_driver edgeport_1port_device = {
+	.driver = {
+		.owner		= THIS_MODULE,
+		.name		= "edgeport_ti_1",
+	},
+	.description		= "Edgeport TI 1 port adapter",
 	.id_table		= edgeport_1port_id_table,
 	.num_interrupt_in	= 1,
 	.num_bulk_in		= 1,
@@ -3010,10 +3012,12 @@ static struct usb_serial_device_type edgeport_1port_device = {
 	.write_bulk_callback	= edge_bulk_out_callback,
 };
 
-static struct usb_serial_device_type edgeport_2port_device = {
-	.owner			= THIS_MODULE,
-	.name			= "Edgeport TI 2 port adapter",
-	.short_name		= "edgeport_ti_2",
+static struct usb_serial_driver edgeport_2port_device = {
+	.driver = {
+		.owner		= THIS_MODULE,
+		.name		= "edgeport_ti_2",
+	},
+	.description		= "Edgeport TI 2 port adapter",
 	.id_table		= edgeport_2port_id_table,
 	.num_interrupt_in	= 1,
 	.num_bulk_in		= 2,

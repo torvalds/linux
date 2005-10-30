@@ -18,7 +18,7 @@
 
 static int usb_serial_device_match (struct device *dev, struct device_driver *drv)
 {
-	struct usb_serial_device_type *driver;
+	struct usb_serial_driver *driver;
 	const struct usb_serial_port *port;
 
 	/*
@@ -44,7 +44,7 @@ struct bus_type usb_serial_bus_type = {
 
 static int usb_serial_device_probe (struct device *dev)
 {
-	struct usb_serial_device_type *driver;
+	struct usb_serial_driver *driver;
 	struct usb_serial_port *port;
 	int retval = 0;
 	int minor;
@@ -57,13 +57,13 @@ static int usb_serial_device_probe (struct device *dev)
 
 	driver = port->serial->type;
 	if (driver->port_probe) {
-		if (!try_module_get(driver->owner)) {
+		if (!try_module_get(driver->driver.owner)) {
 			dev_err(dev, "module get failed, exiting\n");
 			retval = -EIO;
 			goto exit;
 		}
 		retval = driver->port_probe (port);
-		module_put(driver->owner);
+		module_put(driver->driver.owner);
 		if (retval)
 			goto exit;
 	}
@@ -72,7 +72,7 @@ static int usb_serial_device_probe (struct device *dev)
 	tty_register_device (usb_serial_tty_driver, minor, dev);
 	dev_info(&port->serial->dev->dev, 
 		 "%s converter now attached to ttyUSB%d\n",
-		 driver->name, minor);
+		 driver->description, minor);
 
 exit:
 	return retval;
@@ -80,7 +80,7 @@ exit:
 
 static int usb_serial_device_remove (struct device *dev)
 {
-	struct usb_serial_device_type *driver;
+	struct usb_serial_driver *driver;
 	struct usb_serial_port *port;
 	int retval = 0;
 	int minor;
@@ -92,43 +92,38 @@ static int usb_serial_device_remove (struct device *dev)
 
 	driver = port->serial->type;
 	if (driver->port_remove) {
-		if (!try_module_get(driver->owner)) {
+		if (!try_module_get(driver->driver.owner)) {
 			dev_err(dev, "module get failed, exiting\n");
 			retval = -EIO;
 			goto exit;
 		}
 		retval = driver->port_remove (port);
-		module_put(driver->owner);
+		module_put(driver->driver.owner);
 	}
 exit:
 	minor = port->number;
 	tty_unregister_device (usb_serial_tty_driver, minor);
 	dev_info(dev, "%s converter now disconnected from ttyUSB%d\n",
-		 driver->name, minor);
+		 driver->description, minor);
 
 	return retval;
 }
 
-int usb_serial_bus_register(struct usb_serial_device_type *device)
+int usb_serial_bus_register(struct usb_serial_driver *driver)
 {
 	int retval;
 
-	if (device->short_name)
-		device->driver.name = (char *)device->short_name;
-	else
-		device->driver.name = (char *)device->name;
-	device->driver.bus = &usb_serial_bus_type;
-	device->driver.probe = usb_serial_device_probe;
-	device->driver.remove = usb_serial_device_remove;
-	device->driver.owner = device->owner;
+	driver->driver.bus = &usb_serial_bus_type;
+	driver->driver.probe = usb_serial_device_probe;
+	driver->driver.remove = usb_serial_device_remove;
 
-	retval = driver_register(&device->driver);
+	retval = driver_register(&driver->driver);
 
 	return retval;
 }
 
-void usb_serial_bus_deregister(struct usb_serial_device_type *device)
+void usb_serial_bus_deregister(struct usb_serial_driver *driver)
 {
-	driver_unregister (&device->driver);
+	driver_unregister(&driver->driver);
 }
 

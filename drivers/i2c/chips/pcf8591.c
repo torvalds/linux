@@ -166,7 +166,7 @@ static int pcf8591_attach_adapter(struct i2c_adapter *adapter)
 }
 
 /* This function is called by i2c_probe */
-int pcf8591_detect(struct i2c_adapter *adapter, int address, int kind)
+static int pcf8591_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	struct i2c_client *new_client;
 	struct pcf8591_data *data;
@@ -178,11 +178,10 @@ int pcf8591_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* OK. For now, we presume we have a valid client. We now create the
 	   client structure, even though we cannot fill it completely yet. */
-	if (!(data = kmalloc(sizeof(struct pcf8591_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct pcf8591_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct pcf8591_data));
 	
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);

@@ -72,13 +72,13 @@ static void rm7k_cpu_irq_end(unsigned int irq)
 }
 
 static hw_irq_controller rm7k_irq_controller = {
-	"RM7000",
-	rm7k_cpu_irq_startup,
-	rm7k_cpu_irq_shutdown,
-	rm7k_cpu_irq_enable,
-	rm7k_cpu_irq_disable,
-	rm7k_cpu_irq_ack,
-	rm7k_cpu_irq_end,
+	.typename = "RM7000",
+	.startup = rm7k_cpu_irq_startup,
+	.shutdown = rm7k_cpu_irq_shutdown,
+	.enable = rm7k_cpu_irq_enable,
+	.disable = rm7k_cpu_irq_disable,
+	.ack = rm7k_cpu_irq_ack,
+	.end = rm7k_cpu_irq_end,
 };
 
 void __init rm7k_cpu_irq_init(int base)

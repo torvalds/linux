@@ -59,7 +59,11 @@ void __init omap_detect_sram(void)
 }
 
 static struct map_desc omap_sram_io_desc[] __initdata = {
-	{ OMAP1_SRAM_BASE, OMAP1_SRAM_START, 0, MT_DEVICE }
+	{	/* .length gets filled in at runtime */
+		.virtual	= OMAP1_SRAM_BASE,
+		.pfn		= __phys_to_pfn(OMAP1_SRAM_START),
+		.type		= MT_DEVICE
+	}
 };
 
 /*

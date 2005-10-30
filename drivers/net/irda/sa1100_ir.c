@@ -291,12 +291,12 @@ static void sa1100_irda_shutdown(struct sa1100_irda *si)
 /*
  * Suspend the IrDA interface.
  */
-static int sa1100_irda_suspend(struct device *_dev, pm_message_t state, u32 level)
+static int sa1100_irda_suspend(struct device *_dev, pm_message_t state)
 {
 	struct net_device *dev = dev_get_drvdata(_dev);
 	struct sa1100_irda *si;
 
-	if (!dev || level != SUSPEND_DISABLE)
+	if (!dev)
 		return 0;
 
 	si = dev->priv;
@@ -316,12 +316,12 @@ static int sa1100_irda_suspend(struct device *_dev, pm_message_t state, u32 leve
 /*
  * Resume the IrDA interface.
  */
-static int sa1100_irda_resume(struct device *_dev, u32 level)
+static int sa1100_irda_resume(struct device *_dev)
 {
 	struct net_device *dev = dev_get_drvdata(_dev);
 	struct sa1100_irda *si;
 
-	if (!dev || level != RESUME_ENABLE)
+	if (!dev)
 		return 0;
 
 	si = dev->priv;

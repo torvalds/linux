@@ -29,7 +29,6 @@
 static int __init 
 serial_init_chip(struct parisc_device *dev)
 {
-	static int serial_line_nr;
 	struct uart_port port;
 	unsigned long address;
 	int err;
@@ -42,12 +41,13 @@ serial_init_chip(struct parisc_device *dev)
 		 */
 		if (parisc_parent(dev)->id.hw_type != HPHW_IOA) {
 			printk(KERN_INFO "Serial: device 0x%lx not configured.\n"
-				"Enable support for Wax, Lasi, Asp or Dino.\n", dev->hpa);
+				"Enable support for Wax, Lasi, Asp or Dino.\n",
+				dev->hpa.start);
 		}
 		return -ENODEV;
 	}
 
-	address = dev->hpa;
+	address = dev->hpa.start;
 	if (dev->id.sversion != 0x8d) {
 		address += 0x800;
 	}

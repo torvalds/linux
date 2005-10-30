@@ -306,7 +306,8 @@ e1000_check_options(struct e1000_adapter *adapter)
 			.def  = E1000_DEFAULT_TXD,
 			.arg  = { .r = { .min = E1000_MIN_TXD }}
 		};
-		struct e1000_desc_ring *tx_ring = &adapter->tx_ring;
+		struct e1000_tx_ring *tx_ring = adapter->tx_ring;
+		int i;
 		e1000_mac_type mac_type = adapter->hw.mac_type;
 		opt.arg.r.max = mac_type < e1000_82544 ?
 			E1000_MAX_TXD : E1000_MAX_82544_TXD;
@@ -319,6 +320,8 @@ e1000_check_options(struct e1000_adapter *adapter)
 		} else {
 			tx_ring->count = opt.def;
 		}
+		for (i = 0; i < adapter->num_queues; i++)
+			tx_ring[i].count = tx_ring->count;
 	}
 	{ /* Receive Descriptor Count */
 		struct e1000_option opt = {
@@ -329,7 +332,8 @@ e1000_check_options(struct e1000_adapter *adapter)
 			.def  = E1000_DEFAULT_RXD,
 			.arg  = { .r = { .min = E1000_MIN_RXD }}
 		};
-		struct e1000_desc_ring *rx_ring = &adapter->rx_ring;
+		struct e1000_rx_ring *rx_ring = adapter->rx_ring;
+		int i;
 		e1000_mac_type mac_type = adapter->hw.mac_type;
 		opt.arg.r.max = mac_type < e1000_82544 ? E1000_MAX_RXD :
 			E1000_MAX_82544_RXD;
@@ -342,6 +346,8 @@ e1000_check_options(struct e1000_adapter *adapter)
 		} else {
 			rx_ring->count = opt.def;
 		}
+		for (i = 0; i < adapter->num_queues; i++)
+			rx_ring[i].count = rx_ring->count;
 	}
 	{ /* Checksum Offload Enable/Disable */
 		struct e1000_option opt = {

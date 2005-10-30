@@ -39,7 +39,7 @@
 #define LPFC_MEM_POOL_SIZE      64      /* max elem in non-DMA safety pool */
 
 static void *
-lpfc_pool_kmalloc(unsigned int gfp_flags, void *data)
+lpfc_pool_kmalloc(gfp_t gfp_flags, void *data)
 {
 	return kmalloc((unsigned long)data, gfp_flags);
 }

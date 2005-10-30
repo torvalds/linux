@@ -694,9 +694,9 @@ smp_cpus_done (unsigned int dummy)
 	 * Allow the user to impress friends.
 	 */
 
-	for (cpu = 0; cpu < NR_CPUS; cpu++)
-		if (cpu_online(cpu))
-			bogosum += cpu_data(cpu)->loops_per_jiffy;
+	for_each_online_cpu(cpu) {
+		bogosum += cpu_data(cpu)->loops_per_jiffy;
+	}
 
 	printk(KERN_INFO "Total of %d processors activated (%lu.%02lu BogoMIPS).\n",
 	       (int)num_online_cpus(), bogosum/(500000/HZ), (bogosum/(5000/HZ))%100);

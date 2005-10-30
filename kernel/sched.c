@@ -2511,8 +2511,6 @@ void account_system_time(struct task_struct *p, int hardirq_offset,
 		cpustat->idle = cputime64_add(cpustat->idle, tmp);
 	/* Account for system time used */
 	acct_update_integrals(p);
-	/* Update rss highwater mark */
-	update_mem_hiwater(p);
 }
 
 /*
@@ -3879,6 +3877,7 @@ EXPORT_SYMBOL(cpu_present_map);
 
 #ifndef CONFIG_SMP
 cpumask_t cpu_online_map = CPU_MASK_ALL;
+EXPORT_SYMBOL_GPL(cpu_online_map);
 cpumask_t cpu_possible_map = CPU_MASK_ALL;
 #endif
 

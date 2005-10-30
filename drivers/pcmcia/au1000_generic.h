@@ -44,13 +44,13 @@
 /* pcmcia socket 1 needs external glue logic so the memory map
  * differs from board to board.
  */
-#if defined(CONFIG_MIPS_PB1000) || defined(CONFIG_MIPS_PB1100) || defined(CONFIG_MIPS_PB1500) || defined(CONFIG_MIPS_PB1550)
+#if defined(CONFIG_MIPS_PB1000) || defined(CONFIG_MIPS_PB1100) || defined(CONFIG_MIPS_PB1500) || defined(CONFIG_MIPS_PB1550) || defined(CONFIG_MIPS_PB1200)
 #define AU1X_SOCK1_IO        0xF08000000
 #define AU1X_SOCK1_PHYS_ATTR 0xF48000000
 #define AU1X_SOCK1_PHYS_MEM  0xF88000000
 #define AU1X_SOCK1_PSEUDO_PHYS_ATTR 0xF4800000
 #define AU1X_SOCK1_PSEUDO_PHYS_MEM  0xF8800000
-#elif defined(CONFIG_MIPS_DB1000) || defined(CONFIG_MIPS_DB1100) || defined(CONFIG_MIPS_DB1500) || defined(CONFIG_MIPS_DB1550)
+#elif defined(CONFIG_MIPS_DB1000) || defined(CONFIG_MIPS_DB1100) || defined(CONFIG_MIPS_DB1500) || defined(CONFIG_MIPS_DB1550) || defined(CONFIG_MIPS_DB1200)
 #define AU1X_SOCK1_IO        0xF04000000
 #define AU1X_SOCK1_PHYS_ATTR 0xF44000000
 #define AU1X_SOCK1_PHYS_MEM  0xF84000000

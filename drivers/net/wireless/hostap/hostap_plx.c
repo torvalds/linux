@@ -328,8 +328,6 @@ static struct prism2_helper_functions prism2_plx_funcs =
 {
 	.card_present	= NULL,
 	.cor_sreset	= prism2_plx_cor_sreset,
-	.dev_open	= NULL,
-	.dev_close	= NULL,
 	.genesis_reset	= prism2_plx_genesis_reset,
 	.hw_type	= HOSTAP_HW_PLX,
 };
@@ -570,10 +568,8 @@ static int prism2_plx_probe(struct pci_dev *pdev,
 	return hostap_hw_ready(dev);
 
  fail:
-	kfree(hw_priv);
-	if (local)
-		local->hw_priv = NULL;
 	prism2_free_local_data(dev);
+	kfree(hw_priv);
 
 	if (irq_registered && dev)
 		free_irq(dev->irq, dev);
@@ -606,9 +602,8 @@ static void prism2_plx_remove(struct pci_dev *pdev)
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 
-	kfree(iface->local->hw_priv);
-	iface->local->hw_priv = NULL;
 	prism2_free_local_data(dev);
+	kfree(hw_priv);
 	pci_disable_device(pdev);
 }
 
@@ -616,7 +611,7 @@ static void prism2_plx_remove(struct pci_dev *pdev)
 MODULE_DEVICE_TABLE(pci, prism2_plx_id_table);
 
 static struct pci_driver prism2_plx_drv_id = {
-	.name		= "prism2_plx",
+	.name		= "hostap_plx",
 	.id_table	= prism2_plx_id_table,
 	.probe		= prism2_plx_probe,
 	.remove		= prism2_plx_remove,

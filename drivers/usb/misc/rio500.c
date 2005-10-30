@@ -443,9 +443,8 @@ file_operations usb_rio_fops = {
 };
 
 static struct usb_class_driver usb_rio_class = {
-	.name =		"usb/rio500%d",
+	.name =		"rio500%d",
 	.fops =		&usb_rio_fops,
-	.mode =		S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP,
 	.minor_base =	RIO_MINOR,
 };
 

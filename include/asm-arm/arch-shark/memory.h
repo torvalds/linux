@@ -15,7 +15,7 @@
 /*
  * Physical DRAM offset.
  */
-#define PHYS_OFFSET     (0x08000000UL)
+#define PHYS_OFFSET     UL(0x08000000)
 
 #ifndef __ASSEMBLY__
 

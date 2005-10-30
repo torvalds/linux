@@ -59,7 +59,23 @@ struct ieee80211_tkip_data {
 
 	/* scratch buffers for virt_to_page() (crypto API) */
 	u8 rx_hdr[16], tx_hdr[16];
+
+	unsigned long flags;
 };
+
+static unsigned long ieee80211_tkip_set_flags(unsigned long flags, void *priv)
+{
+	struct ieee80211_tkip_data *_priv = priv;
+	unsigned long old_flags = _priv->flags;
+	_priv->flags = flags;
+	return old_flags;
+}
+
+static unsigned long ieee80211_tkip_get_flags(void *priv)
+{
+	struct ieee80211_tkip_data *_priv = priv;
+	return _priv->flags;
+}
 
 static void *ieee80211_tkip_init(int key_idx)
 {
@@ -69,6 +85,7 @@ static void *ieee80211_tkip_init(int key_idx)
 	if (priv == NULL)
 		goto fail;
 	memset(priv, 0, sizeof(*priv));
+
 	priv->key_idx = key_idx;
 
 	priv->tfm_arc4 = crypto_alloc_tfm("arc4", 0);
@@ -255,25 +272,27 @@ static void tkip_mixing_phase2(u8 * WEPSeed, const u8 * TK, const u16 * TTAK,
 #endif
 }
 
-static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
+static u8 *ieee80211_tkip_hdr(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct ieee80211_tkip_data *tkey = priv;
 	int len;
-	u8 rc4key[16], *pos, *icv;
-	struct ieee80211_hdr *hdr;
+	u8 *rc4key, *pos, *icv;
+	struct ieee80211_hdr_4addr *hdr;
 	u32 crc;
-	struct scatterlist sg;
 
-	if (skb_headroom(skb) < 8 || skb_tailroom(skb) < 4 ||
-	    skb->len < hdr_len)
-		return -1;
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
 
-	hdr = (struct ieee80211_hdr *)skb->data;
+	if (skb_headroom(skb) < 8 || skb->len < hdr_len)
+		return NULL;
+
 	if (!tkey->tx_phase1_done) {
 		tkip_mixing_phase1(tkey->tx_ttak, tkey->key, hdr->addr2,
 				   tkey->tx_iv32);
 		tkey->tx_phase1_done = 1;
 	}
+	rc4key = kmalloc(16, GFP_ATOMIC);
+	if (!rc4key)
+		return NULL;
 	tkip_mixing_phase2(rc4key, tkey->key, tkey->tx_ttak, tkey->tx_iv16);
 
 	len = skb->len - hdr_len;
@@ -282,9 +301,9 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	pos += hdr_len;
 	icv = skb_put(skb, 4);
 
-	*pos++ = rc4key[0];
-	*pos++ = rc4key[1];
-	*pos++ = rc4key[2];
+	*pos++ = *rc4key;
+	*pos++ = *(rc4key + 1);
+	*pos++ = *(rc4key + 2);
 	*pos++ = (tkey->key_idx << 6) | (1 << 5) /* Ext IV included */ ;
 	*pos++ = tkey->tx_iv32 & 0xff;
 	*pos++ = (tkey->tx_iv32 >> 8) & 0xff;
@@ -296,6 +315,38 @@ static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	icv[1] = crc >> 8;
 	icv[2] = crc >> 16;
 	icv[3] = crc >> 24;
+
+	return rc4key;
+}
+
+static int ieee80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
+{
+	struct ieee80211_tkip_data *tkey = priv;
+	int len;
+	const u8 *rc4key;
+	u8 *pos;
+	struct scatterlist sg;
+
+	if (tkey->flags & IEEE80211_CRYPTO_TKIP_COUNTERMEASURES) {
+		if (net_ratelimit()) {
+			struct ieee80211_hdr_4addr *hdr =
+			    (struct ieee80211_hdr_4addr *)skb->data;
+			printk(KERN_DEBUG "TKIP countermeasures: dropped "
+			       "TX packet to " MAC_FMT "\n",
+			       MAC_ARG(hdr->addr1));
+		}
+		return -1;
+	}
+
+	if (skb_tailroom(skb) < 4 || skb->len < hdr_len)
+		return -1;
+
+	len = skb->len - hdr_len;
+	pos = skb->data + hdr_len;
+
+	rc4key = ieee80211_tkip_hdr(skb, hdr_len, priv);
+	if (!rc4key)
+		return -1;
 
 	crypto_cipher_setkey(tkey->tfm_arc4, rc4key, 16);
 	sg.page = virt_to_page(pos);
@@ -319,16 +370,26 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	u8 keyidx, *pos;
 	u32 iv32;
 	u16 iv16;
-	struct ieee80211_hdr *hdr;
+	struct ieee80211_hdr_4addr *hdr;
 	u8 icv[4];
 	u32 crc;
 	struct scatterlist sg;
 	int plen;
 
+	hdr = (struct ieee80211_hdr_4addr *)skb->data;
+
+	if (tkey->flags & IEEE80211_CRYPTO_TKIP_COUNTERMEASURES) {
+		if (net_ratelimit()) {
+			printk(KERN_DEBUG "TKIP countermeasures: dropped "
+			       "received packet from " MAC_FMT "\n",
+			       MAC_ARG(hdr->addr2));
+		}
+		return -1;
+	}
+
 	if (skb->len < hdr_len + 8 + 4)
 		return -1;
 
-	hdr = (struct ieee80211_hdr *)skb->data;
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
 	if (!(keyidx & (1 << 5))) {
@@ -441,9 +502,9 @@ static int michael_mic(struct ieee80211_tkip_data *tkey, u8 * key, u8 * hdr,
 
 static void michael_mic_hdr(struct sk_buff *skb, u8 * hdr)
 {
-	struct ieee80211_hdr *hdr11;
+	struct ieee80211_hdr_4addr *hdr11;
 
-	hdr11 = (struct ieee80211_hdr *)skb->data;
+	hdr11 = (struct ieee80211_hdr_4addr *)skb->data;
 	switch (le16_to_cpu(hdr11->frame_ctl) &
 		(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS)) {
 	case IEEE80211_FCTL_TODS:
@@ -490,9 +551,9 @@ static int ieee80211_michael_mic_add(struct sk_buff *skb, int hdr_len,
 	return 0;
 }
 
-#if WIRELESS_EXT >= 18
 static void ieee80211_michael_mic_failure(struct net_device *dev,
-					  struct ieee80211_hdr *hdr, int keyidx)
+					  struct ieee80211_hdr_4addr *hdr,
+					  int keyidx)
 {
 	union iwreq_data wrqu;
 	struct iw_michaelmicfailure ev;
@@ -510,28 +571,6 @@ static void ieee80211_michael_mic_failure(struct net_device *dev,
 	wrqu.data.length = sizeof(ev);
 	wireless_send_event(dev, IWEVMICHAELMICFAILURE, &wrqu, (char *)&ev);
 }
-#elif WIRELESS_EXT >= 15
-static void ieee80211_michael_mic_failure(struct net_device *dev,
-					  struct ieee80211_hdr *hdr, int keyidx)
-{
-	union iwreq_data wrqu;
-	char buf[128];
-
-	/* TODO: needed parameters: count, keyid, key type, TSC */
-	sprintf(buf, "MLME-MICHAELMICFAILURE.indication(keyid=%d %scast addr="
-		MAC_FMT ")", keyidx, hdr->addr1[0] & 0x01 ? "broad" : "uni",
-		MAC_ARG(hdr->addr2));
-	memset(&wrqu, 0, sizeof(wrqu));
-	wrqu.data.length = strlen(buf);
-	wireless_send_event(dev, IWEVCUSTOM, &wrqu, buf);
-}
-#else				/* WIRELESS_EXT >= 15 */
-static inline void ieee80211_michael_mic_failure(struct net_device *dev,
-						 struct ieee80211_hdr *hdr,
-						 int keyidx)
-{
-}
-#endif				/* WIRELESS_EXT >= 15 */
 
 static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 					int hdr_len, void *priv)
@@ -547,8 +586,8 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 			skb->data + hdr_len, skb->len - 8 - hdr_len, mic))
 		return -1;
 	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
-		struct ieee80211_hdr *hdr;
-		hdr = (struct ieee80211_hdr *)skb->data;
+		struct ieee80211_hdr_4addr *hdr;
+		hdr = (struct ieee80211_hdr_4addr *)skb->data;
 		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
 		       "MSDU from " MAC_FMT " keyidx=%d\n",
 		       skb->dev ? skb->dev->name : "N/A", MAC_ARG(hdr->addr2),
@@ -654,19 +693,22 @@ static char *ieee80211_tkip_print_stats(char *p, void *priv)
 }
 
 static struct ieee80211_crypto_ops ieee80211_crypt_tkip = {
-	.name			= "TKIP",
-	.init			= ieee80211_tkip_init,
-	.deinit			= ieee80211_tkip_deinit,
-	.encrypt_mpdu		= ieee80211_tkip_encrypt,
-	.decrypt_mpdu		= ieee80211_tkip_decrypt,
-	.encrypt_msdu		= ieee80211_michael_mic_add,
-	.decrypt_msdu		= ieee80211_michael_mic_verify,
-	.set_key		= ieee80211_tkip_set_key,
-	.get_key		= ieee80211_tkip_get_key,
-	.print_stats		= ieee80211_tkip_print_stats,
-	.extra_prefix_len	= 4 + 4,	/* IV + ExtIV */
-	.extra_postfix_len	= 8 + 4,	/* MIC + ICV */
-	.owner			= THIS_MODULE,
+	.name = "TKIP",
+	.init = ieee80211_tkip_init,
+	.deinit = ieee80211_tkip_deinit,
+	.encrypt_mpdu = ieee80211_tkip_encrypt,
+	.decrypt_mpdu = ieee80211_tkip_decrypt,
+	.encrypt_msdu = ieee80211_michael_mic_add,
+	.decrypt_msdu = ieee80211_michael_mic_verify,
+	.set_key = ieee80211_tkip_set_key,
+	.get_key = ieee80211_tkip_get_key,
+	.print_stats = ieee80211_tkip_print_stats,
+	.extra_mpdu_prefix_len = 4 + 4,	/* IV + ExtIV */
+	.extra_mpdu_postfix_len = 4,	/* ICV */
+	.extra_msdu_postfix_len = 8,	/* MIC */
+	.get_flags = ieee80211_tkip_get_flags,
+	.set_flags = ieee80211_tkip_set_flags,
+	.owner = THIS_MODULE,
 };
 
 static int __init ieee80211_crypto_tkip_init(void)

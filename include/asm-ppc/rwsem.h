@@ -168,5 +168,10 @@ static inline int rwsem_atomic_update(int delta, struct rw_semaphore *sem)
 	return atomic_add_return(delta, (atomic_t *)(&sem->count));
 }
 
+static inline int rwsem_is_locked(struct rw_semaphore *sem)
+{
+	return (sem->count != 0);
+}
+
 #endif /* __KERNEL__ */
 #endif /* _PPC_RWSEM_XADD_H */

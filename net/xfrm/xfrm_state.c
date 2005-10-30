@@ -1026,6 +1026,12 @@ void xfrm_state_delete_tunnel(struct xfrm_state *x)
 }
 EXPORT_SYMBOL(xfrm_state_delete_tunnel);
 
+/*
+ * This function is NOT optimal.  For example, with ESP it will give an
+ * MTU that's usually two bytes short of being optimal.  However, it will
+ * usually give an answer that's a multiple of 4 provided the input is
+ * also a multiple of 4.
+ */
 int xfrm_state_mtu(struct xfrm_state *x, int mtu)
 {
 	int res = mtu;

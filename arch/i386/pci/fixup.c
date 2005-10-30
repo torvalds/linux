@@ -2,6 +2,8 @@
  * Exceptions for specific devices. Usually work-arounds for fatal design flaws.
  */
 
+#include <linux/delay.h>
+#include <linux/dmi.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include "pci.h"
@@ -384,3 +386,60 @@ static void __devinit pci_fixup_video(struct pci_dev *pdev)
 	}
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_video);
+
+/*
+ * Some Toshiba laptops need extra code to enable their TI TSB43AB22/A.
+ *
+ * We pretend to bring them out of full D3 state, and restore the proper
+ * IRQ, PCI cache line size, and BARs, otherwise the device won't function
+ * properly.  In some cases, the device will generate an interrupt on
+ * the wrong IRQ line, causing any devices sharing the the line it's
+ * *supposed* to use to be disabled by the kernel's IRQ debug code.
+ */
+static u16 toshiba_line_size;
+
+static struct dmi_system_id __devinit toshiba_ohci1394_dmi_table[] = {
+	{
+		.ident = "Toshiba PS5 based laptop",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "PS5"),
+		},
+	},
+	{
+		.ident = "Toshiba PSM4 based laptop",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "PSM4"),
+		},
+	},
+	{ }
+};
+
+static void __devinit pci_pre_fixup_toshiba_ohci1394(struct pci_dev *dev)
+{
+	if (!dmi_check_system(toshiba_ohci1394_dmi_table))
+		return; /* only applies to certain Toshibas (so far) */
+
+	dev->current_state = PCI_D3cold;
+	pci_read_config_word(dev, PCI_CACHE_LINE_SIZE, &toshiba_line_size);
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TI, 0x8032,
+			 pci_pre_fixup_toshiba_ohci1394);
+
+static void __devinit pci_post_fixup_toshiba_ohci1394(struct pci_dev *dev)
+{
+	if (!dmi_check_system(toshiba_ohci1394_dmi_table))
+		return; /* only applies to certain Toshibas (so far) */
+
+	/* Restore config space on Toshiba laptops */
+	mdelay(10);
+	pci_write_config_word(dev, PCI_CACHE_LINE_SIZE, toshiba_line_size);
+	pci_write_config_word(dev, PCI_INTERRUPT_LINE, dev->irq);
+	pci_write_config_dword(dev, PCI_BASE_ADDRESS_0,
+			       pci_resource_start(dev, 0));
+	pci_write_config_dword(dev, PCI_BASE_ADDRESS_1,
+			       pci_resource_start(dev, 1));
+}
+DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_TI, 0x8032,
+			 pci_post_fixup_toshiba_ohci1394);

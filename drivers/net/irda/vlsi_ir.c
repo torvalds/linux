@@ -473,8 +473,7 @@ static int vlsi_free_ring(struct vlsi_ring *r)
 		rd_set_addr_status(rd, 0, 0);
 		if (busaddr)
 			pci_unmap_single(r->pdev, busaddr, r->len, r->dir);
-		if (rd->buf)
-			kfree(rd->buf);
+		kfree(rd->buf);
 	}
 	kfree(r);
 	return 0;

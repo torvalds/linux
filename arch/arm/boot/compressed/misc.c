@@ -30,7 +30,7 @@ unsigned int __machine_arch_type;
 #define putstr icedcc_putstr
 #define putc icedcc_putc
 
-extern void idedcc_putc(int ch);
+extern void icedcc_putc(int ch);
 
 static void
 icedcc_putstr(const char *ptr)

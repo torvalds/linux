@@ -163,7 +163,7 @@ static int cpuid_class_device_create(int i)
 	int err = 0;
 	struct class_device *class_err;
 
-	class_err = class_device_create(cpuid_class, MKDEV(CPUID_MAJOR, i), NULL, "cpu%d",i);
+	class_err = class_device_create(cpuid_class, NULL, MKDEV(CPUID_MAJOR, i), NULL, "cpu%d",i);
 	if (IS_ERR(class_err))
 		err = PTR_ERR(class_err);
 	return err;

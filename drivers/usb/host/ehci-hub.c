@@ -30,7 +30,7 @@
 
 #ifdef	CONFIG_PM
 
-static int ehci_hub_suspend (struct usb_hcd *hcd)
+static int ehci_bus_suspend (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	int			port;
@@ -83,7 +83,7 @@ static int ehci_hub_suspend (struct usb_hcd *hcd)
 
 
 /* caller has locked the root hub, and should reset/reinit on error */
-static int ehci_hub_resume (struct usb_hcd *hcd)
+static int ehci_bus_resume (struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci (hcd);
 	u32			temp;
@@ -159,8 +159,8 @@ static int ehci_hub_resume (struct usb_hcd *hcd)
 
 #else
 
-#define ehci_hub_suspend	NULL
-#define ehci_hub_resume		NULL
+#define ehci_bus_suspend	NULL
+#define ehci_bus_resume		NULL
 
 #endif	/* CONFIG_PM */
 

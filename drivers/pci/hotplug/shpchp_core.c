@@ -27,26 +27,18 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/proc_fs.h>
-#include <linux/slab.h>
-#include <linux/workqueue.h>
 #include <linux/pci.h>
-#include <linux/init.h>
-#include <asm/uaccess.h>
 #include "shpchp.h"
-#include "shpchprm.h"
 
 /* Global variables */
 int shpchp_debug;
 int shpchp_poll_mode;
 int shpchp_poll_time;
 struct controller *shpchp_ctrl_list;	/* = NULL */
-struct pci_func *shpchp_slot_list[256];
 
 #define DRIVER_VERSION	"0.4"
 #define DRIVER_AUTHOR	"Dan Zink <dan.zink@compaq.com>, Greg Kroah-Hartman <greg@kroah.com>, Dely Sy <dely.l.sy@intel.com>"
@@ -112,8 +104,6 @@ static int init_slots(struct controller *ctrl)
 	u8 slot_device;
 	u32 slot_number, sun;
 	int result = -ENOMEM;
-
-	dbg("%s\n",__FUNCTION__);
 
 	number_of_slots = ctrl->num_slots;
 	slot_device = ctrl->slot_device_offset;
@@ -352,6 +342,17 @@ static int get_cur_bus_speed (struct hotplug_slot *hotplug_slot, enum pci_bus_sp
 	return 0;
 }
 
+static int is_shpc_capable(struct pci_dev *dev)
+{
+       if ((dev->vendor == PCI_VENDOR_ID_AMD) || (dev->device ==
+                               PCI_DEVICE_ID_AMD_GOLAM_7450))
+               return 1;
+       if (pci_find_capability(dev, PCI_CAP_ID_SHPC))
+               return 1;
+
+       return 0;
+}
+
 static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int rc;
@@ -360,6 +361,9 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int first_device_num;	/* first PCI device number supported by this SHPC */
 	int num_ctlr_slots;	/* number of slots supported by this SHPC */
 
+	if (!is_shpc_capable(pdev))
+		return -ENODEV;
+
 	ctrl = (struct controller *) kmalloc(sizeof(struct controller), GFP_KERNEL);
 	if (!ctrl) {
 		err("%s : out of memory\n", __FUNCTION__);
@@ -367,19 +371,12 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 	memset(ctrl, 0, sizeof(struct controller));
 
-	dbg("DRV_thread pid = %d\n", current->pid);
-
-	rc = shpc_init(ctrl, pdev,
-			(php_intr_callback_t) shpchp_handle_attention_button,
-			(php_intr_callback_t) shpchp_handle_switch_change,
-			(php_intr_callback_t) shpchp_handle_presence_change,
-			(php_intr_callback_t) shpchp_handle_power_fault);
+	rc = shpc_init(ctrl, pdev);
 	if (rc) {
 		dbg("%s: controller initialization failed\n", SHPC_MODULE_NAME);
 		goto err_out_free_ctrl;
 	}
 
-	dbg("%s: controller initialization success\n", __FUNCTION__);
 	ctrl->pci_dev = pdev;  /* pci_dev of the P2P bridge */
 
 	pci_set_drvdata(pdev, ctrl);
@@ -411,23 +408,8 @@ static int shpc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	first_device_num = ctrl->slot_device_offset;
 	num_ctlr_slots = ctrl->num_slots;
 
-	/* Store PCI Config Space for all devices on this bus */
-	rc = shpchp_save_config(ctrl, ctrl->slot_bus, num_ctlr_slots, first_device_num);
-	if (rc) {
-		err("%s: unable to save PCI configuration data, error %d\n", __FUNCTION__, rc);
-		goto err_out_free_ctrl_bus;
-	}
-
-	/* Get IO, memory, and IRQ resources for new devices */
-	rc = shpchprm_find_available_resources(ctrl);
-	ctrl->add_support = !rc;
+	ctrl->add_support = 1;
 	
-	if (rc) {
-		dbg("shpchprm_find_available_resources = %#x\n", rc);
-		err("unable to locate PCI configuration resources for hot plug add.\n");
-		goto err_out_free_ctrl_bus;
-	}
-
 	/* Setup the slot information structures */
 	rc = init_slots(ctrl);
 	if (rc) {
@@ -477,7 +459,6 @@ err_out_none:
 
 static int shpc_start_thread(void)
 {
-	int loop;
 	int retval = 0;
 	
 	dbg("Initialize + Start the notification/polling mechanism \n");
@@ -488,68 +469,27 @@ static int shpc_start_thread(void)
 		return retval;
 	}
 
-	dbg("Initialize slot lists\n");
-	/* One slot list for each bus in the system */
-	for (loop = 0; loop < 256; loop++) {
-		shpchp_slot_list[loop] = NULL;
-	}
-
 	return retval;
-}
-
-static inline void __exit
-free_shpchp_res(struct pci_resource *res)
-{
-	struct pci_resource *tres;
-
-	while (res) {
-		tres = res;
-		res = res->next;
-		kfree(tres);
-	}
 }
 
 static void __exit unload_shpchpd(void)
 {
-	struct pci_func *next;
-	struct pci_func *TempSlot;
-	int loop;
 	struct controller *ctrl;
 	struct controller *tctrl;
 
 	ctrl = shpchp_ctrl_list;
 
 	while (ctrl) {
+		shpchp_remove_ctrl_files(ctrl);
 		cleanup_slots(ctrl);
 
-		free_shpchp_res(ctrl->io_head);
-		free_shpchp_res(ctrl->mem_head);
-		free_shpchp_res(ctrl->p_mem_head);
-		free_shpchp_res(ctrl->bus_head);
-
 		kfree (ctrl->pci_bus);
-
-		dbg("%s: calling release_ctlr\n", __FUNCTION__);
 		ctrl->hpc_ops->release_ctlr(ctrl);
 
 		tctrl = ctrl;
 		ctrl = ctrl->next;
 
 		kfree(tctrl);
-	}
-
-	for (loop = 0; loop < 256; loop++) {
-		next = shpchp_slot_list[loop];
-		while (next != NULL) {
-			free_shpchp_res(next->io_head);
-			free_shpchp_res(next->mem_head);
-			free_shpchp_res(next->p_mem_head);
-			free_shpchp_res(next->bus_head);
-
-			TempSlot = next;
-			next = next->next;
-			kfree(TempSlot);
-		}
 	}
 
 	/* Stop the notification mechanism */
@@ -596,20 +536,14 @@ static int __init shpcd_init(void)
 	if (retval)
 		goto error_hpc_init;
 
-	retval = shpchprm_init(PCI);
-	if (!retval) {
-		retval = pci_register_driver(&shpc_driver);
-		dbg("%s: pci_register_driver = %d\n", __FUNCTION__, retval);
-		info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
-	}
+	retval = pci_register_driver(&shpc_driver);
+	dbg("%s: pci_register_driver = %d\n", __FUNCTION__, retval);
+	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
 
 error_hpc_init:
 	if (retval) {
-		shpchprm_cleanup();
 		shpchp_event_stop_thread();
-	} else
-		shpchprm_print_pirt();
-
+	}
 	return retval;
 }
 
@@ -618,9 +552,6 @@ static void __exit shpcd_cleanup(void)
 	dbg("unload_shpchpd()\n");
 	unload_shpchpd();
 
-	shpchprm_cleanup();
-
-	dbg("pci_unregister_driver\n");
 	pci_unregister_driver(&shpc_driver);
 
 	info(DRIVER_DESC " version: " DRIVER_VERSION " unloaded\n");

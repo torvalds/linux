@@ -32,7 +32,6 @@
 #include <linux/font.h>
 
 
-extern struct font_desc font_vga_8x16;
 extern unsigned long sgi_gfxaddr;
 
 #define FONT_DATA ((unsigned char *)font_vga_8x16.data)

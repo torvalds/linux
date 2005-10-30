@@ -66,8 +66,6 @@ struct i2o_device {
 	struct device device;
 
 	struct semaphore lock;	/* device lock */
-
-	struct class_device classdev;	/* i2o device class */
 };
 
 /*
@@ -194,7 +192,7 @@ struct i2o_controller {
 	struct resource mem_resource;	/* Mem resource allocated to the IOP */
 
 	struct device device;
-	struct class_device classdev;	/* I2O controller class */
+	struct class_device *classdev;	/* I2O controller class device */
 	struct i2o_device *exec;	/* Executive */
 #if BITS_PER_LONG == 64
 	spinlock_t context_list_lock;	/* lock for context_list */
@@ -492,7 +490,7 @@ static inline int i2o_dma_map_sg(struct i2o_controller *c,
  *	Returns 0 on success or -ENOMEM on failure.
  */
 static inline int i2o_dma_alloc(struct device *dev, struct i2o_dma *addr,
-				size_t len, unsigned int gfp_mask)
+				size_t len, gfp_t gfp_mask)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	int dma_64 = 0;
@@ -551,7 +549,7 @@ static inline void i2o_dma_free(struct device *dev, struct i2o_dma *addr)
  *	Returns the 0 on success or negative error code on failure.
  */
 static inline int i2o_dma_realloc(struct device *dev, struct i2o_dma *addr,
-				  size_t len, unsigned int gfp_mask)
+				  size_t len, gfp_t gfp_mask)
 {
 	i2o_dma_free(dev, addr);
 

@@ -406,6 +406,8 @@ void __exit_signal(struct task_struct *tsk)
 
 void exit_signal(struct task_struct *tsk)
 {
+	atomic_dec(&tsk->signal->live);
+
 	write_lock_irq(&tasklist_lock);
 	__exit_signal(tsk);
 	write_unlock_irq(&tasklist_lock);

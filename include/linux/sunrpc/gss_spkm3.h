@@ -41,9 +41,9 @@ struct spkm3_ctx {
 #define SPKM_WRAP_TOK	5
 #define SPKM_DEL_TOK	6
 
-u32 spkm3_make_token(struct spkm3_ctx *ctx, int qop_req, struct xdr_buf * text, struct xdr_netobj * token, int toktype);
+u32 spkm3_make_token(struct spkm3_ctx *ctx, struct xdr_buf * text, struct xdr_netobj * token, int toktype);
 
-u32 spkm3_read_token(struct spkm3_ctx *ctx, struct xdr_netobj *read_token, struct xdr_buf *message_buffer, int *qop_state, int toktype);
+u32 spkm3_read_token(struct spkm3_ctx *ctx, struct xdr_netobj *read_token, struct xdr_buf *message_buffer, int toktype);
 
 #define CKSUMTYPE_RSA_MD5            0x0007
 

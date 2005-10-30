@@ -87,8 +87,8 @@ static void pdc_port_stop(struct ata_port *ap);
 static void pdc_pata_phy_reset(struct ata_port *ap);
 static void pdc_sata_phy_reset(struct ata_port *ap);
 static void pdc_qc_prep(struct ata_queued_cmd *qc);
-static void pdc_tf_load_mmio(struct ata_port *ap, struct ata_taskfile *tf);
-static void pdc_exec_command_mmio(struct ata_port *ap, struct ata_taskfile *tf);
+static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
+static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
 static void pdc_irq_clear(struct ata_port *ap);
 static int pdc_qc_issue_prot(struct ata_queued_cmd *qc);
 
@@ -113,7 +113,7 @@ static Scsi_Host_Template pdc_ata_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations pdc_sata_ops = {
+static const struct ata_port_operations pdc_sata_ops = {
 	.port_disable		= ata_port_disable,
 	.tf_load		= pdc_tf_load_mmio,
 	.tf_read		= ata_tf_read,
@@ -136,7 +136,7 @@ static struct ata_port_operations pdc_sata_ops = {
 	.host_stop		= ata_pci_host_stop,
 };
 
-static struct ata_port_operations pdc_pata_ops = {
+static const struct ata_port_operations pdc_pata_ops = {
 	.port_disable		= ata_port_disable,
 	.tf_load		= pdc_tf_load_mmio,
 	.tf_read		= ata_tf_read,
@@ -195,6 +195,8 @@ static struct ata_port_info pdc_port_info[] = {
 static struct pci_device_id pdc_ata_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PROMISE, 0x3371, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_2037x },
+	{ PCI_VENDOR_ID_PROMISE, 0x3570, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+	  board_2037x },
 	{ PCI_VENDOR_ID_PROMISE, 0x3571, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_2037x },
 	{ PCI_VENDOR_ID_PROMISE, 0x3373, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
@@ -206,6 +208,8 @@ static struct pci_device_id pdc_ata_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PROMISE, 0x3574, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_2037x },
 	{ PCI_VENDOR_ID_PROMISE, 0x3d75, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+	  board_2037x },
+	{ PCI_VENDOR_ID_PROMISE, 0x3d73, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_2037x },
 
 	{ PCI_VENDOR_ID_PROMISE, 0x3318, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
@@ -324,7 +328,7 @@ static u32 pdc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
 {
 	if (sc_reg > SCR_CONTROL)
 		return 0xffffffffU;
-	return readl((void *) ap->ioaddr.scr_addr + (sc_reg * 4));
+	return readl((void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 
@@ -333,7 +337,7 @@ static void pdc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg,
 {
 	if (sc_reg > SCR_CONTROL)
 		return;
-	writel(val, (void *) ap->ioaddr.scr_addr + (sc_reg * 4));
+	writel(val, (void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 static void pdc_qc_prep(struct ata_queued_cmd *qc)
@@ -438,11 +442,11 @@ static inline unsigned int pdc_host_intr( struct ata_port *ap,
 		break;
 
         default:
-                ap->stats.idle_irq++;
-                break;
+		ap->stats.idle_irq++;
+		break;
         }
 
-        return handled;
+	return handled;
 }
 
 static void pdc_irq_clear(struct ata_port *ap)
@@ -523,8 +527,8 @@ static inline void pdc_packet_start(struct ata_queued_cmd *qc)
 
 	pp->pkt[2] = seq;
 	wmb();			/* flush PRD, pkt writes */
-	writel(pp->pkt_dma, (void *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
-	readl((void *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT); /* flush */
+	writel(pp->pkt_dma, (void __iomem *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
+	readl((void __iomem *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT); /* flush */
 }
 
 static int pdc_qc_issue_prot(struct ata_queued_cmd *qc)
@@ -546,7 +550,7 @@ static int pdc_qc_issue_prot(struct ata_queued_cmd *qc)
 	return ata_qc_issue_prot(qc);
 }
 
-static void pdc_tf_load_mmio(struct ata_port *ap, struct ata_taskfile *tf)
+static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	WARN_ON (tf->protocol == ATA_PROT_DMA ||
 		 tf->protocol == ATA_PROT_NODATA);
@@ -554,7 +558,7 @@ static void pdc_tf_load_mmio(struct ata_port *ap, struct ata_taskfile *tf)
 }
 
 
-static void pdc_exec_command_mmio(struct ata_port *ap, struct ata_taskfile *tf)
+static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	WARN_ON (tf->protocol == ATA_PROT_DMA ||
 		 tf->protocol == ATA_PROT_NODATA);

@@ -30,11 +30,9 @@
 
 static mempool_t *page_pool, *isa_page_pool;
 
-static void *page_pool_alloc(gfp_t gfp_mask, void *data)
+static void *page_pool_alloc_isa(gfp_t gfp_mask, void *data)
 {
-	unsigned int gfp = gfp_mask | (unsigned int) (long) data;
-
-	return alloc_page(gfp);
+	return alloc_page(gfp_mask | GFP_DMA);
 }
 
 static void page_pool_free(void *page, void *data)
@@ -51,6 +49,12 @@ static void page_pool_free(void *page, void *data)
  *  n means that there are (n-1) current users of it.
  */
 #ifdef CONFIG_HIGHMEM
+
+static void *page_pool_alloc(gfp_t gfp_mask, void *data)
+{
+	return alloc_page(gfp_mask);
+}
+
 static int pkmap_count[LAST_PKMAP];
 static unsigned int last_pkmap_nr;
 static  __cacheline_aligned_in_smp DEFINE_SPINLOCK(kmap_lock);
@@ -267,7 +271,7 @@ int init_emergency_isa_pool(void)
 	if (isa_page_pool)
 		return 0;
 
-	isa_page_pool = mempool_create(ISA_POOL_SIZE, page_pool_alloc, page_pool_free, (void *) __GFP_DMA);
+	isa_page_pool = mempool_create(ISA_POOL_SIZE, page_pool_alloc_isa, page_pool_free, NULL);
 	if (!isa_page_pool)
 		BUG();
 

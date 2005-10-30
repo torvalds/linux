@@ -27,7 +27,7 @@ extern void swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sg,
 			 int nents, int direction);
 extern int swiotlb_dma_mapping_error(dma_addr_t dma_addr);
 extern void *swiotlb_alloc_coherent (struct device *hwdev, size_t size,
-				     dma_addr_t *dma_handle, int flags);
+				     dma_addr_t *dma_handle, gfp_t flags);
 extern void swiotlb_free_coherent (struct device *hwdev, size_t size,
 				   void *vaddr, dma_addr_t dma_handle);
 
