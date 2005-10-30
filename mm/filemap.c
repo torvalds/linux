@@ -1537,6 +1537,7 @@ repeat:
 
 	return 0;
 }
+EXPORT_SYMBOL(filemap_populate);
 
 struct vm_operations_struct generic_file_vm_ops = {
 	.nopage		= filemap_nopage,
@@ -1555,7 +1556,6 @@ int generic_file_mmap(struct file * file, struct vm_area_struct * vma)
 	vma->vm_ops = &generic_file_vm_ops;
 	return 0;
 }
-EXPORT_SYMBOL(filemap_populate);
 
 /*
  * This is for filesystems which do not implement ->writepage.
