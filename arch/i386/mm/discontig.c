@@ -98,7 +98,7 @@ unsigned long node_memmap_size_bytes(int nid, unsigned long start_pfn,
 
 extern unsigned long find_max_low_pfn(void);
 extern void find_max_pfn(void);
-extern void one_highpage_init(struct page *, int, int);
+extern void add_one_highpage_init(struct page *, int, int);
 
 extern struct e820map e820;
 extern unsigned long init_pg_tables_end;
@@ -427,7 +427,7 @@ void __init set_highmem_pages_init(int bad_ppro)
 			if (!pfn_valid(node_pfn))
 				continue;
 			page = pfn_to_page(node_pfn);
-			one_highpage_init(page, node_pfn, bad_ppro);
+			add_one_highpage_init(page, node_pfn, bad_ppro);
 		}
 	}
 	totalram_pages += totalhigh_pages;
