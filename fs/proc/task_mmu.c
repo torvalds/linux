@@ -469,7 +469,7 @@ static int show_numa_map(struct seq_file *m, void *v)
 		seq_printf(m, " interleave={");
 		first = 1;
 		for_each_node(n) {
-			if (test_bit(n, pol->v.nodes)) {
+			if (node_isset(n, pol->v.nodes)) {
 				if (!first)
 					seq_putc(m,',');
 				else

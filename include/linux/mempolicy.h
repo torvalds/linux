@@ -27,10 +27,10 @@
 
 #include <linux/config.h>
 #include <linux/mmzone.h>
-#include <linux/bitmap.h>
 #include <linux/slab.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
+#include <linux/nodemask.h>
 
 struct vm_area_struct;
 
@@ -63,7 +63,7 @@ struct mempolicy {
 	union {
 		struct zonelist  *zonelist;	/* bind */
 		short 		 preferred_node; /* preferred */
-		DECLARE_BITMAP(nodes, MAX_NUMNODES); /* interleave */
+		nodemask_t	 nodes;		/* interleave */
 		/* undefined for default */
 	} v;
 };
