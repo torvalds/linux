@@ -2205,9 +2205,6 @@ static void selinux_inode_post_setxattr(struct dentry *dentry, char *name,
 
 static int selinux_inode_getxattr (struct dentry *dentry, char *name)
 {
-	struct inode *inode = dentry->d_inode;
-	struct superblock_security_struct *sbsec = inode->i_sb->s_security;
-
 	return dentry_has_perm(current, NULL, dentry, FILE__GETATTR);
 }
 
