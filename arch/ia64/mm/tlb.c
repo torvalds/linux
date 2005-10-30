@@ -29,7 +29,7 @@
 
 static struct {
 	unsigned long mask;	/* mask of supported purge page-sizes */
-	unsigned long max_bits;	/* log2() of largest supported purge page-size */
+	unsigned long max_bits;	/* log2 of largest supported purge page-size */
 } purge;
 
 struct ia64_ctx ia64_ctx = {
@@ -58,7 +58,7 @@ mmu_context_init (void)
 void
 wrap_mmu_context (struct mm_struct *mm)
 {
-	int i;
+	int i, cpu;
 	unsigned long flush_bit;
 
 	for (i=0; i <= ia64_ctx.max_ctx / BITS_PER_LONG; i++) {
@@ -72,20 +72,21 @@ wrap_mmu_context (struct mm_struct *mm)
 	ia64_ctx.limit = find_next_bit(ia64_ctx.bitmap,
 				ia64_ctx.max_ctx, ia64_ctx.next);
 
-	/* can't call flush_tlb_all() here because of race condition with O(1) scheduler [EF] */
-	{
-		int cpu = get_cpu(); /* prevent preemption/migration */
-		for_each_online_cpu(i) {
-			if (i != cpu)
-				per_cpu(ia64_need_tlb_flush, i) = 1;
-		}
-		put_cpu();
-	}
+	/*
+	 * can't call flush_tlb_all() here because of race condition
+	 * with O(1) scheduler [EF]
+	 */
+	cpu = get_cpu(); /* prevent preemption/migration */
+	for_each_online_cpu(i)
+		if (i != cpu)
+			per_cpu(ia64_need_tlb_flush, i) = 1;
+	put_cpu();
 	local_flush_tlb_all();
 }
 
 void
-ia64_global_tlb_purge (struct mm_struct *mm, unsigned long start, unsigned long end, unsigned long nbits)
+ia64_global_tlb_purge (struct mm_struct *mm, unsigned long start,
+		       unsigned long end, unsigned long nbits)
 {
 	static DEFINE_SPINLOCK(ptcg_lock);
 
@@ -133,7 +134,8 @@ local_flush_tlb_all (void)
 }
 
 void
-flush_tlb_range (struct vm_area_struct *vma, unsigned long start, unsigned long end)
+flush_tlb_range (struct vm_area_struct *vma, unsigned long start,
+		 unsigned long end)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long size = end - start;
@@ -147,7 +149,8 @@ flush_tlb_range (struct vm_area_struct *vma, unsigned long start, unsigned long 
 #endif
 
 	nbits = ia64_fls(size + 0xfff);
-	while (unlikely (((1UL << nbits) & purge.mask) == 0) && (nbits < purge.max_bits))
+	while (unlikely (((1UL << nbits) & purge.mask) == 0) &&
+			(nbits < purge.max_bits))
 		++nbits;
 	if (nbits > purge.max_bits)
 		nbits = purge.max_bits;
@@ -189,5 +192,5 @@ ia64_tlb_init (void)
 	local_cpu_data->ptce_stride[0] = ptce_info.stride[0];
 	local_cpu_data->ptce_stride[1] = ptce_info.stride[1];
 
-	local_flush_tlb_all();		/* nuke left overs from bootstrapping... */
+	local_flush_tlb_all();	/* nuke left overs from bootstrapping... */
 }
