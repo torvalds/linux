@@ -1201,7 +1201,7 @@ static int shmem_populate(struct vm_area_struct *vma,
 				page_cache_release(page);
 				return err;
 			}
-		} else {
+		} else if (vma->vm_flags & VM_NONLINEAR) {
 			/* No page was found just because we can't read it in
 			 * now (being here implies nonblock != 0), but the page
 			 * may exist, so set the PTE to fault it in later. */
