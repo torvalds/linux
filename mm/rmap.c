@@ -559,7 +559,8 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 		swap_duplicate(entry);
 		if (list_empty(&mm->mmlist)) {
 			spin_lock(&mmlist_lock);
-			list_add(&mm->mmlist, &init_mm.mmlist);
+			if (list_empty(&mm->mmlist))
+				list_add(&mm->mmlist, &init_mm.mmlist);
 			spin_unlock(&mmlist_lock);
 		}
 		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));

@@ -372,7 +372,9 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 			/* make sure dst_mm is on swapoff's mmlist. */
 			if (unlikely(list_empty(&dst_mm->mmlist))) {
 				spin_lock(&mmlist_lock);
-				list_add(&dst_mm->mmlist, &src_mm->mmlist);
+				if (list_empty(&dst_mm->mmlist))
+					list_add(&dst_mm->mmlist,
+						 &src_mm->mmlist);
 				spin_unlock(&mmlist_lock);
 			}
 		}
