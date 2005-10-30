@@ -32,6 +32,7 @@
 #include <linux/kernel.h>
 #include <linux/kmod.h>
 #include <linux/list.h>
+#include <linux/mempolicy.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/mount.h>
@@ -600,6 +601,7 @@ static void refresh_mems(void)
 
 	if (current->cpuset_mems_generation != my_cpusets_mem_gen) {
 		struct cpuset *cs;
+		nodemask_t oldmem = current->mems_allowed;
 
 		down(&callback_sem);
 		task_lock(current);
@@ -608,6 +610,8 @@ static void refresh_mems(void)
 		current->cpuset_mems_generation = cs->mems_generation;
 		task_unlock(current);
 		up(&callback_sem);
+		if (!nodes_equal(oldmem, current->mems_allowed))
+			numa_policy_rebind(&oldmem, &current->mems_allowed);
 	}
 }
 
