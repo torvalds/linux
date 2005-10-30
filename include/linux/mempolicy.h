@@ -47,8 +47,7 @@ struct vm_area_struct;
  * Locking policy for interlave:
  * In process context there is no locking because only the process accesses
  * its own state. All vma manipulation is somewhat protected by a down_read on
- * mmap_sem. For allocating in the interleave policy the page_table_lock
- * must be also aquired to protect il_next.
+ * mmap_sem.
  *
  * Freeing policy:
  * When policy is MPOL_BIND v.zonelist is kmalloc'ed and must be kfree'd.

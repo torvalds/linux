@@ -66,7 +66,7 @@ generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
  *
  *  ->mmap_sem
  *    ->i_mmap_lock
- *      ->page_table_lock	(various places, mainly in mmap.c)
+ *      ->page_table_lock or pte_lock	(various, mainly in memory.c)
  *        ->mapping->tree_lock	(arch-dependent flush_dcache_mmap_lock)
  *
  *  ->mmap_sem
@@ -86,9 +86,9 @@ generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
  *    ->anon_vma.lock		(vma_adjust)
  *
  *  ->anon_vma.lock
- *    ->page_table_lock		(anon_vma_prepare and various)
+ *    ->page_table_lock or pte_lock	(anon_vma_prepare and various)
  *
- *  ->page_table_lock
+ *  ->page_table_lock or pte_lock
  *    ->swap_lock		(try_to_unmap_one)
  *    ->private_lock		(try_to_unmap_one)
  *    ->tree_lock		(try_to_unmap_one)

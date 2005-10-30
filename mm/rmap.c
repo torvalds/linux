@@ -32,7 +32,7 @@
  *   page->flags PG_locked (lock_page)
  *     mapping->i_mmap_lock
  *       anon_vma->lock
- *         mm->page_table_lock
+ *         mm->page_table_lock or pte_lock
  *           zone->lru_lock (in mark_page_accessed)
  *           swap_lock (in swap_duplicate, swap_info_get)
  *             mmlist_lock (in mmput, drain_mmlist and others)
@@ -244,7 +244,7 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 /*
  * Check that @page is mapped at @address into @mm.
  *
- * On success returns with mapped pte and locked mm->page_table_lock.
+ * On success returns with pte mapped and locked.
  */
 pte_t *page_check_address(struct page *page, struct mm_struct *mm,
 			  unsigned long address, spinlock_t **ptlp)
@@ -445,7 +445,7 @@ int page_referenced(struct page *page, int is_locked, int ignore_token)
  * @vma:	the vm area in which the mapping is added
  * @address:	the user virtual address mapped
  *
- * The caller needs to hold the mm->page_table_lock.
+ * The caller needs to hold the pte lock.
  */
 void page_add_anon_rmap(struct page *page,
 	struct vm_area_struct *vma, unsigned long address)
@@ -468,7 +468,7 @@ void page_add_anon_rmap(struct page *page,
  * page_add_file_rmap - add pte mapping to a file page
  * @page: the page to add the mapping to
  *
- * The caller needs to hold the mm->page_table_lock.
+ * The caller needs to hold the pte lock.
  */
 void page_add_file_rmap(struct page *page)
 {
@@ -483,7 +483,7 @@ void page_add_file_rmap(struct page *page)
  * page_remove_rmap - take down pte mapping from a page
  * @page: page to remove mapping from
  *
- * Caller needs to hold the mm->page_table_lock.
+ * The caller needs to hold the pte lock.
  */
 void page_remove_rmap(struct page *page)
 {

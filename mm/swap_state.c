@@ -259,8 +259,7 @@ static inline void free_swap_cache(struct page *page)
 
 /* 
  * Perform a free_page(), also freeing any swap cache associated with
- * this page if it is the last user of the page. Can not do a lock_page,
- * as we are holding the page_table_lock spinlock.
+ * this page if it is the last user of the page.
  */
 void free_page_and_swap_cache(struct page *page)
 {
