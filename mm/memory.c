@@ -280,50 +280,39 @@ void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
 	}
 }
 
-pte_t fastcall *pte_alloc_map(struct mm_struct *mm, pmd_t *pmd,
-				unsigned long address)
+int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
 {
-	if (!pmd_present(*pmd)) {
-		struct page *new;
+	struct page *new;
 
-		spin_unlock(&mm->page_table_lock);
-		new = pte_alloc_one(mm, address);
-		spin_lock(&mm->page_table_lock);
-		if (!new)
-			return NULL;
-		/*
-		 * Because we dropped the lock, we should re-check the
-		 * entry, as somebody else could have populated it..
-		 */
-		if (pmd_present(*pmd)) {
-			pte_free(new);
-			goto out;
-		}
+	spin_unlock(&mm->page_table_lock);
+	new = pte_alloc_one(mm, address);
+	spin_lock(&mm->page_table_lock);
+	if (!new)
+		return -ENOMEM;
+
+	if (pmd_present(*pmd))		/* Another has populated it */
+		pte_free(new);
+	else {
 		mm->nr_ptes++;
 		inc_page_state(nr_page_table_pages);
 		pmd_populate(mm, pmd, new);
 	}
-out:
-	return pte_offset_map(pmd, address);
+	return 0;
 }
 
-pte_t fastcall * pte_alloc_kernel(pmd_t *pmd, unsigned long address)
+int __pte_alloc_kernel(pmd_t *pmd, unsigned long address)
 {
-	if (!pmd_present(*pmd)) {
-		pte_t *new;
+	pte_t *new = pte_alloc_one_kernel(&init_mm, address);
+	if (!new)
+		return -ENOMEM;
 
-		new = pte_alloc_one_kernel(&init_mm, address);
-		if (!new)
-			return NULL;
-
-		spin_lock(&init_mm.page_table_lock);
-		if (pmd_present(*pmd))
-			pte_free_kernel(new);
-		else
-			pmd_populate_kernel(&init_mm, pmd, new);
-		spin_unlock(&init_mm.page_table_lock);
-	}
-	return pte_offset_kernel(pmd, address);
+	spin_lock(&init_mm.page_table_lock);
+	if (pmd_present(*pmd))		/* Another has populated it */
+		pte_free_kernel(new);
+	else
+		pmd_populate_kernel(&init_mm, pmd, new);
+	spin_unlock(&init_mm.page_table_lock);
+	return 0;
 }
 
 static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss)
@@ -2093,7 +2082,7 @@ int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
  * Allocate page upper directory.
  * We've already handled the fast-path in-line.
  */
-pud_t fastcall *__pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
+int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
 {
 	pud_t *new;
 
@@ -2103,19 +2092,17 @@ pud_t fastcall *__pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long addr
 	if (!new) {
 		if (mm != &init_mm)	/* Temporary bridging hack */
 			spin_lock(&mm->page_table_lock);
-		return NULL;
+		return -ENOMEM;
 	}
 
 	spin_lock(&mm->page_table_lock);
-	if (pgd_present(*pgd)) {
+	if (pgd_present(*pgd))		/* Another has populated it */
 		pud_free(new);
-		goto out;
-	}
-	pgd_populate(mm, pgd, new);
- out:
+	else
+		pgd_populate(mm, pgd, new);
 	if (mm == &init_mm)		/* Temporary bridging hack */
 		spin_unlock(&mm->page_table_lock);
-	return pud_offset(pgd, address);
+	return 0;
 }
 #endif /* __PAGETABLE_PUD_FOLDED */
 
@@ -2124,7 +2111,7 @@ pud_t fastcall *__pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long addr
  * Allocate page middle directory.
  * We've already handled the fast-path in-line.
  */
-pmd_t fastcall *__pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
+int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
 {
 	pmd_t *new;
 
@@ -2134,28 +2121,24 @@ pmd_t fastcall *__pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long addr
 	if (!new) {
 		if (mm != &init_mm)	/* Temporary bridging hack */
 			spin_lock(&mm->page_table_lock);
-		return NULL;
+		return -ENOMEM;
 	}
 
 	spin_lock(&mm->page_table_lock);
 #ifndef __ARCH_HAS_4LEVEL_HACK
-	if (pud_present(*pud)) {
+	if (pud_present(*pud))		/* Another has populated it */
 		pmd_free(new);
-		goto out;
-	}
-	pud_populate(mm, pud, new);
+	else
+		pud_populate(mm, pud, new);
 #else
-	if (pgd_present(*pud)) {
+	if (pgd_present(*pud))		/* Another has populated it */
 		pmd_free(new);
-		goto out;
-	}
-	pgd_populate(mm, pud, new);
+	else
+		pgd_populate(mm, pud, new);
 #endif /* __ARCH_HAS_4LEVEL_HACK */
-
- out:
 	if (mm == &init_mm)		/* Temporary bridging hack */
 		spin_unlock(&mm->page_table_lock);
-	return pmd_offset(pud, address);
+	return 0;
 }
 #endif /* __PAGETABLE_PMD_FOLDED */
 

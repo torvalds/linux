@@ -51,7 +51,6 @@ static pmd_t *alloc_new_pmd(struct mm_struct *mm, unsigned long addr)
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd = NULL;
-	pte_t *pte;
 
 	/*
 	 * We do need page_table_lock: because allocators expect that.
@@ -66,12 +65,8 @@ static pmd_t *alloc_new_pmd(struct mm_struct *mm, unsigned long addr)
 	if (!pmd)
 		goto out;
 
-	pte = pte_alloc_map(mm, pmd, addr);
-	if (!pte) {
+	if (!pmd_present(*pmd) && __pte_alloc(mm, pmd, addr))
 		pmd = NULL;
-		goto out;
-	}
-	pte_unmap(pte);
 out:
 	spin_unlock(&mm->page_table_lock);
 	return pmd;
