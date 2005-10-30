@@ -3254,6 +3254,7 @@ int ide_cdrom_setup (ide_drive_t *drive)
 	return 0;
 }
 
+#ifdef CONFIG_PROC_FS
 static
 sector_t ide_cdrom_capacity (ide_drive_t *drive)
 {
@@ -3264,6 +3265,7 @@ sector_t ide_cdrom_capacity (ide_drive_t *drive)
 
 	return capacity * sectors_per_frame;
 }
+#endif
 
 static int ide_cd_remove(struct device *dev)
 {
