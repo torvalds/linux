@@ -26,6 +26,11 @@ static unsigned long shared_pte_mask = L_PTE_CACHEABLE;
 /*
  * We take the easy way out of this problem - we make the
  * PTE uncacheable.  However, we leave the write buffer on.
+ *
+ * Note that the pte lock held when calling update_mmu_cache must also
+ * guard the pte (somewhere else in the same mm) that we modify here.
+ * Therefore those configurations which might call adjust_pte (those
+ * without CONFIG_CPU_CACHE_VIPT) cannot support split page_table_lock.
  */
 static int adjust_pte(struct vm_area_struct *vma, unsigned long address)
 {
@@ -127,7 +132,7 @@ void __flush_dcache_page(struct address_space *mapping, struct page *page);
  *  2. If we have multiple shared mappings of the same space in
  *     an object, we need to deal with the cache aliasing issues.
  *
- * Note that the page_table_lock will be held.
+ * Note that the pte lock will be held.
  */
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
 {
