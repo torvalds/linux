@@ -1108,8 +1108,8 @@ void zap_other_threads(struct task_struct *p)
 		if (t != p->group_leader)
 			t->exit_signal = -1;
 
+		/* SIGKILL will be handled before any pending SIGSTOP */
 		sigaddset(&t->pending.signal, SIGKILL);
-		rm_from_queue(SIG_KERNEL_STOP_MASK, &t->pending);
 		signal_wake_up(t, 1);
 	}
 }
@@ -1879,9 +1879,9 @@ relock:
 			/* Let the debugger run.  */
 			ptrace_stop(signr, signr, info);
 
-			/* We're back.  Did the debugger cancel the sig?  */
+			/* We're back.  Did the debugger cancel the sig or group_exit? */
 			signr = current->exit_code;
-			if (signr == 0)
+			if (signr == 0 || current->signal->flags & SIGNAL_GROUP_EXIT)
 				continue;
 
 			current->exit_code = 0;
