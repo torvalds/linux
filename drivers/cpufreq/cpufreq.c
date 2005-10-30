@@ -36,13 +36,6 @@ static struct cpufreq_policy	*cpufreq_cpu_data[NR_CPUS];
 static DEFINE_SPINLOCK(cpufreq_driver_lock);
 
 
-/* we keep a copy of all ->add'ed CPU's struct sys_device here;
- * as it is only accessed in ->add and ->remove, no lock or reference
- * count is necessary.
- */
-static struct sys_device	*cpu_sys_devices[NR_CPUS];
-
-
 /* internal prototypes */
 static int __cpufreq_governor(struct cpufreq_policy *policy, unsigned int event);
 static void handle_update(void *data);
@@ -582,7 +575,6 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	 * CPU because it is in the same boat. */
 	policy = cpufreq_cpu_get(cpu);
 	if (unlikely(policy)) {
-		cpu_sys_devices[cpu] = sys_dev;
 		dprintk("CPU already managed, adding link\n");
 		sysfs_create_link(&sys_dev->kobj, &policy->kobj, "cpufreq");
 		cpufreq_debug_enable_ratelimit();
@@ -657,7 +649,6 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	}
 
 	module_put(cpufreq_driver->owner);
-	cpu_sys_devices[cpu] = sys_dev;
 	dprintk("initialization complete\n");
 	cpufreq_debug_enable_ratelimit();
 	
@@ -698,6 +689,7 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 	unsigned int cpu = sys_dev->id;
 	unsigned long flags;
 	struct cpufreq_policy *data;
+	struct sys_device *cpu_sys_dev;
 #ifdef CONFIG_SMP
 	unsigned int j;
 #endif
@@ -710,7 +702,6 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 
 	if (!data) {
 		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
-		cpu_sys_devices[cpu] = NULL;
 		cpufreq_debug_enable_ratelimit();
 		return -EINVAL;
 	}
@@ -725,14 +716,12 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 		dprintk("removing link\n");
 		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 		sysfs_remove_link(&sys_dev->kobj, "cpufreq");
-		cpu_sys_devices[cpu] = NULL;
 		cpufreq_cpu_put(data);
 		cpufreq_debug_enable_ratelimit();
 		return 0;
 	}
 #endif
 
-	cpu_sys_devices[cpu] = NULL;
 
 	if (!kobject_get(&data->kobj)) {
 		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
@@ -761,7 +750,8 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 			if (j == cpu)
 				continue;
 			dprintk("removing link for cpu %u\n", j);
-			sysfs_remove_link(&cpu_sys_devices[j]->kobj, "cpufreq");
+			cpu_sys_dev = get_cpu_sysdev(j);
+			sysfs_remove_link(&cpu_sys_dev->kobj, "cpufreq");
 			cpufreq_cpu_put(data);
 		}
 	}
