@@ -1768,13 +1768,14 @@ do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long addr)
 {
 	pte_t entry;
-	struct page * page = ZERO_PAGE(addr);
 
-	/* Read-only mapping of ZERO_PAGE. */
-	entry = pte_wrprotect(mk_pte(ZERO_PAGE(addr), vma->vm_page_prot));
+	/* Mapping of ZERO_PAGE - vm_page_prot is readonly */
+	entry = mk_pte(ZERO_PAGE(addr), vma->vm_page_prot);
 
 	/* ..except if it's a write access */
 	if (write_access) {
+		struct page *page;
+
 		/* Allocate our own private page. */
 		pte_unmap(page_table);
 		spin_unlock(&mm->page_table_lock);

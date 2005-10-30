@@ -398,10 +398,9 @@ void free_swap_and_cache(swp_entry_t entry)
 }
 
 /*
- * Always set the resulting pte to be nowrite (the same as COW pages
- * after one process has exited).  We don't know just how many PTEs will
- * share this swap entry, so be cautious and let do_wp_page work out
- * what to do if a write is requested later.
+ * No need to decide whether this PTE shares the swap entry with others,
+ * just let do_wp_page work it out if a write is requested later - to
+ * force COW, vm_page_prot omits write permission from any private vma.
  *
  * vma->vm_mm->page_table_lock is held.
  */
