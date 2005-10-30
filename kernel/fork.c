@@ -182,16 +182,16 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 }
 
 #ifdef CONFIG_MMU
-static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
+static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 {
-	struct vm_area_struct * mpnt, *tmp, **pprev;
+	struct vm_area_struct *mpnt, *tmp, **pprev;
 	struct rb_node **rb_link, *rb_parent;
 	int retval;
 	unsigned long charge;
 	struct mempolicy *pol;
 
 	down_write(&oldmm->mmap_sem);
-	flush_cache_mm(current->mm);
+	flush_cache_mm(oldmm);
 	mm->locked_vm = 0;
 	mm->mmap = NULL;
 	mm->mmap_cache = NULL;
@@ -204,7 +204,7 @@ static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
 	rb_parent = NULL;
 	pprev = &mm->mmap;
 
-	for (mpnt = current->mm->mmap ; mpnt ; mpnt = mpnt->vm_next) {
+	for (mpnt = oldmm->mmap; mpnt; mpnt = mpnt->vm_next) {
 		struct file *file;
 
 		if (mpnt->vm_flags & VM_DONTCOPY) {
@@ -265,7 +265,7 @@ static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
 		rb_parent = &tmp->vm_rb;
 
 		mm->map_count++;
-		retval = copy_page_range(mm, current->mm, tmp);
+		retval = copy_page_range(mm, oldmm, tmp);
 		spin_unlock(&mm->page_table_lock);
 
 		if (tmp->vm_ops && tmp->vm_ops->open)
@@ -277,7 +277,7 @@ static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
 	retval = 0;
 
 out:
-	flush_tlb_mm(current->mm);
+	flush_tlb_mm(oldmm);
 	up_write(&oldmm->mmap_sem);
 	return retval;
 fail_nomem_policy:
