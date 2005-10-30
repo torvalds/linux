@@ -488,7 +488,8 @@ EXPORT_SYMBOL(memcpy);
  */
 void *memmove(void *dest, const void *src, size_t count)
 {
-	char *tmp, *s;
+	char *tmp;
+	const char *s;
 
 	if (dest <= src) {
 		tmp = dest;
