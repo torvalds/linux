@@ -424,15 +424,13 @@ static ssize_t sel_write_access(struct file * file, char *buf, size_t size)
 		return length;
 
 	length = -ENOMEM;
-	scon = kmalloc(size+1, GFP_KERNEL);
+	scon = kzalloc(size+1, GFP_KERNEL);
 	if (!scon)
 		return length;
-	memset(scon, 0, size+1);
 
-	tcon = kmalloc(size+1, GFP_KERNEL);
+	tcon = kzalloc(size+1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
-	memset(tcon, 0, size+1);
 
 	length = -EINVAL;
 	if (sscanf(buf, "%s %s %hu %x", scon, tcon, &tclass, &req) != 4)
@@ -475,15 +473,13 @@ static ssize_t sel_write_create(struct file * file, char *buf, size_t size)
 		return length;
 
 	length = -ENOMEM;
-	scon = kmalloc(size+1, GFP_KERNEL);
+	scon = kzalloc(size+1, GFP_KERNEL);
 	if (!scon)
 		return length;
-	memset(scon, 0, size+1);
 
-	tcon = kmalloc(size+1, GFP_KERNEL);
+	tcon = kzalloc(size+1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
-	memset(tcon, 0, size+1);
 
 	length = -EINVAL;
 	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
@@ -536,15 +532,13 @@ static ssize_t sel_write_relabel(struct file * file, char *buf, size_t size)
 		return length;
 
 	length = -ENOMEM;
-	scon = kmalloc(size+1, GFP_KERNEL);
+	scon = kzalloc(size+1, GFP_KERNEL);
 	if (!scon)
 		return length;
-	memset(scon, 0, size+1);
 
-	tcon = kmalloc(size+1, GFP_KERNEL);
+	tcon = kzalloc(size+1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
-	memset(tcon, 0, size+1);
 
 	length = -EINVAL;
 	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
@@ -595,15 +589,13 @@ static ssize_t sel_write_user(struct file * file, char *buf, size_t size)
 		return length;
 
 	length = -ENOMEM;
-	con = kmalloc(size+1, GFP_KERNEL);
+	con = kzalloc(size+1, GFP_KERNEL);
 	if (!con)
 		return length;
-	memset(con, 0, size+1);
 
-	user = kmalloc(size+1, GFP_KERNEL);
+	user = kzalloc(size+1, GFP_KERNEL);
 	if (!user)
 		goto out;
-	memset(user, 0, size+1);
 
 	length = -EINVAL;
 	if (sscanf(buf, "%s %s", con, user) != 2)
@@ -658,15 +650,13 @@ static ssize_t sel_write_member(struct file * file, char *buf, size_t size)
 		return length;
 
 	length = -ENOMEM;
-	scon = kmalloc(size+1, GFP_KERNEL);
+	scon = kzalloc(size+1, GFP_KERNEL);
 	if (!scon)
 		return length;
-	memset(scon, 0, size+1);
 
-	tcon = kmalloc(size+1, GFP_KERNEL);
+	tcon = kzalloc(size+1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
-	memset(tcon, 0, size+1);
 
 	length = -EINVAL;
 	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
