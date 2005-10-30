@@ -1,8 +1,7 @@
 /*
  * linux/kernel/power/swsusp.c
  *
- * This file is to realize architecture-independent
- * machine suspend feature using pretty near only high-level routines
+ * This file provides code to write suspend image to swap and read it back.
  *
  * Copyright (C) 1998-2001 Gabor Kuti <seasons@fornax.hu>
  * Copyright (C) 1998,2001-2005 Pavel Machek <pavel@suse.cz>
@@ -47,11 +46,7 @@
 #include <linux/utsname.h>
 #include <linux/version.h>
 #include <linux/delay.h>
-#include <linux/reboot.h>
 #include <linux/bitops.h>
-#include <linux/vt_kern.h>
-#include <linux/kbd_kern.h>
-#include <linux/keyboard.h>
 #include <linux/spinlock.h>
 #include <linux/genhd.h>
 #include <linux/kernel.h>
@@ -63,10 +58,8 @@
 #include <linux/swapops.h>
 #include <linux/bootmem.h>
 #include <linux/syscalls.h>
-#include <linux/console.h>
 #include <linux/highmem.h>
 #include <linux/bio.h>
-#include <linux/mount.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>

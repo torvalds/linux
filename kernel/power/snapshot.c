@@ -1,8 +1,7 @@
 /*
- * linux/kernel/power/swsusp.c
+ * linux/kernel/power/snapshot.c
  *
- * This file is to realize architecture-independent
- * machine suspend feature using pretty near only high-level routines
+ * This file provide system snapshot/restore functionality.
  *
  * Copyright (C) 1998-2005 Pavel Machek <pavel@suse.cz>
  *
@@ -15,30 +14,16 @@
 #include <linux/mm.h>
 #include <linux/suspend.h>
 #include <linux/smp_lock.h>
-#include <linux/file.h>
-#include <linux/utsname.h>
-#include <linux/version.h>
 #include <linux/delay.h>
-#include <linux/reboot.h>
 #include <linux/bitops.h>
-#include <linux/vt_kern.h>
-#include <linux/kbd_kern.h>
-#include <linux/keyboard.h>
 #include <linux/spinlock.h>
-#include <linux/genhd.h>
 #include <linux/kernel.h>
-#include <linux/major.h>
-#include <linux/swap.h>
 #include <linux/pm.h>
 #include <linux/device.h>
-#include <linux/buffer_head.h>
-#include <linux/swapops.h>
 #include <linux/bootmem.h>
 #include <linux/syscalls.h>
 #include <linux/console.h>
 #include <linux/highmem.h>
-#include <linux/bio.h>
-#include <linux/mount.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -46,13 +31,7 @@
 #include <asm/tlbflush.h>
 #include <asm/io.h>
 
-#include <linux/random.h>
-#include <linux/crypto.h>
-#include <asm/scatterlist.h>
-
 #include "power.h"
-
-
 
 
 #ifdef CONFIG_HIGHMEM
