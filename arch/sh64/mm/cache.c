@@ -584,32 +584,36 @@ static void sh64_dcache_purge_phy_page(unsigned long paddr)
 	}
 }
 
-static void sh64_dcache_purge_user_page(struct mm_struct *mm, unsigned long eaddr)
+static void sh64_dcache_purge_user_pages(struct mm_struct *mm,
+				unsigned long addr, unsigned long end)
 {
 	pgd_t *pgd;
 	pmd_t *pmd;
 	pte_t *pte;
 	pte_t entry;
+	spinlock_t *ptl;
 	unsigned long paddr;
 
-	/* NOTE : all the callers of this have mm->page_table_lock held, so the
-	   following page table traversal is safe even on SMP/pre-emptible. */
+	if (!mm)
+		return; /* No way to find physical address of page */
 
-	if (!mm) return; /* No way to find physical address of page */
-	pgd = pgd_offset(mm, eaddr);
-	if (pgd_bad(*pgd)) return;
+	pgd = pgd_offset(mm, addr);
+	if (pgd_bad(*pgd))
+		return;
 
-	pmd = pmd_offset(pgd, eaddr);
-	if (pmd_none(*pmd) || pmd_bad(*pmd)) return;
+	pmd = pmd_offset(pgd, addr);
+	if (pmd_none(*pmd) || pmd_bad(*pmd))
+		return;
 
-	pte = pte_offset_kernel(pmd, eaddr);
-	entry = *pte;
-	if (pte_none(entry) || !pte_present(entry)) return;
-
-	paddr = pte_val(entry) & PAGE_MASK;
-
-	sh64_dcache_purge_coloured_phy_page(paddr, eaddr);
-
+	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+	do {
+		entry = *pte;
+		if (pte_none(entry) || !pte_present(entry))
+			continue;
+		paddr = pte_val(entry) & PAGE_MASK;
+		sh64_dcache_purge_coloured_phy_page(paddr, addr);
+	} while (pte++, addr += PAGE_SIZE, addr != end);
+	pte_unmap_unlock(pte - 1, ptl);
 }
 /****************************************************************************/
 
@@ -668,7 +672,7 @@ static void sh64_dcache_purge_user_range(struct mm_struct *mm,
 	int n_pages;
 
 	n_pages = ((end - start) >> PAGE_SHIFT);
-	if (n_pages >= 64) {
+	if (n_pages >= 64 || ((start ^ (end - 1)) & PMD_MASK)) {
 #if 1
 		sh64_dcache_purge_all();
 #else
@@ -707,20 +711,10 @@ static void sh64_dcache_purge_user_range(struct mm_struct *mm,
 		}
 #endif
 	} else {
-		/* 'Small' range */
-		unsigned long aligned_start;
-		unsigned long eaddr;
-		unsigned long last_page_start;
-
-		aligned_start = start & PAGE_MASK;
-		/* 'end' is 1 byte beyond the end of the range */
-		last_page_start = (end - 1) & PAGE_MASK;
-
-		eaddr = aligned_start;
-		while (eaddr <= last_page_start) {
-			sh64_dcache_purge_user_page(mm, eaddr);
-			eaddr += PAGE_SIZE;
-		}
+		/* Small range, covered by a single page table page */
+		start &= PAGE_MASK;	/* should already be so */
+		end = PAGE_ALIGN(end);	/* should already be so */
+		sh64_dcache_purge_user_pages(mm, start, end);
 	}
 	return;
 }
@@ -880,9 +874,7 @@ void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
 	   addresses from the user address space specified by mm, after writing
 	   back any dirty data.
 
-	   Note(1), 'end' is 1 byte beyond the end of the range to flush.
-
-	   Note(2), this is called with mm->page_table_lock held.*/
+	   Note, 'end' is 1 byte beyond the end of the range to flush. */
 
 	sh64_dcache_purge_user_range(mm, start, end);
 	sh64_icache_inv_user_page_range(mm, start, end);
@@ -898,7 +890,7 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long eaddr, unsigned 
 	   the I-cache must be searched too in case the page in question is
 	   both writable and being executed from (e.g. stack trampolines.)
 
-	   Note(1), this is called with mm->page_table_lock held.
+	   Note, this is called with pte lock held.
 	   */
 
 	sh64_dcache_purge_phy_page(pfn << PAGE_SHIFT);
