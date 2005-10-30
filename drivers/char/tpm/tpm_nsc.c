@@ -220,6 +220,11 @@ static void tpm_nsc_cancel(struct tpm_chip *chip)
 	outb(NSC_COMMAND_CANCEL, chip->vendor->base + NSC_COMMAND);
 }
 
+static u8 tpm_nsc_status(struct tpm_chip *chip)
+{
+	return inb(chip->vendor->base + NSC_STATUS);
+}
+
 static struct file_operations nsc_ops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
@@ -248,6 +253,7 @@ static struct tpm_vendor_specific tpm_nsc = {
 	.recv = tpm_nsc_recv,
 	.send = tpm_nsc_send,
 	.cancel = tpm_nsc_cancel,
+	.status = tpm_nsc_status,
 	.req_complete_mask = NSC_STATUS_OBF,
 	.req_complete_val = NSC_STATUS_OBF,
 	.req_canceled = NSC_STATUS_RDY,

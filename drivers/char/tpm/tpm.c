@@ -79,7 +79,7 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 
 	stop = jiffies + 2 * 60 * HZ;
 	do {
-		u8 status = inb(chip->vendor->base + 1);
+		u8 status = chip->vendor->status(chip);
 		if ((status & chip->vendor->req_complete_mask) ==
 		    chip->vendor->req_complete_val) {
 			goto out_recv;

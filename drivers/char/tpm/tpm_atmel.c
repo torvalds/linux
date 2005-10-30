@@ -118,6 +118,11 @@ static void tpm_atml_cancel(struct tpm_chip *chip)
 	outb(ATML_STATUS_ABORT, chip->vendor->base + 1);
 }
 
+static u8 tpm_atml_status(struct tpm_chip *chip)
+{
+	return inb(chip->vendor->base + 1);
+}
+
 static struct file_operations atmel_ops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
@@ -146,6 +151,7 @@ static struct tpm_vendor_specific tpm_atmel = {
 	.recv = tpm_atml_recv,
 	.send = tpm_atml_send,
 	.cancel = tpm_atml_cancel,
+	.status = tpm_atml_status,
 	.req_complete_mask = ATML_STATUS_BUSY | ATML_STATUS_DATA_AVAIL,
 	.req_complete_val = ATML_STATUS_DATA_AVAIL,
 	.req_canceled = ATML_STATUS_READY,

@@ -316,6 +316,11 @@ static void tpm_inf_cancel(struct tpm_chip *chip)
 	 */
 }
 
+static u8 tpm_inf_status(struct tpm_chip *chip)
+{
+	return inb(chip->vendor->base + 1);
+}
+
 static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
 static DEVICE_ATTR(pcrs, S_IRUGO, tpm_show_pcrs, NULL);
 static DEVICE_ATTR(caps, S_IRUGO, tpm_show_caps, NULL);
@@ -344,6 +349,7 @@ static struct tpm_vendor_specific tpm_inf = {
 	.recv = tpm_inf_recv,
 	.send = tpm_inf_send,
 	.cancel = tpm_inf_cancel,
+	.status = tpm_inf_status,
 	.req_complete_mask = 0,
 	.req_complete_val = 0,
 	.attr_group = &inf_attr_grp,
