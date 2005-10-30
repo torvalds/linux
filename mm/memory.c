@@ -260,6 +260,12 @@ void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
 		struct vm_area_struct *next = vma->vm_next;
 		unsigned long addr = vma->vm_start;
 
+		/*
+		 * Hide vma from rmap and vmtruncate before freeing pgtables
+		 */
+		anon_vma_unlink(vma);
+		unlink_file_vma(vma);
+
 		if (is_hugepage_only_range(vma->vm_mm, addr, HPAGE_SIZE)) {
 			hugetlb_free_pgd_range(tlb, addr, vma->vm_end,
 				floor, next? next->vm_start: ceiling);
@@ -272,6 +278,8 @@ void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
 							HPAGE_SIZE)) {
 				vma = next;
 				next = vma->vm_next;
+				anon_vma_unlink(vma);
+				unlink_file_vma(vma);
 			}
 			free_pgd_range(tlb, addr, vma->vm_end,
 				floor, next? next->vm_start: ceiling);
@@ -798,12 +806,12 @@ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
 	}
 
 	lru_add_drain();
-	spin_lock(&mm->page_table_lock);
 	tlb = tlb_gather_mmu(mm, 0);
 	update_hiwater_rss(mm);
+	spin_lock(&mm->page_table_lock);
 	end = unmap_vmas(&tlb, mm, vma, address, end, &nr_accounted, details);
-	tlb_finish_mmu(tlb, address, end);
 	spin_unlock(&mm->page_table_lock);
+	tlb_finish_mmu(tlb, address, end);
 	return end;
 }
 

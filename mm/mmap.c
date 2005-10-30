@@ -203,14 +203,6 @@ static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
 {
 	struct vm_area_struct *next = vma->vm_next;
 
-	/*
-	 * Hide vma from rmap and vmtruncate before freeing page tables:
-	 * to be moved into free_pgtables once page_table_lock is lifted
-	 * from it, but until then lock ordering forbids that move.
-	 */
-	anon_vma_unlink(vma);
-	unlink_file_vma(vma);
-
 	might_sleep();
 	if (vma->vm_ops && vma->vm_ops->close)
 		vma->vm_ops->close(vma);
@@ -1679,15 +1671,15 @@ static void unmap_region(struct mm_struct *mm,
 	unsigned long nr_accounted = 0;
 
 	lru_add_drain();
-	spin_lock(&mm->page_table_lock);
 	tlb = tlb_gather_mmu(mm, 0);
 	update_hiwater_rss(mm);
+	spin_lock(&mm->page_table_lock);
 	unmap_vmas(&tlb, mm, vma, start, end, &nr_accounted, NULL);
+	spin_unlock(&mm->page_table_lock);
 	vm_unacct_memory(nr_accounted);
 	free_pgtables(&tlb, vma, prev? prev->vm_end: FIRST_USER_ADDRESS,
 				 next? next->vm_start: 0);
 	tlb_finish_mmu(tlb, start, end);
-	spin_unlock(&mm->page_table_lock);
 }
 
 /*
@@ -1962,23 +1954,20 @@ void exit_mmap(struct mm_struct *mm)
 	unsigned long end;
 
 	lru_add_drain();
-
-	spin_lock(&mm->page_table_lock);
-
 	flush_cache_mm(mm);
 	tlb = tlb_gather_mmu(mm, 1);
 	/* Don't update_hiwater_rss(mm) here, do_exit already did */
 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+	spin_lock(&mm->page_table_lock);
 	end = unmap_vmas(&tlb, mm, vma, 0, -1, &nr_accounted, NULL);
+	spin_unlock(&mm->page_table_lock);
 	vm_unacct_memory(nr_accounted);
 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, 0);
 	tlb_finish_mmu(tlb, 0, end);
 
-	spin_unlock(&mm->page_table_lock);
-
 	/*
-	 * Walk the list again, actually closing and freeing it
-	 * without holding any MM locks.
+	 * Walk the list again, actually closing and freeing it,
+	 * with preemption enabled, without holding any MM locks.
 	 */
 	while (vma)
 		vma = remove_vma(vma);
