@@ -298,7 +298,11 @@ static int page_referenced_one(struct page *page,
 		if (ptep_clear_flush_young(vma, address, pte))
 			referenced++;
 
-		if (mm != current->mm && !ignore_token && has_swap_token(mm))
+		/* Pretend the page is referenced if the task has the
+		   swap token and is in the middle of a page fault. */
+		if (mm != current->mm && !ignore_token &&
+				has_swap_token(mm) &&
+				rwsem_is_locked(&mm->mmap_sem))
 			referenced++;
 
 		(*mapcount)--;
