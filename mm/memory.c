@@ -574,12 +574,14 @@ static void zap_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
 						addr) != page->index)
 				set_pte_at(tlb->mm, addr, pte,
 					   pgoff_to_pte(page->index));
-			if (pte_dirty(ptent))
-				set_page_dirty(page);
 			if (PageAnon(page))
 				dec_mm_counter(tlb->mm, anon_rss);
-			else if (pte_young(ptent))
-				mark_page_accessed(page);
+			else {
+				if (pte_dirty(ptent))
+					set_page_dirty(page);
+				if (pte_young(ptent))
+					mark_page_accessed(page);
+			}
 			tlb->freed++;
 			page_remove_rmap(page);
 			tlb_remove_page(tlb, page);
