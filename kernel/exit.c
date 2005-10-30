@@ -839,7 +839,10 @@ fastcall NORET_TYPE void do_exit(long code)
 				preempt_count());
 
 	acct_update_integrals(tsk);
-	update_mem_hiwater(tsk);
+	if (tsk->mm) {
+		update_hiwater_rss(tsk->mm);
+		update_hiwater_vm(tsk->mm);
+	}
 	group_dead = atomic_dec_and_test(&tsk->signal->live);
 	if (group_dead) {
  		del_timer_sync(&tsk->signal->real_timer);

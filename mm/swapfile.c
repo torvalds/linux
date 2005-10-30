@@ -61,7 +61,7 @@ void swap_unplug_io_fn(struct backing_dev_info *unused_bdi, struct page *page)
 	swp_entry_t entry;
 
 	down_read(&swap_unplug_sem);
-	entry.val = page->private;
+	entry.val = page_private(page);
 	if (PageSwapCache(page)) {
 		struct block_device *bdev = swap_info[swp_type(entry)].bdev;
 		struct backing_dev_info *bdi;
@@ -69,8 +69,8 @@ void swap_unplug_io_fn(struct backing_dev_info *unused_bdi, struct page *page)
 		/*
 		 * If the page is removed from swapcache from under us (with a
 		 * racy try_to_unuse/swapoff) we need an additional reference
-		 * count to avoid reading garbage from page->private above. If
-		 * the WARN_ON triggers during a swapoff it maybe the race
+		 * count to avoid reading garbage from page_private(page) above.
+		 * If the WARN_ON triggers during a swapoff it maybe the race
 		 * condition and it's harmless. However if it triggers without
 		 * swapoff it signals a problem.
 		 */
@@ -294,7 +294,7 @@ static inline int page_swapcount(struct page *page)
 	struct swap_info_struct *p;
 	swp_entry_t entry;
 
-	entry.val = page->private;
+	entry.val = page_private(page);
 	p = swap_info_get(entry);
 	if (p) {
 		/* Subtract the 1 for the swap cache itself */
@@ -339,7 +339,7 @@ int remove_exclusive_swap_page(struct page *page)
 	if (page_count(page) != 2) /* 2: us + cache */
 		return 0;
 
-	entry.val = page->private;
+	entry.val = page_private(page);
 	p = swap_info_get(entry);
 	if (!p)
 		return 0;
@@ -398,17 +398,14 @@ void free_swap_and_cache(swp_entry_t entry)
 }
 
 /*
- * Always set the resulting pte to be nowrite (the same as COW pages
- * after one process has exited).  We don't know just how many PTEs will
- * share this swap entry, so be cautious and let do_wp_page work out
- * what to do if a write is requested later.
- *
- * vma->vm_mm->page_table_lock is held.
+ * No need to decide whether this PTE shares the swap entry with others,
+ * just let do_wp_page work it out if a write is requested later - to
+ * force COW, vm_page_prot omits write permission from any private vma.
  */
 static void unuse_pte(struct vm_area_struct *vma, pte_t *pte,
 		unsigned long addr, swp_entry_t entry, struct page *page)
 {
-	inc_mm_counter(vma->vm_mm, rss);
+	inc_mm_counter(vma->vm_mm, anon_rss);
 	get_page(page);
 	set_pte_at(vma->vm_mm, addr, pte,
 		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
@@ -425,23 +422,25 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 				unsigned long addr, unsigned long end,
 				swp_entry_t entry, struct page *page)
 {
-	pte_t *pte;
 	pte_t swp_pte = swp_entry_to_pte(entry);
+	pte_t *pte;
+	spinlock_t *ptl;
+	int found = 0;
 
-	pte = pte_offset_map(pmd, addr);
+	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	do {
 		/*
 		 * swapoff spends a _lot_ of time in this loop!
 		 * Test inline before going to call unuse_pte.
 		 */
 		if (unlikely(pte_same(*pte, swp_pte))) {
-			unuse_pte(vma, pte, addr, entry, page);
-			pte_unmap(pte);
-			return 1;
+			unuse_pte(vma, pte++, addr, entry, page);
+			found = 1;
+			break;
 		}
 	} while (pte++, addr += PAGE_SIZE, addr != end);
-	pte_unmap(pte - 1);
-	return 0;
+	pte_unmap_unlock(pte - 1, ptl);
+	return found;
 }
 
 static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
@@ -523,12 +522,10 @@ static int unuse_mm(struct mm_struct *mm,
 		down_read(&mm->mmap_sem);
 		lock_page(page);
 	}
-	spin_lock(&mm->page_table_lock);
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		if (vma->anon_vma && unuse_vma(vma, entry, page))
 			break;
 	}
-	spin_unlock(&mm->page_table_lock);
 	up_read(&mm->mmap_sem);
 	/*
 	 * Currently unuse_mm cannot fail, but leave error handling
@@ -1045,7 +1042,7 @@ int page_queue_congested(struct page *page)
 	BUG_ON(!PageLocked(page));	/* It pins the swap_info_struct */
 
 	if (PageSwapCache(page)) {
-		swp_entry_t entry = { .val = page->private };
+		swp_entry_t entry = { .val = page_private(page) };
 		struct swap_info_struct *sis;
 
 		sis = get_swap_info_struct(swp_type(entry));

@@ -139,93 +139,33 @@ struct iwmmxt_sigframe {
 	unsigned long	storage[0x98/4];
 };
 
-static int page_present(struct mm_struct *mm, void __user *uptr, int wr)
-{
-	unsigned long addr = (unsigned long)uptr;
-	pgd_t *pgd = pgd_offset(mm, addr);
-	if (pgd_present(*pgd)) {
-		pmd_t *pmd = pmd_offset(pgd, addr);
-		if (pmd_present(*pmd)) {
-			pte_t *pte = pte_offset_map(pmd, addr);
-			return (pte_present(*pte) && (!wr || pte_write(*pte)));
-		}
-	}
-	return 0;
-}
-
-static int copy_locked(void __user *uptr, void *kptr, size_t size, int write,
-		       void (*copyfn)(void *, void __user *))
-{
-	unsigned char v, __user *userptr = uptr;
-	int err = 0;
-
-	do {
-		struct mm_struct *mm;
-
-		if (write) {
-			__put_user_error(0, userptr, err);
-			__put_user_error(0, userptr + size - 1, err);
-		} else {
-			__get_user_error(v, userptr, err);
-			__get_user_error(v, userptr + size - 1, err);
-		}
-
-		if (err)
-			break;
-
-		mm = current->mm;
-		spin_lock(&mm->page_table_lock);
-		if (page_present(mm, userptr, write) &&
-		    page_present(mm, userptr + size - 1, write)) {
-		    	copyfn(kptr, uptr);
-		} else
-			err = 1;
-		spin_unlock(&mm->page_table_lock);
-	} while (err);
-
-	return err;
-}
-
 static int preserve_iwmmxt_context(struct iwmmxt_sigframe *frame)
 {
-	int err = 0;
+	char kbuf[sizeof(*frame) + 8];
+	struct iwmmxt_sigframe *kframe;
 
 	/* the iWMMXt context must be 64 bit aligned */
-	WARN_ON((unsigned long)frame & 7);
-
-	__put_user_error(IWMMXT_MAGIC0, &frame->magic0, err);
-	__put_user_error(IWMMXT_MAGIC1, &frame->magic1, err);
-
-	/*
-	 * iwmmxt_task_copy() doesn't check user permissions.
-	 * Let's do a dummy write on the upper boundary to ensure
-	 * access to user mem is OK all way up.
-	 */
-	err |= copy_locked(&frame->storage, current_thread_info(),
-			   sizeof(frame->storage), 1, iwmmxt_task_copy);
-	return err;
+	kframe = (struct iwmmxt_sigframe *)((unsigned long)(kbuf + 8) & ~7);
+	kframe->magic0 = IWMMXT_MAGIC0;
+	kframe->magic1 = IWMMXT_MAGIC1;
+	iwmmxt_task_copy(current_thread_info(), &kframe->storage);
+	return __copy_to_user(frame, kframe, sizeof(*frame));
 }
 
 static int restore_iwmmxt_context(struct iwmmxt_sigframe *frame)
 {
-	unsigned long magic0, magic1;
-	int err = 0;
+	char kbuf[sizeof(*frame) + 8];
+	struct iwmmxt_sigframe *kframe;
 
-	/* the iWMMXt context is 64 bit aligned */
-	WARN_ON((unsigned long)frame & 7);
-
-	/*
-	 * Validate iWMMXt context signature.
-	 * Also, iwmmxt_task_restore() doesn't check user permissions.
-	 * Let's do a dummy write on the upper boundary to ensure
-	 * access to user mem is OK all way up.
-	 */
-	__get_user_error(magic0, &frame->magic0, err);
-	__get_user_error(magic1, &frame->magic1, err);
-	if (!err && magic0 == IWMMXT_MAGIC0 && magic1 == IWMMXT_MAGIC1)
-		err = copy_locked(&frame->storage, current_thread_info(),
-				  sizeof(frame->storage), 0, iwmmxt_task_restore);
-	return err;
+	/* the iWMMXt context must be 64 bit aligned */
+	kframe = (struct iwmmxt_sigframe *)((unsigned long)(kbuf + 8) & ~7);
+	if (__copy_from_user(kframe, frame, sizeof(*frame)))
+		return -1;
+	if (kframe->magic0 != IWMMXT_MAGIC0 ||
+	    kframe->magic1 != IWMMXT_MAGIC1)
+		return -1;
+	iwmmxt_task_restore(current_thread_info(), &kframe->storage);
+	return 0;
 }
 
 #endif

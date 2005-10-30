@@ -181,8 +181,9 @@ set_page_region(
 	size_t		offset,
 	size_t		length)
 {
-	page->private |= page_region_mask(offset, length);
-	if (page->private == ~0UL)
+	set_page_private(page,
+		page_private(page) | page_region_mask(offset, length));
+	if (page_private(page) == ~0UL)
 		SetPageUptodate(page);
 }
 
@@ -194,7 +195,7 @@ test_page_region(
 {
 	unsigned long	mask = page_region_mask(offset, length);
 
-	return (mask && (page->private & mask) == mask);
+	return (mask && (page_private(page) & mask) == mask);
 }
 
 /*

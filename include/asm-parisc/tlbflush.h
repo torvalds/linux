@@ -88,7 +88,7 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 	if (npages >= 512)  /* 2MB of space: arbitrary, should be tuned */
 		flush_tlb_all();
 	else {
-
+		preempt_disable();
 		mtsp(vma->vm_mm->context,1);
 		purge_tlb_start();
 		if (split_tlb) {
@@ -102,6 +102,7 @@ static inline void flush_tlb_range(struct vm_area_struct *vma,
 				pdtlb(start);
 				start += PAGE_SIZE;
 			}
+		preempt_enable();
 		}
 		purge_tlb_end();
 	}

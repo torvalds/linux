@@ -22,35 +22,7 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
-static pte_t *get_one_pte_map_nested(struct mm_struct *mm, unsigned long addr)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte = NULL;
-
-	pgd = pgd_offset(mm, addr);
-	if (pgd_none_or_clear_bad(pgd))
-		goto end;
-
-	pud = pud_offset(pgd, addr);
-	if (pud_none_or_clear_bad(pud))
-		goto end;
-
-	pmd = pmd_offset(pud, addr);
-	if (pmd_none_or_clear_bad(pmd))
-		goto end;
-
-	pte = pte_offset_map_nested(pmd, addr);
-	if (pte_none(*pte)) {
-		pte_unmap_nested(pte);
-		pte = NULL;
-	}
-end:
-	return pte;
-}
-
-static pte_t *get_one_pte_map(struct mm_struct *mm, unsigned long addr)
+static pmd_t *get_old_pmd(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -68,35 +40,39 @@ static pte_t *get_one_pte_map(struct mm_struct *mm, unsigned long addr)
 	if (pmd_none_or_clear_bad(pmd))
 		return NULL;
 
-	return pte_offset_map(pmd, addr);
+	return pmd;
 }
 
-static inline pte_t *alloc_one_pte_map(struct mm_struct *mm, unsigned long addr)
+static pmd_t *alloc_new_pmd(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
 	pud_t *pud;
 	pmd_t *pmd;
-	pte_t *pte = NULL;
 
 	pgd = pgd_offset(mm, addr);
-
 	pud = pud_alloc(mm, pgd, addr);
 	if (!pud)
 		return NULL;
+
 	pmd = pmd_alloc(mm, pud, addr);
-	if (pmd)
-		pte = pte_alloc_map(mm, pmd, addr);
-	return pte;
+	if (!pmd)
+		return NULL;
+
+	if (!pmd_present(*pmd) && __pte_alloc(mm, pmd, addr))
+		return NULL;
+
+	return pmd;
 }
 
-static int
-move_one_page(struct vm_area_struct *vma, unsigned long old_addr,
-		struct vm_area_struct *new_vma, unsigned long new_addr)
+static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
+		unsigned long old_addr, unsigned long old_end,
+		struct vm_area_struct *new_vma, pmd_t *new_pmd,
+		unsigned long new_addr)
 {
 	struct address_space *mapping = NULL;
 	struct mm_struct *mm = vma->vm_mm;
-	int error = 0;
-	pte_t *src, *dst;
+	pte_t *old_pte, *new_pte, pte;
+	spinlock_t *old_ptl, *new_ptl;
 
 	if (vma->vm_file) {
 		/*
@@ -111,74 +87,69 @@ move_one_page(struct vm_area_struct *vma, unsigned long old_addr,
 		    new_vma->vm_truncate_count != vma->vm_truncate_count)
 			new_vma->vm_truncate_count = 0;
 	}
-	spin_lock(&mm->page_table_lock);
 
-	src = get_one_pte_map_nested(mm, old_addr);
-	if (src) {
-		/*
-		 * Look to see whether alloc_one_pte_map needs to perform a
-		 * memory allocation.  If it does then we need to drop the
-		 * atomic kmap
-		 */
-		dst = get_one_pte_map(mm, new_addr);
-		if (unlikely(!dst)) {
-			pte_unmap_nested(src);
-			if (mapping)
-				spin_unlock(&mapping->i_mmap_lock);
-			dst = alloc_one_pte_map(mm, new_addr);
-			if (mapping && !spin_trylock(&mapping->i_mmap_lock)) {
-				spin_unlock(&mm->page_table_lock);
-				spin_lock(&mapping->i_mmap_lock);
-				spin_lock(&mm->page_table_lock);
-			}
-			src = get_one_pte_map_nested(mm, old_addr);
-		}
-		/*
-		 * Since alloc_one_pte_map can drop and re-acquire
-		 * page_table_lock, we should re-check the src entry...
-		 */
-		if (src) {
-			if (dst) {
-				pte_t pte;
-				pte = ptep_clear_flush(vma, old_addr, src);
+	/*
+	 * We don't have to worry about the ordering of src and dst
+	 * pte locks because exclusive mmap_sem prevents deadlock.
+	 */
+	old_pte = pte_offset_map_lock(mm, old_pmd, old_addr, &old_ptl);
+ 	new_pte = pte_offset_map_nested(new_pmd, new_addr);
+	new_ptl = pte_lockptr(mm, new_pmd);
+	if (new_ptl != old_ptl)
+		spin_lock(new_ptl);
 
-				/* ZERO_PAGE can be dependant on virtual addr */
-				pte = move_pte(pte, new_vma->vm_page_prot,
-							old_addr, new_addr);
-				set_pte_at(mm, new_addr, dst, pte);
-			} else
-				error = -ENOMEM;
-			pte_unmap_nested(src);
-		}
-		if (dst)
-			pte_unmap(dst);
+	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
+				   new_pte++, new_addr += PAGE_SIZE) {
+		if (pte_none(*old_pte))
+			continue;
+		pte = ptep_clear_flush(vma, old_addr, old_pte);
+		/* ZERO_PAGE can be dependant on virtual addr */
+		pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
+		set_pte_at(mm, new_addr, new_pte, pte);
 	}
-	spin_unlock(&mm->page_table_lock);
+
+	if (new_ptl != old_ptl)
+		spin_unlock(new_ptl);
+	pte_unmap_nested(new_pte - 1);
+	pte_unmap_unlock(old_pte - 1, old_ptl);
 	if (mapping)
 		spin_unlock(&mapping->i_mmap_lock);
-	return error;
 }
+
+#define LATENCY_LIMIT	(64 * PAGE_SIZE)
 
 static unsigned long move_page_tables(struct vm_area_struct *vma,
 		unsigned long old_addr, struct vm_area_struct *new_vma,
 		unsigned long new_addr, unsigned long len)
 {
-	unsigned long offset;
+	unsigned long extent, next, old_end;
+	pmd_t *old_pmd, *new_pmd;
 
-	flush_cache_range(vma, old_addr, old_addr + len);
+	old_end = old_addr + len;
+	flush_cache_range(vma, old_addr, old_end);
 
-	/*
-	 * This is not the clever way to do this, but we're taking the
-	 * easy way out on the assumption that most remappings will be
-	 * only a few pages.. This also makes error recovery easier.
-	 */
-	for (offset = 0; offset < len; offset += PAGE_SIZE) {
-		if (move_one_page(vma, old_addr + offset,
-				new_vma, new_addr + offset) < 0)
-			break;
+	for (; old_addr < old_end; old_addr += extent, new_addr += extent) {
 		cond_resched();
+		next = (old_addr + PMD_SIZE) & PMD_MASK;
+		if (next - 1 > old_end)
+			next = old_end;
+		extent = next - old_addr;
+		old_pmd = get_old_pmd(vma->vm_mm, old_addr);
+		if (!old_pmd)
+			continue;
+		new_pmd = alloc_new_pmd(vma->vm_mm, new_addr);
+		if (!new_pmd)
+			break;
+		next = (new_addr + PMD_SIZE) & PMD_MASK;
+		if (extent > next - new_addr)
+			extent = next - new_addr;
+		if (extent > LATENCY_LIMIT)
+			extent = LATENCY_LIMIT;
+		move_ptes(vma, old_pmd, old_addr, old_addr + extent,
+				new_vma, new_pmd, new_addr);
 	}
-	return offset;
+
+	return len + old_addr - old_end;	/* how much done */
 }
 
 static unsigned long move_vma(struct vm_area_struct *vma,
@@ -191,6 +162,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	unsigned long new_pgoff;
 	unsigned long moved_len;
 	unsigned long excess = 0;
+	unsigned long hiwater_vm;
 	int split = 0;
 
 	/*
@@ -229,17 +201,24 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	}
 
 	/*
-	 * if we failed to move page tables we still do total_vm increment
-	 * since do_munmap() will decrement it by old_len == new_len
+	 * If we failed to move page tables we still do total_vm increment
+	 * since do_munmap() will decrement it by old_len == new_len.
+	 *
+	 * Since total_vm is about to be raised artificially high for a
+	 * moment, we need to restore high watermark afterwards: if stats
+	 * are taken meanwhile, total_vm and hiwater_vm appear too high.
+	 * If this were a serious issue, we'd add a flag to do_munmap().
 	 */
+	hiwater_vm = mm->hiwater_vm;
 	mm->total_vm += new_len >> PAGE_SHIFT;
-	__vm_stat_account(mm, vma->vm_flags, vma->vm_file, new_len>>PAGE_SHIFT);
+	vm_stat_account(mm, vma->vm_flags, vma->vm_file, new_len>>PAGE_SHIFT);
 
 	if (do_munmap(mm, old_addr, old_len) < 0) {
 		/* OOM: unable to split vma, just get accounts right */
 		vm_unacct_memory(excess >> PAGE_SHIFT);
 		excess = 0;
 	}
+	mm->hiwater_vm = hiwater_vm;
 
 	/* Restore VM_ACCOUNT if one or two pieces of vma left */
 	if (excess) {
@@ -269,6 +248,7 @@ unsigned long do_mremap(unsigned long addr,
 	unsigned long old_len, unsigned long new_len,
 	unsigned long flags, unsigned long new_addr)
 {
+	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	unsigned long ret = -EINVAL;
 	unsigned long charged = 0;
@@ -309,7 +289,7 @@ unsigned long do_mremap(unsigned long addr,
 		if ((addr <= new_addr) && (addr+old_len) > new_addr)
 			goto out;
 
-		ret = do_munmap(current->mm, new_addr, new_len);
+		ret = do_munmap(mm, new_addr, new_len);
 		if (ret)
 			goto out;
 	}
@@ -320,7 +300,7 @@ unsigned long do_mremap(unsigned long addr,
 	 * do_munmap does all the needed commit accounting
 	 */
 	if (old_len >= new_len) {
-		ret = do_munmap(current->mm, addr+new_len, old_len - new_len);
+		ret = do_munmap(mm, addr+new_len, old_len - new_len);
 		if (ret && old_len != new_len)
 			goto out;
 		ret = addr;
@@ -333,7 +313,7 @@ unsigned long do_mremap(unsigned long addr,
 	 * Ok, we need to grow..  or relocate.
 	 */
 	ret = -EFAULT;
-	vma = find_vma(current->mm, addr);
+	vma = find_vma(mm, addr);
 	if (!vma || vma->vm_start > addr)
 		goto out;
 	if (is_vm_hugetlb_page(vma)) {
@@ -349,14 +329,14 @@ unsigned long do_mremap(unsigned long addr,
 	}
 	if (vma->vm_flags & VM_LOCKED) {
 		unsigned long locked, lock_limit;
-		locked = current->mm->locked_vm << PAGE_SHIFT;
+		locked = mm->locked_vm << PAGE_SHIFT;
 		lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
 		locked += new_len - old_len;
 		ret = -EAGAIN;
 		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
 			goto out;
 	}
-	if (!may_expand_vm(current->mm, (new_len - old_len) >> PAGE_SHIFT)) {
+	if (!may_expand_vm(mm, (new_len - old_len) >> PAGE_SHIFT)) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -383,11 +363,10 @@ unsigned long do_mremap(unsigned long addr,
 			vma_adjust(vma, vma->vm_start,
 				addr + new_len, vma->vm_pgoff, NULL);
 
-			current->mm->total_vm += pages;
-			__vm_stat_account(vma->vm_mm, vma->vm_flags,
-							vma->vm_file, pages);
+			mm->total_vm += pages;
+			vm_stat_account(mm, vma->vm_flags, vma->vm_file, pages);
 			if (vma->vm_flags & VM_LOCKED) {
-				current->mm->locked_vm += pages;
+				mm->locked_vm += pages;
 				make_pages_present(addr + old_len,
 						   addr + new_len);
 			}

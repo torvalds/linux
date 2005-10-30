@@ -555,9 +555,13 @@ void show_mem(void)
 	show_free_areas();
 	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	for_each_pgdat(pgdat) {
-		unsigned long present = pgdat->node_present_pages;
+		unsigned long present;
+		unsigned long flags;
 		int shared = 0, cached = 0, reserved = 0;
+
 		printk("Node ID: %d\n", pgdat->node_id);
+		pgdat_resize_lock(pgdat, &flags);
+		present = pgdat->node_present_pages;
 		for(i = 0; i < pgdat->node_spanned_pages; i++) {
 			struct page *page;
 			if (pfn_valid(pgdat->node_start_pfn + i))
@@ -571,6 +575,7 @@ void show_mem(void)
 			else if (page_count(page))
 				shared += page_count(page)-1;
 		}
+		pgdat_resize_unlock(pgdat, &flags);
 		total_present += present;
 		total_reserved += reserved;
 		total_cached += cached;

@@ -14,22 +14,41 @@
 char *task_mem(struct mm_struct *mm, char *buffer)
 {
 	unsigned long data, text, lib;
+	unsigned long hiwater_vm, total_vm, hiwater_rss, total_rss;
+
+	/*
+	 * Note: to minimize their overhead, mm maintains hiwater_vm and
+	 * hiwater_rss only when about to *lower* total_vm or rss.  Any
+	 * collector of these hiwater stats must therefore get total_vm
+	 * and rss too, which will usually be the higher.  Barriers? not
+	 * worth the effort, such snapshots can always be inconsistent.
+	 */
+	hiwater_vm = total_vm = mm->total_vm;
+	if (hiwater_vm < mm->hiwater_vm)
+		hiwater_vm = mm->hiwater_vm;
+	hiwater_rss = total_rss = get_mm_rss(mm);
+	if (hiwater_rss < mm->hiwater_rss)
+		hiwater_rss = mm->hiwater_rss;
 
 	data = mm->total_vm - mm->shared_vm - mm->stack_vm;
 	text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK)) >> 10;
 	lib = (mm->exec_vm << (PAGE_SHIFT-10)) - text;
 	buffer += sprintf(buffer,
+		"VmPeak:\t%8lu kB\n"
 		"VmSize:\t%8lu kB\n"
 		"VmLck:\t%8lu kB\n"
+		"VmHWM:\t%8lu kB\n"
 		"VmRSS:\t%8lu kB\n"
 		"VmData:\t%8lu kB\n"
 		"VmStk:\t%8lu kB\n"
 		"VmExe:\t%8lu kB\n"
 		"VmLib:\t%8lu kB\n"
 		"VmPTE:\t%8lu kB\n",
-		(mm->total_vm - mm->reserved_vm) << (PAGE_SHIFT-10),
+		hiwater_vm << (PAGE_SHIFT-10),
+		(total_vm - mm->reserved_vm) << (PAGE_SHIFT-10),
 		mm->locked_vm << (PAGE_SHIFT-10),
-		get_mm_counter(mm, rss) << (PAGE_SHIFT-10),
+		hiwater_rss << (PAGE_SHIFT-10),
+		total_rss << (PAGE_SHIFT-10),
 		data << (PAGE_SHIFT-10),
 		mm->stack_vm << (PAGE_SHIFT-10), text, lib,
 		(PTRS_PER_PTE*sizeof(pte_t)*mm->nr_ptes) >> 10);
@@ -44,13 +63,11 @@ unsigned long task_vsize(struct mm_struct *mm)
 int task_statm(struct mm_struct *mm, int *shared, int *text,
 	       int *data, int *resident)
 {
-	int rss = get_mm_counter(mm, rss);
-
-	*shared = rss - get_mm_counter(mm, anon_rss);
+	*shared = get_mm_counter(mm, file_rss);
 	*text = (PAGE_ALIGN(mm->end_code) - (mm->start_code & PAGE_MASK))
 								>> PAGE_SHIFT;
 	*data = mm->total_vm - mm->shared_vm;
-	*resident = rss;
+	*resident = *shared + get_mm_counter(mm, anon_rss);
 	return mm->total_vm;
 }
 
@@ -186,13 +203,14 @@ static void smaps_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 				struct mem_size_stats *mss)
 {
 	pte_t *pte, ptent;
+	spinlock_t *ptl;
 	unsigned long pfn;
 	struct page *page;
 
-	pte = pte_offset_map(pmd, addr);
+	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	do {
 		ptent = *pte;
-		if (pte_none(ptent) || !pte_present(ptent))
+		if (!pte_present(ptent))
 			continue;
 
 		mss->resident += PAGE_SIZE;
@@ -213,8 +231,8 @@ static void smaps_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 				mss->private_clean += PAGE_SIZE;
 		}
 	} while (pte++, addr += PAGE_SIZE, addr != end);
-	pte_unmap(pte - 1);
-	cond_resched_lock(&vma->vm_mm->page_table_lock);
+	pte_unmap_unlock(pte - 1, ptl);
+	cond_resched();
 }
 
 static inline void smaps_pmd_range(struct vm_area_struct *vma, pud_t *pud,
@@ -268,17 +286,11 @@ static inline void smaps_pgd_range(struct vm_area_struct *vma,
 static int show_smap(struct seq_file *m, void *v)
 {
 	struct vm_area_struct *vma = v;
-	struct mm_struct *mm = vma->vm_mm;
 	struct mem_size_stats mss;
 
 	memset(&mss, 0, sizeof mss);
-
-	if (mm) {
-		spin_lock(&mm->page_table_lock);
+	if (vma->vm_mm)
 		smaps_pgd_range(vma, vma->vm_start, vma->vm_end, &mss);
-		spin_unlock(&mm->page_table_lock);
-	}
-
 	return show_map_internal(m, v, &mss);
 }
 
@@ -407,7 +419,6 @@ static struct numa_maps *get_numa_maps(const struct vm_area_struct *vma)
 	for_each_node(i)
 		md->node[i] =0;
 
-	spin_lock(&mm->page_table_lock);
  	for (vaddr = vma->vm_start; vaddr < vma->vm_end; vaddr += PAGE_SIZE) {
 		page = follow_page(mm, vaddr, 0);
 		if (page) {
@@ -422,8 +433,8 @@ static struct numa_maps *get_numa_maps(const struct vm_area_struct *vma)
 				md->anon++;
 			md->node[page_to_nid(page)]++;
 		}
+		cond_resched();
 	}
-	spin_unlock(&mm->page_table_lock);
 	return md;
 }
 
@@ -469,7 +480,7 @@ static int show_numa_map(struct seq_file *m, void *v)
 		seq_printf(m, " interleave={");
 		first = 1;
 		for_each_node(n) {
-			if (test_bit(n, pol->v.nodes)) {
+			if (node_isset(n, pol->v.nodes)) {
 				if (!first)
 					seq_putc(m,',');
 				else

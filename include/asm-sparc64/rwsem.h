@@ -56,6 +56,11 @@ static inline void rwsem_atomic_add(int delta, struct rw_semaphore *sem)
 	atomic_add(delta, (atomic_t *)(&sem->count));
 }
 
+static inline int rwsem_is_locked(struct rw_semaphore *sem)
+{
+	return (sem->count != 0);
+}
+
 #endif /* __KERNEL__ */
 
 #endif /* _SPARC64_RWSEM_H */

@@ -205,15 +205,13 @@ static int get_futex_key(unsigned long uaddr, union futex_key *key)
 	/*
 	 * Do a quick atomic lookup first - this is the fastpath.
 	 */
-	spin_lock(&current->mm->page_table_lock);
-	page = follow_page(mm, uaddr, 0);
+	page = follow_page(mm, uaddr, FOLL_TOUCH|FOLL_GET);
 	if (likely(page != NULL)) {
 		key->shared.pgoff =
 			page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-		spin_unlock(&current->mm->page_table_lock);
+		put_page(page);
 		return 0;
 	}
-	spin_unlock(&current->mm->page_table_lock);
 
 	/*
 	 * Do it the general way.
