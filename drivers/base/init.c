@@ -9,6 +9,7 @@
 
 #include <linux/device.h>
 #include <linux/init.h>
+#include <linux/memory.h>
 
 #include "base.h"
 
@@ -33,5 +34,6 @@ void __init driver_init(void)
 	platform_bus_init();
 	system_bus_init();
 	cpu_dev_init();
+	memory_dev_init();
 	attribute_container_init();
 }
