@@ -753,8 +753,10 @@ ssize_t elv_iosched_store(request_queue_t *q, const char *name, size_t count)
 		return -EINVAL;
 	}
 
-	if (!strcmp(elevator_name, q->elevator->elevator_type->elevator_name))
+	if (!strcmp(elevator_name, q->elevator->elevator_type->elevator_name)) {
+		elevator_put(e);
 		return count;
+	}
 
 	elevator_switch(q, e);
 	return count;
