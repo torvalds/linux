@@ -36,7 +36,7 @@ extern void pcc_iowrite_word(int, unsigned long, void *, size_t, size_t, int);
 
 static inline void *_port2addr(unsigned long port)
 {
-	return (void *)(port + NONCACHE_OFFSET);
+	return (void *)(port | (NONCACHE_OFFSET));
 }
 
 /*
