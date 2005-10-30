@@ -291,15 +291,18 @@ struct mm_struct {
 						 * by mmlist_lock
 						 */
 
-	unsigned long start_code, end_code, start_data, end_data;
-	unsigned long start_brk, brk, start_stack;
-	unsigned long arg_start, arg_end, env_start, env_end;
-	unsigned long total_vm, locked_vm, shared_vm;
-	unsigned long exec_vm, stack_vm, reserved_vm, def_flags, nr_ptes;
-
 	/* Special counters protected by the page_table_lock */
 	mm_counter_t _file_rss;
 	mm_counter_t _anon_rss;
+
+	unsigned long hiwater_rss;	/* High-watermark of RSS usage */
+	unsigned long hiwater_vm;	/* High-water virtual memory usage */
+
+	unsigned long total_vm, locked_vm, shared_vm, exec_vm;
+	unsigned long stack_vm, reserved_vm, def_flags, nr_ptes;
+	unsigned long start_code, end_code, start_data, end_data;
+	unsigned long start_brk, brk, start_stack;
+	unsigned long arg_start, arg_end, env_start, env_end;
 
 	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
 
@@ -320,11 +323,7 @@ struct mm_struct {
 	/* aio bits */
 	rwlock_t		ioctx_list_lock;
 	struct kioctx		*ioctx_list;
-
 	struct kioctx		default_kioctx;
-
-	unsigned long hiwater_rss;	/* High-water RSS usage */
-	unsigned long hiwater_vm;	/* High-water virtual memory usage */
 };
 
 struct sighand_struct {
