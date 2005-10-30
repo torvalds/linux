@@ -55,10 +55,6 @@ unsigned long ds1287_regs = 0UL;
 
 extern unsigned long wall_jiffies;
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 static void __iomem *mstk48t08_regs;
 static void __iomem *mstk48t59_regs;
 

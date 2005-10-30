@@ -34,9 +34,6 @@
 
 extern unsigned long wall_jiffies;
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-EXPORT_SYMBOL(jiffies_64);
-
 unsigned long __nongprelbss __clkin_clock_speed_HZ;
 unsigned long __nongprelbss __ext_bus_clock_speed_HZ;
 unsigned long __nongprelbss __res_bus_clock_speed_HZ;

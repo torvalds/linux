@@ -32,10 +32,6 @@
 #include <linux/init.h>
 #include <linux/profile.h>
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 int have_rtc;  /* used to remember if we have an RTC or not */;
 
 #define TICK_SIZE tick

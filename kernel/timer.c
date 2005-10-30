@@ -46,6 +46,10 @@ static void time_interpolator_update(long delta_nsec);
 #define time_interpolator_update(x)
 #endif
 
+u64 jiffies_64 __cacheline_aligned_in_smp = INITIAL_JIFFIES;
+
+EXPORT_SYMBOL(jiffies_64);
+
 /*
  * per-CPU timer vector definitions:
  */
