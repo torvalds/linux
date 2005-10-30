@@ -1728,10 +1728,8 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	 */
 	spin_lock(&mm->page_table_lock);
 	page_table = pte_offset_map(pmd, address);
-	if (unlikely(!pte_same(*page_table, orig_pte))) {
-		ret = VM_FAULT_MINOR;
+	if (unlikely(!pte_same(*page_table, orig_pte)))
 		goto out_nomap;
-	}
 
 	if (unlikely(!PageUptodate(page))) {
 		ret = VM_FAULT_SIGBUS;
