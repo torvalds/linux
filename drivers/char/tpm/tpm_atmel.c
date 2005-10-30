@@ -159,94 +159,95 @@ static struct tpm_vendor_specific tpm_atmel = {
 	.miscdev = { .fops = &atmel_ops, },
 };
 
-static int __devinit tpm_atml_init(struct pci_dev *pci_dev,
-				   const struct pci_device_id *pci_id)
+static struct platform_device *pdev = NULL;
+
+static void __devexit tpm_atml_remove(struct device *dev)
 {
-	u8 version[4];
-	int rc = 0;
-	int lo, hi;
-
-	if (pci_enable_device(pci_dev))
-		return -EIO;
-
-	lo = tpm_read_index(TPM_ADDR, TPM_ATMEL_BASE_ADDR_LO);
-	hi = tpm_read_index(TPM_ADDR, TPM_ATMEL_BASE_ADDR_HI);
-
-	tpm_atmel.base = (hi<<8)|lo;
-	dev_dbg( &pci_dev->dev, "Operating with base: 0x%x\n", tpm_atmel.base);
-
-	/* verify that it is an Atmel part */
-	if (tpm_read_index(TPM_ADDR, 4) != 'A' || tpm_read_index(TPM_ADDR, 5) != 'T'
-	    || tpm_read_index(TPM_ADDR, 6) != 'M' || tpm_read_index(TPM_ADDR, 7) != 'L') {
-		rc = -ENODEV;
-		goto out_err;
-	}
-
-	/* query chip for its version number */
-	if ((version[0] = tpm_read_index(TPM_ADDR, 0x00)) != 0xFF) {
-		version[1] = tpm_read_index(TPM_ADDR, 0x01);
-		version[2] = tpm_read_index(TPM_ADDR, 0x02);
-		version[3] = tpm_read_index(TPM_ADDR, 0x03);
-	} else {
-		dev_info(&pci_dev->dev, "version query failed\n");
-		rc = -ENODEV;
-		goto out_err;
-	}
-
-	if ((rc = tpm_register_hardware(&pci_dev->dev, &tpm_atmel)) < 0)
-		goto out_err;
-
-	dev_info(&pci_dev->dev,
-		 "Atmel TPM version %d.%d.%d.%d\n", version[0], version[1],
-		 version[2], version[3]);
-
-	return 0;
-out_err:
-	pci_disable_device(pci_dev);
-	return rc;
-}
-
-static void __devexit tpm_atml_remove(struct pci_dev *pci_dev)
-{
-	struct tpm_chip *chip = pci_get_drvdata(pci_dev);
-
-	if ( chip )
+	struct tpm_chip *chip = dev_get_drvdata(dev);
+	if ( chip ) {
+		release_region(chip->vendor->base, 2);
 		tpm_remove_hardware(chip->dev);
+	}
 }
 
-static struct pci_device_id tpm_pci_tbl[] __devinitdata = {
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801BA_0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_12)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_12)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801EB_0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_1)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH7_0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8111_LPC)},
-	{PCI_DEVICE(PCI_VENDOR_ID_SERVERWORKS, PCI_DEVICE_ID_SERVERWORKS_CSB6LPC)},
-	{0,}
-};
-
-MODULE_DEVICE_TABLE(pci, tpm_pci_tbl);
-
-static struct pci_driver atmel_pci_driver = {
+static struct device_driver atml_drv = {
 	.name = "tpm_atmel",
-	.id_table = tpm_pci_tbl,
-	.probe = tpm_atml_init,
-	.remove = __devexit_p(tpm_atml_remove),
+	.bus = &platform_bus_type,
+	.owner = THIS_MODULE,
 	.suspend = tpm_pm_suspend,
 	.resume = tpm_pm_resume,
 };
 
 static int __init init_atmel(void)
 {
-	return pci_register_driver(&atmel_pci_driver);
+	int rc = 0;
+	int lo, hi;
+
+	driver_register(&atml_drv);
+
+	lo = tpm_read_index(TPM_ADDR, TPM_ATMEL_BASE_ADDR_LO);
+	hi = tpm_read_index(TPM_ADDR, TPM_ATMEL_BASE_ADDR_HI);
+
+	tpm_atmel.base = (hi<<8)|lo;
+
+	/* verify that it is an Atmel part */
+	if (tpm_read_index(TPM_ADDR, 4) != 'A' || tpm_read_index(TPM_ADDR, 5) != 'T'
+	    || tpm_read_index(TPM_ADDR, 6) != 'M' || tpm_read_index(TPM_ADDR, 7) != 'L') {
+		return -ENODEV;
+	}
+
+	/* verify chip version number is 1.1 */
+	if (	(tpm_read_index(TPM_ADDR, 0x00) != 0x01) ||
+		(tpm_read_index(TPM_ADDR, 0x01) != 0x01 ))
+		return -ENODEV;
+
+	pdev = kmalloc(sizeof(struct platform_device), GFP_KERNEL);
+	if ( !pdev )
+		return -ENOMEM;
+
+	memset(pdev, 0, sizeof(struct platform_device));
+
+	pdev->name = "tpm_atmel0";
+	pdev->id = -1;
+	pdev->num_resources = 0;
+	pdev->dev.release = tpm_atml_remove;
+	pdev->dev.driver = &atml_drv;
+
+	if ((rc=platform_device_register(pdev)) < 0) {
+		kfree(pdev);
+		pdev = NULL;
+		return rc;
+	}
+
+	if (request_region(tpm_atmel.base, 2, "tpm_atmel0") == NULL ) {
+		platform_device_unregister(pdev);
+		kfree(pdev);
+		pdev = NULL;
+		return -EBUSY;
+	}
+
+	if ((rc = tpm_register_hardware(&pdev->dev, &tpm_atmel)) < 0) {
+		release_region(tpm_atmel.base, 2);
+		platform_device_unregister(pdev);
+		kfree(pdev);
+		pdev = NULL;
+		return rc;
+	}
+
+	dev_info(&pdev->dev, "Atmel TPM 1.1, Base Address: 0x%x\n", tpm_atmel.base);
+	return 0;
 }
 
 static void __exit cleanup_atmel(void)
 {
-	pci_unregister_driver(&atmel_pci_driver);
+	if (pdev) {
+		tpm_atml_remove(&pdev->dev);
+		platform_device_unregister(pdev);
+		kfree(pdev);
+		pdev = NULL;
+	}
+
+	driver_unregister(&atml_drv);
 }
 
 module_init(init_atmel);
