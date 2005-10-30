@@ -632,77 +632,74 @@ long time_next_adjust;
  */
 static void second_overflow(void)
 {
-    long ltemp;
+	long ltemp;
 
-    /* Bump the maxerror field */
-    time_maxerror += time_tolerance >> SHIFT_USEC;
-    if ( time_maxerror > NTP_PHASE_LIMIT ) {
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_status |= STA_UNSYNC;
-    }
-
-    /*
-     * Leap second processing. If in leap-insert state at
-     * the end of the day, the system clock is set back one
-     * second; if in leap-delete state, the system clock is
-     * set ahead one second. The microtime() routine or
-     * external clock driver will insure that reported time
-     * is always monotonic. The ugly divides should be
-     * replaced.
-     */
-    switch (time_state) {
-
-    case TIME_OK:
-	if (time_status & STA_INS)
-	    time_state = TIME_INS;
-	else if (time_status & STA_DEL)
-	    time_state = TIME_DEL;
-	break;
-
-    case TIME_INS:
-	if (xtime.tv_sec % 86400 == 0) {
-	    xtime.tv_sec--;
-	    wall_to_monotonic.tv_sec++;
-	    /* The timer interpolator will make time change gradually instead
-	     * of an immediate jump by one second.
-	     */
-	    time_interpolator_update(-NSEC_PER_SEC);
-	    time_state = TIME_OOP;
-	    clock_was_set();
-	    printk(KERN_NOTICE "Clock: inserting leap second 23:59:60 UTC\n");
+	/* Bump the maxerror field */
+	time_maxerror += time_tolerance >> SHIFT_USEC;
+	if (time_maxerror > NTP_PHASE_LIMIT) {
+		time_maxerror = NTP_PHASE_LIMIT;
+		time_status |= STA_UNSYNC;
 	}
-	break;
 
-    case TIME_DEL:
-	if ((xtime.tv_sec + 1) % 86400 == 0) {
-	    xtime.tv_sec++;
-	    wall_to_monotonic.tv_sec--;
-	    /* Use of time interpolator for a gradual change of time */
-	    time_interpolator_update(NSEC_PER_SEC);
-	    time_state = TIME_WAIT;
-	    clock_was_set();
-	    printk(KERN_NOTICE "Clock: deleting leap second 23:59:59 UTC\n");
+	/*
+	 * Leap second processing. If in leap-insert state at the end of the
+	 * day, the system clock is set back one second; if in leap-delete
+	 * state, the system clock is set ahead one second. The microtime()
+	 * routine or external clock driver will insure that reported time is
+	 * always monotonic. The ugly divides should be replaced.
+	 */
+	switch (time_state) {
+	case TIME_OK:
+		if (time_status & STA_INS)
+			time_state = TIME_INS;
+		else if (time_status & STA_DEL)
+			time_state = TIME_DEL;
+		break;
+	case TIME_INS:
+		if (xtime.tv_sec % 86400 == 0) {
+			xtime.tv_sec--;
+			wall_to_monotonic.tv_sec++;
+			/*
+			 * The timer interpolator will make time change
+			 * gradually instead of an immediate jump by one second
+			 */
+			time_interpolator_update(-NSEC_PER_SEC);
+			time_state = TIME_OOP;
+			clock_was_set();
+			printk(KERN_NOTICE "Clock: inserting leap second "
+					"23:59:60 UTC\n");
+		}
+		break;
+	case TIME_DEL:
+		if ((xtime.tv_sec + 1) % 86400 == 0) {
+			xtime.tv_sec++;
+			wall_to_monotonic.tv_sec--;
+			/*
+			 * Use of time interpolator for a gradual change of
+			 * time
+			 */
+			time_interpolator_update(NSEC_PER_SEC);
+			time_state = TIME_WAIT;
+			clock_was_set();
+			printk(KERN_NOTICE "Clock: deleting leap second "
+					"23:59:59 UTC\n");
+		}
+		break;
+	case TIME_OOP:
+		time_state = TIME_WAIT;
+		break;
+	case TIME_WAIT:
+		if (!(time_status & (STA_INS | STA_DEL)))
+		time_state = TIME_OK;
 	}
-	break;
 
-    case TIME_OOP:
-	time_state = TIME_WAIT;
-	break;
-
-    case TIME_WAIT:
-	if (!(time_status & (STA_INS | STA_DEL)))
-	    time_state = TIME_OK;
-    }
-
-    /*
-     * Compute the phase adjustment for the next second. In
-     * PLL mode, the offset is reduced by a fixed factor
-     * times the time constant. In FLL mode the offset is
-     * used directly. In either mode, the maximum phase
-     * adjustment for each second is clamped so as to spread
-     * the adjustment over not more than the number of
-     * seconds between updates.
-     */
+	/*
+	 * Compute the phase adjustment for the next second. In PLL mode, the
+	 * offset is reduced by a fixed factor times the time constant. In FLL
+	 * mode the offset is used directly. In either mode, the maximum phase
+	 * adjustment for each second is clamped so as to spread the adjustment
+	 * over not more than the number of seconds between updates.
+	 */
 	ltemp = time_offset;
 	if (!(time_status & STA_FLL))
 		ltemp = shift_right(ltemp, SHIFT_KG + time_constant);
@@ -711,40 +708,42 @@ static void second_overflow(void)
 	time_offset -= ltemp;
 	time_adj = ltemp << (SHIFT_SCALE - SHIFT_HZ - SHIFT_UPDATE);
 
-    /*
-     * Compute the frequency estimate and additional phase
-     * adjustment due to frequency error for the next
-     * second. When the PPS signal is engaged, gnaw on the
-     * watchdog counter and update the frequency computed by
-     * the pll and the PPS signal.
-     */
-    pps_valid++;
-    if (pps_valid == PPS_VALID) {	/* PPS signal lost */
-	pps_jitter = MAXTIME;
-	pps_stabil = MAXFREQ;
-	time_status &= ~(STA_PPSSIGNAL | STA_PPSJITTER |
-			 STA_PPSWANDER | STA_PPSERROR);
-    }
-    ltemp = time_freq + pps_freq;
-    time_adj += shift_right(ltemp,(SHIFT_USEC + SHIFT_HZ - SHIFT_SCALE));
+	/*
+	 * Compute the frequency estimate and additional phase adjustment due
+	 * to frequency error for the next second. When the PPS signal is
+	 * engaged, gnaw on the watchdog counter and update the frequency
+	 * computed by the pll and the PPS signal.
+	 */
+	pps_valid++;
+	if (pps_valid == PPS_VALID) {	/* PPS signal lost */
+		pps_jitter = MAXTIME;
+		pps_stabil = MAXFREQ;
+		time_status &= ~(STA_PPSSIGNAL | STA_PPSJITTER |
+				STA_PPSWANDER | STA_PPSERROR);
+	}
+	ltemp = time_freq + pps_freq;
+	time_adj += shift_right(ltemp,(SHIFT_USEC + SHIFT_HZ - SHIFT_SCALE));
 
 #if HZ == 100
-    /* Compensate for (HZ==100) != (1 << SHIFT_HZ).
-     * Add 25% and 3.125% to get 128.125; => only 0.125% error (p. 14)
-     */
-    time_adj += shift_right(time_adj, 2) + shift_right(time_adj, 5);
+	/*
+	 * Compensate for (HZ==100) != (1 << SHIFT_HZ).  Add 25% and 3.125% to
+	 * get 128.125; => only 0.125% error (p. 14)
+	 */
+	time_adj += shift_right(time_adj, 2) + shift_right(time_adj, 5);
 #endif
 #if HZ == 250
-    /* Compensate for (HZ==250) != (1 << SHIFT_HZ).
-     * Add 1.5625% and 0.78125% to get 255.85938; => only 0.05% error (p. 14)
-     */
-    time_adj += shift_right(time_adj, 6) + shift_right(time_adj, 7);
+	/*
+	 * Compensate for (HZ==250) != (1 << SHIFT_HZ).  Add 1.5625% and
+	 * 0.78125% to get 255.85938; => only 0.05% error (p. 14)
+	 */
+	time_adj += shift_right(time_adj, 6) + shift_right(time_adj, 7);
 #endif
 #if HZ == 1000
-    /* Compensate for (HZ==1000) != (1 << SHIFT_HZ).
-     * Add 1.5625% and 0.78125% to get 1023.4375; => only 0.05% error (p. 14)
-     */
-    time_adj += shift_right(time_adj, 6) + shift_right(time_adj, 7);
+	/*
+	 * Compensate for (HZ==1000) != (1 << SHIFT_HZ).  Add 1.5625% and
+	 * 0.78125% to get 1023.4375; => only 0.05% error (p. 14)
+	 */
+	time_adj += shift_right(time_adj, 6) + shift_right(time_adj, 7);
 #endif
 }
 
@@ -753,21 +752,20 @@ static void update_wall_time_one_tick(void)
 {
 	long time_adjust_step, delta_nsec;
 
-	if ( (time_adjust_step = time_adjust) != 0 ) {
-	    /* We are doing an adjtime thing. 
-	     *
-	     * Prepare time_adjust_step to be within bounds.
-	     * Note that a positive time_adjust means we want the clock
-	     * to run faster.
-	     *
-	     * Limit the amount of the step to be in the range
-	     * -tickadj .. +tickadj
-	     */
-	     time_adjust_step = min(time_adjust_step, (long)tickadj);
-	     time_adjust_step = max(time_adjust_step, (long)-tickadj);
+	if ((time_adjust_step = time_adjust) != 0 ) {
+		/*
+		 * We are doing an adjtime thing.  Prepare time_adjust_step to
+		 * be within bounds.  Note that a positive time_adjust means we
+		 * want the clock to run faster.
+		 *
+		 * Limit the amount of the step to be in the range
+		 * -tickadj .. +tickadj
+		 */
+		time_adjust_step = min(time_adjust_step, (long)tickadj);
+		time_adjust_step = max(time_adjust_step, (long)-tickadj);
 
-	    /* Reduce by this step the amount of time left  */
-	    time_adjust -= time_adjust_step;
+		/* Reduce by this step the amount of time left  */
+		time_adjust -= time_adjust_step;
 	}
 	delta_nsec = tick_nsec + time_adjust_step * 1000;
 	/*
@@ -1106,8 +1104,8 @@ fastcall signed long __sched schedule_timeout(signed long timeout)
 		if (timeout < 0)
 		{
 			printk(KERN_ERR "schedule_timeout: wrong timeout "
-			       "value %lx from %p\n", timeout,
-			       __builtin_return_address(0));
+				"value %lx from %p\n", timeout,
+				__builtin_return_address(0));
 			current->state = TASK_RUNNING;
 			goto out;
 		}
@@ -1133,15 +1131,15 @@ EXPORT_SYMBOL(schedule_timeout);
  */
 signed long __sched schedule_timeout_interruptible(signed long timeout)
 {
-       __set_current_state(TASK_INTERRUPTIBLE);
-       return schedule_timeout(timeout);
+	__set_current_state(TASK_INTERRUPTIBLE);
+	return schedule_timeout(timeout);
 }
 EXPORT_SYMBOL(schedule_timeout_interruptible);
 
 signed long __sched schedule_timeout_uninterruptible(signed long timeout)
 {
-       __set_current_state(TASK_UNINTERRUPTIBLE);
-       return schedule_timeout(timeout);
+	__set_current_state(TASK_UNINTERRUPTIBLE);
+	return schedule_timeout(timeout);
 }
 EXPORT_SYMBOL(schedule_timeout_uninterruptible);
 
@@ -1481,16 +1479,18 @@ static void time_interpolator_update(long delta_nsec)
 	if (!time_interpolator)
 		return;
 
-	/* The interpolator compensates for late ticks by accumulating
-         * the late time in time_interpolator->offset. A tick earlier than
-	 * expected will lead to a reset of the offset and a corresponding
-	 * jump of the clock forward. Again this only works if the
-	 * interpolator clock is running slightly slower than the regular clock
-	 * and the tuning logic insures that.
-         */
+	/*
+	 * The interpolator compensates for late ticks by accumulating the late
+	 * time in time_interpolator->offset. A tick earlier than expected will
+	 * lead to a reset of the offset and a corresponding jump of the clock
+	 * forward. Again this only works if the interpolator clock is running
+	 * slightly slower than the regular clock and the tuning logic insures
+	 * that.
+	 */
 
 	counter = time_interpolator_get_counter(1);
-	offset = time_interpolator->offset + GET_TI_NSECS(counter, time_interpolator);
+	offset = time_interpolator->offset +
+			GET_TI_NSECS(counter, time_interpolator);
 
 	if (delta_nsec < 0 || (unsigned long) delta_nsec < offset)
 		time_interpolator->offset = offset - delta_nsec;
