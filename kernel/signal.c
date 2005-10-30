@@ -2283,6 +2283,39 @@ sys_kill(int pid, int sig)
 	return kill_something_info(sig, &info, pid);
 }
 
+static int do_tkill(int tgid, int pid, int sig)
+{
+	int error;
+	struct siginfo info;
+	struct task_struct *p;
+
+	error = -ESRCH;
+	info.si_signo = sig;
+	info.si_errno = 0;
+	info.si_code = SI_TKILL;
+	info.si_pid = current->tgid;
+	info.si_uid = current->uid;
+
+	read_lock(&tasklist_lock);
+	p = find_task_by_pid(pid);
+	if (p && (tgid <= 0 || p->tgid == tgid)) {
+		error = check_kill_permission(sig, &info, p);
+		/*
+		 * The null signal is a permissions and process existence
+		 * probe.  No signal is actually delivered.
+		 */
+		if (!error && sig && p->sighand) {
+			spin_lock_irq(&p->sighand->siglock);
+			handle_stop_signal(sig, p);
+			error = specific_send_sig_info(sig, &info, p);
+			spin_unlock_irq(&p->sighand->siglock);
+		}
+	}
+	read_unlock(&tasklist_lock);
+
+	return error;
+}
+
 /**
  *  sys_tgkill - send signal to one specific thread
  *  @tgid: the thread group ID of the thread
@@ -2295,38 +2328,11 @@ sys_kill(int pid, int sig)
  */
 asmlinkage long sys_tgkill(int tgid, int pid, int sig)
 {
-	struct siginfo info;
-	int error;
-	struct task_struct *p;
-
 	/* This is only valid for single tasks */
 	if (pid <= 0 || tgid <= 0)
 		return -EINVAL;
 
-	info.si_signo = sig;
-	info.si_errno = 0;
-	info.si_code = SI_TKILL;
-	info.si_pid = current->tgid;
-	info.si_uid = current->uid;
-
-	read_lock(&tasklist_lock);
-	p = find_task_by_pid(pid);
-	error = -ESRCH;
-	if (p && (p->tgid == tgid)) {
-		error = check_kill_permission(sig, &info, p);
-		/*
-		 * The null signal is a permissions and process existence
-		 * probe.  No signal is actually delivered.
-		 */
-		if (!error && sig && p->sighand) {
-			spin_lock_irq(&p->sighand->siglock);
-			handle_stop_signal(sig, p);
-			error = specific_send_sig_info(sig, &info, p);
-			spin_unlock_irq(&p->sighand->siglock);
-		}
-	}
-	read_unlock(&tasklist_lock);
-	return error;
+	return do_tkill(tgid, pid, sig);
 }
 
 /*
@@ -2335,38 +2341,11 @@ asmlinkage long sys_tgkill(int tgid, int pid, int sig)
 asmlinkage long
 sys_tkill(int pid, int sig)
 {
-	struct siginfo info;
-	int error;
-	struct task_struct *p;
-
 	/* This is only valid for single tasks */
 	if (pid <= 0)
 		return -EINVAL;
 
-	info.si_signo = sig;
-	info.si_errno = 0;
-	info.si_code = SI_TKILL;
-	info.si_pid = current->tgid;
-	info.si_uid = current->uid;
-
-	read_lock(&tasklist_lock);
-	p = find_task_by_pid(pid);
-	error = -ESRCH;
-	if (p) {
-		error = check_kill_permission(sig, &info, p);
-		/*
-		 * The null signal is a permissions and process existence
-		 * probe.  No signal is actually delivered.
-		 */
-		if (!error && sig && p->sighand) {
-			spin_lock_irq(&p->sighand->siglock);
-			handle_stop_signal(sig, p);
-			error = specific_send_sig_info(sig, &info, p);
-			spin_unlock_irq(&p->sighand->siglock);
-		}
-	}
-	read_unlock(&tasklist_lock);
-	return error;
+	return do_tkill(0, pid, sig);
 }
 
 asmlinkage long
