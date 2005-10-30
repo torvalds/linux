@@ -367,7 +367,6 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 	if (!devp->hd_ireqfreq)
 		return -EIO;
 
-	v = readq(&timer->hpet_config);
 	spin_lock_irq(&hpet_lock);
 
 	if (devp->hd_flags & HPET_IE) {
@@ -378,7 +377,6 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 	devp->hd_flags |= HPET_IE;
 	spin_unlock_irq(&hpet_lock);
 
-	t = readq(&timer->hpet_config);
 	irq = devp->hd_hdwirq;
 
 	if (irq) {
@@ -855,11 +853,9 @@ int hpet_alloc(struct hpet_data *hdp)
 	}
 
 	for (i = 0, devp = hpetp->hp_dev; i < hpetp->hp_ntimer; i++, devp++) {
-		unsigned long v;
 		struct hpet_timer __iomem *timer;
 
 		timer = &hpet->hpet_timers[devp - hpetp->hp_dev];
-		v = readq(&timer->hpet_config);
 
 		devp->hd_hpets = hpetp;
 		devp->hd_hpet = hpet;
