@@ -72,6 +72,31 @@ static inline int sparse_index_init(unsigned long section_nr, int nid)
 }
 #endif
 
+/*
+ * Although written for the SPARSEMEM_EXTREME case, this happens
+ * to also work for the flat array case becase
+ * NR_SECTION_ROOTS==NR_MEM_SECTIONS.
+ */
+int __section_nr(struct mem_section* ms)
+{
+	unsigned long root_nr;
+	struct mem_section* root;
+
+	for (root_nr = 0;
+	     root_nr < NR_MEM_SECTIONS;
+	     root_nr += SECTIONS_PER_ROOT) {
+		root = __nr_to_section(root_nr);
+
+		if (!root)
+			continue;
+
+		if ((ms >= root) && (ms < (root + SECTIONS_PER_ROOT)))
+		     break;
+	}
+
+	return (root_nr * SECTIONS_PER_ROOT) + (ms - root);
+}
+
 /* Record a memory area against a node. */
 void memory_present(int nid, unsigned long start, unsigned long end)
 {
