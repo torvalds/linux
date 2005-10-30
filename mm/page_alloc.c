@@ -1721,29 +1721,29 @@ static int __devinit zone_batchsize(struct zone *zone)
 
 	/*
 	 * The per-cpu-pages pools are set to around 1000th of the
-	 * size of the zone.  But no more than 1/4 of a meg - there's
-	 * no point in going beyond the size of L2 cache.
+	 * size of the zone.  But no more than 1/2 of a meg.
 	 *
 	 * OK, so we don't know how big the cache is.  So guess.
 	 */
 	batch = zone->present_pages / 1024;
-	if (batch * PAGE_SIZE > 256 * 1024)
-		batch = (256 * 1024) / PAGE_SIZE;
+	if (batch * PAGE_SIZE > 512 * 1024)
+		batch = (512 * 1024) / PAGE_SIZE;
 	batch /= 4;		/* We effectively *= 4 below */
 	if (batch < 1)
 		batch = 1;
 
 	/*
-	 * Clamp the batch to a 2^n - 1 value. Having a power
-	 * of 2 value was found to be more likely to have
-	 * suboptimal cache aliasing properties in some cases.
+	 * We will be trying to allcoate bigger chunks of contiguous
+	 * memory of the order of fls(batch).  This should result in
+	 * better cache coloring.
 	 *
-	 * For example if 2 tasks are alternately allocating
-	 * batches of pages, one task can end up with a lot
-	 * of pages of one half of the possible page colors
-	 * and the other with pages of the other colors.
+	 * A sanity check also to ensure that batch is still in limits.
 	 */
-	batch = (1 << fls(batch + batch/2)) - 1;
+	batch = (1 << fls(batch + batch/2));
+
+	if (fls(batch) >= (PAGE_SHIFT + MAX_ORDER - 2))
+		batch = PAGE_SHIFT + ((MAX_ORDER - 1 - PAGE_SHIFT)/2);
+
 	return batch;
 }
 
