@@ -364,6 +364,9 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 	hpet = devp->hd_hpet;
 	hpetp = devp->hd_hpets;
 
+	if (!devp->hd_ireqfreq)
+		return -EIO;
+
 	v = readq(&timer->hpet_config);
 	spin_lock_irq(&hpet_lock);
 
@@ -516,7 +519,7 @@ hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg, int kernel)
 			break;
 		}
 
-		if (arg & (arg - 1)) {
+		if (!arg || (arg & (arg - 1))) {
 			err = -EINVAL;
 			break;
 		}
