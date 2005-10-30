@@ -117,7 +117,6 @@ struct _cpuid4_info {
 	cpumask_t shared_cpu_map;
 };
 
-#define MAX_CACHE_LEAVES		4
 static unsigned short			num_cache_leaves;
 
 static int __devinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_leaf)
@@ -144,20 +143,15 @@ static int __init find_num_cache_leaves(void)
 {
 	unsigned int		eax, ebx, ecx, edx;
 	union _cpuid4_leaf_eax	cache_eax;
-	int 			i;
-	int 			retval;
+	int 			i = -1;
 
-	retval = MAX_CACHE_LEAVES;
-	/* Do cpuid(4) loop to find out num_cache_leaves */
-	for (i = 0; i < MAX_CACHE_LEAVES; i++) {
+	do {
+		++i;
+		/* Do cpuid(4) loop to find out num_cache_leaves */
 		cpuid_count(4, i, &eax, &ebx, &ecx, &edx);
 		cache_eax.full = eax;
-		if (cache_eax.split.type == CACHE_TYPE_NULL) {
-			retval = i;
-			break;
-		}
-	}
-	return retval;
+	} while (cache_eax.split.type != CACHE_TYPE_NULL);
+	return i;
 }
 
 unsigned int __devinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
