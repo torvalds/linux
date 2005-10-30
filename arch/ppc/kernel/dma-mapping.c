@@ -335,8 +335,6 @@ static int __init dma_alloc_init(void)
 	pte_t *pte;
 	int ret = 0;
 
-	spin_lock(&init_mm.page_table_lock);
-
 	do {
 		pgd = pgd_offset(&init_mm, CONSISTENT_BASE);
 		pmd = pmd_alloc(&init_mm, pgd, CONSISTENT_BASE);
@@ -347,7 +345,7 @@ static int __init dma_alloc_init(void)
 		}
 		WARN_ON(!pmd_none(*pmd));
 
-		pte = pte_alloc_kernel(&init_mm, pmd, CONSISTENT_BASE);
+		pte = pte_alloc_kernel(pmd, CONSISTENT_BASE);
 		if (!pte) {
 			printk(KERN_ERR "%s: no pte tables\n", __func__);
 			ret = -ENOMEM;
@@ -356,8 +354,6 @@ static int __init dma_alloc_init(void)
 
 		consistent_pte = pte;
 	} while (0);
-
-	spin_unlock(&init_mm.page_table_lock);
 
 	return ret;
 }

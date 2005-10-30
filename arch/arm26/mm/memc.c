@@ -92,7 +92,7 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 	if (!new_pmd)
 		goto no_pmd;
 
-	new_pte = pte_alloc_kernel(mm, new_pmd, 0);
+	new_pte = pte_alloc_map(mm, new_pmd, 0);
 	if (!new_pte)
 		goto no_pte;
 
@@ -101,6 +101,7 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 	init_pte = pte_offset(init_pmd, 0);
 
 	set_pte(new_pte, *init_pte);
+	pte_unmap(new_pte);
 
 	/*
 	 * the page table entries are zeroed

@@ -155,7 +155,6 @@ static int map_io_page(unsigned long ea, unsigned long pa, int flags)
 	unsigned long vsid;
 
 	if (mem_init_done) {
-		spin_lock(&init_mm.page_table_lock);
 		pgdp = pgd_offset_k(ea);
 		pudp = pud_alloc(&init_mm, pgdp, ea);
 		if (!pudp)
@@ -163,12 +162,11 @@ static int map_io_page(unsigned long ea, unsigned long pa, int flags)
 		pmdp = pmd_alloc(&init_mm, pudp, ea);
 		if (!pmdp)
 			return -ENOMEM;
-		ptep = pte_alloc_kernel(&init_mm, pmdp, ea);
+		ptep = pte_alloc_kernel(pmdp, ea);
 		if (!ptep)
 			return -ENOMEM;
 		set_pte_at(&init_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT,
 							  __pgprot(flags)));
-		spin_unlock(&init_mm.page_table_lock);
 	} else {
 		unsigned long va, vpn, hash, hpteg;
 

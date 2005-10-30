@@ -89,7 +89,7 @@ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
 {
 	pte_t *pte;
 
-	pte = pte_alloc_kernel(&init_mm, pmd, addr);
+	pte = pte_alloc_kernel(pmd, addr);
 	if (!pte)
 		return -ENOMEM;
 	do {
@@ -147,14 +147,12 @@ int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page ***pages)
 
 	BUG_ON(addr >= end);
 	pgd = pgd_offset_k(addr);
-	spin_lock(&init_mm.page_table_lock);
 	do {
 		next = pgd_addr_end(addr, end);
 		err = vmap_pud_range(pgd, addr, next, prot, pages);
 		if (err)
 			break;
 	} while (pgd++, addr = next, addr != end);
-	spin_unlock(&init_mm.page_table_lock);
 	flush_cache_vmap((unsigned long) area->addr, end);
 	return err;
 }
