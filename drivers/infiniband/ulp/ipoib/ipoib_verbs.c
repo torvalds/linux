@@ -41,7 +41,6 @@ int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_qp_attr *qp_attr;
-	int attr_mask;
 	int ret;
 	u16 pkey_index;
 
@@ -59,8 +58,7 @@ int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid)
 
 	/* set correct QKey for QP */
 	qp_attr->qkey = priv->qkey;
-	attr_mask = IB_QP_QKEY;
-	ret = ib_modify_qp(priv->qp, qp_attr, attr_mask);
+	ret = ib_modify_qp(priv->qp, qp_attr, IB_QP_QKEY);
 	if (ret) {
 		ipoib_warn(priv, "failed to modify QP, ret = %d\n", ret);
 		goto out;
