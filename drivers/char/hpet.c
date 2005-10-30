@@ -798,7 +798,7 @@ int hpet_alloc(struct hpet_data *hdp)
 	size_t siz;
 	struct hpet __iomem *hpet;
 	static struct hpets *last = (struct hpets *)0;
-	unsigned long ns, period;
+	unsigned long period;
 	unsigned long long temp;
 
 	/*
@@ -863,10 +863,9 @@ int hpet_alloc(struct hpet_data *hdp)
 		printk("%s %d", i > 0 ? "," : "", hdp->hd_irq[i]);
 	printk("\n");
 
-	ns = period / 1000000;	/* convert to nanoseconds, 10^-9 */
-	printk(KERN_INFO "hpet%d: %ldns tick, %d %d-bit timers\n",
-		hpetp->hp_which, ns, hpetp->hp_ntimer,
-		cap & HPET_COUNTER_SIZE_MASK ? 64 : 32);
+	printk(KERN_INFO "hpet%u: %u %d-bit timers, %Lu Hz\n",
+	       hpetp->hp_which, hpetp->hp_ntimer,
+	       cap & HPET_COUNTER_SIZE_MASK ? 64 : 32, hpetp->hp_tick_freq);
 
 	mcfg = readq(&hpet->hpet_config);
 	if ((mcfg & HPET_ENABLE_CNF_MASK) == 0) {
