@@ -500,8 +500,12 @@ hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg, int kernel)
 			    readq(&timer->hpet_config) & Tn_PER_INT_CAP_MASK;
 			info.hi_hpet = devp->hd_hpets->hp_which;
 			info.hi_timer = devp - devp->hd_hpets->hp_dev;
-			if (copy_to_user((void __user *)arg, &info, sizeof(info)))
-				err = -EFAULT;
+			if (kernel)
+				memcpy((void *)arg, &info, sizeof(info));
+			else
+				if (copy_to_user((void __user *)arg, &info,
+						 sizeof(info)))
+					err = -EFAULT;
 			break;
 		}
 	case HPET_EPI:
