@@ -830,12 +830,6 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 		 * and sent by user using something other than kill().
 		 */
 			return -EAGAIN;
-		if (info->si_code == SI_TIMER)
-			/*
-			 * Set up a return to indicate that we dropped 
-			 * the signal.
-			 */
-			ret = info->si_sys_private;
 	}
 
 out_set:
@@ -855,12 +849,6 @@ specific_send_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 	if (!irqs_disabled())
 		BUG();
 	assert_spin_locked(&t->sighand->siglock);
-
-	if (!is_si_special(info) && (info->si_code == SI_TIMER))
-		/*
-		 * Set up a return to indicate that we dropped the signal.
-		 */
-		ret = info->si_sys_private;
 
 	/* Short-circuit ignored signals.  */
 	if (sig_ignored(t, sig))
@@ -1047,12 +1035,6 @@ __group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 
 	assert_spin_locked(&p->sighand->siglock);
 	handle_stop_signal(sig, p);
-
-	if (!is_si_special(info) && (info->si_code == SI_TIMER))
-		/*
-		 * Set up a return to indicate that we dropped the signal.
-		 */
-		ret = info->si_sys_private;
 
 	/* Short-circuit ignored signals.  */
 	if (sig_ignored(p, sig))
