@@ -203,13 +203,14 @@ static void smaps_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 				struct mem_size_stats *mss)
 {
 	pte_t *pte, ptent;
+	spinlock_t *ptl;
 	unsigned long pfn;
 	struct page *page;
 
-	pte = pte_offset_map(pmd, addr);
+	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	do {
 		ptent = *pte;
-		if (pte_none(ptent) || !pte_present(ptent))
+		if (!pte_present(ptent))
 			continue;
 
 		mss->resident += PAGE_SIZE;
@@ -230,8 +231,8 @@ static void smaps_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 				mss->private_clean += PAGE_SIZE;
 		}
 	} while (pte++, addr += PAGE_SIZE, addr != end);
-	pte_unmap(pte - 1);
-	cond_resched_lock(&vma->vm_mm->page_table_lock);
+	pte_unmap_unlock(pte - 1, ptl);
+	cond_resched();
 }
 
 static inline void smaps_pmd_range(struct vm_area_struct *vma, pud_t *pud,
@@ -285,17 +286,11 @@ static inline void smaps_pgd_range(struct vm_area_struct *vma,
 static int show_smap(struct seq_file *m, void *v)
 {
 	struct vm_area_struct *vma = v;
-	struct mm_struct *mm = vma->vm_mm;
 	struct mem_size_stats mss;
 
 	memset(&mss, 0, sizeof mss);
-
-	if (mm) {
-		spin_lock(&mm->page_table_lock);
+	if (vma->vm_mm)
 		smaps_pgd_range(vma, vma->vm_start, vma->vm_end, &mss);
-		spin_unlock(&mm->page_table_lock);
-	}
-
 	return show_map_internal(m, v, &mss);
 }
 

@@ -228,9 +228,9 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 {
 	pte_t *orig_pte;
 	pte_t *pte;
+	spinlock_t *ptl;
 
-	spin_lock(&vma->vm_mm->page_table_lock);
-	orig_pte = pte = pte_offset_map(pmd, addr);
+	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	do {
 		unsigned long pfn;
 		unsigned int nid;
@@ -246,8 +246,7 @@ static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		if (!node_isset(nid, *nodes))
 			break;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
-	pte_unmap(orig_pte);
-	spin_unlock(&vma->vm_mm->page_table_lock);
+	pte_unmap_unlock(orig_pte, ptl);
 	return addr != end;
 }
 

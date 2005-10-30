@@ -401,8 +401,6 @@ void free_swap_and_cache(swp_entry_t entry)
  * No need to decide whether this PTE shares the swap entry with others,
  * just let do_wp_page work it out if a write is requested later - to
  * force COW, vm_page_prot omits write permission from any private vma.
- *
- * vma->vm_mm->page_table_lock is held.
  */
 static void unuse_pte(struct vm_area_struct *vma, pte_t *pte,
 		unsigned long addr, swp_entry_t entry, struct page *page)
@@ -424,23 +422,25 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 				unsigned long addr, unsigned long end,
 				swp_entry_t entry, struct page *page)
 {
-	pte_t *pte;
 	pte_t swp_pte = swp_entry_to_pte(entry);
+	pte_t *pte;
+	spinlock_t *ptl;
+	int found = 0;
 
-	pte = pte_offset_map(pmd, addr);
+	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	do {
 		/*
 		 * swapoff spends a _lot_ of time in this loop!
 		 * Test inline before going to call unuse_pte.
 		 */
 		if (unlikely(pte_same(*pte, swp_pte))) {
-			unuse_pte(vma, pte, addr, entry, page);
-			pte_unmap(pte);
-			return 1;
+			unuse_pte(vma, pte++, addr, entry, page);
+			found = 1;
+			break;
 		}
 	} while (pte++, addr += PAGE_SIZE, addr != end);
-	pte_unmap(pte - 1);
-	return 0;
+	pte_unmap_unlock(pte - 1, ptl);
+	return found;
 }
 
 static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
@@ -522,12 +522,10 @@ static int unuse_mm(struct mm_struct *mm,
 		down_read(&mm->mmap_sem);
 		lock_page(page);
 	}
-	spin_lock(&mm->page_table_lock);
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		if (vma->anon_vma && unuse_vma(vma, entry, page))
 			break;
 	}
-	spin_unlock(&mm->page_table_lock);
 	up_read(&mm->mmap_sem);
 	/*
 	 * Currently unuse_mm cannot fail, but leave error handling
