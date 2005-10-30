@@ -90,6 +90,7 @@ static struct hpets *hpets;
 #define	HPET_OPEN		0x0001
 #define	HPET_IE			0x0002	/* interrupt enabled */
 #define	HPET_PERIODIC		0x0004
+#define	HPET_SHARED_IRQ		0x0008
 
 #if BITS_PER_LONG == 64
 #define	write_counter(V, MC)	writeq(V, MC)
@@ -120,6 +121,11 @@ static irqreturn_t hpet_interrupt(int irq, void *data, struct pt_regs *regs)
 	unsigned long isr;
 
 	devp = data;
+	isr = 1 << (devp - devp->hd_hpets->hp_dev);
+
+	if ((devp->hd_flags & HPET_SHARED_IRQ) &&
+	    !(isr & readl(&devp->hd_hpet->hpet_isr)))
+		return IRQ_NONE;
 
 	spin_lock(&hpet_lock);
 	devp->hd_irqdata++;
@@ -137,8 +143,8 @@ static irqreturn_t hpet_interrupt(int irq, void *data, struct pt_regs *regs)
 			      &devp->hd_timer->hpet_compare);
 	}
 
-	isr = (1 << (devp - devp->hd_hpets->hp_dev));
-	writeq(isr, &devp->hd_hpet->hpet_isr);
+	if (devp->hd_flags & HPET_SHARED_IRQ)
+		writel(isr, &devp->hd_hpet->hpet_isr);
 	spin_unlock(&hpet_lock);
 
 	spin_lock(&hpet_task_lock);
@@ -375,15 +381,21 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 	}
 
 	devp->hd_flags |= HPET_IE;
+
+	if (readl(&timer->hpet_config) & Tn_INT_TYPE_CNF_MASK)
+		devp->hd_flags |= HPET_SHARED_IRQ;
 	spin_unlock_irq(&hpet_lock);
 
 	irq = devp->hd_hdwirq;
 
 	if (irq) {
-		sprintf(devp->hd_name, "hpet%d", (int)(devp - hpetp->hp_dev));
+		unsigned long irq_flags;
 
-		if (request_irq
-		    (irq, hpet_interrupt, SA_INTERRUPT, devp->hd_name, (void *)devp)) {
+		sprintf(devp->hd_name, "hpet%d", (int)(devp - hpetp->hp_dev));
+		irq_flags = devp->hd_flags & HPET_SHARED_IRQ
+						? SA_SHIRQ : SA_INTERRUPT;
+		if (request_irq(irq, hpet_interrupt, irq_flags,
+				devp->hd_name, (void *)devp)) {
 			printk(KERN_ERR "hpet: IRQ %d is not free\n", irq);
 			irq = 0;
 		}
@@ -417,8 +429,10 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 		write_counter(t + m + hpetp->hp_delta, &timer->hpet_compare);
 	}
 
-	isr = (1 << (devp - hpets->hp_dev));
-	writeq(isr, &hpet->hpet_isr);
+	if (devp->hd_flags & HPET_SHARED_IRQ) {
+		isr = 1 << (devp - hpets->hp_dev);
+		writel(isr, &hpet->hpet_isr);
+	}
 	writeq(g, &timer->hpet_config);
 	local_irq_restore(flags);
 
