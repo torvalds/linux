@@ -185,7 +185,6 @@ static struct zonelist *bind_zonelist(nodemask_t *nodes)
 				policy_zone = k;
 		}
 	}
-	BUG_ON(num >= max);
 	zl->zones[num] = NULL;
 	return zl;
 }
@@ -709,7 +708,6 @@ static unsigned interleave_nodes(struct mempolicy *policy)
 	struct task_struct *me = current;
 
 	nid = me->il_next;
-	BUG_ON(nid >= MAX_NUMNODES);
 	next = next_node(nid, policy->v.nodes);
 	if (next >= MAX_NUMNODES)
 		next = first_node(policy->v.nodes);
@@ -731,18 +729,17 @@ static unsigned offset_il_node(struct mempolicy *pol,
 		nid = next_node(nid, pol->v.nodes);
 		c++;
 	} while (c <= target);
-	BUG_ON(nid >= MAX_NUMNODES);
 	return nid;
 }
 
 /* Allocate a page in interleaved policy.
    Own path because it needs to do special accounting. */
-static struct page *alloc_page_interleave(gfp_t gfp, unsigned order, unsigned nid)
+static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
+					unsigned nid)
 {
 	struct zonelist *zl;
 	struct page *page;
 
-	BUG_ON(!node_online(nid));
 	zl = NODE_DATA(nid)->node_zonelists + gfp_zone(gfp);
 	page = __alloc_pages(gfp, order, zl);
 	if (page && page_zone(page) == zl->zones[0]) {
@@ -785,8 +782,6 @@ alloc_page_vma(gfp_t gfp, struct vm_area_struct *vma, unsigned long addr)
 		unsigned nid;
 		if (vma) {
 			unsigned long off;
-			BUG_ON(addr >= vma->vm_end);
-			BUG_ON(addr < vma->vm_start);
 			off = vma->vm_pgoff;
 			off += (addr - vma->vm_start) >> PAGE_SHIFT;
 			nid = offset_il_node(pol, vma, off);
