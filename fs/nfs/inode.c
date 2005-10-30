@@ -1274,14 +1274,12 @@ static int nfs_check_inode_attributes(struct inode *inode, struct nfs_fattr *fat
 	}
 
 	if ((fattr->valid & NFS_ATTR_FATTR) == 0) {
-		spin_unlock(&inode->i_lock);
 		return 0;
 	}
 
 	/* Has the inode gone and changed behind our back? */
 	if (nfsi->fileid != fattr->fileid
 			|| (inode->i_mode & S_IFMT) != (fattr->mode & S_IFMT)) {
-		spin_unlock(&inode->i_lock);
 		return -EIO;
 	}
 
