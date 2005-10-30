@@ -783,10 +783,6 @@ static void exit_notify(struct task_struct *tsk)
 	/* If the process is dead, release it - nobody will wait for it */
 	if (state == EXIT_DEAD)
 		release_task(tsk);
-
-	/* PF_DEAD causes final put_task_struct after we schedule. */
-	preempt_disable();
-	tsk->flags |= PF_DEAD;
 }
 
 fastcall NORET_TYPE void do_exit(long code)
@@ -873,7 +869,11 @@ fastcall NORET_TYPE void do_exit(long code)
 	tsk->mempolicy = NULL;
 #endif
 
-	BUG_ON(!(current->flags & PF_DEAD));
+	/* PF_DEAD causes final put_task_struct after we schedule. */
+	preempt_disable();
+	BUG_ON(tsk->flags & PF_DEAD);
+	tsk->flags |= PF_DEAD;
+
 	schedule();
 	BUG();
 	/* Avoid "noreturn function does return".  */
