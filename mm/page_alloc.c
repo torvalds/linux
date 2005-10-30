@@ -33,6 +33,7 @@
 #include <linux/sysctl.h>
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
+#include <linux/memory_hotplug.h>
 #include <linux/nodemask.h>
 #include <linux/vmalloc.h>
 
@@ -80,12 +81,19 @@ unsigned long __initdata nr_all_pages;
 
 static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 {
-	if (page_to_pfn(page) >= zone->zone_start_pfn + zone->spanned_pages)
-		return 1;
-	if (page_to_pfn(page) < zone->zone_start_pfn)
-		return 1;
+	int ret = 0;
+	unsigned seq;
+	unsigned long pfn = page_to_pfn(page);
 
-	return 0;
+	do {
+		seq = zone_span_seqbegin(zone);
+		if (pfn >= zone->zone_start_pfn + zone->spanned_pages)
+			ret = 1;
+		else if (pfn < zone->zone_start_pfn)
+			ret = 1;
+	} while (zone_span_seqretry(zone, seq));
+
+	return ret;
 }
 
 static int page_is_consistent(struct zone *zone, struct page *page)
@@ -1980,6 +1988,7 @@ static void __init free_area_init_core(struct pglist_data *pgdat,
 		zone->name = zone_names[j];
 		spin_lock_init(&zone->lock);
 		spin_lock_init(&zone->lru_lock);
+		zone_seqlock_init(zone);
 		zone->zone_pgdat = pgdat;
 		zone->free_pages = 0;
 
