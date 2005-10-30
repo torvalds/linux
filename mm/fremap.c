@@ -20,34 +20,32 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 
-static inline void zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
+static int zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long addr, pte_t *ptep)
 {
 	pte_t pte = *ptep;
+	struct page *page = NULL;
 
-	if (pte_none(pte))
-		return;
 	if (pte_present(pte)) {
 		unsigned long pfn = pte_pfn(pte);
-		struct page *page;
-
 		flush_cache_page(vma, addr, pfn);
 		pte = ptep_clear_flush(vma, addr, ptep);
 		if (unlikely(!pfn_valid(pfn))) {
 			print_bad_pte(vma, pte, addr);
-			return;
+			goto out;
 		}
 		page = pfn_to_page(pfn);
 		if (pte_dirty(pte))
 			set_page_dirty(page);
 		page_remove_rmap(page);
 		page_cache_release(page);
-		dec_mm_counter(mm, file_rss);
 	} else {
 		if (!pte_file(pte))
 			free_swap_and_cache(pte_to_swp_entry(pte));
 		pte_clear(mm, addr, ptep);
 	}
+out:
+	return !!page;
 }
 
 /*
@@ -96,9 +94,9 @@ int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (page_mapcount(page) > INT_MAX/2)
 		goto err_unlock;
 
-	zap_pte(mm, vma, addr, pte);
+	if (pte_none(*pte) || !zap_pte(mm, vma, addr, pte))
+		inc_mm_counter(mm, file_rss);
 
-	inc_mm_counter(mm, file_rss);
 	flush_icache_page(vma, page);
 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
 	page_add_file_rmap(page);
@@ -145,7 +143,8 @@ int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (!pte)
 		goto err_unlock;
 
-	zap_pte(mm, vma, addr, pte);
+	if (!pte_none(*pte) && zap_pte(mm, vma, addr, pte))
+		dec_mm_counter(mm, file_rss);
 
 	set_pte_at(mm, addr, pte, pgoff_to_pte(pgoff));
 	pte_val = *pte;
