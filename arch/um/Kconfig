@@ -40,6 +40,12 @@ config IRQ_RELEASE_METHOD
 	bool
 	default y
 
+menu "Host processor type and features"
+
+source "arch/i386/Kconfig.cpu"
+
+endmenu
+
 menu "UML-specific options"
 
 config MODE_TT
