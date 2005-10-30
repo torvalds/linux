@@ -2208,9 +2208,6 @@ static int selinux_inode_getxattr (struct dentry *dentry, char *name)
 	struct inode *inode = dentry->d_inode;
 	struct superblock_security_struct *sbsec = inode->i_sb->s_security;
 
-	if (sbsec->behavior == SECURITY_FS_USE_MNTPOINT)
-		return -EOPNOTSUPP;
-
 	return dentry_has_perm(current, NULL, dentry, FILE__GETATTR);
 }
 
@@ -2241,33 +2238,54 @@ static int selinux_inode_removexattr (struct dentry *dentry, char *name)
 	return -EACCES;
 }
 
-static int selinux_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size)
+/*
+ * Copy the in-core inode security context value to the user.  If the
+ * getxattr() prior to this succeeded, check to see if we need to
+ * canonicalize the value to be finally returned to the user.
+ *
+ * Permission check is handled by selinux_inode_getxattr hook.
+ */
+static int selinux_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size, int err)
 {
 	struct inode_security_struct *isec = inode->i_security;
 	char *context;
 	unsigned len;
 	int rc;
 
-	/* Permission check handled by selinux_inode_getxattr hook.*/
-
-	if (strcmp(name, XATTR_SELINUX_SUFFIX))
-		return -EOPNOTSUPP;
+	if (strcmp(name, XATTR_SELINUX_SUFFIX)) {
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
 
 	rc = security_sid_to_context(isec->sid, &context, &len);
 	if (rc)
-		return rc;
+		goto out;
 
+	/* Probe for required buffer size */
 	if (!buffer || !size) {
-		kfree(context);
-		return len;
+		rc = len;
+		goto out_free;
 	}
+
 	if (size < len) {
-		kfree(context);
-		return -ERANGE;
+		rc = -ERANGE;
+		goto out_free;
+	}
+
+	if (err > 0) {
+		if ((len == err) && !(memcmp(context, buffer, len))) {
+			/* Don't need to canonicalize value */
+			rc = err;
+			goto out_free;
+		}
+		memset(buffer, 0, size);
 	}
 	memcpy(buffer, context, len);
+	rc = len;
+out_free:
 	kfree(context);
-	return len;
+out:
+	return rc;
 }
 
 static int selinux_inode_setsecurity(struct inode *inode, const char *name,
