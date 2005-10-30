@@ -16,9 +16,6 @@
 #include <linux/sort.h>
 #include <asm/uaccess.h>
 
-extern struct exception_table_entry __start___ex_table[];
-extern struct exception_table_entry __stop___ex_table[];
-
 #ifndef ARCH_HAS_SORT_EXTABLE
 /*
  * The exception table needs to be sorted so that the binary
