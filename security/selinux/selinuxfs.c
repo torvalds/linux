@@ -105,7 +105,7 @@ static ssize_t sel_write_enforce(struct file * file, const char __user * buf,
 	ssize_t length;
 	int new_value;
 
-	if (count < 0 || count >= PAGE_SIZE)
+	if (count >= PAGE_SIZE)
 		return -ENOMEM;
 	if (*ppos != 0) {
 		/* No partial writes. */
@@ -155,7 +155,7 @@ static ssize_t sel_write_disable(struct file * file, const char __user * buf,
 	int new_value;
 	extern int selinux_disable(void);
 
-	if (count < 0 || count >= PAGE_SIZE)
+	if (count >= PAGE_SIZE)
 		return -ENOMEM;
 	if (*ppos != 0) {
 		/* No partial writes. */
@@ -242,7 +242,7 @@ static ssize_t sel_write_load(struct file * file, const char __user * buf,
 		goto out;
 	}
 
-	if ((count < 0) || (count > 64 * 1024 * 1024)
+	if ((count > 64 * 1024 * 1024)
 	    || (data = vmalloc(count)) == NULL) {
 		length = -ENOMEM;
 		goto out;
@@ -284,7 +284,7 @@ static ssize_t sel_write_context(struct file * file, const char __user * buf,
 	if (length)
 		return length;
 
-	if (count < 0 || count >= PAGE_SIZE)
+	if (count >= PAGE_SIZE)
 		return -ENOMEM;
 	if (*ppos != 0) {
 		/* No partial writes. */
@@ -332,7 +332,7 @@ static ssize_t sel_write_checkreqprot(struct file * file, const char __user * bu
 	if (length)
 		return length;
 
-	if (count < 0 || count >= PAGE_SIZE)
+	if (count >= PAGE_SIZE)
 		return -ENOMEM;
 	if (*ppos != 0) {
 		/* No partial writes. */
@@ -729,7 +729,7 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 	if (!filep->f_op)
 		goto out;
 
-	if (count < 0 || count > PAGE_SIZE) {
+	if (count > PAGE_SIZE) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -790,7 +790,7 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 	if (!filep->f_op)
 		goto out;
 
-	if (count < 0 || count >= PAGE_SIZE) {
+	if (count >= PAGE_SIZE) {
 		length = -ENOMEM;
 		goto out;
 	}
@@ -848,7 +848,7 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 	if (!filep->f_op)
 		goto out;
 
-	if (count < 0 || count >= PAGE_SIZE) {
+	if (count >= PAGE_SIZE) {
 		length = -ENOMEM;
 		goto out;
 	}
@@ -1022,7 +1022,7 @@ static ssize_t sel_write_avc_cache_threshold(struct file * file,
 	ssize_t ret;
 	int new_value;
 
-	if (count < 0 || count >= PAGE_SIZE) {
+	if (count >= PAGE_SIZE) {
 		ret = -ENOMEM;
 		goto out;
 	}
