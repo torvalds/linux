@@ -33,7 +33,6 @@
 
 #include "power.h"
 
-
 #ifdef CONFIG_HIGHMEM
 struct highmem_page {
 	char *data;
@@ -88,12 +87,10 @@ static int save_highmem_zone(struct zone *zone)
 	}
 	return 0;
 }
-#endif /* CONFIG_HIGHMEM */
 
 
 static int save_highmem(void)
 {
-#ifdef CONFIG_HIGHMEM
 	struct zone *zone;
 	int res = 0;
 
@@ -104,13 +101,11 @@ static int save_highmem(void)
 		if (res)
 			return res;
 	}
-#endif
 	return 0;
 }
 
 int restore_highmem(void)
 {
-#ifdef CONFIG_HIGHMEM
 	printk("swsusp: Restoring Highmem\n");
 	while (highmem_copy) {
 		struct highmem_page *save = highmem_copy;
@@ -123,9 +118,12 @@ int restore_highmem(void)
 		free_page((long) save->data);
 		kfree(save);
 	}
-#endif
 	return 0;
 }
+#else
+static int save_highmem(void) { return 0; }
+int restore_highmem(void) { return 0; }
+#endif /* CONFIG_HIGHMEM */
 
 
 static int pfn_is_nosave(unsigned long pfn)
@@ -144,10 +142,10 @@ static int pfn_is_nosave(unsigned long pfn)
  *	isn't part of a free chunk of pages.
  */
 
-static int saveable(struct zone * zone, unsigned long * zone_pfn)
+static int saveable(struct zone *zone, unsigned long *zone_pfn)
 {
 	unsigned long pfn = *zone_pfn + zone->zone_start_pfn;
-	struct page * page;
+	struct page *page;
 
 	if (!pfn_valid(pfn))
 		return 0;
@@ -201,7 +199,7 @@ static void copy_data_pages(struct pbe *pblist)
 			SetPageNosaveFree(virt_to_page(p->address));
 		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn) {
 			if (saveable(zone, &zone_pfn)) {
-				struct page * page;
+				struct page *page;
 				page = pfn_to_page(zone_pfn + zone->zone_start_pfn);
 				BUG_ON(!pbe);
 				pbe->orig_address = (unsigned long)page_address(page);
@@ -295,7 +293,7 @@ static void *alloc_image_page(void)
  *	On each page we set up a list of struct_pbe elements.
  */
 
-struct pbe * alloc_pagedir(unsigned nr_pages)
+struct pbe *alloc_pagedir(unsigned nr_pages)
 {
 	unsigned num;
 	struct pbe *pblist, *pbe;
@@ -304,12 +302,12 @@ struct pbe * alloc_pagedir(unsigned nr_pages)
 		return NULL;
 
 	pr_debug("alloc_pagedir(): nr_pages = %d\n", nr_pages);
-	pblist = (struct pbe *)alloc_image_page();
+	pblist = alloc_image_page();
 	/* FIXME: rewrite this ugly loop */
 	for (pbe = pblist, num = PBES_PER_PAGE; pbe && num < nr_pages;
         		pbe = pbe->next, num += PBES_PER_PAGE) {
 		pbe += PB_PAGE_SKIP;
-		pbe->next = (struct pbe *)alloc_image_page();
+		pbe->next = alloc_image_page();
 	}
 	if (!pbe) { /* get_zeroed_page() failed */
 		free_pagedir(pblist);
