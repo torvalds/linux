@@ -231,25 +231,28 @@ static void hugetlbfs_delete_inode(struct inode *inode)
 
 static void hugetlbfs_forget_inode(struct inode *inode)
 {
-	struct super_block *super_block = inode->i_sb;
+	struct super_block *sb = inode->i_sb;
 
-	if (hlist_unhashed(&inode->i_hash))
-		goto out_truncate;
-
-	if (!(inode->i_state & (I_DIRTY|I_LOCK))) {
-		list_del(&inode->i_list);
-		list_add(&inode->i_list, &inode_unused);
-	}
-	inodes_stat.nr_unused++;
-	if (!super_block || (super_block->s_flags & MS_ACTIVE)) {
+	if (!hlist_unhashed(&inode->i_hash)) {
+		if (!(inode->i_state & (I_DIRTY|I_LOCK)))
+			list_move(&inode->i_list, &inode_unused);
+		inodes_stat.nr_unused++;
+		if (!sb || (sb->s_flags & MS_ACTIVE)) {
+			spin_unlock(&inode_lock);
+			return;
+		}
+		inode->i_state |= I_WILL_FREE;
 		spin_unlock(&inode_lock);
-		return;
+		/*
+		 * write_inode_now is a noop as we set BDI_CAP_NO_WRITEBACK
+		 * in our backing_dev_info.
+		 */
+		write_inode_now(inode, 1);
+		spin_lock(&inode_lock);
+		inode->i_state &= ~I_WILL_FREE;
+		inodes_stat.nr_unused--;
+		hlist_del_init(&inode->i_hash);
 	}
-
-	/* write_inode_now() ? */
-	inodes_stat.nr_unused--;
-	hlist_del_init(&inode->i_hash);
-out_truncate:
 	list_del_init(&inode->i_list);
 	list_del_init(&inode->i_sb_list);
 	inode->i_state |= I_FREEING;
@@ -257,7 +260,6 @@ out_truncate:
 	spin_unlock(&inode_lock);
 	if (inode->i_data.nrpages)
 		truncate_hugepages(&inode->i_data, 0);
-
 	clear_inode(inode);
 	destroy_inode(inode);
 }
