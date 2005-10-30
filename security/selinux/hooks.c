@@ -2713,8 +2713,7 @@ static int selinux_task_kill(struct task_struct *p, struct siginfo *info, int si
 	if (rc)
 		return rc;
 
-	if (info != SEND_SIG_NOINFO && (info == SEND_SIG_PRIV ||
-					info == SEND_SIG_FORCED || SI_FROMKERNEL(info)))
+	if (info != SEND_SIG_NOINFO && (is_si_special(info) || SI_FROMKERNEL(info)))
 		return 0;
 
 	if (!sig)

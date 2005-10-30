@@ -651,9 +651,7 @@ static int check_kill_permission(int sig, struct siginfo *info,
 	if (!valid_signal(sig))
 		return error;
 	error = -EPERM;
-	if ((info == SEND_SIG_NOINFO ||
-			(info != SEND_SIG_PRIV && info != SEND_SIG_FORCED
-				&& SI_FROMUSER(info)))
+	if ((info == SEND_SIG_NOINFO || (!is_si_special(info) && SI_FROMUSER(info)))
 	    && ((sig != SIGCONT) ||
 		(current->signal->session != t->signal->session))
 	    && (current->euid ^ t->suid) && (current->euid ^ t->uid)
@@ -802,7 +800,7 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	   pass on the info struct.  */
 
 	q = __sigqueue_alloc(t, GFP_ATOMIC, (sig < SIGRTMIN &&
-					     (info < SEND_SIG_FORCED ||
+					     (is_si_special(info) ||
 					      info->si_code >= 0)));
 	if (q) {
 		list_add_tail(&q->list, &signals->list);
@@ -825,16 +823,14 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 			copy_siginfo(&q->info, info);
 			break;
 		}
-	} else {
-		if (sig >= SIGRTMIN
-		   && info != SEND_SIG_NOINFO && info != SEND_SIG_PRIV
-		   && info->si_code != SI_USER)
+	} else if (!is_si_special(info)) {
+		if (sig >= SIGRTMIN && info->si_code != SI_USER)
 		/*
 		 * Queue overflow, abort.  We may abort if the signal was rt
 		 * and sent by user using something other than kill().
 		 */
 			return -EAGAIN;
-		if ((info > SEND_SIG_PRIV) && (info->si_code == SI_TIMER))
+		if (info->si_code == SI_TIMER)
 			/*
 			 * Set up a return to indicate that we dropped 
 			 * the signal.
@@ -860,7 +856,7 @@ specific_send_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 		BUG();
 	assert_spin_locked(&t->sighand->siglock);
 
-	if ((info > SEND_SIG_FORCED) && (info->si_code == SI_TIMER))
+	if (!is_si_special(info) && (info->si_code == SI_TIMER))
 		/*
 		 * Set up a return to indicate that we dropped the signal.
 		 */
@@ -1052,7 +1048,7 @@ __group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 	assert_spin_locked(&p->sighand->siglock);
 	handle_stop_signal(sig, p);
 
-	if ((info > SEND_SIG_FORCED) && (info->si_code == SI_TIMER))
+	if (!is_si_special(info) && (info->si_code == SI_TIMER))
 		/*
 		 * Set up a return to indicate that we dropped the signal.
 		 */
