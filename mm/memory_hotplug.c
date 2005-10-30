@@ -24,28 +24,6 @@
 
 #include <asm/tlbflush.h>
 
-static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
-{
-	struct page *page, *ret;
-	unsigned long memmap_size = sizeof(struct page) * nr_pages;
-
-	page = alloc_pages(GFP_KERNEL, get_order(memmap_size));
-	if (page)
-		goto got_map_page;
-
-	ret = vmalloc(memmap_size);
-	if (ret)
-		goto got_map_ptr;
-
-	return NULL;
-got_map_page:
-	ret = (struct page *)pfn_to_kaddr(page_to_pfn(page));
-got_map_ptr:
-	memset(ret, 0, memmap_size);
-
-	return ret;
-}
-
 extern void zonetable_add(struct zone *zone, int nid, int zid, unsigned long pfn,
 			  unsigned long size);
 static void __add_zone(struct zone *zone, unsigned long phys_start_pfn)
@@ -60,35 +38,15 @@ static void __add_zone(struct zone *zone, unsigned long phys_start_pfn)
 	zonetable_add(zone, nid, zone_type, phys_start_pfn, nr_pages);
 }
 
-extern int sparse_add_one_section(struct zone *, unsigned long,
-				  struct page *mem_map);
+extern int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+				  int nr_pages);
 static int __add_section(struct zone *zone, unsigned long phys_start_pfn)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
 	int nr_pages = PAGES_PER_SECTION;
-	struct page *memmap;
 	int ret;
 
-	/*
-	 * This can potentially allocate memory, and does its own
-	 * internal locking.
-	 */
-	sparse_index_init(pfn_to_section_nr(phys_start_pfn), pgdat->node_id);
-
-	pgdat_resize_lock(pgdat, &flags);
-	memmap = __kmalloc_section_memmap(nr_pages);
-	ret = sparse_add_one_section(zone, phys_start_pfn, memmap);
-	pgdat_resize_unlock(pgdat, &flags);
-
-	if (ret <= 0) {
-		/* the mem_map didn't get used */
-		if (memmap >= (struct page *)VMALLOC_START &&
-		    memmap < (struct page *)VMALLOC_END)
-			vfree(memmap);
-		else
-			free_pages((unsigned long)memmap,
-				   get_order(sizeof(struct page) * nr_pages));
-	}
+	ret = sparse_add_one_section(zone, phys_start_pfn, nr_pages);
 
 	if (ret < 0)
 		return ret;

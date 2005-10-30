@@ -340,14 +340,11 @@ static int memory_probe_init(void)
 static int add_memory_block(unsigned long node_id, struct mem_section *section,
 		     unsigned long state, int phys_device)
 {
-	size_t size = sizeof(struct memory_block);
-	struct memory_block *mem = kmalloc(size, GFP_KERNEL);
+	struct memory_block *mem = kzalloc(sizeof(*mem), GFP_KERNEL);
 	int ret = 0;
 
 	if (!mem)
 		return -ENOMEM;
-
-	memset(mem, 0, size);
 
 	mem->phys_index = __section_nr(section);
 	mem->state = state;
