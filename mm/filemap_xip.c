@@ -174,7 +174,7 @@ __xip_unmap (struct address_space * mapping,
 	unsigned long address;
 	pte_t *pte;
 	pte_t pteval;
-	struct page *page = ZERO_PAGE(address);
+	struct page *page;
 
 	spin_lock(&mapping->i_mmap_lock);
 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
@@ -182,6 +182,7 @@ __xip_unmap (struct address_space * mapping,
 		address = vma->vm_start +
 			((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 		BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+		page = ZERO_PAGE(address);
 		/*
 		 * We need the page_table_lock to protect us from page faults,
 		 * munmap, fork, etc...
