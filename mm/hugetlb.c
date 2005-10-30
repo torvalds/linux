@@ -286,7 +286,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 			entry = *src_pte;
 			ptepage = pte_page(entry);
 			get_page(ptepage);
-			add_mm_counter(dst, rss, HPAGE_SIZE / PAGE_SIZE);
+			add_mm_counter(dst, file_rss, HPAGE_SIZE / PAGE_SIZE);
 			set_huge_pte_at(dst, addr, dst_pte, entry);
 		}
 		spin_unlock(&src->page_table_lock);
@@ -324,7 +324,7 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 
 		page = pte_page(pte);
 		put_page(page);
-		add_mm_counter(mm, rss,  - (HPAGE_SIZE / PAGE_SIZE));
+		add_mm_counter(mm, file_rss, (int) -(HPAGE_SIZE / PAGE_SIZE));
 	}
 	flush_tlb_range(vma, start, end);
 }
@@ -386,7 +386,7 @@ int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)
 				goto out;
 			}
 		}
-		add_mm_counter(mm, rss, HPAGE_SIZE / PAGE_SIZE);
+		add_mm_counter(mm, file_rss, HPAGE_SIZE / PAGE_SIZE);
 		set_huge_pte_at(mm, addr, pte, make_huge_pte(vma, page));
 	}
 out:

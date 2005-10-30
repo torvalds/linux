@@ -445,8 +445,6 @@ void page_add_anon_rmap(struct page *page,
 {
 	BUG_ON(PageReserved(page));
 
-	inc_mm_counter(vma->vm_mm, anon_rss);
-
 	if (atomic_inc_and_test(&page->_mapcount)) {
 		struct anon_vma *anon_vma = vma->anon_vma;
 
@@ -561,9 +559,9 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
 		BUG_ON(pte_file(*pte));
 		dec_mm_counter(mm, anon_rss);
-	}
+	} else
+		dec_mm_counter(mm, file_rss);
 
-	dec_mm_counter(mm, rss);
 	page_remove_rmap(page);
 	page_cache_release(page);
 
@@ -667,7 +665,7 @@ static void try_to_unmap_cluster(unsigned long cursor,
 
 		page_remove_rmap(page);
 		page_cache_release(page);
-		dec_mm_counter(mm, rss);
+		dec_mm_counter(mm, file_rss);
 		(*mapcount)--;
 	}
 

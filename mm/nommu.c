@@ -1083,7 +1083,7 @@ void update_mem_hiwater(struct task_struct *tsk)
 	unsigned long rss;
 
 	if (likely(tsk->mm)) {
-		rss = get_mm_counter(tsk->mm, rss);
+		rss = get_mm_rss(tsk->mm);
 		if (tsk->mm->hiwater_rss < rss)
 			tsk->mm->hiwater_rss = rss;
 		if (tsk->mm->hiwater_vm < tsk->mm->total_vm)

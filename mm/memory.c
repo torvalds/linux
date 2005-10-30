@@ -397,9 +397,10 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		pte = pte_mkclean(pte);
 	pte = pte_mkold(pte);
 	get_page(page);
-	inc_mm_counter(dst_mm, rss);
 	if (PageAnon(page))
 		inc_mm_counter(dst_mm, anon_rss);
+	else
+		inc_mm_counter(dst_mm, file_rss);
 	set_pte_at(dst_mm, addr, dst_pte, pte);
 	page_dup_rmap(page);
 }
@@ -581,8 +582,8 @@ static void zap_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
 					set_page_dirty(page);
 				if (pte_young(ptent))
 					mark_page_accessed(page);
+				dec_mm_counter(tlb->mm, file_rss);
 			}
-			dec_mm_counter(tlb->mm, rss);
 			page_remove_rmap(page);
 			tlb_remove_page(tlb, page);
 			continue;
@@ -1290,13 +1291,15 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	spin_lock(&mm->page_table_lock);
 	page_table = pte_offset_map(pmd, address);
 	if (likely(pte_same(*page_table, orig_pte))) {
-		if (PageAnon(old_page))
-			dec_mm_counter(mm, anon_rss);
 		if (PageReserved(old_page))
-			inc_mm_counter(mm, rss);
-		else
+			inc_mm_counter(mm, anon_rss);
+		else {
 			page_remove_rmap(old_page);
-
+			if (!PageAnon(old_page)) {
+				inc_mm_counter(mm, anon_rss);
+				dec_mm_counter(mm, file_rss);
+			}
+		}
 		flush_cache_page(vma, address, pfn);
 		entry = mk_pte(new_page, vma->vm_page_prot);
 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
@@ -1701,7 +1704,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	/* The page isn't present yet, go ahead with the fault. */
 
-	inc_mm_counter(mm, rss);
+	inc_mm_counter(mm, anon_rss);
 	pte = mk_pte(page, vma->vm_page_prot);
 	if (write_access && can_share_swap_page(page)) {
 		pte = maybe_mkwrite(pte_mkdirty(pte), vma);
@@ -1774,7 +1777,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 			page_cache_release(page);
 			goto unlock;
 		}
-		inc_mm_counter(mm, rss);
+		inc_mm_counter(mm, anon_rss);
 		entry = mk_pte(page, vma->vm_page_prot);
 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
 		lru_cache_add_active(page);
@@ -1887,19 +1890,19 @@ retry:
 	 */
 	/* Only go through if we didn't race with anybody else... */
 	if (pte_none(*page_table)) {
-		if (!PageReserved(new_page))
-			inc_mm_counter(mm, rss);
-
 		flush_icache_page(vma, new_page);
 		entry = mk_pte(new_page, vma->vm_page_prot);
 		if (write_access)
 			entry = maybe_mkwrite(pte_mkdirty(entry), vma);
 		set_pte_at(mm, address, page_table, entry);
 		if (anon) {
+			inc_mm_counter(mm, anon_rss);
 			lru_cache_add_active(new_page);
 			page_add_anon_rmap(new_page, vma, address);
-		} else
+		} else if (!PageReserved(new_page)) {
+			inc_mm_counter(mm, file_rss);
 			page_add_file_rmap(new_page);
+		}
 	} else {
 		/* One of our sibling threads was faster, back out. */
 		page_cache_release(new_page);
@@ -2192,7 +2195,7 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
 void update_mem_hiwater(struct task_struct *tsk)
 {
 	if (tsk->mm) {
-		unsigned long rss = get_mm_counter(tsk->mm, rss);
+		unsigned long rss = get_mm_rss(tsk->mm);
 
 		if (tsk->mm->hiwater_rss < rss)
 			tsk->mm->hiwater_rss = rss;

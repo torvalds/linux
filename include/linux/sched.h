@@ -254,6 +254,8 @@ extern void arch_unmap_area_topdown(struct mm_struct *, unsigned long);
 #define add_mm_counter(mm, member, value) (mm)->_##member += (value)
 #define inc_mm_counter(mm, member) (mm)->_##member++
 #define dec_mm_counter(mm, member) (mm)->_##member--
+#define get_mm_rss(mm) ((mm)->_file_rss + (mm)->_anon_rss)
+
 typedef unsigned long mm_counter_t;
 
 struct mm_struct {
@@ -286,7 +288,7 @@ struct mm_struct {
 	unsigned long exec_vm, stack_vm, reserved_vm, def_flags, nr_ptes;
 
 	/* Special counters protected by the page_table_lock */
-	mm_counter_t _rss;
+	mm_counter_t _file_rss;
 	mm_counter_t _anon_rss;
 
 	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
