@@ -36,7 +36,7 @@ int strnicmp(const char *s1, const char *s2, size_t len)
 	/* Yes, Virginia, it had better be unsigned */
 	unsigned char c1, c2;
 
-	c1 = 0;	c2 = 0;
+	c1 = c2 = 0;
 	if (len) {
 		do {
 			c1 = *s1;
@@ -148,7 +148,6 @@ char *strcat(char *dest, const char *src)
 		dest++;
 	while ((*dest++ = *src++) != '\0')
 		;
-
 	return tmp;
 }
 EXPORT_SYMBOL(strcat);
@@ -447,7 +446,7 @@ EXPORT_SYMBOL(strsep);
  */
 void *memset(void *s, int c, size_t count)
 {
-	char *xs = (char *)s;
+	char *xs = s;
 
 	while (count--)
 		*xs++ = c;
@@ -468,8 +467,8 @@ EXPORT_SYMBOL(memset);
  */
 void *memcpy(void *dest, const void *src, size_t count)
 {
-	char *tmp = (char *)dest;
-	char *s = (char *)src;
+	char *tmp = dest;
+	char *s = src;
 
 	while (count--)
 		*tmp++ = *s++;
@@ -492,13 +491,15 @@ void *memmove(void *dest, const void *src, size_t count)
 	char *tmp, *s;
 
 	if (dest <= src) {
-		tmp = (char *)dest;
-		s = (char *)src;
+		tmp = dest;
+		s = src;
 		while (count--)
 			*tmp++ = *s++;
 	} else {
-		tmp = (char *)dest + count;
-		s = (char *)src + count;
+		tmp = dest;
+		tmp += count;
+		s = src;
+		s += count;
 		while (count--)
 			*--tmp = *--s;
 	}
@@ -540,7 +541,7 @@ EXPORT_SYMBOL(memcmp);
  */
 void *memscan(void *addr, int c, size_t size)
 {
-	unsigned char *p = (unsigned char *)addr;
+	unsigned char *p = addr;
 
 	while (size) {
 		if (*p == c)
