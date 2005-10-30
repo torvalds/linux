@@ -275,6 +275,7 @@ static unsigned long PIE_freq = DEFAULT_RTC_INT_FREQ;
 static unsigned long PIE_count;
 
 static unsigned long hpet_rtc_int_freq; /* RTC interrupt frequency */
+static unsigned int hpet_t1_cmp; /* cached comparator register */
 
 /*
  * Timer 1 for RTC, we do not use periodic interrupt feature,
@@ -306,6 +307,7 @@ int hpet_rtc_timer_init(void)
 	cnt = hpet_readl(HPET_COUNTER);
 	cnt += ((hpet_tick*HZ)/hpet_rtc_int_freq);
 	hpet_writel(cnt, HPET_T1_CMP);
+	hpet_t1_cmp = cnt;
 	local_irq_restore(flags);
 
 	cfg = hpet_readl(HPET_T1_CFG);
@@ -333,9 +335,10 @@ static void hpet_rtc_timer_reinit(void)
 		hpet_rtc_int_freq = DEFAULT_RTC_INT_FREQ;
 
 	/* It is more accurate to use the comparator value than current count.*/
-	cnt = hpet_readl(HPET_T1_CMP);
+	cnt = hpet_t1_cmp;
 	cnt += hpet_tick*HZ/hpet_rtc_int_freq;
 	hpet_writel(cnt, HPET_T1_CMP);
+	hpet_t1_cmp = cnt;
 }
 
 /*
