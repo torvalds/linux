@@ -378,7 +378,7 @@ static struct pbe *swsusp_alloc(unsigned nr_pages)
 	return pblist;
 }
 
-static int suspend_prepare_image(void)
+asmlinkage int swsusp_save(void)
 {
 	unsigned nr_pages;
 
@@ -432,10 +432,4 @@ static int suspend_prepare_image(void)
 
 	printk("swsusp: critical section/: done (%d pages copied)\n", nr_pages);
 	return 0;
-}
-
-
-asmlinkage int swsusp_save(void)
-{
-	return suspend_prepare_image();
 }
