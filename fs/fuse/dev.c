@@ -151,9 +151,9 @@ void fuse_release_background(struct fuse_req *req)
 /*
  * This function is called when a request is finished.  Either a reply
  * has arrived or it was interrupted (and not yet sent) or some error
- * occured during communication with userspace, or the device file was
- * closed.  It decreases the referece count for the request.  In case
- * of a background request the referece to the stored objects are
+ * occurred during communication with userspace, or the device file was
+ * closed.  It decreases the reference count for the request.  In case
+ * of a background request the reference to the stored objects are
  * released.  The requester thread is woken up (if still waiting), and
  * finally the request is either freed or put on the unused_list
  *
