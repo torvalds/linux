@@ -651,8 +651,9 @@ static int check_kill_permission(int sig, struct siginfo *info,
 	if (!valid_signal(sig))
 		return error;
 	error = -EPERM;
-	if ((!info || ((unsigned long)info != 1 &&
-			(unsigned long)info != 2 && SI_FROMUSER(info)))
+	if ((info == SEND_SIG_NOINFO ||
+			(info != SEND_SIG_PRIV && info != SEND_SIG_FORCED
+				&& SI_FROMUSER(info)))
 	    && ((sig != SIGCONT) ||
 		(current->signal->session != t->signal->session))
 	    && (current->euid ^ t->suid) && (current->euid ^ t->uid)
@@ -789,7 +790,7 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	 * fast-pathed signals for kernel-internal things like SIGSTOP
 	 * or SIGKILL.
 	 */
-	if ((unsigned long)info == 2)
+	if (info == SEND_SIG_FORCED)
 		goto out_set;
 
 	/* Real-time signals must be queued if sent by sigqueue, or
@@ -801,19 +802,19 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	   pass on the info struct.  */
 
 	q = __sigqueue_alloc(t, GFP_ATOMIC, (sig < SIGRTMIN &&
-					     ((unsigned long) info < 2 ||
+					     (info < SEND_SIG_FORCED ||
 					      info->si_code >= 0)));
 	if (q) {
 		list_add_tail(&q->list, &signals->list);
 		switch ((unsigned long) info) {
-		case 0:
+		case (unsigned long) SEND_SIG_NOINFO:
 			q->info.si_signo = sig;
 			q->info.si_errno = 0;
 			q->info.si_code = SI_USER;
 			q->info.si_pid = current->pid;
 			q->info.si_uid = current->uid;
 			break;
-		case 1:
+		case (unsigned long) SEND_SIG_PRIV:
 			q->info.si_signo = sig;
 			q->info.si_errno = 0;
 			q->info.si_code = SI_KERNEL;
@@ -825,14 +826,15 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 			break;
 		}
 	} else {
-		if (sig >= SIGRTMIN && info && (unsigned long)info != 1
+		if (sig >= SIGRTMIN
+		   && info != SEND_SIG_NOINFO && info != SEND_SIG_PRIV
 		   && info->si_code != SI_USER)
 		/*
 		 * Queue overflow, abort.  We may abort if the signal was rt
 		 * and sent by user using something other than kill().
 		 */
 			return -EAGAIN;
-		if (((unsigned long)info > 1) && (info->si_code == SI_TIMER))
+		if ((info > SEND_SIG_PRIV) && (info->si_code == SI_TIMER))
 			/*
 			 * Set up a return to indicate that we dropped 
 			 * the signal.
@@ -858,7 +860,7 @@ specific_send_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 		BUG();
 	assert_spin_locked(&t->sighand->siglock);
 
-	if (((unsigned long)info > 2) && (info->si_code == SI_TIMER))
+	if ((info > SEND_SIG_FORCED) && (info->si_code == SI_TIMER))
 		/*
 		 * Set up a return to indicate that we dropped the signal.
 		 */
@@ -914,7 +916,7 @@ force_sig_specific(int sig, struct task_struct *t)
 		t->sighand->action[sig-1].sa.sa_handler = SIG_DFL;
 	sigdelset(&t->blocked, sig);
 	recalc_sigpending_tsk(t);
-	specific_send_sig_info(sig, (void *)2, t);
+	specific_send_sig_info(sig, SEND_SIG_FORCED, t);
 	spin_unlock_irqrestore(&t->sighand->siglock, flags);
 }
 
@@ -1050,7 +1052,7 @@ __group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 	assert_spin_locked(&p->sighand->siglock);
 	handle_stop_signal(sig, p);
 
-	if (((unsigned long)info > 2) && (info->si_code == SI_TIMER))
+	if ((info > SEND_SIG_FORCED) && (info->si_code == SI_TIMER))
 		/*
 		 * Set up a return to indicate that we dropped the signal.
 		 */
@@ -1285,10 +1287,13 @@ send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 	return ret;
 }
 
+#define __si_special(priv) \
+	((priv) ? SEND_SIG_PRIV : SEND_SIG_NOINFO)
+
 int
 send_sig(int sig, struct task_struct *p, int priv)
 {
-	return send_sig_info(sig, (void*)(long)(priv != 0), p);
+	return send_sig_info(sig, __si_special(priv), p);
 }
 
 /*
@@ -1308,7 +1313,7 @@ send_group_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 void
 force_sig(int sig, struct task_struct *p)
 {
-	force_sig_info(sig, (void*)1L, p);
+	force_sig_info(sig, SEND_SIG_PRIV, p);
 }
 
 /*
@@ -1333,13 +1338,13 @@ force_sigsegv(int sig, struct task_struct *p)
 int
 kill_pg(pid_t pgrp, int sig, int priv)
 {
-	return kill_pg_info(sig, (void *)(long)(priv != 0), pgrp);
+	return kill_pg_info(sig, __si_special(priv), pgrp);
 }
 
 int
 kill_proc(pid_t pid, int sig, int priv)
 {
-	return kill_proc_info(sig, (void *)(long)(priv != 0), pid);
+	return kill_proc_info(sig, __si_special(priv), pid);
 }
 
 /*

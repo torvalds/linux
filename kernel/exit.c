@@ -547,7 +547,7 @@ static inline void reparent_thread(task_t *p, task_t *father, int traced)
 
 	if (p->pdeath_signal)
 		/* We already hold the tasklist_lock here.  */
-		group_send_sig_info(p->pdeath_signal, (void *) 0, p);
+		group_send_sig_info(p->pdeath_signal, SEND_SIG_NOINFO, p);
 
 	/* Move the child from its dying parent to the new one.  */
 	if (unlikely(traced)) {
@@ -591,8 +591,8 @@ static inline void reparent_thread(task_t *p, task_t *father, int traced)
 		int pgrp = process_group(p);
 
 		if (will_become_orphaned_pgrp(pgrp, NULL) && has_stopped_jobs(pgrp)) {
-			__kill_pg_info(SIGHUP, (void *)1, pgrp);
-			__kill_pg_info(SIGCONT, (void *)1, pgrp);
+			__kill_pg_info(SIGHUP, SEND_SIG_PRIV, pgrp);
+			__kill_pg_info(SIGCONT, SEND_SIG_PRIV, pgrp);
 		}
 	}
 }
@@ -727,8 +727,8 @@ static void exit_notify(struct task_struct *tsk)
 	    (t->signal->session == tsk->signal->session) &&
 	    will_become_orphaned_pgrp(process_group(tsk), tsk) &&
 	    has_stopped_jobs(process_group(tsk))) {
-		__kill_pg_info(SIGHUP, (void *)1, process_group(tsk));
-		__kill_pg_info(SIGCONT, (void *)1, process_group(tsk));
+		__kill_pg_info(SIGHUP, SEND_SIG_PRIV, process_group(tsk));
+		__kill_pg_info(SIGCONT, SEND_SIG_PRIV, process_group(tsk));
 	}
 
 	/* Let father know we died 
