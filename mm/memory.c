@@ -1980,9 +1980,10 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 		pte_t *pte, pmd_t *pmd, int write_access)
 {
 	pte_t entry;
+	pte_t old_entry;
 	spinlock_t *ptl;
 
-	entry = *pte;
+	old_entry = entry = *pte;
 	if (!pte_present(entry)) {
 		if (pte_none(entry)) {
 			if (!vma->vm_ops || !vma->vm_ops->nopage)
@@ -2009,9 +2010,20 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 		entry = pte_mkdirty(entry);
 	}
 	entry = pte_mkyoung(entry);
-	ptep_set_access_flags(vma, address, pte, entry, write_access);
-	update_mmu_cache(vma, address, entry);
-	lazy_mmu_prot_update(entry);
+	if (!pte_same(old_entry, entry)) {
+		ptep_set_access_flags(vma, address, pte, entry, write_access);
+		update_mmu_cache(vma, address, entry);
+		lazy_mmu_prot_update(entry);
+	} else {
+		/*
+		 * This is needed only for protection faults but the arch code
+		 * is not yet telling us if this is a protection fault or not.
+		 * This still avoids useless tlb flushes for .text page faults
+		 * with threads.
+		 */
+		if (write_access)
+			flush_tlb_page(vma, address);
+	}
 unlock:
 	pte_unmap_unlock(pte, ptl);
 	return VM_FAULT_MINOR;
