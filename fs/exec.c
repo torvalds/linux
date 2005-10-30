@@ -630,10 +630,9 @@ static inline int de_thread(struct task_struct *tsk)
 	/*
 	 * Account for the thread group leader hanging around:
 	 */
-	count = 2;
-	if (thread_group_leader(current))
-		count = 1;
-	else {
+	count = 1;
+	if (!thread_group_leader(current)) {
+		count = 2;
 		/*
 		 * The SIGALRM timer survives the exec, but needs to point
 		 * at us as the new group leader now.  We have a race with
