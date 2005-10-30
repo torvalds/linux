@@ -70,7 +70,7 @@ config DELL_RBU
 
 config DCDBAS
 	tristate "Dell Systems Management Base Driver"
-	depends on X86 || X86_64
+	depends on X86
 	default m
 	help
 	  The Dell Systems Management Base Driver provides a sysfs interface

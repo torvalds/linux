@@ -5,7 +5,7 @@
 
 mainmenu "Linux Kernel Configuration"
 
-config X86
+config X86_32
 	bool
 	default y
 	help
@@ -15,6 +15,10 @@ config X86
 	  AMD, Cyrix, and others.
 
 config SEMAPHORE_SLEEPERS
+	bool
+	default y
+
+config X86
 	bool
 	default y
 
