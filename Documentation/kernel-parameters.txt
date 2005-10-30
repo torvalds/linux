@@ -1460,8 +1460,6 @@ running once the system is up.
 	stifb=		[HW]
 			Format: bpp:<bpp1>[:<bpp2>[:<bpp3>...]]
 
-	stram_swap=	[HW,M68k]
-
 	swiotlb=	[IA-64] Number of I/O TLB slabs
 
 	switches=	[HW,M68k]
