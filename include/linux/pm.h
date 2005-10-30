@@ -170,6 +170,7 @@ typedef int __bitwise suspend_disk_method_t;
 
 struct pm_ops {
 	suspend_disk_method_t pm_disk_mode;
+	int (*valid)(suspend_state_t state);
 	int (*prepare)(suspend_state_t state);
 	int (*enter)(suspend_state_t state);
 	int (*finish)(suspend_state_t state);
