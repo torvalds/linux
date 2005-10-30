@@ -1066,6 +1066,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 	struct ata_queued_cmd *qc;
 	u32 hc_irq_cause;
 	int shift, port, port0, hard_port, handled;
+	unsigned int err_mask;
 	u8 ata_status = 0;
 
 	if (hc == 0) {
@@ -1101,15 +1102,15 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 			handled++;
 		}
 
+		err_mask = ac_err_mask(ata_status);
+
 		shift = port << 1;		/* (port * 2) */
 		if (port >= MV_PORTS_PER_HC) {
 			shift++;	/* skip bit 8 in the HC Main IRQ reg */
 		}
 		if ((PORT0_ERR << shift) & relevant) {
 			mv_err_intr(ap);
-			/* OR in ATA_ERR to ensure libata knows we took one */
-			ata_status = readb((void __iomem *)
-					   ap->ioaddr.status_addr) | ATA_ERR;
+			err_mask |= AC_ERR_OTHER;
 			handled++;
 		}
 		
@@ -1119,7 +1120,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 				VPRINTK("port %u IRQ found for qc, "
 					"ata_status 0x%x\n", port,ata_status);
 				/* mark qc status appropriately */
-				ata_qc_complete(qc, ata_status);
+				ata_qc_complete(qc, err_mask);
 			}
 		}
 	}
@@ -1295,7 +1296,7 @@ static void mv_eng_timeout(struct ata_port *ap)
 	 	 */
 		spin_lock_irqsave(&ap->host_set->lock, flags);
 		qc->scsidone = scsi_finish_command;
-		ata_qc_complete(qc, ATA_ERR);
+		ata_qc_complete(qc, AC_ERR_OTHER);
 		spin_unlock_irqrestore(&ap->host_set->lock, flags);
 	}
 }

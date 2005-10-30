@@ -402,11 +402,12 @@ static inline unsigned int qs_intr_pkt(struct ata_host_set *host_set)
 				qc = ata_qc_from_tag(ap, ap->active_tag);
 				if (qc && (!(qc->tf.ctl & ATA_NIEN))) {
 					switch (sHST) {
-					case 0: /* sucessful CPB */
+					case 0: /* successful CPB */
 					case 3: /* device error */
 						pp->state = qs_state_idle;
 						qs_enter_reg_mode(qc->ap);
-						ata_qc_complete(qc, sDST);
+						ata_qc_complete(qc,
+							ac_err_mask(sDST));
 						break;
 					default:
 						break;
@@ -443,7 +444,7 @@ static inline unsigned int qs_intr_mmio(struct ata_host_set *host_set)
 
 				/* complete taskfile transaction */
 				pp->state = qs_state_idle;
-				ata_qc_complete(qc, status);
+				ata_qc_complete(qc, ac_err_mask(status));
 				handled = 1;
 			}
 		}

@@ -451,7 +451,7 @@ static inline unsigned int adma_intr_pkt(struct ata_host_set *host_set)
 		struct adma_port_priv *pp;
 		struct ata_queued_cmd *qc;
 		void __iomem *chan = ADMA_REGS(mmio_base, port_no);
-		u8 drv_stat = 0, status = readb(chan + ADMA_STATUS);
+		u8 status = readb(chan + ADMA_STATUS);
 
 		if (status == 0)
 			continue;
@@ -464,11 +464,14 @@ static inline unsigned int adma_intr_pkt(struct ata_host_set *host_set)
 			continue;
 		qc = ata_qc_from_tag(ap, ap->active_tag);
 		if (qc && (!(qc->tf.ctl & ATA_NIEN))) {
+			unsigned int err_mask = 0;
+
 			if ((status & (aPERR | aPSD | aUIRQ)))
-				drv_stat = ATA_ERR;
+				err_mask = AC_ERR_OTHER;
 			else if (pp->pkt[0] != cDONE)
-				drv_stat = ATA_ERR;
-			ata_qc_complete(qc, drv_stat);
+				err_mask = AC_ERR_OTHER;
+
+			ata_qc_complete(qc, err_mask);
 		}
 	}
 	return handled;
@@ -498,7 +501,7 @@ static inline unsigned int adma_intr_mmio(struct ata_host_set *host_set)
 		
 				/* complete taskfile transaction */
 				pp->state = adma_state_idle;
-				ata_qc_complete(qc, status);
+				ata_qc_complete(qc, ac_err_mask(status));
 				handled = 1;
 			}
 		}
