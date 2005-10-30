@@ -277,7 +277,6 @@ static struct sigqueue *__sigqueue_alloc(struct task_struct *t, gfp_t flags,
 	} else {
 		INIT_LIST_HEAD(&q->list);
 		q->flags = 0;
-		q->lock = NULL;
 		q->user = get_uid(t->user);
 	}
 	return(q);
@@ -1371,11 +1370,12 @@ void sigqueue_free(struct sigqueue *q)
 	 * pending queue.
 	 */
 	if (unlikely(!list_empty(&q->list))) {
-		read_lock(&tasklist_lock);  
-		spin_lock_irqsave(q->lock, flags);
+		spinlock_t *lock = &current->sighand->siglock;
+		read_lock(&tasklist_lock);
+		spin_lock_irqsave(lock, flags);
 		if (!list_empty(&q->list))
 			list_del_init(&q->list);
-		spin_unlock_irqrestore(q->lock, flags);
+		spin_unlock_irqrestore(lock, flags);
 		read_unlock(&tasklist_lock);
 	}
 	q->flags &= ~SIGQUEUE_PREALLOC;
@@ -1414,7 +1414,6 @@ send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 		goto out;
 	}
 
-	q->lock = &p->sighand->siglock;
 	list_add_tail(&q->list, &p->pending.list);
 	sigaddset(&p->pending.signal, sig);
 	if (!sigismember(&p->blocked, sig))
@@ -1462,7 +1461,6 @@ send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 	 * We always use the shared queue for process-wide signals,
 	 * to avoid several races.
 	 */
-	q->lock = &p->sighand->siglock;
 	list_add_tail(&q->list, &p->signal->shared_pending.list);
 	sigaddset(&p->signal->shared_pending.signal, sig);
 
