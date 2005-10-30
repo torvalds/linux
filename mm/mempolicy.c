@@ -370,7 +370,7 @@ long do_mbind(unsigned long start, unsigned long len,
 		return -EINVAL;
 	if (end == start)
 		return 0;
-	if (contextualize_policy(mode, nmask))
+	if (mpol_check_policy(mode, nmask))
 		return -EINVAL;
 	new = mpol_new(mode, nmask);
 	if (IS_ERR(new))
