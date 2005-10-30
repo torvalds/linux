@@ -587,6 +587,8 @@ int hpet_register(struct hpet_task *tp, int periodic)
 		return -EINVAL;
 	}
 
+	tp->ht_opaque = NULL;
+
 	spin_lock_irq(&hpet_task_lock);
 	spin_lock(&hpet_lock);
 
