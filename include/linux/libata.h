@@ -172,6 +172,13 @@ enum hsm_task_states {
 	HSM_ST_ERR,
 };
 
+enum ata_completion_errors {
+	AC_ERR_OTHER		= (1 << 0),
+	AC_ERR_DEV		= (1 << 1),
+	AC_ERR_ATA_BUS		= (1 << 2),
+	AC_ERR_HOST_BUS		= (1 << 3),
+};
+
 /* forward declarations */
 struct scsi_device;
 struct ata_port_operations;
@@ -179,7 +186,7 @@ struct ata_port;
 struct ata_queued_cmd;
 
 /* typedefs */
-typedef int (*ata_qc_cb_t) (struct ata_queued_cmd *qc, u8 drv_stat);
+typedef int (*ata_qc_cb_t) (struct ata_queued_cmd *qc, unsigned int err_mask);
 
 struct ata_ioports {
 	unsigned long		cmd_addr;
@@ -347,7 +354,6 @@ struct ata_port_operations {
 	void (*exec_command)(struct ata_port *ap, const struct ata_taskfile *tf);
 	u8   (*check_status)(struct ata_port *ap);
 	u8   (*check_altstatus)(struct ata_port *ap);
-	u8   (*check_err)(struct ata_port *ap);
 	void (*dev_select)(struct ata_port *ap, unsigned int device);
 
 	void (*phy_reset) (struct ata_port *ap);
@@ -434,7 +440,6 @@ extern void ata_noop_dev_select (struct ata_port *ap, unsigned int device);
 extern void ata_std_dev_select (struct ata_port *ap, unsigned int device);
 extern u8 ata_check_status(struct ata_port *ap);
 extern u8 ata_altstatus(struct ata_port *ap);
-extern u8 ata_chk_err(struct ata_port *ap);
 extern void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf);
 extern int ata_port_start (struct ata_port *ap);
 extern void ata_port_stop (struct ata_port *ap);
@@ -455,7 +460,7 @@ extern void ata_bmdma_start (struct ata_queued_cmd *qc);
 extern void ata_bmdma_stop(struct ata_queued_cmd *qc);
 extern u8   ata_bmdma_status(struct ata_port *ap);
 extern void ata_bmdma_irq_clear(struct ata_port *ap);
-extern void ata_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat);
+extern void ata_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask);
 extern void ata_eng_timeout(struct ata_port *ap);
 extern void ata_scsi_simulate(u16 *id, struct scsi_cmnd *cmd,
 			      void (*done)(struct scsi_cmnd *));
@@ -716,6 +721,23 @@ static inline int ata_try_flush_cache(const struct ata_device *dev)
 	return ata_id_wcache_enabled(dev->id) ||
 	       ata_id_has_flush(dev->id) ||
 	       ata_id_has_flush_ext(dev->id);
+}
+
+static inline unsigned int ac_err_mask(u8 status)
+{
+	if (status & ATA_BUSY)
+		return AC_ERR_ATA_BUS;
+	if (status & (ATA_ERR | ATA_DF))
+		return AC_ERR_DEV;
+	return 0;
+}
+
+static inline unsigned int __ac_err_mask(u8 status)
+{
+	unsigned int mask = ac_err_mask(status);
+	if (mask == 0)
+		return AC_ERR_OTHER;
+	return mask;
 }
 
 #endif /* __LINUX_LIBATA_H__ */
