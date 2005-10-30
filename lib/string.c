@@ -219,7 +219,7 @@ EXPORT_SYMBOL(strlcat);
 #undef strcmp
 int strcmp(const char *cs, const char *ct)
 {
-	register signed char __res;
+	signed char __res;
 
 	while (1) {
 		if ((__res = *cs - *ct++) != 0 || !*cs++)
@@ -239,7 +239,7 @@ EXPORT_SYMBOL(strcmp);
  */
 int strncmp(const char *cs, const char *ct, size_t count)
 {
-	register signed char __res = 0;
+	signed char __res = 0;
 
 	while (count) {
 		if ((__res = *cs - *ct++) != 0 || !*cs++)
