@@ -1138,8 +1138,12 @@ static void hpet_rtc_timer_reinit(void)
 {
 	unsigned int cfg, cnt;
 
-	if (!(PIE_on | AIE_on | UIE_on))
+	if (unlikely(!(PIE_on | AIE_on | UIE_on))) {
+		cfg = hpet_readl(HPET_T1_CFG);
+		cfg &= ~HPET_TN_ENABLE;
+		hpet_writel(cfg, HPET_T1_CFG);
 		return;
+	}
 
 	if (PIE_on && (PIE_freq > DEFAULT_RTC_INT_FREQ))
 		hpet_rtc_int_freq = PIE_freq;
