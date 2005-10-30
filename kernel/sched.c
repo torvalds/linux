@@ -3877,7 +3877,6 @@ EXPORT_SYMBOL(cpu_present_map);
 
 #ifndef CONFIG_SMP
 cpumask_t cpu_online_map = CPU_MASK_ALL;
-EXPORT_SYMBOL_GPL(cpu_online_map);
 cpumask_t cpu_possible_map = CPU_MASK_ALL;
 #endif
 
