@@ -12,15 +12,11 @@ struct timer_list {
 	struct list_head entry;
 	unsigned long expires;
 
-	unsigned long magic;
-
 	void (*function)(unsigned long);
 	unsigned long data;
 
 	struct timer_base_s *base;
 };
-
-#define TIMER_MAGIC	0x4b87ad6e
 
 extern struct timer_base_s __init_timer_base;
 
@@ -29,7 +25,6 @@ extern struct timer_base_s __init_timer_base;
 		.expires = (_expires),				\
 		.data = (_data),				\
 		.base = &__init_timer_base,			\
-		.magic = TIMER_MAGIC,				\
 	}
 
 #define DEFINE_TIMER(_name, _function, _expires, _data)		\

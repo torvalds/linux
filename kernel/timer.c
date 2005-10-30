@@ -91,30 +91,6 @@ static inline void set_running_timer(tvec_base_t *base,
 #endif
 }
 
-static void check_timer_failed(struct timer_list *timer)
-{
-	static int whine_count;
-	if (whine_count < 16) {
-		whine_count++;
-		printk("Uninitialised timer!\n");
-		printk("This is just a warning.  Your computer is OK\n");
-		printk("function=0x%p, data=0x%lx\n",
-			timer->function, timer->data);
-		dump_stack();
-	}
-	/*
-	 * Now fix it up
-	 */
-	timer->magic = TIMER_MAGIC;
-}
-
-static inline void check_timer(struct timer_list *timer)
-{
-	if (timer->magic != TIMER_MAGIC)
-		check_timer_failed(timer);
-}
-
-
 static void internal_add_timer(tvec_base_t *base, struct timer_list *timer)
 {
 	unsigned long expires = timer->expires;
@@ -177,7 +153,6 @@ void fastcall init_timer(struct timer_list *timer)
 {
 	timer->entry.next = NULL;
 	timer->base = &per_cpu(tvec_bases, raw_smp_processor_id()).t_base;
-	timer->magic = TIMER_MAGIC;
 }
 EXPORT_SYMBOL(init_timer);
 
@@ -230,7 +205,6 @@ int __mod_timer(struct timer_list *timer, unsigned long expires)
 	int ret = 0;
 
 	BUG_ON(!timer->function);
-	check_timer(timer);
 
 	base = lock_timer_base(timer, &flags);
 
@@ -283,9 +257,6 @@ void add_timer_on(struct timer_list *timer, int cpu)
   	unsigned long flags;
 
   	BUG_ON(timer_pending(timer) || !timer->function);
-
-	check_timer(timer);
-
 	spin_lock_irqsave(&base->t_base.lock, flags);
 	timer->base = &base->t_base;
 	internal_add_timer(base, timer);
@@ -316,8 +287,6 @@ int mod_timer(struct timer_list *timer, unsigned long expires)
 {
 	BUG_ON(!timer->function);
 
-	check_timer(timer);
-
 	/*
 	 * This is a common optimization triggered by the
 	 * networking code - if the timer is re-modified
@@ -347,8 +316,6 @@ int del_timer(struct timer_list *timer)
 	timer_base_t *base;
 	unsigned long flags;
 	int ret = 0;
-
-	check_timer(timer);
 
 	if (timer_pending(timer)) {
 		base = lock_timer_base(timer, &flags);
@@ -412,8 +379,6 @@ out:
  */
 int del_timer_sync(struct timer_list *timer)
 {
-	check_timer(timer);
-
 	for (;;) {
 		int ret = try_to_del_timer_sync(timer);
 		if (ret >= 0)
