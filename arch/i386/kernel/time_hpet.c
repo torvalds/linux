@@ -309,7 +309,8 @@ int hpet_rtc_timer_init(void)
 	local_irq_restore(flags);
 
 	cfg = hpet_readl(HPET_T1_CFG);
-	cfg |= HPET_TN_ENABLE | HPET_TN_SETVAL | HPET_TN_32BIT;
+	cfg &= ~HPET_TN_PERIODIC;
+	cfg |= HPET_TN_ENABLE | HPET_TN_32BIT;
 	hpet_writel(cfg, HPET_T1_CFG);
 
 	return 1;
@@ -335,12 +336,6 @@ static void hpet_rtc_timer_reinit(void)
 	cnt = hpet_readl(HPET_T1_CMP);
 	cnt += hpet_tick*HZ/hpet_rtc_int_freq;
 	hpet_writel(cnt, HPET_T1_CMP);
-
-	cfg = hpet_readl(HPET_T1_CFG);
-	cfg |= HPET_TN_ENABLE | HPET_TN_SETVAL | HPET_TN_32BIT;
-	hpet_writel(cfg, HPET_T1_CFG);
-
-	return;
 }
 
 /*
