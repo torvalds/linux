@@ -278,13 +278,7 @@ unsigned int __devinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 		if ( l3 )
 			printk(KERN_INFO "CPU: L3 cache: %dK\n", l3);
 
-		/*
-		 * This assumes the L3 cache is shared; it typically lives in
-		 * the northbridge.  The L1 caches are included by the L2
-		 * cache, and so should not be included for the purpose of
-		 * SMP switching weights.
-		 */
-		c->x86_cache_size = l2 ? l2 : (l1i+l1d);
+		c->x86_cache_size = l3 ? l3 : (l2 ? l2 : (l1i+l1d));
 	}
 
 	return l2;
