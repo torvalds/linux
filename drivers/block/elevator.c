@@ -642,6 +642,27 @@ EXPORT_SYMBOL_GPL(elv_register);
 
 void elv_unregister(struct elevator_type *e)
 {
+	struct task_struct *g, *p;
+
+	/*
+	 * Iterate every thread in the process to remove the io contexts.
+	 */
+	read_lock(&tasklist_lock);
+	do_each_thread(g, p) {
+		struct io_context *ioc = p->io_context;
+		if (ioc && ioc->cic) {
+			ioc->cic->exit(ioc->cic);
+			ioc->cic->dtor(ioc->cic);
+			ioc->cic = NULL;
+		}
+		if (ioc && ioc->aic) {
+			ioc->aic->exit(ioc->aic);
+			ioc->aic->dtor(ioc->aic);
+			ioc->aic = NULL;
+		}
+	} while_each_thread(g, p);
+	read_unlock(&tasklist_lock);
+
 	spin_lock_irq(&elv_list_lock);
 	list_del_init(&e->list);
 	spin_unlock_irq(&elv_list_lock);
