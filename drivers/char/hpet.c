@@ -49,7 +49,7 @@
 #define	HPET_USER_FREQ	(64)
 #define	HPET_DRIFT	(500)
 
-static u32 hpet_ntimer, hpet_nhpet, hpet_max_freq = HPET_USER_FREQ;
+static u32 hpet_nhpet, hpet_max_freq = HPET_USER_FREQ;
 
 /* A lock for concurrent access by app and isr hpet activity. */
 static DEFINE_SPINLOCK(hpet_lock);
@@ -854,8 +854,7 @@ int hpet_alloc(struct hpet_data *hdp)
 		writeq(mcfg, &hpet->hpet_config);
 	}
 
-	for (i = 0, devp = hpetp->hp_dev; i < hpetp->hp_ntimer;
-	     i++, hpet_ntimer++, devp++) {
+	for (i = 0, devp = hpetp->hp_dev; i < hpetp->hp_ntimer; i++, devp++) {
 		unsigned long v;
 		struct hpet_timer __iomem *timer;
 
