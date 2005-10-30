@@ -45,10 +45,10 @@ static inline int i2o_device_issue_claim(struct i2o_device *dev, u32 cmd,
 	writel(type, &msg->body[0]);
 
 	return i2o_msg_post_wait(dev->iop, m, 60);
-};
+}
 
 /**
- * 	i2o_device_claim - claim a device for use by an OSM
+ *	i2o_device_claim - claim a device for use by an OSM
  *	@dev: I2O device to claim
  *	@drv: I2O driver which wants to claim the device
  *
@@ -73,7 +73,7 @@ int i2o_device_claim(struct i2o_device *dev)
 	up(&dev->lock);
 
 	return rc;
-};
+}
 
 /**
  *	i2o_device_claim_release - release a device that the OSM is using
@@ -119,7 +119,8 @@ int i2o_device_claim_release(struct i2o_device *dev)
 	up(&dev->lock);
 
 	return rc;
-};
+}
+
 
 /**
  *	i2o_device_release - release the memory for a I2O device
@@ -135,39 +136,47 @@ static void i2o_device_release(struct device *dev)
 	pr_debug("i2o: device %s released\n", dev->bus_id);
 
 	kfree(i2o_dev);
-};
+}
+
 
 /**
- *	i2o_device_class_release - Remove I2O device attributes
- *	@cd: I2O class device which is added to the I2O device class
+ *	i2o_device_class_show_class_id - Displays class id of I2O device
+ *	@cd: class device of which the class id should be displayed
+ *	@buf: buffer into which the class id should be printed
  *
- *	Removes attributes from the I2O device again. Also search each device
- *	on the controller for I2O devices which refert to this device as parent
- *	or user and remove this links also.
+ *	Returns the number of bytes which are printed into the buffer.
  */
-static void i2o_device_class_release(struct class_device *cd)
+static ssize_t i2o_device_show_class_id(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
 {
-	struct i2o_device *i2o_dev, *tmp;
-	struct i2o_controller *c;
+	struct i2o_device *i2o_dev = to_i2o_device(dev);
 
-	i2o_dev = to_i2o_device(cd->dev);
-	c = i2o_dev->iop;
+	sprintf(buf, "0x%03x\n", i2o_dev->lct_data.class_id);
+	return strlen(buf) + 1;
+}
 
-	sysfs_remove_link(&i2o_dev->device.kobj, "parent");
-	sysfs_remove_link(&i2o_dev->device.kobj, "user");
+/**
+ *	i2o_device_class_show_tid - Displays TID of I2O device
+ *	@cd: class device of which the TID should be displayed
+ *	@buf: buffer into which the class id should be printed
+ *
+ *	Returns the number of bytes which are printed into the buffer.
+ */
+static ssize_t i2o_device_show_tid(struct device *dev,
+				   struct device_attribute *attr,
+				   char *buf)
+{
+	struct i2o_device *i2o_dev = to_i2o_device(dev);
 
-	list_for_each_entry(tmp, &c->devices, list) {
-		if (tmp->lct_data.parent_tid == i2o_dev->lct_data.tid)
-			sysfs_remove_link(&tmp->device.kobj, "parent");
-		if (tmp->lct_data.user_tid == i2o_dev->lct_data.tid)
-			sysfs_remove_link(&tmp->device.kobj, "user");
-	}
-};
+	sprintf(buf, "0x%03x\n", i2o_dev->lct_data.tid);
+	return strlen(buf) + 1;
+}
 
-/* I2O device class */
-static struct class i2o_device_class = {
-	.name = "i2o_device",
-	.release = i2o_device_class_release
+struct device_attribute i2o_device_attrs[] = {
+	__ATTR(class_id, S_IRUGO, i2o_device_show_class_id, NULL),
+	__ATTR(tid, S_IRUGO, i2o_device_show_tid, NULL),
+	__ATTR_NULL
 };
 
 /**
@@ -193,11 +202,69 @@ static struct i2o_device *i2o_device_alloc(void)
 
 	dev->device.bus = &i2o_bus_type;
 	dev->device.release = &i2o_device_release;
-	dev->classdev.class = &i2o_device_class;
-	dev->classdev.dev = &dev->device;
 
 	return dev;
-};
+}
+
+/**
+ *	i2o_setup_sysfs_links - Adds attributes to the I2O device
+ *	@cd: I2O class device which is added to the I2O device class
+ *
+ *	This function get called when a I2O device is added to the class. It
+ *	creates the attributes for each device and creates user/parent symlink
+ *	if necessary.
+ *
+ *	Returns 0 on success or negative error code on failure.
+ */
+static void i2o_setup_sysfs_links(struct i2o_device *i2o_dev)
+{
+	struct i2o_controller *c = i2o_dev->iop;
+	struct i2o_device *tmp;
+
+	/* create user entries for this device */
+	tmp = i2o_iop_find_device(i2o_dev->iop, i2o_dev->lct_data.user_tid);
+	if (tmp && tmp != i2o_dev)
+		sysfs_create_link(&i2o_dev->device.kobj,
+				  &tmp->device.kobj, "user");
+
+	/* create user entries refering to this device */
+	list_for_each_entry(tmp, &c->devices, list)
+		if (tmp->lct_data.user_tid == i2o_dev->lct_data.tid &&
+		    tmp != i2o_dev)
+			sysfs_create_link(&tmp->device.kobj,
+					  &i2o_dev->device.kobj, "user");
+
+	/* create parent entries for this device */
+	tmp = i2o_iop_find_device(i2o_dev->iop, i2o_dev->lct_data.parent_tid);
+	if (tmp && tmp != i2o_dev)
+		sysfs_create_link(&i2o_dev->device.kobj,
+				  &tmp->device.kobj, "parent");
+
+	/* create parent entries refering to this device */
+	list_for_each_entry(tmp, &c->devices, list)
+		if (tmp->lct_data.parent_tid == i2o_dev->lct_data.tid &&
+		    tmp != i2o_dev)
+		sysfs_create_link(&tmp->device.kobj,
+				  &i2o_dev->device.kobj, "parent");
+}
+
+static void i2o_remove_sysfs_links(struct i2o_device *i2o_dev)
+{
+	struct i2o_controller *c = i2o_dev->iop;
+	struct i2o_device *tmp;
+
+	sysfs_remove_link(&i2o_dev->device.kobj, "parent");
+	sysfs_remove_link(&i2o_dev->device.kobj, "user");
+
+	list_for_each_entry(tmp, &c->devices, list) {
+		if (tmp->lct_data.parent_tid == i2o_dev->lct_data.tid)
+			sysfs_remove_link(&tmp->device.kobj, "parent");
+		if (tmp->lct_data.user_tid == i2o_dev->lct_data.tid)
+			sysfs_remove_link(&tmp->device.kobj, "user");
+	}
+}
+
+
 
 /**
  *	i2o_device_add - allocate a new I2O device and add it to the IOP
@@ -222,28 +289,25 @@ static struct i2o_device *i2o_device_add(struct i2o_controller *c,
 	}
 
 	dev->lct_data = *entry;
+	dev->iop = c;
 
 	snprintf(dev->device.bus_id, BUS_ID_SIZE, "%d:%03x", c->unit,
 		 dev->lct_data.tid);
 
-	snprintf(dev->classdev.class_id, BUS_ID_SIZE, "%d:%03x", c->unit,
-		 dev->lct_data.tid);
-
-	dev->iop = c;
 	dev->device.parent = &c->device;
 
 	device_register(&dev->device);
 
 	list_add_tail(&dev->list, &c->devices);
 
-	class_device_register(&dev->classdev);
+	i2o_setup_sysfs_links(dev);
 
 	i2o_driver_notify_device_add_all(dev);
 
 	pr_debug("i2o: device %s added\n", dev->device.bus_id);
 
 	return dev;
-};
+}
 
 /**
  *	i2o_device_remove - remove an I2O device from the I2O core
@@ -256,10 +320,10 @@ static struct i2o_device *i2o_device_add(struct i2o_controller *c,
 void i2o_device_remove(struct i2o_device *i2o_dev)
 {
 	i2o_driver_notify_device_remove_all(i2o_dev);
-	class_device_unregister(&i2o_dev->classdev);
+	i2o_remove_sysfs_links(i2o_dev);
 	list_del(&i2o_dev->list);
 	device_unregister(&i2o_dev->device);
-};
+}
 
 /**
  *	i2o_device_parse_lct - Parse a previously fetched LCT and create devices
@@ -337,99 +401,8 @@ int i2o_device_parse_lct(struct i2o_controller *c)
 	up(&c->lct_lock);
 
 	return 0;
-};
+}
 
-/**
- *	i2o_device_class_show_class_id - Displays class id of I2O device
- *	@cd: class device of which the class id should be displayed
- *	@buf: buffer into which the class id should be printed
- *
- *	Returns the number of bytes which are printed into the buffer.
- */
-static ssize_t i2o_device_class_show_class_id(struct class_device *cd,
-					      char *buf)
-{
-	struct i2o_device *dev = to_i2o_device(cd->dev);
-
-	sprintf(buf, "0x%03x\n", dev->lct_data.class_id);
-	return strlen(buf) + 1;
-};
-
-/**
- *	i2o_device_class_show_tid - Displays TID of I2O device
- *	@cd: class device of which the TID should be displayed
- *	@buf: buffer into which the class id should be printed
- *
- *	Returns the number of bytes which are printed into the buffer.
- */
-static ssize_t i2o_device_class_show_tid(struct class_device *cd, char *buf)
-{
-	struct i2o_device *dev = to_i2o_device(cd->dev);
-
-	sprintf(buf, "0x%03x\n", dev->lct_data.tid);
-	return strlen(buf) + 1;
-};
-
-/* I2O device class attributes */
-static CLASS_DEVICE_ATTR(class_id, S_IRUGO, i2o_device_class_show_class_id,
-			 NULL);
-static CLASS_DEVICE_ATTR(tid, S_IRUGO, i2o_device_class_show_tid, NULL);
-
-/**
- *	i2o_device_class_add - Adds attributes to the I2O device
- *	@cd: I2O class device which is added to the I2O device class
- *
- *	This function get called when a I2O device is added to the class. It
- *	creates the attributes for each device and creates user/parent symlink
- *	if necessary.
- *
- *	Returns 0 on success or negative error code on failure.
- */
-static int i2o_device_class_add(struct class_device *cd)
-{
-	struct i2o_device *i2o_dev, *tmp;
-	struct i2o_controller *c;
-
-	i2o_dev = to_i2o_device(cd->dev);
-	c = i2o_dev->iop;
-
-	class_device_create_file(cd, &class_device_attr_class_id);
-	class_device_create_file(cd, &class_device_attr_tid);
-
-	/* create user entries for this device */
-	tmp = i2o_iop_find_device(i2o_dev->iop, i2o_dev->lct_data.user_tid);
-	if (tmp && (tmp != i2o_dev))
-		sysfs_create_link(&i2o_dev->device.kobj, &tmp->device.kobj,
-				  "user");
-
-	/* create user entries refering to this device */
-	list_for_each_entry(tmp, &c->devices, list)
-	    if ((tmp->lct_data.user_tid == i2o_dev->lct_data.tid)
-		&& (tmp != i2o_dev))
-		sysfs_create_link(&tmp->device.kobj,
-				  &i2o_dev->device.kobj, "user");
-
-	/* create parent entries for this device */
-	tmp = i2o_iop_find_device(i2o_dev->iop, i2o_dev->lct_data.parent_tid);
-	if (tmp && (tmp != i2o_dev))
-		sysfs_create_link(&i2o_dev->device.kobj, &tmp->device.kobj,
-				  "parent");
-
-	/* create parent entries refering to this device */
-	list_for_each_entry(tmp, &c->devices, list)
-	    if ((tmp->lct_data.parent_tid == i2o_dev->lct_data.tid)
-		&& (tmp != i2o_dev))
-		sysfs_create_link(&tmp->device.kobj,
-				  &i2o_dev->device.kobj, "parent");
-
-	return 0;
-};
-
-/* I2O device class interface */
-static struct class_interface i2o_device_class_interface = {
-	.class = &i2o_device_class,
-	.add = i2o_device_class_add
-};
 
 /*
  *	Run time support routines
@@ -553,11 +526,11 @@ int i2o_parm_field_get(struct i2o_device *i2o_dev, int group, int field,
 }
 
 /*
- * 	if oper == I2O_PARAMS_TABLE_GET, get from all rows
- * 		if fieldcount == -1 return all fields
+ *	if oper == I2O_PARAMS_TABLE_GET, get from all rows
+ *		if fieldcount == -1 return all fields
  *			ibuf and ibuflen are unused (use NULL, 0)
- * 		else return specific fields
- *  			ibuf contains fieldindexes
+ *		else return specific fields
+ *			ibuf contains fieldindexes
  *
  * 	if oper == I2O_PARAMS_LIST_GET, get from specific rows
  * 		if fieldcount == -1 return all fields
@@ -601,35 +574,6 @@ int i2o_parm_table_get(struct i2o_device *dev, int oper, int group,
 
 	return size;
 }
-
-/**
- *	i2o_device_init - Initialize I2O devices
- *
- *	Registers the I2O device class.
- *
- *	Returns 0 on success or negative error code on failure.
- */
-int i2o_device_init(void)
-{
-	int rc;
-
-	rc = class_register(&i2o_device_class);
-	if (rc)
-		return rc;
-
-	return class_interface_register(&i2o_device_class_interface);
-};
-
-/**
- *	i2o_device_exit - I2O devices exit function
- *
- *	Unregisters the I2O device class.
- */
-void i2o_device_exit(void)
-{
-	class_interface_register(&i2o_device_class_interface);
-	class_unregister(&i2o_device_class);
-};
 
 EXPORT_SYMBOL(i2o_device_claim);
 EXPORT_SYMBOL(i2o_device_claim_release);

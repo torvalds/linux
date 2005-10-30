@@ -31,7 +31,7 @@
 #include <asm/page.h>	/* get_order */
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h>
-
+#include <asm/tlbflush.h>	/* for purge_tlb_*() macros */
 
 static struct proc_dir_entry * proc_gsc_root = NULL;
 static int pcxl_proc_info(char *buffer, char **start, off_t offset, int length);
@@ -114,7 +114,7 @@ static inline int map_pmd_uncached(pmd_t * pmd, unsigned long vaddr,
 	if (end > PGDIR_SIZE)
 		end = PGDIR_SIZE;
 	do {
-		pte_t * pte = pte_alloc_kernel(&init_mm, pmd, vaddr);
+		pte_t * pte = pte_alloc_kernel(pmd, vaddr);
 		if (!pte)
 			return -ENOMEM;
 		if (map_pte_uncached(pte, orig_vaddr, end - vaddr, paddr_ptr))
@@ -333,18 +333,28 @@ pcxl_free_range(unsigned long vaddr, size_t size)
 static int __init
 pcxl_dma_init(void)
 {
-    if (pcxl_dma_start == 0)
-	return 0;
+	if (pcxl_dma_start == 0)
+		return 0;
 
-    spin_lock_init(&pcxl_res_lock);
-    pcxl_res_size = PCXL_DMA_MAP_SIZE >> (PAGE_SHIFT + 3);
-    pcxl_res_hint = 0;
-    pcxl_res_map = (char *)__get_free_pages(GFP_KERNEL,
+	spin_lock_init(&pcxl_res_lock);
+	pcxl_res_size = PCXL_DMA_MAP_SIZE >> (PAGE_SHIFT + 3);
+	pcxl_res_hint = 0;
+	pcxl_res_map = (char *)__get_free_pages(GFP_KERNEL,
 					    get_order(pcxl_res_size));
-    memset(pcxl_res_map, 0, pcxl_res_size);
-    proc_gsc_root = proc_mkdir("gsc", 0);
-    create_proc_info_entry("dino", 0, proc_gsc_root, pcxl_proc_info);
-    return 0;
+	memset(pcxl_res_map, 0, pcxl_res_size);
+	proc_gsc_root = proc_mkdir("gsc", 0);
+	if (!proc_gsc_root)
+    		printk(KERN_WARNING
+			"pcxl_dma_init: Unable to create gsc /proc dir entry\n");
+	else {
+		struct proc_dir_entry* ent;
+		ent = create_proc_info_entry("pcxl_dma", 0,
+				proc_gsc_root, pcxl_proc_info);
+		if (!ent)
+			printk(KERN_WARNING
+				"pci-dma.c: Unable to create pcxl_dma /proc entry.\n");
+	}
+	return 0;
 }
 
 __initcall(pcxl_dma_init);
@@ -545,16 +555,16 @@ struct hppa_dma_ops pcx_dma_ops = {
 
 static int pcxl_proc_info(char *buf, char **start, off_t offset, int len)
 {
+#if 0
 	u_long i = 0;
 	unsigned long *res_ptr = (u_long *)pcxl_res_map;
-	unsigned long total_pages = pcxl_res_size << 3;        /* 8 bits per byte */
+#endif
+	unsigned long total_pages = pcxl_res_size << 3;   /* 8 bits per byte */
 
-	sprintf(buf, "\nDMA Mapping Area size    : %d bytes (%d pages)\n",
-		PCXL_DMA_MAP_SIZE,
-		(pcxl_res_size << 3) ); /* 1 bit per page */
+	sprintf(buf, "\nDMA Mapping Area size    : %d bytes (%ld pages)\n",
+		PCXL_DMA_MAP_SIZE, total_pages);
 	
-	sprintf(buf, "%sResource bitmap : %d bytes (%d pages)\n", 
-		buf, pcxl_res_size, pcxl_res_size << 3);   /* 8 bits per byte */
+	sprintf(buf, "%sResource bitmap : %d bytes\n", buf, pcxl_res_size);
 
 	strcat(buf,  "     	  total:    free:    used:   % used:\n");
 	sprintf(buf, "%sblocks  %8d %8ld %8ld %8ld%%\n", buf, pcxl_res_size,
@@ -564,7 +574,8 @@ static int pcxl_proc_info(char *buf, char **start, off_t offset, int len)
 	sprintf(buf, "%spages   %8ld %8ld %8ld %8ld%%\n", buf, total_pages,
 		total_pages - pcxl_used_pages, pcxl_used_pages,
 		(pcxl_used_pages * 100 / total_pages));
-	
+
+#if 0
 	strcat(buf, "\nResource bitmap:");
 
 	for(; i < (pcxl_res_size / sizeof(u_long)); ++i, ++res_ptr) {
@@ -572,6 +583,7 @@ static int pcxl_proc_info(char *buf, char **start, off_t offset, int len)
 		    strcat(buf,"\n   ");
 		sprintf(buf, "%s %08lx", buf, *res_ptr);
 	}
+#endif
 	strcat(buf, "\n");
 	return strlen(buf);
 }

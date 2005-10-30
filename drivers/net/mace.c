@@ -1035,10 +1035,8 @@ static void __exit mace_cleanup(void)
 {
 	macio_unregister_driver(&mace_driver);
 
-	if (dummy_buf) {
-		kfree(dummy_buf);
-		dummy_buf = NULL;
-	}
+	kfree(dummy_buf);
+	dummy_buf = NULL;
 }
 
 MODULE_AUTHOR("Paul Mackerras");

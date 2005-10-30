@@ -222,6 +222,7 @@ void *um_virt_to_phys(struct task_struct *task, unsigned long addr,
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
+	pte_t ptent;
 
 	if(task->mm == NULL) 
 		return(ERR_PTR(-EINVAL));
@@ -238,12 +239,13 @@ void *um_virt_to_phys(struct task_struct *task, unsigned long addr,
 		return(ERR_PTR(-EINVAL));
 
 	pte = pte_offset_kernel(pmd, addr);
-	if(!pte_present(*pte)) 
+	ptent = *pte;
+	if(!pte_present(ptent))
 		return(ERR_PTR(-EINVAL));
 
 	if(pte_out != NULL)
-		*pte_out = *pte;
-	return((void *) (pte_val(*pte) & PAGE_MASK) + (addr & ~PAGE_MASK));
+		*pte_out = ptent;
+	return((void *) (pte_val(ptent) & PAGE_MASK) + (addr & ~PAGE_MASK));
 }
 
 char *current_cmd(void)

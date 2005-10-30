@@ -442,14 +442,13 @@ static int  __init scx200_acb_create(int base, int index)
 	int rc = 0;
 	char description[64];
 
-	iface = kmalloc(sizeof(*iface), GFP_KERNEL);
+	iface = kzalloc(sizeof(*iface), GFP_KERNEL);
 	if (!iface) {
 		printk(KERN_ERR NAME ": can't allocate memory\n");
 		rc = -ENOMEM;
 		goto errout;
 	}
 
-	memset(iface, 0, sizeof(*iface));
 	adapter = &iface->adapter;
 	i2c_set_adapdata(adapter, iface);
 	snprintf(adapter->name, I2C_NAME_SIZE, "SCx200 ACB%d", index);

@@ -9,6 +9,7 @@
 #include <linux/topology.h>
 #include <linux/device.h>
 
+#include "base.h"
 
 struct sysdev_class cpu_sysdev_class = {
 	set_kset_name("cpu"),

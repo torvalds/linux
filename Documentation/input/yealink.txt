@@ -2,7 +2,6 @@ Driver documentation for yealink usb-p1k phones
 
 0. Status
 ~~~~~~~~~
-
 The p1k is a relatively cheap usb 1.1 phone with:
   - keyboard		full support, yealink.ko / input event API
   - LCD			full support, yealink.ko / sysfs API
@@ -17,9 +16,8 @@ For vendor documentation see http://www.yealink.com
 
 1. Compilation (stand alone version)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 Currently only kernel 2.6.x.y versions are supported.
-In order to build the yealink.ko module do:
+In order to build the yealink.ko module do
 
   make
 
@@ -27,6 +25,21 @@ If you encounter problems please check if in the MAKE_OPTS variable in
 the Makefile is pointing to the location where your kernel sources
 are located, default /usr/src/linux.
 
+
+1.1 Troubleshooting
+~~~~~~~~~~~~~~~~~~~
+Q: Module yealink compiled and installed without any problem but phone
+   is not initialized and does not react to any actions.
+A: If you see something like:
+   hiddev0: USB HID v1.00 Device [Yealink Network Technology Ltd. VOIP USB Phone
+   in dmesg, it means that the hid driver has grabbed the device first. Try to
+   load module yealink before any other usb hid driver. Please see the
+   instructions provided by your distribution on module configuration.
+
+Q: Phone is working now (displays version and accepts keypad input) but I can't
+   find the sysfs files.
+A: The sysfs files are located on the particular usb endpoint. On most
+   distributions you can do: "find /sys/ -name get_icons" for a hint.
 
 
 2. keyboard features

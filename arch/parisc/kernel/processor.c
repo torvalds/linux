@@ -92,7 +92,7 @@ static int __init processor_probe(struct parisc_device *dev)
 	 * May get overwritten by PAT code.
 	 */
 	cpuid = boot_cpu_data.cpu_count;
-	txn_addr = dev->hpa;	/* for legacy PDC */
+	txn_addr = dev->hpa.start;	/* for legacy PDC */
 
 #ifdef __LP64__
 	if (is_pdc_pat()) {
@@ -122,7 +122,7 @@ static int __init processor_probe(struct parisc_device *dev)
  * boot time (ie shutdown a CPU from an OS perspective).
  */
 		/* get the cpu number */
-		status = pdc_pat_cpu_get_number(&cpu_info, dev->hpa);
+		status = pdc_pat_cpu_get_number(&cpu_info, dev->hpa.start);
 
 		BUG_ON(PDC_OK != status);
 
@@ -130,7 +130,7 @@ static int __init processor_probe(struct parisc_device *dev)
 			printk(KERN_WARNING "IGNORING CPU at 0x%x,"
 				" cpu_slot_id > NR_CPUS"
 				" (%ld > %d)\n",
-				dev->hpa, cpu_info.cpu_num, NR_CPUS);
+				dev->hpa.start, cpu_info.cpu_num, NR_CPUS);
 			/* Ignore CPU since it will only crash */
 			boot_cpu_data.cpu_count--;
 			return 1;
@@ -149,7 +149,7 @@ static int __init processor_probe(struct parisc_device *dev)
 
 	p->loops_per_jiffy = loops_per_jiffy;
 	p->dev = dev;		/* Save IODC data in case we need it */
-	p->hpa = dev->hpa;	/* save CPU hpa */
+	p->hpa = dev->hpa.start;	/* save CPU hpa */
 	p->cpuid = cpuid;	/* save CPU id */
 	p->txn_addr = txn_addr;	/* save CPU IRQ address */
 #ifdef CONFIG_SMP

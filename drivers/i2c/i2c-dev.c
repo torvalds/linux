@@ -26,15 +26,11 @@
 
 /* The I2C_RDWR ioctl code is written by Kolja Waschk <waschk@telos.de> */
 
-/* The devfs code is contributed by Philipp Matthias Hahn 
-   <pmhahn@titan.lahn.de> */
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
@@ -80,10 +76,9 @@ static struct i2c_dev *get_free_i2c_dev(struct i2c_adapter *adap)
 {
 	struct i2c_dev *i2c_dev;
 
-	i2c_dev = kmalloc(sizeof(*i2c_dev), GFP_KERNEL);
+	i2c_dev = kzalloc(sizeof(*i2c_dev), GFP_KERNEL);
 	if (!i2c_dev)
 		return ERR_PTR(-ENOMEM);
-	memset(i2c_dev, 0x00, sizeof(*i2c_dev));
 
 	spin_lock(&i2c_dev_array_lock);
 	if (i2c_dev_array[adap->nr]) {
@@ -177,8 +172,8 @@ static int i2cdev_ioctl(struct inode *inode, struct file *file,
 	int i,datasize,res;
 	unsigned long funcs;
 
-	dev_dbg(&client->adapter->dev, "i2c-%d ioctl, cmd: 0x%x, arg: %lx.\n",
-		iminor(inode),cmd, arg);
+	dev_dbg(&client->adapter->dev, "ioctl, cmd=0x%02x, arg=0x%02lx\n",
+		cmd, arg);
 
 	switch ( cmd ) {
 	case I2C_SLAVE:
@@ -432,8 +427,6 @@ static int i2cdev_attach_adapter(struct i2c_adapter *adap)
 	if (IS_ERR(i2c_dev))
 		return PTR_ERR(i2c_dev);
 
-	devfs_mk_cdev(MKDEV(I2C_MAJOR, i2c_dev->minor),
-			S_IFCHR|S_IRUSR|S_IWUSR, "i2c/%d", i2c_dev->minor);
 	pr_debug("i2c-dev: adapter [%s] registered as minor %d\n",
 		 adap->name, i2c_dev->minor);
 
@@ -466,7 +459,6 @@ static int i2cdev_detach_adapter(struct i2c_adapter *adap)
 		return -ENODEV;
 
 	init_completion(&i2c_dev->released);
-	devfs_remove("i2c/%d", i2c_dev->minor);
 	return_i2c_dev(i2c_dev);
 	class_device_unregister(&i2c_dev->class_dev);
 	wait_for_completion(&i2c_dev->released);
@@ -522,8 +514,6 @@ static int __init i2c_dev_init(void)
 	if (res)
 		goto out_unreg_class;
 
-	devfs_mk_dir("i2c");
-
 	return 0;
 
 out_unreg_class:
@@ -539,7 +529,6 @@ static void __exit i2c_dev_exit(void)
 {
 	i2c_del_driver(&i2cdev_driver);
 	class_unregister(&i2c_dev_class);
-	devfs_remove("i2c");
 	unregister_chrdev(I2C_MAJOR,"i2c");
 }
 

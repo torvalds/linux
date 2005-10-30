@@ -294,14 +294,7 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm, struct pt_regs *regs
 				  &interp_params,
 				  &current->mm->start_stack,
 				  &current->mm->start_brk);
-#endif
 
-	/* do this so that we can load the interpreter, if need be
-	 * - we will change some of these later
-	 */
-	set_mm_counter(current->mm, rss, 0);
-
-#ifdef CONFIG_MMU
 	retval = setup_arg_pages(bprm, current->mm->start_stack, executable_stack);
 	if (retval < 0) {
 		send_sig(SIGKILL, current, 0);

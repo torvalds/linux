@@ -34,11 +34,13 @@
 #include <linux/pm.h>
 #include <linux/slab.h>
 #include <linux/sysctl.h>
+#include <linux/jiffies.h>
 
 #include <asm/string.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/system.h>
+#include <asm/cacheflush.h>
 #include <asm/mach-au1x00/au1000.h>
 
 #ifdef CONFIG_PM
@@ -50,7 +52,7 @@
 #  define DPRINTK(fmt, args...)
 #endif
 
-static void calibrate_delay(void);
+static void au1000_calibrate_delay(void);
 
 extern void set_au1x00_speed(unsigned int new_freq);
 extern unsigned int get_au1x00_speed(void);
@@ -260,7 +262,7 @@ int au_sleep(void)
 }
 
 static int pm_do_sleep(ctl_table * ctl, int write, struct file *file,
-		       void *buffer, size_t * len)
+		       void __user *buffer, size_t * len, loff_t *ppos)
 {
 	int retval = 0;
 #ifdef SLEEP_TEST_TIMEOUT
@@ -294,10 +296,9 @@ static int pm_do_sleep(ctl_table * ctl, int write, struct file *file,
 }
 
 static int pm_do_suspend(ctl_table * ctl, int write, struct file *file,
-			 void *buffer, size_t * len)
+			 void __user *buffer, size_t * len, loff_t *ppos)
 {
 	int retval = 0;
-	void	au1k_wait(void);
 
 	if (!write) {
 		*len = 0;
@@ -306,7 +307,7 @@ static int pm_do_suspend(ctl_table * ctl, int write, struct file *file,
 		if (retval)
 			return retval;
 		suspend_mode = 1;
-		au1k_wait();
+
 		retval = pm_send_all(PM_RESUME, (void *) 0);
 	}
 	return retval;
@@ -314,7 +315,7 @@ static int pm_do_suspend(ctl_table * ctl, int write, struct file *file,
 
 
 static int pm_do_freq(ctl_table * ctl, int write, struct file *file,
-		      void *buffer, size_t * len)
+		      void __user *buffer, size_t * len, loff_t *ppos)
 {
 	int retval = 0, i;
 	unsigned long val, pll;
@@ -409,14 +410,14 @@ static int pm_do_freq(ctl_table * ctl, int write, struct file *file,
 
 
 	/* We don't want _any_ interrupts other than
-	 * match20. Otherwise our calibrate_delay()
+	 * match20. Otherwise our au1000_calibrate_delay()
 	 * calculation will be off, potentially a lot.
 	 */
 	intc0_mask = save_local_and_disable(0);
 	intc1_mask = save_local_and_disable(1);
 	local_enable_irq(AU1000_TOY_MATCH2_INT);
 	spin_unlock_irqrestore(&pm_lock, flags);
-	calibrate_delay();
+	au1000_calibrate_delay();
 	restore_local_and_enable(0, intc0_mask);
 	restore_local_and_enable(1, intc1_mask);
 	return retval;
@@ -456,7 +457,7 @@ __initcall(pm_init);
    better than 1% */
 #define LPS_PREC 8
 
-static void calibrate_delay(void)
+static void au1000_calibrate_delay(void)
 {
 	unsigned long ticks, loopbit;
 	int lps_precision = LPS_PREC;

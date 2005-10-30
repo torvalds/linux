@@ -126,8 +126,8 @@ BUFFER_FNS(Eopnotsupp, eopnotsupp)
 /* If we *know* page->private refers to buffer_heads */
 #define page_buffers(page)					\
 	({							\
-		BUG_ON(!PagePrivate(page));		\
-		((struct buffer_head *)(page)->private);	\
+		BUG_ON(!PagePrivate(page));			\
+		((struct buffer_head *)page_private(page));	\
 	})
 #define page_has_buffers(page)	PagePrivate(page)
 
@@ -219,7 +219,7 @@ static inline void attach_page_buffers(struct page *page,
 {
 	page_cache_get(page);
 	SetPagePrivate(page);
-	page->private = (unsigned long)head;
+	set_page_private(page, (unsigned long)head);
 }
 
 static inline void get_bh(struct buffer_head *bh)

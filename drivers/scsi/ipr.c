@@ -4944,6 +4944,7 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 	int rc;
 
 	ENTER;
+	pci_unblock_user_cfg_access(ioa_cfg->pdev);
 	rc = pci_restore_state(ioa_cfg->pdev);
 
 	if (rc != PCIBIOS_SUCCESSFUL) {
@@ -4998,6 +4999,7 @@ static int ipr_reset_start_bist(struct ipr_cmnd *ipr_cmd)
 	int rc;
 
 	ENTER;
+	pci_block_user_cfg_access(ioa_cfg->pdev);
 	rc = pci_write_config_byte(ioa_cfg->pdev, PCI_BIST, PCI_BIST_START);
 
 	if (rc != PCIBIOS_SUCCESSFUL) {

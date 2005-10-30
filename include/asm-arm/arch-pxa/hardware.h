@@ -44,12 +44,12 @@
 
 #ifndef __ASSEMBLY__
 
-# define __REG(x)	(*((volatile unsigned long *)io_p2v(x)))
+# define __REG(x)	(*((volatile u32 *)io_p2v(x)))
 
 /* With indexed regs we don't want to feed the index through io_p2v()
    especially if it is a variable, otherwise horrible code will result. */
 # define __REG2(x,y)	\
-	(*(volatile unsigned long *)((unsigned long)&__REG(x) + (y)))
+	(*(volatile u32 *)((u32)&__REG(x) + (y)))
 
 # define __PREG(x)	(io_v2p((u32)&(x)))
 

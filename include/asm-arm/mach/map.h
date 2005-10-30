@@ -11,7 +11,7 @@
  */
 struct map_desc {
 	unsigned long virtual;
-	unsigned long physical;
+	unsigned long pfn;
 	unsigned long length;
 	unsigned int type;
 };
@@ -26,6 +26,9 @@ struct meminfo;
 #define MT_MEMORY		5
 #define MT_ROM			6
 #define MT_IXP2000_DEVICE	7
+
+#define	__phys_to_pfn(paddr)	((paddr) >> PAGE_SHIFT)
+#define	__pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
 
 extern void create_memmap_holes(struct meminfo *);
 extern void memtable_init(struct meminfo *);

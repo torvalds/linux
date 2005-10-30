@@ -513,15 +513,18 @@ void handle_unaligned(struct pt_regs *regs)
 	register int flop=0;	/* true if this is a flop */
 
 	/* log a message with pacing */
-	if (user_mode(regs))
-	{
-		if (unaligned_count > 5 && jiffies - last_time > 5*HZ)
-		{
+	if (user_mode(regs)) {
+		if (current->thread.flags & PARISC_UAC_SIGBUS) {
+			goto force_sigbus;
+		}
+
+		if (unaligned_count > 5 && jiffies - last_time > 5*HZ) {
 			unaligned_count = 0;
 			last_time = jiffies;
 		}
-		if (++unaligned_count < 5)
-		{
+
+		if (!(current->thread.flags & PARISC_UAC_NOPRINT) 
+		    && ++unaligned_count < 5) {
 			char buf[256];
 			sprintf(buf, "%s(%d): unaligned access to 0x" RFMT " at ip=0x" RFMT "\n",
 				current->comm, current->pid, regs->ior, regs->iaoq[0]);
@@ -530,6 +533,7 @@ void handle_unaligned(struct pt_regs *regs)
 			show_regs(regs);
 #endif		
 		}
+
 		if (!unaligned_enabled)
 			goto force_sigbus;
 	}

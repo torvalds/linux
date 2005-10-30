@@ -8,7 +8,7 @@
 # Copyright (C) 1995-2001 by Russell King
 
 LDFLAGS_vmlinux	:=-p --no-undefined -X
-CPPFLAGS_vmlinux.lds = -DTEXTADDR=$(TEXTADDR) -DDATAADDR=$(DATAADDR)
+CPPFLAGS_vmlinux.lds = -DKERNEL_RAM_ADDR=$(TEXTADDR)
 OBJCOPYFLAGS	:=-O binary -R .note -R .comment -S
 GZFLAGS		:=-9
 #CFLAGS		+=-pipe
@@ -108,27 +108,19 @@ export CFLAGS_3c589_cs.o
 endif
 
 TEXTADDR := $(textaddr-y)
-ifeq ($(CONFIG_XIP_KERNEL),y)
-  DATAADDR := $(TEXTADDR)
-  xipaddr-$(CONFIG_ARCH_CO285) := 0x5f000000
-  xipaddr-y ?= 0xbf000000
-  # Replace phys addr with virt addr while keeping offset from base.
-  TEXTADDR := $(shell echo $(CONFIG_XIP_PHYS_ADDR) $(xipaddr-y) | \
-                      awk --non-decimal-data '/[:xdigit:]/ \
-                          { printf("0x%x\n", and($$1, 0x000fffff) + $$2) }' )
-endif
 
 ifeq ($(incdir-y),)
 incdir-y := $(machine-y)
 endif
 INCDIR   := arch-$(incdir-y)
+
 ifneq ($(machine-y),)
 MACHINE  := arch/arm/mach-$(machine-y)/
 else
 MACHINE  :=
 endif
   
-export	TEXTADDR DATAADDR GZFLAGS
+export	TEXTADDR GZFLAGS
 
 # Do we have FASTFPE?
 FASTFPE		:=arch/arm/fastfpe

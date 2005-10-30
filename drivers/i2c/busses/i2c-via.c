@@ -43,9 +43,9 @@
 
 /* io-region reservation */
 #define IOSPACE		0x06
-#define IOTEXT		"via-i2c"
 
-static u16 pm_io_base = 0;
+static struct pci_driver vt586b_driver;
+static u16 pm_io_base;
 
 /*
    It does not appear from the datasheet that the GPIO pins are
@@ -130,7 +130,7 @@ static int __devinit vt586b_probe(struct pci_dev *dev, const struct pci_device_i
 	pci_read_config_word(dev, base, &pm_io_base);
 	pm_io_base &= (0xff << 8);
 
-	if (!request_region(I2C_DIR, IOSPACE, IOTEXT)) {
+	if (!request_region(I2C_DIR, IOSPACE, vt586b_driver.name)) {
 		dev_err(&dev->dev, "IO 0x%x-0x%x already in use\n", I2C_DIR, I2C_DIR + IOSPACE);
 		return -ENODEV;
 	}
@@ -159,6 +159,7 @@ static void __devexit vt586b_remove(struct pci_dev *dev)
 
 
 static struct pci_driver vt586b_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "vt586b_smbus",
 	.id_table	= vt586b_ids,
 	.probe		= vt586b_probe,

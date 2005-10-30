@@ -67,9 +67,6 @@ static inline int pa_to_nid(unsigned long pa)
 #define node_start_pfn(nid)	(NODE_DATA(nid)->node_start_pfn)
 #define node_end_pfn(nid)	(NODE_DATA(nid)->node_end_pfn)
 
-#define local_mapnr(kvaddr) \
-	( (__pa(kvaddr) >> PAGE_SHIFT) - node_start_pfn(kvaddr_to_nid(kvaddr)) 
-
 #ifdef CONFIG_DISCONTIGMEM
 
 /*

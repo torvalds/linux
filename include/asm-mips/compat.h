@@ -15,10 +15,10 @@ typedef s32		compat_clock_t;
 typedef s32		compat_suseconds_t;
 
 typedef s32		compat_pid_t;
-typedef u32		__compat_uid_t;
-typedef u32		__compat_gid_t;
-typedef u32		__compat_uid32_t;
-typedef u32		__compat_gid32_t;
+typedef s32		__compat_uid_t;
+typedef s32		__compat_gid_t;
+typedef __compat_uid_t	__compat_uid32_t;
+typedef __compat_gid_t	__compat_gid32_t;
 typedef u32		compat_mode_t;
 typedef u32		compat_ino_t;
 typedef u32		compat_dev_t;
@@ -54,8 +54,8 @@ struct compat_stat {
 	compat_ino_t	st_ino;
 	compat_mode_t	st_mode;
 	compat_nlink_t	st_nlink;
-	__compat_uid32_t	st_uid;
-	__compat_gid32_t	st_gid;
+	__compat_uid_t	st_uid;
+	__compat_gid_t	st_gid;
 	compat_dev_t	st_rdev;
 	s32		st_pad2[2];
 	compat_off_t	st_size;

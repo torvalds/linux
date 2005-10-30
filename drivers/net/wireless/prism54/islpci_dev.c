@@ -754,8 +754,7 @@ islpci_free_memory(islpci_private *priv)
 			pci_unmap_single(priv->pdev, buf->pci_addr,
 					 buf->size, PCI_DMA_FROMDEVICE);
 		buf->pci_addr = 0;
-		if (buf->mem)
-			kfree(buf->mem);
+		kfree(buf->mem);
 		buf->size = 0;
 		buf->mem = NULL;
         }

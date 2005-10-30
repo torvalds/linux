@@ -5,6 +5,9 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 1999 - 2001 Kanoj Sarcar
  */
+
+#undef DEBUG
+
 #include <linux/config.h>
 #include <linux/init.h>
 #include <linux/irq.h>
@@ -14,11 +17,11 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
-#include <linux/irq.h>
 #include <linux/timex.h>
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/smp_lock.h>
+#include <linux/kernel.h>
 #include <linux/kernel_stat.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
@@ -36,13 +39,6 @@
 #include <asm/sn/arch.h>
 #include <asm/sn/hub.h>
 #include <asm/sn/intr.h>
-
-#undef DEBUG_IRQ
-#ifdef DEBUG_IRQ
-#define DBG(x...) printk(x)
-#else
-#define DBG(x...)
-#endif
 
 /*
  * Linux has a controller-independent x86 interrupt architecture.
@@ -74,14 +70,15 @@ extern int irq_to_slot[];
 
 static inline int alloc_level(int cpu, int irq)
 {
+	struct hub_data *hub = hub_data(cpu_to_node(cpu));
 	struct slice_data *si = cpu_data[cpu].data;
-	int level;				/* pre-allocated entries */
+	int level;
 
-	level = find_first_zero_bit(si->irq_alloc_mask, LEVELS_PER_SLICE);
+	level = find_first_zero_bit(hub->irq_alloc_mask, LEVELS_PER_SLICE);
 	if (level >= LEVELS_PER_SLICE)
 		panic("Cpu %d flooded with devices\n", cpu);
 
-	__set_bit(level, si->irq_alloc_mask);
+	__set_bit(level, hub->irq_alloc_mask);
 	si->level_to_irq[level] = irq;
 
 	return level;
@@ -216,9 +213,11 @@ static int intr_connect_level(int cpu, int bit)
 {
 	nasid_t nasid = COMPACT_TO_NASID_NODEID(cpu_to_node(cpu));
 	struct slice_data *si = cpu_data[cpu].data;
+	unsigned long flags;
 
-	__set_bit(bit, si->irq_enable_mask);
+	set_bit(bit, si->irq_enable_mask);
 
+	local_irq_save(flags);
 	if (!cputoslice(cpu)) {
 		REMOTE_HUB_S(nasid, PI_INT_MASK0_A, si->irq_enable_mask[0]);
 		REMOTE_HUB_S(nasid, PI_INT_MASK1_A, si->irq_enable_mask[1]);
@@ -226,6 +225,7 @@ static int intr_connect_level(int cpu, int bit)
 		REMOTE_HUB_S(nasid, PI_INT_MASK0_B, si->irq_enable_mask[0]);
 		REMOTE_HUB_S(nasid, PI_INT_MASK1_B, si->irq_enable_mask[1]);
 	}
+	local_irq_restore(flags);
 
 	return 0;
 }
@@ -235,7 +235,7 @@ static int intr_disconnect_level(int cpu, int bit)
 	nasid_t nasid = COMPACT_TO_NASID_NODEID(cpu_to_node(cpu));
 	struct slice_data *si = cpu_data[cpu].data;
 
-	__clear_bit(bit, si->irq_enable_mask);
+	clear_bit(bit, si->irq_enable_mask);
 
 	if (!cputoslice(cpu)) {
 		REMOTE_HUB_S(nasid, PI_INT_MASK0_A, si->irq_enable_mask[0]);
@@ -261,7 +261,7 @@ static unsigned int startup_bridge_irq(unsigned int irq)
 	bc = IRQ_TO_BRIDGE(irq);
 	bridge = bc->base;
 
-	DBG("bridge_startup(): irq= 0x%x  pin=%d\n", irq, pin);
+	pr_debug("bridge_startup(): irq= 0x%x  pin=%d\n", irq, pin);
 	/*
 	 * "map" irq to a swlevel greater than 6 since the first 6 bits
 	 * of INT_PEND0 are taken
@@ -298,12 +298,13 @@ static unsigned int startup_bridge_irq(unsigned int irq)
 static void shutdown_bridge_irq(unsigned int irq)
 {
 	struct bridge_controller *bc = IRQ_TO_BRIDGE(irq);
+	struct hub_data *hub = hub_data(cpu_to_node(bc->irq_cpu));
 	bridge_t *bridge = bc->base;
 	struct slice_data *si = cpu_data[bc->irq_cpu].data;
 	int pin, swlevel;
 	cpuid_t cpu;
 
-	DBG("bridge_shutdown: irq 0x%x\n", irq);
+	pr_debug("bridge_shutdown: irq 0x%x\n", irq);
 	pin = SLOT_FROM_PCI_IRQ(irq);
 
 	/*
@@ -313,7 +314,7 @@ static void shutdown_bridge_irq(unsigned int irq)
 	swlevel = find_level(&cpu, irq);
 	intr_disconnect_level(cpu, swlevel);
 
-	__clear_bit(swlevel, si->irq_alloc_mask);
+	__clear_bit(swlevel, hub->irq_alloc_mask);
 	si->level_to_irq[swlevel] = -1;
 
 	bridge->b_int_enable &= ~(1 << pin);
@@ -433,25 +434,24 @@ void install_ipi(void)
 	int slice = LOCAL_HUB_L(PI_CPU_NUM);
 	int cpu = smp_processor_id();
 	struct slice_data *si = cpu_data[cpu].data;
-	hubreg_t mask, set;
+	struct hub_data *hub = hub_data(cpu_to_node(cpu));
+	int resched, call;
+
+	resched = CPU_RESCHED_A_IRQ + slice;
+	__set_bit(resched, hub->irq_alloc_mask);
+	__set_bit(resched, si->irq_enable_mask);
+	LOCAL_HUB_CLR_INTR(resched);
+
+	call = CPU_CALL_A_IRQ + slice;
+	__set_bit(call, hub->irq_alloc_mask);
+	__set_bit(call, si->irq_enable_mask);
+	LOCAL_HUB_CLR_INTR(call);
 
 	if (slice == 0) {
-		LOCAL_HUB_CLR_INTR(CPU_RESCHED_A_IRQ);
-		LOCAL_HUB_CLR_INTR(CPU_CALL_A_IRQ);
-		mask = LOCAL_HUB_L(PI_INT_MASK0_A);	/* Slice A */
-		set = (1UL << CPU_RESCHED_A_IRQ) | (1UL << CPU_CALL_A_IRQ);
-		mask |= set;
-		si->irq_enable_mask[0] |= set;
-		si->irq_alloc_mask[0] |= set;
-		LOCAL_HUB_S(PI_INT_MASK0_A, mask);
+		LOCAL_HUB_S(PI_INT_MASK0_A, si->irq_enable_mask[0]);
+		LOCAL_HUB_S(PI_INT_MASK1_A, si->irq_enable_mask[1]);
 	} else {
-		LOCAL_HUB_CLR_INTR(CPU_RESCHED_B_IRQ);
-		LOCAL_HUB_CLR_INTR(CPU_CALL_B_IRQ);
-		mask = LOCAL_HUB_L(PI_INT_MASK0_B);	/* Slice B */
-		set = (1UL << CPU_RESCHED_B_IRQ) | (1UL << CPU_CALL_B_IRQ);
-		mask |= set;
-		si->irq_enable_mask[1] |= set;
-		si->irq_alloc_mask[1] |= set;
-		LOCAL_HUB_S(PI_INT_MASK0_B, mask);
+		LOCAL_HUB_S(PI_INT_MASK0_B, si->irq_enable_mask[0]);
+		LOCAL_HUB_S(PI_INT_MASK1_B, si->irq_enable_mask[1]);
 	}
 }

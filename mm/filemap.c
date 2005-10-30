@@ -66,7 +66,7 @@ generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
  *
  *  ->mmap_sem
  *    ->i_mmap_lock
- *      ->page_table_lock	(various places, mainly in mmap.c)
+ *      ->page_table_lock or pte_lock	(various, mainly in memory.c)
  *        ->mapping->tree_lock	(arch-dependent flush_dcache_mmap_lock)
  *
  *  ->mmap_sem
@@ -86,9 +86,9 @@ generic_file_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
  *    ->anon_vma.lock		(vma_adjust)
  *
  *  ->anon_vma.lock
- *    ->page_table_lock		(anon_vma_prepare and various)
+ *    ->page_table_lock or pte_lock	(anon_vma_prepare and various)
  *
- *  ->page_table_lock
+ *  ->page_table_lock or pte_lock
  *    ->swap_lock		(try_to_unmap_one)
  *    ->private_lock		(try_to_unmap_one)
  *    ->tree_lock		(try_to_unmap_one)
@@ -152,7 +152,7 @@ static int sync_page(void *word)
 	 * in the ->sync_page() methods make essential use of the
 	 * page_mapping(), merely passing the page down to the backing
 	 * device's unplug functions when it's non-NULL, which in turn
-	 * ignore it for all cases but swap, where only page->private is
+	 * ignore it for all cases but swap, where only page_private(page) is
 	 * of interest. When page_mapping() does go NULL, the entire
 	 * call stack gracefully ignores the page and returns.
 	 * -- wli
@@ -1520,7 +1520,7 @@ repeat:
 			page_cache_release(page);
 			return err;
 		}
-	} else {
+	} else if (vma->vm_flags & VM_NONLINEAR) {
 		/* No page was found just because we can't read it in now (being
 		 * here implies nonblock != 0), but the page may exist, so set
 		 * the PTE to fault it in later. */
@@ -1537,6 +1537,7 @@ repeat:
 
 	return 0;
 }
+EXPORT_SYMBOL(filemap_populate);
 
 struct vm_operations_struct generic_file_vm_ops = {
 	.nopage		= filemap_nopage,
@@ -1555,7 +1556,6 @@ int generic_file_mmap(struct file * file, struct vm_area_struct * vma)
 	vma->vm_ops = &generic_file_vm_ops;
 	return 0;
 }
-EXPORT_SYMBOL(filemap_populate);
 
 /*
  * This is for filesystems which do not implement ->writepage.

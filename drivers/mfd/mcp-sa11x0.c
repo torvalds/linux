@@ -219,26 +219,24 @@ static int mcp_sa11x0_remove(struct device *dev)
 	return 0;
 }
 
-static int mcp_sa11x0_suspend(struct device *dev, pm_message_t state, u32 level)
+static int mcp_sa11x0_suspend(struct device *dev, pm_message_t state)
 {
 	struct mcp *mcp = dev_get_drvdata(dev);
 
-	if (level == SUSPEND_DISABLE) {
-		priv(mcp)->mccr0 = Ser4MCCR0;
-		priv(mcp)->mccr1 = Ser4MCCR1;
-		Ser4MCCR0 &= ~MCCR0_MCE;
-	}
+	priv(mcp)->mccr0 = Ser4MCCR0;
+	priv(mcp)->mccr1 = Ser4MCCR1;
+	Ser4MCCR0 &= ~MCCR0_MCE;
+
 	return 0;
 }
 
-static int mcp_sa11x0_resume(struct device *dev, u32 level)
+static int mcp_sa11x0_resume(struct device *dev)
 {
 	struct mcp *mcp = dev_get_drvdata(dev);
 
-	if (level == RESUME_RESTORE_STATE) {
-		Ser4MCCR1 = priv(mcp)->mccr1;
-		Ser4MCCR0 = priv(mcp)->mccr0;
-	}
+	Ser4MCCR1 = priv(mcp)->mccr1;
+	Ser4MCCR0 = priv(mcp)->mccr0;
+
 	return 0;
 }
 

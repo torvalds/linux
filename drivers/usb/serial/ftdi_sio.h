@@ -199,6 +199,19 @@
 #define FTDI_PIEGROUP_PID	0xF208	/* Product Id */
 
 /*
+ * Definitions for Artemis astronomical USB based cameras
+ * Check it at http://www.artemisccd.co.uk/
+ */
+#define FTDI_ARTEMIS_PID	0xDF28	/* All Artemis Cameras */
+
+/*
+ * Definitions for ATIK Instruments astronomical USB based cameras
+ * Check it at http://www.atik-instruments.com/
+ */
+#define FTDI_ATIK_ATK16_PID	0xDF30	/* ATIK ATK-16 Camera */
+#define FTDI_ATIK_ATK16HR_PID	0xDF31	/* ATIK ATK-16HR Camera */
+
+/*
  * Protego product ids
  */
 #define PROTEGO_SPECIAL_1	0xFC70	/* special/unknown device */
@@ -328,6 +341,9 @@
  */
 #define EVOLUTION_VID		0xDEEE	/* Vendor ID */
 #define EVOLUTION_ER1_PID	0x0300	/* ER1 Control Module */
+
+/* Pyramid Computer GmbH */
+#define FTDI_PYRAMID_PID	0xE6C8	/* Pyramid Appliance Display */
 
 /* Commands */
 #define FTDI_SIO_RESET 		0 /* Reset the port */

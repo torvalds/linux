@@ -464,32 +464,28 @@ static void s3c2410wdt_shutdown(struct device *dev)
 static unsigned long wtcon_save;
 static unsigned long wtdat_save;
 
-static int s3c2410wdt_suspend(struct device *dev, pm_message_t state, u32 level)
+static int s3c2410wdt_suspend(struct device *dev, pm_message_t state)
 {
-	if (level == SUSPEND_POWER_DOWN) {
-		/* Save watchdog state, and turn it off. */
-		wtcon_save = readl(wdt_base + S3C2410_WTCON);
-		wtdat_save = readl(wdt_base + S3C2410_WTDAT);
+	/* Save watchdog state, and turn it off. */
+	wtcon_save = readl(wdt_base + S3C2410_WTCON);
+	wtdat_save = readl(wdt_base + S3C2410_WTDAT);
 
-		/* Note that WTCNT doesn't need to be saved. */
-		s3c2410wdt_stop();
-	}
+	/* Note that WTCNT doesn't need to be saved. */
+	s3c2410wdt_stop();
 
 	return 0;
 }
 
-static int s3c2410wdt_resume(struct device *dev, u32 level)
+static int s3c2410wdt_resume(struct device *dev)
 {
-	if (level == RESUME_POWER_ON) {
-		/* Restore watchdog state. */
+	/* Restore watchdog state. */
 
-		writel(wtdat_save, wdt_base + S3C2410_WTDAT);
-		writel(wtdat_save, wdt_base + S3C2410_WTCNT); /* Reset count */
-		writel(wtcon_save, wdt_base + S3C2410_WTCON);
+	writel(wtdat_save, wdt_base + S3C2410_WTDAT);
+	writel(wtdat_save, wdt_base + S3C2410_WTCNT); /* Reset count */
+	writel(wtcon_save, wdt_base + S3C2410_WTCON);
 
-		printk(KERN_INFO PFX "watchdog %sabled\n",
-		       (wtcon_save & S3C2410_WTCON_ENABLE) ? "en" : "dis");
-	}
+	printk(KERN_INFO PFX "watchdog %sabled\n",
+	       (wtcon_save & S3C2410_WTCON_ENABLE) ? "en" : "dis");
 
 	return 0;
 }

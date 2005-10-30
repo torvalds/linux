@@ -130,7 +130,7 @@ static const u8 usb2_rh_dev_descriptor [18] = {
 	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
 	0x00,	    /*  __u8  bDeviceSubClass; */
 	0x01,       /*  __u8  bDeviceProtocol; [ usb 2.0 single TT ]*/
-	0x08,       /*  __u8  bMaxPacketSize0; 8 Bytes */
+	0x40,       /*  __u8  bMaxPacketSize0; 64 Bytes */
 
 	0x00, 0x00, /*  __le16 idVendor; */
  	0x00, 0x00, /*  __le16 idProduct; */
@@ -153,7 +153,7 @@ static const u8 usb11_rh_dev_descriptor [18] = {
 	0x09,	    /*  __u8  bDeviceClass; HUB_CLASSCODE */
 	0x00,	    /*  __u8  bDeviceSubClass; */
 	0x00,       /*  __u8  bDeviceProtocol; [ low/full speeds only ] */
-	0x08,       /*  __u8  bMaxPacketSize0; 8 Bytes */
+	0x40,       /*  __u8  bMaxPacketSize0; 64 Bytes */
 
 	0x00, 0x00, /*  __le16 idVendor; */
  	0x00, 0x00, /*  __le16 idProduct; */
@@ -458,22 +458,18 @@ static int rh_call_control (struct usb_hcd *hcd, struct urb *urb)
 
 	default:
 		/* non-generic request */
-		if (HC_IS_SUSPENDED (hcd->state))
-			status = -EAGAIN;
-		else {
-			switch (typeReq) {
-			case GetHubStatus:
-			case GetPortStatus:
-				len = 4;
-				break;
-			case GetHubDescriptor:
-				len = sizeof (struct usb_hub_descriptor);
-				break;
-			}
-			status = hcd->driver->hub_control (hcd,
-				typeReq, wValue, wIndex,
-				tbuf, wLength);
+		switch (typeReq) {
+		case GetHubStatus:
+		case GetPortStatus:
+			len = 4;
+			break;
+		case GetHubDescriptor:
+			len = sizeof (struct usb_hub_descriptor);
+			break;
 		}
+		status = hcd->driver->hub_control (hcd,
+			typeReq, wValue, wIndex,
+			tbuf, wLength);
 		break;
 error:
 		/* "protocol stall" on error */
@@ -487,7 +483,7 @@ error:
 				"CTRL: TypeReq=0x%x val=0x%x "
 				"idx=0x%x len=%d ==> %d\n",
 				typeReq, wValue, wIndex,
-				wLength, urb->status);
+				wLength, status);
 		}
 	}
 	if (len) {
@@ -748,10 +744,9 @@ struct usb_bus *usb_alloc_bus (struct usb_operations *op)
 {
 	struct usb_bus *bus;
 
-	bus = kmalloc (sizeof *bus, GFP_KERNEL);
+	bus = kzalloc (sizeof *bus, GFP_KERNEL);
 	if (!bus)
 		return NULL;
-	memset(bus, 0, sizeof(struct usb_bus));
 	usb_bus_init (bus);
 	bus->op = op;
 	return bus;
@@ -782,7 +777,8 @@ static int usb_register_bus(struct usb_bus *bus)
 		return -E2BIG;
 	}
 
-	bus->class_dev = class_device_create(usb_host_class, MKDEV(0,0), bus->controller, "usb_host%d", busnum);
+	bus->class_dev = class_device_create(usb_host_class, NULL, MKDEV(0,0),
+					     bus->controller, "usb_host%d", busnum);
 	if (IS_ERR(bus->class_dev)) {
 		clear_bit(busnum, busmap.busmap);
 		up(&usb_bus_list_lock);
@@ -795,8 +791,7 @@ static int usb_register_bus(struct usb_bus *bus)
 	list_add (&bus->bus_list, &usb_bus_list);
 	up (&usb_bus_list_lock);
 
-	usbfs_add_bus (bus);
-	usbmon_notify_bus_add (bus);
+	usb_notify_add_bus(bus);
 
 	dev_info (bus->controller, "new USB bus registered, assigned bus number %d\n", bus->busnum);
 	return 0;
@@ -823,8 +818,7 @@ static void usb_deregister_bus (struct usb_bus *bus)
 	list_del (&bus->bus_list);
 	up (&usb_bus_list_lock);
 
-	usbmon_notify_bus_remove (bus);
-	usbfs_remove_bus (bus);
+	usb_notify_remove_bus(bus);
 
 	clear_bit (bus->busnum, busmap.busmap);
 
@@ -1142,10 +1136,20 @@ static int hcd_submit_urb (struct urb *urb, gfp_t mem_flags)
 	else switch (hcd->state) {
 	case HC_STATE_RUNNING:
 	case HC_STATE_RESUMING:
+doit:
 		usb_get_dev (urb->dev);
 		list_add_tail (&urb->urb_list, &ep->urb_list);
 		status = 0;
 		break;
+	case HC_STATE_SUSPENDED:
+		/* HC upstream links (register access, wakeup signaling) can work
+		 * even when the downstream links (and DMA etc) are quiesced; let
+		 * usbcore talk to the root hub.
+		 */
+		if (hcd->self.controller->power.power_state.event == PM_EVENT_ON
+				&& urb->dev->parent == NULL)
+			goto doit;
+		/* FALL THROUGH */
 	default:
 		status = -ESHUTDOWN;
 		break;
@@ -1293,12 +1297,6 @@ static int hcd_unlink_urb (struct urb *urb, int status)
 		goto done;
 	}
 
-	/* running ~= hc unlink handshake works (irq, timer, etc)
-	 * halted ~= no unlink handshake is needed
-	 * suspended, resuming == should never happen
-	 */
-	WARN_ON (!HC_IS_RUNNING (hcd->state) && hcd->state != HC_STATE_HALT);
-
 	/* insist the urb is still queued */
 	list_for_each(tmp, &ep->urb_list) {
 		if (tmp == &urb->urb_list)
@@ -1430,27 +1428,91 @@ rescan:
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef	CONFIG_USB_SUSPEND
+#ifdef	CONFIG_PM
 
-static int hcd_hub_suspend (struct usb_bus *bus)
+int hcd_bus_suspend (struct usb_bus *bus)
 {
 	struct usb_hcd		*hcd;
+	int			status;
 
 	hcd = container_of (bus, struct usb_hcd, self);
-	if (hcd->driver->hub_suspend)
-		return hcd->driver->hub_suspend (hcd);
-	return 0;
+	if (!hcd->driver->bus_suspend)
+		return -ENOENT;
+	hcd->state = HC_STATE_QUIESCING;
+	status = hcd->driver->bus_suspend (hcd);
+	if (status == 0)
+		hcd->state = HC_STATE_SUSPENDED;
+	else
+		dev_dbg(&bus->root_hub->dev, "%s fail, err %d\n",
+				"suspend", status);
+	return status;
 }
 
-static int hcd_hub_resume (struct usb_bus *bus)
+int hcd_bus_resume (struct usb_bus *bus)
 {
 	struct usb_hcd		*hcd;
+	int			status;
 
 	hcd = container_of (bus, struct usb_hcd, self);
-	if (hcd->driver->hub_resume)
-		return hcd->driver->hub_resume (hcd);
-	return 0;
+	if (!hcd->driver->bus_resume)
+		return -ENOENT;
+	if (hcd->state == HC_STATE_RUNNING)
+		return 0;
+	hcd->state = HC_STATE_RESUMING;
+	status = hcd->driver->bus_resume (hcd);
+	if (status == 0)
+		hcd->state = HC_STATE_RUNNING;
+	else {
+		dev_dbg(&bus->root_hub->dev, "%s fail, err %d\n",
+				"resume", status);
+		usb_hc_died(hcd);
+	}
+	return status;
 }
+
+/*
+ * usb_hcd_suspend_root_hub - HCD autosuspends downstream ports
+ * @hcd: host controller for this root hub
+ *
+ * This call arranges that usb_hcd_resume_root_hub() is safe to call later;
+ * that the HCD's root hub polling is deactivated; and that the root's hub
+ * driver is suspended.  HCDs may call this to autosuspend when their root
+ * hub's downstream ports are all inactive:  unpowered, disconnected,
+ * disabled, or suspended.
+ *
+ * The HCD will autoresume on device connect change detection (using SRP
+ * or a D+/D- pullup).  The HCD also autoresumes on remote wakeup signaling
+ * from any ports that are suspended (if that is enabled).  In most cases,
+ * overcurrent signaling (on powered ports) will also start autoresume.
+ *
+ * Always called with IRQs blocked.
+ */
+void usb_hcd_suspend_root_hub (struct usb_hcd *hcd)
+{
+	struct urb	*urb;
+
+	spin_lock (&hcd_root_hub_lock);
+	usb_suspend_root_hub (hcd->self.root_hub);
+
+	/* force status urb to complete/unlink while suspended */
+	if (hcd->status_urb) {
+		urb = hcd->status_urb;
+		urb->status = -ECONNRESET;
+		urb->hcpriv = NULL;
+		urb->actual_length = 0;
+
+		del_timer (&hcd->rh_timer);
+		hcd->poll_pending = 0;
+		hcd->status_urb = NULL;
+	} else
+		urb = NULL;
+	spin_unlock (&hcd_root_hub_lock);
+	hcd->state = HC_STATE_SUSPENDED;
+
+	if (urb)
+		usb_hcd_giveback_urb (hcd, urb, NULL);
+}
+EXPORT_SYMBOL_GPL(usb_hcd_suspend_root_hub);
 
 /**
  * usb_hcd_resume_root_hub - called by HCD to resume its root hub 
@@ -1459,7 +1521,7 @@ static int hcd_hub_resume (struct usb_bus *bus)
  * The USB host controller calls this function when its root hub is
  * suspended (with the remote wakeup feature enabled) and a remote
  * wakeup request is received.  It queues a request for khubd to
- * resume the root hub.
+ * resume the root hub (that is, manage its downstream ports again).
  */
 void usb_hcd_resume_root_hub (struct usb_hcd *hcd)
 {
@@ -1470,13 +1532,9 @@ void usb_hcd_resume_root_hub (struct usb_hcd *hcd)
 		usb_resume_root_hub (hcd->self.root_hub);
 	spin_unlock_irqrestore (&hcd_root_hub_lock, flags);
 }
-
-#else
-void usb_hcd_resume_root_hub (struct usb_hcd *hcd)
-{
-}
-#endif
 EXPORT_SYMBOL_GPL(usb_hcd_resume_root_hub);
+
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -1529,10 +1587,6 @@ static struct usb_operations usb_hcd_operations = {
 	.buffer_alloc =		hcd_buffer_alloc,
 	.buffer_free =		hcd_buffer_free,
 	.disable =		hcd_endpoint_disable,
-#ifdef	CONFIG_USB_SUSPEND
-	.hub_suspend =		hcd_hub_suspend,
-	.hub_resume =		hcd_hub_resume,
-#endif
 };
 
 /*-------------------------------------------------------------------------*/

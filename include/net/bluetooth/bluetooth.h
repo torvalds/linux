@@ -171,4 +171,10 @@ static inline int skb_frags_no(struct sk_buff *skb)
 
 int bt_err(__u16 code);
 
+extern int hci_sock_init(void);
+extern int hci_sock_cleanup(void);
+
+extern int bt_sysfs_init(void);
+extern void bt_sysfs_cleanup(void);
+
 #endif /* __BLUETOOTH_H */

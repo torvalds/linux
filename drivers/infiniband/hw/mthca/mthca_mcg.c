@@ -37,10 +37,6 @@
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
 
-enum {
-	MTHCA_QP_PER_MGM = 4 * (MTHCA_MGM_ENTRY_SIZE / 16 - 2)
-};
-
 struct mthca_mgm {
 	__be32 next_gid_index;
 	u32    reserved[3];
@@ -189,7 +185,12 @@ int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	}
 
 	for (i = 0; i < MTHCA_QP_PER_MGM; ++i)
-		if (!(mgm->qp[i] & cpu_to_be32(1 << 31))) {
+		if (mgm->qp[i] == cpu_to_be32(ibqp->qp_num | (1 << 31))) {
+			mthca_dbg(dev, "QP %06x already a member of MGM\n", 
+				  ibqp->qp_num);
+			err = 0;
+			goto out;
+		} else if (!(mgm->qp[i] & cpu_to_be32(1 << 31))) {
 			mgm->qp[i] = cpu_to_be32(ibqp->qp_num | (1 << 31));
 			break;
 		}

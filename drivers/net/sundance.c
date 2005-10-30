@@ -80,7 +80,7 @@
 	  I/O access could affect performance in ARM-based system
 	- Add Linux software VLAN support
 	
-	Version LK1.08 (D-Link):
+	Version LK1.08 (Philippe De Muyter phdm@macqel.be):
 	- Fix bug of custom mac address 
 	(StationAddr register only accept word write) 
 
@@ -91,11 +91,14 @@
 	Version LK1.09a (ICPlus):
 	- Add the delay time in reading the contents of EEPROM
 
+	Version LK1.10 (Philippe De Muyter phdm@macqel.be):
+	- Make 'unblock interface after Tx underrun' work
+
 */
 
 #define DRV_NAME	"sundance"
-#define DRV_VERSION	"1.01+LK1.09a"
-#define DRV_RELDATE	"10-Jul-2003"
+#define DRV_VERSION	"1.01+LK1.10"
+#define DRV_RELDATE	"28-Oct-2005"
 
 
 /* The user-configurable values.
@@ -263,8 +266,10 @@ IV. Notes
 IVb. References
 
 The Sundance ST201 datasheet, preliminary version.
-http://cesdis.gsfc.nasa.gov/linux/misc/100mbps.html
-http://cesdis.gsfc.nasa.gov/linux/misc/NWay.html
+The Kendin KS8723 datasheet, preliminary version.
+The ICplus IP100 datasheet, preliminary version.
+http://www.scyld.com/expert/100mbps.html
+http://www.scyld.com/expert/NWay.html
 
 IVc. Errata
 
@@ -499,6 +504,25 @@ static struct net_device_stats *get_stats(struct net_device *dev);
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static int  netdev_close(struct net_device *dev);
 static struct ethtool_ops ethtool_ops;
+
+static void sundance_reset(struct net_device *dev, unsigned long reset_cmd)
+{
+	struct netdev_private *np = netdev_priv(dev);
+	void __iomem *ioaddr = np->base + ASICCtrl;
+	int countdown;
+
+	/* ST201 documentation states ASICCtrl is a 32bit register */
+	iowrite32 (reset_cmd | ioread32 (ioaddr), ioaddr);
+	/* ST201 documentation states reset can take up to 1 ms */
+	countdown = 10 + 1;
+	while (ioread32 (ioaddr) & (ResetBusy << 16)) {
+		if (--countdown == 0) {
+			printk(KERN_WARNING "%s : reset not completed !!\n", dev->name);
+			break;
+		}
+		udelay(100);
+	}
+}
 
 static int __devinit sundance_probe1 (struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
@@ -1190,23 +1214,33 @@ static irqreturn_t intr_handler(int irq, void *dev_instance, struct pt_regs *rgs
 					    ("%s: Transmit status is %2.2x.\n",
 				     	dev->name, tx_status);
 				if (tx_status & 0x1e) {
+					if (netif_msg_tx_err(np))
+						printk("%s: Transmit error status %4.4x.\n",
+							   dev->name, tx_status);
 					np->stats.tx_errors++;
 					if (tx_status & 0x10)
 						np->stats.tx_fifo_errors++;
 					if (tx_status & 0x08)
 						np->stats.collisions++;
+					if (tx_status & 0x04)
+						np->stats.tx_fifo_errors++;
 					if (tx_status & 0x02)
 						np->stats.tx_window_errors++;
-					/* This reset has not been verified!. */
-					if (tx_status & 0x10) {	/* Reset the Tx. */
-						np->stats.tx_fifo_errors++;
-						spin_lock(&np->lock);
-						reset_tx(dev);
-						spin_unlock(&np->lock);
+					/*
+					** This reset has been verified on
+					** DFE-580TX boards ! phdm@macqel.be.
+					*/
+					if (tx_status & 0x10) {	/* TxUnderrun */
+						unsigned short txthreshold;
+
+						txthreshold = ioread16 (ioaddr + TxStartThresh);
+						/* Restart Tx FIFO and transmitter */
+						sundance_reset(dev, (NetworkReset|FIFOReset|TxReset) << 16);
+						iowrite16 (txthreshold, ioaddr + TxStartThresh);
+						/* No need to reset the Tx pointer here */
 					}
-					if (tx_status & 0x1e)	/* Restart the Tx. */
-						iowrite16 (TxEnable,
-							ioaddr + MACCtrl1);
+					/* Restart the Tx. */
+					iowrite16 (TxEnable, ioaddr + MACCtrl1);
 				}
 				/* Yup, this is a documentation bug.  It cost me *hours*. */
 				iowrite16 (0, ioaddr + TxStatus);

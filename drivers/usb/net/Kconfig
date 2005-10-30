@@ -294,7 +294,7 @@ config USB_NET_ZAURUS
 	  This also supports some related device firmware, as used in some
 	  PDAs from Olympus and some cell phones from Motorola.
 
-	  If you install an alternate ROM image, such as the Linux 2.6 based
+	  If you install an alternate image, such as the Linux 2.6 based
 	  versions of OpenZaurus, you should no longer need to support this
 	  protocol.  Only the "eth-fd" or "net_fd" drivers in these devices
 	  really need this non-conformant variant of CDC Ethernet (or in

@@ -19,12 +19,18 @@
 #include <linux/sched.h>
 #include <asm/mipsregs.h>
 #include <asm/sibyte/sb1250.h>
-
-#ifndef CONFIG_SIBYTE_BUS_WATCHER
-#include <asm/io.h>
 #include <asm/sibyte/sb1250_regs.h>
+
+#if !defined(CONFIG_SIBYTE_BUS_WATCHER) || defined(CONFIG_SIBYTE_BW_TRACE)
+#include <asm/io.h>
 #include <asm/sibyte/sb1250_scd.h>
 #endif
+
+/*
+ * We'd like to dump the L2_ECC_TAG register on errors, but errata make
+ * that unsafe... So for now we don't.  (BCM1250/BCM112x erratum SOC-48.)
+ */
+#undef DUMP_L2_ECC_TAG_ON_ERROR
 
 /* SB1 definitions */
 
@@ -139,12 +145,18 @@ static inline void breakout_cerrd(unsigned int val)
 static void check_bus_watcher(void)
 {
 	uint32_t status, l2_err, memio_err;
+#ifdef DUMP_L2_ECC_TAG_ON_ERROR
+	uint64_t l2_tag;
+#endif
 
 	/* Destructive read, clears register and interrupt */
 	status = csr_in32(IOADDR(A_SCD_BUS_ERR_STATUS));
 	/* Bit 31 is always on, but there's no #define for that */
 	if (status & ~(1UL << 31)) {
 		l2_err = csr_in32(IOADDR(A_BUS_L2_ERRORS));
+#ifdef DUMP_L2_ECC_TAG_ON_ERROR
+		l2_tag = in64(IO_SPACE_BASE | A_L2_ECC_TAG);
+#endif
 		memio_err = csr_in32(IOADDR(A_BUS_MEM_IO_ERRORS));
 		prom_printf("Bus watcher error counters: %08x %08x\n", l2_err, memio_err);
 		prom_printf("\nLast recorded signature:\n");
@@ -153,6 +165,9 @@ static void check_bus_watcher(void)
 		       (int)(G_SCD_BERR_TID(status) >> 6),
 		       (int)G_SCD_BERR_RID(status),
 		       (int)G_SCD_BERR_DCODE(status));
+#ifdef DUMP_L2_ECC_TAG_ON_ERROR
+		prom_printf("Last L2 tag w/ bad ECC: %016llx\n", l2_tag);
+#endif
 	} else {
 		prom_printf("Bus watcher indicates no error\n");
 	}
@@ -165,6 +180,16 @@ asmlinkage void sb1_cache_error(void)
 {
 	uint64_t cerr_dpa;
 	uint32_t errctl, cerr_i, cerr_d, dpalo, dpahi, eepc, res;
+
+#ifdef CONFIG_SIBYTE_BW_TRACE
+	/* Freeze the trace buffer now */
+#if defined(CONFIG_SIBYTE_BCM1x55) || defined(CONFIG_SIBYTE_BCM1x80)
+	csr_out32(M_BCM1480_SCD_TRACE_CFG_FREEZE, IO_SPACE_BASE | A_SCD_TRACE_CFG);
+#else
+	csr_out32(M_SCD_TRACE_CFG_FREEZE, IO_SPACE_BASE | A_SCD_TRACE_CFG);
+#endif
+	prom_printf("Trace buffer frozen\n");
+#endif
 
 	prom_printf("Cache error exception on CPU %x:\n",
 		    (read_c0_prid() >> 25) & 0x7);
@@ -229,11 +254,19 @@ asmlinkage void sb1_cache_error(void)
 
 	check_bus_watcher();
 
-	while (1);
 	/*
-	 * This tends to make things get really ugly; let's just stall instead.
-	 *    panic("Can't handle the cache error!");
+	 * Calling panic() when a fatal cache error occurs scrambles the
+	 * state of the system (and the cache), making it difficult to
+	 * investigate after the fact.  However, if you just stall the CPU,
+	 * the other CPU may keep on running, which is typically very
+	 * undesirable.
 	 */
+#ifdef CONFIG_SB1_CERR_STALL
+	while (1)
+		;
+#else
+	panic("unhandled cache error");
+#endif
 }
 
 
@@ -434,7 +467,8 @@ static struct dc_state dc_states[] = {
 };
 
 #define DC_TAG_VALID(state) \
-    (((state) == 0xf) || ((state) == 0x13) || ((state) == 0x19) || ((state == 0x16)) || ((state) == 0x1c))
+    (((state) == 0x0) || ((state) == 0xf) || ((state) == 0x13) || \
+     ((state) == 0x19) || ((state) == 0x16) || ((state) == 0x1c))
 
 static char *dc_state_str(unsigned char state)
 {
@@ -505,6 +539,7 @@ static uint32_t extract_dc(unsigned short addr, int data)
 			uint64_t datalo;
 			uint32_t datalohi, datalolo, datahi;
 			int offset;
+			char bad_ecc = 0;
 
 			for (offset = 0; offset < 4; offset++) {
 				/* Index-load-data-D */
@@ -525,8 +560,7 @@ static uint32_t extract_dc(unsigned short addr, int data)
 				ecc = dc_ecc(datalo);
 				if (ecc != datahi) {
 					int bits = 0;
-					prom_printf("  ** bad ECC (%02x %02x) ->",
-						    datahi, ecc);
+					bad_ecc |= 1 << (3-offset);
 					ecc ^= datahi;
 					while (ecc) {
 						if (ecc & 1) bits++;
@@ -537,6 +571,10 @@ static uint32_t extract_dc(unsigned short addr, int data)
 				prom_printf("  %02X-%016llX", datahi, datalo);
 			}
 			prom_printf("\n");
+			if (bad_ecc)
+				prom_printf("  dwords w/ bad ECC: %d %d %d %d\n",
+					    !!(bad_ecc & 8), !!(bad_ecc & 4),
+					    !!(bad_ecc & 2), !!(bad_ecc & 1));
 		}
 	}
 	return res;

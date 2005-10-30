@@ -9,16 +9,16 @@
  *  published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/major.h>
-#include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include <linux/videodev.h>
 #include <linux/video_decoder.h>
@@ -32,8 +32,6 @@ MODULE_DESCRIPTION("Philips SAA7191 video decoder driver");
 MODULE_VERSION(SAA7191_MODULE_VERSION);
 MODULE_AUTHOR("Mikael Nousiainen <tmnousia@cc.hut.fi>");
 MODULE_LICENSE("GPL");
-
-#define VINO_ADAPTER	(I2C_ALGO_SGI | I2C_HW_SGI_VINO)
 
 struct saa7191 {
 	struct i2c_client *client;
@@ -337,7 +335,7 @@ out_free_client:
 static int saa7191_probe(struct i2c_adapter *adap)
 {
 	/* Always connected to VINO */
-	if (adap->id == VINO_ADAPTER)
+	if (adap->id == I2C_HW_SGI_VINO)
 		return saa7191_attach(adap, SAA7191_ADDR, 0);
 	/* Feel free to add probe here :-) */
 	return -ENODEV;
@@ -364,7 +362,7 @@ static int saa7191_command(struct i2c_client *client, unsigned int cmd,
 
 		cap->flags  = VIDEO_DECODER_PAL | VIDEO_DECODER_NTSC |
 			      VIDEO_DECODER_SECAM | VIDEO_DECODER_AUTO;
-		cap->inputs = (client->adapter->id == VINO_ADAPTER) ? 2 : 1;
+		cap->inputs = (client->adapter->id == I2C_HW_SGI_VINO) ? 2 : 1;
 		cap->outputs = 1;
 		break;
 	}
@@ -422,7 +420,7 @@ static int saa7191_command(struct i2c_client *client, unsigned int cmd,
 		int *iarg = arg;
 
 		switch (client->adapter->id) {
-		case VINO_ADAPTER:
+		case I2C_HW_SGI_VINO:
 			return saa7191_set_input(client, *iarg);
 		default:
 			if (*iarg != 0)

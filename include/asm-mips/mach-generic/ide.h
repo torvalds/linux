@@ -18,6 +18,7 @@
 #include <linux/config.h>
 #include <linux/pci.h>
 #include <linux/stddef.h>
+#include <asm/processor.h>
 
 #ifndef MAX_HWIFS
 # ifdef CONFIG_BLK_DEV_IDEPCI
@@ -104,15 +105,71 @@ static __inline__ unsigned long ide_default_io_base(int index)
 
 /* MIPS port and memory-mapped I/O string operations.  */
 
-#define __ide_insw	insw
-#define __ide_insl	insl
-#define __ide_outsw	outsw
-#define __ide_outsl	outsl
+static inline void __ide_flush_dcache_range(unsigned long addr, unsigned long size)
+{
+	if (cpu_has_dc_aliases) {
+		unsigned long end = addr + size;
+		for (; addr < end; addr += PAGE_SIZE)
+			flush_dcache_page(virt_to_page(addr));
+	}
+}
 
-#define __ide_mm_insw	readsw
-#define __ide_mm_insl	readsl
-#define __ide_mm_outsw	writesw
-#define __ide_mm_outsl	writesl
+static inline void __ide_insw(unsigned long port, void *addr,
+	unsigned int count)
+{
+	insw(port, addr, count);
+	__ide_flush_dcache_range((unsigned long)addr, count * 2);
+}
+
+static inline void __ide_insl(unsigned long port, void *addr, unsigned int count)
+{
+	insl(port, addr, count);
+	__ide_flush_dcache_range((unsigned long)addr, count * 4);
+}
+
+static inline void __ide_outsw(unsigned long port, const void *addr,
+	unsigned long count)
+{
+	outsw(port, addr, count);
+	__ide_flush_dcache_range((unsigned long)addr, count * 2);
+}
+
+static inline void __ide_outsl(unsigned long port, const void *addr,
+	unsigned long count)
+{
+	outsl(port, addr, count);
+	__ide_flush_dcache_range((unsigned long)addr, count * 4);
+}
+
+static inline void __ide_mm_insw(void __iomem *port, void *addr, u32 count)
+{
+	readsw(port, addr, count);
+	__ide_flush_dcache_range((unsigned long)addr, count * 2);
+}
+
+static inline void __ide_mm_insl(void __iomem *port, void *addr, u32 count)
+{
+	readsl(port, addr, count);
+	__ide_flush_dcache_range((unsigned long)addr, count * 4);
+}
+
+static inline void __ide_mm_outsw(void __iomem *port, void *addr, u32 count)
+{
+	writesw(port, addr, count);
+	__ide_flush_dcache_range((unsigned long)addr, count * 2);
+}
+
+static inline void __ide_mm_outsl(void __iomem * port, void *addr, u32 count)
+{
+	writesl(port, addr, count);
+	__ide_flush_dcache_range((unsigned long)addr, count * 4);
+}
+
+/* ide_insw calls insw, not __ide_insw.  Why? */
+#undef insw
+#undef insl
+#define insw(port, addr, count) __ide_insw(port, addr, count)
+#define insl(port, addr, count) __ide_insl(port, addr, count)
 
 #endif /* __KERNEL__ */
 

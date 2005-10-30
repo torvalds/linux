@@ -269,6 +269,8 @@ u32 ethtool_op_get_tso(struct net_device *dev);
 int ethtool_op_set_tso(struct net_device *dev, u32 data);
 int ethtool_op_get_perm_addr(struct net_device *dev, 
 			     struct ethtool_perm_addr *addr, u8 *data);
+u32 ethtool_op_get_ufo(struct net_device *dev);
+int ethtool_op_set_ufo(struct net_device *dev, u32 data);
 
 /**
  * &ethtool_ops - Alter and report network device settings
@@ -298,6 +300,8 @@ int ethtool_op_get_perm_addr(struct net_device *dev,
  * set_sg: Turn scatter-gather on or off
  * get_tso: Report whether TCP segmentation offload is enabled
  * set_tso: Turn TCP segmentation offload on or off
+ * get_ufo: Report whether UDP fragmentation offload is enabled
+ * set_ufo: Turn UDP fragmentation offload on or off
  * self_test: Run specified self-tests
  * get_strings: Return a set of strings that describe the requested objects 
  * phys_id: Identify the device
@@ -364,6 +368,8 @@ struct ethtool_ops {
 	int	(*get_perm_addr)(struct net_device *, struct ethtool_perm_addr *, u8 *);
 	int	(*begin)(struct net_device *);
 	void	(*complete)(struct net_device *);
+	u32     (*get_ufo)(struct net_device *);
+	int     (*set_ufo)(struct net_device *, u32);
 };
 
 /* CMDs currently supported */
@@ -400,6 +406,8 @@ struct ethtool_ops {
 #define ETHTOOL_GTSO		0x0000001e /* Get TSO enable (ethtool_value) */
 #define ETHTOOL_STSO		0x0000001f /* Set TSO enable (ethtool_value) */
 #define ETHTOOL_GPERMADDR	0x00000020 /* Get permanent hardware address */
+#define ETHTOOL_GUFO		0x00000021 /* Get UFO enable (ethtool_value) */
+#define ETHTOOL_SUFO		0x00000022 /* Set UFO enable (ethtool_value) */
 
 /* compatibility with older code */
 #define SPARC_ETH_GSET		ETHTOOL_GSET

@@ -1512,7 +1512,7 @@ static void ub_state_sense(struct ub_dev *sc, struct ub_scsi_cmd *cmd)
 	scmd->nsg = 1;
 	sg = &scmd->sgv[0];
 	sg->page = virt_to_page(sc->top_sense);
-	sg->offset = (unsigned int)sc->top_sense & (PAGE_SIZE-1);
+	sg->offset = (unsigned long)sc->top_sense & (PAGE_SIZE-1);
 	sg->length = UB_SENSE_SIZE;
 	scmd->len = UB_SENSE_SIZE;
 	scmd->lun = cmd->lun;
@@ -1891,7 +1891,7 @@ static int ub_sync_read_cap(struct ub_dev *sc, struct ub_lun *lun,
 	cmd->nsg = 1;
 	sg = &cmd->sgv[0];
 	sg->page = virt_to_page(p);
-	sg->offset = (unsigned int)p & (PAGE_SIZE-1);
+	sg->offset = (unsigned long)p & (PAGE_SIZE-1);
 	sg->length = 8;
 	cmd->len = 8;
 	cmd->lun = lun;

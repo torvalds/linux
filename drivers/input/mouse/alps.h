@@ -22,7 +22,7 @@ struct alps_model_info {
 };
 
 struct alps_data {
-	struct input_dev dev2;		/* Relative device */
+	struct input_dev *dev2;		/* Relative device */
 	char name[32];			/* Name */
 	char phys[32];			/* Phys */
 	struct alps_model_info *i; 	/* Info */

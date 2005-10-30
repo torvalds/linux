@@ -638,7 +638,7 @@ static irqreturn_t isp116x_irq(struct usb_hcd *hcd, struct pt_regs *regs)
 				  + msecs_to_jiffies(20) + 1);
 		if (intstat & HCINT_RD) {
 			DBG("---- remote wakeup\n");
-			schedule_work(&isp116x->rh_resume);
+			usb_hcd_resume_root_hub(hcd);
 			ret = IRQ_HANDLED;
 		}
 		irqstat &= ~HCuPINT_OPR;
@@ -1160,7 +1160,7 @@ static int isp116x_hub_control(struct usb_hcd *hcd,
 
 #ifdef	CONFIG_PM
 
-static int isp116x_hub_suspend(struct usb_hcd *hcd)
+static int isp116x_bus_suspend(struct usb_hcd *hcd)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	unsigned long flags;
@@ -1200,7 +1200,7 @@ static int isp116x_hub_suspend(struct usb_hcd *hcd)
 	return ret;
 }
 
-static int isp116x_hub_resume(struct usb_hcd *hcd)
+static int isp116x_bus_resume(struct usb_hcd *hcd)
 {
 	struct isp116x *isp116x = hcd_to_isp116x(hcd);
 	u32 val;
@@ -1263,21 +1263,11 @@ static int isp116x_hub_resume(struct usb_hcd *hcd)
 	return 0;
 }
 
-static void isp116x_rh_resume(void *_hcd)
-{
-	struct usb_hcd *hcd = _hcd;
-
-	usb_resume_device(hcd->self.root_hub);
-}
 
 #else
 
-#define	isp116x_hub_suspend	NULL
-#define	isp116x_hub_resume	NULL
-
-static void isp116x_rh_resume(void *_hcd)
-{
-}
+#define	isp116x_bus_suspend	NULL
+#define	isp116x_bus_resume	NULL
 
 #endif
 
@@ -1636,8 +1626,8 @@ static struct hc_driver isp116x_hc_driver = {
 
 	.hub_status_data = isp116x_hub_status_data,
 	.hub_control = isp116x_hub_control,
-	.hub_suspend = isp116x_hub_suspend,
-	.hub_resume = isp116x_hub_resume,
+	.bus_suspend = isp116x_bus_suspend,
+	.bus_resume = isp116x_bus_resume,
 };
 
 /*----------------------------------------------------------------*/
@@ -1732,7 +1722,6 @@ static int __init isp116x_probe(struct device *dev)
 	isp116x->addr_reg = addr_reg;
 	spin_lock_init(&isp116x->lock);
 	INIT_LIST_HEAD(&isp116x->async);
-	INIT_WORK(&isp116x->rh_resume, isp116x_rh_resume, hcd);
 	isp116x->board = dev->platform_data;
 
 	if (!isp116x->board) {
@@ -1774,22 +1763,13 @@ static int __init isp116x_probe(struct device *dev)
 /*
   Suspend of platform device
 */
-static int isp116x_suspend(struct device *dev, pm_message_t state, u32 phase)
+static int isp116x_suspend(struct device *dev, pm_message_t state)
 {
 	int ret = 0;
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
 
-	VDBG("%s: state %x, phase %x\n", __func__, state, phase);
+	VDBG("%s: state %x\n", __func__, state);
 
-	if (phase != SUSPEND_DISABLE && phase != SUSPEND_POWER_DOWN)
-		return 0;
-
-	ret = usb_suspend_device(hcd->self.root_hub, state);
-	if (!ret) {
-		dev->power.power_state = state;
-		INFO("%s suspended\n", hcd_name);
-	} else
-		ERR("%s suspend failed\n", hcd_name);
+	dev->power.power_state = state;
 
 	return ret;
 }
@@ -1797,21 +1777,14 @@ static int isp116x_suspend(struct device *dev, pm_message_t state, u32 phase)
 /*
   Resume platform device
 */
-static int isp116x_resume(struct device *dev, u32 phase)
+static int isp116x_resume(struct device *dev)
 {
 	int ret = 0;
-	struct usb_hcd *hcd = dev_get_drvdata(dev);
 
-	VDBG("%s:  state %x, phase %x\n", __func__, dev->power.power_state,
-	     phase);
-	if (phase != RESUME_POWER_ON)
-		return 0;
+	VDBG("%s:  state %x\n", __func__, dev->power.power_state);
 
-	ret = usb_resume_device(hcd->self.root_hub);
-	if (!ret) {
-		dev->power.power_state = PMSG_ON;
-		VDBG("%s resumed\n", (char *)hcd_name);
-	}
+	dev->power.power_state = PMSG_ON;
+
 	return ret;
 }
 

@@ -60,4 +60,13 @@ config MMC_WBSD
 
 	  If unsure, say N.
 
+config MMC_AU1X
+	tristate "Alchemy AU1XX0 MMC Card Interface support"
+	depends on SOC_AU1X00 && MMC
+	help
+	  This selects the AMD Alchemy(R) Multimedia card interface.
+	  iIf you have a Alchemy platform with a MMC slot, say Y or M here.
+
+	  If unsure, say N.
+
 endmenu

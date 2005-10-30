@@ -97,12 +97,6 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	/* lock the driver code */
 	spin_lock_irqsave(&priv->slock, flags);
 
-	/* determine the amount of fragments needed to store the frame */
-
-	frame_size = skb->len < ETH_ZLEN ? ETH_ZLEN : skb->len;
-	if (init_wds)
-		frame_size += 6;
-
 	/* check whether the destination queue has enough fragments for the frame */
 	curr_frag = le32_to_cpu(cb->driver_curr_frag[ISL38XX_CB_TX_DATA_LQ]);
 	if (unlikely(curr_frag - priv->free_data_tx >= ISL38XX_CB_TX_QSIZE)) {
@@ -213,6 +207,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	/* store the skb address for future freeing  */
 	priv->data_low_tx[index] = skb;
 	/* set the proper fragment start address and size information */
+	frame_size = skb->len;
 	fragment->size = cpu_to_le16(frame_size);
 	fragment->flags = cpu_to_le16(0);	/* set to 1 if more fragments */
 	fragment->address = cpu_to_le32(pci_map_address);
@@ -246,12 +241,10 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	return 0;
 
       drop_free:
-	/* free the skbuf structure before aborting */
-	dev_kfree_skb(skb);
-	skb = NULL;
-
 	priv->statistics.tx_dropped++;
 	spin_unlock_irqrestore(&priv->slock, flags);
+	dev_kfree_skb(skb);
+	skb = NULL;
 	return err;
 }
 

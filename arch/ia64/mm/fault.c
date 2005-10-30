@@ -20,32 +20,6 @@
 extern void die (char *, struct pt_regs *, long);
 
 /*
- * This routine is analogous to expand_stack() but instead grows the
- * register backing store (which grows towards higher addresses).
- * Since the register backing store is access sequentially, we
- * disallow growing the RBS by more than a page at a time.  Note that
- * the VM_GROWSUP flag can be set on any VM area but that's fine
- * because the total process size is still limited by RLIMIT_STACK and
- * RLIMIT_AS.
- */
-static inline long
-expand_backing_store (struct vm_area_struct *vma, unsigned long address)
-{
-	unsigned long grow;
-
-	grow = PAGE_SIZE >> PAGE_SHIFT;
-	if (address - vma->vm_start > current->signal->rlim[RLIMIT_STACK].rlim_cur
-	    || (((vma->vm_mm->total_vm + grow) << PAGE_SHIFT) > current->signal->rlim[RLIMIT_AS].rlim_cur))
-		return -ENOMEM;
-	vma->vm_end += PAGE_SIZE;
-	vma->vm_mm->total_vm += grow;
-	if (vma->vm_flags & VM_LOCKED)
-		vma->vm_mm->locked_vm += grow;
-	__vm_stat_account(vma->vm_mm, vma->vm_flags, vma->vm_file, grow);
-	return 0;
-}
-
-/*
  * Return TRUE if ADDRESS points at a page in the kernel's mapped segment
  * (inside region 5, on ia64) and that page is present.
  */
@@ -185,7 +159,13 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 		if (REGION_NUMBER(address) != REGION_NUMBER(vma->vm_start)
 		    || REGION_OFFSET(address) >= RGN_MAP_LIMIT)
 			goto bad_area;
-		if (expand_backing_store(vma, address))
+		/*
+		 * Since the register backing store is accessed sequentially,
+		 * we disallow growing it by more than a page at a time.
+		 */
+		if (address > vma->vm_end + PAGE_SIZE - sizeof(long))
+			goto bad_area;
+		if (expand_upwards(vma, address))
 			goto bad_area;
 	}
 	goto good_area;

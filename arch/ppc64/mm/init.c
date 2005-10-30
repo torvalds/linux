@@ -104,6 +104,8 @@ void show_mem(void)
 	show_free_areas();
 	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	for_each_pgdat(pgdat) {
+		unsigned long flags;
+		pgdat_resize_lock(pgdat, &flags);
 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
 			page = pgdat_page_nr(pgdat, i);
 			total++;
@@ -114,6 +116,7 @@ void show_mem(void)
 			else if (page_count(page))
 				shared += page_count(page) - 1;
 		}
+		pgdat_resize_unlock(pgdat, &flags);
 	}
 	printk("%ld pages of RAM\n", total);
 	printk("%ld reserved pages\n", reserved);
@@ -155,7 +158,6 @@ static int map_io_page(unsigned long ea, unsigned long pa, int flags)
 	unsigned long vsid;
 
 	if (mem_init_done) {
-		spin_lock(&init_mm.page_table_lock);
 		pgdp = pgd_offset_k(ea);
 		pudp = pud_alloc(&init_mm, pgdp, ea);
 		if (!pudp)
@@ -163,12 +165,11 @@ static int map_io_page(unsigned long ea, unsigned long pa, int flags)
 		pmdp = pmd_alloc(&init_mm, pudp, ea);
 		if (!pmdp)
 			return -ENOMEM;
-		ptep = pte_alloc_kernel(&init_mm, pmdp, ea);
+		ptep = pte_alloc_kernel(pmdp, ea);
 		if (!ptep)
 			return -ENOMEM;
 		set_pte_at(&init_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT,
 							  __pgprot(flags)));
-		spin_unlock(&init_mm.page_table_lock);
 	} else {
 		unsigned long va, vpn, hash, hpteg;
 
@@ -649,11 +650,14 @@ void __init mem_init(void)
 #endif
 
 	for_each_pgdat(pgdat) {
+		unsigned long flags;
+		pgdat_resize_lock(pgdat, &flags);
 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
 			page = pgdat_page_nr(pgdat, i);
 			if (PageReserved(page))
 				reservedpages++;
 		}
+		pgdat_resize_unlock(pgdat, &flags);
 	}
 
 	codesize = (unsigned long)&_etext - (unsigned long)&_stext;
@@ -867,3 +871,80 @@ pgprot_t phys_mem_access_prot(struct file *file, unsigned long addr,
 	return vma_prot;
 }
 EXPORT_SYMBOL(phys_mem_access_prot);
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+
+void online_page(struct page *page)
+{
+	ClearPageReserved(page);
+	free_cold_page(page);
+	totalram_pages++;
+	num_physpages++;
+}
+
+/*
+ * This works only for the non-NUMA case.  Later, we'll need a lookup
+ * to convert from real physical addresses to nid, that doesn't use
+ * pfn_to_nid().
+ */
+int __devinit add_memory(u64 start, u64 size)
+{
+	struct pglist_data *pgdata = NODE_DATA(0);
+	struct zone *zone;
+	unsigned long start_pfn = start >> PAGE_SHIFT;
+	unsigned long nr_pages = size >> PAGE_SHIFT;
+
+	/* this should work for most non-highmem platforms */
+	zone = pgdata->node_zones;
+
+	return __add_pages(zone, start_pfn, nr_pages);
+
+	return 0;
+}
+
+/*
+ * First pass at this code will check to determine if the remove
+ * request is within the RMO.  Do not allow removal within the RMO.
+ */
+int __devinit remove_memory(u64 start, u64 size)
+{
+	struct zone *zone;
+	unsigned long start_pfn, end_pfn, nr_pages;
+
+	start_pfn = start >> PAGE_SHIFT;
+	nr_pages = size >> PAGE_SHIFT;
+	end_pfn = start_pfn + nr_pages;
+
+	printk("%s(): Attempting to remove memoy in range "
+			"%lx to %lx\n", __func__, start, start+size);
+	/*
+	 * check for range within RMO
+	 */
+	zone = page_zone(pfn_to_page(start_pfn));
+
+	printk("%s(): memory will be removed from "
+			"the %s zone\n", __func__, zone->name);
+
+	/*
+	 * not handling removing memory ranges that
+	 * overlap multiple zones yet
+	 */
+	if (end_pfn > (zone->zone_start_pfn + zone->spanned_pages))
+		goto overlap;
+
+	/* make sure it is NOT in RMO */
+	if ((start < lmb.rmo_size) || ((start+size) < lmb.rmo_size)) {
+		printk("%s(): range to be removed must NOT be in RMO!\n",
+			__func__);
+		goto in_rmo;
+	}
+
+	return __remove_pages(zone, start_pfn, nr_pages);
+
+overlap:
+	printk("%s(): memory range to be removed overlaps "
+		"multiple zones!!!\n", __func__);
+in_rmo:
+	return -1;
+}
+#endif /* CONFIG_MEMORY_HOTPLUG */

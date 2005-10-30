@@ -911,12 +911,10 @@ static long i8042_panic_blink(long count)
  * Here we try to restore the original BIOS settings
  */
 
-static int i8042_suspend(struct device *dev, pm_message_t state, u32 level)
+static int i8042_suspend(struct device *dev, pm_message_t state)
 {
-	if (level == SUSPEND_DISABLE) {
-		del_timer_sync(&i8042_timer);
-		i8042_controller_reset();
-	}
+	del_timer_sync(&i8042_timer);
+	i8042_controller_reset();
 
 	return 0;
 }
@@ -926,12 +924,9 @@ static int i8042_suspend(struct device *dev, pm_message_t state, u32 level)
  * Here we try to reset everything back to a state in which suspended
  */
 
-static int i8042_resume(struct device *dev, u32 level)
+static int i8042_resume(struct device *dev)
 {
 	int i;
-
-	if (level != RESUME_ENABLE)
-		return 0;
 
 	if (i8042_ctl_test())
 		return -1;

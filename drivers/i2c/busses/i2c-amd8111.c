@@ -30,6 +30,8 @@ struct amd_smbus {
 	int size;
 };
 
+static struct pci_driver amd8111_driver;
+
 /*
  * AMD PCI control registers definitions.
  */
@@ -242,7 +244,6 @@ static s32 amd8111_access(struct i2c_adapter * adap, u16 addr, unsigned short fl
 			break;
 
 		case I2C_SMBUS_BLOCK_PROC_CALL:
-			protocol |= pec;
 			len = min_t(u8, data->block[0], 31);
 			amd_ec_write(smbus, AMD_SMB_CMD, command);
 			amd_ec_write(smbus, AMD_SMB_BCNT, len);
@@ -251,13 +252,6 @@ static s32 amd8111_access(struct i2c_adapter * adap, u16 addr, unsigned short fl
 			protocol = AMD_SMB_PRTCL_BLOCK_PROC_CALL | pec;
 			read_write = I2C_SMBUS_READ;
 			break;
-
-		case I2C_SMBUS_WORD_DATA_PEC:
-		case I2C_SMBUS_BLOCK_DATA_PEC:
-		case I2C_SMBUS_PROC_CALL_PEC:
-		case I2C_SMBUS_BLOCK_PROC_CALL_PEC:
-			dev_warn(&adap->dev, "Unexpected software PEC transaction %d\n.", size);
-			return -1;
 
 		default:
 			dev_warn(&adap->dev, "Unsupported transaction %d\n", size);
@@ -343,16 +337,15 @@ static int __devinit amd8111_probe(struct pci_dev *dev, const struct pci_device_
 	if (~pci_resource_flags(dev, 0) & IORESOURCE_IO)
 		return -ENODEV;
 
-	smbus = kmalloc(sizeof(struct amd_smbus), GFP_KERNEL);
+	smbus = kzalloc(sizeof(struct amd_smbus), GFP_KERNEL);
 	if (!smbus)
 		return -ENOMEM;
-	memset(smbus, 0, sizeof(struct amd_smbus));
 
 	smbus->dev = dev;
 	smbus->base = pci_resource_start(dev, 0);
 	smbus->size = pci_resource_len(dev, 0);
 
-	if (!request_region(smbus->base, smbus->size, "amd8111 SMBus 2.0"))
+	if (!request_region(smbus->base, smbus->size, amd8111_driver.name))
 		goto out_kfree;
 
 	smbus->adapter.owner = THIS_MODULE;
@@ -391,6 +384,7 @@ static void __devexit amd8111_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver amd8111_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "amd8111_smbus2",
 	.id_table	= amd8111_ids,
 	.probe		= amd8111_probe,

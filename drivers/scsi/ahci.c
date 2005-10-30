@@ -192,7 +192,6 @@ static void ahci_port_stop(struct ata_port *ap);
 static void ahci_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 static void ahci_qc_prep(struct ata_queued_cmd *qc);
 static u8 ahci_check_status(struct ata_port *ap);
-static u8 ahci_check_err(struct ata_port *ap);
 static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc);
 static void ahci_remove_one (struct pci_dev *pdev);
 
@@ -221,7 +220,6 @@ static const struct ata_port_operations ahci_ops = {
 
 	.check_status		= ahci_check_status,
 	.check_altstatus	= ahci_check_status,
-	.check_err		= ahci_check_err,
 	.dev_select		= ata_noop_dev_select,
 
 	.tf_read		= ahci_tf_read,
@@ -456,13 +454,6 @@ static u8 ahci_check_status(struct ata_port *ap)
 	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr;
 
 	return readl(mmio + PORT_TFDATA) & 0xFF;
-}
-
-static u8 ahci_check_err(struct ata_port *ap)
-{
-	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr;
-
-	return (readl(mmio + PORT_TFDATA) >> 8) & 0xFF;
 }
 
 static void ahci_tf_read(struct ata_port *ap, struct ata_taskfile *tf)

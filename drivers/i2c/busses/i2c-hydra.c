@@ -155,6 +155,7 @@ static void __devexit hydra_remove(struct pci_dev *dev)
 
 
 static struct pci_driver hydra_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "hydra_smbus",
 	.id_table	= hydra_ids,
 	.probe		= hydra_probe,

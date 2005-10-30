@@ -28,29 +28,6 @@ config USB_AUDIO
 	  To compile this driver as a module, choose M here: the
 	  module will be called audio.
 
-comment "USB Bluetooth TTY can only be used with disabled Bluetooth subsystem"
-	depends on USB && BT
-
-config USB_BLUETOOTH_TTY
-	tristate "USB Bluetooth TTY support"
-	depends on USB && BT=n
-	---help---
-	  This driver implements a nonstandard tty interface to a Bluetooth
-	  device that can be used only by specialized Bluetooth HCI software.
-
-	  Say Y here if you want to use OpenBT Bluetooth stack (available
-	  at <http://developer.axis.com/software>), or other TTY based
-	  Bluetooth stacks, and want to connect a USB Bluetooth device
-	  to your computer's USB port.
-
-	  Do *not* enable this driver if you want to use generic Linux
-	  Bluetooth support.
-
-	  If in doubt, say N here.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called bluetty.
-
 config USB_MIDI
 	tristate "USB MIDI support"
 	depends on USB && SOUND && OBSOLETE_OSS_USB_DRIVER

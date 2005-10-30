@@ -26,7 +26,6 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 #include <asm/memory.h>
-#include <asm/arch/hardware.h>
 
 /*
  * ISA I/O bus memory addresses are 1:1 with the physical address.

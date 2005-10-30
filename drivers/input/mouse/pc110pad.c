@@ -53,12 +53,9 @@ MODULE_LICENSE("GPL");
 static int pc110pad_irq = 10;
 static int pc110pad_io = 0x15e0;
 
-static struct input_dev pc110pad_dev;
+static struct input_dev *pc110pad_dev;
 static int pc110pad_data[3];
 static int pc110pad_count;
-
-static char *pc110pad_name = "IBM PC110 TouchPad";
-static char *pc110pad_phys = "isa15e0/input0";
 
 static irqreturn_t pc110pad_interrupt(int irq, void *ptr, struct pt_regs *regs)
 {
@@ -74,14 +71,14 @@ static irqreturn_t pc110pad_interrupt(int irq, void *ptr, struct pt_regs *regs)
 	if (pc110pad_count < 3)
 		return IRQ_HANDLED;
 
-	input_regs(&pc110pad_dev, regs);
-	input_report_key(&pc110pad_dev, BTN_TOUCH,
+	input_regs(pc110pad_dev, regs);
+	input_report_key(pc110pad_dev, BTN_TOUCH,
 		pc110pad_data[0] & 0x01);
-	input_report_abs(&pc110pad_dev, ABS_X,
+	input_report_abs(pc110pad_dev, ABS_X,
 		pc110pad_data[1] | ((pc110pad_data[0] << 3) & 0x80) | ((pc110pad_data[0] << 1) & 0x100));
-	input_report_abs(&pc110pad_dev, ABS_Y,
+	input_report_abs(pc110pad_dev, ABS_Y,
 		pc110pad_data[2] | ((pc110pad_data[0] << 4) & 0x80));
-	input_sync(&pc110pad_dev);
+	input_sync(pc110pad_dev);
 
 	pc110pad_count = 0;
 	return IRQ_HANDLED;
@@ -94,9 +91,9 @@ static void pc110pad_close(struct input_dev *dev)
 
 static int pc110pad_open(struct input_dev *dev)
 {
-	pc110pad_interrupt(0,NULL,NULL);
-	pc110pad_interrupt(0,NULL,NULL);
-	pc110pad_interrupt(0,NULL,NULL);
+	pc110pad_interrupt(0, NULL, NULL);
+	pc110pad_interrupt(0, NULL, NULL);
+	pc110pad_interrupt(0, NULL, NULL);
 	outb(PC110PAD_ON, pc110pad_io + 2);
 	pc110pad_count = 0;
 
@@ -127,45 +124,46 @@ static int __init pc110pad_init(void)
 
 	outb(PC110PAD_OFF, pc110pad_io + 2);
 
-	if (request_irq(pc110pad_irq, pc110pad_interrupt, 0, "pc110pad", NULL))
-	{
+	if (request_irq(pc110pad_irq, pc110pad_interrupt, 0, "pc110pad", NULL)) {
 		release_region(pc110pad_io, 4);
 		printk(KERN_ERR "pc110pad: Unable to get irq %d.\n", pc110pad_irq);
 		return -EBUSY;
 	}
 
-        pc110pad_dev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-        pc110pad_dev.absbit[0] = BIT(ABS_X) | BIT(ABS_Y);
-        pc110pad_dev.keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
+	if (!(pc110pad_dev = input_allocate_device())) {
+		free_irq(pc110pad_irq, NULL);
+		release_region(pc110pad_io, 4);
+		printk(KERN_ERR "pc110pad: Not enough memory.\n");
+		return -ENOMEM;
+	}
 
-	pc110pad_dev.absmax[ABS_X] = 0x1ff;
-	pc110pad_dev.absmax[ABS_Y] = 0x0ff;
+	pc110pad_dev->name = "IBM PC110 TouchPad";
+	pc110pad_dev->phys = "isa15e0/input0";
+	pc110pad_dev->id.bustype = BUS_ISA;
+	pc110pad_dev->id.vendor = 0x0003;
+	pc110pad_dev->id.product = 0x0001;
+	pc110pad_dev->id.version = 0x0100;
 
-	pc110pad_dev.open = pc110pad_open;
-        pc110pad_dev.close = pc110pad_close;
+	pc110pad_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	pc110pad_dev->absbit[0] = BIT(ABS_X) | BIT(ABS_Y);
+	pc110pad_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
 
-	pc110pad_dev.name = pc110pad_name;
-	pc110pad_dev.phys = pc110pad_phys;
-	pc110pad_dev.id.bustype = BUS_ISA;
-	pc110pad_dev.id.vendor = 0x0003;
-	pc110pad_dev.id.product = 0x0001;
-	pc110pad_dev.id.version = 0x0100;
+	pc110pad_dev->absmax[ABS_X] = 0x1ff;
+	pc110pad_dev->absmax[ABS_Y] = 0x0ff;
 
-	input_register_device(&pc110pad_dev);
+	pc110pad_dev->open = pc110pad_open;
+	pc110pad_dev->close = pc110pad_close;
 
-	printk(KERN_INFO "input: %s at %#x irq %d\n",
-		pc110pad_name, pc110pad_io, pc110pad_irq);
+	input_register_device(pc110pad_dev);
 
 	return 0;
 }
 
 static void __exit pc110pad_exit(void)
 {
-	input_unregister_device(&pc110pad_dev);
-
 	outb(PC110PAD_OFF, pc110pad_io + 2);
-
 	free_irq(pc110pad_irq, NULL);
+	input_unregister_device(pc110pad_dev);
 	release_region(pc110pad_io, 4);
 }
 

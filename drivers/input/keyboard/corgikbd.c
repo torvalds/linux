@@ -70,8 +70,7 @@ static unsigned char corgikbd_keycode[NR_SCANCODES] = {
 
 struct corgikbd {
 	unsigned char keycode[ARRAY_SIZE(corgikbd_keycode)];
-	struct input_dev input;
-	char phys[32];
+	struct input_dev *input;
 
 	spinlock_t lock;
 	struct timer_list timer;
@@ -147,7 +146,7 @@ static void corgikbd_scankeyboard(struct corgikbd *corgikbd_data, struct pt_regs
 	spin_lock_irqsave(&corgikbd_data->lock, flags);
 
 	if (regs)
-		input_regs(&corgikbd_data->input, regs);
+		input_regs(corgikbd_data->input, regs);
 
 	num_pressed = 0;
 	for (col = 0; col < KB_COLS; col++) {
@@ -169,14 +168,14 @@ static void corgikbd_scankeyboard(struct corgikbd *corgikbd_data, struct pt_regs
 			scancode = SCANCODE(row, col);
 			pressed = rowd & KB_ROWMASK(row);
 
-			input_report_key(&corgikbd_data->input, corgikbd_data->keycode[scancode], pressed);
+			input_report_key(corgikbd_data->input, corgikbd_data->keycode[scancode], pressed);
 
 			if (pressed)
 				num_pressed++;
 
 			if (pressed && (corgikbd_data->keycode[scancode] == CORGI_KEY_OFF)
 					&& time_after(jiffies, corgikbd_data->suspend_jiffies + HZ)) {
-				input_event(&corgikbd_data->input, EV_PWR, CORGI_KEY_OFF, 1);
+				input_event(corgikbd_data->input, EV_PWR, CORGI_KEY_OFF, 1);
 				corgikbd_data->suspend_jiffies=jiffies;
 			}
 		}
@@ -185,7 +184,7 @@ static void corgikbd_scankeyboard(struct corgikbd *corgikbd_data, struct pt_regs
 
 	corgikbd_activate_all();
 
-	input_sync(&corgikbd_data->input);
+	input_sync(corgikbd_data->input);
 
 	/* if any keys are pressed, enable the timer */
 	if (num_pressed)
@@ -249,9 +248,9 @@ static void corgikbd_hinge_timer(unsigned long data)
 		if (hinge_count >= HINGE_STABLE_COUNT) {
 			spin_lock_irqsave(&corgikbd_data->lock, flags);
 
-			input_report_switch(&corgikbd_data->input, SW_0, ((sharpsl_hinge_state & CORGI_SCP_SWA) != 0));
-			input_report_switch(&corgikbd_data->input, SW_1, ((sharpsl_hinge_state & CORGI_SCP_SWB) != 0));
-			input_sync(&corgikbd_data->input);
+			input_report_switch(corgikbd_data->input, SW_0, ((sharpsl_hinge_state & CORGI_SCP_SWA) != 0));
+			input_report_switch(corgikbd_data->input, SW_1, ((sharpsl_hinge_state & CORGI_SCP_SWB) != 0));
+			input_sync(corgikbd_data->input);
 
 			spin_unlock_irqrestore(&corgikbd_data->lock, flags);
 		}
@@ -260,24 +259,22 @@ static void corgikbd_hinge_timer(unsigned long data)
 }
 
 #ifdef CONFIG_PM
-static int corgikbd_suspend(struct device *dev, pm_message_t state, uint32_t level)
+static int corgikbd_suspend(struct device *dev, pm_message_t state)
 {
-	if (level == SUSPEND_POWER_DOWN) {
-		struct corgikbd *corgikbd = dev_get_drvdata(dev);
-		corgikbd->suspended = 1;
-	}
+	struct corgikbd *corgikbd = dev_get_drvdata(dev);
+	corgikbd->suspended = 1;
+
 	return 0;
 }
 
-static int corgikbd_resume(struct device *dev, uint32_t level)
+static int corgikbd_resume(struct device *dev)
 {
-	if (level == RESUME_POWER_ON) {
-		struct corgikbd *corgikbd = dev_get_drvdata(dev);
+	struct corgikbd *corgikbd = dev_get_drvdata(dev);
 
-		/* Upon resume, ignore the suspend key for a short while */
-		corgikbd->suspend_jiffies=jiffies;
-		corgikbd->suspended = 0;
-	}
+	/* Upon resume, ignore the suspend key for a short while */
+	corgikbd->suspend_jiffies=jiffies;
+	corgikbd->suspended = 0;
+
 	return 0;
 }
 #else
@@ -287,16 +284,21 @@ static int corgikbd_resume(struct device *dev, uint32_t level)
 
 static int __init corgikbd_probe(struct device *dev)
 {
-	int i;
 	struct corgikbd *corgikbd;
+	struct input_dev *input_dev;
+	int i;
 
 	corgikbd = kzalloc(sizeof(struct corgikbd), GFP_KERNEL);
-	if (!corgikbd)
+	input_dev = input_allocate_device();
+	if (!corgikbd || !input_dev) {
+		kfree(corgikbd);
+		input_free_device(input_dev);
 		return -ENOMEM;
+	}
 
-	dev_set_drvdata(dev,corgikbd);
-	strcpy(corgikbd->phys, "corgikbd/input0");
+	dev_set_drvdata(dev, corgikbd);
 
+	corgikbd->input = input_dev;
 	spin_lock_init(&corgikbd->lock);
 
 	/* Init Keyboard rescan timer */
@@ -311,28 +313,30 @@ static int __init corgikbd_probe(struct device *dev)
 
 	corgikbd->suspend_jiffies=jiffies;
 
-	init_input_dev(&corgikbd->input);
-	corgikbd->input.private = corgikbd;
-	corgikbd->input.name = "Corgi Keyboard";
-	corgikbd->input.dev = dev;
-	corgikbd->input.phys = corgikbd->phys;
-	corgikbd->input.id.bustype = BUS_HOST;
-	corgikbd->input.id.vendor = 0x0001;
-	corgikbd->input.id.product = 0x0001;
-	corgikbd->input.id.version = 0x0100;
-	corgikbd->input.evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_PWR) | BIT(EV_SW);
-	corgikbd->input.keycode = corgikbd->keycode;
-	corgikbd->input.keycodesize = sizeof(unsigned char);
-	corgikbd->input.keycodemax = ARRAY_SIZE(corgikbd_keycode);
-
 	memcpy(corgikbd->keycode, corgikbd_keycode, sizeof(corgikbd->keycode));
-	for (i = 0; i < ARRAY_SIZE(corgikbd_keycode); i++)
-		set_bit(corgikbd->keycode[i], corgikbd->input.keybit);
-	clear_bit(0, corgikbd->input.keybit);
-	set_bit(SW_0, corgikbd->input.swbit);
-	set_bit(SW_1, corgikbd->input.swbit);
 
-	input_register_device(&corgikbd->input);
+	input_dev->name = "Corgi Keyboard";
+	input_dev->phys = "corgikbd/input0";
+	input_dev->id.bustype = BUS_HOST;
+	input_dev->id.vendor = 0x0001;
+	input_dev->id.product = 0x0001;
+	input_dev->id.version = 0x0100;
+	input_dev->cdev.dev = dev;
+	input_dev->private = corgikbd;
+
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_PWR) | BIT(EV_SW);
+	input_dev->keycode = corgikbd->keycode;
+	input_dev->keycodesize = sizeof(unsigned char);
+	input_dev->keycodemax = ARRAY_SIZE(corgikbd_keycode);
+
+	for (i = 0; i < ARRAY_SIZE(corgikbd_keycode); i++)
+		set_bit(corgikbd->keycode[i], input_dev->keybit);
+	clear_bit(0, input_dev->keybit);
+	set_bit(SW_0, input_dev->swbit);
+	set_bit(SW_1, input_dev->swbit);
+
+	input_register_device(corgikbd->input);
+
 	mod_timer(&corgikbd->htimer, jiffies + HINGE_SCAN_INTERVAL);
 
 	/* Setup sense interrupts - RisingEdge Detect, sense lines as inputs */
@@ -349,8 +353,6 @@ static int __init corgikbd_probe(struct device *dev)
 	for (i = 0; i < CORGI_KEY_STROBE_NUM; i++)
 		pxa_gpio_mode(CORGI_GPIO_KEY_STROBE(i) | GPIO_OUT | GPIO_DFLT_HIGH);
 
-	printk(KERN_INFO "input: Corgi Keyboard Registered\n");
-
 	return 0;
 }
 
@@ -365,7 +367,7 @@ static int corgikbd_remove(struct device *dev)
 	del_timer_sync(&corgikbd->htimer);
 	del_timer_sync(&corgikbd->timer);
 
-	input_unregister_device(&corgikbd->input);
+	input_unregister_device(corgikbd->input);
 
 	kfree(corgikbd);
 

@@ -74,42 +74,6 @@ void flush_tlb_kernel_range_tt(unsigned long start, unsigned long end)
                 atomic_inc(&vmchange_seq);
 }
 
-static void protect_vm_page(unsigned long addr, int w, int must_succeed)
-{
-	int err;
-
-	err = protect_memory(addr, PAGE_SIZE, 1, w, 1, must_succeed);
-	if(err == 0) return;
-	else if((err == -EFAULT) || (err == -ENOMEM)){
-		flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
-		protect_vm_page(addr, w, 1);
-	}
-	else panic("protect_vm_page : protect failed, errno = %d\n", err);
-}
-
-void mprotect_kernel_vm(int w)
-{
-	struct mm_struct *mm;
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	unsigned long addr;
-	
-	mm = &init_mm;
-	for(addr = start_vm; addr < end_vm;){
-		pgd = pgd_offset(mm, addr);
-		pud = pud_offset(pgd, addr);
-		pmd = pmd_offset(pud, addr);
-		if(pmd_present(*pmd)){
-			pte = pte_offset_kernel(pmd, addr);
-			if(pte_present(*pte)) protect_vm_page(addr, w, 0);
-			addr += PAGE_SIZE;
-		}
-		else addr += PMD_SIZE;
-	}
-}
-
 void flush_tlb_kernel_vm_tt(void)
 {
         flush_tlb_kernel_range(start_vm, end_vm);
