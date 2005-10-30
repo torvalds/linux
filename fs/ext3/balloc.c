@@ -20,6 +20,8 @@
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 
+#include "bitmap.h"
+
 /*
  * balloc.c contains the blocks allocation and deallocation routines
  */

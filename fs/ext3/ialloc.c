@@ -26,6 +26,7 @@
 
 #include <asm/byteorder.h>
 
+#include "bitmap.h"
 #include "xattr.h"
 #include "acl.h"
 
