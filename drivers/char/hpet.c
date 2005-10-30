@@ -519,7 +519,7 @@ hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg, int kernel)
 			break;
 		}
 
-		if (!arg || (arg & (arg - 1))) {
+		if (!arg) {
 			err = -EINVAL;
 			break;
 		}
