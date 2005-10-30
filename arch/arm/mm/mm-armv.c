@@ -180,11 +180,6 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 
 	if (!vectors_high()) {
 		/*
-		 * This lock is here just to satisfy pmd_alloc and pte_lock
-		 */
-		spin_lock(&mm->page_table_lock);
-
-		/*
 		 * On ARM, first page must always be allocated since it
 		 * contains the machine vectors.
 		 */
@@ -201,23 +196,14 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 		set_pte(new_pte, *init_pte);
 		pte_unmap_nested(init_pte);
 		pte_unmap(new_pte);
-
-		spin_unlock(&mm->page_table_lock);
 	}
 
 	return new_pgd;
 
 no_pte:
-	spin_unlock(&mm->page_table_lock);
 	pmd_free(new_pmd);
-	free_pages((unsigned long)new_pgd, 2);
-	return NULL;
-
 no_pmd:
-	spin_unlock(&mm->page_table_lock);
 	free_pages((unsigned long)new_pgd, 2);
-	return NULL;
-
 no_pgd:
 	return NULL;
 }

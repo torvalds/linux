@@ -135,9 +135,8 @@ int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 	dir = pgd_offset(mm, from);
 	flush_cache_range(vma, beg, end);
 
-	spin_lock(&mm->page_table_lock);
 	while (from < end) {
-		pud_t *pud = pud_alloc(current->mm, dir, from);
+		pud_t *pud = pud_alloc(mm, dir, from);
 		error = -ENOMEM;
 		if (!pud)
 			break;
@@ -147,8 +146,7 @@ int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 		from = (from + PGDIR_SIZE) & PGDIR_MASK;
 		dir++;
 	}
-	flush_tlb_range(vma, beg, end);
-	spin_unlock(&mm->page_table_lock);
 
+	flush_tlb_range(vma, beg, end);
 	return error;
 }
