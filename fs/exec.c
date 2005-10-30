@@ -641,8 +641,10 @@ static inline int de_thread(struct task_struct *tsk)
 		 * before we can safely let the old group leader die.
 		 */
 		sig->real_timer.data = (unsigned long)current;
+		spin_unlock_irq(lock);
 		if (del_timer_sync(&sig->real_timer))
 			add_timer(&sig->real_timer);
+		spin_lock_irq(lock);
 	}
 	while (atomic_read(&sig->count) > count) {
 		sig->group_exit_task = current;
@@ -654,7 +656,6 @@ static inline int de_thread(struct task_struct *tsk)
 	}
 	sig->group_exit_task = NULL;
 	sig->notify_count = 0;
-	sig->real_timer.data = (unsigned long)current;
 	spin_unlock_irq(lock);
 
 	/*
