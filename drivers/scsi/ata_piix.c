@@ -45,6 +45,7 @@
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
@@ -625,7 +626,8 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	unsigned int pata_chan = 0, sata_chan = 0;
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev,
+			   "version " DRV_VERSION "\n");
 
 	/* no hotplugging support (FIXME) */
 	if (!in_module_init)
@@ -672,7 +674,9 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		port_info[pata_chan] = &piix_port_info[ich5_pata];
 		n_ports++;
 
-		printk(KERN_WARNING DRV_NAME ": combined mode detected\n");
+		dev_printk(KERN_WARNING, &pdev->dev,
+			   "combined mode detected (p=%u, s=%u)\n",
+			   pata_chan, sata_chan);
 	}
 
 	return ata_pci_init_one(pdev, port_info, n_ports);
