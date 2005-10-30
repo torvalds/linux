@@ -1603,35 +1603,23 @@ find_extend_vma(struct mm_struct * mm, unsigned long addr)
 }
 #endif
 
-/* Normal function to fix up a mapping
- * This function is the default for when an area has no specific
- * function.  This may be used as part of a more specific routine.
- *
- * By the time this function is called, the area struct has been
- * removed from the process mapping list.
- */
-static void unmap_vma(struct mm_struct *mm, struct vm_area_struct *vma)
-{
-	long nrpages = vma_pages(vma);
-
-	mm->total_vm -= nrpages;
-	if (vma->vm_flags & VM_LOCKED)
-		mm->locked_vm -= nrpages;
-	vm_stat_account(mm, vma->vm_flags, vma->vm_file, -nrpages);
-	remove_vm_struct(vma);
-}
-
 /*
- * Update the VMA and inode share lists.
- *
- * Ok - we have the memory areas we should free on the 'free' list,
+ * Ok - we have the memory areas we should free on the vma list,
  * so release them, and do the vma updates.
+ *
+ * Called with the mm semaphore held.
  */
-static void unmap_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
+static void remove_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
 {
 	do {
 		struct vm_area_struct *next = vma->vm_next;
-		unmap_vma(mm, vma);
+		long nrpages = vma_pages(vma);
+
+		mm->total_vm -= nrpages;
+		if (vma->vm_flags & VM_LOCKED)
+			mm->locked_vm -= nrpages;
+		vm_stat_account(mm, vma->vm_flags, vma->vm_file, -nrpages);
+		remove_vm_struct(vma);
 		vma = next;
 	} while (vma);
 	validate_mm(mm);
@@ -1799,7 +1787,7 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 	unmap_region(mm, vma, prev, start, end);
 
 	/* Fix up all other VM information */
-	unmap_vma_list(mm, vma);
+	remove_vma_list(mm, vma);
 
 	return 0;
 }
