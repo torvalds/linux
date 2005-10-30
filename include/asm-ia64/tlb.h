@@ -60,7 +60,6 @@ struct mmu_gather {
 	unsigned int		nr;		/* == ~0U => fast mode */
 	unsigned char		fullmm;		/* non-zero means full mm flush */
 	unsigned char		need_flush;	/* really unmapped some PTEs? */
-	unsigned long		freed;		/* number of pages freed */
 	unsigned long		start_addr;
 	unsigned long		end_addr;
 	struct page 		*pages[FREE_PTE_NR];
@@ -147,7 +146,6 @@ tlb_gather_mmu (struct mm_struct *mm, unsigned int full_mm_flush)
 	 */
 	tlb->nr = (num_online_cpus() == 1) ? ~0U : 0;
 	tlb->fullmm = full_mm_flush;
-	tlb->freed = 0;
 	tlb->start_addr = ~0UL;
 	return tlb;
 }
@@ -159,13 +157,6 @@ tlb_gather_mmu (struct mm_struct *mm, unsigned int full_mm_flush)
 static inline void
 tlb_finish_mmu (struct mmu_gather *tlb, unsigned long start, unsigned long end)
 {
-	unsigned long freed = tlb->freed;
-	struct mm_struct *mm = tlb->mm;
-	unsigned long rss = get_mm_counter(mm, rss);
-
-	if (rss < freed)
-		freed = rss;
-	add_mm_counter(mm, rss, -freed);
 	/*
 	 * Note: tlb->nr may be 0 at this point, so we can't rely on tlb->start_addr and
 	 * tlb->end_addr.

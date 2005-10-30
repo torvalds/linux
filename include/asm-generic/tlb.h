@@ -42,7 +42,6 @@ struct mmu_gather {
 	unsigned int		nr;	/* set to ~0U means fast mode */
 	unsigned int		need_flush;/* Really unmapped some ptes? */
 	unsigned int		fullmm; /* non-zero means full mm flush */
-	unsigned long		freed;
 	struct page *		pages[FREE_PTE_NR];
 };
 
@@ -63,7 +62,6 @@ tlb_gather_mmu(struct mm_struct *mm, unsigned int full_mm_flush)
 	tlb->nr = num_online_cpus() > 1 ? 0U : ~0U;
 
 	tlb->fullmm = full_mm_flush;
-	tlb->freed = 0;
 
 	return tlb;
 }
@@ -88,13 +86,6 @@ tlb_flush_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
 static inline void
 tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
 {
-	int freed = tlb->freed;
-	struct mm_struct *mm = tlb->mm;
-	int rss = get_mm_counter(mm, rss);
-
-	if (rss < freed)
-		freed = rss;
-	add_mm_counter(mm, rss, -freed);
 	tlb_flush_mmu(tlb, start, end);
 
 	/* keep the page table cache within bounds */

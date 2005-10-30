@@ -10,11 +10,8 @@
  */
 struct mmu_gather {
         struct mm_struct        *mm;
-        unsigned int            freed;
-	unsigned int            fullmm;
-
-        unsigned int            flushes;
-        unsigned int            avoided_flushes;
+        unsigned int            need_flush;
+        unsigned int            fullmm;
 };
 
 DECLARE_PER_CPU(struct mmu_gather, mmu_gathers);
@@ -25,8 +22,8 @@ tlb_gather_mmu(struct mm_struct *mm, unsigned int full_mm_flush)
         struct mmu_gather *tlb = &get_cpu_var(mmu_gathers);
 
         tlb->mm = mm;
-        tlb->freed = 0;
-	tlb->fullmm = full_mm_flush;
+        tlb->need_flush = 0;
+        tlb->fullmm = full_mm_flush;
 
         return tlb;
 }
@@ -34,20 +31,8 @@ tlb_gather_mmu(struct mm_struct *mm, unsigned int full_mm_flush)
 static inline void
 tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
 {
-        struct mm_struct *mm = tlb->mm;
-        unsigned long freed = tlb->freed;
-        int rss = get_mm_counter(mm, rss);
-
-        if (rss < freed)
-                freed = rss;
-        add_mm_counter(mm, rss, -freed);
-
-        if (freed) {
-                flush_tlb_mm(mm);
-                tlb->flushes++;
-        } else {
-                tlb->avoided_flushes++;
-        }
+        if (tlb->need_flush)
+                flush_tlb_mm(tlb->mm);
 
         /* keep the page table cache within bounds */
         check_pgt_cache();
@@ -65,7 +50,13 @@ tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
         } while (0)
 #define tlb_end_vma(tlb,vma)                    do { } while (0)
 
-#define tlb_remove_page(tlb,page)       free_page_and_swap_cache(page)
+static inline void
+tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+{
+        tlb->need_flush = 1;
+        free_page_and_swap_cache(page);
+}
+
 #define pte_free_tlb(tlb,ptep)          pte_free(ptep)
 #define pmd_free_tlb(tlb,pmdp)          pmd_free(pmdp)
 

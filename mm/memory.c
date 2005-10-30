@@ -582,7 +582,7 @@ static void zap_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
 				if (pte_young(ptent))
 					mark_page_accessed(page);
 			}
-			tlb->freed++;
+			dec_mm_counter(tlb->mm, rss);
 			page_remove_rmap(page);
 			tlb_remove_page(tlb, page);
 			continue;

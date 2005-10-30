@@ -27,7 +27,6 @@ struct mmu_gather {
 	unsigned int need_flush;
 	unsigned int fullmm;
 	unsigned int tlb_nr;
-	unsigned long freed;
 	unsigned long vaddrs[TLB_BATCH_NR];
 	struct page *pages[FREE_PTE_NR];
 };
@@ -51,7 +50,6 @@ static inline struct mmu_gather *tlb_gather_mmu(struct mm_struct *mm, unsigned i
 	mp->mm = mm;
 	mp->pages_nr = num_online_cpus() > 1 ? 0U : ~0U;
 	mp->fullmm = full_mm_flush;
-	mp->freed = 0;
 
 	return mp;
 }
@@ -78,19 +76,11 @@ extern void smp_flush_tlb_mm(struct mm_struct *mm);
 
 static inline void tlb_finish_mmu(struct mmu_gather *mp, unsigned long start, unsigned long end)
 {
-	unsigned long freed = mp->freed;
-	struct mm_struct *mm = mp->mm;
-	unsigned long rss = get_mm_counter(mm, rss);
-
-	if (rss < freed)
-		freed = rss;
-	add_mm_counter(mm, rss, -freed);
-
 	tlb_flush_mmu(mp);
 
 	if (mp->fullmm) {
-		if (CTX_VALID(mm->context))
-			do_flush_tlb_mm(mm);
+		if (CTX_VALID(mp->mm->context))
+			do_flush_tlb_mm(mp->mm);
 		mp->fullmm = 0;
 	} else
 		flush_tlb_pending();
