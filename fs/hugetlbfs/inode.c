@@ -224,8 +224,6 @@ static void truncate_hugepages(struct address_space *mapping, loff_t lstart)
 
 static void hugetlbfs_delete_inode(struct inode *inode)
 {
-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(inode->i_sb);
-
 	hlist_del_init(&inode->i_hash);
 	list_del_init(&inode->i_list);
 	list_del_init(&inode->i_sb_list);
@@ -238,12 +236,6 @@ static void hugetlbfs_delete_inode(struct inode *inode)
 
 	security_inode_delete(inode);
 
-	if (sbinfo->free_inodes >= 0) {
-		spin_lock(&sbinfo->stat_lock);
-		sbinfo->free_inodes++;
-		spin_unlock(&sbinfo->stat_lock);
-	}
-
 	clear_inode(inode);
 	destroy_inode(inode);
 }
@@ -251,7 +243,6 @@ static void hugetlbfs_delete_inode(struct inode *inode)
 static void hugetlbfs_forget_inode(struct inode *inode)
 {
 	struct super_block *super_block = inode->i_sb;
-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(super_block);
 
 	if (hlist_unhashed(&inode->i_hash))
 		goto out_truncate;
@@ -277,12 +268,6 @@ out_truncate:
 	spin_unlock(&inode_lock);
 	if (inode->i_data.nrpages)
 		truncate_hugepages(&inode->i_data, 0);
-
-	if (sbinfo->free_inodes >= 0) {
-		spin_lock(&sbinfo->stat_lock);
-		sbinfo->free_inodes++;
-		spin_unlock(&sbinfo->stat_lock);
-	}
 
 	clear_inode(inode);
 	destroy_inode(inode);
@@ -375,17 +360,6 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid,
 					gid_t gid, int mode, dev_t dev)
 {
 	struct inode *inode;
-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(sb);
-
-	if (sbinfo->free_inodes >= 0) {
-		spin_lock(&sbinfo->stat_lock);
-		if (!sbinfo->free_inodes) {
-			spin_unlock(&sbinfo->stat_lock);
-			return NULL;
-		}
-		sbinfo->free_inodes--;
-		spin_unlock(&sbinfo->stat_lock);
-	}
 
 	inode = new_inode(sb);
 	if (inode) {
@@ -527,29 +501,51 @@ static void hugetlbfs_put_super(struct super_block *sb)
 	}
 }
 
+static inline int hugetlbfs_dec_free_inodes(struct hugetlbfs_sb_info *sbinfo)
+{
+	if (sbinfo->free_inodes >= 0) {
+		spin_lock(&sbinfo->stat_lock);
+		if (unlikely(!sbinfo->free_inodes)) {
+			spin_unlock(&sbinfo->stat_lock);
+			return 0;
+		}
+		sbinfo->free_inodes--;
+		spin_unlock(&sbinfo->stat_lock);
+	}
+
+	return 1;
+}
+
+static void hugetlbfs_inc_free_inodes(struct hugetlbfs_sb_info *sbinfo)
+{
+	if (sbinfo->free_inodes >= 0) {
+		spin_lock(&sbinfo->stat_lock);
+		sbinfo->free_inodes++;
+		spin_unlock(&sbinfo->stat_lock);
+	}
+}
+
+
 static kmem_cache_t *hugetlbfs_inode_cachep;
 
 static struct inode *hugetlbfs_alloc_inode(struct super_block *sb)
 {
+	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(sb);
 	struct hugetlbfs_inode_info *p;
 
-	p = kmem_cache_alloc(hugetlbfs_inode_cachep, SLAB_KERNEL);
-	if (!p)
+	if (unlikely(!hugetlbfs_dec_free_inodes(sbinfo)))
 		return NULL;
+	p = kmem_cache_alloc(hugetlbfs_inode_cachep, SLAB_KERNEL);
+	if (unlikely(!p)) {
+		hugetlbfs_inc_free_inodes(sbinfo);
+		return NULL;
+	}
 	return &p->vfs_inode;
-}
-
-static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
-{
-	struct hugetlbfs_inode_info *ei = (struct hugetlbfs_inode_info *)foo;
-
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR)
-		inode_init_once(&ei->vfs_inode);
 }
 
 static void hugetlbfs_destroy_inode(struct inode *inode)
 {
+	hugetlbfs_inc_free_inodes(HUGETLBFS_SB(inode->i_sb));
 	mpol_free_shared_policy(&HUGETLBFS_I(inode)->policy);
 	kmem_cache_free(hugetlbfs_inode_cachep, HUGETLBFS_I(inode));
 }
@@ -560,6 +556,16 @@ static struct address_space_operations hugetlbfs_aops = {
 	.commit_write	= hugetlbfs_commit_write,
 	.set_page_dirty	= hugetlbfs_set_page_dirty,
 };
+
+
+static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
+{
+	struct hugetlbfs_inode_info *ei = (struct hugetlbfs_inode_info *)foo;
+
+	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
+	    SLAB_CTOR_CONSTRUCTOR)
+		inode_init_once(&ei->vfs_inode);
+}
 
 struct file_operations hugetlbfs_file_operations = {
 	.mmap			= hugetlbfs_file_mmap,
