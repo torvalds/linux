@@ -703,23 +703,13 @@ static void second_overflow(void)
      * the adjustment over not more than the number of
      * seconds between updates.
      */
-    if (time_offset < 0) {
-	ltemp = -time_offset;
-	if (!(time_status & STA_FLL))
-	    ltemp >>= SHIFT_KG + time_constant;
-	if (ltemp > (MAXPHASE / MINSEC) << SHIFT_UPDATE)
-	    ltemp = (MAXPHASE / MINSEC) << SHIFT_UPDATE;
-	time_offset += ltemp;
-	time_adj = -ltemp << (SHIFT_SCALE - SHIFT_HZ - SHIFT_UPDATE);
-    } else {
 	ltemp = time_offset;
 	if (!(time_status & STA_FLL))
-	    ltemp >>= SHIFT_KG + time_constant;
-	if (ltemp > (MAXPHASE / MINSEC) << SHIFT_UPDATE)
-	    ltemp = (MAXPHASE / MINSEC) << SHIFT_UPDATE;
+		ltemp = shift_right(ltemp, SHIFT_KG + time_constant);
+	ltemp = min(ltemp, (MAXPHASE / MINSEC) << SHIFT_UPDATE);
+	ltemp = max(ltemp, -(MAXPHASE / MINSEC) << SHIFT_UPDATE);
 	time_offset -= ltemp;
 	time_adj = ltemp << (SHIFT_SCALE - SHIFT_HZ - SHIFT_UPDATE);
-    }
 
     /*
      * Compute the frequency estimate and additional phase
@@ -736,39 +726,25 @@ static void second_overflow(void)
 			 STA_PPSWANDER | STA_PPSERROR);
     }
     ltemp = time_freq + pps_freq;
-    if (ltemp < 0)
-	time_adj -= -ltemp >>
-	    (SHIFT_USEC + SHIFT_HZ - SHIFT_SCALE);
-    else
-	time_adj += ltemp >>
-	    (SHIFT_USEC + SHIFT_HZ - SHIFT_SCALE);
+    time_adj += shift_right(ltemp,(SHIFT_USEC + SHIFT_HZ - SHIFT_SCALE));
 
 #if HZ == 100
     /* Compensate for (HZ==100) != (1 << SHIFT_HZ).
      * Add 25% and 3.125% to get 128.125; => only 0.125% error (p. 14)
      */
-    if (time_adj < 0)
-	time_adj -= (-time_adj >> 2) + (-time_adj >> 5);
-    else
-	time_adj += (time_adj >> 2) + (time_adj >> 5);
+    time_adj += shift_right(time_adj, 2) + shift_right(time_adj, 5);
 #endif
 #if HZ == 250
     /* Compensate for (HZ==250) != (1 << SHIFT_HZ).
      * Add 1.5625% and 0.78125% to get 255.85938; => only 0.05% error (p. 14)
      */
-    if (time_adj < 0)
-	time_adj -= (-time_adj >> 6) + (-time_adj >> 7);
-    else
-	time_adj += (time_adj >> 6) + (time_adj >> 7);
+    time_adj += shift_right(time_adj, 6) + shift_right(time_adj, 7);
 #endif
 #if HZ == 1000
     /* Compensate for (HZ==1000) != (1 << SHIFT_HZ).
      * Add 1.5625% and 0.78125% to get 1023.4375; => only 0.05% error (p. 14)
      */
-    if (time_adj < 0)
-	time_adj -= (-time_adj >> 6) + (-time_adj >> 7);
-    else
-	time_adj += (time_adj >> 6) + (time_adj >> 7);
+    time_adj += shift_right(time_adj, 6) + shift_right(time_adj, 7);
 #endif
 }
 
@@ -787,10 +763,8 @@ static void update_wall_time_one_tick(void)
 	     * Limit the amount of the step to be in the range
 	     * -tickadj .. +tickadj
 	     */
-	     if (time_adjust > tickadj)
-		time_adjust_step = tickadj;
-	     else if (time_adjust < -tickadj)
-		time_adjust_step = -tickadj;
+	     time_adjust_step = min(time_adjust_step, (long)tickadj);
+	     time_adjust_step = max(time_adjust_step, (long)-tickadj);
 
 	    /* Reduce by this step the amount of time left  */
 	    time_adjust -= time_adjust_step;
@@ -801,13 +775,8 @@ static void update_wall_time_one_tick(void)
 	 * advance the tick more.
 	 */
 	time_phase += time_adj;
-	if (time_phase <= -FINENSEC) {
-		long ltemp = -time_phase >> (SHIFT_SCALE - 10);
-		time_phase += ltemp << (SHIFT_SCALE - 10);
-		delta_nsec -= ltemp;
-	}
-	else if (time_phase >= FINENSEC) {
-		long ltemp = time_phase >> (SHIFT_SCALE - 10);
+	if ((time_phase >= FINENSEC) || (time_phase <= -FINENSEC)) {
+		long ltemp = shift_right(time_phase, (SHIFT_SCALE - 10));
 		time_phase -= ltemp << (SHIFT_SCALE - 10);
 		delta_nsec += ltemp;
 	}
