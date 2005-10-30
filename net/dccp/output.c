@@ -58,10 +58,21 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		switch (dcb->dccpd_type) {
 		case DCCP_PKT_DATA:
 			set_ack = 0;
+			/* fall through */
+		case DCCP_PKT_DATAACK:
 			break;
+
 		case DCCP_PKT_SYNC:
 		case DCCP_PKT_SYNCACK:
 			ackno = dcb->dccpd_seq;
+			/* fall through */
+		default:
+			/*
+			 * Only data packets should come through with skb->sk
+			 * set.
+			 */
+			WARN_ON(skb->sk);
+			skb_set_owner_w(skb, sk);
 			break;
 		}
 
@@ -70,12 +81,6 @@ static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		
 		skb->h.raw = skb_push(skb, dccp_header_size);
 		dh = dccp_hdr(skb);
-
-		/*
-		 * Only data packets should come through with skb->sk set.
-		 */
-		if (!skb->sk)
-			skb_set_owner_w(skb, sk);
 
 		/* Build DCCP header and checksum it. */
 		memset(dh, 0, dccp_header_size);
