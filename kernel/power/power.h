@@ -69,4 +69,4 @@ extern int restore_highmem(void);
 extern void free_pagedir(struct pbe *pblist);
 extern struct pbe * alloc_pagedir(unsigned nr_pages);
 extern void create_pbe_list(struct pbe *pblist, unsigned nr_pages);
-extern int enough_swap(void);
+extern int enough_swap(unsigned nr_pages);

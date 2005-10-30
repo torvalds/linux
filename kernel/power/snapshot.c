@@ -187,37 +187,38 @@ static int saveable(struct zone * zone, unsigned long * zone_pfn)
 	return 1;
 }
 
-static void count_data_pages(void)
+static unsigned count_data_pages(void)
 {
 	struct zone *zone;
 	unsigned long zone_pfn;
+	unsigned n;
 
-	nr_copy_pages = 0;
-
+	n = 0;
 	for_each_zone (zone) {
 		if (is_highmem(zone))
 			continue;
 		mark_free_pages(zone);
 		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
-			nr_copy_pages += saveable(zone, &zone_pfn);
+			n += saveable(zone, &zone_pfn);
 	}
+	return n;
 }
 
-static void copy_data_pages(void)
+static void copy_data_pages(struct pbe *pblist)
 {
 	struct zone *zone;
 	unsigned long zone_pfn;
-	struct pbe *pbe = pagedir_nosave, *p;
+	struct pbe *pbe, *p;
 
-	pr_debug("copy_data_pages(): pages to copy: %d\n", nr_copy_pages);
+	pbe = pblist;
 	for_each_zone (zone) {
 		if (is_highmem(zone))
 			continue;
 		mark_free_pages(zone);
 		/* This is necessary for swsusp_free() */
-		for_each_pb_page (p, pagedir_nosave)
+		for_each_pb_page (p, pblist)
 			SetPageNosaveFree(virt_to_page(p));
-		for_each_pbe(p, pagedir_nosave)
+		for_each_pbe (p, pblist)
 			SetPageNosaveFree(virt_to_page(p->address));
 		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn) {
 			if (saveable(zone, &zone_pfn)) {
@@ -370,46 +371,39 @@ void swsusp_free(void)
  *	free pages.
  */
 
-static int enough_free_mem(void)
+static int enough_free_mem(unsigned nr_pages)
 {
 	pr_debug("swsusp: available memory: %u pages\n", nr_free_pages());
-	return nr_free_pages() > (nr_copy_pages + PAGES_FOR_IO +
-		nr_copy_pages/PBES_PER_PAGE + !!(nr_copy_pages%PBES_PER_PAGE));
+	return nr_free_pages() > (nr_pages + PAGES_FOR_IO +
+		(nr_pages + PBES_PER_PAGE - 1) / PBES_PER_PAGE);
 }
 
 
-static int swsusp_alloc(void)
+static struct pbe *swsusp_alloc(unsigned nr_pages)
 {
-	struct pbe * p;
+	struct pbe *pblist, *p;
 
-	pagedir_nosave = NULL;
-
-	if (MAX_PBES < nr_copy_pages / PBES_PER_PAGE +
-	    !!(nr_copy_pages % PBES_PER_PAGE))
-		return -ENOSPC;
-
-	if (!(pagedir_save = alloc_pagedir(nr_copy_pages))) {
+	if (!(pblist = alloc_pagedir(nr_pages))) {
 		printk(KERN_ERR "suspend: Allocating pagedir failed.\n");
-		return -ENOMEM;
+		return NULL;
 	}
-	create_pbe_list(pagedir_save, nr_copy_pages);
-	pagedir_nosave = pagedir_save;
+	create_pbe_list(pblist, nr_pages);
 
-	for_each_pbe (p, pagedir_save) {
+	for_each_pbe (p, pblist) {
 		p->address = (unsigned long)alloc_image_page();
 		if (!p->address) {
 			printk(KERN_ERR "suspend: Allocating image pages failed.\n");
 			swsusp_free();
-			return -ENOMEM;
+			return NULL;
 		}
 	}
 
-	return 0;
+	return pblist;
 }
 
 static int suspend_prepare_image(void)
 {
-	int error;
+	unsigned nr_pages;
 
 	pr_debug("swsusp: critical section: \n");
 	if (save_highmem()) {
@@ -419,33 +413,37 @@ static int suspend_prepare_image(void)
 	}
 
 	drain_local_pages();
-	count_data_pages();
-	printk("swsusp: Need to copy %u pages\n", nr_copy_pages);
+	nr_pages = count_data_pages();
+	printk("swsusp: Need to copy %u pages\n", nr_pages);
 
 	pr_debug("swsusp: pages needed: %u + %lu + %u, free: %u\n",
-		 nr_copy_pages,
-		 nr_copy_pages/PBES_PER_PAGE + !!(nr_copy_pages%PBES_PER_PAGE),
+		 nr_pages,
+		 (nr_pages + PBES_PER_PAGE - 1) / PBES_PER_PAGE,
 		 PAGES_FOR_IO, nr_free_pages());
 
-	if (!enough_free_mem()) {
+	/* This is needed because of the fixed size of swsusp_info */
+	if (MAX_PBES < (nr_pages + PBES_PER_PAGE - 1) / PBES_PER_PAGE)
+		return -ENOSPC;
+
+	if (!enough_free_mem(nr_pages)) {
 		printk(KERN_ERR "swsusp: Not enough free memory\n");
 		return -ENOMEM;
 	}
 
-	if (!enough_swap()) {
+	if (!enough_swap(nr_pages)) {
 		printk(KERN_ERR "swsusp: Not enough free swap\n");
 		return -ENOSPC;
 	}
 
-	error = swsusp_alloc();
-	if (error)
-		return error;
+	pagedir_nosave = swsusp_alloc(nr_pages);
+	if (!pagedir_nosave)
+		return -ENOMEM;
 
 	/* During allocating of suspend pagedir, new cold pages may appear.
 	 * Kill them.
 	 */
 	drain_local_pages();
-	copy_data_pages();
+	copy_data_pages(pagedir_nosave);
 
 	/*
 	 * End of critical section. From now on, we can write to memory,
@@ -453,7 +451,9 @@ static int suspend_prepare_image(void)
 	 * touch swap space! Except we must write out our image of course.
 	 */
 
-	printk("swsusp: critical section/: done (%d pages copied)\n", nr_copy_pages );
+	nr_copy_pages = nr_pages;
+
+	printk("swsusp: critical section/: done (%d pages copied)\n", nr_pages);
 	return 0;
 }
 

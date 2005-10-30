@@ -550,14 +550,14 @@ static int write_suspend_image(void)
  *	We should only consider resume_device.
  */
 
-int enough_swap(void)
+int enough_swap(unsigned nr_pages)
 {
 	struct sysinfo i;
 
 	si_swapinfo(&i);
 	pr_debug("swsusp: available swap: %lu pages\n", i.freeswap);
-	return i.freeswap > (nr_copy_pages + PAGES_FOR_IO +
-		nr_copy_pages/PBES_PER_PAGE + !!(nr_copy_pages%PBES_PER_PAGE));
+	return i.freeswap > (nr_pages + PAGES_FOR_IO +
+		(nr_pages + PBES_PER_PAGE - 1) / PBES_PER_PAGE);
 }
 
 
