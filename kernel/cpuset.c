@@ -995,7 +995,6 @@ static ssize_t cpuset_common_file_read(struct file *file, char __user *buf,
 		goto out;
 	}
 	*s++ = '\n';
-	*s = '\0';
 
 	retval = simple_read_from_buffer(buf, nbytes, ppos, page, s - page);
 out:
