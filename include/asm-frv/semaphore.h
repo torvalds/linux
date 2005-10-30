@@ -47,9 +47,6 @@ struct semaphore {
 #define __SEMAPHORE_INITIALIZER(name,count) \
 { count, SPIN_LOCK_UNLOCKED, LIST_HEAD_INIT((name).wait_list) __SEM_DEBUG_INIT(name) }
 
-#define __MUTEX_INITIALIZER(name) \
-	__SEMAPHORE_INITIALIZER(name,1)
-
 #define __DECLARE_SEMAPHORE_GENERIC(name,count) \
 	struct semaphore name = __SEMAPHORE_INITIALIZER(name,count)
 
