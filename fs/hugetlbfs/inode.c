@@ -92,7 +92,7 @@ out:
 }
 
 /*
- * Called under down_write(mmap_sem), page_table_lock is not held
+ * Called under down_write(mmap_sem).
  */
 
 #ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
@@ -308,7 +308,6 @@ hugetlb_vmtruncate_list(struct prio_tree_root *root, unsigned long h_pgoff)
 
 	vma_prio_tree_foreach(vma, &iter, root, h_pgoff, ULONG_MAX) {
 		unsigned long h_vm_pgoff;
-		unsigned long v_length;
 		unsigned long v_offset;
 
 		h_vm_pgoff = vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT);
@@ -319,11 +318,8 @@ hugetlb_vmtruncate_list(struct prio_tree_root *root, unsigned long h_pgoff)
 		if (h_vm_pgoff >= h_pgoff)
 			v_offset = 0;
 
-		v_length = vma->vm_end - vma->vm_start;
-
-		zap_hugepage_range(vma,
-				vma->vm_start + v_offset,
-				v_length - v_offset);
+		unmap_hugepage_range(vma,
+				vma->vm_start + v_offset, vma->vm_end);
 	}
 }
 

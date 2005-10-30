@@ -314,6 +314,8 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 	BUG_ON(start & ~HPAGE_MASK);
 	BUG_ON(end & ~HPAGE_MASK);
 
+	spin_lock(&mm->page_table_lock);
+
 	/* Update high watermark before we lower rss */
 	update_hiwater_rss(mm);
 
@@ -333,17 +335,9 @@ void unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 		put_page(page);
 		add_mm_counter(mm, file_rss, (int) -(HPAGE_SIZE / PAGE_SIZE));
 	}
-	flush_tlb_range(vma, start, end);
-}
 
-void zap_hugepage_range(struct vm_area_struct *vma,
-			unsigned long start, unsigned long length)
-{
-	struct mm_struct *mm = vma->vm_mm;
-
-	spin_lock(&mm->page_table_lock);
-	unmap_hugepage_range(vma, start, start + length);
 	spin_unlock(&mm->page_table_lock);
+	flush_tlb_range(vma, start, end);
 }
 
 int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)

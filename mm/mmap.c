@@ -1673,9 +1673,7 @@ static void unmap_region(struct mm_struct *mm,
 	lru_add_drain();
 	tlb = tlb_gather_mmu(mm, 0);
 	update_hiwater_rss(mm);
-	spin_lock(&mm->page_table_lock);
-	unmap_vmas(&tlb, mm, vma, start, end, &nr_accounted, NULL);
-	spin_unlock(&mm->page_table_lock);
+	unmap_vmas(&tlb, vma, start, end, &nr_accounted, NULL);
 	vm_unacct_memory(nr_accounted);
 	free_pgtables(&tlb, vma, prev? prev->vm_end: FIRST_USER_ADDRESS,
 				 next? next->vm_start: 0);
@@ -1958,9 +1956,7 @@ void exit_mmap(struct mm_struct *mm)
 	tlb = tlb_gather_mmu(mm, 1);
 	/* Don't update_hiwater_rss(mm) here, do_exit already did */
 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
-	spin_lock(&mm->page_table_lock);
-	end = unmap_vmas(&tlb, mm, vma, 0, -1, &nr_accounted, NULL);
-	spin_unlock(&mm->page_table_lock);
+	end = unmap_vmas(&tlb, vma, 0, -1, &nr_accounted, NULL);
 	vm_unacct_memory(nr_accounted);
 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, 0);
 	tlb_finish_mmu(tlb, 0, end);

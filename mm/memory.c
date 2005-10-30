@@ -551,10 +551,11 @@ static void zap_pte_range(struct mmu_gather *tlb,
 {
 	struct mm_struct *mm = tlb->mm;
 	pte_t *pte;
+	spinlock_t *ptl;
 	int file_rss = 0;
 	int anon_rss = 0;
 
-	pte = pte_offset_map(pmd, addr);
+	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
 	do {
 		pte_t ptent = *pte;
 		if (pte_none(ptent))
@@ -621,7 +622,7 @@ static void zap_pte_range(struct mmu_gather *tlb,
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 
 	add_mm_rss(mm, file_rss, anon_rss);
-	pte_unmap(pte - 1);
+	pte_unmap_unlock(pte - 1, ptl);
 }
 
 static inline void zap_pmd_range(struct mmu_gather *tlb,
@@ -690,7 +691,6 @@ static void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 /**
  * unmap_vmas - unmap a range of memory covered by a list of vma's
  * @tlbp: address of the caller's struct mmu_gather
- * @mm: the controlling mm_struct
  * @vma: the starting vma
  * @start_addr: virtual address at which to start unmapping
  * @end_addr: virtual address at which to end unmapping
@@ -699,10 +699,10 @@ static void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
  *
  * Returns the end address of the unmapping (restart addr if interrupted).
  *
- * Unmap all pages in the vma list.  Called under page_table_lock.
+ * Unmap all pages in the vma list.
  *
- * We aim to not hold page_table_lock for too long (for scheduling latency
- * reasons).  So zap pages in ZAP_BLOCK_SIZE bytecounts.  This means we need to
+ * We aim to not hold locks for too long (for scheduling latency reasons).
+ * So zap pages in ZAP_BLOCK_SIZE bytecounts.  This means we need to
  * return the ending mmu_gather to the caller.
  *
  * Only addresses between `start' and `end' will be unmapped.
@@ -714,7 +714,7 @@ static void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
  * ensure that any thus-far unmapped pages are flushed before unmap_vmas()
  * drops the lock and schedules.
  */
-unsigned long unmap_vmas(struct mmu_gather **tlbp, struct mm_struct *mm,
+unsigned long unmap_vmas(struct mmu_gather **tlbp,
 		struct vm_area_struct *vma, unsigned long start_addr,
 		unsigned long end_addr, unsigned long *nr_accounted,
 		struct zap_details *details)
@@ -764,19 +764,15 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp, struct mm_struct *mm,
 			tlb_finish_mmu(*tlbp, tlb_start, start);
 
 			if (need_resched() ||
-				need_lockbreak(&mm->page_table_lock) ||
 				(i_mmap_lock && need_lockbreak(i_mmap_lock))) {
 				if (i_mmap_lock) {
-					/* must reset count of rss freed */
-					*tlbp = tlb_gather_mmu(mm, fullmm);
+					*tlbp = NULL;
 					goto out;
 				}
-				spin_unlock(&mm->page_table_lock);
 				cond_resched();
-				spin_lock(&mm->page_table_lock);
 			}
 
-			*tlbp = tlb_gather_mmu(mm, fullmm);
+			*tlbp = tlb_gather_mmu(vma->vm_mm, fullmm);
 			tlb_start_valid = 0;
 			zap_bytes = ZAP_BLOCK_SIZE;
 		}
@@ -800,18 +796,12 @@ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
 	unsigned long end = address + size;
 	unsigned long nr_accounted = 0;
 
-	if (is_vm_hugetlb_page(vma)) {
-		zap_hugepage_range(vma, address, size);
-		return end;
-	}
-
 	lru_add_drain();
 	tlb = tlb_gather_mmu(mm, 0);
 	update_hiwater_rss(mm);
-	spin_lock(&mm->page_table_lock);
-	end = unmap_vmas(&tlb, mm, vma, address, end, &nr_accounted, details);
-	spin_unlock(&mm->page_table_lock);
-	tlb_finish_mmu(tlb, address, end);
+	end = unmap_vmas(&tlb, vma, address, end, &nr_accounted, details);
+	if (tlb)
+		tlb_finish_mmu(tlb, address, end);
 	return end;
 }
 
@@ -1434,13 +1424,6 @@ again:
 
 	restart_addr = zap_page_range(vma, start_addr,
 					end_addr - start_addr, details);
-
-	/*
-	 * We cannot rely on the break test in unmap_vmas:
-	 * on the one hand, we don't want to restart our loop
-	 * just because that broke out for the page_table_lock;
-	 * on the other hand, it does no test when vma is small.
-	 */
 	need_break = need_resched() ||
 			need_lockbreak(details->i_mmap_lock);
 
