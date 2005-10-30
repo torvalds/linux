@@ -9,7 +9,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 
 #include <linux/usb.h>
 
@@ -381,7 +381,6 @@ alloc_sglist (int nents, int max, int vary)
 	sg = kmalloc (nents * sizeof *sg, SLAB_KERNEL);
 	if (!sg)
 		return NULL;
-	memset (sg, 0, nents * sizeof *sg);
 
 	for (i = 0; i < nents; i++) {
 		char		*buf;
@@ -394,9 +393,7 @@ alloc_sglist (int nents, int max, int vary)
 		memset (buf, 0, size);
 
 		/* kmalloc pages are always physically contiguous! */
-		sg [i].page = virt_to_page (buf);
-		sg [i].offset = offset_in_page (buf);
-		sg [i].length = size;
+		sg_init_one(&sg[i], buf, size);
 
 		if (vary) {
 			size += vary;

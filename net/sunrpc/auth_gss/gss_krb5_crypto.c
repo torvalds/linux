@@ -37,7 +37,7 @@
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #include <linux/crypto.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
@@ -75,9 +75,7 @@ krb5_encrypt(
 		memcpy(local_iv, iv, crypto_tfm_alg_ivsize(tfm));
 
 	memcpy(out, in, length);
-	sg[0].page = virt_to_page(out);
-	sg[0].offset = offset_in_page(out);
-	sg[0].length = length;
+	sg_set_buf(sg, out, length);
 
 	ret = crypto_cipher_encrypt_iv(tfm, sg, sg, length, local_iv);
 
@@ -117,9 +115,7 @@ krb5_decrypt(
 		memcpy(local_iv,iv, crypto_tfm_alg_ivsize(tfm));
 
 	memcpy(out, in, length);
-	sg[0].page = virt_to_page(out);
-	sg[0].offset = offset_in_page(out);
-	sg[0].length = length;
+	sg_set_buf(sg, out, length);
 
 	ret = crypto_cipher_decrypt_iv(tfm, sg, sg, length, local_iv);
 
@@ -131,13 +127,6 @@ out:
 }
 
 EXPORT_SYMBOL(krb5_decrypt);
-
-static void
-buf_to_sg(struct scatterlist *sg, char *ptr, int len) {
-	sg->page = virt_to_page(ptr);
-	sg->offset = offset_in_page(ptr);
-	sg->length = len;
-}
 
 static int
 process_xdr_buf(struct xdr_buf *buf, int offset, int len,
@@ -152,7 +141,7 @@ process_xdr_buf(struct xdr_buf *buf, int offset, int len,
 		thislen = buf->head[0].iov_len - offset;
 		if (thislen > len)
 			thislen = len;
-		buf_to_sg(sg, buf->head[0].iov_base + offset, thislen);
+		sg_set_buf(sg, buf->head[0].iov_base + offset, thislen);
 		ret = actor(sg, data);
 		if (ret)
 			goto out;
@@ -195,7 +184,7 @@ process_xdr_buf(struct xdr_buf *buf, int offset, int len,
 		thislen = buf->tail[0].iov_len - offset;
 		if (thislen > len)
 			thislen = len;
-		buf_to_sg(sg, buf->tail[0].iov_base + offset, thislen);
+		sg_set_buf(sg, buf->tail[0].iov_base + offset, thislen);
 		ret = actor(sg, data);
 		len -= thislen;
 	}
@@ -241,7 +230,7 @@ make_checksum(s32 cksumtype, char *header, int hdrlen, struct xdr_buf *body,
 		goto out;
 
 	crypto_digest_init(tfm);
-	buf_to_sg(sg, header, hdrlen);
+	sg_set_buf(sg, header, hdrlen);
 	crypto_digest_update(tfm, sg, 1);
 	process_xdr_buf(body, body_offset, body->len - body_offset,
 			checksummer, tfm);
