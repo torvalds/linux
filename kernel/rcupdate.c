@@ -154,6 +154,15 @@ void fastcall call_rcu_bh(struct rcu_head *head,
 }
 
 /*
+ * Return the number of RCU batches processed thus far.  Useful
+ * for debug and statistics.
+ */
+long rcu_batches_completed(void)
+{
+	return rcu_ctrlblk.completed;
+}
+
+/*
  * Invoke the completed RCU callbacks. They are expected to be in
  * a per-cpu list.
  */
@@ -501,6 +510,7 @@ void synchronize_kernel(void)
 }
 
 module_param(maxbatch, int, 0);
+EXPORT_SYMBOL_GPL(rcu_batches_completed);
 EXPORT_SYMBOL(call_rcu);  /* WARNING: GPL-only in April 2006. */
 EXPORT_SYMBOL(call_rcu_bh);  /* WARNING: GPL-only in April 2006. */
 EXPORT_SYMBOL_GPL(synchronize_rcu);
