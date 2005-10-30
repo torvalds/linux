@@ -1088,6 +1088,7 @@ static void generic_forget_inode(struct inode *inode)
 	if (inode->i_data.nrpages)
 		truncate_inode_pages(&inode->i_data, 0);
 	clear_inode(inode);
+	wake_up_inode(inode);
 	destroy_inode(inode);
 }
 
