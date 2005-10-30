@@ -61,7 +61,7 @@ struct tpm_vendor_specific {
 };
 
 struct tpm_chip {
-	struct pci_dev *pci_dev;	/* PCI device stuff */
+	struct device *dev;	/* Device stuff */
 
 	int dev_num;		/* /dev/tpm# */
 	int num_opens;		/* only one allowed */
@@ -92,13 +92,13 @@ static inline void tpm_write_index(int base, int index, int value)
 	outb(value & 0xFF, base+1);
 }
 
-extern int tpm_register_hardware(struct pci_dev *,
+extern int tpm_register_hardware(struct device *,
 				 struct tpm_vendor_specific *);
 extern int tpm_open(struct inode *, struct file *);
 extern int tpm_release(struct inode *, struct file *);
 extern ssize_t tpm_write(struct file *, const char __user *, size_t,
 			 loff_t *);
 extern ssize_t tpm_read(struct file *, char __user *, size_t, loff_t *);
-extern void __devexit tpm_remove(struct pci_dev *);
+extern void tpm_remove_hardware(struct device *);
 extern int tpm_pm_suspend(struct pci_dev *, pm_message_t);
 extern int tpm_pm_resume(struct pci_dev *);

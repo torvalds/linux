@@ -64,7 +64,7 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 	if (count == 0)
 		return -ENODATA;
 	if (count > bufsiz) {
-		dev_err(&chip->pci_dev->dev,
+		dev_err(chip->dev,
 			"invalid count value %x %zx \n", count, bufsiz);
 		return -E2BIG;
 	}
@@ -72,7 +72,7 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 	down(&chip->tpm_mutex);
 
 	if ((rc = chip->vendor->send(chip, (u8 *) buf, count)) < 0) {
-		dev_err(&chip->pci_dev->dev,
+		dev_err(chip->dev,
 			"tpm_transmit: tpm_send: error %zd\n", rc);
 		goto out;
 	}
@@ -86,7 +86,7 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		}
 
 		if ((status == chip->vendor->req_canceled)) {
-			dev_err(&chip->pci_dev->dev, "Operation Canceled\n");
+			dev_err(chip->dev, "Operation Canceled\n");
 			rc = -ECANCELED;
 			goto out;
 		}
@@ -97,14 +97,14 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 
 
 	chip->vendor->cancel(chip);
-	dev_err(&chip->pci_dev->dev, "Operation Timed out\n");
+	dev_err(chip->dev, "Operation Timed out\n");
 	rc = -ETIME;
 	goto out;
 
 out_recv:
 	rc = chip->vendor->recv(chip, (u8 *) buf, bufsiz);
 	if (rc < 0)
-		dev_err(&chip->pci_dev->dev,
+		dev_err(chip->dev,
 			"tpm_transmit: tpm_recv: error %zd\n", rc);
 out:
 	up(&chip->tpm_mutex);
@@ -139,15 +139,14 @@ ssize_t tpm_show_pcrs(struct device *dev, struct device_attribute *attr,
 	__be32 index;
 	char *str = buf;
 
-	struct tpm_chip *chip =
-	    pci_get_drvdata(to_pci_dev(dev));
+	struct tpm_chip *chip = dev_get_drvdata(dev);
 	if (chip == NULL)
 		return -ENODEV;
 
 	memcpy(data, cap_pcr, sizeof(cap_pcr));
 	if ((len = tpm_transmit(chip, data, sizeof(data)))
 	    < CAP_PCR_RESULT_SIZE) {
-		dev_dbg(&chip->pci_dev->dev, "A TPM error (%d) occurred "
+		dev_dbg(chip->dev, "A TPM error (%d) occurred "
 				"attempting to determine the number of PCRS\n",
 			be32_to_cpu(*((__be32 *) (data + 6))));
 		return 0;
@@ -161,7 +160,7 @@ ssize_t tpm_show_pcrs(struct device *dev, struct device_attribute *attr,
 		memcpy(data + 10, &index, 4);
 		if ((len = tpm_transmit(chip, data, sizeof(data)))
 		    < READ_PCR_RESULT_SIZE){
-			dev_dbg(&chip->pci_dev->dev, "A TPM error (%d) occurred"
+			dev_dbg(chip->dev, "A TPM error (%d) occurred"
 				" attempting to read PCR %d of %d\n",
 				be32_to_cpu(*((__be32 *) (data + 6))), i, num_pcrs);
 			goto out;
@@ -191,8 +190,7 @@ ssize_t tpm_show_pubek(struct device *dev, struct device_attribute *attr,
 	int i, rc;
 	char *str = buf;
 
-	struct tpm_chip *chip =
-	    pci_get_drvdata(to_pci_dev(dev));
+	struct tpm_chip *chip = dev_get_drvdata(dev);
 	if (chip == NULL)
 		return -ENODEV;
 
@@ -205,7 +203,7 @@ ssize_t tpm_show_pubek(struct device *dev, struct device_attribute *attr,
 
 	if ((len = tpm_transmit(chip, data, READ_PUBEK_RESULT_SIZE)) <
 	    READ_PUBEK_RESULT_SIZE) {
-		dev_dbg(&chip->pci_dev->dev, "A TPM error (%d) occurred "
+		dev_dbg(chip->dev, "A TPM error (%d) occurred "
 				"attempting to read the PUBEK\n",
 			    be32_to_cpu(*((__be32 *) (data + 6))));
 		rc = 0;
@@ -274,8 +272,7 @@ ssize_t tpm_show_caps(struct device *dev, struct device_attribute *attr,
 	ssize_t len;
 	char *str = buf;
 
-	struct tpm_chip *chip =
-	    pci_get_drvdata(to_pci_dev(dev));
+	struct tpm_chip *chip = dev_get_drvdata(dev);
 	if (chip == NULL)
 		return -ENODEV;
 
@@ -339,21 +336,21 @@ int tpm_open(struct inode *inode, struct file *file)
 	}
 
 	if (chip->num_opens) {
-		dev_dbg(&chip->pci_dev->dev,
+		dev_dbg(chip->dev,
 			"Another process owns this TPM\n");
 		rc = -EBUSY;
 		goto err_out;
 	}
 
 	chip->num_opens++;
-	pci_dev_get(chip->pci_dev);
+	get_device(chip->dev);
 
 	spin_unlock(&driver_lock);
 
 	chip->data_buffer = kmalloc(TPM_BUFSIZE * sizeof(u8), GFP_KERNEL);
 	if (chip->data_buffer == NULL) {
 		chip->num_opens--;
-		pci_dev_put(chip->pci_dev);
+		put_device(chip->dev);
 		return -ENOMEM;
 	}
 
@@ -378,7 +375,7 @@ int tpm_release(struct inode *inode, struct file *file)
 	chip->num_opens--;
 	del_singleshot_timer_sync(&chip->user_read_timer);
 	atomic_set(&chip->data_pending, 0);
-	pci_dev_put(chip->pci_dev);
+	put_device(chip->dev);
 	kfree(chip->data_buffer);
 	spin_unlock(&driver_lock);
 	return 0;
@@ -447,12 +444,12 @@ ssize_t tpm_read(struct file * file, char __user * buf,
 
 EXPORT_SYMBOL_GPL(tpm_read);
 
-void __devexit tpm_remove(struct pci_dev *pci_dev)
+void tpm_remove_hardware(struct device *dev)
 {
-	struct tpm_chip *chip = pci_get_drvdata(pci_dev);
+	struct tpm_chip *chip = dev_get_drvdata(dev);
 
 	if (chip == NULL) {
-		dev_err(&pci_dev->dev, "No device data found\n");
+		dev_err(dev, "No device data found\n");
 		return;
 	}
 
@@ -462,22 +459,20 @@ void __devexit tpm_remove(struct pci_dev *pci_dev)
 
 	spin_unlock(&driver_lock);
 
-	pci_set_drvdata(pci_dev, NULL);
+	dev_set_drvdata(dev, NULL);
 	misc_deregister(&chip->vendor->miscdev);
 	kfree(chip->vendor->miscdev.name);
 
-	sysfs_remove_group(&pci_dev->dev.kobj, chip->vendor->attr_group);
-
-	pci_disable_device(pci_dev);
+	sysfs_remove_group(&dev->kobj, chip->vendor->attr_group);
 
 	dev_mask[chip->dev_num / TPM_NUM_MASK_ENTRIES ] &= !(1 << (chip->dev_num % TPM_NUM_MASK_ENTRIES));
 
 	kfree(chip);
 
-	pci_dev_put(pci_dev);
+	put_device(dev);
 }
 
-EXPORT_SYMBOL_GPL(tpm_remove);
+EXPORT_SYMBOL_GPL(tpm_remove_hardware);
 
 static u8 savestate[] = {
 	0, 193,			/* TPM_TAG_RQU_COMMAND */
@@ -524,7 +519,7 @@ EXPORT_SYMBOL_GPL(tpm_pm_resume);
  * upon errant exit from this function specific probe function should call
  * pci_disable_device
  */
-int tpm_register_hardware(struct pci_dev *pci_dev,
+int tpm_register_hardware(struct device *dev,
 			  struct tpm_vendor_specific *entry)
 {
 #define DEVNAME_SIZE 7
@@ -563,7 +558,7 @@ int tpm_register_hardware(struct pci_dev *pci_dev,
 
 dev_num_search_complete:
 	if (chip->dev_num < 0) {
-		dev_err(&pci_dev->dev,
+		dev_err(dev,
 			"No available tpm device numbers\n");
 		kfree(chip);
 		return -ENODEV;
@@ -576,15 +571,15 @@ dev_num_search_complete:
 	scnprintf(devname, DEVNAME_SIZE, "%s%d", "tpm", chip->dev_num);
 	chip->vendor->miscdev.name = devname;
 
-	chip->vendor->miscdev.dev = &(pci_dev->dev);
-	chip->pci_dev = pci_dev_get(pci_dev);
+	chip->vendor->miscdev.dev = dev;
+	chip->dev = get_device(dev);
 
 	if (misc_register(&chip->vendor->miscdev)) {
-		dev_err(&chip->pci_dev->dev,
+		dev_err(chip->dev,
 			"unable to misc_register %s, minor %d\n",
 			chip->vendor->miscdev.name,
 			chip->vendor->miscdev.minor);
-		pci_dev_put(pci_dev);
+		put_device(dev);
 		kfree(chip);
 		dev_mask[i] &= !(1 << j);
 		return -ENODEV;
@@ -592,13 +587,13 @@ dev_num_search_complete:
 
 	spin_lock(&driver_lock);
 
-	pci_set_drvdata(pci_dev, chip);
+	dev_set_drvdata(dev, chip);
 
 	list_add(&chip->list, &tpm_chip_list);
 
 	spin_unlock(&driver_lock);
 
-	sysfs_create_group(&pci_dev->dev.kobj, chip->vendor->attr_group);
+	sysfs_create_group(&dev->kobj, chip->vendor->attr_group);
 
 	return 0;
 }
