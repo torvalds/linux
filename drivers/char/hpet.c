@@ -501,8 +501,8 @@ hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg, int kernel)
 				info.hi_ireqfreq = 0;
 			info.hi_flags =
 			    readq(&timer->hpet_config) & Tn_PER_INT_CAP_MASK;
-			info.hi_hpet = devp->hd_hpets->hp_which;
-			info.hi_timer = devp - devp->hd_hpets->hp_dev;
+			info.hi_hpet = hpetp->hp_which;
+			info.hi_timer = devp - hpetp->hp_dev;
 			if (kernel)
 				memcpy((void *)arg, &info, sizeof(info));
 			else
