@@ -1331,11 +1331,8 @@ void show_free_areas(void)
 		} else
 			printk("\n");
 
-		for (cpu = 0; cpu < NR_CPUS; ++cpu) {
+		for_each_cpu(cpu) {
 			struct per_cpu_pageset *pageset;
-
-			if (!cpu_possible(cpu))
-				continue;
 
 			pageset = zone_pcp(zone, cpu);
 
