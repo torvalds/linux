@@ -803,6 +803,7 @@ no_apic:
 
 void __init init_apic_mappings(void)
 {
+	unsigned int orig_apicid;
 	unsigned long apic_phys;
 
 	/*
@@ -824,8 +825,11 @@ void __init init_apic_mappings(void)
 	 * Fetch the APIC ID of the BSP in case we have a
 	 * default configuration (or the MP table is broken).
 	 */
-	if (boot_cpu_physical_apicid == -1U)
-		boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
+	orig_apicid = boot_cpu_physical_apicid;
+	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
+	if ((orig_apicid != -1U) && (orig_apicid != boot_cpu_physical_apicid))
+		printk(KERN_WARNING "Boot APIC ID in local APIC unexpected (%d vs %d)",
+			orig_apicid, boot_cpu_physical_apicid);
 
 #ifdef CONFIG_X86_IO_APIC
 	{
@@ -1046,9 +1050,11 @@ static unsigned int calibration_result;
 
 void __init setup_boot_APIC_clock(void)
 {
+	unsigned long flags;
 	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n");
 	using_apic_timer = 1;
 
+	local_irq_save(flags);
 	local_irq_disable();
 
 	calibration_result = calibrate_APIC_clock();
@@ -1057,7 +1063,7 @@ void __init setup_boot_APIC_clock(void)
 	 */
 	setup_APIC_timer(calibration_result);
 
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 void __devinit setup_secondary_APIC_clock(void)
@@ -1254,40 +1260,81 @@ fastcall void smp_error_interrupt(struct pt_regs *regs)
 }
 
 /*
- * This initializes the IO-APIC and APIC hardware if this is
- * a UP kernel.
+ * This initializes the IO-APIC and APIC hardware.
  */
-int __init APIC_init_uniprocessor (void)
+int __init APIC_init(void)
 {
-	if (enable_local_apic < 0)
-		clear_bit(X86_FEATURE_APIC, boot_cpu_data.x86_capability);
-
-	if (!smp_found_config && !cpu_has_apic)
+	if (enable_local_apic < 0) {
+		printk(KERN_INFO "APIC disabled\n");
 		return -1;
+	}
+
+	/* See if we have a SMP configuration or have forced enabled
+	 * the local apic.
+	 */
+	if (!smp_found_config && !acpi_lapic && !cpu_has_apic) {
+		enable_local_apic = -1;
+		return -1;
+	}
 
 	/*
-	 * Complain if the BIOS pretends there is one.
+	 * Complain if the BIOS pretends there is an apic.
+	 * Then get out because we don't have an a local apic.
 	 */
 	if (!cpu_has_apic && APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid])) {
 		printk(KERN_ERR "BIOS bug, local APIC #%d not detected!...\n",
 			boot_cpu_physical_apicid);
+		printk(KERN_ERR "... forcing use of dummy APIC emulation. (tell your hw vendor)\n");
+		enable_local_apic = -1;
 		return -1;
 	}
 
 	verify_local_APIC();
 
+	/*
+	 * Should not be necessary because the MP table should list the boot
+	 * CPU too, but we do it for the sake of robustness anyway.
+	 * Makes no sense to do this check in clustered apic mode, so skip it
+	 */
+	if (!check_phys_apicid_present(boot_cpu_physical_apicid)) {
+		printk("weird, boot CPU (#%d) not listed by the BIOS.\n",
+				boot_cpu_physical_apicid);
+		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
+	}
+
+	/*
+	 * Switch from PIC to APIC mode.
+	 */
 	connect_bsp_APIC();
-
-	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_physical_apicid);
-
 	setup_local_APIC();
 
 #ifdef CONFIG_X86_IO_APIC
-	if (smp_found_config)
-		if (!skip_ioapic_setup && nr_ioapics)
-			setup_IO_APIC();
+	/*
+	 * Now start the IO-APICs
+	 */
+	if (smp_found_config && !skip_ioapic_setup && nr_ioapics)
+		setup_IO_APIC();
+#endif
+	return 0;
+}
+
+void __init APIC_late_time_init(void)
+{
+	/* Improve our loops per jiffy estimate */
+	loops_per_jiffy = ((1000 + HZ - 1)/HZ)*cpu_khz;
+	boot_cpu_data.loops_per_jiffy = loops_per_jiffy;
+	cpu_data[0].loops_per_jiffy = loops_per_jiffy;
+
+	/* setup_apic_nmi_watchdog doesn't work properly before cpu_khz is
+	 * initialized.  So redo it here to ensure the boot cpu is setup
+	 * properly.
+	 */
+	if (nmi_watchdog == NMI_LOCAL_APIC)
+		setup_apic_nmi_watchdog();
+
+#ifdef CONFIG_X86_IO_APIC
+	if (smp_found_config && !skip_ioapic_setup && nr_ioapics)
+		IO_APIC_late_time_init();
 #endif
 	setup_boot_APIC_clock();
-
-	return 0;
 }
