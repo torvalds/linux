@@ -26,12 +26,21 @@ static void msync_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 				unsigned long addr, unsigned long end)
 {
 	pte_t *pte;
+	int progress = 0;
 
+again:
 	pte = pte_offset_map(pmd, addr);
 	do {
 		unsigned long pfn;
 		struct page *page;
 
+		if (progress >= 64) {
+			progress = 0;
+			if (need_resched() ||
+			    need_lockbreak(&vma->vm_mm->page_table_lock))
+				break;
+		}
+		progress++;
 		if (!pte_present(*pte))
 			continue;
 		if (!pte_maybe_dirty(*pte))
@@ -46,8 +55,12 @@ static void msync_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		if (ptep_clear_flush_dirty(vma, addr, pte) ||
 		    page_test_and_clear_dirty(page))
 			set_page_dirty(page);
+		progress += 3;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	pte_unmap(pte - 1);
+	cond_resched_lock(&vma->vm_mm->page_table_lock);
+	if (addr != end)
+		goto again;
 }
 
 static inline void msync_pmd_range(struct vm_area_struct *vma, pud_t *pud,
@@ -106,29 +119,6 @@ static void msync_page_range(struct vm_area_struct *vma,
 	spin_unlock(&mm->page_table_lock);
 }
 
-#ifdef CONFIG_PREEMPT
-static inline void filemap_msync(struct vm_area_struct *vma,
-				 unsigned long addr, unsigned long end)
-{
-	const size_t chunk = 64 * 1024;	/* bytes */
-	unsigned long next;
-
-	do {
-		next = addr + chunk;
-		if (next > end || next < addr)
-			next = end;
-		msync_page_range(vma, addr, next);
-		cond_resched();
-	} while (addr = next, addr != end);
-}
-#else
-static inline void filemap_msync(struct vm_area_struct *vma,
-				 unsigned long addr, unsigned long end)
-{
-	msync_page_range(vma, addr, end);
-}
-#endif
-
 /*
  * MS_SYNC syncs the entire file - including mappings.
  *
@@ -150,7 +140,7 @@ static int msync_interval(struct vm_area_struct *vma,
 		return -EBUSY;
 
 	if (file && (vma->vm_flags & VM_SHARED)) {
-		filemap_msync(vma, addr, end);
+		msync_page_range(vma, addr, end);
 
 		if (flags & MS_SYNC) {
 			struct address_space *mapping = file->f_mapping;
