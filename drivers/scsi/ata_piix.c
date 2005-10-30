@@ -622,7 +622,7 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	static int printed_version;
 	struct ata_port_info *port_info[2];
-	unsigned int combined = 0, n_ports = 1;
+	unsigned int combined = 0;
 	unsigned int pata_chan = 0, sata_chan = 0;
 
 	if (!printed_version++)
@@ -634,7 +634,7 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 
 	port_info[0] = &piix_port_info[ent->driver_data];
-	port_info[1] = NULL;
+	port_info[1] = &piix_port_info[ent->driver_data];
 
 	if (port_info[0]->host_flags & PIIX_FLAG_AHCI) {
 		u8 tmp;
@@ -672,14 +672,13 @@ static int piix_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		port_info[sata_chan] = &piix_port_info[ent->driver_data];
 		port_info[sata_chan]->host_flags |= ATA_FLAG_SLAVE_POSS;
 		port_info[pata_chan] = &piix_port_info[ich5_pata];
-		n_ports++;
 
 		dev_printk(KERN_WARNING, &pdev->dev,
 			   "combined mode detected (p=%u, s=%u)\n",
 			   pata_chan, sata_chan);
 	}
 
-	return ata_pci_init_one(pdev, port_info, n_ports);
+	return ata_pci_init_one(pdev, port_info, 2);
 }
 
 static int __init piix_init(void)
