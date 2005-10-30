@@ -30,6 +30,7 @@
 #include <linux/string.h>
 #include <linux/ioport.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>

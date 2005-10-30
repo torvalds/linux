@@ -17,6 +17,8 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/stringify.h>
+#include <linux/smp.h>
+
 #include <asm/hvcall.h>
 #include <asm/iSeries/HvCall.h>
 

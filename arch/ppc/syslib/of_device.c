@@ -4,6 +4,8 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
+#include <linux/slab.h>
+
 #include <asm/errno.h>
 #include <asm/of_device.h>
 

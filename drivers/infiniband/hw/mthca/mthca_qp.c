@@ -36,6 +36,8 @@
  */
 
 #include <linux/init.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>

@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 #if 0
 #define DEBUGP printk

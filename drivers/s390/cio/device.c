@@ -22,6 +22,7 @@
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
+#include <asm/param.h>		/* HZ */
 
 #include "cio.h"
 #include "css.h"

@@ -19,6 +19,7 @@
 #include <linux/input.h>
 #include <linux/delay.h>
 #include <linux/proc_fs.h>
+#include <linux/jiffies.h>
 
 #define DRIVER_DESC	"Gravis Grip Multiport driver"
 

@@ -17,6 +17,7 @@
 #include <linux/string.h>
 #include <linux/kdev_t.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 #include "base.h"
 
 #define to_class_attr(_attr) container_of(_attr, struct class_attribute, attr)

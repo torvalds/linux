@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/fs.h>
+#include <linux/sched.h>	/* TASK_* */
 #include <asm/uaccess.h>
 
 #include <linux/device.h>

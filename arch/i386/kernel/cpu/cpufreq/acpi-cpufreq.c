@@ -32,6 +32,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/compiler.h>
+#include <linux/sched.h>	/* current */
 #include <asm/io.h>
 #include <asm/delay.h>
 #include <asm/uaccess.h>

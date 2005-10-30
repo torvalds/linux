@@ -16,10 +16,13 @@
  */
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/string.h>
+
 #include <asm/pci-bridge.h>
 #include <asm/semaphore.h>
 #include <asm/rtas.h>
 #include <asm/vio.h>
+
 #include "../pci.h"
 #include "rpaphp.h"
 #include "rpadlpar.h"

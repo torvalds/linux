@@ -30,10 +30,13 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
+#include <linux/timex.h>	/* get_clock() */
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
 #include <asm/cmb.h>
+#include <asm/div64.h>
 
 #include "cio.h"
 #include "css.h"

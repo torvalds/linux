@@ -11,6 +11,7 @@
 #include <linux/device.h>
 #include <linux/compiler.h>
 #include <linux/cpu.h>
+#include <linux/sched.h>
 
 #include <asm/processor.h>
 #include <asm/smp.h>

@@ -29,6 +29,7 @@
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
+#include <linux/sched.h>	/* TASK_* */
 
 #ifdef CONFIG_PARPORT_MODULE
 #define CONFIG_PARPORT

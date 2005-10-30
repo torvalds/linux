@@ -26,6 +26,8 @@ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
+#include <asm/div64.h>
 
 #include "dvb_frontend.h"
 #include "s5h1420.h"

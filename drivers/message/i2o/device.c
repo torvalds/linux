@@ -16,6 +16,8 @@
 #include <linux/module.h>
 #include <linux/i2o.h>
 #include <linux/delay.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 #include "core.h"
 
 /**

@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/gameport.h>
 #include <linux/input.h>
+#include <linux/jiffies.h>
 
 #define DRIVER_DESC	"Gravis GrIP protocol joystick driver"
 

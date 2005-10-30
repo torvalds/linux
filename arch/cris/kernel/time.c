@@ -31,6 +31,7 @@
 #include <linux/timex.h>
 #include <linux/init.h>
 #include <linux/profile.h>
+#include <linux/sched.h>	/* just for sched_clock() - funny that */
 
 int have_rtc;  /* used to remember if we have an RTC or not */;
 
