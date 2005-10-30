@@ -49,6 +49,7 @@ static int sg_version_num = 30533;	/* 2 digits for each component */
 #include <linux/seq_file.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
+#include <linux/scatterlist.h>
 
 #include "scsi.h"
 #include <scsi/scsi_dbg.h>
@@ -1886,13 +1887,17 @@ st_unmap_user_pages(struct scatterlist *sgl, const unsigned int nr_pages,
 	int i;
 
 	for (i=0; i < nr_pages; i++) {
-		if (dirtied && !PageReserved(sgl[i].page))
-			SetPageDirty(sgl[i].page);
-		/* unlock_page(sgl[i].page); */
+		struct page *page = sgl[i].page;
+
+		/* XXX: just for debug. Remove when PageReserved is removed */
+		BUG_ON(PageReserved(page));
+		if (dirtied)
+			SetPageDirty(page);
+		/* unlock_page(page); */
 		/* FIXME: cache flush missing for rw==READ
 		 * FIXME: call the correct reference counting function
 		 */
-		page_cache_release(sgl[i].page);
+		page_cache_release(page);
 	}
 
 	return 0;
@@ -1992,9 +1997,7 @@ sg_build_indirect(Sg_scatter_hold * schp, Sg_fd * sfp, int buff_size)
 				if (!p)
 					break;
 			}
-			sclp->page = virt_to_page(p);
-			sclp->offset = offset_in_page(p);
-			sclp->length = ret_sz;
+			sg_set_buf(sclp, p, ret_sz);
 
 			SCSI_LOG_TIMEOUT(5, printk("sg_build_build: k=%d, a=0x%p, len=%d\n",
 					  k, sg_scatg2virt(sclp), ret_sz));

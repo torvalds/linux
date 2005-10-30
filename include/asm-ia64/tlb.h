@@ -60,7 +60,6 @@ struct mmu_gather {
 	unsigned int		nr;		/* == ~0U => fast mode */
 	unsigned char		fullmm;		/* non-zero means full mm flush */
 	unsigned char		need_flush;	/* really unmapped some PTEs? */
-	unsigned long		freed;		/* number of pages freed */
 	unsigned long		start_addr;
 	unsigned long		end_addr;
 	struct page 		*pages[FREE_PTE_NR];
@@ -129,7 +128,7 @@ ia64_tlb_flush_mmu (struct mmu_gather *tlb, unsigned long start, unsigned long e
 static inline struct mmu_gather *
 tlb_gather_mmu (struct mm_struct *mm, unsigned int full_mm_flush)
 {
-	struct mmu_gather *tlb = &__get_cpu_var(mmu_gathers);
+	struct mmu_gather *tlb = &get_cpu_var(mmu_gathers);
 
 	tlb->mm = mm;
 	/*
@@ -147,25 +146,17 @@ tlb_gather_mmu (struct mm_struct *mm, unsigned int full_mm_flush)
 	 */
 	tlb->nr = (num_online_cpus() == 1) ? ~0U : 0;
 	tlb->fullmm = full_mm_flush;
-	tlb->freed = 0;
 	tlb->start_addr = ~0UL;
 	return tlb;
 }
 
 /*
  * Called at the end of the shootdown operation to free up any resources that were
- * collected.  The page table lock is still held at this point.
+ * collected.
  */
 static inline void
 tlb_finish_mmu (struct mmu_gather *tlb, unsigned long start, unsigned long end)
 {
-	unsigned long freed = tlb->freed;
-	struct mm_struct *mm = tlb->mm;
-	unsigned long rss = get_mm_counter(mm, rss);
-
-	if (rss < freed)
-		freed = rss;
-	add_mm_counter(mm, rss, -freed);
 	/*
 	 * Note: tlb->nr may be 0 at this point, so we can't rely on tlb->start_addr and
 	 * tlb->end_addr.
@@ -174,12 +165,8 @@ tlb_finish_mmu (struct mmu_gather *tlb, unsigned long start, unsigned long end)
 
 	/* keep the page table cache within bounds */
 	check_pgt_cache();
-}
 
-static inline unsigned int
-tlb_is_full_mm(struct mmu_gather *tlb)
-{
-     return tlb->fullmm;
+	put_cpu_var(mmu_gathers);
 }
 
 /*

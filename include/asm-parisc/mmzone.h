@@ -27,12 +27,6 @@ extern struct node_map_data node_data[];
 })
 #define node_localnr(pfn, nid)		((pfn) - node_start_pfn(nid))
 
-#define local_mapnr(kvaddr)						\
-({									\
-	unsigned long __pfn = __pa(kvaddr) >> PAGE_SHIFT;		\
-	(__pfn - node_start_pfn(pfn_to_nid(__pfn)));			\
-})
-
 #define pfn_to_page(pfn)						\
 ({									\
 	unsigned long __pfn = (pfn);					\

@@ -96,7 +96,7 @@ static void
 __clear_page_buffers(struct page *page)
 {
 	ClearPagePrivate(page);
-	page->private = 0;
+	set_page_private(page, 0);
 	page_cache_release(page);
 }
 

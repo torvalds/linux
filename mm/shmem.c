@@ -71,9 +71,6 @@
 /* Pretend that each entry is of this size in directory's i_size */
 #define BOGO_DIRENT_SIZE 20
 
-/* Keep swapped page count in private field of indirect struct page */
-#define nr_swapped		private
-
 /* Flag allocation requirements to shmem_getpage and shmem_swp_alloc */
 enum sgp_type {
 	SGP_QUICK,	/* don't try more than file page cache lookup */
@@ -324,8 +321,10 @@ static void shmem_swp_set(struct shmem_inode_info *info, swp_entry_t *entry, uns
 
 	entry->val = value;
 	info->swapped += incdec;
-	if ((unsigned long)(entry - info->i_direct) >= SHMEM_NR_DIRECT)
-		kmap_atomic_to_page(entry)->nr_swapped += incdec;
+	if ((unsigned long)(entry - info->i_direct) >= SHMEM_NR_DIRECT) {
+		struct page *page = kmap_atomic_to_page(entry);
+		set_page_private(page, page_private(page) + incdec);
+	}
 }
 
 /*
@@ -368,9 +367,8 @@ static swp_entry_t *shmem_swp_alloc(struct shmem_inode_info *info, unsigned long
 
 		spin_unlock(&info->lock);
 		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping) | __GFP_ZERO);
-		if (page) {
-			page->nr_swapped = 0;
-		}
+		if (page)
+			set_page_private(page, 0);
 		spin_lock(&info->lock);
 
 		if (!page) {
@@ -561,7 +559,7 @@ static void shmem_truncate(struct inode *inode)
 			diroff = 0;
 		}
 		subdir = dir[diroff];
-		if (subdir && subdir->nr_swapped) {
+		if (subdir && page_private(subdir)) {
 			size = limit - idx;
 			if (size > ENTRIES_PER_PAGE)
 				size = ENTRIES_PER_PAGE;
@@ -572,10 +570,10 @@ static void shmem_truncate(struct inode *inode)
 			nr_swaps_freed += freed;
 			if (offset)
 				spin_lock(&info->lock);
-			subdir->nr_swapped -= freed;
+			set_page_private(subdir, page_private(subdir) - freed);
 			if (offset)
 				spin_unlock(&info->lock);
-			BUG_ON(subdir->nr_swapped > offset);
+			BUG_ON(page_private(subdir) > offset);
 		}
 		if (offset)
 			offset = 0;
@@ -743,7 +741,7 @@ static int shmem_unuse_inode(struct shmem_inode_info *info, swp_entry_t entry, s
 			dir = shmem_dir_map(subdir);
 		}
 		subdir = *dir;
-		if (subdir && subdir->nr_swapped) {
+		if (subdir && page_private(subdir)) {
 			ptr = shmem_swp_map(subdir);
 			size = limit - idx;
 			if (size > ENTRIES_PER_PAGE)
@@ -1201,7 +1199,7 @@ static int shmem_populate(struct vm_area_struct *vma,
 				page_cache_release(page);
 				return err;
 			}
-		} else {
+		} else if (vma->vm_flags & VM_NONLINEAR) {
 			/* No page was found just because we can't read it in
 			 * now (being here implies nonblock != 0), but the page
 			 * may exist, so set the PTE to fault it in later. */
@@ -1506,8 +1504,10 @@ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_
 			 */
 			if (!offset)
 				mark_page_accessed(page);
-		} else
+		} else {
 			page = ZERO_PAGE(0);
+			page_cache_get(page);
+		}
 
 		/*
 		 * Ok, we have the page, and it's up-to-date, so

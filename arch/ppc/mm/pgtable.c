@@ -280,18 +280,16 @@ map_page(unsigned long va, phys_addr_t pa, int flags)
 	pte_t *pg;
 	int err = -ENOMEM;
 
-	spin_lock(&init_mm.page_table_lock);
 	/* Use upper 10 bits of VA to index the first level map */
 	pd = pmd_offset(pgd_offset_k(va), va);
 	/* Use middle 10 bits of VA to index the second-level map */
-	pg = pte_alloc_kernel(&init_mm, pd, va);
+	pg = pte_alloc_kernel(pd, va);
 	if (pg != 0) {
 		err = 0;
 		set_pte_at(&init_mm, va, pg, pfn_pte(pa >> PAGE_SHIFT, __pgprot(flags)));
 		if (mem_init_done)
 			flush_HPTE(0, va, pmd_val(*pd));
 	}
-	spin_unlock(&init_mm.page_table_lock);
 	return err;
 }
 

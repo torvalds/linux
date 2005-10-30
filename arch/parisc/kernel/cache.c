@@ -270,7 +270,6 @@ void flush_dcache_page(struct page *page)
 	unsigned long offset;
 	unsigned long addr;
 	pgoff_t pgoff;
-	pte_t *pte;
 	unsigned long pfn = page_to_pfn(page);
 
 
@@ -301,21 +300,16 @@ void flush_dcache_page(struct page *page)
 		 * taking a page fault if the pte doesn't exist.
 		 * This is just for speed.  If the page translation
 		 * isn't there, there's no point exciting the
-		 * nadtlb handler into a nullification frenzy */
-
-
-  		if(!(pte = translation_exists(mpnt, addr)))
-			continue;
-
-		/* make sure we really have this page: the private
+		 * nadtlb handler into a nullification frenzy.
+		 *
+		 * Make sure we really have this page: the private
 		 * mappings may cover this area but have COW'd this
-		 * particular page */
-		if(pte_pfn(*pte) != pfn)
-  			continue;
-
-		__flush_cache_page(mpnt, addr);
-
-		break;
+		 * particular page.
+		 */
+  		if (translation_exists(mpnt, addr, pfn)) {
+			__flush_cache_page(mpnt, addr);
+			break;
+		}
 	}
 	flush_dcache_mmap_unlock(mapping);
 }

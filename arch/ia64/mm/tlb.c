@@ -158,10 +158,12 @@ flush_tlb_range (struct vm_area_struct *vma, unsigned long start, unsigned long 
 # ifdef CONFIG_SMP
 	platform_global_tlb_purge(mm, start, end, nbits);
 # else
+	preempt_disable();
 	do {
 		ia64_ptcl(start, (nbits<<2));
 		start += (1UL << nbits);
 	} while (start < end);
+	preempt_enable();
 # endif
 
 	ia64_srlz_i();			/* srlz.i implies srlz.d */

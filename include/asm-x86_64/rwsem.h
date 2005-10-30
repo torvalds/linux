@@ -274,5 +274,10 @@ LOCK_PREFIX	"xaddl %0,(%2)"
 	return tmp+delta;
 }
 
+static inline int rwsem_is_locked(struct rw_semaphore *sem)
+{
+	return (sem->count != 0);
+}
+
 #endif /* __KERNEL__ */
 #endif /* _X8664_RWSEM_H */

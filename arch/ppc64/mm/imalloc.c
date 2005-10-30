@@ -300,12 +300,7 @@ void im_free(void * addr)
 	for (p = &imlist ; (tmp = *p) ; p = &tmp->next) {
 		if (tmp->addr == addr) {
 			*p = tmp->next;
-
-			/* XXX: do we need the lock? */
-			spin_lock(&init_mm.page_table_lock);
 			unmap_vm_area(tmp);
-			spin_unlock(&init_mm.page_table_lock);
-
 			kfree(tmp);
 			up(&imlist_sem);
 			return;

@@ -75,7 +75,7 @@
 #ifdef CONFIG_IPV6_PRIVACY
 #include <linux/random.h>
 #include <linux/crypto.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 #endif
 
 #include <asm/uaccess.h>
@@ -1217,12 +1217,8 @@ static int __ipv6_regen_rndid(struct inet6_dev *idev)
 	struct net_device *dev;
 	struct scatterlist sg[2];
 
-	sg[0].page = virt_to_page(idev->entropy);
-	sg[0].offset = offset_in_page(idev->entropy);
-	sg[0].length = 8;
-	sg[1].page = virt_to_page(idev->work_eui64);
-	sg[1].offset = offset_in_page(idev->work_eui64);
-	sg[1].length = 8;
+	sg_set_buf(&sg[0], idev->entropy, 8);
+	sg_set_buf(&sg[1], idev->work_eui64, 8);
 
 	dev = idev->dev;
 
