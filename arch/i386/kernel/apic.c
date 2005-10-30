@@ -1055,7 +1055,6 @@ void __init setup_boot_APIC_clock(void)
 	using_apic_timer = 1;
 
 	local_irq_save(flags);
-	local_irq_disable();
 
 	calibration_result = calibrate_APIC_clock();
 	/*
@@ -1299,7 +1298,7 @@ int __init APIC_init(void)
 	if (!check_phys_apicid_present(boot_cpu_physical_apicid)) {
 		printk("weird, boot CPU (#%d) not listed by the BIOS.\n",
 				boot_cpu_physical_apicid);
-		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
+		physid_set(boot_cpu_physical_apicid, phys_cpu_present_map);
 	}
 
 	/*
