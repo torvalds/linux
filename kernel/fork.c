@@ -192,6 +192,8 @@ static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 
 	down_write(&oldmm->mmap_sem);
 	flush_cache_mm(oldmm);
+	down_write(&mm->mmap_sem);
+
 	mm->locked_vm = 0;
 	mm->mmap = NULL;
 	mm->mmap_cache = NULL;
@@ -251,10 +253,7 @@ static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 		}
 
 		/*
-		 * Link in the new vma and copy the page table entries:
-		 * link in first so that swapoff can see swap entries.
-		 * Note that, exceptionally, here the vma is inserted
-		 * without holding mm->mmap_sem.
+		 * Link in the new vma and copy the page table entries.
 		 */
 		spin_lock(&mm->page_table_lock);
 		*pprev = tmp;
@@ -275,8 +274,8 @@ static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 			goto out;
 	}
 	retval = 0;
-
 out:
+	up_write(&mm->mmap_sem);
 	flush_tlb_mm(oldmm);
 	up_write(&oldmm->mmap_sem);
 	return retval;
