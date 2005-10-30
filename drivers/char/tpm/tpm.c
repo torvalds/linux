@@ -484,9 +484,9 @@ static u8 savestate[] = {
  * We are about to suspend. Save the TPM state
  * so that it can be restored.
  */
-int tpm_pm_suspend(struct pci_dev *pci_dev, pm_message_t pm_state)
+int tpm_pm_suspend(struct device *dev, pm_message_t pm_state)
 {
-	struct tpm_chip *chip = pci_get_drvdata(pci_dev);
+	struct tpm_chip *chip = dev_get_drvdata(dev);
 	if (chip == NULL)
 		return -ENODEV;
 
@@ -500,9 +500,9 @@ EXPORT_SYMBOL_GPL(tpm_pm_suspend);
  * Resume from a power safe. The BIOS already restored
  * the TPM state.
  */
-int tpm_pm_resume(struct pci_dev *pci_dev)
+int tpm_pm_resume(struct device *dev)
 {
-	struct tpm_chip *chip = pci_get_drvdata(pci_dev);
+	struct tpm_chip *chip = dev_get_drvdata(dev);
 
 	if (chip == NULL)
 		return -ENODEV;

@@ -100,5 +100,5 @@ extern ssize_t tpm_write(struct file *, const char __user *, size_t,
 			 loff_t *);
 extern ssize_t tpm_read(struct file *, char __user *, size_t, loff_t *);
 extern void tpm_remove_hardware(struct device *);
-extern int tpm_pm_suspend(struct pci_dev *, pm_message_t);
-extern int tpm_pm_resume(struct pci_dev *);
+extern int tpm_pm_suspend(struct device *, pm_message_t);
+extern int tpm_pm_resume(struct device *);
