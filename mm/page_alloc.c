@@ -78,21 +78,37 @@ int min_free_kbytes = 1024;
 unsigned long __initdata nr_kernel_pages;
 unsigned long __initdata nr_all_pages;
 
-/*
- * Temporary debugging check for pages not lying within a given zone.
- */
-static int bad_range(struct zone *zone, struct page *page)
+static int page_outside_zone_boundaries(struct zone *zone, struct page *page)
 {
 	if (page_to_pfn(page) >= zone->zone_start_pfn + zone->spanned_pages)
 		return 1;
 	if (page_to_pfn(page) < zone->zone_start_pfn)
 		return 1;
+
+	return 0;
+}
+
+static int page_is_consistent(struct zone *zone, struct page *page)
+{
 #ifdef CONFIG_HOLES_IN_ZONE
 	if (!pfn_valid(page_to_pfn(page)))
-		return 1;
+		return 0;
 #endif
 	if (zone != page_zone(page))
+		return 0;
+
+	return 1;
+}
+/*
+ * Temporary debugging check for pages not lying within a given zone.
+ */
+static int bad_range(struct zone *zone, struct page *page)
+{
+	if (page_outside_zone_boundaries(zone, page))
 		return 1;
+	if (!page_is_consistent(zone, page))
+		return 1;
+
 	return 0;
 }
 
