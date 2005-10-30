@@ -74,4 +74,10 @@ void __restore_processor_state(struct saved_context *ctxt);
 extern unsigned long get_usable_page(gfp_t gfp_mask);
 extern void free_eaten_memory(void);
 
+/*
+ * XXX: We try to keep some more pages free so that I/O operations succeed
+ * without paging. Might this be more?
+ */
+#define PAGES_FOR_IO	512
+
 #endif /* _LINUX_SWSUSP_H */
