@@ -457,13 +457,13 @@ static inline unsigned int adma_intr_pkt(struct ata_host_set *host_set)
 			continue;
 		handled = 1;
 		adma_enter_reg_mode(ap);
-		if (ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR))
+		if (ap->flags & ATA_FLAG_PORT_DISABLED)
 			continue;
 		pp = ap->private_data;
 		if (!pp || pp->state != adma_state_pkt)
 			continue;
 		qc = ata_qc_from_tag(ap, ap->active_tag);
-		if (qc && (!(qc->tf.ctl & ATA_NIEN))) {
+		if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
 			if ((status & (aPERR | aPSD | aUIRQ)))
 				drv_stat = ATA_ERR;
 			else if (pp->pkt[0] != cDONE)
