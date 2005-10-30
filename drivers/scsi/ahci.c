@@ -600,7 +600,7 @@ static void ahci_eng_timeout(struct ata_port *ap)
 	 	 * not being called from the SCSI EH.
 	 	 */
 		qc->scsidone = scsi_finish_command;
-		ata_qc_complete(qc, ATA_ERR);
+		ata_qc_complete(qc, AC_ERR_OTHER);
 	}
 
 	spin_unlock_irqrestore(&host_set->lock, flags);
@@ -629,7 +629,7 @@ static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 	if (status & PORT_IRQ_FATAL) {
 		ahci_intr_error(ap, status);
 		if (qc)
-			ata_qc_complete(qc, ATA_ERR);
+			ata_qc_complete(qc, AC_ERR_OTHER);
 	}
 
 	return 1;
