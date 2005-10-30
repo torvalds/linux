@@ -224,19 +224,44 @@ static void truncate_hugepages(struct address_space *mapping, loff_t lstart)
 
 static void hugetlbfs_delete_inode(struct inode *inode)
 {
-	hlist_del_init(&inode->i_hash);
+	if (inode->i_data.nrpages)
+		truncate_hugepages(&inode->i_data, 0);
+	clear_inode(inode);
+}
+
+static void hugetlbfs_do_delete_inode(struct inode *inode)
+{
+	struct super_operations *op = inode->i_sb->s_op;
+
 	list_del_init(&inode->i_list);
 	list_del_init(&inode->i_sb_list);
 	inode->i_state |= I_FREEING;
 	inodes_stat.nr_inodes--;
 	spin_unlock(&inode_lock);
 
-	if (inode->i_data.nrpages)
-		truncate_hugepages(&inode->i_data, 0);
-
 	security_inode_delete(inode);
 
-	clear_inode(inode);
+	if (op->delete_inode) {
+		void (*delete)(struct inode *) = op->delete_inode;
+		if (!is_bad_inode(inode))
+			DQUOT_INIT(inode);
+		/* Filesystems implementing their own
+		 * s_op->delete_inode are required to call
+		 * truncate_inode_pages and clear_inode()
+		 * internally
+		 */
+		delete(inode);
+	} else {
+		truncate_inode_pages(&inode->i_data, 0);
+		clear_inode(inode);
+	}
+
+	spin_lock(&inode_lock);
+	hlist_del_init(&inode->i_hash);
+	spin_unlock(&inode_lock);
+	wake_up_inode(inode);
+	if (inode->i_state != I_CLEAR)
+		BUG();
 	destroy_inode(inode);
 }
 
@@ -276,7 +301,7 @@ out_truncate:
 static void hugetlbfs_drop_inode(struct inode *inode)
 {
 	if (!inode->i_nlink)
-		hugetlbfs_delete_inode(inode);
+		hugetlbfs_do_delete_inode(inode);
 	else
 		hugetlbfs_forget_inode(inode);
 }
@@ -594,6 +619,7 @@ static struct super_operations hugetlbfs_ops = {
 	.alloc_inode    = hugetlbfs_alloc_inode,
 	.destroy_inode  = hugetlbfs_destroy_inode,
 	.statfs		= hugetlbfs_statfs,
+	.delete_inode	= hugetlbfs_delete_inode,
 	.drop_inode	= hugetlbfs_drop_inode,
 	.put_super	= hugetlbfs_put_super,
 };
