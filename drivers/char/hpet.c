@@ -78,7 +78,7 @@ struct hpets {
 	struct hpet __iomem *hp_hpet;
 	unsigned long hp_hpet_phys;
 	struct time_interpolator *hp_interpolator;
-	unsigned long hp_period;
+	unsigned long long hp_tick_freq;
 	unsigned long hp_delta;
 	unsigned int hp_ntimer;
 	unsigned int hp_which;
@@ -427,12 +427,14 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 	return 0;
 }
 
-static inline unsigned long hpet_time_div(unsigned long dis)
+/* converts Hz to number of timer ticks */
+static inline unsigned long hpet_time_div(struct hpets *hpets,
+					  unsigned long dis)
 {
-	unsigned long long m = 1000000000000000ULL;
+	unsigned long long m;
 
+	m = hpets->hp_tick_freq + (dis >> 1);
 	do_div(m, dis);
-
 	return (unsigned long)m;
 }
 
@@ -480,7 +482,7 @@ hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg, int kernel)
 		{
 			struct hpet_info info;
 
-			info.hi_ireqfreq = hpet_time_div(hpetp->hp_period *
+			info.hi_ireqfreq = hpet_time_div(hpetp,
 							 devp->hd_ireqfreq);
 			info.hi_flags =
 			    readq(&timer->hpet_config) & Tn_PER_INT_CAP_MASK;
@@ -524,7 +526,7 @@ hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg, int kernel)
 			break;
 		}
 
-		devp->hd_ireqfreq = hpet_time_div(hpetp->hp_period * arg);
+		devp->hd_ireqfreq = hpet_time_div(hpetp, arg);
 	}
 
 	return err;
@@ -713,7 +715,7 @@ static void hpet_register_interpolator(struct hpets *hpetp)
 	ti->source = TIME_SOURCE_MMIO64;
 	ti->shift = 10;
 	ti->addr = &hpetp->hp_hpet->hpet_mc;
-	ti->frequency = hpet_time_div(hpets->hp_period);
+	ti->frequency = hpetp->hp_tick_freq;
 	ti->drift = HPET_DRIFT;
 	ti->mask = -1;
 
@@ -750,7 +752,7 @@ static unsigned long hpet_calibrate(struct hpets *hpetp)
 	t = read_counter(&timer->hpet_compare);
 
 	i = 0;
-	count = hpet_time_div(hpetp->hp_period * TICK_CALIBRATE);
+	count = hpet_time_div(hpetp, TICK_CALIBRATE);
 
 	local_irq_save(flags);
 
@@ -775,7 +777,8 @@ int hpet_alloc(struct hpet_data *hdp)
 	size_t siz;
 	struct hpet __iomem *hpet;
 	static struct hpets *last = (struct hpets *)0;
-	unsigned long ns;
+	unsigned long ns, period;
+	unsigned long long temp;
 
 	/*
 	 * hpet_alloc can be called by platform dependent code.
@@ -825,8 +828,12 @@ int hpet_alloc(struct hpet_data *hdp)
 
 	last = hpetp;
 
-	hpetp->hp_period = (cap & HPET_COUNTER_CLK_PERIOD_MASK) >>
-	    HPET_COUNTER_CLK_PERIOD_SHIFT;
+	period = (cap & HPET_COUNTER_CLK_PERIOD_MASK) >>
+		HPET_COUNTER_CLK_PERIOD_SHIFT; /* fs, 10^-15 */
+	temp = 1000000000000000uLL; /* 10^15 femtoseconds per second */
+	temp += period >> 1; /* round */
+	do_div(temp, period);
+	hpetp->hp_tick_freq = temp; /* ticks per second */
 
 	printk(KERN_INFO "hpet%d: at MMIO 0x%lx, IRQ%s",
 		hpetp->hp_which, hdp->hd_phys_address,
@@ -835,8 +842,7 @@ int hpet_alloc(struct hpet_data *hdp)
 		printk("%s %d", i > 0 ? "," : "", hdp->hd_irq[i]);
 	printk("\n");
 
-	ns = hpetp->hp_period;	/* femptoseconds, 10^-15 */
-	ns /= 1000000;		/* convert to nanoseconds, 10^-9 */
+	ns = period / 1000000;	/* convert to nanoseconds, 10^-9 */
 	printk(KERN_INFO "hpet%d: %ldns tick, %d %d-bit timers\n",
 		hpetp->hp_which, ns, hpetp->hp_ntimer,
 		cap & HPET_COUNTER_SIZE_MASK ? 64 : 32);
