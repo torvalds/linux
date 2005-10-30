@@ -1460,11 +1460,21 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 		current->fsuid = 0;	/* Dump root private */
 	}
 	mm->dumpable = 0;
-	init_completion(&mm->core_done);
+
+	retval = -EAGAIN;
 	spin_lock_irq(&current->sighand->siglock);
-	current->signal->flags = SIGNAL_GROUP_EXIT;
-	current->signal->group_exit_code = exit_code;
+	if (!(current->signal->flags & SIGNAL_GROUP_EXIT)) {
+		current->signal->flags = SIGNAL_GROUP_EXIT;
+		current->signal->group_exit_code = exit_code;
+		retval = 0;
+	}
 	spin_unlock_irq(&current->sighand->siglock);
+	if (retval) {
+		up_write(&mm->mmap_sem);
+		goto fail;
+	}
+
+	init_completion(&mm->core_done);
 	coredump_wait(mm);
 
 	/*
