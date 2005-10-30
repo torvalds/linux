@@ -38,6 +38,15 @@ extern struct timer_base_s __init_timer_base;
 
 void fastcall init_timer(struct timer_list * timer);
 
+static inline void setup_timer(struct timer_list * timer,
+				void (*function)(unsigned long),
+				unsigned long data)
+{
+	timer->function = function;
+	timer->data = data;
+	init_timer(timer);
+}
+
 /***
  * timer_pending - is a timer pending?
  * @timer: the timer in question
