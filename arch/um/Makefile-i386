@@ -29,10 +29,6 @@ endif
 
 CFLAGS += -U__$(SUBARCH)__ -U$(SUBARCH)
 
-ifneq ($(CONFIG_GPROF),y)
-ARCH_CFLAGS += -DUM_FASTCALL
-endif
-
 # First of all, tune CFLAGS for the specific CPU. This actually sets cflags-y.
 include $(srctree)/arch/i386/Makefile.cpu
 
