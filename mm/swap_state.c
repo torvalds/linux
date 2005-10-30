@@ -83,7 +83,7 @@ static int __add_to_swap_cache(struct page *page, swp_entry_t entry,
 			page_cache_get(page);
 			SetPageLocked(page);
 			SetPageSwapCache(page);
-			page->private = entry.val;
+			set_page_private(page, entry.val);
 			total_swapcache_pages++;
 			pagecache_acct(1);
 		}
@@ -126,8 +126,8 @@ void __delete_from_swap_cache(struct page *page)
 	BUG_ON(PageWriteback(page));
 	BUG_ON(PagePrivate(page));
 
-	radix_tree_delete(&swapper_space.page_tree, page->private);
-	page->private = 0;
+	radix_tree_delete(&swapper_space.page_tree, page_private(page));
+	set_page_private(page, 0);
 	ClearPageSwapCache(page);
 	total_swapcache_pages--;
 	pagecache_acct(-1);
@@ -197,7 +197,7 @@ void delete_from_swap_cache(struct page *page)
 {
 	swp_entry_t entry;
 
-	entry.val = page->private;
+	entry.val = page_private(page);
 
 	write_lock_irq(&swapper_space.tree_lock);
 	__delete_from_swap_cache(page);

@@ -39,7 +39,7 @@ int page_cluster;
 void put_page(struct page *page)
 {
 	if (unlikely(PageCompound(page))) {
-		page = (struct page *)page->private;
+		page = (struct page *)page_private(page);
 		if (put_page_testzero(page)) {
 			void (*dtor)(struct page *page);
 

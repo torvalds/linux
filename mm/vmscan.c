@@ -521,7 +521,7 @@ static int shrink_list(struct list_head *page_list, struct scan_control *sc)
 
 #ifdef CONFIG_SWAP
 		if (PageSwapCache(page)) {
-			swp_entry_t swap = { .val = page->private };
+			swp_entry_t swap = { .val = page_private(page) };
 			__delete_from_swap_cache(page);
 			write_unlock_irq(&mapping->tree_lock);
 			swap_free(swap);

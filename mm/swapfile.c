@@ -61,7 +61,7 @@ void swap_unplug_io_fn(struct backing_dev_info *unused_bdi, struct page *page)
 	swp_entry_t entry;
 
 	down_read(&swap_unplug_sem);
-	entry.val = page->private;
+	entry.val = page_private(page);
 	if (PageSwapCache(page)) {
 		struct block_device *bdev = swap_info[swp_type(entry)].bdev;
 		struct backing_dev_info *bdi;
@@ -69,8 +69,8 @@ void swap_unplug_io_fn(struct backing_dev_info *unused_bdi, struct page *page)
 		/*
 		 * If the page is removed from swapcache from under us (with a
 		 * racy try_to_unuse/swapoff) we need an additional reference
-		 * count to avoid reading garbage from page->private above. If
-		 * the WARN_ON triggers during a swapoff it maybe the race
+		 * count to avoid reading garbage from page_private(page) above.
+		 * If the WARN_ON triggers during a swapoff it maybe the race
 		 * condition and it's harmless. However if it triggers without
 		 * swapoff it signals a problem.
 		 */
@@ -294,7 +294,7 @@ static inline int page_swapcount(struct page *page)
 	struct swap_info_struct *p;
 	swp_entry_t entry;
 
-	entry.val = page->private;
+	entry.val = page_private(page);
 	p = swap_info_get(entry);
 	if (p) {
 		/* Subtract the 1 for the swap cache itself */
@@ -339,7 +339,7 @@ int remove_exclusive_swap_page(struct page *page)
 	if (page_count(page) != 2) /* 2: us + cache */
 		return 0;
 
-	entry.val = page->private;
+	entry.val = page_private(page);
 	p = swap_info_get(entry);
 	if (!p)
 		return 0;
@@ -1042,7 +1042,7 @@ int page_queue_congested(struct page *page)
 	BUG_ON(!PageLocked(page));	/* It pins the swap_info_struct */
 
 	if (PageSwapCache(page)) {
-		swp_entry_t entry = { .val = page->private };
+		swp_entry_t entry = { .val = page_private(page) };
 		struct swap_info_struct *sis;
 
 		sis = get_swap_info_struct(swp_type(entry));

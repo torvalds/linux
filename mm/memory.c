@@ -114,6 +114,7 @@ static void free_pte_range(struct mmu_gather *tlb, pmd_t *pmd)
 {
 	struct page *page = pmd_page(*pmd);
 	pmd_clear(pmd);
+	pte_lock_deinit(page);
 	pte_free_tlb(tlb, page);
 	dec_page_state(nr_page_table_pages);
 	tlb->mm->nr_ptes--;
@@ -294,10 +295,12 @@ int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
 	if (!new)
 		return -ENOMEM;
 
+	pte_lock_init(new);
 	spin_lock(&mm->page_table_lock);
-	if (pmd_present(*pmd))		/* Another has populated it */
+	if (pmd_present(*pmd)) {	/* Another has populated it */
+		pte_lock_deinit(new);
 		pte_free(new);
-	else {
+	} else {
 		mm->nr_ptes++;
 		inc_page_state(nr_page_table_pages);
 		pmd_populate(mm, pmd, new);
@@ -432,7 +435,7 @@ again:
 	if (!dst_pte)
 		return -ENOMEM;
 	src_pte = pte_offset_map_nested(src_pmd, addr);
-	src_ptl = &src_mm->page_table_lock;
+	src_ptl = pte_lockptr(src_mm, src_pmd);
 	spin_lock(src_ptl);
 
 	do {
@@ -1194,15 +1197,16 @@ EXPORT_SYMBOL(remap_pfn_range);
  * (but do_wp_page is only called after already making such a check;
  * and do_anonymous_page and do_no_page can safely check later on).
  */
-static inline int pte_unmap_same(struct mm_struct *mm,
+static inline int pte_unmap_same(struct mm_struct *mm, pmd_t *pmd,
 				pte_t *page_table, pte_t orig_pte)
 {
 	int same = 1;
 #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
 	if (sizeof(pte_t) > sizeof(unsigned long)) {
-		spin_lock(&mm->page_table_lock);
+		spinlock_t *ptl = pte_lockptr(mm, pmd);
+		spin_lock(ptl);
 		same = pte_same(*page_table, orig_pte);
-		spin_unlock(&mm->page_table_lock);
+		spin_unlock(ptl);
 	}
 #endif
 	pte_unmap(page_table);
@@ -1655,7 +1659,7 @@ static int do_swap_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	pte_t pte;
 	int ret = VM_FAULT_MINOR;
 
-	if (!pte_unmap_same(mm, page_table, orig_pte))
+	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
 		goto out;
 
 	entry = pte_to_swp_entry(orig_pte);
@@ -1773,7 +1777,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		page_cache_get(page);
 		entry = mk_pte(page, vma->vm_page_prot);
 
-		ptl = &mm->page_table_lock;
+		ptl = pte_lockptr(mm, pmd);
 		spin_lock(ptl);
 		if (!pte_none(*page_table))
 			goto release;
@@ -1934,7 +1938,7 @@ static int do_file_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	pgoff_t pgoff;
 	int err;
 
-	if (!pte_unmap_same(mm, page_table, orig_pte))
+	if (!pte_unmap_same(mm, pmd, page_table, orig_pte))
 		return VM_FAULT_MINOR;
 
 	if (unlikely(!(vma->vm_flags & VM_NONLINEAR))) {
@@ -1992,7 +1996,7 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 					pte, pmd, write_access, entry);
 	}
 
-	ptl = &mm->page_table_lock;
+	ptl = pte_lockptr(mm, pmd);
 	spin_lock(ptl);
 	if (unlikely(!pte_same(*pte, entry)))
 		goto unlock;

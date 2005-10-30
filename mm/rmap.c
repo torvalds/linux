@@ -274,7 +274,7 @@ pte_t *page_check_address(struct page *page, struct mm_struct *mm,
 		return NULL;
 	}
 
-	ptl = &mm->page_table_lock;
+	ptl = pte_lockptr(mm, pmd);
 	spin_lock(ptl);
 	if (pte_present(*pte) && page_to_pfn(page) == pte_pfn(*pte)) {
 		*ptlp = ptl;
@@ -550,7 +550,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 	update_hiwater_rss(mm);
 
 	if (PageAnon(page)) {
-		swp_entry_t entry = { .val = page->private };
+		swp_entry_t entry = { .val = page_private(page) };
 		/*
 		 * Store the swap location in the pte.
 		 * See handle_pte_fault() ...

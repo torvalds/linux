@@ -226,13 +226,18 @@ struct page {
 					 * to show when page is mapped
 					 * & limit reverse map searches.
 					 */
-	unsigned long private;		/* Mapping-private opaque data:
+	union {
+		unsigned long private;	/* Mapping-private opaque data:
 					 * usually used for buffer_heads
 					 * if PagePrivate set; used for
 					 * swp_entry_t if PageSwapCache
 					 * When page is free, this indicates
 					 * order in the buddy system.
 					 */
+#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+		spinlock_t ptl;
+#endif
+	} u;
 	struct address_space *mapping;	/* If low bit clear, points to
 					 * inode address_space, or NULL.
 					 * If page mapped as anonymous
@@ -259,6 +264,9 @@ struct page {
 					   not kmapped, ie. highmem) */
 #endif /* WANT_PAGE_VIRTUAL */
 };
+
+#define page_private(page)		((page)->u.private)
+#define set_page_private(page, v)	((page)->u.private = (v))
 
 /*
  * FIXME: take this include out, include page-flags.h in
@@ -311,17 +319,17 @@ extern void FASTCALL(__page_cache_release(struct page *));
 
 #ifdef CONFIG_HUGETLB_PAGE
 
-static inline int page_count(struct page *p)
+static inline int page_count(struct page *page)
 {
-	if (PageCompound(p))
-		p = (struct page *)p->private;
-	return atomic_read(&(p)->_count) + 1;
+	if (PageCompound(page))
+		page = (struct page *)page_private(page);
+	return atomic_read(&page->_count) + 1;
 }
 
 static inline void get_page(struct page *page)
 {
 	if (unlikely(PageCompound(page)))
-		page = (struct page *)page->private;
+		page = (struct page *)page_private(page);
 	atomic_inc(&page->_count);
 }
 
@@ -587,7 +595,7 @@ static inline int PageAnon(struct page *page)
 static inline pgoff_t page_index(struct page *page)
 {
 	if (unlikely(PageSwapCache(page)))
-		return page->private;
+		return page_private(page);
 	return page->index;
 }
 
@@ -779,9 +787,31 @@ static inline pmd_t *pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long a
 }
 #endif /* CONFIG_MMU && !__ARCH_HAS_4LEVEL_HACK */
 
+#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+/*
+ * We tuck a spinlock to guard each pagetable page into its struct page,
+ * at page->private, with BUILD_BUG_ON to make sure that this will not
+ * overflow into the next struct page (as it might with DEBUG_SPINLOCK).
+ * When freeing, reset page->mapping so free_pages_check won't complain.
+ */
+#define __pte_lockptr(page)	&((page)->u.ptl)
+#define pte_lock_init(_page)	do {					\
+	spin_lock_init(__pte_lockptr(_page));				\
+} while (0)
+#define pte_lock_deinit(page)	((page)->mapping = NULL)
+#define pte_lockptr(mm, pmd)	({(void)(mm); __pte_lockptr(pmd_page(*(pmd)));})
+#else
+/*
+ * We use mm->page_table_lock to guard all pagetable pages of the mm.
+ */
+#define pte_lock_init(page)	do {} while (0)
+#define pte_lock_deinit(page)	do {} while (0)
+#define pte_lockptr(mm, pmd)	({(void)(pmd); &(mm)->page_table_lock;})
+#endif /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
+
 #define pte_offset_map_lock(mm, pmd, address, ptlp)	\
 ({							\
-	spinlock_t *__ptl = &(mm)->page_table_lock;	\
+	spinlock_t *__ptl = pte_lockptr(mm, pmd);	\
 	pte_t *__pte = pte_offset_map(pmd, address);	\
 	*(ptlp) = __ptl;				\
 	spin_lock(__ptl);				\

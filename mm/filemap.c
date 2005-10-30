@@ -152,7 +152,7 @@ static int sync_page(void *word)
 	 * in the ->sync_page() methods make essential use of the
 	 * page_mapping(), merely passing the page down to the backing
 	 * device's unplug functions when it's non-NULL, which in turn
-	 * ignore it for all cases but swap, where only page->private is
+	 * ignore it for all cases but swap, where only page_private(page) is
 	 * of interest. When page_mapping() does go NULL, the entire
 	 * call stack gracefully ignores the page and returns.
 	 * -- wli

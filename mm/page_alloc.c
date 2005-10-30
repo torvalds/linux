@@ -154,7 +154,7 @@ static void prep_compound_page(struct page *page, unsigned long order)
 		struct page *p = page + i;
 
 		SetPageCompound(p);
-		p->private = (unsigned long)page;
+		set_page_private(p, (unsigned long)page);
 	}
 }
 
@@ -174,7 +174,7 @@ static void destroy_compound_page(struct page *page, unsigned long order)
 
 		if (!PageCompound(p))
 			bad_page(__FUNCTION__, page);
-		if (p->private != (unsigned long)page)
+		if (page_private(p) != (unsigned long)page)
 			bad_page(__FUNCTION__, page);
 		ClearPageCompound(p);
 	}
@@ -187,18 +187,18 @@ static void destroy_compound_page(struct page *page, unsigned long order)
  * So, we don't need atomic page->flags operations here.
  */
 static inline unsigned long page_order(struct page *page) {
-	return page->private;
+	return page_private(page);
 }
 
 static inline void set_page_order(struct page *page, int order) {
-	page->private = order;
+	set_page_private(page, order);
 	__SetPagePrivate(page);
 }
 
 static inline void rmv_page_order(struct page *page)
 {
 	__ClearPagePrivate(page);
-	page->private = 0;
+	set_page_private(page, 0);
 }
 
 /*
@@ -238,7 +238,7 @@ __find_combined_index(unsigned long page_idx, unsigned int order)
  * (a) the buddy is free &&
  * (b) the buddy is on the buddy system &&
  * (c) a page and its buddy have the same order.
- * for recording page's order, we use page->private and PG_private.
+ * for recording page's order, we use page_private(page) and PG_private.
  *
  */
 static inline int page_is_buddy(struct page *page, int order)
@@ -264,7 +264,7 @@ static inline int page_is_buddy(struct page *page, int order)
  * parts of the VM system.
  * At each level, we keep a list of pages, which are heads of continuous
  * free pages of length of (1 << order) and marked with PG_Private.Page's
- * order is recorded in page->private field.
+ * order is recorded in page_private(page) field.
  * So when we are allocating or freeing one, we can derive the state of the
  * other.  That is, if we allocate a small block, and both were   
  * free, the remainder of the region must be split into blocks.   
@@ -463,7 +463,7 @@ static void prep_new_page(struct page *page, int order)
 	page->flags &= ~(1 << PG_uptodate | 1 << PG_error |
 			1 << PG_referenced | 1 << PG_arch_1 |
 			1 << PG_checked | 1 << PG_mappedtodisk);
-	page->private = 0;
+	set_page_private(page, 0);
 	set_page_refs(page, order);
 	kernel_map_pages(page, 1 << order, 1);
 }

@@ -72,7 +72,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 	struct address_space *mapping = NULL;
 	struct mm_struct *mm = vma->vm_mm;
 	pte_t *old_pte, *new_pte, pte;
-	spinlock_t *old_ptl;
+	spinlock_t *old_ptl, *new_ptl;
 
 	if (vma->vm_file) {
 		/*
@@ -88,8 +88,15 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 			new_vma->vm_truncate_count = 0;
 	}
 
+	/*
+	 * We don't have to worry about the ordering of src and dst
+	 * pte locks because exclusive mmap_sem prevents deadlock.
+	 */
 	old_pte = pte_offset_map_lock(mm, old_pmd, old_addr, &old_ptl);
  	new_pte = pte_offset_map_nested(new_pmd, new_addr);
+	new_ptl = pte_lockptr(mm, new_pmd);
+	if (new_ptl != old_ptl)
+		spin_lock(new_ptl);
 
 	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
 				   new_pte++, new_addr += PAGE_SIZE) {
@@ -101,6 +108,8 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 		set_pte_at(mm, new_addr, new_pte, pte);
 	}
 
+	if (new_ptl != old_ptl)
+		spin_unlock(new_ptl);
 	pte_unmap_nested(new_pte - 1);
 	pte_unmap_unlock(old_pte - 1, old_ptl);
 	if (mapping)
