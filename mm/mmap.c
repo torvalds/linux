@@ -181,26 +181,44 @@ static void __remove_shared_vm_struct(struct vm_area_struct *vma,
 }
 
 /*
- * Remove one vm structure and free it.
+ * Unlink a file-based vm structure from its prio_tree, to hide
+ * vma from rmap and vmtruncate before freeing its page tables.
  */
-static void remove_vm_struct(struct vm_area_struct *vma)
+void unlink_file_vma(struct vm_area_struct *vma)
 {
 	struct file *file = vma->vm_file;
 
-	might_sleep();
 	if (file) {
 		struct address_space *mapping = file->f_mapping;
 		spin_lock(&mapping->i_mmap_lock);
 		__remove_shared_vm_struct(vma, file, mapping);
 		spin_unlock(&mapping->i_mmap_lock);
 	}
+}
+
+/*
+ * Close a vm structure and free it, returning the next.
+ */
+static struct vm_area_struct *remove_vma(struct vm_area_struct *vma)
+{
+	struct vm_area_struct *next = vma->vm_next;
+
+	/*
+	 * Hide vma from rmap and vmtruncate before freeing page tables:
+	 * to be moved into free_pgtables once page_table_lock is lifted
+	 * from it, but until then lock ordering forbids that move.
+	 */
+	anon_vma_unlink(vma);
+	unlink_file_vma(vma);
+
+	might_sleep();
 	if (vma->vm_ops && vma->vm_ops->close)
 		vma->vm_ops->close(vma);
-	if (file)
-		fput(file);
-	anon_vma_unlink(vma);
+	if (vma->vm_file)
+		fput(vma->vm_file);
 	mpol_free(vma_policy(vma));
 	kmem_cache_free(vm_area_cachep, vma);
+	return next;
 }
 
 asmlinkage unsigned long sys_brk(unsigned long brk)
@@ -1612,15 +1630,13 @@ find_extend_vma(struct mm_struct * mm, unsigned long addr)
 static void remove_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
 {
 	do {
-		struct vm_area_struct *next = vma->vm_next;
 		long nrpages = vma_pages(vma);
 
 		mm->total_vm -= nrpages;
 		if (vma->vm_flags & VM_LOCKED)
 			mm->locked_vm -= nrpages;
 		vm_stat_account(mm, vma->vm_flags, vma->vm_file, -nrpages);
-		remove_vm_struct(vma);
-		vma = next;
+		vma = remove_vma(vma);
 	} while (vma);
 	validate_mm(mm);
 }
@@ -1944,11 +1960,8 @@ void exit_mmap(struct mm_struct *mm)
 	 * Walk the list again, actually closing and freeing it
 	 * without holding any MM locks.
 	 */
-	while (vma) {
-		struct vm_area_struct *next = vma->vm_next;
-		remove_vm_struct(vma);
-		vma = next;
-	}
+	while (vma)
+		vma = remove_vma(vma);
 
 	BUG_ON(mm->nr_ptes > (FIRST_USER_ADDRESS+PMD_SIZE-1)>>PMD_SHIFT);
 }
