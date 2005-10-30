@@ -284,7 +284,8 @@ static int hpet_mmap(struct file *file, struct vm_area_struct *vma)
 
 	if (io_remap_pfn_range(vma, vma->vm_start, addr >> PAGE_SHIFT,
 					PAGE_SIZE, vma->vm_page_prot)) {
-		printk(KERN_ERR "remap_pfn_range failed in hpet.c\n");
+		printk(KERN_ERR "%s: io_remap_pfn_range failed\n",
+			__FUNCTION__);
 		return -EAGAIN;
 	}
 
@@ -565,6 +566,17 @@ static struct file_operations hpet_fops = {
 	.mmap = hpet_mmap,
 };
 
+static int hpet_is_known(struct hpet_data *hdp)
+{
+	struct hpets *hpetp;
+
+	for (hpetp = hpets; hpetp; hpetp = hpetp->hp_next)
+		if (hpetp->hp_hpet_phys == hdp->hd_phys_address)
+			return 1;
+
+	return 0;
+}
+
 EXPORT_SYMBOL(hpet_alloc);
 EXPORT_SYMBOL(hpet_register);
 EXPORT_SYMBOL(hpet_unregister);
@@ -730,11 +742,10 @@ static void hpet_register_interpolator(struct hpets *hpetp)
 #ifdef	CONFIG_TIME_INTERPOLATION
 	struct time_interpolator *ti;
 
-	ti = kmalloc(sizeof(*ti), GFP_KERNEL);
+	ti = kzalloc(sizeof(*ti), GFP_KERNEL);
 	if (!ti)
 		return;
 
-	memset(ti, 0, sizeof(*ti));
 	ti->source = TIME_SOURCE_MMIO64;
 	ti->shift = 10;
 	ti->addr = &hpetp->hp_hpet->hpet_mc;
@@ -799,31 +810,28 @@ int hpet_alloc(struct hpet_data *hdp)
 	struct hpets *hpetp;
 	size_t siz;
 	struct hpet __iomem *hpet;
-	static struct hpets *last = (struct hpets *)0;
+	static struct hpets *last = NULL;
 	unsigned long period;
 	unsigned long long temp;
 
 	/*
 	 * hpet_alloc can be called by platform dependent code.
-	 * if platform dependent code has allocated the hpet
-	 * ACPI also reports hpet, then we catch it here.
+	 * If platform dependent code has allocated the hpet that
+	 * ACPI has also reported, then we catch it here.
 	 */
-	for (hpetp = hpets; hpetp; hpetp = hpetp->hp_next)
-		if (hpetp->hp_hpet_phys == hdp->hd_phys_address) {
-			printk(KERN_DEBUG "%s: duplicate HPET ignored\n",
-				__FUNCTION__);
-			return 0;
-		}
+	if (hpet_is_known(hdp)) {
+		printk(KERN_DEBUG "%s: duplicate HPET ignored\n",
+			__FUNCTION__);
+		return 0;
+	}
 
 	siz = sizeof(struct hpets) + ((hdp->hd_nirqs - 1) *
 				      sizeof(struct hpet_dev));
 
-	hpetp = kmalloc(siz, GFP_KERNEL);
+	hpetp = kzalloc(siz, GFP_KERNEL);
 
 	if (!hpetp)
 		return -ENOMEM;
-
-	memset(hpetp, 0, siz);
 
 	hpetp->hp_which = hpet_nhpet++;
 	hpetp->hp_hpet = hdp->hd_address;
@@ -911,7 +919,6 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 	struct hpet_data *hdp;
 	acpi_status status;
 	struct acpi_resource_address64 addr;
-	struct hpets *hpetp;
 
 	hdp = data;
 
@@ -924,13 +931,12 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		hdp->hd_phys_address = addr.min_address_range;
 		hdp->hd_address = ioremap(addr.min_address_range, size);
 
-		for (hpetp = hpets; hpetp; hpetp = hpetp->hp_next)
-			if (hpetp->hp_hpet_phys == hdp->hd_phys_address) {
-				printk(KERN_DEBUG "%s: 0x%lx is busy\n",
-					__FUNCTION__, hdp->hd_phys_address);
-				iounmap(hdp->hd_address);
-				return -EBUSY;
-			}
+		if (hpet_is_known(hdp)) {
+			printk(KERN_DEBUG "%s: 0x%lx is busy\n",
+				__FUNCTION__, hdp->hd_phys_address);
+			iounmap(hdp->hd_address);
+			return -EBUSY;
+		}
 	} else if (res->id == ACPI_RSTYPE_FIXED_MEM32) {
 		struct acpi_resource_fixed_mem32 *fixmem32;
 
@@ -942,13 +948,12 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		hdp->hd_address = ioremap(fixmem32->range_base_address,
 						HPET_RANGE_SIZE);
 
-		for (hpetp = hpets; hpetp; hpetp = hpetp->hp_next)
-			if (hpetp->hp_hpet_phys == hdp->hd_phys_address) {
-				printk(KERN_DEBUG "%s: 0x%lx is busy\n",
-					__FUNCTION__, hdp->hd_phys_address);
-				iounmap(hdp->hd_address);
-				return -EBUSY;
-			}
+		if (hpet_is_known(hdp)) {
+			printk(KERN_DEBUG "%s: 0x%lx is busy\n",
+				__FUNCTION__, hdp->hd_phys_address);
+			iounmap(hdp->hd_address);
+			return -EBUSY;
+		}
 	} else if (res->id == ACPI_RSTYPE_EXT_IRQ) {
 		struct acpi_resource_ext_irq *irqp;
 		int i;
