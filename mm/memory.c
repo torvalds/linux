@@ -340,8 +340,6 @@ static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss)
 		add_mm_counter(mm, anon_rss, anon_rss);
 }
 
-#define NO_RSS 2	/* Increment neither file_rss nor anon_rss */
-
 /*
  * This function is called to print an error when a pte in a
  * !VM_RESERVED region is found pointing to an invalid pfn (which
@@ -368,16 +366,15 @@ void print_bad_pte(struct vm_area_struct *vma, pte_t pte, unsigned long vaddr)
  * but may be dropped within p[mg]d_alloc() and pte_alloc_map().
  */
 
-static inline int
+static inline void
 copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
-		unsigned long addr)
+		unsigned long addr, int *rss)
 {
 	unsigned long vm_flags = vma->vm_flags;
 	pte_t pte = *src_pte;
 	struct page *page;
 	unsigned long pfn;
-	int anon = NO_RSS;
 
 	/* pte contains position in swap or file, so copy. */
 	if (unlikely(!pte_present(pte))) {
@@ -428,11 +425,10 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	pte = pte_mkold(pte);
 	get_page(page);
 	page_dup_rmap(page);
-	anon = !!PageAnon(page);
+	rss[!!PageAnon(page)]++;
 
 out_set_pte:
 	set_pte_at(dst_mm, addr, dst_pte, pte);
-	return anon;
 }
 
 static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
@@ -441,7 +437,7 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 {
 	pte_t *src_pte, *dst_pte;
 	int progress = 0;
-	int rss[NO_RSS+1], anon;
+	int rss[2];
 
 again:
 	rss[1] = rss[0] = 0;
@@ -467,8 +463,7 @@ again:
 			progress++;
 			continue;
 		}
-		anon = copy_one_pte(dst_mm, src_mm, dst_pte, src_pte, vma,addr);
-		rss[anon]++;
+		copy_one_pte(dst_mm, src_mm, dst_pte, src_pte, vma, addr, rss);
 		progress += 8;
 	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
 	spin_unlock(&src_mm->page_table_lock);
