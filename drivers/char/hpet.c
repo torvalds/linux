@@ -809,8 +809,11 @@ int hpet_alloc(struct hpet_data *hdp)
 	 * ACPI also reports hpet, then we catch it here.
 	 */
 	for (hpetp = hpets; hpetp; hpetp = hpetp->hp_next)
-		if (hpetp->hp_hpet == hdp->hd_address)
+		if (hpetp->hp_hpet_phys == hdp->hd_phys_address) {
+			printk(KERN_DEBUG "%s: duplicate HPET ignored\n",
+				__FUNCTION__);
 			return 0;
+		}
 
 	siz = sizeof(struct hpets) + ((hdp->hd_nirqs - 1) *
 				      sizeof(struct hpet_dev));
@@ -858,8 +861,8 @@ int hpet_alloc(struct hpet_data *hdp)
 	do_div(temp, period);
 	hpetp->hp_tick_freq = temp; /* ticks per second */
 
-	printk(KERN_INFO "hpet%d: at MMIO 0x%lx, IRQ%s",
-		hpetp->hp_which, hdp->hd_phys_address,
+	printk(KERN_INFO "hpet%d: at MMIO 0x%lx (virtual 0x%p), IRQ%s",
+		hpetp->hp_which, hdp->hd_phys_address, hdp->hd_address,
 		hpetp->hp_ntimer > 1 ? "s" : "");
 	for (i = 0; i < hpetp->hp_ntimer; i++)
 		printk("%s %d", i > 0 ? "," : "", hdp->hd_irq[i]);
@@ -922,8 +925,12 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		hdp->hd_address = ioremap(addr.min_address_range, size);
 
 		for (hpetp = hpets; hpetp; hpetp = hpetp->hp_next)
-			if (hpetp->hp_hpet == hdp->hd_address)
+			if (hpetp->hp_hpet_phys == hdp->hd_phys_address) {
+				printk(KERN_DEBUG "%s: 0x%lx is busy\n",
+					__FUNCTION__, hdp->hd_phys_address);
+				iounmap(hdp->hd_address);
 				return -EBUSY;
+			}
 	} else if (res->id == ACPI_RSTYPE_FIXED_MEM32) {
 		struct acpi_resource_fixed_mem32 *fixmem32;
 
@@ -936,7 +943,10 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 						HPET_RANGE_SIZE);
 
 		for (hpetp = hpets; hpetp; hpetp = hpetp->hp_next)
-			if (hpetp->hp_hpet == hdp->hd_address) {
+			if (hpetp->hp_hpet_phys == hdp->hd_phys_address) {
+				printk(KERN_DEBUG "%s: 0x%lx is busy\n",
+					__FUNCTION__, hdp->hd_phys_address);
+				iounmap(hdp->hd_address);
 				return -EBUSY;
 			}
 	} else if (res->id == ACPI_RSTYPE_EXT_IRQ) {
