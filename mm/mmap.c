@@ -1948,12 +1948,6 @@ void exit_mmap(struct mm_struct *mm)
 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, 0);
 	tlb_finish_mmu(tlb, 0, end);
 
-	mm->mmap = mm->mmap_cache = NULL;
-	mm->mm_rb = RB_ROOT;
-	set_mm_counter(mm, rss, 0);
-	mm->total_vm = 0;
-	mm->locked_vm = 0;
-
 	spin_unlock(&mm->page_table_lock);
 
 	/*
