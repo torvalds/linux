@@ -13,17 +13,8 @@
 #include <linux/pagemap.h>
 #include <linux/pagevec.h>
 #include <linux/buffer_head.h>	/* grr. try_to_release_page,
-				   block_invalidatepage */
+				   do_invalidatepage */
 
-
-static int do_invalidatepage(struct page *page, unsigned long offset)
-{
-	int (*invalidatepage)(struct page *, unsigned long);
-	invalidatepage = page->mapping->a_ops->invalidatepage;
-	if (invalidatepage == NULL)
-		invalidatepage = block_invalidatepage;
-	return (*invalidatepage)(page, offset);
-}
 
 static inline void truncate_partial_page(struct page *page, unsigned partial)
 {
