@@ -72,7 +72,7 @@ static int __devinit atmel_pci_probe(struct pci_dev *pdev,
 
 static void __devexit atmel_pci_remove(struct pci_dev *pdev)
 {
-	stop_atmel_card(pci_get_drvdata(pdev), 1);
+	stop_atmel_card(pci_get_drvdata(pdev));
 }
 
 static int __init atmel_init_module(void)
