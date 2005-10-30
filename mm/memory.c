@@ -809,8 +809,7 @@ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
  * Do a quick page-table lookup for a single page.
  * mm->page_table_lock must be held.
  */
-static struct page *__follow_page(struct mm_struct *mm, unsigned long address,
-			int read, int write, int accessed)
+struct page *follow_page(struct mm_struct *mm, unsigned long address, int write)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -846,16 +845,12 @@ static struct page *__follow_page(struct mm_struct *mm, unsigned long address,
 	if (pte_present(pte)) {
 		if (write && !pte_write(pte))
 			goto out;
-		if (read && !pte_read(pte))
-			goto out;
 		pfn = pte_pfn(pte);
 		if (pfn_valid(pfn)) {
 			page = pfn_to_page(pfn);
-			if (accessed) {
-				if (write && !pte_dirty(pte) &&!PageDirty(page))
-					set_page_dirty(page);
-				mark_page_accessed(page);
-			}
+			if (write && !pte_dirty(pte) &&!PageDirty(page))
+				set_page_dirty(page);
+			mark_page_accessed(page);
 			return page;
 		}
 	}
@@ -863,22 +858,6 @@ static struct page *__follow_page(struct mm_struct *mm, unsigned long address,
 out:
 	return NULL;
 }
-
-inline struct page *
-follow_page(struct mm_struct *mm, unsigned long address, int write)
-{
-	return __follow_page(mm, address, 0, write, 1);
-}
-
-/*
- * check_user_page_readable() can be called frm niterrupt context by oprofile,
- * so we need to avoid taking any non-irq-safe locks
- */
-int check_user_page_readable(struct mm_struct *mm, unsigned long address)
-{
-	return __follow_page(mm, address, 1, 0, 0) != NULL;
-}
-EXPORT_SYMBOL(check_user_page_readable);
 
 static inline int
 untouched_anonymous_page(struct mm_struct* mm, struct vm_area_struct *vma,
