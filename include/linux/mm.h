@@ -928,25 +928,13 @@ int remap_pfn_range(struct vm_area_struct *, unsigned long,
 		unsigned long, unsigned long, pgprot_t);
 
 #ifdef CONFIG_PROC_FS
-void __vm_stat_account(struct mm_struct *, unsigned long, struct file *, long);
+void vm_stat_account(struct mm_struct *, unsigned long, struct file *, long);
 #else
-static inline void __vm_stat_account(struct mm_struct *mm,
+static inline void vm_stat_account(struct mm_struct *mm,
 			unsigned long flags, struct file *file, long pages)
 {
 }
 #endif /* CONFIG_PROC_FS */
-
-static inline void vm_stat_account(struct vm_area_struct *vma)
-{
-	__vm_stat_account(vma->vm_mm, vma->vm_flags, vma->vm_file,
-							vma_pages(vma));
-}
-
-static inline void vm_stat_unaccount(struct vm_area_struct *vma)
-{
-	__vm_stat_account(vma->vm_mm, vma->vm_flags, vma->vm_file,
-							-vma_pages(vma));
-}
 
 /* update per process rss and vm hiwater data */
 extern void update_mem_hiwater(struct task_struct *tsk);

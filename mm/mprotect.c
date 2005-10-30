@@ -168,8 +168,8 @@ success:
 	vma->vm_flags = newflags;
 	vma->vm_page_prot = newprot;
 	change_protection(vma, start, end, newprot);
-	__vm_stat_account(mm, oldflags, vma->vm_file, -nrpages);
-	__vm_stat_account(mm, newflags, vma->vm_file, nrpages);
+	vm_stat_account(mm, oldflags, vma->vm_file, -nrpages);
+	vm_stat_account(mm, newflags, vma->vm_file, nrpages);
 	return 0;
 
 fail:

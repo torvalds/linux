@@ -832,7 +832,7 @@ none:
 }
 
 #ifdef CONFIG_PROC_FS
-void __vm_stat_account(struct mm_struct *mm, unsigned long flags,
+void vm_stat_account(struct mm_struct *mm, unsigned long flags,
 						struct file *file, long pages)
 {
 	const unsigned long stack_flags
@@ -1110,7 +1110,7 @@ munmap_back:
 	}
 out:	
 	mm->total_vm += len >> PAGE_SHIFT;
-	__vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
+	vm_stat_account(mm, vm_flags, file, len >> PAGE_SHIFT);
 	if (vm_flags & VM_LOCKED) {
 		mm->locked_vm += len >> PAGE_SHIFT;
 		make_pages_present(addr, addr + len);
@@ -1475,7 +1475,7 @@ static int acct_stack_growth(struct vm_area_struct * vma, unsigned long size, un
 	mm->total_vm += grow;
 	if (vma->vm_flags & VM_LOCKED)
 		mm->locked_vm += grow;
-	__vm_stat_account(mm, vma->vm_flags, vma->vm_file, grow);
+	vm_stat_account(mm, vma->vm_flags, vma->vm_file, grow);
 	return 0;
 }
 
@@ -1610,15 +1610,15 @@ find_extend_vma(struct mm_struct * mm, unsigned long addr)
  * By the time this function is called, the area struct has been
  * removed from the process mapping list.
  */
-static void unmap_vma(struct mm_struct *mm, struct vm_area_struct *area)
+static void unmap_vma(struct mm_struct *mm, struct vm_area_struct *vma)
 {
-	size_t len = area->vm_end - area->vm_start;
+	long nrpages = vma_pages(vma);
 
-	area->vm_mm->total_vm -= len >> PAGE_SHIFT;
-	if (area->vm_flags & VM_LOCKED)
-		area->vm_mm->locked_vm -= len >> PAGE_SHIFT;
-	vm_stat_unaccount(area);
-	remove_vm_struct(area);
+	mm->total_vm -= nrpages;
+	if (vma->vm_flags & VM_LOCKED)
+		mm->locked_vm -= nrpages;
+	vm_stat_account(mm, vma->vm_flags, vma->vm_file, -nrpages);
+	remove_vm_struct(vma);
 }
 
 /*
