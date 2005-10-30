@@ -307,7 +307,7 @@ static __init int __init ja_pci_init(void)
 
 arch_initcall(ja_pci_init);
 
-static int __init momenco_ocelot_3_setup(void)
+void __init plat_setup(void)
 {
 	unsigned int tmpword;
 
@@ -391,8 +391,4 @@ static int __init momenco_ocelot_3_setup(void)
 
 	/* Support for 128 MB memory */
 	add_memory_region(0x0, 0x08000000, BOOT_MEM_RAM);
-
-	return 0;
 }
-
-early_initcall(momenco_ocelot_3_setup);

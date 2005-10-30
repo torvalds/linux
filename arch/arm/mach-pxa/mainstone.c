@@ -37,6 +37,7 @@
 #include <asm/arch/audio.h>
 #include <asm/arch/pxafb.h>
 #include <asm/arch/mmc.h>
+#include <asm/arch/irda.h>
 
 #include "generic.h"
 
@@ -294,6 +295,29 @@ static struct pxamci_platform_data mainstone_mci_platform_data = {
 	.exit		= mainstone_mci_exit,
 };
 
+static void mainstone_irda_transceiver_mode(struct device *dev, int mode)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	if (mode & IR_SIRMODE) {
+		MST_MSCWR1 &= ~MST_MSCWR1_IRDA_FIR;
+	} else if (mode & IR_FIRMODE) {
+		MST_MSCWR1 |= MST_MSCWR1_IRDA_FIR;
+	}
+	if (mode & IR_OFF) {
+		MST_MSCWR1 = (MST_MSCWR1 & ~MST_MSCWR1_IRDA_MASK) | MST_MSCWR1_IRDA_OFF;
+	} else {
+		MST_MSCWR1 = (MST_MSCWR1 & ~MST_MSCWR1_IRDA_MASK) | MST_MSCWR1_IRDA_FULL;
+	}
+	local_irq_restore(flags);
+}
+
+static struct pxaficp_platform_data mainstone_ficp_platform_data = {
+	.transceiver_cap  = IR_SIRMODE | IR_FIRMODE | IR_OFF,
+	.transceiver_mode = mainstone_irda_transceiver_mode,
+};
+
 static void __init mainstone_init(void)
 {
 	/*
@@ -313,11 +337,17 @@ static void __init mainstone_init(void)
 		set_pxa_fb_info(&toshiba_ltm035a776c);
 
 	pxa_set_mci_info(&mainstone_mci_platform_data);
+	pxa_set_ficp_info(&mainstone_ficp_platform_data);
 }
 
 
 static struct map_desc mainstone_io_desc[] __initdata = {
-  { MST_FPGA_VIRT, MST_FPGA_PHYS, 0x00100000, MT_DEVICE }, /* CPLD */
+  	{	/* CPLD */
+		.virtual	=  MST_FPGA_VIRT,
+		.pfn		= __phys_to_pfn(MST_FPGA_PHYS),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init mainstone_map_io(void)

@@ -191,8 +191,8 @@ static void e1000_vlan_rx_add_vid(struct net_device *netdev, uint16_t vid);
 static void e1000_vlan_rx_kill_vid(struct net_device *netdev, uint16_t vid);
 static void e1000_restore_vlan(struct e1000_adapter *adapter);
 
-static int e1000_suspend(struct pci_dev *pdev, pm_message_t state);
 #ifdef CONFIG_PM
+static int e1000_suspend(struct pci_dev *pdev, pm_message_t state);
 static int e1000_resume(struct pci_dev *pdev);
 #endif
 
@@ -1149,7 +1149,8 @@ e1000_setup_tx_resources(struct e1000_adapter *adapter,
 	int size;
 
 	size = sizeof(struct e1000_buffer) * txdr->count;
-	txdr->buffer_info = vmalloc(size);
+
+	txdr->buffer_info = vmalloc_node(size, pcibus_to_node(pdev->bus));
 	if(!txdr->buffer_info) {
 		DPRINTK(PROBE, ERR,
 		"Unable to allocate memory for the transmit descriptor ring\n");
@@ -1366,7 +1367,7 @@ e1000_setup_rx_resources(struct e1000_adapter *adapter,
 	int size, desc_len;
 
 	size = sizeof(struct e1000_buffer) * rxdr->count;
-	rxdr->buffer_info = vmalloc(size);
+	rxdr->buffer_info = vmalloc_node(size, pcibus_to_node(pdev->bus));
 	if (!rxdr->buffer_info) {
 		DPRINTK(PROBE, ERR,
 		"Unable to allocate memory for the receive descriptor ring\n");
@@ -4193,6 +4194,7 @@ e1000_set_spd_dplx(struct e1000_adapter *adapter, uint16_t spddplx)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int
 e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 {
@@ -4289,7 +4291,6 @@ e1000_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
-#ifdef CONFIG_PM
 static int
 e1000_resume(struct pci_dev *pdev)
 {

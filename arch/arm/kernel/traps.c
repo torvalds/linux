@@ -345,7 +345,9 @@ static int bad_syscall(int n, struct pt_regs *regs)
 	struct thread_info *thread = current_thread_info();
 	siginfo_t info;
 
-	if (current->personality != PER_LINUX && thread->exec_domain->handler) {
+	if (current->personality != PER_LINUX &&
+	    current->personality != PER_LINUX_32BIT &&
+	    thread->exec_domain->handler) {
 		thread->exec_domain->handler(n, regs);
 		return regs->ARM_r0;
 	}
@@ -481,29 +483,33 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 		unsigned long addr = regs->ARM_r2;
 		struct mm_struct *mm = current->mm;
 		pgd_t *pgd; pmd_t *pmd; pte_t *pte;
+		spinlock_t *ptl;
 
 		regs->ARM_cpsr &= ~PSR_C_BIT;
-		spin_lock(&mm->page_table_lock);
+		down_read(&mm->mmap_sem);
 		pgd = pgd_offset(mm, addr);
 		if (!pgd_present(*pgd))
 			goto bad_access;
 		pmd = pmd_offset(pgd, addr);
 		if (!pmd_present(*pmd))
 			goto bad_access;
-		pte = pte_offset_map(pmd, addr);
-		if (!pte_present(*pte) || !pte_write(*pte))
+		pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+		if (!pte_present(*pte) || !pte_write(*pte)) {
+			pte_unmap_unlock(pte, ptl);
 			goto bad_access;
+		}
 		val = *(unsigned long *)addr;
 		val -= regs->ARM_r0;
 		if (val == 0) {
 			*(unsigned long *)addr = regs->ARM_r1;
 			regs->ARM_cpsr |= PSR_C_BIT;
 		}
-		spin_unlock(&mm->page_table_lock);
+		pte_unmap_unlock(pte, ptl);
+		up_read(&mm->mmap_sem);
 		return val;
 
 		bad_access:
-		spin_unlock(&mm->page_table_lock);
+		up_read(&mm->mmap_sem);
 		/* simulate a write access fault */
 		do_DataAbort(addr, 15 + (1 << 11), regs);
 		return -1;

@@ -8,7 +8,7 @@
  *  - update the page tables
  *  - inform the TLB about the new one
  *
- * We hold the mm semaphore for reading and vma->vm_mm->page_table_lock.
+ * We hold the mm semaphore for reading, and the pte lock.
  *
  * Note: the old pte is known to not be writable, so we don't need to
  * worry about dirty bits etc getting lost.

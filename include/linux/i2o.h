@@ -66,8 +66,6 @@ struct i2o_device {
 	struct device device;
 
 	struct semaphore lock;	/* device lock */
-
-	struct class_device classdev;	/* i2o device class */
 };
 
 /*
@@ -194,7 +192,7 @@ struct i2o_controller {
 	struct resource mem_resource;	/* Mem resource allocated to the IOP */
 
 	struct device device;
-	struct class_device classdev;	/* I2O controller class */
+	struct class_device *classdev;	/* I2O controller class device */
 	struct i2o_device *exec;	/* Executive */
 #if BITS_PER_LONG == 64
 	spinlock_t context_list_lock;	/* lock for context_list */

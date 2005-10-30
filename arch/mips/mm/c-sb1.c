@@ -235,7 +235,7 @@ static inline void __sb1_flush_icache_range(unsigned long start,
 /*
  * Invalidate all caches on this CPU
  */
-static void local_sb1___flush_cache_all(void)
+static void __attribute_used__ local_sb1___flush_cache_all(void)
 {
 	__sb1_writeback_inv_dcache_all();
 	__sb1_flush_icache_all();
@@ -492,19 +492,17 @@ static __init void probe_cache_sizes(void)
 }
 
 /*
- * This is called from loadmmu.c.  We have to set up all the
+ * This is called from cache.c.  We have to set up all the
  * memory management function pointers, as well as initialize
  * the caches and tlbs
  */
-void ld_mmu_sb1(void)
+void sb1_cache_init(void)
 {
 	extern char except_vec2_sb1;
 	extern char handle_vec2_sb1;
 
 	/* Special cache error handler for SB1 */
-	memcpy((void *)(CAC_BASE   + 0x100), &except_vec2_sb1, 0x80);
-	memcpy((void *)(UNCAC_BASE + 0x100), &except_vec2_sb1, 0x80);
-	memcpy((void *)CKSEG1ADDR(&handle_vec2_sb1), &handle_vec2_sb1, 0x80);
+	set_uncached_handler (0x100, &except_vec2_sb1, 0x80);
 
 	probe_cache_sizes();
 

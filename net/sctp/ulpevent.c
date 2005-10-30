@@ -698,7 +698,7 @@ struct sctp_ulpevent *sctp_ulpevent_make_rcvmsg(struct sctp_association *asoc,
 	event->ssn = ntohs(chunk->subh.data_hdr->ssn);
 	event->ppid = chunk->subh.data_hdr->ppid;
 	if (chunk->chunk_hdr->flags & SCTP_DATA_UNORDERED) {
-		event->flags |= MSG_UNORDERED;
+		event->flags |= SCTP_UNORDERED;
 		event->cumtsn = sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map);
 	}
 	event->tsn = ntohl(chunk->subh.data_hdr->tsn);
@@ -824,7 +824,7 @@ void sctp_ulpevent_read_sndrcvinfo(const struct sctp_ulpevent *event,
 	 *
 	 * recvmsg() flags:
 	 *
-	 * MSG_UNORDERED - This flag is present when the message was sent
+	 * SCTP_UNORDERED - This flag is present when the message was sent
 	 *                 non-ordered.
 	 */
 	sinfo.sinfo_flags = event->flags;
@@ -839,7 +839,7 @@ void sctp_ulpevent_read_sndrcvinfo(const struct sctp_ulpevent *event,
 	 * This field will hold the current cumulative TSN as
 	 * known by the underlying SCTP layer.  Note this field is
 	 * ignored when sending and only valid for a receive
-	 * operation when sinfo_flags are set to MSG_UNORDERED.
+	 * operation when sinfo_flags are set to SCTP_UNORDERED.
 	 */
 	sinfo.sinfo_cumtsn = event->cumtsn;
 	/* sinfo_assoc_id: sizeof (sctp_assoc_t)

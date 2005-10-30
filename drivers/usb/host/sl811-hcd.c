@@ -1363,7 +1363,7 @@ error:
 #ifdef	CONFIG_PM
 
 static int
-sl811h_hub_suspend(struct usb_hcd *hcd)
+sl811h_bus_suspend(struct usb_hcd *hcd)
 {
 	// SOFs off
 	DBG("%s\n", __FUNCTION__);
@@ -1371,7 +1371,7 @@ sl811h_hub_suspend(struct usb_hcd *hcd)
 }
 
 static int
-sl811h_hub_resume(struct usb_hcd *hcd)
+sl811h_bus_resume(struct usb_hcd *hcd)
 {
 	// SOFs on
 	DBG("%s\n", __FUNCTION__);
@@ -1380,8 +1380,8 @@ sl811h_hub_resume(struct usb_hcd *hcd)
 
 #else
 
-#define	sl811h_hub_suspend	NULL
-#define	sl811h_hub_resume	NULL
+#define	sl811h_bus_suspend	NULL
+#define	sl811h_bus_resume	NULL
 
 #endif
 
@@ -1623,8 +1623,8 @@ static struct hc_driver sl811h_hc_driver = {
 	 */
 	.hub_status_data =	sl811h_hub_status_data,
 	.hub_control =		sl811h_hub_control,
-	.hub_suspend =		sl811h_hub_suspend,
-	.hub_resume =		sl811h_hub_resume,
+	.bus_suspend =		sl811h_bus_suspend,
+	.bus_resume =		sl811h_bus_resume,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1784,17 +1784,14 @@ sl811h_probe(struct device *dev)
  */
 
 static int
-sl811h_suspend(struct device *dev, pm_message_t state, u32 phase)
+sl811h_suspend(struct device *dev, pm_message_t state)
 {
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	struct sl811	*sl811 = hcd_to_sl811(hcd);
 	int		retval = 0;
 
-	if (phase != SUSPEND_POWER_DOWN)
-		return retval;
-
 	if (state.event == PM_EVENT_FREEZE)
-		retval = sl811h_hub_suspend(hcd);
+		retval = sl811h_bus_suspend(hcd);
 	else if (state.event == PM_EVENT_SUSPEND)
 		port_power(sl811, 0);
 	if (retval == 0)
@@ -1803,13 +1800,10 @@ sl811h_suspend(struct device *dev, pm_message_t state, u32 phase)
 }
 
 static int
-sl811h_resume(struct device *dev, u32 phase)
+sl811h_resume(struct device *dev)
 {
 	struct usb_hcd	*hcd = dev_get_drvdata(dev);
 	struct sl811	*sl811 = hcd_to_sl811(hcd);
-
-	if (phase != RESUME_POWER_ON)
-		return 0;
 
 	/* with no "check to see if VBUS is still powered" board hook,
 	 * let's assume it'd only be powered to enable remote wakeup.
@@ -1822,7 +1816,7 @@ sl811h_resume(struct device *dev, u32 phase)
 	}
 
 	dev->power.power_state = PMSG_ON;
-	return sl811h_hub_resume(hcd);
+	return sl811h_bus_resume(hcd);
 }
 
 #else
@@ -1837,6 +1831,7 @@ sl811h_resume(struct device *dev, u32 phase)
 struct device_driver sl811h_driver = {
 	.name =		(char *) hcd_name,
 	.bus =		&platform_bus_type,
+	.owner =	THIS_MODULE,
 
 	.probe =	sl811h_probe,
 	.remove =	__devexit_p(sl811h_remove),

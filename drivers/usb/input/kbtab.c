@@ -34,7 +34,7 @@ MODULE_PARM_DESC(kb_pressure_click, "pressure threshold for clicks");
 struct kbtab {
 	signed char *data;
 	dma_addr_t data_dma;
-	struct input_dev dev;
+	struct input_dev *dev;
 	struct usb_device *usbdev;
 	struct urb *irq;
 	int x, y;
@@ -48,7 +48,7 @@ static void kbtab_irq(struct urb *urb, struct pt_regs *regs)
 {
 	struct kbtab *kbtab = urb->context;
 	unsigned char *data = kbtab->data;
-	struct input_dev *dev = &kbtab->dev;
+	struct input_dev *dev = kbtab->dev;
 	int retval;
 
 	switch (urb->status) {
@@ -124,53 +124,43 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	struct usb_device *dev = interface_to_usbdev(intf);
 	struct usb_endpoint_descriptor *endpoint;
 	struct kbtab *kbtab;
-	char path[64];
+	struct input_dev *input_dev;
 
-	if (!(kbtab = kmalloc(sizeof(struct kbtab), GFP_KERNEL)))
-		return -ENOMEM;
-	memset(kbtab, 0, sizeof(struct kbtab));
+	kbtab = kzalloc(sizeof(struct kbtab), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!kbtab || !input_dev)
+		goto fail1;
 
 	kbtab->data = usb_buffer_alloc(dev, 8, GFP_KERNEL, &kbtab->data_dma);
-	if (!kbtab->data) {
-		kfree(kbtab);
-		return -ENOMEM;
-	}
+	if (!kbtab->data)
+		goto fail1;
 
 	kbtab->irq = usb_alloc_urb(0, GFP_KERNEL);
-	if (!kbtab->irq) {
-		usb_buffer_free(dev, 10, kbtab->data, kbtab->data_dma);
-		kfree(kbtab);
-		return -ENOMEM;
-	}
+	if (!kbtab->irq)
+		goto fail2;
 
-	kbtab->dev.evbit[0] |= BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_MSC);
-	kbtab->dev.absbit[0] |= BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE);
-
-	kbtab->dev.keybit[LONG(BTN_LEFT)] |= BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_MIDDLE);
-
-	kbtab->dev.keybit[LONG(BTN_DIGI)] |= BIT(BTN_TOOL_PEN) | BIT(BTN_TOUCH);
-
-	kbtab->dev.mscbit[0] |= BIT(MSC_SERIAL);
-
-	kbtab->dev.absmax[ABS_X] = 0x2000;
-	kbtab->dev.absmax[ABS_Y] = 0x1750;
-	kbtab->dev.absmax[ABS_PRESSURE] = 0xff;
-
-	kbtab->dev.absfuzz[ABS_X] = 4;
-	kbtab->dev.absfuzz[ABS_Y] = 4;
-
-	kbtab->dev.private = kbtab;
-	kbtab->dev.open = kbtab_open;
-	kbtab->dev.close = kbtab_close;
-
-	usb_make_path(dev, path, 64);
-	sprintf(kbtab->phys, "%s/input0", path);
-
-	kbtab->dev.name = "KB Gear Tablet";
-	kbtab->dev.phys = kbtab->phys;
-	usb_to_input_id(dev, &kbtab->dev.id);
-	kbtab->dev.dev = &intf->dev;
 	kbtab->usbdev = dev;
+	kbtab->dev = input_dev;
+
+	usb_make_path(dev, kbtab->phys, sizeof(kbtab->phys));
+	strlcat(kbtab->phys, "/input0", sizeof(kbtab->phys));
+
+	input_dev->name = "KB Gear Tablet";
+	input_dev->phys = kbtab->phys;
+	usb_to_input_id(dev, &input_dev->id);
+	input_dev->cdev.dev = &intf->dev;
+	input_dev->private = kbtab;
+
+	input_dev->open = kbtab_open;
+	input_dev->close = kbtab_close;
+
+	input_dev->evbit[0] |= BIT(EV_KEY) | BIT(EV_ABS) | BIT(EV_MSC);
+	input_dev->keybit[LONG(BTN_LEFT)] |= BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_MIDDLE);
+	input_dev->keybit[LONG(BTN_DIGI)] |= BIT(BTN_TOOL_PEN) | BIT(BTN_TOUCH);
+	input_dev->mscbit[0] |= BIT(MSC_SERIAL);
+	input_set_abs_params(input_dev, ABS_X, 0, 0x2000, 4, 0);
+	input_set_abs_params(input_dev, ABS_X, 0, 0x1750, 4, 0);
+	input_set_abs_params(input_dev, ABS_PRESSURE, 0, 0xff, 0, 0);
 
 	endpoint = &intf->cur_altsetting->endpoint[0].desc;
 
@@ -181,23 +171,25 @@ static int kbtab_probe(struct usb_interface *intf, const struct usb_device_id *i
 	kbtab->irq->transfer_dma = kbtab->data_dma;
 	kbtab->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	input_register_device(&kbtab->dev);
-
-	printk(KERN_INFO "input: KB Gear Tablet on %s\n",  path);
+	input_register_device(kbtab->dev);
 
 	usb_set_intfdata(intf, kbtab);
-
 	return 0;
+
+fail2:	usb_buffer_free(dev, 10, kbtab->data, kbtab->data_dma);
+fail1:	input_free_device(input_dev);
+	kfree(kbtab);
+	return -ENOMEM;
 }
 
 static void kbtab_disconnect(struct usb_interface *intf)
 {
-	struct kbtab *kbtab = usb_get_intfdata (intf);
+	struct kbtab *kbtab = usb_get_intfdata(intf);
 
 	usb_set_intfdata(intf, NULL);
 	if (kbtab) {
 		usb_kill_urb(kbtab->irq);
-		input_unregister_device(&kbtab->dev);
+		input_unregister_device(kbtab->dev);
 		usb_free_urb(kbtab->irq);
 		usb_buffer_free(interface_to_usbdev(intf), 10, kbtab->data, kbtab->data_dma);
 		kfree(kbtab);

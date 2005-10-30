@@ -37,13 +37,17 @@
  * Standard IO mapping for all IOP331 based systems
  */
 static struct map_desc iop331_std_desc[] __initdata = {
- /* virtual     physical      length      type */
-
- /* mem mapped registers */
- { IOP331_VIRT_MEM_BASE,  IOP331_PHYS_MEM_BASE,   0x00002000,  MT_DEVICE },
-
- /* PCI IO space */
- { IOP331_PCI_LOWER_IO_VA,  IOP331_PCI_LOWER_IO_PA,   IOP331_PCI_IO_WINDOW_SIZE,  MT_DEVICE }
+	{	/* mem mapped registers */
+		.virtual	= IOP331_VIRT_MEM_BASE,
+		.pfn		= __phys_to_pfn(IOP331_PHYS_MEM_BASE),
+		.length		= 0x00002000,
+		.type		= MT_DEVICE
+	}, {	/* PCI IO space */
+		.virtual	= IOP331_PCI_LOWER_IO_VA,
+		.pfn		= __phys_to_pfn(IOP331_PCI_LOWER_IO_PA),
+		.length		= IOP331_PCI_IO_WINDOW_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static struct uart_port iop331_serial_ports[] = {

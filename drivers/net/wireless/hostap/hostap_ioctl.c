@@ -552,7 +552,6 @@ static int prism2_ioctl_giwaplist(struct net_device *dev,
 
 	kfree(addr);
 	kfree(qual);
-
 	return 0;
 }
 
@@ -3081,9 +3080,7 @@ static int prism2_ioctl_priv_download(local_info_t *local, struct iw_point *p)
 	ret = local->func->download(local, param);
 
  out:
-	if (param != NULL)
-		kfree(param);
-
+	kfree(param);
 	return ret;
 }
 #endif /* PRISM2_DOWNLOAD_SUPPORT */
@@ -3890,9 +3887,7 @@ static int prism2_ioctl_priv_hostapd(local_info_t *local, struct iw_point *p)
 	}
 
  out:
-	if (param != NULL)
-		kfree(param);
-
+	kfree(param);
 	return ret;
 }
 

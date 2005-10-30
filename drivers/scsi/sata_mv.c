@@ -259,7 +259,6 @@ struct mv_host_priv {
 static void mv_irq_clear(struct ata_port *ap);
 static u32 mv_scr_read(struct ata_port *ap, unsigned int sc_reg_in);
 static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
-static u8 mv_check_err(struct ata_port *ap);
 static void mv_phy_reset(struct ata_port *ap);
 static void mv_host_stop(struct ata_host_set *host_set);
 static int mv_port_start(struct ata_port *ap);
@@ -297,7 +296,6 @@ static const struct ata_port_operations mv_ops = {
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
-	.check_err		= mv_check_err,
 	.exec_command		= ata_exec_command,
 	.dev_select		= ata_std_dev_select,
 
@@ -1183,22 +1181,6 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 	spin_unlock(&host_set->lock);
 
 	return IRQ_RETVAL(handled);
-}
-
-/**
- *      mv_check_err - Return the error shadow register to caller.
- *      @ap: ATA channel to manipulate
- *
- *      Marvell requires DMA to be stopped before accessing shadow
- *      registers.  So we do that, then return the needed register.
- *
- *      LOCKING:
- *      Inherited from caller.  FIXME: protect mv_stop_dma with lock?
- */
-static u8 mv_check_err(struct ata_port *ap)
-{
-	mv_stop_dma(ap);		/* can't read shadow regs if DMA on */
-	return readb((void __iomem *) ap->ioaddr.error_addr);
 }
 
 /**

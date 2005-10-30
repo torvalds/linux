@@ -510,19 +510,11 @@ static void ext3_clear_inode(struct inode *inode)
 	kfree(rsv);
 }
 
-static int ext3_show_options(struct seq_file *seq, struct vfsmount *vfs)
+static inline void ext3_show_quota_options(struct seq_file *seq, struct super_block *sb)
 {
-	struct super_block *sb = vfs->mnt_sb;
+#if defined(CONFIG_QUOTA)
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
 
-	if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_JOURNAL_DATA)
-		seq_puts(seq, ",data=journal");
-	else if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_ORDERED_DATA)
-		seq_puts(seq, ",data=ordered");
-	else if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_WRITEBACK_DATA)
-		seq_puts(seq, ",data=writeback");
-
-#if defined(CONFIG_QUOTA)
 	if (sbi->s_jquota_fmt)
 		seq_printf(seq, ",jqfmt=%s",
 		(sbi->s_jquota_fmt == QFMT_VFS_OLD) ? "vfsold": "vfsv0");
@@ -539,6 +531,20 @@ static int ext3_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (sbi->s_mount_opt & EXT3_MOUNT_GRPQUOTA)
 		seq_puts(seq, ",grpquota");
 #endif
+}
+
+static int ext3_show_options(struct seq_file *seq, struct vfsmount *vfs)
+{
+	struct super_block *sb = vfs->mnt_sb;
+
+	if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_JOURNAL_DATA)
+		seq_puts(seq, ",data=journal");
+	else if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_ORDERED_DATA)
+		seq_puts(seq, ",data=ordered");
+	else if (test_opt(sb, DATA_FLAGS) == EXT3_MOUNT_WRITEBACK_DATA)
+		seq_puts(seq, ",data=writeback");
+
+	ext3_show_quota_options(seq, sb);
 
 	return 0;
 }

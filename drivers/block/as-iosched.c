@@ -1344,6 +1344,7 @@ as_add_aliased_request(struct as_data *ad, struct as_rq *arq, struct as_rq *alia
 	 * Don't want to have to handle merges.
 	 */
 	as_del_arq_hash(arq);
+	arq->request->flags |= REQ_NOMERGE;
 }
 
 /*

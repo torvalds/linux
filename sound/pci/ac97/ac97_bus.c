@@ -31,7 +31,8 @@ static int ac97_bus_suspend(struct device *dev, pm_message_t state)
 	int ret = 0;
 
 	if (dev->driver && dev->driver->suspend)
-		ret = dev->driver->suspend(dev, state, SUSPEND_POWER_DOWN);
+		ret = dev->driver->suspend(dev, state);
+
 	return ret;
 }
 
@@ -40,7 +41,8 @@ static int ac97_bus_resume(struct device *dev)
 	int ret = 0;
 
 	if (dev->driver && dev->driver->resume)
-		ret = dev->driver->resume(dev, RESUME_POWER_ON);
+		ret = dev->driver->resume(dev);
+
 	return ret;
 }
 

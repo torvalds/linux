@@ -27,14 +27,15 @@ struct sigcontext {
 	unsigned int		sc_fpc_csr;
 	unsigned int		sc_fpc_eir;	/* Unused */
 	unsigned int		sc_used_math;
-	unsigned int		sc_ssflags;	/* Unused */
+	unsigned int		sc_dsp;		/* dsp status, was sc_ssflags */
 	unsigned long long	sc_mdhi;
 	unsigned long long	sc_mdlo;
-
-	unsigned int		sc_cause;	/* Unused */
-	unsigned int		sc_badvaddr;	/* Unused */
-
-	unsigned long		sc_sigset[4];	/* kernel's sigset_t */
+	unsigned long		sc_hi1;		/* Was sc_cause */
+	unsigned long		sc_lo1;		/* Was sc_badvaddr */
+	unsigned long		sc_hi2;		/* Was sc_sigset[4] */
+	unsigned long		sc_lo2;
+	unsigned long		sc_hi3;
+	unsigned long		sc_lo3;
 };
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
@@ -48,19 +49,19 @@ struct sigcontext {
  * Warning: this structure illdefined with sc_badvaddr being just an unsigned
  * int so it was changed to unsigned long in 2.6.0-test1.  This may break
  * binary compatibility - no prisoners.
+ * DSP ASE in 2.6.12-rc4.  Turn sc_mdhi and sc_mdlo into an array of four
+ * entries, add sc_dsp and sc_reserved for padding.  No prisoners.
  */
 struct sigcontext {
 	unsigned long	sc_regs[32];
 	unsigned long	sc_fpregs[32];
-	unsigned long	sc_mdhi;
-	unsigned long	sc_mdlo;
+	unsigned long	sc_hi[4];
+	unsigned long	sc_lo[4];
 	unsigned long	sc_pc;
-	unsigned long	sc_badvaddr;
-	unsigned int	sc_status;
 	unsigned int	sc_fpc_csr;
-	unsigned int	sc_fpc_eir;
 	unsigned int	sc_used_math;
-	unsigned int	sc_cause;
+	unsigned int	sc_dsp;
+	unsigned int	sc_reserved;
 };
 
 #ifdef __KERNEL__
@@ -68,23 +69,24 @@ struct sigcontext {
 #include <linux/posix_types.h>
 
 struct sigcontext32 {
-	__u32	sc_regmask;		/* Unused */
-	__u32	sc_status;
-	__u64	sc_pc;
-	__u64	sc_regs[32];
-	__u64	sc_fpregs[32];
-	__u32	sc_ownedfp;		/* Unused */
-	__u32	sc_fpc_csr;
-	__u32	sc_fpc_eir;		/* Unused */
-	__u32	sc_used_math;
-	__u32	sc_ssflags;		/* Unused */
-	__u64	sc_mdhi;
-	__u64	sc_mdlo;
-
-	__u32	sc_cause;		/* Unused */
-	__u32	sc_badvaddr;		/* Unused */
-
-	__u32	sc_sigset[4];		/* kernel's sigset_t */
+	__u32		sc_regmask;	/* Unused */
+	__u32		sc_status;
+	__u64		sc_pc;
+	__u64		sc_regs[32];
+	__u64		sc_fpregs[32];
+	__u32		sc_ownedfp;	/* Unused */
+	__u32		sc_fpc_csr;
+	__u32		sc_fpc_eir;	/* Unused */
+	__u32		sc_used_math;
+	__u32		sc_dsp;		/* dsp status, was sc_ssflags */
+	__u64		sc_mdhi;
+	__u64		sc_mdlo;
+	__u32		sc_hi1;		/* Was sc_cause */
+	__u32		sc_lo1;		/* Was sc_badvaddr */
+	__u32		sc_hi2;		/* Was sc_sigset[4] */
+	__u32		sc_lo2;
+	__u32		sc_hi3;
+	__u32		sc_lo3;
 };
 #endif /* __KERNEL__ */
 

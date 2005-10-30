@@ -532,6 +532,7 @@ int do_settimeofday (struct timespec *tv)
 	clock_was_set();
 	return 0;
 }
+EXPORT_SYMBOL(do_settimeofday);
 
 void do_gettimeofday (struct timeval *tv)
 {

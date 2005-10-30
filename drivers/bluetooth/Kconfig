@@ -55,14 +55,6 @@ config BT_HCIUART_BCSP
 
 	  Say Y here to compile support for HCI BCSP protocol.
 
-config BT_HCIUART_BCSP_TXCRC
-	bool "Transmit CRC with every BCSP packet"
-	depends on BT_HCIUART_BCSP
-	help
-	  If you say Y here, a 16-bit CRC checksum will be transmitted along with
-	  every BCSP (BlueCore Serial Protocol) packet sent to the Bluetooth chip.
-	  This increases reliability, but slightly reduces efficiency.
-
 config BT_HCIBCM203X
 	tristate "HCI BCM203x USB driver"
 	depends on USB

@@ -69,7 +69,7 @@
 
 static void __iomem *cmu_base;
 static uint16_t cmuclkmsk, cmuclkmsk2;
-static spinlock_t cmu_lock;
+static DEFINE_SPINLOCK(cmu_lock);
 
 #define cmu_read(offset)		readw(cmu_base + (offset))
 #define cmu_write(offset, value)	writew((value), cmu_base + (offset))

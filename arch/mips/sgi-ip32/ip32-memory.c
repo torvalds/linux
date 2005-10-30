@@ -36,8 +36,8 @@ void __init prom_meminit (void)
 		if (base + size > (256 << 20))
 			base += CRIME_HI_MEM_BASE;
 
-		printk("CRIME MC: bank %u base 0x%016lx size %luMB\n",
-			bank, base, size);
+		printk("CRIME MC: bank %u base 0x%016lx size %luMiB\n",
+			bank, base, size >> 20);
 		add_memory_region (base, size, BOOT_MEM_RAM);
 	}
 }

@@ -801,7 +801,8 @@ static int hil_mlc_serio_open(struct serio *serio) {
 	struct hil_mlc_serio_map *map;
 	struct hil_mlc *mlc;
 
-	if (serio->private != NULL) return -EBUSY;
+	if (serio_get_drvdata(serio) != NULL)
+		return -EBUSY;
 
 	map = serio->port_data;
 	if (map == NULL) {
@@ -832,10 +833,17 @@ static void hil_mlc_serio_close(struct serio *serio) {
 		return;
 	}
 
-	serio->private = NULL;
+	serio_set_drvdata(serio, NULL);
 	serio->drv = NULL;
 	/* TODO wake up interruptable */
 }
+
+static struct serio_device_id hil_mlc_serio_id = {
+	.type = SERIO_HIL_MLC,
+	.proto = SERIO_HIL,
+	.extra = SERIO_ANY,
+	.id = SERIO_ANY,
+};
 
 int hil_mlc_register(hil_mlc *mlc) {
 	int i;
@@ -867,7 +875,7 @@ int hil_mlc_register(hil_mlc *mlc) {
 		mlc_serio = kmalloc(sizeof(*mlc_serio), GFP_KERNEL);
 		mlc->serio[i] = mlc_serio;
 		memset(mlc_serio, 0, sizeof(*mlc_serio));
-		mlc_serio->type			= SERIO_HIL | SERIO_HIL_MLC;
+		mlc_serio->id			= hil_mlc_serio_id;
 		mlc_serio->write		= hil_mlc_serio_write;
 		mlc_serio->open			= hil_mlc_serio_open;
 		mlc_serio->close		= hil_mlc_serio_close;

@@ -278,10 +278,11 @@ static const struct hc_driver ohci_pxa27x_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
-#ifdef  CONFIG_USB_SUSPEND
-	.hub_suspend =		ohci_hub_suspend,
-	.hub_resume =		ohci_hub_resume,
+#ifdef  CONFIG_PM
+	.bus_suspend =		ohci_bus_suspend,
+	.bus_resume =		ohci_bus_resume,
 #endif
+	.start_port_reset =	ohci_start_port_reset,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -309,7 +310,7 @@ static int ohci_hcd_pxa27x_drv_remove(struct device *dev)
 	return 0;
 }
 
-static int ohci_hcd_pxa27x_drv_suspend(struct device *dev, pm_message_t state, u32 level)
+static int ohci_hcd_pxa27x_drv_suspend(struct device *dev, pm_message_t state)
 {
 //	struct platform_device *pdev = to_platform_device(dev);
 //	struct usb_hcd *hcd = dev_get_drvdata(dev);
@@ -318,7 +319,7 @@ static int ohci_hcd_pxa27x_drv_suspend(struct device *dev, pm_message_t state, u
 	return 0;
 }
 
-static int ohci_hcd_pxa27x_drv_resume(struct device *dev, u32 level)
+static int ohci_hcd_pxa27x_drv_resume(struct device *dev)
 {
 //	struct platform_device *pdev = to_platform_device(dev);
 //	struct usb_hcd *hcd = dev_get_drvdata(dev);

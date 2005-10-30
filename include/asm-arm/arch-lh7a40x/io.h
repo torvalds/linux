@@ -11,6 +11,8 @@
 #ifndef __ASM_ARCH_IO_H
 #define __ASM_ARCH_IO_H
 
+#include <asm/hardware.h>
+
 #define IO_SPACE_LIMIT 0xffffffff
 
 /* No ISA or PCI bus on this machine. */

@@ -158,7 +158,7 @@ static IR_KEYTAB_TYPE ir_codes_apac_viewcomp[IR_KEYTAB_SIZE] = {
 
 struct IR {
 	struct bttv_sub_device  *sub;
-	struct input_dev        input;
+	struct input_dev        *input;
 	struct ir_input_state   ir;
 	char                    name[32];
 	char                    phys[32];
@@ -217,23 +217,23 @@ static void ir_handle_key(struct IR *ir)
 	if (ir->mask_keydown) {
 		/* bit set on keydown */
 		if (gpio & ir->mask_keydown) {
-			ir_input_keydown(&ir->input,&ir->ir,data,data);
+			ir_input_keydown(ir->input, &ir->ir, data, data);
 		} else {
-			ir_input_nokey(&ir->input,&ir->ir);
+			ir_input_nokey(ir->input, &ir->ir);
 		}
 
 	} else if (ir->mask_keyup) {
 		/* bit cleared on keydown */
 		if (0 == (gpio & ir->mask_keyup)) {
-			ir_input_keydown(&ir->input,&ir->ir,data,data);
+			ir_input_keydown(ir->input, &ir->ir, data, data);
 		} else {
-			ir_input_nokey(&ir->input,&ir->ir);
+			ir_input_nokey(ir->input, &ir->ir);
 		}
 
 	} else {
 		/* can't disturgissh keydown/up :-/ */
-		ir_input_keydown(&ir->input,&ir->ir,data,data);
-		ir_input_nokey(&ir->input,&ir->ir);
+		ir_input_keydown(ir->input, &ir->ir, data, data);
+		ir_input_nokey(ir->input, &ir->ir);
 	}
 }
 
@@ -268,13 +268,17 @@ static int ir_probe(struct device *dev)
 {
 	struct bttv_sub_device *sub = to_bttv_sub_dev(dev);
 	struct IR *ir;
+	struct input_dev *input_dev;
 	IR_KEYTAB_TYPE *ir_codes = NULL;
 	int ir_type = IR_TYPE_OTHER;
 
-	ir = kmalloc(sizeof(*ir),GFP_KERNEL);
-	if (NULL == ir)
+	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!ir || !input_dev) {
+		kfree(ir);
+		input_free_device(input_dev);
 		return -ENOMEM;
-	memset(ir,0,sizeof(*ir));
+	}
 
 	/* detect & configure */
 	switch (sub->core->type) {
@@ -328,6 +332,7 @@ static int ir_probe(struct device *dev)
 	}
 	if (NULL == ir_codes) {
 		kfree(ir);
+		input_free_device(input_dev);
 		return -ENODEV;
 	}
 
@@ -341,19 +346,19 @@ static int ir_probe(struct device *dev)
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(sub->core->pci));
 
-	ir_input_init(&ir->input, &ir->ir, ir_type, ir_codes);
-	ir->input.name = ir->name;
-	ir->input.phys = ir->phys;
-	ir->input.id.bustype = BUS_PCI;
-	ir->input.id.version = 1;
+	ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
+	input_dev->name = ir->name;
+	input_dev->phys = ir->phys;
+	input_dev->id.bustype = BUS_PCI;
+	input_dev->id.version = 1;
 	if (sub->core->pci->subsystem_vendor) {
-		ir->input.id.vendor  = sub->core->pci->subsystem_vendor;
-		ir->input.id.product = sub->core->pci->subsystem_device;
+		input_dev->id.vendor  = sub->core->pci->subsystem_vendor;
+		input_dev->id.product = sub->core->pci->subsystem_device;
 	} else {
-		ir->input.id.vendor  = sub->core->pci->vendor;
-		ir->input.id.product = sub->core->pci->device;
+		input_dev->id.vendor  = sub->core->pci->vendor;
+		input_dev->id.product = sub->core->pci->device;
 	}
-	ir->input.dev = &sub->core->pci->dev;
+	input_dev->cdev.dev = &sub->core->pci->dev;
 
 	if (ir->polling) {
 		INIT_WORK(&ir->work, ir_work, ir);
@@ -364,9 +369,8 @@ static int ir_probe(struct device *dev)
 	}
 
 	/* all done */
-	dev_set_drvdata(dev,ir);
-	input_register_device(&ir->input);
-	printk(DEVNAME ": %s detected at %s\n",ir->input.name,ir->input.phys);
+	dev_set_drvdata(dev, ir);
+	input_register_device(ir->input);
 
 	return 0;
 }
@@ -380,7 +384,7 @@ static int ir_remove(struct device *dev)
 		flush_scheduled_work();
 	}
 
-	input_unregister_device(&ir->input);
+	input_unregister_device(ir->input);
 	kfree(ir);
 	return 0;
 }

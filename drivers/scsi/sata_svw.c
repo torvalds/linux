@@ -84,6 +84,8 @@
 /* Port stride */
 #define K2_SATA_PORT_OFFSET		0x100
 
+static u8 k2_stat_check_status(struct ata_port *ap);
+
 
 static u32 k2_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
 {
@@ -136,16 +138,24 @@ static void k2_sata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 static void k2_sata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
-	u16 nsect, lbal, lbam, lbah;
+	u16 nsect, lbal, lbam, lbah, feature;
 
-	nsect = tf->nsect = readw(ioaddr->nsect_addr);
-	lbal = tf->lbal = readw(ioaddr->lbal_addr);
-	lbam = tf->lbam = readw(ioaddr->lbam_addr);
-	lbah = tf->lbah = readw(ioaddr->lbah_addr);
+	tf->command = k2_stat_check_status(ap);
 	tf->device = readw(ioaddr->device_addr);
+	feature = readw(ioaddr->error_addr);
+	nsect = readw(ioaddr->nsect_addr);
+	lbal = readw(ioaddr->lbal_addr);
+	lbam = readw(ioaddr->lbam_addr);
+	lbah = readw(ioaddr->lbah_addr);
+
+	tf->feature = feature;
+	tf->nsect = nsect;
+	tf->lbal = lbal;
+	tf->lbam = lbam;
+	tf->lbah = lbah;
 
 	if (tf->flags & ATA_TFLAG_LBA48) {
-		tf->hob_feature = readw(ioaddr->error_addr) >> 8;
+		tf->hob_feature = feature >> 8;
 		tf->hob_nsect = nsect >> 8;
 		tf->hob_lbal = lbal >> 8;
 		tf->hob_lbam = lbam >> 8;

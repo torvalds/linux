@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/sn/addrs.h>
+#include <asm/sn/io.h>
 #include <asm/sn/pcidev.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/tioce_provider.h>
@@ -227,7 +228,7 @@ tioce_alloc_map(struct tioce_kernel *ce_kern, int type, int port,
 
 		ate = ATE_MAKE(addr, pagesize);
 		ate_shadow[i + j] = ate;
-		ate_reg[i + j] = ate;
+		writeq(ate, &ate_reg[i + j]);
 		addr += pagesize;
 	}
 
@@ -268,10 +269,10 @@ tioce_dma_d32(struct pci_dev *pdev, uint64_t ct_addr)
 	pcidev_to_tioce(pdev, &ce_mmr, &ce_kern, &port);
 
 	if (ce_kern->ce_port[port].dirmap_refcnt == 0) {
-		volatile uint64_t tmp;
+		uint64_t tmp;
 
 		ce_kern->ce_port[port].dirmap_shadow = ct_upper;
-		ce_mmr->ce_ure_dir_map[port] = ct_upper;
+		writeq(ct_upper, &ce_mmr->ce_ure_dir_map[port]);
 		tmp = ce_mmr->ce_ure_dir_map[port];
 		dma_ok = 1;
 	} else
@@ -343,7 +344,7 @@ tioce_dma_unmap(struct pci_dev *pdev, dma_addr_t bus_addr, int dir)
 	if (TIOCE_D32_ADDR(bus_addr)) {
 		if (--ce_kern->ce_port[port].dirmap_refcnt == 0) {
 			ce_kern->ce_port[port].dirmap_shadow = 0;
-			ce_mmr->ce_ure_dir_map[port] = 0;
+			writeq(0, &ce_mmr->ce_ure_dir_map[port]);
 		}
 	} else {
 		struct tioce_dmamap *map;
@@ -582,18 +583,18 @@ tioce_kern_init(struct tioce_common *tioce_common)
 	 */
 
 	tioce_mmr = (struct tioce *)tioce_common->ce_pcibus.bs_base;
-	tioce_mmr->ce_ure_page_map &= ~CE_URE_PAGESIZE_MASK;
-	tioce_mmr->ce_ure_page_map |= CE_URE_256K_PAGESIZE;
+	__sn_clrq_relaxed(&tioce_mmr->ce_ure_page_map, CE_URE_PAGESIZE_MASK);
+	__sn_setq_relaxed(&tioce_mmr->ce_ure_page_map, CE_URE_256K_PAGESIZE);
 	tioce_kern->ce_ate3240_pagesize = KB(256);
 
 	for (i = 0; i < TIOCE_NUM_M40_ATES; i++) {
 		tioce_kern->ce_ate40_shadow[i] = 0;
-		tioce_mmr->ce_ure_ate40[i] = 0;
+		writeq(0, &tioce_mmr->ce_ure_ate40[i]);
 	}
 
 	for (i = 0; i < TIOCE_NUM_M3240_ATES; i++) {
 		tioce_kern->ce_ate3240_shadow[i] = 0;
-		tioce_mmr->ce_ure_ate3240[i] = 0;
+		writeq(0, &tioce_mmr->ce_ure_ate3240[i]);
 	}
 
 	return tioce_kern;
@@ -665,7 +666,7 @@ tioce_force_interrupt(struct sn_irq_info *sn_irq_info)
 	default:
 		return;
 	}
-	ce_mmr->ce_adm_force_int = force_int_val;
+	writeq(force_int_val, &ce_mmr->ce_adm_force_int);
 }
 
 /**
@@ -686,6 +687,7 @@ tioce_target_interrupt(struct sn_irq_info *sn_irq_info)
 	struct tioce_common *ce_common;
 	struct tioce *ce_mmr;
 	int bit;
+	uint64_t vector;
 
 	pcidev_info = (struct pcidev_info *)sn_irq_info->irq_pciioinfo;
 	if (!pcidev_info)
@@ -696,11 +698,11 @@ tioce_target_interrupt(struct sn_irq_info *sn_irq_info)
 
 	bit = sn_irq_info->irq_int_bit;
 
-	ce_mmr->ce_adm_int_mask |= (1UL << bit);
-	ce_mmr->ce_adm_int_dest[bit] =
-		((uint64_t)sn_irq_info->irq_irq << INTR_VECTOR_SHFT) |
-			   sn_irq_info->irq_xtalkaddr;
-	ce_mmr->ce_adm_int_mask &= ~(1UL << bit);
+	__sn_setq_relaxed(&ce_mmr->ce_adm_int_mask, (1UL << bit));
+	vector = (uint64_t)sn_irq_info->irq_irq << INTR_VECTOR_SHFT;
+	vector |= sn_irq_info->irq_xtalkaddr;
+	writeq(vector, &ce_mmr->ce_adm_int_dest[bit]);
+	__sn_clrq_relaxed(&ce_mmr->ce_adm_int_mask, (1UL << bit));
 
 	tioce_force_interrupt(sn_irq_info);
 }

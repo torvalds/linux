@@ -44,7 +44,7 @@
 
 /* If force_addr is set to anything different from 0, we forcibly enable
    the device at the given address. */
-static unsigned short force_addr = 0;
+static unsigned short force_addr;
 module_param(force_addr, ushort, 0);
 MODULE_PARM_DESC(force_addr,
 		 "Initialize the base address of the sensors");
@@ -198,7 +198,7 @@ static inline u8 FAN_TO_REG(long rpm, int div)
  but the function is very linear in the useful range (0-80 deg C), so
  we'll just use linear interpolation for 10-bit readings.)  So, tempLUT
  is the temp at via register values 0-255: */
-static const long tempLUT[] =
+static const s16 tempLUT[] =
 { -709, -688, -667, -646, -627, -607, -589, -570, -553, -536, -519,
 	-503, -487, -471, -456, -442, -428, -414, -400, -387, -375,
 	-362, -350, -339, -327, -316, -305, -295, -285, -275, -265,
@@ -270,7 +270,7 @@ static inline u8 TEMP_TO_REG(long val)
 }
 
 /* for 8-bit temperature hyst and over registers */
-#define TEMP_FROM_REG(val) (tempLUT[(val)] * 100)
+#define TEMP_FROM_REG(val)	((long)tempLUT[val] * 100)
 
 /* for 10-bit temperature readings */
 static inline long TEMP_FROM_REG10(u16 val)
@@ -589,10 +589,8 @@ static int via686a_detect(struct i2c_adapter *adapter)
 	u16 val;
 
 	/* 8231 requires multiple of 256, we enforce that on 686 as well */
-	if (force_addr)
-		address = force_addr & 0xFF00;
-
 	if (force_addr) {
+		address = force_addr & 0xFF00;
 		dev_warn(&adapter->dev, "forcing ISA address 0x%04X\n",
 			 address);
 		if (PCIBIOS_SUCCESSFUL !=
@@ -603,11 +601,17 @@ static int via686a_detect(struct i2c_adapter *adapter)
 	    pci_read_config_word(s_bridge, VIA686A_ENABLE_REG, &val))
 		return -ENODEV;
 	if (!(val & 0x0001)) {
-		dev_warn(&adapter->dev, "enabling sensors\n");
-		if (PCIBIOS_SUCCESSFUL !=
-		    pci_write_config_word(s_bridge, VIA686A_ENABLE_REG,
-					  val | 0x0001))
+		if (force_addr) {
+			dev_info(&adapter->dev, "enabling sensors\n");
+			if (PCIBIOS_SUCCESSFUL !=
+			    pci_write_config_word(s_bridge, VIA686A_ENABLE_REG,
+						  val | 0x0001))
+				return -ENODEV;
+		} else {
+			dev_warn(&adapter->dev, "sensors disabled - enable "
+				 "with force_addr=0x%x\n", address);
 			return -ENODEV;
+		}
 	}
 
 	/* Reserve the ISA region */
@@ -617,11 +621,10 @@ static int via686a_detect(struct i2c_adapter *adapter)
 		return -ENODEV;
 	}
 
-	if (!(data = kmalloc(sizeof(struct via686a_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct via686a_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit_release;
 	}
-	memset(data, 0, sizeof(struct via686a_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
@@ -708,7 +711,6 @@ static int via686a_detach_client(struct i2c_client *client)
 	return 0;
 }
 
-/* Called when we have found a new VIA686A. Set limits, etc. */
 static void via686a_init_client(struct i2c_client *client)
 {
 	u8 reg;

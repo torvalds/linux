@@ -170,7 +170,7 @@ static void ddb5477_board_init(void);
 extern struct pci_controller ddb5477_ext_controller;
 extern struct pci_controller ddb5477_io_controller;
 
-static int  ddb5477_setup(void)
+void __init plat_setup(void)
 {
 	/* initialize board - we don't trust the loader */
         ddb5477_board_init();
@@ -193,11 +193,7 @@ static int  ddb5477_setup(void)
 
 	register_pci_controller (&ddb5477_ext_controller);
 	register_pci_controller (&ddb5477_io_controller);
-
-	return 0;
 }
-
-early_initcall(ddb5477_setup);
 
 static void __init ddb5477_board_init(void)
 {

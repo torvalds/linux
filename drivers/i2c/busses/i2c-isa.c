@@ -92,6 +92,7 @@ int i2c_isa_add_driver(struct i2c_driver *driver)
 
 	/* Add the driver to the list of i2c drivers in the driver core */
 	driver->driver.name = driver->name;
+	driver->driver.owner = driver->owner;
 	driver->driver.bus = &i2c_bus_type;
 	driver->driver.probe = i2c_isa_device_probe;
 	driver->driver.remove = i2c_isa_device_remove;

@@ -965,11 +965,8 @@ e1000_free_desc_rings(struct e1000_adapter *adapter)
 	if(rxdr->desc)
 		pci_free_consistent(pdev, rxdr->size, rxdr->desc, rxdr->dma);
 
-	if(txdr->buffer_info)
-		kfree(txdr->buffer_info);
-	if(rxdr->buffer_info)
-		kfree(rxdr->buffer_info);
-
+	kfree(txdr->buffer_info);
+	kfree(rxdr->buffer_info);
 	return;
 }
 

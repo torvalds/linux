@@ -1,0 +1,6 @@
+config JAGUAR_DMALOW
+	bool "Low DMA Mode"
+	depends on MOMENCO_JAGUAR_ATX
+	help
+	  Select to Y if jump JP5 is set on your board, N otherwise.  Normally
+	  the jumper is set, so if you feel unsafe, just say Y.

@@ -109,10 +109,14 @@
 #define IB_QP_SET_QKEY	0x80000000
 
 enum {
+	IB_MGMT_MAD_HDR = 24,
 	IB_MGMT_MAD_DATA = 232,
+	IB_MGMT_RMPP_HDR = 36,
 	IB_MGMT_RMPP_DATA = 220,
+	IB_MGMT_VENDOR_HDR = 40,
 	IB_MGMT_VENDOR_DATA = 216,
-	IB_MGMT_SA_DATA = 200
+	IB_MGMT_SA_HDR = 56,
+	IB_MGMT_SA_DATA = 200,
 };
 
 struct ib_mad_hdr {
@@ -203,26 +207,25 @@ struct ib_class_port_info
 
 /**
  * ib_mad_send_buf - MAD data buffer and work request for sends.
- * @mad: References an allocated MAD data buffer.  The size of the data
- *   buffer is specified in the @send_wr.length field.
- * @mapping: DMA mapping information.
+ * @next: A pointer used to chain together MADs for posting.
+ * @mad: References an allocated MAD data buffer.
  * @mad_agent: MAD agent that allocated the buffer.
+ * @ah: The address handle to use when sending the MAD.
  * @context: User-controlled context fields.
- * @send_wr: An initialized work request structure used when sending the MAD.
- *   The wr_id field of the work request is initialized to reference this
- *   data structure.
- * @sge: A scatter-gather list referenced by the work request.
+ * @timeout_ms: Time to wait for a response.
+ * @retries: Number of times to retry a request for a response.
  *
  * Users are responsible for initializing the MAD buffer itself, with the
  * exception of specifying the payload length field in any RMPP MAD.
  */
 struct ib_mad_send_buf {
-	struct ib_mad		*mad;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	struct ib_mad_send_buf	*next;
+	void			*mad;
 	struct ib_mad_agent	*mad_agent;
+	struct ib_ah		*ah;
 	void			*context[2];
-	struct ib_send_wr	send_wr;
-	struct ib_sge		sge;
+	int			timeout_ms;
+	int			retries;
 };
 
 /**
@@ -287,7 +290,7 @@ typedef void (*ib_mad_send_handler)(struct ib_mad_agent *mad_agent,
  * or @mad_send_wc.
  */
 typedef void (*ib_mad_snoop_handler)(struct ib_mad_agent *mad_agent,
-				     struct ib_send_wr *send_wr,
+				     struct ib_mad_send_buf *send_buf,
 				     struct ib_mad_send_wc *mad_send_wc);
 
 /**
@@ -334,13 +337,13 @@ struct ib_mad_agent {
 
 /**
  * ib_mad_send_wc - MAD send completion information.
- * @wr_id: Work request identifier associated with the send MAD request.
+ * @send_buf: Send MAD data buffer associated with the send MAD request.
  * @status: Completion status.
  * @vendor_err: Optional vendor error information returned with a failed
  *   request.
  */
 struct ib_mad_send_wc {
-	u64			wr_id;
+	struct ib_mad_send_buf	*send_buf;
 	enum ib_wc_status	status;
 	u32			vendor_err;
 };
@@ -366,7 +369,7 @@ struct ib_mad_recv_buf {
  * @rmpp_list: Specifies a list of RMPP reassembled received MAD buffers.
  * @mad_len: The length of the received MAD, without duplicated headers.
  *
- * For received response, the wr_id field of the wc is set to the wr_id
+ * For received response, the wr_id contains a pointer to the ib_mad_send_buf
  *   for the corresponding send request.
  */
 struct ib_mad_recv_wc {
@@ -463,9 +466,9 @@ int ib_unregister_mad_agent(struct ib_mad_agent *mad_agent);
 /**
  * ib_post_send_mad - Posts MAD(s) to the send queue of the QP associated
  *   with the registered client.
- * @mad_agent: Specifies the associated registration to post the send to.
- * @send_wr: Specifies the information needed to send the MAD(s).
- * @bad_send_wr: Specifies the MAD on which an error was encountered.
+ * @send_buf: Specifies the information needed to send the MAD(s).
+ * @bad_send_buf: Specifies the MAD on which an error was encountered.  This
+ *   parameter is optional if only a single MAD is posted.
  *
  * Sent MADs are not guaranteed to complete in the order that they were posted.
  *
@@ -479,9 +482,8 @@ int ib_unregister_mad_agent(struct ib_mad_agent *mad_agent);
  * defined data being transferred.  The paylen_newwin field should be
  * specified in network-byte order.
  */
-int ib_post_send_mad(struct ib_mad_agent *mad_agent,
-		     struct ib_send_wr *send_wr,
-		     struct ib_send_wr **bad_send_wr);
+int ib_post_send_mad(struct ib_mad_send_buf *send_buf,
+		     struct ib_mad_send_buf **bad_send_buf);
 
 /**
  * ib_coalesce_recv_mad - Coalesces received MAD data into a single buffer.
@@ -507,23 +509,25 @@ void ib_free_recv_mad(struct ib_mad_recv_wc *mad_recv_wc);
 /**
  * ib_cancel_mad - Cancels an outstanding send MAD operation.
  * @mad_agent: Specifies the registration associated with sent MAD.
- * @wr_id: Indicates the work request identifier of the MAD to cancel.
+ * @send_buf: Indicates the MAD to cancel.
  *
  * MADs will be returned to the user through the corresponding
  * ib_mad_send_handler.
  */
-void ib_cancel_mad(struct ib_mad_agent *mad_agent, u64 wr_id);
+void ib_cancel_mad(struct ib_mad_agent *mad_agent,
+		   struct ib_mad_send_buf *send_buf);
 
 /**
  * ib_modify_mad - Modifies an outstanding send MAD operation.
  * @mad_agent: Specifies the registration associated with sent MAD.
- * @wr_id: Indicates the work request identifier of the MAD to modify.
+ * @send_buf: Indicates the MAD to modify.
  * @timeout_ms: New timeout value for sent MAD.
  *
  * This call will reset the timeout value for a sent MAD to the specified
  * value.
  */
-int ib_modify_mad(struct ib_mad_agent *mad_agent, u64 wr_id, u32 timeout_ms);
+int ib_modify_mad(struct ib_mad_agent *mad_agent,
+		  struct ib_mad_send_buf *send_buf, u32 timeout_ms);
 
 /**
  * ib_redirect_mad_qp - Registers a QP for MAD services.
@@ -572,7 +576,6 @@ int ib_process_mad_wc(struct ib_mad_agent *mad_agent,
  * @remote_qpn: Specifies the QPN of the receiving node.
  * @pkey_index: Specifies which PKey the MAD will be sent using.  This field
  *   is valid only if the remote_qpn is QP 1.
- * @ah: References the address handle used to transfer to the remote node.
  * @rmpp_active: Indicates if the send will enable RMPP.
  * @hdr_len: Indicates the size of the data header of the MAD.  This length
  *   should include the common MAD header, RMPP header, plus any class
@@ -582,11 +585,10 @@ int ib_process_mad_wc(struct ib_mad_agent *mad_agent,
  *   additional padding that may be necessary.
  * @gfp_mask: GFP mask used for the memory allocation.
  *
- * This is a helper routine that may be used to allocate a MAD.  Users are
- * not required to allocate outbound MADs using this call.  The returned
- * MAD send buffer will reference a data buffer usable for sending a MAD, along
+ * This routine allocates a MAD for sending.  The returned MAD send buffer
+ * will reference a data buffer usable for sending a MAD, along
  * with an initialized work request structure.  Users may modify the returned
- * MAD data buffer or work request before posting the send.
+ * MAD data buffer before posting the send.
  *
  * The returned data buffer will be cleared.  Users are responsible for
  * initializing the common MAD and any class specific headers.  If @rmpp_active
@@ -594,7 +596,7 @@ int ib_process_mad_wc(struct ib_mad_agent *mad_agent,
  */
 struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 					    u32 remote_qpn, u16 pkey_index,
-					    struct ib_ah *ah, int rmpp_active,
+					    int rmpp_active,
 					    int hdr_len, int data_len,
 					    gfp_t gfp_mask);
 

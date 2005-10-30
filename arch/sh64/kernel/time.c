@@ -253,6 +253,7 @@ int do_settimeofday(struct timespec *tv)
 
 	return 0;
 }
+EXPORT_SYMBOL(do_settimeofday);
 
 static int set_rtc_time(unsigned long nowtime)
 {

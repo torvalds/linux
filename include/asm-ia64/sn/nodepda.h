@@ -55,7 +55,6 @@ struct nodepda_s {
 	 */
 	struct phys_cpuid	phys_cpuid[NR_CPUS];
 	spinlock_t		ptc_lock ____cacheline_aligned_in_smp;
-	spinlock_t		bist_lock;
 };
 
 typedef struct nodepda_s nodepda_t;

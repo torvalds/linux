@@ -49,6 +49,7 @@
 #include <linux/suspend.h>
 #include <linux/workqueue.h>
 #include <linux/jiffies.h>
+#include <linux/scatterlist.h>
 #include <scsi/scsi.h>
 #include "scsi.h"
 #include "scsi_priv.h"
@@ -371,6 +372,8 @@ static void ata_tf_read_pio(struct ata_port *ap, struct ata_taskfile *tf)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 
+	tf->command = ata_check_status(ap);
+	tf->feature = inb(ioaddr->error_addr);
 	tf->nsect = inb(ioaddr->nsect_addr);
 	tf->lbal = inb(ioaddr->lbal_addr);
 	tf->lbam = inb(ioaddr->lbam_addr);
@@ -403,6 +406,8 @@ static void ata_tf_read_mmio(struct ata_port *ap, struct ata_taskfile *tf)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 
+	tf->command = ata_check_status(ap);
+	tf->feature = readb((void __iomem *)ioaddr->error_addr);
 	tf->nsect = readb((void __iomem *)ioaddr->nsect_addr);
 	tf->lbal = readb((void __iomem *)ioaddr->lbal_addr);
 	tf->lbam = readb((void __iomem *)ioaddr->lbam_addr);
@@ -521,30 +526,6 @@ u8 ata_altstatus(struct ata_port *ap)
 	return inb(ap->ioaddr.altstatus_addr);
 }
 
-
-/**
- *	ata_chk_err - Read device error reg
- *	@ap: port where the device is
- *
- *	Reads ATA taskfile error register for
- *	currently-selected device and return its value.
- *
- *	Note: may NOT be used as the check_err() entry in
- *	ata_port_operations.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-u8 ata_chk_err(struct ata_port *ap)
-{
-	if (ap->ops->check_err)
-		return ap->ops->check_err(ap);
-
-	if (ap->flags & ATA_FLAG_MMIO) {
-		return readb((void __iomem *) ap->ioaddr.error_addr);
-	}
-	return inb(ap->ioaddr.error_addr);
-}
 
 /**
  *	ata_tf_to_fis - Convert ATA taskfile to SATA FIS structure
@@ -898,8 +879,8 @@ static u8 ata_dev_try_classify(struct ata_port *ap, unsigned int device)
 
 	memset(&tf, 0, sizeof(tf));
 
-	err = ata_chk_err(ap);
 	ap->ops->tf_read(ap, &tf);
+	err = tf.feature;
 
 	dev->class = ATA_DEV_NONE;
 
@@ -1136,7 +1117,6 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 	unsigned int major_version;
 	u16 tmp;
 	unsigned long xfer_modes;
-	u8 status;
 	unsigned int using_edd;
 	DECLARE_COMPLETION(wait);
 	struct ata_queued_cmd *qc;
@@ -1190,8 +1170,11 @@ retry:
 	else
 		wait_for_completion(&wait);
 
-	status = ata_chk_status(ap);
-	if (status & ATA_ERR) {
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	ap->ops->tf_read(ap, &qc->tf);
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	if (qc->tf.command & ATA_ERR) {
 		/*
 		 * arg!  EDD works for all test cases, but seems to return
 		 * the ATA signature for some ATAPI devices.  Until the
@@ -1204,7 +1187,7 @@ retry:
 		 * to have this problem.
 		 */
 		if ((using_edd) && (qc->tf.command == ATA_CMD_ID_ATA)) {
-			u8 err = ata_chk_err(ap);
+			u8 err = qc->tf.feature;
 			if (err & ATA_ABORTED) {
 				dev->class = ATA_DEV_ATAPI;
 				qc->cursg = 0;
@@ -2576,19 +2559,12 @@ void ata_qc_prep(struct ata_queued_cmd *qc)
 
 void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
 {
-	struct scatterlist *sg;
-
 	qc->flags |= ATA_QCFLAG_SINGLE;
 
-	memset(&qc->sgent, 0, sizeof(qc->sgent));
 	qc->sg = &qc->sgent;
 	qc->n_elem = 1;
 	qc->buf_virt = buf;
-
-	sg = qc->sg;
-	sg->page = virt_to_page(buf);
-	sg->offset = (unsigned long) buf & ~PAGE_MASK;
-	sg->length = buflen;
+	sg_init_one(qc->sg, buf, buflen);
 }
 
 /**
@@ -4472,11 +4448,10 @@ int ata_device_add(const struct ata_probe_ent *ent)
 
 	DPRINTK("ENTER\n");
 	/* alloc a container for our list of ATA ports (buses) */
-	host_set = kmalloc(sizeof(struct ata_host_set) +
+	host_set = kzalloc(sizeof(struct ata_host_set) +
 			   (ent->n_ports * sizeof(void *)), GFP_KERNEL);
 	if (!host_set)
 		return 0;
-	memset(host_set, 0, sizeof(struct ata_host_set) + (ent->n_ports * sizeof(void *)));
 	spin_lock_init(&host_set->lock);
 
 	host_set->dev = dev;
@@ -4516,10 +4491,8 @@ int ata_device_add(const struct ata_probe_ent *ent)
 		count++;
 	}
 
-	if (!count) {
-		kfree(host_set);
-		return 0;
-	}
+	if (!count)
+		goto err_free_ret;
 
 	/* obtain irq, that is shared between channels */
 	if (request_irq(ent->irq, ent->port_ops->irq_handler, ent->irq_flags,
@@ -4577,6 +4550,7 @@ err_out:
 		ata_host_remove(host_set->ports[i], 1);
 		scsi_host_put(host_set->ports[i]->host);
 	}
+err_free_ret:
 	kfree(host_set);
 	VPRINTK("EXIT, returning 0\n");
 	return 0;
@@ -4686,14 +4660,12 @@ ata_probe_ent_alloc(struct device *dev, const struct ata_port_info *port)
 {
 	struct ata_probe_ent *probe_ent;
 
-	probe_ent = kmalloc(sizeof(*probe_ent), GFP_KERNEL);
+	probe_ent = kzalloc(sizeof(*probe_ent), GFP_KERNEL);
 	if (!probe_ent) {
 		printk(KERN_ERR DRV_NAME "(%s): out of memory\n",
 		       kobject_name(&(dev->kobj)));
 		return NULL;
 	}
-
-	memset(probe_ent, 0, sizeof(*probe_ent));
 
 	INIT_LIST_HEAD(&probe_ent->node);
 	probe_ent->dev = dev;
@@ -5091,7 +5063,6 @@ EXPORT_SYMBOL_GPL(ata_tf_to_fis);
 EXPORT_SYMBOL_GPL(ata_tf_from_fis);
 EXPORT_SYMBOL_GPL(ata_check_status);
 EXPORT_SYMBOL_GPL(ata_altstatus);
-EXPORT_SYMBOL_GPL(ata_chk_err);
 EXPORT_SYMBOL_GPL(ata_exec_command);
 EXPORT_SYMBOL_GPL(ata_port_start);
 EXPORT_SYMBOL_GPL(ata_port_stop);

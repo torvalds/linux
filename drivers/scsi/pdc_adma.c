@@ -46,7 +46,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pdc_adma"
-#define DRV_VERSION	"0.01"
+#define DRV_VERSION	"0.03"
 
 /* macro to calculate base address for ATA regs */
 #define ADMA_ATA_REGS(base,port_no)	((base) + ((port_no) * 0x40))
@@ -79,7 +79,6 @@ enum {
 	aNIEN			= (1 << 8), /* irq mask: 1==masked */
 	aGO			= (1 << 7), /* packet trigger ("Go!") */
 	aRSTADM			= (1 << 5), /* ADMA logic reset */
-	aRSTA			= (1 << 2), /* ATA hard reset */
 	aPIOMD4			= 0x0003,   /* PIO mode 4 */
 
 	/* ADMA_STATUS register bits */
@@ -452,24 +451,25 @@ static inline unsigned int adma_intr_pkt(struct ata_host_set *host_set)
 		struct adma_port_priv *pp;
 		struct ata_queued_cmd *qc;
 		void __iomem *chan = ADMA_REGS(mmio_base, port_no);
-		u8 drv_stat, status = readb(chan + ADMA_STATUS);
+		u8 drv_stat = 0, status = readb(chan + ADMA_STATUS);
 
 		if (status == 0)
 			continue;
 		handled = 1;
 		adma_enter_reg_mode(ap);
-		if ((ap->flags & ATA_FLAG_PORT_DISABLED))
+		if (ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR))
 			continue;
 		pp = ap->private_data;
 		if (!pp || pp->state != adma_state_pkt)
 			continue;
 		qc = ata_qc_from_tag(ap, ap->active_tag);
-		drv_stat = 0;
-		if ((status & (aPERR | aPSD | aUIRQ)))
-			drv_stat = ATA_ERR;
-		else if (pp->pkt[0] != cDONE)
-			drv_stat = ATA_ERR;
-		ata_qc_complete(qc, drv_stat);
+		if (qc && (!(qc->tf.ctl & ATA_NIEN))) {
+			if ((status & (aPERR | aPSD | aUIRQ)))
+				drv_stat = ATA_ERR;
+			else if (pp->pkt[0] != cDONE)
+				drv_stat = ATA_ERR;
+			ata_qc_complete(qc, drv_stat);
+		}
 	}
 	return handled;
 }
@@ -490,7 +490,7 @@ static inline unsigned int adma_intr_mmio(struct ata_host_set *host_set)
 			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
 
 				/* check main status, clearing INTRQ */
-				u8 status = ata_chk_status(ap);
+				u8 status = ata_check_status(ap);
 				if ((status & ATA_BUSY))
 					continue;
 				DPRINTK("ata%u: protocol %d (dev_stat 0x%X)\n",
@@ -561,15 +561,15 @@ static int adma_port_start(struct ata_port *ap)
 	if ((pp->pkt_dma & 7) != 0) {
 		printk("bad alignment for pp->pkt_dma: %08x\n",
 						(u32)pp->pkt_dma);
-		goto err_out_kfree2;
+		dma_free_coherent(dev, ADMA_PKT_BYTES,
+						pp->pkt, pp->pkt_dma);
+		goto err_out_kfree;
 	}
 	memset(pp->pkt, 0, ADMA_PKT_BYTES);
 	ap->private_data = pp;
 	adma_reinit_engine(ap);
 	return 0;
 
-err_out_kfree2:
-	kfree(pp);
 err_out_kfree:
 	kfree(pp);
 err_out:

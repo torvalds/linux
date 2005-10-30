@@ -74,17 +74,62 @@
  */
 
 static struct map_desc intcp_io_desc[] __initdata = {
- { IO_ADDRESS(INTEGRATOR_HDR_BASE),   INTEGRATOR_HDR_BASE,   SZ_4K,  MT_DEVICE },
- { IO_ADDRESS(INTEGRATOR_SC_BASE),    INTEGRATOR_SC_BASE,    SZ_4K,  MT_DEVICE },
- { IO_ADDRESS(INTEGRATOR_EBI_BASE),   INTEGRATOR_EBI_BASE,   SZ_4K,  MT_DEVICE },
- { IO_ADDRESS(INTEGRATOR_CT_BASE),    INTEGRATOR_CT_BASE,    SZ_4K,  MT_DEVICE },
- { IO_ADDRESS(INTEGRATOR_IC_BASE),    INTEGRATOR_IC_BASE,    SZ_4K,  MT_DEVICE },
- { IO_ADDRESS(INTEGRATOR_UART0_BASE), INTEGRATOR_UART0_BASE, SZ_4K,  MT_DEVICE },
- { IO_ADDRESS(INTEGRATOR_UART1_BASE), INTEGRATOR_UART1_BASE, SZ_4K,  MT_DEVICE },
- { IO_ADDRESS(INTEGRATOR_DBG_BASE),   INTEGRATOR_DBG_BASE,   SZ_4K,  MT_DEVICE },
- { IO_ADDRESS(INTEGRATOR_GPIO_BASE),  INTEGRATOR_GPIO_BASE,  SZ_4K,  MT_DEVICE },
- { 0xfca00000, 0xca000000, SZ_4K, MT_DEVICE },
- { 0xfcb00000, 0xcb000000, SZ_4K, MT_DEVICE },
+	{
+		.virtual	= IO_ADDRESS(INTEGRATOR_HDR_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_HDR_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IO_ADDRESS(INTEGRATOR_SC_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_SC_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IO_ADDRESS(INTEGRATOR_EBI_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_EBI_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IO_ADDRESS(INTEGRATOR_CT_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_CT_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IO_ADDRESS(INTEGRATOR_IC_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_IC_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IO_ADDRESS(INTEGRATOR_UART0_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_UART0_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IO_ADDRESS(INTEGRATOR_UART1_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_UART1_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IO_ADDRESS(INTEGRATOR_DBG_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_DBG_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IO_ADDRESS(INTEGRATOR_GPIO_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_GPIO_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= 0xfca00000,
+		.pfn		= __phys_to_pfn(0xca000000),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= 0xfcb00000,
+		.pfn		= __phys_to_pfn(0xcb000000),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init intcp_map_io(void)

@@ -16,13 +16,15 @@
 #include <asm/page.h>
 #include <asm/cachectl.h>
 
+#include <asm-generic/pgtable-nopud.h>
+
 /*
  * Each address space has 2 4K pages as its page directory, giving 1024
  * (== PTRS_PER_PGD) 8 byte pointers to pmd tables. Each pmd table is a
- * pair of 4K pages, giving 1024 (== PTRS_PER_PMD) 8 byte pointers to
- * page tables. Each page table is a single 4K page, giving 512 (==
- * PTRS_PER_PTE) 8 byte ptes. Each pgde is initialized to point to
- * invalid_pmd_table, each pmde is initialized to point to
+ * single 4K page, giving 512 (== PTRS_PER_PMD) 8 byte pointers to page
+ * tables. Each page table is also a single 4K page, giving 512 (==
+ * PTRS_PER_PTE) 8 byte ptes. Each pud entry is initialized to point to
+ * invalid_pmd_table, each pmd entry is initialized to point to
  * invalid_pte_table, each pte is initialized to 0. When memory is low,
  * and a pmd table or a page table allocation fails, empty_bad_pmd_table
  * and empty_bad_page_table is returned back to higher layer code, so
@@ -36,17 +38,17 @@
  */
 
 /* PMD_SHIFT determines the size of the area a second-level page table can map */
-#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT - 3))
+#define PMD_SHIFT	(PAGE_SHIFT + (PAGE_SHIFT + PTE_ORDER - 3))
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
 
 /* PGDIR_SHIFT determines what a third-level page table entry can map */
-#define PGDIR_SHIFT	(PMD_SHIFT + (PAGE_SHIFT + 1 - 3))
+#define PGDIR_SHIFT	(PMD_SHIFT + (PAGE_SHIFT + PMD_ORDER - 3))
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 /*
- * For 4kB page size we use a 3 level page tree and a 8kB pmd and pgds which
+ * For 4kB page size we use a 3 level page tree and an 8kB pud, which
  * permits us mapping 40 bits of virtual address space.
  *
  * We used to implement 41 bits by having an order 1 pmd level but that seemed
@@ -57,7 +59,7 @@
  * two levels would be easy to implement.
  *
  * For 16kB page size we use a 2 level page tree which permits a total of
- * 36 bits of virtual address space.  We could add a third leve. but it seems
+ * 36 bits of virtual address space.  We could add a third level but it seems
  * like at the moment there's no need for this.
  *
  * For 64kB page size we use a 2 level page table tree for a total of 42 bits
@@ -65,21 +67,25 @@
  */
 #ifdef CONFIG_PAGE_SIZE_4KB
 #define PGD_ORDER		1
+#define PUD_ORDER		aieeee_attempt_to_allocate_pud
 #define PMD_ORDER		0
 #define PTE_ORDER		0
 #endif
 #ifdef CONFIG_PAGE_SIZE_8KB
 #define PGD_ORDER		0
+#define PUD_ORDER		aieeee_attempt_to_allocate_pud
 #define PMD_ORDER		0
 #define PTE_ORDER		0
 #endif
 #ifdef CONFIG_PAGE_SIZE_16KB
 #define PGD_ORDER		0
+#define PUD_ORDER		aieeee_attempt_to_allocate_pud
 #define PMD_ORDER		0
 #define PTE_ORDER		0
 #endif
 #ifdef CONFIG_PAGE_SIZE_64KB
 #define PGD_ORDER		0
+#define PUD_ORDER		aieeee_attempt_to_allocate_pud
 #define PMD_ORDER		0
 #define PTE_ORDER		0
 #endif
@@ -91,7 +97,7 @@
 #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
 #define FIRST_USER_ADDRESS	0
 
-#define VMALLOC_START		XKSEG
+#define VMALLOC_START		MAP_BASE
 #define VMALLOC_END	\
 	(VMALLOC_START + PTRS_PER_PGD * PTRS_PER_PMD * PTRS_PER_PTE * PAGE_SIZE)
 
@@ -102,13 +108,13 @@
 #define pgd_ERROR(e) \
 	printk("%s:%d: bad pgd %016lx.\n", __FILE__, __LINE__, pgd_val(e))
 
-extern pte_t invalid_pte_table[PAGE_SIZE/sizeof(pte_t)];
-extern pte_t empty_bad_page_table[PAGE_SIZE/sizeof(pte_t)];
-extern pmd_t invalid_pmd_table[2*PAGE_SIZE/sizeof(pmd_t)];
-extern pmd_t empty_bad_pmd_table[2*PAGE_SIZE/sizeof(pmd_t)];
+extern pte_t invalid_pte_table[PTRS_PER_PTE];
+extern pte_t empty_bad_page_table[PTRS_PER_PTE];
+extern pmd_t invalid_pmd_table[PTRS_PER_PMD];
+extern pmd_t empty_bad_pmd_table[PTRS_PER_PMD];
 
 /*
- * Empty pmd entries point to the invalid_pte_table.
+ * Empty pgd/pmd entries point to the invalid_pte_table.
  */
 static inline int pmd_none(pmd_t pmd)
 {
@@ -128,26 +134,30 @@ static inline void pmd_clear(pmd_t *pmdp)
 }
 
 /*
- * Empty pgd entries point to the invalid_pmd_table.
+ * Empty pud entries point to the invalid_pmd_table.
  */
-static inline int pgd_none(pgd_t pgd)
+static inline int pud_none(pud_t pud)
 {
-	return pgd_val(pgd) == (unsigned long) invalid_pmd_table;
+	return pud_val(pud) == (unsigned long) invalid_pmd_table;
 }
 
-#define pgd_bad(pgd)		(pgd_val(pgd) &~ PAGE_MASK)
-
-static inline int pgd_present(pgd_t pgd)
+static inline int pud_bad(pud_t pud)
 {
-	return pgd_val(pgd) != (unsigned long) invalid_pmd_table;
+	return pud_val(pud) & ~PAGE_MASK;
 }
 
-static inline void pgd_clear(pgd_t *pgdp)
+static inline int pud_present(pud_t pud)
 {
-	pgd_val(*pgdp) = ((unsigned long) invalid_pmd_table);
+	return pud_val(pud) != (unsigned long) invalid_pmd_table;
 }
 
-#define pte_page(x)		pfn_to_page((unsigned long)((pte_val(x) >> PAGE_SHIFT)))
+static inline void pud_clear(pud_t *pudp)
+{
+	pud_val(*pudp) = ((unsigned long) invalid_pmd_table);
+}
+
+#define pte_page(x)		pfn_to_page(pte_pfn(x))
+
 #ifdef CONFIG_CPU_VR41XX
 #define pte_pfn(x)		((unsigned long)((x).pte >> (PAGE_SHIFT + 2)))
 #define pfn_pte(pfn, prot)	__pte(((pfn) << (PAGE_SHIFT + 2)) | pgprot_val(prot))
@@ -157,26 +167,28 @@ static inline void pgd_clear(pgd_t *pgdp)
 #endif
 
 #define __pgd_offset(address)	pgd_index(address)
+#define __pud_offset(address)	(((address) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
+#define __pmd_offset(address)	pmd_index(address)
 #define page_pte(page) page_pte_prot(page, __pgprot(0))
 
 /* to find an entry in a kernel page-table-directory */
 #define pgd_offset_k(address) pgd_offset(&init_mm, 0)
 
-#define pgd_index(address)		((address) >> PGDIR_SHIFT)
+#define pgd_index(address)	(((address) >> PGDIR_SHIFT) & (PTRS_PER_PGD-1))
+#define pmd_index(address)	(((address) >> PMD_SHIFT) & (PTRS_PER_PMD-1))
 
 /* to find an entry in a page-table-directory */
 #define pgd_offset(mm,addr)	((mm)->pgd + pgd_index(addr))
 
-static inline unsigned long pgd_page(pgd_t pgd)
+static inline unsigned long pud_page(pud_t pud)
 {
-	return pgd_val(pgd);
+	return pud_val(pud);
 }
 
 /* Find an entry in the second-level page table.. */
-static inline pmd_t *pmd_offset(pgd_t * dir, unsigned long address)
+static inline pmd_t *pmd_offset(pud_t * pud, unsigned long address)
 {
-	return (pmd_t *) pgd_page(*dir) +
-	       ((address >> PMD_SHIFT) & (PTRS_PER_PMD - 1));
+	return (pmd_t *) pud_page(*pud) + pmd_index(address);
 }
 
 /* Find an entry in the third-level page table.. */

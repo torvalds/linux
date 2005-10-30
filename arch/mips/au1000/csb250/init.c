@@ -35,7 +35,6 @@
 #include <asm/bootinfo.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 
 int prom_argc;
 char **prom_argv, **prom_envp;

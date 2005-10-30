@@ -61,7 +61,7 @@ typedef struct snd_card_harmony {
 #define HARMONY_SIZE       64
 
 #define BUF_SIZE     PAGE_SIZE
-#define MAX_BUFS     10
+#define MAX_BUFS     16
 #define MAX_BUF_SIZE (MAX_BUFS * BUF_SIZE)
 
 #define PLAYBACK_BUFS    MAX_BUFS
@@ -101,28 +101,31 @@ typedef struct snd_card_harmony {
 #define HARMONY_SS_MONO         0x00000000
 #define HARMONY_SS_STEREO       0x00000001
 
-#define HARMONY_GAIN_SILENCE    0x00F00FFF
-#define HARMONY_GAIN_DEFAULT    0x0FF00000
+#define HARMONY_GAIN_SILENCE    0x01F00FFF
+#define HARMONY_GAIN_DEFAULT    0x01F00FFF
 
-#define HARMONY_GAIN_HE_SHIFT   27
+#define HARMONY_GAIN_HE_SHIFT   27 /* headphones enabled */
 #define HARMONY_GAIN_HE_MASK    (1 << HARMONY_GAIN_HE_SHIFT)
-#define HARMONY_GAIN_LE_SHIFT   26
+#define HARMONY_GAIN_LE_SHIFT   26 /* line-out enabled */
 #define HARMONY_GAIN_LE_MASK    (1 << HARMONY_GAIN_LE_SHIFT)
-#define HARMONY_GAIN_SE_SHIFT   25
+#define HARMONY_GAIN_SE_SHIFT   25 /* internal-speaker enabled */
 #define HARMONY_GAIN_SE_MASK    (1 << HARMONY_GAIN_SE_SHIFT)
-#define HARMONY_GAIN_IS_SHIFT   24
+#define HARMONY_GAIN_IS_SHIFT   24 /* input select - 0 for line, 1 for mic */
 #define HARMONY_GAIN_IS_MASK    (1 << HARMONY_GAIN_IS_SHIFT)
 
+/* monitor attenuation */
 #define HARMONY_GAIN_MA         0x0f
 #define HARMONY_GAIN_MA_SHIFT   20
 #define HARMONY_GAIN_MA_MASK    (HARMONY_GAIN_MA << HARMONY_GAIN_MA_SHIFT)
 
+/* input gain */
 #define HARMONY_GAIN_IN         0x0f
 #define HARMONY_GAIN_LI_SHIFT   16
 #define HARMONY_GAIN_LI_MASK    (HARMONY_GAIN_IN << HARMONY_GAIN_LI_SHIFT)
 #define HARMONY_GAIN_RI_SHIFT   12
 #define HARMONY_GAIN_RI_MASK    (HARMONY_GAIN_IN << HARMONY_GAIN_RI_SHIFT)
 
+/* output gain (master volume) */
 #define HARMONY_GAIN_OUT        0x3f
 #define HARMONY_GAIN_LO_SHIFT   6
 #define HARMONY_GAIN_LO_MASK    (HARMONY_GAIN_OUT << HARMONY_GAIN_LO_SHIFT)

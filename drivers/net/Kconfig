@@ -1163,38 +1163,74 @@ config IBMVETH
 	  be called ibmveth.
 
 config IBM_EMAC
-	bool "IBM PPC4xx EMAC driver support"
+	tristate "PowerPC 4xx on-chip Ethernet support"
 	depends on 4xx
-	select CRC32
-	---help---
-	  This driver supports the IBM PPC4xx EMAC family of on-chip
-	  Ethernet controllers.
-
-config IBM_EMAC_ERRMSG
-	bool "Verbose error messages"
-	depends on IBM_EMAC && BROKEN
+	help
+	  This driver supports the PowerPC 4xx EMAC family of on-chip
+          Ethernet controllers.
 
 config IBM_EMAC_RXB
 	int "Number of receive buffers"
 	depends on IBM_EMAC
-	default "128" if IBM_EMAC4
-	default "64"
+	default "128"
 
 config IBM_EMAC_TXB
 	int "Number of transmit buffers"
 	depends on IBM_EMAC
-	default "128" if IBM_EMAC4
-	default "8"
+	default "64"
 
-config IBM_EMAC_FGAP
-	int "Frame gap"
+config IBM_EMAC_POLL_WEIGHT
+	int "MAL NAPI polling weight"
 	depends on IBM_EMAC
-	default "8"
+	default "32"
 
-config IBM_EMAC_SKBRES
-	int "Skb reserve amount"
+config IBM_EMAC_RX_COPY_THRESHOLD
+	int "RX skb copy threshold (bytes)"
+	depends on IBM_EMAC
+	default "256"
+
+config IBM_EMAC_RX_SKB_HEADROOM
+	int "Additional RX skb headroom (bytes)"
 	depends on IBM_EMAC
 	default "0"
+	help
+	  Additional receive skb headroom. Note, that driver
+	  will always reserve at least 2 bytes to make IP header
+	  aligned, so usualy there is no need to add any additional
+	  headroom.
+	  
+	  If unsure, set to 0.
+
+config IBM_EMAC_PHY_RX_CLK_FIX
+	bool "PHY Rx clock workaround"
+	depends on IBM_EMAC && (405EP || 440GX || 440EP)
+	help
+	  Enable this if EMAC attached to a PHY which doesn't generate
+	  RX clock if there is no link, if this is the case, you will 
+	  see "TX disable timeout" or "RX disable timeout" in the system
+	  log.
+	  
+	  If unsure, say N.
+
+config IBM_EMAC_DEBUG
+	bool "Debugging"
+	depends on IBM_EMAC
+	default n
+
+config IBM_EMAC_ZMII
+	bool
+	depends on IBM_EMAC && (NP405H || NP405L || 44x)
+	default y
+
+config IBM_EMAC_RGMII
+	bool
+	depends on IBM_EMAC && 440GX
+	default y
+		
+config IBM_EMAC_TAH
+	bool
+	depends on IBM_EMAC && 440GX
+	default y
 
 config NET_PCI
 	bool "EISA, VLB, PCI and on board controllers"
@@ -1338,7 +1374,7 @@ config FORCEDETH
 
 config CS89x0
 	tristate "CS89x0 support"
-	depends on (NET_PCI && (ISA || ARCH_IXDP2X01)) || ARCH_PNX0105
+	depends on (NET_PCI && (ISA || ARCH_IXDP2X01)) || ARCH_PNX0105 || MACH_MP1000
 	---help---
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
 	  network (Ethernet) card of this type, say Y and read the
@@ -1775,6 +1811,7 @@ config NE_H8300
 	  controller on the Renesas H8/300 processor.
 
 source "drivers/net/fec_8xx/Kconfig"
+source "drivers/net/fs_enet/Kconfig"
 
 endmenu
 
@@ -2201,8 +2238,8 @@ config S2IO
 	depends on PCI
 	---help---
 	  This driver supports the 10Gbe XFrame NIC of S2IO. 
-	  For help regarding driver compilation, installation and 
-	  tuning please look into ~/drivers/net/s2io/README.txt.
+	  More specific information on configuring the driver is in 
+	  <file:Documentation/networking/s2io.txt>.
 
 config S2IO_NAPI
 	bool "Use Rx Polling (NAPI) (EXPERIMENTAL)"

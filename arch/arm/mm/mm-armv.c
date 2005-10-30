@@ -1,7 +1,7 @@
 /*
  *  linux/arch/arm/mm/mm-armv.c
  *
- *  Copyright (C) 1998-2002 Russell King
+ *  Copyright (C) 1998-2005 Russell King
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -180,11 +180,6 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 
 	if (!vectors_high()) {
 		/*
-		 * This lock is here just to satisfy pmd_alloc and pte_lock
-		 */
-		spin_lock(&mm->page_table_lock);
-
-		/*
 		 * On ARM, first page must always be allocated since it
 		 * contains the machine vectors.
 		 */
@@ -201,23 +196,14 @@ pgd_t *get_pgd_slow(struct mm_struct *mm)
 		set_pte(new_pte, *init_pte);
 		pte_unmap_nested(init_pte);
 		pte_unmap(new_pte);
-
-		spin_unlock(&mm->page_table_lock);
 	}
 
 	return new_pgd;
 
 no_pte:
-	spin_unlock(&mm->page_table_lock);
 	pmd_free(new_pmd);
-	free_pages((unsigned long)new_pgd, 2);
-	return NULL;
-
 no_pmd:
-	spin_unlock(&mm->page_table_lock);
 	free_pages((unsigned long)new_pgd, 2);
-	return NULL;
-
 no_pgd:
 	return NULL;
 }
@@ -243,6 +229,7 @@ void free_pgd_slow(pgd_t *pgd)
 	pte = pmd_page(*pmd);
 	pmd_clear(pmd);
 	dec_page_state(nr_page_table_pages);
+	pte_lock_deinit(pte);
 	pte_free(pte);
 	pmd_free(pmd);
 free:
@@ -305,16 +292,6 @@ alloc_init_page(unsigned long virt, unsigned long phys, unsigned int prot_l1, pg
 	set_pte(ptep, pfn_pte(phys >> PAGE_SHIFT, prot));
 }
 
-/*
- * Clear any PGD mapping.  On a two-level page table system,
- * the clearance is done by the middle-level functions (pmd)
- * rather than the top-level (pgd) functions.
- */
-static inline void clear_mapping(unsigned long virt)
-{
-	pmd_clear(pmd_off_k(virt));
-}
-
 struct mem_types {
 	unsigned int	prot_pte;
 	unsigned int	prot_l1;
@@ -373,7 +350,7 @@ static struct mem_types mem_types[] __initdata = {
 /*
  * Adjust the PMD section entries according to the CPU in use.
  */
-static void __init build_mem_type_table(void)
+void __init build_mem_type_table(void)
 {
 	struct cachepolicy *cp;
 	unsigned int cr = get_cr();
@@ -483,25 +460,25 @@ static void __init build_mem_type_table(void)
  * offsets, and we take full advantage of sections and
  * supersections.
  */
-static void __init create_mapping(struct map_desc *md)
+void __init create_mapping(struct map_desc *md)
 {
 	unsigned long virt, length;
 	int prot_sect, prot_l1, domain;
 	pgprot_t prot_pte;
-	long off;
+	unsigned long off = (u32)__pfn_to_phys(md->pfn);
 
 	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
 		printk(KERN_WARNING "BUG: not creating mapping for "
-		       "0x%08lx at 0x%08lx in user region\n",
-		       md->physical, md->virtual);
+		       "0x%016llx at 0x%08lx in user region\n",
+		       __pfn_to_phys((u64)md->pfn), md->virtual);
 		return;
 	}
 
 	if ((md->type == MT_DEVICE || md->type == MT_ROM) &&
 	    md->virtual >= PAGE_OFFSET && md->virtual < VMALLOC_END) {
-		printk(KERN_WARNING "BUG: mapping for 0x%08lx at 0x%08lx "
+		printk(KERN_WARNING "BUG: mapping for 0x%016llx at 0x%08lx "
 		       "overlaps vmalloc space\n",
-		       md->physical, md->virtual);
+		       __pfn_to_phys((u64)md->pfn), md->virtual);
 	}
 
 	domain	  = mem_types[md->type].domain;
@@ -509,15 +486,40 @@ static void __init create_mapping(struct map_desc *md)
 	prot_l1   = mem_types[md->type].prot_l1 | PMD_DOMAIN(domain);
 	prot_sect = mem_types[md->type].prot_sect | PMD_DOMAIN(domain);
 
+	/*
+	 * Catch 36-bit addresses
+	 */
+	if(md->pfn >= 0x100000) {
+		if(domain) {
+			printk(KERN_ERR "MM: invalid domain in supersection "
+				"mapping for 0x%016llx at 0x%08lx\n",
+				__pfn_to_phys((u64)md->pfn), md->virtual);
+			return;
+		}
+		if((md->virtual | md->length | __pfn_to_phys(md->pfn))
+			& ~SUPERSECTION_MASK) {
+			printk(KERN_ERR "MM: cannot create mapping for "
+				"0x%016llx at 0x%08lx invalid alignment\n",
+				__pfn_to_phys((u64)md->pfn), md->virtual);
+			return;
+		}
+
+		/*
+		 * Shift bits [35:32] of address into bits [23:20] of PMD
+		 * (See ARMv6 spec).
+		 */
+		off |= (((md->pfn >> (32 - PAGE_SHIFT)) & 0xF) << 20);
+	}
+
 	virt   = md->virtual;
-	off    = md->physical - virt;
+	off   -= virt;
 	length = md->length;
 
 	if (mem_types[md->type].prot_l1 == 0 &&
 	    (virt & 0xfffff || (virt + off) & 0xfffff || (virt + length) & 0xfffff)) {
 		printk(KERN_WARNING "BUG: map for 0x%08lx at 0x%08lx can not "
 		       "be mapped using pages, ignoring.\n",
-		       md->physical, md->virtual);
+		       __pfn_to_phys(md->pfn), md->virtual);
 		return;
 	}
 
@@ -535,13 +537,22 @@ static void __init create_mapping(struct map_desc *md)
 	 *	of the actual domain assignments in use.
 	 */
 	if (cpu_architecture() >= CPU_ARCH_ARMv6 && domain == 0) {
-		/* Align to supersection boundary */
-		while ((virt & ~SUPERSECTION_MASK || (virt + off) &
-			~SUPERSECTION_MASK) && length >= (PGDIR_SIZE / 2)) {
-			alloc_init_section(virt, virt + off, prot_sect);
+		/*
+		 * Align to supersection boundary if !high pages.
+		 * High pages have already been checked for proper
+		 * alignment above and they will fail the SUPSERSECTION_MASK
+		 * check because of the way the address is encoded into
+		 * offset.
+		 */
+		if (md->pfn <= 0x100000) {
+			while ((virt & ~SUPERSECTION_MASK ||
+			        (virt + off) & ~SUPERSECTION_MASK) &&
+				length >= (PGDIR_SIZE / 2)) {
+				alloc_init_section(virt, virt + off, prot_sect);
 
-			virt   += (PGDIR_SIZE / 2);
-			length -= (PGDIR_SIZE / 2);
+				virt   += (PGDIR_SIZE / 2);
+				length -= (PGDIR_SIZE / 2);
+			}
 		}
 
 		while (length >= SUPERSECTION_SIZE) {
@@ -599,100 +610,6 @@ void setup_mm_for_reboot(char mode)
 		pmd[1] = __pmd(pmdval + (1 << (PGDIR_SHIFT - 1)));
 		flush_pmd_entry(pmd);
 	}
-}
-
-extern void _stext, _etext;
-
-/*
- * Setup initial mappings.  We use the page we allocated for zero page to hold
- * the mappings, which will get overwritten by the vectors in traps_init().
- * The mappings must be in virtual address order.
- */
-void __init memtable_init(struct meminfo *mi)
-{
-	struct map_desc *init_maps, *p, *q;
-	unsigned long address = 0;
-	int i;
-
-	build_mem_type_table();
-
-	init_maps = p = alloc_bootmem_low_pages(PAGE_SIZE);
-
-#ifdef CONFIG_XIP_KERNEL
-	p->physical   = CONFIG_XIP_PHYS_ADDR & PMD_MASK;
-	p->virtual    = (unsigned long)&_stext & PMD_MASK;
-	p->length     = ((unsigned long)&_etext - p->virtual + ~PMD_MASK) & PMD_MASK;
-	p->type       = MT_ROM;
-	p ++;
-#endif
-
-	for (i = 0; i < mi->nr_banks; i++) {
-		if (mi->bank[i].size == 0)
-			continue;
-
-		p->physical   = mi->bank[i].start;
-		p->virtual    = __phys_to_virt(p->physical);
-		p->length     = mi->bank[i].size;
-		p->type       = MT_MEMORY;
-		p ++;
-	}
-
-#ifdef FLUSH_BASE
-	p->physical   = FLUSH_BASE_PHYS;
-	p->virtual    = FLUSH_BASE;
-	p->length     = PGDIR_SIZE;
-	p->type       = MT_CACHECLEAN;
-	p ++;
-#endif
-
-#ifdef FLUSH_BASE_MINICACHE
-	p->physical   = FLUSH_BASE_PHYS + PGDIR_SIZE;
-	p->virtual    = FLUSH_BASE_MINICACHE;
-	p->length     = PGDIR_SIZE;
-	p->type       = MT_MINICLEAN;
-	p ++;
-#endif
-
-	/*
-	 * Go through the initial mappings, but clear out any
-	 * pgdir entries that are not in the description.
-	 */
-	q = init_maps;
-	do {
-		if (address < q->virtual || q == p) {
-			clear_mapping(address);
-			address += PGDIR_SIZE;
-		} else {
-			create_mapping(q);
-
-			address = q->virtual + q->length;
-			address = (address + PGDIR_SIZE - 1) & PGDIR_MASK;
-
-			q ++;
-		}
-	} while (address != 0);
-
-	/*
-	 * Create a mapping for the machine vectors at the high-vectors
-	 * location (0xffff0000).  If we aren't using high-vectors, also
-	 * create a mapping at the low-vectors virtual address.
-	 */
-	init_maps->physical   = virt_to_phys(init_maps);
-	init_maps->virtual    = 0xffff0000;
-	init_maps->length     = PAGE_SIZE;
-	init_maps->type       = MT_HIGH_VECTORS;
-	create_mapping(init_maps);
-
-	if (!vectors_high()) {
-		init_maps->virtual = 0;
-		init_maps->type = MT_LOW_VECTORS;
-		create_mapping(init_maps);
-	}
-
-	flush_cache_all();
-	local_flush_tlb_all();
-
-	top_pmd = pmd_off_k(0xffff0000);
 }
 
 /*

@@ -219,10 +219,11 @@ typedef struct pm_message {
 
 struct dev_pm_info {
 	pm_message_t		power_state;
+	unsigned		can_wakeup:1;
 #ifdef	CONFIG_PM
+	unsigned		should_wakeup:1;
 	pm_message_t		prev_state;
 	void			* saved_state;
-	atomic_t		pm_users;
 	struct device		* pm_parent;
 	struct list_head	entry;
 #endif
@@ -236,12 +237,47 @@ extern void device_resume(void);
 
 #ifdef CONFIG_PM
 extern int device_suspend(pm_message_t state);
-#else
+
+#define device_set_wakeup_enable(dev,val) \
+	((dev)->power.should_wakeup = !!(val))
+#define device_may_wakeup(dev) \
+	(device_can_wakeup(dev) && (dev)->power.should_wakeup)
+
+extern int dpm_runtime_suspend(struct device *, pm_message_t);
+extern void dpm_runtime_resume(struct device *);
+
+#else /* !CONFIG_PM */
+
 static inline int device_suspend(pm_message_t state)
 {
 	return 0;
 }
+
+#define device_set_wakeup_enable(dev,val)	do{}while(0)
+#define device_may_wakeup(dev)			(0)
+
+static inline int dpm_runtime_suspend(struct device * dev, pm_message_t state)
+{
+	return 0;
+}
+
+static inline void dpm_runtime_resume(struct device * dev)
+{
+
+}
+
 #endif
+
+/* changes to device_may_wakeup take effect on the next pm state change.
+ * by default, devices should wakeup if they can.
+ */
+#define device_can_wakeup(dev) \
+	((dev)->power.can_wakeup)
+#define device_init_wakeup(dev,val) \
+	do { \
+		device_can_wakeup(dev) = !!(val); \
+		device_set_wakeup_enable(dev,val); \
+	} while(0)
 
 #endif /* __KERNEL__ */
 

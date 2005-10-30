@@ -162,6 +162,7 @@ static int dio_refill_pages(struct dio *dio)
 	up_read(&current->mm->mmap_sem);
 
 	if (ret < 0 && dio->blocks_available && (dio->rw == WRITE)) {
+		struct page *page = ZERO_PAGE(dio->curr_user_address);
 		/*
 		 * A memory fault, but the filesystem has some outstanding
 		 * mapped blocks.  We need to use those blocks up to avoid
@@ -169,7 +170,8 @@ static int dio_refill_pages(struct dio *dio)
 		 */
 		if (dio->page_errors == 0)
 			dio->page_errors = ret;
-		dio->pages[0] = ZERO_PAGE(dio->curr_user_address);
+		page_cache_get(page);
+		dio->pages[0] = page;
 		dio->head = 0;
 		dio->tail = 1;
 		ret = 0;

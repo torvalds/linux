@@ -116,12 +116,6 @@ M:	ajk@iehk.rwth-aachen.de
 L:	linux-hams@vger.kernel.org
 S:	Maintained
 
-YEALINK PHONE DRIVER
-P:	Henk Vergonet
-M:	Henk.Vergonet@gmail.com
-L:	usbb2k-api-dev@nongnu.org
-S:	Maintained
-
 8139CP 10/100 FAST ETHERNET DRIVER
 P:	Jeff Garzik
 M:	jgarzik@pobox.com
@@ -195,6 +189,15 @@ AD1816 SOUND DRIVER
 P:	Thorsten Knabe
 M:	Thorsten Knabe <linux@thorsten-knabe.de>
 W:	http://linux.thorsten-knabe.de
+S:	Maintained
+
+AD1889 SOUND DRIVER
+P:	Kyle McMartin
+M:	kyle@parisc-linux.org
+P:	Thibaut Varene
+M:	T-Bone@parisc-linux.org
+W:	http://wiki.parisc-linux.org/AD1889
+L:	parisc-linux@lists.parisc-linux.org
 S:	Maintained
 
 ADM1025 HARDWARE MONITOR DRIVER
@@ -1640,7 +1643,7 @@ S:	Maintained
 MIPS
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
-W:	http://oss.sgi.com/mips/mips-howto.html
+W:	http://www.linux-mips.org/
 L:	linux-mips@linux-mips.org
 S:	Maintained
 
@@ -1941,6 +1944,14 @@ P:	George Anzinger
 M:	george@mvista.com
 L:	netdev@vger.kernel.org
 S:	Supported
+
+POWERPC 4xx EMAC DRIVER
+P:	Eugene Surovegin
+M:	ebs@ebshome.net
+W:	http://kernel.ebshome.net/emac/
+L:	linuxppc-embedded@ozlabs.org
+L:	netdev@vger.kernel.org
+S:	Maintained
 
 PNP SUPPORT
 P:	Adam Belay
@@ -2486,14 +2497,6 @@ L:	linux-kernel@vger.kernel.org
 L:	linux-usb-devel@lists.sourceforge.net
 S:	Supported
 
-USB BLUETOOTH TTY CONVERTER DRIVER
-P:	Greg Kroah-Hartman
-M:	greg@kroah.com
-L:	linux-usb-users@lists.sourceforge.net
-L:	linux-usb-devel@lists.sourceforge.net
-S:	Maintained
-W:	http://www.kroah.com/linux-usb/
-
 USB CDC ETHERNET DRIVER
 P:	Greg Kroah-Hartman
 M:	greg@kroah.com
@@ -2727,6 +2730,12 @@ P:	Roger Luethi
 M:	rl@hellgate.ch
 S:	Maintained
 
+VIAPRO SMBUS DRIVER
+P:	Jean Delvare
+M:	khali@linux-fr.org
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
 UCLINUX (AND M68KNOMMU)
 P:	Greg Ungerer
 M:	gerg@uclinux.org
@@ -2846,6 +2855,12 @@ YAM DRIVER FOR AX.25
 P:	Jean-Paul Roubelat
 M:	jpr@f6fbb.org
 L:	linux-hams@vger.kernel.org
+S:	Maintained
+
+YEALINK PHONE DRIVER
+P:	Henk Vergonet
+M:	Henk.Vergonet@gmail.com
+L:	usbb2k-api-dev@nongnu.org
 S:	Maintained
 
 YMFPCI YAMAHA PCI SOUND (Use ALSA instead)

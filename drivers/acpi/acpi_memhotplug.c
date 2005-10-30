@@ -200,8 +200,7 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	 * Note: Assume that this function returns zero on success
 	 */
 	result = add_memory(mem_device->start_addr,
-			    (mem_device->end_addr - mem_device->start_addr) + 1,
-			    mem_device->read_write_attribute);
+			    (mem_device->end_addr - mem_device->start_addr) + 1);
 	if (result) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "\nadd_memory failed\n"));
 		mem_device->state = MEMORY_INVALID_STATE;
@@ -259,7 +258,7 @@ static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
 	 * Ask the VM to offline this memory range.
 	 * Note: Assume that this function returns zero on success
 	 */
-	result = remove_memory(start, len, attr);
+	result = remove_memory(start, len);
 	if (result) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Hot-Remove failed.\n"));
 		return_VALUE(result);

@@ -79,48 +79,48 @@ static unsigned int usec_bias = 0;
 
 static int xicor_read(uint8_t addr)
 {
-        while (bus_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
+        while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
                 ;
 
-	bus_writeq((addr >> 8) & 0x7, SMB_CSR(R_SMB_CMD));
-	bus_writeq((addr & 0xff), SMB_CSR(R_SMB_DATA));
-	bus_writeq((V_SMB_ADDR(X1241_CCR_ADDRESS) | V_SMB_TT_WR2BYTE),
-		   SMB_CSR(R_SMB_START));
+	__raw_writeq((addr >> 8) & 0x7, SMB_CSR(R_SMB_CMD));
+	__raw_writeq(addr & 0xff, SMB_CSR(R_SMB_DATA));
+	__raw_writeq(V_SMB_ADDR(X1241_CCR_ADDRESS) | V_SMB_TT_WR2BYTE,
+		     SMB_CSR(R_SMB_START));
 
-        while (bus_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
+        while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
                 ;
 
-	bus_writeq((V_SMB_ADDR(X1241_CCR_ADDRESS) | V_SMB_TT_RD1BYTE),
-		   SMB_CSR(R_SMB_START));
+	__raw_writeq(V_SMB_ADDR(X1241_CCR_ADDRESS) | V_SMB_TT_RD1BYTE,
+		     SMB_CSR(R_SMB_START));
 
-        while (bus_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
+        while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
                 ;
 
-        if (bus_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_ERROR) {
+        if (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_ERROR) {
                 /* Clear error bit by writing a 1 */
-                bus_writeq(M_SMB_ERROR, SMB_CSR(R_SMB_STATUS));
+                __raw_writeq(M_SMB_ERROR, SMB_CSR(R_SMB_STATUS));
                 return -1;
         }
 
-	return (bus_readq(SMB_CSR(R_SMB_DATA)) & 0xff);
+	return (__raw_readq(SMB_CSR(R_SMB_DATA)) & 0xff);
 }
 
 static int xicor_write(uint8_t addr, int b)
 {
-        while (bus_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
+        while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
                 ;
 
-	bus_writeq(addr, SMB_CSR(R_SMB_CMD));
-	bus_writeq((addr & 0xff) | ((b & 0xff) << 8), SMB_CSR(R_SMB_DATA));
-	bus_writeq(V_SMB_ADDR(X1241_CCR_ADDRESS) | V_SMB_TT_WR3BYTE,
-		   SMB_CSR(R_SMB_START));
+	__raw_writeq(addr, SMB_CSR(R_SMB_CMD));
+	__raw_writeq((addr & 0xff) | ((b & 0xff) << 8), SMB_CSR(R_SMB_DATA));
+	__raw_writeq(V_SMB_ADDR(X1241_CCR_ADDRESS) | V_SMB_TT_WR3BYTE,
+		     SMB_CSR(R_SMB_START));
 
-        while (bus_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
+        while (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_BUSY)
                 ;
 
-        if (bus_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_ERROR) {
+        if (__raw_readq(SMB_CSR(R_SMB_STATUS)) & M_SMB_ERROR) {
                 /* Clear error bit by writing a 1 */
-                bus_writeq(M_SMB_ERROR, SMB_CSR(R_SMB_STATUS));
+                __raw_writeq(M_SMB_ERROR, SMB_CSR(R_SMB_STATUS));
                 return -1;
         } else {
 		return 0;
@@ -228,8 +228,8 @@ void __init swarm_time_init(void)
 	/* Establish communication with the Xicor 1241 RTC */
 	/* XXXKW how do I share the SMBus with the I2C subsystem? */
 
-	bus_writeq(K_SMB_FREQ_400KHZ, SMB_CSR(R_SMB_FREQ));
-	bus_writeq(0, SMB_CSR(R_SMB_CONTROL));
+	__raw_writeq(K_SMB_FREQ_400KHZ, SMB_CSR(R_SMB_FREQ));
+	__raw_writeq(0, SMB_CSR(R_SMB_CONTROL));
 
 	if ((status = xicor_read(X1241REG_SR_RTCF)) < 0) {
 		printk("x1241: couldn't detect on SWARM SMBus 1\n");

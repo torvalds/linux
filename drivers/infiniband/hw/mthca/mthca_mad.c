@@ -46,11 +46,6 @@ enum {
 	MTHCA_VENDOR_CLASS2 = 0xa
 };
 
-struct mthca_trap_mad {
-	struct ib_mad *mad;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
-};
-
 static void update_sm_ah(struct mthca_dev *dev,
 			 u8 port_num, u16 lid, u8 sl)
 {
@@ -116,49 +111,14 @@ static void forward_trap(struct mthca_dev *dev,
 			 struct ib_mad *mad)
 {
 	int qpn = mad->mad_hdr.mgmt_class != IB_MGMT_CLASS_SUBN_LID_ROUTED;
-	struct mthca_trap_mad *tmad;
-	struct ib_sge      gather_list;
-	struct ib_send_wr *bad_wr, wr = {
-		.opcode      = IB_WR_SEND,
-		.sg_list     = &gather_list,
-		.num_sge     = 1,
-		.send_flags  = IB_SEND_SIGNALED,
-		.wr	     = {
-			 .ud = {
-				 .remote_qpn  = qpn,
-				 .remote_qkey = qpn ? IB_QP1_QKEY : 0,
-				 .timeout_ms  = 0
-			 }
-		 }
-	};
+	struct ib_mad_send_buf *send_buf;
 	struct ib_mad_agent *agent = dev->send_agent[port_num - 1][qpn];
 	int ret;
 	unsigned long flags;
 
 	if (agent) {
-		tmad = kmalloc(sizeof *tmad, GFP_KERNEL);
-		if (!tmad)
-			return;
-
-		tmad->mad = kmalloc(sizeof *tmad->mad, GFP_KERNEL);
-		if (!tmad->mad) {
-			kfree(tmad);
-			return;
-		}
-
-		memcpy(tmad->mad, mad, sizeof *mad);
-
-		wr.wr.ud.mad_hdr = &tmad->mad->mad_hdr;
-		wr.wr_id         = (unsigned long) tmad;
-
-		gather_list.addr   = dma_map_single(agent->device->dma_device,
-						    tmad->mad,
-						    sizeof *tmad->mad,
-						    DMA_TO_DEVICE);
-		gather_list.length = sizeof *tmad->mad;
-		gather_list.lkey   = to_mpd(agent->qp->pd)->ntmr.ibmr.lkey;
-		pci_unmap_addr_set(tmad, mapping, gather_list.addr);
-
+		send_buf = ib_create_send_mad(agent, qpn, 0, 0, IB_MGMT_MAD_HDR,
+					      IB_MGMT_MAD_DATA, GFP_ATOMIC);
 		/*
 		 * We rely here on the fact that MLX QPs don't use the
 		 * address handle after the send is posted (this is
@@ -166,21 +126,15 @@ static void forward_trap(struct mthca_dev *dev,
 		 * it's OK for our devices).
 		 */
 		spin_lock_irqsave(&dev->sm_lock, flags);
-		wr.wr.ud.ah      = dev->sm_ah[port_num - 1];
-		if (wr.wr.ud.ah)
-			ret = ib_post_send_mad(agent, &wr, &bad_wr);
+		memcpy(send_buf->mad, mad, sizeof *mad);
+		if ((send_buf->ah = dev->sm_ah[port_num - 1]))
+			ret = ib_post_send_mad(send_buf, NULL);
 		else
 			ret = -EINVAL;
 		spin_unlock_irqrestore(&dev->sm_lock, flags);
 
-		if (ret) {
-			dma_unmap_single(agent->device->dma_device,
-					 pci_unmap_addr(tmad, mapping),
-					 sizeof *tmad->mad,
-					 DMA_TO_DEVICE);
-			kfree(tmad->mad);
-			kfree(tmad);
-		}
+		if (ret)
+			ib_free_send_mad(send_buf);
 	}
 }
 
@@ -267,15 +221,7 @@ int mthca_process_mad(struct ib_device *ibdev,
 static void send_handler(struct ib_mad_agent *agent,
 			 struct ib_mad_send_wc *mad_send_wc)
 {
-	struct mthca_trap_mad *tmad =
-		(void *) (unsigned long) mad_send_wc->wr_id;
-
-	dma_unmap_single(agent->device->dma_device,
-			 pci_unmap_addr(tmad, mapping),
-			 sizeof *tmad->mad,
-			 DMA_TO_DEVICE);
-	kfree(tmad->mad);
-	kfree(tmad);
+	ib_free_send_mad(mad_send_wc->send_buf);
 }
 
 int mthca_create_agents(struct mthca_dev *dev)

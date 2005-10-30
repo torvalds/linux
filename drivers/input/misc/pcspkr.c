@@ -23,9 +23,7 @@ MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>");
 MODULE_DESCRIPTION("PC Speaker beeper driver");
 MODULE_LICENSE("GPL");
 
-static char pcspkr_name[] = "PC Speaker";
-static char pcspkr_phys[] = "isa0061/input0";
-static struct input_dev pcspkr_dev;
+static struct input_dev *pcspkr_dev;
 
 static DEFINE_SPINLOCK(i8253_beep_lock);
 
@@ -68,27 +66,29 @@ static int pcspkr_event(struct input_dev *dev, unsigned int type, unsigned int c
 
 static int __init pcspkr_init(void)
 {
-	pcspkr_dev.evbit[0] = BIT(EV_SND);
-	pcspkr_dev.sndbit[0] = BIT(SND_BELL) | BIT(SND_TONE);
-	pcspkr_dev.event = pcspkr_event;
+	pcspkr_dev = input_allocate_device();
+	if (!pcspkr_dev)
+		return -ENOMEM;
 
-	pcspkr_dev.name = pcspkr_name;
-	pcspkr_dev.phys = pcspkr_phys;
-	pcspkr_dev.id.bustype = BUS_ISA;
-	pcspkr_dev.id.vendor = 0x001f;
-	pcspkr_dev.id.product = 0x0001;
-	pcspkr_dev.id.version = 0x0100;
+	pcspkr_dev->name = "PC Speaker";
+	pcspkr_dev->name = "isa0061/input0";
+	pcspkr_dev->id.bustype = BUS_ISA;
+	pcspkr_dev->id.vendor = 0x001f;
+	pcspkr_dev->id.product = 0x0001;
+	pcspkr_dev->id.version = 0x0100;
 
-	input_register_device(&pcspkr_dev);
+	pcspkr_dev->evbit[0] = BIT(EV_SND);
+	pcspkr_dev->sndbit[0] = BIT(SND_BELL) | BIT(SND_TONE);
+	pcspkr_dev->event = pcspkr_event;
 
-        printk(KERN_INFO "input: %s\n", pcspkr_name);
+	input_register_device(pcspkr_dev);
 
 	return 0;
 }
 
 static void __exit pcspkr_exit(void)
 {
-        input_unregister_device(&pcspkr_dev);
+        input_unregister_device(pcspkr_dev);
 	/* turn off the speaker */
 	pcspkr_event(NULL, EV_SND, SND_BELL, 0);
 }

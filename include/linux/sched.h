@@ -249,12 +249,56 @@ arch_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
 extern void arch_unmap_area(struct mm_struct *, unsigned long);
 extern void arch_unmap_area_topdown(struct mm_struct *, unsigned long);
 
+#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+/*
+ * The mm counters are not protected by its page_table_lock,
+ * so must be incremented atomically.
+ */
+#ifdef ATOMIC64_INIT
+#define set_mm_counter(mm, member, value) atomic64_set(&(mm)->_##member, value)
+#define get_mm_counter(mm, member) ((unsigned long)atomic64_read(&(mm)->_##member))
+#define add_mm_counter(mm, member, value) atomic64_add(value, &(mm)->_##member)
+#define inc_mm_counter(mm, member) atomic64_inc(&(mm)->_##member)
+#define dec_mm_counter(mm, member) atomic64_dec(&(mm)->_##member)
+typedef atomic64_t mm_counter_t;
+#else /* !ATOMIC64_INIT */
+/*
+ * The counters wrap back to 0 at 2^32 * PAGE_SIZE,
+ * that is, at 16TB if using 4kB page size.
+ */
+#define set_mm_counter(mm, member, value) atomic_set(&(mm)->_##member, value)
+#define get_mm_counter(mm, member) ((unsigned long)atomic_read(&(mm)->_##member))
+#define add_mm_counter(mm, member, value) atomic_add(value, &(mm)->_##member)
+#define inc_mm_counter(mm, member) atomic_inc(&(mm)->_##member)
+#define dec_mm_counter(mm, member) atomic_dec(&(mm)->_##member)
+typedef atomic_t mm_counter_t;
+#endif /* !ATOMIC64_INIT */
+
+#else  /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
+/*
+ * The mm counters are protected by its page_table_lock,
+ * so can be incremented directly.
+ */
 #define set_mm_counter(mm, member, value) (mm)->_##member = (value)
 #define get_mm_counter(mm, member) ((mm)->_##member)
 #define add_mm_counter(mm, member, value) (mm)->_##member += (value)
 #define inc_mm_counter(mm, member) (mm)->_##member++
 #define dec_mm_counter(mm, member) (mm)->_##member--
 typedef unsigned long mm_counter_t;
+
+#endif /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
+
+#define get_mm_rss(mm)					\
+	(get_mm_counter(mm, file_rss) + get_mm_counter(mm, anon_rss))
+#define update_hiwater_rss(mm)	do {			\
+	unsigned long _rss = get_mm_rss(mm);		\
+	if ((mm)->hiwater_rss < _rss)			\
+		(mm)->hiwater_rss = _rss;		\
+} while (0)
+#define update_hiwater_vm(mm)	do {			\
+	if ((mm)->hiwater_vm < (mm)->total_vm)		\
+		(mm)->hiwater_vm = (mm)->total_vm;	\
+} while (0)
 
 struct mm_struct {
 	struct vm_area_struct * mmap;		/* list of VMAs */
@@ -279,15 +323,20 @@ struct mm_struct {
 						 * by mmlist_lock
 						 */
 
+	/* Special counters, in some configurations protected by the
+	 * page_table_lock, in other configurations by being atomic.
+	 */
+	mm_counter_t _file_rss;
+	mm_counter_t _anon_rss;
+
+	unsigned long hiwater_rss;	/* High-watermark of RSS usage */
+	unsigned long hiwater_vm;	/* High-water virtual memory usage */
+
+	unsigned long total_vm, locked_vm, shared_vm, exec_vm;
+	unsigned long stack_vm, reserved_vm, def_flags, nr_ptes;
 	unsigned long start_code, end_code, start_data, end_data;
 	unsigned long start_brk, brk, start_stack;
 	unsigned long arg_start, arg_end, env_start, env_end;
-	unsigned long total_vm, locked_vm, shared_vm;
-	unsigned long exec_vm, stack_vm, reserved_vm, def_flags, nr_ptes;
-
-	/* Special counters protected by the page_table_lock */
-	mm_counter_t _rss;
-	mm_counter_t _anon_rss;
 
 	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
 
@@ -308,11 +357,7 @@ struct mm_struct {
 	/* aio bits */
 	rwlock_t		ioctx_list_lock;
 	struct kioctx		*ioctx_list;
-
 	struct kioctx		default_kioctx;
-
-	unsigned long hiwater_rss;	/* High-water RSS usage */
-	unsigned long hiwater_vm;	/* High-water virtual memory usage */
 };
 
 struct sighand_struct {

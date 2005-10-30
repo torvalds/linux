@@ -76,16 +76,42 @@ static struct map_desc ebsa110_io_desc[] __initdata = {
 	/*
 	 * sparse external-decode ISAIO space
 	 */
-	{ IRQ_STAT,    TRICK4_PHYS, PGDIR_SIZE,  MT_DEVICE }, /* IRQ_STAT/IRQ_MCLR */
-	{ IRQ_MASK,    TRICK3_PHYS, PGDIR_SIZE,  MT_DEVICE }, /* IRQ_MASK/IRQ_MSET */
-	{ SOFT_BASE,   TRICK1_PHYS, PGDIR_SIZE,  MT_DEVICE }, /* SOFT_BASE */
-	{ PIT_BASE,    TRICK0_PHYS, PGDIR_SIZE,  MT_DEVICE }, /* PIT_BASE */
+	{	/* IRQ_STAT/IRQ_MCLR */
+		.virtual	= IRQ_STAT,
+		.pfn		= __phys_to_pfn(TRICK4_PHYS),
+		.length		= PGDIR_SIZE,
+		.type		= MT_DEVICE
+	}, {	/* IRQ_MASK/IRQ_MSET */
+		.virtual	= IRQ_MASK,
+		.pfn		= __phys_to_pfn(TRICK3_PHYS),
+		.length		= PGDIR_SIZE,
+		.type		= MT_DEVICE
+	}, {	/* SOFT_BASE */
+		.virtual	= SOFT_BASE,
+		.pfn		= __phys_to_pfn(TRICK1_PHYS),
+		.length		= PGDIR_SIZE,
+		.type		= MT_DEVICE
+	}, {	/* PIT_BASE */
+		.virtual	= PIT_BASE,
+		.pfn		= __phys_to_pfn(TRICK0_PHYS),
+		.length		= PGDIR_SIZE,
+		.type		= MT_DEVICE
+	},
 
 	/*
 	 * self-decode ISAIO space
 	 */
-	{ ISAIO_BASE,  ISAIO_PHYS,  ISAIO_SIZE,  MT_DEVICE },
-	{ ISAMEM_BASE, ISAMEM_PHYS, ISAMEM_SIZE, MT_DEVICE }
+	{
+		.virtual	= ISAIO_BASE,
+		.pfn		= __phys_to_pfn(ISAIO_PHYS),
+		.length		= ISAIO_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= ISAMEM_BASE,
+		.pfn		= __phys_to_pfn(ISAMEM_PHYS),
+		.length		= ISAMEM_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init ebsa110_map_io(void)

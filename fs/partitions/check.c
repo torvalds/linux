@@ -192,6 +192,7 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 struct part_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct hd_struct *,char *);
+	ssize_t (*store)(struct hd_struct *,const char *, size_t);
 };
 
 static ssize_t 
@@ -201,14 +202,33 @@ part_attr_show(struct kobject * kobj, struct attribute * attr, char * page)
 	struct part_attribute * part_attr = container_of(attr,struct part_attribute,attr);
 	ssize_t ret = 0;
 	if (part_attr->show)
-		ret = part_attr->show(p,page);
+		ret = part_attr->show(p, page);
+	return ret;
+}
+static ssize_t
+part_attr_store(struct kobject * kobj, struct attribute * attr,
+		const char *page, size_t count)
+{
+	struct hd_struct * p = container_of(kobj,struct hd_struct,kobj);
+	struct part_attribute * part_attr = container_of(attr,struct part_attribute,attr);
+	ssize_t ret = 0;
+
+	if (part_attr->store)
+		ret = part_attr->store(p, page, count);
 	return ret;
 }
 
 static struct sysfs_ops part_sysfs_ops = {
 	.show	=	part_attr_show,
+	.store	=	part_attr_store,
 };
 
+static ssize_t part_uevent_store(struct hd_struct * p,
+				 const char *page, size_t count)
+{
+	kobject_hotplug(&p->kobj, KOBJ_ADD);
+	return count;
+}
 static ssize_t part_dev_read(struct hd_struct * p, char *page)
 {
 	struct gendisk *disk = container_of(p->kobj.parent,struct gendisk,kobj);
@@ -229,6 +249,10 @@ static ssize_t part_stat_read(struct hd_struct * p, char *page)
 		       p->reads, (unsigned long long)p->read_sectors,
 		       p->writes, (unsigned long long)p->write_sectors);
 }
+static struct part_attribute part_attr_uevent = {
+	.attr = {.name = "uevent", .mode = S_IWUSR },
+	.store	= part_uevent_store
+};
 static struct part_attribute part_attr_dev = {
 	.attr = {.name = "dev", .mode = S_IRUGO },
 	.show	= part_dev_read
@@ -247,6 +271,7 @@ static struct part_attribute part_attr_stat = {
 };
 
 static struct attribute * default_attrs[] = {
+	&part_attr_uevent.attr,
 	&part_attr_dev.attr,
 	&part_attr_start.attr,
 	&part_attr_size.attr,

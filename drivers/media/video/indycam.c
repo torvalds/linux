@@ -9,16 +9,16 @@
  *  published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
-#include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/major.h>
-#include <linux/slab.h>
+#include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include <linux/videodev.h>
 /* IndyCam decodes stream of photons into digital image representation ;-) */
@@ -43,8 +43,6 @@ MODULE_LICENSE("GPL");
 #define dprintk(x...)
 #define indycam_regdump(client)
 #endif
-
-#define VINO_ADAPTER	(I2C_ALGO_SGI | I2C_HW_SGI_VINO)
 
 struct indycam {
 	struct i2c_client *client;
@@ -300,7 +298,7 @@ out_free_client:
 static int indycam_probe(struct i2c_adapter *adap)
 {
 	/* Indy specific crap */
-	if (adap->id == VINO_ADAPTER)
+	if (adap->id == I2C_HW_SGI_VINO)
 		return indycam_attach(adap, INDYCAM_ADDR, 0);
 	/* Feel free to add probe here :-) */
 	return -ENODEV;

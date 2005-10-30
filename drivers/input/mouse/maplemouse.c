@@ -41,13 +41,12 @@ static int dc_mouse_connect(struct maple_device *dev)
 	unsigned long data = be32_to_cpu(dev->devinfo.function_data[0]);
 	struct input_dev *input_dev;
 
-	if (!(input_dev = kmalloc(sizeof(struct input_dev), GFP_KERNEL)))
-		return -1;
+	dev->private_data = input_dev = input_allocate_device();
+	if (!input_dev)
+		return -ENOMEM;
 
 	dev->private_data = input_dev;
 
-	memset(input_dev, 0, sizeof(struct dc_mouse));
-	init_input_dev(input_dev);
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
 	input_dev->keybit[LONG(BTN_MOUSE)] = BIT(BTN_LEFT) | BIT(BTN_RIGHT) | BIT(BTN_MIDDLE);
 	input_dev->relbit[0] = BIT(REL_X) | BIT(REL_Y) | BIT(REL_WHEEL);
@@ -59,8 +58,6 @@ static int dc_mouse_connect(struct maple_device *dev)
 
 	maple_getcond_callback(dev, dc_mouse_callback, 1, MAPLE_FUNC_MOUSE);
 
-	printk(KERN_INFO "input: mouse(0x%lx): %s\n", data, input_dev->name);
-
 	return 0;
 }
 
@@ -70,7 +67,6 @@ static void dc_mouse_disconnect(struct maple_device *dev)
 	struct input_dev *input_dev = dev->private_data;
 
 	input_unregister_device(input_dev);
-	kfree(input_dev);
 }
 
 

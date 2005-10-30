@@ -95,8 +95,8 @@ int try_to_unmap(struct page *);
 /*
  * Called from mm/filemap_xip.c to unmap empty zero page
  */
-pte_t *page_check_address(struct page *, struct mm_struct *, unsigned long);
-
+pte_t *page_check_address(struct page *, struct mm_struct *,
+				unsigned long, spinlock_t **);
 
 /*
  * Used by swapoff to help locate where page is expected in vma.

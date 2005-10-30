@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/version.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -1130,14 +1131,10 @@ static void b44_init_rings(struct b44 *bp)
  */
 static void b44_free_consistent(struct b44 *bp)
 {
-	if (bp->rx_buffers) {
-		kfree(bp->rx_buffers);
-		bp->rx_buffers = NULL;
-	}
-	if (bp->tx_buffers) {
-		kfree(bp->tx_buffers);
-		bp->tx_buffers = NULL;
-	}
+	kfree(bp->rx_buffers);
+	bp->rx_buffers = NULL;
+	kfree(bp->tx_buffers);
+	bp->tx_buffers = NULL;
 	if (bp->rx_ring) {
 		if (bp->flags & B44_FLAG_RX_RING_HACK) {
 			dma_unmap_single(&bp->pdev->dev, bp->rx_ring_dma,
@@ -1619,14 +1616,14 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	cmd->advertising = 0;
 	if (bp->flags & B44_FLAG_ADV_10HALF)
-		cmd->advertising |= ADVERTISE_10HALF;
+		cmd->advertising |= ADVERTISED_10baseT_Half;
 	if (bp->flags & B44_FLAG_ADV_10FULL)
-		cmd->advertising |= ADVERTISE_10FULL;
+		cmd->advertising |= ADVERTISED_10baseT_Full;
 	if (bp->flags & B44_FLAG_ADV_100HALF)
-		cmd->advertising |= ADVERTISE_100HALF;
+		cmd->advertising |= ADVERTISED_100baseT_Half;
 	if (bp->flags & B44_FLAG_ADV_100FULL)
-		cmd->advertising |= ADVERTISE_100FULL;
-	cmd->advertising |= ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM;
+		cmd->advertising |= ADVERTISED_100baseT_Full;
+	cmd->advertising |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
 	cmd->speed = (bp->flags & B44_FLAG_100_BASE_T) ?
 		SPEED_100 : SPEED_10;
 	cmd->duplex = (bp->flags & B44_FLAG_FULL_DUPLEX) ?
@@ -2044,6 +2041,8 @@ static int b44_suspend(struct pci_dev *pdev, pm_message_t state)
 	b44_free_rings(bp);
 
 	spin_unlock_irq(&bp->lock);
+
+	free_irq(dev->irq, dev);
 	pci_disable_device(pdev);
 	return 0;
 }
@@ -2059,6 +2058,9 @@ static int b44_resume(struct pci_dev *pdev)
 
 	if (!netif_running(dev))
 		return 0;
+
+	if (request_irq(dev->irq, b44_interrupt, SA_SHIRQ, dev->name, dev))
+		printk(KERN_ERR PFX "%s: request_irq failed\n", dev->name);
 
 	spin_lock_irq(&bp->lock);
 

@@ -2076,8 +2076,7 @@ static int __init de_init_one (struct pci_dev *pdev,
 	return 0;
 
 err_out_iomap:
-	if (de->ee_data)
-		kfree(de->ee_data);
+	kfree(de->ee_data);
 	iounmap(regs);
 err_out_res:
 	pci_release_regions(pdev);
@@ -2096,8 +2095,7 @@ static void __exit de_remove_one (struct pci_dev *pdev)
 	if (!dev)
 		BUG();
 	unregister_netdev(dev);
-	if (de->ee_data)
-		kfree(de->ee_data);
+	kfree(de->ee_data);
 	iounmap(de->regs);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);

@@ -705,8 +705,7 @@ static void free_shared_mem(struct s2io_nic *nic)
 			}
 			kfree(mac_control->rings[i].ba[j]);
 		}
-		if (mac_control->rings[i].ba)
-			kfree(mac_control->rings[i].ba);
+		kfree(mac_control->rings[i].ba);
 	}
 #endif
 
@@ -3045,7 +3044,7 @@ int s2io_set_swapper(nic_t * sp)
 
 int wait_for_msix_trans(nic_t *nic, int i)
 {
-	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	u64 val64;
 	int ret = 0, cnt = 0;
 
@@ -3066,7 +3065,7 @@ int wait_for_msix_trans(nic_t *nic, int i)
 
 void restore_xmsi_data(nic_t *nic)
 {
-	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	u64 val64;
 	int i;
 
@@ -3084,7 +3083,7 @@ void restore_xmsi_data(nic_t *nic)
 
 void store_xmsi_data(nic_t *nic)
 {
-	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	u64 val64, addr, data;
 	int i;
 
@@ -3107,7 +3106,7 @@ void store_xmsi_data(nic_t *nic)
 
 int s2io_enable_msi(nic_t *nic)
 {
-	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	u16 msi_ctrl, msg_val;
 	struct config_param *config = &nic->config;
 	struct net_device *dev = nic->dev;
@@ -3157,7 +3156,7 @@ int s2io_enable_msi(nic_t *nic)
 
 int s2io_enable_msi_x(nic_t *nic)
 {
-	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
+	XENA_dev_config_t __iomem *bar0 = nic->bar0;
 	u64 tx_mat, rx_mat;
 	u16 msi_control; /* Temp variable */
 	int ret, i, j, msix_indx = 1;

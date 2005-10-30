@@ -74,13 +74,8 @@
 #define MAX_MEM_SLOTS   32                      /* max slots per node */
 #endif /* defined(N_MODE) */
 
-#if SABLE_RTL
-#define SLOT_SHIFT      	(28)
-#define SLOT_MIN_MEM_SIZE	(16*1024*1024)
-#else
 #define SLOT_SHIFT      	(27)
 #define SLOT_MIN_MEM_SIZE	(32*1024*1024)
-#endif
 
 #define CPUS_PER_NODE		2	/* CPUs on a single hub */
 #define CPUS_PER_NODE_SHFT	1	/* Bits to shift in the node number */
