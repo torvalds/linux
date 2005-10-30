@@ -68,11 +68,6 @@ tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
 	put_cpu_var(mmu_gathers);
 }
 
-static inline unsigned int tlb_is_full_mm(struct mmu_gather *tlb)
-{
-	return tlb->fullmm;
-}
-
 #define tlb_remove_tlb_entry(tlb,ptep,address)	do { } while (0)
 
 /*

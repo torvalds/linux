@@ -249,7 +249,7 @@ void free_pgd_range(struct mmu_gather **tlb,
 		free_pud_range(*tlb, pgd, addr, next, floor, ceiling);
 	} while (pgd++, addr = next, addr != end);
 
-	if (!tlb_is_full_mm(*tlb))
+	if (!(*tlb)->fullmm)
 		flush_tlb_pgtables((*tlb)->mm, start, end);
 }
 
@@ -698,7 +698,7 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp, struct mm_struct *mm,
 	int tlb_start_valid = 0;
 	unsigned long start = start_addr;
 	spinlock_t *i_mmap_lock = details? details->i_mmap_lock: NULL;
-	int fullmm = tlb_is_full_mm(*tlbp);
+	int fullmm = (*tlbp)->fullmm;
 
 	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next) {
 		unsigned long end;
