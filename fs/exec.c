@@ -1417,19 +1417,16 @@ static void zap_threads (struct mm_struct *mm)
 static void coredump_wait(struct mm_struct *mm)
 {
 	DECLARE_COMPLETION(startup_done);
+	int core_waiters;
 
-	mm->core_waiters++; /* let other threads block */
 	mm->core_startup_done = &startup_done;
 
-	/* give other threads a chance to run: */
-	yield();
-
 	zap_threads(mm);
-	if (--mm->core_waiters) {
-		up_write(&mm->mmap_sem);
+	core_waiters = mm->core_waiters;
+	up_write(&mm->mmap_sem);
+
+	if (core_waiters)
 		wait_for_completion(&startup_done);
-	} else
-		up_write(&mm->mmap_sem);
 	BUG_ON(mm->core_waiters);
 }
 
