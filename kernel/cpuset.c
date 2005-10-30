@@ -1113,6 +1113,21 @@ static int cpuset_file_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+/*
+ * cpuset_rename - Only allow simple rename of directories in place.
+ */
+static int cpuset_rename(struct inode *old_dir, struct dentry *old_dentry,
+                  struct inode *new_dir, struct dentry *new_dentry)
+{
+	if (!S_ISDIR(old_dentry->d_inode->i_mode))
+		return -ENOTDIR;
+	if (new_dentry->d_inode)
+		return -EEXIST;
+	if (old_dir != new_dir)
+		return -EIO;
+	return simple_rename(old_dir, old_dentry, new_dir, new_dentry);
+}
+
 static struct file_operations cpuset_file_operations = {
 	.read = cpuset_file_read,
 	.write = cpuset_file_write,
@@ -1125,6 +1140,7 @@ static struct inode_operations cpuset_dir_inode_operations = {
 	.lookup = simple_lookup,
 	.mkdir = cpuset_mkdir,
 	.rmdir = cpuset_rmdir,
+	.rename = cpuset_rename,
 };
 
 static int cpuset_create_file(struct dentry *dentry, int mode)
