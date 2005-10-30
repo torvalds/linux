@@ -1383,6 +1383,15 @@ repeat:
 
 			switch (p->state) {
 			case TASK_TRACED:
+				/*
+				 * When we hit the race with PTRACE_ATTACH,
+				 * we will not report this child.  But the
+				 * race means it has not yet been moved to
+				 * our ptrace_children list, so we need to
+				 * set the flag here to avoid a spurious ECHILD
+				 * when the race happens with the only child.
+				 */
+				flag = 1;
 				if (!my_ptrace_child(p))
 					continue;
 				/*FALLTHROUGH*/
