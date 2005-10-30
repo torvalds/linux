@@ -282,14 +282,11 @@ void free_pgtables(struct mmu_gather **tlb, struct vm_area_struct *vma,
 
 int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
 {
-	struct page *new;
-
-	spin_unlock(&mm->page_table_lock);
-	new = pte_alloc_one(mm, address);
-	spin_lock(&mm->page_table_lock);
+	struct page *new = pte_alloc_one(mm, address);
 	if (!new)
 		return -ENOMEM;
 
+	spin_lock(&mm->page_table_lock);
 	if (pmd_present(*pmd))		/* Another has populated it */
 		pte_free(new);
 	else {
@@ -297,6 +294,7 @@ int __pte_alloc(struct mm_struct *mm, pmd_t *pmd, unsigned long address)
 		inc_page_state(nr_page_table_pages);
 		pmd_populate(mm, pmd, new);
 	}
+	spin_unlock(&mm->page_table_lock);
 	return 0;
 }
 
@@ -344,9 +342,6 @@ void print_bad_pte(struct vm_area_struct *vma, pte_t pte, unsigned long vaddr)
  * copy one vm_area from one task to the other. Assumes the page tables
  * already present in the new task to be cleared in the whole range
  * covered by this vma.
- *
- * dst->page_table_lock is held on entry and exit,
- * but may be dropped within p[mg]d_alloc() and pte_alloc_map().
  */
 
 static inline void
@@ -419,17 +414,19 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		unsigned long addr, unsigned long end)
 {
 	pte_t *src_pte, *dst_pte;
+	spinlock_t *src_ptl, *dst_ptl;
 	int progress = 0;
 	int rss[2];
 
 again:
 	rss[1] = rss[0] = 0;
-	dst_pte = pte_alloc_map(dst_mm, dst_pmd, addr);
+	dst_pte = pte_alloc_map_lock(dst_mm, dst_pmd, addr, &dst_ptl);
 	if (!dst_pte)
 		return -ENOMEM;
 	src_pte = pte_offset_map_nested(src_pmd, addr);
+	src_ptl = &src_mm->page_table_lock;
+	spin_lock(src_ptl);
 
-	spin_lock(&src_mm->page_table_lock);
 	do {
 		/*
 		 * We are holding two locks at this point - either of them
@@ -438,8 +435,8 @@ again:
 		if (progress >= 32) {
 			progress = 0;
 			if (need_resched() ||
-			    need_lockbreak(&src_mm->page_table_lock) ||
-			    need_lockbreak(&dst_mm->page_table_lock))
+			    need_lockbreak(src_ptl) ||
+			    need_lockbreak(dst_ptl))
 				break;
 		}
 		if (pte_none(*src_pte)) {
@@ -449,12 +446,12 @@ again:
 		copy_one_pte(dst_mm, src_mm, dst_pte, src_pte, vma, addr, rss);
 		progress += 8;
 	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
-	spin_unlock(&src_mm->page_table_lock);
 
+	spin_unlock(src_ptl);
 	pte_unmap_nested(src_pte - 1);
-	pte_unmap(dst_pte - 1);
 	add_mm_rss(dst_mm, rss[0], rss[1]);
-	cond_resched_lock(&dst_mm->page_table_lock);
+	pte_unmap_unlock(dst_pte - 1, dst_ptl);
+	cond_resched();
 	if (addr != end)
 		goto again;
 	return 0;
@@ -1049,8 +1046,9 @@ static int zeromap_pte_range(struct mm_struct *mm, pmd_t *pmd,
 			unsigned long addr, unsigned long end, pgprot_t prot)
 {
 	pte_t *pte;
+	spinlock_t *ptl;
 
-	pte = pte_alloc_map(mm, pmd, addr);
+	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
 	if (!pte)
 		return -ENOMEM;
 	do {
@@ -1062,7 +1060,7 @@ static int zeromap_pte_range(struct mm_struct *mm, pmd_t *pmd,
 		BUG_ON(!pte_none(*pte));
 		set_pte_at(mm, addr, pte, zero_pte);
 	} while (pte++, addr += PAGE_SIZE, addr != end);
-	pte_unmap(pte - 1);
+	pte_unmap_unlock(pte - 1, ptl);
 	return 0;
 }
 
@@ -1112,14 +1110,12 @@ int zeromap_page_range(struct vm_area_struct *vma,
 	BUG_ON(addr >= end);
 	pgd = pgd_offset(mm, addr);
 	flush_cache_range(vma, addr, end);
-	spin_lock(&mm->page_table_lock);
 	do {
 		next = pgd_addr_end(addr, end);
 		err = zeromap_pud_range(mm, pgd, addr, next, prot);
 		if (err)
 			break;
 	} while (pgd++, addr = next, addr != end);
-	spin_unlock(&mm->page_table_lock);
 	return err;
 }
 
@@ -1133,8 +1129,9 @@ static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
 			unsigned long pfn, pgprot_t prot)
 {
 	pte_t *pte;
+	spinlock_t *ptl;
 
-	pte = pte_alloc_map(mm, pmd, addr);
+	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
 	if (!pte)
 		return -ENOMEM;
 	do {
@@ -1142,7 +1139,7 @@ static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
 		set_pte_at(mm, addr, pte, pfn_pte(pfn, prot));
 		pfn++;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
-	pte_unmap(pte - 1);
+	pte_unmap_unlock(pte - 1, ptl);
 	return 0;
 }
 
@@ -1210,7 +1207,6 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	pfn -= addr >> PAGE_SHIFT;
 	pgd = pgd_offset(mm, addr);
 	flush_cache_range(vma, addr, end);
-	spin_lock(&mm->page_table_lock);
 	do {
 		next = pgd_addr_end(addr, end);
 		err = remap_pud_range(mm, pgd, addr, next,
@@ -1218,7 +1214,6 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 		if (err)
 			break;
 	} while (pgd++, addr = next, addr != end);
-	spin_unlock(&mm->page_table_lock);
 	return err;
 }
 EXPORT_SYMBOL(remap_pfn_range);
@@ -1985,17 +1980,9 @@ static int do_file_page(struct mm_struct *mm, struct vm_area_struct *vma,
  * with external mmu caches can use to update those (ie the Sparc or
  * PowerPC hashed page tables that act as extended TLBs).
  *
- * Note the "page_table_lock". It is to protect against kswapd removing
- * pages from under us. Note that kswapd only ever _removes_ pages, never
- * adds them. As such, once we have noticed that the page is not present,
- * we can drop the lock early.
- *
- * The adding of pages is protected by the MM semaphore (which we hold),
- * so we don't need to worry about a page being suddenly been added into
- * our VM.
- *
- * We enter with the pagetable spinlock held, we are supposed to
- * release it when done.
+ * We enter with non-exclusive mmap_sem (to exclude vma changes,
+ * but allow concurrent faults), and pte mapped but not yet locked.
+ * We return with mmap_sem still held, but pte unmapped and unlocked.
  */
 static inline int handle_pte_fault(struct mm_struct *mm,
 		struct vm_area_struct *vma, unsigned long address,
@@ -2003,6 +1990,7 @@ static inline int handle_pte_fault(struct mm_struct *mm,
 {
 	pte_t entry;
 
+	spin_lock(&mm->page_table_lock);
 	entry = *pte;
 	if (!pte_present(entry)) {
 		if (pte_none(entry)) {
@@ -2051,30 +2039,18 @@ int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	if (unlikely(is_vm_hugetlb_page(vma)))
 		return hugetlb_fault(mm, vma, address, write_access);
 
-	/*
-	 * We need the page table lock to synchronize with kswapd
-	 * and the SMP-safe atomic PTE updates.
-	 */
 	pgd = pgd_offset(mm, address);
-	spin_lock(&mm->page_table_lock);
-
 	pud = pud_alloc(mm, pgd, address);
 	if (!pud)
-		goto oom;
-
+		return VM_FAULT_OOM;
 	pmd = pmd_alloc(mm, pud, address);
 	if (!pmd)
-		goto oom;
-
+		return VM_FAULT_OOM;
 	pte = pte_alloc_map(mm, pmd, address);
 	if (!pte)
-		goto oom;
-	
-	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
+		return VM_FAULT_OOM;
 
- oom:
-	spin_unlock(&mm->page_table_lock);
-	return VM_FAULT_OOM;
+	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
 }
 
 #ifndef __PAGETABLE_PUD_FOLDED
@@ -2084,24 +2060,16 @@ int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
  */
 int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
 {
-	pud_t *new;
-
-	if (mm != &init_mm)		/* Temporary bridging hack */
-		spin_unlock(&mm->page_table_lock);
-	new = pud_alloc_one(mm, address);
-	if (!new) {
-		if (mm != &init_mm)	/* Temporary bridging hack */
-			spin_lock(&mm->page_table_lock);
+	pud_t *new = pud_alloc_one(mm, address);
+	if (!new)
 		return -ENOMEM;
-	}
 
 	spin_lock(&mm->page_table_lock);
 	if (pgd_present(*pgd))		/* Another has populated it */
 		pud_free(new);
 	else
 		pgd_populate(mm, pgd, new);
-	if (mm == &init_mm)		/* Temporary bridging hack */
-		spin_unlock(&mm->page_table_lock);
+	spin_unlock(&mm->page_table_lock);
 	return 0;
 }
 #endif /* __PAGETABLE_PUD_FOLDED */
@@ -2113,16 +2081,9 @@ int __pud_alloc(struct mm_struct *mm, pgd_t *pgd, unsigned long address)
  */
 int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
 {
-	pmd_t *new;
-
-	if (mm != &init_mm)		/* Temporary bridging hack */
-		spin_unlock(&mm->page_table_lock);
-	new = pmd_alloc_one(mm, address);
-	if (!new) {
-		if (mm != &init_mm)	/* Temporary bridging hack */
-			spin_lock(&mm->page_table_lock);
+	pmd_t *new = pmd_alloc_one(mm, address);
+	if (!new)
 		return -ENOMEM;
-	}
 
 	spin_lock(&mm->page_table_lock);
 #ifndef __ARCH_HAS_4LEVEL_HACK
@@ -2136,8 +2097,7 @@ int __pmd_alloc(struct mm_struct *mm, pud_t *pud, unsigned long address)
 	else
 		pgd_populate(mm, pud, new);
 #endif /* __ARCH_HAS_4LEVEL_HACK */
-	if (mm == &init_mm)		/* Temporary bridging hack */
-		spin_unlock(&mm->page_table_lock);
+	spin_unlock(&mm->page_table_lock);
 	return 0;
 }
 #endif /* __PAGETABLE_PMD_FOLDED */

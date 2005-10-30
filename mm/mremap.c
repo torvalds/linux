@@ -28,9 +28,6 @@ static pmd_t *get_old_pmd(struct mm_struct *mm, unsigned long addr)
 	pud_t *pud;
 	pmd_t *pmd;
 
-	/*
-	 * We don't need page_table_lock: we have mmap_sem exclusively.
-	 */
 	pgd = pgd_offset(mm, addr);
 	if (pgd_none_or_clear_bad(pgd))
 		return NULL;
@@ -50,25 +47,20 @@ static pmd_t *alloc_new_pmd(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
 	pud_t *pud;
-	pmd_t *pmd = NULL;
+	pmd_t *pmd;
 
-	/*
-	 * We do need page_table_lock: because allocators expect that.
-	 */
-	spin_lock(&mm->page_table_lock);
 	pgd = pgd_offset(mm, addr);
 	pud = pud_alloc(mm, pgd, addr);
 	if (!pud)
-		goto out;
+		return NULL;
 
 	pmd = pmd_alloc(mm, pud, addr);
 	if (!pmd)
-		goto out;
+		return NULL;
 
 	if (!pmd_present(*pmd) && __pte_alloc(mm, pmd, addr))
-		pmd = NULL;
-out:
-	spin_unlock(&mm->page_table_lock);
+		return NULL;
+
 	return pmd;
 }
 
@@ -80,6 +72,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 	struct address_space *mapping = NULL;
 	struct mm_struct *mm = vma->vm_mm;
 	pte_t *old_pte, *new_pte, pte;
+	spinlock_t *old_ptl;
 
 	if (vma->vm_file) {
 		/*
@@ -95,9 +88,8 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 			new_vma->vm_truncate_count = 0;
 	}
 
-	spin_lock(&mm->page_table_lock);
-	old_pte = pte_offset_map(old_pmd, old_addr);
-	new_pte = pte_offset_map_nested(new_pmd, new_addr);
+	old_pte = pte_offset_map_lock(mm, old_pmd, old_addr, &old_ptl);
+ 	new_pte = pte_offset_map_nested(new_pmd, new_addr);
 
 	for (; old_addr < old_end; old_pte++, old_addr += PAGE_SIZE,
 				   new_pte++, new_addr += PAGE_SIZE) {
@@ -110,8 +102,7 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 	}
 
 	pte_unmap_nested(new_pte - 1);
-	pte_unmap(old_pte - 1);
-	spin_unlock(&mm->page_table_lock);
+	pte_unmap_unlock(old_pte - 1, old_ptl);
 	if (mapping)
 		spin_unlock(&mapping->i_mmap_lock);
 }

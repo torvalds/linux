@@ -255,7 +255,6 @@ static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 		/*
 		 * Link in the new vma and copy the page table entries.
 		 */
-		spin_lock(&mm->page_table_lock);
 		*pprev = tmp;
 		pprev = &tmp->vm_next;
 
@@ -265,7 +264,6 @@ static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 
 		mm->map_count++;
 		retval = copy_page_range(mm, oldmm, tmp);
-		spin_unlock(&mm->page_table_lock);
 
 		if (tmp->vm_ops && tmp->vm_ops->open)
 			tmp->vm_ops->open(tmp);

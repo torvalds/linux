@@ -63,23 +63,20 @@ int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	pud_t *pud;
 	pgd_t *pgd;
 	pte_t pte_val;
+	spinlock_t *ptl;
 
 	BUG_ON(vma->vm_flags & VM_RESERVED);
 
 	pgd = pgd_offset(mm, addr);
-	spin_lock(&mm->page_table_lock);
-	
 	pud = pud_alloc(mm, pgd, addr);
 	if (!pud)
-		goto err_unlock;
-
+		goto out;
 	pmd = pmd_alloc(mm, pud, addr);
 	if (!pmd)
-		goto err_unlock;
-
-	pte = pte_alloc_map(mm, pmd, addr);
+		goto out;
+	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
 	if (!pte)
-		goto err_unlock;
+		goto out;
 
 	/*
 	 * This page may have been truncated. Tell the
@@ -89,10 +86,10 @@ int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	inode = vma->vm_file->f_mapping->host;
 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	if (!page->mapping || page->index >= size)
-		goto err_unlock;
+		goto unlock;
 	err = -ENOMEM;
 	if (page_mapcount(page) > INT_MAX/2)
-		goto err_unlock;
+		goto unlock;
 
 	if (pte_none(*pte) || !zap_pte(mm, vma, addr, pte))
 		inc_mm_counter(mm, file_rss);
@@ -101,16 +98,14 @@ int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	set_pte_at(mm, addr, pte, mk_pte(page, prot));
 	page_add_file_rmap(page);
 	pte_val = *pte;
-	pte_unmap(pte);
 	update_mmu_cache(vma, addr, pte_val);
-
 	err = 0;
-err_unlock:
-	spin_unlock(&mm->page_table_lock);
+unlock:
+	pte_unmap_unlock(pte, ptl);
+out:
 	return err;
 }
 EXPORT_SYMBOL(install_page);
-
 
 /*
  * Install a file pte to a given virtual memory address, release any
@@ -125,23 +120,20 @@ int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 	pud_t *pud;
 	pgd_t *pgd;
 	pte_t pte_val;
+	spinlock_t *ptl;
 
 	BUG_ON(vma->vm_flags & VM_RESERVED);
 
 	pgd = pgd_offset(mm, addr);
-	spin_lock(&mm->page_table_lock);
-	
 	pud = pud_alloc(mm, pgd, addr);
 	if (!pud)
-		goto err_unlock;
-
+		goto out;
 	pmd = pmd_alloc(mm, pud, addr);
 	if (!pmd)
-		goto err_unlock;
-
-	pte = pte_alloc_map(mm, pmd, addr);
+		goto out;
+	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
 	if (!pte)
-		goto err_unlock;
+		goto out;
 
 	if (!pte_none(*pte) && zap_pte(mm, vma, addr, pte)) {
 		update_hiwater_rss(mm);
@@ -150,16 +142,12 @@ int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 
 	set_pte_at(mm, addr, pte, pgoff_to_pte(pgoff));
 	pte_val = *pte;
-	pte_unmap(pte);
 	update_mmu_cache(vma, addr, pte_val);
-	spin_unlock(&mm->page_table_lock);
-	return 0;
-
-err_unlock:
-	spin_unlock(&mm->page_table_lock);
+	pte_unmap_unlock(pte, ptl);
+	err = 0;
+out:
 	return err;
 }
-
 
 /***
  * sys_remap_file_pages - remap arbitrary pages of a shared backing store

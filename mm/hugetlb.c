@@ -277,12 +277,15 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 	unsigned long addr;
 
 	for (addr = vma->vm_start; addr < vma->vm_end; addr += HPAGE_SIZE) {
+		src_pte = huge_pte_offset(src, addr);
+		if (!src_pte)
+			continue;
 		dst_pte = huge_pte_alloc(dst, addr);
 		if (!dst_pte)
 			goto nomem;
+		spin_lock(&dst->page_table_lock);
 		spin_lock(&src->page_table_lock);
-		src_pte = huge_pte_offset(src, addr);
-		if (src_pte && !pte_none(*src_pte)) {
+		if (!pte_none(*src_pte)) {
 			entry = *src_pte;
 			ptepage = pte_page(entry);
 			get_page(ptepage);
@@ -290,6 +293,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 			set_huge_pte_at(dst, addr, dst_pte, entry);
 		}
 		spin_unlock(&src->page_table_lock);
+		spin_unlock(&dst->page_table_lock);
 	}
 	return 0;
 
@@ -354,7 +358,6 @@ int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)
 
 	hugetlb_prefault_arch_hook(mm);
 
-	spin_lock(&mm->page_table_lock);
 	for (addr = vma->vm_start; addr < vma->vm_end; addr += HPAGE_SIZE) {
 		unsigned long idx;
 		pte_t *pte = huge_pte_alloc(mm, addr);
@@ -389,11 +392,12 @@ int hugetlb_prefault(struct address_space *mapping, struct vm_area_struct *vma)
 				goto out;
 			}
 		}
+		spin_lock(&mm->page_table_lock);
 		add_mm_counter(mm, file_rss, HPAGE_SIZE / PAGE_SIZE);
 		set_huge_pte_at(mm, addr, pte, make_huge_pte(vma, page));
+		spin_unlock(&mm->page_table_lock);
 	}
 out:
-	spin_unlock(&mm->page_table_lock);
 	return ret;
 }
 
