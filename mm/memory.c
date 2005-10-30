@@ -343,6 +343,23 @@ static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss)
 #define NO_RSS 2	/* Increment neither file_rss nor anon_rss */
 
 /*
+ * This function is called to print an error when a pte in a
+ * !VM_RESERVED region is found pointing to an invalid pfn (which
+ * is an error.
+ *
+ * The calling function must still handle the error.
+ */
+void print_bad_pte(struct vm_area_struct *vma, pte_t pte, unsigned long vaddr)
+{
+	printk(KERN_ERR "Bad pte = %08llx, process = %s, "
+			"vm_flags = %lx, vaddr = %lx\n",
+		(long long)pte_val(pte),
+		(vma->vm_mm == current->mm ? current->comm : "???"),
+		vma->vm_flags, vaddr);
+	dump_stack();
+}
+
+/*
  * copy one vm_area from one task to the other. Assumes the page tables
  * already present in the new task to be cleared in the whole range
  * covered by this vma.
@@ -353,9 +370,10 @@ static inline void add_mm_rss(struct mm_struct *mm, int file_rss, int anon_rss)
 
 static inline int
 copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-		pte_t *dst_pte, pte_t *src_pte, unsigned long vm_flags,
+		pte_t *dst_pte, pte_t *src_pte, struct vm_area_struct *vma,
 		unsigned long addr)
 {
+	unsigned long vm_flags = vma->vm_flags;
 	pte_t pte = *src_pte;
 	struct page *page;
 	unsigned long pfn;
@@ -375,18 +393,22 @@ copy_one_pte(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		goto out_set_pte;
 	}
 
-	pfn = pte_pfn(pte);
-	/* the pte points outside of valid memory, the
-	 * mapping is assumed to be good, meaningful
-	 * and not mapped via rmap - duplicate the
-	 * mapping as is.
+	/* If the region is VM_RESERVED, the mapping is not
+	 * mapped via rmap - duplicate the pte as is.
 	 */
-	page = NULL;
-	if (pfn_valid(pfn))
-		page = pfn_to_page(pfn);
-
-	if (!page || PageReserved(page))
+	if (vm_flags & VM_RESERVED)
 		goto out_set_pte;
+
+	pfn = pte_pfn(pte);
+	/* If the pte points outside of valid memory but
+	 * the region is not VM_RESERVED, we have a problem.
+	 */
+	if (unlikely(!pfn_valid(pfn))) {
+		print_bad_pte(vma, pte, addr);
+		goto out_set_pte; /* try to do something sane */
+	}
+
+	page = pfn_to_page(pfn);
 
 	/*
 	 * If it's a COW mapping, write protect it both
@@ -418,7 +440,6 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 		unsigned long addr, unsigned long end)
 {
 	pte_t *src_pte, *dst_pte;
-	unsigned long vm_flags = vma->vm_flags;
 	int progress = 0;
 	int rss[NO_RSS+1], anon;
 
@@ -446,8 +467,7 @@ again:
 			progress++;
 			continue;
 		}
-		anon = copy_one_pte(dst_mm, src_mm, dst_pte, src_pte,
-							vm_flags, addr);
+		anon = copy_one_pte(dst_mm, src_mm, dst_pte, src_pte, vma,addr);
 		rss[anon]++;
 		progress += 8;
 	} while (dst_pte++, src_pte++, addr += PAGE_SIZE, addr != end);
@@ -541,10 +561,12 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	return 0;
 }
 
-static void zap_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
+static void zap_pte_range(struct mmu_gather *tlb,
+				struct vm_area_struct *vma, pmd_t *pmd,
 				unsigned long addr, unsigned long end,
 				struct zap_details *details)
 {
+	struct mm_struct *mm = tlb->mm;
 	pte_t *pte;
 	int file_rss = 0;
 	int anon_rss = 0;
@@ -556,11 +578,12 @@ static void zap_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
 			continue;
 		if (pte_present(ptent)) {
 			struct page *page = NULL;
-			unsigned long pfn = pte_pfn(ptent);
-			if (pfn_valid(pfn)) {
-				page = pfn_to_page(pfn);
-				if (PageReserved(page))
-					page = NULL;
+			if (!(vma->vm_flags & VM_RESERVED)) {
+				unsigned long pfn = pte_pfn(ptent);
+				if (unlikely(!pfn_valid(pfn)))
+					print_bad_pte(vma, ptent, addr);
+				else
+					page = pfn_to_page(pfn);
 			}
 			if (unlikely(details) && page) {
 				/*
@@ -580,7 +603,7 @@ static void zap_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
 				     page->index > details->last_index))
 					continue;
 			}
-			ptent = ptep_get_and_clear_full(tlb->mm, addr, pte,
+			ptent = ptep_get_and_clear_full(mm, addr, pte,
 							tlb->fullmm);
 			tlb_remove_tlb_entry(tlb, pte, addr);
 			if (unlikely(!page))
@@ -588,7 +611,7 @@ static void zap_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
 			if (unlikely(details) && details->nonlinear_vma
 			    && linear_page_index(details->nonlinear_vma,
 						addr) != page->index)
-				set_pte_at(tlb->mm, addr, pte,
+				set_pte_at(mm, addr, pte,
 					   pgoff_to_pte(page->index));
 			if (PageAnon(page))
 				anon_rss++;
@@ -611,14 +634,15 @@ static void zap_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
 			continue;
 		if (!pte_file(ptent))
 			free_swap_and_cache(pte_to_swp_entry(ptent));
-		pte_clear_full(tlb->mm, addr, pte, tlb->fullmm);
+		pte_clear_full(mm, addr, pte, tlb->fullmm);
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 
-	add_mm_rss(tlb->mm, -file_rss, -anon_rss);
+	add_mm_rss(mm, -file_rss, -anon_rss);
 	pte_unmap(pte - 1);
 }
 
-static inline void zap_pmd_range(struct mmu_gather *tlb, pud_t *pud,
+static inline void zap_pmd_range(struct mmu_gather *tlb,
+				struct vm_area_struct *vma, pud_t *pud,
 				unsigned long addr, unsigned long end,
 				struct zap_details *details)
 {
@@ -630,11 +654,12 @@ static inline void zap_pmd_range(struct mmu_gather *tlb, pud_t *pud,
 		next = pmd_addr_end(addr, end);
 		if (pmd_none_or_clear_bad(pmd))
 			continue;
-		zap_pte_range(tlb, pmd, addr, next, details);
+		zap_pte_range(tlb, vma, pmd, addr, next, details);
 	} while (pmd++, addr = next, addr != end);
 }
 
-static inline void zap_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
+static inline void zap_pud_range(struct mmu_gather *tlb,
+				struct vm_area_struct *vma, pgd_t *pgd,
 				unsigned long addr, unsigned long end,
 				struct zap_details *details)
 {
@@ -646,7 +671,7 @@ static inline void zap_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
 		next = pud_addr_end(addr, end);
 		if (pud_none_or_clear_bad(pud))
 			continue;
-		zap_pmd_range(tlb, pud, addr, next, details);
+		zap_pmd_range(tlb, vma, pud, addr, next, details);
 	} while (pud++, addr = next, addr != end);
 }
 
@@ -667,7 +692,7 @@ static void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd))
 			continue;
-		zap_pud_range(tlb, pgd, addr, next, details);
+		zap_pud_range(tlb, vma, pgd, addr, next, details);
 	} while (pgd++, addr = next, addr != end);
 	tlb_end_vma(tlb, vma);
 }
@@ -967,7 +992,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			continue;
 		}
 
-		if (!vma || (vma->vm_flags & VM_IO)
+		if (!vma || (vma->vm_flags & (VM_IO | VM_RESERVED))
 				|| !(flags & vma->vm_flags))
 			return i ? : -EFAULT;
 
@@ -1027,8 +1052,7 @@ int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			if (pages) {
 				pages[i] = page;
 				flush_dcache_page(page);
-				if (!PageReserved(page))
-					page_cache_get(page);
+				page_cache_get(page);
 			}
 			if (vmas)
 				vmas[i] = vma;
@@ -1051,7 +1075,11 @@ static int zeromap_pte_range(struct mm_struct *mm, pmd_t *pmd,
 	if (!pte)
 		return -ENOMEM;
 	do {
-		pte_t zero_pte = pte_wrprotect(mk_pte(ZERO_PAGE(addr), prot));
+		struct page *page = ZERO_PAGE(addr);
+		pte_t zero_pte = pte_wrprotect(mk_pte(page, prot));
+		page_cache_get(page);
+		page_add_file_rmap(page);
+		inc_mm_counter(mm, file_rss);
 		BUG_ON(!pte_none(*pte));
 		set_pte_at(mm, addr, pte, zero_pte);
 	} while (pte++, addr += PAGE_SIZE, addr != end);
@@ -1132,8 +1160,7 @@ static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
 		return -ENOMEM;
 	do {
 		BUG_ON(!pte_none(*pte));
-		if (!pfn_valid(pfn) || PageReserved(pfn_to_page(pfn)))
-			set_pte_at(mm, addr, pte, pfn_pte(pfn, prot));
+		set_pte_at(mm, addr, pte, pfn_pte(pfn, prot));
 		pfn++;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	pte_unmap(pte - 1);
@@ -1195,8 +1222,8 @@ int remap_pfn_range(struct vm_area_struct *vma, unsigned long addr,
 	 * rest of the world about it:
 	 *   VM_IO tells people not to look at these pages
 	 *	(accesses can have side effects).
-	 *   VM_RESERVED tells swapout not to try to touch
-	 *	this region.
+	 *   VM_RESERVED tells the core MM not to "manage" these pages
+         *	(e.g. refcount, mapcount, try to swap them out).
 	 */
 	vma->vm_flags |= VM_IO | VM_RESERVED;
 
@@ -1256,11 +1283,13 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	pte_t entry;
 	int ret = VM_FAULT_MINOR;
 
+	BUG_ON(vma->vm_flags & VM_RESERVED);
+
 	if (unlikely(!pfn_valid(pfn))) {
 		/*
 		 * Page table corrupted: show pte and kill process.
 		 */
-		pte_ERROR(orig_pte);
+		print_bad_pte(vma, orig_pte, address);
 		ret = VM_FAULT_OOM;
 		goto unlock;
 	}
@@ -1284,8 +1313,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	/*
 	 * Ok, we need to copy. Oh, well..
 	 */
-	if (!PageReserved(old_page))
-		page_cache_get(old_page);
+	page_cache_get(old_page);
 	pte_unmap(page_table);
 	spin_unlock(&mm->page_table_lock);
 
@@ -1308,14 +1336,10 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	spin_lock(&mm->page_table_lock);
 	page_table = pte_offset_map(pmd, address);
 	if (likely(pte_same(*page_table, orig_pte))) {
-		if (PageReserved(old_page))
+		page_remove_rmap(old_page);
+		if (!PageAnon(old_page)) {
 			inc_mm_counter(mm, anon_rss);
-		else {
-			page_remove_rmap(old_page);
-			if (!PageAnon(old_page)) {
-				inc_mm_counter(mm, anon_rss);
-				dec_mm_counter(mm, file_rss);
-			}
+			dec_mm_counter(mm, file_rss);
 		}
 		flush_cache_page(vma, address, pfn);
 		entry = mk_pte(new_page, vma->vm_page_prot);
@@ -1769,14 +1793,13 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		unsigned long address, pte_t *page_table, pmd_t *pmd,
 		int write_access)
 {
+	struct page *page = ZERO_PAGE(addr);
 	pte_t entry;
 
 	/* Mapping of ZERO_PAGE - vm_page_prot is readonly */
-	entry = mk_pte(ZERO_PAGE(addr), vma->vm_page_prot);
+	entry = mk_pte(page, vma->vm_page_prot);
 
 	if (write_access) {
-		struct page *page;
-
 		/* Allocate our own private page. */
 		pte_unmap(page_table);
 		spin_unlock(&mm->page_table_lock);
@@ -1800,6 +1823,10 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		lru_cache_add_active(page);
 		SetPageReferenced(page);
 		page_add_anon_rmap(page, vma, address);
+	} else {
+		inc_mm_counter(mm, file_rss);
+		page_add_file_rmap(page);
+		page_cache_get(page);
 	}
 
 	set_pte_at(mm, address, page_table, entry);
@@ -1916,7 +1943,7 @@ retry:
 			inc_mm_counter(mm, anon_rss);
 			lru_cache_add_active(new_page);
 			page_add_anon_rmap(new_page, vma, address);
-		} else if (!PageReserved(new_page)) {
+		} else if (!(vma->vm_flags & VM_RESERVED)) {
 			inc_mm_counter(mm, file_rss);
 			page_add_file_rmap(new_page);
 		}
@@ -1957,7 +1984,7 @@ static int do_file_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		/*
 		 * Page table corrupted: show pte and kill process.
 		 */
-		pte_ERROR(orig_pte);
+		print_bad_pte(vma, orig_pte, address);
 		return VM_FAULT_OOM;
 	}
 	/* We can then assume vm->vm_ops && vma->vm_ops->populate */
@@ -2232,7 +2259,7 @@ static int __init gate_vma_init(void)
 	gate_vma.vm_start = FIXADDR_USER_START;
 	gate_vma.vm_end = FIXADDR_USER_END;
 	gate_vma.vm_page_prot = PAGE_READONLY;
-	gate_vma.vm_flags = 0;
+	gate_vma.vm_flags = VM_RESERVED;
 	return 0;
 }
 __initcall(gate_vma_init);

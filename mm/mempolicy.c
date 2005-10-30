@@ -223,13 +223,13 @@ static struct mempolicy *mpol_new(int mode, nodemask_t *nodes)
 }
 
 /* Ensure all existing pages follow the policy. */
-static int check_pte_range(struct mm_struct *mm, pmd_t *pmd,
+static int check_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		unsigned long addr, unsigned long end, nodemask_t *nodes)
 {
 	pte_t *orig_pte;
 	pte_t *pte;
 
-	spin_lock(&mm->page_table_lock);
+	spin_lock(&vma->vm_mm->page_table_lock);
 	orig_pte = pte = pte_offset_map(pmd, addr);
 	do {
 		unsigned long pfn;
@@ -238,18 +238,20 @@ static int check_pte_range(struct mm_struct *mm, pmd_t *pmd,
 		if (!pte_present(*pte))
 			continue;
 		pfn = pte_pfn(*pte);
-		if (!pfn_valid(pfn))
+		if (!pfn_valid(pfn)) {
+			print_bad_pte(vma, *pte, addr);
 			continue;
+		}
 		nid = pfn_to_nid(pfn);
 		if (!node_isset(nid, *nodes))
 			break;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	pte_unmap(orig_pte);
-	spin_unlock(&mm->page_table_lock);
+	spin_unlock(&vma->vm_mm->page_table_lock);
 	return addr != end;
 }
 
-static inline int check_pmd_range(struct mm_struct *mm, pud_t *pud,
+static inline int check_pmd_range(struct vm_area_struct *vma, pud_t *pud,
 		unsigned long addr, unsigned long end, nodemask_t *nodes)
 {
 	pmd_t *pmd;
@@ -260,13 +262,13 @@ static inline int check_pmd_range(struct mm_struct *mm, pud_t *pud,
 		next = pmd_addr_end(addr, end);
 		if (pmd_none_or_clear_bad(pmd))
 			continue;
-		if (check_pte_range(mm, pmd, addr, next, nodes))
+		if (check_pte_range(vma, pmd, addr, next, nodes))
 			return -EIO;
 	} while (pmd++, addr = next, addr != end);
 	return 0;
 }
 
-static inline int check_pud_range(struct mm_struct *mm, pgd_t *pgd,
+static inline int check_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
 		unsigned long addr, unsigned long end, nodemask_t *nodes)
 {
 	pud_t *pud;
@@ -277,24 +279,24 @@ static inline int check_pud_range(struct mm_struct *mm, pgd_t *pgd,
 		next = pud_addr_end(addr, end);
 		if (pud_none_or_clear_bad(pud))
 			continue;
-		if (check_pmd_range(mm, pud, addr, next, nodes))
+		if (check_pmd_range(vma, pud, addr, next, nodes))
 			return -EIO;
 	} while (pud++, addr = next, addr != end);
 	return 0;
 }
 
-static inline int check_pgd_range(struct mm_struct *mm,
+static inline int check_pgd_range(struct vm_area_struct *vma,
 		unsigned long addr, unsigned long end, nodemask_t *nodes)
 {
 	pgd_t *pgd;
 	unsigned long next;
 
-	pgd = pgd_offset(mm, addr);
+	pgd = pgd_offset(vma->vm_mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd))
 			continue;
-		if (check_pud_range(mm, pgd, addr, next, nodes))
+		if (check_pud_range(vma, pgd, addr, next, nodes))
 			return -EIO;
 	} while (pgd++, addr = next, addr != end);
 	return 0;
@@ -311,6 +313,8 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 	first = find_vma(mm, start);
 	if (!first)
 		return ERR_PTR(-EFAULT);
+	if (first->vm_flags & VM_RESERVED)
+		return ERR_PTR(-EACCES);
 	prev = NULL;
 	for (vma = first; vma && vma->vm_start < end; vma = vma->vm_next) {
 		if (!vma->vm_next && vma->vm_end < end)
@@ -323,8 +327,7 @@ check_range(struct mm_struct *mm, unsigned long start, unsigned long end,
 				endvma = end;
 			if (vma->vm_start > start)
 				start = vma->vm_start;
-			err = check_pgd_range(vma->vm_mm,
-					   start, endvma, nodes);
+			err = check_pgd_range(vma, start, endvma, nodes);
 			if (err) {
 				first = ERR_PTR(err);
 				break;

@@ -578,15 +578,23 @@ static int save_highmem_zone(struct zone *zone)
 			continue;
 		page = pfn_to_page(pfn);
 		/*
-		 * This condition results from rvmalloc() sans vmalloc_32()
-		 * and architectural memory reservations. This should be
-		 * corrected eventually when the cases giving rise to this
-		 * are better understood.
+		 * PageReserved results from rvmalloc() sans vmalloc_32()
+		 * and architectural memory reservations.
+		 *
+		 * rvmalloc should not cause this, because all implementations
+		 * appear to always be using vmalloc_32 on architectures with
+		 * highmem. This is a good thing, because we would like to save
+		 * rvmalloc pages.
+		 *
+		 * It appears to be triggered by pages which do not point to
+		 * valid memory (see arch/i386/mm/init.c:one_highpage_init(),
+		 * which sets PageReserved if the page does not point to valid
+		 * RAM.
+		 *
+		 * XXX: must remove usage of PageReserved!
 		 */
-		if (PageReserved(page)) {
-			printk("highmem reserved page?!\n");
+		if (PageReserved(page))
 			continue;
-		}
 		BUG_ON(PageNosave(page));
 		if (PageNosaveFree(page))
 			continue;
@@ -672,10 +680,9 @@ static int saveable(struct zone * zone, unsigned long * zone_pfn)
 		return 0;
 
 	page = pfn_to_page(pfn);
-	BUG_ON(PageReserved(page) && PageNosave(page));
 	if (PageNosave(page))
 		return 0;
-	if (PageReserved(page) && pfn_is_nosave(pfn)) {
+	if (pfn_is_nosave(pfn)) {
 		pr_debug("[nosave pfn 0x%lx]", pfn);
 		return 0;
 	}

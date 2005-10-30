@@ -174,6 +174,7 @@ __xip_unmap (struct address_space * mapping,
 	unsigned long address;
 	pte_t *pte;
 	pte_t pteval;
+	struct page *page = ZERO_PAGE(address);
 
 	spin_lock(&mapping->i_mmap_lock);
 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
@@ -185,15 +186,17 @@ __xip_unmap (struct address_space * mapping,
 		 * We need the page_table_lock to protect us from page faults,
 		 * munmap, fork, etc...
 		 */
-		pte = page_check_address(ZERO_PAGE(address), mm,
-					 address);
+		pte = page_check_address(page, mm, address);
 		if (!IS_ERR(pte)) {
 			/* Nuke the page table entry. */
 			flush_cache_page(vma, address, pte_pfn(*pte));
 			pteval = ptep_clear_flush(vma, address, pte);
+			page_remove_rmap(page);
+			dec_mm_counter(mm, file_rss);
 			BUG_ON(pte_dirty(pteval));
 			pte_unmap(pte);
 			spin_unlock(&mm->page_table_lock);
+			page_cache_release(page);
 		}
 	}
 	spin_unlock(&mapping->i_mmap_lock);
@@ -228,7 +231,7 @@ xip_file_nopage(struct vm_area_struct * area,
 
 	page = mapping->a_ops->get_xip_page(mapping, pgoff*(PAGE_SIZE/512), 0);
 	if (!IS_ERR(page)) {
-		return page;
+		goto out;
 	}
 	if (PTR_ERR(page) != -ENODATA)
 		return NULL;
@@ -249,6 +252,8 @@ xip_file_nopage(struct vm_area_struct * area,
 		page = ZERO_PAGE(address);
 	}
 
+out:
+	page_cache_get(page);
 	return page;
 }
 

@@ -1506,8 +1506,10 @@ static void do_shmem_file_read(struct file *filp, loff_t *ppos, read_descriptor_
 			 */
 			if (!offset)
 				mark_page_accessed(page);
-		} else
+		} else {
 			page = ZERO_PAGE(0);
+			page_cache_get(page);
+		}
 
 		/*
 		 * Ok, we have the page, and it's up-to-date, so

@@ -127,6 +127,9 @@ int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 	int space = GET_IOSPACE(pfn);
 	unsigned long offset = GET_PFN(pfn) << PAGE_SHIFT;
 
+	/* See comment in mm/memory.c remap_pfn_range */
+	vma->vm_flags |= VM_IO | VM_RESERVED;
+
 	prot = __pgprot(pg_iobits);
 	offset -= from;
 	dir = pgd_offset(mm, from);

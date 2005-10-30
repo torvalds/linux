@@ -29,19 +29,20 @@ static inline void zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 		return;
 	if (pte_present(pte)) {
 		unsigned long pfn = pte_pfn(pte);
+		struct page *page;
 
 		flush_cache_page(vma, addr, pfn);
 		pte = ptep_clear_flush(vma, addr, ptep);
-		if (pfn_valid(pfn)) {
-			struct page *page = pfn_to_page(pfn);
-			if (!PageReserved(page)) {
-				if (pte_dirty(pte))
-					set_page_dirty(page);
-				page_remove_rmap(page);
-				page_cache_release(page);
-				dec_mm_counter(mm, file_rss);
-			}
+		if (unlikely(!pfn_valid(pfn))) {
+			print_bad_pte(vma, pte, addr);
+			return;
 		}
+		page = pfn_to_page(pfn);
+		if (pte_dirty(pte))
+			set_page_dirty(page);
+		page_remove_rmap(page);
+		page_cache_release(page);
+		dec_mm_counter(mm, file_rss);
 	} else {
 		if (!pte_file(pte))
 			free_swap_and_cache(pte_to_swp_entry(pte));
@@ -64,6 +65,8 @@ int install_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	pud_t *pud;
 	pgd_t *pgd;
 	pte_t pte_val;
+
+	BUG_ON(vma->vm_flags & VM_RESERVED);
 
 	pgd = pgd_offset(mm, addr);
 	spin_lock(&mm->page_table_lock);
@@ -124,6 +127,8 @@ int install_file_pte(struct mm_struct *mm, struct vm_area_struct *vma,
 	pud_t *pud;
 	pgd_t *pgd;
 	pte_t pte_val;
+
+	BUG_ON(vma->vm_flags & VM_RESERVED);
 
 	pgd = pgd_offset(mm, addr);
 	spin_lock(&mm->page_table_lock);

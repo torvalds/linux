@@ -2949,8 +2949,7 @@ static struct page * snd_pcm_mmap_status_nopage(struct vm_area_struct *area, uns
 		return NOPAGE_OOM;
 	runtime = substream->runtime;
 	page = virt_to_page(runtime->status);
-	if (!PageReserved(page))
-		get_page(page);
+	get_page(page);
 	if (type)
 		*type = VM_FAULT_MINOR;
 	return page;
@@ -2992,8 +2991,7 @@ static struct page * snd_pcm_mmap_control_nopage(struct vm_area_struct *area, un
 		return NOPAGE_OOM;
 	runtime = substream->runtime;
 	page = virt_to_page(runtime->control);
-	if (!PageReserved(page))
-		get_page(page);
+	get_page(page);
 	if (type)
 		*type = VM_FAULT_MINOR;
 	return page;
@@ -3066,8 +3064,7 @@ static struct page *snd_pcm_mmap_data_nopage(struct vm_area_struct *area, unsign
 		vaddr = runtime->dma_area + offset;
 		page = virt_to_page(vaddr);
 	}
-	if (!PageReserved(page))
-		get_page(page);
+	get_page(page);
 	if (type)
 		*type = VM_FAULT_MINOR;
 	return page;
