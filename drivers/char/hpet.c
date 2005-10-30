@@ -49,6 +49,8 @@
 #define	HPET_USER_FREQ	(64)
 #define	HPET_DRIFT	(500)
 
+#define HPET_RANGE_SIZE		1024	/* from HPET spec */
+
 static u32 hpet_nhpet, hpet_max_freq = HPET_USER_FREQ;
 
 /* A lock for concurrent access by app and isr hpet activity. */
@@ -922,6 +924,21 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		for (hpetp = hpets; hpetp; hpetp = hpetp->hp_next)
 			if (hpetp->hp_hpet == hdp->hd_address)
 				return -EBUSY;
+	} else if (res->id == ACPI_RSTYPE_FIXED_MEM32) {
+		struct acpi_resource_fixed_mem32 *fixmem32;
+
+		fixmem32 = &res->data.fixed_memory32;
+		if (!fixmem32)
+			return -EINVAL;
+
+		hdp->hd_phys_address = fixmem32->range_base_address;
+		hdp->hd_address = ioremap(fixmem32->range_base_address,
+						HPET_RANGE_SIZE);
+
+		for (hpetp = hpets; hpetp; hpetp = hpetp->hp_next)
+			if (hpetp->hp_hpet == hdp->hd_address) {
+				return -EBUSY;
+			}
 	} else if (res->id == ACPI_RSTYPE_EXT_IRQ) {
 		struct acpi_resource_ext_irq *irqp;
 		int i;
