@@ -430,7 +430,7 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 	}
 
 	if (devp->hd_flags & HPET_SHARED_IRQ) {
-		isr = 1 << (devp - hpets->hp_dev);
+		isr = 1 << (devp - devp->hd_hpets->hp_dev);
 		writel(isr, &hpet->hpet_isr);
 	}
 	writeq(g, &timer->hpet_config);
@@ -769,7 +769,7 @@ static unsigned long hpet_calibrate(struct hpets *hpetp)
 	if (!timer)
 		return 0;
 
-	hpet = hpets->hp_hpet;
+	hpet = hpetp->hp_hpet;
 	t = read_counter(&timer->hpet_compare);
 
 	i = 0;
