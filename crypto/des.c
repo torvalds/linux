@@ -12,11 +12,13 @@
  *
  */
 
+#include <asm/byteorder.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/crypto.h>
+#include <linux/types.h>
 
 #define DES_KEY_SIZE		8
 #define DES_EXPKEY_WORDS	32

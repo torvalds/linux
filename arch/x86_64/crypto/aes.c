@@ -74,8 +74,6 @@ static inline u8 byte(const u32 x, const unsigned n)
 	return x >> (n << 3);
 }
 
-#define u32_in(x) le32_to_cpu(*(const __le32 *)(x))
-
 struct aes_ctx
 {
 	u32 key_length;
@@ -234,6 +232,7 @@ static int aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len,
 		       u32 *flags)
 {
 	struct aes_ctx *ctx = ctx_arg;
+	const __le32 *key = (const __le32 *)in_key;
 	u32 i, j, t, u, v, w;
 
 	if (key_len != 16 && key_len != 24 && key_len != 32) {
@@ -243,10 +242,10 @@ static int aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len,
 
 	ctx->key_length = key_len;
 
-	D_KEY[key_len + 24] = E_KEY[0] = u32_in(in_key);
-	D_KEY[key_len + 25] = E_KEY[1] = u32_in(in_key + 4);
-	D_KEY[key_len + 26] = E_KEY[2] = u32_in(in_key + 8);
-	D_KEY[key_len + 27] = E_KEY[3] = u32_in(in_key + 12);
+	D_KEY[key_len + 24] = E_KEY[0] = le32_to_cpu(key[0]);
+	D_KEY[key_len + 25] = E_KEY[1] = le32_to_cpu(key[1]);
+	D_KEY[key_len + 26] = E_KEY[2] = le32_to_cpu(key[2]);
+	D_KEY[key_len + 27] = E_KEY[3] = le32_to_cpu(key[3]);
 
 	switch (key_len) {
 	case 16:
@@ -256,17 +255,17 @@ static int aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len,
 		break;
 
 	case 24:
-		E_KEY[4] = u32_in(in_key + 16);
-		t = E_KEY[5] = u32_in(in_key + 20);
+		E_KEY[4] = le32_to_cpu(key[4]);
+		t = E_KEY[5] = le32_to_cpu(key[5]);
 		for (i = 0; i < 8; ++i)
 			loop6 (i);
 		break;
 
 	case 32:
-		E_KEY[4] = u32_in(in_key + 16);
-		E_KEY[5] = u32_in(in_key + 20);
-		E_KEY[6] = u32_in(in_key + 24);
-		t = E_KEY[7] = u32_in(in_key + 28);
+		E_KEY[4] = le32_to_cpu(key[4]);
+		E_KEY[5] = le32_to_cpu(key[5]);
+		E_KEY[6] = le32_to_cpu(key[6]);
+		t = E_KEY[7] = le32_to_cpu(key[7]);
 		for (i = 0; i < 7; ++i)
 			loop8(i);
 		break;

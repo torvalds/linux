@@ -10,10 +10,12 @@
  * published by the Free Software Foundation.
  */
 
+#include <asm/byteorder.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/crypto.h>
+#include <linux/types.h>
 
 
 struct michael_mic_ctx {
@@ -43,21 +45,6 @@ do {				\
 } while (0)
 
 
-static inline u32 get_le32(const u8 *p)
-{
-	return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
-}
-
-
-static inline void put_le32(u8 *p, u32 v)
-{
-	p[0] = v;
-	p[1] = v >> 8;
-	p[2] = v >> 16;
-	p[3] = v >> 24;
-}
-
-
 static void michael_init(void *ctx)
 {
 	struct michael_mic_ctx *mctx = ctx;
@@ -68,6 +55,7 @@ static void michael_init(void *ctx)
 static void michael_update(void *ctx, const u8 *data, unsigned int len)
 {
 	struct michael_mic_ctx *mctx = ctx;
+	const __le32 *src;
 
 	if (mctx->pending_len) {
 		int flen = 4 - mctx->pending_len;
@@ -81,21 +69,23 @@ static void michael_update(void *ctx, const u8 *data, unsigned int len)
 		if (mctx->pending_len < 4)
 			return;
 
-		mctx->l ^= get_le32(mctx->pending);
+		src = (const __le32 *)mctx->pending;
+		mctx->l ^= le32_to_cpup(src);
 		michael_block(mctx->l, mctx->r);
 		mctx->pending_len = 0;
 	}
 
+	src = (const __le32 *)data;
+
 	while (len >= 4) {
-		mctx->l ^= get_le32(data);
+		mctx->l ^= le32_to_cpup(src++);
 		michael_block(mctx->l, mctx->r);
-		data += 4;
 		len -= 4;
 	}
 
 	if (len > 0) {
 		mctx->pending_len = len;
-		memcpy(mctx->pending, data, len);
+		memcpy(mctx->pending, src, len);
 	}
 }
 
@@ -104,6 +94,7 @@ static void michael_final(void *ctx, u8 *out)
 {
 	struct michael_mic_ctx *mctx = ctx;
 	u8 *data = mctx->pending;
+	__le32 *dst = (__le32 *)out;
 
 	/* Last block and padding (0x5a, 4..7 x 0) */
 	switch (mctx->pending_len) {
@@ -125,8 +116,8 @@ static void michael_final(void *ctx, u8 *out)
 	/* l ^= 0; */
 	michael_block(mctx->l, mctx->r);
 
-	put_le32(out, mctx->l);
-	put_le32(out + 4, mctx->r);
+	dst[0] = cpu_to_le32(mctx->l);
+	dst[1] = cpu_to_le32(mctx->r);
 }
 
 
@@ -134,13 +125,16 @@ static int michael_setkey(void *ctx, const u8 *key, unsigned int keylen,
 			  u32 *flags)
 {
 	struct michael_mic_ctx *mctx = ctx;
+	const __le32 *data = (const __le32 *)key;
+
 	if (keylen != 8) {
 		if (flags)
 			*flags = CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
 	}
-	mctx->l = get_le32(key);
-	mctx->r = get_le32(key + 4);
+
+	mctx->l = le32_to_cpu(data[0]);
+	mctx->r = le32_to_cpu(data[1]);
 	return 0;
 }
 

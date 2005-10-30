@@ -36,6 +36,8 @@
  * Copyright (c) 2004 Red Hat, Inc., James Morris <jmorris@redhat.com>
  *
  */
+
+#include <asm/byteorder.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -59,7 +61,6 @@ struct aes_ctx {
 };
 
 #define WPOLY 0x011b
-#define u32_in(x) le32_to_cpup((const __le32 *)(x))
 #define bytes2word(b0, b1, b2, b3)  \
 	(((u32)(b3) << 24) | ((u32)(b2) << 16) | ((u32)(b1) << 8) | (b0))
 
@@ -393,13 +394,14 @@ aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u32 *flags)
 	int i;
 	u32 ss[8];
 	struct aes_ctx *ctx = ctx_arg;
+	const __le32 *key = (const __le32 *)in_key;
 
 	/* encryption schedule */
 	
-	ctx->ekey[0] = ss[0] = u32_in(in_key);
-	ctx->ekey[1] = ss[1] = u32_in(in_key + 4);
-	ctx->ekey[2] = ss[2] = u32_in(in_key + 8);
-	ctx->ekey[3] = ss[3] = u32_in(in_key + 12);
+	ctx->ekey[0] = ss[0] = le32_to_cpu(key[0]);
+	ctx->ekey[1] = ss[1] = le32_to_cpu(key[1]);
+	ctx->ekey[2] = ss[2] = le32_to_cpu(key[2]);
+	ctx->ekey[3] = ss[3] = le32_to_cpu(key[3]);
 
 	switch(key_len) {
 	case 16:
@@ -410,8 +412,8 @@ aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u32 *flags)
 		break;
 		
 	case 24:
-		ctx->ekey[4] = ss[4] = u32_in(in_key + 16);
-		ctx->ekey[5] = ss[5] = u32_in(in_key + 20);
+		ctx->ekey[4] = ss[4] = le32_to_cpu(key[4]);
+		ctx->ekey[5] = ss[5] = le32_to_cpu(key[5]);
 		for (i = 0; i < 7; i++)
 			ke6(ctx->ekey, i);
 		kel6(ctx->ekey, 7); 
@@ -419,10 +421,10 @@ aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u32 *flags)
 		break;
 
 	case 32:
-		ctx->ekey[4] = ss[4] = u32_in(in_key + 16);
-		ctx->ekey[5] = ss[5] = u32_in(in_key + 20);
-		ctx->ekey[6] = ss[6] = u32_in(in_key + 24);
-		ctx->ekey[7] = ss[7] = u32_in(in_key + 28);
+		ctx->ekey[4] = ss[4] = le32_to_cpu(key[4]);
+		ctx->ekey[5] = ss[5] = le32_to_cpu(key[5]);
+		ctx->ekey[6] = ss[6] = le32_to_cpu(key[6]);
+		ctx->ekey[7] = ss[7] = le32_to_cpu(key[7]);
 		for (i = 0; i < 6; i++)
 			ke8(ctx->ekey, i);
 		kel8(ctx->ekey, 6);
@@ -436,10 +438,10 @@ aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u32 *flags)
 	
 	/* decryption schedule */
 	
-	ctx->dkey[0] = ss[0] = u32_in(in_key);
-	ctx->dkey[1] = ss[1] = u32_in(in_key + 4);
-	ctx->dkey[2] = ss[2] = u32_in(in_key + 8);
-	ctx->dkey[3] = ss[3] = u32_in(in_key + 12);
+	ctx->dkey[0] = ss[0] = le32_to_cpu(key[0]);
+	ctx->dkey[1] = ss[1] = le32_to_cpu(key[1]);
+	ctx->dkey[2] = ss[2] = le32_to_cpu(key[2]);
+	ctx->dkey[3] = ss[3] = le32_to_cpu(key[3]);
 
 	switch (key_len) {
 	case 16:
@@ -450,8 +452,8 @@ aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u32 *flags)
 		break;
 		
 	case 24:
-		ctx->dkey[4] = ff(ss[4] = u32_in(in_key + 16));
-		ctx->dkey[5] = ff(ss[5] = u32_in(in_key + 20));
+		ctx->dkey[4] = ff(ss[4] = le32_to_cpu(key[4]));
+		ctx->dkey[5] = ff(ss[5] = le32_to_cpu(key[5]));
 		kdf6(ctx->dkey, 0);
 		for (i = 1; i < 7; i++)
 			kd6(ctx->dkey, i);
@@ -459,10 +461,10 @@ aes_set_key(void *ctx_arg, const u8 *in_key, unsigned int key_len, u32 *flags)
 		break;
 
 	case 32:
-		ctx->dkey[4] = ff(ss[4] = u32_in(in_key + 16));
-		ctx->dkey[5] = ff(ss[5] = u32_in(in_key + 20));
-		ctx->dkey[6] = ff(ss[6] = u32_in(in_key + 24));
-		ctx->dkey[7] = ff(ss[7] = u32_in(in_key + 28));
+		ctx->dkey[4] = ff(ss[4] = le32_to_cpu(key[4]));
+		ctx->dkey[5] = ff(ss[5] = le32_to_cpu(key[5]));
+		ctx->dkey[6] = ff(ss[6] = le32_to_cpu(key[6]));
+		ctx->dkey[7] = ff(ss[7] = le32_to_cpu(key[7]));
 		kdf8(ctx->dkey, 0);
 		for (i = 1; i < 6; i++)
 			kd8(ctx->dkey, i);

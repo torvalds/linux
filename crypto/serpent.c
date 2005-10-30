@@ -20,6 +20,7 @@
 #include <linux/errno.h>
 #include <asm/byteorder.h>
 #include <linux/crypto.h>
+#include <linux/types.h>
 
 /* Key is padded to the maximum of 256 bits before round key generation.
  * Any key length <= 256 bits (32 bytes) is allowed by the algorithm.

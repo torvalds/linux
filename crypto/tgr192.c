@@ -24,8 +24,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mm.h>
+#include <asm/byteorder.h>
 #include <asm/scatterlist.h>
 #include <linux/crypto.h>
+#include <linux/types.h>
 
 #define TGR192_DIGEST_SIZE 24
 #define TGR160_DIGEST_SIZE 20
@@ -467,18 +469,10 @@ static void tgr192_transform(struct tgr192_ctx *tctx, const u8 * data)
 	u64 a, b, c, aa, bb, cc;
 	u64 x[8];
 	int i;
-	const u8 *ptr = data;
+	const __le64 *ptr = (const __le64 *)data;
 
-	for (i = 0; i < 8; i++, ptr += 8) {
-		x[i] = (((u64)ptr[7] ) << 56) ^
-		(((u64)ptr[6] & 0xffL) << 48) ^
-		(((u64)ptr[5] & 0xffL) << 40) ^
-		(((u64)ptr[4] & 0xffL) << 32) ^
-		(((u64)ptr[3] & 0xffL) << 24) ^
-		(((u64)ptr[2] & 0xffL) << 16) ^
-		(((u64)ptr[1] & 0xffL) <<  8) ^
-		(((u64)ptr[0] & 0xffL)      );
-	}
+	for (i = 0; i < 8; i++)
+		x[i] = le64_to_cpu(ptr[i]);
 
 	/* save */
 	a = aa = tctx->a;
@@ -558,9 +552,10 @@ static void tgr192_update(void *ctx, const u8 * inbuf, unsigned int len)
 static void tgr192_final(void *ctx, u8 * out)
 {
 	struct tgr192_ctx *tctx = ctx;
+	__be64 *dst = (__be64 *)out;
+	__be64 *be64p;
+	__le32 *le32p;
 	u32 t, msb, lsb;
-	u8 *p;
-	int i, j;
 
 	tgr192_update(tctx, NULL, 0); /* flush */ ;
 
@@ -594,41 +589,16 @@ static void tgr192_final(void *ctx, u8 * out)
 		memset(tctx->hash, 0, 56);    /* fill next block with zeroes */
 	}
 	/* append the 64 bit count */
-	tctx->hash[56] = lsb;
-	tctx->hash[57] = lsb >> 8;
-	tctx->hash[58] = lsb >> 16;
-	tctx->hash[59] = lsb >> 24;
-	tctx->hash[60] = msb;
-	tctx->hash[61] = msb >> 8;
-	tctx->hash[62] = msb >> 16;
-	tctx->hash[63] = msb >> 24;
+	le32p = (__le32 *)&tctx->hash[56];
+	le32p[0] = cpu_to_le32(lsb);
+	le32p[1] = cpu_to_le32(msb);
+
 	tgr192_transform(tctx, tctx->hash);
 
-	p = tctx->hash;
-	*p++ = tctx->a >> 56; *p++ = tctx->a >> 48; *p++ = tctx->a >> 40;
-	*p++ = tctx->a >> 32; *p++ = tctx->a >> 24; *p++ = tctx->a >> 16;
-	*p++ = tctx->a >>  8; *p++ = tctx->a;\
-	*p++ = tctx->b >> 56; *p++ = tctx->b >> 48; *p++ = tctx->b >> 40;
-	*p++ = tctx->b >> 32; *p++ = tctx->b >> 24; *p++ = tctx->b >> 16;
-	*p++ = tctx->b >>  8; *p++ = tctx->b;
-	*p++ = tctx->c >> 56; *p++ = tctx->c >> 48; *p++ = tctx->c >> 40;
-	*p++ = tctx->c >> 32; *p++ = tctx->c >> 24; *p++ = tctx->c >> 16;
-	*p++ = tctx->c >>  8; *p++ = tctx->c;
-
-
-	/* unpack the hash */
-	j = 7;
-	for (i = 0; i < 8; i++) {
-		out[j--] = (tctx->a >> 8 * i) & 0xff;
-	}
-	j = 15;
-	for (i = 0; i < 8; i++) {
-		out[j--] = (tctx->b >> 8 * i) & 0xff;
-	}
-	j = 23;
-	for (i = 0; i < 8; i++) {
-		out[j--] = (tctx->c >> 8 * i) & 0xff;
-	}
+	be64p = (__be64 *)tctx->hash;
+	dst[0] = be64p[0] = cpu_to_be64(tctx->a);
+	dst[1] = be64p[1] = cpu_to_be64(tctx->b);
+	dst[2] = be64p[2] = cpu_to_be64(tctx->c);
 }
 
 static void tgr160_final(void *ctx, u8 * out)
