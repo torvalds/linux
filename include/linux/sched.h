@@ -256,6 +256,16 @@ extern void arch_unmap_area_topdown(struct mm_struct *, unsigned long);
 #define dec_mm_counter(mm, member) (mm)->_##member--
 #define get_mm_rss(mm) ((mm)->_file_rss + (mm)->_anon_rss)
 
+#define update_hiwater_rss(mm)	do {			\
+	unsigned long _rss = get_mm_rss(mm);		\
+	if ((mm)->hiwater_rss < _rss)			\
+		(mm)->hiwater_rss = _rss;		\
+} while (0)
+#define update_hiwater_vm(mm)	do {			\
+	if ((mm)->hiwater_vm < (mm)->total_vm)		\
+		(mm)->hiwater_vm = (mm)->total_vm;	\
+} while (0)
+
 typedef unsigned long mm_counter_t;
 
 struct mm_struct {

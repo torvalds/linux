@@ -820,6 +820,7 @@ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
 	lru_add_drain();
 	spin_lock(&mm->page_table_lock);
 	tlb = tlb_gather_mmu(mm, 0);
+	update_hiwater_rss(mm);
 	end = unmap_vmas(&tlb, mm, vma, address, end, &nr_accounted, details);
 	tlb_finish_mmu(tlb, address, end);
 	spin_unlock(&mm->page_table_lock);
@@ -2224,22 +2225,6 @@ unsigned long vmalloc_to_pfn(void * vmalloc_addr)
 }
 
 EXPORT_SYMBOL(vmalloc_to_pfn);
-
-/*
- * update_mem_hiwater
- *	- update per process rss and vm high water data
- */
-void update_mem_hiwater(struct task_struct *tsk)
-{
-	if (tsk->mm) {
-		unsigned long rss = get_mm_rss(tsk->mm);
-
-		if (tsk->mm->hiwater_rss < rss)
-			tsk->mm->hiwater_rss = rss;
-		if (tsk->mm->hiwater_vm < tsk->mm->total_vm)
-			tsk->mm->hiwater_vm = tsk->mm->total_vm;
-	}
-}
 
 #if !defined(__HAVE_ARCH_GATE_AREA)
 

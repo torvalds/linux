@@ -931,6 +931,8 @@ int do_munmap(struct mm_struct *mm, unsigned long addr, size_t len)
 	realalloc -= kobjsize(vml);
 	askedalloc -= sizeof(*vml);
 	kfree(vml);
+
+	update_hiwater_vm(mm);
 	mm->total_vm -= len >> PAGE_SHIFT;
 
 #ifdef DEBUG
@@ -1076,19 +1078,6 @@ unsigned long arch_get_unmapped_area(struct file *file, unsigned long addr,
 
 void arch_unmap_area(struct mm_struct *mm, unsigned long addr)
 {
-}
-
-void update_mem_hiwater(struct task_struct *tsk)
-{
-	unsigned long rss;
-
-	if (likely(tsk->mm)) {
-		rss = get_mm_rss(tsk->mm);
-		if (tsk->mm->hiwater_rss < rss)
-			tsk->mm->hiwater_rss = rss;
-		if (tsk->mm->hiwater_vm < tsk->mm->total_vm)
-			tsk->mm->hiwater_vm = tsk->mm->total_vm;
-	}
 }
 
 void unmap_mapping_range(struct address_space *mapping,

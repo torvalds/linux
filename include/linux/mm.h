@@ -938,9 +938,6 @@ static inline void vm_stat_account(struct mm_struct *mm,
 }
 #endif /* CONFIG_PROC_FS */
 
-/* update per process rss and vm hiwater data */
-extern void update_mem_hiwater(struct task_struct *tsk);
-
 #ifndef CONFIG_DEBUG_PAGEALLOC
 static inline void
 kernel_map_pages(struct page *page, int numpages, int enable)

@@ -1640,6 +1640,8 @@ find_extend_vma(struct mm_struct * mm, unsigned long addr)
  */
 static void remove_vma_list(struct mm_struct *mm, struct vm_area_struct *vma)
 {
+	/* Update high watermark before we lower total_vm */
+	update_hiwater_vm(mm);
 	do {
 		long nrpages = vma_pages(vma);
 
@@ -1668,6 +1670,7 @@ static void unmap_region(struct mm_struct *mm,
 	lru_add_drain();
 	spin_lock(&mm->page_table_lock);
 	tlb = tlb_gather_mmu(mm, 0);
+	update_hiwater_rss(mm);
 	unmap_vmas(&tlb, mm, vma, start, end, &nr_accounted, NULL);
 	vm_unacct_memory(nr_accounted);
 	free_pgtables(&tlb, vma, prev? prev->vm_end: FIRST_USER_ADDRESS,
@@ -1953,6 +1956,7 @@ void exit_mmap(struct mm_struct *mm)
 
 	flush_cache_mm(mm);
 	tlb = tlb_gather_mmu(mm, 1);
+	/* Don't update_hiwater_rss(mm) here, do_exit already did */
 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
 	end = unmap_vmas(&tlb, mm, vma, 0, -1, &nr_accounted, NULL);
 	vm_unacct_memory(nr_accounted);

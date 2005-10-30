@@ -538,6 +538,9 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma)
 	if (pte_dirty(pteval))
 		set_page_dirty(page);
 
+	/* Update high watermark before we lower rss */
+	update_hiwater_rss(mm);
+
 	if (PageAnon(page)) {
 		swp_entry_t entry = { .val = page->private };
 		/*
@@ -627,6 +630,9 @@ static void try_to_unmap_cluster(unsigned long cursor,
 	pmd = pmd_offset(pud, address);
 	if (!pmd_present(*pmd))
 		goto out_unlock;
+
+	/* Update high watermark before we lower rss */
+	update_hiwater_rss(mm);
 
 	for (original_pte = pte = pte_offset_map(pmd, address);
 			address < end; pte++, address += PAGE_SIZE) {

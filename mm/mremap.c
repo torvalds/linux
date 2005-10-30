@@ -167,6 +167,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	unsigned long new_pgoff;
 	unsigned long moved_len;
 	unsigned long excess = 0;
+	unsigned long hiwater_vm;
 	int split = 0;
 
 	/*
@@ -205,9 +206,15 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	}
 
 	/*
-	 * if we failed to move page tables we still do total_vm increment
-	 * since do_munmap() will decrement it by old_len == new_len
+	 * If we failed to move page tables we still do total_vm increment
+	 * since do_munmap() will decrement it by old_len == new_len.
+	 *
+	 * Since total_vm is about to be raised artificially high for a
+	 * moment, we need to restore high watermark afterwards: if stats
+	 * are taken meanwhile, total_vm and hiwater_vm appear too high.
+	 * If this were a serious issue, we'd add a flag to do_munmap().
 	 */
+	hiwater_vm = mm->hiwater_vm;
 	mm->total_vm += new_len >> PAGE_SHIFT;
 	vm_stat_account(mm, vma->vm_flags, vma->vm_file, new_len>>PAGE_SHIFT);
 
@@ -216,6 +223,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 		vm_unacct_memory(excess >> PAGE_SHIFT);
 		excess = 0;
 	}
+	mm->hiwater_vm = hiwater_vm;
 
 	/* Restore VM_ACCOUNT if one or two pieces of vma left */
 	if (excess) {
