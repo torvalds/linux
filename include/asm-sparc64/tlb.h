@@ -44,7 +44,7 @@ extern void flush_tlb_pending(void);
 
 static inline struct mmu_gather *tlb_gather_mmu(struct mm_struct *mm, unsigned int full_mm_flush)
 {
-	struct mmu_gather *mp = &__get_cpu_var(mmu_gathers);
+	struct mmu_gather *mp = &get_cpu_var(mmu_gathers);
 
 	BUG_ON(mp->tlb_nr);
 
@@ -97,6 +97,8 @@ static inline void tlb_finish_mmu(struct mmu_gather *mp, unsigned long start, un
 
 	/* keep the page table cache within bounds */
 	check_pgt_cache();
+
+	put_cpu_var(mmu_gathers);
 }
 
 static inline unsigned int tlb_is_full_mm(struct mmu_gather *mp)
