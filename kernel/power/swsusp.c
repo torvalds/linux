@@ -708,24 +708,28 @@ static void count_data_pages(void)
 	}
 }
 
-
 static void copy_data_pages(void)
 {
 	struct zone *zone;
 	unsigned long zone_pfn;
-	struct pbe * pbe = pagedir_nosave;
+	struct pbe *pbe = pagedir_nosave, *p;
 
 	pr_debug("copy_data_pages(): pages to copy: %d\n", nr_copy_pages);
 	for_each_zone (zone) {
 		if (is_highmem(zone))
 			continue;
 		mark_free_pages(zone);
+		/* This is necessary for swsusp_free() */
+		for_each_pb_page (p, pagedir_nosave)
+			SetPageNosaveFree(virt_to_page(p));
+		for_each_pbe(p, pagedir_nosave)
+			SetPageNosaveFree(virt_to_page(p->address));
 		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn) {
 			if (saveable(zone, &zone_pfn)) {
 				struct page * page;
 				page = pfn_to_page(zone_pfn + zone->zone_start_pfn);
 				BUG_ON(!pbe);
-				pbe->orig_address = (long) page_address(page);
+				pbe->orig_address = (unsigned long)page_address(page);
 				/* copy_page is not usable for copying task structs. */
 				memcpy((void *)pbe->address, (void *)pbe->orig_address, PAGE_SIZE);
 				pbe = pbe->next;
@@ -737,15 +741,6 @@ static void copy_data_pages(void)
 
 
 /**
- *	calc_nr - Determine the number of pages needed for a pbe list.
- */
-
-static int calc_nr(int nr_copy)
-{
-	return nr_copy + (nr_copy+PBES_PER_PAGE-2)/(PBES_PER_PAGE-1);
-}
-
-/**
  *	free_pagedir - free pages allocated with alloc_pagedir()
  */
 
@@ -755,6 +750,8 @@ static inline void free_pagedir(struct pbe *pblist)
 
 	while (pblist) {
 		pbe = (pblist + PB_PAGE_SKIP)->next;
+		ClearPageNosave(virt_to_page(pblist));
+		ClearPageNosaveFree(virt_to_page(pblist));
 		free_page((unsigned long)pblist);
 		pblist = pbe;
 	}
@@ -800,6 +797,16 @@ static void create_pbe_list(struct pbe *pblist, unsigned nr_pages)
 	pr_debug("create_pbe_list(): initialized %d PBEs\n", num);
 }
 
+static void *alloc_image_page(void)
+{
+	void *res = (void *)get_zeroed_page(GFP_ATOMIC | __GFP_COLD);
+	if (res) {
+		SetPageNosave(virt_to_page(res));
+		SetPageNosaveFree(virt_to_page(res));
+	}
+	return res;
+}
+
 /**
  *	alloc_pagedir - Allocate the page directory.
  *
@@ -822,11 +829,11 @@ static struct pbe * alloc_pagedir(unsigned nr_pages)
 		return NULL;
 
 	pr_debug("alloc_pagedir(): nr_pages = %d\n", nr_pages);
-	pblist = (struct pbe *)get_zeroed_page(GFP_ATOMIC | __GFP_COLD);
+	pblist = (struct pbe *)alloc_image_page();
 	for (pbe = pblist, num = PBES_PER_PAGE; pbe && num < nr_pages;
         		pbe = pbe->next, num += PBES_PER_PAGE) {
 		pbe += PB_PAGE_SKIP;
-		pbe->next = (struct pbe *)get_zeroed_page(GFP_ATOMIC | __GFP_COLD);
+		pbe->next = (struct pbe *)alloc_image_page();
 	}
 	if (!pbe) { /* get_zeroed_page() failed */
 		free_pagedir(pblist);
@@ -836,50 +843,28 @@ static struct pbe * alloc_pagedir(unsigned nr_pages)
 }
 
 /**
- *	free_image_pages - Free pages allocated for snapshot
- */
-
-static void free_image_pages(void)
-{
-	struct pbe * p;
-
-	for_each_pbe (p, pagedir_save) {
-		if (p->address) {
-			ClearPageNosave(virt_to_page(p->address));
-			free_page(p->address);
-			p->address = 0;
-		}
-	}
-}
-
-/**
- *	alloc_image_pages - Allocate pages for the snapshot.
- */
-
-static int alloc_image_pages(void)
-{
-	struct pbe * p;
-
-	for_each_pbe (p, pagedir_save) {
-		p->address = get_zeroed_page(GFP_ATOMIC | __GFP_COLD);
-		if (!p->address)
-			return -ENOMEM;
-		SetPageNosave(virt_to_page(p->address));
-	}
-	return 0;
-}
-
-/* Free pages we allocated for suspend. Suspend pages are alocated
+ * Free pages we allocated for suspend. Suspend pages are alocated
  * before atomic copy, so we need to free them after resume.
  */
+
 void swsusp_free(void)
 {
-	BUG_ON(PageNosave(virt_to_page(pagedir_save)));
-	BUG_ON(PageNosaveFree(virt_to_page(pagedir_save)));
-	free_image_pages();
-	free_pagedir(pagedir_save);
-}
+	struct zone *zone;
+	unsigned long zone_pfn;
 
+	for_each_zone(zone) {
+		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
+			if (pfn_valid(zone_pfn + zone->zone_start_pfn)) {
+				struct page * page;
+				page = pfn_to_page(zone_pfn + zone->zone_start_pfn);
+				if (PageNosave(page) && PageNosaveFree(page)) {
+					ClearPageNosave(page);
+					ClearPageNosaveFree(page);
+					free_page((long) page_address(page));
+				}
+			}
+	}
+}
 
 /**
  *	enough_free_mem - Make sure we enough free memory to snapshot.
@@ -890,12 +875,9 @@ void swsusp_free(void)
 
 static int enough_free_mem(void)
 {
-	if (nr_free_pages() < (nr_copy_pages + PAGES_FOR_IO)) {
-		pr_debug("swsusp: Not enough free pages: Have %d\n",
-			 nr_free_pages());
-		return 0;
-	}
-	return 1;
+	pr_debug("swsusp: available memory: %u pages\n", nr_free_pages());
+	return nr_free_pages() > (nr_copy_pages + PAGES_FOR_IO +
+		nr_copy_pages/PBES_PER_PAGE + !!(nr_copy_pages%PBES_PER_PAGE));
 }
 
 
@@ -914,33 +896,16 @@ static int enough_swap(void)
 	struct sysinfo i;
 
 	si_swapinfo(&i);
-	if (i.freeswap < (nr_copy_pages + PAGES_FOR_IO))  {
-		pr_debug("swsusp: Not enough swap. Need %ld\n",i.freeswap);
-		return 0;
-	}
-	return 1;
+	pr_debug("swsusp: available swap: %lu pages\n", i.freeswap);
+	return i.freeswap > (nr_copy_pages + PAGES_FOR_IO +
+		nr_copy_pages/PBES_PER_PAGE + !!(nr_copy_pages%PBES_PER_PAGE));
 }
 
 static int swsusp_alloc(void)
 {
-	int error;
+	struct pbe * p;
 
 	pagedir_nosave = NULL;
-	nr_copy_pages = calc_nr(nr_copy_pages);
-	nr_copy_pages_check = nr_copy_pages;
-
-	pr_debug("suspend: (pages needed: %d + %d free: %d)\n",
-		 nr_copy_pages, PAGES_FOR_IO, nr_free_pages());
-
-	if (!enough_free_mem())
-		return -ENOMEM;
-
-	if (!enough_swap())
-		return -ENOSPC;
-
-	if (MAX_PBES < nr_copy_pages / PBES_PER_PAGE +
-	    !!(nr_copy_pages % PBES_PER_PAGE))
-		return -ENOSPC;
 
 	if (!(pagedir_save = alloc_pagedir(nr_copy_pages))) {
 		printk(KERN_ERR "suspend: Allocating pagedir failed.\n");
@@ -948,10 +913,14 @@ static int swsusp_alloc(void)
 	}
 	create_pbe_list(pagedir_save, nr_copy_pages);
 	pagedir_nosave = pagedir_save;
-	if ((error = alloc_image_pages())) {
-		printk(KERN_ERR "suspend: Allocating image pages failed.\n");
-		swsusp_free();
-		return error;
+
+	for_each_pbe (p, pagedir_save) {
+		p->address = (unsigned long)alloc_image_page();
+		if (!p->address) {
+			printk(KERN_ERR "suspend: Allocating image pages failed.\n");
+			swsusp_free();
+			return -ENOMEM;
+		}
 	}
 
 	return 0;
@@ -963,7 +932,7 @@ static int suspend_prepare_image(void)
 
 	pr_debug("swsusp: critical section: \n");
 	if (save_highmem()) {
-		printk(KERN_CRIT "Suspend machine: Not enough free pages for highmem\n");
+		printk(KERN_CRIT "swsusp: Not enough free pages for highmem\n");
 		restore_highmem();
 		return -ENOMEM;
 	}
@@ -971,6 +940,28 @@ static int suspend_prepare_image(void)
 	drain_local_pages();
 	count_data_pages();
 	printk("swsusp: Need to copy %u pages\n", nr_copy_pages);
+	nr_copy_pages_check = nr_copy_pages;
+
+	pr_debug("swsusp: pages needed: %u + %lu + %u, free: %u\n",
+		 nr_copy_pages,
+		 nr_copy_pages/PBES_PER_PAGE + !!(nr_copy_pages%PBES_PER_PAGE),
+		 PAGES_FOR_IO, nr_free_pages());
+
+	if (!enough_free_mem()) {
+		printk(KERN_ERR "swsusp: Not enough free memory\n");
+		return -ENOMEM;
+	}
+
+	if (MAX_PBES < nr_copy_pages / PBES_PER_PAGE +
+	    !!(nr_copy_pages % PBES_PER_PAGE)) {
+		printk(KERN_ERR "swsusp: Too many image pages\n");
+		return -ENOSPC;
+	}
+
+	if (!enough_swap()) {
+		printk(KERN_ERR "swsusp: Not enough free swap\n");
+		return -ENOSPC;
+	}
 
 	error = swsusp_alloc();
 	if (error)
