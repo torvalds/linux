@@ -245,6 +245,7 @@ unsigned long do_mremap(unsigned long addr,
 	unsigned long old_len, unsigned long new_len,
 	unsigned long flags, unsigned long new_addr)
 {
+	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	unsigned long ret = -EINVAL;
 	unsigned long charged = 0;
@@ -285,7 +286,7 @@ unsigned long do_mremap(unsigned long addr,
 		if ((addr <= new_addr) && (addr+old_len) > new_addr)
 			goto out;
 
-		ret = do_munmap(current->mm, new_addr, new_len);
+		ret = do_munmap(mm, new_addr, new_len);
 		if (ret)
 			goto out;
 	}
@@ -296,7 +297,7 @@ unsigned long do_mremap(unsigned long addr,
 	 * do_munmap does all the needed commit accounting
 	 */
 	if (old_len >= new_len) {
-		ret = do_munmap(current->mm, addr+new_len, old_len - new_len);
+		ret = do_munmap(mm, addr+new_len, old_len - new_len);
 		if (ret && old_len != new_len)
 			goto out;
 		ret = addr;
@@ -309,7 +310,7 @@ unsigned long do_mremap(unsigned long addr,
 	 * Ok, we need to grow..  or relocate.
 	 */
 	ret = -EFAULT;
-	vma = find_vma(current->mm, addr);
+	vma = find_vma(mm, addr);
 	if (!vma || vma->vm_start > addr)
 		goto out;
 	if (is_vm_hugetlb_page(vma)) {
@@ -325,14 +326,14 @@ unsigned long do_mremap(unsigned long addr,
 	}
 	if (vma->vm_flags & VM_LOCKED) {
 		unsigned long locked, lock_limit;
-		locked = current->mm->locked_vm << PAGE_SHIFT;
+		locked = mm->locked_vm << PAGE_SHIFT;
 		lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
 		locked += new_len - old_len;
 		ret = -EAGAIN;
 		if (locked > lock_limit && !capable(CAP_IPC_LOCK))
 			goto out;
 	}
-	if (!may_expand_vm(current->mm, (new_len - old_len) >> PAGE_SHIFT)) {
+	if (!may_expand_vm(mm, (new_len - old_len) >> PAGE_SHIFT)) {
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -359,11 +360,10 @@ unsigned long do_mremap(unsigned long addr,
 			vma_adjust(vma, vma->vm_start,
 				addr + new_len, vma->vm_pgoff, NULL);
 
-			current->mm->total_vm += pages;
-			vm_stat_account(vma->vm_mm, vma->vm_flags,
-							vma->vm_file, pages);
+			mm->total_vm += pages;
+			vm_stat_account(mm, vma->vm_flags, vma->vm_file, pages);
 			if (vma->vm_flags & VM_LOCKED) {
-				current->mm->locked_vm += pages;
+				mm->locked_vm += pages;
 				make_pages_present(addr + old_len,
 						   addr + new_len);
 			}
