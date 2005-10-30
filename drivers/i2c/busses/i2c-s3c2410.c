@@ -918,8 +918,11 @@ static int __init i2c_adap_s3c_init(void)
 	int ret;
 
 	ret = driver_register(&s3c2410_i2c_driver);
-	if (ret == 0)
-		ret = driver_register(&s3c2440_i2c_driver); 
+	if (ret == 0) {
+		ret = driver_register(&s3c2440_i2c_driver);
+		if (ret)
+			driver_unregister(&s3c2410_i2c_driver);
+	}
 
 	return ret;
 }
