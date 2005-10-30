@@ -66,7 +66,7 @@ extern asmlinkage int swsusp_arch_suspend(void);
 extern asmlinkage int swsusp_arch_resume(void);
 
 extern int restore_highmem(void);
-extern void free_pagedir(struct pbe *pblist);
 extern struct pbe * alloc_pagedir(unsigned nr_pages);
 extern void create_pbe_list(struct pbe *pblist, unsigned nr_pages);
+extern void swsusp_free(void);
 extern int enough_swap(unsigned nr_pages);

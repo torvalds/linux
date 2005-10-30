@@ -30,7 +30,6 @@ extern int swsusp_check(void);
 extern int swsusp_read(void);
 extern void swsusp_close(void);
 extern int swsusp_resume(void);
-extern int swsusp_free(void);
 
 
 static int noresume = 0;
@@ -252,14 +251,17 @@ static int software_resume(void)
 
 	pr_debug("PM: Reading swsusp image.\n");
 
-	if ((error = swsusp_read()))
-		goto Cleanup;
+	if ((error = swsusp_read())) {
+		swsusp_free();
+		goto Thaw;
+	}
 
 	pr_debug("PM: Preparing devices for restore.\n");
 
 	if ((error = device_suspend(PMSG_FREEZE))) {
 		printk("Some devices failed to suspend\n");
-		goto Free;
+		swsusp_free();
+		goto Thaw;
 	}
 
 	mb();
@@ -268,9 +270,7 @@ static int software_resume(void)
 	swsusp_resume();
 	pr_debug("PM: Restore failed, recovering.n");
 	device_resume();
- Free:
-	swsusp_free();
- Cleanup:
+ Thaw:
 	unprepare_processes();
  Done:
 	/* For success case, the suspend path will release the lock */

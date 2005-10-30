@@ -240,7 +240,7 @@ static void copy_data_pages(struct pbe *pblist)
  *	free_pagedir - free pages allocated with alloc_pagedir()
  */
 
-void free_pagedir(struct pbe *pblist)
+static void free_pagedir(struct pbe *pblist)
 {
 	struct pbe *pbe;
 

@@ -629,6 +629,11 @@ int swsusp_resume(void)
 	 * execution continues at place where swsusp_arch_suspend was called
          */
 	BUG_ON(!error);
+	/* The only reason why swsusp_arch_resume() can fail is memory being
+	 * very tight, so we have to free it as soon as we can to avoid
+	 * subsequent failures
+	 */
+	swsusp_free();
 	restore_processor_state();
 	restore_highmem();
 	touch_softlockup_watchdog();
@@ -644,52 +649,26 @@ int swsusp_resume(void)
  *
  *	We don't know which pages are usable until we allocate them.
  *
- *	Allocated but unusable (ie eaten) memory pages are linked together
- *	to create a list, so that we can free them easily
- *
- *	We could have used a type other than (void *)
- *	for this purpose, but ...
+ *	Allocated but unusable (ie eaten) memory pages are marked so that
+ *	swsusp_free() can release them
  */
-static void **eaten_memory = NULL;
 
-static inline void eat_page(void *page)
-{
-	void **c;
-
-	c = eaten_memory;
-	eaten_memory = page;
-	*eaten_memory = c;
-}
-
-unsigned long get_usable_page(gfp_t gfp_mask)
+unsigned long get_safe_page(gfp_t gfp_mask)
 {
 	unsigned long m;
 
-	m = get_zeroed_page(gfp_mask);
-	while (!PageNosaveFree(virt_to_page(m))) {
-		eat_page((void *)m);
+	do {
 		m = get_zeroed_page(gfp_mask);
-		if (!m)
-			break;
+		if (m && PageNosaveFree(virt_to_page(m)))
+			/* This is for swsusp_free() */
+			SetPageNosave(virt_to_page(m));
+	} while (m && PageNosaveFree(virt_to_page(m)));
+	if (m) {
+		/* This is for swsusp_free() */
+		SetPageNosave(virt_to_page(m));
+		SetPageNosaveFree(virt_to_page(m));
 	}
 	return m;
-}
-
-void free_eaten_memory(void)
-{
-	unsigned long m;
-	void **c;
-	int i = 0;
-
-	c = eaten_memory;
-	while (c) {
-		m = (unsigned long)c;
-		c = *c;
-		free_page(m);
-		i++;
-	}
-	eaten_memory = NULL;
-	pr_debug("swsusp: %d unused pages freed\n", i);
 }
 
 /**
@@ -709,7 +688,7 @@ static int check_pagedir(struct pbe *pblist)
 		p->address = 0UL;
 
 	for_each_pbe (p, pblist) {
-		p->address = get_usable_page(GFP_ATOMIC);
+		p->address = get_safe_page(GFP_ATOMIC);
 		if (!p->address)
 			return -ENOMEM;
 	}
@@ -728,7 +707,7 @@ static struct pbe * swsusp_pagedir_relocate(struct pbe *pblist)
 	unsigned long zone_pfn;
 	struct pbe *pbpage, *tail, *p;
 	void *m;
-	int rel = 0, error = 0;
+	int rel = 0;
 
 	if (!pblist) /* a sanity check */
 		return NULL;
@@ -736,41 +715,37 @@ static struct pbe * swsusp_pagedir_relocate(struct pbe *pblist)
 	pr_debug("swsusp: Relocating pagedir (%lu pages to check)\n",
 			swsusp_info.pagedir_pages);
 
-	/* Set page flags */
+	/* Clear page flags */
 
 	for_each_zone (zone) {
         	for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
-                	SetPageNosaveFree(pfn_to_page(zone_pfn +
+        		if (pfn_valid(zone_pfn + zone->zone_start_pfn))
+                		ClearPageNosaveFree(pfn_to_page(zone_pfn +
 					zone->zone_start_pfn));
 	}
 
-	/* Clear orig addresses */
+	/* Mark orig addresses */
 
 	for_each_pbe (p, pblist)
-		ClearPageNosaveFree(virt_to_page(p->orig_address));
+		SetPageNosaveFree(virt_to_page(p->orig_address));
 
 	tail = pblist + PB_PAGE_SKIP;
 
 	/* Relocate colliding pages */
 
 	for_each_pb_page (pbpage, pblist) {
-		if (!PageNosaveFree(virt_to_page((unsigned long)pbpage))) {
-			m = (void *)get_usable_page(GFP_ATOMIC | __GFP_COLD);
-			if (!m) {
-				error = -ENOMEM;
-				break;
-			}
+		if (PageNosaveFree(virt_to_page((unsigned long)pbpage))) {
+			m = (void *)get_safe_page(GFP_ATOMIC | __GFP_COLD);
+			if (!m)
+				return NULL;
 			memcpy(m, (void *)pbpage, PAGE_SIZE);
 			if (pbpage == pblist)
 				pblist = (struct pbe *)m;
 			else
 				tail->next = (struct pbe *)m;
-
-			eat_page((void *)pbpage);
 			pbpage = (struct pbe *)m;
 
 			/* We have to link the PBEs again */
-
 			for (p = pbpage; p < pbpage + PB_PAGE_SKIP; p++)
 				if (p->next) /* needed to save the end */
 					p->next = p + 1;
@@ -780,15 +755,13 @@ static struct pbe * swsusp_pagedir_relocate(struct pbe *pblist)
 		tail = pbpage + PB_PAGE_SKIP;
 	}
 
-	if (error) {
-		printk("\nswsusp: Out of memory\n\n");
-		free_pagedir(pblist);
-		free_eaten_memory();
-		pblist = NULL;
-		/* Is this even worth handling? It should never ever happen, and we
-		   have just lost user's state, anyway... */
-	} else
-		printk("swsusp: Relocated %d pages\n", rel);
+	/* This is for swsusp_free() */
+	for_each_pb_page (pbpage, pblist) {
+		SetPageNosave(virt_to_page(pbpage));
+		SetPageNosaveFree(virt_to_page(pbpage));
+	}
+
+	printk("swsusp: Relocated %d pages\n", rel);
 
 	return pblist;
 }
@@ -1006,9 +979,7 @@ static int read_pagedir(struct pbe *pblist)
 			break;
 	}
 
-	if (error)
-		free_pagedir(pblist);
-	else
+	if (!error)
 		BUG_ON(i != swsusp_info.pagedir_pages);
 
 	return error;
@@ -1051,15 +1022,6 @@ static int read_suspend_image(void)
 	if (!error)
 		error = data_read(pagedir_nosave);
 
-	if (error) { /* We fail cleanly */
-		free_eaten_memory();
-		for_each_pbe (p, pagedir_nosave)
-			if (p->address) {
-				free_page(p->address);
-				p->address = 0UL;
-			}
-		free_pagedir(pagedir_nosave);
-	}
 	return error;
 }
 
