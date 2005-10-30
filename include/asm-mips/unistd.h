@@ -1177,7 +1177,6 @@ asmlinkage long sys_mmap2(
 			unsigned long fd, unsigned long pgoff);
 asmlinkage int sys_execve(nabi_no_regargs struct pt_regs regs);
 asmlinkage int sys_pipe(nabi_no_regargs struct pt_regs regs);
-asmlinkage int sys_ptrace(long request, long pid, long addr, long data);
 struct sigaction;
 asmlinkage long sys_rt_sigaction(int sig,
 				const struct sigaction __user *act,

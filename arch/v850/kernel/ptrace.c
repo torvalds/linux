@@ -113,7 +113,7 @@ static int set_single_step (struct task_struct *t, int val)
 	return 1;
 }
 
-int sys_ptrace(long request, long pid, long addr, long data)
+long sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
 	int rval;
