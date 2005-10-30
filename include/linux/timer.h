@@ -78,8 +78,9 @@ extern unsigned long next_timer_interrupt(void);
  * Timers with an ->expired field in the past will be executed in the next
  * timer tick.
  */
-static inline void add_timer(struct timer_list * timer)
+static inline void add_timer(struct timer_list *timer)
 {
+	BUG_ON(timer_pending(timer));
 	__mod_timer(timer, timer->expires);
 }
 
