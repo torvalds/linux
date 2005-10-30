@@ -607,12 +607,6 @@ void __devinit cpu_init(void)
 	cpu_gdt_descr[cpu].address =
 	    (unsigned long)&per_cpu(cpu_gdt_table, cpu);
 
-	/*
-	 * Set up the per-thread TLS descriptor cache:
-	 */
-	memcpy(thread->tls_array, &per_cpu(cpu_gdt_table, cpu),
-		GDT_ENTRY_TLS_ENTRIES * 8);
-
 	load_gdt(&cpu_gdt_descr[cpu]);
 	load_idt(&idt_descr);
 
