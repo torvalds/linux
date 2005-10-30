@@ -142,7 +142,7 @@ static struct attribute* atmel_attrs[] = {
 	&dev_attr_pcrs.attr,
 	&dev_attr_caps.attr,
 	&dev_attr_cancel.attr,
-	0,
+	NULL,
 };
 
 static struct attribute_group atmel_attr_grp = { .attrs = atmel_attrs };

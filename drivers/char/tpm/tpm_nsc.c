@@ -244,7 +244,7 @@ static struct attribute * nsc_attrs[] = {
 	&dev_attr_pcrs.attr,
 	&dev_attr_caps.attr,
 	&dev_attr_cancel.attr,
-	0,
+	NULL,
 };
 
 static struct attribute_group nsc_attr_grp = { .attrs = nsc_attrs };
