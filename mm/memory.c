@@ -609,13 +609,13 @@ static void zap_pte_range(struct mmu_gather *tlb,
 				set_pte_at(mm, addr, pte,
 					   pgoff_to_pte(page->index));
 			if (PageAnon(page))
-				anon_rss++;
+				anon_rss--;
 			else {
 				if (pte_dirty(ptent))
 					set_page_dirty(page);
 				if (pte_young(ptent))
 					mark_page_accessed(page);
-				file_rss++;
+				file_rss--;
 			}
 			page_remove_rmap(page);
 			tlb_remove_page(tlb, page);
@@ -632,7 +632,7 @@ static void zap_pte_range(struct mmu_gather *tlb,
 		pte_clear_full(mm, addr, pte, tlb->fullmm);
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 
-	add_mm_rss(mm, -file_rss, -anon_rss);
+	add_mm_rss(mm, file_rss, anon_rss);
 	pte_unmap(pte - 1);
 }
 
