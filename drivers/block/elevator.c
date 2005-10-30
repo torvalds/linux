@@ -147,24 +147,17 @@ static void elevator_setup_default(void)
 	struct elevator_type *e;
 
 	/*
-	 * check if default is set and exists
+	 * If default has not been set, use the compiled-in selection.
 	 */
-	if (chosen_elevator[0] && (e = elevator_get(chosen_elevator))) {
-		elevator_put(e);
-		return;
-	}
+	if (!chosen_elevator[0])
+		strcpy(chosen_elevator, CONFIG_DEFAULT_IOSCHED);
 
-#if defined(CONFIG_IOSCHED_AS)
-	strcpy(chosen_elevator, "anticipatory");
-#elif defined(CONFIG_IOSCHED_DEADLINE)
-	strcpy(chosen_elevator, "deadline");
-#elif defined(CONFIG_IOSCHED_CFQ)
-	strcpy(chosen_elevator, "cfq");
-#elif defined(CONFIG_IOSCHED_NOOP)
-	strcpy(chosen_elevator, "noop");
-#else
-#error "You must build at least 1 IO scheduler into the kernel"
-#endif
+ 	/*
+ 	 * If the given scheduler is not available, fall back to no-op.
+ 	 */
+ 	if (!(e = elevator_find(chosen_elevator)))
+ 		strcpy(chosen_elevator, "noop");
+	elevator_put(e);
 }
 
 static int __init elevator_setup(char *str)
