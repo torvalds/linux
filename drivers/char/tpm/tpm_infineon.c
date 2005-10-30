@@ -30,10 +30,10 @@
 #define	TPM_INFINEON_DEV_VEN_VALUE	0x15D1
 
 /* These values will be filled after PnP-call */
-static int TPM_INF_DATA = 0;
-static int TPM_INF_ADDR = 0;
-static int TPM_INF_BASE = 0;
-static int TPM_INF_PORT_LEN = 0;
+static int TPM_INF_DATA;
+static int TPM_INF_ADDR;
+static int TPM_INF_BASE;
+static int TPM_INF_PORT_LEN;
 
 /* TPM header definitions */
 enum infineon_tpm_header {

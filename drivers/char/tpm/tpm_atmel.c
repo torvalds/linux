@@ -40,7 +40,7 @@ enum tpm_atmel_read_status {
 	ATML_STATUS_READY = 0x08
 };
 
-static int tpm_atml_recv(struct tpm_chip *chip, u8 * buf, size_t count)
+static int tpm_atml_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	u8 status, *hdr = buf;
 	u32 size;
@@ -100,7 +100,7 @@ static int tpm_atml_recv(struct tpm_chip *chip, u8 * buf, size_t count)
 	return size;
 }
 
-static int tpm_atml_send(struct tpm_chip *chip, u8 * buf, size_t count)
+static int tpm_atml_send(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	int i;
 
@@ -159,12 +159,12 @@ static struct tpm_vendor_specific tpm_atmel = {
 	.miscdev = { .fops = &atmel_ops, },
 };
 
-static struct platform_device *pdev = NULL;
+static struct platform_device *pdev;
 
 static void __devexit tpm_atml_remove(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
-	if ( chip ) {
+	if (chip) {
 		release_region(chip->vendor->base, 2);
 		tpm_remove_hardware(chip->dev);
 	}
@@ -201,11 +201,9 @@ static int __init init_atmel(void)
 		(tpm_read_index(TPM_ADDR, 0x01) != 0x01 ))
 		return -ENODEV;
 
-	pdev = kmalloc(sizeof(struct platform_device), GFP_KERNEL);
+	pdev = kzalloc(sizeof(struct platform_device), GFP_KERNEL);
 	if ( !pdev )
 		return -ENOMEM;
-
-	memset(pdev, 0, sizeof(struct platform_device));
 
 	pdev->name = "tpm_atmel0";
 	pdev->id = -1;
@@ -213,7 +211,7 @@ static int __init init_atmel(void)
 	pdev->dev.release = tpm_atml_remove;
 	pdev->dev.driver = &atml_drv;
 
-	if ((rc=platform_device_register(pdev)) < 0) {
+	if ((rc = platform_device_register(pdev)) < 0) {
 		kfree(pdev);
 		pdev = NULL;
 		return rc;
@@ -234,7 +232,8 @@ static int __init init_atmel(void)
 		return rc;
 	}
 
-	dev_info(&pdev->dev, "Atmel TPM 1.1, Base Address: 0x%x\n", tpm_atmel.base);
+	dev_info(&pdev->dev, "Atmel TPM 1.1, Base Address: 0x%x\n",
+			tpm_atmel.base);
 	return 0;
 }
 
