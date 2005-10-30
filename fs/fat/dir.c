@@ -263,7 +263,6 @@ parse_record:
 			unsigned char id;
 			unsigned char slot;
 			unsigned char slots;
-			unsigned char sum;
 			unsigned char alias_checksum;
 
 			if (!unicode) {
@@ -317,9 +316,7 @@ parse_long:
 				goto parse_long;
 			if (IS_FREE(de->name) || (de->attr & ATTR_VOLUME))
 				continue;
-			for (sum = 0, i = 0; i < 11; i++)
-				sum = (((sum&1)<<7)|((sum&0xfe)>>1)) + de->name[i];
-			if (sum != alias_checksum)
+			if (fat_checksum(de->name) != alias_checksum)
 				nr_slots = 0;
 		}
 
@@ -479,7 +476,6 @@ GetNew:
 		unsigned char id;
 		unsigned char slot;
 		unsigned char slots;
-		unsigned char sum;
 		unsigned char alias_checksum;
 
 		if (!unicode) {
@@ -534,9 +530,7 @@ ParseLong:
 			goto ParseLong;
 		if (IS_FREE(de->name) || (de->attr & ATTR_VOLUME))
 			goto RecEnd;
-		for (sum = 0, i = 0; i < 11; i++)
-			sum = (((sum&1)<<7)|((sum&0xfe)>>1)) + de->name[i];
-		if (sum != alias_checksum)
+		if (fat_checksum(de->name) != alias_checksum)
 			long_slots = 0;
 	}
 

@@ -621,8 +621,7 @@ static int vfat_build_slots(struct inode *dir, const unsigned char *name,
 	}
 
 	/* build the entry of long file name */
-	for (cksum = i = 0; i < 11; i++)
-		cksum = (((cksum&1)<<7)|((cksum&0xfe)>>1)) + msdos_name[i];
+	cksum = fat_checksum(msdos_name);
 
 	*nr_slots = usize / 13;
 	for (ps = slots, i = *nr_slots; i > 0; i--, ps++) {
