@@ -518,7 +518,7 @@ int do_settimeofday(struct timespec *tv)
 	long wtm_nsec, new_nsec = tv->tv_nsec;
 	unsigned long flags;
 	long int tb_delta;
-	u64 new_xsec;
+	u64 new_xsec, tb_delta_xs;
 
 	if ((unsigned long)tv->tv_nsec >= NSEC_PER_SEC)
 		return -EINVAL;
@@ -541,8 +541,7 @@ int do_settimeofday(struct timespec *tv)
 #endif
 	tb_delta = tb_ticks_since(tb_last_stamp);
 	tb_delta += (jiffies - wall_jiffies) * tb_ticks_per_jiffy;
-
-	new_nsec -= 1000 * mulhwu(tb_to_us, tb_delta);
+	tb_delta_xs = mulhdu(tb_delta, do_gtod.varp->tb_to_xs);
 
 	wtm_sec  = wall_to_monotonic.tv_sec + (xtime.tv_sec - new_sec);
 	wtm_nsec = wall_to_monotonic.tv_nsec + (xtime.tv_nsec - new_nsec);
@@ -557,9 +556,12 @@ int do_settimeofday(struct timespec *tv)
 
 	ntp_clear();
 
-	new_xsec = (u64)new_nsec * XSEC_PER_SEC;
-	do_div(new_xsec, NSEC_PER_SEC);
-	new_xsec += (u64)new_sec * XSEC_PER_SEC;
+	new_xsec = 0;
+	if (new_nsec != 0) {
+		new_xsec = (u64)new_nsec * XSEC_PER_SEC;
+		do_div(new_xsec, NSEC_PER_SEC);
+	}
+	new_xsec += (u64)new_sec * XSEC_PER_SEC - tb_delta_xs;
 	update_gtod(tb_last_jiffy, new_xsec, do_gtod.varp->tb_to_xs);
 
 #ifdef CONFIG_PPC64
