@@ -958,7 +958,7 @@ config SOC_PNX8550
 	bool
 	select DMA_NONCOHERENT
 	select HW_HAS_PCI
-	select SYS_HAS_CPU_R4X00
+	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
 
 config SWAP_IO_SPACE
