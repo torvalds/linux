@@ -18,6 +18,8 @@
  * This file is licenced under the GPL.
  */
 
+#include <linux/platform_device.h>
+
 #include <asm/mach-au1x00/au1000.h>
 
 #define USBH_ENABLE_BE (1<<0)

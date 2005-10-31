@@ -37,6 +37,7 @@
 #include <linux/serio.h>
 #include <linux/errno.h>
 #include <linux/err.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 

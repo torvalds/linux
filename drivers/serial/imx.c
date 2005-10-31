@@ -36,7 +36,7 @@
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/sysrq.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
@@ -995,6 +995,7 @@ static int __init imx_serial_init(void)
 static void __exit imx_serial_exit(void)
 {
 	uart_unregister_driver(&imx_reg);
+	driver_unregister(&serial_imx_driver);
 }
 
 module_init(imx_serial_init);
