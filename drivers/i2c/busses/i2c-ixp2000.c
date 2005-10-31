@@ -36,6 +36,8 @@
 #include <asm/hardware.h>	/* Pick up IXP2000-specific bits */
 #include <asm/arch/gpio.h>
 
+static struct device_driver ixp2000_i2c_driver;
+
 static inline int ixp2000_scl_pin(void *data)
 {
 	return ((struct ixp2000_i2c_pins*)data)->scl_pin;
@@ -104,11 +106,10 @@ static int ixp2000_i2c_probe(struct device *dev)
 	struct platform_device *plat_dev = to_platform_device(dev);
 	struct ixp2000_i2c_pins *gpio = plat_dev->dev.platform_data;
 	struct ixp2000_i2c_data *drv_data = 
-		kmalloc(sizeof(struct ixp2000_i2c_data), GFP_KERNEL);
+		kzalloc(sizeof(struct ixp2000_i2c_data), GFP_KERNEL);
 
 	if (!drv_data)
 		return -ENOMEM;
-	memzero(drv_data, sizeof(*drv_data));
 	drv_data->gpio_pins = gpio;
 
 	drv_data->algo_data.data = gpio;
@@ -121,6 +122,8 @@ static int ixp2000_i2c_probe(struct device *dev)
 	drv_data->algo_data.timeout = 100;
 
 	drv_data->adapter.id = I2C_HW_B_IXP2000,
+	strlcpy(drv_data->adapter.name, ixp2000_i2c_driver.name,
+		I2C_NAME_SIZE);
 	drv_data->adapter.algo_data = &drv_data->algo_data,
 
 	drv_data->adapter.dev.parent = &plat_dev->dev;
@@ -142,6 +145,7 @@ static int ixp2000_i2c_probe(struct device *dev)
 }
 
 static struct device_driver ixp2000_i2c_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "IXP2000-I2C",
 	.bus		= &platform_bus_type,
 	.probe		= ixp2000_i2c_probe,

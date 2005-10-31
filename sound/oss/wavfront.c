@@ -2434,7 +2434,7 @@ static int __init detect_wavefront (int irq, int io_base)
 	   consumes 16.
 	*/
 
-	if (check_region (io_base, 16)) {
+	if (!request_region (io_base, 16, "wavfront")) {
 		printk (KERN_ERR LOGNAME "IO address range 0x%x - 0x%x "
 			"already in use - ignored\n", dev.base,
 			dev.base+15);
@@ -2466,10 +2466,13 @@ static int __init detect_wavefront (int irq, int io_base)
 		} else {
 			printk (KERN_WARNING LOGNAME "not raw, but no "
 				"hardware version!\n");
+			release_region (io_base, 16);
 			return 0;
 		}
 
 		if (!wf_raw) {
+			/* will re-acquire region in install_wavefront() */
+			release_region (io_base, 16);
 			return 1;
 		} else {
 			printk (KERN_INFO LOGNAME
@@ -2489,6 +2492,7 @@ static int __init detect_wavefront (int irq, int io_base)
 
 	if (wavefront_hw_reset ()) {
 		printk (KERN_WARNING LOGNAME "hardware reset failed\n");
+		release_region (io_base, 16);
 		return 0;
 	}
 
@@ -2496,6 +2500,8 @@ static int __init detect_wavefront (int irq, int io_base)
 
 	dev.has_fx = (detect_wffx () == 0);
 
+	/* will re-acquire region in install_wavefront() */
+	release_region (io_base, 16);
 	return 1;
 }
 
@@ -2804,17 +2810,27 @@ static int __init wavefront_init (int atboot)
 }
 
 static int __init install_wavefront (void)
-
 {
+	if (!request_region (dev.base+2, 6, "wavefront synth"))
+		return -1;
+
+	if (dev.has_fx) {
+		if (!request_region (dev.base+8, 8, "wavefront fx")) {
+			release_region (dev.base+2, 6);
+			return -1;
+		}
+	}
+
 	if ((dev.synth_dev = register_sound_synth (&wavefront_fops, -1)) < 0) {
 		printk (KERN_ERR LOGNAME "cannot register raw synth\n");
-		return -1;
+		goto err_out;
 	}
 
 #if OSS_SUPPORT_LEVEL & OSS_SUPPORT_SEQ
 	if ((dev.oss_dev = sound_alloc_synthdev()) == -1) {
 		printk (KERN_ERR LOGNAME "Too many sequencers\n");
-		return -1;
+		/* FIXME: leak: should unregister sound synth */
+		goto err_out;
 	} else {
 		synth_devs[dev.oss_dev] = &wavefront_operations;
 	}
@@ -2827,20 +2843,20 @@ static int __init install_wavefront (void)
 		sound_unload_synthdev (dev.oss_dev);
 #endif /* OSS_SUPPORT_SEQ */ 
 
-		return -1;
+		goto err_out;
 	}
     
-	request_region (dev.base+2, 6, "wavefront synth");
-
-	if (dev.has_fx) {
-		request_region (dev.base+8, 8, "wavefront fx");
-	}
-
 	if (wavefront_config_midi ()) {
 		printk (KERN_WARNING LOGNAME "could not initialize MIDI.\n");
 	}
 
 	return dev.oss_dev;
+
+err_out:
+	release_region (dev.base+2, 6);
+	if (dev.has_fx)
+		release_region (dev.base+8, 8);
+	return -1;
 }
 
 static void __exit uninstall_wavefront (void)

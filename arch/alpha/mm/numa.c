@@ -371,6 +371,8 @@ show_mem(void)
 	show_free_areas();
 	printk("Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	for_each_online_node(nid) {
+		unsigned long flags;
+		pgdat_resize_lock(NODE_DATA(nid), &flags);
 		i = node_spanned_pages(nid);
 		while (i-- > 0) {
 			struct page *page = nid_page_nr(nid, i);
@@ -384,6 +386,7 @@ show_mem(void)
 			else
 				shared += page_count(page) - 1;
 		}
+		pgdat_resize_unlock(NODE_DATA(nid), &flags);
 	}
 	printk("%ld pages of RAM\n",total);
 	printk("%ld free pages\n",free);

@@ -37,6 +37,7 @@
 #include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/moduleparam.h>
+#include <linux/sched.h>	/* need_resched() */
 
 #include <asm/io.h>
 #include <asm/uaccess.h>

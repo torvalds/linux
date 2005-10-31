@@ -30,6 +30,10 @@
 #include <linux/module.h>
 #include <linux/i2o.h>
 #include <linux/delay.h>
+#include <linux/workqueue.h>
+#include <linux/string.h>
+#include <linux/slab.h>
+#include <asm/param.h>		/* HZ */
 #include "core.h"
 
 #define OSM_NAME "exec-osm"

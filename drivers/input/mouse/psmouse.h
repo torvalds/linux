@@ -36,7 +36,7 @@ typedef enum {
 
 struct psmouse {
 	void *private;
-	struct input_dev dev;
+	struct input_dev *dev;
 	struct ps2dev ps2dev;
 	char *vendor;
 	char *name;

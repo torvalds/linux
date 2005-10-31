@@ -26,6 +26,7 @@
 #include <linux/vmalloc.h>
 
 #include <asm/cacheflush.h>
+#include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/tlbflush.h>
 
@@ -74,7 +75,7 @@ remap_area_pmd(pmd_t * pmd, unsigned long address, unsigned long size,
 
 	pgprot = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_DIRTY | L_PTE_WRITE | flags);
 	do {
-		pte_t * pte = pte_alloc_kernel(&init_mm, pmd, address);
+		pte_t * pte = pte_alloc_kernel(pmd, address);
 		if (!pte)
 			return -ENOMEM;
 		remap_area_pte(pte, address, end - address, address + phys_addr, pgprot);
@@ -96,7 +97,6 @@ remap_area_pages(unsigned long start, unsigned long phys_addr,
 	phys_addr -= address;
 	dir = pgd_offset(&init_mm, address);
 	BUG_ON(address >= end);
-	spin_lock(&init_mm.page_table_lock);
 	do {
 		pmd_t *pmd = pmd_alloc(&init_mm, dir, address);
 		if (!pmd) {
@@ -113,7 +113,6 @@ remap_area_pages(unsigned long start, unsigned long phys_addr,
 		dir++;
 	} while (address && (address < end));
 
-	spin_unlock(&init_mm.page_table_lock);
 	flush_cache_vmap(start, end);
 	return err;
 }

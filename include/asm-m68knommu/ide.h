@@ -163,13 +163,6 @@ ide_free_irq(unsigned int irq, void *dev_id)
 }
 
 
-static IDE_INLINE int
-ide_check_region(ide_ioreg_t from, unsigned int extent)
-{
-	return 0;
-}
-
-
 static IDE_INLINE void
 ide_request_region(ide_ioreg_t from, unsigned int extent, const char *name)
 {

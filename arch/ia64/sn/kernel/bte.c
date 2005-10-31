@@ -87,7 +87,7 @@ bte_result_t bte_copy(u64 src, u64 dest, u64 len, u64 mode, void *notification)
 	unsigned long irq_flags;
 	unsigned long itc_end = 0;
 	int nasid_to_try[MAX_NODES_TO_TRY];
-	int my_nasid = get_nasid();
+	int my_nasid = cpuid_to_nasid(raw_smp_processor_id());
 	int bte_if_index, nasid_index;
 	int bte_first, btes_per_node = BTES_PER_NODE;
 

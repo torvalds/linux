@@ -106,7 +106,7 @@ void hcd_buffer_destroy (struct usb_hcd *hcd)
 void *hcd_buffer_alloc (
 	struct usb_bus 		*bus,
 	size_t			size,
-	unsigned		mem_flags,
+	gfp_t			mem_flags,
 	dma_addr_t		*dma
 )
 {

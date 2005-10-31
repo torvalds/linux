@@ -511,12 +511,12 @@ sti_select_fbfont( struct sti_cooked_rom *cooked_rom, char *fbfont_name )
 	struct sti_cooked_font *cooked_font;
 	
 	if (!fbfont_name || !strlen(fbfont_name))
-	    return NULL;
+		return NULL;
 	fbfont = find_font(fbfont_name);
 	if (!fbfont)
-	    fbfont = get_default_font(1024,768);
+		fbfont = get_default_font(1024,768);
 	if (!fbfont)
-	    return NULL;
+		return NULL;
 
 	DPRINTK((KERN_DEBUG "selected %dx%d fb-font %s\n",
 			fbfont->width, fbfont->height, fbfont->name));
@@ -527,7 +527,7 @@ sti_select_fbfont( struct sti_cooked_rom *cooked_rom, char *fbfont_name )
 
 	nf = kmalloc(size, GFP_KERNEL);
 	if (!nf)
-	    return NULL;
+		return NULL;
 	memset(nf, 0, size);
 
 	nf->first_char = 0;
@@ -546,8 +546,8 @@ sti_select_fbfont( struct sti_cooked_rom *cooked_rom, char *fbfont_name )
 
 	cooked_font = kmalloc(sizeof(*cooked_font), GFP_KERNEL);
 	if (!cooked_font) {
-	    kfree(nf);
-	    return NULL;
+		kfree(nf);
+		return NULL;
 	}
 	
 	cooked_font->raw = nf;
@@ -595,7 +595,7 @@ sti_select_font(struct sti_cooked_rom *rom,
 static void __init 
 sti_dump_rom(struct sti_rom *rom)
 {
-        printk(KERN_INFO "    id %04x-%04x, conforms to spec rev. %d.%02x\n",
+	printk(KERN_INFO "    id %04x-%04x, conforms to spec rev. %d.%02x\n",
 		rom->graphics_id[0], 
 		rom->graphics_id[1],
 		rom->revno[0] >> 4, 
@@ -651,15 +651,16 @@ sti_search_font(struct sti_cooked_rom *rom, int height, int width)
 	struct sti_cooked_font *font;
 	int i = 0;
 	
-	for(font = rom->font_start; font; font = font->next_font, i++) {
-	    if((font->raw->width == width) && (font->raw->height == height))
+	for (font = rom->font_start; font; font = font->next_font, i++) {
+		if ((font->raw->width == width) &&
+		    (font->raw->height == height))
 			return i;
 	}
 	return 0;
 }
 
-#define BMODE_RELOCATE(offset)        offset = (offset) / 4;
-#define BMODE_LAST_ADDR_OFFS          0x50
+#define BMODE_RELOCATE(offset)		offset = (offset) / 4;
+#define BMODE_LAST_ADDR_OFFS		0x50
 
 static void * __init
 sti_bmode_font_raw(struct sti_cooked_font *f)
@@ -700,35 +701,35 @@ sti_get_bmode_rom (unsigned long address)
 {
 	struct sti_rom *raw;
 	u32 size;
-        struct sti_rom_font *raw_font, *font_start;
-    
+	struct sti_rom_font *raw_font, *font_start;
+
 	sti_bmode_rom_copy(address + BMODE_LAST_ADDR_OFFS, sizeof(size), &size);
-    
-        size = (size+3) / 4;
+
+	size = (size+3) / 4;
 	raw = kmalloc(size, GFP_KERNEL);
 	if (raw) {
-	    sti_bmode_rom_copy(address, size, raw);
-	    memmove (&raw->res004, &raw->type[0], 0x3c);
-    	    raw->type[3] = raw->res004;
+		sti_bmode_rom_copy(address, size, raw);
+		memmove (&raw->res004, &raw->type[0], 0x3c);
+		raw->type[3] = raw->res004;
 
-	    BMODE_RELOCATE (raw->region_list);
-	    BMODE_RELOCATE (raw->font_start);
+		BMODE_RELOCATE (raw->region_list);
+		BMODE_RELOCATE (raw->font_start);
 
-	    BMODE_RELOCATE (raw->init_graph);
-	    BMODE_RELOCATE (raw->state_mgmt);
-	    BMODE_RELOCATE (raw->font_unpmv);
-	    BMODE_RELOCATE (raw->block_move);
-	    BMODE_RELOCATE (raw->inq_conf);
+		BMODE_RELOCATE (raw->init_graph);
+		BMODE_RELOCATE (raw->state_mgmt);
+		BMODE_RELOCATE (raw->font_unpmv);
+		BMODE_RELOCATE (raw->block_move);
+		BMODE_RELOCATE (raw->inq_conf);
 
-	    raw_font = ((void *)raw) + raw->font_start;
-	    font_start = raw_font;
+		raw_font = ((void *)raw) + raw->font_start;
+		font_start = raw_font;
 		
-	    while (raw_font->next_font) {
-		    BMODE_RELOCATE (raw_font->next_font);
-		    raw_font = ((void *)font_start) + raw_font->next_font;
-	    }
+		while (raw_font->next_font) {
+			BMODE_RELOCATE (raw_font->next_font);
+			raw_font = ((void *)font_start) + raw_font->next_font;
+		}
 	}
-        return raw;
+	return raw;
 }
 
 struct sti_rom * __init
@@ -736,15 +737,15 @@ sti_get_wmode_rom (unsigned long address)
 {
 	struct sti_rom *raw;
 	unsigned long size;
-    
+
 	/* read the ROM size directly from the struct in ROM */ 
 	size = gsc_readl(address + offsetof(struct sti_rom,last_addr));
 
 	raw = kmalloc(size, GFP_KERNEL);
-	if(raw)
-	        sti_rom_copy(address, size, raw);
+	if (raw)
+		sti_rom_copy(address, size, raw);
 
-        return raw;
+	return raw;
 }
 
 int __init
@@ -757,14 +758,14 @@ sti_read_rom(int wordmode, struct sti_struct *sti, unsigned long address)
 	if (!cooked)
 		goto out_err;
 
-        if (wordmode)
-                raw = sti_get_wmode_rom (address);
-        else
-	        raw = sti_get_bmode_rom (address);
+	if (wordmode)
+		raw = sti_get_wmode_rom (address);
+	else
+		raw = sti_get_bmode_rom (address);
 
-        if (!raw)
-	        goto out_err;
-    
+	if (!raw)
+		goto out_err;
+
 	if (!sti_cook_fonts(cooked, raw)) {
 		printk(KERN_ERR "No font found for STI at %08lx\n", address);
 		goto out_err;
@@ -787,7 +788,7 @@ sti_read_rom(int wordmode, struct sti_struct *sti, unsigned long address)
 	sti->font_width = sti->font->raw->width;
 	sti->font_height = sti->font->raw->height;
 	if (!wordmode)
-	        sti->font->raw = sti_bmode_font_raw(sti->font);
+		sti->font->raw = sti_bmode_font_raw(sti->font);
 
 	sti->sti_mem_request = raw->sti_mem_req;
 	sti->graphics_id[0] = raw->graphics_id[0];
@@ -811,16 +812,16 @@ sti_try_rom_generic(unsigned long address, unsigned long hpa, struct pci_dev *pd
 	u32 sig;
 
 	if (num_sti_roms >= MAX_STI_ROMS) {
-	    printk(KERN_WARNING "maximum number of STI ROMS reached !\n");
-	    return NULL;
+		printk(KERN_WARNING "maximum number of STI ROMS reached !\n");
+		return NULL;
 	}
 	
 	sti = kmalloc(sizeof(*sti), GFP_KERNEL);
 	if (!sti) {
-	    printk(KERN_ERR "Not enough memory !\n");
-	    return NULL;
+		printk(KERN_ERR "Not enough memory !\n");
+		return NULL;
 	}
-		    
+
 	memset(sti, 0, sizeof(*sti));
 	spin_lock_init(&sti->lock);
 
@@ -932,28 +933,21 @@ static void __init sticore_check_for_default_sti(struct sti_struct *sti, char *p
  */
 static int __init sticore_pa_init(struct parisc_device *dev)
 {
-	unsigned long rom = 0;
 	char pa_path[21];
 	struct sti_struct *sti = NULL;
-	
-	if(dev->num_addrs) {
-		rom = dev->addr[0];
-	}
-	if (!rom) {
-		rom = dev->hpa;
-		DPRINTK((KERN_DEBUG "Trying STI ROM at %08lx, hpa at %08lx\n", rom, dev->hpa));
-		sti = sti_try_rom_generic(rom, dev->hpa, NULL);
-		rom = PAGE0->proc_sti;
-	}
-	if (!sti) {
-		DPRINTK((KERN_DEBUG "Trying STI ROM at %08lx, hpa at %08lx\n", rom, dev->hpa));
-		sti = sti_try_rom_generic(rom, dev->hpa, NULL);
-	}
+	int hpa = dev->hpa.start;
+
+	if (dev->num_addrs && dev->addr[0])
+		sti = sti_try_rom_generic(dev->addr[0], hpa, NULL);
+	if (!sti)
+		sti = sti_try_rom_generic(hpa, hpa, NULL);
+	if (!sti)
+		sti = sti_try_rom_generic(PAGE0->proc_sti, hpa, NULL);
 	if (!sti)
 		return 1;
-	
+
 	print_pa_hwpath(dev, pa_path);
-	sticore_check_for_default_sti (sti, pa_path);
+	sticore_check_for_default_sti(sti, pa_path);
 	return 0;
 }
 

@@ -91,7 +91,7 @@ int bitmap_active(struct bitmap *bitmap)
 
 #define WRITE_POOL_SIZE 256
 /* mempool for queueing pending writes on the bitmap file */
-static void *write_pool_alloc(unsigned int gfp_flags, void *data)
+static void *write_pool_alloc(gfp_t gfp_flags, void *data)
 {
 	return kmalloc(sizeof(struct page_list), gfp_flags);
 }

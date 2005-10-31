@@ -1,0 +1,122 @@
+RCU Torture Test Operation
+
+
+CONFIG_RCU_TORTURE_TEST
+
+The CONFIG_RCU_TORTURE_TEST config option is available for all RCU
+implementations.  It creates an rcutorture kernel module that can
+be loaded to run a torture test.  The test periodically outputs
+status messages via printk(), which can be examined via the dmesg
+command (perhaps grepping for "rcutorture").  The test is started
+when the module is loaded, and stops when the module is unloaded.
+
+However, actually setting this config option to "y" results in the system
+running the test immediately upon boot, and ending only when the system
+is taken down.  Normally, one will instead want to build the system
+with CONFIG_RCU_TORTURE_TEST=m and to use modprobe and rmmod to control
+the test, perhaps using a script similar to the one shown at the end of
+this document.  Note that you will need CONFIG_MODULE_UNLOAD in order
+to be able to end the test.
+
+
+MODULE PARAMETERS
+
+This module has the following parameters:
+
+nreaders	This is the number of RCU reading threads supported.
+		The default is twice the number of CPUs.  Why twice?
+		To properly exercise RCU implementations with preemptible
+		read-side critical sections.
+
+stat_interval	The number of seconds between output of torture
+		statistics (via printk()).  Regardless of the interval,
+		statistics are printed when the module is unloaded.
+		Setting the interval to zero causes the statistics to
+		be printed -only- when the module is unloaded, and this
+		is the default.
+
+verbose		Enable debug printk()s.  Default is disabled.
+
+
+OUTPUT
+
+The statistics output is as follows:
+
+	rcutorture: --- Start of test: nreaders=16 stat_interval=0 verbose=0
+	rcutorture: rtc: 0000000000000000 ver: 1916 tfle: 0 rta: 1916 rtaf: 0 rtf: 1915
+	rcutorture: Reader Pipe:  1466408 9747 0 0 0 0 0 0 0 0 0
+	rcutorture: Reader Batch:  1464477 11678 0 0 0 0 0 0 0 0
+	rcutorture: Free-Block Circulation:  1915 1915 1915 1915 1915 1915 1915 1915 1915 1915 0
+	rcutorture: --- End of test
+
+The command "dmesg | grep rcutorture:" will extract this information on
+most systems.  On more esoteric configurations, it may be necessary to
+use other commands to access the output of the printk()s used by
+the RCU torture test.  The printk()s use KERN_ALERT, so they should
+be evident.  ;-)
+
+The entries are as follows:
+
+o	"ggp": The number of counter flips (or batches) since boot.
+
+o	"rtc": The hexadecimal address of the structure currently visible
+	to readers.
+
+o	"ver": The number of times since boot that the rcutw writer task
+	has changed the structure visible to readers.
+
+o	"tfle": If non-zero, indicates that the "torture freelist"
+	containing structure to be placed into the "rtc" area is empty.
+	This condition is important, since it can fool you into thinking
+	that RCU is working when it is not.  :-/
+
+o	"rta": Number of structures allocated from the torture freelist.
+
+o	"rtaf": Number of allocations from the torture freelist that have
+	failed due to the list being empty.
+
+o	"rtf": Number of frees into the torture freelist.
+
+o	"Reader Pipe": Histogram of "ages" of structures seen by readers.
+	If any entries past the first two are non-zero, RCU is broken.
+	And rcutorture prints the error flag string "!!!" to make sure
+	you notice.  The age of a newly allocated structure is zero,
+	it becomes one when removed from reader visibility, and is
+	incremented once per grace period subsequently -- and is freed
+	after passing through (RCU_TORTURE_PIPE_LEN-2) grace periods.
+
+	The output displayed above was taken from a correctly working
+	RCU.  If you want to see what it looks like when broken, break
+	it yourself.  ;-)
+
+o	"Reader Batch": Another histogram of "ages" of structures seen
+	by readers, but in terms of counter flips (or batches) rather
+	than in terms of grace periods.  The legal number of non-zero
+	entries is again two.  The reason for this separate view is
+	that it is easier to get the third entry to show up in the
+	"Reader Batch" list than in the "Reader Pipe" list.
+
+o	"Free-Block Circulation": Shows the number of torture structures
+	that have reached a given point in the pipeline.  The first element
+	should closely correspond to the number of structures allocated,
+	the second to the number that have been removed from reader view,
+	and all but the last remaining to the corresponding number of
+	passes through a grace period.  The last entry should be zero,
+	as it is only incremented if a torture structure's counter
+	somehow gets incremented farther than it should.
+
+
+USAGE
+
+The following script may be used to torture RCU:
+
+	#!/bin/sh
+
+	modprobe rcutorture
+	sleep 100
+	rmmod rcutorture
+	dmesg | grep rcutorture:
+
+The output can be manually inspected for the error flag of "!!!".
+One could of course create a more elaborate script that automatically
+checked for such errors.

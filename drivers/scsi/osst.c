@@ -5146,7 +5146,8 @@ static long osst_compat_ioctl(struct file * file, unsigned int cmd_in, unsigned 
 /* Try to allocate a new tape buffer skeleton. Caller must not hold os_scsi_tapes_lock */
 static struct osst_buffer * new_tape_buffer( int from_initialization, int need_dma, int max_sg )
 {
-	int i, priority;
+	int i;
+	gfp_t priority;
 	struct osst_buffer *tb;
 
 	if (from_initialization)
@@ -5178,7 +5179,8 @@ static struct osst_buffer * new_tape_buffer( int from_initialization, int need_d
 /* Try to allocate a temporary (while a user has the device open) enlarged tape buffer */
 static int enlarge_buffer(struct osst_buffer *STbuffer, int need_dma)
 {
-	int segs, nbr, max_segs, b_size, priority, order, got;
+	int segs, nbr, max_segs, b_size, order, got;
+	gfp_t priority;
 
 	if (STbuffer->buffer_size >= OS_FRAME_SIZE)
 		return 1;
@@ -5627,7 +5629,7 @@ static void osst_sysfs_add(dev_t dev, struct device *device, struct osst_tape * 
 
 	if (!osst_sysfs_valid) return;
 
-	osst_class_member = class_device_create(osst_sysfs_class, dev, device, "%s", name);
+	osst_class_member = class_device_create(osst_sysfs_class, NULL, dev, device, "%s", name);
 	if (IS_ERR(osst_class_member)) {
 		printk(KERN_WARNING "osst :W: Unable to add sysfs class member %s\n", name);
 		return;

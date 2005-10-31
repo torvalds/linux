@@ -715,6 +715,7 @@ int devinet_ioctl(unsigned int cmd, void __user *arg)
 			break;
 		ret = 0;
 		if (ifa->ifa_mask != sin->sin_addr.s_addr) {
+			u32 old_mask = ifa->ifa_mask;
 			inet_del_ifa(in_dev, ifap, 0);
 			ifa->ifa_mask = sin->sin_addr.s_addr;
 			ifa->ifa_prefixlen = inet_mask_len(ifa->ifa_mask);
@@ -728,7 +729,7 @@ int devinet_ioctl(unsigned int cmd, void __user *arg)
 			if ((dev->flags & IFF_BROADCAST) &&
 			    (ifa->ifa_prefixlen < 31) &&
 			    (ifa->ifa_broadcast ==
-			     (ifa->ifa_local|~ifa->ifa_mask))) {
+			     (ifa->ifa_local|~old_mask))) {
 				ifa->ifa_broadcast = (ifa->ifa_local |
 						      ~sin->sin_addr.s_addr);
 			}

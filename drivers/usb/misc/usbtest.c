@@ -9,7 +9,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 
 #include <linux/usb.h>
 
@@ -381,7 +381,6 @@ alloc_sglist (int nents, int max, int vary)
 	sg = kmalloc (nents * sizeof *sg, SLAB_KERNEL);
 	if (!sg)
 		return NULL;
-	memset (sg, 0, nents * sizeof *sg);
 
 	for (i = 0; i < nents; i++) {
 		char		*buf;
@@ -394,9 +393,7 @@ alloc_sglist (int nents, int max, int vary)
 		memset (buf, 0, size);
 
 		/* kmalloc pages are always physically contiguous! */
-		sg [i].page = virt_to_page (buf);
-		sg [i].offset = offset_in_page (buf);
-		sg [i].length = size;
+		sg_init_one(&sg[i], buf, size);
 
 		if (vary) {
 			size += vary;
@@ -983,6 +980,7 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 		reqp->number = i % NUM_SUBCASES;
 		reqp->expected = expected;
 		u->setup_packet = (char *) &reqp->setup;
+		u->transfer_flags |= URB_NO_SETUP_DMA_MAP;
 
 		u->context = &context;
 		u->complete = ctrl_complete;
@@ -1948,21 +1946,11 @@ usbtest_probe (struct usb_interface *intf, const struct usb_device_id *id)
 
 static int usbtest_suspend (struct usb_interface *intf, pm_message_t message)
 {
-	struct usbtest_dev	*dev = usb_get_intfdata (intf);
-
-	down (&dev->sem);
-	intf->dev.power.power_state = PMSG_SUSPEND;
-	up (&dev->sem);
 	return 0;
 }
 
 static int usbtest_resume (struct usb_interface *intf)
 {
-	struct usbtest_dev	*dev = usb_get_intfdata (intf);
-
-	down (&dev->sem);
-	intf->dev.power.power_state = PMSG_ON;
-	up (&dev->sem);
 	return 0;
 }
 

@@ -35,7 +35,6 @@
 
 #undef DEBUG
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/ioport.h>

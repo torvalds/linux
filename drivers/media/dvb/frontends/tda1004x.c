@@ -32,6 +32,10 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/device.h>
+#include <linux/jiffies.h>
+#include <linux/string.h>
+#include <linux/slab.h>
+
 #include "dvb_frontend.h"
 #include "tda1004x.h"
 

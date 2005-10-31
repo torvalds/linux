@@ -940,7 +940,7 @@ static struct sk_buff *sock_alloc_send_pskb(struct sock *sk,
 					    int noblock, int *errcode)
 {
 	struct sk_buff *skb;
-	unsigned int gfp_mask;
+	gfp_t gfp_mask;
 	long timeo;
 	int err;
 

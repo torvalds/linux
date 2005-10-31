@@ -5,6 +5,7 @@
  */
 #include <linux/module.h>
 #include <linux/kallsyms.h>
+#include <linux/sched.h>
 
 unsigned int debug_smp_processor_id(void)
 {

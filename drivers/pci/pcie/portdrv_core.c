@@ -11,6 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/pm.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/pcieport_if.h>
 
 #include "portdrv.h"
@@ -61,7 +63,7 @@ static int pcie_port_remove_service(struct device *dev)
 
 static void pcie_port_shutdown_service(struct device *dev) {}
 
-static int pcie_port_suspend_service(struct device *dev, pm_message_t state, u32 level)
+static int pcie_port_suspend_service(struct device *dev, pm_message_t state)
 {
 	struct pcie_device *pciedev;
 	struct pcie_port_service_driver *driver;
@@ -76,7 +78,7 @@ static int pcie_port_suspend_service(struct device *dev, pm_message_t state, u32
 	return 0;
 }
 
-static int pcie_port_resume_service(struct device *dev, u32 level)
+static int pcie_port_resume_service(struct device *dev)
 {
 	struct pcie_device *pciedev;
 	struct pcie_port_service_driver *driver;

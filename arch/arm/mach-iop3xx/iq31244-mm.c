@@ -29,10 +29,12 @@
  * We use RedBoot's setup for the onboard devices.
  */
 static struct map_desc iq31244_io_desc[] __initdata = {
- /* virtual     physical      length        type */
-
- /* on-board devices */
- { IQ31244_UART, IQ31244_UART,   0x00100000,   MT_DEVICE }
+	{	/* on-board devices */
+		.virtual	= IQ31244_UART,
+		.pfn		= __phys_to_pfn(IQ31244_UART),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}
 };
 
 void __init iq31244_map_io(void)

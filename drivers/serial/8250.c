@@ -2358,12 +2358,9 @@ static int __devexit serial8250_remove(struct device *dev)
 	return 0;
 }
 
-static int serial8250_suspend(struct device *dev, pm_message_t state, u32 level)
+static int serial8250_suspend(struct device *dev, pm_message_t state)
 {
 	int i;
-
-	if (level != SUSPEND_DISABLE)
-		return 0;
 
 	for (i = 0; i < UART_NR; i++) {
 		struct uart_8250_port *up = &serial8250_ports[i];
@@ -2375,12 +2372,9 @@ static int serial8250_suspend(struct device *dev, pm_message_t state, u32 level)
 	return 0;
 }
 
-static int serial8250_resume(struct device *dev, u32 level)
+static int serial8250_resume(struct device *dev)
 {
 	int i;
-
-	if (level != RESUME_ENABLE)
-		return 0;
 
 	for (i = 0; i < UART_NR; i++) {
 		struct uart_8250_port *up = &serial8250_ports[i];

@@ -215,6 +215,7 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 	data->res.fattr   = &data->fattr;
 	data->res.count   = count;
 	data->res.eof     = 0;
+	nfs_fattr_init(&data->fattr);
 
 	NFS_PROTO(inode)->read_setup(data);
 

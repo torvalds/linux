@@ -11,7 +11,7 @@
 #include <asm/cio.h>
 #include "qeth_mpc.h"
 
-const char *VERSION_QETH_MPC_C = "$Revision: 1.11 $";
+const char *VERSION_QETH_MPC_C = "$Revision: 1.12 $";
 
 unsigned char IDX_ACTIVATE_READ[]={
 	0x00,0x00,0x80,0x00, 0x00,0x00,0x00,0x00,
@@ -138,7 +138,9 @@ unsigned char IPA_PDU_HEADER[]={
 		sizeof(struct qeth_ipa_cmd)%256,
 	0x00,
 		sizeof(struct qeth_ipa_cmd)/256,
-		sizeof(struct qeth_ipa_cmd),0x05, 0x77,0x77,0x77,0x77,
+		sizeof(struct qeth_ipa_cmd)%256,
+	0x05,
+	0x77,0x77,0x77,0x77,
 	0x00,0x00,0x00,0x00, 0x00,0x00,0x00,0x00,
 	0x01,0x00,
 		sizeof(struct qeth_ipa_cmd)/256,

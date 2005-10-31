@@ -51,6 +51,7 @@
 #include <linux/device.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>

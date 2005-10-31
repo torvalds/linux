@@ -83,11 +83,6 @@ struct s_i2c_chip {
 /*
  * i2c configuration
  */
-#ifndef I2C_HW_B_S3VIA
-#define I2C_HW_B_S3VIA	0x18	/* S3VIA ProSavage adapter		*/
-#endif
-
-/* delays */
 #define CYCLE_DELAY	10
 #define TIMEOUT		(HZ / 2)
 
@@ -241,13 +236,11 @@ static int __devinit prosavage_probe(struct pci_dev *dev, const struct pci_devic
 	struct s_i2c_chip *chip;
 	struct s_i2c_bus  *bus;
 
-        pci_set_drvdata(dev, kmalloc(sizeof(struct s_i2c_chip), GFP_KERNEL)); 
+	pci_set_drvdata(dev, kzalloc(sizeof(struct s_i2c_chip), GFP_KERNEL));
 	chip = (struct s_i2c_chip *)pci_get_drvdata(dev);
 	if (chip == NULL) {
 		return -ENOMEM;
 	}
-
-	memset(chip, 0, sizeof(struct s_i2c_chip));
 
 	base = dev->resource[0].start & PCI_BASE_ADDRESS_MEM_MASK;
 	len  = dev->resource[0].end - base + 1;
@@ -308,6 +301,7 @@ static struct pci_device_id prosavage_pci_tbl[] = {
 MODULE_DEVICE_TABLE (pci, prosavage_pci_tbl);
 
 static struct pci_driver prosavage_driver = {
+	.owner		=	THIS_MODULE,
 	.name		=	"prosavage_smbus",
 	.id_table	=	prosavage_pci_tbl,
 	.probe		=	prosavage_probe,

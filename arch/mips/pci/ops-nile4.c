@@ -15,7 +15,7 @@
 
 volatile unsigned long *const vrc_pciregs = (void *) Vrc5074_BASE;
 
-static spinlock_t nile4_pci_lock;
+static DEFINE_SPINLOCK(nile4_pci_lock);
 
 static int nile4_pcibios_config_access(unsigned char access_type,
 	struct pci_bus *bus, unsigned int devfn, int where, u32 * val)

@@ -669,6 +669,7 @@ static void pci_release_dev(struct device *dev)
 
 /**
  * pci_cfg_space_size - get the configuration space size of the PCI device.
+ * @dev: PCI device
  *
  * Regular PCI devices have 256 bytes, but PCI-X 2 and PCI Express devices
  * have 4096 bytes.  Even if the device is capable, that doesn't mean we can

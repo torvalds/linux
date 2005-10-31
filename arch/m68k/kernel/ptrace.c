@@ -121,7 +121,7 @@ void ptrace_disable(struct task_struct *child)
 	child->thread.work.syscall_trace = 0;
 }
 
-asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
+asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
 	unsigned long tmp;

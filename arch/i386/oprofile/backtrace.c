@@ -12,6 +12,7 @@
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <asm/ptrace.h>
+#include <asm/uaccess.h>
 
 struct frame_head {
 	struct frame_head * ebp;
@@ -21,26 +22,22 @@ struct frame_head {
 static struct frame_head *
 dump_backtrace(struct frame_head * head)
 {
-	oprofile_add_trace(head->ret);
+	struct frame_head bufhead[2];
+
+	/* Also check accessibility of one struct frame_head beyond */
+	if (!access_ok(VERIFY_READ, head, sizeof(bufhead)))
+		return NULL;
+	if (__copy_from_user_inatomic(bufhead, head, sizeof(bufhead)))
+		return NULL;
+
+	oprofile_add_trace(bufhead[0].ret);
 
 	/* frame pointers should strictly progress back up the stack
 	 * (towards higher addresses) */
-	if (head >= head->ebp)
+	if (head >= bufhead[0].ebp)
 		return NULL;
 
-	return head->ebp;
-}
-
-/* check that the page(s) containing the frame head are present */
-static int pages_present(struct frame_head * head)
-{
-	struct mm_struct * mm = current->mm;
-
-	/* FIXME: only necessary once per page */
-	if (!check_user_page_readable(mm, (unsigned long)head))
-		return 0;
-
-	return check_user_page_readable(mm, (unsigned long)(head + 1));
+	return bufhead[0].ebp;
 }
 
 /*
@@ -97,15 +94,6 @@ x86_backtrace(struct pt_regs * const regs, unsigned int depth)
 		return;
 	}
 
-#ifdef CONFIG_SMP
-	if (!spin_trylock(&current->mm->page_table_lock))
-		return;
-#endif
-
-	while (depth-- && head && pages_present(head))
+	while (depth-- && head)
 		head = dump_backtrace(head);
-
-#ifdef CONFIG_SMP
-	spin_unlock(&current->mm->page_table_lock);
-#endif
 }

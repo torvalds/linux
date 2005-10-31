@@ -56,11 +56,9 @@ static unsigned char xtkbd_keycode[256] = {
 	106
 };
 
-static char *xtkbd_name = "XT Keyboard";
-
 struct xtkbd {
 	unsigned char keycode[256];
-	struct input_dev dev;
+	struct input_dev *dev;
 	struct serio *serio;
 	char phys[32];
 };
@@ -77,9 +75,9 @@ static irqreturn_t xtkbd_interrupt(struct serio *serio,
 		default:
 
 			if (xtkbd->keycode[data & XTKBD_KEY]) {
-				input_regs(&xtkbd->dev, regs);
-				input_report_key(&xtkbd->dev, xtkbd->keycode[data & XTKBD_KEY], !(data & XTKBD_RELEASE));
-				input_sync(&xtkbd->dev);
+				input_regs(xtkbd->dev, regs);
+				input_report_key(xtkbd->dev, xtkbd->keycode[data & XTKBD_KEY], !(data & XTKBD_RELEASE));
+				input_sync(xtkbd->dev);
 			} else {
 				printk(KERN_WARNING "xtkbd.c: Unknown key (scancode %#x) %s.\n",
 					data & XTKBD_KEY, data & XTKBD_RELEASE ? "released" : "pressed");
@@ -91,62 +89,60 @@ static irqreturn_t xtkbd_interrupt(struct serio *serio,
 static int xtkbd_connect(struct serio *serio, struct serio_driver *drv)
 {
 	struct xtkbd *xtkbd;
+	struct input_dev *input_dev;
+	int err = -ENOMEM;
 	int i;
-	int err;
 
-	if (!(xtkbd = kmalloc(sizeof(struct xtkbd), GFP_KERNEL)))
-		return -ENOMEM;
-
-	memset(xtkbd, 0, sizeof(struct xtkbd));
-
-	xtkbd->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
+	xtkbd = kmalloc(sizeof(struct xtkbd), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!xtkbd || !input_dev)
+		goto fail;
 
 	xtkbd->serio = serio;
+	xtkbd->dev = input_dev;
+	sprintf(xtkbd->phys, "%s/input0", serio->phys);
+	memcpy(xtkbd->keycode, xtkbd_keycode, sizeof(xtkbd->keycode));
 
-	init_input_dev(&xtkbd->dev);
-	xtkbd->dev.keycode = xtkbd->keycode;
-	xtkbd->dev.keycodesize = sizeof(unsigned char);
-	xtkbd->dev.keycodemax = ARRAY_SIZE(xtkbd_keycode);
-	xtkbd->dev.private = xtkbd;
+	input_dev->name = "XT Keyboard";
+	input_dev->phys = xtkbd->phys;
+	input_dev->id.bustype = BUS_XTKBD;
+	input_dev->id.vendor  = 0x0001;
+	input_dev->id.product = 0x0001;
+	input_dev->id.version = 0x0100;
+	input_dev->cdev.dev = &serio->dev;
+	input_dev->private = xtkbd;
+
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
+	input_dev->keycode = xtkbd->keycode;
+	input_dev->keycodesize = sizeof(unsigned char);
+	input_dev->keycodemax = ARRAY_SIZE(xtkbd_keycode);
+
+	for (i = 0; i < 255; i++)
+		set_bit(xtkbd->keycode[i], input_dev->keybit);
+	clear_bit(0, input_dev->keybit);
 
 	serio_set_drvdata(serio, xtkbd);
 
 	err = serio_open(serio, drv);
-	if (err) {
-		serio_set_drvdata(serio, NULL);
-		kfree(xtkbd);
-		return err;
-	}
+	if (err)
+		goto fail;
 
-	memcpy(xtkbd->keycode, xtkbd_keycode, sizeof(xtkbd->keycode));
-	for (i = 0; i < 255; i++)
-		set_bit(xtkbd->keycode[i], xtkbd->dev.keybit);
-	clear_bit(0, xtkbd->dev.keybit);
-
-	sprintf(xtkbd->phys, "%s/input0", serio->phys);
-
-	xtkbd->dev.name = xtkbd_name;
-	xtkbd->dev.phys = xtkbd->phys;
-	xtkbd->dev.id.bustype = BUS_XTKBD;
-	xtkbd->dev.id.vendor = 0x0001;
-	xtkbd->dev.id.product = 0x0001;
-	xtkbd->dev.id.version = 0x0100;
-	xtkbd->dev.dev = &serio->dev;
-
-	input_register_device(&xtkbd->dev);
-
-	printk(KERN_INFO "input: %s on %s\n", xtkbd_name, serio->phys);
-
+	input_register_device(xtkbd->dev);
 	return 0;
+
+ fail:	serio_set_drvdata(serio, NULL);
+	input_free_device(input_dev);
+	kfree(xtkbd);
+	return err;
 }
 
 static void xtkbd_disconnect(struct serio *serio)
 {
 	struct xtkbd *xtkbd = serio_get_drvdata(serio);
 
-	input_unregister_device(&xtkbd->dev);
 	serio_close(serio);
 	serio_set_drvdata(serio, NULL);
+	input_unregister_device(xtkbd->dev);
 	kfree(xtkbd);
 }
 

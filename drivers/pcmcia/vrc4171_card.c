@@ -774,31 +774,11 @@ static int __devinit vrc4171_card_setup(char *options)
 
 __setup("vrc4171_card=", vrc4171_card_setup);
 
-static int vrc4171_card_suspend(struct device *dev, pm_message_t state, u32 level)
-{
-	int retval = 0;
-
-	if (level == SUSPEND_SAVE_STATE)
-		retval = pcmcia_socket_dev_suspend(dev, state);
-
-	return retval;
-}
-
-static int vrc4171_card_resume(struct device *dev, u32 level)
-{
-	int retval = 0;
-
-	if (level == RESUME_RESTORE_STATE)
-		retval = pcmcia_socket_dev_resume(dev);
-
-	return retval;
-}
-
 static struct device_driver vrc4171_card_driver = {
 	.name		= vrc4171_card_name,
 	.bus		= &platform_bus_type,
-	.suspend	= vrc4171_card_suspend,
-	.resume		= vrc4171_card_resume,
+	.suspend	= pcmcia_socket_dev_suspend,
+	.resume		= pcmcia_socket_dev_resume,
 };
 
 static int __devinit vrc4171_card_init(void)

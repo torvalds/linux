@@ -66,11 +66,6 @@
 
 #include <asm/time.h>
 
-/* XXX false sharing with below? */
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 unsigned long disarm_decr[NR_CPUS];
 
 extern struct timezone sys_tz;

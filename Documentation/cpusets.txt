@@ -94,7 +94,7 @@ the available CPU and Memory resources amongst the requesting tasks.
 But larger systems, which benefit more from careful processor and
 memory placement to reduce memory access times and contention,
 and which typically represent a larger investment for the customer,
-can benefit from explictly placing jobs on properly sized subsets of
+can benefit from explicitly placing jobs on properly sized subsets of
 the system.
 
 This can be especially valuable on:

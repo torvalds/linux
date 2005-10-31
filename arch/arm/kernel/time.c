@@ -36,10 +36,6 @@
 #include <asm/thread_info.h>
 #include <asm/mach/time.h>
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 /*
  * Our system timer.
  */

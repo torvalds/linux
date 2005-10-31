@@ -128,7 +128,7 @@ raw_ioctl(struct inode *inode, struct file *filp,
 static void bind_device(struct raw_config_request *rq)
 {
 	class_device_destroy(raw_class, MKDEV(RAW_MAJOR, rq->raw_minor));
-	class_device_create(raw_class, MKDEV(RAW_MAJOR, rq->raw_minor),
+	class_device_create(raw_class, NULL, MKDEV(RAW_MAJOR, rq->raw_minor),
 				      NULL, "raw%d", rq->raw_minor);
 }
 
@@ -307,7 +307,7 @@ static int __init raw_init(void)
 		unregister_chrdev_region(dev, MAX_RAW_MINORS);
 		goto error;
 	}
-	class_device_create(raw_class, MKDEV(RAW_MAJOR, 0), NULL, "rawctl");
+	class_device_create(raw_class, NULL, MKDEV(RAW_MAJOR, 0), NULL, "rawctl");
 
 	devfs_mk_cdev(MKDEV(RAW_MAJOR, 0),
 		      S_IFCHR | S_IRUGO | S_IWUGO,

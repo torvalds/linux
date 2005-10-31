@@ -122,14 +122,13 @@ void ll_uart_irq(struct pt_regs *regs)
 #define shutdown_uart_irq	disable_uart_irq
 
 struct hw_interrupt_type uart_irq_type = {
-	"UART/FPGA",
-	startup_uart_irq,
-	shutdown_uart_irq,
-	enable_uart_irq,
-	disable_uart_irq,
-	mask_and_ack_uart_irq,
-	end_uart_irq,
-	NULL
+	.typename = "UART/FPGA",
+	.startup = startup_uart_irq,
+	.shutdown = shutdown_uart_irq,
+	.enable = enable_uart_irq,
+	.disable = disable_uart_irq,
+	.ack = mask_and_ack_uart_irq,
+	.end = end_uart_irq,
 };
 
 void uart_irq_init(void)

@@ -1632,8 +1632,7 @@ static void ns83820_run_bist(struct net_device *ndev, const char *name, u32 enab
 			timed_out = 1;
 			break;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 
 	if (status & fail)

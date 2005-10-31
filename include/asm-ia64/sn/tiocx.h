@@ -19,6 +19,7 @@ struct cx_id_s {
 
 struct cx_dev {
 	struct cx_id_s cx_id;
+	int bt;				/* board/blade type */
 	void *soft;			/* driver specific */
 	struct hubdev_info *hubdev;
 	struct device dev;
@@ -59,7 +60,7 @@ struct cx_drv {
 extern struct sn_irq_info *tiocx_irq_alloc(nasid_t, int, int, nasid_t, int);
 extern void tiocx_irq_free(struct sn_irq_info *);
 extern int cx_device_unregister(struct cx_dev *);
-extern int cx_device_register(nasid_t, int, int, struct hubdev_info *);
+extern int cx_device_register(nasid_t, int, int, struct hubdev_info *, int);
 extern int cx_driver_unregister(struct cx_drv *);
 extern int cx_driver_register(struct cx_drv *);
 extern uint64_t tiocx_dma_addr(uint64_t addr);

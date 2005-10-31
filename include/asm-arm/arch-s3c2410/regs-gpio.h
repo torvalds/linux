@@ -20,6 +20,7 @@
  *    18-11-2004     BJD     Added S3C2440 AC97 controls
  *    10-Mar-2005    LCVR    Changed S3C2410_VA to S3C24XX_VA
  *    28-Mar-2005    LCVR    Fixed definition of GPB10
+ *    26-Oct-2005    BJD     Added generic configuration types
 */
 
 
@@ -43,6 +44,11 @@
 /* general configuration options */
 
 #define S3C2410_GPIO_LEAVE   (0xFFFFFFFF)
+#define S3C2410_GPIO_INPUT   (0xFFFFFFF0)
+#define S3C2410_GPIO_OUTPUT  (0xFFFFFFF1)
+#define S3C2410_GPIO_IRQ     (0xFFFFFFF2)	/* not available for all */
+#define S3C2410_GPIO_SFN2    (0xFFFFFFF2)	/* not available on A */
+#define S3C2410_GPIO_SFN3    (0xFFFFFFF3)	/* not available on A */
 
 /* configure GPIO ports A..G */
 

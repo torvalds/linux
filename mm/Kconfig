@@ -111,3 +111,24 @@ config SPARSEMEM_STATIC
 config SPARSEMEM_EXTREME
 	def_bool y
 	depends on SPARSEMEM && !SPARSEMEM_STATIC
+
+# eventually, we can have this option just 'select SPARSEMEM'
+config MEMORY_HOTPLUG
+	bool "Allow for memory hot-add"
+	depends on SPARSEMEM && HOTPLUG && !SOFTWARE_SUSPEND
+
+comment "Memory hotplug is currently incompatible with Software Suspend"
+	depends on SPARSEMEM && HOTPLUG && SOFTWARE_SUSPEND
+
+# Heavily threaded applications may benefit from splitting the mm-wide
+# page_table_lock, so that faults on different parts of the user address
+# space can be handled with less contention: split it at this NR_CPUS.
+# Default to 4 for wider testing, though 8 might be more appropriate.
+# ARM's adjust_pte (unused if VIPT) depends on mm-wide page_table_lock.
+# PA-RISC's debug spinlock_t is too large for the 32-bit struct page.
+#
+config SPLIT_PTLOCK_CPUS
+	int
+	default "4096" if ARM && !CPU_CACHE_VIPT
+	default "4096" if PARISC && DEBUG_SPINLOCK && !64BIT
+	default "4"

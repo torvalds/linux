@@ -477,7 +477,7 @@ qh_urb_transaction (
 	struct ehci_hcd		*ehci,
 	struct urb		*urb,
 	struct list_head	*head,
-	int			flags
+	gfp_t			flags
 ) {
 	struct ehci_qtd		*qtd, *qtd_prev;
 	dma_addr_t		buf;
@@ -629,7 +629,7 @@ static struct ehci_qh *
 qh_make (
 	struct ehci_hcd		*ehci,
 	struct urb		*urb,
-	int			flags
+	gfp_t			flags
 ) {
 	struct ehci_qh		*qh = ehci_qh_alloc (ehci, flags);
 	u32			info1 = 0, info2 = 0;
@@ -906,7 +906,7 @@ submit_async (
 	struct usb_host_endpoint *ep,
 	struct urb		*urb,
 	struct list_head	*qtd_list,
-	unsigned		mem_flags
+	gfp_t			mem_flags
 ) {
 	struct ehci_qtd		*qtd;
 	int			epnum;

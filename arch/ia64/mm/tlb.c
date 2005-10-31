@@ -77,18 +77,24 @@ wrap_mmu_context (struct mm_struct *mm)
 	/* can't call flush_tlb_all() here because of race condition with O(1) scheduler [EF] */
 	{
 		int cpu = get_cpu(); /* prevent preemption/migration */
-		for (i = 0; i < NR_CPUS; ++i)
-			if (cpu_online(i) && (i != cpu))
+		for_each_online_cpu(i) {
+			if (i != cpu)
 				per_cpu(ia64_need_tlb_flush, i) = 1;
+		}
 		put_cpu();
 	}
 	local_flush_tlb_all();
 }
 
 void
-ia64_global_tlb_purge (unsigned long start, unsigned long end, unsigned long nbits)
+ia64_global_tlb_purge (struct mm_struct *mm, unsigned long start, unsigned long end, unsigned long nbits)
 {
 	static DEFINE_SPINLOCK(ptcg_lock);
+
+	if (mm != current->active_mm) {
+		flush_tlb_all();
+		return;
+	}
 
 	/* HW requires global serialization of ptc.ga.  */
 	spin_lock(&ptcg_lock);
@@ -135,15 +141,12 @@ flush_tlb_range (struct vm_area_struct *vma, unsigned long start, unsigned long 
 	unsigned long size = end - start;
 	unsigned long nbits;
 
+#ifndef CONFIG_SMP
 	if (mm != current->active_mm) {
-		/* this does happen, but perhaps it's not worth optimizing for? */
-#ifdef CONFIG_SMP
-		flush_tlb_all();
-#else
 		mm->context = 0;
-#endif
 		return;
 	}
+#endif
 
 	nbits = ia64_fls(size + 0xfff);
 	while (unlikely (((1UL << nbits) & purge.mask) == 0) && (nbits < purge.max_bits))
@@ -153,12 +156,14 @@ flush_tlb_range (struct vm_area_struct *vma, unsigned long start, unsigned long 
 	start &= ~((1UL << nbits) - 1);
 
 # ifdef CONFIG_SMP
-	platform_global_tlb_purge(start, end, nbits);
+	platform_global_tlb_purge(mm, start, end, nbits);
 # else
+	preempt_disable();
 	do {
 		ia64_ptcl(start, (nbits<<2));
 		start += (1UL << nbits);
 	} while (start < end);
+	preempt_enable();
 # endif
 
 	ia64_srlz_i();			/* srlz.i implies srlz.d */

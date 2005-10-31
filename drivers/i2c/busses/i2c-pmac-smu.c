@@ -211,12 +211,11 @@ static int create_iface(struct device_node *np, struct device *dev)
 	}
 	busid = *reg;
 
-	iface = kmalloc(sizeof(struct smu_iface), GFP_KERNEL);
+	iface = kzalloc(sizeof(struct smu_iface), GFP_KERNEL);
 	if (iface == NULL) {
 		printk(KERN_ERR "i2c-pmac-smu: can't allocate inteface !\n");
 		return -ENOMEM;
 	}
-	memset(iface, 0, sizeof(struct smu_iface));
 	init_completion(&iface->complete);
 	iface->busid = busid;
 

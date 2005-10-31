@@ -254,10 +254,22 @@ EXPORT_SYMBOL(badge4_set_5V);
 
 
 static struct map_desc badge4_io_desc[] __initdata = {
-  /*  virtual    physical    length    type */
-  {0xf1000000, 0x08000000, 0x00100000, MT_DEVICE },/* SRAM  bank 1 */
-  {0xf2000000, 0x10000000, 0x00100000, MT_DEVICE },/* SRAM  bank 2 */
-  {0xf4000000, 0x48000000, 0x00100000, MT_DEVICE } /* SA-1111      */
+  	{	/* SRAM  bank 1 */
+		.virtual	= 0xf1000000,
+		.pfn		= __phys_to_pfn(0x08000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* SRAM  bank 2 */
+		.virtual	= 0xf2000000,
+		.pfn		= __phys_to_pfn(0x10000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* SA-1111      */
+		.virtual	= 0xf4000000,
+		.pfn		= __phys_to_pfn(0x48000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}
 };
 
 static void

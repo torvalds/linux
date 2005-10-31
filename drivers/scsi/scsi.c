@@ -130,7 +130,7 @@ EXPORT_SYMBOL(scsi_device_types);
  * Returns:     Pointer to request block.
  */
 struct scsi_request *scsi_allocate_request(struct scsi_device *sdev,
-					   int gfp_mask)
+					   gfp_t gfp_mask)
 {
 	const int offset = ALIGN(sizeof(struct scsi_request), 4);
 	const int size = offset + sizeof(struct request);
@@ -196,7 +196,7 @@ struct scsi_host_cmd_pool {
 	unsigned int	users;
 	char		*name;
 	unsigned int	slab_flags;
-	unsigned int	gfp_mask;
+	gfp_t		gfp_mask;
 };
 
 static struct scsi_host_cmd_pool scsi_cmd_pool = {
@@ -213,7 +213,7 @@ static struct scsi_host_cmd_pool scsi_cmd_dma_pool = {
 static DECLARE_MUTEX(host_cmd_pool_mutex);
 
 static struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost,
-					    int gfp_mask)
+					    gfp_t gfp_mask)
 {
 	struct scsi_cmnd *cmd;
 
@@ -245,7 +245,7 @@ static struct scsi_cmnd *__scsi_get_command(struct Scsi_Host *shost,
  *
  * Returns:	The allocated scsi command structure.
  */
-struct scsi_cmnd *scsi_get_command(struct scsi_device *dev, int gfp_mask)
+struct scsi_cmnd *scsi_get_command(struct scsi_device *dev, gfp_t gfp_mask)
 {
 	struct scsi_cmnd *cmd;
 

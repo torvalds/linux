@@ -121,7 +121,7 @@ put_fpu_long(struct task_struct *task, unsigned long addr, unsigned long data)
 	return 0;
 }
 
-asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
+asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
 	extern void poke_real_address_q(unsigned long long addr, unsigned long long data);

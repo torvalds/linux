@@ -55,7 +55,7 @@ extern void mips_reboot_setup(void);
 
 unsigned char mac_0_1[12];
 
-static void __init ev96100_setup(void)
+void __init plat_setup(void)
 {
 	unsigned int config = read_c0_config();
 	unsigned int status = read_c0_status();
@@ -141,8 +141,6 @@ static void __init ev96100_setup(void)
 	udelay(2);
 	tmp = GT_READ(GT_PCI0_CFGDATA_OFS);
 }
-
-early_initcall(ev96100_setup);
 
 unsigned short get_gt_devid(void)
 {

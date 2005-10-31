@@ -137,7 +137,8 @@ struct cinergyt2 {
 	struct urb *stream_urb [STREAM_URB_COUNT];
 
 #ifdef ENABLE_RC
-	struct input_dev rc_input_dev;
+	struct input_dev *rc_input_dev;
+	char phys[64];
 	struct work_struct rc_query_work;
 	int rc_input_event;
 	u32 rc_last_code;
@@ -683,6 +684,7 @@ static struct dvb_device cinergyt2_fe_template = {
 };
 
 #ifdef ENABLE_RC
+
 static void cinergyt2_query_rc (void *data)
 {
 	struct cinergyt2 *cinergyt2 = data;
@@ -703,7 +705,7 @@ static void cinergyt2_query_rc (void *data)
 			/* stop key repeat */
 			if (cinergyt2->rc_input_event != KEY_MAX) {
 				dprintk(1, "rc_input_event=%d Up\n", cinergyt2->rc_input_event);
-				input_report_key(&cinergyt2->rc_input_dev,
+				input_report_key(cinergyt2->rc_input_dev,
 						 cinergyt2->rc_input_event, 0);
 				cinergyt2->rc_input_event = KEY_MAX;
 			}
@@ -722,7 +724,7 @@ static void cinergyt2_query_rc (void *data)
 			/* keyrepeat bit -> just repeat last rc_input_event */
 		} else {
 			cinergyt2->rc_input_event = KEY_MAX;
-			for (i = 0; i < sizeof(rc_keys) / sizeof(rc_keys[0]); i += 3) {
+			for (i = 0; i < ARRAY_SIZE(rc_keys); i += 3) {
 				if (rc_keys[i + 0] == rc_events[n].type &&
 				    rc_keys[i + 1] == le32_to_cpu(rc_events[n].value)) {
 					cinergyt2->rc_input_event = rc_keys[i + 2];
@@ -736,11 +738,11 @@ static void cinergyt2_query_rc (void *data)
 			    cinergyt2->rc_last_code != ~0) {
 				/* emit a key-up so the double event is recognized */
 				dprintk(1, "rc_input_event=%d UP\n", cinergyt2->rc_input_event);
-				input_report_key(&cinergyt2->rc_input_dev,
+				input_report_key(cinergyt2->rc_input_dev,
 						 cinergyt2->rc_input_event, 0);
 			}
 			dprintk(1, "rc_input_event=%d\n", cinergyt2->rc_input_event);
-			input_report_key(&cinergyt2->rc_input_dev,
+			input_report_key(cinergyt2->rc_input_dev,
 					 cinergyt2->rc_input_event, 1);
 			cinergyt2->rc_last_code = rc_events[n].value;
 		}
@@ -752,7 +754,59 @@ out:
 
 	up(&cinergyt2->sem);
 }
-#endif
+
+static int cinergyt2_register_rc(struct cinergyt2 *cinergyt2)
+{
+	struct input_dev *input_dev;
+	int i;
+
+	cinergyt2->rc_input_dev = input_dev = input_allocate_device();
+	if (!input_dev)
+		return -ENOMEM;
+
+	usb_make_path(cinergyt2->udev, cinergyt2->phys, sizeof(cinergyt2->phys));
+	strlcat(cinergyt2->phys, "/input0", sizeof(cinergyt2->phys));
+	cinergyt2->rc_input_event = KEY_MAX;
+	cinergyt2->rc_last_code = ~0;
+	INIT_WORK(&cinergyt2->rc_query_work, cinergyt2_query_rc, cinergyt2);
+
+	input_dev->name = DRIVER_NAME " remote control";
+	input_dev->phys = cinergyt2->phys;
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
+	for (i = 0; ARRAY_SIZE(rc_keys); i += 3)
+		set_bit(rc_keys[i + 2], input_dev->keybit);
+	input_dev->keycodesize = 0;
+	input_dev->keycodemax = 0;
+
+	input_register_device(cinergyt2->rc_input_dev);
+	schedule_delayed_work(&cinergyt2->rc_query_work, HZ/2);
+}
+
+static void cinergyt2_unregister_rc(struct cinergyt2 *cinergyt2)
+{
+	cancel_delayed_work(&cinergyt2->rc_query_work);
+	flush_scheduled_work();
+	input_unregister_device(cinergyt2->rc_input_dev);
+}
+
+static inline void cinergyt2_suspend_rc(struct cinergyt2 *cinergyt2)
+{
+	cancel_delayed_work(&cinergyt2->rc_query_work);
+}
+
+static inline void cinergyt2_resume_rc(struct cinergyt2 *cinergyt2)
+{
+	schedule_delayed_work(&cinergyt2->rc_query_work, HZ/2);
+}
+
+#else
+
+static inline int cinergyt2_register_rc(struct cinergyt2 *cinergyt2) { return 0; }
+static inline void cinergyt2_unregister_rc(struct cinergyt2 *cinergyt2) { }
+static inline void cinergyt2_suspend_rc(struct cinergyt2 *cinergyt2) { }
+static inline void cinergyt2_resume_rc(struct cinergyt2 *cinergyt2) { }
+
+#endif /* ENABLE_RC */
 
 static void cinergyt2_query (void *data)
 {
@@ -789,9 +843,6 @@ static int cinergyt2_probe (struct usb_interface *intf,
 {
 	struct cinergyt2 *cinergyt2;
 	int err;
-#ifdef ENABLE_RC
-	int i;
-#endif
 
 	if (!(cinergyt2 = kmalloc (sizeof(struct cinergyt2), GFP_KERNEL))) {
 		dprintk(1, "out of memory?!?\n");
@@ -846,30 +897,17 @@ static int cinergyt2_probe (struct usb_interface *intf,
 			    &cinergyt2_fe_template, cinergyt2,
 			    DVB_DEVICE_FRONTEND);
 
-#ifdef ENABLE_RC
-	cinergyt2->rc_input_dev.evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
-	cinergyt2->rc_input_dev.keycodesize = 0;
-	cinergyt2->rc_input_dev.keycodemax = 0;
-	cinergyt2->rc_input_dev.name = DRIVER_NAME " remote control";
+	err = cinergyt2_register_rc(cinergyt2);
+	if (err)
+		goto bailout;
 
-	for (i = 0; i < sizeof(rc_keys) / sizeof(rc_keys[0]); i += 3)
-		set_bit(rc_keys[i + 2], cinergyt2->rc_input_dev.keybit);
-
-	input_register_device(&cinergyt2->rc_input_dev);
-
-	cinergyt2->rc_input_event = KEY_MAX;
-	cinergyt2->rc_last_code = ~0;
-
-	INIT_WORK(&cinergyt2->rc_query_work, cinergyt2_query_rc, cinergyt2);
-	schedule_delayed_work(&cinergyt2->rc_query_work, HZ/2);
-#endif
 	return 0;
 
 bailout:
 	dvb_dmxdev_release(&cinergyt2->dmxdev);
 	dvb_dmx_release(&cinergyt2->demux);
-	dvb_unregister_adapter (&cinergyt2->adapter);
-	cinergyt2_free_stream_urbs (cinergyt2);
+	dvb_unregister_adapter(&cinergyt2->adapter);
+	cinergyt2_free_stream_urbs(cinergyt2);
 	kfree(cinergyt2);
 	return -ENOMEM;
 }
@@ -881,11 +919,7 @@ static void cinergyt2_disconnect (struct usb_interface *intf)
 	if (down_interruptible(&cinergyt2->sem))
 		return;
 
-#ifdef ENABLE_RC
-	cancel_delayed_work(&cinergyt2->rc_query_work);
-	flush_scheduled_work();
-	input_unregister_device(&cinergyt2->rc_input_dev);
-#endif
+	cinergyt2_unregister_rc(cinergyt2);
 
 	cinergyt2->demux.dmx.close(&cinergyt2->demux.dmx);
 	dvb_net_release(&cinergyt2->dvbnet);
@@ -908,9 +942,8 @@ static int cinergyt2_suspend (struct usb_interface *intf, pm_message_t state)
 
 	if (state.event > PM_EVENT_ON) {
 		struct cinergyt2 *cinergyt2 = usb_get_intfdata (intf);
-#ifdef ENABLE_RC
-		cancel_delayed_work(&cinergyt2->rc_query_work);
-#endif
+
+		cinergyt2_suspend_rc(cinergyt2);
 		cancel_delayed_work(&cinergyt2->query_work);
 		if (cinergyt2->streaming)
 			cinergyt2_stop_stream_xfer(cinergyt2);
@@ -938,9 +971,8 @@ static int cinergyt2_resume (struct usb_interface *intf)
 		schedule_delayed_work(&cinergyt2->query_work, HZ/2);
 	}
 
-#ifdef ENABLE_RC
-	schedule_delayed_work(&cinergyt2->rc_query_work, HZ/2);
-#endif
+	cinergyt2_resume_rc(cinergyt2);
+
 	up(&cinergyt2->sem);
 	return 0;
 }

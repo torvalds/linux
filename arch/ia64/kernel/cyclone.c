@@ -2,6 +2,7 @@
 #include <linux/smp.h>
 #include <linux/time.h>
 #include <linux/errno.h>
+#include <linux/timex.h>
 #include <asm/io.h>
 
 /* IBM Summit (EXA) Cyclone counter code*/

@@ -231,7 +231,7 @@ int snd_register_device(int type, snd_card_t * card, int dev, snd_minor_t * reg,
 		devfs_mk_cdev(MKDEV(major, minor), S_IFCHR | device_mode, "snd/%s", name);
 	if (card)
 		device = card->dev;
-	class_device_create(sound_class, MKDEV(major, minor), device, "%s", name);
+	class_device_create(sound_class, NULL, MKDEV(major, minor), device, "%s", name);
 
 	up(&sound_mutex);
 	return 0;

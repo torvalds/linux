@@ -269,7 +269,7 @@ paging_init (void)
 	efi_memmap_walk(find_largest_hole, (u64 *)&max_gap);
 	if (max_gap < LARGE_GAP) {
 		vmem_map = (struct page *) 0;
-		free_area_init_node(0, &contig_page_data, zones_size, 0,
+		free_area_init_node(0, NODE_DATA(0), zones_size, 0,
 				    zholes_size);
 	} else {
 		unsigned long map_size;
@@ -282,7 +282,7 @@ paging_init (void)
 		efi_memmap_walk(create_mem_map_page_table, NULL);
 
 		NODE_DATA(0)->node_mem_map = vmem_map;
-		free_area_init_node(0, &contig_page_data, zones_size,
+		free_area_init_node(0, NODE_DATA(0), zones_size,
 				    0, zholes_size);
 
 		printk("Virtual mem_map starts at 0x%p\n", mem_map);

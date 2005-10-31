@@ -11,7 +11,7 @@
 #include <linux/dma-mapping.h>
 #include <asm/io.h>
 
-void *consistent_alloc(int gfp, size_t size, dma_addr_t *handle)
+void *consistent_alloc(gfp_t gfp, size_t size, dma_addr_t *handle)
 {
 	struct page *page, *end, *free;
 	void *ret;

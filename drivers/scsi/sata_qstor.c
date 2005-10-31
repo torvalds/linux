@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/device.h>
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <asm/io.h>
@@ -50,8 +51,6 @@ enum {
 	QS_CPB_BYTES		= (1 << QS_CPB_ORDER),
 	QS_PRD_BYTES		= QS_MAX_PRD * 16,
 	QS_PKT_BYTES		= QS_CPB_BYTES + QS_PRD_BYTES,
-
-	QS_DMA_BOUNDARY		= ~0UL,
 
 	/* global register offsets */
 	QS_HCF_CNFG3		= 0x0003, /* host configuration offset */
@@ -101,6 +100,10 @@ enum {
 	board_2068_idx		= 0,	/* QStor 4-port SATA/RAID */
 };
 
+enum {
+	QS_DMA_BOUNDARY		= ~0UL
+};
+
 typedef enum { qs_state_idle, qs_state_pkt, qs_state_mmio } qs_state_t;
 
 struct qs_port_priv {
@@ -145,7 +148,7 @@ static Scsi_Host_Template qs_ata_sht = {
 	.bios_param		= ata_std_bios_param,
 };
 
-static struct ata_port_operations qs_ata_ops = {
+static const struct ata_port_operations qs_ata_ops = {
 	.port_disable		= ata_port_disable,
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
@@ -398,11 +401,12 @@ static inline unsigned int qs_intr_pkt(struct ata_host_set *host_set)
 				qc = ata_qc_from_tag(ap, ap->active_tag);
 				if (qc && (!(qc->tf.ctl & ATA_NIEN))) {
 					switch (sHST) {
-					case 0: /* sucessful CPB */
+					case 0: /* successful CPB */
 					case 3: /* device error */
 						pp->state = qs_state_idle;
 						qs_enter_reg_mode(qc->ap);
-						ata_qc_complete(qc, sDST);
+						ata_qc_complete(qc,
+							ac_err_mask(sDST));
 						break;
 					default:
 						break;
@@ -431,7 +435,7 @@ static inline unsigned int qs_intr_mmio(struct ata_host_set *host_set)
 			if (qc && (!(qc->tf.ctl & ATA_NIEN))) {
 
 				/* check main status, clearing INTRQ */
-				u8 status = ata_chk_status(ap);
+				u8 status = ata_check_status(ap);
 				if ((status & ATA_BUSY))
 					continue;
 				DPRINTK("ata%u: protocol %d (dev_stat 0x%X)\n",
@@ -439,7 +443,7 @@ static inline unsigned int qs_intr_mmio(struct ata_host_set *host_set)
 
 				/* complete taskfile transaction */
 				pp->state = qs_state_idle;
-				ata_qc_complete(qc, status);
+				ata_qc_complete(qc, ac_err_mask(status));
 				handled = 1;
 			}
 		}
@@ -597,25 +601,22 @@ static int qs_set_dma_masks(struct pci_dev *pdev, void __iomem *mmio_base)
 		if (rc) {
 			rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 			if (rc) {
-				printk(KERN_ERR DRV_NAME
-					"(%s): 64-bit DMA enable failed\n",
-					pci_name(pdev));
+				dev_printk(KERN_ERR, &pdev->dev,
+					   "64-bit DMA enable failed\n");
 				return rc;
 			}
 		}
 	} else {
 		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc) {
-			printk(KERN_ERR DRV_NAME
-				"(%s): 32-bit DMA enable failed\n",
-				pci_name(pdev));
+			dev_printk(KERN_ERR, &pdev->dev,
+				"32-bit DMA enable failed\n");
 			return rc;
 		}
 		rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc) {
-			printk(KERN_ERR DRV_NAME
-				"(%s): 32-bit consistent DMA enable failed\n",
-				pci_name(pdev));
+			dev_printk(KERN_ERR, &pdev->dev,
+				"32-bit consistent DMA enable failed\n");
 			return rc;
 		}
 	}
@@ -632,7 +633,7 @@ static int qs_ata_init_one(struct pci_dev *pdev,
 	int rc, port_no;
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc)

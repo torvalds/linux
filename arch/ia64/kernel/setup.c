@@ -78,6 +78,19 @@ struct screen_info screen_info;
 unsigned long vga_console_iobase;
 unsigned long vga_console_membase;
 
+static struct resource data_resource = {
+	.name	= "Kernel data",
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+
+static struct resource code_resource = {
+	.name	= "Kernel code",
+	.flags	= IORESOURCE_BUSY | IORESOURCE_MEM
+};
+extern void efi_initialize_iomem_resources(struct resource *,
+		struct resource *);
+extern char _text[], _end[], _etext[];
+
 unsigned long ia64_max_cacheline_size;
 unsigned long ia64_iobase;	/* virtual address for I/O accesses */
 EXPORT_SYMBOL(ia64_iobase);
@@ -171,6 +184,22 @@ sort_regions (struct rsvd_region *rsvd_region, int max)
 	}
 }
 
+/*
+ * Request address space for all standard resources
+ */
+static int __init register_memory(void)
+{
+	code_resource.start = ia64_tpa(_text);
+	code_resource.end   = ia64_tpa(_etext) - 1;
+	data_resource.start = ia64_tpa(_etext);
+	data_resource.end   = ia64_tpa(_end) - 1;
+	efi_initialize_iomem_resources(&code_resource, &data_resource);
+
+	return 0;
+}
+
+__initcall(register_memory);
+
 /**
  * reserve_memory - setup reserved memory areas
  *
@@ -211,6 +240,9 @@ reserve_memory (void)
 	}
 #endif
 
+	efi_memmap_init(&rsvd_region[n].start, &rsvd_region[n].end);
+	n++;
+
 	/* end of memory marker */
 	rsvd_region[n].start = ~0UL;
 	rsvd_region[n].end   = ~0UL;
@@ -244,28 +276,31 @@ find_initrd (void)
 static void __init
 io_port_init (void)
 {
-	extern unsigned long ia64_iobase;
 	unsigned long phys_iobase;
 
 	/*
-	 *  Set `iobase' to the appropriate address in region 6 (uncached access range).
+	 * Set `iobase' based on the EFI memory map or, failing that, the
+	 * value firmware left in ar.k0.
 	 *
-	 *  The EFI memory map is the "preferred" location to get the I/O port space base,
-	 *  rather the relying on AR.KR0. This should become more clear in future SAL
-	 *  specs. We'll fall back to getting it out of AR.KR0 if no appropriate entry is
-	 *  found in the memory map.
+	 * Note that in ia32 mode, IN/OUT instructions use ar.k0 to compute
+	 * the port's virtual address, so ia32_load_state() loads it with a
+	 * user virtual address.  But in ia64 mode, glibc uses the
+	 * *physical* address in ar.k0 to mmap the appropriate area from
+	 * /dev/mem, and the inX()/outX() interfaces use MMIO.  In both
+	 * cases, user-mode can only use the legacy 0-64K I/O port space.
+	 *
+	 * ar.k0 is not involved in kernel I/O port accesses, which can use
+	 * any of the I/O port spaces and are done via MMIO using the
+	 * virtual mmio_base from the appropriate io_space[].
 	 */
 	phys_iobase = efi_get_iobase();
-	if (phys_iobase)
-		/* set AR.KR0 since this is all we use it for anyway */
-		ia64_set_kr(IA64_KR_IO_BASE, phys_iobase);
-	else {
+	if (!phys_iobase) {
 		phys_iobase = ia64_get_kr(IA64_KR_IO_BASE);
-		printk(KERN_INFO "No I/O port range found in EFI memory map, falling back "
-		       "to AR.KR0\n");
-		printk(KERN_INFO "I/O port base = 0x%lx\n", phys_iobase);
+		printk(KERN_INFO "No I/O port range found in EFI memory map, "
+			"falling back to AR.KR0 (0x%lx)\n", phys_iobase);
 	}
 	ia64_iobase = (unsigned long) ioremap(phys_iobase, 0);
+	ia64_set_kr(IA64_KR_IO_BASE, __pa(ia64_iobase));
 
 	/* setup legacy IO port space */
 	io_space[0].mmio_base = ia64_iobase;
@@ -526,7 +561,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 		   c->itc_freq / 1000000, c->itc_freq % 1000000,
 		   lpj*HZ/500000, (lpj*HZ/5000) % 100);
 #ifdef CONFIG_SMP
-	seq_printf(m, "siblings   : %u\n", c->num_log);
+	seq_printf(m, "siblings   : %u\n", cpus_weight(cpu_core_map[cpunum]));
 	if (c->threads_per_core > 1 || c->cores_per_socket > 1)
 		seq_printf(m,
 		   	   "physical id: %u\n"

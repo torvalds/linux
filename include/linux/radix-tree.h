@@ -24,7 +24,7 @@
 
 struct radix_tree_root {
 	unsigned int		height;
-	unsigned int		gfp_mask;
+	gfp_t			gfp_mask;
 	struct radix_tree_node	*rnode;
 };
 

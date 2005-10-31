@@ -779,7 +779,7 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 	if (!s->cb_dev || !s->cb_dev->bus)
 		return -ENODEV;
 
-#if defined(CONFIG_X86) || defined(CONFIG_X86_64)
+#if defined(CONFIG_X86)
 	/* If this is the root bus, the risk of hitting
 	 * some strange system devices which aren't protected
 	 * by either ACPI resource tables or properly requested
@@ -994,7 +994,8 @@ static struct class_device_attribute *pccard_rsrc_attributes[] = {
 	NULL,
 };
 
-static int __devinit pccard_sysfs_add_rsrc(struct class_device *class_dev)
+static int __devinit pccard_sysfs_add_rsrc(struct class_device *class_dev,
+					   struct class_interface *class_intf)
 {
 	struct pcmcia_socket *s = class_get_devdata(class_dev);
 	struct class_device_attribute **attr;
@@ -1011,7 +1012,8 @@ static int __devinit pccard_sysfs_add_rsrc(struct class_device *class_dev)
 	return ret;
 }
 
-static void __devexit pccard_sysfs_remove_rsrc(struct class_device *class_dev)
+static void __devexit pccard_sysfs_remove_rsrc(struct class_device *class_dev,
+					       struct class_interface *class_intf)
 {
 	struct pcmcia_socket *s = class_get_devdata(class_dev);
 	struct class_device_attribute **attr;

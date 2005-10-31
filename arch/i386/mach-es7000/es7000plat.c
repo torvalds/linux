@@ -62,6 +62,9 @@ static unsigned int base;
 static int
 es7000_rename_gsi(int ioapic, int gsi)
 {
+	if (es7000_plat == ES7000_ZORRO)
+		return gsi;
+
 	if (!base) {
 		int i;
 		for (i = 0; i < nr_ioapics; i++)
@@ -76,7 +79,7 @@ es7000_rename_gsi(int ioapic, int gsi)
 #endif	/* (CONFIG_X86_IO_APIC) && (CONFIG_ACPI) */
 
 void __init
-setup_unisys ()
+setup_unisys(void)
 {
 	/*
 	 * Determine the generation of the ES7000 currently running.
@@ -86,9 +89,9 @@ setup_unisys ()
 	 *
 	 */
 	if (!(boot_cpu_data.x86 <= 15 && boot_cpu_data.x86_model <= 2))
-		es7000_plat = 2;
+		es7000_plat = ES7000_ZORRO;
 	else
-		es7000_plat = 1;
+		es7000_plat = ES7000_CLASSIC;
 	ioapic_renumber_irq = es7000_rename_gsi;
 }
 
@@ -151,7 +154,7 @@ parse_unisys_oem (char *oemptr)
 	}
 
 	if (success < 2) {
-		es7000_plat = 0;
+		es7000_plat = NON_UNISYS;
 	} else
 		setup_unisys();
 	return es7000_plat;

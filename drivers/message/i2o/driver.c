@@ -17,6 +17,9 @@
 #include <linux/module.h>
 #include <linux/rwsem.h>
 #include <linux/i2o.h>
+#include <linux/workqueue.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 #include "core.h"
 
 #define OSM_NAME	"i2o"
@@ -58,9 +61,12 @@ static int i2o_bus_match(struct device *dev, struct device_driver *drv)
 };
 
 /* I2O bus type */
+extern struct device_attribute i2o_device_attrs[];
+
 struct bus_type i2o_bus_type = {
 	.name = "i2o",
 	.match = i2o_bus_match,
+	.dev_attrs = i2o_device_attrs,
 };
 
 /**
