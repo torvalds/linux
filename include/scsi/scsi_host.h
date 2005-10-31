@@ -7,6 +7,7 @@
 #include <linux/workqueue.h>
 
 struct block_device;
+struct completion;
 struct module;
 struct scsi_cmnd;
 struct scsi_device;
@@ -467,8 +468,8 @@ struct Scsi_Host {
 
 	struct list_head	eh_cmd_q;
 	struct task_struct    * ehandler;  /* Error recovery thread. */
-	struct semaphore      * eh_action; /* Wait for specific actions on the
-                                          host. */
+	struct completion     * eh_action; /* Wait for specific actions on the
+					      host. */
 	wait_queue_head_t       host_wait;
 	struct scsi_host_template *hostt;
 	struct scsi_transport_template *transportt;
