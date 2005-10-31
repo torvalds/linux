@@ -4527,11 +4527,11 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 	return probe_ent;
 }
 
-static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev, struct ata_port_info **port, int port_num)
+static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev, struct ata_port_info *port, int port_num)
 {
 	struct ata_probe_ent *probe_ent;
 
-	probe_ent = ata_probe_ent_alloc(pci_dev_to_dev(pdev), port[0]);
+	probe_ent = ata_probe_ent_alloc(pci_dev_to_dev(pdev), port);
 	if (!probe_ent)
 		return NULL;
 
@@ -4678,9 +4678,9 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 
 	if (legacy_mode) {
 		if (legacy_mode & (1 << 0))
-			probe_ent = ata_pci_init_legacy_port(pdev, port, 0);
+			probe_ent = ata_pci_init_legacy_port(pdev, port[0], 0);
 		if (legacy_mode & (1 << 1))
-			probe_ent2 = ata_pci_init_legacy_port(pdev, port, 1);
+			probe_ent2 = ata_pci_init_legacy_port(pdev, port[1], 1);
 	} else {
 		if (n_ports == 2)
 			probe_ent = ata_pci_init_native_mode(pdev, port, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
