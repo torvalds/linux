@@ -293,7 +293,7 @@ powertecscsi_store_term(struct device *dev, struct device_attribute *attr, const
 static DEVICE_ATTR(bus_term, S_IRUGO | S_IWUSR,
 		   powertecscsi_show_term, powertecscsi_store_term);
 
-static Scsi_Host_Template powertecscsi_template = {
+static struct scsi_host_template powertecscsi_template = {
 	.module				= THIS_MODULE,
 	.proc_info			= powertecscsi_proc_info,
 	.name				= "PowerTec SCSI",

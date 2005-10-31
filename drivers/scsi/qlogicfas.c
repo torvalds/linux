@@ -47,7 +47,7 @@ static char qlogicfas_name[] = "qlogicfas";
  *	Look for qlogic card and init if found 
  */
  
-static struct Scsi_Host *__qlogicfas_detect(Scsi_Host_Template *host,
+static struct Scsi_Host *__qlogicfas_detect(struct scsi_host_template *host,
 								int qbase,
 								int qlirq)
 {
@@ -142,7 +142,7 @@ module_param_array(irq, int, NULL, 0);
 MODULE_PARM_DESC(iobase, "I/O address");
 MODULE_PARM_DESC(irq, "IRQ");
 
-static int __devinit qlogicfas_detect(Scsi_Host_Template *sht)
+static int __devinit qlogicfas_detect(struct scsi_host_template *sht)
 {
 	struct Scsi_Host *shost;
 	struct qlogicfas408_priv *priv;
@@ -183,7 +183,7 @@ static int qlogicfas_release(struct Scsi_Host *shost)
 /*
  *	The driver template is also needed for PCMCIA
  */
-static Scsi_Host_Template qlogicfas_driver_template = {
+static struct scsi_host_template qlogicfas_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= qlogicfas_name,
 	.proc_name		= qlogicfas_name,

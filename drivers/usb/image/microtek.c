@@ -632,7 +632,7 @@ out:
 	return err;
 }
 
-static Scsi_Host_Template mts_scsi_host_template = {
+static struct scsi_host_template mts_scsi_host_template = {
 	.module			= THIS_MODULE,
 	.name			= "microtekX6",
 	.proc_name		= "microtekX6",

@@ -128,7 +128,7 @@ static struct pci_driver piix_pci_driver = {
 	.remove			= ata_pci_remove_one,
 };
 
-static Scsi_Host_Template piix_sht = {
+static struct scsi_host_template piix_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,

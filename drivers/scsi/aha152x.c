@@ -424,7 +424,7 @@ MODULE_DEVICE_TABLE(isapnp, id_table);
 
 static int registered_count=0;
 static struct Scsi_Host *aha152x_host[2];
-static Scsi_Host_Template aha152x_driver_template;
+static struct scsi_host_template aha152x_driver_template;
 
 /*
  * internal states of the host
@@ -3464,7 +3464,7 @@ static int aha152x_proc_info(struct Scsi_Host *shpnt, char *buffer, char **start
 	return thislength < length ? thislength : length;
 }
 
-static Scsi_Host_Template aha152x_driver_template = {
+static struct scsi_host_template aha152x_driver_template = {
 	.module				= THIS_MODULE,
 	.name				= AHA152X_REVID,
 	.proc_name			= "aha152x",

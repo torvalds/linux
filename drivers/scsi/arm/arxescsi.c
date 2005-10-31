@@ -261,7 +261,7 @@ arxescsi_proc_info(struct Scsi_Host *host, char *buffer, char **start, off_t off
 	return pos;
 }
 
-static Scsi_Host_Template arxescsi_template = {
+static struct scsi_host_template arxescsi_template = {
 	.proc_info			= arxescsi_proc_info,
 	.name				= "ARXE SCSI card",
 	.info				= arxescsi_info,

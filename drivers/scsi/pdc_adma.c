@@ -139,7 +139,7 @@ static u8 adma_bmdma_status(struct ata_port *ap);
 static void adma_irq_clear(struct ata_port *ap);
 static void adma_eng_timeout(struct ata_port *ap);
 
-static Scsi_Host_Template adma_ata_sht = {
+static struct scsi_host_template adma_ata_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,

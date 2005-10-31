@@ -248,7 +248,7 @@ module_param(ips, charp, 0);
 /*
  * Function prototypes
  */
-static int ips_detect(Scsi_Host_Template *);
+static int ips_detect(struct scsi_host_template *);
 static int ips_release(struct Scsi_Host *);
 static int ips_eh_abort(Scsi_Cmnd *);
 static int ips_eh_reset(Scsi_Cmnd *);
@@ -377,7 +377,7 @@ static char *ips_FlashData = NULL;	/* CD Boot - Flash Data Buffer      */
 static dma_addr_t ips_flashbusaddr;
 static long ips_FlashDataInUse;		/* CD Boot - Flash Data In Use Flag */
 static uint32_t MaxLiteCmds = 32;	/* Max Active Cmds for a Lite Adapter */
-static Scsi_Host_Template ips_driver_template = {
+static struct scsi_host_template ips_driver_template = {
 	.detect			= ips_detect,
 	.release		= ips_release,
 	.info			= ips_info,
@@ -587,7 +587,7 @@ __setup("ips=", ips_setup);
 /*                                                                          */
 /****************************************************************************/
 static int
-ips_detect(Scsi_Host_Template * SHT)
+ips_detect(struct scsi_host_template * SHT)
 {
 	int i;
 

@@ -381,7 +381,7 @@ int cumanascsi_2_proc_info (struct Scsi_Host *host, char *buffer, char **start, 
 	return pos;
 }
 
-static Scsi_Host_Template cumanascsi2_template = {
+static struct scsi_host_template cumanascsi2_template = {
 	.module				= THIS_MODULE,
 	.proc_info			= cumanascsi_2_proc_info,
 	.name				= "Cumana SCSI II",

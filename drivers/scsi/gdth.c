@@ -94,7 +94,7 @@
  * Bugfix free_irq()
  *
  * Revision 1.56  2001/08/09 11:19:39  achim
- * Scsi_Host_Template changes
+ * struct scsi_host_template changes
  *
  * Revision 1.55  2001/08/09 10:11:28  achim
  * Command HOST_UNFREEZE_IO before cache service init.
@@ -4153,7 +4153,7 @@ int __init option_setup(char *str)
     return 1;
 }
 
-static int __init gdth_detect(Scsi_Host_Template *shtp)
+static int __init gdth_detect(struct scsi_host_template *shtp)
 {
     struct Scsi_Host *shp;
     gdth_pci_str pcistr[MAXHA];
@@ -5683,7 +5683,7 @@ static int gdth_halt(struct notifier_block *nb, ulong event, void *buf)
     return NOTIFY_OK;
 }
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
         .proc_name              = "gdth", 
         .proc_info              = gdth_proc_info,
         .name                   = "GDT SCSI Disk Array Controller",

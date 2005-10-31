@@ -89,7 +89,7 @@ int fcal_slave_configure(Scsi_Device *device)
 
 /* Detect all FC Arbitrated Loops attached to the machine.
    fc4 module has done all the work for us... */
-int __init fcal_detect(Scsi_Host_Template *tpnt)
+int __init fcal_detect(struct scsi_host_template *tpnt)
 {
 	int nfcals = 0;
 	fc_channel *fc;
@@ -297,7 +297,7 @@ static int fcal_encode_addr(Scsi_Cmnd *SCpnt, u16 *addr, fc_channel *fc, fcp_cmn
 	return 0;
 }
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.name			= "Fibre Channel Arbitrated Loop",
 	.detect			= fcal_detect,
 	.release		= fcal_release,	

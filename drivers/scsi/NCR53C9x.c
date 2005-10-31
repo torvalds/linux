@@ -529,7 +529,7 @@ void esp_bootup_reset(struct NCR_ESP *esp, struct ESP_regs *eregs)
 /* Allocate structure and insert basic data such as SCSI chip frequency
  * data and a pointer to the device
  */
-struct NCR_ESP* esp_allocate(Scsi_Host_Template *tpnt, void *esp_dev)
+struct NCR_ESP* esp_allocate(struct scsi_host_template *tpnt, void *esp_dev)
 {
 	struct NCR_ESP *esp, *elink;
 	struct Scsi_Host *esp_host;

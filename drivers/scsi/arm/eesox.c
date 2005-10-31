@@ -499,7 +499,7 @@ static ssize_t eesoxscsi_store_term(struct device *dev, struct device_attribute 
 static DEVICE_ATTR(bus_term, S_IRUGO | S_IWUSR,
 		   eesoxscsi_show_term, eesoxscsi_store_term);
 
-static Scsi_Host_Template eesox_template = {
+static struct scsi_host_template eesox_template = {
 	.module				= THIS_MODULE,
 	.proc_info			= eesoxscsi_proc_info,
 	.name				= "EESOX SCSI",

@@ -20,7 +20,7 @@ struct fcal {
    for a particular channel */
 #define FCAL_CAN_QUEUE		512
 
-int fcal_detect(Scsi_Host_Template *);
+int fcal_detect(struct scsi_host_template *);
 int fcal_release(struct Scsi_Host *);
 int fcal_slave_configure(Scsi_Device *);
 

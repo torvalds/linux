@@ -128,7 +128,7 @@ static u8 qs_bmdma_status(struct ata_port *ap);
 static void qs_irq_clear(struct ata_port *ap);
 static void qs_eng_timeout(struct ata_port *ap);
 
-static Scsi_Host_Template qs_ata_sht = {
+static struct scsi_host_template qs_ata_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,

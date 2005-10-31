@@ -7865,7 +7865,7 @@ detect_maxscb(struct aic7xxx_host *p)
  *   Register a Adaptec aic7xxx chip SCSI controller with the kernel.
  *-F*************************************************************************/
 static int
-aic7xxx_register(Scsi_Host_Template *template, struct aic7xxx_host *p,
+aic7xxx_register(struct scsi_host_template *template, struct aic7xxx_host *p,
   int reset_delay)
 {
   int i, result;
@@ -8412,7 +8412,7 @@ aic7xxx_chip_reset(struct aic7xxx_host *p)
  *   and a pointer to a aic7xxx_host struct upon success.
  *-F*************************************************************************/
 static struct aic7xxx_host *
-aic7xxx_alloc(Scsi_Host_Template *sht, struct aic7xxx_host *temp)
+aic7xxx_alloc(struct scsi_host_template *sht, struct aic7xxx_host *temp)
 {
   struct aic7xxx_host *p = NULL;
   struct Scsi_Host *host;
@@ -8991,7 +8991,7 @@ aic7xxx_configure_bugs(struct aic7xxx_host *p)
  *       mid-level SCSI code is overhauled.
  *-F*************************************************************************/
 static int
-aic7xxx_detect(Scsi_Host_Template *template)
+aic7xxx_detect(struct scsi_host_template *template)
 {
   struct aic7xxx_host *temp_p = NULL;
   struct aic7xxx_host *current_p = NULL;
@@ -11161,7 +11161,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 MODULE_VERSION(AIC7XXX_H_VERSION);
 
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_info		= aic7xxx_proc_info,
 	.detect			= aic7xxx_detect,
 	.release		= aic7xxx_release,

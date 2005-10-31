@@ -131,7 +131,7 @@ static struct pci_driver sil_pci_driver = {
 	.remove			= ata_pci_remove_one,
 };
 
-static Scsi_Host_Template sil_sht = {
+static struct scsi_host_template sil_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,

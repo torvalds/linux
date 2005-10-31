@@ -11,7 +11,7 @@
 
 #include <linux/types.h>
 
-int a2091_detect(Scsi_Host_Template *);
+int a2091_detect(struct scsi_host_template *);
 int a2091_release(struct Scsi_Host *);
 const char *wd33c93_info(void);
 int wd33c93_queuecommand(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));

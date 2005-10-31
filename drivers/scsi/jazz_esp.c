@@ -52,7 +52,7 @@ static volatile unsigned char cmd_buffer[16];
 				 * via PIO.
 				 */
 
-int jazz_esp_detect(Scsi_Host_Template *tpnt);
+int jazz_esp_detect(struct scsi_host_template *tpnt);
 static int jazz_esp_release(struct Scsi_Host *shost)
 {
 	if (shost->irq)
@@ -65,7 +65,7 @@ static int jazz_esp_release(struct Scsi_Host *shost)
 	return 0;
 }
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "jazz_esp",
 	.proc_info		= &esp_proc_info,
 	.name			= "ESP 100/100a/200",

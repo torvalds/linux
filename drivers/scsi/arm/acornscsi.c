@@ -2971,7 +2971,7 @@ int acornscsi_proc_info(struct Scsi_Host *instance, char *buffer, char **start, 
     return pos;
 }
 
-static Scsi_Host_Template acornscsi_template = {
+static struct scsi_host_template acornscsi_template = {
 	.module			= THIS_MODULE,
 	.proc_info		= acornscsi_proc_info,
 	.name			= "AcornSCSI",
