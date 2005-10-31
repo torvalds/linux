@@ -2258,17 +2258,6 @@ config S2IO_NAPI
 
 	  If in doubt, say N.
 
-config 2BUFF_MODE
-	bool "Use 2 Buffer Mode on Rx side."
-	depends on S2IO
-	---help---
-	On enabling the 2 buffer mode, the received frame will be
-	split into 2 parts before being DMA'ed to the hosts memory.
-	The parts are the ethernet header and ethernet payload. 
-	This is useful on systems where DMA'ing to to unaligned 
-	physical memory loactions comes with a heavy price.
-	If not sure please say N.
-
 endmenu
 
 if !UML

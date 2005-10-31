@@ -30,6 +30,8 @@
  * in the driver.
  * rx_ring_sz: This defines the number of descriptors each ring can have. This
  * is also an array of size 8.
+ * rx_ring_mode: This defines the operation mode of all 8 rings. The valid
+ *		values are 1, 2 and 3.
  * tx_fifo_num: This defines the number of Tx FIFOs thats used int the driver.
  * tx_fifo_len: This too is an array of 8. Each element defines the number of
  * Tx descriptors that can be associated with each corresponding FIFO.
@@ -65,11 +67,14 @@
 #include "s2io.h"
 #include "s2io-regs.h"
 
-#define DRV_VERSION "Version 2.0.9.1"
+#define DRV_VERSION "Version 2.0.9.3"
 
 /* S2io Driver name & version. */
 static char s2io_driver_name[] = "Neterion";
 static char s2io_driver_version[] = DRV_VERSION;
+
+int rxd_size[4] = {32,48,48,64};
+int rxd_count[4] = {127,85,85,63};
 
 static inline int RXD_IS_UP2DT(RxD_t *rxdp)
 {
@@ -104,7 +109,7 @@ static inline int rx_buffer_level(nic_t * sp, int rxb_size, int ring)
 	mac_control = &sp->mac_control;
 	if ((mac_control->rings[ring].pkt_cnt - rxb_size) > 16) {
 		level = LOW;
-		if (rxb_size <= MAX_RXDS_PER_BLOCK) {
+		if (rxb_size <= rxd_count[sp->rxd_mode]) {
 			level = PANIC;
 		}
 	}
@@ -296,6 +301,7 @@ static unsigned int rx_ring_sz[MAX_RX_RINGS] =
     {[0 ...(MAX_RX_RINGS - 1)] = 0 };
 static unsigned int rts_frm_len[MAX_RX_RINGS] =
     {[0 ...(MAX_RX_RINGS - 1)] = 0 };
+static unsigned int rx_ring_mode = 1;
 static unsigned int use_continuous_tx_intrs = 1;
 static unsigned int rmac_pause_time = 65535;
 static unsigned int mc_pause_threshold_q0q3 = 187;
@@ -304,6 +310,7 @@ static unsigned int shared_splits;
 static unsigned int tmac_util_period = 5;
 static unsigned int rmac_util_period = 5;
 static unsigned int bimodal = 0;
+static unsigned int l3l4hdr_size = 128;
 #ifndef CONFIG_S2IO_NAPI
 static unsigned int indicate_max_pkts;
 #endif
@@ -357,10 +364,8 @@ static int init_shared_mem(struct s2io_nic *nic)
 	int i, j, blk_cnt, rx_sz, tx_sz;
 	int lst_size, lst_per_page;
 	struct net_device *dev = nic->dev;
-#ifdef CONFIG_2BUFF_MODE
 	unsigned long tmp;
 	buffAdd_t *ba;
-#endif
 
 	mac_info_t *mac_control;
 	struct config_param *config;
@@ -458,7 +463,8 @@ static int init_shared_mem(struct s2io_nic *nic)
 	/* Allocation and initialization of RXDs in Rings */
 	size = 0;
 	for (i = 0; i < config->rx_ring_num; i++) {
-		if (config->rx_cfg[i].num_rxd % (MAX_RXDS_PER_BLOCK + 1)) {
+		if (config->rx_cfg[i].num_rxd %
+		    (rxd_count[nic->rxd_mode] + 1)) {
 			DBG_PRINT(ERR_DBG, "%s: RxD count of ", dev->name);
 			DBG_PRINT(ERR_DBG, "Ring%d is not a multiple of ",
 				  i);
@@ -467,11 +473,15 @@ static int init_shared_mem(struct s2io_nic *nic)
 		}
 		size += config->rx_cfg[i].num_rxd;
 		mac_control->rings[i].block_count =
-		    config->rx_cfg[i].num_rxd / (MAX_RXDS_PER_BLOCK + 1);
-		mac_control->rings[i].pkt_cnt =
-		    config->rx_cfg[i].num_rxd - mac_control->rings[i].block_count;
+			config->rx_cfg[i].num_rxd /
+			(rxd_count[nic->rxd_mode] + 1 );
+		mac_control->rings[i].pkt_cnt = config->rx_cfg[i].num_rxd -
+			mac_control->rings[i].block_count;
 	}
-	size = (size * (sizeof(RxD_t)));
+	if (nic->rxd_mode == RXD_MODE_1)
+		size = (size * (sizeof(RxD1_t)));
+	else
+		size = (size * (sizeof(RxD3_t)));
 	rx_sz = size;
 
 	for (i = 0; i < config->rx_ring_num; i++) {
@@ -486,15 +496,15 @@ static int init_shared_mem(struct s2io_nic *nic)
 		mac_control->rings[i].nic = nic;
 		mac_control->rings[i].ring_no = i;
 
-		blk_cnt =
-		    config->rx_cfg[i].num_rxd / (MAX_RXDS_PER_BLOCK + 1);
+		blk_cnt = config->rx_cfg[i].num_rxd /
+				(rxd_count[nic->rxd_mode] + 1);
 		/*  Allocating all the Rx blocks */
 		for (j = 0; j < blk_cnt; j++) {
-#ifndef CONFIG_2BUFF_MODE
-			size = (MAX_RXDS_PER_BLOCK + 1) * (sizeof(RxD_t));
-#else
-			size = SIZE_OF_BLOCK;
-#endif
+			rx_block_info_t *rx_blocks;
+			int l;
+
+			rx_blocks = &mac_control->rings[i].rx_blocks[j];
+			size = SIZE_OF_BLOCK; //size is always page size
 			tmp_v_addr = pci_alloc_consistent(nic->pdev, size,
 							  &tmp_p_addr);
 			if (tmp_v_addr == NULL) {
@@ -504,11 +514,24 @@ static int init_shared_mem(struct s2io_nic *nic)
 				 * memory that was alloced till the
 				 * failure happened.
 				 */
-				mac_control->rings[i].rx_blocks[j].block_virt_addr =
-				    tmp_v_addr;
+				rx_blocks->block_virt_addr = tmp_v_addr;
 				return -ENOMEM;
 			}
 			memset(tmp_v_addr, 0, size);
+			rx_blocks->block_virt_addr = tmp_v_addr;
+			rx_blocks->block_dma_addr = tmp_p_addr;
+			rx_blocks->rxds = kmalloc(sizeof(rxd_info_t)*
+						  rxd_count[nic->rxd_mode],
+						  GFP_KERNEL);
+			for (l=0; l<rxd_count[nic->rxd_mode];l++) {
+				rx_blocks->rxds[l].virt_addr =
+					rx_blocks->block_virt_addr +
+					(rxd_size[nic->rxd_mode] * l);
+				rx_blocks->rxds[l].dma_addr =
+					rx_blocks->block_dma_addr +
+					(rxd_size[nic->rxd_mode] * l);
+			}
+
 			mac_control->rings[i].rx_blocks[j].block_virt_addr =
 				tmp_v_addr;
 			mac_control->rings[i].rx_blocks[j].block_dma_addr =
@@ -528,62 +551,58 @@ static int init_shared_mem(struct s2io_nic *nic)
 					      blk_cnt].block_dma_addr;
 
 			pre_rxd_blk = (RxD_block_t *) tmp_v_addr;
-			pre_rxd_blk->reserved_1 = END_OF_BLOCK;	/* last RxD
-								 * marker.
-								 */
-#ifndef	CONFIG_2BUFF_MODE
 			pre_rxd_blk->reserved_2_pNext_RxD_block =
 			    (unsigned long) tmp_v_addr_next;
-#endif
 			pre_rxd_blk->pNext_RxD_Blk_physical =
 			    (u64) tmp_p_addr_next;
 		}
 	}
-
-#ifdef CONFIG_2BUFF_MODE
-	/*
-	 * Allocation of Storages for buffer addresses in 2BUFF mode
-	 * and the buffers as well.
-	 */
-	for (i = 0; i < config->rx_ring_num; i++) {
-		blk_cnt =
-		    config->rx_cfg[i].num_rxd / (MAX_RXDS_PER_BLOCK + 1);
-		mac_control->rings[i].ba = kmalloc((sizeof(buffAdd_t *) * blk_cnt),
+	if (nic->rxd_mode >= RXD_MODE_3A) {
+		/*
+		 * Allocation of Storages for buffer addresses in 2BUFF mode
+		 * and the buffers as well.
+		 */
+		for (i = 0; i < config->rx_ring_num; i++) {
+			blk_cnt = config->rx_cfg[i].num_rxd /
+			   (rxd_count[nic->rxd_mode]+ 1);
+			mac_control->rings[i].ba =
+				kmalloc((sizeof(buffAdd_t *) * blk_cnt),
 				     GFP_KERNEL);
-		if (!mac_control->rings[i].ba)
-			return -ENOMEM;
-		for (j = 0; j < blk_cnt; j++) {
-			int k = 0;
-			mac_control->rings[i].ba[j] = kmalloc((sizeof(buffAdd_t) *
-						 (MAX_RXDS_PER_BLOCK + 1)),
-						GFP_KERNEL);
-			if (!mac_control->rings[i].ba[j])
+			if (!mac_control->rings[i].ba)
 				return -ENOMEM;
-			while (k != MAX_RXDS_PER_BLOCK) {
-				ba = &mac_control->rings[i].ba[j][k];
-
-				ba->ba_0_org = (void *) kmalloc
-				    (BUF0_LEN + ALIGN_SIZE, GFP_KERNEL);
-				if (!ba->ba_0_org)
+			for (j = 0; j < blk_cnt; j++) {
+				int k = 0;
+				mac_control->rings[i].ba[j] =
+					kmalloc((sizeof(buffAdd_t) *
+						(rxd_count[nic->rxd_mode] + 1)),
+						GFP_KERNEL);
+				if (!mac_control->rings[i].ba[j])
 					return -ENOMEM;
-				tmp = (unsigned long) ba->ba_0_org;
-				tmp += ALIGN_SIZE;
-				tmp &= ~((unsigned long) ALIGN_SIZE);
-				ba->ba_0 = (void *) tmp;
+				while (k != rxd_count[nic->rxd_mode]) {
+					ba = &mac_control->rings[i].ba[j][k];
 
-				ba->ba_1_org = (void *) kmalloc
-				    (BUF1_LEN + ALIGN_SIZE, GFP_KERNEL);
-				if (!ba->ba_1_org)
-					return -ENOMEM;
-				tmp = (unsigned long) ba->ba_1_org;
-				tmp += ALIGN_SIZE;
-				tmp &= ~((unsigned long) ALIGN_SIZE);
-				ba->ba_1 = (void *) tmp;
-				k++;
+					ba->ba_0_org = (void *) kmalloc
+					    (BUF0_LEN + ALIGN_SIZE, GFP_KERNEL);
+					if (!ba->ba_0_org)
+						return -ENOMEM;
+					tmp = (unsigned long)ba->ba_0_org;
+					tmp += ALIGN_SIZE;
+					tmp &= ~((unsigned long) ALIGN_SIZE);
+					ba->ba_0 = (void *) tmp;
+
+					ba->ba_1_org = (void *) kmalloc
+					    (BUF1_LEN + ALIGN_SIZE, GFP_KERNEL);
+					if (!ba->ba_1_org)
+						return -ENOMEM;
+					tmp = (unsigned long) ba->ba_1_org;
+					tmp += ALIGN_SIZE;
+					tmp &= ~((unsigned long) ALIGN_SIZE);
+					ba->ba_1 = (void *) tmp;
+					k++;
+				}
 			}
 		}
 	}
-#endif
 
 	/* Allocation and initialization of Statistics block */
 	size = sizeof(StatInfo_t);
@@ -669,11 +688,7 @@ static void free_shared_mem(struct s2io_nic *nic)
 		kfree(mac_control->fifos[i].list_info);
 	}
 
-#ifndef CONFIG_2BUFF_MODE
-	size = (MAX_RXDS_PER_BLOCK + 1) * (sizeof(RxD_t));
-#else
 	size = SIZE_OF_BLOCK;
-#endif
 	for (i = 0; i < config->rx_ring_num; i++) {
 		blk_cnt = mac_control->rings[i].block_count;
 		for (j = 0; j < blk_cnt; j++) {
@@ -685,29 +700,31 @@ static void free_shared_mem(struct s2io_nic *nic)
 				break;
 			pci_free_consistent(nic->pdev, size,
 					    tmp_v_addr, tmp_p_addr);
+			kfree(mac_control->rings[i].rx_blocks[j].rxds);
 		}
 	}
 
-#ifdef CONFIG_2BUFF_MODE
-	/* Freeing buffer storage addresses in 2BUFF mode. */
-	for (i = 0; i < config->rx_ring_num; i++) {
-		blk_cnt =
-		    config->rx_cfg[i].num_rxd / (MAX_RXDS_PER_BLOCK + 1);
-		for (j = 0; j < blk_cnt; j++) {
-			int k = 0;
-			if (!mac_control->rings[i].ba[j])
-				continue;
-			while (k != MAX_RXDS_PER_BLOCK) {
-				buffAdd_t *ba = &mac_control->rings[i].ba[j][k];
-				kfree(ba->ba_0_org);
-				kfree(ba->ba_1_org);
-				k++;
+	if (nic->rxd_mode >= RXD_MODE_3A) {
+		/* Freeing buffer storage addresses in 2BUFF mode. */
+		for (i = 0; i < config->rx_ring_num; i++) {
+			blk_cnt = config->rx_cfg[i].num_rxd /
+			    (rxd_count[nic->rxd_mode] + 1);
+			for (j = 0; j < blk_cnt; j++) {
+				int k = 0;
+				if (!mac_control->rings[i].ba[j])
+					continue;
+				while (k != rxd_count[nic->rxd_mode]) {
+					buffAdd_t *ba =
+						&mac_control->rings[i].ba[j][k];
+					kfree(ba->ba_0_org);
+					kfree(ba->ba_1_org);
+					k++;
+				}
+				kfree(mac_control->rings[i].ba[j]);
 			}
-			kfree(mac_control->rings[i].ba[j]);
+			kfree(mac_control->rings[i].ba);
 		}
-		kfree(mac_control->rings[i].ba);
 	}
-#endif
 
 	if (mac_control->stats_mem) {
 		pci_free_consistent(nic->pdev,
@@ -1894,20 +1911,19 @@ static int start_nic(struct s2io_nic *nic)
 		val64 = readq(&bar0->prc_ctrl_n[i]);
 		if (nic->config.bimodal)
 			val64 |= PRC_CTRL_BIMODAL_INTERRUPT;
-#ifndef CONFIG_2BUFF_MODE
-		val64 |= PRC_CTRL_RC_ENABLED;
-#else
-		val64 |= PRC_CTRL_RC_ENABLED | PRC_CTRL_RING_MODE_3;
-#endif
+		if (nic->rxd_mode == RXD_MODE_1)
+			val64 |= PRC_CTRL_RC_ENABLED;
+		else
+			val64 |= PRC_CTRL_RC_ENABLED | PRC_CTRL_RING_MODE_3;
 		writeq(val64, &bar0->prc_ctrl_n[i]);
 	}
 
-#ifdef CONFIG_2BUFF_MODE
-	/* Enabling 2 buffer mode by writing into Rx_pa_cfg reg. */
-	val64 = readq(&bar0->rx_pa_cfg);
-	val64 |= RX_PA_CFG_IGNORE_L2_ERR;
-	writeq(val64, &bar0->rx_pa_cfg);
-#endif
+	if (nic->rxd_mode == RXD_MODE_3B) {
+		/* Enabling 2 buffer mode by writing into Rx_pa_cfg reg. */
+		val64 = readq(&bar0->rx_pa_cfg);
+		val64 |= RX_PA_CFG_IGNORE_L2_ERR;
+		writeq(val64, &bar0->rx_pa_cfg);
+	}
 
 	/*
 	 * Enabling MC-RLDRAM. After enabling the device, we timeout
@@ -2090,6 +2106,41 @@ static void stop_nic(struct s2io_nic *nic)
 	}
 }
 
+int fill_rxd_3buf(nic_t *nic, RxD_t *rxdp, struct sk_buff *skb)
+{
+	struct net_device *dev = nic->dev;
+	struct sk_buff *frag_list;
+	u64 tmp;
+
+	/* Buffer-1 receives L3/L4 headers */
+	((RxD3_t*)rxdp)->Buffer1_ptr = pci_map_single
+			(nic->pdev, skb->data, l3l4hdr_size + 4,
+			PCI_DMA_FROMDEVICE);
+
+	/* skb_shinfo(skb)->frag_list will have L4 data payload */
+	skb_shinfo(skb)->frag_list = dev_alloc_skb(dev->mtu + ALIGN_SIZE);
+	if (skb_shinfo(skb)->frag_list == NULL) {
+		DBG_PRINT(ERR_DBG, "%s: dev_alloc_skb failed\n ", dev->name);
+		return -ENOMEM ;
+	}
+	frag_list = skb_shinfo(skb)->frag_list;
+	frag_list->next = NULL;
+	tmp = (u64) frag_list->data;
+	tmp += ALIGN_SIZE;
+	tmp &= ~ALIGN_SIZE;
+	frag_list->data = (void *) tmp;
+	frag_list->tail = (void *) tmp;
+
+	/* Buffer-2 receives L4 data payload */
+	((RxD3_t*)rxdp)->Buffer2_ptr = pci_map_single(nic->pdev,
+				frag_list->data, dev->mtu,
+				PCI_DMA_FROMDEVICE);
+	rxdp->Control_2 |= SET_BUFFER1_SIZE_3(l3l4hdr_size + 4);
+	rxdp->Control_2 |= SET_BUFFER2_SIZE_3(dev->mtu);
+
+	return SUCCESS;
+}
+
 /**
  *  fill_rx_buffers - Allocates the Rx side skbs
  *  @nic:  device private variable
@@ -2117,18 +2168,12 @@ int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 	struct sk_buff *skb;
 	RxD_t *rxdp;
 	int off, off1, size, block_no, block_no1;
-	int offset, offset1;
 	u32 alloc_tab = 0;
 	u32 alloc_cnt;
 	mac_info_t *mac_control;
 	struct config_param *config;
-#ifdef CONFIG_2BUFF_MODE
-	RxD_t *rxdpnext;
-	int nextblk;
 	u64 tmp;
 	buffAdd_t *ba;
-	dma_addr_t rxdpphys;
-#endif
 #ifndef CONFIG_S2IO_NAPI
 	unsigned long flags;
 #endif
@@ -2138,8 +2183,6 @@ int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 	config = &nic->config;
 	alloc_cnt = mac_control->rings[ring_no].pkt_cnt -
 	    atomic_read(&nic->rx_bufs_left[ring_no]);
-	size = dev->mtu + HEADER_ETHERNET_II_802_3_SIZE +
-	    HEADER_802_2_SIZE + HEADER_SNAP_SIZE;
 
 	while (alloc_tab < alloc_cnt) {
 		block_no = mac_control->rings[ring_no].rx_curr_put_info.
@@ -2148,159 +2191,145 @@ int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 		    block_index;
 		off = mac_control->rings[ring_no].rx_curr_put_info.offset;
 		off1 = mac_control->rings[ring_no].rx_curr_get_info.offset;
-#ifndef CONFIG_2BUFF_MODE
-		offset = block_no * (MAX_RXDS_PER_BLOCK + 1) + off;
-		offset1 = block_no1 * (MAX_RXDS_PER_BLOCK + 1) + off1;
-#else
-		offset = block_no * (MAX_RXDS_PER_BLOCK) + off;
-		offset1 = block_no1 * (MAX_RXDS_PER_BLOCK) + off1;
-#endif
 
-		rxdp = mac_control->rings[ring_no].rx_blocks[block_no].
-		    block_virt_addr + off;
-		if ((offset == offset1) && (rxdp->Host_Control)) {
-			DBG_PRINT(INTR_DBG, "%s: Get and Put", dev->name);
+		rxdp = mac_control->rings[ring_no].
+				rx_blocks[block_no].rxds[off].virt_addr;
+
+		if ((block_no == block_no1) && (off == off1) &&
+					(rxdp->Host_Control)) {
+			DBG_PRINT(INTR_DBG, "%s: Get and Put",
+				  dev->name);
 			DBG_PRINT(INTR_DBG, " info equated\n");
 			goto end;
 		}
-#ifndef	CONFIG_2BUFF_MODE
-		if (rxdp->Control_1 == END_OF_BLOCK) {
+		if (off && (off == rxd_count[nic->rxd_mode])) {
 			mac_control->rings[ring_no].rx_curr_put_info.
 			    block_index++;
+			if (mac_control->rings[ring_no].rx_curr_put_info.
+			    block_index == mac_control->rings[ring_no].
+					block_count)
+				mac_control->rings[ring_no].rx_curr_put_info.
+					block_index = 0;
+			block_no = mac_control->rings[ring_no].
+					rx_curr_put_info.block_index;
+			if (off == rxd_count[nic->rxd_mode])
+				off = 0;
 			mac_control->rings[ring_no].rx_curr_put_info.
-			    block_index %= mac_control->rings[ring_no].block_count;
-			block_no = mac_control->rings[ring_no].rx_curr_put_info.
-				block_index;
-			off++;
-			off %= (MAX_RXDS_PER_BLOCK + 1);
-			mac_control->rings[ring_no].rx_curr_put_info.offset =
-			    off;
-			rxdp = (RxD_t *) ((unsigned long) rxdp->Control_2);
+				offset = off;
+			rxdp = mac_control->rings[ring_no].
+				rx_blocks[block_no].block_virt_addr;
 			DBG_PRINT(INTR_DBG, "%s: Next block at: %p\n",
 				  dev->name, rxdp);
 		}
 #ifndef CONFIG_S2IO_NAPI
 		spin_lock_irqsave(&nic->put_lock, flags);
 		mac_control->rings[ring_no].put_pos =
-		    (block_no * (MAX_RXDS_PER_BLOCK + 1)) + off;
+		    (block_no * (rxd_count[nic->rxd_mode] + 1)) + off;
 		spin_unlock_irqrestore(&nic->put_lock, flags);
 #endif
-#else
-		if (rxdp->Host_Control == END_OF_BLOCK) {
+		if ((rxdp->Control_1 & RXD_OWN_XENA) &&
+			((nic->rxd_mode >= RXD_MODE_3A) &&
+				(rxdp->Control_2 & BIT(0)))) {
 			mac_control->rings[ring_no].rx_curr_put_info.
-			    block_index++;
-			mac_control->rings[ring_no].rx_curr_put_info.block_index
-			    %= mac_control->rings[ring_no].block_count;
-			block_no = mac_control->rings[ring_no].rx_curr_put_info
-			    .block_index;
-			off = 0;
-			DBG_PRINT(INTR_DBG, "%s: block%d at: 0x%llx\n",
-				  dev->name, block_no,
-				  (unsigned long long) rxdp->Control_1);
-			mac_control->rings[ring_no].rx_curr_put_info.offset =
-			    off;
-			rxdp = mac_control->rings[ring_no].rx_blocks[block_no].
-			    block_virt_addr;
-		}
-#ifndef CONFIG_S2IO_NAPI
-		spin_lock_irqsave(&nic->put_lock, flags);
-		mac_control->rings[ring_no].put_pos = (block_no *
-					 (MAX_RXDS_PER_BLOCK + 1)) + off;
-		spin_unlock_irqrestore(&nic->put_lock, flags);
-#endif
-#endif
-
-#ifndef	CONFIG_2BUFF_MODE
-		if (rxdp->Control_1 & RXD_OWN_XENA)
-#else
-		if (rxdp->Control_2 & BIT(0))
-#endif
-		{
-			mac_control->rings[ring_no].rx_curr_put_info.
-			    offset = off;
+					offset = off;
 			goto end;
 		}
-#ifdef	CONFIG_2BUFF_MODE
-		/*
-		 * RxDs Spanning cache lines will be replenished only
-		 * if the succeeding RxD is also owned by Host. It
-		 * will always be the ((8*i)+3) and ((8*i)+6)
-		 * descriptors for the 48 byte descriptor. The offending
-		 * decsriptor is of-course the 3rd descriptor.
-		 */
-		rxdpphys = mac_control->rings[ring_no].rx_blocks[block_no].
-		    block_dma_addr + (off * sizeof(RxD_t));
-		if (((u64) (rxdpphys)) % 128 > 80) {
-			rxdpnext = mac_control->rings[ring_no].rx_blocks[block_no].
-			    block_virt_addr + (off + 1);
-			if (rxdpnext->Host_Control == END_OF_BLOCK) {
-				nextblk = (block_no + 1) %
-				    (mac_control->rings[ring_no].block_count);
-				rxdpnext = mac_control->rings[ring_no].rx_blocks
-				    [nextblk].block_virt_addr;
-			}
-			if (rxdpnext->Control_2 & BIT(0))
-				goto end;
-		}
-#endif
+		/* calculate size of skb based on ring mode */
+		size = dev->mtu + HEADER_ETHERNET_II_802_3_SIZE +
+				HEADER_802_2_SIZE + HEADER_SNAP_SIZE;
+		if (nic->rxd_mode == RXD_MODE_1)
+			size += NET_IP_ALIGN;
+		else if (nic->rxd_mode == RXD_MODE_3B)
+			size = dev->mtu + ALIGN_SIZE + BUF0_LEN + 4;
+		else
+			size = l3l4hdr_size + ALIGN_SIZE + BUF0_LEN + 4;
 
-#ifndef	CONFIG_2BUFF_MODE
-		skb = dev_alloc_skb(size + NET_IP_ALIGN);
-#else
-		skb = dev_alloc_skb(dev->mtu + ALIGN_SIZE + BUF0_LEN + 4);
-#endif
-		if (!skb) {
+		/* allocate skb */
+		skb = dev_alloc_skb(size);
+		if(!skb) {
 			DBG_PRINT(ERR_DBG, "%s: Out of ", dev->name);
 			DBG_PRINT(ERR_DBG, "memory to allocate SKBs\n");
 			if (first_rxdp) {
 				wmb();
 				first_rxdp->Control_1 |= RXD_OWN_XENA;
 			}
-			return -ENOMEM;
+			return -ENOMEM ;
 		}
-#ifndef	CONFIG_2BUFF_MODE
-		skb_reserve(skb, NET_IP_ALIGN);
-		memset(rxdp, 0, sizeof(RxD_t));
-		rxdp->Buffer0_ptr = pci_map_single
-		    (nic->pdev, skb->data, size, PCI_DMA_FROMDEVICE);
-		rxdp->Control_2 &= (~MASK_BUFFER0_SIZE);
-		rxdp->Control_2 |= SET_BUFFER0_SIZE(size);
+		if (nic->rxd_mode == RXD_MODE_1) {
+			/* 1 buffer mode - normal operation mode */
+			memset(rxdp, 0, sizeof(RxD1_t));
+			skb_reserve(skb, NET_IP_ALIGN);
+			((RxD1_t*)rxdp)->Buffer0_ptr = pci_map_single
+			    (nic->pdev, skb->data, size, PCI_DMA_FROMDEVICE);
+			rxdp->Control_2 &= (~MASK_BUFFER0_SIZE_1);
+			rxdp->Control_2 |= SET_BUFFER0_SIZE_1(size);
+
+		} else if (nic->rxd_mode >= RXD_MODE_3A) {
+			/*
+			 * 2 or 3 buffer mode -
+			 * Both 2 buffer mode and 3 buffer mode provides 128
+			 * byte aligned receive buffers.
+			 *
+			 * 3 buffer mode provides header separation where in
+			 * skb->data will have L3/L4 headers where as
+			 * skb_shinfo(skb)->frag_list will have the L4 data
+			 * payload
+			 */
+
+			memset(rxdp, 0, sizeof(RxD3_t));
+			ba = &mac_control->rings[ring_no].ba[block_no][off];
+			skb_reserve(skb, BUF0_LEN);
+			tmp = (u64)(unsigned long) skb->data;
+			tmp += ALIGN_SIZE;
+			tmp &= ~ALIGN_SIZE;
+			skb->data = (void *) (unsigned long)tmp;
+			skb->tail = (void *) (unsigned long)tmp;
+
+			((RxD3_t*)rxdp)->Buffer0_ptr =
+			    pci_map_single(nic->pdev, ba->ba_0, BUF0_LEN,
+					   PCI_DMA_FROMDEVICE);
+			rxdp->Control_2 = SET_BUFFER0_SIZE_3(BUF0_LEN);
+			if (nic->rxd_mode == RXD_MODE_3B) {
+				/* Two buffer mode */
+
+				/*
+				 * Buffer2 will have L3/L4 header plus 
+				 * L4 payload
+				 */
+				((RxD3_t*)rxdp)->Buffer2_ptr = pci_map_single
+				(nic->pdev, skb->data, dev->mtu + 4,
+						PCI_DMA_FROMDEVICE);
+
+				/* Buffer-1 will be dummy buffer not used */
+				((RxD3_t*)rxdp)->Buffer1_ptr =
+				pci_map_single(nic->pdev, ba->ba_1, BUF1_LEN,
+					PCI_DMA_FROMDEVICE);
+				rxdp->Control_2 |= SET_BUFFER1_SIZE_3(1);
+				rxdp->Control_2 |= SET_BUFFER2_SIZE_3
+								(dev->mtu + 4);
+			} else {
+				/* 3 buffer mode */
+				if (fill_rxd_3buf(nic, rxdp, skb) == -ENOMEM) {
+					dev_kfree_skb_irq(skb);
+					if (first_rxdp) {
+						wmb();
+						first_rxdp->Control_1 |=
+							RXD_OWN_XENA;
+					}
+					return -ENOMEM ;
+				}
+			}
+			rxdp->Control_2 |= BIT(0);
+		}
 		rxdp->Host_Control = (unsigned long) (skb);
 		if (alloc_tab & ((1 << rxsync_frequency) - 1))
 			rxdp->Control_1 |= RXD_OWN_XENA;
 		off++;
-		off %= (MAX_RXDS_PER_BLOCK + 1);
+		if (off == (rxd_count[nic->rxd_mode] + 1))
+			off = 0;
 		mac_control->rings[ring_no].rx_curr_put_info.offset = off;
-#else
-		ba = &mac_control->rings[ring_no].ba[block_no][off];
-		skb_reserve(skb, BUF0_LEN);
-		tmp = ((unsigned long) skb->data & ALIGN_SIZE);
-		if (tmp)
-			skb_reserve(skb, (ALIGN_SIZE + 1) - tmp);
 
-		memset(rxdp, 0, sizeof(RxD_t));
-		rxdp->Buffer2_ptr = pci_map_single
-		    (nic->pdev, skb->data, dev->mtu + BUF0_LEN + 4,
-		     PCI_DMA_FROMDEVICE);
-		rxdp->Buffer0_ptr =
-		    pci_map_single(nic->pdev, ba->ba_0, BUF0_LEN,
-				   PCI_DMA_FROMDEVICE);
-		rxdp->Buffer1_ptr =
-		    pci_map_single(nic->pdev, ba->ba_1, BUF1_LEN,
-				   PCI_DMA_FROMDEVICE);
-
-		rxdp->Control_2 = SET_BUFFER2_SIZE(dev->mtu + 4);
-		rxdp->Control_2 |= SET_BUFFER0_SIZE(BUF0_LEN);
-		rxdp->Control_2 |= SET_BUFFER1_SIZE(1);	/* dummy. */
-		rxdp->Control_2 |= BIT(0);	/* Set Buffer_Empty bit. */
-		rxdp->Host_Control = (u64) ((unsigned long) (skb));
-		if (alloc_tab & ((1 << rxsync_frequency) - 1))
-			rxdp->Control_1 |= RXD_OWN_XENA;
-		off++;
-		mac_control->rings[ring_no].rx_curr_put_info.offset = off;
-#endif
 		rxdp->Control_2 |= SET_RXD_MARKER;
-
 		if (!(alloc_tab & ((1 << rxsync_frequency) - 1))) {
 			if (first_rxdp) {
 				wmb();
@@ -2325,6 +2354,67 @@ int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 	return SUCCESS;
 }
 
+static void free_rxd_blk(struct s2io_nic *sp, int ring_no, int blk)
+{
+	struct net_device *dev = sp->dev;
+	int j;
+	struct sk_buff *skb;
+	RxD_t *rxdp;
+	mac_info_t *mac_control;
+	buffAdd_t *ba;
+
+	mac_control = &sp->mac_control;
+	for (j = 0 ; j < rxd_count[sp->rxd_mode]; j++) {
+		rxdp = mac_control->rings[ring_no].
+                                rx_blocks[blk].rxds[j].virt_addr;
+		skb = (struct sk_buff *)
+			((unsigned long) rxdp->Host_Control);
+		if (!skb) {
+			continue;
+		}
+		if (sp->rxd_mode == RXD_MODE_1) {
+			pci_unmap_single(sp->pdev, (dma_addr_t)
+				 ((RxD1_t*)rxdp)->Buffer0_ptr,
+				 dev->mtu +
+				 HEADER_ETHERNET_II_802_3_SIZE
+				 + HEADER_802_2_SIZE +
+				 HEADER_SNAP_SIZE,
+				 PCI_DMA_FROMDEVICE);
+			memset(rxdp, 0, sizeof(RxD1_t));
+		} else if(sp->rxd_mode == RXD_MODE_3B) {
+			ba = &mac_control->rings[ring_no].
+				ba[blk][j];
+			pci_unmap_single(sp->pdev, (dma_addr_t)
+				 ((RxD3_t*)rxdp)->Buffer0_ptr,
+				 BUF0_LEN,
+				 PCI_DMA_FROMDEVICE);
+			pci_unmap_single(sp->pdev, (dma_addr_t)
+				 ((RxD3_t*)rxdp)->Buffer1_ptr,
+				 BUF1_LEN,
+				 PCI_DMA_FROMDEVICE);
+			pci_unmap_single(sp->pdev, (dma_addr_t)
+				 ((RxD3_t*)rxdp)->Buffer2_ptr,
+				 dev->mtu + 4,
+				 PCI_DMA_FROMDEVICE);
+			memset(rxdp, 0, sizeof(RxD3_t));
+		} else {
+			pci_unmap_single(sp->pdev, (dma_addr_t)
+				((RxD3_t*)rxdp)->Buffer0_ptr, BUF0_LEN,
+				PCI_DMA_FROMDEVICE);
+			pci_unmap_single(sp->pdev, (dma_addr_t)
+				((RxD3_t*)rxdp)->Buffer1_ptr, 
+				l3l4hdr_size + 4,
+				PCI_DMA_FROMDEVICE);
+			pci_unmap_single(sp->pdev, (dma_addr_t)
+				((RxD3_t*)rxdp)->Buffer2_ptr, dev->mtu,
+				PCI_DMA_FROMDEVICE);
+			memset(rxdp, 0, sizeof(RxD3_t));
+		}
+		dev_kfree_skb(skb);
+		atomic_dec(&sp->rx_bufs_left[ring_no]);
+	}
+}
+
 /**
  *  free_rx_buffers - Frees all Rx buffers
  *  @sp: device private variable.
@@ -2337,77 +2427,17 @@ int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 static void free_rx_buffers(struct s2io_nic *sp)
 {
 	struct net_device *dev = sp->dev;
-	int i, j, blk = 0, off, buf_cnt = 0;
-	RxD_t *rxdp;
-	struct sk_buff *skb;
+	int i, blk = 0, buf_cnt = 0;
 	mac_info_t *mac_control;
 	struct config_param *config;
-#ifdef CONFIG_2BUFF_MODE
-	buffAdd_t *ba;
-#endif
 
 	mac_control = &sp->mac_control;
 	config = &sp->config;
 
 	for (i = 0; i < config->rx_ring_num; i++) {
-		for (j = 0, blk = 0; j < config->rx_cfg[i].num_rxd; j++) {
-			off = j % (MAX_RXDS_PER_BLOCK + 1);
-			rxdp = mac_control->rings[i].rx_blocks[blk].
-				block_virt_addr + off;
+		for (blk = 0; blk < rx_ring_sz[i]; blk++)
+			free_rxd_blk(sp,i,blk);
 
-#ifndef CONFIG_2BUFF_MODE
-			if (rxdp->Control_1 == END_OF_BLOCK) {
-				rxdp =
-				    (RxD_t *) ((unsigned long) rxdp->
-					       Control_2);
-				j++;
-				blk++;
-			}
-#else
-			if (rxdp->Host_Control == END_OF_BLOCK) {
-				blk++;
-				continue;
-			}
-#endif
-
-			if (!(rxdp->Control_1 & RXD_OWN_XENA)) {
-				memset(rxdp, 0, sizeof(RxD_t));
-				continue;
-			}
-
-			skb =
-			    (struct sk_buff *) ((unsigned long) rxdp->
-						Host_Control);
-			if (skb) {
-#ifndef CONFIG_2BUFF_MODE
-				pci_unmap_single(sp->pdev, (dma_addr_t)
-						 rxdp->Buffer0_ptr,
-						 dev->mtu +
-						 HEADER_ETHERNET_II_802_3_SIZE
-						 + HEADER_802_2_SIZE +
-						 HEADER_SNAP_SIZE,
-						 PCI_DMA_FROMDEVICE);
-#else
-				ba = &mac_control->rings[i].ba[blk][off];
-				pci_unmap_single(sp->pdev, (dma_addr_t)
-						 rxdp->Buffer0_ptr,
-						 BUF0_LEN,
-						 PCI_DMA_FROMDEVICE);
-				pci_unmap_single(sp->pdev, (dma_addr_t)
-						 rxdp->Buffer1_ptr,
-						 BUF1_LEN,
-						 PCI_DMA_FROMDEVICE);
-				pci_unmap_single(sp->pdev, (dma_addr_t)
-						 rxdp->Buffer2_ptr,
-						 dev->mtu + BUF0_LEN + 4,
-						 PCI_DMA_FROMDEVICE);
-#endif
-				dev_kfree_skb(skb);
-				atomic_dec(&sp->rx_bufs_left[i]);
-				buf_cnt++;
-			}
-			memset(rxdp, 0, sizeof(RxD_t));
-		}
 		mac_control->rings[i].rx_curr_put_info.block_index = 0;
 		mac_control->rings[i].rx_curr_get_info.block_index = 0;
 		mac_control->rings[i].rx_curr_put_info.offset = 0;
@@ -2513,7 +2543,7 @@ static void rx_intr_handler(ring_info_t *ring_data)
 {
 	nic_t *nic = ring_data->nic;
 	struct net_device *dev = (struct net_device *) nic->dev;
-	int get_block, get_offset, put_block, put_offset, ring_bufs;
+	int get_block, put_block, put_offset;
 	rx_curr_get_info_t get_info, put_info;
 	RxD_t *rxdp;
 	struct sk_buff *skb;
@@ -2532,21 +2562,22 @@ static void rx_intr_handler(ring_info_t *ring_data)
 	get_block = get_info.block_index;
 	put_info = ring_data->rx_curr_put_info;
 	put_block = put_info.block_index;
-	ring_bufs = get_info.ring_len+1;
-	rxdp = ring_data->rx_blocks[get_block].block_virt_addr +
-		    get_info.offset;
-	get_offset = (get_block * (MAX_RXDS_PER_BLOCK + 1)) +
-		get_info.offset;
+	rxdp = ring_data->rx_blocks[get_block].rxds[get_info.offset].virt_addr;
 #ifndef CONFIG_S2IO_NAPI
 	spin_lock(&nic->put_lock);
 	put_offset = ring_data->put_pos;
 	spin_unlock(&nic->put_lock);
 #else
-	put_offset = (put_block * (MAX_RXDS_PER_BLOCK + 1)) +
+	put_offset = (put_block * (rxd_count[nic->rxd_mode] + 1)) +
 		put_info.offset;
 #endif
-	while (RXD_IS_UP2DT(rxdp) &&
-	       (((get_offset + 1) % ring_bufs) != put_offset)) {
+	while (RXD_IS_UP2DT(rxdp)) {
+		/* If your are next to put index then it's FIFO full condition */
+		if ((get_block == put_block) &&
+		    (get_info.offset + 1) == put_info.offset) {
+			DBG_PRINT(ERR_DBG, "%s: Ring Full\n",dev->name);
+			break;
+		}
 		skb = (struct sk_buff *) ((unsigned long)rxdp->Host_Control);
 		if (skb == NULL) {
 			DBG_PRINT(ERR_DBG, "%s: The skb is ",
@@ -2555,46 +2586,52 @@ static void rx_intr_handler(ring_info_t *ring_data)
 			spin_unlock(&nic->rx_lock);
 			return;
 		}
-#ifndef CONFIG_2BUFF_MODE
-		pci_unmap_single(nic->pdev, (dma_addr_t)
-				 rxdp->Buffer0_ptr,
+		if (nic->rxd_mode == RXD_MODE_1) {
+			pci_unmap_single(nic->pdev, (dma_addr_t)
+				 ((RxD1_t*)rxdp)->Buffer0_ptr,
 				 dev->mtu +
 				 HEADER_ETHERNET_II_802_3_SIZE +
 				 HEADER_802_2_SIZE +
 				 HEADER_SNAP_SIZE,
 				 PCI_DMA_FROMDEVICE);
-#else
-		pci_unmap_single(nic->pdev, (dma_addr_t)
-				 rxdp->Buffer0_ptr,
+		} else if (nic->rxd_mode == RXD_MODE_3B) {
+			pci_unmap_single(nic->pdev, (dma_addr_t)
+				 ((RxD3_t*)rxdp)->Buffer0_ptr,
 				 BUF0_LEN, PCI_DMA_FROMDEVICE);
-		pci_unmap_single(nic->pdev, (dma_addr_t)
-				 rxdp->Buffer1_ptr,
+			pci_unmap_single(nic->pdev, (dma_addr_t)
+				 ((RxD3_t*)rxdp)->Buffer1_ptr,
 				 BUF1_LEN, PCI_DMA_FROMDEVICE);
-		pci_unmap_single(nic->pdev, (dma_addr_t)
-				 rxdp->Buffer2_ptr,
-				 dev->mtu + BUF0_LEN + 4,
+			pci_unmap_single(nic->pdev, (dma_addr_t)
+				 ((RxD3_t*)rxdp)->Buffer2_ptr,
+				 dev->mtu + 4,
 				 PCI_DMA_FROMDEVICE);
-#endif
+		} else {
+			pci_unmap_single(nic->pdev, (dma_addr_t)
+					 ((RxD3_t*)rxdp)->Buffer0_ptr, BUF0_LEN,
+					 PCI_DMA_FROMDEVICE);
+			pci_unmap_single(nic->pdev, (dma_addr_t)
+					 ((RxD3_t*)rxdp)->Buffer1_ptr,
+					 l3l4hdr_size + 4,
+					 PCI_DMA_FROMDEVICE);
+			pci_unmap_single(nic->pdev, (dma_addr_t)
+					 ((RxD3_t*)rxdp)->Buffer2_ptr,
+					 dev->mtu, PCI_DMA_FROMDEVICE);
+		}
 		rx_osm_handler(ring_data, rxdp);
 		get_info.offset++;
-		ring_data->rx_curr_get_info.offset =
-		    get_info.offset;
-		rxdp = ring_data->rx_blocks[get_block].block_virt_addr +
-		    get_info.offset;
-		if (get_info.offset &&
-		    (!(get_info.offset % MAX_RXDS_PER_BLOCK))) {
+		ring_data->rx_curr_get_info.offset = get_info.offset;
+		rxdp = ring_data->rx_blocks[get_block].
+				rxds[get_info.offset].virt_addr;
+		if (get_info.offset == rxd_count[nic->rxd_mode]) {
 			get_info.offset = 0;
-			ring_data->rx_curr_get_info.offset
-			    = get_info.offset;
+			ring_data->rx_curr_get_info.offset = get_info.offset;
 			get_block++;
-			get_block %= ring_data->block_count;
-			ring_data->rx_curr_get_info.block_index
-			    = get_block;
+			if (get_block == ring_data->block_count)
+				get_block = 0;
+			ring_data->rx_curr_get_info.block_index = get_block;
 			rxdp = ring_data->rx_blocks[get_block].block_virt_addr;
 		}
 
-		get_offset = (get_block * (MAX_RXDS_PER_BLOCK + 1)) +
-			    get_info.offset;
 #ifdef CONFIG_S2IO_NAPI
 		nic->pkts_to_process -= 1;
 		if (!nic->pkts_to_process)
@@ -3044,7 +3081,7 @@ int s2io_set_swapper(nic_t * sp)
 
 int wait_for_msix_trans(nic_t *nic, int i)
 {
-	XENA_dev_config_t __iomem *bar0 = nic->bar0;
+	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
 	u64 val64;
 	int ret = 0, cnt = 0;
 
@@ -3065,7 +3102,7 @@ int wait_for_msix_trans(nic_t *nic, int i)
 
 void restore_xmsi_data(nic_t *nic)
 {
-	XENA_dev_config_t __iomem *bar0 = nic->bar0;
+	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
 	u64 val64;
 	int i;
 
@@ -3083,7 +3120,7 @@ void restore_xmsi_data(nic_t *nic)
 
 void store_xmsi_data(nic_t *nic)
 {
-	XENA_dev_config_t __iomem *bar0 = nic->bar0;
+	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
 	u64 val64, addr, data;
 	int i;
 
@@ -3106,7 +3143,7 @@ void store_xmsi_data(nic_t *nic)
 
 int s2io_enable_msi(nic_t *nic)
 {
-	XENA_dev_config_t __iomem *bar0 = nic->bar0;
+	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
 	u16 msi_ctrl, msg_val;
 	struct config_param *config = &nic->config;
 	struct net_device *dev = nic->dev;
@@ -3156,7 +3193,7 @@ int s2io_enable_msi(nic_t *nic)
 
 int s2io_enable_msi_x(nic_t *nic)
 {
-	XENA_dev_config_t __iomem *bar0 = nic->bar0;
+	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
 	u64 tx_mat, rx_mat;
 	u16 msi_control; /* Temp variable */
 	int ret, i, j, msix_indx = 1;
@@ -5537,16 +5574,7 @@ static int rx_osm_handler(ring_info_t *ring_data, RxD_t * rxdp)
 		((unsigned long) rxdp->Host_Control);
 	int ring_no = ring_data->ring_no;
 	u16 l3_csum, l4_csum;
-#ifdef CONFIG_2BUFF_MODE
-	int buf0_len = RXD_GET_BUFFER0_SIZE(rxdp->Control_2);
-	int buf2_len = RXD_GET_BUFFER2_SIZE(rxdp->Control_2);
-	int get_block = ring_data->rx_curr_get_info.block_index;
-	int get_off = ring_data->rx_curr_get_info.offset;
-	buffAdd_t *ba = &ring_data->ba[get_block][get_off];
-	unsigned char *buff;
-#else
-	u16 len = (u16) ((RXD_GET_BUFFER0_SIZE(rxdp->Control_2)) >> 48);;
-#endif
+
 	skb->dev = dev;
 	if (rxdp->Control_1 & RXD_T_CODE) {
 		unsigned long long err = rxdp->Control_1 & RXD_T_CODE;
@@ -5563,19 +5591,36 @@ static int rx_osm_handler(ring_info_t *ring_data, RxD_t * rxdp)
 	rxdp->Host_Control = 0;
 	sp->rx_pkt_count++;
 	sp->stats.rx_packets++;
-#ifndef CONFIG_2BUFF_MODE
-	sp->stats.rx_bytes += len;
-#else
-	sp->stats.rx_bytes += buf0_len + buf2_len;
-#endif
+	if (sp->rxd_mode == RXD_MODE_1) {
+		int len = RXD_GET_BUFFER0_SIZE_1(rxdp->Control_2);
 
-#ifndef CONFIG_2BUFF_MODE
-	skb_put(skb, len);
-#else
-	buff = skb_push(skb, buf0_len);
-	memcpy(buff, ba->ba_0, buf0_len);
-	skb_put(skb, buf2_len);
-#endif
+		sp->stats.rx_bytes += len;
+		skb_put(skb, len);
+
+	} else if (sp->rxd_mode >= RXD_MODE_3A) {
+		int get_block = ring_data->rx_curr_get_info.block_index;
+		int get_off = ring_data->rx_curr_get_info.offset;
+		int buf0_len = RXD_GET_BUFFER0_SIZE_3(rxdp->Control_2);
+		int buf2_len = RXD_GET_BUFFER2_SIZE_3(rxdp->Control_2);
+		unsigned char *buff = skb_push(skb, buf0_len);
+
+		buffAdd_t *ba = &ring_data->ba[get_block][get_off];
+		sp->stats.rx_bytes += buf0_len + buf2_len;
+		memcpy(buff, ba->ba_0, buf0_len);
+
+		if (sp->rxd_mode == RXD_MODE_3A) {
+			int buf1_len = RXD_GET_BUFFER1_SIZE_3(rxdp->Control_2);
+
+			skb_put(skb, buf1_len);
+			skb->len += buf2_len;
+			skb->data_len += buf2_len;
+			skb->truesize += buf2_len;
+			skb_put(skb_shinfo(skb)->frag_list, buf2_len);
+			sp->stats.rx_bytes += buf1_len;
+
+		} else
+			skb_put(skb, buf2_len);
+	}
 
 	if ((rxdp->Control_1 & TCP_OR_UDP_FRAME) &&
 	    (sp->rx_csum)) {
@@ -5711,6 +5756,7 @@ MODULE_VERSION(DRV_VERSION);
 
 module_param(tx_fifo_num, int, 0);
 module_param(rx_ring_num, int, 0);
+module_param(rx_ring_mode, int, 0);
 module_param_array(tx_fifo_len, uint, NULL, 0);
 module_param_array(rx_ring_sz, uint, NULL, 0);
 module_param_array(rts_frm_len, uint, NULL, 0);
@@ -5722,6 +5768,7 @@ module_param(shared_splits, int, 0);
 module_param(tmac_util_period, int, 0);
 module_param(rmac_util_period, int, 0);
 module_param(bimodal, bool, 0);
+module_param(l3l4hdr_size, int , 0);
 #ifndef CONFIG_S2IO_NAPI
 module_param(indicate_max_pkts, int, 0);
 #endif
@@ -5843,6 +5890,13 @@ Defaulting to INTA\n");
 	sp->pdev = pdev;
 	sp->high_dma_flag = dma_flag;
 	sp->device_enabled_once = FALSE;
+	if (rx_ring_mode == 1)
+		sp->rxd_mode = RXD_MODE_1;
+	if (rx_ring_mode == 2)
+		sp->rxd_mode = RXD_MODE_3B;
+	if (rx_ring_mode == 3)
+		sp->rxd_mode = RXD_MODE_3A;
+
 	sp->intr_type = dev_intr_type;
 
 	if ((pdev->device == PCI_DEVICE_ID_HERC_WIN) ||
@@ -5895,7 +5949,7 @@ Defaulting to INTA\n");
 	config->rx_ring_num = rx_ring_num;
 	for (i = 0; i < MAX_RX_RINGS; i++) {
 		config->rx_cfg[i].num_rxd = rx_ring_sz[i] *
-		    (MAX_RXDS_PER_BLOCK + 1);
+		    (rxd_count[sp->rxd_mode] + 1);
 		config->rx_cfg[i].ring_priority = i;
 	}
 
@@ -6090,9 +6144,6 @@ Defaulting to INTA\n");
 		DBG_PRINT(ERR_DBG, "(rev %d), Version %s",
 				get_xena_rev_id(sp->pdev),
 				s2io_driver_version);
-#ifdef CONFIG_2BUFF_MODE
-		DBG_PRINT(ERR_DBG, ", Buffer mode %d",2);
-#endif
 		switch(sp->intr_type) {
 			case INTA:
 				DBG_PRINT(ERR_DBG, ", Intr type INTA");
@@ -6125,9 +6176,6 @@ Defaulting to INTA\n");
 		DBG_PRINT(ERR_DBG, "(rev %d), Version %s",
 					get_xena_rev_id(sp->pdev),
 					s2io_driver_version);
-#ifdef CONFIG_2BUFF_MODE
-		DBG_PRINT(ERR_DBG, ", Buffer mode %d",2);
-#endif
 		switch(sp->intr_type) {
 			case INTA:
 				DBG_PRINT(ERR_DBG, ", Intr type INTA");
@@ -6148,6 +6196,12 @@ Defaulting to INTA\n");
 			  sp->def_mac_addr[0].mac_addr[4],
 			  sp->def_mac_addr[0].mac_addr[5]);
 	}
+	if (sp->rxd_mode == RXD_MODE_3B)
+		DBG_PRINT(ERR_DBG, "%s: 2-Buffer mode support has been "
+			  "enabled\n",dev->name);
+	if (sp->rxd_mode == RXD_MODE_3A)
+		DBG_PRINT(ERR_DBG, "%s: 3-Buffer mode support has been "
+			  "enabled\n",dev->name);
 
 	/* Initialize device name */
 	strcpy(sp->name, dev->name);
