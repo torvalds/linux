@@ -83,6 +83,8 @@ static int __initdata dt_root_addr_cells;
 static int __initdata dt_root_size_cells;
 static int __initdata iommu_is_off;
 int __initdata iommu_force_on;
+unsigned long tce_alloc_start, tce_alloc_end;
+
 typedef u32 cell_t;
 
 #if 0
@@ -1063,7 +1065,6 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 {
 	u32 *prop;
 	u64 *prop64;
-	extern unsigned long tce_alloc_start, tce_alloc_end;
 
 	DBG("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
 

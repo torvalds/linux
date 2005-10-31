@@ -20,6 +20,7 @@
 #include <asm/lmb.h>
 #include <asm/machdep.h>
 #include <asm/abs_addr.h>
+#include <asm/system.h>
 
 static int numa_enabled = 1;
 
@@ -300,7 +301,6 @@ static unsigned long __init numa_enforce_memory_limit(unsigned long start, unsig
 	 * we've already adjusted it for the limit and it takes care of
 	 * having memory holes below the limit.
 	 */
-	extern unsigned long memory_limit;
 
 	if (! memory_limit)
 		return size;

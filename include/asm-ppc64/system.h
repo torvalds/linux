@@ -136,6 +136,7 @@ static inline void flush_spe_to_thread(struct task_struct *t)
 }
 
 extern int mem_init_done;	/* set on boot once kmalloc can be called */
+extern unsigned long memory_limit;
 
 /* EBCDIC -> ASCII conversion for [0-9A-Z] on iSeries */
 extern unsigned char e2a(unsigned char);

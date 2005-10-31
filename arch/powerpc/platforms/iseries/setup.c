@@ -302,8 +302,6 @@ static void __init iSeries_get_cmdline(void)
 
 static void __init iSeries_init_early(void)
 {
-	extern unsigned long memory_limit;
-
 	DBG(" -> iSeries_init_early()\n");
 
 	ppc64_firmware_features = FW_FEATURE_ISERIES;

@@ -59,6 +59,7 @@
 
 int init_bootmem_done;
 int mem_init_done;
+unsigned long memory_limit;
 
 /*
  * This is called by /dev/mem to know if a given address has to

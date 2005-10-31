@@ -631,15 +631,6 @@ static int ppc64_panic_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-/*
- * These three variables are used to save values passed to us by prom_init()
- * via the device tree. The TCE variables are needed because with a memory_limit
- * in force we may need to explicitly map the TCE are at the top of RAM.
- */
-unsigned long memory_limit;
-unsigned long tce_alloc_start;
-unsigned long tce_alloc_end;
-
 #ifdef CONFIG_PPC_ISERIES
 /*
  * On iSeries we just parse the mem=X option from the command line.
