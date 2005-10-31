@@ -2511,8 +2511,6 @@ void account_system_time(struct task_struct *p, int hardirq_offset,
 		cpustat->idle = cputime64_add(cpustat->idle, tmp);
 	/* Account for system time used */
 	acct_update_integrals(p);
-	/* Update rss highwater mark */
-	update_mem_hiwater(p);
 }
 
 /*

@@ -4526,12 +4526,16 @@ static int sgl_unmap_user_pages(struct scatterlist *sgl, const unsigned int nr_p
 	int i;
 
 	for (i=0; i < nr_pages; i++) {
-		if (dirtied && !PageReserved(sgl[i].page))
-			SetPageDirty(sgl[i].page);
+		struct page *page = sgl[i].page;
+
+		/* XXX: just for debug. Remove when PageReserved is removed */
+		BUG_ON(PageReserved(page));
+		if (dirtied)
+			SetPageDirty(page);
 		/* FIXME: cache flush missing for rw==READ
 		 * FIXME: call the correct reference counting function
 		 */
-		page_cache_release(sgl[i].page);
+		page_cache_release(page);
 	}
 
 	return 0;

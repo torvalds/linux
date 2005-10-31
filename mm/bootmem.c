@@ -305,6 +305,7 @@ static unsigned long __init free_all_bootmem_core(pg_data_t *pgdat)
 				if (j + 16 < BITS_PER_LONG)
 					prefetchw(page + j + 16);
 				__ClearPageReserved(page + j);
+				set_page_count(page + j, 0);
 			}
 			__free_pages(page, order);
 			i += BITS_PER_LONG;

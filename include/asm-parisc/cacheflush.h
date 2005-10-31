@@ -100,30 +100,34 @@ static inline void flush_cache_range(struct vm_area_struct *vma,
 
 /* Simple function to work out if we have an existing address translation
  * for a user space vma. */
-static inline pte_t *__translation_exists(struct mm_struct *mm,
-					  unsigned long addr)
+static inline int translation_exists(struct vm_area_struct *vma,
+				unsigned long addr, unsigned long pfn)
 {
-	pgd_t *pgd = pgd_offset(mm, addr);
+	pgd_t *pgd = pgd_offset(vma->vm_mm, addr);
 	pmd_t *pmd;
-	pte_t *pte;
+	pte_t pte;
 
 	if(pgd_none(*pgd))
-		return NULL;
+		return 0;
 
 	pmd = pmd_offset(pgd, addr);
 	if(pmd_none(*pmd) || pmd_bad(*pmd))
-		return NULL;
+		return 0;
 
-	pte = pte_offset_map(pmd, addr);
+	/* We cannot take the pte lock here: flush_cache_page is usually
+	 * called with pte lock already held.  Whereas flush_dcache_page
+	 * takes flush_dcache_mmap_lock, which is lower in the hierarchy:
+	 * the vma itself is secure, but the pte might come or go racily.
+	 */
+	pte = *pte_offset_map(pmd, addr);
+	/* But pte_unmap() does nothing on this architecture */
 
-	/* The PA flush mappings show up as pte_none, but they're
-	 * valid none the less */
-	if(pte_none(*pte) && ((pte_val(*pte) & _PAGE_FLUSH) == 0))
-		return NULL;
-	return pte;
+	/* Filter out coincidental file entries and swap entries */
+	if (!(pte_val(pte) & (_PAGE_FLUSH|_PAGE_PRESENT)))
+		return 0;
+
+	return pte_pfn(pte) == pfn;
 }
-#define	translation_exists(vma, addr)	__translation_exists((vma)->vm_mm, addr)
-
 
 /* Private function to flush a page from the cache of a non-current
  * process.  cr25 contains the Page Directory of the current user
@@ -175,9 +179,8 @@ flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long
 {
 	BUG_ON(!vma->vm_mm->context);
 
-	if(likely(translation_exists(vma, vmaddr)))
+	if (likely(translation_exists(vma, vmaddr, pfn)))
 		__flush_cache_page(vma, vmaddr);
 
 }
 #endif
-

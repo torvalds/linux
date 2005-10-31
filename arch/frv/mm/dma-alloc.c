@@ -55,21 +55,18 @@ static int map_page(unsigned long va, unsigned long pa, pgprot_t prot)
 	pte_t *pte;
 	int err = -ENOMEM;
 
-	spin_lock(&init_mm.page_table_lock);
-
 	/* Use upper 10 bits of VA to index the first level map */
 	pge = pgd_offset_k(va);
 	pue = pud_offset(pge, va);
 	pme = pmd_offset(pue, va);
 
 	/* Use middle 10 bits of VA to index the second-level map */
-	pte = pte_alloc_kernel(&init_mm, pme, va);
+	pte = pte_alloc_kernel(pme, va);
 	if (pte != 0) {
 		err = 0;
 		set_pte(pte, mk_pte_phys(pa & PAGE_MASK, prot));
 	}
 
-	spin_unlock(&init_mm.page_table_lock);
 	return err;
 }
 

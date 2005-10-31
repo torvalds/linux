@@ -438,7 +438,7 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 		jiffies_to_clock_t(it_real_value),
 		start_time,
 		vsize,
-		mm ? get_mm_counter(mm, rss) : 0, /* you might want to shift this left 3 */
+		mm ? get_mm_rss(mm) : 0,
 	        rsslim,
 		mm ? mm->start_code : 0,
 		mm ? mm->end_code : 0,
