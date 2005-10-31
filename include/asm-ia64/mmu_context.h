@@ -32,13 +32,17 @@
 struct ia64_ctx {
 	spinlock_t lock;
 	unsigned int next;	/* next context number to use */
-	unsigned int limit;	/* next >= limit => must call wrap_mmu_context() */
-	unsigned int max_ctx;	/* max. context value supported by all CPUs */
+	unsigned int limit;     /* available free range */
+	unsigned int max_ctx;   /* max. context value supported by all CPUs */
+				/* call wrap_mmu_context when next >= max */
+	unsigned long *bitmap;  /* bitmap size is max_ctx+1 */
+	unsigned long *flushmap;/* pending rid to be flushed */
 };
 
 extern struct ia64_ctx ia64_ctx;
 DECLARE_PER_CPU(u8, ia64_need_tlb_flush);
 
+extern void mmu_context_init (void);
 extern void wrap_mmu_context (struct mm_struct *mm);
 
 static inline void
@@ -83,9 +87,16 @@ get_mmu_context (struct mm_struct *mm)
 			context = mm->context;
 			if (context == 0) {
 				cpus_clear(mm->cpu_vm_mask);
-				if (ia64_ctx.next >= ia64_ctx.limit)
-					wrap_mmu_context(mm);
+				if (ia64_ctx.next >= ia64_ctx.limit) {
+					ia64_ctx.next = find_next_zero_bit(ia64_ctx.bitmap,
+							ia64_ctx.max_ctx, ia64_ctx.next);
+					ia64_ctx.limit = find_next_bit(ia64_ctx.bitmap,
+							ia64_ctx.max_ctx, ia64_ctx.next);
+					if (ia64_ctx.next >= ia64_ctx.max_ctx)
+						wrap_mmu_context(mm);
+				}
 				mm->context = context = ia64_ctx.next++;
+				__set_bit(context, ia64_ctx.bitmap);
 			}
 		}
 		spin_unlock_irqrestore(&ia64_ctx.lock, flags);
