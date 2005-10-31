@@ -827,6 +827,7 @@ static int jfs_link(struct dentry *old_dentry,
 	/* update object inode */
 	ip->i_nlink++;		/* for new link */
 	ip->i_ctime = CURRENT_TIME;
+	dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 	mark_inode_dirty(dir);
 	atomic_inc(&ip->i_count);
 
@@ -1024,6 +1025,8 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	insert_inode_hash(ip);
 	mark_inode_dirty(ip);
 
+	dip->i_ctime = dip->i_mtime = CURRENT_TIME;
+	mark_inode_dirty(dip);
 	/*
 	 * commit update of parent directory and link object
 	 */
