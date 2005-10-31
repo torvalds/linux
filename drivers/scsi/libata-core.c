@@ -295,49 +295,7 @@ void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf)
 }
 
 /**
- *	ata_exec - issue ATA command to host controller
- *	@ap: port to which command is being issued
- *	@tf: ATA taskfile register set
- *
- *	Issues PIO/MMIO write to ATA command register, with proper
- *	synchronization with interrupt handler / other threads.
- *
- *	LOCKING:
- *	Obtains host_set lock.
- */
-
-static inline void ata_exec(struct ata_port *ap, const struct ata_taskfile *tf)
-{
-	unsigned long flags;
-
-	DPRINTK("ata%u: cmd 0x%X\n", ap->id, tf->command);
-	spin_lock_irqsave(&ap->host_set->lock, flags);
-	ap->ops->exec_command(ap, tf);
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-}
-
-/**
  *	ata_tf_to_host - issue ATA taskfile to host controller
- *	@ap: port to which command is being issued
- *	@tf: ATA taskfile register set
- *
- *	Issues ATA taskfile register set to ATA host controller,
- *	with proper synchronization with interrupt handler and
- *	other threads.
- *
- *	LOCKING:
- *	Obtains host_set lock.
- */
-
-static void ata_tf_to_host(struct ata_port *ap, const struct ata_taskfile *tf)
-{
-	ap->ops->tf_load(ap, tf);
-
-	ata_exec(ap, tf);
-}
-
-/**
- *	ata_tf_to_host_nolock - issue ATA taskfile to host controller
  *	@ap: port to which command is being issued
  *	@tf: ATA taskfile register set
  *
@@ -349,7 +307,8 @@ static void ata_tf_to_host(struct ata_port *ap, const struct ata_taskfile *tf)
  *	spin_lock_irqsave(host_set lock)
  */
 
-void ata_tf_to_host_nolock(struct ata_port *ap, const struct ata_taskfile *tf)
+static inline void ata_tf_to_host(struct ata_port *ap,
+				  const struct ata_taskfile *tf)
 {
 	ap->ops->tf_load(ap, tf);
 	ap->ops->exec_command(ap, tf);
@@ -1912,12 +1871,14 @@ static void ata_bus_post_reset(struct ata_port *ap, unsigned int devmask)
  *
  *	LOCKING:
  *	PCI/etc. bus probe sem.
+ *	Obtains host_set lock.
  *
  */
 
 static unsigned int ata_bus_edd(struct ata_port *ap)
 {
 	struct ata_taskfile tf;
+	unsigned long flags;
 
 	/* set up execute-device-diag (bus reset) taskfile */
 	/* also, take interrupts to a known state (disabled) */
@@ -1928,7 +1889,9 @@ static unsigned int ata_bus_edd(struct ata_port *ap)
 	tf.protocol = ATA_PROT_NODATA;
 
 	/* do bus reset */
+	spin_lock_irqsave(&ap->host_set->lock, flags);
 	ata_tf_to_host(ap, &tf);
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	/* spec says at least 2ms.  but who knows with those
 	 * crazy ATAPI devices...
@@ -3642,7 +3605,7 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 
 	switch (qc->tf.protocol) {
 	case ATA_PROT_NODATA:
-		ata_tf_to_host_nolock(ap, &qc->tf);
+		ata_tf_to_host(ap, &qc->tf);
 		break;
 
 	case ATA_PROT_DMA:
@@ -3653,20 +3616,20 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 
 	case ATA_PROT_PIO: /* load tf registers, initiate polling pio */
 		ata_qc_set_polling(qc);
-		ata_tf_to_host_nolock(ap, &qc->tf);
+		ata_tf_to_host(ap, &qc->tf);
 		ap->hsm_task_state = HSM_ST;
 		queue_work(ata_wq, &ap->pio_task);
 		break;
 
 	case ATA_PROT_ATAPI:
 		ata_qc_set_polling(qc);
-		ata_tf_to_host_nolock(ap, &qc->tf);
+		ata_tf_to_host(ap, &qc->tf);
 		queue_work(ata_wq, &ap->packet_task);
 		break;
 
 	case ATA_PROT_ATAPI_NODATA:
 		ap->flags |= ATA_FLAG_NOINTR;
-		ata_tf_to_host_nolock(ap, &qc->tf);
+		ata_tf_to_host(ap, &qc->tf);
 		queue_work(ata_wq, &ap->packet_task);
 		break;
 
@@ -4219,8 +4182,6 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	host->max_channel = 1;
 	host->unique_id = ata_unique_id++;
 	host->max_cmd_len = 12;
-
-	scsi_assign_lock(host, &host_set->lock);
 
 	ap->flags = ATA_FLAG_PORT_DISABLED;
 	ap->id = host->unique_id;
