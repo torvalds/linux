@@ -173,7 +173,7 @@ static void fas216_dumpstate(FAS216_Info *info)
 		fas216_readb(info, REG_CTCH));
 }
 
-static void print_SCp(Scsi_Pointer *SCp, const char *prefix, const char *suffix)
+static void print_SCp(struct scsi_pointer *SCp, const char *prefix, const char *suffix)
 {
 	printk("%sptr %p this_residual 0x%x buffer %p buffers_residual 0x%x%s",
 		prefix, SCp->ptr, SCp->this_residual, SCp->buffer,
@@ -628,7 +628,7 @@ static void fas216_handlesync(FAS216_Info *info, char *msg)
  */
 static void fas216_updateptrs(FAS216_Info *info, int bytes_transferred)
 {
-	Scsi_Pointer *SCp = &info->scsi.SCp;
+	struct scsi_pointer *SCp = &info->scsi.SCp;
 
 	fas216_checkmagic(info);
 
@@ -668,7 +668,7 @@ static void fas216_updateptrs(FAS216_Info *info, int bytes_transferred)
  */
 static void fas216_pio(FAS216_Info *info, fasdmadir_t direction)
 {
-	Scsi_Pointer *SCp = &info->scsi.SCp;
+	struct scsi_pointer *SCp = &info->scsi.SCp;
 
 	fas216_checkmagic(info);
 

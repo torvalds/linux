@@ -65,7 +65,7 @@ struct arxescsi_info {
  * Returns : 0 if we should not set CMD_WITHDMA for transfer info command
  */
 static fasdmatype_t
-arxescsi_dma_setup(struct Scsi_Host *host, Scsi_Pointer *SCp,
+arxescsi_dma_setup(struct Scsi_Host *host, struct scsi_pointer *SCp,
 		       fasdmadir_t direction, fasdmatype_t min_type)
 {
 	/*
@@ -111,7 +111,7 @@ static void arxescsi_pseudo_dma_write(unsigned char *addr, void __iomem *base)
  *	     transfer  - minimum number of bytes we expect to transfer
  */
 static void
-arxescsi_dma_pseudo(struct Scsi_Host *host, Scsi_Pointer *SCp,
+arxescsi_dma_pseudo(struct Scsi_Host *host, struct scsi_pointer *SCp,
 		    fasdmadir_t direction, int transfer)
 {
 	struct arxescsi_info *info = (struct arxescsi_info *)host->hostdata;
@@ -197,7 +197,7 @@ arxescsi_dma_pseudo(struct Scsi_Host *host, Scsi_Pointer *SCp,
  * Params  : host  - host
  *	     SCpnt - command
  */
-static void arxescsi_dma_stop(struct Scsi_Host *host, Scsi_Pointer *SCp)
+static void arxescsi_dma_stop(struct Scsi_Host *host, struct scsi_pointer *SCp)
 {
 	/*
 	 * no DMA to stop

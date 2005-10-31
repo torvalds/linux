@@ -896,7 +896,7 @@ void acornscsi_done(AS_Host *host, Scsi_Cmnd **SCpntp, unsigned int result)
  * Notes    : this will only be one SG entry or less
  */
 static
-void acornscsi_data_updateptr(AS_Host *host, Scsi_Pointer *SCp, unsigned int length)
+void acornscsi_data_updateptr(AS_Host *host, struct scsi_pointer *SCp, unsigned int length)
 {
     SCp->ptr += length;
     SCp->this_residual -= length;

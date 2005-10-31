@@ -132,7 +132,7 @@ powertecscsi_intr(int irq, void *dev_id, struct pt_regs *regs)
  * Returns  : type of transfer to be performed
  */
 static fasdmatype_t
-powertecscsi_dma_setup(struct Scsi_Host *host, Scsi_Pointer *SCp,
+powertecscsi_dma_setup(struct Scsi_Host *host, struct scsi_pointer *SCp,
 		       fasdmadir_t direction, fasdmatype_t min_type)
 {
 	struct powertec_info *info = (struct powertec_info *)host->hostdata;
@@ -174,7 +174,7 @@ powertecscsi_dma_setup(struct Scsi_Host *host, Scsi_Pointer *SCp,
  *	      SCpnt - command
  */
 static void
-powertecscsi_dma_stop(struct Scsi_Host *host, Scsi_Pointer *SCp)
+powertecscsi_dma_stop(struct Scsi_Host *host, struct scsi_pointer *SCp)
 {
 	struct powertec_info *info = (struct powertec_info *)host->hostdata;
 	if (info->info.scsi.dma != NO_DMA)

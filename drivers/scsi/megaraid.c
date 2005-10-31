@@ -1686,7 +1686,7 @@ mega_rundoneq (adapter_t *adapter)
 
 	list_for_each(pos, &adapter->completed_list) {
 
-		Scsi_Pointer* spos = (Scsi_Pointer *)pos;
+		struct scsi_pointer* spos = (struct scsi_pointer *)pos;
 
 		cmd = list_entry(spos, Scsi_Cmnd, SCp);
 		cmd->scsi_done(cmd);
