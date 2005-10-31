@@ -26,11 +26,11 @@
 #include <linux/init.h>
 #include <linux/crc32.h>
 #include <linux/bitops.h>
+#include <linux/platform_device.h>
 
-#include <asm/system.h>
-#include <asm/irq.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
+#include <asm/system.h>
 
 #define TX_BUFFERS 15
 #define RX_BUFFERS 25
@@ -280,10 +280,13 @@ static void am79c961_timer(unsigned long data)
 	lnkstat = read_ireg(dev->base_addr, ISALED0) & ISALED0_LNKST;
 	carrier = netif_carrier_ok(dev);
 
-	if (lnkstat && !carrier)
+	if (lnkstat && !carrier) {
 		netif_carrier_on(dev);
-	else if (!lnkstat && carrier)
+		printk("%s: link up\n", dev->name);
+	} else if (!lnkstat && carrier) {
 		netif_carrier_off(dev);
+		printk("%s: link down\n", dev->name);
+	}
 
 	mod_timer(&priv->timer, jiffies + msecs_to_jiffies(500));
 }
@@ -665,16 +668,24 @@ static void __init am79c961_banner(void)
 		printk(KERN_INFO "%s", version);
 }
 
-static int __init am79c961_init(void)
+static int __init am79c961_probe(struct device *_dev)
 {
+	struct platform_device *pdev = to_platform_device(_dev);
+	struct resource *res;
 	struct net_device *dev;
 	struct dev_priv *priv;
 	int i, ret;
+
+	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	if (!res)
+		return -ENODEV;
 
 	dev = alloc_etherdev(sizeof(struct dev_priv));
 	ret = -ENOMEM;
 	if (!dev)
 		goto out;
+
+	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	priv = netdev_priv(dev);
 
@@ -683,8 +694,8 @@ static int __init am79c961_init(void)
 	 * The PNP initialisation should have been
 	 * done by the ether bootp loader.
 	 */
-	dev->base_addr = 0x220;
-	dev->irq = IRQ_EBSA110_ETHERNET;
+	dev->base_addr = res->start;
+	dev->irq = platform_get_irq(pdev, 0);
 
     	ret = -ENODEV;
 	if (!request_region(dev->base_addr, 0x18, dev->name))
@@ -705,10 +716,10 @@ static int __init am79c961_init(void)
 	    inb(dev->base_addr + 4) != 0x2b)
 	    	goto release;
 
-	am79c961_banner();
-
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = inb(dev->base_addr + i * 2) & 0xff;
+
+	am79c961_banner();
 
 	spin_lock_init(&priv->chip_lock);
 	init_timer(&priv->timer);
@@ -732,6 +743,7 @@ static int __init am79c961_init(void)
 	if (ret == 0) {
 		printk(KERN_INFO "%s: ether address ", dev->name);
 
+		/* Retrive and print the ethernet address. */
 		for (i = 0; i < 6; i++)
 			printk (i == 5 ? "%02x\n" : "%02x:", dev->dev_addr[i]);
 
@@ -744,6 +756,17 @@ nodev:
 	free_netdev(dev);
 out:
 	return ret;
+}
+
+static struct device_driver am79c961_driver = {
+	.name		= "am79c961",
+	.bus		= &platform_bus_type,
+	.probe		= am79c961_probe,
+};
+
+static int __init am79c961_init(void)
+{
+	return driver_register(&am79c961_driver);
 }
 
 __initcall(am79c961_init);
