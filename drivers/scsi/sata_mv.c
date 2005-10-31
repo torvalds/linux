@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
+#include <linux/device.h>
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
@@ -1438,9 +1439,9 @@ static void mv_print_info(struct ata_probe_ent *probe_ent)
 	else
 		scc_s = "unknown";
 
-	printk(KERN_INFO DRV_NAME 
-	       "(%s) %u slots %u ports %s mode IRQ via %s\n",
-	       pci_name(pdev), (unsigned)MV_MAX_Q_DEPTH, probe_ent->n_ports, 
+	dev_printk(KERN_INFO, &pdev->dev,
+	       "%u slots %u ports %s mode IRQ via %s\n",
+	       (unsigned)MV_MAX_Q_DEPTH, probe_ent->n_ports, 
 	       scc_s, (MV_HP_FLAG_MSI & hpriv->hp_flags) ? "MSI" : "INTx");
 }
 
@@ -1461,9 +1462,8 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *mmio_base;
 	int pci_dev_busy = 0, rc;
 
-	if (!printed_version++) {
-		printk(KERN_INFO DRV_NAME " version " DRV_VERSION "\n");
-	}
+	if (!printed_version++)
+		dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc) {

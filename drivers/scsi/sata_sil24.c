@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/device.h>
 #include <scsi/scsi_host.h>
 #include "scsi.h"
 #include <linux/libata.h>
@@ -695,7 +696,7 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int i, rc;
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc)
@@ -755,14 +756,14 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc) {
-		printk(KERN_ERR DRV_NAME "(%s): 32-bit DMA enable failed\n",
-		       pci_name(pdev));
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "32-bit DMA enable failed\n");
 		goto out_free;
 	}
 	rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc) {
-		printk(KERN_ERR DRV_NAME "(%s): 32-bit consistent DMA enable failed\n",
-		       pci_name(pdev));
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "32-bit consistent DMA enable failed\n");
 		goto out_free;
 	}
 
@@ -798,9 +799,8 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 					break;
 			}
 			if (tmp & PORT_CS_PORT_RST)
-				printk(KERN_ERR DRV_NAME
-				       "(%s): failed to clear port RST\n",
-				       pci_name(pdev));
+				dev_printk(KERN_ERR, &pdev->dev,
+				           "failed to clear port RST\n");
 		}
 
 		/* Zero error counters. */
@@ -829,9 +829,8 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		/* Reset itself */
 		if (__sil24_reset_controller(port))
-			printk(KERN_ERR DRV_NAME
-			       "(%s): failed to reset controller\n",
-			       pci_name(pdev));
+			dev_printk(KERN_ERR, &pdev->dev,
+			           "failed to reset controller\n");
 	}
 
 	/* Turn on interrupts */

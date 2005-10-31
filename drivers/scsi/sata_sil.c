@@ -41,6 +41,7 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/device.h>
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
@@ -386,7 +387,7 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	u8 cls;
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
 	/*
 	 * If this driver happens to only be useful on Apple's K2, then
@@ -463,8 +464,8 @@ static int sil_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 			writeb(cls, mmio_base + SIL_FIFO_W3);
 		}
 	} else
-		printk(KERN_WARNING DRV_NAME "(%s): cache line size not set.  Driver may not function\n",
-			pci_name(pdev));
+		dev_printk(KERN_WARNING, &pdev->dev,
+			 "cache line size not set.  Driver may not function\n");
 
 	if (ent->driver_data == sil_3114) {
 		irq_mask = SIL_MASK_4PORT;
