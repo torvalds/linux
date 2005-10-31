@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
+#include <linux/device.h>
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
@@ -1066,6 +1067,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 	struct ata_queued_cmd *qc;
 	u32 hc_irq_cause;
 	int shift, port, port0, hard_port, handled;
+	unsigned int err_mask;
 	u8 ata_status = 0;
 
 	if (hc == 0) {
@@ -1101,15 +1103,15 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 			handled++;
 		}
 
+		err_mask = ac_err_mask(ata_status);
+
 		shift = port << 1;		/* (port * 2) */
 		if (port >= MV_PORTS_PER_HC) {
 			shift++;	/* skip bit 8 in the HC Main IRQ reg */
 		}
 		if ((PORT0_ERR << shift) & relevant) {
 			mv_err_intr(ap);
-			/* OR in ATA_ERR to ensure libata knows we took one */
-			ata_status = readb((void __iomem *)
-					   ap->ioaddr.status_addr) | ATA_ERR;
+			err_mask |= AC_ERR_OTHER;
 			handled++;
 		}
 		
@@ -1119,7 +1121,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 				VPRINTK("port %u IRQ found for qc, "
 					"ata_status 0x%x\n", port,ata_status);
 				/* mark qc status appropriately */
-				ata_qc_complete(qc, ata_status);
+				ata_qc_complete(qc, err_mask);
 			}
 		}
 	}
@@ -1295,7 +1297,7 @@ static void mv_eng_timeout(struct ata_port *ap)
 	 	 */
 		spin_lock_irqsave(&ap->host_set->lock, flags);
 		qc->scsidone = scsi_finish_command;
-		ata_qc_complete(qc, ATA_ERR);
+		ata_qc_complete(qc, AC_ERR_OTHER);
 		spin_unlock_irqrestore(&ap->host_set->lock, flags);
 	}
 }
@@ -1437,9 +1439,9 @@ static void mv_print_info(struct ata_probe_ent *probe_ent)
 	else
 		scc_s = "unknown";
 
-	printk(KERN_INFO DRV_NAME 
-	       "(%s) %u slots %u ports %s mode IRQ via %s\n",
-	       pci_name(pdev), (unsigned)MV_MAX_Q_DEPTH, probe_ent->n_ports, 
+	dev_printk(KERN_INFO, &pdev->dev,
+	       "%u slots %u ports %s mode IRQ via %s\n",
+	       (unsigned)MV_MAX_Q_DEPTH, probe_ent->n_ports, 
 	       scc_s, (MV_HP_FLAG_MSI & hpriv->hp_flags) ? "MSI" : "INTx");
 }
 
@@ -1460,9 +1462,8 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *mmio_base;
 	int pci_dev_busy = 0, rc;
 
-	if (!printed_version++) {
-		printk(KERN_INFO DRV_NAME " version " DRV_VERSION "\n");
-	}
+	if (!printed_version++)
+		dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc) {

@@ -40,6 +40,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/device.h>
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <asm/io.h>
@@ -451,7 +452,7 @@ static inline unsigned int adma_intr_pkt(struct ata_host_set *host_set)
 		struct adma_port_priv *pp;
 		struct ata_queued_cmd *qc;
 		void __iomem *chan = ADMA_REGS(mmio_base, port_no);
-		u8 drv_stat = 0, status = readb(chan + ADMA_STATUS);
+		u8 status = readb(chan + ADMA_STATUS);
 
 		if (status == 0)
 			continue;
@@ -464,11 +465,14 @@ static inline unsigned int adma_intr_pkt(struct ata_host_set *host_set)
 			continue;
 		qc = ata_qc_from_tag(ap, ap->active_tag);
 		if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
+			unsigned int err_mask = 0;
+
 			if ((status & (aPERR | aPSD | aUIRQ)))
-				drv_stat = ATA_ERR;
+				err_mask = AC_ERR_OTHER;
 			else if (pp->pkt[0] != cDONE)
-				drv_stat = ATA_ERR;
-			ata_qc_complete(qc, drv_stat);
+				err_mask = AC_ERR_OTHER;
+
+			ata_qc_complete(qc, err_mask);
 		}
 	}
 	return handled;
@@ -498,7 +502,7 @@ static inline unsigned int adma_intr_mmio(struct ata_host_set *host_set)
 		
 				/* complete taskfile transaction */
 				pp->state = adma_state_idle;
-				ata_qc_complete(qc, status);
+				ata_qc_complete(qc, ac_err_mask(status));
 				handled = 1;
 			}
 		}
@@ -623,16 +627,14 @@ static int adma_set_dma_masks(struct pci_dev *pdev, void __iomem *mmio_base)
 
 	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc) {
-		printk(KERN_ERR DRV_NAME
-			"(%s): 32-bit DMA enable failed\n",
-			pci_name(pdev));
+		dev_printk(KERN_ERR, &pdev->dev,
+			"32-bit DMA enable failed\n");
 		return rc;
 	}
 	rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc) {
-		printk(KERN_ERR DRV_NAME
-			"(%s): 32-bit consistent DMA enable failed\n",
-			pci_name(pdev));
+		dev_printk(KERN_ERR, &pdev->dev,
+			"32-bit consistent DMA enable failed\n");
 		return rc;
 	}
 	return 0;
@@ -648,7 +650,7 @@ static int adma_ata_init_one(struct pci_dev *pdev,
 	int rc, port_no;
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc)

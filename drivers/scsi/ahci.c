@@ -41,6 +41,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
+#include <linux/device.h>
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
@@ -600,7 +601,7 @@ static void ahci_eng_timeout(struct ata_port *ap)
 	 	 * not being called from the SCSI EH.
 	 	 */
 		qc->scsidone = scsi_finish_command;
-		ata_qc_complete(qc, ATA_ERR);
+		ata_qc_complete(qc, AC_ERR_OTHER);
 	}
 
 	spin_unlock_irqrestore(&host_set->lock, flags);
@@ -629,7 +630,7 @@ static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 	if (status & PORT_IRQ_FATAL) {
 		ahci_intr_error(ap, status);
 		if (qc)
-			ata_qc_complete(qc, ATA_ERR);
+			ata_qc_complete(qc, AC_ERR_OTHER);
 	}
 
 	return 1;
@@ -674,10 +675,10 @@ static irqreturn_t ahci_interrupt (int irq, void *dev_instance, struct pt_regs *
 			if (!ahci_host_intr(ap, qc))
 				if (ata_ratelimit()) {
 					struct pci_dev *pdev =
-					  to_pci_dev(ap->host_set->dev);
-					printk(KERN_WARNING
-					  "ahci(%s): unhandled interrupt on port %u\n",
-					  pci_name(pdev), i);
+						to_pci_dev(ap->host_set->dev);
+					dev_printk(KERN_WARNING, &pdev->dev,
+					  "unhandled interrupt on port %u\n",
+					  i);
 				}
 
 			VPRINTK("port %u\n", i);
@@ -685,10 +686,9 @@ static irqreturn_t ahci_interrupt (int irq, void *dev_instance, struct pt_regs *
 			VPRINTK("port %u (no irq)\n", i);
 			if (ata_ratelimit()) {
 				struct pci_dev *pdev =
-				  to_pci_dev(ap->host_set->dev);
-				printk(KERN_WARNING
-				  "ahci(%s): interrupt on disabled port %u\n",
-				  pci_name(pdev), i);
+					to_pci_dev(ap->host_set->dev);
+				dev_printk(KERN_WARNING, &pdev->dev,
+					"interrupt on disabled port %u\n", i);
 			}
 		}
 
@@ -760,8 +760,8 @@ static int ahci_host_init(struct ata_probe_ent *probe_ent)
 
 	tmp = readl(mmio + HOST_CTL);
 	if (tmp & HOST_RESET) {
-		printk(KERN_ERR DRV_NAME "(%s): controller reset failed (0x%x)\n",
-			pci_name(pdev), tmp);
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "controller reset failed (0x%x)\n", tmp);
 		return -EIO;
 	}
 
@@ -789,22 +789,22 @@ static int ahci_host_init(struct ata_probe_ent *probe_ent)
 		if (rc) {
 			rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 			if (rc) {
-				printk(KERN_ERR DRV_NAME "(%s): 64-bit DMA enable failed\n",
-					pci_name(pdev));
+				dev_printk(KERN_ERR, &pdev->dev,
+					   "64-bit DMA enable failed\n");
 				return rc;
 			}
 		}
 	} else {
 		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc) {
-			printk(KERN_ERR DRV_NAME "(%s): 32-bit DMA enable failed\n",
-				pci_name(pdev));
+			dev_printk(KERN_ERR, &pdev->dev,
+				   "32-bit DMA enable failed\n");
 			return rc;
 		}
 		rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc) {
-			printk(KERN_ERR DRV_NAME "(%s): 32-bit consistent DMA enable failed\n",
-				pci_name(pdev));
+			dev_printk(KERN_ERR, &pdev->dev,
+				   "32-bit consistent DMA enable failed\n");
 			return rc;
 		}
 	}
@@ -907,10 +907,10 @@ static void ahci_print_info(struct ata_probe_ent *probe_ent)
 	else
 		scc_s = "unknown";
 
-	printk(KERN_INFO DRV_NAME "(%s) AHCI %02x%02x.%02x%02x "
+	dev_printk(KERN_INFO, &pdev->dev,
+		"AHCI %02x%02x.%02x%02x "
 		"%u slots %u ports %s Gbps 0x%x impl %s mode\n"
 	       	,
-	       	pci_name(pdev),
 
 	       	(vers >> 24) & 0xff,
 	       	(vers >> 16) & 0xff,
@@ -923,11 +923,11 @@ static void ahci_print_info(struct ata_probe_ent *probe_ent)
 		impl,
 		scc_s);
 
-	printk(KERN_INFO DRV_NAME "(%s) flags: "
+	dev_printk(KERN_INFO, &pdev->dev,
+		"flags: "
 	       	"%s%s%s%s%s%s"
 	       	"%s%s%s%s%s%s%s\n"
 	       	,
-	       	pci_name(pdev),
 
 		cap & (1 << 31) ? "64bit " : "",
 		cap & (1 << 30) ? "ncq " : "",
@@ -960,7 +960,7 @@ static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	VPRINTK("ENTER\n");
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc)

@@ -38,6 +38,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/device.h>
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
@@ -719,7 +720,7 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 			VPRINTK("ata%u: read hdma, 0x%x 0x%x\n", ap->id,
 				readl(mmio + 0x104), readl(mmio + PDC_HDMA_CTLSTAT));
 			/* get drive status; clear intr; complete txn */
-			ata_qc_complete(qc, ata_wait_idle(ap));
+			ata_qc_complete(qc, ac_err_mask(ata_wait_idle(ap)));
 			pdc20621_pop_hdma(qc);
 		}
 
@@ -757,7 +758,7 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 			VPRINTK("ata%u: write ata, 0x%x 0x%x\n", ap->id,
 				readl(mmio + 0x104), readl(mmio + PDC_HDMA_CTLSTAT));
 			/* get drive status; clear intr; complete txn */
-			ata_qc_complete(qc, ata_wait_idle(ap));
+			ata_qc_complete(qc, ac_err_mask(ata_wait_idle(ap)));
 			pdc20621_pop_hdma(qc);
 		}
 		handled = 1;
@@ -767,7 +768,7 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 
 		status = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 1000);
 		DPRINTK("BUS_NODATA (drv_stat 0x%X)\n", status);
-		ata_qc_complete(qc, status);
+		ata_qc_complete(qc, ac_err_mask(status));
 		handled = 1;
 
 	} else {
@@ -882,7 +883,7 @@ static void pdc_eng_timeout(struct ata_port *ap)
 	case ATA_PROT_DMA:
 	case ATA_PROT_NODATA:
 		printk(KERN_ERR "ata%u: command timeout\n", ap->id);
-		ata_qc_complete(qc, ata_wait_idle(ap) | ATA_ERR);
+		ata_qc_complete(qc, __ac_err_mask(ata_wait_idle(ap)));
 		break;
 
 	default:
@@ -891,7 +892,7 @@ static void pdc_eng_timeout(struct ata_port *ap)
 		printk(KERN_ERR "ata%u: unknown timeout, cmd 0x%x stat 0x%x\n",
 		       ap->id, qc->tf.command, drv_stat);
 
-		ata_qc_complete(qc, drv_stat);
+		ata_qc_complete(qc, ac_err_mask(drv_stat));
 		break;
 	}
 
@@ -1386,7 +1387,7 @@ static int pdc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *
 	int rc;
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
 	/*
 	 * If this driver happens to only be useful on Apple's K2, then

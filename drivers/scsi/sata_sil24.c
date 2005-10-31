@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/device.h>
 #include <scsi/scsi_host.h>
 #include "scsi.h"
 #include <linux/libata.h>
@@ -498,7 +499,7 @@ static void sil24_eng_timeout(struct ata_port *ap)
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	if (!qc) {
-		printk(KERN_ERR "ata%u: BUG: tiemout without command\n",
+		printk(KERN_ERR "ata%u: BUG: timeout without command\n",
 		       ap->id);
 		return;
 	}
@@ -512,7 +513,7 @@ static void sil24_eng_timeout(struct ata_port *ap)
 	 */
 	printk(KERN_ERR "ata%u: command timeout\n", ap->id);
 	qc->scsidone = scsi_finish_command;
-	ata_qc_complete(qc, ATA_ERR);
+	ata_qc_complete(qc, AC_ERR_OTHER);
 
 	sil24_reset_controller(ap);
 }
@@ -523,6 +524,7 @@ static void sil24_error_intr(struct ata_port *ap, u32 slot_stat)
 	struct sil24_port_priv *pp = ap->private_data;
 	void __iomem *port = (void __iomem *)ap->ioaddr.cmd_addr;
 	u32 irq_stat, cmd_err, sstatus, serror;
+	unsigned int err_mask;
 
 	irq_stat = readl(port + PORT_IRQ_STAT);
 	writel(irq_stat, port + PORT_IRQ_STAT);		/* clear irq */
@@ -550,17 +552,18 @@ static void sil24_error_intr(struct ata_port *ap, u32 slot_stat)
 		 * Device is reporting error, tf registers are valid.
 		 */
 		sil24_update_tf(ap);
+		err_mask = ac_err_mask(pp->tf.command);
 	} else {
 		/*
 		 * Other errors.  libata currently doesn't have any
 		 * mechanism to report these errors.  Just turn on
 		 * ATA_ERR.
 		 */
-		pp->tf.command = ATA_ERR;
+		err_mask = AC_ERR_OTHER;
 	}
 
 	if (qc)
-		ata_qc_complete(qc, pp->tf.command);
+		ata_qc_complete(qc, err_mask);
 
 	sil24_reset_controller(ap);
 }
@@ -585,7 +588,7 @@ static inline void sil24_host_intr(struct ata_port *ap)
 		sil24_update_tf(ap);
 
 		if (qc)
-			ata_qc_complete(qc, pp->tf.command);
+			ata_qc_complete(qc, ac_err_mask(pp->tf.command));
 	} else
 		sil24_error_intr(ap, slot_stat);
 }
@@ -688,7 +691,7 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int i, rc;
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc)
@@ -748,14 +751,14 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 */
 	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc) {
-		printk(KERN_ERR DRV_NAME "(%s): 32-bit DMA enable failed\n",
-		       pci_name(pdev));
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "32-bit DMA enable failed\n");
 		goto out_free;
 	}
 	rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc) {
-		printk(KERN_ERR DRV_NAME "(%s): 32-bit consistent DMA enable failed\n",
-		       pci_name(pdev));
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "32-bit consistent DMA enable failed\n");
 		goto out_free;
 	}
 
@@ -791,9 +794,8 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 					break;
 			}
 			if (tmp & PORT_CS_PORT_RST)
-				printk(KERN_ERR DRV_NAME
-				       "(%s): failed to clear port RST\n",
-				       pci_name(pdev));
+				dev_printk(KERN_ERR, &pdev->dev,
+				           "failed to clear port RST\n");
 		}
 
 		/* Zero error counters. */
@@ -822,9 +824,8 @@ static int sil24_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		/* Reset itself */
 		if (__sil24_reset_controller(port))
-			printk(KERN_ERR DRV_NAME
-			       "(%s): failed to reset controller\n",
-			       pci_name(pdev));
+			dev_printk(KERN_ERR, &pdev->dev,
+			           "failed to reset controller\n");
 	}
 
 	/* Turn on interrupts */
