@@ -16,21 +16,19 @@
 #define RTLX_ID (RTLX_xID | RTLX_VERSION)
 #define RTLX_CHANNELS 8
 
-enum rtlx_state {
-	RTLX_STATE_UNUSED = 0,
-	RTLX_STATE_INITIALISED,
-	RTLX_STATE_REMOTE_READY,
-	RTLX_STATE_OPENED
-};
-
 #define RTLX_BUFFER_SIZE 1024
+
+/*
+ * lx_state bits
+ */
+#define RTLX_STATE_OPENED 1UL
+
 /* each channel supports read and write.
    linux (vpe0) reads lx_buffer  and writes rt_buffer
    SP (vpe1) reads rt_buffer and writes lx_buffer
 */
-typedef struct rtlx_channel {
-	enum rtlx_state rt_state;
-	enum rtlx_state lx_state;
+struct rtlx_channel {
+	unsigned long lx_state;
 
 	int buffer_size;
 
@@ -43,14 +41,12 @@ typedef struct rtlx_channel {
 
 	void *queues;
 
-} rtlx_channel_t;
+};
 
-typedef struct rtlx_info {
+struct rtlx_info {
 	unsigned long id;
-	enum rtlx_state state;
 
 	struct rtlx_channel channel[RTLX_CHANNELS];
+};
 
-} rtlx_info_t;
-
-#endif
+#endif /* _RTLX_H_ */
