@@ -41,7 +41,7 @@ struct pluto_inquiry {
 int pluto_detect(struct scsi_host_template *);
 int pluto_release(struct Scsi_Host *);
 const char * pluto_info(struct Scsi_Host *);
-int pluto_slave_configure(Scsi_Device *);
+int pluto_slave_configure(struct scsi_device *);
 
 #endif /* !(_PLUTO_H) */
 

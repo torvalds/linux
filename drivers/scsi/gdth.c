@@ -5562,7 +5562,7 @@ static void gdth_flush(int hanum)
 #else
     Scsi_Cmnd       *scp;
 #endif
-    Scsi_Device     *sdev;
+    struct scsi_device     *sdev;
     char            cmnd[MAX_COMMAND_SIZE];   
     memset(cmnd, 0xff, MAX_COMMAND_SIZE);
 
@@ -5624,10 +5624,10 @@ static int gdth_halt(struct notifier_block *nb, ulong event, void *buf)
     gdth_cmd_str    gdtcmd;
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,0)
     Scsi_Request    *srp;
-    Scsi_Device     *sdev;
+    struct scsi_device     *sdev;
 #else
     Scsi_Cmnd       *scp;
-    Scsi_Device     *sdev;
+    struct scsi_device     *sdev;
 #endif
     char            cmnd[MAX_COMMAND_SIZE];   
 #endif

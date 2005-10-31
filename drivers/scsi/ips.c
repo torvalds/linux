@@ -1262,9 +1262,9 @@ ips_proc24_info(char *buffer, char **start, off_t offset, int length,
 /*                                                                          */
 /****************************************************************************/
 static void
-ips_select_queue_depth(struct Scsi_Host *host, Scsi_Device * scsi_devs)
+ips_select_queue_depth(struct Scsi_Host *host, struct scsi_device * scsi_devs)
 {
-	Scsi_Device *device;
+	struct scsi_device *device;
 	ips_ha_t *ha;
 	int count = 0;
 	int min;
@@ -1307,7 +1307,7 @@ ips_select_queue_depth(struct Scsi_Host *host, Scsi_Device * scsi_devs)
 /*                                                                          */
 /****************************************************************************/
 static int
-ips_slave_configure(Scsi_Device * SDptr)
+ips_slave_configure(struct scsi_device * SDptr)
 {
 	ips_ha_t *ha;
 	int min;

@@ -1717,7 +1717,7 @@ static void nsp_cs_config(dev_link_t *link)
 	struct Scsi_Host *host;
 	nsp_hw_data      *data = &nsp_data_base;
 #if !(LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,74))
-	Scsi_Device	 *dev;
+	struct scsi_device	 *dev;
 	dev_node_t	**tail, *node;
 #endif
 

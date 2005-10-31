@@ -2862,7 +2862,7 @@ int acornscsi_proc_info(struct Scsi_Host *instance, char *buffer, char **start, 
 			int length, int inout)
 {
     int pos, begin = 0, devidx;
-    Scsi_Device *scd;
+    struct scsi_device *scd;
     AS_Host *host;
     char *p = buffer;
 

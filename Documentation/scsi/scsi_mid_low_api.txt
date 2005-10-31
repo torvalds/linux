@@ -718,7 +718,7 @@ void scsi_report_bus_reset(struct Scsi_Host * shost, int channel)
  *
  *      Defined in: drivers/scsi/scsi.c .
  **/
-int scsi_track_queue_full(Scsi_Device *sdev, int depth)
+int scsi_track_queue_full(struct scsi_device *sdev, int depth)
 
 
 /**

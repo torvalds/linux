@@ -2559,7 +2559,7 @@ int fas216_eh_bus_reset(Scsi_Cmnd *SCpnt)
 {
 	FAS216_Info *info = (FAS216_Info *)SCpnt->device->host->hostdata;
 	unsigned long flags;
-	Scsi_Device *SDpnt;
+	struct scsi_device *SDpnt;
 
 	fas216_checkmagic(info);
 	fas216_log(info, LOG_ERROR, "resetting bus");
@@ -3000,7 +3000,7 @@ int fas216_print_stats(FAS216_Info *info, char *buffer)
 int fas216_print_devices(FAS216_Info *info, char *buffer)
 {
 	struct fas216_device *dev;
-	Scsi_Device *scd;
+	struct scsi_device *scd;
 	char *p = buffer;
 
 	p += sprintf(p, "Device/Lun TaggedQ       Parity   Sync\n");

@@ -71,7 +71,7 @@ static void __init pluto_detect_scsi_done(Scsi_Cmnd *SCpnt)
 		up(&fc_sem);
 }
 
-int pluto_slave_configure(Scsi_Device *device)
+int pluto_slave_configure(struct scsi_device *device)
 {
 	int depth_to_use;
 
@@ -94,7 +94,7 @@ int __init pluto_detect(struct scsi_host_template *tpnt)
 {
 	int i, retry, nplutos;
 	fc_channel *fc;
-	Scsi_Device dev;
+	struct scsi_device dev;
 	DEFINE_TIMER(fc_timer, pluto_detect_timeout, 0, 0);
 
 	tpnt->proc_name = "pluto";

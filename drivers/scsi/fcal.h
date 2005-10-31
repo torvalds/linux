@@ -22,6 +22,6 @@ struct fcal {
 
 int fcal_detect(struct scsi_host_template *);
 int fcal_release(struct Scsi_Host *);
-int fcal_slave_configure(Scsi_Device *);
+int fcal_slave_configure(struct scsi_device *);
 
 #endif /* !(_FCAL_H) */

@@ -70,7 +70,7 @@ static unsigned char target2alpa[] = {
 
 static int fcal_encode_addr(Scsi_Cmnd *SCpnt, u16 *addr, fc_channel *fc, fcp_cmnd *fcmd);
 
-int fcal_slave_configure(Scsi_Device *device)
+int fcal_slave_configure(struct scsi_device *device)
 {
 	int depth_to_use;
 	
@@ -244,7 +244,7 @@ int fcal_proc_info (struct Scsi_Host *host, char *buffer, char **start, off_t of
 			SPRINTF ("  [AL-PA: %02x, Port WWN: %08x%08x, Node WWN: %08x%08x] Not responded to PRLI\n",
 				 alpa, u1[0], u1[1], u2[0], u2[1]);
 		} else {
-			Scsi_Device *scd;
+			struct scsi_device *scd;
 			shost_for_each_device(scd, host)
 				if (scd->id == target) {
 					SPRINTF ("  [AL-PA: %02x, Id: %02d, Port WWN: %08x%08x, Node WWN: %08x%08x]  ",
