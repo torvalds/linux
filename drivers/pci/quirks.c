@@ -1243,6 +1243,21 @@ static void __devinit quirk_netmos(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NETMOS, PCI_ANY_ID, quirk_netmos);
 
+
+static void __devinit fixup_rev1_53c810(struct pci_dev* dev)
+{
+	/* rev 1 ncr53c810 chips don't set the class at all which means
+	 * they don't get their resources remapped. Fix that here.
+	 */
+
+	if (dev->class == PCI_CLASS_NOT_DEFINED) {
+		printk(KERN_INFO "NCR 53c810 rev 1 detected, setting PCI class.\n");
+		dev->class = PCI_CLASS_STORAGE_SCSI;
+	}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NCR, PCI_DEVICE_ID_NCR_53C810, fixup_rev1_53c810);
+
+
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f, struct pci_fixup *end)
 {
 	while (f < end) {
