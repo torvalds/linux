@@ -926,13 +926,6 @@ struct mega_hbas {
 #define MEGA_SGLIST			0x0002
 
 /*
- * lockscope definitions, callers can specify the lock scope with this data
- * type. LOCK_INT would mean the caller has not acquired the lock before
- * making the call and LOCK_EXT would mean otherwise.
- */
-typedef enum { LOCK_INT, LOCK_EXT } lockscope_t;
-
-/*
  * Parameters for the io-mapped controllers
  */
 
@@ -1062,8 +1055,7 @@ static int mega_support_random_del(adapter_t *);
 static int mega_del_logdrv(adapter_t *, int);
 static int mega_do_del_logdrv(adapter_t *, int);
 static void mega_get_max_sgl(adapter_t *);
-static int mega_internal_command(adapter_t *, lockscope_t, megacmd_t *,
-		mega_passthru *);
+static int mega_internal_command(adapter_t *, megacmd_t *, mega_passthru *);
 static void mega_internal_done(Scsi_Cmnd *);
 static int mega_support_cluster(adapter_t *);
 #endif
