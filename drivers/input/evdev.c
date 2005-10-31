@@ -580,6 +580,9 @@ static long evdev_ioctl_compat(struct file *file, unsigned int cmd, unsigned lon
 				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGSND(0)))
 					bit_to_user(dev->snd, SND_MAX);
 
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGSW(0)))
+					bit_to_user(dev->sw, SW_MAX);
+
 				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGNAME(0))) {
 					int len;
 					if (!dev->name) return -ENOENT;
