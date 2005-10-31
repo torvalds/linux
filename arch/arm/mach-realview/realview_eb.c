@@ -21,7 +21,7 @@
 
 #include <linux/config.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/sysdev.h>
 
 #include <asm/hardware.h>
