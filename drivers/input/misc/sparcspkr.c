@@ -17,28 +17,24 @@
 #endif
 
 MODULE_AUTHOR("David S. Miller <davem@redhat.com>");
-MODULE_DESCRIPTION("PC Speaker beeper driver");
+MODULE_DESCRIPTION("Sparc Speaker beeper driver");
 MODULE_LICENSE("GPL");
 
 static unsigned long beep_iobase;
-
-static char *sparcspkr_isa_name = "Sparc ISA Speaker";
-static char *sparcspkr_ebus_name = "Sparc EBUS Speaker";
-static char *sparcspkr_phys = "sparc/input0";
-static struct input_dev sparcspkr_dev;
+static struct input_dev *sparcspkr_dev;
 
 DEFINE_SPINLOCK(beep_lock);
 
 static void __init init_sparcspkr_struct(void)
 {
-	sparcspkr_dev.evbit[0] = BIT(EV_SND);
-	sparcspkr_dev.sndbit[0] = BIT(SND_BELL) | BIT(SND_TONE);
+	sparcspkr_dev->evbit[0] = BIT(EV_SND);
+	sparcspkr_dev->sndbit[0] = BIT(SND_BELL) | BIT(SND_TONE);
 
-	sparcspkr_dev.phys = sparcspkr_phys;
-	sparcspkr_dev.id.bustype = BUS_ISA;
-	sparcspkr_dev.id.vendor = 0x001f;
-	sparcspkr_dev.id.product = 0x0001;
-	sparcspkr_dev.id.version = 0x0100;
+	sparcspkr_dev->phys = "sparc/input0";
+	sparcspkr_dev->id.bustype = BUS_ISA;
+	sparcspkr_dev->id.vendor = 0x001f;
+	sparcspkr_dev->id.product = 0x0001;
+	sparcspkr_dev->id.version = 0x0100;
 }
 
 static int ebus_spkr_event(struct input_dev *dev, unsigned int type, unsigned int code, int value)
@@ -84,14 +80,15 @@ static int __init init_ebus_beep(struct linux_ebus_device *edev)
 {
 	beep_iobase = edev->resource[0].start;
 
-	init_sparcspkr_struct();
+	sparcspkr_dev = input_allocate_device();
+	if (!sparcspkr_dev)
+		return -ENOMEM;
 
-	sparcspkr_dev.name = sparcspkr_ebus_name;
-	sparcspkr_dev.event = ebus_spkr_event;
+	sparcspkr_dev->name = "Sparc EBUS Speaker";
+	sparcspkr_dev->event = ebus_spkr_event;
 
-	input_register_device(&sparcspkr_dev);
+	input_register_device(sparcspkr_dev);
 
-        printk(KERN_INFO "input: %s\n", sparcspkr_ebus_name);
 	return 0;
 }
 
@@ -137,15 +134,17 @@ static int __init init_isa_beep(struct sparc_isa_device *isa_dev)
 {
 	beep_iobase = isa_dev->resource.start;
 
+	sparcspkr_dev = input_allocate_device();
+	if (!sparcspkr_dev)
+		return -ENOMEM;
+
 	init_sparcspkr_struct();
 
-	sparcspkr_dev.name = sparcspkr_isa_name;
-	sparcspkr_dev.event = isa_spkr_event;
-	sparcspkr_dev.id.bustype = BUS_ISA;
+	sparcspkr_dev->name = "Sparc ISA Speaker";
+	sparcspkr_dev->event = isa_spkr_event;
 
-	input_register_device(&sparcspkr_dev);
+	input_register_device(sparcspkr_dev);
 
-        printk(KERN_INFO "input: %s\n", sparcspkr_isa_name);
 	return 0;
 }
 #endif
@@ -182,7 +181,7 @@ static int __init sparcspkr_init(void)
 
 static void __exit sparcspkr_exit(void)
 {
-	input_unregister_device(&sparcspkr_dev);
+	input_unregister_device(sparcspkr_dev);
 }
 
 module_init(sparcspkr_init);

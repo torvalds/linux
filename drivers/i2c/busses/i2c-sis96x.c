@@ -82,8 +82,9 @@
 #define SIS96x_PROC_CALL  0x04
 #define SIS96x_BLOCK_DATA 0x05
 
+static struct pci_driver sis96x_driver;
 static struct i2c_adapter sis96x_adapter;
-static u16 sis96x_smbus_base = 0;
+static u16 sis96x_smbus_base;
 
 static inline u8 sis96x_read(u8 reg)
 {
@@ -257,7 +258,6 @@ static struct i2c_adapter sis96x_adapter = {
 	.owner		= THIS_MODULE,
 	.class		= I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
-	.name		= "unset",
 };
 
 static struct pci_device_id sis96x_ids[] = {
@@ -294,7 +294,8 @@ static int __devinit sis96x_probe(struct pci_dev *dev,
 			sis96x_smbus_base);
 
 	/* Everything is happy, let's grab the memory and set things up. */
-	if (!request_region(sis96x_smbus_base, SMB_IOSIZE, "sis96x-smbus")) {
+	if (!request_region(sis96x_smbus_base, SMB_IOSIZE,
+			    sis96x_driver.name)) {
 		dev_err(&dev->dev, "SMBus registers 0x%04x-0x%04x "
 			"already in use!\n", sis96x_smbus_base,
 			sis96x_smbus_base + SMB_IOSIZE - 1);
@@ -328,6 +329,7 @@ static void __devexit sis96x_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver sis96x_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "sis96x_smbus",
 	.id_table	= sis96x_ids,
 	.probe		= sis96x_probe,

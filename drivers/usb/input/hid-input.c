@@ -76,8 +76,8 @@ static struct {
 static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_field *field,
 				     struct hid_usage *usage)
 {
-	struct input_dev *input = &hidinput->input;
-	struct hid_device *device = hidinput->input.private;
+	struct input_dev *input = hidinput->input;
+	struct hid_device *device = input->private;
 	int max = 0, code;
 	unsigned long *bit = NULL;
 
@@ -461,7 +461,8 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 
 	if (!field->hidinput)
 		return;
-	input = &field->hidinput->input;
+
+	input = field->hidinput->input;
 
 	input_regs(input, regs);
 
@@ -533,13 +534,10 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 
 void hidinput_report_event(struct hid_device *hid, struct hid_report *report)
 {
-	struct list_head *lh;
 	struct hid_input *hidinput;
 
-	list_for_each (lh, &hid->inputs) {
-		hidinput = list_entry(lh, struct hid_input, list);
-		input_sync(&hidinput->input);
-	}
+	list_for_each_entry(hidinput, &hid->inputs, list)
+		input_sync(hidinput->input);
 }
 
 static int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int code, struct hid_field **field)
@@ -604,6 +602,7 @@ int hidinput_connect(struct hid_device *hid)
 	struct usb_device *dev = hid->dev;
 	struct hid_report *report;
 	struct hid_input *hidinput = NULL;
+	struct input_dev *input_dev;
 	int i, j, k;
 
 	INIT_LIST_HEAD(&hid->inputs);
@@ -624,25 +623,28 @@ int hidinput_connect(struct hid_device *hid)
 				continue;
 
 			if (!hidinput) {
-				hidinput = kmalloc(sizeof(*hidinput), GFP_KERNEL);
-				if (!hidinput) {
+				hidinput = kzalloc(sizeof(*hidinput), GFP_KERNEL);
+				input_dev = input_allocate_device();
+				if (!hidinput || !input_dev) {
+					kfree(hidinput);
+					input_free_device(input_dev);
 					err("Out of memory during hid input probe");
 					return -1;
 				}
-				memset(hidinput, 0, sizeof(*hidinput));
 
+				input_dev->private = hid;
+				input_dev->event = hidinput_input_event;
+				input_dev->open = hidinput_open;
+				input_dev->close = hidinput_close;
+
+				input_dev->name = hid->name;
+				input_dev->phys = hid->phys;
+				input_dev->uniq = hid->uniq;
+				usb_to_input_id(dev, &input_dev->id);
+				input_dev->cdev.dev = &hid->intf->dev;
+
+				hidinput->input = input_dev;
 				list_add_tail(&hidinput->list, &hid->inputs);
-
-				hidinput->input.private = hid;
-				hidinput->input.event = hidinput_input_event;
-				hidinput->input.open = hidinput_open;
-				hidinput->input.close = hidinput_close;
-
-				hidinput->input.name = hid->name;
-				hidinput->input.phys = hid->phys;
-				hidinput->input.uniq = hid->uniq;
-				usb_to_input_id(dev, &hidinput->input.id);
-				hidinput->input.dev = &hid->intf->dev;
 			}
 
 			for (i = 0; i < report->maxfield; i++)
@@ -657,7 +659,7 @@ int hidinput_connect(struct hid_device *hid)
 				 * UGCI) cram a lot of unrelated inputs into the
 				 * same interface. */
 				hidinput->report = report;
-				input_register_device(&hidinput->input);
+				input_register_device(hidinput->input);
 				hidinput = NULL;
 			}
 		}
@@ -667,7 +669,7 @@ int hidinput_connect(struct hid_device *hid)
 	 * only useful in this case, and not for multi-input quirks. */
 	if (hidinput) {
 		hid_ff_init(hid);
-		input_register_device(&hidinput->input);
+		input_register_device(hidinput->input);
 	}
 
 	return 0;
@@ -675,13 +677,11 @@ int hidinput_connect(struct hid_device *hid)
 
 void hidinput_disconnect(struct hid_device *hid)
 {
-	struct list_head *lh, *next;
-	struct hid_input *hidinput;
+	struct hid_input *hidinput, *next;
 
-	list_for_each_safe(lh, next, &hid->inputs) {
-		hidinput = list_entry(lh, struct hid_input, list);
-		input_unregister_device(&hidinput->input);
+	list_for_each_entry_safe(hidinput, next, &hid->inputs, list) {
 		list_del(&hidinput->list);
+		input_unregister_device(hidinput->input);
 		kfree(hidinput);
 	}
 }

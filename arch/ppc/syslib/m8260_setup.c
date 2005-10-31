@@ -62,6 +62,10 @@ m8260_setup_arch(void)
 	if (initrd_start)
 		ROOT_DEV = Root_RAM0;
 #endif
+
+	identify_ppc_sys_by_name_and_id(BOARD_CHIP_NAME,
+				in_be32(CPM_MAP_ADDR + CPM_IMMR_OFFSET));
+
 	m82xx_board_setup();
 }
 

@@ -65,7 +65,7 @@ extern void kobject_unregister(struct kobject *);
 extern struct kobject * kobject_get(struct kobject *);
 extern void kobject_put(struct kobject *);
 
-extern char * kobject_get_path(struct kobject *, int);
+extern char * kobject_get_path(struct kobject *, gfp_t);
 
 struct kobj_type {
 	void (*release)(struct kobject *);

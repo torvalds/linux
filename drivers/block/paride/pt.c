@@ -146,6 +146,7 @@ static int (*drives[4])[6] = {&drive0, &drive1, &drive2, &drive3};
 #include <linux/slab.h>
 #include <linux/mtio.h>
 #include <linux/device.h>
+#include <linux/sched.h>	/* current, TASK_*, schedule_timeout() */
 
 #include <asm/uaccess.h>
 
@@ -971,7 +972,7 @@ static int __init pt_init(void)
 	devfs_mk_dir("pt");
 	for (unit = 0; unit < PT_UNITS; unit++)
 		if (pt[unit].present) {
-			class_device_create(pt_class, MKDEV(major, unit),
+			class_device_create(pt_class, NULL, MKDEV(major, unit),
 					NULL, "pt%d", unit);
 			err = devfs_mk_cdev(MKDEV(major, unit),
 				      S_IFCHR | S_IRUSR | S_IWUSR,
@@ -980,7 +981,7 @@ static int __init pt_init(void)
 				class_device_destroy(pt_class, MKDEV(major, unit));
 				goto out_class;
 			}
-			class_device_create(pt_class, MKDEV(major, unit + 128),
+			class_device_create(pt_class, NULL, MKDEV(major, unit + 128),
 					NULL, "pt%dn", unit);
 			err = devfs_mk_cdev(MKDEV(major, unit + 128),
 				      S_IFCHR | S_IRUSR | S_IWUSR,

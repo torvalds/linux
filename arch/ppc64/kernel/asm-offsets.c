@@ -46,8 +46,6 @@
 int main(void)
 {
 	/* thread struct on stack */
-	DEFINE(THREAD_SHIFT, THREAD_SHIFT);
-	DEFINE(THREAD_SIZE, THREAD_SIZE);
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
 	DEFINE(TI_PREEMPT, offsetof(struct thread_info, preempt_count));
 	DEFINE(TI_SC_NOERR, offsetof(struct thread_info, syscall_noerror));
@@ -77,6 +75,7 @@ int main(void)
 	DEFINE(ICACHEL1LOGLINESIZE, offsetof(struct ppc64_caches, log_iline_size));
 	DEFINE(ICACHEL1LINESPERPAGE, offsetof(struct ppc64_caches, ilines_per_page));
 	DEFINE(PLATFORM, offsetof(struct systemcfg, platform));
+	DEFINE(PLATFORM_LPAR, PLATFORM_LPAR);
 
 	/* paca */
         DEFINE(PACA_SIZE, sizeof(struct paca_struct));

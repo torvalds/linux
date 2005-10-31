@@ -37,6 +37,7 @@
  */
 
 #include <rdma/ib_smi.h>
+#include <rdma/ib_user_verbs.h>
 #include <linux/mm.h>
 
 #include "mthca_dev.h"
@@ -90,15 +91,26 @@ static int mthca_query_device(struct ib_device *ibdev,
 
 	props->max_mr_size         = ~0ull;
 	props->max_qp              = mdev->limits.num_qps - mdev->limits.reserved_qps;
-	props->max_qp_wr           = 0xffff;
+	props->max_qp_wr           = mdev->limits.max_wqes;
 	props->max_sge             = mdev->limits.max_sg;
 	props->max_cq              = mdev->limits.num_cqs - mdev->limits.reserved_cqs;
-	props->max_cqe             = 0xffff;
+	props->max_cqe             = mdev->limits.max_cqes;
 	props->max_mr              = mdev->limits.num_mpts - mdev->limits.reserved_mrws;
 	props->max_pd              = mdev->limits.num_pds - mdev->limits.reserved_pds;
 	props->max_qp_rd_atom      = 1 << mdev->qp_table.rdb_shift;
-	props->max_qp_init_rd_atom = 1 << mdev->qp_table.rdb_shift;
+	props->max_qp_init_rd_atom = mdev->limits.max_qp_init_rdma;
+	props->max_res_rd_atom     = props->max_qp_rd_atom * props->max_qp;
+	props->max_srq             = mdev->limits.num_srqs - mdev->limits.reserved_srqs;
+	props->max_srq_wr          = mdev->limits.max_srq_wqes;
+	props->max_srq_sge         = mdev->limits.max_sg;
 	props->local_ca_ack_delay  = mdev->limits.local_ca_ack_delay;
+	props->atomic_cap          = mdev->limits.flags & DEV_LIM_FLAG_ATOMIC ? 
+					IB_ATOMIC_HCA : IB_ATOMIC_NONE;
+	props->max_pkeys           = mdev->limits.pkey_table_len;
+	props->max_mcast_grp       = mdev->limits.num_mgms + mdev->limits.num_amgms;
+	props->max_mcast_qp_attach = MTHCA_QP_PER_MGM;
+	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach * 
+					   props->max_mcast_grp;
 
 	err = 0;
  out:
@@ -150,9 +162,13 @@ static int mthca_query_port(struct ib_device *ibdev,
 	props->gid_tbl_len       = to_mdev(ibdev)->limits.gid_table_len;
 	props->max_msg_sz        = 0x80000000;
 	props->pkey_tbl_len      = to_mdev(ibdev)->limits.pkey_table_len;
+	props->bad_pkey_cntr     = be16_to_cpup((__be16 *) (out_mad->data + 46));
 	props->qkey_viol_cntr    = be16_to_cpup((__be16 *) (out_mad->data + 48));
 	props->active_width      = out_mad->data[31] & 0xf;
 	props->active_speed      = out_mad->data[35] >> 4;
+	props->max_mtu           = out_mad->data[41] & 0xf;
+	props->active_mtu        = out_mad->data[36] >> 4;
+	props->subnet_timeout    = out_mad->data[51] & 0x1f;
 
  out:
 	kfree(in_mad);
@@ -634,6 +650,9 @@ static struct ib_cq *mthca_create_cq(struct ib_device *ibdev, int entries,
 	int nent;
 	int err;
 
+	if (entries < 1 || entries > to_mdev(ibdev)->limits.max_cqes)
+		return ERR_PTR(-EINVAL);
+
 	if (context) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd))
 			return ERR_PTR(-EFAULT);
@@ -1058,6 +1077,26 @@ int mthca_register_device(struct mthca_dev *dev)
 	strlcpy(dev->ib_dev.name, "mthca%d", IB_DEVICE_NAME_MAX);
 	dev->ib_dev.owner                = THIS_MODULE;
 
+	dev->ib_dev.uverbs_abi_ver	 = MTHCA_UVERBS_ABI_VERSION;
+	dev->ib_dev.uverbs_cmd_mask	 =
+		(1ull << IB_USER_VERBS_CMD_GET_CONTEXT)		|
+		(1ull << IB_USER_VERBS_CMD_QUERY_DEVICE)	|
+		(1ull << IB_USER_VERBS_CMD_QUERY_PORT)		|
+		(1ull << IB_USER_VERBS_CMD_ALLOC_PD)		|
+		(1ull << IB_USER_VERBS_CMD_DEALLOC_PD)		|
+		(1ull << IB_USER_VERBS_CMD_REG_MR)		|
+		(1ull << IB_USER_VERBS_CMD_DEREG_MR)		|
+		(1ull << IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL)	|
+		(1ull << IB_USER_VERBS_CMD_CREATE_CQ)		|
+		(1ull << IB_USER_VERBS_CMD_DESTROY_CQ)		|
+		(1ull << IB_USER_VERBS_CMD_CREATE_QP)		|
+		(1ull << IB_USER_VERBS_CMD_MODIFY_QP)		|
+		(1ull << IB_USER_VERBS_CMD_DESTROY_QP)		|
+		(1ull << IB_USER_VERBS_CMD_ATTACH_MCAST)	|
+		(1ull << IB_USER_VERBS_CMD_DETACH_MCAST)	|
+		(1ull << IB_USER_VERBS_CMD_CREATE_SRQ)		|
+		(1ull << IB_USER_VERBS_CMD_MODIFY_SRQ)		|
+		(1ull << IB_USER_VERBS_CMD_DESTROY_SRQ);
 	dev->ib_dev.node_type            = IB_NODE_CA;
 	dev->ib_dev.phys_port_cnt        = dev->limits.num_ports;
 	dev->ib_dev.dma_device           = &dev->pdev->dev;
@@ -1077,6 +1116,7 @@ int mthca_register_device(struct mthca_dev *dev)
 
 	if (dev->mthca_flags & MTHCA_FLAG_SRQ) {
 		dev->ib_dev.create_srq           = mthca_create_srq;
+		dev->ib_dev.modify_srq		 = mthca_modify_srq;
 		dev->ib_dev.destroy_srq          = mthca_destroy_srq;
 
 		if (mthca_is_memfree(dev))
@@ -1135,10 +1175,13 @@ int mthca_register_device(struct mthca_dev *dev)
 		}
 	}
 
+	mthca_start_catas_poll(dev);
+
 	return 0;
 }
 
 void mthca_unregister_device(struct mthca_dev *dev)
 {
+	mthca_stop_catas_poll(dev);
 	ib_unregister_device(&dev->ib_dev);
 }

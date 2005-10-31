@@ -17,40 +17,48 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
-/*
- * Called with mm->page_table_lock held to protect against other
- * threads/the swapper from ripping pte's out from under us.
- */
-
-static void sync_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+static void msync_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 				unsigned long addr, unsigned long end)
 {
 	pte_t *pte;
+	spinlock_t *ptl;
+	int progress = 0;
 
-	pte = pte_offset_map(pmd, addr);
+again:
+	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	do {
 		unsigned long pfn;
 		struct page *page;
 
+		if (progress >= 64) {
+			progress = 0;
+			if (need_resched() || need_lockbreak(ptl))
+				break;
+		}
+		progress++;
 		if (!pte_present(*pte))
 			continue;
 		if (!pte_maybe_dirty(*pte))
 			continue;
 		pfn = pte_pfn(*pte);
-		if (!pfn_valid(pfn))
+		if (unlikely(!pfn_valid(pfn))) {
+			print_bad_pte(vma, *pte, addr);
 			continue;
+		}
 		page = pfn_to_page(pfn);
-		if (PageReserved(page))
-			continue;
 
 		if (ptep_clear_flush_dirty(vma, addr, pte) ||
 		    page_test_and_clear_dirty(page))
 			set_page_dirty(page);
+		progress += 3;
 	} while (pte++, addr += PAGE_SIZE, addr != end);
-	pte_unmap(pte - 1);
+	pte_unmap_unlock(pte - 1, ptl);
+	cond_resched();
+	if (addr != end)
+		goto again;
 }
 
-static inline void sync_pmd_range(struct vm_area_struct *vma, pud_t *pud,
+static inline void msync_pmd_range(struct vm_area_struct *vma, pud_t *pud,
 				unsigned long addr, unsigned long end)
 {
 	pmd_t *pmd;
@@ -61,11 +69,11 @@ static inline void sync_pmd_range(struct vm_area_struct *vma, pud_t *pud,
 		next = pmd_addr_end(addr, end);
 		if (pmd_none_or_clear_bad(pmd))
 			continue;
-		sync_pte_range(vma, pmd, addr, next);
+		msync_pte_range(vma, pmd, addr, next);
 	} while (pmd++, addr = next, addr != end);
 }
 
-static inline void sync_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
+static inline void msync_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
 				unsigned long addr, unsigned long end)
 {
 	pud_t *pud;
@@ -76,58 +84,34 @@ static inline void sync_pud_range(struct vm_area_struct *vma, pgd_t *pgd,
 		next = pud_addr_end(addr, end);
 		if (pud_none_or_clear_bad(pud))
 			continue;
-		sync_pmd_range(vma, pud, addr, next);
+		msync_pmd_range(vma, pud, addr, next);
 	} while (pud++, addr = next, addr != end);
 }
 
-static void sync_page_range(struct vm_area_struct *vma,
+static void msync_page_range(struct vm_area_struct *vma,
 				unsigned long addr, unsigned long end)
 {
-	struct mm_struct *mm = vma->vm_mm;
 	pgd_t *pgd;
 	unsigned long next;
 
 	/* For hugepages we can't go walking the page table normally,
 	 * but that's ok, hugetlbfs is memory based, so we don't need
-	 * to do anything more on an msync() */
-	if (is_vm_hugetlb_page(vma))
+	 * to do anything more on an msync().
+	 * Can't do anything with VM_RESERVED regions either.
+	 */
+	if (vma->vm_flags & (VM_HUGETLB|VM_RESERVED))
 		return;
 
 	BUG_ON(addr >= end);
-	pgd = pgd_offset(mm, addr);
+	pgd = pgd_offset(vma->vm_mm, addr);
 	flush_cache_range(vma, addr, end);
-	spin_lock(&mm->page_table_lock);
 	do {
 		next = pgd_addr_end(addr, end);
 		if (pgd_none_or_clear_bad(pgd))
 			continue;
-		sync_pud_range(vma, pgd, addr, next);
+		msync_pud_range(vma, pgd, addr, next);
 	} while (pgd++, addr = next, addr != end);
-	spin_unlock(&mm->page_table_lock);
 }
-
-#ifdef CONFIG_PREEMPT
-static inline void filemap_sync(struct vm_area_struct *vma,
-				unsigned long addr, unsigned long end)
-{
-	const size_t chunk = 64 * 1024;	/* bytes */
-	unsigned long next;
-
-	do {
-		next = addr + chunk;
-		if (next > end || next < addr)
-			next = end;
-		sync_page_range(vma, addr, next);
-		cond_resched();
-	} while (addr = next, addr != end);
-}
-#else
-static inline void filemap_sync(struct vm_area_struct *vma,
-				unsigned long addr, unsigned long end)
-{
-	sync_page_range(vma, addr, end);
-}
-#endif
 
 /*
  * MS_SYNC syncs the entire file - including mappings.
@@ -150,7 +134,7 @@ static int msync_interval(struct vm_area_struct *vma,
 		return -EBUSY;
 
 	if (file && (vma->vm_flags & VM_SHARED)) {
-		filemap_sync(vma, addr, end);
+		msync_page_range(vma, addr, end);
 
 		if (flags & MS_SYNC) {
 			struct address_space *mapping = file->f_mapping;

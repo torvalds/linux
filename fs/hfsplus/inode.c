@@ -40,7 +40,7 @@ static sector_t hfsplus_bmap(struct address_space *mapping, sector_t block)
 	return generic_block_bmap(mapping, block, hfsplus_get_block);
 }
 
-static int hfsplus_releasepage(struct page *page, int mask)
+static int hfsplus_releasepage(struct page *page, gfp_t mask)
 {
 	struct inode *inode = page->mapping->host;
 	struct super_block *sb = inode->i_sb;

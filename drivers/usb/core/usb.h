@@ -13,12 +13,14 @@ extern void usb_disable_device (struct usb_device *dev, int skip_ep0);
 
 extern int usb_get_device_descriptor(struct usb_device *dev,
 		unsigned int size);
+extern char *usb_cache_string(struct usb_device *udev, int index);
 extern int usb_set_configuration(struct usb_device *dev, int configuration);
 
 extern void usb_lock_all_devices(void);
 extern void usb_unlock_all_devices(void);
 
 extern void usb_kick_khubd(struct usb_device *dev);
+extern void usb_suspend_root_hub(struct usb_device *hdev);
 extern void usb_resume_root_hub(struct usb_device *dev);
 
 extern int  usb_hub_init(void);
@@ -27,6 +29,28 @@ extern int usb_major_init(void);
 extern void usb_major_cleanup(void);
 extern int usb_host_init(void);
 extern void usb_host_cleanup(void);
+
+extern int usb_suspend_device(struct usb_device *dev);
+extern int usb_resume_device(struct usb_device *dev);
+
+
+/* Interfaces and their "power state" are owned by usbcore */
+
+static inline void mark_active(struct usb_interface *f)
+{
+	f->dev.power.power_state.event = PM_EVENT_ON;
+}
+
+static inline void mark_quiesced(struct usb_interface *f)
+{
+	f->dev.power.power_state.event = PM_EVENT_FREEZE;
+}
+
+static inline int is_active(struct usb_interface *f)
+{
+	return f->dev.power.power_state.event == PM_EVENT_ON;
+}
+
 
 /* for labeling diagnostics */
 extern const char *usbcore_name;
@@ -39,9 +63,6 @@ extern void usbfs_conn_disc_event(void);
 
 extern int usbdev_init(void);
 extern void usbdev_cleanup(void);
-extern void usbdev_add(struct usb_device *dev);
-extern void usbdev_remove(struct usb_device *dev);
-extern struct usb_device *usbdev_lookup_minor(int minor);
 
 struct dev_state {
 	struct list_head list;      /* state list */
@@ -57,4 +78,10 @@ struct dev_state {
 	void __user *disccontext;
 	unsigned long ifclaimed;
 };
+
+/* internal notify stuff */
+extern void usb_notify_add_device(struct usb_device *udev);
+extern void usb_notify_remove_device(struct usb_device *udev);
+extern void usb_notify_add_bus(struct usb_bus *ubus);
+extern void usb_notify_remove_bus(struct usb_bus *ubus);
 

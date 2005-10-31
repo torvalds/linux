@@ -40,6 +40,7 @@
 #include <asm/ppc_sys.h>
 #include <asm/kgdb.h>
 #include <asm/delay.h>
+#include <asm/machdep.h>
 
 #include <syslib/ppc83xx_setup.h>
 #if defined(CONFIG_PCI)

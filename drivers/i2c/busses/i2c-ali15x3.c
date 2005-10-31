@@ -125,12 +125,13 @@
 
 /* If force_addr is set to anything different from 0, we forcibly enable
    the device at the given address. */
-static u16 force_addr = 0;
+static u16 force_addr;
 module_param(force_addr, ushort, 0);
 MODULE_PARM_DESC(force_addr,
 		 "Initialize the base address of the i2c controller");
 
-static unsigned short ali15x3_smba = 0;
+static struct pci_driver ali15x3_driver;
+static unsigned short ali15x3_smba;
 
 static int ali15x3_setup(struct pci_dev *ALI15X3_dev)
 {
@@ -166,7 +167,8 @@ static int ali15x3_setup(struct pci_dev *ALI15X3_dev)
 	if(force_addr)
 		ali15x3_smba = force_addr & ~(ALI15X3_SMB_IOSIZE - 1);
 
-	if (!request_region(ali15x3_smba, ALI15X3_SMB_IOSIZE, "ali15x3-smb")) {
+	if (!request_region(ali15x3_smba, ALI15X3_SMB_IOSIZE,
+			    ali15x3_driver.name)) {
 		dev_err(&ALI15X3_dev->dev,
 			"ALI15X3_smb region 0x%x already in use!\n",
 			ali15x3_smba);
@@ -470,7 +472,6 @@ static struct i2c_adapter ali15x3_adapter = {
 	.owner		= THIS_MODULE,
 	.class          = I2C_CLASS_HWMON,
 	.algo		= &smbus_algorithm,
-	.name		= "unset",
 };
 
 static struct pci_device_id ali15x3_ids[] = {
@@ -503,6 +504,7 @@ static void __devexit ali15x3_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver ali15x3_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "ali15x3_smbus",
 	.id_table	= ali15x3_ids,
 	.probe		= ali15x3_probe,

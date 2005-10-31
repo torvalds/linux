@@ -86,7 +86,7 @@ struct meta_anchor {
 	atomic_t io_count;
 	struct metapage *mp[MPS_PER_PAGE];
 };
-#define mp_anchor(page) ((struct meta_anchor *)page->private)
+#define mp_anchor(page) ((struct meta_anchor *)page_private(page))
 
 static inline struct metapage *page_to_mp(struct page *page, uint offset)
 {
@@ -108,7 +108,7 @@ static inline int insert_metapage(struct page *page, struct metapage *mp)
 		if (!a)
 			return -ENOMEM;
 		memset(a, 0, sizeof(struct meta_anchor));
-		page->private = (unsigned long)a;
+		set_page_private(page, (unsigned long)a);
 		SetPagePrivate(page);
 		kmap(page);
 	}
@@ -136,7 +136,7 @@ static inline void remove_metapage(struct page *page, struct metapage *mp)
 	a->mp[index] = NULL;
 	if (--a->mp_count == 0) {
 		kfree(a);
-		page->private = 0;
+		set_page_private(page, 0);
 		ClearPagePrivate(page);
 		kunmap(page);
 	}
@@ -156,13 +156,13 @@ static inline void dec_io(struct page *page, void (*handler) (struct page *))
 #else
 static inline struct metapage *page_to_mp(struct page *page, uint offset)
 {
-	return PagePrivate(page) ? (struct metapage *)page->private : NULL;
+	return PagePrivate(page) ? (struct metapage *)page_private(page) : NULL;
 }
 
 static inline int insert_metapage(struct page *page, struct metapage *mp)
 {
 	if (mp) {
-		page->private = (unsigned long)mp;
+		set_page_private(page, (unsigned long)mp);
 		SetPagePrivate(page);
 		kmap(page);
 	}
@@ -171,7 +171,7 @@ static inline int insert_metapage(struct page *page, struct metapage *mp)
 
 static inline void remove_metapage(struct page *page, struct metapage *mp)
 {
-	page->private = 0;
+	set_page_private(page, 0);
 	ClearPagePrivate(page);
 	kunmap(page);
 }
@@ -198,7 +198,7 @@ static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
 	}
 }
 
-static inline struct metapage *alloc_metapage(unsigned int gfp_mask)
+static inline struct metapage *alloc_metapage(gfp_t gfp_mask)
 {
 	return mempool_alloc(metapage_mempool, gfp_mask);
 }
@@ -395,6 +395,12 @@ static int metapage_writepage(struct page *page, struct writeback_control *wbc)
 
 		if (mp->nohomeok && !test_bit(META_forcewrite, &mp->flag)) {
 			redirty = 1;
+			/*
+			 * Make sure this page isn't blocked indefinitely.
+			 * If the journal isn't undergoing I/O, push it
+			 */
+			if (mp->log && !(mp->log->cflag & logGC_PAGEOUT))
+				jfs_flush_journal(mp->log, 0);
 			continue;
 		}
 
@@ -534,7 +540,7 @@ add_failed:
 	return -EIO;
 }
 
-static int metapage_releasepage(struct page *page, int gfp_mask)
+static int metapage_releasepage(struct page *page, gfp_t gfp_mask)
 {
 	struct metapage *mp;
 	int busy = 0;

@@ -790,7 +790,7 @@ static int __init a2232board_init(void)
 
 	}	
 
-	printk("Total: %d A2232 boards initialized.\n.", nr_a2232); /* Some status report if no card was found */
+	printk("Total: %d A2232 boards initialized.\n", nr_a2232); /* Some status report if no card was found */
 
 	a2232_init_portstructs();
 

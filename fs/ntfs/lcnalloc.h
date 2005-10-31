@@ -27,6 +27,7 @@
 
 #include <linux/fs.h>
 
+#include "attrib.h"
 #include "types.h"
 #include "inode.h"
 #include "runlist.h"
@@ -41,16 +42,18 @@ typedef enum {
 
 extern runlist_element *ntfs_cluster_alloc(ntfs_volume *vol,
 		const VCN start_vcn, const s64 count, const LCN start_lcn,
-		const NTFS_CLUSTER_ALLOCATION_ZONES zone);
+		const NTFS_CLUSTER_ALLOCATION_ZONES zone,
+		const BOOL is_extension);
 
 extern s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn,
-		s64 count, const BOOL is_rollback);
+		s64 count, ntfs_attr_search_ctx *ctx, const BOOL is_rollback);
 
 /**
  * ntfs_cluster_free - free clusters on an ntfs volume
  * @ni:		ntfs inode whose runlist describes the clusters to free
  * @start_vcn:	vcn in the runlist of @ni at which to start freeing clusters
  * @count:	number of clusters to free or -1 for all clusters
+ * @ctx:	active attribute search context if present or NULL if not
  *
  * Free @count clusters starting at the cluster @start_vcn in the runlist
  * described by the ntfs inode @ni.
@@ -59,11 +62,35 @@ extern s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn,
  * deallocated.  Thus, to completely free all clusters in a runlist, use
  * @start_vcn = 0 and @count = -1.
  *
- * Note, ntfs_cluster_free() does not modify the runlist at all, so the caller
- * has to deal with it later.
+ * If @ctx is specified, it is an active search context of @ni and its base mft
+ * record.  This is needed when ntfs_cluster_free() encounters unmapped runlist
+ * fragments and allows their mapping.  If you do not have the mft record
+ * mapped, you can specify @ctx as NULL and ntfs_cluster_free() will perform
+ * the necessary mapping and unmapping.
+ *
+ * Note, ntfs_cluster_free() saves the state of @ctx on entry and restores it
+ * before returning.  Thus, @ctx will be left pointing to the same attribute on
+ * return as on entry.  However, the actual pointers in @ctx may point to
+ * different memory locations on return, so you must remember to reset any
+ * cached pointers from the @ctx, i.e. after the call to ntfs_cluster_free(),
+ * you will probably want to do:
+ *	m = ctx->mrec;
+ *	a = ctx->attr;
+ * Assuming you cache ctx->attr in a variable @a of type ATTR_RECORD * and that
+ * you cache ctx->mrec in a variable @m of type MFT_RECORD *.
+ *
+ * Note, ntfs_cluster_free() does not modify the runlist, so you have to remove
+ * from the runlist or mark sparse the freed runs later.
  *
  * Return the number of deallocated clusters (not counting sparse ones) on
  * success and -errno on error.
+ *
+ * WARNING: If @ctx is supplied, regardless of whether success or failure is
+ *	    returned, you need to check IS_ERR(@ctx->mrec) and if TRUE the @ctx
+ *	    is no longer valid, i.e. you need to either call
+ *	    ntfs_attr_reinit_search_ctx() or ntfs_attr_put_search_ctx() on it.
+ *	    In that case PTR_ERR(@ctx->mrec) will give you the error code for
+ *	    why the mapping of the old inode failed.
  *
  * Locking: - The runlist described by @ni must be locked for writing on entry
  *	      and is locked on return.  Note the runlist may be modified when
@@ -72,11 +99,15 @@ extern s64 __ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn,
  *	      on return.
  *	    - This function takes the volume lcn bitmap lock for writing and
  *	      modifies the bitmap contents.
+ *	    - If @ctx is NULL, the base mft record of @ni must not be mapped on
+ *	      entry and it will be left unmapped on return.
+ *	    - If @ctx is not NULL, the base mft record must be mapped on entry
+ *	      and it will be left mapped on return.
  */
 static inline s64 ntfs_cluster_free(ntfs_inode *ni, const VCN start_vcn,
-		s64 count)
+		s64 count, ntfs_attr_search_ctx *ctx)
 {
-	return __ntfs_cluster_free(ni, start_vcn, count, FALSE);
+	return __ntfs_cluster_free(ni, start_vcn, count, ctx, FALSE);
 }
 
 extern int ntfs_cluster_free_from_rl_nolock(ntfs_volume *vol,

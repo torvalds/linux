@@ -36,11 +36,13 @@ int strnicmp(const char *s1, const char *s2, size_t len)
 	/* Yes, Virginia, it had better be unsigned */
 	unsigned char c1, c2;
 
-	c1 = 0;	c2 = 0;
+	c1 = c2 = 0;
 	if (len) {
 		do {
-			c1 = *s1; c2 = *s2;
-			s1++; s2++;
+			c1 = *s1;
+			c2 = *s2;
+			s1++;
+			s2++;
 			if (!c1)
 				break;
 			if (!c2)
@@ -55,7 +57,6 @@ int strnicmp(const char *s1, const char *s2, size_t len)
 	}
 	return (int)c1 - (int)c2;
 }
-
 EXPORT_SYMBOL(strnicmp);
 #endif
 
@@ -66,7 +67,7 @@ EXPORT_SYMBOL(strnicmp);
  * @src: Where to copy the string from
  */
 #undef strcpy
-char * strcpy(char * dest,const char *src)
+char *strcpy(char *dest, const char *src)
 {
 	char *tmp = dest;
 
@@ -91,12 +92,13 @@ EXPORT_SYMBOL(strcpy);
  * count, the remainder of @dest will be padded with %NUL.
  *
  */
-char * strncpy(char * dest,const char *src,size_t count)
+char *strncpy(char *dest, const char *src, size_t count)
 {
 	char *tmp = dest;
 
 	while (count) {
-		if ((*tmp = *src) != 0) src++;
+		if ((*tmp = *src) != 0)
+			src++;
 		tmp++;
 		count--;
 	}
@@ -122,7 +124,7 @@ size_t strlcpy(char *dest, const char *src, size_t size)
 	size_t ret = strlen(src);
 
 	if (size) {
-		size_t len = (ret >= size) ? size-1 : ret;
+		size_t len = (ret >= size) ? size - 1 : ret;
 		memcpy(dest, src, len);
 		dest[len] = '\0';
 	}
@@ -138,7 +140,7 @@ EXPORT_SYMBOL(strlcpy);
  * @src: The string to append to it
  */
 #undef strcat
-char * strcat(char * dest, const char * src)
+char *strcat(char *dest, const char *src)
 {
 	char *tmp = dest;
 
@@ -146,7 +148,6 @@ char * strcat(char * dest, const char * src)
 		dest++;
 	while ((*dest++ = *src++) != '\0')
 		;
-
 	return tmp;
 }
 EXPORT_SYMBOL(strcat);
@@ -162,7 +163,7 @@ EXPORT_SYMBOL(strcat);
  * Note that in contrast to strncpy, strncat ensures the result is
  * terminated.
  */
-char * strncat(char *dest, const char *src, size_t count)
+char *strncat(char *dest, const char *src, size_t count)
 {
 	char *tmp = dest;
 
@@ -176,7 +177,6 @@ char * strncat(char *dest, const char *src, size_t count)
 			}
 		}
 	}
-
 	return tmp;
 }
 EXPORT_SYMBOL(strncat);
@@ -216,15 +216,14 @@ EXPORT_SYMBOL(strlcat);
  * @ct: Another string
  */
 #undef strcmp
-int strcmp(const char * cs,const char * ct)
+int strcmp(const char *cs, const char *ct)
 {
-	register signed char __res;
+	signed char __res;
 
 	while (1) {
 		if ((__res = *cs - *ct++) != 0 || !*cs++)
 			break;
 	}
-
 	return __res;
 }
 EXPORT_SYMBOL(strcmp);
@@ -237,16 +236,15 @@ EXPORT_SYMBOL(strcmp);
  * @ct: Another string
  * @count: The maximum number of bytes to compare
  */
-int strncmp(const char * cs,const char * ct,size_t count)
+int strncmp(const char *cs, const char *ct, size_t count)
 {
-	register signed char __res = 0;
+	signed char __res = 0;
 
 	while (count) {
 		if ((__res = *cs - *ct++) != 0 || !*cs++)
 			break;
 		count--;
 	}
-
 	return __res;
 }
 EXPORT_SYMBOL(strncmp);
@@ -258,12 +256,12 @@ EXPORT_SYMBOL(strncmp);
  * @s: The string to be searched
  * @c: The character to search for
  */
-char * strchr(const char * s, int c)
+char *strchr(const char *s, int c)
 {
-	for(; *s != (char) c; ++s)
+	for (; *s != (char)c; ++s)
 		if (*s == '\0')
 			return NULL;
-	return (char *) s;
+	return (char *)s;
 }
 EXPORT_SYMBOL(strchr);
 #endif
@@ -274,7 +272,7 @@ EXPORT_SYMBOL(strchr);
  * @s: The string to be searched
  * @c: The character to search for
  */
-char * strrchr(const char * s, int c)
+char *strrchr(const char *s, int c)
 {
        const char *p = s + strlen(s);
        do {
@@ -296,8 +294,8 @@ EXPORT_SYMBOL(strrchr);
 char *strnchr(const char *s, size_t count, int c)
 {
 	for (; count-- && *s != '\0'; ++s)
-		if (*s == (char) c)
-			return (char *) s;
+		if (*s == (char)c)
+			return (char *)s;
 	return NULL;
 }
 EXPORT_SYMBOL(strnchr);
@@ -308,7 +306,7 @@ EXPORT_SYMBOL(strnchr);
  * strlen - Find the length of a string
  * @s: The string to be sized
  */
-size_t strlen(const char * s)
+size_t strlen(const char *s)
 {
 	const char *sc;
 
@@ -325,7 +323,7 @@ EXPORT_SYMBOL(strlen);
  * @s: The string to be sized
  * @count: The maximum number of bytes to search
  */
-size_t strnlen(const char * s, size_t count)
+size_t strnlen(const char *s, size_t count)
 {
 	const char *sc;
 
@@ -358,7 +356,6 @@ size_t strspn(const char *s, const char *accept)
 			return count;
 		++count;
 	}
-
 	return count;
 }
 
@@ -384,9 +381,8 @@ size_t strcspn(const char *s, const char *reject)
 		}
 		++count;
 	}
-
 	return count;
-}	
+}
 EXPORT_SYMBOL(strcspn);
 
 #ifndef __HAVE_ARCH_STRPBRK
@@ -395,14 +391,14 @@ EXPORT_SYMBOL(strcspn);
  * @cs: The string to be searched
  * @ct: The characters to search for
  */
-char * strpbrk(const char * cs,const char * ct)
+char *strpbrk(const char *cs, const char *ct)
 {
-	const char *sc1,*sc2;
+	const char *sc1, *sc2;
 
-	for( sc1 = cs; *sc1 != '\0'; ++sc1) {
-		for( sc2 = ct; *sc2 != '\0'; ++sc2) {
+	for (sc1 = cs; *sc1 != '\0'; ++sc1) {
+		for (sc2 = ct; *sc2 != '\0'; ++sc2) {
 			if (*sc1 == *sc2)
-				return (char *) sc1;
+				return (char *)sc1;
 		}
 	}
 	return NULL;
@@ -422,9 +418,10 @@ EXPORT_SYMBOL(strpbrk);
  * of that name. In fact, it was stolen from glibc2 and de-fancy-fied.
  * Same semantics, slimmer shape. ;)
  */
-char * strsep(char **s, const char *ct)
+char *strsep(char **s, const char *ct)
 {
-	char *sbegin = *s, *end;
+	char *sbegin = *s;
+	char *end;
 
 	if (sbegin == NULL)
 		return NULL;
@@ -433,10 +430,8 @@ char * strsep(char **s, const char *ct)
 	if (end)
 		*end++ = '\0';
 	*s = end;
-
 	return sbegin;
 }
-
 EXPORT_SYMBOL(strsep);
 #endif
 
@@ -449,13 +444,12 @@ EXPORT_SYMBOL(strsep);
  *
  * Do not use memset() to access IO space, use memset_io() instead.
  */
-void * memset(void * s,int c,size_t count)
+void *memset(void *s, int c, size_t count)
 {
-	char *xs = (char *) s;
+	char *xs = s;
 
 	while (count--)
 		*xs++ = c;
-
 	return s;
 }
 EXPORT_SYMBOL(memset);
@@ -471,13 +465,13 @@ EXPORT_SYMBOL(memset);
  * You should not use this function to access IO space, use memcpy_toio()
  * or memcpy_fromio() instead.
  */
-void * memcpy(void * dest,const void *src,size_t count)
+void *memcpy(void *dest, const void *src, size_t count)
 {
-	char *tmp = (char *) dest, *s = (char *) src;
+	char *tmp = dest;
+	char *s = src;
 
 	while (count--)
 		*tmp++ = *s++;
-
 	return dest;
 }
 EXPORT_SYMBOL(memcpy);
@@ -492,23 +486,24 @@ EXPORT_SYMBOL(memcpy);
  *
  * Unlike memcpy(), memmove() copes with overlapping areas.
  */
-void * memmove(void * dest,const void *src,size_t count)
+void *memmove(void *dest, const void *src, size_t count)
 {
-	char *tmp, *s;
+	char *tmp;
+	const char *s;
 
 	if (dest <= src) {
-		tmp = (char *) dest;
-		s = (char *) src;
+		tmp = dest;
+		s = src;
 		while (count--)
 			*tmp++ = *s++;
-		}
-	else {
-		tmp = (char *) dest + count;
-		s = (char *) src + count;
+	} else {
+		tmp = dest;
+		tmp += count;
+		s = src;
+		s += count;
 		while (count--)
 			*--tmp = *--s;
-		}
-
+	}
 	return dest;
 }
 EXPORT_SYMBOL(memmove);
@@ -522,12 +517,12 @@ EXPORT_SYMBOL(memmove);
  * @count: The size of the area.
  */
 #undef memcmp
-int memcmp(const void * cs,const void * ct,size_t count)
+int memcmp(const void *cs, const void *ct, size_t count)
 {
 	const unsigned char *su1, *su2;
 	int res = 0;
 
-	for( su1 = cs, su2 = ct; 0 < count; ++su1, ++su2, count--)
+	for (su1 = cs, su2 = ct; 0 < count; ++su1, ++su2, count--)
 		if ((res = *su1 - *su2) != 0)
 			break;
 	return res;
@@ -545,17 +540,17 @@ EXPORT_SYMBOL(memcmp);
  * returns the address of the first occurrence of @c, or 1 byte past
  * the area if @c is not found
  */
-void * memscan(void * addr, int c, size_t size)
+void *memscan(void *addr, int c, size_t size)
 {
-	unsigned char * p = (unsigned char *) addr;
+	unsigned char *p = addr;
 
 	while (size) {
 		if (*p == c)
-			return (void *) p;
+			return (void *)p;
 		p++;
 		size--;
 	}
-  	return (void *) p;
+  	return (void *)p;
 }
 EXPORT_SYMBOL(memscan);
 #endif
@@ -566,18 +561,18 @@ EXPORT_SYMBOL(memscan);
  * @s1: The string to be searched
  * @s2: The string to search for
  */
-char * strstr(const char * s1,const char * s2)
+char *strstr(const char *s1, const char *s2)
 {
 	int l1, l2;
 
 	l2 = strlen(s2);
 	if (!l2)
-		return (char *) s1;
+		return (char *)s1;
 	l1 = strlen(s1);
 	while (l1 >= l2) {
 		l1--;
-		if (!memcmp(s1,s2,l2))
-			return (char *) s1;
+		if (!memcmp(s1, s2, l2))
+			return (char *)s1;
 		s1++;
 	}
 	return NULL;
@@ -600,7 +595,7 @@ void *memchr(const void *s, int c, size_t n)
 	const unsigned char *p = s;
 	while (n-- != 0) {
         	if ((unsigned char)c == *p++) {
-			return (void *)(p-1);
+			return (void *)(p - 1);
 		}
 	}
 	return NULL;

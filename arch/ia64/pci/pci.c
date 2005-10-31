@@ -120,29 +120,6 @@ struct pci_ops pci_root_ops = {
 	.write = pci_write,
 };
 
-#ifdef CONFIG_NUMA
-extern acpi_status acpi_map_iosapic(acpi_handle, u32, void *, void **);
-static void acpi_map_iosapics(void)
-{
-	acpi_get_devices(NULL, acpi_map_iosapic, NULL, NULL);
-}
-#else
-static void acpi_map_iosapics(void)
-{
-	return;
-}
-#endif /* CONFIG_NUMA */
-
-static int __init
-pci_acpi_init (void)
-{
-	acpi_map_iosapics();
-
-	return 0;
-}
-
-subsys_initcall(pci_acpi_init);
-
 /* Called by ACPI when it finds a new root bus.  */
 
 static struct pci_controller * __devinit
@@ -191,6 +168,29 @@ add_io_space (struct acpi_resource_address64 *addr)
 	return IO_SPACE_BASE(i);
 }
 
+static acpi_status __devinit resource_to_window(struct acpi_resource *resource,
+	struct acpi_resource_address64 *addr)
+{
+	acpi_status status;
+
+	/*
+	 * We're only interested in _CRS descriptors that are
+	 *	- address space descriptors for memory or I/O space
+	 *	- non-zero size
+	 *	- producers, i.e., the address space is routed downstream,
+	 *	  not consumed by the bridge itself
+	 */
+	status = acpi_resource_to_address64(resource, addr);
+	if (ACPI_SUCCESS(status) &&
+	    (addr->resource_type == ACPI_MEMORY_RANGE ||
+	     addr->resource_type == ACPI_IO_RANGE) &&
+	    addr->address_length &&
+	    addr->producer_consumer == ACPI_PRODUCER)
+		return AE_OK;
+
+	return AE_ERROR;
+}
+
 static acpi_status __devinit
 count_window (struct acpi_resource *resource, void *data)
 {
@@ -198,11 +198,9 @@ count_window (struct acpi_resource *resource, void *data)
 	struct acpi_resource_address64 addr;
 	acpi_status status;
 
-	status = acpi_resource_to_address64(resource, &addr);
+	status = resource_to_window(resource, &addr);
 	if (ACPI_SUCCESS(status))
-		if (addr.resource_type == ACPI_MEMORY_RANGE ||
-		    addr.resource_type == ACPI_IO_RANGE)
-			(*windows)++;
+		(*windows)++;
 
 	return AE_OK;
 }
@@ -221,11 +219,9 @@ static __devinit acpi_status add_window(struct acpi_resource *res, void *data)
 	unsigned long flags, offset = 0;
 	struct resource *root;
 
-	status = acpi_resource_to_address64(res, &addr);
+	/* Return AE_OK for non-window resources to keep scanning for more */
+	status = resource_to_window(res, &addr);
 	if (!ACPI_SUCCESS(status))
-		return AE_OK;
-
-	if (!addr.address_length)
 		return AE_OK;
 
 	if (addr.resource_type == ACPI_MEMORY_RANGE) {

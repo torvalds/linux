@@ -22,7 +22,7 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -550,14 +550,11 @@ struct locomo_save_data {
 	u16	LCM_SPIMD;
 };
 
-static int locomo_suspend(struct device *dev, pm_message_t state, u32 level)
+static int locomo_suspend(struct device *dev, pm_message_t state)
 {
 	struct locomo *lchip = dev_get_drvdata(dev);
 	struct locomo_save_data *save;
 	unsigned long flags;
-
-	if (level != SUSPEND_DISABLE)
-		return 0;
 
 	save = kmalloc(sizeof(struct locomo_save_data), GFP_KERNEL);
 	if (!save)
@@ -597,16 +594,13 @@ static int locomo_suspend(struct device *dev, pm_message_t state, u32 level)
 	return 0;
 }
 
-static int locomo_resume(struct device *dev, u32 level)
+static int locomo_resume(struct device *dev)
 {
 	struct locomo *lchip = dev_get_drvdata(dev);
 	struct locomo_save_data *save;
 	unsigned long r;
 	unsigned long flags;
 	
-	if (level != RESUME_ENABLE)
-		return 0;
-
 	save = (struct locomo_save_data *) dev->power.saved_state;
 	if (!save)
 		return 0;

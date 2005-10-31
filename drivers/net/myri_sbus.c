@@ -277,7 +277,7 @@ static void myri_init_rings(struct myri_eth *mp, int from_irq)
 	struct recvq __iomem *rq = mp->rq;
 	struct myri_rxd __iomem *rxd = &rq->myri_rxd[0];
 	struct net_device *dev = mp->dev;
-	int gfp_flags = GFP_KERNEL;
+	gfp_t gfp_flags = GFP_KERNEL;
 	int i;
 
 	if (from_irq || in_interrupt())

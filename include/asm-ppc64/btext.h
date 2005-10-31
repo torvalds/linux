@@ -15,6 +15,7 @@ extern int boot_text_mapped;
 extern int btext_initialize(struct device_node *np);
 
 extern void map_boot_text(void);
+extern void init_boot_display(void);
 extern void btext_update_display(unsigned long phys, int width, int height,
 				 int depth, int pitch);
 

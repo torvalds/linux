@@ -1,34 +1,26 @@
-/* 
-   BlueCore Serial Protocol (BCSP) for Linux Bluetooth stack (BlueZ).
-   Copyright 2002 by Fabrizio Gennari <fabrizio.gennari@philips.com>
-
-   Based on
-       hci_h4.c  by Maxim Krasnyansky <maxk@qualcomm.com>
-       ABCSP     by Carl Orsborn <cjo@csr.com>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 as
-   published by the Free Software Foundation;
-
-   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
-   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
-   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
-   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
-   OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
-   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
-   SOFTWARE IS DISCLAIMED.
-*/
-
 /*
- * $Id: hci_bcsp.c,v 1.2 2002/09/26 05:05:14 maxk Exp $
+ *
+ *  Bluetooth HCI UART driver
+ *
+ *  Copyright (C) 2002-2003  Fabrizio Gennari <fabrizio.gennari@philips.com>
+ *  Copyright (C) 2004-2005  Marcel Holtmann <marcel@holtmann.org>
+ *
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
  */
-
-#define VERSION "0.2"
 
 #include <linux/config.h>
 #include <linux/module.h>
@@ -52,15 +44,55 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+
 #include "hci_uart.h"
-#include "hci_bcsp.h"
 
 #ifndef CONFIG_BT_HCIUART_DEBUG
 #undef  BT_DBG
 #define BT_DBG( A... )
 #endif
 
+#define VERSION "0.3"
+
+static int txcrc = 1;
 static int hciextn = 1;
+
+#define BCSP_TXWINSIZE	4
+
+#define BCSP_ACK_PKT	0x05
+#define BCSP_LE_PKT	0x06
+
+struct bcsp_struct {
+	struct sk_buff_head unack;	/* Unack'ed packets queue */
+	struct sk_buff_head rel;	/* Reliable packets queue */
+	struct sk_buff_head unrel;	/* Unreliable packets queue */
+
+	unsigned long rx_count;
+	struct	sk_buff *rx_skb;
+	u8	rxseq_txack;		/* rxseq == txack. */
+	u8	rxack;			/* Last packet sent by us that the peer ack'ed */
+	struct	timer_list tbcsp;
+
+	enum {
+		BCSP_W4_PKT_DELIMITER,
+		BCSP_W4_PKT_START,
+		BCSP_W4_BCSP_HDR,
+		BCSP_W4_DATA,
+		BCSP_W4_CRC
+	} rx_state;
+
+	enum {
+		BCSP_ESCSTATE_NOESC,
+		BCSP_ESCSTATE_ESC
+	} rx_esc_state;
+
+	u8	use_crc;
+	u16	message_crc;
+	u8	txack_req;		/* Do we need to send ack's to the peer? */
+
+	/* Reliable packet sequence number - used to assign seq to each rel pkt. */
+	u8	msgq_txseq;
+};
 
 /* ---- BCSP CRC calculation ---- */
 
@@ -111,6 +143,7 @@ static u16 bcsp_crc_reverse(u16 crc)
 		rev |= (crc & 1);
 		crc = crc >> 1;
 	}
+
 	return (rev);
 }
 
@@ -119,6 +152,7 @@ static u16 bcsp_crc_reverse(u16 crc)
 static void bcsp_slip_msgdelim(struct sk_buff *skb)
 {
 	const char pkt_delim = 0xc0;
+
 	memcpy(skb_put(skb, 1), &pkt_delim, 1);
 }
 
@@ -173,11 +207,8 @@ static struct sk_buff *bcsp_prepare_pkt(struct bcsp_struct *bcsp, u8 *data,
 {
 	struct sk_buff *nskb;
 	u8 hdr[4], chan;
-	int rel, i;
-
-#ifdef CONFIG_BT_HCIUART_BCSP_TXCRC
 	u16 BCSP_CRC_INIT(bcsp_txmsg_crc);
-#endif
+	int rel, i;
 
 	switch (pkt_type) {
 	case HCI_ACLDATA_PKT:
@@ -240,9 +271,9 @@ static struct sk_buff *bcsp_prepare_pkt(struct bcsp_struct *bcsp, u8 *data,
 		BT_DBG("Sending packet with seqno %u", bcsp->msgq_txseq);
 		bcsp->msgq_txseq = ++(bcsp->msgq_txseq) & 0x07;
 	}
-#ifdef CONFIG_BT_HCIUART_BCSP_TXCRC
-	hdr[0] |= 0x40;
-#endif
+
+	if (bcsp->use_crc)
+		hdr[0] |= 0x40;
 
 	hdr[1] = ((len << 4) & 0xff) | chan;
 	hdr[2] = len >> 4;
@@ -251,25 +282,25 @@ static struct sk_buff *bcsp_prepare_pkt(struct bcsp_struct *bcsp, u8 *data,
 	/* Put BCSP header */
 	for (i = 0; i < 4; i++) {
 		bcsp_slip_one_byte(nskb, hdr[i]);
-#ifdef CONFIG_BT_HCIUART_BCSP_TXCRC
-		bcsp_crc_update(&bcsp_txmsg_crc, hdr[i]);
-#endif
+
+		if (bcsp->use_crc)
+			bcsp_crc_update(&bcsp_txmsg_crc, hdr[i]);
 	}
 
 	/* Put payload */
 	for (i = 0; i < len; i++) {
 		bcsp_slip_one_byte(nskb, data[i]);
-#ifdef CONFIG_BT_HCIUART_BCSP_TXCRC
-		bcsp_crc_update(&bcsp_txmsg_crc, data[i]);
-#endif
+
+		if (bcsp->use_crc)
+			bcsp_crc_update(&bcsp_txmsg_crc, data[i]);
 	}
 
-#ifdef CONFIG_BT_HCIUART_BCSP_TXCRC
 	/* Put CRC */
-	bcsp_txmsg_crc = bcsp_crc_reverse(bcsp_txmsg_crc);
-	bcsp_slip_one_byte(nskb, (u8) ((bcsp_txmsg_crc >> 8) & 0x00ff));
-	bcsp_slip_one_byte(nskb, (u8) (bcsp_txmsg_crc & 0x00ff));
-#endif
+	if (bcsp->use_crc) {
+		bcsp_txmsg_crc = bcsp_crc_reverse(bcsp_txmsg_crc);
+		bcsp_slip_one_byte(nskb, (u8) ((bcsp_txmsg_crc >> 8) & 0x00ff));
+		bcsp_slip_one_byte(nskb, (u8) (bcsp_txmsg_crc & 0x00ff));
+	}
 
 	bcsp_slip_msgdelim(nskb);
 	return nskb;
@@ -317,7 +348,6 @@ static struct sk_buff *bcsp_dequeue(struct hci_uart *hu)
 
 	spin_unlock_irqrestore(&bcsp->unack.lock, flags);
 
-
 	/* We could not send a reliable packet, either because there are
 	   none or because there are too many unack'ed pkts. Did we receive
 	   any packets we have not acknowledged yet ? */
@@ -363,7 +393,7 @@ static void bcsp_pkt_cull(struct bcsp_struct *bcsp)
 		BT_ERR("Peer acked invalid packet");
 
 	BT_DBG("Removing %u pkts out of %u, up to seqno %u",
-	       pkts_to_be_removed, bcsp->unack.qlen, (seqno - 1) & 0x07);
+		pkts_to_be_removed, bcsp->unack.qlen, (seqno - 1) & 0x07);
 
 	for (i = 0, skb = ((struct sk_buff *) &bcsp->unack)->next; i < pkts_to_be_removed
 			&& skb != (struct sk_buff *) &bcsp->unack; i++) {
@@ -374,8 +404,10 @@ static void bcsp_pkt_cull(struct bcsp_struct *bcsp)
 		kfree_skb(skb);
 		skb = nskb;
 	}
+
 	if (bcsp->unack.qlen == 0)
 		del_timer(&bcsp->tbcsp);
+
 	spin_unlock_irqrestore(&bcsp->unack.lock, flags);
 
 	if (i != pkts_to_be_removed)
@@ -530,6 +562,7 @@ static inline void bcsp_complete_rx_pkt(struct hci_uart *hu)
 
 		hci_recv_frame(bcsp->rx_skb);
 	}
+
 	bcsp->rx_state = BCSP_W4_PKT_DELIMITER;
 	bcsp->rx_skb = NULL;
 }
@@ -598,8 +631,8 @@ static int bcsp_recv(struct hci_uart *hu, void *data, int count)
 
 				BT_ERR ("Checksum failed: computed %04x received %04x",
 					bcsp_crc_reverse(bcsp->message_crc),
-				     	(bcsp->rx_skb-> data[bcsp->rx_skb->len - 2] << 8) +
-				     	bcsp->rx_skb->data[bcsp->rx_skb->len - 1]);
+					(bcsp->rx_skb-> data[bcsp->rx_skb->len - 2] << 8) +
+					bcsp->rx_skb->data[bcsp->rx_skb->len - 1]);
 
 				kfree_skb(bcsp->rx_skb);
 				bcsp->rx_state = BCSP_W4_PKT_DELIMITER;
@@ -633,7 +666,7 @@ static int bcsp_recv(struct hci_uart *hu, void *data, int count)
 				bcsp->rx_count = 4;
 				bcsp->rx_esc_state = BCSP_ESCSTATE_NOESC;
 				BCSP_CRC_INIT(bcsp->message_crc);
-				
+
 				/* Do not increment ptr or decrement count
 				 * Allocate packet. Max len of a BCSP pkt= 
 				 * 0xFFF (payload) +4 (header) +2 (crc) */
@@ -698,6 +731,9 @@ static int bcsp_open(struct hci_uart *hu)
 
 	bcsp->rx_state = BCSP_W4_PKT_DELIMITER;
 
+	if (txcrc)
+		bcsp->use_crc = 1;
+
 	return 0;
 }
 
@@ -718,18 +754,19 @@ static int bcsp_close(struct hci_uart *hu)
 }
 
 static struct hci_uart_proto bcsp = {
-	.id      = HCI_UART_BCSP,
-	.open    = bcsp_open,
-	.close   = bcsp_close,
-	.enqueue = bcsp_enqueue,
-	.dequeue = bcsp_dequeue,
-	.recv    = bcsp_recv,
-	.flush   = bcsp_flush
+	.id		= HCI_UART_BCSP,
+	.open		= bcsp_open,
+	.close		= bcsp_close,
+	.enqueue	= bcsp_enqueue,
+	.dequeue	= bcsp_dequeue,
+	.recv		= bcsp_recv,
+	.flush		= bcsp_flush
 };
 
 int bcsp_init(void)
 {
 	int err = hci_uart_register_proto(&bcsp);
+
 	if (!err)
 		BT_INFO("HCI BCSP protocol initialized");
 	else
@@ -742,6 +779,9 @@ int bcsp_deinit(void)
 {
 	return hci_uart_unregister_proto(&bcsp);
 }
+
+module_param(txcrc, bool, 0644);
+MODULE_PARM_DESC(txcrc, "Transmit CRC with every BCSP packet");
 
 module_param(hciextn, bool, 0644);
 MODULE_PARM_DESC(hciextn, "Convert HCI Extensions into BCSP packets");

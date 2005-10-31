@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/mtd/jedec.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/mtd.h>

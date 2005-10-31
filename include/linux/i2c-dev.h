@@ -19,8 +19,6 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-/* $Id: i2c-dev.h,v 1.13 2003/01/21 08:08:16 kmalkki Exp $ */
-
 #ifndef _LINUX_I2C_DEV_H
 #define _LINUX_I2C_DEV_H
 

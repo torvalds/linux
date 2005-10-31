@@ -309,7 +309,7 @@ tcp_tso_win_divisor - INTEGER
        can be consumed by a single TSO frame.
        The setting of this parameter is a choice between burstiness and
        building larger TSO frames.
-       Default: 8
+       Default: 3
 
 tcp_frto - BOOLEAN
 	Enables F-RTO, an enhanced recovery algorithm for TCP retransmission

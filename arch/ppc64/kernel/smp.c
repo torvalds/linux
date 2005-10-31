@@ -45,8 +45,7 @@
 #include <asm/cputable.h>
 #include <asm/system.h>
 #include <asm/abs_addr.h>
-
-#include "mpic.h"
+#include <asm/mpic.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -70,28 +69,6 @@ void smp_call_function_interrupt(void);
 int smt_enabled_at_boot = 1;
 
 #ifdef CONFIG_MPIC
-void smp_mpic_message_pass(int target, int msg)
-{
-	/* make sure we're sending something that translates to an IPI */
-	if ( msg > 0x3 ){
-		printk("SMP %d: smp_message_pass: unknown msg %d\n",
-		       smp_processor_id(), msg);
-		return;
-	}
-	switch ( target )
-	{
-	case MSG_ALL:
-		mpic_send_ipi(msg, 0xffffffff);
-		break;
-	case MSG_ALL_BUT_SELF:
-		mpic_send_ipi(msg, 0xffffffff & ~(1 << smp_processor_id()));
-		break;
-	default:
-		mpic_send_ipi(msg, 1 << target);
-		break;
-	}
-}
-
 int __init smp_mpic_probe(void)
 {
 	int nr_cpus;
@@ -127,21 +104,6 @@ void __devinit smp_generic_kick_cpu(int nr)
 }
 
 #endif /* CONFIG_MPIC */
-
-static void __init smp_space_timers(unsigned int max_cpus)
-{
-	int i;
-	unsigned long offset = tb_ticks_per_jiffy / max_cpus;
-	unsigned long previous_tb = paca[boot_cpuid].next_jiffy_update_tb;
-
-	for_each_cpu(i) {
-		if (i != boot_cpuid) {
-			paca[i].next_jiffy_update_tb =
-				previous_tb + offset;
-			previous_tb = paca[i].next_jiffy_update_tb;
-		}
-	}
-}
 
 void smp_message_recv(int msg, struct pt_regs *regs)
 {

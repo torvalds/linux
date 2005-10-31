@@ -29,7 +29,7 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/serial_core.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -136,7 +136,7 @@ void __init ixdp2x01_init_irq(void)
  *************************************************************************/
 static struct map_desc ixdp2x01_io_desc __initdata = {
 	.virtual	= IXDP2X01_VIRT_CPLD_BASE, 
-	.physical	= IXDP2X01_PHYS_CPLD_BASE,
+	.pfn		= __phys_to_pfn(IXDP2X01_PHYS_CPLD_BASE),
 	.length		= IXDP2X01_CPLD_REGION_SIZE,
 	.type		= MT_DEVICE
 };

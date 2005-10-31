@@ -18,7 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -103,8 +103,12 @@ static struct platform_device innovator_flash_device = {
 
 /* Only FPGA needs to be mapped here. All others are done with ioremap */
 static struct map_desc innovator1510_io_desc[] __initdata = {
-{ OMAP1510_FPGA_BASE, OMAP1510_FPGA_START, OMAP1510_FPGA_SIZE,
-	MT_DEVICE },
+	{
+		.virtual	= OMAP1510_FPGA_BASE,
+		.pfn		= __phys_to_pfn(OMAP1510_FPGA_START),
+		.length		= OMAP1510_FPGA_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static struct resource innovator1510_smc91x_resources[] = {

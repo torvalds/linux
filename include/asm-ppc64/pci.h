@@ -168,7 +168,7 @@ extern void pcibios_add_platform_entries(struct pci_dev *dev);
 
 struct file;
 extern pgprot_t	pci_phys_mem_access_prot(struct file *file,
-					 unsigned long offset,
+					 unsigned long pfn,
 					 unsigned long size,
 					 pgprot_t prot);
 

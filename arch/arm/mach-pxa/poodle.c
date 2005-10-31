@@ -16,7 +16,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/fb.h>
 
 #include <asm/hardware.h>
@@ -32,6 +32,7 @@
 #include <asm/arch/irq.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/udc.h>
+#include <asm/arch/irda.h>
 #include <asm/arch/poodle.h>
 #include <asm/arch/pxafb.h>
 
@@ -152,6 +153,24 @@ static struct pxamci_platform_data poodle_mci_platform_data = {
 
 
 /*
+ * Irda
+ */
+static void poodle_irda_transceiver_mode(struct device *dev, int mode)
+{
+	if (mode & IR_OFF) {
+		GPSR(POODLE_GPIO_IR_ON) = GPIO_bit(POODLE_GPIO_IR_ON);
+	} else {
+		GPCR(POODLE_GPIO_IR_ON) = GPIO_bit(POODLE_GPIO_IR_ON);
+	}
+}
+
+static struct pxaficp_platform_data poodle_ficp_platform_data = {
+	.transceiver_cap  = IR_SIRMODE | IR_OFF,
+	.transceiver_mode = poodle_irda_transceiver_mode,
+};
+
+
+/*
  * USB Device Controller
  */
 static void poodle_udc_command(int cmd)
@@ -244,8 +263,10 @@ static void __init poodle_init(void)
 
 	set_pxa_fb_info(&poodle_fb_info);
 	pxa_gpio_mode(POODLE_GPIO_USB_PULLUP | GPIO_OUT);
+	pxa_gpio_mode(POODLE_GPIO_IR_ON | GPIO_OUT);
 	pxa_set_udc_info(&udc_info);
 	pxa_set_mci_info(&poodle_mci_platform_data);
+	pxa_set_ficp_info(&poodle_ficp_platform_data);
 
 	scoop_num = 1;
 	scoop_devs = &poodle_pcmcia_scoop[0];

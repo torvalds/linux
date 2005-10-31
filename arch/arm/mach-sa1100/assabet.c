@@ -388,9 +388,17 @@ static struct sa1100_port_fns assabet_port_fns __initdata = {
 };
 
 static struct map_desc assabet_io_desc[] __initdata = {
- /* virtual     physical    length      type */
-  { 0xf1000000, 0x12000000, 0x00100000, MT_DEVICE }, /* Board Control Register */
-  { 0xf2800000, 0x4b800000, 0x00800000, MT_DEVICE }  /* MQ200 */
+  	{	/* Board Control Register */
+		.virtual	=  0xf1000000,
+		.pfn		= __phys_to_pfn(0x12000000),
+		.length		= 0x00100000,
+		.type		= MT_DEVICE
+	}, {	/* MQ200 */
+		.virtual	=  0xf2800000,
+		.pfn		= __phys_to_pfn(0x4b800000),
+		.length		= 0x00800000,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init assabet_map_io(void)

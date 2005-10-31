@@ -17,7 +17,7 @@ extern dma_addr_t bad_dma_address;
 	(swiotlb ? swiotlb_dma_mapping_error(x) : ((x) == bad_dma_address))
 
 void *dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
-			 unsigned gfp);
+			 gfp_t gfp);
 void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 			 dma_addr_t dma_handle);
 

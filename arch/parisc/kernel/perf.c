@@ -746,7 +746,8 @@ static int perf_write_image(uint64_t *memaddr)
 	uint64_t *bptr;
 	uint32_t dwords;
 	uint32_t *intrigue_rdr;
-	uint64_t *intrigue_bitmask, tmp64, proc_hpa;
+	uint64_t *intrigue_bitmask, tmp64;
+	void __iomem *runway;
 	struct rdr_tbl_ent *tentry;
 	int i;
 
@@ -798,15 +799,16 @@ static int perf_write_image(uint64_t *memaddr)
 		return -1;
 	}
 
-	proc_hpa = cpu_device->hpa;
+	runway = ioremap(cpu_device->hpa.start, 4096);
 
 	/* Merge intrigue bits into Runway STATUS 0 */
-	tmp64 = __raw_readq(proc_hpa + RUNWAY_STATUS) & 0xffecfffffffffffful;
-	__raw_writeq(tmp64 | (*memaddr++ & 0x0013000000000000ul), proc_hpa + RUNWAY_STATUS);
+	tmp64 = __raw_readq(runway + RUNWAY_STATUS) & 0xffecfffffffffffful;
+	__raw_writeq(tmp64 | (*memaddr++ & 0x0013000000000000ul), 
+		     runway + RUNWAY_STATUS);
 	
 	/* Write RUNWAY DEBUG registers */
 	for (i = 0; i < 8; i++) {
-		__raw_writeq(*memaddr++, proc_hpa + RUNWAY_DEBUG + i);
+		__raw_writeq(*memaddr++, runway + RUNWAY_DEBUG);
 	}
 
 	return 0; 

@@ -997,10 +997,7 @@ static void __devexit saa9730_remove_one(struct pci_dev *pdev)
 
         if (dev) {
                 unregister_netdev(dev);
-
-		if (dev->priv)
-			kfree(dev->priv);
-
+		kfree(dev->priv);
                 free_netdev(dev);
                 pci_release_regions(pdev);
                 pci_disable_device(pdev);
@@ -1096,8 +1093,7 @@ static int lan_saa9730_init(struct net_device *dev, int ioaddr, int irq)
 	return 0;
 
  out:
-	if (dev->priv)
-		kfree(dev->priv);
+	kfree(dev->priv);
 	return ret;
 }
 

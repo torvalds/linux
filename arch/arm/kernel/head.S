@@ -21,6 +21,7 @@
 #include <asm/procinfo.h>
 #include <asm/ptrace.h>
 #include <asm/asm-offsets.h>
+#include <asm/memory.h>
 #include <asm/thread_info.h>
 #include <asm/system.h>
 
@@ -33,52 +34,28 @@
 #define MACHINFO_PGOFFIO	12
 #define MACHINFO_NAME		16
 
-#ifndef CONFIG_XIP_KERNEL
 /*
- * We place the page tables 16K below TEXTADDR.  Therefore, we must make sure
- * that TEXTADDR is correctly set.  Currently, we expect the least significant
- * 16 bits to be 0x8000, but we could probably relax this restriction to
- * TEXTADDR >= PAGE_OFFSET + 0x4000
- *
- * Note that swapper_pg_dir is the virtual address of the page tables, and
- * pgtbl gives us a position-independent reference to these tables.  We can
- * do this because stext == TEXTADDR
+ * swapper_pg_dir is the virtual address of the initial page table.
+ * We place the page tables 16K below KERNEL_RAM_ADDR.  Therefore, we must
+ * make sure that KERNEL_RAM_ADDR is correctly set.  Currently, we expect
+ * the least significant 16 bits to be 0x8000, but we could probably
+ * relax this restriction to KERNEL_RAM_ADDR >= PAGE_OFFSET + 0x4000.
  */
-#if (TEXTADDR & 0xffff) != 0x8000
-#error TEXTADDR must start at 0xXXXX8000
+#if (KERNEL_RAM_ADDR & 0xffff) != 0x8000
+#error KERNEL_RAM_ADDR must start at 0xXXXX8000
 #endif
 
 	.globl	swapper_pg_dir
-	.equ	swapper_pg_dir, TEXTADDR - 0x4000
+	.equ	swapper_pg_dir, KERNEL_RAM_ADDR - 0x4000
 
-	.macro	pgtbl, rd, phys
-	adr	\rd, stext
-	sub	\rd, \rd, #0x4000
+	.macro	pgtbl, rd
+	ldr	\rd, =(__virt_to_phys(KERNEL_RAM_ADDR - 0x4000))
 	.endm
+
+#ifdef CONFIG_XIP_KERNEL
+#define TEXTADDR  XIP_VIRT_ADDR(CONFIG_XIP_PHYS_ADDR)
 #else
-/*
- * XIP Kernel:
- *
- * We place the page tables 16K below DATAADDR.  Therefore, we must make sure
- * that DATAADDR is correctly set.  Currently, we expect the least significant
- * 16 bits to be 0x8000, but we could probably relax this restriction to
- * DATAADDR >= PAGE_OFFSET + 0x4000
- *
- * Note that pgtbl is meant to return the physical address of swapper_pg_dir.
- * We can't make it relative to the kernel position in this case since
- * the kernel can physically be anywhere.
- */
-#if (DATAADDR & 0xffff) != 0x8000
-#error DATAADDR must start at 0xXXXX8000
-#endif
-
-	.globl	swapper_pg_dir
-	.equ	swapper_pg_dir, DATAADDR - 0x4000
-
-	.macro	pgtbl, rd, phys
-	ldr	\rd, =((DATAADDR - 0x4000) - VIRT_OFFSET)
-	add	\rd, \rd, \phys
-	.endm
+#define TEXTADDR  KERNEL_RAM_ADDR
 #endif
 
 /*
@@ -279,7 +256,7 @@ __turn_mmu_on:
 	.type	__create_page_tables, %function
 __create_page_tables:
 	ldr	r5, [r8, #MACHINFO_PHYSRAM]	@ physram
-	pgtbl	r4, r5				@ page table address
+	pgtbl	r4				@ page table address
 
 	/*
 	 * Clear the 16K level 1 swapper page table
@@ -324,7 +301,7 @@ __create_page_tables:
 	/*
 	 * Then map first 1MB of ram in case it contains our boot params.
 	 */
-	add	r0, r4, #VIRT_OFFSET >> 18
+	add	r0, r4, #PAGE_OFFSET >> 18
 	orr	r6, r5, r7
 	str	r6, [r0]
 

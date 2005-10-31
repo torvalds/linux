@@ -104,6 +104,22 @@ static inline void random_ether_addr(u8 *addr)
 	addr [0] &= 0xfe;	/* clear multicast bit */
 	addr [0] |= 0x02;	/* set local assignment bit (IEEE802) */
 }
+
+/**
+ * compare_ether_addr - Compare two Ethernet addresses
+ * @addr1: Pointer to a six-byte array containing the Ethernet address
+ * @addr2 Pointer other six-byte array containing the Ethernet address
+ *
+ * Compare two ethernet addresses, returns 0 if equal
+ */
+static inline unsigned compare_ether_addr(const u8 *_a, const u8 *_b)
+{
+	const u16 *a = (const u16 *) _a;
+	const u16 *b = (const u16 *) _b;
+
+	BUILD_BUG_ON(ETH_ALEN != 6);
+	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | (a[2] ^ b[2])) != 0;
+}
 #endif	/* __KERNEL__ */
 
 #endif	/* _LINUX_ETHERDEVICE_H */

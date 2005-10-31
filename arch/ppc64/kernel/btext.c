@@ -18,6 +18,7 @@
 #include <asm/io.h>
 #include <asm/lmb.h>
 #include <asm/processor.h>
+#include <asm/udbg.h>
 
 #undef NO_SCROLL
 
@@ -129,6 +130,47 @@ int btext_initialize(struct device_node *np)
 	map_boot_text();
 
 	return 0;
+}
+
+static void btext_putc(unsigned char c)
+{
+	btext_drawchar(c);
+}
+
+void __init init_boot_display(void)
+{
+	char *name;
+	struct device_node *np = NULL; 
+	int rc = -ENODEV;
+
+	printk("trying to initialize btext ...\n");
+
+	name = (char *)get_property(of_chosen, "linux,stdout-path", NULL);
+	if (name != NULL) {
+		np = of_find_node_by_path(name);
+		if (np != NULL) {
+			if (strcmp(np->type, "display") != 0) {
+				printk("boot stdout isn't a display !\n");
+				of_node_put(np);
+				np = NULL;
+			}
+		}
+	}
+	if (np)
+		rc = btext_initialize(np);
+	if (rc) {
+		for (np = NULL; (np = of_find_node_by_type(np, "display"));) {
+			if (get_property(np, "linux,opened", NULL)) {
+				printk("trying %s ...\n", np->full_name);
+				rc = btext_initialize(np);
+				printk("result: %d\n", rc);
+			}
+			if (rc == 0)
+				break;
+		}
+	}
+	if (rc == 0 && udbg_putc == NULL)
+		udbg_putc = btext_putc;
 }
 
 

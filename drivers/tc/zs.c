@@ -65,14 +65,14 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/bootinfo.h>
-#include <asm/dec/serial.h>
 
-#ifdef CONFIG_MACH_DECSTATION
 #include <asm/dec/interrupts.h>
-#include <asm/dec/machtype.h>
-#include <asm/dec/tc.h>
 #include <asm/dec/ioasic_addrs.h>
-#endif
+#include <asm/dec/machtype.h>
+#include <asm/dec/serial.h>
+#include <asm/dec/system.h>
+#include <asm/dec/tc.h>
+
 #ifdef CONFIG_KGDB
 #include <asm/kgdb.h>
 #endif
@@ -191,18 +191,6 @@ static struct tty_driver *serial_driver;
 static void probe_sccs(void);
 static void change_speed(struct dec_serial *info);
 static void rs_wait_until_sent(struct tty_struct *tty, int timeout);
-
-/*
- * tmp_buf is used as a temporary buffer by serial_write.  We need to
- * lock it in case the copy_from_user blocks while swapping in a page,
- * and some other program tries to do a serial write at the same time.
- * Since the lock will only come under contention when the system is
- * swapping and available memory is low, it makes sense to share one
- * buffer across all the serial ports, since it significantly saves
- * memory if large numbers of serial ports are open.
- */
-static unsigned char tmp_buf[4096]; /* This is cheating */
-static DECLARE_MUTEX(tmp_buf_sem);
 
 static inline int serial_paranoia_check(struct dec_serial *info,
 					char *name, const char *routine)
@@ -1628,30 +1616,22 @@ static void __init probe_sccs(void)
 		return;
 	}
 
-	/*
-	 * When serial console is activated, tc_init has not been called yet
-	 * and system_base is undefined. Unfortunately we have to hardcode
-	 * system_base for this case :-(. HK
-	 */
 	switch(mips_machtype) {
 #ifdef CONFIG_MACH_DECSTATION
 	case MACH_DS5000_2X0:
 	case MACH_DS5900:
-		system_base = KSEG1ADDR(0x1f800000);
 		n_chips = 2;
 		zs_parms = &ds_parms;
 		zs_parms->irq0 = dec_interrupt[DEC_IRQ_SCC0];
 		zs_parms->irq1 = dec_interrupt[DEC_IRQ_SCC1];
 		break;
 	case MACH_DS5000_1XX:
-		system_base = KSEG1ADDR(0x1c000000);
 		n_chips = 2;
 		zs_parms = &ds_parms;
 		zs_parms->irq0 = dec_interrupt[DEC_IRQ_SCC0];
 		zs_parms->irq1 = dec_interrupt[DEC_IRQ_SCC1];
 		break;
 	case MACH_DS5000_XX:
-		system_base = KSEG1ADDR(0x1c000000);
 		n_chips = 1;
 		zs_parms = &ds_parms;
 		zs_parms->irq0 = dec_interrupt[DEC_IRQ_SCC0];
@@ -1673,10 +1653,10 @@ static void __init probe_sccs(void)
 			 * The sccs reside on the high byte of the 16 bit IOBUS
 			 */
 			zs_channels[n_channels].control =
-				(volatile unsigned char *)system_base +
+				(volatile void *)CKSEG1ADDR(dec_kn_slot_base +
 			  (0 == chip ? zs_parms->scc0 : zs_parms->scc1) +
 			  (0 == channel ? zs_parms->channel_a_offset :
-			                  zs_parms->channel_b_offset);
+			                  zs_parms->channel_b_offset));
 			zs_channels[n_channels].data =
 				zs_channels[n_channels].control + 4;
 

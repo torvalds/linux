@@ -254,7 +254,7 @@ unsigned int textsearch_find_continuous(struct ts_config *conf,
  *         parameters or a ERR_PTR().
  */
 struct ts_config *textsearch_prepare(const char *algo, const void *pattern,
-				     unsigned int len, int gfp_mask, int flags)
+				     unsigned int len, gfp_t gfp_mask, int flags)
 {
 	int err = -ENOENT;
 	struct ts_config *conf;

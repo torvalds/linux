@@ -62,7 +62,12 @@ arch_initcall(shark_init);
 extern void shark_init_irq(void);
 
 static struct map_desc shark_io_desc[] __initdata = {
-	{ IO_BASE	, IO_START	, IO_SIZE	, MT_DEVICE }
+	{
+		.virtual	= IO_BASE,
+		.pfn		= __phys_to_pfn(IO_START),
+		.length		= IO_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init shark_map_io(void)

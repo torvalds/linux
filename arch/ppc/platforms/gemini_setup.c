@@ -35,6 +35,7 @@
 #include <asm/time.h>
 #include <asm/open_pic.h>
 #include <asm/bootinfo.h>
+#include <asm/machdep.h>
 
 void gemini_find_bridges(void);
 static int gemini_get_clock_speed(void);
@@ -555,7 +556,6 @@ void __init platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 
 	ppc_md.setup_arch = gemini_setup_arch;
 	ppc_md.show_cpuinfo = gemini_show_cpuinfo;
-	ppc_md.irq_canonicalize = NULL;
 	ppc_md.init_IRQ = gemini_init_IRQ;
 	ppc_md.get_irq = openpic_get_irq;
 	ppc_md.init = NULL;
@@ -575,6 +575,6 @@ void __init platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.pcibios_fixup_bus = gemini_pcibios_fixup;
 
 #ifdef CONFIG_SMP
-	ppc_md.smp_ops = &gemini_smp_ops;
+	smp_ops = &gemini_smp_ops;
 #endif /* CONFIG_SMP */
 }

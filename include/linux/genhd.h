@@ -119,7 +119,7 @@ struct gendisk {
 	int policy;
 
 	atomic_t sync_io;		/* RAID */
-	unsigned long stamp, stamp_idle;
+	unsigned long stamp;
 	int in_flight;
 #ifdef	CONFIG_SMP
 	struct disk_stats *dkstats;
@@ -132,6 +132,7 @@ struct gendisk {
 struct disk_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct gendisk *, char *);
+	ssize_t (*store)(struct gendisk *, const char *, size_t);
 };
 
 /* 

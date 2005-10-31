@@ -22,6 +22,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/string.h>
 #include <media/ir-common.h>
 
 /* -------------------------------------------------------------------------- */
@@ -252,7 +253,6 @@ void ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
 	if (ir_codes)
 		memcpy(ir->ir_codes, ir_codes, sizeof(ir->ir_codes));
 
-        init_input_dev(dev);
 	dev->keycode     = ir->ir_codes;
 	dev->keycodesize = sizeof(IR_KEYTAB_TYPE);
 	dev->keycodemax  = IR_KEYTAB_SIZE;

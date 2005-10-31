@@ -29,6 +29,7 @@
 #include <asm/mmu.h>
 #include <asm/ppc_sys.h>
 #include <asm/kgdb.h>
+#include <asm/machdep.h>
 
 #include <syslib/ppc85xx_setup.h>
 

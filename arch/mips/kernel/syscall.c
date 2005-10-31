@@ -7,6 +7,7 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2001 MIPS Technologies, Inc.
  */
+#include <linux/config.h>
 #include <linux/a.out.h>
 #include <linux/errno.h>
 #include <linux/linkage.h>
@@ -26,6 +27,7 @@
 #include <linux/msg.h>
 #include <linux/shm.h>
 #include <linux/compiler.h>
+#include <linux/module.h>
 
 #include <asm/branch.h>
 #include <asm/cachectl.h>
@@ -55,6 +57,8 @@ out:
 }
 
 unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
+
+EXPORT_SYMBOL(shm_align_mask);
 
 #define COLOUR_ALIGN(addr,pgoff)				\
 	((((addr) + shm_align_mask) & ~shm_align_mask) +	\
@@ -173,14 +177,28 @@ _sys_clone(nabi_no_regargs struct pt_regs regs)
 {
 	unsigned long clone_flags;
 	unsigned long newsp;
-	int *parent_tidptr, *child_tidptr;
+	int __user *parent_tidptr, *child_tidptr;
 
 	clone_flags = regs.regs[4];
 	newsp = regs.regs[5];
 	if (!newsp)
 		newsp = regs.regs[29];
-	parent_tidptr = (int *) regs.regs[6];
-	child_tidptr = (int *) regs.regs[7];
+	parent_tidptr = (int __user *) regs.regs[6];
+#ifdef CONFIG_32BIT
+	/* We need to fetch the fifth argument off the stack.  */
+	child_tidptr = NULL;
+	if (clone_flags & (CLONE_CHILD_SETTID | CLONE_CHILD_CLEARTID)) {
+		int __user *__user *usp = (int __user *__user *) regs.regs[29];
+		if (regs.regs[2] == __NR_syscall) {
+			if (get_user (child_tidptr, &usp[5]))
+				return -EFAULT;
+		}
+		else if (get_user (child_tidptr, &usp[4]))
+			return -EFAULT;
+	}
+#else
+	child_tidptr = (int __user *) regs.regs[8];
+#endif
 	return do_fork(clone_flags, newsp, &regs, 0,
 	               parent_tidptr, child_tidptr);
 }
@@ -240,6 +258,16 @@ asmlinkage int sys_olduname(struct oldold_utsname * name)
 	error = error ? -EFAULT : 0;
 
 	return error;
+}
+
+void sys_set_thread_area(unsigned long addr)
+{
+	struct thread_info *ti = current->thread_info;
+
+	ti->tp_value = addr;
+
+	/* If some future MIPS implementation has this register in hardware,
+	 * we will need to update it here (and in context switches).  */
 }
 
 asmlinkage int _sys_sysmips(int cmd, long arg1, int arg2, int arg3)

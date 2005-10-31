@@ -39,7 +39,7 @@ int page_cluster;
 void put_page(struct page *page)
 {
 	if (unlikely(PageCompound(page))) {
-		page = (struct page *)page->private;
+		page = (struct page *)page_private(page);
 		if (put_page_testzero(page)) {
 			void (*dtor)(struct page *page);
 
@@ -48,7 +48,7 @@ void put_page(struct page *page)
 		}
 		return;
 	}
-	if (!PageReserved(page) && put_page_testzero(page))
+	if (put_page_testzero(page))
 		__page_cache_release(page);
 }
 EXPORT_SYMBOL(put_page);
@@ -215,7 +215,7 @@ void release_pages(struct page **pages, int nr, int cold)
 		struct page *page = pages[i];
 		struct zone *pagezone;
 
-		if (PageReserved(page) || !put_page_testzero(page))
+		if (!put_page_testzero(page))
 			continue;
 
 		pagezone = page_zone(page);
@@ -270,7 +270,6 @@ void __pagevec_release_nonlru(struct pagevec *pvec)
 	struct pagevec pages_to_free;
 
 	pagevec_init(&pages_to_free, pvec->cold);
-	pages_to_free.cold = pvec->cold;
 	for (i = 0; i < pagevec_count(pvec); i++) {
 		struct page *page = pvec->pages[i];
 

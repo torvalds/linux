@@ -142,10 +142,14 @@ superio_exit(void)
 #define WINB_BASE_REG 0x60
 /* Constants specified below */
 
-/* Length of ISA address segment */
-#define WINB_EXTENT 8
+/* Alignment of the base address */
+#define WINB_ALIGNMENT		~7
 
-/* Where are the ISA address/data registers relative to the base address */
+/* Offset & size of I/O region we are interested in */
+#define WINB_REGION_OFFSET	5
+#define WINB_REGION_SIZE	2
+
+/* Where are the sensors address/data registers relative to the base address */
 #define W83781D_ADDR_REG_OFFSET 5
 #define W83781D_DATA_REG_OFFSET 6
 
@@ -197,7 +201,6 @@ superio_exit(void)
 
 #define W83627HF_REG_PWM1 0x5A
 #define W83627HF_REG_PWM2 0x5B
-#define W83627HF_REG_PWMCLK12 0x5C
 
 #define W83627THF_REG_PWM1		0x01	/* 697HF and 637HF too */
 #define W83627THF_REG_PWM2		0x03	/* 697HF and 637HF too */
@@ -981,7 +984,7 @@ static int __init w83627hf_find(int sioaddr, unsigned short *addr)
 	superio_select(W83627HF_LD_HWM);
 	val = (superio_inb(WINB_BASE_REG) << 8) |
 	       superio_inb(WINB_BASE_REG + 1);
-	*addr = val & ~(WINB_EXTENT - 1);
+	*addr = val & WINB_ALIGNMENT;
 	if (*addr == 0 && force_addr == 0) {
 		superio_exit();
 		return -ENODEV;
@@ -1000,9 +1003,10 @@ static int w83627hf_detect(struct i2c_adapter *adapter)
 	const char *client_name = "";
 
 	if(force_addr)
-		address = force_addr & ~(WINB_EXTENT - 1);
+		address = force_addr & WINB_ALIGNMENT;
 
-	if (!request_region(address, WINB_EXTENT, w83627hf_driver.name)) {
+	if (!request_region(address + WINB_REGION_OFFSET, WINB_REGION_SIZE,
+	                    w83627hf_driver.name)) {
 		err = -EBUSY;
 		goto ERROR0;
 	}
@@ -1041,11 +1045,10 @@ static int w83627hf_detect(struct i2c_adapter *adapter)
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access w83627hf_{read,write}_value. */
 
-	if (!(data = kmalloc(sizeof(struct w83627hf_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct w83627hf_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto ERROR1;
 	}
-	memset(data, 0, sizeof(struct w83627hf_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
@@ -1148,7 +1151,7 @@ static int w83627hf_detect(struct i2c_adapter *adapter)
       ERROR2:
 	kfree(data);
       ERROR1:
-	release_region(address, WINB_EXTENT);
+	release_region(address + WINB_REGION_OFFSET, WINB_REGION_SIZE);
       ERROR0:
 	return err;
 }
@@ -1163,7 +1166,7 @@ static int w83627hf_detach_client(struct i2c_client *client)
 	if ((err = i2c_detach_client(client)))
 		return err;
 
-	release_region(client->addr, WINB_EXTENT);
+	release_region(client->addr + WINB_REGION_OFFSET, WINB_REGION_SIZE);
 	kfree(data);
 
 	return 0;
@@ -1275,7 +1278,6 @@ static int w83627hf_write_value(struct i2c_client *client, u16 reg, u16 value)
 	return 0;
 }
 
-/* Called when we have found a new W83781D. It should set limits, etc. */
 static void w83627hf_init_client(struct i2c_client *client)
 {
 	struct w83627hf_data *data = i2c_get_clientdata(client);
@@ -1369,12 +1371,6 @@ static void w83627hf_init_client(struct i2c_client *client)
 			}
 		}
 
-		if (type == w83627hf) {
-			/* enable PWM2 control (can't hurt since PWM reg
-		           should have been reset to 0xff) */
-			w83627hf_write_value(client, W83627HF_REG_PWMCLK12,
-					    0x19);
-		}
 		/* enable comparator mode for temp2 and temp3 so
 	           alarm indication will work correctly */
 		i = w83627hf_read_value(client, W83781D_REG_IRQ);

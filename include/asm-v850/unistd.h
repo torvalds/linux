@@ -452,7 +452,6 @@ unsigned long sys_mmap2(unsigned long addr, size_t len,
 struct pt_regs;
 int sys_execve (char *name, char **argv, char **envp, struct pt_regs *regs);
 int sys_pipe (int *fildes);
-int sys_ptrace(long request, long pid, long addr, long data);
 struct sigaction;
 asmlinkage long sys_rt_sigaction(int sig,
 				const struct sigaction __user *act,

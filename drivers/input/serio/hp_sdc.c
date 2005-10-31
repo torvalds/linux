@@ -764,7 +764,7 @@ MODULE_DEVICE_TABLE(parisc, hp_sdc_tbl);
 static int __init hp_sdc_init_hppa(struct parisc_device *d);
 
 static struct parisc_driver hp_sdc_driver = {
-	.name =		"HP SDC",
+	.name =		"hp_sdc",
 	.id_table =	hp_sdc_tbl,
 	.probe =	hp_sdc_init_hppa,
 };
@@ -875,9 +875,9 @@ static int __init hp_sdc_init_hppa(struct parisc_device *d)
 	hp_sdc.dev		= d;
 	hp_sdc.irq		= d->irq;
 	hp_sdc.nmi		= d->aux_irq;
-	hp_sdc.base_io		= d->hpa;
-	hp_sdc.data_io		= d->hpa + 0x800;
-	hp_sdc.status_io	= d->hpa + 0x801;
+	hp_sdc.base_io		= d->hpa.start;
+	hp_sdc.data_io		= d->hpa.start + 0x800;
+	hp_sdc.status_io	= d->hpa.start + 0x801;
 
 	return hp_sdc_init();
 }

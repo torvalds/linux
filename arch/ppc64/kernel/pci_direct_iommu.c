@@ -27,8 +27,7 @@
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
 #include <asm/abs_addr.h>
-
-#include "pci.h"
+#include <asm/ppc-pci.h>
 
 static void *pci_direct_alloc_coherent(struct device *hwdev, size_t size,
 				   dma_addr_t *dma_handle, gfp_t flag)

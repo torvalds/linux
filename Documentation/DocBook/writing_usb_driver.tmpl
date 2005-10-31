@@ -345,8 +345,7 @@ if (!retval) {
   <programlisting>
 static inline void skel_delete (struct usb_skel *dev)
 {
-    if (dev->bulk_in_buffer != NULL)
-        kfree (dev->bulk_in_buffer);
+    kfree (dev->bulk_in_buffer);
     if (dev->bulk_out_buffer != NULL)
         usb_buffer_free (dev->udev, dev->bulk_out_size,
             dev->bulk_out_buffer,

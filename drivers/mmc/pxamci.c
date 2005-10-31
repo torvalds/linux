@@ -20,7 +20,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
@@ -29,7 +29,6 @@
 
 #include <asm/dma.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/scatterlist.h>
 #include <asm/sizes.h>
 
@@ -571,23 +570,23 @@ static int pxamci_remove(struct device *dev)
 }
 
 #ifdef CONFIG_PM
-static int pxamci_suspend(struct device *dev, pm_message_t state, u32 level)
+static int pxamci_suspend(struct device *dev, pm_message_t state)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	int ret = 0;
 
-	if (mmc && level == SUSPEND_DISABLE)
+	if (mmc)
 		ret = mmc_suspend_host(mmc, state);
 
 	return ret;
 }
 
-static int pxamci_resume(struct device *dev, u32 level)
+static int pxamci_resume(struct device *dev)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	int ret = 0;
 
-	if (mmc && level == RESUME_ENABLE)
+	if (mmc)
 		ret = mmc_resume_host(mmc);
 
 	return ret;

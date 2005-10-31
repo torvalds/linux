@@ -105,10 +105,12 @@ static struct usb_driver option_driver = {
 /* The card has three separate interfaces, wich the serial driver
  * recognizes separately, thus num_port=1.
  */
-static struct usb_serial_device_type option_3port_device = {
-	.owner             = THIS_MODULE,
-	.name              = "Option 3G data card",
-	.short_name        = "option",
+static struct usb_serial_driver option_3port_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"option",
+	},
+	.description       = "Option 3G data card",
 	.id_table          = option_ids,
 	.num_interrupt_in  = NUM_DONT_CARE,
 	.num_bulk_in       = NUM_DONT_CARE,

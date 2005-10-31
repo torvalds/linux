@@ -77,7 +77,6 @@ extern int smt_enabled_at_boot;
 
 extern int smp_mpic_probe(void);
 extern void smp_mpic_setup_cpu(int cpu);
-extern void smp_mpic_message_pass(int target, int msg);
 extern void smp_generic_kick_cpu(int nr);
 
 extern void smp_generic_give_timebase(void);

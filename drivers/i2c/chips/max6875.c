@@ -179,16 +179,14 @@ static int max6875_detect(struct i2c_adapter *adapter, int address, int kind)
 	if (address & 1)
 		return 0;
 
-	if (!(data = kmalloc(sizeof(struct max6875_data), GFP_KERNEL)))
+	if (!(data = kzalloc(sizeof(struct max6875_data), GFP_KERNEL)))
 		return -ENOMEM;
-	memset(data, 0, sizeof(struct max6875_data));
 
 	/* A fake client is created on the odd address */
-	if (!(fake_client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL))) {
+	if (!(fake_client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit_kfree1;
 	}
-	memset(fake_client, 0, sizeof(struct i2c_client));
 
 	/* Init real i2c_client */
 	real_client = &data->client;

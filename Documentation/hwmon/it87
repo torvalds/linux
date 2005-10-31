@@ -4,18 +4,18 @@ Kernel driver it87
 Supported chips:
   * IT8705F
     Prefix: 'it87'
-    Addresses scanned: from Super I/O config space, or default ISA 0x290 (8 I/O ports)
+    Addresses scanned: from Super I/O config space (8 I/O ports)
     Datasheet: Publicly available at the ITE website
                http://www.ite.com.tw/
   * IT8712F
     Prefix: 'it8712'
     Addresses scanned: I2C 0x28 - 0x2f
-                       from Super I/O config space, or default ISA 0x290 (8 I/O ports)
+                       from Super I/O config space (8 I/O ports)
     Datasheet: Publicly available at the ITE website
                http://www.ite.com.tw/
   * SiS950   [clone of IT8705F]
-    Prefix: 'sis950'
-    Addresses scanned: from Super I/O config space, or default ISA 0x290 (8 I/O ports)
+    Prefix: 'it87'
+    Addresses scanned: from Super I/O config space (8 I/O ports)
     Datasheet: No longer be available
 
 Author: Christophe Gauthron <chrisg@0-in.com>

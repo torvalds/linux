@@ -21,6 +21,7 @@
 #include <asm/byteorder.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
+#include <asm/machdep.h>
 
 #undef DEBUG
 
@@ -53,7 +54,7 @@ static u8* pci_to_OF_bus_map;
 /* By default, we don't re-assign bus numbers. We do this only on
  * some pmacs
  */
-int pci_assign_all_busses;
+int pci_assign_all_buses;
 
 struct pci_controller* hose_head;
 struct pci_controller** hose_tail = &hose_head;
@@ -644,7 +645,7 @@ pcibios_alloc_controller(void)
 /*
  * Functions below are used on OpenFirmware machines.
  */
-static void __openfirmware
+static void
 make_one_node_map(struct device_node* node, u8 pci_bus)
 {
 	int *bus_range;
@@ -678,7 +679,7 @@ make_one_node_map(struct device_node* node, u8 pci_bus)
 	}
 }
 	
-void __openfirmware
+void
 pcibios_make_OF_bus_map(void)
 {
 	int i;
@@ -720,7 +721,7 @@ pcibios_make_OF_bus_map(void)
 
 typedef int (*pci_OF_scan_iterator)(struct device_node* node, void* data);
 
-static struct device_node* __openfirmware
+static struct device_node*
 scan_OF_pci_childs(struct device_node* node, pci_OF_scan_iterator filter, void* data)
 {
 	struct device_node* sub_node;
@@ -761,7 +762,7 @@ scan_OF_pci_childs_iterator(struct device_node* node, void* data)
 	return 0;
 }
 
-static struct device_node* __openfirmware
+static struct device_node*
 scan_OF_childs_for_device(struct device_node* node, u8 bus, u8 dev_fn)
 {
 	u8 filter_data[2] = {bus, dev_fn};
@@ -813,18 +814,20 @@ pci_busdev_to_OF_node(struct pci_bus *bus, int devfn)
 	/* Now, lookup childs of the hose */
 	return scan_OF_childs_for_device(node->child, busnr, devfn);
 }
+EXPORT_SYMBOL(pci_busdev_to_OF_node);
 
 struct device_node*
 pci_device_to_OF_node(struct pci_dev *dev)
 {
 	return pci_busdev_to_OF_node(dev->bus, dev->devfn);
 }
+EXPORT_SYMBOL(pci_device_to_OF_node);
 
 /* This routine is meant to be used early during boot, when the
  * PCI bus numbers have not yet been assigned, and you need to
  * issue PCI config cycles to an OF device.
  * It could also be used to "fix" RTAS config cycles if you want
- * to set pci_assign_all_busses to 1 and still use RTAS for PCI
+ * to set pci_assign_all_buses to 1 and still use RTAS for PCI
  * config cycles.
  */
 struct pci_controller*
@@ -842,7 +845,7 @@ pci_find_hose_for_OF_device(struct device_node* node)
 	return NULL;
 }
 
-static int __openfirmware
+static int
 find_OF_pci_device_filter(struct device_node* node, void* data)
 {
 	return ((void *)node == data);
@@ -890,6 +893,7 @@ pci_device_from_OF_node(struct device_node* node, u8* bus, u8* devfn)
 	}
 	return -ENODEV;
 }
+EXPORT_SYMBOL(pci_device_from_OF_node);
 
 void __init
 pci_process_bridge_OF_ranges(struct pci_controller *hose,
@@ -1030,6 +1034,10 @@ static ssize_t pci_show_devspec(struct device *dev, struct device_attribute *att
 }
 static DEVICE_ATTR(devspec, S_IRUGO, pci_show_devspec, NULL);
 
+#else /* CONFIG_PPC_OF */
+void pcibios_make_OF_bus_map(void)
+{
+}
 #endif /* CONFIG_PPC_OF */
 
 /* Add sysfs properties */
@@ -1262,12 +1270,12 @@ pcibios_init(void)
 
 	/* Scan all of the recorded PCI controllers.  */
 	for (next_busno = 0, hose = hose_head; hose; hose = hose->next) {
-		if (pci_assign_all_busses)
+		if (pci_assign_all_buses)
 			hose->first_busno = next_busno;
 		hose->last_busno = 0xff;
 		bus = pci_scan_bus(hose->first_busno, hose->ops, hose);
 		hose->last_busno = bus->subordinate;
-		if (pci_assign_all_busses || next_busno <= hose->last_busno)
+		if (pci_assign_all_buses || next_busno <= hose->last_busno)
 			next_busno = hose->last_busno + pcibios_assign_bus_offset;
 	}
 	pci_bus_count = next_busno;
@@ -1276,7 +1284,7 @@ pcibios_init(void)
 	 * numbers vs. kernel bus numbers since we may have to
 	 * remap them.
 	 */
-	if (pci_assign_all_busses && have_of)
+	if (pci_assign_all_buses && have_of)
 		pcibios_make_OF_bus_map();
 
 	/* Do machine dependent PCI interrupt routing */
@@ -1586,16 +1594,17 @@ static pgprot_t __pci_mmap_set_pgprot(struct pci_dev *dev, struct resource *rp,
  * above routine
  */
 pgprot_t pci_phys_mem_access_prot(struct file *file,
-				  unsigned long offset,
+				  unsigned long pfn,
 				  unsigned long size,
 				  pgprot_t protection)
 {
 	struct pci_dev *pdev = NULL;
 	struct resource *found = NULL;
 	unsigned long prot = pgprot_val(protection);
+	unsigned long offset = pfn << PAGE_SHIFT;
 	int i;
 
-	if (page_is_ram(offset >> PAGE_SHIFT))
+	if (page_is_ram(pfn))
 		return prot;
 
 	prot |= _PAGE_NO_CACHE | _PAGE_GUARDED;

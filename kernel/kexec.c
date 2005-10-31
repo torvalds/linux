@@ -90,7 +90,7 @@ int kexec_should_crash(struct task_struct *p)
 static int kimage_is_destination_range(struct kimage *image,
 				       unsigned long start, unsigned long end);
 static struct page *kimage_alloc_page(struct kimage *image,
-				       unsigned int gfp_mask,
+				       gfp_t gfp_mask,
 				       unsigned long dest);
 
 static int do_kimage_alloc(struct kimage **rimage, unsigned long entry,
@@ -326,8 +326,7 @@ static int kimage_is_destination_range(struct kimage *image,
 	return 0;
 }
 
-static struct page *kimage_alloc_pages(unsigned int gfp_mask,
-					unsigned int order)
+static struct page *kimage_alloc_pages(gfp_t gfp_mask, unsigned int order)
 {
 	struct page *pages;
 
@@ -335,7 +334,7 @@ static struct page *kimage_alloc_pages(unsigned int gfp_mask,
 	if (pages) {
 		unsigned int count, i;
 		pages->mapping = NULL;
-		pages->private = order;
+		set_page_private(pages, order);
 		count = 1 << order;
 		for (i = 0; i < count; i++)
 			SetPageReserved(pages + i);
@@ -348,7 +347,7 @@ static void kimage_free_pages(struct page *page)
 {
 	unsigned int order, count, i;
 
-	order = page->private;
+	order = page_private(page);
 	count = 1 << order;
 	for (i = 0; i < count; i++)
 		ClearPageReserved(page + i);
@@ -654,7 +653,7 @@ static kimage_entry_t *kimage_dst_used(struct kimage *image,
 }
 
 static struct page *kimage_alloc_page(struct kimage *image,
-					unsigned int gfp_mask,
+					gfp_t gfp_mask,
 					unsigned long destination)
 {
 	/*

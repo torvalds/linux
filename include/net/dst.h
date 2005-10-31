@@ -94,7 +94,6 @@ struct dst_ops
 	struct dst_entry *	(*negative_advice)(struct dst_entry *);
 	void			(*link_failure)(struct sk_buff *);
 	void			(*update_pmtu)(struct dst_entry *dst, u32 mtu);
-	int			(*get_mss)(struct dst_entry *dst, u32 mtu);
 	int			entry_size;
 
 	atomic_t		entries;

@@ -36,10 +36,11 @@ MODULE_PARM_DESC(product, "User specified USB idProduct");
 static struct usb_device_id generic_device_ids[2]; /* Initially all zeroes. */
 
 /* All of the device info needed for the Generic Serial Converter */
-struct usb_serial_device_type usb_serial_generic_device = {
-	.owner =		THIS_MODULE,
-	.name =			"Generic",
-	.short_name =		"generic",
+struct usb_serial_driver usb_serial_generic_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"generic",
+	},
 	.id_table =		generic_device_ids,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		NUM_DONT_CARE,

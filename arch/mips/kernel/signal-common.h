@@ -8,13 +8,14 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
 
+#include <linux/config.h>
+
 static inline int
 setup_sigcontext(struct pt_regs *regs, struct sigcontext *sc)
 {
 	int err = 0;
 
 	err |= __put_user(regs->cp0_epc, &sc->sc_pc);
-	err |= __put_user(regs->cp0_status, &sc->sc_status);
 
 #define save_gp_reg(i) do {						\
 	err |= __put_user(regs->regs[i], &sc->sc_regs[i]);		\
@@ -30,10 +31,32 @@ setup_sigcontext(struct pt_regs *regs, struct sigcontext *sc)
 	save_gp_reg(31);
 #undef save_gp_reg
 
+#ifdef CONFIG_32BIT
 	err |= __put_user(regs->hi, &sc->sc_mdhi);
 	err |= __put_user(regs->lo, &sc->sc_mdlo);
-	err |= __put_user(regs->cp0_cause, &sc->sc_cause);
-	err |= __put_user(regs->cp0_badvaddr, &sc->sc_badvaddr);
+	if (cpu_has_dsp) {
+		err |= __put_user(mfhi1(), &sc->sc_hi1);
+		err |= __put_user(mflo1(), &sc->sc_lo1);
+		err |= __put_user(mfhi2(), &sc->sc_hi2);
+		err |= __put_user(mflo2(), &sc->sc_lo2);
+		err |= __put_user(mfhi3(), &sc->sc_hi3);
+		err |= __put_user(mflo3(), &sc->sc_lo3);
+		err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
+	}
+#endif
+#ifdef CONFIG_64BIT
+	err |= __put_user(regs->hi, &sc->sc_hi[0]);
+	err |= __put_user(regs->lo, &sc->sc_lo[0]);
+	if (cpu_has_dsp) {
+		err |= __put_user(mfhi1(), &sc->sc_hi[1]);
+		err |= __put_user(mflo1(), &sc->sc_lo[1]);
+		err |= __put_user(mfhi2(), &sc->sc_hi[2]);
+		err |= __put_user(mflo2(), &sc->sc_lo[2]);
+		err |= __put_user(mfhi3(), &sc->sc_hi[3]);
+		err |= __put_user(mflo3(), &sc->sc_lo[3]);
+		err |= __put_user(rddsp(DSP_MASK), &sc->sc_dsp);
+	}
+#endif
 
 	err |= __put_user(!!used_math(), &sc->sc_used_math);
 
@@ -61,15 +84,40 @@ out:
 static inline int
 restore_sigcontext(struct pt_regs *regs, struct sigcontext *sc)
 {
-	int err = 0;
 	unsigned int used_math;
+	unsigned long treg;
+	int err = 0;
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
 	err |= __get_user(regs->cp0_epc, &sc->sc_pc);
+#ifdef CONFIG_32BIT
 	err |= __get_user(regs->hi, &sc->sc_mdhi);
 	err |= __get_user(regs->lo, &sc->sc_mdlo);
+	if (cpu_has_dsp) {
+		err |= __get_user(treg, &sc->sc_hi1); mthi1(treg);
+		err |= __get_user(treg, &sc->sc_lo1); mtlo1(treg);
+		err |= __get_user(treg, &sc->sc_hi2); mthi2(treg);
+		err |= __get_user(treg, &sc->sc_lo2); mtlo2(treg);
+		err |= __get_user(treg, &sc->sc_hi3); mthi3(treg);
+		err |= __get_user(treg, &sc->sc_lo3); mtlo3(treg);
+		err |= __get_user(treg, &sc->sc_dsp); wrdsp(treg, DSP_MASK);
+	}
+#endif
+#ifdef CONFIG_64BIT
+	err |= __get_user(regs->hi, &sc->sc_hi[0]);
+	err |= __get_user(regs->lo, &sc->sc_lo[0]);
+	if (cpu_has_dsp) {
+		err |= __get_user(treg, &sc->sc_hi[1]); mthi1(treg);
+		err |= __get_user(treg, &sc->sc_lo[1]); mthi1(treg);
+		err |= __get_user(treg, &sc->sc_hi[2]); mthi2(treg);
+		err |= __get_user(treg, &sc->sc_lo[2]); mthi2(treg);
+		err |= __get_user(treg, &sc->sc_hi[3]); mthi3(treg);
+		err |= __get_user(treg, &sc->sc_lo[3]); mthi3(treg);
+		err |= __get_user(treg, &sc->sc_dsp); wrdsp(treg, DSP_MASK);
+	}
+#endif
 
 #define restore_gp_reg(i) do {						\
 	err |= __get_user(regs->regs[i], &sc->sc_regs[i]);		\
@@ -112,7 +160,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *sc)
 static inline void *
 get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 {
-	unsigned long sp, almask;
+	unsigned long sp;
 
 	/* Default to using normal stack */
 	sp = regs->regs[29];
@@ -128,10 +176,32 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 	if ((ka->sa.sa_flags & SA_ONSTACK) && (sas_ss_flags (sp) == 0))
 		sp = current->sas_ss_sp + current->sas_ss_size;
 
-	if (PLAT_TRAMPOLINE_STUFF_LINE)
-		almask = ~(PLAT_TRAMPOLINE_STUFF_LINE - 1);
-	else
-		almask = ALMASK;
+	return (void *)((sp - frame_size) & (ICACHE_REFILLS_WORKAROUND_WAR ? 32 : ALMASK));
+}
 
-	return (void *)((sp - frame_size) & almask);
+static inline int install_sigtramp(unsigned int __user *tramp,
+	unsigned int syscall)
+{
+	int err;
+
+	/*
+	 * Set up the return code ...
+	 *
+	 *         li      v0, __NR__foo_sigreturn
+	 *         syscall
+	 */
+
+	err = __put_user(0x24020000 + syscall, tramp + 0);
+	err |= __put_user(0x0000000c          , tramp + 1);
+	if (ICACHE_REFILLS_WORKAROUND_WAR) {
+		err |= __put_user(0, tramp + 2);
+		err |= __put_user(0, tramp + 3);
+		err |= __put_user(0, tramp + 4);
+		err |= __put_user(0, tramp + 5);
+		err |= __put_user(0, tramp + 6);
+		err |= __put_user(0, tramp + 7);
+	}
+	flush_cache_sigtramp((unsigned long) tramp);
+
+	return err;
 }

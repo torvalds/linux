@@ -400,7 +400,7 @@ static int __init cosa_init(void)
 		goto out_chrdev;
 	}
 	for (i=0; i<nr_cards; i++) {
-		class_device_create(cosa_class, MKDEV(cosa_major, i),
+		class_device_create(cosa_class, NULL, MKDEV(cosa_major, i),
 				NULL, "cosa%d", i);
 		err = devfs_mk_cdev(MKDEV(cosa_major, i),
 				S_IFCHR|S_IRUSR|S_IWUSR,
@@ -1617,8 +1617,7 @@ static int get_wait_data(struct cosa_data *cosa)
 			return r;
 		}
 		/* sleep if not ready to read */
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_interruptible(1);
 	}
 	printk(KERN_INFO "cosa: timeout in get_wait_data (status 0x%x)\n",
 		cosa_getstatus(cosa));
@@ -1644,8 +1643,7 @@ static int put_wait_data(struct cosa_data *cosa, int data)
 		}
 #if 0
 		/* sleep if not ready to read */
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(1);
+		schedule_timeout_interruptible(1);
 #endif
 	}
 	printk(KERN_INFO "cosa%d: timeout in put_wait_data (status 0x%x)\n",

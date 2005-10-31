@@ -536,11 +536,10 @@ static int gl520_detect(struct i2c_adapter *adapter, int address, int kind)
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access gl520_{read,write}_value. */
 
-	if (!(data = kmalloc(sizeof(struct gl520_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct gl520_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct gl520_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);

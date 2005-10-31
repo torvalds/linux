@@ -45,6 +45,8 @@
 #include <linux/fs.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
+#include <linux/jiffies.h>
+#include <linux/timer.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 

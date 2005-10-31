@@ -918,7 +918,7 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	}
 #endif
 #elif defined(__powerpc__)
-	vma->vm_page_prot = phys_mem_access_prot(file, off,
+	vma->vm_page_prot = phys_mem_access_prot(file, off >> PAGE_SHIFT,
 						 vma->vm_end - vma->vm_start,
 						 vma->vm_page_prot);
 #elif defined(__alpha__)
@@ -1031,7 +1031,7 @@ register_framebuffer(struct fb_info *fb_info)
 			break;
 	fb_info->node = i;
 
-	fb_info->class_device = class_device_create(fb_class, MKDEV(FB_MAJOR, i),
+	fb_info->class_device = class_device_create(fb_class, NULL, MKDEV(FB_MAJOR, i),
 				    fb_info->device, "fb%d", i);
 	if (IS_ERR(fb_info->class_device)) {
 		/* Not fatal */

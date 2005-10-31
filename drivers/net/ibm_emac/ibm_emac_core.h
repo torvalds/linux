@@ -1,146 +1,221 @@
 /*
- * ibm_emac_core.h
+ * drivers/net/ibm_emac/ibm_emac_core.h
  *
- * Ethernet driver for the built in ethernet on the IBM 405 PowerPC
- * processor.
+ * Driver for PowerPC 4xx on-chip ethernet controller.
  *
- *      Armin Kuster akuster@mvista.com
- *      Sept, 2001
+ * Copyright (c) 2004, 2005 Zultys Technologies.
+ * Eugene Surovegin <eugene.surovegin@zultys.com> or <ebs@ebshome.net>
  *
- *      Orignial driver
- *         Johnnie Peters
- *         jpeters@mvista.com
- *
- * Copyright 2000 MontaVista Softare Inc.
+ * Based on original work by
+ *      Armin Kuster <akuster@mvista.com>
+ * 	Johnnie Peters <jpeters@mvista.com>
+ *      Copyright 2000, 2001 MontaVista Softare Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
+ *
  */
+#ifndef __IBM_EMAC_CORE_H_
+#define __IBM_EMAC_CORE_H_
 
-#ifndef _IBM_EMAC_CORE_H_
-#define _IBM_EMAC_CORE_H_
-
+#include <linux/config.h>
 #include <linux/netdevice.h>
+#include <linux/dma-mapping.h>
 #include <asm/ocp.h>
-#include <asm/mmu.h>		/* For phys_addr_t */
 
 #include "ibm_emac.h"
 #include "ibm_emac_phy.h"
-#include "ibm_emac_rgmii.h"
 #include "ibm_emac_zmii.h"
+#include "ibm_emac_rgmii.h"
 #include "ibm_emac_mal.h"
 #include "ibm_emac_tah.h"
 
-#ifndef CONFIG_IBM_EMAC_TXB
-#define NUM_TX_BUFF		64
-#define NUM_RX_BUFF		64
-#else
-#define NUM_TX_BUFF		CONFIG_IBM_EMAC_TXB
-#define NUM_RX_BUFF		CONFIG_IBM_EMAC_RXB
+#define NUM_TX_BUFF			CONFIG_IBM_EMAC_TXB
+#define NUM_RX_BUFF			CONFIG_IBM_EMAC_RXB
+
+/* Simple sanity check */
+#if NUM_TX_BUFF > 256 || NUM_RX_BUFF > 256
+#error Invalid number of buffer descriptors (greater than 256)
 #endif
 
-/* This does 16 byte alignment, exactly what we need.
- * The packet length includes FCS, but we don't want to
- * include that when passing upstream as it messes up
- * bridging applications.
+// XXX
+#define EMAC_MIN_MTU			46
+#define EMAC_MAX_MTU			9000
+
+/* Maximum L2 header length (VLAN tagged, no FCS) */
+#define EMAC_MTU_OVERHEAD		(6 * 2 + 2 + 4)
+
+/* RX BD size for the given MTU */
+static inline int emac_rx_size(int mtu)
+{
+	if (mtu > ETH_DATA_LEN)
+		return MAL_MAX_RX_SIZE;
+	else
+		return mal_rx_size(ETH_DATA_LEN + EMAC_MTU_OVERHEAD);
+}
+
+#define EMAC_DMA_ALIGN(x)		ALIGN((x), dma_get_cache_alignment())
+
+#define EMAC_RX_SKB_HEADROOM		\
+	EMAC_DMA_ALIGN(CONFIG_IBM_EMAC_RX_SKB_HEADROOM)
+
+/* Size of RX skb for the given MTU */
+static inline int emac_rx_skb_size(int mtu)
+{
+	int size = max(mtu + EMAC_MTU_OVERHEAD, emac_rx_size(mtu));
+	return EMAC_DMA_ALIGN(size + 2) + EMAC_RX_SKB_HEADROOM;
+}
+
+/* RX DMA sync size */
+static inline int emac_rx_sync_size(int mtu)
+{
+	return EMAC_DMA_ALIGN(emac_rx_size(mtu) + 2);
+}
+
+/* Driver statistcs is split into two parts to make it more cache friendly:
+ *   - normal statistics (packet count, etc)
+ *   - error statistics
+ *
+ * When statistics is requested by ethtool, these parts are concatenated,
+ * normal one goes first.
+ *
+ * Please, keep these structures in sync with emac_stats_keys.
  */
-#ifndef CONFIG_IBM_EMAC_SKBRES
-#define SKB_RES 2
-#else
-#define SKB_RES CONFIG_IBM_EMAC_SKBRES
-#endif
 
-/* Note about alignement. alloc_skb() returns a cache line
- * aligned buffer. However, dev_alloc_skb() will add 16 more
- * bytes and "reserve" them, so our buffer will actually end
- * on a half cache line. What we do is to use directly
- * alloc_skb, allocate 16 more bytes to match the total amount
- * allocated by dev_alloc_skb(), but we don't reserve.
- */
-#define MAX_NUM_BUF_DESC	255
-#define DESC_BUF_SIZE		4080	/* max 4096-16 */
-#define DESC_BUF_SIZE_REG	(DESC_BUF_SIZE / 16)
+/* Normal TX/RX Statistics */
+struct ibm_emac_stats {
+	u64 rx_packets;
+	u64 rx_bytes;
+	u64 tx_packets;
+	u64 tx_bytes;
+	u64 rx_packets_csum;
+	u64 tx_packets_csum;
+};
 
-/* Transmitter timeout. */
-#define TX_TIMEOUT		(2*HZ)
+/* Error statistics */
+struct ibm_emac_error_stats {
+	u64 tx_undo;
 
-/* MDIO latency delay */
-#define MDIO_DELAY		250
+	/* Software RX Errors */
+	u64 rx_dropped_stack;
+	u64 rx_dropped_oom;
+	u64 rx_dropped_error;
+	u64 rx_dropped_resize;
+	u64 rx_dropped_mtu;
+	u64 rx_stopped;
+	/* BD reported RX errors */
+	u64 rx_bd_errors;
+	u64 rx_bd_overrun;
+	u64 rx_bd_bad_packet;
+	u64 rx_bd_runt_packet;
+	u64 rx_bd_short_event;
+	u64 rx_bd_alignment_error;
+	u64 rx_bd_bad_fcs;
+	u64 rx_bd_packet_too_long;
+	u64 rx_bd_out_of_range;
+	u64 rx_bd_in_range;
+	/* EMAC IRQ reported RX errors */
+	u64 rx_parity;
+	u64 rx_fifo_overrun;
+	u64 rx_overrun;
+	u64 rx_bad_packet;
+	u64 rx_runt_packet;
+	u64 rx_short_event;
+	u64 rx_alignment_error;
+	u64 rx_bad_fcs;
+	u64 rx_packet_too_long;
+	u64 rx_out_of_range;
+	u64 rx_in_range;
 
-/* Power managment shift registers */
-#define IBM_CPM_EMMII	0	/* Shift value for MII */
-#define IBM_CPM_EMRX	1	/* Shift value for recv */
-#define IBM_CPM_EMTX	2	/* Shift value for MAC */
-#define IBM_CPM_EMAC(x)	(((x)>>IBM_CPM_EMMII) | ((x)>>IBM_CPM_EMRX) | ((x)>>IBM_CPM_EMTX))
+	/* Software TX Errors */
+	u64 tx_dropped;
+	/* BD reported TX errors */
+	u64 tx_bd_errors;
+	u64 tx_bd_bad_fcs;
+	u64 tx_bd_carrier_loss;
+	u64 tx_bd_excessive_deferral;
+	u64 tx_bd_excessive_collisions;
+	u64 tx_bd_late_collision;
+	u64 tx_bd_multple_collisions;
+	u64 tx_bd_single_collision;
+	u64 tx_bd_underrun;
+	u64 tx_bd_sqe;
+	/* EMAC IRQ reported TX errors */
+	u64 tx_parity;
+	u64 tx_underrun;
+	u64 tx_sqe;
+	u64 tx_errors;
+};
 
-#define ENET_HEADER_SIZE	14
-#define ENET_FCS_SIZE		4
-#define ENET_DEF_MTU_SIZE	1500
-#define ENET_DEF_BUF_SIZE	(ENET_DEF_MTU_SIZE + ENET_HEADER_SIZE + ENET_FCS_SIZE)
-#define EMAC_MIN_FRAME		64
-#define EMAC_MAX_FRAME		9018
-#define EMAC_MIN_MTU		(EMAC_MIN_FRAME - ENET_HEADER_SIZE - ENET_FCS_SIZE)
-#define EMAC_MAX_MTU		(EMAC_MAX_FRAME - ENET_HEADER_SIZE - ENET_FCS_SIZE)
-
-#ifdef CONFIG_IBM_EMAC_ERRMSG
-void emac_serr_dump_0(struct net_device *dev);
-void emac_serr_dump_1(struct net_device *dev);
-void emac_err_dump(struct net_device *dev, int em0isr);
-void emac_phy_dump(struct net_device *);
-void emac_desc_dump(struct net_device *);
-void emac_mac_dump(struct net_device *);
-void emac_mal_dump(struct net_device *);
-#else
-#define emac_serr_dump_0(dev) do { } while (0)
-#define emac_serr_dump_1(dev) do { } while (0)
-#define emac_err_dump(dev,x) do { } while (0)
-#define emac_phy_dump(dev) do { } while (0)
-#define emac_desc_dump(dev) do { } while (0)
-#define emac_mac_dump(dev) do { } while (0)
-#define emac_mal_dump(dev) do { } while (0)
-#endif
+#define EMAC_ETHTOOL_STATS_COUNT	((sizeof(struct ibm_emac_stats) + \
+					  sizeof(struct ibm_emac_error_stats)) \
+					 / sizeof(u64))
 
 struct ocp_enet_private {
-	struct sk_buff *tx_skb[NUM_TX_BUFF];
-	struct sk_buff *rx_skb[NUM_RX_BUFF];
-	struct mal_descriptor *tx_desc;
-	struct mal_descriptor *rx_desc;
-	struct mal_descriptor *rx_dirty;
-	struct net_device_stats stats;
-	int tx_cnt;
-	int rx_slot;
-	int dirty_rx;
-	int tx_slot;
-	int ack_slot;
-	int rx_buffer_size;
+	struct net_device		*ndev;		/* 0 */
+	struct emac_regs		*emacp;
+	
+	struct mal_descriptor		*tx_desc;
+	int				tx_cnt;
+	int				tx_slot;
+	int				ack_slot;
 
-	struct mii_phy phy_mii;
-	int mii_phy_addr;
-	int want_autoneg;
-	int timer_ticks;
-	struct timer_list link_timer;
-	struct net_device *mdio_dev;
+	struct mal_descriptor		*rx_desc;
+	int				rx_slot;
+	struct sk_buff			*rx_sg_skb;	/* 1 */
+	int 				rx_skb_size;
+	int				rx_sync_size;
 
-	struct ocp_device *rgmii_dev;
-	int rgmii_input;
+	struct ibm_emac_stats 		stats;
+	struct ocp_device		*tah_dev;
 
-	struct ocp_device *zmii_dev;
-	int zmii_input;
+	struct ibm_ocp_mal		*mal;
+	struct mal_commac		commac;
 
-	struct ibm_ocp_mal *mal;
-	int mal_tx_chan, mal_rx_chan;
-	struct mal_commac commac;
+	struct sk_buff			*tx_skb[NUM_TX_BUFF];
+	struct sk_buff			*rx_skb[NUM_RX_BUFF];
 
-	struct ocp_device *tah_dev;
+	struct ocp_device		*zmii_dev;
+	int				zmii_input;
+	struct ocp_enet_private		*mdio_dev;
+	struct ocp_device		*rgmii_dev;
+	int				rgmii_input;
 
-	int opened;
-	int going_away;
-	int wol_irq;
-	emac_t *emacp;
-	struct ocp_device *ocpdev;
-	struct net_device *ndev;
-	spinlock_t lock;
+	struct ocp_def			*def;
+
+	struct mii_phy			phy;
+	struct timer_list		link_timer;
+	int				reset_failed;
+
+	struct ibm_emac_error_stats	estats;
+	struct net_device_stats		nstats;
+
+	struct device*			ldev;
 };
-#endif				/* _IBM_EMAC_CORE_H_ */
+
+/* Ethtool get_regs complex data.
+ * We want to get not just EMAC registers, but also MAL, ZMII, RGMII, TAH 
+ * when available.
+ * 
+ * Returned BLOB consists of the ibm_emac_ethtool_regs_hdr, 
+ * MAL registers, EMAC registers and optional ZMII, RGMII, TAH registers.
+ * Each register component is preceded with emac_ethtool_regs_subhdr.
+ * Order of the optional headers follows their relative bit posititions 
+ * in emac_ethtool_regs_hdr.components
+ */
+#define EMAC_ETHTOOL_REGS_ZMII		0x00000001
+#define EMAC_ETHTOOL_REGS_RGMII		0x00000002
+#define EMAC_ETHTOOL_REGS_TAH		0x00000004
+
+struct emac_ethtool_regs_hdr {
+	u32 components;
+};
+
+struct emac_ethtool_regs_subhdr {
+	u32 version;
+	u32 index;
+};
+
+#endif				/* __IBM_EMAC_CORE_H_ */

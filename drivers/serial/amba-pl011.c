@@ -50,6 +50,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/sizes.h>
 #include <asm/hardware/amba.h>
 #include <asm/hardware/clock.h>
 #include <asm/hardware/amba_serial.h>

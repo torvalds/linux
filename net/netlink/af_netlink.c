@@ -740,10 +740,7 @@ int netlink_attachskb(struct sock *sk, struct sk_buff *skb, int nonblock, long t
 
 int netlink_sendskb(struct sock *sk, struct sk_buff *skb, int protocol)
 {
-	struct netlink_sock *nlk;
 	int len = skb->len;
-
-	nlk = nlk_sk(sk);
 
 	skb_queue_tail(&sk->sk_receive_queue, skb);
 	sk->sk_data_ready(sk, len);
@@ -827,7 +824,7 @@ struct netlink_broadcast_data {
 	int failure;
 	int congested;
 	int delivered;
-	unsigned int allocation;
+	gfp_t allocation;
 	struct sk_buff *skb, *skb2;
 };
 

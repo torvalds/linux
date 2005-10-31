@@ -568,6 +568,7 @@ config CHESTNUT
 
 config SPRUCE
 	bool "IBM-Spruce"
+	select PPC_INDIRECT_PCI
 
 config HDPU
 	bool "Sky-HDPU"
@@ -588,27 +589,35 @@ config EV64260
 
 config LOPEC
 	bool "Motorola-LoPEC"
+	select PPC_I8259
 
 config MVME5100
 	bool "Motorola-MVME5100"
+	select PPC_INDIRECT_PCI
 
 config PPLUS
 	bool "Motorola-PowerPlus"
+	select PPC_I8259
+	select PPC_INDIRECT_PCI
 
 config PRPMC750
 	bool "Motorola-PrPMC750"
+	select PPC_INDIRECT_PCI
 
 config PRPMC800
 	bool "Motorola-PrPMC800"
+	select PPC_INDIRECT_PCI
 
 config SANDPOINT
 	bool "Motorola-Sandpoint"
+	select PPC_I8259
 	help
 	  Select SANDPOINT if configuring for a Motorola Sandpoint X3
 	  (any flavor).
 
 config RADSTONE_PPC7D
 	bool "Radstone Technology PPC7D board"
+	select PPC_I8259
 
 config PAL4
 	bool "SBS-Palomar4"
@@ -616,6 +625,7 @@ config PAL4
 config GEMINI
 	bool "Synergy-Gemini"
 	depends on BROKEN
+	select PPC_INDIRECT_PCI
 	help
 	  Select Gemini if configuring for a Synergy Microsystems' Gemini
 	  series Single Board Computer.  More information is available at:
@@ -747,13 +757,16 @@ config CPM2
 	  on it (826x, 827x, 8560).
 
 config PPC_CHRP
-	bool
+	bool "  Common Hardware Reference Platform (CHRP) based machines"
 	depends on PPC_MULTIPLATFORM
+	select PPC_I8259
+	select PPC_INDIRECT_PCI
 	default y
 
 config PPC_PMAC
-	bool
+	bool "  Apple PowerMac based machines"
 	depends on PPC_MULTIPLATFORM
+	select PPC_INDIRECT_PCI
 	default y
 
 config PPC_PMAC64
@@ -762,8 +775,10 @@ config PPC_PMAC64
 	default y
 
 config PPC_PREP
-	bool
+	bool "  PowerPC Reference Platform (PReP) based machines"
 	depends on PPC_MULTIPLATFORM
+	select PPC_I8259
+	select PPC_INDIRECT_PCI
 	default y
 
 config PPC_OF
@@ -797,6 +812,7 @@ config MV64360		# Really MV64360 & MV64460
 config MV64X60
 	bool
 	depends on (GT64260 || MV64360)
+	select PPC_INDIRECT_PCI
 	default y
 
 menu "Set bridge options"
@@ -845,6 +861,7 @@ config EPIC_SERIAL_MODE
 config MPC10X_BRIDGE
 	bool
 	depends on POWERPMC250 || LOPEC || SANDPOINT
+	select PPC_INDIRECT_PCI
 	default y
 
 config MPC10X_OPENPIC
@@ -870,6 +887,7 @@ config HARRIER_STORE_GATHERING
 config MVME5100_IPMC761_PRESENT
 	bool "MVME5100 configured with an IPMC761"
 	depends on MVME5100
+	select PPC_I8259
 
 config SPRUCE_BAUD_33M
 	bool "Spruce baud clock support"
@@ -1127,6 +1145,7 @@ menu "Bus options"
 config ISA
 	bool "Support for ISA-bus hardware"
 	depends on PPC_PREP || PPC_CHRP
+	select PPC_I8259
 	help
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
 	  name of a bus system, i.e. the way the CPU talks to the other stuff
@@ -1138,6 +1157,17 @@ config GENERIC_ISA_DMA
 	bool
 	depends on POWER3 || POWER4 || 6xx && !CPM2
 	default y
+
+config PPC_I8259
+	bool
+	default y if 85xx
+	default n
+
+config PPC_INDIRECT_PCI
+	bool
+	depends on PCI
+	default y if 40x || 44x || 85xx || 83xx
+	default n
 
 config EISA
 	bool
@@ -1175,6 +1205,7 @@ config MPC83xx_PCI2
 config PCI_QSPAN
 	bool "QSpan PCI"
 	depends on !4xx && !CPM2 && 8xx
+	select PPC_I8259
 	help
 	  Say Y here if you have a system based on a Motorola 8xx-series
 	  embedded processor with a QSPAN PCI interface, otherwise say N.
@@ -1182,6 +1213,7 @@ config PCI_QSPAN
 config PCI_8260
 	bool
 	depends on PCI && 8260
+	select PPC_INDIRECT_PCI
 	default y
 
 config 8260_PCI9
@@ -1368,7 +1400,7 @@ endmenu
 
 source "lib/Kconfig"
 
-source "arch/ppc/oprofile/Kconfig"
+source "arch/powerpc/oprofile/Kconfig"
 
 source "arch/ppc/Kconfig.debug"
 

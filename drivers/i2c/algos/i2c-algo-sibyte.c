@@ -42,7 +42,7 @@
 
 /* module parameters:
  */
-static int bit_scan=0;	/* have a look at what's hanging 'round		*/
+static int bit_scan;	/* have a look at what's hanging 'round		*/
 
 
 static int smbus_xfer(struct i2c_adapter *i2c_adap, u16 addr, 

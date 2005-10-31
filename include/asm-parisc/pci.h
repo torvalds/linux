@@ -69,7 +69,7 @@ struct pci_hba_data {
 #define PCI_PORT_HBA(a)		((a) >> HBA_PORT_SPACE_BITS)
 #define PCI_PORT_ADDR(a)	((a) & (HBA_PORT_SPACE_SIZE - 1))
 
-#if CONFIG_64BIT
+#ifdef CONFIG_64BIT
 #define PCI_F_EXTEND		0xffffffff00000000UL
 #define PCI_IS_LMMIO(hba,a)	pci_is_lmmio(hba,a)
 

@@ -41,6 +41,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
+#include <linux/device.h>
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
@@ -192,7 +193,6 @@ static void ahci_port_stop(struct ata_port *ap);
 static void ahci_tf_read(struct ata_port *ap, struct ata_taskfile *tf);
 static void ahci_qc_prep(struct ata_queued_cmd *qc);
 static u8 ahci_check_status(struct ata_port *ap);
-static u8 ahci_check_err(struct ata_port *ap);
 static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc);
 static void ahci_remove_one (struct pci_dev *pdev);
 
@@ -216,12 +216,11 @@ static Scsi_Host_Template ahci_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations ahci_ops = {
+static const struct ata_port_operations ahci_ops = {
 	.port_disable		= ata_port_disable,
 
 	.check_status		= ahci_check_status,
 	.check_altstatus	= ahci_check_status,
-	.check_err		= ahci_check_err,
 	.dev_select		= ata_noop_dev_select,
 
 	.tf_read		= ahci_tf_read,
@@ -407,7 +406,7 @@ static u32 ahci_scr_read (struct ata_port *ap, unsigned int sc_reg_in)
 		return 0xffffffffU;
 	}
 
-	return readl((void *) ap->ioaddr.scr_addr + (sc_reg * 4));
+	return readl((void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 
@@ -425,7 +424,7 @@ static void ahci_scr_write (struct ata_port *ap, unsigned int sc_reg_in,
 		return;
 	}
 
-	writel(val, (void *) ap->ioaddr.scr_addr + (sc_reg * 4));
+	writel(val, (void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 static void ahci_phy_reset(struct ata_port *ap)
@@ -453,16 +452,9 @@ static void ahci_phy_reset(struct ata_port *ap)
 
 static u8 ahci_check_status(struct ata_port *ap)
 {
-	void *mmio = (void *) ap->ioaddr.cmd_addr;
+	void __iomem *mmio = (void __iomem *) ap->ioaddr.cmd_addr;
 
 	return readl(mmio + PORT_TFDATA) & 0xFF;
-}
-
-static u8 ahci_check_err(struct ata_port *ap)
-{
-	void *mmio = (void *) ap->ioaddr.cmd_addr;
-
-	return (readl(mmio + PORT_TFDATA) >> 8) & 0xFF;
 }
 
 static void ahci_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
@@ -609,7 +601,7 @@ static void ahci_eng_timeout(struct ata_port *ap)
 	 	 * not being called from the SCSI EH.
 	 	 */
 		qc->scsidone = scsi_finish_command;
-		ata_qc_complete(qc, ATA_ERR);
+		ata_qc_complete(qc, AC_ERR_OTHER);
 	}
 
 	spin_unlock_irqrestore(&host_set->lock, flags);
@@ -638,7 +630,7 @@ static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 	if (status & PORT_IRQ_FATAL) {
 		ahci_intr_error(ap, status);
 		if (qc)
-			ata_qc_complete(qc, ATA_ERR);
+			ata_qc_complete(qc, AC_ERR_OTHER);
 	}
 
 	return 1;
@@ -672,17 +664,35 @@ static irqreturn_t ahci_interrupt (int irq, void *dev_instance, struct pt_regs *
 
         for (i = 0; i < host_set->n_ports; i++) {
 		struct ata_port *ap;
-		u32 tmp;
 
-		VPRINTK("port %u\n", i);
+		if (!(irq_stat & (1 << i)))
+			continue;
+
 		ap = host_set->ports[i];
-		tmp = irq_stat & (1 << i);
-		if (tmp && ap) {
+		if (ap) {
 			struct ata_queued_cmd *qc;
 			qc = ata_qc_from_tag(ap, ap->active_tag);
-			if (ahci_host_intr(ap, qc))
-				irq_ack |= (1 << i);
+			if (!ahci_host_intr(ap, qc))
+				if (ata_ratelimit()) {
+					struct pci_dev *pdev =
+						to_pci_dev(ap->host_set->dev);
+					dev_printk(KERN_WARNING, &pdev->dev,
+					  "unhandled interrupt on port %u\n",
+					  i);
+				}
+
+			VPRINTK("port %u\n", i);
+		} else {
+			VPRINTK("port %u (no irq)\n", i);
+			if (ata_ratelimit()) {
+				struct pci_dev *pdev =
+					to_pci_dev(ap->host_set->dev);
+				dev_printk(KERN_WARNING, &pdev->dev,
+					"interrupt on disabled port %u\n", i);
+			}
 		}
+
+		irq_ack |= (1 << i);
 	}
 
 	if (irq_ack) {
@@ -750,8 +760,8 @@ static int ahci_host_init(struct ata_probe_ent *probe_ent)
 
 	tmp = readl(mmio + HOST_CTL);
 	if (tmp & HOST_RESET) {
-		printk(KERN_ERR DRV_NAME "(%s): controller reset failed (0x%x)\n",
-			pci_name(pdev), tmp);
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "controller reset failed (0x%x)\n", tmp);
 		return -EIO;
 	}
 
@@ -779,22 +789,22 @@ static int ahci_host_init(struct ata_probe_ent *probe_ent)
 		if (rc) {
 			rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 			if (rc) {
-				printk(KERN_ERR DRV_NAME "(%s): 64-bit DMA enable failed\n",
-					pci_name(pdev));
+				dev_printk(KERN_ERR, &pdev->dev,
+					   "64-bit DMA enable failed\n");
 				return rc;
 			}
 		}
 	} else {
 		rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc) {
-			printk(KERN_ERR DRV_NAME "(%s): 32-bit DMA enable failed\n",
-				pci_name(pdev));
+			dev_printk(KERN_ERR, &pdev->dev,
+				   "32-bit DMA enable failed\n");
 			return rc;
 		}
 		rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 		if (rc) {
-			printk(KERN_ERR DRV_NAME "(%s): 32-bit consistent DMA enable failed\n",
-				pci_name(pdev));
+			dev_printk(KERN_ERR, &pdev->dev,
+				   "32-bit consistent DMA enable failed\n");
 			return rc;
 		}
 	}
@@ -897,10 +907,10 @@ static void ahci_print_info(struct ata_probe_ent *probe_ent)
 	else
 		scc_s = "unknown";
 
-	printk(KERN_INFO DRV_NAME "(%s) AHCI %02x%02x.%02x%02x "
+	dev_printk(KERN_INFO, &pdev->dev,
+		"AHCI %02x%02x.%02x%02x "
 		"%u slots %u ports %s Gbps 0x%x impl %s mode\n"
 	       	,
-	       	pci_name(pdev),
 
 	       	(vers >> 24) & 0xff,
 	       	(vers >> 16) & 0xff,
@@ -913,11 +923,11 @@ static void ahci_print_info(struct ata_probe_ent *probe_ent)
 		impl,
 		scc_s);
 
-	printk(KERN_INFO DRV_NAME "(%s) flags: "
+	dev_printk(KERN_INFO, &pdev->dev,
+		"flags: "
 	       	"%s%s%s%s%s%s"
 	       	"%s%s%s%s%s%s%s\n"
 	       	,
-	       	pci_name(pdev),
 
 		cap & (1 << 31) ? "64bit " : "",
 		cap & (1 << 30) ? "ncq " : "",
@@ -950,7 +960,7 @@ static int ahci_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	VPRINTK("ENTER\n");
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc)

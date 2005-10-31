@@ -367,7 +367,6 @@ asmlinkage int sys_fork(long r10, long r11, long r12, long r13,
 asmlinkage int sys_vfork(long r10, long r11, long r12, long r13,
 			long mof, long srp, struct pt_regs *regs);
 asmlinkage int sys_pipe(unsigned long __user *fildes);
-asmlinkage int sys_ptrace(long request, long pid, long addr, long data);
 struct sigaction;
 asmlinkage long sys_rt_sigaction(int sig,
 				const struct sigaction __user *act,

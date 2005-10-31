@@ -320,7 +320,7 @@ struct address_space_operations {
 	/* Unfortunately this kludge is needed for FIBMAP. Don't use it */
 	sector_t (*bmap)(struct address_space *, sector_t);
 	int (*invalidatepage) (struct page *, unsigned long);
-	int (*releasepage) (struct page *, int);
+	int (*releasepage) (struct page *, gfp_t);
 	ssize_t (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs);
 	struct page* (*get_xip_page)(struct address_space *, sector_t,
@@ -574,7 +574,14 @@ struct file_ra_state {
 #define RA_FLAG_INCACHE 0x02	/* file is already in cache */
 
 struct file {
-	struct list_head	f_list;
+	/*
+	 * fu_list becomes invalid after file_free is called and queued via
+	 * fu_rcuhead for RCU freeing
+	 */
+	union {
+		struct list_head	fu_list;
+		struct rcu_head 	fu_rcuhead;
+	} f_u;
 	struct dentry		*f_dentry;
 	struct vfsmount         *f_vfsmnt;
 	struct file_operations	*f_op;
@@ -598,7 +605,6 @@ struct file {
 	spinlock_t		f_ep_lock;
 #endif /* #ifdef CONFIG_EPOLL */
 	struct address_space	*f_mapping;
-	struct rcu_head 	f_rcuhead;
 };
 extern spinlock_t files_lock;
 #define file_list_lock() spin_lock(&files_lock);

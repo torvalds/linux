@@ -28,6 +28,7 @@
 #define BRK_NORLD	10	/* No rld found - not used by Linux/MIPS */
 #define _BRK_THREADBP	11	/* For threads, user bp (used by debuggers) */
 #define BRK_BUG		512	/* Used by BUG() */
+#define BRK_KDB		513	/* Used in KDB_ENTER() */
 #define BRK_MULOVF	1023	/* Multiply overflow */
 
 #endif /* __ASM_BREAK_H */

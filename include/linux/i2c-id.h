@@ -164,10 +164,7 @@
 
 /* --- Bit algorithm adapters 						*/
 #define I2C_HW_B_LP		0x010000 /* Parallel port Philips style */
-#define I2C_HW_B_LPC		0x010001 /* Parallel port control reg. */
 #define I2C_HW_B_SER		0x010002 /* Serial line interface */
-#define I2C_HW_B_ELV		0x010003 /* ELV Card */
-#define I2C_HW_B_VELLE		0x010004 /* Vellemann K8000 */
 #define I2C_HW_B_BT848		0x010005 /* BT848 video boards */
 #define I2C_HW_B_WNV		0x010006 /* Winnov Videums */
 #define I2C_HW_B_VIA		0x010007 /* Via vt82c586b */

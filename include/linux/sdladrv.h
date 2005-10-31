@@ -52,12 +52,8 @@ typedef struct sdlahw
 
 extern int sdla_setup	(sdlahw_t* hw, void* sfm, unsigned len);
 extern int sdla_down	(sdlahw_t* hw);
-extern int sdla_inten	(sdlahw_t* hw);
-extern int sdla_intde	(sdlahw_t* hw);
-extern int sdla_intack	(sdlahw_t* hw);
 extern void S514_intack  (sdlahw_t* hw, u32 int_status);
 extern void read_S514_int_stat (sdlahw_t* hw, u32* int_status);
-extern int sdla_intr	(sdlahw_t* hw);
 extern int sdla_mapmem	(sdlahw_t* hw, unsigned long addr);
 extern int sdla_peek	(sdlahw_t* hw, unsigned long addr, void* buf,
 			 unsigned len);

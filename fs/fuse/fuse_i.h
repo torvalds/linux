@@ -349,22 +349,22 @@ int fuse_fsync_common(struct file *file, struct dentry *de, int datasync,
 		      int isdir);
 
 /**
- * Initialise file operations on a regular file
+ * Initialize file operations on a regular file
  */
 void fuse_init_file_inode(struct inode *inode);
 
 /**
- * Initialise inode operations on regular files and special files
+ * Initialize inode operations on regular files and special files
  */
 void fuse_init_common(struct inode *inode);
 
 /**
- * Initialise inode and file operations on a directory
+ * Initialize inode and file operations on a directory
  */
 void fuse_init_dir(struct inode *inode);
 
 /**
- * Initialise inode operations on a symlink
+ * Initialize inode operations on a symlink
  */
 void fuse_init_symlink(struct inode *inode);
 
@@ -411,7 +411,7 @@ struct fuse_req *fuse_get_request(struct fuse_conn *fc);
 
 /**
  * Decrement reference count of a request.  If count goes to zero put
- * on unused list (preallocated) or free reqest (not preallocated).
+ * on unused list (preallocated) or free request (not preallocated).
  */
 void fuse_put_request(struct fuse_conn *fc, struct fuse_req *req);
 
@@ -431,7 +431,7 @@ void request_send_noreply(struct fuse_conn *fc, struct fuse_req *req);
 void request_send_background(struct fuse_conn *fc, struct fuse_req *req);
 
 /**
- * Release inodes and file assiciated with background request
+ * Release inodes and file associated with background request
  */
 void fuse_release_background(struct fuse_req *req);
 

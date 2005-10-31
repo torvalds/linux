@@ -69,15 +69,12 @@ int init_bootmem_done;
 int boot_mapsize;
 #ifdef CONFIG_PPC_PMAC
 unsigned long agp_special_page;
+EXPORT_SYMBOL(agp_special_page);
 #endif
 
 extern char _end[];
 extern char etext[], _stext[];
 extern char __init_begin, __init_end;
-extern char __prep_begin, __prep_end;
-extern char __chrp_begin, __chrp_end;
-extern char __pmac_begin, __pmac_end;
-extern char __openfirmware_begin, __openfirmware_end;
 
 #ifdef CONFIG_HIGHMEM
 pte_t *kmap_pte;
@@ -167,14 +164,6 @@ void free_initmem(void)
 
 	printk ("Freeing unused kernel memory:");
 	FREESEC(init);
-	if (_machine != _MACH_Pmac)
-		FREESEC(pmac);
-	if (_machine != _MACH_chrp)
-		FREESEC(chrp);
-	if (_machine != _MACH_prep)
-		FREESEC(prep);
-	if (!have_of)
-		FREESEC(openfirmware);
  	printk("\n");
 	ppc_md.progress = NULL;
 #undef FREESEC
@@ -648,18 +637,16 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
  */
 int page_is_ram(unsigned long pfn)
 {
-	unsigned long paddr = (pfn << PAGE_SHIFT);
-
-	return paddr < __pa(high_memory);
+	return pfn < max_pfn;
 }
 
-pgprot_t phys_mem_access_prot(struct file *file, unsigned long addr,
+pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 			      unsigned long size, pgprot_t vma_prot)
 {
 	if (ppc_md.phys_mem_access_prot)
-		return ppc_md.phys_mem_access_prot(file, addr, size, vma_prot);
+		return ppc_md.phys_mem_access_prot(file, pfn, size, vma_prot);
 
-	if (!page_is_ram(addr >> PAGE_SHIFT))
+	if (!page_is_ram(pfn))
 		vma_prot = __pgprot(pgprot_val(vma_prot)
 				    | _PAGE_GUARDED | _PAGE_NO_CACHE);
 	return vma_prot;
