@@ -1,5 +1,6 @@
 #ifndef _PPC_BOOT_STRING_H_
 #define _PPC_BOOT_STRING_H_
+#include <stddef.h>
 
 extern char *strcpy(char *dest, const char *src);
 extern char *strncpy(char *dest, const char *src, size_t n);

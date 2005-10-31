@@ -30,8 +30,7 @@
 #include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/pSeries_reconfig.h>
-
-#include "pci.h"
+#include <asm/ppc-pci.h>
 
 /*
  * Traverse_func that inits the PCI fields of the device node.

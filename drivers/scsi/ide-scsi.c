@@ -180,19 +180,12 @@ static void idescsi_input_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsigne
 			return;
 		}
 		count = min(pc->sg->length - pc->b_count, bcount);
-		if (PageHighMem(pc->sg->page)) {
-			unsigned long flags;
-
-			local_irq_save(flags);
-			buf = kmap_atomic(pc->sg->page, KM_IRQ0) + pc->sg->offset;
-			drive->hwif->atapi_input_bytes(drive, buf + pc->b_count, count);
-			kunmap_atomic(buf - pc->sg->offset, KM_IRQ0);
-			local_irq_restore(flags);
-		} else {
-			buf = page_address(pc->sg->page) + pc->sg->offset;
-			drive->hwif->atapi_input_bytes(drive, buf + pc->b_count, count);
-		}
-		bcount -= count; pc->b_count += count;
+		buf = kmap_atomic(pc->sg->page, KM_IRQ0);
+		drive->hwif->atapi_input_bytes(drive,
+				buf + pc->b_count + pc->sg->offset, count);
+		kunmap_atomic(buf, KM_IRQ0);
+		bcount -= count;
+		pc->b_count += count;
 		if (pc->b_count == pc->sg->length) {
 			pc->sg++;
 			pc->b_count = 0;
@@ -212,19 +205,12 @@ static void idescsi_output_buffers (ide_drive_t *drive, idescsi_pc_t *pc, unsign
 			return;
 		}
 		count = min(pc->sg->length - pc->b_count, bcount);
-		if (PageHighMem(pc->sg->page)) {
-			unsigned long flags;
-
-			local_irq_save(flags);
-			buf = kmap_atomic(pc->sg->page, KM_IRQ0) + pc->sg->offset;
-			drive->hwif->atapi_output_bytes(drive, buf + pc->b_count, count);
-			kunmap_atomic(buf - pc->sg->offset, KM_IRQ0);
-			local_irq_restore(flags);
-		} else {
-			buf = page_address(pc->sg->page) + pc->sg->offset;
-			drive->hwif->atapi_output_bytes(drive, buf + pc->b_count, count);
-		}
-		bcount -= count; pc->b_count += count;
+		buf = kmap_atomic(pc->sg->page, KM_IRQ0);
+		drive->hwif->atapi_output_bytes(drive,
+				buf + pc->b_count + pc->sg->offset, count);
+		kunmap_atomic(buf, KM_IRQ0);
+		bcount -= count;
+		pc->b_count += count;
 		if (pc->b_count == pc->sg->length) {
 			pc->sg++;
 			pc->b_count = 0;

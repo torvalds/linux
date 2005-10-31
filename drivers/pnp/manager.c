@@ -12,6 +12,8 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/pnp.h>
+#include <linux/slab.h>
+#include <linux/bitmap.h>
 #include "base.h"
 
 DECLARE_MUTEX(pnp_res_mutex);

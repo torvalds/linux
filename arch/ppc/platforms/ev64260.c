@@ -33,6 +33,7 @@
 #include <linux/console.h>
 #include <linux/initrd.h>
 #include <linux/root_dev.h>
+#include <linux/platform_device.h>
 #if !defined(CONFIG_SERIAL_MPSC_CONSOLE)
 #include <linux/serial.h>
 #include <linux/tty.h>

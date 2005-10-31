@@ -63,13 +63,12 @@ void save_processor_state(void)
 	__save_processor_state(&saved_context);
 }
 
-static void
-do_fpu_end(void)
+static void do_fpu_end(void)
 {
-        /* restore FPU regs if necessary */
-	/* Do it out of line so that gcc does not move cr0 load to some stupid place */
-        kernel_fpu_end();
-	mxcsr_feature_mask_init();
+	/*
+	 * Restore FPU regs if necessary
+	 */
+	kernel_fpu_end();
 }
 
 void __restore_processor_state(struct saved_context *ctxt)
@@ -148,57 +147,7 @@ extern int restore_image(void);
 
 pgd_t *temp_level4_pgt;
 
-static void **pages;
-
-static inline void *__add_page(void)
-{
-	void **c;
-
-	c = (void **)get_usable_page(GFP_ATOMIC);
-	if (c) {
-		*c = pages;
-		pages = c;
-	}
-	return c;
-}
-
-static inline void *__next_page(void)
-{
-	void **c;
-
-	c = pages;
-	if (c) {
-		pages = *c;
-		*c = NULL;
-	}
-	return c;
-}
-
-/*
- * Try to allocate as many usable pages as needed and daisy chain them.
- * If one allocation fails, free the pages allocated so far
- */
-static int alloc_usable_pages(unsigned long n)
-{
-	void *p;
-
-	pages = NULL;
-	do
-		if (!__add_page())
-			break;
-	while (--n);
-	if (n) {
-		p = __next_page();
-		while (p) {
-			free_page((unsigned long)p);
-			p = __next_page();
-		}
-		return -ENOMEM;
-	}
-	return 0;
-}
-
-static void res_phys_pud_init(pud_t *pud, unsigned long address, unsigned long end)
+static int res_phys_pud_init(pud_t *pud, unsigned long address, unsigned long end)
 {
 	long i, j;
 
@@ -212,7 +161,9 @@ static void res_phys_pud_init(pud_t *pud, unsigned long address, unsigned long e
 		if (paddr >= end)
 			break;
 
-		pmd = (pmd_t *)__next_page();
+		pmd = (pmd_t *)get_safe_page(GFP_ATOMIC);
+		if (!pmd)
+			return -ENOMEM;
 		set_pud(pud, __pud(__pa(pmd) | _KERNPG_TABLE));
 		for (j = 0; j < PTRS_PER_PMD; pmd++, j++, paddr += PMD_SIZE) {
 			unsigned long pe;
@@ -224,13 +175,17 @@ static void res_phys_pud_init(pud_t *pud, unsigned long address, unsigned long e
 			set_pmd(pmd, __pmd(pe));
 		}
 	}
+	return 0;
 }
 
-static void set_up_temporary_mappings(void)
+static int set_up_temporary_mappings(void)
 {
 	unsigned long start, end, next;
+	int error;
 
-	temp_level4_pgt = (pgd_t *)__next_page();
+	temp_level4_pgt = (pgd_t *)get_safe_page(GFP_ATOMIC);
+	if (!temp_level4_pgt)
+		return -ENOMEM;
 
 	/* It is safe to reuse the original kernel mapping */
 	set_pgd(temp_level4_pgt + pgd_index(__START_KERNEL_map),
@@ -241,29 +196,27 @@ static void set_up_temporary_mappings(void)
 	end = (unsigned long)pfn_to_kaddr(end_pfn);
 
 	for (; start < end; start = next) {
-		pud_t *pud = (pud_t *)__next_page();
+		pud_t *pud = (pud_t *)get_safe_page(GFP_ATOMIC);
+		if (!pud)
+			return -ENOMEM;
 		next = start + PGDIR_SIZE;
 		if (next > end)
 			next = end;
-		res_phys_pud_init(pud, __pa(start), __pa(next));
+		if ((error = res_phys_pud_init(pud, __pa(start), __pa(next))))
+			return error;
 		set_pgd(temp_level4_pgt + pgd_index(start),
 			mk_kernel_pgd(__pa(pud)));
 	}
+	return 0;
 }
 
 int swsusp_arch_resume(void)
 {
-	unsigned long n;
+	int error;
 
-	n = ((end_pfn << PAGE_SHIFT) + PUD_SIZE - 1) >> PUD_SHIFT;
-	n += (n + PTRS_PER_PUD - 1) / PTRS_PER_PUD + 1;
-	pr_debug("swsusp_arch_resume(): pages needed = %lu\n", n);
-	if (alloc_usable_pages(n)) {
-		free_eaten_memory();
-		return -ENOMEM;
-	}
 	/* We have got enough memory and from now on we cannot recover */
-	set_up_temporary_mappings();
+	if ((error = set_up_temporary_mappings()))
+		return error;
 	restore_image();
 	return 0;
 }

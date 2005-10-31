@@ -5,6 +5,7 @@
  *  Support of BIGMEM added by Gerhard Wichert, Siemens AG, July 1999
  *  SMP-safe vmalloc/vfree/ioremap, Tigran Aivazian <tigran@veritas.com>, May 2000
  *  Major rework to support vmap/vunmap, Christoph Hellwig, SGI, August 2002
+ *  Numa awareness, Christoph Lameter, SGI, June 2005
  */
 
 #include <linux/mm.h>
@@ -88,7 +89,7 @@ static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
 {
 	pte_t *pte;
 
-	pte = pte_alloc_kernel(&init_mm, pmd, addr);
+	pte = pte_alloc_kernel(pmd, addr);
 	if (!pte)
 		return -ENOMEM;
 	do {
@@ -146,20 +147,18 @@ int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page ***pages)
 
 	BUG_ON(addr >= end);
 	pgd = pgd_offset_k(addr);
-	spin_lock(&init_mm.page_table_lock);
 	do {
 		next = pgd_addr_end(addr, end);
 		err = vmap_pud_range(pgd, addr, next, prot, pages);
 		if (err)
 			break;
 	} while (pgd++, addr = next, addr != end);
-	spin_unlock(&init_mm.page_table_lock);
 	flush_cache_vmap((unsigned long) area->addr, end);
 	return err;
 }
 
-struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
-				unsigned long start, unsigned long end)
+struct vm_struct *__get_vm_area_node(unsigned long size, unsigned long flags,
+				unsigned long start, unsigned long end, int node)
 {
 	struct vm_struct **p, *tmp, *area;
 	unsigned long align = 1;
@@ -178,7 +177,7 @@ struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
 	addr = ALIGN(start, align);
 	size = PAGE_ALIGN(size);
 
-	area = kmalloc(sizeof(*area), GFP_KERNEL);
+	area = kmalloc_node(sizeof(*area), GFP_KERNEL, node);
 	if (unlikely(!area))
 		return NULL;
 
@@ -231,6 +230,12 @@ out:
 	return NULL;
 }
 
+struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
+				unsigned long start, unsigned long end)
+{
+	return __get_vm_area_node(size, flags, start, end, -1);
+}
+
 /**
  *	get_vm_area  -  reserve a contingous kernel virtual area
  *
@@ -244,6 +249,11 @@ out:
 struct vm_struct *get_vm_area(unsigned long size, unsigned long flags)
 {
 	return __get_vm_area(size, flags, VMALLOC_START, VMALLOC_END);
+}
+
+struct vm_struct *get_vm_area_node(unsigned long size, unsigned long flags, int node)
+{
+	return __get_vm_area_node(size, flags, VMALLOC_START, VMALLOC_END, node);
 }
 
 /* Caller must hold vmlist_lock */
@@ -342,7 +352,6 @@ void vfree(void *addr)
 	BUG_ON(in_interrupt());
 	__vunmap(addr, 1);
 }
-
 EXPORT_SYMBOL(vfree);
 
 /**
@@ -360,7 +369,6 @@ void vunmap(void *addr)
 	BUG_ON(in_interrupt());
 	__vunmap(addr, 0);
 }
-
 EXPORT_SYMBOL(vunmap);
 
 /**
@@ -392,10 +400,10 @@ void *vmap(struct page **pages, unsigned int count,
 
 	return area->addr;
 }
-
 EXPORT_SYMBOL(vmap);
 
-void *__vmalloc_area(struct vm_struct *area, gfp_t gfp_mask, pgprot_t prot)
+void *__vmalloc_area_node(struct vm_struct *area, gfp_t gfp_mask,
+				pgprot_t prot, int node)
 {
 	struct page **pages;
 	unsigned int nr_pages, array_size, i;
@@ -406,9 +414,9 @@ void *__vmalloc_area(struct vm_struct *area, gfp_t gfp_mask, pgprot_t prot)
 	area->nr_pages = nr_pages;
 	/* Please note that the recursion is strictly bounded. */
 	if (array_size > PAGE_SIZE)
-		pages = __vmalloc(array_size, gfp_mask, PAGE_KERNEL);
+		pages = __vmalloc_node(array_size, gfp_mask, PAGE_KERNEL, node);
 	else
-		pages = kmalloc(array_size, (gfp_mask & ~__GFP_HIGHMEM));
+		pages = kmalloc_node(array_size, (gfp_mask & ~__GFP_HIGHMEM), node);
 	area->pages = pages;
 	if (!area->pages) {
 		remove_vm_area(area->addr);
@@ -418,7 +426,10 @@ void *__vmalloc_area(struct vm_struct *area, gfp_t gfp_mask, pgprot_t prot)
 	memset(area->pages, 0, array_size);
 
 	for (i = 0; i < area->nr_pages; i++) {
-		area->pages[i] = alloc_page(gfp_mask);
+		if (node < 0)
+			area->pages[i] = alloc_page(gfp_mask);
+		else
+			area->pages[i] = alloc_pages_node(node, gfp_mask, 0);
 		if (unlikely(!area->pages[i])) {
 			/* Successfully allocated i pages, free them in __vunmap() */
 			area->nr_pages = i;
@@ -435,18 +446,25 @@ fail:
 	return NULL;
 }
 
+void *__vmalloc_area(struct vm_struct *area, gfp_t gfp_mask, pgprot_t prot)
+{
+	return __vmalloc_area_node(area, gfp_mask, prot, -1);
+}
+
 /**
- *	__vmalloc  -  allocate virtually contiguous memory
+ *	__vmalloc_node  -  allocate virtually contiguous memory
  *
  *	@size:		allocation size
  *	@gfp_mask:	flags for the page level allocator
  *	@prot:		protection mask for the allocated pages
+ *	@node		node to use for allocation or -1
  *
  *	Allocate enough pages to cover @size from the page level
  *	allocator with @gfp_mask flags.  Map them into contiguous
  *	kernel virtual space, using a pagetable protection of @prot.
  */
-void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
+void *__vmalloc_node(unsigned long size, gfp_t gfp_mask, pgprot_t prot,
+			int node)
 {
 	struct vm_struct *area;
 
@@ -454,13 +472,18 @@ void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
 	if (!size || (size >> PAGE_SHIFT) > num_physpages)
 		return NULL;
 
-	area = get_vm_area(size, VM_ALLOC);
+	area = get_vm_area_node(size, VM_ALLOC, node);
 	if (!area)
 		return NULL;
 
-	return __vmalloc_area(area, gfp_mask, prot);
+	return __vmalloc_area_node(area, gfp_mask, prot, node);
 }
+EXPORT_SYMBOL(__vmalloc_node);
 
+void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot)
+{
+	return __vmalloc_node(size, gfp_mask, prot, -1);
+}
 EXPORT_SYMBOL(__vmalloc);
 
 /**
@@ -478,8 +501,25 @@ void *vmalloc(unsigned long size)
 {
        return __vmalloc(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL);
 }
-
 EXPORT_SYMBOL(vmalloc);
+
+/**
+ *	vmalloc_node  -  allocate memory on a specific node
+ *
+ *	@size:		allocation size
+ *	@node;		numa node
+ *
+ *	Allocate enough pages to cover @size from the page level
+ *	allocator and map them into contiguous kernel virtual space.
+ *
+ *	For tight cotrol over page level allocator and protection flags
+ *	use __vmalloc() instead.
+ */
+void *vmalloc_node(unsigned long size, int node)
+{
+       return __vmalloc_node(size, GFP_KERNEL | __GFP_HIGHMEM, PAGE_KERNEL, node);
+}
+EXPORT_SYMBOL(vmalloc_node);
 
 #ifndef PAGE_KERNEL_EXEC
 # define PAGE_KERNEL_EXEC PAGE_KERNEL
@@ -515,7 +555,6 @@ void *vmalloc_32(unsigned long size)
 {
 	return __vmalloc(size, GFP_KERNEL, PAGE_KERNEL);
 }
-
 EXPORT_SYMBOL(vmalloc_32);
 
 long vread(char *buf, char *addr, unsigned long count)

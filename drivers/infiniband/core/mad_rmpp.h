@@ -51,6 +51,8 @@ ib_process_rmpp_recv_wc(struct ib_mad_agent_private *agent,
 int ib_process_rmpp_send_wc(struct ib_mad_send_wr_private *mad_send_wr,
 			    struct ib_mad_send_wc *mad_send_wc);
 
+void ib_rmpp_send_handler(struct ib_mad_send_wc *mad_send_wc);
+
 void ib_cancel_rmpp_recvs(struct ib_mad_agent_private *agent);
 
 int ib_retry_rmpp(struct ib_mad_send_wr_private *mad_send_wr);

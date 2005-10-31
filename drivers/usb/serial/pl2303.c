@@ -8,31 +8,10 @@
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
+ *	the Free Software Foundation; either version 2 of the License.
  *
  * See Documentation/usb/usb-serial.txt for more information on using this driver
  *
- * 2002_Mar_26 gkh
- *	allowed driver to work properly if there is no tty assigned to a port
- *	(this happens for serial console devices.)
- *
- * 2001_Oct_06 gkh
- *	Added RTS and DTR line control.  Thanks to joe@bndlg.de for parts of it.
- *
- * 2001_Sep_19 gkh
- *	Added break support.
- *
- * 2001_Aug_30 gkh
- *	fixed oops in write_bulk_callback.
- *
- * 2001_Aug_28 gkh
- *	reworked buffer logic to be like other usb-serial drivers.  Hopefully
- *	removing some reported problems.
- *
- * 2001_Jun_06 gkh
- *	finished porting to 2.4 format.
- * 
  */
 
 #include <linux/config.h>
@@ -55,7 +34,6 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.12"
 #define DRIVER_DESC "Prolific PL2303 USB to serial adaptor driver"
 
 static int debug;
@@ -175,9 +153,11 @@ static unsigned int pl2303_buf_get(struct pl2303_buf *pb, char *buf,
 
 
 /* All of the device info needed for the PL2303 SIO serial converter */
-static struct usb_serial_device_type pl2303_device = {
-	.owner =		THIS_MODULE,
-	.name =			"PL-2303",
+static struct usb_serial_driver pl2303_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"pl2303",
+	},
 	.id_table =		id_table,
 	.num_interrupt_in =	NUM_DONT_CARE,
 	.num_bulk_in =		1,
@@ -1195,7 +1175,7 @@ static int __init pl2303_init (void)
 	retval = usb_register(&pl2303_driver);
 	if (retval)
 		goto failed_usb_register;
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	info(DRIVER_DESC);
 	return 0;
 failed_usb_register:
 	usb_serial_deregister(&pl2303_device);
@@ -1215,7 +1195,6 @@ module_init(pl2303_init);
 module_exit(pl2303_exit);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);

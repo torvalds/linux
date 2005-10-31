@@ -223,11 +223,7 @@ mvme5100_init_IRQ(void)
 	openpic_hookup_cascade(NUM_8259_INTERRUPTS, "82c59 cascade",
 			&i8259_irq);
 
-	/* Map i8259 interrupts. */
-	for (i = 0; i < NUM_8259_INTERRUPTS; i++)
-		irq_desc[i].handler = &i8259_pic;
-
-	i8259_init(0);
+	i8259_init(0, 0);
 #else
 	openpic_init(0);
 #endif

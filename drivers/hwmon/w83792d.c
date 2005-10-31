@@ -1086,11 +1086,10 @@ w83792d_create_subclient(struct i2c_adapter *adapter,
 	int err;
 	struct i2c_client *sub_client;
 
-	(*sub_cli) = sub_client = kmalloc(sizeof(struct i2c_client), GFP_KERNEL);
+	(*sub_cli) = sub_client = kzalloc(sizeof(struct i2c_client), GFP_KERNEL);
 	if (!(sub_client)) {
 		return -ENOMEM;
 	}
-	memset(sub_client, 0x00, sizeof(struct i2c_client));
 	sub_client->addr = 0x48 + addr;
 	i2c_set_clientdata(sub_client, NULL);
 	sub_client->adapter = adapter;
@@ -1184,11 +1183,10 @@ w83792d_detect(struct i2c_adapter *adapter, int address, int kind)
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access w83792d_{read,write}_value. */
 
-	if (!(data = kmalloc(sizeof(struct w83792d_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct w83792d_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto ERROR0;
 	}
-	memset(data, 0, sizeof(struct w83792d_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
@@ -1429,7 +1427,6 @@ w83792d_write_value(struct i2c_client *client, u8 reg, u8 value)
 	return 0;
 }
 
-/* Called when we have found a new W83792D. It should set limits, etc. */
 static void
 w83792d_init_client(struct i2c_client *client)
 {

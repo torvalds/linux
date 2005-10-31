@@ -411,6 +411,8 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_UM100_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_UR100_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_ELV_ALC8500_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_PYRAMID_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ELV_FHZ1000PC_PID) },
 	/*
 	 * These will probably use user-space drivers.  Uncomment them if
 	 * you need them or use the user-specified vendor/product module
@@ -428,7 +430,6 @@ static struct usb_device_id id_table_combined [] = {
 	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_T1100_PID) }, */
 	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_PCD200_PID) }, */
 	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_ULA200_PID) }, */
-	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_FHZ1000PC_PID) }, */
 	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_CSI8_PID) }, */
 	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_EM1000DL_PID) }, */
 	/* { USB_DEVICE(FTDI_VID, FTDI_ELV_PCK100_PID) }, */
@@ -471,6 +472,9 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_Y6_PID) },
 	{ USB_DEVICE(FTDI_VID, FTDI_MHAM_Y8_PID) },
 	{ USB_DEVICE(EVOLUTION_VID, EVOLUTION_ER1_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ARTEMIS_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ATIK_ATK16_PID) },
+	{ USB_DEVICE(FTDI_VID, FTDI_ATIK_ATK16HR_PID) },
 	{ },					/* Optional parameter entry */
 	{ }					/* Terminating entry */
 };
@@ -558,10 +562,12 @@ static unsigned short int ftdi_232am_baud_to_divisor (int baud);
 static __u32 ftdi_232bm_baud_base_to_divisor (int baud, int base);
 static __u32 ftdi_232bm_baud_to_divisor (int baud);
 
-static struct usb_serial_device_type ftdi_sio_device = {
-	.owner =		THIS_MODULE,
-	.name =			"FTDI USB Serial Device",
-	.short_name =		"ftdi_sio",
+static struct usb_serial_driver ftdi_sio_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"ftdi_sio",
+	},
+	.description =		"FTDI USB Serial Device",
 	.id_table =		id_table_combined,
 	.num_interrupt_in =	0,
 	.num_bulk_in =		1,

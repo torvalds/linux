@@ -386,7 +386,7 @@ struct kmem_cache_s {
 	unsigned int		gfporder;
 
 	/* force GFP flags, e.g. GFP_DMA */
-	unsigned int		gfpflags;
+	gfp_t			gfpflags;
 
 	size_t			colour;		/* cache colouring range */
 	unsigned int		colour_off;	/* colour offset */
@@ -2117,7 +2117,7 @@ static void cache_init_objs(kmem_cache_t *cachep,
 	slabp->free = 0;
 }
 
-static void kmem_flagcheck(kmem_cache_t *cachep, unsigned int flags)
+static void kmem_flagcheck(kmem_cache_t *cachep, gfp_t flags)
 {
 	if (flags & SLAB_DMA) {
 		if (!(cachep->gfpflags & GFP_DMA))
@@ -2152,7 +2152,7 @@ static int cache_grow(kmem_cache_t *cachep, gfp_t flags, int nodeid)
 	struct slab	*slabp;
 	void		*objp;
 	size_t		 offset;
-	unsigned int	 local_flags;
+	gfp_t	 	 local_flags;
 	unsigned long	 ctor_flags;
 	struct kmem_list3 *l3;
 
@@ -2419,6 +2419,7 @@ retry:
 			next = slab_bufctl(slabp)[slabp->free];
 #if DEBUG
 			slab_bufctl(slabp)[slabp->free] = BUFCTL_FREE;
+			WARN_ON(numa_node_id() != slabp->nodeid);
 #endif
 		       	slabp->free = next;
 		}
@@ -2546,7 +2547,7 @@ static inline void *__cache_alloc(kmem_cache_t *cachep, gfp_t flags)
 /*
  * A interface to enable slab creation on nodeid
  */
-static void *__cache_alloc_node(kmem_cache_t *cachep, int flags, int nodeid)
+static void *__cache_alloc_node(kmem_cache_t *cachep, gfp_t flags, int nodeid)
 {
 	struct list_head *entry;
  	struct slab *slabp;
@@ -2633,8 +2634,10 @@ static void free_block(kmem_cache_t *cachep, void **objpp, int nr_objects, int n
 		check_spinlock_acquired_node(cachep, node);
 		check_slabp(cachep, slabp);
 
-
 #if DEBUG
+		/* Verify that the slab belongs to the intended node */
+		WARN_ON(slabp->nodeid != node);
+
 		if (slab_bufctl(slabp)[objnr] != BUFCTL_FREE) {
 			printk(KERN_ERR "slab: double free detected in cache "
 					"'%s', objp %p\n", cachep->name, objp);

@@ -449,3 +449,7 @@ sys_call_table:
 	PTR	sys_add_key
 	PTR	sys_request_key			/* 5240 */
 	PTR	sys_keyctl
+	PTR	sys_set_thread_area
+	PTR	sys_inotify_init
+	PTR	sys_inotify_add_watch
+	PTR	sys_inotify_rm_watch		/* 5245 */

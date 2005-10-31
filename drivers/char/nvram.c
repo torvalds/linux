@@ -32,9 +32,11 @@
  * 		added changelog
  * 	1.2	Erik Gilling: Cobalt Networks support
  * 		Tim Hockin: general cleanup, Cobalt support
+ * 	1.3	Jon Ringle: Comdial MP1000 support
+ *
  */
 
-#define NVRAM_VERSION	"1.2"
+#define NVRAM_VERSION	"1.3"
 
 #include <linux/module.h>
 #include <linux/config.h>
@@ -45,6 +47,7 @@
 #define PC		1
 #define ATARI		2
 #define COBALT		3
+#define MP1000		4
 
 /* select machine configuration */
 #if defined(CONFIG_ATARI)
@@ -54,6 +57,9 @@
 #  if defined(CONFIG_COBALT)
 #    include <linux/cobalt-nvram.h>
 #    define MACH COBALT
+#  elif defined(CONFIG_MACH_MP1000)
+#    undef MACH
+#    define MACH MP1000
 #  else
 #    define MACH PC
 #  endif
@@ -109,6 +115,23 @@
 #define mach_check_checksum	atari_check_checksum
 #define mach_set_checksum	atari_set_checksum
 #define mach_proc_infos		atari_proc_infos
+
+#endif
+
+#if MACH == MP1000
+
+/* RTC in a MP1000 */
+#define CHECK_DRIVER_INIT()	1
+
+#define MP1000_CKS_RANGE_START	0
+#define MP1000_CKS_RANGE_END	111
+#define MP1000_CKS_LOC		112
+
+#define NVRAM_BYTES		(128-NVRAM_FIRST_BYTE)
+
+#define mach_check_checksum	mp1000_check_checksum
+#define mach_set_checksum	mp1000_set_checksum
+#define mach_proc_infos		mp1000_proc_infos
 
 #endif
 
@@ -914,6 +937,91 @@ atari_proc_infos(unsigned char *nvram, char *buffer, int *len,
 #endif
 
 #endif /* MACH == ATARI */
+
+#if MACH == MP1000
+
+static int
+mp1000_check_checksum(void)
+{
+	int i;
+	unsigned short sum = 0;
+	unsigned short expect;
+
+	for (i = MP1000_CKS_RANGE_START; i <= MP1000_CKS_RANGE_END; ++i)
+		sum += __nvram_read_byte(i);
+
+        expect = __nvram_read_byte(MP1000_CKS_LOC+1)<<8 |
+	    __nvram_read_byte(MP1000_CKS_LOC);
+	return ((sum & 0xffff) == expect);
+}
+
+static void
+mp1000_set_checksum(void)
+{
+	int i;
+	unsigned short sum = 0;
+
+	for (i = MP1000_CKS_RANGE_START; i <= MP1000_CKS_RANGE_END; ++i)
+		sum += __nvram_read_byte(i);
+	__nvram_write_byte(sum >> 8, MP1000_CKS_LOC + 1);
+	__nvram_write_byte(sum & 0xff, MP1000_CKS_LOC);
+}
+
+#ifdef CONFIG_PROC_FS
+
+#define         SERVER_N_LEN         32
+#define         PATH_N_LEN           32
+#define         FILE_N_LEN           32
+#define         NVRAM_MAGIC_SIG      0xdead
+
+typedef struct NvRamImage
+{
+	unsigned short int    magic;
+	unsigned short int    mode;
+	char                  fname[FILE_N_LEN];
+	char                  path[PATH_N_LEN];
+	char                  server[SERVER_N_LEN];
+	char                  pad[12];
+} NvRam;
+
+static int
+mp1000_proc_infos(unsigned char *nvram, char *buffer, int *len,
+    off_t *begin, off_t offset, int size)
+{
+	int checksum;
+        NvRam* nv = (NvRam*)nvram;
+
+	spin_lock_irq(&rtc_lock);
+	checksum = __nvram_check_checksum();
+	spin_unlock_irq(&rtc_lock);
+
+	PRINT_PROC("Checksum status: %svalid\n", checksum ? "" : "not ");
+
+        switch( nv->mode )
+        {
+           case 0 :
+                    PRINT_PROC( "\tMode 0, tftp prompt\n" );
+                    break;
+           case 1 :
+                    PRINT_PROC( "\tMode 1, booting from disk\n" );
+                    break;
+           case 2 :
+                    PRINT_PROC( "\tMode 2, Alternate boot from disk /boot/%s\n", nv->fname );
+                    break;
+           case 3 :
+                    PRINT_PROC( "\tMode 3, Booting from net:\n" );
+                    PRINT_PROC( "\t\t%s:%s%s\n",nv->server, nv->path, nv->fname );
+                    break;
+           default:
+                    PRINT_PROC( "\tInconsistant nvram?\n" );
+                    break;
+        }
+
+	return 1;
+}
+#endif
+
+#endif /* MACH == MP1000 */
 
 MODULE_LICENSE("GPL");
 

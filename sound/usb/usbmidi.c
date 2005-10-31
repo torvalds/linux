@@ -163,7 +163,7 @@ static const uint8_t snd_usbmidi_cin_length[] = {
 /*
  * Submits the URB, with error handling.
  */
-static int snd_usbmidi_submit_urb(struct urb* urb, int flags)
+static int snd_usbmidi_submit_urb(struct urb* urb, gfp_t flags)
 {
 	int err = usb_submit_urb(urb, flags);
 	if (err < 0 && err != -ENODEV)

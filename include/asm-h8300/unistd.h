@@ -528,7 +528,6 @@ asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 asmlinkage int sys_execve(char *name, char **argv, char **envp,
 			int dummy, ...);
 asmlinkage int sys_pipe(unsigned long *fildes);
-asmlinkage int sys_ptrace(long request, long pid, long addr, long data);
 struct sigaction;
 asmlinkage long sys_rt_sigaction(int sig,
 				const struct sigaction __user *act,

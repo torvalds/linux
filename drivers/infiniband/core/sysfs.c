@@ -65,6 +65,11 @@ struct port_table_attribute {
 	int			index;
 };
 
+static inline int ibdev_is_alive(const struct ib_device *dev) 
+{
+	return dev->reg_state == IB_DEV_REGISTERED;
+}
+
 static ssize_t port_attr_show(struct kobject *kobj,
 			      struct attribute *attr, char *buf)
 {
@@ -74,6 +79,8 @@ static ssize_t port_attr_show(struct kobject *kobj,
 
 	if (!port_attr->show)
 		return -EIO;
+	if (!ibdev_is_alive(p->ibdev))
+		return -ENODEV;
 
 	return port_attr->show(p, port_attr, buf);
 }
@@ -581,6 +588,9 @@ static ssize_t show_node_type(struct class_device *cdev, char *buf)
 {
 	struct ib_device *dev = container_of(cdev, struct ib_device, class_dev);
 
+	if (!ibdev_is_alive(dev))
+		return -ENODEV;
+
 	switch (dev->node_type) {
 	case IB_NODE_CA:     return sprintf(buf, "%d: CA\n", dev->node_type);
 	case IB_NODE_SWITCH: return sprintf(buf, "%d: switch\n", dev->node_type);
@@ -594,6 +604,9 @@ static ssize_t show_sys_image_guid(struct class_device *cdev, char *buf)
 	struct ib_device *dev = container_of(cdev, struct ib_device, class_dev);
 	struct ib_device_attr attr;
 	ssize_t ret;
+
+	if (!ibdev_is_alive(dev))
+		return -ENODEV;
 
 	ret = ib_query_device(dev, &attr);
 	if (ret)
@@ -611,6 +624,9 @@ static ssize_t show_node_guid(struct class_device *cdev, char *buf)
 	struct ib_device *dev = container_of(cdev, struct ib_device, class_dev);
 	struct ib_device_attr attr;
 	ssize_t ret;
+
+	if (!ibdev_is_alive(dev))
+		return -ENODEV;
 
 	ret = ib_query_device(dev, &attr);
 	if (ret)

@@ -20,7 +20,7 @@
  *  GNU General Public License for more details.
  */
 
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/errno.h>
 #include <linux/init.h>

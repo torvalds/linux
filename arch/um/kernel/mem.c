@@ -252,7 +252,7 @@ void paging_init(void)
 #endif
 }
 
-struct page *arch_validate(struct page *page, int mask, int order)
+struct page *arch_validate(struct page *page, gfp_t mask, int order)
 {
 	unsigned long addr, zero = 0;
 	int i;

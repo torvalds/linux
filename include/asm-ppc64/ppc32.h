@@ -70,18 +70,18 @@ typedef struct compat_siginfo {
 #define __old_sigaction32	old_sigaction32
 
 struct __old_sigaction32 {
-	unsigned		sa_handler;
+	compat_uptr_t		sa_handler;
 	compat_old_sigset_t  	sa_mask;
 	unsigned int    	sa_flags;
-	unsigned		sa_restorer;     /* not used by Linux/SPARC yet */
+	compat_uptr_t		sa_restorer;     /* not used by Linux/SPARC yet */
 };
 
 
 
 struct sigaction32 {
-       unsigned int  sa_handler;	/* Really a pointer, but need to deal with 32 bits */
+       compat_uptr_t  sa_handler;	/* Really a pointer, but need to deal with 32 bits */
        unsigned int sa_flags;
-       unsigned int sa_restorer;	/* Another 32 bit pointer */
+       compat_uptr_t sa_restorer;	/* Another 32 bit pointer */
        compat_sigset_t sa_mask;		/* A 32 bit mask */
 };
 
@@ -94,9 +94,9 @@ typedef struct sigaltstack_32 {
 struct sigcontext32 {
 	unsigned int	_unused[4];
 	int		signal;
-	unsigned int	handler;
+	compat_uptr_t	handler;
 	unsigned int	oldmask;
-	u32 regs;  /* 4 byte pointer to the pt_regs32 structure. */
+	compat_uptr_t	regs;  /* 4 byte pointer to the pt_regs32 structure. */
 };
 
 struct mcontext32 {
@@ -111,7 +111,7 @@ struct ucontext32 {
 	unsigned int 	  	uc_link;
 	stack_32_t	 	uc_stack;
 	int		 	uc_pad[7];
-	u32			uc_regs;	/* points to uc_mcontext field */
+	compat_uptr_t		uc_regs;	/* points to uc_mcontext field */
 	compat_sigset_t	 	uc_sigmask;	/* mask last for extensibility */
 	/* glibc has 1024-bit signal masks, ours are 64-bit */
 	int		 	uc_maskext[30];

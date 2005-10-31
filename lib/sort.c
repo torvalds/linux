@@ -7,6 +7,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sort.h>
+#include <linux/slab.h>
 
 static void u32_swap(void *a, void *b, int size)
 {

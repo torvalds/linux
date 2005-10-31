@@ -38,6 +38,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/device.h>
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
@@ -137,7 +138,7 @@ struct pdc_port_priv {
 };
 
 struct pdc_host_priv {
-	void			*dimm_mmio;
+	void			__iomem *dimm_mmio;
 
 	unsigned int		doing_hdma;
 	unsigned int		hdma_prod;
@@ -157,8 +158,8 @@ static void pdc_20621_phy_reset (struct ata_port *ap);
 static int pdc_port_start(struct ata_port *ap);
 static void pdc_port_stop(struct ata_port *ap);
 static void pdc20621_qc_prep(struct ata_queued_cmd *qc);
-static void pdc_tf_load_mmio(struct ata_port *ap, struct ata_taskfile *tf);
-static void pdc_exec_command_mmio(struct ata_port *ap, struct ata_taskfile *tf);
+static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
+static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf);
 static void pdc20621_host_stop(struct ata_host_set *host_set);
 static unsigned int pdc20621_dimm_init(struct ata_probe_ent *pe);
 static int pdc20621_detect_dimm(struct ata_probe_ent *pe);
@@ -196,7 +197,7 @@ static Scsi_Host_Template pdc_sata_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations pdc_20621_ops = {
+static const struct ata_port_operations pdc_20621_ops = {
 	.port_disable		= ata_port_disable,
 	.tf_load		= pdc_tf_load_mmio,
 	.tf_read		= ata_tf_read,
@@ -247,7 +248,7 @@ static void pdc20621_host_stop(struct ata_host_set *host_set)
 {
 	struct pci_dev *pdev = to_pci_dev(host_set->dev);
 	struct pdc_host_priv *hpriv = host_set->private_data;
-	void *dimm_mmio = hpriv->dimm_mmio;
+	void __iomem *dimm_mmio = hpriv->dimm_mmio;
 
 	pci_iounmap(pdev, dimm_mmio);
 	kfree(hpriv);
@@ -669,8 +670,8 @@ static void pdc20621_packet_start(struct ata_queued_cmd *qc)
 		readl(mmio + PDC_20621_SEQCTL + (seq * 4));	/* flush */
 
 		writel(port_ofs + PDC_DIMM_ATA_PKT,
-		       (void *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
-		readl((void *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
+		       (void __iomem *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
+		readl((void __iomem *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
 		VPRINTK("submitted ofs 0x%x (%u), seq %u\n",
 			port_ofs + PDC_DIMM_ATA_PKT,
 			port_ofs + PDC_DIMM_ATA_PKT,
@@ -718,7 +719,7 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 			VPRINTK("ata%u: read hdma, 0x%x 0x%x\n", ap->id,
 				readl(mmio + 0x104), readl(mmio + PDC_HDMA_CTLSTAT));
 			/* get drive status; clear intr; complete txn */
-			ata_qc_complete(qc, ata_wait_idle(ap));
+			ata_qc_complete(qc, ac_err_mask(ata_wait_idle(ap)));
 			pdc20621_pop_hdma(qc);
 		}
 
@@ -747,8 +748,8 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 			writel(0x00000001, mmio + PDC_20621_SEQCTL + (seq * 4));
 			readl(mmio + PDC_20621_SEQCTL + (seq * 4));
 			writel(port_ofs + PDC_DIMM_ATA_PKT,
-			       (void *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
-			readl((void *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
+			       (void __iomem *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
+			readl((void __iomem *) ap->ioaddr.cmd_addr + PDC_PKT_SUBMIT);
 		}
 
 		/* step two - execute ATA command */
@@ -756,7 +757,7 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 			VPRINTK("ata%u: write ata, 0x%x 0x%x\n", ap->id,
 				readl(mmio + 0x104), readl(mmio + PDC_HDMA_CTLSTAT));
 			/* get drive status; clear intr; complete txn */
-			ata_qc_complete(qc, ata_wait_idle(ap));
+			ata_qc_complete(qc, ac_err_mask(ata_wait_idle(ap)));
 			pdc20621_pop_hdma(qc);
 		}
 		handled = 1;
@@ -766,7 +767,7 @@ static inline unsigned int pdc20621_host_intr( struct ata_port *ap,
 
 		status = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 1000);
 		DPRINTK("BUS_NODATA (drv_stat 0x%X)\n", status);
-		ata_qc_complete(qc, status);
+		ata_qc_complete(qc, ac_err_mask(status));
 		handled = 1;
 
 	} else {
@@ -881,7 +882,7 @@ static void pdc_eng_timeout(struct ata_port *ap)
 	case ATA_PROT_DMA:
 	case ATA_PROT_NODATA:
 		printk(KERN_ERR "ata%u: command timeout\n", ap->id);
-		ata_qc_complete(qc, ata_wait_idle(ap) | ATA_ERR);
+		ata_qc_complete(qc, __ac_err_mask(ata_wait_idle(ap)));
 		break;
 
 	default:
@@ -890,7 +891,7 @@ static void pdc_eng_timeout(struct ata_port *ap)
 		printk(KERN_ERR "ata%u: unknown timeout, cmd 0x%x stat 0x%x\n",
 		       ap->id, qc->tf.command, drv_stat);
 
-		ata_qc_complete(qc, drv_stat);
+		ata_qc_complete(qc, ac_err_mask(drv_stat));
 		break;
 	}
 
@@ -899,7 +900,7 @@ out:
 	DPRINTK("EXIT\n");
 }
 
-static void pdc_tf_load_mmio(struct ata_port *ap, struct ata_taskfile *tf)
+static void pdc_tf_load_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	WARN_ON (tf->protocol == ATA_PROT_DMA ||
 		 tf->protocol == ATA_PROT_NODATA);
@@ -907,7 +908,7 @@ static void pdc_tf_load_mmio(struct ata_port *ap, struct ata_taskfile *tf)
 }
 
 
-static void pdc_exec_command_mmio(struct ata_port *ap, struct ata_taskfile *tf)
+static void pdc_exec_command_mmio(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	WARN_ON (tf->protocol == ATA_PROT_DMA ||
 		 tf->protocol == ATA_PROT_NODATA);
@@ -1014,7 +1015,7 @@ static void pdc20621_put_to_dimm(struct ata_probe_ent *pe, void *psource,
 	idx++;
 	dist = ((long)(s32)(window_size - (offset + size))) >= 0 ? size :
 		(long) (window_size - offset);
-	memcpy_toio((char *) (dimm_mmio + offset / 4), (char *) psource, dist);
+	memcpy_toio(dimm_mmio + offset / 4, psource, dist);
 	writel(0x01, mmio + PDC_GENERAL_CTLR);
 	readl(mmio + PDC_GENERAL_CTLR);
 
@@ -1023,8 +1024,7 @@ static void pdc20621_put_to_dimm(struct ata_probe_ent *pe, void *psource,
 	for (; (long) size >= (long) window_size ;) {
 		writel(((idx) << page_mask), mmio + PDC_DIMM_WINDOW_CTLR);
 		readl(mmio + PDC_DIMM_WINDOW_CTLR);
-		memcpy_toio((char *) (dimm_mmio), (char *) psource,
-			    window_size / 4);
+		memcpy_toio(dimm_mmio, psource, window_size / 4);
 		writel(0x01, mmio + PDC_GENERAL_CTLR);
 		readl(mmio + PDC_GENERAL_CTLR);
 		psource += window_size;
@@ -1035,7 +1035,7 @@ static void pdc20621_put_to_dimm(struct ata_probe_ent *pe, void *psource,
 	if (size) {
 		writel(((idx) << page_mask), mmio + PDC_DIMM_WINDOW_CTLR);
 		readl(mmio + PDC_DIMM_WINDOW_CTLR);
-		memcpy_toio((char *) (dimm_mmio), (char *) psource, size / 4);
+		memcpy_toio(dimm_mmio, psource, size / 4);
 		writel(0x01, mmio + PDC_GENERAL_CTLR);
 		readl(mmio + PDC_GENERAL_CTLR);
 	}
@@ -1386,7 +1386,7 @@ static int pdc_sata_init_one (struct pci_dev *pdev, const struct pci_device_id *
 	int rc;
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
 	/*
 	 * If this driver happens to only be useful on Apple's K2, then

@@ -1,33 +1,27 @@
-/* 
-   BlueZ - Bluetooth protocol stack for Linux
-   Copyright (C) 2000-2001 Qualcomm Incorporated
-
-   Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 as
-   published by the Free Software Foundation;
-
-   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
-   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
-   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
-   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
-   OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
-   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
-   SOFTWARE IS DISCLAIMED.
-*/
-
 /*
- * Bluetooth HCI UART driver.
  *
- * $Id: hci_ldisc.c,v 1.5 2002/10/02 18:37:20 maxk Exp $    
+ *  Bluetooth HCI UART driver
+ *
+ *  Copyright (C) 2000-2001  Qualcomm Incorporated
+ *  Copyright (C) 2002-2003  Maxim Krasnyansky <maxk@qualcomm.com>
+ *  Copyright (C) 2004-2005  Marcel Holtmann <marcel@holtmann.org>
+ *
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
  */
-#define VERSION "2.1"
 
 #include <linux/config.h>
 #include <linux/module.h>
@@ -59,6 +53,8 @@
 #define BT_DBG( A... )
 #endif
 
+#define VERSION "2.2"
+
 static int reset = 0;
 
 static struct hci_uart_proto *hup[HCI_UART_MAX_PROTO];
@@ -72,6 +68,7 @@ int hci_uart_register_proto(struct hci_uart_proto *p)
 		return -EEXIST;
 
 	hup[p->id] = p;
+
 	return 0;
 }
 
@@ -84,6 +81,7 @@ int hci_uart_unregister_proto(struct hci_uart_proto *p)
 		return -EINVAL;
 
 	hup[p->id] = NULL;
+
 	return 0;
 }
 
@@ -91,13 +89,14 @@ static struct hci_uart_proto *hci_uart_get_proto(unsigned int id)
 {
 	if (id >= HCI_UART_MAX_PROTO)
 		return NULL;
+
 	return hup[id];
 }
 
 static inline void hci_uart_tx_complete(struct hci_uart *hu, int pkt_type)
 {
 	struct hci_dev *hdev = hu->hdev;
-	
+
 	/* Update HCI stat counters */
 	switch (pkt_type) {
 	case HCI_COMMAND_PKT:
@@ -117,10 +116,12 @@ static inline void hci_uart_tx_complete(struct hci_uart *hu, int pkt_type)
 static inline struct sk_buff *hci_uart_dequeue(struct hci_uart *hu)
 {
 	struct sk_buff *skb = hu->tx_skb;
+
 	if (!skb)
 		skb = hu->proto->dequeue(hu);
 	else
 		hu->tx_skb = NULL;
+
 	return skb;
 }
 
@@ -129,7 +130,7 @@ int hci_uart_tx_wakeup(struct hci_uart *hu)
 	struct tty_struct *tty = hu->tty;
 	struct hci_dev *hdev = hu->hdev;
 	struct sk_buff *skb;
-	
+
 	if (test_and_set_bit(HCI_UART_SENDING, &hu->tx_state)) {
 		set_bit(HCI_UART_TX_WAKEUP, &hu->tx_state);
 		return 0;
@@ -142,7 +143,7 @@ restart:
 
 	while ((skb = hci_uart_dequeue(hu))) {
 		int len;
-	
+
 		set_bit(TTY_DO_WRITE_WAKEUP, &tty->flags);
 		len = tty->driver->write(tty, skb->data, skb->len);
 		hdev->stat.byte_tx += len;
@@ -152,11 +153,11 @@ restart:
 			hu->tx_skb = skb;
 			break;
 		}
-	
+
 		hci_uart_tx_complete(hu, bt_cb(skb)->pkt_type);
 		kfree_skb(skb);
-	} 
-	
+	}
+
 	if (test_bit(HCI_UART_TX_WAKEUP, &hu->tx_state))
 		goto restart;
 
@@ -173,6 +174,7 @@ static int hci_uart_open(struct hci_dev *hdev)
 	/* Nothing to do for UART driver */
 
 	set_bit(HCI_RUNNING, &hdev->flags);
+
 	return 0;
 }
 
@@ -234,6 +236,7 @@ static int hci_uart_send_frame(struct sk_buff *skb)
 	hu->proto->enqueue(hu, skb);
 
 	hci_uart_tx_wakeup(hu);
+
 	return 0;
 }
 
@@ -241,7 +244,8 @@ static void hci_uart_destruct(struct hci_dev *hdev)
 {
 	struct hci_uart *hu;
 
-	if (!hdev) return;
+	if (!hdev)
+		return;
 
 	BT_DBG("%s", hdev->name);
 
@@ -272,6 +276,7 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 		BT_ERR("Can't allocate controll structure");
 		return -ENFILE;
 	}
+
 	memset(hu, 0, sizeof(struct hci_uart));
 
 	tty->disc_data = hu;
@@ -280,8 +285,10 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 	spin_lock_init(&hu->rx_lock);
 
 	/* Flush any pending characters in the driver and line discipline. */
+
 	/* FIXME: why is this needed. Note don't use ldisc_ref here as the
 	   open path is before the ldisc is referencable */
+
 	if (tty->ldisc.flush_buffer)
 		tty->ldisc.flush_buffer(tty);
 
@@ -372,13 +379,13 @@ static int hci_uart_tty_room (struct tty_struct *tty)
 static void hci_uart_tty_receive(struct tty_struct *tty, const __u8 *data, char *flags, int count)
 {
 	struct hci_uart *hu = (void *)tty->disc_data;
-	
+
 	if (!hu || tty != hu->tty)
 		return;
 
 	if (!test_bit(HCI_UART_PROTO_SET, &hu->flags))
 		return;
-	
+
 	spin_lock(&hu->rx_lock);
 	hu->proto->recv(hu, (void *) data, count);
 	hu->hdev->stat.byte_rx += count;
@@ -429,8 +436,8 @@ static int hci_uart_register_dev(struct hci_uart *hu)
 static int hci_uart_set_proto(struct hci_uart *hu, int id)
 {
 	struct hci_uart_proto *p;
-	int err;	
-	
+	int err;
+
 	p = hci_uart_get_proto(id);
 	if (!p)
 		return -EPROTONOSUPPORT;
@@ -446,6 +453,7 @@ static int hci_uart_set_proto(struct hci_uart *hu, int id)
 		p->close(hu);
 		return err;
 	}
+
 	return 0;
 }
 
@@ -463,7 +471,7 @@ static int hci_uart_set_proto(struct hci_uart *hu, int id)
  * Return Value:    Command dependent
  */
 static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file * file,
-                            unsigned int cmd, unsigned long arg)
+					unsigned int cmd, unsigned long arg)
 {
 	struct hci_uart *hu = (void *)tty->disc_data;
 	int err = 0;
@@ -483,14 +491,14 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file * file,
 				return err;
 			}
 			tty->low_latency = 1;
-		} else	
+		} else
 			return -EBUSY;
 
 	case HCIUARTGETPROTO:
 		if (test_bit(HCI_UART_PROTO_SET, &hu->flags))
 			return hu->proto->id;
 		return -EUNATCH;
-		
+
 	default:
 		err = n_tty_ioctl(tty, file, cmd, arg);
 		break;
@@ -502,27 +510,23 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file * file,
 /*
  * We don't provide read/write/poll interface for user space.
  */
-static ssize_t hci_uart_tty_read(struct tty_struct *tty, struct file *file, unsigned char __user *buf, size_t nr)
-{
-	return 0;
-}
-static ssize_t hci_uart_tty_write(struct tty_struct *tty, struct file *file, const unsigned char *data, size_t count)
-{
-	return 0;
-}
-static unsigned int hci_uart_tty_poll(struct tty_struct *tty, struct file *filp, poll_table *wait)
+static ssize_t hci_uart_tty_read(struct tty_struct *tty, struct file *file,
+					unsigned char __user *buf, size_t nr)
 {
 	return 0;
 }
 
-#ifdef CONFIG_BT_HCIUART_H4
-int h4_init(void);
-int h4_deinit(void);
-#endif
-#ifdef CONFIG_BT_HCIUART_BCSP
-int bcsp_init(void);
-int bcsp_deinit(void);
-#endif
+static ssize_t hci_uart_tty_write(struct tty_struct *tty, struct file *file,
+					const unsigned char *data, size_t count)
+{
+	return 0;
+}
+
+static unsigned int hci_uart_tty_poll(struct tty_struct *tty,
+					struct file *filp, poll_table *wait)
+{
+	return 0;
+}
 
 static int __init hci_uart_init(void)
 {
@@ -534,18 +538,18 @@ static int __init hci_uart_init(void)
 	/* Register the tty discipline */
 
 	memset(&hci_uart_ldisc, 0, sizeof (hci_uart_ldisc));
-	hci_uart_ldisc.magic       = TTY_LDISC_MAGIC;
-	hci_uart_ldisc.name        = "n_hci";
-	hci_uart_ldisc.open        = hci_uart_tty_open;
-	hci_uart_ldisc.close       = hci_uart_tty_close;
-	hci_uart_ldisc.read        = hci_uart_tty_read;
-	hci_uart_ldisc.write       = hci_uart_tty_write;
-	hci_uart_ldisc.ioctl       = hci_uart_tty_ioctl;
-	hci_uart_ldisc.poll        = hci_uart_tty_poll;
-	hci_uart_ldisc.receive_room= hci_uart_tty_room;
-	hci_uart_ldisc.receive_buf = hci_uart_tty_receive;
-	hci_uart_ldisc.write_wakeup= hci_uart_tty_wakeup;
-	hci_uart_ldisc.owner       = THIS_MODULE;
+	hci_uart_ldisc.magic		= TTY_LDISC_MAGIC;
+	hci_uart_ldisc.name		= "n_hci";
+	hci_uart_ldisc.open		= hci_uart_tty_open;
+	hci_uart_ldisc.close		= hci_uart_tty_close;
+	hci_uart_ldisc.read		= hci_uart_tty_read;
+	hci_uart_ldisc.write		= hci_uart_tty_write;
+	hci_uart_ldisc.ioctl		= hci_uart_tty_ioctl;
+	hci_uart_ldisc.poll		= hci_uart_tty_poll;
+	hci_uart_ldisc.receive_room	= hci_uart_tty_room;
+	hci_uart_ldisc.receive_buf	= hci_uart_tty_receive;
+	hci_uart_ldisc.write_wakeup	= hci_uart_tty_wakeup;
+	hci_uart_ldisc.owner		= THIS_MODULE;
 
 	if ((err = tty_register_ldisc(N_HCI, &hci_uart_ldisc))) {
 		BT_ERR("HCI line discipline registration failed. (%d)", err);

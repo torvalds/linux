@@ -788,6 +788,7 @@ vmlogrdr_register_device(struct vmlogrdr_priv_t *priv) {
 	}
 	priv->class_device = class_device_create(
 				vmlogrdr_class,
+				NULL,
 				MKDEV(vmlogrdr_major, priv->minor_num),
 				dev,
 				"%s", dev->bus_id );

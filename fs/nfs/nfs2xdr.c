@@ -143,7 +143,6 @@ xdr_decode_fattr(u32 *p, struct nfs_fattr *fattr)
 		fattr->mode = (fattr->mode & ~S_IFMT) | S_IFIFO;
 		fattr->rdev = 0;
 	}
-	fattr->timestamp = jiffies;
 	return p;
 }
 

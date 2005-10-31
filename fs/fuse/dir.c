@@ -741,13 +741,14 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	if (inode && S_ISDIR(inode->i_mode)) {
 		/* Don't allow creating an alias to a directory  */
 		struct dentry *alias = d_find_alias(inode);
-		if (alias && !(alias->d_flags & DCACHE_DISCONNECTED)) {
+		if (alias) {
 			dput(alias);
 			iput(inode);
 			return ERR_PTR(-EIO);
 		}
 	}
-	return d_splice_alias(inode, entry);
+	d_add(entry, inode);
+	return NULL;
 }
 
 static int fuse_setxattr(struct dentry *entry, const char *name,

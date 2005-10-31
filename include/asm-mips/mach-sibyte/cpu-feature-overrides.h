@@ -25,6 +25,7 @@
 #define cpu_has_vtag_icache	1
 #define cpu_has_dc_aliases	0
 #define cpu_has_ic_fills_f_dc	0
+#define cpu_has_dsp		0
 #define cpu_icache_snoops_remote_store	0
 
 #define cpu_has_nofpuex		0

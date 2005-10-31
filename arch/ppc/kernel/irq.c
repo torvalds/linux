@@ -57,6 +57,7 @@
 #include <asm/cache.h>
 #include <asm/prom.h>
 #include <asm/ptrace.h>
+#include <asm/machdep.h>
 
 #define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
 

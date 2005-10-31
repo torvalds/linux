@@ -47,3 +47,27 @@ paddr_to_nid(unsigned long paddr)
 
 	return (i < num_node_memblks) ? node_memblk[i].nid : (num_node_memblks ? -1 : 0);
 }
+
+#if defined(CONFIG_SPARSEMEM) && defined(CONFIG_NUMA)
+/*
+ * Because of holes evaluate on section limits.
+ * If the section of memory exists, then return the node where the section
+ * resides.  Otherwise return node 0 as the default.  This is used by
+ * SPARSEMEM to allocate the SPARSEMEM sectionmap on the NUMA node where
+ * the section resides.
+ */
+int early_pfn_to_nid(unsigned long pfn)
+{
+	int i, section = pfn >> PFN_SECTION_SHIFT, ssec, esec;
+
+	for (i = 0; i < num_node_memblks; i++) {
+		ssec = node_memblk[i].start_paddr >> PA_SECTION_SHIFT;
+		esec = (node_memblk[i].start_paddr + node_memblk[i].size +
+			((1L << PA_SECTION_SHIFT) - 1)) >> PA_SECTION_SHIFT;
+		if (section >= ssec && section < esec)
+			return node_memblk[i].nid;
+	}
+
+	return 0;
+}
+#endif

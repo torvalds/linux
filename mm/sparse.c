@@ -5,8 +5,10 @@
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/bootmem.h>
+#include <linux/highmem.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/vmalloc.h>
 #include <asm/dma.h>
 
 /*
@@ -71,6 +73,31 @@ static inline int sparse_index_init(unsigned long section_nr, int nid)
 	return 0;
 }
 #endif
+
+/*
+ * Although written for the SPARSEMEM_EXTREME case, this happens
+ * to also work for the flat array case becase
+ * NR_SECTION_ROOTS==NR_MEM_SECTIONS.
+ */
+int __section_nr(struct mem_section* ms)
+{
+	unsigned long root_nr;
+	struct mem_section* root;
+
+	for (root_nr = 0;
+	     root_nr < NR_MEM_SECTIONS;
+	     root_nr += SECTIONS_PER_ROOT) {
+		root = __nr_to_section(root_nr);
+
+		if (!root)
+			continue;
+
+		if ((ms >= root) && (ms < (root + SECTIONS_PER_ROOT)))
+		     break;
+	}
+
+	return (root_nr * SECTIONS_PER_ROOT) + (ms - root);
+}
 
 /* Record a memory area against a node. */
 void memory_present(int nid, unsigned long start, unsigned long end)
@@ -162,6 +189,45 @@ static struct page *sparse_early_mem_map_alloc(unsigned long pnum)
 	return NULL;
 }
 
+static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
+{
+	struct page *page, *ret;
+	unsigned long memmap_size = sizeof(struct page) * nr_pages;
+
+	page = alloc_pages(GFP_KERNEL, get_order(memmap_size));
+	if (page)
+		goto got_map_page;
+
+	ret = vmalloc(memmap_size);
+	if (ret)
+		goto got_map_ptr;
+
+	return NULL;
+got_map_page:
+	ret = (struct page *)pfn_to_kaddr(page_to_pfn(page));
+got_map_ptr:
+	memset(ret, 0, memmap_size);
+
+	return ret;
+}
+
+static int vaddr_in_vmalloc_area(void *addr)
+{
+	if (addr >= (void *)VMALLOC_START &&
+	    addr < (void *)VMALLOC_END)
+		return 1;
+	return 0;
+}
+
+static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
+{
+	if (vaddr_in_vmalloc_area(memmap))
+		vfree(memmap);
+	else
+		free_pages((unsigned long)memmap,
+			   get_order(sizeof(struct page) * nr_pages));
+}
+
 /*
  * Allocate the accumulated non-linear sections, allocate a mem_map
  * for each and record the physical to section mapping.
@@ -187,14 +253,37 @@ void sparse_init(void)
  * set.  If this is <=0, then that means that the passed-in
  * map was not consumed and must be freed.
  */
-int sparse_add_one_section(unsigned long start_pfn, int nr_pages, struct page *map)
+int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+			   int nr_pages)
 {
-	struct mem_section *ms = __pfn_to_section(start_pfn);
+	unsigned long section_nr = pfn_to_section_nr(start_pfn);
+	struct pglist_data *pgdat = zone->zone_pgdat;
+	struct mem_section *ms;
+	struct page *memmap;
+	unsigned long flags;
+	int ret;
 
-	if (ms->section_mem_map & SECTION_MARKED_PRESENT)
-		return -EEXIST;
+	/*
+	 * no locking for this, because it does its own
+	 * plus, it does a kmalloc
+	 */
+	sparse_index_init(section_nr, pgdat->node_id);
+	memmap = __kmalloc_section_memmap(nr_pages);
 
+	pgdat_resize_lock(pgdat, &flags);
+
+	ms = __pfn_to_section(start_pfn);
+	if (ms->section_mem_map & SECTION_MARKED_PRESENT) {
+		ret = -EEXIST;
+		goto out;
+	}
 	ms->section_mem_map |= SECTION_MARKED_PRESENT;
 
-	return sparse_init_one_section(ms, pfn_to_section_nr(start_pfn), map);
+	ret = sparse_init_one_section(ms, section_nr, memmap);
+
+	if (ret <= 0)
+		__kfree_section_memmap(memmap, nr_pages);
+out:
+	pgdat_resize_unlock(pgdat, &flags);
+	return ret;
 }

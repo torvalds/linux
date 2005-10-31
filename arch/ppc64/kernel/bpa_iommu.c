@@ -39,8 +39,8 @@
 #include <asm/pmac_feature.h>
 #include <asm/abs_addr.h>
 #include <asm/system.h>
+#include <asm/ppc-pci.h>
 
-#include "pci.h"
 #include "bpa_iommu.h"
 
 static inline unsigned long 

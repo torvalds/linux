@@ -66,6 +66,7 @@
 #define MIPS_REVISION_CORID_CORE_EMUL      6
 #define MIPS_REVISION_CORID_CORE_FPGA2     7
 #define MIPS_REVISION_CORID_CORE_FPGAR2    8
+#define MIPS_REVISION_CORID_CORE_FPGA3     9
 
 /**** Artificial corid defines ****/
 /*
@@ -78,5 +79,11 @@
 #define MIPS_REVISION_CORID (((*(volatile u32 *)ioremap(MIPS_REVISION_REG, 4)) >> 10) & 0x3f)
 
 extern unsigned int mips_revision_corid;
+
+#ifdef CONFIG_PCI
+extern void mips_pcibios_init(void);
+#else
+#define mips_pcibios_init() do { } while (0)
+#endif
 
 #endif  /* __ASM_MIPS_BOARDS_GENERIC_H */

@@ -511,6 +511,172 @@ int bitmap_parselist(const char *bp, unsigned long *maskp, int nmaskbits)
 }
 EXPORT_SYMBOL(bitmap_parselist);
 
+/*
+ * bitmap_pos_to_ord(buf, pos, bits)
+ *	@buf: pointer to a bitmap
+ *	@pos: a bit position in @buf (0 <= @pos < @bits)
+ *	@bits: number of valid bit positions in @buf
+ *
+ * Map the bit at position @pos in @buf (of length @bits) to the
+ * ordinal of which set bit it is.  If it is not set or if @pos
+ * is not a valid bit position, map to zero (0).
+ *
+ * If for example, just bits 4 through 7 are set in @buf, then @pos
+ * values 4 through 7 will get mapped to 0 through 3, respectively,
+ * and other @pos values will get mapped to 0.  When @pos value 7
+ * gets mapped to (returns) @ord value 3 in this example, that means
+ * that bit 7 is the 3rd (starting with 0th) set bit in @buf.
+ *
+ * The bit positions 0 through @bits are valid positions in @buf.
+ */
+static int bitmap_pos_to_ord(const unsigned long *buf, int pos, int bits)
+{
+	int ord = 0;
+
+	if (pos >= 0 && pos < bits) {
+		int i;
+
+		for (i = find_first_bit(buf, bits);
+		     i < pos;
+		     i = find_next_bit(buf, bits, i + 1))
+	     		ord++;
+		if (i > pos)
+			ord = 0;
+	}
+	return ord;
+}
+
+/**
+ * bitmap_ord_to_pos(buf, ord, bits)
+ *	@buf: pointer to bitmap
+ *	@ord: ordinal bit position (n-th set bit, n >= 0)
+ *	@bits: number of valid bit positions in @buf
+ *
+ * Map the ordinal offset of bit @ord in @buf to its position in @buf.
+ * If @ord is not the ordinal offset of a set bit in @buf, map to zero (0).
+ *
+ * If for example, just bits 4 through 7 are set in @buf, then @ord
+ * values 0 through 3 will get mapped to 4 through 7, respectively,
+ * and all other @ord valuds will get mapped to 0.  When @ord value 3
+ * gets mapped to (returns) @pos value 7 in this example, that means
+ * that the 3rd set bit (starting with 0th) is at position 7 in @buf.
+ *
+ * The bit positions 0 through @bits are valid positions in @buf.
+ */
+static int bitmap_ord_to_pos(const unsigned long *buf, int ord, int bits)
+{
+	int pos = 0;
+
+	if (ord >= 0 && ord < bits) {
+		int i;
+
+		for (i = find_first_bit(buf, bits);
+		     i < bits && ord > 0;
+		     i = find_next_bit(buf, bits, i + 1))
+	     		ord--;
+		if (i < bits && ord == 0)
+			pos = i;
+	}
+
+	return pos;
+}
+
+/**
+ * bitmap_remap - Apply map defined by a pair of bitmaps to another bitmap
+ *	@src: subset to be remapped
+ *	@dst: remapped result
+ *	@old: defines domain of map
+ *	@new: defines range of map
+ *	@bits: number of bits in each of these bitmaps
+ *
+ * Let @old and @new define a mapping of bit positions, such that
+ * whatever position is held by the n-th set bit in @old is mapped
+ * to the n-th set bit in @new.  In the more general case, allowing
+ * for the possibility that the weight 'w' of @new is less than the
+ * weight of @old, map the position of the n-th set bit in @old to
+ * the position of the m-th set bit in @new, where m == n % w.
+ *
+ * If either of the @old and @new bitmaps are empty, or if@src and @dst
+ * point to the same location, then this routine does nothing.
+ *
+ * The positions of unset bits in @old are mapped to the position of
+ * the first set bit in @new.
+ *
+ * Apply the above specified mapping to @src, placing the result in
+ * @dst, clearing any bits previously set in @dst.
+ *
+ * The resulting value of @dst will have either the same weight as
+ * @src, or less weight in the general case that the mapping wasn't
+ * injective due to the weight of @new being less than that of @old.
+ * The resulting value of @dst will never have greater weight than
+ * that of @src, except perhaps in the case that one of the above
+ * conditions was not met and this routine just returned.
+ *
+ * For example, lets say that @old has bits 4 through 7 set, and
+ * @new has bits 12 through 15 set.  This defines the mapping of bit
+ * position 4 to 12, 5 to 13, 6 to 14 and 7 to 15, and of all other
+ * bit positions to 12 (the first set bit in @new.  So if say @src
+ * comes into this routine with bits 1, 5 and 7 set, then @dst should
+ * leave with bits 12, 13 and 15 set.
+ */
+void bitmap_remap(unsigned long *dst, const unsigned long *src,
+		const unsigned long *old, const unsigned long *new,
+		int bits)
+{
+	int s;
+
+	if (bitmap_weight(old, bits) == 0)
+		return;
+	if (bitmap_weight(new, bits) == 0)
+		return;
+	if (dst == src)		/* following doesn't handle inplace remaps */
+		return;
+
+	bitmap_zero(dst, bits);
+	for (s = find_first_bit(src, bits);
+	     s < bits;
+	     s = find_next_bit(src, bits, s + 1)) {
+	     	int x = bitmap_pos_to_ord(old, s, bits);
+		int y = bitmap_ord_to_pos(new, x, bits);
+		set_bit(y, dst);
+	}
+}
+EXPORT_SYMBOL(bitmap_remap);
+
+/**
+ * bitmap_bitremap - Apply map defined by a pair of bitmaps to a single bit
+ *	@oldbit - bit position to be mapped
+ *      @old: defines domain of map
+ *      @new: defines range of map
+ *      @bits: number of bits in each of these bitmaps
+ *
+ * Let @old and @new define a mapping of bit positions, such that
+ * whatever position is held by the n-th set bit in @old is mapped
+ * to the n-th set bit in @new.  In the more general case, allowing
+ * for the possibility that the weight 'w' of @new is less than the
+ * weight of @old, map the position of the n-th set bit in @old to
+ * the position of the m-th set bit in @new, where m == n % w.
+ *
+ * The positions of unset bits in @old are mapped to the position of
+ * the first set bit in @new.
+ *
+ * Apply the above specified mapping to bit position @oldbit, returning
+ * the new bit position.
+ *
+ * For example, lets say that @old has bits 4 through 7 set, and
+ * @new has bits 12 through 15 set.  This defines the mapping of bit
+ * position 4 to 12, 5 to 13, 6 to 14 and 7 to 15, and of all other
+ * bit positions to 12 (the first set bit in @new.  So if say @oldbit
+ * is 5, then this routine returns 13.
+ */
+int bitmap_bitremap(int oldbit, const unsigned long *old,
+				const unsigned long *new, int bits)
+{
+	int x = bitmap_pos_to_ord(old, oldbit, bits);
+	return bitmap_ord_to_pos(new, x, bits);
+}
+EXPORT_SYMBOL(bitmap_bitremap);
+
 /**
  *	bitmap_find_free_region - find a contiguous aligned mem region
  *	@bitmap: an array of unsigned longs corresponding to the bitmap

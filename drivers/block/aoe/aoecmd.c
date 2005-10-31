@@ -8,6 +8,7 @@
 #include <linux/blkdev.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
+#include <asm/unaligned.h>
 #include "aoe.h"
 
 #define TIMERTICK (HZ / 10)
@@ -311,16 +312,16 @@ ataid_complete(struct aoedev *d, unsigned char *id)
 	u16 n;
 
 	/* word 83: command set supported */
-	n = le16_to_cpup((__le16 *) &id[83<<1]);
+	n = le16_to_cpu(get_unaligned((__le16 *) &id[83<<1]));
 
 	/* word 86: command set/feature enabled */
-	n |= le16_to_cpup((__le16 *) &id[86<<1]);
+	n |= le16_to_cpu(get_unaligned((__le16 *) &id[86<<1]));
 
 	if (n & (1<<10)) {	/* bit 10: LBA 48 */
 		d->flags |= DEVFL_EXT;
 
 		/* word 100: number lba48 sectors */
-		ssize = le64_to_cpup((__le64 *) &id[100<<1]);
+		ssize = le64_to_cpu(get_unaligned((__le64 *) &id[100<<1]));
 
 		/* set as in ide-disk.c:init_idedisk_capacity */
 		d->geo.cylinders = ssize;
@@ -331,12 +332,12 @@ ataid_complete(struct aoedev *d, unsigned char *id)
 		d->flags &= ~DEVFL_EXT;
 
 		/* number lba28 sectors */
-		ssize = le32_to_cpup((__le32 *) &id[60<<1]);
+		ssize = le32_to_cpu(get_unaligned((__le32 *) &id[60<<1]));
 
 		/* NOTE: obsolete in ATA 6 */
-		d->geo.cylinders = le16_to_cpup((__le16 *) &id[54<<1]);
-		d->geo.heads = le16_to_cpup((__le16 *) &id[55<<1]);
-		d->geo.sectors = le16_to_cpup((__le16 *) &id[56<<1]);
+		d->geo.cylinders = le16_to_cpu(get_unaligned((__le16 *) &id[54<<1]));
+		d->geo.heads = le16_to_cpu(get_unaligned((__le16 *) &id[55<<1]));
+		d->geo.sectors = le16_to_cpu(get_unaligned((__le16 *) &id[56<<1]));
 	}
 	d->ssize = ssize;
 	d->geo.start = 0;

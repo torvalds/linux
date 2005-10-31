@@ -87,21 +87,47 @@ static inline void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 typedef struct { unsigned long pte; } pte_t;
 #define pte_val(x)	((x).pte)
 #endif
+#define __pte(x)	((pte_t) { (x) } )
+
+/*
+ * For 3-level pagetables we defines these ourselves, for 2-level the
+ * definitions are supplied by <asm-generic/pgtable-nopmd.h>.
+ */
+#ifdef CONFIG_64BIT
 
 typedef struct { unsigned long pmd; } pmd_t;
-typedef struct { unsigned long pgd; } pgd_t;
-typedef struct { unsigned long pgprot; } pgprot_t;
-
 #define pmd_val(x)	((x).pmd)
-#define pgd_val(x)	((x).pgd)
-#define pgprot_val(x)	((x).pgprot)
-
-#define ptep_buddy(x)	((pte_t *)((unsigned long)(x) ^ sizeof(pte_t)))
-
-#define __pte(x)	((pte_t) { (x) } )
 #define __pmd(x)	((pmd_t) { (x) } )
+
+#endif
+
+/*
+ * Right now we don't support 4-level pagetables, so all pud-related
+ * definitions come from <asm-generic/pgtable-nopud.h>.
+ */
+
+/*
+ * Finall the top of the hierarchy, the pgd
+ */
+typedef struct { unsigned long pgd; } pgd_t;
+#define pgd_val(x)	((x).pgd)
 #define __pgd(x)	((pgd_t) { (x) } )
+
+/*
+ * Manipulate page protection bits
+ */
+typedef struct { unsigned long pgprot; } pgprot_t;
+#define pgprot_val(x)	((x).pgprot)
 #define __pgprot(x)	((pgprot_t) { (x) } )
+
+/*
+ * On R4000-style MMUs where a TLB entry is mapping a adjacent even / odd
+ * pair of pages we only have a single global bit per pair of pages.  When
+ * writing to the TLB make sure we always have the bit set for both pages
+ * or none.  This macro is used to access the `buddy' of the pte we're just
+ * working on.
+ */
+#define ptep_buddy(x)	((pte_t *)((unsigned long)(x) ^ sizeof(pte_t)))
 
 #endif /* !__ASSEMBLY__ */
 

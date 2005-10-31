@@ -45,10 +45,58 @@ static struct backing_dev_info hugetlbfs_backing_dev_info = {
 
 int sysctl_hugetlb_shm_group;
 
+static void huge_pagevec_release(struct pagevec *pvec)
+{
+	int i;
+
+	for (i = 0; i < pagevec_count(pvec); ++i)
+		put_page(pvec->pages[i]);
+
+	pagevec_reinit(pvec);
+}
+
+/*
+ * huge_pages_needed tries to determine the number of new huge pages that
+ * will be required to fully populate this VMA.  This will be equal to
+ * the size of the VMA in huge pages minus the number of huge pages
+ * (covered by this VMA) that are found in the page cache.
+ *
+ * Result is in bytes to be compatible with is_hugepage_mem_enough()
+ */
+unsigned long
+huge_pages_needed(struct address_space *mapping, struct vm_area_struct *vma)
+{
+	int i;
+	struct pagevec pvec;
+	unsigned long start = vma->vm_start;
+	unsigned long end = vma->vm_end;
+	unsigned long hugepages = (end - start) >> HPAGE_SHIFT;
+	pgoff_t next = vma->vm_pgoff;
+	pgoff_t endpg = next + ((end - start) >> PAGE_SHIFT);
+
+	pagevec_init(&pvec, 0);
+	while (next < endpg) {
+		if (!pagevec_lookup(&pvec, mapping, next, PAGEVEC_SIZE))
+			break;
+		for (i = 0; i < pagevec_count(&pvec); i++) {
+			struct page *page = pvec.pages[i];
+			if (page->index > next)
+				next = page->index;
+			if (page->index >= endpg)
+				break;
+			next++;
+			hugepages--;
+		}
+		huge_pagevec_release(&pvec);
+	}
+	return hugepages << HPAGE_SHIFT;
+}
+
 static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	struct address_space *mapping = inode->i_mapping;
+	unsigned long bytes;
 	loff_t len, vma_len;
 	int ret;
 
@@ -67,6 +115,10 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma->vm_end - vma->vm_start < HPAGE_SIZE)
 		return -EINVAL;
 
+	bytes = huge_pages_needed(mapping, vma);
+	if (!is_hugepage_mem_enough(bytes))
+		return -ENOMEM;
+
 	vma_len = (loff_t)(vma->vm_end - vma->vm_start);
 
 	down(&inode->i_sem);
@@ -79,10 +131,8 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	if (!(vma->vm_flags & VM_WRITE) && len > inode->i_size)
 		goto out;
 
-	ret = hugetlb_prefault(mapping, vma);
-	if (ret)
-		goto out;
-
+	ret = 0;
+	hugetlb_prefault_arch_hook(vma->vm_mm);
 	if (inode->i_size < len)
 		inode->i_size = len;
 out:
@@ -92,7 +142,7 @@ out:
 }
 
 /*
- * Called under down_write(mmap_sem), page_table_lock is not held
+ * Called under down_write(mmap_sem).
  */
 
 #ifdef HAVE_ARCH_HUGETLB_UNMAPPED_AREA
@@ -171,16 +221,6 @@ static int hugetlbfs_commit_write(struct file *file,
 	return -EINVAL;
 }
 
-static void huge_pagevec_release(struct pagevec *pvec)
-{
-	int i;
-
-	for (i = 0; i < pagevec_count(pvec); ++i)
-		put_page(pvec->pages[i]);
-
-	pagevec_reinit(pvec);
-}
-
 static void truncate_huge_page(struct page *page)
 {
 	clear_page_dirty(page);
@@ -224,52 +264,35 @@ static void truncate_hugepages(struct address_space *mapping, loff_t lstart)
 
 static void hugetlbfs_delete_inode(struct inode *inode)
 {
-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(inode->i_sb);
-
-	hlist_del_init(&inode->i_hash);
-	list_del_init(&inode->i_list);
-	list_del_init(&inode->i_sb_list);
-	inode->i_state |= I_FREEING;
-	inodes_stat.nr_inodes--;
-	spin_unlock(&inode_lock);
-
 	if (inode->i_data.nrpages)
 		truncate_hugepages(&inode->i_data, 0);
-
-	security_inode_delete(inode);
-
-	if (sbinfo->free_inodes >= 0) {
-		spin_lock(&sbinfo->stat_lock);
-		sbinfo->free_inodes++;
-		spin_unlock(&sbinfo->stat_lock);
-	}
-
 	clear_inode(inode);
-	destroy_inode(inode);
 }
 
 static void hugetlbfs_forget_inode(struct inode *inode)
 {
-	struct super_block *super_block = inode->i_sb;
-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(super_block);
+	struct super_block *sb = inode->i_sb;
 
-	if (hlist_unhashed(&inode->i_hash))
-		goto out_truncate;
-
-	if (!(inode->i_state & (I_DIRTY|I_LOCK))) {
-		list_del(&inode->i_list);
-		list_add(&inode->i_list, &inode_unused);
-	}
-	inodes_stat.nr_unused++;
-	if (!super_block || (super_block->s_flags & MS_ACTIVE)) {
+	if (!hlist_unhashed(&inode->i_hash)) {
+		if (!(inode->i_state & (I_DIRTY|I_LOCK)))
+			list_move(&inode->i_list, &inode_unused);
+		inodes_stat.nr_unused++;
+		if (!sb || (sb->s_flags & MS_ACTIVE)) {
+			spin_unlock(&inode_lock);
+			return;
+		}
+		inode->i_state |= I_WILL_FREE;
 		spin_unlock(&inode_lock);
-		return;
+		/*
+		 * write_inode_now is a noop as we set BDI_CAP_NO_WRITEBACK
+		 * in our backing_dev_info.
+		 */
+		write_inode_now(inode, 1);
+		spin_lock(&inode_lock);
+		inode->i_state &= ~I_WILL_FREE;
+		inodes_stat.nr_unused--;
+		hlist_del_init(&inode->i_hash);
 	}
-
-	/* write_inode_now() ? */
-	inodes_stat.nr_unused--;
-	hlist_del_init(&inode->i_hash);
-out_truncate:
 	list_del_init(&inode->i_list);
 	list_del_init(&inode->i_sb_list);
 	inode->i_state |= I_FREEING;
@@ -277,13 +300,6 @@ out_truncate:
 	spin_unlock(&inode_lock);
 	if (inode->i_data.nrpages)
 		truncate_hugepages(&inode->i_data, 0);
-
-	if (sbinfo->free_inodes >= 0) {
-		spin_lock(&sbinfo->stat_lock);
-		sbinfo->free_inodes++;
-		spin_unlock(&sbinfo->stat_lock);
-	}
-
 	clear_inode(inode);
 	destroy_inode(inode);
 }
@@ -291,7 +307,7 @@ out_truncate:
 static void hugetlbfs_drop_inode(struct inode *inode)
 {
 	if (!inode->i_nlink)
-		hugetlbfs_delete_inode(inode);
+		generic_delete_inode(inode);
 	else
 		hugetlbfs_forget_inode(inode);
 }
@@ -308,7 +324,6 @@ hugetlb_vmtruncate_list(struct prio_tree_root *root, unsigned long h_pgoff)
 
 	vma_prio_tree_foreach(vma, &iter, root, h_pgoff, ULONG_MAX) {
 		unsigned long h_vm_pgoff;
-		unsigned long v_length;
 		unsigned long v_offset;
 
 		h_vm_pgoff = vma->vm_pgoff >> (HPAGE_SHIFT - PAGE_SHIFT);
@@ -319,11 +334,8 @@ hugetlb_vmtruncate_list(struct prio_tree_root *root, unsigned long h_pgoff)
 		if (h_vm_pgoff >= h_pgoff)
 			v_offset = 0;
 
-		v_length = vma->vm_end - vma->vm_start;
-
-		zap_hugepage_range(vma,
-				vma->vm_start + v_offset,
-				v_length - v_offset);
+		unmap_hugepage_range(vma,
+				vma->vm_start + v_offset, vma->vm_end);
 	}
 }
 
@@ -379,17 +391,6 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid,
 					gid_t gid, int mode, dev_t dev)
 {
 	struct inode *inode;
-	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(sb);
-
-	if (sbinfo->free_inodes >= 0) {
-		spin_lock(&sbinfo->stat_lock);
-		if (!sbinfo->free_inodes) {
-			spin_unlock(&sbinfo->stat_lock);
-			return NULL;
-		}
-		sbinfo->free_inodes--;
-		spin_unlock(&sbinfo->stat_lock);
-	}
 
 	inode = new_inode(sb);
 	if (inode) {
@@ -531,29 +532,51 @@ static void hugetlbfs_put_super(struct super_block *sb)
 	}
 }
 
+static inline int hugetlbfs_dec_free_inodes(struct hugetlbfs_sb_info *sbinfo)
+{
+	if (sbinfo->free_inodes >= 0) {
+		spin_lock(&sbinfo->stat_lock);
+		if (unlikely(!sbinfo->free_inodes)) {
+			spin_unlock(&sbinfo->stat_lock);
+			return 0;
+		}
+		sbinfo->free_inodes--;
+		spin_unlock(&sbinfo->stat_lock);
+	}
+
+	return 1;
+}
+
+static void hugetlbfs_inc_free_inodes(struct hugetlbfs_sb_info *sbinfo)
+{
+	if (sbinfo->free_inodes >= 0) {
+		spin_lock(&sbinfo->stat_lock);
+		sbinfo->free_inodes++;
+		spin_unlock(&sbinfo->stat_lock);
+	}
+}
+
+
 static kmem_cache_t *hugetlbfs_inode_cachep;
 
 static struct inode *hugetlbfs_alloc_inode(struct super_block *sb)
 {
+	struct hugetlbfs_sb_info *sbinfo = HUGETLBFS_SB(sb);
 	struct hugetlbfs_inode_info *p;
 
-	p = kmem_cache_alloc(hugetlbfs_inode_cachep, SLAB_KERNEL);
-	if (!p)
+	if (unlikely(!hugetlbfs_dec_free_inodes(sbinfo)))
 		return NULL;
+	p = kmem_cache_alloc(hugetlbfs_inode_cachep, SLAB_KERNEL);
+	if (unlikely(!p)) {
+		hugetlbfs_inc_free_inodes(sbinfo);
+		return NULL;
+	}
 	return &p->vfs_inode;
-}
-
-static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
-{
-	struct hugetlbfs_inode_info *ei = (struct hugetlbfs_inode_info *)foo;
-
-	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
-	    SLAB_CTOR_CONSTRUCTOR)
-		inode_init_once(&ei->vfs_inode);
 }
 
 static void hugetlbfs_destroy_inode(struct inode *inode)
 {
+	hugetlbfs_inc_free_inodes(HUGETLBFS_SB(inode->i_sb));
 	mpol_free_shared_policy(&HUGETLBFS_I(inode)->policy);
 	kmem_cache_free(hugetlbfs_inode_cachep, HUGETLBFS_I(inode));
 }
@@ -564,6 +587,16 @@ static struct address_space_operations hugetlbfs_aops = {
 	.commit_write	= hugetlbfs_commit_write,
 	.set_page_dirty	= hugetlbfs_set_page_dirty,
 };
+
+
+static void init_once(void *foo, kmem_cache_t *cachep, unsigned long flags)
+{
+	struct hugetlbfs_inode_info *ei = (struct hugetlbfs_inode_info *)foo;
+
+	if ((flags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
+	    SLAB_CTOR_CONSTRUCTOR)
+		inode_init_once(&ei->vfs_inode);
+}
 
 struct file_operations hugetlbfs_file_operations = {
 	.mmap			= hugetlbfs_file_mmap,
@@ -592,6 +625,7 @@ static struct super_operations hugetlbfs_ops = {
 	.alloc_inode    = hugetlbfs_alloc_inode,
 	.destroy_inode  = hugetlbfs_destroy_inode,
 	.statfs		= hugetlbfs_statfs,
+	.delete_inode	= hugetlbfs_delete_inode,
 	.drop_inode	= hugetlbfs_drop_inode,
 	.put_super	= hugetlbfs_put_super,
 };

@@ -1292,7 +1292,7 @@ static void nodemgr_suspend_ne(struct node_entry *ne)
 
 		if (ud->device.driver &&
 		    (!ud->device.driver->suspend ||
-		      ud->device.driver->suspend(&ud->device, PMSG_SUSPEND, 0)))
+		      ud->device.driver->suspend(&ud->device, PMSG_SUSPEND)))
 			device_release_driver(&ud->device);
 	}
 	up_write(&ne->device.bus->subsys.rwsem);
@@ -1315,7 +1315,7 @@ static void nodemgr_resume_ne(struct node_entry *ne)
 			continue;
 
 		if (ud->device.driver && ud->device.driver->resume)
-			ud->device.driver->resume(&ud->device, 0);
+			ud->device.driver->resume(&ud->device);
 	}
 	up_read(&ne->device.bus->subsys.rwsem);
 

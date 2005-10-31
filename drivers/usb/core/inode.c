@@ -39,6 +39,7 @@
 #include <linux/usbdevice_fs.h>
 #include <linux/smp_lock.h>
 #include <linux/parser.h>
+#include <linux/notifier.h>
 #include <asm/byteorder.h>
 #include "usb.h"
 #include "hcd.h"
@@ -619,7 +620,7 @@ void usbfs_update_special (void)
 	}
 }
 
-void usbfs_add_bus(struct usb_bus *bus)
+static void usbfs_add_bus(struct usb_bus *bus)
 {
 	struct dentry *parent;
 	char name[8];
@@ -642,12 +643,9 @@ void usbfs_add_bus(struct usb_bus *bus)
 		err ("error creating usbfs bus entry");
 		return;
 	}
-
-	usbfs_update_special();
-	usbfs_conn_disc_event();
 }
 
-void usbfs_remove_bus(struct usb_bus *bus)
+static void usbfs_remove_bus(struct usb_bus *bus)
 {
 	if (bus->usbfs_dentry) {
 		fs_remove_file (bus->usbfs_dentry);
@@ -659,12 +657,9 @@ void usbfs_remove_bus(struct usb_bus *bus)
 		remove_special_files();
 		num_buses = 0;
 	}
-
-	usbfs_update_special();
-	usbfs_conn_disc_event();
 }
 
-void usbfs_add_device(struct usb_device *dev)
+static void usbfs_add_device(struct usb_device *dev)
 {
 	char name[8];
 	int i;
@@ -690,12 +685,9 @@ void usbfs_add_device(struct usb_device *dev)
 	}
 	if (dev->usbfs_dentry->d_inode)
 		dev->usbfs_dentry->d_inode->i_size = i_size;
-
-	usbfs_update_special();
-	usbfs_conn_disc_event();
 }
 
-void usbfs_remove_device(struct usb_device *dev)
+static void usbfs_remove_device(struct usb_device *dev)
 {
 	struct dev_state *ds;
 	struct siginfo sinfo;
@@ -716,9 +708,32 @@ void usbfs_remove_device(struct usb_device *dev)
 			kill_proc_info_as_uid(ds->discsignr, &sinfo, ds->disc_pid, ds->disc_uid, ds->disc_euid);
 		}
 	}
+}
+
+static int usbfs_notify(struct notifier_block *self, unsigned long action, void *dev)
+{
+	switch (action) {
+	case USB_DEVICE_ADD:
+		usbfs_add_device(dev);
+		break;
+	case USB_DEVICE_REMOVE:
+		usbfs_remove_device(dev);
+		break;
+	case USB_BUS_ADD:
+		usbfs_add_bus(dev);
+		break;
+	case USB_BUS_REMOVE:
+		usbfs_remove_bus(dev);
+	}
+
 	usbfs_update_special();
 	usbfs_conn_disc_event();
+	return NOTIFY_OK;
 }
+
+static struct notifier_block usbfs_nb = {
+	.notifier_call = 	usbfs_notify,
+};
 
 /* --------------------------------------------------------------------- */
 
@@ -732,6 +747,8 @@ int __init usbfs_init(void)
 	if (retval)
 		return retval;
 
+	usb_register_notify(&usbfs_nb);
+
 	/* create mount point for usbfs */
 	usbdir = proc_mkdir("usb", proc_bus);
 
@@ -740,6 +757,7 @@ int __init usbfs_init(void)
 
 void usbfs_cleanup(void)
 {
+	usb_unregister_notify(&usbfs_nb);
 	unregister_filesystem(&usb_fs_type);
 	if (usbdir)
 		remove_proc_entry("usb", proc_bus);

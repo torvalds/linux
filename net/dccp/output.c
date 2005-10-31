@@ -495,7 +495,7 @@ void dccp_send_close(struct sock *sk, const int active)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct sk_buff *skb;
-	const unsigned int prio = active ? GFP_KERNEL : GFP_ATOMIC;
+	const gfp_t prio = active ? GFP_KERNEL : GFP_ATOMIC;
 
 	skb = alloc_skb(sk->sk_prot->max_header, prio);
 	if (skb == NULL)

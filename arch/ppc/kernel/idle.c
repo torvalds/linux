@@ -32,6 +32,7 @@
 #include <asm/cache.h>
 #include <asm/cputable.h>
 #include <asm/machdep.h>
+#include <asm/smp.h>
 
 void default_idle(void)
 {
@@ -74,7 +75,7 @@ void cpu_idle(void)
 /*
  * Register the sysctl to set/clear powersave_nap.
  */
-extern unsigned long powersave_nap;
+extern int powersave_nap;
 
 static ctl_table powersave_nap_ctl_table[]={
 	{

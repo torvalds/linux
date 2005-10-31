@@ -827,11 +827,10 @@ skip_normal_probe:
 		return -ENODEV;
 	}
 
-	if (!(acm = kmalloc(sizeof(struct acm), GFP_KERNEL))) {
-		dev_dbg(&intf->dev, "out of memory (acm kmalloc)\n");
+	if (!(acm = kzalloc(sizeof(struct acm), GFP_KERNEL))) {
+		dev_dbg(&intf->dev, "out of memory (acm kzalloc)\n");
 		goto alloc_fail;
 	}
-	memset(acm, 0, sizeof(struct acm));
 
 	ctrlsize = le16_to_cpu(epctrl->wMaxPacketSize);
 	readsize = le16_to_cpu(epread->wMaxPacketSize);

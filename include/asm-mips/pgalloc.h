@@ -26,10 +26,22 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd,
 }
 
 /*
+ * Initialize a new pmd table with invalid pointers.
+ */
+extern void pmd_init(unsigned long page, unsigned long pagetable);
+
+#ifdef CONFIG_64BIT
+
+static inline void pud_populate(struct mm_struct *mm, pud_t *pud, pmd_t *pmd)
+{
+	set_pud(pud, __pud((unsigned long)pmd));
+}
+#endif
+
+/*
  * Initialize a new pgd / pmd table with invalid pointers.
  */
 extern void pgd_init(unsigned long page);
-extern void pmd_init(unsigned long page, unsigned long pagetable);
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
@@ -86,20 +98,17 @@ static inline void pte_free(struct page *pte)
 #define __pte_free_tlb(tlb,pte)		tlb_remove_page((tlb),(pte))
 
 #ifdef CONFIG_32BIT
-#define pgd_populate(mm, pmd, pte)	BUG()
 
 /*
  * allocating and freeing a pmd is trivial: the 1-entry pmd is
  * inside the pgd, so has no extra memory associated with it.
  */
-#define pmd_alloc_one(mm, addr)		({ BUG(); ((pmd_t *)2); })
 #define pmd_free(x)			do { } while (0)
 #define __pmd_free_tlb(tlb,x)		do { } while (0)
+
 #endif
 
 #ifdef CONFIG_64BIT
-
-#define pgd_populate(mm, pgd, pmd)	set_pgd(pgd, __pgd(pmd))
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
 {

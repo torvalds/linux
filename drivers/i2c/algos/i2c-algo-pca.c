@@ -34,7 +34,7 @@
 #define DEB2(fmt, args...) do { if (i2c_debug>=2) printk(fmt, ## args); } while(0)
 #define DEB3(fmt, args...) do { if (i2c_debug>=3) printk(fmt, ## args); } while(0)
 
-static int i2c_debug=0;
+static int i2c_debug;
 
 #define pca_outw(adap, reg, val) adap->write_byte(adap, reg, val)
 #define pca_inw(adap, reg) adap->read_byte(adap, reg)

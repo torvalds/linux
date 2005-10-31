@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/security.h>
 #include <linux/seq_file.h>
 #include <linux/err.h>
 #include <asm/uaccess.h>
@@ -309,7 +310,9 @@ struct key *keyring_alloc(const char *description, uid_t uid, gid_t gid,
 	int ret;
 
 	keyring = key_alloc(&key_type_keyring, description,
-			    uid, gid, KEY_POS_ALL | KEY_USR_ALL, not_in_quota);
+			    uid, gid,
+			    (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_ALL,
+			    not_in_quota);
 
 	if (!IS_ERR(keyring)) {
 		ret = key_instantiate_and_link(keyring, NULL, 0, dest, NULL);
@@ -359,9 +362,11 @@ key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 	key_check(keyring);
 
 	/* top keyring must have search permission to begin the search */
-	key_ref = ERR_PTR(-EACCES);
-	if (!key_task_permission(keyring_ref, context, KEY_SEARCH))
+        err = key_task_permission(keyring_ref, context, KEY_SEARCH);
+	if (err < 0) {
+		key_ref = ERR_PTR(err);
 		goto error;
+	}
 
 	key_ref = ERR_PTR(-ENOTDIR);
 	if (keyring->type != &key_type_keyring)
@@ -402,8 +407,8 @@ descend:
 			continue;
 
 		/* key must have search permissions */
-		if (!key_task_permission(make_key_ref(key, possessed),
-					 context, KEY_SEARCH))
+		if (key_task_permission(make_key_ref(key, possessed),
+					context, KEY_SEARCH) < 0)
 			continue;
 
 		/* we set a different error code if we find a negative key */
@@ -430,7 +435,7 @@ ascend:
 			continue;
 
 		if (!key_task_permission(make_key_ref(key, possessed),
-					 context, KEY_SEARCH))
+					 context, KEY_SEARCH) < 0)
 			continue;
 
 		/* stack the current position */
@@ -521,7 +526,7 @@ key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 			    (!key->type->match ||
 			     key->type->match(key, description)) &&
 			    key_permission(make_key_ref(key, possessed),
-					   perm) &&
+					   perm) < 0 &&
 			    !test_bit(KEY_FLAG_REVOKED, &key->flags)
 			    )
 				goto found;
@@ -617,7 +622,7 @@ struct key *find_keyring_by_name(const char *name, key_serial_t bound)
 				continue;
 
 			if (!key_permission(make_key_ref(keyring, 0),
-					    KEY_SEARCH))
+					    KEY_SEARCH) < 0)
 				continue;
 
 			/* found a potential candidate, but we still need to

@@ -240,7 +240,7 @@ struct bttv_pll_info {
 
 /* for gpio-connected remote control */
 struct bttv_input {
-	struct input_dev      dev;
+	struct input_dev      *dev;
 	struct ir_input_state ir;
 	char                  name[32];
 	char                  phys[32];

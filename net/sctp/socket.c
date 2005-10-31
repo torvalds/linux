@@ -1010,6 +1010,19 @@ static int __sctp_connect(struct sock* sk,
 					err = -EAGAIN;
 					goto out_free;
 				}
+			} else {
+				/*
+				 * If an unprivileged user inherits a 1-many 
+				 * style socket with open associations on a 
+				 * privileged port, it MAY be permitted to 
+				 * accept new associations, but it SHOULD NOT 
+				 * be permitted to open new associations.
+				 */
+				if (ep->base.bind_addr.port < PROT_SOCK &&
+				    !capable(CAP_NET_BIND_SERVICE)) {
+					err = -EACCES;
+					goto out_free;
+				}
 			}
 
 			scope = sctp_scope(&to);
@@ -1389,27 +1402,27 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	SCTP_DEBUG_PRINTK("msg_len: %zu, sinfo_flags: 0x%x\n",
 			  msg_len, sinfo_flags);
 
-	/* MSG_EOF or MSG_ABORT cannot be set on a TCP-style socket. */
-	if (sctp_style(sk, TCP) && (sinfo_flags & (MSG_EOF | MSG_ABORT))) {
+	/* SCTP_EOF or SCTP_ABORT cannot be set on a TCP-style socket. */
+	if (sctp_style(sk, TCP) && (sinfo_flags & (SCTP_EOF | SCTP_ABORT))) {
 		err = -EINVAL;
 		goto out_nounlock;
 	}
 
-	/* If MSG_EOF is set, no data can be sent. Disallow sending zero
-	 * length messages when MSG_EOF|MSG_ABORT is not set.
-	 * If MSG_ABORT is set, the message length could be non zero with
+	/* If SCTP_EOF is set, no data can be sent. Disallow sending zero
+	 * length messages when SCTP_EOF|SCTP_ABORT is not set.
+	 * If SCTP_ABORT is set, the message length could be non zero with
 	 * the msg_iov set to the user abort reason.
  	 */
-	if (((sinfo_flags & MSG_EOF) && (msg_len > 0)) ||
-	    (!(sinfo_flags & (MSG_EOF|MSG_ABORT)) && (msg_len == 0))) {
+	if (((sinfo_flags & SCTP_EOF) && (msg_len > 0)) ||
+	    (!(sinfo_flags & (SCTP_EOF|SCTP_ABORT)) && (msg_len == 0))) {
 		err = -EINVAL;
 		goto out_nounlock;
 	}
 
-	/* If MSG_ADDR_OVER is set, there must be an address
+	/* If SCTP_ADDR_OVER is set, there must be an address
 	 * specified in msg_name.
 	 */
-	if ((sinfo_flags & MSG_ADDR_OVER) && (!msg->msg_name)) {
+	if ((sinfo_flags & SCTP_ADDR_OVER) && (!msg->msg_name)) {
 		err = -EINVAL;
 		goto out_nounlock;
 	}
@@ -1458,14 +1471,14 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 			goto out_unlock;
 		}
 
-		if (sinfo_flags & MSG_EOF) {
+		if (sinfo_flags & SCTP_EOF) {
 			SCTP_DEBUG_PRINTK("Shutting down association: %p\n",
 					  asoc);
 			sctp_primitive_SHUTDOWN(asoc, NULL);
 			err = 0;
 			goto out_unlock;
 		}
-		if (sinfo_flags & MSG_ABORT) {
+		if (sinfo_flags & SCTP_ABORT) {
 			SCTP_DEBUG_PRINTK("Aborting association: %p\n", asoc);
 			sctp_primitive_ABORT(asoc, msg);
 			err = 0;
@@ -1477,7 +1490,7 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 	if (!asoc) {
 		SCTP_DEBUG_PRINTK("There is no association yet.\n");
 
-		if (sinfo_flags & (MSG_EOF | MSG_ABORT)) {
+		if (sinfo_flags & (SCTP_EOF | SCTP_ABORT)) {
 			err = -EINVAL;
 			goto out_unlock;
 		}
@@ -1513,6 +1526,19 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 		if (!ep->base.bind_addr.port) {
 			if (sctp_autobind(sk)) {
 				err = -EAGAIN;
+				goto out_unlock;
+			}
+		} else {
+			/*
+			 * If an unprivileged user inherits a one-to-many
+			 * style socket with open associations on a privileged
+			 * port, it MAY be permitted to accept new associations,
+			 * but it SHOULD NOT be permitted to open new
+			 * associations.
+			 */
+			if (ep->base.bind_addr.port < PROT_SOCK &&
+			    !capable(CAP_NET_BIND_SERVICE)) {
+				err = -EACCES;
 				goto out_unlock;
 			}
 		}
@@ -1611,10 +1637,10 @@ SCTP_STATIC int sctp_sendmsg(struct kiocb *iocb, struct sock *sk,
 
 	/* If an address is passed with the sendto/sendmsg call, it is used
 	 * to override the primary destination address in the TCP model, or
-	 * when MSG_ADDR_OVER flag is set in the UDP model.
+	 * when SCTP_ADDR_OVER flag is set in the UDP model.
 	 */
 	if ((sctp_style(sk, TCP) && msg_name) ||
-	    (sinfo_flags & MSG_ADDR_OVER)) {
+	    (sinfo_flags & SCTP_ADDR_OVER)) {
 		chunk_tp = sctp_assoc_lookup_paddr(asoc, &to);
 		if (!chunk_tp) {
 			err = -EINVAL;
@@ -2306,16 +2332,14 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, int optl
 		return -EINVAL;
 	if (get_user(val, (int __user *)optval))
 		return -EFAULT;
-	if ((val < 8) || (val > SCTP_MAX_CHUNK_LEN))
+	if ((val != 0) && ((val < 8) || (val > SCTP_MAX_CHUNK_LEN)))
 		return -EINVAL;
 	sp->user_frag = val;
 
-	if (val) {
-		/* Update the frag_point of the existing associations. */
-		list_for_each(pos, &(sp->ep->asocs)) {
-			asoc = list_entry(pos, struct sctp_association, asocs);
-			asoc->frag_point = sctp_frag_point(sp, asoc->pmtu); 
-		}
+	/* Update the frag_point of the existing associations. */
+	list_for_each(pos, &(sp->ep->asocs)) {
+		asoc = list_entry(pos, struct sctp_association, asocs);
+		asoc->frag_point = sctp_frag_point(sp, asoc->pmtu); 
 	}
 
 	return 0;
@@ -2384,14 +2408,14 @@ static int sctp_setsockopt_peer_primary_addr(struct sock *sk, char __user *optva
 static int sctp_setsockopt_adaption_layer(struct sock *sk, char __user *optval,
 					  int optlen)
 {
-	__u32 val;
+	struct sctp_setadaption adaption;
 
-	if (optlen < sizeof(__u32))
+	if (optlen != sizeof(struct sctp_setadaption))
 		return -EINVAL;
-	if (copy_from_user(&val, optval, sizeof(__u32)))
+	if (copy_from_user(&adaption, optval, optlen)) 
 		return -EFAULT;
 
-	sctp_sk(sk)->adaption_ind = val;
+	sctp_sk(sk)->adaption_ind = adaption.ssb_adaption_ind;
 
 	return 0;
 }
@@ -3672,17 +3696,15 @@ static int sctp_getsockopt_primary_addr(struct sock *sk, int len,
 static int sctp_getsockopt_adaption_layer(struct sock *sk, int len,
 				  char __user *optval, int __user *optlen)
 {
-	__u32 val;
+	struct sctp_setadaption adaption;
 
-	if (len < sizeof(__u32))
+	if (len != sizeof(struct sctp_setadaption))
 		return -EINVAL;
 
-	len = sizeof(__u32);
-	val = sctp_sk(sk)->adaption_ind;
-	if (put_user(len, optlen))
+	adaption.ssb_adaption_ind = sctp_sk(sk)->adaption_ind;
+	if (copy_to_user(optval, &adaption, len))
 		return -EFAULT;
-	if (copy_to_user(optval, &val, len))
-		return -EFAULT;
+
 	return 0;
 }
 
@@ -4640,8 +4662,8 @@ SCTP_STATIC int sctp_msghdr_parse(const struct msghdr *msg,
 
 			/* Minimally, validate the sinfo_flags. */
 			if (cmsgs->info->sinfo_flags &
-			    ~(MSG_UNORDERED | MSG_ADDR_OVER |
-			      MSG_ABORT | MSG_EOF))
+			    ~(SCTP_UNORDERED | SCTP_ADDR_OVER |
+			      SCTP_ABORT | SCTP_EOF))
 				return -EINVAL;
 			break;
 

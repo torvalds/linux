@@ -185,8 +185,8 @@ send_IPI_allbutself (int op)
 {
 	unsigned int i;
 
-	for (i = 0; i < NR_CPUS; i++) {
-		if (cpu_online(i) && i != smp_processor_id())
+	for_each_online_cpu(i) {
+		if (i != smp_processor_id())
 			send_IPI_single(i, op);
 	}
 }
@@ -199,9 +199,9 @@ send_IPI_all (int op)
 {
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++)
-		if (cpu_online(i))
-			send_IPI_single(i, op);
+	for_each_online_cpu(i) {
+		send_IPI_single(i, op);
+	}
 }
 
 /*

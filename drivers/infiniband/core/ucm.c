@@ -41,37 +41,81 @@
 #include <linux/file.h>
 #include <linux/mount.h>
 #include <linux/cdev.h>
+#include <linux/idr.h>
 
 #include <asm/uaccess.h>
 
-#include "ucm.h"
+#include <rdma/ib_cm.h>
+#include <rdma/ib_user_cm.h>
 
 MODULE_AUTHOR("Libor Michalek");
 MODULE_DESCRIPTION("InfiniBand userspace Connection Manager access");
 MODULE_LICENSE("Dual BSD/GPL");
 
-static int ucm_debug_level;
+struct ib_ucm_device {
+	int			devnum;
+	struct cdev		dev;
+	struct class_device	class_dev;
+	struct ib_device	*ib_dev;
+};
 
-module_param_named(debug_level, ucm_debug_level, int, 0644);
-MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
+struct ib_ucm_file {
+	struct semaphore mutex;
+	struct file *filp;
+	struct ib_ucm_device *device;
+
+	struct list_head  ctxs;
+	struct list_head  events;
+	wait_queue_head_t poll_wait;
+};
+
+struct ib_ucm_context {
+	int                 id;
+	wait_queue_head_t   wait;
+	atomic_t            ref;
+	int		    events_reported;
+
+	struct ib_ucm_file *file;
+	struct ib_cm_id    *cm_id;
+	__u64		   uid;
+
+	struct list_head    events;    /* list of pending events. */
+	struct list_head    file_list; /* member in file ctx list */
+};
+
+struct ib_ucm_event {
+	struct ib_ucm_context *ctx;
+	struct list_head file_list; /* member in file event list */
+	struct list_head ctx_list;  /* member in ctx event list */
+
+	struct ib_cm_id *cm_id;
+	struct ib_ucm_event_resp resp;
+	void *data;
+	void *info;
+	int data_len;
+	int info_len;
+};
 
 enum {
 	IB_UCM_MAJOR = 231,
-	IB_UCM_MINOR = 255
+	IB_UCM_BASE_MINOR = 224,
+	IB_UCM_MAX_DEVICES = 32
 };
 
-#define IB_UCM_DEV MKDEV(IB_UCM_MAJOR, IB_UCM_MINOR)
+#define IB_UCM_BASE_DEV MKDEV(IB_UCM_MAJOR, IB_UCM_BASE_MINOR)
 
-#define PFX "UCM: "
+static void ib_ucm_add_one(struct ib_device *device);
+static void ib_ucm_remove_one(struct ib_device *device);
 
-#define ucm_dbg(format, arg...)			\
-	do {					\
-		if (ucm_debug_level > 0)	\
-			printk(KERN_DEBUG PFX format, ## arg); \
-	} while (0)
+static struct ib_client ucm_client = {
+	.name   = "ucm",
+	.add    = ib_ucm_add_one,
+	.remove = ib_ucm_remove_one
+};
 
-static struct semaphore ctx_id_mutex;
-static struct idr       ctx_id_table;
+static DECLARE_MUTEX(ctx_id_mutex);
+static DEFINE_IDR(ctx_id_table);
+static DECLARE_BITMAP(dev_map, IB_UCM_MAX_DEVICES);
 
 static struct ib_ucm_context *ib_ucm_ctx_get(struct ib_ucm_file *file, int id)
 {
@@ -152,17 +196,13 @@ static struct ib_ucm_context *ib_ucm_ctx_alloc(struct ib_ucm_file *file)
 		goto error;
 
 	list_add_tail(&ctx->file_list, &file->ctxs);
-	ucm_dbg("Allocated CM ID <%d>\n", ctx->id);
 	return ctx;
 
 error:
 	kfree(ctx);
 	return NULL;
 }
-/*
- * Event portion of the API, handle CM events
- * and allow event polling.
- */
+
 static void ib_ucm_event_path_get(struct ib_ucm_path_rec *upath,
 				  struct ib_sa_path_rec	 *kpath)
 {
@@ -209,6 +249,7 @@ static void ib_ucm_event_req_get(struct ib_ucm_req_event_resp *ureq,
 	ureq->retry_count                = kreq->retry_count;
 	ureq->rnr_retry_count            = kreq->rnr_retry_count;
 	ureq->srq                        = kreq->srq;
+	ureq->port			 = kreq->port;
 
 	ib_ucm_event_path_get(&ureq->primary_path, kreq->primary_path);
 	ib_ucm_event_path_get(&ureq->alternate_path, kreq->alternate_path);
@@ -295,6 +336,8 @@ static int ib_ucm_event_process(struct ib_cm_event *evt,
 	case IB_CM_SIDR_REQ_RECEIVED:
 		uvt->resp.u.sidr_req_resp.pkey = 
 					evt->param.sidr_req_rcvd.pkey;
+		uvt->resp.u.sidr_req_resp.port = 
+					evt->param.sidr_req_rcvd.port;
 		uvt->data_len = IB_CM_SIDR_REQ_PRIVATE_DATA_SIZE;
 		break;
 	case IB_CM_SIDR_REP_RECEIVED:
@@ -387,9 +430,7 @@ static ssize_t ib_ucm_event(struct ib_ucm_file *file,
 
 	if (copy_from_user(&cmd, inbuf, sizeof(cmd)))
 		return -EFAULT;
-	/*
-	 * wait
-	 */
+
 	down(&file->mutex);
 	while (list_empty(&file->events)) {
 
@@ -471,7 +512,6 @@ done:
 	return result;
 }
 
-
 static ssize_t ib_ucm_create_id(struct ib_ucm_file *file,
 				const char __user *inbuf,
 				int in_len, int out_len)
@@ -494,29 +534,27 @@ static ssize_t ib_ucm_create_id(struct ib_ucm_file *file,
 		return -ENOMEM;
 
 	ctx->uid = cmd.uid;
-	ctx->cm_id = ib_create_cm_id(ib_ucm_event_handler, ctx);
+	ctx->cm_id = ib_create_cm_id(file->device->ib_dev,
+				     ib_ucm_event_handler, ctx);
 	if (IS_ERR(ctx->cm_id)) {
 		result = PTR_ERR(ctx->cm_id);
-		goto err;
+		goto err1;
 	}
 
 	resp.id = ctx->id;
 	if (copy_to_user((void __user *)(unsigned long)cmd.response,
 			 &resp, sizeof(resp))) {
 		result = -EFAULT;
-		goto err;
+		goto err2;
 	}
-
 	return 0;
 
-err:
+err2:
+	ib_destroy_cm_id(ctx->cm_id);
+err1:
 	down(&ctx_id_mutex);
 	idr_remove(&ctx_id_table, ctx->id);
 	up(&ctx_id_mutex);
-
-	if (!IS_ERR(ctx->cm_id))
-		ib_destroy_cm_id(ctx->cm_id);
-
 	kfree(ctx);
 	return result;
 }
@@ -1184,9 +1222,6 @@ static ssize_t ib_ucm_write(struct file *filp, const char __user *buf,
 	if (copy_from_user(&hdr, buf, sizeof(hdr)))
 		return -EFAULT;
 
-	ucm_dbg("Write. cmd <%d> in <%d> out <%d> len <%Zu>\n",
-		hdr.cmd, hdr.in, hdr.out, len);
-
 	if (hdr.cmd < 0 || hdr.cmd >= ARRAY_SIZE(ucm_cmd_table))
 		return -EINVAL;
 
@@ -1231,8 +1266,7 @@ static int ib_ucm_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = file;
 	file->filp = filp;
-
-	ucm_dbg("Created struct\n");
+	file->device = container_of(inode->i_cdev, struct ib_ucm_device, dev);
 
 	return 0;
 }
@@ -1263,7 +1297,17 @@ static int ib_ucm_close(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file_operations ib_ucm_fops = {
+static void ib_ucm_release_class_dev(struct class_device *class_dev)
+{
+	struct ib_ucm_device *dev;
+
+	dev = container_of(class_dev, struct ib_ucm_device, class_dev);
+	cdev_del(&dev->dev);
+	clear_bit(dev->devnum, dev_map);
+	kfree(dev);
+}
+
+static struct file_operations ucm_fops = {
 	.owner 	 = THIS_MODULE,
 	.open 	 = ib_ucm_open,
 	.release = ib_ucm_close,
@@ -1271,55 +1315,142 @@ static struct file_operations ib_ucm_fops = {
 	.poll    = ib_ucm_poll,
 };
 
+static struct class ucm_class = {
+	.name    = "infiniband_cm",
+	.release = ib_ucm_release_class_dev
+};
 
-static struct class *ib_ucm_class;
-static struct cdev	  ib_ucm_cdev;
+static ssize_t show_dev(struct class_device *class_dev, char *buf)
+{
+	struct ib_ucm_device *dev;
+	
+	dev = container_of(class_dev, struct ib_ucm_device, class_dev);
+	return print_dev_t(buf, dev->dev.dev);
+}
+static CLASS_DEVICE_ATTR(dev, S_IRUGO, show_dev, NULL);
+
+static ssize_t show_ibdev(struct class_device *class_dev, char *buf)
+{
+	struct ib_ucm_device *dev;
+	
+	dev = container_of(class_dev, struct ib_ucm_device, class_dev);
+	return sprintf(buf, "%s\n", dev->ib_dev->name);
+}
+static CLASS_DEVICE_ATTR(ibdev, S_IRUGO, show_ibdev, NULL);
+
+static void ib_ucm_add_one(struct ib_device *device)
+{
+	struct ib_ucm_device *ucm_dev;
+
+	if (!device->alloc_ucontext)
+		return;
+
+	ucm_dev = kmalloc(sizeof *ucm_dev, GFP_KERNEL);
+	if (!ucm_dev)
+		return;
+
+	memset(ucm_dev, 0, sizeof *ucm_dev);
+	ucm_dev->ib_dev = device;
+
+	ucm_dev->devnum = find_first_zero_bit(dev_map, IB_UCM_MAX_DEVICES);
+	if (ucm_dev->devnum >= IB_UCM_MAX_DEVICES)
+		goto err;
+
+	set_bit(ucm_dev->devnum, dev_map);
+
+	cdev_init(&ucm_dev->dev, &ucm_fops);
+	ucm_dev->dev.owner = THIS_MODULE;
+	kobject_set_name(&ucm_dev->dev.kobj, "ucm%d", ucm_dev->devnum);
+	if (cdev_add(&ucm_dev->dev, IB_UCM_BASE_DEV + ucm_dev->devnum, 1))
+		goto err;
+
+	ucm_dev->class_dev.class = &ucm_class;
+	ucm_dev->class_dev.dev = device->dma_device;
+	snprintf(ucm_dev->class_dev.class_id, BUS_ID_SIZE, "ucm%d",
+		 ucm_dev->devnum);
+	if (class_device_register(&ucm_dev->class_dev))
+		goto err_cdev;
+
+	if (class_device_create_file(&ucm_dev->class_dev,
+				     &class_device_attr_dev))
+		goto err_class;
+	if (class_device_create_file(&ucm_dev->class_dev,
+				     &class_device_attr_ibdev))
+		goto err_class;
+
+	ib_set_client_data(device, &ucm_client, ucm_dev);
+	return;
+
+err_class:
+	class_device_unregister(&ucm_dev->class_dev);
+err_cdev:
+	cdev_del(&ucm_dev->dev);
+	clear_bit(ucm_dev->devnum, dev_map);
+err:
+	kfree(ucm_dev);
+	return;
+}
+
+static void ib_ucm_remove_one(struct ib_device *device)
+{
+	struct ib_ucm_device *ucm_dev = ib_get_client_data(device, &ucm_client);
+
+	if (!ucm_dev)
+		return;
+
+	class_device_unregister(&ucm_dev->class_dev);
+}
+
+static ssize_t show_abi_version(struct class *class, char *buf)
+{
+	return sprintf(buf, "%d\n", IB_USER_CM_ABI_VERSION);
+}
+static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
 
 static int __init ib_ucm_init(void)
 {
-	int result;
+	int ret;
 
-	result = register_chrdev_region(IB_UCM_DEV, 1, "infiniband_cm");
-	if (result) {
-		ucm_dbg("Error <%d> registering dev\n", result);
-		goto err_chr;
+	ret = register_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_MAX_DEVICES,
+				     "infiniband_cm");
+	if (ret) {
+		printk(KERN_ERR "ucm: couldn't register device number\n");
+		goto err;
 	}
 
-	cdev_init(&ib_ucm_cdev, &ib_ucm_fops);
-
-	result = cdev_add(&ib_ucm_cdev, IB_UCM_DEV, 1);
-	if (result) {
- 		ucm_dbg("Error <%d> adding cdev\n", result);
-		goto err_cdev;
+	ret = class_register(&ucm_class);
+	if (ret) {
+		printk(KERN_ERR "ucm: couldn't create class infiniband_cm\n");
+		goto err_chrdev;
 	}
 
-	ib_ucm_class = class_create(THIS_MODULE, "infiniband_cm");
-	if (IS_ERR(ib_ucm_class)) {
-		result = PTR_ERR(ib_ucm_class);
- 		ucm_dbg("Error <%d> creating class\n", result);
+	ret = class_create_file(&ucm_class, &class_attr_abi_version);
+	if (ret) {
+		printk(KERN_ERR "ucm: couldn't create abi_version attribute\n");
 		goto err_class;
 	}
 
-	class_device_create(ib_ucm_class, IB_UCM_DEV, NULL, "ucm");
-
-	idr_init(&ctx_id_table);
-	init_MUTEX(&ctx_id_mutex);
-
+	ret = ib_register_client(&ucm_client);
+	if (ret) {
+		printk(KERN_ERR "ucm: couldn't register client\n");
+		goto err_class;
+	}
 	return 0;
+
 err_class:
-	cdev_del(&ib_ucm_cdev);
-err_cdev:
-	unregister_chrdev_region(IB_UCM_DEV, 1);
-err_chr:
-	return result;
+	class_unregister(&ucm_class);
+err_chrdev:
+	unregister_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_MAX_DEVICES);
+err:
+	return ret;
 }
 
 static void __exit ib_ucm_cleanup(void)
 {
-	class_device_destroy(ib_ucm_class, IB_UCM_DEV);
-	class_destroy(ib_ucm_class);
-	cdev_del(&ib_ucm_cdev);
-	unregister_chrdev_region(IB_UCM_DEV, 1);
+	ib_unregister_client(&ucm_client);
+	class_unregister(&ucm_class);
+	unregister_chrdev_region(IB_UCM_BASE_DEV, IB_UCM_MAX_DEVICES);
+	idr_destroy(&ctx_id_table);
 }
 
 module_init(ib_ucm_init);

@@ -956,9 +956,9 @@ static int viotape_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	state[i].cur_part = 0;
 	for (j = 0; j < MAX_PARTITIONS; ++j)
 		state[i].part_stat_rwi[j] = VIOT_IDLE;
-	class_device_create(tape_class, MKDEV(VIOTAPE_MAJOR, i), NULL,
+	class_device_create(tape_class, NULL, MKDEV(VIOTAPE_MAJOR, i), NULL,
 			"iseries!vt%d", i);
-	class_device_create(tape_class, MKDEV(VIOTAPE_MAJOR, i | 0x80),
+	class_device_create(tape_class, NULL, MKDEV(VIOTAPE_MAJOR, i | 0x80),
 			NULL, "iseries!nvt%d", i);
 	devfs_mk_cdev(MKDEV(VIOTAPE_MAJOR, i), S_IFCHR | S_IRUSR | S_IWUSR,
 			"iseries/vt%d", i);
@@ -993,13 +993,16 @@ static struct vio_device_id viotape_device_table[] __devinitdata = {
 	{ "viotape", "" },
 	{ "", "" }
 };
-
 MODULE_DEVICE_TABLE(vio, viotape_device_table);
+
 static struct vio_driver viotape_driver = {
-	.name = "viotape",
 	.id_table = viotape_device_table,
 	.probe = viotape_probe,
-	.remove = viotape_remove
+	.remove = viotape_remove,
+	.driver = {
+		.name = "viotape",
+		.owner = THIS_MODULE,
+	}
 };
 
 

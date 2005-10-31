@@ -1,18 +1,15 @@
 ToDo/Notes:
 	- Find and fix bugs.
-	- In between ntfs_prepare/commit_write, need exclusion between
-	  simultaneous file extensions.  This is given to us by holding i_sem
-	  on the inode.  The only places in the kernel when a file is resized
-	  are prepare/commit write and truncate for both of which i_sem is
-	  held.  Just have to be careful in readpage/writepage and all other
-	  helpers not running under i_sem that we play nice...
-	  Also need to be careful with initialized_size extention in
-	  ntfs_prepare_write. Basically, just be _very_ careful in this code...
-	  UPDATE: The only things that need to be checked are read/writepage
-	  which do not hold i_sem.  Note writepage cannot change i_size but it
-	  needs to cope with a concurrent i_size change, just like readpage.
-	  Also both need to cope with concurrent changes to the other sizes,
-	  i.e. initialized/allocated/compressed size, as well.
+	- The only places in the kernel where a file is resized are
+	  ntfs_file_write*() and ntfs_truncate() for both of which i_sem is
+	  held.  Just have to be careful in read-/writepage and other helpers
+	  not running under i_sem that we play nice...  Also need to be careful
+	  with initialized_size extension in ntfs_file_write*() and writepage.
+	  UPDATE: The only things that need to be checked are the compressed
+	  write and the other attribute resize/write cases like index
+	  attributes, etc.  For now none of these are implemented so are safe.
+	- Implement filling in of holes in aops.c::ntfs_writepage() and its
+	  helpers.
 	- Implement mft.c::sync_mft_mirror_umount().  We currently will just
 	  leave the volume dirty on umount if the final iput(vol->mft_ino)
 	  causes a write of any mirrored mft records due to the mft mirror
@@ -21,6 +18,68 @@ ToDo/Notes:
 	  the problem.
 	- Enable the code for setting the NT4 compatibility flag when we start
 	  making NTFS 1.2 specific modifications.
+
+2.1.25 - (Almost) fully implement write(2) and truncate(2).
+
+	- Change ntfs_map_runlist_nolock(), ntfs_attr_find_vcn_nolock() and
+	  {__,}ntfs_cluster_free() to also take an optional attribute search
+	  context as argument.  This allows calling these functions with the
+	  mft record mapped.  Update all callers.
+	- Fix potential deadlock in ntfs_mft_data_extend_allocation_nolock()
+	  error handling by passing in the active search context when calling
+	  ntfs_cluster_free().
+	- Change ntfs_cluster_alloc() to take an extra boolean parameter
+	  specifying whether the cluster are being allocated to extend an
+	  attribute or to fill a hole.
+	- Change ntfs_attr_make_non_resident() to call ntfs_cluster_alloc()
+	  with @is_extension set to TRUE and remove the runlist terminator
+	  fixup code as this is now done by ntfs_cluster_alloc().
+	- Change ntfs_attr_make_non_resident to take the attribute value size
+	  as an extra parameter.  This is needed since we need to know the size
+	  before we can map the mft record and our callers always know it.  The
+	  reason we cannot simply read the size from the vfs inode i_size is
+	  that this is not necessarily uptodate.  This happens when
+	  ntfs_attr_make_non_resident() is called in the ->truncate call path.
+	- Fix ntfs_attr_make_non_resident() to update the vfs inode i_blocks
+	  which is zero for a resident attribute but should no longer be zero
+	  once the attribute is non-resident as it then has real clusters
+	  allocated.
+	- Add fs/ntfs/attrib.[hc]::ntfs_attr_extend_allocation(), a function to
+	  extend the allocation of an attributes.  Optionally, the data size,
+	  but not the initialized size can be extended, too.
+	- Implement fs/ntfs/inode.[hc]::ntfs_truncate().  It only supports
+	  uncompressed and unencrypted files and it never creates sparse files
+	  at least for the moment (making a file sparse requires us to modify
+	  its directory entries and we do not support directory operations at
+	  the moment).  Also, support for highly fragmented files, i.e. ones
+	  whose data attribute is split across multiple extents, is severly
+	  limited.  When such a case is encountered, EOPNOTSUPP is returned.
+	- Enable ATTR_SIZE attribute changes in ntfs_setattr().  This completes
+	  the initial implementation of file truncation.  Now both open(2)ing
+	  a file with the O_TRUNC flag and the {,f}truncate(2) system calls
+	  will resize a file appropriately.  The limitations are that only
+	  uncompressed and unencrypted files are supported.  Also, there is
+	  only very limited support for highly fragmented files (the ones whose
+	  $DATA attribute is split into multiple attribute extents).
+	- In attrib.c::ntfs_attr_set() call balance_dirty_pages_ratelimited()
+	  and cond_resched() in the main loop as we could be dirtying a lot of
+	  pages and this ensures we play nice with the VM and the system as a
+	  whole.
+	- Implement file operations ->write, ->aio_write, ->writev for regular
+	  files.  This replaces the old use of generic_file_write(), et al and
+	  the address space operations ->prepare_write and ->commit_write.
+	  This means that both sparse and non-sparse (unencrypted and
+	  uncompressed) files can now be extended using the normal write(2)
+	  code path.  There are two limitations at present and these are that
+	  we never create sparse files and that we only have limited support
+	  for highly fragmented files, i.e. ones whose data attribute is split
+	  across multiple extents.   When such a case is encountered,
+	  EOPNOTSUPP is returned.
+	- $EA attributes can be both resident and non-resident.
+	- Use %z for size_t to fix compilation warnings.  (Andrew Morton)
+	- Fix compilation warnings with gcc-4.0.2 on SUSE 10.0.
+	- Document extended attribute ($EA) NEED_EA flag.  (Based on libntfs
+	  patch by Yura Pakhuchiy.)
 
 2.1.24 - Lots of bug fixes and support more clean journal states.
 

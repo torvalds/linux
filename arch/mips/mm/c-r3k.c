@@ -221,12 +221,14 @@ static inline unsigned long get_phys_page (unsigned long addr,
 					   struct mm_struct *mm)
 {
 	pgd_t *pgd;
+	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
 	unsigned long physpage;
 
 	pgd = pgd_offset(mm, addr);
-	pmd = pmd_offset(pgd, addr);
+	pud = pud_offset(pgd, addr);
+	pmd = pmd_offset(pud, addr);
 	pte = pte_offset(pmd, addr);
 
 	if ((physpage = pte_val(*pte)) & _PAGE_VALID)
@@ -317,7 +319,7 @@ static void r3k_dma_cache_wback_inv(unsigned long start, unsigned long size)
 	r3k_flush_dcache_range(start, start + size);
 }
 
-void __init ld_mmu_r23000(void)
+void __init r3k_cache_init(void)
 {
 	extern void build_clear_page(void);
 	extern void build_copy_page(void);

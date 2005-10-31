@@ -67,24 +67,24 @@ void sb1250_time_init(void)
 	sb1250_mask_irq(cpu, irq);
 
 	/* Map the timer interrupt to ip[4] of this cpu */
-	bus_writeq(IMR_IP4_VAL,
-		   IOADDR(A_IMR_REGISTER(cpu, R_IMR_INTERRUPT_MAP_BASE) +
-			  (irq << 3)));
+	__raw_writeq(IMR_IP4_VAL,
+		     IOADDR(A_IMR_REGISTER(cpu, R_IMR_INTERRUPT_MAP_BASE) +
+			    (irq << 3)));
 
 	/* the general purpose timer ticks at 1 Mhz independent if the rest of the system */
 	/* Disable the timer and set up the count */
-	bus_writeq(0, IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
+	__raw_writeq(0, IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
 #ifdef CONFIG_SIMULATION
-	bus_writeq(50000 / HZ,
-		   IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT)));
+	__raw_writeq(50000 / HZ,
+		     IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT)));
 #else
-	bus_writeq(1000000/HZ,
-		   IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT)));
+	__raw_writeq(1000000 / HZ,
+		     IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_INIT)));
 #endif
 
 	/* Set the timer running */
-	bus_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS,
-		   IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
+	__raw_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS,
+		     IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
 
 	sb1250_unmask_irq(cpu, irq);
 	sb1250_steal_irq(irq);
@@ -100,25 +100,25 @@ void sb1250_time_init(void)
 
 void sb1250_timer_interrupt(struct pt_regs *regs)
 {
-	extern asmlinkage void ll_local_timer_interrupt(int irq, struct pt_regs *regs);
 	int cpu = smp_processor_id();
 	int irq = K_INT_TIMER_0 + cpu;
 
 	/* Reset the timer */
-	__bus_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS,
-		     IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
+	____raw_writeq(M_SCD_TIMER_ENABLE | M_SCD_TIMER_MODE_CONTINUOUS,
+		       IOADDR(A_SCD_TIMER_REGISTER(cpu, R_SCD_TIMER_CFG)));
 
-	/*
-	 * CPU 0 handles the global timer interrupt job
-	 */
 	if (cpu == 0) {
+		/*
+		 * CPU 0 handles the global timer interrupt job
+		 */
 		ll_timer_interrupt(irq, regs);
 	}
-
-	/*
-	 * every CPU should do profiling and process accouting
-	 */
-	ll_local_timer_interrupt(irq, regs);
+	else {
+		/*
+		 * other CPUs should just do profiling and process accounting
+		 */
+		ll_local_timer_interrupt(irq, regs);
+	}
 }
 
 /*
@@ -130,7 +130,7 @@ void sb1250_timer_interrupt(struct pt_regs *regs)
 unsigned long sb1250_gettimeoffset(void)
 {
 	unsigned long count =
-		bus_readq(IOADDR(A_SCD_TIMER_REGISTER(0, R_SCD_TIMER_CNT)));
+		__raw_readq(IOADDR(A_SCD_TIMER_REGISTER(0, R_SCD_TIMER_CNT)));
 
 	return 1000000/HZ - count;
  }

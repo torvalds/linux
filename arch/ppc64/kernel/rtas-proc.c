@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <linux/bitops.h>
+#include <linux/rtc.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>

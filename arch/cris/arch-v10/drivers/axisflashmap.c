@@ -140,6 +140,7 @@
 #include <linux/kernel.h>
 #include <linux/config.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 
 #include <linux/mtd/concat.h>
 #include <linux/mtd/map.h>

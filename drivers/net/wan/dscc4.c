@@ -446,8 +446,8 @@ static inline unsigned int dscc4_tx_quiescent(struct dscc4_dev_priv *dpriv,
 	return readl(dpriv->base_addr + CH0FTDA + dpriv->dev_id*4) == dpriv->ltda;
 }
 
-int state_check(u32 state, struct dscc4_dev_priv *dpriv, struct net_device *dev,
-		const char *msg)
+static int state_check(u32 state, struct dscc4_dev_priv *dpriv,
+		       struct net_device *dev, const char *msg)
 {
 	int ret = 0;
 
@@ -466,8 +466,9 @@ int state_check(u32 state, struct dscc4_dev_priv *dpriv, struct net_device *dev,
 	return ret;
 }
 
-void dscc4_tx_print(struct net_device *dev, struct dscc4_dev_priv *dpriv,
-		    char *msg)
+static void dscc4_tx_print(struct net_device *dev,
+			   struct dscc4_dev_priv *dpriv,
+			   char *msg)
 {
 	printk(KERN_DEBUG "%s: tx_current=%02d tx_dirty=%02d (%s)\n",
 	       dev->name, dpriv->tx_current, dpriv->tx_dirty, msg);
@@ -507,7 +508,8 @@ static void dscc4_release_ring(struct dscc4_dev_priv *dpriv)
 	}
 }
 
-inline int try_get_rx_skb(struct dscc4_dev_priv *dpriv, struct net_device *dev)
+static inline int try_get_rx_skb(struct dscc4_dev_priv *dpriv,
+				 struct net_device *dev)
 {
 	unsigned int dirty = dpriv->rx_dirty%RX_RING_SIZE;
 	struct RxFD *rx_fd = dpriv->rx_fd + dirty;
@@ -542,8 +544,7 @@ static int dscc4_wait_ack_cec(struct dscc4_dev_priv *dpriv,
 			       msg, i);
 			goto done;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(10);
+		schedule_timeout_uninterruptible(10);
 		rmb();
 	} while (++i > 0);
 	printk(KERN_ERR "%s: %s timeout\n", dev->name, msg);
@@ -588,8 +589,7 @@ static inline int dscc4_xpr_ack(struct dscc4_dev_priv *dpriv)
 		    (dpriv->iqtx[cur] & Xpr))
 			break;
 		smp_rmb();
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(10);
+		schedule_timeout_uninterruptible(10);
 	} while (++i > 0);
 
 	return (i >= 0 ) ? i : -EAGAIN;
@@ -1035,8 +1035,7 @@ static void dscc4_pci_reset(struct pci_dev *pdev, void __iomem *ioaddr)
 	/* Flush posted writes */
 	readl(ioaddr + GSTAR);
 
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(10);
+	schedule_timeout_uninterruptible(10);
 
 	for (i = 0; i < 16; i++)
 		pci_write_config_dword(pdev, i << 2, dscc4_pci_config_store[i]);
@@ -1894,7 +1893,7 @@ try:
  * It failed and locked solid. Thus the introduction of a dummy skb.
  * Problem is acknowledged in errata sheet DS5. Joy :o/
  */
-struct sk_buff *dscc4_init_dummy_skb(struct dscc4_dev_priv *dpriv)
+static struct sk_buff *dscc4_init_dummy_skb(struct dscc4_dev_priv *dpriv)
 {
 	struct sk_buff *skb;
 

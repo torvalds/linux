@@ -133,13 +133,9 @@ static int mdio_bus_suspend(struct device * dev, pm_message_t state)
 	int ret = 0;
 	struct device_driver *drv = dev->driver;
 
-	if (drv && drv->suspend) {
-		ret = drv->suspend(dev, state, SUSPEND_DISABLE);
-		if (ret == 0)
-			ret = drv->suspend(dev, state, SUSPEND_SAVE_STATE);
-		if (ret == 0)
-			ret = drv->suspend(dev, state, SUSPEND_POWER_DOWN);
-	}
+	if (drv && drv->suspend)
+		ret = drv->suspend(dev, state);
+
 	return ret;
 }
 
@@ -148,13 +144,9 @@ static int mdio_bus_resume(struct device * dev)
 	int ret = 0;
 	struct device_driver *drv = dev->driver;
 
-	if (drv && drv->resume) {
-		ret = drv->resume(dev, RESUME_POWER_ON);
-		if (ret == 0)
-			ret = drv->resume(dev, RESUME_RESTORE_STATE);
-		if (ret == 0)
-			ret = drv->resume(dev, RESUME_ENABLE);
-	}
+	if (drv && drv->resume)
+		ret = drv->resume(dev);
+
 	return ret;
 }
 

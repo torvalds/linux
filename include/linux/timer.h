@@ -12,15 +12,11 @@ struct timer_list {
 	struct list_head entry;
 	unsigned long expires;
 
-	unsigned long magic;
-
 	void (*function)(unsigned long);
 	unsigned long data;
 
 	struct timer_base_s *base;
 };
-
-#define TIMER_MAGIC	0x4b87ad6e
 
 extern struct timer_base_s __init_timer_base;
 
@@ -29,7 +25,6 @@ extern struct timer_base_s __init_timer_base;
 		.expires = (_expires),				\
 		.data = (_data),				\
 		.base = &__init_timer_base,			\
-		.magic = TIMER_MAGIC,				\
 	}
 
 #define DEFINE_TIMER(_name, _function, _expires, _data)		\
@@ -37,6 +32,15 @@ extern struct timer_base_s __init_timer_base;
 		TIMER_INITIALIZER(_function, _expires, _data)
 
 void fastcall init_timer(struct timer_list * timer);
+
+static inline void setup_timer(struct timer_list * timer,
+				void (*function)(unsigned long),
+				unsigned long data)
+{
+	timer->function = function;
+	timer->data = data;
+	init_timer(timer);
+}
 
 /***
  * timer_pending - is a timer pending?
@@ -74,8 +78,9 @@ extern unsigned long next_timer_interrupt(void);
  * Timers with an ->expired field in the past will be executed in the next
  * timer tick.
  */
-static inline void add_timer(struct timer_list * timer)
+static inline void add_timer(struct timer_list *timer)
 {
+	BUG_ON(timer_pending(timer));
 	__mod_timer(timer, timer->expires);
 }
 

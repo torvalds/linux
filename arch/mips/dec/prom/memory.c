@@ -35,22 +35,22 @@ static inline void pmax_setup_memory_region(void)
 	extern char genexcept_early;
 
 	/* Install exception handler */
-	memcpy(&old_handler, (void *)(KSEG0 + 0x80), 0x80);
-	memcpy((void *)(KSEG0 + 0x80), &genexcept_early, 0x80);
+	memcpy(&old_handler, (void *)(CKSEG0 + 0x80), 0x80);
+	memcpy((void *)(CKSEG0 + 0x80), &genexcept_early, 0x80);
 
 	/* read unmapped and uncached (KSEG1)
 	 * DECstations have at least 4MB RAM
 	 * Assume less than 480MB of RAM, as this is max for 5000/2xx
 	 * FIXME this should be replaced by the first free page!
 	 */
-	for (memory_page = (unsigned char *) KSEG1 + CHUNK_SIZE;
-	     (mem_err== 0) && (memory_page < ((unsigned char *) KSEG1+0x1E000000));
+	for (memory_page = (unsigned char *)CKSEG1 + CHUNK_SIZE;
+	     mem_err == 0 && memory_page < (unsigned char *)CKSEG1 + 0x1e00000;
   	     memory_page += CHUNK_SIZE) {
 		dummy = *memory_page;
 	}
-	memcpy((void *)(KSEG0 + 0x80), &old_handler, 0x80);
+	memcpy((void *)(CKSEG0 + 0x80), &old_handler, 0x80);
 
-	add_memory_region(0, (unsigned long)memory_page - KSEG1 - CHUNK_SIZE,
+	add_memory_region(0, (unsigned long)memory_page - CKSEG1 - CHUNK_SIZE,
 			  BOOT_MEM_RAM);
 }
 
@@ -65,7 +65,7 @@ static inline void rex_setup_memory_region(void)
 	memmap *bm;
 
 	/* some free 64k */
-	bm = (memmap *)KSEG0ADDR(0x28000);
+	bm = (memmap *)CKSEG0ADDR(0x28000);
 
 	bitmap_size = rex_getbitmap(bm);
 

@@ -275,6 +275,10 @@ qeth_is_ipa_enabled(struct qeth_ipa_info *ipa, enum qeth_ipa_funcs func)
 	QETH_IDX_FUNC_LEVEL_IQD_ENA_IPAT, \
 	QETH_IDX_FUNC_LEVEL_IQD_DIS_IPAT, \
 	QETH_MAX_QUEUES,0x103}, \
+	{0x1731,0x06,0x1732,0x06,QETH_CARD_TYPE_OSN,0, \
+	QETH_IDX_FUNC_LEVEL_OSAE_ENA_IPAT, \
+	QETH_IDX_FUNC_LEVEL_OSAE_DIS_IPAT, \
+	QETH_MAX_QUEUES,0}, \
 	{0,0,0,0,0,0,0,0,0}}
 
 #define QETH_REAL_CARD		1
@@ -363,10 +367,22 @@ struct qeth_hdr_layer2 {
 	__u8 reserved2[16];
 } __attribute__ ((packed));
 
+struct qeth_hdr_osn {
+	__u8 id;
+	__u8 reserved;
+	__u16 seq_no;
+	__u16 reserved2;
+	__u16 control_flags;
+	__u16 pdu_length;
+	__u8 reserved3[18];
+	__u32 ccid;
+} __attribute__ ((packed));
+					    
 struct qeth_hdr {
 	union {
 		struct qeth_hdr_layer2 l2;
 		struct qeth_hdr_layer3 l3;
+		struct qeth_hdr_osn    osn;
 	} hdr;
 } __attribute__ ((packed));
 
@@ -413,6 +429,7 @@ enum qeth_header_ids {
 	QETH_HEADER_TYPE_LAYER3 = 0x01,
 	QETH_HEADER_TYPE_LAYER2 = 0x02,
 	QETH_HEADER_TYPE_TSO	= 0x03,
+	QETH_HEADER_TYPE_OSN    = 0x04,
 };
 /* flags for qeth_hdr.ext_flags */
 #define QETH_HDR_EXT_VLAN_FRAME       0x01
@@ -582,7 +599,6 @@ enum qeth_card_states {
  * Protocol versions
  */
 enum qeth_prot_versions {
-	QETH_PROT_SNA  = 0x0001,
 	QETH_PROT_IPV4 = 0x0004,
 	QETH_PROT_IPV6 = 0x0006,
 };
@@ -761,6 +777,11 @@ enum qeth_threads {
 	QETH_RECOVER_THREAD = 2,
 };
 
+struct qeth_osn_info {
+	int (*assist_cb)(struct net_device *dev, void *data);
+	int (*data_cb)(struct sk_buff *skb);
+};
+
 struct qeth_card {
 	struct list_head list;
 	enum qeth_card_states state;
@@ -803,6 +824,7 @@ struct qeth_card {
 	int use_hard_stop;
 	int (*orig_hard_header)(struct sk_buff *,struct net_device *,
 				unsigned short,void *,void *,unsigned);
+	struct qeth_osn_info osn_info; 
 };
 
 struct qeth_card_list_struct {
@@ -916,10 +938,12 @@ qeth_get_hlen(__u8 link_type)
 static inline unsigned short
 qeth_get_netdev_flags(struct qeth_card *card)
 {
-	if (card->options.layer2)
+	if (card->options.layer2 &&
+	   (card->info.type == QETH_CARD_TYPE_OSAE))
 		return 0;
 	switch (card->info.type) {
 	case QETH_CARD_TYPE_IQD:
+	case QETH_CARD_TYPE_OSN:	
 		return IFF_NOARP;
 #ifdef CONFIG_QETH_IPV6
 	default:
@@ -956,9 +980,10 @@ static inline int
 qeth_get_max_mtu_for_card(int cardtype)
 {
 	switch (cardtype) {
+		
 	case QETH_CARD_TYPE_UNKNOWN:
-		return 61440;
 	case QETH_CARD_TYPE_OSAE:
+	case QETH_CARD_TYPE_OSN:
 		return 61440;
 	case QETH_CARD_TYPE_IQD:
 		return 57344;
@@ -1004,6 +1029,7 @@ qeth_mtu_is_valid(struct qeth_card * card, int mtu)
 	case QETH_CARD_TYPE_IQD:
 		return ((mtu >= 576) &&
 			(mtu <= card->info.max_mtu + 4096 - 32));
+	case QETH_CARD_TYPE_OSN:
 	case QETH_CARD_TYPE_UNKNOWN:
 	default:
 		return 1;
@@ -1015,6 +1041,7 @@ qeth_get_arphdr_type(int cardtype, int linktype)
 {
 	switch (cardtype) {
 	case QETH_CARD_TYPE_OSAE:
+	case QETH_CARD_TYPE_OSN:
 		switch (linktype) {
 		case QETH_LINK_TYPE_LANE_TR:
 		case QETH_LINK_TYPE_HSTR:
@@ -1182,4 +1209,16 @@ qeth_fill_header(struct qeth_card *, struct qeth_hdr *,
 extern void
 qeth_flush_buffers(struct qeth_qdio_out_q *, int, int, int);
 
+extern int
+qeth_osn_assist(struct net_device *, void *, int);
+
+extern int
+qeth_osn_register(unsigned char *read_dev_no,
+                 struct net_device **,
+                 int (*assist_cb)(struct net_device *, void *),
+                 int (*data_cb)(struct sk_buff *));
+
+extern void
+qeth_osn_deregister(struct net_device *);
+		
 #endif /* __QETH_H__ */

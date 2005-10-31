@@ -22,10 +22,12 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/string.h>
+
 #include <asm/arch/imxfb.h>
 #include <asm/hardware.h>
 #include <asm/arch/imx-regs.h>
@@ -273,8 +275,12 @@ static struct platform_device *devices[] __initdata = {
 };
 
 static struct map_desc imx_io_desc[] __initdata = {
-	/* virtual     physical    length      type */
-	{IMX_IO_BASE, IMX_IO_PHYS, IMX_IO_SIZE, MT_DEVICE},
+	{
+		.virtual	= IMX_IO_BASE,
+		.pfn		= __phys_to_pfn(IMX_IO_PHYS),
+		.length		= IMX_IO_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 void __init

@@ -1621,7 +1621,7 @@ out:
  * while the data is part of a transaction.  Yes?
  */
 int journal_try_to_free_buffers(journal_t *journal, 
-				struct page *page, int unused_gfp_mask)
+				struct page *page, gfp_t unused_gfp_mask)
 {
 	struct buffer_head *head;
 	struct buffer_head *bh;

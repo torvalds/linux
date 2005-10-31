@@ -5,7 +5,7 @@
 
 #include <linux/futex.h>
 #include <asm/errno.h>
-#include <asm/memory.h>
+#include <asm/synch.h>
 #include <asm/uaccess.h>
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg) \

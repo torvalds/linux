@@ -4,6 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2003, 2004 Ralf Baechle
+ * Copyright (C) 2004  Maciej W. Rozycki
  */
 #ifndef __ASM_CPU_FEATURES_H
 #define __ASM_CPU_FEATURES_H
@@ -24,8 +25,19 @@
 #ifndef cpu_has_4kex
 #define cpu_has_4kex		(cpu_data[0].options & MIPS_CPU_4KEX)
 #endif
-#ifndef cpu_has_4ktlb
-#define cpu_has_4ktlb		(cpu_data[0].options & MIPS_CPU_4KTLB)
+#ifndef cpu_has_3k_cache
+#define cpu_has_3k_cache	(cpu_data[0].options & MIPS_CPU_3K_CACHE)
+#endif
+#define cpu_has_6k_cache	0
+#define cpu_has_8k_cache	0
+#ifndef cpu_has_4k_cache
+#define cpu_has_4k_cache	(cpu_data[0].options & MIPS_CPU_4K_CACHE)
+#endif
+#ifndef cpu_has_tx39_cache
+#define cpu_has_tx39_cache	(cpu_data[0].options & MIPS_CPU_TX39_CACHE)
+#endif
+#ifndef cpu_has_sb1_cache
+#define cpu_has_sb1_cache	(cpu_data[0].options & MIPS_CPU_SB1_CACHE)
 #endif
 #ifndef cpu_has_fpu
 #define cpu_has_fpu		(cpu_data[0].options & MIPS_CPU_FPU)
@@ -38,9 +50,6 @@
 #endif
 #ifndef cpu_has_watch
 #define cpu_has_watch		(cpu_data[0].options & MIPS_CPU_WATCH)
-#endif
-#ifndef cpu_has_mips16
-#define cpu_has_mips16		(cpu_data[0].options & MIPS_CPU_MIPS16)
 #endif
 #ifndef cpu_has_divec
 #define cpu_has_divec		(cpu_data[0].options & MIPS_CPU_DIVEC)
@@ -65,6 +74,18 @@
 #endif
 #ifndef cpu_has_llsc
 #define cpu_has_llsc		(cpu_data[0].options & MIPS_CPU_LLSC)
+#endif
+#ifndef cpu_has_mips16
+#define cpu_has_mips16		(cpu_data[0].ases & MIPS_ASE_MIPS16)
+#endif
+#ifndef cpu_has_mdmx
+#define cpu_has_mdmx           (cpu_data[0].ases & MIPS_ASE_MDMX)
+#endif
+#ifndef cpu_has_mips3d
+#define cpu_has_mips3d         (cpu_data[0].ases & MIPS_ASE_MIPS3D)
+#endif
+#ifndef cpu_has_smartmips
+#define cpu_has_smartmips      (cpu_data[0].ases & MIPS_ASE_SMARTMIPS)
 #endif
 #ifndef cpu_has_vtag_icache
 #define cpu_has_vtag_icache	(cpu_data[0].icache.flags & MIPS_CACHE_VTAG)
@@ -95,15 +116,16 @@
 #endif
 #endif
 
-/*
- * Certain CPUs may throw bizarre exceptions if not the whole cacheline
- * contains valid instructions.  For these we ensure proper alignment of
- * signal trampolines and pad them to the size of a full cache lines with
- * nops.  This is also used in structure definitions so can't be a test macro
- * like the others.
- */
-#ifndef PLAT_TRAMPOLINE_STUFF_LINE
-#define PLAT_TRAMPOLINE_STUFF_LINE	0UL
+#ifndef cpu_has_dsp
+#define cpu_has_dsp		(cpu_data[0].ases & MIPS_ASE_DSP)
+#endif
+
+#ifdef CONFIG_MIPS_MT
+#ifndef cpu_has_mipsmt
+# define cpu_has_mipsmt		(cpu_data[0].ases & MIPS_ASE_MIPSMT)
+#endif
+#else
+# define cpu_has_mipsmt		0
 #endif
 
 #ifdef CONFIG_32BIT
@@ -140,6 +162,22 @@
 # ifndef cpu_has_64bit_addresses
 # define cpu_has_64bit_addresses	1
 # endif
+#endif
+
+#ifdef CONFIG_CPU_MIPSR2
+# if defined(CONFIG_CPU_MIPSR2_IRQ_VI) && !defined(cpu_has_vint)
+#  define cpu_has_vint		(cpu_data[0].options & MIPS_CPU_VINT)
+# else
+#  define cpu_has_vint			0
+# endif
+# if defined(CONFIG_CPU_MIPSR2_IRQ_EI) && !defined(cpu_has_veic)
+#  define cpu_has_veic		(cpu_data[0].options & MIPS_CPU_VEIC)
+# else
+#  define cpu_has_veic			0
+# endif
+#else
+# define cpu_has_vint			0
+# define cpu_has_veic			0
 #endif
 
 #ifndef cpu_has_subset_pcaches

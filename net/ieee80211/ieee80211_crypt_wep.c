@@ -229,19 +229,19 @@ static char *prism2_wep_print_stats(char *p, void *priv)
 }
 
 static struct ieee80211_crypto_ops ieee80211_crypt_wep = {
-	.name			= "WEP",
-	.init			= prism2_wep_init,
-	.deinit			= prism2_wep_deinit,
-	.encrypt_mpdu		= prism2_wep_encrypt,
-	.decrypt_mpdu		= prism2_wep_decrypt,
-	.encrypt_msdu		= NULL,
-	.decrypt_msdu		= NULL,
-	.set_key		= prism2_wep_set_key,
-	.get_key		= prism2_wep_get_key,
-	.print_stats		= prism2_wep_print_stats,
-	.extra_prefix_len	= 4,	/* IV */
-	.extra_postfix_len	= 4,	/* ICV */
-	.owner			= THIS_MODULE,
+	.name = "WEP",
+	.init = prism2_wep_init,
+	.deinit = prism2_wep_deinit,
+	.encrypt_mpdu = prism2_wep_encrypt,
+	.decrypt_mpdu = prism2_wep_decrypt,
+	.encrypt_msdu = NULL,
+	.decrypt_msdu = NULL,
+	.set_key = prism2_wep_set_key,
+	.get_key = prism2_wep_get_key,
+	.print_stats = prism2_wep_print_stats,
+	.extra_mpdu_prefix_len = 4,	/* IV */
+	.extra_mpdu_postfix_len = 4,	/* ICV */
+	.owner = THIS_MODULE,
 };
 
 static int __init ieee80211_crypto_wep_init(void)

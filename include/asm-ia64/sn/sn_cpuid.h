@@ -105,7 +105,6 @@ extern short physical_node_map[];	/* indexed by nasid to get cnode */
 #define cpuid_to_nasid(cpuid)		(sn_nodepda->phys_cpuid[cpuid].nasid)
 #define cpuid_to_subnode(cpuid)		(sn_nodepda->phys_cpuid[cpuid].subnode)
 #define cpuid_to_slice(cpuid)		(sn_nodepda->phys_cpuid[cpuid].slice)
-#define cpuid_to_cnodeid(cpuid)		(physical_node_map[cpuid_to_nasid(cpuid)])
 
 
 /*
@@ -113,8 +112,6 @@ extern short physical_node_map[];	/* indexed by nasid to get cnode */
  * of potentially large tables.
  */
 extern int nasid_slice_to_cpuid(int, int);
-#define nasid_slice_to_cpu_physical_id(nasid, slice)			\
-	cpu_physical_id(nasid_slice_to_cpuid(nasid, slice))
 
 /*
  * cnodeid_to_nasid - convert a cnodeid to a NASID

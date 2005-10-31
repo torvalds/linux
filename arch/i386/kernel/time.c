@@ -74,10 +74,6 @@ int pit_latch_buggy;              /* extern */
 
 #include "do_timer.h"
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 unsigned int cpu_khz;	/* Detected as we calibrate the TSC */
 EXPORT_SYMBOL(cpu_khz);
 
@@ -444,8 +440,8 @@ static int time_init_device(void)
 
 device_initcall(time_init_device);
 
-#ifdef CONFIG_HPET_TIMER
 extern void (*late_time_init)(void);
+#ifdef CONFIG_HPET_TIMER
 /* Duplicate of time_init() below, with hpet_enable part added */
 static void __init hpet_time_init(void)
 {
@@ -462,6 +458,11 @@ static void __init hpet_time_init(void)
 	printk(KERN_INFO "Using %s for high-res timesource\n",cur_timer->name);
 
 	time_init_hook();
+
+#ifdef CONFIG_X86_LOCAL_APIC
+	if (enable_local_apic >= 0)
+		APIC_late_time_init();
+#endif
 }
 #endif
 
@@ -486,4 +487,9 @@ void __init time_init(void)
 	printk(KERN_INFO "Using %s for high-res timesource\n",cur_timer->name);
 
 	time_init_hook();
+
+#ifdef CONFIG_X86_LOCAL_APIC
+	if (enable_local_apic >= 0)
+		late_time_init = APIC_late_time_init;
+#endif
 }

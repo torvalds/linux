@@ -115,7 +115,7 @@ static struct vm_region consistent_head = {
 };
 
 static struct vm_region *
-vm_region_alloc(struct vm_region *head, size_t size, int gfp)
+vm_region_alloc(struct vm_region *head, size_t size, gfp_t gfp)
 {
 	unsigned long addr = head->vm_start, end = head->vm_end - size;
 	unsigned long flags;
@@ -173,7 +173,7 @@ static struct vm_region *vm_region_find(struct vm_region *head, unsigned long ad
  * virtual and bus address for that space.
  */
 void *
-__dma_alloc_coherent(size_t size, dma_addr_t *handle, int gfp)
+__dma_alloc_coherent(size_t size, dma_addr_t *handle, gfp_t gfp)
 {
 	struct page *page;
 	struct vm_region *c;
@@ -335,8 +335,6 @@ static int __init dma_alloc_init(void)
 	pte_t *pte;
 	int ret = 0;
 
-	spin_lock(&init_mm.page_table_lock);
-
 	do {
 		pgd = pgd_offset(&init_mm, CONSISTENT_BASE);
 		pmd = pmd_alloc(&init_mm, pgd, CONSISTENT_BASE);
@@ -347,7 +345,7 @@ static int __init dma_alloc_init(void)
 		}
 		WARN_ON(!pmd_none(*pmd));
 
-		pte = pte_alloc_kernel(&init_mm, pmd, CONSISTENT_BASE);
+		pte = pte_alloc_kernel(pmd, CONSISTENT_BASE);
 		if (!pte) {
 			printk(KERN_ERR "%s: no pte tables\n", __func__);
 			ret = -ENOMEM;
@@ -356,8 +354,6 @@ static int __init dma_alloc_init(void)
 
 		consistent_pte = pte;
 	} while (0);
-
-	spin_unlock(&init_mm.page_table_lock);
 
 	return ret;
 }

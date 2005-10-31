@@ -100,7 +100,12 @@ struct ipoib_pseudoheader {
 
 struct ipoib_mcast;
 
-struct ipoib_buf {
+struct ipoib_rx_buf {
+	struct sk_buff *skb;
+	dma_addr_t	mapping;
+};
+
+struct ipoib_tx_buf {
 	struct sk_buff *skb;
 	DECLARE_PCI_UNMAP_ADDR(mapping)
 };
@@ -150,14 +155,14 @@ struct ipoib_dev_priv {
 	unsigned int admin_mtu;
 	unsigned int mcast_mtu;
 
-	struct ipoib_buf *rx_ring;
+	struct ipoib_rx_buf *rx_ring;
 
-	spinlock_t        tx_lock;
-	struct ipoib_buf *tx_ring;
-	unsigned          tx_head;
-	unsigned          tx_tail;
-	struct ib_sge     tx_sge;
-	struct ib_send_wr tx_wr;
+	spinlock_t           tx_lock;
+	struct ipoib_tx_buf *tx_ring;
+	unsigned             tx_head;
+	unsigned             tx_tail;
+	struct ib_sge        tx_sge;
+	struct ib_send_wr    tx_wr;
 
 	struct ib_wc ibwc[IPOIB_NUM_WC];
 
@@ -277,7 +282,7 @@ int ipoib_mcast_attach(struct net_device *dev, u16 mlid,
 int ipoib_mcast_detach(struct net_device *dev, u16 mlid,
 		       union ib_gid *mgid);
 
-int ipoib_qp_create(struct net_device *dev);
+int ipoib_init_qp(struct net_device *dev);
 int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca);
 void ipoib_transport_dev_cleanup(struct net_device *dev);
 

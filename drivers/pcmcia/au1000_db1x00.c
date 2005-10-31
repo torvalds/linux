@@ -40,7 +40,15 @@
 #include <asm/irq.h>
 #include <asm/signal.h>
 #include <asm/mach-au1x00/au1000.h>
-#include <asm/mach-db1x00/db1x00.h>
+
+#if defined(CONFIG_MIPS_DB1200)
+	#include <db1200.h>
+#elif defined(CONFIG_MIPS_PB1200)
+	#include <pb1200.h>
+#else
+	#include <asm/mach-db1x00/db1x00.h>
+	static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
+#endif
 
 #include "au1000_generic.h"
 
@@ -50,7 +58,6 @@
 #define debug(x,args...)
 #endif
 
-static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
 
 struct au1000_pcmcia_socket au1000_pcmcia_socket[PCMCIA_NUM_SOCKS];
 extern int au1x00_pcmcia_socket_probe(struct device *, struct pcmcia_low_level *, int, int);
@@ -59,6 +66,8 @@ static int db1x00_pcmcia_hw_init(struct au1000_pcmcia_socket *skt)
 {
 #ifdef CONFIG_MIPS_DB1550
 	skt->irq = skt->nr ? AU1000_GPIO_5 : AU1000_GPIO_3;
+#elif defined(CONFIG_MIPS_DB1200) || defined(CONFIG_MIPS_PB1200)
+	skt->irq = skt->nr ? BOARD_PC1_INT : BOARD_PC0_INT;
 #else
 	skt->irq = skt->nr ? AU1000_GPIO_5 : AU1000_GPIO_2;
 #endif
@@ -85,11 +94,19 @@ db1x00_pcmcia_socket_state(struct au1000_pcmcia_socket *skt, struct pcmcia_state
 	switch (skt->nr) {
 	case 0:
 		vs = bcsr->status & 0x3;
+#if defined(CONFIG_MIPS_DB1200) || defined(CONFIG_MIPS_PB1200)
+		inserted = BOARD_CARD_INSERTED(0);
+#else
 		inserted = !(bcsr->status & (1<<4));
+#endif
 		break;
 	case 1:
 		vs = (bcsr->status & 0xC)>>2;
+#if defined(CONFIG_MIPS_DB1200) || defined(CONFIG_MIPS_PB1200)
+		inserted = BOARD_CARD_INSERTED(1);
+#else
 		inserted = !(bcsr->status & (1<<5));
+#endif
 		break;
 	default:/* should never happen */
 		return;

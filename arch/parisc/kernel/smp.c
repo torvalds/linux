@@ -18,7 +18,7 @@
 */
 #undef ENTRY_SYS_CPUS	/* syscall support for iCOD-like functionality */
 
-#include <linux/autoconf.h>
+#include <linux/config.h>
 
 #include <linux/types.h>
 #include <linux/spinlock.h>

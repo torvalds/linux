@@ -11,13 +11,7 @@
  */
 
 #include <linux/config.h>
-
-#ifdef __ASSEMBLY__
-  #define ASM_CONST(x) x
-#else
-  #define __ASM_CONST(x) x##UL
-  #define ASM_CONST(x) __ASM_CONST(x)
-#endif
+#include <asm/ppc_asm.h> /* for ASM_CONST */
 
 /* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT	12

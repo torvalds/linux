@@ -102,11 +102,16 @@ void __devinit intel_p6_mcheck_init(struct cpuinfo_x86 *c)
 		wrmsr(MSR_IA32_MCG_CTL, 0xffffffff, 0xffffffff);
 	nr_mce_banks = l & 0xff;
 
-	/* Don't enable bank 0 on intel P6 cores, it goes bang quickly. */
-	for (i=1; i<nr_mce_banks; i++) {
+	/*
+	 * Following the example in IA-32 SDM Vol 3:
+	 * - MC0_CTL should not be written
+	 * - Status registers on all banks should be cleared on reset
+	 */
+	for (i=1; i<nr_mce_banks; i++)
 		wrmsr (MSR_IA32_MC0_CTL+4*i, 0xffffffff, 0xffffffff);
+
+	for (i=0; i<nr_mce_banks; i++)
 		wrmsr (MSR_IA32_MC0_STATUS+4*i, 0x0, 0x0);
-	}
 
 	set_in_cr4 (X86_CR4_MCE);
 	printk (KERN_INFO "Intel machine check reporting enabled on CPU#%d.\n",

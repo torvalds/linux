@@ -41,6 +41,10 @@
 #define NFS_MAX_FILE_IO_BUFFER_SIZE	32768
 #define NFS_DEF_FILE_IO_BUFFER_SIZE	4096
 
+/* Default timeout values */
+#define NFS_MAX_UDP_TIMEOUT	(60*HZ)
+#define NFS_MAX_TCP_TIMEOUT	(600*HZ)
+
 /*
  * superblock magic number for NFS
  */
@@ -137,6 +141,7 @@ struct nfs_inode {
 	unsigned long		attrtimeo_timestamp;
 	__u64			change_attr;		/* v4 only */
 
+	unsigned long		last_updated;
 	/* "Generation counter" for the attribute cache. This is
 	 * bumped whenever we update the metadata on the
 	 * server.
@@ -236,13 +241,17 @@ static inline int nfs_caches_unstable(struct inode *inode)
 	return atomic_read(&NFS_I(inode)->data_updates) != 0;
 }
 
+static inline void nfs_mark_for_revalidate(struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ACCESS;
+	spin_unlock(&inode->i_lock);
+}
+
 static inline void NFS_CACHEINV(struct inode *inode)
 {
-	if (!nfs_caches_unstable(inode)) {
-		spin_lock(&inode->i_lock);
-		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_ATTR | NFS_INO_INVALID_ACCESS;
-		spin_unlock(&inode->i_lock);
-	}
+	if (!nfs_caches_unstable(inode))
+		nfs_mark_for_revalidate(inode);
 }
 
 static inline int nfs_server_capable(struct inode *inode, int cap)
@@ -276,7 +285,7 @@ static inline long nfs_save_change_attribute(struct inode *inode)
 static inline int nfs_verify_change_attribute(struct inode *inode, unsigned long chattr)
 {
 	return !nfs_caches_unstable(inode)
-		&& chattr == NFS_I(inode)->cache_change_attribute;
+		&& time_after_eq(chattr, NFS_I(inode)->cache_change_attribute);
 }
 
 /*
@@ -286,6 +295,7 @@ extern void nfs_zap_caches(struct inode *);
 extern struct inode *nfs_fhget(struct super_block *, struct nfs_fh *,
 				struct nfs_fattr *);
 extern int nfs_refresh_inode(struct inode *, struct nfs_fattr *);
+extern int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr);
 extern int nfs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 extern int nfs_permission(struct inode *, int, struct nameidata *);
 extern int nfs_access_get_cached(struct inode *, struct rpc_cred *, struct nfs_access_entry *);
@@ -311,6 +321,12 @@ extern void nfs_file_clear_open_context(struct file *filp);
 
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
 extern u32 root_nfs_parse_addr(char *name); /*__init*/
+
+static inline void nfs_fattr_init(struct nfs_fattr *fattr)
+{
+	fattr->valid = 0;
+	fattr->time_start = jiffies;
+}
 
 /*
  * linux/fs/nfs/file.c

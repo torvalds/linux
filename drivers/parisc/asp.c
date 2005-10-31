@@ -77,12 +77,12 @@ asp_init_chip(struct parisc_device *dev)
 	struct gsc_irq gsc_irq;
 	int ret;
 
-	asp.version = gsc_readb(dev->hpa + ASP_VER_OFFSET) & 0xf;
+	asp.version = gsc_readb(dev->hpa.start + ASP_VER_OFFSET) & 0xf;
 	asp.name = (asp.version == 1) ? "Asp" : "Cutoff";
 	asp.hpa = ASP_INTERRUPT_ADDR;
 
 	printk(KERN_INFO "%s version %d at 0x%lx found.\n", 
-		asp.name, asp.version, dev->hpa);
+		asp.name, asp.version, dev->hpa.start);
 
 	/* the IRQ ASP should use */
 	ret = -EBUSY;
@@ -126,7 +126,7 @@ static struct parisc_device_id asp_tbl[] = {
 };
 
 struct parisc_driver asp_driver = {
-	.name =		"Asp",
+	.name =		"asp",
 	.id_table =	asp_tbl,
 	.probe =	asp_init_chip,
 };

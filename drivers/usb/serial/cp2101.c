@@ -67,15 +67,17 @@ MODULE_DEVICE_TABLE (usb, id_table);
 
 static struct usb_driver cp2101_driver = {
 	.owner		= THIS_MODULE,
-	.name		= "CP2101",
+	.name		= "cp2101",
 	.probe		= usb_serial_probe,
 	.disconnect	= usb_serial_disconnect,
 	.id_table	= id_table,
 };
 
-static struct usb_serial_device_type cp2101_device = {
-	.owner			= THIS_MODULE,
-	.name			= "CP2101",
+static struct usb_serial_driver cp2101_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name = 	"cp2101",
+	},
 	.id_table		= id_table,
 	.num_interrupt_in	= 0,
 	.num_bulk_in		= 0,

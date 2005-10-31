@@ -36,6 +36,8 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 #include <asm/byteorder.h>
 
 #include "dvb_frontend.h"

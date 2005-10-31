@@ -29,7 +29,7 @@
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/hardware/arm_twd.h>
 #include <asm/uaccess.h>

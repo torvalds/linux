@@ -308,6 +308,7 @@ struct net_device
 #define NETIF_F_VLAN_CHALLENGED	1024	/* Device cannot handle VLAN packets */
 #define NETIF_F_TSO		2048	/* Can offload TCP/IP segmentation */
 #define NETIF_F_LLTX		4096	/* LockLess TX */
+#define NETIF_F_UFO             8192    /* Can offload UDP Large Send*/
 
 	struct net_device	*next_sched;
 
@@ -873,11 +874,9 @@ static inline void netif_rx_complete(struct net_device *dev)
 
 static inline void netif_poll_disable(struct net_device *dev)
 {
-	while (test_and_set_bit(__LINK_STATE_RX_SCHED, &dev->state)) {
+	while (test_and_set_bit(__LINK_STATE_RX_SCHED, &dev->state))
 		/* No hurry. */
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(1);
-	}
+		schedule_timeout_interruptible(1);
 }
 
 static inline void netif_poll_enable(struct net_device *dev)

@@ -14,6 +14,7 @@
 #define _PPC64_MMU_H_
 
 #include <linux/config.h>
+#include <asm/ppc_asm.h> /* for ASM_CONST */
 #include <asm/page.h>
 
 /*
@@ -29,7 +30,7 @@
 
 /* Location of cpu0's segment table */
 #define STAB0_PAGE	0x6
-#define STAB0_PHYS_ADDR	(STAB0_PAGE<<PAGE_SHIFT)
+#define STAB0_PHYS_ADDR	(STAB0_PAGE<<12)
 
 #ifndef __ASSEMBLY__
 extern char initial_stab[];
@@ -204,6 +205,10 @@ extern long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 extern long native_hpte_insert(unsigned long hpte_group, unsigned long va,
 			       unsigned long prpn,
 			       unsigned long vflags, unsigned long rflags);
+
+extern long iSeries_hpte_bolt_or_insert(unsigned long hpte_group,
+		unsigned long va, unsigned long prpn,
+		unsigned long vflags, unsigned long rflags);
 
 extern void stabs_alloc(void);
 

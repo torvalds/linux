@@ -518,11 +518,10 @@ static int sis5595_detect(struct i2c_adapter *adapter)
 			goto exit_release;
 	}
 
-	if (!(data = kmalloc(sizeof(struct sis5595_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct sis5595_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit_release;
 	}
-	memset(data, 0, sizeof(struct sis5595_data));
 
 	new_client = &data->client;
 	new_client->addr = address;

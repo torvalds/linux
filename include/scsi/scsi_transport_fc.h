@@ -28,6 +28,7 @@
 #define SCSI_TRANSPORT_FC_H
 
 #include <linux/config.h>
+#include <linux/sched.h>
 
 struct scsi_transport_template;
 

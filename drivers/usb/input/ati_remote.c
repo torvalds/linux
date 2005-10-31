@@ -112,7 +112,6 @@
 
 #define NAME_BUFSIZE      80    /* size of product name, path buffers */
 #define DATA_BUFSIZE      63    /* size of URB data buffers */
-#define ATI_INPUTNUM      1     /* Which input device to register as */
 
 static unsigned long channel_mask;
 module_param(channel_mask, ulong, 0444);
@@ -162,7 +161,7 @@ static char accel[] = { 1, 2, 4, 6, 9, 13, 20 };
 static DECLARE_MUTEX(disconnect_sem);
 
 struct ati_remote {
-	struct input_dev idev;
+	struct input_dev *idev;
 	struct usb_device *udev;
 	struct usb_interface *interface;
 
@@ -198,15 +197,13 @@ struct ati_remote {
 #define KIND_ACCEL      7   /* Directional keypad - left, right, up, down.*/
 
 /* Translation table from hardware messages to input events. */
-static struct
-{
+static struct {
 	short kind;
 	unsigned char data1, data2;
 	int type;
 	unsigned int code;
 	int value;
-}  ati_remote_tbl[] =
-{
+}  ati_remote_tbl[] = {
 	/* Directional control pad axes */
 	{KIND_ACCEL,   0x35, 0x70, EV_REL, REL_X, -1},	 /* left */
 	{KIND_ACCEL,   0x36, 0x71, EV_REL, REL_X, 1},    /* right */
@@ -286,7 +283,6 @@ static struct
 
 /* Local function prototypes */
 static void ati_remote_dump		(unsigned char *data, unsigned int actual_length);
-static void ati_remote_delete		(struct ati_remote *dev);
 static int ati_remote_open		(struct input_dev *inputdev);
 static void ati_remote_close		(struct input_dev *inputdev);
 static int ati_remote_sendpacket	(struct ati_remote *ati_remote, u16 cmd, unsigned char *data);
@@ -428,7 +424,7 @@ static void ati_remote_input_report(struct urb *urb, struct pt_regs *regs)
 {
 	struct ati_remote *ati_remote = urb->context;
 	unsigned char *data= ati_remote->inbuf;
-	struct input_dev *dev = &ati_remote->idev;
+	struct input_dev *dev = ati_remote->idev;
 	int index, acc;
 	int remote_num;
 
@@ -587,17 +583,42 @@ static void ati_remote_irq_in(struct urb *urb, struct pt_regs *regs)
 }
 
 /*
- *	ati_remote_delete
+ *	ati_remote_alloc_buffers
  */
-static void ati_remote_delete(struct ati_remote *ati_remote)
+static int ati_remote_alloc_buffers(struct usb_device *udev,
+				    struct ati_remote *ati_remote)
+{
+	ati_remote->inbuf = usb_buffer_alloc(udev, DATA_BUFSIZE, SLAB_ATOMIC,
+					     &ati_remote->inbuf_dma);
+	if (!ati_remote->inbuf)
+		return -1;
+
+	ati_remote->outbuf = usb_buffer_alloc(udev, DATA_BUFSIZE, SLAB_ATOMIC,
+					      &ati_remote->outbuf_dma);
+	if (!ati_remote->outbuf)
+		return -1;
+
+	ati_remote->irq_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!ati_remote->irq_urb)
+		return -1;
+
+	ati_remote->out_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!ati_remote->out_urb)
+		return -1;
+
+	return 0;
+}
+
+/*
+ *	ati_remote_free_buffers
+ */
+static void ati_remote_free_buffers(struct ati_remote *ati_remote)
 {
 	if (ati_remote->irq_urb)
-		usb_kill_urb(ati_remote->irq_urb);
+		usb_free_urb(ati_remote->irq_urb);
 
 	if (ati_remote->out_urb)
-		usb_kill_urb(ati_remote->out_urb);
-
-	input_unregister_device(&ati_remote->idev);
+		usb_free_urb(ati_remote->out_urb);
 
 	if (ati_remote->inbuf)
 		usb_buffer_free(ati_remote->udev, DATA_BUFSIZE,
@@ -605,20 +626,12 @@ static void ati_remote_delete(struct ati_remote *ati_remote)
 
 	if (ati_remote->outbuf)
 		usb_buffer_free(ati_remote->udev, DATA_BUFSIZE,
-				ati_remote->outbuf, ati_remote->outbuf_dma);
-
-	if (ati_remote->irq_urb)
-		usb_free_urb(ati_remote->irq_urb);
-
-	if (ati_remote->out_urb)
-		usb_free_urb(ati_remote->out_urb);
-
-	kfree(ati_remote);
+				ati_remote->inbuf, ati_remote->outbuf_dma);
 }
 
 static void ati_remote_input_init(struct ati_remote *ati_remote)
 {
-	struct input_dev *idev = &(ati_remote->idev);
+	struct input_dev *idev = ati_remote->idev;
 	int i;
 
 	idev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
@@ -637,7 +650,7 @@ static void ati_remote_input_init(struct ati_remote *ati_remote)
 	idev->phys = ati_remote->phys;
 
 	usb_to_input_id(ati_remote->udev, &idev->id);
-	idev->dev = &ati_remote->udev->dev;
+	idev->cdev.dev = &ati_remote->udev->dev;
 }
 
 static int ati_remote_initialize(struct ati_remote *ati_remote)
@@ -674,7 +687,7 @@ static int ati_remote_initialize(struct ati_remote *ati_remote)
 	    (ati_remote_sendpacket(ati_remote, 0x8007, init2))) {
 		dev_err(&ati_remote->interface->dev,
 			 "Initializing ati_remote hardware failed.\n");
-		return 1;
+		return -EIO;
 	}
 
 	return 0;
@@ -686,95 +699,83 @@ static int ati_remote_initialize(struct ati_remote *ati_remote)
 static int ati_remote_probe(struct usb_interface *interface, const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
-	struct ati_remote *ati_remote = NULL;
-	struct usb_host_interface *iface_host;
-	int retval = -ENOMEM;
-	char path[64];
+	struct usb_host_interface *iface_host = interface->cur_altsetting;
+	struct usb_endpoint_descriptor *endpoint_in, *endpoint_out;
+	struct ati_remote *ati_remote;
+	struct input_dev *input_dev;
+	int err = -ENOMEM;
 
-	/* Allocate and clear an ati_remote struct */
-	if (!(ati_remote = kmalloc(sizeof (struct ati_remote), GFP_KERNEL)))
-		return -ENOMEM;
-	memset(ati_remote, 0x00, sizeof (struct ati_remote));
-
-	iface_host = interface->cur_altsetting;
 	if (iface_host->desc.bNumEndpoints != 2) {
 		err("%s: Unexpected desc.bNumEndpoints\n", __FUNCTION__);
-		retval = -ENODEV;
-		goto error;
+		return -ENODEV;
 	}
 
-	ati_remote->endpoint_in = &(iface_host->endpoint[0].desc);
-	ati_remote->endpoint_out = &(iface_host->endpoint[1].desc);
-	ati_remote->udev = udev;
-	ati_remote->interface = interface;
+	endpoint_in = &iface_host->endpoint[0].desc;
+	endpoint_out = &iface_host->endpoint[1].desc;
 
-	if (!(ati_remote->endpoint_in->bEndpointAddress & 0x80)) {
+	if (!(endpoint_in->bEndpointAddress & USB_DIR_IN)) {
 		err("%s: Unexpected endpoint_in->bEndpointAddress\n", __FUNCTION__);
-		retval = -ENODEV;
-		goto error;
+		return -ENODEV;
 	}
-	if ((ati_remote->endpoint_in->bmAttributes & 3) != 3) {
+	if ((endpoint_in->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_INT) {
 		err("%s: Unexpected endpoint_in->bmAttributes\n", __FUNCTION__);
-		retval = -ENODEV;
-		goto error;
+		return -ENODEV;
 	}
-	if (le16_to_cpu(ati_remote->endpoint_in->wMaxPacketSize) == 0) {
+	if (le16_to_cpu(endpoint_in->wMaxPacketSize) == 0) {
 		err("%s: endpoint_in message size==0? \n", __FUNCTION__);
-		retval = -ENODEV;
-		goto error;
+		return -ENODEV;
 	}
+
+	ati_remote = kzalloc(sizeof (struct ati_remote), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!ati_remote || !input_dev)
+		goto fail1;
 
 	/* Allocate URB buffers, URBs */
-	ati_remote->inbuf = usb_buffer_alloc(udev, DATA_BUFSIZE, SLAB_ATOMIC,
-					     &ati_remote->inbuf_dma);
-	if (!ati_remote->inbuf)
-		goto error;
+	if (ati_remote_alloc_buffers(udev, ati_remote))
+		goto fail2;
 
-	ati_remote->outbuf = usb_buffer_alloc(udev, DATA_BUFSIZE, SLAB_ATOMIC,
-					      &ati_remote->outbuf_dma);
-	if (!ati_remote->outbuf)
-		goto error;
+	ati_remote->endpoint_in = endpoint_in;
+	ati_remote->endpoint_out = endpoint_out;
+	ati_remote->udev = udev;
+	ati_remote->idev = input_dev;
+	ati_remote->interface = interface;
 
-	ati_remote->irq_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!ati_remote->irq_urb)
-		goto error;
+	usb_make_path(udev, ati_remote->phys, sizeof(ati_remote->phys));
+	strlcpy(ati_remote->phys, "/input0", sizeof(ati_remote->phys));
 
-	ati_remote->out_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!ati_remote->out_urb)
-		goto error;
-
-	usb_make_path(udev, path, NAME_BUFSIZE);
-	sprintf(ati_remote->phys, "%s/input%d", path, ATI_INPUTNUM);
 	if (udev->manufacturer)
-		strcat(ati_remote->name, udev->manufacturer);
+		strlcpy(ati_remote->name, udev->manufacturer, sizeof(ati_remote->name));
 
 	if (udev->product)
-		sprintf(ati_remote->name, "%s %s", ati_remote->name, udev->product);
+		snprintf(ati_remote->name, sizeof(ati_remote->name),
+			 "%s %s", ati_remote->name, udev->product);
 
 	if (!strlen(ati_remote->name))
-		sprintf(ati_remote->name, DRIVER_DESC "(%04x,%04x)",
+		snprintf(ati_remote->name, sizeof(ati_remote->name),
+			DRIVER_DESC "(%04x,%04x)",
 			le16_to_cpu(ati_remote->udev->descriptor.idVendor),
 			le16_to_cpu(ati_remote->udev->descriptor.idProduct));
 
+	ati_remote_input_init(ati_remote);
+
 	/* Device Hardware Initialization - fills in ati_remote->idev from udev. */
-	retval = ati_remote_initialize(ati_remote);
-	if (retval)
-		goto error;
+	err = ati_remote_initialize(ati_remote);
+	if (err)
+		goto fail3;
 
 	/* Set up and register input device */
-	ati_remote_input_init(ati_remote);
-	input_register_device(&ati_remote->idev);
-
-	dev_info(&ati_remote->interface->dev, "Input registered: %s on %s\n",
-		 ati_remote->name, path);
+	input_register_device(ati_remote->idev);
 
 	usb_set_intfdata(interface, ati_remote);
+	return 0;
 
-error:
-	if (retval)
-		ati_remote_delete(ati_remote);
-
-	return retval;
+fail3:	usb_kill_urb(ati_remote->irq_urb);
+	usb_kill_urb(ati_remote->out_urb);
+fail2:	ati_remote_free_buffers(ati_remote);
+fail1:	input_free_device(input_dev);
+	kfree(ati_remote);
+	return err;
 }
 
 /*
@@ -791,7 +792,11 @@ static void ati_remote_disconnect(struct usb_interface *interface)
 		return;
 	}
 
-	ati_remote_delete(ati_remote);
+	usb_kill_urb(ati_remote->irq_urb);
+	usb_kill_urb(ati_remote->out_urb);
+	input_unregister_device(ati_remote->idev);
+	ati_remote_free_buffers(ati_remote);
+	kfree(ati_remote);
 }
 
 /*

@@ -29,7 +29,7 @@ static int afs_file_release(struct inode *inode, struct file *file);
 
 static int afs_file_readpage(struct file *file, struct page *page);
 static int afs_file_invalidatepage(struct page *page, unsigned long offset);
-static int afs_file_releasepage(struct page *page, int gfp_flags);
+static int afs_file_releasepage(struct page *page, gfp_t gfp_flags);
 
 static ssize_t afs_file_write(struct file *file, const char __user *buf,
 			      size_t size, loff_t *off);
@@ -279,7 +279,7 @@ static int afs_file_invalidatepage(struct page *page, unsigned long offset)
 /*
  * release a page and cleanup its private data
  */
-static int afs_file_releasepage(struct page *page, int gfp_flags)
+static int afs_file_releasepage(struct page *page, gfp_t gfp_flags)
 {
 	struct cachefs_page *pageio;
 
@@ -291,8 +291,8 @@ static int afs_file_releasepage(struct page *page, int gfp_flags)
 		cachefs_uncache_page(vnode->cache, page);
 #endif
 
-		pageio = (struct cachefs_page *) page->private;
-		page->private = 0;
+		pageio = (struct cachefs_page *) page_private(page);
+		set_page_private(page, 0);
 		ClearPagePrivate(page);
 
 		if (pageio)
