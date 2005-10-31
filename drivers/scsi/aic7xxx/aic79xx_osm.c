@@ -436,29 +436,20 @@ ahd_linux_queue(struct scsi_cmnd * cmd, void (*scsi_done) (struct scsi_cmnd *))
 {
 	struct	 ahd_softc *ahd;
 	struct	 ahd_linux_device *dev = scsi_transport_device_data(cmd->device);
+	int rtn = SCSI_MLQUEUE_HOST_BUSY;
+	unsigned long flags;
 
 	ahd = *(struct ahd_softc **)cmd->device->host->hostdata;
 
-	/*
-	 * Close the race of a command that was in the process of
-	 * being queued to us just as our simq was frozen.  Let
-	 * DV commands through so long as we are only frozen to
-	 * perform DV.
-	 */
-	if (ahd->platform_data->qfrozen != 0) {
-		printf("%s: queue frozen\n", ahd_name(ahd));
+	ahd_lock(ahd, &flags);
+	if (ahd->platform_data->qfrozen == 0) {
+		cmd->scsi_done = scsi_done;
+		cmd->result = CAM_REQ_INPROG << 16;
+		rtn = ahd_linux_run_command(ahd, dev, cmd);
 
-		return SCSI_MLQUEUE_HOST_BUSY;
 	}
-
-	/*
-	 * Save the callback on completion function.
-	 */
-	cmd->scsi_done = scsi_done;
-
-	cmd->result = CAM_REQ_INPROG << 16;
-
-	return ahd_linux_run_command(ahd, dev, cmd);
+	ahd_unlock(ahd, &flags);
+	return rtn;
 }
 
 static inline struct scsi_target **
@@ -1081,7 +1072,6 @@ ahd_linux_register_host(struct ahd_softc *ahd, struct scsi_host_template *templa
 
 	*((struct ahd_softc **)host->hostdata) = ahd;
 	ahd_lock(ahd, &s);
-	scsi_assign_lock(host, &ahd->platform_data->spin_lock);
 	ahd->platform_data->host = host;
 	host->can_queue = AHD_MAX_QUEUE;
 	host->cmd_per_lun = 2;
@@ -2062,6 +2052,7 @@ ahd_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 	int    wait;
 	int    disconnected;
 	ahd_mode_state saved_modes;
+	unsigned long flags;
 
 	pending_scb = NULL;
 	paused = FALSE;
@@ -2077,7 +2068,7 @@ ahd_linux_queue_recovery_cmd(struct scsi_cmnd *cmd, scb_flag flag)
 		printf(" 0x%x", cmd->cmnd[cdb_byte]);
 	printf("\n");
 
-	spin_lock_irq(&ahd->platform_data->spin_lock);
+	ahd_lock(ahd, &flags);
 
 	/*
 	 * First determine if we currently own this command.
@@ -2291,7 +2282,8 @@ done:
 		int ret;
 
 		ahd->platform_data->flags |= AHD_SCB_UP_EH_SEM;
-		spin_unlock_irq(&ahd->platform_data->spin_lock);
+		ahd_unlock(ahd, &flags);
+
 		init_timer(&timer);
 		timer.data = (u_long)ahd;
 		timer.expires = jiffies + (5 * HZ);
@@ -2305,9 +2297,8 @@ done:
 			printf("Timer Expired\n");
 			retval = FAILED;
 		}
-		spin_lock_irq(&ahd->platform_data->spin_lock);
 	}
-	spin_unlock_irq(&ahd->platform_data->spin_lock);
+		ahd_unlock(ahd, &flags);
 	return (retval);
 }
 
