@@ -24,11 +24,11 @@
 
 #define MAKE_MM_SEG(s)  ((mm_segment_t) { (s) })
 
-#ifdef __powerpc64__
-#define KERNEL_DS	MAKE_MM_SEG(0UL)
-#define USER_DS		MAKE_MM_SEG(0xf000000000000000UL)
-#else
 #define KERNEL_DS	MAKE_MM_SEG(~0UL)
+#ifdef __powerpc64__
+/* We use TASK_SIZE_USER64 as TASK_SIZE is not constant */
+#define USER_DS		MAKE_MM_SEG(TASK_SIZE_USER64 - 1)
+#else
 #define USER_DS		MAKE_MM_SEG(TASK_SIZE - 1)
 #endif
 
@@ -40,22 +40,11 @@
 
 #ifdef __powerpc64__
 /*
- * Use the alpha trick for checking ranges:
- *
- * Is a address valid? This does a straightforward calculation rather
- * than tests.
- *
- * Address valid if:
- *  - "addr" doesn't have any high-bits set
- *  - AND "size" doesn't have any high-bits set
- *  - OR we are in kernel mode.
- *
- * We dont have to check for high bits in (addr+size) because the first
- * two checks force the maximum result to be below the start of the
- * kernel region.
+ * This check is sufficient because there is a large enough
+ * gap between user addresses and the kernel addresses
  */
 #define __access_ok(addr, size, segment)	\
-	(((segment).seg & (addr | size )) == 0)
+	(((addr) <= (segment).seg) && ((size) <= (segment).seg))
 
 #else
 
@@ -161,7 +150,10 @@ extern long __put_user_bad(void);
 		: "=r" (err)					\
 		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err))
 
-#ifndef __powerpc64__
+#ifdef __powerpc64__
+#define __put_user_asm2(x, ptr, retval)				\
+	  __put_user_asm(x, ptr, retval, "std")
+#else /* __powerpc64__ */
 #define __put_user_asm2(x, addr, err)				\
 	__asm__ __volatile__(					\
 		"1:	stw %1,0(%2)\n"				\
@@ -178,9 +170,6 @@ extern long __put_user_bad(void);
 		".previous"					\
 		: "=r" (err)					\
 		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err))
-#else /* __powerpc64__ */
-#define __put_user_asm2(x, ptr, retval)				\
-	  __put_user_asm(x, ptr, retval, "std")
 #endif /* __powerpc64__ */
 
 #define __put_user_size(x, ptr, size, retval)			\
@@ -218,7 +207,7 @@ extern long __get_user_bad(void);
 
 #define __get_user_asm(x, addr, err, op)		\
 	__asm__ __volatile__(				\
-		"1:	"op" %1,0(%2)	# get_user\n"  	\
+		"1:	"op" %1,0(%2)	# get_user\n"	\
 		"2:\n"					\
 		".section .fixup,\"ax\"\n"		\
 		"3:	li %0,%3\n"			\
@@ -232,8 +221,11 @@ extern long __get_user_bad(void);
 		: "=r" (err), "=r" (x)			\
 		: "b" (addr), "i" (-EFAULT), "0" (err))
 
-#ifndef __powerpc64__
-#define __get_user_asm2(x, addr, err)	 		\
+#ifdef __powerpc64__
+#define __get_user_asm2(x, addr, err)			\
+	__get_user_asm(x, addr, err, "ld")
+#else /* __powerpc64__ */
+#define __get_user_asm2(x, addr, err)			\
 	__asm__ __volatile__(				\
 		"1:	lwz %1,0(%2)\n"			\
 		"2:	lwz %1+1,4(%2)\n"		\
@@ -251,17 +243,14 @@ extern long __get_user_bad(void);
 		".previous"				\
 		: "=r" (err), "=&r" (x)			\
 		: "b" (addr), "i" (-EFAULT), "0" (err))
-#else
-#define __get_user_asm2(x, addr, err)	 		\
-	__get_user_asm(x, addr, err, "ld")
 #endif /* __powerpc64__ */
 
 #define __get_user_size(x, ptr, size, retval)			\
 do {								\
 	retval = 0;						\
 	__chk_user_ptr(ptr);					\
- 	if (size > sizeof(x))					\
- 		(x) = __get_user_bad();				\
+	if (size > sizeof(x))					\
+		(x) = __get_user_bad();				\
 	switch (size) {						\
 	case 1: __get_user_asm(x, ptr, retval, "lbz"); break;	\
 	case 2: __get_user_asm(x, ptr, retval, "lhz"); break;	\
@@ -300,7 +289,7 @@ do {								\
 	long __gu_err = -EFAULT;					\
 	unsigned long  __gu_val = 0;					\
 	const __typeof__(*(ptr)) __user *__gu_addr = (ptr);		\
- 	might_sleep();							\
+	might_sleep();							\
 	if (access_ok(VERIFY_READ, __gu_addr, (size)))			\
 		__get_user_size(__gu_val, __gu_addr, (size), __gu_err);	\
 	(x) = (__typeof__(*(ptr)))__gu_val;				\
@@ -313,8 +302,9 @@ extern unsigned long __copy_tofrom_user(void __user *to,
 		const void __user *from, unsigned long size);
 
 #ifndef __powerpc64__
-extern inline unsigned long
-copy_from_user(void *to, const void __user *from, unsigned long n)
+
+extern inline unsigned long copy_from_user(void *to,
+		const void __user *from, unsigned long n)
 {
 	unsigned long over;
 
@@ -328,8 +318,8 @@ copy_from_user(void *to, const void __user *from, unsigned long n)
 	return n;
 }
 
-extern inline unsigned long
-copy_to_user(void __user *to, const void *from, unsigned long n)
+extern inline unsigned long copy_to_user(void __user *to,
+		const void *from, unsigned long n)
 {
 	unsigned long over;
 
@@ -343,10 +333,23 @@ copy_to_user(void __user *to, const void *from, unsigned long n)
 	return n;
 }
 
+#define __copy_to_user_inatomic __copy_to_user
+#define __copy_from_user_inatomic __copy_from_user
+
 #else /* __powerpc64__ */
 
-static inline unsigned long
-__copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
+#define __copy_in_user(to, from, size) \
+	__copy_tofrom_user((to), (from), (size))
+
+extern unsigned long copy_from_user(void *to, const void __user *from,
+				    unsigned long n);
+extern unsigned long copy_to_user(void __user *to, const void *from,
+				  unsigned long n);
+extern unsigned long copy_in_user(void __user *to, const void __user *from,
+				  unsigned long n);
+
+static inline unsigned long __copy_from_user_inatomic(void *to,
+		const void __user *from, unsigned long n)
 {
 	if (__builtin_constant_p(n) && (n <= 8)) {
 		unsigned long ret;
@@ -370,8 +373,8 @@ __copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
 	return __copy_tofrom_user((__force void __user *) to, from, n);
 }
 
-static inline unsigned long
-__copy_to_user_inatomic(void __user *to, const void *from, unsigned long n)
+static inline unsigned long __copy_to_user_inatomic(void __user *to,
+		const void *from, unsigned long n)
 {
 	if (__builtin_constant_p(n) && (n <= 8)) {
 		unsigned long ret;
@@ -397,8 +400,8 @@ __copy_to_user_inatomic(void __user *to, const void *from, unsigned long n)
 
 #endif /* __powerpc64__ */
 
-static inline unsigned long
-__copy_from_user(void *to, const void __user *from, unsigned long size)
+static inline unsigned long __copy_from_user(void *to,
+		const void __user *from, unsigned long size)
 {
 	might_sleep();
 #ifndef __powerpc64__
@@ -408,8 +411,8 @@ __copy_from_user(void *to, const void __user *from, unsigned long size)
 #endif /* __powerpc64__ */
 }
 
-static inline unsigned long
-__copy_to_user(void __user *to, const void *from, unsigned long size)
+static inline unsigned long __copy_to_user(void __user *to,
+		const void *from, unsigned long size)
 {
 	might_sleep();
 #ifndef __powerpc64__
@@ -418,21 +421,6 @@ __copy_to_user(void __user *to, const void *from, unsigned long size)
 	return __copy_to_user_inatomic(to, from, size);
 #endif /* __powerpc64__ */
 }
-
-#ifndef __powerpc64__
-#define __copy_to_user_inatomic __copy_to_user
-#define __copy_from_user_inatomic __copy_from_user
-#else /* __powerpc64__ */
-#define __copy_in_user(to, from, size) \
-	__copy_tofrom_user((to), (from), (size))
-
-extern unsigned long copy_from_user(void *to, const void __user *from,
-				    unsigned long n);
-extern unsigned long copy_to_user(void __user *to, const void *from,
-				  unsigned long n);
-extern unsigned long copy_in_user(void __user *to, const void __user *from,
-				  unsigned long n);
-#endif /* __powerpc64__ */
 
 extern unsigned long __clear_user(void __user *addr, unsigned long size);
 
@@ -466,11 +454,7 @@ static inline long strncpy_from_user(char *dst, const char __user *src,
  *
  * Return 0 for error
  */
-#ifndef __powerpc64__
 extern int __strnlen_user(const char __user *str, long len, unsigned long top);
-#else /* __powerpc64__ */
-extern int __strnlen_user(const char __user *str, long len);
-#endif /* __powerpc64__ */
 
 /*
  * Returns the length of the string at str (including the null byte),
@@ -482,18 +466,11 @@ extern int __strnlen_user(const char __user *str, long len);
  */
 static inline int strnlen_user(const char __user *str, long len)
 {
-#ifndef __powerpc64__
 	unsigned long top = current->thread.fs.seg;
 
 	if ((unsigned long)str > top)
 		return 0;
 	return __strnlen_user(str, len, top);
-#else /* __powerpc64__ */
-	might_sleep();
-	if (likely(access_ok(VERIFY_READ, str, 1)))
-		return __strnlen_user(str, len);
-	return 0;
-#endif /* __powerpc64__ */
 }
 
 #define strlen_user(str)	strnlen_user((str), 0x7ffffffe)
