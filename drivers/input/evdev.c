@@ -565,6 +565,7 @@ static long evdev_ioctl_compat(struct file *file, unsigned int cmd, unsigned lon
 						case EV_LED: bits = dev->ledbit; max = LED_MAX; break;
 						case EV_SND: bits = dev->sndbit; max = SND_MAX; break;
 						case EV_FF:  bits = dev->ffbit;  max = FF_MAX;  break;
+						case EV_SW:  bits = dev->swbit;  max = SW_MAX;  break;
 						default: return -EINVAL;
 					}
 					bit_to_user(bits, max);
