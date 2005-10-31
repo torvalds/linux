@@ -322,7 +322,6 @@ EXPORT_SYMBOL(mmu_hash_lock); /* For MOL */
 extern long *intercept_table;
 EXPORT_SYMBOL(intercept_table);
 #endif /* CONFIG_PPC_STD_MMU */
-EXPORT_SYMBOL(cur_cpu_spec);
 #if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
 EXPORT_SYMBOL(__mtdcr);
 EXPORT_SYMBOL(__mfdcr);
