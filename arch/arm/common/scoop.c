@@ -12,6 +12,9 @@
  */
 
 #include <linux/device.h>
+#include <linux/string.h>
+#include <linux/slab.h>
+
 #include <asm/io.h>
 #include <asm/hardware/scoop.h>
 

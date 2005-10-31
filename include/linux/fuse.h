@@ -61,7 +61,6 @@ struct fuse_kstatfs {
 #define FATTR_SIZE	(1 << 3)
 #define FATTR_ATIME	(1 << 4)
 #define FATTR_MTIME	(1 << 5)
-#define FATTR_CTIME	(1 << 6)
 
 /**
  * Flags returned by the OPEN request

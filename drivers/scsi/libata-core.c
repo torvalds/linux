@@ -372,7 +372,7 @@ static void ata_tf_read_pio(struct ata_port *ap, struct ata_taskfile *tf)
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 
 	tf->command = ata_check_status(ap);
-	tf->feature = ata_chk_err(ap);
+	tf->feature = inb(ioaddr->error_addr);
 	tf->nsect = inb(ioaddr->nsect_addr);
 	tf->lbal = inb(ioaddr->lbal_addr);
 	tf->lbam = inb(ioaddr->lbam_addr);
@@ -406,7 +406,7 @@ static void ata_tf_read_mmio(struct ata_port *ap, struct ata_taskfile *tf)
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 
 	tf->command = ata_check_status(ap);
-	tf->feature = ata_chk_err(ap);
+	tf->feature = readb((void __iomem *)ioaddr->error_addr);
 	tf->nsect = readb((void __iomem *)ioaddr->nsect_addr);
 	tf->lbal = readb((void __iomem *)ioaddr->lbal_addr);
 	tf->lbam = readb((void __iomem *)ioaddr->lbam_addr);
@@ -525,30 +525,6 @@ u8 ata_altstatus(struct ata_port *ap)
 	return inb(ap->ioaddr.altstatus_addr);
 }
 
-
-/**
- *	ata_chk_err - Read device error reg
- *	@ap: port where the device is
- *
- *	Reads ATA taskfile error register for
- *	currently-selected device and return its value.
- *
- *	Note: may NOT be used as the check_err() entry in
- *	ata_port_operations.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-u8 ata_chk_err(struct ata_port *ap)
-{
-	if (ap->ops->check_err)
-		return ap->ops->check_err(ap);
-
-	if (ap->flags & ATA_FLAG_MMIO) {
-		return readb((void __iomem *) ap->ioaddr.error_addr);
-	}
-	return inb(ap->ioaddr.error_addr);
-}
 
 /**
  *	ata_tf_to_fis - Convert ATA taskfile to SATA FIS structure
@@ -902,8 +878,8 @@ static u8 ata_dev_try_classify(struct ata_port *ap, unsigned int device)
 
 	memset(&tf, 0, sizeof(tf));
 
-	err = ata_chk_err(ap);
 	ap->ops->tf_read(ap, &tf);
+	err = tf.feature;
 
 	dev->class = ATA_DEV_NONE;
 
@@ -1140,7 +1116,6 @@ static void ata_dev_identify(struct ata_port *ap, unsigned int device)
 	unsigned int major_version;
 	u16 tmp;
 	unsigned long xfer_modes;
-	u8 status;
 	unsigned int using_edd;
 	DECLARE_COMPLETION(wait);
 	struct ata_queued_cmd *qc;
@@ -1194,8 +1169,11 @@ retry:
 	else
 		wait_for_completion(&wait);
 
-	status = ata_chk_status(ap);
-	if (status & ATA_ERR) {
+	spin_lock_irqsave(&ap->host_set->lock, flags);
+	ap->ops->tf_read(ap, &qc->tf);
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
+	if (qc->tf.command & ATA_ERR) {
 		/*
 		 * arg!  EDD works for all test cases, but seems to return
 		 * the ATA signature for some ATAPI devices.  Until the
@@ -1208,7 +1186,7 @@ retry:
 		 * to have this problem.
 		 */
 		if ((using_edd) && (qc->tf.command == ATA_CMD_ID_ATA)) {
-			u8 err = ata_chk_err(ap);
+			u8 err = qc->tf.feature;
 			if (err & ATA_ABORTED) {
 				dev->class = ATA_DEV_ATAPI;
 				qc->cursg = 0;
@@ -2685,7 +2663,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
  *	None.  (grabs host lock)
  */
 
-void ata_poll_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
+void ata_poll_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 {
 	struct ata_port *ap = qc->ap;
 	unsigned long flags;
@@ -2693,7 +2671,7 @@ void ata_poll_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 	spin_lock_irqsave(&ap->host_set->lock, flags);
 	ap->flags &= ~ATA_FLAG_NOINTR;
 	ata_irq_on(ap);
-	ata_qc_complete(qc, drv_stat);
+	ata_qc_complete(qc, err_mask);
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 }
 
@@ -2790,7 +2768,7 @@ static int ata_pio_complete (struct ata_port *ap)
 
 	ap->hsm_task_state = HSM_ST_IDLE;
 
-	ata_poll_qc_complete(qc, drv_stat);
+	ata_poll_qc_complete(qc, 0);
 
 	/* another command may start at this point */
 
@@ -3158,18 +3136,15 @@ static void ata_pio_block(struct ata_port *ap)
 static void ata_pio_error(struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc;
-	u8 drv_stat;
+
+	printk(KERN_WARNING "ata%u: PIO error\n", ap->id);
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	assert(qc != NULL);
 
-	drv_stat = ata_chk_status(ap);
-	printk(KERN_WARNING "ata%u: PIO error, drv_stat 0x%x\n",
-	       ap->id, drv_stat);
-
 	ap->hsm_task_state = HSM_ST_IDLE;
 
-	ata_poll_qc_complete(qc, drv_stat | ATA_ERR);
+	ata_poll_qc_complete(qc, AC_ERR_ATA_BUS);
 }
 
 static void ata_pio_task(void *_data)
@@ -3292,7 +3267,7 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 		       ap->id, qc->tf.command, drv_stat, host_stat);
 
 		/* complete taskfile transaction */
-		ata_qc_complete(qc, drv_stat);
+		ata_qc_complete(qc, ac_err_mask(drv_stat));
 		break;
 	}
 
@@ -3397,7 +3372,7 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 	return qc;
 }
 
-int ata_qc_complete_noop(struct ata_queued_cmd *qc, u8 drv_stat)
+int ata_qc_complete_noop(struct ata_queued_cmd *qc, unsigned int err_mask)
 {
 	return 0;
 }
@@ -3456,7 +3431,7 @@ void ata_qc_free(struct ata_queued_cmd *qc)
  *	spin_lock_irqsave(host_set lock)
  */
 
-void ata_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
+void ata_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 {
 	int rc;
 
@@ -3473,7 +3448,7 @@ void ata_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 	qc->flags &= ~ATA_QCFLAG_ACTIVE;
 
 	/* call completion callback */
-	rc = qc->complete_fn(qc, drv_stat);
+	rc = qc->complete_fn(qc, err_mask);
 
 	/* if callback indicates not to complete command (non-zero),
 	 * return immediately
@@ -3911,7 +3886,7 @@ inline unsigned int ata_host_intr (struct ata_port *ap,
 		ap->ops->irq_clear(ap);
 
 		/* complete taskfile transaction */
-		ata_qc_complete(qc, status);
+		ata_qc_complete(qc, ac_err_mask(status));
 		break;
 
 	default:
@@ -4006,7 +3981,7 @@ static void atapi_packet_task(void *_data)
 	/* sleep-wait for BSY to clear */
 	DPRINTK("busy wait\n");
 	if (ata_busy_sleep(ap, ATA_TMOUT_CDB_QUICK, ATA_TMOUT_CDB))
-		goto err_out;
+		goto err_out_status;
 
 	/* make sure DRQ is set */
 	status = ata_chk_status(ap);
@@ -4043,8 +4018,10 @@ static void atapi_packet_task(void *_data)
 
 	return;
 
+err_out_status:
+	status = ata_chk_status(ap);
 err_out:
-	ata_poll_qc_complete(qc, ATA_ERR);
+	ata_poll_qc_complete(qc, __ac_err_mask(status));
 }
 
 
@@ -4550,11 +4527,11 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 	return probe_ent;
 }
 
-static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev, struct ata_port_info **port, int port_num)
+static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev, struct ata_port_info *port, int port_num)
 {
 	struct ata_probe_ent *probe_ent;
 
-	probe_ent = ata_probe_ent_alloc(pci_dev_to_dev(pdev), port[0]);
+	probe_ent = ata_probe_ent_alloc(pci_dev_to_dev(pdev), port);
 	if (!probe_ent)
 		return NULL;
 
@@ -4701,9 +4678,9 @@ int ata_pci_init_one (struct pci_dev *pdev, struct ata_port_info **port_info,
 
 	if (legacy_mode) {
 		if (legacy_mode & (1 << 0))
-			probe_ent = ata_pci_init_legacy_port(pdev, port, 0);
+			probe_ent = ata_pci_init_legacy_port(pdev, port[0], 0);
 		if (legacy_mode & (1 << 1))
-			probe_ent2 = ata_pci_init_legacy_port(pdev, port, 1);
+			probe_ent2 = ata_pci_init_legacy_port(pdev, port[1], 1);
 	} else {
 		if (n_ports == 2)
 			probe_ent = ata_pci_init_native_mode(pdev, port, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
@@ -4867,7 +4844,6 @@ EXPORT_SYMBOL_GPL(ata_tf_to_fis);
 EXPORT_SYMBOL_GPL(ata_tf_from_fis);
 EXPORT_SYMBOL_GPL(ata_check_status);
 EXPORT_SYMBOL_GPL(ata_altstatus);
-EXPORT_SYMBOL_GPL(ata_chk_err);
 EXPORT_SYMBOL_GPL(ata_exec_command);
 EXPORT_SYMBOL_GPL(ata_port_start);
 EXPORT_SYMBOL_GPL(ata_port_stop);

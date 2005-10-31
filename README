@@ -54,6 +54,10 @@ INSTALLING the kernel:
 
 		gzip -cd linux-2.6.XX.tar.gz | tar xvf -
 
+   or
+		bzip2 -dc linux-2.6.XX.tar.bz2 | tar xvf -
+
+
    Replace "XX" with the version number of the latest kernel.
 
    Do NOT use the /usr/src/linux area! This area has a (usually

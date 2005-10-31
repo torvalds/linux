@@ -940,7 +940,7 @@ extern int set_cpus_allowed(task_t *p, cpumask_t new_mask);
 #else
 static inline int set_cpus_allowed(task_t *p, cpumask_t new_mask)
 {
-	if (!cpus_intersects(new_mask, cpu_online_map))
+	if (!cpu_isset(0, new_mask))
 		return -EINVAL;
 	return 0;
 }
@@ -1084,6 +1084,11 @@ extern int do_sigaltstack(const stack_t __user *, stack_t __user *, unsigned lon
 #define SEND_SIG_PRIV	((struct siginfo *) 1)
 #define SEND_SIG_FORCED	((struct siginfo *) 2)
 
+static inline int is_si_special(const struct siginfo *info)
+{
+	return info <= SEND_SIG_FORCED;
+}
+
 /* True if we are on the alternate signal stack.  */
 
 static inline int on_sig_stack(unsigned long sp)
@@ -1211,7 +1216,7 @@ extern void unhash_process(struct task_struct *p);
 /*
  * Protects ->fs, ->files, ->mm, ->ptrace, ->group_info, ->comm, keyring
  * subscriptions and synchronises with wait4().  Also used in procfs.  Also
- * pins the final release of task.io_context.
+ * pins the final release of task.io_context.  Also protects ->cpuset.
  *
  * Nests both inside and outside of read_lock(&tasklist_lock).
  * It must not be nested with write_lock_irq(&tasklist_lock),

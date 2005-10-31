@@ -560,7 +560,7 @@ void ata_gen_ata_desc_sense(struct ata_queued_cmd *qc)
 	 * Use ata_to_sense_error() to map status register bits
 	 * onto sense key, asc & ascq.
 	 */
-	if (unlikely(tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ))) {
+	if (tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
 		ata_to_sense_error(qc->ap->id, tf->command, tf->feature,
 				   &sb[1], &sb[2], &sb[3]);
 		sb[1] &= 0x0f;
@@ -635,7 +635,7 @@ void ata_gen_fixed_sense(struct ata_queued_cmd *qc)
 	 * Use ata_to_sense_error() to map status register bits
 	 * onto sense key, asc & ascq.
 	 */
-	if (unlikely(tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ))) {
+	if (tf->command & (ATA_BUSY | ATA_DF | ATA_ERR | ATA_DRQ)) {
 		ata_to_sense_error(qc->ap->id, tf->command, tf->feature,
 				   &sb[2], &sb[12], &sb[13]);
 		sb[2] &= 0x0f;
@@ -644,13 +644,21 @@ void ata_gen_fixed_sense(struct ata_queued_cmd *qc)
 	sb[0] = 0x70;
 	sb[7] = 0x0a;
 
-	if (tf->flags & ATA_TFLAG_LBA && !(tf->flags & ATA_TFLAG_LBA48)) {
+	if (tf->flags & ATA_TFLAG_LBA48) {
+		/* TODO: find solution for LBA48 descriptors */
+	}
+
+	else if (tf->flags & ATA_TFLAG_LBA) {
 		/* A small (28b) LBA will fit in the 32b info field */
 		sb[0] |= 0x80;		/* set valid bit */
 		sb[3] = tf->device & 0x0f;
 		sb[4] = tf->lbah;
 		sb[5] = tf->lbam;
 		sb[6] = tf->lbal;
+	}
+
+	else {
+		/* TODO: C/H/S */
 	}
 }
 
@@ -1199,10 +1207,12 @@ nothing_to_do:
 	return 1;
 }
 
-static int ata_scsi_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
+static int ata_scsi_qc_complete(struct ata_queued_cmd *qc,
+				unsigned int err_mask)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
- 	int need_sense = drv_stat & (ATA_ERR | ATA_BUSY | ATA_DRQ);
+	u8 *cdb = cmd->cmnd;
+ 	int need_sense = (err_mask != 0);
 
 	/* For ATA pass thru (SAT) commands, generate a sense block if
 	 * user mandated it or if there's an error.  Note that if we
@@ -1211,8 +1221,8 @@ static int ata_scsi_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 	 * whether the command completed successfully or not. If there
 	 * was no error, SK, ASC and ASCQ will all be zero.
 	 */
-	if (((cmd->cmnd[0] == ATA_16) || (cmd->cmnd[0] == ATA_12)) &&
- 	    ((cmd->cmnd[2] & 0x20) || need_sense)) {
+	if (((cdb[0] == ATA_16) || (cdb[0] == ATA_12)) &&
+ 	    ((cdb[2] & 0x20) || need_sense)) {
  		ata_gen_ata_desc_sense(qc);
 	} else {
 		if (!need_sense) {
@@ -1995,21 +2005,13 @@ void atapi_request_sense(struct ata_port *ap, struct ata_device *dev,
 	DPRINTK("EXIT\n");
 }
 
-static int atapi_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
+static int atapi_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask)
 {
 	struct scsi_cmnd *cmd = qc->scsicmd;
 
-	VPRINTK("ENTER, drv_stat == 0x%x\n", drv_stat);
+	VPRINTK("ENTER, err_mask 0x%X\n", err_mask);
 
-	if (unlikely(drv_stat & (ATA_BUSY | ATA_DRQ)))
-		/* FIXME: not quite right; we don't want the
-		 * translation of taskfile registers into
-		 * a sense descriptors, since that's only
-		 * correct for ATA, not ATAPI
-		 */
-		ata_gen_ata_desc_sense(qc);
-
-	else if (unlikely(drv_stat & ATA_ERR)) {
+	if (unlikely(err_mask & AC_ERR_DEV)) {
 		DPRINTK("request check condition\n");
 
 		/* FIXME: command completion with check condition
@@ -2025,6 +2027,14 @@ static int atapi_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat)
 
 		return 1;
 	}
+
+	else if (unlikely(err_mask))
+		/* FIXME: not quite right; we don't want the
+		 * translation of taskfile registers into
+		 * a sense descriptors, since that's only
+		 * correct for ATA, not ATAPI
+		 */
+		ata_gen_ata_desc_sense(qc);
 
 	else {
 		u8 *scsicmd = cmd->cmnd;

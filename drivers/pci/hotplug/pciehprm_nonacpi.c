@@ -33,10 +33,13 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/slab.h>
+
 #include <asm/uaccess.h>
 #ifdef CONFIG_IA64
 #include <asm/iosapic.h>
 #endif
+
 #include "pciehp.h"
 #include "pciehprm.h"
 #include "pciehprm_nonacpi.h"

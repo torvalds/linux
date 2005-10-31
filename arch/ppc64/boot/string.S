@@ -104,7 +104,7 @@ memmove:
 
 	.globl	memcpy
 memcpy:
-	rlwinm.	r7,r5,32-3,3,31		/* r0 = r5 >> 3 */
+	rlwinm.	r7,r5,32-3,3,31		/* r7 = r5 >> 3 */
 	addi	r6,r3,-4
 	addi	r4,r4,-4
 	beq	2f			/* if less than 8 bytes to do */
@@ -146,7 +146,7 @@ memcpy:
 
 	.globl	backwards_memcpy
 backwards_memcpy:
-	rlwinm.	r7,r5,32-3,3,31		/* r0 = r5 >> 3 */
+	rlwinm.	r7,r5,32-3,3,31		/* r7 = r5 >> 3 */
 	add	r6,r3,r5
 	add	r4,r4,r5
 	beq	2f

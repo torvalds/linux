@@ -91,6 +91,9 @@ static u8 gp3_openpic_initsenses[] __initdata = {
 	0x0,				/* External 11: */
 };
 
+static const char *GFAR_PHY_2 = "phy0:2";
+static const char *GFAR_PHY_4 = "phy0:4";
+
 /*
  * Setup the architecture
  */
@@ -100,6 +103,7 @@ gp3_setup_arch(void)
 	bd_t *binfo = (bd_t *) __res;
 	unsigned int freq;
 	struct gianfar_platform_data *pdata;
+	struct gianfar_mdio_data *mdata;
 
 	cpm2_reset();
 
@@ -118,23 +122,26 @@ gp3_setup_arch(void)
 	mpc85xx_setup_hose();
 #endif
 
+	/* setup the board related info for the MDIO bus */
+	mdata = (struct gianfar_mdio_data *) ppc_sys_get_pdata(MPC85xx_MDIO);
+
+	mdata->irq[2] = MPC85xx_IRQ_EXT5;
+	mdata->irq[4] = MPC85xx_IRQ_EXT5;
+	mdata->irq[31] = -1;
+	mdata->paddr += binfo->bi_immr_base;
+
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC1);
 	if (pdata) {
 	/*	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR; */
-		pdata->interruptPHY = MPC85xx_IRQ_EXT5;
-		pdata->phyid = 2;
-		pdata->phy_reg_addr += binfo->bi_immr_base;
+		pdata->bus_id = GFAR_PHY_2;
 		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
 	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC2);
 	if (pdata) {
 	/*	pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR; */
-		pdata->interruptPHY = MPC85xx_IRQ_EXT5;
-		pdata->phyid = 4;
-		/* fixup phy address */
-		pdata->phy_reg_addr += binfo->bi_immr_base;
+		pdata->bus_id = GFAR_PHY_4;
 		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
 	}
 

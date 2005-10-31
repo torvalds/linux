@@ -1094,7 +1094,7 @@ static int smu_release(struct inode *inode, struct file *file)
 }
 
 
-static struct file_operations smu_device_fops __pmacdata = {
+static struct file_operations smu_device_fops = {
 	.llseek		= no_llseek,
 	.read		= smu_read,
 	.write		= smu_write,
@@ -1103,7 +1103,7 @@ static struct file_operations smu_device_fops __pmacdata = {
 	.release	= smu_release,
 };
 
-static struct miscdevice pmu_device __pmacdata = {
+static struct miscdevice pmu_device = {
 	MISC_DYNAMIC_MINOR, "smu", &smu_device_fops
 };
 

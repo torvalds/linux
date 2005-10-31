@@ -478,8 +478,9 @@ void *xmon_stdout;
 void *xmon_stderr;
 
 void
-xmon_init(void)
+xmon_init(int arg)
 {
+	xmon_map_scc();
 }
 
 int

@@ -323,8 +323,6 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 	return pte;
 }
 
-#define page_pte(page) page_pte_prot(page, __pgprot(0))
-
 #define pmd_large(pmd) \
 ((pmd_val(pmd) & (_PAGE_PSE|_PAGE_PRESENT)) == (_PAGE_PSE|_PAGE_PRESENT))
 
@@ -368,6 +366,11 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 		(((address) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 #define pte_offset_kernel(dir, address) \
 	((pte_t *) pmd_page_kernel(*(dir)) +  pte_index(address))
+
+#define pmd_page(pmd) (pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT))
+
+#define pmd_page_kernel(pmd) \
+		((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
 
 /*
  * Helper function that returns the kernel pagetable entry controlling

@@ -282,6 +282,17 @@ static inline u8 fat_attr(struct inode *inode)
 		MSDOS_I(inode)->i_attrs;
 }
 
+static inline unsigned char fat_checksum(const __u8 *name)
+{
+	unsigned char s = name[0];
+	s = (s<<7) + (s>>1) + name[1];	s = (s<<7) + (s>>1) + name[2];
+	s = (s<<7) + (s>>1) + name[3];	s = (s<<7) + (s>>1) + name[4];
+	s = (s<<7) + (s>>1) + name[5];	s = (s<<7) + (s>>1) + name[6];
+	s = (s<<7) + (s>>1) + name[7];	s = (s<<7) + (s>>1) + name[8];
+	s = (s<<7) + (s>>1) + name[9];	s = (s<<7) + (s>>1) + name[10];
+	return s;
+}
+
 static inline sector_t fat_clus_to_blknr(struct msdos_sb_info *sbi, int clus)
 {
 	return ((sector_t)clus - FAT_START_ENT) * sbi->sec_per_clus

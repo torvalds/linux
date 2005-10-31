@@ -552,8 +552,7 @@ static int __init do_eepro_probe(struct net_device *dev)
 	{
 		unsigned short int WS[32]=WakeupSeq;
 
-		if (check_region(WakeupPort, 2)==0) {
-
+		if (request_region(WakeupPort, 2, "eepro wakeup")) {
 			if (net_debug>5)
 				printk(KERN_DEBUG "Waking UP\n");
 
@@ -563,7 +562,10 @@ static int __init do_eepro_probe(struct net_device *dev)
 				outb_p(WS[i],WakeupPort);
 				if (net_debug>5) printk(KERN_DEBUG ": %#x ",WS[i]);
 			}
-		} else printk(KERN_WARNING "Checkregion Failed!\n");
+
+			release_region(WakeupPort, 2);
+		} else
+			printk(KERN_WARNING "PnP wakeup region busy!\n");
 	}
 #endif
 
@@ -705,7 +707,7 @@ static void __init eepro_print_info (struct net_device *dev)
 					dev->name, (unsigned)dev->base_addr);
 			break;
 		case LAN595FX:
-			printk("%s: Intel EtherExpress Pro/10+ ISA\n at %#x,", 
+			printk("%s: Intel EtherExpress Pro/10+ ISA\n at %#x,",
 					dev->name, (unsigned)dev->base_addr);
 			break;
 		case LAN595TX:
@@ -713,7 +715,7 @@ static void __init eepro_print_info (struct net_device *dev)
 					dev->name, (unsigned)dev->base_addr);
 			break;
 		case LAN595:
-			printk("%s: Intel 82595-based lan card at %#x,", 
+			printk("%s: Intel 82595-based lan card at %#x,",
 					dev->name, (unsigned)dev->base_addr);
 	}
 
@@ -726,7 +728,7 @@ static void __init eepro_print_info (struct net_device *dev)
 
 	if (dev->irq > 2)
 		printk(", IRQ %d, %s.\n", dev->irq, ifmap[dev->if_port]);
-	else 
+	else
 		printk(", %s.\n", ifmap[dev->if_port]);
 
 	if (net_debug > 3) {
@@ -756,7 +758,7 @@ static int __init eepro_probe1(struct net_device *dev, int autoprobe)
 	int err;
 
 	/* Grab the region so we can find another board if autoIRQ fails. */
-	if (!request_region(ioaddr, EEPRO_IO_EXTENT, DRV_NAME)) { 
+	if (!request_region(ioaddr, EEPRO_IO_EXTENT, DRV_NAME)) {
 		if (!autoprobe)
 			printk(KERN_WARNING "EEPRO: io-port 0x%04x in use \n",
 				ioaddr);
@@ -838,15 +840,15 @@ static int __init eepro_probe1(struct net_device *dev, int autoprobe)
  		/* Mask off INT number */
  		int count = lp->word[1] & 7;
  		unsigned irqMask = lp->word[7];
- 
+
  		while (count--)
  			irqMask &= irqMask - 1;
- 
+
  		count = ffs(irqMask);
- 
+
  		if (count)
  			dev->irq = count - 1;
- 
+
  		if (dev->irq < 2) {
  			printk(KERN_ERR " Duh! illegal interrupt vector stored in EEPROM.\n");
  			goto exit;
@@ -854,7 +856,7 @@ static int __init eepro_probe1(struct net_device *dev, int autoprobe)
  			dev->irq = 9;
  		}
  	}
- 
+
  	dev->open               = eepro_open;
  	dev->stop               = eepro_close;
  	dev->hard_start_xmit    = eepro_send_packet;
@@ -863,7 +865,7 @@ static int __init eepro_probe1(struct net_device *dev, int autoprobe)
  	dev->tx_timeout		= eepro_tx_timeout;
  	dev->watchdog_timeo	= TX_TIMEOUT;
 	dev->ethtool_ops	= &eepro_ethtool_ops;
- 
+
 	/* print boot time info */
 	eepro_print_info(dev);
 
@@ -1047,8 +1049,8 @@ static int eepro_open(struct net_device *dev)
 
 
 	/* Initialize the RCV and XMT upper and lower limits */
-	outb(lp->rcv_lower_limit >> 8, ioaddr + RCV_LOWER_LIMIT_REG); 
-	outb(lp->rcv_upper_limit >> 8, ioaddr + RCV_UPPER_LIMIT_REG); 
+	outb(lp->rcv_lower_limit >> 8, ioaddr + RCV_LOWER_LIMIT_REG);
+	outb(lp->rcv_upper_limit >> 8, ioaddr + RCV_UPPER_LIMIT_REG);
 	outb(lp->xmt_lower_limit >> 8, ioaddr + lp->xmt_lower_limit_reg);
 	outb(lp->xmt_upper_limit >> 8, ioaddr + lp->xmt_upper_limit_reg);
 
@@ -1065,12 +1067,12 @@ static int eepro_open(struct net_device *dev)
 	eepro_clear_int(ioaddr);
 
 	/* Initialize RCV */
-	outw(lp->rcv_lower_limit, ioaddr + RCV_BAR); 
+	outw(lp->rcv_lower_limit, ioaddr + RCV_BAR);
 	lp->rx_start = lp->rcv_lower_limit;
-	outw(lp->rcv_upper_limit | 0xfe, ioaddr + RCV_STOP); 
+	outw(lp->rcv_upper_limit | 0xfe, ioaddr + RCV_STOP);
 
 	/* Initialize XMT */
-	outw(lp->xmt_lower_limit, ioaddr + lp->xmt_bar); 
+	outw(lp->xmt_lower_limit, ioaddr + lp->xmt_bar);
 	lp->tx_start = lp->tx_end = lp->xmt_lower_limit;
 	lp->tx_last = 0;
 
@@ -1411,7 +1413,7 @@ set_multicast_list(struct net_device *dev)
 				outb(0x08, ioaddr + STATUS_REG);
 
 				if (i & 0x20) { /* command ABORTed */
-					printk(KERN_NOTICE "%s: multicast setup failed.\n", 
+					printk(KERN_NOTICE "%s: multicast setup failed.\n",
 						dev->name);
 					break;
 				} else if ((i & 0x0f) == 0x03)	{ /* MC-Done */
@@ -1512,7 +1514,7 @@ hardware_send_packet(struct net_device *dev, void *buf, short length)
 		end = last + (((length + 3) >> 1) << 1) + XMT_HEADER;
 
 	if (end >= lp->xmt_upper_limit + 2) { /* the transmit buffer is wrapped around */
-		if ((lp->xmt_upper_limit + 2 - last) <= XMT_HEADER) {	
+		if ((lp->xmt_upper_limit + 2 - last) <= XMT_HEADER) {
 				/* Arrrr!!!, must keep the xmt header together,
 				several days were lost to chase this one down. */
 			last = lp->xmt_lower_limit;
@@ -1643,7 +1645,7 @@ eepro_rx(struct net_device *dev)
 			else if (rcv_status & 0x0800)
 				lp->stats.rx_crc_errors++;
 
-			printk(KERN_DEBUG "%s: event = %#x, status = %#x, next = %#x, size = %#x\n", 
+			printk(KERN_DEBUG "%s: event = %#x, status = %#x, next = %#x, size = %#x\n",
 				dev->name, rcv_event, rcv_status, rcv_next_frame, rcv_size);
 		}
 
@@ -1674,10 +1676,10 @@ eepro_transmit_interrupt(struct net_device *dev)
 {
 	struct eepro_local *lp = netdev_priv(dev);
 	short ioaddr = dev->base_addr;
-	short boguscount = 25; 
+	short boguscount = 25;
 	short xmt_status;
 
-	while ((lp->tx_start != lp->tx_end) && boguscount--) { 
+	while ((lp->tx_start != lp->tx_end) && boguscount--) {
 
 		outw(lp->tx_start, ioaddr + HOST_ADDRESS_REG);
 		xmt_status = inw(ioaddr+IO_PORT);
@@ -1723,7 +1725,7 @@ static int eepro_ethtool_get_settings(struct net_device *dev,
 {
 	struct eepro_local	*lp = (struct eepro_local *)dev->priv;
 
-	cmd->supported = 	SUPPORTED_10baseT_Half | 
+	cmd->supported = 	SUPPORTED_10baseT_Half |
 				SUPPORTED_10baseT_Full |
 				SUPPORTED_Autoneg;
 	cmd->advertising =	ADVERTISED_10baseT_Half |

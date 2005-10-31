@@ -35,6 +35,7 @@
 #include <asm/bootinfo.h>
 #include <asm/ppcboot.h>
 #include <asm/mv64x60.h>
+#include <asm/machdep.h>
 #include <platforms/ev64360.h>
 
 #define BOARD_VENDOR    "Marvell"

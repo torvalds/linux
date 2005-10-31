@@ -167,6 +167,8 @@ struct __xchg_dummy { unsigned long a[100]; };
 #define __xg(x) ((struct __xchg_dummy *)(x))
 
 
+#ifdef CONFIG_X86_CMPXCHG64
+
 /*
  * The semantics of XCHGCMP8B are a bit strange, this is why
  * there is a loop and the loading of %%eax and %%edx has to
@@ -221,6 +223,8 @@ static inline void __set_64bit_var (unsigned long long *ptr,
  __set_64bit(ptr, (unsigned int)(value), (unsigned int)((value)>>32ULL) ) : \
  __set_64bit(ptr, ll_low(value), ll_high(value)) )
 
+#endif
+
 /*
  * Note: no "lock" prefix even on SMP: xchg always implies lock anyway
  * Note 2: xchg has side effect, so that attribute volatile is necessary,
@@ -259,7 +263,6 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 
 #ifdef CONFIG_X86_CMPXCHG
 #define __HAVE_ARCH_CMPXCHG 1
-#endif
 
 static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 				      unsigned long new, int size)
@@ -275,13 +278,13 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 	case 2:
 		__asm__ __volatile__(LOCK_PREFIX "cmpxchgw %w1,%2"
 				     : "=a"(prev)
-				     : "q"(new), "m"(*__xg(ptr)), "0"(old)
+				     : "r"(new), "m"(*__xg(ptr)), "0"(old)
 				     : "memory");
 		return prev;
 	case 4:
 		__asm__ __volatile__(LOCK_PREFIX "cmpxchgl %1,%2"
 				     : "=a"(prev)
-				     : "q"(new), "m"(*__xg(ptr)), "0"(old)
+				     : "r"(new), "m"(*__xg(ptr)), "0"(old)
 				     : "memory");
 		return prev;
 	}
@@ -291,6 +294,30 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 #define cmpxchg(ptr,o,n)\
 	((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
 					(unsigned long)(n),sizeof(*(ptr))))
+
+#endif
+
+#ifdef CONFIG_X86_CMPXCHG64
+
+static inline unsigned long long __cmpxchg64(volatile void *ptr, unsigned long long old,
+				      unsigned long long new)
+{
+	unsigned long long prev;
+	__asm__ __volatile__(LOCK_PREFIX "cmpxchg8b %3"
+			     : "=A"(prev)
+			     : "b"((unsigned long)new),
+			       "c"((unsigned long)(new >> 32)),
+			       "m"(*__xg(ptr)),
+			       "0"(old)
+			     : "memory");
+	return prev;
+}
+
+#define cmpxchg64(ptr,o,n)\
+	((__typeof__(*(ptr)))__cmpxchg64((ptr),(unsigned long long)(o),\
+					(unsigned long long)(n)))
+
+#endif
     
 #ifdef __KERNEL__
 struct alt_instr { 

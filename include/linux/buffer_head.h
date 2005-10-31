@@ -190,6 +190,7 @@ extern int buffer_heads_over_limit;
  */
 int try_to_release_page(struct page * page, gfp_t gfp_mask);
 int block_invalidatepage(struct page *page, unsigned long offset);
+int do_invalidatepage(struct page *page, unsigned long offset);
 int block_write_full_page(struct page *page, get_block_t *get_block,
 				struct writeback_control *wbc);
 int block_read_full_page(struct page*, get_block_t*);

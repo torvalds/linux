@@ -29,6 +29,7 @@ claim(unsigned int virt, unsigned int size, unsigned int align)
     args.virt = virt;
     args.size = size;
     args.align = align;
+    args.ret = (void *) 0;
     (*of_prom_entry)(&args);
     return args.ret;
 }

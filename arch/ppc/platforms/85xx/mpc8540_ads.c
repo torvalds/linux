@@ -52,6 +52,10 @@
 
 #include <syslib/ppc85xx_setup.h>
 
+static const char *GFAR_PHY_0 = "phy0:0";
+static const char *GFAR_PHY_1 = "phy0:1";
+static const char *GFAR_PHY_3 = "phy0:3";
+
 /* ************************************************************************
  *
  * Setup the architecture
@@ -63,6 +67,7 @@ mpc8540ads_setup_arch(void)
 	bd_t *binfo = (bd_t *) __res;
 	unsigned int freq;
 	struct gianfar_platform_data *pdata;
+	struct gianfar_mdio_data *mdata;
 
 	/* get the core frequency */
 	freq = binfo->bi_intfreq;
@@ -89,34 +94,35 @@ mpc8540ads_setup_arch(void)
 	invalidate_tlbcam_entry(num_tlbcam_entries - 1);
 #endif
 
+	/* setup the board related info for the MDIO bus */
+	mdata = (struct gianfar_mdio_data *) ppc_sys_get_pdata(MPC85xx_MDIO);
+
+	mdata->irq[0] = MPC85xx_IRQ_EXT5;
+	mdata->irq[1] = MPC85xx_IRQ_EXT5;
+	mdata->irq[2] = -1;
+	mdata->irq[3] = MPC85xx_IRQ_EXT5;
+	mdata->irq[31] = -1;
+	mdata->paddr += binfo->bi_immr_base;
+
 	/* setup the board related information for the enet controllers */
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC1);
 	if (pdata) {
 		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-		pdata->interruptPHY = MPC85xx_IRQ_EXT5;
-		pdata->phyid = 0;
-		/* fixup phy address */
-		pdata->phy_reg_addr += binfo->bi_immr_base;
+		pdata->bus_id = GFAR_PHY_0;
 		memcpy(pdata->mac_addr, binfo->bi_enetaddr, 6);
 	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_TSEC2);
 	if (pdata) {
 		pdata->board_flags = FSL_GIANFAR_BRD_HAS_PHY_INTR;
-		pdata->interruptPHY = MPC85xx_IRQ_EXT5;
-		pdata->phyid = 1;
-		/* fixup phy address */
-		pdata->phy_reg_addr += binfo->bi_immr_base;
+		pdata->bus_id = GFAR_PHY_1;
 		memcpy(pdata->mac_addr, binfo->bi_enet1addr, 6);
 	}
 
 	pdata = (struct gianfar_platform_data *) ppc_sys_get_pdata(MPC85xx_FEC);
 	if (pdata) {
 		pdata->board_flags = 0;
-		pdata->interruptPHY = MPC85xx_IRQ_EXT5;
-		pdata->phyid = 3;
-		/* fixup phy address */
-		pdata->phy_reg_addr += binfo->bi_immr_base;
+		pdata->bus_id = GFAR_PHY_3;
 		memcpy(pdata->mac_addr, binfo->bi_enet2addr, 6);
 	}
 

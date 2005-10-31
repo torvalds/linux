@@ -113,7 +113,7 @@ __ixp4xx_writeb(u8 value, u32 addr)
 }
 
 static inline void
-__ixp4xx_writesb(u32 bus_addr, u8 *vaddr, int count)
+__ixp4xx_writesb(u32 bus_addr, const u8 *vaddr, int count)
 {
 	while (count--)
 		writeb(*vaddr++, bus_addr);
@@ -136,7 +136,7 @@ __ixp4xx_writew(u16 value, u32 addr)
 }
 
 static inline void
-__ixp4xx_writesw(u32 bus_addr, u16 *vaddr, int count)
+__ixp4xx_writesw(u32 bus_addr, const u16 *vaddr, int count)
 {
 	while (count--)
 		writew(*vaddr++, bus_addr);
@@ -154,7 +154,7 @@ __ixp4xx_writel(u32 value, u32 addr)
 }
 
 static inline void
-__ixp4xx_writesl(u32 bus_addr, u32 *vaddr, int count)
+__ixp4xx_writesl(u32 bus_addr, const u32 *vaddr, int count)
 {
 	while (count--)
 		writel(*vaddr++, bus_addr);

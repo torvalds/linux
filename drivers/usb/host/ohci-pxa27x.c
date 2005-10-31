@@ -20,6 +20,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/signal.h>
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/arch/pxa-regs.h>

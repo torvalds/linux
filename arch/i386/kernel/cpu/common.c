@@ -573,6 +573,7 @@ void __devinit cpu_init(void)
 	int cpu = smp_processor_id();
 	struct tss_struct * t = &per_cpu(init_tss, cpu);
 	struct thread_struct *thread = &current->thread;
+	struct desc_struct *gdt = get_cpu_gdt_table(cpu);
 	__u32 stk16_off = (__u32)&per_cpu(cpu_16bit_stack, cpu);
 
 	if (cpu_test_and_set(cpu, cpu_initialized)) {
@@ -594,24 +595,16 @@ void __devinit cpu_init(void)
 	 * Initialize the per-CPU GDT with the boot GDT,
 	 * and set up the GDT descriptor:
 	 */
-	memcpy(&per_cpu(cpu_gdt_table, cpu), cpu_gdt_table,
-	       GDT_SIZE);
+ 	memcpy(gdt, cpu_gdt_table, GDT_SIZE);
 
 	/* Set up GDT entry for 16bit stack */
-	*(__u64 *)&(per_cpu(cpu_gdt_table, cpu)[GDT_ENTRY_ESPFIX_SS]) |=
+ 	*(__u64 *)(&gdt[GDT_ENTRY_ESPFIX_SS]) |=
 		((((__u64)stk16_off) << 16) & 0x000000ffffff0000ULL) |
 		((((__u64)stk16_off) << 32) & 0xff00000000000000ULL) |
 		(CPU_16BIT_STACK_SIZE - 1);
 
 	cpu_gdt_descr[cpu].size = GDT_SIZE - 1;
-	cpu_gdt_descr[cpu].address =
-	    (unsigned long)&per_cpu(cpu_gdt_table, cpu);
-
-	/*
-	 * Set up the per-thread TLS descriptor cache:
-	 */
-	memcpy(thread->tls_array, &per_cpu(cpu_gdt_table, cpu),
-		GDT_ENTRY_TLS_ENTRIES * 8);
+ 	cpu_gdt_descr[cpu].address = (unsigned long)gdt;
 
 	load_gdt(&cpu_gdt_descr[cpu]);
 	load_idt(&idt_descr);

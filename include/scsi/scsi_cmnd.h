@@ -4,6 +4,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/list.h>
 #include <linux/types.h>
+#include <linux/timer.h>
 
 struct request;
 struct scatterlist;

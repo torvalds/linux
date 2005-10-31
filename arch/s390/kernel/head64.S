@@ -484,6 +484,8 @@ start:
 startup:basr  %r13,0                     # get base
 .LPG1:  sll   %r13,1                     # remove high order bit
         srl   %r13,1
+	l     %r1,.Lget_ipl_device_addr-.LPG1(%r13)
+	basr  %r14,%r1
         lhi   %r1,1                      # mode 1 = esame
         slr   %r0,%r0                    # set cpuid to zero
         sigp  %r1,%r0,0x12               # switch to esame mode
@@ -556,6 +558,9 @@ startup:basr  %r13,0                     # get base
 	mlgr  %r2,%r1			# mem size in bytes in %r3
 	b     .Lfchunk-.LPG1(%r13)
 
+	.align 4
+.Lget_ipl_device_addr:
+	.long .Lget_ipl_device
 .Lpmask:
 	.byte 0
 	.align 8
@@ -746,6 +751,63 @@ _pstart:
 	.global _pend
 _pend:	
 
+.Lget_ipl_device:
+	basr  %r12,0
+.LPG2:	l     %r1,0xb8			# get sid
+	sll   %r1,15			# test if subchannel is enabled
+	srl   %r1,31
+	ltr   %r1,%r1
+	bz    0(%r14)			# subchannel disabled
+	l     %r1,0xb8
+	la    %r5,.Lipl_schib-.LPG2(%r12)
+	stsch 0(%r5)		        # get schib of subchannel
+	bnz   0(%r14)			# schib not available
+	tm    5(%r5),0x01		# devno valid?
+	bno   0(%r14)
+	la    %r6,ipl_parameter_flags-.LPG2(%r12)
+	oi    3(%r6),0x01		# set flag
+	la    %r2,ipl_devno-.LPG2(%r12)
+	mvc   0(2,%r2),6(%r5)		# store devno
+	tm    4(%r5),0x80		# qdio capable device?
+	bno   0(%r14)
+	oi    3(%r6),0x02		# set flag
+
+	# copy ipl parameters
+
+	lhi   %r0,4096
+	l     %r2,20(%r0)		# get address of parameter list
+	lhi   %r3,IPL_PARMBLOCK_ORIGIN
+	st    %r3,20(%r0)
+	lhi   %r4,1
+	cr    %r2,%r3			# start parameters < destination ?
+	jl    0f
+	lhi   %r1,1			# copy direction is upwards
+	j     1f
+0:	lhi   %r1,-1			# copy direction is downwards
+	ar    %r2,%r0
+	ar    %r3,%r0
+	ar    %r2,%r1
+	ar    %r3,%r1
+1:	mvc   0(1,%r3),0(%r2)		# finally copy ipl parameters
+	ar    %r3,%r1
+	ar    %r2,%r1
+	sr    %r0,%r4
+	jne   1b
+	b     0(%r14)
+
+	.align 4
+.Lipl_schib:
+	.rept 13
+	.long 0
+	.endr
+
+	.globl ipl_parameter_flags
+ipl_parameter_flags:
+	.long 0
+	.globl ipl_devno
+ipl_devno:
+	.word 0
+
 #ifdef CONFIG_SHARED_KERNEL
 	.org   0x100000
 #endif
@@ -755,7 +817,7 @@ _pend:
 #
         .globl _stext
 _stext:	basr  %r13,0                    # get base
-.LPG2:
+.LPG3:
 #
 # Setup stack
 #
@@ -774,7 +836,7 @@ _stext:	basr  %r13,0                    # get base
         lctlg  %c0,%c15,0(%r15)
 
 #
-        lam    0,15,.Laregs-.LPG2(%r13) # load access regs needed by uaccess
+        lam    0,15,.Laregs-.LPG3(%r13) # load access regs needed by uaccess
         brasl  %r14,start_kernel        # go to C code
 #
 # We returned from start_kernel ?!? PANIK

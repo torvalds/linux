@@ -4,6 +4,9 @@
  *  Copyright (C) 2001 Russell King
  *            (C) 2002 - 2003 Dominik Brodowski <linux@brodo.de>
  *
+ *  Oct 2005 - Ashok Raj <ashok.raj@intel.com>
+ *         		Added handling for CPU hotplug
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -34,13 +37,6 @@
 static struct cpufreq_driver   	*cpufreq_driver;
 static struct cpufreq_policy	*cpufreq_cpu_data[NR_CPUS];
 static DEFINE_SPINLOCK(cpufreq_driver_lock);
-
-
-/* we keep a copy of all ->add'ed CPU's struct sys_device here;
- * as it is only accessed in ->add and ->remove, no lock or reference
- * count is necessary.
- */
-static struct sys_device	*cpu_sys_devices[NR_CPUS];
 
 
 /* internal prototypes */
@@ -574,6 +570,9 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	unsigned long flags;
 	unsigned int j;
 
+	if (cpu_is_offline(cpu))
+		return 0;
+
 	cpufreq_debug_disable_ratelimit();
 	dprintk("adding CPU %u\n", cpu);
 
@@ -582,7 +581,6 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	 * CPU because it is in the same boat. */
 	policy = cpufreq_cpu_get(cpu);
 	if (unlikely(policy)) {
-		cpu_sys_devices[cpu] = sys_dev;
 		dprintk("CPU already managed, adding link\n");
 		sysfs_create_link(&sys_dev->kobj, &policy->kobj, "cpufreq");
 		cpufreq_debug_enable_ratelimit();
@@ -657,7 +655,6 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 	}
 
 	module_put(cpufreq_driver->owner);
-	cpu_sys_devices[cpu] = sys_dev;
 	dprintk("initialization complete\n");
 	cpufreq_debug_enable_ratelimit();
 	
@@ -682,7 +679,7 @@ err_out:
 
 nomem_out:
 	module_put(cpufreq_driver->owner);
- module_out:
+module_out:
 	cpufreq_debug_enable_ratelimit();
 	return ret;
 }
@@ -698,6 +695,7 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 	unsigned int cpu = sys_dev->id;
 	unsigned long flags;
 	struct cpufreq_policy *data;
+	struct sys_device *cpu_sys_dev;
 #ifdef CONFIG_SMP
 	unsigned int j;
 #endif
@@ -710,7 +708,6 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 
 	if (!data) {
 		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
-		cpu_sys_devices[cpu] = NULL;
 		cpufreq_debug_enable_ratelimit();
 		return -EINVAL;
 	}
@@ -725,14 +722,12 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 		dprintk("removing link\n");
 		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
 		sysfs_remove_link(&sys_dev->kobj, "cpufreq");
-		cpu_sys_devices[cpu] = NULL;
 		cpufreq_cpu_put(data);
 		cpufreq_debug_enable_ratelimit();
 		return 0;
 	}
 #endif
 
-	cpu_sys_devices[cpu] = NULL;
 
 	if (!kobject_get(&data->kobj)) {
 		spin_unlock_irqrestore(&cpufreq_driver_lock, flags);
@@ -761,7 +756,8 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 			if (j == cpu)
 				continue;
 			dprintk("removing link for cpu %u\n", j);
-			sysfs_remove_link(&cpu_sys_devices[j]->kobj, "cpufreq");
+			cpu_sys_dev = get_cpu_sysdev(j);
+			sysfs_remove_link(&cpu_sys_dev->kobj, "cpufreq");
 			cpufreq_cpu_put(data);
 		}
 	}
@@ -772,7 +768,6 @@ static int cpufreq_remove_dev (struct sys_device * sys_dev)
 	down(&data->lock);
 	if (cpufreq_driver->target)
 		__cpufreq_governor(data, CPUFREQ_GOV_STOP);
-	cpufreq_driver->target = NULL;
 	up(&data->lock);
 
 	kobject_unregister(&data->kobj);
@@ -1119,16 +1114,29 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 			    unsigned int relation)
 {
 	int retval = -EINVAL;
-	lock_cpu_hotplug();
+
+	/*
+	 * Converted the lock_cpu_hotplug to preempt_disable()
+	 * and preempt_enable(). This is a bit kludgy and relies on how cpu
+	 * hotplug works. All we need is a guarantee that cpu hotplug won't make
+	 * progress on any cpu. Once we do preempt_disable(), this would ensure
+	 * that hotplug threads don't get onto this cpu, thereby delaying
+	 * the cpu remove process.
+	 *
+	 * We removed the lock_cpu_hotplug since we need to call this function
+	 * via cpu hotplug callbacks, which result in locking the cpu hotplug
+	 * thread itself. Agree this is not very clean, cpufreq community
+	 * could improve this if required. - Ashok Raj <ashok.raj@intel.com>
+	 */
+	preempt_disable();
 	dprintk("target for CPU %u: %u kHz, relation %u\n", policy->cpu,
 		target_freq, relation);
 	if (cpu_online(policy->cpu) && cpufreq_driver->target)
 		retval = cpufreq_driver->target(policy, target_freq, relation);
-	unlock_cpu_hotplug();
+	preempt_enable();
 	return retval;
 }
 EXPORT_SYMBOL_GPL(__cpufreq_driver_target);
-
 
 int cpufreq_driver_target(struct cpufreq_policy *policy,
 			  unsigned int target_freq,
@@ -1416,6 +1424,45 @@ int cpufreq_update_policy(unsigned int cpu)
 }
 EXPORT_SYMBOL(cpufreq_update_policy);
 
+static int __cpuinit cpufreq_cpu_callback(struct notifier_block *nfb,
+					unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (unsigned long)hcpu;
+	struct cpufreq_policy *policy;
+	struct sys_device *sys_dev;
+
+	sys_dev = get_cpu_sysdev(cpu);
+
+	if (sys_dev) {
+		switch (action) {
+		case CPU_ONLINE:
+			cpufreq_add_dev(sys_dev);
+			break;
+		case CPU_DOWN_PREPARE:
+			/*
+			 * We attempt to put this cpu in lowest frequency
+			 * possible before going down. This will permit
+			 * hardware-managed P-State to switch other related
+			 * threads to min or higher speeds if possible.
+			 */
+			policy = cpufreq_cpu_data[cpu];
+			if (policy) {
+				cpufreq_driver_target(policy, policy->min,
+						CPUFREQ_RELATION_H);
+			}
+			break;
+		case CPU_DEAD:
+			cpufreq_remove_dev(sys_dev);
+			break;
+		}
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block cpufreq_cpu_notifier =
+{
+    .notifier_call = cpufreq_cpu_callback,
+};
 
 /*********************************************************************
  *               REGISTER / UNREGISTER CPUFREQ DRIVER                *
@@ -1476,6 +1523,7 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 	}
 
 	if (!ret) {
+		register_cpu_notifier(&cpufreq_cpu_notifier);
 		dprintk("driver %s up and running\n", driver_data->name);
 		cpufreq_debug_enable_ratelimit();
 	}
@@ -1507,6 +1555,7 @@ int cpufreq_unregister_driver(struct cpufreq_driver *driver)
 	dprintk("unregistering driver %s\n", driver->name);
 
 	sysdev_driver_unregister(&cpu_sysdev_class, &cpufreq_sysdev_driver);
+	unregister_cpu_notifier(&cpufreq_cpu_notifier);
 
 	spin_lock_irqsave(&cpufreq_driver_lock, flags);
 	cpufreq_driver = NULL;

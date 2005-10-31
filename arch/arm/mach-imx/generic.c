@@ -26,6 +26,8 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/string.h>
+
 #include <asm/arch/imxfb.h>
 #include <asm/hardware.h>
 #include <asm/arch/imx-regs.h>

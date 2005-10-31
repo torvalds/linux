@@ -12,11 +12,40 @@
 #include "ppc_asm.h"
 
 	.text
-	.globl	_start
-_start:
+	.globl	_zimage_start
+_zimage_start:
+	bl	reloc_offset
+
+reloc_offset:
+	mflr	r0
+	lis	r9,reloc_offset@ha
+	addi	r9,r9,reloc_offset@l
+	subf.	r0,r9,r0
+	beq	clear_caches
+
+reloc_got2:
+	lis	r9,__got2_start@ha
+	addi	r9,r9,__got2_start@l
+	lis	r8,__got2_end@ha
+	addi	r8,r8,__got2_end@l
+	subf.	r8,r9,r8
+	beq	clear_caches
+	srwi.	r8,r8,2
+	mtctr	r8
+	add	r9,r0,r9
+reloc_got2_loop:
+	lwz	r8,0(r9)
+	add	r8,r8,r0
+	stw	r8,0(r9)
+	addi	r9,r9,4
+	bdnz	reloc_got2_loop
+
+clear_caches:
 	lis	r9,_start@h
+	add	r9,r0,r9
 	lis	r8,_etext@ha
 	addi	r8,r8,_etext@l
+	add	r8,r0,r8
 1:	dcbf	r0,r9
 	icbi	r0,r9
 	addi	r9,r9,0x20
@@ -25,24 +54,6 @@ _start:
 	sync
 	isync
 
-	## Clear out the BSS as per ANSI C requirements
-
-	lis	r7,_end@ha
-	addi    r7,r7,_end@l		# r7 = &_end 
-	lis	r8,__bss_start@ha	# 
-	addi    r8,r8,__bss_start@l	# r8 = &_bss_start
-
-	## Determine how large an area, in number of words, to clear
-
-	subf	r7,r8,r7		# r7 = &_end - &_bss_start + 1 
-	addi	r7,r7,3			# r7 += 3 
-	srwi.	r7,r7,2			# r7 = size in words.
-	beq	3f			# If the size is zero, don't bother
-	addi	r8,r8,-4		# r8 -= 4 
-	mtctr	r7			# SPRN_CTR = number of words to clear
-	li	r0,0			# r0 = 0
-2:	stwu	r0,4(r8)		# Clear out a word
-	bdnz	2b			# Keep clearing until done
-3:
+	mr	r6,r1
 	b	start
 

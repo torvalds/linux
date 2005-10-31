@@ -198,25 +198,16 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 	barrier();
 }
 
-DEFINE_SPINLOCK(die_lock);
-
-/*
- * This function is protected against re-entrancy.
- */
-NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
+static void __die(const char *str, int err, struct thread_info *thread, struct pt_regs *regs)
 {
-	struct task_struct *tsk = current;
+	struct task_struct *tsk = thread->task;
 	static int die_counter;
-
-	console_verbose();
-	spin_lock_irq(&die_lock);
-	bust_spinlocks(1);
 
 	printk("Internal error: %s: %x [#%d]\n", str, err, ++die_counter);
 	print_modules();
 	__show_regs(regs);
 	printk("Process %s (pid: %d, stack limit = 0x%p)\n",
-		tsk->comm, tsk->pid, tsk->thread_info + 1);
+		tsk->comm, tsk->pid, thread + 1);
 
 	if (!user_mode(regs) || in_interrupt()) {
 		dump_mem("Stack: ", regs->ARM_sp,
@@ -224,7 +215,21 @@ NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
 		dump_backtrace(regs, tsk);
 		dump_instr(regs);
 	}
+}
 
+DEFINE_SPINLOCK(die_lock);
+
+/*
+ * This function is protected against re-entrancy.
+ */
+NORET_TYPE void die(const char *str, struct pt_regs *regs, int err)
+{
+	struct thread_info *thread = current_thread_info();
+
+	console_verbose();
+	spin_lock_irq(&die_lock);
+	bust_spinlocks(1);
+	__die(str, err, thread, regs);
 	bust_spinlocks(0);
 	spin_unlock_irq(&die_lock);
 	do_exit(SIGSEGV);

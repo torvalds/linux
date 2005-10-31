@@ -116,6 +116,15 @@ endif
 clean-files	:= lkc_defs.h qconf.moc .tmp_qtcheck \
 		   .tmp_gtkcheck zconf.tab.c zconf.tab.h lex.zconf.c
 
+# Needed for systems without gettext
+KBUILD_HAVE_NLS := $(shell \
+     if echo "\#include <libint.h>" | $(HOSTCC) $(HOSTCFLAGS) -E - > /dev/null 2>&1 ; \
+     then echo yes ; \
+     else echo no ; fi)
+ifeq ($(KBUILD_HAVE_NLS),no)
+HOSTCFLAGS	+= -DKBUILD_NO_NLS
+endif
+
 # generated files seem to need this to find local include files
 HOSTCFLAGS_lex.zconf.o	:= -I$(src)
 HOSTCFLAGS_zconf.tab.o	:= -I$(src)

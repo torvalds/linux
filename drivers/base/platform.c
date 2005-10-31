@@ -16,6 +16,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/bootmem.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 #include "base.h"
 

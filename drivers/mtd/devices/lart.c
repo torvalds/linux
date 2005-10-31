@@ -44,6 +44,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/errno.h>
+#include <linux/string.h>
 #include <linux/mtd/mtd.h>
 #ifdef HAVE_PARTITIONS
 #include <linux/mtd/partitions.h>

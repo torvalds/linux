@@ -1030,8 +1030,8 @@ __generic_file_aio_read(struct kiocb *iocb, const struct iovec *iov,
 			desc.error = 0;
 			do_generic_file_read(filp,ppos,&desc,file_read_actor);
 			retval += desc.written;
-			if (!retval) {
-				retval = desc.error;
+			if (desc.error) {
+				retval = retval ?: desc.error;
 				break;
 			}
 		}

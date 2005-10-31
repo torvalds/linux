@@ -42,7 +42,7 @@
 
 #ifdef __KERNEL__
 
-#include <asm/memory.h>
+#include <asm/synch.h>
 
 /*
  * clear_bit doesn't imply a memory barrier

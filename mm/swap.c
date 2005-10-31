@@ -270,7 +270,6 @@ void __pagevec_release_nonlru(struct pagevec *pvec)
 	struct pagevec pages_to_free;
 
 	pagevec_init(&pages_to_free, pvec->cold);
-	pages_to_free.cold = pvec->cold;
 	for (i = 0; i < pagevec_count(pvec); i++) {
 		struct page *page = pvec->pages[i];
 

@@ -377,7 +377,7 @@ static int dummy_inode_removexattr (struct dentry *dentry, char *name)
 	return 0;
 }
 
-static int dummy_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size)
+static int dummy_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size, int err)
 {
 	return -EOPNOTSUPP;
 }
@@ -803,6 +803,23 @@ static int dummy_setprocattr(struct task_struct *p, char *name, void *value, siz
 	return -EINVAL;
 }
 
+#ifdef CONFIG_KEYS
+static inline int dummy_key_alloc(struct key *key)
+{
+	return 0;
+}
+
+static inline void dummy_key_free(struct key *key)
+{
+}
+
+static inline int dummy_key_permission(key_ref_t key_ref,
+				       struct task_struct *context,
+				       key_perm_t perm)
+{
+	return 0;
+}
+#endif /* CONFIG_KEYS */
 
 struct security_operations dummy_security_ops;
 
@@ -954,5 +971,11 @@ void security_fixup_ops (struct security_operations *ops)
 	set_to_dummy_if_null(ops, sk_alloc_security);
 	set_to_dummy_if_null(ops, sk_free_security);
 #endif	/* CONFIG_SECURITY_NETWORK */
+#ifdef CONFIG_KEYS
+	set_to_dummy_if_null(ops, key_alloc);
+	set_to_dummy_if_null(ops, key_free);
+	set_to_dummy_if_null(ops, key_permission);
+#endif	/* CONFIG_KEYS */
+
 }
 

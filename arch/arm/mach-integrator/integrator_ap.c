@@ -30,6 +30,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
+#include <asm/param.h>		/* HZ */
 #include <asm/mach-types.h>
 #include <asm/hardware/amba.h>
 #include <asm/hardware/amba_kmi.h>

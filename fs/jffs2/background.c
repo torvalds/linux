@@ -15,6 +15,7 @@
 #include <linux/jffs2.h>
 #include <linux/mtd/mtd.h>
 #include <linux/completion.h>
+#include <linux/sched.h>
 #include "nodelist.h"
 
 

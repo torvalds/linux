@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/sched.h>	/* HZ */
 
 /*#include <asm/io.h>*/
 

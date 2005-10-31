@@ -18,6 +18,7 @@
 #include <asm/cpm2.h>
 #include <asm/irq.h>
 #include <asm/ppc_sys.h>
+#include <asm/machdep.h>
 
 struct platform_device ppc_sys_platform_devices[] = {
 	[MPC82xx_CPM_FCC1] = {

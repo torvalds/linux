@@ -22,6 +22,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/string.h>
 #include <media/ir-common.h>
 
 /* -------------------------------------------------------------------------- */

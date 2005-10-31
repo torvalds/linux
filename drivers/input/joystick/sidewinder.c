@@ -33,6 +33,7 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/gameport.h>
+#include <linux/jiffies.h>
 
 #define DRIVER_DESC	"Microsoft SideWinder joystick family driver"
 

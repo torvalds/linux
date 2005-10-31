@@ -25,10 +25,14 @@
 /* How many different OSM's are we allowing */
 #define I2O_MAX_DRIVERS		8
 
-#include <asm/io.h>
-#include <asm/semaphore.h>	/* Needed for MUTEX init macros */
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/string.h>
+#include <linux/slab.h>
+#include <linux/workqueue.h>	/* work_struct */
+
+#include <asm/io.h>
+#include <asm/semaphore.h>	/* Needed for MUTEX init macros */
 
 /* message queue empty */
 #define I2O_QUEUE_EMPTY		0xffffffff

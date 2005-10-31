@@ -1,6 +1,6 @@
 /* key.c: basic authentication token and access key management
  *
- * Copyright (C) 2004-5 Red Hat, Inc. All Rights Reserved.
+ * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/security.h>
 #include <linux/workqueue.h>
 #include <linux/err.h>
 #include "internal.h"
@@ -253,6 +254,7 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	struct key_user *user = NULL;
 	struct key *key;
 	size_t desclen, quotalen;
+	int ret;
 
 	key = ERR_PTR(-EINVAL);
 	if (!desc || !*desc)
@@ -305,6 +307,7 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	key->flags = 0;
 	key->expiry = 0;
 	key->payload.data = NULL;
+	key->security = NULL;
 
 	if (!not_in_quota)
 		key->flags |= 1 << KEY_FLAG_IN_QUOTA;
@@ -315,16 +318,21 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	key->magic = KEY_DEBUG_MAGIC;
 #endif
 
+	/* let the security module know about the key */
+	ret = security_key_alloc(key);
+	if (ret < 0)
+		goto security_error;
+
 	/* publish the key by giving it a serial number */
 	atomic_inc(&user->nkeys);
 	key_alloc_serial(key);
 
- error:
+error:
 	return key;
 
- no_memory_3:
+security_error:
+	kfree(key->description);
 	kmem_cache_free(key_jar, key);
- no_memory_2:
 	if (!not_in_quota) {
 		spin_lock(&user->lock);
 		user->qnkeys--;
@@ -332,11 +340,24 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 		spin_unlock(&user->lock);
 	}
 	key_user_put(user);
- no_memory_1:
+	key = ERR_PTR(ret);
+	goto error;
+
+no_memory_3:
+	kmem_cache_free(key_jar, key);
+no_memory_2:
+	if (!not_in_quota) {
+		spin_lock(&user->lock);
+		user->qnkeys--;
+		user->qnbytes -= quotalen;
+		spin_unlock(&user->lock);
+	}
+	key_user_put(user);
+no_memory_1:
 	key = ERR_PTR(-ENOMEM);
 	goto error;
 
- no_quota:
+no_quota:
 	spin_unlock(&user->lock);
 	key_user_put(user);
 	key = ERR_PTR(-EDQUOT);
@@ -556,6 +577,8 @@ static void key_cleanup(void *data)
 
 	key_check(key);
 
+	security_key_free(key);
+
 	/* deal with the user's key tracking and quota */
 	if (test_bit(KEY_FLAG_IN_QUOTA, &key->flags)) {
 		spin_lock(&key->user->lock);
@@ -700,8 +723,8 @@ static inline key_ref_t __key_update(key_ref_t key_ref,
 	int ret;
 
 	/* need write permission on the key to update it */
-	ret = -EACCES;
-	if (!key_permission(key_ref, KEY_WRITE))
+	ret = key_permission(key_ref, KEY_WRITE);
+	if (ret < 0)
 		goto error;
 
 	ret = -EEXIST;
@@ -711,7 +734,6 @@ static inline key_ref_t __key_update(key_ref_t key_ref,
 	down_write(&key->sem);
 
 	ret = key->type->update(key, payload, plen);
-
 	if (ret == 0)
 		/* updating a negative key instantiates it */
 		clear_bit(KEY_FLAG_NEGATIVE, &key->flags);
@@ -768,9 +790,11 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 
 	/* if we're going to allocate a new key, we're going to have
 	 * to modify the keyring */
-	key_ref = ERR_PTR(-EACCES);
-	if (!key_permission(keyring_ref, KEY_WRITE))
+	ret = key_permission(keyring_ref, KEY_WRITE);
+	if (ret < 0) {
+		key_ref = ERR_PTR(ret);
 		goto error_3;
+	}
 
 	/* search for an existing key of the same type and description in the
 	 * destination keyring
@@ -780,8 +804,8 @@ key_ref_t key_create_or_update(key_ref_t keyring_ref,
 		goto found_matching_key;
 
 	/* decide on the permissions we want */
-	perm = KEY_POS_VIEW | KEY_POS_SEARCH | KEY_POS_LINK;
-	perm |= KEY_USR_VIEW | KEY_USR_SEARCH | KEY_USR_LINK;
+	perm = KEY_POS_VIEW | KEY_POS_SEARCH | KEY_POS_LINK | KEY_POS_SETATTR;
+	perm |= KEY_USR_VIEW | KEY_USR_SEARCH | KEY_USR_LINK | KEY_USR_SETATTR;
 
 	if (ktype->read)
 		perm |= KEY_POS_READ | KEY_USR_READ;
@@ -840,16 +864,16 @@ int key_update(key_ref_t key_ref, const void *payload, size_t plen)
 	key_check(key);
 
 	/* the key must be writable */
-	ret = -EACCES;
-	if (!key_permission(key_ref, KEY_WRITE))
+	ret = key_permission(key_ref, KEY_WRITE);
+	if (ret < 0)
 		goto error;
 
 	/* attempt to update it if supported */
 	ret = -EOPNOTSUPP;
 	if (key->type->update) {
 		down_write(&key->sem);
-		ret = key->type->update(key, payload, plen);
 
+		ret = key->type->update(key, payload, plen);
 		if (ret == 0)
 			/* updating a negative key instantiates it */
 			clear_bit(KEY_FLAG_NEGATIVE, &key->flags);

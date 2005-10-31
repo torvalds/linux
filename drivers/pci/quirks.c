@@ -356,7 +356,7 @@ static void piix4_mem_quirk(struct pci_dev *dev, const char *name, unsigned int 
 /*
  * PIIX4 ACPI: Two IO regions pointed to by longwords at
  *	0x40 (64 bytes of ACPI registers)
- *	0x90 (32 bytes of SMB registers)
+ *	0x90 (16 bytes of SMB registers)
  * and a few strange programmable PIIX4 device resources.
  */
 static void __devinit quirk_piix4_acpi(struct pci_dev *dev)
@@ -366,7 +366,7 @@ static void __devinit quirk_piix4_acpi(struct pci_dev *dev)
 	pci_read_config_dword(dev, 0x40, &region);
 	quirk_io_region(dev, region, 64, PCI_BRIDGE_RESOURCES, "PIIX4 ACPI");
 	pci_read_config_dword(dev, 0x90, &region);
-	quirk_io_region(dev, region, 32, PCI_BRIDGE_RESOURCES+1, "PIIX4 SMB");
+	quirk_io_region(dev, region, 16, PCI_BRIDGE_RESOURCES+1, "PIIX4 SMB");
 
 	/* Device resource A has enables for some of the other ones */
 	pci_read_config_dword(dev, 0x5c, &res_a);

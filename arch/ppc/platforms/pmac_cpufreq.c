@@ -136,7 +136,7 @@ static inline void debug_calc_bogomips(void)
 
 /* Switch CPU speed under 750FX CPU control
  */
-static int __pmac cpu_750fx_cpu_speed(int low_speed)
+static int cpu_750fx_cpu_speed(int low_speed)
 {
 	u32 hid2;
 
@@ -172,7 +172,7 @@ static int __pmac cpu_750fx_cpu_speed(int low_speed)
 	return 0;
 }
 
-static unsigned int __pmac cpu_750fx_get_cpu_speed(void)
+static unsigned int cpu_750fx_get_cpu_speed(void)
 {
 	if (mfspr(SPRN_HID1) & HID1_PS)
 		return low_freq;
@@ -181,7 +181,7 @@ static unsigned int __pmac cpu_750fx_get_cpu_speed(void)
 }
 
 /* Switch CPU speed using DFS */
-static int __pmac dfs_set_cpu_speed(int low_speed)
+static int dfs_set_cpu_speed(int low_speed)
 {
 	if (low_speed == 0) {
 		/* ramping up, set voltage first */
@@ -205,7 +205,7 @@ static int __pmac dfs_set_cpu_speed(int low_speed)
 	return 0;
 }
 
-static unsigned int __pmac dfs_get_cpu_speed(void)
+static unsigned int dfs_get_cpu_speed(void)
 {
 	if (mfspr(SPRN_HID1) & HID1_DFS)
 		return low_freq;
@@ -216,7 +216,7 @@ static unsigned int __pmac dfs_get_cpu_speed(void)
 
 /* Switch CPU speed using slewing GPIOs
  */
-static int __pmac gpios_set_cpu_speed(int low_speed)
+static int gpios_set_cpu_speed(int low_speed)
 {
 	int gpio, timeout = 0;
 
@@ -258,7 +258,7 @@ static int __pmac gpios_set_cpu_speed(int low_speed)
 
 /* Switch CPU speed under PMU control
  */
-static int __pmac pmu_set_cpu_speed(int low_speed)
+static int pmu_set_cpu_speed(int low_speed)
 {
 	struct adb_request req;
 	unsigned long save_l2cr;
@@ -354,7 +354,7 @@ static int __pmac pmu_set_cpu_speed(int low_speed)
 	return 0;
 }
 
-static int __pmac do_set_cpu_speed(int speed_mode, int notify)
+static int do_set_cpu_speed(int speed_mode, int notify)
 {
 	struct cpufreq_freqs freqs;
 	unsigned long l3cr;
@@ -391,17 +391,17 @@ static int __pmac do_set_cpu_speed(int speed_mode, int notify)
 	return 0;
 }
 
-static unsigned int __pmac pmac_cpufreq_get_speed(unsigned int cpu)
+static unsigned int pmac_cpufreq_get_speed(unsigned int cpu)
 {
 	return cur_freq;
 }
 
-static int __pmac pmac_cpufreq_verify(struct cpufreq_policy *policy)
+static int pmac_cpufreq_verify(struct cpufreq_policy *policy)
 {
 	return cpufreq_frequency_table_verify(policy, pmac_cpu_freqs);
 }
 
-static int __pmac pmac_cpufreq_target(	struct cpufreq_policy *policy,
+static int pmac_cpufreq_target(	struct cpufreq_policy *policy,
 					unsigned int target_freq,
 					unsigned int relation)
 {
@@ -414,13 +414,13 @@ static int __pmac pmac_cpufreq_target(	struct cpufreq_policy *policy,
 	return do_set_cpu_speed(newstate, 1);
 }
 
-unsigned int __pmac pmac_get_one_cpufreq(int i)
+unsigned int pmac_get_one_cpufreq(int i)
 {
 	/* Supports only one CPU for now */
 	return (i == 0) ? cur_freq : 0;
 }
 
-static int __pmac pmac_cpufreq_cpu_init(struct cpufreq_policy *policy)
+static int pmac_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
 	if (policy->cpu != 0)
 		return -ENODEV;
@@ -433,7 +433,7 @@ static int __pmac pmac_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	return cpufreq_frequency_table_cpuinfo(policy, pmac_cpu_freqs);
 }
 
-static u32 __pmac read_gpio(struct device_node *np)
+static u32 read_gpio(struct device_node *np)
 {
 	u32 *reg = (u32 *)get_property(np, "reg", NULL);
 	u32 offset;
@@ -452,7 +452,7 @@ static u32 __pmac read_gpio(struct device_node *np)
 	return offset;
 }
 
-static int __pmac pmac_cpufreq_suspend(struct cpufreq_policy *policy, pm_message_t pmsg)
+static int pmac_cpufreq_suspend(struct cpufreq_policy *policy, pm_message_t pmsg)
 {
 	/* Ok, this could be made a bit smarter, but let's be robust for now. We
 	 * always force a speed change to high speed before sleep, to make sure
@@ -468,7 +468,7 @@ static int __pmac pmac_cpufreq_suspend(struct cpufreq_policy *policy, pm_message
 	return 0;
 }
 
-static int __pmac pmac_cpufreq_resume(struct cpufreq_policy *policy)
+static int pmac_cpufreq_resume(struct cpufreq_policy *policy)
 {
 	/* If we resume, first check if we have a get() function */
 	if (get_speed_proc)
@@ -501,7 +501,7 @@ static struct cpufreq_driver pmac_cpufreq_driver = {
 };
 
 
-static int __pmac pmac_cpufreq_init_MacRISC3(struct device_node *cpunode)
+static int pmac_cpufreq_init_MacRISC3(struct device_node *cpunode)
 {
 	struct device_node *volt_gpio_np = of_find_node_by_name(NULL,
 								"voltage-gpio");
@@ -593,7 +593,7 @@ static int __pmac pmac_cpufreq_init_MacRISC3(struct device_node *cpunode)
 	return 0;
 }
 
-static int __pmac pmac_cpufreq_init_7447A(struct device_node *cpunode)
+static int pmac_cpufreq_init_7447A(struct device_node *cpunode)
 {
 	struct device_node *volt_gpio_np;
 
@@ -620,7 +620,7 @@ static int __pmac pmac_cpufreq_init_7447A(struct device_node *cpunode)
 	return 0;
 }
 
-static int __pmac pmac_cpufreq_init_750FX(struct device_node *cpunode)
+static int pmac_cpufreq_init_750FX(struct device_node *cpunode)
 {
 	struct device_node *volt_gpio_np;
 	u32 pvr, *value;
