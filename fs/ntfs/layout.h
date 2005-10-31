@@ -1021,10 +1021,17 @@ enum {
 	FILE_NAME_POSIX		= 0x00,
 	/* This is the largest namespace. It is case sensitive and allows all
 	   Unicode characters except for: '\0' and '/'.  Beware that in
-	   WinNT/2k files which eg have the same name except for their case
-	   will not be distinguished by the standard utilities and thus a "del
-	   filename" will delete both "filename" and "fileName" without
-	   warning. */
+	   WinNT/2k/2003 by default files which eg have the same name except
+	   for their case will not be distinguished by the standard utilities
+	   and thus a "del filename" will delete both "filename" and "fileName"
+	   without warning.  However if for example Services For Unix (SFU) are
+	   installed and the case sensitive option was enabled at installation
+	   time, then you can create/access/delete such files.
+	   Note that even SFU places restrictions on the filenames beyond the
+	   '\0' and '/' and in particular the following set of characters is
+	   not allowed: '"', '/', '<', '>', '\'.  All other characters,
+	   including the ones no allowed in WIN32 namespace are allowed.
+	   Tested with SFU 3.5 (this is now free) running on Windows XP. */
 	FILE_NAME_WIN32		= 0x01,
 	/* The standard WinNT/2k NTFS long filenames. Case insensitive.  All
 	   Unicode chars except: '\0', '"', '*', '/', ':', '<', '>', '?', '\',
@@ -2367,7 +2374,9 @@ typedef struct {
  * Extended attribute flags (8-bit).
  */
 enum {
-	NEED_EA	= 0x80
+	NEED_EA	= 0x80		/* If set the file to which the EA belongs
+				   cannot be interpreted without understanding
+				   the associates extended attributes. */
 } __attribute__ ((__packed__));
 
 typedef u8 EA_FLAGS;
@@ -2375,20 +2384,20 @@ typedef u8 EA_FLAGS;
 /*
  * Attribute: Extended attribute (EA) (0xe0).
  *
- * NOTE: Always non-resident. (Is this true?)
+ * NOTE: Can be resident or non-resident.
  *
  * Like the attribute list and the index buffer list, the EA attribute value is
  * a sequence of EA_ATTR variable length records.
- *
- * FIXME: It appears weird that the EA name is not unicode. Is it true?
  */
 typedef struct {
 	le32 next_entry_offset;	/* Offset to the next EA_ATTR. */
 	EA_FLAGS flags;		/* Flags describing the EA. */
-	u8 ea_name_length;	/* Length of the name of the EA in bytes. */
+	u8 ea_name_length;	/* Length of the name of the EA in bytes
+				   excluding the '\0' byte terminator. */
 	le16 ea_value_length;	/* Byte size of the EA's value. */
-	u8 ea_name[0];		/* Name of the EA. */
-	u8 ea_value[0];		/* The value of the EA. Immediately follows
+	u8 ea_name[0];		/* Name of the EA.  Note this is ASCII, not
+				   Unicode and it is zero terminated. */
+	u8 ea_value[0];		/* The value of the EA.  Immediately follows
 				   the name. */
 } __attribute__ ((__packed__)) EA_ATTR;
 
