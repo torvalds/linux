@@ -17,6 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/stringify.h>
+#include <linux/smp.h>
 
 /* waiting for a spinlock... */
 #if defined(CONFIG_PPC_SPLPAR) || defined(CONFIG_PPC_ISERIES)

@@ -70,10 +70,6 @@
 #include <asm/iSeries/HvCallXm.h>
 #endif
 
-u64 jiffies_64 __cacheline_aligned_in_smp = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 /* keep track of when we need to update the rtc */
 time_t last_rtc_update;
 extern int piranha_simulator;

@@ -40,8 +40,8 @@
  * in exit.c or in signal.c.
  */
 
-int compat_sys_ptrace(int request, int pid, unsigned long addr,
-		      unsigned long data)
+long compat_sys_ptrace(int request, int pid, unsigned long addr,
+		       unsigned long data)
 {
 	struct task_struct *child;
 	int ret = -EPERM;
