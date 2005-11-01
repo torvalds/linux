@@ -22,8 +22,8 @@
  *************************************************************************/
 
 #define DRV_NAME	"pcnet32"
-#define DRV_VERSION	"1.31b"
-#define DRV_RELDATE	"06.Oct.2005"
+#define DRV_VERSION	"1.31c"
+#define DRV_RELDATE	"01.Nov.2005"
 #define PFX		DRV_NAME ": "
 
 static const char *version =
@@ -262,6 +262,9 @@ static int homepna[MAX_UNITS];
  *	   to allow loopback test to work unchanged.
  * v1.31b  06 Oct 2005 Don Fry changed alloc_ring to show name of device
  *	   if allocation fails
+ * v1.31c  01 Nov 2005 Don Fry Allied Telesyn 2700/2701 FX are 100Mbit only.
+ *	   Force 100Mbit FD if Auto (ASEL) is selected.
+ *	   See Bugzilla 2669 and 4551.
  */
 
 
@@ -1612,12 +1615,18 @@ pcnet32_open(struct net_device *dev)
 	val |= 0x10;
     lp->a.write_csr (ioaddr, 124, val);
 
-    /* Allied Telesyn AT 2700/2701 FX looses the link, so skip that */
+    /* Allied Telesyn AT 2700/2701 FX are 100Mbit only and do not negotiate */
     if (lp->pci_dev->subsystem_vendor == PCI_VENDOR_ID_AT &&
-        (lp->pci_dev->subsystem_device == PCI_SUBDEVICE_ID_AT_2700FX ||
-	 lp->pci_dev->subsystem_device == PCI_SUBDEVICE_ID_AT_2701FX)) {
-	printk(KERN_DEBUG "%s: Skipping PHY selection.\n", dev->name);
-    } else {
+	    (lp->pci_dev->subsystem_device == PCI_SUBDEVICE_ID_AT_2700FX ||
+	     lp->pci_dev->subsystem_device == PCI_SUBDEVICE_ID_AT_2701FX)) {
+	if (lp->options & PCNET32_PORT_ASEL) {
+	    lp->options = PCNET32_PORT_FD | PCNET32_PORT_100;
+	    if (netif_msg_link(lp))
+		printk(KERN_DEBUG "%s: Setting 100Mb-Full Duplex.\n",
+			dev->name);
+	}
+    }
+    {
 	/*
 	 * 24 Jun 2004 according AMD, in order to change the PHY,
 	 * DANAS (or DISPM for 79C976) must be set; then select the speed,
