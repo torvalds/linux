@@ -59,14 +59,15 @@
 #define	IXP2000_CAP_SIZE		0x00100000
 
 /*
- * Addresses for specific on-chip peripherals
+ * Addresses for specific on-chip peripherals.
  */
 #define	IXP2000_SLOWPORT_CSR_VIRT_BASE	0xfef80000
 #define	IXP2000_GLOBAL_REG_VIRT_BASE	0xfef04000
 #define	IXP2000_UART_PHYS_BASE		0xc0030000
 #define	IXP2000_UART_VIRT_BASE		0xfef30000
 #define	IXP2000_TIMER_VIRT_BASE		0xfef20000
-#define	IXP2000_GPIO_VIRT_BASE		0Xfef10000
+#define	IXP2000_UENGINE_CSR_VIRT_BASE	0xfef18000
+#define	IXP2000_GPIO_VIRT_BASE		0xfef10000
 
 /*
  * Devices outside of the 0xc0000000 -> 0xc0100000 range.  The virtual
