@@ -668,10 +668,10 @@ map_buffer_cached:
 				 * to, we need to read it in before the write,
 				 * i.e. now.
 				 */
-				if (!buffer_uptodate(bh) && ((bh_pos < pos &&
-						bh_end > pos) ||
-						(bh_end > end &&
-						bh_end > end))) {
+				if (!buffer_uptodate(bh) && bh_pos < end &&
+						bh_end > pos &&
+						(bh_pos < pos ||
+						bh_end > end)) {
 					/*
 					 * If the buffer is fully or partially
 					 * within the initialized size, do an
@@ -784,10 +784,11 @@ retry_remap:
 						blocksize_bits);
 				cdelta = 0;
 				/*
-				 * If the number of remaining clusters in the
-				 * @pages is smaller or equal to the number of
-				 * cached clusters, unlock the runlist as the
-				 * map cache will be used from now on.
+				 * If the number of remaining clusters touched
+				 * by the write is smaller or equal to the
+				 * number of cached clusters, unlock the
+				 * runlist as the map cache will be used from
+				 * now on.
 				 */
 				if (likely(vcn + vcn_len >= cend)) {
 					if (rl_write_locked) {
