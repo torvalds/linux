@@ -435,8 +435,4 @@ void __init init_IRQ(void)
 		setup_irq(FPU_IRQ, &fpu_irq);
 
 	irq_ctx_init(smp_processor_id());
-
-#ifdef CONFIG_X86_LOCAL_APIC
-	APIC_init();
-#endif
 }
