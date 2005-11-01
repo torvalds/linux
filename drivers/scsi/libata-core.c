@@ -3317,6 +3317,8 @@ static void ata_pio_block(struct ata_port *ap)
 
 		ata_pio_sector(qc);
 	}
+
+	ata_altstatus(ap); /* flush */
 }
 
 static void ata_pio_error(struct ata_port *ap)
@@ -3344,9 +3346,6 @@ fsm_start:
 	qc_completed = 0;
 
 	switch (ap->hsm_task_state) {
-	case HSM_ST_IDLE:
-		return;
-
 	case HSM_ST:
 		ata_pio_block(ap);
 		break;
@@ -3363,6 +3362,10 @@ fsm_start:
 	case HSM_ST_TMOUT:
 	case HSM_ST_ERR:
 		ata_pio_error(ap);
+		return;
+
+	default:
+		BUG();
 		return;
 	}
 
