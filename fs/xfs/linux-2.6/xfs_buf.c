@@ -458,14 +458,7 @@ _pagebuf_lookup_pages(
 			unlock_page(bp->pb_pages[i]);
 	}
 
-	if (page_count) {
-		/* if we have any uptodate pages, mark that in the buffer */
-		bp->pb_flags &= ~PBF_NONE;
-
-		/* if some pages aren't uptodate, mark that in the buffer */
-		if (page_count != bp->pb_page_count)
-			bp->pb_flags |= PBF_PARTIAL;
-	}
+	bp->pb_flags &= ~PBF_NONE;
 
 	PB_TRACE(bp, "lookup_pages", (long)page_count);
 	return error;
@@ -676,7 +669,7 @@ xfs_buf_read_flags(
 
 	pb = xfs_buf_get_flags(target, ioff, isize, flags);
 	if (pb) {
-		if (PBF_NOT_DONE(pb)) {
+		if (!XFS_BUF_ISDONE(pb)) {
 			PB_TRACE(pb, "read", (unsigned long)flags);
 			XFS_STATS_INC(pb_get_read);
 			pagebuf_iostart(pb, flags);
@@ -813,7 +806,7 @@ pagebuf_get_no_daddr(
 	bp = pagebuf_allocate(0);
 	if (unlikely(bp == NULL))
 		goto fail;
-	_pagebuf_initialize(bp, target, 0, len, PBF_FORCEIO);
+	_pagebuf_initialize(bp, target, 0, len, 0);
 
  try_again:
 	data = kmem_alloc(malloc_len, KM_SLEEP | KM_MAYFAIL);
@@ -1121,21 +1114,18 @@ pagebuf_iodone_work(
 void
 pagebuf_iodone(
 	xfs_buf_t		*pb,
-	int			dataio,
 	int			schedule)
 {
 	pb->pb_flags &= ~(PBF_READ | PBF_WRITE);
-	if (pb->pb_error == 0) {
-		pb->pb_flags &= ~(PBF_PARTIAL | PBF_NONE);
-	}
+	if (pb->pb_error == 0)
+		pb->pb_flags &= ~PBF_NONE;
 
 	PB_TRACE(pb, "iodone", pb->pb_iodone);
 
 	if ((pb->pb_iodone) || (pb->pb_flags & PBF_ASYNC)) {
 		if (schedule) {
 			INIT_WORK(&pb->pb_iodone_work, pagebuf_iodone_work, pb);
-			queue_work(dataio ? xfsdatad_workqueue :
-				xfslogd_workqueue, &pb->pb_iodone_work);
+			queue_work(xfslogd_workqueue, &pb->pb_iodone_work);
 		} else {
 			pagebuf_iodone_work(pb);
 		}
@@ -1235,7 +1225,7 @@ _pagebuf_iodone(
 {
 	if (atomic_dec_and_test(&pb->pb_io_remaining) == 1) {
 		pb->pb_locked = 0;
-		pagebuf_iodone(pb, (pb->pb_flags & PBF_FS_DATAIOD), schedule);
+		pagebuf_iodone(pb, schedule);
 	}
 }
 
