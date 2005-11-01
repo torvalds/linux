@@ -318,7 +318,7 @@ xfs_mount_validate_sb(
 		"XFS: Attempted to mount file system with blocksize %d bytes",
 			sbp->sb_blocksize);
 		cmn_err(CE_WARN,
-		"XFS: Only page-sized (%d) or less blocksizes currently work.",
+		"XFS: Only page-sized (%ld) or less blocksizes currently work.",
 			PAGE_SIZE);
 		return XFS_ERROR(ENOSYS);
 	}

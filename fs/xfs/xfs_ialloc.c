@@ -957,8 +957,11 @@ xfs_difree(
 	agino = XFS_INO_TO_AGINO(mp, inode);
 	if (inode != XFS_AGINO_TO_INO(mp, agno, agino))  {
 		cmn_err(CE_WARN,
-			"xfs_difree: inode != XFS_AGINO_TO_INO() (%d != %d) on %s.  Returning EINVAL.",
-			inode, XFS_AGINO_TO_INO(mp, agno, agino), mp->m_fsname);
+			"xfs_difree: inode != XFS_AGINO_TO_INO() "
+			"(%llu != %llu) on %s.  Returning EINVAL.",
+			(unsigned long long)inode,
+			(unsigned long long)XFS_AGINO_TO_INO(mp, agno, agino),
+			mp->m_fsname);
 		ASSERT(0);
 		return XFS_ERROR(EINVAL);
 	}

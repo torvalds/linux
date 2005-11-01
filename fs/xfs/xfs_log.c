@@ -3533,7 +3533,9 @@ xlog_verify_iclog(xlog_t	 *log,
 			}
 		}
 		if (clientid != XFS_TRANSACTION && clientid != XFS_LOG)
-			cmn_err(CE_WARN, "xlog_verify_iclog: invalid clientid %d op 0x%p offset 0x%x", clientid, ophead, field_offset);
+			cmn_err(CE_WARN, "xlog_verify_iclog: "
+				"invalid clientid %d op 0x%p offset 0x%lx",
+				clientid, ophead, (unsigned long)field_offset);
 
 		/* check length */
 		field_offset = (__psint_t)

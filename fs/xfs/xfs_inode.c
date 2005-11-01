@@ -194,9 +194,10 @@ xfs_inotobp(
 	if ((imap.im_blkno + imap.im_len) >
 	    XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks)) {
 		cmn_err(CE_WARN,
-	"xfs_inotobp: inode number (%d + %d) maps to a block outside the bounds "
+	"xfs_inotobp: inode number (%llu + %d) maps to a block outside the bounds "
 	"of the file system %s.  Returning EINVAL.",
-			imap.im_blkno, imap.im_len,mp->m_fsname);
+			(unsigned long long)imap.im_blkno,
+			imap.im_len, mp->m_fsname);
 		return XFS_ERROR(EINVAL);
 	}
 

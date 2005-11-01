@@ -6131,7 +6131,7 @@ error0:
 		xfs_trans_brelse(NULL, bp);
 error_norelse:
 	cmn_err(CE_WARN, "%s: BAD after btree leaves for %d extents",
-		i, __FUNCTION__);
+		__FUNCTION__, i);
 	panic("%s: CORRUPTED BTREE OR SOMETHING", __FUNCTION__);
 	return;
 }

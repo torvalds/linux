@@ -41,9 +41,10 @@
 #define CE_ALERT        1               /* alert        */
 #define CE_PANIC        0               /* panic        */
 
-extern void icmn_err(int, char *, va_list);
-/* PRINTFLIKE2 */
-extern void cmn_err(int, char *, ...);
+extern void icmn_err(int, char *, va_list)
+	__attribute__ ((format (printf, 2, 0)));
+extern void cmn_err(int, char *, ...)
+	__attribute__ ((format (printf, 2, 3)));
 
 #ifndef STATIC
 # define STATIC static
