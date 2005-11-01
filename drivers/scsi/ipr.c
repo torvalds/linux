@@ -936,6 +936,52 @@ static void ipr_log_vpd(struct ipr_vpd *vpd)
 }
 
 /**
+ * ipr_log_ext_vpd - Log the passed extended VPD to the error log.
+ * @vpd:		vendor/product id/sn/wwn struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_ext_vpd(struct ipr_ext_vpd *vpd)
+{
+	ipr_log_vpd(&vpd->vpd);
+	ipr_err("    WWN: %08X%08X\n", be32_to_cpu(vpd->wwid[0]),
+		be32_to_cpu(vpd->wwid[1]));
+}
+
+/**
+ * ipr_log_enhanced_cache_error - Log a cache error.
+ * @ioa_cfg:	ioa config struct
+ * @hostrcb:	hostrcb struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_enhanced_cache_error(struct ipr_ioa_cfg *ioa_cfg,
+					 struct ipr_hostrcb *hostrcb)
+{
+	struct ipr_hostrcb_type_12_error *error =
+		&hostrcb->hcam.u.error.u.type_12_error;
+
+	ipr_err("-----Current Configuration-----\n");
+	ipr_err("Cache Directory Card Information:\n");
+	ipr_log_ext_vpd(&error->ioa_vpd);
+	ipr_err("Adapter Card Information:\n");
+	ipr_log_ext_vpd(&error->cfc_vpd);
+
+	ipr_err("-----Expected Configuration-----\n");
+	ipr_err("Cache Directory Card Information:\n");
+	ipr_log_ext_vpd(&error->ioa_last_attached_to_cfc_vpd);
+	ipr_err("Adapter Card Information:\n");
+	ipr_log_ext_vpd(&error->cfc_last_attached_to_ioa_vpd);
+
+	ipr_err("Additional IOA Data: %08X %08X %08X\n",
+		     be32_to_cpu(error->ioa_data[0]),
+		     be32_to_cpu(error->ioa_data[1]),
+		     be32_to_cpu(error->ioa_data[2]));
+}
+
+/**
  * ipr_log_cache_error - Log a cache error.
  * @ioa_cfg:	ioa config struct
  * @hostrcb:	hostrcb struct
@@ -965,6 +1011,46 @@ static void ipr_log_cache_error(struct ipr_ioa_cfg *ioa_cfg,
 		     be32_to_cpu(error->ioa_data[0]),
 		     be32_to_cpu(error->ioa_data[1]),
 		     be32_to_cpu(error->ioa_data[2]));
+}
+
+/**
+ * ipr_log_enhanced_config_error - Log a configuration error.
+ * @ioa_cfg:	ioa config struct
+ * @hostrcb:	hostrcb struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_enhanced_config_error(struct ipr_ioa_cfg *ioa_cfg,
+					  struct ipr_hostrcb *hostrcb)
+{
+	int errors_logged, i;
+	struct ipr_hostrcb_device_data_entry_enhanced *dev_entry;
+	struct ipr_hostrcb_type_13_error *error;
+
+	error = &hostrcb->hcam.u.error.u.type_13_error;
+	errors_logged = be32_to_cpu(error->errors_logged);
+
+	ipr_err("Device Errors Detected/Logged: %d/%d\n",
+		be32_to_cpu(error->errors_detected), errors_logged);
+
+	dev_entry = error->dev;
+
+	for (i = 0; i < errors_logged; i++, dev_entry++) {
+		ipr_err_separator;
+
+		ipr_phys_res_err(ioa_cfg, dev_entry->dev_res_addr, "Device %d", i + 1);
+		ipr_log_ext_vpd(&dev_entry->vpd);
+
+		ipr_err("-----New Device Information-----\n");
+		ipr_log_ext_vpd(&dev_entry->new_vpd);
+
+		ipr_err("Cache Directory Card Information:\n");
+		ipr_log_ext_vpd(&dev_entry->ioa_last_with_dev_vpd);
+
+		ipr_err("Adapter Card Information:\n");
+		ipr_log_ext_vpd(&dev_entry->cfc_last_with_dev_vpd);
+	}
 }
 
 /**
@@ -1011,6 +1097,57 @@ static void ipr_log_config_error(struct ipr_ioa_cfg *ioa_cfg,
 			be32_to_cpu(dev_entry->ioa_data[2]),
 			be32_to_cpu(dev_entry->ioa_data[3]),
 			be32_to_cpu(dev_entry->ioa_data[4]));
+	}
+}
+
+/**
+ * ipr_log_enhanced_array_error - Log an array configuration error.
+ * @ioa_cfg:	ioa config struct
+ * @hostrcb:	hostrcb struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_enhanced_array_error(struct ipr_ioa_cfg *ioa_cfg,
+					 struct ipr_hostrcb *hostrcb)
+{
+	int i, num_entries;
+	struct ipr_hostrcb_type_14_error *error;
+	struct ipr_hostrcb_array_data_entry_enhanced *array_entry;
+	const u8 zero_sn[IPR_SERIAL_NUM_LEN] = { [0 ... IPR_SERIAL_NUM_LEN-1] = '0' };
+
+	error = &hostrcb->hcam.u.error.u.type_14_error;
+
+	ipr_err_separator;
+
+	ipr_err("RAID %s Array Configuration: %d:%d:%d:%d\n",
+		error->protection_level,
+		ioa_cfg->host->host_no,
+		error->last_func_vset_res_addr.bus,
+		error->last_func_vset_res_addr.target,
+		error->last_func_vset_res_addr.lun);
+
+	ipr_err_separator;
+
+	array_entry = error->array_member;
+	num_entries = min_t(u32, be32_to_cpu(error->num_entries),
+			    sizeof(error->array_member));
+
+	for (i = 0; i < num_entries; i++, array_entry++) {
+		if (!memcmp(array_entry->vpd.vpd.sn, zero_sn, IPR_SERIAL_NUM_LEN))
+			continue;
+
+		if (be32_to_cpu(error->exposed_mode_adn) == i)
+			ipr_err("Exposed Array Member %d:\n", i);
+		else
+			ipr_err("Array Member %d:\n", i);
+
+		ipr_log_ext_vpd(&array_entry->vpd);
+		ipr_phys_res_err(ioa_cfg, array_entry->dev_res_addr, "Current Location");
+		ipr_phys_res_err(ioa_cfg, array_entry->expected_dev_res_addr,
+				 "Expected Location");
+
+		ipr_err_separator;
 	}
 }
 
@@ -1091,6 +1228,31 @@ static void ipr_log_hex_data(u32 *data, int len)
 			be32_to_cpu(data[i+2]),
 			be32_to_cpu(data[i+3]));
 	}
+}
+
+/**
+ * ipr_log_enhanced_dual_ioa_error - Log an enhanced dual adapter error.
+ * @ioa_cfg:	ioa config struct
+ * @hostrcb:	hostrcb struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_enhanced_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
+					    struct ipr_hostrcb *hostrcb)
+{
+	struct ipr_hostrcb_type_17_error *error;
+
+	error = &hostrcb->hcam.u.error.u.type_17_error;
+	error->failure_reason[sizeof(error->failure_reason) - 1] = '\0';
+
+	ipr_err("%s\n", error->failure_reason);
+	ipr_err("Remote Adapter VPD:\n");
+	ipr_log_ext_vpd(&error->vpd);
+	ipr_log_hex_data(error->data,
+			 be32_to_cpu(hostrcb->hcam.length) -
+			 (offsetof(struct ipr_hostrcb_error, u) +
+			  offsetof(struct ipr_hostrcb_type_17_error, data)));
 }
 
 /**
@@ -1220,6 +1382,19 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 		break;
 	case IPR_HOST_RCB_OVERLAY_ID_7:
 		ipr_log_dual_ioa_error(ioa_cfg, hostrcb);
+		break;
+	case IPR_HOST_RCB_OVERLAY_ID_12:
+		ipr_log_enhanced_cache_error(ioa_cfg, hostrcb);
+		break;
+	case IPR_HOST_RCB_OVERLAY_ID_13:
+		ipr_log_enhanced_config_error(ioa_cfg, hostrcb);
+		break;
+	case IPR_HOST_RCB_OVERLAY_ID_14:
+	case IPR_HOST_RCB_OVERLAY_ID_16:
+		ipr_log_enhanced_array_error(ioa_cfg, hostrcb);
+		break;
+	case IPR_HOST_RCB_OVERLAY_ID_17:
+		ipr_log_enhanced_dual_ioa_error(ioa_cfg, hostrcb);
 		break;
 	case IPR_HOST_RCB_OVERLAY_ID_1:
 	case IPR_HOST_RCB_OVERLAY_ID_DEFAULT:

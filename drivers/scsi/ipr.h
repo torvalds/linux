@@ -254,6 +254,11 @@ struct ipr_vpd {
 	u8 sn[IPR_SERIAL_NUM_LEN];
 }__attribute__((packed));
 
+struct ipr_ext_vpd {
+	struct ipr_vpd vpd;
+	__be32 wwid[2];
+}__attribute__((packed));
+
 struct ipr_std_inq_data {
 	u8 peri_qual_dev_type;
 #define IPR_STD_INQ_PERI_QUAL(peri) ((peri) >> 5)
@@ -553,14 +558,31 @@ struct ipr_hostrcb_device_data_entry {
 	__be32 ioa_data[5];
 }__attribute__((packed, aligned (4)));
 
+struct ipr_hostrcb_device_data_entry_enhanced {
+	struct ipr_ext_vpd vpd;
+	u8 ccin[4];
+	struct ipr_res_addr dev_res_addr;
+	struct ipr_ext_vpd new_vpd;
+	u8 new_ccin[4];
+	struct ipr_ext_vpd ioa_last_with_dev_vpd;
+	struct ipr_ext_vpd cfc_last_with_dev_vpd;
+}__attribute__((packed, aligned (4)));
+
 struct ipr_hostrcb_array_data_entry {
 	struct ipr_vpd vpd;
 	struct ipr_res_addr expected_dev_res_addr;
 	struct ipr_res_addr dev_res_addr;
 }__attribute__((packed, aligned (4)));
 
+struct ipr_hostrcb_array_data_entry_enhanced {
+	struct ipr_ext_vpd vpd;
+	u8 ccin[4];
+	struct ipr_res_addr expected_dev_res_addr;
+	struct ipr_res_addr dev_res_addr;
+}__attribute__((packed, aligned (4)));
+
 struct ipr_hostrcb_type_ff_error {
-	__be32 ioa_data[246];
+	__be32 ioa_data[502];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_type_01_error {
@@ -578,6 +600,14 @@ struct ipr_hostrcb_type_02_error {
 	__be32 ioa_data[3];
 }__attribute__((packed, aligned (4)));
 
+struct ipr_hostrcb_type_12_error {
+	struct ipr_ext_vpd ioa_vpd;
+	struct ipr_ext_vpd cfc_vpd;
+	struct ipr_ext_vpd ioa_last_attached_to_cfc_vpd;
+	struct ipr_ext_vpd cfc_last_attached_to_ioa_vpd;
+	__be32 ioa_data[3];
+}__attribute__((packed, aligned (4)));
+
 struct ipr_hostrcb_type_03_error {
 	struct ipr_vpd ioa_vpd;
 	struct ipr_vpd cfc_vpd;
@@ -585,6 +615,14 @@ struct ipr_hostrcb_type_03_error {
 	__be32 errors_logged;
 	u8 ioa_data[12];
 	struct ipr_hostrcb_device_data_entry dev[3];
+}__attribute__((packed, aligned (4)));
+
+struct ipr_hostrcb_type_13_error {
+	struct ipr_ext_vpd ioa_vpd;
+	struct ipr_ext_vpd cfc_vpd;
+	__be32 errors_detected;
+	__be32 errors_logged;
+	struct ipr_hostrcb_device_data_entry_enhanced dev[3];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_type_04_error {
@@ -602,10 +640,28 @@ struct ipr_hostrcb_type_04_error {
 	u8 protection_level[8];
 }__attribute__((packed, aligned (4)));
 
+struct ipr_hostrcb_type_14_error {
+	struct ipr_ext_vpd ioa_vpd;
+	struct ipr_ext_vpd cfc_vpd;
+	__be32 exposed_mode_adn;
+	__be32 array_id;
+	struct ipr_res_addr last_func_vset_res_addr;
+	u8 vset_serial_num[IPR_SERIAL_NUM_LEN];
+	u8 protection_level[8];
+	__be32 num_entries;
+	struct ipr_hostrcb_array_data_entry_enhanced array_member[18];
+}__attribute__((packed, aligned (4)));
+
 struct ipr_hostrcb_type_07_error {
 	u8 failure_reason[64];
 	struct ipr_vpd vpd;
 	u32 data[222];
+}__attribute__((packed, aligned (4)));
+
+struct ipr_hostrcb_type_17_error {
+	u8 failure_reason[64];
+	struct ipr_ext_vpd vpd;
+	u32 data[476];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_error {
@@ -620,6 +676,10 @@ struct ipr_hostrcb_error {
 		struct ipr_hostrcb_type_03_error type_03_error;
 		struct ipr_hostrcb_type_04_error type_04_error;
 		struct ipr_hostrcb_type_07_error type_07_error;
+		struct ipr_hostrcb_type_12_error type_12_error;
+		struct ipr_hostrcb_type_13_error type_13_error;
+		struct ipr_hostrcb_type_14_error type_14_error;
+		struct ipr_hostrcb_type_17_error type_17_error;
 	} u;
 }__attribute__((packed, aligned (4)));
 
@@ -654,6 +714,11 @@ struct ipr_hcam {
 #define IPR_HOST_RCB_OVERLAY_ID_4				0x04
 #define IPR_HOST_RCB_OVERLAY_ID_6				0x06
 #define IPR_HOST_RCB_OVERLAY_ID_7				0x07
+#define IPR_HOST_RCB_OVERLAY_ID_12				0x12
+#define IPR_HOST_RCB_OVERLAY_ID_13				0x13
+#define IPR_HOST_RCB_OVERLAY_ID_14				0x14
+#define IPR_HOST_RCB_OVERLAY_ID_16				0x16
+#define IPR_HOST_RCB_OVERLAY_ID_17				0x17
 #define IPR_HOST_RCB_OVERLAY_ID_DEFAULT			0xFF
 
 	u8 reserved1[3];
