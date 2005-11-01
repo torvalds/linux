@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-ixp2000/common.c
+ * arch/arm/mach-ixp2000/core.c
  *
  * Common routines used by all IXP2400/2800 based platforms.
  *
@@ -49,7 +49,6 @@ static unsigned long ixp2000_slowport_irq_flags;
  *************************************************************************/
 void ixp2000_acquire_slowport(struct slowport_cfg *new_cfg, struct slowport_cfg *old_cfg)
 {
-
 	spin_lock_irqsave(&ixp2000_slowport_lock, ixp2000_slowport_irq_flags);
 
 	old_cfg->CCR = *IXP2000_SLOWPORT_CCR;

@@ -252,7 +252,7 @@
 #define IXP2000_PCI_XSCALE_INT_ENABLE	IXP2000_PCI_CSR(0x15C)
 
 #define IXP2000_PCICNTL_PNR		(1<<17)	/* PCI not Reset bit of PCI_CONTROL */
-#define IXP2000_PCICNTL_PCF		(1<<28)	/* PCI Centrolfunction bit */
+#define IXP2000_PCICNTL_PCF		(1<<28)	/* PCI Central function bit */
 #define IXP2000_XSCALE_INT		(1<<1)	/* Interrupt from XScale to PCI */
 
 /* These are from the IRQ register in the PCI ISR register */
