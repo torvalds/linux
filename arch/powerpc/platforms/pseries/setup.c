@@ -67,8 +67,6 @@
 #include <asm/i8259.h>
 #include <asm/udbg.h>
 
-#include "rtas-fw.h"
-
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
 #else
