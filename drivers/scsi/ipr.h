@@ -40,21 +40,6 @@
 #define IPR_DRIVER_DATE "(May 2, 2005)"
 
 /*
- * IPR_DBG_TRACE: Setting this to 1 will turn on some general function tracing
- *			resulting in a bunch of extra debugging printks to the console
- *
- * IPR_DEBUG:	Setting this to 1 will turn on some error path tracing.
- *			Enables the ipr_trace macro.
- */
-#ifdef IPR_DEBUG_ALL
-#define IPR_DEBUG				1
-#define IPR_DBG_TRACE			1
-#else
-#define IPR_DEBUG				0
-#define IPR_DBG_TRACE			0
-#endif
-
-/*
  * IPR_MAX_CMD_PER_LUN: This defines the maximum number of outstanding
  *	ops per device for devices not running tagged command queuing.
  *	This can be adjusted at runtime through sysfs device attributes.
@@ -1090,11 +1075,7 @@ struct ipr_ucode_image_header {
 /*
  * Macros
  */
-#if IPR_DEBUG
-#define IPR_DBG_CMD(CMD) do { CMD; } while (0)
-#else
-#define IPR_DBG_CMD(CMD)
-#endif
+#define IPR_DBG_CMD(CMD) if (ipr_debug) { CMD; }
 
 #ifdef CONFIG_SCSI_IPR_TRACE
 #define ipr_create_trace_file(kobj, attr) sysfs_create_bin_file(kobj, attr)
@@ -1156,13 +1137,8 @@ struct ipr_ucode_image_header {
 #define ipr_trace ipr_dbg("%s: %s: Line: %d\n",\
 	__FILE__, __FUNCTION__, __LINE__)
 
-#if IPR_DBG_TRACE
-#define ENTER printk(KERN_INFO IPR_NAME": Entering %s\n", __FUNCTION__)
-#define LEAVE printk(KERN_INFO IPR_NAME": Leaving %s\n", __FUNCTION__)
-#else
-#define ENTER
-#define LEAVE
-#endif
+#define ENTER IPR_DBG_CMD(printk(KERN_INFO IPR_NAME": Entering %s\n", __FUNCTION__))
+#define LEAVE IPR_DBG_CMD(printk(KERN_INFO IPR_NAME": Leaving %s\n", __FUNCTION__))
 
 #define ipr_err_separator \
 ipr_err("----------------------------------------------------------\n")
