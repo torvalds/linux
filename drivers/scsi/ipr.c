@@ -4111,7 +4111,7 @@ static int ipr_set_supported_devs(struct ipr_cmnd *ipr_cmd)
 	ipr_cmd->job_step = ipr_ioa_reset_done;
 
 	list_for_each_entry_continue(res, &ioa_cfg->used_res_q, queue) {
-		if (!ipr_is_af_dasd_device(res))
+		if (!IPR_IS_DASD_DEVICE(res->cfgte.std_inq_data))
 			continue;
 
 		ipr_cmd->u.res = res;
