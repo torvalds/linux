@@ -1157,12 +1157,8 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 		ipr_log_array_error(ioa_cfg, hostrcb);
 		break;
 	case IPR_HOST_RCB_OVERLAY_ID_DEFAULT:
-		ipr_log_generic_error(ioa_cfg, hostrcb);
-		break;
 	default:
-		dev_err(&ioa_cfg->pdev->dev,
-			"Unknown error received. Overlay ID: %d\n",
-			hostrcb->hcam.overlay_id);
+		ipr_log_generic_error(ioa_cfg, hostrcb);
 		break;
 	}
 }
