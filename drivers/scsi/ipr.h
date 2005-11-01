@@ -403,23 +403,26 @@ struct ipr_ioadl_desc {
 struct ipr_ioasa_vset {
 	__be32 failing_lba_hi;
 	__be32 failing_lba_lo;
-	__be32 ioa_data[22];
+	__be32 reserved;
 }__attribute__((packed, aligned (4)));
 
 struct ipr_ioasa_af_dasd {
 	__be32 failing_lba;
+	__be32 reserved[2];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_ioasa_gpdd {
 	u8 end_state;
 	u8 bus_phase;
 	__be16 reserved;
-	__be32 ioa_data[23];
+	__be32 ioa_data[2];
 }__attribute__((packed, aligned (4)));
 
-struct ipr_ioasa_raw {
-	__be32 ioa_data[24];
-}__attribute__((packed, aligned (4)));
+struct ipr_auto_sense {
+	__be16 auto_sense_len;
+	__be16 ioa_data_len;
+	__be32 data[SCSI_SENSE_BUFFERSIZE/sizeof(__be32)];
+};
 
 struct ipr_ioasa {
 	__be32 ioasc;
@@ -446,6 +449,8 @@ struct ipr_ioasa {
 	__be32 fd_res_handle;
 
 	__be32 ioasc_specific;	/* status code specific field */
+#define IPR_ADDITIONAL_STATUS_FMT		0x80000000
+#define IPR_AUTOSENSE_VALID			0x40000000
 #define IPR_IOASC_SPECIFIC_MASK		0x00ffffff
 #define IPR_FIELD_POINTER_VALID		(0x80000000 >> 8)
 #define IPR_FIELD_POINTER_MASK		0x0000ffff
@@ -454,8 +459,9 @@ struct ipr_ioasa {
 		struct ipr_ioasa_vset vset;
 		struct ipr_ioasa_af_dasd dasd;
 		struct ipr_ioasa_gpdd gpdd;
-		struct ipr_ioasa_raw raw;
 	} u;
+
+	struct ipr_auto_sense auto_sense;
 }__attribute__((packed, aligned (4)));
 
 struct ipr_mode_parm_hdr {
