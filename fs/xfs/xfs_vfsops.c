@@ -903,7 +903,7 @@ xfs_sync(
  * only available by calling this routine.
  *
  */
-STATIC int
+int
 xfs_sync_inodes(
 	xfs_mount_t	*mp,
 	int		flags,
@@ -987,7 +987,7 @@ xfs_sync_inodes(
 	ipointer = (xfs_iptr_t *)kmem_zalloc(sizeof(xfs_iptr_t), KM_SLEEP);
 
 	fflag = XFS_B_ASYNC;		/* default is don't wait */
-	if (flags & SYNC_BDFLUSH)
+	if (flags & (SYNC_BDFLUSH | SYNC_DELWRI))
 		fflag = XFS_B_DELWRI;
 	if (flags & SYNC_WAIT)
 		fflag = 0;		/* synchronous overrides all */

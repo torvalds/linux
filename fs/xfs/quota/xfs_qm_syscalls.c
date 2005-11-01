@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -109,7 +109,7 @@ xfs_qm_quotactl(
 	vfsp = bhvtovfs(bdp);
 	mp = XFS_VFSTOM(vfsp);
 
-	ASSERT(addr != NULL);
+	ASSERT(addr != NULL || cmd == Q_XQUOTASYNC);
 
 	/*
 	 * The following commands are valid even when quotaoff.
@@ -146,6 +146,9 @@ xfs_qm_quotactl(
 		if (vfsp->vfs_flag & VFS_RDONLY)
 			return XFS_ERROR(EROFS);
 		break;
+
+	case Q_XQUOTASYNC:
+		return (xfs_sync_inodes(mp, SYNC_DELWRI, 0, NULL));
 
 	default:
 		break;

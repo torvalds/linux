@@ -117,6 +117,8 @@ fs_flush_pages(
 
 	if (VN_CACHED(vp)) {
 		filemap_fdatawrite(ip->i_mapping);
+		if (flags & XFS_B_ASYNC)
+			return 0;
 		filemap_fdatawait(ip->i_mapping);
 	}
 
