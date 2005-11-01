@@ -458,7 +458,8 @@ _pagebuf_lookup_pages(
 			unlock_page(bp->pb_pages[i]);
 	}
 
-	bp->pb_flags &= ~PBF_NONE;
+	if (page_count)
+		bp->pb_flags &= ~PBF_NONE;
 
 	PB_TRACE(bp, "lookup_pages", (long)page_count);
 	return error;
