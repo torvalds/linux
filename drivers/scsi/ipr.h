@@ -192,6 +192,7 @@
 #define IPR_SDT_FMT2_EXP_ROM_SEL			0x8
 #define IPR_FMT2_SDT_READY_TO_USE			0xC4D4E3F2
 #define IPR_DOORBELL					0x82800000
+#define IPR_RUNTIME_RESET				0x40000000
 
 #define IPR_PCII_IOA_TRANS_TO_OPER			(0x80000000 >> 0)
 #define IPR_PCII_IOARCB_XFER_FAILED			(0x80000000 >> 3)
@@ -913,6 +914,7 @@ struct ipr_ioa_cfg {
 	u16 reset_retries;
 
 	u32 errors_logged;
+	u32 doorbell;
 
 	struct Scsi_Host *host;
 	struct pci_dev *pdev;

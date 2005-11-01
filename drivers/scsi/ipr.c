@@ -4281,6 +4281,7 @@ static int ipr_ioa_reset_done(struct ipr_cmnd *ipr_cmd)
 	ioa_cfg->in_reset_reload = 0;
 	ioa_cfg->allow_cmds = 1;
 	ioa_cfg->reset_cmd = NULL;
+	ioa_cfg->doorbell |= IPR_RUNTIME_RESET;
 
 	list_for_each_entry(res, &ioa_cfg->used_res_q, queue) {
 		if (ioa_cfg->allow_ml_add_del && (res->add_to_ml || res->del_from_ml)) {
@@ -5101,7 +5102,7 @@ static int ipr_reset_enable_ioa(struct ipr_cmnd *ipr_cmd)
 	}
 
 	/* Enable destructive diagnostics on IOA */
-	writel(IPR_DOORBELL, ioa_cfg->regs.set_uproc_interrupt_reg);
+	writel(ioa_cfg->doorbell, ioa_cfg->regs.set_uproc_interrupt_reg);
 
 	writel(IPR_PCII_OPER_INTERRUPTS, ioa_cfg->regs.clr_interrupt_mask_reg);
 	int_reg = readl(ioa_cfg->regs.sense_interrupt_mask_reg);
@@ -5917,6 +5918,7 @@ static void __devinit ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
 	ioa_cfg->host = host;
 	ioa_cfg->pdev = pdev;
 	ioa_cfg->log_level = ipr_log_level;
+	ioa_cfg->doorbell = IPR_DOORBELL;
 	sprintf(ioa_cfg->eye_catcher, IPR_EYECATCHER);
 	sprintf(ioa_cfg->trace_start, IPR_TRACE_START_LABEL);
 	sprintf(ioa_cfg->ipr_free_label, IPR_FREEQ_LABEL);
