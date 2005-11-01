@@ -388,6 +388,7 @@ void xfs_ifork_next_set(xfs_inode_t *ip, int w, int n);
 #define	XFS_ILOCK_EXCL		0x004
 #define	XFS_ILOCK_SHARED	0x008
 #define	XFS_IUNLOCK_NONOTIFY	0x010
+/*	XFS_IOLOCK_NESTED	0x020 */
 #define XFS_EXTENT_TOKEN_RD	0x040
 #define XFS_SIZE_TOKEN_RD	0x080
 #define XFS_EXTSIZE_RD		(XFS_EXTENT_TOKEN_RD|XFS_SIZE_TOKEN_RD)
@@ -395,7 +396,7 @@ void xfs_ifork_next_set(xfs_inode_t *ip, int w, int n);
 #define XFS_EXTENT_TOKEN_WR	(XFS_EXTENT_TOKEN_RD | XFS_WILLLEND)
 #define XFS_SIZE_TOKEN_WR       (XFS_SIZE_TOKEN_RD | XFS_WILLLEND)
 #define XFS_EXTSIZE_WR		(XFS_EXTSIZE_RD | XFS_WILLLEND)
-
+/*	XFS_SIZE_TOKEN_WANT	0x200 */
 
 #define XFS_LOCK_MASK	\
 	(XFS_IOLOCK_EXCL | XFS_IOLOCK_SHARED | XFS_ILOCK_EXCL | \
