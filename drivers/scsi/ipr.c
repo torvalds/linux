@@ -889,24 +889,23 @@ static void ipr_process_ccn(struct ipr_cmnd *ipr_cmd)
 
 /**
  * ipr_log_vpd - Log the passed VPD to the error log.
- * @vpids:			vendor/product id struct
- * @serial_num:		serial number string
+ * @vpd:		vendor/product id/sn struct
  *
  * Return value:
  * 	none
  **/
-static void ipr_log_vpd(struct ipr_std_inq_vpids *vpids, u8 *serial_num)
+static void ipr_log_vpd(struct ipr_vpd *vpd)
 {
 	char buffer[IPR_VENDOR_ID_LEN + IPR_PROD_ID_LEN
 		    + IPR_SERIAL_NUM_LEN];
 
-	memcpy(buffer, vpids->vendor_id, IPR_VENDOR_ID_LEN);
-	memcpy(buffer + IPR_VENDOR_ID_LEN, vpids->product_id,
+	memcpy(buffer, vpd->vpids.vendor_id, IPR_VENDOR_ID_LEN);
+	memcpy(buffer + IPR_VENDOR_ID_LEN, vpd->vpids.product_id,
 	       IPR_PROD_ID_LEN);
 	buffer[IPR_VENDOR_ID_LEN + IPR_PROD_ID_LEN] = '\0';
 	ipr_err("Vendor/Product ID: %s\n", buffer);
 
-	memcpy(buffer, serial_num, IPR_SERIAL_NUM_LEN);
+	memcpy(buffer, vpd->sn, IPR_SERIAL_NUM_LEN);
 	buffer[IPR_SERIAL_NUM_LEN] = '\0';
 	ipr_err("    Serial Number: %s\n", buffer);
 }
@@ -927,17 +926,15 @@ static void ipr_log_cache_error(struct ipr_ioa_cfg *ioa_cfg,
 
 	ipr_err("-----Current Configuration-----\n");
 	ipr_err("Cache Directory Card Information:\n");
-	ipr_log_vpd(&error->ioa_vpids, error->ioa_sn);
+	ipr_log_vpd(&error->ioa_vpd);
 	ipr_err("Adapter Card Information:\n");
-	ipr_log_vpd(&error->cfc_vpids, error->cfc_sn);
+	ipr_log_vpd(&error->cfc_vpd);
 
 	ipr_err("-----Expected Configuration-----\n");
 	ipr_err("Cache Directory Card Information:\n");
-	ipr_log_vpd(&error->ioa_last_attached_to_cfc_vpids,
-		    error->ioa_last_attached_to_cfc_sn);
+	ipr_log_vpd(&error->ioa_last_attached_to_cfc_vpd);
 	ipr_err("Adapter Card Information:\n");
-	ipr_log_vpd(&error->cfc_last_attached_to_ioa_vpids,
-		    error->cfc_last_attached_to_ioa_sn);
+	ipr_log_vpd(&error->cfc_last_attached_to_ioa_vpd);
 
 	ipr_err("Additional IOA Data: %08X %08X %08X\n",
 		     be32_to_cpu(error->ioa_data[0]),
@@ -966,7 +963,7 @@ static void ipr_log_config_error(struct ipr_ioa_cfg *ioa_cfg,
 	ipr_err("Device Errors Detected/Logged: %d/%d\n",
 		be32_to_cpu(error->errors_detected), errors_logged);
 
-	dev_entry = error->dev_entry;
+	dev_entry = error->dev;
 
 	for (i = 0; i < errors_logged; i++, dev_entry++) {
 		ipr_err_separator;
@@ -978,18 +975,16 @@ static void ipr_log_config_error(struct ipr_ioa_cfg *ioa_cfg,
 				ioa_cfg->host->host_no, dev_entry->dev_res_addr.bus,
 				dev_entry->dev_res_addr.target, dev_entry->dev_res_addr.lun);
 		}
-		ipr_log_vpd(&dev_entry->dev_vpids, dev_entry->dev_sn);
+		ipr_log_vpd(&dev_entry->vpd);
 
 		ipr_err("-----New Device Information-----\n");
-		ipr_log_vpd(&dev_entry->new_dev_vpids, dev_entry->new_dev_sn);
+		ipr_log_vpd(&dev_entry->new_vpd);
 
 		ipr_err("Cache Directory Card Information:\n");
-		ipr_log_vpd(&dev_entry->ioa_last_with_dev_vpids,
-			    dev_entry->ioa_last_with_dev_sn);
+		ipr_log_vpd(&dev_entry->ioa_last_with_dev_vpd);
 
 		ipr_err("Adapter Card Information:\n");
-		ipr_log_vpd(&dev_entry->cfc_last_with_dev_vpids,
-			    dev_entry->cfc_last_with_dev_sn);
+		ipr_log_vpd(&dev_entry->cfc_last_with_dev_vpd);
 
 		ipr_err("Additional IOA Data: %08X %08X %08X %08X %08X\n",
 			be32_to_cpu(dev_entry->ioa_data[0]),
@@ -1032,7 +1027,7 @@ static void ipr_log_array_error(struct ipr_ioa_cfg *ioa_cfg,
 	array_entry = error->array_member;
 
 	for (i = 0; i < 18; i++) {
-		if (!memcmp(array_entry->serial_num, zero_sn, IPR_SERIAL_NUM_LEN))
+		if (!memcmp(array_entry->vpd.sn, zero_sn, IPR_SERIAL_NUM_LEN))
 			continue;
 
 		if (be32_to_cpu(error->exposed_mode_adn) == i) {
@@ -1041,7 +1036,7 @@ static void ipr_log_array_error(struct ipr_ioa_cfg *ioa_cfg,
 			ipr_err("Array Member %d:\n", i);
 		}
 
-		ipr_log_vpd(&array_entry->vpids, array_entry->serial_num);
+		ipr_log_vpd(&array_entry->vpd);
 
 		if (array_entry->dev_res_addr.bus >= IPR_MAX_NUM_BUSES) {
 			ipr_err("Current Location: unknown\n");

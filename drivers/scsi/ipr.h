@@ -261,6 +261,11 @@ struct ipr_std_inq_vpids {
 	u8 product_id[IPR_PROD_ID_LEN];
 }__attribute__((packed));
 
+struct ipr_vpd {
+	struct ipr_std_inq_vpids vpids;
+	u8 sn[IPR_SERIAL_NUM_LEN];
+}__attribute__((packed));
+
 struct ipr_std_inq_data {
 	u8 peri_qual_dev_type;
 #define IPR_STD_INQ_PERI_QUAL(peri) ((peri) >> 5)
@@ -537,21 +542,16 @@ struct ipr_inquiry_page3 {
 }__attribute__((packed));
 
 struct ipr_hostrcb_device_data_entry {
-	struct ipr_std_inq_vpids dev_vpids;
-	u8 dev_sn[IPR_SERIAL_NUM_LEN];
+	struct ipr_vpd vpd;
 	struct ipr_res_addr dev_res_addr;
-	struct ipr_std_inq_vpids new_dev_vpids;
-	u8 new_dev_sn[IPR_SERIAL_NUM_LEN];
-	struct ipr_std_inq_vpids ioa_last_with_dev_vpids;
-	u8 ioa_last_with_dev_sn[IPR_SERIAL_NUM_LEN];
-	struct ipr_std_inq_vpids cfc_last_with_dev_vpids;
-	u8 cfc_last_with_dev_sn[IPR_SERIAL_NUM_LEN];
+	struct ipr_vpd new_vpd;
+	struct ipr_vpd ioa_last_with_dev_vpd;
+	struct ipr_vpd cfc_last_with_dev_vpd;
 	__be32 ioa_data[5];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_array_data_entry {
-	struct ipr_std_inq_vpids vpids;
-	u8 serial_num[IPR_SERIAL_NUM_LEN];
+	struct ipr_vpd vpd;
 	struct ipr_res_addr expected_dev_res_addr;
 	struct ipr_res_addr dev_res_addr;
 }__attribute__((packed, aligned (4)));
@@ -568,47 +568,35 @@ struct ipr_hostrcb_type_01_error {
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_type_02_error {
-	struct ipr_std_inq_vpids ioa_vpids;
-	u8 ioa_sn[IPR_SERIAL_NUM_LEN];
-	struct ipr_std_inq_vpids cfc_vpids;
-	u8 cfc_sn[IPR_SERIAL_NUM_LEN];
-	struct ipr_std_inq_vpids ioa_last_attached_to_cfc_vpids;
-	u8 ioa_last_attached_to_cfc_sn[IPR_SERIAL_NUM_LEN];
-	struct ipr_std_inq_vpids cfc_last_attached_to_ioa_vpids;
-	u8 cfc_last_attached_to_ioa_sn[IPR_SERIAL_NUM_LEN];
+	struct ipr_vpd ioa_vpd;
+	struct ipr_vpd cfc_vpd;
+	struct ipr_vpd ioa_last_attached_to_cfc_vpd;
+	struct ipr_vpd cfc_last_attached_to_ioa_vpd;
 	__be32 ioa_data[3];
-	u8 reserved[844];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_type_03_error {
-	struct ipr_std_inq_vpids ioa_vpids;
-	u8 ioa_sn[IPR_SERIAL_NUM_LEN];
-	struct ipr_std_inq_vpids cfc_vpids;
-	u8 cfc_sn[IPR_SERIAL_NUM_LEN];
+	struct ipr_vpd ioa_vpd;
+	struct ipr_vpd cfc_vpd;
 	__be32 errors_detected;
 	__be32 errors_logged;
 	u8 ioa_data[12];
-	struct ipr_hostrcb_device_data_entry dev_entry[3];
-	u8 reserved[444];
+	struct ipr_hostrcb_device_data_entry dev[3];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_type_04_error {
-	struct ipr_std_inq_vpids ioa_vpids;
-	u8 ioa_sn[IPR_SERIAL_NUM_LEN];
-	struct ipr_std_inq_vpids cfc_vpids;
-	u8 cfc_sn[IPR_SERIAL_NUM_LEN];
+	struct ipr_vpd ioa_vpd;
+	struct ipr_vpd cfc_vpd;
 	u8 ioa_data[12];
 	struct ipr_hostrcb_array_data_entry array_member[10];
 	__be32 exposed_mode_adn;
 	__be32 array_id;
-	struct ipr_std_inq_vpids incomp_dev_vpids;
-	u8 incomp_dev_sn[IPR_SERIAL_NUM_LEN];
+	struct ipr_vpd incomp_dev_vpd;
 	__be32 ioa_data2;
 	struct ipr_hostrcb_array_data_entry array_member2[8];
 	struct ipr_res_addr last_func_vset_res_addr;
 	u8 vset_serial_num[IPR_SERIAL_NUM_LEN];
 	u8 protection_level[8];
-	u8 reserved[124];
 }__attribute__((packed, aligned (4)));
 
 struct ipr_hostrcb_error {
