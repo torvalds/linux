@@ -19,6 +19,8 @@
 #include <linux/fb.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
+
 #include <video/vga.h>
 #include <asm/io.h>
 #include <asm/mtrr.h>

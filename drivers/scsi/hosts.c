@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/completion.h>
 #include <linux/transport_class.h>
+#include <linux/platform_device.h>
 
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>

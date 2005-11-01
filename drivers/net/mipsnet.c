@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
+#include <linux/platform_device.h>
 #include <asm/io.h>
 #include <asm/mips-boards/simint.h>
 

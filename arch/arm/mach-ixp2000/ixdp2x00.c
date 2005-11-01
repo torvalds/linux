@@ -20,7 +20,7 @@
 #include <linux/mm.h>
 #include <linux/sched.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/bitops.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>

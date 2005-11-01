@@ -16,6 +16,7 @@
 
 #include <linux/signal.h>	/* SA_INTERRUPT */
 #include <linux/jiffies.h>
+#include <linux/platform_device.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>

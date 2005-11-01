@@ -254,7 +254,7 @@
 #include <linux/unistd.h>
 #include <linux/ctype.h>
 #include <linux/moduleparam.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/bitops.h>
 
 #include <asm/uaccess.h>

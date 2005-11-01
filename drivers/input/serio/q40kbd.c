@@ -37,6 +37,7 @@
 #include <linux/interrupt.h>
 #include <linux/err.h>
 #include <linux/bitops.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>

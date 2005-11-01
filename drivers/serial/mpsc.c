@@ -52,6 +52,8 @@
  * 4) AFAICT, hardware flow control isn't supported by the controller --MAG.
  */
 
+#include <linux/platform_device.h>
+
 #include "mpsc.h"
 
 /*
