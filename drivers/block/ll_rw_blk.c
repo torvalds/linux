@@ -2387,16 +2387,12 @@ static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io)
 	if (!blk_fs_request(rq) || !rq->rq_disk)
 		return;
 
-	if (rw == READ) {
-		__disk_stat_add(rq->rq_disk, read_sectors, nr_sectors);
-		if (!new_io)
+	if (!new_io) {
+		if (rw == READ)
 			__disk_stat_inc(rq->rq_disk, read_merges);
-	} else if (rw == WRITE) {
-		__disk_stat_add(rq->rq_disk, write_sectors, nr_sectors);
-		if (!new_io)
+		else
 			__disk_stat_inc(rq->rq_disk, write_merges);
-	}
-	if (new_io) {
+	} else {
 		disk_round_stats(rq->rq_disk);
 		rq->rq_disk->in_flight++;
 	}
@@ -3046,6 +3042,13 @@ static int __end_that_request_first(struct request *req, int uptodate,
 			printk("end_request: I/O error, dev %s, sector %llu\n",
 				req->rq_disk ? req->rq_disk->disk_name : "?",
 				(unsigned long long)req->sector);
+	}
+
+	if (blk_fs_request(req) && req->rq_disk) {
+		if (rq_data_dir(req) == READ)
+			__disk_stat_add(req->rq_disk, read_sectors, nr_bytes >> 9);
+		else
+			__disk_stat_add(req->rq_disk, write_sectors, nr_bytes >> 9);
 	}
 
 	total_bytes = bio_nbytes = 0;
