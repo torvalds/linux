@@ -55,7 +55,6 @@ void init_8259A(int aeoi);
 void FASTCALL(send_IPI_self(int vector));
 void init_VISWS_APIC_irqs(void);
 void setup_IO_APIC(void);
-void IO_APIC_late_time_init(void);
 void disable_IO_APIC(void);
 void print_IO_APIC(void);
 int IO_APIC_get_PCI_irq_vector(int bus, int slot, int fn);

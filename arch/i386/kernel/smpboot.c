@@ -1078,16 +1078,6 @@ void *xquad_portio;
 EXPORT_SYMBOL(xquad_portio);
 #endif
 
-/*
- * Fall back to non SMP mode after errors.
- *
- */
-static __init void disable_smp(void)
-{
-	cpu_set(0, cpu_sibling_map[0]);
-	cpu_set(0, cpu_core_map[0]);
-}
-
 static void __init smp_boot_cpus(unsigned int max_cpus)
 {
 	int apicid, cpu, bit, kicked;
@@ -1100,6 +1090,7 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	printk("CPU%d: ", 0);
 	print_cpu_info(&cpu_data[0]);
 
+	boot_cpu_physical_apicid = GET_APIC_ID(apic_read(APIC_ID));
 	boot_cpu_logical_apicid = logical_smp_processor_id();
 	x86_cpu_to_apicid[0] = boot_cpu_physical_apicid;
 
@@ -1111,26 +1102,67 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 	cpus_clear(cpu_core_map[0]);
 	cpu_set(0, cpu_core_map[0]);
 
-	map_cpu_to_logical_apicid();
-
 	/*
 	 * If we couldn't find an SMP configuration at boot time,
 	 * get out of here now!
 	 */
 	if (!smp_found_config && !acpi_lapic) {
 		printk(KERN_NOTICE "SMP motherboard not detected.\n");
-		disable_smp();
+		smpboot_clear_io_apic_irqs();
+		phys_cpu_present_map = physid_mask_of_physid(0);
+		if (APIC_init_uniprocessor())
+			printk(KERN_NOTICE "Local APIC not detected."
+					   " Using dummy APIC emulation.\n");
+		map_cpu_to_logical_apicid();
+		cpu_set(0, cpu_sibling_map[0]);
+		cpu_set(0, cpu_core_map[0]);
 		return;
 	}
 
 	/*
-	 * If SMP should be disabled, then really disable it!
+	 * Should not be necessary because the MP table should list the boot
+	 * CPU too, but we do it for the sake of robustness anyway.
+	 * Makes no sense to do this check in clustered apic mode, so skip it
 	 */
-	if (!max_cpus || (enable_local_apic < 0)) {
-		printk(KERN_INFO "SMP mode deactivated.\n");
-		disable_smp();
+	if (!check_phys_apicid_present(boot_cpu_physical_apicid)) {
+		printk("weird, boot CPU (#%d) not listed by the BIOS.\n",
+				boot_cpu_physical_apicid);
+		physid_set(hard_smp_processor_id(), phys_cpu_present_map);
+	}
+
+	/*
+	 * If we couldn't find a local APIC, then get out of here now!
+	 */
+	if (APIC_INTEGRATED(apic_version[boot_cpu_physical_apicid]) && !cpu_has_apic) {
+		printk(KERN_ERR "BIOS bug, local APIC #%d not detected!...\n",
+			boot_cpu_physical_apicid);
+		printk(KERN_ERR "... forcing use of dummy APIC emulation. (tell your hw vendor)\n");
+		smpboot_clear_io_apic_irqs();
+		phys_cpu_present_map = physid_mask_of_physid(0);
+		cpu_set(0, cpu_sibling_map[0]);
+		cpu_set(0, cpu_core_map[0]);
 		return;
 	}
+
+	verify_local_APIC();
+
+	/*
+	 * If SMP should be disabled, then really disable it!
+	 */
+	if (!max_cpus) {
+		smp_found_config = 0;
+		printk(KERN_INFO "SMP mode deactivated, forcing use of dummy APIC emulation.\n");
+		smpboot_clear_io_apic_irqs();
+		phys_cpu_present_map = physid_mask_of_physid(0);
+		cpu_set(0, cpu_sibling_map[0]);
+		cpu_set(0, cpu_core_map[0]);
+		return;
+	}
+
+	connect_bsp_APIC();
+	setup_local_APIC();
+	map_cpu_to_logical_apicid();
+
 
 	setup_portio_remap();
 
@@ -1211,6 +1243,10 @@ static void __init smp_boot_cpus(unsigned int max_cpus)
 
 	cpu_set(0, cpu_sibling_map[0]);
 	cpu_set(0, cpu_core_map[0]);
+
+	smpboot_setup_io_apic();
+
+	setup_boot_APIC_clock();
 
 	/*
 	 * Synchronize the TSC with the AP
