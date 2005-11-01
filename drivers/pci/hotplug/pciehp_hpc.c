@@ -1470,6 +1470,10 @@ int pcie_init(struct controller * ctrl,
 	}
 	dbg("%s: SLOT_STATUS offset %x writes slot_status %x\n", __FUNCTION__, SLOT_STATUS(ctrl->cap_base), temp_word);
 	
+	rc = get_hp_hw_control_from_firmware(ctrl->pci_dev);
+	if (rc)
+		goto abort_free_ctlr;
+
 	/*  Add this HPC instance into the HPC list */
 	spin_lock(&list_lock);
 	if (php_ctlr_list_head == 0) {

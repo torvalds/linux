@@ -49,6 +49,13 @@ extern int pciehp_debug;
 #define info(format, arg...) printk(KERN_INFO "%s: " format, MY_NAME , ## arg)
 #define warn(format, arg...) printk(KERN_WARNING "%s: " format, MY_NAME , ## arg)
 
+struct hotplug_params {
+	u8 cache_line_size;
+	u8 latency_timer;
+	u8 enable_serr;
+	u8 enable_perr;
+};
+
 struct pci_func {
 	struct pci_func *next;
 	u8 bus;
@@ -199,6 +206,10 @@ extern int	pciehp_save_config	 	(struct controller *ctrl, int busnumber, int num
 extern int	pciehp_save_slot_config		(struct controller *ctrl, struct pci_func * new_slot);
 extern int	pciehp_configure_device		(struct slot *ctrl);
 extern int	pciehp_unconfigure_device	(struct pci_func* func);
+extern int	get_hp_hw_control_from_firmware(struct pci_dev *dev);
+extern void	get_hp_params_from_firmware(struct pci_dev *dev,
+	       	struct hotplug_params *hpp);
+
 
 
 /* Global variables */

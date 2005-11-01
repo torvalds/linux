@@ -39,7 +39,6 @@
 #include <linux/init.h>
 #include <asm/uaccess.h>
 #include "pciehp.h"
-#include "pciehprm.h"
 #include <linux/interrupt.h>
 
 /* Global variables */
@@ -381,6 +380,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	dbg("%s: DRV_thread pid = %d\n", __FUNCTION__, current->pid);
 	
 	pdev = dev->port;
+	ctrl->pci_dev = pdev;
 
 	rc = pcie_init(ctrl, dev,
 		(php_intr_callback_t) pciehp_handle_attention_button,
@@ -391,8 +391,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 		dbg("%s: controller initialization failed\n", PCIE_MODULE_NAME);
 		goto err_out_free_ctrl;
 	}
-
-	ctrl->pci_dev = pdev;
 
 	pci_set_drvdata(pdev, ctrl);
 
@@ -609,18 +607,14 @@ static int __init pcied_init(void)
 	if (retval)
 		goto error_hpc_init;
 
-	retval = pciehprm_init(PCI);
-	if (!retval) {
- 		retval = pcie_port_service_register(&hpdriver_portdrv);
- 		dbg("pcie_port_service_register = %d\n", retval);
-  		info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
- 		if (retval)
- 		   dbg("%s: Failure to register service\n", __FUNCTION__);
-	}
+	retval = pcie_port_service_register(&hpdriver_portdrv);
+ 	dbg("pcie_port_service_register = %d\n", retval);
+  	info(DRIVER_DESC " version: " DRIVER_VERSION "\n");
+ 	if (retval)
+		dbg("%s: Failure to register service\n", __FUNCTION__);
 
 error_hpc_init:
 	if (retval) {
-		pciehprm_cleanup();
 		pciehp_event_stop_thread();
 	};
 
@@ -631,8 +625,6 @@ static void __exit pcied_cleanup(void)
 {
 	dbg("unload_pciehpd()\n");
 	unload_pciehpd();
-
-	pciehprm_cleanup();
 
 	dbg("pcie_port_service_unregister\n");
 	pcie_port_service_unregister(&hpdriver_portdrv);
