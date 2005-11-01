@@ -24,6 +24,7 @@
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
+#include <linux/platform_device.h>
 
 enum tpm_timeout {
 	TPM_TIMEOUT = 5,	/* msecs */
