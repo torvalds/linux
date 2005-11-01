@@ -64,6 +64,7 @@ extern cpumask_t cpu_sibling_map[NR_CPUS];
 
 void smp_init_iSeries(void);
 void smp_init_pSeries(void);
+void smp_init_cell(void);
 
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
