@@ -19,6 +19,7 @@
  * 
  */
 
+#include <linux/platform_device.h>
 #include "tpm.h"
 
 /* Atmel definitions */
