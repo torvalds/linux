@@ -70,7 +70,7 @@ struct xfs_mount_args {
 /*
  * XFS mount option flags
  */
-#define	XFSMNT_CHKLOG		0x00000001	/* check log */
+#define	XFSMNT_COMPAT_ATTR	0x00000001	/* do not use ATTR2 format */
 #define	XFSMNT_WSYNC		0x00000002	/* safe mode nfs mount
 						 * compatible */
 #define	XFSMNT_INO64		0x00000004	/* move inode numbers up
