@@ -988,7 +988,11 @@ static void pcnet32_get_regs(struct net_device *dev, struct ethtool_regs *regs,
     *buff++ = a->read_csr(ioaddr, 114);
 
     /* read bus configuration registers */
-    for (i=0; i<36; i++) {
+    for (i=0; i<30; i++) {
+	*buff++ = a->read_bcr(ioaddr, i);
+    }
+    *buff++ = 0;	/* skip bcr30 so as not to hang 79C976 */
+    for (i=31; i<36; i++) {
 	*buff++ = a->read_bcr(ioaddr, i);
     }
 
