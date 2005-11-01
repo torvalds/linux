@@ -369,9 +369,14 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 	case ELEVATOR_INSERT_SORT:
 		BUG_ON(!blk_fs_request(rq));
 		rq->flags |= REQ_SORTED;
-		q->elevator->ops->elevator_add_req_fn(q, rq);
 		if (q->last_merge == NULL && rq_mergeable(rq))
 			q->last_merge = rq;
+		/*
+		 * Some ioscheds (cfq) run q->request_fn directly, so
+		 * rq cannot be accessed after calling
+		 * elevator_add_req_fn.
+		 */
+		q->elevator->ops->elevator_add_req_fn(q, rq);
 		break;
 
 	default:
