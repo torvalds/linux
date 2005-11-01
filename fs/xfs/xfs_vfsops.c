@@ -268,19 +268,14 @@ xfs_start_flags(
 #endif
 	if (ap->flags & XFSMNT_NOATIME)
 		mp->m_flags |= XFS_MOUNT_NOATIME;
-
 	if (ap->flags & XFSMNT_RETERR)
 		mp->m_flags |= XFS_MOUNT_RETERR;
-
 	if (ap->flags & XFSMNT_NOALIGN)
 		mp->m_flags |= XFS_MOUNT_NOALIGN;
-
 	if (ap->flags & XFSMNT_SWALLOC)
 		mp->m_flags |= XFS_MOUNT_SWALLOC;
-
 	if (ap->flags & XFSMNT_OSYNCISOSYNC)
 		mp->m_flags |= XFS_MOUNT_OSYNCISOSYNC;
-
 	if (ap->flags & XFSMNT_32BITINODES)
 		mp->m_flags |= (XFS_MOUNT_32BITINODES | XFS_MOUNT_32BITINOOPT);
 
@@ -300,15 +295,14 @@ xfs_start_flags(
 
 	if (ap->flags & XFSMNT_IHASHSIZE)
 		mp->m_flags |= XFS_MOUNT_IHASHSIZE;
-
 	if (ap->flags & XFSMNT_IDELETE)
 		mp->m_flags |= XFS_MOUNT_IDELETE;
-
 	if (ap->flags & XFSMNT_DIRSYNC)
 		mp->m_flags |= XFS_MOUNT_DIRSYNC;
-
 	if (ap->flags & XFSMNT_COMPAT_IOSIZE)
 		mp->m_flags |= XFS_MOUNT_COMPAT_IOSIZE;
+	if (ap->flags & XFSMNT_COMPAT_ATTR)
+		mp->m_flags |= XFS_MOUNT_COMPAT_ATTR;
 
 	/*
 	 * no recovery flag requires a read-only mount
@@ -1643,7 +1637,7 @@ xfs_vget(
 #define MNTOPT_IHASHSIZE    "ihashsize"    /* size of inode hash table */
 #define MNTOPT_NORECOVERY   "norecovery"   /* don't run XFS recovery */
 #define MNTOPT_BARRIER	"barrier"	/* use writer barriers for log write and
-					   unwritten extent conversion */
+					 * unwritten extent conversion */
 #define MNTOPT_OSYNCISOSYNC "osyncisosync" /* o_sync is REALLY o_sync */
 #define MNTOPT_64BITINODE   "inode64"	/* inodes can be allocated anywhere */
 #define MNTOPT_IKEEP	"ikeep"		/* do not free empty inode clusters */
@@ -1651,6 +1645,8 @@ xfs_vget(
 #define MNTOPT_LARGEIO	   "largeio"	/* report large I/O sizes in stat() */
 #define MNTOPT_NOLARGEIO   "nolargeio"	/* do not report large I/O sizes
 					 * in stat(). */
+#define MNTOPT_ATTR2	"attr2"		/* do use attr2 attribute format */
+#define MNTOPT_NOATTR2	"noattr2"	/* do not use attr2 attribute format */
 
 STATIC unsigned long
 suffix_strtoul(const char *cp, char **endp, unsigned int base)
@@ -1820,6 +1816,10 @@ xfs_parseargs(
 			args->flags &= ~XFSMNT_COMPAT_IOSIZE;
 		} else if (!strcmp(this_char, MNTOPT_NOLARGEIO)) {
 			args->flags |= XFSMNT_COMPAT_IOSIZE;
+		} else if (!strcmp(this_char, MNTOPT_ATTR2)) {
+			args->flags &= ~XFSMNT_COMPAT_ATTR;
+		} else if (!strcmp(this_char, MNTOPT_NOATTR2)) {
+			args->flags |= XFSMNT_COMPAT_ATTR;
 		} else if (!strcmp(this_char, "osyncisdsync")) {
 			/* no-op, this is now the default */
 printk("XFS: osyncisdsync is now the default, option is deprecated.\n");

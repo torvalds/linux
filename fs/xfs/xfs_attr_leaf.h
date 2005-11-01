@@ -238,23 +238,25 @@ typedef struct xfs_attr_inactive_list {
  *========================================================================*/
 
 /*
- * Internal routines when dirsize < XFS_LITINO(mp).
+ * Internal routines when attribute fork size < XFS_LITINO(mp).
  */
-int	xfs_attr_shortform_create(struct xfs_da_args *args);
-int	xfs_attr_shortform_add(struct xfs_da_args *add);
+void	xfs_attr_shortform_create(struct xfs_da_args *args);
+void	xfs_attr_shortform_add(struct xfs_da_args *args, int forkoff);
 int	xfs_attr_shortform_lookup(struct xfs_da_args *args);
 int	xfs_attr_shortform_getvalue(struct xfs_da_args *args);
 int	xfs_attr_shortform_to_leaf(struct xfs_da_args *args);
-int	xfs_attr_shortform_remove(struct xfs_da_args *remove);
+int	xfs_attr_shortform_remove(struct xfs_da_args *args);
 int	xfs_attr_shortform_list(struct xfs_attr_list_context *context);
 int	xfs_attr_shortform_allfit(struct xfs_dabuf *bp, struct xfs_inode *dp);
+int	xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes);
+
 
 /*
- * Internal routines when dirsize == XFS_LBSIZE(mp).
+ * Internal routines when attribute fork size == XFS_LBSIZE(mp).
  */
 int	xfs_attr_leaf_to_node(struct xfs_da_args *args);
 int	xfs_attr_leaf_to_shortform(struct xfs_dabuf *bp,
-					  struct xfs_da_args *args);
+				   struct xfs_da_args *args, int forkoff);
 int	xfs_attr_leaf_clearflag(struct xfs_da_args *args);
 int	xfs_attr_leaf_setflag(struct xfs_da_args *args);
 int	xfs_attr_leaf_flipflags(xfs_da_args_t *args);

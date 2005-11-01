@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -584,12 +584,13 @@ xfs_mount_common(xfs_mount_t *mp, xfs_sb_t *sbp)
 	ASSERT(sbp->sb_inodesize >= 256 && sbp->sb_inodesize <= 2048);
 	switch (sbp->sb_inodesize) {
 	case 256:
-		mp->m_attroffset = XFS_LITINO(mp) - XFS_BMDR_SPACE_CALC(2);
+		mp->m_attroffset = XFS_LITINO(mp) -
+				   XFS_BMDR_SPACE_CALC(MINABTPTRS);
 		break;
 	case 512:
 	case 1024:
 	case 2048:
-		mp->m_attroffset = XFS_BMDR_SPACE_CALC(12);
+		mp->m_attroffset = XFS_BMDR_SPACE_CALC(6 * MINABTPTRS);
 		break;
 	default:
 		ASSERT(0);

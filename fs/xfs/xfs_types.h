@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -152,6 +152,12 @@ typedef __uint8_t	xfs_arch_t;	/* architecture of an xfs fs */
 #define	MAXEXTLEN	((xfs_extlen_t)0x001fffff)	/* 21 bits */
 #define	MAXEXTNUM	((xfs_extnum_t)0x7fffffff)	/* signed int */
 #define	MAXAEXTNUM	((xfs_aextnum_t)0x7fff)		/* signed short */
+
+/*
+ * Min numbers of data/attr fork btree root pointers.
+ */
+#define MINDBTPTRS	3
+#define MINABTPTRS	2
 
 /*
  * MAXNAMELEN is the length (including the terminating null) of

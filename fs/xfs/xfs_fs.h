@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 1995-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2.1 of the GNU Lesser General Public License
@@ -251,6 +251,7 @@ typedef struct xfs_fsop_resblks {
 #define XFS_FSOP_GEOM_FLAGS_DIRV2	0x0080	/* directory version 2	*/
 #define XFS_FSOP_GEOM_FLAGS_LOGV2	0x0100	/* log format version 2	*/
 #define XFS_FSOP_GEOM_FLAGS_SECTOR	0x0200	/* sector sizes >1BB	*/
+#define XFS_FSOP_GEOM_FLAGS_ATTR2	0x0400	/* inline attributes rework */
 
 
 /*

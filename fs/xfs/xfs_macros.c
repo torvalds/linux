@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -1995,6 +1995,14 @@ xfs_sb_version_addshared(xfs_sb_t *sbp)
 }
 #endif
 
+#if XFS_WANT_FUNCS_C || (XFS_WANT_SPACE_C && XFSSO_XFS_SB_VERSION_ADDATTR2)
+void
+xfs_sb_version_addattr2(xfs_sb_t *sbp)
+{
+	XFS_SB_VERSION_ADDATTR2(sbp);
+}
+#endif
+
 #if XFS_WANT_FUNCS_C || (XFS_WANT_SPACE_C && XFSSO_XFS_SB_VERSION_HASALIGN)
 int
 xfs_sb_version_hasalign(xfs_sb_t *sbp)
@@ -2139,3 +2147,10 @@ xfs_sb_version_hasmorebits(xfs_sb_t *sbp)
 }
 #endif
 
+#if XFS_WANT_FUNCS_C || (XFS_WANT_SPACE_C && XFSSO_XFS_SB_VERSION_HASATTR2)
+int
+xfs_sb_version_hasattr2(xfs_sb_t *sbp)
+{
+	return XFS_SB_VERSION_HASATTR2(sbp);
+}
+#endif

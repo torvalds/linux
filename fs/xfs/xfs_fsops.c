@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2002 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -110,7 +110,9 @@ xfs_fs_geometry(
 			(XFS_SB_VERSION_HASDIRV2(&mp->m_sb) ?
 				XFS_FSOP_GEOM_FLAGS_DIRV2 : 0) |
 			(XFS_SB_VERSION_HASSECTOR(&mp->m_sb) ?
-				XFS_FSOP_GEOM_FLAGS_SECTOR : 0);
+				XFS_FSOP_GEOM_FLAGS_SECTOR : 0) |
+			(XFS_SB_VERSION_HASATTR2(&mp->m_sb) ?
+				XFS_FSOP_GEOM_FLAGS_ATTR2 : 0);
 		geo->logsectsize = XFS_SB_VERSION_HASSECTOR(&mp->m_sb) ?
 				mp->m_sb.sb_logsectsize : BBSIZE;
 		geo->rtsectsize = mp->m_sb.sb_blocksize;

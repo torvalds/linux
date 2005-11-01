@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2001 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2001,2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -192,11 +192,23 @@ xfs_dir_mount(xfs_mount_t *mp)
 	uint shortcount, leafcount, count;
 
 	mp->m_dirversion = 1;
-	shortcount = (mp->m_attroffset - (uint)sizeof(xfs_dir_sf_hdr_t)) /
-		     (uint)sizeof(xfs_dir_sf_entry_t);
-	leafcount = (XFS_LBSIZE(mp) - (uint)sizeof(xfs_dir_leaf_hdr_t)) /
-		    ((uint)sizeof(xfs_dir_leaf_entry_t) +
-		     (uint)sizeof(xfs_dir_leaf_name_t));
+	if (mp->m_flags & XFS_MOUNT_COMPAT_ATTR) {
+		shortcount = (mp->m_attroffset -
+				(uint)sizeof(xfs_dir_sf_hdr_t)) /
+				 (uint)sizeof(xfs_dir_sf_entry_t);
+		leafcount = (XFS_LBSIZE(mp) -
+				(uint)sizeof(xfs_dir_leaf_hdr_t)) /
+				 ((uint)sizeof(xfs_dir_leaf_entry_t) +
+				  (uint)sizeof(xfs_dir_leaf_name_t));
+	} else {
+		shortcount = (XFS_BMDR_SPACE_CALC(MINABTPTRS) -
+			      (uint)sizeof(xfs_dir_sf_hdr_t)) /
+			       (uint)sizeof(xfs_dir_sf_entry_t);
+		leafcount = (XFS_LBSIZE(mp) -
+			    (uint)sizeof(xfs_dir_leaf_hdr_t)) /
+			     ((uint)sizeof(xfs_dir_leaf_entry_t) +
+			      (uint)sizeof(xfs_dir_leaf_name_t));
+	}
 	count = shortcount > leafcount ? shortcount : leafcount;
 	mp->m_dircook_elog = xfs_da_log2_roundup(count + 1);
 	ASSERT(mp->m_dircook_elog <= mp->m_sb.sb_blocklog);
