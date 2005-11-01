@@ -968,13 +968,7 @@ static void ipr_log_config_error(struct ipr_ioa_cfg *ioa_cfg,
 	for (i = 0; i < errors_logged; i++, dev_entry++) {
 		ipr_err_separator;
 
-		if (dev_entry->dev_res_addr.bus >= IPR_MAX_NUM_BUSES) {
-			ipr_err("Device %d: missing\n", i + 1);
-		} else {
-			ipr_err("Device %d: %d:%d:%d:%d\n", i + 1,
-				ioa_cfg->host->host_no, dev_entry->dev_res_addr.bus,
-				dev_entry->dev_res_addr.target, dev_entry->dev_res_addr.lun);
-		}
+		ipr_phys_res_err(ioa_cfg, dev_entry->dev_res_addr, "Device %d", i + 1);
 		ipr_log_vpd(&dev_entry->vpd);
 
 		ipr_err("-----New Device Information-----\n");
@@ -1030,33 +1024,16 @@ static void ipr_log_array_error(struct ipr_ioa_cfg *ioa_cfg,
 		if (!memcmp(array_entry->vpd.sn, zero_sn, IPR_SERIAL_NUM_LEN))
 			continue;
 
-		if (be32_to_cpu(error->exposed_mode_adn) == i) {
+		if (be32_to_cpu(error->exposed_mode_adn) == i)
 			ipr_err("Exposed Array Member %d:\n", i);
-		} else {
+		else
 			ipr_err("Array Member %d:\n", i);
-		}
 
 		ipr_log_vpd(&array_entry->vpd);
 
-		if (array_entry->dev_res_addr.bus >= IPR_MAX_NUM_BUSES) {
-			ipr_err("Current Location: unknown\n");
-		} else {
-			ipr_err("Current Location: %d:%d:%d:%d\n",
-				ioa_cfg->host->host_no,
-				array_entry->dev_res_addr.bus,
-				array_entry->dev_res_addr.target,
-				array_entry->dev_res_addr.lun);
-		}
-
-		if (array_entry->expected_dev_res_addr.bus >= IPR_MAX_NUM_BUSES) {
-			ipr_err("Expected Location: unknown\n");
-		} else {
-			ipr_err("Expected Location: %d:%d:%d:%d\n",
-				ioa_cfg->host->host_no,
-				array_entry->expected_dev_res_addr.bus,
-				array_entry->expected_dev_res_addr.target,
-				array_entry->expected_dev_res_addr.lun);
-		}
+		ipr_phys_res_err(ioa_cfg, array_entry->dev_res_addr, "Current Location");
+		ipr_phys_res_err(ioa_cfg, array_entry->expected_dev_res_addr,
+				 "Expected Location");
 
 		ipr_err_separator;
 

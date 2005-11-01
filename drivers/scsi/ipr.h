@@ -1123,6 +1123,17 @@ struct ipr_ucode_image_header {
 #define ipr_res_dbg(ioa_cfg, res, fmt, ...) \
 	IPR_DBG_CMD(ipr_res_printk(KERN_INFO, ioa_cfg, res, fmt, ##__VA_ARGS__))
 
+#define ipr_phys_res_err(ioa_cfg, res, fmt, ...)			\
+{									\
+	if ((res).bus >= IPR_MAX_NUM_BUSES) {				\
+		ipr_err(fmt": unknown\n", ##__VA_ARGS__);		\
+	} else {							\
+		ipr_err(fmt": %d:%d:%d:%d\n",				\
+			##__VA_ARGS__, (ioa_cfg)->host->host_no,	\
+			(res).bus, (res).target, (res).lun);		\
+	}								\
+}
+
 #define ipr_trace ipr_dbg("%s: %s: Line: %d\n",\
 	__FILE__, __FUNCTION__, __LINE__)
 
