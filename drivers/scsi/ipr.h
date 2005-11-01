@@ -81,6 +81,8 @@
 #define	IPR_IOASC_IOASC_MASK			0xFFFFFF00
 #define	IPR_IOASC_SCSI_STATUS_MASK		0x000000FF
 #define IPR_IOASC_IR_RESOURCE_HANDLE		0x05250000
+#define IPR_IOASC_IR_NO_CMDS_TO_2ND_IOA		0x05258100
+#define IPR_IOASA_IR_DUAL_IOA_DISABLED		0x052C8000
 #define IPR_IOASC_BUS_WAS_RESET			0x06290000
 #define IPR_IOASC_BUS_WAS_RESET_BY_OTHER		0x06298000
 #define IPR_IOASC_ABORTED_CMD_TERM_BY_HOST	0x0B5A0000
@@ -593,6 +595,12 @@ struct ipr_hostrcb_type_04_error {
 	u8 protection_level[8];
 }__attribute__((packed, aligned (4)));
 
+struct ipr_hostrcb_type_07_error {
+	u8 failure_reason[64];
+	struct ipr_vpd vpd;
+	u32 data[222];
+}__attribute__((packed, aligned (4)));
+
 struct ipr_hostrcb_error {
 	__be32 failing_dev_ioasc;
 	struct ipr_res_addr failing_dev_res_addr;
@@ -604,6 +612,7 @@ struct ipr_hostrcb_error {
 		struct ipr_hostrcb_type_02_error type_02_error;
 		struct ipr_hostrcb_type_03_error type_03_error;
 		struct ipr_hostrcb_type_04_error type_04_error;
+		struct ipr_hostrcb_type_07_error type_07_error;
 	} u;
 }__attribute__((packed, aligned (4)));
 
@@ -637,6 +646,7 @@ struct ipr_hcam {
 #define IPR_HOST_RCB_OVERLAY_ID_3				0x03
 #define IPR_HOST_RCB_OVERLAY_ID_4				0x04
 #define IPR_HOST_RCB_OVERLAY_ID_6				0x06
+#define IPR_HOST_RCB_OVERLAY_ID_7				0x07
 #define IPR_HOST_RCB_OVERLAY_ID_DEFAULT			0xFF
 
 	u8 reserved1[3];

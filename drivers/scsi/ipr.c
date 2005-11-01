@@ -291,12 +291,18 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"3110: Device bus error, message or command phase"},
 	{0x04670400, 0, 1,
 	"9091: Incorrect hardware configuration change has been detected"},
+	{0x04678000, 0, 1,
+	"9073: Invalid multi-adapter configuration"},
 	{0x046E0000, 0, 1,
 	"FFF4: Command to logical unit failed"},
 	{0x05240000, 1, 0,
 	"Illegal request, invalid request type or request packet"},
 	{0x05250000, 0, 0,
 	"Illegal request, invalid resource handle"},
+	{0x05258000, 0, 0,
+	"Illegal request, commands not allowed to this device"},
+	{0x05258100, 0, 0,
+	"Illegal request, command not allowed to a secondary adapter"},
 	{0x05260000, 0, 0,
 	"Illegal request, invalid field in parameter list"},
 	{0x05260100, 0, 0,
@@ -305,6 +311,8 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"Illegal request, parameter value invalid"},
 	{0x052C0000, 0, 0,
 	"Illegal request, command sequence error"},
+	{0x052C8000, 1, 0,
+	"Illegal request, dual adapter support not enabled"},
 	{0x06040500, 0, 1,
 	"9031: Array protection temporarily suspended, protection resuming"},
 	{0x06040600, 0, 1,
@@ -321,18 +329,26 @@ struct ipr_error_table_t ipr_error_table[] = {
 	"3029: A device replacement has occurred"},
 	{0x064C8000, 0, 1,
 	"9051: IOA cache data exists for a missing or failed device"},
+	{0x064C8100, 0, 1,
+	"9055: Auxiliary cache IOA contains cache data needed by the primary IOA"},
 	{0x06670100, 0, 1,
 	"9025: Disk unit is not supported at its physical location"},
 	{0x06670600, 0, 1,
 	"3020: IOA detected a SCSI bus configuration error"},
 	{0x06678000, 0, 1,
 	"3150: SCSI bus configuration error"},
+	{0x06678100, 0, 1,
+	"9074: Asymmetric advanced function disk configuration"},
 	{0x06690200, 0, 1,
 	"9041: Array protection temporarily suspended"},
 	{0x06698200, 0, 1,
 	"9042: Corrupt array parity detected on specified device"},
 	{0x066B0200, 0, 1,
 	"9030: Array no longer protected due to missing or failed disk unit"},
+	{0x066B8000, 0, 1,
+	"9071: Link operational transition"},
+	{0x066B8100, 0, 1,
+	"9072: Link not operational transition"},
 	{0x066B8200, 0, 1,
 	"9032: Array exposed but still protected"},
 	{0x07270000, 0, 0,
@@ -1051,6 +1067,55 @@ static void ipr_log_array_error(struct ipr_ioa_cfg *ioa_cfg,
 }
 
 /**
+ * ipr_log_hex_data - Log additional hex IOA error data.
+ * @data:		IOA error data
+ * @len:		data length
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_hex_data(u32 *data, int len)
+{
+	int i;
+
+	if (len == 0)
+		return;
+
+	for (i = 0; i < len / 4; i += 4) {
+		ipr_err("%08X: %08X %08X %08X %08X\n", i*4,
+			be32_to_cpu(data[i]),
+			be32_to_cpu(data[i+1]),
+			be32_to_cpu(data[i+2]),
+			be32_to_cpu(data[i+3]));
+	}
+}
+
+/**
+ * ipr_log_dual_ioa_error - Log a dual adapter error.
+ * @ioa_cfg:	ioa config struct
+ * @hostrcb:	hostrcb struct
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_log_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
+				   struct ipr_hostrcb *hostrcb)
+{
+	struct ipr_hostrcb_type_07_error *error;
+
+	error = &hostrcb->hcam.u.error.u.type_07_error;
+	error->failure_reason[sizeof(error->failure_reason) - 1] = '\0';
+
+	ipr_err("%s\n", error->failure_reason);
+	ipr_err("Remote Adapter VPD:\n");
+	ipr_log_vpd(&error->vpd);
+	ipr_log_hex_data(error->data,
+			 be32_to_cpu(hostrcb->hcam.length) -
+			 (offsetof(struct ipr_hostrcb_error, u) +
+			  offsetof(struct ipr_hostrcb_type_07_error, data)));
+}
+
+/**
  * ipr_log_generic_error - Log an adapter error.
  * @ioa_cfg:	ioa config struct
  * @hostrcb:	hostrcb struct
@@ -1061,19 +1126,8 @@ static void ipr_log_array_error(struct ipr_ioa_cfg *ioa_cfg,
 static void ipr_log_generic_error(struct ipr_ioa_cfg *ioa_cfg,
 				  struct ipr_hostrcb *hostrcb)
 {
-	int i;
-	int ioa_data_len = be32_to_cpu(hostrcb->hcam.length);
-
-	if (ioa_data_len == 0)
-		return;
-
-	for (i = 0; i < ioa_data_len / 4; i += 4) {
-		ipr_err("%08X: %08X %08X %08X %08X\n", i*4,
-			be32_to_cpu(hostrcb->hcam.u.raw.data[i]),
-			be32_to_cpu(hostrcb->hcam.u.raw.data[i+1]),
-			be32_to_cpu(hostrcb->hcam.u.raw.data[i+2]),
-			be32_to_cpu(hostrcb->hcam.u.raw.data[i+3]));
-	}
+	ipr_log_hex_data(hostrcb->hcam.u.raw.data,
+			 be32_to_cpu(hostrcb->hcam.length));
 }
 
 /**
@@ -1160,6 +1214,9 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 	case IPR_HOST_RCB_OVERLAY_ID_4:
 	case IPR_HOST_RCB_OVERLAY_ID_6:
 		ipr_log_array_error(ioa_cfg, hostrcb);
+		break;
+	case IPR_HOST_RCB_OVERLAY_ID_7:
+		ipr_log_dual_ioa_error(ioa_cfg, hostrcb);
 		break;
 	case IPR_HOST_RCB_OVERLAY_ID_1:
 	case IPR_HOST_RCB_OVERLAY_ID_DEFAULT:
@@ -3886,6 +3943,7 @@ static void ipr_erp_start(struct ipr_ioa_cfg *ioa_cfg,
 		scsi_cmd->result |= (DID_IMM_RETRY << 16);
 		break;
 	case IPR_IOASC_IR_RESOURCE_HANDLE:
+	case IPR_IOASC_IR_NO_CMDS_TO_2ND_IOA:
 		scsi_cmd->result |= (DID_NO_CONNECT << 16);
 		break;
 	case IPR_IOASC_HW_SEL_TIMEOUT:
@@ -3898,6 +3956,7 @@ static void ipr_erp_start(struct ipr_ioa_cfg *ioa_cfg,
 		scsi_cmd->result |= (DID_IMM_RETRY << 16);
 		break;
 	case IPR_IOASC_MED_DO_NOT_REALLOC: /* prevent retries */
+	case IPR_IOASA_IR_DUAL_IOA_DISABLED:
 		scsi_cmd->result |= (DID_PASSTHROUGH << 16);
 		break;
 	case IPR_IOASC_BUS_WAS_RESET:
