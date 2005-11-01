@@ -541,6 +541,15 @@ struct ipr_inquiry_page3 {
 	u8 patch_number[4];
 }__attribute__((packed));
 
+#define IPR_INQUIRY_PAGE0_ENTRIES 20
+struct ipr_inquiry_page0 {
+	u8 peri_qual_dev_type;
+	u8 page_code;
+	u8 reserved1;
+	u8 len;
+	u8 page[IPR_INQUIRY_PAGE0_ENTRIES];
+}__attribute__((packed));
+
 struct ipr_hostrcb_device_data_entry {
 	struct ipr_vpd vpd;
 	struct ipr_res_addr dev_res_addr;
@@ -731,6 +740,7 @@ struct ipr_resource_table {
 
 struct ipr_misc_cbs {
 	struct ipr_ioa_vpd ioa_vpd;
+	struct ipr_inquiry_page0 page0_data;
 	struct ipr_inquiry_page3 page3_data;
 	struct ipr_mode_pages mode_pages;
 	struct ipr_supported_device supp_dev;
@@ -813,6 +823,13 @@ enum ipr_sdt_state {
 	DUMP_OBTAINED
 };
 
+enum ipr_cache_state {
+	CACHE_NONE,
+	CACHE_DISABLED,
+	CACHE_ENABLED,
+	CACHE_INVALID
+};
+
 /* Per-controller data */
 struct ipr_ioa_cfg {
 	char eye_catcher[8];
@@ -829,6 +846,7 @@ struct ipr_ioa_cfg {
 	u8 allow_cmds:1;
 	u8 allow_ml_add_del:1;
 
+	enum ipr_cache_state cache_state;
 	u16 type; /* CCIN of the card */
 
 	u8 log_level;
