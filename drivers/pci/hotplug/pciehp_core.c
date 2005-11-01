@@ -46,7 +46,6 @@ int pciehp_debug;
 int pciehp_poll_mode;
 int pciehp_poll_time;
 struct controller *pciehp_ctrl_list;
-struct pci_func *pciehp_slot_list[256];
 
 #define DRIVER_VERSION	"0.4"
 #define DRIVER_AUTHOR	"Dan Zink <dan.zink@compaq.com>, Greg Kroah-Hartman <greg@kroah.com>, Dely Sy <dely.l.sy@intel.com>"
@@ -422,15 +421,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	first_device_num = ctrl->slot_device_offset;
 	num_ctlr_slots = ctrl->num_slots; 
 
-	/* Store PCI Config Space for all devices on this bus */
-	dbg("%s: Before calling pciehp_save_config, ctrl->bus %x,ctrl->slot_bus %x\n", 
-		__FUNCTION__,ctrl->bus, ctrl->slot_bus);
-	rc = pciehp_save_config(ctrl, ctrl->slot_bus, num_ctlr_slots, first_device_num);
-	if (rc) {
-		err("%s: unable to save PCI configuration data, error %d\n", __FUNCTION__, rc);
-		goto err_out_free_ctrl_bus;
-	}
-
 	ctrl->add_support = 1;
 	
 	/* Setup the slot information structures */
@@ -491,7 +481,6 @@ err_out_none:
 
 static int pcie_start_thread(void)
 {
-	int loop;
 	int retval = 0;
 	
 	dbg("Initialize + Start the notification/polling mechanism \n");
@@ -502,20 +491,11 @@ static int pcie_start_thread(void)
 		return retval;
 	}
 
-	dbg("Initialize slot lists\n");
-	/* One slot list for each bus in the system */
-	for (loop = 0; loop < 256; loop++) {
-		pciehp_slot_list[loop] = NULL;
-	}
-
 	return retval;
 }
 
 static void __exit unload_pciehpd(void)
 {
-	struct pci_func *next;
-	struct pci_func *TempSlot;
-	int loop;
 	struct controller *ctrl;
 	struct controller *tctrl;
 
@@ -532,15 +512,6 @@ static void __exit unload_pciehpd(void)
 		ctrl = ctrl->next;
 
 		kfree(tctrl);
-	}
-
-	for (loop = 0; loop < 256; loop++) {
-		next = pciehp_slot_list[loop];
-		while (next != NULL) {
-			TempSlot = next;
-			next = next->next;
-			kfree(TempSlot);
-		}
 	}
 
 	/* Stop the notification mechanism */

@@ -56,25 +56,11 @@ struct hotplug_params {
 	u8 enable_perr;
 };
 
-struct pci_func {
-	struct pci_func *next;
-	u8 bus;
-	u8 device;
-	u8 function;
-	u8 is_a_board;
-	u16 status;
-	u8 configured;
-	u8 switch_save;
-	u8 presence_save;
-	u16 reserved2;
-	u32 config_space[0x20];
-	struct pci_dev* pci_dev;
-};
-
 struct slot {
 	struct slot *next;
 	u8 bus;
 	u8 device;
+	u16 status;
 	u32 number;
 	u8 is_a_board;
 	u8 configured;
@@ -177,9 +163,6 @@ struct controller {
  * error Messages
  */
 #define msg_initialization_err	"Initialization failure, error=%d\n"
-#define msg_HPC_rev_error	"Unsupported revision of the PCI hot plug controller found.\n"
-#define msg_HPC_non_pcie	"The PCI hot plug controller is not supported by this driver.\n"
-#define msg_HPC_not_supported	"This system is not supported by this version of pciephd module. Upgrade to a newer version of pciehpd\n"
 #define msg_button_on		"PCI slot #%d - powering on due to button press.\n"
 #define msg_button_off		"PCI slot #%d - powering off due to button press.\n"
 #define msg_button_cancel	"PCI slot #%d - action canceled due to button press.\n"
@@ -188,8 +171,6 @@ struct controller {
 /* controller functions */
 extern int	pciehp_event_start_thread	(void);
 extern void	pciehp_event_stop_thread	(void);
-extern struct 	pci_func *pciehp_slot_create	(unsigned char busnumber);
-extern struct 	pci_func *pciehp_slot_find	(unsigned char bus, unsigned char device, unsigned char index);
 extern int	pciehp_enable_slot		(struct slot *slot);
 extern int	pciehp_disable_slot		(struct slot *slot);
 
@@ -200,12 +181,8 @@ extern u8	pciehp_handle_power_fault	(u8 hp_slot, void *inst_id);
 /* extern void	long_delay (int delay); */
 
 /* pci functions */
-extern int	pciehp_set_irq			(u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num);
-/*extern int	pciehp_get_bus_dev		(struct controller *ctrl, u8 *bus_num, u8 *dev_num, struct slot *slot);*/
-extern int	pciehp_save_config	 	(struct controller *ctrl, int busnumber, int num_ctlr_slots, int first_device_num);
-extern int	pciehp_save_slot_config		(struct controller *ctrl, struct pci_func * new_slot);
-extern int	pciehp_configure_device		(struct slot *ctrl);
-extern int	pciehp_unconfigure_device	(struct pci_func* func);
+extern int	pciehp_configure_device		(struct slot *p_slot);
+extern int	pciehp_unconfigure_device	(struct slot *p_slot);
 extern int	get_hp_hw_control_from_firmware(struct pci_dev *dev);
 extern void	get_hp_params_from_firmware(struct pci_dev *dev,
 	       	struct hotplug_params *hpp);
@@ -214,7 +191,6 @@ extern void	get_hp_params_from_firmware(struct pci_dev *dev,
 
 /* Global variables */
 extern struct controller *pciehp_ctrl_list;
-extern struct pci_func *pciehp_slot_list[256];
 
 /* Inline functions */
 
