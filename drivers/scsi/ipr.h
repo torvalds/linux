@@ -811,6 +811,7 @@ struct ipr_trace_entry {
 struct ipr_sglist {
 	u32 order;
 	u32 num_sg;
+	u32 num_dma_sg;
 	u32 buffer_len;
 	struct scatterlist scatterlist[1];
 };
