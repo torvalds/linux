@@ -1891,14 +1891,22 @@ xfs_flush_buftarg(
 	return pincount;
 }
 
-STATIC int
-xfs_buf_daemons_start(void)
+int __init
+pagebuf_init(void)
 {
 	int		error = -ENOMEM;
 
+#ifdef PAGEBUF_TRACE
+	pagebuf_trace_buf = ktrace_alloc(PAGEBUF_TRACE_SIZE, KM_SLEEP);
+#endif
+
+	pagebuf_zone = kmem_zone_init(sizeof(xfs_buf_t), "xfs_buf");
+	if (!pagebuf_zone)
+		goto out_free_trace_buf;
+
 	xfslogd_workqueue = create_workqueue("xfslogd");
 	if (!xfslogd_workqueue)
-		goto out;
+		goto out_free_buf_zone;
 
 	xfsdatad_workqueue = create_workqueue("xfsdatad");
 	if (!xfsdatad_workqueue)
@@ -1909,82 +1917,37 @@ xfs_buf_daemons_start(void)
 		error = PTR_ERR(xfsbufd_task);
 		goto out_destroy_xfsdatad_workqueue;
 	}
+
+	pagebuf_shake = kmem_shake_register(xfsbufd_wakeup);
+	if (!pagebuf_shake)
+		goto out_stop_xfsbufd;
+
 	return 0;
 
+ out_stop_xfsbufd:
+	kthread_stop(xfsbufd_task);
  out_destroy_xfsdatad_workqueue:
 	destroy_workqueue(xfsdatad_workqueue);
  out_destroy_xfslogd_workqueue:
 	destroy_workqueue(xfslogd_workqueue);
- out:
-	return error;
-}
-
-/*
- * Note: do not mark as __exit, it is called from pagebuf_terminate.
- */
-STATIC void
-xfs_buf_daemons_stop(void)
-{
-	kthread_stop(xfsbufd_task);
-	destroy_workqueue(xfslogd_workqueue);
-	destroy_workqueue(xfsdatad_workqueue);
-}
-
-/*
- *	Initialization and Termination
- */
-
-int __init
-pagebuf_init(void)
-{
-	int		error = -ENOMEM;
-
-	pagebuf_zone = kmem_zone_init(sizeof(xfs_buf_t), "xfs_buf");
-	if (!pagebuf_zone)
-		goto out;
-
-#ifdef PAGEBUF_TRACE
-	pagebuf_trace_buf = ktrace_alloc(PAGEBUF_TRACE_SIZE, KM_SLEEP);
-#endif
-
-	error = xfs_buf_daemons_start();
-	if (error)
-		goto out_free_buf_zone;
-
-	pagebuf_shake = kmem_shake_register(xfsbufd_wakeup);
-	if (!pagebuf_shake) {
-		error = -ENOMEM;
-		goto out_stop_daemons;
-	}
-
-	return 0;
-
- out_stop_daemons:
-	xfs_buf_daemons_stop();
  out_free_buf_zone:
+	kmem_zone_destroy(pagebuf_zone);
+ out_free_trace_buf:
 #ifdef PAGEBUF_TRACE
 	ktrace_free(pagebuf_trace_buf);
 #endif
-	kmem_zone_destroy(pagebuf_zone);
- out:
 	return error;
 }
 
-
-/*
- *	pagebuf_terminate.
- *
- *	Note: do not mark as __exit, this is also called from the __init code.
- */
 void
 pagebuf_terminate(void)
 {
-	xfs_buf_daemons_stop();
-
+	kmem_shake_deregister(pagebuf_shake);
+	kthread_stop(xfsbufd_task);
+	destroy_workqueue(xfsdatad_workqueue);
+	destroy_workqueue(xfslogd_workqueue);
+	kmem_zone_destroy(pagebuf_zone);
 #ifdef PAGEBUF_TRACE
 	ktrace_free(pagebuf_trace_buf);
 #endif
-
-	kmem_zone_destroy(pagebuf_zone);
-	kmem_shake_deregister(pagebuf_shake);
 }
