@@ -2248,7 +2248,7 @@ static struct ipr_sglist *ipr_alloc_ucode_buffer(int buf_len)
 		num_elem = buf_len / bsize_elem;
 
 	/* Allocate a scatter/gather list for the DMA */
-	sglist = kmalloc(sizeof(struct ipr_sglist) +
+	sglist = kzalloc(sizeof(struct ipr_sglist) +
 			 (sizeof(struct scatterlist) * (num_elem - 1)),
 			 GFP_KERNEL);
 
@@ -2256,9 +2256,6 @@ static struct ipr_sglist *ipr_alloc_ucode_buffer(int buf_len)
 		ipr_trace;
 		return NULL;
 	}
-
-	memset(sglist, 0, sizeof(struct ipr_sglist) +
-	       (sizeof(struct scatterlist) * (num_elem - 1)));
 
 	scatterlist = sglist->scatterlist;
 
@@ -2614,14 +2611,13 @@ static int ipr_alloc_dump(struct ipr_ioa_cfg *ioa_cfg)
 	unsigned long lock_flags = 0;
 
 	ENTER;
-	dump = kmalloc(sizeof(struct ipr_dump), GFP_KERNEL);
+	dump = kzalloc(sizeof(struct ipr_dump), GFP_KERNEL);
 
 	if (!dump) {
 		ipr_err("Dump memory allocation failed\n");
 		return -ENOMEM;
 	}
 
-	memset(dump, 0, sizeof(struct ipr_dump));
 	kref_init(&dump->kref);
 	dump->ioa_cfg = ioa_cfg;
 
@@ -5665,14 +5661,11 @@ static int __devinit ipr_alloc_mem(struct ipr_ioa_cfg *ioa_cfg)
 	int i, rc = -ENOMEM;
 
 	ENTER;
-	ioa_cfg->res_entries = kmalloc(sizeof(struct ipr_resource_entry) *
+	ioa_cfg->res_entries = kzalloc(sizeof(struct ipr_resource_entry) *
 				       IPR_MAX_PHYSICAL_DEVS, GFP_KERNEL);
 
 	if (!ioa_cfg->res_entries)
 		goto out;
-
-	memset(ioa_cfg->res_entries, 0,
-	       sizeof(struct ipr_resource_entry) * IPR_MAX_PHYSICAL_DEVS);
 
 	for (i = 0; i < IPR_MAX_PHYSICAL_DEVS; i++)
 		list_add_tail(&ioa_cfg->res_entries[i].queue, &ioa_cfg->free_res_q);
@@ -5714,14 +5707,11 @@ static int __devinit ipr_alloc_mem(struct ipr_ioa_cfg *ioa_cfg)
 		list_add_tail(&ioa_cfg->hostrcb[i]->queue, &ioa_cfg->hostrcb_free_q);
 	}
 
-	ioa_cfg->trace = kmalloc(sizeof(struct ipr_trace_entry) *
+	ioa_cfg->trace = kzalloc(sizeof(struct ipr_trace_entry) *
 				 IPR_NUM_TRACE_ENTRIES, GFP_KERNEL);
 
 	if (!ioa_cfg->trace)
 		goto out_free_hostrcb_dma;
-
-	memset(ioa_cfg->trace, 0,
-	       sizeof(struct ipr_trace_entry) * IPR_NUM_TRACE_ENTRIES);
 
 	rc = 0;
 out:
