@@ -143,12 +143,13 @@ static acpi_status acpi_run_oshp(acpi_handle handle)
 int get_hp_hw_control_from_firmware(struct pci_dev *dev)
 {
 	acpi_status status;
+	acpi_handle handle = DEVICE_ACPI_HANDLE(&(dev->dev));
 	/*
 	 * Per PCI firmware specification, we should run the ACPI _OSC
 	 * method to get control of hotplug hardware before using it
 	 */
-	/* Fixme: run _OSC for a specific host bridge, not all of them */
-	status = pci_osc_control_set(OSC_PCI_EXPRESS_NATIVE_HP_CONTROL);
+	status = pci_osc_control_set(handle,
+			OSC_PCI_EXPRESS_NATIVE_HP_CONTROL);
 
 	/* Fixme: fail native hotplug if _OSC does not exist for root ports */
 	if (status == AE_NOT_FOUND) {
@@ -156,9 +157,7 @@ int get_hp_hw_control_from_firmware(struct pci_dev *dev)
 		 * Some older BIOS's don't support _OSC but support
 		 * OSHP to do the same thing
 		 */
-		acpi_handle handle = DEVICE_ACPI_HANDLE(&(dev->dev));
-		if (handle)
-			status = acpi_run_oshp(handle);
+		status = acpi_run_oshp(handle);
 	}
 	if (ACPI_FAILURE(status)) {
 		err("Cannot get control of hotplug hardware\n");
