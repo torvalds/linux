@@ -631,23 +631,6 @@ static int ppc64_panic_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-#ifdef CONFIG_PPC_ISERIES
-/*
- * On iSeries we just parse the mem=X option from the command line.
- * On pSeries it's a bit more complicated, see prom_init_mem()
- */
-static int __init early_parsemem(char *p)
-{
-	if (!p)
-		return 0;
-
-	memory_limit = ALIGN(memparse(p, &p), PAGE_SIZE);
-
-	return 0;
-}
-early_param("mem", early_parsemem);
-#endif /* CONFIG_PPC_ISERIES */
-
 #ifdef CONFIG_IRQSTACKS
 static void __init irqstack_early_init(void)
 {
