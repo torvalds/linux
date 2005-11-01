@@ -49,7 +49,7 @@
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iSeries/HvCallEvent.h>
 #include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/HvCall.h>
+#include <asm/iseries/hv_call.h>
 
 #ifdef CONFIG_VT
 #error You must turn off CONFIG_VT to use CONFIG_VIOCONS
