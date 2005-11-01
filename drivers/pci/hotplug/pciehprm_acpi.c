@@ -132,7 +132,7 @@ static acpi_status acpi_run_oshp(acpi_handle handle)
 	/* run OSHP */
 	status = acpi_evaluate_object(handle, METHOD_NAME_OSHP, NULL, NULL);
 	if (ACPI_FAILURE(status)) {
-		err("%s:%s OSHP fails=0x%x\n", __FUNCTION__, path_name,
+		dbg("%s:%s OSHP fails=0x%x\n", __FUNCTION__, path_name,
 				status);
 	} else {
 		dbg("%s:%s OSHP passes\n", __FUNCTION__, path_name);
@@ -140,32 +140,92 @@ static acpi_status acpi_run_oshp(acpi_handle handle)
 	return status;
 }
 
+static int is_root_bridge(acpi_handle handle)
+{
+	acpi_status status;
+	struct acpi_device_info *info;
+	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
+	int i;
+
+	status = acpi_get_object_info(handle, &buffer);
+	if (ACPI_SUCCESS(status)) {
+		info = buffer.pointer;
+		if ((info->valid & ACPI_VALID_HID) &&
+			!strcmp(PCI_ROOT_HID_STRING,
+					info->hardware_id.value)) {
+			acpi_os_free(buffer.pointer);
+			return 1;
+		}
+		if (info->valid & ACPI_VALID_CID) {
+			for (i=0; i < info->compatibility_id.count; i++) {
+				if (!strcmp(PCI_ROOT_HID_STRING,
+					info->compatibility_id.id[i].value)) {
+					acpi_os_free(buffer.pointer);
+					return 1;
+				}
+			}
+		}
+	}
+	return 0;
+}
+
 int get_hp_hw_control_from_firmware(struct pci_dev *dev)
 {
 	acpi_status status;
-	acpi_handle handle = DEVICE_ACPI_HANDLE(&(dev->dev));
+	acpi_handle chandle, handle = DEVICE_ACPI_HANDLE(&(dev->dev));
+	struct pci_dev *pdev = dev;
+	u8 *path_name;
 	/*
 	 * Per PCI firmware specification, we should run the ACPI _OSC
-	 * method to get control of hotplug hardware before using it
+	 * method to get control of hotplug hardware before using it.
+	 * If an _OSC is missing, we look for an OSHP to do the same thing.
+	 * To handle different BIOS behavior, we look for _OSC and OSHP
+	 * within the scope of the hotplug controller and its parents, upto
+	 * the host bridge under which this controller exists.
 	 */
-	status = pci_osc_control_set(handle,
-			OSC_PCI_EXPRESS_NATIVE_HP_CONTROL);
-
-	/* Fixme: fail native hotplug if _OSC does not exist for root ports */
-	if (status == AE_NOT_FOUND) {
+	while (!handle) {
 		/*
-		 * Some older BIOS's don't support _OSC but support
-		 * OSHP to do the same thing
+		 * This hotplug controller was not listed in the ACPI name
+		 * space at all. Try to get acpi handle of parent pci bus.
 		 */
-		status = acpi_run_oshp(handle);
-	}
-	if (ACPI_FAILURE(status)) {
-		err("Cannot get control of hotplug hardware\n");
-		return -1;
+		if (!pdev || !pdev->bus->parent)
+			break;
+		dbg("Could not find %s in acpi namespace, trying parent\n",
+				pci_name(pdev));
+		if (!pdev->bus->parent->self)
+			/* Parent must be a host bridge */
+			handle = acpi_get_pci_rootbridge_handle(
+					pci_domain_nr(pdev->bus->parent),
+					pdev->bus->parent->number);
+		else
+			handle = DEVICE_ACPI_HANDLE(
+					&(pdev->bus->parent->self->dev));
+		pdev = pdev->bus->parent->self;
 	}
 
-	dbg("Sucess getting control of hotplug hardware\n");
-	return 0;
+	while (handle) {
+		path_name = acpi_path_name(handle);
+		dbg("Trying to get hotplug control for %s \n", path_name);
+		status = pci_osc_control_set(handle,
+				OSC_PCI_EXPRESS_NATIVE_HP_CONTROL);
+		if (status == AE_NOT_FOUND)
+			status = acpi_run_oshp(handle);
+		if (ACPI_SUCCESS(status)) {
+			dbg("Gained control for hotplug HW for pci %s (%s)\n",
+				pci_name(dev), path_name);
+			return 0;
+		}
+		if (is_root_bridge(handle))
+			break;
+		chandle = handle;
+		status = acpi_get_parent(chandle, &handle);
+		if (ACPI_FAILURE(status))
+			break;
+	}
+
+	err("Cannot get control of hotplug hardware for pci %s\n",
+			pci_name(dev));
+	return -1;
 }
 
 void get_hp_params_from_firmware(struct pci_dev *dev,

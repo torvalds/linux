@@ -1417,9 +1417,14 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 		goto abort_free_ctlr;
 	}
 	
-	rc = get_hp_hw_control_from_firmware(ctrl->pci_dev);
-	if (rc)
-		goto abort_free_ctlr;
+	if (pciehp_force) {
+		dbg("Bypassing BIOS check for pciehp use on %s\n",
+				pci_name(ctrl->pci_dev));
+	} else {
+		rc = get_hp_hw_control_from_firmware(ctrl->pci_dev);
+		if (rc)
+			goto abort_free_ctlr;
+	}
 
 	/*  Add this HPC instance into the HPC list */
 	spin_lock(&list_lock);

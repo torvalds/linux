@@ -39,6 +39,7 @@
 int pciehp_debug;
 int pciehp_poll_mode;
 int pciehp_poll_time;
+int pciehp_force;
 struct controller *pciehp_ctrl_list;
 
 #define DRIVER_VERSION	"0.4"
@@ -52,9 +53,11 @@ MODULE_LICENSE("GPL");
 module_param(pciehp_debug, bool, 0644);
 module_param(pciehp_poll_mode, bool, 0644);
 module_param(pciehp_poll_time, int, 0644);
+module_param(pciehp_force, bool, 0644);
 MODULE_PARM_DESC(pciehp_debug, "Debugging mode enabled or not");
 MODULE_PARM_DESC(pciehp_poll_mode, "Using polling mechanism for hot-plug events or not");
 MODULE_PARM_DESC(pciehp_poll_time, "Polling mechanism frequency, in seconds");
+MODULE_PARM_DESC(pciehp_force, "Force pciehp, even if _OSC and OSHP are missing");
 
 #define PCIE_MODULE_NAME "pciehp"
 
