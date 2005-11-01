@@ -661,10 +661,11 @@ xfs_trans_unreserve_and_mod_sb(
  */
  /*ARGSUSED*/
 int
-xfs_trans_commit(
+_xfs_trans_commit(
 	xfs_trans_t	*tp,
 	uint		flags,
-	xfs_lsn_t	*commit_lsn_p)
+	xfs_lsn_t	*commit_lsn_p,
+	int		*log_flushed)
 {
 	xfs_log_iovec_t		*log_vector;
 	int			nvec;
@@ -893,9 +894,11 @@ shut_us_down:
 	 * log out now and wait for it.
 	 */
 	if (sync) {
-		if (!error)
-			error = xfs_log_force(mp, commit_lsn,
-				      XFS_LOG_FORCE | XFS_LOG_SYNC);
+		if (!error) {
+			error = _xfs_log_force(mp, commit_lsn,
+				      XFS_LOG_FORCE | XFS_LOG_SYNC,
+				      log_flushed);
+		}
 		XFS_STATS_INC(xs_trans_sync);
 	} else {
 		XFS_STATS_INC(xs_trans_async);

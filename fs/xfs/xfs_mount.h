@@ -415,7 +415,7 @@ typedef struct xfs_mount {
 						 * 32 bits in size */
 #define XFS_MOUNT_32BITINOOPT	0x00008000	/* saved mount option state */
 #define XFS_MOUNT_NOUUID	0x00010000	/* ignore uuid during mount */
-#define XFS_MOUNT_NOLOGFLUSH	0x00020000
+#define XFS_MOUNT_BARRIER	0x00020000
 #define XFS_MOUNT_IDELETE	0x00040000	/* delete empty inode clusters*/
 #define XFS_MOUNT_SWALLOC	0x00080000	/* turn on stripe width
 						 * allocation */
@@ -542,6 +542,7 @@ extern xfs_mount_t *xfs_mount_init(void);
 extern void	xfs_mod_sb(xfs_trans_t *, __int64_t);
 extern void	xfs_mount_free(xfs_mount_t *mp, int remove_bhv);
 extern int	xfs_mountfs(struct vfs *, xfs_mount_t *mp, int);
+extern void	xfs_mountfs_check_barriers(xfs_mount_t *mp);
 
 extern int	xfs_unmountfs(xfs_mount_t *, struct cred *);
 extern void	xfs_unmountfs_close(xfs_mount_t *, struct cred *);

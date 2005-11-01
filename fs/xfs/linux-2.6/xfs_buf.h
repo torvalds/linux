@@ -74,7 +74,7 @@ typedef enum page_buf_flags_e {		/* pb_flags values */
 	PBF_DELWRI = (1 << 6),  /* buffer has dirty pages                  */
 	PBF_STALE = (1 << 7),	/* buffer has been staled, do not find it  */
 	PBF_FS_MANAGED = (1 << 8),  /* filesystem controls freeing memory  */
-	PBF_FLUSH = (1 << 11),	    /* flush disk write cache		   */
+ 	PBF_ORDERED = (1 << 11),    /* use ordered writes		   */
 	PBF_READ_AHEAD = (1 << 12), /* asynchronous read-ahead		   */
 
 	/* flags used only as arguments to access routines */
@@ -383,9 +383,9 @@ extern void pagebuf_trace(
 #define XFS_BUF_UNASYNC(x)	 ((x)->pb_flags &= ~PBF_ASYNC)
 #define XFS_BUF_ISASYNC(x)	 ((x)->pb_flags & PBF_ASYNC)
 
-#define XFS_BUF_FLUSH(x)	 ((x)->pb_flags |= PBF_FLUSH)
-#define XFS_BUF_UNFLUSH(x)	 ((x)->pb_flags &= ~PBF_FLUSH)
-#define XFS_BUF_ISFLUSH(x)	 ((x)->pb_flags & PBF_FLUSH)
+#define XFS_BUF_ORDERED(x)	 ((x)->pb_flags |= PBF_ORDERED)
+#define XFS_BUF_UNORDERED(x)	 ((x)->pb_flags &= ~PBF_ORDERED)
+#define XFS_BUF_ISORDERED(x)	 ((x)->pb_flags & PBF_ORDERED)
 
 #define XFS_BUF_SHUT(x)		 printk("XFS_BUF_SHUT not implemented yet\n")
 #define XFS_BUF_UNSHUT(x)	 printk("XFS_BUF_UNSHUT not implemented yet\n")

@@ -278,6 +278,72 @@ xfs_blkdev_put(
 		close_bdev_excl(bdev);
 }
 
+/*
+ * Try to write out the superblock using barriers.
+ */
+STATIC int
+xfs_barrier_test(
+	xfs_mount_t	*mp)
+{
+	xfs_buf_t	*sbp = xfs_getsb(mp, 0);
+	int		error;
+
+	XFS_BUF_UNDONE(sbp);
+	XFS_BUF_UNREAD(sbp);
+	XFS_BUF_UNDELAYWRITE(sbp);
+	XFS_BUF_WRITE(sbp);
+	XFS_BUF_UNASYNC(sbp);
+	XFS_BUF_ORDERED(sbp);
+
+	xfsbdstrat(mp, sbp);
+	error = xfs_iowait(sbp);
+
+	/*
+	 * Clear all the flags we set and possible error state in the
+	 * buffer.  We only did the write to try out whether barriers
+	 * worked and shouldn't leave any traces in the superblock
+	 * buffer.
+	 */
+	XFS_BUF_DONE(sbp);
+	XFS_BUF_ERROR(sbp, 0);
+	XFS_BUF_UNORDERED(sbp);
+
+	xfs_buf_relse(sbp);
+	return error;
+}
+
+void
+xfs_mountfs_check_barriers(xfs_mount_t *mp)
+{
+	int error;
+
+	if (mp->m_logdev_targp != mp->m_ddev_targp) {
+		xfs_fs_cmn_err(CE_NOTE, mp,
+		  "Disabling barriers, not supported with external log device");
+		mp->m_flags &= ~XFS_MOUNT_BARRIER;
+	}
+
+	if (mp->m_ddev_targp->pbr_bdev->bd_disk->queue->ordered ==
+					QUEUE_ORDERED_NONE) {
+		xfs_fs_cmn_err(CE_NOTE, mp,
+		  "Disabling barriers, not supported by the underlying device");
+		mp->m_flags &= ~XFS_MOUNT_BARRIER;
+	}
+
+	error = xfs_barrier_test(mp);
+	if (error) {
+		xfs_fs_cmn_err(CE_NOTE, mp,
+		  "Disabling barriers, trial barrier write failed");
+		mp->m_flags &= ~XFS_MOUNT_BARRIER;
+	}
+}
+
+void
+xfs_blkdev_issue_flush(
+	xfs_buftarg_t		*buftarg)
+{
+	blkdev_issue_flush(buftarg->pbr_bdev, NULL);
+}
 
 STATIC struct inode *
 linvfs_alloc_inode(

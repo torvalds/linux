@@ -1118,6 +1118,7 @@ xfs_fsync(
 	xfs_inode_t	*ip;
 	xfs_trans_t	*tp;
 	int		error;
+	int		log_flushed = 0, changed = 1;
 
 	vn_trace_entry(BHV_TO_VNODE(bdp),
 			__FUNCTION__, (inst_t *)__return_address);
@@ -1171,10 +1172,18 @@ xfs_fsync(
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
 		if (xfs_ipincount(ip)) {
-			xfs_log_force(ip->i_mount, (xfs_lsn_t)0,
+			_xfs_log_force(ip->i_mount, (xfs_lsn_t)0,
 				      XFS_LOG_FORCE |
 				      ((flag & FSYNC_WAIT)
-				       ? XFS_LOG_SYNC : 0));
+				       ? XFS_LOG_SYNC : 0),
+				      &log_flushed);
+		} else {
+			/*
+			 * If the inode is not pinned and nothing
+			 * has changed we don't need to flush the
+			 * cache.
+			 */
+			changed = 0;
 		}
 		error = 0;
 	} else	{
@@ -1210,10 +1219,27 @@ xfs_fsync(
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 		if (flag & FSYNC_WAIT)
 			xfs_trans_set_sync(tp);
-		error = xfs_trans_commit(tp, 0, NULL);
+		error = _xfs_trans_commit(tp, 0, NULL, &log_flushed);
 
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	}
+
+	if ((ip->i_mount->m_flags & XFS_MOUNT_BARRIER) && changed) {
+		/*
+		 * If the log write didn't issue an ordered tag we need
+		 * to flush the disk cache for the data device now.
+		 */
+		if (!log_flushed)
+			xfs_blkdev_issue_flush(ip->i_mount->m_ddev_targp);
+
+		/*
+		 * If this inode is on the RT dev we need to flush that
+		 * cache aswell.
+		 */
+		if (ip->i_d.di_flags & XFS_DIFLAG_REALTIME)
+			xfs_blkdev_issue_flush(ip->i_mount->m_rtdev_targp);
+	}
+
 	return error;
 }
 

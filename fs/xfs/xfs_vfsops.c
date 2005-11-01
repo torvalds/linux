@@ -321,8 +321,8 @@ xfs_start_flags(
 
 	if (ap->flags & XFSMNT_NOUUID)
 		mp->m_flags |= XFS_MOUNT_NOUUID;
-	if (ap->flags & XFSMNT_NOLOGFLUSH)
-		mp->m_flags |= XFS_MOUNT_NOLOGFLUSH;
+	if (ap->flags & XFSMNT_BARRIER)
+		mp->m_flags |= XFS_MOUNT_BARRIER;
 
 	return 0;
 }
@@ -512,8 +512,14 @@ xfs_mount(
 		goto error2;
 
 	error = XFS_IOINIT(vfsp, args, flags);
-	if (!error)
-		return 0;
+	if (error)
+		goto error2;
+
+	if ((args->flags & XFSMNT_BARRIER) &&
+	    !(XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY))
+		xfs_mountfs_check_barriers(mp);
+	return 0;
+
 error2:
 	if (mp->m_sb_bp)
 		xfs_freesb(mp);
@@ -656,19 +662,24 @@ xfs_mntupdate(
 	else
 		mp->m_flags &= ~XFS_MOUNT_NOATIME;
 
-	if (!(vfsp->vfs_flag & VFS_RDONLY)) {
-		VFS_SYNC(vfsp, SYNC_FSDATA|SYNC_BDFLUSH|SYNC_ATTR, NULL, error);
+	if ((vfsp->vfs_flag & VFS_RDONLY) &&
+	    !(*flags & MS_RDONLY)) {
+		vfsp->vfs_flag &= ~VFS_RDONLY;
+
+		if (args->flags & XFSMNT_BARRIER)
+			xfs_mountfs_check_barriers(mp);
 	}
 
-	if (*flags & MS_RDONLY) {
+	if (!(vfsp->vfs_flag & VFS_RDONLY) &&
+	    (*flags & MS_RDONLY)) {
+		VFS_SYNC(vfsp, SYNC_FSDATA|SYNC_BDFLUSH|SYNC_ATTR, NULL, error);
+
 		xfs_quiesce_fs(mp);
 
 		/* Ok now write out an unmount record */
 		xfs_log_unmount_write(mp);
 		xfs_unmountfs_writesb(mp);
 		vfsp->vfs_flag |= VFS_RDONLY;
-	} else {
-		vfsp->vfs_flag &= ~VFS_RDONLY;
 	}
 
 	return 0;
@@ -1628,7 +1639,8 @@ xfs_vget(
 #define MNTOPT_ALLOCSIZE    "allocsize"    /* preferred allocation size */
 #define MNTOPT_IHASHSIZE    "ihashsize"    /* size of inode hash table */
 #define MNTOPT_NORECOVERY   "norecovery"   /* don't run XFS recovery */
-#define MNTOPT_NOLOGFLUSH   "nologflush"   /* don't hard flush on log writes */
+#define MNTOPT_BARRIER	"barrier"	/* use writer barriers for log write and
+					   unwritten extent conversion */
 #define MNTOPT_OSYNCISOSYNC "osyncisosync" /* o_sync is REALLY o_sync */
 #define MNTOPT_64BITINODE   "inode64"	/* inodes can be allocated anywhere */
 #define MNTOPT_IKEEP	"ikeep"		/* do not free empty inode clusters */
@@ -1791,8 +1803,8 @@ xfs_parseargs(
 #endif
 		} else if (!strcmp(this_char, MNTOPT_NOUUID)) {
 			args->flags |= XFSMNT_NOUUID;
-		} else if (!strcmp(this_char, MNTOPT_NOLOGFLUSH)) {
-			args->flags |= XFSMNT_NOLOGFLUSH;
+		} else if (!strcmp(this_char, MNTOPT_BARRIER)) {
+			args->flags |= XFSMNT_BARRIER;
 		} else if (!strcmp(this_char, MNTOPT_IKEEP)) {
 			args->flags &= ~XFSMNT_IDELETE;
 		} else if (!strcmp(this_char, MNTOPT_NOIKEEP)) {
@@ -1866,7 +1878,7 @@ xfs_showargs(
 		{ XFS_MOUNT_NOUUID,		"," MNTOPT_NOUUID },
 		{ XFS_MOUNT_NORECOVERY,		"," MNTOPT_NORECOVERY },
 		{ XFS_MOUNT_OSYNCISOSYNC,	"," MNTOPT_OSYNCISOSYNC },
-		{ XFS_MOUNT_NOLOGFLUSH,		"," MNTOPT_NOLOGFLUSH },
+		{ XFS_MOUNT_BARRIER,		"," MNTOPT_BARRIER },
 		{ XFS_MOUNT_IDELETE,		"," MNTOPT_NOIKEEP },
 		{ 0, NULL }
 	};

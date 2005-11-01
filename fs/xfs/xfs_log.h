@@ -174,9 +174,12 @@ xfs_lsn_t xfs_log_done(struct xfs_mount *mp,
 		       xfs_log_ticket_t ticket,
 		       void		**iclog,
 		       uint		flags);
-int	  xfs_log_force(struct xfs_mount *mp,
-			xfs_lsn_t	 lsn,
-			uint		 flags);
+int	  _xfs_log_force(struct xfs_mount *mp,
+			 xfs_lsn_t	lsn,
+			 uint		flags,
+			 int		*log_forced);
+#define xfs_log_force(mp, lsn, flags) \
+	_xfs_log_force(mp, lsn, flags, NULL);
 int	  xfs_log_mount(struct xfs_mount	*mp,
 			struct xfs_buftarg	*log_target,
 			xfs_daddr_t		start_block,

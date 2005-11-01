@@ -99,7 +99,7 @@ struct xfs_mount_args {
 						 * enforcement */
 #define XFSMNT_NOUUID		0x01000000	/* Ignore fs uuid */
 #define XFSMNT_DMAPI		0x02000000	/* enable dmapi/xdsm */
-#define XFSMNT_NOLOGFLUSH	0x04000000	/* Don't flush for log blocks */
+#define XFSMNT_BARRIER		0x04000000	/* use write barriers */
 #define XFSMNT_IDELETE		0x08000000	/* inode cluster delete */
 #define XFSMNT_SWALLOC		0x10000000	/* turn on stripe width
 						 * allocation */

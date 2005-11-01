@@ -1295,6 +1295,11 @@ _pagebuf_ioapply(
 		rw = (pb->pb_flags & PBF_READ) ? READ : WRITE;
 	}
 
+	if (pb->pb_flags & PBF_ORDERED) {
+		ASSERT(!(pb->pb_flags & PBF_READ));
+		rw = WRITE_BARRIER;
+	}
+
 	/* Special code path for reading a sub page size pagebuf in --
 	 * we populate up the whole page, and hence the other metadata
 	 * in the same page.  This optimization is only valid when the

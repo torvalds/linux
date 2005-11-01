@@ -93,8 +93,11 @@ STATIC int  xlog_state_release_iclog(xlog_t		*log,
 STATIC void xlog_state_switch_iclogs(xlog_t		*log,
 				     xlog_in_core_t *iclog,
 				     int		eventual_size);
-STATIC int  xlog_state_sync(xlog_t *log, xfs_lsn_t lsn, uint flags);
-STATIC int  xlog_state_sync_all(xlog_t *log, uint flags);
+STATIC int  xlog_state_sync(xlog_t			*log,
+			    xfs_lsn_t 			lsn,
+			    uint			flags,
+			    int				*log_flushed);
+STATIC int  xlog_state_sync_all(xlog_t *log, uint flags, int *log_flushed);
 STATIC void xlog_state_want_sync(xlog_t	*log, xlog_in_core_t *iclog);
 
 /* local functions to manipulate grant head */
@@ -312,12 +315,17 @@ xfs_log_done(xfs_mount_t	*mp,
  * semaphore.
  */
 int
-xfs_log_force(xfs_mount_t *mp,
-	      xfs_lsn_t	  lsn,
-	      uint	  flags)
+_xfs_log_force(
+	xfs_mount_t	*mp,
+	xfs_lsn_t	lsn,
+	uint		flags,
+	int		*log_flushed)
 {
-	int	rval;
-	xlog_t *log = mp->m_log;
+	xlog_t		*log = mp->m_log;
+	int		dummy;
+
+	if (!log_flushed)
+		log_flushed = &dummy;
 
 #if defined(DEBUG) || defined(XLOG_NOLOG)
 	if (!xlog_debug && xlog_target == log->l_targ)
@@ -328,17 +336,12 @@ xfs_log_force(xfs_mount_t *mp,
 
 	XFS_STATS_INC(xs_log_force);
 
-	if ((log->l_flags & XLOG_IO_ERROR) == 0) {
-		if (lsn == 0)
-			rval = xlog_state_sync_all(log, flags);
-		else
-			rval = xlog_state_sync(log, lsn, flags);
-	} else {
-		rval = XFS_ERROR(EIO);
-	}
-
-	return rval;
-
+	if (log->l_flags & XLOG_IO_ERROR)
+		return XFS_ERROR(EIO);
+	if (lsn == 0)
+		return xlog_state_sync_all(log, flags, log_flushed);
+	else
+		return xlog_state_sync(log, lsn, flags, log_flushed);
 }	/* xfs_log_force */
 
 /*
@@ -1467,14 +1470,13 @@ xlog_sync(xlog_t		*log,
 	XFS_BUF_BUSY(bp);
 	XFS_BUF_ASYNC(bp);
 	/*
-	 * Do a disk write cache flush for the log block.
-	 * This is a bit of a sledgehammer, it would be better
-	 * to use a tag barrier here that just prevents reordering.
+	 * Do an ordered write for the log block.
+	 *
 	 * It may not be needed to flush the first split block in the log wrap
 	 * case, but do it anyways to be safe -AK
 	 */
-	if (!(log->l_mp->m_flags & XFS_MOUNT_NOLOGFLUSH))
-		XFS_BUF_FLUSH(bp);
+	if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)
+		XFS_BUF_ORDERED(bp);
 
 	ASSERT(XFS_BUF_ADDR(bp) <= log->l_logBBsize-1);
 	ASSERT(XFS_BUF_ADDR(bp) + BTOBB(count) <= log->l_logBBsize);
@@ -1505,8 +1507,8 @@ xlog_sync(xlog_t		*log,
 		XFS_BUF_SET_FSPRIVATE(bp, iclog);
 		XFS_BUF_BUSY(bp);
 		XFS_BUF_ASYNC(bp);
-		if (!(log->l_mp->m_flags & XFS_MOUNT_NOLOGFLUSH))
-			XFS_BUF_FLUSH(bp);
+		if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)
+			XFS_BUF_ORDERED(bp);
 		dptr = XFS_BUF_PTR(bp);
 		/*
 		 * Bump the cycle numbers at the start of each block
@@ -2951,7 +2953,7 @@ xlog_state_switch_iclogs(xlog_t		*log,
  *		not in the active nor dirty state.
  */
 STATIC int
-xlog_state_sync_all(xlog_t *log, uint flags)
+xlog_state_sync_all(xlog_t *log, uint flags, int *log_flushed)
 {
 	xlog_in_core_t	*iclog;
 	xfs_lsn_t	lsn;
@@ -3000,6 +3002,7 @@ xlog_state_sync_all(xlog_t *log, uint flags)
 
 				if (xlog_state_release_iclog(log, iclog))
 					return XFS_ERROR(EIO);
+				*log_flushed = 1;
 				s = LOG_LOCK(log);
 				if (INT_GET(iclog->ic_header.h_lsn, ARCH_CONVERT) == lsn &&
 				    iclog->ic_state != XLOG_STATE_DIRTY)
@@ -3043,6 +3046,7 @@ maybe_sleep:
 		 */
 		if (iclog->ic_state & XLOG_STATE_IOERROR)
 			return XFS_ERROR(EIO);
+		*log_flushed = 1;
 
 	} else {
 
@@ -3068,7 +3072,8 @@ no_sleep:
 int
 xlog_state_sync(xlog_t	  *log,
 		xfs_lsn_t lsn,
-		uint	  flags)
+		uint	  flags,
+		int	  *log_flushed)
 {
     xlog_in_core_t	*iclog;
     int			already_slept = 0;
@@ -3120,6 +3125,7 @@ try_again:
 			XFS_STATS_INC(xs_log_force_sleep);
 			sv_wait(&iclog->ic_prev->ic_writesema, PSWP,
 				&log->l_icloglock, s);
+			*log_flushed = 1;
 			already_slept = 1;
 			goto try_again;
 		} else {
@@ -3128,6 +3134,7 @@ try_again:
 			LOG_UNLOCK(log, s);
 			if (xlog_state_release_iclog(log, iclog))
 				return XFS_ERROR(EIO);
+			*log_flushed = 1;
 			s = LOG_LOCK(log);
 		}
 	}
@@ -3152,6 +3159,7 @@ try_again:
 		 */
 		if (iclog->ic_state & XLOG_STATE_IOERROR)
 			return XFS_ERROR(EIO);
+		*log_flushed = 1;
 	} else {		/* just return */
 		LOG_UNLOCK(log, s);
 	}
@@ -3606,6 +3614,7 @@ xfs_log_force_umount(
 	xlog_ticket_t	*tic;
 	xlog_t		*log;
 	int		retval;
+	int		dummy;
 	SPLDECL(s);
 	SPLDECL(s2);
 
@@ -3684,7 +3693,7 @@ xfs_log_force_umount(
 		 * Force the incore logs to disk before shutting the
 		 * log down completely.
 		 */
-		xlog_state_sync_all(log, XFS_LOG_FORCE|XFS_LOG_SYNC);
+		xlog_state_sync_all(log, XFS_LOG_FORCE|XFS_LOG_SYNC, &dummy);
 		s2 = LOG_LOCK(log);
 		retval = xlog_state_ioerror(log);
 		LOG_UNLOCK(log, s2);

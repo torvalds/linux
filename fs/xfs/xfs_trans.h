@@ -1025,7 +1025,12 @@ void		xfs_trans_log_efd_extent(xfs_trans_t *,
 					 struct xfs_efd_log_item *,
 					 xfs_fsblock_t,
 					 xfs_extlen_t);
-int		xfs_trans_commit(xfs_trans_t *, uint flags, xfs_lsn_t *);
+int		_xfs_trans_commit(xfs_trans_t *,
+				  uint flags,
+				  xfs_lsn_t *,
+				  int *);
+#define xfs_trans_commit(tp, flags, lsn) \
+	_xfs_trans_commit(tp, flags, lsn, NULL)
 void		xfs_trans_cancel(xfs_trans_t *, int);
 void		xfs_trans_ail_init(struct xfs_mount *);
 xfs_lsn_t	xfs_trans_push_ail(struct xfs_mount *, xfs_lsn_t);
