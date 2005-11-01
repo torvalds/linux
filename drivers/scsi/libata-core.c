@@ -2790,7 +2790,8 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
  *	None.  (executing in kernel thread context)
  *
  *	RETURNS:
- *	Non-zero if qc completed, zero otherwise.
+ *	Zero if qc completed.
+ *	Non-zero if has next.
  */
 
 static int ata_pio_complete (struct ata_port *ap)
@@ -2812,14 +2813,14 @@ static int ata_pio_complete (struct ata_port *ap)
 		if (drv_stat & (ATA_BUSY | ATA_DRQ)) {
 			ap->hsm_task_state = HSM_ST_LAST_POLL;
 			ap->pio_task_timeout = jiffies + ATA_TMOUT_PIO;
-			return 0;
+			return 1;
 		}
 	}
 
 	drv_stat = ata_wait_idle(ap);
 	if (!ata_ok(drv_stat)) {
 		ap->hsm_task_state = HSM_ST_ERR;
-		return 0;
+		return 1;
 	}
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
@@ -2831,7 +2832,7 @@ static int ata_pio_complete (struct ata_port *ap)
 
 	/* another command may start at this point */
 
-	return 1;
+	return 0;
 }
 
 
@@ -3068,27 +3069,42 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
  *
  *	LOCKING:
  *	Kernel thread context (may sleep)
+ *
+ *	RETURNS:
+ *	Zero if irq handler takes over
+ *	Non-zero if has next (polling).
  */
 
-static void ata_pio_first_block(struct ata_port *ap)
+static int ata_pio_first_block(struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc;
 	u8 status;
 	unsigned long flags;
+	int has_next;
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	assert(qc != NULL);
 	assert(qc->flags & ATA_QCFLAG_ACTIVE);
 
+	/* if polling, we will stay in the work queue after sending the data.
+	 * otherwise, interrupt handler takes over after sending the data.
+	 */
+	has_next = (qc->tf.flags & ATA_TFLAG_POLLING);
+
 	/* sleep-wait for BSY to clear */
 	DPRINTK("busy wait\n");
-	if (ata_busy_sleep(ap, ATA_TMOUT_DATAOUT_QUICK, ATA_TMOUT_DATAOUT))
+	if (ata_busy_sleep(ap, ATA_TMOUT_DATAOUT_QUICK, ATA_TMOUT_DATAOUT)) {
+		ap->hsm_task_state = HSM_ST_TMOUT;
 		goto err_out;
+	}
 
 	/* make sure DRQ is set */
 	status = ata_chk_status(ap);
-	if ((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ)
+	if ((status & (ATA_BUSY | ATA_DRQ)) != ATA_DRQ) {
+		/* device status error */
+		ap->hsm_task_state = HSM_ST_ERR;
 		goto err_out;
+	}
 
 	/* Send the CDB (atapi) or the first data block (ata pio out).
 	 * During the state transition, interrupt handler shouldn't
@@ -3112,18 +3128,15 @@ static void ata_pio_first_block(struct ata_port *ap)
 		/* send CDB */
 		atapi_send_cdb(ap, qc);
 
+	spin_unlock_irqrestore(&ap->host_set->lock, flags);
+
 	/* if polling, ata_pio_task() handles the rest.
 	 * otherwise, interrupt handler takes over from here.
 	 */
-	if (qc->tf.flags & ATA_TFLAG_POLLING)
-		queue_work(ata_wq, &ap->pio_task);
-
-	spin_unlock_irqrestore(&ap->host_set->lock, flags);
-
-	return;
+	return has_next;
 
 err_out:
-	ata_pio_error(ap);
+	return 1; /* has next */
 }
 
 /**
@@ -3338,23 +3351,23 @@ static void ata_pio_task(void *_data)
 {
 	struct ata_port *ap = _data;
 	unsigned long timeout;
-	int qc_completed;
+	int has_next;
 
 fsm_start:
 	timeout = 0;
-	qc_completed = 0;
+	has_next = 1;
 
 	switch (ap->hsm_task_state) {
 	case HSM_ST_FIRST:
-		ata_pio_first_block(ap);
-		return;
+		has_next = ata_pio_first_block(ap);
+		break;
 
 	case HSM_ST:
 		ata_pio_block(ap);
 		break;
 
 	case HSM_ST_LAST:
-		qc_completed = ata_pio_complete(ap);
+		has_next = ata_pio_complete(ap);
 		break;
 
 	case HSM_ST_POLL:
@@ -3374,7 +3387,7 @@ fsm_start:
 
 	if (timeout)
 		queue_delayed_work(ata_wq, &ap->pio_task, timeout);
-	else if (!qc_completed)
+	else if (has_next)
 		goto fsm_start;
 }
 
