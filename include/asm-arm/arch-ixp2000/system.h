@@ -44,11 +44,5 @@ static inline void arch_reset(char mode)
 		*IXDP2X01_CPLD_RESET_REG = 0x80000000;
 	}
 
-	/*
-	 * We do a reset all if we are PCI master. We could be a slave and we
-	 * don't want to do anything funky on the PCI bus.
-	 */
-	if (*IXP2000_STRAP_OPTIONS & CFG_PCI_BOOT_HOST) {
-		*(IXP2000_RESET0) |= (RSTALL);
-	}
+	*IXP2000_RESET0 = RSTALL;
 }
