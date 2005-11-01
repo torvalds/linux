@@ -6008,6 +6008,7 @@ static int __devinit ipr_probe(struct pci_dev *pdev,
 	ipr_scan_vsets(ioa_cfg);
 	scsi_add_device(ioa_cfg->host, IPR_IOA_BUS, IPR_IOA_TARGET, IPR_IOA_LUN);
 	ioa_cfg->allow_ml_add_del = 1;
+	ioa_cfg->host->max_channel = IPR_VSET_BUS;
 	schedule_work(&ioa_cfg->work_q);
 	return 0;
 }
