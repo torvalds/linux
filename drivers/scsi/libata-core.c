@@ -3056,8 +3056,8 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
 }
 
 /**
- *	ata_dataout_task - Write first data block to hardware
- *	@_data: Port to which ATA/ATAPI device is attached.
+ *	ata_pio_first_block - Write first data block to hardware
+ *	@ap: Port to which ATA/ATAPI device is attached.
  *
  *	When device has indicated its readiness to accept
  *	the data, this function sends out the CDB or 
@@ -3070,9 +3070,8 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
  *	Kernel thread context (may sleep)
  */
 
-static void ata_dataout_task(void *_data)
+static void ata_pio_first_block(struct ata_port *ap)
 {
-	struct ata_port *ap = _data;
 	struct ata_queued_cmd *qc;
 	u8 status;
 	unsigned long flags;
@@ -3346,6 +3345,10 @@ fsm_start:
 	qc_completed = 0;
 
 	switch (ap->hsm_task_state) {
+	case HSM_ST_FIRST:
+		ata_pio_first_block(ap);
+		return;
+
 	case HSM_ST:
 		ata_pio_block(ap);
 		break;
@@ -3796,10 +3799,10 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		if (qc->tf.flags & ATA_TFLAG_WRITE) {
 			/* PIO data out protocol */
 			ap->hsm_task_state = HSM_ST_FIRST;
-			queue_work(ata_wq, &ap->dataout_task);
+			queue_work(ata_wq, &ap->pio_task);
 
 			/* always send first data block using
-			 * the ata_dataout_task() codepath.
+			 * the ata_pio_task() codepath.
 			 */
 		} else {
 			/* PIO data in protocol */
@@ -3826,7 +3829,7 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 		/* send cdb by polling if no cdb interrupt */
 		if ((!(qc->dev->flags & ATA_DFLAG_CDB_INTR)) ||
 		    (qc->tf.flags & ATA_TFLAG_POLLING))
-			queue_work(ata_wq, &ap->dataout_task);
+			queue_work(ata_wq, &ap->pio_task);
 		break;
 
 	case ATA_PROT_ATAPI_DMA:
@@ -3838,7 +3841,7 @@ int ata_qc_issue_prot(struct ata_queued_cmd *qc)
 
 		/* send cdb by polling if no cdb interrupt */
 		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
-			queue_work(ata_wq, &ap->dataout_task);
+			queue_work(ata_wq, &ap->pio_task);
 		break;
 
 	default:
@@ -4426,7 +4429,6 @@ static void ata_host_init(struct ata_port *ap, struct Scsi_Host *host,
 	ap->active_tag = ATA_TAG_POISON;
 	ap->last_ctl = 0xFF;
 
-	INIT_WORK(&ap->dataout_task, ata_dataout_task, ap);
 	INIT_WORK(&ap->pio_task, ata_pio_task, ap);
 
 	for (i = 0; i < ATA_MAX_DEVICES; i++)
