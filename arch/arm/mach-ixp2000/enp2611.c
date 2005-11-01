@@ -64,6 +64,35 @@ static struct sys_timer enp2611_timer = {
 
 
 /*************************************************************************
+ * ENP-2611 I/O
+ *************************************************************************/
+static struct map_desc enp2611_io_desc[] __initdata = {
+	{
+		.virtual	= ENP2611_CALEB_VIRT_BASE,
+		.physical	= ENP2611_CALEB_PHYS_BASE,
+		.length		= ENP2611_CALEB_SIZE,
+		.type		= MT_IXP2000_DEVICE
+	}, {
+		.virtual	= ENP2611_PM3386_0_VIRT_BASE,
+		.physical	= ENP2611_PM3386_0_PHYS_BASE,
+		.length		= ENP2611_PM3386_0_SIZE,
+		.type		= MT_IXP2000_DEVICE
+	}, {
+		.virtual	= ENP2611_PM3386_1_VIRT_BASE,
+		.physical	= ENP2611_PM3386_1_PHYS_BASE,
+		.length		= ENP2611_PM3386_1_SIZE,
+		.type		= MT_IXP2000_DEVICE
+	}
+};
+
+void __init enp2611_map_io(void)
+{
+	ixp2000_map_io();
+	iotable_init(enp2611_io_desc, ARRAY_SIZE(enp2611_io_desc));
+}
+
+
+/*************************************************************************
  * ENP-2611 PCI
  *************************************************************************/
 static int enp2611_pci_setup(int nr, struct pci_sys_data *sys)
@@ -229,7 +258,7 @@ MACHINE_START(ENP2611, "Radisys ENP-2611 PCI network processor board")
 	.phys_io	= IXP2000_UART_PHYS_BASE,
 	.io_pg_offst	= ((IXP2000_UART_VIRT_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x00000100,
-	.map_io		= ixp2000_map_io,
+	.map_io		= enp2611_map_io,
 	.init_irq	= ixp2000_init_irq,
 	.timer		= &enp2611_timer,
 	.init_machine	= enp2611_init_machine,
