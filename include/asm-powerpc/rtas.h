@@ -171,6 +171,9 @@ struct flash_block_list_header { /* just the header of flash_block_list */
 	struct flash_block_list *next;
 };
 extern struct flash_block_list_header rtas_firmware_flash_list;
+void rtas_fw_restart(char *cmd);
+void rtas_fw_power_off(void);
+void rtas_fw_halt(void);
 
 extern struct rtas_t rtas;
 

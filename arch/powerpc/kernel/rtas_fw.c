@@ -1,6 +1,6 @@
 /*
  *
- * Procedures for firmware flash updates on pSeries systems.
+ * Procedures for firmware flash updates.
  *
  * Peter Bergner, IBM	March 2001.
  * Copyright (C) 2001 IBM.
@@ -30,8 +30,6 @@
 #include <asm/delay.h>
 #include <asm/uaccess.h>
 #include <asm/systemcfg.h>
-
-#include "rtas-fw.h"
 
 struct flash_block_list_header rtas_firmware_flash_list = {0, NULL};
 

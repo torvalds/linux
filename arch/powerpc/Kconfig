@@ -278,6 +278,7 @@ config PPC_PSERIES
 	select PPC_I8259
 	select PPC_RTAS
 	select RTAS_ERROR_LOGGING
+	select RTAS_FW
 	default y
 
 config PPC_CHRP
@@ -323,6 +324,7 @@ config PPC_CELL
 	bool "  Cell Broadband Processor Architecture"
 	depends on PPC_MULTIPLATFORM && PPC64
 	select PPC_RTAS
+	select RTAS_FW
 
 config PPC_OF
 	bool
@@ -349,6 +351,11 @@ config PPC_RTAS
 	default n
 
 config RTAS_ERROR_LOGGING
+	bool
+	depends on PPC_RTAS
+	default n
+
+config RTAS_FW
 	bool
 	depends on PPC_RTAS
 	default n
