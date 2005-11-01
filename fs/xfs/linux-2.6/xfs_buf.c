@@ -286,7 +286,7 @@ _pagebuf_initialize(
 	 * most cases but may be reset (e.g. XFS recovery).
 	 */
 	pb->pb_buffer_length = pb->pb_count_desired = range_length;
-	pb->pb_flags = flags | PBF_NONE;
+	pb->pb_flags = flags;
 	pb->pb_bn = XFS_BUF_DADDR_NULL;
 	atomic_set(&pb->pb_pin_count, 0);
 	init_waitqueue_head(&pb->pb_waiters);
@@ -458,8 +458,8 @@ _pagebuf_lookup_pages(
 			unlock_page(bp->pb_pages[i]);
 	}
 
-	if (page_count)
-		bp->pb_flags &= ~PBF_NONE;
+	if (page_count == bp->pb_page_count)
+		bp->pb_flags |= PBF_DONE;
 
 	PB_TRACE(bp, "lookup_pages", (long)page_count);
 	return error;
@@ -1119,7 +1119,7 @@ pagebuf_iodone(
 {
 	pb->pb_flags &= ~(PBF_READ | PBF_WRITE);
 	if (pb->pb_error == 0)
-		pb->pb_flags &= ~PBF_NONE;
+		pb->pb_flags |= PBF_DONE;
 
 	PB_TRACE(pb, "iodone", pb->pb_iodone);
 

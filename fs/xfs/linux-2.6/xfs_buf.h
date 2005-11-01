@@ -70,7 +70,7 @@ typedef enum page_buf_flags_e {		/* pb_flags values */
 	PBF_WRITE = (1 << 1),	/* buffer intended for writing to device   */
 	PBF_MAPPED = (1 << 2),  /* buffer mapped (pb_addr valid)           */
 	PBF_ASYNC = (1 << 4),   /* initiator will not wait for completion  */
-	PBF_NONE = (1 << 5),    /* buffer not read at all                  */
+	PBF_DONE = (1 << 5),    /* all pages in the buffer uptodate	   */
 	PBF_DELWRI = (1 << 6),  /* buffer has dirty pages                  */
 	PBF_STALE = (1 << 7),	/* buffer has been staled, do not find it  */
 	PBF_FS_MANAGED = (1 << 8),  /* filesystem controls freeing memory  */
@@ -371,9 +371,9 @@ extern void pagebuf_trace(
 #define XFS_BUF_GETERROR(x)	 pagebuf_geterror(x)
 #define XFS_BUF_ISERROR(x)	 (pagebuf_geterror(x)?1:0)
 
-#define XFS_BUF_DONE(x)		 ((x)->pb_flags &= ~PBF_NONE)
-#define XFS_BUF_UNDONE(x)	 ((x)->pb_flags |= PBF_NONE)
-#define XFS_BUF_ISDONE(x)	 (((x)->pb_flags & PBF_NONE) == 0)
+#define XFS_BUF_DONE(x)		 ((x)->pb_flags |= PBF_DONE)
+#define XFS_BUF_UNDONE(x)	 ((x)->pb_flags &= ~PBF_DONE)
+#define XFS_BUF_ISDONE(x)	 ((x)->pb_flags & PBF_DONE)
 
 #define XFS_BUF_BUSY(x)		 do { } while (0)
 #define XFS_BUF_UNBUSY(x)	 do { } while (0)
