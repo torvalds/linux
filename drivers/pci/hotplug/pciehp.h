@@ -59,14 +59,8 @@ struct pci_func {
 	u8 configured;
 	u8 switch_save;
 	u8 presence_save;
-	u32 base_length[0x06];
-	u8 base_type[0x06];
 	u16 reserved2;
 	u32 config_space[0x20];
-	struct pci_resource *mem_head;
-	struct pci_resource *p_mem_head;
-	struct pci_resource *io_head;
-	struct pci_resource *bus_head;
 	struct pci_dev* pci_dev;
 };
 
@@ -90,12 +84,6 @@ struct slot {
 	struct list_head	slot_list;
 };
 
-struct pci_resource {
-	struct pci_resource * next;
-	u32 base;
-	u32 length;
-};
-
 struct event_info {
 	u32 event_type;
 	u8 hp_slot;
@@ -107,10 +95,6 @@ struct controller {
 	void *hpc_ctlr_handle;		/* HPC controller handle */
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */
-	struct pci_resource *mem_head;
-	struct pci_resource *p_mem_head;
-	struct pci_resource *io_head;
-	struct pci_resource *bus_head;
 	struct pci_dev *pci_dev;
 	struct pci_bus *pci_bus;
 	struct event_info event_queue[10];
@@ -131,20 +115,6 @@ struct controller {
 	u8 ctrlcap;
 	u16 vendor_id;
 	u8 cap_base;
-};
-
-struct irq_mapping {
-	u8 barber_pole;
-	u8 valid_INT;
-	u8 interrupt[4];
-};
-
-struct resource_lists {
-	struct pci_resource *mem_head;
-	struct pci_resource *p_mem_head;
-	struct pci_resource *io_head;
-	struct pci_resource *bus_head;
-	struct irq_mapping *irqs;
 };
 
 #define INT_BUTTON_IGNORE		0
@@ -203,14 +173,12 @@ struct resource_lists {
 #define msg_HPC_rev_error	"Unsupported revision of the PCI hot plug controller found.\n"
 #define msg_HPC_non_pcie	"The PCI hot plug controller is not supported by this driver.\n"
 #define msg_HPC_not_supported	"This system is not supported by this version of pciephd module. Upgrade to a newer version of pciehpd\n"
-#define msg_unable_to_save	"Unable to store PCI hot plug add resource information. This system must be rebooted before adding any PCI devices.\n"
 #define msg_button_on		"PCI slot #%d - powering on due to button press.\n"
 #define msg_button_off		"PCI slot #%d - powering off due to button press.\n"
 #define msg_button_cancel	"PCI slot #%d - action canceled due to button press.\n"
 #define msg_button_ignore	"PCI slot #%d - button press ignored.  (action in progress...)\n"
 
 /* controller functions */
-extern int	pciehprm_find_available_resources	(struct controller *ctrl);
 extern int	pciehp_event_start_thread	(void);
 extern void	pciehp_event_stop_thread	(void);
 extern struct 	pci_func *pciehp_slot_create	(unsigned char busnumber);
@@ -224,19 +192,12 @@ extern u8	pciehp_handle_presence_change	(u8 hp_slot, void *inst_id);
 extern u8	pciehp_handle_power_fault	(u8 hp_slot, void *inst_id);
 /* extern void	long_delay (int delay); */
 
-/* resource functions */
-extern int	pciehp_resource_sort_and_combine	(struct pci_resource **head);
-
 /* pci functions */
 extern int	pciehp_set_irq			(u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num);
 /*extern int	pciehp_get_bus_dev		(struct controller *ctrl, u8 *bus_num, u8 *dev_num, struct slot *slot);*/
 extern int	pciehp_save_config	 	(struct controller *ctrl, int busnumber, int num_ctlr_slots, int first_device_num);
-extern int	pciehp_save_used_resources	(struct controller *ctrl, struct pci_func * func, int flag);
 extern int	pciehp_save_slot_config		(struct controller *ctrl, struct pci_func * new_slot);
-extern void	pciehp_destroy_board_resources	(struct pci_func * func);
-extern int	pciehp_return_board_resources	(struct pci_func * func, struct resource_lists * resources);
-extern void	pciehp_destroy_resource_list	(struct resource_lists * resources);
-extern int	pciehp_configure_device		(struct controller* ctrl, struct pci_func* func);
+extern int	pciehp_configure_device		(struct slot *ctrl);
 extern int	pciehp_unconfigure_device	(struct pci_func* func);
 
 
@@ -287,15 +248,6 @@ static inline int wait_for_ctrl_irq(struct controller *ctrl)
 
 	dbg("%s : end\n", __FUNCTION__);
 	return retval;
-}
-
-/* Puts node back in the resource list pointed to by head */
-static inline void return_resource(struct pci_resource **head, struct pci_resource *node)
-{
-	if (!node || !head)
-		return;
-	node->next = *head;
-	*head = node;
 }
 
 #define SLOT_NAME_SIZE 10

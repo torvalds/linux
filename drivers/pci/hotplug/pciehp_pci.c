@@ -37,46 +37,69 @@
 #include <linux/pci.h>
 #include "../pci.h"
 #include "pciehp.h"
-#ifndef CONFIG_IA64
-#include "../../../arch/i386/pci/pci.h"    /* horrible hack showing how processor dependant we are... */
-#endif
 
 
-int pciehp_configure_device (struct controller* ctrl, struct pci_func* func)  
+int pciehp_configure_device(struct slot *p_slot)
 {
-	unsigned char bus;
-	struct pci_bus *child;
-	int num;
+	struct pci_dev *dev;
+	struct pci_bus *parent = p_slot->ctrl->pci_dev->subordinate;
+	int num, fn;
 
-	if (func->pci_dev == NULL)
-		func->pci_dev = pci_find_slot(func->bus, PCI_DEVFN(func->device, func->function));
+	dev = pci_find_slot(p_slot->bus, PCI_DEVFN(p_slot->device, 0));
+	if (dev) {
+		err("Device %s already exists at %x:%x, cannot hot-add\n",
+				pci_name(dev), p_slot->bus, p_slot->device);
+		return -EINVAL;
+	}
 
-	/* Still NULL ? Well then scan for it ! */
-	if (func->pci_dev == NULL) {
-		dbg("%s: pci_dev still null. do pci_scan_slot\n", __FUNCTION__);
+	num = pci_scan_slot(parent, PCI_DEVFN(p_slot->device, 0));
+	if (num == 0) {
+		err("No new device found\n");
+		return -ENODEV;
+	}
 
-		num = pci_scan_slot(ctrl->pci_dev->subordinate, PCI_DEVFN(func->device, func->function));
-
-		if (num)
-			pci_bus_add_devices(ctrl->pci_dev->subordinate);
-		
-		func->pci_dev = pci_find_slot(func->bus, PCI_DEVFN(func->device, func->function));
-		if (func->pci_dev == NULL) {
-			dbg("ERROR: pci_dev still null\n");
-			return 0;
+	for (fn = 0; fn < 8; fn++) {
+		if (!(dev = pci_find_slot(p_slot->bus,
+					PCI_DEVFN(p_slot->device, fn))))
+			continue;
+		if ((dev->class >> 16) == PCI_BASE_CLASS_DISPLAY) {
+			err("Cannot hot-add display device %s\n",
+					pci_name(dev));
+			continue;
 		}
+		if ((dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) ||
+				(dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)) {
+			/* Find an unused bus number for the new bridge */
+			struct pci_bus *child;
+			unsigned char busnr, start = parent->secondary;
+			unsigned char end = parent->subordinate;
+			for (busnr = start; busnr <= end; busnr++) {
+				if (!pci_find_bus(pci_domain_nr(parent),
+							busnr))
+					break;
+			}
+			if (busnr >= end) {
+				err("No free bus for hot-added bridge\n");
+				continue;
+			}
+			child = pci_add_new_bus(parent, dev, busnr);
+			if (!child) {
+				err("Cannot add new bus for %s\n",
+						pci_name(dev));
+				continue;
+			}
+			child->subordinate = pci_do_scan_bus(child);
+			pci_bus_size_bridges(child);
+		}
+		/* TBD: program firmware provided _HPP values */
+		/* program_fw_provided_values(dev); */
 	}
 
-	if (func->pci_dev->hdr_type == PCI_HEADER_TYPE_BRIDGE) {
-		pci_read_config_byte(func->pci_dev, PCI_SECONDARY_BUS, &bus);
-		child = pci_add_new_bus(func->pci_dev->bus, (func->pci_dev), bus);
-		pci_do_scan_bus(child);
-
-	}
-
+	pci_bus_assign_resources(parent);
+	pci_bus_add_devices(parent);
+	pci_enable_bridges(parent);
 	return 0;
 }
-
 
 int pciehp_unconfigure_device(struct pci_func* func) 
 {
@@ -103,47 +126,6 @@ int pciehp_unconfigure_device(struct pci_func* func)
 	
 	return rc;
 }
-
-/*
- * pciehp_set_irq
- *
- * @bus_num: bus number of PCI device
- * @dev_num: device number of PCI device
- * @slot: pointer to u8 where slot number will be returned
- */
-int pciehp_set_irq (u8 bus_num, u8 dev_num, u8 int_pin, u8 irq_num)
-{
-#if defined(CONFIG_X86_32) && !defined(CONFIG_X86_IO_APIC)
-	int rc;
-	u16 temp_word;
-	struct pci_dev fakedev;
-	struct pci_bus fakebus;
-
-	fakedev.devfn = dev_num << 3;
-	fakedev.bus = &fakebus;
-	fakebus.number = bus_num;
-	dbg("%s: dev %d, bus %d, pin %d, num %d\n",
-	    __FUNCTION__, dev_num, bus_num, int_pin, irq_num);
-	rc = pcibios_set_irq_routing(&fakedev, int_pin - 0x0a, irq_num);
-	dbg("%s: rc %d\n", __FUNCTION__, rc);
-	if (!rc)
-		return !rc;
-
-	/* set the Edge Level Control Register (ELCR) */
-	temp_word = inb(0x4d0);
-	temp_word |= inb(0x4d1) << 8;
-
-	temp_word |= 0x01 << irq_num;
-
-	/* This should only be for x86 as it sets the Edge Level Control Register */
-	outb((u8) (temp_word & 0xFF), 0x4d0);
-	outb((u8) ((temp_word & 0xFF00) >> 8), 0x4d1);
-#endif
-	return 0;
-}
-
-/* More PCI configuration routines; this time centered around hotplug controller */
-
 
 /*
  * pciehp_save_config
@@ -462,366 +444,3 @@ int pciehp_save_slot_config(struct controller *ctrl, struct pci_func * new_slot)
 	return 0;
 }
 
-
-/*
- * pciehp_save_used_resources
- *
- * Stores used resource information for existing boards.  this is
- * for boards that were in the system when this driver was loaded.
- * this function is for hot plug ADD
- *
- * returns 0 if success
- * if disable  == 1(DISABLE_CARD),
- *  it loops for all functions of the slot and disables them.
- * else, it just get resources of the function and return.
- */
-int pciehp_save_used_resources(struct controller *ctrl, struct pci_func *func, int disable)
-{
-	u8 cloop;
-	u8 header_type;
-	u8 secondary_bus;
-	u8 temp_byte;
-	u16 command;
-	u16 save_command;
-	u16 w_base, w_length;
-	u32 temp_register;
-	u32 save_base;
-	u32 base, length;
-	u64 base64 = 0;
-	int index = 0;
-	unsigned int devfn;
-	struct pci_resource *mem_node = NULL;
-	struct pci_resource *p_mem_node = NULL;
-	struct pci_resource *t_mem_node;
-	struct pci_resource *io_node;
-	struct pci_resource *bus_node;
-	struct pci_bus lpci_bus, *pci_bus;
-	memcpy(&lpci_bus, ctrl->pci_dev->subordinate, sizeof(lpci_bus));
-	pci_bus = &lpci_bus;
-
-	if (disable)
-		func = pciehp_slot_find(func->bus, func->device, index++);
-
-	while ((func != NULL) && func->is_a_board) {
-		pci_bus->number = func->bus;
-		devfn = PCI_DEVFN(func->device, func->function);
-
-		/* Save the command register */
-		pci_bus_read_config_word(pci_bus, devfn, PCI_COMMAND, &save_command);
-
-		if (disable) {
-			/* disable card */
-			command = 0x00;
-			pci_bus_write_config_word(pci_bus, devfn, PCI_COMMAND, command);
-		}
-
-		/* Check for Bridge */
-		pci_bus_read_config_byte(pci_bus, devfn, PCI_HEADER_TYPE, &header_type);
-
-		if ((header_type & 0x7F) == PCI_HEADER_TYPE_BRIDGE) {     /* PCI-PCI Bridge */
-			dbg("Save_used_res of PCI bridge b:d=0x%x:%x, sc=0x%x\n",
-					func->bus, func->device, save_command);
-			if (disable) {
-				/* Clear Bridge Control Register */
-				command = 0x00;
-				pci_bus_write_config_word(pci_bus, devfn, PCI_BRIDGE_CONTROL, command);
-			}
-
-			pci_bus_read_config_byte(pci_bus, devfn, PCI_SECONDARY_BUS, &secondary_bus);
-			pci_bus_read_config_byte(pci_bus, devfn, PCI_SUBORDINATE_BUS, &temp_byte);
-
-			bus_node = kmalloc(sizeof(struct pci_resource),
-						GFP_KERNEL);
-			if (!bus_node)
-				return -ENOMEM;
-
-			bus_node->base = (ulong)secondary_bus;
-			bus_node->length = (ulong)(temp_byte - secondary_bus + 1);
-
-			bus_node->next = func->bus_head;
-			func->bus_head = bus_node;
-
-			/* Save IO base and Limit registers */
-			pci_bus_read_config_byte(pci_bus, devfn, PCI_IO_BASE, &temp_byte);
-			base = temp_byte;
-			pci_bus_read_config_byte(pci_bus, devfn, PCI_IO_LIMIT, &temp_byte);
-			length = temp_byte;
-
-			if ((base <= length) && (!disable || (save_command & PCI_COMMAND_IO))) {
-				io_node = kmalloc(sizeof(struct pci_resource),
-							GFP_KERNEL);
-				if (!io_node)
-					return -ENOMEM;
-
-				io_node->base = (ulong)(base & PCI_IO_RANGE_MASK) << 8;
-				io_node->length = (ulong)(length - base + 0x10) << 8;
-
-				io_node->next = func->io_head;
-				func->io_head = io_node;
-			}
-
-			/* Save memory base and Limit registers */
-			pci_bus_read_config_word(pci_bus, devfn, PCI_MEMORY_BASE, &w_base);
-			pci_bus_read_config_word(pci_bus, devfn, PCI_MEMORY_LIMIT, &w_length);
-
-			if ((w_base <= w_length) && (!disable || (save_command & PCI_COMMAND_MEMORY))) {
-				mem_node = kmalloc(sizeof(struct pci_resource),
-						GFP_KERNEL);
-				if (!mem_node)
-					return -ENOMEM;
-
-				mem_node->base = (ulong)w_base << 16;
-				mem_node->length = (ulong)(w_length - w_base + 0x10) << 16;
-
-				mem_node->next = func->mem_head;
-				func->mem_head = mem_node;
-			}
-			/* Save prefetchable memory base and Limit registers */
-			pci_bus_read_config_word(pci_bus, devfn, PCI_PREF_MEMORY_BASE, &w_base);
-			pci_bus_read_config_word(pci_bus, devfn, PCI_PREF_MEMORY_LIMIT, &w_length);
-
-			if ((w_base <= w_length) && (!disable || (save_command & PCI_COMMAND_MEMORY))) {
-				p_mem_node = kmalloc(sizeof(struct pci_resource),
-						GFP_KERNEL);
-				if (!p_mem_node)
-					return -ENOMEM;
-
-				p_mem_node->base = (ulong)w_base << 16;
-				p_mem_node->length = (ulong)(w_length - w_base + 0x10) << 16;
-
-				p_mem_node->next = func->p_mem_head;
-				func->p_mem_head = p_mem_node;
-			}
-		} else if ((header_type & 0x7F) == PCI_HEADER_TYPE_NORMAL) {
-			dbg("Save_used_res of PCI adapter b:d=0x%x:%x, sc=0x%x\n",
-					func->bus, func->device, save_command);
-
-			/* Figure out IO and memory base lengths */
-			for (cloop = PCI_BASE_ADDRESS_0; cloop <= PCI_BASE_ADDRESS_5; cloop += 4) {
-				pci_bus_read_config_dword(pci_bus, devfn, cloop, &save_base);
-
-				temp_register = 0xFFFFFFFF;
-				pci_bus_write_config_dword(pci_bus, devfn, cloop, temp_register);
-				pci_bus_read_config_dword(pci_bus, devfn, cloop, &temp_register);
-
-				if (!disable)
-					pci_bus_write_config_dword(pci_bus, devfn, cloop, save_base);
-
-				if (!temp_register)
-					continue;
-
-				base = temp_register;
-
-				if ((base & PCI_BASE_ADDRESS_SPACE_IO) &&
-						(!disable || (save_command & PCI_COMMAND_IO))) {
-					/* IO base */
-					/* set temp_register = amount of IO space requested */
-					base = base & 0xFFFFFFFCL;
-					base = (~base) + 1;
-
-					io_node = kmalloc(sizeof (struct pci_resource),
-								GFP_KERNEL);
-					if (!io_node)
-						return -ENOMEM;
-
-					io_node->base = (ulong)save_base & PCI_BASE_ADDRESS_IO_MASK;
-					io_node->length = (ulong)base;
-					dbg("sur adapter: IO bar=0x%x(length=0x%x)\n",
-						io_node->base, io_node->length);
-
-					io_node->next = func->io_head;
-					func->io_head = io_node;
-				} else {  /* map Memory */
-					int prefetchable = 1;
-					/* struct pci_resources **res_node; */
-					char *res_type_str = "PMEM";
-					u32 temp_register2;
-
-					t_mem_node = kmalloc(sizeof (struct pci_resource),
-								GFP_KERNEL);
-					if (!t_mem_node)
-						return -ENOMEM;
-
-					if (!(base & PCI_BASE_ADDRESS_MEM_PREFETCH) &&
-							(!disable || (save_command & PCI_COMMAND_MEMORY))) {
-						prefetchable = 0;
-						mem_node = t_mem_node;
-						res_type_str++;
-					} else
-						p_mem_node = t_mem_node;
-
-					base = base & 0xFFFFFFF0L;
-					base = (~base) + 1;
-
-					switch (temp_register & PCI_BASE_ADDRESS_MEM_TYPE_MASK) {
-					case PCI_BASE_ADDRESS_MEM_TYPE_32:
-						if (prefetchable) {
-							p_mem_node->base = (ulong)save_base & PCI_BASE_ADDRESS_MEM_MASK;
-							p_mem_node->length = (ulong)base;
-							dbg("sur adapter: 32 %s bar=0x%x(length=0x%x)\n",
-								res_type_str, 
-								p_mem_node->base,
-								p_mem_node->length);
-
-							p_mem_node->next = func->p_mem_head;
-							func->p_mem_head = p_mem_node;
-						} else {
-							mem_node->base = (ulong)save_base & PCI_BASE_ADDRESS_MEM_MASK;
-							mem_node->length = (ulong)base;
-							dbg("sur adapter: 32 %s bar=0x%x(length=0x%x)\n",
-								res_type_str, 
-								mem_node->base,
-								mem_node->length);
-
-							mem_node->next = func->mem_head;
-							func->mem_head = mem_node;
-						}
-						break;
-					case PCI_BASE_ADDRESS_MEM_TYPE_64:
-						pci_bus_read_config_dword(pci_bus, devfn, cloop+4, &temp_register2);
-						base64 = temp_register2;
-						base64 = (base64 << 32) | save_base;
-
-						if (temp_register2) {
-							dbg("sur adapter: 64 %s high dword of base64(0x%x:%x) masked to 0\n", 
-								res_type_str, temp_register2, (u32)base64);
-							base64 &= 0x00000000FFFFFFFFL;
-						}
-
-						if (prefetchable) {
-							p_mem_node->base = base64 & PCI_BASE_ADDRESS_MEM_MASK;
-							p_mem_node->length = base;
-							dbg("sur adapter: 64 %s base=0x%x(len=0x%x)\n",
-								res_type_str, 
-								p_mem_node->base,
-								p_mem_node->length);
-
-							p_mem_node->next = func->p_mem_head;
-							func->p_mem_head = p_mem_node;
-						} else {
-							mem_node->base = base64 & PCI_BASE_ADDRESS_MEM_MASK;
-							mem_node->length = base;
-							dbg("sur adapter: 64 %s base=0x%x(len=0x%x)\n",
-								res_type_str, 
-								mem_node->base,
-								mem_node->length);
-
-							mem_node->next = func->mem_head;
-							func->mem_head = mem_node;
-						}
-						cloop += 4;
-						break;
-					default:
-						dbg("asur: reserved BAR type=0x%x\n",
-							temp_register);
-						break;
-					}
-				} 
-			}	/* End of base register loop */
-		} else {	/* Some other unknown header type */
-			dbg("Save_used_res of PCI unknown type b:d=0x%x:%x. skip.\n",
-					func->bus, func->device);
-		}
-
-		/* find the next device in this slot */
-		if (!disable)
-			break;
-		func = pciehp_slot_find(func->bus, func->device, index++);
-	}
-
-	return 0;
-}
-
-
-/**
- * kfree_resource_list: release memory of all list members
- * @res: resource list to free
- */
-static inline void
-return_resource_list(struct pci_resource **func, struct pci_resource **res)
-{
-	struct pci_resource *node;
-	struct pci_resource *t_node;
-
-	node = *func;
-	*func = NULL;
-	while (node) {
-		t_node = node->next;
-		return_resource(res, node);
-		node = t_node;
-	}
-}
-
-/*
- * pciehp_return_board_resources
- *
- * this routine returns all resources allocated to a board to
- * the available pool.
- *
- * returns 0 if success
- */
-int pciehp_return_board_resources(struct pci_func * func,
-				struct resource_lists * resources)
-{
-	int rc;
-
-	dbg("%s\n", __FUNCTION__);
-
-	if (!func)
-		return 1;
-
-	return_resource_list(&(func->io_head),&(resources->io_head));
-	return_resource_list(&(func->mem_head),&(resources->mem_head));
-	return_resource_list(&(func->p_mem_head),&(resources->p_mem_head));
-	return_resource_list(&(func->bus_head),&(resources->bus_head));
-
-	rc = pciehp_resource_sort_and_combine(&(resources->mem_head));
-	rc |= pciehp_resource_sort_and_combine(&(resources->p_mem_head));
-	rc |= pciehp_resource_sort_and_combine(&(resources->io_head));
-	rc |= pciehp_resource_sort_and_combine(&(resources->bus_head));
-
-	return rc;
-}
-
-/**
- * kfree_resource_list: release memory of all list members
- * @res: resource list to free
- */
-static inline void
-kfree_resource_list(struct pci_resource **r)
-{
-	struct pci_resource *res, *tres;
-
-	res = *r;
-	*r = NULL;
-
-	while (res) {
-		tres = res;
-		res = res->next;
-		kfree(tres);
-	}
-}
-
-/**
- * pciehp_destroy_resource_list: put node back in the resource list
- * @resources: list to put nodes back
- */
-void pciehp_destroy_resource_list(struct resource_lists * resources)
-{
-	kfree_resource_list(&(resources->io_head));
-	kfree_resource_list(&(resources->mem_head));
-	kfree_resource_list(&(resources->p_mem_head));
-	kfree_resource_list(&(resources->bus_head));
-}
-
-/**
- * pciehp_destroy_board_resources: put node back in the resource list
- * @resources: list to put nodes back
- */
-void pciehp_destroy_board_resources(struct pci_func * func)
-{
-	kfree_resource_list(&(func->io_head));
-	kfree_resource_list(&(func->mem_head));
-	kfree_resource_list(&(func->p_mem_head));
-	kfree_resource_list(&(func->bus_head));
-}

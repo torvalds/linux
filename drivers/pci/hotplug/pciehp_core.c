@@ -433,16 +433,8 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 		goto err_out_free_ctrl_bus;
 	}
 
-	/* Get IO, memory, and IRQ resources for new devices */
-	rc = pciehprm_find_available_resources(ctrl);
-	ctrl->add_support = !rc;
+	ctrl->add_support = 1;
 	
-	if (rc) {
-		dbg("pciehprm_find_available_resources = %#x\n", rc);
-		err("unable to locate PCI configuration resources for hot plug add.\n");
-		goto err_out_free_ctrl_bus;
-	}
-
 	/* Setup the slot information structures */
 	rc = init_slots(ctrl);
 	if (rc) {
@@ -521,18 +513,6 @@ static int pcie_start_thread(void)
 	return retval;
 }
 
-static inline void __exit
-free_pciehp_res(struct pci_resource *res)
-{
-	struct pci_resource *tres;
-
-	while (res) {
-		tres = res;
-		res = res->next;
-		kfree(tres);
-	}
-}
-
 static void __exit unload_pciehpd(void)
 {
 	struct pci_func *next;
@@ -545,11 +525,6 @@ static void __exit unload_pciehpd(void)
 
 	while (ctrl) {
 		cleanup_slots(ctrl);
-
-		free_pciehp_res(ctrl->io_head);
-		free_pciehp_res(ctrl->mem_head);
-		free_pciehp_res(ctrl->p_mem_head);
-		free_pciehp_res(ctrl->bus_head);
 
 		kfree (ctrl->pci_bus);
 
@@ -564,11 +539,6 @@ static void __exit unload_pciehpd(void)
 	for (loop = 0; loop < 256; loop++) {
 		next = pciehp_slot_list[loop];
 		while (next != NULL) {
-			free_pciehp_res(next->io_head);
-			free_pciehp_res(next->mem_head);
-			free_pciehp_res(next->p_mem_head);
-			free_pciehp_res(next->bus_head);
-
 			TempSlot = next;
 			next = next->next;
 			kfree(TempSlot);
@@ -652,8 +622,7 @@ error_hpc_init:
 	if (retval) {
 		pciehprm_cleanup();
 		pciehp_event_stop_thread();
-	} else
-		pciehprm_print_pirt();
+	};
 
 	return retval;
 }
