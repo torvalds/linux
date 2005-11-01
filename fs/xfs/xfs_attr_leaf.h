@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2000, 2002-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000, 2002-2003, 2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -289,7 +290,7 @@ int	xfs_attr_root_inactive(struct xfs_trans **trans, struct xfs_inode *dp);
 xfs_dahash_t	xfs_attr_leaf_lasthash(struct xfs_dabuf *bp, int *count);
 int	xfs_attr_leaf_order(struct xfs_dabuf *leaf1_bp,
 				   struct xfs_dabuf *leaf2_bp);
-int	xfs_attr_leaf_newentsize(struct xfs_da_args *args, int blocksize,
+int	xfs_attr_leaf_newentsize(int namelen, int valuelen, int blocksize,
 					int *local);
 int	xfs_attr_rolltrans(struct xfs_trans **transp, struct xfs_inode *dp);
 

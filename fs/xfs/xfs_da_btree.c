@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -190,9 +190,6 @@ xfs_da_split(xfs_da_state_t *state)
 		 */
 		switch (oldblk->magic) {
 		case XFS_ATTR_LEAF_MAGIC:
-#ifndef __KERNEL__
-			return(ENOTTY);
-#else
 			error = xfs_attr_leaf_split(state, oldblk, newblk);
 			if ((error != 0) && (error != ENOSPC)) {
 				return(error);	/* GROT: attr is inconsistent */
@@ -218,7 +215,6 @@ xfs_da_split(xfs_da_state_t *state)
 				return(error);	/* GROT: attr inconsistent */
 			addblk = newblk;
 			break;
-#endif
 		case XFS_DIR_LEAF_MAGIC:
 			ASSERT(XFS_DIR_IS_V1(state->mp));
 			error = xfs_dir_leaf_split(state, oldblk, newblk);
@@ -706,18 +702,12 @@ xfs_da_join(xfs_da_state_t *state)
 		 */
 		switch (drop_blk->magic) {
 		case XFS_ATTR_LEAF_MAGIC:
-#ifndef __KERNEL__
-			error = ENOTTY;
-#else
 			error = xfs_attr_leaf_toosmall(state, &action);
-#endif
 			if (error)
 				return(error);
 			if (action == 0)
 				return(0);
-#ifdef __KERNEL__
 			xfs_attr_leaf_unbalance(state, drop_blk, save_blk);
-#endif
 			break;
 		case XFS_DIR_LEAF_MAGIC:
 			ASSERT(XFS_DIR_IS_V1(state->mp));
@@ -973,13 +963,11 @@ xfs_da_fixhashpath(xfs_da_state_t *state, xfs_da_state_path_t *path)
 	level = path->active-1;
 	blk = &path->blk[ level ];
 	switch (blk->magic) {
-#ifdef __KERNEL__
 	case XFS_ATTR_LEAF_MAGIC:
 		lasthash = xfs_attr_leaf_lasthash(blk->bp, &count);
 		if (count == 0)
 			return;
 		break;
-#endif
 	case XFS_DIR_LEAF_MAGIC:
 		ASSERT(XFS_DIR_IS_V1(state->mp));
 		lasthash = xfs_dir_leaf_lasthash(blk->bp, &count);
@@ -1220,12 +1208,10 @@ xfs_da_node_lookup_int(xfs_da_state_t *state, int *result)
 				blkno = INT_GET(btree->before, ARCH_CONVERT);
 			}
 		}
-#ifdef __KERNEL__
 		else if (INT_GET(curr->magic, ARCH_CONVERT) == XFS_ATTR_LEAF_MAGIC) {
 			blk->hashval = xfs_attr_leaf_lasthash(blk->bp, NULL);
 			break;
 		}
-#endif
 		else if (INT_GET(curr->magic, ARCH_CONVERT) == XFS_DIR_LEAF_MAGIC) {
 			blk->hashval = xfs_dir_leaf_lasthash(blk->bp, NULL);
 			break;
@@ -1252,13 +1238,11 @@ xfs_da_node_lookup_int(xfs_da_state_t *state, int *result)
 			retval = xfs_dir2_leafn_lookup_int(blk->bp, args,
 							&blk->index, state);
 		}
-#ifdef __KERNEL__
 		else if (blk->magic == XFS_ATTR_LEAF_MAGIC) {
 			retval = xfs_attr_leaf_lookup_int(blk->bp, args);
 			blk->index = args->index;
 			args->blkno = blk->blkno;
 		}
-#endif
 		if (((retval == ENOENT) || (retval == ENOATTR)) &&
 		    (blk->hashval == args->hashval)) {
 			error = xfs_da_path_shift(state, &state->path, 1, 1,
@@ -1268,12 +1252,10 @@ xfs_da_node_lookup_int(xfs_da_state_t *state, int *result)
 			if (retval == 0) {
 				continue;
 			}
-#ifdef __KERNEL__
 			else if (blk->magic == XFS_ATTR_LEAF_MAGIC) {
 				/* path_shift() gives ENOENT */
 				retval = XFS_ERROR(ENOATTR);
 			}
-#endif
 		}
 		break;
 	}
@@ -1312,11 +1294,9 @@ xfs_da_blk_link(xfs_da_state_t *state, xfs_da_state_blk_t *old_blk,
 	ASSERT(old_blk->magic == new_blk->magic);
 
 	switch (old_blk->magic) {
-#ifdef __KERNEL__
 	case XFS_ATTR_LEAF_MAGIC:
 		before = xfs_attr_leaf_order(old_blk->bp, new_blk->bp);
 		break;
-#endif
 	case XFS_DIR_LEAF_MAGIC:
 		ASSERT(XFS_DIR_IS_V1(state->mp));
 		before = xfs_dir_leaf_order(old_blk->bp, new_blk->bp);
@@ -1587,12 +1567,10 @@ xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
 			ASSERT(level == path->active-1);
 			blk->index = 0;
 			switch(blk->magic) {
-#ifdef __KERNEL__
 			case XFS_ATTR_LEAF_MAGIC:
 				blk->hashval = xfs_attr_leaf_lasthash(blk->bp,
 								      NULL);
 				break;
-#endif
 			case XFS_DIR_LEAF_MAGIC:
 				ASSERT(XFS_DIR_IS_V1(state->mp));
 				blk->hashval = xfs_dir_leaf_lasthash(blk->bp,
@@ -2200,20 +2178,16 @@ xfs_da_do_buf(
 			error = bp ? XFS_BUF_GETERROR(bp) : XFS_ERROR(EIO);
 			break;
 		case 1:
-#ifndef __KERNEL__
 		case 2:
-#endif
 			bp = NULL;
 			error = xfs_trans_read_buf(mp, trans, mp->m_ddev_targp,
 				mappedbno, nmapped, 0, &bp);
 			break;
-#ifdef __KERNEL__
 		case 3:
 			xfs_baread(mp->m_ddev_targp, mappedbno, nmapped);
 			error = 0;
 			bp = NULL;
 			break;
-#endif
 		}
 		if (error) {
 			if (bp)

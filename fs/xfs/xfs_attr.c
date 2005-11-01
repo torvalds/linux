@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -200,40 +200,18 @@ xfs_attr_get(bhv_desc_t *bdp, char *name, char *value, int *valuelenp,
 	return(error);
 }
 
-/*ARGSUSED*/
-int								/* error */
-xfs_attr_set(bhv_desc_t *bdp, char *name, char *value, int valuelen, int flags,
-		     struct cred *cred)
+int
+xfs_attr_set_int(xfs_inode_t *dp, char *name, int namelen,
+		 char *value, int valuelen, int flags)
 {
 	xfs_da_args_t	args;
-	xfs_inode_t	*dp;
 	xfs_fsblock_t	firstblock;
 	xfs_bmap_free_t flist;
 	int		error, err2, committed;
 	int		local, size;
 	uint		nblks;
-	xfs_mount_t	*mp;
+	xfs_mount_t	*mp = dp->i_mount;
 	int             rsvd = (flags & ATTR_ROOT) != 0;
-	int             namelen;
-
-	namelen = strlen(name);
-	if (namelen >= MAXNAMELEN)
-		return EFAULT;		/* match IRIX behaviour */
-
-	XFS_STATS_INC(xs_attr_set);
-
-	dp = XFS_BHVTOI(bdp);
-	mp = dp->i_mount;
-	if (XFS_FORCED_SHUTDOWN(mp))
-		return (EIO);
-
-	xfs_ilock(dp, XFS_ILOCK_SHARED);
-	if (!(flags & ATTR_SECURE) &&
-	     (error = xfs_iaccess(dp, S_IWUSR, cred))) {
-		xfs_iunlock(dp, XFS_ILOCK_SHARED);
-		return(XFS_ERROR(error));
-	}
-	xfs_iunlock(dp, XFS_ILOCK_SHARED);
 
 	/*
 	 * Attach the dquots to the inode.
@@ -270,7 +248,8 @@ xfs_attr_set(bhv_desc_t *bdp, char *name, char *value, int valuelen, int flags,
 	/* Determine space new attribute will use, and if it will be inline
 	 * or out of line.
 	 */
-	size = xfs_attr_leaf_newentsize(&args, mp->m_sb.sb_blocksize, &local);
+	size = xfs_attr_leaf_newentsize(namelen, valuelen,
+					mp->m_sb.sb_blocksize, &local);
 
 	nblks = XFS_DAENTER_SPACE_RES(mp, XFS_ATTR_FORK);
 	if (local) {
@@ -456,32 +435,21 @@ out:
 	return(error);
 }
 
-/*
- * Generic handler routine to remove a name from an attribute list.
- * Transitions attribute list from Btree to shortform as necessary.
- */
-/*ARGSUSED*/
-int								/* error */
-xfs_attr_remove(bhv_desc_t *bdp, char *name, int flags, struct cred *cred)
+int
+xfs_attr_set(bhv_desc_t *bdp, char *name, char *value, int valuelen, int flags,
+	     struct cred *cred)
 {
-	xfs_da_args_t       args;
-	xfs_inode_t         *dp;
-	xfs_fsblock_t       firstblock;
-	xfs_bmap_free_t     flist;
-	int                 error;
-	xfs_mount_t         *mp;
-	int                 namelen;
+	xfs_inode_t	*dp;
+	int             namelen, error;
 
-	ASSERT(MAXNAMELEN-1<=0xff); /* length is stored in uint8 */
 	namelen = strlen(name);
-	if (namelen>=MAXNAMELEN)
-		return EFAULT; /* match irix behaviour */
+	if (namelen >= MAXNAMELEN)
+		return EFAULT;		/* match IRIX behaviour */
 
-	XFS_STATS_INC(xs_attr_remove);
+	XFS_STATS_INC(xs_attr_set);
 
 	dp = XFS_BHVTOI(bdp);
-	mp = dp->i_mount;
-	if (XFS_FORCED_SHUTDOWN(mp))
+	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
 		return (EIO);
 
 	xfs_ilock(dp, XFS_ILOCK_SHARED);
@@ -489,13 +457,24 @@ xfs_attr_remove(bhv_desc_t *bdp, char *name, int flags, struct cred *cred)
 	     (error = xfs_iaccess(dp, S_IWUSR, cred))) {
 		xfs_iunlock(dp, XFS_ILOCK_SHARED);
 		return(XFS_ERROR(error));
-	} else if (XFS_IFORK_Q(dp) == 0 ||
-		   (dp->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
-		    dp->i_d.di_anextents == 0)) {
-		xfs_iunlock(dp, XFS_ILOCK_SHARED);
-		return(XFS_ERROR(ENOATTR));
 	}
 	xfs_iunlock(dp, XFS_ILOCK_SHARED);
+
+	return xfs_attr_set_int(dp, name, namelen, value, valuelen, flags);
+}
+
+/*
+ * Generic handler routine to remove a name from an attribute list.
+ * Transitions attribute list from Btree to shortform as necessary.
+ */
+int
+xfs_attr_remove_int(xfs_inode_t *dp, char *name, int namelen, int flags)
+{
+	xfs_da_args_t	args;
+	xfs_fsblock_t	firstblock;
+	xfs_bmap_free_t	flist;
+	int		error;
+	xfs_mount_t	*mp = dp->i_mount;
 
 	/*
 	 * Fill in the arg structure for this request.
@@ -610,6 +589,38 @@ out:
 			XFS_TRANS_RELEASE_LOG_RES|XFS_TRANS_ABORT);
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
 	return(error);
+}
+
+int
+xfs_attr_remove(bhv_desc_t *bdp, char *name, int flags, struct cred *cred)
+{
+	xfs_inode_t         *dp;
+	int                 namelen, error;
+
+	namelen = strlen(name);
+	if (namelen >= MAXNAMELEN)
+		return EFAULT;		/* match IRIX behaviour */
+
+	XFS_STATS_INC(xs_attr_remove);
+
+	dp = XFS_BHVTOI(bdp);
+	if (XFS_FORCED_SHUTDOWN(dp->i_mount))
+		return (EIO);
+
+	xfs_ilock(dp, XFS_ILOCK_SHARED);
+	if (!(flags & ATTR_SECURE) &&
+	     (error = xfs_iaccess(dp, S_IWUSR, cred))) {
+		xfs_iunlock(dp, XFS_ILOCK_SHARED);
+		return(XFS_ERROR(error));
+	} else if (XFS_IFORK_Q(dp) == 0 ||
+		   (dp->i_d.di_aformat == XFS_DINODE_FMT_EXTENTS &&
+		    dp->i_d.di_anextents == 0)) {
+		xfs_iunlock(dp, XFS_ILOCK_SHARED);
+		return(XFS_ERROR(ENOATTR));
+	}
+	xfs_iunlock(dp, XFS_ILOCK_SHARED);
+
+	return xfs_attr_remove_int(dp, name, namelen, flags);
 }
 
 /*

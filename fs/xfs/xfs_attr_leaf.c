@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -898,7 +898,7 @@ xfs_attr_leaf_add(xfs_dabuf_t *bp, xfs_da_args_t *args)
 	ASSERT((args->index >= 0)
 		&& (args->index <= INT_GET(leaf->hdr.count, ARCH_CONVERT)));
 	hdr = &leaf->hdr;
-	entsize = xfs_attr_leaf_newentsize(args,
+	entsize = xfs_attr_leaf_newentsize(args->namelen, args->valuelen,
 			   args->trans->t_mountp->m_sb.sb_blocksize, NULL);
 
 	/*
@@ -995,13 +995,14 @@ xfs_attr_leaf_add_work(xfs_dabuf_t *bp, xfs_da_args_t *args, int mapindex)
 	mp = args->trans->t_mountp;
 	ASSERT(INT_GET(map->base, ARCH_CONVERT) < XFS_LBSIZE(mp));
 	ASSERT((INT_GET(map->base, ARCH_CONVERT) & 0x3) == 0);
-	ASSERT(INT_GET(map->size, ARCH_CONVERT)
-				>= xfs_attr_leaf_newentsize(args,
-					     mp->m_sb.sb_blocksize, NULL));
+	ASSERT(INT_GET(map->size, ARCH_CONVERT) >=
+		xfs_attr_leaf_newentsize(args->namelen, args->valuelen,
+					 mp->m_sb.sb_blocksize, NULL));
 	ASSERT(INT_GET(map->size, ARCH_CONVERT) < XFS_LBSIZE(mp));
 	ASSERT((INT_GET(map->size, ARCH_CONVERT) & 0x3) == 0);
 	INT_MOD(map->size, ARCH_CONVERT,
-		-xfs_attr_leaf_newentsize(args, mp->m_sb.sb_blocksize, &tmp));
+		-xfs_attr_leaf_newentsize(args->namelen, args->valuelen,
+					  mp->m_sb.sb_blocksize, &tmp));
 	INT_SET(entry->nameidx, ARCH_CONVERT,
 					INT_GET(map->base, ARCH_CONVERT)
 				      + INT_GET(map->size, ARCH_CONVERT));
@@ -1357,8 +1358,10 @@ xfs_attr_leaf_figure_balance(xfs_da_state_t *state,
 	half  = (max+1) * sizeof(*entry);
 	half += INT_GET(hdr1->usedbytes, ARCH_CONVERT)
 				+ INT_GET(hdr2->usedbytes, ARCH_CONVERT)
-				+ xfs_attr_leaf_newentsize(state->args,
-						     state->blocksize, NULL);
+				+ xfs_attr_leaf_newentsize(
+						state->args->namelen,
+						state->args->valuelen,
+						state->blocksize, NULL);
 	half /= 2;
 	lastdelta = state->blocksize;
 	entry = &leaf1->entries[0];
@@ -1370,9 +1373,10 @@ xfs_attr_leaf_figure_balance(xfs_da_state_t *state,
 		 */
 		if (count == blk1->index) {
 			tmp = totallen + sizeof(*entry) +
-				xfs_attr_leaf_newentsize(state->args,
-							 state->blocksize,
-							 NULL);
+				xfs_attr_leaf_newentsize(
+						state->args->namelen,
+						state->args->valuelen,
+						state->blocksize, NULL);
 			if (XFS_ATTR_ABS(half - tmp) > lastdelta)
 				break;
 			lastdelta = XFS_ATTR_ABS(half - tmp);
@@ -1408,9 +1412,10 @@ xfs_attr_leaf_figure_balance(xfs_da_state_t *state,
 	totallen -= count * sizeof(*entry);
 	if (foundit) {
 		totallen -= sizeof(*entry) +
-				xfs_attr_leaf_newentsize(state->args,
-							 state->blocksize,
-							 NULL);
+				xfs_attr_leaf_newentsize(
+						state->args->namelen,
+						state->args->valuelen,
+						state->blocksize, NULL);
 	}
 
 	*countarg = count;
@@ -2253,17 +2258,17 @@ xfs_attr_leaf_entsize(xfs_attr_leafblock_t *leaf, int index)
  * a "local" or a "remote" attribute.
  */
 int
-xfs_attr_leaf_newentsize(xfs_da_args_t *args, int blocksize, int *local)
+xfs_attr_leaf_newentsize(int namelen, int valuelen, int blocksize, int *local)
 {
 	int size;
 
-	size = XFS_ATTR_LEAF_ENTSIZE_LOCAL(args->namelen, args->valuelen);
+	size = XFS_ATTR_LEAF_ENTSIZE_LOCAL(namelen, valuelen);
 	if (size < XFS_ATTR_LEAF_ENTSIZE_LOCAL_MAX(blocksize)) {
 		if (local) {
 			*local = 1;
 		}
 	} else {
-		size = XFS_ATTR_LEAF_ENTSIZE_REMOTE(args->namelen);
+		size = XFS_ATTR_LEAF_ENTSIZE_REMOTE(namelen);
 		if (local) {
 			*local = 0;
 		}
