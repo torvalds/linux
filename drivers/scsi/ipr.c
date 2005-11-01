@@ -1141,11 +1141,10 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 
 	if (ioa_cfg->log_level < IPR_DEFAULT_LOG_LEVEL)
 		return;
+	if (be32_to_cpu(hostrcb->hcam.length) > sizeof(hostrcb->hcam.u.raw))
+		hostrcb->hcam.length = cpu_to_be32(sizeof(hostrcb->hcam.u.raw));
 
 	switch (hostrcb->hcam.overlay_id) {
-	case IPR_HOST_RCB_OVERLAY_ID_1:
-		ipr_log_generic_error(ioa_cfg, hostrcb);
-		break;
 	case IPR_HOST_RCB_OVERLAY_ID_2:
 		ipr_log_cache_error(ioa_cfg, hostrcb);
 		break;
@@ -1156,6 +1155,7 @@ static void ipr_handle_log_data(struct ipr_ioa_cfg *ioa_cfg,
 	case IPR_HOST_RCB_OVERLAY_ID_6:
 		ipr_log_array_error(ioa_cfg, hostrcb);
 		break;
+	case IPR_HOST_RCB_OVERLAY_ID_1:
 	case IPR_HOST_RCB_OVERLAY_ID_DEFAULT:
 	default:
 		ipr_log_generic_error(ioa_cfg, hostrcb);
