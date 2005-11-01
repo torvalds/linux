@@ -325,6 +325,7 @@ config PPC_CELL
 	depends on PPC_MULTIPLATFORM && PPC64
 	select PPC_RTAS
 	select RTAS_FW
+	select MMIO_NVRAM
 
 config PPC_OF
 	bool
@@ -358,6 +359,10 @@ config RTAS_ERROR_LOGGING
 config RTAS_FW
 	bool
 	depends on PPC_RTAS
+	default n
+
+config MMIO_NVRAM
+	bool
 	default n
 
 config MPIC_BROKEN_U3
