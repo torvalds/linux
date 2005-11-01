@@ -1061,9 +1061,6 @@ static void ipr_log_generic_error(struct ipr_ioa_cfg *ioa_cfg,
 	if (ioa_data_len == 0)
 		return;
 
-	ipr_err("IOA Error Data:\n");
-	ipr_err("Offset    0 1 2 3  4 5 6 7  8 9 A B  C D E F\n");
-
 	for (i = 0; i < ioa_data_len / 4; i += 4) {
 		ipr_err("%08X: %08X %08X %08X %08X\n", i*4,
 			be32_to_cpu(hostrcb->hcam.u.raw.data[i]),
