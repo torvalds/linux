@@ -175,7 +175,7 @@ static struct platform_device sa1111_device = {
 static struct resource smc91x_resources[] = {
 	[0] = {
 		.name	= "smc91x-regs",
-		.start	= 0x0c000000,
+		.start	= 0x0c000c00,
 		.end	= 0x0c0fffff,
 		.flags	= IORESOURCE_MEM,
 	},
@@ -224,18 +224,75 @@ static struct pxafb_mach_info sharp_lm8v31 __initdata = {
 	.lccr3		= LCCR3_PCP | LCCR3_Acb(255),
 };
 
-static int lubbock_mci_init(struct device *dev, irqreturn_t (*lubbock_detect_int)(int, void *, struct pt_regs *), void *data)
+#define	MMC_POLL_RATE		msecs_to_jiffies(1000)
+
+static void lubbock_mmc_poll(unsigned long);
+static irqreturn_t (*mmc_detect_int)(int, void *, struct pt_regs *);
+
+static struct timer_list mmc_timer = {
+	.function	= lubbock_mmc_poll,
+};
+
+static void lubbock_mmc_poll(unsigned long data)
+{
+	unsigned long flags;
+
+	/* clear any previous irq state, then ... */
+	local_irq_save(flags);
+	LUB_IRQ_SET_CLR &= ~(1 << 0);
+	local_irq_restore(flags);
+
+	/* poll until mmc/sd card is removed */
+	if (LUB_IRQ_SET_CLR & (1 << 0))
+		mod_timer(&mmc_timer, jiffies + MMC_POLL_RATE);
+	else {
+		(void) mmc_detect_int(LUBBOCK_SD_IRQ, (void *)data, NULL);
+		enable_irq(LUBBOCK_SD_IRQ);
+	}
+}
+
+static irqreturn_t lubbock_detect_int(int irq, void *data, struct pt_regs *regs)
+{
+	/* IRQ is level triggered; disable, and poll for removal */
+	disable_irq(irq);
+	mod_timer(&mmc_timer, jiffies + MMC_POLL_RATE);
+
+	return mmc_detect_int(irq, data, regs);
+}
+
+static int lubbock_mci_init(struct device *dev,
+		irqreturn_t (*detect_int)(int, void *, struct pt_regs *),
+		void *data)
 {
 	/* setup GPIO for PXA25x MMC controller	*/
 	pxa_gpio_mode(GPIO6_MMCCLK_MD);
 	pxa_gpio_mode(GPIO8_MMCCS0_MD);
 
-	return 0;
+	/* detect card insert/eject */
+	mmc_detect_int = detect_int;
+	init_timer(&mmc_timer);
+	mmc_timer.data = (unsigned long) data;
+	return request_irq(LUBBOCK_SD_IRQ, lubbock_detect_int,
+			SA_SAMPLE_RANDOM, "lubbock-sd-detect", data);
+}
+
+static int lubbock_mci_get_ro(struct device *dev)
+{
+	return (LUB_MISC_RD & (1 << 2)) != 0;
+}
+
+static void lubbock_mci_exit(struct device *dev, void *data)
+{
+	free_irq(LUBBOCK_SD_IRQ, data);
+	del_timer_sync(&mmc_timer);
 }
 
 static struct pxamci_platform_data lubbock_mci_platform_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
+	.detect_delay	= 1,
 	.init 		= lubbock_mci_init,
+	.get_ro		= lubbock_mci_get_ro,
+	.exit 		= lubbock_mci_exit,
 };
 
 static void lubbock_irda_transceiver_mode(struct device *dev, int mode)
