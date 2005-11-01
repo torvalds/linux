@@ -9,8 +9,9 @@ lib-y		:= backtrace.o changebit.o csumipv6.o csumpartial.o   \
 		   copy_page.o delay.o findbit.o memchr.o memcpy.o    \
 		   memset.o memzero.o setbit.o strncpy_from_user.o    \
 		   strnlen_user.o strchr.o strrchr.o testchangebit.o  \
-		   testclearbit.o testsetbit.o uaccess.o getuser.o    \
-		   putuser.o ashldi3.o ashrdi3.o lshrdi3.o muldi3.o   \
+		   testclearbit.o testsetbit.o uaccess.o              \
+		   getuser.o putuser.o clear_user.o                   \
+		   ashldi3.o ashrdi3.o lshrdi3.o muldi3.o             \
 		   ucmpdi2.o lib1funcs.o div64.o sha1.o               \
 		   io-readsb.o io-writesb.o io-readsl.o io-writesl.o
 
