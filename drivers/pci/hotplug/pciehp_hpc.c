@@ -481,7 +481,6 @@ static int hpc_query_power_fault(struct slot * slot)
 	u16 slot_status;
 	u8 pwr_fault;
 	int retval = 0;
-	u8 status;
 
 	DBG_ENTER_ROUTINE 
 
@@ -493,15 +492,13 @@ static int hpc_query_power_fault(struct slot * slot)
 	retval = hp_register_read_word(php_ctlr->pci_dev, SLOT_STATUS(slot->ctrl->cap_base), slot_status);
 
 	if (retval) {
-		err("%s : hp_register_read_word SLOT_STATUS failed\n", __FUNCTION__);
+		err("%s : Cannot check for power fault\n", __FUNCTION__);
 		return retval;
 	}
 	pwr_fault = (u8)((slot_status & PWR_FAULT_DETECTED) >> 1);
-	status = (pwr_fault != 1) ? 1 : 0;
 	
 	DBG_LEAVE_ROUTINE
-	/* Note: Logic 0 => fault */
-	return status;
+	return pwr_fault;
 }
 
 static int hpc_set_attention_status(struct slot *slot, u8 value)
