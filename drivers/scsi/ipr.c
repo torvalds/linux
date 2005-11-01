@@ -2789,8 +2789,10 @@ static int ipr_slave_configure(struct scsi_device *sdev)
 	if (res) {
 		if (ipr_is_af_dasd_device(res))
 			sdev->type = TYPE_RAID;
-		if (ipr_is_af_dasd_device(res) || ipr_is_ioa_resource(res))
+		if (ipr_is_af_dasd_device(res) || ipr_is_ioa_resource(res)) {
 			sdev->scsi_level = 4;
+			sdev->no_uld_attach = 1;
+		}
 		if (ipr_is_vset_device(res)) {
 			sdev->timeout = IPR_VSET_RW_TIMEOUT;
 			blk_queue_max_sectors(sdev->request_queue, IPR_VSET_MAX_SECTORS);
