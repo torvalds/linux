@@ -2815,13 +2815,14 @@ static int ipr_slave_configure(struct scsi_device *sdev)
  * handling new commands.
  *
  * Return value:
- * 	0 on success
+ * 	0 on success / -ENXIO if device does not exist
  **/
 static int ipr_slave_alloc(struct scsi_device *sdev)
 {
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *) sdev->host->hostdata;
 	struct ipr_resource_entry *res;
 	unsigned long lock_flags;
+	int rc = -ENXIO;
 
 	sdev->hostdata = NULL;
 
@@ -2836,13 +2837,14 @@ static int ipr_slave_alloc(struct scsi_device *sdev)
 			res->in_erp = 0;
 			sdev->hostdata = res;
 			res->needs_sync_complete = 1;
+			rc = 0;
 			break;
 		}
 	}
 
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
 
-	return 0;
+	return rc;
 }
 
 /**
