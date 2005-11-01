@@ -13,7 +13,6 @@
 #include <linux/bitops.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
-#include <asm/naca.h>
 #include <asm/abs_addr.h>
 #include <asm/iSeries/ItLpNaca.h>
 #include <asm/lppaca.h>
@@ -23,6 +22,7 @@
 #include <asm/iSeries/ItExtVpdPanel.h>
 #include <asm/iSeries/ItLpQueue.h>
 
+#include "naca.h"
 #include "vpd_areas.h"
 #include "spcomm_area.h"
 #include "ipl_parms.h"

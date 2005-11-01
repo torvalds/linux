@@ -1,7 +1,7 @@
-#ifndef _NACA_H
-#define _NACA_H
+#ifndef _PLATFORMS_ISERIES_NACA_H
+#define _PLATFORMS_ISERIES_NACA_H
 
-/* 
+/*
  * c 2001 PPC 64 Team, IBM Corp
  *
  * This program is free software; you can redistribute it and/or
@@ -21,4 +21,4 @@ struct naca_struct {
 
 extern struct naca_struct naca;
 
-#endif /* _NACA_H */
+#endif /* _PLATFORMS_ISERIES_NACA_H */

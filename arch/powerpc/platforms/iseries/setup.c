@@ -41,7 +41,6 @@
 #include <asm/firmware.h>
 
 #include <asm/time.h>
-#include <asm/naca.h>
 #include <asm/paca.h>
 #include <asm/cache.h>
 #include <asm/sections.h>
@@ -54,6 +53,7 @@
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iSeries/LparMap.h>
 
+#include "naca.h"
 #include "setup.h"
 #include "irq.h"
 #include "vpd_areas.h"
