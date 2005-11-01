@@ -4884,6 +4884,51 @@ static void ipr_build_mode_sense(struct ipr_cmnd *ipr_cmd,
 }
 
 /**
+ * ipr_reset_cmd_failed - Handle failure of IOA reset command
+ * @ipr_cmd:	ipr command struct
+ *
+ * This function handles the failure of an IOA bringup command.
+ *
+ * Return value:
+ * 	IPR_RC_JOB_RETURN
+ **/
+static int ipr_reset_cmd_failed(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+	u32 ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
+
+	dev_err(&ioa_cfg->pdev->dev,
+		"0x%02X failed with IOASC: 0x%08X\n",
+		ipr_cmd->ioarcb.cmd_pkt.cdb[0], ioasc);
+
+	ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_NONE);
+	list_add_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
+	return IPR_RC_JOB_RETURN;
+}
+
+/**
+ * ipr_reset_mode_sense_failed - Handle failure of IOAFP mode sense
+ * @ipr_cmd:	ipr command struct
+ *
+ * This function handles the failure of a Mode Sense to the IOAFP.
+ * Some adapters do not handle all mode pages.
+ *
+ * Return value:
+ * 	IPR_RC_JOB_CONTINUE / IPR_RC_JOB_RETURN
+ **/
+static int ipr_reset_mode_sense_failed(struct ipr_cmnd *ipr_cmd)
+{
+	u32 ioasc = be32_to_cpu(ipr_cmd->ioasa.ioasc);
+
+	if (ioasc == IPR_IOASC_IR_INVALID_REQ_TYPE_OR_PKT) {
+		ipr_cmd->job_step = ipr_setup_write_cache;
+		return IPR_RC_JOB_CONTINUE;
+	}
+
+	return ipr_reset_cmd_failed(ipr_cmd);
+}
+
+/**
  * ipr_ioafp_mode_sense_page28 - Issue Mode Sense Page 28 to IOA
  * @ipr_cmd:	ipr command struct
  *
@@ -4904,6 +4949,7 @@ static int ipr_ioafp_mode_sense_page28(struct ipr_cmnd *ipr_cmd)
 			     sizeof(struct ipr_mode_pages));
 
 	ipr_cmd->job_step = ipr_ioafp_mode_select_page28;
+	ipr_cmd->job_step_failed = ipr_reset_mode_sense_failed;
 
 	ipr_do_req(ipr_cmd, ipr_reset_ioa_job, ipr_timeout, IPR_INTERNAL_TIMEOUT);
 
@@ -5716,7 +5762,6 @@ static int ipr_reset_shutdown_ioa(struct ipr_cmnd *ipr_cmd)
 static void ipr_reset_ioa_job(struct ipr_cmnd *ipr_cmd)
 {
 	u32 rc, ioasc;
-	unsigned long scratch = ipr_cmd->u.scratch;
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 
 	do {
@@ -5732,17 +5777,13 @@ static void ipr_reset_ioa_job(struct ipr_cmnd *ipr_cmd)
 		}
 
 		if (IPR_IOASC_SENSE_KEY(ioasc)) {
-			dev_err(&ioa_cfg->pdev->dev,
-				"0x%02X failed with IOASC: 0x%08X\n",
-				ipr_cmd->ioarcb.cmd_pkt.cdb[0], ioasc);
-
-			ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_NONE);
-			list_add_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
-			return;
+			rc = ipr_cmd->job_step_failed(ipr_cmd);
+			if (rc == IPR_RC_JOB_RETURN)
+				return;
 		}
 
 		ipr_reinit_ipr_cmnd(ipr_cmd);
-		ipr_cmd->u.scratch = scratch;
+		ipr_cmd->job_step_failed = ipr_reset_cmd_failed;
 		rc = ipr_cmd->job_step(ipr_cmd);
 	} while(rc == IPR_RC_JOB_CONTINUE);
 }
