@@ -98,14 +98,14 @@
 #define IPR_NUM_LOG_HCAMS				2
 #define IPR_NUM_CFG_CHG_HCAMS				2
 #define IPR_NUM_HCAMS	(IPR_NUM_LOG_HCAMS + IPR_NUM_CFG_CHG_HCAMS)
-#define IPR_MAX_NUM_TARGETS_PER_BUS			0x10
+#define IPR_MAX_NUM_TARGETS_PER_BUS			256
 #define IPR_MAX_NUM_LUNS_PER_TARGET			256
 #define IPR_MAX_NUM_VSET_LUNS_PER_TARGET	8
 #define IPR_VSET_BUS					0xff
 #define IPR_IOA_BUS						0xff
 #define IPR_IOA_TARGET					0xff
 #define IPR_IOA_LUN						0xff
-#define IPR_MAX_NUM_BUSES				4
+#define IPR_MAX_NUM_BUSES				8
 #define IPR_MAX_BUS_TO_SCAN				IPR_MAX_NUM_BUSES
 
 #define IPR_NUM_RESET_RELOAD_RETRIES		3
@@ -1325,7 +1325,7 @@ static inline int ipr_is_naca_model(struct ipr_resource_entry *res)
 static inline int ipr_is_device(struct ipr_res_addr *res_addr)
 {
 	if ((res_addr->bus < IPR_MAX_NUM_BUSES) &&
-	    (res_addr->target < IPR_MAX_NUM_TARGETS_PER_BUS))
+	    (res_addr->target < (IPR_MAX_NUM_TARGETS_PER_BUS - 1)))
 		return 1;
 
 	return 0;
