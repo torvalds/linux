@@ -1,5 +1,5 @@
 /*
- * BPA Internal Interrupt Controller
+ * Cell Internal Interrupt Controller
  *
  * (C) Copyright IBM Deutschland Entwicklung GmbH 2005
  *
@@ -31,7 +31,7 @@
 #include <asm/prom.h>
 #include <asm/ptrace.h>
 
-#include "bpa_iic.h"
+#include "interrupt.h"
 
 struct iic_pending_bits {
 	u32 data;
@@ -89,7 +89,7 @@ static void iic_end(unsigned int irq)
 }
 
 static struct hw_interrupt_type iic_pic = {
-	.typename = " BPA-IIC  ",
+	.typename = " CELL-IIC ",
 	.startup = iic_startup,
 	.enable = iic_enable,
 	.disable = iic_disable,
@@ -106,7 +106,7 @@ static int iic_external_get_irq(struct iic_pending_bits pending)
 	irq = -1;
 
 	/*
-	 * This mapping is specific to the Broadband
+	 * This mapping is specific to the Cell Broadband
 	 * Engine. We might need to get the numbers
 	 * from the device tree to support future CPUs.
 	 */

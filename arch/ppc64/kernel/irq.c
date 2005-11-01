@@ -392,7 +392,7 @@ int virt_irq_create_mapping(unsigned int real_irq)
 	if (ppc64_interrupt_controller == IC_OPEN_PIC)
 		return real_irq;	/* no mapping for openpic (for now) */
 
-	if (ppc64_interrupt_controller == IC_BPA_IIC)
+	if (ppc64_interrupt_controller == IC_CELL_PIC)
 		return real_irq;	/* no mapping for iic either */
 
 	/* don't map interrupts < MIN_VIRT_IRQ */

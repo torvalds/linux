@@ -31,7 +31,7 @@ endif
 
 obj-$(CONFIG_PPC_PSERIES) += rtasd.o udbg_16550.o
 
-obj-$(CONFIG_PPC_BPA) += bpa_setup.o bpa_iommu.o bpa_nvram.o \
+obj-$(CONFIG_PPC_CELL) += bpa_setup.o bpa_iommu.o bpa_nvram.o \
 			 bpa_iic.o spider-pic.o
 
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o

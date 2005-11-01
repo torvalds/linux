@@ -319,8 +319,8 @@ config PPC_MAPLE
           This option enables support for the Maple 970FX Evaluation Board.
 	  For more informations, refer to <http://www.970eval.com>
 
-config PPC_BPA
-	bool "  Broadband Processor Architecture"
+config PPC_CELL
+	bool "  Cell Broadband Processor Architecture"
 	depends on PPC_MULTIPLATFORM && PPC64
 	select PPC_RTAS
 
@@ -358,8 +358,8 @@ config MPIC_BROKEN_U3
 	depends on PPC_MAPLE
 	default y
 
-config BPA_IIC
-	depends on PPC_BPA
+config CELL_IIC
+	depends on PPC_CELL
 	bool
 	default y
 

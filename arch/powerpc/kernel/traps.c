@@ -147,8 +147,8 @@ int die(const char *str, struct pt_regs *regs, long err)
 		printk("POWERMAC ");
 		nl = 1;
 		break;
-	case PLATFORM_BPA:
-		printk("BPA ");
+	case PLATFORM_CELL:
+		printk("CELL ");
 		nl = 1;
 		break;
 	}

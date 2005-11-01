@@ -296,7 +296,7 @@ static void __init setup_cpu_maps(void)
 extern struct machdep_calls pSeries_md;
 extern struct machdep_calls pmac_md;
 extern struct machdep_calls maple_md;
-extern struct machdep_calls bpa_md;
+extern struct machdep_calls cell_md;
 extern struct machdep_calls iseries_md;
 
 /* Ultimately, stuff them in an elf section like initcalls... */
@@ -310,8 +310,8 @@ static struct machdep_calls __initdata *machines[] = {
 #ifdef CONFIG_PPC_MAPLE
 	&maple_md,
 #endif /* CONFIG_PPC_MAPLE */
-#ifdef CONFIG_PPC_BPA
-	&bpa_md,
+#ifdef CONFIG_PPC_CELL
+	&cell_md,
 #endif
 #ifdef CONFIG_PPC_ISERIES
 	&iseries_md,

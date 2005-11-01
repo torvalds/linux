@@ -1,5 +1,5 @@
-#ifndef ASM_BPA_IIC_H
-#define ASM_BPA_IIC_H
+#ifndef ASM_CELL_PIC_H
+#define ASM_CELL_PIC_H
 #ifdef __KERNEL__
 /*
  * Mapping of IIC pending bits into per-node
@@ -21,7 +21,7 @@
  *    + node number
  *    * don't care
  *
- * A node consists of a Broadband Engine and an optional
+ * A node consists of a Cell Broadband Engine and an optional
  * south bridge device providing a maximum of 64 IRQs.
  * The south bridge may be connected to either IOIF0
  * or IOIF1.
@@ -59,4 +59,4 @@ extern void spider_init_IRQ(void);
 extern int spider_get_irq(unsigned long int_pending);
 
 #endif
-#endif /* ASM_BPA_IIC_H */
+#endif /* ASM_CELL_PIC_H */

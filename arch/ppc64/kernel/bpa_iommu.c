@@ -1,5 +1,5 @@
 /*
- * IOMMU implementation for Broadband Processor Architecture
+ * IOMMU implementation for Cell Broadband Processor Architecture
  * We just establish a linear mapping at boot by setting all the
  * IOPT cache entries in the CPU.
  * The mapping functions should be identical to pci_direct_iommu, 
@@ -41,7 +41,7 @@
 #include <asm/system.h>
 #include <asm/ppc-pci.h>
 
-#include "bpa_iommu.h"
+#include "iommu.h"
 
 static inline unsigned long 
 get_iopt_entry(unsigned long real_address, unsigned long ioid,
@@ -276,7 +276,7 @@ static void iommu_dev_setup_null(struct pci_dev *d) { }
  * for each DMA window used by any device. For now, we
  * happen to know that there is only one DMA window in use,
  * starting at iopt_phys_offset. */
-static void bpa_map_iommu(void)
+static void cell_map_iommu(void)
 {
 	unsigned long address;
 	void __iomem *base;
@@ -309,7 +309,7 @@ static void bpa_map_iommu(void)
 }
 
 
-static void *bpa_alloc_coherent(struct device *hwdev, size_t size,
+static void *cell_alloc_coherent(struct device *hwdev, size_t size,
 			   dma_addr_t *dma_handle, gfp_t flag)
 {
 	void *ret;
@@ -317,65 +317,65 @@ static void *bpa_alloc_coherent(struct device *hwdev, size_t size,
 	ret = (void *)__get_free_pages(flag, get_order(size));
 	if (ret != NULL) {
 		memset(ret, 0, size);
-		*dma_handle = virt_to_abs(ret) | BPA_DMA_VALID;
+		*dma_handle = virt_to_abs(ret) | CELL_DMA_VALID;
 	}
 	return ret;
 }
 
-static void bpa_free_coherent(struct device *hwdev, size_t size,
+static void cell_free_coherent(struct device *hwdev, size_t size,
 				 void *vaddr, dma_addr_t dma_handle)
 {
 	free_pages((unsigned long)vaddr, get_order(size));
 }
 
-static dma_addr_t bpa_map_single(struct device *hwdev, void *ptr,
+static dma_addr_t cell_map_single(struct device *hwdev, void *ptr,
 		size_t size, enum dma_data_direction direction)
 {
-	return virt_to_abs(ptr) | BPA_DMA_VALID;
+	return virt_to_abs(ptr) | CELL_DMA_VALID;
 }
 
-static void bpa_unmap_single(struct device *hwdev, dma_addr_t dma_addr,
+static void cell_unmap_single(struct device *hwdev, dma_addr_t dma_addr,
 		size_t size, enum dma_data_direction direction)
 {
 }
 
-static int bpa_map_sg(struct device *hwdev, struct scatterlist *sg,
+static int cell_map_sg(struct device *hwdev, struct scatterlist *sg,
 		int nents, enum dma_data_direction direction)
 {
 	int i;
 
 	for (i = 0; i < nents; i++, sg++) {
 		sg->dma_address = (page_to_phys(sg->page) + sg->offset)
-					| BPA_DMA_VALID;
+					| CELL_DMA_VALID;
 		sg->dma_length = sg->length;
 	}
 
 	return nents;
 }
 
-static void bpa_unmap_sg(struct device *hwdev, struct scatterlist *sg,
+static void cell_unmap_sg(struct device *hwdev, struct scatterlist *sg,
 		int nents, enum dma_data_direction direction)
 {
 }
 
-static int bpa_dma_supported(struct device *dev, u64 mask)
+static int cell_dma_supported(struct device *dev, u64 mask)
 {
 	return mask < 0x100000000ull;
 }
 
-void bpa_init_iommu(void)
+void cell_init_iommu(void)
 {
-	bpa_map_iommu();
+	cell_map_iommu();
 
 	/* Direct I/O, IOMMU off */
 	ppc_md.iommu_dev_setup = iommu_dev_setup_null;
 	ppc_md.iommu_bus_setup = iommu_bus_setup_null;
 
-	pci_dma_ops.alloc_coherent = bpa_alloc_coherent;
-	pci_dma_ops.free_coherent = bpa_free_coherent;
-	pci_dma_ops.map_single = bpa_map_single;
-	pci_dma_ops.unmap_single = bpa_unmap_single;
-	pci_dma_ops.map_sg = bpa_map_sg;
-	pci_dma_ops.unmap_sg = bpa_unmap_sg;
-	pci_dma_ops.dma_supported = bpa_dma_supported;
+	pci_dma_ops.alloc_coherent = cell_alloc_coherent;
+	pci_dma_ops.free_coherent = cell_free_coherent;
+	pci_dma_ops.map_single = cell_map_single;
+	pci_dma_ops.unmap_single = cell_unmap_single;
+	pci_dma_ops.map_sg = cell_map_sg;
+	pci_dma_ops.unmap_sg = cell_unmap_sg;
+	pci_dma_ops.dma_supported = cell_dma_supported;
 }

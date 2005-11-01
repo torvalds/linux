@@ -1,11 +1,11 @@
 /*
- *  linux/arch/ppc/kernel/bpa_setup.c
+ *  linux/arch/powerpc/platforms/cell/cell_setup.c
  *
  *  Copyright (C) 1995  Linus Torvalds
  *  Adapted from 'alpha' version by Gary Thomas
  *  Modified by Cort Dougan (cort@cs.nmt.edu)
  *  Modified by PPC64 Team, IBM Corp
- *  Modified by BPA Team, IBM Deutschland Entwicklung GmbH
+ *  Modified by Cell Team, IBM Deutschland Entwicklung GmbH
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -46,8 +46,8 @@
 #include <asm/ppc-pci.h>
 #include <asm/irq.h>
 
-#include "bpa_iic.h"
-#include "bpa_iommu.h"
+#include "interrupt.h"
+#include "iommu.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -55,7 +55,7 @@
 #define DBG(fmt...)
 #endif
 
-void bpa_show_cpuinfo(struct seq_file *m)
+void cell_show_cpuinfo(struct seq_file *m)
 {
 	struct device_node *root;
 	const char *model = "";
@@ -63,22 +63,22 @@ void bpa_show_cpuinfo(struct seq_file *m)
 	root = of_find_node_by_path("/");
 	if (root)
 		model = get_property(root, "model", NULL);
-	seq_printf(m, "machine\t\t: BPA %s\n", model);
+	seq_printf(m, "machine\t\t: CHRP %s\n", model);
 	of_node_put(root);
 }
 
-static void bpa_progress(char *s, unsigned short hex)
+static void cell_progress(char *s, unsigned short hex)
 {
 	printk("*** %04x : %s\n", hex, s ? s : "");
 }
 
-static void __init bpa_setup_arch(void)
+static void __init cell_setup_arch(void)
 {
 	ppc_md.init_IRQ       = iic_init_IRQ;
 	ppc_md.get_irq        = iic_get_irq;
 
 #ifdef CONFIG_SMP
-	smp_init_pSeries();
+	smp_init_cell();
 #endif
 
 	/* init to some ~sane value until calibrate_delay() runs */
@@ -97,39 +97,39 @@ static void __init bpa_setup_arch(void)
 	conswitchp = &dummy_con;
 #endif
 
-	bpa_nvram_init();
+	mmio_nvram_init();
 }
 
 /*
  * Early initialization.  Relocation is on but do not reference unbolted pages
  */
-static void __init bpa_init_early(void)
+static void __init cell_init_early(void)
 {
-	DBG(" -> bpa_init_early()\n");
+	DBG(" -> cell_init_early()\n");
 
 	hpte_init_native();
 
-	bpa_init_iommu();
+	cell_init_iommu();
 
-	ppc64_interrupt_controller = IC_BPA_IIC;
+	ppc64_interrupt_controller = IC_CELL_PIC;
 
-	DBG(" <- bpa_init_early()\n");
+	DBG(" <- cell_init_early()\n");
 }
 
 
-static int __init bpa_probe(int platform)
+static int __init cell_probe(int platform)
 {
-	if (platform != PLATFORM_BPA)
+	if (platform != PLATFORM_CELL)
 		return 0;
 
 	return 1;
 }
 
-struct machdep_calls __initdata bpa_md = {
-	.probe			= bpa_probe,
-	.setup_arch		= bpa_setup_arch,
-	.init_early		= bpa_init_early,
-	.show_cpuinfo		= bpa_show_cpuinfo,
+struct machdep_calls __initdata cell_md = {
+	.probe			= cell_probe,
+	.setup_arch		= cell_setup_arch,
+	.init_early		= cell_init_early,
+	.show_cpuinfo		= cell_show_cpuinfo,
 	.restart		= rtas_restart,
 	.power_off		= rtas_power_off,
 	.halt			= rtas_halt,
@@ -137,5 +137,5 @@ struct machdep_calls __initdata bpa_md = {
 	.get_rtc_time		= rtas_get_rtc_time,
 	.set_rtc_time		= rtas_set_rtc_time,
 	.calibrate_decr		= generic_calibrate_decr,
-	.progress		= bpa_progress,
+	.progress		= cell_progress,
 };

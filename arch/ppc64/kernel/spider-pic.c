@@ -27,7 +27,7 @@
 #include <asm/prom.h>
 #include <asm/io.h>
 
-#include "bpa_iic.h"
+#include "interrupt.h"
 
 /* register layout taken from Spider spec, table 7.4-4 */
 enum {

@@ -1,5 +1,5 @@
 /*
- * NVRAM for CPBW
+ * memory mapped NVRAM
  *
  * (C) Copyright IBM Corp. 2005
  *
@@ -30,54 +30,54 @@
 #include <asm/nvram.h>
 #include <asm/prom.h>
 
-static void __iomem *bpa_nvram_start;
-static long bpa_nvram_len;
-static spinlock_t bpa_nvram_lock = SPIN_LOCK_UNLOCKED;
+static void __iomem *mmio_nvram_start;
+static long mmio_nvram_len;
+static spinlock_t mmio_nvram_lock = SPIN_LOCK_UNLOCKED;
 
-static ssize_t bpa_nvram_read(char *buf, size_t count, loff_t *index)
+static ssize_t mmio_nvram_read(char *buf, size_t count, loff_t *index)
 {
 	unsigned long flags;
 
-	if (*index >= bpa_nvram_len)
+	if (*index >= mmio_nvram_len)
 		return 0;
-	if (*index + count > bpa_nvram_len)
-		count = bpa_nvram_len - *index;
+	if (*index + count > mmio_nvram_len)
+		count = mmio_nvram_len - *index;
 
-	spin_lock_irqsave(&bpa_nvram_lock, flags);
+	spin_lock_irqsave(&mmio_nvram_lock, flags);
 
-	memcpy_fromio(buf, bpa_nvram_start + *index, count);
+	memcpy_fromio(buf, mmio_nvram_start + *index, count);
 
-	spin_unlock_irqrestore(&bpa_nvram_lock, flags);
+	spin_unlock_irqrestore(&mmio_nvram_lock, flags);
 	
 	*index += count;
 	return count;
 }
 
-static ssize_t bpa_nvram_write(char *buf, size_t count, loff_t *index)
+static ssize_t mmio_nvram_write(char *buf, size_t count, loff_t *index)
 {
 	unsigned long flags;
 
-	if (*index >= bpa_nvram_len)
+	if (*index >= mmio_nvram_len)
 		return 0;
-	if (*index + count > bpa_nvram_len)
-		count = bpa_nvram_len - *index;
+	if (*index + count > mmio_nvram_len)
+		count = mmio_nvram_len - *index;
 
-	spin_lock_irqsave(&bpa_nvram_lock, flags);
+	spin_lock_irqsave(&mmio_nvram_lock, flags);
 
-	memcpy_toio(bpa_nvram_start + *index, buf, count);
+	memcpy_toio(mmio_nvram_start + *index, buf, count);
 
-	spin_unlock_irqrestore(&bpa_nvram_lock, flags);
+	spin_unlock_irqrestore(&mmio_nvram_lock, flags);
 	
 	*index += count;
 	return count;
 }
 
-static ssize_t bpa_nvram_get_size(void)
+static ssize_t mmio_nvram_get_size(void)
 {
-	return bpa_nvram_len;
+	return mmio_nvram_len;
 }
 
-int __init bpa_nvram_init(void)
+int __init mmio_nvram_init(void)
 {
 	struct device_node *nvram_node;
 	unsigned long *buffer;
@@ -97,20 +97,20 @@ int __init bpa_nvram_init(void)
 
 	ret = -ENODEV;
 	nvram_addr = buffer[0];
-	bpa_nvram_len = buffer[1];
-	if ( (!bpa_nvram_len) || (!nvram_addr) )
+	mmio_nvram_len = buffer[1];
+	if ( (!mmio_nvram_len) || (!nvram_addr) )
 		goto out;
 
-	bpa_nvram_start = ioremap(nvram_addr, bpa_nvram_len);
-	if (!bpa_nvram_start)
+	mmio_nvram_start = ioremap(nvram_addr, mmio_nvram_len);
+	if (!mmio_nvram_start)
 		goto out;
 
-	printk(KERN_INFO "BPA NVRAM, %luk mapped to %p\n",
-	       bpa_nvram_len >> 10, bpa_nvram_start);
+	printk(KERN_INFO "mmio NVRAM, %luk mapped to %p\n",
+	       mmio_nvram_len >> 10, mmio_nvram_start);
 
-	ppc_md.nvram_read	= bpa_nvram_read;
-	ppc_md.nvram_write	= bpa_nvram_write;
-	ppc_md.nvram_size	= bpa_nvram_get_size;
+	ppc_md.nvram_read	= mmio_nvram_read;
+	ppc_md.nvram_write	= mmio_nvram_write;
+	ppc_md.nvram_size	= mmio_nvram_get_size;
 
 out:
 	of_node_put(nvram_node);

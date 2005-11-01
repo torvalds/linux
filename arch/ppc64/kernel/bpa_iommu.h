@@ -1,5 +1,5 @@
-#ifndef BPA_IOMMU_H
-#define BPA_IOMMU_H
+#ifndef CELL_IOMMU_H
+#define CELL_IOMMU_H
 
 /* some constants */
 enum {
@@ -55,11 +55,11 @@ enum {
 
 	/* The high bit needs to be set on every DMA address,
 	   only 2GB are addressable */
-	BPA_DMA_VALID	  = 0x80000000,
-	BPA_DMA_MASK	  = 0x7fffffff,
+	CELL_DMA_VALID	  = 0x80000000,
+	CELL_DMA_MASK	  = 0x7fffffff,
 };
 
 
-void bpa_init_iommu(void);
+void cell_init_iommu(void);
 
 #endif
