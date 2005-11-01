@@ -302,6 +302,10 @@ struct ipr_config_table_entry {
 #define IPR_SUBTYPE_GENERIC_SCSI	1
 #define IPR_SUBTYPE_VOLUME_SET		2
 
+#define IPR_QUEUEING_MODEL(res)	((((res)->cfgte.flags) & 0x70) >> 4)
+#define IPR_QUEUE_FROZEN_MODEL	0
+#define IPR_QUEUE_NACA_MODEL		1
+
 	struct ipr_res_addr res_addr;
 	__be32 res_handle;
 	__be32 reserved4[2];
@@ -1291,6 +1295,20 @@ static inline int ipr_is_gscsi(struct ipr_resource_entry *res)
 		return 1;
 	else
 		return 0;
+}
+
+/**
+ * ipr_is_naca_model - Determine if a resource is using NACA queueing model
+ * @res:	resource entry struct
+ *
+ * Return value:
+ * 	1 if NACA queueing model / 0 if not NACA queueing model
+ **/
+static inline int ipr_is_naca_model(struct ipr_resource_entry *res)
+{
+	if (ipr_is_gscsi(res) && IPR_QUEUEING_MODEL(res) == IPR_QUEUE_NACA_MODEL)
+		return 1;
+	return 0;
 }
 
 /**

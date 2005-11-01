@@ -814,7 +814,7 @@ static void ipr_send_hcam(struct ipr_ioa_cfg *ioa_cfg, u8 type,
  **/
 static void ipr_init_res_entry(struct ipr_resource_entry *res)
 {
-	res->needs_sync_complete = 1;
+	res->needs_sync_complete = 0;
 	res->in_erp = 0;
 	res->add_to_ml = 0;
 	res->del_from_ml = 0;
@@ -3251,7 +3251,8 @@ static int ipr_slave_alloc(struct scsi_device *sdev)
 			res->add_to_ml = 0;
 			res->in_erp = 0;
 			sdev->hostdata = res;
-			res->needs_sync_complete = 1;
+			if (!ipr_is_naca_model(res))
+				res->needs_sync_complete = 1;
 			rc = 0;
 			break;
 		}
@@ -3515,7 +3516,8 @@ static int ipr_cancel_op(struct scsi_cmnd * scsi_cmd)
 	}
 
 	list_add_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
-	res->needs_sync_complete = 1;
+	if (!ipr_is_naca_model(res))
+		res->needs_sync_complete = 1;
 
 	LEAVE;
 	return (IPR_IOASC_SENSE_KEY(ioasc) ? FAILED : SUCCESS);
@@ -3819,7 +3821,8 @@ static void ipr_erp_done(struct ipr_cmnd *ipr_cmd)
 	}
 
 	if (res) {
-		res->needs_sync_complete = 1;
+		if (!ipr_is_naca_model(res))
+			res->needs_sync_complete = 1;
 		res->in_erp = 0;
 	}
 	ipr_unmap_sglist(ioa_cfg, ipr_cmd);
@@ -4089,6 +4092,30 @@ static void ipr_gen_sense(struct ipr_cmnd *ipr_cmd)
 }
 
 /**
+ * ipr_get_autosense - Copy autosense data to sense buffer
+ * @ipr_cmd:	ipr command struct
+ *
+ * This function copies the autosense buffer to the buffer
+ * in the scsi_cmd, if there is autosense available.
+ *
+ * Return value:
+ *	1 if autosense was available / 0 if not
+ **/
+static int ipr_get_autosense(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioasa *ioasa = &ipr_cmd->ioasa;
+
+	if ((be32_to_cpu(ioasa->ioasc_specific) &
+	     (IPR_ADDITIONAL_STATUS_FMT | IPR_AUTOSENSE_VALID)) == 0)
+		return 0;
+
+	memcpy(ipr_cmd->scsi_cmd->sense_buffer, ioasa->auto_sense.data,
+	       min_t(u16, be16_to_cpu(ioasa->auto_sense.auto_sense_len),
+		   SCSI_SENSE_BUFFERSIZE));
+	return 1;
+}
+
+/**
  * ipr_erp_start - Process an error response for a SCSI op
  * @ioa_cfg:	ioa config struct
  * @ipr_cmd:	ipr command struct
@@ -4118,7 +4145,10 @@ static void ipr_erp_start(struct ipr_ioa_cfg *ioa_cfg,
 
 	switch (ioasc & IPR_IOASC_IOASC_MASK) {
 	case IPR_IOASC_ABORTED_CMD_TERM_BY_HOST:
-		scsi_cmd->result |= (DID_IMM_RETRY << 16);
+		if (ipr_is_naca_model(res))
+			scsi_cmd->result |= (DID_ABORT << 16);
+		else
+			scsi_cmd->result |= (DID_IMM_RETRY << 16);
 		break;
 	case IPR_IOASC_IR_RESOURCE_HANDLE:
 	case IPR_IOASC_IR_NO_CMDS_TO_2ND_IOA:
@@ -4126,7 +4156,8 @@ static void ipr_erp_start(struct ipr_ioa_cfg *ioa_cfg,
 		break;
 	case IPR_IOASC_HW_SEL_TIMEOUT:
 		scsi_cmd->result |= (DID_NO_CONNECT << 16);
-		res->needs_sync_complete = 1;
+		if (!ipr_is_naca_model(res))
+			res->needs_sync_complete = 1;
 		break;
 	case IPR_IOASC_SYNC_REQUIRED:
 		if (!res->in_erp)
@@ -4146,21 +4177,27 @@ static void ipr_erp_start(struct ipr_ioa_cfg *ioa_cfg,
 		if (!res->resetting_device)
 			scsi_report_bus_reset(ioa_cfg->host, scsi_cmd->device->channel);
 		scsi_cmd->result |= (DID_ERROR << 16);
-		res->needs_sync_complete = 1;
+		if (!ipr_is_naca_model(res))
+			res->needs_sync_complete = 1;
 		break;
 	case IPR_IOASC_HW_DEV_BUS_STATUS:
 		scsi_cmd->result |= IPR_IOASC_SENSE_STATUS(ioasc);
 		if (IPR_IOASC_SENSE_STATUS(ioasc) == SAM_STAT_CHECK_CONDITION) {
-			ipr_erp_cancel_all(ipr_cmd);
-			return;
+			if (!ipr_get_autosense(ipr_cmd)) {
+				if (!ipr_is_naca_model(res)) {
+					ipr_erp_cancel_all(ipr_cmd);
+					return;
+				}
+			}
 		}
-		res->needs_sync_complete = 1;
+		if (!ipr_is_naca_model(res))
+			res->needs_sync_complete = 1;
 		break;
 	case IPR_IOASC_NR_INIT_CMD_REQUIRED:
 		break;
 	default:
 		scsi_cmd->result |= (DID_ERROR << 16);
-		if (!ipr_is_vset_device(res))
+		if (!ipr_is_vset_device(res) && !ipr_is_naca_model(res))
 			res->needs_sync_complete = 1;
 		break;
 	}
