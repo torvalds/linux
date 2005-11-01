@@ -191,6 +191,7 @@ config IOSAPIC
 
 config IA64_SGI_SN_XP
 	tristate "Support communication between SGI SSIs"
+	depends on IA64_GENERIC || IA64_SGI_SN2
 	select IA64_UNCACHED_ALLOCATOR
 	help
 	  An SGI machine can be divided into multiple Single System
