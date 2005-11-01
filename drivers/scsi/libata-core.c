@@ -1261,6 +1261,12 @@ retry:
 
 		}
 
+		if (dev->id[59] & 0x100) {
+			dev->multi_count = dev->id[59] & 0xff;
+			DPRINTK("ata%u: dev %u multi count %u\n",
+				ap->id, device, dev->multi_count);
+		}
+
 		ap->host->max_cmd_len = 16;
 	}
 
@@ -2804,7 +2810,7 @@ static int ata_pio_complete (struct ata_port *ap)
 	 * we enter, BSY will be cleared in a chk-status or two.  If not,
 	 * the drive is probably seeking or something.  Snooze for a couple
 	 * msecs, then chk-status again.  If still busy, fall back to
-	 * HSM_ST_POLL state.
+	 * HSM_ST_LAST_POLL state.
 	 */
 	drv_stat = ata_busy_wait(ap, ATA_BUSY | ATA_DRQ, 10);
 	if (drv_stat & (ATA_BUSY | ATA_DRQ)) {
@@ -3021,6 +3027,32 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 }
 
 /**
+ *	ata_pio_sectors - Transfer one or many 512-byte sectors.
+ *	@qc: Command on going
+ *
+ *	Transfer one or many ATA_SECT_SIZE of data from/to the 
+ *	ATA device for the DRQ request.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+
+static void ata_pio_sectors(struct ata_queued_cmd *qc)
+{
+	if (is_multi_taskfile(&qc->tf)) {
+		/* READ/WRITE MULTIPLE */
+		unsigned int nsect;
+
+		assert(qc->dev->multi_count);
+
+		nsect = min(qc->nsect - qc->cursect, qc->dev->multi_count);
+		while (nsect--)
+			ata_pio_sector(qc);
+	} else
+		ata_pio_sector(qc);
+}
+
+/**
  *	atapi_send_cdb - Write CDB bytes to hardware
  *	@ap: Port to which ATAPI device is attached.
  *	@qc: Taskfile currently active
@@ -3118,11 +3150,11 @@ static int ata_pio_first_block(struct ata_port *ap)
 		 * send first data block.
 		 */
 
-		/* ata_pio_sector() might change the state to HSM_ST_LAST.
-		 * so, the state is changed here before ata_pio_sector().
+		/* ata_pio_sectors() might change the state to HSM_ST_LAST.
+		 * so, the state is changed here before ata_pio_sectors().
 		 */
 		ap->hsm_task_state = HSM_ST;
-		ata_pio_sector(qc);
+		ata_pio_sectors(qc);
 		ata_altstatus(ap); /* flush */
 	} else
 		/* send CDB */
@@ -3327,7 +3359,7 @@ static void ata_pio_block(struct ata_port *ap)
 			return;
 		}
 
-		ata_pio_sector(qc);
+		ata_pio_sectors(qc);
 	}
 
 	ata_altstatus(ap); /* flush */
@@ -4213,7 +4245,7 @@ fsm_start:
 				goto fsm_start;
 			}
 
-			ata_pio_sector(qc);
+			ata_pio_sectors(qc);
 
 			if (ap->hsm_task_state == HSM_ST_LAST &&
 			    (!(qc->tf.flags & ATA_TFLAG_WRITE))) {
