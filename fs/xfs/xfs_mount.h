@@ -421,6 +421,9 @@ typedef struct xfs_mount {
 						 * allocation */
 #define XFS_MOUNT_IHASHSIZE	0x00100000	/* inode hash table size */
 #define XFS_MOUNT_DIRSYNC	0x00200000	/* synchronous directory ops */
+#define XFS_MOUNT_COMPAT_IOSIZE	0x00400000	/* don't report large preferred
+						 * I/O size in stat() */
+
 
 /*
  * Default minimum read and write sizes.
@@ -441,6 +444,30 @@ typedef struct xfs_mount {
  */
 #define	XFS_WSYNC_READIO_LOG	15	/* 32K */
 #define	XFS_WSYNC_WRITEIO_LOG	14	/* 16K */
+
+/*
+ * Allow large block sizes to be reported to userspace programs if the
+ * "largeio" mount option is used. 
+ *
+ * If compatibility mode is specified, simply return the basic unit of caching
+ * so that we don't get inefficient read/modify/write I/O from user apps.
+ * Otherwise....
+ *
+ * If the underlying volume is a stripe, then return the stripe width in bytes
+ * as the recommended I/O size. It is not a stripe and we've set a default
+ * buffered I/O size, return that, otherwise return the compat default.
+ */
+static inline unsigned long
+xfs_preferred_iosize(xfs_mount_t *mp)
+{
+	if (mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE)
+		return PAGE_CACHE_SIZE;
+	return (mp->m_swidth ?
+		(mp->m_swidth << mp->m_sb.sb_blocklog) :
+		((mp->m_flags & XFS_MOUNT_DFLT_IOSIZE) ?
+			(1 << (int)MAX(mp->m_readio_log, mp->m_writeio_log)) :
+			PAGE_CACHE_SIZE));
+}
 
 #define XFS_MAXIOFFSET(mp)	((mp)->m_maxioffset)
 

@@ -106,5 +106,7 @@ struct xfs_mount_args {
 #define XFSMNT_IHASHSIZE	0x20000000	/* inode hash table size */
 #define XFSMNT_DIRSYNC		0x40000000	/* sync creat,link,unlink,rename
 						 * symlink,mkdir,rmdir,mknod */
+#define XFSMNT_COMPAT_IOSIZE	0x80000000	/* don't report large preferred
+						 * I/O size in stat() */
 
 #endif	/* __XFS_CLNT_H__ */

@@ -307,6 +307,9 @@ xfs_start_flags(
 	if (ap->flags & XFSMNT_DIRSYNC)
 		mp->m_flags |= XFS_MOUNT_DIRSYNC;
 
+	if (ap->flags & XFSMNT_COMPAT_IOSIZE)
+		mp->m_flags |= XFS_MOUNT_COMPAT_IOSIZE;
+
 	/*
 	 * no recovery flag requires a read-only mount
 	 */
@@ -1645,6 +1648,9 @@ xfs_vget(
 #define MNTOPT_64BITINODE   "inode64"	/* inodes can be allocated anywhere */
 #define MNTOPT_IKEEP	"ikeep"		/* do not free empty inode clusters */
 #define MNTOPT_NOIKEEP	"noikeep"	/* free empty inode clusters */
+#define MNTOPT_LARGEIO	   "largeio"	/* report large I/O sizes in stat() */
+#define MNTOPT_NOLARGEIO   "nolargeio"	/* do not report large I/O sizes
+					 * in stat(). */
 
 STATIC unsigned long
 suffix_strtoul(const char *cp, char **endp, unsigned int base)
@@ -1681,6 +1687,7 @@ xfs_parseargs(
 	int			dsunit, dswidth, vol_dsunit, vol_dswidth;
 	int			iosize;
 
+	args->flags |= XFSMNT_COMPAT_IOSIZE;
 #if 0	/* XXX: off by default, until some remaining issues ironed out */
 	args->flags |= XFSMNT_IDELETE; /* default to on */
 #endif
@@ -1809,6 +1816,10 @@ xfs_parseargs(
 			args->flags &= ~XFSMNT_IDELETE;
 		} else if (!strcmp(this_char, MNTOPT_NOIKEEP)) {
 			args->flags |= XFSMNT_IDELETE;
+		} else if (!strcmp(this_char, MNTOPT_LARGEIO)) {
+			args->flags &= ~XFSMNT_COMPAT_IOSIZE;
+		} else if (!strcmp(this_char, MNTOPT_NOLARGEIO)) {
+			args->flags |= XFSMNT_COMPAT_IOSIZE;
 		} else if (!strcmp(this_char, "osyncisdsync")) {
 			/* no-op, this is now the default */
 printk("XFS: osyncisdsync is now the default, option is deprecated.\n");
