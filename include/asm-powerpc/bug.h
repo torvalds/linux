@@ -13,7 +13,7 @@
 
 #ifdef __powerpc64__
 #define BUG_TABLE_ENTRY(label, line, file, func) \
-	".llong " #label "\n .long " #line "\n .llong " #file ", " #func "\n"
+	".llong " #label ", " #line ", " #file ", " #func "\n"
 #define TRAP_OP(ra, rb) "1: tdnei " #ra ", " #rb "\n"
 #define DATA_TYPE long long
 #else 
@@ -25,7 +25,7 @@
 
 struct bug_entry {
 	unsigned long	bug_addr;
-	int		line;
+	long		line;
 	const char	*file;
 	const char	*function;
 };
