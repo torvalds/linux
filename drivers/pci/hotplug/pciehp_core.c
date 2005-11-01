@@ -106,8 +106,6 @@ static int init_slots(struct controller *ctrl)
 	u32 slot_number;
 	int result = -ENOMEM;
 
-	dbg("%s\n",__FUNCTION__);
-
 	number_of_slots = ctrl->num_slots;
 	slot_device = ctrl->slot_device_offset;
 	slot_number = ctrl->first_slot;
@@ -362,7 +360,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	u8 value;
 	struct pci_dev *pdev;
 	
-	dbg("%s: Called by hp_drv\n", __FUNCTION__);
 	ctrl = kmalloc(sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl) {
 		err("%s : out of memory\n", __FUNCTION__);
@@ -370,8 +367,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	}
 	memset(ctrl, 0, sizeof(struct controller));
 
-	dbg("%s: DRV_thread pid = %d\n", __FUNCTION__, current->pid);
-	
 	pdev = dev->port;
 	ctrl->pci_dev = pdev;
 
@@ -389,7 +384,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 		rc = -ENOMEM;
 		goto err_out_unmap_mmio_region;
 	}
-	dbg("%s: ctrl->pci_bus %p\n", __FUNCTION__, ctrl->pci_bus);
 	memcpy (ctrl->pci_bus, pdev->bus, sizeof (*ctrl->pci_bus));
 	ctrl->bus = pdev->bus->number;  /* ctrl bus */
 	ctrl->slot_bus = pdev->subordinate->number;  /* bus controlled by this HPC */
@@ -419,7 +413,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	}
 
 	t_slot = pciehp_find_slot(ctrl, first_device_num);
-	dbg("%s: t_slot %p\n", __FUNCTION__, t_slot);
 
 	/*	Finish setting up the hot plug ctrl device */
 	ctrl->next_event = 0;
@@ -436,7 +429,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	down(&ctrl->crit_sect);
 
 	t_slot->hpc_ops->get_adapter_status(t_slot, &value); /* Check if slot is occupied */
-	dbg("%s: adpater value %x\n", __FUNCTION__, value);
 	
 	if ((POWER_CTRL(ctrl->ctrlcap)) && !value) {
 		rc = t_slot->hpc_ops->power_off_slot(t_slot); /* Power off slot if not occupied*/
@@ -585,7 +577,6 @@ static void __exit pcied_cleanup(void)
 	dbg("unload_pciehpd()\n");
 	unload_pciehpd();
 
-	dbg("pcie_port_service_unregister\n");
 	pcie_port_service_unregister(&hpdriver_portdrv);
 
 	info(DRIVER_DESC " version: " DRIVER_VERSION " unloaded\n");

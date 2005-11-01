@@ -207,12 +207,9 @@ static inline struct slot *pciehp_find_slot(struct controller *ctrl, u8 device)
 
 	p_slot = ctrl->slot;
 
-	dbg("p_slot = %p\n", p_slot);
-
 	while (p_slot && (p_slot->device != device)) {
 		tmp_slot = p_slot;
 		p_slot = p_slot->next;
-		dbg("In while loop, p_slot = %p\n", p_slot);
 	}
 	if (p_slot == NULL) {
 		err("ERROR: pciehp_find_slot device=0x%x\n", device);
@@ -228,7 +225,6 @@ static inline int wait_for_ctrl_irq(struct controller *ctrl)
 
 	DECLARE_WAITQUEUE(wait, current);
 
-	dbg("%s : start\n", __FUNCTION__);
 	add_wait_queue(&ctrl->queue, &wait);
 	if (!pciehp_poll_mode)
 		/* Sleep for up to 1 second */
@@ -240,7 +236,6 @@ static inline int wait_for_ctrl_irq(struct controller *ctrl)
 	if (signal_pending(current))
 		retval =  -EINTR;
 
-	dbg("%s : end\n", __FUNCTION__);
 	return retval;
 }
 
