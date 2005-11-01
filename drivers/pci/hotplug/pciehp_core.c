@@ -27,17 +27,11 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/proc_fs.h>
-#include <linux/slab.h>
-#include <linux/workqueue.h>
 #include <linux/pci.h>
-#include <linux/init.h>
-#include <asm/uaccess.h>
 #include "pciehp.h"
 #include <linux/interrupt.h>
 
@@ -381,11 +375,7 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	pdev = dev->port;
 	ctrl->pci_dev = pdev;
 
-	rc = pcie_init(ctrl, dev,
-		(php_intr_callback_t) pciehp_handle_attention_button,
-		(php_intr_callback_t) pciehp_handle_switch_change,
-		(php_intr_callback_t) pciehp_handle_presence_change,
-		(php_intr_callback_t) pciehp_handle_power_fault);
+	rc = pcie_init(ctrl, dev);
 	if (rc) {
 		dbg("%s: controller initialization failed\n", PCIE_MODULE_NAME);
 		goto err_out_free_ctrl;
@@ -421,8 +411,6 @@ static int pciehp_probe(struct pcie_device *dev, const struct pcie_port_service_
 	first_device_num = ctrl->slot_device_offset;
 	num_ctlr_slots = ctrl->num_slots; 
 
-	ctrl->add_support = 1;
-	
 	/* Setup the slot information structures */
 	rc = init_slots(ctrl);
 	if (rc) {

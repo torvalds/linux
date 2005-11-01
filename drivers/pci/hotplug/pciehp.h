@@ -32,8 +32,6 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <asm/semaphore.h>
-#include <asm/io.h>		
 #include <linux/pcieport_if.h>
 #include "pci_hotplug.h"
 
@@ -62,13 +60,7 @@ struct slot {
 	u8 device;
 	u16 status;
 	u32 number;
-	u8 is_a_board;
-	u8 configured;
 	u8 state;
-	u8 switch_save;
-	u8 presence_save;
-	u32 capabilities;
-	u16 reserved2;
 	struct timer_list task_event;
 	u8 hp_slot;
 	struct controller *ctrl;
@@ -82,27 +74,42 @@ struct event_info {
 	u8 hp_slot;
 };
 
+typedef u8(*php_intr_callback_t) (u8 hp_slot, void *instance_id);
+
+struct php_ctlr_state_s {
+	struct php_ctlr_state_s *pnext;
+	struct pci_dev *pci_dev;
+	unsigned int irq;
+	unsigned long flags;				/* spinlock's */
+	u32 slot_device_offset;
+	u32 num_slots;
+    	struct timer_list	int_poll_timer;		/* Added for poll event */
+	php_intr_callback_t 	attention_button_callback;
+	php_intr_callback_t 	switch_change_callback;
+	php_intr_callback_t 	presence_change_callback;
+	php_intr_callback_t 	power_fault_callback;
+	void 			*callback_instance_id;
+	struct ctrl_reg 	*creg;				/* Ptr to controller register space */
+};
+
+#define MAX_EVENTS		10
 struct controller {
 	struct controller *next;
 	struct semaphore crit_sect;	/* critical section semaphore */
-	void *hpc_ctlr_handle;		/* HPC controller handle */
+	struct php_ctlr_state_s *hpc_ctlr_handle; /* HPC controller handle */
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */
 	struct pci_dev *pci_dev;
 	struct pci_bus *pci_bus;
-	struct event_info event_queue[10];
+	struct event_info event_queue[MAX_EVENTS];
 	struct slot *slot;
 	struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
 	u8 next_event;
-	u8 seg;
 	u8 bus;
 	u8 device;
 	u8 function;
-	u8 rev;
 	u8 slot_device_offset;
-	u8 add_support;
-	enum pci_bus_speed speed;
 	u32 first_slot;		/* First physical slot number */  /* PCIE only has 1 slot */
 	u8 slot_bus;		/* Bus where the slots handled by this controller sit */
 	u8 ctrlcap;
@@ -250,14 +257,7 @@ enum php_ctlr_type {
 	ACPI
 };
 
-typedef u8(*php_intr_callback_t) (unsigned int change_id, void *instance_id);
-
-int pcie_init(struct controller *ctrl, struct pcie_device *dev,
-		php_intr_callback_t attention_button_callback,
-		php_intr_callback_t switch_change_callback,
-		php_intr_callback_t presence_change_callback,
-		php_intr_callback_t power_fault_callback);
-
+int pcie_init(struct controller *ctrl, struct pcie_device *dev);
 
 /* This has no meaning for PCI Express, as there is only 1 slot per port */
 int pcie_get_ctlr_slot_config(struct controller *ctrl,

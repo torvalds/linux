@@ -24,18 +24,12 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/acpi.h>
-#include <linux/efi.h>
 #include <linux/pci-acpi.h>
-#include <asm/uaccess.h>
-#include <asm/system.h>
-#include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/actypes.h>
 #include "pciehp.h"

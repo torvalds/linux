@@ -27,15 +27,9 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/slab.h>
-#include <linux/workqueue.h>
-#include <linux/interrupt.h>
-#include <linux/delay.h>
-#include <linux/wait.h>
 #include <linux/smp_lock.h>
 #include <linux/pci.h>
 #include "../pci.h"
@@ -64,10 +58,9 @@ u8 pciehp_handle_attention_button(u8 hp_slot, void *inst_id)
 	taskInfo = &(ctrl->event_queue[ctrl->next_event]);
 	p_slot = pciehp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
-	p_slot->hpc_ops->get_adapter_status(p_slot, &(p_slot->presence_save));
 	p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 	
-	ctrl->next_event = (ctrl->next_event + 1) % 10;
+	ctrl->next_event = (ctrl->next_event + 1) % MAX_EVENTS;
 	taskInfo->hp_slot = hp_slot;
 
 	rc++;
@@ -118,12 +111,11 @@ u8 pciehp_handle_switch_change(u8 hp_slot, void *inst_id)
 	 * what to do
 	 */
 	taskInfo = &(ctrl->event_queue[ctrl->next_event]);
-	ctrl->next_event = (ctrl->next_event + 1) % 10;
+	ctrl->next_event = (ctrl->next_event + 1) % MAX_EVENTS;
 	taskInfo->hp_slot = hp_slot;
 
 	rc++;
 	p_slot = pciehp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
-	p_slot->hpc_ops->get_adapter_status(p_slot, &(p_slot->presence_save));
 	p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
 
 	if (getstatus) {
@@ -131,14 +123,12 @@ u8 pciehp_handle_switch_change(u8 hp_slot, void *inst_id)
 		 * Switch opened
 		 */
 		info("Latch open on Slot(%d)\n", ctrl->first_slot + hp_slot);
-		p_slot->switch_save = 0;
 		taskInfo->event_type = INT_SWITCH_OPEN;
 	} else {
 		/*
 		 *  Switch closed
 		 */
 		info("Latch close on Slot(%d)\n", ctrl->first_slot + hp_slot);
-		p_slot->switch_save = 0x10;
 		taskInfo->event_type = INT_SWITCH_CLOSE;
 	}
 
@@ -152,7 +142,7 @@ u8 pciehp_handle_presence_change(u8 hp_slot, void *inst_id)
 {
 	struct controller *ctrl = (struct controller *) inst_id;
 	struct slot *p_slot;
-	u8 rc = 0;
+	u8 presence_save, rc = 0;
 	struct event_info *taskInfo;
 
 	/* Presence Change */
@@ -162,7 +152,7 @@ u8 pciehp_handle_presence_change(u8 hp_slot, void *inst_id)
 	 * what to do
 	 */
 	taskInfo = &(ctrl->event_queue[ctrl->next_event]);
-	ctrl->next_event = (ctrl->next_event + 1) % 10;
+	ctrl->next_event = (ctrl->next_event + 1) % MAX_EVENTS;
 	taskInfo->hp_slot = hp_slot;
 
 	rc++;
@@ -171,8 +161,8 @@ u8 pciehp_handle_presence_change(u8 hp_slot, void *inst_id)
 	/* Switch is open, assume a presence change
 	 * Save the presence state
 	 */
-	p_slot->hpc_ops->get_adapter_status(p_slot, &(p_slot->presence_save));
-	if (p_slot->presence_save) {
+	p_slot->hpc_ops->get_adapter_status(p_slot, &presence_save);
+	if (presence_save) {
 		/*
 		 * Card Present
 		 */
@@ -206,7 +196,7 @@ u8 pciehp_handle_power_fault(u8 hp_slot, void *inst_id)
 	 * what to do
 	 */
 	taskInfo = &(ctrl->event_queue[ctrl->next_event]);
-	ctrl->next_event = (ctrl->next_event + 1) % 10;
+	ctrl->next_event = (ctrl->next_event + 1) % MAX_EVENTS;
 	taskInfo->hp_slot = hp_slot;
 
 	rc++;
@@ -279,11 +269,10 @@ static void set_slot_off(struct controller *ctrl, struct slot * pslot)
  * Configures board
  *
  */
-static u32 board_added(struct slot *p_slot)
+static int board_added(struct slot *p_slot)
 {
 	u8 hp_slot;
-	u32 temp_register = 0xFFFFFFFF;
-	u32 rc = 0;
+	int rc = 0;
 	struct controller *ctrl = p_slot->ctrl;
 
 	hp_slot = p_slot->device - ctrl->slot_device_offset;
@@ -333,8 +322,6 @@ static u32 board_added(struct slot *p_slot)
 	/* Check for a power fault */
 	if (p_slot->status == 0xFF) {
 		/* power fault occurred, but it was benign */
-		temp_register = 0xFFFFFFFF;
-		dbg("%s: temp register set to %x by power fault\n", __FUNCTION__, temp_register);
 		rc = POWER_FAILURE;
 		p_slot->status = 0;
 		goto err_exit;
@@ -348,8 +335,6 @@ static u32 board_added(struct slot *p_slot)
 	}
 
 	p_slot->status = 0;
-	p_slot->switch_save = 0x10;
-	p_slot->is_a_board = 0x01;
 
 	/*
 	 * Some PCI Express root ports require fixup after hot-plug operation.
@@ -380,11 +365,11 @@ err_exit:
  * remove_board - Turns off slot and LED's
  *
  */
-static u32 remove_board(struct slot *p_slot)
+static int remove_board(struct slot *p_slot)
 {
 	u8 device;
 	u8 hp_slot;
-	u32 rc;
+	int rc;
 	struct controller *ctrl = p_slot->ctrl;
 
 	if (pciehp_unconfigure_device(p_slot))
@@ -398,9 +383,7 @@ static u32 remove_board(struct slot *p_slot)
 	dbg("In %s, hp_slot = %d\n", __FUNCTION__, hp_slot);
 
 	/* Change status to shutdown */
-	if (p_slot->is_a_board)
-		p_slot->status = 0x01;
-	p_slot->configured = 0;
+	p_slot->status = 0x01;
 
 	/* Wait for exclusive access to hardware */
 	down(&ctrl->crit_sect);
@@ -427,9 +410,6 @@ static u32 remove_board(struct slot *p_slot)
 
 	/* Done with exclusive hardware access */
 	up(&ctrl->crit_sect);
-
-	p_slot->switch_save = 0x10;
-	p_slot->is_a_board = 0;
 
 	return 0;
 }
@@ -633,7 +613,7 @@ static void interrupt_event_handler(struct controller *ctrl)
 	while (change) {
 		change = 0;
 
-		for (loop = 0; loop < 10; loop++) {
+		for (loop = 0; loop < MAX_EVENTS; loop++) {
 			if (ctrl->event_queue[loop].event_type != 0) {
 				hp_slot = ctrl->event_queue[loop].hp_slot;
 
@@ -816,21 +796,11 @@ int pciehp_enable_slot(struct slot *p_slot)
 	}
 	up(&p_slot->ctrl->crit_sect);
 
-	p_slot->configured = 0;
-	p_slot->is_a_board = 1;
-
-	/* We have to save the presence info for these slots */
-	p_slot->hpc_ops->get_adapter_status(p_slot, &(p_slot->presence_save));
 	p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
-	p_slot->switch_save = !getstatus? 0x10:0;
 
 	rc = board_added(p_slot);
 	if (rc) {
-		/* We have to save the presence info for these slots */
-		p_slot->hpc_ops->get_adapter_status(p_slot,
-				&(p_slot->presence_save));
 		p_slot->hpc_ops->get_latch_status(p_slot, &getstatus);
-		p_slot->switch_save = !getstatus? 0x10:0;
 	}
 
 	if (p_slot)

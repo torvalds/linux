@@ -27,25 +27,13 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/pci.h>
-#include <linux/init.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
 #include "pciehp.h"
-#include "pciehprm_nonacpi.h"
-
-
-int pciehprm_get_physical_slot_number(struct controller *ctrl, u32 *sun, u8 busnum, u8 devnum)
-{
-
-	*sun = (u8) (ctrl->first_slot);
-	return 0;
-}
 
 void get_hp_params_from_firmware(struct pci_dev *dev,
 		struct hotplug_params *hpp)

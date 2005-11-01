@@ -27,16 +27,10 @@
  *
  */
 
-#include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
-#include <linux/interrupt.h>
-#include <linux/spinlock.h>
 #include <linux/pci.h>
-#include <asm/system.h>
 #include "../pci.h"
 #include "pciehp.h"
 
@@ -216,23 +210,6 @@ static int pcie_cap_base = 0;		/* Base of the PCI Express capability item struct
 #define CMD_COMPLETED		0x0010
 #define MRL_STATE		0x0020
 #define PRSN_STATE		0x0040
-
-struct php_ctlr_state_s {
-	struct php_ctlr_state_s *pnext;
-	struct pci_dev *pci_dev;
-	unsigned int irq;
-	unsigned long flags;				/* spinlock's */
-	u32 slot_device_offset;
-	u32 num_slots;
-    	struct timer_list	int_poll_timer;		/* Added for poll event */
-	php_intr_callback_t 	attention_button_callback;
-	php_intr_callback_t 	switch_change_callback;
-	php_intr_callback_t 	presence_change_callback;
-	php_intr_callback_t 	power_fault_callback;
-	void 			*callback_instance_id;
-	struct ctrl_reg 	*creg;				/* Ptr to controller register space */
-};
-
 
 static spinlock_t hpc_event_lock;
 
@@ -1248,12 +1225,7 @@ static struct hpc_ops pciehp_hpc_ops = {
 	.check_lnk_status		= hpc_check_lnk_status,
 };
 
-int pcie_init(struct controller * ctrl,
-	struct pcie_device *dev,
-	php_intr_callback_t attention_button_callback,
-	php_intr_callback_t switch_change_callback,
-	php_intr_callback_t presence_change_callback,
-	php_intr_callback_t power_fault_callback)
+int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 {
 	struct php_ctlr_state_s *php_ctlr, *p;
 	void *instance_id = ctrl;
@@ -1362,10 +1334,10 @@ int pcie_init(struct controller * ctrl,
 	dbg("HPC interrupt = %d\n", php_ctlr->irq);
 
 	/* Save interrupt callback info */
-	php_ctlr->attention_button_callback = attention_button_callback;
-	php_ctlr->switch_change_callback = switch_change_callback;
-	php_ctlr->presence_change_callback = presence_change_callback;
-	php_ctlr->power_fault_callback = power_fault_callback;
+	php_ctlr->attention_button_callback = pciehp_handle_attention_button;
+	php_ctlr->switch_change_callback = pciehp_handle_switch_change;
+	php_ctlr->presence_change_callback = pciehp_handle_presence_change;
+	php_ctlr->power_fault_callback = pciehp_handle_power_fault;
 	php_ctlr->callback_instance_id = instance_id;
 
 	/* return PCI Controller Info */
