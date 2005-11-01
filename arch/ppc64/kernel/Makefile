@@ -13,7 +13,7 @@ endif
 
 obj-y               +=	irq.o idle.o dma.o \
 			signal.o \
-			align.o bitops.o pacaData.o \
+			align.o pacaData.o \
 			udbg.o ioctl32.o \
 			rtc.o \
 			cpu_setup_power4.o \
