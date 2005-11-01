@@ -2180,6 +2180,74 @@ static struct class_device_attribute ipr_diagnostics_attr = {
 };
 
 /**
+ * ipr_show_adapter_state - Show the adapter's state
+ * @class_dev:	class device struct
+ * @buf:		buffer
+ *
+ * Return value:
+ * 	number of bytes printed to buffer
+ **/
+static ssize_t ipr_show_adapter_state(struct class_device *class_dev, char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(class_dev);
+	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)shost->hostdata;
+	unsigned long lock_flags = 0;
+	int len;
+
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	if (ioa_cfg->ioa_is_dead)
+		len = snprintf(buf, PAGE_SIZE, "offline\n");
+	else
+		len = snprintf(buf, PAGE_SIZE, "online\n");
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+	return len;
+}
+
+/**
+ * ipr_store_adapter_state - Change adapter state
+ * @class_dev:	class_device struct
+ * @buf:		buffer
+ * @count:		buffer size
+ *
+ * This function will change the adapter's state.
+ *
+ * Return value:
+ * 	count on success / other on failure
+ **/
+static ssize_t ipr_store_adapter_state(struct class_device *class_dev,
+				       const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(class_dev);
+	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *)shost->hostdata;
+	unsigned long lock_flags;
+	int result = count;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EACCES;
+
+	spin_lock_irqsave(ioa_cfg->host->host_lock, lock_flags);
+	if (ioa_cfg->ioa_is_dead && !strncmp(buf, "online", 6)) {
+		ioa_cfg->ioa_is_dead = 0;
+		ioa_cfg->reset_retries = 0;
+		ioa_cfg->in_ioa_bringdown = 0;
+		ipr_initiate_ioa_reset(ioa_cfg, IPR_SHUTDOWN_NONE);
+	}
+	spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
+	wait_event(ioa_cfg->reset_wait_q, !ioa_cfg->in_reset_reload);
+
+	return result;
+}
+
+static struct class_device_attribute ipr_ioa_state_attr = {
+	.attr = {
+		.name =		"state",
+		.mode =		S_IRUGO | S_IWUSR,
+	},
+	.show = ipr_show_adapter_state,
+	.store = ipr_store_adapter_state
+};
+
+/**
  * ipr_store_reset_adapter - Reset the adapter
  * @class_dev:	class_device struct
  * @buf:		buffer
@@ -2515,6 +2583,7 @@ static struct class_device_attribute *ipr_ioa_attrs[] = {
 	&ipr_fw_version_attr,
 	&ipr_log_level_attr,
 	&ipr_diagnostics_attr,
+	&ipr_ioa_state_attr,
 	&ipr_ioa_reset_attr,
 	&ipr_update_fw_attr,
 	&ipr_ioa_cache_attr,
