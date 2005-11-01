@@ -42,7 +42,7 @@
  * uid_t and gid_t are hard-coded to 32 bits in the inode.
  * Hence, an 'id' in a dquot is 32 bits..
  */
-typedef __int32_t	xfs_dqid_t;
+typedef __uint32_t	xfs_dqid_t;
 
 /*
  * Eventhough users may not have quota limits occupying all 64-bits,

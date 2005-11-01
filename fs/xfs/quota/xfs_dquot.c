@@ -563,8 +563,7 @@ xfs_qm_dqtobp(
 	 */
 	if (dqp->q_blkno == (xfs_daddr_t) 0) {
 		/* We use the id as an index */
-		dqp->q_fileoffset = (xfs_fileoff_t) ((uint)id /
-						     XFS_QM_DQPERBLK(mp));
+		dqp->q_fileoffset = (xfs_fileoff_t)id / XFS_QM_DQPERBLK(mp);
 		nmaps = 1;
 		quotip = XFS_DQ_TO_QIP(dqp);
 		xfs_ilock(quotip, XFS_ILOCK_SHARED);

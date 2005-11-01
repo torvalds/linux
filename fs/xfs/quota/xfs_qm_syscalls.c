@@ -109,10 +109,7 @@ xfs_qm_quotactl(
 	vfsp = bhvtovfs(bdp);
 	mp = XFS_VFSTOM(vfsp);
 
-	if (addr == NULL && cmd != Q_SYNC)
-		return XFS_ERROR(EINVAL);
-	if (id < 0 && cmd != Q_SYNC)
-		return XFS_ERROR(EINVAL);
+	ASSERT(addr != NULL);
 
 	/*
 	 * The following commands are valid even when quotaoff.
@@ -122,7 +119,7 @@ xfs_qm_quotactl(
 		/*
 		 * Truncate quota files. quota must be off.
 		 */
-		if (XFS_IS_QUOTA_ON(mp) || addr == NULL)
+		if (XFS_IS_QUOTA_ON(mp))
 			return XFS_ERROR(EINVAL);
 		if (vfsp->vfs_flag & VFS_RDONLY)
 			return XFS_ERROR(EROFS);
@@ -140,8 +137,6 @@ xfs_qm_quotactl(
 		 * QUOTAON - enabling quota enforcement.
 		 * Quota accounting must be turned on at mount time.
 		 */
-		if (addr == NULL)
-			return XFS_ERROR(EINVAL);
 		if (vfsp->vfs_flag & VFS_RDONLY)
 			return XFS_ERROR(EROFS);
 		return (xfs_qm_scall_quotaon(mp,
