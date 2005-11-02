@@ -1,5 +1,5 @@
-#ifndef _ASM_PPC64_SPARSEMEM_H
-#define _ASM_PPC64_SPARSEMEM_H 1
+#ifndef _ASM_POWERPC_SPARSEMEM_H
+#define _ASM_POWERPC_SPARSEMEM_H 1
 
 #ifdef CONFIG_SPARSEMEM
 /*
@@ -13,4 +13,4 @@
 
 #endif /* CONFIG_SPARSEMEM */
 
-#endif /* _ASM_PPC64_SPARSEMEM_H */
+#endif /* _ASM_POWERPC_SPARSEMEM_H */
