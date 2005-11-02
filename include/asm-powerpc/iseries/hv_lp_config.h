@@ -26,7 +26,7 @@
 
 #include <asm/iseries/hv_call_sc.h>
 #include <asm/iseries/hv_types.h>
-#include <asm/iSeries/ItLpNaca.h>
+#include <asm/iseries/it_lp_naca.h>
 
 enum {
 	HvCallCfg_Cur	= 0,

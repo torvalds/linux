@@ -15,7 +15,7 @@
 #include <asm/ptrace.h>
 #include <asm/naca.h>
 #include <asm/abs_addr.h>
-#include <asm/iSeries/ItLpNaca.h>
+#include <asm/iseries/it_lp_naca.h>
 #include <asm/lppaca.h>
 #include <asm/iSeries/ItLpRegSave.h>
 #include <asm/paca.h>
