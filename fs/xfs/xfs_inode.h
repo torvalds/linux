@@ -99,24 +99,6 @@ extern void xfs_ilock_trace(struct xfs_inode *, int, unsigned int, inst_t *);
 #define	xfs_ilock_trace(i,n,f,ra)
 #endif
 
-/*
- * This structure is used to communicate which extents of a file
- * were holes when a write started from xfs_write_file() to
- * xfs_strat_read().  This is necessary so that we can know which
- * blocks need to be zeroed when they are read in in xfs_strat_read()
- * if they weren\'t allocated when the buffer given to xfs_strat_read()
- * was mapped.
- *
- * We keep a list of these attached to the inode.  The list is
- * protected by the inode lock and the fact that the io lock is
- * held exclusively by writers.
- */
-typedef struct xfs_gap {
-	struct xfs_gap	*xg_next;
-	xfs_fileoff_t	xg_offset_fsb;
-	xfs_extlen_t	xg_count_fsb;
-} xfs_gap_t;
-
 typedef struct dm_attrs_s {
 	__uint32_t	da_dmevmask;	/* DMIG event mask */
 	__uint16_t	da_dmstate;	/* DMIG state info */
