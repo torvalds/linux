@@ -24,7 +24,7 @@
  * to determine which resources should be allocated to each partition.
  */
 
-#include <asm/iSeries/HvCallSc.h>
+#include <asm/iseries/hv_call_sc.h>
 #include <asm/iSeries/HvTypes.h>
 #include <asm/iSeries/ItLpNaca.h>
 

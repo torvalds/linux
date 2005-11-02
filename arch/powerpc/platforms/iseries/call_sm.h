@@ -23,7 +23,7 @@
  * drive the hypervisor from the OS.
  */
 
-#include <asm/iSeries/HvCallSc.h>
+#include <asm/iseries/hv_call_sc.h>
 #include <asm/iSeries/HvTypes.h>
 
 #define HvCallSmGet64BitsOfAccessMap	HvCallSm  + 11

@@ -23,7 +23,7 @@
 #ifndef _HVCALLEVENT_H
 #define _HVCALLEVENT_H
 
-#include <asm/iSeries/HvCallSc.h>
+#include <asm/iseries/hv_call_sc.h>
 #include <asm/iSeries/HvTypes.h>
 #include <asm/abs_addr.h>
 

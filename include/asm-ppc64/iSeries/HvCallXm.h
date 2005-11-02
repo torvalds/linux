@@ -5,7 +5,7 @@
 #ifndef _HVCALLXM_H
 #define _HVCALLXM_H
 
-#include <asm/iSeries/HvCallSc.h>
+#include <asm/iseries/hv_call_sc.h>
 #include <asm/iSeries/HvTypes.h>
 
 #define HvCallXmGetTceTableParms	HvCallXm +  0

@@ -10,7 +10,7 @@
 #include <asm/page.h>
 #include <asm/abs_addr.h>
 #include <asm/iseries/hv_call.h>
-#include <asm/iSeries/HvCallSc.h>
+#include <asm/iseries/hv_call_sc.h>
 #include <asm/iSeries/HvTypes.h>
 
 
