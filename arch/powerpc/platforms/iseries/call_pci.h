@@ -26,7 +26,7 @@
 #define _PLATFORMS_ISERIES_CALL_PCI_H
 
 #include <asm/iseries/hv_call_sc.h>
-#include <asm/iSeries/HvTypes.h>
+#include <asm/iseries/hv_types.h>
 
 /*
  * DSA == Direct Select Address

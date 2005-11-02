@@ -41,7 +41,7 @@
 #ifndef _ISERIES_VIO_H
 #define _ISERIES_VIO_H
 
-#include <asm/iSeries/HvTypes.h>
+#include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_event.h>
 
 /*

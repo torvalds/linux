@@ -76,7 +76,7 @@
 #include <asm/uaccess.h>
 
 #include <asm/iseries/hv_lp_config.h>
-#include <asm/iSeries/HvTypes.h>
+#include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iommu.h>
 #include <asm/vio.h>

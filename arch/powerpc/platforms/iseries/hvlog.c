@@ -11,7 +11,7 @@
 #include <asm/abs_addr.h>
 #include <asm/iseries/hv_call.h>
 #include <asm/iseries/hv_call_sc.h>
-#include <asm/iSeries/HvTypes.h>
+#include <asm/iseries/hv_types.h>
 
 
 void HvCall_writeLogBuffer(const void *buffer, u64 len)

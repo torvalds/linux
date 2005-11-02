@@ -46,7 +46,7 @@
 
 #include <asm/vio.h>
 #include <asm/scatterlist.h>
-#include <asm/iSeries/HvTypes.h>
+#include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iSeries/vio.h>
 

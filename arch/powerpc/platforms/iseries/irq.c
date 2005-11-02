@@ -36,7 +36,7 @@
 #include <linux/spinlock.h>
 
 #include <asm/ppcdebug.h>
-#include <asm/iSeries/HvTypes.h>
+#include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_call_xm.h>
 

@@ -24,7 +24,7 @@
 #define _HVCALL_H
 
 #include <asm/iseries/hv_call_sc.h>
-#include <asm/iSeries/HvTypes.h>
+#include <asm/iseries/hv_types.h>
 #include <asm/paca.h>
 
 /* Type of yield for HvCallBaseYieldProcessor */

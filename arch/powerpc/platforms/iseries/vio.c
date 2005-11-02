@@ -18,7 +18,7 @@
 #include <asm/abs_addr.h>
 #include <asm/page.h>
 #include <asm/iSeries/vio.h>
-#include <asm/iSeries/HvTypes.h>
+#include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_config.h>
 #include <asm/iseries/hv_call_xm.h>
 

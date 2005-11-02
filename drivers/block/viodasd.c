@@ -45,7 +45,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/vio.h>
-#include <asm/iSeries/HvTypes.h>
+#include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_lp_config.h>
 #include <asm/iSeries/vio.h>
