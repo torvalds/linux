@@ -1,46 +1,20 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
-/*
- *	The xfs_buf.c code provides an abstract buffer cache model on top
- *	of the Linux page cache.  Cached metadata blocks for a file system
- *	are hashed to the inode for the block device.  xfs_buf.c assembles
- *	buffers (xfs_buf_t) on demand to aggregate such cached pages for I/O.
- *
- *      Written by Steve Lord, Jim Mostek, Russell Cattelan
- *		    and Rajagopal Ananthanarayanan ("ananth") at SGI.
- *
- */
-
 #include <linux/stddef.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -55,12 +29,7 @@
 #include <linux/blkdev.h>
 #include <linux/hash.h>
 #include <linux/kthread.h>
-
 #include "xfs_linux.h"
-
-/*
- * File wide globals
- */
 
 STATIC kmem_cache_t *pagebuf_zone;
 STATIC kmem_shaker_t pagebuf_shake;
@@ -69,10 +38,6 @@ STATIC void pagebuf_delwri_queue(xfs_buf_t *, int);
 
 STATIC struct workqueue_struct *xfslogd_workqueue;
 struct workqueue_struct *xfsdatad_workqueue;
-
-/*
- * Pagebuf debugging
- */
 
 #ifdef PAGEBUF_TRACE
 void
@@ -112,17 +77,12 @@ ktrace_t *pagebuf_trace_buf;
 # define PB_GET_OWNER(pb)	do { } while (0)
 #endif
 
-/*
- * Pagebuf allocation / freeing.
- */
-
 #define pb_to_gfp(flags) \
 	((((flags) & PBF_READ_AHEAD) ? __GFP_NORETRY : \
 	  ((flags) & PBF_DONT_BLOCK) ? GFP_NOFS : GFP_KERNEL) | __GFP_NOWARN)
 
 #define pb_to_km(flags) \
 	 (((flags) & PBF_DONT_BLOCK) ? KM_NOFS : KM_SLEEP)
-
 
 #define pagebuf_allocate(flags) \
 	kmem_zone_alloc(pagebuf_zone, pb_to_km(flags))
