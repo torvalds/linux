@@ -201,11 +201,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #ifdef CONFIG_TAU_AVERAGE
 		/* more straightforward, but potentially misleading */
 		seq_printf(m,  "temperature \t: %u C (uncalibrated)\n",
-			   cpu_temp(i));
+			   cpu_temp(cpu_id));
 #else
 		/* show the actual temp sensor range */
 		u32 temp;
-		temp = cpu_temp_both(i);
+		temp = cpu_temp_both(cpu_id);
 		seq_printf(m, "temperature \t: %u-%u C (uncalibrated)\n",
 			   temp & 0xff, temp >> 16);
 #endif
