@@ -2226,8 +2226,9 @@ xlog_recover_do_buffer_trans(
 		break;
 	default:
 		xfs_fs_cmn_err(CE_ALERT, log->l_mp,
-			"xfs_log_recover: unknown buffer type 0x%x, dev %s",
-			buf_f->blf_type, XFS_BUFTARG_NAME(log->l_targ));
+			"xfs_log_recover: unknown buffer type 0x%x, logdev %s",
+			buf_f->blf_type, log->l_mp->m_logname ?
+			log->l_mp->m_logname : "internal");
 		XFS_ERROR_REPORT("xlog_recover_do_buffer_trans",
 				 XFS_ERRLEVEL_LOW, log->l_mp);
 		return XFS_ERROR(EFSCORRUPTED);
@@ -3938,8 +3939,9 @@ xlog_recover(
 		}
 
 		cmn_err(CE_NOTE,
-			"Starting XFS recovery on filesystem: %s (dev: %s)",
-			log->l_mp->m_fsname, XFS_BUFTARG_NAME(log->l_targ));
+			"Starting XFS recovery on filesystem: %s (logdev: %s)",
+			log->l_mp->m_fsname, log->l_mp->m_logname ?
+			log->l_mp->m_logname : "internal");
 
 		error = xlog_do_recover(log, head_blk, tail_blk);
 		log->l_flags |= XLOG_RECOVERY_NEEDED;
@@ -3987,8 +3989,9 @@ xlog_recover_finish(
 		xlog_recover_check_summary(log);
 
 		cmn_err(CE_NOTE,
-			"Ending XFS recovery on filesystem: %s (dev: %s)",
-			log->l_mp->m_fsname, XFS_BUFTARG_NAME(log->l_targ));
+			"Ending XFS recovery on filesystem: %s (logdev: %s)",
+			log->l_mp->m_fsname, log->l_mp->m_logname ?
+			log->l_mp->m_logname : "internal");
 		log->l_flags &= ~XLOG_RECOVERY_NEEDED;
 	} else {
 		cmn_err(CE_DEBUG,

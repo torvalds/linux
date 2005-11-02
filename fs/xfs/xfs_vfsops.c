@@ -257,6 +257,14 @@ xfs_start_flags(
 	mp->m_fsname_len = strlen(ap->fsname) + 1;
 	mp->m_fsname = kmem_alloc(mp->m_fsname_len, KM_SLEEP);
 	strcpy(mp->m_fsname, ap->fsname);
+	if (ap->rtname[0]) {
+		mp->m_rtname = kmem_alloc(strlen(ap->rtname) + 1, KM_SLEEP);
+		strcpy(mp->m_rtname, ap->rtname);
+	}
+	if (ap->logname[0]) {
+		mp->m_logname = kmem_alloc(strlen(ap->logname) + 1, KM_SLEEP);
+		strcpy(mp->m_logname, ap->logname);
+	}
 
 	if (ap->flags & XFSMNT_WSYNC)
 		mp->m_flags |= XFS_MOUNT_WSYNC;
@@ -1914,13 +1922,11 @@ xfs_showargs(
 	if (mp->m_logbsize > 0)
 		seq_printf(m, "," MNTOPT_LOGBSIZE "=%d", mp->m_logbsize);
 
-	if (mp->m_ddev_targp != mp->m_logdev_targp)
-		seq_printf(m, "," MNTOPT_LOGDEV "=%s",
-				XFS_BUFTARG_NAME(mp->m_logdev_targp));
+	if (mp->m_logname)
+		seq_printf(m, "," MNTOPT_LOGDEV "=%s", mp->m_logname);
 
-	if (mp->m_rtdev_targp && mp->m_ddev_targp != mp->m_rtdev_targp)
-		seq_printf(m, "," MNTOPT_RTDEV "=%s",
-				XFS_BUFTARG_NAME(mp->m_rtdev_targp));
+	if (mp->m_rtname)
+		seq_printf(m, "," MNTOPT_RTDEV "=%s", mp->m_rtname);
 
 	if (mp->m_dalign > 0)
 		seq_printf(m, "," MNTOPT_SUNIT "=%d",

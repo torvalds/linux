@@ -483,7 +483,8 @@ xfs_log_mount(xfs_mount_t	*mp,
 
 #if defined(DEBUG) || defined(XLOG_NOLOG)
 	if (!xlog_debug) {
-		cmn_err(CE_NOTE, "log dev: %s", XFS_BUFTARG_NAME(log_target));
+		cmn_err(CE_NOTE, "logdev: %s", mp->m_logname ?
+			mp->m_logname : "internal");
 		return 0;
 	}
 #endif

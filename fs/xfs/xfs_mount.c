@@ -180,6 +180,10 @@ xfs_mount_free(
 
 	if (mp->m_fsname != NULL)
 		kmem_free(mp->m_fsname, mp->m_fsname_len);
+	if (mp->m_rtname != NULL)
+		kmem_free(mp->m_rtname, strlen(mp->m_rtname) + 1);
+	if (mp->m_logname != NULL)
+		kmem_free(mp->m_logname, strlen(mp->m_logname) + 1);
 
 	if (remove_bhv) {
 		struct vfs	*vfsp = XFS_MTOVFS(mp);
