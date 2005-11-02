@@ -1639,7 +1639,7 @@ config CIFS_POSIX
 
 config CIFS_EXPERIMENTAL
 	  bool "CIFS Experimental Features (EXPERIMENTAL)"
-	  depends on CIFS
+	  depends on CIFS && EXPERIMENTAL
 	  help
 	    Enables cifs features under testing. These features
 	    are highly experimental.  If unsure, say N.
