@@ -352,7 +352,7 @@ xfs_initialize_perag(
 			icount = sbp->sb_dblocks * sbp->sb_imax_pct;
 			do_div(icount, 100);
 			icount += sbp->sb_agblocks - 1;
-			do_div(icount, mp->m_ialloc_blks);
+			do_div(icount, sbp->sb_agblocks);
 			max_metadata = icount;
 		} else {
 			max_metadata = agcount;
