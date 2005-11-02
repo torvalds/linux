@@ -44,7 +44,7 @@
 #include <linux/tty_flip.h>
 #include <linux/sysrq.h>
 
-#include <asm/iSeries/vio.h>
+#include <asm/iseries/vio.h>
 
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_call_event.h>

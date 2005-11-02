@@ -38,7 +38,7 @@
 #include <asm/uaccess.h>
 #include <asm/paca.h>
 #include <asm/abs_addr.h>
-#include <asm/iSeries/vio.h>
+#include <asm/iseries/vio.h>
 #include <asm/iseries/mf.h>
 #include <asm/iseries/hv_lp_config.h>
 #include <asm/iseries/it_lp_queue.h>

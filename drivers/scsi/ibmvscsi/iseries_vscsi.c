@@ -28,7 +28,7 @@
  * hypervisor system or a converged hypervisor system.
  */
 
-#include <asm/iSeries/vio.h>
+#include <asm/iseries/vio.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_config.h>
