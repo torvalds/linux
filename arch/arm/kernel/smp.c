@@ -80,19 +80,23 @@ static DEFINE_SPINLOCK(smp_call_function_lock);
 
 int __cpuinit __cpu_up(unsigned int cpu)
 {
-	struct task_struct *idle;
+	struct cpuinfo_arm *ci = &per_cpu(cpu_data, cpu);
+	struct task_struct *idle = ci->idle;
 	pgd_t *pgd;
 	pmd_t *pmd;
 	int ret;
 
 	/*
-	 * Spawn a new process manually.  Grab a pointer to
-	 * its task struct so we can mess with it
+	 * Spawn a new process manually, if not already done.
+	 * Grab a pointer to its task struct so we can mess with it
 	 */
-	idle = fork_idle(cpu);
-	if (IS_ERR(idle)) {
-		printk(KERN_ERR "CPU%u: fork() failed\n", cpu);
-		return PTR_ERR(idle);
+	if (!idle) {
+		idle = fork_idle(cpu);
+		if (IS_ERR(idle)) {
+			printk(KERN_ERR "CPU%u: fork() failed\n", cpu);
+			return PTR_ERR(idle);
+		}
+		ci->idle = idle;
 	}
 
 	/*
@@ -235,6 +239,8 @@ void __init smp_cpus_done(unsigned int max_cpus)
 void __init smp_prepare_boot_cpu(void)
 {
 	unsigned int cpu = smp_processor_id();
+
+	per_cpu(cpu_data, cpu).idle = current;
 
 	cpu_set(cpu, cpu_possible_map);
 	cpu_set(cpu, cpu_present_map);
