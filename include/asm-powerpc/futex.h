@@ -1,5 +1,5 @@
-#ifndef _ASM_FUTEX_H
-#define _ASM_FUTEX_H
+#ifndef _ASM_POWERPC_FUTEX_H
+#define _ASM_POWERPC_FUTEX_H
 
 #ifdef __KERNEL__
 
@@ -7,28 +7,29 @@
 #include <asm/errno.h>
 #include <asm/synch.h>
 #include <asm/uaccess.h>
+#include <asm/ppc_asm.h>
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg) \
-  __asm__ __volatile (SYNC_ON_SMP				\
-"1:	lwarx	%0,0,%2\n"					\
-	insn							\
-"2:	stwcx.	%1,0,%2\n\
-	bne-	1b\n\
-	li	%1,0\n\
-3:	.section .fixup,\"ax\"\n\
-4:	li	%1,%3\n\
-	b	3b\n\
-	.previous\n\
-	.section __ex_table,\"a\"\n\
-	.align 3\n\
-	.llong	1b,4b,2b,4b\n\
-	.previous"						\
-	: "=&r" (oldval), "=&r" (ret)				\
-	: "b" (uaddr), "i" (-EFAULT), "1" (oparg)		\
+  __asm__ __volatile ( \
+	SYNC_ON_SMP \
+"1:	lwarx	%0,0,%2\n" \
+	insn \
+"2:	stwcx.	%1,0,%2\n" \
+	"bne-	1b\n" \
+	"li	%1,0\n" \
+"3:	.section .fixup,\"ax\"\n" \
+"4:	li	%1,%3\n" \
+	"b	3b\n" \
+	".previous\n" \
+	".section __ex_table,\"a\"\n" \
+	".align 3\n" \
+	DATAL " 1b,4b,2b,4b\n" \
+	".previous" \
+	: "=&r" (oldval), "=&r" (ret) \
+	: "b" (uaddr), "i" (-EFAULT), "1" (oparg) \
 	: "cr0", "memory")
 
-static inline int
-futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
+static inline int futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 {
 	int op = (encoded_op >> 28) & 7;
 	int cmp = (encoded_op >> 24) & 15;
@@ -79,5 +80,5 @@ futex_atomic_op_inuser (int encoded_op, int __user *uaddr)
 	return ret;
 }
 
-#endif
-#endif
+#endif /* __KERNEL__ */
+#endif /* _ASM_POWERPC_FUTEX_H */
