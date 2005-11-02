@@ -486,10 +486,17 @@ static void __init devicemaps_init(struct machine_desc *mdesc)
 
 	/*
 	 * Ask the machine support to map in the statically mapped devices.
-	 * After this point, we can start to touch devices again.
 	 */
 	if (mdesc->map_io)
 		mdesc->map_io();
+
+	/*
+	 * Finally flush the tlb again - this ensures that we're in a
+	 * consistent state wrt the writebuffer if the writebuffer needs
+	 * draining.  After this point, we can start to touch devices
+	 * again.
+	 */
+	local_flush_tlb_all();
 }
 
 /*
