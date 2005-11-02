@@ -307,14 +307,13 @@ static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
 	if (!p->ibdev->process_mad)
 		return sprintf(buf, "N/A (no PMA)\n");
 
-	in_mad  = kmalloc(sizeof *in_mad, GFP_KERNEL);
+	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *in_mad, GFP_KERNEL);
 	if (!in_mad || !out_mad) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	memset(in_mad, 0, sizeof *in_mad);
 	in_mad->mad_hdr.base_version  = 1;
 	in_mad->mad_hdr.mgmt_class    = IB_MGMT_CLASS_PERF_MGMT;
 	in_mad->mad_hdr.class_version = 1;
@@ -508,10 +507,9 @@ static int add_port(struct ib_device *device, int port_num)
 	if (ret)
 		return ret;
 
-	p = kmalloc(sizeof *p, GFP_KERNEL);
+	p = kzalloc(sizeof *p, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
-	memset(p, 0, sizeof *p);
 
 	p->ibdev      = device;
 	p->port_num   = port_num;

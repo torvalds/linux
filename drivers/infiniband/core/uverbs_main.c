@@ -725,11 +725,9 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	if (!device->alloc_ucontext)
 		return;
 
-	uverbs_dev = kmalloc(sizeof *uverbs_dev, GFP_KERNEL);
+	uverbs_dev = kzalloc(sizeof *uverbs_dev, GFP_KERNEL);
 	if (!uverbs_dev)
 		return;
-
-	memset(uverbs_dev, 0, sizeof *uverbs_dev);
 
 	kref_init(&uverbs_dev->ref);
 

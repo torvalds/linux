@@ -729,25 +729,21 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 
 	/* Allocate RX/TX "rings" to hold queued skbs */
 
-	priv->rx_ring =	kmalloc(IPOIB_RX_RING_SIZE * sizeof (struct ipoib_rx_buf),
+	priv->rx_ring =	kzalloc(IPOIB_RX_RING_SIZE * sizeof (struct ipoib_rx_buf),
 				GFP_KERNEL);
 	if (!priv->rx_ring) {
 		printk(KERN_WARNING "%s: failed to allocate RX ring (%d entries)\n",
 		       ca->name, IPOIB_RX_RING_SIZE);
 		goto out;
 	}
-	memset(priv->rx_ring, 0,
-	       IPOIB_RX_RING_SIZE * sizeof (struct ipoib_rx_buf));
 
-	priv->tx_ring = kmalloc(IPOIB_TX_RING_SIZE * sizeof (struct ipoib_tx_buf),
+	priv->tx_ring = kzalloc(IPOIB_TX_RING_SIZE * sizeof (struct ipoib_tx_buf),
 				GFP_KERNEL);
 	if (!priv->tx_ring) {
 		printk(KERN_WARNING "%s: failed to allocate TX ring (%d entries)\n",
 		       ca->name, IPOIB_TX_RING_SIZE);
 		goto out_rx_ring_cleanup;
 	}
-	memset(priv->tx_ring, 0,
-	       IPOIB_TX_RING_SIZE * sizeof (struct ipoib_tx_buf));
 
 	/* priv->tx_head & tx_tail are already 0 */
 

@@ -135,11 +135,9 @@ static struct ipoib_mcast *ipoib_mcast_alloc(struct net_device *dev,
 {
 	struct ipoib_mcast *mcast;
 
-	mcast = kmalloc(sizeof (*mcast), can_sleep ? GFP_KERNEL : GFP_ATOMIC);
+	mcast = kzalloc(sizeof *mcast, can_sleep ? GFP_KERNEL : GFP_ATOMIC);
 	if (!mcast)
 		return NULL;
-
-	memset(mcast, 0, sizeof (*mcast));
 
 	init_completion(&mcast->done);
 

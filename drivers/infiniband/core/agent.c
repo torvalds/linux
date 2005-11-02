@@ -155,13 +155,12 @@ int ib_agent_port_open(struct ib_device *device, int port_num)
 	int ret;
 
 	/* Create new device info */
-	port_priv = kmalloc(sizeof *port_priv, GFP_KERNEL);
+	port_priv = kzalloc(sizeof *port_priv, GFP_KERNEL);
 	if (!port_priv) {
 		printk(KERN_ERR SPFX "No memory for ib_agent_port_private\n");
 		ret = -ENOMEM;
 		goto error1;
 	}
-	memset(port_priv, 0, sizeof *port_priv);
 
 	/* Obtain send only MAD agent for SMI QP */
 	port_priv->agent[0] = ib_register_mad_agent(device, port_num,
