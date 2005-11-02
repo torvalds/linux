@@ -830,39 +830,18 @@ pagebuf_rele(
 
 	PB_TRACE(pb, "rele", pb->pb_relse);
 
-	/*
-	 * pagebuf_lookup buffers are not hashed, not delayed write,
-	 * and don't have their own release routines.  Special case.
-	 */
-	if (unlikely(!hash)) {
-		ASSERT(!pb->pb_relse);
-		if (atomic_dec_and_test(&pb->pb_hold))
-			xfs_buf_free(pb);
-		return;
-	}
-
 	if (atomic_dec_and_lock(&pb->pb_hold, &hash->bh_lock)) {
-		int		do_free = 1;
-
 		if (pb->pb_relse) {
 			atomic_inc(&pb->pb_hold);
 			spin_unlock(&hash->bh_lock);
 			(*(pb->pb_relse)) (pb);
-			spin_lock(&hash->bh_lock);
-			do_free = 0;
-		}
-
-		if (pb->pb_flags & PBF_FS_MANAGED) {
-			do_free = 0;
-		}
-
-		if (do_free) {
-			ASSERT((pb->pb_flags & (PBF_DELWRI|_PBF_DELWRI_Q)) == 0);
+		} else if (pb->pb_flags & PBF_FS_MANAGED) {
+			spin_unlock(&hash->bh_lock);
+		} else {
+			ASSERT(!(pb->pb_flags & (PBF_DELWRI|_PBF_DELWRI_Q)));
 			list_del_init(&pb->pb_hash_list);
 			spin_unlock(&hash->bh_lock);
 			pagebuf_free(pb);
-		} else {
-			spin_unlock(&hash->bh_lock);
 		}
 	} else {
 		/*
