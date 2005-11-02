@@ -315,8 +315,8 @@ int smp_call_function_on_cpu(void (*func)(void *info), void *info, int retry,
 		printk(KERN_CRIT
 		       "CPU%u: smp_call_function timeout for %p(%p)\n"
 		       "      callmap %lx pending %lx, %swait\n",
-		       smp_processor_id(), func, info, callmap, data.pending,
-		       wait ? "" : "no ");
+		       smp_processor_id(), func, info, *cpus_addr(callmap),
+		       *cpus_addr(data.pending), wait ? "" : "no ");
 
 		/*
 		 * TRACE
