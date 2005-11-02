@@ -197,10 +197,6 @@ static inline void set_buffer_unwritten_io(struct buffer_head *bh)
 /* bytes to clicks */
 #define btoc(x)         (((__psunsigned_t)(x)+(NBPC-1))>>BPCSHIFT)
 
-#ifndef CELL_CAPABLE
-#define FSC_NOTIFY_NAME_CHANGED(vp)
-#endif
-
 #ifndef ENOATTR
 #define ENOATTR		ENODATA		/* Attribute not found */
 #endif

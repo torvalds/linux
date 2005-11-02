@@ -620,8 +620,6 @@ xfs_rename(
 		IRELE(target_ip);
 	}
 
-	FSC_NOTIFY_NAME_CHANGED(XFS_ITOV(src_ip));
-
 	IRELE(src_ip);
 
 	/* Fall through to std_return with error = 0 or errno from
