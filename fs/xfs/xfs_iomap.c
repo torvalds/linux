@@ -364,7 +364,6 @@ xfs_iomap_write_direct(
 	xfs_fileoff_t	offset_fsb;
 	xfs_fileoff_t	last_fsb;
 	xfs_filblks_t	count_fsb;
-	xfs_fsize_t	isize;
 	xfs_fsblock_t	firstfsb;
 	int		nimaps;
 	int		error;
@@ -374,7 +373,6 @@ xfs_iomap_write_direct(
 	xfs_trans_t	*tp;
 	xfs_bmbt_irec_t imap;
 	xfs_bmap_free_t free_list;
-	int		aeof;
 	xfs_filblks_t	qblocks, resblks;
 	int		committed;
 	int		resrtextents;
@@ -386,12 +384,6 @@ xfs_iomap_write_direct(
 	error = XFS_QM_DQATTACH(ip->i_mount, ip, XFS_QMOPT_ILOCKED);
 	if (error)
 		return XFS_ERROR(error);
-
-	isize = ip->i_d.di_size;
-	aeof = (offset + count) > isize;
-
-	if (io->io_new_size > isize)
-		isize = io->io_new_size;
 
 	offset_fsb = XFS_B_TO_FSBT(mp, offset);
 	last_fsb = XFS_B_TO_FSB(mp, ((xfs_ufsize_t)(offset + count)));
