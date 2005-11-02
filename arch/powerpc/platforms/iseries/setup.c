@@ -51,7 +51,7 @@
 #include <asm/iseries/it_lp_queue.h>
 #include <asm/iSeries/mf.h>
 #include <asm/iseries/hv_lp_event.h>
-#include <asm/iSeries/LparMap.h>
+#include <asm/iseries/lpar_map.h>
 
 #include "setup.h"
 #include "irq.h"

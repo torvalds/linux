@@ -19,7 +19,7 @@
 #include <asm/lppaca.h>
 #include <asm/iseries/it_lp_reg_save.h>
 #include <asm/paca.h>
-#include <asm/iSeries/LparMap.h>
+#include <asm/iseries/lpar_map.h>
 #include <asm/iseries/it_exp_vpd_panel.h>
 #include <asm/iseries/it_lp_queue.h>
 
