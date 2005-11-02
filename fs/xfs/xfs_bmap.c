@@ -5725,12 +5725,13 @@ xfs_getbmap(
 			out.bmv_offset = XFS_FSB_TO_BB(mp, map[i].br_startoff);
 			out.bmv_length = XFS_FSB_TO_BB(mp, map[i].br_blockcount);
 			ASSERT(map[i].br_startblock != DELAYSTARTBLOCK);
-			if (prealloced &&
-			    map[i].br_startblock == HOLESTARTBLOCK &&
-			    out.bmv_offset + out.bmv_length == bmvend) {
-				/*
-				 * came to hole at end of file
-				 */
+                        if (map[i].br_startblock == HOLESTARTBLOCK &&
+                           ((prealloced && out.bmv_offset + out.bmv_length == bmvend) ||
+                             whichfork == XFS_ATTR_FORK )) {
+                                /*
+                                 * came to hole at end of file or the end of
+                                   attribute fork
+                                 */
 				goto unlock_and_return;
 			} else {
 				out.bmv_block =
