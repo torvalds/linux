@@ -72,7 +72,7 @@
 #include <linux/ethtool.h>
 
 #include <asm/abs_addr.h>
-#include <asm/iSeries/mf.h>
+#include <asm/iseries/mf.h>
 #include <asm/uaccess.h>
 
 #include <asm/iseries/hv_lp_config.h>

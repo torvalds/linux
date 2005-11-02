@@ -45,7 +45,7 @@
 #include <asm/iseries/it_exp_vpd_panel.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_lp_config.h>
-#include <asm/iSeries/mf.h>
+#include <asm/iseries/mf.h>
 #include <asm/iSeries/vio.h>
 
 /* Status of the path to each other partition in the system.
