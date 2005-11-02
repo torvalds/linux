@@ -46,13 +46,13 @@
 #include <asm/cache.h>
 #include <asm/sections.h>
 #include <asm/abs_addr.h>
-#include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/HvCallEvent.h>
-#include <asm/iSeries/HvCallXm.h>
-#include <asm/iSeries/ItLpQueue.h>
-#include <asm/iSeries/mf.h>
-#include <asm/iSeries/HvLpEvent.h>
-#include <asm/iSeries/LparMap.h>
+#include <asm/iseries/hv_lp_config.h>
+#include <asm/iseries/hv_call_event.h>
+#include <asm/iseries/hv_call_xm.h>
+#include <asm/iseries/it_lp_queue.h>
+#include <asm/iseries/mf.h>
+#include <asm/iseries/hv_lp_event.h>
+#include <asm/iseries/lpar_map.h>
 
 #include "setup.h"
 #include "irq.h"

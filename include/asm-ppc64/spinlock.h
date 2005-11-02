@@ -21,7 +21,7 @@
 #include <linux/config.h>
 #include <asm/paca.h>
 #include <asm/hvcall.h>
-#include <asm/iSeries/HvCall.h>
+#include <asm/iseries/hv_call.h>
 
 #define __raw_spin_is_locked(x)		((x)->slock != 0)
 

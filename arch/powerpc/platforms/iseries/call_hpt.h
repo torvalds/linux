@@ -23,8 +23,8 @@
  * drive the hypervisor from the OS.
  */
 
-#include <asm/iSeries/HvCallSc.h>
-#include <asm/iSeries/HvTypes.h>
+#include <asm/iseries/hv_call_sc.h>
+#include <asm/iseries/hv_types.h>
 #include <asm/mmu.h>
 
 #define HvCallHptGetHptAddress		HvCallHpt +  0

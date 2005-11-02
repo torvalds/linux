@@ -16,8 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-#ifndef _ITEXTVPDPANEL_H
-#define _ITEXTVPDPANEL_H
+#ifndef _ASM_POWERPC_ISERIES_IT_EXT_VPD_PANEL_H
+#define _ASM_POWERPC_ISERIES_IT_EXT_VPD_PANEL_H
 
 /*
  *	This struct maps the panel information
@@ -49,4 +49,4 @@ struct ItExtVpdPanel {
 
 extern struct ItExtVpdPanel	xItExtVpdPanel;
 
-#endif /* _ITEXTVPDPANEL_H */
+#endif /* _ASM_POWERPC_ISERIES_IT_EXT_VPD_PANEL_H */

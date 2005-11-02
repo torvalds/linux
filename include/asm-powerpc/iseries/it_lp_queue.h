@@ -16,8 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-#ifndef _ITLPQUEUE_H
-#define _ITLPQUEUE_H
+#ifndef _ASM_POWERPC_ISERIES_IT_LP_QUEUE_H
+#define _ASM_POWERPC_ISERIES_IT_LP_QUEUE_H
 
 /*
  *	This control block defines the simple LP queue structure that is
@@ -78,4 +78,4 @@ extern int hvlpevent_is_pending(void);
 extern void process_hvlpevents(struct pt_regs *);
 extern void setup_hvlpevent_queue(void);
 
-#endif /* _ITLPQUEUE_H */
+#endif /* _ASM_POWERPC_ISERIES_IT_LP_QUEUE_H */

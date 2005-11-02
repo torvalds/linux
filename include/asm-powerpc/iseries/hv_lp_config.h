@@ -16,17 +16,17 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-#ifndef _HVLPCONFIG_H
-#define _HVLPCONFIG_H
+#ifndef _ASM_POWERPC_ISERIES_HV_LP_CONFIG_H
+#define _ASM_POWERPC_ISERIES_HV_LP_CONFIG_H
 
 /*
  * This file contains the interface to the LPAR configuration data
  * to determine which resources should be allocated to each partition.
  */
 
-#include <asm/iSeries/HvCallSc.h>
-#include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/ItLpNaca.h>
+#include <asm/iseries/hv_call_sc.h>
+#include <asm/iseries/hv_types.h>
+#include <asm/iseries/it_lp_naca.h>
 
 enum {
 	HvCallCfg_Cur	= 0,
@@ -135,4 +135,4 @@ static inline HvLpIndex HvLpConfig_getHostingLpIndex(HvLpIndex lp)
 	return HvCall1(HvCallCfgGetHostingLpIndex, lp);
 }
 
-#endif /* _HVLPCONFIG_H */
+#endif /* _ASM_POWERPC_ISERIES_HV_LP_CONFIG_H */

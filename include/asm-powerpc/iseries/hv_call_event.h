@@ -20,11 +20,11 @@
  * This file contains the "hypervisor call" interface which is used to
  * drive the hypervisor from the OS.
  */
-#ifndef _HVCALLEVENT_H
-#define _HVCALLEVENT_H
+#ifndef _ASM_POWERPC_ISERIES_HV_CALL_EVENT_H
+#define _ASM_POWERPC_ISERIES_HV_CALL_EVENT_H
 
-#include <asm/iSeries/HvCallSc.h>
-#include <asm/iSeries/HvTypes.h>
+#include <asm/iseries/hv_call_sc.h>
+#include <asm/iseries/hv_types.h>
 #include <asm/abs_addr.h>
 
 struct HvLpEvent;
@@ -250,4 +250,4 @@ static inline HvLpDma_Rc HvCallEvent_dmaToSp(void *local, u32 remote,
 	return HvCall4(HvCallEventDmaToSp, abs_addr, remote, length, dir);
 }
 
-#endif /* _HVCALLEVENT_H */
+#endif /* _ASM_POWERPC_ISERIES_HV_CALL_EVENT_H */

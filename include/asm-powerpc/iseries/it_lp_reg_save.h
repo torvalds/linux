@@ -16,8 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-#ifndef _ITLPREGSAVE_H
-#define _ITLPREGSAVE_H
+#ifndef _ASM_POWERPC_ISERIES_IT_LP_REG_SAVE_H
+#define _ASM_POWERPC_ISERIES_IT_LP_REG_SAVE_H
 
 /*
  * This control block contains the data that is shared between PLIC

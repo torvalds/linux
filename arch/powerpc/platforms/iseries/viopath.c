@@ -41,12 +41,12 @@
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
-#include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/ItExtVpdPanel.h>
-#include <asm/iSeries/HvLpEvent.h>
-#include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/mf.h>
-#include <asm/iSeries/vio.h>
+#include <asm/iseries/hv_types.h>
+#include <asm/iseries/it_exp_vpd_panel.h>
+#include <asm/iseries/hv_lp_event.h>
+#include <asm/iseries/hv_lp_config.h>
+#include <asm/iseries/mf.h>
+#include <asm/iseries/vio.h>
 
 /* Status of the path to each other partition in the system.
  * This is overkill, since we will only ever establish connections
