@@ -144,6 +144,7 @@ static int m41t81_write(uint8_t addr, int b)
 int m41t81_set_time(unsigned long t)
 {
 	struct rtc_time tm;
+	unsigned long flags;
 
 	to_tm(t, &tm);
 
@@ -153,6 +154,7 @@ int m41t81_set_time(unsigned long t)
 	 * believe we should finish writing min within a second.
 	 */
 
+	spin_lock_irqsave(&rtc_lock, flags);
 	tm.tm_sec = BIN2BCD(tm.tm_sec);
 	m41t81_write(M41T81REG_SC, tm.tm_sec);
 
@@ -180,6 +182,7 @@ int m41t81_set_time(unsigned long t)
 	tm.tm_year %= 100;
 	tm.tm_year = BIN2BCD(tm.tm_year);
 	m41t81_write(M41T81REG_YR, tm.tm_year);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return 0;
 }
@@ -187,19 +190,23 @@ int m41t81_set_time(unsigned long t)
 unsigned long m41t81_get_time(void)
 {
 	unsigned int year, mon, day, hour, min, sec;
+	unsigned long flags;
 
 	/*
 	 * min is valid if two reads of sec are the same.
 	 */
 	for (;;) {
+		spin_lock_irqsave(&rtc_lock, flags);
 		sec = m41t81_read(M41T81REG_SC);
 		min = m41t81_read(M41T81REG_MN);
 		if (sec == m41t81_read(M41T81REG_SC)) break;
+		spin_unlock_irqrestore(&rtc_lock, flags);
 	}
 	hour = m41t81_read(M41T81REG_HR) & 0x3f;
 	day = m41t81_read(M41T81REG_DT);
 	mon = m41t81_read(M41T81REG_MO);
 	year = m41t81_read(M41T81REG_YR);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	sec = BCD2BIN(sec);
 	min = BCD2BIN(min);

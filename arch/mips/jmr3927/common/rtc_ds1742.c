@@ -57,7 +57,9 @@ rtc_ds1742_get_time(void)
 {
 	unsigned int year, month, day, hour, minute, second;
 	unsigned int century;
+	unsigned long flags;
 
+	spin_lock_irqsave(&rtc_lock, flags);
 	CMOS_WRITE(RTC_READ, RTC_CONTROL);
 	second = BCD2BIN(CMOS_READ(RTC_SECONDS) & RTC_SECONDS_MASK);
 	minute = BCD2BIN(CMOS_READ(RTC_MINUTES));
@@ -67,6 +69,7 @@ rtc_ds1742_get_time(void)
 	year = BCD2BIN(CMOS_READ(RTC_YEAR));
 	century = BCD2BIN(CMOS_READ(RTC_CENTURY) & RTC_CENTURY_MASK);
 	CMOS_WRITE(0, RTC_CONTROL);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	year += century * 100;
 
@@ -81,7 +84,9 @@ rtc_ds1742_set_time(unsigned long t)
 	u8 year, month, day, hour, minute, second;
 	u8 cmos_year, cmos_month, cmos_day, cmos_hour, cmos_minute, cmos_second;
 	int cmos_century;
+	unsigned long flags;
 
+	spin_lock_irqsave(&rtc_lock, flags);
 	CMOS_WRITE(RTC_READ, RTC_CONTROL);
 	cmos_second = (u8)(CMOS_READ(RTC_SECONDS) & RTC_SECONDS_MASK);
 	cmos_minute = (u8)CMOS_READ(RTC_MINUTES);
@@ -139,6 +144,7 @@ rtc_ds1742_set_time(unsigned long t)
 
 	/* RTC_CENTURY and RTC_CONTROL share same address... */
 	CMOS_WRITE(cmos_century, RTC_CONTROL);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return 0;
 }
