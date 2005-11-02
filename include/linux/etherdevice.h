@@ -71,8 +71,7 @@ static inline int is_multicast_ether_addr(const u8 *addr)
 
 static inline int is_broadcast_ether_addr(const u8 *addr)
 {
-        return ((addr[0] == 0xff) && (addr[1] == 0xff) && (addr[2] == 0xff) &&  
-		(addr[3] == 0xff) && (addr[4] == 0xff) && (addr[5] == 0xff));
+	return (addr[0] & addr[1] & addr[2] & addr[3] & addr[4] & addr[5]) == 0xff;
 }
 
 /**
