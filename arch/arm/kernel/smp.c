@@ -159,6 +159,91 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	return ret;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * __cpu_disable runs on the processor to be shutdown.
+ */
+int __cpuexit __cpu_disable(void)
+{
+	unsigned int cpu = smp_processor_id();
+	struct task_struct *p;
+	int ret;
+
+	ret = mach_cpu_disable(cpu);
+	if (ret)
+		return ret;
+
+	/*
+	 * Take this CPU offline.  Once we clear this, we can't return,
+	 * and we must not schedule until we're ready to give up the cpu.
+	 */
+	cpu_clear(cpu, cpu_online_map);
+
+	/*
+	 * OK - migrate IRQs away from this CPU
+	 */
+	migrate_irqs();
+
+	/*
+	 * Flush user cache and TLB mappings, and then remove this CPU
+	 * from the vm mask set of all processes.
+	 */
+	flush_cache_all();
+	local_flush_tlb_all();
+
+	read_lock(&tasklist_lock);
+	for_each_process(p) {
+		if (p->mm)
+			cpu_clear(cpu, p->mm->cpu_vm_mask);
+	}
+	read_unlock(&tasklist_lock);
+
+	return 0;
+}
+
+/*
+ * called on the thread which is asking for a CPU to be shutdown -
+ * waits until shutdown has completed, or it is timed out.
+ */
+void __cpuexit __cpu_die(unsigned int cpu)
+{
+	if (!platform_cpu_kill(cpu))
+		printk("CPU%u: unable to kill\n", cpu);
+}
+
+/*
+ * Called from the idle thread for the CPU which has been shutdown.
+ *
+ * Note that we disable IRQs here, but do not re-enable them
+ * before returning to the caller. This is also the behaviour
+ * of the other hotplug-cpu capable cores, so presumably coming
+ * out of idle fixes this.
+ */
+void __cpuexit cpu_die(void)
+{
+	unsigned int cpu = smp_processor_id();
+
+	local_irq_disable();
+	idle_task_exit();
+
+	/*
+	 * actual CPU shutdown procedure is at least platform (if not
+	 * CPU) specific
+	 */
+	platform_cpu_die(cpu);
+
+	/*
+	 * Do not return to the idle loop - jump back to the secondary
+	 * cpu initialisation.  There's some initialisation which needs
+	 * to be repeated to undo the effects of taking the CPU offline.
+	 */
+	__asm__("mov	sp, %0\n"
+	"	b	secondary_start_kernel"
+		:
+		: "r" ((void *)current->thread_info + THREAD_SIZE - 8));
+}
+#endif /* CONFIG_HOTPLUG_CPU */
+
 /*
  * This is the secondary CPU boot entry.  We're using this CPUs
  * idle thread stack, but a set of temporary page tables.
