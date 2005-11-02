@@ -433,7 +433,7 @@ static int nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 		this->cmdfunc (mtd, NAND_CMD_READOOB, this->badblockpos & 0xFE, page & this->pagemask);
 		bad = cpu_to_le16(this->read_word(mtd));
 		if (this->badblockpos & 0x1)
-			bad >>= 1;
+			bad >>= 8;
 		if ((bad & 0xFF) != 0xff)
 			res = 1;
 	} else {
