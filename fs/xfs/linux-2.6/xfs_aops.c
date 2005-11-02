@@ -748,8 +748,9 @@ xfs_page_state_convert(
 	if (page->index >= end_index) {
 		if ((page->index >= end_index + 1) ||
 		    !(i_size_read(inode) & (PAGE_CACHE_SIZE - 1))) {
-			err = -EIO;
-			goto error;
+			if (startio)
+				unlock_page(page);
+			return 0;
 		}
 	}
 
