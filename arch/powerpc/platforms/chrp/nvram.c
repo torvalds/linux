@@ -17,6 +17,7 @@
 #include <asm/uaccess.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
+#include <asm/rtas.h>
 #include "chrp.h"
 
 static unsigned int nvram_size;
@@ -25,7 +26,8 @@ static DEFINE_SPINLOCK(nvram_lock);
 
 static unsigned char chrp_nvram_read(int addr)
 {
-	unsigned long done, flags;
+	unsigned int done;
+	unsigned long flags;
 	unsigned char ret;
 
 	if (addr >= nvram_size) {
@@ -46,7 +48,8 @@ static unsigned char chrp_nvram_read(int addr)
 
 static void chrp_nvram_write(int addr, unsigned char val)
 {
-	unsigned long done, flags;
+	unsigned int done;
+	unsigned long flags;
 
 	if (addr >= nvram_size) {
 		printk(KERN_DEBUG "%s: write addr %d > nvram_size %u\n",
