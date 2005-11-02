@@ -47,7 +47,7 @@
 #include <asm/vio.h>
 #include <asm/scatterlist.h>
 #include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/HvLpEvent.h>
+#include <asm/iseries/hv_lp_event.h>
 #include <asm/iSeries/vio.h>
 
 #define VIOCD_DEVICE			"iseries/vcd"

@@ -46,7 +46,7 @@
 
 #include <asm/iSeries/vio.h>
 
-#include <asm/iSeries/HvLpEvent.h>
+#include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_call_event.h>
 #include <asm/iseries/hv_lp_config.h>
 #include <asm/iseries/hv_call.h>

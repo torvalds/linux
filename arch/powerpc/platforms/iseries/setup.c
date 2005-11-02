@@ -50,7 +50,7 @@
 #include <asm/iseries/hv_call_xm.h>
 #include <asm/iSeries/ItLpQueue.h>
 #include <asm/iSeries/mf.h>
-#include <asm/iSeries/HvLpEvent.h>
+#include <asm/iseries/hv_lp_event.h>
 #include <asm/iSeries/LparMap.h>
 
 #include "setup.h"

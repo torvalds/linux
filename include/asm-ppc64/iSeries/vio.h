@@ -42,7 +42,7 @@
 #define _ISERIES_VIO_H
 
 #include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/HvLpEvent.h>
+#include <asm/iseries/hv_lp_event.h>
 
 /*
  * iSeries virtual I/O events use the subtype field in
