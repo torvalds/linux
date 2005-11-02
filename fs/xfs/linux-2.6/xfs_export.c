@@ -96,9 +96,8 @@ linvfs_encode_fh(
 	int			is64 = 0;
 #if XFS_BIG_INUMS
 	vfs_t			*vfs = LINVFS_GET_VFS(inode->i_sb);
-	xfs_mount_t		*mp = XFS_VFSTOM(vfs);
 
-	if (!(mp->m_flags & XFS_MOUNT_32BITINOOPT)) {
+	if (!(vfs->vfs_flag & VFS_32BITINODES)) {
 		/* filesystem may contain 64bit inode numbers */
 		is64 = XFS_FILEID_TYPE_64FLAG;
 	}

@@ -316,7 +316,10 @@ xfs_mount_validate_sb(
 }
 
 xfs_agnumber_t
-xfs_initialize_perag(xfs_mount_t *mp, xfs_agnumber_t agcount)
+xfs_initialize_perag(
+	struct vfs	*vfs,
+	xfs_mount_t	*mp,
+	xfs_agnumber_t	agcount)
 {
 	xfs_agnumber_t	index, max_metadata;
 	xfs_perag_t	*pag;
@@ -332,7 +335,7 @@ xfs_initialize_perag(xfs_mount_t *mp, xfs_agnumber_t agcount)
 	/* Clear the mount flag if no inode can overflow 32 bits
 	 * on this filesystem, or if specifically requested..
 	 */
-	if ((mp->m_flags & XFS_MOUNT_32BITINOOPT) && ino > max_inum) {
+	if ((vfs->vfs_flag & VFS_32BITINODES) && ino > max_inum) {
 		mp->m_flags |= XFS_MOUNT_32BITINODES;
 	} else {
 		mp->m_flags &= ~XFS_MOUNT_32BITINODES;
@@ -944,7 +947,7 @@ xfs_mountfs(
 	mp->m_perag =
 		kmem_zalloc(sbp->sb_agcount * sizeof(xfs_perag_t), KM_SLEEP);
 
-	mp->m_maxagi = xfs_initialize_perag(mp, sbp->sb_agcount);
+	mp->m_maxagi = xfs_initialize_perag(vfsp, mp, sbp->sb_agcount);
 
 	/*
 	 * log's mount-time initialization. Perform 1st part recovery if needed

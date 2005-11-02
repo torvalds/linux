@@ -402,7 +402,7 @@ typedef struct xfs_mount {
 						/* osyncisdsync is now default*/
 #define XFS_MOUNT_32BITINODES	(1ULL << 14)	/* do not create inodes above
 						 * 32 bits in size */
-#define XFS_MOUNT_32BITINOOPT	(1ULL << 15)	/* saved mount option state */
+			     /* (1ULL << 15)	-- currently unused */
 #define XFS_MOUNT_NOUUID	(1ULL << 16)	/* ignore uuid during mount */
 #define XFS_MOUNT_BARRIER	(1ULL << 17)
 #define XFS_MOUNT_IDELETE	(1ULL << 18)	/* delete empty inode clusters*/
@@ -557,7 +557,8 @@ extern void	xfs_freesb(xfs_mount_t *);
 extern void	xfs_do_force_shutdown(bhv_desc_t *, int, char *, int);
 extern int	xfs_syncsub(xfs_mount_t *, int, int, int *);
 extern int	xfs_sync_inodes(xfs_mount_t *, int, int, int *);
-extern xfs_agnumber_t	xfs_initialize_perag(xfs_mount_t *, xfs_agnumber_t);
+extern xfs_agnumber_t	xfs_initialize_perag(struct vfs *, xfs_mount_t *,
+						xfs_agnumber_t);
 extern void	xfs_xlatesb(void *, struct xfs_sb *, int, __int64_t);
 
 extern struct xfs_dmops xfs_dmcore_stub;

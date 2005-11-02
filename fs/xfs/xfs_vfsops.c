@@ -269,7 +269,7 @@ xfs_start_flags(
 	if (ap->flags & XFSMNT_OSYNCISOSYNC)
 		mp->m_flags |= XFS_MOUNT_OSYNCISOSYNC;
 	if (ap->flags & XFSMNT_32BITINODES)
-		mp->m_flags |= (XFS_MOUNT_32BITINODES | XFS_MOUNT_32BITINOOPT);
+		mp->m_flags |= XFS_MOUNT_32BITINODES;
 
 	if (ap->flags & XFSMNT_IOSIZE) {
 		if (ap->iosizelog > XFS_MAX_IO_LOG ||
@@ -1868,6 +1868,9 @@ printk("XFS: irixsgid is now a sysctl(2) variable, option is deprecated.\n");
 		args->sunit = args->swidth = 0;
 	}
 
+	if (args->flags & XFSMNT_32BITINODES)
+		vfsp->vfs_flag |= VFS_32BITINODES;
+
 	if (args->flags2)
 		args->flags |= XFSMNT_FLAGS2;
 	return 0;
@@ -1929,14 +1932,14 @@ xfs_showargs(
 		seq_printf(m, "," MNTOPT_SWIDTH "=%d",
 				(int)XFS_FSB_TO_BB(mp, mp->m_swidth));
 
-	if (!(mp->m_flags & XFS_MOUNT_32BITINOOPT))
-		seq_printf(m, "," MNTOPT_64BITINODE);
-
 	if (!(mp->m_flags & XFS_MOUNT_COMPAT_ATTR))
 		seq_printf(m, "," MNTOPT_ATTR2);
 
 	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE))
 		seq_printf(m, "," MNTOPT_LARGEIO);
+
+	if (!(vfsp->vfs_flag & VFS_32BITINODES))
+		seq_printf(m, "," MNTOPT_64BITINODE);
 
 	if (vfsp->vfs_flag & VFS_GRPID)
 		seq_printf(m, "," MNTOPT_GRPID);
