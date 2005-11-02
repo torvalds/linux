@@ -168,7 +168,7 @@ int xfs_da_cookie_entry(struct xfs_mount *mp, xfs_off_t cookie);
  * Structure to ease passing around component names.
  */
 typedef struct xfs_da_args {
-	uchar_t		*name;		/* string (maybe not NULL terminated) */
+	const uchar_t	*name;		/* string (maybe not NULL terminated) */
 	int		namelen;	/* length of string (maybe no NULL) */
 	uchar_t		*value;		/* set of bytes (maybe contain NULLs) */
 	int		valuelen;	/* length of value */
@@ -314,7 +314,7 @@ xfs_daddr_t	xfs_da_reada_buf(struct xfs_trans *trans, struct xfs_inode *dp,
 int	xfs_da_shrink_inode(xfs_da_args_t *args, xfs_dablk_t dead_blkno,
 					  xfs_dabuf_t *dead_buf);
 
-uint xfs_da_hashname(uchar_t *name_string, int name_length);
+uint xfs_da_hashname(const uchar_t *name_string, int name_length);
 uint xfs_da_log2_roundup(uint i);
 xfs_da_state_t *xfs_da_state_alloc(void);
 void xfs_da_state_free(xfs_da_state_t *state);

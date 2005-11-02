@@ -122,7 +122,7 @@ ktrace_t *xfs_attr_trace_buf;
  *========================================================================*/
 
 int
-xfs_attr_fetch(xfs_inode_t *ip, char *name, int namelen,
+xfs_attr_fetch(xfs_inode_t *ip, const char *name, int namelen,
 	       char *value, int *valuelenp, int flags, struct cred *cred)
 {
 	xfs_da_args_t   args;
@@ -177,7 +177,7 @@ xfs_attr_fetch(xfs_inode_t *ip, char *name, int namelen,
 }
 
 int
-xfs_attr_get(bhv_desc_t *bdp, char *name, char *value, int *valuelenp,
+xfs_attr_get(bhv_desc_t *bdp, const char *name, char *value, int *valuelenp,
 	     int flags, struct cred *cred)
 {
 	xfs_inode_t	*ip = XFS_BHVTOI(bdp);
@@ -201,7 +201,7 @@ xfs_attr_get(bhv_desc_t *bdp, char *name, char *value, int *valuelenp,
 }
 
 STATIC int
-xfs_attr_set_int(xfs_inode_t *dp, char *name, int namelen,
+xfs_attr_set_int(xfs_inode_t *dp, const char *name, int namelen,
 		 char *value, int valuelen, int flags)
 {
 	xfs_da_args_t	args;
@@ -437,7 +437,7 @@ out:
 }
 
 int
-xfs_attr_set(bhv_desc_t *bdp, char *name, char *value, int valuelen, int flags,
+xfs_attr_set(bhv_desc_t *bdp, const char *name, char *value, int valuelen, int flags,
 	     struct cred *cred)
 {
 	xfs_inode_t	*dp;
@@ -469,7 +469,7 @@ xfs_attr_set(bhv_desc_t *bdp, char *name, char *value, int valuelen, int flags,
  * Transitions attribute list from Btree to shortform as necessary.
  */
 STATIC int
-xfs_attr_remove_int(xfs_inode_t *dp, char *name, int namelen, int flags)
+xfs_attr_remove_int(xfs_inode_t *dp, const char *name, int namelen, int flags)
 {
 	xfs_da_args_t	args;
 	xfs_fsblock_t	firstblock;
@@ -592,7 +592,7 @@ out:
 }
 
 int
-xfs_attr_remove(bhv_desc_t *bdp, char *name, int flags, struct cred *cred)
+xfs_attr_remove(bhv_desc_t *bdp, const char *name, int flags, struct cred *cred)
 {
 	xfs_inode_t         *dp;
 	int                 namelen, error;

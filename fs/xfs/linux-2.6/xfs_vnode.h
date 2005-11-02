@@ -216,11 +216,12 @@ typedef void	(*vop_rwunlock_t)(bhv_desc_t *, vrwlock_t);
 typedef int	(*vop_bmap_t)(bhv_desc_t *, xfs_off_t, ssize_t, int,
 				struct xfs_iomap *, int *);
 typedef int	(*vop_reclaim_t)(bhv_desc_t *);
-typedef int	(*vop_attr_get_t)(bhv_desc_t *, char *, char *, int *, int,
-				struct cred *);
-typedef	int	(*vop_attr_set_t)(bhv_desc_t *, char *, char *, int, int,
-				struct cred *);
-typedef	int	(*vop_attr_remove_t)(bhv_desc_t *, char *, int, struct cred *);
+typedef int	(*vop_attr_get_t)(bhv_desc_t *, const char *, char *, int *,
+				int, struct cred *);
+typedef	int	(*vop_attr_set_t)(bhv_desc_t *, const char *, char *, int,
+				int, struct cred *);
+typedef	int	(*vop_attr_remove_t)(bhv_desc_t *, const char *,
+				int, struct cred *);
 typedef	int	(*vop_attr_list_t)(bhv_desc_t *, char *, int, int,
 				struct attrlist_cursor_kern *, struct cred *);
 typedef void	(*vop_link_removed_t)(bhv_desc_t *, vnode_t *, int);
