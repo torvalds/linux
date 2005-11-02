@@ -101,27 +101,11 @@ typedef const struct acpi_rsconvert_info {
 #define ACPI_RS_OFFSET(f)               (u8) ACPI_OFFSET (struct acpi_resource,f)
 #define AML_OFFSET(f)                   (u8) ACPI_OFFSET (union aml_resource,f)
 
-/*
- * Resource dispatch and info tables
- */
-typedef const struct acpi_resource_info {
-	u8 length_type;
-	u8 minimum_aml_resource_length;
-	u8 minimum_internal_struct_length;
-
-} acpi_resource_info;
-
-/* Types for length_type above */
-
-#define ACPI_FIXED_LENGTH               0
-#define ACPI_VARIABLE_LENGTH            1
-#define ACPI_SMALL_VARIABLE_LENGTH      2
-
 typedef const struct acpi_rsdump_info {
 	u8 opcode;
 	u8 offset;
 	char *name;
-	const void *pointer;
+	const char **pointer;
 
 } acpi_rsdump_info;
 
@@ -153,10 +137,9 @@ extern struct acpi_rsconvert_info *acpi_gbl_set_resource_dispatch[];
 
 /* Resource tables indexed by raw AML resource descriptor type */
 
-extern struct acpi_resource_info acpi_gbl_sm_resource_info[];
-extern struct acpi_resource_info acpi_gbl_lg_resource_info[];
-extern struct acpi_rsconvert_info *acpi_gbl_sm_get_resource_dispatch[];
-extern struct acpi_rsconvert_info *acpi_gbl_lg_get_resource_dispatch[];
+extern struct acpi_rsconvert_info *acpi_gbl_get_resource_dispatch[];
+
+extern const u8 acpi_gbl_resource_struct_sizes[];
 
 /*
  * rscreate
@@ -271,8 +254,6 @@ acpi_rs_set_resource_header(u8 descriptor_type,
 void
 acpi_rs_set_resource_length(acpi_rsdesc_size total_length,
 			    union aml_resource *aml);
-
-struct acpi_resource_info *acpi_rs_get_resource_info(u8 resource_type);
 
 /*
  * rsdump

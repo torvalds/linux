@@ -63,7 +63,7 @@ acpi_status
 acpi_ut_create_pkg_state_and_push(void *internal_object,
 				  void *external_object,
 				  u16 index,
-				  union acpi_generic_state ** state_list)
+				  union acpi_generic_state **state_list)
 {
 	union acpi_generic_state *state;
 

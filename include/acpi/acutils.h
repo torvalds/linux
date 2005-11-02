@@ -44,6 +44,15 @@
 #ifndef _ACUTILS_H
 #define _ACUTILS_H
 
+extern const u8 acpi_gbl_resource_aml_sizes[];
+
+/* Types for Resource descriptor entries */
+
+#define ACPI_INVALID_RESOURCE           0
+#define ACPI_FIXED_LENGTH               1
+#define ACPI_VARIABLE_LENGTH            2
+#define ACPI_SMALL_VARIABLE_LENGTH      3
+
 typedef
 acpi_status(*acpi_pkg_callback) (u8 object_type,
 				 union acpi_operand_object * source_object,
@@ -418,13 +427,19 @@ acpi_ut_strtoul64(char *string, u32 base, acpi_integer * ret_integer);
 
 #define ACPI_ANY_BASE        0
 
+acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index);
+
 u32 acpi_ut_get_descriptor_length(void *aml);
 
 u16 acpi_ut_get_resource_length(void *aml);
 
+u8 acpi_ut_get_resource_header_length(void *aml);
+
 u8 acpi_ut_get_resource_type(void *aml);
 
-u8 *acpi_ut_get_resource_end_tag(union acpi_operand_object *obj_desc);
+acpi_status
+acpi_ut_get_resource_end_tag(union acpi_operand_object *obj_desc,
+			     u8 ** end_tag);
 
 u8 acpi_ut_generate_checksum(u8 * buffer, u32 length);
 

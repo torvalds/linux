@@ -626,6 +626,13 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 		goto unlock_and_exit;
 	}
 
+	/* Run the _PRW methods and enable the GPEs */
+
+	status = acpi_ev_initialize_gpe_block(node, gpe_block);
+	if (ACPI_FAILURE(status)) {
+		goto unlock_and_exit;
+	}
+
 	/* Get the device_object attached to the node */
 
 	obj_desc = acpi_ns_get_attached_object(node);

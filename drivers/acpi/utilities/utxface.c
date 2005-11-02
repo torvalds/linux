@@ -178,10 +178,14 @@ acpi_status acpi_enable_subsystem(u32 flags)
 	/*
 	 * Initialize ACPI Event handling (Fixed and General Purpose)
 	 *
-	 * NOTE: We must have the hardware AND events initialized before we can
-	 * execute ANY control methods SAFELY.  Any control method can require
-	 * ACPI hardware support, so the hardware MUST be initialized before
-	 * execution!
+	 * Note1: We must have the hardware and events initialized before we can
+	 * execute any control methods safely. Any control method can require
+	 * ACPI hardware support, so the hardware must be fully initialized before
+	 * any method execution!
+	 *
+	 * Note2: Fixed events are initialized and enabled here. GPEs are
+	 * initialized, but cannot be enabled until after the hardware is
+	 * completely initialized (SCI and global_lock activated)
 	 */
 	if (!(flags & ACPI_NO_EVENT_INIT)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
@@ -193,8 +197,10 @@ acpi_status acpi_enable_subsystem(u32 flags)
 		}
 	}
 
-	/* Install the SCI handler and Global Lock handler */
-
+	/*
+	 * Install the SCI handler and Global Lock handler. This completes the
+	 * hardware initialization.
+	 */
 	if (!(flags & ACPI_NO_HANDLER_INIT)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
 				  "[Init] Installing SCI/GL handlers\n"));
@@ -202,6 +208,24 @@ acpi_status acpi_enable_subsystem(u32 flags)
 		status = acpi_ev_install_xrupt_handlers();
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
+		}
+	}
+
+	/*
+	 * Complete the GPE initialization for the GPE blocks defined in the FADT
+	 * (GPE block 0 and 1).
+	 *
+	 * Note1: This is where the _PRW methods are executed for the GPEs. These
+	 * methods can only be executed after the SCI and Global Lock handlers are
+	 * installed and initialized.
+	 *
+	 * Note2: Currently, there seems to be no need to run the _REG methods
+	 * before execution of the _PRW methods and enabling of the GPEs.
+	 */
+	if (!(flags & ACPI_NO_EVENT_INIT)) {
+		status = acpi_ev_install_fadt_gpes();
+		if (ACPI_FAILURE(status)) {
+			return (status);
 		}
 	}
 
@@ -230,9 +254,9 @@ acpi_status acpi_initialize_objects(u32 flags)
 	/*
 	 * Run all _REG methods
 	 *
-	 * NOTE: Any objects accessed
-	 * by the _REG methods will be automatically initialized, even if they
-	 * contain executable AML (see call to acpi_ns_initialize_objects below).
+	 * Note: Any objects accessed by the _REG methods will be automatically
+	 * initialized, even if they contain executable AML (see the call to
+	 * acpi_ns_initialize_objects below).
 	 */
 	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
@@ -245,9 +269,9 @@ acpi_status acpi_initialize_objects(u32 flags)
 	}
 
 	/*
-	 * Initialize the objects that remain uninitialized.  This
-	 * runs the executable AML that may be part of the declaration of these
-	 * objects: operation_regions, buffer_fields, Buffers, and Packages.
+	 * Initialize the objects that remain uninitialized. This runs the
+	 * executable AML that may be part of the declaration of these objects:
+	 * operation_regions, buffer_fields, Buffers, and Packages.
 	 */
 	if (!(flags & ACPI_NO_OBJECT_INIT)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
@@ -260,8 +284,8 @@ acpi_status acpi_initialize_objects(u32 flags)
 	}
 
 	/*
-	 * Initialize all device objects in the namespace
-	 * This runs the _STA and _INI methods.
+	 * Initialize all device objects in the namespace. This runs the device
+	 * _STA and _INI methods.
 	 */
 	if (!(flags & ACPI_NO_DEVICE_INIT)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,

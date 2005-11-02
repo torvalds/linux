@@ -324,7 +324,7 @@ static struct acpi_rsdump_info acpi_rs_dump_general_flags[5] = {
 
 static struct acpi_rsdump_info acpi_rs_dump_memory_flags[5] = {
 	{ACPI_RSD_LITERAL, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_memory_flags),
-	 "Resource Type", "Memory Range"},
+	 "Resource Type", (void *)"Memory Range"},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.info.mem.write_protect),
 	 "Write Protect", acpi_gbl_RWdecode},
 	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(address.info.mem.caching),
@@ -337,7 +337,7 @@ static struct acpi_rsdump_info acpi_rs_dump_memory_flags[5] = {
 
 static struct acpi_rsdump_info acpi_rs_dump_io_flags[4] = {
 	{ACPI_RSD_LITERAL, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_io_flags),
-	 "Resource Type", "I/O Range"},
+	 "Resource Type", (void *)"I/O Range"},
 	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(address.info.io.range_type),
 	 "Range Type", acpi_gbl_RNGdecode},
 	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(address.info.io.translation),
@@ -372,8 +372,8 @@ static struct acpi_rsdump_info acpi_rs_dump_prt[5] = {
 static void
 acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 {
-	void *target = NULL;
-	void *previous_target;
+	u8 *target = NULL;
+	u8 *previous_target;
 	char *name;
 	u8 count;
 
@@ -399,43 +399,49 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 			/* Strings */
 
 		case ACPI_RSD_LITERAL:
-			acpi_rs_out_string(name, (char *)table->pointer);
+			acpi_rs_out_string(name,
+					   ACPI_CAST_PTR(char, table->pointer));
 			break;
 
 		case ACPI_RSD_STRING:
-			acpi_rs_out_string(name, (char *)target);
+			acpi_rs_out_string(name, ACPI_CAST_PTR(char, target));
 			break;
 
 			/* Data items, 8/16/32/64 bit */
 
 		case ACPI_RSD_UINT8:
-			acpi_rs_out_integer8(name, *(u8 *) target);
+			acpi_rs_out_integer8(name, *ACPI_CAST_PTR(u8, target));
 			break;
 
 		case ACPI_RSD_UINT16:
-			acpi_rs_out_integer16(name, *(u16 *) target);
+			acpi_rs_out_integer16(name,
+					      *ACPI_CAST_PTR(u16, target));
 			break;
 
 		case ACPI_RSD_UINT32:
-			acpi_rs_out_integer32(name, *(u32 *) target);
+			acpi_rs_out_integer32(name,
+					      *ACPI_CAST_PTR(u32, target));
 			break;
 
 		case ACPI_RSD_UINT64:
-			acpi_rs_out_integer64(name, *(u64 *) target);
+			acpi_rs_out_integer64(name,
+					      *ACPI_CAST_PTR(u64, target));
 			break;
 
 			/* Flags: 1-bit and 2-bit flags supported */
 
 		case ACPI_RSD_1BITFLAG:
-			acpi_rs_out_string(name, (char *)
-					   ((const char **)table->
-					    pointer)[(*(u8 *) target) & 0x01]);
+			acpi_rs_out_string(name, ACPI_CAST_PTR(char,
+							       table->
+							       pointer[*target &
+								       0x01]));
 			break;
 
 		case ACPI_RSD_2BITFLAG:
-			acpi_rs_out_string(name, (char *)
-					   ((const char **)table->
-					    pointer)[(*(u8 *) target) & 0x03]);
+			acpi_rs_out_string(name, ACPI_CAST_PTR(char,
+							       table->
+							       pointer[*target &
+								       0x03]));
 			break;
 
 		case ACPI_RSD_SHORTLIST:
@@ -445,10 +451,8 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 			 */
 			if (previous_target) {
 				acpi_rs_out_title(name);
-				acpi_rs_dump_short_byte_list(*
-							     ((u8 *)
-							      previous_target),
-							     (u8 *) target);
+				acpi_rs_dump_short_byte_list(*previous_target,
+							     target);
 			}
 			break;
 
@@ -458,10 +462,9 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 			 * Note: The list length is obtained from the previous table entry
 			 */
 			if (previous_target) {
-				acpi_rs_dump_byte_list(*
-						       ((u16 *)
-							previous_target),
-						       (u8 *) target);
+				acpi_rs_dump_byte_list(*ACPI_CAST_PTR
+						       (u16, previous_target),
+						       target);
 			}
 			break;
 
@@ -471,10 +474,9 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 			 * Note: The list length is obtained from the previous table entry
 			 */
 			if (previous_target) {
-				acpi_rs_dump_dword_list(*
-							((u8 *)
-							 previous_target),
-							(u32 *) target);
+				acpi_rs_dump_dword_list(*previous_target,
+							ACPI_CAST_PTR(u32,
+								      target));
 			}
 			break;
 
@@ -482,17 +484,19 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 			/*
 			 * Common flags for all Address resources
 			 */
-			acpi_rs_dump_address_common((union acpi_resource_data *)
-						    target);
+			acpi_rs_dump_address_common(ACPI_CAST_PTR
+						    (union acpi_resource_data,
+						     target));
 			break;
 
 		case ACPI_RSD_SOURCE:
 			/*
 			 * Optional resource_source for Address resources
 			 */
-			acpi_rs_dump_resource_source((struct
-						      acpi_resource_source *)
-						     target);
+			acpi_rs_dump_resource_source(ACPI_CAST_PTR
+						     (struct
+						      acpi_resource_source,
+						      target));
 			break;
 
 		default:

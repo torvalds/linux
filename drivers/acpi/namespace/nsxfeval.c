@@ -399,7 +399,7 @@ acpi_walk_namespace(acpi_object_type type,
 
 	/* Parameter validation */
 
-	if ((type > ACPI_TYPE_EXTERNAL_MAX) || (!max_depth) || (!user_function)) {
+	if ((type > ACPI_TYPE_LOCAL_MAX) || (!max_depth) || (!user_function)) {
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 

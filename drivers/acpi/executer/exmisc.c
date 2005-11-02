@@ -45,6 +45,7 @@
 #include <acpi/acpi.h>
 #include <acpi/acinterp.h>
 #include <acpi/amlcode.h>
+#include <acpi/amlresrc.h>
 
 #define _COMPONENT          ACPI_EXECUTER
 ACPI_MODULE_NAME("exmisc")
@@ -157,40 +158,52 @@ acpi_ex_concat_template(union acpi_operand_object *operand0,
 			union acpi_operand_object **actual_return_desc,
 			struct acpi_walk_state *walk_state)
 {
+	acpi_status status;
 	union acpi_operand_object *return_desc;
 	u8 *new_buf;
-	u8 *end_tag1;
-	u8 *end_tag2;
+	u8 *end_tag;
+	acpi_size length0;
 	acpi_size length1;
-	acpi_size length2;
 
 	ACPI_FUNCTION_TRACE("ex_concat_template");
 
-	/* Find the end_tags in each resource template */
-
-	end_tag1 = acpi_ut_get_resource_end_tag(operand0);
-	end_tag2 = acpi_ut_get_resource_end_tag(operand1);
-	if (!end_tag1 || !end_tag2) {
-		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
+	/*
+	 * Find the end_tag descriptor in each resource template.
+	 * Note: returned pointers point TO the end_tag, not past it.
+	 *
+	 * Compute the length of each resource template
+	 */
+	status = acpi_ut_get_resource_end_tag(operand0, &end_tag);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
-	/* Compute the length of each part */
+	length0 = ACPI_PTR_DIFF(end_tag, operand0->buffer.pointer);
 
-	length1 = ACPI_PTR_DIFF(end_tag1, operand0->buffer.pointer);
-	length2 = ACPI_PTR_DIFF(end_tag2, operand1->buffer.pointer) + 2;	/* Size of END_TAG */
+	status = acpi_ut_get_resource_end_tag(operand1, &end_tag);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Include the end_tag in the second template length */
+
+	length1 = ACPI_PTR_DIFF(end_tag, operand1->buffer.pointer) +
+	    sizeof(struct aml_resource_end_tag);
 
 	/* Create a new buffer object for the result */
 
-	return_desc = acpi_ut_create_buffer_object(length1 + length2);
+	return_desc = acpi_ut_create_buffer_object(length0 + length1);
 	if (!return_desc) {
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	/* Copy the templates to the new descriptor */
-
+	/*
+	 * Copy the templates to the new buffer, 0 first, then 1 follows. One
+	 * end_tag descriptor is copied from Operand1.
+	 */
 	new_buf = return_desc->buffer.pointer;
-	ACPI_MEMCPY(new_buf, operand0->buffer.pointer, length1);
-	ACPI_MEMCPY(new_buf + length1, operand1->buffer.pointer, length2);
+	ACPI_MEMCPY(new_buf, operand0->buffer.pointer, length0);
+	ACPI_MEMCPY(new_buf + length0, operand1->buffer.pointer, length1);
 
 	/* Compute the new checksum */
 
@@ -198,7 +211,7 @@ acpi_ex_concat_template(union acpi_operand_object *operand0,
 	    acpi_ut_generate_checksum(return_desc->buffer.pointer,
 				      (return_desc->buffer.length - 1));
 
-	/* Return the completed template descriptor */
+	/* Return the completed resource template */
 
 	*actual_return_desc = return_desc;
 	return_ACPI_STATUS(AE_OK);

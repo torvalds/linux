@@ -78,7 +78,7 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block);
  *
  * RETURN:      TRUE if the gpe_event is valid
  *
- * DESCRIPTION: Validate a GPE event.  DO NOT CALL FROM INTERRUPT LEVEL.
+ * DESCRIPTION: Validate a GPE event. DO NOT CALL FROM INTERRUPT LEVEL.
  *              Should be called only when the GPE lists are semaphore locked
  *              and not subject to change.
  *
@@ -264,7 +264,7 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
 	 * 2) Edge/Level determination is based on the 2nd character
 	 *    of the method name
 	 *
-	 * NOTE: Default GPE type is RUNTIME.  May be changed later to WAKE
+	 * NOTE: Default GPE type is RUNTIME. May be changed later to WAKE
 	 * if a _PRW object is found that points to this GPE.
 	 */
 	switch (name[1]) {
@@ -313,14 +313,14 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
 
 	/*
 	 * Now we can add this information to the gpe_event_info block
-	 * for use during dispatch of this GPE.  Default type is RUNTIME, although
+	 * for use during dispatch of this GPE. Default type is RUNTIME, although
 	 * this may change when the _PRW methods are executed later.
 	 */
 	gpe_event_info =
 	    &gpe_block->event_info[gpe_number - gpe_block->block_base_number];
 
-	gpe_event_info->flags = (u8) (type | ACPI_GPE_DISPATCH_METHOD |
-				      ACPI_GPE_TYPE_RUNTIME);
+	gpe_event_info->flags = (u8)
+	    (type | ACPI_GPE_DISPATCH_METHOD | ACPI_GPE_TYPE_RUNTIME);
 
 	gpe_event_info->dispatch.method_node =
 	    (struct acpi_namespace_node *)obj_handle;
@@ -341,11 +341,11 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
  *
  * PARAMETERS:  Callback from walk_namespace
  *
- * RETURN:      Status.  NOTE: We ignore errors so that the _PRW walk is
+ * RETURN:      Status. NOTE: We ignore errors so that the _PRW walk is
  *              not aborted on a single _PRW failure.
  *
  * DESCRIPTION: Called from acpi_walk_namespace. Expects each object to be a
- *              Device.  Run the _PRW method.  If present, extract the GPE
+ *              Device. Run the _PRW method. If present, extract the GPE
  *              number and mark the GPE as a WAKE GPE.
  *
  ******************************************************************************/
@@ -443,6 +443,7 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 
 		gpe_event_info->flags &=
 		    ~(ACPI_GPE_WAKE_ENABLED | ACPI_GPE_RUN_ENABLED);
+
 		status =
 		    acpi_ev_set_gpe_type(gpe_event_info, ACPI_GPE_TYPE_WAKE);
 		if (ACPI_FAILURE(status)) {
@@ -466,7 +467,7 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
  *
  * RETURN:      A GPE interrupt block
  *
- * DESCRIPTION: Get or Create a GPE interrupt block.  There is one interrupt
+ * DESCRIPTION: Get or Create a GPE interrupt block. There is one interrupt
  *              block per unique interrupt level used for GPEs.
  *              Should be called only when the GPE lists are semaphore locked
  *              and not subject to change.
@@ -566,8 +567,9 @@ acpi_ev_delete_gpe_xrupt(struct acpi_gpe_xrupt_info *gpe_xrupt)
 
 	/* Disable this interrupt */
 
-	status = acpi_os_remove_interrupt_handler(gpe_xrupt->interrupt_number,
-						  acpi_ev_gpe_xrupt_handler);
+	status =
+	    acpi_os_remove_interrupt_handler(gpe_xrupt->interrupt_number,
+					     acpi_ev_gpe_xrupt_handler);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
@@ -750,7 +752,7 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 
 	/*
 	 * Allocate the GPE event_info block. There are eight distinct GPEs
-	 * per register.  Initialization to zeros is sufficient.
+	 * per register. Initialization to zeros is sufficient.
 	 */
 	gpe_event_info = ACPI_MEM_CALLOCATE(((acpi_size) gpe_block->
 					     register_count *
@@ -769,9 +771,9 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 	gpe_block->event_info = gpe_event_info;
 
 	/*
-	 * Initialize the GPE Register and Event structures.  A goal of these
+	 * Initialize the GPE Register and Event structures. A goal of these
 	 * tables is to hide the fact that there are two separate GPE register sets
-	 * in a given gpe hardware block, the status registers occupy the first half,
+	 * in a given GPE hardware block, the status registers occupy the first half,
 	 * and the enable registers occupy the second half.
 	 */
 	this_register = gpe_register_info;
@@ -812,17 +814,16 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
 			this_event++;
 		}
 
-		/*
-		 * Clear the status/enable registers.  Note that status registers
-		 * are cleared by writing a '1', while enable registers are cleared
-		 * by writing a '0'.
-		 */
+		/* Disable all GPEs within this register */
+
 		status = acpi_hw_low_level_write(ACPI_GPE_REGISTER_WIDTH, 0x00,
 						 &this_register->
 						 enable_address);
 		if (ACPI_FAILURE(status)) {
 			goto error_exit;
 		}
+
+		/* Clear any pending GPE events within this register */
 
 		status = acpi_hw_low_level_write(ACPI_GPE_REGISTER_WIDTH, 0xFF,
 						 &this_register->
@@ -860,7 +861,9 @@ acpi_ev_create_gpe_info_blocks(struct acpi_gpe_block_info *gpe_block)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Create and Install a block of GPE registers
+ * DESCRIPTION: Create and Install a block of GPE registers. All GPEs within
+ *              the block are disabled at exit.
+ *              Note: Assumes namespace is locked.
  *
  ******************************************************************************/
 
@@ -872,14 +875,8 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 			 u32 interrupt_number,
 			 struct acpi_gpe_block_info **return_gpe_block)
 {
-	struct acpi_gpe_block_info *gpe_block;
-	struct acpi_gpe_event_info *gpe_event_info;
-	acpi_native_uint i;
-	acpi_native_uint j;
-	u32 wake_gpe_count;
-	u32 gpe_enabled_count;
 	acpi_status status;
-	struct acpi_gpe_walk_info gpe_info;
+	struct acpi_gpe_block_info *gpe_block;
 
 	ACPI_FUNCTION_TRACE("ev_create_gpe_block");
 
@@ -896,22 +893,24 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 
 	/* Initialize the new GPE block */
 
+	gpe_block->node = gpe_device;
 	gpe_block->register_count = register_count;
 	gpe_block->block_base_number = gpe_block_base_number;
-	gpe_block->node = gpe_device;
 
 	ACPI_MEMCPY(&gpe_block->block_address, gpe_block_address,
 		    sizeof(struct acpi_generic_address));
 
-	/* Create the register_info and event_info sub-structures */
-
+	/*
+	 * Create the register_info and event_info sub-structures
+	 * Note: disables and clears all GPEs in the block
+	 */
 	status = acpi_ev_create_gpe_info_blocks(gpe_block);
 	if (ACPI_FAILURE(status)) {
 		ACPI_MEM_FREE(gpe_block);
 		return_ACPI_STATUS(status);
 	}
 
-	/* Install the new block in the global list(s) */
+	/* Install the new block in the global lists */
 
 	status = acpi_ev_install_gpe_block(gpe_block, interrupt_number);
 	if (ACPI_FAILURE(status)) {
@@ -926,16 +925,70 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 					acpi_ev_save_method_info, gpe_block,
 					NULL);
 
+	/* Return the new block */
+
+	if (return_gpe_block) {
+		(*return_gpe_block) = gpe_block;
+	}
+
+	ACPI_DEBUG_PRINT((ACPI_DB_INIT,
+			  "GPE %02X to %02X [%4.4s] %u regs on int 0x%X\n",
+			  (u32) gpe_block->block_base_number,
+			  (u32) (gpe_block->block_base_number +
+				 ((gpe_block->register_count *
+				   ACPI_GPE_REGISTER_WIDTH) - 1)),
+			  gpe_device->name.ascii, gpe_block->register_count,
+			  interrupt_number));
+
+	return_ACPI_STATUS(AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ev_initialize_gpe_block
+ *
+ * PARAMETERS:  gpe_device          - Handle to the parent GPE block
+ *              gpe_block           - Gpe Block info
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Initialize and enable a GPE block. First find and run any
+ *              _PRT methods associated with the block, then enable the
+ *              appropriate GPEs.
+ *              Note: Assumes namespace is locked.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
+			     struct acpi_gpe_block_info *gpe_block)
+{
+	acpi_status status;
+	struct acpi_gpe_event_info *gpe_event_info;
+	struct acpi_gpe_walk_info gpe_info;
+	u32 wake_gpe_count;
+	u32 gpe_enabled_count;
+	acpi_native_uint i;
+	acpi_native_uint j;
+
+	ACPI_FUNCTION_TRACE("ev_initialize_gpe_block");
+
+	/* Ignore a null GPE block (e.g., if no GPE block 1 exists) */
+
+	if (!gpe_block) {
+		return_ACPI_STATUS(AE_OK);
+	}
+
 	/*
-	 * Runtime option: Should Wake GPEs be enabled at runtime?  The default
-	 * is No, they should only be enabled just as the machine goes to sleep.
+	 * Runtime option: Should wake GPEs be enabled at runtime?  The default
+	 * is no, they should only be enabled just as the machine goes to sleep.
 	 */
 	if (acpi_gbl_leave_wake_gpes_disabled) {
 		/*
-		 * Differentiate RUNTIME vs WAKE GPEs, via the _PRW control methods.
-		 * (Each GPE that has one or more _PRWs that reference it is by
-		 * definition a WAKE GPE and will not be enabled while the machine
-		 * is running.)
+		 * Differentiate runtime vs wake GPEs, via the _PRW control methods.
+		 * Each GPE that has one or more _PRWs that reference it is by
+		 * definition a wake GPE and will not be enabled while the machine
+		 * is running.
 		 */
 		gpe_info.gpe_block = gpe_block;
 		gpe_info.gpe_device = gpe_device;
@@ -948,9 +1001,12 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 	}
 
 	/*
-	 * Enable all GPEs in this block that are 1) "runtime" or "run/wake" GPEs,
-	 * and 2) have a corresponding _Lxx or _Exx method.  All other GPEs must
-	 * be enabled via the acpi_enable_gpe() external interface.
+	 * Enable all GPEs in this block that have these attributes:
+	 * 1) are "runtime" or "run/wake" GPEs, and
+	 * 2) have a corresponding _Lxx or _Exx method
+	 *
+	 * Any other GPEs within this block must be enabled via the acpi_enable_gpe()
+	 * external interface.
 	 */
 	wake_gpe_count = 0;
 	gpe_enabled_count = 0;
@@ -976,32 +1032,19 @@ acpi_ev_create_gpe_block(struct acpi_namespace_node *gpe_device,
 		}
 	}
 
-	/* Dump info about this GPE block */
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INIT,
-			  "GPE %02X to %02X [%4.4s] %u regs on int 0x%X\n",
-			  (u32) gpe_block->block_base_number,
-			  (u32) (gpe_block->block_base_number +
-				 ((gpe_block->register_count *
-				   ACPI_GPE_REGISTER_WIDTH) - 1)),
-			  gpe_device->name.ascii, gpe_block->register_count,
-			  interrupt_number));
-
-	/* Enable all valid GPEs found above */
-
-	status = acpi_hw_enable_runtime_gpe_block(NULL, gpe_block);
-
 	ACPI_DEBUG_PRINT((ACPI_DB_INIT,
 			  "Found %u Wake, Enabled %u Runtime GPEs in this block\n",
 			  wake_gpe_count, gpe_enabled_count));
 
-	/* Return the new block */
+	/* Enable all valid runtime GPEs found above */
 
-	if (return_gpe_block) {
-		(*return_gpe_block) = gpe_block;
+	status = acpi_hw_enable_runtime_gpe_block(NULL, gpe_block);
+	if (ACPI_FAILURE(status)) {
+		ACPI_REPORT_ERROR(("Could not enable GPEs in gpe_block %p\n",
+				   gpe_block));
 	}
 
-	return_ACPI_STATUS(AE_OK);
+	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************

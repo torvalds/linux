@@ -47,115 +47,12 @@
 #define _COMPONENT          ACPI_RESOURCES
 ACPI_MODULE_NAME("rslist")
 
-/* Local prototypes */
-static struct acpi_rsconvert_info *acpi_rs_get_conversion_info(u8
-							       resource_type);
-
-static acpi_status acpi_rs_validate_resource_length(union aml_resource *aml);
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_validate_resource_length
- *
- * PARAMETERS:  Aml                 - Pointer to the AML resource descriptor
- *
- * RETURN:      Status - AE_OK if the resource length appears valid
- *
- * DESCRIPTION: Validate the resource_length. Fixed-length descriptors must
- *              have the exact length; variable-length descriptors must be
- *              at least as long as the minimum. Certain Small descriptors
- *              can vary in size by at most one byte.
- *
- ******************************************************************************/
-
-static acpi_status acpi_rs_validate_resource_length(union aml_resource *aml)
-{
-	struct acpi_resource_info *resource_info;
-	u16 minimum_aml_resource_length;
-	u16 resource_length;
-
-	ACPI_FUNCTION_ENTRY();
-
-	/* Get the size and type info about this resource descriptor */
-
-	resource_info =
-	    acpi_rs_get_resource_info(aml->small_header.descriptor_type);
-	if (!resource_info) {
-		return (AE_AML_INVALID_RESOURCE_TYPE);
-	}
-
-	resource_length = acpi_ut_get_resource_length(aml);
-	minimum_aml_resource_length =
-	    resource_info->minimum_aml_resource_length;
-
-	/* Validate based upon the type of resource, fixed length or variable */
-
-	if (resource_info->length_type == ACPI_FIXED_LENGTH) {
-		/* Fixed length resource, length must match exactly */
-
-		if (resource_length != minimum_aml_resource_length) {
-			return (AE_AML_BAD_RESOURCE_LENGTH);
-		}
-	} else if (resource_info->length_type == ACPI_VARIABLE_LENGTH) {
-		/* Variable length resource, must be at least the minimum */
-
-		if (resource_length < minimum_aml_resource_length) {
-			return (AE_AML_BAD_RESOURCE_LENGTH);
-		}
-	} else {
-		/* Small variable length resource, allowed to be (Min) or (Min-1) */
-
-		if ((resource_length > minimum_aml_resource_length) ||
-		    (resource_length < (minimum_aml_resource_length - 1))) {
-			return (AE_AML_BAD_RESOURCE_LENGTH);
-		}
-	}
-
-	return (AE_OK);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_rs_get_conversion_info
- *
- * PARAMETERS:  resource_type       - Byte 0 of a resource descriptor
- *
- * RETURN:      Pointer to the resource conversion info table
- *
- * DESCRIPTION: Get the conversion table associated with this resource type
- *
- ******************************************************************************/
-
-static struct acpi_rsconvert_info *acpi_rs_get_conversion_info(u8 resource_type)
-{
-	ACPI_FUNCTION_ENTRY();
-
-	/* Determine if this is a small or large resource */
-
-	if (resource_type & ACPI_RESOURCE_NAME_LARGE) {
-		/* Large Resource Type -- bits 6:0 contain the name */
-
-		if (resource_type > ACPI_RESOURCE_NAME_LARGE_MAX) {
-			return (NULL);
-		}
-
-		return (acpi_gbl_lg_get_resource_dispatch[(resource_type &
-							   ACPI_RESOURCE_NAME_LARGE_MASK)]);
-	} else {
-		/* Small Resource Type -- bits 6:3 contain the name */
-
-		return (acpi_gbl_sm_get_resource_dispatch[((resource_type &
-							    ACPI_RESOURCE_NAME_SMALL_MASK)
-							   >> 3)]);
-	}
-}
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_rs_convert_aml_to_resources
  *
- * PARAMETERS:  aml_buffer          - Pointer to the resource byte stream
- *              aml_buffer_length   - Length of aml_buffer
+ * PARAMETERS:  Aml                 - Pointer to the resource byte stream
+ *              aml_length          - Length of Aml
  *              output_buffer       - Pointer to the buffer that will
  *                                    contain the output structures
  *
@@ -165,42 +62,24 @@ static struct acpi_rsconvert_info *acpi_rs_get_conversion_info(u8 resource_type)
  *              linked list of resources in the caller's output buffer
  *
  ******************************************************************************/
-
 acpi_status
-acpi_rs_convert_aml_to_resources(u8 * aml_buffer,
-				 u32 aml_buffer_length, u8 * output_buffer)
+acpi_rs_convert_aml_to_resources(u8 * aml, u32 aml_length, u8 * output_buffer)
 {
-	u8 *buffer = output_buffer;
+	struct acpi_resource *resource = (void *)output_buffer;
 	acpi_status status;
-	acpi_size bytes_parsed = 0;
-	struct acpi_resource *resource;
-	acpi_rsdesc_size descriptor_length;
-	struct acpi_rsconvert_info *info;
+	u8 resource_index;
+	u8 *end_aml;
 
 	ACPI_FUNCTION_TRACE("rs_convert_aml_to_resources");
 
+	end_aml = aml + aml_length;
+
 	/* Loop until end-of-buffer or an end_tag is found */
 
-	while (bytes_parsed < aml_buffer_length) {
-		/* Get the conversion table associated with this Descriptor Type */
+	while (aml < end_aml) {
+		/* Validate the Resource Type and Resource Length */
 
-		info = acpi_rs_get_conversion_info(*aml_buffer);
-		if (!info) {
-			/* No table indicates an invalid resource type */
-
-			return_ACPI_STATUS(AE_AML_INVALID_RESOURCE_TYPE);
-		}
-
-		descriptor_length = acpi_ut_get_descriptor_length(aml_buffer);
-
-		/*
-		 * Perform limited validation of the resource length, based upon
-		 * what we know about the resource type
-		 */
-		status =
-		    acpi_rs_validate_resource_length(ACPI_CAST_PTR
-						     (union aml_resource,
-						      aml_buffer));
+		status = acpi_ut_validate_resource(aml, &resource_index);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -208,42 +87,36 @@ acpi_rs_convert_aml_to_resources(u8 * aml_buffer,
 		/* Convert the AML byte stream resource to a local resource struct */
 
 		status =
-		    acpi_rs_convert_aml_to_resource(ACPI_CAST_PTR
-						    (struct acpi_resource,
-						     buffer),
+		    acpi_rs_convert_aml_to_resource(resource,
 						    ACPI_CAST_PTR(union
 								  aml_resource,
-								  aml_buffer),
-						    info);
+								  aml),
+						    acpi_gbl_get_resource_dispatch
+						    [resource_index]);
 		if (ACPI_FAILURE(status)) {
-			ACPI_REPORT_ERROR(("Could not convert AML resource (type %X) to resource, %s\n", *aml_buffer, acpi_format_exception(status)));
+			ACPI_REPORT_ERROR(("Could not convert AML resource (Type %X) to resource, %s\n", *aml, acpi_format_exception(status)));
 			return_ACPI_STATUS(status);
 		}
 
-		/* Set the aligned length of the new resource descriptor */
-
-		resource = ACPI_CAST_PTR(struct acpi_resource, buffer);
-		resource->length =
-		    (u32) ACPI_ALIGN_RESOURCE_SIZE(resource->length);
-
 		/* Normal exit on completion of an end_tag resource descriptor */
 
-		if (acpi_ut_get_resource_type(aml_buffer) ==
+		if (acpi_ut_get_resource_type(aml) ==
 		    ACPI_RESOURCE_NAME_END_TAG) {
 			return_ACPI_STATUS(AE_OK);
 		}
 
-		/* Update counter and point to the next input resource */
+		/* Point to the next input AML resource */
 
-		bytes_parsed += descriptor_length;
-		aml_buffer += descriptor_length;
+		aml += acpi_ut_get_descriptor_length(aml);
 
 		/* Point to the next structure in the output buffer */
 
-		buffer += resource->length;
+		resource =
+		    ACPI_PTR_ADD(struct acpi_resource, resource,
+				 resource->length);
 	}
 
-	/* Completed buffer, but did not find an end_tag resource descriptor */
+	/* Did not find an end_tag resource descriptor */
 
 	return_ACPI_STATUS(AE_AML_NO_RESOURCE_END_TAG);
 }
@@ -271,16 +144,16 @@ acpi_status
 acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 				 acpi_size aml_size_needed, u8 * output_buffer)
 {
-	u8 *aml_buffer = output_buffer;
-	u8 *end_aml_buffer = output_buffer + aml_size_needed;
+	u8 *aml = output_buffer;
+	u8 *end_aml = output_buffer + aml_size_needed;
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE("rs_convert_resources_to_aml");
 
 	/* Walk the resource descriptor list, convert each descriptor */
 
-	while (aml_buffer < end_aml_buffer) {
-		/* Validate the Resource Type */
+	while (aml < end_aml) {
+		/* Validate the (internal) Resource Type */
 
 		if (resource->type > ACPI_RESOURCE_TYPE_MAX) {
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
@@ -294,7 +167,7 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 		status = acpi_rs_convert_resource_to_aml(resource,
 							 ACPI_CAST_PTR(union
 								       aml_resource,
-								       aml_buffer),
+								       aml),
 							 acpi_gbl_set_resource_dispatch
 							 [resource->type]);
 		if (ACPI_FAILURE(status)) {
@@ -305,9 +178,8 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 		/* Perform final sanity check on the new AML resource descriptor */
 
 		status =
-		    acpi_rs_validate_resource_length(ACPI_CAST_PTR
-						     (union aml_resource,
-						      aml_buffer));
+		    acpi_ut_validate_resource(ACPI_CAST_PTR
+					      (union aml_resource, aml), NULL);
 		if (ACPI_FAILURE(status)) {
 			return_ACPI_STATUS(status);
 		}
@@ -322,18 +194,15 @@ acpi_rs_convert_resources_to_aml(struct acpi_resource *resource,
 
 		/*
 		 * Extract the total length of the new descriptor and set the
-		 * aml_buffer to point to the next (output) resource descriptor
+		 * Aml to point to the next (output) resource descriptor
 		 */
-		aml_buffer += acpi_ut_get_descriptor_length(aml_buffer);
+		aml += acpi_ut_get_descriptor_length(aml);
 
 		/* Point to the next input resource descriptor */
 
 		resource =
 		    ACPI_PTR_ADD(struct acpi_resource, resource,
 				 resource->length);
-
-		/* Check for end-of-list, normal exit */
-
 	}
 
 	/* Completed buffer, but did not find an end_tag resource descriptor */

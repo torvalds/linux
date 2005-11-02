@@ -92,6 +92,11 @@ struct asl_resource_node {
 	struct asl_resource_node *next;
 };
 
+/* Macros used to generate AML resource length fields */
+
+#define ACPI_AML_SIZE_LARGE(r)      (sizeof (r) - sizeof (struct aml_resource_large_header))
+#define ACPI_AML_SIZE_SMALL(r)      (sizeof (r) - sizeof (struct aml_resource_small_header))
+
 /*
  * Resource descriptors defined in the ACPI specification.
  *

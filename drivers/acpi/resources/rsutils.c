@@ -65,6 +65,8 @@ u8 acpi_rs_decode_bitmask(u16 mask, u8 * list)
 	acpi_native_uint i;
 	u8 bit_count;
 
+	ACPI_FUNCTION_ENTRY();
+
 	/* Decode the mask bits */
 
 	for (i = 0, bit_count = 0; mask; i++) {
@@ -97,6 +99,8 @@ u16 acpi_rs_encode_bitmask(u8 * list, u8 count)
 	acpi_native_uint i;
 	u16 mask;
 
+	ACPI_FUNCTION_ENTRY();
+
 	/* Encode the list into a single bitmask */
 
 	for (i = 0, mask = 0; i < count; i++) {
@@ -127,6 +131,8 @@ void
 acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 {
 	acpi_native_uint i;
+
+	ACPI_FUNCTION_ENTRY();
 
 	/* One move per item */
 
@@ -168,53 +174,6 @@ acpi_rs_move_data(void *destination, void *source, u16 item_count, u8 move_type)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_rs_get_resource_info
- *
- * PARAMETERS:  resource_type       - Byte 0 of a resource descriptor
- *
- * RETURN:      Pointer to the resource conversion handler
- *
- * DESCRIPTION: Extract the Resource Type/Name from the first byte of
- *              a resource descriptor.
- *
- ******************************************************************************/
-
-struct acpi_resource_info *acpi_rs_get_resource_info(u8 resource_type)
-{
-	struct acpi_resource_info *size_info;
-
-	ACPI_FUNCTION_ENTRY();
-
-	/* Determine if this is a small or large resource */
-
-	if (resource_type & ACPI_RESOURCE_NAME_LARGE) {
-		/* Large Resource Type -- bits 6:0 contain the name */
-
-		if (resource_type > ACPI_RESOURCE_NAME_LARGE_MAX) {
-			return (NULL);
-		}
-
-		size_info = &acpi_gbl_lg_resource_info[(resource_type &
-							ACPI_RESOURCE_NAME_LARGE_MASK)];
-	} else {
-		/* Small Resource Type -- bits 6:3 contain the name */
-
-		size_info = &acpi_gbl_sm_resource_info[((resource_type &
-							 ACPI_RESOURCE_NAME_SMALL_MASK)
-							>> 3)];
-	}
-
-	/* Zero entry indicates an invalid resource type */
-
-	if (!size_info->minimum_internal_struct_length) {
-		return (NULL);
-	}
-
-	return (size_info);
-}
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_rs_set_resource_length
  *
  * PARAMETERS:  total_length        - Length of the AML descriptor, including
@@ -238,25 +197,20 @@ acpi_rs_set_resource_length(acpi_rsdesc_size total_length,
 
 	ACPI_FUNCTION_ENTRY();
 
-	/* Determine if this is a small or large resource */
+	/* Length is the total descriptor length minus the header length */
+
+	resource_length = (acpi_rs_length)
+	    (total_length - acpi_ut_get_resource_header_length(aml));
+
+	/* Length is stored differently for large and small descriptors */
 
 	if (aml->small_header.descriptor_type & ACPI_RESOURCE_NAME_LARGE) {
-		/* Large Resource type -- bytes 1-2 contain the 16-bit length */
-
-		resource_length = (acpi_rs_length)
-		    (total_length - sizeof(struct aml_resource_large_header));
-
-		/* Insert length into the Large descriptor length field */
+		/* Large descriptor -- bytes 1-2 contain the 16-bit length */
 
 		ACPI_MOVE_16_TO_16(&aml->large_header.resource_length,
 				   &resource_length);
 	} else {
-		/* Small Resource type -- bits 2:0 of byte 0 contain the length */
-
-		resource_length = (acpi_rs_length)
-		    (total_length - sizeof(struct aml_resource_small_header));
-
-		/* Insert length into the descriptor type byte */
+		/* Small descriptor -- bits 2:0 of byte 0 contain the length */
 
 		aml->small_header.descriptor_type = (u8)
 
@@ -292,7 +246,7 @@ acpi_rs_set_resource_header(u8 descriptor_type,
 {
 	ACPI_FUNCTION_ENTRY();
 
-	/* Set the Descriptor Type */
+	/* Set the Resource Type */
 
 	aml->small_header.descriptor_type = descriptor_type;
 
@@ -409,14 +363,14 @@ acpi_rs_get_resource_source(acpi_rs_length resource_length,
 				   (char *)&aml_resource_source[1]);
 
 		return ((acpi_rs_length) total_length);
-	} else {
-		/* resource_source is not present */
-
-		resource_source->index = 0;
-		resource_source->string_length = 0;
-		resource_source->string_ptr = NULL;
-		return (0);
 	}
+
+	/* resource_source is not present */
+
+	resource_source->index = 0;
+	resource_source->string_length = 0;
+	resource_source->string_ptr = NULL;
+	return (0);
 }
 
 /*******************************************************************************
