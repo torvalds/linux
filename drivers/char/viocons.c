@@ -48,7 +48,7 @@
 
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iseries/hv_call_event.h>
-#include <asm/iSeries/HvLpConfig.h>
+#include <asm/iseries/hv_lp_config.h>
 #include <asm/iseries/hv_call.h>
 
 #ifdef CONFIG_VT

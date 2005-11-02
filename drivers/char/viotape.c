@@ -57,7 +57,7 @@
 #include <asm/iSeries/vio.h>
 #include <asm/iSeries/HvLpEvent.h>
 #include <asm/iseries/hv_call_event.h>
-#include <asm/iSeries/HvLpConfig.h>
+#include <asm/iseries/hv_lp_config.h>
 
 #define VIOTAPE_VERSION		"1.2"
 #define VIOTAPE_MAXREQ		1
