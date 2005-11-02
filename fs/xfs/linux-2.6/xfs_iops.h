@@ -48,4 +48,8 @@ extern void linvfs_unwritten_done(struct buffer_head *, int);
 extern int xfs_ioctl(struct bhv_desc *, struct inode *, struct file *,
                         int, unsigned int, void __user *);
 
+struct xfs_inode;
+extern void xfs_ichgtime(struct xfs_inode *, int);
+extern void xfs_ichgtime_fast(struct xfs_inode *, struct inode *, int);
+
 #endif /* __XFS_IOPS_H__ */

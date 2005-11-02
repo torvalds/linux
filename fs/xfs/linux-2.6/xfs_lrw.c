@@ -302,7 +302,7 @@ xfs_read(
 	xfs_iunlock(ip, XFS_IOLOCK_SHARED);
 
 	if (likely(!(ioflags & IO_INVIS)))
-		xfs_ichgtime(ip, XFS_ICHGTIME_ACC);
+		xfs_ichgtime_fast(ip, inode, XFS_ICHGTIME_ACC);
 
 unlock_isem:
 	if (unlikely(ioflags & IO_ISDIRECT))
@@ -367,7 +367,7 @@ xfs_sendfile(
 		XFS_STATS_ADD(xs_read_bytes, ret);
 
 	if (likely(!(ioflags & IO_INVIS)))
-		xfs_ichgtime(ip, XFS_ICHGTIME_ACC);
+		xfs_ichgtime_fast(ip, LINVFS_GET_IP(vp), XFS_ICHGTIME_ACC);
 
 	return ret;
 }
@@ -732,15 +732,10 @@ start:
 		}
 	}
 
-	/*
-	 * On Linux, generic_file_write updates the times even if
-	 * no data is copied in so long as the write had a size.
-	 *
-	 * We must update xfs' times since revalidate will overcopy xfs.
-	 */
-	if (!(ioflags & IO_INVIS)) {
-		xfs_ichgtime(xip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+	if (likely(!(ioflags & IO_INVIS))) {
 		inode_update_time(inode, 1);
+		xfs_ichgtime_fast(xip, inode,
+				  XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	}
 
 	/*
