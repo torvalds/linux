@@ -1592,15 +1592,6 @@ xfs_da_hashname(const uchar_t *name, int namelen)
 {
 	xfs_dahash_t hash;
 
-#ifdef SLOWVERSION
-	/*
-	 * This is the old one-byte-at-a-time version.
-	 */
-	for (hash = 0; namelen > 0; namelen--)
-		hash = *name++ ^ rol32(hash, 7);
-
-	return(hash);
-#else
 	/*
 	 * Do four characters at a time as long as we can.
 	 */
@@ -1619,12 +1610,9 @@ xfs_da_hashname(const uchar_t *name, int namelen)
 		return (name[0] << 7) ^ (name[1] << 0) ^ rol32(hash, 7 * 2);
 	case 1:
 		return (name[0] << 0) ^ rol32(hash, 7 * 1);
-	case 0:
+	default: /* case 0: */
 		return hash;
 	}
-	/* NOTREACHED */
-#endif
-	return 0; /* keep gcc happy */
 }
 
 /*
