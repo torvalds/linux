@@ -27,8 +27,7 @@ struct ipc64_perm
 	__kernel_mode_t	mode;
 	unsigned int	seq;
 	unsigned int	__pad1;
-	u64		__unused1;
-	u64		__unused2;
+	__u32		__unused[4];
 };
 
 #endif /* _ASM_POWERPC_IPCBUF_H */
