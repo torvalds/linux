@@ -40,8 +40,6 @@
 #define VIA_FIRE_BUF_SIZE  1024
 #define VIA_NUM_IRQS 2
 
-
-
 typedef struct drm_via_ring_buffer {
 	drm_map_t map;
 	char *virtual_start;
@@ -55,7 +53,7 @@ typedef struct drm_via_irq {
 	uint32_t enable_mask;
 	wait_queue_head_t irq_queue;
 } drm_via_irq_t;
-	
+
 typedef struct drm_via_private {
 	drm_via_sarea_t *sarea_priv;
 	drm_map_t *sarea;
@@ -71,9 +69,9 @@ typedef struct drm_via_private {
 	volatile uint32_t *last_pause_ptr;
 	volatile uint32_t *hw_addr_ptr;
 	drm_via_ring_buffer_t ring;
-        struct timeval last_vblank;
-        int last_vblank_valid;
-        unsigned usec_per_vblank;
+	struct timeval last_vblank;
+	int last_vblank_valid;
+	unsigned usec_per_vblank;
 	drm_via_state_t hc_state;
 	char pci_buf[VIA_PCI_BUF_SIZE];
 	const uint32_t *fire_offsets[VIA_FIRE_BUF_SIZE];
@@ -82,8 +80,8 @@ typedef struct drm_via_private {
 	drm_via_irq_t via_irqs[VIA_NUM_IRQS];
 	unsigned num_irqs;
 	maskarray_t *irq_masks;
-	uint32_t irq_enable_mask; 
-	uint32_t irq_pending_mask;	
+	uint32_t irq_enable_mask;
+	uint32_t irq_pending_mask;
 } drm_via_private_t;
 
 /* VIA MMIO register access */
@@ -110,9 +108,11 @@ extern void via_driver_irq_uninstall(drm_device_t * dev);
 extern int via_dma_cleanup(drm_device_t * dev);
 extern void via_init_command_verifier(void);
 extern int via_driver_dma_quiescent(drm_device_t * dev);
-extern void via_init_futex(drm_via_private_t *dev_priv);
-extern void via_cleanup_futex(drm_via_private_t *dev_priv);
-extern void via_release_futex(drm_via_private_t *dev_priv, int context);
+extern void via_init_futex(drm_via_private_t * dev_priv);
+extern void via_cleanup_futex(drm_via_private_t * dev_priv);
+extern void via_release_futex(drm_via_private_t * dev_priv, int context);
 
+extern int via_parse_command_stream(drm_device_t * dev, const uint32_t * buf,
+				    unsigned int size);
 
 #endif
