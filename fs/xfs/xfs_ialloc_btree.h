@@ -62,8 +62,10 @@ typedef struct xfs_inobt_key
 	xfs_agino_t	ir_startino;	/* starting inode number */
 } xfs_inobt_key_t;
 
-typedef xfs_agblock_t xfs_inobt_ptr_t;	/* btree pointer type */
-					/* btree block header type */
+/* btree pointer type */
+typedef __be32 xfs_inobt_ptr_t;
+
+/* btree block header type */
 typedef	struct xfs_btree_sblock xfs_inobt_block_t;
 
 #define	XFS_BUF_TO_INOBT_BLOCK(bp)	((xfs_inobt_block_t *)XFS_BUF_PTR(bp))
@@ -86,7 +88,7 @@ typedef	struct xfs_btree_sblock xfs_inobt_block_t;
 #define	XFS_INOBT_BLOCK_MAXRECS(lev,cur) ((cur)->bc_mp->m_inobt_mxr[lev != 0])
 #define	XFS_INOBT_BLOCK_MINRECS(lev,cur) ((cur)->bc_mp->m_inobt_mnr[lev != 0])
 #define	XFS_INOBT_IS_LAST_REC(cur)	\
-	((cur)->bc_ptrs[0] == INT_GET(XFS_BUF_TO_INOBT_BLOCK((cur)->bc_bufs[0])->bb_numrecs, ARCH_CONVERT))
+	((cur)->bc_ptrs[0] == be16_to_cpu(XFS_BUF_TO_INOBT_BLOCK((cur)->bc_bufs[0])->bb_numrecs))
 
 /*
  * Maximum number of inode btree levels.

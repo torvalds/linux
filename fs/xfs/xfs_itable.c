@@ -448,7 +448,7 @@ xfs_bulkstat(
 			while (error) {
 				agino += XFS_INODES_PER_CHUNK;
 				if (XFS_AGINO_TO_AGBNO(mp, agino) >=
-						INT_GET(agi->agi_length, ARCH_CONVERT))
+						be32_to_cpu(agi->agi_length))
 					break;
 				error = xfs_inobt_lookup_ge(cur, agino, 0, 0,
 							    &tmp);

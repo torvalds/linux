@@ -231,8 +231,8 @@ xfs_alloc_fix_minleft(
 	if (args->minleft == 0)
 		return 1;
 	agf = XFS_BUF_TO_AGF(args->agbp);
-	diff = INT_GET(agf->agf_freeblks, ARCH_CONVERT)
-		+ INT_GET(agf->agf_flcount, ARCH_CONVERT)
+	diff = be32_to_cpu(agf->agf_freeblks)
+		+ be32_to_cpu(agf->agf_flcount)
 		- args->len - args->minleft;
 	if (diff >= 0)
 		return 1;
@@ -307,7 +307,8 @@ xfs_alloc_fixup_trees(
 			bnoblock = XFS_BUF_TO_ALLOC_BLOCK(bno_cur->bc_bufs[0]);
 			cntblock = XFS_BUF_TO_ALLOC_BLOCK(cnt_cur->bc_bufs[0]);
 			XFS_WANT_CORRUPTED_RETURN(
-				INT_GET(bnoblock->bb_numrecs, ARCH_CONVERT) == INT_GET(cntblock->bb_numrecs, ARCH_CONVERT));
+				be16_to_cpu(bnoblock->bb_numrecs) ==
+				be16_to_cpu(cntblock->bb_numrecs));
 		}
 	}
 #endif
@@ -493,21 +494,17 @@ xfs_alloc_trace_modagf(
 		(void *)str,
 		(void *)mp,
 		(void *)(__psint_t)flags,
-		(void *)(__psunsigned_t)INT_GET(agf->agf_seqno, ARCH_CONVERT),
-		(void *)(__psunsigned_t)INT_GET(agf->agf_length, ARCH_CONVERT),
-		(void *)(__psunsigned_t)INT_GET(agf->agf_roots[XFS_BTNUM_BNO],
-						ARCH_CONVERT),
-		(void *)(__psunsigned_t)INT_GET(agf->agf_roots[XFS_BTNUM_CNT],
-						ARCH_CONVERT),
-		(void *)(__psunsigned_t)INT_GET(agf->agf_levels[XFS_BTNUM_BNO],
-						ARCH_CONVERT),
-		(void *)(__psunsigned_t)INT_GET(agf->agf_levels[XFS_BTNUM_CNT],
-						ARCH_CONVERT),
-		(void *)(__psunsigned_t)INT_GET(agf->agf_flfirst, ARCH_CONVERT),
-		(void *)(__psunsigned_t)INT_GET(agf->agf_fllast, ARCH_CONVERT),
-		(void *)(__psunsigned_t)INT_GET(agf->agf_flcount, ARCH_CONVERT),
-		(void *)(__psunsigned_t)INT_GET(agf->agf_freeblks, ARCH_CONVERT),
-		(void *)(__psunsigned_t)INT_GET(agf->agf_longest, ARCH_CONVERT));
+		(void *)(__psunsigned_t)be32_to_cpu(agf->agf_seqno),
+		(void *)(__psunsigned_t)be32_to_cpu(agf->agf_length),
+		(void *)(__psunsigned_t)be32_to_cpu(agf->agf_roots[XFS_BTNUM_BNO]),
+		(void *)(__psunsigned_t)be32_to_cpu(agf->agf_roots[XFS_BTNUM_CNT]),
+		(void *)(__psunsigned_t)be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]),
+		(void *)(__psunsigned_t)be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]),
+		(void *)(__psunsigned_t)be32_to_cpu(agf->agf_flfirst),
+		(void *)(__psunsigned_t)be32_to_cpu(agf->agf_fllast),
+		(void *)(__psunsigned_t)be32_to_cpu(agf->agf_flcount),
+		(void *)(__psunsigned_t)be32_to_cpu(agf->agf_freeblks),
+		(void *)(__psunsigned_t)be32_to_cpu(agf->agf_longest));
 }
 
 STATIC void
@@ -600,12 +597,12 @@ xfs_alloc_ag_vextent(
 		if (!(args->wasfromfl)) {
 
 			agf = XFS_BUF_TO_AGF(args->agbp);
-			INT_MOD(agf->agf_freeblks, ARCH_CONVERT, -(args->len));
+			be32_add(&agf->agf_freeblks, -(args->len));
 			xfs_trans_agblocks_delta(args->tp,
 						 -((long)(args->len)));
 			args->pag->pagf_freeblks -= args->len;
-			ASSERT(INT_GET(agf->agf_freeblks, ARCH_CONVERT)
-				<= INT_GET(agf->agf_length, ARCH_CONVERT));
+			ASSERT(be32_to_cpu(agf->agf_freeblks) <=
+				be32_to_cpu(agf->agf_length));
 			TRACE_MODAGF(NULL, agf, XFS_AGF_FREEBLKS);
 			xfs_alloc_log_agf(args->tp, args->agbp,
 						XFS_AGF_FREEBLKS);
@@ -711,8 +708,7 @@ xfs_alloc_ag_vextent_exact(
 	cnt_cur = xfs_btree_init_cursor(args->mp, args->tp, args->agbp,
 		args->agno, XFS_BTNUM_CNT, NULL, 0);
 	ASSERT(args->agbno + args->len <=
-		INT_GET(XFS_BUF_TO_AGF(args->agbp)->agf_length,
-			ARCH_CONVERT));
+		be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length));
 	if ((error = xfs_alloc_fixup_trees(cnt_cur, bno_cur, fbno, flen,
 			args->agbno, args->len, XFSA_FIXUP_BNO_OK))) {
 		xfs_btree_del_cursor(cnt_cur, XFS_BTREE_ERROR);
@@ -885,8 +881,7 @@ xfs_alloc_ag_vextent_near(
 			goto error0;
 		XFS_WANT_CORRUPTED_GOTO(i == 1, error0);
 		ltend = ltbno + ltlen;
-		ASSERT(ltend <= INT_GET(XFS_BUF_TO_AGF(args->agbp)->agf_length,
-				ARCH_CONVERT));
+		ASSERT(ltend <= be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length));
 		args->len = blen;
 		if (!xfs_alloc_fix_minleft(args)) {
 			xfs_btree_del_cursor(cnt_cur, XFS_BTREE_NOERROR);
@@ -1241,8 +1236,7 @@ xfs_alloc_ag_vextent_near(
 		ltlen, &ltnew);
 	ASSERT(ltnew >= ltbno);
 	ASSERT(ltnew + rlen <= ltend);
-	ASSERT(ltnew + rlen <= INT_GET(XFS_BUF_TO_AGF(args->agbp)->agf_length,
-		ARCH_CONVERT));
+	ASSERT(ltnew + rlen <= be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length));
 	args->agbno = ltnew;
 	if ((error = xfs_alloc_fixup_trees(cnt_cur, bno_cur_lt, ltbno, ltlen,
 			ltnew, rlen, XFSA_FIXUP_BNO_OK)))
@@ -1405,8 +1399,7 @@ xfs_alloc_ag_vextent_size(
 	args->agbno = rbno;
 	XFS_WANT_CORRUPTED_GOTO(
 		args->agbno + args->len <=
-			INT_GET(XFS_BUF_TO_AGF(args->agbp)->agf_length,
-			ARCH_CONVERT),
+			be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length),
 		error0);
 	TRACE_ALLOC("normal", args);
 	return 0;
@@ -1454,8 +1447,8 @@ xfs_alloc_ag_vextent_small(
 	 * freelist.
 	 */
 	else if (args->minlen == 1 && args->alignment == 1 && !args->isfl &&
-		 (INT_GET(XFS_BUF_TO_AGF(args->agbp)->agf_flcount,
-			ARCH_CONVERT) > args->minleft)) {
+		 (be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_flcount)
+		  > args->minleft)) {
 		if ((error = xfs_alloc_get_freelist(args->tp, args->agbp, &fbno)))
 			goto error0;
 		if (fbno != NULLAGBLOCK) {
@@ -1470,8 +1463,7 @@ xfs_alloc_ag_vextent_small(
 			args->agbno = fbno;
 			XFS_WANT_CORRUPTED_GOTO(
 				args->agbno + args->len <=
-				INT_GET(XFS_BUF_TO_AGF(args->agbp)->agf_length,
-					ARCH_CONVERT),
+				be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length),
 				error0);
 			args->wasfromfl = 1;
 			TRACE_ALLOC("freelist", args);
@@ -1745,12 +1737,12 @@ xfs_free_ag_extent(
 
 		agf = XFS_BUF_TO_AGF(agbp);
 		pag = &mp->m_perag[agno];
-		INT_MOD(agf->agf_freeblks, ARCH_CONVERT, len);
+		be32_add(&agf->agf_freeblks, len);
 		xfs_trans_agblocks_delta(tp, len);
 		pag->pagf_freeblks += len;
 		XFS_WANT_CORRUPTED_GOTO(
-			INT_GET(agf->agf_freeblks, ARCH_CONVERT)
-				<= INT_GET(agf->agf_length, ARCH_CONVERT),
+			be32_to_cpu(agf->agf_freeblks) <=
+			be32_to_cpu(agf->agf_length),
 			error0);
 		TRACE_MODAGF(NULL, agf, XFS_AGF_FREEBLKS);
 		xfs_alloc_log_agf(tp, agbp, XFS_AGF_FREEBLKS);
@@ -1897,18 +1889,18 @@ xfs_alloc_fix_freelist(
 	 */
 	agf = XFS_BUF_TO_AGF(agbp);
 	need = XFS_MIN_FREELIST(agf, mp);
-	delta = need > INT_GET(agf->agf_flcount, ARCH_CONVERT) ?
-		(need - INT_GET(agf->agf_flcount, ARCH_CONVERT)) : 0;
+	delta = need > be32_to_cpu(agf->agf_flcount) ?
+		(need - be32_to_cpu(agf->agf_flcount)) : 0;
 	/*
 	 * If there isn't enough total or single-extent, reject it.
 	 */
-	longest = INT_GET(agf->agf_longest, ARCH_CONVERT);
+	longest = be32_to_cpu(agf->agf_longest);
 	longest = (longest > delta) ? (longest - delta) :
-		(INT_GET(agf->agf_flcount, ARCH_CONVERT) > 0 || longest > 0);
+		(be32_to_cpu(agf->agf_flcount) > 0 || longest > 0);
 	if (args->minlen + args->alignment + args->minalignslop - 1 > longest ||
 	     (args->minleft &&
-		(int)(INT_GET(agf->agf_freeblks, ARCH_CONVERT) +
-		   INT_GET(agf->agf_flcount, ARCH_CONVERT) - need - args->total) <
+		(int)(be32_to_cpu(agf->agf_freeblks) +
+		   be32_to_cpu(agf->agf_flcount) - need - args->total) <
 	     (int)args->minleft)) {
 		xfs_trans_brelse(tp, agbp);
 		args->agbp = NULL;
@@ -1917,7 +1909,7 @@ xfs_alloc_fix_freelist(
 	/*
 	 * Make the freelist shorter if it's too long.
 	 */
-	while (INT_GET(agf->agf_flcount, ARCH_CONVERT) > need) {
+	while (be32_to_cpu(agf->agf_flcount) > need) {
 		xfs_buf_t	*bp;
 
 		if ((error = xfs_alloc_get_freelist(tp, agbp, &bno)))
@@ -1944,9 +1936,9 @@ xfs_alloc_fix_freelist(
 	/*
 	 * Make the freelist longer if it's too short.
 	 */
-	while (INT_GET(agf->agf_flcount, ARCH_CONVERT) < need) {
+	while (be32_to_cpu(agf->agf_flcount) < need) {
 		targs.agbno = 0;
-		targs.maxlen = need - INT_GET(agf->agf_flcount, ARCH_CONVERT);
+		targs.maxlen = need - be32_to_cpu(agf->agf_flcount);
 		/*
 		 * Allocate as many blocks as possible at once.
 		 */
@@ -2006,19 +1998,19 @@ xfs_alloc_get_freelist(
 	 */
 	mp = tp->t_mountp;
 	if ((error = xfs_alloc_read_agfl(mp, tp,
-			INT_GET(agf->agf_seqno, ARCH_CONVERT), &agflbp)))
+			be32_to_cpu(agf->agf_seqno), &agflbp)))
 		return error;
 	agfl = XFS_BUF_TO_AGFL(agflbp);
 	/*
 	 * Get the block number and update the data structures.
 	 */
-	bno = INT_GET(agfl->agfl_bno[INT_GET(agf->agf_flfirst, ARCH_CONVERT)], ARCH_CONVERT);
-	INT_MOD(agf->agf_flfirst, ARCH_CONVERT, 1);
+	bno = INT_GET(agfl->agfl_bno[be32_to_cpu(agf->agf_flfirst)], ARCH_CONVERT);
+	be32_add(&agf->agf_flfirst, 1);
 	xfs_trans_brelse(tp, agflbp);
-	if (INT_GET(agf->agf_flfirst, ARCH_CONVERT) == XFS_AGFL_SIZE(mp))
+	if (be32_to_cpu(agf->agf_flfirst) == XFS_AGFL_SIZE(mp))
 		agf->agf_flfirst = 0;
-	pag = &mp->m_perag[INT_GET(agf->agf_seqno, ARCH_CONVERT)];
-	INT_MOD(agf->agf_flcount, ARCH_CONVERT, -1);
+	pag = &mp->m_perag[be32_to_cpu(agf->agf_seqno)];
+	be32_add(&agf->agf_flcount, -1);
 	xfs_trans_agflist_delta(tp, -1);
 	pag->pagf_flcount--;
 	TRACE_MODAGF(NULL, agf, XFS_AGF_FLFIRST | XFS_AGF_FLCOUNT);
@@ -2033,7 +2025,7 @@ xfs_alloc_get_freelist(
 	 * the freeing transaction must be pushed to disk NOW by forcing
 	 * to disk all iclogs up that transaction's LSN.
 	 */
-	xfs_alloc_search_busy(tp, INT_GET(agf->agf_seqno, ARCH_CONVERT), bno, 1);
+	xfs_alloc_search_busy(tp, be32_to_cpu(agf->agf_seqno), bno, 1);
 	return 0;
 }
 
@@ -2111,18 +2103,18 @@ xfs_alloc_put_freelist(
 	mp = tp->t_mountp;
 
 	if (!agflbp && (error = xfs_alloc_read_agfl(mp, tp,
-			INT_GET(agf->agf_seqno, ARCH_CONVERT), &agflbp)))
+			be32_to_cpu(agf->agf_seqno), &agflbp)))
 		return error;
 	agfl = XFS_BUF_TO_AGFL(agflbp);
-	INT_MOD(agf->agf_fllast, ARCH_CONVERT, 1);
-	if (INT_GET(agf->agf_fllast, ARCH_CONVERT) == XFS_AGFL_SIZE(mp))
+	be32_add(&agf->agf_fllast, 1);
+	if (be32_to_cpu(agf->agf_fllast) == XFS_AGFL_SIZE(mp))
 		agf->agf_fllast = 0;
-	pag = &mp->m_perag[INT_GET(agf->agf_seqno, ARCH_CONVERT)];
-	INT_MOD(agf->agf_flcount, ARCH_CONVERT, 1);
+	pag = &mp->m_perag[be32_to_cpu(agf->agf_seqno)];
+	be32_add(&agf->agf_flcount, 1);
 	xfs_trans_agflist_delta(tp, 1);
 	pag->pagf_flcount++;
-	ASSERT(INT_GET(agf->agf_flcount, ARCH_CONVERT) <= XFS_AGFL_SIZE(mp));
-	blockp = &agfl->agfl_bno[INT_GET(agf->agf_fllast, ARCH_CONVERT)];
+	ASSERT(be32_to_cpu(agf->agf_flcount) <= XFS_AGFL_SIZE(mp));
+	blockp = &agfl->agfl_bno[be32_to_cpu(agf->agf_fllast)];
 	INT_SET(*blockp, ARCH_CONVERT, bno);
 	TRACE_MODAGF(NULL, agf, XFS_AGF_FLLAST | XFS_AGF_FLCOUNT);
 	xfs_alloc_log_agf(tp, agbp, XFS_AGF_FLLAST | XFS_AGF_FLCOUNT);
@@ -2169,14 +2161,12 @@ xfs_alloc_read_agf(
 	 */
 	agf = XFS_BUF_TO_AGF(bp);
 	agf_ok =
-		INT_GET(agf->agf_magicnum, ARCH_CONVERT) == XFS_AGF_MAGIC &&
-		XFS_AGF_GOOD_VERSION(
-			INT_GET(agf->agf_versionnum, ARCH_CONVERT)) &&
-		INT_GET(agf->agf_freeblks, ARCH_CONVERT) <=
-				INT_GET(agf->agf_length, ARCH_CONVERT) &&
-		INT_GET(agf->agf_flfirst, ARCH_CONVERT) < XFS_AGFL_SIZE(mp) &&
-		INT_GET(agf->agf_fllast,  ARCH_CONVERT) < XFS_AGFL_SIZE(mp) &&
-		INT_GET(agf->agf_flcount, ARCH_CONVERT) <= XFS_AGFL_SIZE(mp);
+		be32_to_cpu(agf->agf_magicnum) == XFS_AGF_MAGIC &&
+		XFS_AGF_GOOD_VERSION(be32_to_cpu(agf->agf_versionnum)) &&
+		be32_to_cpu(agf->agf_freeblks) <= be32_to_cpu(agf->agf_length) &&
+		be32_to_cpu(agf->agf_flfirst) < XFS_AGFL_SIZE(mp) &&
+		be32_to_cpu(agf->agf_fllast) < XFS_AGFL_SIZE(mp) &&
+		be32_to_cpu(agf->agf_flcount) <= XFS_AGFL_SIZE(mp);
 	if (unlikely(XFS_TEST_ERROR(!agf_ok, mp, XFS_ERRTAG_ALLOC_READ_AGF,
 			XFS_RANDOM_ALLOC_READ_AGF))) {
 		XFS_CORRUPTION_ERROR("xfs_alloc_read_agf",
@@ -2186,13 +2176,13 @@ xfs_alloc_read_agf(
 	}
 	pag = &mp->m_perag[agno];
 	if (!pag->pagf_init) {
-		pag->pagf_freeblks = INT_GET(agf->agf_freeblks, ARCH_CONVERT);
-		pag->pagf_flcount = INT_GET(agf->agf_flcount, ARCH_CONVERT);
-		pag->pagf_longest = INT_GET(agf->agf_longest, ARCH_CONVERT);
+		pag->pagf_freeblks = be32_to_cpu(agf->agf_freeblks);
+		pag->pagf_flcount = be32_to_cpu(agf->agf_flcount);
+		pag->pagf_longest = be32_to_cpu(agf->agf_longest);
 		pag->pagf_levels[XFS_BTNUM_BNOi] =
-			INT_GET(agf->agf_levels[XFS_BTNUM_BNOi], ARCH_CONVERT);
+			be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNOi]);
 		pag->pagf_levels[XFS_BTNUM_CNTi] =
-			INT_GET(agf->agf_levels[XFS_BTNUM_CNTi], ARCH_CONVERT);
+			be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNTi]);
 		spinlock_init(&pag->pagb_lock, "xfspagb");
 		pag->pagb_list = kmem_zalloc(XFS_PAGB_NUM_SLOTS *
 					sizeof(xfs_perag_busy_t), KM_SLEEP);
@@ -2200,13 +2190,13 @@ xfs_alloc_read_agf(
 	}
 #ifdef DEBUG
 	else if (!XFS_FORCED_SHUTDOWN(mp)) {
-		ASSERT(pag->pagf_freeblks == INT_GET(agf->agf_freeblks, ARCH_CONVERT));
-		ASSERT(pag->pagf_flcount == INT_GET(agf->agf_flcount, ARCH_CONVERT));
-		ASSERT(pag->pagf_longest == INT_GET(agf->agf_longest, ARCH_CONVERT));
+		ASSERT(pag->pagf_freeblks == be32_to_cpu(agf->agf_freeblks));
+		ASSERT(pag->pagf_flcount == be32_to_cpu(agf->agf_flcount));
+		ASSERT(pag->pagf_longest == be32_to_cpu(agf->agf_longest));
 		ASSERT(pag->pagf_levels[XFS_BTNUM_BNOi] ==
-		       INT_GET(agf->agf_levels[XFS_BTNUM_BNOi], ARCH_CONVERT));
+		       be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNOi]));
 		ASSERT(pag->pagf_levels[XFS_BTNUM_CNTi] ==
-		       INT_GET(agf->agf_levels[XFS_BTNUM_CNTi], ARCH_CONVERT));
+		       be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNTi]));
 	}
 #endif
 	XFS_BUF_SET_VTYPE_REF(bp, B_FS_AGF, XFS_AGF_REF);
@@ -2455,7 +2445,7 @@ xfs_free_extent(
 #ifdef DEBUG
 	ASSERT(args.agbp != NULL);
 	agf = XFS_BUF_TO_AGF(args.agbp);
-	ASSERT(args.agbno + len <= INT_GET(agf->agf_length, ARCH_CONVERT));
+	ASSERT(args.agbno + len <= be32_to_cpu(agf->agf_length));
 #endif
 	error = xfs_free_ag_extent(tp, args.agbp, args.agno, args.agbno,
 		len, 0);

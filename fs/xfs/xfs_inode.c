@@ -1864,8 +1864,8 @@ xfs_iunlink(
 	 */
 	agi = XFS_BUF_TO_AGI(agibp);
 	agi_ok =
-		INT_GET(agi->agi_magicnum, ARCH_CONVERT) == XFS_AGI_MAGIC &&
-		XFS_AGI_GOOD_VERSION(INT_GET(agi->agi_versionnum, ARCH_CONVERT));
+		be32_to_cpu(agi->agi_magicnum) == XFS_AGI_MAGIC &&
+		XFS_AGI_GOOD_VERSION(be32_to_cpu(agi->agi_versionnum));
 	if (unlikely(XFS_TEST_ERROR(!agi_ok, mp, XFS_ERRTAG_IUNLINK,
 			XFS_RANDOM_IUNLINK))) {
 		XFS_CORRUPTION_ERROR("xfs_iunlink", XFS_ERRLEVEL_LOW, mp, agi);
@@ -1880,9 +1880,9 @@ xfs_iunlink(
 	ASSERT(agino != 0);
 	bucket_index = agino % XFS_AGI_UNLINKED_BUCKETS;
 	ASSERT(agi->agi_unlinked[bucket_index]);
-	ASSERT(INT_GET(agi->agi_unlinked[bucket_index], ARCH_CONVERT) != agino);
+	ASSERT(be32_to_cpu(agi->agi_unlinked[bucket_index]) != agino);
 
-	if (INT_GET(agi->agi_unlinked[bucket_index], ARCH_CONVERT) != NULLAGINO) {
+	if (be32_to_cpu(agi->agi_unlinked[bucket_index]) != NULLAGINO) {
 		/*
 		 * There is already another inode in the bucket we need
 		 * to add ourselves to.  Add us at the front of the list.
@@ -1909,7 +1909,7 @@ xfs_iunlink(
 	 * Point the bucket head pointer at the inode being inserted.
 	 */
 	ASSERT(agino != 0);
-	INT_SET(agi->agi_unlinked[bucket_index], ARCH_CONVERT, agino);
+	agi->agi_unlinked[bucket_index] = cpu_to_be32(agino);
 	offset = offsetof(xfs_agi_t, agi_unlinked) +
 		(sizeof(xfs_agino_t) * bucket_index);
 	xfs_trans_log_buf(tp, agibp, offset,
@@ -1967,8 +1967,8 @@ xfs_iunlink_remove(
 	 */
 	agi = XFS_BUF_TO_AGI(agibp);
 	agi_ok =
-		INT_GET(agi->agi_magicnum, ARCH_CONVERT) == XFS_AGI_MAGIC &&
-		XFS_AGI_GOOD_VERSION(INT_GET(agi->agi_versionnum, ARCH_CONVERT));
+		be32_to_cpu(agi->agi_magicnum) == XFS_AGI_MAGIC &&
+		XFS_AGI_GOOD_VERSION(be32_to_cpu(agi->agi_versionnum));
 	if (unlikely(XFS_TEST_ERROR(!agi_ok, mp, XFS_ERRTAG_IUNLINK_REMOVE,
 			XFS_RANDOM_IUNLINK_REMOVE))) {
 		XFS_CORRUPTION_ERROR("xfs_iunlink_remove", XFS_ERRLEVEL_LOW,
@@ -1986,10 +1986,10 @@ xfs_iunlink_remove(
 	agino = XFS_INO_TO_AGINO(mp, ip->i_ino);
 	ASSERT(agino != 0);
 	bucket_index = agino % XFS_AGI_UNLINKED_BUCKETS;
-	ASSERT(INT_GET(agi->agi_unlinked[bucket_index], ARCH_CONVERT) != NULLAGINO);
+	ASSERT(be32_to_cpu(agi->agi_unlinked[bucket_index]) != NULLAGINO);
 	ASSERT(agi->agi_unlinked[bucket_index]);
 
-	if (INT_GET(agi->agi_unlinked[bucket_index], ARCH_CONVERT) == agino) {
+	if (be32_to_cpu(agi->agi_unlinked[bucket_index]) == agino) {
 		/*
 		 * We're at the head of the list.  Get the inode's
 		 * on-disk buffer to see if there is anyone after us
@@ -2023,7 +2023,7 @@ xfs_iunlink_remove(
 		 */
 		ASSERT(next_agino != 0);
 		ASSERT(next_agino != agino);
-		INT_SET(agi->agi_unlinked[bucket_index], ARCH_CONVERT, next_agino);
+		agi->agi_unlinked[bucket_index] = cpu_to_be32(next_agino);
 		offset = offsetof(xfs_agi_t, agi_unlinked) +
 			(sizeof(xfs_agino_t) * bucket_index);
 		xfs_trans_log_buf(tp, agibp, offset,
@@ -2032,7 +2032,7 @@ xfs_iunlink_remove(
 		/*
 		 * We need to search the list for the inode being freed.
 		 */
-		next_agino = INT_GET(agi->agi_unlinked[bucket_index], ARCH_CONVERT);
+		next_agino = be32_to_cpu(agi->agi_unlinked[bucket_index]);
 		last_ibp = NULL;
 		while (next_agino != agino) {
 			/*

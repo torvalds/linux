@@ -38,14 +38,19 @@ struct xfs_mount;
 /*
  * Data record/key structure
  */
-typedef struct xfs_alloc_rec
-{
-	xfs_agblock_t	ar_startblock;	/* starting block number */
-	xfs_extlen_t	ar_blockcount;	/* count of free blocks */
+typedef struct xfs_alloc_rec {
+	__be32		ar_startblock;	/* starting block number */
+	__be32		ar_blockcount;	/* count of free blocks */
 } xfs_alloc_rec_t, xfs_alloc_key_t;
 
-typedef xfs_agblock_t xfs_alloc_ptr_t;	/* btree pointer type */
-					/* btree block header type */
+typedef struct xfs_alloc_rec_incore {
+	xfs_agblock_t	ar_startblock;	/* starting block number */
+	xfs_extlen_t	ar_blockcount;	/* count of free blocks */
+} xfs_alloc_rec_incore_t;
+
+/* btree pointer type */
+typedef __be32 xfs_alloc_ptr_t;
+/* btree block header type */
 typedef	struct xfs_btree_sblock xfs_alloc_block_t;
 
 #define	XFS_BUF_TO_ALLOC_BLOCK(bp)	((xfs_alloc_block_t *)XFS_BUF_PTR(bp))

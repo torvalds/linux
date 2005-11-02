@@ -3160,13 +3160,12 @@ xlog_recover_clear_agi_bucket(
 	}
 
 	agi = XFS_BUF_TO_AGI(agibp);
-	if (INT_GET(agi->agi_magicnum, ARCH_CONVERT) != XFS_AGI_MAGIC) {
+	if (be32_to_cpu(agi->agi_magicnum) != XFS_AGI_MAGIC) {
 		xfs_trans_cancel(tp, XFS_TRANS_ABORT);
 		return;
 	}
-	ASSERT(INT_GET(agi->agi_magicnum, ARCH_CONVERT) == XFS_AGI_MAGIC);
 
-	INT_SET(agi->agi_unlinked[bucket], ARCH_CONVERT, NULLAGINO);
+	agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
 	offset = offsetof(xfs_agi_t, agi_unlinked) +
 		 (sizeof(xfs_agino_t) * bucket);
 	xfs_trans_log_buf(tp, agibp, offset,
@@ -3225,12 +3224,11 @@ xlog_recover_process_iunlinks(
 				XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp)));
 		}
 		agi = XFS_BUF_TO_AGI(agibp);
-		ASSERT(XFS_AGI_MAGIC ==
-			INT_GET(agi->agi_magicnum, ARCH_CONVERT));
+		ASSERT(XFS_AGI_MAGIC == be32_to_cpu(agi->agi_magicnum));
 
 		for (bucket = 0; bucket < XFS_AGI_UNLINKED_BUCKETS; bucket++) {
 
-			agino = INT_GET(agi->agi_unlinked[bucket], ARCH_CONVERT);
+			agino = be32_to_cpu(agi->agi_unlinked[bucket]);
 			while (agino != NULLAGINO) {
 
 				/*
@@ -3318,8 +3316,8 @@ xlog_recover_process_iunlinks(
 							XFS_AGI_DADDR(mp)));
 				}
 				agi = XFS_BUF_TO_AGI(agibp);
-				ASSERT(XFS_AGI_MAGIC == INT_GET(
-					agi->agi_magicnum, ARCH_CONVERT));
+				ASSERT(XFS_AGI_MAGIC == be32_to_cpu(
+					agi->agi_magicnum));
 			}
 		}
 
@@ -4022,14 +4020,12 @@ xlog_recover_check_summary(
 						mp, agfbp, agfdaddr);
 		}
 		agfp = XFS_BUF_TO_AGF(agfbp);
-		ASSERT(XFS_AGF_MAGIC ==
-			INT_GET(agfp->agf_magicnum, ARCH_CONVERT));
-		ASSERT(XFS_AGF_GOOD_VERSION(
-			INT_GET(agfp->agf_versionnum, ARCH_CONVERT)));
-		ASSERT(INT_GET(agfp->agf_seqno, ARCH_CONVERT) == agno);
+		ASSERT(XFS_AGF_MAGIC == be32_to_cpu(agfp->agf_magicnum));
+		ASSERT(XFS_AGF_GOOD_VERSION(be32_to_cpu(agfp->agf_versionnum)));
+		ASSERT(be32_to_cpu(agfp->agf_seqno) == agno);
 
-		freeblks += INT_GET(agfp->agf_freeblks, ARCH_CONVERT) +
-			    INT_GET(agfp->agf_flcount, ARCH_CONVERT);
+		freeblks += be32_to_cpu(agfp->agf_freeblks) +
+			    be32_to_cpu(agfp->agf_flcount);
 		xfs_buf_relse(agfbp);
 
 		agidaddr = XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp));
@@ -4040,14 +4036,12 @@ xlog_recover_check_summary(
 					  mp, agibp, agidaddr);
 		}
 		agip = XFS_BUF_TO_AGI(agibp);
-		ASSERT(XFS_AGI_MAGIC ==
-			INT_GET(agip->agi_magicnum, ARCH_CONVERT));
-		ASSERT(XFS_AGI_GOOD_VERSION(
-			INT_GET(agip->agi_versionnum, ARCH_CONVERT)));
-		ASSERT(INT_GET(agip->agi_seqno, ARCH_CONVERT) == agno);
+		ASSERT(XFS_AGI_MAGIC == be32_to_cpu(agip->agi_magicnum));
+		ASSERT(XFS_AGI_GOOD_VERSION(be32_to_cpu(agip->agi_versionnum)));
+		ASSERT(be32_to_cpu(agip->agi_seqno) == agno);
 
-		itotal += INT_GET(agip->agi_count, ARCH_CONVERT);
-		ifree += INT_GET(agip->agi_freecount, ARCH_CONVERT);
+		itotal += be32_to_cpu(agip->agi_count);
+		ifree += be32_to_cpu(agip->agi_freecount);
 		xfs_buf_relse(agibp);
 	}
 

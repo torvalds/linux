@@ -39,25 +39,23 @@ struct xfs_trans;
 /*
  * Short form header: space allocation btrees.
  */
-typedef struct xfs_btree_sblock
-{
-	__uint32_t	bb_magic;	/* magic number for block type */
-	__uint16_t	bb_level;	/* 0 is a leaf */
-	__uint16_t	bb_numrecs;	/* current # of data records */
-	xfs_agblock_t	bb_leftsib;	/* left sibling block or NULLAGBLOCK */
-	xfs_agblock_t	bb_rightsib;	/* right sibling block or NULLAGBLOCK */
+typedef struct xfs_btree_sblock {
+	__be32		bb_magic;	/* magic number for block type */
+	__be16		bb_level;	/* 0 is a leaf */
+	__be16		bb_numrecs;	/* current # of data records */
+	__be32		bb_leftsib;	/* left sibling block or NULLAGBLOCK */
+	__be32		bb_rightsib;	/* right sibling block or NULLAGBLOCK */
 } xfs_btree_sblock_t;
 
 /*
  * Long form header: bmap btrees.
  */
-typedef struct xfs_btree_lblock
-{
-	__uint32_t	bb_magic;	/* magic number for block type */
-	__uint16_t	bb_level;	/* 0 is a leaf */
-	__uint16_t	bb_numrecs;	/* current # of data records */
-	xfs_dfsbno_t	bb_leftsib;	/* left sibling block or NULLDFSBNO */
-	xfs_dfsbno_t	bb_rightsib;	/* right sibling block or NULLDFSBNO */
+typedef struct xfs_btree_lblock {
+	__be32		bb_magic;	/* magic number for block type */
+	__be16		bb_level;	/* 0 is a leaf */
+	__be16		bb_numrecs;	/* current # of data records */
+	__be64		bb_leftsib;	/* left sibling block or NULLDFSBNO */
+	__be64		bb_rightsib;	/* right sibling block or NULLDFSBNO */
 } xfs_btree_lblock_t;
 
 /*
@@ -65,24 +63,23 @@ typedef struct xfs_btree_lblock
  */
 typedef struct xfs_btree_hdr
 {
-	__uint32_t	bb_magic;	/* magic number for block type */
-	__uint16_t	bb_level;	/* 0 is a leaf */
-	__uint16_t	bb_numrecs;	/* current # of data records */
+	__be32		bb_magic;	/* magic number for block type */
+	__be16		bb_level;	/* 0 is a leaf */
+	__be16		bb_numrecs;	/* current # of data records */
 } xfs_btree_hdr_t;
 
-typedef struct xfs_btree_block
-{
+typedef struct xfs_btree_block {
 	xfs_btree_hdr_t	bb_h;		/* header */
-	union		{
+	union {
+		struct {
+			__be32		bb_leftsib;
+			__be32		bb_rightsib;
+		} s;			/* short form pointers */
 		struct	{
-			xfs_agblock_t	bb_leftsib;
-			xfs_agblock_t	bb_rightsib;
-		}	s;		/* short form pointers */
-		struct	{
-			xfs_dfsbno_t	bb_leftsib;
-			xfs_dfsbno_t	bb_rightsib;
-		}	l;		/* long form pointers */
-	}		bb_u;		/* rest */
+			__be64		bb_leftsib;
+			__be64		bb_rightsib;
+		} l;			/* long form pointers */
+	} bb_u;				/* rest */
 } xfs_btree_block_t;
 
 /*
@@ -146,7 +143,7 @@ typedef struct xfs_btree_cur
 	struct xfs_trans	*bc_tp;	/* transaction we're in, if any */
 	struct xfs_mount	*bc_mp;	/* file system mount struct */
 	union {
-		xfs_alloc_rec_t		a;
+		xfs_alloc_rec_incore_t	a;
 		xfs_bmbt_irec_t		b;
 		xfs_inobt_rec_t		i;
 	}		bc_rec;		/* current insert/search record value */

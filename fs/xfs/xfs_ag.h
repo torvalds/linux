@@ -48,27 +48,26 @@ struct xfs_trans;
  * are > 64k, our value cannot be confused for an EFS superblock's.
  */
 
-typedef struct xfs_agf
-{
+typedef struct xfs_agf {
 	/*
 	 * Common allocation group header information
 	 */
-	__uint32_t	agf_magicnum;	/* magic number == XFS_AGF_MAGIC */
-	__uint32_t	agf_versionnum;	/* header version == XFS_AGF_VERSION */
-	xfs_agnumber_t	agf_seqno;	/* sequence # starting from 0 */
-	xfs_agblock_t	agf_length;	/* size in blocks of a.g. */
+	__be32		agf_magicnum;	/* magic number == XFS_AGF_MAGIC */
+	__be32		agf_versionnum;	/* header version == XFS_AGF_VERSION */
+	__be32		agf_seqno;	/* sequence # starting from 0 */
+	__be32		agf_length;	/* size in blocks of a.g. */
 	/*
 	 * Freespace information
 	 */
-	xfs_agblock_t	agf_roots[XFS_BTNUM_AGF];	/* root blocks */
-	__uint32_t	agf_spare0;	/* spare field */
-	__uint32_t	agf_levels[XFS_BTNUM_AGF];	/* btree levels */
-	__uint32_t	agf_spare1;	/* spare field */
-	__uint32_t	agf_flfirst;	/* first freelist block's index */
-	__uint32_t	agf_fllast;	/* last freelist block's index */
-	__uint32_t	agf_flcount;	/* count of blocks in freelist */
-	xfs_extlen_t	agf_freeblks;	/* total free blocks */
-	xfs_extlen_t	agf_longest;	/* longest free space */
+	__be32		agf_roots[XFS_BTNUM_AGF];	/* root blocks */
+	__be32		agf_spare0;	/* spare field */
+	__be32		agf_levels[XFS_BTNUM_AGF];	/* btree levels */
+	__be32		agf_spare1;	/* spare field */
+	__be32		agf_flfirst;	/* first freelist block's index */
+	__be32		agf_fllast;	/* last freelist block's index */
+	__be32		agf_flcount;	/* count of blocks in freelist */
+	__be32		agf_freeblks;	/* total free blocks */
+	__be32		agf_longest;	/* longest free space */
 } xfs_agf_t;
 
 #define	XFS_AGF_MAGICNUM	0x00000001
@@ -96,31 +95,30 @@ typedef struct xfs_agf
  */
 #define	XFS_AGI_UNLINKED_BUCKETS	64
 
-typedef struct xfs_agi
-{
+typedef struct xfs_agi {
 	/*
 	 * Common allocation group header information
 	 */
-	__uint32_t	agi_magicnum;	/* magic number == XFS_AGI_MAGIC */
-	__uint32_t	agi_versionnum;	/* header version == XFS_AGI_VERSION */
-	xfs_agnumber_t	agi_seqno;	/* sequence # starting from 0 */
-	xfs_agblock_t	agi_length;	/* size in blocks of a.g. */
+	__be32		agi_magicnum;	/* magic number == XFS_AGI_MAGIC */
+	__be32		agi_versionnum;	/* header version == XFS_AGI_VERSION */
+	__be32		agi_seqno;	/* sequence # starting from 0 */
+	__be32		agi_length;	/* size in blocks of a.g. */
 	/*
 	 * Inode information
 	 * Inodes are mapped by interpreting the inode number, so no
 	 * mapping data is needed here.
 	 */
-	xfs_agino_t	agi_count;	/* count of allocated inodes */
-	xfs_agblock_t	agi_root;	/* root of inode btree */
-	__uint32_t	agi_level;	/* levels in inode btree */
-	xfs_agino_t	agi_freecount;	/* number of free inodes */
-	xfs_agino_t	agi_newino;	/* new inode just allocated */
-	xfs_agino_t	agi_dirino;	/* last directory inode chunk */
+	__be32		agi_count;	/* count of allocated inodes */
+	__be32		agi_root;	/* root of inode btree */
+	__be32		agi_level;	/* levels in inode btree */
+	__be32		agi_freecount;	/* number of free inodes */
+	__be32		agi_newino;	/* new inode just allocated */
+	__be32		agi_dirino;	/* last directory inode chunk */
 	/*
 	 * Hash table of inodes which have been unlinked but are
 	 * still being referenced.
 	 */
-	xfs_agino_t	agi_unlinked[XFS_AGI_UNLINKED_BUCKETS];
+	__be32		agi_unlinked[XFS_AGI_UNLINKED_BUCKETS];
 } xfs_agi_t;
 
 #define	XFS_AGI_MAGICNUM	0x00000001
@@ -201,8 +199,8 @@ typedef struct xfs_perag
 	(MIN(bl + 1, XFS_AG_MAXLEVELS(mp)) + MIN(cl + 1, XFS_AG_MAXLEVELS(mp)))
 #define	XFS_MIN_FREELIST(a,mp)		\
 	(XFS_MIN_FREELIST_RAW(		\
-		INT_GET((a)->agf_levels[XFS_BTNUM_BNOi], ARCH_CONVERT), \
-		INT_GET((a)->agf_levels[XFS_BTNUM_CNTi], ARCH_CONVERT), mp))
+		be32_to_cpu((a)->agf_levels[XFS_BTNUM_BNOi]), \
+		be32_to_cpu((a)->agf_levels[XFS_BTNUM_CNTi]), mp))
 #define	XFS_MIN_FREELIST_PAG(pag,mp)	\
 	(XFS_MIN_FREELIST_RAW(		\
 		(uint_t)(pag)->pagf_levels[XFS_BTNUM_BNOi], \

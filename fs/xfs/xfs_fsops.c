@@ -191,28 +191,26 @@ xfs_growfs_data_private(
 				  XFS_FSS_TO_BB(mp, 1), 0);
 		agf = XFS_BUF_TO_AGF(bp);
 		memset(agf, 0, mp->m_sb.sb_sectsize);
-		INT_SET(agf->agf_magicnum, ARCH_CONVERT, XFS_AGF_MAGIC);
-		INT_SET(agf->agf_versionnum, ARCH_CONVERT, XFS_AGF_VERSION);
-		INT_SET(agf->agf_seqno, ARCH_CONVERT, agno);
+		agf->agf_magicnum = cpu_to_be32(XFS_AGF_MAGIC);
+		agf->agf_versionnum = cpu_to_be32(XFS_AGF_VERSION);
+		agf->agf_seqno = cpu_to_be32(agno);
 		if (agno == nagcount - 1)
 			agsize =
 				nb -
 				(agno * (xfs_rfsblock_t)mp->m_sb.sb_agblocks);
 		else
 			agsize = mp->m_sb.sb_agblocks;
-		INT_SET(agf->agf_length, ARCH_CONVERT, agsize);
-		INT_SET(agf->agf_roots[XFS_BTNUM_BNOi], ARCH_CONVERT,
-			XFS_BNO_BLOCK(mp));
-		INT_SET(agf->agf_roots[XFS_BTNUM_CNTi], ARCH_CONVERT,
-			XFS_CNT_BLOCK(mp));
-		INT_SET(agf->agf_levels[XFS_BTNUM_BNOi], ARCH_CONVERT, 1);
-		INT_SET(agf->agf_levels[XFS_BTNUM_CNTi], ARCH_CONVERT, 1);
+		agf->agf_length = cpu_to_be32(agsize);
+		agf->agf_roots[XFS_BTNUM_BNOi] = cpu_to_be32(XFS_BNO_BLOCK(mp));
+		agf->agf_roots[XFS_BTNUM_CNTi] = cpu_to_be32(XFS_CNT_BLOCK(mp));
+		agf->agf_levels[XFS_BTNUM_BNOi] = cpu_to_be32(1);
+		agf->agf_levels[XFS_BTNUM_CNTi] = cpu_to_be32(1);
 		agf->agf_flfirst = 0;
-		INT_SET(agf->agf_fllast, ARCH_CONVERT, XFS_AGFL_SIZE(mp) - 1);
+		agf->agf_fllast = cpu_to_be32(XFS_AGFL_SIZE(mp) - 1);
 		agf->agf_flcount = 0;
 		tmpsize = agsize - XFS_PREALLOC_BLOCKS(mp);
-		INT_SET(agf->agf_freeblks, ARCH_CONVERT, tmpsize);
-		INT_SET(agf->agf_longest, ARCH_CONVERT, tmpsize);
+		agf->agf_freeblks = cpu_to_be32(tmpsize);
+		agf->agf_longest = cpu_to_be32(tmpsize);
 		error = xfs_bwrite(mp, bp);
 		if (error) {
 			goto error0;
@@ -225,19 +223,18 @@ xfs_growfs_data_private(
 				  XFS_FSS_TO_BB(mp, 1), 0);
 		agi = XFS_BUF_TO_AGI(bp);
 		memset(agi, 0, mp->m_sb.sb_sectsize);
-		INT_SET(agi->agi_magicnum, ARCH_CONVERT, XFS_AGI_MAGIC);
-		INT_SET(agi->agi_versionnum, ARCH_CONVERT, XFS_AGI_VERSION);
-		INT_SET(agi->agi_seqno, ARCH_CONVERT, agno);
-		INT_SET(agi->agi_length, ARCH_CONVERT, agsize);
+		agi->agi_magicnum = cpu_to_be32(XFS_AGI_MAGIC);
+		agi->agi_versionnum = cpu_to_be32(XFS_AGI_VERSION);
+		agi->agi_seqno = cpu_to_be32(agno);
+		agi->agi_length = cpu_to_be32(agsize);
 		agi->agi_count = 0;
-		INT_SET(agi->agi_root, ARCH_CONVERT, XFS_IBT_BLOCK(mp));
-		INT_SET(agi->agi_level, ARCH_CONVERT, 1);
+		agi->agi_root = cpu_to_be32(XFS_IBT_BLOCK(mp));
+		agi->agi_level = cpu_to_be32(1);
 		agi->agi_freecount = 0;
-		INT_SET(agi->agi_newino, ARCH_CONVERT, NULLAGINO);
-		INT_SET(agi->agi_dirino, ARCH_CONVERT, NULLAGINO);
+		agi->agi_newino = cpu_to_be32(NULLAGINO);
+		agi->agi_dirino = cpu_to_be32(NULLAGINO);
 		for (bucket = 0; bucket < XFS_AGI_UNLINKED_BUCKETS; bucket++)
-			INT_SET(agi->agi_unlinked[bucket], ARCH_CONVERT,
-				NULLAGINO);
+			agi->agi_unlinked[bucket] = cpu_to_be32(NULLAGINO);
 		error = xfs_bwrite(mp, bp);
 		if (error) {
 			goto error0;
@@ -250,17 +247,16 @@ xfs_growfs_data_private(
 			BTOBB(mp->m_sb.sb_blocksize), 0);
 		block = XFS_BUF_TO_SBLOCK(bp);
 		memset(block, 0, mp->m_sb.sb_blocksize);
-		INT_SET(block->bb_magic, ARCH_CONVERT, XFS_ABTB_MAGIC);
+		block->bb_magic = cpu_to_be32(XFS_ABTB_MAGIC);
 		block->bb_level = 0;
-		INT_SET(block->bb_numrecs, ARCH_CONVERT, 1);
-		INT_SET(block->bb_leftsib, ARCH_CONVERT, NULLAGBLOCK);
-		INT_SET(block->bb_rightsib, ARCH_CONVERT, NULLAGBLOCK);
+		block->bb_numrecs = cpu_to_be16(1);
+		block->bb_leftsib = cpu_to_be32(NULLAGBLOCK);
+		block->bb_rightsib = cpu_to_be32(NULLAGBLOCK);
 		arec = XFS_BTREE_REC_ADDR(mp->m_sb.sb_blocksize, xfs_alloc,
 			block, 1, mp->m_alloc_mxr[0]);
-		INT_SET(arec->ar_startblock, ARCH_CONVERT,
-			XFS_PREALLOC_BLOCKS(mp));
-		INT_SET(arec->ar_blockcount, ARCH_CONVERT,
-			agsize - INT_GET(arec->ar_startblock, ARCH_CONVERT));
+		arec->ar_startblock = cpu_to_be32(XFS_PREALLOC_BLOCKS(mp));
+		arec->ar_blockcount = cpu_to_be32(
+			agsize - be32_to_cpu(arec->ar_startblock));
 		error = xfs_bwrite(mp, bp);
 		if (error) {
 			goto error0;
@@ -273,18 +269,17 @@ xfs_growfs_data_private(
 			BTOBB(mp->m_sb.sb_blocksize), 0);
 		block = XFS_BUF_TO_SBLOCK(bp);
 		memset(block, 0, mp->m_sb.sb_blocksize);
-		INT_SET(block->bb_magic, ARCH_CONVERT, XFS_ABTC_MAGIC);
+		block->bb_magic = cpu_to_be32(XFS_ABTC_MAGIC);
 		block->bb_level = 0;
-		INT_SET(block->bb_numrecs, ARCH_CONVERT, 1);
-		INT_SET(block->bb_leftsib, ARCH_CONVERT, NULLAGBLOCK);
-		INT_SET(block->bb_rightsib, ARCH_CONVERT, NULLAGBLOCK);
+		block->bb_numrecs = cpu_to_be16(1);
+		block->bb_leftsib = cpu_to_be32(NULLAGBLOCK);
+		block->bb_rightsib = cpu_to_be32(NULLAGBLOCK);
 		arec = XFS_BTREE_REC_ADDR(mp->m_sb.sb_blocksize, xfs_alloc,
 			block, 1, mp->m_alloc_mxr[0]);
-		INT_SET(arec->ar_startblock, ARCH_CONVERT,
-			XFS_PREALLOC_BLOCKS(mp));
-		INT_SET(arec->ar_blockcount, ARCH_CONVERT,
-			agsize - INT_GET(arec->ar_startblock, ARCH_CONVERT));
-		nfree += INT_GET(arec->ar_blockcount, ARCH_CONVERT);
+		arec->ar_startblock = cpu_to_be32(XFS_PREALLOC_BLOCKS(mp));
+		arec->ar_blockcount = cpu_to_be32(
+			agsize - be32_to_cpu(arec->ar_startblock));
+		nfree += be32_to_cpu(arec->ar_blockcount);
 		error = xfs_bwrite(mp, bp);
 		if (error) {
 			goto error0;
@@ -297,11 +292,11 @@ xfs_growfs_data_private(
 			BTOBB(mp->m_sb.sb_blocksize), 0);
 		block = XFS_BUF_TO_SBLOCK(bp);
 		memset(block, 0, mp->m_sb.sb_blocksize);
-		INT_SET(block->bb_magic, ARCH_CONVERT, XFS_IBT_MAGIC);
+		block->bb_magic = cpu_to_be32(XFS_IBT_MAGIC);
 		block->bb_level = 0;
 		block->bb_numrecs = 0;
-		INT_SET(block->bb_leftsib, ARCH_CONVERT, NULLAGBLOCK);
-		INT_SET(block->bb_rightsib, ARCH_CONVERT, NULLAGBLOCK);
+		block->bb_leftsib = cpu_to_be32(NULLAGBLOCK);
+		block->bb_rightsib = cpu_to_be32(NULLAGBLOCK);
 		error = xfs_bwrite(mp, bp);
 		if (error) {
 			goto error0;
@@ -321,10 +316,9 @@ xfs_growfs_data_private(
 		}
 		ASSERT(bp);
 		agi = XFS_BUF_TO_AGI(bp);
-		INT_MOD(agi->agi_length, ARCH_CONVERT, new);
+		be32_add(&agi->agi_length, new);
 		ASSERT(nagcount == oagcount ||
-		       INT_GET(agi->agi_length, ARCH_CONVERT) ==
-				mp->m_sb.sb_agblocks);
+		       be32_to_cpu(agi->agi_length) == mp->m_sb.sb_agblocks);
 		xfs_ialloc_log_agi(tp, bp, XFS_AGI_LENGTH);
 		/*
 		 * Change agf length.
@@ -335,14 +329,14 @@ xfs_growfs_data_private(
 		}
 		ASSERT(bp);
 		agf = XFS_BUF_TO_AGF(bp);
-		INT_MOD(agf->agf_length, ARCH_CONVERT, new);
-		ASSERT(INT_GET(agf->agf_length, ARCH_CONVERT) ==
-				INT_GET(agi->agi_length, ARCH_CONVERT));
+		be32_add(&agf->agf_length, new);
+		ASSERT(be32_to_cpu(agf->agf_length) ==
+		       be32_to_cpu(agi->agi_length));
 		/*
 		 * Free the new space.
 		 */
 		error = xfs_free_extent(tp, XFS_AGB_TO_FSB(mp, agno,
-			INT_GET(agf->agf_length, ARCH_CONVERT) - new), new);
+			be32_to_cpu(agf->agf_length) - new), new);
 		if (error) {
 			goto error0;
 		}
