@@ -75,6 +75,7 @@
 #include <asm/smu.h>
 #include <asm/pmc.h>
 #include <asm/mpic.h>
+#include <asm/lmb.h>
 
 #include "pmac.h"
 
