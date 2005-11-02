@@ -15,12 +15,10 @@
 #define BUG_TABLE_ENTRY(label, line, file, func) \
 	".llong " #label ", " #line ", " #file ", " #func "\n"
 #define TRAP_OP(ra, rb) "1: tdnei " #ra ", " #rb "\n"
-#define DATA_TYPE long long
 #else 
 #define BUG_TABLE_ENTRY(label, line, file, func) \
 	".long " #label ", " #line ", " #file ", " #func "\n"
 #define TRAP_OP(ra, rb) "1: twnei " #ra ", " #rb "\n"
-#define DATA_TYPE int
 #endif /* __powerpc64__ */
 
 struct bug_entry {
@@ -55,7 +53,7 @@ struct bug_entry *find_bug(unsigned long bugaddr);
 		".section __bug_table,\"a\"\n\t"		\
 		BUG_TABLE_ENTRY(1b,%1,%2,%3)			\
 		".previous"					\
-		: : "r" ((DATA_TYPE)(x)), "i" (__LINE__),	\
+		: : "r" ((long)(x)), "i" (__LINE__),		\
 		    "i" (__FILE__), "i" (__FUNCTION__));	\
 } while (0)
 
@@ -65,7 +63,7 @@ struct bug_entry *find_bug(unsigned long bugaddr);
 		".section __bug_table,\"a\"\n\t"		\
 		BUG_TABLE_ENTRY(1b,%1,%2,%3)			\
 		".previous"					\
-		: : "r" ((DATA_TYPE)(x)),			\
+		: : "r" ((long)(x)),				\
 		    "i" (__LINE__ + BUG_WARNING_TRAP),		\
 		    "i" (__FILE__), "i" (__FUNCTION__));	\
 } while (0)
