@@ -86,7 +86,7 @@ xfs_dir2_block_sfsize(
 	int			isdotdot;	/* entry is ".." */
 	xfs_mount_t		*mp;		/* mount structure pointer */
 	int			namelen;	/* total name bytes */
-	xfs_ino_t		parent;		/* parent inode number */
+	xfs_ino_t		parent = 0;	/* parent inode number */
 	int			size=0;		/* total computed size */
 
 	mp = dp->i_mount;
@@ -277,11 +277,11 @@ xfs_dir2_sf_addname(
 	int			incr_isize;	/* total change in size */
 	int			new_isize;	/* di_size after adding name */
 	int			objchange;	/* changing to 8-byte inodes */
-	xfs_dir2_data_aoff_t	offset;		/* offset for new entry */
+	xfs_dir2_data_aoff_t	offset = 0;	/* offset for new entry */
 	int			old_isize;	/* di_size before adding name */
 	int			pick;		/* which algorithm to use */
 	xfs_dir2_sf_t		*sfp;		/* shortform structure */
-	xfs_dir2_sf_entry_t	*sfep;		/* shortform entry */
+	xfs_dir2_sf_entry_t	*sfep = NULL;	/* shortform entry */
 
 	xfs_dir2_trace_args("sf_addname", args);
 	ASSERT(xfs_dir2_sf_lookup(args) == ENOENT);

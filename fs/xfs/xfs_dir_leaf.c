@@ -628,7 +628,7 @@ xfs_dir_leaf_to_shortform(xfs_da_args_t *iargs)
 	xfs_dir_leaf_name_t *namest;
 	xfs_da_args_t args;
 	xfs_inode_t *dp;
-	xfs_ino_t parent;
+	xfs_ino_t parent = 0;
 	char *tmpbuffer;
 	int retval, i;
 	xfs_dabuf_t *bp;

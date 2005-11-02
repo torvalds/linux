@@ -551,6 +551,13 @@ xfs_inobt_insrec(
 	xfs_inobt_rec_t		*rp=NULL;	/* pointer to btree records */
 
 	/*
+	 * GCC doesn't understand the (arguably complex) control flow in
+	 * this function and complains about uninitialized structure fields
+	 * without this.
+	 */
+	memset(&nrec, 0, sizeof(nrec));
+
+	/*
 	 * If we made it to the root level, allocate a new root block
 	 * and we're done.
 	 */

@@ -614,6 +614,14 @@ xfs_alloc_insrec(
 	xfs_alloc_rec_t		*rp;	/* pointer to btree records */
 
 	ASSERT(INT_GET(recp->ar_blockcount, ARCH_CONVERT) > 0);
+
+	/*
+	 * GCC doesn't understand the (arguably complex) control flow in
+	 * this function and complains about uninitialized structure fields
+	 * without this.
+	 */
+	memset(&nrec, 0, sizeof(nrec));
+
 	/*
 	 * If we made it to the root level, allocate a new root block
 	 * and we're done.

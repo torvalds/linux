@@ -436,6 +436,7 @@ xfs_acl_access(
 	int		seen_userobj = 0;
 
 	matched.ae_tag = 0;	/* Invalid type */
+	matched.ae_perm = 0;
 	md >>= 6;	/* Normalize the bits for comparison */
 
 	for (i = 0; i < fap->acl_cnt; i++) {
