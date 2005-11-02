@@ -41,7 +41,7 @@
 #include <asm/iSeries/vio.h>
 #include <asm/iSeries/mf.h>
 #include <asm/iseries/hv_lp_config.h>
-#include <asm/iSeries/ItLpQueue.h>
+#include <asm/iseries/it_lp_queue.h>
 
 #include "setup.h"
 

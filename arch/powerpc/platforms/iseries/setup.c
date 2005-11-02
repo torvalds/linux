@@ -48,7 +48,7 @@
 #include <asm/iseries/hv_lp_config.h>
 #include <asm/iseries/hv_call_event.h>
 #include <asm/iseries/hv_call_xm.h>
-#include <asm/iSeries/ItLpQueue.h>
+#include <asm/iseries/it_lp_queue.h>
 #include <asm/iSeries/mf.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iSeries/LparMap.h>

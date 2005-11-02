@@ -21,7 +21,7 @@
 #include <asm/paca.h>
 #include <asm/iSeries/LparMap.h>
 #include <asm/iseries/it_exp_vpd_panel.h>
-#include <asm/iSeries/ItLpQueue.h>
+#include <asm/iseries/it_lp_queue.h>
 
 #include "vpd_areas.h"
 #include "spcomm_area.h"

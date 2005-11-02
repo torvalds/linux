@@ -17,7 +17,7 @@
 
 #include <asm/system.h>
 #include <asm/paca.h>
-#include <asm/iSeries/ItLpQueue.h>
+#include <asm/iseries/it_lp_queue.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_call_event.h>
 #include <asm/iseries/it_lp_naca.h>
