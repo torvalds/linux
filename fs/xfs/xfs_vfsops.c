@@ -1883,6 +1883,7 @@ xfs_showargs(
 		{ XFS_MOUNT_OSYNCISOSYNC,	"," MNTOPT_OSYNCISOSYNC },
 		{ XFS_MOUNT_BARRIER,		"," MNTOPT_BARRIER },
 		{ XFS_MOUNT_IDELETE,		"," MNTOPT_NOIKEEP },
+		{ XFS_MOUNT_COMPAT_ATTR,	"," MNTOPT_NOATTR2 },
 		{ 0, NULL }
 	};
 	struct proc_xfs_info	*xfs_infop;
@@ -1922,6 +1923,9 @@ xfs_showargs(
 
 	if (!(mp->m_flags & XFS_MOUNT_32BITINOOPT))
 		seq_printf(m, "," MNTOPT_64BITINODE);
+
+	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE))
+		seq_printf(m, "," MNTOPT_LARGEIO);
 
 	if (vfsp->vfs_flag & VFS_GRPID)
 		seq_printf(m, "," MNTOPT_GRPID);
