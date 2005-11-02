@@ -356,18 +356,15 @@ static struct ipoib_path *path_rec_create(struct net_device *dev,
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_path *path;
 
-	path = kmalloc(sizeof *path, GFP_ATOMIC);
+	path = kzalloc(sizeof *path, GFP_ATOMIC);
 	if (!path)
 		return NULL;
 
-	path->dev          = dev;
-	path->pathrec.dlid = 0;
-	path->ah           = NULL;
+	path->dev = dev;
 
 	skb_queue_head_init(&path->queue);
 
 	INIT_LIST_HEAD(&path->neigh_list);
-	path->query = NULL;
 	init_completion(&path->done);
 
 	memcpy(path->pathrec.dgid.raw, gid->raw, sizeof (union ib_gid));
@@ -799,10 +796,6 @@ static void ipoib_setup(struct net_device *dev)
 	dev->neigh_setup         = ipoib_neigh_setup_dev;
 
 	dev->watchdog_timeo 	 = HZ;
-
-	dev->rebuild_header 	 = NULL;
-	dev->set_mac_address 	 = NULL;
-	dev->header_cache_update = NULL;
 
 	dev->flags              |= IFF_BROADCAST | IFF_MULTICAST;
 
