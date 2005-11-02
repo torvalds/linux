@@ -670,7 +670,7 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 	/*
 	 * Sort the entries on hash then entno.
 	 */
-	qsort(sbuf, nsbuf, sizeof(*sbuf), xfs_attr_shortform_compare);
+	xfs_sort(sbuf, nsbuf, sizeof(*sbuf), xfs_attr_shortform_compare);
 
 	/*
 	 * Re-find our place IN THE SORTED LIST.

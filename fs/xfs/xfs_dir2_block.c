@@ -1234,7 +1234,7 @@ xfs_dir2_sf_to_block(
 	/*
 	 * Sort the leaf entries by hash value.
 	 */
-	qsort(blp, INT_GET(btp->count, ARCH_CONVERT), sizeof(*blp), xfs_dir2_block_sort);
+	xfs_sort(blp, INT_GET(btp->count, ARCH_CONVERT), sizeof(*blp), xfs_dir2_block_sort);
 	/*
 	 * Log the leaf entry area and tail.
 	 * Already logged the header in data_init, ignore needlog.

@@ -508,7 +508,7 @@ xfs_dir_shortform_getdents(xfs_inode_t *dp, uio_t *uio, int *eofp,
 	/*
 	 * Sort the entries on hash then entno.
 	 */
-	qsort(sbuf, nsbuf, sizeof(*sbuf), xfs_dir_shortform_compare);
+	xfs_sort(sbuf, nsbuf, sizeof(*sbuf), xfs_dir_shortform_compare);
 	/*
 	 * Stuff in last entry.
 	 */

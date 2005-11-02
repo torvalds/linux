@@ -254,11 +254,11 @@ static inline void set_buffer_unwritten_io(struct buffer_head *bh)
 #define MAX(a,b)	(max(a,b))
 #define howmany(x, y)	(((x)+((y)-1))/(y))
 #define roundup(x, y)	((((x)+((y)-1))/(y))*(y))
-#define qsort(a,n,s,fn)	sort(a,n,s,fn,NULL)
 
 /*
  * Various platform dependent calls that don't fit anywhere else
  */
+#define xfs_sort(a,n,s,fn)	sort(a,n,s,fn,NULL)
 #define xfs_stack_trace()	dump_stack()
 #define xfs_itruncate_data(ip, off)	\
 	(-vmtruncate(LINVFS_GET_IP(XFS_ITOV(ip)), (off)))

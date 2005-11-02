@@ -155,7 +155,7 @@ posix_acl_xattr_to_xfs(
 }
 
 /*
- * Comparison function called from qsort().
+ * Comparison function called from xfs_sort().
  * Primary key is ae_tag, secondary key is ae_id.
  */
 STATIC int
@@ -189,8 +189,8 @@ posix_acl_xfs_to_xattr(
 		return -ERANGE;
 
 	/* Need to sort src XFS ACL by <ae_tag,ae_id> */
-	qsort(src->acl_entry, src->acl_cnt, sizeof(src->acl_entry[0]),
-		xfs_acl_entry_compare);
+	xfs_sort(src->acl_entry, src->acl_cnt, sizeof(src->acl_entry[0]),
+		 xfs_acl_entry_compare);
 
 	dest->a_version = cpu_to_le32(POSIX_ACL_XATTR_VERSION);
 	dest_entry = &dest->a_entries[0];
