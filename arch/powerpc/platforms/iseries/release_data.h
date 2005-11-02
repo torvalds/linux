@@ -24,7 +24,7 @@
  * address of the OS's NACA).
  */
 #include <asm/types.h>
-#include <asm/naca.h>
+#include "naca.h"
 
 /*
  * When we IPL a secondary partition, we will check if if the

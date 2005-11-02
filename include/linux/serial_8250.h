@@ -12,7 +12,7 @@
 #define _LINUX_SERIAL_8250_H
 
 #include <linux/serial_core.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 /*
  * This is the platform device platform_data structure

@@ -17,7 +17,7 @@
 
 #include <linux/delay.h>
 #include <linux/kernel.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/module.h>
 #include <asm/arch/akita.h>
 #include <asm/arch/corgi.h>

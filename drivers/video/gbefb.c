@@ -11,7 +11,7 @@
 
 #include <linux/config.h>
 #include <linux/delay.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/errno.h>
 #include <linux/fb.h>

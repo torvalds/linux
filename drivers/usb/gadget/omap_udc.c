@@ -38,7 +38,7 @@
 #include <linux/proc_fs.h>
 #include <linux/mm.h>
 #include <linux/moduleparam.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/usb_ch9.h>
 #include <linux/usb_gadget.h>
 #include <linux/usb_otg.h>

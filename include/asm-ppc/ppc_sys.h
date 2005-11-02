@@ -18,7 +18,7 @@
 #define __ASM_PPC_SYS_H
 
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/types.h>
 
 #if defined(CONFIG_8260)
