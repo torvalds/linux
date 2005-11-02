@@ -423,6 +423,12 @@ xfs_bmap_count_leaves(
 	int			numrecs,
 	int			*count);
 
+STATIC int
+xfs_bmap_disk_count_leaves(
+	xfs_bmbt_rec_t		*frp,
+	int			numrecs,
+	int			*count);
+
 /*
  * Bmap internal routines.
  */
@@ -6282,7 +6288,7 @@ xfs_bmap_count_tree(
 			numrecs = INT_GET(block->bb_numrecs, ARCH_CONVERT);
 			frp = XFS_BTREE_REC_ADDR(mp->m_sb.sb_blocksize,
 				xfs_bmbt, block, 1, mp->m_bmap_dmxr[0]);
-			if (unlikely(xfs_bmap_count_leaves(frp, numrecs, count) < 0)) {
+			if (unlikely(xfs_bmap_disk_count_leaves(frp, numrecs, count) < 0)) {
 				xfs_trans_brelse(tp, bp);
 				XFS_ERROR_REPORT("xfs_bmap_count_tree(2)",
 						 XFS_ERRLEVEL_LOW, mp);
@@ -6307,6 +6313,22 @@ xfs_bmap_count_tree(
  */
 int
 xfs_bmap_count_leaves(
+	xfs_bmbt_rec_t		*frp,
+	int			numrecs,
+	int			*count)
+{
+	int		b;
+
+	for ( b = 1; b <= numrecs; b++, frp++)
+		*count += xfs_bmbt_get_blockcount(frp);
+	return 0;
+}
+
+/*
+ * Count leaf blocks given a pointer to an extent list originally in btree format.
+ */
+int
+xfs_bmap_disk_count_leaves(
 	xfs_bmbt_rec_t		*frp,
 	int			numrecs,
 	int			*count)
