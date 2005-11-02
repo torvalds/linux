@@ -213,6 +213,10 @@ int skb_copy_datagram_iovec(const struct sk_buff *skb, int offset,
 {
 	int i, err, fraglen, end = 0;
 	struct sk_buff *next = skb_shinfo(skb)->frag_list;
+
+	if (!len)
+		return 0;
+
 next_skb:
 	fraglen = skb_headlen(skb);
 	i = -1;
