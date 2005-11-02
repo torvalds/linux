@@ -52,7 +52,7 @@ typedef struct ktrace_snap {
 extern void ktrace_init(int zentries);
 extern void ktrace_uninit(void);
 
-extern ktrace_t *ktrace_alloc(int, int);
+extern ktrace_t *ktrace_alloc(int, unsigned int __nocast);
 extern void ktrace_free(ktrace_t *);
 
 extern void ktrace_enter(

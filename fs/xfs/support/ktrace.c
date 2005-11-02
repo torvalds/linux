@@ -50,7 +50,7 @@ ktrace_uninit(void)
  * number of entries.
  */
 ktrace_t *
-ktrace_alloc(int nentries, int sleep)
+ktrace_alloc(int nentries, unsigned int __nocast sleep)
 {
 	ktrace_t        *ktp;
 	ktrace_entry_t  *ktep;
