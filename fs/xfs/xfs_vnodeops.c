@@ -626,8 +626,10 @@ xfs_setattr(
 	 */
 	if (mask & XFS_AT_SIZE) {
 		code = 0;
-		if (vap->va_size > ip->i_d.di_size)
+		if ((vap->va_size > ip->i_d.di_size) && 
+		    (flags & ATTR_NOSIZETOK) == 0) {
 			code = xfs_igrow_start(ip, vap->va_size, credp);
+		}
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		if (!code)
 			code = xfs_itruncate_data(ip, vap->va_size);
