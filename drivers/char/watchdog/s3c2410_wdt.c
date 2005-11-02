@@ -497,6 +497,7 @@ static int s3c2410wdt_resume(struct device *dev)
 
 
 static struct device_driver s3c2410wdt_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "s3c2410-wdt",
 	.bus		= &platform_bus_type,
 	.probe		= s3c2410wdt_probe,
