@@ -23,8 +23,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-#ifndef _ASM_PPC64_ISERIES_MF_H
-#define _ASM_PPC64_ISERIES_MF_H
+#ifndef _ASM_POWERPC_ISERIES_MF_H
+#define _ASM_POWERPC_ISERIES_MF_H
 
 #include <linux/types.h>
 
@@ -54,4 +54,4 @@ extern int mf_get_rtc(struct rtc_time *tm);
 extern int mf_get_boot_rtc(struct rtc_time *tm);
 extern int mf_set_rtc(struct rtc_time *tm);
 
-#endif /* _ASM_PPC64_ISERIES_MF_H */
+#endif /* _ASM_POWERPC_ISERIES_MF_H */

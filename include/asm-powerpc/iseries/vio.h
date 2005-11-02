@@ -38,8 +38,8 @@
  * Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  */
-#ifndef _ISERIES_VIO_H
-#define _ISERIES_VIO_H
+#ifndef _ASM_POWERPC_ISERIES_VIO_H
+#define _ASM_POWERPC_ISERIES_VIO_H
 
 #include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_event.h>
@@ -127,4 +127,4 @@ struct device;
 
 extern struct device *iSeries_vio_dev;
 
-#endif /* _ISERIES_VIO_H */
+#endif /* _ASM_POWERPC_ISERIES_VIO_H */

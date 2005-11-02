@@ -16,8 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-#ifndef _HVCALLSC_H
-#define _HVCALLSC_H
+#ifndef _ASM_POWERPC_ISERIES_HV_CALL_SC_H
+#define _ASM_POWERPC_ISERIES_HV_CALL_SC_H
 
 #include <linux/types.h>
 
@@ -48,4 +48,4 @@ extern u64 HvCall5Ret16(u64, void *, u64, u64, u64, u64, u64);
 extern u64 HvCall6Ret16(u64, void *, u64, u64, u64, u64, u64, u64);
 extern u64 HvCall7Ret16(u64, void *, u64, u64 ,u64 ,u64 ,u64 ,u64 ,u64);
 
-#endif /* _HVCALLSC_H */
+#endif /* _ASM_POWERPC_ISERIES_HV_CALL_SC_H */

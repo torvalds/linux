@@ -1,5 +1,5 @@
-#ifndef _ISERIES_IO_H
-#define _ISERIES_IO_H
+#ifndef _ASM_POWERPC_ISERIES_ISERIES_IO_H
+#define _ASM_POWERPC_ISERIES_ISERIES_IO_H
 
 #include <linux/config.h>
 
@@ -46,4 +46,4 @@ extern void iSeries_memcpy_fromio(void *dest,
 		const volatile void __iomem *source, size_t n);
 
 #endif /* CONFIG_PPC_ISERIES */
-#endif /* _ISERIES_IO_H */
+#endif /* _ASM_POWERPC_ISERIES_ISERIES_IO_H */

@@ -16,8 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-#ifndef _LPARMAP_H
-#define _LPARMAP_H
+#ifndef _ASM_POWERPC_ISERIES_LPAR_MAP_H
+#define _ASM_POWERPC_ISERIES_LPAR_MAP_H
 
 #ifndef __ASSEMBLY__
 
@@ -80,4 +80,4 @@ extern const struct LparMap	xLparMap;
 /* the fixed address where the LparMap exists */
 #define LPARMAP_PHYS		0x7000
 
-#endif /* _LPARMAP_H */
+#endif /* _ASM_POWERPC_ISERIES_LPAR_MAP_H */

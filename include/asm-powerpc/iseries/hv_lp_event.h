@@ -19,8 +19,8 @@
 
 /* This file contains the class for HV events in the system. */
 
-#ifndef _HVLPEVENT_H
-#define _HVLPEVENT_H
+#ifndef _ASM_POWERPC_ISERIES_HV_LP_EVENT_H
+#define _ASM_POWERPC_ISERIES_HV_LP_EVENT_H
 
 #include <asm/types.h>
 #include <asm/ptrace.h>
@@ -139,4 +139,4 @@ extern int HvLpEvent_closePath(HvLpEvent_Type eventType, HvLpIndex lpIndex);
 #define HvLpDma_Rc_InvalidAddress 4
 #define HvLpDma_Rc_InvalidLength 5
 
-#endif /* _HVLPEVENT_H */
+#endif /* _ASM_POWERPC_ISERIES_HV_LP_EVENT_H */

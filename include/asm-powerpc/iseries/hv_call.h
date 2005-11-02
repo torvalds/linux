@@ -20,8 +20,8 @@
  * This file contains the "hypervisor call" interface which is used to
  * drive the hypervisor from the OS.
  */
-#ifndef _HVCALL_H
-#define _HVCALL_H
+#ifndef _ASM_POWERPC_ISERIES_HV_CALL_H
+#define _ASM_POWERPC_ISERIES_HV_CALL_H
 
 #include <asm/iseries/hv_call_sc.h>
 #include <asm/iseries/hv_types.h>
@@ -110,4 +110,4 @@ static inline void HvCall_sendIPI(struct paca_struct *targetPaca)
 	HvCall1(HvCallBaseSendIPI, targetPaca->paca_index);
 }
 
-#endif /* _HVCALL_H */
+#endif /* _ASM_POWERPC_ISERIES_HV_CALL_H */

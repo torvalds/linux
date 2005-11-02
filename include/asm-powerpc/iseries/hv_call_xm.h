@@ -2,8 +2,8 @@
  * This file contains the "hypervisor call" interface which is used to
  * drive the hypervisor from SLIC.
  */
-#ifndef _HVCALLXM_H
-#define _HVCALLXM_H
+#ifndef _ASM_POWERPC_ISERIES_HV_CALL_XM_H
+#define _ASM_POWERPC_ISERIES_HV_CALL_XM_H
 
 #include <asm/iseries/hv_call_sc.h>
 #include <asm/iseries/hv_types.h>
@@ -75,4 +75,4 @@ static inline u64 HvCallXm_loadTod(void)
 	return HvCall0(HvCallXmLoadTod);
 }
 
-#endif /* _HVCALLXM_H */
+#endif /* _ASM_POWERPC_ISERIES_HV_CALL_XM_H */
