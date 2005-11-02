@@ -39,30 +39,26 @@
 /*
  * masks with n high/low bits set, 32-bit values & 64-bit values
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_MASK32HI)
-__uint32_t xfs_mask32hi(int n);
 #define	XFS_MASK32HI(n)		xfs_mask32hi(n)
-#else
-#define	XFS_MASK32HI(n)		((__uint32_t)-1 << (32 - (n)))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_MASK64HI)
-__uint64_t xfs_mask64hi(int n);
+static inline __uint32_t xfs_mask32hi(int n)
+{
+	return (__uint32_t)-1 << (32 - (n));
+}
 #define	XFS_MASK64HI(n)		xfs_mask64hi(n)
-#else
-#define	XFS_MASK64HI(n)		((__uint64_t)-1 << (64 - (n)))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_MASK32LO)
-__uint32_t xfs_mask32lo(int n);
+static inline __uint64_t xfs_mask64hi(int n)
+{
+	return (__uint64_t)-1 << (64 - (n));
+}
 #define	XFS_MASK32LO(n)		xfs_mask32lo(n)
-#else
-#define	XFS_MASK32LO(n)		(((__uint32_t)1 << (n)) - 1)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_MASK64LO)
-__uint64_t xfs_mask64lo(int n);
+static inline __uint32_t xfs_mask32lo(int n)
+{
+	return ((__uint32_t)1 << (n)) - 1;
+}
 #define	XFS_MASK64LO(n)		xfs_mask64lo(n)
-#else
-#define	XFS_MASK64LO(n)		(((__uint64_t)1 << (n)) - 1)
-#endif
+static inline __uint64_t xfs_mask64lo(int n)
+{
+	return ((__uint64_t)1 << (n)) - 1;
+}
 
 /* Get high bit set out of 32-bit argument, -1 if none set */
 extern int xfs_highbit32(__uint32_t v);

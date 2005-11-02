@@ -40,18 +40,8 @@ struct xfs_trans;
 /*
  * Allocation parameters for inode allocation.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IALLOC_INODES)
-int xfs_ialloc_inodes(struct xfs_mount *mp);
-#define	XFS_IALLOC_INODES(mp)	xfs_ialloc_inodes(mp)
-#else
-#define	XFS_IALLOC_INODES(mp)	((mp)->m_ialloc_inos)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IALLOC_BLOCKS)
-xfs_extlen_t xfs_ialloc_blocks(struct xfs_mount *mp);
-#define	XFS_IALLOC_BLOCKS(mp)	xfs_ialloc_blocks(mp)
-#else
-#define	XFS_IALLOC_BLOCKS(mp)	((mp)->m_ialloc_blks)
-#endif
+#define	XFS_IALLOC_INODES(mp)	(mp)->m_ialloc_inos
+#define	XFS_IALLOC_BLOCKS(mp)	(mp)->m_ialloc_blks
 
 /*
  * For small block file systems, move inodes in clusters of this size.
@@ -67,31 +57,25 @@ xfs_extlen_t xfs_ialloc_blocks(struct xfs_mount *mp);
 /*
  * Make an inode pointer out of the buffer/offset.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_MAKE_IPTR)
-struct xfs_dinode *xfs_make_iptr(struct xfs_mount *mp, struct xfs_buf *b, int o);
 #define	XFS_MAKE_IPTR(mp,b,o)		xfs_make_iptr(mp,b,o)
-#else
-#define	XFS_MAKE_IPTR(mp,b,o) \
-	((xfs_dinode_t *)(xfs_buf_offset(b, (o) << (mp)->m_sb.sb_inodelog)))
-#endif
+static inline struct xfs_dinode *
+xfs_make_iptr(struct xfs_mount *mp, struct xfs_buf *b, int o)
+{
+	return (xfs_dinode_t *)
+		(xfs_buf_offset(b, o << (mp)->m_sb.sb_inodelog));
+}
 
 /*
  * Find a free (set) bit in the inode bitmask.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IALLOC_FIND_FREE)
-int xfs_ialloc_find_free(xfs_inofree_t *fp);
 #define	XFS_IALLOC_FIND_FREE(fp)	xfs_ialloc_find_free(fp)
-#else
-#define	XFS_IALLOC_FIND_FREE(fp)	xfs_lowbit64(*(fp))
-#endif
+static inline int xfs_ialloc_find_free(xfs_inofree_t *fp)
+{
+	return xfs_lowbit64(*fp);
+}
 
 
 #ifdef __KERNEL__
-
-/*
- * Prototypes for visible xfs_ialloc.c routines.
- */
-
 /*
  * Allocate an inode on disk.
  * Mode is used to tell whether the new inode will need space, and whether

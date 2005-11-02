@@ -1,6 +1,4 @@
 /*
- * XFS filesystem operations.
- *
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -31,44 +29,44 @@
  *
  * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
  */
-
 #include "xfs.h"
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
+#include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_ialloc_btree.h"
 #include "xfs_alloc_btree.h"
+#include "xfs_dir_sf.h"
+#include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
+#include "xfs_dinode.h"
+#include "xfs_inode.h"
+#include "xfs_inode_item.h"
 #include "xfs_btree.h"
 #include "xfs_alloc.h"
 #include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
-#include "xfs_dir_sf.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_dinode.h"
-#include "xfs_inode_item.h"
-#include "xfs_inode.h"
-#include "xfs_ag.h"
+#include "xfs_quota.h"
 #include "xfs_error.h"
 #include "xfs_bmap.h"
-#include "xfs_da_btree.h"
 #include "xfs_rw.h"
 #include "xfs_refcache.h"
 #include "xfs_buf_item.h"
-#include "xfs_extfree_item.h"
-#include "xfs_quota.h"
+#include "xfs_log_priv.h"
 #include "xfs_dir2_trace.h"
+#include "xfs_extfree_item.h"
 #include "xfs_acl.h"
 #include "xfs_attr.h"
 #include "xfs_clnt.h"
-#include "xfs_log_priv.h"
 
 STATIC int xfs_sync(bhv_desc_t *, int, cred_t *);
 

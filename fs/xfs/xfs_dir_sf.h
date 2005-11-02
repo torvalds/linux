@@ -76,49 +76,44 @@ typedef struct xfs_dir_sf_sort {
 	char		*name;		/* name value, pointer into buffer */
 } xfs_dir_sf_sort_t;
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR_SF_GET_DIRINO)
-void xfs_dir_sf_get_dirino(xfs_dir_ino_t *from, xfs_ino_t *to);
-#define	XFS_DIR_SF_GET_DIRINO(from,to)		    xfs_dir_sf_get_dirino(from, to)
-#else
-#define	XFS_DIR_SF_GET_DIRINO(from,to)		    (*(to) = XFS_GET_DIR_INO8(*from))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR_SF_PUT_DIRINO)
-void xfs_dir_sf_put_dirino(xfs_ino_t *from, xfs_dir_ino_t *to);
-#define	XFS_DIR_SF_PUT_DIRINO(from,to)    xfs_dir_sf_put_dirino(from, to)
-#else
-#define	XFS_DIR_SF_PUT_DIRINO(from,to)    XFS_PUT_DIR_INO8(*(from), *(to))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR_SF_ENTSIZE_BYNAME)
-int xfs_dir_sf_entsize_byname(int len);
-#define XFS_DIR_SF_ENTSIZE_BYNAME(len)		xfs_dir_sf_entsize_byname(len)
-#else
-#define XFS_DIR_SF_ENTSIZE_BYNAME(len)		/* space a name uses */ \
-	((uint)sizeof(xfs_dir_sf_entry_t)-1 + (len))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR_SF_ENTSIZE_BYENTRY)
-int xfs_dir_sf_entsize_byentry(xfs_dir_sf_entry_t *sfep);
+#define	XFS_DIR_SF_GET_DIRINO(from,to)	xfs_dir_sf_get_dirino(from, to)
+static inline void xfs_dir_sf_get_dirino(xfs_dir_ino_t *from, xfs_ino_t *to)
+{
+	*(to) = XFS_GET_DIR_INO8(*from);
+}
+
+#define	XFS_DIR_SF_PUT_DIRINO(from,to)	xfs_dir_sf_put_dirino(from, to)
+static inline void xfs_dir_sf_put_dirino(xfs_ino_t *from, xfs_dir_ino_t *to)
+{
+	XFS_PUT_DIR_INO8(*(from), *(to));
+}
+
+#define XFS_DIR_SF_ENTSIZE_BYNAME(len)	xfs_dir_sf_entsize_byname(len)
+static inline int xfs_dir_sf_entsize_byname(int len)
+{
+	return (uint)sizeof(xfs_dir_sf_entry_t)-1 + (len);
+}
+
 #define XFS_DIR_SF_ENTSIZE_BYENTRY(sfep)	xfs_dir_sf_entsize_byentry(sfep)
-#else
-#define XFS_DIR_SF_ENTSIZE_BYENTRY(sfep)	/* space an entry uses */ \
-	((uint)sizeof(xfs_dir_sf_entry_t)-1 + (sfep)->namelen)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR_SF_NEXTENTRY)
-xfs_dir_sf_entry_t *xfs_dir_sf_nextentry(xfs_dir_sf_entry_t *sfep);
+static inline int xfs_dir_sf_entsize_byentry(xfs_dir_sf_entry_t *sfep)
+{
+	return (uint)sizeof(xfs_dir_sf_entry_t)-1 + (sfep)->namelen;
+}
+
 #define XFS_DIR_SF_NEXTENTRY(sfep)		xfs_dir_sf_nextentry(sfep)
-#else
-#define XFS_DIR_SF_NEXTENTRY(sfep)		/* next entry in struct */ \
-	((xfs_dir_sf_entry_t *) \
-		((char *)(sfep) + XFS_DIR_SF_ENTSIZE_BYENTRY(sfep)))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR_SF_ALLFIT)
-int xfs_dir_sf_allfit(int count, int totallen);
+static inline xfs_dir_sf_entry_t *xfs_dir_sf_nextentry(xfs_dir_sf_entry_t *sfep)
+{
+	return (xfs_dir_sf_entry_t *) \
+		((char *)(sfep) + XFS_DIR_SF_ENTSIZE_BYENTRY(sfep));
+}
+
 #define XFS_DIR_SF_ALLFIT(count,totallen)	\
 	xfs_dir_sf_allfit(count,totallen)
-#else
-#define XFS_DIR_SF_ALLFIT(count,totallen)	/* will all entries fit? */ \
-	((uint)sizeof(xfs_dir_sf_hdr_t) + \
-	       ((uint)sizeof(xfs_dir_sf_entry_t)-1)*(count) + (totallen))
-#endif
+static inline int xfs_dir_sf_allfit(int count, int totallen)
+{
+	return ((uint)sizeof(xfs_dir_sf_hdr_t) + \
+	       ((uint)sizeof(xfs_dir_sf_entry_t)-1)*(count) + (totallen));
+}
 
 #if defined(XFS_DIR_TRACE)
 

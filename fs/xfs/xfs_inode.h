@@ -33,6 +33,12 @@
 #define	__XFS_INODE_H__
 
 /*
+ * Fork identifiers.
+ */
+#define	XFS_DATA_FORK	0
+#define	XFS_ATTR_FORK	1
+
+/*
  * File incore extent information, present for each of data & attr forks.
  */
 #define	XFS_INLINE_EXTS	2
@@ -311,60 +317,16 @@ typedef struct xfs_inode {
 /*
  * Fork handling.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_PTR)
-xfs_ifork_t *xfs_ifork_ptr(xfs_inode_t *ip, int w);
-#define	XFS_IFORK_PTR(ip,w)		xfs_ifork_ptr(ip,w)
-#else
-#define	XFS_IFORK_PTR(ip,w)   ((w) == XFS_DATA_FORK ? &(ip)->i_df : (ip)->i_afp)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_Q)
-int xfs_ifork_q(xfs_inode_t *ip);
-#define	XFS_IFORK_Q(ip)			xfs_ifork_q(ip)
-#else
+#define	XFS_IFORK_PTR(ip,w)		\
+	((w) == XFS_DATA_FORK ? &(ip)->i_df : (ip)->i_afp)
 #define	XFS_IFORK_Q(ip)			XFS_CFORK_Q(&(ip)->i_d)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_DSIZE)
-int xfs_ifork_dsize(xfs_inode_t *ip);
-#define	XFS_IFORK_DSIZE(ip)		xfs_ifork_dsize(ip)
-#else
 #define	XFS_IFORK_DSIZE(ip)		XFS_CFORK_DSIZE(&ip->i_d, ip->i_mount)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_ASIZE)
-int xfs_ifork_asize(xfs_inode_t *ip);
-#define	XFS_IFORK_ASIZE(ip)		xfs_ifork_asize(ip)
-#else
 #define	XFS_IFORK_ASIZE(ip)		XFS_CFORK_ASIZE(&ip->i_d, ip->i_mount)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_SIZE)
-int xfs_ifork_size(xfs_inode_t *ip, int w);
-#define	XFS_IFORK_SIZE(ip,w)		xfs_ifork_size(ip,w)
-#else
 #define	XFS_IFORK_SIZE(ip,w)		XFS_CFORK_SIZE(&ip->i_d, ip->i_mount, w)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_FORMAT)
-int xfs_ifork_format(xfs_inode_t *ip, int w);
-#define	XFS_IFORK_FORMAT(ip,w)		xfs_ifork_format(ip,w)
-#else
 #define	XFS_IFORK_FORMAT(ip,w)		XFS_CFORK_FORMAT(&ip->i_d, w)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_FMT_SET)
-void xfs_ifork_fmt_set(xfs_inode_t *ip, int w, int n);
-#define	XFS_IFORK_FMT_SET(ip,w,n)	xfs_ifork_fmt_set(ip,w,n)
-#else
 #define	XFS_IFORK_FMT_SET(ip,w,n)	XFS_CFORK_FMT_SET(&ip->i_d, w, n)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_NEXTENTS)
-int xfs_ifork_nextents(xfs_inode_t *ip, int w);
-#define	XFS_IFORK_NEXTENTS(ip,w)	xfs_ifork_nextents(ip,w)
-#else
 #define	XFS_IFORK_NEXTENTS(ip,w)	XFS_CFORK_NEXTENTS(&ip->i_d, w)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_NEXT_SET)
-void xfs_ifork_next_set(xfs_inode_t *ip, int w, int n);
-#define	XFS_IFORK_NEXT_SET(ip,w,n)	xfs_ifork_next_set(ip,w,n)
-#else
 #define	XFS_IFORK_NEXT_SET(ip,w,n)	XFS_CFORK_NEXT_SET(&ip->i_d, w, n)
-#endif
 
 
 #ifdef __KERNEL__
@@ -418,28 +380,11 @@ void xfs_ifork_next_set(xfs_inode_t *ip, int w, int n);
 #define	XFS_ITRUNC_DEFINITE	0x1
 #define	XFS_ITRUNC_MAYBE	0x2
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_ITOV)
-struct vnode *xfs_itov(xfs_inode_t *ip);
-#define	XFS_ITOV(ip)		xfs_itov(ip)
-#else
 #define	XFS_ITOV(ip)		BHV_TO_VNODE(XFS_ITOBHV(ip))
-#endif
 #define	XFS_ITOV_NULL(ip)	BHV_TO_VNODE_NULL(XFS_ITOBHV(ip))
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_ITOBHV)
-struct bhv_desc *xfs_itobhv(xfs_inode_t *ip);
-#define	XFS_ITOBHV(ip)		xfs_itobhv(ip)
-#else
 #define	XFS_ITOBHV(ip)		((struct bhv_desc *)(&((ip)->i_bhv_desc)))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_BHVTOI)
-xfs_inode_t *xfs_bhvtoi(struct bhv_desc *bhvp);
-#define	XFS_BHVTOI(bhvp)	xfs_bhvtoi(bhvp)
-#else
-#define	XFS_BHVTOI(bhvp)	\
-	((xfs_inode_t *)((char *)(bhvp) - \
-			 (char *)&(((xfs_inode_t *)0)->i_bhv_desc)))
-#endif
-
+#define	XFS_BHVTOI(bhvp)	((xfs_inode_t *)((char *)(bhvp) - \
+				(char *)&(((xfs_inode_t *)0)->i_bhv_desc)))
 #define BHV_IS_XFS(bdp)		(BHV_OPS(bdp) == &xfs_vnodeops)
 
 /*

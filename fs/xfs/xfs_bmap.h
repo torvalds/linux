@@ -77,12 +77,11 @@ typedef	struct xfs_bmap_free
 					/* combine contig. space */
 #define	XFS_BMAPI_CONTIG	0x400	/* must allocate only one extent */
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_BMAPI_AFLAG)
-int xfs_bmapi_aflag(int w);
 #define	XFS_BMAPI_AFLAG(w)	xfs_bmapi_aflag(w)
-#else
-#define	XFS_BMAPI_AFLAG(w)	((w) == XFS_ATTR_FORK ? XFS_BMAPI_ATTRFORK : 0)
-#endif
+static inline int xfs_bmapi_aflag(int w)
+{
+	return (w == XFS_ATTR_FORK ? XFS_BMAPI_ATTRFORK : 0);
+}
 
 /*
  * Special values for xfs_bmbt_irec_t br_startblock field.
@@ -90,14 +89,12 @@ int xfs_bmapi_aflag(int w);
 #define	DELAYSTARTBLOCK		((xfs_fsblock_t)-1LL)
 #define	HOLESTARTBLOCK		((xfs_fsblock_t)-2LL)
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_BMAP_INIT)
-void xfs_bmap_init(xfs_bmap_free_t *flp, xfs_fsblock_t *fbp);
 #define	XFS_BMAP_INIT(flp,fbp)	xfs_bmap_init(flp,fbp)
-#else
-#define	XFS_BMAP_INIT(flp,fbp)	\
+static inline void xfs_bmap_init(xfs_bmap_free_t *flp, xfs_fsblock_t *fbp)
+{
 	((flp)->xbf_first = NULL, (flp)->xbf_count = 0, \
-	 (flp)->xbf_low = 0, *(fbp) = NULLFSBLOCK)
-#endif
+		(flp)->xbf_low = 0, *(fbp) = NULLFSBLOCK);
+}
 
 /*
  * Argument structure for xfs_bmap_alloc.

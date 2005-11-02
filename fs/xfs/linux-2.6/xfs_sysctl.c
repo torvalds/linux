@@ -29,9 +29,7 @@
  *
  * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
  */
-
 #include "xfs.h"
-#include "xfs_rw.h"
 #include <linux/sysctl.h>
 #include <linux/proc_fs.h>
 
@@ -76,7 +74,7 @@ xfs_stats_clear_proc_handler(
 STATIC ctl_table xfs_table[] = {
 	{XFS_RESTRICT_CHOWN, "restrict_chown", &xfs_params.restrict_chown.val,
 	sizeof(int), 0644, NULL, &proc_dointvec_minmax,
-	&sysctl_intvec, NULL, 
+	&sysctl_intvec, NULL,
 	&xfs_params.restrict_chown.min, &xfs_params.restrict_chown.max},
 
 	{XFS_SGID_INHERIT, "irix_sgid_inherit", &xfs_params.sgid_inherit.val,
@@ -86,22 +84,22 @@ STATIC ctl_table xfs_table[] = {
 
 	{XFS_SYMLINK_MODE, "irix_symlink_mode", &xfs_params.symlink_mode.val,
 	sizeof(int), 0644, NULL, &proc_dointvec_minmax,
-	&sysctl_intvec, NULL, 
+	&sysctl_intvec, NULL,
 	&xfs_params.symlink_mode.min, &xfs_params.symlink_mode.max},
 
 	{XFS_PANIC_MASK, "panic_mask", &xfs_params.panic_mask.val,
 	sizeof(int), 0644, NULL, &proc_dointvec_minmax,
-	&sysctl_intvec, NULL, 
+	&sysctl_intvec, NULL,
 	&xfs_params.panic_mask.min, &xfs_params.panic_mask.max},
 
 	{XFS_ERRLEVEL, "error_level", &xfs_params.error_level.val,
 	sizeof(int), 0644, NULL, &proc_dointvec_minmax,
-	&sysctl_intvec, NULL, 
+	&sysctl_intvec, NULL,
 	&xfs_params.error_level.min, &xfs_params.error_level.max},
 
 	{XFS_SYNCD_TIMER, "xfssyncd_centisecs", &xfs_params.syncd_timer.val,
 	sizeof(int), 0644, NULL, &proc_dointvec_minmax,
-	&sysctl_intvec, NULL, 
+	&sysctl_intvec, NULL,
 	&xfs_params.syncd_timer.min, &xfs_params.syncd_timer.max},
 
 	{XFS_INHERIT_SYNC, "inherit_sync", &xfs_params.inherit_sync.val,
@@ -118,7 +116,7 @@ STATIC ctl_table xfs_table[] = {
 	sizeof(int), 0644, NULL, &proc_dointvec_minmax,
 	&sysctl_intvec, NULL,
 	&xfs_params.inherit_noatim.min, &xfs_params.inherit_noatim.max},
-	
+
 	{XFS_BUF_TIMER, "xfsbufd_centisecs", &xfs_params.xfs_buf_timer.val,
 	sizeof(int), 0644, NULL, &proc_dointvec_minmax,
 	&sysctl_intvec, NULL,
@@ -136,14 +134,14 @@ STATIC ctl_table xfs_table[] = {
 
 	{XFS_ROTORSTEP, "rotorstep", &xfs_params.rotorstep.val,
 	sizeof(int), 0644, NULL, &proc_dointvec_minmax,
-	&sysctl_intvec, NULL, 
+	&sysctl_intvec, NULL,
 	&xfs_params.rotorstep.min, &xfs_params.rotorstep.max},
 
 	/* please keep this the last entry */
 #ifdef CONFIG_PROC_FS
 	{XFS_STATS_CLEAR, "stats_clear", &xfs_params.stats_clear.val,
 	sizeof(int), 0644, NULL, &xfs_stats_clear_proc_handler,
-	&sysctl_intvec, NULL, 
+	&sysctl_intvec, NULL,
 	&xfs_params.stats_clear.min, &xfs_params.stats_clear.max},
 #endif /* CONFIG_PROC_FS */
 

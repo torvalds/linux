@@ -29,21 +29,12 @@
  *
  * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
  */
-
-/*
- * xfs_dir2_leaf.c
- * XFS directory version 2 implementation - single leaf form
- * see xfs_dir2_leaf.h for data structures.
- * These directories have multiple XFS_DIR2_DATA blocks and one
- * XFS_DIR2_LEAF1 block containing the hash table and freespace map.
- */
-
 #include "xfs.h"
-
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -51,6 +42,7 @@
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
+#include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
@@ -58,14 +50,12 @@
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
-#include "xfs_da_btree.h"
 #include "xfs_dir2_data.h"
 #include "xfs_dir2_leaf.h"
 #include "xfs_dir2_block.h"
 #include "xfs_dir2_node.h"
 #include "xfs_dir2_trace.h"
 #include "xfs_error.h"
-#include "xfs_bit.h"
 
 /*
  * Local function declarations.

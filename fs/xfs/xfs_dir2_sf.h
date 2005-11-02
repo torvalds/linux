@@ -104,140 +104,106 @@ typedef struct xfs_dir2_sf {
 	xfs_dir2_sf_entry_t	list[1];	/* shortform entries */
 } xfs_dir2_sf_t;
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR2_SF_HDR_SIZE)
-int xfs_dir2_sf_hdr_size(int i8count);
 #define	XFS_DIR2_SF_HDR_SIZE(i8count)	xfs_dir2_sf_hdr_size(i8count)
-#else
-#define	XFS_DIR2_SF_HDR_SIZE(i8count)	\
-	((uint)sizeof(xfs_dir2_sf_hdr_t) - \
-	 ((i8count) == 0) * \
-	 ((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t)))
-#endif
+static inline int xfs_dir2_sf_hdr_size(int i8count)
+{
+	return ((uint)sizeof(xfs_dir2_sf_hdr_t) - \
+		((i8count) == 0) * \
+		((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t)));
+}
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR2_SF_INUMBERP)
-xfs_dir2_inou_t *xfs_dir2_sf_inumberp(xfs_dir2_sf_entry_t *sfep);
 #define	XFS_DIR2_SF_INUMBERP(sfep)	xfs_dir2_sf_inumberp(sfep)
-#else
-#define	XFS_DIR2_SF_INUMBERP(sfep)	\
-	((xfs_dir2_inou_t *)&(sfep)->name[(sfep)->namelen])
-#endif
+static inline xfs_dir2_inou_t *xfs_dir2_sf_inumberp(xfs_dir2_sf_entry_t *sfep)
+{
+	return (xfs_dir2_inou_t *)&(sfep)->name[(sfep)->namelen];
+}
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR2_SF_GET_INUMBER)
-xfs_intino_t xfs_dir2_sf_get_inumber(xfs_dir2_sf_t *sfp, xfs_dir2_inou_t *from);
-#define	XFS_DIR2_SF_GET_INUMBER(sfp, from)	\
+#define	XFS_DIR2_SF_GET_INUMBER(sfp, from) \
 	xfs_dir2_sf_get_inumber(sfp, from)
-
-#else
-#define	XFS_DIR2_SF_GET_INUMBER(sfp, from)	\
-	((sfp)->hdr.i8count == 0 ? \
+static inline xfs_intino_t
+xfs_dir2_sf_get_inumber(xfs_dir2_sf_t *sfp, xfs_dir2_inou_t *from)
+{
+	return ((sfp)->hdr.i8count == 0 ? \
 		(xfs_intino_t)XFS_GET_DIR_INO4((from)->i4) : \
-		(xfs_intino_t)XFS_GET_DIR_INO8((from)->i8))
-#endif
+		(xfs_intino_t)XFS_GET_DIR_INO8((from)->i8));
+}
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR2_SF_PUT_INUMBER)
-void xfs_dir2_sf_put_inumber(xfs_dir2_sf_t *sfp, xfs_ino_t *from,
-				     xfs_dir2_inou_t *to);
-#define	XFS_DIR2_SF_PUT_INUMBER(sfp,from,to)	\
+#define	XFS_DIR2_SF_PUT_INUMBER(sfp,from,to) \
 	xfs_dir2_sf_put_inumber(sfp,from,to)
-#else
-#define	XFS_DIR2_SF_PUT_INUMBER(sfp,from,to)	\
-	if ((sfp)->hdr.i8count == 0) { \
-		XFS_PUT_DIR_INO4(*(from), (to)->i4); \
-	} else { \
-		XFS_PUT_DIR_INO8(*(from), (to)->i8); \
-	}
-#endif
+static inline void xfs_dir2_sf_put_inumber(xfs_dir2_sf_t *sfp, xfs_ino_t *from,
+						xfs_dir2_inou_t *to)
+{
+	if ((sfp)->hdr.i8count == 0)
+		XFS_PUT_DIR_INO4(*(from), (to)->i4);
+	else
+		XFS_PUT_DIR_INO8(*(from), (to)->i8);
+}
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR2_SF_GET_OFFSET)
-xfs_dir2_data_aoff_t xfs_dir2_sf_get_offset(xfs_dir2_sf_entry_t *sfep);
 #define	XFS_DIR2_SF_GET_OFFSET(sfep)	\
 	xfs_dir2_sf_get_offset(sfep)
-#else
-#define	XFS_DIR2_SF_GET_OFFSET(sfep)	\
-	INT_GET_UNALIGNED_16_BE(&(sfep)->offset.i)
-#endif
+static inline xfs_dir2_data_aoff_t
+xfs_dir2_sf_get_offset(xfs_dir2_sf_entry_t *sfep)
+{
+	return INT_GET_UNALIGNED_16_BE(&(sfep)->offset.i);
+}
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR2_SF_PUT_OFFSET)
-void xfs_dir2_sf_put_offset(xfs_dir2_sf_entry_t *sfep,
-				    xfs_dir2_data_aoff_t off);
 #define	XFS_DIR2_SF_PUT_OFFSET(sfep,off) \
 	xfs_dir2_sf_put_offset(sfep,off)
-#else
-#define	XFS_DIR2_SF_PUT_OFFSET(sfep,off)	\
-	INT_SET_UNALIGNED_16_BE(&(sfep)->offset.i,off)
-#endif
+static inline void
+xfs_dir2_sf_put_offset(xfs_dir2_sf_entry_t *sfep, xfs_dir2_data_aoff_t off)
+{
+	INT_SET_UNALIGNED_16_BE(&(sfep)->offset.i, off);
+}
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR2_SF_ENTSIZE_BYNAME)
-int xfs_dir2_sf_entsize_byname(xfs_dir2_sf_t *sfp, int len);
 #define XFS_DIR2_SF_ENTSIZE_BYNAME(sfp,len)	\
 	xfs_dir2_sf_entsize_byname(sfp,len)
-#else
-#define XFS_DIR2_SF_ENTSIZE_BYNAME(sfp,len)	/* space a name uses */ \
-	((uint)sizeof(xfs_dir2_sf_entry_t) - 1 + (len) - \
-	 ((sfp)->hdr.i8count == 0) * \
-	 ((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t)))
-#endif
+static inline int xfs_dir2_sf_entsize_byname(xfs_dir2_sf_t *sfp, int len)
+{
+	return ((uint)sizeof(xfs_dir2_sf_entry_t) - 1 + (len) - \
+		((sfp)->hdr.i8count == 0) * \
+		((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t)));
+}
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR2_SF_ENTSIZE_BYENTRY)
-int xfs_dir2_sf_entsize_byentry(xfs_dir2_sf_t *sfp, xfs_dir2_sf_entry_t *sfep);
 #define XFS_DIR2_SF_ENTSIZE_BYENTRY(sfp,sfep)	\
 	xfs_dir2_sf_entsize_byentry(sfp,sfep)
-#else
-#define XFS_DIR2_SF_ENTSIZE_BYENTRY(sfp,sfep)	/* space an entry uses */ \
-	((uint)sizeof(xfs_dir2_sf_entry_t) - 1 + (sfep)->namelen - \
-	 ((sfp)->hdr.i8count == 0) * \
-	 ((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t)))
-#endif
+static inline int
+xfs_dir2_sf_entsize_byentry(xfs_dir2_sf_t *sfp, xfs_dir2_sf_entry_t *sfep)
+{
+	return ((uint)sizeof(xfs_dir2_sf_entry_t) - 1 + (sfep)->namelen - \
+		((sfp)->hdr.i8count == 0) * \
+		((uint)sizeof(xfs_dir2_ino8_t) - (uint)sizeof(xfs_dir2_ino4_t)));
+}
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR2_SF_FIRSTENTRY)
-xfs_dir2_sf_entry_t *xfs_dir2_sf_firstentry(xfs_dir2_sf_t *sfp);
 #define XFS_DIR2_SF_FIRSTENTRY(sfp)	xfs_dir2_sf_firstentry(sfp)
-#else
-#define XFS_DIR2_SF_FIRSTENTRY(sfp)	/* first entry in struct */ \
-	((xfs_dir2_sf_entry_t *) \
-	 ((char *)(sfp) + XFS_DIR2_SF_HDR_SIZE(sfp->hdr.i8count)))
-#endif
+static inline xfs_dir2_sf_entry_t *xfs_dir2_sf_firstentry(xfs_dir2_sf_t *sfp)
+{
+	return ((xfs_dir2_sf_entry_t *) \
+		((char *)(sfp) + XFS_DIR2_SF_HDR_SIZE(sfp->hdr.i8count)));
+}
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR2_SF_NEXTENTRY)
-xfs_dir2_sf_entry_t *xfs_dir2_sf_nextentry(xfs_dir2_sf_t *sfp,
-					   xfs_dir2_sf_entry_t *sfep);
-#define XFS_DIR2_SF_NEXTENTRY(sfp,sfep)		xfs_dir2_sf_nextentry(sfp,sfep)
-#else
-#define XFS_DIR2_SF_NEXTENTRY(sfp,sfep)		/* next entry in struct */ \
-	((xfs_dir2_sf_entry_t *) \
-		((char *)(sfep) + XFS_DIR2_SF_ENTSIZE_BYENTRY(sfp,sfep)))
-#endif
+#define XFS_DIR2_SF_NEXTENTRY(sfp,sfep)	xfs_dir2_sf_nextentry(sfp,sfep)
+static inline xfs_dir2_sf_entry_t *
+xfs_dir2_sf_nextentry(xfs_dir2_sf_t *sfp, xfs_dir2_sf_entry_t *sfep)
+{
+	return ((xfs_dir2_sf_entry_t *) \
+		((char *)(sfep) + XFS_DIR2_SF_ENTSIZE_BYENTRY(sfp,sfep)));
+}
 
 /*
  * Functions.
  */
-
-extern int
-	xfs_dir2_block_sfsize(struct xfs_inode *dp,
-			      struct xfs_dir2_block *block,
-			      xfs_dir2_sf_hdr_t *sfhp);
-
-extern int
-	xfs_dir2_block_to_sf(struct xfs_da_args *args, struct xfs_dabuf *bp,
-			     int size, xfs_dir2_sf_hdr_t *sfhp);
-
-extern int
-	xfs_dir2_sf_addname(struct xfs_da_args *args);
-
-extern int
-	xfs_dir2_sf_create(struct xfs_da_args *args, xfs_ino_t pino);
-
-extern int
-	xfs_dir2_sf_getdents(struct xfs_inode *dp, struct uio *uio, int *eofp,
-			     struct xfs_dirent *dbp, xfs_dir2_put_t put);
-
-extern int
-	xfs_dir2_sf_lookup(struct xfs_da_args *args);
-
-extern int
-	xfs_dir2_sf_removename(struct xfs_da_args *args);
-
-extern int
-	xfs_dir2_sf_replace(struct xfs_da_args *args);
+extern int xfs_dir2_block_sfsize(struct xfs_inode *dp,
+				 struct xfs_dir2_block *block,
+				 xfs_dir2_sf_hdr_t *sfhp);
+extern int xfs_dir2_block_to_sf(struct xfs_da_args *args, struct xfs_dabuf *bp,
+				int size, xfs_dir2_sf_hdr_t *sfhp);
+extern int xfs_dir2_sf_addname(struct xfs_da_args *args);
+extern int xfs_dir2_sf_create(struct xfs_da_args *args, xfs_ino_t pino);
+extern int xfs_dir2_sf_getdents(struct xfs_inode *dp, struct uio *uio,
+				int *eofp, struct xfs_dirent *dbp,
+				xfs_dir2_put_t put);
+extern int xfs_dir2_sf_lookup(struct xfs_da_args *args);
+extern int xfs_dir2_sf_removename(struct xfs_da_args *args);
+extern int xfs_dir2_sf_replace(struct xfs_da_args *args);
 
 #endif	/* __XFS_DIR2_SF_H__ */

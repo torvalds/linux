@@ -152,30 +152,26 @@ typedef struct xfs_dir_put_args
 	struct uio	*uio;		/* uio control structure */
 } xfs_dir_put_args_t;
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR_LEAF_ENTSIZE_BYNAME)
-int xfs_dir_leaf_entsize_byname(int len);
 #define XFS_DIR_LEAF_ENTSIZE_BYNAME(len)	xfs_dir_leaf_entsize_byname(len)
-#else
-#define XFS_DIR_LEAF_ENTSIZE_BYNAME(len)	/* space a name will use */ \
-	((uint)sizeof(xfs_dir_leaf_name_t)-1 + len)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR_LEAF_ENTSIZE_BYENTRY)
-int xfs_dir_leaf_entsize_byentry(xfs_dir_leaf_entry_t *entry);
+static inline int xfs_dir_leaf_entsize_byname(int len)
+{
+	return (uint)sizeof(xfs_dir_leaf_name_t)-1 + len;
+}
+
 #define XFS_DIR_LEAF_ENTSIZE_BYENTRY(entry)	\
 	xfs_dir_leaf_entsize_byentry(entry)
-#else
-#define XFS_DIR_LEAF_ENTSIZE_BYENTRY(entry)	/* space an entry will use */ \
-	((uint)sizeof(xfs_dir_leaf_name_t)-1 + (entry)->namelen)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR_LEAF_NAMESTRUCT)
-xfs_dir_leaf_name_t *
-xfs_dir_leaf_namestruct(xfs_dir_leafblock_t *leafp, int offset);
+static inline int xfs_dir_leaf_entsize_byentry(xfs_dir_leaf_entry_t *entry)
+{
+	return (uint)sizeof(xfs_dir_leaf_name_t)-1 + (entry)->namelen;
+}
+
 #define XFS_DIR_LEAF_NAMESTRUCT(leafp,offset)	\
 	xfs_dir_leaf_namestruct(leafp,offset)
-#else
-#define XFS_DIR_LEAF_NAMESTRUCT(leafp,offset)	/* point to name struct */ \
-	((xfs_dir_leaf_name_t *)&((char *)(leafp))[offset])
-#endif
+static inline xfs_dir_leaf_name_t *
+xfs_dir_leaf_namestruct(xfs_dir_leafblock_t *leafp, int offset)
+{
+	return (xfs_dir_leaf_name_t *)&((char *)(leafp))[offset];
+}
 
 /*========================================================================
  * Function prototypes for the kernel.
@@ -190,7 +186,7 @@ int xfs_dir_shortform_lookup(struct xfs_da_args *args);
 int xfs_dir_shortform_to_leaf(struct xfs_da_args *args);
 int xfs_dir_shortform_removename(struct xfs_da_args *args);
 int xfs_dir_shortform_getdents(struct xfs_inode *dp, struct uio *uio, int *eofp,
-				      struct xfs_dirent *dbp, xfs_dir_put_t put);
+			       struct xfs_dirent *dbp, xfs_dir_put_t put);
 int xfs_dir_shortform_replace(struct xfs_da_args *args);
 
 /*
@@ -236,7 +232,6 @@ int	xfs_dir_leaf_order(struct xfs_dabuf *leaf1_bp,
 int	xfs_dir_put_dirent64_direct(xfs_dir_put_args_t *pa);
 int	xfs_dir_put_dirent64_uio(xfs_dir_put_args_t *pa);
 int	xfs_dir_ino_validate(struct xfs_mount *mp, xfs_ino_t ino);
-
 
 /*
  * Global data.

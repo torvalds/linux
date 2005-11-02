@@ -107,9 +107,4 @@ extern ssize_t xfs_sendfile(struct bhv_desc *, struct file *,
 
 extern int xfs_dev_is_read_only(struct xfs_mount *, char *);
 
-#define XFS_FSB_TO_DB_IO(io,fsb) \
-		(((io)->io_flags & XFS_IOCORE_RT) ? \
-		 XFS_FSB_TO_BB((io)->io_mount, (fsb)) : \
-		 XFS_FSB_TO_DADDR((io)->io_mount, (fsb)))
-
 #endif	/* __XFS_LRW_H__ */

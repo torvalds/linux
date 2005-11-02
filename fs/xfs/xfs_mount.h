@@ -80,6 +80,9 @@ struct xfs_iocore;
 struct xfs_bmbt_irec;
 struct xfs_bmap_free;
 
+extern struct vfsops xfs_vfsops;
+extern struct vnodeops xfs_vnodeops;
+
 #define	AIL_LOCK_T		lock_t
 #define	AIL_LOCKINIT(x,y)	spinlock_init(x,y)
 #define	AIL_LOCK_DESTROY(x)	spinlock_destroy(x)
@@ -503,56 +506,40 @@ xfs_preferred_iosize(xfs_mount_t *mp)
 /*
  * Macros for getting from mount to vfs and back.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_MTOVFS)
-struct vfs *xfs_mtovfs(xfs_mount_t *mp);
 #define	XFS_MTOVFS(mp)		xfs_mtovfs(mp)
-#else
-#define	XFS_MTOVFS(mp)		(bhvtovfs(&(mp)->m_bhv))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_BHVTOM)
-xfs_mount_t *xfs_bhvtom(bhv_desc_t *bdp);
+static inline struct vfs *xfs_mtovfs(xfs_mount_t *mp)
+{
+	return bhvtovfs(&mp->m_bhv);
+}
+
 #define	XFS_BHVTOM(bdp)	xfs_bhvtom(bdp)
-#else
-#define XFS_BHVTOM(bdp)		((xfs_mount_t *)BHV_PDATA(bdp))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_VFSTOM)
-xfs_mount_t *xfs_vfstom(vfs_t *vfs);
+static inline xfs_mount_t *xfs_bhvtom(bhv_desc_t *bdp)
+{
+	return (xfs_mount_t *)BHV_PDATA(bdp);
+}
+
 #define XFS_VFSTOM(vfs) xfs_vfstom(vfs)
-#else
-#define XFS_VFSTOM(vfs)		\
-	(XFS_BHVTOM(bhv_lookup(VFS_BHVHEAD(vfs), &xfs_vfsops)))
-#endif
+static inline xfs_mount_t *xfs_vfstom(vfs_t *vfs)
+{
+	return XFS_BHVTOM(bhv_lookup(VFS_BHVHEAD(vfs), &xfs_vfsops));
+}
 
-
-/*
- * Moved here from xfs_ag.h to avoid reordering header files
- */
-
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DADDR_TO_AGNO)
-xfs_agnumber_t xfs_daddr_to_agno(struct xfs_mount *mp, xfs_daddr_t d);
 #define XFS_DADDR_TO_AGNO(mp,d)         xfs_daddr_to_agno(mp,d)
-#else
-
-static inline xfs_agnumber_t XFS_DADDR_TO_AGNO(xfs_mount_t *mp, xfs_daddr_t d)
+static inline xfs_agnumber_t
+xfs_daddr_to_agno(struct xfs_mount *mp, xfs_daddr_t d)
 {
-	d = XFS_BB_TO_FSBT(mp, d);
-	do_div(d, mp->m_sb.sb_agblocks);
-	return (xfs_agnumber_t) d;
+	xfs_daddr_t ld = XFS_BB_TO_FSBT(mp, d);
+	do_div(ld, mp->m_sb.sb_agblocks);
+	return (xfs_agnumber_t) ld;
 }
 
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DADDR_TO_AGBNO)
-xfs_agblock_t xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d);
 #define XFS_DADDR_TO_AGBNO(mp,d)        xfs_daddr_to_agbno(mp,d)
-#else
-
-static inline xfs_agblock_t XFS_DADDR_TO_AGBNO(xfs_mount_t *mp, xfs_daddr_t d)
+static inline xfs_agblock_t
+xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 {
-	d = XFS_BB_TO_FSBT(mp, d);
-	return (xfs_agblock_t) do_div(d, mp->m_sb.sb_agblocks);
+	xfs_daddr_t ld = XFS_BB_TO_FSBT(mp, d);
+	return (xfs_agblock_t) do_div(ld, mp->m_sb.sb_agblocks);
 }
-
-#endif
 
 /*
  * This structure is for use by the xfs_mod_incore_sb_batch() routine.
@@ -588,9 +575,6 @@ extern int	xfs_syncsub(xfs_mount_t *, int, int, int *);
 extern int	xfs_sync_inodes(xfs_mount_t *, int, int, int *);
 extern xfs_agnumber_t	xfs_initialize_perag(xfs_mount_t *, xfs_agnumber_t);
 extern void	xfs_xlatesb(void *, struct xfs_sb *, int, __int64_t);
-
-extern struct vfsops xfs_vfsops;
-extern struct vnodeops xfs_vnodeops;
 
 extern struct xfs_dmops xfs_dmcore_stub;
 extern struct xfs_qmops xfs_qmcore_stub;

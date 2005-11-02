@@ -137,88 +137,65 @@ typedef struct xfs_dir2_data {
 /*
  * Size of a data entry.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR2_DATA_ENTSIZE)
-int xfs_dir2_data_entsize(int n);
 #define XFS_DIR2_DATA_ENTSIZE(n)	xfs_dir2_data_entsize(n)
-#else
-#define	XFS_DIR2_DATA_ENTSIZE(n)	\
-	((int)(roundup(offsetof(xfs_dir2_data_entry_t, name[0]) + (n) + \
-		 (uint)sizeof(xfs_dir2_data_off_t), XFS_DIR2_DATA_ALIGN)))
-#endif
+static inline int xfs_dir2_data_entsize(int n)
+{
+	return (int)roundup(offsetof(xfs_dir2_data_entry_t, name[0]) + (n) + \
+		 (uint)sizeof(xfs_dir2_data_off_t), XFS_DIR2_DATA_ALIGN);
+}
 
 /*
  * Pointer to an entry's tag word.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR2_DATA_ENTRY_TAG_P)
-xfs_dir2_data_off_t *xfs_dir2_data_entry_tag_p(xfs_dir2_data_entry_t *dep);
 #define	XFS_DIR2_DATA_ENTRY_TAG_P(dep)	xfs_dir2_data_entry_tag_p(dep)
-#else
-#define	XFS_DIR2_DATA_ENTRY_TAG_P(dep)	\
-	((xfs_dir2_data_off_t *)\
-	 ((char *)(dep) + XFS_DIR2_DATA_ENTSIZE((dep)->namelen) - \
-	  (uint)sizeof(xfs_dir2_data_off_t)))
-#endif
+static inline xfs_dir2_data_off_t *
+xfs_dir2_data_entry_tag_p(xfs_dir2_data_entry_t *dep)
+{
+	return (xfs_dir2_data_off_t *) \
+		 ((char *)(dep) + XFS_DIR2_DATA_ENTSIZE((dep)->namelen) - \
+		  (uint)sizeof(xfs_dir2_data_off_t));
+}
 
 /*
  * Pointer to a freespace's tag word.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR2_DATA_UNUSED_TAG_P)
-xfs_dir2_data_off_t *xfs_dir2_data_unused_tag_p(xfs_dir2_data_unused_t *dup);
 #define	XFS_DIR2_DATA_UNUSED_TAG_P(dup) \
 	xfs_dir2_data_unused_tag_p(dup)
-#else
-#define	XFS_DIR2_DATA_UNUSED_TAG_P(dup)	\
-	((xfs_dir2_data_off_t *)\
-	 ((char *)(dup) + INT_GET((dup)->length, ARCH_CONVERT) \
-			- (uint)sizeof(xfs_dir2_data_off_t)))
-#endif
+static inline xfs_dir2_data_off_t *
+xfs_dir2_data_unused_tag_p(xfs_dir2_data_unused_t *dup)
+{
+	return (xfs_dir2_data_off_t *) \
+		 ((char *)(dup) + INT_GET((dup)->length, ARCH_CONVERT) \
+				- (uint)sizeof(xfs_dir2_data_off_t));
+}
 
 /*
  * Function declarations.
  */
-
 #ifdef DEBUG
-extern void
-	xfs_dir2_data_check(struct xfs_inode *dp, struct xfs_dabuf *bp);
+extern void xfs_dir2_data_check(struct xfs_inode *dp, struct xfs_dabuf *bp);
 #else
 #define	xfs_dir2_data_check(dp,bp)
 #endif
-
-extern xfs_dir2_data_free_t *
-	xfs_dir2_data_freefind(xfs_dir2_data_t *d,
-			       xfs_dir2_data_unused_t *dup);
-
-extern xfs_dir2_data_free_t *
-	xfs_dir2_data_freeinsert(xfs_dir2_data_t *d,
-				 xfs_dir2_data_unused_t *dup, int *loghead);
-
-extern void
-	xfs_dir2_data_freescan(struct xfs_mount *mp, xfs_dir2_data_t *d,
-			       int *loghead, char *aendp);
-
-extern int
-	xfs_dir2_data_init(struct xfs_da_args *args, xfs_dir2_db_t blkno,
-			   struct xfs_dabuf **bpp);
-
-extern void
-	xfs_dir2_data_log_entry(struct xfs_trans *tp, struct xfs_dabuf *bp,
+extern xfs_dir2_data_free_t *xfs_dir2_data_freefind(xfs_dir2_data_t *d,
+				xfs_dir2_data_unused_t *dup);
+extern xfs_dir2_data_free_t *xfs_dir2_data_freeinsert(xfs_dir2_data_t *d,
+				xfs_dir2_data_unused_t *dup, int *loghead);
+extern void xfs_dir2_data_freescan(struct xfs_mount *mp, xfs_dir2_data_t *d,
+				int *loghead, char *aendp);
+extern int xfs_dir2_data_init(struct xfs_da_args *args, xfs_dir2_db_t blkno,
+				struct xfs_dabuf **bpp);
+extern void xfs_dir2_data_log_entry(struct xfs_trans *tp, struct xfs_dabuf *bp,
 				xfs_dir2_data_entry_t *dep);
-
-extern void
-	xfs_dir2_data_log_header(struct xfs_trans *tp, struct xfs_dabuf *bp);
-
-extern void
-	xfs_dir2_data_log_unused(struct xfs_trans *tp, struct xfs_dabuf *bp,
-				 xfs_dir2_data_unused_t *dup);
-
-extern void
-	xfs_dir2_data_make_free(struct xfs_trans *tp, struct xfs_dabuf *bp,
+extern void xfs_dir2_data_log_header(struct xfs_trans *tp,
+				struct xfs_dabuf *bp);
+extern void xfs_dir2_data_log_unused(struct xfs_trans *tp, struct xfs_dabuf *bp,
+				xfs_dir2_data_unused_t *dup);
+extern void xfs_dir2_data_make_free(struct xfs_trans *tp, struct xfs_dabuf *bp,
 				xfs_dir2_data_aoff_t offset,
 				xfs_dir2_data_aoff_t len, int *needlogp,
 				int *needscanp);
-
-extern void
-	xfs_dir2_data_use_free(struct xfs_trans *tp, struct xfs_dabuf *bp,
+extern void xfs_dir2_data_use_free(struct xfs_trans *tp, struct xfs_dabuf *bp,
 			       xfs_dir2_data_unused_t *dup,
 			       xfs_dir2_data_aoff_t offset,
 			       xfs_dir2_data_aoff_t len, int *needlogp,

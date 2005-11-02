@@ -35,6 +35,7 @@
 struct xfs_buf;
 struct ktrace;
 struct log;
+struct xlog_ticket;
 struct xfs_buf_cancel;
 struct xfs_mount;
 
@@ -119,77 +120,6 @@ struct xfs_mount;
 #define GET_CLIENT_ID(i,arch) \
     ((i) >> 24)
 #endif
-
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XLOG_GRANT_SUB_SPACE)
-void xlog_grant_sub_space(struct log *log, int bytes, int type);
-#define XLOG_GRANT_SUB_SPACE(log,bytes,type)	\
-	xlog_grant_sub_space(log,bytes,type)
-#else
-#define XLOG_GRANT_SUB_SPACE(log,bytes,type)				\
-    {									\
-	if (type == 'w') {						\
-		(log)->l_grant_write_bytes -= (bytes);			\
-		if ((log)->l_grant_write_bytes < 0) {			\
-			(log)->l_grant_write_bytes += (log)->l_logsize;	\
-			(log)->l_grant_write_cycle--;			\
-		}							\
-	} else {							\
-		(log)->l_grant_reserve_bytes -= (bytes);		\
-		if ((log)->l_grant_reserve_bytes < 0) {			\
-			(log)->l_grant_reserve_bytes += (log)->l_logsize;\
-			(log)->l_grant_reserve_cycle--;			\
-		}							\
-	 }								\
-    }
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XLOG_GRANT_ADD_SPACE)
-void xlog_grant_add_space(struct log *log, int bytes, int type);
-#define XLOG_GRANT_ADD_SPACE(log,bytes,type)	\
-	xlog_grant_add_space(log,bytes,type)
-#else
-#define XLOG_GRANT_ADD_SPACE(log,bytes,type)				\
-    {									\
-	if (type == 'w') {						\
-		(log)->l_grant_write_bytes += (bytes);			\
-		if ((log)->l_grant_write_bytes > (log)->l_logsize) {	\
-			(log)->l_grant_write_bytes -= (log)->l_logsize;	\
-			(log)->l_grant_write_cycle++;			\
-		}							\
-	} else {							\
-		(log)->l_grant_reserve_bytes += (bytes);		\
-		if ((log)->l_grant_reserve_bytes > (log)->l_logsize) {	\
-			(log)->l_grant_reserve_bytes -= (log)->l_logsize;\
-			(log)->l_grant_reserve_cycle++;			\
-		}							\
-	 }								\
-    }
-#endif
-#define XLOG_INS_TICKETQ(q,tic)				\
-    {							\
-	if (q) {					\
-		(tic)->t_next	    = (q);		\
-		(tic)->t_prev	    = (q)->t_prev;	\
-		(q)->t_prev->t_next = (tic);		\
-		(q)->t_prev	    = (tic);		\
-	} else {					\
-		(tic)->t_prev = (tic)->t_next = (tic);	\
-		(q) = (tic);				\
-	}						\
-	(tic)->t_flags |= XLOG_TIC_IN_Q;		\
-    }
-#define XLOG_DEL_TICKETQ(q,tic)				\
-    {							\
-	if ((tic) == (tic)->t_next) {			\
-		(q) = NULL;				\
-	} else {					\
-		(q) = (tic)->t_next;			\
-		(tic)->t_next->t_prev = (tic)->t_prev;	\
-		(tic)->t_prev->t_next = (tic)->t_next;	\
-	}						\
-	(tic)->t_next = (tic)->t_prev = NULL;		\
-	(tic)->t_flags &= ~XLOG_TIC_IN_Q;		\
-    }
-
 
 #define GRANT_LOCK(log)		mutex_spinlock(&(log)->l_grant_lock)
 #define GRANT_UNLOCK(log, s)	mutex_spinunlock(&(log)->l_grant_lock, s)
@@ -576,6 +506,75 @@ typedef struct log {
 						 * alignment mask */
 } xlog_t;
 
+#define XLOG_GRANT_SUB_SPACE(log,bytes,type)	\
+	xlog_grant_sub_space(log,bytes,type)
+static inline void xlog_grant_sub_space(struct log *log, int bytes, int type)
+{
+	if (type == 'w') {						\
+		(log)->l_grant_write_bytes -= (bytes);			\
+		if ((log)->l_grant_write_bytes < 0) {			\
+			(log)->l_grant_write_bytes += (log)->l_logsize;	\
+			(log)->l_grant_write_cycle--;			\
+		}							\
+	} else {							\
+		(log)->l_grant_reserve_bytes -= (bytes);		\
+		if ((log)->l_grant_reserve_bytes < 0) {			\
+			(log)->l_grant_reserve_bytes += (log)->l_logsize;\
+			(log)->l_grant_reserve_cycle--;			\
+		}							\
+	 }								\
+}
+
+#define XLOG_GRANT_ADD_SPACE(log,bytes,type)	\
+	xlog_grant_add_space(log,bytes,type)
+static inline void
+xlog_grant_add_space(struct log *log, int bytes, int type)
+{
+	if (type == 'w') {						\
+		(log)->l_grant_write_bytes += (bytes);			\
+		if ((log)->l_grant_write_bytes > (log)->l_logsize) {	\
+			(log)->l_grant_write_bytes -= (log)->l_logsize;	\
+			(log)->l_grant_write_cycle++;			\
+		}							\
+	} else {							\
+		(log)->l_grant_reserve_bytes += (bytes);		\
+		if ((log)->l_grant_reserve_bytes > (log)->l_logsize) {	\
+			(log)->l_grant_reserve_bytes -= (log)->l_logsize;\
+			(log)->l_grant_reserve_cycle++;			\
+		}							\
+	 }								\
+}
+
+#define XLOG_INS_TICKETQ(q, tic)	xlog_ins_ticketq(q, tic)
+static inline void
+xlog_ins_ticketq(struct xlog_ticket *q, struct xlog_ticket *tic)
+{							\
+	if (q) {					\
+		(tic)->t_next	    = (q);		\
+		(tic)->t_prev	    = (q)->t_prev;	\
+		(q)->t_prev->t_next = (tic);		\
+		(q)->t_prev	    = (tic);		\
+	} else {					\
+		(tic)->t_prev = (tic)->t_next = (tic);	\
+		(q) = (tic);				\
+	}						\
+	(tic)->t_flags |= XLOG_TIC_IN_Q;		\
+}
+
+#define XLOG_DEL_TICKETQ(q, tic)	xlog_del_ticketq(q, tic)
+static inline void
+xlog_del_ticketq(struct xlog_ticket *q, struct xlog_ticket *tic)
+{							\
+	if ((tic) == (tic)->t_next) {			\
+		(q) = NULL;				\
+	} else {					\
+		(q) = (tic)->t_next;			\
+		(tic)->t_next->t_prev = (tic)->t_prev;	\
+		(tic)->t_prev->t_next = (tic)->t_next;	\
+	}						\
+	(tic)->t_next = (tic)->t_prev = NULL;		\
+	(tic)->t_flags &= ~XLOG_TIC_IN_Q;		\
+}
 
 /* common routines */
 extern xfs_lsn_t xlog_assign_tail_lsn(struct xfs_mount *mp);

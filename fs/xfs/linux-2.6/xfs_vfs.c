@@ -29,10 +29,8 @@
  *
  * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
  */
-
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_macros.h"
 #include "xfs_inum.h"
 #include "xfs_log.h"
 #include "xfs_clnt.h"

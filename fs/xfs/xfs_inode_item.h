@@ -159,38 +159,33 @@ typedef struct xfs_inode_log_item {
 } xfs_inode_log_item_t;
 
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_ILOG_FDATA)
-int xfs_ilog_fdata(int w);
 #define	XFS_ILOG_FDATA(w)	xfs_ilog_fdata(w)
-#else
-#define	XFS_ILOG_FDATA(w)	\
-	((w) == XFS_DATA_FORK ? XFS_ILOG_DDATA : XFS_ILOG_ADATA)
-#endif
+static inline int xfs_ilog_fdata(int w)
+{
+	return (w == XFS_DATA_FORK ? XFS_ILOG_DDATA : XFS_ILOG_ADATA);
+}
 
 #endif	/* __KERNEL__ */
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_ILOG_FBROOT)
-int xfs_ilog_fbroot(int w);
 #define	XFS_ILOG_FBROOT(w)	xfs_ilog_fbroot(w)
-#else
-#define	XFS_ILOG_FBROOT(w)	\
-	((w) == XFS_DATA_FORK ? XFS_ILOG_DBROOT : XFS_ILOG_ABROOT)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_ILOG_FEXT)
-int xfs_ilog_fext(int w);
+static inline int xfs_ilog_fbroot(int w)
+{
+	return (w == XFS_DATA_FORK ? XFS_ILOG_DBROOT : XFS_ILOG_ABROOT);
+}
+
 #define	XFS_ILOG_FEXT(w)	xfs_ilog_fext(w)
-#else
-#define	XFS_ILOG_FEXT(w)	\
-	((w) == XFS_DATA_FORK ? XFS_ILOG_DEXT : XFS_ILOG_AEXT)
-#endif
+static inline int xfs_ilog_fext(int w)
+{
+	return (w == XFS_DATA_FORK ? XFS_ILOG_DEXT : XFS_ILOG_AEXT);
+}
 
 #ifdef __KERNEL__
 
-void	xfs_inode_item_init(struct xfs_inode *, struct xfs_mount *);
-void	xfs_inode_item_destroy(struct xfs_inode *);
-void	xfs_iflush_done(struct xfs_buf *, xfs_inode_log_item_t *);
-void	xfs_istale_done(struct xfs_buf *, xfs_inode_log_item_t *);
-void	xfs_iflush_abort(struct xfs_inode *);
+extern void xfs_inode_item_init(struct xfs_inode *, struct xfs_mount *);
+extern void xfs_inode_item_destroy(struct xfs_inode *);
+extern void xfs_iflush_done(struct xfs_buf *, xfs_inode_log_item_t *);
+extern void xfs_istale_done(struct xfs_buf *, xfs_inode_log_item_t *);
+extern void xfs_iflush_abort(struct xfs_inode *);
 
 #endif	/* __KERNEL__ */
 

@@ -147,65 +147,58 @@ typedef struct xfs_attr_leaf_name_remote xfs_attr_leaf_name_remote_t;
 /*
  * Cast typed pointers for "local" and "remote" name/value structs.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_ATTR_LEAF_NAME_REMOTE)
-xfs_attr_leaf_name_remote_t *
-xfs_attr_leaf_name_remote(xfs_attr_leafblock_t *leafp, int idx);
 #define XFS_ATTR_LEAF_NAME_REMOTE(leafp,idx)	\
 	xfs_attr_leaf_name_remote(leafp,idx)
-#else
-#define XFS_ATTR_LEAF_NAME_REMOTE(leafp,idx)	/* remote name struct ptr */ \
-	((xfs_attr_leaf_name_remote_t *)		\
-	 &((char *)(leafp))[ INT_GET((leafp)->entries[idx].nameidx, ARCH_CONVERT) ])
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_ATTR_LEAF_NAME_LOCAL)
-xfs_attr_leaf_name_local_t *
-xfs_attr_leaf_name_local(xfs_attr_leafblock_t *leafp, int idx);
+static inline xfs_attr_leaf_name_remote_t *
+xfs_attr_leaf_name_remote(xfs_attr_leafblock_t *leafp, int idx)
+{
+	return (xfs_attr_leaf_name_remote_t *) &((char *)
+		(leafp))[INT_GET((leafp)->entries[idx].nameidx, ARCH_CONVERT)];
+}
+
 #define XFS_ATTR_LEAF_NAME_LOCAL(leafp,idx)	\
 	xfs_attr_leaf_name_local(leafp,idx)
-#else
-#define XFS_ATTR_LEAF_NAME_LOCAL(leafp,idx)	/* local name struct ptr */ \
-	((xfs_attr_leaf_name_local_t *)		\
-	 &((char *)(leafp))[ INT_GET((leafp)->entries[idx].nameidx, ARCH_CONVERT) ])
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_ATTR_LEAF_NAME)
-char *xfs_attr_leaf_name(xfs_attr_leafblock_t *leafp, int idx);
+static inline xfs_attr_leaf_name_local_t *
+xfs_attr_leaf_name_local(xfs_attr_leafblock_t *leafp, int idx)
+{
+	return (xfs_attr_leaf_name_local_t *) &((char *)
+		(leafp))[INT_GET((leafp)->entries[idx].nameidx, ARCH_CONVERT)];
+}
+
 #define XFS_ATTR_LEAF_NAME(leafp,idx)		xfs_attr_leaf_name(leafp,idx)
-#else
-#define XFS_ATTR_LEAF_NAME(leafp,idx)		/* generic name struct ptr */ \
-	(&((char *)(leafp))[ INT_GET((leafp)->entries[idx].nameidx, ARCH_CONVERT) ])
-#endif
+static inline char *xfs_attr_leaf_name(xfs_attr_leafblock_t *leafp, int idx)
+{
+	return (&((char *)
+		(leafp))[INT_GET((leafp)->entries[idx].nameidx, ARCH_CONVERT)]);
+}
 
 /*
  * Calculate total bytes used (including trailing pad for alignment) for
  * a "local" name/value structure, a "remote" name/value structure, and
  * a pointer which might be either.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_ATTR_LEAF_ENTSIZE_REMOTE)
-int xfs_attr_leaf_entsize_remote(int nlen);
 #define XFS_ATTR_LEAF_ENTSIZE_REMOTE(nlen)	\
 	xfs_attr_leaf_entsize_remote(nlen)
-#else
-#define XFS_ATTR_LEAF_ENTSIZE_REMOTE(nlen)	/* space for remote struct */ \
-	(((uint)sizeof(xfs_attr_leaf_name_remote_t) - 1 + (nlen) + \
-	  XFS_ATTR_LEAF_NAME_ALIGN - 1) & ~(XFS_ATTR_LEAF_NAME_ALIGN - 1))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_ATTR_LEAF_ENTSIZE_LOCAL)
-int xfs_attr_leaf_entsize_local(int nlen, int vlen);
+static inline int xfs_attr_leaf_entsize_remote(int nlen)
+{
+	return ((uint)sizeof(xfs_attr_leaf_name_remote_t) - 1 + (nlen) + \
+		XFS_ATTR_LEAF_NAME_ALIGN - 1) & ~(XFS_ATTR_LEAF_NAME_ALIGN - 1);
+}
+
 #define XFS_ATTR_LEAF_ENTSIZE_LOCAL(nlen,vlen)	\
 	xfs_attr_leaf_entsize_local(nlen,vlen)
-#else
-#define XFS_ATTR_LEAF_ENTSIZE_LOCAL(nlen,vlen)	/* space for local struct */ \
-	(((uint)sizeof(xfs_attr_leaf_name_local_t) - 1 + (nlen) + (vlen) + \
-	  XFS_ATTR_LEAF_NAME_ALIGN - 1) & ~(XFS_ATTR_LEAF_NAME_ALIGN - 1))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_ATTR_LEAF_ENTSIZE_LOCAL_MAX)
-int xfs_attr_leaf_entsize_local_max(int bsize);
+static inline int xfs_attr_leaf_entsize_local(int nlen, int vlen)
+{
+	return ((uint)sizeof(xfs_attr_leaf_name_local_t) - 1 + (nlen) + (vlen) +
+		XFS_ATTR_LEAF_NAME_ALIGN - 1) & ~(XFS_ATTR_LEAF_NAME_ALIGN - 1);
+}
+
 #define XFS_ATTR_LEAF_ENTSIZE_LOCAL_MAX(bsize)	\
 	xfs_attr_leaf_entsize_local_max(bsize)
-#else
-#define XFS_ATTR_LEAF_ENTSIZE_LOCAL_MAX(bsize)	/* max local struct size */ \
-	(((bsize) >> 1) + ((bsize) >> 2))
-#endif
+static inline int xfs_attr_leaf_entsize_local_max(int bsize)
+{
+	return (((bsize) >> 1) + ((bsize) >> 2));
+}
 
 
 /*========================================================================
