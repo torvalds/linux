@@ -32,7 +32,7 @@
 #include <asm/machdep.h>
 #include <asm/abs_addr.h>
 #include <asm/pci-bridge.h>
-#include <asm/iSeries/HvCallXm.h>
+#include <asm/iseries/hv_call_xm.h>
 
 extern struct list_head iSeries_Global_Device_List;
 

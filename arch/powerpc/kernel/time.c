@@ -67,7 +67,7 @@
 #endif
 #ifdef CONFIG_PPC_ISERIES
 #include <asm/iSeries/ItLpQueue.h>
-#include <asm/iSeries/HvCallXm.h>
+#include <asm/iseries/hv_call_xm.h>
 #endif
 
 /* keep track of when we need to update the rtc */
