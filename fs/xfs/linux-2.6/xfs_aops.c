@@ -935,15 +935,18 @@ __linvfs_get_block(
 {
 	vnode_t			*vp = LINVFS_GET_VP(inode);
 	xfs_iomap_t		iomap;
+	xfs_off_t		offset;
+	ssize_t			size;
 	int			retpbbm = 1;
 	int			error;
-	ssize_t			size;
-	loff_t			offset = (loff_t)iblock << inode->i_blkbits;
 
-	if (blocks)
-		size = blocks << inode->i_blkbits;
-	else
+	if (blocks) {
+		offset = blocks << inode->i_blkbits;	/* 64 bit goodness */
+		size = (ssize_t) min_t(xfs_off_t, offset, LONG_MAX);
+	} else {
 		size = 1 << inode->i_blkbits;
+	}
+	offset = (xfs_off_t)iblock << inode->i_blkbits;
 
 	VOP_BMAP(vp, offset, size,
 		create ? flags : BMAPI_READ, &iomap, &retpbbm, error);
@@ -954,8 +957,8 @@ __linvfs_get_block(
 		return 0;
 
 	if (iomap.iomap_bn != IOMAP_DADDR_NULL) {
-		xfs_daddr_t		bn;
-		loff_t			delta;
+		xfs_daddr_t	bn;
+		xfs_off_t	delta;
 
 		/* For unwritten extents do not report a disk address on
 		 * the read case (treat as if we're reading into a hole).
@@ -987,9 +990,8 @@ __linvfs_get_block(
 	 */
 	if (create &&
 	    ((!buffer_mapped(bh_result) && !buffer_uptodate(bh_result)) ||
-	     (offset >= i_size_read(inode)) || (iomap.iomap_flags & IOMAP_NEW))) {
+	     (offset >= i_size_read(inode)) || (iomap.iomap_flags & IOMAP_NEW)))
 		set_buffer_new(bh_result);
-	}
 
 	if (iomap.iomap_flags & IOMAP_DELAY) {
 		BUG_ON(direct);
@@ -1001,9 +1003,11 @@ __linvfs_get_block(
 	}
 
 	if (blocks) {
-		bh_result->b_size = (ssize_t)min(
-			(loff_t)(iomap.iomap_bsize - iomap.iomap_delta),
-			(loff_t)(blocks << inode->i_blkbits));
+		ASSERT(iomap.iomap_bsize - iomap.iomap_delta > 0);
+		offset = min_t(xfs_off_t,
+				iomap.iomap_bsize - iomap.iomap_delta,
+				blocks << inode->i_blkbits);
+		bh_result->b_size = (u32) min_t(xfs_off_t, UINT_MAX, offset);
 	}
 
 	return 0;
