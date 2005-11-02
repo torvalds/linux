@@ -498,7 +498,7 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 
 	switch (action) {
 	case PSERIES_RECONFIG_REMOVE:
-		if (pci->iommu_table &&
+		if (pci && pci->iommu_table &&
 		    get_property(np, "ibm,dma-window", NULL))
 			iommu_free_table(np);
 		break;
