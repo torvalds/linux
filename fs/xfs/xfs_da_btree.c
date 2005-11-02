@@ -429,7 +429,8 @@ xfs_da_node_split(xfs_da_state_t *state, xfs_da_state_blk_t *oldblk,
 	/*
 	 * With V2 the extra block is data or freespace.
 	 */
-	useextra = state->extravalid && XFS_DIR_IS_V1(state->mp);
+	useextra = state->extravalid && (XFS_DIR_IS_V1(state->mp) ||
+			state->args->whichfork == XFS_ATTR_FORK);
 	newcount = 1 + useextra;
 	/*
 	 * Do we have to split the node?
