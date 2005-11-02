@@ -168,6 +168,7 @@ static int multipath_make_request (request_queue_t *q, struct bio * bio)
 	multipath_conf_t *conf = mddev_to_conf(mddev);
 	struct multipath_bh * mp_bh;
 	struct multipath_info *multipath;
+	const int rw = bio_data_dir(bio);
 
 	if (unlikely(bio_barrier(bio))) {
 		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
@@ -179,13 +180,8 @@ static int multipath_make_request (request_queue_t *q, struct bio * bio)
 	mp_bh->master_bio = bio;
 	mp_bh->mddev = mddev;
 
-	if (bio_data_dir(bio)==WRITE) {
-		disk_stat_inc(mddev->gendisk, writes);
-		disk_stat_add(mddev->gendisk, write_sectors, bio_sectors(bio));
-	} else {
-		disk_stat_inc(mddev->gendisk, reads);
-		disk_stat_add(mddev->gendisk, read_sectors, bio_sectors(bio));
-	}
+	disk_stat_inc(mddev->gendisk, ios[rw]);
+	disk_stat_add(mddev->gendisk, sectors[rw], bio_sectors(bio));
 
 	mp_bh->path = multipath_map(conf);
 	if (mp_bh->path < 0) {
