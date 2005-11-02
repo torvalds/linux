@@ -18,6 +18,8 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/platform_device.h>
+
 #include <asm/io.h>
 #include <asm/mtrr.h>
 

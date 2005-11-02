@@ -6,6 +6,8 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
+
 #include <asm/setup.h>
 #include <asm/system.h>
 #include <asm/irq.h>

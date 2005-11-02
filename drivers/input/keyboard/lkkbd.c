@@ -441,7 +441,7 @@ lkkbd_interrupt (struct serio *serio, unsigned char data, unsigned int flags,
 			input_sync (lk->dev);
 			break;
 		case LK_METRONOME:
-			DBG (KERN_INFO "Got %#d and don't "
+			DBG (KERN_INFO "Got LK_METRONOME and don't "
 					"know how to handle...\n");
 			break;
 		case LK_OUTPUT_ERROR:

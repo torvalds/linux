@@ -30,7 +30,7 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 
 #include <linux/types.h>

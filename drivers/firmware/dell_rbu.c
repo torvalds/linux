@@ -41,7 +41,7 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/blkdev.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>

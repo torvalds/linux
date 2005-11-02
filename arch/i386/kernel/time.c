@@ -440,8 +440,8 @@ static int time_init_device(void)
 
 device_initcall(time_init_device);
 
-extern void (*late_time_init)(void);
 #ifdef CONFIG_HPET_TIMER
+extern void (*late_time_init)(void);
 /* Duplicate of time_init() below, with hpet_enable part added */
 static void __init hpet_time_init(void)
 {
@@ -458,11 +458,6 @@ static void __init hpet_time_init(void)
 	printk(KERN_INFO "Using %s for high-res timesource\n",cur_timer->name);
 
 	time_init_hook();
-
-#ifdef CONFIG_X86_LOCAL_APIC
-	if (enable_local_apic >= 0)
-		APIC_late_time_init();
-#endif
 }
 #endif
 
@@ -487,9 +482,4 @@ void __init time_init(void)
 	printk(KERN_INFO "Using %s for high-res timesource\n",cur_timer->name);
 
 	time_init_hook();
-
-#ifdef CONFIG_X86_LOCAL_APIC
-	if (enable_local_apic >= 0)
-		late_time_init = APIC_late_time_init;
-#endif
 }

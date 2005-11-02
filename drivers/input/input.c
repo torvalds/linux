@@ -730,7 +730,7 @@ static void input_register_classdevice(struct input_dev *dev)
 		 "input%ld", (unsigned long) atomic_inc_return(&input_no) - 1);
 
 	path = kobject_get_path(&dev->cdev.class->subsys.kset.kobj, GFP_KERNEL);
-	printk(KERN_INFO "input: %s/%s as %s\n",
+	printk(KERN_INFO "input: %s as %s/%s\n",
 		dev->name ? dev->name : "Unspecified device",
 		path ? path : "", dev->cdev.class_id);
 	kfree(path);

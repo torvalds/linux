@@ -64,6 +64,10 @@
 #endif
 #endif
 
+#ifdef CONFIG_X86_LOCAL_APIC
+#include <asm/smp.h>
+#endif
+
 /*
  * Versions of gcc older than that listed below may actually compile
  * and link okay, but the end product can have subtle run time bugs.
@@ -310,7 +314,14 @@ extern void setup_arch(char **);
 
 #ifndef CONFIG_SMP
 
+#ifdef CONFIG_X86_LOCAL_APIC
+static void __init smp_init(void)
+{
+	APIC_init_uniprocessor();
+}
+#else
 #define smp_init()	do { } while (0)
+#endif
 
 static inline void setup_per_cpu_areas(void) { }
 static inline void smp_prepare_cpus(unsigned int maxcpus) { }

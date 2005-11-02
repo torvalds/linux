@@ -14,6 +14,8 @@
  * This file is licenced under the GPL.
  */
 
+#include <linux/platform_device.h>
+
 /* configure so an HC device and id are always provided */
 /* always called with process context; sleeping is OK */
 

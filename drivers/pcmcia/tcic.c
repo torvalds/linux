@@ -44,7 +44,7 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/bitops.h>
 
 #include <asm/io.h>

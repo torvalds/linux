@@ -33,7 +33,7 @@
 #include <linux/sysrq.h>
 #include <linux/mca.h>
 #include <linux/delay.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/serial_reg.h>
