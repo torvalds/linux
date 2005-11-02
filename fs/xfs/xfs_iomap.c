@@ -366,13 +366,13 @@ xfs_iomap_write_direct(
 	xfs_filblks_t	count_fsb;
 	xfs_fsize_t	isize;
 	xfs_fsblock_t	firstfsb;
-	int		nimaps, maps;
+	int		nimaps;
 	int		error;
 	int		bmapi_flag;
 	int		quota_flag;
 	int		rt;
 	xfs_trans_t	*tp;
-	xfs_bmbt_irec_t imap[XFS_WRITE_IMAPS], *imapp;
+	xfs_bmbt_irec_t imap;
 	xfs_bmap_free_t free_list;
 	int		aeof;
 	xfs_filblks_t	qblocks, resblks;
@@ -386,9 +386,6 @@ xfs_iomap_write_direct(
 	error = XFS_QM_DQATTACH(ip->i_mount, ip, XFS_QMOPT_ILOCKED);
 	if (error)
 		return XFS_ERROR(error);
-
-	maps = min(XFS_WRITE_IMAPS, *nmaps);
-	nimaps = maps;
 
 	isize = ip->i_d.di_size;
 	aeof = (offset + count) > isize;
@@ -464,9 +461,8 @@ xfs_iomap_write_direct(
 	 */
 	XFS_BMAP_INIT(&free_list, &firstfsb);
 	nimaps = 1;
-	imapp = &imap[0];
 	error = xfs_bmapi(tp, ip, offset_fsb, count_fsb,
-		bmapi_flag, &firstfsb, 0, imapp, &nimaps, &free_list);
+		bmapi_flag, &firstfsb, 0, &imap, &nimaps, &free_list);
 	if (error)
 		goto error0;
 
@@ -488,7 +484,7 @@ xfs_iomap_write_direct(
 		goto error_out;
 	}
 
-	*ret_imap = imap[0];
+	*ret_imap = imap;
 	*nmaps = 1;
 	if ( !(io->io_flags & XFS_IOCORE_RT)  && !ret_imap->br_startblock) {
                 cmn_err(CE_PANIC,"Access to block zero:  fs <%s> inode: %lld "
