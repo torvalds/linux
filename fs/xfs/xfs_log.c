@@ -111,8 +111,7 @@ STATIC xlog_ticket_t	*xlog_ticket_get(xlog_t *log,
 					 uint	flags);
 STATIC void		xlog_ticket_put(xlog_t *log, xlog_ticket_t *ticket);
 
-/* local debug functions */
-#if defined(DEBUG) && !defined(XLOG_NOLOG)
+#if defined(DEBUG)
 STATIC void	xlog_verify_dest_ptr(xlog_t *log, __psint_t ptr);
 STATIC void	xlog_verify_grant_head(xlog_t *log, int equals);
 STATIC void	xlog_verify_iclog(xlog_t *log, xlog_in_core_t *iclog,
@@ -128,26 +127,7 @@ STATIC void	xlog_verify_tail_lsn(xlog_t *log, xlog_in_core_t *iclog,
 
 STATIC int	xlog_iclogs_empty(xlog_t *log);
 
-#ifdef DEBUG
-int xlog_do_error = 0;
-int xlog_req_num  = 0;
-int xlog_error_mod = 33;
-#endif
-
-#define XLOG_FORCED_SHUTDOWN(log)	(log->l_flags & XLOG_IO_ERROR)
-
-/*
- * 0 => disable log manager
- * 1 => enable log manager
- * 2 => enable log manager and log debugging
- */
-#if defined(XLOG_NOLOG) || defined(DEBUG)
-int   xlog_debug = 1;
-xfs_buftarg_t *xlog_target;
-#endif
-
 #if defined(XFS_LOG_TRACE)
-
 void
 xlog_trace_loggrant(xlog_t *log, xlog_ticket_t *tic, xfs_caddr_t string)
 {
@@ -183,31 +163,16 @@ xlog_trace_loggrant(xlog_t *log, xlog_ticket_t *tic, xfs_caddr_t string)
 void
 xlog_trace_iclog(xlog_in_core_t *iclog, uint state)
 {
-	pid_t pid;
-
-	pid = current_pid();
-
 	if (!iclog->ic_trace)
 		iclog->ic_trace = ktrace_alloc(256, KM_SLEEP);
 	ktrace_enter(iclog->ic_trace,
 		     (void *)((unsigned long)state),
-		     (void *)((unsigned long)pid),
-		     (void *)0,
-		     (void *)0,
-		     (void *)0,
-		     (void *)0,
-		     (void *)0,
-		     (void *)0,
-		     (void *)0,
-		     (void *)0,
-		     (void *)0,
-		     (void *)0,
-		     (void *)0,
-		     (void *)0,
-		     (void *)0,
-		     (void *)0);
+		     (void *)((unsigned long)current_pid()),
+		     (void *)NULL, (void *)NULL, (void *)NULL, (void *)NULL,
+		     (void *)NULL, (void *)NULL, (void *)NULL, (void *)NULL,
+		     (void *)NULL, (void *)NULL, (void *)NULL, (void *)NULL,
+		     (void *)NULL, (void *)NULL);
 }
-
 #else
 #define	xlog_trace_loggrant(log,tic,string)
 #define	xlog_trace_iclog(iclog,state)
@@ -243,11 +208,6 @@ xfs_log_done(xfs_mount_t	*mp,
 	xlog_t		*log    = mp->m_log;
 	xlog_ticket_t	*ticket = (xfs_log_ticket_t) xtic;
 	xfs_lsn_t	lsn	= 0;
-
-#if defined(DEBUG) || defined(XLOG_NOLOG)
-	if (!xlog_debug && xlog_target == log->l_targ)
-		return 0;
-#endif
 
 	if (XLOG_FORCED_SHUTDOWN(log) ||
 	    /*
@@ -316,11 +276,6 @@ _xfs_log_force(
 	if (!log_flushed)
 		log_flushed = &dummy;
 
-#if defined(DEBUG) || defined(XLOG_NOLOG)
-	if (!xlog_debug && xlog_target == log->l_targ)
-		return 0;
-#endif
-
 	ASSERT(flags & XFS_LOG_FORCE);
 
 	XFS_STATS_INC(xs_log_force);
@@ -348,10 +303,6 @@ xfs_log_notify(xfs_mount_t	  *mp,		/* mount of partition */
 	xlog_in_core_t	  *iclog = (xlog_in_core_t *)iclog_hndl;
 	int	abortflg, spl;
 
-#if defined(DEBUG) || defined(XLOG_NOLOG)
-	if (!xlog_debug && xlog_target == log->l_targ)
-		return 0;
-#endif
 	cb->cb_next = NULL;
 	spl = LOG_LOCK(log);
 	abortflg = (iclog->ic_state & XLOG_STATE_IOERROR);
@@ -402,13 +353,8 @@ xfs_log_reserve(xfs_mount_t	 *mp,
 {
 	xlog_t		*log = mp->m_log;
 	xlog_ticket_t	*internal_ticket;
-	int		retval;
+	int		retval = 0;
 
-#if defined(DEBUG) || defined(XLOG_NOLOG)
-	if (!xlog_debug && xlog_target == log->l_targ)
-		return 0;
-#endif
-	retval = 0;
 	ASSERT(client == XFS_TRANSACTION || client == XFS_LOG);
 	ASSERT((flags & XFS_LOG_NOSLEEP) == 0);
 
@@ -470,13 +416,6 @@ xfs_log_mount(xfs_mount_t	*mp,
 
 	mp->m_log = xlog_alloc_log(mp, log_target, blk_offset, num_bblks);
 
-#if defined(DEBUG) || defined(XLOG_NOLOG)
-	if (!xlog_debug) {
-		cmn_err(CE_NOTE, "logdev: %s", mp->m_logname ?
-			mp->m_logname : "internal");
-		return 0;
-	}
-#endif
 	/*
 	 * skip log recovery on a norecovery mount.  pretend it all
 	 * just worked.
@@ -579,11 +518,6 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 	    __uint16_t pad1;
 	    __uint32_t pad2; /* may as well make it 64 bits */
 	} magic = { XLOG_UNMOUNT_TYPE, 0, 0 };
-
-#if defined(DEBUG) || defined(XLOG_NOLOG)
-	if (!xlog_debug && xlog_target == log->l_targ)
-		return 0;
-#endif
 
 	/*
 	 * Don't write out unmount record on read-only mounts.
@@ -711,12 +645,6 @@ xfs_log_write(xfs_mount_t *	mp,
 	int	error;
 	xlog_t *log = mp->m_log;
 
-#if defined(DEBUG) || defined(XLOG_NOLOG)
-	if (!xlog_debug && xlog_target == log->l_targ) {
-		*start_lsn = 0;
-		return 0;
-	}
-#endif
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return XFS_ERROR(EIO);
 
@@ -736,11 +664,6 @@ xfs_log_move_tail(xfs_mount_t	*mp,
 	int		need_bytes, free_bytes, cycle, bytes;
 	SPLDECL(s);
 
-#if defined(DEBUG) || defined(XLOG_NOLOG)
-	if (!xlog_debug && xlog_target == log->l_targ)
-		return;
-#endif
-	/* XXXsup tmp */
 	if (XLOG_FORCED_SHUTDOWN(log))
 		return;
 	ASSERT(!XFS_FORCED_SHUTDOWN(mp));
@@ -1027,51 +950,22 @@ xlog_get_iclog_buffer_size(xfs_mount_t	*mp,
 	int size;
 	int xhdrs;
 
-#if defined(DEBUG) || defined(XLOG_NOLOG)
-	/*
-	 * When logbufs == 0, someone has disabled the log from the FSTAB
-	 * file.  This is not a documented feature.  We need to set xlog_debug
-	 * to zero (this deactivates the log) and set xlog_target to the
-	 * appropriate device.  Only one filesystem may be affected as such
-	 * since this is just a performance hack to test what we might be able
-	 * to get if the log were not present.
-	 */
-	if (mp->m_logbufs == 0) {
-		xlog_debug = 0;
-		xlog_target = log->l_targ;
-		log->l_iclog_bufs = XLOG_MIN_ICLOGS;
-	} else
-#endif
-	{
-		/*
-		 * This is the normal path.  If m_logbufs == -1, then the
-		 * admin has chosen to use the system defaults for logbuffers.
-		 */
-		if (mp->m_logbufs == -1) { 
-			if (xfs_physmem <= btoc(128*1024*1024)) { 
-				log->l_iclog_bufs = XLOG_MIN_ICLOGS; 
-			} else if (xfs_physmem <= btoc(400*1024*1024)) { 
-				log->l_iclog_bufs = XLOG_MED_ICLOGS; 
-			} else {
-				/* 256K with 32K bufs */
-				log->l_iclog_bufs = XLOG_MAX_ICLOGS;
-			}
-		} else
-			log->l_iclog_bufs = mp->m_logbufs;
-
-#if defined(DEBUG) || defined(XLOG_NOLOG)
-		/* We are reactivating a filesystem after it was inactive */
-		if (log->l_targ == xlog_target) {
-			xlog_target = NULL;
-			xlog_debug = 1;
+	if (mp->m_logbufs <= 0) {
+		if (xfs_physmem <= btoc(128*1024*1024)) {
+			log->l_iclog_bufs = XLOG_MIN_ICLOGS;
+		} else if (xfs_physmem <= btoc(400*1024*1024)) {
+			log->l_iclog_bufs = XLOG_MED_ICLOGS;
+		} else {	/* 256K with 32K bufs */
+			log->l_iclog_bufs = XLOG_MAX_ICLOGS;
 		}
-#endif
+	} else {
+		log->l_iclog_bufs = mp->m_logbufs;
 	}
 
 	/*
 	 * Buffer size passed in from mount system call.
 	 */
-	if (mp->m_logbsize != -1) {
+	if (mp->m_logbsize > 0) {
 		size = log->l_iclog_size = mp->m_logbsize;
 		log->l_iclog_size_log = 0;
 		while (size != 1) {
@@ -1094,7 +988,7 @@ xlog_get_iclog_buffer_size(xfs_mount_t	*mp,
 			log->l_iclog_hsize = BBSIZE;
 			log->l_iclog_heads = 1;
 		}
-		return;
+		goto done;
 	}
 
 	/*
@@ -1121,7 +1015,7 @@ xlog_get_iclog_buffer_size(xfs_mount_t	*mp,
 	if (mp->m_sb.sb_blocksize >= 16*1024) {
 		log->l_iclog_size = XLOG_BIG_RECORD_BSIZE;
 		log->l_iclog_size_log = XLOG_BIG_RECORD_BSHIFT;
-		if (mp->m_logbufs == -1) {
+		if (mp->m_logbufs <= 0) {
 			switch (mp->m_sb.sb_blocksize) {
 			    case 16*1024:			/* 16 KB */
 				log->l_iclog_bufs = 3;
@@ -1138,6 +1032,12 @@ xlog_get_iclog_buffer_size(xfs_mount_t	*mp,
 			}
 		}
 	}
+
+done:	/* are we being asked to make the sizes selected above visible? */
+	if (mp->m_logbufs == 0)
+		mp->m_logbufs = log->l_iclog_bufs;
+	if (mp->m_logbsize == 0)
+		mp->m_logbsize = log->l_iclog_size;
 }	/* xlog_get_iclog_buffer_size */
 
 
@@ -3390,7 +3290,7 @@ xlog_ticket_get(xlog_t		*log,
  *
  ******************************************************************************
  */
-#if defined(DEBUG) && !defined(XLOG_NOLOG)
+#if defined(DEBUG)
 /*
  * Make sure that the destination ptr is within the valid data region of
  * one of the iclogs.  This uses backup pointers stored in a different
@@ -3554,7 +3454,7 @@ xlog_verify_iclog(xlog_t	 *log,
 		ptr += sizeof(xlog_op_header_t) + op_len;
 	}
 }	/* xlog_verify_iclog */
-#endif /* DEBUG && !XLOG_NOLOG */
+#endif
 
 /*
  * Mark all iclogs IOERROR. LOG_LOCK is held by the caller.

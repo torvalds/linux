@@ -492,6 +492,8 @@ typedef struct log {
 						 * alignment mask */
 } xlog_t;
 
+#define XLOG_FORCED_SHUTDOWN(log)	((log)->l_flags & XLOG_IO_ERROR)
+
 #define XLOG_GRANT_SUB_SPACE(log,bytes,type)	\
 	xlog_grant_sub_space(log,bytes,type)
 static inline void xlog_grant_sub_space(struct log *log, int bytes, int type)

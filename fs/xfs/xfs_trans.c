@@ -176,12 +176,8 @@ xfs_trans_dup(
 	XFS_LBC_INIT(&(ntp->t_busy));
 
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
-
-#if defined(XLOG_NOLOG) || defined(DEBUG)
-	ASSERT(!xlog_debug || tp->t_ticket != NULL);
-#else
 	ASSERT(tp->t_ticket != NULL);
-#endif
+
 	ntp->t_flags = XFS_TRANS_PERM_LOG_RES | (tp->t_flags & XFS_TRANS_RESERVE);
 	ntp->t_ticket = tp->t_ticket;
 	ntp->t_blk_res = tp->t_blk_res - tp->t_blk_res_used;
@@ -663,9 +659,6 @@ _xfs_trans_commit(
 	int			sync;
 #define	XFS_TRANS_LOGVEC_COUNT	16
 	xfs_log_iovec_t		log_vector_fast[XFS_TRANS_LOGVEC_COUNT];
-#if defined(XLOG_NOLOG) || defined(DEBUG)
-	static xfs_lsn_t	trans_lsn = 1;
-#endif
 	void			*commit_iclog;
 	int			shutdown;
 
@@ -716,11 +709,7 @@ shut_us_down:
 			*commit_lsn_p = commit_lsn;
 		return (shutdown);
 	}
-#if defined(XLOG_NOLOG) || defined(DEBUG)
-	ASSERT(!xlog_debug || tp->t_ticket != NULL);
-#else
 	ASSERT(tp->t_ticket != NULL);
-#endif
 
 	/*
 	 * If we need to update the superblock, then do it now.
@@ -737,14 +726,10 @@ shut_us_down:
 	 * by using a vector from the stack when it fits.
 	 */
 	nvec = xfs_trans_count_vecs(tp);
-
 	if (nvec == 0) {
 		xfs_force_shutdown(mp, XFS_LOG_IO_ERROR);
 		goto shut_us_down;
-	}
-
-
-	if (nvec <= XFS_TRANS_LOGVEC_COUNT) {
+	} else if (nvec <= XFS_TRANS_LOGVEC_COUNT) {
 		log_vector = log_vector_fast;
 	} else {
 		log_vector = (xfs_log_iovec_t *)kmem_alloc(nvec *
@@ -758,30 +743,14 @@ shut_us_down:
 	 */
 	xfs_trans_fill_vecs(tp, log_vector);
 
-	/*
-	 * Ignore errors here. xfs_log_done would do the right thing.
-	 * We need to put the ticket, etc. away.
-	 */
-	error = xfs_log_write(mp, log_vector, nvec, tp->t_ticket,
-			     &(tp->t_lsn));
+	error = xfs_log_write(mp, log_vector, nvec, tp->t_ticket, &(tp->t_lsn));
 
-#if defined(XLOG_NOLOG) || defined(DEBUG)
-	if (xlog_debug) {
-		commit_lsn = xfs_log_done(mp, tp->t_ticket,
-					  &commit_iclog, log_flags);
-	} else {
-		commit_lsn = 0;
-		tp->t_lsn = trans_lsn++;
-	}
-#else
 	/*
-	 * This is the regular case.  At this point (after the call finishes),
-	 * the transaction is committed incore and could go out to disk at
-	 * any time.  However, all the items associated with the transaction
-	 * are still locked and pinned in memory.
+	 * The transaction is committed incore here, and can go out to disk
+	 * at any time after this call.  However, all the items associated
+	 * with the transaction are still locked and pinned in memory.
 	 */
 	commit_lsn = xfs_log_done(mp, tp->t_ticket, &commit_iclog, log_flags);
-#endif
 
 	tp->t_commit_lsn = commit_lsn;
 	if (nvec > XFS_TRANS_LOGVEC_COUNT) {

@@ -214,9 +214,7 @@ xfs_start_flags(
 	}
 
 	if (ap->logbufs != -1 &&
-#if defined(DEBUG) || defined(XLOG_NOLOG)
 	    ap->logbufs != 0 &&
-#endif
 	    (ap->logbufs < XLOG_MIN_ICLOGS ||
 	     ap->logbufs > XLOG_MAX_ICLOGS)) {
 		cmn_err(CE_WARN,
@@ -226,6 +224,7 @@ xfs_start_flags(
 	}
 	mp->m_logbufs = ap->logbufs;
 	if (ap->logbufsize != -1 &&
+	    ap->logbufsize !=  0 &&
 	    ap->logbufsize != 16 * 1024 &&
 	    ap->logbufsize != 32 * 1024 &&
 	    ap->logbufsize != 64 * 1024 &&
@@ -1910,13 +1909,14 @@ xfs_showargs(
 		seq_printf(m, "," MNTOPT_IHASHSIZE "=%d", mp->m_ihsize);
 
 	if (mp->m_flags & XFS_MOUNT_DFLT_IOSIZE)
-		seq_printf(m, "," MNTOPT_ALLOCSIZE "=%d", 1<<mp->m_writeio_log);
+		seq_printf(m, "," MNTOPT_ALLOCSIZE "=%dk",
+				(int)(1 << mp->m_writeio_log) >> 10);
 
 	if (mp->m_logbufs > 0)
 		seq_printf(m, "," MNTOPT_LOGBUFS "=%d", mp->m_logbufs);
 
 	if (mp->m_logbsize > 0)
-		seq_printf(m, "," MNTOPT_LOGBSIZE "=%d", mp->m_logbsize);
+		seq_printf(m, "," MNTOPT_LOGBSIZE "=%dk", mp->m_logbsize >> 10);
 
 	if (mp->m_logname)
 		seq_printf(m, "," MNTOPT_LOGDEV "=%s", mp->m_logname);
