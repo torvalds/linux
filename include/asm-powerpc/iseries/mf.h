@@ -29,7 +29,7 @@
 #include <linux/types.h>
 
 #include <asm/iseries/hv_types.h>
-#include <asm/iSeries/iseries/hv_call_event.h>
+#include <asm/iseries/hv_call_event.h>
 
 struct rtc_time;
 
