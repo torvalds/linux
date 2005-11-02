@@ -60,8 +60,9 @@
  * quota functionality, including maintaining the freelist and hash
  * tables of dquots.
  */
-mutex_t xfs_Gqm_lock;
+mutex_t		xfs_Gqm_lock;
 struct xfs_qm	*xfs_Gqm;
+uint		ndquot;
 
 kmem_zone_t	*qm_dqzone;
 kmem_zone_t	*qm_dqtrxzone;
@@ -108,25 +109,25 @@ extern mutex_t	qcheck_lock;
 STATIC struct xfs_qm *
 xfs_Gqm_init(void)
 {
-	xfs_qm_t		*xqm;
-	int			hsize, i;
-
-	xqm = kmem_zalloc(sizeof(xfs_qm_t), KM_SLEEP);
-	ASSERT(xqm);
+	xfs_dqhash_t	*udqhash, *gdqhash;
+	xfs_qm_t	*xqm;
+	uint		i, hsize, flags = KM_SLEEP | KM_MAYFAIL;
 
 	/*
 	 * Initialize the dquot hash tables.
 	 */
-	hsize = (DQUOT_HASH_HEURISTIC < XFS_QM_NCSIZE_THRESHOLD) ?
-		XFS_QM_HASHSIZE_LOW : XFS_QM_HASHSIZE_HIGH;
-	xqm->qm_dqhashmask = hsize - 1;
+	hsize = XFS_QM_HASHSIZE_HIGH;
+	while (!(udqhash = kmem_zalloc(hsize * sizeof(xfs_dqhash_t), flags))) {
+		if ((hsize >>= 1) <= XFS_QM_HASHSIZE_LOW)
+			flags = KM_SLEEP;
+	}
+	gdqhash = kmem_zalloc(hsize * sizeof(xfs_dqhash_t), KM_SLEEP);
+	ndquot = hsize << 8;
 
-	xqm->qm_usr_dqhtable = (xfs_dqhash_t *)kmem_zalloc(hsize *
-						      sizeof(xfs_dqhash_t),
-						      KM_SLEEP);
-	xqm->qm_grp_dqhtable = (xfs_dqhash_t *)kmem_zalloc(hsize *
-						      sizeof(xfs_dqhash_t),
-						      KM_SLEEP);
+	xqm = kmem_zalloc(sizeof(xfs_qm_t), KM_SLEEP);
+	xqm->qm_dqhashmask = hsize - 1;
+	xqm->qm_usr_dqhtable = udqhash;
+	xqm->qm_grp_dqhtable = gdqhash;
 	ASSERT(xqm->qm_usr_dqhtable != NULL);
 	ASSERT(xqm->qm_grp_dqhtable != NULL);
 

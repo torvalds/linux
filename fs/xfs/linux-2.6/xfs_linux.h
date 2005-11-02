@@ -217,19 +217,7 @@ static inline void set_buffer_unwritten_io(struct buffer_head *bh)
 #define Q_XSETPQLIM	XQM_CMD(10)	/* set projects disk limits */
 #define Q_XGETPQUOTA	XQM_CMD(11)	/* get projects disk limits */
 
-/* IRIX uses a dynamic sizing algorithm (ndquot = 200 + numprocs*2) */
-/* we may well need to fine-tune this if it ever becomes an issue.  */
-#define DQUOT_MAX_HEURISTIC	1024	/* NR_DQUOTS */
-#define ndquot			DQUOT_MAX_HEURISTIC
-
-/* IRIX uses the current size of the name cache to guess a good value */
-/* - this isn't the same but is a good enough starting point for now. */
-#define DQUOT_HASH_HEURISTIC	files_stat.nr_files
-
-/* IRIX inodes maintain the project ID also, zero this field on Linux */
-#define DEFAULT_PROJID	0
-#define dfltprid	DEFAULT_PROJID
-
+#define dfltprid	0
 #define MAXPATHLEN	1024
 
 #define MIN(a,b)	(min(a,b))

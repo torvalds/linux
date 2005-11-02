@@ -26,6 +26,7 @@
 struct xfs_qm;
 struct xfs_inode;
 
+extern uint		ndquot;
 extern mutex_t		xfs_Gqm_lock;
 extern struct xfs_qm	*xfs_Gqm;
 extern kmem_zone_t	*qm_dqzone;
@@ -51,9 +52,8 @@ extern kmem_zone_t	*qm_dqtrxzone;
 /*
  * Dquot hashtable constants/threshold values.
  */
-#define XFS_QM_NCSIZE_THRESHOLD		5000
-#define XFS_QM_HASHSIZE_LOW		32
-#define XFS_QM_HASHSIZE_HIGH		64
+#define XFS_QM_HASHSIZE_LOW		(NBPP / sizeof(xfs_dqhash_t))
+#define XFS_QM_HASHSIZE_HIGH		((NBPP * 4) / sizeof(xfs_dqhash_t))
 
 /*
  * We output a cmn_err when quotachecking a quota file with more than
