@@ -16,8 +16,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#ifndef _ASM_DART_H
-#define _ASM_DART_H
+#ifndef _POWERPC_SYSDEV_DART_H
+#define _POWERPC_SYSDEV_DART_H
 
 
 /* physical base of DART registers */
@@ -56,4 +56,4 @@
 #define DART_PAGE_FACTOR	(PAGE_SHIFT - DART_PAGE_SHIFT)
 
 
-#endif
+#endif /* _POWERPC_SYSDEV_DART_H */
