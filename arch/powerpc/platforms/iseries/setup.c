@@ -46,7 +46,7 @@
 #include <asm/sections.h>
 #include <asm/abs_addr.h>
 #include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/HvCallEvent.h>
+#include <asm/iseries/hv_call_event.h>
 #include <asm/iSeries/HvCallXm.h>
 #include <asm/iSeries/ItLpQueue.h>
 #include <asm/iSeries/mf.h>

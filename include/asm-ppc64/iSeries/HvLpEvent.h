@@ -25,7 +25,7 @@
 #include <asm/types.h>
 #include <asm/ptrace.h>
 #include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/HvCallEvent.h>
+#include <asm/iseries/hv_call_event.h>
 
 /*
  * HvLpEvent is the structure for Lp Event messages passed between
