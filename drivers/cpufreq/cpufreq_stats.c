@@ -247,6 +247,7 @@ cpufreq_stats_create_table (struct cpufreq_policy *policy,
 	return 0;
 error_out:
 	cpufreq_cpu_put(data);
+error_get_fail:
 	kfree(stat);
 	cpufreq_stats_table[cpu] = NULL;
 	return ret;
