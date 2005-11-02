@@ -1998,79 +1998,74 @@ xfs_qm_dqcheck(
 	 * This is all fine; things are still consistent, and we haven't lost
 	 * any quota information. Just don't complain about bad dquot blks.
 	 */
-	if (INT_GET(ddq->d_magic, ARCH_CONVERT) != XFS_DQUOT_MAGIC) {
+	if (be16_to_cpu(ddq->d_magic) != XFS_DQUOT_MAGIC) {
 		if (flags & XFS_QMOPT_DOWARN)
 			cmn_err(CE_ALERT,
 			"%s : XFS dquot ID 0x%x, magic 0x%x != 0x%x",
-			str, id,
-			INT_GET(ddq->d_magic, ARCH_CONVERT), XFS_DQUOT_MAGIC);
+			str, id, be16_to_cpu(ddq->d_magic), XFS_DQUOT_MAGIC);
 		errs++;
 	}
-	if (INT_GET(ddq->d_version, ARCH_CONVERT) != XFS_DQUOT_VERSION) {
+	if (ddq->d_version != XFS_DQUOT_VERSION) {
 		if (flags & XFS_QMOPT_DOWARN)
 			cmn_err(CE_ALERT,
 			"%s : XFS dquot ID 0x%x, version 0x%x != 0x%x",
-			str, id,
-			INT_GET(ddq->d_magic, ARCH_CONVERT), XFS_DQUOT_VERSION);
+			str, id, ddq->d_version, XFS_DQUOT_VERSION);
 		errs++;
 	}
 
-	if (INT_GET(ddq->d_flags, ARCH_CONVERT) != XFS_DQ_USER &&
-	    INT_GET(ddq->d_flags, ARCH_CONVERT) != XFS_DQ_PROJ &&
-	    INT_GET(ddq->d_flags, ARCH_CONVERT) != XFS_DQ_GROUP) {
+	if (ddq->d_flags != XFS_DQ_USER &&
+	    ddq->d_flags != XFS_DQ_PROJ &&
+	    ddq->d_flags != XFS_DQ_GROUP) {
 		if (flags & XFS_QMOPT_DOWARN)
 			cmn_err(CE_ALERT,
 			"%s : XFS dquot ID 0x%x, unknown flags 0x%x",
-			str, id, INT_GET(ddq->d_flags, ARCH_CONVERT));
+			str, id, ddq->d_flags);
 		errs++;
 	}
 
-	if (id != -1 && id != INT_GET(ddq->d_id, ARCH_CONVERT)) {
+	if (id != -1 && id != be32_to_cpu(ddq->d_id)) {
 		if (flags & XFS_QMOPT_DOWARN)
 			cmn_err(CE_ALERT,
 			"%s : ondisk-dquot 0x%p, ID mismatch: "
 			"0x%x expected, found id 0x%x",
-			str, ddq, id, INT_GET(ddq->d_id, ARCH_CONVERT));
+			str, ddq, id, be32_to_cpu(ddq->d_id));
 		errs++;
 	}
 
 	if (!errs && ddq->d_id) {
-		if (INT_GET(ddq->d_blk_softlimit, ARCH_CONVERT) &&
-		    INT_GET(ddq->d_bcount, ARCH_CONVERT) >=
-				INT_GET(ddq->d_blk_softlimit, ARCH_CONVERT)) {
+		if (ddq->d_blk_softlimit &&
+		    be64_to_cpu(ddq->d_bcount) >=
+				be64_to_cpu(ddq->d_blk_softlimit)) {
 			if (!ddq->d_btimer) {
 				if (flags & XFS_QMOPT_DOWARN)
 					cmn_err(CE_ALERT,
 					"%s : Dquot ID 0x%x (0x%p) "
 					"BLK TIMER NOT STARTED",
-					str, (int)
-					INT_GET(ddq->d_id, ARCH_CONVERT), ddq);
+					str, (int)be32_to_cpu(ddq->d_id), ddq);
 				errs++;
 			}
 		}
-		if (INT_GET(ddq->d_ino_softlimit, ARCH_CONVERT) &&
-		    INT_GET(ddq->d_icount, ARCH_CONVERT) >=
-				INT_GET(ddq->d_ino_softlimit, ARCH_CONVERT)) {
+		if (ddq->d_ino_softlimit &&
+		    be64_to_cpu(ddq->d_icount) >=
+				be64_to_cpu(ddq->d_ino_softlimit)) {
 			if (!ddq->d_itimer) {
 				if (flags & XFS_QMOPT_DOWARN)
 					cmn_err(CE_ALERT,
 					"%s : Dquot ID 0x%x (0x%p) "
 					"INODE TIMER NOT STARTED",
-					str, (int)
-					INT_GET(ddq->d_id, ARCH_CONVERT), ddq);
+					str, (int)be32_to_cpu(ddq->d_id), ddq);
 				errs++;
 			}
 		}
-		if (INT_GET(ddq->d_rtb_softlimit, ARCH_CONVERT) &&
-		    INT_GET(ddq->d_rtbcount, ARCH_CONVERT) >=
-				INT_GET(ddq->d_rtb_softlimit, ARCH_CONVERT)) {
+		if (ddq->d_rtb_softlimit &&
+		    be64_to_cpu(ddq->d_rtbcount) >=
+				be64_to_cpu(ddq->d_rtb_softlimit)) {
 			if (!ddq->d_rtbtimer) {
 				if (flags & XFS_QMOPT_DOWARN)
 					cmn_err(CE_ALERT,
 					"%s : Dquot ID 0x%x (0x%p) "
 					"RTBLK TIMER NOT STARTED",
-					str, (int)
-					INT_GET(ddq->d_id, ARCH_CONVERT), ddq);
+					str, (int)be32_to_cpu(ddq->d_id), ddq);
 				errs++;
 			}
 		}
@@ -2088,10 +2083,11 @@ xfs_qm_dqcheck(
 	ASSERT(id != -1);
 	ASSERT(flags & XFS_QMOPT_DQREPAIR);
 	memset(d, 0, sizeof(xfs_dqblk_t));
-	INT_SET(d->dd_diskdq.d_magic, ARCH_CONVERT, XFS_DQUOT_MAGIC);
-	INT_SET(d->dd_diskdq.d_version, ARCH_CONVERT, XFS_DQUOT_VERSION);
-	INT_SET(d->dd_diskdq.d_id, ARCH_CONVERT, id);
-	INT_SET(d->dd_diskdq.d_flags, ARCH_CONVERT, type);
+
+	d->dd_diskdq.d_magic = cpu_to_be16(XFS_DQUOT_MAGIC);
+	d->dd_diskdq.d_version = XFS_DQUOT_VERSION;
+	d->dd_diskdq.d_flags = type;
+	d->dd_diskdq.d_id = cpu_to_be32(id);
 
 	return errs;
 }

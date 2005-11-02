@@ -45,28 +45,28 @@ typedef __uint16_t	xfs_qwarncnt_t;
  * to construct the on disk structure.
  */
 typedef struct	xfs_disk_dquot {
-/*16*/	u_int16_t	d_magic;	/* dquot magic = XFS_DQUOT_MAGIC */
-/*8 */	u_int8_t	d_version;	/* dquot version */
-/*8 */	u_int8_t	d_flags;	/* XFS_DQ_USER/PROJ/GROUP */
-/*32*/	xfs_dqid_t	d_id;		/* user,project,group id */
-/*64*/	xfs_qcnt_t	d_blk_hardlimit;/* absolute limit on disk blks */
-/*64*/	xfs_qcnt_t	d_blk_softlimit;/* preferred limit on disk blks */
-/*64*/	xfs_qcnt_t	d_ino_hardlimit;/* maximum # allocated inodes */
-/*64*/	xfs_qcnt_t	d_ino_softlimit;/* preferred inode limit */
-/*64*/	xfs_qcnt_t	d_bcount;	/* disk blocks owned by the user */
-/*64*/	xfs_qcnt_t	d_icount;	/* inodes owned by the user */
-/*32*/	__int32_t	d_itimer;	/* zero if within inode limits if not,
+	__be16		d_magic;	/* dquot magic = XFS_DQUOT_MAGIC */
+	__u8		d_version;	/* dquot version */
+	__u8		d_flags;	/* XFS_DQ_USER/PROJ/GROUP */
+	__be32		d_id;		/* user,project,group id */
+	__be64		d_blk_hardlimit;/* absolute limit on disk blks */
+	__be64		d_blk_softlimit;/* preferred limit on disk blks */
+	__be64		d_ino_hardlimit;/* maximum # allocated inodes */
+	__be64		d_ino_softlimit;/* preferred inode limit */
+	__be64		d_bcount;	/* disk blocks owned by the user */
+	__be64		d_icount;	/* inodes owned by the user */
+	__be32		d_itimer;	/* zero if within inode limits if not,
 					   this is when we refuse service */
-/*32*/	__int32_t	d_btimer;	/* similar to above; for disk blocks */
-/*16*/	xfs_qwarncnt_t	d_iwarns;	/* warnings issued wrt num inodes */
-/*16*/	xfs_qwarncnt_t	d_bwarns;	/* warnings issued wrt disk blocks */
-/*32*/	__int32_t	d_pad0;		/* 64 bit align */
-/*64*/	xfs_qcnt_t	d_rtb_hardlimit;/* absolute limit on realtime blks */
-/*64*/	xfs_qcnt_t	d_rtb_softlimit;/* preferred limit on RT disk blks */
-/*64*/	xfs_qcnt_t	d_rtbcount;	/* realtime blocks owned */
-/*32*/	__int32_t	d_rtbtimer;	/* similar to above; for RT disk blocks */
-/*16*/	xfs_qwarncnt_t	d_rtbwarns;	/* warnings issued wrt RT disk blocks */
-/*16*/	__uint16_t	d_pad;
+	__be32		d_btimer;	/* similar to above; for disk blocks */
+	__be16		d_iwarns;	/* warnings issued wrt num inodes */
+	__be16		d_bwarns;	/* warnings issued wrt disk blocks */
+	__be32		d_pad0;		/* 64 bit align */
+	__be64		d_rtb_hardlimit;/* absolute limit on realtime blks */
+	__be64		d_rtb_softlimit;/* preferred limit on RT disk blks */
+	__be64		d_rtbcount;	/* realtime blocks owned */
+	__be32		d_rtbtimer;	/* similar to above; for RT disk blocks */
+	__be16		d_rtbwarns;	/* warnings issued wrt RT disk blocks */
+	__be16		d_pad;
 } xfs_disk_dquot_t;
 
 /*

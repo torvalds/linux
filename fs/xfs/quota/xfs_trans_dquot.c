@@ -413,25 +413,25 @@ xfs_trans_apply_dquot_deltas(
 				qtrx->qt_delrtb_delta;
 #ifdef QUOTADEBUG
 			if (totalbdelta < 0)
-				ASSERT(INT_GET(d->d_bcount, ARCH_CONVERT) >=
+				ASSERT(be64_to_cpu(d->d_bcount) >=
 				       (xfs_qcnt_t) -totalbdelta);
 
 			if (totalrtbdelta < 0)
-				ASSERT(INT_GET(d->d_rtbcount, ARCH_CONVERT) >=
+				ASSERT(be64_to_cpu(d->d_rtbcount) >=
 				       (xfs_qcnt_t) -totalrtbdelta);
 
 			if (qtrx->qt_icount_delta < 0)
-				ASSERT(INT_GET(d->d_icount, ARCH_CONVERT) >=
+				ASSERT(be64_to_cpu(d->d_icount) >=
 				       (xfs_qcnt_t) -qtrx->qt_icount_delta);
 #endif
 			if (totalbdelta)
-				INT_MOD(d->d_bcount, ARCH_CONVERT, (xfs_qcnt_t)totalbdelta);
+				be64_add(&d->d_bcount, (xfs_qcnt_t)totalbdelta);
 
 			if (qtrx->qt_icount_delta)
-				INT_MOD(d->d_icount, ARCH_CONVERT, (xfs_qcnt_t)qtrx->qt_icount_delta);
+				be64_add(&d->d_icount, (xfs_qcnt_t)qtrx->qt_icount_delta);
 
 			if (totalrtbdelta)
-				INT_MOD(d->d_rtbcount, ARCH_CONVERT, (xfs_qcnt_t)totalrtbdelta);
+				be64_add(&d->d_rtbcount, (xfs_qcnt_t)totalrtbdelta);
 
 			/*
 			 * Get any default limits in use.
@@ -515,11 +515,11 @@ xfs_trans_apply_dquot_deltas(
 			}
 
 			ASSERT(dqp->q_res_bcount >=
-				INT_GET(dqp->q_core.d_bcount, ARCH_CONVERT));
+				be64_to_cpu(dqp->q_core.d_bcount));
 			ASSERT(dqp->q_res_icount >=
-				INT_GET(dqp->q_core.d_icount, ARCH_CONVERT));
+				be64_to_cpu(dqp->q_core.d_icount));
 			ASSERT(dqp->q_res_rtbcount >=
-				INT_GET(dqp->q_core.d_rtbcount, ARCH_CONVERT));
+				be64_to_cpu(dqp->q_core.d_rtbcount));
 		}
 		/*
 		 * Do the group quotas next
@@ -626,26 +626,26 @@ xfs_trans_dqresv(
 	}
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 	if (flags & XFS_TRANS_DQ_RES_BLKS) {
-		hardlimit = INT_GET(dqp->q_core.d_blk_hardlimit, ARCH_CONVERT);
+		hardlimit = be64_to_cpu(dqp->q_core.d_blk_hardlimit);
 		if (!hardlimit)
 			hardlimit = q->qi_bhardlimit;
-		softlimit = INT_GET(dqp->q_core.d_blk_softlimit, ARCH_CONVERT);
+		softlimit = be64_to_cpu(dqp->q_core.d_blk_softlimit);
 		if (!softlimit)
 			softlimit = q->qi_bsoftlimit;
-		timer = INT_GET(dqp->q_core.d_btimer, ARCH_CONVERT);
-		warns = INT_GET(dqp->q_core.d_bwarns, ARCH_CONVERT);
+		timer = be32_to_cpu(dqp->q_core.d_btimer);
+		warns = be16_to_cpu(dqp->q_core.d_bwarns);
 		warnlimit = XFS_QI_BWARNLIMIT(dqp->q_mount);
 		resbcountp = &dqp->q_res_bcount;
 	} else {
 		ASSERT(flags & XFS_TRANS_DQ_RES_RTBLKS);
-		hardlimit = INT_GET(dqp->q_core.d_rtb_hardlimit, ARCH_CONVERT);
+		hardlimit = be64_to_cpu(dqp->q_core.d_rtb_hardlimit);
 		if (!hardlimit)
 			hardlimit = q->qi_rtbhardlimit;
-		softlimit = INT_GET(dqp->q_core.d_rtb_softlimit, ARCH_CONVERT);
+		softlimit = be64_to_cpu(dqp->q_core.d_rtb_softlimit);
 		if (!softlimit)
 			softlimit = q->qi_rtbsoftlimit;
-		timer = INT_GET(dqp->q_core.d_rtbtimer, ARCH_CONVERT);
-		warns = INT_GET(dqp->q_core.d_rtbwarns, ARCH_CONVERT);
+		timer = be32_to_cpu(dqp->q_core.d_rtbtimer);
+		warns = be16_to_cpu(dqp->q_core.d_rtbwarns);
 		warnlimit = XFS_QI_RTBWARNLIMIT(dqp->q_mount);
 		resbcountp = &dqp->q_res_rtbcount;
 	}
@@ -684,16 +684,14 @@ xfs_trans_dqresv(
 			}
 		}
 		if (ninos > 0) {
-			count = INT_GET(dqp->q_core.d_icount, ARCH_CONVERT);
-			timer = INT_GET(dqp->q_core.d_itimer, ARCH_CONVERT);
-			warns = INT_GET(dqp->q_core.d_iwarns, ARCH_CONVERT);
+			count = be64_to_cpu(dqp->q_core.d_icount);
+			timer = be32_to_cpu(dqp->q_core.d_itimer);
+			warns = be16_to_cpu(dqp->q_core.d_iwarns);
 			warnlimit = XFS_QI_IWARNLIMIT(dqp->q_mount);
-			hardlimit = INT_GET(dqp->q_core.d_ino_hardlimit,
-						ARCH_CONVERT);
+			hardlimit = be64_to_cpu(dqp->q_core.d_ino_hardlimit);
 			if (!hardlimit)
 				hardlimit = q->qi_ihardlimit;
-			softlimit = INT_GET(dqp->q_core.d_ino_softlimit,
-						ARCH_CONVERT);
+			softlimit = be64_to_cpu(dqp->q_core.d_ino_softlimit);
 			if (!softlimit)
 				softlimit = q->qi_isoftlimit;
 			if (hardlimit > 0ULL && count >= hardlimit) {
@@ -740,9 +738,9 @@ xfs_trans_dqresv(
 					    XFS_TRANS_DQ_RES_INOS,
 					    ninos);
 	}
-	ASSERT(dqp->q_res_bcount >= INT_GET(dqp->q_core.d_bcount, ARCH_CONVERT));
-	ASSERT(dqp->q_res_rtbcount >= INT_GET(dqp->q_core.d_rtbcount, ARCH_CONVERT));
-	ASSERT(dqp->q_res_icount >= INT_GET(dqp->q_core.d_icount, ARCH_CONVERT));
+	ASSERT(dqp->q_res_bcount >= be64_to_cpu(dqp->q_core.d_bcount));
+	ASSERT(dqp->q_res_rtbcount >= be64_to_cpu(dqp->q_core.d_rtbcount));
+	ASSERT(dqp->q_res_icount >= be64_to_cpu(dqp->q_core.d_icount));
 
 error_return:
 	if (! (flags & XFS_QMOPT_DQLOCK)) {

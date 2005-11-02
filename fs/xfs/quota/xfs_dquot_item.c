@@ -450,7 +450,7 @@ xfs_qm_dquot_logitem_init(
 	lp->qli_item.li_mountp = dqp->q_mount;
 	lp->qli_dquot = dqp;
 	lp->qli_format.qlf_type = XFS_LI_DQUOT;
-	lp->qli_format.qlf_id = INT_GET(dqp->q_core.d_id, ARCH_CONVERT);
+	lp->qli_format.qlf_id = be32_to_cpu(dqp->q_core.d_id);
 	lp->qli_format.qlf_blkno = dqp->q_blkno;
 	lp->qli_format.qlf_len = 1;
 	/*
