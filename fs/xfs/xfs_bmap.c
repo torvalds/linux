@@ -3909,19 +3909,20 @@ xfs_bmap_add_attrfork(
 		goto error2;
 	if (!XFS_SB_VERSION_HASATTR(&mp->m_sb) ||
 	   (!XFS_SB_VERSION_HASATTR2(&mp->m_sb) && version == 2)) {
-		logflags = 0;
+		__int64_t sbfields = 0;
+
 		s = XFS_SB_LOCK(mp);
 		if (!XFS_SB_VERSION_HASATTR(&mp->m_sb)) {
 			XFS_SB_VERSION_ADDATTR(&mp->m_sb);
-			logflags |= XFS_SB_VERSIONNUM;
+			sbfields |= XFS_SB_VERSIONNUM;
 		}
 		if (!XFS_SB_VERSION_HASATTR2(&mp->m_sb) && version == 2) {
 			XFS_SB_VERSION_ADDATTR2(&mp->m_sb);
-			logflags |= (XFS_SB_VERSIONNUM | XFS_SB_FEATURES2);
+			sbfields |= (XFS_SB_VERSIONNUM | XFS_SB_FEATURES2);
 		}
-		if (logflags) {
+		if (sbfields) {
 			XFS_SB_UNLOCK(mp, s);
-			xfs_mod_sb(tp, logflags);
+			xfs_mod_sb(tp, sbfields);
 		} else
 			XFS_SB_UNLOCK(mp, s);
 	}

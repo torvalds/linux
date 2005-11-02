@@ -117,12 +117,6 @@ xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes)
 	int maxforkoff;	/* upper limit on valid forkoff locations */
 	xfs_mount_t *mp = dp->i_mount;
 
-	if (unlikely(mp->m_flags & XFS_MOUNT_COMPAT_ATTR)) {
-		if (bytes <= XFS_IFORK_ASIZE(dp))
-			return mp->m_attroffset >> 3;
-		return 0;
-	}
-
 	offset = (XFS_LITINO(mp) - bytes) >> 3; /* rounded down */
 
 	switch (dp->i_d.di_format) {
@@ -132,6 +126,12 @@ xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes)
 	case XFS_DINODE_FMT_UUID:
 		minforkoff = roundup(sizeof(uuid_t), 8) >> 3;
 		return (offset >= minforkoff) ? minforkoff : 0;
+	}
+
+	if (unlikely(mp->m_flags & XFS_MOUNT_COMPAT_ATTR)) {
+		if (bytes <= XFS_IFORK_ASIZE(dp))
+			return mp->m_attroffset >> 3;
+		return 0;
 	}
 
 	/* data fork btree root can have at least this many key/ptr pairs */
