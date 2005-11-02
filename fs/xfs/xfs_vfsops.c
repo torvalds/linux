@@ -382,6 +382,10 @@ xfs_finish_flags(
 			return XFS_ERROR(EINVAL);
 	}
 
+	if (XFS_SB_VERSION_HASATTR2(&mp->m_sb)) {
+		mp->m_flags &= ~XFS_MOUNT_COMPAT_ATTR;
+	}
+
 	return 0;
 }
 
@@ -1676,6 +1680,8 @@ xfs_parseargs(
 	int			iosize;
 
 	args->flags |= XFSMNT_COMPAT_IOSIZE;
+	args->flags |= XFSMNT_COMPAT_ATTR;
+
 #if 0	/* XXX: off by default, until some remaining issues ironed out */
 	args->flags |= XFSMNT_IDELETE; /* default to on */
 #endif
@@ -1883,7 +1889,6 @@ xfs_showargs(
 		{ XFS_MOUNT_OSYNCISOSYNC,	"," MNTOPT_OSYNCISOSYNC },
 		{ XFS_MOUNT_BARRIER,		"," MNTOPT_BARRIER },
 		{ XFS_MOUNT_IDELETE,		"," MNTOPT_NOIKEEP },
-		{ XFS_MOUNT_COMPAT_ATTR,	"," MNTOPT_NOATTR2 },
 		{ 0, NULL }
 	};
 	struct proc_xfs_info	*xfs_infop;
@@ -1923,6 +1928,9 @@ xfs_showargs(
 
 	if (!(mp->m_flags & XFS_MOUNT_32BITINOOPT))
 		seq_printf(m, "," MNTOPT_64BITINODE);
+
+	if (!(mp->m_flags & XFS_MOUNT_COMPAT_ATTR))
+		seq_printf(m, "," MNTOPT_ATTR2);
 
 	if (!(mp->m_flags & XFS_MOUNT_COMPAT_IOSIZE))
 		seq_printf(m, "," MNTOPT_LARGEIO);
