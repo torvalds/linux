@@ -41,6 +41,7 @@
  */
 struct xfs_mount_args {
 	int	flags;		/* flags -> see XFSMNT_... macros below */
+	int	flags2;		/* flags -> see XFSMNT2_... macros below */
 	int	logbufs;	/* Number of log buffers, -1 to default */
 	int	logbufsize;	/* Size of log buffers, -1 to default */
 	char	fsname[MAXNAMELEN+1];	/* data device name */
@@ -54,7 +55,7 @@ struct xfs_mount_args {
 };
 
 /*
- * XFS mount option flags
+ * XFS mount option flags -- args->flags1
  */
 #define	XFSMNT_COMPAT_ATTR	0x00000001	/* do not use ATTR2 format */
 #define	XFSMNT_WSYNC		0x00000002	/* safe mode nfs mount
@@ -77,7 +78,7 @@ struct xfs_mount_args {
 #define XFSMNT_SHARED		0x00001000	/* shared XFS mount */
 #define XFSMNT_IOSIZE		0x00002000	/* optimize for I/O size */
 #define XFSMNT_OSYNCISOSYNC	0x00004000	/* o_sync is REALLY o_sync */
-						/* (osyncisdsync is now default) */
+						/* (osyncisdsync is default) */
 #define XFSMNT_32BITINODES	0x00200000	/* restrict inodes to 32
 						 * bits of address space */
 #define XFSMNT_GQUOTA		0x00400000	/* group quota accounting */
@@ -92,7 +93,12 @@ struct xfs_mount_args {
 #define XFSMNT_IHASHSIZE	0x20000000	/* inode hash table size */
 #define XFSMNT_DIRSYNC		0x40000000	/* sync creat,link,unlink,rename
 						 * symlink,mkdir,rmdir,mknod */
-#define XFSMNT_COMPAT_IOSIZE	0x80000000	/* don't report large preferred
-						 * I/O size in stat() */
+#define XFSMNT_FLAGS2		0x80000000	/* more flags set in flags2 */
+
+/*
+ * XFS mount option flags -- args->flags2
+ */
+#define XFSMNT2_COMPAT_IOSIZE	0x00000001	/* don't report large preferred
+						 * I/O size in stat(2) */
 
 #endif	/* __XFS_CLNT_H__ */

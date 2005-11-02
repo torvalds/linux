@@ -333,7 +333,7 @@ typedef struct xfs_mount {
 	sema_t			m_growlock;	/* growfs mutex */
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
 	uint			m_dmevmask;	/* DMI events for this FS */
-	uint			m_flags;	/* global mount flags */
+	__uint64_t		m_flags;	/* global mount flags */
 	uint			m_attroffset;	/* inode attribute offset */
 	uint			m_dir_node_ents; /* #entries in a dir danode */
 	uint			m_attr_node_ents; /* #entries in attr danode */
@@ -378,39 +378,39 @@ typedef struct xfs_mount {
 /*
  * Flags for m_flags.
  */
-#define	XFS_MOUNT_WSYNC		0x00000001	/* for nfs - all metadata ops
+#define	XFS_MOUNT_WSYNC		(1ULL << 0)	/* for nfs - all metadata ops
 						   must be synchronous except
 						   for space allocations */
-#define	XFS_MOUNT_INO64		0x00000002
-			     /* 0x00000004	-- currently unused */
-			     /* 0x00000008	-- currently unused */
-#define XFS_MOUNT_FS_SHUTDOWN	0x00000010	/* atomic stop of all filesystem
+#define	XFS_MOUNT_INO64		(1ULL << 1)
+			     /* (1ULL << 2)	-- currently unused */
+			     /* (1ULL << 3)	-- currently unused */
+#define XFS_MOUNT_FS_SHUTDOWN	(1ULL << 4)	/* atomic stop of all filesystem
 						   operations, typically for
 						   disk errors in metadata */
-#define XFS_MOUNT_NOATIME	0x00000020	/* don't modify inode access
+#define XFS_MOUNT_NOATIME	(1ULL << 5)	/* don't modify inode access
 						   times on reads */
-#define XFS_MOUNT_RETERR	0x00000040      /* return alignment errors to
+#define XFS_MOUNT_RETERR	(1ULL << 6)     /* return alignment errors to
 						   user */
-#define XFS_MOUNT_NOALIGN	0x00000080	/* turn off stripe alignment
+#define XFS_MOUNT_NOALIGN	(1ULL << 7)	/* turn off stripe alignment
 						   allocations */
-#define XFS_MOUNT_COMPAT_ATTR	0x00000100	/* do not use attr2 format */
-			     /*	0x00000200	-- currently unused */
-#define XFS_MOUNT_NORECOVERY	0x00000400	/* no recovery - dirty fs */
-#define XFS_MOUNT_SHARED	0x00000800	/* shared mount */
-#define XFS_MOUNT_DFLT_IOSIZE	0x00001000	/* set default i/o size */
-#define XFS_MOUNT_OSYNCISOSYNC	0x00002000	/* o_sync is REALLY o_sync */
+#define XFS_MOUNT_COMPAT_ATTR	(1ULL << 8)	/* do not use attr2 format */
+			     /*	(1ULL << 9)	-- currently unused */
+#define XFS_MOUNT_NORECOVERY	(1ULL << 10)	/* no recovery - dirty fs */
+#define XFS_MOUNT_SHARED	(1ULL << 11)	/* shared mount */
+#define XFS_MOUNT_DFLT_IOSIZE	(1ULL << 12)	/* set default i/o size */
+#define XFS_MOUNT_OSYNCISOSYNC	(1ULL << 13)	/* o_sync is REALLY o_sync */
 						/* osyncisdsync is now default*/
-#define XFS_MOUNT_32BITINODES	0x00004000	/* do not create inodes above
+#define XFS_MOUNT_32BITINODES	(1ULL << 14)	/* do not create inodes above
 						 * 32 bits in size */
-#define XFS_MOUNT_32BITINOOPT	0x00008000	/* saved mount option state */
-#define XFS_MOUNT_NOUUID	0x00010000	/* ignore uuid during mount */
-#define XFS_MOUNT_BARRIER	0x00020000
-#define XFS_MOUNT_IDELETE	0x00040000	/* delete empty inode clusters*/
-#define XFS_MOUNT_SWALLOC	0x00080000	/* turn on stripe width
+#define XFS_MOUNT_32BITINOOPT	(1ULL << 15)	/* saved mount option state */
+#define XFS_MOUNT_NOUUID	(1ULL << 16)	/* ignore uuid during mount */
+#define XFS_MOUNT_BARRIER	(1ULL << 17)
+#define XFS_MOUNT_IDELETE	(1ULL << 18)	/* delete empty inode clusters*/
+#define XFS_MOUNT_SWALLOC	(1ULL << 19)	/* turn on stripe width
 						 * allocation */
-#define XFS_MOUNT_IHASHSIZE	0x00100000	/* inode hash table size */
-#define XFS_MOUNT_DIRSYNC	0x00200000	/* synchronous directory ops */
-#define XFS_MOUNT_COMPAT_IOSIZE	0x00400000	/* don't report large preferred
+#define XFS_MOUNT_IHASHSIZE	(1ULL << 20)	/* inode hash table size */
+#define XFS_MOUNT_DIRSYNC	(1ULL << 21)	/* synchronous directory ops */
+#define XFS_MOUNT_COMPAT_IOSIZE	(1ULL << 22)	/* don't report large preferred
 						 * I/O size in stat() */
 
 

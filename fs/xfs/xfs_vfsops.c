@@ -291,10 +291,11 @@ xfs_start_flags(
 		mp->m_flags |= XFS_MOUNT_IDELETE;
 	if (ap->flags & XFSMNT_DIRSYNC)
 		mp->m_flags |= XFS_MOUNT_DIRSYNC;
-	if (ap->flags & XFSMNT_COMPAT_IOSIZE)
-		mp->m_flags |= XFS_MOUNT_COMPAT_IOSIZE;
 	if (ap->flags & XFSMNT_COMPAT_ATTR)
 		mp->m_flags |= XFS_MOUNT_COMPAT_ATTR;
+
+	if (ap->flags2 & XFSMNT2_COMPAT_IOSIZE)
+		mp->m_flags |= XFS_MOUNT_COMPAT_IOSIZE;
 
 	/*
 	 * no recovery flag requires a read-only mount
@@ -1679,7 +1680,7 @@ xfs_parseargs(
 	int			dsunit, dswidth, vol_dsunit, vol_dswidth;
 	int			iosize;
 
-	args->flags |= XFSMNT_COMPAT_IOSIZE;
+	args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
 	args->flags |= XFSMNT_COMPAT_ATTR;
 
 #if 0	/* XXX: off by default, until some remaining issues ironed out */
@@ -1811,9 +1812,9 @@ xfs_parseargs(
 		} else if (!strcmp(this_char, MNTOPT_NOIKEEP)) {
 			args->flags |= XFSMNT_IDELETE;
 		} else if (!strcmp(this_char, MNTOPT_LARGEIO)) {
-			args->flags &= ~XFSMNT_COMPAT_IOSIZE;
+			args->flags2 &= ~XFSMNT2_COMPAT_IOSIZE;
 		} else if (!strcmp(this_char, MNTOPT_NOLARGEIO)) {
-			args->flags |= XFSMNT_COMPAT_IOSIZE;
+			args->flags2 |= XFSMNT2_COMPAT_IOSIZE;
 		} else if (!strcmp(this_char, MNTOPT_ATTR2)) {
 			args->flags &= ~XFSMNT_COMPAT_ATTR;
 		} else if (!strcmp(this_char, MNTOPT_NOATTR2)) {
@@ -1867,6 +1868,8 @@ printk("XFS: irixsgid is now a sysctl(2) variable, option is deprecated.\n");
 		args->sunit = args->swidth = 0;
 	}
 
+	if (args->flags2)
+		args->flags |= XFSMNT_FLAGS2;
 	return 0;
 }
 
