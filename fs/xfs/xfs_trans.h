@@ -135,19 +135,6 @@ typedef struct xfs_ail_entry {
 	struct xfs_log_item	*ail_back;	/* AIL back pointer */
 } xfs_ail_entry_t;
 
-/*
- * This structure is passed as a parameter to xfs_trans_push_ail()
- * and is used to track the what LSN the waiting processes are
- * waiting to become unused.
- */
-typedef struct xfs_ail_ticket {
-	xfs_lsn_t		at_lsn;		/* lsn waitin for */
-	struct xfs_ail_ticket	*at_forw;	/* wait list ptr */
-	struct xfs_ail_ticket	*at_back;	/* wait list ptr */
-	sv_t			at_sema;	/* wait sema */
-} xfs_ail_ticket_t;
-
-
 typedef struct xfs_log_item {
 	xfs_ail_entry_t			li_ail;		/* AIL pointers */
 	xfs_lsn_t			li_lsn;		/* last on-disk lsn */
