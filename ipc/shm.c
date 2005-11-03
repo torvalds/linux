@@ -620,13 +620,13 @@ asmlinkage long sys_shmctl (int shmid, int cmd, struct shmid_ds __user *buf)
 			err = -EFAULT;
 			goto out;
 		}
-		if ((err = audit_ipc_perms(0, setbuf.uid, setbuf.gid, setbuf.mode)))
-			return err;
 		down(&shm_ids.sem);
 		shp = shm_lock(shmid);
 		err=-EINVAL;
 		if(shp==NULL)
 			goto out_up;
+		if ((err = audit_ipc_perms(0, setbuf.uid, setbuf.gid, setbuf.mode, &(shp->shm_perm))))
+			goto out_unlock_up;
 		err = shm_checkid(shp,shmid);
 		if(err)
 			goto out_unlock_up;

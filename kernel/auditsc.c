@@ -34,6 +34,9 @@
  *
  * Modified by Amy Griffis <amy.griffis@hp.com> to collect additional
  * filesystem information.
+ *
+ * Subject and object context labeling support added by <danjones@us.ibm.com>
+ * and <dustin.kirkland@us.ibm.com> for LSPP certification compliance.
  */
 
 #include <linux/init.h>
@@ -53,6 +56,7 @@
 #include <linux/netlink.h>
 #include <linux/compiler.h>
 #include <asm/unistd.h>
+#include <linux/security.h>
 
 /* 0 = no checking
    1 = put_count checking
@@ -109,6 +113,7 @@ struct audit_names {
 	uid_t		uid;
 	gid_t		gid;
 	dev_t		rdev;
+	char		*ctx;
 };
 
 struct audit_aux_data {
@@ -125,6 +130,7 @@ struct audit_aux_data_ipcctl {
 	uid_t			uid;
 	gid_t			gid;
 	mode_t			mode;
+	char 			*ctx;
 };
 
 struct audit_aux_data_socketcall {
@@ -743,10 +749,11 @@ static inline void audit_free_names(struct audit_context *context)
 		       context->serial, context->major, context->in_syscall,
 		       context->name_count, context->put_count,
 		       context->ino_count);
-		for (i = 0; i < context->name_count; i++)
+		for (i = 0; i < context->name_count; i++) {
 			printk(KERN_ERR "names[%d] = %p = %s\n", i,
 			       context->names[i].name,
 			       context->names[i].name ?: "(null)");
+		}
 		dump_stack();
 		return;
 	}
@@ -756,9 +763,13 @@ static inline void audit_free_names(struct audit_context *context)
 	context->ino_count  = 0;
 #endif
 
-	for (i = 0; i < context->name_count; i++)
+	for (i = 0; i < context->name_count; i++) {
+		char *p = context->names[i].ctx;
+		context->names[i].ctx = NULL;
+		kfree(p);
 		if (context->names[i].name)
 			__putname(context->names[i].name);
+	}
 	context->name_count = 0;
 	if (context->pwd)
 		dput(context->pwd);
@@ -778,6 +789,12 @@ static inline void audit_free_aux(struct audit_context *context)
 			dput(axi->dentry);
 			mntput(axi->mnt);
 		}
+		if ( aux->type == AUDIT_IPC ) {
+			struct audit_aux_data_ipcctl *axi = (void *)aux;
+			if (axi->ctx)
+				kfree(axi->ctx);
+		}
+
 		context->aux = aux->next;
 		kfree(aux);
 	}
@@ -862,7 +879,38 @@ static inline void audit_free_context(struct audit_context *context)
 		printk(KERN_ERR "audit: freed %d contexts\n", count);
 }
 
-static void audit_log_task_info(struct audit_buffer *ab)
+static void audit_log_task_context(struct audit_buffer *ab, gfp_t gfp_mask)
+{
+	char *ctx = NULL;
+	ssize_t len = 0;
+
+	len = security_getprocattr(current, "current", NULL, 0);
+	if (len < 0) {
+		if (len != -EINVAL)
+			goto error_path;
+		return;
+	}
+
+	ctx = kmalloc(len, gfp_mask);
+	if (!ctx) {
+		goto error_path;
+		return;
+	}
+
+	len = security_getprocattr(current, "current", ctx, len);
+	if (len < 0 )
+		goto error_path;
+
+	audit_log_format(ab, " subj=%s", ctx);
+
+error_path:
+	if (ctx)
+		kfree(ctx);
+	audit_panic("security_getprocattr error in audit_log_task_context");
+	return;
+}
+
+static void audit_log_task_info(struct audit_buffer *ab, gfp_t gfp_mask)
 {
 	char name[sizeof(current->comm)];
 	struct mm_struct *mm = current->mm;
@@ -875,6 +923,10 @@ static void audit_log_task_info(struct audit_buffer *ab)
 	if (!mm)
 		return;
 
+	/*
+	 * this is brittle; all callers that pass GFP_ATOMIC will have
+	 * NULL current->mm and we won't get here.
+	 */
 	down_read(&mm->mmap_sem);
 	vma = mm->mmap;
 	while (vma) {
@@ -888,6 +940,7 @@ static void audit_log_task_info(struct audit_buffer *ab)
 		vma = vma->vm_next;
 	}
 	up_read(&mm->mmap_sem);
+	audit_log_task_context(ab, gfp_mask);
 }
 
 static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
@@ -923,7 +976,7 @@ static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 		  context->gid,
 		  context->euid, context->suid, context->fsuid,
 		  context->egid, context->sgid, context->fsgid);
-	audit_log_task_info(ab);
+	audit_log_task_info(ab, gfp_mask);
 	audit_log_end(ab);
 
 	for (aux = context->aux; aux; aux = aux->next) {
@@ -936,8 +989,8 @@ static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 		case AUDIT_IPC: {
 			struct audit_aux_data_ipcctl *axi = (void *)aux;
 			audit_log_format(ab, 
-					 " qbytes=%lx iuid=%u igid=%u mode=%x",
-					 axi->qbytes, axi->uid, axi->gid, axi->mode);
+					 " qbytes=%lx iuid=%u igid=%u mode=%x obj=%s",
+					 axi->qbytes, axi->uid, axi->gid, axi->mode, axi->ctx);
 			break; }
 
 		case AUDIT_SOCKETCALL: {
@@ -1001,6 +1054,11 @@ static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 					 context->names[i].gid, 
 					 MAJOR(context->names[i].rdev), 
 					 MINOR(context->names[i].rdev));
+		if (context->names[i].ctx) {
+			audit_log_format(ab, " obj=%s",
+					context->names[i].ctx);
+		}
+
 		audit_log_end(ab);
 	}
 }
@@ -1243,6 +1301,39 @@ void audit_putname(const char *name)
 #endif
 }
 
+void audit_inode_context(int idx, const struct inode *inode)
+{
+	struct audit_context *context = current->audit_context;
+	char *ctx = NULL;
+	int len = 0;
+
+	if (!security_inode_xattr_getsuffix())
+		return;
+
+	len = security_inode_getsecurity(inode, (char *)security_inode_xattr_getsuffix(), NULL, 0, 0);
+	if (len < 0) 
+		goto error_path;
+
+	ctx = kmalloc(len, GFP_KERNEL);
+	if (!ctx) 
+		goto error_path;
+
+	len = security_inode_getsecurity(inode, (char *)security_inode_xattr_getsuffix(), ctx, len, 0);
+	if (len < 0)
+		goto error_path;
+
+	kfree(context->names[idx].ctx);
+	context->names[idx].ctx = ctx;
+	return;
+
+error_path:
+	if (ctx)
+		kfree(ctx);
+	audit_panic("error in audit_inode_context");
+	return;
+}
+
+
 /**
  * audit_inode - store the inode and device from a lookup
  * @name: name being audited
@@ -1282,6 +1373,7 @@ void __audit_inode(const char *name, const struct inode *inode, unsigned flags)
 	context->names[idx].uid   = inode->i_uid;
 	context->names[idx].gid   = inode->i_gid;
 	context->names[idx].rdev  = inode->i_rdev;
+	audit_inode_context(idx, inode);
 	if ((flags & LOOKUP_PARENT) && (strcmp(name, "/") != 0) && 
 	    (strcmp(name, ".") != 0)) {
 		context->names[idx].ino   = (unsigned long)-1;
@@ -1363,6 +1455,7 @@ update_context:
 		context->names[idx].uid   = inode->i_uid;
 		context->names[idx].gid   = inode->i_gid;
 		context->names[idx].rdev  = inode->i_rdev;
+		audit_inode_context(idx, inode);
 	}
 }
 
@@ -1423,6 +1516,38 @@ uid_t audit_get_loginuid(struct audit_context *ctx)
 	return ctx ? ctx->loginuid : -1;
 }
 
+static char *audit_ipc_context(struct kern_ipc_perm *ipcp)
+{
+	struct audit_context *context = current->audit_context;
+	char *ctx = NULL;
+	int len = 0;
+
+	if (likely(!context))
+		return NULL;
+
+	len = security_ipc_getsecurity(ipcp, NULL, 0);
+	if (len == -EOPNOTSUPP)
+		goto ret;
+	if (len < 0)
+		goto error_path;
+
+	ctx = kmalloc(len, GFP_ATOMIC);
+	if (!ctx)
+		goto error_path;
+
+	len = security_ipc_getsecurity(ipcp, ctx, len);
+	if (len < 0)
+		goto error_path;
+
+	return ctx;
+
+error_path:
+	kfree(ctx);
+	audit_panic("error in audit_ipc_context");
+ret:
+	return NULL;
+}
+
 /**
  * audit_ipc_perms - record audit data for ipc
  * @qbytes: msgq bytes
@@ -1432,7 +1557,7 @@ uid_t audit_get_loginuid(struct audit_context *ctx)
  *
  * Returns 0 for success or NULL context or < 0 on error.
  */
-int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
+int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, struct kern_ipc_perm *ipcp)
 {
 	struct audit_aux_data_ipcctl *ax;
 	struct audit_context *context = current->audit_context;
@@ -1440,7 +1565,7 @@ int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
 	if (likely(!context))
 		return 0;
 
-	ax = kmalloc(sizeof(*ax), GFP_KERNEL);
+	ax = kmalloc(sizeof(*ax), GFP_ATOMIC);
 	if (!ax)
 		return -ENOMEM;
 
@@ -1448,6 +1573,7 @@ int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode)
 	ax->uid = uid;
 	ax->gid = gid;
 	ax->mode = mode;
+	ax->ctx = audit_ipc_context(ipcp);
 
 	ax->d.type = AUDIT_IPC;
 	ax->d.next = context->aux;

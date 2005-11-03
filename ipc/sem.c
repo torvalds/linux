@@ -809,8 +809,6 @@ static int semctl_down(int semid, int semnum, int cmd, int version, union semun 
 	if(cmd == IPC_SET) {
 		if(copy_semid_from_user (&setbuf, arg.buf, version))
 			return -EFAULT;
-		if ((err = audit_ipc_perms(0, setbuf.uid, setbuf.gid, setbuf.mode)))
-			return err;
 	}
 	sma = sem_lock(semid);
 	if(sma==NULL)
@@ -821,7 +819,6 @@ static int semctl_down(int semid, int semnum, int cmd, int version, union semun 
 		goto out_unlock;
 	}	
 	ipcp = &sma->sem_perm;
-	
 	if (current->euid != ipcp->cuid && 
 	    current->euid != ipcp->uid && !capable(CAP_SYS_ADMIN)) {
 	    	err=-EPERM;
@@ -838,6 +835,8 @@ static int semctl_down(int semid, int semnum, int cmd, int version, union semun 
 		err = 0;
 		break;
 	case IPC_SET:
+		if ((err = audit_ipc_perms(0, setbuf.uid, setbuf.gid, setbuf.mode, ipcp)))
+			goto out_unlock;
 		ipcp->uid = setbuf.uid;
 		ipcp->gid = setbuf.gid;
 		ipcp->mode = (ipcp->mode & ~S_IRWXUGO)

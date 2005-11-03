@@ -285,13 +285,14 @@ extern void auditsc_get_stamp(struct audit_context *ctx,
 			      struct timespec *t, unsigned int *serial);
 extern int  audit_set_loginuid(struct task_struct *task, uid_t loginuid);
 extern uid_t audit_get_loginuid(struct audit_context *ctx);
-extern int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode);
+extern int audit_ipc_perms(unsigned long qbytes, uid_t uid, gid_t gid, mode_t mode, struct kern_ipc_perm *ipcp);
 extern int audit_socketcall(int nargs, unsigned long *args);
 extern int audit_sockaddr(int len, void *addr);
 extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
 extern void audit_signal_info(int sig, struct task_struct *t);
 extern int audit_filter_user(struct netlink_skb_parms *cb, int type);
 extern int audit_filter_type(int type);
+extern int audit_set_macxattr(const char *name);
 #else
 #define audit_alloc(t) ({ 0; })
 #define audit_free(t) do { ; } while (0)
@@ -306,12 +307,13 @@ extern int audit_filter_type(int type);
 #define audit_receive_filter(t,p,u,s,d,l) ({ -EOPNOTSUPP; })
 #define auditsc_get_stamp(c,t,s) do { BUG(); } while (0)
 #define audit_get_loginuid(c) ({ -1; })
-#define audit_ipc_perms(q,u,g,m) ({ 0; })
+#define audit_ipc_perms(q,u,g,m,i) ({ 0; })
 #define audit_socketcall(n,a) ({ 0; })
 #define audit_sockaddr(len, addr) ({ 0; })
 #define audit_avc_path(dentry, mnt) ({ 0; })
 #define audit_signal_info(s,t) do { ; } while (0)
 #define audit_filter_user(cb,t) ({ 1; })
+#define audit_set_macxattr(n) do { ; } while (0)
 #endif
 
 #ifdef CONFIG_AUDIT
@@ -340,6 +342,7 @@ extern void		    audit_send_reply(int pid, int seq, int type,
 					     int done, int multi,
 					     void *payload, int size);
 extern void		    audit_log_lost(const char *message);
+extern void		    audit_panic(const char *message);
 extern struct semaphore audit_netlink_sem;
 #else
 #define audit_log(c,g,t,f,...) do { ; } while (0)
@@ -350,6 +353,7 @@ extern struct semaphore audit_netlink_sem;
 #define audit_log_hex(a,b,l) do { ; } while (0)
 #define audit_log_untrustedstring(a,s) do { ; } while (0)
 #define audit_log_d_path(b,p,d,v) do { ; } while (0)
+#define audit_panic(m) do { ; } while (0)
 #endif
 #endif
 #endif

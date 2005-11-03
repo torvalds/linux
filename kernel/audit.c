@@ -142,7 +142,7 @@ static void audit_set_pid(struct audit_buffer *ab, pid_t pid)
 	nlh->nlmsg_pid = pid;
 }
 
-static void audit_panic(const char *message)
+void audit_panic(const char *message)
 {
 	switch (audit_failure)
 	{
