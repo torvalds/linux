@@ -27,6 +27,7 @@
 #include <linux/pagemap.h>
 #include <linux/syscalls.h>
 #include <linux/rcupdate.h>
+#include <linux/audit.h>
 
 #include <asm/unistd.h>
 
@@ -626,6 +627,8 @@ asmlinkage long sys_fchmod(unsigned int fd, mode_t mode)
 	dentry = file->f_dentry;
 	inode = dentry->d_inode;
 
+	audit_inode(NULL, inode, 0);
+
 	err = -EROFS;
 	if (IS_RDONLY(inode))
 		goto out_putf;
@@ -775,7 +778,10 @@ asmlinkage long sys_fchown(unsigned int fd, uid_t user, gid_t group)
 
 	file = fget(fd);
 	if (file) {
-		error = chown_common(file->f_dentry, user, group);
+		struct dentry * dentry;
+		dentry = file->f_dentry;
+		audit_inode(NULL, dentry->d_inode, 0);
+		error = chown_common(dentry, user, group);
 		fput(file);
 	}
 	return error;

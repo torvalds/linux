@@ -15,6 +15,7 @@
 
 #include <linux/dnotify.h>
 #include <linux/inotify.h>
+#include <linux/audit.h>
 
 /*
  * fsnotify_move - file old_name at old_dir was moved to new_name at new_dir
@@ -45,6 +46,8 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 	if (source) {
 		inotify_inode_queue_event(source, IN_MOVE_SELF, 0, NULL);
 	}
+	audit_inode_child(old_name, source, old_dir->i_ino);
+	audit_inode_child(new_name, target, new_dir->i_ino);
 }
 
 /*
@@ -74,6 +77,7 @@ static inline void fsnotify_create(struct inode *inode, struct dentry *dentry)
 {
 	inode_dir_notify(inode, DN_CREATE);
 	inotify_inode_queue_event(inode, IN_CREATE, 0, dentry->d_name.name);
+	audit_inode_child(dentry->d_name.name, dentry->d_inode, inode->i_ino);
 }
 
 /*
@@ -84,6 +88,7 @@ static inline void fsnotify_mkdir(struct inode *inode, struct dentry *dentry)
 	inode_dir_notify(inode, DN_CREATE);
 	inotify_inode_queue_event(inode, IN_CREATE | IN_ISDIR, 0, 
 				  dentry->d_name.name);
+	audit_inode_child(dentry->d_name.name, dentry->d_inode, inode->i_ino);
 }
 
 /*

@@ -2,6 +2,7 @@
  * Handles all system-call specific auditing features.
  *
  * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.
+ * Copyright 2005 Hewlett-Packard Development Company, L.P.
  * Copyright (C) 2005 IBM Corporation
  * All Rights Reserved.
  *
@@ -31,11 +32,16 @@
  * The support of additional filter rules compares (>, <, >=, <=) was
  * added by Dustin Kirkland <dustin.kirkland@us.ibm.com>, 2005.
  *
+ * Modified by Amy Griffis <amy.griffis@hp.com> to collect additional
+ * filesystem information.
  */
 
 #include <linux/init.h>
 #include <asm/types.h>
 #include <asm/atomic.h>
+#include <asm/types.h>
+#include <linux/fs.h>
+#include <linux/namei.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/mount.h>
@@ -97,12 +103,12 @@ enum audit_state {
 struct audit_names {
 	const char	*name;
 	unsigned long	ino;
+	unsigned long	pino;
 	dev_t		dev;
 	umode_t		mode;
 	uid_t		uid;
 	gid_t		gid;
 	dev_t		rdev;
-	unsigned	flags;
 };
 
 struct audit_aux_data {
@@ -515,7 +521,8 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_INODE:
 			if (ctx) {
 				for (j = 0; j < ctx->name_count; j++) {
-					if ( audit_comparator(ctx->names[j].ino, op, value)) {
+					if (audit_comparator(ctx->names[j].ino, op, value) ||
+					    audit_comparator(ctx->names[j].pino, op, value)) {
 						++result;
 						break;
 					}
@@ -696,17 +703,17 @@ static inline void audit_free_names(struct audit_context *context)
 #if AUDIT_DEBUG == 2
 	if (context->auditable
 	    ||context->put_count + context->ino_count != context->name_count) {
-		printk(KERN_ERR "audit.c:%d(:%d): major=%d in_syscall=%d"
+		printk(KERN_ERR "%s:%d(:%d): major=%d in_syscall=%d"
 		       " name_count=%d put_count=%d"
 		       " ino_count=%d [NOT freeing]\n",
-		       __LINE__,
+		       __FILE__, __LINE__,
 		       context->serial, context->major, context->in_syscall,
 		       context->name_count, context->put_count,
 		       context->ino_count);
 		for (i = 0; i < context->name_count; i++)
 			printk(KERN_ERR "names[%d] = %p = %s\n", i,
 			       context->names[i].name,
-			       context->names[i].name);
+			       context->names[i].name ?: "(null)");
 		dump_stack();
 		return;
 	}
@@ -932,27 +939,34 @@ static void audit_log_exit(struct audit_context *context, gfp_t gfp_mask)
 		}
 	}
 	for (i = 0; i < context->name_count; i++) {
+		unsigned long ino  = context->names[i].ino;
+		unsigned long pino = context->names[i].pino;
+
 		ab = audit_log_start(context, gfp_mask, AUDIT_PATH);
 		if (!ab)
 			continue; /* audit_panic has been called */
 
 		audit_log_format(ab, "item=%d", i);
-		if (context->names[i].name) {
-			audit_log_format(ab, " name=");
+
+		audit_log_format(ab, " name=");
+		if (context->names[i].name)
 			audit_log_untrustedstring(ab, context->names[i].name);
-		}
-		audit_log_format(ab, " flags=%x\n", context->names[i].flags);
-			 
-		if (context->names[i].ino != (unsigned long)-1)
-			audit_log_format(ab, " inode=%lu dev=%02x:%02x mode=%#o"
-					     " ouid=%u ogid=%u rdev=%02x:%02x",
-					 context->names[i].ino,
-					 MAJOR(context->names[i].dev),
-					 MINOR(context->names[i].dev),
-					 context->names[i].mode,
-					 context->names[i].uid,
-					 context->names[i].gid,
-					 MAJOR(context->names[i].rdev),
+		else
+			audit_log_format(ab, "(null)");
+
+		if (pino != (unsigned long)-1)
+			audit_log_format(ab, " parent=%lu",  pino);
+		if (ino != (unsigned long)-1)
+			audit_log_format(ab, " inode=%lu",  ino);
+		if ((pino != (unsigned long)-1) || (ino != (unsigned long)-1))
+			audit_log_format(ab, " dev=%02x:%02x mode=%#o" 
+					 " ouid=%u ogid=%u rdev=%02x:%02x", 
+					 MAJOR(context->names[i].dev), 
+					 MINOR(context->names[i].dev), 
+					 context->names[i].mode, 
+					 context->names[i].uid, 
+					 context->names[i].gid, 
+					 MAJOR(context->names[i].rdev), 
 					 MINOR(context->names[i].rdev));
 		audit_log_end(ab);
 	}
@@ -1174,7 +1188,7 @@ void audit_putname(const char *name)
 			for (i = 0; i < context->name_count; i++)
 				printk(KERN_ERR "name[%d] = %p = %s\n", i,
 				       context->names[i].name,
-				       context->names[i].name);
+				       context->names[i].name ?: "(null)");
 		}
 #endif
 		__putname(name);
@@ -1204,7 +1218,7 @@ void audit_putname(const char *name)
  *
  * Called from fs/namei.c:path_lookup().
  */
-void audit_inode(const char *name, const struct inode *inode, unsigned flags)
+void __audit_inode(const char *name, const struct inode *inode, unsigned flags)
 {
 	int idx;
 	struct audit_context *context = current->audit_context;
@@ -1230,13 +1244,93 @@ void audit_inode(const char *name, const struct inode *inode, unsigned flags)
 		++context->ino_count;
 #endif
 	}
-	context->names[idx].flags = flags;
-	context->names[idx].ino   = inode->i_ino;
 	context->names[idx].dev	  = inode->i_sb->s_dev;
 	context->names[idx].mode  = inode->i_mode;
 	context->names[idx].uid   = inode->i_uid;
 	context->names[idx].gid   = inode->i_gid;
 	context->names[idx].rdev  = inode->i_rdev;
+	if ((flags & LOOKUP_PARENT) && (strcmp(name, "/") != 0) && 
+	    (strcmp(name, ".") != 0)) {
+		context->names[idx].ino   = (unsigned long)-1;
+		context->names[idx].pino  = inode->i_ino;
+	} else {
+		context->names[idx].ino   = inode->i_ino;
+		context->names[idx].pino  = (unsigned long)-1;
+	}
+}
+
+/**
+ * audit_inode_child - collect inode info for created/removed objects
+ * @dname: inode's dentry name
+ * @inode: inode being audited
+ * @pino: inode number of dentry parent
+ *
+ * For syscalls that create or remove filesystem objects, audit_inode
+ * can only collect information for the filesystem object's parent.
+ * This call updates the audit context with the child's information.
+ * Syscalls that create a new filesystem object must be hooked after
+ * the object is created.  Syscalls that remove a filesystem object
+ * must be hooked prior, in order to capture the target inode during
+ * unsuccessful attempts.
+ */
+void __audit_inode_child(const char *dname, const struct inode *inode,
+			 unsigned long pino)
+{
+	int idx;
+	struct audit_context *context = current->audit_context;
+
+	if (!context->in_syscall)
+		return;
+
+	/* determine matching parent */
+	if (dname)
+		for (idx = 0; idx < context->name_count; idx++)
+			if (context->names[idx].pino == pino) {
+				const char *n;
+				const char *name = context->names[idx].name;
+				int dlen = strlen(dname);
+				int nlen = name ? strlen(name) : 0;
+
+				if (nlen < dlen)
+					continue;
+				
+				/* disregard trailing slashes */
+				n = name + nlen - 1;
+				while ((*n == '/') && (n > name))
+					n--;
+
+				/* find last path component */
+				n = n - dlen + 1;
+				if (n < name)
+					continue;
+				else if (n > name) {
+					if (*--n != '/')
+						continue;
+					else
+						n++;
+				}
+
+				if (strncmp(n, dname, dlen) == 0)
+					goto update_context;
+			}
+
+	/* catch-all in case match not found */
+	idx = context->name_count++;
+	context->names[idx].name  = NULL;
+	context->names[idx].pino  = pino;
+#if AUDIT_DEBUG
+	context->ino_count++;
+#endif
+
+update_context:
+	if (inode) {
+		context->names[idx].ino   = inode->i_ino;
+		context->names[idx].dev	  = inode->i_sb->s_dev;
+		context->names[idx].mode  = inode->i_mode;
+		context->names[idx].uid   = inode->i_uid;
+		context->names[idx].gid   = inode->i_gid;
+		context->names[idx].rdev  = inode->i_rdev;
+	}
 }
 
 /**
