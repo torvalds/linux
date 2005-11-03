@@ -91,6 +91,22 @@ typedef struct sigaltstack_32 {
 	compat_size_t ss_size;
 } stack_32_t;
 
+struct pt_regs32 {
+	unsigned int gpr[32];
+	unsigned int nip;
+	unsigned int msr;
+	unsigned int orig_gpr3;		/* Used for restarting system calls */
+	unsigned int ctr;
+	unsigned int link;
+	unsigned int xer;
+	unsigned int ccr;
+	unsigned int mq;		/* 601 only (not used at present) */
+	unsigned int trap;		/* Reason for being here */
+	unsigned int dar;		/* Fault registers */
+	unsigned int dsisr;
+	unsigned int result;		/* Result of a system call */
+};
+
 struct sigcontext32 {
 	unsigned int	_unused[4];
 	int		signal;
