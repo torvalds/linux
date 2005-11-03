@@ -1685,8 +1685,8 @@ STATIC int xfsbufd_force_sleep;
 
 STATIC int
 xfsbufd_wakeup(
-	int		priority,
-	gfp_t		mask)
+	int			priority,
+	gfp_t			mask)
 {
 	if (xfsbufd_force_sleep)
 		return 0;
@@ -1716,8 +1716,8 @@ xfsbufd(
 			xfsbufd_force_sleep = 0;
 		}
 
-		schedule_timeout_interruptible
-			(xfs_buf_timer_centisecs * msecs_to_jiffies(10));
+		schedule_timeout_interruptible(
+			xfs_buf_timer_centisecs * msecs_to_jiffies(10));
 
 		age = xfs_buf_age_centisecs * msecs_to_jiffies(10);
 		spin_lock(&pbd_delwrite_lock);
