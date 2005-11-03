@@ -70,19 +70,20 @@ static inline void fsnotify_inoderemove(struct inode *inode)
 /*
  * fsnotify_create - 'name' was linked in
  */
-static inline void fsnotify_create(struct inode *inode, const char *name)
+static inline void fsnotify_create(struct inode *inode, struct dentry *dentry)
 {
 	inode_dir_notify(inode, DN_CREATE);
-	inotify_inode_queue_event(inode, IN_CREATE, 0, name);
+	inotify_inode_queue_event(inode, IN_CREATE, 0, dentry->d_name.name);
 }
 
 /*
  * fsnotify_mkdir - directory 'name' was created
  */
-static inline void fsnotify_mkdir(struct inode *inode, const char *name)
+static inline void fsnotify_mkdir(struct inode *inode, struct dentry *dentry)
 {
 	inode_dir_notify(inode, DN_CREATE);
-	inotify_inode_queue_event(inode, IN_CREATE | IN_ISDIR, 0, name);
+	inotify_inode_queue_event(inode, IN_CREATE | IN_ISDIR, 0, 
+				  dentry->d_name.name);
 }
 
 /*

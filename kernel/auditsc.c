@@ -515,7 +515,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_INODE:
 			if (ctx) {
 				for (j = 0; j < ctx->name_count; j++) {
-					if (audit_comparator(ctx->names[j].ino, op, value)) {
+					if ( audit_comparator(ctx->names[j].ino, op, value)) {
 						++result;
 						break;
 					}
