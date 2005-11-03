@@ -13,7 +13,7 @@ endif
 obj-y				:= semaphore.o cputable.o ptrace.o syscalls.o \
 				   signal_32.o pmc.o
 obj-$(CONFIG_PPC64)		+= setup_64.o binfmt_elf32.o sys_ppc32.o \
-				   ptrace32.o systbl.o
+				   signal_64.o ptrace32.o systbl.o
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_POWER4)		+= idle_power4.o
 obj-$(CONFIG_PPC_OF)		+= of_device.o

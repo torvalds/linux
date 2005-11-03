@@ -12,7 +12,6 @@ obj-y               :=	misc.o prom.o
 endif
 
 obj-y               +=	irq.o idle.o dma.o \
-			signal.o \
 			align.o pacaData.o \
 			udbg.o ioctl32.o \
 			rtc.o \
