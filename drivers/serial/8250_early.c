@@ -164,7 +164,7 @@ static int __init parse_options(struct early_uart_device *device, char *options)
 
 	if ((options = strchr(options, ','))) {
 		options++;
-		device->baud = simple_strtoul(options, 0, 0);
+		device->baud = simple_strtoul(options, NULL, 0);
 		length = min(strcspn(options, " "), sizeof(device->options));
 		strncpy(device->options, options, length);
 	} else {
