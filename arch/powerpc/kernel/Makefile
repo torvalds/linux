@@ -18,7 +18,8 @@ obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_POWER4)		+= idle_power4.o
 obj-$(CONFIG_PPC_OF)		+= of_device.o
 obj-$(CONFIG_PPC_RTAS)		+= rtas.o
-obj-$(CONFIG_RTAS_FW)		+= rtas_fw.o
+obj-$(CONFIG_RTAS_FLASH)	+= rtas_flash.o
+obj-$(CONFIG_RTAS_PROC)		+= rtas-proc.o
 obj-$(CONFIG_IBMVIO)		+= vio.o
 
 ifeq ($(CONFIG_PPC_MERGE),y)

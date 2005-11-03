@@ -19,6 +19,7 @@
 #include <asm/delay.h>
 #include <asm/uaccess.h>
 #include <asm/rtas.h>
+#include <asm/abs_addr.h>
 
 #define MODULE_VERS "1.0"
 #define MODULE_NAME "rtas_flash"
@@ -71,10 +72,36 @@
 #define VALIDATE_BUF_SIZE 4096    
 #define RTAS_MSG_MAXLEN   64
 
+struct flash_block {
+	char *data;
+	unsigned long length;
+};
+
+/* This struct is very similar but not identical to
+ * that needed by the rtas flash update.
+ * All we need to do for rtas is rewrite num_blocks
+ * into a version/length and translate the pointers
+ * to absolute.
+ */
+#define FLASH_BLOCKS_PER_NODE ((PAGE_SIZE - 16) / sizeof(struct flash_block))
+struct flash_block_list {
+	unsigned long num_blocks;
+	struct flash_block_list *next;
+	struct flash_block blocks[FLASH_BLOCKS_PER_NODE];
+};
+struct flash_block_list_header { /* just the header of flash_block_list */
+	unsigned long num_blocks;
+	struct flash_block_list *next;
+};
+
+static struct flash_block_list_header rtas_firmware_flash_list = {0, NULL};
+
+#define FLASH_BLOCK_LIST_VERSION (1UL)
+
 /* Local copy of the flash block list.
  * We only allow one open of the flash proc file and create this
- * list as we go.  This list will be put in the kernel's
- * rtas_firmware_flash_list global var once it is fully read.
+ * list as we go.  This list will be put in the
+ * rtas_firmware_flash_list var once it is fully read.
  *
  * For convenience as we build the list we use virtual addrs,
  * we do not fill in the version number, and the length field
@@ -562,6 +589,86 @@ static int validate_flash_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static void rtas_flash_firmware(int reboot_type)
+{
+	unsigned long image_size;
+	struct flash_block_list *f, *next, *flist;
+	unsigned long rtas_block_list;
+	int i, status, update_token;
+
+	if (rtas_firmware_flash_list.next == NULL)
+		return;		/* nothing to do */
+
+	if (reboot_type != SYS_RESTART) {
+		printk(KERN_ALERT "FLASH: firmware flash requires a reboot\n");
+		printk(KERN_ALERT "FLASH: the firmware image will NOT be flashed\n");
+		return;
+	}
+
+	update_token = rtas_token("ibm,update-flash-64-and-reboot");
+	if (update_token == RTAS_UNKNOWN_SERVICE) {
+		printk(KERN_ALERT "FLASH: ibm,update-flash-64-and-reboot "
+		       "is not available -- not a service partition?\n");
+		printk(KERN_ALERT "FLASH: firmware will not be flashed\n");
+		return;
+	}
+
+	/* NOTE: the "first" block list is a global var with no data
+	 * blocks in the kernel data segment.  We do this because
+	 * we want to ensure this block_list addr is under 4GB.
+	 */
+	rtas_firmware_flash_list.num_blocks = 0;
+	flist = (struct flash_block_list *)&rtas_firmware_flash_list;
+	rtas_block_list = virt_to_abs(flist);
+	if (rtas_block_list >= 4UL*1024*1024*1024) {
+		printk(KERN_ALERT "FLASH: kernel bug...flash list header addr above 4GB\n");
+		return;
+	}
+
+	printk(KERN_ALERT "FLASH: preparing saved firmware image for flash\n");
+	/* Update the block_list in place. */
+	image_size = 0;
+	for (f = flist; f; f = next) {
+		/* Translate data addrs to absolute */
+		for (i = 0; i < f->num_blocks; i++) {
+			f->blocks[i].data = (char *)virt_to_abs(f->blocks[i].data);
+			image_size += f->blocks[i].length;
+		}
+		next = f->next;
+		/* Don't translate NULL pointer for last entry */
+		if (f->next)
+			f->next = (struct flash_block_list *)virt_to_abs(f->next);
+		else
+			f->next = NULL;
+		/* make num_blocks into the version/length field */
+		f->num_blocks = (FLASH_BLOCK_LIST_VERSION << 56) | ((f->num_blocks+1)*16);
+	}
+
+	printk(KERN_ALERT "FLASH: flash image is %ld bytes\n", image_size);
+	printk(KERN_ALERT "FLASH: performing flash and reboot\n");
+	rtas_progress("Flashing        \n", 0x0);
+	rtas_progress("Please Wait...  ", 0x0);
+	printk(KERN_ALERT "FLASH: this will take several minutes.  Do not power off!\n");
+	status = rtas_call(update_token, 1, 1, NULL, rtas_block_list);
+	switch (status) {	/* should only get "bad" status */
+	    case 0:
+		printk(KERN_ALERT "FLASH: success\n");
+		break;
+	    case -1:
+		printk(KERN_ALERT "FLASH: hardware error.  Firmware may not be not flashed\n");
+		break;
+	    case -3:
+		printk(KERN_ALERT "FLASH: image is corrupt or not correct for this platform.  Firmware not flashed\n");
+		break;
+	    case -4:
+		printk(KERN_ALERT "FLASH: flash failed when partially complete.  System may not reboot\n");
+		break;
+	    default:
+		printk(KERN_ALERT "FLASH: unknown flash return code %d\n", status);
+		break;
+	}
+}
+
 static void remove_flash_pde(struct proc_dir_entry *dp)
 {
 	if (dp) {
@@ -701,6 +808,7 @@ int __init rtas_flash_init(void)
 	if (rc != 0)
 		goto cleanup;
 
+	rtas_flash_term_hook = rtas_flash_firmware;
 	return 0;
 
 cleanup:
@@ -714,6 +822,7 @@ cleanup:
 
 void __exit rtas_flash_cleanup(void)
 {
+	rtas_flash_term_hook = NULL;
 	remove_flash_pde(firmware_flash_pde);
 	remove_flash_pde(firmware_update_pde);
 	remove_flash_pde(validate_pde);
