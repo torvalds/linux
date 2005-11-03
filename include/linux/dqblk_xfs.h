@@ -37,6 +37,7 @@
 #define Q_XSETQLIM	XQM_CMD(4)	/* set disk limits */
 #define Q_XGETQSTAT	XQM_CMD(5)	/* get quota subsystem status */
 #define Q_XQUOTARM	XQM_CMD(6)	/* free disk space used by dquots */
+#define Q_XQUOTASYNC	XQM_CMD(7)	/* delalloc flush, updates dquots */
 
 /*
  * fs_disk_quota structure:
