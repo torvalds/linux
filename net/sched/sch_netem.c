@@ -25,6 +25,8 @@
 
 #include <net/pkt_sched.h>
 
+#define VERSION "1.1"
+
 /*	Network Emulation Queuing algorithm.
 	====================================
 
@@ -694,6 +696,7 @@ static struct Qdisc_ops netem_qdisc_ops = {
 
 static int __init netem_module_init(void)
 {
+	pr_info("netem: version " VERSION "\n");
 	return register_qdisc(&netem_qdisc_ops);
 }
 static void __exit netem_module_exit(void)
