@@ -505,14 +505,14 @@ static int clcdfb_remove(struct amba_device *dev)
 static struct amba_id clcdfb_id_table[] = {
 	{
 		.id	= 0x00041110,
-		.mask	= 0x000fffff,
+		.mask	= 0x000ffffe,
 	},
 	{ 0, 0 },
 };
 
 static struct amba_driver clcd_driver = {
 	.drv 		= {
-		.name	= "clcd-pl110",
+		.name	= "clcd-pl11x",
 	},
 	.probe		= clcdfb_probe,
 	.remove		= clcdfb_remove,
