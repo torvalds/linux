@@ -250,6 +250,18 @@ config CPU_V6
 	select CPU_COPY_V6
 	select CPU_TLB_V6
 
+# ARMv6k
+config CPU_32v6K
+	bool "Support ARM V6K processor extensions" if !SMP
+	depends on CPU_V6
+	default y if SMP
+	help
+	  Say Y here if your ARMv6 processor supports the 'K' extension.
+	  This enables the kernel to use some instructions not present
+	  on previous processors, and as such a kernel build with this
+	  enabled will not boot on processors with do not support these
+	  instructions.
+
 # Figure out what processor architecture version we should be using.
 # This defines the compiler instruction set which depends on the machine type.
 config CPU_32v3
