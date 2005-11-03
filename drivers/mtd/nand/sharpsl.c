@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2004 Richard Purdie
  *
- *  $Id: sharpsl.c,v 1.4 2005/01/23 11:09:19 rpurdie Exp $
+ *  $Id: sharpsl.c,v 1.6 2005/11/03 11:36:42 rpurdie Exp $
  *
  *  Based on Sharp's NAND driver sharp_sl.c
  *
@@ -115,6 +115,23 @@ static struct nand_bbt_descr sharpsl_bbt = {
 	.pattern = scan_ff_pattern
 };
 
+static struct nand_bbt_descr sharpsl_akita_bbt = {
+	.options = 0,
+	.offs = 4,
+	.len = 1,
+	.pattern = scan_ff_pattern
+};
+
+static struct nand_oobinfo akita_oobinfo = {
+	.useecc = MTD_NANDECC_AUTOPLACE,
+	.eccbytes = 24,
+	.eccpos = {
+		0x5,  0x1,  0x2,  0x3,  0x6,  0x7,  0x15, 0x11, 
+		0x12, 0x13, 0x16, 0x17, 0x25, 0x21, 0x22, 0x23, 
+		0x26, 0x27, 0x35, 0x31, 0x32, 0x33, 0x36, 0x37},
+	.oobfree = { {0x08, 0x09} }
+};
+
 static int
 sharpsl_nand_dev_ready(struct mtd_info* mtd)
 {
@@ -194,10 +211,14 @@ sharpsl_nand_init(void)
 	this->chip_delay = 15;
 	/* set eccmode using hardware ECC */
 	this->eccmode = NAND_ECC_HW3_256;
+	this->badblock_pattern = &sharpsl_bbt;	
+	if (machine_is_akita() || machine_is_borzoi()) {
+		this->badblock_pattern = &sharpsl_akita_bbt;
+		this->autooob = &akita_oobinfo;
+	}
 	this->enable_hwecc = sharpsl_nand_enable_hwecc;
 	this->calculate_ecc = sharpsl_nand_calculate_ecc;
 	this->correct_data = nand_correct_data;
-	this->badblock_pattern = &sharpsl_bbt;
 
 	/* Scan to find existence of the device */
 	err=nand_scan(sharpsl_mtd,1);
@@ -230,7 +251,7 @@ sharpsl_nand_init(void)
 		}
 	}
 
-	if (machine_is_husky() || machine_is_borzoi()) {
+	if (machine_is_husky() || machine_is_borzoi() || machine_is_akita()) {
 		/* Need to use small eraseblock size for backward compatibility */
 		sharpsl_mtd->flags |= MTD_NO_VIRTBLOCKS;
 	}
