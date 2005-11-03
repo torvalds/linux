@@ -1687,7 +1687,7 @@ xfs_parseargs(
 #endif
 
 	if (!options)
-		return 0;
+		goto done;
 
 	iosize = dsunit = dswidth = vol_dsunit = vol_dswidth = 0;
 
@@ -1867,9 +1867,9 @@ printk("XFS: irixsgid is now a sysctl(2) variable, option is deprecated.\n");
 		args->sunit = args->swidth = 0;
 	}
 
+done:
 	if (args->flags & XFSMNT_32BITINODES)
 		vfsp->vfs_flag |= VFS_32BITINODES;
-
 	if (args->flags2)
 		args->flags |= XFSMNT_FLAGS2;
 	return 0;
