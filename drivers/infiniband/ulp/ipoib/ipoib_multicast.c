@@ -917,6 +917,8 @@ void ipoib_mcast_restart_task(void *dev_ptr)
 		ipoib_mcast_start_thread(dev);
 }
 
+#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
+
 struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev)
 {
 	struct ipoib_mcast_iter *iter;
@@ -989,3 +991,5 @@ void ipoib_mcast_iter_read(struct ipoib_mcast_iter *iter,
 	*complete  = iter->complete;
 	*send_only = iter->send_only;
 }
+
+#endif /* CONFIG_INFINIBAND_IPOIB_DEBUG */

@@ -636,7 +636,6 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
  * Bug #2507. This implementation will probably be removed when the P_Key
  * change async notification is available.
  */
-int ipoib_open(struct net_device *dev);
 
 static void ipoib_pkey_dev_check_presence(struct net_device *dev)
 {
