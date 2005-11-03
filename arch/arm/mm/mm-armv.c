@@ -469,14 +469,14 @@ void __init create_mapping(struct map_desc *md)
 
 	if (md->virtual != vectors_base() && md->virtual < TASK_SIZE) {
 		printk(KERN_WARNING "BUG: not creating mapping for "
-		       "0x%016llx at 0x%08lx in user region\n",
+		       "0x%08llx at 0x%08lx in user region\n",
 		       __pfn_to_phys((u64)md->pfn), md->virtual);
 		return;
 	}
 
 	if ((md->type == MT_DEVICE || md->type == MT_ROM) &&
 	    md->virtual >= PAGE_OFFSET && md->virtual < VMALLOC_END) {
-		printk(KERN_WARNING "BUG: mapping for 0x%016llx at 0x%08lx "
+		printk(KERN_WARNING "BUG: mapping for 0x%08llx at 0x%08lx "
 		       "overlaps vmalloc space\n",
 		       __pfn_to_phys((u64)md->pfn), md->virtual);
 	}
@@ -492,14 +492,14 @@ void __init create_mapping(struct map_desc *md)
 	if(md->pfn >= 0x100000) {
 		if(domain) {
 			printk(KERN_ERR "MM: invalid domain in supersection "
-				"mapping for 0x%016llx at 0x%08lx\n",
+				"mapping for 0x%08llx at 0x%08lx\n",
 				__pfn_to_phys((u64)md->pfn), md->virtual);
 			return;
 		}
 		if((md->virtual | md->length | __pfn_to_phys(md->pfn))
 			& ~SUPERSECTION_MASK) {
 			printk(KERN_ERR "MM: cannot create mapping for "
-				"0x%016llx at 0x%08lx invalid alignment\n",
+				"0x%08llx at 0x%08lx invalid alignment\n",
 				__pfn_to_phys((u64)md->pfn), md->virtual);
 			return;
 		}
