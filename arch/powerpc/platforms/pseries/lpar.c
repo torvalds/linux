@@ -38,7 +38,8 @@
 #include <asm/prom.h>
 #include <asm/abs_addr.h>
 #include <asm/cputable.h>
-#include <asm/plpar_wrappers.h>
+
+#include "plpar_wrappers.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

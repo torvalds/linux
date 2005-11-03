@@ -42,12 +42,13 @@
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
 #include <asm/abs_addr.h>
-#include <asm/plpar_wrappers.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/systemcfg.h>
 #include <asm/firmware.h>
 #include <asm/tce.h>
 #include <asm/ppc-pci.h>
+
+#include "plpar_wrappers.h"
 
 #define DBG(fmt...)
 

@@ -58,7 +58,6 @@
 #include <asm/irq.h>
 #include <asm/time.h>
 #include <asm/nvram.h>
-#include <asm/plpar_wrappers.h>
 #include "xics.h"
 #include <asm/firmware.h>
 #include <asm/pmc.h>
@@ -66,6 +65,8 @@
 #include <asm/ppc-pci.h>
 #include <asm/i8259.h>
 #include <asm/udbg.h>
+
+#include "plpar_wrappers.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
