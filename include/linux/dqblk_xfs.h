@@ -28,7 +28,8 @@
 
 #define XQM_USRQUOTA	0	/* system call user quota type */
 #define XQM_GRPQUOTA	1	/* system call group quota type */
-#define XQM_MAXQUOTAS	2
+#define XQM_PRJQUOTA	2	/* system call project quota type */
+#define XQM_MAXQUOTAS	3
 
 #define Q_XQUOTAON	XQM_CMD(1)	/* enable accounting/enforcement */
 #define Q_XQUOTAOFF	XQM_CMD(2)	/* disable accounting/enforcement */
