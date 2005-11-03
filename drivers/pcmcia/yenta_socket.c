@@ -49,7 +49,13 @@ MODULE_PARM_DESC(pwr_irqs_off, "Force IRQs off during power-on of slot. Use only
 #define to_cycles(ns)	((ns)/120)
 #define to_ns(cycles)	((cycles)*120)
 
+/**
+ * yenta PCI irq probing.
+ * currently only used in the TI/EnE initialization code
+ */
+#ifdef CONFIG_YENTA_TI
 static int yenta_probe_cb_irq(struct yenta_socket *socket);
+#endif
 
 
 static unsigned int override_bios;
@@ -745,10 +751,18 @@ static struct pccard_operations yenta_socket_operations = {
 };
 
 
+#ifdef CONFIG_YENTA_TI
 #include "ti113x.h"
+#endif
+#ifdef CONFIG_YENTA_RICOH
 #include "ricoh.h"
+#endif
+#ifdef CONFIG_YENTA_TOSHIBA
 #include "topic.h"
+#endif
+#ifdef CONFIG_YENTA_O2
 #include "o2micro.h"
+#endif
 
 enum {
 	CARDBUS_TYPE_DEFAULT = -1,
@@ -768,6 +782,7 @@ enum {
  * initialization sequences etc details. List them here..
  */
 static struct cardbus_type cardbus_type[] = {
+#ifdef CONFIG_YENTA_TI
 	[CARDBUS_TYPE_TI]	= {
 		.override	= ti_override,
 		.save_state	= ti_save_state,
@@ -792,27 +807,36 @@ static struct cardbus_type cardbus_type[] = {
 		.restore_state	= ti_restore_state,
 		.sock_init	= ti_init,
 	},
+#endif
+#ifdef CONFIG_YENTA_RICOH
 	[CARDBUS_TYPE_RICOH]	= {
 		.override	= ricoh_override,
 		.save_state	= ricoh_save_state,
 		.restore_state	= ricoh_restore_state,
 	},
+#endif
+#ifdef CONFIG_YENTA_TOSHIBA
 	[CARDBUS_TYPE_TOPIC95]	= {
 		.override	= topic95_override,
 	},
 	[CARDBUS_TYPE_TOPIC97]	= {
 		.override	= topic97_override,
 	},
+#endif
+#ifdef CONFIG_YENTA_O2
 	[CARDBUS_TYPE_O2MICRO]	= {
 		.override	= o2micro_override,
 		.restore_state	= o2micro_restore_state,
 	},
+#endif
+#ifdef CONFIG_YENTA_TI
 	[CARDBUS_TYPE_ENE]	= {
 		.override	= ene_override,
 		.save_state	= ti_save_state,
 		.restore_state	= ti_restore_state,
 		.sock_init	= ti_init,
 	},
+#endif
 };
 
 
@@ -857,6 +881,12 @@ static unsigned int yenta_probe_irq(struct yenta_socket *socket, u32 isa_irq_mas
 	return mask;
 }
 
+
+/**
+ * yenta PCI irq probing.
+ * currently only used in the TI/EnE initialization code
+ */
+#ifdef CONFIG_YENTA_TI
 
 /* interrupt handler, only used during probing */
 static irqreturn_t yenta_probe_handler(int irq, void *dev_id, struct pt_regs *regs)
@@ -910,6 +940,7 @@ static int yenta_probe_cb_irq(struct yenta_socket *socket)
 	return (int) socket->probe_status;
 }
 
+#endif /* CONFIG_YENTA_TI */
 
 
 /*
@@ -1173,6 +1204,7 @@ static struct pci_device_id yenta_table [] = {
 	 * advanced overrides instead.  (I can't get the
 	 * data sheets for these devices. --rmk)
 	 */
+#ifdef CONFIG_YENTA_TI
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1210, TI),
 
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_1130, TI113X),
@@ -1215,18 +1247,25 @@ static struct pci_device_id yenta_table [] = {
 	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1225, ENE),
 	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1410, ENE),
 	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1420, ENE),
+#endif /* CONFIG_YENTA_TI */
 
+#ifdef CONFIG_YENTA_RICOH
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C465, RICOH),
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C466, RICOH),
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C475, RICOH),
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C476, RICOH),
 	CB_ID(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C478, RICOH),
+#endif
 
+#ifdef CONFIG_YENTA_TOSHIBA
 	CB_ID(PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC95, TOPIC95),
 	CB_ID(PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC97, TOPIC97),
 	CB_ID(PCI_VENDOR_ID_TOSHIBA, PCI_DEVICE_ID_TOSHIBA_TOPIC100, TOPIC97),
+#endif
 
+#ifdef CONFIG_YENTA_O2
 	CB_ID(PCI_VENDOR_ID_O2, PCI_ANY_ID, O2MICRO),
+#endif
 
 	/* match any cardbus bridge */
 	CB_ID(PCI_ANY_ID, PCI_ANY_ID, DEFAULT),

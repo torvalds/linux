@@ -116,6 +116,31 @@ config YENTA
 
 	  If unsure, say Y.
 
+config YENTA_O2
+	default y
+	bool "Special initialization for O2Micro bridges" if EMBEDDED
+	depends on YENTA
+
+config YENTA_RICOH
+	default y
+	bool "Special initialization for Ricoh bridges" if EMBEDDED
+	depends on YENTA
+
+config YENTA_TI
+	default y
+	bool "Special initialization for TI and EnE bridges" if EMBEDDED
+	depends on YENTA
+
+config YENTA_ENE_TUNE
+	default y
+	bool "Auto-tune EnE bridges for CB cards" if EMBEDDED
+	depends on YENTA_TI && CARDBUS
+
+config YENTA_TOSHIBA
+	default y
+	bool "Special initialization for Toshiba ToPIC bridges" if EMBEDDED
+	depends on YENTA
+
 config PD6729
 	tristate "Cirrus PD6729 compatible bridge support"
 	depends on PCMCIA && PCI
