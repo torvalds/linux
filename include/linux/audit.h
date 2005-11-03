@@ -98,6 +98,13 @@
 #define AUDIT_WORD(nr) ((__u32)((nr)/32))
 #define AUDIT_BIT(nr)  (1 << ((nr) - AUDIT_WORD(nr)*32))
 
+/* This bitmask is used to validate user input.  It represents all bits that
+ * are currently used in an audit field constant understood by the kernel.
+ * If you are adding a new #define AUDIT_<whatever>, please ensure that
+ * AUDIT_UNUSED_BITS is updated if need be. */
+#define AUDIT_UNUSED_BITS	0x0FFFFC00
+
+
 /* Rule fields */
 				/* These are useful when checking the
 				 * task structure at task creation time
@@ -128,8 +135,28 @@
 #define AUDIT_ARG2      (AUDIT_ARG0+2)
 #define AUDIT_ARG3      (AUDIT_ARG0+3)
 
-#define AUDIT_NEGATE    0x80000000
+#define AUDIT_NEGATE			0x80000000
 
+/* These are the supported operators.
+ *	4  2  1
+ *	=  >  <
+ *	-------
+ *	0  0  0		0	nonsense
+ *	0  0  1		1	<
+ *	0  1  0		2	>
+ *	0  1  1		3	!=
+ *	1  0  0		4	=
+ *	1  0  1		5	<=
+ *	1  1  0		6	>=
+ *	1  1  1		7	all operators
+ */
+#define AUDIT_LESS_THAN			0x10000000
+#define AUDIT_GREATER_THAN		0x20000000
+#define AUDIT_NOT_EQUAL			0x30000000
+#define AUDIT_EQUAL			0x40000000
+#define AUDIT_LESS_THAN_OR_EQUAL	(AUDIT_LESS_THAN|AUDIT_EQUAL)
+#define AUDIT_GREATER_THAN_OR_EQUAL	(AUDIT_GREATER_THAN|AUDIT_EQUAL)
+#define AUDIT_OPERATORS			(AUDIT_EQUAL|AUDIT_NOT_EQUAL)
 
 /* Status symbols */
 				/* Mask values */

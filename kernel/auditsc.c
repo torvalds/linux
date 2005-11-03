@@ -2,6 +2,7 @@
  * Handles all system-call specific auditing features.
  *
  * Copyright 2003-2004 Red Hat Inc., Durham, North Carolina.
+ * Copyright (C) 2005 IBM Corporation
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -26,6 +27,9 @@
  * The method for actual interception of syscall entry and exit (not in
  * this file -- see entry.S) is based on a GPL'd patch written by
  * okir@suse.de and Copyright 2003 SuSE Linux AG.
+ *
+ * The support of additional filter rules compares (>, <, >=, <=) was
+ * added by Dustin Kirkland <dustin.kirkland@us.ibm.com>, 2005.
  *
  */
 
@@ -252,6 +256,7 @@ static inline int audit_add_rule(struct audit_rule *rule,
 				  struct list_head *list)
 {
 	struct audit_entry  *entry;
+	int i;
 
 	/* Do not use the _rcu iterator here, since this is the only
 	 * addition routine. */
@@ -259,6 +264,16 @@ static inline int audit_add_rule(struct audit_rule *rule,
 		if (!audit_compare_rule(rule, &entry->rule)) {
 			return -EEXIST;
 		}
+	}
+
+	for (i = 0; i < rule->field_count; i++) {
+		if (rule->fields[i] & AUDIT_UNUSED_BITS)
+			return -EINVAL;
+		if ( rule->fields[i] & AUDIT_NEGATE )
+			rule->fields[i] |= AUDIT_NOT_EQUAL;
+		else if ( (rule->fields[i] & AUDIT_OPERATORS) == 0 )
+			rule->fields[i] |= AUDIT_EQUAL;
+		rule->fields[i] &= (~AUDIT_NEGATE);
 	}
 
 	if (!(entry = kmalloc(sizeof(*entry), GFP_KERNEL)))
@@ -394,6 +409,26 @@ int audit_receive_filter(int type, int pid, int uid, int seq, void *data,
 	return err;
 }
 
+static int audit_comparator(const u32 left, const u32 op, const u32 right)
+{
+	switch (op) {
+	case AUDIT_EQUAL:
+		return (left == right);
+	case AUDIT_NOT_EQUAL:
+		return (left != right);
+	case AUDIT_LESS_THAN:
+		return (left < right);
+	case AUDIT_LESS_THAN_OR_EQUAL:
+		return (left <= right);
+	case AUDIT_GREATER_THAN:
+		return (left > right);
+	case AUDIT_GREATER_THAN_OR_EQUAL:
+		return (left >= right);
+	default:
+		return -EINVAL;
+	}
+}
+
 /* Compare a task_struct with an audit_rule.  Return 1 on match, 0
  * otherwise. */
 static int audit_filter_rules(struct task_struct *tsk,
@@ -404,62 +439,63 @@ static int audit_filter_rules(struct task_struct *tsk,
 	int i, j;
 
 	for (i = 0; i < rule->field_count; i++) {
-		u32 field  = rule->fields[i] & ~AUDIT_NEGATE;
+		u32 field  = rule->fields[i] & ~AUDIT_OPERATORS;
+		u32 op  = rule->fields[i] & AUDIT_OPERATORS;
 		u32 value  = rule->values[i];
 		int result = 0;
 
 		switch (field) {
 		case AUDIT_PID:
-			result = (tsk->pid == value);
+			result = audit_comparator(tsk->pid, op, value);
 			break;
 		case AUDIT_UID:
-			result = (tsk->uid == value);
+			result = audit_comparator(tsk->uid, op, value);
 			break;
 		case AUDIT_EUID:
-			result = (tsk->euid == value);
+			result = audit_comparator(tsk->euid, op, value);
 			break;
 		case AUDIT_SUID:
-			result = (tsk->suid == value);
+			result = audit_comparator(tsk->suid, op, value);
 			break;
 		case AUDIT_FSUID:
-			result = (tsk->fsuid == value);
+			result = audit_comparator(tsk->fsuid, op, value);
 			break;
 		case AUDIT_GID:
-			result = (tsk->gid == value);
+			result = audit_comparator(tsk->gid, op, value);
 			break;
 		case AUDIT_EGID:
-			result = (tsk->egid == value);
+			result = audit_comparator(tsk->egid, op, value);
 			break;
 		case AUDIT_SGID:
-			result = (tsk->sgid == value);
+			result = audit_comparator(tsk->sgid, op, value);
 			break;
 		case AUDIT_FSGID:
-			result = (tsk->fsgid == value);
+			result = audit_comparator(tsk->fsgid, op, value);
 			break;
 		case AUDIT_PERS:
-			result = (tsk->personality == value);
+			result = audit_comparator(tsk->personality, op, value);
 			break;
 		case AUDIT_ARCH:
-			if (ctx) 
-				result = (ctx->arch == value);
+ 			if (ctx)
+				result = audit_comparator(ctx->arch, op, value);
 			break;
 
 		case AUDIT_EXIT:
 			if (ctx && ctx->return_valid)
-				result = (ctx->return_code == value);
+				result = audit_comparator(ctx->return_code, op, value);
 			break;
 		case AUDIT_SUCCESS:
 			if (ctx && ctx->return_valid) {
 				if (value)
-					result = (ctx->return_valid == AUDITSC_SUCCESS);
+					result = audit_comparator(ctx->return_valid, op, AUDITSC_SUCCESS);
 				else
-					result = (ctx->return_valid == AUDITSC_FAILURE);
+					result = audit_comparator(ctx->return_valid, op, AUDITSC_FAILURE);
 			}
 			break;
 		case AUDIT_DEVMAJOR:
 			if (ctx) {
 				for (j = 0; j < ctx->name_count; j++) {
-					if (MAJOR(ctx->names[j].dev)==value) {
+					if (audit_comparator(MAJOR(ctx->names[j].dev),	op, value)) {
 						++result;
 						break;
 					}
@@ -469,7 +505,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_DEVMINOR:
 			if (ctx) {
 				for (j = 0; j < ctx->name_count; j++) {
-					if (MINOR(ctx->names[j].dev)==value) {
+					if (audit_comparator(MINOR(ctx->names[j].dev), op, value)) {
 						++result;
 						break;
 					}
@@ -479,7 +515,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_INODE:
 			if (ctx) {
 				for (j = 0; j < ctx->name_count; j++) {
-					if (ctx->names[j].ino == value) {
+					if (audit_comparator(ctx->names[j].ino, op, value)) {
 						++result;
 						break;
 					}
@@ -489,19 +525,17 @@ static int audit_filter_rules(struct task_struct *tsk,
 		case AUDIT_LOGINUID:
 			result = 0;
 			if (ctx)
-				result = (ctx->loginuid == value);
+				result = audit_comparator(ctx->loginuid, op, value);
 			break;
 		case AUDIT_ARG0:
 		case AUDIT_ARG1:
 		case AUDIT_ARG2:
 		case AUDIT_ARG3:
 			if (ctx)
-				result = (ctx->argv[field-AUDIT_ARG0]==value);
+				result = audit_comparator(ctx->argv[field-AUDIT_ARG0], op, value);
 			break;
 		}
 
-		if (rule->fields[i] & AUDIT_NEGATE)
-			result = !result;
 		if (!result)
 			return 0;
 	}
@@ -550,49 +584,48 @@ static enum audit_state audit_filter_syscall(struct task_struct *tsk,
 
 	rcu_read_lock();
 	if (!list_empty(list)) {
-		    int word = AUDIT_WORD(ctx->major);
-		    int bit  = AUDIT_BIT(ctx->major);
+		int word = AUDIT_WORD(ctx->major);
+		int bit  = AUDIT_BIT(ctx->major);
 
-		    list_for_each_entry_rcu(e, list, list) {
-			    if ((e->rule.mask[word] & bit) == bit
-				&& audit_filter_rules(tsk, &e->rule, ctx, &state)) {
-				    rcu_read_unlock();
-				    return state;
-			    }
-		    }
+		list_for_each_entry_rcu(e, list, list) {
+			if ((e->rule.mask[word] & bit) == bit
+					&& audit_filter_rules(tsk, &e->rule, ctx, &state)) {
+				rcu_read_unlock();
+				return state;
+			}
+		}
 	}
 	rcu_read_unlock();
 	return AUDIT_BUILD_CONTEXT;
 }
 
 static int audit_filter_user_rules(struct netlink_skb_parms *cb,
-			      struct audit_rule *rule,
-			      enum audit_state *state)
+				   struct audit_rule *rule,
+				   enum audit_state *state)
 {
 	int i;
 
 	for (i = 0; i < rule->field_count; i++) {
-		u32 field  = rule->fields[i] & ~AUDIT_NEGATE;
+		u32 field  = rule->fields[i] & ~AUDIT_OPERATORS;
+		u32 op  = rule->fields[i] & AUDIT_OPERATORS;
 		u32 value  = rule->values[i];
 		int result = 0;
 
 		switch (field) {
 		case AUDIT_PID:
-			result = (cb->creds.pid == value);
+			result = audit_comparator(cb->creds.pid, op, value);
 			break;
 		case AUDIT_UID:
-			result = (cb->creds.uid == value);
+			result = audit_comparator(cb->creds.uid, op, value);
 			break;
 		case AUDIT_GID:
-			result = (cb->creds.gid == value);
+			result = audit_comparator(cb->creds.gid, op, value);
 			break;
 		case AUDIT_LOGINUID:
-			result = (cb->loginuid == value);
+			result = audit_comparator(cb->loginuid, op, value);
 			break;
 		}
 
-		if (rule->fields[i] & AUDIT_NEGATE)
-			result = !result;
 		if (!result)
 			return 0;
 	}
