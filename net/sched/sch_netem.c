@@ -185,10 +185,13 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	    || q->counter < q->gap 	/* inside last reordering gap */
 	    || q->reorder < get_crandom(&q->reorder_cor)) {
 		psched_time_t now;
+		psched_tdiff_t delay;
+
+		delay = tabledist(q->latency, q->jitter,
+				  &q->delay_cor, q->delay_dist);
+
 		PSCHED_GET_TIME(now);
-		PSCHED_TADD2(now, tabledist(q->latency, q->jitter, 
-					    &q->delay_cor, q->delay_dist),
-			     cb->time_to_send);
+		PSCHED_TADD2(now, delay, cb->time_to_send);
 		++q->counter;
 		ret = q->qdisc->enqueue(skb, q->qdisc);
 	} else {
@@ -248,24 +251,31 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 		const struct netem_skb_cb *cb
 			= (const struct netem_skb_cb *)skb->cb;
 		psched_time_t now;
-		long delay;
 
 		/* if more time remaining? */
 		PSCHED_GET_TIME(now);
-		delay = PSCHED_US2JIFFIE(PSCHED_TDIFF(cb->time_to_send, now));
-		pr_debug("netem_run: skb=%p delay=%ld\n", skb, delay);
-		if (delay <= 0) {
+
+		if (PSCHED_TLESS(cb->time_to_send, now)) {
 			pr_debug("netem_dequeue: return skb=%p\n", skb);
 			sch->q.qlen--;
 			sch->flags &= ~TCQ_F_THROTTLED;
 			return skb;
+		} else {
+			psched_tdiff_t delay = PSCHED_TDIFF(cb->time_to_send, now);
+
+			if (q->qdisc->ops->requeue(skb, q->qdisc) != NET_XMIT_SUCCESS) {
+				sch->qstats.drops++;
+
+				/* After this qlen is confused */
+				printk(KERN_ERR "netem: queue discpline %s could not requeue\n",
+				       q->qdisc->ops->id);
+
+				sch->q.qlen--;
+			}
+
+			mod_timer(&q->timer, jiffies + PSCHED_US2JIFFIE(delay));
+			sch->flags |= TCQ_F_THROTTLED;
 		}
-
-		mod_timer(&q->timer, jiffies + delay);
-		sch->flags |= TCQ_F_THROTTLED;
-
-		if (q->qdisc->ops->requeue(skb, q->qdisc) != 0)
-			sch->qstats.drops++;
 	}
 
 	return NULL;
