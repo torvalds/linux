@@ -587,7 +587,7 @@ pci_get_interrupt_pin(struct pci_dev *dev, struct pci_dev **bridge)
 {
 	u8 pin;
 
-	pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
+	pin = dev->pin;
 	if (!pin)
 		return -1;
 	pin--;
