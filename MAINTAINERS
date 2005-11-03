@@ -2640,6 +2640,12 @@ L:	linux-usb-users@lists.sourceforge.net
 L:	linux-usb-devel@lists.sourceforge.net
 S:	Maintained
 
+USB ISP116X DRIVER
+P:	Olav Kongas
+M:	ok@artecdesign.ee
+L:	linux-usb-devel@lists.sourceforge.net
+S:	Maintained
+
 USB KAWASAKI LSI DRIVER
 P:	Oliver Neukum
 M:	oliver@neukum.name
