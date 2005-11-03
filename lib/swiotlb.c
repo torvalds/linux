@@ -1,7 +1,7 @@
 /*
  * Dynamic DMA mapping support.
  *
- * This implementation is for IA-64 platforms that do not support
+ * This implementation is for IA-64 and EM64T platforms that do not support
  * I/O TLBs (aka DMA address translation hardware).
  * Copyright (C) 2000 Asit Mallick <Asit.K.Mallick@intel.com>
  * Copyright (C) 2000 Goutham Rao <goutham.rao@intel.com>
@@ -11,21 +11,23 @@
  * 03/05/07 davidm	Switch from PCI-DMA to generic device DMA API.
  * 00/12/13 davidm	Rename to swiotlb.c and add mark_clean() to avoid
  *			unnecessary i-cache flushing.
- * 04/07/.. ak          Better overflow handling. Assorted fixes.
+ * 04/07/.. ak		Better overflow handling. Assorted fixes.
+ * 05/09/10 linville	Add support for syncing ranges, support syncing for
+ *			DMA_BIDIRECTIONAL mappings, miscellaneous cleanup.
  */
 
 #include <linux/cache.h>
+#include <linux/dma-mapping.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/ctype.h>
 
 #include <asm/io.h>
-#include <asm/pci.h>
 #include <asm/dma.h>
+#include <asm/scatterlist.h>
 
 #include <linux/init.h>
 #include <linux/bootmem.h>
@@ -57,6 +59,14 @@
  * allocate a contiguous 1MB, we're probably in trouble anyway.
  */
 #define IO_TLB_MIN_SLABS ((1<<20) >> IO_TLB_SHIFT)
+
+/*
+ * Enumeration for sync targets
+ */
+enum dma_sync_target {
+	SYNC_FOR_CPU = 0,
+	SYNC_FOR_DEVICE = 1,
+};
 
 int swiotlb_force;
 
@@ -117,7 +127,7 @@ __setup("swiotlb=", setup_io_tlb_npages);
 
 /*
  * Statically reserve bounce buffer space and initialize bounce buffer data
- * structures for the software IO TLB used to implement the PCI DMA API.
+ * structures for the software IO TLB used to implement the DMA API.
  */
 void
 swiotlb_init_with_default_size (size_t default_size)
@@ -397,21 +407,28 @@ unmap_single(struct device *hwdev, char *dma_addr, size_t size, int dir)
 }
 
 static void
-sync_single(struct device *hwdev, char *dma_addr, size_t size, int dir)
+sync_single(struct device *hwdev, char *dma_addr, size_t size,
+	    int dir, int target)
 {
 	int index = (dma_addr - io_tlb_start) >> IO_TLB_SHIFT;
 	char *buffer = io_tlb_orig_addr[index];
 
-	/*
-	 * bounce... copy the data back into/from the original buffer
-	 * XXX How do you handle DMA_BIDIRECTIONAL here ?
-	 */
-	if (dir == DMA_FROM_DEVICE)
-		memcpy(buffer, dma_addr, size);
-	else if (dir == DMA_TO_DEVICE)
-		memcpy(dma_addr, buffer, size);
-	else
+	switch (target) {
+	case SYNC_FOR_CPU:
+		if (likely(dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL))
+			memcpy(buffer, dma_addr, size);
+		else if (dir != DMA_TO_DEVICE)
+			BUG();
+		break;
+	case SYNC_FOR_DEVICE:
+		if (likely(dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL))
+			memcpy(dma_addr, buffer, size);
+		else if (dir != DMA_FROM_DEVICE)
+			BUG();
+		break;
+	default:
 		BUG();
+	}
 }
 
 void *
@@ -485,24 +502,24 @@ swiotlb_full(struct device *dev, size_t size, int dir, int do_panic)
 	/*
 	 * Ran out of IOMMU space for this operation. This is very bad.
 	 * Unfortunately the drivers cannot handle this operation properly.
-	 * unless they check for pci_dma_mapping_error (most don't)
+	 * unless they check for dma_mapping_error (most don't)
 	 * When the mapping is small enough return a static buffer to limit
 	 * the damage, or panic when the transfer is too big.
 	 */
-	printk(KERN_ERR "PCI-DMA: Out of SW-IOMMU space for %lu bytes at "
+	printk(KERN_ERR "DMA: Out of SW-IOMMU space for %lu bytes at "
 	       "device %s\n", size, dev ? dev->bus_id : "?");
 
 	if (size > io_tlb_overflow && do_panic) {
-		if (dir == PCI_DMA_FROMDEVICE || dir == PCI_DMA_BIDIRECTIONAL)
-			panic("PCI-DMA: Memory would be corrupted\n");
-		if (dir == PCI_DMA_TODEVICE || dir == PCI_DMA_BIDIRECTIONAL)
-			panic("PCI-DMA: Random memory would be DMAed\n");
+		if (dir == DMA_FROM_DEVICE || dir == DMA_BIDIRECTIONAL)
+			panic("DMA: Memory would be corrupted\n");
+		if (dir == DMA_TO_DEVICE || dir == DMA_BIDIRECTIONAL)
+			panic("DMA: Random memory would be DMAed\n");
 	}
 }
 
 /*
  * Map a single buffer of the indicated size for DMA in streaming mode.  The
- * PCI address to use is returned.
+ * physical address to use is returned.
  *
  * Once the device is given the dma address, the device owns this memory until
  * either swiotlb_unmap_single or swiotlb_dma_sync_single is performed.
@@ -589,37 +606,71 @@ swiotlb_unmap_single(struct device *hwdev, dma_addr_t dev_addr, size_t size,
  * after a transfer.
  *
  * If you perform a swiotlb_map_single() but wish to interrogate the buffer
- * using the cpu, yet do not wish to teardown the PCI dma mapping, you must
- * call this function before doing so.  At the next point you give the PCI dma
+ * using the cpu, yet do not wish to teardown the dma mapping, you must
+ * call this function before doing so.  At the next point you give the dma
  * address back to the card, you must first perform a
  * swiotlb_dma_sync_for_device, and then the device again owns the buffer
  */
-void
-swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,
-			    size_t size, int dir)
+static inline void
+swiotlb_sync_single(struct device *hwdev, dma_addr_t dev_addr,
+		    size_t size, int dir, int target)
 {
 	char *dma_addr = phys_to_virt(dev_addr);
 
 	if (dir == DMA_NONE)
 		BUG();
 	if (dma_addr >= io_tlb_start && dma_addr < io_tlb_end)
-		sync_single(hwdev, dma_addr, size, dir);
+		sync_single(hwdev, dma_addr, size, dir, target);
 	else if (dir == DMA_FROM_DEVICE)
 		mark_clean(dma_addr, size);
+}
+
+void
+swiotlb_sync_single_for_cpu(struct device *hwdev, dma_addr_t dev_addr,
+			    size_t size, int dir)
+{
+	swiotlb_sync_single(hwdev, dev_addr, size, dir, SYNC_FOR_CPU);
 }
 
 void
 swiotlb_sync_single_for_device(struct device *hwdev, dma_addr_t dev_addr,
 			       size_t size, int dir)
 {
-	char *dma_addr = phys_to_virt(dev_addr);
+	swiotlb_sync_single(hwdev, dev_addr, size, dir, SYNC_FOR_DEVICE);
+}
+
+/*
+ * Same as above, but for a sub-range of the mapping.
+ */
+static inline void
+swiotlb_sync_single_range(struct device *hwdev, dma_addr_t dev_addr,
+			  unsigned long offset, size_t size,
+			  int dir, int target)
+{
+	char *dma_addr = phys_to_virt(dev_addr) + offset;
 
 	if (dir == DMA_NONE)
 		BUG();
 	if (dma_addr >= io_tlb_start && dma_addr < io_tlb_end)
-		sync_single(hwdev, dma_addr, size, dir);
+		sync_single(hwdev, dma_addr, size, dir, target);
 	else if (dir == DMA_FROM_DEVICE)
 		mark_clean(dma_addr, size);
+}
+
+void
+swiotlb_sync_single_range_for_cpu(struct device *hwdev, dma_addr_t dev_addr,
+				  unsigned long offset, size_t size, int dir)
+{
+	swiotlb_sync_single_range(hwdev, dev_addr, offset, size, dir,
+				  SYNC_FOR_CPU);
+}
+
+void
+swiotlb_sync_single_range_for_device(struct device *hwdev, dma_addr_t dev_addr,
+				     unsigned long offset, size_t size, int dir)
+{
+	swiotlb_sync_single_range(hwdev, dev_addr, offset, size, dir,
+				  SYNC_FOR_DEVICE);
 }
 
 /*
@@ -696,9 +747,9 @@ swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sg, int nelems,
  * The same as swiotlb_sync_single_* but for a scatter-gather list, same rules
  * and usage.
  */
-void
-swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sg,
-			int nelems, int dir)
+static inline void
+swiotlb_sync_sg(struct device *hwdev, struct scatterlist *sg,
+		int nelems, int dir, int target)
 {
 	int i;
 
@@ -708,22 +759,21 @@ swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sg,
 	for (i = 0; i < nelems; i++, sg++)
 		if (sg->dma_address != SG_ENT_PHYS_ADDRESS(sg))
 			sync_single(hwdev, (void *) sg->dma_address,
-				    sg->dma_length, dir);
+				    sg->dma_length, dir, target);
+}
+
+void
+swiotlb_sync_sg_for_cpu(struct device *hwdev, struct scatterlist *sg,
+			int nelems, int dir)
+{
+	swiotlb_sync_sg(hwdev, sg, nelems, dir, SYNC_FOR_CPU);
 }
 
 void
 swiotlb_sync_sg_for_device(struct device *hwdev, struct scatterlist *sg,
 			   int nelems, int dir)
 {
-	int i;
-
-	if (dir == DMA_NONE)
-		BUG();
-
-	for (i = 0; i < nelems; i++, sg++)
-		if (sg->dma_address != SG_ENT_PHYS_ADDRESS(sg))
-			sync_single(hwdev, (void *) sg->dma_address,
-				    sg->dma_length, dir);
+	swiotlb_sync_sg(hwdev, sg, nelems, dir, SYNC_FOR_DEVICE);
 }
 
 int
@@ -733,9 +783,9 @@ swiotlb_dma_mapping_error(dma_addr_t dma_addr)
 }
 
 /*
- * Return whether the given PCI device DMA address mask can be supported
+ * Return whether the given device DMA address mask can be supported
  * properly.  For example, if your device can only drive the low 24-bits
- * during PCI bus mastering, then you would pass 0x00ffffff as the mask to
+ * during bus mastering, then you would pass 0x00ffffff as the mask to
  * this function.
  */
 int
@@ -751,6 +801,8 @@ EXPORT_SYMBOL(swiotlb_map_sg);
 EXPORT_SYMBOL(swiotlb_unmap_sg);
 EXPORT_SYMBOL(swiotlb_sync_single_for_cpu);
 EXPORT_SYMBOL(swiotlb_sync_single_for_device);
+EXPORT_SYMBOL_GPL(swiotlb_sync_single_range_for_cpu);
+EXPORT_SYMBOL_GPL(swiotlb_sync_single_range_for_device);
 EXPORT_SYMBOL(swiotlb_sync_sg_for_cpu);
 EXPORT_SYMBOL(swiotlb_sync_sg_for_device);
 EXPORT_SYMBOL(swiotlb_dma_mapping_error);
