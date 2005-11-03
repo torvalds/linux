@@ -396,6 +396,7 @@ static int __devexit mpcore_wdt_remove(struct device *dev)
 }
 
 static struct device_driver mpcore_wdt_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "mpcore_wdt",
 	.bus		= &platform_bus_type,
 	.probe		= mpcore_wdt_probe,

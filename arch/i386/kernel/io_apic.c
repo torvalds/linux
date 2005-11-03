@@ -2387,13 +2387,9 @@ void __init setup_IO_APIC(void)
 	sync_Arb_IDs();
 	setup_IO_APIC_irqs();
 	init_IO_APIC_traps();
+	check_timer();
 	if (!acpi_ioapic)
 		print_IO_APIC();
-}
-
-void __init IO_APIC_late_time_init(void)
-{
-	check_timer();
 }
 
 /*

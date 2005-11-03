@@ -1,5 +1,5 @@
 /**
- * \file drm_drawable.h 
+ * \file drm_drawable.c
  * IOCTLs for drawables
  *
  * \author Rickard E. (Rik) Faith <faith@valinux.com>
@@ -37,20 +37,20 @@
 
 /** No-op. */
 int drm_adddraw(struct inode *inode, struct file *filp,
-		 unsigned int cmd, unsigned long arg)
+		unsigned int cmd, unsigned long arg)
 {
 	drm_draw_t draw;
 
 	draw.handle = 0;	/* NOOP */
 	DRM_DEBUG("%d\n", draw.handle);
-	if (copy_to_user((drm_draw_t __user *)arg, &draw, sizeof(draw)))
+	if (copy_to_user((drm_draw_t __user *) arg, &draw, sizeof(draw)))
 		return -EFAULT;
 	return 0;
 }
 
 /** No-op. */
 int drm_rmdraw(struct inode *inode, struct file *filp,
-		unsigned int cmd, unsigned long arg)
+	       unsigned int cmd, unsigned long arg)
 {
 	return 0;		/* NOOP */
 }

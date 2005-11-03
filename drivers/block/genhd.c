@@ -391,13 +391,12 @@ static ssize_t disk_stats_read(struct gendisk * disk, char *page)
 		"%8u %8u %8llu %8u "
 		"%8u %8u %8u"
 		"\n",
-		disk_stat_read(disk, reads), disk_stat_read(disk, read_merges),
-		(unsigned long long)disk_stat_read(disk, read_sectors),
-		jiffies_to_msecs(disk_stat_read(disk, read_ticks)),
-		disk_stat_read(disk, writes), 
-		disk_stat_read(disk, write_merges),
-		(unsigned long long)disk_stat_read(disk, write_sectors),
-		jiffies_to_msecs(disk_stat_read(disk, write_ticks)),
+		disk_stat_read(disk, ios[0]), disk_stat_read(disk, merges[0]),
+		(unsigned long long)disk_stat_read(disk, sectors[0]),
+		jiffies_to_msecs(disk_stat_read(disk, ticks[0])),
+		disk_stat_read(disk, ios[1]), disk_stat_read(disk, merges[1]),
+		(unsigned long long)disk_stat_read(disk, sectors[1]),
+		jiffies_to_msecs(disk_stat_read(disk, ticks[1])),
 		disk->in_flight,
 		jiffies_to_msecs(disk_stat_read(disk, io_ticks)),
 		jiffies_to_msecs(disk_stat_read(disk, time_in_queue)));
@@ -583,12 +582,12 @@ static int diskstats_show(struct seq_file *s, void *v)
 	preempt_enable();
 	seq_printf(s, "%4d %4d %s %u %u %llu %u %u %u %llu %u %u %u %u\n",
 		gp->major, n + gp->first_minor, disk_name(gp, n, buf),
-		disk_stat_read(gp, reads), disk_stat_read(gp, read_merges),
-		(unsigned long long)disk_stat_read(gp, read_sectors),
-		jiffies_to_msecs(disk_stat_read(gp, read_ticks)),
-		disk_stat_read(gp, writes), disk_stat_read(gp, write_merges),
-		(unsigned long long)disk_stat_read(gp, write_sectors),
-		jiffies_to_msecs(disk_stat_read(gp, write_ticks)),
+		disk_stat_read(gp, ios[0]), disk_stat_read(gp, merges[0]),
+		(unsigned long long)disk_stat_read(gp, sectors[0]),
+		jiffies_to_msecs(disk_stat_read(gp, ticks[0])),
+		disk_stat_read(gp, ios[1]), disk_stat_read(gp, merges[1]),
+		(unsigned long long)disk_stat_read(gp, sectors[1]),
+		jiffies_to_msecs(disk_stat_read(gp, ticks[1])),
 		gp->in_flight,
 		jiffies_to_msecs(disk_stat_read(gp, io_ticks)),
 		jiffies_to_msecs(disk_stat_read(gp, time_in_queue)));
@@ -601,8 +600,8 @@ static int diskstats_show(struct seq_file *s, void *v)
 			seq_printf(s, "%4d %4d %s %u %u %u %u\n",
 				gp->major, n + gp->first_minor + 1,
 				disk_name(gp, n + 1, buf),
-				hd->reads, hd->read_sectors,
-				hd->writes, hd->write_sectors);
+				hd->ios[0], hd->sectors[0],
+				hd->ios[1], hd->sectors[1]);
 	}
  
 	return 0;

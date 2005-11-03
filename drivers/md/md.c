@@ -3466,8 +3466,8 @@ static int is_mddev_idle(mddev_t *mddev)
 	idle = 1;
 	ITERATE_RDEV(mddev,rdev,tmp) {
 		struct gendisk *disk = rdev->bdev->bd_contains->bd_disk;
-		curr_events = disk_stat_read(disk, read_sectors) + 
-				disk_stat_read(disk, write_sectors) - 
+		curr_events = disk_stat_read(disk, sectors[0]) + 
+				disk_stat_read(disk, sectors[1]) - 
 				atomic_read(&disk->sync_io);
 		/* Allow some slack between valud of curr_events and last_events,
 		 * as there are some uninteresting races.

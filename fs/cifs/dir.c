@@ -48,6 +48,7 @@ build_path_from_dentry(struct dentry *direntry)
 	struct dentry *temp;
 	int namelen = 0;
 	char *full_path;
+	char dirsep = CIFS_DIR_SEP(CIFS_SB(direntry->d_sb));
 
 	if(direntry == NULL)
 		return NULL;  /* not much we can do if dentry is freed and
@@ -74,7 +75,7 @@ cifs_bp_rename_retry:
 		if (namelen < 0) {
 			break;
 		} else {
-			full_path[namelen] = '\\';
+			full_path[namelen] = dirsep;
 			strncpy(full_path + namelen + 1, temp->d_name.name,
 				temp->d_name.len);
 			cFYI(0, (" name: %s ", full_path + namelen));
@@ -183,6 +184,13 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 			 desiredAccess, CREATE_NOT_DIR,
 			 &fileHandle, &oplock, buf, cifs_sb->local_nls,
 			 cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if(rc == -EIO) {
+		/* old server, retry the open legacy style */
+		rc = SMBLegacyOpen(xid, pTcon, full_path, disposition,
+			desiredAccess, CREATE_NOT_DIR,
+			&fileHandle, &oplock, buf, cifs_sb->local_nls,
+			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	} 
 	if (rc) {
 		cFYI(1, ("cifs_create returned 0x%x ", rc));
 	} else {
@@ -208,7 +216,7 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			}
 		else {
-			/* BB implement via Windows security descriptors */
+			/* BB implement mode setting via Windows security descriptors */
 			/* eg CIFSSMBWinSetPerms(xid,pTcon,full_path,mode,-1,-1,local_nls);*/
 			/* could set r/o dos attribute if mode & 0222 == 0 */
 		}
@@ -225,10 +233,14 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 		}
 
 		if (rc != 0) {
-			cFYI(1,("Create worked but get_inode_info failed with rc = %d",
+			cFYI(1,
+			     ("Create worked but get_inode_info failed rc = %d",
 			      rc));
 		} else {
-			direntry->d_op = &cifs_dentry_ops;
+			if (pTcon->nocase)
+				direntry->d_op = &cifs_ci_dentry_ops;
+			else
+				direntry->d_op = &cifs_dentry_ops;
 			d_instantiate(direntry, newinode);
 		}
 		if((nd->flags & LOOKUP_OPEN) == FALSE) {
@@ -302,8 +314,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, dev_t dev
 	up(&direntry->d_sb->s_vfs_rename_sem);
 	if(full_path == NULL)
 		rc = -ENOMEM;
-	
-	if (full_path && (pTcon->ses->capabilities & CAP_UNIX)) {
+	else if (pTcon->ses->capabilities & CAP_UNIX) {
 		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 			rc = CIFSSMBUnixSetPerms(xid, pTcon, full_path,
 				mode,(__u64)current->euid,(__u64)current->egid,
@@ -321,9 +332,48 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, int mode, dev_t dev
 		if(!rc) {
 			rc = cifs_get_inode_info_unix(&newinode, full_path,
 						inode->i_sb,xid);
-			direntry->d_op = &cifs_dentry_ops;
+			if (pTcon->nocase)
+				direntry->d_op = &cifs_ci_dentry_ops;
+			else
+				direntry->d_op = &cifs_dentry_ops;
 			if(rc == 0)
 				d_instantiate(direntry, newinode);
+		}
+	} else {
+		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) {
+			int oplock = 0;
+			u16 fileHandle;
+			FILE_ALL_INFO * buf;
+
+			cFYI(1,("sfu compat create special file"));
+
+			buf = kmalloc(sizeof(FILE_ALL_INFO),GFP_KERNEL);
+			if(buf == NULL) {
+				kfree(full_path);
+				FreeXid(xid);
+				return -ENOMEM;
+			}
+
+			rc = CIFSSMBOpen(xid, pTcon, full_path,
+					 FILE_CREATE, /* fail if exists */
+					 GENERIC_WRITE /* BB would 
+					  WRITE_OWNER | WRITE_DAC be better? */,
+					 /* Create a file and set the
+					    file attribute to SYSTEM */
+					 CREATE_NOT_DIR | CREATE_OPTION_SPECIAL,
+					 &fileHandle, &oplock, buf,
+					 cifs_sb->local_nls,
+					 cifs_sb->mnt_cifs_flags & 
+					    CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+			if(!rc) {
+				/* BB Do not bother to decode buf since no
+				   local inode yet to put timestamps in */
+				CIFSSMBClose(xid, pTcon, fileHandle);
+				d_drop(direntry);
+			}
+			kfree(buf);
+			/* add code here to set EAs */
 		}
 	}
 
@@ -381,7 +431,10 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry, struct name
 					 parent_dir_inode->i_sb,xid);
 
 	if ((rc == 0) && (newInode != NULL)) {
-		direntry->d_op = &cifs_dentry_ops;
+		if (pTcon->nocase)
+			direntry->d_op = &cifs_ci_dentry_ops;
+		else
+			direntry->d_op = &cifs_dentry_ops;
 		d_add(direntry, newInode);
 
 		/* since paths are not looked up by component - the parent directories are presumed to be good here */
@@ -439,4 +492,43 @@ struct dentry_operations cifs_dentry_ops = {
 	.d_revalidate = cifs_d_revalidate,
 /* d_delete:       cifs_d_delete,       *//* not needed except for debugging */
 	/* no need for d_hash, d_compare, d_release, d_iput ... yet. BB confirm this BB */
+};
+
+static int cifs_ci_hash(struct dentry *dentry, struct qstr *q)
+{
+	struct nls_table *codepage = CIFS_SB(dentry->d_inode->i_sb)->local_nls;
+	unsigned long hash;
+	int i;
+
+	hash = init_name_hash();
+	for (i = 0; i < q->len; i++)
+		hash = partial_name_hash(nls_tolower(codepage, q->name[i]),
+					 hash);
+	q->hash = end_name_hash(hash);
+
+	return 0;
+}
+
+static int cifs_ci_compare(struct dentry *dentry, struct qstr *a,
+			   struct qstr *b)
+{
+	struct nls_table *codepage = CIFS_SB(dentry->d_inode->i_sb)->local_nls;
+
+	if ((a->len == b->len) &&
+	    (nls_strnicmp(codepage, a->name, b->name, a->len) == 0)) {
+		/*
+		 * To preserve case, don't let an existing negative dentry's
+		 * case take precedence.  If a is not a negative dentry, this
+		 * should have no side effects
+		 */
+		memcpy((unsigned char *)a->name, b->name, a->len);
+		return 0;
+	}
+	return 1;
+}
+
+struct dentry_operations cifs_ci_dentry_ops = {
+	.d_revalidate = cifs_d_revalidate,
+	.d_hash = cifs_ci_hash,
+	.d_compare = cifs_ci_compare,
 };

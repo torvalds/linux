@@ -27,6 +27,8 @@
 #include <asm/pci-bridge.h>
 #include <asm/mv64x60_defs.h>
 
+struct platform_device;
+
 extern u8	mv64x60_pci_exclude_bridge;
 
 extern spinlock_t mv64x60_lock;

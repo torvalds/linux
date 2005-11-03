@@ -213,6 +213,7 @@ static int __devexit mv64x60_wdt_remove(struct device *dev)
 }
 
 static struct device_driver mv64x60_wdt_driver = {
+	.owner = THIS_MODULE,
 	.name = MV64x60_WDT_NAME,
 	.bus = &platform_bus_type,
 	.probe = mv64x60_wdt_probe,

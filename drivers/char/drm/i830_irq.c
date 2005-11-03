@@ -9,11 +9,11 @@
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
@@ -33,28 +33,27 @@
 #include <linux/interrupt.h>	/* For task queue support */
 #include <linux/delay.h>
 
-
-irqreturn_t i830_driver_irq_handler( DRM_IRQ_ARGS )
+irqreturn_t i830_driver_irq_handler(DRM_IRQ_ARGS)
 {
-	drm_device_t	 *dev = (drm_device_t *)arg;
-      	drm_i830_private_t *dev_priv = (drm_i830_private_t *)dev->dev_private;
-   	u16 temp;
+	drm_device_t *dev = (drm_device_t *) arg;
+	drm_i830_private_t *dev_priv = (drm_i830_private_t *) dev->dev_private;
+	u16 temp;
 
-      	temp = I830_READ16(I830REG_INT_IDENTITY_R);
+	temp = I830_READ16(I830REG_INT_IDENTITY_R);
 	DRM_DEBUG("%x\n", temp);
 
-   	if ( !( temp & 2 ) ) 
+	if (!(temp & 2))
 		return IRQ_NONE;
 
-	I830_WRITE16(I830REG_INT_IDENTITY_R, temp); 
+	I830_WRITE16(I830REG_INT_IDENTITY_R, temp);
 
 	atomic_inc(&dev_priv->irq_received);
-	wake_up_interruptible(&dev_priv->irq_queue); 
+	wake_up_interruptible(&dev_priv->irq_queue);
 
 	return IRQ_HANDLED;
 }
 
-static int i830_emit_irq(drm_device_t *dev)
+static int i830_emit_irq(drm_device_t * dev)
 {
 	drm_i830_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
@@ -63,27 +62,25 @@ static int i830_emit_irq(drm_device_t *dev)
 
 	atomic_inc(&dev_priv->irq_emitted);
 
-   	BEGIN_LP_RING(2);
-      	OUT_RING( 0 );
-      	OUT_RING( GFX_OP_USER_INTERRUPT );
-      	ADVANCE_LP_RING();
+	BEGIN_LP_RING(2);
+	OUT_RING(0);
+	OUT_RING(GFX_OP_USER_INTERRUPT);
+	ADVANCE_LP_RING();
 
 	return atomic_read(&dev_priv->irq_emitted);
 }
 
-
-static int i830_wait_irq(drm_device_t *dev, int irq_nr)
+static int i830_wait_irq(drm_device_t * dev, int irq_nr)
 {
-  	drm_i830_private_t *dev_priv = 
-	   (drm_i830_private_t *)dev->dev_private;
+	drm_i830_private_t *dev_priv = (drm_i830_private_t *) dev->dev_private;
 	DECLARE_WAITQUEUE(entry, current);
-	unsigned long end = jiffies + HZ*3;
+	unsigned long end = jiffies + HZ * 3;
 	int ret = 0;
 
 	DRM_DEBUG("%s\n", __FUNCTION__);
 
- 	if (atomic_read(&dev_priv->irq_received) >= irq_nr)  
- 		return 0; 
+	if (atomic_read(&dev_priv->irq_received) >= irq_nr)
+		return 0;
 
 	dev_priv->sarea_priv->perf_boxes |= I830_BOX_WAIT;
 
@@ -91,21 +88,21 @@ static int i830_wait_irq(drm_device_t *dev, int irq_nr)
 
 	for (;;) {
 		__set_current_state(TASK_INTERRUPTIBLE);
-	   	if (atomic_read(&dev_priv->irq_received) >= irq_nr) 
-		   break;
-		if((signed)(end - jiffies) <= 0) {
+		if (atomic_read(&dev_priv->irq_received) >= irq_nr)
+			break;
+		if ((signed)(end - jiffies) <= 0) {
 			DRM_ERROR("timeout iir %x imr %x ier %x hwstam %x\n",
-				  I830_READ16( I830REG_INT_IDENTITY_R ),
-				  I830_READ16( I830REG_INT_MASK_R ),
-				  I830_READ16( I830REG_INT_ENABLE_R ),
-				  I830_READ16( I830REG_HWSTAM ));
+				  I830_READ16(I830REG_INT_IDENTITY_R),
+				  I830_READ16(I830REG_INT_MASK_R),
+				  I830_READ16(I830REG_INT_ENABLE_R),
+				  I830_READ16(I830REG_HWSTAM));
 
-		   	ret = -EBUSY;	/* Lockup?  Missed irq? */
+			ret = -EBUSY;	/* Lockup?  Missed irq? */
 			break;
 		}
-	      	schedule_timeout(HZ*3);
-	      	if (signal_pending(current)) {
-		   	ret = -EINTR;
+		schedule_timeout(HZ * 3);
+		if (signal_pending(current)) {
+			ret = -EINTR;
 			break;
 		}
 	}
@@ -115,89 +112,87 @@ static int i830_wait_irq(drm_device_t *dev, int irq_nr)
 	return ret;
 }
 
-
 /* Needs the lock as it touches the ring.
  */
-int i830_irq_emit( struct inode *inode, struct file *filp, unsigned int cmd,
-		   unsigned long arg )
+int i830_irq_emit(struct inode *inode, struct file *filp, unsigned int cmd,
+		  unsigned long arg)
 {
-	drm_file_t	  *priv	    = filp->private_data;
-	drm_device_t	  *dev	    = priv->head->dev;
+	drm_file_t *priv = filp->private_data;
+	drm_device_t *dev = priv->head->dev;
 	drm_i830_private_t *dev_priv = dev->dev_private;
 	drm_i830_irq_emit_t emit;
 	int result;
 
 	LOCK_TEST_WITH_RETURN(dev, filp);
 
-	if ( !dev_priv ) {
-		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
+	if (!dev_priv) {
+		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
 		return -EINVAL;
 	}
 
-	if (copy_from_user( &emit, (drm_i830_irq_emit_t __user *)arg, sizeof(emit) ))
+	if (copy_from_user
+	    (&emit, (drm_i830_irq_emit_t __user *) arg, sizeof(emit)))
 		return -EFAULT;
 
-	result = i830_emit_irq( dev );
+	result = i830_emit_irq(dev);
 
-	if ( copy_to_user( emit.irq_seq, &result, sizeof(int) ) ) {
-		DRM_ERROR( "copy_to_user\n" );
+	if (copy_to_user(emit.irq_seq, &result, sizeof(int))) {
+		DRM_ERROR("copy_to_user\n");
 		return -EFAULT;
 	}
 
 	return 0;
 }
 
-
 /* Doesn't need the hardware lock.
  */
-int i830_irq_wait( struct inode *inode, struct file *filp, unsigned int cmd,
-		   unsigned long arg )
+int i830_irq_wait(struct inode *inode, struct file *filp, unsigned int cmd,
+		  unsigned long arg)
 {
-	drm_file_t	  *priv	    = filp->private_data;
-	drm_device_t	  *dev	    = priv->head->dev;
+	drm_file_t *priv = filp->private_data;
+	drm_device_t *dev = priv->head->dev;
 	drm_i830_private_t *dev_priv = dev->dev_private;
 	drm_i830_irq_wait_t irqwait;
 
-	if ( !dev_priv ) {
-		DRM_ERROR( "%s called with no initialization\n", __FUNCTION__ );
+	if (!dev_priv) {
+		DRM_ERROR("%s called with no initialization\n", __FUNCTION__);
 		return -EINVAL;
 	}
 
-	if (copy_from_user( &irqwait, (drm_i830_irq_wait_t __user *)arg, 
-			    sizeof(irqwait) ))
+	if (copy_from_user(&irqwait, (drm_i830_irq_wait_t __user *) arg,
+			   sizeof(irqwait)))
 		return -EFAULT;
 
-	return i830_wait_irq( dev, irqwait.irq_seq );
+	return i830_wait_irq(dev, irqwait.irq_seq);
 }
-
 
 /* drm_dma.h hooks
 */
-void i830_driver_irq_preinstall( drm_device_t *dev ) {
-	drm_i830_private_t *dev_priv =
-		(drm_i830_private_t *)dev->dev_private;
+void i830_driver_irq_preinstall(drm_device_t * dev)
+{
+	drm_i830_private_t *dev_priv = (drm_i830_private_t *) dev->dev_private;
 
-	I830_WRITE16( I830REG_HWSTAM, 0xffff );
-	I830_WRITE16( I830REG_INT_MASK_R, 0x0 );
-	I830_WRITE16( I830REG_INT_ENABLE_R, 0x0 );
+	I830_WRITE16(I830REG_HWSTAM, 0xffff);
+	I830_WRITE16(I830REG_INT_MASK_R, 0x0);
+	I830_WRITE16(I830REG_INT_ENABLE_R, 0x0);
 	atomic_set(&dev_priv->irq_received, 0);
 	atomic_set(&dev_priv->irq_emitted, 0);
 	init_waitqueue_head(&dev_priv->irq_queue);
 }
 
-void i830_driver_irq_postinstall( drm_device_t *dev ) {
-	drm_i830_private_t *dev_priv =
-		(drm_i830_private_t *)dev->dev_private;
+void i830_driver_irq_postinstall(drm_device_t * dev)
+{
+	drm_i830_private_t *dev_priv = (drm_i830_private_t *) dev->dev_private;
 
-	I830_WRITE16( I830REG_INT_ENABLE_R, 0x2 );
+	I830_WRITE16(I830REG_INT_ENABLE_R, 0x2);
 }
 
-void i830_driver_irq_uninstall( drm_device_t *dev ) {
-	drm_i830_private_t *dev_priv =
-		(drm_i830_private_t *)dev->dev_private;
+void i830_driver_irq_uninstall(drm_device_t * dev)
+{
+	drm_i830_private_t *dev_priv = (drm_i830_private_t *) dev->dev_private;
 	if (!dev_priv)
 		return;
 
-	I830_WRITE16( I830REG_INT_MASK_R, 0xffff );
-	I830_WRITE16( I830REG_INT_ENABLE_R, 0x0 );
+	I830_WRITE16(I830REG_INT_MASK_R, 0xffff);
+	I830_WRITE16(I830REG_INT_ENABLE_R, 0x0);
 }
