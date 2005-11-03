@@ -27,7 +27,6 @@
 #define MAX_VMALLOCS	6
 #define MAX_SLAB_SIZE	0x20000
 
-
 void *
 kmem_alloc(size_t size, unsigned int __nocast flags)
 {

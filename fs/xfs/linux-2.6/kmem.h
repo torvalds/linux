@@ -69,7 +69,7 @@ typedef unsigned long xfs_pflags_t;
 
 static __inline gfp_t kmem_flags_convert(unsigned int __nocast flags)
 {
-	gfp_t lflags = __GFP_NOWARN;	/* we'll report problems, if need be */
+	gfp_t	lflags = __GFP_NOWARN;	/* we'll report problems, if need be */
 
 #ifdef DEBUG
 	if (unlikely(flags & ~(KM_SLEEP|KM_NOSLEEP|KM_NOFS|KM_MAYFAIL))) {
@@ -88,7 +88,7 @@ static __inline gfp_t kmem_flags_convert(unsigned int __nocast flags)
 		if (PFLAGS_TEST_FSTRANS() || (flags & KM_NOFS))
 			lflags &= ~__GFP_FS;
 	}
-        
+
         return lflags;
 }
 
@@ -111,13 +111,13 @@ kmem_zone_destroy(kmem_zone_t *zone)
 		BUG();
 }
 
-extern void	    *kmem_zone_zalloc(kmem_zone_t *, unsigned int __nocast);
-extern void	    *kmem_zone_alloc(kmem_zone_t *, unsigned int __nocast);
+extern void *kmem_zone_zalloc(kmem_zone_t *, unsigned int __nocast);
+extern void *kmem_zone_alloc(kmem_zone_t *, unsigned int __nocast);
 
-extern void	    *kmem_alloc(size_t, unsigned int __nocast);
-extern void	    *kmem_realloc(void *, size_t, size_t, unsigned int __nocast);
-extern void	    *kmem_zalloc(size_t, unsigned int __nocast);
-extern void         kmem_free(void *, size_t);
+extern void *kmem_alloc(size_t, unsigned int __nocast);
+extern void *kmem_realloc(void *, size_t, size_t, unsigned int __nocast);
+extern void *kmem_zalloc(size_t, unsigned int __nocast);
+extern void  kmem_free(void *, size_t);
 
 typedef struct shrinker *kmem_shaker_t;
 typedef int (*kmem_shake_func_t)(int, gfp_t);
