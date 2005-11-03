@@ -702,6 +702,9 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 	if (!audit_initialized)
 		return NULL;
 
+	if (unlikely(audit_filter_type(type)))
+		return NULL;
+
 	if (gfp_mask & __GFP_WAIT)
 		reserve = 0;
 	else

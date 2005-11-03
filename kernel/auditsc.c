@@ -187,7 +187,8 @@ static struct list_head audit_filter_list[AUDIT_NR_FILTERS] = {
 	LIST_HEAD_INIT(audit_filter_list[2]),
 	LIST_HEAD_INIT(audit_filter_list[3]),
 	LIST_HEAD_INIT(audit_filter_list[4]),
-#if AUDIT_NR_FILTERS != 5
+	LIST_HEAD_INIT(audit_filter_list[5]),
+#if AUDIT_NR_FILTERS != 6
 #error Fix audit_filter_list initialiser
 #endif
 };
@@ -662,6 +663,38 @@ int audit_filter_user(struct netlink_skb_parms *cb, int type)
 
 	return ret; /* Audit by default */
 }
+
+int audit_filter_type(int type)
+{
+	struct audit_entry *e;
+	int result = 0;
+	
+	rcu_read_lock();
+	if (list_empty(&audit_filter_list[AUDIT_FILTER_TYPE]))
+		goto unlock_and_return;
+
+	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_TYPE],
+				list) {
+		struct audit_rule *rule = &e->rule;
+		int i;
+		for (i = 0; i < rule->field_count; i++) {
+			u32 field  = rule->fields[i] & ~AUDIT_OPERATORS;
+			u32 op  = rule->fields[i] & AUDIT_OPERATORS;
+			u32 value  = rule->values[i];
+			if ( field == AUDIT_MSGTYPE ) {
+				result = audit_comparator(type, op, value); 
+				if (!result)
+					break;
+			}
+		}
+		if (result)
+			goto unlock_and_return;
+	}
+unlock_and_return:
+	rcu_read_unlock();
+	return result;
+}
+
 
 /* This should be called with task_lock() held. */
 static inline struct audit_context *audit_get_context(struct task_struct *tsk,

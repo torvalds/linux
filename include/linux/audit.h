@@ -92,8 +92,9 @@
 #define AUDIT_FILTER_ENTRY	0x02	/* Apply rule at syscall entry */
 #define AUDIT_FILTER_WATCH	0x03	/* Apply rule to file system watches */
 #define AUDIT_FILTER_EXIT	0x04	/* Apply rule at syscall exit */
+#define AUDIT_FILTER_TYPE	0x05	/* Apply rule at audit_log_start */
 
-#define AUDIT_NR_FILTERS	5
+#define AUDIT_NR_FILTERS	6
 
 #define AUDIT_FILTER_PREPEND	0x10	/* Prepend to front of list */
 
@@ -132,6 +133,7 @@
 #define AUDIT_LOGINUID	9
 #define AUDIT_PERS	10
 #define AUDIT_ARCH	11
+#define AUDIT_MSGTYPE	12
 
 				/* These are ONLY useful when checking
 				 * at syscall exit time (AUDIT_AT_EXIT). */
@@ -289,6 +291,7 @@ extern int audit_sockaddr(int len, void *addr);
 extern int audit_avc_path(struct dentry *dentry, struct vfsmount *mnt);
 extern void audit_signal_info(int sig, struct task_struct *t);
 extern int audit_filter_user(struct netlink_skb_parms *cb, int type);
+extern int audit_filter_type(int type);
 #else
 #define audit_alloc(t) ({ 0; })
 #define audit_free(t) do { ; } while (0)
