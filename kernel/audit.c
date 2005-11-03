@@ -369,6 +369,7 @@ static int audit_netlink_ok(kernel_cap_t eff_cap, u16 msg_type)
 		break;
 	case AUDIT_USER:
 	case AUDIT_FIRST_USER_MSG...AUDIT_LAST_USER_MSG:
+	case AUDIT_FIRST_USER_MSG2...AUDIT_LAST_USER_MSG2:
 		if (!cap_raised(eff_cap, CAP_AUDIT_WRITE))
 			err = -EPERM;
 		break;
@@ -449,6 +450,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		break;
 	case AUDIT_USER:
 	case AUDIT_FIRST_USER_MSG...AUDIT_LAST_USER_MSG:
+	case AUDIT_FIRST_USER_MSG2...AUDIT_LAST_USER_MSG2:
 		if (!audit_enabled && msg_type != AUDIT_USER_AVC)
 			return 0;
 

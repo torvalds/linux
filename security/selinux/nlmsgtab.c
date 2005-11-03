@@ -145,8 +145,10 @@ int selinux_nlmsg_lookup(u16 sclass, u16 nlmsg_type, u32 *perm)
 		break;
 
 	case SECCLASS_NETLINK_AUDIT_SOCKET:
-		if (nlmsg_type >= AUDIT_FIRST_USER_MSG &&
-		    nlmsg_type <= AUDIT_LAST_USER_MSG) {
+		if ((nlmsg_type >= AUDIT_FIRST_USER_MSG &&
+		     nlmsg_type <= AUDIT_LAST_USER_MSG) ||
+		    (nlmsg_type >= AUDIT_FIRST_USER_MSG2 &&
+                     nlmsg_type <= AUDIT_LAST_USER_MSG2)) {
 			*perm = NETLINK_AUDIT_SOCKET__NLMSG_RELAY;
 		} else {
 			err = nlmsg_perm(nlmsg_type, perm, nlmsg_audit_perms,

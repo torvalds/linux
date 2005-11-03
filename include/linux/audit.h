@@ -33,11 +33,20 @@
  * 1200 - 1299 messages internal to the audit daemon
  * 1300 - 1399 audit event messages
  * 1400 - 1499 SE Linux use
- * 1500 - 1999 future use
- * 2000 is for otherwise unclassified kernel audit messages
+ * 1500 - 1599 kernel LSPP events
+ * 1600 - 1699 kernel crypto events
+ * 1700 - 1999 future kernel use (maybe integrity labels and related events)
+ * 2000 is for otherwise unclassified kernel audit messages (legacy)
+ * 2001 - 2099 unused (kernel)
+ * 2100 - 2199 user space anomaly records
+ * 2200 - 2299 user space actions taken in response to anomalies
+ * 2300 - 2399 user space generated LSPP events
+ * 2400 - 2499 user space crypto events
+ * 2500 - 2999 future user space (maybe integrity labels and related events)
  *
- * Messages from 1000-1199 are bi-directional. 1200-1299 are exclusively user
- * space. Anything over that is kernel --> user space communication.
+ * Messages from 1000-1199 are bi-directional. 1200-1299 & 2100 - 2999 are
+ * exclusively user space. 1300-2099 is kernel --> user space 
+ * communication.
  */
 #define AUDIT_GET		1000	/* Get status */
 #define AUDIT_SET		1001	/* Set status (enable/disable/auditd) */
@@ -54,6 +63,8 @@
 #define AUDIT_FIRST_USER_MSG	1100	/* Userspace messages mostly uninteresting to kernel */
 #define AUDIT_USER_AVC		1107	/* We filter this differently */
 #define AUDIT_LAST_USER_MSG	1199
+#define AUDIT_FIRST_USER_MSG2	2100	/* More user space messages */
+#define AUDIT_LAST_USER_MSG2	2999
  
 #define AUDIT_DAEMON_START      1200    /* Daemon startup record */
 #define AUDIT_DAEMON_END        1201    /* Daemon normal stop record */
