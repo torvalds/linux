@@ -217,13 +217,12 @@ static void update_open_stateid(struct nfs4_state *state, nfs4_stateid *stateid,
 	/* Protect against nfs4_find_state() */
 	spin_lock(&state->owner->so_lock);
 	spin_lock(&inode->i_lock);
-	state->state |= open_flags;
-	/* NB! List reordering - see the reclaim code for why.  */
-	if ((open_flags & FMODE_WRITE) && 0 == state->nwriters++)
-		list_move(&state->open_states, &state->owner->so_states);
+	memcpy(&state->stateid, stateid, sizeof(state->stateid));
+	if ((open_flags & FMODE_WRITE))
+		state->nwriters++;
 	if (open_flags & FMODE_READ)
 		state->nreaders++;
-	memcpy(&state->stateid, stateid, sizeof(state->stateid));
+	nfs4_state_set_mode_locked(state, state->state | open_flags);
 	spin_unlock(&inode->i_lock);
 	spin_unlock(&state->owner->so_lock);
 }
@@ -896,7 +895,6 @@ static void nfs4_close_done(struct rpc_task *task)
 			break;
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_EXPIRED:
-			state->state = calldata->arg.open_flags;
 			nfs4_schedule_state_recovery(server->nfs4_state);
 			break;
 		default:
@@ -906,7 +904,6 @@ static void nfs4_close_done(struct rpc_task *task)
 			}
 	}
 	nfs_refresh_inode(calldata->inode, calldata->res.fattr);
-	state->state = calldata->arg.open_flags;
 	nfs4_free_closedata(calldata);
 }
 
@@ -920,24 +917,26 @@ static void nfs4_close_begin(struct rpc_task *task)
 		.rpc_resp = &calldata->res,
 		.rpc_cred = state->owner->so_cred,
 	};
-	int mode = 0;
+	int mode = 0, old_mode;
 	int status;
 
 	status = nfs_wait_on_sequence(calldata->arg.seqid, task);
 	if (status != 0)
 		return;
-	/* Don't reorder reads */
-	smp_rmb();
 	/* Recalculate the new open mode in case someone reopened the file
 	 * while we were waiting in line to be scheduled.
 	 */
-	if (state->nreaders != 0)
-		mode |= FMODE_READ;
-	if (state->nwriters != 0)
-		mode |= FMODE_WRITE;
-	if (test_bit(NFS_DELEGATED_STATE, &state->flags))
-		state->state = mode;
-	if (mode == state->state) {
+	spin_lock(&state->owner->so_lock);
+	spin_lock(&calldata->inode->i_lock);
+	mode = old_mode = state->state;
+	if (state->nreaders == 0)
+		mode &= ~FMODE_READ;
+	if (state->nwriters == 0)
+		mode &= ~FMODE_WRITE;
+	nfs4_state_set_mode_locked(state, mode);
+	spin_unlock(&calldata->inode->i_lock);
+	spin_unlock(&state->owner->so_lock);
+	if (mode == old_mode || test_bit(NFS_DELEGATED_STATE, &state->flags)) {
 		nfs4_free_closedata(calldata);
 		task->tk_exit = NULL;
 		rpc_exit(task, 0);
@@ -961,7 +960,7 @@ static void nfs4_close_begin(struct rpc_task *task)
  *
  * NOTE: Caller must be holding the sp->so_owner semaphore!
  */
-int nfs4_do_close(struct inode *inode, struct nfs4_state *state, mode_t mode) 
+int nfs4_do_close(struct inode *inode, struct nfs4_state *state) 
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs4_closedata *calldata;

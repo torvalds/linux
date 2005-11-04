@@ -366,6 +366,23 @@ nfs4_alloc_open_state(void)
 	return state;
 }
 
+void
+nfs4_state_set_mode_locked(struct nfs4_state *state, mode_t mode)
+{
+	if (state->state == mode)
+		return;
+	/* NB! List reordering - see the reclaim code for why.  */
+	if ((mode & FMODE_WRITE) != (state->state & FMODE_WRITE)) {
+		if (mode & FMODE_WRITE)
+			list_move(&state->open_states, &state->owner->so_states);
+		else
+			list_move_tail(&state->open_states, &state->owner->so_states);
+	}
+	if (mode == 0)
+		list_del_init(&state->inode_states);
+	state->state = mode;
+}
+
 static struct nfs4_state *
 __nfs4_find_state(struct inode *inode, struct rpc_cred *cred, mode_t mode)
 {
@@ -375,10 +392,6 @@ __nfs4_find_state(struct inode *inode, struct rpc_cred *cred, mode_t mode)
 	mode &= (FMODE_READ|FMODE_WRITE);
 	list_for_each_entry(state, &nfsi->open_states, inode_states) {
 		if (state->owner->so_cred != cred)
-			continue;
-		if ((mode & FMODE_READ) != 0 && state->nreaders == 0)
-			continue;
-		if ((mode & FMODE_WRITE) != 0 && state->nwriters == 0)
 			continue;
 		if ((state->state & mode) != mode)
 			continue;
@@ -400,7 +413,7 @@ __nfs4_find_state_byowner(struct inode *inode, struct nfs4_state_owner *owner)
 
 	list_for_each_entry(state, &nfsi->open_states, inode_states) {
 		/* Is this in the process of being freed? */
-		if (state->nreaders == 0 && state->nwriters == 0)
+		if (state->state == 0)
 			continue;
 		if (state->owner == owner) {
 			atomic_inc(&state->count);
@@ -481,7 +494,6 @@ void nfs4_put_open_state(struct nfs4_state *state)
 	spin_unlock(&inode->i_lock);
 	spin_unlock(&owner->so_lock);
 	iput(inode);
-	BUG_ON (state->state != 0);
 	nfs4_free_open_state(state);
 	nfs4_put_state_owner(owner);
 }
@@ -493,7 +505,7 @@ void nfs4_close_state(struct nfs4_state *state, mode_t mode)
 {
 	struct inode *inode = state->inode;
 	struct nfs4_state_owner *owner = state->owner;
-	int newstate;
+	int oldstate, newstate = 0;
 
 	atomic_inc(&owner->so_count);
 	/* Protect against nfs4_find_state() */
@@ -503,30 +515,20 @@ void nfs4_close_state(struct nfs4_state *state, mode_t mode)
 		state->nreaders--;
 	if (mode & FMODE_WRITE)
 		state->nwriters--;
-	if (state->nwriters == 0) {
-		if (state->nreaders == 0)
-			list_del_init(&state->inode_states);
-		/* See reclaim code */
-		list_move_tail(&state->open_states, &owner->so_states);
+	oldstate = newstate = state->state;
+	if (state->nreaders == 0)
+		newstate &= ~FMODE_READ;
+	if (state->nwriters == 0)
+		newstate &= ~FMODE_WRITE;
+	if (test_bit(NFS_DELEGATED_STATE, &state->flags)) {
+		nfs4_state_set_mode_locked(state, newstate);
+		oldstate = newstate;
 	}
 	spin_unlock(&inode->i_lock);
 	spin_unlock(&owner->so_lock);
-	newstate = 0;
-	if (state->state != 0) {
-		if (state->nreaders)
-			newstate |= FMODE_READ;
-		if (state->nwriters)
-			newstate |= FMODE_WRITE;
-		if (state->state == newstate)
-			goto out;
-		if (test_bit(NFS_DELEGATED_STATE, &state->flags)) {
-			state->state = newstate;
-			goto out;
-		}
-		if (nfs4_do_close(inode, state, newstate) == 0)
-			return;
-	}
-out:
+
+	if (oldstate != newstate && nfs4_do_close(inode, state) == 0)
+		return;
 	nfs4_put_open_state(state);
 	nfs4_put_state_owner(owner);
 }
