@@ -125,8 +125,17 @@ static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
 		return bus->sysdata; /* Must be root bus (PHB) */
 }
 
+/** Find the bus corresponding to the indicated device node */
+struct pci_bus * pcibios_find_pci_bus(struct device_node *dn);
+
 extern void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 					 struct device_node *dev, int primary);
+
+/** Remove all of the PCI devices under this bus */
+void pcibios_remove_pci_devices(struct pci_bus *bus);
+
+/** Discover new pci devices under this bus, and add them */
+void pcibios_add_pci_devices(struct pci_bus * bus);
 
 extern int pcibios_remove_root_bus(struct pci_controller *phb);
 
