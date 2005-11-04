@@ -278,7 +278,6 @@ config PPC_PSERIES
 	select PPC_I8259
 	select PPC_RTAS
 	select RTAS_ERROR_LOGGING
-	select RTAS_FW
 	default y
 
 config PPC_CHRP
@@ -324,7 +323,6 @@ config PPC_CELL
 	bool "  Cell Broadband Processor Architecture"
 	depends on PPC_MULTIPLATFORM && PPC64
 	select PPC_RTAS
-	select RTAS_FW
 	select MMIO_NVRAM
 
 config PPC_OF
@@ -356,10 +354,14 @@ config RTAS_ERROR_LOGGING
 	depends on PPC_RTAS
 	default n
 
-config RTAS_FW
-	bool
+config RTAS_PROC
+	bool "Proc interface to RTAS"
 	depends on PPC_RTAS
-	default n
+	default y
+
+config RTAS_FLASH
+	tristate "Firmware flash interface"
+	depends on PPC64 && RTAS_PROC
 
 config MMIO_NVRAM
 	bool
