@@ -1,33 +1,19 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.	 Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_QM_H__
 #define __XFS_QM_H__
@@ -40,6 +26,7 @@
 struct xfs_qm;
 struct xfs_inode;
 
+extern uint		ndquot;
 extern mutex_t		xfs_Gqm_lock;
 extern struct xfs_qm	*xfs_Gqm;
 extern kmem_zone_t	*qm_dqzone;
@@ -65,9 +52,8 @@ extern kmem_zone_t	*qm_dqtrxzone;
 /*
  * Dquot hashtable constants/threshold values.
  */
-#define XFS_QM_NCSIZE_THRESHOLD		5000
-#define XFS_QM_HASHSIZE_LOW		32
-#define XFS_QM_HASHSIZE_HIGH		64
+#define XFS_QM_HASHSIZE_LOW		(NBPP / sizeof(xfs_dqhash_t))
+#define XFS_QM_HASHSIZE_HIGH		((NBPP * 4) / sizeof(xfs_dqhash_t))
 
 /*
  * We output a cmn_err when quotachecking a quota file with more than

@@ -1,36 +1,28 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef	__XFS_INODE_H__
 #define	__XFS_INODE_H__
+
+/*
+ * Fork identifiers.
+ */
+#define	XFS_DATA_FORK	0
+#define	XFS_ATTR_FORK	1
 
 /*
  * File incore extent information, present for each of data & attr forks.
@@ -106,24 +98,6 @@ extern void xfs_ilock_trace(struct xfs_inode *, int, unsigned int, inst_t *);
 #else
 #define	xfs_ilock_trace(i,n,f,ra)
 #endif
-
-/*
- * This structure is used to communicate which extents of a file
- * were holes when a write started from xfs_write_file() to
- * xfs_strat_read().  This is necessary so that we can know which
- * blocks need to be zeroed when they are read in in xfs_strat_read()
- * if they weren\'t allocated when the buffer given to xfs_strat_read()
- * was mapped.
- *
- * We keep a list of these attached to the inode.  The list is
- * protected by the inode lock and the fact that the io lock is
- * held exclusively by writers.
- */
-typedef struct xfs_gap {
-	struct xfs_gap	*xg_next;
-	xfs_fileoff_t	xg_offset_fsb;
-	xfs_extlen_t	xg_count_fsb;
-} xfs_gap_t;
 
 typedef struct dm_attrs_s {
 	__uint32_t	da_dmevmask;	/* DMIG event mask */
@@ -311,60 +285,16 @@ typedef struct xfs_inode {
 /*
  * Fork handling.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_PTR)
-xfs_ifork_t *xfs_ifork_ptr(xfs_inode_t *ip, int w);
-#define	XFS_IFORK_PTR(ip,w)		xfs_ifork_ptr(ip,w)
-#else
-#define	XFS_IFORK_PTR(ip,w)   ((w) == XFS_DATA_FORK ? &(ip)->i_df : (ip)->i_afp)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_Q)
-int xfs_ifork_q(xfs_inode_t *ip);
-#define	XFS_IFORK_Q(ip)			xfs_ifork_q(ip)
-#else
+#define	XFS_IFORK_PTR(ip,w)		\
+	((w) == XFS_DATA_FORK ? &(ip)->i_df : (ip)->i_afp)
 #define	XFS_IFORK_Q(ip)			XFS_CFORK_Q(&(ip)->i_d)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_DSIZE)
-int xfs_ifork_dsize(xfs_inode_t *ip);
-#define	XFS_IFORK_DSIZE(ip)		xfs_ifork_dsize(ip)
-#else
 #define	XFS_IFORK_DSIZE(ip)		XFS_CFORK_DSIZE(&ip->i_d, ip->i_mount)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_ASIZE)
-int xfs_ifork_asize(xfs_inode_t *ip);
-#define	XFS_IFORK_ASIZE(ip)		xfs_ifork_asize(ip)
-#else
 #define	XFS_IFORK_ASIZE(ip)		XFS_CFORK_ASIZE(&ip->i_d, ip->i_mount)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_SIZE)
-int xfs_ifork_size(xfs_inode_t *ip, int w);
-#define	XFS_IFORK_SIZE(ip,w)		xfs_ifork_size(ip,w)
-#else
 #define	XFS_IFORK_SIZE(ip,w)		XFS_CFORK_SIZE(&ip->i_d, ip->i_mount, w)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_FORMAT)
-int xfs_ifork_format(xfs_inode_t *ip, int w);
-#define	XFS_IFORK_FORMAT(ip,w)		xfs_ifork_format(ip,w)
-#else
 #define	XFS_IFORK_FORMAT(ip,w)		XFS_CFORK_FORMAT(&ip->i_d, w)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_FMT_SET)
-void xfs_ifork_fmt_set(xfs_inode_t *ip, int w, int n);
-#define	XFS_IFORK_FMT_SET(ip,w,n)	xfs_ifork_fmt_set(ip,w,n)
-#else
 #define	XFS_IFORK_FMT_SET(ip,w,n)	XFS_CFORK_FMT_SET(&ip->i_d, w, n)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_NEXTENTS)
-int xfs_ifork_nextents(xfs_inode_t *ip, int w);
-#define	XFS_IFORK_NEXTENTS(ip,w)	xfs_ifork_nextents(ip,w)
-#else
 #define	XFS_IFORK_NEXTENTS(ip,w)	XFS_CFORK_NEXTENTS(&ip->i_d, w)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_IFORK_NEXT_SET)
-void xfs_ifork_next_set(xfs_inode_t *ip, int w, int n);
-#define	XFS_IFORK_NEXT_SET(ip,w,n)	xfs_ifork_next_set(ip,w,n)
-#else
 #define	XFS_IFORK_NEXT_SET(ip,w,n)	XFS_CFORK_NEXT_SET(&ip->i_d, w, n)
-#endif
 
 
 #ifdef __KERNEL__
@@ -388,6 +318,7 @@ void xfs_ifork_next_set(xfs_inode_t *ip, int w, int n);
 #define	XFS_ILOCK_EXCL		0x004
 #define	XFS_ILOCK_SHARED	0x008
 #define	XFS_IUNLOCK_NONOTIFY	0x010
+/*	XFS_IOLOCK_NESTED	0x020 */
 #define XFS_EXTENT_TOKEN_RD	0x040
 #define XFS_SIZE_TOKEN_RD	0x080
 #define XFS_EXTSIZE_RD		(XFS_EXTENT_TOKEN_RD|XFS_SIZE_TOKEN_RD)
@@ -395,7 +326,7 @@ void xfs_ifork_next_set(xfs_inode_t *ip, int w, int n);
 #define XFS_EXTENT_TOKEN_WR	(XFS_EXTENT_TOKEN_RD | XFS_WILLLEND)
 #define XFS_SIZE_TOKEN_WR       (XFS_SIZE_TOKEN_RD | XFS_WILLLEND)
 #define XFS_EXTSIZE_WR		(XFS_EXTSIZE_RD | XFS_WILLLEND)
-
+/*	XFS_SIZE_TOKEN_WANT	0x200 */
 
 #define XFS_LOCK_MASK	\
 	(XFS_IOLOCK_EXCL | XFS_IOLOCK_SHARED | XFS_ILOCK_EXCL | \
@@ -417,28 +348,11 @@ void xfs_ifork_next_set(xfs_inode_t *ip, int w, int n);
 #define	XFS_ITRUNC_DEFINITE	0x1
 #define	XFS_ITRUNC_MAYBE	0x2
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_ITOV)
-struct vnode *xfs_itov(xfs_inode_t *ip);
-#define	XFS_ITOV(ip)		xfs_itov(ip)
-#else
 #define	XFS_ITOV(ip)		BHV_TO_VNODE(XFS_ITOBHV(ip))
-#endif
 #define	XFS_ITOV_NULL(ip)	BHV_TO_VNODE_NULL(XFS_ITOBHV(ip))
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_ITOBHV)
-struct bhv_desc *xfs_itobhv(xfs_inode_t *ip);
-#define	XFS_ITOBHV(ip)		xfs_itobhv(ip)
-#else
 #define	XFS_ITOBHV(ip)		((struct bhv_desc *)(&((ip)->i_bhv_desc)))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_BHVTOI)
-xfs_inode_t *xfs_bhvtoi(struct bhv_desc *bhvp);
-#define	XFS_BHVTOI(bhvp)	xfs_bhvtoi(bhvp)
-#else
-#define	XFS_BHVTOI(bhvp)	\
-	((xfs_inode_t *)((char *)(bhvp) - \
-			 (char *)&(((xfs_inode_t *)0)->i_bhv_desc)))
-#endif
-
+#define	XFS_BHVTOI(bhvp)	((xfs_inode_t *)((char *)(bhvp) - \
+				(char *)&(((xfs_inode_t *)0)->i_bhv_desc)))
 #define BHV_IS_XFS(bdp)		(BHV_OPS(bdp) == &xfs_vnodeops)
 
 /*

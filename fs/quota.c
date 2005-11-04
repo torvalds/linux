@@ -118,6 +118,10 @@ static int xqm_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t i
 			if (!sb->s_qcop->get_xquota)
 				return -ENOSYS;
 			break;
+		case Q_XQUOTASYNC:
+			if (!sb->s_qcop->quota_sync)
+				return -ENOSYS;
+			break;
 		default:
 			return -EINVAL;
 	}
@@ -128,7 +132,7 @@ static int xqm_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t i
 		     (type == XQM_GRPQUOTA && !in_egroup_p(id))) &&
 		     !capable(CAP_SYS_ADMIN))
 			return -EPERM;
-	} else if (cmd != Q_XGETQSTAT) {
+	} else if (cmd != Q_XGETQSTAT && cmd != Q_XQUOTASYNC) {
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 	}
@@ -322,6 +326,8 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id, void
 				return -EFAULT;
 			return 0;
 		}
+		case Q_XQUOTASYNC:
+			return sb->s_qcop->quota_sync(sb, type);
 		/* We never reach here unless validity check is broken */
 		default:
 			BUG();

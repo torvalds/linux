@@ -1,40 +1,27 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
+#include "xfs_imap.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_sb.h"
@@ -43,24 +30,22 @@
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_imap.h"
-#include "xfs_alloc.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
-#include "xfs_inode_item.h"
 #include "xfs_inode.h"
-#include "xfs_bmap.h"
 #include "xfs_buf_item.h"
+#include "xfs_inode_item.h"
+#include "xfs_btree.h"
+#include "xfs_alloc.h"
+#include "xfs_ialloc.h"
+#include "xfs_bmap.h"
 #include "xfs_rw.h"
 #include "xfs_error.h"
-#include "xfs_bit.h"
 #include "xfs_utils.h"
 #include "xfs_dir2_trace.h"
 #include "xfs_quota.h"
@@ -194,9 +179,10 @@ xfs_inotobp(
 	if ((imap.im_blkno + imap.im_len) >
 	    XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks)) {
 		cmn_err(CE_WARN,
-	"xfs_inotobp: inode number (%d + %d) maps to a block outside the bounds "
+	"xfs_inotobp: inode number (%llu + %d) maps to a block outside the bounds "
 	"of the file system %s.  Returning EINVAL.",
-			imap.im_blkno, imap.im_len,mp->m_fsname);
+			(unsigned long long)imap.im_blkno,
+			imap.im_len, mp->m_fsname);
 		return XFS_ERROR(EINVAL);
 	}
 
@@ -1878,8 +1864,8 @@ xfs_iunlink(
 	 */
 	agi = XFS_BUF_TO_AGI(agibp);
 	agi_ok =
-		INT_GET(agi->agi_magicnum, ARCH_CONVERT) == XFS_AGI_MAGIC &&
-		XFS_AGI_GOOD_VERSION(INT_GET(agi->agi_versionnum, ARCH_CONVERT));
+		be32_to_cpu(agi->agi_magicnum) == XFS_AGI_MAGIC &&
+		XFS_AGI_GOOD_VERSION(be32_to_cpu(agi->agi_versionnum));
 	if (unlikely(XFS_TEST_ERROR(!agi_ok, mp, XFS_ERRTAG_IUNLINK,
 			XFS_RANDOM_IUNLINK))) {
 		XFS_CORRUPTION_ERROR("xfs_iunlink", XFS_ERRLEVEL_LOW, mp, agi);
@@ -1894,9 +1880,9 @@ xfs_iunlink(
 	ASSERT(agino != 0);
 	bucket_index = agino % XFS_AGI_UNLINKED_BUCKETS;
 	ASSERT(agi->agi_unlinked[bucket_index]);
-	ASSERT(INT_GET(agi->agi_unlinked[bucket_index], ARCH_CONVERT) != agino);
+	ASSERT(be32_to_cpu(agi->agi_unlinked[bucket_index]) != agino);
 
-	if (INT_GET(agi->agi_unlinked[bucket_index], ARCH_CONVERT) != NULLAGINO) {
+	if (be32_to_cpu(agi->agi_unlinked[bucket_index]) != NULLAGINO) {
 		/*
 		 * There is already another inode in the bucket we need
 		 * to add ourselves to.  Add us at the front of the list.
@@ -1923,7 +1909,7 @@ xfs_iunlink(
 	 * Point the bucket head pointer at the inode being inserted.
 	 */
 	ASSERT(agino != 0);
-	INT_SET(agi->agi_unlinked[bucket_index], ARCH_CONVERT, agino);
+	agi->agi_unlinked[bucket_index] = cpu_to_be32(agino);
 	offset = offsetof(xfs_agi_t, agi_unlinked) +
 		(sizeof(xfs_agino_t) * bucket_index);
 	xfs_trans_log_buf(tp, agibp, offset,
@@ -1981,8 +1967,8 @@ xfs_iunlink_remove(
 	 */
 	agi = XFS_BUF_TO_AGI(agibp);
 	agi_ok =
-		INT_GET(agi->agi_magicnum, ARCH_CONVERT) == XFS_AGI_MAGIC &&
-		XFS_AGI_GOOD_VERSION(INT_GET(agi->agi_versionnum, ARCH_CONVERT));
+		be32_to_cpu(agi->agi_magicnum) == XFS_AGI_MAGIC &&
+		XFS_AGI_GOOD_VERSION(be32_to_cpu(agi->agi_versionnum));
 	if (unlikely(XFS_TEST_ERROR(!agi_ok, mp, XFS_ERRTAG_IUNLINK_REMOVE,
 			XFS_RANDOM_IUNLINK_REMOVE))) {
 		XFS_CORRUPTION_ERROR("xfs_iunlink_remove", XFS_ERRLEVEL_LOW,
@@ -2000,10 +1986,10 @@ xfs_iunlink_remove(
 	agino = XFS_INO_TO_AGINO(mp, ip->i_ino);
 	ASSERT(agino != 0);
 	bucket_index = agino % XFS_AGI_UNLINKED_BUCKETS;
-	ASSERT(INT_GET(agi->agi_unlinked[bucket_index], ARCH_CONVERT) != NULLAGINO);
+	ASSERT(be32_to_cpu(agi->agi_unlinked[bucket_index]) != NULLAGINO);
 	ASSERT(agi->agi_unlinked[bucket_index]);
 
-	if (INT_GET(agi->agi_unlinked[bucket_index], ARCH_CONVERT) == agino) {
+	if (be32_to_cpu(agi->agi_unlinked[bucket_index]) == agino) {
 		/*
 		 * We're at the head of the list.  Get the inode's
 		 * on-disk buffer to see if there is anyone after us
@@ -2037,7 +2023,7 @@ xfs_iunlink_remove(
 		 */
 		ASSERT(next_agino != 0);
 		ASSERT(next_agino != agino);
-		INT_SET(agi->agi_unlinked[bucket_index], ARCH_CONVERT, next_agino);
+		agi->agi_unlinked[bucket_index] = cpu_to_be32(next_agino);
 		offset = offsetof(xfs_agi_t, agi_unlinked) +
 			(sizeof(xfs_agino_t) * bucket_index);
 		xfs_trans_log_buf(tp, agibp, offset,
@@ -2046,7 +2032,7 @@ xfs_iunlink_remove(
 		/*
 		 * We need to search the list for the inode being freed.
 		 */
-		next_agino = INT_GET(agi->agi_unlinked[bucket_index], ARCH_CONVERT);
+		next_agino = be32_to_cpu(agi->agi_unlinked[bucket_index]);
 		last_ibp = NULL;
 		while (next_agino != agino) {
 			/*
@@ -3685,73 +3671,6 @@ xfs_iroundup(
 	}
 	ASSERT(0);
 	return( 0 );
-}
-
-/*
- * Change the requested timestamp in the given inode.
- * We don't lock across timestamp updates, and we don't log them but
- * we do record the fact that there is dirty information in core.
- *
- * NOTE -- callers MUST combine XFS_ICHGTIME_MOD or XFS_ICHGTIME_CHG
- *		with XFS_ICHGTIME_ACC to be sure that access time
- *		update will take.  Calling first with XFS_ICHGTIME_ACC
- *		and then XFS_ICHGTIME_MOD may fail to modify the access
- *		timestamp if the filesystem is mounted noacctm.
- */
-void
-xfs_ichgtime(xfs_inode_t *ip,
-	     int flags)
-{
-	timespec_t	tv;
-	vnode_t		*vp = XFS_ITOV(ip);
-	struct inode	*inode = LINVFS_GET_IP(vp);
-
-	/*
-	 * We're not supposed to change timestamps in readonly-mounted
-	 * filesystems.  Throw it away if anyone asks us.
-	 */
-	if (unlikely(vp->v_vfsp->vfs_flag & VFS_RDONLY))
-		return;
-
-	/*
-	 * Don't update access timestamps on reads if mounted "noatime"
-	 * Throw it away if anyone asks us.
-	 */
-	if ((ip->i_mount->m_flags & XFS_MOUNT_NOATIME || IS_NOATIME(inode)) &&
-	    ((flags & (XFS_ICHGTIME_ACC|XFS_ICHGTIME_MOD|XFS_ICHGTIME_CHG))
-			== XFS_ICHGTIME_ACC))
-		return;
-
-	nanotime(&tv);
-	if (flags & XFS_ICHGTIME_MOD) {
-		VN_MTIMESET(vp, &tv);
-		ip->i_d.di_mtime.t_sec = (__int32_t)tv.tv_sec;
-		ip->i_d.di_mtime.t_nsec = (__int32_t)tv.tv_nsec;
-	}
-	if (flags & XFS_ICHGTIME_ACC) {
-		VN_ATIMESET(vp, &tv);
-		ip->i_d.di_atime.t_sec = (__int32_t)tv.tv_sec;
-		ip->i_d.di_atime.t_nsec = (__int32_t)tv.tv_nsec;
-	}
-	if (flags & XFS_ICHGTIME_CHG) {
-		VN_CTIMESET(vp, &tv);
-		ip->i_d.di_ctime.t_sec = (__int32_t)tv.tv_sec;
-		ip->i_d.di_ctime.t_nsec = (__int32_t)tv.tv_nsec;
-	}
-
-	/*
-	 * We update the i_update_core field _after_ changing
-	 * the timestamps in order to coordinate properly with
-	 * xfs_iflush() so that we don't lose timestamp updates.
-	 * This keeps us from having to hold the inode lock
-	 * while doing this.  We use the SYNCHRONIZE macro to
-	 * ensure that the compiler does not reorder the update
-	 * of i_update_core above the timestamp updates above.
-	 */
-	SYNCHRONIZE();
-	ip->i_update_core = 1;
-	if (!(inode->i_state & I_LOCK))
-		mark_inode_dirty_sync(inode);
 }
 
 #ifdef XFS_ILOCK_TRACE
