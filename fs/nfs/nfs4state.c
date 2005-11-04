@@ -784,7 +784,7 @@ static int nfs4_reclaim_locks(struct nfs4_state_recovery_ops *ops, struct nfs4_s
 	int status = 0;
 
 	for (fl = inode->i_flock; fl != 0; fl = fl->fl_next) {
-		if (!(fl->fl_flags & FL_POSIX))
+		if (!(fl->fl_flags & (FL_POSIX|FL_FLOCK)))
 			continue;
 		if (((struct nfs_open_context *)fl->fl_file->private_data)->state != state)
 			continue;
@@ -799,7 +799,7 @@ static int nfs4_reclaim_locks(struct nfs4_state_recovery_ops *ops, struct nfs4_s
 			case -NFS4ERR_NO_GRACE:
 			case -NFS4ERR_RECLAIM_BAD:
 			case -NFS4ERR_RECLAIM_CONFLICT:
-				/* kill_proc(fl->fl_owner, SIGLOST, 1); */
+				/* kill_proc(fl->fl_pid, SIGLOST, 1); */
 				break;
 			case -NFS4ERR_STALE_CLIENTID:
 				goto out_err;
