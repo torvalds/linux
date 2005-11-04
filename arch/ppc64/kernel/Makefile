@@ -51,11 +51,6 @@ obj-$(CONFIG_PPC_PMAC)		+= udbg_scc.o
 
 obj-$(CONFIG_PPC_MAPLE)		+= udbg_16550.o
 
-ifdef CONFIG_SMP
-obj-$(CONFIG_PPC_PMAC)		+= smp-tbsync.o
-obj-$(CONFIG_PPC_MAPLE)		+= smp-tbsync.o
-endif
-
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 
 CFLAGS_ioctl32.o += -Ifs/
