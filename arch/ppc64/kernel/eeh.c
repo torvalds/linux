@@ -617,7 +617,32 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	 * In any case they must share a common PHB.
 	 */
 	ret = read_slot_reset_state(pdn, rets);
-	if (!(ret == 0 && rets[1] == 1 && (rets[0] == 2 || rets[0] == 4))) {
+
+	/* If the call to firmware failed, punt */
+	if (ret != 0) {
+		printk(KERN_WARNING "EEH: read_slot_reset_state() failed; rc=%d dn=%s\n",
+		       ret, dn->full_name);
+		__get_cpu_var(false_positives)++;
+		return 0;
+	}
+
+	/* If EEH is not supported on this device, punt. */
+	if (rets[1] != 1) {
+		printk(KERN_WARNING "EEH: event on unsupported device, rc=%d dn=%s\n",
+		       ret, dn->full_name);
+		__get_cpu_var(false_positives)++;
+		return 0;
+	}
+
+	/* If not the kind of error we know about, punt. */
+	if (rets[0] != 2 && rets[0] != 4 && rets[0] != 5) {
+		__get_cpu_var(false_positives)++;
+		return 0;
+	}
+
+	/* Note that config-io to empty slots may fail;
+	 * we recognize empty because they don't have children. */
+	if ((rets[0] == 5) && (dn->child == NULL)) {
 		__get_cpu_var(false_positives)++;
 		return 0;
 	}
@@ -650,7 +675,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	/* Most EEH events are due to device driver bugs.  Having
 	 * a stack trace will help the device-driver authors figure
 	 * out what happened.  So print that out. */
-	dump_stack();
+	if (rets[0] != 5) dump_stack();
 	schedule_work(&eeh_event_wq);
 
 	return 0;
