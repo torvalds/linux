@@ -631,11 +631,12 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	pdn = PCI_DN(dn);
 
 	/* Access to IO BARs might get this far and still not want checking. */
-	if (!pdn->eeh_capable || !(pdn->eeh_mode & EEH_MODE_SUPPORTED) ||
+	if (!(pdn->eeh_mode & EEH_MODE_SUPPORTED) ||
 	    pdn->eeh_mode & EEH_MODE_NOCHECK) {
 		__get_cpu_var(ignored_check)++;
 #ifdef DEBUG
-		printk ("EEH:ignored check for %s %s\n", pci_name (dev), dn->full_name);
+		printk ("EEH:ignored check (%x) for %s %s\n", 
+		        pdn->eeh_mode, pci_name (dev), dn->full_name);
 #endif
 		return 0;
 	}
