@@ -58,8 +58,6 @@ void pci_addr_cache_remove_device(struct pci_dev *dev);
 void pci_addr_cache_build(void);
 struct pci_dev *pci_get_device_by_addr(unsigned long addr);
 
-void eeh_save_bars(struct pci_dev * pdev, struct pci_dn *pdn);
-
 /**
  * eeh_slot_error_detail -- record and EEH error condition to the log
  * @severity: 1 if temporary, 2 if permanent failure.
@@ -103,6 +101,7 @@ void eeh_restore_bars(struct pci_dn *);
 void rtas_configure_bridge(struct pci_dn *);
 
 int rtas_write_config(struct pci_dn *, int where, int size, u32 val);
+int rtas_read_config(struct pci_dn *, int where, int size, u32 *val);
 
 /**
  * mark and clear slots: find "partition endpoint" PE and set or 

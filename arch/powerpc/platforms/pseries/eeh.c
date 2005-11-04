@@ -106,6 +106,8 @@ static DEFINE_PER_CPU(unsigned long, false_positives);
 static DEFINE_PER_CPU(unsigned long, ignored_failures);
 static DEFINE_PER_CPU(unsigned long, slot_resets);
 
+#define IS_BRIDGE(class_code) (((class_code)<<16) == PCI_BASE_CLASS_BRIDGE)
+
 /* --------------------------------------------------------------- */
 /* Below lies the EEH event infrastructure */
 
@@ -620,7 +622,7 @@ void eeh_restore_bars(struct pci_dn *pdn)
 	if (!pdn) 
 		return;
 	
-	if ((pdn->eeh_mode & EEH_MODE_SUPPORTED) && (!pdn->eeh_is_bridge))
+	if ((pdn->eeh_mode & EEH_MODE_SUPPORTED) && !IS_BRIDGE(pdn->class_code))
 		__restore_bars (pdn);
 
 	dn = pdn->node->child;
@@ -638,18 +640,15 @@ void eeh_restore_bars(struct pci_dn *pdn)
  * PCI devices are added individuallly; but, for the restore,
  * an entire slot is reset at a time.
  */
-void eeh_save_bars(struct pci_dev * pdev, struct pci_dn *pdn)
+static void eeh_save_bars(struct pci_dn *pdn)
 {
 	int i;
 
-	if (!pdev || !pdn )
+	if (!pdn )
 		return;
 	
 	for (i = 0; i < 16; i++)
-		pci_read_config_dword(pdev, i * 4, &pdn->config_space[i]);
-
-	if (pdev->hdr_type == PCI_HEADER_TYPE_BRIDGE)
-		pdn->eeh_is_bridge = 1;
+		rtas_read_config(pdn, i * 4, 4, &pdn->config_space[i]);
 }
 
 void
@@ -699,6 +698,7 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 	int enable;
 	struct pci_dn *pdn = PCI_DN(dn);
 
+	pdn->class_code = *class_code;
 	pdn->eeh_mode = 0;
 	pdn->eeh_check_count = 0;
 	pdn->eeh_freeze_count = 0;
@@ -781,6 +781,7 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 		       dn->full_name);
 	}
 
+	eeh_save_bars(pdn);
 	return NULL;
 }
 
@@ -915,7 +916,6 @@ void eeh_add_device_late(struct pci_dev *dev)
 	pdn->pcidev = dev;
 
 	pci_addr_cache_insert_device (dev);
-	eeh_save_bars(dev, pdn);
 }
 EXPORT_SYMBOL_GPL(eeh_add_device_late);
 

@@ -61,9 +61,10 @@ struct pci_controller;
 struct iommu_table;
 
 struct pci_dn {
-	int	busno;			/* for pci devices */
-	int	bussubno;		/* for pci devices */
-	int	devfn;			/* for pci devices */
+	int	busno;			/* pci bus number */
+	int	bussubno;		/* pci subordinate bus number */
+	int	devfn;			/* pci device and function number */
+	int	class_code;		/* pci device class */
 
 #ifdef CONFIG_PPC_PSERIES
 	int	eeh_mode;		/* See eeh.h for possible EEH_MODEs */
@@ -71,7 +72,6 @@ struct pci_dn {
 	int	eeh_pe_config_addr; /* new-style partition endpoint address */
 	int 	eeh_check_count;	/* # times driver ignored error */
 	int 	eeh_freeze_count;	/* # times this device froze up. */
-	int	eeh_is_bridge;		/* device is pci-to-pci bridge */
 #endif
 	int	pci_ext_config_space;	/* for pci devices */
 	struct  pci_controller *phb;	/* for pci devices */

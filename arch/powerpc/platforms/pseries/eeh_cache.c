@@ -304,10 +304,7 @@ void __init pci_addr_cache_build(void)
 
 		pci_addr_cache_insert_device(dev);
 
-		/* Save the BAR's; firmware doesn't restore these after EEH reset */
 		dn = pci_device_to_OF_node(dev);
-		eeh_save_bars(dev, PCI_DN(dn));
-
 		pci_dev_get (dev);  /* matching put is in eeh_remove_device() */
 		PCI_DN(dn)->pcidev = dev;
 	}
