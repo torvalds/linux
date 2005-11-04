@@ -88,7 +88,7 @@ mca_page_isolate(unsigned long paddr)
 	if (!ia64_phys_addr_valid(paddr))
 		return ISOLATE_NONE;
 
-	if (!pfn_valid(paddr))
+	if (!pfn_valid(paddr >> PAGE_SHIFT))
 		return ISOLATE_NONE;
 
 	/* convert physical address to physical page number */
