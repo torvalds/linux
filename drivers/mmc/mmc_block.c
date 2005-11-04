@@ -203,7 +203,6 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			brq.data.flags |= MMC_DATA_READ;
 		} else {
 			brq.cmd.opcode = MMC_WRITE_BLOCK;
-			brq.cmd.flags = MMC_RSP_R1B;
 			brq.data.flags |= MMC_DATA_WRITE;
 			brq.data.blocks = 1;
 		}
