@@ -437,6 +437,62 @@ alloc_mem_err:
 }
 
 static void
+bnx2_report_fw_link(struct bnx2 *bp)
+{
+	u32 fw_link_status = 0;
+
+	if (bp->link_up) {
+		u32 bmsr;
+
+		switch (bp->line_speed) {
+		case SPEED_10:
+			if (bp->duplex == DUPLEX_HALF)
+				fw_link_status = BNX2_LINK_STATUS_10HALF;
+			else
+				fw_link_status = BNX2_LINK_STATUS_10FULL;
+			break;
+		case SPEED_100:
+			if (bp->duplex == DUPLEX_HALF)
+				fw_link_status = BNX2_LINK_STATUS_100HALF;
+			else
+				fw_link_status = BNX2_LINK_STATUS_100FULL;
+			break;
+		case SPEED_1000:
+			if (bp->duplex == DUPLEX_HALF)
+				fw_link_status = BNX2_LINK_STATUS_1000HALF;
+			else
+				fw_link_status = BNX2_LINK_STATUS_1000FULL;
+			break;
+		case SPEED_2500:
+			if (bp->duplex == DUPLEX_HALF)
+				fw_link_status = BNX2_LINK_STATUS_2500HALF;
+			else
+				fw_link_status = BNX2_LINK_STATUS_2500FULL;
+			break;
+		}
+
+		fw_link_status |= BNX2_LINK_STATUS_LINK_UP;
+
+		if (bp->autoneg) {
+			fw_link_status |= BNX2_LINK_STATUS_AN_ENABLED;
+
+			bnx2_read_phy(bp, MII_BMSR, &bmsr);
+			bnx2_read_phy(bp, MII_BMSR, &bmsr);
+
+			if (!(bmsr & BMSR_ANEGCOMPLETE) ||
+			    bp->phy_flags & PHY_PARALLEL_DETECT_FLAG)
+				fw_link_status |= BNX2_LINK_STATUS_PARALLEL_DET;
+			else
+				fw_link_status |= BNX2_LINK_STATUS_AN_COMPLETE;
+		}
+	}
+	else
+		fw_link_status = BNX2_LINK_STATUS_LINK_DOWN;
+
+	REG_WR_IND(bp, bp->shmem_base + BNX2_LINK_STATUS, fw_link_status);
+}
+
+static void
 bnx2_report_link(struct bnx2 *bp)
 {
 	if (bp->link_up) {
@@ -467,6 +523,8 @@ bnx2_report_link(struct bnx2 *bp)
 		netif_carrier_off(bp->dev);
 		printk(KERN_ERR PFX "%s NIC Link is Down\n", bp->dev->name);
 	}
+
+	bnx2_report_fw_link(bp);
 }
 
 static void
@@ -1123,13 +1181,13 @@ bnx2_init_5708s_phy(struct bnx2 *bp)
 		bnx2_write_phy(bp, BCM5708S_BLK_ADDR, BCM5708S_BLK_ADDR_DIG);
 	}
 
-	val = REG_RD_IND(bp, HOST_VIEW_SHMEM_BASE + BNX2_PORT_HW_CFG_CONFIG) &
+	val = REG_RD_IND(bp, bp->shmem_base + BNX2_PORT_HW_CFG_CONFIG) &
 	      BNX2_PORT_HW_CFG_CFG_TXCTL3_MASK;
 
 	if (val) {
 		u32 is_backplane;
 
-		is_backplane = REG_RD_IND(bp, HOST_VIEW_SHMEM_BASE +
+		is_backplane = REG_RD_IND(bp, bp->shmem_base +
 					  BNX2_SHARED_HW_CFG_CONFIG);
 		if (is_backplane & BNX2_SHARED_HW_CFG_PHY_BACKPLANE) {
 			bnx2_write_phy(bp, BCM5708S_BLK_ADDR,
@@ -1280,13 +1338,13 @@ bnx2_fw_sync(struct bnx2 *bp, u32 msg_data)
 	bp->fw_wr_seq++;
 	msg_data |= bp->fw_wr_seq;
 
-	REG_WR_IND(bp, HOST_VIEW_SHMEM_BASE + BNX2_DRV_MB, msg_data);
+	REG_WR_IND(bp, bp->shmem_base + BNX2_DRV_MB, msg_data);
 
 	/* wait for an acknowledgement. */
 	for (i = 0; i < (FW_ACK_TIME_OUT_MS * 1000)/5; i++) {
 		udelay(5);
 
-		val = REG_RD_IND(bp, HOST_VIEW_SHMEM_BASE + BNX2_FW_MB);
+		val = REG_RD_IND(bp, bp->shmem_base + BNX2_FW_MB);
 
 		if ((val & BNX2_FW_MSG_ACK) == (msg_data & BNX2_DRV_MSG_SEQ))
 			break;
@@ -1299,7 +1357,7 @@ bnx2_fw_sync(struct bnx2 *bp, u32 msg_data)
 		msg_data &= ~BNX2_DRV_MSG_CODE;
 		msg_data |= BNX2_DRV_MSG_CODE_FW_TIMEOUT;
 
-		REG_WR_IND(bp, HOST_VIEW_SHMEM_BASE + BNX2_DRV_MB, msg_data);
+		REG_WR_IND(bp, bp->shmem_base + BNX2_DRV_MB, msg_data);
 
 		bp->fw_timed_out = 1;
 
@@ -2935,7 +2993,7 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 
 	/* Deposit a driver reset signature so the firmware knows that
 	 * this is a soft reset. */
-	REG_WR_IND(bp, HOST_VIEW_SHMEM_BASE + BNX2_DRV_RESET_SIGNATURE,
+	REG_WR_IND(bp, bp->shmem_base + BNX2_DRV_RESET_SIGNATURE,
 		   BNX2_DRV_RESET_SIGNATURE_MAGIC);
 
 	bp->fw_timed_out = 0;
@@ -4012,7 +4070,7 @@ bnx2_timer(unsigned long data)
 		goto bnx2_restart_timer;
 
 	msg = (u32) ++bp->fw_drv_pulse_wr_seq;
-	REG_WR_IND(bp, HOST_VIEW_SHMEM_BASE + BNX2_DRV_PULSE_MB, msg);
+	REG_WR_IND(bp, bp->shmem_base + BNX2_DRV_PULSE_MB, msg);
 
 	if ((bp->phy_flags & PHY_SERDES_FLAG) &&
 	    (CHIP_NUM(bp) == CHIP_NUM_5706)) {
@@ -5483,10 +5541,18 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	bnx2_init_nvram(bp);
 
+	reg = REG_RD_IND(bp, BNX2_SHM_HDR_SIGNATURE);
+
+	if ((reg & BNX2_SHM_HDR_SIGNATURE_SIG_MASK) ==
+	    BNX2_SHM_HDR_SIGNATURE_SIG)
+		bp->shmem_base = REG_RD_IND(bp, BNX2_SHM_HDR_ADDR_0);
+	else
+		bp->shmem_base = HOST_VIEW_SHMEM_BASE;
+
 	/* Get the permanent MAC address.  First we need to make sure the
 	 * firmware is actually running.
 	 */
-	reg = REG_RD_IND(bp, HOST_VIEW_SHMEM_BASE + BNX2_DEV_INFO_SIGNATURE);
+	reg = REG_RD_IND(bp, bp->shmem_base + BNX2_DEV_INFO_SIGNATURE);
 
 	if ((reg & BNX2_DEV_INFO_SIGNATURE_MAGIC_MASK) !=
 	    BNX2_DEV_INFO_SIGNATURE_MAGIC) {
@@ -5495,14 +5561,13 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		goto err_out_unmap;
 	}
 
-	bp->fw_ver = REG_RD_IND(bp, HOST_VIEW_SHMEM_BASE +
-				BNX2_DEV_INFO_BC_REV);
+	bp->fw_ver = REG_RD_IND(bp, bp->shmem_base + BNX2_DEV_INFO_BC_REV);
 
-	reg = REG_RD_IND(bp, HOST_VIEW_SHMEM_BASE + BNX2_PORT_HW_CFG_MAC_UPPER);
+	reg = REG_RD_IND(bp, bp->shmem_base + BNX2_PORT_HW_CFG_MAC_UPPER);
 	bp->mac_addr[0] = (u8) (reg >> 8);
 	bp->mac_addr[1] = (u8) reg;
 
-	reg = REG_RD_IND(bp, HOST_VIEW_SHMEM_BASE + BNX2_PORT_HW_CFG_MAC_LOWER);
+	reg = REG_RD_IND(bp, bp->shmem_base + BNX2_PORT_HW_CFG_MAC_LOWER);
 	bp->mac_addr[2] = (u8) (reg >> 24);
 	bp->mac_addr[3] = (u8) (reg >> 16);
 	bp->mac_addr[4] = (u8) (reg >> 8);
@@ -5538,7 +5603,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 		bp->flags |= NO_WOL_FLAG;
 		if (CHIP_NUM(bp) == CHIP_NUM_5708) {
 			bp->phy_addr = 2;
-			reg = REG_RD_IND(bp, HOST_VIEW_SHMEM_BASE +
+			reg = REG_RD_IND(bp, bp->shmem_base +
 					 BNX2_SHARED_HW_CFG_CONFIG);
 			if (reg & BNX2_SHARED_HW_CFG_PHY_2_5G)
 				bp->phy_flags |= PHY_2_5G_CAPABLE_FLAG;
@@ -5562,8 +5627,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	if (bp->phy_flags & PHY_SERDES_FLAG) {
 		bp->advertising = ETHTOOL_ALL_FIBRE_SPEED | ADVERTISED_Autoneg;
 
-		reg = REG_RD_IND(bp, HOST_VIEW_SHMEM_BASE +
-				 BNX2_PORT_HW_CFG_CONFIG);
+		reg = REG_RD_IND(bp, bp->shmem_base + BNX2_PORT_HW_CFG_CONFIG);
 		reg &= BNX2_PORT_HW_CFG_CFG_DFLT_LINK_MASK;
 		if (reg == BNX2_PORT_HW_CFG_CFG_DFLT_LINK_1G) {
 			bp->autoneg = 0;
