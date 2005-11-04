@@ -219,9 +219,9 @@ pci_addr_cache_insert(struct pci_dev *dev, unsigned long alo,
 	while (*p) {
 		parent = *p;
 		piar = rb_entry(parent, struct pci_io_addr_range, rb_node);
-		if (alo < piar->addr_lo) {
+		if (ahi < piar->addr_lo) {
 			p = &parent->rb_left;
-		} else if (ahi > piar->addr_hi) {
+		} else if (alo > piar->addr_hi) {
 			p = &parent->rb_right;
 		} else {
 			if (dev != piar->pcidev ||
@@ -239,6 +239,11 @@ pci_addr_cache_insert(struct pci_dev *dev, unsigned long alo,
 	piar->addr_hi = ahi;
 	piar->pcidev = dev;
 	piar->flags = flags;
+
+#ifdef DEBUG
+	printk(KERN_DEBUG "PIAR: insert range=[%lx:%lx] dev=%s\n",
+	                  alo, ahi, pci_name (dev));
+#endif
 
 	rb_link_node(&piar->rb_node, parent, p);
 	rb_insert_color(&piar->rb_node, &pci_io_addr_cache_root.rb_root);
@@ -301,7 +306,7 @@ static void __pci_addr_cache_insert_device(struct pci_dev *dev)
  * we maintain a cache of devices that can be quickly searched.
  * This routine adds a device to that cache.
  */
-void pci_addr_cache_insert_device(struct pci_dev *dev)
+static void pci_addr_cache_insert_device(struct pci_dev *dev)
 {
 	unsigned long flags;
 
@@ -344,7 +349,7 @@ restart:
  * the tree multiple times (once per resource).
  * But so what; device removal doesn't need to be that fast.
  */
-void pci_addr_cache_remove_device(struct pci_dev *dev)
+static void pci_addr_cache_remove_device(struct pci_dev *dev)
 {
 	unsigned long flags;
 
@@ -365,6 +370,9 @@ void pci_addr_cache_remove_device(struct pci_dev *dev)
 void __init pci_addr_cache_build(void)
 {
 	struct pci_dev *dev = NULL;
+
+	if (!eeh_subsystem_enabled)
+		return;
 
 	spin_lock_init(&pci_io_addr_cache_root.piar_lock);
 
@@ -837,7 +845,7 @@ void eeh_add_device_early(struct device_node *dn)
 	info.buid_lo = BUID_LO(phb->buid);
 	early_enable_eeh(dn, &info);
 }
-EXPORT_SYMBOL(eeh_add_device_early);
+EXPORT_SYMBOL_GPL(eeh_add_device_early);
 
 /**
  * eeh_add_device_late - perform EEH initialization for the indicated pci device
@@ -848,6 +856,8 @@ EXPORT_SYMBOL(eeh_add_device_early);
  */
 void eeh_add_device_late(struct pci_dev *dev)
 {
+	struct device_node *dn;
+
 	if (!dev || !eeh_subsystem_enabled)
 		return;
 
@@ -855,9 +865,13 @@ void eeh_add_device_late(struct pci_dev *dev)
 	printk(KERN_DEBUG "EEH: adding device %s\n", pci_name(dev));
 #endif
 
+	pci_dev_get (dev);
+	dn = pci_device_to_OF_node(dev);
+	PCI_DN(dn)->pcidev = dev;
+
 	pci_addr_cache_insert_device (dev);
 }
-EXPORT_SYMBOL(eeh_add_device_late);
+EXPORT_SYMBOL_GPL(eeh_add_device_late);
 
 /**
  * eeh_remove_device - undo EEH setup for the indicated pci device
@@ -868,6 +882,7 @@ EXPORT_SYMBOL(eeh_add_device_late);
  */
 void eeh_remove_device(struct pci_dev *dev)
 {
+	struct device_node *dn;
 	if (!dev || !eeh_subsystem_enabled)
 		return;
 
@@ -876,8 +891,12 @@ void eeh_remove_device(struct pci_dev *dev)
 	printk(KERN_DEBUG "EEH: remove device %s\n", pci_name(dev));
 #endif
 	pci_addr_cache_remove_device(dev);
+
+	dn = pci_device_to_OF_node(dev);
+	PCI_DN(dn)->pcidev = NULL;
+	pci_dev_put (dev);
 }
-EXPORT_SYMBOL(eeh_remove_device);
+EXPORT_SYMBOL_GPL(eeh_remove_device);
 
 static int proc_eeh_show(struct seq_file *m, void *v)
 {

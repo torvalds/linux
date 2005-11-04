@@ -40,10 +40,6 @@ void pci_devs_phb_init(void);
 void pci_devs_phb_init_dynamic(struct pci_controller *phb);
 void __devinit scan_phb(struct pci_controller *hose);
 
-/* PCI address cache management routines */
-void pci_addr_cache_insert_device(struct pci_dev *dev);
-void pci_addr_cache_remove_device(struct pci_dev *dev);
-
 /* From rtas_pci.h */
 void init_pci_config_tokens (void);
 unsigned long get_phb_buid (struct device_node *);
