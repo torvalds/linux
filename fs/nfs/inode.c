@@ -1009,13 +1009,18 @@ void nfs_file_set_open_context(struct file *filp, struct nfs_open_context *ctx)
 	spin_unlock(&inode->i_lock);
 }
 
-struct nfs_open_context *nfs_find_open_context(struct inode *inode, int mode)
+/*
+ * Given an inode, search for an open context with the desired characteristics
+ */
+struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, int mode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_open_context *pos, *ctx = NULL;
 
 	spin_lock(&inode->i_lock);
 	list_for_each_entry(pos, &nfsi->open_files, list) {
+		if (cred != NULL && pos->cred != cred)
+			continue;
 		if ((pos->mode & mode) == mode) {
 			ctx = get_nfs_open_context(pos);
 			break;

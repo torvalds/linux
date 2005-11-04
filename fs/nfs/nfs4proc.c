@@ -214,7 +214,7 @@ static void update_open_stateid(struct nfs4_state *state, nfs4_stateid *stateid,
 	struct inode *inode = state->inode;
 
 	open_flags &= (FMODE_READ|FMODE_WRITE);
-	/* Protect against nfs4_find_state() */
+	/* Protect against nfs4_find_state_byowner() */
 	spin_lock(&state->owner->so_lock);
 	spin_lock(&inode->i_lock);
 	memcpy(&state->stateid, stateid, sizeof(state->stateid));
@@ -1274,7 +1274,8 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 {
 	struct rpc_cred *cred;
 	struct inode *inode = dentry->d_inode;
-	struct nfs4_state *state;
+	struct nfs_open_context *ctx;
+	struct nfs4_state *state = NULL;
 	int status;
 
 	nfs_fattr_init(fattr);
@@ -1282,22 +1283,18 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	cred = rpcauth_lookupcred(NFS_SERVER(inode)->client->cl_auth, 0);
 	if (IS_ERR(cred))
 		return PTR_ERR(cred);
-	/* Search for an existing WRITE delegation first */
-	state = nfs4_open_delegated(inode, FMODE_WRITE, cred);
-	if (!IS_ERR(state)) {
-		/* NB: nfs4_open_delegated() bumps the inode->i_count */
-		iput(inode);
-	} else {
-		/* Search for an existing open(O_WRITE) stateid */
-		state = nfs4_find_state(inode, cred, FMODE_WRITE);
-	}
+
+	/* Search for an existing open(O_WRITE) file */
+	ctx = nfs_find_open_context(inode, cred, FMODE_WRITE);
+	if (ctx != NULL)
+		state = ctx->state;
 
 	status = nfs4_do_setattr(NFS_SERVER(inode), fattr,
 			NFS_FH(inode), sattr, state);
 	if (status == 0)
 		nfs_setattr_update_inode(inode, sattr);
-	if (state != NULL)
-		nfs4_close_state(state, FMODE_WRITE);
+	if (ctx != NULL)
+		put_nfs_open_context(ctx);
 	put_rpccred(cred);
 	return status;
 }

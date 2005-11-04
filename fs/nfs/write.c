@@ -294,7 +294,7 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 	if (page->index >= end_index+1 || !offset)
 		goto out;
 do_it:
-	ctx = nfs_find_open_context(inode, FMODE_WRITE);
+	ctx = nfs_find_open_context(inode, NULL, FMODE_WRITE);
 	if (ctx == NULL) {
 		err = -EBADF;
 		goto out;

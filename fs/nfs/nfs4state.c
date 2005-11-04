@@ -384,28 +384,6 @@ nfs4_state_set_mode_locked(struct nfs4_state *state, mode_t mode)
 }
 
 static struct nfs4_state *
-__nfs4_find_state(struct inode *inode, struct rpc_cred *cred, mode_t mode)
-{
-	struct nfs_inode *nfsi = NFS_I(inode);
-	struct nfs4_state *state;
-
-	mode &= (FMODE_READ|FMODE_WRITE);
-	list_for_each_entry(state, &nfsi->open_states, inode_states) {
-		if (state->owner->so_cred != cred)
-			continue;
-		if ((state->state & mode) != mode)
-			continue;
-		atomic_inc(&state->count);
-		if (mode & FMODE_READ)
-			state->nreaders++;
-		if (mode & FMODE_WRITE)
-			state->nwriters++;
-		return state;
-	}
-	return NULL;
-}
-
-static struct nfs4_state *
 __nfs4_find_state_byowner(struct inode *inode, struct nfs4_state_owner *owner)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
@@ -421,17 +399,6 @@ __nfs4_find_state_byowner(struct inode *inode, struct nfs4_state_owner *owner)
 		}
 	}
 	return NULL;
-}
-
-struct nfs4_state *
-nfs4_find_state(struct inode *inode, struct rpc_cred *cred, mode_t mode)
-{
-	struct nfs4_state *state;
-
-	spin_lock(&inode->i_lock);
-	state = __nfs4_find_state(inode, cred, mode);
-	spin_unlock(&inode->i_lock);
-	return state;
 }
 
 static void
