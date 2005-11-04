@@ -1,5 +1,5 @@
 /* 
- * smp.h: PPC64 specific SMP code.
+ * smp.h: PowerPC-specific SMP code.
  *
  * Original was a copy of sparc smp.h.  Now heavily modified
  * for PPC.
@@ -13,9 +13,9 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#ifndef _ASM_POWERPC_SMP_H
+#define _ASM_POWERPC_SMP_H
 #ifdef __KERNEL__
-#ifndef _PPC64_SMP_H
-#define _PPC64_SMP_H
 
 #include <linux/config.h>
 #include <linux/threads.h>
@@ -24,7 +24,9 @@
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_PPC64
 #include <asm/paca.h>
+#endif
 
 extern int boot_cpuid;
 extern int boot_cpuid_phys;
@@ -45,8 +47,19 @@ void generic_cpu_die(unsigned int cpu);
 void generic_mach_cpu_die(void);
 #endif
 
+#ifdef CONFIG_PPC64
 #define raw_smp_processor_id()	(get_paca()->paca_index)
 #define hard_smp_processor_id() (get_paca()->hw_cpu_id)
+#else
+/* 32-bit */
+extern int smp_hw_index[];
+
+#define raw_smp_processor_id()	(current_thread_info()->cpu)
+#define hard_smp_processor_id() 	(smp_hw_index[smp_processor_id()])
+#define get_hard_smp_processor_id(cpu)	(smp_hw_index[(cpu)])
+#define set_hard_smp_processor_id(cpu, phys)\
+					(smp_hw_index[(cpu)] = (phys))
+#endif
 
 extern cpumask_t cpu_sibling_map[NR_CPUS];
 
@@ -65,21 +78,35 @@ extern cpumask_t cpu_sibling_map[NR_CPUS];
 void smp_init_iSeries(void);
 void smp_init_pSeries(void);
 void smp_init_cell(void);
+void smp_setup_cpu_maps(void);
 
 extern int __cpu_disable(void);
 extern void __cpu_die(unsigned int cpu);
+
+#else
+/* for UP */
+#define smp_setup_cpu_maps()
+#define smp_release_cpus()
+
 #endif /* CONFIG_SMP */
 
+#ifdef CONFIG_PPC64
 #define get_hard_smp_processor_id(CPU) (paca[(CPU)].hw_cpu_id)
 #define set_hard_smp_processor_id(CPU, VAL) \
 	do { (paca[(CPU)].hw_cpu_id = (VAL)); } while (0)
+#else
+/* 32-bit */
+#ifndef CONFIG_SMP
+#define get_hard_smp_processor_id(cpu) 	boot_cpuid_phys
+#define set_hard_smp_processor_id(cpu, phys)
+#endif
+#endif
 
 extern int smt_enabled_at_boot;
 
 extern int smp_mpic_probe(void);
 extern void smp_mpic_setup_cpu(int cpu);
 extern void smp_generic_kick_cpu(int nr);
-extern void smp_release_cpus(void);
 
 extern void smp_generic_give_timebase(void);
 extern void smp_generic_take_timebase(void);
@@ -88,5 +115,5 @@ extern struct smp_ops_t *smp_ops;
 
 #endif /* __ASSEMBLY__ */
 
-#endif /* !(_PPC64_SMP_H) */
 #endif /* __KERNEL__ */
+#endif /* _ASM_POWERPC_SMP_H) */

@@ -39,13 +39,18 @@
 #include <asm/pgtable.h>
 #include <asm/prom.h>
 #include <asm/smp.h>
-#include <asm/paca.h>
 #include <asm/time.h>
+#include <asm/xmon.h>
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/system.h>
-#include <asm/abs_addr.h>
 #include <asm/mpic.h>
+#ifdef CONFIG_PPC64
+#include <asm/paca.h>
+#endif
+
+int smp_hw_index[NR_CPUS];
+struct thread_info *secondary_ti;
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -60,6 +65,7 @@ cpumask_t cpu_sibling_map[NR_CPUS] = { [0 ... NR_CPUS-1] = CPU_MASK_NONE };
 EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(cpu_possible_map);
 
+/* SMP operations for this machine */
 struct smp_ops_t *smp_ops;
 
 static volatile unsigned int cpu_callin_map[NR_CPUS];
@@ -89,7 +95,9 @@ void __devinit smp_mpic_setup_cpu(int cpu)
 {
 	mpic_setup_this_cpu();
 }
+#endif /* CONFIG_MPIC */
 
+#ifdef CONFIG_PPC64
 void __devinit smp_generic_kick_cpu(int nr)
 {
 	BUG_ON(nr < 0 || nr >= NR_CPUS);
@@ -102,8 +110,7 @@ void __devinit smp_generic_kick_cpu(int nr)
 	paca[nr].cpu_start = 1;
 	smp_mb();
 }
-
-#endif /* CONFIG_MPIC */
+#endif
 
 void smp_message_recv(int msg, struct pt_regs *regs)
 {
@@ -111,15 +118,10 @@ void smp_message_recv(int msg, struct pt_regs *regs)
 	case PPC_MSG_CALL_FUNCTION:
 		smp_call_function_interrupt();
 		break;
-	case PPC_MSG_RESCHEDULE: 
+	case PPC_MSG_RESCHEDULE:
 		/* XXX Do we have to do this? */
 		set_need_resched();
 		break;
-#if 0
-	case PPC_MSG_MIGRATE_TASK:
-		/* spare */
-		break;
-#endif
 #ifdef CONFIG_DEBUGGER
 	case PPC_MSG_DEBUGGER_BREAK:
 		debugger_ipi(regs);
@@ -171,8 +173,8 @@ static struct call_data_struct {
 	int wait;
 } *call_data;
 
-/* delay of at least 8 seconds on 1GHz cpu */
-#define SMP_CALL_TIMEOUT (1UL << (30 + 3))
+/* delay of at least 8 seconds */
+#define SMP_CALL_TIMEOUT	8
 
 /*
  * This function sends a 'generic call function' IPI to all other CPUs
@@ -194,7 +196,7 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
 { 
 	struct call_data_struct data;
 	int ret = -1, cpus;
-	unsigned long timeout;
+	u64 timeout;
 
 	/* Can deadlock when called with interrupts disabled */
 	WARN_ON(irqs_disabled());
@@ -220,11 +222,12 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
 	/* Send a message to all other CPUs and wait for them to respond */
 	smp_ops->message_pass(MSG_ALL_BUT_SELF, PPC_MSG_CALL_FUNCTION);
 
+	timeout = get_tb() + (u64) SMP_CALL_TIMEOUT * tb_ticks_per_sec;
+
 	/* Wait for response */
-	timeout = SMP_CALL_TIMEOUT;
 	while (atomic_read(&data.started) != cpus) {
 		HMT_low();
-		if (--timeout == 0) {
+		if (get_tb() >= timeout) {
 			printk("smp_call_function on cpu %d: other cpus not "
 			       "responding (%d)\n", smp_processor_id(),
 			       atomic_read(&data.started));
@@ -234,10 +237,9 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
 	}
 
 	if (wait) {
-		timeout = SMP_CALL_TIMEOUT;
 		while (atomic_read(&data.finished) != cpus) {
 			HMT_low();
-			if (--timeout == 0) {
+			if (get_tb() >= timeout) {
 				printk("smp_call_function on cpu %d: other "
 				       "cpus not finishing (%d/%d)\n",
 				       smp_processor_id(),
@@ -251,7 +253,7 @@ int smp_call_function (void (*func) (void *info), void *info, int nonatomic,
 
 	ret = 0;
 
-out:
+ out:
 	call_data = NULL;
 	HMT_medium();
 	spin_unlock(&call_lock);
@@ -313,8 +315,11 @@ static void __init smp_create_idle(unsigned int cpu)
 	p = fork_idle(cpu);
 	if (IS_ERR(p))
 		panic("failed fork for CPU %u: %li", cpu, PTR_ERR(p));
+#ifdef CONFIG_PPC64
 	paca[cpu].__current = p;
+#endif
 	current_set[cpu] = p->thread_info;
+	p->thread_info->cpu = cpu;
 }
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
@@ -333,18 +338,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	smp_store_cpu_info(boot_cpuid);
 	cpu_callin_map[boot_cpuid] = 1;
 
-#ifndef CONFIG_PPC_ISERIES
-	paca[boot_cpuid].next_jiffy_update_tb = tb_last_stamp = get_tb();
-
-	/*
-	 * Should update do_gtod.stamp_xsec.
-	 * For now we leave it which means the time can be some
-	 * number of msecs off until someone does a settimeofday()
-	 */
-	do_gtod.varp->tb_orig_stamp = tb_last_stamp;
-	systemcfg->tb_orig_stamp = tb_last_stamp;
-#endif
-
 	max_cpus = smp_ops->probe();
  
 	smp_space_timers(max_cpus);
@@ -359,8 +352,9 @@ void __devinit smp_prepare_boot_cpu(void)
 	BUG_ON(smp_processor_id() != boot_cpuid);
 
 	cpu_set(boot_cpuid, cpu_online_map);
-
+#ifdef CONFIG_PPC64
 	paca[boot_cpuid].__current = current;
+#endif
 	current_set[boot_cpuid] = current->thread_info;
 }
 
@@ -444,13 +438,16 @@ int __devinit __cpu_up(unsigned int cpu)
 {
 	int c;
 
+	secondary_ti = current_set[cpu];
 	if (!cpu_enable(cpu))
 		return 0;
 
 	if (smp_ops->cpu_bootable && !smp_ops->cpu_bootable(cpu))
 		return -EINVAL;
 
+#ifdef CONFIG_PPC64
 	paca[cpu].default_decr = tb_ticks_per_jiffy;
+#endif
 
 	/* Make sure callin-map entry is 0 (can be leftover a CPU
 	 * hotplug
@@ -513,7 +510,7 @@ int __devinit start_secondary(void *unused)
 	current->active_mm = &init_mm;
 
 	smp_store_cpu_info(cpu);
-	set_dec(paca[cpu].default_decr);
+	set_dec(tb_ticks_per_jiffy);
 	cpu_callin_map[cpu] = 1;
 
 	smp_ops->setup_cpu(cpu);

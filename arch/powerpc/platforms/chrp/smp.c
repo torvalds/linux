@@ -35,43 +35,6 @@
 #include <asm/smp.h>
 #include <asm/mpic.h>
 
-extern unsigned long smp_chrp_cpu_nr;
-
-static int __init smp_chrp_probe(void)
-{
-	struct device_node *cpus = NULL;
-	unsigned int *reg;
-	int reglen;
-	int ncpus = 0;
-	int cpuid;
-	unsigned int phys;
-
-	/* Count CPUs in the device-tree */
-	cpuid = 1;	/* the boot cpu is logical cpu 0 */
-	while ((cpus = of_find_node_by_type(cpus, "cpu")) != NULL) {
-		phys = ncpus;
-		reg = (unsigned int *) get_property(cpus, "reg", &reglen);
-		if (reg && reglen >= sizeof(unsigned int))
-			/* hmmm, not having a reg property would be bad */
-			phys = *reg;
-		if (phys != boot_cpuid_phys) {
-			set_hard_smp_processor_id(cpuid, phys);
-			++cpuid;
-		}
-	       	++ncpus;
-	}
-
-	printk(KERN_INFO "CHRP SMP probe found %d cpus\n", ncpus);
-
-	/* Nothing more to do if less than 2 of them */
-	if (ncpus <= 1)
-		return 1;
-
-	mpic_request_ipis();
-
-	return ncpus;
-}
-
 static void __devinit smp_chrp_kick_cpu(int nr)
 {
 	*(unsigned long *)KERNELBASE = nr;
@@ -114,7 +77,7 @@ void __devinit smp_chrp_take_timebase(void)
 /* CHRP with openpic */
 struct smp_ops_t chrp_smp_ops = {
 	.message_pass = smp_mpic_message_pass,
-	.probe = smp_chrp_probe,
+	.probe = smp_mpic_probe,
 	.kick_cpu = smp_chrp_kick_cpu,
 	.setup_cpu = smp_chrp_setup_cpu,
 	.give_timebase = smp_chrp_give_timebase,

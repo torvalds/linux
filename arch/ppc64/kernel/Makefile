@@ -33,7 +33,6 @@ obj-$(CONFIG_PPC_PSERIES) += udbg_16550.o
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o
 obj-$(CONFIG_EEH)		+= eeh.o
 obj-$(CONFIG_PROC_FS)		+= proc_ppc64.o
-obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_MODULES)		+= module.o
 ifneq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
