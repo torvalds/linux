@@ -2595,12 +2595,10 @@ int nfs4_handle_exception(const struct nfs_server *server, int errorcode, struct
 		case -NFS4ERR_GRACE:
 		case -NFS4ERR_DELAY:
 			ret = nfs4_delay(server->client, &exception->timeout);
-			if (ret == 0)
-				exception->retry = 1;
-			break;
+			if (ret != 0)
+				break;
 		case -NFS4ERR_OLD_STATEID:
-			if (ret == 0)
-				exception->retry = 1;
+			exception->retry = 1;
 	}
 	/* We failed to handle the error */
 	return nfs4_map_errors(ret);
