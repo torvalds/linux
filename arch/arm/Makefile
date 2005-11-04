@@ -144,7 +144,7 @@ drivers-$(CONFIG_OPROFILE)      += arch/arm/oprofile/
 drivers-$(CONFIG_ARCH_CLPS7500)	+= drivers/acorn/char/
 drivers-$(CONFIG_ARCH_L7200)	+= drivers/acorn/char/
 
-libs-y				+= arch/arm/lib/
+libs-y				:= arch/arm/lib/ $(libs-y)
 
 # Default target when executing plain make
 ifeq ($(CONFIG_XIP_KERNEL),y)
