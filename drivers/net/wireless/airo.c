@@ -2040,7 +2040,7 @@ static int mpi_send_packet (struct net_device *dev)
 	return 1;
 }
 
-static void get_tx_error(struct airo_info *ai, u32 fid)
+static void get_tx_error(struct airo_info *ai, s32 fid)
 {
 	u16 status;
 
