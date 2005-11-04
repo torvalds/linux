@@ -2918,6 +2918,10 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	struct nfs4_lock_state *lsp;
 	int status;
 
+	/* Is this a delegated lock? */
+	if (test_bit(NFS_DELEGATED_STATE, &state->flags))
+		return do_vfs_lock(request->fl_file, request);
+
 	status = nfs4_set_lock_state(state, request);
 	if (status != 0)
 		return status;
@@ -3032,6 +3036,9 @@ static int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request
 	struct nfs4_exception exception = { };
 	int err;
 
+	/* Cache the lock if possible... */
+	if (test_bit(NFS_DELEGATED_STATE, &state->flags))
+		return 0;
 	do {
 		err = _nfs4_do_setlk(state, F_SETLK, request, 1);
 		if (err != -NFS4ERR_DELAY)
@@ -3047,6 +3054,9 @@ static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request
 	struct nfs4_exception exception = { };
 	int err;
 
+	err = nfs4_set_lock_state(state, request);
+	if (err != 0)
+		return err;
 	do {
 		err = _nfs4_do_setlk(state, F_SETLK, request, 0);
 		if (err != -NFS4ERR_DELAY)
@@ -3062,15 +3072,25 @@ static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock 
 	int status;
 
 	down_read(&clp->cl_sem);
-	status = nfs4_set_lock_state(state, request);
-	if (status == 0)
-		status = _nfs4_do_setlk(state, cmd, request, 0);
-	if (status == 0) {
-		/* Note: we always want to sleep here! */
-		request->fl_flags |= FL_SLEEP;
-		if (do_vfs_lock(request->fl_file, request) < 0)
-			printk(KERN_WARNING "%s: VFS is out of sync with lock manager!\n", __FUNCTION__);
+	/* Is this a delegated open? */
+	if (test_bit(NFS_DELEGATED_STATE, &state->flags)) {
+		/* Yes: cache locks! */
+		status = do_vfs_lock(request->fl_file, request);
+		/* ...but avoid races with delegation recall... */
+		if (status < 0 || test_bit(NFS_DELEGATED_STATE, &state->flags))
+			goto out;
 	}
+	status = nfs4_set_lock_state(state, request);
+	if (status != 0)
+		goto out;
+	status = _nfs4_do_setlk(state, cmd, request, 0);
+	if (status != 0)
+		goto out;
+	/* Note: we always want to sleep here! */
+	request->fl_flags |= FL_SLEEP;
+	if (do_vfs_lock(request->fl_file, request) < 0)
+		printk(KERN_WARNING "%s: VFS is out of sync with lock manager!\n", __FUNCTION__);
+out:
 	up_read(&clp->cl_sem);
 	return status;
 }
