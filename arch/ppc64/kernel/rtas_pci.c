@@ -440,7 +440,6 @@ struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
 	struct device_node *root = of_find_node_by_path("/");
 	unsigned int root_size_cells = 0;
 	struct pci_controller *phb;
-	struct pci_bus *bus;
 	int primary;
 
 	root_size_cells = prom_n_size_cells(root);
@@ -456,10 +455,7 @@ struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
 	of_node_put(root);
 
 	pci_devs_phb_init_dynamic(phb);
-	phb->last_busno = 0xff;
-	bus = pci_scan_bus(phb->first_busno, phb->ops, phb->arch_data);
-	phb->bus = bus;
-	phb->last_busno = bus->subordinate;
+	scan_phb(phb);
 
 	return phb;
 }
