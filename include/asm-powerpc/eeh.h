@@ -57,6 +57,7 @@ void __init pci_addr_cache_build(void);
  * to finish the eeh setup for this device.
  */
 void eeh_add_device_early(struct device_node *);
+void eeh_add_device_tree_early(struct device_node *);
 void eeh_add_device_late(struct pci_dev *);
 
 /**
@@ -70,6 +71,15 @@ void eeh_add_device_late(struct pci_dev *);
  * i/o errors affecting this slot may leave this device unusable.
  */
 void eeh_remove_device(struct pci_dev *);
+
+/**
+ * eeh_remove_device_recursive - undo EEH for device & children.
+ * @dev: pci device to be removed
+ *
+ * As above, this removes the device; it also removes child
+ * pci devices as well.
+ */
+void eeh_remove_bus_device(struct pci_dev *);
 
 /**
  * EEH_POSSIBLE_ERROR() -- test for possible MMIO failure.
