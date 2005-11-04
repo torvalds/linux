@@ -960,7 +960,7 @@ static int wm_adc_mux_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucont
 	if (change)
 		wm_put(ice, WM_ADC_MUX, nval);
 	snd_ice1712_restore_gpio_status(ice);
-	return 0;
+	return change;
 }
 
 /*
