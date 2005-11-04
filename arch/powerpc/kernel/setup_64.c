@@ -103,8 +103,6 @@ extern void htab_initialize(void);
 extern void early_init_devtree(void *flat_dt);
 extern void unflatten_device_tree(void);
 
-extern void smp_release_cpus(void);
-
 int have_of = 1;
 int boot_cpuid = 0;
 int boot_cpuid_phys = 0;
@@ -399,6 +397,27 @@ void __init early_setup(unsigned long dt_ptr)
 	DBG(" <- early_setup()\n");
 }
 
+
+#if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
+void smp_release_cpus(void)
+{
+	extern unsigned long __secondary_hold_spinloop;
+
+	DBG(" -> smp_release_cpus()\n");
+
+	/* All secondary cpus are spinning on a common spinloop, release them
+	 * all now so they can start to spin on their individual paca
+	 * spinloops. For non SMP kernels, the secondary cpus never get out
+	 * of the common spinloop.
+	 * This is useless but harmless on iSeries, secondaries are already
+	 * waiting on their paca spinloops. */
+
+	__secondary_hold_spinloop = 1;
+	mb();
+
+	DBG(" <- smp_release_cpus()\n");
+}
+#endif /* CONFIG_SMP || CONFIG_KEXEC */
 
 /*
  * Initialize some remaining members of the ppc64_caches and systemcfg structures
