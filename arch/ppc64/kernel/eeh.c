@@ -397,6 +397,28 @@ void __init pci_addr_cache_build(void)
 /* --------------------------------------------------------------- */
 /* Above lies the PCI Address Cache. Below lies the EEH event infrastructure */
 
+void eeh_slot_error_detail (struct pci_dn *pdn, int severity)
+{
+	unsigned long flags;
+	int rc;
+
+	/* Log the error with the rtas logger */
+	spin_lock_irqsave(&slot_errbuf_lock, flags);
+	memset(slot_errbuf, 0, eeh_error_buf_size);
+
+	rc = rtas_call(ibm_slot_error_detail,
+	               8, 1, NULL, pdn->eeh_config_addr,
+	               BUID_HI(pdn->phb->buid),
+	               BUID_LO(pdn->phb->buid), NULL, 0,
+	               virt_to_phys(slot_errbuf),
+	               eeh_error_buf_size,
+	               severity);
+
+	if (rc == 0)
+		log_error(slot_errbuf, ERR_TYPE_RTAS_LOG, 0);
+	spin_unlock_irqrestore(&slot_errbuf_lock, flags);
+}
+
 /**
  * eeh_register_notifier - Register to find out about EEH events.
  * @nb: notifier block to callback on events
@@ -454,9 +476,12 @@ static void eeh_panic(struct pci_dev *dev, int reset_state)
 	 * Since the panic_on_oops sysctl is used to halt the system
 	 * in light of potential corruption, we can use it here.
 	 */
-	if (panic_on_oops)
+	if (panic_on_oops) {
+		struct device_node *dn = pci_device_to_OF_node(dev);
+		eeh_slot_error_detail (PCI_DN(dn), 2 /* Permanent Error */);
 		panic("EEH: MMIO failure (%d) on device:%s\n", reset_state,
 		      pci_name(dev));
+	}
 	else {
 		__get_cpu_var(ignored_failures)++;
 		printk(KERN_INFO "EEH: Ignored MMIO failure (%d) on device:%s\n",
@@ -539,7 +564,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	int ret;
 	int rets[3];
 	unsigned long flags;
-	int rc, reset_state;
+	int reset_state;
 	struct eeh_event  *event;
 	struct pci_dn *pdn;
 
@@ -603,20 +628,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 
 	reset_state = rets[0];
 
-	spin_lock_irqsave(&slot_errbuf_lock, flags);
-	memset(slot_errbuf, 0, eeh_error_buf_size);
-
-	rc = rtas_call(ibm_slot_error_detail,
-	               8, 1, NULL, pdn->eeh_config_addr,
-	               BUID_HI(pdn->phb->buid),
-	               BUID_LO(pdn->phb->buid), NULL, 0,
-	               virt_to_phys(slot_errbuf),
-	               eeh_error_buf_size,
-	               1 /* Temporary Error */);
-
-	if (rc == 0)
-		log_error(slot_errbuf, ERR_TYPE_RTAS_LOG, 0);
-	spin_unlock_irqrestore(&slot_errbuf_lock, flags);
+	eeh_slot_error_detail (pdn, 1 /* Temporary Error */);
 
 	printk(KERN_INFO "EEH: MMIO failure (%d) on device: %s %s\n",
 	       rets[0], dn->name, dn->full_name);
@@ -782,6 +794,8 @@ void __init eeh_init(void)
 {
 	struct device_node *phb, *np;
 	struct eeh_early_enable_info info;
+
+	spin_lock_init(&slot_errbuf_lock);
 
 	np = of_find_node_by_path("/rtas");
 	if (np == NULL)
