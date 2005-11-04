@@ -200,14 +200,18 @@ static void eeh_report_failure(struct pci_dev *dev, void *userdata)
  *            bus resets can be performed.
  */
 
-static void eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
+static int eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
 {
+	int rc;
 	if (bus)
 		pcibios_remove_pci_devices(bus);
 
 	/* Reset the pci controller. (Asserts RST#; resets config space).
-	 * Reconfigure bridges and devices */
-	rtas_set_slot_reset(pe_dn);
+	 * Reconfigure bridges and devices. Don't try to bring the system
+	 * up if the reset failed for some reason. */
+	rc = rtas_set_slot_reset(pe_dn);
+	if (rc)
+		return rc;
 
 	/* Walk over all functions on this device */
 	rtas_configure_bridge(pe_dn);
@@ -223,6 +227,8 @@ static void eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
 		ssleep (5);
 		pcibios_add_pci_devices(bus);
 	}
+
+	return 0;
 }
 
 /* The longest amount of time to wait for a pci device
@@ -235,7 +241,7 @@ void handle_eeh_events (struct eeh_event *event)
 	struct device_node *frozen_dn;
 	struct pci_dn *frozen_pdn;
 	struct pci_bus *frozen_bus;
-	int perm_failure = 0;
+	int rc = 0;
 
 	frozen_dn = find_device_pe(event->dn);
 	frozen_bus = pcibios_find_pci_bus(frozen_dn);
@@ -272,7 +278,7 @@ void handle_eeh_events (struct eeh_event *event)
 	frozen_pdn->eeh_freeze_count++;
 	
 	if (frozen_pdn->eeh_freeze_count > EEH_MAX_ALLOWED_FREEZES)
-		perm_failure = 1;
+		goto hard_fail;
 
 	/* If the reset state is a '5' and the time to reset is 0 (infinity)
 	 * or is more then 15 seconds, then mark this as a permanent failure.
@@ -280,34 +286,7 @@ void handle_eeh_events (struct eeh_event *event)
 	if ((event->state == pci_channel_io_perm_failure) &&
 	    ((event->time_unavail <= 0) ||
 	     (event->time_unavail > MAX_WAIT_FOR_RECOVERY*1000)))
-	{
-		perm_failure = 1;
-	}
-
-	/* Log the error with the rtas logger. */
-	if (perm_failure) {
-		/*
-		 * About 90% of all real-life EEH failures in the field
-		 * are due to poorly seated PCI cards. Only 10% or so are
-		 * due to actual, failed cards.
-		 */
-		printk(KERN_ERR
-		   "EEH: PCI device %s - %s has failed %d times \n"
-		   "and has been permanently disabled.  Please try reseating\n"
-		   "this device or replacing it.\n",
-			pci_name (frozen_pdn->pcidev), 
-			pcid_name(frozen_pdn->pcidev), 
-			frozen_pdn->eeh_freeze_count);
-
-		eeh_slot_error_detail(frozen_pdn, 2 /* Permanent Error */);
-
-		/* Notify all devices that they're about to go down. */
-		pci_walk_bus(frozen_bus, eeh_report_failure, 0);
-
-		/* Shut down the device drivers for good. */
-		pcibios_remove_pci_devices(frozen_bus);
-		return;
-	}
+		goto hard_fail;
 
 	eeh_slot_error_detail(frozen_pdn, 1 /* Temporary Error */);
 	printk(KERN_WARNING
@@ -330,24 +309,54 @@ void handle_eeh_events (struct eeh_event *event)
 	 * go down willingly, without panicing the system.
 	 */
 	if (result == PCIERR_RESULT_NONE) {
-		eeh_reset_device(frozen_pdn, frozen_bus);
+		rc = eeh_reset_device(frozen_pdn, frozen_bus);
+		if (rc)
+			goto hard_fail;
 	}
 
 	/* If any device called out for a reset, then reset the slot */
 	if (result == PCIERR_RESULT_NEED_RESET) {
-		eeh_reset_device(frozen_pdn, NULL);
+		rc = eeh_reset_device(frozen_pdn, NULL);
+		if (rc)
+			goto hard_fail;
 		pci_walk_bus(frozen_bus, eeh_report_reset, 0);
 	}
 
 	/* If all devices reported they can proceed, the re-enable PIO */
 	if (result == PCIERR_RESULT_CAN_RECOVER) {
 		/* XXX Not supported; we brute-force reset the device */
-		eeh_reset_device(frozen_pdn, NULL);
+		rc = eeh_reset_device(frozen_pdn, NULL);
+		if (rc)
+			goto hard_fail;
 		pci_walk_bus(frozen_bus, eeh_report_reset, 0);
 	}
 
 	/* Tell all device drivers that they can resume operations */
 	pci_walk_bus(frozen_bus, eeh_report_resume, 0);
+
+	return;
+	
+hard_fail:
+	/*
+	 * About 90% of all real-life EEH failures in the field
+	 * are due to poorly seated PCI cards. Only 10% or so are
+	 * due to actual, failed cards.
+	 */
+	printk(KERN_ERR
+	   "EEH: PCI device %s - %s has failed %d times \n"
+	   "and has been permanently disabled.  Please try reseating\n"
+	   "this device or replacing it.\n",
+		pci_name (frozen_pdn->pcidev), 
+		pcid_name(frozen_pdn->pcidev), 
+		frozen_pdn->eeh_freeze_count);
+
+	eeh_slot_error_detail(frozen_pdn, 2 /* Permanent Error */);
+
+	/* Notify all devices that they're about to go down. */
+	pci_walk_bus(frozen_bus, eeh_report_failure, 0);
+
+	/* Shut down the device drivers for good. */
+	pcibios_remove_pci_devices(frozen_bus);
 }
 
 /* ---------- end of file ---------- */

@@ -76,8 +76,10 @@ void eeh_slot_error_detail (struct pci_dn *pdn, int severity);
  * does this by asserting the PCI #RST line for 1/8th of
  * a second; this routine will sleep while the adapter is
  * being reset.
+ *
+ * Returns a non-zero value if the reset failed.
  */
-void rtas_set_slot_reset (struct pci_dn *);
+int rtas_set_slot_reset (struct pci_dn *);
 
 /** 
  * eeh_restore_bars - Restore device configuration info.

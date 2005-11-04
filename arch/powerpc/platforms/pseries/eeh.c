@@ -450,11 +450,16 @@ eeh_slot_availability(struct pci_dn *pdn)
 	if (rc) return rc;
 
 	if (rets[1] == 0) return -1;  /* EEH is not supported */
-	if (rets[0] == 0)  return 0;  /* Oll Korrect */
+	if (rets[0] == 0) return 0;   /* Oll Korrect */
 	if (rets[0] == 5) {
 		if (rets[2] == 0) return -1; /* permanently unavailable */
 		return rets[2]; /* number of millisecs to wait */
 	}
+	if (rets[0] == 1)
+		return 250;
+
+	printk (KERN_ERR "EEH: Slot unavailable: rc=%d, rets=%d %d %d\n",
+		rc, rets[0], rets[1], rets[2]);
 	return -1;
 }
 
@@ -501,9 +506,11 @@ rtas_pci_slot_reset(struct pci_dn *pdn, int state)
 
 /** rtas_set_slot_reset -- assert the pci #RST line for 1/4 second
  *  dn -- device node to be reset.
+ *
+ *  Return 0 if success, else a non-zero value.
  */
 
-void
+int
 rtas_set_slot_reset(struct pci_dn *pdn)
 {
 	int i, rc;
@@ -533,10 +540,21 @@ rtas_set_slot_reset(struct pci_dn *pdn)
 	 * ready to be used; if not, wait for recovery. */
 	for (i=0; i<10; i++) {
 		rc = eeh_slot_availability (pdn);
-		if (rc <= 0) break;
+		if (rc < 0)
+			printk (KERN_ERR "EEH: failed (%d) to reset slot %s\n", rc, pdn->node->full_name);
+		if (rc == 0)
+			return 0;
+		if (rc < 0)
+			return -1;
 
 		msleep (rc+100);
 	}
+
+	rc = eeh_slot_availability (pdn);
+	if (rc)
+		printk (KERN_ERR "EEH: timeout resetting slot %s\n", pdn->node->full_name);
+
+	return rc;
 }
 
 /* ------------------------------------------------------- */
