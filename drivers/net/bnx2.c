@@ -1533,10 +1533,11 @@ bnx2_phy_int(struct bnx2 *bp)
 static void
 bnx2_tx_int(struct bnx2 *bp)
 {
+	struct status_block *sblk = bp->status_blk;
 	u16 hw_cons, sw_cons, sw_ring_cons;
 	int tx_free_bd = 0;
 
-	hw_cons = bp->status_blk->status_tx_quick_consumer_index0;
+	hw_cons = bp->hw_tx_cons = sblk->status_tx_quick_consumer_index0;
 	if ((hw_cons & MAX_TX_DESC_CNT) == MAX_TX_DESC_CNT) {
 		hw_cons++;
 	}
@@ -1591,7 +1592,9 @@ bnx2_tx_int(struct bnx2 *bp)
 
 		dev_kfree_skb_irq(skb);
 
-		hw_cons = bp->status_blk->status_tx_quick_consumer_index0;
+		hw_cons = bp->hw_tx_cons =
+			sblk->status_tx_quick_consumer_index0;
+
 		if ((hw_cons & MAX_TX_DESC_CNT) == MAX_TX_DESC_CNT) {
 			hw_cons++;
 		}
@@ -1636,11 +1639,12 @@ bnx2_reuse_rx_skb(struct bnx2 *bp, struct sk_buff *skb,
 static int
 bnx2_rx_int(struct bnx2 *bp, int budget)
 {
+	struct status_block *sblk = bp->status_blk;
 	u16 hw_cons, sw_cons, sw_ring_cons, sw_prod, sw_ring_prod;
 	struct l2_fhdr *rx_hdr;
 	int rx_pkt = 0;
 
-	hw_cons = bp->status_blk->status_rx_quick_consumer_index0;
+	hw_cons = bp->hw_rx_cons = sblk->status_rx_quick_consumer_index0;
 	if ((hw_cons & MAX_RX_DESC_CNT) == MAX_RX_DESC_CNT) {
 		hw_cons++;
 	}
@@ -1760,6 +1764,15 @@ next_rx:
 
 		if ((rx_pkt == budget))
 			break;
+
+		/* Refresh hw_cons to see if there is new work */
+		if (sw_cons == hw_cons) {
+			hw_cons = bp->hw_rx_cons =
+				sblk->status_rx_quick_consumer_index0;
+			if ((hw_cons & MAX_RX_DESC_CNT) == MAX_RX_DESC_CNT)
+				hw_cons++;
+			rmb();
+		}
 	}
 	bp->rx_cons = sw_cons;
 	bp->rx_prod = sw_prod;
@@ -1827,15 +1840,27 @@ bnx2_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
+static inline int
+bnx2_has_work(struct bnx2 *bp)
+{
+	struct status_block *sblk = bp->status_blk;
+
+	if ((sblk->status_rx_quick_consumer_index0 != bp->hw_rx_cons) ||
+	    (sblk->status_tx_quick_consumer_index0 != bp->hw_tx_cons))
+		return 1;
+
+	if (((sblk->status_attn_bits & STATUS_ATTN_BITS_LINK_STATE) != 0) !=
+	    bp->link_up)
+		return 1;
+
+	return 0;
+}
+
 static int
 bnx2_poll(struct net_device *dev, int *budget)
 {
 	struct bnx2 *bp = dev->priv;
-	int rx_done = 1;
 
-	bp->last_status_idx = bp->status_blk->status_idx;
-
-	rmb();
 	if ((bp->status_blk->status_attn_bits &
 		STATUS_ATTN_BITS_LINK_STATE) !=
 		(bp->status_blk->status_attn_bits_ack &
@@ -1846,11 +1871,10 @@ bnx2_poll(struct net_device *dev, int *budget)
 		spin_unlock(&bp->phy_lock);
 	}
 
-	if (bp->status_blk->status_tx_quick_consumer_index0 != bp->tx_cons) {
+	if (bp->status_blk->status_tx_quick_consumer_index0 != bp->hw_tx_cons)
 		bnx2_tx_int(bp);
-	}
 
-	if (bp->status_blk->status_rx_quick_consumer_index0 != bp->rx_cons) {
+	if (bp->status_blk->status_rx_quick_consumer_index0 != bp->hw_rx_cons) {
 		int orig_budget = *budget;
 		int work_done;
 
@@ -1860,13 +1884,12 @@ bnx2_poll(struct net_device *dev, int *budget)
 		work_done = bnx2_rx_int(bp, orig_budget);
 		*budget -= work_done;
 		dev->quota -= work_done;
-		
-		if (work_done >= orig_budget) {
-			rx_done = 0;
-		}
 	}
 	
-	if (rx_done) {
+	bp->last_status_idx = bp->status_blk->status_idx;
+	rmb();
+
+	if (!bnx2_has_work(bp)) {
 		netif_rx_complete(dev);
 		REG_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 			BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
@@ -3222,6 +3245,7 @@ bnx2_init_tx_ring(struct bnx2 *bp)
 
 	bp->tx_prod = 0;
 	bp->tx_cons = 0;
+	bp->hw_tx_cons = 0;
 	bp->tx_prod_bseq = 0;
 	
 	val = BNX2_L2CTX_TYPE_TYPE_L2;
@@ -3254,6 +3278,7 @@ bnx2_init_rx_ring(struct bnx2 *bp)
 
 	ring_prod = prod = bp->rx_prod = 0;
 	bp->rx_cons = 0;
+	bp->hw_rx_cons = 0;
 	bp->rx_prod_bseq = 0;
 		
 	rxbd = &bp->rx_desc_ring[0];

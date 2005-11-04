@@ -3914,6 +3914,9 @@ struct bnx2 {
 	u16			tx_cons;
 	int			tx_ring_size;
 
+	u16			hw_tx_cons;
+	u16			hw_rx_cons;
+
 #ifdef BCM_VLAN 
 	struct			vlan_group *vlgrp;
 #endif
