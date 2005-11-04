@@ -34,9 +34,11 @@ struct device_node;
 extern int eeh_subsystem_enabled;
 
 /* Values for eeh_mode bits in device_node */
-#define EEH_MODE_SUPPORTED	(1<<0)
-#define EEH_MODE_NOCHECK	(1<<1)
-#define EEH_MODE_ISOLATED	(1<<2)
+#define EEH_MODE_SUPPORTED     (1<<0)
+#define EEH_MODE_NOCHECK       (1<<1)
+#define EEH_MODE_ISOLATED      (1<<2)
+#define EEH_MODE_RECOVERING    (1<<3)
+#define EEH_MODE_IRQ_DISABLED  (1<<4)
 
 /* Max number of EEH freezes allowed before we consider the device
  * to be permanently disabled. */

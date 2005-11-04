@@ -53,6 +53,15 @@ extern unsigned long pci_probe_only;
 /* ---- EEH internal-use-only related routines ---- */
 #ifdef CONFIG_EEH
 /**
+ * eeh_slot_error_detail -- record and EEH error condition to the log
+ * @severity: 1 if temporary, 2 if permanent failure.
+ *
+ * Obtains the the EEH error details from the RTAS subsystem,
+ * and then logs these details with the RTAS error log system.
+ */
+void eeh_slot_error_detail (struct pci_dn *pdn, int severity);
+
+/**
  * rtas_set_slot_reset -- unfreeze a frozen slot
  *
  * Clear the EEH-frozen condition on a slot.  This routine

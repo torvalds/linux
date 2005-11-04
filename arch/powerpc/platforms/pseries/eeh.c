@@ -485,6 +485,11 @@ static void __eeh_mark_slot (struct device_node *dn, int mode_flag)
 		if (PCI_DN(dn)) {
 			PCI_DN(dn)->eeh_mode |= mode_flag;
 
+			/* Mark the pci device driver too */
+			struct pci_dev *dev = PCI_DN(dn)->pcidev;
+			if (dev && dev->driver)
+				dev->error_state = pci_channel_io_frozen;
+
 			if (dn->child)
 				__eeh_mark_slot (dn->child, mode_flag);
 		}
@@ -544,6 +549,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	int rets[3];
 	unsigned long flags;
 	struct pci_dn *pdn;
+	enum pci_channel_state state;
 	int rc = 0;
 
 	__get_cpu_var(total_mmio_ffs)++;
@@ -648,8 +654,13 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	eeh_mark_slot (dn, EEH_MODE_ISOLATED);
 	spin_unlock_irqrestore(&confirm_error_lock, flags);
 
-	eeh_send_failure_event (dn, dev, rets[0], rets[2]);
-	
+	state = pci_channel_io_normal;
+	if ((rets[0] == 2) || (rets[0] == 4))
+		state = pci_channel_io_frozen;
+	if (rets[0] == 5)
+		state = pci_channel_io_perm_failure;
+	eeh_send_failure_event (dn, dev, state, rets[2]);
+
 	/* Most EEH events are due to device driver bugs.  Having
 	 * a stack trace will help the device-driver authors figure
 	 * out what happened.  So print that out. */
@@ -953,8 +964,10 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 	 * But there are a few cases like display devices that make sense.
 	 */
 	enable = 1;	/* i.e. we will do checking */
+#if 0
 	if ((*class_code >> 16) == PCI_BASE_CLASS_DISPLAY)
 		enable = 0;
+#endif
 
 	if (!enable)
 		pdn->eeh_mode |= EEH_MODE_NOCHECK;
