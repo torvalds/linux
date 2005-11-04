@@ -306,7 +306,7 @@ static int dlpar_add_phb(char *drc_name, struct device_node *dn)
 {
 	struct pci_controller *phb;
 
-	if (PCI_DN(dn)->phb) {
+	if (PCI_DN(dn) && PCI_DN(dn)->phb) {
 		/* PHB already exists */
 		return -EINVAL;
 	}
