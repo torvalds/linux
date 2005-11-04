@@ -251,7 +251,7 @@ void pcibios_free_controller(struct pci_controller *phb)
 		kfree(phb);
 }
 
-static void __init pcibios_claim_one_bus(struct pci_bus *b)
+void __devinit pcibios_claim_one_bus(struct pci_bus *b)
 {
 	struct pci_dev *dev;
 	struct pci_bus *child_bus;
