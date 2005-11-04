@@ -68,6 +68,7 @@ struct pci_dn {
 #ifdef CONFIG_PPC_PSERIES
 	int	eeh_mode;		/* See eeh.h for possible EEH_MODEs */
 	int	eeh_config_addr;
+	int	eeh_pe_config_addr; /* new-style partition endpoint address */
 	int 	eeh_check_count;	/* # times driver ignored error */
 	int 	eeh_freeze_count;	/* # times this device froze up. */
 	int	eeh_is_bridge;		/* device is pci-to-pci bridge */

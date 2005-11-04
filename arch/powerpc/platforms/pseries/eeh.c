@@ -82,6 +82,7 @@ static int ibm_set_slot_reset;
 static int ibm_read_slot_reset_state;
 static int ibm_read_slot_reset_state2;
 static int ibm_slot_error_detail;
+static int ibm_get_config_addr_info;
 
 int eeh_subsystem_enabled;
 EXPORT_SYMBOL(eeh_subsystem_enabled);
@@ -457,6 +458,7 @@ eeh_slot_availability(struct pci_dn *pdn)
 static void
 rtas_pci_slot_reset(struct pci_dn *pdn, int state)
 {
+	int config_addr;
 	int rc;
 
 	BUG_ON (pdn==NULL); 
@@ -467,8 +469,13 @@ rtas_pci_slot_reset(struct pci_dn *pdn, int state)
 		return;
 	}
 
+	/* Use PE configuration address, if present */
+	config_addr = pdn->eeh_config_addr;
+	if (pdn->eeh_pe_config_addr)
+		config_addr = pdn->eeh_pe_config_addr;
+
 	rc = rtas_call(ibm_set_slot_reset,4,1, NULL,
-	               pdn->eeh_config_addr,
+	               config_addr,
 	               BUID_HI(pdn->phb->buid),
 	               BUID_LO(pdn->phb->buid),
 	               state);
@@ -695,8 +702,22 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 			eeh_subsystem_enabled = 1;
 			pdn->eeh_mode |= EEH_MODE_SUPPORTED;
 			pdn->eeh_config_addr = regs[0];
+
+			/* If the newer, better, ibm,get-config-addr-info is supported, 
+			 * then use that instead. */
+			pdn->eeh_pe_config_addr = 0;
+			if (ibm_get_config_addr_info != RTAS_UNKNOWN_SERVICE) {
+				unsigned int rets[2];
+				ret = rtas_call (ibm_get_config_addr_info, 4, 2, rets, 
+					pdn->eeh_config_addr, 
+					info->buid_hi, info->buid_lo,
+					0);
+				if (ret == 0)
+					pdn->eeh_pe_config_addr = rets[0];
+			}
 #ifdef DEBUG
-			printk(KERN_DEBUG "EEH: %s: eeh enabled\n", dn->full_name);
+			printk(KERN_DEBUG "EEH: %s: eeh enabled, config=%x pe_config=%x\n",
+			       dn->full_name, pdn->eeh_config_addr, pdn->eeh_pe_config_addr);
 #endif
 		} else {
 
@@ -748,6 +769,7 @@ void __init eeh_init(void)
 	ibm_read_slot_reset_state2 = rtas_token("ibm,read-slot-reset-state2");
 	ibm_read_slot_reset_state = rtas_token("ibm,read-slot-reset-state");
 	ibm_slot_error_detail = rtas_token("ibm,slot-error-detail");
+	ibm_get_config_addr_info = rtas_token("ibm,get-config-addr-info");
 
 	if (ibm_set_eeh_option == RTAS_UNKNOWN_SERVICE)
 		return;
