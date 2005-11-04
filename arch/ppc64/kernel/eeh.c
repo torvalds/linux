@@ -102,6 +102,10 @@ static DEFINE_SPINLOCK(slot_errbuf_lock);
 static int eeh_error_buf_size;
 
 /* System monitoring statistics */
+static DEFINE_PER_CPU(unsigned long, no_device);
+static DEFINE_PER_CPU(unsigned long, no_dn);
+static DEFINE_PER_CPU(unsigned long, no_cfg_addr);
+static DEFINE_PER_CPU(unsigned long, ignored_check);
 static DEFINE_PER_CPU(unsigned long, total_mmio_ffs);
 static DEFINE_PER_CPU(unsigned long, false_positives);
 static DEFINE_PER_CPU(unsigned long, ignored_failures);
@@ -493,8 +497,6 @@ static void eeh_event_handler(void *dummy)
 		notifier_call_chain (&eeh_notifier_chain,
 				     EEH_NOTIFY_FREEZE, event);
 
-		__get_cpu_var(slot_resets)++;
-
 		pci_dev_put(event->dev);
 		kfree(event);
 	}
@@ -546,17 +548,24 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	if (!eeh_subsystem_enabled)
 		return 0;
 
-	if (!dn)
+	if (!dn) {
+		__get_cpu_var(no_dn)++;
 		return 0;
+	}
 	pdn = PCI_DN(dn);
 
 	/* Access to IO BARs might get this far and still not want checking. */
 	if (!pdn->eeh_capable || !(pdn->eeh_mode & EEH_MODE_SUPPORTED) ||
 	    pdn->eeh_mode & EEH_MODE_NOCHECK) {
+		__get_cpu_var(ignored_check)++;
+#ifdef DEBUG
+		printk ("EEH:ignored check for %s %s\n", pci_name (dev), dn->full_name);
+#endif
 		return 0;
 	}
 
 	if (!pdn->eeh_config_addr) {
+		__get_cpu_var(no_cfg_addr)++;
 		return 0;
 	}
 
@@ -590,6 +599,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 
 	/* prevent repeated reports of this failure */
 	pdn->eeh_mode |= EEH_MODE_ISOLATED;
+	 __get_cpu_var(slot_resets)++;
 
 	reset_state = rets[0];
 
@@ -657,8 +667,10 @@ unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned lon
 	/* Finding the phys addr + pci device; this is pretty quick. */
 	addr = eeh_token_to_phys((unsigned long __force) token);
 	dev = pci_get_device_by_addr(addr);
-	if (!dev)
+	if (!dev) {
+		__get_cpu_var(no_device)++;
 		return val;
+	}
 
 	dn = pci_device_to_OF_node(dev);
 	eeh_dn_check_failure (dn, dev);
@@ -903,12 +915,17 @@ static int proc_eeh_show(struct seq_file *m, void *v)
 	unsigned int cpu;
 	unsigned long ffs = 0, positives = 0, failures = 0;
 	unsigned long resets = 0;
+	unsigned long no_dev = 0, no_dn = 0, no_cfg = 0, no_check = 0;
 
 	for_each_cpu(cpu) {
 		ffs += per_cpu(total_mmio_ffs, cpu);
 		positives += per_cpu(false_positives, cpu);
 		failures += per_cpu(ignored_failures, cpu);
 		resets += per_cpu(slot_resets, cpu);
+		no_dev += per_cpu(no_device, cpu);
+		no_dn += per_cpu(no_dn, cpu);
+		no_cfg += per_cpu(no_cfg_addr, cpu);
+		no_check += per_cpu(ignored_check, cpu);
 	}
 
 	if (0 == eeh_subsystem_enabled) {
@@ -916,13 +933,17 @@ static int proc_eeh_show(struct seq_file *m, void *v)
 		seq_printf(m, "eeh_total_mmio_ffs=%ld\n", ffs);
 	} else {
 		seq_printf(m, "EEH Subsystem is enabled\n");
-		seq_printf(m, "eeh_total_mmio_ffs=%ld\n"
-			   "eeh_false_positives=%ld\n"
-			   "eeh_ignored_failures=%ld\n"
-			   "eeh_slot_resets=%ld\n"
-				"eeh_fail_count=%d\n",
-			   ffs, positives, failures, resets,
-				eeh_fail_count.counter);
+		seq_printf(m,
+				"no device=%ld\n"
+				"no device node=%ld\n"
+				"no config address=%ld\n"
+				"check not wanted=%ld\n"
+				"eeh_total_mmio_ffs=%ld\n"
+				"eeh_false_positives=%ld\n"
+				"eeh_ignored_failures=%ld\n"
+				"eeh_slot_resets=%ld\n",
+				no_dev, no_dn, no_cfg, no_check,
+				ffs, positives, failures, resets);
 	}
 
 	return 0;
