@@ -1,10 +1,8 @@
 #include <linux/config.h>
-#ifdef CONFIG_PPC64
 #include <asm/page.h>
-#else
-#define PAGE_SIZE	4096
-#endif
 #include <asm-generic/vmlinux.lds.h>
+
+ENTRY(_stext)
 
 #ifdef CONFIG_PPC64
 OUTPUT_ARCH(powerpc:common64)
@@ -21,6 +19,7 @@ SECTIONS
     *(.exit.data)
   }
 
+  . = KERNELBASE;
 
   /* Read-only sections, merged into text segment: */
 #ifdef CONFIG_PPC32

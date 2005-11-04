@@ -79,19 +79,12 @@ extern int smt_enabled_at_boot;
 extern int smp_mpic_probe(void);
 extern void smp_mpic_setup_cpu(int cpu);
 extern void smp_generic_kick_cpu(int nr);
+extern void smp_release_cpus(void);
 
 extern void smp_generic_give_timebase(void);
 extern void smp_generic_take_timebase(void);
 
 extern struct smp_ops_t *smp_ops;
-
-#ifdef CONFIG_PPC_PSERIES
-void vpa_init(int cpu);
-#else
-static inline void vpa_init(int cpu)
-{
-}
-#endif /* CONFIG_PPC_PSERIES */
 
 #endif /* __ASSEMBLY__ */
 
