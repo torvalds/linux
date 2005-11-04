@@ -14,8 +14,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.2.21"
-#define DRV_MODULE_RELDATE	"September 7, 2005"
+#define DRV_MODULE_VERSION	"1.4.30"
+#define DRV_MODULE_RELDATE	"October 11, 2005"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -26,7 +26,7 @@ static char version[] __devinitdata =
 	"Broadcom NetXtreme II Gigabit Ethernet Driver " DRV_MODULE_NAME " v" DRV_MODULE_VERSION " (" DRV_MODULE_RELDATE ")\n";
 
 MODULE_AUTHOR("Michael Chan <mchan@broadcom.com>");
-MODULE_DESCRIPTION("Broadcom NetXtreme II BCM5706 Driver");
+MODULE_DESCRIPTION("Broadcom NetXtreme II BCM5706/5708 Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
@@ -3364,7 +3364,7 @@ bnx2_free_rx_skbs(struct bnx2 *bp)
 		struct sw_bd *rx_buf = &bp->rx_buf_ring[i];
 		struct sk_buff *skb = rx_buf->skb;
 
-		if (skb == 0)
+		if (skb == NULL)
 			continue;
 
 		pci_unmap_single(bp->pdev, pci_unmap_addr(rx_buf, mapping),
