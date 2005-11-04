@@ -64,6 +64,29 @@ extern int pci_read_irq_line(struct pci_dev *pci_dev);
  */
 void rtas_set_slot_reset (struct pci_dn *);
 
+/** 
+ * eeh_restore_bars - Restore device configuration info.
+ *
+ * A reset of a PCI device will clear out its config space.
+ * This routines will restore the config space for this
+ * device, and is children, to values previously obtained
+ * from the firmware.
+ */
+void eeh_restore_bars(struct pci_dn *);
+
+/**
+ * rtas_configure_bridge -- firmware initialization of pci bridge
+ *
+ * Ask the firmware to configure all PCI bridges devices
+ * located behind the indicated node. Required after a
+ * pci device reset. Does essentially the same hing as
+ * eeh_restore_bars, but for brdges, and lets firmware 
+ * do the work.
+ */
+void rtas_configure_bridge(struct pci_dn *);
+
+int rtas_write_config(struct pci_dn *, int where, int size, u32 val);
+
 #endif
 
 #endif /* _ASM_POWERPC_PPC_PCI_H */

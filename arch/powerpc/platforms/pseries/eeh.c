@@ -77,6 +77,9 @@
  */
 #define EEH_MAX_FAILS	100000
 
+/* Misc forward declaraions */
+static void eeh_save_bars(struct pci_dev * pdev, struct pci_dn *pdn);
+
 /* RTAS tokens */
 static int ibm_set_eeh_option;
 static int ibm_set_slot_reset;
@@ -366,6 +369,7 @@ static void pci_addr_cache_remove_device(struct pci_dev *dev)
  */
 void __init pci_addr_cache_build(void)
 {
+	struct device_node *dn;
 	struct pci_dev *dev = NULL;
 
 	if (!eeh_subsystem_enabled)
@@ -379,6 +383,10 @@ void __init pci_addr_cache_build(void)
 			continue;
 		}
 		pci_addr_cache_insert_device(dev);
+
+		/* Save the BAR's; firmware doesn't restore these after EEH reset */
+		dn = pci_device_to_OF_node(dev);
+		eeh_save_bars(dev, PCI_DN(dn));
 	}
 
 #ifdef DEBUG
@@ -775,6 +783,108 @@ rtas_set_slot_reset(struct pci_dn *pdn)
 	}
 }
 
+/* ------------------------------------------------------- */
+/** Save and restore of PCI BARs
+ *
+ * Although firmware will set up BARs during boot, it doesn't
+ * set up device BAR's after a device reset, although it will,
+ * if requested, set up bridge configuration. Thus, we need to
+ * configure the PCI devices ourselves.  
+ */
+
+/**
+ * __restore_bars - Restore the Base Address Registers
+ * Loads the PCI configuration space base address registers,
+ * the expansion ROM base address, the latency timer, and etc.
+ * from the saved values in the device node.
+ */
+static inline void __restore_bars (struct pci_dn *pdn)
+{
+	int i;
+
+	if (NULL==pdn->phb) return;
+	for (i=4; i<10; i++) {
+		rtas_write_config(pdn, i*4, 4, pdn->config_space[i]);
+	}
+
+	/* 12 == Expansion ROM Address */
+	rtas_write_config(pdn, 12*4, 4, pdn->config_space[12]);
+
+#define BYTE_SWAP(OFF) (8*((OFF)/4)+3-(OFF))
+#define SAVED_BYTE(OFF) (((u8 *)(pdn->config_space))[BYTE_SWAP(OFF)])
+
+	rtas_write_config (pdn, PCI_CACHE_LINE_SIZE, 1,
+	            SAVED_BYTE(PCI_CACHE_LINE_SIZE));
+
+	rtas_write_config (pdn, PCI_LATENCY_TIMER, 1,
+	            SAVED_BYTE(PCI_LATENCY_TIMER));
+
+	/* max latency, min grant, interrupt pin and line */
+	rtas_write_config(pdn, 15*4, 4, pdn->config_space[15]);
+}
+
+/**
+ * eeh_restore_bars - restore the PCI config space info
+ *
+ * This routine performs a recursive walk to the children
+ * of this device as well.
+ */
+void eeh_restore_bars(struct pci_dn *pdn)
+{
+	struct device_node *dn;
+	if (!pdn) 
+		return;
+	
+	if (! pdn->eeh_is_bridge)
+		__restore_bars (pdn);
+
+	dn = pdn->node->child;
+	while (dn) {
+		eeh_restore_bars (PCI_DN(dn));
+		dn = dn->sibling;
+	}
+}
+
+/**
+ * eeh_save_bars - save device bars
+ *
+ * Save the values of the device bars. Unlike the restore
+ * routine, this routine is *not* recursive. This is because
+ * PCI devices are added individuallly; but, for the restore,
+ * an entire slot is reset at a time.
+ */
+static void eeh_save_bars(struct pci_dev * pdev, struct pci_dn *pdn)
+{
+	int i;
+
+	if (!pdev || !pdn )
+		return;
+	
+	for (i = 0; i < 16; i++)
+		pci_read_config_dword(pdev, i * 4, &pdn->config_space[i]);
+
+	if (pdev->hdr_type == PCI_HEADER_TYPE_BRIDGE)
+		pdn->eeh_is_bridge = 1;
+}
+
+void
+rtas_configure_bridge(struct pci_dn *pdn)
+{
+	int token = rtas_token ("ibm,configure-bridge");
+	int rc;
+
+	if (token == RTAS_UNKNOWN_SERVICE)
+		return;
+	rc = rtas_call(token,3,1, NULL,
+	               pdn->eeh_config_addr,
+	               BUID_HI(pdn->phb->buid),
+	               BUID_LO(pdn->phb->buid));
+	if (rc) {
+		printk (KERN_WARNING "EEH: Unable to configure device bridge (%d) for %s\n",
+		        rc, pdn->node->full_name);
+	}
+}
+
 /* ------------------------------------------------------------- */
 /* The code below deals with enabling EEH for devices during  the
  * early boot sequence.  EEH must be enabled before any PCI probing
@@ -977,6 +1087,7 @@ EXPORT_SYMBOL_GPL(eeh_add_device_early);
 void eeh_add_device_late(struct pci_dev *dev)
 {
 	struct device_node *dn;
+	struct pci_dn *pdn;
 
 	if (!dev || !eeh_subsystem_enabled)
 		return;
@@ -987,9 +1098,11 @@ void eeh_add_device_late(struct pci_dev *dev)
 
 	pci_dev_get (dev);
 	dn = pci_device_to_OF_node(dev);
-	PCI_DN(dn)->pcidev = dev;
+	pdn = PCI_DN(dn);
+	pdn->pcidev = dev;
 
 	pci_addr_cache_insert_device (dev);
+	eeh_save_bars(dev, pdn);
 }
 EXPORT_SYMBOL_GPL(eeh_add_device_late);
 
