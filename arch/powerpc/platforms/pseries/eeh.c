@@ -19,7 +19,6 @@
 
 #include <linux/init.h>
 #include <linux/list.h>
-#include <linux/notifier.h>
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
 #include <linux/rbtree.h>
@@ -27,12 +26,12 @@
 #include <linux/spinlock.h>
 #include <asm/atomic.h>
 #include <asm/eeh.h>
+#include <asm/eeh_event.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
-#include <asm/rtas.h>
-#include <asm/atomic.h>
-#include <asm/systemcfg.h>
 #include <asm/ppc-pci.h>
+#include <asm/rtas.h>
+#include <asm/systemcfg.h>
 
 #undef DEBUG
 
@@ -69,14 +68,6 @@
  *  the slot is found to be isolated, an "EEH Event" is synthesized
  *  and sent out for processing.
  */
-
-/* EEH event workqueue setup. */
-static DEFINE_SPINLOCK(eeh_eventlist_lock);
-LIST_HEAD(eeh_eventlist);
-static void eeh_event_handler(void *);
-DECLARE_WORK(eeh_event_wq, eeh_event_handler, NULL);
-
-static struct notifier_block *eeh_notifier_chain;
 
 /* If a device driver keeps reading an MMIO register in an interrupt
  * handler after a slot isolation event has occurred, we assume it
@@ -421,24 +412,6 @@ void eeh_slot_error_detail (struct pci_dn *pdn, int severity)
 }
 
 /**
- * eeh_register_notifier - Register to find out about EEH events.
- * @nb: notifier block to callback on events
- */
-int eeh_register_notifier(struct notifier_block *nb)
-{
-	return notifier_chain_register(&eeh_notifier_chain, nb);
-}
-
-/**
- * eeh_unregister_notifier - Unregister to an EEH event notifier.
- * @nb: notifier block to callback on events
- */
-int eeh_unregister_notifier(struct notifier_block *nb)
-{
-	return notifier_chain_unregister(&eeh_notifier_chain, nb);
-}
-
-/**
  * read_slot_reset_state - Read the reset state of a device node's slot
  * @dn: device node to read
  * @rets: array to return results in
@@ -458,73 +431,6 @@ static int read_slot_reset_state(struct pci_dn *pdn, int rets[])
 
 	return rtas_call(token, 3, outputs, rets, pdn->eeh_config_addr,
 			 BUID_HI(pdn->phb->buid), BUID_LO(pdn->phb->buid));
-}
-
-/**
- * eeh_panic - call panic() for an eeh event that cannot be handled.
- * The philosophy of this routine is that it is better to panic and
- * halt the OS than it is to risk possible data corruption by
- * oblivious device drivers that don't know better.
- *
- * @dev pci device that had an eeh event
- * @reset_state current reset state of the device slot
- */
-static void eeh_panic(struct pci_dev *dev, int reset_state)
-{
-	/*
-	 * XXX We should create a separate sysctl for this.
-	 *
-	 * Since the panic_on_oops sysctl is used to halt the system
-	 * in light of potential corruption, we can use it here.
-	 */
-	if (panic_on_oops) {
-		struct device_node *dn = pci_device_to_OF_node(dev);
-		eeh_slot_error_detail (PCI_DN(dn), 2 /* Permanent Error */);
-		panic("EEH: MMIO failure (%d) on device:%s\n", reset_state,
-		      pci_name(dev));
-	}
-	else {
-		__get_cpu_var(ignored_failures)++;
-		printk(KERN_INFO "EEH: Ignored MMIO failure (%d) on device:%s\n",
-		       reset_state, pci_name(dev));
-	}
-}
-
-/**
- * eeh_event_handler - dispatch EEH events.  The detection of a frozen
- * slot can occur inside an interrupt, where it can be hard to do
- * anything about it.  The goal of this routine is to pull these
- * detection events out of the context of the interrupt handler, and
- * re-dispatch them for processing at a later time in a normal context.
- *
- * @dummy - unused
- */
-static void eeh_event_handler(void *dummy)
-{
-	unsigned long flags;
-	struct eeh_event	*event;
-
-	while (1) {
-		spin_lock_irqsave(&eeh_eventlist_lock, flags);
-		event = NULL;
-		if (!list_empty(&eeh_eventlist)) {
-			event = list_entry(eeh_eventlist.next, struct eeh_event, list);
-			list_del(&event->list);
-		}
-		spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
-		if (event == NULL)
-			break;
-
-		printk(KERN_INFO "EEH: MMIO failure (%d), notifiying device "
-		       "%s\n", event->reset_state,
-		       pci_name(event->dev));
-
-		notifier_call_chain (&eeh_notifier_chain,
-				     EEH_NOTIFY_FREEZE, event);
-
-		pci_dev_put(event->dev);
-		kfree(event);
-	}
 }
 
 /**
@@ -613,8 +519,6 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	int ret;
 	int rets[3];
 	unsigned long flags;
-	int reset_state;
-	struct eeh_event  *event;
 	struct pci_dn *pdn;
 	struct device_node *pe_dn;
 	int rc = 0;
@@ -722,33 +626,12 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	__eeh_mark_slot (pe_dn);
 	spin_unlock_irqrestore(&confirm_error_lock, flags);
 
-	reset_state = rets[0];
-
-	eeh_slot_error_detail (pdn, 1 /* Temporary Error */);
-
-	printk(KERN_INFO "EEH: MMIO failure (%d) on device: %s %s\n",
-	       rets[0], dn->name, dn->full_name);
-	event = kmalloc(sizeof(*event), GFP_ATOMIC);
-	if (event == NULL) {
-		eeh_panic(dev, reset_state);
-		return 1;
- 	}
-
-	event->dev = dev;
-	event->dn = dn;
-	event->reset_state = reset_state;
-
-	/* We may or may not be called in an interrupt context */
-	spin_lock_irqsave(&eeh_eventlist_lock, flags);
-	list_add(&event->list, &eeh_eventlist);
-	spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
-
+	eeh_send_failure_event (dn, dev, rets[0], rets[2]);
+	
 	/* Most EEH events are due to device driver bugs.  Having
 	 * a stack trace will help the device-driver authors figure
 	 * out what happened.  So print that out. */
 	if (rets[0] != 5) dump_stack();
-	schedule_work(&eeh_event_wq);
-
 	return 1;
 
 dn_unlock:
@@ -792,6 +675,14 @@ unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned lon
 }
 
 EXPORT_SYMBOL(eeh_check_failure);
+
+/* ------------------------------------------------------------- */
+/* The code below deals with enabling EEH for devices during  the
+ * early boot sequence.  EEH must be enabled before any PCI probing
+ * can be done.
+ */
+
+#define EEH_ENABLE 1
 
 struct eeh_early_enable_info {
 	unsigned int buid_hi;
@@ -850,8 +741,9 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 		/* First register entry is addr (00BBSS00)  */
 		/* Try to enable eeh */
 		ret = rtas_call(ibm_set_eeh_option, 4, 1, NULL,
-				regs[0], info->buid_hi, info->buid_lo,
-				EEH_ENABLE);
+		                regs[0], info->buid_hi, info->buid_lo,
+		                EEH_ENABLE);
+
 		if (ret == 0) {
 			eeh_subsystem_enabled = 1;
 			pdn->eeh_mode |= EEH_MODE_SUPPORTED;
