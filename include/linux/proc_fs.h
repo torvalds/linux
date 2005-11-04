@@ -66,6 +66,7 @@ struct proc_dir_entry {
 	write_proc_t *write_proc;
 	atomic_t count;		/* use count */
 	int deleted;		/* delete flag */
+	void *set;
 };
 
 struct kcore_list {
