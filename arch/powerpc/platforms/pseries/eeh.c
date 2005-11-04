@@ -110,6 +110,7 @@ static DEFINE_PER_CPU(unsigned long, slot_resets);
 
 void eeh_slot_error_detail (struct pci_dn *pdn, int severity)
 {
+	int config_addr;
 	unsigned long flags;
 	int rc;
 
@@ -117,8 +118,13 @@ void eeh_slot_error_detail (struct pci_dn *pdn, int severity)
 	spin_lock_irqsave(&slot_errbuf_lock, flags);
 	memset(slot_errbuf, 0, eeh_error_buf_size);
 
+	/* Use PE configuration address, if present */
+	config_addr = pdn->eeh_config_addr;
+	if (pdn->eeh_pe_config_addr)
+		config_addr = pdn->eeh_pe_config_addr;
+
 	rc = rtas_call(ibm_slot_error_detail,
-	               8, 1, NULL, pdn->eeh_config_addr,
+	               8, 1, NULL, config_addr,
 	               BUID_HI(pdn->phb->buid),
 	               BUID_LO(pdn->phb->buid), NULL, 0,
 	               virt_to_phys(slot_errbuf),
@@ -138,6 +144,7 @@ void eeh_slot_error_detail (struct pci_dn *pdn, int severity)
 static int read_slot_reset_state(struct pci_dn *pdn, int rets[])
 {
 	int token, outputs;
+	int config_addr;
 
 	if (ibm_read_slot_reset_state2 != RTAS_UNKNOWN_SERVICE) {
 		token = ibm_read_slot_reset_state2;
@@ -148,7 +155,12 @@ static int read_slot_reset_state(struct pci_dn *pdn, int rets[])
 		outputs = 3;
 	}
 
-	return rtas_call(token, 3, outputs, rets, pdn->eeh_config_addr,
+	/* Use PE configuration address, if present */
+	config_addr = pdn->eeh_config_addr;
+	if (pdn->eeh_pe_config_addr)
+		config_addr = pdn->eeh_pe_config_addr;
+
+	return rtas_call(token, 3, outputs, rets, config_addr,
 			 BUID_HI(pdn->phb->buid), BUID_LO(pdn->phb->buid));
 }
 
@@ -284,7 +296,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 		return 0;
 	}
 
-	if (!pdn->eeh_config_addr) {
+	if (!pdn->eeh_config_addr && !pdn->eeh_pe_config_addr) {
 		__get_cpu_var(no_cfg_addr)++;
 		return 0;
 	}
@@ -613,13 +625,20 @@ void eeh_save_bars(struct pci_dev * pdev, struct pci_dn *pdn)
 void
 rtas_configure_bridge(struct pci_dn *pdn)
 {
+	int config_addr;
 	int token = rtas_token ("ibm,configure-bridge");
 	int rc;
 
 	if (token == RTAS_UNKNOWN_SERVICE)
 		return;
+	
+	/* Use PE configuration address, if present */
+	config_addr = pdn->eeh_config_addr;
+	if (pdn->eeh_pe_config_addr)
+		config_addr = pdn->eeh_pe_config_addr;
+
 	rc = rtas_call(token,3,1, NULL,
-	               pdn->eeh_config_addr,
+	               config_addr,
 	               BUID_HI(pdn->phb->buid),
 	               BUID_LO(pdn->phb->buid));
 	if (rc) {
