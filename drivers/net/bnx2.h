@@ -1449,8 +1449,9 @@ struct l2_fhdr {
 #define BNX2_EMAC_MODE_PORT_NONE			 (0L<<2)
 #define BNX2_EMAC_MODE_PORT_MII				 (1L<<2)
 #define BNX2_EMAC_MODE_PORT_GMII			 (2L<<2)
-#define BNX2_EMAC_MODE_PORT_UNDEF			 (3L<<2)
+#define BNX2_EMAC_MODE_PORT_MII_10			 (3L<<2)
 #define BNX2_EMAC_MODE_MAC_LOOP				 (1L<<4)
+#define BNX2_EMAC_MODE_25G				 (1L<<5)
 #define BNX2_EMAC_MODE_TAGGED_MAC_CTL			 (1L<<7)
 #define BNX2_EMAC_MODE_TX_BURST				 (1L<<8)
 #define BNX2_EMAC_MODE_MAX_DEFER_DROP_ENA		 (1L<<9)
@@ -3724,6 +3725,53 @@ struct l2_fhdr {
 #define PHY_ID(id)                                  ((id) & 0xfffffff0)
 #define PHY_REV_ID(id)                              ((id) & 0xf)
 
+/* 5708 Serdes PHY registers */
+
+#define BCM5708S_UP1				0xb
+
+#define BCM5708S_UP1_2G5			0x1
+
+#define BCM5708S_BLK_ADDR			0x1f
+
+#define BCM5708S_BLK_ADDR_DIG			0x0000
+#define BCM5708S_BLK_ADDR_DIG3			0x0002
+#define BCM5708S_BLK_ADDR_TX_MISC		0x0005
+
+/* Digital Block */
+#define BCM5708S_1000X_CTL1			0x10
+
+#define BCM5708S_1000X_CTL1_FIBER_MODE		0x0001
+#define BCM5708S_1000X_CTL1_AUTODET_EN		0x0010
+
+#define BCM5708S_1000X_CTL2			0x11
+
+#define BCM5708S_1000X_CTL2_PLLEL_DET_EN	0x0001
+
+#define BCM5708S_1000X_STAT1			0x14
+
+#define BCM5708S_1000X_STAT1_SGMII		0x0001
+#define BCM5708S_1000X_STAT1_LINK		0x0002
+#define BCM5708S_1000X_STAT1_FD			0x0004
+#define BCM5708S_1000X_STAT1_SPEED_MASK		0x0018
+#define BCM5708S_1000X_STAT1_SPEED_10		0x0000
+#define BCM5708S_1000X_STAT1_SPEED_100		0x0008
+#define BCM5708S_1000X_STAT1_SPEED_1G		0x0010
+#define BCM5708S_1000X_STAT1_SPEED_2G5		0x0018
+#define BCM5708S_1000X_STAT1_TX_PAUSE		0x0020
+#define BCM5708S_1000X_STAT1_RX_PAUSE		0x0040
+
+/* Digital3 Block */
+#define BCM5708S_DIG_3_0			0x10
+
+#define BCM5708S_DIG_3_0_USE_IEEE		0x0001
+
+/* Tx/Misc Block */
+#define BCM5708S_TX_ACTL1			0x15
+
+#define BCM5708S_TX_ACTL1_DRIVER_VCM		0x30
+
+#define BCM5708S_TX_ACTL3			0x17
+
 #define MIN_ETHERNET_PACKET_SIZE	60
 #define MAX_ETHERNET_PACKET_SIZE	1514
 #define MAX_ETHERNET_JUMBO_PACKET_SIZE	9014
@@ -3893,6 +3941,7 @@ struct bnx2 {
 #define PHY_SERDES_FLAG			1
 #define PHY_CRC_FIX_FLAG		2
 #define PHY_PARALLEL_DETECT_FLAG	4
+#define PHY_2_5G_CAPABLE_FLAG		8
 #define PHY_INT_MODE_MASK_FLAG		0x300
 #define PHY_INT_MODE_AUTO_POLLING_FLAG	0x100
 #define PHY_INT_MODE_LINK_READY_FLAG	0x200
@@ -3901,6 +3950,7 @@ struct bnx2 {
 	/* chip num:16-31, rev:12-15, metal:4-11, bond_id:0-3 */
 #define CHIP_NUM(bp)			(((bp)->chip_id) & 0xffff0000)
 #define CHIP_NUM_5706			0x57060000
+#define CHIP_NUM_5708			0x57080000
 
 #define CHIP_REV(bp)			(((bp)->chip_id) & 0x0000f000)
 #define CHIP_REV_Ax			0x00000000
@@ -3913,6 +3963,9 @@ struct bnx2 {
 #define CHIP_ID(bp)			(((bp)->chip_id) & 0xfffffff0)
 #define CHIP_ID_5706_A0			0x57060000
 #define CHIP_ID_5706_A1			0x57060010
+#define CHIP_ID_5706_A2			0x57060020
+#define CHIP_ID_5708_A0			0x57080000
+#define CHIP_ID_5708_B0			0x57081000
 
 #define CHIP_BOND_ID(bp)		(((bp)->chip_id) & 0xf)
 
@@ -4132,12 +4185,12 @@ struct fw_info {
 #define BNX2_LINK_STATUS			0x0000000c
 
 #define BNX2_DRV_PULSE_MB			0x00000010
-#define BNX2_DRV_PULSE_SEQ_MASK			 0x0000ffff
+#define BNX2_DRV_PULSE_SEQ_MASK			 0x00007fff
 
 /* Indicate to the firmware not to go into the
  * OS absent when it is not getting driver pulse.
  * This is used for debugging. */
-#define BNX2_DRV_MSG_DATA_PULSE_CODE_ALWAYS_ALIVE	 0x00010000
+#define BNX2_DRV_MSG_DATA_PULSE_CODE_ALWAYS_ALIVE	 0x00080000
 
 #define BNX2_DEV_INFO_SIGNATURE			0x00000020
 #define BNX2_DEV_INFO_SIGNATURE_MAGIC		 0x44564900
@@ -4160,6 +4213,8 @@ struct fw_info {
 #define BNX2_SHARED_HW_CFG_DESIGN_LOM		 0x1
 #define BNX2_SHARED_HW_CFG_PHY_COPPER		 0
 #define BNX2_SHARED_HW_CFG_PHY_FIBER		 0x2
+#define BNX2_SHARED_HW_CFG_PHY_2_5G		 0x20
+#define BNX2_SHARED_HW_CFG_PHY_BACKPLANE	 0x40
 #define BNX2_SHARED_HW_CFG_LED_MODE_SHIFT_BITS	 8
 #define BNX2_SHARED_HW_CFG_LED_MODE_MASK	 0x300
 #define BNX2_SHARED_HW_CFG_LED_MODE_MAC		 0
@@ -4173,9 +4228,11 @@ struct fw_info {
 
 #define BNX2_PORT_HW_CFG_MAC_LOWER		0x00000054
 #define BNX2_PORT_HW_CFG_CONFIG			0x00000058
+#define BNX2_PORT_HW_CFG_CFG_TXCTL3_MASK	 0x0000ffff
 #define BNX2_PORT_HW_CFG_CFG_DFLT_LINK_MASK	 0x001f0000
 #define BNX2_PORT_HW_CFG_CFG_DFLT_LINK_AN	 0x00000000
 #define BNX2_PORT_HW_CFG_CFG_DFLT_LINK_1G	 0x00030000
+#define BNX2_PORT_HW_CFG_CFG_DFLT_LINK_2_5G	 0x00040000
 
 #define BNX2_PORT_HW_CFG_IMD_MAC_A_UPPER	0x00000068
 #define BNX2_PORT_HW_CFG_IMD_MAC_A_LOWER	0x0000006c
