@@ -17,6 +17,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/pci.h>
@@ -675,6 +676,104 @@ unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned lon
 }
 
 EXPORT_SYMBOL(eeh_check_failure);
+
+/* ------------------------------------------------------------- */
+/* The code below deals with error recovery */
+
+/** Return negative value if a permanent error, else return
+ * a number of milliseconds to wait until the PCI slot is
+ * ready to be used.
+ */
+static int
+eeh_slot_availability(struct pci_dn *pdn)
+{
+	int rc;
+	int rets[3];
+
+	rc = read_slot_reset_state(pdn, rets);
+
+	if (rc) return rc;
+
+	if (rets[1] == 0) return -1;  /* EEH is not supported */
+	if (rets[0] == 0)  return 0;  /* Oll Korrect */
+	if (rets[0] == 5) {
+		if (rets[2] == 0) return -1; /* permanently unavailable */
+		return rets[2]; /* number of millisecs to wait */
+	}
+	return -1;
+}
+
+/** rtas_pci_slot_reset raises/lowers the pci #RST line
+ *  state: 1/0 to raise/lower the #RST
+ *
+ * Clear the EEH-frozen condition on a slot.  This routine
+ * asserts the PCI #RST line if the 'state' argument is '1',
+ * and drops the #RST line if 'state is '0'.  This routine is
+ * safe to call in an interrupt context.
+ *
+ */
+
+static void
+rtas_pci_slot_reset(struct pci_dn *pdn, int state)
+{
+	int rc;
+
+	BUG_ON (pdn==NULL); 
+
+	if (!pdn->phb) {
+		printk (KERN_WARNING "EEH: in slot reset, device node %s has no phb\n",
+		        pdn->node->full_name);
+		return;
+	}
+
+	rc = rtas_call(ibm_set_slot_reset,4,1, NULL,
+	               pdn->eeh_config_addr,
+	               BUID_HI(pdn->phb->buid),
+	               BUID_LO(pdn->phb->buid),
+	               state);
+	if (rc) {
+		printk (KERN_WARNING "EEH: Unable to reset the failed slot, (%d) #RST=%d dn=%s\n", 
+		        rc, state, pdn->node->full_name);
+		return;
+	}
+
+	if (state == 0)
+		eeh_clear_slot (pdn->node->parent->child);
+}
+
+/** rtas_set_slot_reset -- assert the pci #RST line for 1/4 second
+ *  dn -- device node to be reset.
+ */
+
+void
+rtas_set_slot_reset(struct pci_dn *pdn)
+{
+	int i, rc;
+
+	rtas_pci_slot_reset (pdn, 1);
+
+	/* The PCI bus requires that the reset be held high for at least
+	 * a 100 milliseconds. We wait a bit longer 'just in case'.  */
+
+#define PCI_BUS_RST_HOLD_TIME_MSEC 250
+	msleep (PCI_BUS_RST_HOLD_TIME_MSEC);
+	rtas_pci_slot_reset (pdn, 0);
+
+	/* After a PCI slot has been reset, the PCI Express spec requires
+	 * a 1.5 second idle time for the bus to stabilize, before starting
+	 * up traffic. */
+#define PCI_BUS_SETTLE_TIME_MSEC 1800
+	msleep (PCI_BUS_SETTLE_TIME_MSEC);
+
+	/* Now double check with the firmware to make sure the device is
+	 * ready to be used; if not, wait for recovery. */
+	for (i=0; i<10; i++) {
+		rc = eeh_slot_availability (pdn);
+		if (rc <= 0) break;
+
+		msleep (rc+100);
+	}
+}
 
 /* ------------------------------------------------------------- */
 /* The code below deals with enabling EEH for devices during  the

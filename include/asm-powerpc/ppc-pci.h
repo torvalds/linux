@@ -52,4 +52,18 @@ extern unsigned long pci_probe_only;
 extern unsigned long pci_assign_all_buses;
 extern int pci_read_irq_line(struct pci_dev *pci_dev);
 
+/* ---- EEH internal-use-only related routines ---- */
+#ifdef CONFIG_EEH
+/**
+ * rtas_set_slot_reset -- unfreeze a frozen slot
+ *
+ * Clear the EEH-frozen condition on a slot.  This routine
+ * does this by asserting the PCI #RST line for 1/8th of
+ * a second; this routine will sleep while the adapter is
+ * being reset.
+ */
+void rtas_set_slot_reset (struct pci_dn *);
+
+#endif
+
 #endif /* _ASM_POWERPC_PPC_PCI_H */
