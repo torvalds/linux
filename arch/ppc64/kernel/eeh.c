@@ -78,14 +78,12 @@ DECLARE_WORK(eeh_event_wq, eeh_event_handler, NULL);
 
 static struct notifier_block *eeh_notifier_chain;
 
-/*
- * If a device driver keeps reading an MMIO register in an interrupt
+/* If a device driver keeps reading an MMIO register in an interrupt
  * handler after a slot isolation event has occurred, we assume it
  * is broken and panic.  This sets the threshold for how many read
  * attempts we allow before panicking.
  */
-#define EEH_MAX_FAILS	1000
-static atomic_t eeh_fail_count;
+#define EEH_MAX_FAILS	100000
 
 /* RTAS tokens */
 static int ibm_set_eeh_option;
@@ -521,7 +519,6 @@ static void eeh_event_handler(void *dummy)
 		       "%s\n", event->reset_state,
 		       pci_name(event->dev));
 
-		atomic_set(&eeh_fail_count, 0);
 		notifier_call_chain (&eeh_notifier_chain,
 				     EEH_NOTIFY_FREEZE, event);
 
@@ -657,12 +654,18 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	spin_lock_irqsave(&confirm_error_lock, flags);
 	rc = 1;
 	if (pdn->eeh_mode & EEH_MODE_ISOLATED) {
-		atomic_inc(&eeh_fail_count);
-		if (atomic_read(&eeh_fail_count) >= EEH_MAX_FAILS) {
+		pdn->eeh_check_count ++;
+		if (pdn->eeh_check_count >= EEH_MAX_FAILS) {
+			printk (KERN_ERR "EEH: Device driver ignored %d bad reads, panicing\n",
+			        pdn->eeh_check_count);
+			dump_stack();
+			
 			/* re-read the slot reset state */
 			if (read_slot_reset_state(pdn, rets) != 0)
 				rets[0] = -1;	/* reset state unknown */
-			eeh_panic(dev, rets[0]);
+
+			/* If we are here, then we hit an infinite loop. Stop. */
+			panic("EEH: MMIO halt (%d) on device:%s\n", rets[0], pci_name(dev));
 		}
 		goto dn_unlock;
 	}
@@ -808,6 +811,8 @@ static void *early_enable_eeh(struct device_node *dn, void *data)
 	struct pci_dn *pdn = PCI_DN(dn);
 
 	pdn->eeh_mode = 0;
+	pdn->eeh_check_count = 0;
+	pdn->eeh_freeze_count = 0;
 
 	if (status && strcmp(status, "ok") != 0)
 		return NULL;	/* ignore devices with bad status */
