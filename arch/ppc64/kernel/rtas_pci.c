@@ -5,19 +5,19 @@
  * Copyright (C) 2003 Anton Blanchard <anton@au.ibm.com>, IBM
  *
  * RTAS specific routines for PCI.
- * 
+ *
  * Based on code from pci.c, chrp_pci.c and pSeries_pci.c
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- *    
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
@@ -47,7 +47,7 @@ static int write_pci_config;
 static int ibm_read_pci_config;
 static int ibm_write_pci_config;
 
-static int config_access_valid(struct pci_dn *dn, int where)
+static inline int config_access_valid(struct pci_dn *dn, int where)
 {
 	if (where < 256)
 		return 1;
@@ -72,16 +72,14 @@ static int of_device_available(struct device_node * dn)
         return 0;
 }
 
-static int rtas_read_config(struct device_node *dn, int where, int size, u32 *val)
+static int rtas_read_config(struct pci_dn *pdn, int where, int size, u32 *val)
 {
 	int returnval = -1;
 	unsigned long buid, addr;
 	int ret;
-	struct pci_dn *pdn;
 
-	if (!dn || !dn->data)
+	if (!pdn)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-	pdn = dn->data;
 	if (!config_access_valid(pdn, where))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
@@ -90,7 +88,7 @@ static int rtas_read_config(struct device_node *dn, int where, int size, u32 *va
 	buid = pdn->phb->buid;
 	if (buid) {
 		ret = rtas_call(ibm_read_pci_config, 4, 2, &returnval,
-				addr, buid >> 32, buid & 0xffffffff, size);
+				addr, BUID_HI(buid), BUID_LO(buid), size);
 	} else {
 		ret = rtas_call(read_pci_config, 2, 2, &returnval, addr, size);
 	}
@@ -100,7 +98,7 @@ static int rtas_read_config(struct device_node *dn, int where, int size, u32 *va
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	if (returnval == EEH_IO_ERROR_VALUE(size) &&
-	    eeh_dn_check_failure (dn, NULL))
+	    eeh_dn_check_failure (pdn->node, NULL))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	return PCIBIOS_SUCCESSFUL;
@@ -118,23 +116,23 @@ static int rtas_pci_read_config(struct pci_bus *bus,
 		busdn = bus->sysdata;	/* must be a phb */
 
 	/* Search only direct children of the bus */
-	for (dn = busdn->child; dn; dn = dn->sibling)
-		if (dn->data && PCI_DN(dn)->devfn == devfn
+	for (dn = busdn->child; dn; dn = dn->sibling) {
+		struct pci_dn *pdn = PCI_DN(dn);
+		if (pdn && pdn->devfn == devfn
 		    && of_device_available(dn))
-			return rtas_read_config(dn, where, size, val);
+			return rtas_read_config(pdn, where, size, val);
+	}
 
 	return PCIBIOS_DEVICE_NOT_FOUND;
 }
 
-int rtas_write_config(struct device_node *dn, int where, int size, u32 val)
+int rtas_write_config(struct pci_dn *pdn, int where, int size, u32 val)
 {
 	unsigned long buid, addr;
 	int ret;
-	struct pci_dn *pdn;
 
-	if (!dn || !dn->data)
+	if (!pdn)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-	pdn = dn->data;
 	if (!config_access_valid(pdn, where))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
@@ -142,7 +140,8 @@ int rtas_write_config(struct device_node *dn, int where, int size, u32 val)
 		(pdn->devfn << 8) | (where & 0xff);
 	buid = pdn->phb->buid;
 	if (buid) {
-		ret = rtas_call(ibm_write_pci_config, 5, 1, NULL, addr, buid >> 32, buid & 0xffffffff, size, (ulong) val);
+		ret = rtas_call(ibm_write_pci_config, 5, 1, NULL, addr,
+			BUID_HI(buid), BUID_LO(buid), size, (ulong) val);
 	} else {
 		ret = rtas_call(write_pci_config, 3, 1, NULL, addr, size, (ulong)val);
 	}
@@ -165,10 +164,12 @@ static int rtas_pci_write_config(struct pci_bus *bus,
 		busdn = bus->sysdata;	/* must be a phb */
 
 	/* Search only direct children of the bus */
-	for (dn = busdn->child; dn; dn = dn->sibling)
-		if (dn->data && PCI_DN(dn)->devfn == devfn
+	for (dn = busdn->child; dn; dn = dn->sibling) {
+		struct pci_dn *pdn = PCI_DN(dn);
+		if (pdn && pdn->devfn == devfn
 		    && of_device_available(dn))
-			return rtas_write_config(dn, where, size, val);
+			return rtas_write_config(pdn, where, size, val);
+	}
 	return PCIBIOS_DEVICE_NOT_FOUND;
 }
 
@@ -221,7 +222,7 @@ static void python_countermeasures(struct device_node *dev,
 	/* Python's register file is 1 MB in size. */
 	chip_regs = ioremap(reg_struct.address & ~(0xfffffUL), 0x100000);
 
-	/* 
+	/*
 	 * Firmware doesn't always clear this bit which is critical
 	 * for good performance - Anton
 	 */
@@ -292,7 +293,7 @@ static int phb_set_bus_ranges(struct device_node *dev,
 	if (bus_range == NULL || len < 2 * sizeof(int)) {
 		return 1;
  	}
- 
+
 	phb->first_busno =  bus_range[0];
 	phb->last_busno  =  bus_range[1];
 

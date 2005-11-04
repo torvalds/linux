@@ -71,10 +71,6 @@
  *  and sent out for processing.
  */
 
-/** Bus Unit ID macros; get low and hi 32-bits of the 64-bit BUID */
-#define BUID_HI(buid) ((buid) >> 32)
-#define BUID_LO(buid) ((buid) & 0xffffffff)
-
 /* EEH event workqueue setup. */
 static DEFINE_SPINLOCK(eeh_eventlist_lock);
 LIST_HEAD(eeh_eventlist);

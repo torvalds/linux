@@ -26,6 +26,10 @@ extern unsigned long find_and_init_phbs(void);
 
 extern struct pci_dev *ppc64_isabridge_dev;	/* may be NULL if no ISA bus */
 
+/** Bus Unit ID macros; get low and hi 32-bits of the 64-bit BUID */
+#define BUID_HI(buid) ((buid) >> 32)
+#define BUID_LO(buid) ((buid) & 0xffffffff)
+
 /* PCI device_node operations */
 struct device_node;
 typedef void *(*traverse_func)(struct device_node *me, void *data);
