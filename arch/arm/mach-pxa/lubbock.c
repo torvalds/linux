@@ -19,16 +19,20 @@
 #include <linux/major.h>
 #include <linux/fb.h>
 #include <linux/interrupt.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/irq.h>
+#include <asm/sizes.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
+#include <asm/mach/flash.h>
 
 #include <asm/hardware/sa1111.h>
 
@@ -199,10 +203,75 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
+static struct resource flash_resources[] = {
+	[0] = {
+		.start	= 0x00000000,
+		.end	= SZ_64M - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 0x04000000,
+		.end	= 0x04000000 + SZ_64M - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct mtd_partition lubbock_partitions[] = {
+	{
+		.name =		"Bootloader",
+		.size =		0x00040000,
+		.offset =	0,
+		.mask_flags =	MTD_WRITEABLE  /* force read-only */
+	},{
+		.name =		"Kernel",
+		.size =		0x00100000,
+		.offset =	0x00040000,
+	},{
+		.name =		"Filesystem",
+		.size =		MTDPART_SIZ_FULL,
+		.offset =	0x00140000
+	}
+};
+
+static struct flash_platform_data lubbock_flash_data[2] = {
+	{
+		.map_name	= "cfi_probe",
+		.parts		= lubbock_partitions,
+		.nr_parts	= ARRAY_SIZE(lubbock_partitions),
+	}, {
+		.map_name	= "cfi_probe",
+		.parts		= NULL,
+		.nr_parts	= 0,
+	}
+};
+
+static struct platform_device lubbock_flash_device[2] = {
+	{
+		.name		= "pxa2xx-flash",
+		.id		= 0,
+		.dev = {
+			.platform_data = &lubbock_flash_data[0],
+		},
+		.resource = &flash_resources[0],
+		.num_resources = 1,
+	},
+	{
+		.name		= "pxa2xx-flash",
+		.id		= 1,
+		.dev = {
+			.platform_data = &lubbock_flash_data[1],
+		},
+		.resource = &flash_resources[1],
+		.num_resources = 1,
+	},
+};
+
 static struct platform_device *devices[] __initdata = {
 	&sa1111_device,
 	&lub_audio_device,
 	&smc91x_device,
+	&lubbock_flash_device[0],
+	&lubbock_flash_device[1],
 };
 
 static struct pxafb_mach_info sharp_lm8v31 __initdata = {
@@ -315,10 +384,21 @@ static struct pxaficp_platform_data lubbock_ficp_platform_data = {
 
 static void __init lubbock_init(void)
 {
+	int flashboot = (LUB_CONF_SWITCHES & 1);
+
 	pxa_set_udc_info(&udc_info);
 	set_pxa_fb_info(&sharp_lm8v31);
 	pxa_set_mci_info(&lubbock_mci_platform_data);
 	pxa_set_ficp_info(&lubbock_ficp_platform_data);
+
+	lubbock_flash_data[0].width = lubbock_flash_data[1].width =
+		(BOOT_DEF & 1) ? 2 : 4;
+	/* Compensate for the nROMBT switch which swaps the flash banks */
+	printk(KERN_NOTICE "Lubbock configured to boot from %s (bank %d)\n",
+	       flashboot?"Flash":"ROM", flashboot);
+
+	lubbock_flash_data[flashboot^1].name = "application-flash";
+	lubbock_flash_data[flashboot].name = "boot-rom";
 	(void) platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
