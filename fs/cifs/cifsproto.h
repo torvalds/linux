@@ -242,11 +242,11 @@ extern int CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 			const int netfid, const unsigned int count,
 			const __u64 offset, unsigned int *nbytes, 
 			struct kvec *iov, const int nvec, const int long_op);
+#endif /* CONFIG_CIFS_EXPERIMENTAL */
 extern int CIFSGetSrvInodeNumber(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName, __u64 * inode_number,
 			const struct nls_table *nls_codepage, 
 			int remap_special_chars);
-#endif /* CONFIG_CIFS_EXPERIMENTAL */
 extern int cifs_convertUCSpath(char *target, const __le16 *source, int maxlen,
 			const struct nls_table * codepage);
 extern int cifsConvertToUCS(__le16 * target, const char *source, int maxlen,
