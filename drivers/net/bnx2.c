@@ -79,38 +79,88 @@ static struct pci_device_id bnx2_pci_tbl[] = {
 static struct flash_spec flash_table[] =
 {
 	/* Slow EEPROM */
-	{0x00000000, 0x40030380, 0x009f0081, 0xa184a053, 0xaf000400,
+	{0x00000000, 0x40830380, 0x009f0081, 0xa184a053, 0xaf000400,
 	 1, SEEPROM_PAGE_BITS, SEEPROM_PAGE_SIZE,
 	 SEEPROM_BYTE_ADDR_MASK, SEEPROM_TOTAL_SIZE,
 	 "EEPROM - slow"},
-	/* Fast EEPROM */
-	{0x02000000, 0x62008380, 0x009f0081, 0xa184a053, 0xaf000400,
-	 1, SEEPROM_PAGE_BITS, SEEPROM_PAGE_SIZE,
-	 SEEPROM_BYTE_ADDR_MASK, SEEPROM_TOTAL_SIZE,
-	 "EEPROM - fast"},
-	/* ATMEL AT45DB011B (buffered flash) */
-	{0x02000003, 0x6e008173, 0x00570081, 0x68848353, 0xaf000400,
-	 1, BUFFERED_FLASH_PAGE_BITS, BUFFERED_FLASH_PAGE_SIZE,
-	 BUFFERED_FLASH_BYTE_ADDR_MASK, BUFFERED_FLASH_TOTAL_SIZE,
-	 "Buffered flash"},
-	/* Saifun SA25F005 (non-buffered flash) */
-       	/* strap, cfg1, & write1 need updates */
-	{0x01000003, 0x5f008081, 0x00050081, 0x03840253, 0xaf020406,
+	/* Expansion entry 0001 */
+	{0x08000002, 0x4b808201, 0x00050081, 0x03840253, 0xaf020406,
 	 0, SAIFUN_FLASH_PAGE_BITS, SAIFUN_FLASH_PAGE_SIZE,
-	 SAIFUN_FLASH_BYTE_ADDR_MASK, SAIFUN_FLASH_BASE_TOTAL_SIZE,
-	 "Non-buffered flash (64kB)"},
+	 SAIFUN_FLASH_BYTE_ADDR_MASK, 0,
+	 "Entry 0001"},
 	/* Saifun SA25F010 (non-buffered flash) */
 	/* strap, cfg1, & write1 need updates */
-	{0x00000001, 0x47008081, 0x00050081, 0x03840253, 0xaf020406,
+	{0x04000001, 0x47808201, 0x00050081, 0x03840253, 0xaf020406,
 	 0, SAIFUN_FLASH_PAGE_BITS, SAIFUN_FLASH_PAGE_SIZE,
 	 SAIFUN_FLASH_BYTE_ADDR_MASK, SAIFUN_FLASH_BASE_TOTAL_SIZE*2,
 	 "Non-buffered flash (128kB)"},
 	/* Saifun SA25F020 (non-buffered flash) */
 	/* strap, cfg1, & write1 need updates */
-	{0x00000003, 0x4f008081, 0x00050081, 0x03840253, 0xaf020406,
+	{0x0c000003, 0x4f808201, 0x00050081, 0x03840253, 0xaf020406,
 	 0, SAIFUN_FLASH_PAGE_BITS, SAIFUN_FLASH_PAGE_SIZE,
 	 SAIFUN_FLASH_BYTE_ADDR_MASK, SAIFUN_FLASH_BASE_TOTAL_SIZE*4,
 	 "Non-buffered flash (256kB)"},
+	/* Expansion entry 0100 */
+	{0x11000000, 0x53808201, 0x00050081, 0x03840253, 0xaf020406,
+	 0, SAIFUN_FLASH_PAGE_BITS, SAIFUN_FLASH_PAGE_SIZE,
+	 SAIFUN_FLASH_BYTE_ADDR_MASK, 0,
+	 "Entry 0100"},
+	/* Entry 0101: ST M45PE10 (non-buffered flash, TetonII B0) */
+	{0x19000002, 0x5b808201, 0x000500db, 0x03840253, 0xaf020406,        
+	 0, ST_MICRO_FLASH_PAGE_BITS, ST_MICRO_FLASH_PAGE_SIZE,
+	 ST_MICRO_FLASH_BYTE_ADDR_MASK, ST_MICRO_FLASH_BASE_TOTAL_SIZE*2,
+	 "Entry 0101: ST M45PE10 (128kB non-bufferred)"},
+	/* Entry 0110: ST M45PE20 (non-buffered flash)*/
+	{0x15000001, 0x57808201, 0x000500db, 0x03840253, 0xaf020406,
+	 0, ST_MICRO_FLASH_PAGE_BITS, ST_MICRO_FLASH_PAGE_SIZE,
+	 ST_MICRO_FLASH_BYTE_ADDR_MASK, ST_MICRO_FLASH_BASE_TOTAL_SIZE*4,
+	 "Entry 0110: ST M45PE20 (256kB non-bufferred)"},
+	/* Saifun SA25F005 (non-buffered flash) */
+	/* strap, cfg1, & write1 need updates */
+	{0x1d000003, 0x5f808201, 0x00050081, 0x03840253, 0xaf020406,
+	 0, SAIFUN_FLASH_PAGE_BITS, SAIFUN_FLASH_PAGE_SIZE,
+	 SAIFUN_FLASH_BYTE_ADDR_MASK, SAIFUN_FLASH_BASE_TOTAL_SIZE,
+	 "Non-buffered flash (64kB)"},
+	/* Fast EEPROM */
+	{0x22000000, 0x62808380, 0x009f0081, 0xa184a053, 0xaf000400,
+	 1, SEEPROM_PAGE_BITS, SEEPROM_PAGE_SIZE,
+	 SEEPROM_BYTE_ADDR_MASK, SEEPROM_TOTAL_SIZE,
+	 "EEPROM - fast"},
+	/* Expansion entry 1001 */
+	{0x2a000002, 0x6b808201, 0x00050081, 0x03840253, 0xaf020406,
+	 0, SAIFUN_FLASH_PAGE_BITS, SAIFUN_FLASH_PAGE_SIZE,
+	 SAIFUN_FLASH_BYTE_ADDR_MASK, 0,
+	 "Entry 1001"},
+	/* Expansion entry 1010 */
+	{0x26000001, 0x67808201, 0x00050081, 0x03840253, 0xaf020406,
+	 0, SAIFUN_FLASH_PAGE_BITS, SAIFUN_FLASH_PAGE_SIZE,
+	 SAIFUN_FLASH_BYTE_ADDR_MASK, 0,
+	 "Entry 1010"},
+	/* ATMEL AT45DB011B (buffered flash) */
+	{0x2e000003, 0x6e808273, 0x00570081, 0x68848353, 0xaf000400,
+	 1, BUFFERED_FLASH_PAGE_BITS, BUFFERED_FLASH_PAGE_SIZE,
+	 BUFFERED_FLASH_BYTE_ADDR_MASK, BUFFERED_FLASH_TOTAL_SIZE,
+	 "Buffered flash (128kB)"},
+	/* Expansion entry 1100 */
+	{0x33000000, 0x73808201, 0x00050081, 0x03840253, 0xaf020406,
+	 0, SAIFUN_FLASH_PAGE_BITS, SAIFUN_FLASH_PAGE_SIZE,
+	 SAIFUN_FLASH_BYTE_ADDR_MASK, 0,
+	 "Entry 1100"},
+	/* Expansion entry 1101 */
+	{0x3b000002, 0x7b808201, 0x00050081, 0x03840253, 0xaf020406,
+	 0, SAIFUN_FLASH_PAGE_BITS, SAIFUN_FLASH_PAGE_SIZE,
+	 SAIFUN_FLASH_BYTE_ADDR_MASK, 0,
+	 "Entry 1101"},
+	/* Ateml Expansion entry 1110 */
+	{0x37000001, 0x76808273, 0x00570081, 0x68848353, 0xaf000400,
+	 1, BUFFERED_FLASH_PAGE_BITS, BUFFERED_FLASH_PAGE_SIZE,
+	 BUFFERED_FLASH_BYTE_ADDR_MASK, 0,
+	 "Entry 1110 (Atmel)"},
+	/* ATMEL AT45DB021B (buffered flash) */
+	{0x3f000003, 0x7e808273, 0x00570081, 0x68848353, 0xaf000400,
+	 1, BUFFERED_FLASH_PAGE_BITS, BUFFERED_FLASH_PAGE_SIZE,
+	 BUFFERED_FLASH_BYTE_ADDR_MASK, BUFFERED_FLASH_TOTAL_SIZE*2,
+	 "Buffered flash (256kB)"},
 };
 
 MODULE_DEVICE_TABLE(pci, bnx2_pci_tbl);
@@ -2529,21 +2579,27 @@ bnx2_init_nvram(struct bnx2 *bp)
 
 		/* Flash interface has been reconfigured */
 		for (j = 0, flash = &flash_table[0]; j < entry_count;
-			j++, flash++) {
-
-			if (val == flash->config1) {
+		     j++, flash++) {
+			if ((val & FLASH_BACKUP_STRAP_MASK) ==
+			    (flash->config1 & FLASH_BACKUP_STRAP_MASK)) {
 				bp->flash_info = flash;
 				break;
 			}
 		}
 	}
 	else {
+		u32 mask;
 		/* Not yet been reconfigured */
+
+		if (val & (1 << 23))
+			mask = FLASH_BACKUP_STRAP_MASK;
+		else
+			mask = FLASH_STRAP_MASK;
 
 		for (j = 0, flash = &flash_table[0]; j < entry_count;
 			j++, flash++) {
 
-			if ((val & FLASH_STRAP_MASK) == flash->strapping) {
+			if ((val & mask) == (flash->strapping & mask)) {
 				bp->flash_info = flash;
 
 				/* Request access to the flash interface. */
