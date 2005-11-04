@@ -83,6 +83,7 @@ static int ibm_read_slot_reset_state;
 static int ibm_read_slot_reset_state2;
 static int ibm_slot_error_detail;
 static int ibm_get_config_addr_info;
+static int ibm_configure_bridge;
 
 int eeh_subsystem_enabled;
 EXPORT_SYMBOL(eeh_subsystem_enabled);
@@ -626,18 +627,14 @@ void
 rtas_configure_bridge(struct pci_dn *pdn)
 {
 	int config_addr;
-	int token = rtas_token ("ibm,configure-bridge");
 	int rc;
 
-	if (token == RTAS_UNKNOWN_SERVICE)
-		return;
-	
 	/* Use PE configuration address, if present */
 	config_addr = pdn->eeh_config_addr;
 	if (pdn->eeh_pe_config_addr)
 		config_addr = pdn->eeh_pe_config_addr;
 
-	rc = rtas_call(token,3,1, NULL,
+	rc = rtas_call(ibm_configure_bridge,3,1, NULL,
 	               config_addr,
 	               BUID_HI(pdn->phb->buid),
 	               BUID_LO(pdn->phb->buid));
@@ -789,6 +786,7 @@ void __init eeh_init(void)
 	ibm_read_slot_reset_state = rtas_token("ibm,read-slot-reset-state");
 	ibm_slot_error_detail = rtas_token("ibm,slot-error-detail");
 	ibm_get_config_addr_info = rtas_token("ibm,get-config-addr-info");
+	ibm_configure_bridge = rtas_token ("ibm,configure-bridge");
 
 	if (ibm_set_eeh_option == RTAS_UNKNOWN_SERVICE)
 		return;
