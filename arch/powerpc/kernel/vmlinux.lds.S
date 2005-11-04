@@ -1,5 +1,10 @@
 #include <linux/config.h>
+#ifdef CONFIG_PPC64
 #include <asm/page.h>
+#else
+#define PAGE_SIZE	4096
+#define KERNELBASE	CONFIG_KERNEL_START
+#endif
 #include <asm-generic/vmlinux.lds.h>
 
 ENTRY(_stext)
@@ -22,31 +27,6 @@ SECTIONS
   . = KERNELBASE;
 
   /* Read-only sections, merged into text segment: */
-#ifdef CONFIG_PPC32
-  . = + SIZEOF_HEADERS;
-  .interp : { *(.interp) }
-  .hash          : { *(.hash)		}
-  .dynsym        : { *(.dynsym)		}
-  .dynstr        : { *(.dynstr)		}
-  .rel.text      : { *(.rel.text)		}
-  .rela.text     : { *(.rela.text) 	}
-  .rel.data      : { *(.rel.data)		}
-  .rela.data     : { *(.rela.data) 	}
-  .rel.rodata    : { *(.rel.rodata) 	}
-  .rela.rodata   : { *(.rela.rodata) 	}
-  .rel.got       : { *(.rel.got)		}
-  .rela.got      : { *(.rela.got)		}
-  .rel.ctors     : { *(.rel.ctors)	}
-  .rela.ctors    : { *(.rela.ctors)	}
-  .rel.dtors     : { *(.rel.dtors)	}
-  .rela.dtors    : { *(.rela.dtors)	}
-  .rel.bss       : { *(.rel.bss)		}
-  .rela.bss      : { *(.rela.bss)		}
-  .rel.plt       : { *(.rel.plt)		}
-  .rela.plt      : { *(.rela.plt)		}
-/*  .init          : { *(.init)	} =0*/
-  .plt : { *(.plt) }
-#endif
   .text : {
     *(.text .text.*)
     SCHED_TEXT
