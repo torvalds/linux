@@ -478,32 +478,47 @@ static struct device_node * find_device_pe(struct device_node *dn)
  *  an interrupt context, which is bad.
  */
 
-static void __eeh_mark_slot (struct device_node *dn)
+static void __eeh_mark_slot (struct device_node *dn, int mode_flag)
 {
 	while (dn) {
-		PCI_DN(dn)->eeh_mode |= EEH_MODE_ISOLATED;
+		if (PCI_DN(dn)) {
+			PCI_DN(dn)->eeh_mode |= mode_flag;
 
-		if (dn->child)
-			__eeh_mark_slot (dn->child);
+			if (dn->child)
+				__eeh_mark_slot (dn->child, mode_flag);
+		}
 		dn = dn->sibling;
 	}
 }
 
-static void __eeh_clear_slot (struct device_node *dn)
+void eeh_mark_slot (struct device_node *dn, int mode_flag)
+{
+	dn = find_device_pe (dn);
+	PCI_DN(dn)->eeh_mode |= mode_flag;
+	__eeh_mark_slot (dn->child, mode_flag);
+}
+
+static void __eeh_clear_slot (struct device_node *dn, int mode_flag)
 {
 	while (dn) {
-		PCI_DN(dn)->eeh_mode &= ~EEH_MODE_ISOLATED;
-		if (dn->child)
-			__eeh_clear_slot (dn->child);
+		if (PCI_DN(dn)) {
+			PCI_DN(dn)->eeh_mode &= ~mode_flag;
+			PCI_DN(dn)->eeh_check_count = 0;
+			if (dn->child)
+				__eeh_clear_slot (dn->child, mode_flag);
+		}
 		dn = dn->sibling;
 	}
 }
 
-static inline void eeh_clear_slot (struct device_node *dn)
+void eeh_clear_slot (struct device_node *dn, int mode_flag)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&confirm_error_lock, flags);
-	__eeh_clear_slot (dn);
+	dn = find_device_pe (dn);
+	PCI_DN(dn)->eeh_mode &= ~mode_flag;
+	PCI_DN(dn)->eeh_check_count = 0;
+	__eeh_clear_slot (dn->child, mode_flag);
 	spin_unlock_irqrestore(&confirm_error_lock, flags);
 }
 
@@ -528,7 +543,6 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	int rets[3];
 	unsigned long flags;
 	struct pci_dn *pdn;
-	struct device_node *pe_dn;
 	int rc = 0;
 
 	__get_cpu_var(total_mmio_ffs)++;
@@ -630,8 +644,7 @@ int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev)
 	/* Avoid repeated reports of this failure, including problems
 	 * with other functions on this device, and functions under
 	 * bridges. */
-	pe_dn = find_device_pe (dn);
-	__eeh_mark_slot (pe_dn);
+	eeh_mark_slot (dn, EEH_MODE_ISOLATED);
 	spin_unlock_irqrestore(&confirm_error_lock, flags);
 
 	eeh_send_failure_event (dn, dev, rets[0], rets[2]);
@@ -743,9 +756,6 @@ rtas_pci_slot_reset(struct pci_dn *pdn, int state)
 		        rc, state, pdn->node->full_name);
 		return;
 	}
-
-	if (state == 0)
-		eeh_clear_slot (pdn->node->parent->child);
 }
 
 /** rtas_set_slot_reset -- assert the pci #RST line for 1/4 second
@@ -764,6 +774,12 @@ rtas_set_slot_reset(struct pci_dn *pdn)
 
 #define PCI_BUS_RST_HOLD_TIME_MSEC 250
 	msleep (PCI_BUS_RST_HOLD_TIME_MSEC);
+	
+	/* We might get hit with another EEH freeze as soon as the 
+	 * pci slot reset line is dropped. Make sure we don't miss
+	 * these, and clear the flag now. */
+	eeh_clear_slot (pdn->node, EEH_MODE_ISOLATED);
+
 	rtas_pci_slot_reset (pdn, 0);
 
 	/* After a PCI slot has been reset, the PCI Express spec requires

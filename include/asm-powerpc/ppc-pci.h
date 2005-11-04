@@ -87,6 +87,13 @@ void rtas_configure_bridge(struct pci_dn *);
 
 int rtas_write_config(struct pci_dn *, int where, int size, u32 val);
 
+/**
+ * mark and clear slots: find "partition endpoint" PE and set or 
+ * clear the flags for each subnode of the PE.
+ */
+void eeh_mark_slot (struct device_node *dn, int mode_flag);
+void eeh_clear_slot (struct device_node *dn, int mode_flag);
+
 #endif
 
 #endif /* _ASM_POWERPC_PPC_PCI_H */
