@@ -213,9 +213,23 @@ static int eeh_reset_device (struct pci_dn *pe_dn, struct pci_bus *bus)
 	if (rc)
 		return rc;
 
-	/* Walk over all functions on this device */
-	rtas_configure_bridge(pe_dn);
-	eeh_restore_bars(pe_dn);
+ 	/* New-style config addrs might be shared across multiple devices,
+ 	 * Walk over all functions on this device */
+ 	if (pe_dn->eeh_pe_config_addr) {
+ 		struct device_node *pe = pe_dn->node;
+ 		pe = pe->parent->child;
+ 		while (pe) {
+ 			struct pci_dn *ppe = PCI_DN(pe);
+ 			if (pe_dn->eeh_pe_config_addr == ppe->eeh_pe_config_addr) {
+ 				rtas_configure_bridge(ppe);
+ 				eeh_restore_bars(ppe);
+ 			}
+ 			pe = pe->sibling;
+ 		}
+ 	} else {
+ 		rtas_configure_bridge(pe_dn);
+ 		eeh_restore_bars(pe_dn);
+ 	}
 
 	/* Give the system 5 seconds to finish running the user-space
 	 * hotplug shutdown scripts, e.g. ifdown for ethernet.  Yes, 

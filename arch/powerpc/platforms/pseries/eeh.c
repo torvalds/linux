@@ -223,6 +223,11 @@ static void __eeh_mark_slot (struct device_node *dn, int mode_flag)
 void eeh_mark_slot (struct device_node *dn, int mode_flag)
 {
 	dn = find_device_pe (dn);
+
+	/* Back up one, since config addrs might be shared */
+	if (PCI_DN(dn) && PCI_DN(dn)->eeh_pe_config_addr)
+		dn = dn->parent;
+
 	PCI_DN(dn)->eeh_mode |= mode_flag;
 	__eeh_mark_slot (dn->child, mode_flag);
 }
@@ -244,7 +249,13 @@ void eeh_clear_slot (struct device_node *dn, int mode_flag)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&confirm_error_lock, flags);
+	
 	dn = find_device_pe (dn);
+	
+	/* Back up one, since config addrs might be shared */
+	if (PCI_DN(dn) && PCI_DN(dn)->eeh_pe_config_addr)
+		dn = dn->parent;
+
 	PCI_DN(dn)->eeh_mode &= ~mode_flag;
 	PCI_DN(dn)->eeh_check_count = 0;
 	__eeh_clear_slot (dn->child, mode_flag);
@@ -609,7 +620,7 @@ void eeh_restore_bars(struct pci_dn *pdn)
 	if (!pdn) 
 		return;
 	
-	if (! pdn->eeh_is_bridge)
+	if ((pdn->eeh_mode & EEH_MODE_SUPPORTED) && (!pdn->eeh_is_bridge))
 		__restore_bars (pdn);
 
 	dn = pdn->node->child;
