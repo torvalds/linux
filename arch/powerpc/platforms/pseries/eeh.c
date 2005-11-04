@@ -824,12 +824,10 @@ void eeh_add_device_early(struct device_node *dn)
 	if (!dn || !PCI_DN(dn))
 		return;
 	phb = PCI_DN(dn)->phb;
-	if (NULL == phb || 0 == phb->buid) {
-		printk(KERN_WARNING "EEH: Expected buid but found none for %s\n",
-		       dn->full_name);
-		dump_stack();
+
+	/* USB Bus children of PCI devices will not have BUID's */
+	if (NULL == phb || 0 == phb->buid)
 		return;
-	}
 
 	info.buid_hi = BUID_HI(phb->buid);
 	info.buid_lo = BUID_LO(phb->buid);
