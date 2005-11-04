@@ -42,19 +42,6 @@ static inline const char * pcid_name (struct pci_dev *pdev)
 	return "";
 }
 
-/**
- * Return the "partitionable endpoint" (pe) under which this device lies
- */
-static struct device_node * find_device_pe(struct device_node *dn)
-{
-	while ((dn->parent) && PCI_DN(dn->parent) &&
-	      (PCI_DN(dn->parent)->eeh_mode & EEH_MODE_SUPPORTED)) {
-		dn = dn->parent;
-	}
-	return dn;
-}
-
-
 #ifdef DEBUG
 static void print_device_node_tree (struct pci_dn *pdn, int dent)
 {

@@ -109,6 +109,9 @@ int rtas_write_config(struct pci_dn *, int where, int size, u32 val);
 void eeh_mark_slot (struct device_node *dn, int mode_flag);
 void eeh_clear_slot (struct device_node *dn, int mode_flag);
 
+/* Find the associated "Partiationable Endpoint" PE */
+struct device_node * find_device_pe(struct device_node *dn);
+
 #endif
 
 #endif /* __KERNEL__ */

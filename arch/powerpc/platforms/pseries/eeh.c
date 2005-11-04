@@ -172,7 +172,7 @@ static inline unsigned long eeh_token_to_phys(unsigned long token)
 /** 
  * Return the "partitionable endpoint" (pe) under which this device lies
  */
-static struct device_node * find_device_pe(struct device_node *dn)
+struct device_node * find_device_pe(struct device_node *dn)
 {
 	while ((dn->parent) && PCI_DN(dn->parent) &&
 	      (PCI_DN(dn->parent)->eeh_mode & EEH_MODE_SUPPORTED)) {
