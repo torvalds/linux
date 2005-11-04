@@ -108,6 +108,7 @@ mca_page_isolate(unsigned long paddr)
 		return ISOLATE_NG;
 
 	/* add attribute 'Reserved' and register the page */
+	get_page(p);
 	SetPageReserved(p);
 	page_isolate[num_page_isolate++] = p;
 
