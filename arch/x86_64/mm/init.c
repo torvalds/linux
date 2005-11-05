@@ -22,6 +22,7 @@
 #include <linux/pagemap.h>
 #include <linux/bootmem.h>
 #include <linux/proc_fs.h>
+#include <linux/pci.h>
 
 #include <asm/processor.h>
 #include <asm/system.h>
@@ -40,10 +41,6 @@
 
 #ifndef Dprintk
 #define Dprintk(x...)
-#endif
-
-#ifdef CONFIG_GART_IOMMU
-extern int swiotlb;
 #endif
 
 static unsigned long dma_reserve __initdata;
