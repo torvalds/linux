@@ -121,7 +121,7 @@ void machine_emergency_restart(void)
 		/* Could also try the reset bit in the Hammer NB */
 		switch (reboot_type) { 
 		case BOOT_KBD:
-		for (i=0; i<100; i++) {
+		for (i=0; i<10; i++) {
 			kb_wait();
 			udelay(50);
 			outb(0xfe,0x64);         /* pulse reset low */
