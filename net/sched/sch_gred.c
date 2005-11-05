@@ -89,6 +89,7 @@ struct gred_sched
 	unsigned long	flags;
 	u32 		DPs;   
 	u32 		def; 
+	struct red_parms wred_set;
 };
 
 static inline int gred_wred_mode(struct gred_sched *table)
@@ -158,6 +159,19 @@ static inline u16 tc_index_to_dp(struct sk_buff *skb)
 	return skb->tc_index & GRED_VQ_MASK;
 }
 
+static inline void gred_load_wred_set(struct gred_sched *table,
+				      struct gred_sched_data *q)
+{
+	q->parms.qavg = table->wred_set.qavg;
+	q->parms.qidlestart = table->wred_set.qidlestart;
+}
+
+static inline void gred_store_wred_set(struct gred_sched *table,
+				       struct gred_sched_data *q)
+{
+	table->wred_set.qavg = q->parms.qavg;
+}
+
 static int
 gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
@@ -204,8 +218,7 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 
 	if (gred_wred_mode(t)) {
 		qavg = 0;
-		q->parms.qavg = t->tab[t->def]->parms.qavg;
-		q->parms.qidlestart = t->tab[t->def]->parms.qidlestart;
+		gred_load_wred_set(t, q);
 	}
 
 	q->parms.qavg = red_calc_qavg(&q->parms, gred_backlog(t, q, sch));
@@ -214,7 +227,7 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 		red_end_of_idle_period(&q->parms);
 
 	if (gred_wred_mode(t))
-		t->tab[t->def]->parms.qavg = q->parms.qavg;
+		gred_store_wred_set(t, q);
 
 	switch (red_action(&q->parms, q->parms.qavg + qavg)) {
 		case RED_DONT_MARK:
@@ -293,14 +306,8 @@ gred_dequeue(struct Qdisc* sch)
 		return skb;
 	}
 
-	if (gred_wred_mode(t)) {
-			q= t->tab[t->def];
-			if (!q)	
-				D2PRINTK("no default VQ set: Results will be "
-				       "screwed up\n");
-			else
-				red_start_of_idle_period(&q->parms);
-	}
+	if (gred_wred_mode(t))
+		red_start_of_idle_period(&t->wred_set);
 
 	return NULL;
 }
@@ -334,13 +341,9 @@ static unsigned int gred_drop(struct Qdisc* sch)
 		return len;
 	}
 
-	q=t->tab[t->def];
-	if (!q) {
-		D2PRINTK("no default VQ set: Results might be screwed up\n");
-		return 0;
-	}
+	if (gred_wred_mode(t))
+		red_start_of_idle_period(&t->wred_set);
 
-	red_start_of_idle_period(&q->parms);
 	return 0;
 
 }
