@@ -466,6 +466,8 @@ static unsigned int aes_decrypt_cbc(const struct cipher_desc *desc, u8 *out,
 
 static struct crypto_alg aes_alg = {
 	.cra_name		=	"aes",
+	.cra_driver_name	=	"aes-padlock",
+	.cra_priority		=	300,
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct aes_ctx),

@@ -289,6 +289,8 @@ extern void aes_decrypt(void *ctx_arg, u8 *out, const u8 *in);
 
 static struct crypto_alg aes_alg = {
 	.cra_name		=	"aes",
+	.cra_driver_name	=	"aes-x86_64",
+	.cra_priority		=	200,
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct aes_ctx),
