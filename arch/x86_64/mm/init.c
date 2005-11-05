@@ -306,8 +306,6 @@ void __init init_memory_mapping(unsigned long start, unsigned long end)
 	       table_end<<PAGE_SHIFT);
 }
 
-extern struct x8664_pda cpu_pda[NR_CPUS];
-
 void __cpuinit zap_low_mappings(int cpu)
 {
 	if (cpu == 0) {
