@@ -55,6 +55,7 @@ struct gred_sched
 {
 	struct gred_sched_data *tab[MAX_DPs];
 	unsigned long	flags;
+	u32		red_flags;
 	u32 		DPs;
 	u32 		def;
 	struct red_parms wred_set;
@@ -140,6 +141,11 @@ static inline void gred_store_wred_set(struct gred_sched *table,
 	table->wred_set.qavg = q->parms.qavg;
 }
 
+static inline int gred_use_ecn(struct gred_sched *t)
+{
+	return t->red_flags & TC_RED_ECN;
+}
+
 static int gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
 	struct gred_sched_data *q=NULL;
@@ -198,13 +204,22 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 
 		case RED_PROB_MARK:
 			sch->qstats.overlimits++;
-			q->stats.prob_drop++;
-			goto congestion_drop;
+			if (!gred_use_ecn(t) || !INET_ECN_set_ce(skb)) {
+				q->stats.prob_drop++;
+				goto congestion_drop;
+			}
+
+			q->stats.prob_mark++;
+			break;
 
 		case RED_HARD_MARK:
 			sch->qstats.overlimits++;
-			q->stats.forced_drop++;
-			goto congestion_drop;
+			if (!gred_use_ecn(t) || !INET_ECN_set_ce(skb)) {
+				q->stats.forced_drop++;
+				goto congestion_drop;
+			}
+			q->stats.forced_mark++;
+			break;
 	}
 
 	if (q->backlog + skb->len <= q->limit) {
@@ -348,6 +363,7 @@ static inline int gred_change_table_def(struct Qdisc *sch, struct rtattr *dps)
 	sch_tree_lock(sch);
 	table->DPs = sopt->DPs;
 	table->def = sopt->def_DP;
+	table->red_flags = sopt->flags;
 
 	/*
 	 * Every entry point to GRED is synchronized with the above code
@@ -489,6 +505,7 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 		.DPs	= table->DPs,
 		.def_DP	= table->def,
 		.grio	= gred_rio_mode(table),
+		.flags	= table->red_flags,
 	};
 
 	opts = RTA_NEST(skb, TCA_OPTIONS);

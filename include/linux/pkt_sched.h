@@ -220,8 +220,8 @@ struct tc_gred_sopt
 	__u32		DPs;
 	__u32		def_DP;
 	__u8		grio;
-	__u8		pad1;
-	__u16		pad2;
+	__u8		flags;
+	__u16		pad1;
 };
 
 /* HTB section */
