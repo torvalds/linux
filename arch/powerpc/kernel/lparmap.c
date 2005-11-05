@@ -8,7 +8,7 @@
  */
 #include <asm/mmu.h>
 #include <asm/page.h>
-#include <asm/iSeries/LparMap.h>
+#include <asm/iseries/lpar_map.h>
 
 const struct LparMap __attribute__((__section__(".text"))) xLparMap = {
 	.xNumberEsids = HvEsidsToMap,

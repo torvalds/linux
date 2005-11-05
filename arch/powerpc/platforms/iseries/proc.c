@@ -24,8 +24,8 @@
 #include <asm/processor.h>
 #include <asm/time.h>
 #include <asm/lppaca.h>
-#include <asm/iSeries/ItLpQueue.h>
-#include <asm/iSeries/HvCallXm.h>
+#include <asm/iseries/it_lp_queue.h>
+#include <asm/iseries/hv_call_xm.h>
 
 #include "processor_vpd.h"
 #include "main_store.h"

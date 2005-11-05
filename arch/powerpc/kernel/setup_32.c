@@ -288,6 +288,8 @@ void __init setup_arch(char **cmdline_p)
 	unflatten_device_tree();
 	finish_device_tree();
 
+	smp_setup_cpu_maps();
+
 #ifdef CONFIG_BOOTX_TEXT
 	init_boot_display();
 #endif

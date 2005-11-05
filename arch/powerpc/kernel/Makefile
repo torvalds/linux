@@ -13,12 +13,15 @@ endif
 obj-y				:= semaphore.o cputable.o ptrace.o syscalls.o \
 				   signal_32.o pmc.o
 obj-$(CONFIG_PPC64)		+= setup_64.o binfmt_elf32.o sys_ppc32.o \
-				   ptrace32.o systbl.o
+				   signal_64.o ptrace32.o systbl.o
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_POWER4)		+= idle_power4.o
 obj-$(CONFIG_PPC_OF)		+= of_device.o
 obj-$(CONFIG_PPC_RTAS)		+= rtas.o
+obj-$(CONFIG_RTAS_FLASH)	+= rtas_flash.o
+obj-$(CONFIG_RTAS_PROC)		+= rtas-proc.o
 obj-$(CONFIG_IBMVIO)		+= vio.o
+obj-$(CONFIG_GENERIC_TBSYNC)	+= smp-tbsync.o
 
 ifeq ($(CONFIG_PPC_MERGE),y)
 
@@ -38,6 +41,7 @@ obj-$(CONFIG_PPC_OF)		+= prom_init.o
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 obj-$(CONFIG_6xx)		+= idle_6xx.o
+obj-$(CONFIG_SMP)		+= smp.o
 
 ifeq ($(CONFIG_PPC_ISERIES),y)
 $(obj)/head_64.o: $(obj)/lparmap.s
@@ -46,8 +50,9 @@ endif
 
 else
 # stuff used from here for ARCH=ppc or ARCH=ppc64
+smpobj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_PPC64)		+= traps.o process.o init_task.o time.o \
-				   setup-common.o
+				   setup-common.o $(smpobj-y)
 
 
 endif

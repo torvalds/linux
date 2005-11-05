@@ -58,7 +58,6 @@
 #include <asm/irq.h>
 #include <asm/time.h>
 #include <asm/nvram.h>
-#include <asm/plpar_wrappers.h>
 #include "xics.h"
 #include <asm/firmware.h>
 #include <asm/pmc.h>
@@ -67,7 +66,7 @@
 #include <asm/i8259.h>
 #include <asm/udbg.h>
 
-#include "rtas-fw.h"
+#include "plpar_wrappers.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -352,6 +351,16 @@ static void pSeries_mach_cpu_die(void)
 	for(;;);
 }
 
+static int pseries_set_dabr(unsigned long dabr)
+{
+	if (firmware_has_feature(FW_FEATURE_XDABR)) {
+		/* We want to catch accesses from kernel and userspace */
+		return plpar_set_xdabr(dabr, H_DABRX_KERNEL | H_DABRX_USER);
+	}
+
+	return plpar_set_dabr(dabr);
+}
+
 
 /*
  * Early initialization.  Relocation is on but do not reference unbolted pages
@@ -387,6 +396,8 @@ static void __init pSeries_init_early(void)
 		DBG("Hello World !\n");
 	}
 
+	if (firmware_has_feature(FW_FEATURE_XDABR | FW_FEATURE_DABR))
+		ppc_md.set_dabr = pseries_set_dabr;
 
 	iommu_init_early_pSeries();
 
@@ -591,9 +602,9 @@ struct machdep_calls __initdata pSeries_md = {
 	.pcibios_fixup		= pSeries_final_fixup,
 	.pci_probe_mode		= pSeries_pci_probe_mode,
 	.irq_bus_setup		= pSeries_irq_bus_setup,
-	.restart		= rtas_fw_restart,
-	.power_off		= rtas_fw_power_off,
-	.halt			= rtas_fw_halt,
+	.restart		= rtas_restart,
+	.power_off		= rtas_power_off,
+	.halt			= rtas_halt,
 	.panic			= rtas_os_term,
 	.cpu_die		= pSeries_mach_cpu_die,
 	.get_boot_time		= rtas_get_boot_time,

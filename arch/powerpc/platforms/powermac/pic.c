@@ -576,7 +576,7 @@ void __init pmac_pic_init(void)
 #endif	/* CONFIG_PPC32 */
 }
 
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 /*
  * These procedures are used in implementing sleep on the powerbooks.
  * sleep_save_intrs() saves the states of all interrupt enables
@@ -643,7 +643,7 @@ static int pmacpic_resume(struct sys_device *sysdev)
 	return 0;
 }
 
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM && CONFIG_PPC32 */
 
 static struct sysdev_class pmacpic_sysclass = {
 	set_kset_name("pmac_pic"),
@@ -655,10 +655,10 @@ static struct sys_device device_pmacpic = {
 };
 
 static struct sysdev_driver driver_pmacpic = {
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 	.suspend	= &pmacpic_suspend,
 	.resume		= &pmacpic_resume,
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM && CONFIG_PPC32 */
 };
 
 static int __init init_pmacpic_sysfs(void)

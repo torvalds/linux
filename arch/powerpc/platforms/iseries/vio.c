@@ -17,10 +17,10 @@
 #include <asm/tce.h>
 #include <asm/abs_addr.h>
 #include <asm/page.h>
-#include <asm/iSeries/vio.h>
-#include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/HvCallXm.h>
+#include <asm/iseries/vio.h>
+#include <asm/iseries/hv_types.h>
+#include <asm/iseries/hv_lp_config.h>
+#include <asm/iseries/hv_call_xm.h>
 
 struct device *iSeries_vio_dev = &vio_bus_device.dev;
 EXPORT_SYMBOL(iSeries_vio_dev);

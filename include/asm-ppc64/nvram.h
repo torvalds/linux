@@ -70,7 +70,7 @@ extern struct nvram_partition *nvram_find_partition(int sig, const char *name);
 
 extern int pSeries_nvram_init(void);
 extern int pmac_nvram_init(void);
-extern int bpa_nvram_init(void);
+extern int mmio_nvram_init(void);
 
 /* PowerMac specific nvram stuffs */
 

@@ -56,7 +56,7 @@
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm/lmb.h>
-#include <asm/iSeries/ItLpNaca.h>
+#include <asm/iseries/it_lp_naca.h>
 #include <asm/firmware.h>
 #include <asm/systemcfg.h>
 #include <asm/xmon.h>
@@ -102,8 +102,6 @@ extern void stab_initialize(unsigned long stab);
 extern void htab_initialize(void);
 extern void early_init_devtree(void *flat_dt);
 extern void unflatten_device_tree(void);
-
-extern void smp_release_cpus(void);
 
 int have_of = 1;
 int boot_cpuid = 0;
@@ -183,120 +181,14 @@ static int __init early_smt_enabled(char *p)
 }
 early_param("smt-enabled", early_smt_enabled);
 
-/**
- * setup_cpu_maps - initialize the following cpu maps:
- *                  cpu_possible_map
- *                  cpu_present_map
- *                  cpu_sibling_map
- *
- * Having the possible map set up early allows us to restrict allocations
- * of things like irqstacks to num_possible_cpus() rather than NR_CPUS.
- *
- * We do not initialize the online map here; cpus set their own bits in
- * cpu_online_map as they come up.
- *
- * This function is valid only for Open Firmware systems.  finish_device_tree
- * must be called before using this.
- *
- * While we're here, we may as well set the "physical" cpu ids in the paca.
- */
-static void __init setup_cpu_maps(void)
-{
-	struct device_node *dn = NULL;
-	int cpu = 0;
-	int swap_cpuid = 0;
-
-	check_smt_enabled();
-
-	while ((dn = of_find_node_by_type(dn, "cpu")) && cpu < NR_CPUS) {
-		u32 *intserv;
-		int j, len = sizeof(u32), nthreads;
-
-		intserv = (u32 *)get_property(dn, "ibm,ppc-interrupt-server#s",
-					      &len);
-		if (!intserv)
-			intserv = (u32 *)get_property(dn, "reg", NULL);
-
-		nthreads = len / sizeof(u32);
-
-		for (j = 0; j < nthreads && cpu < NR_CPUS; j++) {
-			cpu_set(cpu, cpu_present_map);
-			set_hard_smp_processor_id(cpu, intserv[j]);
-
-			if (intserv[j] == boot_cpuid_phys)
-				swap_cpuid = cpu;
-			cpu_set(cpu, cpu_possible_map);
-			cpu++;
-		}
-	}
-
-	/* Swap CPU id 0 with boot_cpuid_phys, so we can always assume that
-	 * boot cpu is logical 0.
-	 */
-	if (boot_cpuid_phys != get_hard_smp_processor_id(0)) {
-		u32 tmp;
-		tmp = get_hard_smp_processor_id(0);
-		set_hard_smp_processor_id(0, boot_cpuid_phys);
-		set_hard_smp_processor_id(swap_cpuid, tmp);
-	}
-
-	/*
-	 * On pSeries LPAR, we need to know how many cpus
-	 * could possibly be added to this partition.
-	 */
-	if (systemcfg->platform == PLATFORM_PSERIES_LPAR &&
-				(dn = of_find_node_by_path("/rtas"))) {
-		int num_addr_cell, num_size_cell, maxcpus;
-		unsigned int *ireg;
-
-		num_addr_cell = prom_n_addr_cells(dn);
-		num_size_cell = prom_n_size_cells(dn);
-
-		ireg = (unsigned int *)
-			get_property(dn, "ibm,lrdr-capacity", NULL);
-
-		if (!ireg)
-			goto out;
-
-		maxcpus = ireg[num_addr_cell + num_size_cell];
-
-		/* Double maxcpus for processors which have SMT capability */
-		if (cpu_has_feature(CPU_FTR_SMT))
-			maxcpus *= 2;
-
-		if (maxcpus > NR_CPUS) {
-			printk(KERN_WARNING
-			       "Partition configured for %d cpus, "
-			       "operating system maximum is %d.\n",
-			       maxcpus, NR_CPUS);
-			maxcpus = NR_CPUS;
-		} else
-			printk(KERN_INFO "Partition configured for %d cpus.\n",
-			       maxcpus);
-
-		for (cpu = 0; cpu < maxcpus; cpu++)
-			cpu_set(cpu, cpu_possible_map);
-	out:
-		of_node_put(dn);
-	}
-
-	/*
-	 * Do the sibling map; assume only two threads per processor.
-	 */
-	for_each_cpu(cpu) {
-		cpu_set(cpu, cpu_sibling_map[cpu]);
-		if (cpu_has_feature(CPU_FTR_SMT))
-			cpu_set(cpu ^ 0x1, cpu_sibling_map[cpu]);
-	}
-
-	systemcfg->processorCount = num_present_cpus();
-}
+#else
+#define check_smt_enabled()
 #endif /* CONFIG_SMP */
 
 extern struct machdep_calls pSeries_md;
 extern struct machdep_calls pmac_md;
 extern struct machdep_calls maple_md;
-extern struct machdep_calls bpa_md;
+extern struct machdep_calls cell_md;
 extern struct machdep_calls iseries_md;
 
 /* Ultimately, stuff them in an elf section like initcalls... */
@@ -310,8 +202,8 @@ static struct machdep_calls __initdata *machines[] = {
 #ifdef CONFIG_PPC_MAPLE
 	&maple_md,
 #endif /* CONFIG_PPC_MAPLE */
-#ifdef CONFIG_PPC_BPA
-	&bpa_md,
+#ifdef CONFIG_PPC_CELL
+	&cell_md,
 #endif
 #ifdef CONFIG_PPC_ISERIES
 	&iseries_md,
@@ -399,6 +291,29 @@ void __init early_setup(unsigned long dt_ptr)
 	DBG(" <- early_setup()\n");
 }
 
+
+#if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
+void smp_release_cpus(void)
+{
+	extern unsigned long __secondary_hold_spinloop;
+
+	DBG(" -> smp_release_cpus()\n");
+
+	/* All secondary cpus are spinning on a common spinloop, release them
+	 * all now so they can start to spin on their individual paca
+	 * spinloops. For non SMP kernels, the secondary cpus never get out
+	 * of the common spinloop.
+	 * This is useless but harmless on iSeries, secondaries are already
+	 * waiting on their paca spinloops. */
+
+	__secondary_hold_spinloop = 1;
+	mb();
+
+	DBG(" <- smp_release_cpus()\n");
+}
+#else
+#define smp_release_cpus()
+#endif /* CONFIG_SMP || CONFIG_KEXEC */
 
 /*
  * Initialize some remaining members of the ppc64_caches and systemcfg structures
@@ -589,17 +504,13 @@ void __init setup_system(void)
 
 	parse_early_param();
 
-#ifdef CONFIG_SMP
-	/*
-	 * iSeries has already initialized the cpu maps at this point.
-	 */
-	setup_cpu_maps();
+	check_smt_enabled();
+	smp_setup_cpu_maps();
 
 	/* Release secondary cpus out of their spinloops at 0x60 now that
 	 * we can map physical -> logical CPU ids
 	 */
 	smp_release_cpus();
-#endif
 
 	printk("Starting Linux PPC64 %s\n", system_utsname.version);
 
@@ -630,23 +541,6 @@ static int ppc64_panic_event(struct notifier_block *this,
 	ppc_md.panic((char *)ptr);  /* May not return */
 	return NOTIFY_DONE;
 }
-
-#ifdef CONFIG_PPC_ISERIES
-/*
- * On iSeries we just parse the mem=X option from the command line.
- * On pSeries it's a bit more complicated, see prom_init_mem()
- */
-static int __init early_parsemem(char *p)
-{
-	if (!p)
-		return 0;
-
-	memory_limit = ALIGN(memparse(p, &p), PAGE_SIZE);
-
-	return 0;
-}
-early_param("mem", early_parsemem);
-#endif /* CONFIG_PPC_ISERIES */
 
 #ifdef CONFIG_IRQSTACKS
 static void __init irqstack_early_init(void)

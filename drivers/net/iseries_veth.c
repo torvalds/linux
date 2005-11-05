@@ -72,12 +72,12 @@
 #include <linux/ethtool.h>
 
 #include <asm/abs_addr.h>
-#include <asm/iSeries/mf.h>
+#include <asm/iseries/mf.h>
 #include <asm/uaccess.h>
 
-#include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/HvLpEvent.h>
+#include <asm/iseries/hv_lp_config.h>
+#include <asm/iseries/hv_types.h>
+#include <asm/iseries/hv_lp_event.h>
 #include <asm/iommu.h>
 #include <asm/vio.h>
 

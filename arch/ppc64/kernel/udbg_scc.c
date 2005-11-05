@@ -12,7 +12,6 @@
 #include <linux/types.h>
 #include <asm/udbg.h>
 #include <asm/processor.h>
-#include <asm/naca.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/pmac_feature.h>

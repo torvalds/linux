@@ -21,15 +21,6 @@ config EEH
 	depends on PPC_PSERIES
 	default y if !EMBEDDED
 
-config RTAS_PROC
-	bool "Proc interface to RTAS"
-	depends on PPC_RTAS
-	default y
-
-config RTAS_FLASH
-	tristate "Firmware flash interface"
-	depends on PPC64 && RTAS_PROC
-
 config SCANLOG
 	tristate "Scanlog dump interface"
 	depends on RTAS_PROC && PPC_PSERIES

@@ -89,12 +89,14 @@ config PPC_PMAC
 	bool "  Apple G5 based machines"
 	default y
 	select U3_DART
+	select GENERIC_TBSYNC
 
 config PPC_MAPLE
 	depends on PPC_MULTIPLATFORM
 	bool "  Maple 970FX Evaluation Board"
 	select U3_DART
 	select MPIC_BROKEN_U3
+	select GENERIC_TBSYNC
 	default n
 	help
           This option enables support for the Maple 970FX Evaluation Board.
@@ -181,6 +183,9 @@ config MPIC_BROKEN_U3
 	bool
 	depends on PPC_MAPLE
 	default y
+
+config GENERIC_TBSYNC
+	def_bool n
 
 config PPC_PMAC64
 	bool
