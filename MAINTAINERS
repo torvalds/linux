@@ -910,6 +910,15 @@ L:	linux-fbdev-devel@lists.sourceforge.net
 W:	http://linux-fbdev.sourceforge.net/
 S:	Maintained
 
+FREESCALE SOC FS_ENET DRIVER
+P:	Pantelis Antoniou
+M:	pantelis.antoniou@gmail.com
+P:	Vitaly Bordug
+M:	vbordug@ru.mvista.com
+L:	linuxppc-embedded@ozlabs.org
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 FILE LOCKING (flock() and fcntl()/lockf())
 P:	Matthew Wilcox
 M:	matthew@wil.cx

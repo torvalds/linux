@@ -1,48 +1,153 @@
-S2IO Technologies XFrame 10 Gig adapter.
--------------------------------------------
+Release notes for Neterion's (Formerly S2io) Xframe I/II PCI-X 10GbE driver.
 
-I. Module loadable parameters.
-When loaded as a module, the driver provides a host of Module loadable
-parameters, so the device can be tuned as per the users needs.
-A list of the Module params is given below.
-(i)	ring_num: This can be used to program the number of
-		 receive rings used in the driver.
-(ii)	ring_len: This defines the number of descriptors each ring
-		 can have. There can be a maximum of 8 rings.
-(iii)	frame_len: This is an array of size 8. Using this we can 
-		 set the maximum size of the received frame that can
-		 be steered into the corrsponding receive ring.	
-(iv)	fifo_num: This defines the number of Tx FIFOs thats used in
-		 the driver. 
-(v)	fifo_len: Each element defines the number of 
- 		 Tx descriptors that can be associated with each 
-		 corresponding FIFO. There are a maximum of 8 FIFOs.
-(vi)	tx_prio: This is a bool, if module is loaded with a non-zero
-		value for tx_prio multi FIFO scheme is activated.
-(vii)	rx_prio: This is a bool, if module is loaded with a non-zero
-		value for tx_prio multi RING scheme is activated.
-(viii)	latency_timer: The value given against this param will be
-		 loaded	into the latency timer register in PCI Config
-		 space, else the register is left with its reset value.
+Contents
+=======
+- 1.  Introduction
+- 2.  Identifying the adapter/interface
+- 3.  Features supported
+- 4.  Command line parameters
+- 5.  Performance suggestions
+- 6.  Available Downloads 
 
-II. Performance tuning.
- By changing a few sysctl parameters.
-	Copy the following lines into a file and run the following command,
-	"sysctl -p <file_name>"
-### IPV4 specific settings
-net.ipv4.tcp_timestamps = 0 # turns TCP timestamp support off, default 1, reduces CPU use
-net.ipv4.tcp_sack = 0 # turn SACK support off, default on
-# on systems with a VERY fast bus -> memory interface this is the big gainer
-net.ipv4.tcp_rmem = 10000000 10000000 10000000 # sets min/default/max TCP read buffer, default 4096 87380 174760
-net.ipv4.tcp_wmem = 10000000 10000000 10000000 # sets min/pressure/max TCP write buffer, default 4096 16384 131072
-net.ipv4.tcp_mem = 10000000 10000000 10000000 # sets min/pressure/max TCP buffer space, default 31744 32256 32768
-                                                                                
-### CORE settings (mostly for socket and UDP effect)
-net.core.rmem_max = 524287 # maximum receive socket buffer size, default 131071
-net.core.wmem_max = 524287 # maximum send socket buffer size, default 131071
-net.core.rmem_default = 524287 # default receive socket buffer size, default 65535
-net.core.wmem_default = 524287 # default send socket buffer size, default 65535
-net.core.optmem_max = 524287 # maximum amount of option memory buffers, default 10240
-net.core.netdev_max_backlog = 300000 # number of unprocessed input packets before kernel starts dropping them, default 300
----End of performance tuning file---
+
+1.	Introduction:
+This Linux driver supports Neterion's Xframe I PCI-X 1.0 and
+Xframe II PCI-X 2.0 adapters. It supports several features 
+such as jumbo frames, MSI/MSI-X, checksum offloads, TSO, UFO and so on.
+See below for complete list of features.
+All features are supported for both IPv4 and IPv6.
+
+2.	Identifying the adapter/interface:
+a. Insert the adapter(s) in your system.
+b. Build and load driver 
+# insmod s2io.ko
+c. View log messages
+# dmesg | tail -40
+You will see messages similar to:
+eth3: Neterion Xframe I 10GbE adapter (rev 3), Version 2.0.9.1, Intr type INTA
+eth4: Neterion Xframe II 10GbE adapter (rev 2), Version 2.0.9.1, Intr type INTA
+eth4: Device is on 64 bit 133MHz PCIX(M1) bus
+
+The above messages identify the adapter type(Xframe I/II), adapter revision,
+driver version, interface name(eth3, eth4), Interrupt type(INTA, MSI, MSI-X).
+In case of Xframe II, the PCI/PCI-X bus width and frequency are displayed
+as well.
+
+To associate an interface with a physical adapter use "ethtool -p <ethX>".
+The corresponding adapter's LED will blink multiple times.
+
+3.	Features supported:
+a. Jumbo frames. Xframe I/II supports MTU upto 9600 bytes,
+modifiable using ifconfig command.
+
+b. Offloads. Supports checksum offload(TCP/UDP/IP) on transmit
+and receive, TSO.
+
+c. Multi-buffer receive mode. Scattering of packet across multiple
+buffers. Currently driver supports 2-buffer mode which yields
+significant performance improvement on certain platforms(SGI Altix,
+IBM xSeries).
+
+d. MSI/MSI-X. Can be enabled on platforms which support this feature
+(IA64, Xeon) resulting in noticeable performance improvement(upto 7%
+on certain platforms).
+
+e. NAPI. Compile-time option(CONFIG_S2IO_NAPI) for better Rx interrupt 
+moderation.
+
+f. Statistics. Comprehensive MAC-level and software statistics displayed
+using "ethtool -S" option.
+
+g. Multi-FIFO/Ring. Supports up to 8 transmit queues and receive rings, 
+with multiple steering options.
+
+4.  Command line parameters
+a. tx_fifo_num
+Number of transmit queues
+Valid range: 1-8
+Default: 1
+
+b. rx_ring_num
+Number of receive rings
+Valid range: 1-8
+Default: 1
+
+c. tx_fifo_len
+Size of each transmit queue
+Valid range: Total length of all queues should not exceed 8192
+Default: 4096
+
+d. rx_ring_sz 
+Size of each receive ring(in 4K blocks)
+Valid range: Limited by memory on system
+Default: 30 
+
+e. intr_type
+Specifies interrupt type. Possible values 1(INTA), 2(MSI), 3(MSI-X)
+Valid range: 1-3
+Default: 1 
+
+5.  Performance suggestions
+General:
+a. Set MTU to maximum(9000 for switch setup, 9600 in back-to-back configuration)
+b. Set TCP windows size to optimal value. 
+For instance, for MTU=1500 a value of 210K has been observed to result in 
+good performance.
+# sysctl -w net.ipv4.tcp_rmem="210000 210000 210000"
+# sysctl -w net.ipv4.tcp_wmem="210000 210000 210000"
+For MTU=9000, TCP window size of 10 MB is recommended.
+# sysctl -w net.ipv4.tcp_rmem="10000000 10000000 10000000"
+# sysctl -w net.ipv4.tcp_wmem="10000000 10000000 10000000"
+
+Transmit performance:
+a. By default, the driver respects BIOS settings for PCI bus parameters. 
+However, you may want to experiment with PCI bus parameters 
+max-split-transactions(MOST) and MMRBC (use setpci command). 
+A MOST value of 2 has been found optimal for Opterons and 3 for Itanium.  
+It could be different for your hardware.  
+Set MMRBC to 4K**.
+
+For example you can set 
+For opteron
+#setpci -d 17d5:* 62=1d 
+For Itanium
+#setpci -d 17d5:* 62=3d 
+
+For detailed description of the PCI registers, please see Xframe User Guide.
+
+b. Ensure Transmit Checksum offload is enabled. Use ethtool to set/verify this 
+parameter.
+c. Turn on TSO(using "ethtool -K")
+# ethtool -K <ethX> tso on
+
+Receive performance:
+a. By default, the driver respects BIOS settings for PCI bus parameters. 
+However, you may want to set PCI latency timer to 248.
+#setpci -d 17d5:* LATENCY_TIMER=f8
+For detailed description of the PCI registers, please see Xframe User Guide.
+b. Use 2-buffer mode. This results in large performance boost on
+on certain platforms(eg. SGI Altix, IBM xSeries).
+c. Ensure Receive Checksum offload is enabled. Use "ethtool -K ethX" command to 
+set/verify this option.
+d. Enable NAPI feature(in kernel configuration Device Drivers ---> Network 
+device support --->  Ethernet (10000 Mbit) ---> S2IO 10Gbe Xframe NIC) to 
+bring down CPU utilization.
+
+** For AMD opteron platforms with 8131 chipset, MMRBC=1 and MOST=1 are 
+recommended as safe parameters.
+For more information, please review the AMD8131 errata at
+http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/26310.pdf
+
+6.  Available Downloads
+Neterion "s2io" driver in Red Hat and Suse 2.6-based distributions is kept up 
+to date, also the latest "s2io" code (including support for 2.4 kernels) is 
+available via "Support" link on the Neterion site:  http://www.neterion.com.
+
+For Xframe User Guide (Programming manual), visit ftp site ns1.s2io.com,
+user: linuxdocs password: HALdocs
+
+7. Support 
+For further support please contact either your 10GbE Xframe NIC vendor (IBM, 
+HP, SGI etc.) or click on the "Support" link on the Neterion site:  
+http://www.neterion.com.
 
