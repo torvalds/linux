@@ -42,7 +42,7 @@ int acpi_found_madt;
  * Various Linux-internal data structures created from the
  * MP-table.
  */
-int apic_version [MAX_APICS];
+unsigned char apic_version [MAX_APICS];
 unsigned char mp_bus_id_to_type [MAX_MP_BUSSES] = { [0 ... MAX_MP_BUSSES-1] = -1 };
 int mp_bus_id_to_pci_bus [MAX_MP_BUSSES] = { [0 ... MAX_MP_BUSSES-1] = -1 };
 
@@ -108,7 +108,8 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 
 static void __init MP_processor_info (struct mpc_config_processor *m)
 {
-	int ver, cpu;
+	int cpu;
+	unsigned char ver;
 	static int found_bsp=0;
 
 	if (!(m->mpc_cpuflag & CPU_ENABLED)) {
@@ -133,12 +134,14 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 	}
 
 	cpu = num_processors++;
-
-	if (m->mpc_apicid > MAX_APICS) {
+	
+#if MAX_APICS < 255	
+	if ((int)m->mpc_apicid > MAX_APICS) {
 		printk(KERN_ERR "Processor #%d INVALID. (Max ID: %d).\n",
 			m->mpc_apicid, MAX_APICS);
 		return;
 	}
+#endif
 	ver = m->mpc_apicver;
 
 	physid_set(m->mpc_apicid, phys_cpu_present_map);
