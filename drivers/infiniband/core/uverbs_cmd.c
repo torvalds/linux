@@ -602,6 +602,7 @@ ssize_t ib_uverbs_create_cq(struct ib_uverbs_file *file,
 
 	uobj->uobject.user_handle   = cmd.user_handle;
 	uobj->uobject.context       = file->ucontext;
+	uobj->uverbs_file	    = file;
 	uobj->comp_events_reported  = 0;
 	uobj->async_events_reported = 0;
 	INIT_LIST_HEAD(&uobj->comp_list);

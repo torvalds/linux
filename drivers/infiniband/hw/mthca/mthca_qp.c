@@ -584,6 +584,13 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 		return -EINVAL;
 	}
 
+	if ((attr_mask & IB_QP_PKEY_INDEX) && 
+	     attr->pkey_index >= dev->limits.pkey_table_len) {
+		mthca_dbg(dev, "PKey index (%u) too large. max is %d\n",
+			  attr->pkey_index,dev->limits.pkey_table_len-1); 
+		return -EINVAL;
+	}
+
 	mailbox = mthca_alloc_mailbox(dev, GFP_KERNEL);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);

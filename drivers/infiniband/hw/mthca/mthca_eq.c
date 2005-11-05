@@ -292,7 +292,7 @@ static int mthca_eq_int(struct mthca_dev *dev, struct mthca_eq *eq)
 		case MTHCA_EVENT_TYPE_COMP:
 			disarm_cqn = be32_to_cpu(eqe->event.comp.cqn) & 0xffffff;
 			disarm_cq(dev, eq->eqn, disarm_cqn);
-			mthca_cq_event(dev, disarm_cqn);
+			mthca_cq_completion(dev, disarm_cqn);
 			break;
 
 		case MTHCA_EVENT_TYPE_PATH_MIG:
@@ -364,6 +364,8 @@ static int mthca_eq_int(struct mthca_dev *dev, struct mthca_eq *eq)
 				   eqe->event.cq_err.syndrome == 1 ?
 				   "overrun" : "access violation",
 				   be32_to_cpu(eqe->event.cq_err.cqn) & 0xffffff);
+			mthca_cq_event(dev, be32_to_cpu(eqe->event.cq_err.cqn),
+				       IB_EVENT_CQ_ERR);
 			break;
 
 		case MTHCA_EVENT_TYPE_EQ_OVERFLOW:

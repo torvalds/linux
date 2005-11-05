@@ -161,17 +161,9 @@ static int alloc_name(char *name)
  */
 struct ib_device *ib_alloc_device(size_t size)
 {
-	void *dev;
-
 	BUG_ON(size < sizeof (struct ib_device));
 
-	dev = kmalloc(size, GFP_KERNEL);
-	if (!dev)
-		return NULL;
-
-	memset(dev, 0, size);
-
-	return dev;
+	return kzalloc(size, GFP_KERNEL);
 }
 EXPORT_SYMBOL(ib_alloc_device);
 
