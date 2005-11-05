@@ -230,22 +230,15 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	if (q->backlog + skb->len <= q->limit) {
 		q->backlog += skb->len;
 do_enqueue:
-		__skb_queue_tail(&sch->q, skb);
-		sch->qstats.backlog += skb->len;
-		sch->bstats.bytes += skb->len;
-		sch->bstats.packets++;
-		return 0;
+		return qdisc_enqueue_tail(skb, sch);
 	}
 
 	q->stats.pdrop++;
 drop:
-	kfree_skb(skb);
-	sch->qstats.drops++;
-	return NET_XMIT_DROP;
+	return qdisc_drop(skb, sch);
 
 congestion_drop:
-	kfree_skb(skb);
-	sch->qstats.drops++;
+	qdisc_drop(skb, sch);
 	return NET_XMIT_CN;
 }
 
@@ -260,11 +253,8 @@ gred_requeue(struct sk_buff *skb, struct Qdisc* sch)
 	if (red_is_idling(&q->parms))
 		red_end_of_idle_period(&q->parms);
 
-	__skb_queue_head(&sch->q, skb);
-	sch->qstats.backlog += skb->len;
-	sch->qstats.requeues++;
 	q->backlog += skb->len;
-	return 0;
+	return qdisc_requeue(skb, sch);
 }
 
 static struct sk_buff *
@@ -274,9 +264,9 @@ gred_dequeue(struct Qdisc* sch)
 	struct gred_sched_data *q;
 	struct gred_sched *t= qdisc_priv(sch);
 
-	skb = __skb_dequeue(&sch->q);
+	skb = qdisc_dequeue_head(sch);
+
 	if (skb) {
-		sch->qstats.backlog -= skb->len;
 		q= t->tab[(skb->tc_index&0xf)];
 		if (q) {
 			q->backlog -= skb->len;
@@ -307,11 +297,9 @@ static unsigned int gred_drop(struct Qdisc* sch)
 	struct gred_sched_data *q;
 	struct gred_sched *t= qdisc_priv(sch);
 
-	skb = __skb_dequeue_tail(&sch->q);
+	skb = qdisc_dequeue_tail(sch);
 	if (skb) {
 		unsigned int len = skb->len;
-		sch->qstats.backlog -= len;
-		sch->qstats.drops++;
 		q= t->tab[(skb->tc_index&0xf)];
 		if (q) {
 			q->backlog -= len;
@@ -322,7 +310,7 @@ static unsigned int gred_drop(struct Qdisc* sch)
 			D2PRINTK("gred_dequeue: skb has bad tcindex %x\n",skb->tc_index&0xf); 
 		}
 
-		kfree_skb(skb);
+		qdisc_drop(skb, sch);
 		return len;
 	}
 
@@ -343,9 +331,7 @@ static void gred_reset(struct Qdisc* sch)
 	struct gred_sched_data *q;
 	struct gred_sched *t= qdisc_priv(sch);
 
-	__skb_queue_purge(&sch->q);
-
-	sch->qstats.backlog = 0;
+	qdisc_reset_queue(sch);
 
         for (i=0;i<t->DPs;i++) {
 	        q= t->tab[i];
