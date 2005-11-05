@@ -1876,11 +1876,10 @@ static int __devinit pageset_cpuup_callback(struct notifier_block *nfb,
 			if (process_zones(cpu))
 				ret = NOTIFY_BAD;
 			break;
-#ifdef CONFIG_HOTPLUG_CPU
+		case CPU_UP_CANCELED:
 		case CPU_DEAD:
 			free_zone_pagesets(cpu);
 			break;
-#endif
 		default:
 			break;
 	}
