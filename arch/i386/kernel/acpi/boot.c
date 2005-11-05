@@ -542,7 +542,7 @@ acpi_scan_rsdp(unsigned long start, unsigned long length)
 	 * RSDP signature.
 	 */
 	for (offset = 0; offset < length; offset += 16) {
-		if (strncmp((char *)(start + offset), "RSD PTR ", sig_len))
+		if (strncmp((char *)(phys_to_virt(start) + offset), "RSD PTR ", sig_len))
 			continue;
 		return (start + offset);
 	}

@@ -1063,9 +1063,6 @@ int __cpuinit __cpu_up(unsigned int cpu)
  */
 void __init smp_cpus_done(unsigned int max_cpus)
 {
-#ifndef CONFIG_HOTPLUG_CPU
-	zap_low_mappings();
-#endif
 	smp_cleanup_boot();
 
 #ifdef CONFIG_X86_IO_APIC

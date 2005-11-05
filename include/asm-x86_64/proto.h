@@ -11,6 +11,8 @@ struct pt_regs;
 extern void start_kernel(void);
 extern void pda_init(int); 
 
+extern void zap_low_mappings(int cpu);
+
 extern void early_idt_handler(void);
 
 extern void mcheck_init(struct cpuinfo_x86 *c);
