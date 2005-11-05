@@ -207,6 +207,9 @@ void __init i8259_init(unsigned long intack_addr, int offset)
 
 	spin_unlock_irqrestore(&i8259_lock, flags);
 
+	for (i = 0; i < NUM_ISA_INTERRUPTS; ++i)
+		irq_desc[offset + i].handler = &i8259_pic;
+
 	/* reserve our resources */
 	setup_irq(offset + 2, &i8259_irqaction);
 	request_resource(&ioport_resource, &pic1_iores);
@@ -216,6 +219,4 @@ void __init i8259_init(unsigned long intack_addr, int offset)
 	if (intack_addr != 0)
 		pci_intack = ioremap(intack_addr, 1);
 
-	for (i = 0; i < NUM_ISA_INTERRUPTS; ++i)
-		irq_desc[offset + i].handler = &i8259_pic;
 }
