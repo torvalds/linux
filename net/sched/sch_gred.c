@@ -378,43 +378,72 @@ static void gred_reset(struct Qdisc* sch)
 	}
 }
 
+static inline void gred_destroy_vq(struct gred_sched_data *q)
+{
+	kfree(q);
+}
+
+static inline int gred_change_table_def(struct Qdisc *sch, struct rtattr *dps)
+{
+	struct gred_sched *table = qdisc_priv(sch);
+	struct tc_gred_sopt *sopt;
+	int i;
+
+	if (dps == NULL || RTA_PAYLOAD(dps) < sizeof(*sopt))
+		return -EINVAL;
+
+	sopt = RTA_DATA(dps);
+
+	if (sopt->DPs > MAX_DPs || sopt->DPs == 0 || sopt->def_DP >= sopt->DPs)
+		return -EINVAL;
+
+	sch_tree_lock(sch);
+	table->DPs = sopt->DPs;
+	table->def = sopt->def_DP;
+
+	/*
+	 * Every entry point to GRED is synchronized with the above code
+	 * and the DP is checked against DPs, i.e. shadowed VQs can no
+	 * longer be found so we can unlock right here.
+	 */
+	sch_tree_unlock(sch);
+
+	if (sopt->grio) {
+		gred_enable_rio_mode(table);
+		gred_disable_wred_mode(table);
+		if (gred_wred_mode_check(sch))
+			gred_enable_wred_mode(table);
+	} else {
+		gred_disable_rio_mode(table);
+		gred_disable_wred_mode(table);
+	}
+
+	for (i = table->DPs; i < MAX_DPs; i++) {
+		if (table->tab[i]) {
+			printk(KERN_WARNING "GRED: Warning: Destroying "
+			       "shadowed VQ 0x%x\n", i);
+			gred_destroy_vq(table->tab[i]);
+			table->tab[i] = NULL;
+  		}
+	}
+
+	table->initd = 0;
+
+	return 0;
+}
+
 static int gred_change(struct Qdisc *sch, struct rtattr *opt)
 {
 	struct gred_sched *table = qdisc_priv(sch);
 	struct gred_sched_data *q;
 	struct tc_gred_qopt *ctl;
-	struct tc_gred_sopt *sopt;
 	struct rtattr *tb[TCA_GRED_STAB];
-	struct rtattr *tb2[TCA_GRED_DPS];
 
 	if (opt == NULL || rtattr_parse_nested(tb, TCA_GRED_STAB, opt))
 		return -EINVAL;
 
-	if (tb[TCA_GRED_PARMS-1] == 0 && tb[TCA_GRED_STAB-1] == 0) {
-		rtattr_parse_nested(tb2, TCA_GRED_DPS, opt);
-
-	    if (tb2[TCA_GRED_DPS-1] == 0) 
-			return -EINVAL;
-
-		sopt = RTA_DATA(tb2[TCA_GRED_DPS-1]);
-		table->DPs=sopt->DPs;   
-		table->def=sopt->def_DP; 
-
-		if (sopt->grio) {
-			gred_enable_rio_mode(table);
-			gred_disable_wred_mode(table);
-			if (gred_wred_mode_check(sch))
-				gred_enable_wred_mode(table);
-		} else {
-			gred_disable_rio_mode(table);
-			gred_disable_wred_mode(table);
-		}
-
-		table->initd=0;
-		/* probably need to clear all the table DP entries as well */
-		return 0;
-	    }
-
+	if (tb[TCA_GRED_PARMS-1] == NULL && tb[TCA_GRED_STAB-1] == NULL)
+		return gred_change_table_def(sch, tb[TCA_GRED_DPS-1]);
 
 	if (!table->DPs || tb[TCA_GRED_PARMS-1] == 0 || tb[TCA_GRED_STAB-1] == 0 ||
 		RTA_PAYLOAD(tb[TCA_GRED_PARMS-1]) < sizeof(*ctl) ||
@@ -526,35 +555,15 @@ static int gred_change(struct Qdisc *sch, struct rtattr *opt)
 
 static int gred_init(struct Qdisc *sch, struct rtattr *opt)
 {
-	struct gred_sched *table = qdisc_priv(sch);
-	struct tc_gred_sopt *sopt;
-	struct rtattr *tb[TCA_GRED_STAB];
-	struct rtattr *tb2[TCA_GRED_DPS];
+	struct rtattr *tb[TCA_GRED_MAX];
 
-	if (opt == NULL || rtattr_parse_nested(tb, TCA_GRED_STAB, opt))
+	if (opt == NULL || rtattr_parse_nested(tb, TCA_GRED_MAX, opt))
 		return -EINVAL;
 
-	if (tb[TCA_GRED_PARMS-1] == 0 && tb[TCA_GRED_STAB-1] == 0) {
-		rtattr_parse_nested(tb2, TCA_GRED_DPS, opt);
+	if (tb[TCA_GRED_PARMS-1] || tb[TCA_GRED_STAB-1])
+		return -EINVAL;
 
-	    if (tb2[TCA_GRED_DPS-1] == 0) 
-			return -EINVAL;
-
-		sopt = RTA_DATA(tb2[TCA_GRED_DPS-1]);
-		table->DPs=sopt->DPs;   
-		table->def=sopt->def_DP; 
-
-		if (sopt->grio)
-			gred_enable_rio_mode(table);
-		else
-			gred_disable_rio_mode(table);
-
-		table->initd=0;
-		return 0;
-	}
-
-	DPRINTK("\n GRED_INIT error!\n");
-	return -EINVAL;
+	return gred_change_table_def(sch, tb[TCA_GRED_DPS-1]);
 }
 
 static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
@@ -641,7 +650,7 @@ static void gred_destroy(struct Qdisc *sch)
 
 	for (i = 0;i < table->DPs; i++) {
 		if (table->tab[i])
-			kfree(table->tab[i]);
+			gred_destroy_vq(table->tab[i]);
 	}
 }
 
