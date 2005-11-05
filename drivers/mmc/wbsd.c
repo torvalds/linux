@@ -1852,9 +1852,9 @@ static int __devinit wbsd_init(struct device* dev, int base, int irq, int dma,
 	/*
 	 * See if chip needs to be configured.
 	 */
-	if (pnp && (host->config != 0))
+	if (pnp)
 	{
-		if (!wbsd_chip_validate(host))
+		if ((host->config != 0) && !wbsd_chip_validate(host))
 		{
 			printk(KERN_WARNING DRIVER_NAME
 				": PnP active but chip not configured! "
