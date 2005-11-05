@@ -181,6 +181,7 @@ static int __devinit mthca_dev_lim(struct mthca_dev *mdev, struct mthca_dev_lim 
 	mdev->limits.reserved_uars      = dev_lim->reserved_uars;
 	mdev->limits.reserved_pds       = dev_lim->reserved_pds;
 	mdev->limits.port_width_cap     = dev_lim->max_port_width;
+	mdev->limits.page_size_cap      = ~(u32) (dev_lim->min_page_sz - 1);
 	mdev->limits.flags              = dev_lim->flags;
 
 	/* IB_DEVICE_RESIZE_MAX_WR not supported by driver.
