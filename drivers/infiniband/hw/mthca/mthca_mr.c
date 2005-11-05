@@ -140,12 +140,10 @@ static int __devinit mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
 	buddy->max_order = max_order;
 	spin_lock_init(&buddy->lock);
 
-	buddy->bits = kmalloc((buddy->max_order + 1) * sizeof (long *),
+	buddy->bits = kzalloc((buddy->max_order + 1) * sizeof (long *),
 			      GFP_KERNEL);
 	if (!buddy->bits)
 		goto err_out;
-
-	memset(buddy->bits, 0, (buddy->max_order + 1) * sizeof (long *));
 
 	for (i = 0; i <= buddy->max_order; ++i) {
 		s = BITS_TO_LONGS(1 << (buddy->max_order - i));

@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/idr.h>
 #include <linux/seq_file.h>
+#include <linux/platform_device.h>
 #include <asm/uaccess.h>
 
 

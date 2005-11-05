@@ -95,7 +95,7 @@ static inline struct thread_info *current_thread_info(void)
 }
 
 /* thread information allocation */
-#if CONFIG_DEBUG_STACK_USAGE
+#ifdef CONFIG_DEBUG_STACK_USAGE
 #define alloc_thread_info(tsk)					\
 	({							\
 		struct thread_info *ret;			\

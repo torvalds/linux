@@ -1,20 +1,8 @@
 /*
- *                  QLOGIC LINUX SOFTWARE
+ * QLogic Fibre Channel HBA Driver
+ * Copyright (c)  2003-2005 QLogic Corporation
  *
- * QLogic ISP2x00 device driver for Linux 2.6.x
- * Copyright (C) 2003-2005 QLogic Corporation
- * (www.qlogic.com)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
+ * See LICENSE.qla2xxx for copyright and licensing details.
  */
 #include "qla_def.h"
 
@@ -60,19 +48,6 @@ MODULE_PARM_DESC(ql2xplogiabsentdevice,
 		"Option to enable PLOGI to devices that are not present after "
 		"a Fabric scan.  This is needed for several broken switches."
 		"Default is 0 - no PLOGI. 1 - perfom PLOGI.");
-
-int ql2xenablezio = 0;
-module_param(ql2xenablezio, int, S_IRUGO|S_IRUSR);
-MODULE_PARM_DESC(ql2xenablezio,
-		"Option to enable ZIO:If 1 then enable it otherwise"
-		" use the default set in the NVRAM."
-		" Default is 0 : disabled");
-
-int ql2xintrdelaytimer = 10;
-module_param(ql2xintrdelaytimer, int, S_IRUGO|S_IRUSR);
-MODULE_PARM_DESC(ql2xintrdelaytimer,
-		"ZIO: Waiting time for Firmware before it generates an "
-		"interrupt to the host to notify completion of request.");
 
 int ql2xloginretrycount = 0;
 module_param(ql2xloginretrycount, int, S_IRUGO|S_IRUSR);
@@ -373,11 +348,13 @@ qla2x00_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
+	struct fc_rport *rport = starget_to_rport(scsi_target(cmd->device));
 	srb_t *sp;
 	int rval;
 
-	if (!fcport) {
-		cmd->result = DID_NO_CONNECT << 16;
+	rval = fc_remote_port_chkready(rport);
+	if (rval) {
+		cmd->result = rval;
 		goto qc_fail_command;
 	}
 
@@ -399,16 +376,6 @@ qla2x00_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 	rval = qla2x00_start_scsi(sp);
 	if (rval != QLA_SUCCESS)
 		goto qc_host_busy_free_sp;
-
-	/* Manage unprocessed RIO/ZIO commands in response queue. */
-	if (ha->flags.online && ha->flags.process_response_queue &&
-	    ha->response_ring_ptr->signature != RESPONSE_PROCESSED) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&ha->hardware_lock, flags);
-		qla2x00_process_response_queue(ha);
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	}
 
 	spin_lock_irq(ha->host->host_lock);
 
@@ -436,11 +403,13 @@ qla24xx_queuecommand(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
 {
 	scsi_qla_host_t *ha = to_qla_host(cmd->device->host);
 	fc_port_t *fcport = (struct fc_port *) cmd->device->hostdata;
+	struct fc_rport *rport = starget_to_rport(scsi_target(cmd->device));
 	srb_t *sp;
 	int rval;
 
-	if (!fcport) {
-		cmd->result = DID_NO_CONNECT << 16;
+	rval = fc_remote_port_chkready(rport);
+	if (rval) {
+		cmd->result = rval;
 		goto qc24_fail_command;
 	}
 
@@ -797,29 +766,19 @@ qla2xxx_eh_device_reset(struct scsi_cmnd *cmd)
 		goto eh_dev_reset_done;
 	}
 
-	/*
-	 * If we are coming down the EH path, wait for all commands to
-	 * complete for the device.
-	 */
-	if (cmd->device->host->eh_active) {
-		if (qla2x00_eh_wait_for_pending_target_commands(ha, id))
-			ret = FAILED;
-
-		if (ret == FAILED) {
-			DEBUG3(printk("%s(%ld): failed while waiting for "
-			    "commands\n", __func__, ha->host_no));
-			qla_printk(KERN_INFO, ha,
-			    "%s: failed while waiting for commands\n",
-			    __func__);
-
-			goto eh_dev_reset_done;
-		}
-	}
-
-	qla_printk(KERN_INFO, ha,
-	    "scsi(%ld:%d:%d): DEVICE RESET SUCCEEDED.\n", ha->host_no, id, lun);
-
-eh_dev_reset_done:
+	/* Flush outstanding commands. */
+	if (qla2x00_eh_wait_for_pending_target_commands(ha, id))
+		ret = FAILED;
+	if (ret == FAILED) {
+		DEBUG3(printk("%s(%ld): failed while waiting for commands\n",
+		    __func__, ha->host_no));
+		qla_printk(KERN_INFO, ha,
+		    "%s: failed while waiting for commands\n", __func__);
+	} else
+		qla_printk(KERN_INFO, ha,
+		    "scsi(%ld:%d:%d): DEVICE RESET SUCCEEDED.\n", ha->host_no,
+		    id, lun);
+ eh_dev_reset_done:
 	return ret;
 }
 
@@ -921,10 +880,9 @@ qla2xxx_eh_bus_reset(struct scsi_cmnd *cmd)
 	if (ret == FAILED)
 		goto eh_bus_reset_done;
 
-	/* Waiting for our command in done_queue to be returned to OS.*/
-	if (cmd->device->host->eh_active)
-		if (!qla2x00_eh_wait_for_pending_commands(ha))
-			ret = FAILED;
+	/* Flush outstanding commands. */
+	if (!qla2x00_eh_wait_for_pending_commands(ha))
+		ret = FAILED;
 
 eh_bus_reset_done:
 	qla_printk(KERN_INFO, ha, "%s: reset %s\n", __func__,
@@ -1087,10 +1045,10 @@ qla2xxx_slave_alloc(struct scsi_device *sdev)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(sdev));
 
-	if (!rport)
+	if (!rport || fc_remote_port_chkready(rport))
 		return -ENXIO;
 
-	sdev->hostdata = rport->dd_data;
+	sdev->hostdata = *(fc_port_t **)rport->dd_data;
 
 	return 0;
 }
@@ -1682,7 +1640,8 @@ void qla2x00_mark_device_lost(scsi_qla_host_t *ha, fc_port_t *fcport,
     int do_login)
 {
 	if (atomic_read(&fcport->state) == FCS_ONLINE && fcport->rport)
-		fc_remote_port_block(fcport->rport);
+		schedule_work(&fcport->rport_del_work);
+
 	/*
 	 * We may need to retry the login, so don't change the state of the
 	 * port but do the retries.
@@ -1743,7 +1702,7 @@ qla2x00_mark_all_devices_lost(scsi_qla_host_t *ha)
 		if (atomic_read(&fcport->state) == FCS_DEVICE_DEAD)
 			continue;
 		if (atomic_read(&fcport->state) == FCS_ONLINE && fcport->rport)
-			fc_remote_port_block(fcport->rport);
+			schedule_work(&fcport->rport_del_work);
 		atomic_set(&fcport->state, FCS_DEVICE_LOST);
 	}
 }
@@ -2187,6 +2146,12 @@ qla2x00_do_dpc(void *data)
 			    ha->host_no));
 		}
 
+		if (test_and_clear_bit(LOOP_RESET_NEEDED, &ha->dpc_flags)) {
+			DEBUG(printk("scsi(%ld): dpc: sched loop_reset()\n",
+			    ha->host_no));
+			qla2x00_loop_reset(ha);
+		}
+
 		if (test_and_clear_bit(RESET_MARKER_NEEDED, &ha->dpc_flags) &&
 		    (!(test_and_set_bit(RESET_ACTIVE, &ha->dpc_flags)))) {
 
@@ -2488,6 +2453,7 @@ qla2x00_timer(scsi_qla_host_t *ha)
 	/* Schedule the DPC routine if needed */
 	if ((test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags) ||
 	    test_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags) ||
+	    test_bit(LOOP_RESET_NEEDED, &ha->dpc_flags) ||
 	    start_dpc ||
 	    test_bit(LOGIN_RETRY_NEEDED, &ha->dpc_flags) ||
 	    test_bit(RESET_MARKER_NEEDED, &ha->dpc_flags) ||

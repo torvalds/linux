@@ -22,6 +22,7 @@
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>
+#include <asm/param.h>		/* HZ */
 
 #include "cio.h"
 #include "css.h"
@@ -252,6 +253,23 @@ cutype_show (struct device *dev, struct device_attribute *attr, char *buf)
 }
 
 static ssize_t
+modalias_show (struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct ccw_device *cdev = to_ccwdev(dev);
+	struct ccw_device_id *id = &(cdev->id);
+	int ret;
+
+	ret = sprintf(buf, "ccw:t%04Xm%02x",
+			id->cu_type, id->cu_model);
+	if (id->dev_type != 0)
+		ret += sprintf(buf + ret, "dt%04Xdm%02X\n",
+				id->dev_type, id->dev_model);
+	else
+		ret += sprintf(buf + ret, "dtdm\n");
+	return ret;
+}
+
+static ssize_t
 online_show (struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct ccw_device *cdev = to_ccwdev(dev);
@@ -448,6 +466,7 @@ static DEVICE_ATTR(chpids, 0444, chpids_show, NULL);
 static DEVICE_ATTR(pimpampom, 0444, pimpampom_show, NULL);
 static DEVICE_ATTR(devtype, 0444, devtype_show, NULL);
 static DEVICE_ATTR(cutype, 0444, cutype_show, NULL);
+static DEVICE_ATTR(modalias, 0444, modalias_show, NULL);
 static DEVICE_ATTR(online, 0644, online_show, online_store);
 extern struct device_attribute dev_attr_cmb_enable;
 static DEVICE_ATTR(availability, 0444, available_show, NULL);
@@ -471,6 +490,7 @@ subchannel_add_files (struct device *dev)
 static struct attribute * ccwdev_attrs[] = {
 	&dev_attr_devtype.attr,
 	&dev_attr_cutype.attr,
+	&dev_attr_modalias.attr,
 	&dev_attr_online.attr,
 	&dev_attr_cmb_enable.attr,
 	&dev_attr_availability.attr,

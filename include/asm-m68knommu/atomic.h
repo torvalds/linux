@@ -100,7 +100,7 @@ static __inline__ void atomic_set_mask(unsigned long mask, unsigned long *v)
 #define smp_mb__before_atomic_inc()    barrier()
 #define smp_mb__after_atomic_inc() barrier()
 
-extern __inline__ int atomic_add_return(int i, atomic_t * v)
+static inline int atomic_add_return(int i, atomic_t * v)
 {
 	unsigned long temp, flags;
 
@@ -115,7 +115,7 @@ extern __inline__ int atomic_add_return(int i, atomic_t * v)
 
 #define atomic_add_negative(a, v)	(atomic_add_return((a), (v)) < 0)
 
-extern __inline__ int atomic_sub_return(int i, atomic_t * v)
+static inline int atomic_sub_return(int i, atomic_t * v)
 {
 	unsigned long temp, flags;
 

@@ -20,6 +20,7 @@
 #include "linux/ctype.h"
 #include "linux/bootmem.h"
 #include "linux/ethtool.h"
+#include "linux/platform_device.h"
 #include "asm/uaccess.h"
 #include "user_util.h"
 #include "kern_util.h"

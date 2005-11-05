@@ -514,7 +514,7 @@ static int ibmveth_open(struct net_device *netdev)
 
 	if(lpar_rc != H_Success) {
 		ibmveth_error_printk("h_register_logical_lan failed with %ld\n", lpar_rc);
-		ibmveth_error_printk("buffer TCE:0x%x filter TCE:0x%x rxq desc:0x%lx MAC:0x%lx\n",
+		ibmveth_error_printk("buffer TCE:0x%lx filter TCE:0x%lx rxq desc:0x%lx MAC:0x%lx\n",
 				     adapter->buffer_list_dma,
 				     adapter->filter_list_dma,
 				     rxq_desc.desc,
@@ -535,7 +535,7 @@ static int ibmveth_open(struct net_device *netdev)
 	}
 
 	ibmveth_debug_printk("initial replenish cycle\n");
-	ibmveth_replenish_task(adapter);
+	ibmveth_interrupt(netdev->irq, netdev, NULL);
 
 	netif_start_queue(netdev);
 
@@ -1174,14 +1174,16 @@ static struct vio_device_id ibmveth_device_table[] __devinitdata= {
 	{ "network", "IBM,l-lan"},
 	{ "", "" }
 };
-
 MODULE_DEVICE_TABLE(vio, ibmveth_device_table);
 
 static struct vio_driver ibmveth_driver = {
-	.name        = (char *)ibmveth_driver_name,
-	.id_table    = ibmveth_device_table,
-	.probe       = ibmveth_probe,
-	.remove      = ibmveth_remove
+	.id_table	= ibmveth_device_table,
+	.probe		= ibmveth_probe,
+	.remove		= ibmveth_remove,
+	.driver		= {
+		.name	= ibmveth_driver_name,
+		.owner	= THIS_MODULE,
+	}
 };
 
 static int __init ibmveth_module_init(void)

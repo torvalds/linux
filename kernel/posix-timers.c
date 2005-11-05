@@ -1295,13 +1295,6 @@ sys_clock_getres(clockid_t which_clock, struct timespec __user *tp)
 	return error;
 }
 
-static void nanosleep_wake_up(unsigned long __data)
-{
-	struct task_struct *p = (struct task_struct *) __data;
-
-	wake_up_process(p);
-}
-
 /*
  * The standard says that an absolute nanosleep call MUST wake up at
  * the requested time in spite of clock settings.  Here is what we do:
@@ -1442,7 +1435,6 @@ static int common_nsleep(clockid_t which_clock,
 			 int flags, struct timespec *tsave)
 {
 	struct timespec t, dum;
-	struct timer_list new_timer;
 	DECLARE_WAITQUEUE(abs_wqueue, current);
 	u64 rq_time = (u64)0;
 	s64 left;
@@ -1451,10 +1443,6 @@ static int common_nsleep(clockid_t which_clock,
 	    &current_thread_info()->restart_block;
 
 	abs_wqueue.flags = 0;
-	init_timer(&new_timer);
-	new_timer.expires = 0;
-	new_timer.data = (unsigned long) current;
-	new_timer.function = nanosleep_wake_up;
 	abs = flags & TIMER_ABSTIME;
 
 	if (restart_block->fn == clock_nanosleep_restart) {
@@ -1490,13 +1478,8 @@ static int common_nsleep(clockid_t which_clock,
 		if (left < (s64)0)
 			break;
 
-		new_timer.expires = jiffies + left;
-		__set_current_state(TASK_INTERRUPTIBLE);
-		add_timer(&new_timer);
+		schedule_timeout_interruptible(left);
 
-		schedule();
-
-		del_timer_sync(&new_timer);
 		left = rq_time - get_jiffies_64();
 	} while (left > (s64)0 && !test_thread_flag(TIF_SIGPENDING));
 

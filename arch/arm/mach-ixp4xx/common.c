@@ -20,6 +20,7 @@
 #include <linux/serial.h>
 #include <linux/sched.h>
 #include <linux/tty.h>
+#include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/bootmem.h>
 #include <linux/interrupt.h>

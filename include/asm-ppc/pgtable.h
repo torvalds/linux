@@ -705,7 +705,7 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry, int dirty)
 #define pgprot_noncached(prot)	(__pgprot(pgprot_val(prot) | _PAGE_NO_CACHE | _PAGE_GUARDED))
 
 struct file;
-extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long addr,
+extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				     unsigned long size, pgprot_t vma_prot);
 #define __HAVE_PHYS_MEM_ACCESS_PROT
 

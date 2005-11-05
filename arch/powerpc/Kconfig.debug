@@ -1,0 +1,128 @@
+menu "Kernel hacking"
+
+source "lib/Kconfig.debug"
+
+config DEBUG_STACKOVERFLOW
+	bool "Check for stack overflows"
+	depends on DEBUG_KERNEL && PPC64
+	help
+	  This option will cause messages to be printed if free stack space
+	  drops below a certain limit.
+
+config KPROBES
+	bool "Kprobes"
+	depends on DEBUG_KERNEL && PPC64
+	help
+	  Kprobes allows you to trap at almost any kernel address and
+	  execute a callback function.  register_kprobe() establishes
+	  a probepoint and specifies the callback.  Kprobes is useful
+	  for kernel debugging, non-intrusive instrumentation and testing.
+	  If in doubt, say "N".
+
+config DEBUG_STACK_USAGE
+	bool "Stack utilization instrumentation"
+	depends on DEBUG_KERNEL && PPC64
+	help
+	  Enables the display of the minimum amount of free stack which each
+	  task has ever had available in the sysrq-T and sysrq-P debug output.
+
+	  This option will slow down process creation somewhat.
+
+config DEBUGGER
+	bool "Enable debugger hooks"
+	depends on DEBUG_KERNEL
+	help
+	  Include in-kernel hooks for kernel debuggers. Unless you are
+	  intending to debug the kernel, say N here.
+
+config KGDB
+	bool "Include kgdb kernel debugger"
+	depends on DEBUGGER && (BROKEN || PPC_GEN550 || 4xx)
+	select DEBUG_INFO
+	help
+	  Include in-kernel hooks for kgdb, the Linux kernel source level
+	  debugger.  See <http://kgdb.sourceforge.net/> for more information.
+	  Unless you are intending to debug the kernel, say N here.
+
+choice
+	prompt "Serial Port"
+	depends on KGDB
+	default KGDB_TTYS1
+
+config KGDB_TTYS0
+	bool "ttyS0"
+
+config KGDB_TTYS1
+	bool "ttyS1"
+
+config KGDB_TTYS2
+	bool "ttyS2"
+
+config KGDB_TTYS3
+	bool "ttyS3"
+
+endchoice
+
+config KGDB_CONSOLE
+	bool "Enable serial console thru kgdb port"
+	depends on KGDB && 8xx || CPM2
+	help
+	  If you enable this, all serial console messages will be sent
+	  over the gdb stub.
+	  If unsure, say N.
+
+config XMON
+	bool "Include xmon kernel debugger"
+	depends on DEBUGGER && !PPC_ISERIES
+	help
+	  Include in-kernel hooks for the xmon kernel monitor/debugger.
+	  Unless you are intending to debug the kernel, say N here.
+	  Make sure to enable also CONFIG_BOOTX_TEXT on Macs. Otherwise
+	  nothing will appear on the screen (xmon writes directly to the
+	  framebuffer memory).
+	  The cmdline option 'xmon' or 'xmon=early' will drop into xmon
+	  very early during boot. 'xmon=on' will just enable the xmon
+	  debugger hooks.  'xmon=off' will disable the debugger hooks
+	  if CONFIG_XMON_DEFAULT is set.
+
+config XMON_DEFAULT
+	bool "Enable xmon by default"
+	depends on XMON
+	help
+	  xmon is normally disabled unless booted with 'xmon=on'.
+	  Use 'xmon=off' to disable xmon init during runtime.
+
+config IRQSTACKS
+	bool "Use separate kernel stacks when processing interrupts"
+	depends on PPC64
+	help
+	  If you say Y here the kernel will use separate kernel stacks
+	  for handling hard and soft interrupts.  This can help avoid
+	  overflowing the process kernel stacks.
+
+config BDI_SWITCH
+	bool "Include BDI-2000 user context switcher"
+	depends on DEBUG_KERNEL && PPC32
+	help
+	  Include in-kernel support for the Abatron BDI2000 debugger.
+	  Unless you are intending to debug the kernel with one of these
+	  machines, say N here.
+
+config BOOTX_TEXT
+	bool "Support for early boot text console (BootX or OpenFirmware only)"
+	depends PPC_OF && !PPC_ISERIES
+	help
+	  Say Y here to see progress messages from the boot firmware in text
+	  mode. Requires either BootX or Open Firmware.
+
+config SERIAL_TEXT_DEBUG
+	bool "Support for early boot texts over serial port"
+	depends on 4xx || LOPEC || MV64X60 || PPLUS || PRPMC800 || \
+		PPC_GEN550 || PPC_MPC52xx
+
+config PPC_OCP
+	bool
+	depends on IBM_OCP || XILINX_OCP
+	default y
+
+endmenu

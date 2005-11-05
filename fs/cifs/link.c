@@ -198,7 +198,10 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 			     ("Create symlink worked but get_inode_info failed with rc = %d ",
 			      rc));
 		} else {
-			direntry->d_op = &cifs_dentry_ops;
+			if (pTcon->nocase)
+				direntry->d_op = &cifs_ci_dentry_ops;
+			else
+				direntry->d_op = &cifs_dentry_ops;
 			d_instantiate(direntry, newinode);
 		}
 	}

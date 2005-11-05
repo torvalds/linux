@@ -1,33 +1,19 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_CLNT_H__
 #define __XFS_CLNT_H__
@@ -55,6 +41,7 @@
  */
 struct xfs_mount_args {
 	int	flags;		/* flags -> see XFSMNT_... macros below */
+	int	flags2;		/* flags -> see XFSMNT2_... macros below */
 	int	logbufs;	/* Number of log buffers, -1 to default */
 	int	logbufsize;	/* Size of log buffers, -1 to default */
 	char	fsname[MAXNAMELEN+1];	/* data device name */
@@ -68,9 +55,9 @@ struct xfs_mount_args {
 };
 
 /*
- * XFS mount option flags
+ * XFS mount option flags -- args->flags1
  */
-#define	XFSMNT_CHKLOG		0x00000001	/* check log */
+#define	XFSMNT_COMPAT_ATTR	0x00000001	/* do not use ATTR2 format */
 #define	XFSMNT_WSYNC		0x00000002	/* safe mode nfs mount
 						 * compatible */
 #define	XFSMNT_INO64		0x00000004	/* move inode numbers up
@@ -91,7 +78,7 @@ struct xfs_mount_args {
 #define XFSMNT_SHARED		0x00001000	/* shared XFS mount */
 #define XFSMNT_IOSIZE		0x00002000	/* optimize for I/O size */
 #define XFSMNT_OSYNCISOSYNC	0x00004000	/* o_sync is REALLY o_sync */
-						/* (osyncisdsync is now default) */
+						/* (osyncisdsync is default) */
 #define XFSMNT_32BITINODES	0x00200000	/* restrict inodes to 32
 						 * bits of address space */
 #define XFSMNT_GQUOTA		0x00400000	/* group quota accounting */
@@ -99,12 +86,19 @@ struct xfs_mount_args {
 						 * enforcement */
 #define XFSMNT_NOUUID		0x01000000	/* Ignore fs uuid */
 #define XFSMNT_DMAPI		0x02000000	/* enable dmapi/xdsm */
-#define XFSMNT_NOLOGFLUSH	0x04000000	/* Don't flush for log blocks */
+#define XFSMNT_BARRIER		0x04000000	/* use write barriers */
 #define XFSMNT_IDELETE		0x08000000	/* inode cluster delete */
 #define XFSMNT_SWALLOC		0x10000000	/* turn on stripe width
 						 * allocation */
 #define XFSMNT_IHASHSIZE	0x20000000	/* inode hash table size */
 #define XFSMNT_DIRSYNC		0x40000000	/* sync creat,link,unlink,rename
 						 * symlink,mkdir,rmdir,mknod */
+#define XFSMNT_FLAGS2		0x80000000	/* more flags set in flags2 */
+
+/*
+ * XFS mount option flags -- args->flags2
+ */
+#define XFSMNT2_COMPAT_IOSIZE	0x00000001	/* don't report large preferred
+						 * I/O size in stat(2) */
 
 #endif	/* __XFS_CLNT_H__ */

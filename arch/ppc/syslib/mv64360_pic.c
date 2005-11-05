@@ -48,6 +48,7 @@
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/mv64x60.h>
+#include <asm/machdep.h>
 
 #ifdef CONFIG_IRQ_ALL_CPUS
 #error "The mv64360 does not support distribution of IRQs on all CPUs"

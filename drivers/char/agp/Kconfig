@@ -27,7 +27,7 @@ config AGP
 
 config AGP_ALI
 	tristate "ALI chipset support"
-	depends on AGP && X86 && !X86_64
+	depends on AGP && X86_32
 	---help---
 	  This option gives you AGP support for the GLX component of
 	  XFree86 4.x on the following ALi chipsets.  The supported chipsets
@@ -45,7 +45,7 @@ config AGP_ALI
 
 config AGP_ATI
 	tristate "ATI chipset support"
-	depends on AGP && X86 && !X86_64
+	depends on AGP && X86_32
 	---help---
       This option gives you AGP support for the GLX component of
       XFree86 4.x on the ATI RadeonIGP family of chipsets.
@@ -55,7 +55,7 @@ config AGP_ATI
 
 config AGP_AMD
 	tristate "AMD Irongate, 761, and 762 chipset support"
-	depends on AGP && X86 && !X86_64
+	depends on AGP && X86_32
 	help
 	  This option gives you AGP support for the GLX component of
 	  XFree86 4.x on AMD Irongate, 761, and 762 chipsets.
@@ -91,7 +91,7 @@ config AGP_INTEL
 
 config AGP_NVIDIA
 	tristate "NVIDIA nForce/nForce2 chipset support"
-	depends on AGP && X86 && !X86_64
+	depends on AGP && X86_32
 	help
 	  This option gives you AGP support for the GLX component of
 	  XFree86 4.x on the following NVIDIA chipsets.  The supported chipsets
@@ -99,7 +99,7 @@ config AGP_NVIDIA
 
 config AGP_SIS
 	tristate "SiS chipset support"
-	depends on AGP && X86 && !X86_64
+	depends on AGP && X86_32
 	help
 	  This option gives you AGP support for the GLX component of
 	  XFree86 4.x on Silicon Integrated Systems [SiS] chipsets.
@@ -111,14 +111,14 @@ config AGP_SIS
 
 config AGP_SWORKS
 	tristate "Serverworks LE/HE chipset support"
-	depends on AGP && X86 && !X86_64
+	depends on AGP && X86_32
 	help
 	  Say Y here to support the Serverworks AGP card.  See 
 	  <http://www.serverworks.com/> for product descriptions and images.
 
 config AGP_VIA
 	tristate "VIA chipset support"
-	depends on AGP && X86 && !X86_64
+	depends on AGP && X86_32
 	help
 	  This option gives you AGP support for the GLX component of
 	  XFree86 4.x on VIA MVP3/Apollo Pro chipsets.
@@ -154,7 +154,7 @@ config AGP_UNINORTH
 
 config AGP_EFFICEON
 	tristate "Transmeta Efficeon support"
-	depends on AGP && X86 && !X86_64
+	depends on AGP && X86_32
 	help
 	  This option gives you AGP support for the Transmeta Efficeon
 	  series processors with integrated northbridges.

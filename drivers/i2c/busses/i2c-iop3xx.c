@@ -11,7 +11,7 @@
  *
  * Copyright (C) 1995-1997 Simon G. Vogl, 1998-2000 Hans Berglund
  *  
- * And which acknowledged Kyösti Mälkki <kmalkki@cc.hut.fi>,
+ * And which acknowledged KyÃ¶sti MÃ¤lkki <kmalkki@cc.hut.fi>,
  * Frodo Looijaard <frodol@dds.nl>, Martin Bailey<mbailey@littlefeet-inc.com>
  *
  * Major cleanup by Deepak Saxena <dsaxena@plexity.net>, 01/2005:
@@ -35,7 +35,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/i2c.h>
 
 #include <asm/io.h>
@@ -184,7 +184,7 @@ iop3xx_i2c_wait_event(struct i2c_algo_iop3xx_data *iop3xx_adap,
 	do {
 		interrupted = wait_event_interruptible_timeout (
 			iop3xx_adap->waitq,
-			(done = compare( sr = iop3xx_i2c_get_srstat(iop3xx_adap)					,flags )),
+			(done = compare( sr = iop3xx_i2c_get_srstat(iop3xx_adap) ,flags )),
 			1 * HZ;
 			);
 		if ((rc = iop3xx_i2c_error(sr)) < 0) {
@@ -472,9 +472,10 @@ iop3xx_i2c_probe(struct device *dev)
 		goto release_region;
 	}
 
-	res = request_irq(platform_get_irq(pdev, 0), iop3xx_i2c_irq_handler, 0, 
+	ret = request_irq(platform_get_irq(pdev, 0), iop3xx_i2c_irq_handler, 0,
 				pdev->name, adapter_data);
-	if (res) {
+
+	if (ret) {
 		ret = -EIO;
 		goto unmap;
 	}

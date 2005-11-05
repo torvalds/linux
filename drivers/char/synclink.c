@@ -912,6 +912,7 @@ MODULE_DEVICE_TABLE(pci, synclink_pci_tbl);
 MODULE_LICENSE("GPL");
 
 static struct pci_driver synclink_pci_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "synclink",
 	.id_table	= synclink_pci_tbl,
 	.probe		= synclink_init_one,

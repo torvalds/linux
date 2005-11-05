@@ -1077,8 +1077,8 @@ static int irix_core_dump(long signr, struct pt_regs * regs, struct file *file)
 	struct elfhdr elf;
 	off_t offset = 0, dataoff;
 	int limit = current->signal->rlim[RLIMIT_CORE].rlim_cur;
-	int numnote = 4;
-	struct memelfnote notes[4];
+	int numnote = 3;
+	struct memelfnote notes[3];
 	struct elf_prstatus prstatus;	/* NT_PRSTATUS */
 	elf_fpregset_t fpu;		/* NT_PRFPREG */
 	struct elf_prpsinfo psinfo;	/* NT_PRPSINFO */
@@ -1211,20 +1211,15 @@ static int irix_core_dump(long signr, struct pt_regs * regs, struct file *file)
 	}
 	strlcpy(psinfo.pr_fname, current->comm, sizeof(psinfo.pr_fname));
 
-	notes[2].name = "CORE";
-	notes[2].type = NT_TASKSTRUCT;
-	notes[2].datasz = sizeof(*current);
-	notes[2].data = current;
-
 	/* Try to dump the FPU. */
 	prstatus.pr_fpvalid = dump_fpu (regs, &fpu);
 	if (!prstatus.pr_fpvalid) {
 		numnote--;
 	} else {
-		notes[3].name = "CORE";
-		notes[3].type = NT_PRFPREG;
-		notes[3].datasz = sizeof(fpu);
-		notes[3].data = &fpu;
+		notes[2].name = "CORE";
+		notes[2].type = NT_PRFPREG;
+		notes[2].datasz = sizeof(fpu);
+		notes[2].data = &fpu;
 	}
 
 	/* Write notes phdr entry. */

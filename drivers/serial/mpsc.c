@@ -52,6 +52,8 @@
  * 4) AFAICT, hardware flow control isn't supported by the controller --MAG.
  */
 
+#include <linux/platform_device.h>
+
 #include "mpsc.h"
 
 /*
@@ -1100,6 +1102,8 @@ mpsc_start_rx(struct mpsc_port_info *pi)
 {
 	pr_debug("mpsc_start_rx[%d]: Starting...\n", pi->port.line);
 
+	/* Issue a Receive Abort to clear any receive errors */
+	writel(MPSC_CHR_2_RA, pi->mpsc_base + MPSC_CHR_2);
 	if (pi->rcv_data) {
 		mpsc_enter_hunt(pi);
 		mpsc_sdma_cmd(pi, SDMA_SDCM_ERD);

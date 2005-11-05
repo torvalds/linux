@@ -1,5 +1,5 @@
 /**
- * \file drm_dma.h 
+ * \file drm_dma.c
  * DMA IOCTL and function support
  *
  * \author Rickard E. (Rik) Faith <faith@valinux.com>
@@ -37,23 +37,23 @@
 
 /**
  * Initialize the DMA data.
- * 
+ *
  * \param dev DRM device.
  * \return zero on success or a negative value on failure.
  *
  * Allocate and initialize a drm_device_dma structure.
  */
-int drm_dma_setup( drm_device_t *dev )
+int drm_dma_setup(drm_device_t * dev)
 {
 	int i;
 
-	dev->dma = drm_alloc( sizeof(*dev->dma), DRM_MEM_DRIVER );
-	if ( !dev->dma )
+	dev->dma = drm_alloc(sizeof(*dev->dma), DRM_MEM_DRIVER);
+	if (!dev->dma)
 		return -ENOMEM;
 
-	memset( dev->dma, 0, sizeof(*dev->dma) );
+	memset(dev->dma, 0, sizeof(*dev->dma));
 
-	for ( i = 0 ; i <= DRM_MAX_ORDER ; i++ )
+	for (i = 0; i <= DRM_MAX_ORDER; i++)
 		memset(&dev->dma->bufs[i], 0, sizeof(dev->dma->bufs[0]));
 
 	return 0;
@@ -67,14 +67,15 @@ int drm_dma_setup( drm_device_t *dev )
  * Free all pages associated with DMA buffers, the buffers and pages lists, and
  * finally the the drm_device::dma structure itself.
  */
-void drm_dma_takedown(drm_device_t *dev)
+void drm_dma_takedown(drm_device_t * dev)
 {
-	drm_device_dma_t  *dma = dev->dma;
-	int		  i, j;
+	drm_device_dma_t *dma = dev->dma;
+	int i, j;
 
-	if (!dma) return;
+	if (!dma)
+		return;
 
-				/* Clear dma buffers */
+	/* Clear dma buffers */
 	for (i = 0; i <= DRM_MAX_ORDER; i++) {
 		if (dma->bufs[i].seg_count) {
 			DRM_DEBUG("order %d: buf_count = %d,"
@@ -85,64 +86,63 @@ void drm_dma_takedown(drm_device_t *dev)
 			for (j = 0; j < dma->bufs[i].seg_count; j++) {
 				if (dma->bufs[i].seglist[j]) {
 					drm_free_pages(dma->bufs[i].seglist[j],
-							dma->bufs[i].page_order,
-							DRM_MEM_DMA);
+						       dma->bufs[i].page_order,
+						       DRM_MEM_DMA);
 				}
 			}
 			drm_free(dma->bufs[i].seglist,
-				  dma->bufs[i].seg_count
-				  * sizeof(*dma->bufs[0].seglist),
-				  DRM_MEM_SEGS);
+				 dma->bufs[i].seg_count
+				 * sizeof(*dma->bufs[0].seglist), DRM_MEM_SEGS);
 		}
-	   	if (dma->bufs[i].buf_count) {
-		   	for (j = 0; j < dma->bufs[i].buf_count; j++) {
+		if (dma->bufs[i].buf_count) {
+			for (j = 0; j < dma->bufs[i].buf_count; j++) {
 				if (dma->bufs[i].buflist[j].dev_private) {
-					drm_free(dma->bufs[i].buflist[j].dev_private,
-						  dma->bufs[i].buflist[j].dev_priv_size,
-						  DRM_MEM_BUFS);
+					drm_free(dma->bufs[i].buflist[j].
+						 dev_private,
+						 dma->bufs[i].buflist[j].
+						 dev_priv_size, DRM_MEM_BUFS);
 				}
 			}
-		   	drm_free(dma->bufs[i].buflist,
-				  dma->bufs[i].buf_count *
-				  sizeof(*dma->bufs[0].buflist),
-				  DRM_MEM_BUFS);
+			drm_free(dma->bufs[i].buflist,
+				 dma->bufs[i].buf_count *
+				 sizeof(*dma->bufs[0].buflist), DRM_MEM_BUFS);
 		}
 	}
 
 	if (dma->buflist) {
 		drm_free(dma->buflist,
-			  dma->buf_count * sizeof(*dma->buflist),
-			  DRM_MEM_BUFS);
+			 dma->buf_count * sizeof(*dma->buflist), DRM_MEM_BUFS);
 	}
 
 	if (dma->pagelist) {
 		drm_free(dma->pagelist,
-			  dma->page_count * sizeof(*dma->pagelist),
-			  DRM_MEM_PAGES);
+			 dma->page_count * sizeof(*dma->pagelist),
+			 DRM_MEM_PAGES);
 	}
 	drm_free(dev->dma, sizeof(*dev->dma), DRM_MEM_DRIVER);
 	dev->dma = NULL;
 }
-
 
 /**
  * Free a buffer.
  *
  * \param dev DRM device.
  * \param buf buffer to free.
- * 
+ *
  * Resets the fields of \p buf.
  */
-void drm_free_buffer(drm_device_t *dev, drm_buf_t *buf)
+void drm_free_buffer(drm_device_t * dev, drm_buf_t * buf)
 {
-	if (!buf) return;
+	if (!buf)
+		return;
 
-	buf->waiting  = 0;
-	buf->pending  = 0;
-	buf->filp     = NULL;
-	buf->used     = 0;
+	buf->waiting = 0;
+	buf->pending = 0;
+	buf->filp = NULL;
+	buf->used = 0;
 
-	if (drm_core_check_feature(dev, DRIVER_DMA_QUEUE) && waitqueue_active(&buf->dma_wait)) {
+	if (drm_core_check_feature(dev, DRIVER_DMA_QUEUE)
+	    && waitqueue_active(&buf->dma_wait)) {
 		wake_up_interruptible(&buf->dma_wait);
 	}
 }
@@ -154,12 +154,13 @@ void drm_free_buffer(drm_device_t *dev, drm_buf_t *buf)
  *
  * Frees each buffer associated with \p filp not already on the hardware.
  */
-void drm_core_reclaim_buffers(drm_device_t *dev, struct file *filp)
+void drm_core_reclaim_buffers(drm_device_t * dev, struct file *filp)
 {
 	drm_device_dma_t *dma = dev->dma;
-	int		 i;
+	int i;
 
-	if (!dma) return;
+	if (!dma)
+		return;
 	for (i = 0; i < dma->buf_count; i++) {
 		if (dma->buflist[i]->filp == filp) {
 			switch (dma->buflist[i]->list) {
@@ -176,5 +177,5 @@ void drm_core_reclaim_buffers(drm_device_t *dev, struct file *filp)
 		}
 	}
 }
-EXPORT_SYMBOL(drm_core_reclaim_buffers);
 
+EXPORT_SYMBOL(drm_core_reclaim_buffers);

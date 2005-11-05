@@ -167,6 +167,8 @@ static int enter_state(suspend_state_t state)
 {
 	int error;
 
+	if (pm_ops->valid && !pm_ops->valid(state))
+		return -ENODEV;
 	if (down_trylock(&pm_sem))
 		return -EBUSY;
 
@@ -236,7 +238,8 @@ static ssize_t state_show(struct subsystem * subsys, char * buf)
 	char * s = buf;
 
 	for (i = 0; i < PM_SUSPEND_MAX; i++) {
-		if (pm_states[i])
+		if (pm_states[i] && pm_ops && (!pm_ops->valid
+			||(pm_ops->valid && pm_ops->valid(i))))
 			s += sprintf(s,"%s ",pm_states[i]);
 	}
 	s += sprintf(s,"\n");

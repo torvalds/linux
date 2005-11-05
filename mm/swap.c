@@ -259,6 +259,8 @@ void __pagevec_release(struct pagevec *pvec)
 	pagevec_reinit(pvec);
 }
 
+EXPORT_SYMBOL(__pagevec_release);
+
 /*
  * pagevec_release() for pages which are known to not be on the LRU
  *
@@ -270,7 +272,6 @@ void __pagevec_release_nonlru(struct pagevec *pvec)
 	struct pagevec pages_to_free;
 
 	pagevec_init(&pages_to_free, pvec->cold);
-	pages_to_free.cold = pvec->cold;
 	for (i = 0; i < pagevec_count(pvec); i++) {
 		struct page *page = pvec->pages[i];
 
@@ -388,6 +389,7 @@ unsigned pagevec_lookup_tag(struct pagevec *pvec, struct address_space *mapping,
 	return pagevec_count(pvec);
 }
 
+EXPORT_SYMBOL(pagevec_lookup_tag);
 
 #ifdef CONFIG_SMP
 /*

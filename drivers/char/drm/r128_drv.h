@@ -52,14 +52,13 @@
 #define DRIVER_MINOR		5
 #define DRIVER_PATCHLEVEL	0
 
-
 #define GET_RING_HEAD(dev_priv)		R128_READ( R128_PM4_BUFFER_DL_RPTR )
 
 typedef struct drm_r128_freelist {
-   	unsigned int age;
-   	drm_buf_t *buf;
-   	struct drm_r128_freelist *next;
-   	struct drm_r128_freelist *prev;
+	unsigned int age;
+	drm_buf_t *buf;
+	struct drm_r128_freelist *next;
+	struct drm_r128_freelist *prev;
 } drm_r128_freelist_t;
 
 typedef struct drm_r128_ring_buffer {
@@ -83,13 +82,11 @@ typedef struct drm_r128_private {
 	int cce_fifo_size;
 	int cce_running;
 
-   	drm_r128_freelist_t *head;
-   	drm_r128_freelist_t *tail;
+	drm_r128_freelist_t *head;
+	drm_r128_freelist_t *tail;
 
 	int usec_timeout;
 	int is_pci;
-	unsigned long phys_pci_gart;
-	dma_addr_t bus_pci_gart;
 	unsigned long cce_buffers_offset;
 
 	atomic_t idle_count;
@@ -120,6 +117,7 @@ typedef struct drm_r128_private {
 	drm_local_map_t *cce_ring;
 	drm_local_map_t *ring_rptr;
 	drm_local_map_t *agp_textures;
+	drm_ati_pcigart_info gart_info;
 } drm_r128_private_t;
 
 typedef struct drm_r128_buf_priv {
@@ -127,34 +125,37 @@ typedef struct drm_r128_buf_priv {
 	int prim;
 	int discard;
 	int dispatched;
-   	drm_r128_freelist_t *list_entry;
+	drm_r128_freelist_t *list_entry;
 } drm_r128_buf_priv_t;
 
+extern drm_ioctl_desc_t r128_ioctls[];
+extern int r128_max_ioctl;
+
 				/* r128_cce.c */
-extern int r128_cce_init( DRM_IOCTL_ARGS );
-extern int r128_cce_start( DRM_IOCTL_ARGS );
-extern int r128_cce_stop( DRM_IOCTL_ARGS );
-extern int r128_cce_reset( DRM_IOCTL_ARGS );
-extern int r128_cce_idle( DRM_IOCTL_ARGS );
-extern int r128_engine_reset( DRM_IOCTL_ARGS );
-extern int r128_fullscreen( DRM_IOCTL_ARGS );
-extern int r128_cce_buffers( DRM_IOCTL_ARGS );
+extern int r128_cce_init(DRM_IOCTL_ARGS);
+extern int r128_cce_start(DRM_IOCTL_ARGS);
+extern int r128_cce_stop(DRM_IOCTL_ARGS);
+extern int r128_cce_reset(DRM_IOCTL_ARGS);
+extern int r128_cce_idle(DRM_IOCTL_ARGS);
+extern int r128_engine_reset(DRM_IOCTL_ARGS);
+extern int r128_fullscreen(DRM_IOCTL_ARGS);
+extern int r128_cce_buffers(DRM_IOCTL_ARGS);
 
-extern void r128_freelist_reset( drm_device_t *dev );
+extern void r128_freelist_reset(drm_device_t * dev);
 
-extern int r128_wait_ring( drm_r128_private_t *dev_priv, int n );
+extern int r128_wait_ring(drm_r128_private_t * dev_priv, int n);
 
-extern int r128_do_cce_idle( drm_r128_private_t *dev_priv );
-extern int r128_do_cleanup_cce( drm_device_t *dev );
+extern int r128_do_cce_idle(drm_r128_private_t * dev_priv);
+extern int r128_do_cleanup_cce(drm_device_t * dev);
 
-extern int r128_driver_vblank_wait(drm_device_t *dev, unsigned int *sequence);
+extern int r128_driver_vblank_wait(drm_device_t * dev, unsigned int *sequence);
 
-extern irqreturn_t r128_driver_irq_handler( DRM_IRQ_ARGS );
-extern void r128_driver_irq_preinstall( drm_device_t *dev );
-extern void r128_driver_irq_postinstall( drm_device_t *dev );
-extern void r128_driver_irq_uninstall( drm_device_t *dev );
-extern void r128_driver_pretakedown(drm_device_t *dev);
-extern void r128_driver_prerelease(drm_device_t *dev, DRMFILE filp);
+extern irqreturn_t r128_driver_irq_handler(DRM_IRQ_ARGS);
+extern void r128_driver_irq_preinstall(drm_device_t * dev);
+extern void r128_driver_irq_postinstall(drm_device_t * dev);
+extern void r128_driver_irq_uninstall(drm_device_t * dev);
+extern void r128_driver_pretakedown(drm_device_t * dev);
+extern void r128_driver_prerelease(drm_device_t * dev, DRMFILE filp);
 
 extern long r128_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
@@ -266,7 +267,6 @@ extern long r128_compat_ioctl(struct file *filp, unsigned int cmd,
 #	define R128_EVENT_CRTC_OFFSET		(1 << 0)
 #define R128_WINDOW_XY_OFFSET		0x1bcc
 
-
 /* CCE registers
  */
 #define R128_PM4_BUFFER_OFFSET		0x0700
@@ -316,7 +316,6 @@ extern long r128_compat_ioctl(struct file *filp, unsigned int cmd,
 
 #define R128_PM4_FIFO_DATA_EVEN		0x1000
 #define R128_PM4_FIFO_DATA_ODD		0x1004
-
 
 /* CCE command packets
  */
@@ -395,7 +394,6 @@ do {									\
 	R128_WRITE(R128_CLOCK_CNTL_DATA, (val));			\
 } while (0)
 
-
 #define CCE_PACKET0( reg, n )		(R128_CCE_PACKET0 |		\
 					 ((n) << 16) | ((reg) >> 2))
 #define CCE_PACKET1( reg0, reg1 )	(R128_CCE_PACKET1 |		\
@@ -404,13 +402,11 @@ do {									\
 #define CCE_PACKET3( pkt, n )		(R128_CCE_PACKET3 |		\
 					 (pkt) | ((n) << 16))
 
-
-static __inline__ void
-r128_update_ring_snapshot( drm_r128_private_t *dev_priv )
+static __inline__ void r128_update_ring_snapshot(drm_r128_private_t * dev_priv)
 {
 	drm_r128_ring_buffer_t *ring = &dev_priv->ring;
-	ring->space = (GET_RING_HEAD( dev_priv ) - ring->tail) * sizeof(u32);
-	if ( ring->space <= 0 )
+	ring->space = (GET_RING_HEAD(dev_priv) - ring->tail) * sizeof(u32);
+	if (ring->space <= 0)
 		ring->space += ring->size;
 }
 
@@ -450,7 +446,6 @@ do {									\
 	OUT_RING( CCE_PACKET0( R128_WAIT_UNTIL, 0 ) );			\
 	OUT_RING( R128_EVENT_CRTC_OFFSET );				\
 } while (0)
-
 
 /* ================================================================
  * Ring control
@@ -521,4 +516,4 @@ do {									\
 	write &= tail_mask;						\
 } while (0)
 
-#endif /* __R128_DRV_H__ */
+#endif				/* __R128_DRV_H__ */

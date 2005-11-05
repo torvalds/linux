@@ -22,6 +22,7 @@
 #include <linux/irq.h>
 #include <linux/ide.h>
 #include <linux/seq_file.h>
+#include <linux/platform_device.h>
 
 #include <linux/initrd.h>
 #include <linux/root_dev.h>
@@ -609,11 +610,6 @@ static void parse_bootinfo(unsigned long r3,
 }
 
 #if defined(CONFIG_BLK_DEV_IDE) || defined(CONFIG_BLK_DEV_IDE_MODULE)
-static int hdpu_ide_check_region(ide_ioreg_t from, unsigned int extent)
-{
-	return check_region(from, extent);
-}
-
 static void
 hdpu_ide_request_region(ide_ioreg_t from, unsigned int extent, const char *name)
 {
@@ -753,7 +749,7 @@ static int smp_hdpu_probe(void)
 }
 
 static void
-smp_hdpu_message_pass(int target, int msg, unsigned long data, int wait)
+smp_hdpu_message_pass(int target, int msg)
 {
 	if (msg > 0x3) {
 		printk("SMP %d: smp_message_pass: unknown msg %d\n",
@@ -949,7 +945,7 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #endif				/* CONFIG_SERIAL_TEXT_DEBUG */
 
 #ifdef CONFIG_SMP
-	ppc_md.smp_ops = &hdpu_smp_ops;
+	smp_ops = &hdpu_smp_ops;
 #endif				/* CONFIG_SMP */
 
 #if defined(CONFIG_SERIAL_MPSC) || defined(CONFIG_MV643XX_ETH)

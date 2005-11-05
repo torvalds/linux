@@ -17,6 +17,7 @@
 
 #include <linux/config.h>
 #include <linux/device.h>
+#include <linux/sched.h>	/* task_struct, completion */
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>

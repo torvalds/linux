@@ -19,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/mv643xx.h>
+#include <linux/platform_device.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -1304,7 +1305,7 @@ mv64x60_config_pci_params(struct pci_controller *hose,
 	early_write_config_word(hose, 0, devfn, PCI_COMMAND, u16_val);
 
 	/* Set latency timer, cache line size, clear BIST */
-	u16_val = (pi->latency_timer << 8) | (L1_CACHE_LINE_SIZE >> 2);
+	u16_val = (pi->latency_timer << 8) | (L1_CACHE_BYTES >> 2);
 	early_write_config_word(hose, 0, devfn, PCI_CACHE_LINE_SIZE, u16_val);
 
 	mv64x60_pci_exclude_bridge = save_exclude;

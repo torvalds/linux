@@ -1,5 +1,5 @@
 /*
- * arch/arm/mach-ixp2000/common.c
+ * arch/arm/mach-ixp2000/core.c
  *
  * Common routines used by all IXP2400/2800 based platforms.
  *
@@ -49,7 +49,6 @@ static unsigned long ixp2000_slowport_irq_flags;
  *************************************************************************/
 void ixp2000_acquire_slowport(struct slowport_cfg *new_cfg, struct slowport_cfg *old_cfg)
 {
-
 	spin_lock_irqsave(&ixp2000_slowport_lock, ixp2000_slowport_irq_flags);
 
 	old_cfg->CCR = *IXP2000_SLOWPORT_CCR;
@@ -62,7 +61,7 @@ void ixp2000_acquire_slowport(struct slowport_cfg *new_cfg, struct slowport_cfg 
 	ixp2000_reg_write(IXP2000_SLOWPORT_WTC2, new_cfg->WTC);
 	ixp2000_reg_write(IXP2000_SLOWPORT_RTC2, new_cfg->RTC);
 	ixp2000_reg_write(IXP2000_SLOWPORT_PCR, new_cfg->PCR);
-	ixp2000_reg_write(IXP2000_SLOWPORT_ADC, new_cfg->ADC);
+	ixp2000_reg_wrb(IXP2000_SLOWPORT_ADC, new_cfg->ADC);
 }
 
 void ixp2000_release_slowport(struct slowport_cfg *old_cfg)
@@ -71,7 +70,7 @@ void ixp2000_release_slowport(struct slowport_cfg *old_cfg)
 	ixp2000_reg_write(IXP2000_SLOWPORT_WTC2, old_cfg->WTC);
 	ixp2000_reg_write(IXP2000_SLOWPORT_RTC2, old_cfg->RTC);
 	ixp2000_reg_write(IXP2000_SLOWPORT_PCR, old_cfg->PCR);
-	ixp2000_reg_write(IXP2000_SLOWPORT_ADC, old_cfg->ADC);
+	ixp2000_reg_wrb(IXP2000_SLOWPORT_ADC, old_cfg->ADC);
 
 	spin_unlock_irqrestore(&ixp2000_slowport_lock, 
 					ixp2000_slowport_irq_flags);
@@ -145,7 +144,7 @@ void __init ixp2000_map_io(void)
 	iotable_init(ixp2000_io_desc, ARRAY_SIZE(ixp2000_io_desc));
 
 	/* Set slowport to 8-bit mode.  */
-	ixp2000_reg_write(IXP2000_SLOWPORT_FRM, 1);
+	ixp2000_reg_wrb(IXP2000_SLOWPORT_FRM, 1);
 }
 
 
@@ -209,7 +208,7 @@ static int ixp2000_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	write_seqlock(&xtime_lock);
 
 	/* clear timer 1 */
-	ixp2000_reg_write(IXP2000_T1_CLR, 1);
+	ixp2000_reg_wrb(IXP2000_T1_CLR, 1);
 
 	while ((next_jiffy_time - *missing_jiffy_timer_csr) > ticks_per_jiffy) {
 		timer_tick(regs);
@@ -252,12 +251,12 @@ void __init ixp2000_init_time(unsigned long tick_rate)
 
 		ixp2000_reg_write(IXP2000_T4_CLR, 0);
 		ixp2000_reg_write(IXP2000_T4_CLD, -1);
-		ixp2000_reg_write(IXP2000_T4_CTL, (1 << 7));
+		ixp2000_reg_wrb(IXP2000_T4_CTL, (1 << 7));
 		missing_jiffy_timer_csr = IXP2000_T4_CSR;
 	} else {
 		ixp2000_reg_write(IXP2000_T2_CLR, 0);
 		ixp2000_reg_write(IXP2000_T2_CLD, -1);
-		ixp2000_reg_write(IXP2000_T2_CTL, (1 << 7));
+		ixp2000_reg_wrb(IXP2000_T2_CTL, (1 << 7));
 		missing_jiffy_timer_csr = IXP2000_T2_CSR;
 	}
  	next_jiffy_time = 0xffffffff;
@@ -279,7 +278,7 @@ static void update_gpio_int_csrs(void)
 	ixp2000_reg_write(IXP2000_GPIO_FEDR, GPIO_IRQ_falling_edge);
 	ixp2000_reg_write(IXP2000_GPIO_REDR, GPIO_IRQ_rising_edge);
 	ixp2000_reg_write(IXP2000_GPIO_LSLR, GPIO_IRQ_level_low);
-	ixp2000_reg_write(IXP2000_GPIO_LSHR, GPIO_IRQ_level_high);
+	ixp2000_reg_wrb(IXP2000_GPIO_LSHR, GPIO_IRQ_level_high);
 }
 
 void gpio_line_config(int line, int direction)
@@ -297,9 +296,9 @@ void gpio_line_config(int line, int direction)
 		GPIO_IRQ_level_high &= ~(1 << line);
 		update_gpio_int_csrs();
 
-		ixp2000_reg_write(IXP2000_GPIO_PDSR, 1 << line);
+		ixp2000_reg_wrb(IXP2000_GPIO_PDSR, 1 << line);
 	} else if (direction == GPIO_IN) {
-		ixp2000_reg_write(IXP2000_GPIO_PDCR, 1 << line);
+		ixp2000_reg_wrb(IXP2000_GPIO_PDCR, 1 << line);
 	}
 	local_irq_restore(flags);
 }
@@ -365,12 +364,12 @@ static void ixp2000_GPIO_irq_mask_ack(unsigned int irq)
 
 	ixp2000_reg_write(IXP2000_GPIO_EDSR, (1 << (irq - IRQ_IXP2000_GPIO0)));
 	ixp2000_reg_write(IXP2000_GPIO_LDSR, (1 << (irq - IRQ_IXP2000_GPIO0)));
-	ixp2000_reg_write(IXP2000_GPIO_INST, (1 << (irq - IRQ_IXP2000_GPIO0)));
+	ixp2000_reg_wrb(IXP2000_GPIO_INST, (1 << (irq - IRQ_IXP2000_GPIO0)));
 }
 
 static void ixp2000_GPIO_irq_mask(unsigned int irq)
 {
-	ixp2000_reg_write(IXP2000_GPIO_INCR, (1 << (irq - IRQ_IXP2000_GPIO0)));
+	ixp2000_reg_wrb(IXP2000_GPIO_INCR, (1 << (irq - IRQ_IXP2000_GPIO0)));
 }
 
 static void ixp2000_GPIO_irq_unmask(unsigned int irq)
@@ -389,9 +388,9 @@ static void ixp2000_pci_irq_mask(unsigned int irq)
 {
 	unsigned long temp = *IXP2000_PCI_XSCALE_INT_ENABLE;
 	if (irq == IRQ_IXP2000_PCIA)
-		ixp2000_reg_write(IXP2000_PCI_XSCALE_INT_ENABLE, (temp & ~(1 << 26)));
+		ixp2000_reg_wrb(IXP2000_PCI_XSCALE_INT_ENABLE, (temp & ~(1 << 26)));
 	else if (irq == IRQ_IXP2000_PCIB)
-		ixp2000_reg_write(IXP2000_PCI_XSCALE_INT_ENABLE, (temp & ~(1 << 27)));
+		ixp2000_reg_wrb(IXP2000_PCI_XSCALE_INT_ENABLE, (temp & ~(1 << 27)));
 }
 
 static void ixp2000_pci_irq_unmask(unsigned int irq)
@@ -403,6 +402,40 @@ static void ixp2000_pci_irq_unmask(unsigned int irq)
 		ixp2000_reg_write(IXP2000_PCI_XSCALE_INT_ENABLE, (temp | (1 << 27)));
 }
 
+/*
+ * Error interrupts. These are used extensively by the microengine drivers
+ */
+static void ixp2000_err_irq_handler(unsigned int irq, struct irqdesc *desc,  struct pt_regs *regs)
+{
+	int i;
+	unsigned long status = *IXP2000_IRQ_ERR_STATUS;
+
+	for(i = 31; i >= 0; i--) {
+		if(status & (1 << i)) {
+			desc = irq_desc + IRQ_IXP2000_DRAM0_MIN_ERR + i;
+			desc->handle(IRQ_IXP2000_DRAM0_MIN_ERR + i, desc, regs);
+		}
+	}
+}
+
+static void ixp2000_err_irq_mask(unsigned int irq)
+{
+	ixp2000_reg_write(IXP2000_IRQ_ERR_ENABLE_CLR,
+			(1 << (irq - IRQ_IXP2000_DRAM0_MIN_ERR)));
+}
+
+static void ixp2000_err_irq_unmask(unsigned int irq)
+{
+	ixp2000_reg_write(IXP2000_IRQ_ERR_ENABLE_SET,
+			(1 << (irq - IRQ_IXP2000_DRAM0_MIN_ERR)));
+}
+
+static struct irqchip ixp2000_err_irq_chip = {
+	.ack	= ixp2000_err_irq_mask,
+	.mask	= ixp2000_err_irq_mask,
+	.unmask	= ixp2000_err_irq_unmask
+};
+
 static struct irqchip ixp2000_pci_irq_chip = {
 	.ack	= ixp2000_pci_irq_mask,
 	.mask	= ixp2000_pci_irq_mask,
@@ -411,7 +444,7 @@ static struct irqchip ixp2000_pci_irq_chip = {
 
 static void ixp2000_irq_mask(unsigned int irq)
 {
-	ixp2000_reg_write(IXP2000_IRQ_ENABLE_CLR, (1 << irq));
+	ixp2000_reg_wrb(IXP2000_IRQ_ENABLE_CLR, (1 << irq));
 }
 
 static void ixp2000_irq_unmask(unsigned int irq)
@@ -443,7 +476,7 @@ void __init ixp2000_init_irq(void)
 	ixp2000_reg_write(IXP2000_GPIO_INCR, -1);
 
 	/* clear PCI interrupt sources */
-	ixp2000_reg_write(IXP2000_PCI_XSCALE_INT_ENABLE, 0);
+	ixp2000_reg_wrb(IXP2000_PCI_XSCALE_INT_ENABLE, 0);
 
 	/*
 	 * Certain bits in the IRQ status register of the 
@@ -459,6 +492,18 @@ void __init ixp2000_init_irq(void)
 			set_irq_flags(irq, IRQF_VALID);
 		} else set_irq_flags(irq, 0);
 	}
+
+	for (irq = IRQ_IXP2000_DRAM0_MIN_ERR; irq <= IRQ_IXP2000_SP_INT; irq++) {
+		if((1 << (irq - IRQ_IXP2000_DRAM0_MIN_ERR)) &
+				IXP2000_VALID_ERR_IRQ_MASK) {
+			set_irq_chip(irq, &ixp2000_err_irq_chip);
+			set_irq_handler(irq, do_level_IRQ);
+			set_irq_flags(irq, IRQF_VALID);
+		}
+		else
+			set_irq_flags(irq, 0);
+	}
+	set_irq_chained_handler(IRQ_IXP2000_ERRSUM, ixp2000_err_irq_handler);
 
 	/*
 	 * GPIO IRQs are invalid until someone sets the interrupt mode

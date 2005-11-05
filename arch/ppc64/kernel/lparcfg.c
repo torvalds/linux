@@ -26,14 +26,14 @@
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <asm/uaccess.h>
-#include <asm/iSeries/HvLpConfig.h>
+#include <asm/iseries/hv_lp_config.h>
 #include <asm/lppaca.h>
 #include <asm/hvcall.h>
 #include <asm/firmware.h>
 #include <asm/rtas.h>
 #include <asm/system.h>
 #include <asm/time.h>
-#include <asm/iSeries/ItExtVpdPanel.h>
+#include <asm/iseries/it_exp_vpd_panel.h>
 #include <asm/prom.h>
 
 #define MODULE_VERS "1.6"

@@ -2163,7 +2163,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	/* Step 5: netlink notification of this interface */
 	idev->tstamp = jiffies;
-	inet6_ifinfo_notify(RTM_NEWLINK, idev);
+	inet6_ifinfo_notify(RTM_DELLINK, idev);
 	
 	/* Shot the device (if unregistered) */
 

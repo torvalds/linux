@@ -44,7 +44,7 @@ void mach_reboot_fixups(void)
 
 	for (i=0; i < (sizeof(fixups_table)/sizeof(fixups_table[0])); i++) {
 		cur = &(fixups_table[i]);
-		dev = pci_get_device(cur->vendor, cur->device, 0);
+		dev = pci_get_device(cur->vendor, cur->device, NULL);
 		if (!dev)
 			continue;
 

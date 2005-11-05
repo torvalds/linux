@@ -130,7 +130,7 @@ static int fs_enet_rx_napi(struct net_device *dev, int *budget)
 
 			skb = fep->rx_skbuff[curidx];
 
-			dma_unmap_single(fep->dev, skb->data,
+			dma_unmap_single(fep->dev, CBDR_BUFADDR(bdp),
 				L1_CACHE_ALIGN(PKT_MAXBUF_SIZE),
 				DMA_FROM_DEVICE);
 
@@ -144,7 +144,7 @@ static int fs_enet_rx_napi(struct net_device *dev, int *budget)
 
 			skb = fep->rx_skbuff[curidx];
 
-			dma_unmap_single(fep->dev, skb->data,
+			dma_unmap_single(fep->dev, CBDR_BUFADDR(bdp),
 				L1_CACHE_ALIGN(PKT_MAXBUF_SIZE),
 				DMA_FROM_DEVICE);
 
@@ -268,7 +268,7 @@ static int fs_enet_rx_non_napi(struct net_device *dev)
 
 			skb = fep->rx_skbuff[curidx];
 
-			dma_unmap_single(fep->dev, skb->data,
+			dma_unmap_single(fep->dev, CBDR_BUFADDR(bdp),
 				L1_CACHE_ALIGN(PKT_MAXBUF_SIZE),
 				DMA_FROM_DEVICE);
 
@@ -278,7 +278,7 @@ static int fs_enet_rx_non_napi(struct net_device *dev)
 
 			skb = fep->rx_skbuff[curidx];
 
-			dma_unmap_single(fep->dev, skb->data,
+			dma_unmap_single(fep->dev, CBDR_BUFADDR(bdp),
 				L1_CACHE_ALIGN(PKT_MAXBUF_SIZE),
 				DMA_FROM_DEVICE);
 
@@ -399,7 +399,8 @@ static void fs_enet_tx(struct net_device *dev)
 			fep->stats.collisions++;
 
 		/* unmap */
-		dma_unmap_single(fep->dev, skb->data, skb->len, DMA_TO_DEVICE);
+		dma_unmap_single(fep->dev, CBDR_BUFADDR(bdp),
+				skb->len, DMA_TO_DEVICE);
 
 		/*
 		 * Free the sk buffer associated with this last transmit. 
@@ -547,17 +548,19 @@ void fs_cleanup_bds(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 	struct sk_buff *skb;
+	cbd_t *bdp;
 	int i;
 
 	/*
 	 * Reset SKB transmit buffers.  
 	 */
-	for (i = 0; i < fep->tx_ring; i++) {
+	for (i = 0, bdp = fep->tx_bd_base; i < fep->tx_ring; i++, bdp++) {
 		if ((skb = fep->tx_skbuff[i]) == NULL)
 			continue;
 
 		/* unmap */
-		dma_unmap_single(fep->dev, skb->data, skb->len, DMA_TO_DEVICE);
+		dma_unmap_single(fep->dev, CBDR_BUFADDR(bdp),
+				skb->len, DMA_TO_DEVICE);
 
 		fep->tx_skbuff[i] = NULL;
 		dev_kfree_skb(skb);
@@ -566,12 +569,12 @@ void fs_cleanup_bds(struct net_device *dev)
 	/*
 	 * Reset SKB receive buffers 
 	 */
-	for (i = 0; i < fep->rx_ring; i++) {
+	for (i = 0, bdp = fep->rx_bd_base; i < fep->rx_ring; i++, bdp++) {
 		if ((skb = fep->rx_skbuff[i]) == NULL)
 			continue;
 
 		/* unmap */
-		dma_unmap_single(fep->dev, skb->data,
+		dma_unmap_single(fep->dev, CBDR_BUFADDR(bdp),
 			L1_CACHE_ALIGN(PKT_MAXBUF_SIZE),
 			DMA_FROM_DEVICE);
 

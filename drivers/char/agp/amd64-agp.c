@@ -13,6 +13,7 @@
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/agp_backend.h>
+#include <asm/page.h>		/* PAGE_SIZE */
 #include "agp.h"
 
 /* Will need to be increased if AMD64 ever goes >8-way. */

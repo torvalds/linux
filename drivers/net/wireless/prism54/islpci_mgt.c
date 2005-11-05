@@ -137,7 +137,7 @@ islpci_mgmt_rx_fill(struct net_device *ndev)
 						       PCI_DMA_FROMDEVICE);
 			if (!buf->pci_addr) {
 				printk(KERN_WARNING
-				       "Failed to make memory DMA'able\n.");
+				       "Failed to make memory DMA'able.\n");
 				return -ENOMEM;
 			}
 		}

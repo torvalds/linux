@@ -49,23 +49,28 @@ static seqlock_t monotonic_lock = SEQLOCK_UNLOCKED;
  *  basic equation:
  *		ns = cycles / (freq / ns_per_sec)
  *		ns = cycles * (ns_per_sec / freq)
- *		ns = cycles * (10^9 / (cpu_mhz * 10^6))
- *		ns = cycles * (10^3 / cpu_mhz)
+ *		ns = cycles * (10^9 / (cpu_khz * 10^3))
+ *		ns = cycles * (10^6 / cpu_khz)
  *
  *	Then we use scaling math (suggested by george@mvista.com) to get:
- *		ns = cycles * (10^3 * SC / cpu_mhz) / SC
+ *		ns = cycles * (10^6 * SC / cpu_khz) / SC
  *		ns = cycles * cyc2ns_scale / SC
  *
  *	And since SC is a constant power of two, we can convert the div
- *  into a shift.   
+ *  into a shift.
+ *
+ *  We can use khz divisor instead of mhz to keep a better percision, since
+ *  cyc2ns_scale is limited to 10^6 * 2^10, which fits in 32 bits.
+ *  (mathieu.desnoyers@polymtl.ca)
+ *
  *			-johnstul@us.ibm.com "math is hard, lets go shopping!"
  */
 static unsigned long cyc2ns_scale; 
 #define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
 
-static inline void set_cyc2ns_scale(unsigned long cpu_mhz)
+static inline void set_cyc2ns_scale(unsigned long cpu_khz)
 {
-	cyc2ns_scale = (1000 << CYC2NS_SCALE_FACTOR)/cpu_mhz;
+	cyc2ns_scale = (1000000 << CYC2NS_SCALE_FACTOR)/cpu_khz;
 }
 
 static inline unsigned long long cycles_2_ns(unsigned long long cyc)
@@ -286,7 +291,7 @@ time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 		if (use_tsc) {
 			if (!(freq->flags & CPUFREQ_CONST_LOOPS)) {
 				fast_gettimeoffset_quotient = cpufreq_scale(fast_gettimeoffset_ref, freq->new, ref_freq);
-				set_cyc2ns_scale(cpu_khz/1000);
+				set_cyc2ns_scale(cpu_khz);
 			}
 		}
 #endif
@@ -536,7 +541,7 @@ static int __init init_tsc(char* override)
 				printk("Detected %u.%03u MHz processor.\n",
 					cpu_khz / 1000, cpu_khz % 1000);
 			}
-			set_cyc2ns_scale(cpu_khz/1000);
+			set_cyc2ns_scale(cpu_khz);
 			return 0;
 		}
 	}

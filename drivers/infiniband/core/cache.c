@@ -38,6 +38,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/sched.h>	/* INIT_WORK, schedule_work(), flush_scheduled_work() */
 
 #include <rdma/ib_cache.h>
 

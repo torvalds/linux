@@ -1,33 +1,19 @@
 /*
- * Copyright (c) 2000-2002 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef	__XFS_TRANS_H__
 #define	__XFS_TRANS_H__
@@ -135,19 +121,6 @@ typedef struct xfs_ail_entry {
 	struct xfs_log_item	*ail_back;	/* AIL back pointer */
 } xfs_ail_entry_t;
 
-/*
- * This structure is passed as a parameter to xfs_trans_push_ail()
- * and is used to track the what LSN the waiting processes are
- * waiting to become unused.
- */
-typedef struct xfs_ail_ticket {
-	xfs_lsn_t		at_lsn;		/* lsn waitin for */
-	struct xfs_ail_ticket	*at_forw;	/* wait list ptr */
-	struct xfs_ail_ticket	*at_back;	/* wait list ptr */
-	sv_t			at_sema;	/* wait sema */
-} xfs_ail_ticket_t;
-
-
 typedef struct xfs_log_item {
 	xfs_ail_entry_t			li_ail;		/* AIL pointers */
 	xfs_lsn_t			li_lsn;		/* last on-disk lsn */
@@ -247,68 +220,67 @@ typedef struct xfs_log_item_chunk {
  * lic_unused to the right value (0 matches all free).  The
  * lic_descs.lid_index values are set up as each desc is allocated.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_LIC_INIT)
-void xfs_lic_init(xfs_log_item_chunk_t *cp);
 #define	XFS_LIC_INIT(cp)	xfs_lic_init(cp)
-#else
-#define	XFS_LIC_INIT(cp)	((cp)->lic_free = XFS_LIC_FREEMASK)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_LIC_INIT_SLOT)
-void xfs_lic_init_slot(xfs_log_item_chunk_t *cp, int slot);
+static inline void xfs_lic_init(xfs_log_item_chunk_t *cp)
+{
+	cp->lic_free = XFS_LIC_FREEMASK;
+}
+
 #define	XFS_LIC_INIT_SLOT(cp,slot)	xfs_lic_init_slot(cp, slot)
-#else
-#define	XFS_LIC_INIT_SLOT(cp,slot)	\
-	((cp)->lic_descs[slot].lid_index = (unsigned char)(slot))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_LIC_VACANCY)
-int xfs_lic_vacancy(xfs_log_item_chunk_t *cp);
+static inline void xfs_lic_init_slot(xfs_log_item_chunk_t *cp, int slot)
+{
+	cp->lic_descs[slot].lid_index = (unsigned char)(slot);
+}
+
 #define	XFS_LIC_VACANCY(cp)		xfs_lic_vacancy(cp)
-#else
-#define	XFS_LIC_VACANCY(cp)		(((cp)->lic_free) & XFS_LIC_FREEMASK)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_LIC_ALL_FREE)
-void xfs_lic_all_free(xfs_log_item_chunk_t *cp);
+static inline int xfs_lic_vacancy(xfs_log_item_chunk_t *cp)
+{
+	return cp->lic_free & XFS_LIC_FREEMASK;
+}
+
 #define	XFS_LIC_ALL_FREE(cp)		xfs_lic_all_free(cp)
-#else
-#define	XFS_LIC_ALL_FREE(cp)		((cp)->lic_free = XFS_LIC_FREEMASK)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_LIC_ARE_ALL_FREE)
-int xfs_lic_are_all_free(xfs_log_item_chunk_t *cp);
+static inline void xfs_lic_all_free(xfs_log_item_chunk_t *cp)
+{
+	cp->lic_free = XFS_LIC_FREEMASK;
+}
+
 #define	XFS_LIC_ARE_ALL_FREE(cp)	xfs_lic_are_all_free(cp)
-#else
-#define	XFS_LIC_ARE_ALL_FREE(cp)	(((cp)->lic_free & XFS_LIC_FREEMASK) ==\
-					XFS_LIC_FREEMASK)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_LIC_ISFREE)
-int xfs_lic_isfree(xfs_log_item_chunk_t *cp, int slot);
+static inline int xfs_lic_are_all_free(xfs_log_item_chunk_t *cp)
+{
+	return ((cp->lic_free & XFS_LIC_FREEMASK) == XFS_LIC_FREEMASK);
+}
+
 #define	XFS_LIC_ISFREE(cp,slot)	xfs_lic_isfree(cp,slot)
-#else
-#define	XFS_LIC_ISFREE(cp,slot)	((cp)->lic_free & (1 << (slot)))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_LIC_CLAIM)
-void xfs_lic_claim(xfs_log_item_chunk_t *cp, int slot);
+static inline int xfs_lic_isfree(xfs_log_item_chunk_t *cp, int slot)
+{
+	return (cp->lic_free & (1 << slot));
+}
+
 #define	XFS_LIC_CLAIM(cp,slot)		xfs_lic_claim(cp,slot)
-#else
-#define	XFS_LIC_CLAIM(cp,slot)		((cp)->lic_free &= ~(1 << (slot)))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_LIC_RELSE)
-void xfs_lic_relse(xfs_log_item_chunk_t *cp, int slot);
+static inline void xfs_lic_claim(xfs_log_item_chunk_t *cp, int slot)
+{
+	cp->lic_free &= ~(1 << slot);
+}
+
 #define	XFS_LIC_RELSE(cp,slot)		xfs_lic_relse(cp,slot)
-#else
-#define	XFS_LIC_RELSE(cp,slot)		((cp)->lic_free |= 1 << (slot))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_LIC_SLOT)
-xfs_log_item_desc_t *xfs_lic_slot(xfs_log_item_chunk_t *cp, int slot);
+static inline void xfs_lic_relse(xfs_log_item_chunk_t *cp, int slot)
+{
+	cp->lic_free |= 1 << slot;
+}
+
 #define	XFS_LIC_SLOT(cp,slot)		xfs_lic_slot(cp,slot)
-#else
-#define	XFS_LIC_SLOT(cp,slot)		(&((cp)->lic_descs[slot]))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_LIC_DESC_TO_SLOT)
-int xfs_lic_desc_to_slot(xfs_log_item_desc_t *dp);
+static inline xfs_log_item_desc_t *
+xfs_lic_slot(xfs_log_item_chunk_t *cp, int slot)
+{
+	return &(cp->lic_descs[slot]);
+}
+
 #define	XFS_LIC_DESC_TO_SLOT(dp)	xfs_lic_desc_to_slot(dp)
-#else
-#define	XFS_LIC_DESC_TO_SLOT(dp)	((uint)((dp)->lid_index))
-#endif
+static inline int xfs_lic_desc_to_slot(xfs_log_item_desc_t *dp)
+{
+	return (uint)dp->lid_index;
+}
+
 /*
  * Calculate the address of a chunk given a descriptor pointer:
  * dp - dp->lid_index give the address of the start of the lic_descs array.
@@ -316,15 +288,14 @@ int xfs_lic_desc_to_slot(xfs_log_item_desc_t *dp);
  * All of this yields the address of the chunk, which is
  * cast to a chunk pointer.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_LIC_DESC_TO_CHUNK)
-xfs_log_item_chunk_t *xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp);
 #define	XFS_LIC_DESC_TO_CHUNK(dp)	xfs_lic_desc_to_chunk(dp)
-#else
-#define	XFS_LIC_DESC_TO_CHUNK(dp)	((xfs_log_item_chunk_t*) \
-					(((xfs_caddr_t)((dp) - (dp)->lid_index)) -\
-					(xfs_caddr_t)(((xfs_log_item_chunk_t*) \
-					0)->lic_descs)))
-#endif
+static inline xfs_log_item_chunk_t *
+xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
+{
+	return (xfs_log_item_chunk_t*) \
+		(((xfs_caddr_t)((dp) - (dp)->lid_index)) - \
+		(xfs_caddr_t)(((xfs_log_item_chunk_t*)0)->lic_descs));
+}
 
 #ifdef __KERNEL__
 /*
@@ -341,7 +312,7 @@ typedef struct xfs_log_busy_slot {
 #define XFS_LBC_NUM_SLOTS	31
 typedef struct xfs_log_busy_chunk {
 	struct xfs_log_busy_chunk	*lbc_next;
-	uint				lbc_free;	/* bitmask of free slots */
+	uint				lbc_free;	/* free slots bitmask */
 	ushort				lbc_unused;	/* first unused */
 	xfs_log_busy_slot_t		lbc_busy[XFS_LBC_NUM_SLOTS];
 } xfs_log_busy_chunk_t;
@@ -1025,7 +996,12 @@ void		xfs_trans_log_efd_extent(xfs_trans_t *,
 					 struct xfs_efd_log_item *,
 					 xfs_fsblock_t,
 					 xfs_extlen_t);
-int		xfs_trans_commit(xfs_trans_t *, uint flags, xfs_lsn_t *);
+int		_xfs_trans_commit(xfs_trans_t *,
+				  uint flags,
+				  xfs_lsn_t *,
+				  int *);
+#define xfs_trans_commit(tp, flags, lsn) \
+	_xfs_trans_commit(tp, flags, lsn, NULL)
 void		xfs_trans_cancel(xfs_trans_t *, int);
 void		xfs_trans_ail_init(struct xfs_mount *);
 xfs_lsn_t	xfs_trans_push_ail(struct xfs_mount *, xfs_lsn_t);

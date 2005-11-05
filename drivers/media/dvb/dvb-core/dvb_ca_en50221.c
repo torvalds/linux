@@ -36,6 +36,7 @@
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
 #include <linux/rwsem.h>
+#include <linux/sched.h>
 
 #include "dvb_ca_en50221.h"
 #include "dvb_ringbuffer.h"

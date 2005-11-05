@@ -69,6 +69,9 @@ static int __init find_chip_by_name_and_id(char *name, u32 id)
 			matched[j++] = i;
 		i++;
 	}
+
+	ret = i;
+
 	if (j != 0) {
 		for (i = 0; i < j; i++) {
 			if ((ppc_sys_specs[matched[i]].mask & id) ==

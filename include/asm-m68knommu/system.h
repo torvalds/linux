@@ -312,6 +312,19 @@ cmpxchg(volatile int *p, int old, int new)
 	moveb #0x80, (%a0);		\
 	");				\
 })
+#elif defined(CONFIG_M520x)
+	/*
+	 * The MCF5208 has a bit (SOFTRST) in memory (Reset Control Register 
+	 * RCR), that when set, resets the MCF5208.
+	 */
+#define HARD_RESET_NOW() 		\
+({					\
+	unsigned char volatile *reset;	\
+	asm("move.w     #0x2700, %sr");	\
+	reset = ((volatile unsigned short *)(MCF_IPSBAR + 0xA0000));	\
+	while(1)			\
+		*reset |= 0x80;		\
+})
 #else
 #define HARD_RESET_NOW() ({		\
         asm("				\

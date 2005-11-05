@@ -53,6 +53,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/serial_reg.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -638,21 +639,14 @@ static void smsc_ircc_setup_qos(struct smsc_ircc_cb *self)
  */
 static void smsc_ircc_init_chip(struct smsc_ircc_cb *self)
 {
-	int iobase, ir_mode, ctrl, fast;
-
-	IRDA_ASSERT(self != NULL, return;);
-
-	iobase = self->io.fir_base;
-	ir_mode = IRCC_CFGA_IRDA_SIR_A;
-	ctrl = 0;
-	fast = 0;
+	int iobase = self->io.fir_base;
 
 	register_bank(iobase, 0);
 	outb(IRCC_MASTER_RESET, iobase + IRCC_MASTER);
 	outb(0x00, iobase + IRCC_MASTER);
 
 	register_bank(iobase, 1);
-	outb(((inb(iobase + IRCC_SCE_CFGA) & 0x87) | ir_mode),
+	outb(((inb(iobase + IRCC_SCE_CFGA) & 0x87) | IRCC_CFGA_IRDA_SIR_A),
 	     iobase + IRCC_SCE_CFGA);
 
 #ifdef smsc_669 /* Uses pin 88/89 for Rx/Tx */
@@ -666,10 +660,10 @@ static void smsc_ircc_init_chip(struct smsc_ircc_cb *self)
 	outb(SMSC_IRCC2_FIFO_THRESHOLD, iobase + IRCC_FIFO_THRESHOLD);
 
 	register_bank(iobase, 4);
-	outb((inb(iobase + IRCC_CONTROL) & 0x30) | ctrl, iobase + IRCC_CONTROL);
+	outb((inb(iobase + IRCC_CONTROL) & 0x30), iobase + IRCC_CONTROL);
 
 	register_bank(iobase, 0);
-	outb(fast, iobase + IRCC_LCR_A);
+	outb(0, iobase + IRCC_LCR_A);
 
 	smsc_ircc_set_sir_speed(self, SMSC_IRCC2_C_IRDA_FALLBACK_SPEED);
 
@@ -1556,6 +1550,46 @@ static int ircc_is_receiving(struct smsc_ircc_cb *self)
 }
 #endif /* unused */
 
+static int smsc_ircc_request_irq(struct smsc_ircc_cb *self)
+{
+	int error;
+
+	error = request_irq(self->io.irq, smsc_ircc_interrupt, 0,
+			    self->netdev->name, self->netdev);
+	if (error)
+		IRDA_DEBUG(0, "%s(), unable to allocate irq=%d, err=%d\n",
+			   __FUNCTION__, self->io.irq, error);
+
+	return error;
+}
+
+static void smsc_ircc_start_interrupts(struct smsc_ircc_cb *self)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&self->lock, flags);
+
+	self->io.speed = 0;
+	smsc_ircc_change_speed(self, SMSC_IRCC2_C_IRDA_FALLBACK_SPEED);
+
+	spin_unlock_irqrestore(&self->lock, flags);
+}
+
+static void smsc_ircc_stop_interrupts(struct smsc_ircc_cb *self)
+{
+	int iobase = self->io.fir_base;
+	unsigned long flags;
+
+	spin_lock_irqsave(&self->lock, flags);
+
+	register_bank(iobase, 0);
+	outb(0, iobase + IRCC_IER);
+	outb(IRCC_MASTER_RESET, iobase + IRCC_MASTER);
+	outb(0x00, iobase + IRCC_MASTER);
+
+	spin_unlock_irqrestore(&self->lock, flags);
+}
+
 
 /*
  * Function smsc_ircc_net_open (dev)
@@ -1567,13 +1601,17 @@ static int smsc_ircc_net_open(struct net_device *dev)
 {
 	struct smsc_ircc_cb *self;
 	char hwname[16];
-	unsigned long flags;
 
 	IRDA_DEBUG(1, "%s\n", __FUNCTION__);
 
 	IRDA_ASSERT(dev != NULL, return -1;);
 	self = netdev_priv(dev);
 	IRDA_ASSERT(self != NULL, return 0;);
+
+	if (self->io.suspended) {
+		IRDA_DEBUG(0, "%s(), device is suspended\n", __FUNCTION__);
+		return -EAGAIN;
+	}
 
 	if (request_irq(self->io.irq, smsc_ircc_interrupt, 0, dev->name,
 			(void *) dev)) {
@@ -1582,11 +1620,7 @@ static int smsc_ircc_net_open(struct net_device *dev)
 		return -EAGAIN;
 	}
 
-	spin_lock_irqsave(&self->lock, flags);
-	/*smsc_ircc_sir_start(self);*/
-	self->io.speed = 0;
-	smsc_ircc_change_speed(self, SMSC_IRCC2_C_IRDA_FALLBACK_SPEED);
-	spin_unlock_irqrestore(&self->lock, flags);
+	smsc_ircc_start_interrupts(self);
 
 	/* Give self a hardware name */
 	/* It would be cool to offer the chip revision here - Jean II */
@@ -1639,7 +1673,12 @@ static int smsc_ircc_net_close(struct net_device *dev)
 		irlap_close(self->irlap);
 	self->irlap = NULL;
 
-	free_irq(self->io.irq, dev);
+	smsc_ircc_stop_interrupts(self);
+
+	/* if we are called from smsc_ircc_resume we don't have IRQ reserved */
+	if (!self->io.suspended)
+		free_irq(self->io.irq, dev);
+
 	disable_dma(self->io.dma);
 	free_dma(self->io.dma);
 
@@ -1650,11 +1689,18 @@ static int smsc_ircc_suspend(struct device *dev, pm_message_t state)
 {
 	struct smsc_ircc_cb *self = dev_get_drvdata(dev);
 
-	IRDA_MESSAGE("%s, Suspending\n", driver_name);
-
 	if (!self->io.suspended) {
-		smsc_ircc_net_close(self->netdev);
+		IRDA_DEBUG(1, "%s, Suspending\n", driver_name);
+
+		rtnl_lock();
+		if (netif_running(self->netdev)) {
+			netif_device_detach(self->netdev);
+			smsc_ircc_stop_interrupts(self);
+			free_irq(self->io.irq, self->netdev);
+			disable_dma(self->io.dma);
+		}
 		self->io.suspended = 1;
+		rtnl_unlock();
 	}
 
 	return 0;
@@ -1665,11 +1711,25 @@ static int smsc_ircc_resume(struct device *dev)
 	struct smsc_ircc_cb *self = dev_get_drvdata(dev);
 
 	if (self->io.suspended) {
+		IRDA_DEBUG(1, "%s, Waking up\n", driver_name);
 
-		smsc_ircc_net_open(self->netdev);
+		rtnl_lock();
+		smsc_ircc_init_chip(self);
+		if (netif_running(self->netdev)) {
+			if (smsc_ircc_request_irq(self)) {
+				/*
+				 * Don't fail resume process, just kill this
+				 * network interface
+				 */
+				unregister_netdevice(self->netdev);
+			} else {
+				enable_dma(self->io.dma);
+				smsc_ircc_start_interrupts(self);
+				netif_device_attach(self->netdev);
+			}
+		}
 		self->io.suspended = 0;
-
-		IRDA_MESSAGE("%s, Waking up\n", driver_name);
+		rtnl_unlock();
 	}
 	return 0;
 }
@@ -1682,9 +1742,6 @@ static int smsc_ircc_resume(struct device *dev)
  */
 static int __exit smsc_ircc_close(struct smsc_ircc_cb *self)
 {
-	int iobase;
-	unsigned long flags;
-
 	IRDA_DEBUG(1, "%s\n", __FUNCTION__);
 
 	IRDA_ASSERT(self != NULL, return -1;);
@@ -1694,22 +1751,7 @@ static int __exit smsc_ircc_close(struct smsc_ircc_cb *self)
 	/* Remove netdevice */
 	unregister_netdev(self->netdev);
 
-	/* Make sure the irq handler is not exectuting */
-	spin_lock_irqsave(&self->lock, flags);
-
-	/* Stop interrupts */
-	iobase = self->io.fir_base;
-	register_bank(iobase, 0);
-	outb(0, iobase + IRCC_IER);
-	outb(IRCC_MASTER_RESET, iobase + IRCC_MASTER);
-	outb(0x00, iobase + IRCC_MASTER);
-#if 0
-	/* Reset to SIR mode */
-	register_bank(iobase, 1);
-        outb(IRCC_CFGA_IRDA_SIR_A|IRCC_CFGA_TX_POLARITY, iobase + IRCC_SCE_CFGA);
-        outb(IRCC_CFGB_IR, iobase + IRCC_SCE_CFGB);
-#endif
-	spin_unlock_irqrestore(&self->lock, flags);
+	smsc_ircc_stop_interrupts(self);
 
 	/* Release the PORTS that this driver is using */
 	IRDA_DEBUG(0, "%s(), releasing 0x%03x\n",  __FUNCTION__,

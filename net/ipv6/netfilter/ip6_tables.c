@@ -2,7 +2,7 @@
  * Packet matching code.
  *
  * Copyright (C) 1999 Paul `Rusty' Russell & Michael J. Neuling
- * Copyright (C) 2000-2002 Netfilter core team <coreteam@netfilter.org>
+ * Copyright (C) 2000-2005 Netfilter Core Team <coreteam@netfilter.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -23,7 +23,6 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/icmpv6.h>
-#include <net/ip.h>
 #include <net/ipv6.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
@@ -80,13 +79,12 @@ static DECLARE_MUTEX(ip6t_mutex);
 #define inline
 #endif
 
-/* Locking is simple: we assume at worst case there will be one packet
-   in user context and one from bottom halves (or soft irq if Alexey's
-   softnet patch was applied).
-
+/*
    We keep a set of rules for each CPU, so we can avoid write-locking
-   them; doing a readlock_bh() stops packets coming through if we're
-   in user context.
+   them in the softirq when updating the counters and therefore
+   only need to read-lock in the softirq; doing a write_lock_bh() in user
+   context stops packets coming through and allows user context to read
+   the counters or update the rules.
 
    To be cache friendly on SMP, we arrange them like so:
    [ n-entries ]
@@ -356,7 +354,7 @@ ip6t_do_table(struct sk_buff **pskb,
 	      struct ip6t_table *table,
 	      void *userdata)
 {
-	static const char nulldevname[IFNAMSIZ];
+	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
 	int offset = 0;
 	unsigned int protoff = 0;
 	int hotdrop = 0;
@@ -369,7 +367,6 @@ ip6t_do_table(struct sk_buff **pskb,
 	/* Initialization */
 	indev = in ? in->name : nulldevname;
 	outdev = out ? out->name : nulldevname;
-
 	/* We handle fragments by dealing with the first fragment as
 	 * if it was a normal packet.  All other fragments are treated
 	 * normally, except that they will NEVER match rules that ask
@@ -497,74 +494,144 @@ ip6t_do_table(struct sk_buff **pskb,
 #endif
 }
 
-/* If it succeeds, returns element and locks mutex */
-static inline void *
-find_inlist_lock_noload(struct list_head *head,
-			const char *name,
-			int *error,
-			struct semaphore *mutex)
+/*
+ * These are weird, but module loading must not be done with mutex
+ * held (since they will register), and we have to have a single
+ * function to use try_then_request_module().
+ */
+
+/* Find table by name, grabs mutex & ref.  Returns ERR_PTR() on error. */
+static inline struct ip6t_table *find_table_lock(const char *name)
 {
-	void *ret;
+	struct ip6t_table *t;
 
-#if 1
-	duprintf("find_inlist: searching for `%s' in %s.\n",
-		 name, head == &ip6t_target ? "ip6t_target"
-		 : head == &ip6t_match ? "ip6t_match"
-		 : head == &ip6t_tables ? "ip6t_tables" : "UNKNOWN");
-#endif
+	if (down_interruptible(&ip6t_mutex) != 0)
+		return ERR_PTR(-EINTR);
 
-	*error = down_interruptible(mutex);
-	if (*error != 0)
+	list_for_each_entry(t, &ip6t_tables, list)
+		if (strcmp(t->name, name) == 0 && try_module_get(t->me))
+			return t;
+	up(&ip6t_mutex);
+	return NULL;
+}
+
+/* Find match, grabs ref.  Returns ERR_PTR() on error. */
+static inline struct ip6t_match *find_match(const char *name, u8 revision)
+{
+	struct ip6t_match *m;
+	int err = 0;
+
+	if (down_interruptible(&ip6t_mutex) != 0)
+		return ERR_PTR(-EINTR);
+
+	list_for_each_entry(m, &ip6t_match, list) {
+		if (strcmp(m->name, name) == 0) {
+			if (m->revision == revision) {
+				if (try_module_get(m->me)) {
+					up(&ip6t_mutex);
+					return m;
+				}
+			} else
+				err = -EPROTOTYPE; /* Found something. */
+		}
+	}
+	up(&ip6t_mutex);
+	return ERR_PTR(err);
+}
+
+/* Find target, grabs ref.  Returns ERR_PTR() on error. */
+static inline struct ip6t_target *find_target(const char *name, u8 revision)
+{
+	struct ip6t_target *t;
+	int err = 0;
+
+	if (down_interruptible(&ip6t_mutex) != 0)
+		return ERR_PTR(-EINTR);
+
+	list_for_each_entry(t, &ip6t_target, list) {
+		if (strcmp(t->name, name) == 0) {
+			if (t->revision == revision) {
+				if (try_module_get(t->me)) {
+					up(&ip6t_mutex);
+					return t;
+				}
+			} else
+				err = -EPROTOTYPE; /* Found something. */
+		}
+	}
+	up(&ip6t_mutex);
+	return ERR_PTR(err);
+}
+
+struct ip6t_target *ip6t_find_target(const char *name, u8 revision)
+{
+	struct ip6t_target *target;
+
+	target = try_then_request_module(find_target(name, revision),
+					 "ip6t_%s", name);
+	if (IS_ERR(target) || !target)
 		return NULL;
+	return target;
+}
 
-	ret = list_named_find(head, name);
-	if (!ret) {
-		*error = -ENOENT;
-		up(mutex);
+static int match_revfn(const char *name, u8 revision, int *bestp)
+{
+	struct ip6t_match *m;
+	int have_rev = 0;
+
+	list_for_each_entry(m, &ip6t_match, list) {
+		if (strcmp(m->name, name) == 0) {
+			if (m->revision > *bestp)
+				*bestp = m->revision;
+			if (m->revision == revision)
+				have_rev = 1;
+		}
 	}
-	return ret;
+	return have_rev;
 }
 
-#ifndef CONFIG_KMOD
-#define find_inlist_lock(h,n,p,e,m) find_inlist_lock_noload((h),(n),(e),(m))
-#else
-static void *
-find_inlist_lock(struct list_head *head,
-		 const char *name,
-		 const char *prefix,
-		 int *error,
-		 struct semaphore *mutex)
+static int target_revfn(const char *name, u8 revision, int *bestp)
 {
-	void *ret;
+	struct ip6t_target *t;
+	int have_rev = 0;
 
-	ret = find_inlist_lock_noload(head, name, error, mutex);
-	if (!ret) {
-		duprintf("find_inlist: loading `%s%s'.\n", prefix, name);
-		request_module("%s%s", prefix, name);
-		ret = find_inlist_lock_noload(head, name, error, mutex);
+	list_for_each_entry(t, &ip6t_target, list) {
+		if (strcmp(t->name, name) == 0) {
+			if (t->revision > *bestp)
+				*bestp = t->revision;
+			if (t->revision == revision)
+				have_rev = 1;
+		}
+	}
+	return have_rev;
+}
+
+/* Returns true or fals (if no such extension at all) */
+static inline int find_revision(const char *name, u8 revision,
+				int (*revfn)(const char *, u8, int *),
+				int *err)
+{
+	int have_rev, best = -1;
+
+	if (down_interruptible(&ip6t_mutex) != 0) {
+		*err = -EINTR;
+		return 1;
+	}
+	have_rev = revfn(name, revision, &best);
+	up(&ip6t_mutex);
+
+	/* Nothing at all?  Return 0 to try loading module. */
+	if (best == -1) {
+		*err = -ENOENT;
+		return 0;
 	}
 
-	return ret;
-}
-#endif
-
-static inline struct ip6t_table *
-ip6t_find_table_lock(const char *name, int *error, struct semaphore *mutex)
-{
-	return find_inlist_lock(&ip6t_tables, name, "ip6table_", error, mutex);
+	*err = best;
+	if (!have_rev)
+		*err = -EPROTONOSUPPORT;
+	return 1;
 }
 
-static inline struct ip6t_match *
-find_match_lock(const char *name, int *error, struct semaphore *mutex)
-{
-	return find_inlist_lock(&ip6t_match, name, "ip6t_", error, mutex);
-}
-
-static struct ip6t_target *
-ip6t_find_target_lock(const char *name, int *error, struct semaphore *mutex)
-{
-	return find_inlist_lock(&ip6t_target, name, "ip6t_", error, mutex);
-}
 
 /* All zeroes == unconditional rule. */
 static inline int
@@ -725,20 +792,16 @@ check_match(struct ip6t_entry_match *m,
 	    unsigned int hookmask,
 	    unsigned int *i)
 {
-	int ret;
 	struct ip6t_match *match;
 
-	match = find_match_lock(m->u.user.name, &ret, &ip6t_mutex);
-	if (!match) {
-	  //		duprintf("check_match: `%s' not found\n", m->u.name);
-		return ret;
-	}
-	if (!try_module_get(match->me)) {
-		up(&ip6t_mutex);
-		return -ENOENT;
+	match = try_then_request_module(find_match(m->u.user.name,
+						   m->u.user.revision),
+					"ip6t_%s", m->u.user.name);
+	if (IS_ERR(match) || !match) {
+		duprintf("check_match: `%s' not found\n", m->u.user.name);
+		return match ? PTR_ERR(match) : -ENOENT;
 	}
 	m->u.kernel.match = match;
-	up(&ip6t_mutex);
 
 	if (m->u.kernel.match->checkentry
 	    && !m->u.kernel.match->checkentry(name, ipv6, m->data,
@@ -776,22 +839,16 @@ check_entry(struct ip6t_entry *e, const char *name, unsigned int size,
 		goto cleanup_matches;
 
 	t = ip6t_get_target(e);
-	target = ip6t_find_target_lock(t->u.user.name, &ret, &ip6t_mutex);
-	if (!target) {
+	target = try_then_request_module(find_target(t->u.user.name,
+						     t->u.user.revision),
+					 "ip6t_%s", t->u.user.name);
+	if (IS_ERR(target) || !target) {
 		duprintf("check_entry: `%s' not found\n", t->u.user.name);
-		goto cleanup_matches;
-	}
-	if (!try_module_get(target->me)) {
-		up(&ip6t_mutex);
-		ret = -ENOENT;
+		ret = target ? PTR_ERR(target) : -ENOENT;
 		goto cleanup_matches;
 	}
 	t->u.kernel.target = target;
-	up(&ip6t_mutex);
-	if (!t->u.kernel.target) {
-		ret = -EBUSY;
-		goto cleanup_matches;
-	}
+
 	if (t->u.kernel.target == &ip6t_standard_target) {
 		if (!standard_check(t, size)) {
 			ret = -EINVAL;
@@ -1118,8 +1175,8 @@ get_entries(const struct ip6t_get_entries *entries,
 	int ret;
 	struct ip6t_table *t;
 
-	t = ip6t_find_table_lock(entries->name, &ret, &ip6t_mutex);
-	if (t) {
+	t = find_table_lock(entries->name);
+	if (t && !IS_ERR(t)) {
 		duprintf("t->private->number = %u\n",
 			 t->private->number);
 		if (entries->size == t->private->size)
@@ -1131,10 +1188,10 @@ get_entries(const struct ip6t_get_entries *entries,
 				 entries->size);
 			ret = -EINVAL;
 		}
+		module_put(t->me);
 		up(&ip6t_mutex);
 	} else
-		duprintf("get_entries: Can't find %s!\n",
-			 entries->name);
+		ret = t ? PTR_ERR(t) : -ENOENT;
 
 	return ret;
 }
@@ -1182,22 +1239,19 @@ do_replace(void __user *user, unsigned int len)
 
 	duprintf("ip_tables: Translated table\n");
 
-	t = ip6t_find_table_lock(tmp.name, &ret, &ip6t_mutex);
-	if (!t)
+	t = try_then_request_module(find_table_lock(tmp.name),
+				    "ip6table_%s", tmp.name);
+	if (!t || IS_ERR(t)) {
+		ret = t ? PTR_ERR(t) : -ENOENT;
 		goto free_newinfo_counters_untrans;
+	}
 
 	/* You lied! */
 	if (tmp.valid_hooks != t->valid_hooks) {
 		duprintf("Valid hook crap: %08X vs %08X\n",
 			 tmp.valid_hooks, t->valid_hooks);
 		ret = -EINVAL;
-		goto free_newinfo_counters_untrans_unlock;
-	}
-
-	/* Get a reference in advance, we're not allowed fail later */
-	if (!try_module_get(t->me)) {
-		ret = -EBUSY;
-		goto free_newinfo_counters_untrans_unlock;
+		goto put_module;
 	}
 
 	oldinfo = replace_table(t, tmp.num_counters, newinfo, &ret);
@@ -1219,7 +1273,6 @@ do_replace(void __user *user, unsigned int len)
 	/* Decrease module usage counts and free resource */
 	IP6T_ENTRY_ITERATE(oldinfo->entries, oldinfo->size, cleanup_entry,NULL);
 	vfree(oldinfo);
-	/* Silent error: too late now. */
 	if (copy_to_user(tmp.counters, counters,
 			 sizeof(struct ip6t_counters) * tmp.num_counters) != 0)
 		ret = -EFAULT;
@@ -1229,7 +1282,6 @@ do_replace(void __user *user, unsigned int len)
 
  put_module:
 	module_put(t->me);
- free_newinfo_counters_untrans_unlock:
 	up(&ip6t_mutex);
  free_newinfo_counters_untrans:
 	IP6T_ENTRY_ITERATE(newinfo->entries, newinfo->size, cleanup_entry,NULL);
@@ -1268,7 +1320,7 @@ do_add_counters(void __user *user, unsigned int len)
 	unsigned int i;
 	struct ip6t_counters_info tmp, *paddc;
 	struct ip6t_table *t;
-	int ret;
+	int ret = 0;
 
 	if (copy_from_user(&tmp, user, sizeof(tmp)) != 0)
 		return -EFAULT;
@@ -1285,9 +1337,11 @@ do_add_counters(void __user *user, unsigned int len)
 		goto free;
 	}
 
-	t = ip6t_find_table_lock(tmp.name, &ret, &ip6t_mutex);
-	if (!t)
+	t = find_table_lock(tmp.name);
+	if (!t || IS_ERR(t)) {
+		ret = t ? PTR_ERR(t) : -ENOENT;
 		goto free;
+	}
 
 	write_lock_bh(&t->lock);
 	if (t->private->number != paddc->num_counters) {
@@ -1304,6 +1358,7 @@ do_add_counters(void __user *user, unsigned int len)
  unlock_up_free:
 	write_unlock_bh(&t->lock);
 	up(&ip6t_mutex);
+	module_put(t->me);
  free:
 	vfree(paddc);
 
@@ -1360,8 +1415,10 @@ do_ip6t_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 			break;
 		}
 		name[IP6T_TABLE_MAXNAMELEN-1] = '\0';
-		t = ip6t_find_table_lock(name, &ret, &ip6t_mutex);
-		if (t) {
+
+		t = try_then_request_module(find_table_lock(name),
+					    "ip6table_%s", name);
+		if (t && !IS_ERR(t)) {
 			struct ip6t_getinfo info;
 
 			info.valid_hooks = t->valid_hooks;
@@ -1377,9 +1434,10 @@ do_ip6t_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 				ret = -EFAULT;
 			else
 				ret = 0;
-
 			up(&ip6t_mutex);
-		}
+			module_put(t->me);
+		} else
+			ret = t ? PTR_ERR(t) : -ENOENT;
 	}
 	break;
 
@@ -1400,6 +1458,31 @@ do_ip6t_get_ctl(struct sock *sk, int cmd, void __user *user, int *len)
 		break;
 	}
 
+	case IP6T_SO_GET_REVISION_MATCH:
+	case IP6T_SO_GET_REVISION_TARGET: {
+		struct ip6t_get_revision rev;
+		int (*revfn)(const char *, u8, int *);
+
+		if (*len != sizeof(rev)) {
+			ret = -EINVAL;
+			break;
+		}
+		if (copy_from_user(&rev, user, sizeof(rev)) != 0) {
+			ret = -EFAULT;
+			break;
+		}
+
+		if (cmd == IP6T_SO_GET_REVISION_TARGET)
+			revfn = target_revfn;
+		else
+			revfn = match_revfn;
+
+		try_then_request_module(find_revision(rev.name, rev.revision,
+						      revfn, &ret),
+					"ip6t_%s", rev.name);
+		break;
+	}
+
 	default:
 		duprintf("do_ip6t_get_ctl: unknown request %i\n", cmd);
 		ret = -EINVAL;
@@ -1417,12 +1500,7 @@ ip6t_register_target(struct ip6t_target *target)
 	ret = down_interruptible(&ip6t_mutex);
 	if (ret != 0)
 		return ret;
-
-	if (!list_named_insert(&ip6t_target, target)) {
-		duprintf("ip6t_register_target: `%s' already in list!\n",
-			 target->name);
-		ret = -EINVAL;
-	}
+	list_add(&target->list, &ip6t_target);
 	up(&ip6t_mutex);
 	return ret;
 }
@@ -1444,11 +1522,7 @@ ip6t_register_match(struct ip6t_match *match)
 	if (ret != 0)
 		return ret;
 
-	if (!list_named_insert(&ip6t_match, match)) {
-		duprintf("ip6t_register_match: `%s' already in list!\n",
-			 match->name);
-		ret = -EINVAL;
-	}
+	list_add(&match->list, &ip6t_match);
 	up(&ip6t_mutex);
 
 	return ret;

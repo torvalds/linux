@@ -1203,7 +1203,7 @@ config IBM_EMAC_RX_SKB_HEADROOM
 
 config IBM_EMAC_PHY_RX_CLK_FIX
 	bool "PHY Rx clock workaround"
-	depends on IBM_EMAC && (405EP || 440GX || 440EP)
+	depends on IBM_EMAC && (405EP || 440GX || 440EP || 440GR)
 	help
 	  Enable this if EMAC attached to a PHY which doesn't generate
 	  RX clock if there is no link, if this is the case, you will 
@@ -1374,7 +1374,7 @@ config FORCEDETH
 
 config CS89x0
 	tristate "CS89x0 support"
-	depends on (NET_PCI && (ISA || ARCH_IXDP2X01)) || ARCH_PNX0105 || MACH_MP1000
+	depends on (NET_PCI && (ISA || ARCH_IXDP2X01)) || ARCH_PNX0105
 	---help---
 	  Support for CS89x0 chipset based Ethernet cards. If you have a
 	  network (Ethernet) card of this type, say Y and read the
@@ -2257,17 +2257,6 @@ config S2IO_NAPI
 	  information.
 
 	  If in doubt, say N.
-
-config 2BUFF_MODE
-	bool "Use 2 Buffer Mode on Rx side."
-	depends on S2IO
-	---help---
-	On enabling the 2 buffer mode, the received frame will be
-	split into 2 parts before being DMA'ed to the hosts memory.
-	The parts are the ethernet header and ethernet payload. 
-	This is useful on systems where DMA'ing to to unaligned 
-	physical memory loactions comes with a heavy price.
-	If not sure please say N.
 
 endmenu
 

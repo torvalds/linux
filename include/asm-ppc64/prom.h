@@ -14,6 +14,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
+#include <linux/config.h>
 #include <linux/proc_fs.h>
 #include <asm/atomic.h>
 
@@ -137,6 +138,9 @@ struct device_node {
 	struct  kref kref;
 	unsigned long _flags;
 	void	*data;
+#ifdef CONFIG_PPC_ISERIES
+	struct list_head Device_List;
+#endif
 };
 
 extern struct device_node *of_chosen;

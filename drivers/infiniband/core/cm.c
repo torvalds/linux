@@ -544,11 +544,10 @@ struct ib_cm_id *ib_create_cm_id(struct ib_device *device,
 	struct cm_id_private *cm_id_priv;
 	int ret;
 
-	cm_id_priv = kmalloc(sizeof *cm_id_priv, GFP_KERNEL);
+	cm_id_priv = kzalloc(sizeof *cm_id_priv, GFP_KERNEL);
 	if (!cm_id_priv)
 		return ERR_PTR(-ENOMEM);
 
-	memset(cm_id_priv, 0, sizeof *cm_id_priv);
 	cm_id_priv->id.state = IB_CM_IDLE;
 	cm_id_priv->id.device = device;
 	cm_id_priv->id.cm_handler = cm_handler;
@@ -621,10 +620,9 @@ static struct cm_timewait_info * cm_create_timewait_info(__be32 local_id)
 {
 	struct cm_timewait_info *timewait_info;
 
-	timewait_info = kmalloc(sizeof *timewait_info, GFP_KERNEL);
+	timewait_info = kzalloc(sizeof *timewait_info, GFP_KERNEL);
 	if (!timewait_info)
 		return ERR_PTR(-ENOMEM);
-	memset(timewait_info, 0, sizeof *timewait_info);
 
 	timewait_info->work.local_id = local_id;
 	INIT_WORK(&timewait_info->work.work, cm_work_handler,

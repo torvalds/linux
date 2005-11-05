@@ -294,8 +294,10 @@ A partial list of the supported mount options follows:
 		during the local client kernel build will be used.
 		If server does not support Unicode, this parameter is
 		unused.
-  rsize		default read size
-  wsize		default write size
+  rsize		default read size (usually 16K)
+  wsize		default write size (usually 16K, 32K is often better over GigE)
+		maximum wsize currently allowed by CIFS is 57344 (14 4096 byte
+		pages)
   rw		mount the network share read-write (note that the
 		server may still consider the share read-only)
   ro		mount network share read-only
@@ -407,6 +409,13 @@ A partial list of the supported mount options follows:
 		This has no effect if the server does not support
 		Unicode on the wire.
  nomapchars     Do not translate any of these seven characters (default).
+ nocase         Request case insensitive path name matching (case
+		sensitive is the default if the server suports it).
+ nobrl          Do not send byte range lock requests to the server.
+		This is necessary for certain applications that break
+		with cifs style mandatory byte range locks (and most
+		cifs servers do not yet support requesting advisory
+		byte range locks).
  remount        remount the share (often used to change from ro to rw mounts
 	        or vice versa)
 		
@@ -473,9 +482,16 @@ These experimental features and tracing can be enabled by changing flags in
 kernel, e.g.  insmod cifs).  To enable a feature set it to 1 e.g.  to enable 
 tracing to the kernel message log type: 
 
-	echo 1 > /proc/fs/cifs/cifsFYI
+	echo 7 > /proc/fs/cifs/cifsFYI
 	
-and for more extensive tracing including the start of smb requests and responses
+cifsFYI functions as a bit mask. Setting it to 1 enables additional kernel
+logging of various informational messages.  2 enables logging of non-zero
+SMB return codes while 4 enables logging of requests that take longer
+than one second to complete (except for byte range lock requests). 
+Setting it to 4 requires defining CONFIG_CIFS_STATS2 manually in the
+source code (typically by setting it in the beginning of cifsglob.h),
+and setting it to seven enables all three.  Finally, tracing
+the start of smb requests and responses can be enabled via:
 
 	echo 1 > /proc/fs/cifs/traceSMB
 

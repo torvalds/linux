@@ -229,7 +229,7 @@ config SCSI_FC_ATTRS
 
 config SCSI_ISCSI_ATTRS
 	tristate "iSCSI Transport Attributes"
-	depends on SCSI
+	depends on SCSI && NET
 	help
 	  If you wish to export transport-specific information about
 	  each attached iSCSI device to sysfs, say Y.
@@ -246,6 +246,30 @@ endmenu
 
 menu "SCSI low-level drivers"
 	depends on SCSI!=n
+
+config ISCSI_TCP
+	tristate "iSCSI Initiator over TCP/IP"
+	depends on SCSI && INET
+	select CRYPTO
+	select CRYPTO_MD5
+	select CRYPTO_CRC32C
+	select SCSI_ISCSI_ATTRS
+	help
+	 The iSCSI Driver provides a host with the ability to access storage
+	 through an IP network. The driver uses the iSCSI protocol to transport
+	 SCSI requests and responses over a TCP/IP network between the host
+	 (the "initiator") and "targets".  Architecturally, the iSCSI driver
+	 combines with the host's TCP/IP stack, network drivers, and Network
+	 Interface Card (NIC) to provide the same functions as a SCSI or a
+	 Fibre Channel (FC) adapter driver with a Host Bus Adapter (HBA).
+
+	 To compile this driver as a module, choose M here: the
+	 module will be called iscsi_tcp.
+
+	 The userspace component needed to initialize the driver, documentation,
+	 and sample configuration files can be found here:
+
+	 http://linux-iscsi.sf.net
 
 config SGIWD93_SCSI
 	tristate "SGI WD93C93 SCSI Driver"
@@ -595,19 +619,6 @@ config SCSI_OMIT_FLASHPOINT
 	  BusLogic SCSI driver. The FlashPoint SCCB Manager code is
 	  substantial, so users of MultiMaster Host Adapters may wish to omit
 	  it.
-
-#
-# This is marked broken because it uses over 4kB of stack in
-# just two routines:
-#     2076  CpqTsProcessIMQEntry
-#     2052  PeekIMQEntry
-#
-config SCSI_CPQFCTS
-	tristate "Compaq Fibre Channel 64-bit/66Mhz HBA support"
-	depends on PCI && SCSI && BROKEN
-	help
-	  Say Y here to compile in support for the Compaq StorageWorks Fibre
-	  Channel 64-bit/66Mhz Host Bus Adapter.
 
 config SCSI_DMX3191D
 	tristate "DMX3191D SCSI support"

@@ -29,7 +29,7 @@
  *
  * All tape operations are performed by sending messages back and forth to
  * the OS/400 partition.  The format of the messages is defined in
- * iSeries/vio.h
+ * iseries/vio.h
  */
 #include <linux/config.h>
 #include <linux/version.h>
@@ -54,10 +54,10 @@
 #include <asm/ioctls.h>
 
 #include <asm/vio.h>
-#include <asm/iSeries/vio.h>
-#include <asm/iSeries/HvLpEvent.h>
-#include <asm/iSeries/HvCallEvent.h>
-#include <asm/iSeries/HvLpConfig.h>
+#include <asm/iseries/vio.h>
+#include <asm/iseries/hv_lp_event.h>
+#include <asm/iseries/hv_call_event.h>
+#include <asm/iseries/hv_lp_config.h>
 
 #define VIOTAPE_VERSION		"1.2"
 #define VIOTAPE_MAXREQ		1
@@ -993,13 +993,16 @@ static struct vio_device_id viotape_device_table[] __devinitdata = {
 	{ "viotape", "" },
 	{ "", "" }
 };
-
 MODULE_DEVICE_TABLE(vio, viotape_device_table);
+
 static struct vio_driver viotape_driver = {
-	.name = "viotape",
 	.id_table = viotape_device_table,
 	.probe = viotape_probe,
-	.remove = viotape_remove
+	.remove = viotape_remove,
+	.driver = {
+		.name = "viotape",
+		.owner = THIS_MODULE,
+	}
 };
 
 

@@ -810,7 +810,7 @@ config TMPFS
 
 config HUGETLBFS
 	bool "HugeTLB file system support"
-	depends X86 || IA64 || PPC64 || SPARC64 || SUPERH || X86_64 || BROKEN
+	depends X86 || IA64 || PPC64 || SPARC64 || SUPERH || BROKEN
 
 config HUGETLB_PAGE
 	def_bool HUGETLBFS

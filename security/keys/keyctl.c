@@ -624,8 +624,8 @@ long keyctl_keyring_search(key_serial_t ringid,
 
 	/* link the resulting key to the destination keyring if we can */
 	if (dest_ref) {
-		ret = -EACCES;
-		if (!key_permission(key_ref, KEY_LINK))
+		ret = key_permission(key_ref, KEY_LINK);
+		if (ret < 0)
 			goto error6;
 
 		ret = key_link(key_ref_to_ptr(dest_ref), key_ref_to_ptr(key_ref));
@@ -676,8 +676,11 @@ long keyctl_read_key(key_serial_t keyid, char __user *buffer, size_t buflen)
 	key = key_ref_to_ptr(key_ref);
 
 	/* see if we can read it directly */
-	if (key_permission(key_ref, KEY_READ))
+	ret = key_permission(key_ref, KEY_READ);
+	if (ret == 0)
 		goto can_read_key;
+	if (ret != -EACCES)
+		goto error;
 
 	/* we can't; see if it's searchable from this process's keyrings
 	 * - we automatically take account of the fact that it may be
@@ -726,7 +729,7 @@ long keyctl_chown_key(key_serial_t id, uid_t uid, gid_t gid)
 	if (uid == (uid_t) -1 && gid == (gid_t) -1)
 		goto error;
 
-	key_ref = lookup_user_key(NULL, id, 1, 1, 0);
+	key_ref = lookup_user_key(NULL, id, 1, 1, KEY_SETATTR);
 	if (IS_ERR(key_ref)) {
 		ret = PTR_ERR(key_ref);
 		goto error;
@@ -786,7 +789,7 @@ long keyctl_setperm_key(key_serial_t id, key_perm_t perm)
 	if (perm & ~(KEY_POS_ALL | KEY_USR_ALL | KEY_GRP_ALL | KEY_OTH_ALL))
 		goto error;
 
-	key_ref = lookup_user_key(NULL, id, 1, 1, 0);
+	key_ref = lookup_user_key(NULL, id, 1, 1, KEY_SETATTR);
 	if (IS_ERR(key_ref)) {
 		ret = PTR_ERR(key_ref);
 		goto error;

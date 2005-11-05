@@ -41,9 +41,14 @@
 #ifdef CONFIG_PMAC_BACKLIGHT
 #include <asm/backlight.h>
 #endif
-#include <asm/perfmon.h>
+#include <asm/pmc.h>
 
 #ifdef CONFIG_XMON
+extern int xmon_bpt(struct pt_regs *regs);
+extern int xmon_sstep(struct pt_regs *regs);
+extern int xmon_iabr_match(struct pt_regs *regs);
+extern int xmon_dabr_match(struct pt_regs *regs);
+
 void (*debugger)(struct pt_regs *regs) = xmon;
 int (*debugger_bpt)(struct pt_regs *regs) = xmon_bpt;
 int (*debugger_sstep)(struct pt_regs *regs) = xmon_sstep;
@@ -74,7 +79,7 @@ void (*debugger_fault_handler)(struct pt_regs *regs);
 
 DEFINE_SPINLOCK(die_lock);
 
-void die(const char * str, struct pt_regs * fp, long err)
+int die(const char * str, struct pt_regs * fp, long err)
 {
 	static int die_counter;
 	int nl = 0;
@@ -232,7 +237,7 @@ platform_machine_check(struct pt_regs *regs)
 {
 }
 
-void MachineCheckException(struct pt_regs *regs)
+void machine_check_exception(struct pt_regs *regs)
 {
 	unsigned long reason = get_mc_reason(regs);
 
@@ -393,14 +398,14 @@ void SMIException(struct pt_regs *regs)
 #endif
 }
 
-void UnknownException(struct pt_regs *regs)
+void unknown_exception(struct pt_regs *regs)
 {
 	printk("Bad trap at PC: %lx, MSR: %lx, vector=%lx    %s\n",
 	       regs->nip, regs->msr, regs->trap, print_tainted());
 	_exception(SIGTRAP, regs, 0, 0);
 }
 
-void InstructionBreakpoint(struct pt_regs *regs)
+void instruction_breakpoint_exception(struct pt_regs *regs)
 {
 	if (debugger_iabr_match(regs))
 		return;
@@ -575,7 +580,7 @@ extern struct bug_entry __start___bug_table[], __stop___bug_table[];
 #define module_find_bug(x)	NULL
 #endif
 
-static struct bug_entry *find_bug(unsigned long bugaddr)
+struct bug_entry *find_bug(unsigned long bugaddr)
 {
 	struct bug_entry *bug;
 
@@ -601,28 +606,28 @@ int check_bug_trap(struct pt_regs *regs)
 	if (bug->line & BUG_WARNING_TRAP) {
 		/* this is a WARN_ON rather than BUG/BUG_ON */
 #ifdef CONFIG_XMON
-		xmon_printf(KERN_ERR "Badness in %s at %s:%d\n",
+		xmon_printf(KERN_ERR "Badness in %s at %s:%ld\n",
 		       bug->function, bug->file,
 		       bug->line & ~BUG_WARNING_TRAP);
 #endif /* CONFIG_XMON */		
-		printk(KERN_ERR "Badness in %s at %s:%d\n",
+		printk(KERN_ERR "Badness in %s at %s:%ld\n",
 		       bug->function, bug->file,
 		       bug->line & ~BUG_WARNING_TRAP);
 		dump_stack();
 		return 1;
 	}
 #ifdef CONFIG_XMON
-	xmon_printf(KERN_CRIT "kernel BUG in %s at %s:%d!\n",
+	xmon_printf(KERN_CRIT "kernel BUG in %s at %s:%ld!\n",
 	       bug->function, bug->file, bug->line);
 	xmon(regs);
 #endif /* CONFIG_XMON */
-	printk(KERN_CRIT "kernel BUG in %s at %s:%d!\n",
+	printk(KERN_CRIT "kernel BUG in %s at %s:%ld!\n",
 	       bug->function, bug->file, bug->line);
 
 	return 0;
 }
 
-void ProgramCheckException(struct pt_regs *regs)
+void program_check_exception(struct pt_regs *regs)
 {
 	unsigned int reason = get_reason(regs);
 	extern int do_mathemu(struct pt_regs *regs);
@@ -654,7 +659,7 @@ void ProgramCheckException(struct pt_regs *regs)
 			giveup_fpu(current);
 		preempt_enable();
 
-		fpscr = current->thread.fpscr;
+		fpscr = current->thread.fpscr.val;
 		fpscr &= fpscr << 22;	/* mask summary bits with enables */
 		if (fpscr & FPSCR_VX)
 			code = FPE_FLTINV;
@@ -701,7 +706,7 @@ void ProgramCheckException(struct pt_regs *regs)
 		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
 }
 
-void SingleStepException(struct pt_regs *regs)
+void single_step_exception(struct pt_regs *regs)
 {
 	regs->msr &= ~(MSR_SE | MSR_BE);  /* Turn off 'trace' bits */
 	if (debugger_sstep(regs))
@@ -709,7 +714,7 @@ void SingleStepException(struct pt_regs *regs)
 	_exception(SIGTRAP, regs, TRAP_TRACE, 0);
 }
 
-void AlignmentException(struct pt_regs *regs)
+void alignment_exception(struct pt_regs *regs)
 {
 	int fixed;
 
@@ -814,7 +819,18 @@ void TAUException(struct pt_regs *regs)
 }
 #endif /* CONFIG_INT_TAU */
 
-void AltivecUnavailException(struct pt_regs *regs)
+/*
+ * FP unavailable trap from kernel - print a message, but let
+ * the task use FP in the kernel until it returns to user mode.
+ */
+void kernel_fp_unavailable_exception(struct pt_regs *regs)
+{
+	regs->msr |= MSR_FP;
+	printk(KERN_ERR "floating point used in kernel (task=%p, pc=%lx)\n",
+	       current, regs->nip);
+}
+
+void altivec_unavailable_exception(struct pt_regs *regs)
 {
 	static int kernel_altivec_count;
 
@@ -835,7 +851,7 @@ void AltivecUnavailException(struct pt_regs *regs)
 }
 
 #ifdef CONFIG_ALTIVEC
-void AltivecAssistException(struct pt_regs *regs)
+void altivec_assist_exception(struct pt_regs *regs)
 {
 	int err;
 
@@ -872,7 +888,7 @@ void AltivecAssistException(struct pt_regs *regs)
 #endif /* CONFIG_ALTIVEC */
 
 #ifdef CONFIG_E500
-void PerformanceMonitorException(struct pt_regs *regs)
+void performance_monitor_exception(struct pt_regs *regs)
 {
 	perf_irq(regs);
 }

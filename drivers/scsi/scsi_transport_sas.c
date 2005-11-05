@@ -34,7 +34,7 @@
 
 
 #define SAS_HOST_ATTRS		0
-#define SAS_PORT_ATTRS		11
+#define SAS_PORT_ATTRS		17
 #define SAS_RPORT_ATTRS		5
 
 struct sas_internal {
@@ -257,6 +257,29 @@ show_sas_phy_##field(struct class_device *cdev, char *buf)		\
 	sas_phy_show_linkspeed(field)					\
 static CLASS_DEVICE_ATTR(field, S_IRUGO, show_sas_phy_##field, NULL)
 
+#define sas_phy_show_linkerror(field)					\
+static ssize_t								\
+show_sas_phy_##field(struct class_device *cdev, char *buf)		\
+{									\
+	struct sas_phy *phy = transport_class_to_phy(cdev);		\
+	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);	\
+	struct sas_internal *i = to_sas_internal(shost->transportt);	\
+	int error;							\
+									\
+	if (!phy->local_attached)					\
+		return -EINVAL;						\
+									\
+	error = i->f->get_linkerrors(phy);				\
+	if (error)							\
+		return error;						\
+	return snprintf(buf, 20, "%u\n", phy->field);			\
+}
+
+#define sas_phy_linkerror_attr(field)					\
+	sas_phy_show_linkerror(field)					\
+static CLASS_DEVICE_ATTR(field, S_IRUGO, show_sas_phy_##field, NULL)
+
+
 static ssize_t
 show_sas_device_type(struct class_device *cdev, char *buf)
 {
@@ -266,8 +289,38 @@ show_sas_device_type(struct class_device *cdev, char *buf)
 		return snprintf(buf, 20, "none\n");
 	return get_sas_device_type_names(phy->identify.device_type, buf);
 }
-
 static CLASS_DEVICE_ATTR(device_type, S_IRUGO, show_sas_device_type, NULL);
+
+static ssize_t do_sas_phy_reset(struct class_device *cdev,
+		size_t count, int hard_reset)
+{
+	struct sas_phy *phy = transport_class_to_phy(cdev);
+	struct Scsi_Host *shost = dev_to_shost(phy->dev.parent);
+	struct sas_internal *i = to_sas_internal(shost->transportt);
+	int error;
+
+	if (!phy->local_attached)
+		return -EINVAL;
+
+	error = i->f->phy_reset(phy, hard_reset);
+	if (error)
+		return error;
+	return count;
+};
+
+static ssize_t store_sas_link_reset(struct class_device *cdev,
+		const char *buf, size_t count)
+{
+	return do_sas_phy_reset(cdev, count, 0);
+}
+static CLASS_DEVICE_ATTR(link_reset, S_IWUSR, NULL, store_sas_link_reset);
+
+static ssize_t store_sas_hard_reset(struct class_device *cdev,
+		const char *buf, size_t count)
+{
+	return do_sas_phy_reset(cdev, count, 1);
+}
+static CLASS_DEVICE_ATTR(hard_reset, S_IWUSR, NULL, store_sas_hard_reset);
 
 sas_phy_protocol_attr(identify.initiator_port_protocols,
 		initiator_port_protocols);
@@ -282,6 +335,10 @@ sas_phy_linkspeed_attr(minimum_linkrate_hw);
 sas_phy_linkspeed_attr(minimum_linkrate);
 sas_phy_linkspeed_attr(maximum_linkrate_hw);
 sas_phy_linkspeed_attr(maximum_linkrate);
+sas_phy_linkerror_attr(invalid_dword_count);
+sas_phy_linkerror_attr(running_disparity_error_count);
+sas_phy_linkerror_attr(loss_of_dword_sync_count);
+sas_phy_linkerror_attr(phy_reset_problem_count);
 
 
 static DECLARE_TRANSPORT_CLASS(sas_phy_class,
@@ -698,6 +755,13 @@ static struct device *sas_target_parent(struct Scsi_Host *shost,
         i->phy_attrs[count] = &i->private_phy_attrs[count];		\
 	count++
 
+#define SETUP_PORT_ATTRIBUTE_WRONLY(field)				\
+	i->private_phy_attrs[count] = class_device_attr_##field;	\
+	i->private_phy_attrs[count].attr.mode = S_IWUGO;		\
+	i->private_phy_attrs[count].show = NULL;			\
+	i->phy_attrs[count] = &i->private_phy_attrs[count];		\
+	count++
+
 
 /**
  * sas_attach_transport  --  instantiate SAS transport template
@@ -749,6 +813,13 @@ sas_attach_transport(struct sas_function_template *ft)
 	SETUP_PORT_ATTRIBUTE(minimum_linkrate);
 	SETUP_PORT_ATTRIBUTE(maximum_linkrate_hw);
 	SETUP_PORT_ATTRIBUTE(maximum_linkrate);
+
+	SETUP_PORT_ATTRIBUTE(invalid_dword_count);
+	SETUP_PORT_ATTRIBUTE(running_disparity_error_count);
+	SETUP_PORT_ATTRIBUTE(loss_of_dword_sync_count);
+	SETUP_PORT_ATTRIBUTE(phy_reset_problem_count);
+	SETUP_PORT_ATTRIBUTE_WRONLY(link_reset);
+	SETUP_PORT_ATTRIBUTE_WRONLY(hard_reset);
 	i->phy_attrs[count] = NULL;
 
 	count = 0;

@@ -10,6 +10,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/platform_device.h>
 #include <asm/ocp.h>
 #include <asm/ppc4xx_pic.h>
 #include <platforms/4xx/ibmstb4.h>

@@ -293,14 +293,14 @@ static void adma_eng_timeout(struct ata_port *ap)
 
 static int adma_fill_sg(struct ata_queued_cmd *qc)
 {
-	struct scatterlist *sg = qc->sg;
+	struct scatterlist *sg;
 	struct ata_port *ap = qc->ap;
 	struct adma_port_priv *pp = ap->private_data;
 	u8  *buf = pp->pkt;
-	int nelem, i = (2 + buf[3]) * 8;
+	int i = (2 + buf[3]) * 8;
 	u8 pFLAGS = pORD | ((qc->tf.flags & ATA_TFLAG_WRITE) ? pDIRO : 0);
 
-	for (nelem = 0; nelem < qc->n_elem; nelem++,sg++) {
+	ata_for_each_sg(sg, qc) {
 		u32 addr;
 		u32 len;
 
@@ -312,7 +312,7 @@ static int adma_fill_sg(struct ata_queued_cmd *qc)
 		*(__le32 *)(buf + i) = cpu_to_le32(len);
 		i += 4;
 
-		if ((nelem + 1) == qc->n_elem)
+		if (ata_sg_is_last(sg, qc))
 			pFLAGS |= pEND;
 		buf[i++] = pFLAGS;
 		buf[i++] = qc->dev->dma_mode & 0xf;

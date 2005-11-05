@@ -75,15 +75,16 @@ static void *get_wqe(struct mthca_srq *srq, int n)
 
 /*
  * Return a pointer to the location within a WQE that we're using as a
- * link when the WQE is in the free list.  We use an offset of 4
- * because in the Tavor case, posting a WQE may overwrite the first
- * four bytes of the previous WQE.  The offset avoids corrupting our
- * free list if the WQE has already completed and been put on the free
- * list when we post the next WQE.
+ * link when the WQE is in the free list.  We use the imm field
+ * because in the Tavor case, posting a WQE may overwrite the next
+ * segment of the previous WQE, but a receive WQE will never touch the
+ * imm field.  This avoids corrupting our free list if the previous
+ * WQE has already completed and been put on the free list when we
+ * post the next WQE.
  */
 static inline int *wqe_to_link(void *wqe)
 {
-	return (int *) (wqe + 4);
+	return (int *) (wqe + offsetof(struct mthca_next_seg, imm));
 }
 
 static void mthca_tavor_init_srq_context(struct mthca_dev *dev,

@@ -49,7 +49,8 @@ static inline MFT_RECORD *map_mft_record_page(ntfs_inode *ni)
 	ntfs_volume *vol = ni->vol;
 	struct inode *mft_vi = vol->mft_ino;
 	struct page *page;
-	unsigned long index, ofs, end_index;
+	unsigned long index, end_index;
+	unsigned ofs;
 
 	BUG_ON(ni->page);
 	/*
@@ -1308,7 +1309,7 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
 	ll = mftbmp_ni->allocated_size;
 	read_unlock_irqrestore(&mftbmp_ni->size_lock, flags);
 	rl = ntfs_attr_find_vcn_nolock(mftbmp_ni,
-			(ll - 1) >> vol->cluster_size_bits, TRUE);
+			(ll - 1) >> vol->cluster_size_bits, NULL);
 	if (unlikely(IS_ERR(rl) || !rl->length || rl->lcn < 0)) {
 		up_write(&mftbmp_ni->runlist.lock);
 		ntfs_error(vol->sb, "Failed to determine last allocated "
@@ -1354,7 +1355,8 @@ static int ntfs_mft_bitmap_extend_allocation_nolock(ntfs_volume *vol)
 		up_write(&vol->lcnbmp_lock);
 		ntfs_unmap_page(page);
 		/* Allocate a cluster from the DATA_ZONE. */
-		rl2 = ntfs_cluster_alloc(vol, rl[1].vcn, 1, lcn, DATA_ZONE);
+		rl2 = ntfs_cluster_alloc(vol, rl[1].vcn, 1, lcn, DATA_ZONE,
+				TRUE);
 		if (IS_ERR(rl2)) {
 			up_write(&mftbmp_ni->runlist.lock);
 			ntfs_error(vol->sb, "Failed to allocate a cluster for "
@@ -1738,7 +1740,7 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 	ll = mft_ni->allocated_size;
 	read_unlock_irqrestore(&mft_ni->size_lock, flags);
 	rl = ntfs_attr_find_vcn_nolock(mft_ni,
-			(ll - 1) >> vol->cluster_size_bits, TRUE);
+			(ll - 1) >> vol->cluster_size_bits, NULL);
 	if (unlikely(IS_ERR(rl) || !rl->length || rl->lcn < 0)) {
 		up_write(&mft_ni->runlist.lock);
 		ntfs_error(vol->sb, "Failed to determine last allocated "
@@ -1779,7 +1781,8 @@ static int ntfs_mft_data_extend_allocation_nolock(ntfs_volume *vol)
 			nr > min_nr ? "default" : "minimal", (long long)nr);
 	old_last_vcn = rl[1].vcn;
 	do {
-		rl2 = ntfs_cluster_alloc(vol, old_last_vcn, nr, lcn, MFT_ZONE);
+		rl2 = ntfs_cluster_alloc(vol, old_last_vcn, nr, lcn, MFT_ZONE,
+				TRUE);
 		if (likely(!IS_ERR(rl2)))
 			break;
 		if (PTR_ERR(rl2) != -ENOSPC || nr == min_nr) {
@@ -1951,20 +1954,21 @@ restore_undo_alloc:
 		NVolSetErrors(vol);
 		return ret;
 	}
-	a = ctx->attr;
-	a->data.non_resident.highest_vcn = cpu_to_sle64(old_last_vcn - 1);
+	ctx->attr->data.non_resident.highest_vcn =
+			cpu_to_sle64(old_last_vcn - 1);
 undo_alloc:
-	if (ntfs_cluster_free(mft_ni, old_last_vcn, -1) < 0) {
+	if (ntfs_cluster_free(mft_ni, old_last_vcn, -1, ctx) < 0) {
 		ntfs_error(vol->sb, "Failed to free clusters from mft data "
 				"attribute.%s", es);
 		NVolSetErrors(vol);
 	}
+	a = ctx->attr;
 	if (ntfs_rl_truncate_nolock(vol, &mft_ni->runlist, old_last_vcn)) {
 		ntfs_error(vol->sb, "Failed to truncate mft data attribute "
 				"runlist.%s", es);
 		NVolSetErrors(vol);
 	}
-	if (mp_rebuilt) {
+	if (mp_rebuilt && !IS_ERR(ctx->mrec)) {
 		if (ntfs_mapping_pairs_build(vol, (u8*)a + le16_to_cpu(
 				a->data.non_resident.mapping_pairs_offset),
 				old_alen - le16_to_cpu(
@@ -1981,6 +1985,10 @@ undo_alloc:
 		}
 		flush_dcache_mft_record_page(ctx->ntfs_ino);
 		mark_mft_record_dirty(ctx->ntfs_ino);
+	} else if (IS_ERR(ctx->mrec)) {
+		ntfs_error(vol->sb, "Failed to restore attribute search "
+				"context.%s", es);
+		NVolSetErrors(vol);
 	}
 	if (ctx)
 		ntfs_attr_put_search_ctx(ctx);

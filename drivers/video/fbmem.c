@@ -918,7 +918,7 @@ fb_mmap(struct file *file, struct vm_area_struct * vma)
 	}
 #endif
 #elif defined(__powerpc__)
-	vma->vm_page_prot = phys_mem_access_prot(file, off,
+	vma->vm_page_prot = phys_mem_access_prot(file, off >> PAGE_SHIFT,
 						 vma->vm_end - vma->vm_start,
 						 vma->vm_page_prot);
 #elif defined(__alpha__)

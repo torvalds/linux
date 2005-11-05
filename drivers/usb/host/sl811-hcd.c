@@ -54,6 +54,7 @@
 #include <linux/interrupt.h>
 #include <linux/usb.h>
 #include <linux/usb_sl811.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

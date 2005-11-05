@@ -27,10 +27,6 @@ config UID16
 	bool
 	default y
 
-config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
-
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
@@ -39,6 +35,12 @@ config GENERIC_CALIBRATE_DELAY
 config IRQ_RELEASE_METHOD
 	bool
 	default y
+
+menu "Host processor type and features"
+
+source "arch/i386/Kconfig.cpu"
+
+endmenu
 
 menu "UML-specific options"
 

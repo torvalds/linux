@@ -6,10 +6,11 @@
 #ifndef __UM_NET_KERN_H
 #define __UM_NET_KERN_H
 
-#include "linux/netdevice.h"
-#include "linux/skbuff.h"
-#include "linux/socket.h"
-#include "linux/list.h"
+#include <linux/netdevice.h>
+#include <linux/platform_device.h>
+#include <linux/skbuff.h>
+#include <linux/socket.h>
+#include <linux/list.h>
 
 struct uml_net {
 	struct list_head list;
