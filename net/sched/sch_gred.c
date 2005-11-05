@@ -176,20 +176,24 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	dp = tc_index_to_dp(skb);
 
 	if (dp >= t->DPs  || (q = t->tab[dp]) == NULL) {
-		printk("GRED: setting to default (%d)\n ",t->def);
-		if (!(q=t->tab[t->def])) {
-			DPRINTK("GRED: setting to default FAILED! dropping!! "
-			    "(%d)\n ", t->def);
-			goto drop;
+		dp = t->def;
+
+		if ((q = t->tab[dp]) == NULL) {
+			/* Pass through packets not assigned to a DP
+			 * if no default DP has been configured. This
+			 * allows for DP flows to be left untouched.
+			 */
+			if (skb_queue_len(&sch->q) < sch->dev->tx_queue_len)
+				return qdisc_enqueue_tail(skb, sch);
+			else
+				goto drop;
 		}
+
 		/* fix tc_index? --could be controvesial but needed for
 		   requeueing */
-		skb->tc_index=(skb->tc_index & ~GRED_VQ_MASK) | t->def;
+		skb->tc_index = (skb->tc_index & ~GRED_VQ_MASK) | dp;
 	}
 
-	D2PRINTK("gred_enqueue virtualQ 0x%x classid %x backlog %d "
-	    "general backlog %d\n",skb->tc_index&0xf,sch->handle,q->backlog,
-	    sch->qstats.backlog);
 	/* sum up all the qaves of prios <= to ours to get the new qave*/
 	if (!gred_wred_mode(t) && gred_rio_mode(t)) {
 		for (i=0;i<t->DPs;i++) {
@@ -254,13 +258,20 @@ static int
 gred_requeue(struct sk_buff *skb, struct Qdisc* sch)
 {
 	struct gred_sched *t = qdisc_priv(sch);
-	struct gred_sched_data *q = t->tab[tc_index_to_dp(skb)];
-/* error checking here -- probably unnecessary */
+	struct gred_sched_data *q;
+	u16 dp = tc_index_to_dp(skb);
 
-	if (red_is_idling(&q->parms))
-		red_end_of_idle_period(&q->parms);
+	if (dp >= t->DPs || (q = t->tab[dp]) == NULL) {
+		if (net_ratelimit())
+			printk(KERN_WARNING "GRED: Unable to relocate VQ 0x%x "
+			       "for requeue, screwing up backlog.\n",
+			       tc_index_to_dp(skb));
+	} else {
+		if (red_is_idling(&q->parms))
+			red_end_of_idle_period(&q->parms);
+		q->backlog += skb->len;
+	}
 
-	q->backlog += skb->len;
 	return qdisc_requeue(skb, sch);
 }
 
@@ -274,15 +285,20 @@ gred_dequeue(struct Qdisc* sch)
 	skb = qdisc_dequeue_head(sch);
 
 	if (skb) {
-		q = t->tab[tc_index_to_dp(skb)];
-		if (q) {
+		u16 dp = tc_index_to_dp(skb);
+
+		if (dp >= t->DPs || (q = t->tab[dp]) == NULL) {
+			if (net_ratelimit())
+				printk(KERN_WARNING "GRED: Unable to relocate "
+				       "VQ 0x%x after dequeue, screwing up "
+				       "backlog.\n", tc_index_to_dp(skb));
+		} else {
 			q->backlog -= skb->len;
+
 			if (!q->backlog && !gred_wred_mode(t))
 				red_start_of_idle_period(&q->parms);
-		} else {
-			D2PRINTK("gred_dequeue: skb has bad tcindex %x\n",
-				 tc_index_to_dp(skb));
 		}
+
 		return skb;
 	}
 
@@ -308,15 +324,19 @@ static unsigned int gred_drop(struct Qdisc* sch)
 	skb = qdisc_dequeue_tail(sch);
 	if (skb) {
 		unsigned int len = skb->len;
-		q = t->tab[tc_index_to_dp(skb)];
-		if (q) {
+		u16 dp = tc_index_to_dp(skb);
+
+		if (dp >= t->DPs || (q = t->tab[dp]) == NULL) {
+			if (net_ratelimit())
+				printk(KERN_WARNING "GRED: Unable to relocate "
+				       "VQ 0x%x while dropping, screwing up "
+				       "backlog.\n", tc_index_to_dp(skb));
+		} else {
 			q->backlog -= len;
 			q->stats.other++;
+
 			if (!q->backlog && !gred_wred_mode(t))
 				red_start_of_idle_period(&q->parms);
-		} else {
-			D2PRINTK("gred_dequeue: skb has bad tcindex %x\n",
-				 tc_index_to_dp(skb));
 		}
 
 		qdisc_drop(skb, sch);
