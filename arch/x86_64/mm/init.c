@@ -47,6 +47,8 @@ extern int swiotlb;
 
 extern char _stext[];
 
+static unsigned long dma_reserve __initdata;
+
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
 /*
@@ -354,6 +356,21 @@ size_zones(unsigned long *z, unsigned long *h,
 		w += z[i];
 		h[i] = e820_hole_size(s, w);
 	}
+
+	/* Add the space pace needed for mem_map to the holes too. */
+	for (i = 0; i < MAX_NR_ZONES; i++)
+		h[i] += (z[i] * sizeof(struct page)) / PAGE_SIZE;
+
+	/* The 16MB DMA zone has the kernel and other misc mappings.
+ 	   Account them too */
+	if (h[ZONE_DMA]) {
+		h[ZONE_DMA] += dma_reserve;
+		if (h[ZONE_DMA] >= z[ZONE_DMA]) {
+			printk(KERN_WARNING
+				"Kernel too large and filling up ZONE_DMA?\n");
+			h[ZONE_DMA] = z[ZONE_DMA];
+		}
+	}
 }
 
 #ifndef CONFIG_NUMA
@@ -510,6 +527,8 @@ void __init reserve_bootmem_generic(unsigned long phys, unsigned len)
 #else       		
 	reserve_bootmem(phys, len);    
 #endif
+	if (phys+len <= MAX_DMA_PFN*PAGE_SIZE)
+		dma_reserve += len / PAGE_SIZE;
 }
 
 int kern_addr_valid(unsigned long addr) 
