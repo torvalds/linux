@@ -1599,7 +1599,7 @@ static void rtl8139_thread (void *_data)
 	struct net_device *dev = _data;
 	struct rtl8139_private *tp = netdev_priv(dev);
 
-	if (rtnl_lock_interruptible() == 0) {
+	if (rtnl_shlock_nowait() == 0) {
 		rtl8139_thread_iter (dev, tp, tp->mmio_addr);
 		rtnl_unlock ();
 	}
