@@ -348,10 +348,6 @@ static void gred_reset(struct Qdisc* sch)
 			continue; 
 		red_restart(&q->parms);
 		q->backlog = 0;
-		q->stats.other = 0;
-		q->stats.forced_drop = 0;
-		q->stats.prob_drop = 0;
-		q->stats.pdrop = 0;
 	}
 }
 
@@ -433,11 +429,6 @@ static inline int gred_change_vq(struct Qdisc *sch, int dp,
 	red_set_parms(&q->parms,
 		      ctl->qth_min, ctl->qth_max, ctl->Wlog, ctl->Plog,
 		      ctl->Scell_log, stab);
-
-	q->stats.other = 0;
-	q->stats.forced_drop = 0;
-	q->stats.prob_drop = 0;
-	q->stats.pdrop = 0;
 
 	return 0;
 }
