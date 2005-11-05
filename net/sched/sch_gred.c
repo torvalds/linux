@@ -45,6 +45,7 @@
 #include <linux/skbuff.h>
 #include <net/sock.h>
 #include <net/pkt_sched.h>
+#include <net/red.h>
 
 #if 1 /* control */
 #define DPRINTK(format,args...) printk(KERN_DEBUG format,##args)
@@ -65,32 +66,15 @@ struct gred_sched;
 
 struct gred_sched_data
 {
-/* Parameters */
 	u32		limit;		/* HARD maximal queue length	*/
-	u32		qth_min;	/* Min average length threshold: A scaled */
-	u32		qth_max;	/* Max average length threshold: A scaled */
 	u32      	DP;		/* the drop pramaters */
-	char		Wlog;		/* log(W)		*/
-	char		Plog;		/* random number bits	*/
-	u32		Scell_max;
-	u32		Rmask;
 	u32		bytesin;	/* bytes seen on virtualQ so far*/
 	u32		packetsin;	/* packets seen on virtualQ so far*/
 	u32		backlog;	/* bytes on the virtualQ */
-	u32		forced;	/* packets dropped for exceeding limits */
-	u32		early;	/* packets dropped as a warning */
-	u32		other;	/* packets dropped by invoking drop() */
-	u32		pdrop;	/* packets dropped because we exceeded physical queue limits */
-	char		Scell_log;
-	u8		Stab[256];
 	u8              prio;        /* the prio of this vq */
 
-/* Variables */
-	unsigned long	qave;		/* Average queue length: A scaled */
-	int		qcount;		/* Packets since last random number generation */
-	u32		qR;		/* Cached random number */
-
-	psched_time_t	qidlestart;	/* Start of idle period	*/
+	struct red_parms parms;
+	struct red_stats stats;
 };
 
 enum {
@@ -159,13 +143,22 @@ static inline int gred_wred_mode_check(struct Qdisc *sch)
 	return 0;
 }
 
+static inline unsigned int gred_backlog(struct gred_sched *table,
+					struct gred_sched_data *q,
+					struct Qdisc *sch)
+{
+	if (gred_wred_mode(table))
+		return sch->qstats.backlog;
+	else
+		return q->backlog;
+}
+
 static int
 gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
-	psched_time_t now;
 	struct gred_sched_data *q=NULL;
 	struct gred_sched *t= qdisc_priv(sch);
-	unsigned long	qave=0;	
+	unsigned long qavg = 0;
 	int i=0;
 
 	if (!t->initd && skb_queue_len(&sch->q) < (sch->dev->tx_queue_len ? : 1)) {
@@ -195,8 +188,9 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 			if ((!t->tab[i]) || (i==q->DP))	
 				continue; 
 				
-			if ((t->tab[i]->prio < q->prio) && (PSCHED_IS_PASTPERFECT(t->tab[i]->qidlestart)))
-				qave +=t->tab[i]->qave;
+			if (t->tab[i]->prio < q->prio &&
+			    !red_is_idling(&t->tab[i]->parms))
+				qavg +=t->tab[i]->parms.qavg;
 		}
 			
 	}
@@ -205,68 +199,49 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	q->bytesin+=skb->len;
 
 	if (gred_wred_mode(t)) {
-		qave=0;
-		q->qave=t->tab[t->def]->qave;
-		q->qidlestart=t->tab[t->def]->qidlestart;
+		qavg = 0;
+		q->parms.qavg = t->tab[t->def]->parms.qavg;
+		q->parms.qidlestart = t->tab[t->def]->parms.qidlestart;
 	}
 
-	if (!PSCHED_IS_PASTPERFECT(q->qidlestart)) {
-		long us_idle;
-		PSCHED_GET_TIME(now);
-		us_idle = PSCHED_TDIFF_SAFE(now, q->qidlestart, q->Scell_max);
-		PSCHED_SET_PASTPERFECT(q->qidlestart);
+	q->parms.qavg = red_calc_qavg(&q->parms, gred_backlog(t, q, sch));
 
-		q->qave >>= q->Stab[(us_idle>>q->Scell_log)&0xFF];
-	} else {
-		if (gred_wred_mode(t)) {
-			q->qave += sch->qstats.backlog - (q->qave >> q->Wlog);
-		} else {
-			q->qave += q->backlog - (q->qave >> q->Wlog);
-		}
-
-	}
-	
+	if (red_is_idling(&q->parms))
+		red_end_of_idle_period(&q->parms);
 
 	if (gred_wred_mode(t))
-		t->tab[t->def]->qave=q->qave;
+		t->tab[t->def]->parms.qavg = q->parms.qavg;
 
-	if ((q->qave+qave) < q->qth_min) {
-		q->qcount = -1;
-enqueue:
-		if (q->backlog + skb->len <= q->limit) {
-			q->backlog += skb->len;
+	switch (red_action(&q->parms, q->parms.qavg + qavg)) {
+		case RED_DONT_MARK:
+			break;
+
+		case RED_PROB_MARK:
+			sch->qstats.overlimits++;
+			q->stats.prob_drop++;
+			goto drop;
+
+		case RED_HARD_MARK:
+			sch->qstats.overlimits++;
+			q->stats.forced_drop++;
+			goto drop;
+	}
+
+	if (q->backlog + skb->len <= q->limit) {
+		q->backlog += skb->len;
 do_enqueue:
-			__skb_queue_tail(&sch->q, skb);
-			sch->qstats.backlog += skb->len;
-			sch->bstats.bytes += skb->len;
-			sch->bstats.packets++;
-			return 0;
-		} else {
-			q->pdrop++;
-		}
+		__skb_queue_tail(&sch->q, skb);
+		sch->qstats.backlog += skb->len;
+		sch->bstats.bytes += skb->len;
+		sch->bstats.packets++;
+		return 0;
+	}
 
+	q->stats.pdrop++;
 drop:
-		kfree_skb(skb);
-		sch->qstats.drops++;
-		return NET_XMIT_DROP;
-	}
-	if ((q->qave+qave) >= q->qth_max) {
-		q->qcount = -1;
-		sch->qstats.overlimits++;
-		q->forced++;
-		goto drop;
-	}
-	if (++q->qcount) {
-		if ((((qave+q->qave) - q->qth_min)>>q->Wlog)*q->qcount < q->qR)
-			goto enqueue;
-		q->qcount = 0;
-		q->qR = net_random()&q->Rmask;
-		sch->qstats.overlimits++;
-		q->early++;
-		goto drop;
-	}
-	q->qR = net_random()&q->Rmask;
-	goto enqueue;
+	kfree_skb(skb);
+	sch->qstats.drops++;
+	return NET_XMIT_DROP;
 }
 
 static int
@@ -276,7 +251,9 @@ gred_requeue(struct sk_buff *skb, struct Qdisc* sch)
 	struct gred_sched *t= qdisc_priv(sch);
 	q= t->tab[(skb->tc_index&0xf)];
 /* error checking here -- probably unnecessary */
-	PSCHED_SET_PASTPERFECT(q->qidlestart);
+
+	if (red_is_idling(&q->parms))
+		red_end_of_idle_period(&q->parms);
 
 	__skb_queue_head(&sch->q, skb);
 	sch->qstats.backlog += skb->len;
@@ -299,7 +276,7 @@ gred_dequeue(struct Qdisc* sch)
 		if (q) {
 			q->backlog -= skb->len;
 			if (!q->backlog && !gred_wred_mode(t))
-				PSCHED_GET_TIME(q->qidlestart);
+				red_start_of_idle_period(&q->parms);
 		} else {
 			D2PRINTK("gred_dequeue: skb has bad tcindex %x\n",skb->tc_index&0xf); 
 		}
@@ -312,7 +289,7 @@ gred_dequeue(struct Qdisc* sch)
 				D2PRINTK("no default VQ set: Results will be "
 				       "screwed up\n");
 			else
-				PSCHED_GET_TIME(q->qidlestart);
+				red_start_of_idle_period(&q->parms);
 	}
 
 	return NULL;
@@ -333,9 +310,9 @@ static unsigned int gred_drop(struct Qdisc* sch)
 		q= t->tab[(skb->tc_index&0xf)];
 		if (q) {
 			q->backlog -= len;
-			q->other++;
+			q->stats.other++;
 			if (!q->backlog && !gred_wred_mode(t))
-				PSCHED_GET_TIME(q->qidlestart);
+				red_start_of_idle_period(&q->parms);
 		} else {
 			D2PRINTK("gred_dequeue: skb has bad tcindex %x\n",skb->tc_index&0xf); 
 		}
@@ -350,7 +327,7 @@ static unsigned int gred_drop(struct Qdisc* sch)
 		return 0;
 	}
 
-	PSCHED_GET_TIME(q->qidlestart);
+	red_start_of_idle_period(&q->parms);
 	return 0;
 
 }
@@ -369,14 +346,12 @@ static void gred_reset(struct Qdisc* sch)
 	        q= t->tab[i];
 		if (!q)	
 			continue; 
-		PSCHED_SET_PASTPERFECT(q->qidlestart);
-		q->qave = 0;
-		q->qcount = -1;
+		red_restart(&q->parms);
 		q->backlog = 0;
-		q->other=0;
-		q->forced=0;
-		q->pdrop=0;
-		q->early=0;
+		q->stats.other = 0;
+		q->stats.forced_drop = 0;
+		q->stats.prob_drop = 0;
+		q->stats.pdrop = 0;
 	}
 }
 
@@ -450,25 +425,19 @@ static inline int gred_change_vq(struct Qdisc *sch, int dp,
 	q = table->tab[dp];
 	q->DP = dp;
 	q->prio = prio;
-
-	q->Wlog = ctl->Wlog;
-	q->Plog = ctl->Plog;
 	q->limit = ctl->limit;
-	q->Scell_log = ctl->Scell_log;
- 	q->Rmask = ctl->Plog < 32 ? ((1<<ctl->Plog) - 1) : ~0UL;
- 	q->Scell_max = (255<<q->Scell_log);
- 	q->qth_min = ctl->qth_min<<ctl->Wlog;
- 	q->qth_max = ctl->qth_max<<ctl->Wlog;
- 	q->qave=0;
- 	q->backlog=0;
- 	q->qcount = -1;
- 	q->other=0;
- 	q->forced=0;
- 	q->pdrop=0;
-	q->early=0;
 
-	PSCHED_SET_PASTPERFECT(q->qidlestart);
-	memcpy(q->Stab, stab, 256);
+	if (q->backlog == 0)
+		red_end_of_idle_period(&q->parms);
+
+	red_set_parms(&q->parms,
+		      ctl->qth_min, ctl->qth_max, ctl->Wlog, ctl->Plog,
+		      ctl->Scell_log, stab);
+
+	q->stats.other = 0;
+	q->stats.forced_drop = 0;
+	q->stats.prob_drop = 0;
+	q->stats.pdrop = 0;
 
 	return 0;
 }
@@ -592,36 +561,25 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 		opt.DP		= q->DP;
 		opt.backlog	= q->backlog;
 		opt.prio	= q->prio;
-		opt.qth_min	= q->qth_min >> q->Wlog;
-		opt.qth_max	= q->qth_max >> q->Wlog;
-		opt.Wlog	= q->Wlog;
-		opt.Plog	= q->Plog;
-		opt.Scell_log	= q->Scell_log;
-		opt.other	= q->other;
-		opt.early	= q->early;
-		opt.forced	= q->forced;
-		opt.pdrop	= q->pdrop;
+		opt.qth_min	= q->parms.qth_min >> q->parms.Wlog;
+		opt.qth_max	= q->parms.qth_max >> q->parms.Wlog;
+		opt.Wlog	= q->parms.Wlog;
+		opt.Plog	= q->parms.Plog;
+		opt.Scell_log	= q->parms.Scell_log;
+		opt.other	= q->stats.other;
+		opt.early	= q->stats.prob_drop;
+		opt.forced	= q->stats.forced_drop;
+		opt.pdrop	= q->stats.pdrop;
 		opt.packets	= q->packetsin;
 		opt.bytesin	= q->bytesin;
 
-		if (q->qave) {
-			if (gred_wred_mode(table)) {
-				q->qidlestart=table->tab[table->def]->qidlestart;
-				q->qave=table->tab[table->def]->qave;
-			}
-			if (!PSCHED_IS_PASTPERFECT(q->qidlestart)) {
-				long idle;
-				unsigned long qave;
-				psched_time_t now;
-				PSCHED_GET_TIME(now);
-				idle = PSCHED_TDIFF_SAFE(now, q->qidlestart, q->Scell_max);
-				qave  = q->qave >> q->Stab[(idle>>q->Scell_log)&0xFF];
-				opt.qave = qave >> q->Wlog;
-
-			} else {
-				opt.qave = q->qave >> q->Wlog;
-			}
+		if (gred_wred_mode(table)) {
+			q->parms.qidlestart =
+				table->tab[table->def]->parms.qidlestart;
+			q->parms.qavg = table->tab[table->def]->parms.qavg;
 		}
+
+		opt.qave = red_calc_qavg(&q->parms, q->parms.qavg);
 
 append_opt:
 		RTA_APPEND(skb, sizeof(opt), &opt);
