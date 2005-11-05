@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/kallsyms.h>
 #include <linux/init.h>
+#include <linux/cpu.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -105,6 +106,14 @@ void cpu_idle(void)
 	/* endless idle loop with no priority at all */
 	while (1) {
 		void (*idle)(void) = pm_idle;
+
+#ifdef CONFIG_HOTPLUG_CPU
+		if (cpu_is_offline(smp_processor_id())) {
+			leds_event(led_idle_start);
+			cpu_die();
+		}
+#endif
+
 		if (!idle)
 			idle = default_idle;
 		preempt_disable();

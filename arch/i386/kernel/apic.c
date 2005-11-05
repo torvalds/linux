@@ -1046,10 +1046,11 @@ static unsigned int calibration_result;
 
 void __init setup_boot_APIC_clock(void)
 {
+	unsigned long flags;
 	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n");
 	using_apic_timer = 1;
 
-	local_irq_disable();
+	local_irq_save(flags);
 
 	calibration_result = calibrate_APIC_clock();
 	/*
@@ -1057,7 +1058,7 @@ void __init setup_boot_APIC_clock(void)
 	 */
 	setup_APIC_timer(calibration_result);
 
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 void __devinit setup_secondary_APIC_clock(void)

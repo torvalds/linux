@@ -25,6 +25,7 @@
 #include <linux/bootmem.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mv643xx.h>
+#include <linux/platform_device.h>
 #ifdef CONFIG_BOOTIMG
 #include <linux/bootimg.h>
 #endif
@@ -35,6 +36,7 @@
 #include <asm/bootinfo.h>
 #include <asm/ppcboot.h>
 #include <asm/mv64x60.h>
+#include <asm/machdep.h>
 #include <platforms/ev64360.h>
 
 #define BOARD_VENDOR    "Marvell"

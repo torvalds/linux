@@ -23,11 +23,13 @@
  *
  */
 #include <linux/pci.h>
+#include <linux/string.h>
+
 #include <asm/pci-bridge.h>
 #include <asm/rtas.h>
 #include <asm/machdep.h>
-#include "../pci.h"		/* for pci_add_new_bus */
 
+#include "../pci.h"		/* for pci_add_new_bus */
 #include "rpaphp.h"
 
 static struct pci_bus *find_bus_among_children(struct pci_bus *bus,

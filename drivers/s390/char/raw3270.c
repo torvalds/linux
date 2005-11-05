@@ -25,6 +25,12 @@
 
 #include "raw3270.h"
 
+#include <linux/major.h>
+#include <linux/kdev_t.h>
+#include <linux/device.h>
+
+struct class *class3270;
+
 /* The main 3270 data structure. */
 struct raw3270 {
 	struct list_head list;
@@ -41,6 +47,8 @@ struct raw3270 {
 	struct timer_list timer;	/* Device timer. */
 
 	unsigned char *ascebc;		/* ascii -> ebcdic table */
+	struct class_device *clttydev;	/* 3270-class tty device ptr */
+	struct class_device *cltubdev;	/* 3270-class tub device ptr */
 };
 
 /* raw3270->flags */
@@ -313,6 +321,22 @@ raw3270_start(struct raw3270_view *view, struct raw3270_request *rq)
 	else
 		rc =  __raw3270_start(rp, view, rq);
 	spin_unlock_irqrestore(get_ccwdev_lock(view->dev->cdev), flags);
+	return rc;
+}
+
+int
+raw3270_start_locked(struct raw3270_view *view, struct raw3270_request *rq)
+{
+	struct raw3270 *rp;
+	int rc;
+
+	rp = view->dev;
+	if (!rp || rp->view != view)
+		rc = -EACCES;
+	else if (!test_bit(RAW3270_FLAGS_READY, &rp->flags))
+		rc = -ENODEV;
+	else
+		rc =  __raw3270_start(rp, view, rq);
 	return rc;
 }
 
@@ -744,6 +768,22 @@ raw3270_reset_device(struct raw3270 *rp)
 	return rc;
 }
 
+int
+raw3270_reset(struct raw3270_view *view)
+{
+	struct raw3270 *rp;
+	int rc;
+
+	rp = view->dev;
+	if (!rp || rp->view != view)
+		rc = -EACCES;
+	else if (!test_bit(RAW3270_FLAGS_READY, &rp->flags))
+		rc = -ENODEV;
+	else
+		rc = raw3270_reset_device(view->dev);
+	return rc;
+}
+
 /*
  * Setup new 3270 device.
  */
@@ -774,11 +814,12 @@ raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp, char *ascebc)
 
 	/*
 	 * Add device to list and find the smallest unused minor
-	 * number for it.
+	 * number for it. Note: there is no device with minor 0,
+	 * see special case for fs3270.c:fs3270_open().
 	 */
 	down(&raw3270_sem);
 	/* Keep the list sorted. */
-	minor = 0;
+	minor = RAW3270_FIRSTMINOR;
 	rp->minor = -1;
 	list_for_each(l, &raw3270_devices) {
 		tmp = list_entry(l, struct raw3270, list);
@@ -789,7 +830,7 @@ raw3270_setup_device(struct ccw_device *cdev, struct raw3270 *rp, char *ascebc)
 		}
 		minor++;
 	}
-	if (rp->minor == -1 && minor < RAW3270_MAXDEVS) {
+	if (rp->minor == -1 && minor < RAW3270_MAXDEVS + RAW3270_FIRSTMINOR) {
 		rp->minor = minor;
 		list_add_tail(&rp->list, &raw3270_devices);
 	}
@@ -941,11 +982,12 @@ raw3270_deactivate_view(struct raw3270_view *view)
 		list_add_tail(&view->list, &rp->view_list);
 		/* Try to activate another view. */
 		if (test_bit(RAW3270_FLAGS_READY, &rp->flags)) {
-			list_for_each_entry(view, &rp->view_list, list)
-				if (view->fn->activate(view) == 0) {
-					rp->view = view;
+			list_for_each_entry(view, &rp->view_list, list) {
+				rp->view = view;
+				if (view->fn->activate(view) == 0)
 					break;
-				}
+				rp->view = 0;
+			}
 		}
 	}
 	spin_unlock_irqrestore(get_ccwdev_lock(rp->cdev), flags);
@@ -961,6 +1003,8 @@ raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn, int minor)
 	struct raw3270 *rp;
 	int rc;
 
+	if (minor <= 0)
+		return -ENODEV;
 	down(&raw3270_sem);
 	rc = -ENODEV;
 	list_for_each_entry(rp, &raw3270_devices, list) {
@@ -976,7 +1020,7 @@ raw3270_add_view(struct raw3270_view *view, struct raw3270_fn *fn, int minor)
 			view->cols = rp->cols;
 			view->ascebc = rp->ascebc;
 			spin_lock_init(&view->lock);
-			list_add_tail(&view->list, &rp->view_list);
+			list_add(&view->list, &rp->view_list);
 			rc = 0;
 		}
 		spin_unlock_irqrestore(get_ccwdev_lock(rp->cdev), flags);
@@ -1039,7 +1083,7 @@ raw3270_del_view(struct raw3270_view *view)
 	if (!rp->view && test_bit(RAW3270_FLAGS_READY, &rp->flags)) {
 		/* Try to activate another view. */
 		list_for_each_entry(nv, &rp->view_list, list) {
-			if (nv->fn->activate(view) == 0) {
+			if (nv->fn->activate(nv) == 0) {
 				rp->view = nv;
 				break;
 			}
@@ -1063,6 +1107,12 @@ raw3270_delete_device(struct raw3270 *rp)
 
 	/* Remove from device chain. */
 	down(&raw3270_sem);
+	if (rp->clttydev)
+		class_device_destroy(class3270,
+				     MKDEV(IBM_TTY3270_MAJOR, rp->minor));
+	if (rp->cltubdev)
+		class_device_destroy(class3270,
+				     MKDEV(IBM_FS3270_MAJOR, rp->minor));
 	list_del_init(&rp->list);
 	up(&raw3270_sem);
 
@@ -1129,6 +1179,16 @@ raw3270_create_attributes(struct raw3270 *rp)
 {
 	//FIXME: check return code
 	sysfs_create_group(&rp->cdev->dev.kobj, &raw3270_attr_group);
+	rp->clttydev =
+		class_device_create(class3270,
+				    MKDEV(IBM_TTY3270_MAJOR, rp->minor),
+				    &rp->cdev->dev, "tty%s",
+				    rp->cdev->dev.bus_id);
+	rp->cltubdev =
+		class_device_create(class3270,
+				    MKDEV(IBM_FS3270_MAJOR, rp->minor),
+				    &rp->cdev->dev, "tub%s",
+				    rp->cdev->dev.bus_id);
 }
 
 /*
@@ -1189,13 +1249,13 @@ raw3270_set_online (struct ccw_device *cdev)
 		return PTR_ERR(rp);
 	rc = raw3270_reset_device(rp);
 	if (rc)
-		return rc;
+		goto failure;
 	rc = raw3270_size_device(rp);
 	if (rc)
-		return rc;
+		goto failure;
 	rc = raw3270_reset_device(rp);
 	if (rc)
-		return rc;
+		goto failure;
 	raw3270_create_attributes(rp);
 	set_bit(RAW3270_FLAGS_READY, &rp->flags);
 	down(&raw3270_sem);
@@ -1203,6 +1263,10 @@ raw3270_set_online (struct ccw_device *cdev)
 		np->notifier(rp->minor, 1);
 	up(&raw3270_sem);
 	return 0;
+
+failure:
+	raw3270_delete_device(rp);
+	return rc;
 }
 
 /*
@@ -1217,6 +1281,14 @@ raw3270_remove (struct ccw_device *cdev)
 	struct raw3270_notifier *np;
 
 	rp = cdev->dev.driver_data;
+	/*
+	 * _remove is the opposite of _probe; it's probe that
+	 * should set up rp.  raw3270_remove gets entered for
+	 * devices even if they haven't been varied online.
+	 * Thus, rp may validly be NULL here.
+	 */
+	if (rp == NULL)
+		return;
 	clear_bit(RAW3270_FLAGS_READY, &rp->flags);
 
 	sysfs_remove_group(&cdev->dev.kobj, &raw3270_attr_group);
@@ -1301,6 +1373,7 @@ raw3270_init(void)
 	if (rc == 0) {
 		/* Create attributes for early (= console) device. */
 		down(&raw3270_sem);
+		class3270 = class_create(THIS_MODULE, "3270");
 		list_for_each_entry(rp, &raw3270_devices, list) {
 			get_device(&rp->cdev->dev);
 			raw3270_create_attributes(rp);
@@ -1314,6 +1387,7 @@ static void
 raw3270_exit(void)
 {
 	ccw_driver_unregister(&raw3270_ccw_driver);
+	class_destroy(class3270);
 }
 
 MODULE_LICENSE("GPL");
@@ -1335,7 +1409,9 @@ EXPORT_SYMBOL(raw3270_find_view);
 EXPORT_SYMBOL(raw3270_activate_view);
 EXPORT_SYMBOL(raw3270_deactivate_view);
 EXPORT_SYMBOL(raw3270_start);
+EXPORT_SYMBOL(raw3270_start_locked);
 EXPORT_SYMBOL(raw3270_start_irq);
+EXPORT_SYMBOL(raw3270_reset);
 EXPORT_SYMBOL(raw3270_register_notifier);
 EXPORT_SYMBOL(raw3270_unregister_notifier);
 EXPORT_SYMBOL(raw3270_wait_queue);

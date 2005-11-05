@@ -8,7 +8,7 @@
 
 #include <asm/param.h>
 
-extern __inline__ void __delay(unsigned long loops)
+static inline void __delay(unsigned long loops)
 {
 #if defined(CONFIG_COLDFIRE)
 	/* The coldfire runs this loop at significantly different speeds
@@ -48,7 +48,7 @@ extern __inline__ void __delay(unsigned long loops)
 
 extern unsigned long loops_per_jiffy;
 
-extern __inline__ void _udelay(unsigned long usecs)
+static inline void _udelay(unsigned long usecs)
 {
 #if defined(CONFIG_M68328) || defined(CONFIG_M68EZ328) || \
     defined(CONFIG_M68VZ328) || defined(CONFIG_M68360) || \

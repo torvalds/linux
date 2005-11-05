@@ -671,7 +671,7 @@ static irqreturn_t fd_mcs_intr(int irq, void *dev_id, struct pt_regs *regs)
 		outb(0x40 | FIFO_COUNT, Interrupt_Cntl_port);
 
 		outb(0x82, SCSI_Cntl_port);	/* Bus Enable + Select */
-		outb(adapter_mask | (1 << current_SC->device->id), SCSI_Data_NoACK_port);
+		outb(adapter_mask | (1 << scmd_id(current_SC)), SCSI_Data_NoACK_port);
 
 		/* Stop arbitration and enable parity */
 		outb(0x10 | PARITY_MASK, TMC_Cntl_port);
@@ -683,7 +683,7 @@ static irqreturn_t fd_mcs_intr(int irq, void *dev_id, struct pt_regs *regs)
 		status = inb(SCSI_Status_port);
 		if (!(status & 0x01)) {
 			/* Try again, for slow devices */
-			if (fd_mcs_select(shpnt, current_SC->device->id)) {
+			if (fd_mcs_select(shpnt, scmd_id(current_SC))) {
 #if EVERY_ACCESS
 				printk(" SFAIL ");
 #endif

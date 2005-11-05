@@ -1468,7 +1468,7 @@ void fastcall sched_exit(task_t *p)
 	 * the sleep_avg of the parent as well.
 	 */
 	rq = task_rq_lock(p->parent, &flags);
-	if (p->first_time_slice) {
+	if (p->first_time_slice && task_cpu(p) == task_cpu(p->parent)) {
 		p->parent->time_slice += p->time_slice;
 		if (unlikely(p->parent->time_slice > task_timeslice(p)))
 			p->parent->time_slice = task_timeslice(p);
@@ -3877,7 +3877,6 @@ EXPORT_SYMBOL(cpu_present_map);
 
 #ifndef CONFIG_SMP
 cpumask_t cpu_online_map = CPU_MASK_ALL;
-EXPORT_SYMBOL_GPL(cpu_online_map);
 cpumask_t cpu_possible_map = CPU_MASK_ALL;
 #endif
 

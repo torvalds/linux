@@ -17,6 +17,8 @@
 #include <linux/pm.h>
 #include <linux/cpufreq.h>
 #include <linux/ioport.h>
+#include <linux/sched.h>	/* just for sched_clock() - funny that */
+#include <linux/platform_device.h>
 
 #include <asm/div64.h>
 #include <asm/hardware.h>

@@ -35,6 +35,7 @@
 #include <linux/init.h>
 #include <linux/gameport.h>
 #include <linux/input.h>
+#include <linux/jiffies.h>
 
 #define DRIVER_DESC	"Guillemot Digital joystick driver"
 

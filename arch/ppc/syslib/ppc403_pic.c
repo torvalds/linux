@@ -26,6 +26,7 @@
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/ppc4xx_pic.h>
+#include <asm/machdep.h>
 
 /* Function Prototypes */
 

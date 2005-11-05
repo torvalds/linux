@@ -121,12 +121,11 @@ static int roles_init(struct policydb *p)
 	int rc;
 	struct role_datum *role;
 
-	role = kmalloc(sizeof(*role), GFP_KERNEL);
+	role = kzalloc(sizeof(*role), GFP_KERNEL);
 	if (!role) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(role, 0, sizeof(*role));
 	role->value = ++p->p_roles.nprim;
 	if (role->value != OBJECT_R_VAL) {
 		rc = -EINVAL;
@@ -851,12 +850,11 @@ static int perm_read(struct policydb *p, struct hashtab *h, void *fp)
 	__le32 buf[2];
 	u32 len;
 
-	perdatum = kmalloc(sizeof(*perdatum), GFP_KERNEL);
+	perdatum = kzalloc(sizeof(*perdatum), GFP_KERNEL);
 	if (!perdatum) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(perdatum, 0, sizeof(*perdatum));
 
 	rc = next_entry(buf, fp, sizeof buf);
 	if (rc < 0)
@@ -893,12 +891,11 @@ static int common_read(struct policydb *p, struct hashtab *h, void *fp)
 	u32 len, nel;
 	int i, rc;
 
-	comdatum = kmalloc(sizeof(*comdatum), GFP_KERNEL);
+	comdatum = kzalloc(sizeof(*comdatum), GFP_KERNEL);
 	if (!comdatum) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(comdatum, 0, sizeof(*comdatum));
 
 	rc = next_entry(buf, fp, sizeof buf);
 	if (rc < 0)
@@ -950,10 +947,9 @@ static int read_cons_helper(struct constraint_node **nodep, int ncons,
 
 	lc = NULL;
 	for (i = 0; i < ncons; i++) {
-		c = kmalloc(sizeof(*c), GFP_KERNEL);
+		c = kzalloc(sizeof(*c), GFP_KERNEL);
 		if (!c)
 			return -ENOMEM;
-		memset(c, 0, sizeof(*c));
 
 		if (lc) {
 			lc->next = c;
@@ -969,10 +965,9 @@ static int read_cons_helper(struct constraint_node **nodep, int ncons,
 		le = NULL;
 		depth = -1;
 		for (j = 0; j < nexpr; j++) {
-			e = kmalloc(sizeof(*e), GFP_KERNEL);
+			e = kzalloc(sizeof(*e), GFP_KERNEL);
 			if (!e)
 				return -ENOMEM;
-			memset(e, 0, sizeof(*e));
 
 			if (le) {
 				le->next = e;
@@ -1033,12 +1028,11 @@ static int class_read(struct policydb *p, struct hashtab *h, void *fp)
 	u32 len, len2, ncons, nel;
 	int i, rc;
 
-	cladatum = kmalloc(sizeof(*cladatum), GFP_KERNEL);
+	cladatum = kzalloc(sizeof(*cladatum), GFP_KERNEL);
 	if (!cladatum) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(cladatum, 0, sizeof(*cladatum));
 
 	rc = next_entry(buf, fp, sizeof(u32)*6);
 	if (rc < 0)
@@ -1127,12 +1121,11 @@ static int role_read(struct policydb *p, struct hashtab *h, void *fp)
 	__le32 buf[2];
 	u32 len;
 
-	role = kmalloc(sizeof(*role), GFP_KERNEL);
+	role = kzalloc(sizeof(*role), GFP_KERNEL);
 	if (!role) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(role, 0, sizeof(*role));
 
 	rc = next_entry(buf, fp, sizeof buf);
 	if (rc < 0)
@@ -1188,12 +1181,11 @@ static int type_read(struct policydb *p, struct hashtab *h, void *fp)
 	__le32 buf[3];
 	u32 len;
 
-	typdatum = kmalloc(sizeof(*typdatum),GFP_KERNEL);
+	typdatum = kzalloc(sizeof(*typdatum),GFP_KERNEL);
 	if (!typdatum) {
 		rc = -ENOMEM;
 		return rc;
 	}
-	memset(typdatum, 0, sizeof(*typdatum));
 
 	rc = next_entry(buf, fp, sizeof buf);
 	if (rc < 0)
@@ -1261,12 +1253,11 @@ static int user_read(struct policydb *p, struct hashtab *h, void *fp)
 	__le32 buf[2];
 	u32 len;
 
-	usrdatum = kmalloc(sizeof(*usrdatum), GFP_KERNEL);
+	usrdatum = kzalloc(sizeof(*usrdatum), GFP_KERNEL);
 	if (!usrdatum) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(usrdatum, 0, sizeof(*usrdatum));
 
 	rc = next_entry(buf, fp, sizeof buf);
 	if (rc < 0)
@@ -1316,12 +1307,11 @@ static int sens_read(struct policydb *p, struct hashtab *h, void *fp)
 	__le32 buf[2];
 	u32 len;
 
-	levdatum = kmalloc(sizeof(*levdatum), GFP_ATOMIC);
+	levdatum = kzalloc(sizeof(*levdatum), GFP_ATOMIC);
 	if (!levdatum) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(levdatum, 0, sizeof(*levdatum));
 
 	rc = next_entry(buf, fp, sizeof buf);
 	if (rc < 0)
@@ -1368,12 +1358,11 @@ static int cat_read(struct policydb *p, struct hashtab *h, void *fp)
 	__le32 buf[3];
 	u32 len;
 
-	catdatum = kmalloc(sizeof(*catdatum), GFP_ATOMIC);
+	catdatum = kzalloc(sizeof(*catdatum), GFP_ATOMIC);
 	if (!catdatum) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset(catdatum, 0, sizeof(*catdatum));
 
 	rc = next_entry(buf, fp, sizeof buf);
 	if (rc < 0)
@@ -1567,12 +1556,11 @@ int policydb_read(struct policydb *p, void *fp)
 	nel = le32_to_cpu(buf[0]);
 	ltr = NULL;
 	for (i = 0; i < nel; i++) {
-		tr = kmalloc(sizeof(*tr), GFP_KERNEL);
+		tr = kzalloc(sizeof(*tr), GFP_KERNEL);
 		if (!tr) {
 			rc = -ENOMEM;
 			goto bad;
 		}
-		memset(tr, 0, sizeof(*tr));
 		if (ltr) {
 			ltr->next = tr;
 		} else {
@@ -1593,12 +1581,11 @@ int policydb_read(struct policydb *p, void *fp)
 	nel = le32_to_cpu(buf[0]);
 	lra = NULL;
 	for (i = 0; i < nel; i++) {
-		ra = kmalloc(sizeof(*ra), GFP_KERNEL);
+		ra = kzalloc(sizeof(*ra), GFP_KERNEL);
 		if (!ra) {
 			rc = -ENOMEM;
 			goto bad;
 		}
-		memset(ra, 0, sizeof(*ra));
 		if (lra) {
 			lra->next = ra;
 		} else {
@@ -1627,12 +1614,11 @@ int policydb_read(struct policydb *p, void *fp)
 		nel = le32_to_cpu(buf[0]);
 		l = NULL;
 		for (j = 0; j < nel; j++) {
-			c = kmalloc(sizeof(*c), GFP_KERNEL);
+			c = kzalloc(sizeof(*c), GFP_KERNEL);
 			if (!c) {
 				rc = -ENOMEM;
 				goto bad;
 			}
-			memset(c, 0, sizeof(*c));
 			if (l) {
 				l->next = c;
 			} else {
@@ -1743,12 +1729,11 @@ int policydb_read(struct policydb *p, void *fp)
 		if (rc < 0)
 			goto bad;
 		len = le32_to_cpu(buf[0]);
-		newgenfs = kmalloc(sizeof(*newgenfs), GFP_KERNEL);
+		newgenfs = kzalloc(sizeof(*newgenfs), GFP_KERNEL);
 		if (!newgenfs) {
 			rc = -ENOMEM;
 			goto bad;
 		}
-		memset(newgenfs, 0, sizeof(*newgenfs));
 
 		newgenfs->fstype = kmalloc(len + 1,GFP_KERNEL);
 		if (!newgenfs->fstype) {
@@ -1790,12 +1775,11 @@ int policydb_read(struct policydb *p, void *fp)
 				goto bad;
 			len = le32_to_cpu(buf[0]);
 
-			newc = kmalloc(sizeof(*newc), GFP_KERNEL);
+			newc = kzalloc(sizeof(*newc), GFP_KERNEL);
 			if (!newc) {
 				rc = -ENOMEM;
 				goto bad;
 			}
-			memset(newc, 0, sizeof(*newc));
 
 			newc->u.name = kmalloc(len + 1,GFP_KERNEL);
 			if (!newc->u.name) {
@@ -1843,12 +1827,11 @@ int policydb_read(struct policydb *p, void *fp)
 		nel = le32_to_cpu(buf[0]);
 		lrt = NULL;
 		for (i = 0; i < nel; i++) {
-			rt = kmalloc(sizeof(*rt), GFP_KERNEL);
+			rt = kzalloc(sizeof(*rt), GFP_KERNEL);
 			if (!rt) {
 				rc = -ENOMEM;
 				goto bad;
 			}
-			memset(rt, 0, sizeof(*rt));
 			if (lrt)
 				lrt->next = rt;
 			else

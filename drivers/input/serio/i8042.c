@@ -20,6 +20,7 @@
 #include <linux/serio.h>
 #include <linux/err.h>
 #include <linux/rcupdate.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 

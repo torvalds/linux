@@ -40,6 +40,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <asm/semaphore.h>
 
 #define PREFIX "HP SDC MLC: "
 

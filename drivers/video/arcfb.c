@@ -47,6 +47,7 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/arcfb.h>
+#include <linux/platform_device.h>
 
 #include <asm/uaccess.h>
 

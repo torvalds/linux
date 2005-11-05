@@ -356,18 +356,15 @@ static struct ipoib_path *path_rec_create(struct net_device *dev,
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_path *path;
 
-	path = kmalloc(sizeof *path, GFP_ATOMIC);
+	path = kzalloc(sizeof *path, GFP_ATOMIC);
 	if (!path)
 		return NULL;
 
-	path->dev          = dev;
-	path->pathrec.dlid = 0;
-	path->ah           = NULL;
+	path->dev = dev;
 
 	skb_queue_head_init(&path->queue);
 
 	INIT_LIST_HEAD(&path->neigh_list);
-	path->query = NULL;
 	init_completion(&path->done);
 
 	memcpy(path->pathrec.dgid.raw, gid->raw, sizeof (union ib_gid));
@@ -551,11 +548,8 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ipoib_neigh *neigh;
 	unsigned long flags;
 
-	local_irq_save(flags);
-	if (!spin_trylock(&priv->tx_lock)) {
-		local_irq_restore(flags);
+	if (!spin_trylock_irqsave(&priv->tx_lock, flags))
 		return NETDEV_TX_LOCKED;
-	}
 
 	/*
 	 * Check if our queue is stopped.  Since we have the LLTX bit
@@ -732,25 +726,21 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 
 	/* Allocate RX/TX "rings" to hold queued skbs */
 
-	priv->rx_ring =	kmalloc(IPOIB_RX_RING_SIZE * sizeof (struct ipoib_rx_buf),
+	priv->rx_ring =	kzalloc(IPOIB_RX_RING_SIZE * sizeof (struct ipoib_rx_buf),
 				GFP_KERNEL);
 	if (!priv->rx_ring) {
 		printk(KERN_WARNING "%s: failed to allocate RX ring (%d entries)\n",
 		       ca->name, IPOIB_RX_RING_SIZE);
 		goto out;
 	}
-	memset(priv->rx_ring, 0,
-	       IPOIB_RX_RING_SIZE * sizeof (struct ipoib_rx_buf));
 
-	priv->tx_ring = kmalloc(IPOIB_TX_RING_SIZE * sizeof (struct ipoib_tx_buf),
+	priv->tx_ring = kzalloc(IPOIB_TX_RING_SIZE * sizeof (struct ipoib_tx_buf),
 				GFP_KERNEL);
 	if (!priv->tx_ring) {
 		printk(KERN_WARNING "%s: failed to allocate TX ring (%d entries)\n",
 		       ca->name, IPOIB_TX_RING_SIZE);
 		goto out_rx_ring_cleanup;
 	}
-	memset(priv->tx_ring, 0,
-	       IPOIB_TX_RING_SIZE * sizeof (struct ipoib_tx_buf));
 
 	/* priv->tx_head & tx_tail are already 0 */
 
@@ -806,10 +796,6 @@ static void ipoib_setup(struct net_device *dev)
 	dev->neigh_setup         = ipoib_neigh_setup_dev;
 
 	dev->watchdog_timeo 	 = HZ;
-
-	dev->rebuild_header 	 = NULL;
-	dev->set_mac_address 	 = NULL;
-	dev->header_cache_update = NULL;
 
 	dev->flags              |= IFF_BROADCAST | IFF_MULTICAST;
 

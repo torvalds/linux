@@ -39,6 +39,8 @@
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/ethtool.h>
+#include <linux/platform_device.h>
+
 #include <asm/io.h>
 #include <asm/types.h>
 #include <asm/pgtable.h>
@@ -1532,6 +1534,9 @@ static int mv643xx_eth_probe(struct device *ddev)
 #ifdef MV643XX_NAPI
 	printk(KERN_NOTICE "%s: RX NAPI Enabled \n", dev->name);
 #endif
+
+	if (mp->tx_sram_size > 0)
+		printk(KERN_NOTICE "%s: Using SRAM\n", dev->name);
 
 	return 0;
 

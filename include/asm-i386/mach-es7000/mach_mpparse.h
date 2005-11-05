@@ -16,7 +16,7 @@ static inline void mpc_oem_pci_bus(struct mpc_config_bus *m,
 
 extern int parse_unisys_oem (char *oemptr);
 extern int find_unisys_acpi_oem_table(unsigned long *oem_addr);
-extern void setup_unisys();
+extern void setup_unisys(void);
 
 static inline int mps_oem_check(struct mp_config_table *mpc, char *oem,
 		char *productid)

@@ -10,6 +10,8 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/agp_backend.h>
 
 #include "agp.h"

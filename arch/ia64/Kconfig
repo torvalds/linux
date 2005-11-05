@@ -26,6 +26,10 @@ config MMU
 	bool
 	default y
 
+config SWIOTLB
+       bool
+       default y
+
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 	default y

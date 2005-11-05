@@ -384,7 +384,9 @@ static int eata_pio_queue(struct scsi_cmnd *cmd,
 
 	cp->status = USED;	/* claim free slot */
 
-	DBG(DBG_QUEUE, printk(KERN_DEBUG "eata_pio_queue pid %ld, target: %x, lun:" " %x, y %d\n", cmd->pid, cmd->device->id, cmd->device->lun, y));
+	DBG(DBG_QUEUE, scmd_printk(KERN_DEBUG, cmd,
+		"eata_pio_queue pid %ld, y %d\n",
+		cmd->pid, y));
 
 	cmd->scsi_done = (void *) done;
 
@@ -427,7 +429,9 @@ static int eata_pio_queue(struct scsi_cmnd *cmd,
 
 	if (eata_pio_send_command(base, EATA_CMD_PIO_SEND_CP)) {
 		cmd->result = DID_BUS_BUSY << 16;
-		printk(KERN_NOTICE "eata_pio_queue target %d, pid %ld, HBA busy, " "returning DID_BUS_BUSY, done.\n", cmd->device->id, cmd->pid);
+		scmd_printk(KERN_NOTICE, cmd,
+			"eata_pio_queue pid %ld, HBA busy, "
+			"returning DID_BUS_BUSY, done.\n", cmd->pid);
 		done(cmd);
 		cp->status = FREE;
 		return (0);
@@ -440,7 +444,9 @@ static int eata_pio_queue(struct scsi_cmnd *cmd,
 	for (x = 0; x < hd->cppadlen; x++)
 		outw(0, base + HA_RDATA);
 
-	DBG(DBG_QUEUE, printk(KERN_DEBUG "Queued base %#.4lx pid: %ld target: %x " "lun: %x slot %d irq %d\n", (long) sh->base, cmd->pid, cmd->device->id, cmd->device->lun, y, sh->irq));
+	DBG(DBG_QUEUE, scmd_printk(KERN_DEBUG, cmd,
+		"Queued base %#.4lx pid: %ld "
+		"slot %d irq %d\n", (long) sh->base, cmd->pid, y, sh->irq));
 
 	return (0);
 }
@@ -449,8 +455,9 @@ static int eata_pio_abort(struct scsi_cmnd *cmd)
 {
 	uint loop = HZ;
 
-	DBG(DBG_ABNORM, printk(KERN_WARNING "eata_pio_abort called pid: %ld " "target: %x lun: %x\n", cmd->pid, cmd->device->id, cmd->device->lun));
-
+	DBG(DBG_ABNORM, scmd_printk(KERN_WARNING, cmd,
+		"eata_pio_abort called pid: %ld\n",
+		cmd->pid));
 
 	while (inb(cmd->device->host->base + HA_RAUXSTAT) & HA_ABUSY)
 		if (--loop == 0) {
@@ -484,7 +491,9 @@ static int eata_pio_host_reset(struct scsi_cmnd *cmd)
 	struct scsi_cmnd *sp;
 	struct Scsi_Host *host = cmd->device->host;
 
-	DBG(DBG_ABNORM, printk(KERN_WARNING "eata_pio_reset called pid:%ld target:" " %x lun: %x\n", cmd->pid, cmd->device->id, cmd->device->lun));
+	DBG(DBG_ABNORM, scmd_printk(KERN_WARNING, cmd,
+		"eata_pio_reset called pid:%ld\n",
+		cmd->pid));
 
 	spin_lock_irq(host->host_lock);
 

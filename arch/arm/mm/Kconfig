@@ -120,8 +120,8 @@ config CPU_ARM925T
 
 # ARM926T
 config CPU_ARM926T
-	bool "Support ARM926T processor" if ARCH_INTEGRATOR
-	depends on ARCH_INTEGRATOR || ARCH_VERSATILE_PB || MACH_VERSATILE_AB || ARCH_OMAP730 || ARCH_OMAP16XX
+	bool "Support ARM926T processor"
+	depends on ARCH_INTEGRATOR || ARCH_VERSATILE_PB || MACH_VERSATILE_AB || ARCH_OMAP730 || ARCH_OMAP16XX || MACH_REALVIEW_EB
 	default y if ARCH_VERSATILE_PB || MACH_VERSATILE_AB || ARCH_OMAP730 || ARCH_OMAP16XX
 	select CPU_32v5
 	select CPU_ABRT_EV5TJ
@@ -242,13 +242,25 @@ config CPU_XSCALE
 # ARMv6
 config CPU_V6
 	bool "Support ARM V6 processor"
-	depends on ARCH_INTEGRATOR
+	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB
 	select CPU_32v6
 	select CPU_ABRT_EV6
 	select CPU_CACHE_V6
 	select CPU_CACHE_VIPT
 	select CPU_COPY_V6
 	select CPU_TLB_V6
+
+# ARMv6k
+config CPU_32v6K
+	bool "Support ARM V6K processor extensions" if !SMP
+	depends on CPU_V6
+	default y if SMP
+	help
+	  Say Y here if your ARMv6 processor supports the 'K' extension.
+	  This enables the kernel to use some instructions not present
+	  on previous processors, and as such a kernel build with this
+	  enabled will not boot on processors with do not support these
+	  instructions.
 
 # Figure out what processor architecture version we should be using.
 # This defines the compiler instruction set which depends on the machine type.

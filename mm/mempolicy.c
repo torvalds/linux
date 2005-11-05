@@ -457,6 +457,7 @@ long do_get_mempolicy(int *policy, nodemask_t *nmask,
 	struct vm_area_struct *vma = NULL;
 	struct mempolicy *pol = current->mempolicy;
 
+	cpuset_update_current_mems_allowed();
 	if (flags & ~(unsigned long)(MPOL_F_NODE|MPOL_F_ADDR))
 		return -EINVAL;
 	if (flags & MPOL_F_ADDR) {
@@ -1205,4 +1206,67 @@ void __init numa_policy_init(void)
 void numa_default_policy(void)
 {
 	do_set_mempolicy(MPOL_DEFAULT, NULL);
+}
+
+/* Migrate a policy to a different set of nodes */
+static void rebind_policy(struct mempolicy *pol, const nodemask_t *old,
+							const nodemask_t *new)
+{
+	nodemask_t tmp;
+
+	if (!pol)
+		return;
+
+	switch (pol->policy) {
+	case MPOL_DEFAULT:
+		break;
+	case MPOL_INTERLEAVE:
+		nodes_remap(tmp, pol->v.nodes, *old, *new);
+		pol->v.nodes = tmp;
+		current->il_next = node_remap(current->il_next, *old, *new);
+		break;
+	case MPOL_PREFERRED:
+		pol->v.preferred_node = node_remap(pol->v.preferred_node,
+								*old, *new);
+		break;
+	case MPOL_BIND: {
+		nodemask_t nodes;
+		struct zone **z;
+		struct zonelist *zonelist;
+
+		nodes_clear(nodes);
+		for (z = pol->v.zonelist->zones; *z; z++)
+			node_set((*z)->zone_pgdat->node_id, nodes);
+		nodes_remap(tmp, nodes, *old, *new);
+		nodes = tmp;
+
+		zonelist = bind_zonelist(&nodes);
+
+		/* If no mem, then zonelist is NULL and we keep old zonelist.
+		 * If that old zonelist has no remaining mems_allowed nodes,
+		 * then zonelist_policy() will "FALL THROUGH" to MPOL_DEFAULT.
+		 */
+
+		if (zonelist) {
+			/* Good - got mem - substitute new zonelist */
+			kfree(pol->v.zonelist);
+			pol->v.zonelist = zonelist;
+		}
+		break;
+	}
+	default:
+		BUG();
+		break;
+	}
+}
+
+/*
+ * Someone moved this task to different nodes.  Fixup mempolicies.
+ *
+ * TODO - fixup current->mm->vma and shmfs/tmpfs/hugetlbfs policies as well,
+ * once we have a cpuset mechanism to mark which cpuset subtree is migrating.
+ */
+void numa_policy_rebind(const nodemask_t *old, const nodemask_t *new)
+{
+	rebind_policy(current->mempolicy, old, new);
 }

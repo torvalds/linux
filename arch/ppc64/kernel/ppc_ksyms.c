@@ -19,7 +19,6 @@
 #include <asm/hw_irq.h>
 #include <asm/abs_addr.h>
 #include <asm/cacheflush.h>
-#include <asm/iSeries/HvCallSc.h>
 
 EXPORT_SYMBOL(strcpy);
 EXPORT_SYMBOL(strncpy);
@@ -46,17 +45,6 @@ EXPORT_SYMBOL(__strnlen_user);
 
 EXPORT_SYMBOL(reloc_offset);
 
-#ifdef CONFIG_PPC_ISERIES
-EXPORT_SYMBOL(HvCall0);
-EXPORT_SYMBOL(HvCall1);
-EXPORT_SYMBOL(HvCall2);
-EXPORT_SYMBOL(HvCall3);
-EXPORT_SYMBOL(HvCall4);
-EXPORT_SYMBOL(HvCall5);
-EXPORT_SYMBOL(HvCall6);
-EXPORT_SYMBOL(HvCall7);
-#endif
-
 EXPORT_SYMBOL(_insb);
 EXPORT_SYMBOL(_outsb);
 EXPORT_SYMBOL(_insw);
@@ -76,14 +64,6 @@ EXPORT_SYMBOL(giveup_altivec);
 #endif
 EXPORT_SYMBOL(__flush_icache_range);
 EXPORT_SYMBOL(flush_dcache_range);
-
-#ifdef CONFIG_SMP
-#ifdef CONFIG_PPC_ISERIES
-EXPORT_SYMBOL(local_get_flags);
-EXPORT_SYMBOL(local_irq_disable);
-EXPORT_SYMBOL(local_irq_restore);
-#endif
-#endif
 
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);

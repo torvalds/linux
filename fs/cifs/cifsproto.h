@@ -47,19 +47,24 @@ extern int SendReceive(const unsigned int /* xid */ , struct cifsSesInfo *,
 			struct smb_hdr * /* input */ ,
 			struct smb_hdr * /* out */ ,
 			int * /* bytes returned */ , const int long_op);
+extern int SendReceive2(const unsigned int /* xid */ , struct cifsSesInfo *,
+			struct kvec *, int /* nvec */,
+			int * /* bytes returned */ , const int long_op);
 extern int checkSMBhdr(struct smb_hdr *smb, __u16 mid);
 extern int checkSMB(struct smb_hdr *smb, __u16 mid, int length);
 extern int is_valid_oplock_break(struct smb_hdr *smb);
 extern int is_size_safe_to_change(struct cifsInodeInfo *);
+extern struct cifsFileInfo *find_writable_file(struct cifsInodeInfo *);
 extern unsigned int smbCalcSize(struct smb_hdr *ptr);
+extern unsigned int smbCalcSize_LE(struct smb_hdr *ptr);
 extern int decode_negTokenInit(unsigned char *security_blob, int length,
 			enum securityEnum *secType);
 extern int cifs_inet_pton(int, char * source, void *dst);
 extern int map_smb_to_linux_error(struct smb_hdr *smb);
 extern void header_assemble(struct smb_hdr *, char /* command */ ,
-			const struct cifsTconInfo *, int /* specifies length
-			    of fixed section (word count) in two byte units */
-			);
+			    const struct cifsTconInfo *, int /* length of
+			    fixed section (word count) in two byte units */);
+extern __u16 GetNextMid(struct TCP_Server_Info *server);
 extern struct oplock_q_entry * AllocOplockQEntry(struct inode *, u16, 
 						 struct cifsTconInfo *);
 extern void DeleteOplockQEntry(struct oplock_q_entry *);
@@ -89,7 +94,7 @@ extern int CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 
 extern int CIFSFindFirst(const int xid, struct cifsTconInfo *tcon,
             const char *searchName, const struct nls_table *nls_codepage,
-            __u16 *searchHandle, struct cifs_search_info * psrch_inf, int map);
+            __u16 *searchHandle, struct cifs_search_info * psrch_inf, int map, const char dirsep);
 
 extern int CIFSFindNext(const int xid, struct cifsTconInfo *tcon,
             __u16 searchHandle, struct cifs_search_info * psrch_inf);
@@ -101,6 +106,10 @@ extern int CIFSSMBQPathInfo(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName,
 			FILE_ALL_INFO * findData,
 			const struct nls_table *nls_codepage, int remap);
+extern int SMBQueryInformation(const int xid, struct cifsTconInfo *tcon,
+                        const unsigned char *searchName,
+                        FILE_ALL_INFO * findData,
+                        const struct nls_table *nls_codepage, int remap);
 
 extern int CIFSSMBUnixQPathInfo(const int xid,
 			struct cifsTconInfo *tcon,
@@ -125,6 +134,11 @@ extern int get_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
 			int remap);
 extern int CIFSSMBQFSInfo(const int xid, struct cifsTconInfo *tcon,
 			struct kstatfs *FSData);
+extern int SMBOldQFSInfo(const int xid, struct cifsTconInfo *tcon,
+			struct kstatfs *FSData);
+extern int CIFSSMBSetFSUnixInfo(const int xid, struct cifsTconInfo *tcon,
+			__u64 cap);
+
 extern int CIFSSMBQFSAttributeInfo(const int xid,
 			struct cifsTconInfo *tcon);
 extern int CIFSSMBQFSDeviceInfo(const int xid, struct cifsTconInfo *tcon);
@@ -207,6 +221,11 @@ extern int CIFSSMBOpen(const int xid, struct cifsTconInfo *tcon,
 			const int access_flags, const int omode,
 			__u16 * netfid, int *pOplock, FILE_ALL_INFO *,
 			const struct nls_table *nls_codepage, int remap);
+extern int SMBLegacyOpen(const int xid, struct cifsTconInfo *tcon,
+			const char *fileName, const int disposition,
+			const int access_flags, const int omode,
+			__u16 * netfid, int *pOplock, FILE_ALL_INFO *,
+			const struct nls_table *nls_codepage, int remap);
 extern int CIFSSMBClose(const int xid, struct cifsTconInfo *tcon,
 			const int smb_file_id);
 
@@ -222,7 +241,7 @@ extern int CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 extern int CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 			const int netfid, const unsigned int count,
 			const __u64 offset, unsigned int *nbytes, 
-			const char __user *buf,const int long_op);
+			struct kvec *iov, const int nvec, const int long_op);
 extern int CIFSGetSrvInodeNumber(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName, __u64 * inode_number,
 			const struct nls_table *nls_codepage, 
@@ -264,7 +283,8 @@ extern int CIFSSMBCopy(int xid,
 			int remap_special_chars);
 extern int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon, 
 			const int notify_subdirs,const __u16 netfid,
-			__u32 filter, const struct nls_table *nls_codepage);
+			__u32 filter, struct file * file, int multishot, 
+			const struct nls_table *nls_codepage);
 extern ssize_t CIFSSMBQAllEAs(const int xid, struct cifsTconInfo *tcon,
 			const unsigned char *searchName, char * EAData,
 			size_t bufsize, const struct nls_table *nls_codepage,

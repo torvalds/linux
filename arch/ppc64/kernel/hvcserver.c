@@ -22,6 +22,8 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/slab.h>
+
 #include <asm/hvcall.h>
 #include <asm/hvcserver.h>
 #include <asm/io.h>

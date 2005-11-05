@@ -481,7 +481,7 @@ static int nsp32_selection_autopara(struct scsi_cmnd *SCpnt)
 	nsp32_hw_data  *data = (nsp32_hw_data *)SCpnt->device->host->hostdata;
 	unsigned int	base    = SCpnt->device->host->io_port;
 	unsigned int	host_id = SCpnt->device->host->this_id;
-	unsigned char	target  = SCpnt->device->id;
+	unsigned char	target  = scmd_id(SCpnt);
 	nsp32_autoparam *param  = data->autoparam;
 	unsigned char	phase;
 	int		i, ret;
@@ -612,7 +612,7 @@ static int nsp32_selection_autoscsi(struct scsi_cmnd *SCpnt)
 	nsp32_hw_data  *data = (nsp32_hw_data *)SCpnt->device->host->hostdata;
 	unsigned int	base    = SCpnt->device->host->io_port;
 	unsigned int	host_id = SCpnt->device->host->this_id;
-	unsigned char	target  = SCpnt->device->id;
+	unsigned char	target  = scmd_id(SCpnt);
 	unsigned char	phase;
 	int		status;
 	unsigned short	command	= 0;
@@ -973,7 +973,7 @@ static int nsp32_queuecommand(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_
 	}
 
 	/* check target ID is not same as this initiator ID */
-	if (SCpnt->device->id == SCpnt->device->host->this_id) {
+	if (scmd_id(SCpnt) == SCpnt->device->host->this_id) {
 		nsp32_dbg(NSP32_DEBUG_QUEUECOMMAND, "terget==host???");
 		SCpnt->result = DID_BAD_TARGET << 16;
 		done(SCpnt);
@@ -1028,7 +1028,7 @@ static int nsp32_queuecommand(struct scsi_cmnd *SCpnt, void (*done)(struct scsi_
 	 * (target don't have SDTR_DONE and SDTR_INITIATOR), sync
 	 * message SDTR is needed to do synchronous transfer.
 	 */
-	target = &data->target[SCpnt->device->id];
+	target = &data->target[scmd_id(SCpnt)];
 	data->cur_target = target;
 
 	if (!(target->sync_flag & (SDTR_DONE | SDTR_INITIATOR | SDTR_TARGET))) {

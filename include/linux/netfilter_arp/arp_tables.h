@@ -68,7 +68,8 @@ struct arpt_entry_target
 			u_int16_t target_size;
 
 			/* Used by userspace */
-			char name[ARPT_FUNCTION_MAXNAMELEN];
+			char name[ARPT_FUNCTION_MAXNAMELEN-1];
+			u_int8_t revision;
 		} user;
 		struct {
 			u_int16_t target_size;
@@ -148,7 +149,9 @@ struct arpt_entry
 
 #define ARPT_SO_GET_INFO		(ARPT_BASE_CTL)
 #define ARPT_SO_GET_ENTRIES		(ARPT_BASE_CTL + 1)
-#define ARPT_SO_GET_MAX			ARPT_SO_GET_ENTRIES
+/* #define ARPT_SO_GET_REVISION_MATCH	(ARPT_BASE_CTL + 2)*/
+#define ARPT_SO_GET_REVISION_TARGET	(ARPT_BASE_CTL + 3)
+#define ARPT_SO_GET_MAX			ARPT_SO_GET_REVISION_TARGET
 
 /* CONTINUE verdict for targets */
 #define ARPT_CONTINUE 0xFFFFFFFF
@@ -236,6 +239,15 @@ struct arpt_get_entries
 	struct arpt_entry entrytable[0];
 };
 
+/* The argument to ARPT_SO_GET_REVISION_*.  Returns highest revision
+ * kernel supports, if >= revision. */
+struct arpt_get_revision
+{
+	char name[ARPT_FUNCTION_MAXNAMELEN-1];
+
+	u_int8_t revision;
+};
+
 /* Standard return verdict, or do jump. */
 #define ARPT_STANDARD_TARGET ""
 /* Error verdict. */
@@ -274,7 +286,9 @@ struct arpt_target
 {
 	struct list_head list;
 
-	const char name[ARPT_FUNCTION_MAXNAMELEN];
+	const char name[ARPT_FUNCTION_MAXNAMELEN-1];
+
+	u_int8_t revision;
 
 	/* Returns verdict. */
 	unsigned int (*target)(struct sk_buff **pskb,

@@ -267,10 +267,6 @@ struct lpfc_hba {
 	struct lpfc_nodelist fc_fcpnodev; /* nodelist entry for no device */
 	uint32_t nport_event_cnt;	/* timestamp for nlplist entry */
 
-#define LPFC_RPI_HASH_SIZE     64
-#define LPFC_RPI_HASH_FUNC(x)  ((x) & (0x3f))
-	/* ptr to active D_ID / RPIs */
-	struct lpfc_nodelist *fc_nlplookup[LPFC_RPI_HASH_SIZE];
 	uint32_t wwnn[2];
 	uint32_t RandomData[7];
 

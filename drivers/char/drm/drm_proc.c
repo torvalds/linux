@@ -1,5 +1,5 @@
 /**
- * \file drm_proc.h 
+ * \file drm_proc.c
  * /proc support for DRM
  *
  * \author Rickard E. (Rik) Faith <faith@valinux.com>
@@ -39,19 +39,19 @@
 
 #include "drmP.h"
 
-static int	   drm_name_info(char *buf, char **start, off_t offset,
-				  int request, int *eof, void *data);
-static int	   drm_vm_info(char *buf, char **start, off_t offset,
-				int request, int *eof, void *data);
-static int	   drm_clients_info(char *buf, char **start, off_t offset,
-				     int request, int *eof, void *data);
-static int	   drm_queues_info(char *buf, char **start, off_t offset,
-				    int request, int *eof, void *data);
-static int	   drm_bufs_info(char *buf, char **start, off_t offset,
-				  int request, int *eof, void *data);
+static int drm_name_info(char *buf, char **start, off_t offset,
+			 int request, int *eof, void *data);
+static int drm_vm_info(char *buf, char **start, off_t offset,
+		       int request, int *eof, void *data);
+static int drm_clients_info(char *buf, char **start, off_t offset,
+			    int request, int *eof, void *data);
+static int drm_queues_info(char *buf, char **start, off_t offset,
+			   int request, int *eof, void *data);
+static int drm_bufs_info(char *buf, char **start, off_t offset,
+			 int request, int *eof, void *data);
 #if DRM_DEBUG_CODE
-static int	   drm_vma_info(char *buf, char **start, off_t offset,
-				 int request, int *eof, void *data);
+static int drm_vma_info(char *buf, char **start, off_t offset,
+			int request, int *eof, void *data);
 #endif
 
 /**
@@ -59,18 +59,21 @@ static int	   drm_vma_info(char *buf, char **start, off_t offset,
  */
 static struct drm_proc_list {
 	const char *name;	/**< file name */
-	int	   (*f)(char *, char **, off_t, int, int *, void *);	/**< proc callback*/
+	int (*f) (char *, char **, off_t, int, int *, void *);		/**< proc callback*/
 } drm_proc_list[] = {
-	{ "name",    drm_name_info    },
-	{ "mem",     drm_mem_info     },
-	{ "vm",	     drm_vm_info      },
-	{ "clients", drm_clients_info },
-	{ "queues",  drm_queues_info  },
-	{ "bufs",    drm_bufs_info    },
+	{
+	"name", drm_name_info}, {
+	"mem", drm_mem_info}, {
+	"vm", drm_vm_info}, {
+	"clients", drm_clients_info}, {
+	"queues", drm_queues_info}, {
+	"bufs", drm_bufs_info},
 #if DRM_DEBUG_CODE
-	{ "vma",     drm_vma_info     },
+	{
+	"vma", drm_vma_info},
 #endif
 };
+
 #define DRM_PROC_ENTRIES (sizeof(drm_proc_list)/sizeof(drm_proc_list[0]))
 
 /**
@@ -81,18 +84,17 @@ static struct drm_proc_list {
  * \param root DRI proc dir entry.
  * \param dev_root resulting DRI device proc dir entry.
  * \return root entry pointer on success, or NULL on failure.
- * 
+ *
  * Create the DRI proc root entry "/proc/dri", the device proc root entry
  * "/proc/dri/%minor%/", and each entry in proc_list as
  * "/proc/dri/%minor%/%name%".
  */
-int drm_proc_init(drm_device_t *dev, int minor,
-		    struct proc_dir_entry *root,
-		    struct proc_dir_entry **dev_root)
+int drm_proc_init(drm_device_t * dev, int minor,
+		  struct proc_dir_entry *root, struct proc_dir_entry **dev_root)
 {
 	struct proc_dir_entry *ent;
-	int		      i, j;
-	char                  name[64];
+	int i, j;
+	char name[64];
 
 	sprintf(name, "%d", minor);
 	*dev_root = proc_mkdir(name, root);
@@ -103,7 +105,7 @@ int drm_proc_init(drm_device_t *dev, int minor,
 
 	for (i = 0; i < DRM_PROC_ENTRIES; i++) {
 		ent = create_proc_entry(drm_proc_list[i].name,
-					S_IFREG|S_IRUGO, *dev_root);
+					S_IFREG | S_IRUGO, *dev_root);
 		if (!ent) {
 			DRM_ERROR("Cannot create /proc/dri/%s/%s\n",
 				  name, drm_proc_list[i].name);
@@ -114,12 +116,11 @@ int drm_proc_init(drm_device_t *dev, int minor,
 			return -1;
 		}
 		ent->read_proc = drm_proc_list[i].f;
-		ent->data      = dev;
+		ent->data = dev;
 	}
 
 	return 0;
 }
-
 
 /**
  * Cleanup the proc filesystem resources.
@@ -132,12 +133,13 @@ int drm_proc_init(drm_device_t *dev, int minor,
  * Remove all proc entries created by proc_init().
  */
 int drm_proc_cleanup(int minor, struct proc_dir_entry *root,
-		      struct proc_dir_entry *dev_root)
+		     struct proc_dir_entry *dev_root)
 {
-	int  i;
+	int i;
 	char name[64];
 
-	if (!root || !dev_root) return 0;
+	if (!root || !dev_root)
+		return 0;
 
 	for (i = 0; i < DRM_PROC_ENTRIES; i++)
 		remove_proc_entry(drm_proc_list[i].name, dev_root);
@@ -149,7 +151,7 @@ int drm_proc_cleanup(int minor, struct proc_dir_entry *root,
 
 /**
  * Called when "/proc/dri/.../name" is read.
- * 
+ *
  * \param buf output buffer.
  * \param start start of output data.
  * \param offset requested start offset.
@@ -157,14 +159,14 @@ int drm_proc_cleanup(int minor, struct proc_dir_entry *root,
  * \param eof whether there is no more data to return.
  * \param data private data.
  * \return number of written bytes.
- * 
+ *
  * Prints the device name together with the bus id if available.
  */
 static int drm_name_info(char *buf, char **start, off_t offset, int request,
-			  int *eof, void *data)
+			 int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *)data;
-	int          len  = 0;
+	drm_device_t *dev = (drm_device_t *) data;
+	int len = 0;
 
 	if (offset > DRM_PROC_LIMIT) {
 		*eof = 1;
@@ -172,23 +174,26 @@ static int drm_name_info(char *buf, char **start, off_t offset, int request,
 	}
 
 	*start = &buf[offset];
-	*eof   = 0;
+	*eof = 0;
 
 	if (dev->unique) {
 		DRM_PROC_PRINT("%s %s %s\n",
-			       dev->driver->pci_driver.name, pci_name(dev->pdev), dev->unique);
+			       dev->driver->pci_driver.name,
+			       pci_name(dev->pdev), dev->unique);
 	} else {
-		DRM_PROC_PRINT("%s %s\n", dev->driver->pci_driver.name, pci_name(dev->pdev));
+		DRM_PROC_PRINT("%s %s\n", dev->driver->pci_driver.name,
+			       pci_name(dev->pdev));
 	}
 
-	if (len > request + offset) return request;
+	if (len > request + offset)
+		return request;
 	*eof = 1;
 	return len - offset;
 }
 
 /**
  * Called when "/proc/dri/.../vm" is read.
- * 
+ *
  * \param buf output buffer.
  * \param start start of output data.
  * \param offset requested start offset.
@@ -196,24 +201,24 @@ static int drm_name_info(char *buf, char **start, off_t offset, int request,
  * \param eof whether there is no more data to return.
  * \param data private data.
  * \return number of written bytes.
- * 
+ *
  * Prints information about all mappings in drm_device::maplist.
  */
 static int drm__vm_info(char *buf, char **start, off_t offset, int request,
-			 int *eof, void *data)
+			int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *)data;
-	int          len  = 0;
-	drm_map_t    *map;
+	drm_device_t *dev = (drm_device_t *) data;
+	int len = 0;
+	drm_map_t *map;
 	drm_map_list_t *r_list;
 	struct list_head *list;
 
-				/* Hardcoded from _DRM_FRAME_BUFFER,
-                                   _DRM_REGISTERS, _DRM_SHM, _DRM_AGP, and
-                                   _DRM_SCATTER_GATHER and _DRM_CONSISTENT */
-	const char   *types[] = { "FB", "REG", "SHM", "AGP", "SG", "PCI" };
-	const char   *type;
-	int	     i;
+	/* Hardcoded from _DRM_FRAME_BUFFER,
+	   _DRM_REGISTERS, _DRM_SHM, _DRM_AGP, and
+	   _DRM_SCATTER_GATHER and _DRM_CONSISTENT */
+	const char *types[] = { "FB", "REG", "SHM", "AGP", "SG", "PCI" };
+	const char *type;
+	int i;
 
 	if (offset > DRM_PROC_LIMIT) {
 		*eof = 1;
@@ -221,36 +226,35 @@ static int drm__vm_info(char *buf, char **start, off_t offset, int request,
 	}
 
 	*start = &buf[offset];
-	*eof   = 0;
+	*eof = 0;
 
 	DRM_PROC_PRINT("slot	 offset	      size type flags	 "
 		       "address mtrr\n\n");
 	i = 0;
-	if (dev->maplist != NULL) list_for_each(list, &dev->maplist->head) {
+	if (dev->maplist != NULL)
+		list_for_each(list, &dev->maplist->head) {
 		r_list = list_entry(list, drm_map_list_t, head);
 		map = r_list->map;
-		if(!map)
+		if (!map)
 			continue;
 		if (map->type < 0 || map->type > 5)
 			type = "??";
-		else	
+		else
 			type = types[map->type];
 		DRM_PROC_PRINT("%4d 0x%08lx 0x%08lx %4.4s  0x%02x 0x%08x ",
 			       i,
 			       map->offset,
-			       map->size,
-			       type,
-			       map->flags,
-			       r_list->user_token);
+			       map->size, type, map->flags, r_list->user_token);
 		if (map->mtrr < 0) {
 			DRM_PROC_PRINT("none\n");
 		} else {
 			DRM_PROC_PRINT("%4d\n", map->mtrr);
 		}
 		i++;
-	}
+		}
 
-	if (len > request + offset) return request;
+	if (len > request + offset)
+		return request;
 	*eof = 1;
 	return len - offset;
 }
@@ -259,10 +263,10 @@ static int drm__vm_info(char *buf, char **start, off_t offset, int request,
  * Simply calls _vm_info() while holding the drm_device::struct_sem lock.
  */
 static int drm_vm_info(char *buf, char **start, off_t offset, int request,
-			int *eof, void *data)
+		       int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *)data;
-	int	     ret;
+	drm_device_t *dev = (drm_device_t *) data;
+	int ret;
 
 	down(&dev->struct_sem);
 	ret = drm__vm_info(buf, start, offset, request, eof, data);
@@ -272,7 +276,7 @@ static int drm_vm_info(char *buf, char **start, off_t offset, int request,
 
 /**
  * Called when "/proc/dri/.../queues" is read.
- * 
+ *
  * \param buf output buffer.
  * \param start start of output data.
  * \param offset requested start offset.
@@ -282,12 +286,12 @@ static int drm_vm_info(char *buf, char **start, off_t offset, int request,
  * \return number of written bytes.
  */
 static int drm__queues_info(char *buf, char **start, off_t offset,
-			     int request, int *eof, void *data)
+			    int request, int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *)data;
-	int          len  = 0;
-	int	     i;
-	drm_queue_t  *q;
+	drm_device_t *dev = (drm_device_t *) data;
+	int len = 0;
+	int i;
+	drm_queue_t *q;
 
 	if (offset > DRM_PROC_LIMIT) {
 		*eof = 1;
@@ -295,7 +299,7 @@ static int drm__queues_info(char *buf, char **start, off_t offset,
 	}
 
 	*start = &buf[offset];
-	*eof   = 0;
+	*eof = 0;
 
 	DRM_PROC_PRINT("  ctx/flags   use   fin"
 		       "   blk/rw/rwf  wait    flushed	   queued"
@@ -313,14 +317,17 @@ static int drm__queues_info(char *buf, char **start, off_t offset,
 				   atomic_read(&q->block_count),
 				   atomic_read(&q->block_read) ? 'r' : '-',
 				   atomic_read(&q->block_write) ? 'w' : '-',
-				   waitqueue_active(&q->read_queue) ? 'r':'-',
-				   waitqueue_active(&q->write_queue) ? 'w':'-',
-				   waitqueue_active(&q->flush_queue) ? 'f':'-',
+				   waitqueue_active(&q->read_queue) ? 'r' : '-',
+				   waitqueue_active(&q->
+						    write_queue) ? 'w' : '-',
+				   waitqueue_active(&q->
+						    flush_queue) ? 'f' : '-',
 				   DRM_BUFCOUNT(&q->waitlist));
 		atomic_dec(&q->use_count);
 	}
 
-	if (len > request + offset) return request;
+	if (len > request + offset)
+		return request;
 	*eof = 1;
 	return len - offset;
 }
@@ -329,10 +336,10 @@ static int drm__queues_info(char *buf, char **start, off_t offset,
  * Simply calls _queues_info() while holding the drm_device::struct_sem lock.
  */
 static int drm_queues_info(char *buf, char **start, off_t offset, int request,
-			    int *eof, void *data)
+			   int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *)data;
-	int	     ret;
+	drm_device_t *dev = (drm_device_t *) data;
+	int ret;
 
 	down(&dev->struct_sem);
 	ret = drm__queues_info(buf, start, offset, request, eof, data);
@@ -342,7 +349,7 @@ static int drm_queues_info(char *buf, char **start, off_t offset, int request,
 
 /**
  * Called when "/proc/dri/.../bufs" is read.
- * 
+ *
  * \param buf output buffer.
  * \param start start of output data.
  * \param offset requested start offset.
@@ -352,12 +359,12 @@ static int drm_queues_info(char *buf, char **start, off_t offset, int request,
  * \return number of written bytes.
  */
 static int drm__bufs_info(char *buf, char **start, off_t offset, int request,
-			   int *eof, void *data)
+			  int *eof, void *data)
 {
-	drm_device_t	 *dev = (drm_device_t *)data;
-	int              len  = 0;
+	drm_device_t *dev = (drm_device_t *) data;
+	int len = 0;
 	drm_device_dma_t *dma = dev->dma;
-	int		 i;
+	int i;
 
 	if (!dma || offset > DRM_PROC_LIMIT) {
 		*eof = 1;
@@ -365,7 +372,7 @@ static int drm__bufs_info(char *buf, char **start, off_t offset, int request,
 	}
 
 	*start = &buf[offset];
-	*eof   = 0;
+	*eof = 0;
 
 	DRM_PROC_PRINT(" o     size count  free	 segs pages    kB\n\n");
 	for (i = 0; i <= DRM_MAX_ORDER; i++) {
@@ -378,19 +385,21 @@ static int drm__bufs_info(char *buf, char **start, off_t offset, int request,
 						   .freelist.count),
 				       dma->bufs[i].seg_count,
 				       dma->bufs[i].seg_count
-				       *(1 << dma->bufs[i].page_order),
+				       * (1 << dma->bufs[i].page_order),
 				       (dma->bufs[i].seg_count
 					* (1 << dma->bufs[i].page_order))
 				       * PAGE_SIZE / 1024);
 	}
 	DRM_PROC_PRINT("\n");
 	for (i = 0; i < dma->buf_count; i++) {
-		if (i && !(i%32)) DRM_PROC_PRINT("\n");
+		if (i && !(i % 32))
+			DRM_PROC_PRINT("\n");
 		DRM_PROC_PRINT(" %d", dma->buflist[i]->list);
 	}
 	DRM_PROC_PRINT("\n");
 
-	if (len > request + offset) return request;
+	if (len > request + offset)
+		return request;
 	*eof = 1;
 	return len - offset;
 }
@@ -399,10 +408,10 @@ static int drm__bufs_info(char *buf, char **start, off_t offset, int request,
  * Simply calls _bufs_info() while holding the drm_device::struct_sem lock.
  */
 static int drm_bufs_info(char *buf, char **start, off_t offset, int request,
-			  int *eof, void *data)
+			 int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *)data;
-	int	     ret;
+	drm_device_t *dev = (drm_device_t *) data;
+	int ret;
 
 	down(&dev->struct_sem);
 	ret = drm__bufs_info(buf, start, offset, request, eof, data);
@@ -412,7 +421,7 @@ static int drm_bufs_info(char *buf, char **start, off_t offset, int request,
 
 /**
  * Called when "/proc/dri/.../clients" is read.
- * 
+ *
  * \param buf output buffer.
  * \param start start of output data.
  * \param offset requested start offset.
@@ -422,11 +431,11 @@ static int drm_bufs_info(char *buf, char **start, off_t offset, int request,
  * \return number of written bytes.
  */
 static int drm__clients_info(char *buf, char **start, off_t offset,
-			      int request, int *eof, void *data)
+			     int request, int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *)data;
-	int          len  = 0;
-	drm_file_t   *priv;
+	drm_device_t *dev = (drm_device_t *) data;
+	int len = 0;
+	drm_file_t *priv;
 
 	if (offset > DRM_PROC_LIMIT) {
 		*eof = 1;
@@ -434,7 +443,7 @@ static int drm__clients_info(char *buf, char **start, off_t offset,
 	}
 
 	*start = &buf[offset];
-	*eof   = 0;
+	*eof = 0;
 
 	DRM_PROC_PRINT("a dev	pid    uid	magic	  ioctls\n\n");
 	for (priv = dev->file_first; priv; priv = priv->next) {
@@ -442,12 +451,11 @@ static int drm__clients_info(char *buf, char **start, off_t offset,
 			       priv->authenticated ? 'y' : 'n',
 			       priv->minor,
 			       priv->pid,
-			       priv->uid,
-			       priv->magic,
-			       priv->ioctl_count);
+			       priv->uid, priv->magic, priv->ioctl_count);
 	}
 
-	if (len > request + offset) return request;
+	if (len > request + offset)
+		return request;
 	*eof = 1;
 	return len - offset;
 }
@@ -456,10 +464,10 @@ static int drm__clients_info(char *buf, char **start, off_t offset,
  * Simply calls _clients_info() while holding the drm_device::struct_sem lock.
  */
 static int drm_clients_info(char *buf, char **start, off_t offset,
-			     int request, int *eof, void *data)
+			    int request, int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *)data;
-	int	     ret;
+	drm_device_t *dev = (drm_device_t *) data;
+	int ret;
 
 	down(&dev->struct_sem);
 	ret = drm__clients_info(buf, start, offset, request, eof, data);
@@ -470,14 +478,14 @@ static int drm_clients_info(char *buf, char **start, off_t offset,
 #if DRM_DEBUG_CODE
 
 static int drm__vma_info(char *buf, char **start, off_t offset, int request,
-			  int *eof, void *data)
+			 int *eof, void *data)
 {
-	drm_device_t	      *dev = (drm_device_t *)data;
-	int                   len  = 0;
-	drm_vma_entry_t	      *pt;
+	drm_device_t *dev = (drm_device_t *) data;
+	int len = 0;
+	drm_vma_entry_t *pt;
 	struct vm_area_struct *vma;
 #if defined(__i386__)
-	unsigned int	      pgprot;
+	unsigned int pgprot;
 #endif
 
 	if (offset > DRM_PROC_LIMIT) {
@@ -486,51 +494,53 @@ static int drm__vma_info(char *buf, char **start, off_t offset, int request,
 	}
 
 	*start = &buf[offset];
-	*eof   = 0;
+	*eof = 0;
 
 	DRM_PROC_PRINT("vma use count: %d, high_memory = %p, 0x%08lx\n",
 		       atomic_read(&dev->vma_count),
 		       high_memory, virt_to_phys(high_memory));
 	for (pt = dev->vmalist; pt; pt = pt->next) {
-		if (!(vma = pt->vma)) continue;
+		if (!(vma = pt->vma))
+			continue;
 		DRM_PROC_PRINT("\n%5d 0x%08lx-0x%08lx %c%c%c%c%c%c 0x%08lx",
 			       pt->pid,
 			       vma->vm_start,
 			       vma->vm_end,
-			       vma->vm_flags & VM_READ	   ? 'r' : '-',
-			       vma->vm_flags & VM_WRITE	   ? 'w' : '-',
-			       vma->vm_flags & VM_EXEC	   ? 'x' : '-',
+			       vma->vm_flags & VM_READ ? 'r' : '-',
+			       vma->vm_flags & VM_WRITE ? 'w' : '-',
+			       vma->vm_flags & VM_EXEC ? 'x' : '-',
 			       vma->vm_flags & VM_MAYSHARE ? 's' : 'p',
-			       vma->vm_flags & VM_LOCKED   ? 'l' : '-',
-			       vma->vm_flags & VM_IO	   ? 'i' : '-',
+			       vma->vm_flags & VM_LOCKED ? 'l' : '-',
+			       vma->vm_flags & VM_IO ? 'i' : '-',
 			       VM_OFFSET(vma));
 
 #if defined(__i386__)
 		pgprot = pgprot_val(vma->vm_page_prot);
 		DRM_PROC_PRINT(" %c%c%c%c%c%c%c%c%c",
-			       pgprot & _PAGE_PRESENT  ? 'p' : '-',
-			       pgprot & _PAGE_RW       ? 'w' : 'r',
-			       pgprot & _PAGE_USER     ? 'u' : 's',
-			       pgprot & _PAGE_PWT      ? 't' : 'b',
-			       pgprot & _PAGE_PCD      ? 'u' : 'c',
+			       pgprot & _PAGE_PRESENT ? 'p' : '-',
+			       pgprot & _PAGE_RW ? 'w' : 'r',
+			       pgprot & _PAGE_USER ? 'u' : 's',
+			       pgprot & _PAGE_PWT ? 't' : 'b',
+			       pgprot & _PAGE_PCD ? 'u' : 'c',
 			       pgprot & _PAGE_ACCESSED ? 'a' : '-',
-			       pgprot & _PAGE_DIRTY    ? 'd' : '-',
-			       pgprot & _PAGE_PSE      ? 'm' : 'k',
-			       pgprot & _PAGE_GLOBAL   ? 'g' : 'l' );
+			       pgprot & _PAGE_DIRTY ? 'd' : '-',
+			       pgprot & _PAGE_PSE ? 'm' : 'k',
+			       pgprot & _PAGE_GLOBAL ? 'g' : 'l');
 #endif
 		DRM_PROC_PRINT("\n");
 	}
 
-	if (len > request + offset) return request;
+	if (len > request + offset)
+		return request;
 	*eof = 1;
 	return len - offset;
 }
 
 static int drm_vma_info(char *buf, char **start, off_t offset, int request,
-			 int *eof, void *data)
+			int *eof, void *data)
 {
-	drm_device_t *dev = (drm_device_t *)data;
-	int	     ret;
+	drm_device_t *dev = (drm_device_t *) data;
+	int ret;
 
 	down(&dev->struct_sem);
 	ret = drm__vma_info(buf, start, offset, request, eof, data);
@@ -538,5 +548,3 @@ static int drm_vma_info(char *buf, char **start, off_t offset, int request,
 	return ret;
 }
 #endif
-
-

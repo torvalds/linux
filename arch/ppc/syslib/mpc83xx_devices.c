@@ -21,6 +21,7 @@
 #include <asm/mpc83xx.h>
 #include <asm/irq.h>
 #include <asm/ppc_sys.h>
+#include <asm/machdep.h>
 
 /* We use offsets for IORESOURCE_MEM since we do not know at compile time
  * what IMMRBAR is, will get fixed up by mach_mpc83xx_fixup

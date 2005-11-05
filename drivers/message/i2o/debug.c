@@ -90,7 +90,7 @@ static void i2o_report_fail_status(u8 req_status, u32 * msg)
 	};
 
 	if (req_status == I2O_FSC_TRANSPORT_UNKNOWN_FAILURE)
-		printk(KERN_DEBUG "TRANSPORT_UNKNOWN_FAILURE (%0#2x)\n.",
+		printk(KERN_DEBUG "TRANSPORT_UNKNOWN_FAILURE (%0#2x).\n",
 		       req_status);
 	else
 		printk(KERN_DEBUG "TRANSPORT_%s.\n",

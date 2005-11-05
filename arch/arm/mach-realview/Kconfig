@@ -1,0 +1,11 @@
+menu "RealView platform type"
+	depends on ARCH_REALVIEW
+
+config MACH_REALVIEW_EB
+	bool "Support RealView/EB platform"
+	default n
+	select ARM_GIC
+	help
+	  Include support for the ARM(R) RealView Emulation Baseboard platform.
+
+endmenu

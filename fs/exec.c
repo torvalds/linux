@@ -630,10 +630,9 @@ static inline int de_thread(struct task_struct *tsk)
 	/*
 	 * Account for the thread group leader hanging around:
 	 */
-	count = 2;
-	if (thread_group_leader(current))
-		count = 1;
-	else {
+	count = 1;
+	if (!thread_group_leader(current)) {
+		count = 2;
 		/*
 		 * The SIGALRM timer survives the exec, but needs to point
 		 * at us as the new group leader now.  We have a race with
@@ -642,8 +641,10 @@ static inline int de_thread(struct task_struct *tsk)
 		 * before we can safely let the old group leader die.
 		 */
 		sig->real_timer.data = (unsigned long)current;
+		spin_unlock_irq(lock);
 		if (del_timer_sync(&sig->real_timer))
 			add_timer(&sig->real_timer);
+		spin_lock_irq(lock);
 	}
 	while (atomic_read(&sig->count) > count) {
 		sig->group_exit_task = current;
@@ -655,7 +656,6 @@ static inline int de_thread(struct task_struct *tsk)
 	}
 	sig->group_exit_task = NULL;
 	sig->notify_count = 0;
-	sig->real_timer.data = (unsigned long)current;
 	spin_unlock_irq(lock);
 
 	/*
@@ -1417,19 +1417,16 @@ static void zap_threads (struct mm_struct *mm)
 static void coredump_wait(struct mm_struct *mm)
 {
 	DECLARE_COMPLETION(startup_done);
+	int core_waiters;
 
-	mm->core_waiters++; /* let other threads block */
 	mm->core_startup_done = &startup_done;
 
-	/* give other threads a chance to run: */
-	yield();
-
 	zap_threads(mm);
-	if (--mm->core_waiters) {
-		up_write(&mm->mmap_sem);
+	core_waiters = mm->core_waiters;
+	up_write(&mm->mmap_sem);
+
+	if (core_waiters)
 		wait_for_completion(&startup_done);
-	} else
-		up_write(&mm->mmap_sem);
 	BUG_ON(mm->core_waiters);
 }
 
@@ -1463,11 +1460,21 @@ int do_coredump(long signr, int exit_code, struct pt_regs * regs)
 		current->fsuid = 0;	/* Dump root private */
 	}
 	mm->dumpable = 0;
-	init_completion(&mm->core_done);
+
+	retval = -EAGAIN;
 	spin_lock_irq(&current->sighand->siglock);
-	current->signal->flags = SIGNAL_GROUP_EXIT;
-	current->signal->group_exit_code = exit_code;
+	if (!(current->signal->flags & SIGNAL_GROUP_EXIT)) {
+		current->signal->flags = SIGNAL_GROUP_EXIT;
+		current->signal->group_exit_code = exit_code;
+		retval = 0;
+	}
 	spin_unlock_irq(&current->sighand->siglock);
+	if (retval) {
+		up_write(&mm->mmap_sem);
+		goto fail;
+	}
+
+	init_completion(&mm->core_done);
 	coredump_wait(mm);
 
 	/*

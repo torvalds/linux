@@ -1,8 +1,8 @@
 /*
  * arch/ppc64/kernel/pci_iommu.c
  * Copyright (C) 2001 Mike Corrigan & Dave Engebretsen, IBM Corporation
- * 
- * Rewrite, cleanup, new allocation schemes: 
+ *
+ * Rewrite, cleanup, new allocation schemes:
  * Copyright (C) 2004 Olof Johansson, IBM Corporation
  *
  * Dynamic DMA mapping support, platform-independent parts.
@@ -11,19 +11,18 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 
-#include <linux/config.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -37,11 +36,7 @@
 #include <asm/iommu.h>
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
-#include "pci.h"
-
-#ifdef CONFIG_PPC_ISERIES
-#include <asm/iSeries/iSeries_pci.h>
-#endif /* CONFIG_PPC_ISERIES */
+#include <asm/ppc-pci.h>
 
 /*
  * We can use ->sysdata directly and avoid the extra work in
@@ -61,13 +56,7 @@ static inline struct iommu_table *devnode_table(struct device *dev)
 	} else
 		pdev = to_pci_dev(dev);
 
-#ifdef CONFIG_PPC_ISERIES
-	return ISERIES_DEVNODE(pdev)->iommu_table;
-#endif /* CONFIG_PPC_ISERIES */
-
-#ifdef CONFIG_PPC_MULTIPLATFORM
 	return PCI_DN(PCI_GET_DN(pdev))->iommu_table;
-#endif /* CONFIG_PPC_MULTIPLATFORM */
 }
 
 

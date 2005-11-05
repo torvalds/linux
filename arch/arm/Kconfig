@@ -194,6 +194,13 @@ config ARCH_VERSATILE
 	help
 	  This enables support for ARM Ltd Versatile board.
 
+config ARCH_REALVIEW
+	bool "RealView"
+	select ARM_AMBA
+	select ICST307
+	help
+	  This enables support for ARM Ltd RealView boards.
+
 config ARCH_IMX
 	bool "IMX"
 
@@ -243,6 +250,8 @@ source "arch/arm/mach-h720x/Kconfig"
 source "arch/arm/mach-versatile/Kconfig"
 
 source "arch/arm/mach-aaec2000/Kconfig"
+
+source "arch/arm/mach-realview/Kconfig"
 
 # Definitions to make life easier
 config ARCH_ACORN
@@ -339,6 +348,13 @@ config NR_CPUS
 	range 2 32
 	depends on SMP
 	default "4"
+
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
+	depends on SMP && HOTPLUG && EXPERIMENTAL
+	help
+	  Say Y here to experiment with turning CPUs off and on.  CPUs
+	  can be controlled through /sys/devices/system/cpu.
 
 config PREEMPT
 	bool "Preemptible Kernel (EXPERIMENTAL)"
@@ -688,8 +704,7 @@ source "drivers/acorn/block/Kconfig"
 
 if PCMCIA || ARCH_CLPS7500 || ARCH_IOP3XX || ARCH_IXP4XX \
 	|| ARCH_L7200 || ARCH_LH7A40X || ARCH_PXA || ARCH_RPC \
-	|| ARCH_S3C2410 || ARCH_SA1100 || ARCH_SHARK || FOOTBRIDGE \
-	|| MACH_MP1000
+	|| ARCH_S3C2410 || ARCH_SA1100 || ARCH_SHARK || FOOTBRIDGE
 source "drivers/ide/Kconfig"
 endif
 

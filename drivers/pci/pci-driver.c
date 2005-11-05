@@ -8,6 +8,8 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/mempolicy.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 #include "pci.h"
 
 /*

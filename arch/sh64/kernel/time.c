@@ -116,8 +116,6 @@
 
 extern unsigned long wall_jiffies;
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
 static unsigned long tmu_base, rtc_base;
 unsigned long cprc_base;
 

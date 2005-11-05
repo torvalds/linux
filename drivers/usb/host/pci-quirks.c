@@ -138,10 +138,22 @@ reset_needed:
 }
 EXPORT_SYMBOL_GPL(uhci_check_and_reset_hc);
 
+static inline int io_type_enabled(struct pci_dev *pdev, unsigned int mask)
+{
+	u16 cmd;
+	return !pci_read_config_word(pdev, PCI_COMMAND, &cmd) && (cmd & mask);
+}
+
+#define pio_enabled(dev) io_type_enabled(dev, PCI_COMMAND_IO)
+#define mmio_enabled(dev) io_type_enabled(dev, PCI_COMMAND_MEMORY)
+
 static void __devinit quirk_usb_handoff_uhci(struct pci_dev *pdev)
 {
 	unsigned long base = 0;
 	int i;
+
+	if (!pio_enabled(pdev))
+		return;
 
 	for (i = 0; i < PCI_ROM_RESOURCE; i++)
 		if ((pci_resource_flags(pdev, i) & IORESOURCE_IO)) {
@@ -153,11 +165,19 @@ static void __devinit quirk_usb_handoff_uhci(struct pci_dev *pdev)
 		uhci_check_and_reset_hc(pdev, base);
 }
 
+static int __devinit mmio_resource_enabled(struct pci_dev *pdev, int idx)
+{
+	return pci_resource_start(pdev, idx) && mmio_enabled(pdev);
+}
+
 static void __devinit quirk_usb_handoff_ohci(struct pci_dev *pdev)
 {
 	void __iomem *base;
 	int wait_time;
 	u32 control;
+
+	if (!mmio_resource_enabled(pdev, 0))
+		return;
 
 	base = ioremap_nocache(pci_resource_start(pdev, 0),
 				     pci_resource_len(pdev, 0));
@@ -200,6 +220,9 @@ static void __devinit quirk_usb_disable_ehci(struct pci_dev *pdev)
 	void __iomem *base, *op_reg_base;
 	u32 hcc_params, val, temp;
 	u8 cap_length;
+
+	if (!mmio_resource_enabled(pdev, 0))
+		return;
 
 	base = ioremap_nocache(pci_resource_start(pdev, 0),
 				pci_resource_len(pdev, 0));
@@ -293,4 +316,4 @@ static void __devinit quirk_usb_early_handoff(struct pci_dev *pdev)
 	else if (pdev->class == PCI_CLASS_SERIAL_USB_EHCI)
 		quirk_usb_disable_ehci(pdev);
 }
-DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, quirk_usb_early_handoff);
+DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, quirk_usb_early_handoff);

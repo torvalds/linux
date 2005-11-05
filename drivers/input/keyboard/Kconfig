@@ -13,11 +13,11 @@ menuconfig INPUT_KEYBOARD
 if INPUT_KEYBOARD
 
 config KEYBOARD_ATKBD
-	tristate "AT keyboard" if !PC
+	tristate "AT keyboard" if !X86_PC
 	default y
 	select SERIO
 	select SERIO_LIBPS2
-	select SERIO_I8042 if PC
+	select SERIO_I8042 if X86_PC
 	select SERIO_GSCPS2 if GSC
 	help
 	  Say Y here if you want to use a standard AT or PS/2 keyboard. Usually

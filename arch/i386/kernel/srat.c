@@ -327,7 +327,12 @@ int __init get_memcfg_from_srat(void)
 	int tables = 0;
 	int i = 0;
 
-	acpi_find_root_pointer(ACPI_PHYSICAL_ADDRESSING, rsdp_address);
+	if (ACPI_FAILURE(acpi_find_root_pointer(ACPI_PHYSICAL_ADDRESSING,
+						rsdp_address))) {
+		printk("%s: System description tables not found\n",
+		       __FUNCTION__);
+		goto out_err;
+	}
 
 	if (rsdp_address->pointer_type == ACPI_PHYSICAL_POINTER) {
 		printk("%s: assigning address to rsdp\n", __FUNCTION__);

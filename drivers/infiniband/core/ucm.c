@@ -172,11 +172,10 @@ static struct ib_ucm_context *ib_ucm_ctx_alloc(struct ib_ucm_file *file)
 	struct ib_ucm_context *ctx;
 	int result;
 
-	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
 	if (!ctx)
 		return NULL;
 
-	memset(ctx, 0, sizeof *ctx);
 	atomic_set(&ctx->ref, 1);
 	init_waitqueue_head(&ctx->wait);
 	ctx->file = file;
@@ -386,11 +385,10 @@ static int ib_ucm_event_handler(struct ib_cm_id *cm_id,
 
 	ctx = cm_id->context;
 
-	uevent = kmalloc(sizeof(*uevent), GFP_KERNEL);
+	uevent = kzalloc(sizeof *uevent, GFP_KERNEL);
 	if (!uevent)
 		goto err1;
 
-	memset(uevent, 0, sizeof(*uevent));
 	uevent->ctx = ctx;
 	uevent->cm_id = cm_id;
 	uevent->resp.uid = ctx->uid;
@@ -1345,11 +1343,10 @@ static void ib_ucm_add_one(struct ib_device *device)
 	if (!device->alloc_ucontext)
 		return;
 
-	ucm_dev = kmalloc(sizeof *ucm_dev, GFP_KERNEL);
+	ucm_dev = kzalloc(sizeof *ucm_dev, GFP_KERNEL);
 	if (!ucm_dev)
 		return;
 
-	memset(ucm_dev, 0, sizeof *ucm_dev);
 	ucm_dev->ib_dev = device;
 
 	ucm_dev->devnum = find_first_zero_bit(dev_map, IB_UCM_MAX_DEVICES);

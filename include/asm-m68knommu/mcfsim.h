@@ -22,6 +22,8 @@
 #include <asm/m5204sim.h>
 #elif defined(CONFIG_M5206) || defined(CONFIG_M5206e)
 #include <asm/m5206sim.h>
+#elif defined(CONFIG_M520x)
+#include <asm/m520xsim.h>
 #elif defined(CONFIG_M523x)
 #include <asm/m523xsim.h>
 #elif defined(CONFIG_M5249)
@@ -97,6 +99,19 @@
  */
 #ifndef MCFSIM_IMR_MASKALL
 #define	MCFSIM_IMR_MASKALL	0x3ffe		/* All intr sources */
+#endif
+
+/*
+ *	PIT interrupt settings, if not found in mXXXXsim.h file.
+ */
+#ifndef	ICR_INTRCONF
+#define	ICR_INTRCONF		0x2b            /* PIT1 level 5, priority 3 */
+#endif
+#ifndef	MCFPIT_IMR
+#define	MCFPIT_IMR		MCFINTC_IMRH
+#endif
+#ifndef	MCFPIT_IMR_IBIT
+#define	MCFPIT_IMR_IBIT		(1 << (MCFINT_PIT1 - 32))
 #endif
 
 

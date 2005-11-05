@@ -246,8 +246,8 @@ static ssize_t part_size_read(struct hd_struct * p, char *page)
 static ssize_t part_stat_read(struct hd_struct * p, char *page)
 {
 	return sprintf(page, "%8u %8llu %8u %8llu\n",
-		       p->reads, (unsigned long long)p->read_sectors,
-		       p->writes, (unsigned long long)p->write_sectors);
+		       p->ios[0], (unsigned long long)p->sectors[0],
+		       p->ios[1], (unsigned long long)p->sectors[1]);
 }
 static struct part_attribute part_attr_uevent = {
 	.attr = {.name = "uevent", .mode = S_IWUSR },
@@ -303,7 +303,8 @@ void delete_partition(struct gendisk *disk, int part)
 	disk->part[part-1] = NULL;
 	p->start_sect = 0;
 	p->nr_sects = 0;
-	p->reads = p->writes = p->read_sectors = p->write_sectors = 0;
+	p->ios[0] = p->ios[1] = 0;
+	p->sectors[0] = p->sectors[1] = 0;
 	devfs_remove("%s/part%d", disk->devfs_name, part);
 	kobject_unregister(&p->kobj);
 }

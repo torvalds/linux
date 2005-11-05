@@ -154,6 +154,16 @@ config TCIC
 	  "Bridge" is the name used for the hardware inside your computer that
 	  PCMCIA cards are plugged into. If unsure, say N.
 
+config PCMCIA_M8XX
+        tristate "MPC8xx PCMCIA support"
+        depends on PCMCIA && PPC
+        select PCCARD_NONSTATIC
+        help
+        Say Y here to include support for PowerPC 8xx series PCMCIA
+        controller.
+
+        This driver is also available as a module called m8xx_pcmcia.
+
 config HD64465_PCMCIA
 	tristate "HD64465 host bridge support"
 	depends on HD64465 && PCMCIA

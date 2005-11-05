@@ -1225,7 +1225,7 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 		/*
 		 * The task was cleaned up already, no future firings.
 		 */
-		return;
+		goto out;
 
 	/*
 	 * Fetch the current sample and update the timer's expiry time.
@@ -1235,7 +1235,7 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 		bump_cpu_timer(timer, now);
 		if (unlikely(p->exit_state)) {
 			clear_dead_task(timer, now);
-			return;
+			goto out;
 		}
 		read_lock(&tasklist_lock); /* arm_timer needs it.  */
 	} else {
@@ -1248,8 +1248,7 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 			put_task_struct(p);
 			timer->it.cpu.task = p = NULL;
 			timer->it.cpu.expires.sched = 0;
-			read_unlock(&tasklist_lock);
-			return;
+			goto out_unlock;
 		} else if (unlikely(p->exit_state) && thread_group_empty(p)) {
 			/*
 			 * We've noticed that the thread is dead, but
@@ -1257,8 +1256,7 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 			 * drop our task ref.
 			 */
 			clear_dead_task(timer, now);
-			read_unlock(&tasklist_lock);
-			return;
+			goto out_unlock;
 		}
 		cpu_clock_sample_group(timer->it_clock, p, &now);
 		bump_cpu_timer(timer, now);
@@ -1270,7 +1268,13 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 	 */
 	arm_timer(timer, now);
 
+out_unlock:
 	read_unlock(&tasklist_lock);
+
+out:
+	timer->it_overrun_last = timer->it_overrun;
+	timer->it_overrun = -1;
+	++timer->it_requeue_pending;
 }
 
 /*

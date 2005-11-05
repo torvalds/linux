@@ -22,6 +22,8 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/watchdog.h>
+#include <linux/platform_device.h>
+
 #include <asm/mv64x60.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -211,6 +213,7 @@ static int __devexit mv64x60_wdt_remove(struct device *dev)
 }
 
 static struct device_driver mv64x60_wdt_driver = {
+	.owner = THIS_MODULE,
 	.name = MV64x60_WDT_NAME,
 	.bus = &platform_bus_type,
 	.probe = mv64x60_wdt_probe,

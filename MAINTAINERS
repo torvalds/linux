@@ -2295,6 +2295,11 @@ W:	http://tpmdd.sourceforge.net
 L:	tpmdd-devel@lists.sourceforge.net
 S:	Maintained
 
+Telecom Clock Driver for MCPL0010
+P: Mark Gross
+M: mark.gross@intel.com
+S: Supported
+
 TENSILICA XTENSA PORT (xtensa):
 P:	Chris Zankel
 M:	chris@zankel.net

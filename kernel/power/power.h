@@ -53,3 +53,20 @@ extern void thaw_processes(void);
 
 extern int pm_prepare_console(void);
 extern void pm_restore_console(void);
+
+
+/* References to section boundaries */
+extern const void __nosave_begin, __nosave_end;
+
+extern unsigned int nr_copy_pages;
+extern suspend_pagedir_t *pagedir_nosave;
+extern suspend_pagedir_t *pagedir_save;
+
+extern asmlinkage int swsusp_arch_suspend(void);
+extern asmlinkage int swsusp_arch_resume(void);
+
+extern int restore_highmem(void);
+extern struct pbe * alloc_pagedir(unsigned nr_pages);
+extern void create_pbe_list(struct pbe *pblist, unsigned nr_pages);
+extern void swsusp_free(void);
+extern int enough_swap(unsigned nr_pages);

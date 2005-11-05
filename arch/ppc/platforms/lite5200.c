@@ -35,6 +35,7 @@
 #include <asm/io.h>
 #include <asm/mpc52xx.h>
 #include <asm/ppc_sys.h>
+#include <asm/machdep.h>
 
 #include <syslib/mpc52xx_pci.h>
 

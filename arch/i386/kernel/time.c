@@ -74,10 +74,6 @@ int pit_latch_buggy;              /* extern */
 
 #include "do_timer.h"
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 unsigned int cpu_khz;	/* Detected as we calibrate the TSC */
 EXPORT_SYMBOL(cpu_khz);
 

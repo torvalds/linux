@@ -30,6 +30,7 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/i2c-pxa.h>
+#include <linux/platform_device.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>

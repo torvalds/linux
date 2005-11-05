@@ -196,7 +196,7 @@ KEY ACCESS PERMISSIONS
 
 Keys have an owner user ID, a group access ID, and a permissions mask. The mask
 has up to eight bits each for possessor, user, group and other access. Only
-five of each set of eight bits are defined. These permissions granted are:
+six of each set of eight bits are defined. These permissions granted are:
 
  (*) View
 
@@ -224,6 +224,10 @@ five of each set of eight bits are defined. These permissions granted are:
      keyring to a key, a process must have Write permission on the keyring and
      Link permission on the key.
 
+ (*) Set Attribute
+
+     This permits a key's UID, GID and permissions mask to be changed.
+
 For changing the ownership, group ID or permissions mask, being the owner of
 the key or having the sysadmin capability is sufficient.
 
@@ -242,15 +246,15 @@ about the status of the key service:
      this way:
 
 	SERIAL   FLAGS  USAGE EXPY PERM     UID   GID   TYPE      DESCRIPTION: SUMMARY
-	00000001 I-----    39 perm 1f1f0000     0     0 keyring   _uid_ses.0: 1/4
-	00000002 I-----     2 perm 1f1f0000     0     0 keyring   _uid.0: empty
-	00000007 I-----     1 perm 1f1f0000     0     0 keyring   _pid.1: empty
-	0000018d I-----     1 perm 1f1f0000     0     0 keyring   _pid.412: empty
-	000004d2 I--Q--     1 perm 1f1f0000    32    -1 keyring   _uid.32: 1/4
-	000004d3 I--Q--     3 perm 1f1f0000    32    -1 keyring   _uid_ses.32: empty
+	00000001 I-----    39 perm 1f3f0000     0     0 keyring   _uid_ses.0: 1/4
+	00000002 I-----     2 perm 1f3f0000     0     0 keyring   _uid.0: empty
+	00000007 I-----     1 perm 1f3f0000     0     0 keyring   _pid.1: empty
+	0000018d I-----     1 perm 1f3f0000     0     0 keyring   _pid.412: empty
+	000004d2 I--Q--     1 perm 1f3f0000    32    -1 keyring   _uid.32: 1/4
+	000004d3 I--Q--     3 perm 1f3f0000    32    -1 keyring   _uid_ses.32: empty
 	00000892 I--QU-     1 perm 1f000000     0     0 user      metal:copper: 0
-	00000893 I--Q-N     1  35s 1f1f0000     0     0 user      metal:silver: 0
-	00000894 I--Q--     1  10h 001f0000     0     0 user      metal:gold: 0
+	00000893 I--Q-N     1  35s 1f3f0000     0     0 user      metal:silver: 0
+	00000894 I--Q--     1  10h 003f0000     0     0 user      metal:gold: 0
 
      The flags are:
 

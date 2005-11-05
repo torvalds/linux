@@ -154,6 +154,7 @@ struct mempolicy *get_vma_policy(struct task_struct *task,
 
 extern void numa_default_policy(void);
 extern void numa_policy_init(void);
+extern void numa_policy_rebind(const nodemask_t *old, const nodemask_t *new);
 extern struct mempolicy default_policy;
 
 #else
@@ -223,6 +224,11 @@ static inline void numa_policy_init(void)
 }
 
 static inline void numa_default_policy(void)
+{
+}
+
+static inline void numa_policy_rebind(const nodemask_t *old,
+					const nodemask_t *new)
 {
 }
 

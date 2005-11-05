@@ -25,7 +25,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <asm/io.h>

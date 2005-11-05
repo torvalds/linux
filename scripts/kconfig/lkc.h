@@ -8,7 +8,13 @@
 
 #include "expr.h"
 
-#include <libintl.h>
+#ifndef KBUILD_NO_NLS
+# include <libintl.h>
+#else
+# define gettext(Msgid) ((const char *) (Msgid))
+# define textdomain(Domainname) ((const char *) (Domainname))
+# define bindtextdomain(Domainname, Dirname) ((const char *) (Dirname))
+#endif
 
 #ifdef __cplusplus
 extern "C" {

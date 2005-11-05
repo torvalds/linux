@@ -16,9 +16,12 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
+
 #include <asm/io.h>
 #include <asm/hardware.h>
 #include <asm/arch/pxa-regs.h>

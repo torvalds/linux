@@ -71,7 +71,8 @@ struct ide_machdep_calls ppc_ide_md;
 unsigned long boot_mem_size;
 
 unsigned long ISA_DMA_THRESHOLD;
-unsigned long DMA_MODE_READ, DMA_MODE_WRITE;
+unsigned int DMA_MODE_READ;
+unsigned int DMA_MODE_WRITE;
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
 int _machine = 0;
@@ -82,7 +83,17 @@ extern void pmac_init(unsigned long r3, unsigned long r4,
 		unsigned long r5, unsigned long r6, unsigned long r7);
 extern void chrp_init(unsigned long r3, unsigned long r4,
 		unsigned long r5, unsigned long r6, unsigned long r7);
+
+dev_t boot_dev;
 #endif /* CONFIG_PPC_MULTIPLATFORM */
+
+int have_of;
+EXPORT_SYMBOL(have_of);
+
+#ifdef __DO_IRQ_CANON
+int ppc_do_canonicalize_irqs;
+EXPORT_SYMBOL(ppc_do_canonicalize_irqs);
+#endif
 
 #ifdef CONFIG_MAGIC_SYSRQ
 unsigned long SYSRQ_KEY = 0x54;
@@ -185,18 +196,18 @@ int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "processor\t: %d\n", i);
 	seq_printf(m, "cpu\t\t: ");
 
-	if (cur_cpu_spec[i]->pvr_mask)
-		seq_printf(m, "%s", cur_cpu_spec[i]->cpu_name);
+	if (cur_cpu_spec->pvr_mask)
+		seq_printf(m, "%s", cur_cpu_spec->cpu_name);
 	else
 		seq_printf(m, "unknown (%08x)", pvr);
 #ifdef CONFIG_ALTIVEC
-	if (cur_cpu_spec[i]->cpu_features & CPU_FTR_ALTIVEC)
+	if (cur_cpu_spec->cpu_features & CPU_FTR_ALTIVEC)
 		seq_printf(m, ", altivec supported");
 #endif
 	seq_printf(m, "\n");
 
 #ifdef CONFIG_TAU
-	if (cur_cpu_spec[i]->cpu_features & CPU_FTR_TAU) {
+	if (cur_cpu_spec->cpu_features & CPU_FTR_TAU) {
 #ifdef CONFIG_TAU_AVERAGE
 		/* more straightforward, but potentially misleading */
 		seq_printf(m,  "temperature \t: %u C (uncalibrated)\n",
@@ -339,7 +350,7 @@ early_init(int r3, int r4, int r5)
  * Assume here that all clock rates are the same in a
  * smp system.  -- Cort
  */
-int __openfirmware
+int
 of_show_percpuinfo(struct seq_file *m, int i)
 {
 	struct device_node *cpu_node;
@@ -404,11 +415,15 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 			_machine = _MACH_prep;
 	}
 
+#ifdef CONFIG_PPC_PREP
 	/* not much more to do here, if prep */
 	if (_machine == _MACH_prep) {
 		prep_init(r3, r4, r5, r6, r7);
 		return;
 	}
+#endif
+
+	have_of = 1;
 
 	/* prom_init has already been called from __start */
 	if (boot_infos)
@@ -479,12 +494,16 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #endif /* CONFIG_ADB */
 
 	switch (_machine) {
+#ifdef CONFIG_PPC_PMAC
 	case _MACH_Pmac:
 		pmac_init(r3, r4, r5, r6, r7);
 		break;
+#endif
+#ifdef CONFIG_PPC_CHRP
 	case _MACH_chrp:
 		chrp_init(r3, r4, r5, r6, r7);
 		break;
+#endif
 	}
 }
 
@@ -721,7 +740,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #ifdef CONFIG_XMON
-	xmon_map_scc();
+	xmon_init(1);
 	if (strstr(cmd_line, "xmon"))
 		xmon(NULL);
 #endif /* CONFIG_XMON */
@@ -745,12 +764,12 @@ void __init setup_arch(char **cmdline_p)
 	 * for a possibly more accurate value.
 	 */
 	if (cpu_has_feature(CPU_FTR_SPLIT_ID_CACHE)) {
-		dcache_bsize = cur_cpu_spec[0]->dcache_bsize;
-		icache_bsize = cur_cpu_spec[0]->icache_bsize;
+		dcache_bsize = cur_cpu_spec->dcache_bsize;
+		icache_bsize = cur_cpu_spec->icache_bsize;
 		ucache_bsize = 0;
 	} else
 		ucache_bsize = dcache_bsize = icache_bsize
-			= cur_cpu_spec[0]->dcache_bsize;
+			= cur_cpu_spec->dcache_bsize;
 
 	/* reboot on panic */
 	panic_timeout = 180;

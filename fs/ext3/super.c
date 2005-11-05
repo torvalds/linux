@@ -36,9 +36,12 @@
 #include <linux/namei.h>
 #include <linux/quotaops.h>
 #include <linux/seq_file.h>
+
 #include <asm/uaccess.h>
+
 #include "xattr.h"
 #include "acl.h"
+#include "namei.h"
 
 static int ext3_load_journal(struct super_block *, struct ext3_super_block *);
 static int ext3_create_journal(struct super_block *, struct ext3_super_block *,
@@ -615,7 +618,6 @@ static struct super_operations ext3_sops = {
 #endif
 };
 
-struct dentry *ext3_get_parent(struct dentry *child);
 static struct export_operations ext3_export_ops = {
 	.get_parent = ext3_get_parent,
 };

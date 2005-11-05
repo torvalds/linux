@@ -779,7 +779,7 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 	if (!s->cb_dev || !s->cb_dev->bus)
 		return -ENODEV;
 
-#if defined(CONFIG_X86) || defined(CONFIG_X86_64)
+#if defined(CONFIG_X86)
 	/* If this is the root bus, the risk of hitting
 	 * some strange system devices which aren't protected
 	 * by either ACPI resource tables or properly requested

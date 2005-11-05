@@ -6,6 +6,8 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/agp_backend.h>
 #include <asm/agp.h>
 #include "agp.h"

@@ -561,11 +561,6 @@ IOCTL_TABLE_START
 #define DECLARES
 #include "compat_ioctl.c"
 
-/* Might be moved to compat_ioctl.h with some ifdefs... */
-COMPATIBLE_IOCTL(TIOCSTART)
-COMPATIBLE_IOCTL(TIOCSTOP)
-COMPATIBLE_IOCTL(TIOCSLTC)
-
 /* PA-specific ioctls */
 COMPATIBLE_IOCTL(PA_PERF_ON)
 COMPATIBLE_IOCTL(PA_PERF_OFF)

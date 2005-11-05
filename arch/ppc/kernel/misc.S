@@ -125,9 +125,8 @@ _GLOBAL(identify_cpu)
 1:
 	addis	r6,r3,cur_cpu_spec@ha
 	addi	r6,r6,cur_cpu_spec@l
-	slwi	r4,r4,2
 	sub	r8,r8,r3
-	stwx	r8,r4,r6
+	stw	r8,0(r6)
 	blr
 
 /*
@@ -186,19 +185,18 @@ _GLOBAL(do_cpu_ftr_fixups)
  *
  * Setup function is called with:
  *   r3 = data offset
- *   r4 = CPU number
- *   r5 = ptr to CPU spec (relocated)
+ *   r4 = ptr to CPU spec (relocated)
  */
 _GLOBAL(call_setup_cpu)
-	addis	r5,r3,cur_cpu_spec@ha
-	addi	r5,r5,cur_cpu_spec@l
-	slwi	r4,r24,2
-	lwzx	r5,r4,r5
+	addis	r4,r3,cur_cpu_spec@ha
+	addi	r4,r4,cur_cpu_spec@l
+	lwz	r4,0(r4)
+	add	r4,r4,r3
+	lwz	r5,CPU_SPEC_SETUP(r4)
+	cmpi	0,r5,0
 	add	r5,r5,r3
-	lwz	r6,CPU_SPEC_SETUP(r5)
-	add	r6,r6,r3
-	mtctr	r6
-	mr	r4,r24
+	beqlr
+	mtctr	r5
 	bctr
 
 #if defined(CONFIG_CPU_FREQ_PMAC) && defined(CONFIG_6xx)
@@ -272,134 +270,6 @@ _GLOBAL(low_choose_7447a_dfs)
 	blr
 
 #endif /* CONFIG_CPU_FREQ_PMAC && CONFIG_6xx */
-
-/* void local_save_flags_ptr(unsigned long *flags) */
-_GLOBAL(local_save_flags_ptr)
-	mfmsr	r4
-	stw	r4,0(r3)
-	blr
-	/*
-	 * Need these nops here for taking over save/restore to
-	 * handle lost intrs
-	 * -- Cort
-	 */
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-_GLOBAL(local_save_flags_ptr_end)
-
-/* void local_irq_restore(unsigned long flags) */
-_GLOBAL(local_irq_restore)
-/*
- * Just set/clear the MSR_EE bit through restore/flags but do not
- * change anything else.  This is needed by the RT system and makes
- * sense anyway.
- *    -- Cort
- */
-	mfmsr 	r4
-	/* Copy all except the MSR_EE bit from r4 (current MSR value)
-	   to r3.  This is the sort of thing the rlwimi instruction is
-	   designed for.  -- paulus. */
-	rlwimi	r3,r4,0,17,15
-	 /* Check if things are setup the way we want _already_. */
-	cmpw	0,r3,r4
-	beqlr
-1:	SYNC
-	mtmsr	r3
-	SYNC
-	blr
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-_GLOBAL(local_irq_restore_end)
-
-_GLOBAL(local_irq_disable)
-	mfmsr	r0		/* Get current interrupt state */
-	rlwinm	r3,r0,16+1,32-1,31	/* Extract old value of 'EE' */
-	rlwinm	r0,r0,0,17,15	/* clear MSR_EE in r0 */
-	SYNC			/* Some chip revs have problems here... */
-	mtmsr	r0		/* Update machine state */
-	blr			/* Done */
-	/*
-	 * Need these nops here for taking over save/restore to
-	 * handle lost intrs
-	 * -- Cort
-	 */
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-_GLOBAL(local_irq_disable_end)
-
-_GLOBAL(local_irq_enable)
-	mfmsr	r3		/* Get current state */
-	ori	r3,r3,MSR_EE	/* Turn on 'EE' bit */
-	SYNC			/* Some chip revs have problems here... */
-	mtmsr	r3		/* Update machine state */
-	blr
-	/*
-	 * Need these nops here for taking over save/restore to
-	 * handle lost intrs
-	 * -- Cort
-	 */
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-_GLOBAL(local_irq_enable_end)
 
 /*
  * complement mask on the msr then "or" some values on.
@@ -628,21 +498,21 @@ _GLOBAL(flush_icache_range)
 BEGIN_FTR_SECTION
 	blr				/* for 601, do nothing */
 END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
-	li	r5,L1_CACHE_LINE_SIZE-1
+	li	r5,L1_CACHE_BYTES-1
 	andc	r3,r3,r5
 	subf	r4,r3,r4
 	add	r4,r4,r5
-	srwi.	r4,r4,LG_L1_CACHE_LINE_SIZE
+	srwi.	r4,r4,L1_CACHE_SHIFT
 	beqlr
 	mtctr	r4
 	mr	r6,r3
 1:	dcbst	0,r3
-	addi	r3,r3,L1_CACHE_LINE_SIZE
+	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	1b
 	sync				/* wait for dcbst's to get to ram */
 	mtctr	r4
 2:	icbi	0,r6
-	addi	r6,r6,L1_CACHE_LINE_SIZE
+	addi	r6,r6,L1_CACHE_BYTES
 	bdnz	2b
 	sync				/* additional sync needed on g4 */
 	isync
@@ -655,16 +525,16 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
  * clean_dcache_range(unsigned long start, unsigned long stop)
  */
 _GLOBAL(clean_dcache_range)
-	li	r5,L1_CACHE_LINE_SIZE-1
+	li	r5,L1_CACHE_BYTES-1
 	andc	r3,r3,r5
 	subf	r4,r3,r4
 	add	r4,r4,r5
-	srwi.	r4,r4,LG_L1_CACHE_LINE_SIZE
+	srwi.	r4,r4,L1_CACHE_SHIFT
 	beqlr
 	mtctr	r4
 
 1:	dcbst	0,r3
-	addi	r3,r3,L1_CACHE_LINE_SIZE
+	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	1b
 	sync				/* wait for dcbst's to get to ram */
 	blr
@@ -676,16 +546,16 @@ _GLOBAL(clean_dcache_range)
  * flush_dcache_range(unsigned long start, unsigned long stop)
  */
 _GLOBAL(flush_dcache_range)
-	li	r5,L1_CACHE_LINE_SIZE-1
+	li	r5,L1_CACHE_BYTES-1
 	andc	r3,r3,r5
 	subf	r4,r3,r4
 	add	r4,r4,r5
-	srwi.	r4,r4,LG_L1_CACHE_LINE_SIZE
+	srwi.	r4,r4,L1_CACHE_SHIFT
 	beqlr
 	mtctr	r4
 
 1:	dcbf	0,r3
-	addi	r3,r3,L1_CACHE_LINE_SIZE
+	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	1b
 	sync				/* wait for dcbst's to get to ram */
 	blr
@@ -698,16 +568,16 @@ _GLOBAL(flush_dcache_range)
  * invalidate_dcache_range(unsigned long start, unsigned long stop)
  */
 _GLOBAL(invalidate_dcache_range)
-	li	r5,L1_CACHE_LINE_SIZE-1
+	li	r5,L1_CACHE_BYTES-1
 	andc	r3,r3,r5
 	subf	r4,r3,r4
 	add	r4,r4,r5
-	srwi.	r4,r4,LG_L1_CACHE_LINE_SIZE
+	srwi.	r4,r4,L1_CACHE_SHIFT
 	beqlr
 	mtctr	r4
 
 1:	dcbi	0,r3
-	addi	r3,r3,L1_CACHE_LINE_SIZE
+	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	1b
 	sync				/* wait for dcbi's to get to ram */
 	blr
@@ -728,7 +598,7 @@ _GLOBAL(flush_dcache_all)
 	mtctr	r4
 	lis     r5, KERNELBASE@h
 1:	lwz	r3, 0(r5)		/* Load one word from every line */
-	addi	r5, r5, L1_CACHE_LINE_SIZE
+	addi	r5, r5, L1_CACHE_BYTES
 	bdnz    1b
 	blr
 #endif /* CONFIG_NOT_COHERENT_CACHE */
@@ -746,16 +616,16 @@ BEGIN_FTR_SECTION
 	blr					/* for 601, do nothing */
 END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 	rlwinm	r3,r3,0,0,19			/* Get page base address */
-	li	r4,4096/L1_CACHE_LINE_SIZE	/* Number of lines in a page */
+	li	r4,4096/L1_CACHE_BYTES	/* Number of lines in a page */
 	mtctr	r4
 	mr	r6,r3
 0:	dcbst	0,r3				/* Write line to ram */
-	addi	r3,r3,L1_CACHE_LINE_SIZE
+	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	0b
 	sync
 	mtctr	r4
 1:	icbi	0,r6
-	addi	r6,r6,L1_CACHE_LINE_SIZE
+	addi	r6,r6,L1_CACHE_BYTES
 	bdnz	1b
 	sync
 	isync
@@ -778,16 +648,16 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
 	mtmsr	r0
 	isync
 	rlwinm	r3,r3,0,0,19			/* Get page base address */
-	li	r4,4096/L1_CACHE_LINE_SIZE	/* Number of lines in a page */
+	li	r4,4096/L1_CACHE_BYTES	/* Number of lines in a page */
 	mtctr	r4
 	mr	r6,r3
 0:	dcbst	0,r3				/* Write line to ram */
-	addi	r3,r3,L1_CACHE_LINE_SIZE
+	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	0b
 	sync
 	mtctr	r4
 1:	icbi	0,r6
-	addi	r6,r6,L1_CACHE_LINE_SIZE
+	addi	r6,r6,L1_CACHE_BYTES
 	bdnz	1b
 	sync
 	mtmsr	r10				/* restore DR */
@@ -802,7 +672,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
  * void clear_pages(void *page, int order) ;
  */
 _GLOBAL(clear_pages)
-	li	r0,4096/L1_CACHE_LINE_SIZE
+	li	r0,4096/L1_CACHE_BYTES
 	slw	r0,r0,r4
 	mtctr	r0
 #ifdef CONFIG_8xx
@@ -814,7 +684,7 @@ _GLOBAL(clear_pages)
 #else
 1:	dcbz	0,r3
 #endif
-	addi	r3,r3,L1_CACHE_LINE_SIZE
+	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	1b
 	blr
 
@@ -840,7 +710,7 @@ _GLOBAL(copy_page)
 
 #ifdef CONFIG_8xx
 	/* don't use prefetch on 8xx */
-    	li	r0,4096/L1_CACHE_LINE_SIZE
+    	li	r0,4096/L1_CACHE_BYTES
 	mtctr	r0
 1:	COPY_16_BYTES
 	bdnz	1b
@@ -854,13 +724,13 @@ _GLOBAL(copy_page)
 	li	r11,4
 	mtctr	r0
 11:	dcbt	r11,r4
-	addi	r11,r11,L1_CACHE_LINE_SIZE
+	addi	r11,r11,L1_CACHE_BYTES
 	bdnz	11b
 #else /* MAX_COPY_PREFETCH == 1 */
 	dcbt	r5,r4
-	li	r11,L1_CACHE_LINE_SIZE+4
+	li	r11,L1_CACHE_BYTES+4
 #endif /* MAX_COPY_PREFETCH */
-	li	r0,4096/L1_CACHE_LINE_SIZE - MAX_COPY_PREFETCH
+	li	r0,4096/L1_CACHE_BYTES - MAX_COPY_PREFETCH
 	crclr	4*cr0+eq
 2:
 	mtctr	r0
@@ -868,12 +738,12 @@ _GLOBAL(copy_page)
 	dcbt	r11,r4
 	dcbz	r5,r3
 	COPY_16_BYTES
-#if L1_CACHE_LINE_SIZE >= 32
+#if L1_CACHE_BYTES >= 32
 	COPY_16_BYTES
-#if L1_CACHE_LINE_SIZE >= 64
+#if L1_CACHE_BYTES >= 64
 	COPY_16_BYTES
 	COPY_16_BYTES
-#if L1_CACHE_LINE_SIZE >= 128
+#if L1_CACHE_BYTES >= 128
 	COPY_16_BYTES
 	COPY_16_BYTES
 	COPY_16_BYTES
@@ -1096,33 +966,6 @@ _GLOBAL(abs)
 _GLOBAL(_get_SP)
 	mr	r3,r1		/* Close enough */
 	blr
-
-/*
- * These are used in the alignment trap handler when emulating
- * single-precision loads and stores.
- * We restore and save the fpscr so the task gets the same result
- * and exceptions as if the cpu had performed the load or store.
- */
-
-#ifdef CONFIG_PPC_FPU
-_GLOBAL(cvt_fd)
-	lfd	0,-4(r5)	/* load up fpscr value */
-	mtfsf	0xff,0
-	lfs	0,0(r3)
-	stfd	0,0(r4)
-	mffs	0		/* save new fpscr value */
-	stfd	0,-4(r5)
-	blr
-
-_GLOBAL(cvt_df)
-	lfd	0,-4(r5)	/* load up fpscr value */
-	mtfsf	0xff,0
-	lfd	0,0(r3)
-	stfs	0,0(r4)
-	mffs	0		/* save new fpscr value */
-	stfd	0,-4(r5)
-	blr
-#endif
 
 /*
  * Create a kernel thread

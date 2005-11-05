@@ -78,7 +78,7 @@ void ptrace_disable(struct task_struct *child)
 	pa_psw(child)->l = 0;
 }
 
-long sys_ptrace(long request, pid_t pid, long addr, long data)
+long sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
 	long ret;

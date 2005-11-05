@@ -19,6 +19,8 @@
  * This file is licenced under the GPL.
 */
 
+#include <linux/platform_device.h>
+
 #include <asm/hardware.h>
 #include <asm/hardware/clock.h>
 #include <asm/arch/usb-control.h>

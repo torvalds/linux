@@ -38,9 +38,8 @@
 #include <asm/pci-bridge.h>
 #include <asm/iommu.h>
 #include <asm/rtas.h>
-
-#include "mpic.h"
-#include "pci.h"
+#include <asm/mpic.h>
+#include <asm/ppc-pci.h>
 
 /* RTAS tokens */
 static int read_pci_config;
@@ -401,7 +400,7 @@ unsigned long __init find_and_init_phbs(void)
 		if (!phb)
 			continue;
 
-		pci_process_bridge_OF_ranges(phb, node);
+		pci_process_bridge_OF_ranges(phb, node, 0);
 		pci_setup_phb_io(phb, index == 0);
 #ifdef CONFIG_PPC_PSERIES
 		if (ppc64_interrupt_controller == IC_OPEN_PIC && pSeries_mpic) {
@@ -451,7 +450,7 @@ struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
 	if (!phb)
 		return NULL;
 
-	pci_process_bridge_OF_ranges(phb, dn);
+	pci_process_bridge_OF_ranges(phb, dn, primary);
 
 	pci_setup_phb_io_dynamic(phb, primary);
 	of_node_put(root);

@@ -20,9 +20,10 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/ioport.h>
 #include <linux/pm.h>
+#include <linux/string.h>
 
 #include <asm/hardware.h>
 #include <asm/irq.h>
