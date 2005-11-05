@@ -58,7 +58,6 @@ static struct pci_dev * hammers[MAX_HAMMER_GARTS];
 static struct resource *aperture_resource;
 static int __initdata agp_try_unsupported = 1;
 
-static int gart_iterator;
 #define for_each_nb() for(gart_iterator=0;gart_iterator<nr_garts;gart_iterator++)
 
 static void flush_amd64_tlb(struct pci_dev *dev)
@@ -72,6 +71,7 @@ static void flush_amd64_tlb(struct pci_dev *dev)
 
 static void amd64_tlbflush(struct agp_memory *temp)
 {
+	int gart_iterator;
 	for_each_nb()
 		flush_amd64_tlb(hammers[gart_iterator]);
 }
@@ -221,6 +221,7 @@ static struct aper_size_info_32 amd_8151_sizes[7] =
 static int amd_8151_configure(void)
 {
 	unsigned long gatt_bus = virt_to_gart(agp_bridge->gatt_table_real);
+	int gart_iterator;
 
 	/* Configure AGP regs in each x86-64 host bridge. */
 	for_each_nb() {
@@ -234,7 +235,7 @@ static int amd_8151_configure(void)
 static void amd64_cleanup(void)
 {
 	u32 tmp;
-
+	int gart_iterator;
 	for_each_nb() {
 		/* disable gart translation */
 		pci_read_config_dword (hammers[gart_iterator], AMD64_GARTAPERTURECTL, &tmp);
