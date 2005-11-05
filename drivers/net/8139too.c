@@ -586,7 +586,8 @@ struct rtl8139_private {
 	dma_addr_t tx_bufs_dma;
 	signed char phys[4];		/* MII device addresses. */
 	char twistie, twist_row, twist_col;	/* Twister tune state. */
-	unsigned int default_port:4;	/* Last dev->if_port value. */
+	unsigned int default_port : 4;	/* Last dev->if_port value. */
+	unsigned int have_thread : 1;
 	spinlock_t lock;
 	spinlock_t rx_lock;
 	chip_t chipset;
@@ -594,7 +595,6 @@ struct rtl8139_private {
 	struct rtl_extra_stats xstats;
 
 	struct work_struct thread;
-	long time_to_die;	/* -1 no thr, 0 thr active, 1 thr cancel */
 
 	struct mii_if_info mii;
 	unsigned int regs_len;
@@ -1599,40 +1599,33 @@ static void rtl8139_thread (void *_data)
 	struct net_device *dev = _data;
 	struct rtl8139_private *tp = netdev_priv(dev);
 
-	if ((tp->time_to_die == 0) &&
-	    (rtnl_lock_interruptible() == 0)) {
+	if (rtnl_lock_interruptible() == 0) {
 		rtl8139_thread_iter (dev, tp, tp->mmio_addr);
 		rtnl_unlock ();
 	}
 
-	if (tp->time_to_die == 0)
-		schedule_delayed_work(&tp->thread, next_tick);
+	schedule_delayed_work(&tp->thread, next_tick);
 }
 
 static void rtl8139_start_thread(struct rtl8139_private *tp)
 {
 	tp->twistie = 0;
-	tp->time_to_die = -1;
 	if (tp->chipset == CH_8139_K)
 		tp->twistie = 1;
 	else if (tp->drv_flags & HAS_LNK_CHNG)
 		return;
 
-	tp->time_to_die = 0;
+	tp->have_thread = 1;
 
 	schedule_delayed_work(&tp->thread, next_tick);
 }
 
 static void rtl8139_stop_thread(struct rtl8139_private *tp)
 {
-	if (tp->time_to_die < 0)
-		return;
-
-	tp->time_to_die = 1;
-	wmb();
-
-	if (cancel_delayed_work(&tp->thread) == 0)
-		flush_scheduled_work();
+	if (tp->have_thread) {
+		cancel_rearming_delayed_work(&tp->thread);
+		tp->have_thread = 0;
+	}
 }
 
 static inline void rtl8139_tx_clear (struct rtl8139_private *tp)
