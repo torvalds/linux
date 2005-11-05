@@ -7,10 +7,12 @@ Machine check
 
    mce=off disable machine check
    mce=bootlog Enable logging of machine checks left over from booting.
-               Disabled by default because some BIOS leave bogus ones.
+               Disabled by default on AMD because some BIOS leave bogus ones.
                If your BIOS doesn't do that it's a good idea to enable though
                to make sure you log even machine check events that result
-               in a reboot.
+               in a reboot. On Intel systems it is enabled by default.
+   mce=nobootlog
+		Disable boot machine check logging.
    mce=tolerancelevel (number)
 		0: always panic, 1: panic if deadlock possible,
 		2: try to avoid panic, 3: never panic or exit (for testing)
