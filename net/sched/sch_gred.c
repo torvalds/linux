@@ -58,6 +58,8 @@
 #define D2PRINTK(format,args...)
 #endif
 
+#define GRED_DEF_PRIO (MAX_DPs / 2)
+
 struct gred_sched_data;
 struct gred_sched;
 
@@ -432,77 +434,102 @@ static inline int gred_change_table_def(struct Qdisc *sch, struct rtattr *dps)
 	return 0;
 }
 
-static int gred_change(struct Qdisc *sch, struct rtattr *opt)
+static inline int gred_change_vq(struct Qdisc *sch, int dp,
+				 struct tc_gred_qopt *ctl, int prio, u8 *stab)
 {
 	struct gred_sched *table = qdisc_priv(sch);
 	struct gred_sched_data *q;
-	struct tc_gred_qopt *ctl;
-	struct rtattr *tb[TCA_GRED_STAB];
 
-	if (opt == NULL || rtattr_parse_nested(tb, TCA_GRED_STAB, opt))
-		return -EINVAL;
-
-	if (tb[TCA_GRED_PARMS-1] == NULL && tb[TCA_GRED_STAB-1] == NULL)
-		return gred_change_table_def(sch, tb[TCA_GRED_DPS-1]);
-
-	if (!table->DPs || tb[TCA_GRED_PARMS-1] == 0 || tb[TCA_GRED_STAB-1] == 0 ||
-		RTA_PAYLOAD(tb[TCA_GRED_PARMS-1]) < sizeof(*ctl) ||
-		RTA_PAYLOAD(tb[TCA_GRED_STAB-1]) < 256)
-			return -EINVAL;
-
-	ctl = RTA_DATA(tb[TCA_GRED_PARMS-1]);
-
-	if (ctl->DP >= table->DPs)
-		return -EINVAL;
-	
-	if (table->tab[ctl->DP] == NULL) {
-		table->tab[ctl->DP]=kmalloc(sizeof(struct gred_sched_data),
-					    GFP_KERNEL);
-		if (NULL == table->tab[ctl->DP])
+	if (table->tab[dp] == NULL) {
+		table->tab[dp] = kmalloc(sizeof(*q), GFP_KERNEL);
+		if (table->tab[dp] == NULL)
 			return -ENOMEM;
-		memset(table->tab[ctl->DP], 0, (sizeof(struct gred_sched_data)));
-	}
-	q= table->tab[ctl->DP]; 
-
-	if (gred_rio_mode(table)) {
-		if (ctl->prio <=0) {
-			if (table->def && table->tab[table->def]) {
-				DPRINTK("\nGRED: DP %u does not have a prio"
-					"setting default to %d\n",ctl->DP,
-					table->tab[table->def]->prio);
-				q->prio=table->tab[table->def]->prio;
-			} else { 
-				DPRINTK("\nGRED: DP %u does not have a prio"
-					" setting default to 8\n",ctl->DP);
-				q->prio=8;
-			}
-		} else {
-			q->prio=ctl->prio;
-		}
-	} else {
-		q->prio=8;
+		memset(table->tab[dp], 0, sizeof(*q));
 	}
 
+	q = table->tab[dp];
+	q->DP = dp;
+	q->prio = prio;
 
-	q->DP=ctl->DP;
 	q->Wlog = ctl->Wlog;
 	q->Plog = ctl->Plog;
 	q->limit = ctl->limit;
 	q->Scell_log = ctl->Scell_log;
-	q->Rmask = ctl->Plog < 32 ? ((1<<ctl->Plog) - 1) : ~0UL;
-	q->Scell_max = (255<<q->Scell_log);
-	q->qth_min = ctl->qth_min<<ctl->Wlog;
-	q->qth_max = ctl->qth_max<<ctl->Wlog;
-	q->qave=0;
-	q->backlog=0;
-	q->qcount = -1;
-	q->other=0;
-	q->forced=0;
-	q->pdrop=0;
+ 	q->Rmask = ctl->Plog < 32 ? ((1<<ctl->Plog) - 1) : ~0UL;
+ 	q->Scell_max = (255<<q->Scell_log);
+ 	q->qth_min = ctl->qth_min<<ctl->Wlog;
+ 	q->qth_max = ctl->qth_max<<ctl->Wlog;
+ 	q->qave=0;
+ 	q->backlog=0;
+ 	q->qcount = -1;
+ 	q->other=0;
+ 	q->forced=0;
+ 	q->pdrop=0;
 	q->early=0;
 
 	PSCHED_SET_PASTPERFECT(q->qidlestart);
-	memcpy(q->Stab, RTA_DATA(tb[TCA_GRED_STAB-1]), 256);
+	memcpy(q->Stab, stab, 256);
+
+	return 0;
+}
+
+static int gred_change(struct Qdisc *sch, struct rtattr *opt)
+{
+	struct gred_sched *table = qdisc_priv(sch);
+	struct tc_gred_qopt *ctl;
+	struct rtattr *tb[TCA_GRED_MAX];
+	int err = -EINVAL, prio = GRED_DEF_PRIO;
+	u8 *stab;
+
+	if (opt == NULL || rtattr_parse_nested(tb, TCA_GRED_MAX, opt))
+		return -EINVAL;
+
+	if (tb[TCA_GRED_PARMS-1] == NULL && tb[TCA_GRED_STAB-1] == NULL)
+		return gred_change_table_def(sch, opt);
+
+	if (tb[TCA_GRED_PARMS-1] == NULL ||
+	    RTA_PAYLOAD(tb[TCA_GRED_PARMS-1]) < sizeof(*ctl) ||
+	    tb[TCA_GRED_STAB-1] == NULL ||
+	    RTA_PAYLOAD(tb[TCA_GRED_STAB-1]) < 256)
+		return -EINVAL;
+
+	ctl = RTA_DATA(tb[TCA_GRED_PARMS-1]);
+	stab = RTA_DATA(tb[TCA_GRED_STAB-1]);
+
+	if (ctl->DP >= table->DPs)
+		goto errout;
+
+	if (gred_rio_mode(table)) {
+		if (ctl->prio == 0) {
+			int def_prio = GRED_DEF_PRIO;
+
+			if (table->tab[table->def])
+				def_prio = table->tab[table->def]->prio;
+
+			printk(KERN_DEBUG "GRED: DP %u does not have a prio "
+			       "setting default to %d\n", ctl->DP, def_prio);
+
+			prio = def_prio;
+		} else
+			prio = ctl->prio;
+	}
+
+	sch_tree_lock(sch);
+
+	err = gred_change_vq(sch, ctl->DP, ctl, prio, stab);
+	if (err < 0)
+		goto errout_locked;
+
+	if (table->tab[table->def] == NULL) {
+		if (gred_rio_mode(table))
+			prio = table->tab[ctl->DP]->prio;
+
+		err = gred_change_vq(sch, table->def, ctl, prio, stab);
+		if (err < 0)
+			goto errout_locked;
+	}
+
+	table->initd = 1;
 
 	if (gred_rio_mode(table)) {
 		gred_disable_wred_mode(table);
@@ -510,44 +537,12 @@ static int gred_change(struct Qdisc *sch, struct rtattr *opt)
 			gred_enable_wred_mode(table);
 	}
 
-	if (!table->initd) {
-		table->initd=1;
-		/* 
-        	the first entry also goes into the default until
-        	over-written 
-		*/
+	err = 0;
 
-		if (table->tab[table->def] == NULL) {
-			table->tab[table->def]=
-				kmalloc(sizeof(struct gred_sched_data), GFP_KERNEL);
-			if (NULL == table->tab[table->def])
-				return -ENOMEM;
-
-			memset(table->tab[table->def], 0,
-			       (sizeof(struct gred_sched_data)));
-		}
-		q= table->tab[table->def]; 
-		q->DP=table->def;
-		q->Wlog = ctl->Wlog;
-		q->Plog = ctl->Plog;
-		q->limit = ctl->limit;
-		q->Scell_log = ctl->Scell_log;
-		q->Rmask = ctl->Plog < 32 ? ((1<<ctl->Plog) - 1) : ~0UL;
-		q->Scell_max = (255<<q->Scell_log);
-		q->qth_min = ctl->qth_min<<ctl->Wlog;
-		q->qth_max = ctl->qth_max<<ctl->Wlog;
-
-		if (gred_rio_mode(table))
-			q->prio=table->tab[ctl->DP]->prio;
-		else
-			q->prio=8;
-
-		q->qcount = -1;
-		PSCHED_SET_PASTPERFECT(q->qidlestart);
-		memcpy(q->Stab, RTA_DATA(tb[TCA_GRED_STAB-1]), 256);
-	}
-	return 0;
-
+errout_locked:
+	sch_tree_unlock(sch);
+errout:
+	return err;
 }
 
 static int gred_init(struct Qdisc *sch, struct rtattr *opt)
