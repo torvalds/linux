@@ -209,8 +209,6 @@ static int numa_emulation(unsigned long start_pfn, unsigned long end_pfn)
  		if (i == numa_fake-1)
  			sz = (end_pfn<<PAGE_SHIFT) - nodes[i].start;
  		nodes[i].end = nodes[i].start + sz;
- 		if (i != numa_fake-1)
- 			nodes[i].end--;
  		printk(KERN_INFO "Faking node %d at %016Lx-%016Lx (%LuMB)\n",
  		       i,
  		       nodes[i].start, nodes[i].end,

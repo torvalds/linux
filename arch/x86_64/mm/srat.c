@@ -71,8 +71,6 @@ static __init void cutoff_node(int i, unsigned long start, unsigned long end)
 			nd->start = nd->end;
 	}
 	if (nd->end > end) {
-		if (!(end & 0xfff))
-			end--;
 		nd->end = end;
 		if (nd->start > nd->end)
 			nd->start = nd->end;
@@ -166,8 +164,6 @@ acpi_numa_memory_affinity_init(struct acpi_table_memory_affinity *ma)
 		if (nd->end < end)
 			nd->end = end;
 	}
-	if (!(nd->end & 0xfff))
-		nd->end--;
 	printk(KERN_INFO "SRAT: Node %u PXM %u %Lx-%Lx\n", node, pxm,
 	       nd->start, nd->end);
 }
