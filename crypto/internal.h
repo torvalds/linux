@@ -2,6 +2,7 @@
  * Cryptographic API.
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
+ * Copyright (c) 2005 Herbert Xu <herbert@gondor.apana.org.au>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -16,9 +17,14 @@
 #include <linux/highmem.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
+#include <linux/list.h>
 #include <linux/kernel.h>
+#include <linux/rwsem.h>
 #include <linux/slab.h>
 #include <asm/kmap_types.h>
+
+extern struct list_head crypto_alg_list;
+extern struct rw_semaphore crypto_alg_sem;
 
 extern enum km_type crypto_km_types[];
 
