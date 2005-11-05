@@ -374,6 +374,14 @@ config X86_MCE_INTEL
 	   Additional support for intel specific MCE features such as
 	   the thermal monitor.
 
+config X86_MCE_AMD
+	bool "AMD MCE features"
+	depends on X86_MCE && X86_LOCAL_APIC
+	default y
+	help
+	   Additional support for AMD specific MCE features such as
+	   the DRAM Error Threshold.
+
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if EMBEDDED
 	default "0x100000"

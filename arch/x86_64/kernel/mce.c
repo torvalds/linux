@@ -356,6 +356,9 @@ static void __cpuinit mce_cpu_features(struct cpuinfo_x86 *c)
 	case X86_VENDOR_INTEL:
 		mce_intel_feature_init(c);
 		break;
+	case X86_VENDOR_AMD:
+		mce_amd_feature_init(c);
+		break;
 	default:
 		break;
 	}
