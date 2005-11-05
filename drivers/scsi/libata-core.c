@@ -4091,15 +4091,16 @@ err_out:
 int ata_port_start (struct ata_port *ap)
 {
 	struct device *dev = ap->host_set->dev;
+	int rc;
 
 	ap->prd = dma_alloc_coherent(dev, ATA_PRD_TBL_SZ, &ap->prd_dma, GFP_KERNEL);
 	if (!ap->prd)
 		return -ENOMEM;
 
-	ap->pad = dma_alloc_coherent(dev, ATA_DMA_PAD_BUF_SZ, &ap->pad_dma, GFP_KERNEL);
-	if (!ap->pad) {
+	rc = ata_pad_alloc(ap, dev);
+	if (rc) {
 		dma_free_coherent(dev, ATA_PRD_TBL_SZ, ap->prd, ap->prd_dma);
-		return -ENOMEM;
+		return rc;
 	}
 
 	DPRINTK("prd alloc, virt %p, dma %llx\n", ap->prd, (unsigned long long) ap->prd_dma);
@@ -4125,7 +4126,7 @@ void ata_port_stop (struct ata_port *ap)
 	struct device *dev = ap->host_set->dev;
 
 	dma_free_coherent(dev, ATA_PRD_TBL_SZ, ap->prd, ap->prd_dma);
-	dma_free_coherent(dev, ATA_DMA_PAD_BUF_SZ, ap->pad, ap->pad_dma);
+	ata_pad_free(ap, dev);
 }
 
 void ata_host_stop (struct ata_host_set *host_set)

@@ -307,21 +307,22 @@ static int ahci_port_start(struct ata_port *ap)
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	void *mem;
 	dma_addr_t mem_dma;
+	int rc;
 
 	pp = kmalloc(sizeof(*pp), GFP_KERNEL);
 	if (!pp)
 		return -ENOMEM;
 	memset(pp, 0, sizeof(*pp));
 
-	ap->pad = dma_alloc_coherent(dev, ATA_DMA_PAD_BUF_SZ, &ap->pad_dma, GFP_KERNEL);
-	if (!ap->pad) {
+	rc = ata_pad_alloc(ap, dev);
+	if (rc) {
 		kfree(pp);
-		return -ENOMEM;
+		return rc;
 	}
 
 	mem = dma_alloc_coherent(dev, AHCI_PORT_PRIV_DMA_SZ, &mem_dma, GFP_KERNEL);
 	if (!mem) {
-		dma_free_coherent(dev, ATA_DMA_PAD_BUF_SZ, ap->pad, ap->pad_dma);
+		ata_pad_free(ap, dev);
 		kfree(pp);
 		return -ENOMEM;
 	}
@@ -397,7 +398,7 @@ static void ahci_port_stop(struct ata_port *ap)
 	ap->private_data = NULL;
 	dma_free_coherent(dev, AHCI_PORT_PRIV_DMA_SZ,
 			  pp->cmd_slot, pp->cmd_slot_dma);
-	dma_free_coherent(dev, ATA_DMA_PAD_BUF_SZ, ap->pad, ap->pad_dma);
+	ata_pad_free(ap, dev);
 	kfree(pp);
 }
 

@@ -777,4 +777,17 @@ static inline unsigned int __ac_err_mask(u8 status)
 	return mask;
 }
 
+static inline int ata_pad_alloc(struct ata_port *ap, struct device *dev)
+{
+	ap->pad_dma = 0;
+	ap->pad = dma_alloc_coherent(dev, ATA_DMA_PAD_BUF_SZ,
+				     &ap->pad_dma, GFP_KERNEL);
+	return (ap->pad == NULL) ? -ENOMEM : 0;
+}
+
+static inline void ata_pad_free(struct ata_port *ap, struct device *dev)
+{
+	dma_free_coherent(dev, ATA_DMA_PAD_BUF_SZ, ap->pad, ap->pad_dma);
+}
+
 #endif /* __LINUX_LIBATA_H__ */
