@@ -1722,6 +1722,7 @@ static int nand_write_ecc (struct mtd_info *mtd, loff_t to, size_t len,
 			startpage = page;
 			oobbuf = nand_prepare_oobbuf (mtd, eccbuf, oobsel, 
 					autoplace, numpages);
+			oob = 0;
 			/* Check, if we cross a chip boundary */
 			if (!page) {
 				chipnr++;
