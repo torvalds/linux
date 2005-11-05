@@ -219,12 +219,12 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 		case RED_PROB_MARK:
 			sch->qstats.overlimits++;
 			q->stats.prob_drop++;
-			goto drop;
+			goto congestion_drop;
 
 		case RED_HARD_MARK:
 			sch->qstats.overlimits++;
 			q->stats.forced_drop++;
-			goto drop;
+			goto congestion_drop;
 	}
 
 	if (q->backlog + skb->len <= q->limit) {
@@ -242,6 +242,11 @@ drop:
 	kfree_skb(skb);
 	sch->qstats.drops++;
 	return NET_XMIT_DROP;
+
+congestion_drop:
+	kfree_skb(skb);
+	sch->qstats.drops++;
+	return NET_XMIT_CN;
 }
 
 static int
