@@ -15,49 +15,17 @@
  *		         from Ren Liu
  *		       - More error checks
  *
- *
- *
- *  For all the glorious comments look at Alexey's sch_red.c
+ *  For all the glorious comments look at include/net/red.h
  */
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <asm/uaccess.h>
-#include <asm/system.h>
-#include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/socket.h>
-#include <linux/sockios.h>
-#include <linux/in.h>
-#include <linux/errno.h>
-#include <linux/interrupt.h>
-#include <linux/if_ether.h>
-#include <linux/inet.h>
 #include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/notifier.h>
-#include <net/ip.h>
-#include <net/route.h>
 #include <linux/skbuff.h>
-#include <net/sock.h>
 #include <net/pkt_sched.h>
 #include <net/red.h>
-
-#if 1 /* control */
-#define DPRINTK(format,args...) printk(KERN_DEBUG format,##args)
-#else
-#define DPRINTK(format,args...)
-#endif
-
-#if 0 /* data */
-#define D2PRINTK(format,args...) printk(KERN_DEBUG format,##args)
-#else
-#define D2PRINTK(format,args...)
-#endif
 
 #define GRED_DEF_PRIO (MAX_DPs / 2)
 #define GRED_VQ_MASK (MAX_DPs - 1)
@@ -72,7 +40,7 @@ struct gred_sched_data
 	u32		bytesin;	/* bytes seen on virtualQ so far*/
 	u32		packetsin;	/* packets seen on virtualQ so far*/
 	u32		backlog;	/* bytes on the virtualQ */
-	u8              prio;        /* the prio of this vq */
+	u8		prio;		/* the prio of this vq */
 
 	struct red_parms parms;
 	struct red_stats stats;
@@ -87,8 +55,8 @@ struct gred_sched
 {
 	struct gred_sched_data *tab[MAX_DPs];
 	unsigned long	flags;
-	u32 		DPs;   
-	u32 		def; 
+	u32 		DPs;
+	u32 		def;
 	struct red_parms wred_set;
 };
 
@@ -172,13 +140,11 @@ static inline void gred_store_wred_set(struct gred_sched *table,
 	table->wred_set.qavg = q->parms.qavg;
 }
 
-static int
-gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
+static int gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
 	struct gred_sched_data *q=NULL;
 	struct gred_sched *t= qdisc_priv(sch);
 	unsigned long qavg = 0;
-	int i=0;
 	u16 dp = tc_index_to_dp(skb);
 
 	if (dp >= t->DPs  || (q = t->tab[dp]) == NULL) {
@@ -200,26 +166,23 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 		skb->tc_index = (skb->tc_index & ~GRED_VQ_MASK) | dp;
 	}
 
-	/* sum up all the qaves of prios <= to ours to get the new qave*/
+	/* sum up all the qaves of prios <= to ours to get the new qave */
 	if (!gred_wred_mode(t) && gred_rio_mode(t)) {
-		for (i=0;i<t->DPs;i++) {
-			if ((!t->tab[i]) || (i==q->DP))	
-				continue; 
-				
-			if (t->tab[i]->prio < q->prio &&
+		int i;
+
+		for (i = 0; i < t->DPs; i++) {
+			if (t->tab[i] && t->tab[i]->prio < q->prio &&
 			    !red_is_idling(&t->tab[i]->parms))
 				qavg +=t->tab[i]->parms.qavg;
 		}
-			
+
 	}
 
 	q->packetsin++;
-	q->bytesin+=skb->len;
+	q->bytesin += skb->len;
 
-	if (gred_wred_mode(t)) {
-		qavg = 0;
+	if (gred_wred_mode(t))
 		gred_load_wred_set(t, q);
-	}
 
 	q->parms.qavg = red_calc_qavg(&q->parms, gred_backlog(t, q, sch));
 
@@ -258,8 +221,7 @@ congestion_drop:
 	return NET_XMIT_CN;
 }
 
-static int
-gred_requeue(struct sk_buff *skb, struct Qdisc* sch)
+static int gred_requeue(struct sk_buff *skb, struct Qdisc* sch)
 {
 	struct gred_sched *t = qdisc_priv(sch);
 	struct gred_sched_data *q;
@@ -279,16 +241,15 @@ gred_requeue(struct sk_buff *skb, struct Qdisc* sch)
 	return qdisc_requeue(skb, sch);
 }
 
-static struct sk_buff *
-gred_dequeue(struct Qdisc* sch)
+static struct sk_buff *gred_dequeue(struct Qdisc* sch)
 {
 	struct sk_buff *skb;
-	struct gred_sched_data *q;
-	struct gred_sched *t= qdisc_priv(sch);
+	struct gred_sched *t = qdisc_priv(sch);
 
 	skb = qdisc_dequeue_head(sch);
 
 	if (skb) {
+		struct gred_sched_data *q;
 		u16 dp = tc_index_to_dp(skb);
 
 		if (dp >= t->DPs || (q = t->tab[dp]) == NULL) {
@@ -315,13 +276,12 @@ gred_dequeue(struct Qdisc* sch)
 static unsigned int gred_drop(struct Qdisc* sch)
 {
 	struct sk_buff *skb;
-
-	struct gred_sched_data *q;
-	struct gred_sched *t= qdisc_priv(sch);
+	struct gred_sched *t = qdisc_priv(sch);
 
 	skb = qdisc_dequeue_tail(sch);
 	if (skb) {
 		unsigned int len = skb->len;
+		struct gred_sched_data *q;
 		u16 dp = tc_index_to_dp(skb);
 
 		if (dp >= t->DPs || (q = t->tab[dp]) == NULL) {
@@ -351,15 +311,16 @@ static unsigned int gred_drop(struct Qdisc* sch)
 static void gred_reset(struct Qdisc* sch)
 {
 	int i;
-	struct gred_sched_data *q;
-	struct gred_sched *t= qdisc_priv(sch);
+	struct gred_sched *t = qdisc_priv(sch);
 
 	qdisc_reset_queue(sch);
 
-        for (i=0;i<t->DPs;i++) {
-	        q= t->tab[i];
-		if (!q)	
-			continue; 
+        for (i = 0; i < t->DPs; i++) {
+		struct gred_sched_data *q = t->tab[i];
+
+		if (!q)
+			continue;
+
 		red_restart(&q->parms);
 		q->backlog = 0;
 	}
@@ -590,15 +551,13 @@ static void gred_destroy(struct Qdisc *sch)
 	struct gred_sched *table = qdisc_priv(sch);
 	int i;
 
-	for (i = 0;i < table->DPs; i++) {
+	for (i = 0; i < table->DPs; i++) {
 		if (table->tab[i])
 			gred_destroy_vq(table->tab[i]);
 	}
 }
 
 static struct Qdisc_ops gred_qdisc_ops = {
-	.next		=	NULL,
-	.cl_ops		=	NULL,
 	.id		=	"gred",
 	.priv_size	=	sizeof(struct gred_sched),
 	.enqueue	=	gred_enqueue,
@@ -617,10 +576,13 @@ static int __init gred_module_init(void)
 {
 	return register_qdisc(&gred_qdisc_ops);
 }
-static void __exit gred_module_exit(void) 
+
+static void __exit gred_module_exit(void)
 {
 	unregister_qdisc(&gred_qdisc_ops);
 }
+
 module_init(gred_module_init)
 module_exit(gred_module_exit)
+
 MODULE_LICENSE("GPL");
