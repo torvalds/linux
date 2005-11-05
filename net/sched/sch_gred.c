@@ -559,50 +559,44 @@ static int gred_init(struct Qdisc *sch, struct rtattr *opt)
 
 static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
-	unsigned long qave;
-	struct rtattr *rta;
-	struct tc_gred_qopt *opt = NULL ;
-	struct tc_gred_qopt *dst;
 	struct gred_sched *table = qdisc_priv(sch);
-	struct gred_sched_data *q;
+	struct rtattr *parms, *opts = NULL;
 	int i;
-	unsigned char	 *b = skb->tail;
 
-	rta = (struct rtattr*)b;
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	opts = RTA_NEST(skb, TCA_OPTIONS);
+	parms = RTA_NEST(skb, TCA_GRED_PARMS);
 
-	opt=kmalloc(sizeof(struct tc_gred_qopt)*MAX_DPs, GFP_KERNEL);
+	for (i = 0; i < MAX_DPs; i++) {
+		struct gred_sched_data *q = table->tab[i];
+		struct tc_gred_qopt opt;
 
-	if (opt  == NULL) {
-		DPRINTK("gred_dump:failed to malloc for %Zd\n",
-		    sizeof(struct tc_gred_qopt)*MAX_DPs);
-		goto rtattr_failure;
-	}
-
-	memset(opt, 0, (sizeof(struct tc_gred_qopt))*table->DPs);
-
-	if (!table->initd) {
-		DPRINTK("NO GRED Queues setup!\n");
-	}
-
-	for (i=0;i<MAX_DPs;i++) {
-		dst= &opt[i]; 
-		q= table->tab[i]; 
+		memset(&opt, 0, sizeof(opt));
 
 		if (!q) {
 			/* hack -- fix at some point with proper message
 			   This is how we indicate to tc that there is no VQ
 			   at this DP */
 
-			dst->DP=MAX_DPs+i;
-			continue;
+			opt.DP = MAX_DPs + i;
+			goto append_opt;
 		}
 
-		dst->limit=q->limit;
-		dst->qth_min=q->qth_min>>q->Wlog;
-		dst->qth_max=q->qth_max>>q->Wlog;
-		dst->DP=q->DP;
-		dst->backlog=q->backlog;
+		opt.limit	= q->limit;
+		opt.DP		= q->DP;
+		opt.backlog	= q->backlog;
+		opt.prio	= q->prio;
+		opt.qth_min	= q->qth_min >> q->Wlog;
+		opt.qth_max	= q->qth_max >> q->Wlog;
+		opt.Wlog	= q->Wlog;
+		opt.Plog	= q->Plog;
+		opt.Scell_log	= q->Scell_log;
+		opt.other	= q->other;
+		opt.early	= q->early;
+		opt.forced	= q->forced;
+		opt.pdrop	= q->pdrop;
+		opt.packets	= q->packetsin;
+		opt.bytesin	= q->bytesin;
+
 		if (q->qave) {
 			if (gred_wred_mode(table)) {
 				q->qidlestart=table->tab[table->def]->qidlestart;
@@ -610,46 +604,28 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 			}
 			if (!PSCHED_IS_PASTPERFECT(q->qidlestart)) {
 				long idle;
+				unsigned long qave;
 				psched_time_t now;
 				PSCHED_GET_TIME(now);
 				idle = PSCHED_TDIFF_SAFE(now, q->qidlestart, q->Scell_max);
 				qave  = q->qave >> q->Stab[(idle>>q->Scell_log)&0xFF];
-				dst->qave = qave >> q->Wlog;
+				opt.qave = qave >> q->Wlog;
 
 			} else {
-				dst->qave = q->qave >> q->Wlog;
+				opt.qave = q->qave >> q->Wlog;
 			}
-		} else {
-			dst->qave = 0;
 		}
-		
 
-		dst->Wlog = q->Wlog;
-		dst->Plog = q->Plog;
-		dst->Scell_log = q->Scell_log;
-		dst->other = q->other;
-		dst->forced = q->forced;
-		dst->early = q->early;
-		dst->pdrop = q->pdrop;
-		dst->prio = q->prio;
-		dst->packets=q->packetsin;
-		dst->bytesin=q->bytesin;
+append_opt:
+		RTA_APPEND(skb, sizeof(opt), &opt);
 	}
 
-	RTA_PUT(skb, TCA_GRED_PARMS, sizeof(struct tc_gred_qopt)*MAX_DPs, opt);
-	rta->rta_len = skb->tail - b;
+	RTA_NEST_END(skb, parms);
 
-	kfree(opt);
-	return skb->len;
+	return RTA_NEST_END(skb, opts);
 
 rtattr_failure:
-	if (opt)
-		kfree(opt);
-	DPRINTK("gred_dump: FAILURE!!!!\n");
-
-/* also free the opt struct here */
-	skb_trim(skb, b - skb->data);
-	return -1;
+	return RTA_NEST_CANCEL(skb, opts);
 }
 
 static void gred_destroy(struct Qdisc *sch)
