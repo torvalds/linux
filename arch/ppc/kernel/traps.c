@@ -159,7 +159,7 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
  */
 static inline int check_io_access(struct pt_regs *regs)
 {
-#ifdef CONFIG_PPC_PMAC
+#if defined CONFIG_PPC_PMAC || defined CONFIG_8xx
 	unsigned long msr = regs->msr;
 	const struct exception_table_entry *entry;
 	unsigned int *nip = (unsigned int *)regs->nip;
@@ -178,7 +178,11 @@ static inline int check_io_access(struct pt_regs *regs)
 			nip -= 2;
 		else if (*nip == 0x4c00012c)	/* isync */
 			--nip;
-		if (*nip == 0x7c0004ac || (*nip >> 26) == 3) {
+		/* eieio from I/O string functions */
+		else if ((*nip) == 0x7c0006ac || *(nip+1) == 0x7c0006ac)
+			nip += 2;
+		if (*nip == 0x7c0004ac || (*nip >> 26) == 3 ||
+			(*(nip+1) >> 26) == 3) {
 			/* sync or twi */
 			unsigned int rb;
 
