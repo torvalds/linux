@@ -89,7 +89,6 @@ struct gred_sched
 	unsigned long	flags;
 	u32 		DPs;   
 	u32 		def; 
-	u8 		initd; 
 };
 
 static inline int gred_wred_mode(struct gred_sched *table)
@@ -166,14 +165,7 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	struct gred_sched *t= qdisc_priv(sch);
 	unsigned long qavg = 0;
 	int i=0;
-	u16 dp;
-
-	if (!t->initd && skb_queue_len(&sch->q) < (sch->dev->tx_queue_len ? : 1)) {
-		D2PRINTK("NO GRED Queues setup yet! Enqueued anyway\n");
-		goto do_enqueue;
-	}
-
-	dp = tc_index_to_dp(skb);
+	u16 dp = tc_index_to_dp(skb);
 
 	if (dp >= t->DPs  || (q = t->tab[dp]) == NULL) {
 		dp = t->def;
@@ -241,7 +233,6 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 
 	if (q->backlog + skb->len <= q->limit) {
 		q->backlog += skb->len;
-do_enqueue:
 		return qdisc_enqueue_tail(skb, sch);
 	}
 
@@ -420,8 +411,6 @@ static inline int gred_change_table_def(struct Qdisc *sch, struct rtattr *dps)
   		}
 	}
 
-	table->initd = 0;
-
 	return 0;
 }
 
@@ -508,8 +497,6 @@ static int gred_change(struct Qdisc *sch, struct rtattr *opt)
 		if (err < 0)
 			goto errout_locked;
 	}
-
-	table->initd = 1;
 
 	if (gred_rio_mode(table)) {
 		gred_disable_wred_mode(table);
