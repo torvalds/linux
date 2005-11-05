@@ -462,10 +462,9 @@ static int scsi_probe_lun(struct scsi_device *sdev, char *inq_result,
 	pass = 1;
 
  next_pass:
-	SCSI_LOG_SCAN_BUS(3, printk(KERN_INFO "scsi scan: INQUIRY pass %d "
-			"to host %d channel %d id %d lun %d, length %d\n",
-			pass, sdev->host->host_no, sdev->channel,
-			sdev->id, sdev->lun, try_inquiry_len));
+	SCSI_LOG_SCAN_BUS(3, sdev_printk(KERN_INFO, sdev,
+				"scsi scan: INQUIRY pass %d length %d\n",
+				pass, try_inquiry_len));
 
 	/* Each pass gets up to three chances to ignore Unit Attention */
 	for (count = 0; count < 3; ++count) {
@@ -1190,9 +1189,8 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 		num_luns = max_scsi_report_luns;
 	}
 
-	SCSI_LOG_SCAN_BUS(3, printk (KERN_INFO "scsi scan: REPORT LUN scan of"
-			" host %d channel %d id %d\n", sdev->host->host_no,
-			sdev->channel, sdev->id));
+	SCSI_LOG_SCAN_BUS(3, sdev_printk (KERN_INFO, sdev,
+		"scsi scan: REPORT LUN scan\n"));
 
 	/*
 	 * Scan the luns in lun_data. The entry at offset 0 is really
@@ -1231,9 +1229,10 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 				/*
 				 * Got some results, but now none, abort.
 				 */
-				printk(KERN_ERR "scsi: Unexpected response"
-				       " from %s lun %d while scanning, scan"
-				       " aborted\n", devname, lun);
+				sdev_printk(KERN_ERR, sdev,
+					"Unexpected response"
+				        " from lun %d while scanning, scan"
+				        " aborted\n", lun);
 				break;
 			}
 		}
@@ -1418,8 +1417,9 @@ static void scsi_scan_channel(struct Scsi_Host *shost, unsigned int channel,
 int scsi_scan_host_selected(struct Scsi_Host *shost, unsigned int channel,
 			    unsigned int id, unsigned int lun, int rescan)
 {
-	SCSI_LOG_SCAN_BUS(3, printk (KERN_INFO "%s: <%u:%u:%u:%u>\n",
-		__FUNCTION__, shost->host_no, channel, id, lun));
+	SCSI_LOG_SCAN_BUS(3, shost_printk (KERN_INFO, shost,
+		"%s: <%u:%u:%u>\n",
+		__FUNCTION__, channel, id, lun));
 
 	if (((channel != SCAN_WILD_CARD) && (channel > shost->max_channel)) ||
 	    ((id != SCAN_WILD_CARD) && (id > shost->max_id)) ||
@@ -1451,19 +1451,6 @@ void scsi_scan_host(struct Scsi_Host *shost)
 				SCAN_WILD_CARD, 0);
 }
 EXPORT_SYMBOL(scsi_scan_host);
-
-/**
- * scsi_scan_single_target - scan the given SCSI target
- * @shost:         adapter to scan
- * @chan:          channel to scan
- * @id:            target id to scan
- **/
-void scsi_scan_single_target(struct Scsi_Host *shost, 
-	unsigned int chan, unsigned int id)
-{
-	scsi_scan_host_selected(shost, chan, id, SCAN_WILD_CARD, 1);
-}
-EXPORT_SYMBOL(scsi_scan_single_target);
 
 void scsi_forget_host(struct Scsi_Host *shost)
 {

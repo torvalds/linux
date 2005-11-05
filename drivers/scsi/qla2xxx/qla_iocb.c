@@ -1,22 +1,9 @@
-/******************************************************************************
- *                  QLOGIC LINUX SOFTWARE
+/*
+ * QLogic Fibre Channel HBA Driver
+ * Copyright (c)  2003-2005 QLogic Corporation
  *
- * QLogic ISP2x00 device driver for Linux 2.6.x
- * Copyright (C) 2003-2005 QLogic Corporation
- * (www.qlogic.com)
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- ******************************************************************************/
-
+ * See LICENSE.qla2xxx for copyright and licensing details.
+ */
 #include "qla_def.h"
 
 #include <linux/blkdev.h>
@@ -316,7 +303,6 @@ qla2x00_start_scsi(srb_t *sp)
 	uint16_t	req_cnt;
 	uint16_t	tot_dsds;
 	struct device_reg_2xxx __iomem *reg;
-	char		tag[2];
 
 	/* Setup device pointers. */
 	ret = 0;
@@ -401,18 +387,6 @@ qla2x00_start_scsi(srb_t *sp)
 
 	/* Update tagged queuing modifier */
 	cmd_pkt->control_flags = __constant_cpu_to_le16(CF_SIMPLE_TAG);
-	if (scsi_populate_tag_msg(cmd, tag)) {
-		switch (tag[0]) {
-		case MSG_HEAD_TAG:
-			cmd_pkt->control_flags =
-			    __constant_cpu_to_le16(CF_HEAD_TAG);
-			break;
-		case MSG_ORDERED_TAG:
-			cmd_pkt->control_flags =
-			    __constant_cpu_to_le16(CF_ORDERED_TAG);
-			break;
-		}
-	}
 
 	/* Load SCSI command packet. */
 	memcpy(cmd_pkt->scsi_cdb, cmd->cmnd, cmd->cmd_len);
@@ -439,6 +413,11 @@ qla2x00_start_scsi(srb_t *sp)
 	/* Set chip new ring index. */
 	WRT_REG_WORD(ISP_REQ_Q_IN(ha, reg), ha->req_ring_index);
 	RD_REG_WORD_RELAXED(ISP_REQ_Q_IN(ha, reg));	/* PCI Posting. */
+
+	/* Manage unprocessed RIO/ZIO commands in response queue. */
+	if (ha->flags.process_response_queue &&
+	    ha->response_ring_ptr->signature != RESPONSE_PROCESSED)
+		qla2x00_process_response_queue(ha);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	return (QLA_SUCCESS);
@@ -749,7 +728,6 @@ qla24xx_start_scsi(srb_t *sp)
 	uint16_t	req_cnt;
 	uint16_t	tot_dsds;
 	struct device_reg_24xx __iomem *reg;
-	char		tag[2];
 
 	/* Setup device pointers. */
 	ret = 0;
@@ -824,6 +802,7 @@ qla24xx_start_scsi(srb_t *sp)
 	cmd_pkt->handle = handle;
 
 	/* Zero out remaining portion of packet. */
+	/*    tagged queuing modifier -- default is TSK_SIMPLE (0). */
 	clr_ptr = (uint32_t *)cmd_pkt + 2;
 	memset(clr_ptr, 0, REQUEST_ENTRY_SIZE - 8);
 	cmd_pkt->dseg_count = cpu_to_le16(tot_dsds);
@@ -834,20 +813,7 @@ qla24xx_start_scsi(srb_t *sp)
 	cmd_pkt->port_id[1] = sp->fcport->d_id.b.area;
 	cmd_pkt->port_id[2] = sp->fcport->d_id.b.domain;
 
-	cmd_pkt->lun[1] = LSB(sp->cmd->device->lun);
-	cmd_pkt->lun[2] = MSB(sp->cmd->device->lun);
-
-	/* Update tagged queuing modifier -- default is TSK_SIMPLE (0). */
-	if (scsi_populate_tag_msg(cmd, tag)) {
-		switch (tag[0]) {
-		case MSG_HEAD_TAG:
-			cmd_pkt->task = TSK_HEAD_OF_QUEUE;
-			break;
-		case MSG_ORDERED_TAG:
-			cmd_pkt->task = TSK_ORDERED;
-			break;
-		}
-	}
+	int_to_scsilun(sp->cmd->device->lun, &cmd_pkt->lun);
 
 	/* Load SCSI command packet. */
 	memcpy(cmd_pkt->fcp_cdb, cmd->cmnd, cmd->cmd_len);
@@ -876,6 +842,11 @@ qla24xx_start_scsi(srb_t *sp)
 	/* Set chip new ring index. */
 	WRT_REG_DWORD(&reg->req_q_in, ha->req_ring_index);
 	RD_REG_DWORD_RELAXED(&reg->req_q_in);		/* PCI Posting. */
+
+	/* Manage unprocessed RIO/ZIO commands in response queue. */
+	if (ha->flags.process_response_queue &&
+	    ha->response_ring_ptr->signature != RESPONSE_PROCESSED)
+		qla24xx_process_response_queue(ha);
 
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	return QLA_SUCCESS;

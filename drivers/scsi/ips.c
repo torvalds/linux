@@ -219,15 +219,12 @@ module_param(ips, charp, 0);
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,5,0)
 #include <linux/blk.h>
 #include "sd.h"
-#define IPS_SG_ADDRESS(sg)       ((sg)->address)
 #define IPS_LOCK_SAVE(lock,flags) spin_lock_irqsave(&io_request_lock,flags)
 #define IPS_UNLOCK_RESTORE(lock,flags) spin_unlock_irqrestore(&io_request_lock,flags)
 #ifndef __devexit_p
 #define __devexit_p(x) x
 #endif
 #else
-#define IPS_SG_ADDRESS(sg)      (page_address((sg)->page) ? \
-                                   page_address((sg)->page)+(sg)->offset : NULL)
 #define IPS_LOCK_SAVE(lock,flags) do{spin_lock(lock);(void)flags;}while(0)
 #define IPS_UNLOCK_RESTORE(lock,flags) do{spin_unlock(lock);(void)flags;}while(0)
 #endif
@@ -357,6 +354,9 @@ static int ips_init_phase2(int index);
 
 static int ips_init_phase1(struct pci_dev *pci_dev, int *indexPtr);
 static int ips_register_scsi(int index);
+
+static int  ips_poll_for_flush_complete(ips_ha_t * ha);
+static void ips_flush_and_reset(ips_ha_t *ha);
 
 /*
  * global variables
@@ -1125,8 +1125,8 @@ ips_queue(Scsi_Cmnd * SC, void (*done) (Scsi_Cmnd *))
 		  SC->device->channel, SC->device->id, SC->device->lun);
 
 	/* Check for command to initiator IDs */
-	if ((SC->device->channel > 0)
-	    && (SC->device->id == ha->ha_id[SC->device->channel])) {
+	if ((scmd_channel(SC) > 0)
+	    && (scmd_id(SC) == ha->ha_id[scmd_channel(SC)])) {
 		SC->result = DID_NO_CONNECT << 16;
 		done(SC);
 
@@ -1605,6 +1605,8 @@ ips_proc_info(struct Scsi_Host *host, char *buffer, char **start, off_t offset,
 static int
 ips_is_passthru(Scsi_Cmnd * SC)
 {
+	unsigned long flags;
+
 	METHOD_TRACE("ips_is_passthru", 1);
 
 	if (!SC)
@@ -1622,10 +1624,20 @@ ips_is_passthru(Scsi_Cmnd * SC)
 			return 1;
 		else if (SC->use_sg) {
 			struct scatterlist *sg = SC->request_buffer;
-			char *buffer = IPS_SG_ADDRESS(sg);
+			char  *buffer; 
+
+			/* kmap_atomic() ensures addressability of the user buffer.*/
+			/* local_irq_save() protects the KM_IRQ0 address slot.     */
+			local_irq_save(flags);
+			buffer = kmap_atomic(sg->page, KM_IRQ0) + sg->offset; 
 			if (buffer && buffer[0] == 'C' && buffer[1] == 'O' &&
-			    buffer[2] == 'P' && buffer[3] == 'P')
+			    buffer[2] == 'P' && buffer[3] == 'P') {
+				kunmap_atomic(buffer - sg->offset, KM_IRQ0);
+				local_irq_restore(flags);
 				return 1;
+			}
+			kunmap_atomic(buffer - sg->offset, KM_IRQ0);
+			local_irq_restore(flags);
 		}
 	}
 	return 0;
@@ -2830,10 +2842,10 @@ ips_next(ips_ha_t * ha, int intr)
 
 	p = ha->scb_waitlist.head;
 	while ((p) && (scb = ips_getscb(ha))) {
-		if ((p->device->channel > 0)
+		if ((scmd_channel(p) > 0)
 		    && (ha->
-			dcdb_active[p->device->channel -
-				    1] & (1 << p->device->id))) {
+			dcdb_active[scmd_channel(p) -
+				    1] & (1 << scmd_id(p)))) {
 			ips_freescb(ha, scb);
 			p = (Scsi_Cmnd *) p->host_scribble;
 			continue;
@@ -3656,14 +3668,21 @@ ips_scmd_buf_write(Scsi_Cmnd * scmd, void *data, unsigned
 		int i;
 		unsigned int min_cnt, xfer_cnt;
 		char *cdata = (char *) data;
+		unsigned char *buffer;
+		unsigned long flags;
 		struct scatterlist *sg = scmd->request_buffer;
 		for (i = 0, xfer_cnt = 0;
 		     (i < scmd->use_sg) && (xfer_cnt < count); i++) {
-			if (!IPS_SG_ADDRESS(&sg[i]))
-				return;
 			min_cnt = min(count - xfer_cnt, sg[i].length);
-			memcpy(IPS_SG_ADDRESS(&sg[i]), &cdata[xfer_cnt],
-			       min_cnt);
+
+			/* kmap_atomic() ensures addressability of the data buffer.*/
+			/* local_irq_save() protects the KM_IRQ0 address slot.     */
+			local_irq_save(flags);
+			buffer = kmap_atomic(sg[i].page, KM_IRQ0) + sg[i].offset;
+			memcpy(buffer, &cdata[xfer_cnt], min_cnt);
+			kunmap_atomic(buffer - sg[i].offset, KM_IRQ0);
+			local_irq_restore(flags);
+
 			xfer_cnt += min_cnt;
 		}
 
@@ -3688,14 +3707,21 @@ ips_scmd_buf_read(Scsi_Cmnd * scmd, void *data, unsigned
 		int i;
 		unsigned int min_cnt, xfer_cnt;
 		char *cdata = (char *) data;
+		unsigned char *buffer;
+		unsigned long flags;
 		struct scatterlist *sg = scmd->request_buffer;
 		for (i = 0, xfer_cnt = 0;
 		     (i < scmd->use_sg) && (xfer_cnt < count); i++) {
-			if (!IPS_SG_ADDRESS(&sg[i]))
-				return;
 			min_cnt = min(count - xfer_cnt, sg[i].length);
-			memcpy(&cdata[xfer_cnt], IPS_SG_ADDRESS(&sg[i]),
-			       min_cnt);
+
+			/* kmap_atomic() ensures addressability of the data buffer.*/
+			/* local_irq_save() protects the KM_IRQ0 address slot.     */
+			local_irq_save(flags);
+			buffer = kmap_atomic(sg[i].page, KM_IRQ0) + sg[i].offset;
+			memcpy(&cdata[xfer_cnt], buffer, min_cnt);
+			kunmap_atomic(buffer - sg[i].offset, KM_IRQ0);
+			local_irq_restore(flags);
+
 			xfer_cnt += min_cnt;
 		}
 
@@ -4807,6 +4833,9 @@ ips_isinit_morpheus(ips_ha_t * ha)
 	uint32_t bits;
 
 	METHOD_TRACE("ips_is_init_morpheus", 1);
+   
+	if (ips_isintr_morpheus(ha)) 
+	    ips_flush_and_reset(ha);
 
 	post = readl(ha->mem_ptr + IPS_REG_I960_MSG0);
 	bits = readl(ha->mem_ptr + IPS_REG_I2O_HIR);
@@ -4817,6 +4846,94 @@ ips_isinit_morpheus(ips_ha_t * ha)
 		return (0);
 	else
 		return (1);
+}
+
+/****************************************************************************/
+/*                                                                          */
+/* Routine Name: ips_flush_and_reset                                        */
+/*                                                                          */
+/* Routine Description:                                                     */
+/*                                                                          */
+/*   Perform cleanup ( FLUSH and RESET ) when the adapter is in an unknown  */
+/*   state ( was trying to INIT and an interrupt was already pending ) ...  */
+/*                                                                          */
+/****************************************************************************/
+static void 
+ips_flush_and_reset(ips_ha_t *ha)
+{
+	ips_scb_t *scb;
+	int  ret;
+ 	int  time;
+	int  done;
+	dma_addr_t command_dma;
+
+	/* Create a usuable SCB */
+	scb = pci_alloc_consistent(ha->pcidev, sizeof(ips_scb_t), &command_dma);
+	if (scb) {
+	    memset(scb, 0, sizeof(ips_scb_t));
+	    ips_init_scb(ha, scb);
+	    scb->scb_busaddr = command_dma;
+
+	    scb->timeout = ips_cmd_timeout;
+	    scb->cdb[0] = IPS_CMD_FLUSH;
+
+	    scb->cmd.flush_cache.op_code = IPS_CMD_FLUSH;
+	    scb->cmd.flush_cache.command_id = IPS_MAX_CMDS;   /* Use an ID that would otherwise not exist */
+	    scb->cmd.flush_cache.state = IPS_NORM_STATE;
+	    scb->cmd.flush_cache.reserved = 0;
+	    scb->cmd.flush_cache.reserved2 = 0;
+	    scb->cmd.flush_cache.reserved3 = 0;
+	    scb->cmd.flush_cache.reserved4 = 0;
+
+	    ret = ips_send_cmd(ha, scb);                      /* Send the Flush Command */
+
+	    if (ret == IPS_SUCCESS) {
+	        time = 60 * IPS_ONE_SEC;	              /* Max Wait time is 60 seconds */
+	        done = 0;
+	            
+	        while ((time > 0) && (!done)) {
+	           done = ips_poll_for_flush_complete(ha); 	   
+	           /* This may look evil, but it's only done during extremely rare start-up conditions ! */
+	           udelay(1000);
+	           time--;
+	        }
+        }
+	}
+
+	/* Now RESET and INIT the adapter */
+	(*ha->func.reset) (ha);
+
+	pci_free_consistent(ha->pcidev, sizeof(ips_scb_t), scb, command_dma);
+	return;
+}
+
+/****************************************************************************/
+/*                                                                          */
+/* Routine Name: ips_poll_for_flush_complete                                */
+/*                                                                          */
+/* Routine Description:                                                     */
+/*                                                                          */
+/*   Poll for the Flush Command issued by ips_flush_and_reset() to complete */
+/*   All other responses are just taken off the queue and ignored           */
+/*                                                                          */
+/****************************************************************************/
+static int
+ips_poll_for_flush_complete(ips_ha_t * ha)
+{
+	IPS_STATUS cstatus;
+    
+	while (TRUE) {
+	    cstatus.value = (*ha->func.statupd) (ha);
+
+	    if (cstatus.value == 0xffffffff)      /* If No Interrupt to process */
+			break;
+            
+	    /* Success is when we see the Flush Command ID */
+	    if (cstatus.fields.command_id == IPS_MAX_CMDS ) 
+	        return 1;
+	 }	
+
+	return 0;
 }
 
 /****************************************************************************/
