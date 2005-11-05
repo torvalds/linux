@@ -65,6 +65,28 @@ typedef enum _lpfc_iocb_type {
 	LPFC_ABORT_IOCB
 } lpfc_iocb_type;
 
+struct lpfc_iocbq *
+lpfc_sli_get_iocbq(struct lpfc_hba * phba)
+{
+	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
+	struct lpfc_iocbq * iocbq = NULL;
+
+	list_remove_head(lpfc_iocb_list, iocbq, struct lpfc_iocbq, list);
+	return iocbq;
+}
+
+void
+lpfc_sli_release_iocbq(struct lpfc_hba * phba, struct lpfc_iocbq * iocbq)
+{
+	size_t start_clean = (size_t)(&((struct lpfc_iocbq *)NULL)->iocb);
+
+	/*
+	 * Clean all volatile data fields, preserve iotag and node struct.
+	 */
+	memset((char*)iocbq + start_clean, 0, sizeof(*iocbq) - start_clean);
+	list_add_tail(&iocbq->list, &phba->lpfc_iocb_list);
+}
+
 /*
  * Translate the iocb command to an iocb command type used to decide the final
  * disposition of each completed IOCB.
@@ -265,41 +287,69 @@ lpfc_sli_next_iocb_slot (struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 	return iocb;
 }
 
-static uint32_t
-lpfc_sli_next_iotag(struct lpfc_hba * phba, struct lpfc_sli_ring * pring)
+uint16_t
+lpfc_sli_next_iotag(struct lpfc_hba * phba, struct lpfc_iocbq * iocbq)
 {
-	uint32_t search_start;
+	struct lpfc_iocbq ** new_arr;
+	struct lpfc_iocbq ** old_arr;
+	size_t new_len;
+	struct lpfc_sli *psli = &phba->sli;
+	uint16_t iotag;
 
-	if (pring->fast_lookup == NULL) {
-		pring->iotag_ctr++;
-		if (pring->iotag_ctr >= pring->iotag_max)
-			pring->iotag_ctr = 1;
-		return pring->iotag_ctr;
+	spin_lock_irq(phba->host->host_lock);
+	iotag = psli->last_iotag;
+	if(++iotag < psli->iocbq_lookup_len) {
+		psli->last_iotag = iotag;
+		psli->iocbq_lookup[iotag] = iocbq;
+		spin_unlock_irq(phba->host->host_lock);
+		iocbq->iotag = iotag;
+		return iotag;
+	}
+	else if (psli->iocbq_lookup_len < (0xffff
+					   - LPFC_IOCBQ_LOOKUP_INCREMENT)) {
+		new_len = psli->iocbq_lookup_len + LPFC_IOCBQ_LOOKUP_INCREMENT;
+		spin_unlock_irq(phba->host->host_lock);
+		new_arr = kmalloc(new_len * sizeof (struct lpfc_iocbq *),
+				  GFP_KERNEL);
+		if (new_arr) {
+			memset((char *)new_arr, 0,
+			       new_len * sizeof (struct lpfc_iocbq *));
+			spin_lock_irq(phba->host->host_lock);
+			old_arr = psli->iocbq_lookup;
+			if (new_len <= psli->iocbq_lookup_len) {
+				/* highly unprobable case */
+				kfree(new_arr);
+				iotag = psli->last_iotag;
+				if(++iotag < psli->iocbq_lookup_len) {
+					psli->last_iotag = iotag;
+					psli->iocbq_lookup[iotag] = iocbq;
+					spin_unlock_irq(phba->host->host_lock);
+					iocbq->iotag = iotag;
+					return iotag;
+				}
+				spin_unlock_irq(phba->host->host_lock);
+				return 0;
+			}
+			if (psli->iocbq_lookup)
+				memcpy(new_arr, old_arr,
+				       ((psli->last_iotag  + 1) *
+	 				sizeof (struct lpfc_iocbq *)));
+			psli->iocbq_lookup = new_arr;
+			psli->iocbq_lookup_len = new_len;
+			psli->last_iotag = iotag;
+			psli->iocbq_lookup[iotag] = iocbq;
+			spin_unlock_irq(phba->host->host_lock);
+			iocbq->iotag = iotag;
+			kfree(old_arr);
+			return iotag;
+		}
 	}
 
-	search_start = pring->iotag_ctr;
+	lpfc_printf_log(phba, KERN_ERR,LOG_SLI,
+			"%d:0318 Failed to allocate IOTAG.last IOTAG is %d\n",
+			phba->brd_no, psli->last_iotag);
 
-	do {
-		pring->iotag_ctr++;
-		if (pring->iotag_ctr >= pring->fast_iotag)
-			pring->iotag_ctr = 1;
-
-		if (*(pring->fast_lookup + pring->iotag_ctr) == NULL)
-			return pring->iotag_ctr;
-
-	} while (pring->iotag_ctr != search_start);
-
-	/*
-	 * Outstanding I/O count for ring <ringno> is at max <fast_iotag>
-	 */
-	lpfc_printf_log(phba,
-		KERN_ERR,
-		LOG_SLI,
-		"%d:0318 Outstanding I/O count for ring %d is at max x%x\n",
-		phba->brd_no,
-		pring->ringno,
-		pring->fast_iotag);
-	return (0);
+	return 0;
 }
 
 static void
@@ -307,10 +357,9 @@ lpfc_sli_submit_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		IOCB_t *iocb, struct lpfc_iocbq *nextiocb)
 {
 	/*
-	 * Allocate and set up an iotag
+	 * Set up an iotag
 	 */
-	nextiocb->iocb.ulpIoTag =
-		lpfc_sli_next_iotag(phba, &phba->sli.ring[phba->sli.fcp_ring]);
+	nextiocb->iocb.ulpIoTag = (nextiocb->iocb_cmpl) ? nextiocb->iotag : 0;
 
 	/*
 	 * Issue iocb command to adapter
@@ -326,16 +375,15 @@ lpfc_sli_submit_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	 */
 	if (nextiocb->iocb_cmpl)
 		lpfc_sli_ringtxcmpl_put(phba, pring, nextiocb);
-	else {
-		list_add_tail(&nextiocb->list, &phba->lpfc_iocb_list);
-	}
+	else
+		lpfc_sli_release_iocbq(phba, nextiocb);
 
 	/*
 	 * Let the HBA know what IOCB slot will be the next one the
 	 * driver will put a command into.
 	 */
 	pring->cmdidx = pring->next_cmdidx;
-	writeb(pring->cmdidx, phba->MBslimaddr
+	writel(pring->cmdidx, phba->MBslimaddr
 	       + (SLIMOFF + (pring->ringno * 2)) * 4);
 }
 
@@ -752,80 +800,28 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 }
 
 static struct lpfc_iocbq *
-lpfc_sli_txcmpl_ring_search_slow(struct lpfc_sli_ring * pring,
-				 struct lpfc_iocbq * prspiocb)
+lpfc_sli_iocbq_lookup(struct lpfc_hba * phba,
+		      struct lpfc_sli_ring * pring,
+		      struct lpfc_iocbq * prspiocb)
 {
-	IOCB_t *icmd = NULL;
-	IOCB_t *irsp = NULL;
-	struct lpfc_iocbq *cmd_iocb;
-	struct lpfc_iocbq *iocb, *next_iocb;
-	uint16_t iotag;
-
-	irsp = &prspiocb->iocb;
-	iotag = irsp->ulpIoTag;
-	cmd_iocb = NULL;
-
-	/* Search through txcmpl from the begining */
-	list_for_each_entry_safe(iocb, next_iocb, &(pring->txcmplq), list) {
-		icmd = &iocb->iocb;
-		if (iotag == icmd->ulpIoTag) {
-			/* Found a match.  */
-			cmd_iocb = iocb;
-			list_del(&iocb->list);
-			pring->txcmplq_cnt--;
-			break;
-		}
-	}
-
-	return (cmd_iocb);
-}
-
-static struct lpfc_iocbq *
-lpfc_sli_txcmpl_ring_iotag_lookup(struct lpfc_hba * phba,
-			struct lpfc_sli_ring * pring,
-			struct lpfc_iocbq * prspiocb)
-{
-	IOCB_t *irsp = NULL;
 	struct lpfc_iocbq *cmd_iocb = NULL;
 	uint16_t iotag;
 
-	if (unlikely(pring->fast_lookup == NULL))
-		return NULL;
+	iotag = prspiocb->iocb.ulpIoTag;
 
-	/* Use fast lookup based on iotag for completion */
-	irsp = &prspiocb->iocb;
-	iotag = irsp->ulpIoTag;
-	if (iotag < pring->fast_iotag) {
-		cmd_iocb = *(pring->fast_lookup + iotag);
-		*(pring->fast_lookup + iotag) = NULL;
-		if (cmd_iocb) {
-			list_del(&cmd_iocb->list);
-			pring->txcmplq_cnt--;
-			return cmd_iocb;
-		} else {
-			/*
-			 * This is clearly an error.  A ring that uses iotags
-			 * should never have a interrupt for a completion that
-			 * is not on the ring.  Return NULL and log a error.
-			 */
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-				"%d:0327 Rsp ring %d error -  command "
-				"completion for iotag x%x not found\n",
-				phba->brd_no, pring->ringno, iotag);
-			return NULL;
-		}
+	if (iotag != 0 && iotag <= phba->sli.last_iotag) {
+		cmd_iocb = phba->sli.iocbq_lookup[iotag];
+		list_del(&cmd_iocb->list);
+		pring->txcmplq_cnt--;
+		return cmd_iocb;
 	}
 
-	/*
-	 * Rsp ring <ringno> get: iotag <iotag> greater then
-	 * configured max <fast_iotag> wd0 <irsp>.  This is an
-	 * error.  Just return NULL.
-	 */
 	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-			"%d:0317 Rsp ring %d get: iotag x%x greater then "
-			"configured max x%x wd0 x%x\n",
-			phba->brd_no, pring->ringno, iotag, pring->fast_iotag,
-			*(((uint32_t *) irsp) + 7));
+			"%d:0317 iotag x%x is out off "
+			"range: max iotag x%x wd0 x%x\n",
+			phba->brd_no, iotag,
+			phba->sli.last_iotag,
+			*(((uint32_t *) &prspiocb->iocb) + 7));
 	return NULL;
 }
 
@@ -839,7 +835,7 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba * phba, struct lpfc_sli_ring * pring,
 
 	/* Based on the iotag field, get the cmd IOCB from the txcmplq */
 	spin_lock_irqsave(phba->host->host_lock, iflag);
-	cmdiocbp = lpfc_sli_txcmpl_ring_search_slow(pring, saveq);
+	cmdiocbp = lpfc_sli_iocbq_lookup(phba, pring, saveq);
 	if (cmdiocbp) {
 		if (cmdiocbp->iocb_cmpl) {
 			/*
@@ -853,17 +849,13 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba * phba, struct lpfc_sli_ring * pring,
 				spin_lock_irqsave(phba->host->host_lock, iflag);
 			}
 			else {
-				if (cmdiocbp->iocb_flag & LPFC_IO_POLL)
-					rc = 0;
-
 				spin_unlock_irqrestore(phba->host->host_lock,
 						       iflag);
 				(cmdiocbp->iocb_cmpl) (phba, cmdiocbp, saveq);
 				spin_lock_irqsave(phba->host->host_lock, iflag);
 			}
-		} else {
-			list_add_tail(&cmdiocbp->list, &phba->lpfc_iocb_list);
-		}
+		} else
+			lpfc_sli_release_iocbq(phba, cmdiocbp);
 	} else {
 		/*
 		 * Unknown initiating command based on the response iotag.
@@ -889,6 +881,7 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba * phba, struct lpfc_sli_ring * pring,
 				saveq->iocb.ulpContext);
 		}
 	}
+
 	spin_unlock_irqrestore(phba->host->host_lock, iflag);
 	return rc;
 }
@@ -953,7 +946,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 		 * structure.  The copy involves a byte-swap since the
 		 * network byte order and pci byte orders are different.
 		 */
-		entry = (IOCB_t *) IOCB_ENTRY(pring->rspringaddr, pring->rspidx);
+		entry = IOCB_ENTRY(pring->rspringaddr, pring->rspidx);
 		lpfc_sli_pcimem_bcopy((uint32_t *) entry,
 				      (uint32_t *) &rspiocbq.iocb,
 				      sizeof (IOCB_t));
@@ -990,9 +983,8 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 				break;
 			}
 
-			cmdiocbq = lpfc_sli_txcmpl_ring_iotag_lookup(phba,
-								pring,
-								&rspiocbq);
+			cmdiocbq = lpfc_sli_iocbq_lookup(phba, pring,
+							 &rspiocbq);
 			if ((cmdiocbq) && (cmdiocbq->iocb_cmpl)) {
 				spin_unlock_irqrestore(
 				       phba->host->host_lock, iflag);
@@ -1033,7 +1025,7 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba * phba,
 
 		to_slim = phba->MBslimaddr +
 			(SLIMOFF + (pring->ringno * 2) + 1) * 4;
-		writeb(pring->rspidx, to_slim);
+		writel(pring->rspidx, to_slim);
 
 		if (pring->rspidx == portRspPut)
 			portRspPut = le32_to_cpu(pgp->rspPutInx);
@@ -1073,7 +1065,6 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 	struct lpfc_iocbq *next_iocb;
 	struct lpfc_iocbq *cmdiocbp;
 	struct lpfc_iocbq *saveq;
-	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
 	struct lpfc_pgp *pgp = &phba->slim2p->mbx.us.s2.port[pring->ringno];
 	uint8_t iocb_cmd_type;
 	lpfc_iocb_type type;
@@ -1115,7 +1106,6 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 	}
 
 	rmb();
-	lpfc_iocb_list = &phba->lpfc_iocb_list;
 	while (pring->rspidx != portRspPut) {
 		/*
 		 * Build a completion list and call the appropriate handler.
@@ -1131,8 +1121,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 		 * received.
 		 */
 		entry = IOCB_ENTRY(pring->rspringaddr, pring->rspidx);
-		list_remove_head(lpfc_iocb_list, rspiocbp, struct lpfc_iocbq,
-				 list);
+		rspiocbp = lpfc_sli_get_iocbq(phba);
 		if (rspiocbp == NULL) {
 			printk(KERN_ERR "%s: out of buffers! Failing "
 			       "completion.\n", __FUNCTION__);
@@ -1147,7 +1136,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 
 		to_slim = phba->MBslimaddr + (SLIMOFF + (pring->ringno * 2)
 					      + 1) * 4;
-		writeb(pring->rspidx, to_slim);
+		writel(pring->rspidx, to_slim);
 
 		if (list_empty(&(pring->iocb_continueq))) {
 			list_add(&rspiocbp->list, &(pring->iocb_continueq));
@@ -1213,8 +1202,8 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 			} else if (type == LPFC_ABORT_IOCB) {
 				if ((irsp->ulpCommand != CMD_XRI_ABORTED_CX) &&
 				    ((cmdiocbp =
-				      lpfc_sli_txcmpl_ring_search_slow(pring,
-						saveq)))) {
+				      lpfc_sli_iocbq_lookup(phba, pring,
+							    saveq)))) {
 					/* Call the specified completion
 					   routine */
 					if (cmdiocbp->iocb_cmpl) {
@@ -1226,10 +1215,9 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 						spin_lock_irqsave(
 							  phba->host->host_lock,
 							  iflag);
-					} else {
-						list_add_tail(&cmdiocbp->list,
-								lpfc_iocb_list);
-					}
+					} else
+						lpfc_sli_release_iocbq(phba,
+								      cmdiocbp);
 				}
 			} else if (type == LPFC_UNKNOWN_IOCB) {
 				if (irsp->ulpCommand == CMD_ADAPTER_MSG) {
@@ -1264,12 +1252,12 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba * phba,
 								 next_iocb,
 								 &saveq->list,
 								 list) {
-						list_add_tail(&rspiocbp->list,
-							      lpfc_iocb_list);
+						lpfc_sli_release_iocbq(phba,
+								     rspiocbp);
 					}
 				}
 
-				list_add_tail(&saveq->list, lpfc_iocb_list);
+				lpfc_sli_release_iocbq(phba, saveq);
 			}
 		}
 
@@ -1314,7 +1302,6 @@ lpfc_sli_abort_iocb_ring(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 	struct lpfc_iocbq *iocb, *next_iocb;
 	IOCB_t *icmd = NULL, *cmd = NULL;
 	int errcnt;
-	uint16_t iotag;
 
 	errcnt = 0;
 
@@ -1331,9 +1318,8 @@ lpfc_sli_abort_iocb_ring(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 			spin_unlock_irq(phba->host->host_lock);
 			(iocb->iocb_cmpl) (phba, iocb, iocb);
 			spin_lock_irq(phba->host->host_lock);
-		} else {
-			list_add_tail(&iocb->list, &phba->lpfc_iocb_list);
-		}
+		} else
+			lpfc_sli_release_iocbq(phba, iocb);
 	}
 	pring->txq_cnt = 0;
 	INIT_LIST_HEAD(&(pring->txq));
@@ -1343,13 +1329,8 @@ lpfc_sli_abort_iocb_ring(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 		cmd = &iocb->iocb;
 
 		/*
-		 * Imediate abort of IOCB, clear fast_lookup entry,
-		 * if any, deque and call compl
+		 * Imediate abort of IOCB, deque and call compl
 		 */
-		iotag = cmd->ulpIoTag;
-		if (iotag && pring->fast_lookup &&
-		    (iotag < pring->fast_iotag))
-			pring->fast_lookup[iotag] = NULL;
 
 		list_del_init(&iocb->list);
 		pring->txcmplq_cnt--;
@@ -1360,9 +1341,8 @@ lpfc_sli_abort_iocb_ring(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 			spin_unlock_irq(phba->host->host_lock);
 			(iocb->iocb_cmpl) (phba, iocb, iocb);
 			spin_lock_irq(phba->host->host_lock);
-		} else {
-			list_add_tail(&iocb->list, &phba->lpfc_iocb_list);
-		}
+		} else
+			lpfc_sli_release_iocbq(phba, iocb);
 	}
 
 	INIT_LIST_HEAD(&pring->txcmplq);
@@ -2147,6 +2127,10 @@ lpfc_sli_setup(struct lpfc_hba *phba)
 	psli->next_ring = LPFC_FCP_NEXT_RING;
 	psli->ip_ring = LPFC_IP_RING;
 
+	psli->iocbq_lookup = NULL;
+	psli->iocbq_lookup_len = 0;
+	psli->last_iotag = 0;
+
 	for (i = 0; i < psli->num_rings; i++) {
 		pring = &psli->ring[i];
 		switch (i) {
@@ -2222,7 +2206,7 @@ lpfc_sli_queue_setup(struct lpfc_hba * phba)
 {
 	struct lpfc_sli *psli;
 	struct lpfc_sli_ring *pring;
-	int i, cnt;
+	int i;
 
 	psli = &phba->sli;
 	spin_lock_irq(phba->host->host_lock);
@@ -2238,19 +2222,6 @@ lpfc_sli_queue_setup(struct lpfc_hba * phba)
 		INIT_LIST_HEAD(&pring->txcmplq);
 		INIT_LIST_HEAD(&pring->iocb_continueq);
 		INIT_LIST_HEAD(&pring->postbufq);
-		cnt = pring->fast_iotag;
-		spin_unlock_irq(phba->host->host_lock);
-		if (cnt) {
-			pring->fast_lookup =
-				kmalloc(cnt * sizeof (struct lpfc_iocbq *),
-					GFP_KERNEL);
-			if (pring->fast_lookup == 0) {
-				return (0);
-			}
-			memset((char *)pring->fast_lookup, 0,
-			       cnt * sizeof (struct lpfc_iocbq *));
-		}
-		spin_lock_irq(phba->host->host_lock);
 	}
 	spin_unlock_irq(phba->host->host_lock);
 	return (1);
@@ -2292,10 +2263,8 @@ lpfc_sli_hba_down(struct lpfc_hba * phba)
 						       flags);
 				(iocb->iocb_cmpl) (phba, iocb, iocb);
 				spin_lock_irqsave(phba->host->host_lock, flags);
-			} else {
-				list_add_tail(&iocb->list,
-					      &phba->lpfc_iocb_list);
-			}
+			} else
+				lpfc_sli_release_iocbq(phba, iocb);
 		}
 
 		INIT_LIST_HEAD(&(pring->txq));
@@ -2436,7 +2405,7 @@ lpfc_sli_abort_elsreq_cmpl(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 		kfree(buf_ptr);
 	}
 
-	list_add_tail(&cmdiocb->list, &phba->lpfc_iocb_list);
+	lpfc_sli_release_iocbq(phba, cmdiocb);
 	return;
 }
 
@@ -2445,16 +2414,14 @@ lpfc_sli_issue_abort_iotag32(struct lpfc_hba * phba,
 			     struct lpfc_sli_ring * pring,
 			     struct lpfc_iocbq * cmdiocb)
 {
-	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
-	struct lpfc_iocbq *abtsiocbp = NULL;
+	struct lpfc_iocbq *abtsiocbp;
 	IOCB_t *icmd = NULL;
 	IOCB_t *iabt = NULL;
 
 	/* issue ABTS for this IOCB based on iotag */
-	list_remove_head(lpfc_iocb_list, abtsiocbp, struct lpfc_iocbq, list);
+	abtsiocbp = lpfc_sli_get_iocbq(phba);
 	if (abtsiocbp == NULL)
 		return 0;
-	memset(abtsiocbp, 0, sizeof (struct lpfc_iocbq));
 
 	iabt = &abtsiocbp->iocb;
 	icmd = &cmdiocb->iocb;
@@ -2473,7 +2440,7 @@ lpfc_sli_issue_abort_iotag32(struct lpfc_hba * phba,
 		abtsiocbp->iocb_cmpl = lpfc_sli_abort_elsreq_cmpl;
 		break;
 	default:
-		list_add_tail(&abtsiocbp->list, lpfc_iocb_list);
+		lpfc_sli_release_iocbq(phba, abtsiocbp);
 		return 0;
 	}
 
@@ -2485,7 +2452,7 @@ lpfc_sli_issue_abort_iotag32(struct lpfc_hba * phba,
 	iabt->ulpCommand = CMD_ABORT_MXRI64_CN;
 
 	if (lpfc_sli_issue_iocb(phba, pring, abtsiocbp, 0) == IOCB_ERROR) {
-		list_add_tail(&abtsiocbp->list, lpfc_iocb_list);
+		lpfc_sli_release_iocbq(phba, abtsiocbp);
 		return 0;
 	}
 
@@ -2493,28 +2460,37 @@ lpfc_sli_issue_abort_iotag32(struct lpfc_hba * phba,
 }
 
 static int
-lpfc_sli_validate_iocb_cmd(struct lpfc_scsi_buf *lpfc_cmd, uint16_t tgt_id,
-			     uint64_t lun_id, struct lpfc_iocbq *iocb,
-			     uint32_t ctx, lpfc_ctx_cmd ctx_cmd)
+lpfc_sli_validate_fcp_iocb(struct lpfc_iocbq *iocbq, uint16_t tgt_id,
+			   uint64_t lun_id, uint32_t ctx,
+			   lpfc_ctx_cmd ctx_cmd)
 {
+	struct lpfc_scsi_buf *lpfc_cmd;
+	struct scsi_cmnd *cmnd;
 	int rc = 1;
 
-	if (lpfc_cmd == NULL)
+	if (!(iocbq->iocb_flag &  LPFC_IO_FCP))
+		return rc;
+
+	lpfc_cmd = container_of(iocbq, struct lpfc_scsi_buf, cur_iocbq);
+	cmnd = lpfc_cmd->pCmd;
+
+	if (cmnd == NULL)
 		return rc;
 
 	switch (ctx_cmd) {
 	case LPFC_CTX_LUN:
-		if ((lpfc_cmd->pCmd->device->id == tgt_id) &&
-		    (lpfc_cmd->pCmd->device->lun == lun_id))
+		if ((cmnd->device->id == tgt_id) &&
+		    (cmnd->device->lun == lun_id))
 			rc = 0;
 		break;
 	case LPFC_CTX_TGT:
-		if (lpfc_cmd->pCmd->device->id == tgt_id)
+		if (cmnd->device->id == tgt_id)
 			rc = 0;
 		break;
 	case LPFC_CTX_CTX:
-		if (iocb->iocb.ulpContext == ctx)
+		if (iocbq->iocb.ulpContext == ctx)
 			rc = 0;
+		break;
 	case LPFC_CTX_HOST:
 		rc = 0;
 		break;
@@ -2531,30 +2507,17 @@ int
 lpfc_sli_sum_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		uint16_t tgt_id, uint64_t lun_id, lpfc_ctx_cmd ctx_cmd)
 {
-	struct lpfc_iocbq *iocb, *next_iocb;
-	IOCB_t *cmd = NULL;
-	struct lpfc_scsi_buf *lpfc_cmd;
-	int sum = 0, ret_val = 0;
+	struct lpfc_iocbq *iocbq;
+	int sum, i;
 
-	/* Next check the txcmplq */
-	list_for_each_entry_safe(iocb, next_iocb, &pring->txcmplq, list) {
-		cmd = &iocb->iocb;
+	for (i = 1, sum = 0; i <= phba->sli.last_iotag; i++) {
+		iocbq = phba->sli.iocbq_lookup[i];
 
-		/* Must be a FCP command */
-		if ((cmd->ulpCommand != CMD_FCP_ICMND64_CR) &&
-		    (cmd->ulpCommand != CMD_FCP_IWRITE64_CR) &&
-		    (cmd->ulpCommand != CMD_FCP_IREAD64_CR)) {
-			continue;
-		}
-
-		/* context1 MUST be a struct lpfc_scsi_buf */
-		lpfc_cmd = (struct lpfc_scsi_buf *) (iocb->context1);
-		ret_val = lpfc_sli_validate_iocb_cmd(lpfc_cmd, tgt_id, lun_id,
-						     NULL, 0, ctx_cmd);
-		if (ret_val != 0)
-			continue;
-		sum++;
+		if (lpfc_sli_validate_fcp_iocb (iocbq, tgt_id, lun_id,
+						0, ctx_cmd) == 0)
+			sum++;
 	}
+
 	return sum;
 }
 
@@ -2563,7 +2526,7 @@ lpfc_sli_abort_fcp_cmpl(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 			   struct lpfc_iocbq * rspiocb)
 {
 	spin_lock_irq(phba->host->host_lock);
-	list_add_tail(&cmdiocb->list, &phba->lpfc_iocb_list);
+	lpfc_sli_release_iocbq(phba, cmdiocb);
 	spin_unlock_irq(phba->host->host_lock);
 	return;
 }
@@ -2573,39 +2536,27 @@ lpfc_sli_abort_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		    uint16_t tgt_id, uint64_t lun_id, uint32_t ctx,
 		    lpfc_ctx_cmd abort_cmd)
 {
-	struct lpfc_iocbq *iocb, *next_iocb;
-	struct lpfc_iocbq *abtsiocb = NULL;
-	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
+	struct lpfc_iocbq *iocbq;
+	struct lpfc_iocbq *abtsiocb;
 	IOCB_t *cmd = NULL;
-	struct lpfc_scsi_buf *lpfc_cmd;
 	int errcnt = 0, ret_val = 0;
+	int i;
 
-	list_for_each_entry_safe(iocb, next_iocb, &pring->txcmplq, list) {
-		cmd = &iocb->iocb;
+	for (i = 1; i <= phba->sli.last_iotag; i++) {
+		iocbq = phba->sli.iocbq_lookup[i];
 
-		/* Must be a FCP command */
-		if ((cmd->ulpCommand != CMD_FCP_ICMND64_CR) &&
-		    (cmd->ulpCommand != CMD_FCP_IWRITE64_CR) &&
-		    (cmd->ulpCommand != CMD_FCP_IREAD64_CR)) {
-			continue;
-		}
-
-		/* context1 MUST be a struct lpfc_scsi_buf */
-		lpfc_cmd = (struct lpfc_scsi_buf *) (iocb->context1);
-		ret_val = lpfc_sli_validate_iocb_cmd(lpfc_cmd, tgt_id, lun_id,
-						     iocb, ctx, abort_cmd);
-		if (ret_val != 0)
+		if (lpfc_sli_validate_fcp_iocb (iocbq, tgt_id, lun_id,
+						0, abort_cmd) != 0)
 			continue;
 
 		/* issue ABTS for this IOCB based on iotag */
-		list_remove_head(lpfc_iocb_list, abtsiocb, struct lpfc_iocbq,
-				 list);
+		abtsiocb = lpfc_sli_get_iocbq(phba);
 		if (abtsiocb == NULL) {
 			errcnt++;
 			continue;
 		}
-		memset(abtsiocb, 0, sizeof (struct lpfc_iocbq));
 
+		cmd = &iocbq->iocb;
 		abtsiocb->iocb.un.acxri.abortType = ABORT_TYPE_ABTS;
 		abtsiocb->iocb.un.acxri.abortContextTag = cmd->ulpContext;
 		abtsiocb->iocb.un.acxri.abortIoTag = cmd->ulpIoTag;
@@ -2621,7 +2572,7 @@ lpfc_sli_abort_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		abtsiocb->iocb_cmpl = lpfc_sli_abort_fcp_cmpl;
 		ret_val = lpfc_sli_issue_iocb(phba, pring, abtsiocb, 0);
 		if (ret_val == IOCB_ERROR) {
-			list_add_tail(&abtsiocb->list, lpfc_iocb_list);
+			lpfc_sli_release_iocbq(phba, abtsiocb);
 			errcnt++;
 			continue;
 		}
@@ -2630,83 +2581,99 @@ lpfc_sli_abort_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	return errcnt;
 }
 
-void
-lpfc_sli_wake_iocb_high_priority(struct lpfc_hba * phba,
-				 struct lpfc_iocbq * queue1,
-				 struct lpfc_iocbq * queue2)
+static void
+lpfc_sli_wake_iocb_wait(struct lpfc_hba *phba,
+			struct lpfc_iocbq *cmdiocbq,
+			struct lpfc_iocbq *rspiocbq)
 {
-	if (queue1->context2 && queue2)
-		memcpy(queue1->context2, queue2, sizeof (struct lpfc_iocbq));
+	wait_queue_head_t *pdone_q;
+	unsigned long iflags;
 
-	/* The waiter is looking for LPFC_IO_HIPRI bit to be set
-	   as a signal to wake up */
-	queue1->iocb_flag |= LPFC_IO_HIPRI;
+	spin_lock_irqsave(phba->host->host_lock, iflags);
+	cmdiocbq->iocb_flag |= LPFC_IO_WAKE;
+	if (cmdiocbq->context2 && rspiocbq)
+		memcpy(&((struct lpfc_iocbq *)cmdiocbq->context2)->iocb,
+		       &rspiocbq->iocb, sizeof(IOCB_t));
+
+	pdone_q = cmdiocbq->context_un.wait_queue;
+	spin_unlock_irqrestore(phba->host->host_lock, iflags);
+	if (pdone_q)
+		wake_up(pdone_q);
 	return;
 }
 
+/*
+ * Issue the caller's iocb and wait for its completion, but no longer than the
+ * caller's timeout.  Note that iocb_flags is cleared before the
+ * lpfc_sli_issue_call since the wake routine sets a unique value and by
+ * definition this is a wait function.
+ */
 int
-lpfc_sli_issue_iocb_wait_high_priority(struct lpfc_hba * phba,
-				       struct lpfc_sli_ring * pring,
-				       struct lpfc_iocbq * piocb,
-				       uint32_t flag,
-				       struct lpfc_iocbq * prspiocbq,
-				       uint32_t timeout)
+lpfc_sli_issue_iocb_wait(struct lpfc_hba * phba,
+			 struct lpfc_sli_ring * pring,
+			 struct lpfc_iocbq * piocb,
+			 struct lpfc_iocbq * prspiocbq,
+			 uint32_t timeout)
 {
-	int j, delay_time,  retval = IOCB_ERROR;
-
-	/* The caller must left context1 empty.  */
-	if (piocb->context_un.hipri_wait_queue != 0) {
-		return IOCB_ERROR;
-	}
+	DECLARE_WAIT_QUEUE_HEAD(done_q);
+	long timeleft, timeout_req = 0;
+	int retval = IOCB_SUCCESS;
 
 	/*
-	 * If the caller has provided a response iocbq buffer, context2 must
-	 * be NULL or its an error.
+	 * If the caller has provided a response iocbq buffer, then context2
+	 * is NULL or its an error.
 	 */
-	if (prspiocbq && piocb->context2) {
-		return IOCB_ERROR;
+	if (prspiocbq) {
+		if (piocb->context2)
+			return IOCB_ERROR;
+		piocb->context2 = prspiocbq;
 	}
 
-	piocb->context2 = prspiocbq;
+	piocb->iocb_cmpl = lpfc_sli_wake_iocb_wait;
+	piocb->context_un.wait_queue = &done_q;
+	piocb->iocb_flag &= ~LPFC_IO_WAKE;
 
-	/* Setup callback routine and issue the command. */
-	piocb->iocb_cmpl = lpfc_sli_wake_iocb_high_priority;
-	retval = lpfc_sli_issue_iocb(phba, pring, piocb,
-					flag | SLI_IOCB_HIGH_PRIORITY);
-	if (retval != IOCB_SUCCESS) {
-		piocb->context2 = NULL;
-		return IOCB_ERROR;
-	}
+	retval = lpfc_sli_issue_iocb(phba, pring, piocb, 0);
+	if (retval == IOCB_SUCCESS) {
+		timeout_req = timeout * HZ;
+		spin_unlock_irq(phba->host->host_lock);
+		timeleft = wait_event_timeout(done_q,
+				piocb->iocb_flag & LPFC_IO_WAKE,
+				timeout_req);
+		spin_lock_irq(phba->host->host_lock);
 
-	/*
-	 * This high-priority iocb was sent out-of-band.  Poll for its
-	 * completion rather than wait for a signal.  Note that the host_lock
-	 * is held by the midlayer and must be released here to allow the
-	 * interrupt handlers to complete the IO and signal this routine via
-	 * the iocb_flag.
-	 * Also, the delay_time is computed to be one second longer than
-	 * the scsi command timeout to give the FW time to abort on
-	 * timeout rather than the driver just giving up.  Typically,
-	 * the midlayer does not specify a time for this command so the
-	 * driver is free to enforce its own timeout.
-	 */
-
-	delay_time = ((timeout + 1) * 1000) >> 6;
-	retval = IOCB_ERROR;
-	spin_unlock_irq(phba->host->host_lock);
-	for (j = 0; j < 64; j++) {
-		msleep(delay_time);
-		if (piocb->iocb_flag & LPFC_IO_HIPRI) {
-			piocb->iocb_flag &= ~LPFC_IO_HIPRI;
-			retval = IOCB_SUCCESS;
-			break;
+		if (timeleft == 0) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"%d:0329 IOCB wait timeout error - no "
+					"wake response Data x%x\n",
+					phba->brd_no, timeout);
+			retval = IOCB_TIMEDOUT;
+		} else if (!(piocb->iocb_flag & LPFC_IO_WAKE)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"%d:0330 IOCB wake NOT set, "
+					"Data x%x x%lx\n", phba->brd_no,
+					timeout, (timeleft / jiffies));
+			retval = IOCB_TIMEDOUT;
+		} else {
+			lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+					"%d:0331 IOCB wake signaled\n",
+					phba->brd_no);
 		}
+	} else {
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"%d:0332 IOCB wait issue failed, Data x%x\n",
+				phba->brd_no, retval);
+		retval = IOCB_ERROR;
 	}
 
-	spin_lock_irq(phba->host->host_lock);
-	piocb->context2 = NULL;
+	if (prspiocbq)
+		piocb->context2 = NULL;
+
+	piocb->context_un.wait_queue = NULL;
+	piocb->iocb_cmpl = NULL;
 	return retval;
 }
+
 int
 lpfc_sli_issue_mbox_wait(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq,
 			 uint32_t timeout)

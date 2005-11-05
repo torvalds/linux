@@ -33,7 +33,6 @@
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include "wd33c93.h"
-#include "sgiwd93.h"
 
 #include <linux/stat.h>
 
@@ -335,10 +334,10 @@ static Scsi_Host_Template driver_template = {
 	.eh_abort_handler	= wd33c93_abort,
 	.eh_bus_reset_handler	= sgiwd93_bus_reset,
 	.eh_host_reset_handler	= wd33c93_host_reset,
-	.can_queue		= CAN_QUEUE,
+	.can_queue		= 16,
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
-	.cmd_per_lun		= CMD_PER_LUN,
+	.cmd_per_lun		= 8,
 	.use_clustering		= DISABLE_CLUSTERING,
 };
 #include "scsi_module.c"

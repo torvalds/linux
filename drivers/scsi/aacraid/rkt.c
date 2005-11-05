@@ -49,40 +49,57 @@
 static irqreturn_t aac_rkt_intr(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct aac_dev *dev = dev_id;
-	unsigned long bellbits;
-	u8 intstat, mask;
-	intstat = rkt_readb(dev, MUnit.OISR);
-	/*
-	 *	Read mask and invert because drawbridge is reversed.
-	 *	This allows us to only service interrupts that have 
-	 *	been enabled.
-	 */
-	mask = ~(dev->OIMR);
-	/* Check to see if this is our interrupt.  If it isn't just return */
-	if (intstat & mask) 
-	{
-		bellbits = rkt_readl(dev, OutboundDoorbellReg);
-		if (bellbits & DoorBellPrintfReady) {
-			aac_printf(dev, rkt_readl(dev, IndexRegs.Mailbox[5]));
-			rkt_writel(dev, MUnit.ODR,DoorBellPrintfReady);
-			rkt_writel(dev, InboundDoorbellReg,DoorBellPrintfDone);
+
+	if (dev->new_comm_interface) {
+		u32 Index = rkt_readl(dev, MUnit.OutboundQueue);
+		if (Index == 0xFFFFFFFFL)
+			Index = rkt_readl(dev, MUnit.OutboundQueue);
+		if (Index != 0xFFFFFFFFL) {
+			do {
+				if (aac_intr_normal(dev, Index)) {
+					rkt_writel(dev, MUnit.OutboundQueue, Index);
+					rkt_writel(dev, MUnit.ODR, DoorBellAdapterNormRespReady);
+				}
+				Index = rkt_readl(dev, MUnit.OutboundQueue);
+			} while (Index != 0xFFFFFFFFL);
+			return IRQ_HANDLED;
 		}
-		else if (bellbits & DoorBellAdapterNormCmdReady) {
-			rkt_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdReady);
-			aac_command_normal(&dev->queues->queue[HostNormCmdQueue]);
+	} else {
+		unsigned long bellbits;
+		u8 intstat;
+		intstat = rkt_readb(dev, MUnit.OISR);
+		/*
+		 *	Read mask and invert because drawbridge is reversed.
+		 *	This allows us to only service interrupts that have 
+		 *	been enabled.
+		 *	Check to see if this is our interrupt.  If it isn't just return
+		 */
+		if (intstat & ~(dev->OIMR))
+		{
+			bellbits = rkt_readl(dev, OutboundDoorbellReg);
+			if (bellbits & DoorBellPrintfReady) {
+				aac_printf(dev, rkt_readl (dev, IndexRegs.Mailbox[5]));
+				rkt_writel(dev, MUnit.ODR,DoorBellPrintfReady);
+				rkt_writel(dev, InboundDoorbellReg,DoorBellPrintfDone);
+			}
+			else if (bellbits & DoorBellAdapterNormCmdReady) {
+				rkt_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdReady);
+				aac_command_normal(&dev->queues->queue[HostNormCmdQueue]);
+//				rkt_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdReady);
+			}
+			else if (bellbits & DoorBellAdapterNormRespReady) {
+				rkt_writel(dev, MUnit.ODR,DoorBellAdapterNormRespReady);
+				aac_response_normal(&dev->queues->queue[HostNormRespQueue]);
+			}
+			else if (bellbits & DoorBellAdapterNormCmdNotFull) {
+				rkt_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdNotFull);
+			}
+			else if (bellbits & DoorBellAdapterNormRespNotFull) {
+				rkt_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdNotFull);
+				rkt_writel(dev, MUnit.ODR, DoorBellAdapterNormRespNotFull);
+			}
+			return IRQ_HANDLED;
 		}
-		else if (bellbits & DoorBellAdapterNormRespReady) {
-			aac_response_normal(&dev->queues->queue[HostNormRespQueue]);
-			rkt_writel(dev, MUnit.ODR,DoorBellAdapterNormRespReady);
-		}
-		else if (bellbits & DoorBellAdapterNormCmdNotFull) {
-			rkt_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdNotFull);
-		}
-		else if (bellbits & DoorBellAdapterNormRespNotFull) {
-			rkt_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdNotFull);
-			rkt_writel(dev, MUnit.ODR, DoorBellAdapterNormRespNotFull);
-		}
-		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
 }
@@ -173,7 +190,10 @@ static int rkt_sync_cmd(struct aac_dev *dev, u32 command,
 		/*
 		 *	Restore interrupt mask even though we timed out
 		 */
-		rkt_writeb(dev, MUnit.OIMR, dev->OIMR = 0xfb);
+		if (dev->new_comm_interface)
+			rkt_writeb(dev, MUnit.OIMR, dev->OIMR = 0xf7);
+		else
+			rkt_writeb(dev, MUnit.OIMR, dev->OIMR = 0xfb);
 		return -ETIMEDOUT;
 	}
 	/*
@@ -196,7 +216,10 @@ static int rkt_sync_cmd(struct aac_dev *dev, u32 command,
 	/*
 	 *	Restore interrupt mask
 	 */
-	rkt_writeb(dev, MUnit.OIMR, dev->OIMR = 0xfb);
+	if (dev->new_comm_interface)
+		rkt_writeb(dev, MUnit.OIMR, dev->OIMR = 0xf7);
+	else
+		rkt_writeb(dev, MUnit.OIMR, dev->OIMR = 0xfb);
 	return 0;
 
 }
@@ -268,15 +291,6 @@ static void aac_rkt_start_adapter(struct aac_dev *dev)
 
 	init = dev->init;
 	init->HostElapsedSeconds = cpu_to_le32(get_seconds());
-	/*
-	 *	First clear out all interrupts.  Then enable the one's that we
-	 *	can handle.
-	 */
-	rkt_writeb(dev, MUnit.OIMR, 0xff);
-	rkt_writel(dev, MUnit.ODR, 0xffffffff);
-//	rkt_writeb(dev, MUnit.OIMR, ~(u8)OUTBOUND_DOORBELL_INTERRUPT_MASK);
-	rkt_writeb(dev, MUnit.OIMR, dev->OIMR = 0xfb);
-
 	// We can only use a 32 bit address here
 	rkt_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, (u32)(ulong)dev->init_pa,
 	  0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL);
@@ -350,6 +364,39 @@ static int aac_rkt_check_health(struct aac_dev *dev)
 }
 
 /**
+ *	aac_rkt_send
+ *	@fib: fib to issue
+ *
+ *	Will send a fib, returning 0 if successful.
+ */
+static int aac_rkt_send(struct fib * fib)
+{
+	u64 addr = fib->hw_fib_pa;
+	struct aac_dev *dev = fib->dev;
+	volatile void __iomem *device = dev->regs.rkt;
+	u32 Index;
+
+	dprintk((KERN_DEBUG "%p->aac_rkt_send(%p->%llx)\n", dev, fib, addr));
+	Index = rkt_readl(dev, MUnit.InboundQueue);
+	if (Index == 0xFFFFFFFFL)
+		Index = rkt_readl(dev, MUnit.InboundQueue);
+	dprintk((KERN_DEBUG "Index = 0x%x\n", Index));
+	if (Index == 0xFFFFFFFFL)
+		return Index;
+	device += Index;
+	dprintk((KERN_DEBUG "entry = %x %x %u\n", (u32)(addr & 0xffffffff),
+	  (u32)(addr >> 32), (u32)le16_to_cpu(fib->hw_fib->header.Size)));
+	writel((u32)(addr & 0xffffffff), device);
+	device += sizeof(u32);
+	writel((u32)(addr >> 32), device);
+	device += sizeof(u32);
+	writel(le16_to_cpu(fib->hw_fib->header.Size), device);
+	rkt_writel(dev, MUnit.InboundQueue, Index);
+	dprintk((KERN_DEBUG "aac_rkt_send - return 0\n"));
+	return 0;
+}
+
+/**
  *	aac_rkt_init	-	initialize an i960 based AAC card
  *	@dev: device to configure
  *
@@ -369,13 +416,8 @@ int aac_rkt_init(struct aac_dev *dev)
 	name     = dev->name;
 
 	/*
-	 *	Map in the registers from the adapter.
+	 *	Check to see if the board panic'd while booting.
 	 */
-	if((dev->regs.rkt = ioremap((unsigned long)dev->scsi_host_ptr->base, 8192))==NULL)
-	{	
-		printk(KERN_WARNING "aacraid: unable to map i960.\n" );
-		goto error_iounmap;
-	}
 	/*
 	 *	Check to see if the board failed any self tests.
 	 */
@@ -426,6 +468,7 @@ int aac_rkt_init(struct aac_dev *dev)
 	dev->a_ops.adapter_notify = aac_rkt_notify_adapter;
 	dev->a_ops.adapter_sync_cmd = rkt_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_rkt_check_health;
+	dev->a_ops.adapter_send = aac_rkt_send;
 
 	/*
 	 *	First clear out all interrupts.  Then enable the one's that we
@@ -437,15 +480,24 @@ int aac_rkt_init(struct aac_dev *dev)
 
 	if (aac_init_adapter(dev) == NULL)
 		goto error_irq;
-	/*
-	 *	Start any kernel threads needed
-	 */
-	dev->thread_pid = kernel_thread((int (*)(void *))aac_command_thread, dev, 0);
-	if(dev->thread_pid < 0)
-	{
-		printk(KERN_ERR "aacraid: Unable to create rkt thread.\n");
-		goto error_kfree;
-	}	
+	if (dev->new_comm_interface) {
+		/*
+		 * FIB Setup has already been done, but we can minimize the
+		 * damage by at least ensuring the OS never issues more
+		 * commands than we can handle. The Rocket adapters currently
+		 * can only handle 246 commands and 8 AIFs at the same time,
+		 * and in fact do notify us accordingly if we negotiate the
+		 * FIB size. The problem that causes us to add this check is
+		 * to ensure that we do not overdo it with the adapter when a
+		 * hard coded FIB override is being utilized. This special
+		 * case warrants this half baked, but convenient, check here.
+		 */
+		if (dev->scsi_host_ptr->can_queue > (246 - AAC_NUM_MGT_FIB)) {
+			dev->init->MaxIoCommands = cpu_to_le32(246);
+			dev->scsi_host_ptr->can_queue = 246 - AAC_NUM_MGT_FIB;
+		}
+		rkt_writeb(dev, MUnit.OIMR, dev->OIMR = 0xf7);
+	}
 	/*
 	 *	Tell the adapter that all is configured, and it can start
 	 *	accepting requests
@@ -453,15 +505,11 @@ int aac_rkt_init(struct aac_dev *dev)
 	aac_rkt_start_adapter(dev);
 	return 0;
 
-error_kfree:
-	kfree(dev->queues);
-
 error_irq:
 	rkt_writeb(dev, MUnit.OIMR, dev->OIMR = 0xff);
 	free_irq(dev->scsi_host_ptr->irq, (void *)dev);
 
 error_iounmap:
-	iounmap(dev->regs.rkt);
 
 	return -1;
 }

@@ -951,15 +951,13 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 				return;
 			}
 			if (!(req->flags & REQ_QUIET))
-				dev_printk(KERN_INFO,
-					   &cmd->device->sdev_gendev,
+				scmd_printk(KERN_INFO, cmd,
 					   "Device not ready.\n");
 			scsi_end_request(cmd, 0, this_count, 1);
 			return;
 		case VOLUME_OVERFLOW:
 			if (!(req->flags & REQ_QUIET)) {
-				dev_printk(KERN_INFO,
-					   &cmd->device->sdev_gendev,
+				scmd_printk(KERN_INFO, cmd,
 					   "Volume overflow, CDB: ");
 				__scsi_print_command(cmd->data_cmnd);
 				scsi_print_sense("", cmd);
@@ -981,7 +979,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes,
 	}
 	if (result) {
 		if (!(req->flags & REQ_QUIET)) {
-			dev_printk(KERN_INFO, &cmd->device->sdev_gendev,
+			scmd_printk(KERN_INFO, cmd,
 				   "SCSI error: return code = 0x%x\n", result);
 
 			if (driver_byte(result) & DRIVER_SENSE)
@@ -1141,8 +1139,8 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 	 * online before trying any recovery commands
 	 */
 	if (unlikely(!scsi_device_online(sdev))) {
-		printk(KERN_ERR "scsi%d (%d:%d): rejecting I/O to offline device\n",
-		       sdev->host->host_no, sdev->id, sdev->lun);
+		sdev_printk(KERN_ERR, sdev,
+			    "rejecting I/O to offline device\n");
 		goto kill;
 	}
 	if (unlikely(sdev->sdev_state != SDEV_RUNNING)) {
@@ -1151,8 +1149,8 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 		if (sdev->sdev_state == SDEV_DEL) {
 			/* Device is fully deleted, no commands
 			 * at all allowed down */
-			printk(KERN_ERR "scsi%d (%d:%d): rejecting I/O to dead device\n",
-			       sdev->host->host_no, sdev->id, sdev->lun);
+			sdev_printk(KERN_ERR, sdev,
+				    "rejecting I/O to dead device\n");
 			goto kill;
 		}
 		/* OK, we only allow special commands (i.e. not
@@ -1187,8 +1185,8 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 					specials_only == SDEV_BLOCK)
 				goto defer;
 			
-			printk(KERN_ERR "scsi%d (%d:%d): rejecting I/O to device being removed\n",
-			       sdev->host->host_no, sdev->id, sdev->lun);
+			sdev_printk(KERN_ERR, sdev,
+				    "rejecting I/O to device being removed\n");
 			goto kill;
 		}
 			
@@ -1315,9 +1313,8 @@ static inline int scsi_dev_queue_ready(struct request_queue *q,
 		 */
 		if (--sdev->device_blocked == 0) {
 			SCSI_LOG_MLQUEUE(3,
-				printk("scsi%d (%d:%d) unblocking device at"
-				       " zero depth\n", sdev->host->host_no,
-				       sdev->id, sdev->lun));
+				   sdev_printk(KERN_INFO, sdev,
+				   "unblocking device at zero depth\n"));
 		} else {
 			blk_plug_device(q);
 			return 0;
@@ -1436,8 +1433,8 @@ static void scsi_request_fn(struct request_queue *q)
 			break;
 
 		if (unlikely(!scsi_device_online(sdev))) {
-			printk(KERN_ERR "scsi%d (%d:%d): rejecting I/O to offline device\n",
-			       sdev->host->host_no, sdev->id, sdev->lun);
+			sdev_printk(KERN_ERR, sdev,
+				    "rejecting I/O to offline device\n");
 			scsi_kill_request(req, q);
 			continue;
 		}
@@ -1893,10 +1890,10 @@ scsi_device_set_state(struct scsi_device *sdev, enum scsi_device_state state)
 
  illegal:
 	SCSI_LOG_ERROR_RECOVERY(1, 
-				dev_printk(KERN_ERR, &sdev->sdev_gendev,
-					   "Illegal state transition %s->%s\n",
-					   scsi_device_state_name(oldstate),
-					   scsi_device_state_name(state))
+				sdev_printk(KERN_ERR, sdev,
+					    "Illegal state transition %s->%s\n",
+					    scsi_device_state_name(oldstate),
+					    scsi_device_state_name(state))
 				);
 	return -EINVAL;
 }

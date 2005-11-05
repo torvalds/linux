@@ -1,10 +1,9 @@
 /*
- * QLogic ISP6312 device driver for Linux 2.6.x
- * Copyright (C) 2003-2005 QLogic Corporation (www.qlogic.com)
+ * QLogic Fibre Channel HBA Driver
+ * Copyright (c)  2003-2005 QLogic Corporation
  *
- * Released under GPL v2.
+ * See LICENSE.qla2xxx for copyright and licensing details.
  */
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pci.h>

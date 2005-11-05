@@ -1405,7 +1405,8 @@ static int aha1542_dev_reset(Scsi_Cmnd * SCpnt)
 	 */
 	aha1542_out(SCpnt->device->host->io_port, &ahacmd, 1);
 
-	printk(KERN_WARNING "aha1542.c: Trying device reset for target %d\n", SCpnt->device->id);
+	scmd_printk(KERN_WARNING, SCpnt,
+		"Trying device reset for target\n");
 
 	return SUCCESS;
 

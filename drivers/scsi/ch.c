@@ -940,9 +940,7 @@ static int ch_probe(struct device *dev)
 			    MKDEV(SCSI_CHANGER_MAJOR,ch->minor),
 			    dev, "s%s", ch->name);
 
-	printk(KERN_INFO "Attached scsi changer %s "
-	       "at scsi%d, channel %d, id %d, lun %d\n", 
-	       ch->name, sd->host->host_no, sd->channel, sd->id, sd->lun);
+	sdev_printk(KERN_INFO, sd, "Attached scsi changer %s\n", ch->name);
 	
 	spin_lock(&ch_devlist_lock);
 	list_add_tail(&ch->list,&ch_devlist);

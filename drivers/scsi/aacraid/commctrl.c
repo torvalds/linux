@@ -408,7 +408,7 @@ static int check_revision(struct aac_dev *dev, void __user *arg)
 	char *driver_version = aac_driver_version;
 	u32 version;
 
-	response.compat = cpu_to_le32(1);
+	response.compat = 1;
 	version = (simple_strtol(driver_version, 
 				&driver_version, 10) << 24) | 0x00000400;
 	version += simple_strtol(driver_version + 1, &driver_version, 10) << 16;
@@ -574,7 +574,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				rcode = -ENOMEM;
 				goto cleanup;
 			}
-			sg_user[i] = (void __user *)usg->sg[i].addr;
+			sg_user[i] = (void __user *)(long)usg->sg[i].addr;
 			sg_list[i] = p; // save so we can clean up later
 			sg_indx = i;
 
@@ -624,7 +624,7 @@ static int aac_send_raw_srb(struct aac_dev* dev, void __user * arg)
 				rcode = -ENOMEM;
 				goto cleanup;
 			}
-			sg_user[i] = (void __user *)upsg->sg[i].addr;
+			sg_user[i] = (void __user *)(long)upsg->sg[i].addr;
 			sg_list[i] = p; // save so we can clean up later
 			sg_indx = i;
 

@@ -224,18 +224,16 @@ lpfc_gen_req(struct lpfc_hba *phba, struct lpfc_dmabuf *bmp,
 
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring *pring = &psli->ring[LPFC_ELS_RING];
-	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
 	IOCB_t *icmd;
-	struct lpfc_iocbq *geniocb = NULL;
+	struct lpfc_iocbq *geniocb;
 
 	/* Allocate buffer for  command iocb */
 	spin_lock_irq(phba->host->host_lock);
-	list_remove_head(lpfc_iocb_list, geniocb, struct lpfc_iocbq, list);
+	geniocb = lpfc_sli_get_iocbq(phba);
 	spin_unlock_irq(phba->host->host_lock);
 
 	if (geniocb == NULL)
 		return 1;
-	memset(geniocb, 0, sizeof (struct lpfc_iocbq));
 
 	icmd = &geniocb->iocb;
 	icmd->un.genreq64.bdl.ulpIoTag32 = 0;
@@ -279,7 +277,7 @@ lpfc_gen_req(struct lpfc_hba *phba, struct lpfc_dmabuf *bmp,
 	geniocb->drvrTimeout = icmd->ulpTimeout + LPFC_DRVR_TIMEOUT;
 	spin_lock_irq(phba->host->host_lock);
 	if (lpfc_sli_issue_iocb(phba, pring, geniocb, 0) == IOCB_ERROR) {
-		list_add_tail(&geniocb->list, lpfc_iocb_list);
+		lpfc_sli_release_iocbq(phba, geniocb);
 		spin_unlock_irq(phba->host->host_lock);
 		return 1;
 	}
@@ -487,7 +485,7 @@ out:
 	kfree(inp);
 	kfree(bmp);
 	spin_lock_irq(phba->host->host_lock);
-	list_add_tail(&cmdiocb->list, &phba->lpfc_iocb_list);
+	lpfc_sli_release_iocbq(phba, cmdiocb);
 	spin_unlock_irq(phba->host->host_lock);
 	return;
 }
@@ -526,7 +524,7 @@ lpfc_cmpl_ct_cmd_rft_id(struct lpfc_hba * phba, struct lpfc_iocbq * cmdiocb,
 	kfree(inp);
 	kfree(bmp);
 	spin_lock_irq(phba->host->host_lock);
-	list_add_tail(&cmdiocb->list, &phba->lpfc_iocb_list);
+	lpfc_sli_release_iocbq(phba, cmdiocb);
 	spin_unlock_irq(phba->host->host_lock);
 	return;
 }
@@ -735,7 +733,7 @@ lpfc_cmpl_ct_cmd_fdmi(struct lpfc_hba * phba,
 	kfree(inp);
 	kfree(bmp);
 	spin_lock_irq(phba->host->host_lock);
-	list_add_tail(&cmdiocb->list, &phba->lpfc_iocb_list);
+	lpfc_sli_release_iocbq(phba, cmdiocb);
 	spin_unlock_irq(phba->host->host_lock);
 	return;
 }
