@@ -492,15 +492,6 @@ static int gred_change(struct Qdisc *sch, struct rtattr *opt)
 	if (err < 0)
 		goto errout_locked;
 
-	if (table->tab[table->def] == NULL) {
-		if (gred_rio_mode(table))
-			prio = table->tab[ctl->DP]->prio;
-
-		err = gred_change_vq(sch, table->def, ctl, prio, stab);
-		if (err < 0)
-			goto errout_locked;
-	}
-
 	if (gred_rio_mode(table)) {
 		gred_disable_wred_mode(table);
 		if (gred_wred_mode_check(sch))
