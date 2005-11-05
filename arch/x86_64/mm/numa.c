@@ -38,38 +38,57 @@ cpumask_t node_to_cpumask[MAX_NUMNODES] __read_mostly;
 
 int numa_off __initdata;
 
-int __init compute_hash_shift(struct node *nodes, int numnodes)
+
+/*
+ * Given a shift value, try to populate memnodemap[]
+ * Returns :
+ * 1 if OK
+ * 0 if memnodmap[] too small (of shift too small)
+ * -1 if node overlap or lost ram (shift too big)
+ */
+static int __init populate_memnodemap(
+	const struct node *nodes, int numnodes, int shift)
 {
 	int i; 
-	int shift = 20;
-	unsigned long addr,maxend=0;
-	
-	for (i = 0; i < numnodes; i++)
-		if ((nodes[i].start != nodes[i].end) && (nodes[i].end > maxend))
-				maxend = nodes[i].end;
+	int res = -1;
+	unsigned long addr, end;
 
-	while ((1UL << shift) <  (maxend / NODEMAPSIZE))
+	memset(memnodemap, 0xff, sizeof(memnodemap));
+	for (i = 0; i < numnodes; i++) {
+		addr = nodes[i].start;
+		end = nodes[i].end;
+		if (addr >= end)
+			continue;
+		if ((end >> shift) >= NODEMAPSIZE)
+			return 0;
+		do {
+			if (memnodemap[addr >> shift] != 0xff)
+				return -1;
+			memnodemap[addr >> shift] = i;
+			addr += (1 << shift);
+		} while (addr < end);
+		res = 1;
+	} 
+	return res;
+}
+
+int __init compute_hash_shift(struct node *nodes, int numnodes)
+{
+	int shift = 20;
+
+	while (populate_memnodemap(nodes, numnodes, shift + 1) >= 0)
 		shift++;
 
-	printk (KERN_DEBUG"Using %d for the hash shift. Max adder is %lx \n",
-			shift,maxend);
-	memset(memnodemap,0xff,sizeof(*memnodemap) * NODEMAPSIZE);
-	for (i = 0; i < numnodes; i++) {
-		if (nodes[i].start == nodes[i].end)
-			continue;
-		for (addr = nodes[i].start;
-		     addr < nodes[i].end;
-		     addr += (1UL << shift)) {
-			if (memnodemap[addr >> shift] != 0xff) {
-				printk(KERN_INFO
+	printk(KERN_DEBUG "Using %d for the hash shift.\n",
+		shift);
+
+	if (populate_memnodemap(nodes, numnodes, shift) != 1) {
+		printk(KERN_INFO
 	"Your memory is not aligned you need to rebuild your kernel "
-	"with a bigger NODEMAPSIZE shift=%d adder=%lu\n",
-					shift,addr);
-				return -1;
-			} 
-			memnodemap[addr >> shift] = i;
-		} 
-	} 
+	"with a bigger NODEMAPSIZE shift=%d\n",
+			shift);
+		return -1;
+	}
 	return shift;
 }
 
