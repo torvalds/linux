@@ -823,7 +823,7 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
  		if (!node_online(node))
  			node = nearby_node(apicid);
  	}
-  	cpu_to_node[cpu] = node;
+	numa_set_node(cpu, node);
 
   	printk(KERN_INFO "CPU %d(%d) -> Node %d -> Core %d\n",
   			cpu, c->x86_num_cores, node, cpu_core_id[cpu]);
@@ -975,7 +975,7 @@ static void srat_detect_node(void)
 	node = apicid_to_node[hard_smp_processor_id()];
 	if (node == NUMA_NO_NODE)
 		node = 0;
-	cpu_to_node[cpu] = node;
+	numa_set_node(cpu, node);
 
 	if (acpi_numa > 0)
 		printk(KERN_INFO "CPU %d -> Node %d\n", cpu, node);

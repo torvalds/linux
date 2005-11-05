@@ -15,6 +15,7 @@ struct x8664_pda {
         int irqcount;		    /* Irq nesting counter. Starts with -1 */  	
 	int cpunumber;		    /* Logical CPU number */
 	char *irqstackptr;	/* top of irqstack */
+	int nodenumber;		    /* number of current node */
 	unsigned int __softirq_pending;
 	unsigned int __nmi_count;	/* number of NMI on this CPUs */
 	struct mm_struct *active_mm;

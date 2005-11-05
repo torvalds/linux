@@ -156,7 +156,7 @@ void __init numa_init_array(void)
 	for (i = 0; i < NR_CPUS; i++) {
 		if (cpu_to_node[i] != NUMA_NO_NODE)
 			continue;
-		cpu_to_node[i] = rr;
+ 		numa_set_node(i, rr);
 		rr = next_node(rr, node_online_map);
 		if (rr == MAX_NUMNODES)
 			rr = first_node(node_online_map);
@@ -242,7 +242,7 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 	nodes_clear(node_online_map);
 	node_set_online(0);
 	for (i = 0; i < NR_CPUS; i++)
-		cpu_to_node[i] = 0;
+		numa_set_node(i, 0);
 	node_to_cpumask[0] = cpumask_of_cpu(0);
 	setup_node_bootmem(0, start_pfn << PAGE_SHIFT, end_pfn << PAGE_SHIFT);
 }
@@ -251,6 +251,12 @@ __cpuinit void numa_add_cpu(int cpu)
 {
 	set_bit(cpu, &node_to_cpumask[cpu_to_node(cpu)]);
 } 
+
+void __cpuinit numa_set_node(int cpu, int node)
+{
+	cpu_pda[cpu].nodenumber = node;
+	cpu_to_node[cpu] = node;
+}
 
 unsigned long __init numa_free_all_bootmem(void) 
 { 

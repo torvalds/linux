@@ -203,7 +203,7 @@ int __init acpi_scan_nodes(unsigned long start, unsigned long end)
 		if (cpu_to_node[i] == NUMA_NO_NODE)
 			continue;
 		if (!node_isset(cpu_to_node[i], nodes_parsed))
-			cpu_to_node[i] = NUMA_NO_NODE; 
+			numa_set_node(i, NUMA_NO_NODE);
 	}
 	numa_init_array();
 	return 0;

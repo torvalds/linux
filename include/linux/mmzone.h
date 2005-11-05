@@ -435,7 +435,9 @@ int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int, struct file *,
 
 #include <linux/topology.h>
 /* Returns the number of the current Node. */
+#ifndef numa_node_id
 #define numa_node_id()		(cpu_to_node(raw_smp_processor_id()))
+#endif
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 
