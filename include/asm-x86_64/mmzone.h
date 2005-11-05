@@ -41,9 +41,7 @@ static inline __attribute__((pure)) int phys_to_nid(unsigned long addr)
 #define pfn_to_nid(pfn) phys_to_nid((unsigned long)(pfn) << PAGE_SHIFT)
 #define kvaddr_to_nid(kaddr)	phys_to_nid(__pa(kaddr))
 
-/* AK: this currently doesn't deal with invalid addresses. We'll see 
-   if the 2.5 kernel doesn't pass them
-   (2.4 used to). */
+/* Requires pfn_valid(pfn) to be true */
 #define pfn_to_page(pfn) ({ \
 	int nid = phys_to_nid(((unsigned long)(pfn)) << PAGE_SHIFT); 	\
 	((pfn) - node_start_pfn(nid)) + NODE_DATA(nid)->node_mem_map;	\
