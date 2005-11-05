@@ -565,10 +565,6 @@ extern int exception_trace, page_fault_trace;
 static ctl_table debug_table2[] = {
 	{ 99, "exception-trace", &exception_trace, sizeof(int), 0644, NULL,
 	  proc_dointvec },
-#ifdef CONFIG_CHECKING
-	{ 100, "page-fault-trace", &page_fault_trace, sizeof(int), 0644, NULL,
-	  proc_dointvec },
-#endif
 	{ 0, }
 }; 
 
