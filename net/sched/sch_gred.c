@@ -60,6 +60,7 @@
 #endif
 
 #define GRED_DEF_PRIO (MAX_DPs / 2)
+#define GRED_VQ_MASK (MAX_DPs - 1)
 
 struct gred_sched_data;
 struct gred_sched;
@@ -153,6 +154,11 @@ static inline unsigned int gred_backlog(struct gred_sched *table,
 		return q->backlog;
 }
 
+static inline u16 tc_index_to_dp(struct sk_buff *skb)
+{
+	return skb->tc_index & GRED_VQ_MASK;
+}
+
 static int
 gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
@@ -160,14 +166,16 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	struct gred_sched *t= qdisc_priv(sch);
 	unsigned long qavg = 0;
 	int i=0;
+	u16 dp;
 
 	if (!t->initd && skb_queue_len(&sch->q) < (sch->dev->tx_queue_len ? : 1)) {
 		D2PRINTK("NO GRED Queues setup yet! Enqueued anyway\n");
 		goto do_enqueue;
 	}
 
+	dp = tc_index_to_dp(skb);
 
-	if ( ((skb->tc_index&0xf) > (t->DPs -1)) || !(q=t->tab[skb->tc_index&0xf])) {
+	if (dp >= t->DPs  || (q = t->tab[dp]) == NULL) {
 		printk("GRED: setting to default (%d)\n ",t->def);
 		if (!(q=t->tab[t->def])) {
 			DPRINTK("GRED: setting to default FAILED! dropping!! "
@@ -176,7 +184,7 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 		}
 		/* fix tc_index? --could be controvesial but needed for
 		   requeueing */
-		skb->tc_index=(skb->tc_index&0xfffffff0) | t->def;
+		skb->tc_index=(skb->tc_index & ~GRED_VQ_MASK) | t->def;
 	}
 
 	D2PRINTK("gred_enqueue virtualQ 0x%x classid %x backlog %d "
@@ -245,9 +253,8 @@ congestion_drop:
 static int
 gred_requeue(struct sk_buff *skb, struct Qdisc* sch)
 {
-	struct gred_sched_data *q;
-	struct gred_sched *t= qdisc_priv(sch);
-	q= t->tab[(skb->tc_index&0xf)];
+	struct gred_sched *t = qdisc_priv(sch);
+	struct gred_sched_data *q = t->tab[tc_index_to_dp(skb)];
 /* error checking here -- probably unnecessary */
 
 	if (red_is_idling(&q->parms))
@@ -267,13 +274,14 @@ gred_dequeue(struct Qdisc* sch)
 	skb = qdisc_dequeue_head(sch);
 
 	if (skb) {
-		q= t->tab[(skb->tc_index&0xf)];
+		q = t->tab[tc_index_to_dp(skb)];
 		if (q) {
 			q->backlog -= skb->len;
 			if (!q->backlog && !gred_wred_mode(t))
 				red_start_of_idle_period(&q->parms);
 		} else {
-			D2PRINTK("gred_dequeue: skb has bad tcindex %x\n",skb->tc_index&0xf); 
+			D2PRINTK("gred_dequeue: skb has bad tcindex %x\n",
+				 tc_index_to_dp(skb));
 		}
 		return skb;
 	}
@@ -300,14 +308,15 @@ static unsigned int gred_drop(struct Qdisc* sch)
 	skb = qdisc_dequeue_tail(sch);
 	if (skb) {
 		unsigned int len = skb->len;
-		q= t->tab[(skb->tc_index&0xf)];
+		q = t->tab[tc_index_to_dp(skb)];
 		if (q) {
 			q->backlog -= len;
 			q->stats.other++;
 			if (!q->backlog && !gred_wred_mode(t))
 				red_start_of_idle_period(&q->parms);
 		} else {
-			D2PRINTK("gred_dequeue: skb has bad tcindex %x\n",skb->tc_index&0xf); 
+			D2PRINTK("gred_dequeue: skb has bad tcindex %x\n",
+				 tc_index_to_dp(skb));
 		}
 
 		qdisc_drop(skb, sch);
