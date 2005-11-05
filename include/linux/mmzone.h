@@ -455,7 +455,7 @@ extern struct pglist_data contig_page_data;
 #include <asm/sparsemem.h>
 #endif
 
-#if BITS_PER_LONG == 32 || defined(ARCH_HAS_ATOMIC_UNSIGNED)
+#if BITS_PER_LONG == 32
 /*
  * with 32 bit page->flags field, we reserve 9 bits for node/zone info.
  * there are 4 zones (3 bits) and this leaves 9-3=6 bits for nodes.
