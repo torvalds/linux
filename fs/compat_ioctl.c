@@ -3046,6 +3046,10 @@ HANDLE_IOCTL(RAW_GETBIND, raw_ioctl)
 /* Serial */
 HANDLE_IOCTL(TIOCGSERIAL, serial_struct_ioctl)
 HANDLE_IOCTL(TIOCSSERIAL, serial_struct_ioctl)
+#ifdef TIOCGLTC
+COMPATIBLE_IOCTL(TIOCGLTC)
+COMPATIBLE_IOCTL(TIOCSLTC)
+#endif
 /* Usbdevfs */
 HANDLE_IOCTL(USBDEVFS_CONTROL32, do_usbdevfs_control)
 HANDLE_IOCTL(USBDEVFS_BULK32, do_usbdevfs_bulk)

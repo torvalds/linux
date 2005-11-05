@@ -48,8 +48,10 @@ static inline void eth_copy_and_sum (struct sk_buff *dest,
 }
 
 /**
- * is_zero_ether_addr - Determine if give Ethernet address is all
- * zeros.
+ * is_zero_ether_addr - Determine if give Ethernet address is all zeros.
+ * @addr: Pointer to a six-byte array containing the Ethernet address
+ *
+ * Return true if the address is all zeroes.
  */
 static inline int is_zero_ether_addr(const u8 *addr)
 {
@@ -57,9 +59,7 @@ static inline int is_zero_ether_addr(const u8 *addr)
 }
 
 /**
- * is_multicast_ether_addr - Determine if the given Ethernet address is a
- * multicast address.
- *
+ * is_multicast_ether_addr - Determine if the Ethernet address is a multicast.
  * @addr: Pointer to a six-byte array containing the Ethernet address
  *
  * Return true if the address is a multicast address.
@@ -69,10 +69,15 @@ static inline int is_multicast_ether_addr(const u8 *addr)
 	return ((addr[0] != 0xff) && (0x01 & addr[0]));
 }
 
+/**
+ * is_broadcast_ether_addr - Determine if the Ethernet address is broadcast
+ * @addr: Pointer to a six-byte array containing the Ethernet address
+ *
+ * Return true if the address is the broadcast address.
+ */
 static inline int is_broadcast_ether_addr(const u8 *addr)
 {
-        return ((addr[0] == 0xff) && (addr[1] == 0xff) && (addr[2] == 0xff) &&  
-		(addr[3] == 0xff) && (addr[4] == 0xff) && (addr[5] == 0xff));
+	return (addr[0] & addr[1] & addr[2] & addr[3] & addr[4] & addr[5]) == 0xff;
 }
 
 /**
@@ -108,14 +113,14 @@ static inline void random_ether_addr(u8 *addr)
 /**
  * compare_ether_addr - Compare two Ethernet addresses
  * @addr1: Pointer to a six-byte array containing the Ethernet address
- * @addr2 Pointer other six-byte array containing the Ethernet address
+ * @addr2: Pointer other six-byte array containing the Ethernet address
  *
  * Compare two ethernet addresses, returns 0 if equal
  */
-static inline unsigned compare_ether_addr(const u8 *_a, const u8 *_b)
+static inline unsigned compare_ether_addr(const u8 *addr1, const u8 *addr2)
 {
-	const u16 *a = (const u16 *) _a;
-	const u16 *b = (const u16 *) _b;
+	const u16 *a = (const u16 *) addr1;
+	const u16 *b = (const u16 *) addr2;
 
 	BUILD_BUG_ON(ETH_ALEN != 6);
 	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | (a[2] ^ b[2])) != 0;

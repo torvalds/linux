@@ -23,6 +23,7 @@
 #include <linux/ioport.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
+#include <linux/platform_device.h>
 
 #include <asm/hardware.h>
 #include <asm/io.h>

@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/major.h>
 #include <linux/fs.h>
@@ -34,6 +34,7 @@
 
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/irq.h>
+#include <asm/arch/irda.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/udc.h>
 #include <asm/arch/pxafb.h>
@@ -277,6 +278,23 @@ static struct pxamci_platform_data spitz_mci_platform_data = {
 
 
 /*
+ * Irda
+ */
+static void spitz_irda_transceiver_mode(struct device *dev, int mode)
+{
+	if (mode & IR_OFF)
+		set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_IR_ON);
+	else
+		reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_IR_ON);
+}
+
+static struct pxaficp_platform_data spitz_ficp_platform_data = {
+	.transceiver_cap  = IR_SIRMODE | IR_OFF,
+	.transceiver_mode = spitz_irda_transceiver_mode,
+};
+
+
+/*
  * Spitz PXA Framebuffer
  */
 static struct pxafb_mach_info spitz_pxafb_info __initdata = {
@@ -326,6 +344,7 @@ static void __init common_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_mci_info(&spitz_mci_platform_data);
+	pxa_set_ficp_info(&spitz_ficp_platform_data);
 	set_pxa_fb_parent(&spitzssp_device.dev);
 	set_pxa_fb_info(&spitz_pxafb_info);
 }

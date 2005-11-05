@@ -15,7 +15,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <asm/hardware.h>
 #include <asm/mach-types.h>
 

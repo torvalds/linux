@@ -29,7 +29,7 @@
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/hardware/arm_twd.h>
 #include <asm/uaccess.h>
@@ -396,6 +396,7 @@ static int __devexit mpcore_wdt_remove(struct device *dev)
 }
 
 static struct device_driver mpcore_wdt_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "mpcore_wdt",
 	.bus		= &platform_bus_type,
 	.probe		= mpcore_wdt_probe,

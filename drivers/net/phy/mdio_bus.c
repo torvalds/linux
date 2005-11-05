@@ -61,6 +61,9 @@ int mdiobus_register(struct mii_bus *bus)
 	for (i = 0; i < PHY_MAX_ADDR; i++) {
 		struct phy_device *phydev;
 
+		if (bus->phy_mask & (1 << i))
+			continue;
+
 		phydev = get_phy_device(bus, i);
 
 		if (IS_ERR(phydev))

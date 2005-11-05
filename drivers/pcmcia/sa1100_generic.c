@@ -33,12 +33,17 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/config.h>
+#include <linux/platform_device.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/ss.h>
 
+#include <asm/hardware/scoop.h>
+
 #include "sa1100_generic.h"
+
+int __init pcmcia_collie_init(struct device *dev);
 
 static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
 #ifdef CONFIG_SA1100_ASSABET
@@ -55,6 +60,9 @@ static int (*sa11x0_pcmcia_hw_init[])(struct device *dev) = {
 #endif
 #ifdef CONFIG_SA1100_SIMPAD
 	pcmcia_simpad_init,
+#endif
+#ifdef CONFIG_SA1100_COLLIE
+       pcmcia_collie_init,
 #endif
 };
 

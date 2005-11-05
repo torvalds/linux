@@ -104,7 +104,7 @@ static const char *gg2_cachemodes[4] = {
 	"Disabled", "Write-Through", "Copy-Back", "Transparent Mode"
 };
 
-int __chrp
+int
 chrp_show_cpuinfo(struct seq_file *m)
 {
 	int i, sdramen;
@@ -302,7 +302,7 @@ void __init chrp_setup_arch(void)
 	pci_create_OF_bus_map();
 }
 
-void __chrp
+void
 chrp_event_scan(void)
 {
 	unsigned char log[1024];
@@ -313,7 +313,7 @@ chrp_event_scan(void)
 	ppc_md.heartbeat_count = ppc_md.heartbeat_reset;
 }
 
-void __chrp
+void
 chrp_restart(char *cmd)
 {
 	printk("RTAS system-reboot returned %d\n",
@@ -321,7 +321,7 @@ chrp_restart(char *cmd)
 	for (;;);
 }
 
-void __chrp
+void
 chrp_power_off(void)
 {
 	/* allow power on only with power button press */
@@ -330,18 +330,10 @@ chrp_power_off(void)
 	for (;;);
 }
 
-void __chrp
+void
 chrp_halt(void)
 {
 	chrp_power_off();
-}
-
-u_int __chrp
-chrp_irq_canonicalize(u_int irq)
-{
-	if (irq == 2)
-		return 9;
-	return irq;
 }
 
 /*
@@ -444,9 +436,7 @@ void __init chrp_init_IRQ(void)
 				       i8259_irq);
 
 	}
-	for (i = 0; i < NUM_8259_INTERRUPTS; i++)
-		irq_desc[i].handler = &i8259_pic;
-	i8259_init(chrp_int_ack);
+	i8259_init(chrp_int_ack, 0);
 
 #if defined(CONFIG_VT) && defined(CONFIG_INPUT_ADBHID) && defined(XMON)
 	/* see if there is a keyboard in the device tree
@@ -464,8 +454,7 @@ void __init
 chrp_init2(void)
 {
 #ifdef CONFIG_NVRAM
-// XX replace this in a more saner way
-//	pmac_nvram_init();
+	chrp_nvram_init();
 #endif
 
 	request_region(0x20,0x20,"pic1");
@@ -499,6 +488,7 @@ chrp_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
 	isa_io_base = CHRP_ISA_IO_BASE;		/* default value */
+	ppc_do_canonicalize_irqs = 1;
 
 	if (root)
 		machine = get_property(root, "model", NULL);
@@ -517,7 +507,6 @@ chrp_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.show_percpuinfo = of_show_percpuinfo;
 	ppc_md.show_cpuinfo   = chrp_show_cpuinfo;
 
-	ppc_md.irq_canonicalize = chrp_irq_canonicalize;
 	ppc_md.init_IRQ       = chrp_init_IRQ;
 	if (_chrp_type == _CHRP_Pegasos)
 		ppc_md.get_irq        = i8259_irq;
@@ -561,7 +550,7 @@ chrp_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #endif
 
 #ifdef CONFIG_SMP
-	ppc_md.smp_ops = &chrp_smp_ops;
+	smp_ops = &chrp_smp_ops;
 #endif /* CONFIG_SMP */
 
 	/*
@@ -571,7 +560,7 @@ chrp_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	if (ppc_md.progress) ppc_md.progress("Linux/PPC "UTS_RELEASE"\n", 0x0);
 }
 
-void __chrp
+void
 rtas_display_progress(char *s, unsigned short hex)
 {
 	int width;
@@ -598,7 +587,7 @@ rtas_display_progress(char *s, unsigned short hex)
 	call_rtas( "display-character", 1, 1, NULL, ' ' );
 }
 
-void __chrp
+void
 rtas_indicator_progress(char *s, unsigned short hex)
 {
 	call_rtas("set-indicator", 3, 1, NULL, 6, 0, hex);

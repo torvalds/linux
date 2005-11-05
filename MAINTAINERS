@@ -910,6 +910,15 @@ L:	linux-fbdev-devel@lists.sourceforge.net
 W:	http://linux-fbdev.sourceforge.net/
 S:	Maintained
 
+FREESCALE SOC FS_ENET DRIVER
+P:	Pantelis Antoniou
+M:	pantelis.antoniou@gmail.com
+P:	Vitaly Bordug
+M:	vbordug@ru.mvista.com
+L:	linuxppc-embedded@ozlabs.org
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 FILE LOCKING (flock() and fcntl()/lockf())
 P:	Matthew Wilcox
 M:	matthew@wil.cx
@@ -2285,6 +2294,11 @@ M:	kjhall@us.ibm.com
 W:	http://tpmdd.sourceforge.net
 L:	tpmdd-devel@lists.sourceforge.net
 S:	Maintained
+
+Telecom Clock Driver for MCPL0010
+P: Mark Gross
+M: mark.gross@intel.com
+S: Supported
 
 TENSILICA XTENSA PORT (xtensa):
 P:	Chris Zankel

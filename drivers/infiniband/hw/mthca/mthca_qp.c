@@ -36,6 +36,8 @@
  */
 
 #include <linux/init.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>
@@ -579,6 +581,13 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 			  cur_state, new_state,
 			  attr_mask & ~(req_param | opt_param |
 						 IB_QP_STATE));
+		return -EINVAL;
+	}
+
+	if ((attr_mask & IB_QP_PKEY_INDEX) && 
+	     attr->pkey_index >= dev->limits.pkey_table_len) {
+		mthca_dbg(dev, "PKey index (%u) too large. max is %d\n",
+			  attr->pkey_index,dev->limits.pkey_table_len-1); 
 		return -EINVAL;
 	}
 

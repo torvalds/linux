@@ -1,7 +1,7 @@
 /*
  *	Berkshire PCI-PC Watchdog Card Driver
  *
- *	(c) Copyright 2003 Wim Van Sebroeck <wim@iguana.be>.
+ *	(c) Copyright 2003-2005 Wim Van Sebroeck <wim@iguana.be>.
  *
  *	Based on source code of the following authors:
  *	  Ken Hollis <kenji@bitgate.com>,
@@ -21,7 +21,9 @@
  */
 
 /*
- *	A bells and whistles driver is available from http://www.pcwd.de/
+ *	A bells and whistles driver is available from: 
+ *	http://www.kernel.org/pub/linux/kernel/people/wim/pcwd/pcwd_pci/
+ *
  *	More info available at http://www.berkprod.com/ or http://www.pcwatchdog.com/
  */
 
@@ -753,6 +755,7 @@ static struct pci_device_id pcipcwd_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, pcipcwd_pci_tbl);
 
 static struct pci_driver pcipcwd_driver = {
+	.owner		= THIS_MODULE,
 	.name		= WATCHDOG_NAME,
 	.id_table	= pcipcwd_pci_tbl,
 	.probe		= pcipcwd_card_init,

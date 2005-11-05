@@ -14,21 +14,25 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/sysdev.h>
 #include <linux/major.h>
 #include <linux/fb.h>
 #include <linux/interrupt.h>
+#include <linux/mtd/mtd.h>
+#include <linux/mtd/partitions.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/irq.h>
+#include <asm/sizes.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
+#include <asm/mach/flash.h>
 
 #include <asm/hardware/sa1111.h>
 
@@ -175,7 +179,7 @@ static struct platform_device sa1111_device = {
 static struct resource smc91x_resources[] = {
 	[0] = {
 		.name	= "smc91x-regs",
-		.start	= 0x0c000000,
+		.start	= 0x0c000c00,
 		.end	= 0x0c0fffff,
 		.flags	= IORESOURCE_MEM,
 	},
@@ -199,10 +203,75 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
+static struct resource flash_resources[] = {
+	[0] = {
+		.start	= 0x00000000,
+		.end	= SZ_64M - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 0x04000000,
+		.end	= 0x04000000 + SZ_64M - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct mtd_partition lubbock_partitions[] = {
+	{
+		.name =		"Bootloader",
+		.size =		0x00040000,
+		.offset =	0,
+		.mask_flags =	MTD_WRITEABLE  /* force read-only */
+	},{
+		.name =		"Kernel",
+		.size =		0x00100000,
+		.offset =	0x00040000,
+	},{
+		.name =		"Filesystem",
+		.size =		MTDPART_SIZ_FULL,
+		.offset =	0x00140000
+	}
+};
+
+static struct flash_platform_data lubbock_flash_data[2] = {
+	{
+		.map_name	= "cfi_probe",
+		.parts		= lubbock_partitions,
+		.nr_parts	= ARRAY_SIZE(lubbock_partitions),
+	}, {
+		.map_name	= "cfi_probe",
+		.parts		= NULL,
+		.nr_parts	= 0,
+	}
+};
+
+static struct platform_device lubbock_flash_device[2] = {
+	{
+		.name		= "pxa2xx-flash",
+		.id		= 0,
+		.dev = {
+			.platform_data = &lubbock_flash_data[0],
+		},
+		.resource = &flash_resources[0],
+		.num_resources = 1,
+	},
+	{
+		.name		= "pxa2xx-flash",
+		.id		= 1,
+		.dev = {
+			.platform_data = &lubbock_flash_data[1],
+		},
+		.resource = &flash_resources[1],
+		.num_resources = 1,
+	},
+};
+
 static struct platform_device *devices[] __initdata = {
 	&sa1111_device,
 	&lub_audio_device,
 	&smc91x_device,
+	&lubbock_flash_device[0],
+	&lubbock_flash_device[1],
 };
 
 static struct pxafb_mach_info sharp_lm8v31 __initdata = {
@@ -224,18 +293,75 @@ static struct pxafb_mach_info sharp_lm8v31 __initdata = {
 	.lccr3		= LCCR3_PCP | LCCR3_Acb(255),
 };
 
-static int lubbock_mci_init(struct device *dev, irqreturn_t (*lubbock_detect_int)(int, void *, struct pt_regs *), void *data)
+#define	MMC_POLL_RATE		msecs_to_jiffies(1000)
+
+static void lubbock_mmc_poll(unsigned long);
+static irqreturn_t (*mmc_detect_int)(int, void *, struct pt_regs *);
+
+static struct timer_list mmc_timer = {
+	.function	= lubbock_mmc_poll,
+};
+
+static void lubbock_mmc_poll(unsigned long data)
+{
+	unsigned long flags;
+
+	/* clear any previous irq state, then ... */
+	local_irq_save(flags);
+	LUB_IRQ_SET_CLR &= ~(1 << 0);
+	local_irq_restore(flags);
+
+	/* poll until mmc/sd card is removed */
+	if (LUB_IRQ_SET_CLR & (1 << 0))
+		mod_timer(&mmc_timer, jiffies + MMC_POLL_RATE);
+	else {
+		(void) mmc_detect_int(LUBBOCK_SD_IRQ, (void *)data, NULL);
+		enable_irq(LUBBOCK_SD_IRQ);
+	}
+}
+
+static irqreturn_t lubbock_detect_int(int irq, void *data, struct pt_regs *regs)
+{
+	/* IRQ is level triggered; disable, and poll for removal */
+	disable_irq(irq);
+	mod_timer(&mmc_timer, jiffies + MMC_POLL_RATE);
+
+	return mmc_detect_int(irq, data, regs);
+}
+
+static int lubbock_mci_init(struct device *dev,
+		irqreturn_t (*detect_int)(int, void *, struct pt_regs *),
+		void *data)
 {
 	/* setup GPIO for PXA25x MMC controller	*/
 	pxa_gpio_mode(GPIO6_MMCCLK_MD);
 	pxa_gpio_mode(GPIO8_MMCCS0_MD);
 
-	return 0;
+	/* detect card insert/eject */
+	mmc_detect_int = detect_int;
+	init_timer(&mmc_timer);
+	mmc_timer.data = (unsigned long) data;
+	return request_irq(LUBBOCK_SD_IRQ, lubbock_detect_int,
+			SA_SAMPLE_RANDOM, "lubbock-sd-detect", data);
+}
+
+static int lubbock_mci_get_ro(struct device *dev)
+{
+	return (LUB_MISC_RD & (1 << 2)) != 0;
+}
+
+static void lubbock_mci_exit(struct device *dev, void *data)
+{
+	free_irq(LUBBOCK_SD_IRQ, data);
+	del_timer_sync(&mmc_timer);
 }
 
 static struct pxamci_platform_data lubbock_mci_platform_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
+	.detect_delay	= 1,
 	.init 		= lubbock_mci_init,
+	.get_ro		= lubbock_mci_get_ro,
+	.exit 		= lubbock_mci_exit,
 };
 
 static void lubbock_irda_transceiver_mode(struct device *dev, int mode)
@@ -258,10 +384,21 @@ static struct pxaficp_platform_data lubbock_ficp_platform_data = {
 
 static void __init lubbock_init(void)
 {
+	int flashboot = (LUB_CONF_SWITCHES & 1);
+
 	pxa_set_udc_info(&udc_info);
 	set_pxa_fb_info(&sharp_lm8v31);
 	pxa_set_mci_info(&lubbock_mci_platform_data);
 	pxa_set_ficp_info(&lubbock_ficp_platform_data);
+
+	lubbock_flash_data[0].width = lubbock_flash_data[1].width =
+		(BOOT_DEF & 1) ? 2 : 4;
+	/* Compensate for the nROMBT switch which swaps the flash banks */
+	printk(KERN_NOTICE "Lubbock configured to boot from %s (bank %d)\n",
+	       flashboot?"Flash":"ROM", flashboot);
+
+	lubbock_flash_data[flashboot^1].name = "application-flash";
+	lubbock_flash_data[flashboot].name = "boot-rom";
 	(void) platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 

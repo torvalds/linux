@@ -186,7 +186,7 @@ static inline void psurge_clr_ipi(int cpu)
  */
 static unsigned long psurge_smp_message[NR_CPUS];
 
-void __pmac psurge_smp_message_recv(struct pt_regs *regs)
+void psurge_smp_message_recv(struct pt_regs *regs)
 {
 	int cpu = smp_processor_id();
 	int msg;
@@ -203,14 +203,13 @@ void __pmac psurge_smp_message_recv(struct pt_regs *regs)
 			smp_message_recv(msg, regs);
 }
 
-irqreturn_t __pmac psurge_primary_intr(int irq, void *d, struct pt_regs *regs)
+irqreturn_t psurge_primary_intr(int irq, void *d, struct pt_regs *regs)
 {
 	psurge_smp_message_recv(regs);
 	return IRQ_HANDLED;
 }
 
-static void __pmac smp_psurge_message_pass(int target, int msg, unsigned long data,
-					   int wait)
+static void smp_psurge_message_pass(int target, int msg)
 {
 	int i;
 
@@ -629,7 +628,7 @@ void smp_core99_give_timebase(void)
 
 
 /* PowerSurge-style Macs */
-struct smp_ops_t psurge_smp_ops __pmacdata = {
+struct smp_ops_t psurge_smp_ops = {
 	.message_pass	= smp_psurge_message_pass,
 	.probe		= smp_psurge_probe,
 	.kick_cpu	= smp_psurge_kick_cpu,
@@ -639,7 +638,7 @@ struct smp_ops_t psurge_smp_ops __pmacdata = {
 };
 
 /* Core99 Macs (dual G4s) */
-struct smp_ops_t core99_smp_ops __pmacdata = {
+struct smp_ops_t core99_smp_ops = {
 	.message_pass	= smp_openpic_message_pass,
 	.probe		= smp_core99_probe,
 	.kick_cpu	= smp_core99_kick_cpu,

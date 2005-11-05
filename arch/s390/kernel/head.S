@@ -485,7 +485,9 @@ start:
 #
         .org  0x10000
 startup:basr  %r13,0                     # get base
-.LPG1:  lctl  %c0,%c15,.Lctl-.LPG1(%r13) # load control registers
+.LPG1:	l     %r1, .Lget_ipl_device_addr-.LPG1(%r13)
+	basr  %r14, %r1
+	lctl  %c0,%c15,.Lctl-.LPG1(%r13) # load control registers
 	la    %r12,_pstart-.LPG1(%r13)   # pointer to parameter area
 					 # move IPL device to lowcore
         mvc   __LC_IPLDEV(4),IPL_DEVICE-PARMAREA(%r12)
@@ -560,6 +562,9 @@ startup:basr  %r13,0                     # get base
 	mr    %r2,%r1			# mem size in bytes in %r3
 	b     .Lfchunk-.LPG1(%r13)
 
+	.align 4
+.Lget_ipl_device_addr:
+	.long .Lget_ipl_device
 .Lpmask:
 	.byte 0
 .align 8
@@ -755,6 +760,63 @@ _pstart:
 	.global _pend
 _pend:	
 
+.Lget_ipl_device:
+	basr  %r12,0
+.LPG2:	l     %r1,0xb8			# get sid
+	sll   %r1,15			# test if subchannel is enabled
+	srl   %r1,31
+	ltr   %r1,%r1
+	bz    0(%r14)			# subchannel disabled
+	l     %r1,0xb8
+	la    %r5,.Lipl_schib-.LPG2(%r12)
+	stsch 0(%r5)		        # get schib of subchannel
+	bnz   0(%r14)			# schib not available
+	tm    5(%r5),0x01		# devno valid?
+	bno   0(%r14)
+	la    %r6,ipl_parameter_flags-.LPG2(%r12)
+	oi    3(%r6),0x01		# set flag
+	la    %r2,ipl_devno-.LPG2(%r12)
+	mvc   0(2,%r2),6(%r5)		# store devno
+	tm    4(%r5),0x80		# qdio capable device?
+	bno   0(%r14)
+	oi    3(%r6),0x02		# set flag
+
+	# copy ipl parameters
+
+	lhi   %r0,4096
+	l     %r2,20(%r0)		# get address of parameter list
+	lhi   %r3,IPL_PARMBLOCK_ORIGIN
+	st    %r3,20(%r0)
+	lhi   %r4,1
+	cr    %r2,%r3			# start parameters < destination ?
+	jl    0f
+	lhi   %r1,1			# copy direction is upwards
+	j     1f
+0:	lhi   %r1,-1			# copy direction is downwards
+	ar    %r2,%r0
+	ar    %r3,%r0
+	ar    %r2,%r1
+	ar    %r3,%r1
+1:	mvc   0(1,%r3),0(%r2)		# finally copy ipl parameters
+	ar    %r3,%r1
+	ar    %r2,%r1
+	sr    %r0,%r4
+	jne   1b
+	b     0(%r14)
+
+	.align 4
+.Lipl_schib:
+	.rept 13
+	.long 0
+	.endr
+
+	.globl ipl_parameter_flags
+ipl_parameter_flags:
+	.long 0
+	.globl ipl_devno
+ipl_devno:
+	.word 0
+
 #ifdef CONFIG_SHARED_KERNEL
 	.org   0x100000
 #endif
@@ -764,11 +826,11 @@ _pend:
 #
         .globl _stext
 _stext:	basr  %r13,0                    # get base
-.LPG2:
+.LPG3:
 #
 # Setup stack
 #
-        l     %r15,.Linittu-.LPG2(%r13)
+        l     %r15,.Linittu-.LPG3(%r13)
 	mvc   __LC_CURRENT(4),__TI_task(%r15)
         ahi   %r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union + THREAD_SIZE
         st    %r15,__LC_KERNEL_STACK    # set end of kernel stack
@@ -782,8 +844,8 @@ _stext:	basr  %r13,0                    # get base
         lctl   %c0,%c15,0(%r15)
 
 #
-        lam    0,15,.Laregs-.LPG2(%r13) # load access regs needed by uaccess
-        l      %r14,.Lstart-.LPG2(%r13)
+        lam    0,15,.Laregs-.LPG3(%r13) # load access regs needed by uaccess
+        l      %r14,.Lstart-.LPG3(%r13)
         basr   %r14,%r14                # call start_kernel
 #
 # We returned from start_kernel ?!? PANIK

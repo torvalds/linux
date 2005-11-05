@@ -57,7 +57,7 @@ void ptrace_disable(struct task_struct *child)
 	h8300_disable_trace(child);
 }
 
-asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
+asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
 	int ret;

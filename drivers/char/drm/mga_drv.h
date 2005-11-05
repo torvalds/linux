@@ -62,14 +62,14 @@ typedef struct drm_mga_primary_buffer {
 } drm_mga_primary_buffer_t;
 
 typedef struct drm_mga_freelist {
-   	struct drm_mga_freelist *next;
-   	struct drm_mga_freelist *prev;
+	struct drm_mga_freelist *next;
+	struct drm_mga_freelist *prev;
 	drm_mga_age_t age;
-   	drm_buf_t *buf;
+	drm_buf_t *buf;
 } drm_mga_freelist_t;
 
 typedef struct {
-   	drm_mga_freelist_t *list_entry;
+	drm_mga_freelist_t *list_entry;
 	int discard;
 	int dispatched;
 } drm_mga_buf_priv_t;
@@ -78,8 +78,8 @@ typedef struct drm_mga_private {
 	drm_mga_primary_buffer_t prim;
 	drm_mga_sarea_t *sarea_priv;
 
-   	drm_mga_freelist_t *head;
-   	drm_mga_freelist_t *tail;
+	drm_mga_freelist_t *head;
+	drm_mga_freelist_t *tail;
 
 	unsigned int warp_pipe;
 	unsigned long warp_pipe_phys[MGA_MAX_WARP_PIPES];
@@ -109,13 +109,13 @@ typedef struct drm_mga_private {
 
 	/**
 	 * \name MMIO region parameters.
-	 * 
+	 *
 	 * \sa drm_mga_private_t::mmio
 	 */
-	/*@{*/
-	u32 mmio_base;             /**< Bus address of base of MMIO. */
-	u32 mmio_size;             /**< Size of the MMIO region. */
-	/*@}*/
+	/*@{ */
+	u32 mmio_base;		   /**< Bus address of base of MMIO. */
+	u32 mmio_size;		   /**< Size of the MMIO region. */
+	/*@} */
 
 	u32 clear_cmd;
 	u32 maccess;
@@ -143,10 +143,13 @@ typedef struct drm_mga_private {
 	drm_local_map_t *warp;
 	drm_local_map_t *primary;
 	drm_local_map_t *agp_textures;
-	
+
 	DRM_AGP_MEM *agp_mem;
 	unsigned int agp_pages;
 } drm_mga_private_t;
+
+extern drm_ioctl_desc_t mga_ioctls[];
+extern int mga_max_ioctl;
 
 				/* mga_dma.c */
 extern int mga_driver_preinit(drm_device_t * dev, unsigned long flags);
@@ -165,7 +168,7 @@ extern void mga_do_dma_flush(drm_mga_private_t * dev_priv);
 extern void mga_do_dma_wrap_start(drm_mga_private_t * dev_priv);
 extern void mga_do_dma_wrap_end(drm_mga_private_t * dev_priv);
 
-extern int mga_freelist_put( drm_device_t *dev, drm_buf_t *buf );
+extern int mga_freelist_put(drm_device_t * dev, drm_buf_t * buf);
 
 				/* mga_warp.c */
 extern unsigned int mga_warp_microcode_size(const drm_mga_private_t * dev_priv);
@@ -196,7 +199,7 @@ extern long mga_compat_ioctl(struct file *filp, unsigned int cmd,
 #define MGA_WRITE( reg, val )	do { DRM_WRITEMEMORYBARRIER(); MGA_DEREF( reg ) = val; } while (0)
 #define MGA_WRITE8( reg, val )  do { DRM_WRITEMEMORYBARRIER(); MGA_DEREF8( reg ) = val; } while (0)
 
-static inline u32 _MGA_READ(u32 *addr)
+static inline u32 _MGA_READ(u32 * addr)
 {
 	DRM_MEMORYBARRIER();
 	return *(volatile u32 *)addr;
@@ -217,8 +220,6 @@ static inline u32 _MGA_READ(u32 *addr)
 #define DMAREG0(r)	(u8)((r - DWGREG0) >> 2)
 #define DMAREG1(r)	(u8)(((r - DWGREG1) >> 2) | 0x80)
 #define DMAREG(r)	(ISREG0(r) ? DMAREG0(r) : DMAREG1(r))
-
-
 
 /* ================================================================
  * Helper macross...
@@ -260,7 +261,6 @@ do {									\
 		mga_do_dma_wrap_end( dev_priv );			\
 	}								\
 } while (0)
-
 
 /* ================================================================
  * Primary DMA command stream
@@ -346,7 +346,6 @@ do {									\
 	write += DMA_BLOCK_SIZE;					\
 } while (0)
 
-
 /* Buffer aging via primary DMA stream head pointer.
  */
 
@@ -373,7 +372,6 @@ do {									\
 	}								\
 } while (0)
 
-
 #define MGA_ENGINE_IDLE_MASK		(MGA_SOFTRAPEN |		\
 					 MGA_DWGENGSTS |		\
 					 MGA_ENDPRDMASTS)
@@ -381,8 +379,6 @@ do {									\
 					 MGA_ENDPRDMASTS)
 
 #define MGA_DMA_DEBUG			0
-
-
 
 /* A reduced set of the mga registers.
  */
@@ -644,7 +640,6 @@ do {									\
 #	define MGA_G400_WR_MAGIC		(1 << 6)
 #	define MGA_G400_WR56_MAGIC		0x46480000	/* 12800.0f */
 
-
 #define MGA_ILOAD_ALIGN		64
 #define MGA_ILOAD_MASK		(MGA_ILOAD_ALIGN - 1)
 
@@ -679,10 +674,10 @@ do {									\
 
 /* Simple idle test.
  */
-static __inline__ int mga_is_idle( drm_mga_private_t *dev_priv )
+static __inline__ int mga_is_idle(drm_mga_private_t * dev_priv)
 {
-	u32 status = MGA_READ( MGA_STATUS ) & MGA_ENGINE_IDLE_MASK;
-	return ( status == MGA_ENDPRDMASTS );
+	u32 status = MGA_READ(MGA_STATUS) & MGA_ENGINE_IDLE_MASK;
+	return (status == MGA_ENDPRDMASTS);
 }
 
 #endif

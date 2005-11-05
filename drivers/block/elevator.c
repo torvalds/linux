@@ -147,24 +147,17 @@ static void elevator_setup_default(void)
 	struct elevator_type *e;
 
 	/*
-	 * check if default is set and exists
+	 * If default has not been set, use the compiled-in selection.
 	 */
-	if (chosen_elevator[0] && (e = elevator_get(chosen_elevator))) {
-		elevator_put(e);
-		return;
-	}
+	if (!chosen_elevator[0])
+		strcpy(chosen_elevator, CONFIG_DEFAULT_IOSCHED);
 
-#if defined(CONFIG_IOSCHED_AS)
-	strcpy(chosen_elevator, "anticipatory");
-#elif defined(CONFIG_IOSCHED_DEADLINE)
-	strcpy(chosen_elevator, "deadline");
-#elif defined(CONFIG_IOSCHED_CFQ)
-	strcpy(chosen_elevator, "cfq");
-#elif defined(CONFIG_IOSCHED_NOOP)
-	strcpy(chosen_elevator, "noop");
-#else
-#error "You must build at least 1 IO scheduler into the kernel"
-#endif
+ 	/*
+ 	 * If the given scheduler is not available, fall back to no-op.
+ 	 */
+ 	if (!(e = elevator_find(chosen_elevator)))
+ 		strcpy(chosen_elevator, "noop");
+	elevator_put(e);
 }
 
 static int __init elevator_setup(char *str)
@@ -376,9 +369,14 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 	case ELEVATOR_INSERT_SORT:
 		BUG_ON(!blk_fs_request(rq));
 		rq->flags |= REQ_SORTED;
-		q->elevator->ops->elevator_add_req_fn(q, rq);
 		if (q->last_merge == NULL && rq_mergeable(rq))
 			q->last_merge = rq;
+		/*
+		 * Some ioscheds (cfq) run q->request_fn directly, so
+		 * rq cannot be accessed after calling
+		 * elevator_add_req_fn.
+		 */
+		q->elevator->ops->elevator_add_req_fn(q, rq);
 		break;
 
 	default:
@@ -642,6 +640,27 @@ EXPORT_SYMBOL_GPL(elv_register);
 
 void elv_unregister(struct elevator_type *e)
 {
+	struct task_struct *g, *p;
+
+	/*
+	 * Iterate every thread in the process to remove the io contexts.
+	 */
+	read_lock(&tasklist_lock);
+	do_each_thread(g, p) {
+		struct io_context *ioc = p->io_context;
+		if (ioc && ioc->cic) {
+			ioc->cic->exit(ioc->cic);
+			ioc->cic->dtor(ioc->cic);
+			ioc->cic = NULL;
+		}
+		if (ioc && ioc->aic) {
+			ioc->aic->exit(ioc->aic);
+			ioc->aic->dtor(ioc->aic);
+			ioc->aic = NULL;
+		}
+	} while_each_thread(g, p);
+	read_unlock(&tasklist_lock);
+
 	spin_lock_irq(&elv_list_lock);
 	list_del_init(&e->list);
 	spin_unlock_irq(&elv_list_lock);
@@ -739,8 +758,10 @@ ssize_t elv_iosched_store(request_queue_t *q, const char *name, size_t count)
 		return -EINVAL;
 	}
 
-	if (!strcmp(elevator_name, q->elevator->elevator_type->elevator_name))
+	if (!strcmp(elevator_name, q->elevator->elevator_type->elevator_name)) {
+		elevator_put(e);
 		return count;
+	}
 
 	elevator_switch(q, e);
 	return count;

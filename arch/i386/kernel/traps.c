@@ -488,6 +488,7 @@ fastcall void __kprobes do_general_protection(struct pt_regs * regs,
 				tss->io_bitmap_max - thread->io_bitmap_max);
 		tss->io_bitmap_max = thread->io_bitmap_max;
 		tss->io_bitmap_base = IO_BITMAP_OFFSET;
+		tss->io_bitmap_owner = thread;
 		put_cpu();
 		return;
 	}

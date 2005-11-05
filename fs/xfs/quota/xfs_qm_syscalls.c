@@ -1,62 +1,48 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.	 Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_alloc.h"
 #include "xfs_dmapi.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_ialloc.h"
+#include "xfs_itable.h"
 #include "xfs_bmap.h"
-#include "xfs_bit.h"
+#include "xfs_btree.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
-#include "xfs_itable.h"
 #include "xfs_rw.h"
 #include "xfs_acl.h"
 #include "xfs_cap.h"
@@ -64,7 +50,6 @@
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
 #include "xfs_utils.h"
-
 #include "xfs_qm.h"
 
 #ifdef DEBUG
@@ -109,10 +94,7 @@ xfs_qm_quotactl(
 	vfsp = bhvtovfs(bdp);
 	mp = XFS_VFSTOM(vfsp);
 
-	if (addr == NULL && cmd != Q_SYNC)
-		return XFS_ERROR(EINVAL);
-	if (id < 0 && cmd != Q_SYNC)
-		return XFS_ERROR(EINVAL);
+	ASSERT(addr != NULL || cmd == Q_XQUOTASYNC);
 
 	/*
 	 * The following commands are valid even when quotaoff.
@@ -122,7 +104,7 @@ xfs_qm_quotactl(
 		/*
 		 * Truncate quota files. quota must be off.
 		 */
-		if (XFS_IS_QUOTA_ON(mp) || addr == NULL)
+		if (XFS_IS_QUOTA_ON(mp))
 			return XFS_ERROR(EINVAL);
 		if (vfsp->vfs_flag & VFS_RDONLY)
 			return XFS_ERROR(EROFS);
@@ -140,8 +122,6 @@ xfs_qm_quotactl(
 		 * QUOTAON - enabling quota enforcement.
 		 * Quota accounting must be turned on at mount time.
 		 */
-		if (addr == NULL)
-			return XFS_ERROR(EINVAL);
 		if (vfsp->vfs_flag & VFS_RDONLY)
 			return XFS_ERROR(EROFS);
 		return (xfs_qm_scall_quotaon(mp,
@@ -151,6 +131,9 @@ xfs_qm_quotactl(
 		if (vfsp->vfs_flag & VFS_RDONLY)
 			return XFS_ERROR(EROFS);
 		break;
+
+	case Q_XQUOTASYNC:
+		return (xfs_sync_inodes(mp, SYNC_DELWRI, 0, NULL));
 
 	default:
 		break;
@@ -655,13 +638,13 @@ xfs_qm_scall_setqlim(
 	 */
 	hard = (newlim->d_fieldmask & FS_DQ_BHARD) ?
 		(xfs_qcnt_t) XFS_BB_TO_FSB(mp, newlim->d_blk_hardlimit) :
-			INT_GET(ddq->d_blk_hardlimit, ARCH_CONVERT);
+			be64_to_cpu(ddq->d_blk_hardlimit);
 	soft = (newlim->d_fieldmask & FS_DQ_BSOFT) ?
 		(xfs_qcnt_t) XFS_BB_TO_FSB(mp, newlim->d_blk_softlimit) :
-			INT_GET(ddq->d_blk_softlimit, ARCH_CONVERT);
+			be64_to_cpu(ddq->d_blk_softlimit);
 	if (hard == 0 || hard >= soft) {
-		INT_SET(ddq->d_blk_hardlimit, ARCH_CONVERT, hard);
-		INT_SET(ddq->d_blk_softlimit, ARCH_CONVERT, soft);
+		ddq->d_blk_hardlimit = cpu_to_be64(hard);
+		ddq->d_blk_softlimit = cpu_to_be64(soft);
 		if (id == 0) {
 			mp->m_quotainfo->qi_bhardlimit = hard;
 			mp->m_quotainfo->qi_bsoftlimit = soft;
@@ -671,13 +654,13 @@ xfs_qm_scall_setqlim(
 	}
 	hard = (newlim->d_fieldmask & FS_DQ_RTBHARD) ?
 		(xfs_qcnt_t) XFS_BB_TO_FSB(mp, newlim->d_rtb_hardlimit) :
-			INT_GET(ddq->d_rtb_hardlimit, ARCH_CONVERT);
+			be64_to_cpu(ddq->d_rtb_hardlimit);
 	soft = (newlim->d_fieldmask & FS_DQ_RTBSOFT) ?
 		(xfs_qcnt_t) XFS_BB_TO_FSB(mp, newlim->d_rtb_softlimit) :
-			INT_GET(ddq->d_rtb_softlimit, ARCH_CONVERT);
+			be64_to_cpu(ddq->d_rtb_softlimit);
 	if (hard == 0 || hard >= soft) {
-		INT_SET(ddq->d_rtb_hardlimit, ARCH_CONVERT, hard);
-		INT_SET(ddq->d_rtb_softlimit, ARCH_CONVERT, soft);
+		ddq->d_rtb_hardlimit = cpu_to_be64(hard);
+		ddq->d_rtb_softlimit = cpu_to_be64(soft);
 		if (id == 0) {
 			mp->m_quotainfo->qi_rtbhardlimit = hard;
 			mp->m_quotainfo->qi_rtbsoftlimit = soft;
@@ -688,13 +671,13 @@ xfs_qm_scall_setqlim(
 
 	hard = (newlim->d_fieldmask & FS_DQ_IHARD) ?
 		(xfs_qcnt_t) newlim->d_ino_hardlimit :
-			INT_GET(ddq->d_ino_hardlimit, ARCH_CONVERT);
+			be64_to_cpu(ddq->d_ino_hardlimit);
 	soft = (newlim->d_fieldmask & FS_DQ_ISOFT) ?
 		(xfs_qcnt_t) newlim->d_ino_softlimit :
-			INT_GET(ddq->d_ino_softlimit, ARCH_CONVERT);
+			be64_to_cpu(ddq->d_ino_softlimit);
 	if (hard == 0 || hard >= soft) {
-		INT_SET(ddq->d_ino_hardlimit, ARCH_CONVERT, hard);
-		INT_SET(ddq->d_ino_softlimit, ARCH_CONVERT, soft);
+		ddq->d_ino_hardlimit = cpu_to_be64(hard);
+		ddq->d_ino_softlimit = cpu_to_be64(soft);
 		if (id == 0) {
 			mp->m_quotainfo->qi_ihardlimit = hard;
 			mp->m_quotainfo->qi_isoftlimit = soft;
@@ -707,11 +690,11 @@ xfs_qm_scall_setqlim(
 	 * Update warnings counter(s) if requested
 	 */
 	if (newlim->d_fieldmask & FS_DQ_BWARNS)
-		INT_SET(ddq->d_bwarns, ARCH_CONVERT, newlim->d_bwarns);
+		ddq->d_bwarns = cpu_to_be16(newlim->d_bwarns);
 	if (newlim->d_fieldmask & FS_DQ_IWARNS)
-		INT_SET(ddq->d_iwarns, ARCH_CONVERT, newlim->d_iwarns);
+		ddq->d_iwarns = cpu_to_be16(newlim->d_iwarns);
 	if (newlim->d_fieldmask & FS_DQ_RTBWARNS)
-		INT_SET(ddq->d_rtbwarns, ARCH_CONVERT, newlim->d_rtbwarns);
+		ddq->d_rtbwarns = cpu_to_be16(newlim->d_rtbwarns);
 
 	if (id == 0) {
 		/*
@@ -723,15 +706,15 @@ xfs_qm_scall_setqlim(
 		 */
 		if (newlim->d_fieldmask & FS_DQ_BTIMER) {
 			mp->m_quotainfo->qi_btimelimit = newlim->d_btimer;
-			INT_SET(ddq->d_btimer, ARCH_CONVERT, newlim->d_btimer);
+			ddq->d_btimer = cpu_to_be32(newlim->d_btimer);
 		}
 		if (newlim->d_fieldmask & FS_DQ_ITIMER) {
 			mp->m_quotainfo->qi_itimelimit = newlim->d_itimer;
-			INT_SET(ddq->d_itimer, ARCH_CONVERT, newlim->d_itimer);
+			ddq->d_itimer = cpu_to_be32(newlim->d_itimer);
 		}
 		if (newlim->d_fieldmask & FS_DQ_RTBTIMER) {
 			mp->m_quotainfo->qi_rtbtimelimit = newlim->d_rtbtimer;
-			INT_SET(ddq->d_rtbtimer, ARCH_CONVERT, newlim->d_rtbtimer);
+			ddq->d_rtbtimer = cpu_to_be32(newlim->d_rtbtimer);
 		}
 		if (newlim->d_fieldmask & FS_DQ_BWARNS)
 			mp->m_quotainfo->qi_bwarnlimit = newlim->d_bwarns;
@@ -902,33 +885,27 @@ xfs_qm_export_dquot(
 {
 	memset(dst, 0, sizeof(*dst));
 	dst->d_version = FS_DQUOT_VERSION;  /* different from src->d_version */
-	dst->d_flags =
-		xfs_qm_export_qtype_flags(INT_GET(src->d_flags, ARCH_CONVERT));
-	dst->d_id = INT_GET(src->d_id, ARCH_CONVERT);
-	dst->d_blk_hardlimit = (__uint64_t)
-		XFS_FSB_TO_BB(mp, INT_GET(src->d_blk_hardlimit, ARCH_CONVERT));
-	dst->d_blk_softlimit = (__uint64_t)
-		XFS_FSB_TO_BB(mp, INT_GET(src->d_blk_softlimit, ARCH_CONVERT));
-	dst->d_ino_hardlimit = (__uint64_t)
-		INT_GET(src->d_ino_hardlimit, ARCH_CONVERT);
-	dst->d_ino_softlimit = (__uint64_t)
-		INT_GET(src->d_ino_softlimit, ARCH_CONVERT);
-	dst->d_bcount = (__uint64_t)
-		XFS_FSB_TO_BB(mp, INT_GET(src->d_bcount, ARCH_CONVERT));
-	dst->d_icount = (__uint64_t) INT_GET(src->d_icount, ARCH_CONVERT);
-	dst->d_btimer = (__uint32_t) INT_GET(src->d_btimer, ARCH_CONVERT);
-	dst->d_itimer = (__uint32_t) INT_GET(src->d_itimer, ARCH_CONVERT);
-	dst->d_iwarns = INT_GET(src->d_iwarns, ARCH_CONVERT);
-	dst->d_bwarns = INT_GET(src->d_bwarns, ARCH_CONVERT);
-
-	dst->d_rtb_hardlimit = (__uint64_t)
-		XFS_FSB_TO_BB(mp, INT_GET(src->d_rtb_hardlimit, ARCH_CONVERT));
-	dst->d_rtb_softlimit = (__uint64_t)
-		XFS_FSB_TO_BB(mp, INT_GET(src->d_rtb_softlimit, ARCH_CONVERT));
-	dst->d_rtbcount = (__uint64_t)
-		XFS_FSB_TO_BB(mp, INT_GET(src->d_rtbcount, ARCH_CONVERT));
-	dst->d_rtbtimer = (__uint32_t) INT_GET(src->d_rtbtimer, ARCH_CONVERT);
-	dst->d_rtbwarns = INT_GET(src->d_rtbwarns, ARCH_CONVERT);
+	dst->d_flags = xfs_qm_export_qtype_flags(src->d_flags);
+	dst->d_id = be32_to_cpu(src->d_id);
+	dst->d_blk_hardlimit =
+		XFS_FSB_TO_BB(mp, be64_to_cpu(src->d_blk_hardlimit));
+	dst->d_blk_softlimit =
+		XFS_FSB_TO_BB(mp, be64_to_cpu(src->d_blk_softlimit));
+	dst->d_ino_hardlimit = be64_to_cpu(src->d_ino_hardlimit);
+	dst->d_ino_softlimit = be64_to_cpu(src->d_ino_softlimit);
+	dst->d_bcount = XFS_FSB_TO_BB(mp, be64_to_cpu(src->d_bcount));
+	dst->d_icount = be64_to_cpu(src->d_icount);
+	dst->d_btimer = be32_to_cpu(src->d_btimer);
+	dst->d_itimer = be32_to_cpu(src->d_itimer);
+	dst->d_iwarns = be16_to_cpu(src->d_iwarns);
+	dst->d_bwarns = be16_to_cpu(src->d_bwarns);
+	dst->d_rtb_hardlimit =
+		XFS_FSB_TO_BB(mp, be64_to_cpu(src->d_rtb_hardlimit));
+	dst->d_rtb_softlimit =
+		XFS_FSB_TO_BB(mp, be64_to_cpu(src->d_rtb_softlimit));
+	dst->d_rtbcount = XFS_FSB_TO_BB(mp, be64_to_cpu(src->d_rtbcount));
+	dst->d_rtbtimer = be32_to_cpu(src->d_rtbtimer);
+	dst->d_rtbwarns = be16_to_cpu(src->d_rtbwarns);
 
 	/*
 	 * Internally, we don't reset all the timers when quota enforcement
@@ -1222,10 +1199,10 @@ xfs_qm_dqtest_failed(
 	qmtest_nfails++;
 	if (error)
 		cmn_err(CE_DEBUG, "quotacheck failed id=%d, err=%d\nreason: %s",
-		       INT_GET(d->d_id, ARCH_CONVERT), error, reason);
+		       d->d_id, error, reason);
 	else
 		cmn_err(CE_DEBUG, "quotacheck failed id=%d (%s) [%d != %d]",
-		       INT_GET(d->d_id, ARCH_CONVERT), reason, (int)a, (int)b);
+		       d->d_id, reason, (int)a, (int)b);
 	xfs_qm_dqtest_print(d);
 	if (dqp)
 		xfs_qm_dqprint(dqp);
@@ -1237,21 +1214,21 @@ xfs_dqtest_cmp2(
 	xfs_dquot_t	*dqp)
 {
 	int err = 0;
-	if (INT_GET(dqp->q_core.d_icount, ARCH_CONVERT) != d->d_icount) {
+	if (be64_to_cpu(dqp->q_core.d_icount) != d->d_icount) {
 		xfs_qm_dqtest_failed(d, dqp, "icount mismatch",
-			INT_GET(dqp->q_core.d_icount, ARCH_CONVERT),
+			be64_to_cpu(dqp->q_core.d_icount),
 			d->d_icount, 0);
 		err++;
 	}
-	if (INT_GET(dqp->q_core.d_bcount, ARCH_CONVERT) != d->d_bcount) {
+	if (be64_to_cpu(dqp->q_core.d_bcount) != d->d_bcount) {
 		xfs_qm_dqtest_failed(d, dqp, "bcount mismatch",
-			INT_GET(dqp->q_core.d_bcount, ARCH_CONVERT),
+			be64_to_cpu(dqp->q_core.d_bcount),
 			d->d_bcount, 0);
 		err++;
 	}
-	if (INT_GET(dqp->q_core.d_blk_softlimit, ARCH_CONVERT) &&
-	    INT_GET(dqp->q_core.d_bcount, ARCH_CONVERT) >=
-	    INT_GET(dqp->q_core.d_blk_softlimit, ARCH_CONVERT)) {
+	if (dqp->q_core.d_blk_softlimit &&
+	    be64_to_cpu(dqp->q_core.d_bcount) >=
+	    be64_to_cpu(dqp->q_core.d_blk_softlimit)) {
 		if (!dqp->q_core.d_btimer && dqp->q_core.d_id) {
 			cmn_err(CE_DEBUG,
 				"%d [%s] [0x%p] BLK TIMER NOT STARTED",
@@ -1259,9 +1236,9 @@ xfs_dqtest_cmp2(
 			err++;
 		}
 	}
-	if (INT_GET(dqp->q_core.d_ino_softlimit, ARCH_CONVERT) &&
-	    INT_GET(dqp->q_core.d_icount, ARCH_CONVERT) >=
-	    INT_GET(dqp->q_core.d_ino_softlimit, ARCH_CONVERT)) {
+	if (dqp->q_core.d_ino_softlimit &&
+	    be64_to_cpu(dqp->q_core.d_icount) >=
+	    be64_to_cpu(dqp->q_core.d_ino_softlimit)) {
 		if (!dqp->q_core.d_itimer && dqp->q_core.d_id) {
 			cmn_err(CE_DEBUG,
 				"%d [%s] [0x%p] INO TIMER NOT STARTED",

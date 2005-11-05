@@ -451,14 +451,14 @@ static inline void pdc20621_host_pkt(struct ata_taskfile *tf, u8 *buf,
 
 static void pdc20621_dma_prep(struct ata_queued_cmd *qc)
 {
-	struct scatterlist *sg = qc->sg;
+	struct scatterlist *sg;
 	struct ata_port *ap = qc->ap;
 	struct pdc_port_priv *pp = ap->private_data;
 	void __iomem *mmio = ap->host_set->mmio_base;
 	struct pdc_host_priv *hpriv = ap->host_set->private_data;
 	void __iomem *dimm_mmio = hpriv->dimm_mmio;
 	unsigned int portno = ap->port_no;
-	unsigned int i, last, idx, total_len = 0, sgt_len;
+	unsigned int i, idx, total_len = 0, sgt_len;
 	u32 *buf = (u32 *) &pp->dimm_buf[PDC_DIMM_HEADER_SZ];
 
 	assert(qc->flags & ATA_QCFLAG_DMAMAP);
@@ -471,12 +471,11 @@ static void pdc20621_dma_prep(struct ata_queued_cmd *qc)
 	/*
 	 * Build S/G table
 	 */
-	last = qc->n_elem;
 	idx = 0;
-	for (i = 0; i < last; i++) {
-		buf[idx++] = cpu_to_le32(sg_dma_address(&sg[i]));
-		buf[idx++] = cpu_to_le32(sg_dma_len(&sg[i]));
-		total_len += sg_dma_len(&sg[i]);
+	ata_for_each_sg(sg, qc) {
+		buf[idx++] = cpu_to_le32(sg_dma_address(sg));
+		buf[idx++] = cpu_to_le32(sg_dma_len(sg));
+		total_len += sg_dma_len(sg);
 	}
 	buf[idx - 1] |= cpu_to_le32(ATA_PRD_EOT);
 	sgt_len = idx * 4;

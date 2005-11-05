@@ -16,6 +16,8 @@
 #include <linux/init.h>
 #include <linux/zorro.h>
 #include <linux/bitops.h>
+#include <linux/string.h>
+
 #include <asm/setup.h>
 #include <asm/amigahw.h>
 

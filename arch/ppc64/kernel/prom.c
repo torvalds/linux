@@ -46,7 +46,6 @@
 #include <asm/pgtable.h>
 #include <asm/pci.h>
 #include <asm/iommu.h>
-#include <asm/bootinfo.h>
 #include <asm/ppcdebug.h>
 #include <asm/btext.h>
 #include <asm/sections.h>
@@ -78,11 +77,14 @@ typedef int interpret_func(struct device_node *, unsigned long *,
 extern struct rtas_t rtas;
 extern struct lmb lmb;
 extern unsigned long klimit;
+extern unsigned long memory_limit;
 
 static int __initdata dt_root_addr_cells;
 static int __initdata dt_root_size_cells;
 static int __initdata iommu_is_off;
 int __initdata iommu_force_on;
+unsigned long tce_alloc_start, tce_alloc_end;
+
 typedef u32 cell_t;
 
 #if 0
@@ -1063,7 +1065,6 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 {
 	u32 *prop;
 	u64 *prop64;
-	extern unsigned long memory_limit, tce_alloc_start, tce_alloc_end;
 
 	DBG("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
 
@@ -1237,7 +1238,7 @@ void __init early_init_devtree(void *params)
 	lmb_init();
 	scan_flat_dt(early_init_dt_scan_root, NULL);
 	scan_flat_dt(early_init_dt_scan_memory, NULL);
-	lmb_enforce_memory_limit();
+	lmb_enforce_memory_limit(memory_limit);
 	lmb_analyze();
 	systemcfg->physicalMemorySize = lmb_phys_mem_size();
 	lmb_reserve(0, __pa(klimit));

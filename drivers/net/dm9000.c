@@ -66,6 +66,7 @@
 #include <linux/mii.h>
 #include <linux/dm9000.h>
 #include <linux/delay.h>
+#include <linux/platform_device.h>
 
 #include <asm/delay.h>
 #include <asm/irq.h>

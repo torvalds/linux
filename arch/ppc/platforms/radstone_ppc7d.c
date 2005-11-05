@@ -40,6 +40,7 @@
 #include <linux/serial_core.h>
 #include <linux/mv643xx.h>
 #include <linux/netdevice.h>
+#include <linux/platform_device.h>
 
 #include <asm/system.h>
 #include <asm/pgtable.h>
@@ -514,13 +515,9 @@ static void __init ppc7d_init_irq(void)
 	int irq;
 
 	pr_debug("%s\n", __FUNCTION__);
-	i8259_init(0);
+	i8259_init(0, 0);
 	mv64360_init_irq();
 
-	/* IRQ 0..15 are handled by the cascaded 8259's of the Ali1535 */
-	for (irq = 0; irq < 16; irq++) {
-		irq_desc[irq].handler = &i8259_pic;
-	}
 	/* IRQs 5,6,9,10,11,14,15 are level sensitive */
 	irq_desc[5].status |= IRQ_LEVEL;
 	irq_desc[6].status |= IRQ_LEVEL;
@@ -1183,18 +1180,18 @@ static void __init ppc7d_setup_arch(void)
 		ROOT_DEV = Root_HDA1;
 #endif
 
-	if ((cur_cpu_spec[0]->cpu_features & CPU_FTR_SPEC7450) ||
-	    (cur_cpu_spec[0]->cpu_features & CPU_FTR_L3CR))
+	if ((cur_cpu_spec->cpu_features & CPU_FTR_SPEC7450) ||
+	    (cur_cpu_spec->cpu_features & CPU_FTR_L3CR))
 		/* 745x is different.  We only want to pass along enable. */
 		_set_L2CR(L2CR_L2E);
-	else if (cur_cpu_spec[0]->cpu_features & CPU_FTR_L2CR)
+	else if (cur_cpu_spec->cpu_features & CPU_FTR_L2CR)
 		/* All modules have 1MB of L2.  We also assume that an
 		 * L2 divisor of 3 will work.
 		 */
 		_set_L2CR(L2CR_L2E | L2CR_L2SIZ_1MB | L2CR_L2CLK_DIV3
 			  | L2CR_L2RAM_PIPE | L2CR_L2OH_1_0 | L2CR_L2DF);
 
-	if (cur_cpu_spec[0]->cpu_features & CPU_FTR_L3CR)
+	if (cur_cpu_spec->cpu_features & CPU_FTR_L3CR)
 		/* No L3 cache */
 		_set_L3CR(0);
 
@@ -1424,6 +1421,7 @@ void __init platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.setup_arch = ppc7d_setup_arch;
 	ppc_md.init = ppc7d_init2;
 	ppc_md.show_cpuinfo = ppc7d_show_cpuinfo;
+	/* XXX this is broken... */
 	ppc_md.irq_canonicalize = ppc7d_irq_canonicalize;
 	ppc_md.init_IRQ = ppc7d_init_irq;
 	ppc_md.get_irq = ppc7d_get_irq;

@@ -1896,7 +1896,7 @@ void smt_swap_para(struct smt_header *sm, int len, int direction)
 
 static void smt_string_swap(char *data, const char *format, int len)
 {
-	const char	*open_paren = 0 ;
+	const char	*open_paren = NULL ;
 	int	x ;
 
 	while (len > 0  && *format) {

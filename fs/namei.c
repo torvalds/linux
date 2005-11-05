@@ -1311,9 +1311,6 @@ static inline int may_create(struct inode *dir, struct dentry *child,
 }
 
 /* 
- * Special case: O_CREAT|O_EXCL implies O_NOFOLLOW for security
- * reasons.
- *
  * O_DIRECTORY translates into forcing a directory lookup.
  */
 static inline int lookup_flags(unsigned int f)
@@ -1321,9 +1318,6 @@ static inline int lookup_flags(unsigned int f)
 	unsigned long retval = LOOKUP_FOLLOW;
 
 	if (f & O_NOFOLLOW)
-		retval &= ~LOOKUP_FOLLOW;
-	
-	if ((f & (O_CREAT|O_EXCL)) == (O_CREAT|O_EXCL))
 		retval &= ~LOOKUP_FOLLOW;
 	
 	if (f & O_DIRECTORY)

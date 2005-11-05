@@ -86,8 +86,8 @@ void br_fdb_changeaddr(struct net_bridge_port *p, const unsigned char *newaddr)
 				struct net_bridge_port *op;
 				list_for_each_entry(op, &br->port_list, list) {
 					if (op != p && 
-					    !memcmp(op->dev->dev_addr,
-						    f->addr.addr, ETH_ALEN)) {
+					    !compare_ether_addr(op->dev->dev_addr,
+								f->addr.addr)) {
 						f->dst = op;
 						goto insert;
 					}
@@ -151,8 +151,8 @@ void br_fdb_delete_by_port(struct net_bridge *br, struct net_bridge_port *p)
 				struct net_bridge_port *op;
 				list_for_each_entry(op, &br->port_list, list) {
 					if (op != p && 
-					    !memcmp(op->dev->dev_addr,
-						    f->addr.addr, ETH_ALEN)) {
+					    !compare_ether_addr(op->dev->dev_addr,
+								f->addr.addr)) {
 						f->dst = op;
 						goto skip_delete;
 					}
@@ -174,7 +174,7 @@ struct net_bridge_fdb_entry *__br_fdb_get(struct net_bridge *br,
 	struct net_bridge_fdb_entry *fdb;
 
 	hlist_for_each_entry_rcu(fdb, h, &br->hash[br_mac_hash(addr)], hlist) {
-		if (!memcmp(fdb->addr.addr, addr, ETH_ALEN)) {
+		if (!compare_ether_addr(fdb->addr.addr, addr)) {
 			if (unlikely(has_expired(br, fdb)))
 				break;
 			return fdb;
@@ -264,7 +264,7 @@ static inline struct net_bridge_fdb_entry *fdb_find(struct hlist_head *head,
 	struct net_bridge_fdb_entry *fdb;
 
 	hlist_for_each_entry_rcu(fdb, h, head, hlist) {
-		if (!memcmp(fdb->addr.addr, addr, ETH_ALEN))
+		if (!compare_ether_addr(fdb->addr.addr, addr))
 			return fdb;
 	}
 	return NULL;

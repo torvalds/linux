@@ -397,9 +397,6 @@ static inline pte_t *pmd_page_kernel(pmd_t pmd)
 #define pgd_clear(pgdp)		do { } while (0)
 #define set_pgd(pgd,pgdp)	do { } while (0)
 
-#define page_pte_prot(page,prot)	mk_pte(page, prot)
-#define page_pte(page)		mk_pte(page, __pgprot(0))
-
 /* to find an entry in a page-table-directory */
 #define pgd_index(addr)		((addr) >> PGDIR_SHIFT)
 

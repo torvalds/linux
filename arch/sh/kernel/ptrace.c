@@ -80,7 +80,7 @@ void ptrace_disable(struct task_struct *child)
 	/* nothing to do.. */
 }
 
-asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
+asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
 	struct user * dummy = NULL;

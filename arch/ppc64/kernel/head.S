@@ -35,7 +35,8 @@
 #include <asm/cputable.h>
 #include <asm/setup.h>
 #include <asm/hvcall.h>
-#include <asm/iSeries/LparMap.h>
+#include <asm/iseries/lpar_map.h>
+#include <asm/thread_info.h>
 
 #ifdef CONFIG_PPC_ISERIES
 #define DO_SOFT_DISABLE
@@ -80,7 +81,7 @@ _stext:
 _GLOBAL(__start)
 	/* NOP this out unconditionally */
 BEGIN_FTR_SECTION
-	b .__start_initialization_multiplatform
+	b	.__start_initialization_multiplatform
 END_FTR_SECTION(0, 1)
 #endif /* CONFIG_PPC_MULTIPLATFORM */
 
@@ -201,22 +202,22 @@ exception_marker:
 #define EX_CCR		60
 
 #define EXCEPTION_PROLOG_PSERIES(area, label)				\
-	mfspr	r13,SPRG3;		/* get paca address into r13 */	\
+	mfspr	r13,SPRN_SPRG3;		/* get paca address into r13 */	\
 	std	r9,area+EX_R9(r13);	/* save r9 - r12 */		\
 	std	r10,area+EX_R10(r13);					\
 	std	r11,area+EX_R11(r13);					\
 	std	r12,area+EX_R12(r13);					\
-	mfspr	r9,SPRG1;						\
+	mfspr	r9,SPRN_SPRG1;						\
 	std	r9,area+EX_R13(r13);					\
 	mfcr	r9;							\
 	clrrdi	r12,r13,32;		/* get high part of &label */	\
 	mfmsr	r10;							\
-	mfspr	r11,SRR0;		/* save SRR0 */			\
+	mfspr	r11,SPRN_SRR0;		/* save SRR0 */			\
 	ori	r12,r12,(label)@l;	/* virt addr of handler */	\
 	ori	r10,r10,MSR_IR|MSR_DR|MSR_RI;				\
-	mtspr	SRR0,r12;						\
-	mfspr	r12,SRR1;		/* and SRR1 */			\
-	mtspr	SRR1,r10;						\
+	mtspr	SPRN_SRR0,r12;						\
+	mfspr	r12,SPRN_SRR1;		/* and SRR1 */			\
+	mtspr	SPRN_SRR1,r10;						\
 	rfid;								\
 	b	.	/* prevent speculative execution */
 
@@ -225,12 +226,12 @@ exception_marker:
  * This code runs with relocation on.
  */
 #define EXCEPTION_PROLOG_ISERIES_1(area)				\
-	mfspr	r13,SPRG3;		/* get paca address into r13 */	\
+	mfspr	r13,SPRN_SPRG3;		/* get paca address into r13 */	\
 	std	r9,area+EX_R9(r13);	/* save r9 - r12 */		\
 	std	r10,area+EX_R10(r13);					\
 	std	r11,area+EX_R11(r13);					\
 	std	r12,area+EX_R12(r13);					\
-	mfspr	r9,SPRG1;						\
+	mfspr	r9,SPRN_SPRG1;						\
 	std	r9,area+EX_R13(r13);					\
 	mfcr	r9
 
@@ -283,7 +284,7 @@ exception_marker:
 	std	r9,_LINK(r1);						   \
 	mfctr	r10;			/* save CTR in stackframe	*/ \
 	std	r10,_CTR(r1);						   \
-	mfspr	r11,XER;		/* save XER in stackframe	*/ \
+	mfspr	r11,SPRN_XER;		/* save XER in stackframe	*/ \
 	std	r11,_XER(r1);						   \
 	li	r9,(n)+1;						   \
 	std	r9,_TRAP(r1);		/* set trap number		*/ \
@@ -300,7 +301,7 @@ exception_marker:
 	.globl label##_pSeries;				\
 label##_pSeries:					\
 	HMT_MEDIUM;					\
-	mtspr	SPRG1,r13;		/* save r13 */	\
+	mtspr	SPRN_SPRG1,r13;		/* save r13 */	\
 	RUNLATCH_ON(r13);				\
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, label##_common)
 
@@ -308,7 +309,7 @@ label##_pSeries:					\
 	.globl label##_iSeries;				\
 label##_iSeries:					\
 	HMT_MEDIUM;					\
-	mtspr	SPRG1,r13;		/* save r13 */	\
+	mtspr	SPRN_SPRG1,r13;		/* save r13 */	\
 	RUNLATCH_ON(r13);				\
 	EXCEPTION_PROLOG_ISERIES_1(area);		\
 	EXCEPTION_PROLOG_ISERIES_2;			\
@@ -318,7 +319,7 @@ label##_iSeries:					\
 	.globl label##_iSeries;						\
 label##_iSeries:							\
 	HMT_MEDIUM;							\
-	mtspr	SPRG1,r13;		/* save r13 */			\
+	mtspr	SPRN_SPRG1,r13;		/* save r13 */			\
 	RUNLATCH_ON(r13);						\
 	EXCEPTION_PROLOG_ISERIES_1(PACA_EXGEN);				\
 	lbz	r10,PACAPROCENABLED(r13);				\
@@ -388,7 +389,7 @@ __start_interrupts:
 	. = 0x200
 _machine_check_pSeries:
 	HMT_MEDIUM
-	mtspr	SPRG1,r13		/* save r13 */
+	mtspr	SPRN_SPRG1,r13		/* save r13 */
 	RUNLATCH_ON(r13)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
 
@@ -396,18 +397,18 @@ _machine_check_pSeries:
 	.globl data_access_pSeries
 data_access_pSeries:
 	HMT_MEDIUM
-	mtspr	SPRG1,r13
+	mtspr	SPRN_SPRG1,r13
 BEGIN_FTR_SECTION
-	mtspr	SPRG2,r12
-	mfspr	r13,DAR
-	mfspr	r12,DSISR
+	mtspr	SPRN_SPRG2,r12
+	mfspr	r13,SPRN_DAR
+	mfspr	r12,SPRN_DSISR
 	srdi	r13,r13,60
 	rlwimi	r13,r12,16,0x20
 	mfcr	r12
 	cmpwi	r13,0x2c
 	beq	.do_stab_bolted_pSeries
 	mtcrf	0x80,r12
-	mfspr	r12,SPRG2
+	mfspr	r12,SPRN_SPRG2
 END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, data_access_common)
 
@@ -415,19 +416,19 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 	.globl data_access_slb_pSeries
 data_access_slb_pSeries:
 	HMT_MEDIUM
-	mtspr	SPRG1,r13
+	mtspr	SPRN_SPRG1,r13
 	RUNLATCH_ON(r13)
-	mfspr	r13,SPRG3		/* get paca address into r13 */
+	mfspr	r13,SPRN_SPRG3		/* get paca address into r13 */
 	std	r9,PACA_EXSLB+EX_R9(r13)	/* save r9 - r12 */
 	std	r10,PACA_EXSLB+EX_R10(r13)
 	std	r11,PACA_EXSLB+EX_R11(r13)
 	std	r12,PACA_EXSLB+EX_R12(r13)
 	std	r3,PACA_EXSLB+EX_R3(r13)
-	mfspr	r9,SPRG1
+	mfspr	r9,SPRN_SPRG1
 	std	r9,PACA_EXSLB+EX_R13(r13)
 	mfcr	r9
-	mfspr	r12,SRR1		/* and SRR1 */
-	mfspr	r3,DAR
+	mfspr	r12,SPRN_SRR1		/* and SRR1 */
+	mfspr	r3,SPRN_DAR
 	b	.do_slb_miss		/* Rel. branch works in real mode */
 
 	STD_EXCEPTION_PSERIES(0x400, instruction_access)
@@ -436,19 +437,19 @@ data_access_slb_pSeries:
 	.globl instruction_access_slb_pSeries
 instruction_access_slb_pSeries:
 	HMT_MEDIUM
-	mtspr	SPRG1,r13
+	mtspr	SPRN_SPRG1,r13
 	RUNLATCH_ON(r13)
-	mfspr	r13,SPRG3		/* get paca address into r13 */
+	mfspr	r13,SPRN_SPRG3		/* get paca address into r13 */
 	std	r9,PACA_EXSLB+EX_R9(r13)	/* save r9 - r12 */
 	std	r10,PACA_EXSLB+EX_R10(r13)
 	std	r11,PACA_EXSLB+EX_R11(r13)
 	std	r12,PACA_EXSLB+EX_R12(r13)
 	std	r3,PACA_EXSLB+EX_R3(r13)
-	mfspr	r9,SPRG1
+	mfspr	r9,SPRN_SPRG1
 	std	r9,PACA_EXSLB+EX_R13(r13)
 	mfcr	r9
-	mfspr	r12,SRR1		/* and SRR1 */
-	mfspr	r3,SRR0			/* SRR0 is faulting address */
+	mfspr	r12,SPRN_SRR1		/* and SRR1 */
+	mfspr	r3,SPRN_SRR0			/* SRR0 is faulting address */
 	b	.do_slb_miss		/* Rel. branch works in real mode */
 
 	STD_EXCEPTION_PSERIES(0x500, hardware_interrupt)
@@ -466,15 +467,15 @@ system_call_pSeries:
 	RUNLATCH_ON(r9)
 	mr	r9,r13
 	mfmsr	r10
-	mfspr	r13,SPRG3
-	mfspr	r11,SRR0
+	mfspr	r13,SPRN_SPRG3
+	mfspr	r11,SPRN_SRR0
 	clrrdi	r12,r13,32
 	oris	r12,r12,system_call_common@h
 	ori	r12,r12,system_call_common@l
-	mtspr	SRR0,r12
+	mtspr	SPRN_SRR0,r12
 	ori	r10,r10,MSR_IR|MSR_DR|MSR_RI
-	mfspr	r12,SRR1
-	mtspr	SRR1,r10
+	mfspr	r12,SPRN_SRR1
+	mtspr	SPRN_SRR1,r10
 	rfid
 	b	.	/* prevent speculative execution */
 
@@ -504,25 +505,25 @@ system_call_pSeries:
 	.align	7
 _GLOBAL(do_stab_bolted_pSeries)
 	mtcrf	0x80,r12
-	mfspr	r12,SPRG2
+	mfspr	r12,SPRN_SPRG2
 	EXCEPTION_PROLOG_PSERIES(PACA_EXSLB, .do_stab_bolted)
 
 /*
  * Vectors for the FWNMI option.  Share common code.
  */
-      .globl system_reset_fwnmi
+	.globl system_reset_fwnmi
 system_reset_fwnmi:
-      HMT_MEDIUM
-      mtspr   SPRG1,r13               /* save r13 */
-      RUNLATCH_ON(r13)
-      EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common)
+	HMT_MEDIUM
+	mtspr	SPRN_SPRG1,r13		/* save r13 */
+	RUNLATCH_ON(r13)
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common)
 
-      .globl machine_check_fwnmi
+	.globl machine_check_fwnmi
 machine_check_fwnmi:
-      HMT_MEDIUM
-      mtspr   SPRG1,r13               /* save r13 */
-      RUNLATCH_ON(r13)
-      EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
+	HMT_MEDIUM
+	mtspr	SPRN_SPRG1,r13		/* save r13 */
+	RUNLATCH_ON(r13)
+	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
 
 #ifdef CONFIG_PPC_ISERIES
 /***  ISeries-LPAR interrupt handlers ***/
@@ -531,18 +532,18 @@ machine_check_fwnmi:
 
 	.globl data_access_iSeries
 data_access_iSeries:
-	mtspr	SPRG1,r13
+	mtspr	SPRN_SPRG1,r13
 BEGIN_FTR_SECTION
-	mtspr	SPRG2,r12
-	mfspr	r13,DAR
-	mfspr	r12,DSISR
+	mtspr	SPRN_SPRG2,r12
+	mfspr	r13,SPRN_DAR
+	mfspr	r12,SPRN_DSISR
 	srdi	r13,r13,60
 	rlwimi	r13,r12,16,0x20
 	mfcr	r12
 	cmpwi	r13,0x2c
 	beq	.do_stab_bolted_iSeries
 	mtcrf	0x80,r12
-	mfspr	r12,SPRG2
+	mfspr	r12,SPRN_SPRG2
 END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 	EXCEPTION_PROLOG_ISERIES_1(PACA_EXGEN)
 	EXCEPTION_PROLOG_ISERIES_2
@@ -550,25 +551,25 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 
 .do_stab_bolted_iSeries:
 	mtcrf	0x80,r12
-	mfspr	r12,SPRG2
+	mfspr	r12,SPRN_SPRG2
 	EXCEPTION_PROLOG_ISERIES_1(PACA_EXSLB)
 	EXCEPTION_PROLOG_ISERIES_2
 	b	.do_stab_bolted
 
 	.globl	data_access_slb_iSeries
 data_access_slb_iSeries:
-	mtspr	SPRG1,r13		/* save r13 */
+	mtspr	SPRN_SPRG1,r13		/* save r13 */
 	EXCEPTION_PROLOG_ISERIES_1(PACA_EXSLB)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	ld	r12,PACALPPACA+LPPACASRR1(r13)
-	mfspr	r3,DAR
+	mfspr	r3,SPRN_DAR
 	b	.do_slb_miss
 
 	STD_EXCEPTION_ISERIES(0x400, instruction_access, PACA_EXGEN)
 
 	.globl	instruction_access_slb_iSeries
 instruction_access_slb_iSeries:
-	mtspr	SPRG1,r13		/* save r13 */
+	mtspr	SPRN_SPRG1,r13		/* save r13 */
 	EXCEPTION_PROLOG_ISERIES_1(PACA_EXSLB)
 	std	r3,PACA_EXSLB+EX_R3(r13)
 	ld	r12,PACALPPACA+LPPACASRR1(r13)
@@ -586,7 +587,7 @@ instruction_access_slb_iSeries:
 	.globl	system_call_iSeries
 system_call_iSeries:
 	mr	r9,r13
-	mfspr	r13,SPRG3
+	mfspr	r13,SPRN_SPRG3
 	EXCEPTION_PROLOG_ISERIES_2
 	b	system_call_common
 
@@ -596,7 +597,7 @@ system_call_iSeries:
 
 	.globl system_reset_iSeries
 system_reset_iSeries:
-	mfspr	r13,SPRG3		/* Get paca address */
+	mfspr	r13,SPRN_SPRG3		/* Get paca address */
 	mfmsr	r24
 	ori	r24,r24,MSR_RI
 	mtmsrd	r24			/* RI on */
@@ -639,7 +640,7 @@ iSeries_secondary_smp_loop:
 #endif /* CONFIG_SMP */
 	li	r0,-1			/* r0=-1 indicates a Hypervisor call */
 	sc				/* Invoke the hypervisor via a system call */
-	mfspr	r13,SPRG3		/* Put r13 back ???? */
+	mfspr	r13,SPRN_SPRG3		/* Put r13 back ???? */
 	b	1b			/* If SMP not configured, secondaries
 					 * loop forever */
 
@@ -656,8 +657,8 @@ hardware_interrupt_iSeries_masked:
 	mtcrf	0x80,r9		/* Restore regs */
 	ld	r11,PACALPPACA+LPPACASRR0(r13)
 	ld	r12,PACALPPACA+LPPACASRR1(r13)
-	mtspr	SRR0,r11
-	mtspr	SRR1,r12
+	mtspr	SPRN_SRR0,r11
+	mtspr	SPRN_SRR1,r12
 	ld	r9,PACA_EXGEN+EX_R9(r13)
 	ld	r10,PACA_EXGEN+EX_R10(r13)
 	ld	r11,PACA_EXGEN+EX_R11(r13)
@@ -713,8 +714,8 @@ bad_stack:
 	std	r10,GPR1(r1)
 	std	r11,_NIP(r1)
 	std	r12,_MSR(r1)
-	mfspr	r11,DAR
-	mfspr	r12,DSISR
+	mfspr	r11,SPRN_DAR
+	mfspr	r12,SPRN_DSISR
 	std	r11,_DAR(r1)
 	std	r12,_DSISR(r1)
 	mflr	r10
@@ -746,6 +747,7 @@ bad_stack:
  * any task or sent any task a signal, you should use
  * ret_from_except or ret_from_except_lite instead of this.
  */
+	.globl	fast_exception_return
 fast_exception_return:
 	ld	r12,_MSR(r1)
 	ld	r11,_NIP(r1)
@@ -766,8 +768,8 @@ fast_exception_return:
 	clrrdi	r10,r10,2		/* clear RI (LE is 0 already) */
 	mtmsrd	r10,1
 
-	mtspr	SRR1,r12
-	mtspr	SRR0,r11
+	mtspr	SPRN_SRR1,r12
+	mtspr	SPRN_SRR0,r11
 	REST_4GPRS(10, r1)
 	ld	r1,GPR1(r1)
 	rfid
@@ -788,9 +790,9 @@ unrecov_fer:
 	.globl data_access_common
 data_access_common:
 	RUNLATCH_ON(r10)		/* It wont fit in the 0x300 handler */
-	mfspr	r10,DAR
+	mfspr	r10,SPRN_DAR
 	std	r10,PACA_EXGEN+EX_DAR(r13)
-	mfspr	r10,DSISR
+	mfspr	r10,SPRN_DSISR
 	stw	r10,PACA_EXGEN+EX_DSISR(r13)
 	EXCEPTION_PROLOG_COMMON(0x300, PACA_EXGEN)
 	ld	r3,PACA_EXGEN+EX_DAR(r13)
@@ -821,9 +823,9 @@ hardware_interrupt_entry:
 	.align	7
 	.globl alignment_common
 alignment_common:
-	mfspr	r10,DAR
+	mfspr	r10,SPRN_DAR
 	std	r10,PACA_EXGEN+EX_DAR(r13)
-	mfspr	r10,DSISR
+	mfspr	r10,SPRN_DSISR
 	stw	r10,PACA_EXGEN+EX_DSISR(r13)
 	EXCEPTION_PROLOG_COMMON(0x600, PACA_EXGEN)
 	ld	r3,PACA_EXGEN+EX_DAR(r13)
@@ -856,62 +858,6 @@ fp_unavailable_common:
 	ENABLE_INTS
 	bl	.kernel_fp_unavailable_exception
 	BUG_OPCODE
-
-/*
- * load_up_fpu(unused, unused, tsk)
- * Disable FP for the task which had the FPU previously,
- * and save its floating-point registers in its thread_struct.
- * Enables the FPU for use in the kernel on return.
- * On SMP we know the fpu is free, since we give it up every
- * switch (ie, no lazy save of the FP registers).
- * On entry: r13 == 'current' && last_task_used_math != 'current'
- */
-_STATIC(load_up_fpu)
-	mfmsr	r5			/* grab the current MSR */
-	ori	r5,r5,MSR_FP
-	mtmsrd	r5			/* enable use of fpu now */
-	isync
-/*
- * For SMP, we don't do lazy FPU switching because it just gets too
- * horrendously complex, especially when a task switches from one CPU
- * to another.  Instead we call giveup_fpu in switch_to.
- *
- */
-#ifndef CONFIG_SMP
-	ld	r3,last_task_used_math@got(r2)
-	ld	r4,0(r3)
-	cmpdi	0,r4,0
-	beq	1f
-	/* Save FP state to last_task_used_math's THREAD struct */
-	addi	r4,r4,THREAD
-	SAVE_32FPRS(0, r4)
-	mffs	fr0
-	stfd	fr0,THREAD_FPSCR(r4)
-	/* Disable FP for last_task_used_math */
-	ld	r5,PT_REGS(r4)
-	ld	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-	li	r6,MSR_FP|MSR_FE0|MSR_FE1
-	andc	r4,r4,r6
-	std	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-1:
-#endif /* CONFIG_SMP */
-	/* enable use of FP after return */
-	ld	r4,PACACURRENT(r13)
-	addi	r5,r4,THREAD		/* Get THREAD */
-	ld	r4,THREAD_FPEXC_MODE(r5)
-	ori	r12,r12,MSR_FP
-	or	r12,r12,r4
-	std	r12,_MSR(r1)
-	lfd	fr0,THREAD_FPSCR(r5)
-	mtfsf	0xff,fr0
-	REST_32FPRS(0, r5)
-#ifndef CONFIG_SMP
-	/* Update last_task_used_math to 'current' */
-	subi	r4,r5,THREAD		/* Back to 'current' */
-	std	r4,0(r3)
-#endif /* CONFIG_SMP */
-	/* restore registers and return */
-	b	fast_exception_return
 
 	.align	7
 	.globl altivec_unavailable_common
@@ -1120,7 +1066,7 @@ _GLOBAL(do_stab_bolted)
 
 	/* Hash to the primary group */
 	ld	r10,PACASTABVIRT(r13)
-	mfspr	r11,DAR
+	mfspr	r11,SPRN_DAR
 	srdi	r11,r11,28
 	rldimi	r10,r11,7,52	/* r10 = first ste of the group */
 
@@ -1162,7 +1108,7 @@ _GLOBAL(do_stab_bolted)
 2:	std	r9,8(r10)	/* Store the vsid part of the ste	*/
 	eieio
 
-	mfspr	r11,DAR		/* Get the new esid			*/
+	mfspr	r11,SPRN_DAR		/* Get the new esid			*/
 	clrrdi	r11,r11,28	/* Permits a full 32b of ESID		*/
 	ori	r11,r11,0x90	/* Turn on valid and kp			*/
 	std	r11,0(r10)	/* Put new entry back into the stab	*/
@@ -1182,8 +1128,8 @@ _GLOBAL(do_stab_bolted)
 	clrrdi	r10,r10,2
 	mtmsrd	r10,1
 
-	mtspr	SRR0,r11
-	mtspr	SRR1,r12
+	mtspr	SPRN_SRR0,r11
+	mtspr	SPRN_SRR1,r12
 	ld	r9,PACA_EXSLB+EX_R9(r13)
 	ld	r10,PACA_EXSLB+EX_R10(r13)
 	ld	r11,PACA_EXSLB+EX_R11(r13)
@@ -1229,8 +1175,8 @@ _GLOBAL(do_slb_miss)
 .machine	pop
 
 #ifdef CONFIG_PPC_ISERIES
-	mtspr	SRR0,r11
-	mtspr	SRR1,r12
+	mtspr	SPRN_SRR0,r11
+	mtspr	SPRN_SRR1,r12
 #endif /* CONFIG_PPC_ISERIES */
 	ld	r9,PACA_EXSLB+EX_R9(r13)
 	ld	r10,PACA_EXSLB+EX_R10(r13)
@@ -1253,7 +1199,7 @@ unrecov_slb:
  *
  * On iSeries, the hypervisor must fill in at least one entry before
  * we get control (with relocate on).  The address is give to the hv
- * as a page number (see xLparMap in LparData.c), so this must be at a
+ * as a page number (see xLparMap in lpardata.c), so this must be at a
  * fixed address (the linker can't compute (u64)&initial_stab >>
  * PAGE_SHIFT).
  */
@@ -1316,7 +1262,7 @@ _GLOBAL(pSeries_secondary_smp_init)
 	mr	r3,r24			/* not found, copy phys to r3	 */
 	b	.kexec_wait		/* next kernel might do better	 */
 
-2:	mtspr	SPRG3,r13		/* Save vaddr of paca in SPRG3	 */
+2:	mtspr	SPRN_SPRG3,r13		/* Save vaddr of paca in SPRG3	 */
 	/* From now on, r24 is expected to be logical cpuid */
 	mr	r24,r5
 3:	HMT_LOW
@@ -1364,6 +1310,7 @@ _STATIC(__start_initialization_iSeries)
 	addi	r2,r2,0x4000
 
 	bl	.iSeries_early_setup
+	bl	.early_setup
 
 	/* relocation is on at this point */
 
@@ -1554,20 +1501,17 @@ copy_to_here:
 	.section ".text";
 	.align 2 ;
 
-	.globl	pmac_secondary_start_1	
-pmac_secondary_start_1:	
-	li	r24, 1
-	b	.pmac_secondary_start
-	
-	.globl pmac_secondary_start_2
-pmac_secondary_start_2:	
-	li	r24, 2
-	b	.pmac_secondary_start
-	
-	.globl pmac_secondary_start_3
-pmac_secondary_start_3:
-	li	r24, 3
-	b	.pmac_secondary_start
+	.globl	__secondary_start_pmac_0
+__secondary_start_pmac_0:
+	/* NB the entries for cpus 0, 1, 2 must each occupy 8 bytes. */
+	li	r24,0
+	b	1f
+	li	r24,1
+	b	1f
+	li	r24,2
+	b	1f
+	li	r24,3
+1:
 	
 _GLOBAL(pmac_secondary_start)
 	/* turn on 64-bit mode */
@@ -1586,7 +1530,7 @@ _GLOBAL(pmac_secondary_start)
 	LOADADDR(r4, paca) 		 /* Get base vaddr of paca array	*/
 	mulli	r13,r24,PACA_SIZE	 /* Calculate vaddr of right paca */
 	add	r13,r13,r4		/* for this processor.		*/
-	mtspr	SPRG3,r13		 /* Save vaddr of paca in SPRG3	*/
+	mtspr	SPRN_SPRG3,r13		 /* Save vaddr of paca in SPRG3	*/
 
 	/* Create a temp kernel stack for use before relocation is on.	*/
 	ld	r1,PACAEMERGSP(r13)
@@ -1621,7 +1565,7 @@ _GLOBAL(__secondary_start)
 	/* Initialize the page table pointer register. */
 	LOADADDR(r6,_SDR1)
 	ld	r6,0(r6)		/* get the value of _SDR1	 */
-	mtspr	SDR1,r6			/* set the htab location	 */
+	mtspr	SPRN_SDR1,r6			/* set the htab location	 */
 #endif
 	/* Initialize the first segment table (or SLB) entry		 */
 	ld	r3,PACASTABVIRT(r13)	/* get addr of segment table	 */
@@ -1650,7 +1594,7 @@ _GLOBAL(__secondary_start)
 	lwz	r3,PLATFORM(r3)		/* r3 = platform flags		 */
 	andi.	r3,r3,PLATFORM_LPAR	/* Test if bit 0 is set (LPAR bit) */
 	beq	98f			/* branch if result is 0  */
-	mfspr	r3,PVR
+	mfspr	r3,SPRN_PVR
 	srwi	r3,r3,16
 	cmpwi	r3,0x37			/* SStar  */
 	beq	97f
@@ -1674,8 +1618,8 @@ _GLOBAL(__secondary_start)
 #ifdef DO_SOFT_DISABLE
 	ori	r4,r4,MSR_EE
 #endif
-	mtspr	SRR0,r3
-	mtspr	SRR1,r4
+	mtspr	SPRN_SRR0,r3
+	mtspr	SPRN_SRR1,r4
 	rfid
 	b	.	/* prevent speculative execution */
 
@@ -1737,7 +1681,7 @@ _STATIC(start_here_multiplatform)
 
 #ifdef CONFIG_HMT
 	/* Start up the second thread on cpu 0 */
-	mfspr	r3,PVR
+	mfspr	r3,SPRN_PVR
 	srwi	r3,r3,16
 	cmpwi	r3,0x34			/* Pulsar  */
 	beq	90f
@@ -1797,7 +1741,7 @@ _STATIC(start_here_multiplatform)
 	mulli	r13,r27,PACA_SIZE	/* Calculate vaddr of right paca */
 	add	r13,r13,r24		/* for this processor.		 */
 	sub	r13,r13,r26		/* convert to physical addr	 */
-	mtspr	SPRG3,r13		/* PPPBBB: Temp... -Peter */
+	mtspr	SPRN_SPRG3,r13		/* PPPBBB: Temp... -Peter */
 	
 	/* Do very early kernel initializations, including initial hash table,
 	 * stab and slb setup before we turn on relocation.	*/
@@ -1814,7 +1758,7 @@ _STATIC(start_here_multiplatform)
 	lwz	r3,PLATFORM(r3)		/* r3 = platform flags */
 	andi.	r3,r3,PLATFORM_LPAR	/* Test if bit 0 is set (LPAR bit) */
 	beq	98f			/* branch if result is 0  */
-	mfspr	r3,PVR
+	mfspr	r3,SPRN_PVR
 	srwi	r3,r3,16
 	cmpwi	r3,0x37			/* SStar */
 	beq	97f
@@ -1838,12 +1782,12 @@ _STATIC(start_here_multiplatform)
 	LOADADDR(r6,_SDR1)		/* Only if NOT LPAR */
 	sub	r6,r6,r26
 	ld	r6,0(r6)		/* get the value of _SDR1 */
-	mtspr	SDR1,r6			/* set the htab location  */
+	mtspr	SPRN_SDR1,r6			/* set the htab location  */
 98: 
 	LOADADDR(r3,.start_here_common)
 	SET_REG_TO_CONST(r4, MSR_KERNEL)
-	mtspr	SRR0,r3
-	mtspr	SRR1,r4
+	mtspr	SPRN_SRR0,r3
+	mtspr	SPRN_SRR1,r4
 	rfid
 	b	.	/* prevent speculative execution */
 #endif /* CONFIG_PPC_MULTIPLATFORM */
@@ -1874,7 +1818,7 @@ _STATIC(start_here_common)
 	LOADADDR(r24, paca) 		/* Get base vaddr of paca array  */
 	mulli	r13,r26,PACA_SIZE	/* Calculate vaddr of right paca */
 	add	r13,r13,r24		/* for this processor.		 */
-	mtspr	SPRG3,r13
+	mtspr	SPRN_SPRG3,r13
 
 	/* ptr to current */
 	LOADADDR(r4,init_task)
@@ -1901,7 +1845,7 @@ _STATIC(start_here_common)
 _GLOBAL(hmt_init)
 #ifdef CONFIG_HMT
 	LOADADDR(r5, hmt_thread_data)
-	mfspr	r7,PVR
+	mfspr	r7,SPRN_PVR
 	srwi	r7,r7,16
 	cmpwi	r7,0x34			/* Pulsar  */
 	beq	90f
@@ -1910,10 +1854,10 @@ _GLOBAL(hmt_init)
 	cmpwi	r7,0x37			/* SStar   */
 	beq	91f
 	b	101f
-90:	mfspr	r6,PIR
+90:	mfspr	r6,SPRN_PIR
 	andi.	r6,r6,0x1f
 	b	92f
-91:	mfspr	r6,PIR
+91:	mfspr	r6,SPRN_PIR
 	andi.	r6,r6,0x3ff
 92:	sldi	r4,r24,3
 	stwx	r6,r5,r4
@@ -1924,8 +1868,8 @@ __hmt_secondary_hold:
 	LOADADDR(r5, hmt_thread_data)
 	clrldi	r5,r5,4
 	li	r7,0
-	mfspr	r6,PIR
-	mfspr	r8,PVR
+	mfspr	r6,SPRN_PIR
+	mfspr	r8,SPRN_PVR
 	srwi	r8,r8,16
 	cmpwi	r8,0x34
 	bne	93f
@@ -1951,40 +1895,24 @@ __hmt_secondary_hold:
 _GLOBAL(hmt_start_secondary)
 	LOADADDR(r4,__hmt_secondary_hold)
 	clrldi	r4,r4,4
-	mtspr	NIADORM, r4
-	mfspr	r4, MSRDORM
+	mtspr	SPRN_NIADORM, r4
+	mfspr	r4, SPRN_MSRDORM
 	li	r5, -65
 	and	r4, r4, r5
-	mtspr	MSRDORM, r4
+	mtspr	SPRN_MSRDORM, r4
 	lis	r4,0xffef
 	ori	r4,r4,0x7403
-	mtspr	TSC, r4
+	mtspr	SPRN_TSC, r4
 	li	r4,0x1f4
-	mtspr	TST, r4
-	mfspr	r4, HID0
+	mtspr	SPRN_TST, r4
+	mfspr	r4, SPRN_HID0
 	ori	r4, r4, 0x1
-	mtspr	HID0, r4
+	mtspr	SPRN_HID0, r4
 	mfspr	r4, SPRN_CTRLF
 	oris	r4, r4, 0x40
 	mtspr	SPRN_CTRLT, r4
 	blr
 #endif
-
-#if defined(CONFIG_KEXEC) || (defined(CONFIG_SMP) && !defined(CONFIG_PPC_ISERIES))
-_GLOBAL(smp_release_cpus)
-	/* All secondary cpus are spinning on a common
-	 * spinloop, release them all now so they can start
-	 * to spin on their individual paca spinloops.
-	 * For non SMP kernels, the secondary cpus never
-	 * get out of the common spinloop.
-	 */
-	li	r3,1
-	LOADADDR(r5,__secondary_hold_spinloop)
-	std	r3,0(r5)
-	sync
-	blr
-#endif /* CONFIG_SMP && !CONFIG_PPC_ISERIES */
-
 
 /*
  * We put a few things here that have to be page-aligned.
@@ -1992,7 +1920,7 @@ _GLOBAL(smp_release_cpus)
  */
 	.section ".bss"
 
-	.align	12
+	.align	PAGE_SHIFT
 
 	.globl	empty_zero_page
 empty_zero_page:

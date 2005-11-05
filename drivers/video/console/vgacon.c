@@ -579,6 +579,7 @@ static void vga_set_palette(struct vc_data *vc, unsigned char *table)
 {
 	int i, j;
 
+	vga_w(state.vgabase, VGA_PEL_MSK, 0xff);
 	for (i = j = 0; i < 16; i++) {
 		vga_w(state.vgabase, VGA_PEL_IW, table[i]);
 		vga_w(state.vgabase, VGA_PEL_D, vc->vc_palette[j++] >> 2);
@@ -721,6 +722,7 @@ static void vga_pal_blank(struct vgastate *state)
 {
 	int i;
 
+	vga_w(state->vgabase, VGA_PEL_MSK, 0xff);
 	for (i = 0; i < 16; i++) {
 		vga_w(state->vgabase, VGA_PEL_IW, i);
 		vga_w(state->vgabase, VGA_PEL_D, 0);

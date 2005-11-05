@@ -177,7 +177,7 @@ static int print_unex = 1;
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/devfs_fs_kernel.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/buffer_head.h>	/* for invalidate_buffers() */
 
 /*

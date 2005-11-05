@@ -9,7 +9,7 @@
 
 #include <linux/config.h>
 #include <linux/kernel.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/eisa.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>

@@ -55,6 +55,7 @@
 #include <linux/pci.h>
 #include <linux/ac97_codec.h>
 #include <asm/uaccess.h>
+#include <asm/semaphore.h>
 
 #define CODEC_ID_BUFSZ 14
 

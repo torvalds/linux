@@ -34,6 +34,9 @@
  * $Id: mthca_mad.c 1349 2004-12-16 21:09:43Z roland $
  */
 
+#include <linux/string.h>
+#include <linux/slab.h>
+
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_mad.h>
 #include <rdma/ib_smi.h>

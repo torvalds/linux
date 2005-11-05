@@ -19,8 +19,6 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA 
  */
 
-#pragma pack(1)
-
 #define NTLMSSP_SIGNATURE "NTLMSSP"
 /* Message Types */
 #define NtLmNegotiate     cpu_to_le32(1)
@@ -63,7 +61,7 @@ typedef struct _SECURITY_BUFFER {
 	__le16 Length;
 	__le16 MaximumLength;
 	__le32 Buffer;		/* offset to buffer */
-} SECURITY_BUFFER;
+} __attribute__((packed)) SECURITY_BUFFER;
 
 typedef struct _NEGOTIATE_MESSAGE {
 	__u8 Signature[sizeof (NTLMSSP_SIGNATURE)];
@@ -73,7 +71,7 @@ typedef struct _NEGOTIATE_MESSAGE {
 	SECURITY_BUFFER WorkstationName;	/* RFC 1001 and ASCII */
 	char DomainString[0];
 	/* followed by WorkstationString */
-} NEGOTIATE_MESSAGE, *PNEGOTIATE_MESSAGE;
+} __attribute__((packed)) NEGOTIATE_MESSAGE, *PNEGOTIATE_MESSAGE;
 
 typedef struct _CHALLENGE_MESSAGE {
 	__u8 Signature[sizeof (NTLMSSP_SIGNATURE)];
@@ -83,7 +81,7 @@ typedef struct _CHALLENGE_MESSAGE {
 	__u8 Challenge[CIFS_CRYPTO_KEY_SIZE];
 	__u8 Reserved[8];
 	SECURITY_BUFFER TargetInfoArray;
-} CHALLENGE_MESSAGE, *PCHALLENGE_MESSAGE;
+} __attribute__((packed)) CHALLENGE_MESSAGE, *PCHALLENGE_MESSAGE;
 
 typedef struct _AUTHENTICATE_MESSAGE {
 	__u8 Signature[sizeof (NTLMSSP_SIGNATURE)];
@@ -96,6 +94,4 @@ typedef struct _AUTHENTICATE_MESSAGE {
 	SECURITY_BUFFER SessionKey;
 	__le32 NegotiateFlags;
 	char UserString[0];
-} AUTHENTICATE_MESSAGE, *PAUTHENTICATE_MESSAGE;
-
-#pragma pack()			/* resume default structure packing */
+} __attribute__((packed)) AUTHENTICATE_MESSAGE, *PAUTHENTICATE_MESSAGE;

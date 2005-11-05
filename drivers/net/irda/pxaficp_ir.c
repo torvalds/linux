@@ -22,6 +22,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 #include <linux/pm.h>
 
 #include <net/irda/irda.h>
@@ -704,15 +705,12 @@ static int pxa_irda_stop(struct net_device *dev)
 	return 0;
 }
 
-static int pxa_irda_suspend(struct device *_dev, pm_message_t state, u32 level)
+static int pxa_irda_suspend(struct device *_dev, pm_message_t state)
 {
 	struct net_device *dev = dev_get_drvdata(_dev);
 	struct pxa_irda *si;
 
-	if (!dev || level != SUSPEND_DISABLE)
-		return 0;
-
-	if (netif_running(dev)) {
+	if (dev && netif_running(dev)) {
 		si = netdev_priv(dev);
 		netif_device_detach(dev);
 		pxa_irda_shutdown(si);
@@ -721,15 +719,12 @@ static int pxa_irda_suspend(struct device *_dev, pm_message_t state, u32 level)
 	return 0;
 }
 
-static int pxa_irda_resume(struct device *_dev, u32 level)
+static int pxa_irda_resume(struct device *_dev)
 {
 	struct net_device *dev = dev_get_drvdata(_dev);
 	struct pxa_irda *si;
 
-	if (!dev || level != RESUME_ENABLE)
-		return 0;
-
-	if (netif_running(dev)) {
+	if (dev && netif_running(dev)) {
 		si = netdev_priv(dev);
 		pxa_irda_startup(si);
 		netif_device_attach(dev);

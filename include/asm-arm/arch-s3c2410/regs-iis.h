@@ -55,6 +55,7 @@
 #define S3C2410_IISMOD_16FS	  (0<<0)
 #define S3C2410_IISMOD_32FS	  (1<<0)
 #define S3C2410_IISMOD_48FS	  (2<<0)
+#define S3C2410_IISMOD_FS_MASK	  (3<<0)
 
 #define S3C2410_IISPSR		(0x08)
 #define S3C2410_IISPSR_INTMASK	(31<<5)

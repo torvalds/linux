@@ -579,6 +579,30 @@ static int __devinit snd_emu10k1_ecard_init(emu10k1_t * emu)
 	return 0;
 }
 
+static int __devinit snd_emu10k1_cardbus_init(emu10k1_t * emu)
+{
+	unsigned long special_port;
+	unsigned int value;
+
+	/* Special initialisation routine
+	 * before the rest of the IO-Ports become active.
+	 */
+	special_port = emu->port + 0x38;
+	value = inl(special_port);
+	outl(0x00d00000, special_port);
+	value = inl(special_port);
+	outl(0x00d00001, special_port);
+	value = inl(special_port);
+	outl(0x00d0005f, special_port);
+	value = inl(special_port);
+	outl(0x00d0007f, special_port);
+	value = inl(special_port);
+	outl(0x0090007f, special_port);
+	value = inl(special_port);
+
+	return 0;
+}
+
 /*
  *  Create the EMU10K1 instance
  */
@@ -624,6 +648,16 @@ static emu_chip_details_t emu_chip_details[] = {
 	 .ca0108_chip = 1,
 	 .spk71 = 1,
 	 .ac97_chip = 1} ,
+	/* Audigy 2 ZS Notebook Cardbus card.*/
+	/* Tested by James@superbug.co.uk 30th October 2005 */
+	/* Not working yet, but progressing. */
+	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x20011102,
+	 .driver = "Audigy2", .name = "Audigy 2 ZS Notebook [SB0530]", 
+	 .id = "Audigy2",
+	 .emu10k2_chip = 1,
+	 .ca0108_chip = 1,
+	 .ca_cardbus_chip = 1,
+	 .spk71 = 1} ,
 	{.vendor = 0x1102, .device = 0x0008, 
 	 .driver = "Audigy2", .name = "Audigy 2 Value [Unknown]", 
 	 .id = "Audigy2",
@@ -1008,6 +1042,11 @@ int __devinit snd_emu10k1_create(snd_card_t * card,
 
 	if (emu->card_capabilities->ecard) {
 		if ((err = snd_emu10k1_ecard_init(emu)) < 0) {
+			snd_emu10k1_free(emu);
+			return err;
+		}
+	} else if (emu->card_capabilities->ca_cardbus_chip) {
+		if ((err = snd_emu10k1_cardbus_init(emu)) < 0) {
 			snd_emu10k1_free(emu);
 			return err;
 		}

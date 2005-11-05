@@ -1154,7 +1154,7 @@ static irqreturn_t do_fdomain_16x0_intr(int irq, void *dev_id,
       outb(0x40 | FIFO_COUNT, port_base + Interrupt_Cntl);
 
       outb(0x82, port_base + SCSI_Cntl); /* Bus Enable + Select */
-      outb(adapter_mask | (1 << current_SC->device->id), port_base + SCSI_Data_NoACK);
+      outb(adapter_mask | (1 << scmd_id(current_SC)), port_base + SCSI_Data_NoACK);
       
       /* Stop arbitration and enable parity */
       outb(0x10 | PARITY_MASK, port_base + TMC_Cntl);
@@ -1166,7 +1166,7 @@ static irqreturn_t do_fdomain_16x0_intr(int irq, void *dev_id,
       status = inb(port_base + SCSI_Status);
       if (!(status & 0x01)) {
 	 /* Try again, for slow devices */
-	 if (fdomain_select( current_SC->device->id )) {
+	 if (fdomain_select( scmd_id(current_SC) )) {
 #if EVERY_ACCESS
 	    printk( " SFAIL " );
 #endif

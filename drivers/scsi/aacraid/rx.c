@@ -49,40 +49,57 @@
 static irqreturn_t aac_rx_intr(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct aac_dev *dev = dev_id;
-	unsigned long bellbits;
-	u8 intstat, mask;
-	intstat = rx_readb(dev, MUnit.OISR);
-	/*
-	 *	Read mask and invert because drawbridge is reversed.
-	 *	This allows us to only service interrupts that have 
-	 *	been enabled.
-	 */
-	mask = ~(dev->OIMR);
-	/* Check to see if this is our interrupt.  If it isn't just return */
-	if (intstat & mask) 
-	{
-		bellbits = rx_readl(dev, OutboundDoorbellReg);
-		if (bellbits & DoorBellPrintfReady) {
-			aac_printf(dev, rx_readl(dev, IndexRegs.Mailbox[5]));
-			rx_writel(dev, MUnit.ODR,DoorBellPrintfReady);
-			rx_writel(dev, InboundDoorbellReg,DoorBellPrintfDone);
+
+	dprintk((KERN_DEBUG "aac_rx_intr(%d,%p,%p)\n", irq, dev_id, regs));
+	if (dev->new_comm_interface) {
+		u32 Index = rx_readl(dev, MUnit.OutboundQueue);
+		if (Index == 0xFFFFFFFFL)
+			Index = rx_readl(dev, MUnit.OutboundQueue);
+		if (Index != 0xFFFFFFFFL) {
+			do {
+				if (aac_intr_normal(dev, Index)) {
+					rx_writel(dev, MUnit.OutboundQueue, Index);
+					rx_writel(dev, MUnit.ODR, DoorBellAdapterNormRespReady);
+				}
+				Index = rx_readl(dev, MUnit.OutboundQueue);
+			} while (Index != 0xFFFFFFFFL);
+			return IRQ_HANDLED;
 		}
-		else if (bellbits & DoorBellAdapterNormCmdReady) {
-			rx_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdReady);
-			aac_command_normal(&dev->queues->queue[HostNormCmdQueue]);
+	} else {
+		unsigned long bellbits;
+		u8 intstat;
+		intstat = rx_readb(dev, MUnit.OISR);
+		/*
+		 *	Read mask and invert because drawbridge is reversed.
+		 *	This allows us to only service interrupts that have 
+		 *	been enabled.
+		 *	Check to see if this is our interrupt.  If it isn't just return
+		 */
+		if (intstat & ~(dev->OIMR)) 
+		{
+			bellbits = rx_readl(dev, OutboundDoorbellReg);
+			if (bellbits & DoorBellPrintfReady) {
+				aac_printf(dev, rx_readl (dev, IndexRegs.Mailbox[5]));
+				rx_writel(dev, MUnit.ODR,DoorBellPrintfReady);
+				rx_writel(dev, InboundDoorbellReg,DoorBellPrintfDone);
+			}
+			else if (bellbits & DoorBellAdapterNormCmdReady) {
+				rx_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdReady);
+				aac_command_normal(&dev->queues->queue[HostNormCmdQueue]);
+			}
+			else if (bellbits & DoorBellAdapterNormRespReady) {
+				rx_writel(dev, MUnit.ODR,DoorBellAdapterNormRespReady);
+				aac_response_normal(&dev->queues->queue[HostNormRespQueue]);
+			}
+			else if (bellbits & DoorBellAdapterNormCmdNotFull) {
+				rx_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdNotFull);
+			}
+			else if (bellbits & DoorBellAdapterNormRespNotFull) {
+				rx_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdNotFull);
+				rx_writel(dev, MUnit.ODR, DoorBellAdapterNormRespNotFull);
+			}
+			return IRQ_HANDLED;
 		}
-		else if (bellbits & DoorBellAdapterNormRespReady) {
-			aac_response_normal(&dev->queues->queue[HostNormRespQueue]);
-			rx_writel(dev, MUnit.ODR,DoorBellAdapterNormRespReady);
-		}
-		else if (bellbits & DoorBellAdapterNormCmdNotFull) {
-			rx_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdNotFull);
-		}
-		else if (bellbits & DoorBellAdapterNormRespNotFull) {
-			rx_writel(dev, MUnit.ODR, DoorBellAdapterNormCmdNotFull);
-			rx_writel(dev, MUnit.ODR, DoorBellAdapterNormRespNotFull);
-		}
-		return IRQ_HANDLED;
 	}
 	return IRQ_NONE;
 }
@@ -173,7 +190,10 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command,
 		/*
 		 *	Restore interrupt mask even though we timed out
 		 */
-		rx_writeb(dev, MUnit.OIMR, dev->OIMR &= 0xfb);
+		if (dev->new_comm_interface)
+			rx_writeb(dev, MUnit.OIMR, dev->OIMR = 0xf7);
+		else
+			rx_writeb(dev, MUnit.OIMR, dev->OIMR = 0xfb);
 		return -ETIMEDOUT;
 	}
 	/*
@@ -196,7 +216,10 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command,
 	/*
 	 *	Restore interrupt mask
 	 */
-	rx_writeb(dev, MUnit.OIMR, dev->OIMR &= 0xfb);
+	if (dev->new_comm_interface)
+		rx_writeb(dev, MUnit.OIMR, dev->OIMR = 0xf7);
+	else
+		rx_writeb(dev, MUnit.OIMR, dev->OIMR = 0xfb);
 	return 0;
 
 }
@@ -267,15 +290,6 @@ static void aac_rx_start_adapter(struct aac_dev *dev)
 
 	init = dev->init;
 	init->HostElapsedSeconds = cpu_to_le32(get_seconds());
-	/*
-	 *	First clear out all interrupts.  Then enable the one's that we
-	 *	can handle.
-	 */
-	rx_writeb(dev, MUnit.OIMR, 0xff);
-	rx_writel(dev, MUnit.ODR, 0xffffffff);
-//	rx_writeb(dev, MUnit.OIMR, ~(u8)OUTBOUND_DOORBELL_INTERRUPT_MASK);
-	rx_writeb(dev, MUnit.OIMR, dev->OIMR = 0xfb);
-
 	// We can only use a 32 bit address here
 	rx_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, (u32)(ulong)dev->init_pa,
 	  0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL);
@@ -349,6 +363,39 @@ static int aac_rx_check_health(struct aac_dev *dev)
 }
 
 /**
+ *	aac_rx_send
+ *	@fib: fib to issue
+ *
+ *	Will send a fib, returning 0 if successful.
+ */
+static int aac_rx_send(struct fib * fib)
+{
+	u64 addr = fib->hw_fib_pa;
+	struct aac_dev *dev = fib->dev;
+	volatile void __iomem *device = dev->regs.rx;
+	u32 Index;
+
+	dprintk((KERN_DEBUG "%p->aac_rx_send(%p->%llx)\n", dev, fib, addr));
+	Index = rx_readl(dev, MUnit.InboundQueue);
+	if (Index == 0xFFFFFFFFL)
+		Index = rx_readl(dev, MUnit.InboundQueue);
+	dprintk((KERN_DEBUG "Index = 0x%x\n", Index));
+	if (Index == 0xFFFFFFFFL)
+		return Index;
+	device += Index;
+	dprintk((KERN_DEBUG "entry = %x %x %u\n", (u32)(addr & 0xffffffff),
+	  (u32)(addr >> 32), (u32)le16_to_cpu(fib->hw_fib->header.Size)));
+	writel((u32)(addr & 0xffffffff), device);
+	device += sizeof(u32);
+	writel((u32)(addr >> 32), device);
+	device += sizeof(u32);
+	writel(le16_to_cpu(fib->hw_fib->header.Size), device);
+	rx_writel(dev, MUnit.InboundQueue, Index);
+	dprintk((KERN_DEBUG "aac_rx_send - return 0\n"));
+	return 0;
+}
+
+/**
  *	aac_rx_init	-	initialize an i960 based AAC card
  *	@dev: device to configure
  *
@@ -368,13 +415,8 @@ int aac_rx_init(struct aac_dev *dev)
 	name     = dev->name;
 
 	/*
-	 *	Map in the registers from the adapter.
+	 *	Check to see if the board panic'd while booting.
 	 */
-	if((dev->regs.rx = ioremap((unsigned long)dev->scsi_host_ptr->base, 8192))==NULL)
-	{	
-		printk(KERN_WARNING "aacraid: unable to map i960.\n" );
-		return -1;
-	}
 	/*
 	 *	Check to see if the board failed any self tests.
 	 */
@@ -426,6 +468,7 @@ int aac_rx_init(struct aac_dev *dev)
 	dev->a_ops.adapter_notify = aac_rx_notify_adapter;
 	dev->a_ops.adapter_sync_cmd = rx_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_rx_check_health;
+	dev->a_ops.adapter_send = aac_rx_send;
 
 	/*
 	 *	First clear out all interrupts.  Then enable the one's that we
@@ -437,15 +480,9 @@ int aac_rx_init(struct aac_dev *dev)
 
 	if (aac_init_adapter(dev) == NULL)
 		goto error_irq;
-	/*
-	 *	Start any kernel threads needed
-	 */
-	dev->thread_pid = kernel_thread((int (*)(void *))aac_command_thread, dev, 0);
-	if(dev->thread_pid < 0)
-	{
-		printk(KERN_ERR "aacraid: Unable to create rx thread.\n");
-		goto error_kfree;
-	}
+	if (dev->new_comm_interface)
+		rx_writeb(dev, MUnit.OIMR, dev->OIMR = 0xf7);
+
 	/*
 	 *	Tell the adapter that all is configured, and it can start
 	 *	accepting requests
@@ -453,15 +490,11 @@ int aac_rx_init(struct aac_dev *dev)
 	aac_rx_start_adapter(dev);
 	return 0;
 
-error_kfree:
-	kfree(dev->queues);
-
 error_irq:
 	rx_writeb(dev, MUnit.OIMR, dev->OIMR = 0xff);
 	free_irq(dev->scsi_host_ptr->irq, (void *)dev);
 
 error_iounmap:
-	iounmap(dev->regs.rx);
 
 	return -1;
 }

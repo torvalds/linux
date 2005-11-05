@@ -1,5 +1,7 @@
 #ifdef __KERNEL__
 
+#include <asm/semaphore.h>
+
 typedef struct kobject *kobj_probe_t(dev_t, int *, void *);
 struct kobj_map;
 

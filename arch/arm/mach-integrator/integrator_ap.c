@@ -21,7 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/list.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sysdev.h>
@@ -30,6 +30,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
+#include <asm/param.h>		/* HZ */
 #include <asm/mach-types.h>
 #include <asm/hardware/amba.h>
 #include <asm/hardware/amba_kmi.h>

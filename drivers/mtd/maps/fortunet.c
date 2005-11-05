@@ -7,10 +7,13 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <asm/io.h>
+#include <linux/string.h>
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
+
+#include <asm/io.h>
 
 #define MAX_NUM_REGIONS		4
 #define MAX_NUM_PARTITIONS	8

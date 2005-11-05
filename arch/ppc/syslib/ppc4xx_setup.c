@@ -278,7 +278,7 @@ ppc4xx_init(unsigned long r3, unsigned long r4, unsigned long r5,
 #endif /* defined(CONFIG_PCI) && defined(CONFIG_IDE) */
 }
 
-/* Called from MachineCheckException */
+/* Called from machine_check_exception */
 void platform_machine_check(struct pt_regs *regs)
 {
 #if defined(DCRN_PLB0_BEAR)

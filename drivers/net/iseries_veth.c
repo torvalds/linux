@@ -70,13 +70,14 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/ethtool.h>
-#include <asm/iSeries/mf.h>
-#include <asm/iSeries/iSeries_pci.h>
+
+#include <asm/abs_addr.h>
+#include <asm/iseries/mf.h>
 #include <asm/uaccess.h>
 
-#include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/HvLpEvent.h>
+#include <asm/iseries/hv_lp_config.h>
+#include <asm/iseries/hv_types.h>
+#include <asm/iseries/hv_lp_event.h>
 #include <asm/iommu.h>
 #include <asm/vio.h>
 
@@ -1397,13 +1398,13 @@ static inline void veth_build_dma_list(struct dma_chunk *list,
 	 * it just at the granularity of iSeries real->absolute
 	 * mapping?  Indeed, given the way the allocator works, can we
 	 * count on them being absolutely contiguous? */
-	list[0].addr = ISERIES_HV_ADDR(p);
+	list[0].addr = iseries_hv_addr(p);
 	list[0].size = min(length,
 			   PAGE_SIZE - ((unsigned long)p & ~PAGE_MASK));
 
 	done = list[0].size;
 	while (done < length) {
-		list[i].addr = ISERIES_HV_ADDR(p + done);
+		list[i].addr = iseries_hv_addr(p + done);
 		list[i].size = min(length-done, PAGE_SIZE);
 		done += list[i].size;
 		i++;
@@ -1496,8 +1497,8 @@ static void veth_receive(struct veth_lpar_connection *cnx,
 					    cnx->dst_inst,
 					    HvLpDma_AddressType_RealAddress,
 					    HvLpDma_AddressType_TceIndex,
-					    ISERIES_HV_ADDR(&local_list),
-					    ISERIES_HV_ADDR(&remote_list),
+					    iseries_hv_addr(&local_list),
+					    iseries_hv_addr(&remote_list),
 					    length);
 		if (rc != HvLpDma_Rc_Good) {
 			dev_kfree_skb_irq(skb);
@@ -1647,10 +1648,13 @@ static struct vio_device_id veth_device_table[] __devinitdata = {
 MODULE_DEVICE_TABLE(vio, veth_device_table);
 
 static struct vio_driver veth_driver = {
-	.name = DRV_NAME,
 	.id_table = veth_device_table,
 	.probe = veth_probe,
-	.remove = veth_remove
+	.remove = veth_remove,
+	.driver = {
+		.name = DRV_NAME,
+		.owner = THIS_MODULE,
+	}
 };
 
 /*

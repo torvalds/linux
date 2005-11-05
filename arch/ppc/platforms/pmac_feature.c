@@ -63,7 +63,7 @@ extern struct device_node *k2_skiplist[2];
  * We use a single global lock to protect accesses. Each driver has
  * to take care of its own locking
  */
-static DEFINE_SPINLOCK(feature_lock  __pmacdata);
+static DEFINE_SPINLOCK(feature_lock);
 
 #define LOCK(flags)	spin_lock_irqsave(&feature_lock, flags);
 #define UNLOCK(flags)	spin_unlock_irqrestore(&feature_lock, flags);
@@ -72,9 +72,9 @@ static DEFINE_SPINLOCK(feature_lock  __pmacdata);
 /*
  * Instance of some macio stuffs
  */
-struct macio_chip macio_chips[MAX_MACIO_CHIPS]  __pmacdata;
+struct macio_chip macio_chips[MAX_MACIO_CHIPS];
 
-struct macio_chip* __pmac macio_find(struct device_node* child, int type)
+struct macio_chip* macio_find(struct device_node* child, int type)
 {
 	while(child) {
 		int	i;
@@ -89,7 +89,7 @@ struct macio_chip* __pmac macio_find(struct device_node* child, int type)
 }
 EXPORT_SYMBOL_GPL(macio_find);
 
-static const char* macio_names[] __pmacdata =
+static const char* macio_names[] =
 {
 	"Unknown",
 	"Grand Central",
@@ -116,10 +116,10 @@ static const char* macio_names[] __pmacdata =
 #define UN_BIS(r,v)	(UN_OUT((r), UN_IN(r) | (v)))
 #define UN_BIC(r,v)	(UN_OUT((r), UN_IN(r) & ~(v)))
 
-static struct device_node* uninorth_node __pmacdata;
-static u32 __iomem * uninorth_base __pmacdata;
-static u32 uninorth_rev __pmacdata;
-static int uninorth_u3 __pmacdata;
+static struct device_node* uninorth_node;
+static u32 __iomem * uninorth_base;
+static u32 uninorth_rev;
+static int uninorth_u3;
 static void __iomem *u3_ht;
 
 /*
@@ -142,13 +142,13 @@ struct pmac_mb_def
 	struct feature_table_entry* 	features;
 	unsigned long			board_flags;
 };
-static struct pmac_mb_def pmac_mb __pmacdata;
+static struct pmac_mb_def pmac_mb;
 
 /*
  * Here are the chip specific feature functions
  */
 
-static inline int __pmac
+static inline int
 simple_feature_tweak(struct device_node* node, int type, int reg, u32 mask, int value)
 {
 	struct macio_chip*	macio;
@@ -170,7 +170,7 @@ simple_feature_tweak(struct device_node* node, int type, int reg, u32 mask, int 
 
 #ifndef CONFIG_POWER4
 
-static long __pmac
+static long
 ohare_htw_scc_enable(struct device_node* node, long param, long value)
 {
 	struct macio_chip*	macio;
@@ -263,21 +263,21 @@ ohare_htw_scc_enable(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 ohare_floppy_enable(struct device_node* node, long param, long value)
 {
 	return simple_feature_tweak(node, macio_ohare,
 		OHARE_FCR, OH_FLOPPY_ENABLE, value);
 }
 
-static long __pmac
+static long
 ohare_mesh_enable(struct device_node* node, long param, long value)
 {
 	return simple_feature_tweak(node, macio_ohare,
 		OHARE_FCR, OH_MESH_ENABLE, value);
 }
 
-static long __pmac
+static long
 ohare_ide_enable(struct device_node* node, long param, long value)
 {
 	switch(param) {
@@ -298,7 +298,7 @@ ohare_ide_enable(struct device_node* node, long param, long value)
 	}
 }
 
-static long __pmac
+static long
 ohare_ide_reset(struct device_node* node, long param, long value)
 {
 	switch(param) {
@@ -313,7 +313,7 @@ ohare_ide_reset(struct device_node* node, long param, long value)
 	}
 }
 
-static long __pmac
+static long
 ohare_sleep_state(struct device_node* node, long param, long value)
 {
 	struct macio_chip*	macio = &macio_chips[0];
@@ -329,7 +329,7 @@ ohare_sleep_state(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 heathrow_modem_enable(struct device_node* node, long param, long value)
 {
 	struct macio_chip*	macio;
@@ -373,7 +373,7 @@ heathrow_modem_enable(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 heathrow_floppy_enable(struct device_node* node, long param, long value)
 {
 	return simple_feature_tweak(node, macio_unknown,
@@ -382,7 +382,7 @@ heathrow_floppy_enable(struct device_node* node, long param, long value)
 		value);
 }
 
-static long __pmac
+static long
 heathrow_mesh_enable(struct device_node* node, long param, long value)
 {
 	struct macio_chip*	macio;
@@ -411,7 +411,7 @@ heathrow_mesh_enable(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 heathrow_ide_enable(struct device_node* node, long param, long value)
 {
 	switch(param) {
@@ -426,7 +426,7 @@ heathrow_ide_enable(struct device_node* node, long param, long value)
 	}
 }
 
-static long __pmac
+static long
 heathrow_ide_reset(struct device_node* node, long param, long value)
 {
 	switch(param) {
@@ -441,7 +441,7 @@ heathrow_ide_reset(struct device_node* node, long param, long value)
 	}
 }
 
-static long __pmac
+static long
 heathrow_bmac_enable(struct device_node* node, long param, long value)
 {
 	struct macio_chip*	macio;
@@ -470,7 +470,7 @@ heathrow_bmac_enable(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 heathrow_sound_enable(struct device_node* node, long param, long value)
 {
 	struct macio_chip*	macio;
@@ -501,16 +501,16 @@ heathrow_sound_enable(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static u32 save_fcr[6] __pmacdata;
-static u32 save_mbcr __pmacdata;
-static u32 save_gpio_levels[2] __pmacdata;
-static u8 save_gpio_extint[KEYLARGO_GPIO_EXTINT_CNT] __pmacdata;
-static u8 save_gpio_normal[KEYLARGO_GPIO_CNT] __pmacdata;
-static u32 save_unin_clock_ctl __pmacdata;
-static struct dbdma_regs save_dbdma[13] __pmacdata;
-static struct dbdma_regs save_alt_dbdma[13] __pmacdata;
+static u32 save_fcr[6];
+static u32 save_mbcr;
+static u32 save_gpio_levels[2];
+static u8 save_gpio_extint[KEYLARGO_GPIO_EXTINT_CNT];
+static u8 save_gpio_normal[KEYLARGO_GPIO_CNT];
+static u32 save_unin_clock_ctl;
+static struct dbdma_regs save_dbdma[13];
+static struct dbdma_regs save_alt_dbdma[13];
 
-static void __pmac
+static void
 dbdma_save(struct macio_chip* macio, struct dbdma_regs* save)
 {
 	int i;
@@ -527,7 +527,7 @@ dbdma_save(struct macio_chip* macio, struct dbdma_regs* save)
 	}
 }
 
-static void __pmac
+static void
 dbdma_restore(struct macio_chip* macio, struct dbdma_regs* save)
 {
 	int i;
@@ -547,7 +547,7 @@ dbdma_restore(struct macio_chip* macio, struct dbdma_regs* save)
 	}
 }
 
-static void __pmac
+static void
 heathrow_sleep(struct macio_chip* macio, int secondary)
 {
 	if (secondary) {
@@ -580,7 +580,7 @@ heathrow_sleep(struct macio_chip* macio, int secondary)
 	(void)MACIO_IN32(HEATHROW_FCR);
 }
 
-static void __pmac
+static void
 heathrow_wakeup(struct macio_chip* macio, int secondary)
 {
 	if (secondary) {
@@ -605,7 +605,7 @@ heathrow_wakeup(struct macio_chip* macio, int secondary)
 	}
 }
 
-static long __pmac
+static long
 heathrow_sleep_state(struct device_node* node, long param, long value)
 {
 	if ((pmac_mb.board_flags & PMAC_MB_CAN_SLEEP) == 0)
@@ -622,7 +622,7 @@ heathrow_sleep_state(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 core99_scc_enable(struct device_node* node, long param, long value)
 {
 	struct macio_chip*	macio;
@@ -723,7 +723,7 @@ core99_scc_enable(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 core99_modem_enable(struct device_node* node, long param, long value)
 {
 	struct macio_chip*	macio;
@@ -775,7 +775,7 @@ core99_modem_enable(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 pangea_modem_enable(struct device_node* node, long param, long value)
 {
 	struct macio_chip*	macio;
@@ -830,7 +830,7 @@ pangea_modem_enable(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 core99_ata100_enable(struct device_node* node, long value)
 {
 	unsigned long flags;
@@ -860,7 +860,7 @@ core99_ata100_enable(struct device_node* node, long value)
     	return 0;
 }
 
-static long __pmac
+static long
 core99_ide_enable(struct device_node* node, long param, long value)
 {
 	/* Bus ID 0 to 2 are KeyLargo based IDE, busID 3 is U2
@@ -883,7 +883,7 @@ core99_ide_enable(struct device_node* node, long param, long value)
 	}
 }
 
-static long __pmac
+static long
 core99_ide_reset(struct device_node* node, long param, long value)
 {
 	switch(param) {
@@ -901,7 +901,7 @@ core99_ide_reset(struct device_node* node, long param, long value)
 	}
 }
 
-static long __pmac
+static long
 core99_gmac_enable(struct device_node* node, long param, long value)
 {
 	unsigned long flags;
@@ -918,7 +918,7 @@ core99_gmac_enable(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 core99_gmac_phy_reset(struct device_node* node, long param, long value)
 {
 	unsigned long flags;
@@ -943,7 +943,7 @@ core99_gmac_phy_reset(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 core99_sound_chip_enable(struct device_node* node, long param, long value)
 {
 	struct macio_chip*	macio;
@@ -973,7 +973,7 @@ core99_sound_chip_enable(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 core99_airport_enable(struct device_node* node, long param, long value)
 {
 	struct macio_chip*	macio;
@@ -1060,7 +1060,7 @@ core99_airport_enable(struct device_node* node, long param, long value)
 }
 
 #ifdef CONFIG_SMP
-static long __pmac
+static long
 core99_reset_cpu(struct device_node* node, long param, long value)
 {
 	unsigned int reset_io = 0;
@@ -1104,7 +1104,7 @@ core99_reset_cpu(struct device_node* node, long param, long value)
 }
 #endif /* CONFIG_SMP */
 
-static long __pmac
+static long
 core99_usb_enable(struct device_node* node, long param, long value)
 {
 	struct macio_chip* macio;
@@ -1257,7 +1257,7 @@ core99_usb_enable(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 core99_firewire_enable(struct device_node* node, long param, long value)
 {
 	unsigned long flags;
@@ -1284,7 +1284,7 @@ core99_firewire_enable(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 core99_firewire_cable_power(struct device_node* node, long param, long value)
 {
 	unsigned long flags;
@@ -1315,7 +1315,7 @@ core99_firewire_cable_power(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 intrepid_aack_delay_enable(struct device_node* node, long param, long value)
 {
 	unsigned long flags;
@@ -1336,7 +1336,7 @@ intrepid_aack_delay_enable(struct device_node* node, long param, long value)
 
 #endif /* CONFIG_POWER4 */
 
-static long __pmac
+static long
 core99_read_gpio(struct device_node* node, long param, long value)
 {
 	struct macio_chip* macio = &macio_chips[0];
@@ -1345,7 +1345,7 @@ core99_read_gpio(struct device_node* node, long param, long value)
 }
 
 
-static long __pmac
+static long
 core99_write_gpio(struct device_node* node, long param, long value)
 {
 	struct macio_chip* macio = &macio_chips[0];
@@ -1356,7 +1356,7 @@ core99_write_gpio(struct device_node* node, long param, long value)
 
 #ifdef CONFIG_POWER4
 
-static long __pmac
+static long
 g5_gmac_enable(struct device_node* node, long param, long value)
 {
 	struct macio_chip* macio = &macio_chips[0];
@@ -1380,7 +1380,7 @@ g5_gmac_enable(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 g5_fw_enable(struct device_node* node, long param, long value)
 {
 	struct macio_chip* macio = &macio_chips[0];
@@ -1403,7 +1403,7 @@ g5_fw_enable(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 g5_mpic_enable(struct device_node* node, long param, long value)
 {
 	unsigned long flags;
@@ -1419,7 +1419,7 @@ g5_mpic_enable(struct device_node* node, long param, long value)
 }
 
 #ifdef CONFIG_SMP
-static long __pmac
+static long
 g5_reset_cpu(struct device_node* node, long param, long value)
 {
 	unsigned int reset_io = 0;
@@ -1465,7 +1465,7 @@ g5_reset_cpu(struct device_node* node, long param, long value)
  * This takes the second CPU off the bus on dual CPU machines
  * running UP
  */
-void __pmac g5_phy_disable_cpu1(void)
+void g5_phy_disable_cpu1(void)
 {
 	UN_OUT(U3_API_PHY_CONFIG_1, 0);
 }
@@ -1474,7 +1474,7 @@ void __pmac g5_phy_disable_cpu1(void)
 
 #ifndef CONFIG_POWER4
 
-static void __pmac
+static void
 keylargo_shutdown(struct macio_chip* macio, int sleep_mode)
 {
 	u32 temp;
@@ -1528,7 +1528,7 @@ keylargo_shutdown(struct macio_chip* macio, int sleep_mode)
 	(void)MACIO_IN32(KEYLARGO_FCR0); mdelay(1);
 }
 
-static void __pmac
+static void
 pangea_shutdown(struct macio_chip* macio, int sleep_mode)
 {
 	u32 temp;
@@ -1562,7 +1562,7 @@ pangea_shutdown(struct macio_chip* macio, int sleep_mode)
 	(void)MACIO_IN32(KEYLARGO_FCR0); mdelay(1);
 }
 
-static void __pmac
+static void
 intrepid_shutdown(struct macio_chip* macio, int sleep_mode)
 {
 	u32 temp;
@@ -1591,7 +1591,7 @@ intrepid_shutdown(struct macio_chip* macio, int sleep_mode)
 }
 
 
-void __pmac pmac_tweak_clock_spreading(int enable)
+void pmac_tweak_clock_spreading(int enable)
 {
 	struct macio_chip* macio = &macio_chips[0];
 
@@ -1698,7 +1698,7 @@ void __pmac pmac_tweak_clock_spreading(int enable)
 }
 
 
-static int __pmac
+static int
 core99_sleep(void)
 {
 	struct macio_chip* macio;
@@ -1791,7 +1791,7 @@ core99_sleep(void)
 	return 0;
 }
 
-static int __pmac
+static int
 core99_wake_up(void)
 {
 	struct macio_chip* macio;
@@ -1854,7 +1854,7 @@ core99_wake_up(void)
 	return 0;
 }
 
-static long __pmac
+static long
 core99_sleep_state(struct device_node* node, long param, long value)
 {
 	/* Param == 1 means to enter the "fake sleep" mode that is
@@ -1884,7 +1884,7 @@ core99_sleep_state(struct device_node* node, long param, long value)
 
 #endif /* CONFIG_POWER4 */
 
-static long __pmac
+static long
 generic_dev_can_wake(struct device_node* node, long param, long value)
 {
 	/* Todo: eventually check we are really dealing with on-board
@@ -1896,7 +1896,7 @@ generic_dev_can_wake(struct device_node* node, long param, long value)
 	return 0;
 }
 
-static long __pmac
+static long
 generic_get_mb_info(struct device_node* node, long param, long value)
 {
 	switch(param) {
@@ -1919,7 +1919,7 @@ generic_get_mb_info(struct device_node* node, long param, long value)
 
 /* Used on any machine
  */
-static struct feature_table_entry any_features[]  __pmacdata = {
+static struct feature_table_entry any_features[] = {
 	{ PMAC_FTR_GET_MB_INFO,		generic_get_mb_info },
 	{ PMAC_FTR_DEVICE_CAN_WAKE,	generic_dev_can_wake },
 	{ 0, NULL }
@@ -1931,7 +1931,7 @@ static struct feature_table_entry any_features[]  __pmacdata = {
  * 2400,3400 and 3500 series powerbooks. Some older desktops seem
  * to have issues with turning on/off those asic cells
  */
-static struct feature_table_entry ohare_features[]  __pmacdata = {
+static struct feature_table_entry ohare_features[] = {
 	{ PMAC_FTR_SCC_ENABLE,		ohare_htw_scc_enable },
 	{ PMAC_FTR_SWIM3_ENABLE,	ohare_floppy_enable },
 	{ PMAC_FTR_MESH_ENABLE,		ohare_mesh_enable },
@@ -1945,7 +1945,7 @@ static struct feature_table_entry ohare_features[]  __pmacdata = {
  * Separated as some features couldn't be properly tested
  * and the serial port control bits appear to confuse it.
  */
-static struct feature_table_entry heathrow_desktop_features[]  __pmacdata = {
+static struct feature_table_entry heathrow_desktop_features[] = {
 	{ PMAC_FTR_SWIM3_ENABLE,	heathrow_floppy_enable },
 	{ PMAC_FTR_MESH_ENABLE,		heathrow_mesh_enable },
 	{ PMAC_FTR_IDE_ENABLE,		heathrow_ide_enable },
@@ -1957,7 +1957,7 @@ static struct feature_table_entry heathrow_desktop_features[]  __pmacdata = {
 /* Heathrow based laptop, that is the Wallstreet and mainstreet
  * powerbooks.
  */
-static struct feature_table_entry heathrow_laptop_features[]  __pmacdata = {
+static struct feature_table_entry heathrow_laptop_features[] = {
 	{ PMAC_FTR_SCC_ENABLE,		ohare_htw_scc_enable },
 	{ PMAC_FTR_MODEM_ENABLE,	heathrow_modem_enable },
 	{ PMAC_FTR_SWIM3_ENABLE,	heathrow_floppy_enable },
@@ -1973,7 +1973,7 @@ static struct feature_table_entry heathrow_laptop_features[]  __pmacdata = {
 /* Paddington based machines
  * The lombard (101) powerbook, first iMac models, B&W G3 and Yikes G4.
  */
-static struct feature_table_entry paddington_features[]  __pmacdata = {
+static struct feature_table_entry paddington_features[] = {
 	{ PMAC_FTR_SCC_ENABLE,		ohare_htw_scc_enable },
 	{ PMAC_FTR_MODEM_ENABLE,	heathrow_modem_enable },
 	{ PMAC_FTR_SWIM3_ENABLE,	heathrow_floppy_enable },
@@ -1991,7 +1991,7 @@ static struct feature_table_entry paddington_features[]  __pmacdata = {
  * chipset. The pangea chipset is the "combo" UniNorth/KeyLargo
  * used on iBook2 & iMac "flow power".
  */
-static struct feature_table_entry core99_features[]  __pmacdata = {
+static struct feature_table_entry core99_features[] = {
 	{ PMAC_FTR_SCC_ENABLE,		core99_scc_enable },
 	{ PMAC_FTR_MODEM_ENABLE,	core99_modem_enable },
 	{ PMAC_FTR_IDE_ENABLE,		core99_ide_enable },
@@ -2014,7 +2014,7 @@ static struct feature_table_entry core99_features[]  __pmacdata = {
 
 /* RackMac
  */
-static struct feature_table_entry rackmac_features[]  __pmacdata = {
+static struct feature_table_entry rackmac_features[] = {
 	{ PMAC_FTR_SCC_ENABLE,		core99_scc_enable },
 	{ PMAC_FTR_IDE_ENABLE,		core99_ide_enable },
 	{ PMAC_FTR_IDE_RESET,		core99_ide_reset },
@@ -2034,7 +2034,7 @@ static struct feature_table_entry rackmac_features[]  __pmacdata = {
 
 /* Pangea features
  */
-static struct feature_table_entry pangea_features[]  __pmacdata = {
+static struct feature_table_entry pangea_features[] = {
 	{ PMAC_FTR_SCC_ENABLE,		core99_scc_enable },
 	{ PMAC_FTR_MODEM_ENABLE,	pangea_modem_enable },
 	{ PMAC_FTR_IDE_ENABLE,		core99_ide_enable },
@@ -2054,7 +2054,7 @@ static struct feature_table_entry pangea_features[]  __pmacdata = {
 
 /* Intrepid features
  */
-static struct feature_table_entry intrepid_features[]  __pmacdata = {
+static struct feature_table_entry intrepid_features[] = {
 	{ PMAC_FTR_SCC_ENABLE,		core99_scc_enable },
 	{ PMAC_FTR_MODEM_ENABLE,	pangea_modem_enable },
 	{ PMAC_FTR_IDE_ENABLE,		core99_ide_enable },
@@ -2077,7 +2077,7 @@ static struct feature_table_entry intrepid_features[]  __pmacdata = {
 
 /* G5 features
  */
-static struct feature_table_entry g5_features[]  __pmacdata = {
+static struct feature_table_entry g5_features[] = {
 	{ PMAC_FTR_GMAC_ENABLE,		g5_gmac_enable },
 	{ PMAC_FTR_1394_ENABLE,		g5_fw_enable },
 	{ PMAC_FTR_ENABLE_MPIC,		g5_mpic_enable },
@@ -2091,7 +2091,7 @@ static struct feature_table_entry g5_features[]  __pmacdata = {
 
 #endif /* CONFIG_POWER4 */
 
-static struct pmac_mb_def pmac_mb_defs[] __pmacdata = {
+static struct pmac_mb_def pmac_mb_defs[] = {
 #ifndef CONFIG_POWER4
 	/*
 	 * Desktops
@@ -2356,7 +2356,7 @@ static struct pmac_mb_def pmac_mb_defs[] __pmacdata = {
 /*
  * The toplevel feature_call callback
  */
-long __pmac
+long
 pmac_do_feature_call(unsigned int selector, ...)
 {
 	struct device_node* node;
@@ -2939,8 +2939,8 @@ void __init pmac_check_ht_link(void)
  * Early video resume hook
  */
 
-static void (*pmac_early_vresume_proc)(void *data) __pmacdata;
-static void *pmac_early_vresume_data __pmacdata;
+static void (*pmac_early_vresume_proc)(void *data);
+static void *pmac_early_vresume_data;
 
 void pmac_set_early_video_resume(void (*proc)(void *data), void *data)
 {
@@ -2953,7 +2953,7 @@ void pmac_set_early_video_resume(void (*proc)(void *data), void *data)
 }
 EXPORT_SYMBOL(pmac_set_early_video_resume);
 
-void __pmac pmac_call_early_video_resume(void)
+void pmac_call_early_video_resume(void)
 {
 	if (pmac_early_vresume_proc)
 		pmac_early_vresume_proc(pmac_early_vresume_data);
@@ -2963,11 +2963,11 @@ void __pmac pmac_call_early_video_resume(void)
  * AGP related suspend/resume code
  */
 
-static struct pci_dev *pmac_agp_bridge __pmacdata;
-static int (*pmac_agp_suspend)(struct pci_dev *bridge) __pmacdata;
-static int (*pmac_agp_resume)(struct pci_dev *bridge) __pmacdata;
+static struct pci_dev *pmac_agp_bridge;
+static int (*pmac_agp_suspend)(struct pci_dev *bridge);
+static int (*pmac_agp_resume)(struct pci_dev *bridge);
 
-void __pmac pmac_register_agp_pm(struct pci_dev *bridge,
+void pmac_register_agp_pm(struct pci_dev *bridge,
 				 int (*suspend)(struct pci_dev *bridge),
 				 int (*resume)(struct pci_dev *bridge))
 {
@@ -2984,7 +2984,7 @@ void __pmac pmac_register_agp_pm(struct pci_dev *bridge,
 }
 EXPORT_SYMBOL(pmac_register_agp_pm);
 
-void __pmac pmac_suspend_agp_for_card(struct pci_dev *dev)
+void pmac_suspend_agp_for_card(struct pci_dev *dev)
 {
 	if (pmac_agp_bridge == NULL || pmac_agp_suspend == NULL)
 		return;
@@ -2994,7 +2994,7 @@ void __pmac pmac_suspend_agp_for_card(struct pci_dev *dev)
 }
 EXPORT_SYMBOL(pmac_suspend_agp_for_card);
 
-void __pmac pmac_resume_agp_for_card(struct pci_dev *dev)
+void pmac_resume_agp_for_card(struct pci_dev *dev)
 {
 	if (pmac_agp_bridge == NULL || pmac_agp_resume == NULL)
 		return;

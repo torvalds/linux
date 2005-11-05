@@ -28,6 +28,8 @@
 #include <linux/ctype.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
+#include <linux/platform_device.h>
+
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/info.h>

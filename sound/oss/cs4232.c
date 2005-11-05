@@ -195,10 +195,12 @@ static int __init probe_cs4232(struct address_info *hw_config, int isapnp_config
 		CS_OUT2(0x15, 0x00);	/* Select logical device 0 (WSS/SB/FM) */
 		CS_OUT3(0x47, (base >> 8) & 0xff, base & 0xff);	/* WSS base */
 
-		if (check_region(0x388, 4))	/* Not free */
+		if (!request_region(0x388, 4, "FM"))	/* Not free */
 			CS_OUT3(0x48, 0x00, 0x00)	/* FM base off */
-		else
+		else {
+			release_region(0x388, 4);
 			CS_OUT3(0x48, 0x03, 0x88);	/* FM base 0x388 */
+		}
 
 		CS_OUT3(0x42, 0x00, 0x00);	/* SB base off */
 		CS_OUT2(0x22, irq);		/* SB+WSS IRQ */

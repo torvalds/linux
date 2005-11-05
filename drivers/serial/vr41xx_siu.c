@@ -26,7 +26,7 @@
 #endif
 
 #include <linux/console.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/ioport.h>
 #include <linux/init.h>

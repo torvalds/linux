@@ -192,6 +192,9 @@ do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 	int i, j, k;
 	int ret;
 
+	if (!capable(CAP_SYS_TTY_CONFIG))
+		return -EPERM;
+
 	kbs = kmalloc(sizeof(*kbs), GFP_KERNEL);
 	if (!kbs) {
 		ret = -ENOMEM;

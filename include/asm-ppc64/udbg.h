@@ -28,4 +28,7 @@ extern unsigned long udbg_ifdebug(unsigned long flags);
 extern void __init ppcdbg_initialize(void);
 
 extern void udbg_init_uart(void __iomem *comport, unsigned int speed);
+
+struct device_node;
+extern void udbg_init_scc(struct device_node *np);
 #endif

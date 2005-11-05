@@ -29,8 +29,8 @@ void m8xx_wdt_reset(void)
 {
 	volatile immap_t *imap = (volatile immap_t *)IMAP_ADDR;
 
-	imap->im_siu_conf.sc_swsr = 0x556c;	/* write magic1 */
-	imap->im_siu_conf.sc_swsr = 0xaa39;	/* write magic2 */
+	out_be16(imap->im_siu_conf.sc_swsr, 0x556c);	/* write magic1 */
+	out_be16(imap->im_siu_conf.sc_swsr, 0xaa39);	/* write magic2 */
 }
 
 static irqreturn_t m8xx_wdt_interrupt(int irq, void *dev, struct pt_regs *regs)
@@ -39,7 +39,7 @@ static irqreturn_t m8xx_wdt_interrupt(int irq, void *dev, struct pt_regs *regs)
 
 	m8xx_wdt_reset();
 
-	imap->im_sit.sit_piscr |= PISCR_PS;	/* clear irq */
+	out_be16(imap->im_sit.sit_piscr, in_be16(imap->im_sit.sit_piscr | PISCR_PS));	/* clear irq */
 
 	return IRQ_HANDLED;
 }
@@ -51,7 +51,7 @@ void __init m8xx_wdt_handler_install(bd_t * binfo)
 	u32 sypcr;
 	u32 pitrtclk;
 
-	sypcr = imap->im_siu_conf.sc_sypcr;
+	sypcr = in_be32(imap->im_siu_conf.sc_sypcr);
 
 	if (!(sypcr & 0x04)) {
 		printk(KERN_NOTICE "m8xx_wdt: wdt disabled (SYPCR: 0x%08X)\n",
@@ -87,9 +87,9 @@ void __init m8xx_wdt_handler_install(bd_t * binfo)
 	else
 		pitc = pitrtclk * wdt_timeout / binfo->bi_intfreq / 2;
 
-	imap->im_sit.sit_pitc = pitc << 16;
-	imap->im_sit.sit_piscr =
-	    (mk_int_int_mask(PIT_INTERRUPT) << 8) | PISCR_PIE | PISCR_PTE;
+	out_be32(imap->im_sit.sit_pitc, pitc << 16);
+
+	out_be16(imap->im_sit.sit_piscr, (mk_int_int_mask(PIT_INTERRUPT) << 8) | PISCR_PIE | PISCR_PTE);
 
 	if (setup_irq(PIT_INTERRUPT, &m8xx_wdt_irqaction))
 		panic("m8xx_wdt: error setting up the watchdog irq!");

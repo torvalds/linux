@@ -398,7 +398,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_video);
  */
 static u16 toshiba_line_size;
 
-static struct dmi_system_id __devinit toshiba_ohci1394_dmi_table[] = {
+static struct dmi_system_id __devinitdata toshiba_ohci1394_dmi_table[] = {
 	{
 		.ident = "Toshiba PS5 based laptop",
 		.matches = {
