@@ -30,11 +30,14 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <asm/io.h>
+#include <linux/string.h>
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/concat.h>
+
+#include <asm/io.h>
 
 /*
 ** The DIL/NetPC keeps its BIOS in two distinct flash blocks.

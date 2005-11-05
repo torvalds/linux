@@ -8,7 +8,10 @@
 #include <linux/config.h>
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/string.h>
+
 #include <linux/mtd/compatmac.h>
+
 #include <asm/unaligned.h>
 #include <asm/system.h>
 #include <asm/io.h>

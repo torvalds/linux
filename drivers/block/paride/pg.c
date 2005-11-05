@@ -162,6 +162,8 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_DLY};
 #include <linux/mtio.h>
 #include <linux/pg.h>
 #include <linux/device.h>
+#include <linux/sched.h>	/* current, TASK_* */
+#include <linux/jiffies.h>
 
 #include <asm/uaccess.h>
 

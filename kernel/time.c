@@ -338,30 +338,20 @@ int do_adjtimex(struct timex *txc)
 		        if (mtemp >= MINSEC) {
 			    ltemp = (time_offset / mtemp) << (SHIFT_USEC -
 							      SHIFT_UPDATE);
-			    if (ltemp < 0)
-			        time_freq -= -ltemp >> SHIFT_KH;
-			    else
-			        time_freq += ltemp >> SHIFT_KH;
+			    time_freq += shift_right(ltemp, SHIFT_KH);
 			} else /* calibration interval too short (p. 12) */
 				result = TIME_ERROR;
 		    } else {	/* PLL mode */
 		        if (mtemp < MAXSEC) {
 			    ltemp *= mtemp;
-			    if (ltemp < 0)
-			        time_freq -= -ltemp >> (time_constant +
-							time_constant +
-							SHIFT_KF - SHIFT_USEC);
-			    else
-			        time_freq += ltemp >> (time_constant +
+			    time_freq += shift_right(ltemp,(time_constant +
 						       time_constant +
-						       SHIFT_KF - SHIFT_USEC);
+						       SHIFT_KF - SHIFT_USEC));
 			} else /* calibration interval too long (p. 12) */
 				result = TIME_ERROR;
 		    }
-		    if (time_freq > time_tolerance)
-		        time_freq = time_tolerance;
-		    else if (time_freq < -time_tolerance)
-		        time_freq = -time_tolerance;
+		    time_freq = min(time_freq, time_tolerance);
+		    time_freq = max(time_freq, -time_tolerance);
 		} /* STA_PLL || STA_PPSTIME */
 	    } /* txc->modes & ADJ_OFFSET */
 	    if (txc->modes & ADJ_TICK) {
@@ -384,10 +374,7 @@ leave:	if ((time_status & (STA_UNSYNC|STA_CLOCKERR)) != 0
 	if ((txc->modes & ADJ_OFFSET_SINGLESHOT) == ADJ_OFFSET_SINGLESHOT)
 	    txc->offset	   = save_adjust;
 	else {
-	    if (time_offset < 0)
-		txc->offset = -(-time_offset >> SHIFT_UPDATE);
-	    else
-		txc->offset = time_offset >> SHIFT_UPDATE;
+	    txc->offset = shift_right(time_offset, SHIFT_UPDATE);
 	}
 	txc->freq	   = time_freq + pps_freq;
 	txc->maxerror	   = time_maxerror;

@@ -646,14 +646,6 @@ static void pplus_power_off(void)
 	pplus_halt();
 }
 
-static unsigned int pplus_irq_canonicalize(u_int irq)
-{
-	if (irq == 2)
-		return 9;
-	else
-		return irq;
-}
-
 static void __init pplus_init_IRQ(void)
 {
 	int i;
@@ -673,10 +665,7 @@ static void __init pplus_init_IRQ(void)
 		ppc_md.get_irq = openpic_get_irq;
 	}
 
-	for (i = 0; i < NUM_8259_INTERRUPTS; i++)
-		irq_desc[i].handler = &i8259_pic;
-
-	i8259_init(0);
+	i8259_init(0, 0);
 
 	if (ppc_md.progress)
 		ppc_md.progress("init_irq: exit", 0);
@@ -872,10 +861,10 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ISA_DMA_THRESHOLD = 0x00ffffff;
 	DMA_MODE_READ = 0x44;
 	DMA_MODE_WRITE = 0x48;
+	ppc_do_canonicalize_irqs = 1;
 
 	ppc_md.setup_arch = pplus_setup_arch;
 	ppc_md.show_cpuinfo = pplus_show_cpuinfo;
-	ppc_md.irq_canonicalize = pplus_irq_canonicalize;
 	ppc_md.init_IRQ = pplus_init_IRQ;
 	/* this gets changed later on if we have an OpenPIC -- Cort */
 	ppc_md.get_irq = i8259_irq;
@@ -911,6 +900,6 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.kgdb_map_scc = gen550_kgdb_map_scc;
 #endif
 #ifdef CONFIG_SMP
-	ppc_md.smp_ops = &pplus_smp_ops;
+	smp_ops = &pplus_smp_ops;
 #endif				/* CONFIG_SMP */
 }

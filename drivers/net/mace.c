@@ -1016,6 +1016,7 @@ static struct of_device_id mace_match[] =
 	},
 	{},
 };
+MODULE_DEVICE_TABLE (of, mace_match);
 
 static struct macio_driver mace_driver = 
 {

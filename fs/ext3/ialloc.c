@@ -26,6 +26,7 @@
 
 #include <asm/byteorder.h>
 
+#include "bitmap.h"
 #include "xattr.h"
 #include "acl.h"
 
@@ -704,7 +705,6 @@ unsigned long ext3_count_free_inodes (struct super_block * sb)
 	unsigned long bitmap_count, x;
 	struct buffer_head *bitmap_bh = NULL;
 
-	lock_super (sb);
 	es = EXT3_SB(sb)->s_es;
 	desc_count = 0;
 	bitmap_count = 0;
@@ -727,7 +727,6 @@ unsigned long ext3_count_free_inodes (struct super_block * sb)
 	brelse(bitmap_bh);
 	printk("ext3_count_free_inodes: stored = %u, computed = %lu, %lu\n",
 		le32_to_cpu(es->s_free_inodes_count), desc_count, bitmap_count);
-	unlock_super(sb);
 	return desc_count;
 #else
 	desc_count = 0;

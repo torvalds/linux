@@ -122,11 +122,10 @@ static int task_alloc_security(struct task_struct *task)
 {
 	struct task_security_struct *tsec;
 
-	tsec = kmalloc(sizeof(struct task_security_struct), GFP_KERNEL);
+	tsec = kzalloc(sizeof(struct task_security_struct), GFP_KERNEL);
 	if (!tsec)
 		return -ENOMEM;
 
-	memset(tsec, 0, sizeof(struct task_security_struct));
 	tsec->magic = SELINUX_MAGIC;
 	tsec->task = task;
 	tsec->osid = tsec->sid = tsec->ptrace_sid = SECINITSID_UNLABELED;
@@ -151,11 +150,10 @@ static int inode_alloc_security(struct inode *inode)
 	struct task_security_struct *tsec = current->security;
 	struct inode_security_struct *isec;
 
-	isec = kmalloc(sizeof(struct inode_security_struct), GFP_KERNEL);
+	isec = kzalloc(sizeof(struct inode_security_struct), GFP_KERNEL);
 	if (!isec)
 		return -ENOMEM;
 
-	memset(isec, 0, sizeof(struct inode_security_struct));
 	init_MUTEX(&isec->sem);
 	INIT_LIST_HEAD(&isec->list);
 	isec->magic = SELINUX_MAGIC;
@@ -193,11 +191,10 @@ static int file_alloc_security(struct file *file)
 	struct task_security_struct *tsec = current->security;
 	struct file_security_struct *fsec;
 
-	fsec = kmalloc(sizeof(struct file_security_struct), GFP_ATOMIC);
+	fsec = kzalloc(sizeof(struct file_security_struct), GFP_ATOMIC);
 	if (!fsec)
 		return -ENOMEM;
 
-	memset(fsec, 0, sizeof(struct file_security_struct));
 	fsec->magic = SELINUX_MAGIC;
 	fsec->file = file;
 	if (tsec && tsec->magic == SELINUX_MAGIC) {
@@ -227,11 +224,10 @@ static int superblock_alloc_security(struct super_block *sb)
 {
 	struct superblock_security_struct *sbsec;
 
-	sbsec = kmalloc(sizeof(struct superblock_security_struct), GFP_KERNEL);
+	sbsec = kzalloc(sizeof(struct superblock_security_struct), GFP_KERNEL);
 	if (!sbsec)
 		return -ENOMEM;
 
-	memset(sbsec, 0, sizeof(struct superblock_security_struct));
 	init_MUTEX(&sbsec->sem);
 	INIT_LIST_HEAD(&sbsec->list);
 	INIT_LIST_HEAD(&sbsec->isec_head);
@@ -269,11 +265,10 @@ static int sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 	if (family != PF_UNIX)
 		return 0;
 
-	ssec = kmalloc(sizeof(*ssec), priority);
+	ssec = kzalloc(sizeof(*ssec), priority);
 	if (!ssec)
 		return -ENOMEM;
 
-	memset(ssec, 0, sizeof(*ssec));
 	ssec->magic = SELINUX_MAGIC;
 	ssec->sk = sk;
 	ssec->peer_sid = SECINITSID_UNLABELED;
@@ -1483,11 +1478,10 @@ static int selinux_bprm_alloc_security(struct linux_binprm *bprm)
 {
 	struct bprm_security_struct *bsec;
 
-	bsec = kmalloc(sizeof(struct bprm_security_struct), GFP_KERNEL);
+	bsec = kzalloc(sizeof(struct bprm_security_struct), GFP_KERNEL);
 	if (!bsec)
 		return -ENOMEM;
 
-	memset(bsec, 0, sizeof *bsec);
 	bsec->magic = SELINUX_MAGIC;
 	bsec->bprm = bprm;
 	bsec->sid = SECINITSID_UNLABELED;
@@ -1615,7 +1609,7 @@ static inline void flush_unauthorized_files(struct files_struct * files)
 
 	if (tty) {
 		file_list_lock();
-		file = list_entry(tty->tty_files.next, typeof(*file), f_list);
+		file = list_entry(tty->tty_files.next, typeof(*file), f_u.fu_list);
 		if (file) {
 			/* Revalidate access to controlling tty.
 			   Use inode_has_perm on the tty inode directly rather
@@ -2211,12 +2205,6 @@ static void selinux_inode_post_setxattr(struct dentry *dentry, char *name,
 
 static int selinux_inode_getxattr (struct dentry *dentry, char *name)
 {
-	struct inode *inode = dentry->d_inode;
-	struct superblock_security_struct *sbsec = inode->i_sb->s_security;
-
-	if (sbsec->behavior == SECURITY_FS_USE_MNTPOINT)
-		return -EOPNOTSUPP;
-
 	return dentry_has_perm(current, NULL, dentry, FILE__GETATTR);
 }
 
@@ -2247,33 +2235,54 @@ static int selinux_inode_removexattr (struct dentry *dentry, char *name)
 	return -EACCES;
 }
 
-static int selinux_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size)
+/*
+ * Copy the in-core inode security context value to the user.  If the
+ * getxattr() prior to this succeeded, check to see if we need to
+ * canonicalize the value to be finally returned to the user.
+ *
+ * Permission check is handled by selinux_inode_getxattr hook.
+ */
+static int selinux_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size, int err)
 {
 	struct inode_security_struct *isec = inode->i_security;
 	char *context;
 	unsigned len;
 	int rc;
 
-	/* Permission check handled by selinux_inode_getxattr hook.*/
-
-	if (strcmp(name, XATTR_SELINUX_SUFFIX))
-		return -EOPNOTSUPP;
+	if (strcmp(name, XATTR_SELINUX_SUFFIX)) {
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
 
 	rc = security_sid_to_context(isec->sid, &context, &len);
 	if (rc)
-		return rc;
+		goto out;
 
+	/* Probe for required buffer size */
 	if (!buffer || !size) {
-		kfree(context);
-		return len;
+		rc = len;
+		goto out_free;
 	}
+
 	if (size < len) {
-		kfree(context);
-		return -ERANGE;
+		rc = -ERANGE;
+		goto out_free;
+	}
+
+	if (err > 0) {
+		if ((len == err) && !(memcmp(context, buffer, len))) {
+			/* Don't need to canonicalize value */
+			rc = err;
+			goto out_free;
+		}
+		memset(buffer, 0, size);
 	}
 	memcpy(buffer, context, len);
+	rc = len;
+out_free:
 	kfree(context);
-	return len;
+out:
+	return rc;
 }
 
 static int selinux_inode_setsecurity(struct inode *inode, const char *name,
@@ -2704,8 +2713,7 @@ static int selinux_task_kill(struct task_struct *p, struct siginfo *info, int si
 	if (rc)
 		return rc;
 
-	if (info && ((unsigned long)info == 1 ||
-	             (unsigned long)info == 2 || SI_FROMKERNEL(info)))
+	if (info != SEND_SIG_NOINFO && (is_si_special(info) || SI_FROMKERNEL(info)))
 		return 0;
 
 	if (!sig)
@@ -3599,11 +3607,10 @@ static int ipc_alloc_security(struct task_struct *task,
 	struct task_security_struct *tsec = task->security;
 	struct ipc_security_struct *isec;
 
-	isec = kmalloc(sizeof(struct ipc_security_struct), GFP_KERNEL);
+	isec = kzalloc(sizeof(struct ipc_security_struct), GFP_KERNEL);
 	if (!isec)
 		return -ENOMEM;
 
-	memset(isec, 0, sizeof(struct ipc_security_struct));
 	isec->magic = SELINUX_MAGIC;
 	isec->sclass = sclass;
 	isec->ipc_perm = perm;
@@ -3631,11 +3638,10 @@ static int msg_msg_alloc_security(struct msg_msg *msg)
 {
 	struct msg_security_struct *msec;
 
-	msec = kmalloc(sizeof(struct msg_security_struct), GFP_KERNEL);
+	msec = kzalloc(sizeof(struct msg_security_struct), GFP_KERNEL);
 	if (!msec)
 		return -ENOMEM;
 
-	memset(msec, 0, sizeof(struct msg_security_struct));
 	msec->magic = SELINUX_MAGIC;
 	msec->msg = msg;
 	msec->sid = SECINITSID_UNLABELED;

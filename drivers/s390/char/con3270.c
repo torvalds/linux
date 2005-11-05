@@ -213,6 +213,9 @@ con3270_update(struct con3270 *cp)
 	struct string *s, *n;
 	int rc;
 
+	if (cp->view.dev)
+		raw3270_activate_view(&cp->view);
+
 	wrq = xchg(&cp->write, 0);
 	if (!wrq) {
 		con3270_set_timer(cp, 1);
@@ -489,8 +492,6 @@ con3270_write(struct console *co, const char *str, unsigned int count)
 	unsigned char c;
 
 	cp = condev;
-	if (cp->view.dev)
-		raw3270_activate_view(&cp->view);
 	spin_lock_irqsave(&cp->view.lock, flags);
 	while (count-- > 0) {
 		c = *str++;
@@ -620,7 +621,7 @@ con3270_init(void)
 		     (void (*)(unsigned long)) con3270_read_tasklet,
 		     (unsigned long) condev->read);
 
-	raw3270_add_view(&condev->view, &con3270_fn, 0);
+	raw3270_add_view(&condev->view, &con3270_fn, 1);
 
 	INIT_LIST_HEAD(&condev->freemem);
 	for (i = 0; i < CON3270_STRING_PAGES; i++) {

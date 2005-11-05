@@ -1502,9 +1502,7 @@ static int elf_core_dump(long signr, struct pt_regs * regs, struct file * file)
 	fill_psinfo(psinfo, current->group_leader, current->mm);
 	fill_note(notes +1, "CORE", NT_PRPSINFO, sizeof(*psinfo), psinfo);
 	
-	fill_note(notes +2, "CORE", NT_TASKSTRUCT, sizeof(*current), current);
-  
-	numnote = 3;
+	numnote = 2;
 
 	auxv = (elf_addr_t *) current->mm->saved_auxv;
 

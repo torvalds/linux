@@ -9,6 +9,7 @@
  */
 #include <linux/config.h>
 #include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/resource.h>

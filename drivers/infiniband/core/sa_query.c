@@ -43,6 +43,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/kref.h>
 #include <linux/idr.h>
+#include <linux/workqueue.h>
 
 #include <rdma/ib_pack.h>
 #include <rdma/ib_sa.h>

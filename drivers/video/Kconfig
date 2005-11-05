@@ -494,7 +494,7 @@ config FB_TGA
 
 config FB_VESA
 	bool "VESA VGA graphics support"
-	depends on (FB = y) && (X86 || X86_64)
+	depends on (FB = y) && X86
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -712,7 +712,7 @@ config FB_RIVA_DEBUG
 
 config FB_I810
 	tristate "Intel 810/815 support (EXPERIMENTAL)"
-	depends on FB && EXPERIMENTAL && PCI && X86 && !X86_64
+	depends on FB && EXPERIMENTAL && PCI && X86_32
 	select AGP
 	select AGP_INTEL
 	select FB_MODE_HELPERS
@@ -761,7 +761,7 @@ config FB_I810_I2C
 
 config FB_INTEL
 	tristate "Intel 830M/845G/852GM/855GM/865G support (EXPERIMENTAL)"
-	depends on FB && EXPERIMENTAL && PCI && X86 && !X86_64
+	depends on FB && EXPERIMENTAL && PCI && X86_32
 	select AGP
 	select AGP_INTEL
 	select FB_MODE_HELPERS

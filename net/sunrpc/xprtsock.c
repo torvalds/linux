@@ -36,6 +36,15 @@
 #include <net/tcp.h>
 
 /*
+ * xprtsock tunables
+ */
+unsigned int xprt_udp_slot_table_entries = RPC_DEF_SLOT_TABLE;
+unsigned int xprt_tcp_slot_table_entries = RPC_DEF_SLOT_TABLE;
+
+unsigned int xprt_min_resvport = RPC_DEF_MIN_RESVPORT;
+unsigned int xprt_max_resvport = RPC_DEF_MAX_RESVPORT;
+
+/*
  * How many times to try sending a request on a socket before waiting
  * for the socket buffer to clear.
  */

@@ -16,12 +16,17 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
+#include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/irq.h>
 #include <asm/hardware/scoop.h>
-#include <asm/arch/pxa-regs.h>
+#ifdef CONFIG_SA1100_COLLIE
+#include <asm/arch-sa1100/collie.h>
+#else
+#include <asm/arch-pxa/pxa-regs.h>
+#endif
 
 #include "soc_common.h"
 
@@ -38,6 +43,7 @@ static int sharpsl_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 	int ret;
 
+#ifndef CONFIG_SA1100_COLLIE
 	/*
 	 * Setup default state of GPIO outputs
 	 * before we enable them as outputs.
@@ -60,6 +66,7 @@ static int sharpsl_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 	pxa_gpio_mode(GPIO55_nPREG_MD);
 	pxa_gpio_mode(GPIO56_nPWAIT_MD);
 	pxa_gpio_mode(GPIO57_nIOIS16_MD);
+#endif
 
 	/* Register interrupts */
 	if (scoop_devs[skt->nr].cd_irq >= 0) {
@@ -213,12 +220,20 @@ static void sharpsl_pcmcia_socket_init(struct soc_pcmcia_socket *skt)
 	write_scoop_reg(scoop_devs[skt->nr].dev, SCOOP_IMR, 0x00C0);
 	write_scoop_reg(scoop_devs[skt->nr].dev, SCOOP_MCR, 0x0101);
 	scoop_devs[skt->nr].keep_vs = NO_KEEP_VS;
+
+	if (machine_is_collie())
+		/* We need to disable SS_OUTPUT_ENA here. */
+		write_scoop_reg(scoop_devs[skt->nr].dev, SCOOP_CPR, read_scoop_reg(scoop_devs[skt->nr].dev, SCOOP_CPR) & ~0x0080);
 }
 
 static void sharpsl_pcmcia_socket_suspend(struct soc_pcmcia_socket *skt)
 {
 	/* CF_BUS_OFF */
 	sharpsl_pcmcia_init_reset(&scoop_devs[skt->nr]);
+
+	if (machine_is_collie())
+		/* We need to disable SS_OUTPUT_ENA here. */
+		write_scoop_reg(scoop_devs[skt->nr].dev, SCOOP_CPR, read_scoop_reg(scoop_devs[skt->nr].dev, SCOOP_CPR) & ~0x0080);
 }
 
 static struct pcmcia_low_level sharpsl_pcmcia_ops = {
@@ -234,6 +249,19 @@ static struct pcmcia_low_level sharpsl_pcmcia_ops = {
 };
 
 static struct platform_device *sharpsl_pcmcia_device;
+
+#ifdef CONFIG_SA1100_COLLIE
+int __init pcmcia_collie_init(struct device *dev)
+{
+       int ret = -ENODEV;
+
+       if (machine_is_collie())
+               ret = sa11xx_drv_pcmcia_probe(dev, &sharpsl_pcmcia_ops, 0, 1);
+
+       return ret;
+}
+
+#else
 
 static int __init sharpsl_pcmcia_init(void)
 {
@@ -269,6 +297,7 @@ static void __exit sharpsl_pcmcia_exit(void)
 
 fs_initcall(sharpsl_pcmcia_init);
 module_exit(sharpsl_pcmcia_exit);
+#endif
 
 MODULE_DESCRIPTION("Sharp SL Series PCMCIA Support");
 MODULE_LICENSE("GPL");

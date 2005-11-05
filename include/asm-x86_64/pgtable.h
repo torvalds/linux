@@ -318,8 +318,6 @@ static inline int pmd_large(pmd_t pte) {
  * and a page entry and page directory to the page they refer to.
  */
 
-#define page_pte(page) page_pte_prot(page, __pgprot(0))
-
 /*
  * Level 4 access.
  */

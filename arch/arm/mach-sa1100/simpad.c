@@ -10,7 +10,7 @@
 #include <linux/proc_fs.h>
 #include <linux/string.h> 
 #include <linux/pm.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 

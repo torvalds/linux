@@ -57,6 +57,7 @@
 #include <asm/cache.h>
 #include <asm/prom.h>
 #include <asm/ptrace.h>
+#include <asm/machdep.h>
 
 #define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
 
@@ -125,7 +126,7 @@ skip:
 			seq_puts(p, "  PowerPC             Thermal Assist (cpu temp)\n");
 		}
 #endif
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_MERGE)
 		/* should this be per processor send/receive? */
 		seq_printf(p, "IPI (recv/sent): %10u/%u\n",
 				atomic_read(&ipi_recv), atomic_read(&ipi_sent));

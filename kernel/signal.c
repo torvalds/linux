@@ -277,7 +277,6 @@ static struct sigqueue *__sigqueue_alloc(struct task_struct *t, gfp_t flags,
 	} else {
 		INIT_LIST_HEAD(&q->list);
 		q->flags = 0;
-		q->lock = NULL;
 		q->user = get_uid(t->user);
 	}
 	return(q);
@@ -652,8 +651,7 @@ static int check_kill_permission(int sig, struct siginfo *info,
 	if (!valid_signal(sig))
 		return error;
 	error = -EPERM;
-	if ((!info || ((unsigned long)info != 1 &&
-			(unsigned long)info != 2 && SI_FROMUSER(info)))
+	if ((info == SEND_SIG_NOINFO || (!is_si_special(info) && SI_FROMUSER(info)))
 	    && ((sig != SIGCONT) ||
 		(current->signal->session != t->signal->session))
 	    && (current->euid ^ t->suid) && (current->euid ^ t->uid)
@@ -790,7 +788,7 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	 * fast-pathed signals for kernel-internal things like SIGSTOP
 	 * or SIGKILL.
 	 */
-	if ((unsigned long)info == 2)
+	if (info == SEND_SIG_FORCED)
 		goto out_set;
 
 	/* Real-time signals must be queued if sent by sigqueue, or
@@ -802,19 +800,19 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 	   pass on the info struct.  */
 
 	q = __sigqueue_alloc(t, GFP_ATOMIC, (sig < SIGRTMIN &&
-					     ((unsigned long) info < 2 ||
+					     (is_si_special(info) ||
 					      info->si_code >= 0)));
 	if (q) {
 		list_add_tail(&q->list, &signals->list);
 		switch ((unsigned long) info) {
-		case 0:
+		case (unsigned long) SEND_SIG_NOINFO:
 			q->info.si_signo = sig;
 			q->info.si_errno = 0;
 			q->info.si_code = SI_USER;
 			q->info.si_pid = current->pid;
 			q->info.si_uid = current->uid;
 			break;
-		case 1:
+		case (unsigned long) SEND_SIG_PRIV:
 			q->info.si_signo = sig;
 			q->info.si_errno = 0;
 			q->info.si_code = SI_KERNEL;
@@ -825,20 +823,13 @@ static int send_signal(int sig, struct siginfo *info, struct task_struct *t,
 			copy_siginfo(&q->info, info);
 			break;
 		}
-	} else {
-		if (sig >= SIGRTMIN && info && (unsigned long)info != 1
-		   && info->si_code != SI_USER)
+	} else if (!is_si_special(info)) {
+		if (sig >= SIGRTMIN && info->si_code != SI_USER)
 		/*
 		 * Queue overflow, abort.  We may abort if the signal was rt
 		 * and sent by user using something other than kill().
 		 */
 			return -EAGAIN;
-		if (((unsigned long)info > 1) && (info->si_code == SI_TIMER))
-			/*
-			 * Set up a return to indicate that we dropped 
-			 * the signal.
-			 */
-			ret = info->si_sys_private;
 	}
 
 out_set:
@@ -858,12 +849,6 @@ specific_send_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 	if (!irqs_disabled())
 		BUG();
 	assert_spin_locked(&t->sighand->siglock);
-
-	if (((unsigned long)info > 2) && (info->si_code == SI_TIMER))
-		/*
-		 * Set up a return to indicate that we dropped the signal.
-		 */
-		ret = info->si_sys_private;
 
 	/* Short-circuit ignored signals.  */
 	if (sig_ignored(t, sig))
@@ -894,11 +879,13 @@ force_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 	int ret;
 
 	spin_lock_irqsave(&t->sighand->siglock, flags);
-	if (sigismember(&t->blocked, sig) || t->sighand->action[sig-1].sa.sa_handler == SIG_IGN) {
+	if (t->sighand->action[sig-1].sa.sa_handler == SIG_IGN) {
 		t->sighand->action[sig-1].sa.sa_handler = SIG_DFL;
-		sigdelset(&t->blocked, sig);
-		recalc_sigpending_tsk(t);
 	}
+	if (sigismember(&t->blocked, sig)) {
+		sigdelset(&t->blocked, sig);
+	}
+	recalc_sigpending_tsk(t);
 	ret = specific_send_sig_info(sig, info, t);
 	spin_unlock_irqrestore(&t->sighand->siglock, flags);
 
@@ -908,15 +895,7 @@ force_sig_info(int sig, struct siginfo *info, struct task_struct *t)
 void
 force_sig_specific(int sig, struct task_struct *t)
 {
-	unsigned long int flags;
-
-	spin_lock_irqsave(&t->sighand->siglock, flags);
-	if (t->sighand->action[sig-1].sa.sa_handler == SIG_IGN)
-		t->sighand->action[sig-1].sa.sa_handler = SIG_DFL;
-	sigdelset(&t->blocked, sig);
-	recalc_sigpending_tsk(t);
-	specific_send_sig_info(sig, (void *)2, t);
-	spin_unlock_irqrestore(&t->sighand->siglock, flags);
+	force_sig_info(sig, SEND_SIG_FORCED, t);
 }
 
 /*
@@ -1051,12 +1030,6 @@ __group_send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 	assert_spin_locked(&p->sighand->siglock);
 	handle_stop_signal(sig, p);
 
-	if (((unsigned long)info > 2) && (info->si_code == SI_TIMER))
-		/*
-		 * Set up a return to indicate that we dropped the signal.
-		 */
-		ret = info->si_sys_private;
-
 	/* Short-circuit ignored signals.  */
 	if (sig_ignored(p, sig))
 		return ret;
@@ -1109,8 +1082,8 @@ void zap_other_threads(struct task_struct *p)
 		if (t != p->group_leader)
 			t->exit_signal = -1;
 
+		/* SIGKILL will be handled before any pending SIGSTOP */
 		sigaddset(&t->pending.signal, SIGKILL);
-		rm_from_queue(SIG_KERNEL_STOP_MASK, &t->pending);
 		signal_wake_up(t, 1);
 	}
 }
@@ -1286,10 +1259,13 @@ send_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 	return ret;
 }
 
+#define __si_special(priv) \
+	((priv) ? SEND_SIG_PRIV : SEND_SIG_NOINFO)
+
 int
 send_sig(int sig, struct task_struct *p, int priv)
 {
-	return send_sig_info(sig, (void*)(long)(priv != 0), p);
+	return send_sig_info(sig, __si_special(priv), p);
 }
 
 /*
@@ -1309,7 +1285,7 @@ send_group_sig_info(int sig, struct siginfo *info, struct task_struct *p)
 void
 force_sig(int sig, struct task_struct *p)
 {
-	force_sig_info(sig, (void*)1L, p);
+	force_sig_info(sig, SEND_SIG_PRIV, p);
 }
 
 /*
@@ -1334,13 +1310,13 @@ force_sigsegv(int sig, struct task_struct *p)
 int
 kill_pg(pid_t pgrp, int sig, int priv)
 {
-	return kill_pg_info(sig, (void *)(long)(priv != 0), pgrp);
+	return kill_pg_info(sig, __si_special(priv), pgrp);
 }
 
 int
 kill_proc(pid_t pid, int sig, int priv)
 {
-	return kill_proc_info(sig, (void *)(long)(priv != 0), pid);
+	return kill_proc_info(sig, __si_special(priv), pid);
 }
 
 /*
@@ -1371,11 +1347,12 @@ void sigqueue_free(struct sigqueue *q)
 	 * pending queue.
 	 */
 	if (unlikely(!list_empty(&q->list))) {
-		read_lock(&tasklist_lock);  
-		spin_lock_irqsave(q->lock, flags);
+		spinlock_t *lock = &current->sighand->siglock;
+		read_lock(&tasklist_lock);
+		spin_lock_irqsave(lock, flags);
 		if (!list_empty(&q->list))
 			list_del_init(&q->list);
-		spin_unlock_irqrestore(q->lock, flags);
+		spin_unlock_irqrestore(lock, flags);
 		read_unlock(&tasklist_lock);
 	}
 	q->flags &= ~SIGQUEUE_PREALLOC;
@@ -1414,7 +1391,6 @@ send_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 		goto out;
 	}
 
-	q->lock = &p->sighand->siglock;
 	list_add_tail(&q->list, &p->pending.list);
 	sigaddset(&p->pending.signal, sig);
 	if (!sigismember(&p->blocked, sig))
@@ -1462,7 +1438,6 @@ send_group_sigqueue(int sig, struct sigqueue *q, struct task_struct *p)
 	 * We always use the shared queue for process-wide signals,
 	 * to avoid several races.
 	 */
-	q->lock = &p->sighand->siglock;
 	list_add_tail(&q->list, &p->signal->shared_pending.list);
 	sigaddset(&p->signal->shared_pending.signal, sig);
 
@@ -1881,9 +1856,9 @@ relock:
 			/* Let the debugger run.  */
 			ptrace_stop(signr, signr, info);
 
-			/* We're back.  Did the debugger cancel the sig?  */
+			/* We're back.  Did the debugger cancel the sig or group_exit? */
 			signr = current->exit_code;
-			if (signr == 0)
+			if (signr == 0 || current->signal->flags & SIGNAL_GROUP_EXIT)
 				continue;
 
 			current->exit_code = 0;
@@ -2285,6 +2260,39 @@ sys_kill(int pid, int sig)
 	return kill_something_info(sig, &info, pid);
 }
 
+static int do_tkill(int tgid, int pid, int sig)
+{
+	int error;
+	struct siginfo info;
+	struct task_struct *p;
+
+	error = -ESRCH;
+	info.si_signo = sig;
+	info.si_errno = 0;
+	info.si_code = SI_TKILL;
+	info.si_pid = current->tgid;
+	info.si_uid = current->uid;
+
+	read_lock(&tasklist_lock);
+	p = find_task_by_pid(pid);
+	if (p && (tgid <= 0 || p->tgid == tgid)) {
+		error = check_kill_permission(sig, &info, p);
+		/*
+		 * The null signal is a permissions and process existence
+		 * probe.  No signal is actually delivered.
+		 */
+		if (!error && sig && p->sighand) {
+			spin_lock_irq(&p->sighand->siglock);
+			handle_stop_signal(sig, p);
+			error = specific_send_sig_info(sig, &info, p);
+			spin_unlock_irq(&p->sighand->siglock);
+		}
+	}
+	read_unlock(&tasklist_lock);
+
+	return error;
+}
+
 /**
  *  sys_tgkill - send signal to one specific thread
  *  @tgid: the thread group ID of the thread
@@ -2297,38 +2305,11 @@ sys_kill(int pid, int sig)
  */
 asmlinkage long sys_tgkill(int tgid, int pid, int sig)
 {
-	struct siginfo info;
-	int error;
-	struct task_struct *p;
-
 	/* This is only valid for single tasks */
 	if (pid <= 0 || tgid <= 0)
 		return -EINVAL;
 
-	info.si_signo = sig;
-	info.si_errno = 0;
-	info.si_code = SI_TKILL;
-	info.si_pid = current->tgid;
-	info.si_uid = current->uid;
-
-	read_lock(&tasklist_lock);
-	p = find_task_by_pid(pid);
-	error = -ESRCH;
-	if (p && (p->tgid == tgid)) {
-		error = check_kill_permission(sig, &info, p);
-		/*
-		 * The null signal is a permissions and process existence
-		 * probe.  No signal is actually delivered.
-		 */
-		if (!error && sig && p->sighand) {
-			spin_lock_irq(&p->sighand->siglock);
-			handle_stop_signal(sig, p);
-			error = specific_send_sig_info(sig, &info, p);
-			spin_unlock_irq(&p->sighand->siglock);
-		}
-	}
-	read_unlock(&tasklist_lock);
-	return error;
+	return do_tkill(tgid, pid, sig);
 }
 
 /*
@@ -2337,38 +2318,11 @@ asmlinkage long sys_tgkill(int tgid, int pid, int sig)
 asmlinkage long
 sys_tkill(int pid, int sig)
 {
-	struct siginfo info;
-	int error;
-	struct task_struct *p;
-
 	/* This is only valid for single tasks */
 	if (pid <= 0)
 		return -EINVAL;
 
-	info.si_signo = sig;
-	info.si_errno = 0;
-	info.si_code = SI_TKILL;
-	info.si_pid = current->tgid;
-	info.si_uid = current->uid;
-
-	read_lock(&tasklist_lock);
-	p = find_task_by_pid(pid);
-	error = -ESRCH;
-	if (p) {
-		error = check_kill_permission(sig, &info, p);
-		/*
-		 * The null signal is a permissions and process existence
-		 * probe.  No signal is actually delivered.
-		 */
-		if (!error && sig && p->sighand) {
-			spin_lock_irq(&p->sighand->siglock);
-			handle_stop_signal(sig, p);
-			error = specific_send_sig_info(sig, &info, p);
-			spin_unlock_irq(&p->sighand->siglock);
-		}
-	}
-	read_unlock(&tasklist_lock);
-	return error;
+	return do_tkill(0, pid, sig);
 }
 
 asmlinkage long

@@ -17,6 +17,8 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/mv643xx.h>
+#include <linux/platform_device.h>
+
 #include <asm/io.h>
 
 /* Register defines */

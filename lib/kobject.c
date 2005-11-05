@@ -14,6 +14,7 @@
 #include <linux/string.h>
 #include <linux/module.h>
 #include <linux/stat.h>
+#include <linux/slab.h>
 
 /**
  *	populate_dir - populate directory with attributes.

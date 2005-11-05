@@ -13,9 +13,9 @@
 #include <asm/page.h>
 #include <asm/byteorder.h>
 #ifdef CONFIG_PPC_ISERIES 
-#include <asm/iSeries/iSeries_io.h>
+#include <asm/iseries/iseries_io.h>
 #endif  
-#include <asm/memory.h>
+#include <asm/synch.h>
 #include <asm/delay.h>
 
 #include <asm-generic/iomap.h>

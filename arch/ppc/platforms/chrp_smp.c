@@ -31,6 +31,7 @@
 #include <asm/residual.h>
 #include <asm/time.h>
 #include <asm/open_pic.h>
+#include <asm/machdep.h>
 
 extern unsigned long smp_chrp_cpu_nr;
 
@@ -88,7 +89,7 @@ smp_chrp_take_timebase(void)
 }
 
 /* CHRP with openpic */
-struct smp_ops_t chrp_smp_ops __chrpdata = {
+struct smp_ops_t chrp_smp_ops = {
 	.message_pass = smp_openpic_message_pass,
 	.probe = smp_chrp_probe,
 	.kick_cpu = smp_chrp_kick_cpu,

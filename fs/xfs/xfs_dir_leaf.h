@@ -1,33 +1,19 @@
 /*
- * Copyright (c) 2000-2001 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2001,2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_DIR_LEAF_H__
 #define	__XFS_DIR_LEAF_H__
@@ -152,30 +138,26 @@ typedef struct xfs_dir_put_args
 	struct uio	*uio;		/* uio control structure */
 } xfs_dir_put_args_t;
 
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR_LEAF_ENTSIZE_BYNAME)
-int xfs_dir_leaf_entsize_byname(int len);
 #define XFS_DIR_LEAF_ENTSIZE_BYNAME(len)	xfs_dir_leaf_entsize_byname(len)
-#else
-#define XFS_DIR_LEAF_ENTSIZE_BYNAME(len)	/* space a name will use */ \
-	((uint)sizeof(xfs_dir_leaf_name_t)-1 + len)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR_LEAF_ENTSIZE_BYENTRY)
-int xfs_dir_leaf_entsize_byentry(xfs_dir_leaf_entry_t *entry);
+static inline int xfs_dir_leaf_entsize_byname(int len)
+{
+	return (uint)sizeof(xfs_dir_leaf_name_t)-1 + len;
+}
+
 #define XFS_DIR_LEAF_ENTSIZE_BYENTRY(entry)	\
 	xfs_dir_leaf_entsize_byentry(entry)
-#else
-#define XFS_DIR_LEAF_ENTSIZE_BYENTRY(entry)	/* space an entry will use */ \
-	((uint)sizeof(xfs_dir_leaf_name_t)-1 + (entry)->namelen)
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_DIR_LEAF_NAMESTRUCT)
-xfs_dir_leaf_name_t *
-xfs_dir_leaf_namestruct(xfs_dir_leafblock_t *leafp, int offset);
+static inline int xfs_dir_leaf_entsize_byentry(xfs_dir_leaf_entry_t *entry)
+{
+	return (uint)sizeof(xfs_dir_leaf_name_t)-1 + (entry)->namelen;
+}
+
 #define XFS_DIR_LEAF_NAMESTRUCT(leafp,offset)	\
 	xfs_dir_leaf_namestruct(leafp,offset)
-#else
-#define XFS_DIR_LEAF_NAMESTRUCT(leafp,offset)	/* point to name struct */ \
-	((xfs_dir_leaf_name_t *)&((char *)(leafp))[offset])
-#endif
+static inline xfs_dir_leaf_name_t *
+xfs_dir_leaf_namestruct(xfs_dir_leafblock_t *leafp, int offset)
+{
+	return (xfs_dir_leaf_name_t *)&((char *)(leafp))[offset];
+}
 
 /*========================================================================
  * Function prototypes for the kernel.
@@ -190,7 +172,7 @@ int xfs_dir_shortform_lookup(struct xfs_da_args *args);
 int xfs_dir_shortform_to_leaf(struct xfs_da_args *args);
 int xfs_dir_shortform_removename(struct xfs_da_args *args);
 int xfs_dir_shortform_getdents(struct xfs_inode *dp, struct uio *uio, int *eofp,
-				      struct xfs_dirent *dbp, xfs_dir_put_t put);
+			       struct xfs_dirent *dbp, xfs_dir_put_t put);
 int xfs_dir_shortform_replace(struct xfs_da_args *args);
 
 /*
@@ -236,7 +218,6 @@ int	xfs_dir_leaf_order(struct xfs_dabuf *leaf1_bp,
 int	xfs_dir_put_dirent64_direct(xfs_dir_put_args_t *pa);
 int	xfs_dir_put_dirent64_uio(xfs_dir_put_args_t *pa);
 int	xfs_dir_ino_validate(struct xfs_mount *mp, xfs_ino_t ino);
-
 
 /*
  * Global data.

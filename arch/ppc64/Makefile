@@ -75,17 +75,24 @@ else
 	CFLAGS += $(call cc-option,-mtune=power4)
 endif
 
+# No AltiVec instruction when building kernel
+CFLAGS	+= $(call cc-option, -mno-altivec)
+
 # Enable unit-at-a-time mode when possible. It shrinks the
 # kernel considerably.
 CFLAGS += $(call cc-option,-funit-at-a-time)
 
 head-y := arch/ppc64/kernel/head.o
+head-y += arch/powerpc/kernel/fpu.o
+head-y += arch/powerpc/kernel/entry_64.o
 
-libs-y				+= arch/ppc64/lib/
-core-y				+= arch/ppc64/kernel/
-core-y				+= arch/ppc64/mm/
-core-$(CONFIG_XMON)		+= arch/ppc64/xmon/
-drivers-$(CONFIG_OPROFILE)	+= arch/ppc64/oprofile/
+core-y				+= arch/ppc64/kernel/ arch/powerpc/kernel/
+core-y				+= arch/powerpc/mm/
+core-y				+= arch/powerpc/sysdev/
+core-y				+= arch/powerpc/platforms/
+core-y				+= arch/powerpc/lib/
+core-$(CONFIG_XMON)		+= arch/powerpc/xmon/
+drivers-$(CONFIG_OPROFILE)	+= arch/powerpc/oprofile/
 
 boot := arch/ppc64/boot
 
@@ -100,7 +107,7 @@ $(boottargets-y): vmlinux
 bootimage-$(CONFIG_PPC_PSERIES) := $(boot)/zImage
 bootimage-$(CONFIG_PPC_PMAC) := vmlinux
 bootimage-$(CONFIG_PPC_MAPLE) := $(boot)/zImage
-bootimage-$(CONFIG_PPC_BPA) := zImage
+bootimage-$(CONFIG_PPC_BPA) := $(boot)/zImage
 bootimage-$(CONFIG_PPC_ISERIES) := vmlinux
 BOOTIMAGE := $(bootimage-y)
 install: vmlinux

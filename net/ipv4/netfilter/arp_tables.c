@@ -347,57 +347,105 @@ unsigned int arpt_do_table(struct sk_buff **pskb,
 		return verdict;
 }
 
-static inline void *find_inlist_lock_noload(struct list_head *head,
-					    const char *name,
-					    int *error,
-					    struct semaphore *mutex)
-{
-	void *ret;
+/*
+ * These are weird, but module loading must not be done with mutex
+ * held (since they will register), and we have to have a single
+ * function to use try_then_request_module().
+ */
 
-	*error = down_interruptible(mutex);
-	if (*error != 0)
+/* Find table by name, grabs mutex & ref.  Returns ERR_PTR() on error. */
+static inline struct arpt_table *find_table_lock(const char *name)
+{
+	struct arpt_table *t;
+
+	if (down_interruptible(&arpt_mutex) != 0)
+		return ERR_PTR(-EINTR);
+
+	list_for_each_entry(t, &arpt_tables, list)
+		if (strcmp(t->name, name) == 0 && try_module_get(t->me))
+			return t;
+	up(&arpt_mutex);
+	return NULL;
+}
+
+
+/* Find target, grabs ref.  Returns ERR_PTR() on error. */
+static inline struct arpt_target *find_target(const char *name, u8 revision)
+{
+	struct arpt_target *t;
+	int err = 0;
+
+	if (down_interruptible(&arpt_mutex) != 0)
+		return ERR_PTR(-EINTR);
+
+	list_for_each_entry(t, &arpt_target, list) {
+		if (strcmp(t->name, name) == 0) {
+			if (t->revision == revision) {
+				if (try_module_get(t->me)) {
+					up(&arpt_mutex);
+					return t;
+				}
+			} else
+				err = -EPROTOTYPE; /* Found something. */
+		}
+	}
+	up(&arpt_mutex);
+	return ERR_PTR(err);
+}
+
+struct arpt_target *arpt_find_target(const char *name, u8 revision)
+{
+	struct arpt_target *target;
+
+	target = try_then_request_module(find_target(name, revision),
+					 "arpt_%s", name);
+	if (IS_ERR(target) || !target)
 		return NULL;
+	return target;
+}
 
-	ret = list_named_find(head, name);
-	if (!ret) {
-		*error = -ENOENT;
-		up(mutex);
+static int target_revfn(const char *name, u8 revision, int *bestp)
+{
+	struct arpt_target *t;
+	int have_rev = 0;
+
+	list_for_each_entry(t, &arpt_target, list) {
+		if (strcmp(t->name, name) == 0) {
+			if (t->revision > *bestp)
+				*bestp = t->revision;
+			if (t->revision == revision)
+				have_rev =1;
+		}
 	}
-	return ret;
+	return have_rev;
 }
 
-#ifndef CONFIG_KMOD
-#define find_inlist_lock(h,n,p,e,m) find_inlist_lock_noload((h),(n),(e),(m))
-#else
-static void *
-find_inlist_lock(struct list_head *head,
-		 const char *name,
-		 const char *prefix,
-		 int *error,
-		 struct semaphore *mutex)
+/* Returns true or false (if no such extension at all) */
+static inline int find_revision(const char *name, u8 revision,
+				int (*revfn)(const char *, u8, int *),
+				int *err)
 {
-	void *ret;
+	int have_rev, best = -1;
 
-	ret = find_inlist_lock_noload(head, name, error, mutex);
-	if (!ret) {
-		duprintf("find_inlist: loading `%s%s'.\n", prefix, name);
-		request_module("%s%s", prefix, name);
-		ret = find_inlist_lock_noload(head, name, error, mutex);
+	if (down_interruptible(&arpt_mutex) != 0) {
+		*err = -EINTR;
+		return 1;
+	}
+	have_rev = revfn(name, revision, &best);
+	up(&arpt_mutex);
+
+	/* Nothing at all?  Return 0 to try loading module. */
+	if (best == -1) {
+		*err = -ENOENT;
+		return 0;
 	}
 
-	return ret;
-}
-#endif
-
-static inline struct arpt_table *arpt_find_table_lock(const char *name, int *error, struct semaphore *mutex)
-{
-	return find_inlist_lock(&arpt_tables, name, "arptable_", error, mutex);
+	*err = best;
+	if (!have_rev)
+		*err = -EPROTONOSUPPORT;
+	return 1;
 }
 
-static struct arpt_target *arpt_find_target_lock(const char *name, int *error, struct semaphore *mutex)
-{
-	return find_inlist_lock(&arpt_target, name, "arpt_", error, mutex);
-}
 
 /* All zeroes == unconditional rule. */
 static inline int unconditional(const struct arpt_arp *arp)
@@ -544,17 +592,15 @@ static inline int check_entry(struct arpt_entry *e, const char *name, unsigned i
 	}
 
 	t = arpt_get_target(e);
-	target = arpt_find_target_lock(t->u.user.name, &ret, &arpt_mutex);
-	if (!target) {
+	target = try_then_request_module(find_target(t->u.user.name,
+						     t->u.user.revision),
+					 "arpt_%s", t->u.user.name);
+	if (IS_ERR(target) || !target) {
 		duprintf("check_entry: `%s' not found\n", t->u.user.name);
+		ret = target ? PTR_ERR(target) : -ENOENT;
 		goto out;
 	}
-	if (!try_module_get((target->me))) {
-		ret = -ENOENT;
-		goto out_unlock;
-	}
 	t->u.kernel.target = target;
-	up(&arpt_mutex);
 
 	if (t->u.kernel.target == &arpt_standard_target) {
 		if (!standard_check(t, size)) {
@@ -576,8 +622,6 @@ static inline int check_entry(struct arpt_entry *e, const char *name, unsigned i
 	(*i)++;
 	return 0;
 
-out_unlock:
-	up(&arpt_mutex);
 out:
 	return ret;
 }
@@ -846,8 +890,8 @@ static int get_entries(const struct arpt_get_entries *entries,
 	int ret;
 	struct arpt_table *t;
 
-	t = arpt_find_table_lock(entries->name, &ret, &arpt_mutex);
-	if (t) {
+	t = find_table_lock(entries->name);
+	if (t || !IS_ERR(t)) {
 		duprintf("t->private->number = %u\n",
 			 t->private->number);
 		if (entries->size == t->private->size)
@@ -859,10 +903,10 @@ static int get_entries(const struct arpt_get_entries *entries,
 				 entries->size);
 			ret = -EINVAL;
 		}
+		module_put(t->me);
 		up(&arpt_mutex);
 	} else
-		duprintf("get_entries: Can't find %s!\n",
-			 entries->name);
+		ret = t ? PTR_ERR(t) : -ENOENT;
 
 	return ret;
 }
@@ -913,22 +957,19 @@ static int do_replace(void __user *user, unsigned int len)
 
 	duprintf("arp_tables: Translated table\n");
 
-	t = arpt_find_table_lock(tmp.name, &ret, &arpt_mutex);
-	if (!t)
+	t = try_then_request_module(find_table_lock(tmp.name),
+				    "arptable_%s", tmp.name);
+	if (!t || IS_ERR(t)) {
+		ret = t ? PTR_ERR(t) : -ENOENT;
 		goto free_newinfo_counters_untrans;
+	}
 
 	/* You lied! */
 	if (tmp.valid_hooks != t->valid_hooks) {
 		duprintf("Valid hook crap: %08X vs %08X\n",
 			 tmp.valid_hooks, t->valid_hooks);
 		ret = -EINVAL;
-		goto free_newinfo_counters_untrans_unlock;
-	}
-
-	/* Get a reference in advance, we're not allowed fail later */
-	if (!try_module_get(t->me)) {
-		ret = -EBUSY;
-		goto free_newinfo_counters_untrans_unlock;
+		goto put_module;
 	}
 
 	oldinfo = replace_table(t, tmp.num_counters, newinfo, &ret);
@@ -959,7 +1000,6 @@ static int do_replace(void __user *user, unsigned int len)
 
  put_module:
 	module_put(t->me);
- free_newinfo_counters_untrans_unlock:
 	up(&arpt_mutex);
  free_newinfo_counters_untrans:
 	ARPT_ENTRY_ITERATE(newinfo->entries, newinfo->size, cleanup_entry, NULL);
@@ -989,7 +1029,7 @@ static int do_add_counters(void __user *user, unsigned int len)
 	unsigned int i;
 	struct arpt_counters_info tmp, *paddc;
 	struct arpt_table *t;
-	int ret;
+	int ret = 0;
 
 	if (copy_from_user(&tmp, user, sizeof(tmp)) != 0)
 		return -EFAULT;
@@ -1006,9 +1046,11 @@ static int do_add_counters(void __user *user, unsigned int len)
 		goto free;
 	}
 
-	t = arpt_find_table_lock(tmp.name, &ret, &arpt_mutex);
-	if (!t)
+	t = find_table_lock(tmp.name);
+	if (!t || IS_ERR(t)) {
+		ret = t ? PTR_ERR(t) : -ENOENT;
 		goto free;
+	}
 
 	write_lock_bh(&t->lock);
 	if (t->private->number != paddc->num_counters) {
@@ -1025,6 +1067,7 @@ static int do_add_counters(void __user *user, unsigned int len)
  unlock_up_free:
 	write_unlock_bh(&t->lock);
 	up(&arpt_mutex);
+	module_put(t->me);
  free:
 	vfree(paddc);
 
@@ -1079,8 +1122,10 @@ static int do_arpt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len
 			break;
 		}
 		name[ARPT_TABLE_MAXNAMELEN-1] = '\0';
-		t = arpt_find_table_lock(name, &ret, &arpt_mutex);
-		if (t) {
+
+		t = try_then_request_module(find_table_lock(name),
+					    "arptable_%s", name);
+		if (t && !IS_ERR(t)) {
 			struct arpt_getinfo info;
 
 			info.valid_hooks = t->valid_hooks;
@@ -1096,9 +1141,10 @@ static int do_arpt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len
 				ret = -EFAULT;
 			else
 				ret = 0;
-
 			up(&arpt_mutex);
-		}
+			module_put(t->me);
+		} else
+			ret = t ? PTR_ERR(t) : -ENOENT;
 	}
 	break;
 
@@ -1119,6 +1165,24 @@ static int do_arpt_get_ctl(struct sock *sk, int cmd, void __user *user, int *len
 		break;
 	}
 
+	case ARPT_SO_GET_REVISION_TARGET: {
+		struct arpt_get_revision rev;
+
+		if (*len != sizeof(rev)) {
+			ret = -EINVAL;
+			break;
+		}
+		if (copy_from_user(&rev, user, sizeof(rev)) != 0) {
+			ret = -EFAULT;
+			break;
+		}
+
+		try_then_request_module(find_revision(rev.name, rev.revision,
+						      target_revfn, &ret),
+					"arpt_%s", rev.name);
+		break;
+	}
+
 	default:
 		duprintf("do_arpt_get_ctl: unknown request %i\n", cmd);
 		ret = -EINVAL;
@@ -1136,12 +1200,9 @@ int arpt_register_target(struct arpt_target *target)
 	if (ret != 0)
 		return ret;
 
-	if (!list_named_insert(&arpt_target, target)) {
-		duprintf("arpt_register_target: `%s' already in list!\n",
-			 target->name);
-		ret = -EINVAL;
-	}
+	list_add(&target->list, &arpt_target);
 	up(&arpt_mutex);
+
 	return ret;
 }
 

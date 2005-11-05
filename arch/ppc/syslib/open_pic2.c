@@ -27,6 +27,7 @@
 #include <asm/sections.h>
 #include <asm/open_pic.h>
 #include <asm/i8259.h>
+#include <asm/machdep.h>
 
 #include "open_pic_defs.h"
 

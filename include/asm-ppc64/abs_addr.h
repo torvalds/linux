@@ -63,4 +63,11 @@ static inline unsigned long phys_to_abs(unsigned long pa)
 #define virt_to_abs(va) phys_to_abs(__pa(va))
 #define abs_to_virt(aa) __va(aa)
 
+/*
+ * Converts Virtual Address to Real Address for
+ * Legacy iSeries Hypervisor calls
+ */
+#define iseries_hv_addr(virtaddr)	\
+	(0x8000000000000000 | virt_to_abs(virtaddr))
+
 #endif /* _ABS_ADDR_H */

@@ -60,14 +60,15 @@ typedef struct {
 	ATTR_RECORD *base_attr;
 } ntfs_attr_search_ctx;
 
-extern int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn);
+extern int ntfs_map_runlist_nolock(ntfs_inode *ni, VCN vcn,
+		ntfs_attr_search_ctx *ctx);
 extern int ntfs_map_runlist(ntfs_inode *ni, VCN vcn);
 
 extern LCN ntfs_attr_vcn_to_lcn_nolock(ntfs_inode *ni, const VCN vcn,
 		const BOOL write_locked);
 
 extern runlist_element *ntfs_attr_find_vcn_nolock(ntfs_inode *ni,
-		const VCN vcn, const BOOL write_locked);
+		const VCN vcn, ntfs_attr_search_ctx *ctx);
 
 int ntfs_attr_lookup(const ATTR_TYPE type, const ntfschar *name,
 		const u32 name_len, const IGNORE_CASE_BOOL ic,
@@ -102,7 +103,10 @@ extern int ntfs_attr_record_resize(MFT_RECORD *m, ATTR_RECORD *a, u32 new_size);
 extern int ntfs_resident_attr_value_resize(MFT_RECORD *m, ATTR_RECORD *a,
 		const u32 new_size);
 
-extern int ntfs_attr_make_non_resident(ntfs_inode *ni);
+extern int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size);
+
+extern s64 ntfs_attr_extend_allocation(ntfs_inode *ni, s64 new_alloc_size,
+		const s64 new_data_size, const s64 data_start);
 
 extern int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt,
 		const u8 val);

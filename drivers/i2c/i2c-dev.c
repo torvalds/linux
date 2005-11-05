@@ -34,6 +34,7 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
+#include <linux/platform_device.h>
 #include <asm/uaccess.h>
 
 static struct i2c_client i2cdev_client_template;

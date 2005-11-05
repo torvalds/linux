@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
@@ -33,6 +33,7 @@
 
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/irq.h>
+#include <asm/arch/irda.h>
 #include <asm/arch/mmc.h>
 #include <asm/arch/udc.h>
 #include <asm/arch/corgi.h>
@@ -224,6 +225,22 @@ static struct pxamci_platform_data corgi_mci_platform_data = {
 };
 
 
+/*
+ * Irda
+ */
+static void corgi_irda_transceiver_mode(struct device *dev, int mode)
+{
+	if (mode & IR_OFF)
+		GPSR(CORGI_GPIO_IR_ON) = GPIO_bit(CORGI_GPIO_IR_ON);
+	else
+		GPCR(CORGI_GPIO_IR_ON) = GPIO_bit(CORGI_GPIO_IR_ON);
+}
+
+static struct pxaficp_platform_data corgi_ficp_platform_data = {
+	.transceiver_cap  = IR_SIRMODE | IR_OFF,
+	.transceiver_mode = corgi_irda_transceiver_mode,
+};
+
 
 /*
  * USB Device Controller
@@ -269,10 +286,13 @@ static void __init corgi_init(void)
 
 	corgi_ssp_set_machinfo(&corgi_ssp_machinfo);
 
+	pxa_gpio_mode(CORGI_GPIO_IR_ON | GPIO_OUT);
 	pxa_gpio_mode(CORGI_GPIO_USB_PULLUP | GPIO_OUT);
 	pxa_gpio_mode(CORGI_GPIO_HSYNC | GPIO_IN);
+
  	pxa_set_udc_info(&udc_info);
 	pxa_set_mci_info(&corgi_mci_platform_data);
+	pxa_set_ficp_info(&corgi_ficp_platform_data);
 
 	scoop_num = 1;
 	scoop_devs = &corgi_pcmcia_scoop[0];

@@ -244,7 +244,6 @@ static void kexec_prepare_cpus(void)
 
 static void kexec_prepare_cpus(void)
 {
-	extern void smp_release_cpus(void);
 	/*
 	 * move the secondarys to us so that we can copy
 	 * the new kernel 0-0x100 safely

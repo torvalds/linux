@@ -22,6 +22,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
 #include <linux/mtd/mtd.h>
 
 #define ERROR(fmt, args...) printk(KERN_ERR "phram: " fmt , ## args)

@@ -235,6 +235,7 @@ static inline void ipoib_put_ah(struct ipoib_ah *ah)
 	kref_put(&ah->ref, ipoib_free_ah);
 }
 
+int ipoib_open(struct net_device *dev);
 int ipoib_add_pkey_attr(struct net_device *dev);
 
 void ipoib_send(struct net_device *dev, struct sk_buff *skb,
@@ -267,6 +268,7 @@ int ipoib_mcast_stop_thread(struct net_device *dev, int flush);
 void ipoib_mcast_dev_down(struct net_device *dev);
 void ipoib_mcast_dev_flush(struct net_device *dev);
 
+#ifdef CONFIG_INFINIBAND_IPOIB_DEBUG
 struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev);
 void ipoib_mcast_iter_free(struct ipoib_mcast_iter *iter);
 int ipoib_mcast_iter_next(struct ipoib_mcast_iter *iter);
@@ -276,6 +278,7 @@ void ipoib_mcast_iter_read(struct ipoib_mcast_iter *iter,
 				  unsigned int *queuelen,
 				  unsigned int *complete,
 				  unsigned int *send_only);
+#endif
 
 int ipoib_mcast_attach(struct net_device *dev, u16 mlid,
 		       union ib_gid *mgid);

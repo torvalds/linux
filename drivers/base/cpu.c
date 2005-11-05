@@ -16,6 +16,8 @@ struct sysdev_class cpu_sysdev_class = {
 };
 EXPORT_SYMBOL(cpu_sysdev_class);
 
+static struct sys_device *cpu_sys_devices[NR_CPUS];
+
 #ifdef CONFIG_HOTPLUG_CPU
 int __attribute__((weak)) smp_prepare_cpu (int cpu)
 {
@@ -64,6 +66,7 @@ static void __devinit register_cpu_control(struct cpu *cpu)
 }
 void unregister_cpu(struct cpu *cpu, struct node *root)
 {
+	int logical_cpu = cpu->sysdev.id;
 
 	if (root)
 		sysfs_remove_link(&root->sysdev.kobj,
@@ -71,7 +74,7 @@ void unregister_cpu(struct cpu *cpu, struct node *root)
 	sysdev_remove_file(&cpu->sysdev, &attr_online);
 
 	sysdev_unregister(&cpu->sysdev);
-
+	cpu_sys_devices[logical_cpu] = NULL;
 	return;
 }
 #else /* ... !CONFIG_HOTPLUG_CPU */
@@ -103,10 +106,19 @@ int __devinit register_cpu(struct cpu *cpu, int num, struct node *root)
 					  kobject_name(&cpu->sysdev.kobj));
 	if (!error && !cpu->no_control)
 		register_cpu_control(cpu);
+	if (!error)
+		cpu_sys_devices[num] = &cpu->sysdev;
 	return error;
 }
 
-
+struct sys_device *get_cpu_sysdev(int cpu)
+{
+	if (cpu < NR_CPUS)
+		return cpu_sys_devices[cpu];
+	else
+		return NULL;
+}
+EXPORT_SYMBOL_GPL(get_cpu_sysdev);
 
 int __init cpu_dev_init(void)
 {

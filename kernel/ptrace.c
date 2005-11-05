@@ -56,6 +56,10 @@ void ptrace_untrace(task_t *child)
 			signal_wake_up(child, 1);
 		}
 	}
+	if (child->signal->flags & SIGNAL_GROUP_EXIT) {
+		sigaddset(&child->pending.signal, SIGKILL);
+		signal_wake_up(child, 1);
+	}
 	spin_unlock(&child->sighand->siglock);
 }
 
@@ -77,8 +81,7 @@ void __ptrace_unlink(task_t *child)
 		SET_LINKS(child);
 	}
 
-	if (child->state == TASK_TRACED)
-		ptrace_untrace(child);
+	ptrace_untrace(child);
 }
 
 /*

@@ -147,8 +147,7 @@ static int uart_startup(struct uart_state *state, int init_hw)
 	 * once we have successfully opened the port.  Also set
 	 * up the tty->alt_speed kludge
 	 */
-	if (info->tty)
-		set_bit(TTY_IO_ERROR, &info->tty->flags);
+	set_bit(TTY_IO_ERROR, &info->tty->flags);
 
 	if (port->type == PORT_UNKNOWN)
 		return 0;
@@ -1968,7 +1967,9 @@ uart_report_port(struct uart_driver *drv, struct uart_port *port)
 		break;
 	}
 
-	printk(KERN_INFO "%s%d at %s (irq = %d) is a %s\n",
+	printk(KERN_INFO "%s%s%s%d at %s (irq = %d) is a %s\n",
+	       port->dev ? port->dev->bus_id : "",
+	       port->dev ? ": " : "",
 	       drv->dev_name, port->line, address, port->irq, uart_type(port));
 }
 

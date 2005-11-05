@@ -486,15 +486,16 @@ int ipoib_ib_dev_stop(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_qp_attr qp_attr;
-	int attr_mask;
 	unsigned long begin;
 	struct ipoib_tx_buf *tx_req;
 	int i;
 
-	/* Kill the existing QP and allocate a new one */
+	/*
+	 * Move our QP to the error state and then reinitialize in
+	 * when all work requests have completed or have been flushed.
+	 */
 	qp_attr.qp_state = IB_QPS_ERR;
-	attr_mask        = IB_QP_STATE;
-	if (ib_modify_qp(priv->qp, &qp_attr, attr_mask))
+	if (ib_modify_qp(priv->qp, &qp_attr, IB_QP_STATE))
 		ipoib_warn(priv, "Failed to modify QP to ERROR state\n");
 
 	/* Wait for all sends and receives to complete */
@@ -541,8 +542,7 @@ int ipoib_ib_dev_stop(struct net_device *dev)
 
 timeout:
 	qp_attr.qp_state = IB_QPS_RESET;
-	attr_mask        = IB_QP_STATE;
-	if (ib_modify_qp(priv->qp, &qp_attr, attr_mask))
+	if (ib_modify_qp(priv->qp, &qp_attr, IB_QP_STATE))
 		ipoib_warn(priv, "Failed to modify QP to RESET state\n");
 
 	/* Wait for all AHs to be reaped */
@@ -636,7 +636,6 @@ void ipoib_ib_dev_cleanup(struct net_device *dev)
  * Bug #2507. This implementation will probably be removed when the P_Key
  * change async notification is available.
  */
-int ipoib_open(struct net_device *dev);
 
 static void ipoib_pkey_dev_check_presence(struct net_device *dev)
 {

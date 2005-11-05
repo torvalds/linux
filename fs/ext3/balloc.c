@@ -20,6 +20,8 @@
 #include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 
+#include "bitmap.h"
+
 /*
  * balloc.c contains the blocks allocation and deallocation routines
  */
@@ -1010,7 +1012,7 @@ retry:
  * allocation within the reservation window.
  *
  * This will avoid keeping on searching the reservation list again and
- * again when someboday is looking for a free block (without
+ * again when somebody is looking for a free block (without
  * reservation), and there are lots of free blocks, but they are all
  * being reserved.
  *
@@ -1416,12 +1418,12 @@ unsigned long ext3_count_free_blocks(struct super_block *sb)
 	unsigned long bitmap_count, x;
 	struct buffer_head *bitmap_bh = NULL;
 
-	lock_super(sb);
 	es = EXT3_SB(sb)->s_es;
 	desc_count = 0;
 	bitmap_count = 0;
 	gdp = NULL;
 
+	smp_rmb();
 	for (i = 0; i < ngroups; i++) {
 		gdp = ext3_get_group_desc(sb, i, NULL);
 		if (!gdp)
@@ -1440,7 +1442,6 @@ unsigned long ext3_count_free_blocks(struct super_block *sb)
 	brelse(bitmap_bh);
 	printk("ext3_count_free_blocks: stored = %u, computed = %lu, %lu\n",
 	       le32_to_cpu(es->s_free_blocks_count), desc_count, bitmap_count);
-	unlock_super(sb);
 	return bitmap_count;
 #else
 	desc_count = 0;

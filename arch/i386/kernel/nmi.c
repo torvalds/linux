@@ -100,15 +100,43 @@ int nmi_active;
 	(P4_CCCR_OVF_PMI0|P4_CCCR_THRESHOLD(15)|P4_CCCR_COMPLEMENT|	\
 	 P4_CCCR_COMPARE|P4_CCCR_REQUIRED|P4_CCCR_ESCR_SELECT(4)|P4_CCCR_ENABLE)
 
+#ifdef CONFIG_SMP
+/* The performance counters used by NMI_LOCAL_APIC don't trigger when
+ * the CPU is idle. To make sure the NMI watchdog really ticks on all
+ * CPUs during the test make them busy.
+ */
+static __init void nmi_cpu_busy(void *data)
+{
+	volatile int *endflag = data;
+	local_irq_enable();
+	/* Intentionally don't use cpu_relax here. This is
+	   to make sure that the performance counter really ticks,
+	   even if there is a simulator or similar that catches the
+	   pause instruction. On a real HT machine this is fine because
+	   all other CPUs are busy with "useless" delay loops and don't
+	   care if they get somewhat less cycles. */
+	while (*endflag == 0)
+		barrier();
+}
+#endif
+
 static int __init check_nmi_watchdog(void)
 {
-	unsigned int prev_nmi_count[NR_CPUS];
+	volatile int endflag = 0;
+	unsigned int *prev_nmi_count;
 	int cpu;
 
 	if (nmi_watchdog == NMI_NONE)
 		return 0;
 
+	prev_nmi_count = kmalloc(NR_CPUS * sizeof(int), GFP_KERNEL);
+	if (!prev_nmi_count)
+		return -1;
+
 	printk(KERN_INFO "Testing NMI watchdog ... ");
+
+	if (nmi_watchdog == NMI_LOCAL_APIC)
+		smp_call_function(nmi_cpu_busy, (void *)&endflag, 0, 0);
 
 	for (cpu = 0; cpu < NR_CPUS; cpu++)
 		prev_nmi_count[cpu] = per_cpu(irq_stat, cpu).__nmi_count;
@@ -123,12 +151,18 @@ static int __init check_nmi_watchdog(void)
 			continue;
 #endif
 		if (nmi_count(cpu) - prev_nmi_count[cpu] <= 5) {
-			printk("CPU#%d: NMI appears to be stuck!\n", cpu);
+			endflag = 1;
+			printk("CPU#%d: NMI appears to be stuck (%d->%d)!\n",
+				cpu,
+				prev_nmi_count[cpu],
+				nmi_count(cpu));
 			nmi_active = 0;
 			lapic_nmi_owner &= ~LAPIC_NMI_WATCHDOG;
+			kfree(prev_nmi_count);
 			return -1;
 		}
 	}
+	endflag = 1;
 	printk("OK.\n");
 
 	/* now that we know it works we can reduce NMI frequency to
@@ -136,6 +170,7 @@ static int __init check_nmi_watchdog(void)
 	if (nmi_watchdog == NMI_LOCAL_APIC)
 		nmi_hz = 1;
 
+	kfree(prev_nmi_count);
 	return 0;
 }
 /* This needs to happen later in boot so counters are working */

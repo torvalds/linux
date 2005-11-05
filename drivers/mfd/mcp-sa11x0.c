@@ -18,7 +18,7 @@
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/dma.h>
 #include <asm/hardware.h>

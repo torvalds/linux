@@ -30,6 +30,7 @@
 #include <linux/shm.h>
 #include <linux/msg.h>
 #include <linux/sched.h>
+#include <linux/key.h>
 
 struct ctl_table;
 
@@ -385,6 +386,9 @@ struct swap_info_struct;
  *	NULL to request the size of the buffer required.  @size indicates
  *	the size of @buffer in bytes.  Note that @name is the remainder
  *	of the attribute name after the security. prefix has been removed.
+ *	@err is the return value from the preceding fs getxattr call,
+ *	and can be used by the security module to determine whether it
+ *	should try and canonicalize the attribute value.
  *	Return number of bytes used/required on success.
  * @inode_setsecurity:
  *	Set the security label associated with @name for @inode from the
@@ -785,6 +789,27 @@ struct swap_info_struct;
  * @sk_free_security:
  *	Deallocate security structure.
  *
+ * Security hooks affecting all Key Management operations
+ *
+ * @key_alloc:
+ *	Permit allocation of a key and assign security data. Note that key does
+ *	not have a serial number assigned at this point.
+ *	@key points to the key.
+ *	Return 0 if permission is granted, -ve error otherwise.
+ * @key_free:
+ *	Notification of destruction; free security data.
+ *	@key points to the key.
+ *	No return value.
+ * @key_permission:
+ *	See whether a specific operational right is granted to a process on a
+ *      key.
+ *	@key_ref refers to the key (key pointer + possession attribute bit).
+ *	@context points to the process to provide the context against which to
+ *       evaluate the security data on the key.
+ *	@perm describes the combination of permissions required of this key.
+ *	Return 1 if permission granted, 0 if permission denied and -ve it the
+ *      normal permissions model should be effected.
+ *
  * Security hooks affecting all System V IPC operations.
  *
  * @ipc_permission:
@@ -1091,7 +1116,7 @@ struct security_operations {
 	int (*inode_getxattr) (struct dentry *dentry, char *name);
 	int (*inode_listxattr) (struct dentry *dentry);
 	int (*inode_removexattr) (struct dentry *dentry, char *name);
-  	int (*inode_getsecurity)(struct inode *inode, const char *name, void *buffer, size_t size);
+  	int (*inode_getsecurity)(struct inode *inode, const char *name, void *buffer, size_t size, int err);
   	int (*inode_setsecurity)(struct inode *inode, const char *name, const void *value, size_t size, int flags);
   	int (*inode_listsecurity)(struct inode *inode, char *buffer, size_t buffer_size);
 
@@ -1213,6 +1238,17 @@ struct security_operations {
 	int (*sk_alloc_security) (struct sock *sk, int family, gfp_t priority);
 	void (*sk_free_security) (struct sock *sk);
 #endif	/* CONFIG_SECURITY_NETWORK */
+
+	/* key management security hooks */
+#ifdef CONFIG_KEYS
+	int (*key_alloc)(struct key *key);
+	void (*key_free)(struct key *key);
+	int (*key_permission)(key_ref_t key_ref,
+			      struct task_struct *context,
+			      key_perm_t perm);
+
+#endif	/* CONFIG_KEYS */
+
 };
 
 /* global variables */
@@ -1580,11 +1616,11 @@ static inline int security_inode_removexattr (struct dentry *dentry, char *name)
 	return security_ops->inode_removexattr (dentry, name);
 }
 
-static inline int security_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size)
+static inline int security_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size, int err)
 {
 	if (unlikely (IS_PRIVATE (inode)))
 		return 0;
-	return security_ops->inode_getsecurity(inode, name, buffer, size);
+	return security_ops->inode_getsecurity(inode, name, buffer, size, err);
 }
 
 static inline int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags)
@@ -2222,7 +2258,7 @@ static inline int security_inode_removexattr (struct dentry *dentry, char *name)
 	return cap_inode_removexattr(dentry, name);
 }
 
-static inline int security_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size)
+static inline int security_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size, int err)
 {
 	return -EOPNOTSUPP;
 }
@@ -2760,6 +2796,46 @@ static inline void security_sk_free(struct sock *sk)
 {
 }
 #endif	/* CONFIG_SECURITY_NETWORK */
+
+#ifdef CONFIG_KEYS
+#ifdef CONFIG_SECURITY
+static inline int security_key_alloc(struct key *key)
+{
+	return security_ops->key_alloc(key);
+}
+
+static inline void security_key_free(struct key *key)
+{
+	security_ops->key_free(key);
+}
+
+static inline int security_key_permission(key_ref_t key_ref,
+					  struct task_struct *context,
+					  key_perm_t perm)
+{
+	return security_ops->key_permission(key_ref, context, perm);
+}
+
+#else
+
+static inline int security_key_alloc(struct key *key)
+{
+	return 0;
+}
+
+static inline void security_key_free(struct key *key)
+{
+}
+
+static inline int security_key_permission(key_ref_t key_ref,
+					  struct task_struct *context,
+					  key_perm_t perm)
+{
+	return 0;
+}
+
+#endif
+#endif /* CONFIG_KEYS */
 
 #endif /* ! __LINUX_SECURITY_H */
 

@@ -33,10 +33,6 @@
 
 #include <linux/timex.h>
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 /* xtime and wall_jiffies keep wall-clock time */
 extern unsigned long wall_jiffies;
 

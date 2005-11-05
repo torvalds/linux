@@ -12,6 +12,8 @@
  * see bitmap_scnprintf() and bitmap_parse() in lib/bitmap.c.
  * For details of cpulist_scnprintf() and cpulist_parse(), see
  * bitmap_scnlistprintf() and bitmap_parselist(), also in bitmap.c.
+ * For details of cpu_remap(), see bitmap_bitremap in lib/bitmap.c
+ * For details of cpus_remap(), see bitmap_remap in lib/bitmap.c.
  *
  * The available cpumask operations are:
  *
@@ -50,6 +52,8 @@
  * int cpumask_parse(ubuf, ulen, mask)	Parse ascii string as cpumask
  * int cpulist_scnprintf(buf, len, mask) Format cpumask as list for printing
  * int cpulist_parse(buf, map)		Parse ascii string as cpulist
+ * int cpu_remap(oldbit, old, new)	newbit = map(old, new)(oldbit)
+ * int cpus_remap(dst, src, old, new)	*dst = map(old, new)(src)
  *
  * for_each_cpu_mask(cpu, mask)		for-loop cpu over mask
  *
@@ -292,6 +296,22 @@ static inline int __cpulist_scnprintf(char *buf, int len,
 static inline int __cpulist_parse(const char *buf, cpumask_t *dstp, int nbits)
 {
 	return bitmap_parselist(buf, dstp->bits, nbits);
+}
+
+#define cpu_remap(oldbit, old, new) \
+		__cpu_remap((oldbit), &(old), &(new), NR_CPUS)
+static inline int __cpu_remap(int oldbit,
+		const cpumask_t *oldp, const cpumask_t *newp, int nbits)
+{
+	return bitmap_bitremap(oldbit, oldp->bits, newp->bits, nbits);
+}
+
+#define cpus_remap(dst, src, old, new) \
+		__cpus_remap(&(dst), &(src), &(old), &(new), NR_CPUS)
+static inline void __cpus_remap(cpumask_t *dstp, const cpumask_t *srcp,
+		const cpumask_t *oldp, const cpumask_t *newp, int nbits)
+{
+	bitmap_remap(dstp->bits, srcp->bits, oldp->bits, newp->bits, nbits);
 }
 
 #if NR_CPUS > 1

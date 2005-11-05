@@ -483,7 +483,7 @@ restart:
 		goto out;
 	}
 
-	rt = rt6_device_match(rt, skb->dev->ifindex, 0);
+	rt = rt6_device_match(rt, skb->dev->ifindex, strict);
 	BACKTRACK();
 
 	if (!rt->rt6i_nexthop && !(rt->rt6i_flags & RTF_NONEXTHOP)) {

@@ -1531,12 +1531,11 @@ int security_get_user_sids(u32 fromsid,
 	}
 	usercon.user = user->value;
 
-	mysids = kmalloc(maxnel*sizeof(*mysids), GFP_ATOMIC);
+	mysids = kcalloc(maxnel, sizeof(*mysids), GFP_ATOMIC);
 	if (!mysids) {
 		rc = -ENOMEM;
 		goto out_unlock;
 	}
-	memset(mysids, 0, maxnel*sizeof(*mysids));
 
 	ebitmap_for_each_bit(&user->roles, rnode, i) {
 		if (!ebitmap_node_get_bit(rnode, i))
@@ -1566,13 +1565,12 @@ int security_get_user_sids(u32 fromsid,
 				mysids[mynel++] = sid;
 			} else {
 				maxnel += SIDS_NEL;
-				mysids2 = kmalloc(maxnel*sizeof(*mysids2), GFP_ATOMIC);
+				mysids2 = kcalloc(maxnel, sizeof(*mysids2), GFP_ATOMIC);
 				if (!mysids2) {
 					rc = -ENOMEM;
 					kfree(mysids);
 					goto out_unlock;
 				}
-				memset(mysids2, 0, maxnel*sizeof(*mysids2));
 				memcpy(mysids2, mysids, mynel * sizeof(*mysids2));
 				kfree(mysids);
 				mysids = mysids2;
@@ -1714,12 +1712,11 @@ int security_get_bools(int *len, char ***names, int **values)
 		goto out;
 	}
 
-	*names = (char**)kmalloc(sizeof(char*) * *len, GFP_ATOMIC);
+	*names = (char**)kcalloc(*len, sizeof(char*), GFP_ATOMIC);
 	if (!*names)
 		goto err;
-	memset(*names, 0, sizeof(char*) * *len);
 
-	*values = (int*)kmalloc(sizeof(int) * *len, GFP_ATOMIC);
+	*values = (int*)kcalloc(*len, sizeof(int), GFP_ATOMIC);
 	if (!*values)
 		goto err;
 

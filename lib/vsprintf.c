@@ -23,6 +23,7 @@
 #include <linux/ctype.h>
 #include <linux/kernel.h>
 
+#include <asm/page.h>		/* for PAGE_SIZE */
 #include <asm/div64.h>
 
 /**

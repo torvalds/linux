@@ -48,6 +48,7 @@
 #include <linux/dmi.h>
 #include <linux/err.h>
 #include <linux/kfifo.h>
+#include <linux/platform_device.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>

@@ -105,7 +105,7 @@ static ssize_t sel_write_enforce(struct file * file, const char __user * buf,
 	ssize_t length;
 	int new_value;
 
-	if (count < 0 || count >= PAGE_SIZE)
+	if (count >= PAGE_SIZE)
 		return -ENOMEM;
 	if (*ppos != 0) {
 		/* No partial writes. */
@@ -155,7 +155,7 @@ static ssize_t sel_write_disable(struct file * file, const char __user * buf,
 	int new_value;
 	extern int selinux_disable(void);
 
-	if (count < 0 || count >= PAGE_SIZE)
+	if (count >= PAGE_SIZE)
 		return -ENOMEM;
 	if (*ppos != 0) {
 		/* No partial writes. */
@@ -242,7 +242,7 @@ static ssize_t sel_write_load(struct file * file, const char __user * buf,
 		goto out;
 	}
 
-	if ((count < 0) || (count > 64 * 1024 * 1024)
+	if ((count > 64 * 1024 * 1024)
 	    || (data = vmalloc(count)) == NULL) {
 		length = -ENOMEM;
 		goto out;
@@ -284,7 +284,7 @@ static ssize_t sel_write_context(struct file * file, const char __user * buf,
 	if (length)
 		return length;
 
-	if (count < 0 || count >= PAGE_SIZE)
+	if (count >= PAGE_SIZE)
 		return -ENOMEM;
 	if (*ppos != 0) {
 		/* No partial writes. */
@@ -332,7 +332,7 @@ static ssize_t sel_write_checkreqprot(struct file * file, const char __user * bu
 	if (length)
 		return length;
 
-	if (count < 0 || count >= PAGE_SIZE)
+	if (count >= PAGE_SIZE)
 		return -ENOMEM;
 	if (*ppos != 0) {
 		/* No partial writes. */
@@ -424,15 +424,13 @@ static ssize_t sel_write_access(struct file * file, char *buf, size_t size)
 		return length;
 
 	length = -ENOMEM;
-	scon = kmalloc(size+1, GFP_KERNEL);
+	scon = kzalloc(size+1, GFP_KERNEL);
 	if (!scon)
 		return length;
-	memset(scon, 0, size+1);
 
-	tcon = kmalloc(size+1, GFP_KERNEL);
+	tcon = kzalloc(size+1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
-	memset(tcon, 0, size+1);
 
 	length = -EINVAL;
 	if (sscanf(buf, "%s %s %hu %x", scon, tcon, &tclass, &req) != 4)
@@ -475,15 +473,13 @@ static ssize_t sel_write_create(struct file * file, char *buf, size_t size)
 		return length;
 
 	length = -ENOMEM;
-	scon = kmalloc(size+1, GFP_KERNEL);
+	scon = kzalloc(size+1, GFP_KERNEL);
 	if (!scon)
 		return length;
-	memset(scon, 0, size+1);
 
-	tcon = kmalloc(size+1, GFP_KERNEL);
+	tcon = kzalloc(size+1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
-	memset(tcon, 0, size+1);
 
 	length = -EINVAL;
 	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
@@ -536,15 +532,13 @@ static ssize_t sel_write_relabel(struct file * file, char *buf, size_t size)
 		return length;
 
 	length = -ENOMEM;
-	scon = kmalloc(size+1, GFP_KERNEL);
+	scon = kzalloc(size+1, GFP_KERNEL);
 	if (!scon)
 		return length;
-	memset(scon, 0, size+1);
 
-	tcon = kmalloc(size+1, GFP_KERNEL);
+	tcon = kzalloc(size+1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
-	memset(tcon, 0, size+1);
 
 	length = -EINVAL;
 	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
@@ -595,15 +589,13 @@ static ssize_t sel_write_user(struct file * file, char *buf, size_t size)
 		return length;
 
 	length = -ENOMEM;
-	con = kmalloc(size+1, GFP_KERNEL);
+	con = kzalloc(size+1, GFP_KERNEL);
 	if (!con)
 		return length;
-	memset(con, 0, size+1);
 
-	user = kmalloc(size+1, GFP_KERNEL);
+	user = kzalloc(size+1, GFP_KERNEL);
 	if (!user)
 		goto out;
-	memset(user, 0, size+1);
 
 	length = -EINVAL;
 	if (sscanf(buf, "%s %s", con, user) != 2)
@@ -658,15 +650,13 @@ static ssize_t sel_write_member(struct file * file, char *buf, size_t size)
 		return length;
 
 	length = -ENOMEM;
-	scon = kmalloc(size+1, GFP_KERNEL);
+	scon = kzalloc(size+1, GFP_KERNEL);
 	if (!scon)
 		return length;
-	memset(scon, 0, size+1);
 
-	tcon = kmalloc(size+1, GFP_KERNEL);
+	tcon = kzalloc(size+1, GFP_KERNEL);
 	if (!tcon)
 		goto out;
-	memset(tcon, 0, size+1);
 
 	length = -EINVAL;
 	if (sscanf(buf, "%s %s %hu", scon, tcon, &tclass) != 3)
@@ -739,7 +729,7 @@ static ssize_t sel_read_bool(struct file *filep, char __user *buf,
 	if (!filep->f_op)
 		goto out;
 
-	if (count < 0 || count > PAGE_SIZE) {
+	if (count > PAGE_SIZE) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -800,7 +790,7 @@ static ssize_t sel_write_bool(struct file *filep, const char __user *buf,
 	if (!filep->f_op)
 		goto out;
 
-	if (count < 0 || count >= PAGE_SIZE) {
+	if (count >= PAGE_SIZE) {
 		length = -ENOMEM;
 		goto out;
 	}
@@ -858,7 +848,7 @@ static ssize_t sel_commit_bools_write(struct file *filep,
 	if (!filep->f_op)
 		goto out;
 
-	if (count < 0 || count >= PAGE_SIZE) {
+	if (count >= PAGE_SIZE) {
 		length = -ENOMEM;
 		goto out;
 	}
@@ -924,7 +914,7 @@ static void sel_remove_bools(struct dentry *de)
 
 	file_list_lock();
 	list_for_each(p, &sb->s_files) {
-		struct file * filp = list_entry(p, struct file, f_list);
+		struct file * filp = list_entry(p, struct file, f_u.fu_list);
 		struct dentry * dentry = filp->f_dentry;
 
 		if (dentry->d_parent != de) {
@@ -1032,7 +1022,7 @@ static ssize_t sel_write_avc_cache_threshold(struct file * file,
 	ssize_t ret;
 	int new_value;
 
-	if (count < 0 || count >= PAGE_SIZE) {
+	if (count >= PAGE_SIZE) {
 		ret = -ENOMEM;
 		goto out;
 	}

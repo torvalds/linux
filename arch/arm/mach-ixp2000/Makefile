@@ -1,7 +1,7 @@
 #
 # Makefile for the linux kernel.
 #
-obj-y			:= core.o pci.o
+obj-y			:= core.o pci.o uengine.o
 obj-m			:=
 obj-n			:=
 obj-			:=

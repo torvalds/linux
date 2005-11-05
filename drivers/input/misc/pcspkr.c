@@ -71,7 +71,7 @@ static int __init pcspkr_init(void)
 		return -ENOMEM;
 
 	pcspkr_dev->name = "PC Speaker";
-	pcspkr_dev->name = "isa0061/input0";
+	pcspkr_dev->phys = "isa0061/input0";
 	pcspkr_dev->id.bustype = BUS_ISA;
 	pcspkr_dev->id.vendor = 0x001f;
 	pcspkr_dev->id.product = 0x0001;

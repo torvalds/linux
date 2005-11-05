@@ -174,7 +174,7 @@ int ptrace_setfpregs (struct task_struct *child, __u32 __user *data)
 	return 0;
 }
 
-asmlinkage int sys_ptrace(long request, long pid, long addr, long data)
+asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
 	int ret;

@@ -27,7 +27,7 @@
 					  */
 
 static int fast_convergence = 1;
-static int max_increment = 32;
+static int max_increment = 16;
 static int low_window = 14;
 static int beta = 819;		/* = 819/1024 (BICTCP_BETA_SCALE) */
 static int low_utilization_threshold = 153;

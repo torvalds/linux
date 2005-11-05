@@ -1,8 +1,52 @@
+Version 1.39
+------------
+Defer close of a file handle slightly if pending writes depend on that file handle
+(this reduces the EBADF bad file handle errors that can be logged under heavy
+stress on writes).
+
+Version 1.38
+------------
+Fix tcp socket retransmission timeouts (e.g. on ENOSPACE from the socket)
+to be smaller at first (but increasing) so large write performance performance
+over GigE is better.  Do not hang thread on illegal byte range lock response
+from Windows (Windows can send an RFC1001 size which does not match smb size) by
+allowing an SMBs TCP length to be up to a few bytes longer than it should be.
+wsize and rsize can now be larger than negotiated buffer size if server
+supports large readx/writex, even when directio mount flag not specified.
+Write size will in many cases now be 16K instead of 4K which greatly helps
+file copy performance on lightly loaded networks.  Fix oops in dnotify
+when experimental config flag enabled. Make cifsFYI more granular.
+
+Version 1.37
+------------
+Fix readdir caching when unlink removes file in current search buffer,
+and this is followed by a rewind search to just before the deleted entry.
+Do not attempt to set ctime unless atime and/or mtime change requested
+(most servers throw it away anyway). Fix length check of received smbs
+to be more accurate. Fix big endian problem with mapchars mount option,
+and with a field returned by statfs.
+
+Version 1.36
+------------
+Add support for mounting to older pre-CIFS servers such as Windows9x and ME.
+For these older servers, add option for passing netbios name of server in
+on mount (servernetbiosname).  Add suspend support for power management, to
+avoid cifsd thread preventing software suspend from working.
+Add mount option for disabling the default behavior of sending byte range lock
+requests to the server (necessary for certain applications which break with
+mandatory lock behavior such as Evolution), and also mount option for
+requesting case insensitive matching for path based requests (requesting
+case sensitive is the default).
+
 Version 1.35
 ------------
 Add writepage performance improvements.  Fix path name conversions
 for long filenames on mounts which were done with "mapchars" mount option
-specified.
+specified.  Ensure multiplex ids do not collide.  Fix case in which 
+rmmod can oops if done soon after last unmount.  Fix truncated
+search (readdir) output when resume filename was a long filename.
+Fix filename conversion when mapchars mount option was specified and
+filename was a long filename.
 
 Version 1.34
 ------------
@@ -11,7 +55,7 @@ Do not oops if root user kills cifs oplock kernel thread or
 kills the cifsd thread (NB: killing the cifs kernel threads is not
 recommended, unmount and rmmod cifs will kill them when they are
 no longer needed).  Fix readdir to ASCII servers (ie older servers
-which do not support Unicode) and also require asterik.
+which do not support Unicode) and also require asterisk.
 Fix out of memory case in which data could be written one page
 off in the page cache.
 
@@ -101,7 +145,7 @@ improperly zeroed buffer in CIFS Unix extensions set times call.
 
 Version 1.25
 ------------
-Fix internationlization problem in cifs readdir with filenames that map to 
+Fix internationalization problem in cifs readdir with filenames that map to 
 longer UTF8 strings than the string on the wire was in Unicode.  Add workaround
 for readdir to netapp servers. Fix search rewind (seek into readdir to return 
 non-consecutive entries).  Do not do readdir when server negotiates 
@@ -276,7 +320,7 @@ Fix caching problem when files opened by multiple clients in which
 page cache could contain stale data, and write through did
 not occur often enough while file was still open when read ahead
 (read oplock) not allowed.  Treat "sep=" when first mount option
-as an overrride of comma as the default separator between mount
+as an override of comma as the default separator between mount
 options. 
 
 Version 1.01
@@ -286,7 +330,7 @@ Allow passwords longer than 16 bytes. Allow null password string.
 Version 1.00
 ------------
 Gracefully clean up failed mounts when attempting to mount to servers such as
-Windows 98 that terminate tcp sessions during prototocol negotiation.  Handle
+Windows 98 that terminate tcp sessions during protocol negotiation.  Handle
 embedded commas in mount parsing of passwords.
 
 Version 0.99
@@ -295,7 +339,7 @@ Invalidate local inode cached pages on oplock break and when last file
 instance is closed so that the client does not continue using stale local
 copy rather than later modified server copy of file.  Do not reconnect
 when server drops the tcp session prematurely before negotiate
-protocol response.  Fix oops in roepen_file when dentry freed.  Allow
+protocol response.  Fix oops in reopen_file when dentry freed.  Allow
 the support for CIFS Unix Extensions to be disabled via proc interface.
 
 Version 0.98
@@ -637,7 +681,7 @@ versions of 2.4 kernel (now builds and works again on kernels at least as early 
 Version 0.41
 ------------
 Various minor fixes for Connectathon Posix "basic" file i/o test suite.  Directory caching fixed so hardlinked
-files now return the correct rumber of links on fstat as they are repeatedly linked and unlinked.
+files now return the correct number of links on fstat as they are repeatedly linked and unlinked.
 
 Version 0.40
 ------------
@@ -704,7 +748,7 @@ session)
 and cleaned them up and made them more consistent with other cifs functions. 
 
 7) Server support for Unix extensions is now fully detected and FindFirst is implemented both ways 
-(with or without Unix exentions) but FindNext and QueryPathInfo with the Unix extensions are not completed,
+(with or without Unix extensions) but FindNext and QueryPathInfo with the Unix extensions are not completed,
 nor is the symlink support using the Unix extensions
 
 8) Started adding the readlink and follow_link code 

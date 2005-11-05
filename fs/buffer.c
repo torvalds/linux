@@ -1478,8 +1478,10 @@ EXPORT_SYMBOL(__getblk);
 void __breadahead(struct block_device *bdev, sector_t block, int size)
 {
 	struct buffer_head *bh = __getblk(bdev, block, size);
-	ll_rw_block(READA, 1, &bh);
-	brelse(bh);
+	if (likely(bh)) {
+		ll_rw_block(READA, 1, &bh);
+		brelse(bh);
+	}
 }
 EXPORT_SYMBOL(__breadahead);
 
@@ -1497,7 +1499,7 @@ __bread(struct block_device *bdev, sector_t block, int size)
 {
 	struct buffer_head *bh = __getblk(bdev, block, size);
 
-	if (!buffer_uptodate(bh))
+	if (likely(bh) && !buffer_uptodate(bh))
 		bh = __bread_slow(bh);
 	return bh;
 }
@@ -1636,6 +1638,15 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(block_invalidatepage);
+
+int do_invalidatepage(struct page *page, unsigned long offset)
+{
+	int (*invalidatepage)(struct page *, unsigned long);
+	invalidatepage = page->mapping->a_ops->invalidatepage;
+	if (invalidatepage == NULL)
+		invalidatepage = block_invalidatepage;
+	return (*invalidatepage)(page, offset);
+}
 
 /*
  * We attach and possibly dirty the buffers atomically wrt
@@ -2696,7 +2707,7 @@ int block_write_full_page(struct page *page, get_block_t *get_block,
 		 * they may have been added in ext3_writepage().  Make them
 		 * freeable here, so the page does not leak.
 		 */
-		block_invalidatepage(page, 0);
+		do_invalidatepage(page, 0);
 		unlock_page(page);
 		return 0; /* don't care */
 	}

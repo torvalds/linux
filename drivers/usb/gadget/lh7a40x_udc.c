@@ -21,6 +21,8 @@
  *
  */
 
+#include <linux/platform_device.h>
+
 #include "lh7a40x_udc.h"
 
 //#define DEBUG printk

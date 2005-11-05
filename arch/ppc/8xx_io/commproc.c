@@ -73,7 +73,7 @@ cpm_mask_irq(unsigned int irq)
 {
 	int cpm_vec = irq - CPM_IRQ_OFFSET;
 
-	((immap_t *)IMAP_ADDR)->im_cpic.cpic_cimr &= ~(1 << cpm_vec);
+	out_be32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cimr, in_be32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cimr) & ~(1 << cpm_vec));
 }
 
 static void
@@ -81,7 +81,7 @@ cpm_unmask_irq(unsigned int irq)
 {
 	int cpm_vec = irq - CPM_IRQ_OFFSET;
 
-	((immap_t *)IMAP_ADDR)->im_cpic.cpic_cimr |= (1 << cpm_vec);
+	out_be32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cimr, in_be32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cimr) | (1 << cpm_vec));
 }
 
 static void
@@ -95,7 +95,7 @@ cpm_eoi(unsigned int irq)
 {
 	int cpm_vec = irq - CPM_IRQ_OFFSET;
 
-	((immap_t *)IMAP_ADDR)->im_cpic.cpic_cisr = (1 << cpm_vec);
+	out_be32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cisr, (1 << cpm_vec));
 }
 
 struct hw_interrupt_type cpm_pic = {
@@ -133,7 +133,7 @@ m8xx_cpm_reset(void)
 	 * manual recommends it.
 	 * Bit 25, FAM can also be set to use FEC aggressive mode (860T).
 	 */
-	imp->im_siu_conf.sc_sdcr = 1;
+	out_be32(&imp->im_siu_conf.sc_sdcr, 1),
 
 	/* Reclaim the DP memory for our use. */
 	m8xx_cpm_dpinit();
@@ -178,10 +178,10 @@ cpm_interrupt_init(void)
 
 	/* Initialize the CPM interrupt controller.
 	*/
-	((immap_t *)IMAP_ADDR)->im_cpic.cpic_cicr =
+	out_be32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cicr,
 	    (CICR_SCD_SCC4 | CICR_SCC_SCC3 | CICR_SCB_SCC2 | CICR_SCA_SCC1) |
-		((CPM_INTERRUPT/2) << 13) | CICR_HP_MASK;
-	((immap_t *)IMAP_ADDR)->im_cpic.cpic_cimr = 0;
+		((CPM_INTERRUPT/2) << 13) | CICR_HP_MASK);
+	out_be32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cimr, 0);
 
         /* install the CPM interrupt controller routines for the CPM
          * interrupt vectors
@@ -198,7 +198,7 @@ cpm_interrupt_init(void)
 	if (setup_irq(CPM_IRQ_OFFSET + CPMVEC_ERROR, &cpm_error_irqaction))
 		panic("Could not allocate CPM error IRQ!");
 
-	((immap_t *)IMAP_ADDR)->im_cpic.cpic_cicr |= CICR_IEN;
+	out_be32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cicr, in_be32(&((immap_t *)IMAP_ADDR)->im_cpic.cpic_cicr) | CICR_IEN);
 }
 
 /*
@@ -212,8 +212,8 @@ cpm_get_irq(struct pt_regs *regs)
 	/* Get the vector by setting the ACK bit and then reading
 	 * the register.
 	 */
-	((volatile immap_t *)IMAP_ADDR)->im_cpic.cpic_civr = 1;
-	cpm_vec = ((volatile immap_t *)IMAP_ADDR)->im_cpic.cpic_civr;
+	out_be16(&((volatile immap_t *)IMAP_ADDR)->im_cpic.cpic_civr, 1);
+	cpm_vec = in_be16(&((volatile immap_t *)IMAP_ADDR)->im_cpic.cpic_civr);
 	cpm_vec >>= 11;
 
 	return cpm_vec;
@@ -388,9 +388,8 @@ void m8xx_cpm_dpinit(void)
 
 /*
  * Allocate the requested size worth of DP memory.
- * This function used to return an index into the DPRAM area.
- * Now it returns the actuall physical address of that area.
- * use m8xx_cpm_dpram_offset() to get the index
+ * This function returns an offset into the DPRAM area.
+ * Use cpm_dpram_addr() to get the virtual address of the area.
  */
 uint cpm_dpalloc(uint size, uint align)
 {

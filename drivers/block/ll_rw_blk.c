@@ -2387,16 +2387,9 @@ static void drive_stat_acct(struct request *rq, int nr_sectors, int new_io)
 	if (!blk_fs_request(rq) || !rq->rq_disk)
 		return;
 
-	if (rw == READ) {
-		__disk_stat_add(rq->rq_disk, read_sectors, nr_sectors);
-		if (!new_io)
-			__disk_stat_inc(rq->rq_disk, read_merges);
-	} else if (rw == WRITE) {
-		__disk_stat_add(rq->rq_disk, write_sectors, nr_sectors);
-		if (!new_io)
-			__disk_stat_inc(rq->rq_disk, write_merges);
-	}
-	if (new_io) {
+	if (!new_io) {
+		__disk_stat_inc(rq->rq_disk, merges[rw]);
+	} else {
 		disk_round_stats(rq->rq_disk);
 		rq->rq_disk->in_flight++;
 	}
@@ -2791,17 +2784,11 @@ static inline void blk_partition_remap(struct bio *bio)
 
 	if (bdev != bdev->bd_contains) {
 		struct hd_struct *p = bdev->bd_part;
+		const int rw = bio_data_dir(bio);
 
-		switch (bio_data_dir(bio)) {
-		case READ:
-			p->read_sectors += bio_sectors(bio);
-			p->reads++;
-			break;
-		case WRITE:
-			p->write_sectors += bio_sectors(bio);
-			p->writes++;
-			break;
-		}
+		p->sectors[rw] += bio_sectors(bio);
+		p->ios[rw]++;
+
 		bio->bi_sector += p->start_sect;
 		bio->bi_bdev = bdev->bd_contains;
 	}
@@ -3048,6 +3035,12 @@ static int __end_that_request_first(struct request *req, int uptodate,
 				(unsigned long long)req->sector);
 	}
 
+	if (blk_fs_request(req) && req->rq_disk) {
+		const int rw = rq_data_dir(req);
+
+		__disk_stat_add(req->rq_disk, sectors[rw], nr_bytes >> 9);
+	}
+
 	total_bytes = bio_nbytes = 0;
 	while ((bio = req->bio) != NULL) {
 		int nbytes;
@@ -3176,16 +3169,10 @@ void end_that_request_last(struct request *req)
 
 	if (disk && blk_fs_request(req)) {
 		unsigned long duration = jiffies - req->start_time;
-		switch (rq_data_dir(req)) {
-		    case WRITE:
-			__disk_stat_inc(disk, writes);
-			__disk_stat_add(disk, write_ticks, duration);
-			break;
-		    case READ:
-			__disk_stat_inc(disk, reads);
-			__disk_stat_add(disk, read_ticks, duration);
-			break;
-		}
+		const int rw = rq_data_dir(req);
+
+		__disk_stat_inc(disk, ios[rw]);
+		__disk_stat_add(disk, ticks[rw], duration);
 		disk_round_stats(disk);
 		disk->in_flight--;
 	}

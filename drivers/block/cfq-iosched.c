@@ -2059,10 +2059,8 @@ static void cfq_put_cfqd(struct cfq_data *cfqd)
 	if (!atomic_dec_and_test(&cfqd->ref))
 		return;
 
-	blk_put_queue(q);
-
 	cfq_shutdown_timer_wq(cfqd);
-	q->elevator->elevator_data = NULL;
+	blk_put_queue(q);
 
 	mempool_destroy(cfqd->crq_pool);
 	kfree(cfqd->crq_hash);
@@ -2418,28 +2416,8 @@ static int __init cfq_init(void)
 
 static void __exit cfq_exit(void)
 {
-	struct task_struct *g, *p;
-	unsigned long flags;
-
-	read_lock_irqsave(&tasklist_lock, flags);
-
-	/*
-	 * iterate each process in the system, removing our io_context
-	 */
-	do_each_thread(g, p) {
-		struct io_context *ioc = p->io_context;
-
-		if (ioc && ioc->cic) {
-			ioc->cic->exit(ioc->cic);
-			cfq_free_io_context(ioc->cic);
-			ioc->cic = NULL;
-		}
-	} while_each_thread(g, p);
-
-	read_unlock_irqrestore(&tasklist_lock, flags);
-
-	cfq_slab_kill();
 	elv_unregister(&iosched_cfq);
+	cfq_slab_kill();
 }
 
 module_init(cfq_init);

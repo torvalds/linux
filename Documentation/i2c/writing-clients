@@ -273,6 +273,7 @@ For now, you can ignore the `flags' parameter. It is there for future use.
     if (is_isa) {
 
       /* Discard immediately if this ISA range is already used */
+      /* FIXME: never use check_region(), only request_region() */
       if (check_region(address,FOO_EXTENT))
         goto ERROR0;
 

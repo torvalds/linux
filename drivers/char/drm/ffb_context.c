@@ -15,8 +15,7 @@
 
 #include "ffb_drv.h"
 
-static int DRM(alloc_queue)(drm_device_t *dev, int is_2d_only)
-{
+static int DRM(alloc_queue) (drm_device_t * dev, int is_2d_only) {
 	ffb_dev_priv_t *fpriv = (ffb_dev_priv_t *) dev->dev_private;
 	int i;
 
@@ -37,7 +36,7 @@ static int DRM(alloc_queue)(drm_device_t *dev, int is_2d_only)
 	return i + 1;
 }
 
-static void ffb_save_context(ffb_dev_priv_t *fpriv, int idx)
+static void ffb_save_context(ffb_dev_priv_t * fpriv, int idx)
 {
 	ffb_fbcPtr ffb = fpriv->regs;
 	struct ffb_hw_context *ctx;
@@ -94,36 +93,36 @@ static void ffb_save_context(ffb_dev_priv_t *fpriv, int idx)
 
 	/* Capture rendering attributes. */
 
-	ctx->ppc = upa_readl(&ffb->ppc);		/* Pixel Processor Control */
-	ctx->wid = upa_readl(&ffb->wid);		/* Current WID */
-	ctx->fg = upa_readl(&ffb->fg);			/* Constant FG color */
-	ctx->bg = upa_readl(&ffb->bg);			/* Constant BG color */
-	ctx->consty = upa_readl(&ffb->consty);		/* Constant Y */
-	ctx->constz = upa_readl(&ffb->constz);		/* Constant Z */
-	ctx->xclip = upa_readl(&ffb->xclip);		/* X plane clip */
-	ctx->dcss = upa_readl(&ffb->dcss);		/* Depth Cue Scale Slope */
+	ctx->ppc = upa_readl(&ffb->ppc);	/* Pixel Processor Control */
+	ctx->wid = upa_readl(&ffb->wid);	/* Current WID */
+	ctx->fg = upa_readl(&ffb->fg);	/* Constant FG color */
+	ctx->bg = upa_readl(&ffb->bg);	/* Constant BG color */
+	ctx->consty = upa_readl(&ffb->consty);	/* Constant Y */
+	ctx->constz = upa_readl(&ffb->constz);	/* Constant Z */
+	ctx->xclip = upa_readl(&ffb->xclip);	/* X plane clip */
+	ctx->dcss = upa_readl(&ffb->dcss);	/* Depth Cue Scale Slope */
 	ctx->vclipmin = upa_readl(&ffb->vclipmin);	/* Primary XY clip, minimum */
 	ctx->vclipmax = upa_readl(&ffb->vclipmax);	/* Primary XY clip, maximum */
 	ctx->vclipzmin = upa_readl(&ffb->vclipzmin);	/* Primary Z clip, minimum */
 	ctx->vclipzmax = upa_readl(&ffb->vclipzmax);	/* Primary Z clip, maximum */
-	ctx->dcsf = upa_readl(&ffb->dcsf);		/* Depth Cue Scale Front Bound */
-	ctx->dcsb = upa_readl(&ffb->dcsb);		/* Depth Cue Scale Back Bound */
-	ctx->dczf = upa_readl(&ffb->dczf);		/* Depth Cue Scale Z Front */
-	ctx->dczb = upa_readl(&ffb->dczb);		/* Depth Cue Scale Z Back */
-	ctx->blendc = upa_readl(&ffb->blendc);		/* Alpha Blend Control */
+	ctx->dcsf = upa_readl(&ffb->dcsf);	/* Depth Cue Scale Front Bound */
+	ctx->dcsb = upa_readl(&ffb->dcsb);	/* Depth Cue Scale Back Bound */
+	ctx->dczf = upa_readl(&ffb->dczf);	/* Depth Cue Scale Z Front */
+	ctx->dczb = upa_readl(&ffb->dczb);	/* Depth Cue Scale Z Back */
+	ctx->blendc = upa_readl(&ffb->blendc);	/* Alpha Blend Control */
 	ctx->blendc1 = upa_readl(&ffb->blendc1);	/* Alpha Blend Color 1 */
 	ctx->blendc2 = upa_readl(&ffb->blendc2);	/* Alpha Blend Color 2 */
-	ctx->fbc = upa_readl(&ffb->fbc);		/* Frame Buffer Control */
-	ctx->rop = upa_readl(&ffb->rop);		/* Raster Operation */
-	ctx->cmp = upa_readl(&ffb->cmp);		/* Compare Controls */
+	ctx->fbc = upa_readl(&ffb->fbc);	/* Frame Buffer Control */
+	ctx->rop = upa_readl(&ffb->rop);	/* Raster Operation */
+	ctx->cmp = upa_readl(&ffb->cmp);	/* Compare Controls */
 	ctx->matchab = upa_readl(&ffb->matchab);	/* Buffer A/B Match Ops */
-	ctx->matchc = upa_readl(&ffb->matchc);		/* Buffer C Match Ops */
-	ctx->magnab = upa_readl(&ffb->magnab);		/* Buffer A/B Magnitude Ops */
-	ctx->magnc = upa_readl(&ffb->magnc);		/* Buffer C Magnitude Ops */
-	ctx->pmask = upa_readl(&ffb->pmask);		/* RGB Plane Mask */
-	ctx->xpmask = upa_readl(&ffb->xpmask);		/* X Plane Mask */
-	ctx->ypmask = upa_readl(&ffb->ypmask);		/* Y Plane Mask */
-	ctx->zpmask = upa_readl(&ffb->zpmask);		/* Z Plane Mask */
+	ctx->matchc = upa_readl(&ffb->matchc);	/* Buffer C Match Ops */
+	ctx->magnab = upa_readl(&ffb->magnab);	/* Buffer A/B Magnitude Ops */
+	ctx->magnc = upa_readl(&ffb->magnc);	/* Buffer C Magnitude Ops */
+	ctx->pmask = upa_readl(&ffb->pmask);	/* RGB Plane Mask */
+	ctx->xpmask = upa_readl(&ffb->xpmask);	/* X Plane Mask */
+	ctx->ypmask = upa_readl(&ffb->ypmask);	/* Y Plane Mask */
+	ctx->zpmask = upa_readl(&ffb->zpmask);	/* Z Plane Mask */
 
 	/* Auxiliary Clips. */
 	ctx->auxclip0min = upa_readl(&ffb->auxclip[0].min);
@@ -135,9 +134,9 @@ static void ffb_save_context(ffb_dev_priv_t *fpriv, int idx)
 	ctx->auxclip3min = upa_readl(&ffb->auxclip[3].min);
 	ctx->auxclip3max = upa_readl(&ffb->auxclip[3].max);
 
-	ctx->lpat = upa_readl(&ffb->lpat);		/* Line Pattern */
-	ctx->fontxy = upa_readl(&ffb->fontxy);		/* XY Font Coordinate */
-	ctx->fontw = upa_readl(&ffb->fontw);		/* Font Width */
+	ctx->lpat = upa_readl(&ffb->lpat);	/* Line Pattern */
+	ctx->fontxy = upa_readl(&ffb->fontxy);	/* XY Font Coordinate */
+	ctx->fontw = upa_readl(&ffb->fontw);	/* Font Width */
 	ctx->fontinc = upa_readl(&ffb->fontinc);	/* Font X/Y Increment */
 
 	/* These registers/features only exist on FFB2 and later chips. */
@@ -145,12 +144,12 @@ static void ffb_save_context(ffb_dev_priv_t *fpriv, int idx)
 		ctx->dcss1 = upa_readl(&ffb->dcss1);	/* Depth Cue Scale Slope 1 */
 		ctx->dcss2 = upa_readl(&ffb->dcss2);	/* Depth Cue Scale Slope 2 */
 		ctx->dcss2 = upa_readl(&ffb->dcss3);	/* Depth Cue Scale Slope 3 */
-		ctx->dcs2  = upa_readl(&ffb->dcs2);	/* Depth Cue Scale 2 */
-		ctx->dcs3  = upa_readl(&ffb->dcs3);	/* Depth Cue Scale 3 */
-		ctx->dcs4  = upa_readl(&ffb->dcs4);	/* Depth Cue Scale 4 */
-		ctx->dcd2  = upa_readl(&ffb->dcd2);	/* Depth Cue Depth 2 */
-		ctx->dcd3  = upa_readl(&ffb->dcd3);	/* Depth Cue Depth 3 */
-		ctx->dcd4  = upa_readl(&ffb->dcd4);	/* Depth Cue Depth 4 */
+		ctx->dcs2 = upa_readl(&ffb->dcs2);	/* Depth Cue Scale 2 */
+		ctx->dcs3 = upa_readl(&ffb->dcs3);	/* Depth Cue Scale 3 */
+		ctx->dcs4 = upa_readl(&ffb->dcs4);	/* Depth Cue Scale 4 */
+		ctx->dcd2 = upa_readl(&ffb->dcd2);	/* Depth Cue Depth 2 */
+		ctx->dcd3 = upa_readl(&ffb->dcd3);	/* Depth Cue Depth 3 */
+		ctx->dcd4 = upa_readl(&ffb->dcd4);	/* Depth Cue Depth 4 */
 
 		/* And stencil/stencilctl only exists on FFB2+ and later
 		 * due to the introduction of 3DRAM-III.
@@ -170,7 +169,7 @@ static void ffb_save_context(ffb_dev_priv_t *fpriv, int idx)
 	ctx->ucsr = upa_readl(&ffb->ucsr);
 }
 
-static void ffb_restore_context(ffb_dev_priv_t *fpriv, int old, int idx)
+static void ffb_restore_context(ffb_dev_priv_t * fpriv, int old, int idx)
 {
 	ffb_fbcPtr ffb = fpriv->regs;
 	struct ffb_hw_context *ctx;
@@ -193,7 +192,7 @@ static void ffb_restore_context(ffb_dev_priv_t *fpriv, int old, int idx)
 
 		upa_writel(ctx->ppc, &ffb->ppc);
 		upa_writel(ctx->wid, &ffb->wid);
-		upa_writel(ctx->fg,  &ffb->fg);
+		upa_writel(ctx->fg, &ffb->fg);
 		upa_writel(ctx->bg, &ffb->bg);
 		upa_writel(ctx->xclip, &ffb->xclip);
 		upa_writel(ctx->fbc, &ffb->fbc);
@@ -237,36 +236,36 @@ static void ffb_restore_context(ffb_dev_priv_t *fpriv, int old, int idx)
 
 	/* Restore rendering attributes. */
 
-	upa_writel(ctx->ppc, &ffb->ppc);		/* Pixel Processor Control */
-	upa_writel(ctx->wid, &ffb->wid);		/* Current WID */
-	upa_writel(ctx->fg, &ffb->fg);			/* Constant FG color */
-	upa_writel(ctx->bg, &ffb->bg);			/* Constant BG color */
-	upa_writel(ctx->consty, &ffb->consty);		/* Constant Y */
-	upa_writel(ctx->constz, &ffb->constz);		/* Constant Z */
-	upa_writel(ctx->xclip, &ffb->xclip);		/* X plane clip */
-	upa_writel(ctx->dcss, &ffb->dcss);		/* Depth Cue Scale Slope */
+	upa_writel(ctx->ppc, &ffb->ppc);	/* Pixel Processor Control */
+	upa_writel(ctx->wid, &ffb->wid);	/* Current WID */
+	upa_writel(ctx->fg, &ffb->fg);	/* Constant FG color */
+	upa_writel(ctx->bg, &ffb->bg);	/* Constant BG color */
+	upa_writel(ctx->consty, &ffb->consty);	/* Constant Y */
+	upa_writel(ctx->constz, &ffb->constz);	/* Constant Z */
+	upa_writel(ctx->xclip, &ffb->xclip);	/* X plane clip */
+	upa_writel(ctx->dcss, &ffb->dcss);	/* Depth Cue Scale Slope */
 	upa_writel(ctx->vclipmin, &ffb->vclipmin);	/* Primary XY clip, minimum */
 	upa_writel(ctx->vclipmax, &ffb->vclipmax);	/* Primary XY clip, maximum */
 	upa_writel(ctx->vclipzmin, &ffb->vclipzmin);	/* Primary Z clip, minimum */
 	upa_writel(ctx->vclipzmax, &ffb->vclipzmax);	/* Primary Z clip, maximum */
-	upa_writel(ctx->dcsf, &ffb->dcsf);		/* Depth Cue Scale Front Bound */
-	upa_writel(ctx->dcsb, &ffb->dcsb);		/* Depth Cue Scale Back Bound */
-	upa_writel(ctx->dczf, &ffb->dczf);		/* Depth Cue Scale Z Front */
-	upa_writel(ctx->dczb, &ffb->dczb);		/* Depth Cue Scale Z Back */
-	upa_writel(ctx->blendc, &ffb->blendc);		/* Alpha Blend Control */
+	upa_writel(ctx->dcsf, &ffb->dcsf);	/* Depth Cue Scale Front Bound */
+	upa_writel(ctx->dcsb, &ffb->dcsb);	/* Depth Cue Scale Back Bound */
+	upa_writel(ctx->dczf, &ffb->dczf);	/* Depth Cue Scale Z Front */
+	upa_writel(ctx->dczb, &ffb->dczb);	/* Depth Cue Scale Z Back */
+	upa_writel(ctx->blendc, &ffb->blendc);	/* Alpha Blend Control */
 	upa_writel(ctx->blendc1, &ffb->blendc1);	/* Alpha Blend Color 1 */
 	upa_writel(ctx->blendc2, &ffb->blendc2);	/* Alpha Blend Color 2 */
-	upa_writel(ctx->fbc, &ffb->fbc);		/* Frame Buffer Control */
-	upa_writel(ctx->rop, &ffb->rop);		/* Raster Operation */
-	upa_writel(ctx->cmp, &ffb->cmp);		/* Compare Controls */
+	upa_writel(ctx->fbc, &ffb->fbc);	/* Frame Buffer Control */
+	upa_writel(ctx->rop, &ffb->rop);	/* Raster Operation */
+	upa_writel(ctx->cmp, &ffb->cmp);	/* Compare Controls */
 	upa_writel(ctx->matchab, &ffb->matchab);	/* Buffer A/B Match Ops */
-	upa_writel(ctx->matchc, &ffb->matchc);		/* Buffer C Match Ops */
-	upa_writel(ctx->magnab, &ffb->magnab);		/* Buffer A/B Magnitude Ops */
-	upa_writel(ctx->magnc, &ffb->magnc);		/* Buffer C Magnitude Ops */
-	upa_writel(ctx->pmask, &ffb->pmask);		/* RGB Plane Mask */
-	upa_writel(ctx->xpmask, &ffb->xpmask);		/* X Plane Mask */
-	upa_writel(ctx->ypmask, &ffb->ypmask);		/* Y Plane Mask */
-	upa_writel(ctx->zpmask, &ffb->zpmask);		/* Z Plane Mask */
+	upa_writel(ctx->matchc, &ffb->matchc);	/* Buffer C Match Ops */
+	upa_writel(ctx->magnab, &ffb->magnab);	/* Buffer A/B Magnitude Ops */
+	upa_writel(ctx->magnc, &ffb->magnc);	/* Buffer C Magnitude Ops */
+	upa_writel(ctx->pmask, &ffb->pmask);	/* RGB Plane Mask */
+	upa_writel(ctx->xpmask, &ffb->xpmask);	/* X Plane Mask */
+	upa_writel(ctx->ypmask, &ffb->ypmask);	/* Y Plane Mask */
+	upa_writel(ctx->zpmask, &ffb->zpmask);	/* Z Plane Mask */
 
 	/* Auxiliary Clips. */
 	upa_writel(ctx->auxclip0min, &ffb->auxclip[0].min);
@@ -278,9 +277,9 @@ static void ffb_restore_context(ffb_dev_priv_t *fpriv, int old, int idx)
 	upa_writel(ctx->auxclip3min, &ffb->auxclip[3].min);
 	upa_writel(ctx->auxclip3max, &ffb->auxclip[3].max);
 
-	upa_writel(ctx->lpat, &ffb->lpat);		/* Line Pattern */
-	upa_writel(ctx->fontxy, &ffb->fontxy);		/* XY Font Coordinate */
-	upa_writel(ctx->fontw, &ffb->fontw);		/* Font Width */
+	upa_writel(ctx->lpat, &ffb->lpat);	/* Line Pattern */
+	upa_writel(ctx->fontxy, &ffb->fontxy);	/* XY Font Coordinate */
+	upa_writel(ctx->fontw, &ffb->fontw);	/* Font Width */
 	upa_writel(ctx->fontinc, &ffb->fontinc);	/* Font X/Y Increment */
 
 	/* These registers/features only exist on FFB2 and later chips. */
@@ -354,91 +353,87 @@ static void FFBWait(ffb_fbcPtr ffb)
 	} while (--limit);
 }
 
-int ffb_driver_context_switch(drm_device_t *dev, int old, int new)
+int ffb_driver_context_switch(drm_device_t * dev, int old, int new)
 {
 	ffb_dev_priv_t *fpriv = (ffb_dev_priv_t *) dev->dev_private;
 
 #ifdef DRM_DMA_HISTOGRAM
-        dev->ctx_start = get_cycles();
+	dev->ctx_start = get_cycles();
 #endif
-        
-        DRM_DEBUG("Context switch from %d to %d\n", old, new);
 
-        if (new == dev->last_context ||
-	    dev->last_context == 0) {
+	DRM_DEBUG("Context switch from %d to %d\n", old, new);
+
+	if (new == dev->last_context || dev->last_context == 0) {
 		dev->last_context = new;
-                return 0;
+		return 0;
 	}
-        
+
 	FFBWait(fpriv->regs);
 	ffb_save_context(fpriv, old);
 	ffb_restore_context(fpriv, old, new);
 	FFBWait(fpriv->regs);
-        
+
 	dev->last_context = new;
 
-        return 0;
+	return 0;
 }
 
 int ffb_driver_resctx(struct inode *inode, struct file *filp, unsigned int cmd,
-		unsigned long arg)
+		      unsigned long arg)
 {
-	drm_ctx_res_t	res;
-	drm_ctx_t	ctx;
-	int		i;
+	drm_ctx_res_t res;
+	drm_ctx_t ctx;
+	int i;
 
 	DRM_DEBUG("%d\n", DRM_RESERVED_CONTEXTS);
-	if (copy_from_user(&res, (drm_ctx_res_t __user *)arg, sizeof(res)))
+	if (copy_from_user(&res, (drm_ctx_res_t __user *) arg, sizeof(res)))
 		return -EFAULT;
 	if (res.count >= DRM_RESERVED_CONTEXTS) {
 		memset(&ctx, 0, sizeof(ctx));
 		for (i = 0; i < DRM_RESERVED_CONTEXTS; i++) {
 			ctx.handle = i;
-			if (copy_to_user(&res.contexts[i],
-					 &i,
-					 sizeof(i)))
+			if (copy_to_user(&res.contexts[i], &i, sizeof(i)))
 				return -EFAULT;
 		}
 	}
 	res.count = DRM_RESERVED_CONTEXTS;
-	if (copy_to_user((drm_ctx_res_t __user *)arg, &res, sizeof(res)))
+	if (copy_to_user((drm_ctx_res_t __user *) arg, &res, sizeof(res)))
 		return -EFAULT;
 	return 0;
 }
 
-
 int ffb_driver_addctx(struct inode *inode, struct file *filp, unsigned int cmd,
-		unsigned long arg)
+		      unsigned long arg)
 {
-	drm_file_t	*priv	= filp->private_data;
-	drm_device_t	*dev	= priv->dev;
-	drm_ctx_t	ctx;
+	drm_file_t *priv = filp->private_data;
+	drm_device_t *dev = priv->dev;
+	drm_ctx_t ctx;
 	int idx;
 
-	if (copy_from_user(&ctx, (drm_ctx_t __user *)arg, sizeof(ctx)))
+	if (copy_from_user(&ctx, (drm_ctx_t __user *) arg, sizeof(ctx)))
 		return -EFAULT;
-	idx = DRM(alloc_queue)(dev, (ctx.flags & _DRM_CONTEXT_2DONLY));
+	idx = DRM(alloc_queue) (dev, (ctx.flags & _DRM_CONTEXT_2DONLY));
 	if (idx < 0)
 		return -ENFILE;
 
 	DRM_DEBUG("%d\n", ctx.handle);
 	ctx.handle = idx;
-	if (copy_to_user((drm_ctx_t __user *)arg, &ctx, sizeof(ctx)))
+	if (copy_to_user((drm_ctx_t __user *) arg, &ctx, sizeof(ctx)))
 		return -EFAULT;
 	return 0;
 }
 
 int ffb_driver_modctx(struct inode *inode, struct file *filp, unsigned int cmd,
-		unsigned long arg)
+		      unsigned long arg)
 {
-	drm_file_t	*priv	= filp->private_data;
-	drm_device_t	*dev	= priv->dev;
-	ffb_dev_priv_t	*fpriv	= (ffb_dev_priv_t *) dev->dev_private;
+	drm_file_t *priv = filp->private_data;
+	drm_device_t *dev = priv->dev;
+	ffb_dev_priv_t *fpriv = (ffb_dev_priv_t *) dev->dev_private;
 	struct ffb_hw_context *hwctx;
 	drm_ctx_t ctx;
 	int idx;
 
-	if (copy_from_user(&ctx, (drm_ctx_t __user *)arg, sizeof(ctx)))
+	if (copy_from_user(&ctx, (drm_ctx_t __user *) arg, sizeof(ctx)))
 		return -EFAULT;
 
 	idx = ctx.handle;
@@ -458,16 +453,16 @@ int ffb_driver_modctx(struct inode *inode, struct file *filp, unsigned int cmd,
 }
 
 int ffb_driver_getctx(struct inode *inode, struct file *filp, unsigned int cmd,
-		unsigned long arg)
+		      unsigned long arg)
 {
-	drm_file_t	*priv	= filp->private_data;
-	drm_device_t	*dev	= priv->dev;
-	ffb_dev_priv_t	*fpriv	= (ffb_dev_priv_t *) dev->dev_private;
+	drm_file_t *priv = filp->private_data;
+	drm_device_t *dev = priv->dev;
+	ffb_dev_priv_t *fpriv = (ffb_dev_priv_t *) dev->dev_private;
 	struct ffb_hw_context *hwctx;
 	drm_ctx_t ctx;
 	int idx;
 
-	if (copy_from_user(&ctx, (drm_ctx_t __user *)arg, sizeof(ctx)))
+	if (copy_from_user(&ctx, (drm_ctx_t __user *) arg, sizeof(ctx)))
 		return -EFAULT;
 
 	idx = ctx.handle;
@@ -483,31 +478,31 @@ int ffb_driver_getctx(struct inode *inode, struct file *filp, unsigned int cmd,
 	else
 		ctx.flags = 0;
 
-	if (copy_to_user((drm_ctx_t __user *)arg, &ctx, sizeof(ctx)))
+	if (copy_to_user((drm_ctx_t __user *) arg, &ctx, sizeof(ctx)))
 		return -EFAULT;
 
 	return 0;
 }
 
-int ffb_driver_switchctx(struct inode *inode, struct file *filp, unsigned int cmd,
-		   unsigned long arg)
+int ffb_driver_switchctx(struct inode *inode, struct file *filp,
+			 unsigned int cmd, unsigned long arg)
 {
-	drm_file_t	*priv	= filp->private_data;
-	drm_device_t	*dev	= priv->dev;
-	drm_ctx_t	ctx;
+	drm_file_t *priv = filp->private_data;
+	drm_device_t *dev = priv->dev;
+	drm_ctx_t ctx;
 
-	if (copy_from_user(&ctx, (drm_ctx_t  __user *)arg, sizeof(ctx)))
+	if (copy_from_user(&ctx, (drm_ctx_t __user *) arg, sizeof(ctx)))
 		return -EFAULT;
 	DRM_DEBUG("%d\n", ctx.handle);
 	return ffb_driver_context_switch(dev, dev->last_context, ctx.handle);
 }
 
 int ffb_driver_newctx(struct inode *inode, struct file *filp, unsigned int cmd,
-		unsigned long arg)
+		      unsigned long arg)
 {
-	drm_ctx_t	ctx;
+	drm_ctx_t ctx;
 
-	if (copy_from_user(&ctx, (drm_ctx_t  __user *)arg, sizeof(ctx)))
+	if (copy_from_user(&ctx, (drm_ctx_t __user *) arg, sizeof(ctx)))
 		return -EFAULT;
 	DRM_DEBUG("%d\n", ctx.handle);
 
@@ -515,15 +510,15 @@ int ffb_driver_newctx(struct inode *inode, struct file *filp, unsigned int cmd,
 }
 
 int ffb_driver_rmctx(struct inode *inode, struct file *filp, unsigned int cmd,
-	       unsigned long arg)
+		     unsigned long arg)
 {
-	drm_ctx_t	ctx;
-	drm_file_t	*priv	= filp->private_data;
-	drm_device_t	*dev	= priv->dev;
-	ffb_dev_priv_t	*fpriv	= (ffb_dev_priv_t *) dev->dev_private;
+	drm_ctx_t ctx;
+	drm_file_t *priv = filp->private_data;
+	drm_device_t *dev = priv->dev;
+	ffb_dev_priv_t *fpriv = (ffb_dev_priv_t *) dev->dev_private;
 	int idx;
 
-	if (copy_from_user(&ctx, (drm_ctx_t __user *)arg, sizeof(ctx)))
+	if (copy_from_user(&ctx, (drm_ctx_t __user *) arg, sizeof(ctx)))
 		return -EFAULT;
 	DRM_DEBUG("%d\n", ctx.handle);
 
@@ -544,7 +539,8 @@ void ffb_set_context_ioctls(void)
 	DRM(ioctls)[DRM_IOCTL_NR(DRM_IOCTL_RM_CTX)].func = ffb_driver_rmctx;
 	DRM(ioctls)[DRM_IOCTL_NR(DRM_IOCTL_MOD_CTX)].func = ffb_driver_modctx;
 	DRM(ioctls)[DRM_IOCTL_NR(DRM_IOCTL_GET_CTX)].func = ffb_driver_getctx;
-	DRM(ioctls)[DRM_IOCTL_NR(DRM_IOCTL_SWITCH_CTX)].func = ffb_driver_switchctx;
+	DRM(ioctls)[DRM_IOCTL_NR(DRM_IOCTL_SWITCH_CTX)].func =
+	    ffb_driver_switchctx;
 	DRM(ioctls)[DRM_IOCTL_NR(DRM_IOCTL_NEW_CTX)].func = ffb_driver_newctx;
 	DRM(ioctls)[DRM_IOCTL_NR(DRM_IOCTL_RES_CTX)].func = ffb_driver_resctx;
 

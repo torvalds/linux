@@ -36,6 +36,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
+#include <linux/signal.h>	/* SA_SHIRQ */
 #include "cpci_hotplug.h"
 #include "cpcihp_zt5550.h"
 

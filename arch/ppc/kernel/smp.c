@@ -34,11 +34,11 @@
 #include <asm/thread_info.h>
 #include <asm/tlbflush.h>
 #include <asm/xmon.h>
+#include <asm/machdep.h>
 
 volatile int smp_commenced;
 int smp_tb_synchronized;
 struct cpuinfo_PPC cpu_data[NR_CPUS];
-struct klock_info_struct klock_info = { KLOCK_CLEAR, 0 };
 atomic_t ipi_recv;
 atomic_t ipi_sent;
 cpumask_t cpu_online_map;
@@ -51,7 +51,7 @@ EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(cpu_possible_map);
 
 /* SMP operations for this machine */
-static struct smp_ops_t *smp_ops;
+struct smp_ops_t *smp_ops;
 
 /* all cpu mappings are 1-1 -- Cort */
 volatile unsigned long cpu_callin_map[NR_CPUS];
@@ -74,11 +74,11 @@ extern void __save_cpu_setup(void);
 #define PPC_MSG_XMON_BREAK	3
 
 static inline void
-smp_message_pass(int target, int msg, unsigned long data, int wait)
+smp_message_pass(int target, int msg)
 {
-	if (smp_ops){
+	if (smp_ops) {
 		atomic_inc(&ipi_sent);
-		smp_ops->message_pass(target,msg,data,wait);
+		smp_ops->message_pass(target, msg);
 	}
 }
 
@@ -119,7 +119,7 @@ void smp_message_recv(int msg, struct pt_regs *regs)
 void smp_send_tlb_invalidate(int cpu)
 {
 	if ( PVR_VER(mfspr(SPRN_PVR)) == 8 )
-		smp_message_pass(MSG_ALL_BUT_SELF, PPC_MSG_INVALIDATE_TLB, 0, 0);
+		smp_message_pass(MSG_ALL_BUT_SELF, PPC_MSG_INVALIDATE_TLB);
 }
 
 void smp_send_reschedule(int cpu)
@@ -135,13 +135,13 @@ void smp_send_reschedule(int cpu)
 	 */
 	/* This is only used if `cpu' is running an idle task,
 	   so it will reschedule itself anyway... */
-	smp_message_pass(cpu, PPC_MSG_RESCHEDULE, 0, 0);
+	smp_message_pass(cpu, PPC_MSG_RESCHEDULE);
 }
 
 #ifdef CONFIG_XMON
 void smp_send_xmon_break(int cpu)
 {
-	smp_message_pass(cpu, PPC_MSG_XMON_BREAK, 0, 0);
+	smp_message_pass(cpu, PPC_MSG_XMON_BREAK);
 }
 #endif /* CONFIG_XMON */
 
@@ -224,7 +224,7 @@ static int __smp_call_function(void (*func) (void *info), void *info,
 	spin_lock(&call_lock);
 	call_data = &data;
 	/* Send a message to all other CPUs and wait for them to respond */
-	smp_message_pass(target, PPC_MSG_CALL_FUNCTION, 0, 0);
+	smp_message_pass(target, PPC_MSG_CALL_FUNCTION);
 
 	/* Wait for response */
 	timeout = 1000000;
@@ -294,7 +294,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
         smp_store_cpu_info(smp_processor_id());
 	cpu_callin_map[smp_processor_id()] = 1;
 
-	smp_ops = ppc_md.smp_ops;
 	if (smp_ops == NULL) {
 		printk("SMP not supported on this machine.\n");
 		return;
@@ -307,9 +306,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 	/* Backup CPU 0 state */
 	__save_cpu_setup();
-
-	if (smp_ops->space_timers)
-		smp_ops->space_timers(num_cpus);
 
 	for_each_cpu(cpu) {
 		if (cpu == smp_processor_id())

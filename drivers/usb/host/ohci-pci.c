@@ -14,6 +14,8 @@
  * This file is licenced under the GPL.
  */
  
+#include <linux/jiffies.h>
+
 #ifdef CONFIG_PPC_PMAC
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
