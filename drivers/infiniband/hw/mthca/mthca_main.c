@@ -1198,7 +1198,6 @@ MODULE_DEVICE_TABLE(pci, mthca_pci_table);
 
 static struct pci_driver mthca_driver = {
 	.name		= DRV_NAME,
-	.owner		= THIS_MODULE,
 	.id_table	= mthca_pci_table,
 	.probe		= mthca_init_one,
 	.remove		= __devexit_p(mthca_remove_one)

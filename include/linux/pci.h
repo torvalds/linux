@@ -236,7 +236,6 @@ struct module;
 struct pci_driver {
 	struct list_head node;
 	char *name;
-	struct module *owner;
 	const struct pci_device_id *id_table;	/* must be non-NULL for probe to be called */
 	int  (*probe)  (struct pci_dev *dev, const struct pci_device_id *id);	/* New device inserted */
 	void (*remove) (struct pci_dev *dev);	/* Device removed (NULL if not a hot-plug capable driver) */

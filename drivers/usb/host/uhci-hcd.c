@@ -831,7 +831,6 @@ MODULE_DEVICE_TABLE(pci, uhci_pci_ids);
 static struct pci_driver uhci_pci_driver = {
 	.name =		(char *)hcd_name,
 	.id_table =	uhci_pci_ids,
-	.owner =	THIS_MODULE,
 
 	.probe =	usb_hcd_pci_probe,
 	.remove =	usb_hcd_pci_remove,

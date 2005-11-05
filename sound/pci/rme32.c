@@ -2012,7 +2012,6 @@ static void __devexit snd_rme32_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name =		"RME Digi32",
-	.owner =	THIS_MODULE,
 	.id_table =	snd_rme32_ids,
 	.probe =	snd_rme32_probe,
 	.remove =	__devexit_p(snd_rme32_remove),
