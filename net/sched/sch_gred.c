@@ -91,15 +91,56 @@ struct gred_sched_data
 	psched_time_t	qidlestart;	/* Start of idle period	*/
 };
 
+enum {
+	GRED_WRED_MODE = 1,
+};
+
 struct gred_sched
 {
 	struct gred_sched_data *tab[MAX_DPs];
+	unsigned long	flags;
 	u32 		DPs;   
 	u32 		def; 
 	u8 		initd; 
 	u8 		grio; 
-	u8 		eqp; 
 };
+
+static inline int gred_wred_mode(struct gred_sched *table)
+{
+	return test_bit(GRED_WRED_MODE, &table->flags);
+}
+
+static inline void gred_enable_wred_mode(struct gred_sched *table)
+{
+	__set_bit(GRED_WRED_MODE, &table->flags);
+}
+
+static inline void gred_disable_wred_mode(struct gred_sched *table)
+{
+	__clear_bit(GRED_WRED_MODE, &table->flags);
+}
+
+static inline int gred_wred_mode_check(struct Qdisc *sch)
+{
+	struct gred_sched *table = qdisc_priv(sch);
+	int i;
+
+	/* Really ugly O(n^2) but shouldn't be necessary too frequent. */
+	for (i = 0; i < table->DPs; i++) {
+		struct gred_sched_data *q = table->tab[i];
+		int n;
+
+		if (q == NULL)
+			continue;
+
+		for (n = 0; n < table->DPs; n++)
+			if (table->tab[n] && table->tab[n] != q &&
+			    table->tab[n]->prio == q->prio)
+				return 1;
+	}
+
+	return 0;
+}
 
 static int
 gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
@@ -132,7 +173,7 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	    "general backlog %d\n",skb->tc_index&0xf,sch->handle,q->backlog,
 	    sch->qstats.backlog);
 	/* sum up all the qaves of prios <= to ours to get the new qave*/
-	if (!t->eqp && t->grio) {
+	if (!gred_wred_mode(t) && t->grio) {
 		for (i=0;i<t->DPs;i++) {
 			if ((!t->tab[i]) || (i==q->DP))	
 				continue; 
@@ -146,7 +187,7 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	q->packetsin++;
 	q->bytesin+=skb->len;
 
-	if (t->eqp && t->grio) {
+	if (gred_wred_mode(t)) {
 		qave=0;
 		q->qave=t->tab[t->def]->qave;
 		q->qidlestart=t->tab[t->def]->qidlestart;
@@ -160,7 +201,7 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 
 		q->qave >>= q->Stab[(us_idle>>q->Scell_log)&0xFF];
 	} else {
-		if (t->eqp) {
+		if (gred_wred_mode(t)) {
 			q->qave += sch->qstats.backlog - (q->qave >> q->Wlog);
 		} else {
 			q->qave += q->backlog - (q->qave >> q->Wlog);
@@ -169,7 +210,7 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	}
 	
 
-	if (t->eqp && t->grio) 
+	if (gred_wred_mode(t))
 		t->tab[t->def]->qave=q->qave;
 
 	if ((q->qave+qave) < q->qth_min) {
@@ -240,7 +281,7 @@ gred_dequeue(struct Qdisc* sch)
 		q= t->tab[(skb->tc_index&0xf)];
 		if (q) {
 			q->backlog -= skb->len;
-			if (!q->backlog && !t->eqp)
+			if (!q->backlog && !gred_wred_mode(t))
 				PSCHED_GET_TIME(q->qidlestart);
 		} else {
 			D2PRINTK("gred_dequeue: skb has bad tcindex %x\n",skb->tc_index&0xf); 
@@ -248,7 +289,7 @@ gred_dequeue(struct Qdisc* sch)
 		return skb;
 	}
 
-	if (t->eqp) {
+	if (gred_wred_mode(t)) {
 			q= t->tab[t->def];
 			if (!q)	
 				D2PRINTK("no default VQ set: Results will be "
@@ -276,7 +317,7 @@ static unsigned int gred_drop(struct Qdisc* sch)
 		if (q) {
 			q->backlog -= len;
 			q->other++;
-			if (!q->backlog && !t->eqp)
+			if (!q->backlog && !gred_wred_mode(t))
 				PSCHED_GET_TIME(q->qidlestart);
 		} else {
 			D2PRINTK("gred_dequeue: skb has bad tcindex %x\n",skb->tc_index&0xf); 
@@ -330,7 +371,6 @@ static int gred_change(struct Qdisc *sch, struct rtattr *opt)
 	struct tc_gred_sopt *sopt;
 	struct rtattr *tb[TCA_GRED_STAB];
 	struct rtattr *tb2[TCA_GRED_DPS];
-	int i;
 
 	if (opt == NULL || rtattr_parse_nested(tb, TCA_GRED_STAB, opt))
 		return -EINVAL;
@@ -344,7 +384,17 @@ static int gred_change(struct Qdisc *sch, struct rtattr *opt)
 		sopt = RTA_DATA(tb2[TCA_GRED_DPS-1]);
 		table->DPs=sopt->DPs;   
 		table->def=sopt->def_DP; 
-		table->grio=sopt->grio; 
+
+		if (sopt->grio) {
+			table->grio = 1;
+			gred_disable_wred_mode(table);
+			if (gred_wred_mode_check(sch))
+				gred_enable_wred_mode(table);
+		} else {
+			table->grio = 0;
+			gred_disable_wred_mode(table);
+		}
+
 		table->initd=0;
 		/* probably need to clear all the table DP entries as well */
 		return 0;
@@ -413,17 +463,10 @@ static int gred_change(struct Qdisc *sch, struct rtattr *opt)
 	PSCHED_SET_PASTPERFECT(q->qidlestart);
 	memcpy(q->Stab, RTA_DATA(tb[TCA_GRED_STAB-1]), 256);
 
-	if ( table->initd && table->grio) {
-	/* this looks ugly but it's not in the fast path */
-		for (i=0;i<table->DPs;i++) {
-			if ((!table->tab[i]) || (i==q->DP) )    
-				continue; 
-			if (table->tab[i]->prio == q->prio ){
-				/* WRED mode detected */
-				table->eqp=1;
-				break;
-			}
-		}
+	if (table->grio) {
+		gred_disable_wred_mode(table);
+		if (gred_wred_mode_check(sch))
+			gred_enable_wred_mode(table);
 	}
 
 	if (!table->initd) {
@@ -541,7 +584,7 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 		dst->DP=q->DP;
 		dst->backlog=q->backlog;
 		if (q->qave) {
-			if (table->eqp && table->grio) {
+			if (gred_wred_mode(table)) {
 				q->qidlestart=table->tab[table->def]->qidlestart;
 				q->qave=table->tab[table->def]->qave;
 			}
