@@ -58,6 +58,10 @@ config IA64_UNCACHED_ALLOCATOR
 	bool
 	select GENERIC_ALLOCATOR
 
+config ZONE_DMA_IS_DMA32
+	bool
+	default y
+
 choice
 	prompt "System type"
 	default IA64_GENERIC
