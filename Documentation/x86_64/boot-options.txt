@@ -122,6 +122,9 @@ SMP
 
   cpumask=MASK   only use cpus with bits set in mask
 
+  additional_cpus=NUM Allow NUM more CPUs for hotplug
+		 (defaults are specified by the BIOS or half the available CPUs)
+
 NUMA
 
   numa=off	Only set up a single NUMA node spanning all memory.
