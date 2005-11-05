@@ -135,7 +135,7 @@ red_dequeue(struct Qdisc* sch)
 
 	skb = qdisc_dequeue_head(sch);
 
-	if (skb == NULL)
+	if (skb == NULL && !red_is_idling(&q->parms))
 		red_start_of_idle_period(&q->parms);
 
 	return skb;
@@ -154,7 +154,9 @@ static unsigned int red_drop(struct Qdisc* sch)
 		return len;
 	}
 
-	red_start_of_idle_period(&q->parms);
+	if (!red_is_idling(&q->parms))
+		red_start_of_idle_period(&q->parms);
+
 	return 0;
 }
 
