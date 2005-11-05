@@ -105,22 +105,14 @@ red_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 			break;
 	}
 
-	if (sch->qstats.backlog + skb->len <= q->limit) {
-		__skb_queue_tail(&sch->q, skb);
-		sch->qstats.backlog += skb->len;
-		sch->bstats.bytes += skb->len;
-		sch->bstats.packets++;
-		return NET_XMIT_SUCCESS;
-	}
+	if (sch->qstats.backlog + skb->len <= q->limit)
+		return qdisc_enqueue_tail(skb, sch);
 
 	q->stats.pdrop++;
-	kfree_skb(skb);
-	sch->qstats.drops++;
-	return NET_XMIT_DROP;
+	return qdisc_drop(skb, sch);
 
 congestion_drop:
-	kfree_skb(skb);
-	sch->qstats.drops++;
+	qdisc_drop(skb, sch);
 	return NET_XMIT_CN;
 }
 
@@ -132,10 +124,7 @@ red_requeue(struct sk_buff *skb, struct Qdisc* sch)
 	if (red_is_idling(&q->parms))
 		red_end_of_idle_period(&q->parms);
 
-	__skb_queue_head(&sch->q, skb);
-	sch->qstats.backlog += skb->len;
-	sch->qstats.requeues++;
-	return 0;
+	return qdisc_requeue(skb, sch);
 }
 
 static struct sk_buff *
@@ -144,14 +133,12 @@ red_dequeue(struct Qdisc* sch)
 	struct sk_buff *skb;
 	struct red_sched_data *q = qdisc_priv(sch);
 
-	skb = __skb_dequeue(&sch->q);
-	if (skb) {
-		sch->qstats.backlog -= skb->len;
-		return skb;
-	}
+	skb = qdisc_dequeue_head(sch);
 
-	red_start_of_idle_period(&q->parms);
-	return NULL;
+	if (skb == NULL)
+		red_start_of_idle_period(&q->parms);
+
+	return skb;
 }
 
 static unsigned int red_drop(struct Qdisc* sch)
@@ -159,13 +146,11 @@ static unsigned int red_drop(struct Qdisc* sch)
 	struct sk_buff *skb;
 	struct red_sched_data *q = qdisc_priv(sch);
 
-	skb = __skb_dequeue_tail(&sch->q);
+	skb = qdisc_dequeue_tail(sch);
 	if (skb) {
 		unsigned int len = skb->len;
-		sch->qstats.backlog -= len;
-		sch->qstats.drops++;
 		q->stats.other++;
-		kfree_skb(skb);
+		qdisc_drop(skb, sch);
 		return len;
 	}
 
@@ -177,8 +162,7 @@ static void red_reset(struct Qdisc* sch)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
 
-	__skb_queue_purge(&sch->q);
-	sch->qstats.backlog = 0;
+	qdisc_reset_queue(sch);
 	red_restart(&q->parms);
 }
 
