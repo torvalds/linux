@@ -28,8 +28,6 @@
 #include <asm/proto.h>
 #include <asm/apicdef.h>
 
-#define __cpuinit __init
-
 /*
  *	Smarter SMP flushing macros. 
  *		c/o Linus Torvalds.
