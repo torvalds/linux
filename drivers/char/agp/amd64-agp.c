@@ -56,7 +56,7 @@ static int nr_garts;
 static struct pci_dev * hammers[MAX_HAMMER_GARTS];
 
 static struct resource *aperture_resource;
-static int __initdata agp_try_unsupported;
+static int __initdata agp_try_unsupported = 1;
 
 static int gart_iterator;
 #define for_each_nb() for(gart_iterator=0;gart_iterator<nr_garts;gart_iterator++)
