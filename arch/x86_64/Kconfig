@@ -510,7 +510,7 @@ config IA32_EMULATION
 	  left.
 
 config IA32_AOUT
-       bool "IA32 a.out support"
+       tristate "IA32 a.out support"
        depends on IA32_EMULATION
        help
          Support old a.out binaries in the 32bit emulation.
