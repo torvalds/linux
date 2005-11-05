@@ -267,7 +267,7 @@ static struct sk_buff *gred_dequeue(struct Qdisc* sch)
 		return skb;
 	}
 
-	if (gred_wred_mode(t))
+	if (gred_wred_mode(t) && !red_is_idling(&t->wred_set))
 		red_start_of_idle_period(&t->wred_set);
 
 	return NULL;
@@ -301,7 +301,7 @@ static unsigned int gred_drop(struct Qdisc* sch)
 		return len;
 	}
 
-	if (gred_wred_mode(t))
+	if (gred_wred_mode(t) && !red_is_idling(&t->wred_set))
 		red_start_of_idle_period(&t->wred_set);
 
 	return 0;
