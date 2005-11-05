@@ -60,6 +60,7 @@
 #include <asm/setup.h>
 #include <asm/mach_apic.h>
 #include <asm/numa.h>
+#include <asm/sections.h>
 
 /*
  * Machine setup..
@@ -103,7 +104,6 @@ struct edid_info edid_info;
 struct e820map e820;
 
 extern int root_mountflags;
-extern char _text, _etext, _edata, _end;
 
 char command_line[COMMAND_LINE_SIZE];
 

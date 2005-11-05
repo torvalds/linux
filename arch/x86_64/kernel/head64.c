@@ -20,14 +20,14 @@
 #include <asm/setup.h>
 #include <asm/desc.h>
 #include <asm/pgtable.h>
+#include <asm/sections.h>
 
 /* Don't add a printk in there. printk relies on the PDA which is not initialized 
    yet. */
 static void __init clear_bss(void)
 {
-	extern char __bss_start[], __bss_end[];
 	memset(__bss_start, 0,
-	       (unsigned long) __bss_end - (unsigned long) __bss_start);
+	       (unsigned long) __bss_stop - (unsigned long) __bss_start);
 }
 
 #define NEW_CL_POINTER		0x228	/* Relative to real mode data */
@@ -75,8 +75,6 @@ static void __init setup_boot_cpu_data(void)
 	boot_cpu_data.x86_model = (eax >> 4) & 0xf;
 	boot_cpu_data.x86_mask = eax & 0xf;
 }
-
-extern char _end[];
 
 void __init x86_64_start_kernel(char * real_mode_data)
 {

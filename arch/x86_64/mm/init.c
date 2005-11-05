@@ -36,6 +36,7 @@
 #include <asm/mmu_context.h>
 #include <asm/proto.h>
 #include <asm/smp.h>
+#include <asm/sections.h>
 
 #ifndef Dprintk
 #define Dprintk(x...)
@@ -44,8 +45,6 @@
 #ifdef CONFIG_GART_IOMMU
 extern int swiotlb;
 #endif
-
-extern char _stext[];
 
 static unsigned long dma_reserve __initdata;
 
@@ -87,9 +86,6 @@ void show_mem(void)
 }
 
 /* References to section boundaries */
-
-extern char _text, _etext, _edata, __bss_start, _end[];
-extern char __init_begin, __init_end;
 
 int after_bootmem;
 
@@ -491,8 +487,6 @@ void __init mem_init(void)
 #endif
 }
 
-extern char __initdata_begin[], __initdata_end[];
-
 void free_initmem(void)
 {
 	unsigned long addr;
@@ -506,7 +500,7 @@ void free_initmem(void)
 		totalram_pages++;
 	}
 	memset(__initdata_begin, 0xba, __initdata_end - __initdata_begin);
-	printk ("Freeing unused kernel memory: %luk freed\n", (&__init_end - &__init_begin) >> 10);
+	printk ("Freeing unused kernel memory: %luk freed\n", (__init_end - __init_begin) >> 10);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
