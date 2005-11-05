@@ -73,7 +73,7 @@ MODULE_LICENSE( DRIVER_LICENSE );
 
 struct itmtouch_dev {
 	struct usb_device	*usbdev; /* usb device */
-	struct input_dev	inputdev; /* input device */
+	struct input_dev	*inputdev; /* input device */
 	struct urb		*readurb; /* urb */
 	char			rbuf[ITM_BUFSIZE]; /* data */
 	int			users;
@@ -88,9 +88,9 @@ static struct usb_device_id itmtouch_ids [] = {
 
 static void itmtouch_irq(struct urb *urb, struct pt_regs *regs)
 {
-	struct itmtouch_dev * itmtouch = urb->context;
+	struct itmtouch_dev *itmtouch = urb->context;
 	unsigned char *data = urb->transfer_buffer;
-	struct input_dev *dev = &itmtouch->inputdev;
+	struct input_dev *dev = itmtouch->inputdev;
 	int retval;
 
 	switch (urb->status) {
@@ -156,49 +156,62 @@ static void itmtouch_close(struct input_dev *input)
 static int itmtouch_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct itmtouch_dev *itmtouch;
+	struct input_dev *input_dev;
 	struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *endpoint;
 	struct usb_device *udev = interface_to_usbdev(intf);
 	unsigned int pipe;
 	unsigned int maxp;
-	char path[PATH_SIZE];
 
 	interface = intf->cur_altsetting;
 	endpoint = &interface->endpoint[0].desc;
 
-	if (!(itmtouch = kzalloc(sizeof(struct itmtouch_dev), GFP_KERNEL))) {
+	itmtouch = kzalloc(sizeof(struct itmtouch_dev), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!itmtouch || !input_dev) {
 		err("%s - Out of memory.", __FUNCTION__);
-		return -ENOMEM;
+		goto fail;
 	}
 
 	itmtouch->usbdev = udev;
+	itmtouch->inputdev = input_dev;
 
-	itmtouch->inputdev.private = itmtouch;
-	itmtouch->inputdev.open = itmtouch_open;
-	itmtouch->inputdev.close = itmtouch_close;
+	if (udev->manufacturer)
+		strlcpy(itmtouch->name, udev->manufacturer, sizeof(itmtouch->name));
 
-	usb_make_path(udev, path, PATH_SIZE);
-
-	itmtouch->inputdev.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	itmtouch->inputdev.absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE);
-	itmtouch->inputdev.keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
-
-	itmtouch->inputdev.name = itmtouch->name;
-	itmtouch->inputdev.phys = itmtouch->phys;
-	usb_to_input_id(udev, &itmtouch->inputdev.id);
-	itmtouch->inputdev.dev = &intf->dev;
+	if (udev->product) {
+		if (udev->manufacturer)
+			strlcat(itmtouch->name, " ", sizeof(itmtouch->name));
+		strlcat(itmtouch->name, udev->product, sizeof(itmtouch->name));
+	}
 
 	if (!strlen(itmtouch->name))
 		sprintf(itmtouch->name, "USB ITM touchscreen");
+
+	usb_make_path(udev, itmtouch->phys, sizeof(itmtouch->phys));
+	strlcpy(itmtouch->phys, "/input0", sizeof(itmtouch->phys));
+
+	input_dev->name = itmtouch->name;
+	input_dev->phys = itmtouch->phys;
+	usb_to_input_id(udev, &input_dev->id);
+	input_dev->cdev.dev = &intf->dev;
+	input_dev->private = itmtouch;
+
+	input_dev->open = itmtouch_open;
+	input_dev->close = itmtouch_close;
+
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->absbit[0] = BIT(ABS_X) | BIT(ABS_Y) | BIT(ABS_PRESSURE);
+	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
 
 	/* device limits */
 	/* as specified by the ITM datasheet, X and Y are 12bit,
 	 * Z (pressure) is 8 bit. However, the fields are defined up
 	 * to 14 bits for future possible expansion.
 	 */
-	input_set_abs_params(&itmtouch->inputdev, ABS_X, 0, 0x0FFF, 2, 0);
-	input_set_abs_params(&itmtouch->inputdev, ABS_Y, 0, 0x0FFF, 2, 0);
-	input_set_abs_params(&itmtouch->inputdev, ABS_PRESSURE, 0, 0xFF, 2, 0);
+	input_set_abs_params(input_dev, ABS_X, 0, 0x0FFF, 2, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, 0x0FFF, 2, 0);
+	input_set_abs_params(input_dev, ABS_PRESSURE, 0, 0xFF, 2, 0);
 
 	/* initialise the URB so we can read from the transport stream */
 	pipe = usb_rcvintpipe(itmtouch->usbdev, endpoint->bEndpointAddress);
@@ -208,22 +221,23 @@ static int itmtouch_probe(struct usb_interface *intf, const struct usb_device_id
 		maxp = ITM_BUFSIZE;
 
 	itmtouch->readurb = usb_alloc_urb(0, GFP_KERNEL);
-
 	if (!itmtouch->readurb) {
 		dbg("%s - usb_alloc_urb failed: itmtouch->readurb", __FUNCTION__);
-		kfree(itmtouch);
-		return -ENOMEM;
+		goto fail;
 	}
 
 	usb_fill_int_urb(itmtouch->readurb, itmtouch->usbdev, pipe, itmtouch->rbuf,
 			 maxp, itmtouch_irq, itmtouch, endpoint->bInterval);
 
-	input_register_device(&itmtouch->inputdev);
+	input_register_device(itmtouch->inputdev);
 
-	printk(KERN_INFO "itmtouch: %s registered on %s\n", itmtouch->name, path);
 	usb_set_intfdata(intf, itmtouch);
 
 	return 0;
+
+ fail:	input_free_device(input_dev);
+	kfree(itmtouch);
+	return -ENOMEM;
 }
 
 static void itmtouch_disconnect(struct usb_interface *intf)
@@ -233,7 +247,7 @@ static void itmtouch_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	if (itmtouch) {
-		input_unregister_device(&itmtouch->inputdev);
+		input_unregister_device(itmtouch->inputdev);
 		usb_kill_urb(itmtouch->readurb);
 		usb_free_urb(itmtouch->readurb);
 		kfree(itmtouch);

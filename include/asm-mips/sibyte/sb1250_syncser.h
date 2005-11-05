@@ -8,8 +8,6 @@
     *
     *  SB1250 specification level:  User's manual 1/02/02
     *
-    *  Author:  Mitch Lichtenberg
-    *
     *********************************************************************
     *
     *  Copyright 2000,2001,2002,2003

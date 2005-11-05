@@ -32,10 +32,6 @@
 
 extern unsigned long wall_jiffies;
 
-u64 jiffies_64 __cacheline_aligned_in_smp = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 #define TIME_KEEPER_ID	0	/* smp_processor_id() of time-keeper */
 
 #ifdef CONFIG_IA64_DEBUG_IRQ

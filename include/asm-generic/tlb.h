@@ -35,16 +35,13 @@
 #endif
 
 /* struct mmu_gather is an opaque type used by the mm code for passing around
- * any data needed by arch specific code for tlb_remove_page.  This structure
- * can be per-CPU or per-MM as the page table lock is held for the duration of
- * TLB shootdown.
+ * any data needed by arch specific code for tlb_remove_page.
  */
 struct mmu_gather {
 	struct mm_struct	*mm;
 	unsigned int		nr;	/* set to ~0U means fast mode */
 	unsigned int		need_flush;/* Really unmapped some ptes? */
 	unsigned int		fullmm; /* non-zero means full mm flush */
-	unsigned long		freed;
 	struct page *		pages[FREE_PTE_NR];
 };
 
@@ -57,7 +54,7 @@ DECLARE_PER_CPU(struct mmu_gather, mmu_gathers);
 static inline struct mmu_gather *
 tlb_gather_mmu(struct mm_struct *mm, unsigned int full_mm_flush)
 {
-	struct mmu_gather *tlb = &per_cpu(mmu_gathers, smp_processor_id());
+	struct mmu_gather *tlb = &get_cpu_var(mmu_gathers);
 
 	tlb->mm = mm;
 
@@ -65,7 +62,6 @@ tlb_gather_mmu(struct mm_struct *mm, unsigned int full_mm_flush)
 	tlb->nr = num_online_cpus() > 1 ? 0U : ~0U;
 
 	tlb->fullmm = full_mm_flush;
-	tlb->freed = 0;
 
 	return tlb;
 }
@@ -85,28 +81,17 @@ tlb_flush_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
 
 /* tlb_finish_mmu
  *	Called at the end of the shootdown operation to free up any resources
- *	that were required.  The page table lock is still held at this point.
+ *	that were required.
  */
 static inline void
 tlb_finish_mmu(struct mmu_gather *tlb, unsigned long start, unsigned long end)
 {
-	int freed = tlb->freed;
-	struct mm_struct *mm = tlb->mm;
-	int rss = get_mm_counter(mm, rss);
-
-	if (rss < freed)
-		freed = rss;
-	add_mm_counter(mm, rss, -freed);
 	tlb_flush_mmu(tlb, start, end);
 
 	/* keep the page table cache within bounds */
 	check_pgt_cache();
-}
 
-static inline unsigned int
-tlb_is_full_mm(struct mmu_gather *tlb)
-{
-	return tlb->fullmm;
+	put_cpu_var(mmu_gathers);
 }
 
 /* tlb_remove_page

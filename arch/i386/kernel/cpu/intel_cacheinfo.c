@@ -3,6 +3,7 @@
  *
  *      Changes:
  *      Venkatesh Pallipadi	: Adding cache identification through cpuid(4)
+ *		Ashok Raj <ashok.raj@intel.com>: Work with CPU hotplug infrastructure.
  */
 
 #include <linux/init.h>
@@ -10,6 +11,7 @@
 #include <linux/device.h>
 #include <linux/compiler.h>
 #include <linux/cpu.h>
+#include <linux/sched.h>
 
 #include <asm/processor.h>
 #include <asm/smp.h>
@@ -28,7 +30,7 @@ struct _cache_table
 };
 
 /* all the cache descriptor types we care about (no TLB or trace cache entries) */
-static struct _cache_table cache_table[] __devinitdata =
+static struct _cache_table cache_table[] __cpuinitdata =
 {
 	{ 0x06, LVL_1_INST, 8 },	/* 4-way set assoc, 32 byte line size */
 	{ 0x08, LVL_1_INST, 16 },	/* 4-way set assoc, 32 byte line size */
@@ -117,10 +119,9 @@ struct _cpuid4_info {
 	cpumask_t shared_cpu_map;
 };
 
-#define MAX_CACHE_LEAVES		4
 static unsigned short			num_cache_leaves;
 
-static int __devinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_leaf)
+static int __cpuinit cpuid4_cache_lookup(int index, struct _cpuid4_info *this_leaf)
 {
 	unsigned int		eax, ebx, ecx, edx;
 	union _cpuid4_leaf_eax	cache_eax;
@@ -144,23 +145,18 @@ static int __init find_num_cache_leaves(void)
 {
 	unsigned int		eax, ebx, ecx, edx;
 	union _cpuid4_leaf_eax	cache_eax;
-	int 			i;
-	int 			retval;
+	int 			i = -1;
 
-	retval = MAX_CACHE_LEAVES;
-	/* Do cpuid(4) loop to find out num_cache_leaves */
-	for (i = 0; i < MAX_CACHE_LEAVES; i++) {
+	do {
+		++i;
+		/* Do cpuid(4) loop to find out num_cache_leaves */
 		cpuid_count(4, i, &eax, &ebx, &ecx, &edx);
 		cache_eax.full = eax;
-		if (cache_eax.split.type == CACHE_TYPE_NULL) {
-			retval = i;
-			break;
-		}
-	}
-	return retval;
+	} while (cache_eax.split.type != CACHE_TYPE_NULL);
+	return i;
 }
 
-unsigned int __devinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
+unsigned int __cpuinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 {
 	unsigned int trace = 0, l1i = 0, l1d = 0, l2 = 0, l3 = 0; /* Cache sizes */
 	unsigned int new_l1d = 0, new_l1i = 0; /* Cache sizes from cpuid(4) */
@@ -284,13 +280,7 @@ unsigned int __devinit init_intel_cacheinfo(struct cpuinfo_x86 *c)
 		if ( l3 )
 			printk(KERN_INFO "CPU: L3 cache: %dK\n", l3);
 
-		/*
-		 * This assumes the L3 cache is shared; it typically lives in
-		 * the northbridge.  The L1 caches are included by the L2
-		 * cache, and so should not be included for the purpose of
-		 * SMP switching weights.
-		 */
-		c->x86_cache_size = l2 ? l2 : (l1i+l1d);
+		c->x86_cache_size = l3 ? l3 : (l2 ? l2 : (l1i+l1d));
 	}
 
 	return l2;
@@ -301,7 +291,7 @@ static struct _cpuid4_info *cpuid4_info[NR_CPUS];
 #define CPUID4_INFO_IDX(x,y)    (&((cpuid4_info[x])[y]))
 
 #ifdef CONFIG_SMP
-static void __devinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
+static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 {
 	struct _cpuid4_info	*this_leaf;
 	unsigned long num_threads_sharing;
@@ -334,7 +324,7 @@ static void free_cache_attributes(unsigned int cpu)
 	cpuid4_info[cpu] = NULL;
 }
 
-static int __devinit detect_cache_attributes(unsigned int cpu)
+static int __cpuinit detect_cache_attributes(unsigned int cpu)
 {
 	struct _cpuid4_info	*this_leaf;
 	unsigned long 		j;
@@ -511,7 +501,7 @@ static void cpuid4_cache_sysfs_exit(unsigned int cpu)
 	free_cache_attributes(cpu);
 }
 
-static int __devinit cpuid4_cache_sysfs_init(unsigned int cpu)
+static int __cpuinit cpuid4_cache_sysfs_init(unsigned int cpu)
 {
 
 	if (num_cache_leaves == 0)
@@ -542,7 +532,7 @@ err_out:
 }
 
 /* Add/Remove cache interface for CPU device */
-static int __devinit cache_add_dev(struct sys_device * sys_dev)
+static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 {
 	unsigned int cpu = sys_dev->id;
 	unsigned long i, j;
@@ -579,7 +569,7 @@ static int __devinit cache_add_dev(struct sys_device * sys_dev)
 	return retval;
 }
 
-static int __devexit cache_remove_dev(struct sys_device * sys_dev)
+static void __cpuexit cache_remove_dev(struct sys_device * sys_dev)
 {
 	unsigned int cpu = sys_dev->id;
 	unsigned long i;
@@ -588,24 +578,49 @@ static int __devexit cache_remove_dev(struct sys_device * sys_dev)
 		kobject_unregister(&(INDEX_KOBJECT_PTR(cpu,i)->kobj));
 	kobject_unregister(cache_kobject[cpu]);
 	cpuid4_cache_sysfs_exit(cpu);
-	return 0;
+	return;
 }
 
-static struct sysdev_driver cache_sysdev_driver = {
-	.add = cache_add_dev,
-	.remove = __devexit_p(cache_remove_dev),
+static int __cpuinit cacheinfo_cpu_callback(struct notifier_block *nfb,
+					unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (unsigned long)hcpu;
+	struct sys_device *sys_dev;
+
+	sys_dev = get_cpu_sysdev(cpu);
+	switch (action) {
+	case CPU_ONLINE:
+		cache_add_dev(sys_dev);
+		break;
+	case CPU_DEAD:
+		cache_remove_dev(sys_dev);
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block cacheinfo_cpu_notifier =
+{
+    .notifier_call = cacheinfo_cpu_callback,
 };
 
-/* Register/Unregister the cpu_cache driver */
-static int __devinit cache_register_driver(void)
+static int __cpuinit cache_sysfs_init(void)
 {
+	int i;
+
 	if (num_cache_leaves == 0)
 		return 0;
 
-	return sysdev_driver_register(&cpu_sysdev_class,&cache_sysdev_driver);
+	register_cpu_notifier(&cacheinfo_cpu_notifier);
+
+	for_each_online_cpu(i) {
+		cacheinfo_cpu_callback(&cacheinfo_cpu_notifier, CPU_ONLINE,
+			(void *)(long)i);
+	}
+
+	return 0;
 }
 
-device_initcall(cache_register_driver);
+device_initcall(cache_sysfs_init);
 
 #endif
-

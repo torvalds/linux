@@ -31,11 +31,42 @@ static void nfs_free_delegation(struct nfs_delegation *delegation)
 	kfree(delegation);
 }
 
+static int nfs_delegation_claim_locks(struct nfs_open_context *ctx, struct nfs4_state *state)
+{
+	struct inode *inode = state->inode;
+	struct file_lock *fl;
+	int status;
+
+	for (fl = inode->i_flock; fl != 0; fl = fl->fl_next) {
+		if (!(fl->fl_flags & (FL_POSIX|FL_FLOCK)))
+			continue;
+		if ((struct nfs_open_context *)fl->fl_file->private_data != ctx)
+			continue;
+		status = nfs4_lock_delegation_recall(state, fl);
+		if (status >= 0)
+			continue;
+		switch (status) {
+			default:
+				printk(KERN_ERR "%s: unhandled error %d.\n",
+						__FUNCTION__, status);
+			case -NFS4ERR_EXPIRED:
+				/* kill_proc(fl->fl_pid, SIGLOST, 1); */
+			case -NFS4ERR_STALE_CLIENTID:
+				nfs4_schedule_state_recovery(NFS_SERVER(inode)->nfs4_state);
+				goto out_err;
+		}
+	}
+	return 0;
+out_err:
+	return status;
+}
+
 static void nfs_delegation_claim_opens(struct inode *inode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_open_context *ctx;
 	struct nfs4_state *state;
+	int err;
 
 again:
 	spin_lock(&inode->i_lock);
@@ -47,9 +78,12 @@ again:
 			continue;
 		get_nfs_open_context(ctx);
 		spin_unlock(&inode->i_lock);
-		if (nfs4_open_delegation_recall(ctx->dentry, state) < 0)
-			return;
+		err = nfs4_open_delegation_recall(ctx->dentry, state);
+		if (err >= 0)
+			err = nfs_delegation_claim_locks(ctx, state);
 		put_nfs_open_context(ctx);
+		if (err != 0)
+			return;
 		goto again;
 	}
 	spin_unlock(&inode->i_lock);

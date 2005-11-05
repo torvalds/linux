@@ -308,12 +308,6 @@ static struct net_proto_family bt_sock_family_ops = {
 	.create	= bt_sock_create,
 };
 
-extern int hci_sock_init(void);
-extern int hci_sock_cleanup(void);
-
-extern int bt_sysfs_init(void);
-extern int bt_sysfs_cleanup(void);
-
 static int __init bt_init(void)
 {
 	BT_INFO("Core ver %s", VERSION);

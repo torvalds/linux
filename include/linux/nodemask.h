@@ -12,6 +12,8 @@
  * see bitmap_scnprintf() and bitmap_parse() in lib/bitmap.c.
  * For details of nodelist_scnprintf() and nodelist_parse(), see
  * bitmap_scnlistprintf() and bitmap_parselist(), also in bitmap.c.
+ * For details of node_remap(), see bitmap_bitremap in lib/bitmap.c.
+ * For details of nodes_remap(), see bitmap_remap in lib/bitmap.c.
  *
  * The available nodemask operations are:
  *
@@ -52,6 +54,8 @@
  * int nodemask_parse(ubuf, ulen, mask)	Parse ascii string as nodemask
  * int nodelist_scnprintf(buf, len, mask) Format nodemask as list for printing
  * int nodelist_parse(buf, map)		Parse ascii string as nodelist
+ * int node_remap(oldbit, old, new)	newbit = map(old, new)(oldbit)
+ * int nodes_remap(dst, src, old, new)	*dst = map(old, new)(dst)
  *
  * for_each_node_mask(node, mask)	for-loop node over mask
  *
@@ -305,6 +309,22 @@ static inline int __nodelist_scnprintf(char *buf, int len,
 static inline int __nodelist_parse(const char *buf, nodemask_t *dstp, int nbits)
 {
 	return bitmap_parselist(buf, dstp->bits, nbits);
+}
+
+#define node_remap(oldbit, old, new) \
+		__node_remap((oldbit), &(old), &(new), MAX_NUMNODES)
+static inline int __node_remap(int oldbit,
+		const nodemask_t *oldp, const nodemask_t *newp, int nbits)
+{
+	return bitmap_bitremap(oldbit, oldp->bits, newp->bits, nbits);
+}
+
+#define nodes_remap(dst, src, old, new) \
+		__nodes_remap(&(dst), &(src), &(old), &(new), MAX_NUMNODES)
+static inline void __nodes_remap(nodemask_t *dstp, const nodemask_t *srcp,
+		const nodemask_t *oldp, const nodemask_t *newp, int nbits)
+{
+	bitmap_remap(dstp->bits, srcp->bits, oldp->bits, newp->bits, nbits);
 }
 
 #if MAX_NUMNODES > 1

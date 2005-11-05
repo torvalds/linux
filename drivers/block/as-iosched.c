@@ -1344,6 +1344,7 @@ as_add_aliased_request(struct as_data *ad, struct as_rq *arq, struct as_rq *alia
 	 * Don't want to have to handle merges.
 	 */
 	as_del_arq_hash(arq);
+	arq->request->flags |= REQ_NOMERGE;
 }
 
 /*
@@ -1972,8 +1973,8 @@ static int __init as_init(void)
 
 static void __exit as_exit(void)
 {
-	kmem_cache_destroy(arq_pool);
 	elv_unregister(&iosched_as);
+	kmem_cache_destroy(arq_pool);
 }
 
 module_init(as_init);

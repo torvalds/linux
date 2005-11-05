@@ -21,6 +21,8 @@
  *
  */
 
+#include <linux/platform_device.h>
+
 #include "lh7a40x_udc.h"
 
 //#define DEBUG printk
@@ -2140,6 +2142,7 @@ static int lh7a40x_udc_remove(struct device *_dev)
 
 static struct device_driver udc_driver = {
 	.name = (char *)driver_name,
+	.owner = THIS_MODULE,
 	.bus = &platform_bus_type,
 	.probe = lh7a40x_udc_probe,
 	.remove = lh7a40x_udc_remove

@@ -1,40 +1,26 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -42,33 +28,32 @@
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
+#include "xfs_da_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
+#include "xfs_dir_sf.h"
+#include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
+#include "xfs_dinode.h"
+#include "xfs_inode.h"
+#include "xfs_inode_item.h"
+#include "xfs_dir_leaf.h"
 #include "xfs_itable.h"
 #include "xfs_btree.h"
 #include "xfs_ialloc.h"
 #include "xfs_alloc.h"
-#include "xfs_attr_sf.h"
-#include "xfs_dir_sf.h"
-#include "xfs_dir2_sf.h"
-#include "xfs_dinode.h"
-#include "xfs_inode_item.h"
-#include "xfs_inode.h"
 #include "xfs_bmap.h"
-#include "xfs_da_btree.h"
 #include "xfs_attr.h"
 #include "xfs_rw.h"
-#include "xfs_refcache.h"
 #include "xfs_error.h"
-#include "xfs_bit.h"
-#include "xfs_rtalloc.h"
 #include "xfs_quota.h"
 #include "xfs_utils.h"
+#include "xfs_rtalloc.h"
+#include "xfs_refcache.h"
 #include "xfs_trans_space.h"
-#include "xfs_dir_leaf.h"
-#include "xfs_mac.h"
 #include "xfs_log_priv.h"
+#include "xfs_mac.h"
 
 
 /*
@@ -181,40 +166,7 @@ xfs_getattr(
 		vap->va_rdev = 0;
 
 		if (!(ip->i_d.di_flags & XFS_DIFLAG_REALTIME)) {
-
-#if 0
-			/* Large block sizes confuse various
-			 * user space programs, so letting the
-			 * stripe size through is not a good
-			 * idea for now.
-			 */
-			vap->va_blocksize = mp->m_swidth ?
-				/*
-				 * If the underlying volume is a stripe, then
-				 * return the stripe width in bytes as the
-				 * recommended I/O size.
-				 */
-				(mp->m_swidth << mp->m_sb.sb_blocklog) :
-				/*
-				 * Return the largest of the preferred buffer
-				 * sizes since doing small I/Os into larger
-				 * buffers causes buffers to be decommissioned.
-				 * The value returned is in bytes.
-				 */
-				(1 << (int)MAX(mp->m_readio_log,
-					       mp->m_writeio_log));
-
-#else
-			vap->va_blocksize =
-				/*
-				 * Return the largest of the preferred buffer
-				 * sizes since doing small I/Os into larger
-				 * buffers causes buffers to be decommissioned.
-				 * The value returned is in bytes.
-				 */
-				1 << (int)MAX(mp->m_readio_log,
-					       mp->m_writeio_log);
-#endif
+			vap->va_blocksize = xfs_preferred_iosize(mp);
 		} else {
 
 			/*
@@ -581,8 +533,7 @@ xfs_setattr(
 		/*
 		 * Can't change extent size if any extents are allocated.
 		 */
-		if ((ip->i_d.di_nextents || ip->i_delayed_blks) &&
-		    (mask & XFS_AT_EXTSIZE) &&
+		if (ip->i_d.di_nextents && (mask & XFS_AT_EXTSIZE) &&
 		    ((ip->i_d.di_extsize << mp->m_sb.sb_blocklog) !=
 		     vap->va_extsize) ) {
 			code = XFS_ERROR(EINVAL);	/* EFBIG? */
@@ -610,7 +561,8 @@ xfs_setattr(
 		/*
 		 * Can't change realtime flag if any extents are allocated.
 		 */
-		if (ip->i_d.di_nextents && (mask & XFS_AT_XFLAGS) &&
+		if ((ip->i_d.di_nextents || ip->i_delayed_blks) &&
+		    (mask & XFS_AT_XFLAGS) &&
 		    (ip->i_d.di_flags & XFS_DIFLAG_REALTIME) !=
 		    (vap->va_xflags & XFS_XFLAG_REALTIME)) {
 			code = XFS_ERROR(EINVAL);	/* EFBIG? */
@@ -674,8 +626,10 @@ xfs_setattr(
 	 */
 	if (mask & XFS_AT_SIZE) {
 		code = 0;
-		if (vap->va_size > ip->i_d.di_size)
+		if ((vap->va_size > ip->i_d.di_size) && 
+		    (flags & ATTR_NOSIZETOK) == 0) {
 			code = xfs_igrow_start(ip, vap->va_size, credp);
+		}
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		if (!code)
 			code = xfs_itruncate_data(ip, vap->va_size);
@@ -1118,6 +1072,7 @@ xfs_fsync(
 	xfs_inode_t	*ip;
 	xfs_trans_t	*tp;
 	int		error;
+	int		log_flushed = 0, changed = 1;
 
 	vn_trace_entry(BHV_TO_VNODE(bdp),
 			__FUNCTION__, (inst_t *)__return_address);
@@ -1171,10 +1126,18 @@ xfs_fsync(
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
 		if (xfs_ipincount(ip)) {
-			xfs_log_force(ip->i_mount, (xfs_lsn_t)0,
+			_xfs_log_force(ip->i_mount, (xfs_lsn_t)0,
 				      XFS_LOG_FORCE |
 				      ((flag & FSYNC_WAIT)
-				       ? XFS_LOG_SYNC : 0));
+				       ? XFS_LOG_SYNC : 0),
+				      &log_flushed);
+		} else {
+			/*
+			 * If the inode is not pinned and nothing
+			 * has changed we don't need to flush the
+			 * cache.
+			 */
+			changed = 0;
 		}
 		error = 0;
 	} else	{
@@ -1210,10 +1173,27 @@ xfs_fsync(
 		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 		if (flag & FSYNC_WAIT)
 			xfs_trans_set_sync(tp);
-		error = xfs_trans_commit(tp, 0, NULL);
+		error = _xfs_trans_commit(tp, 0, NULL, &log_flushed);
 
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	}
+
+	if ((ip->i_mount->m_flags & XFS_MOUNT_BARRIER) && changed) {
+		/*
+		 * If the log write didn't issue an ordered tag we need
+		 * to flush the disk cache for the data device now.
+		 */
+		if (!log_flushed)
+			xfs_blkdev_issue_flush(ip->i_mount->m_ddev_targp);
+
+		/*
+		 * If this inode is on the RT dev we need to flush that
+		 * cache aswell.
+		 */
+		if (ip->i_d.di_flags & XFS_DIFLAG_REALTIME)
+			xfs_blkdev_issue_flush(ip->i_mount->m_rtdev_targp);
+	}
+
 	return error;
 }
 

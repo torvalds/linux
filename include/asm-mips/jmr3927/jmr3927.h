@@ -202,20 +202,6 @@ static inline int jmr3927_have_isac(void)
 #endif /* !__ASSEMBLY__ */
 
 /*
- * UART defines for serial.h
- */
-
-/* use Pre-scaler T0 (1/2) */
-#define JMR3927_BASE_BAUD (JMR3927_IMCLK / 2 / 16)
-
-#define UART0_ADDR   0xfffef300
-#define UART1_ADDR   0xfffef400
-#define UART0_INT    JMR3927_IRQ_IRC_SIO0
-#define UART1_INT    JMR3927_IRQ_IRC_SIO1
-#define UART0_FLAGS  ASYNC_BOOT_AUTOCONF
-#define UART1_FLAGS  0
-
-/*
  * IRQ mappings
  */
 

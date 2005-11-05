@@ -176,10 +176,12 @@ static unsigned int	  cypress_buf_put(struct cypress_buf *cb, const char *buf, u
 static unsigned int	  cypress_buf_get(struct cypress_buf *cb, char *buf, unsigned int count);
 
 
-static struct usb_serial_device_type cypress_earthmate_device = {
-	.owner =			THIS_MODULE,
-	.name =				"DeLorme Earthmate USB",
-	.short_name =			"earthmate",
+static struct usb_serial_driver cypress_earthmate_device = {
+	.driver = {
+		.owner =		THIS_MODULE,
+		.name =			"earthmate",
+	},
+	.description =			"DeLorme Earthmate USB",
 	.id_table =			id_table_earthmate,
 	.num_interrupt_in = 		1,
 	.num_interrupt_out =		1,
@@ -203,10 +205,12 @@ static struct usb_serial_device_type cypress_earthmate_device = {
 	.write_int_callback =		cypress_write_int_callback,
 };
 
-static struct usb_serial_device_type cypress_hidcom_device = {
-	.owner =			THIS_MODULE,
-	.name =				"HID->COM RS232 Adapter",
-	.short_name =			"cyphidcom",
+static struct usb_serial_driver cypress_hidcom_device = {
+	.driver = {
+		.owner =		THIS_MODULE,
+		.name =			"cyphidcom",
+	},
+	.description =			"HID->COM RS232 Adapter",
 	.id_table =			id_table_cyphidcomrs232,
 	.num_interrupt_in =		1,
 	.num_interrupt_out =		1,

@@ -1460,8 +1460,6 @@ running once the system is up.
 	stifb=		[HW]
 			Format: bpp:<bpp1>[:<bpp2>[:<bpp3>...]]
 
-	stram_swap=	[HW,M68k]
-
 	swiotlb=	[IA-64] Number of I/O TLB slabs
 
 	switches=	[HW,M68k]
@@ -1516,8 +1514,6 @@ running once the system is up.
 
 	uart6850=	[HW,OSS]
 			Format: <io>,<irq>
-
-	usb-handoff	[HW] Enable early USB BIOS -> OS handoff
 
 	usbhid.mousepoll=
 			[USBHID] The interval which mice are to be polled at.

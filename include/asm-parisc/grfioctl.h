@@ -69,6 +69,8 @@
 #define CRT_ID_TVRX		S9000_ID_98765	/* TVRX (gto/falcon) */
 #define CRT_ID_ARTIST		S9000_ID_ARTIST	/* Artist */
 #define CRT_ID_SUMMIT		0x2FC1066B      /* Summit FX2, FX4, FX6 ... */
+#define CRT_ID_LEGO		0x35ACDA30	/* Lego FX5, FX10 ... */
+#define CRT_ID_PINNACLE		0x35ACDA16	/* Pinnacle FXe */ 
 
 /* structure for ioctl(GCDESCRIBE) */
 

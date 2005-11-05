@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
+#include <linux/device.h>
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
@@ -258,7 +259,6 @@ struct mv_host_priv {
 static void mv_irq_clear(struct ata_port *ap);
 static u32 mv_scr_read(struct ata_port *ap, unsigned int sc_reg_in);
 static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
-static u8 mv_check_err(struct ata_port *ap);
 static void mv_phy_reset(struct ata_port *ap);
 static void mv_host_stop(struct ata_host_set *host_set);
 static int mv_port_start(struct ata_port *ap);
@@ -296,7 +296,6 @@ static const struct ata_port_operations mv_ops = {
 	.tf_load		= ata_tf_load,
 	.tf_read		= ata_tf_read,
 	.check_status		= ata_check_status,
-	.check_err		= mv_check_err,
 	.exec_command		= ata_exec_command,
 	.dev_select		= ata_std_dev_select,
 
@@ -671,6 +670,11 @@ static void mv_host_stop(struct ata_host_set *host_set)
 	ata_host_stop(host_set);
 }
 
+static inline void mv_priv_free(struct mv_port_priv *pp, struct device *dev)
+{
+	dma_free_coherent(dev, MV_PORT_PRIV_DMA_SZ, pp->crpb, pp->crpb_dma);
+}
+
 /**
  *      mv_port_start - Port specific init/start routine.
  *      @ap: ATA channel to manipulate
@@ -688,20 +692,22 @@ static int mv_port_start(struct ata_port *ap)
 	void __iomem *port_mmio = mv_ap_base(ap);
 	void *mem;
 	dma_addr_t mem_dma;
+	int rc = -ENOMEM;
 
 	pp = kmalloc(sizeof(*pp), GFP_KERNEL);
-	if (!pp) {
-		return -ENOMEM;
-	}
+	if (!pp)
+		goto err_out;
 	memset(pp, 0, sizeof(*pp));
 
 	mem = dma_alloc_coherent(dev, MV_PORT_PRIV_DMA_SZ, &mem_dma, 
 				 GFP_KERNEL);
-	if (!mem) {
-		kfree(pp);
-		return -ENOMEM;
-	}
+	if (!mem)
+		goto err_out_pp;
 	memset(mem, 0, MV_PORT_PRIV_DMA_SZ);
+
+	rc = ata_pad_alloc(ap, dev);
+	if (rc)
+		goto err_out_priv;
 
 	/* First item in chunk of DMA memory: 
 	 * 32-slot command request table (CRQB), 32 bytes each in size
@@ -747,6 +753,13 @@ static int mv_port_start(struct ata_port *ap)
 	 */
 	ap->private_data = pp;
 	return 0;
+
+err_out_priv:
+	mv_priv_free(pp, dev);
+err_out_pp:
+	kfree(pp);
+err_out:
+	return rc;
 }
 
 /**
@@ -769,7 +782,8 @@ static void mv_port_stop(struct ata_port *ap)
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	ap->private_data = NULL;
-	dma_free_coherent(dev, MV_PORT_PRIV_DMA_SZ, pp->crpb, pp->crpb_dma);
+	ata_pad_free(ap, dev);
+	mv_priv_free(pp, dev);
 	kfree(pp);
 }
 
@@ -785,23 +799,24 @@ static void mv_port_stop(struct ata_port *ap)
 static void mv_fill_sg(struct ata_queued_cmd *qc)
 {
 	struct mv_port_priv *pp = qc->ap->private_data;
-	unsigned int i;
+	unsigned int i = 0;
+	struct scatterlist *sg;
 
-	for (i = 0; i < qc->n_elem; i++) {
+	ata_for_each_sg(sg, qc) {
 		u32 sg_len;
 		dma_addr_t addr;
 
-		addr = sg_dma_address(&qc->sg[i]);
-		sg_len = sg_dma_len(&qc->sg[i]);
+		addr = sg_dma_address(sg);
+		sg_len = sg_dma_len(sg);
 
 		pp->sg_tbl[i].addr = cpu_to_le32(addr & 0xffffffff);
 		pp->sg_tbl[i].addr_hi = cpu_to_le32((addr >> 16) >> 16);
 		assert(0 == (sg_len & ~MV_DMA_BOUNDARY));
 		pp->sg_tbl[i].flags_size = cpu_to_le32(sg_len);
-	}
-	if (0 < qc->n_elem) {
-		pp->sg_tbl[qc->n_elem - 1].flags_size |= 
-			cpu_to_le32(EPRD_FLAG_END_OF_TBL);
+		if (ata_sg_is_last(sg, qc))
+			pp->sg_tbl[i].flags_size |= cpu_to_le32(EPRD_FLAG_END_OF_TBL);
+
+		i++;
 	}
 }
 
@@ -1067,6 +1082,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 	struct ata_queued_cmd *qc;
 	u32 hc_irq_cause;
 	int shift, port, port0, hard_port, handled;
+	unsigned int err_mask;
 	u8 ata_status = 0;
 
 	if (hc == 0) {
@@ -1102,15 +1118,15 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 			handled++;
 		}
 
+		err_mask = ac_err_mask(ata_status);
+
 		shift = port << 1;		/* (port * 2) */
 		if (port >= MV_PORTS_PER_HC) {
 			shift++;	/* skip bit 8 in the HC Main IRQ reg */
 		}
 		if ((PORT0_ERR << shift) & relevant) {
 			mv_err_intr(ap);
-			/* OR in ATA_ERR to ensure libata knows we took one */
-			ata_status = readb((void __iomem *)
-					   ap->ioaddr.status_addr) | ATA_ERR;
+			err_mask |= AC_ERR_OTHER;
 			handled++;
 		}
 		
@@ -1120,7 +1136,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 				VPRINTK("port %u IRQ found for qc, "
 					"ata_status 0x%x\n", port,ata_status);
 				/* mark qc status appropriately */
-				ata_qc_complete(qc, ata_status);
+				ata_qc_complete(qc, err_mask);
 			}
 		}
 	}
@@ -1182,22 +1198,6 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 	spin_unlock(&host_set->lock);
 
 	return IRQ_RETVAL(handled);
-}
-
-/**
- *      mv_check_err - Return the error shadow register to caller.
- *      @ap: ATA channel to manipulate
- *
- *      Marvell requires DMA to be stopped before accessing shadow
- *      registers.  So we do that, then return the needed register.
- *
- *      LOCKING:
- *      Inherited from caller.  FIXME: protect mv_stop_dma with lock?
- */
-static u8 mv_check_err(struct ata_port *ap)
-{
-	mv_stop_dma(ap);		/* can't read shadow regs if DMA on */
-	return readb((void __iomem *) ap->ioaddr.error_addr);
 }
 
 /**
@@ -1312,7 +1312,7 @@ static void mv_eng_timeout(struct ata_port *ap)
 	 	 */
 		spin_lock_irqsave(&ap->host_set->lock, flags);
 		qc->scsidone = scsi_finish_command;
-		ata_qc_complete(qc, ATA_ERR);
+		ata_qc_complete(qc, AC_ERR_OTHER);
 		spin_unlock_irqrestore(&ap->host_set->lock, flags);
 	}
 }
@@ -1454,9 +1454,9 @@ static void mv_print_info(struct ata_probe_ent *probe_ent)
 	else
 		scc_s = "unknown";
 
-	printk(KERN_INFO DRV_NAME 
-	       "(%s) %u slots %u ports %s mode IRQ via %s\n",
-	       pci_name(pdev), (unsigned)MV_MAX_Q_DEPTH, probe_ent->n_ports, 
+	dev_printk(KERN_INFO, &pdev->dev,
+	       "%u slots %u ports %s mode IRQ via %s\n",
+	       (unsigned)MV_MAX_Q_DEPTH, probe_ent->n_ports, 
 	       scc_s, (MV_HP_FLAG_MSI & hpriv->hp_flags) ? "MSI" : "INTx");
 }
 
@@ -1477,9 +1477,8 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *mmio_base;
 	int pci_dev_busy = 0, rc;
 
-	if (!printed_version++) {
-		printk(KERN_INFO DRV_NAME " version " DRV_VERSION "\n");
-	}
+	if (!printed_version++)
+		dev_printk(KERN_INFO, &pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc) {

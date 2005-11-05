@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/bootmem.h>
+#include <linux/string.h>
 
 #include <asm/bootinfo.h>
 #include <asm/page.h>
@@ -55,18 +56,30 @@ struct prom_pmemblock * __init prom_getmdesc(void)
 {
 	char *memsize_str;
 	unsigned int memsize;
+	char cmdline[CL_SIZE], *ptr;
 
-	memsize_str = prom_getenv("memsize");
-	if (!memsize_str) {
-		prom_printf("memsize not set in boot prom, set to default (32Mb)\n");
-		memsize = 0x02000000;
-	} else {
-#ifdef DEBUG
-		prom_printf("prom_memsize = %s\n", memsize_str);
-#endif
-		memsize = simple_strtol(memsize_str, NULL, 0);
+	/* Check the command line first for a memsize directive */
+	strcpy(cmdline, arcs_cmdline);
+	ptr = strstr(cmdline, "memsize=");
+	if (ptr && (ptr != cmdline) && (*(ptr - 1) != ' '))
+		ptr = strstr(ptr, " memsize=");
+
+	if (ptr) {
+		memsize = memparse(ptr + 8, &ptr);
 	}
-
+	else {
+		/* otherwise look in the environment */
+		memsize_str = prom_getenv("memsize");
+		if (!memsize_str) {
+			prom_printf("memsize not set in boot prom, set to default (32Mb)\n");
+			memsize = 0x02000000;
+		} else {
+#ifdef DEBUG
+			prom_printf("prom_memsize = %s\n", memsize_str);
+#endif
+			memsize = simple_strtol(memsize_str, NULL, 0);
+		}
+	}
 	memset(mdesc, 0, sizeof(mdesc));
 
 	mdesc[0].type = yamon_dontuse;

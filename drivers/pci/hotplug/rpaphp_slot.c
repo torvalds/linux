@@ -27,6 +27,9 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include <linux/pci.h>
+#include <linux/string.h>
+#include <linux/slab.h>
+
 #include <asm/rtas.h>
 #include "rpaphp.h"
 

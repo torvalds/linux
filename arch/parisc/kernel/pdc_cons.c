@@ -41,7 +41,7 @@
 
 /* Define EARLY_BOOTUP_DEBUG to debug kernel related boot problems. 
  * On production kernels EARLY_BOOTUP_DEBUG should be undefined. */
-#undef EARLY_BOOTUP_DEBUG
+#define EARLY_BOOTUP_DEBUG
 
 
 #include <linux/config.h>
@@ -49,14 +49,8 @@
 #include <linux/console.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/sched.h>
-#include <linux/interrupt.h>
 #include <linux/major.h>
 #include <linux/tty.h>
-#include <asm/page.h>
-#include <asm/types.h>
-#include <asm/system.h>
 #include <asm/pdc.h>		/* for iodc_call() proto and friends */
 
 
@@ -96,7 +90,6 @@ static int pdc_console_setup(struct console *co, char *options)
 }
 
 #if defined(CONFIG_PDC_CONSOLE)
-#define PDC_CONSOLE_DEVICE pdc_console_device
 static struct tty_driver * pdc_console_device (struct console *c, int *index)
 {
 	extern struct tty_driver console_driver;
@@ -104,22 +97,19 @@ static struct tty_driver * pdc_console_device (struct console *c, int *index)
 	return &console_driver;
 }
 #else
-#define PDC_CONSOLE_DEVICE NULL
+#define pdc_console_device NULL
 #endif
 
 static struct console pdc_cons = {
 	.name =		"ttyB",
 	.write =	pdc_console_write,
-	.device =	PDC_CONSOLE_DEVICE,
+	.device =	pdc_console_device,
 	.setup =	pdc_console_setup,
-	.flags =	CON_BOOT|CON_PRINTBUFFER|CON_ENABLED,
+	.flags =	CON_BOOT | CON_PRINTBUFFER | CON_ENABLED,
 	.index =	-1,
 };
 
 static int pdc_console_initialized;
-extern unsigned long con_start;	/* kernel/printk.c */
-extern unsigned long log_end;	/* kernel/printk.c */
-
 
 static void pdc_console_init_force(void)
 {
@@ -146,27 +136,11 @@ void __init pdc_console_init(void)
 }
 
 
-/* Unregister the pdc console with the printk console layer */
-void pdc_console_die(void)
-{
-	if (!pdc_console_initialized)
-		return;
-	--pdc_console_initialized;
-
-	printk(KERN_INFO "Switching from PDC console\n");
-
-	/* Don't repeat what we've already printed */
-	con_start = log_end;
-
-	unregister_console(&pdc_cons);
-}
-
-
 /*
  * Used for emergencies. Currently only used if an HPMC occurs. If an
  * HPMC occurs, it is possible that the current console may not be
- * properly initialed after the PDC IO reset. This routine unregisters all
- * of the current consoles, reinitializes the pdc console and
+ * properly initialised after the PDC IO reset. This routine unregisters
+ * all of the current consoles, reinitializes the pdc console and
  * registers it.
  */
 
@@ -177,13 +151,13 @@ void pdc_console_restart(void)
 	if (pdc_console_initialized)
 		return;
 
+	/* If we've already seen the output, don't bother to print it again */
+	if (console_drivers != NULL)
+		pdc_cons.flags &= ~CON_PRINTBUFFER;
+
 	while ((console = console_drivers) != NULL)
 		unregister_console(console_drivers);
 
-	/* Don't repeat what we've already printed */
-	con_start = log_end;
-	
 	/* force registering the pdc console */
 	pdc_console_init_force();
 }
-

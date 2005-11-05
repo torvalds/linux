@@ -21,6 +21,20 @@
 
 extern int cobalt_board_id;
 
+static void qube_raq_galileo_early_fixup(struct pci_dev *dev)
+{
+	if (dev->devfn == PCI_DEVFN(0, 0) &&
+		(dev->class >> 8) == PCI_CLASS_MEMORY_OTHER) {
+
+		dev->class = (PCI_CLASS_BRIDGE_HOST << 8) | (dev->class & 0xff);
+
+		printk(KERN_INFO "Galileo: fixed bridge class\n");
+	}
+}
+
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_MARVELL, PCI_DEVICE_ID_MARVELL_GT64111,
+	 qube_raq_galileo_early_fixup);
+
 static void qube_raq_via_bmIDE_fixup(struct pci_dev *dev)
 {
 	unsigned short cfgword;
@@ -48,6 +62,9 @@ static void qube_raq_galileo_fixup(struct pci_dev *dev)
 {
 	unsigned short galileo_id;
 
+	if (dev->devfn != PCI_DEVFN(0, 0))
+		return;
+
 	/* Fix PCI latency-timer and cache-line-size values in Galileo
 	 * host bridge.
 	 */
@@ -55,6 +72,13 @@ static void qube_raq_galileo_fixup(struct pci_dev *dev)
 	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, 7);
 
 	/*
+	 * The code described by the comment below has been removed
+	 * as it causes bus mastering by the Ethernet controllers
+	 * to break under any kind of network load. We always set
+	 * the retry timeouts to their maximum.
+	 *
+	 * --x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--x--
+	 *
 	 * On all machines prior to Q2, we had the STOP line disconnected
 	 * from Galileo to VIA on PCI.  The new Galileo does not function
 	 * correctly unless we have it connected.
@@ -64,20 +88,42 @@ static void qube_raq_galileo_fixup(struct pci_dev *dev)
 	 */
 	pci_read_config_word(dev, PCI_REVISION_ID, &galileo_id);
 	galileo_id &= 0xff;	/* mask off class info */
+
+ 	printk(KERN_INFO "Galileo: revision %u\n", galileo_id);
+
+#if 0
 	if (galileo_id >= 0x10) {
 		/* New Galileo, assumes PCI stop line to VIA is connected. */
 		GALILEO_OUTL(0x4020, GT_PCI0_TOR_OFS);
-	} else if (galileo_id == 0x1 || galileo_id == 0x2) {
+	} else if (galileo_id == 0x1 || galileo_id == 0x2)
+#endif
+	{
 		signed int timeo;
 		/* XXX WE MUST DO THIS ELSE GALILEO LOCKS UP! -DaveM */
 		timeo = GALILEO_INL(GT_PCI0_TOR_OFS);
 		/* Old Galileo, assumes PCI STOP line to VIA is disconnected. */
-		GALILEO_OUTL(0xffff, GT_PCI0_TOR_OFS);
+		GALILEO_OUTL(
+			(0xff << 16) |		/* retry count */
+			(0xff << 8) |		/* timeout 1   */
+			0xff,			/* timeout 0   */
+			GT_PCI0_TOR_OFS);
+
+		/* enable PCI retry exceeded interrupt */
+		GALILEO_OUTL(GALILEO_INTR_RETRY_CTR | GALILEO_INL(GT_INTRMASK_OFS), GT_INTRMASK_OFS);
 	}
 }
 
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_GALILEO, PCI_ANY_ID,
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL, PCI_DEVICE_ID_MARVELL_GT64111,
 	 qube_raq_galileo_fixup);
+
+static char irq_tab_qube1[] __initdata = {
+  [COBALT_PCICONF_CPU]     = 0,
+  [COBALT_PCICONF_ETH0]    = COBALT_QUBE1_ETH0_IRQ,
+  [COBALT_PCICONF_RAQSCSI] = COBALT_SCSI_IRQ,
+  [COBALT_PCICONF_VIA]     = 0,
+  [COBALT_PCICONF_PCISLOT] = COBALT_QUBE_SLOT_IRQ,
+  [COBALT_PCICONF_ETH1]    = 0
+};
 
 static char irq_tab_cobalt[] __initdata = {
   [COBALT_PCICONF_CPU]     = 0,
@@ -99,6 +145,9 @@ static char irq_tab_raq2[] __initdata = {
 
 int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
+	if (cobalt_board_id < COBALT_BRD_ID_QUBE2)
+		return irq_tab_qube1[slot];
+
 	if (cobalt_board_id == COBALT_BRD_ID_RAQ2)
 		return irq_tab_raq2[slot];
 

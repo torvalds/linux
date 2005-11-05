@@ -15,6 +15,7 @@
  *	10-Feb-2005 BJD	 Added camera from guillaume.gourat@nexvision.tv
 */
 #include <linux/config.h>
+#include <linux/platform_device.h>
 
 extern struct platform_device *s3c24xx_uart_devs[];
 

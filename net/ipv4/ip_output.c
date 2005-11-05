@@ -275,7 +275,8 @@ int ip_output(struct sk_buff *skb)
 {
 	IP_INC_STATS(IPSTATS_MIB_OUTREQUESTS);
 
-	if (skb->len > dst_mtu(skb->dst) && !skb_shinfo(skb)->tso_size)
+	if (skb->len > dst_mtu(skb->dst) &&
+		!(skb_shinfo(skb)->ufo_size || skb_shinfo(skb)->tso_size))
 		return ip_fragment(skb, ip_finish_output);
 	else
 		return ip_finish_output(skb);
@@ -688,6 +689,60 @@ csum_page(struct page *page, int offset, int copy)
 	return csum;
 }
 
+inline int ip_ufo_append_data(struct sock *sk,
+			int getfrag(void *from, char *to, int offset, int len,
+			       int odd, struct sk_buff *skb),
+			void *from, int length, int hh_len, int fragheaderlen,
+			int transhdrlen, int mtu,unsigned int flags)
+{
+	struct sk_buff *skb;
+	int err;
+
+	/* There is support for UDP fragmentation offload by network
+	 * device, so create one single skb packet containing complete
+	 * udp datagram
+	 */
+	if ((skb = skb_peek_tail(&sk->sk_write_queue)) == NULL) {
+		skb = sock_alloc_send_skb(sk,
+			hh_len + fragheaderlen + transhdrlen + 20,
+			(flags & MSG_DONTWAIT), &err);
+
+		if (skb == NULL)
+			return err;
+
+		/* reserve space for Hardware header */
+		skb_reserve(skb, hh_len);
+
+		/* create space for UDP/IP header */
+		skb_put(skb,fragheaderlen + transhdrlen);
+
+		/* initialize network header pointer */
+		skb->nh.raw = skb->data;
+
+		/* initialize protocol header pointer */
+		skb->h.raw = skb->data + fragheaderlen;
+
+		skb->ip_summed = CHECKSUM_HW;
+		skb->csum = 0;
+		sk->sk_sndmsg_off = 0;
+	}
+
+	err = skb_append_datato_frags(sk,skb, getfrag, from,
+			       (length - transhdrlen));
+	if (!err) {
+		/* specify the length of each IP datagram fragment*/
+		skb_shinfo(skb)->ufo_size = (mtu - fragheaderlen);
+		__skb_queue_tail(&sk->sk_write_queue, skb);
+
+		return 0;
+	}
+	/* There is not enough support do UFO ,
+	 * so follow normal path
+	 */
+	kfree_skb(skb);
+	return err;
+}
+
 /*
  *	ip_append_data() and ip_append_page() can make one large IP datagram
  *	from many pieces of data. Each pieces will be holded on the socket
@@ -777,6 +832,15 @@ int ip_append_data(struct sock *sk,
 		csummode = CHECKSUM_HW;
 
 	inet->cork.length += length;
+	if (((length > mtu) && (sk->sk_protocol == IPPROTO_UDP)) &&
+			(rt->u.dst.dev->features & NETIF_F_UFO)) {
+
+		if(ip_ufo_append_data(sk, getfrag, from, length, hh_len,
+			       fragheaderlen, transhdrlen, mtu, flags))
+			goto error;
+
+		return 0;
+	}
 
 	/* So, what's going on in the loop below?
 	 *
@@ -1008,14 +1072,23 @@ ssize_t	ip_append_page(struct sock *sk, struct page *page,
 		return -EINVAL;
 
 	inet->cork.length += size;
+	if ((sk->sk_protocol == IPPROTO_UDP) &&
+	    (rt->u.dst.dev->features & NETIF_F_UFO))
+		skb_shinfo(skb)->ufo_size = (mtu - fragheaderlen);
+
 
 	while (size > 0) {
 		int i;
 
-		/* Check if the remaining data fits into current packet. */
-		len = mtu - skb->len;
-		if (len < size)
-			len = maxfraglen - skb->len;
+		if (skb_shinfo(skb)->ufo_size)
+			len = size;
+		else {
+
+			/* Check if the remaining data fits into current packet. */
+			len = mtu - skb->len;
+			if (len < size)
+				len = maxfraglen - skb->len;
+		}
 		if (len <= 0) {
 			struct sk_buff *skb_prev;
 			char *data;

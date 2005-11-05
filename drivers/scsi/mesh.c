@@ -730,7 +730,7 @@ static void start_phase(struct mesh_state *ms)
 		 * issue a SEQ_MSGOUT to get the mesh to drop ACK.
 		 */
 		if ((in_8(&mr->bus_status0) & BS0_ATN) == 0) {
-			dlog(ms, "bus0 was %.2x explictly asserting ATN", mr->bus_status0);
+			dlog(ms, "bus0 was %.2x explicitly asserting ATN", mr->bus_status0);
 			out_8(&mr->bus_status0, BS0_ATN); /* explicit ATN */
 			mesh_flush_io(mr);
 			udelay(1);

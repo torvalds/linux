@@ -1,5 +1,5 @@
 /**
- * \file drm_sarea.h 
+ * \file drm_sarea.h
  * \brief SAREA definitions
  *
  * \author Michel Dänzer <michel@daenzer.net>
@@ -38,7 +38,7 @@
 #if defined(__alpha__)
 #define SAREA_MAX                       0x2000
 #elif defined(__ia64__)
-#define SAREA_MAX                       0x10000         /* 64kB */
+#define SAREA_MAX                       0x10000	/* 64kB */
 #else
 /* Intel 830M driver needs at least 8k SAREA */
 #define SAREA_MAX                       0x2000
@@ -51,28 +51,28 @@
 
 /** SAREA drawable */
 typedef struct drm_sarea_drawable {
-    unsigned int	stamp;
-    unsigned int	flags;
+	unsigned int stamp;
+	unsigned int flags;
 } drm_sarea_drawable_t;
 
 /** SAREA frame */
 typedef struct drm_sarea_frame {
-    unsigned int        x;
-    unsigned int        y;
-    unsigned int        width;
-    unsigned int        height;
-    unsigned int        fullscreen;
+	unsigned int x;
+	unsigned int y;
+	unsigned int width;
+	unsigned int height;
+	unsigned int fullscreen;
 } drm_sarea_frame_t;
 
 /** SAREA */
 typedef struct drm_sarea {
     /** first thing is always the DRM locking structure */
-    drm_hw_lock_t		lock;
+	drm_hw_lock_t lock;
     /** \todo Use readers/writer lock for drm_sarea::drawable_lock */
-    drm_hw_lock_t		drawable_lock;
-    drm_sarea_drawable_t	drawableTable[SAREA_MAX_DRAWABLES];	/**< drawables */
-    drm_sarea_frame_t		frame;	/**< frame */
-    drm_context_t		dummy_context;
+	drm_hw_lock_t drawable_lock;
+	drm_sarea_drawable_t drawableTable[SAREA_MAX_DRAWABLES];	/**< drawables */
+	drm_sarea_frame_t frame;	/**< frame */
+	drm_context_t dummy_context;
 } drm_sarea_t;
 
-#endif	/* _DRM_SAREA_H_ */
+#endif				/* _DRM_SAREA_H_ */

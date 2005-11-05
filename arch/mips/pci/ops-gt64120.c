@@ -1,6 +1,8 @@
 /*
- * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999, 2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 1999, 2000, 2004  MIPS Technologies, Inc.
+ *	All rights reserved.
+ *	Authors: Carsten Langgaard <carstenl@mips.com>
+ *		 Maciej W. Rozycki <macro@mips.com>
  *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
@@ -42,10 +44,6 @@ static int gt64120_pcibios_config_access(unsigned char access_type,
 {
 	unsigned char busnum = bus->number;
 	u32 intr;
-
-	if ((busnum == 0) && (PCI_SLOT(devfn) == 0))
-		/* Galileo itself is devfn 0, don't move it around */
-		return -1;
 
 	if ((busnum == 0) && (devfn >= PCI_DEVFN(31, 0)))
 		return -1;	/* Because of a bug in the galileo (for slot 31). */

@@ -155,6 +155,10 @@ enum {
 	ATA_SHIFT_UDMA		= 0,
 	ATA_SHIFT_MWDMA		= 8,
 	ATA_SHIFT_PIO		= 11,
+
+	/* size of buffer to pad xfers ending on unaligned boundaries */
+	ATA_DMA_PAD_SZ		= 4,
+	ATA_DMA_PAD_BUF_SZ	= ATA_DMA_PAD_SZ * ATA_MAX_QUEUE,
 	
 	/* Masks for port functions */
 	ATA_PORT_PRIMARY	= (1 << 0),
@@ -172,6 +176,13 @@ enum hsm_task_states {
 	HSM_ST_ERR,
 };
 
+enum ata_completion_errors {
+	AC_ERR_OTHER		= (1 << 0),
+	AC_ERR_DEV		= (1 << 1),
+	AC_ERR_ATA_BUS		= (1 << 2),
+	AC_ERR_HOST_BUS		= (1 << 3),
+};
+
 /* forward declarations */
 struct scsi_device;
 struct ata_port_operations;
@@ -179,7 +190,7 @@ struct ata_port;
 struct ata_queued_cmd;
 
 /* typedefs */
-typedef int (*ata_qc_cb_t) (struct ata_queued_cmd *qc, u8 drv_stat);
+typedef int (*ata_qc_cb_t) (struct ata_queued_cmd *qc, unsigned int err_mask);
 
 struct ata_ioports {
 	unsigned long		cmd_addr;
@@ -242,8 +253,11 @@ struct ata_queued_cmd {
 	unsigned long		flags;		/* ATA_QCFLAG_xxx */
 	unsigned int		tag;
 	unsigned int		n_elem;
+	unsigned int		orig_n_elem;
 
 	int			dma_dir;
+
+	unsigned int		pad_len;
 
 	unsigned int		nsect;
 	unsigned int		cursect;
@@ -255,9 +269,11 @@ struct ata_queued_cmd {
 	unsigned int		cursg_ofs;
 
 	struct scatterlist	sgent;
+	struct scatterlist	pad_sgent;
 	void			*buf_virt;
 
-	struct scatterlist	*sg;
+	/* DO NOT iterate over __sg manually, use ata_for_each_sg() */
+	struct scatterlist	*__sg;
 
 	ata_qc_cb_t		complete_fn;
 
@@ -303,6 +319,9 @@ struct ata_port {
 	struct ata_prd		*prd;	 /* our SG list */
 	dma_addr_t		prd_dma; /* and its DMA mapping */
 
+	void			*pad;	/* array of DMA pad buffers */
+	dma_addr_t		pad_dma;
+
 	struct ata_ioports	ioaddr;	/* ATA cmd/ctl/dma register blocks */
 
 	u8			ctl;	/* cache of ATA control register */
@@ -347,7 +366,6 @@ struct ata_port_operations {
 	void (*exec_command)(struct ata_port *ap, const struct ata_taskfile *tf);
 	u8   (*check_status)(struct ata_port *ap);
 	u8   (*check_altstatus)(struct ata_port *ap);
-	u8   (*check_err)(struct ata_port *ap);
 	void (*dev_select)(struct ata_port *ap, unsigned int device);
 
 	void (*phy_reset) (struct ata_port *ap);
@@ -434,7 +452,6 @@ extern void ata_noop_dev_select (struct ata_port *ap, unsigned int device);
 extern void ata_std_dev_select (struct ata_port *ap, unsigned int device);
 extern u8 ata_check_status(struct ata_port *ap);
 extern u8 ata_altstatus(struct ata_port *ap);
-extern u8 ata_chk_err(struct ata_port *ap);
 extern void ata_exec_command(struct ata_port *ap, const struct ata_taskfile *tf);
 extern int ata_port_start (struct ata_port *ap);
 extern void ata_port_stop (struct ata_port *ap);
@@ -455,7 +472,7 @@ extern void ata_bmdma_start (struct ata_queued_cmd *qc);
 extern void ata_bmdma_stop(struct ata_queued_cmd *qc);
 extern u8   ata_bmdma_status(struct ata_port *ap);
 extern void ata_bmdma_irq_clear(struct ata_port *ap);
-extern void ata_qc_complete(struct ata_queued_cmd *qc, u8 drv_stat);
+extern void ata_qc_complete(struct ata_queued_cmd *qc, unsigned int err_mask);
 extern void ata_eng_timeout(struct ata_port *ap);
 extern void ata_scsi_simulate(u16 *id, struct scsi_cmnd *cmd,
 			      void (*done)(struct scsi_cmnd *));
@@ -506,6 +523,31 @@ extern int pci_test_config_bits(struct pci_dev *pdev, const struct pci_bits *bit
 
 #endif /* CONFIG_PCI */
 
+
+static inline int
+ata_sg_is_last(struct scatterlist *sg, struct ata_queued_cmd *qc)
+{
+	if (sg == &qc->pad_sgent)
+		return 1;
+	if (qc->pad_len)
+		return 0;
+	if (((sg - qc->__sg) + 1) == qc->n_elem)
+		return 1;
+	return 0;
+}
+
+static inline struct scatterlist *
+ata_qc_next_sg(struct scatterlist *sg, struct ata_queued_cmd *qc)
+{
+	if (sg == &qc->pad_sgent)
+		return NULL;
+	if (++sg - qc->__sg < qc->n_elem)
+		return sg;
+	return qc->pad_len ? &qc->pad_sgent : NULL;
+}
+
+#define ata_for_each_sg(sg, qc) \
+	for (sg = qc->__sg; sg; sg = ata_qc_next_sg(sg, qc))
 
 static inline unsigned int ata_tag_valid(unsigned int tag)
 {
@@ -716,6 +758,36 @@ static inline int ata_try_flush_cache(const struct ata_device *dev)
 	return ata_id_wcache_enabled(dev->id) ||
 	       ata_id_has_flush(dev->id) ||
 	       ata_id_has_flush_ext(dev->id);
+}
+
+static inline unsigned int ac_err_mask(u8 status)
+{
+	if (status & ATA_BUSY)
+		return AC_ERR_ATA_BUS;
+	if (status & (ATA_ERR | ATA_DF))
+		return AC_ERR_DEV;
+	return 0;
+}
+
+static inline unsigned int __ac_err_mask(u8 status)
+{
+	unsigned int mask = ac_err_mask(status);
+	if (mask == 0)
+		return AC_ERR_OTHER;
+	return mask;
+}
+
+static inline int ata_pad_alloc(struct ata_port *ap, struct device *dev)
+{
+	ap->pad_dma = 0;
+	ap->pad = dma_alloc_coherent(dev, ATA_DMA_PAD_BUF_SZ,
+				     &ap->pad_dma, GFP_KERNEL);
+	return (ap->pad == NULL) ? -ENOMEM : 0;
+}
+
+static inline void ata_pad_free(struct ata_port *ap, struct device *dev)
+{
+	dma_free_coherent(dev, ATA_DMA_PAD_BUF_SZ, ap->pad, ap->pad_dma);
 }
 
 #endif /* __LINUX_LIBATA_H__ */

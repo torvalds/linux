@@ -334,7 +334,7 @@ static struct page *kimage_alloc_pages(gfp_t gfp_mask, unsigned int order)
 	if (pages) {
 		unsigned int count, i;
 		pages->mapping = NULL;
-		pages->private = order;
+		set_page_private(pages, order);
 		count = 1 << order;
 		for (i = 0; i < count; i++)
 			SetPageReserved(pages + i);
@@ -347,7 +347,7 @@ static void kimage_free_pages(struct page *page)
 {
 	unsigned int order, count, i;
 
-	order = page->private;
+	order = page_private(page);
 	count = 1 << order;
 	for (i = 0; i < count; i++)
 		ClearPageReserved(page + i);

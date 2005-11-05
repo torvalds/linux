@@ -67,6 +67,8 @@ extern unsigned char __res[];
 #define MPC85xx_DMA3_SIZE	(0x00080)
 #define MPC85xx_ENET1_OFFSET	(0x24000)
 #define MPC85xx_ENET1_SIZE	(0x01000)
+#define MPC85xx_MIIM_OFFSET	(0x24520)
+#define MPC85xx_MIIM_SIZE	(0x00018)
 #define MPC85xx_ENET2_OFFSET	(0x25000)
 #define MPC85xx_ENET2_SIZE	(0x01000)
 #define MPC85xx_ENET3_OFFSET	(0x26000)
@@ -132,6 +134,7 @@ enum ppc_sys_devices {
 	MPC85xx_eTSEC3,
 	MPC85xx_eTSEC4,
 	MPC85xx_IIC2,
+	MPC85xx_MDIO,
 };
 
 /* Internal interrupts are all Level Sensitive, and Positive Polarity */

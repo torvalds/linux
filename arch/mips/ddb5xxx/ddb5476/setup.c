@@ -124,7 +124,7 @@ static struct {
 
 static void ddb5476_board_init(void);
 
-static void __init ddb5476_setup(void)
+void __init plat_setup(void)
 {
 	set_io_port_base(KSEG1ADDR(DDB_PCI_IO_BASE));
 
@@ -157,8 +157,6 @@ static void __init ddb5476_setup(void)
 	/* board initialization stuff */
 	ddb5476_board_init();
 }
-
-early_initcall(ddb5476_setup);
 
 /*
  * We don't trust bios.  We essentially does hardware re-initialization

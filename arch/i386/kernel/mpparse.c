@@ -69,7 +69,7 @@ unsigned int def_to_bigsmp = 0;
 /* Processor that is doing the boot up */
 unsigned int boot_cpu_physical_apicid = -1U;
 /* Internal processor count */
-static unsigned int __initdata num_processors;
+static unsigned int __devinitdata num_processors;
 
 /* Bitmask of physically existing CPUs */
 physid_mask_t phys_cpu_present_map;
@@ -119,7 +119,7 @@ static int MP_valid_apicid(int apicid, int version)
 }
 #endif
 
-static void __init MP_processor_info (struct mpc_config_processor *m)
+static void __devinit MP_processor_info (struct mpc_config_processor *m)
 {
  	int ver, apicid;
 	physid_mask_t phys_cpu;
@@ -182,17 +182,6 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 		boot_cpu_physical_apicid = m->mpc_apicid;
 	}
 
-	if (num_processors >= NR_CPUS) {
-		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
-			"  Processor ignored.\n", NR_CPUS); 
-		return;
-	}
-
-	if (num_processors >= maxcpus) {
-		printk(KERN_WARNING "WARNING: maxcpus limit of %i reached."
-			" Processor ignored.\n", maxcpus); 
-		return;
-	}
 	ver = m->mpc_apicver;
 
 	if (!MP_valid_apicid(apicid, ver)) {
@@ -200,11 +189,6 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 			m->mpc_apicid, MAX_APICS);
 		return;
 	}
-
-	cpu_set(num_processors, cpu_possible_map);
-	num_processors++;
-	phys_cpu = apicid_to_cpu_present(apicid);
-	physids_or(phys_cpu_present_map, phys_cpu_present_map, phys_cpu);
 
 	/*
 	 * Validate version
@@ -216,6 +200,25 @@ static void __init MP_processor_info (struct mpc_config_processor *m)
 		ver = 0x10;
 	}
 	apic_version[m->mpc_apicid] = ver;
+
+	phys_cpu = apicid_to_cpu_present(apicid);
+	physids_or(phys_cpu_present_map, phys_cpu_present_map, phys_cpu);
+
+	if (num_processors >= NR_CPUS) {
+		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
+			"  Processor ignored.\n", NR_CPUS);
+		return;
+	}
+
+	if (num_processors >= maxcpus) {
+		printk(KERN_WARNING "WARNING: maxcpus limit of %i reached."
+			" Processor ignored.\n", maxcpus);
+		return;
+	}
+
+	cpu_set(num_processors, cpu_possible_map);
+	num_processors++;
+
 	if ((num_processors > 8) &&
 	    APIC_XAPIC(ver) &&
 	    (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL))
@@ -834,7 +837,7 @@ void __init mp_register_lapic_address (
 }
 
 
-void __init mp_register_lapic (
+void __devinit mp_register_lapic (
 	u8			id, 
 	u8			enabled)
 {

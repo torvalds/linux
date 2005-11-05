@@ -39,7 +39,12 @@
  * ethernet driver, perhaps.
  */
 static struct map_desc cdb89712_io_desc[] __initdata = {
-	{ ETHER_BASE, ETHER_START, ETHER_SIZE, MT_DEVICE }
+	{
+		.virtual	= ETHER_BASE,
+		.pfn		=__phys_to_pfn(ETHER_START),
+		.length		= ETHER_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init cdb89712_map_io(void)

@@ -2,9 +2,9 @@
  * arch/mips/dec/int-handler.S
  *
  * Copyright (C) 1995, 1996, 1997 Paul M. Antoine and Harald Koerfgen
- * Copyright (C) 2000, 2001, 2002, 2003  Maciej W. Rozycki
+ * Copyright (C) 2000, 2001, 2002, 2003, 2005  Maciej W. Rozycki
  *
- * Written by Ralf Baechle and Andreas Busse, modified for DECStation
+ * Written by Ralf Baechle and Andreas Busse, modified for DECstation
  * support by Paul Antoine and Harald Koerfgen.
  *
  * completly rewritten:
@@ -14,11 +14,12 @@
  * by Maciej W. Rozycki.
  */
 #include <linux/config.h>
-#include <asm/asm.h>
-#include <asm/regdef.h>
-#include <asm/mipsregs.h>
-#include <asm/stackframe.h>
+
 #include <asm/addrspace.h>
+#include <asm/asm.h>
+#include <asm/mipsregs.h>
+#include <asm/regdef.h>
+#include <asm/stackframe.h>
 
 #include <asm/dec/interrupts.h>
 #include <asm/dec/ioasic_addrs.h>
@@ -28,11 +29,14 @@
 #include <asm/dec/kn02xa.h>
 #include <asm/dec/kn03.h>
 
+#define KN02_CSR_BASE		CKSEG1ADDR(KN02_SLOT_BASE + KN02_CSR)
+#define KN02XA_IOASIC_BASE	CKSEG1ADDR(KN02XA_SLOT_BASE + IOASIC_IOCTL)
+#define KN03_IOASIC_BASE	CKSEG1ADDR(KN03_SLOT_BASE + IOASIC_IOCTL)
 
 		.text
 		.set	noreorder
 /*
- * decstation_handle_int: Interrupt handler for DECStations
+ * decstation_handle_int: Interrupt handler for DECstations
  *
  * We follow the model in the Indy interrupt code by David Miller, where he
  * says: a lot of complication here is taken away because:
@@ -48,7 +52,7 @@
  * 3) Linux only thinks in terms of all IRQs on or all IRQs
  *    off, nothing in between like BSD spl() brain-damage.
  *
- * Furthermore, the IRQs on the DECStations look basically (barring
+ * Furthermore, the IRQs on the DECstations look basically (barring
  * software IRQs which we don't use at all) like...
  *
  * DS2100/3100's, aka kn01, aka Pmax:
@@ -61,7 +65,7 @@
  *             3        Lance Ethernet
  *             4        DZ11 serial
  *             5        RTC
- *             6        Memory Controller
+ *             6        Memory Controller & Video
  *             7        FPU
  *
  * DS5000/200, aka kn02, aka 3max:

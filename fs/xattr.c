@@ -143,7 +143,7 @@ getxattr(struct dentry *d, char __user *name, void __user *value, size_t size)
 	if (size) {
 		if (size > XATTR_SIZE_MAX)
 			size = XATTR_SIZE_MAX;
-		kvalue = kmalloc(size, GFP_KERNEL);
+		kvalue = kzalloc(size, GFP_KERNEL);
 		if (!kvalue)
 			return -ENOMEM;
 	}
@@ -154,11 +154,15 @@ getxattr(struct dentry *d, char __user *name, void __user *value, size_t size)
 	error = -EOPNOTSUPP;
 	if (d->d_inode->i_op && d->d_inode->i_op->getxattr)
 		error = d->d_inode->i_op->getxattr(d, kname, kvalue, size);
-	else if (!strncmp(kname, XATTR_SECURITY_PREFIX,
-			  sizeof XATTR_SECURITY_PREFIX - 1)) {
+
+	if (!strncmp(kname, XATTR_SECURITY_PREFIX,
+		     sizeof XATTR_SECURITY_PREFIX - 1)) {
 		const char *suffix = kname + sizeof XATTR_SECURITY_PREFIX - 1;
-		error = security_inode_getsecurity(d->d_inode, suffix, kvalue,
-						   size);
+		int rv = security_inode_getsecurity(d->d_inode, suffix, kvalue,
+						    size, error);
+		/* Security module active: overwrite error value */
+		if (rv != -EOPNOTSUPP)
+			error = rv;
 	}
 	if (error > 0) {
 		if (size && copy_to_user(value, kvalue, error))

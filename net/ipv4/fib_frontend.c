@@ -591,7 +591,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 		break;
 	case NETDEV_DOWN:
 		fib_del_ifaddr(ifa);
-		if (ifa->ifa_dev && ifa->ifa_dev->ifa_list == NULL) {
+		if (ifa->ifa_dev->ifa_list == NULL) {
 			/* Last address was deleted from this interface.
 			   Disable IP.
 			 */

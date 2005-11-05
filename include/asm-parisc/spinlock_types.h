@@ -6,10 +6,14 @@
 #endif
 
 typedef struct {
+#ifdef CONFIG_PA20
+	volatile unsigned int slock;
+# define __RAW_SPIN_LOCK_UNLOCKED { 1 }
+#else
 	volatile unsigned int lock[4];
+# define __RAW_SPIN_LOCK_UNLOCKED	{ { 1, 1, 1, 1 } }
+#endif
 } raw_spinlock_t;
-
-#define __RAW_SPIN_LOCK_UNLOCKED	{ { 1, 1, 1, 1 } }
 
 typedef struct {
 	raw_spinlock_t lock;

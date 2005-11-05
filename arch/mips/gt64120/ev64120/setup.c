@@ -69,7 +69,7 @@ unsigned long __init prom_free_prom_memory(void)
  */
 extern void gt64120_time_init(void);
 
-static void __init ev64120_setup(void)
+void __init plat_setup(void)
 {
 	_machine_restart = galileo_machine_restart;
 	_machine_halt = galileo_machine_halt;
@@ -78,8 +78,6 @@ static void __init ev64120_setup(void)
 	board_time_init = gt64120_time_init;
 	set_io_port_base(KSEG1);
 }
-
-early_initcall(ev64120_setup);
 
 const char *get_system_type(void)
 {

@@ -15,6 +15,7 @@
  */
 #include <linux/config.h>
 
+#include <asm/memory.h>
 #include <asm/glue.h>
 #include <asm/vfpmacros.h>
 #include <asm/hardware.h>		/* should be moved into entry-macro.S */
@@ -310,7 +311,7 @@ __pabt_svc:
 
 #if __LINUX_ARM_ARCH__ < 6 && !defined(CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG)
 	@ make sure our user space atomic helper is aborted
-	cmp	r2, #VIRT_OFFSET
+	cmp	r2, #TASK_SIZE
 	bichs	r3, r3, #PSR_Z_BIT
 #endif
 

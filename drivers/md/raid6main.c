@@ -1621,6 +1621,7 @@ static int make_request (request_queue_t *q, struct bio * bi)
 	sector_t new_sector;
 	sector_t logical_sector, last_sector;
 	struct stripe_head *sh;
+	const int rw = bio_data_dir(bi);
 
 	if (unlikely(bio_barrier(bi))) {
 		bio_endio(bi, bi->bi_size, -EOPNOTSUPP);
@@ -1629,13 +1630,8 @@ static int make_request (request_queue_t *q, struct bio * bi)
 
 	md_write_start(mddev, bi);
 
-	if (bio_data_dir(bi)==WRITE) {
-		disk_stat_inc(mddev->gendisk, writes);
-		disk_stat_add(mddev->gendisk, write_sectors, bio_sectors(bi));
-	} else {
-		disk_stat_inc(mddev->gendisk, reads);
-		disk_stat_add(mddev->gendisk, read_sectors, bio_sectors(bi));
-	}
+	disk_stat_inc(mddev->gendisk, ios[rw]);
+	disk_stat_add(mddev->gendisk, sectors[rw], bio_sectors(bi));
 
 	logical_sector = bi->bi_sector & ~((sector_t)STRIPE_SECTORS-1);
 	last_sector = bi->bi_sector + (bi->bi_size>>9);
@@ -1682,7 +1678,7 @@ static int make_request (request_queue_t *q, struct bio * bi)
 	if (--bi->bi_phys_segments == 0) {
 		int bytes = bi->bi_size;
 
-		if ( bio_data_dir(bi) == WRITE )
+		if (rw == WRITE )
 			md_write_end(mddev);
 		bi->bi_size = 0;
 		bi->bi_end_io(bi, bytes, 0);

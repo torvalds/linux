@@ -25,10 +25,14 @@
 /* How many different OSM's are we allowing */
 #define I2O_MAX_DRIVERS		8
 
-#include <asm/io.h>
-#include <asm/semaphore.h>	/* Needed for MUTEX init macros */
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/string.h>
+#include <linux/slab.h>
+#include <linux/workqueue.h>	/* work_struct */
+
+#include <asm/io.h>
+#include <asm/semaphore.h>	/* Needed for MUTEX init macros */
 
 /* message queue empty */
 #define I2O_QUEUE_EMPTY		0xffffffff
@@ -66,8 +70,6 @@ struct i2o_device {
 	struct device device;
 
 	struct semaphore lock;	/* device lock */
-
-	struct class_device classdev;	/* i2o device class */
 };
 
 /*
@@ -194,7 +196,7 @@ struct i2o_controller {
 	struct resource mem_resource;	/* Mem resource allocated to the IOP */
 
 	struct device device;
-	struct class_device classdev;	/* I2O controller class */
+	struct class_device *classdev;	/* I2O controller class device */
 	struct i2o_device *exec;	/* Executive */
 #if BITS_PER_LONG == 64
 	spinlock_t context_list_lock;	/* lock for context_list */

@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/config.h>
+#include <linux/sched.h>	/* current */
 #include <linux/delay.h>
 #include <linux/compiler.h>
 

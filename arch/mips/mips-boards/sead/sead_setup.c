@@ -57,8 +57,6 @@ static void __init sead_setup(void)
 	mips_reboot_setup();
 }
 
-early_initcall(sead_setup);
-
 static void __init serial_init(void)
 {
 #ifdef CONFIG_SERIAL_8250

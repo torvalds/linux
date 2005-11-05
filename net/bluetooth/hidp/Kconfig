@@ -1,6 +1,6 @@
 config BT_HIDP
 	tristate "HIDP protocol support"
-	depends on BT && BT_L2CAP
+	depends on BT && BT_L2CAP && (BROKEN || !S390)
 	select INPUT
 	help
 	  HIDP (Human Interface Device Protocol) is a transport layer

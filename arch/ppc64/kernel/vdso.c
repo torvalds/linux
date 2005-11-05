@@ -176,13 +176,13 @@ static struct page * vdso_vma_nopage(struct vm_area_struct * vma,
 		return NOPAGE_SIGBUS;
 
 	/*
-	 * Last page is systemcfg, special handling here, no get_page() a
-	 * this is a reserved page
+	 * Last page is systemcfg.
 	 */
 	if ((vma->vm_end - address) <= PAGE_SIZE)
-		return virt_to_page(systemcfg);
+		pg = virt_to_page(systemcfg);
+	else
+		pg = virt_to_page(vbase + offset);
 
-	pg = virt_to_page(vbase + offset);
 	get_page(pg);
 	DBG(" ->page count: %d\n", page_count(pg));
 
@@ -259,7 +259,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int executable_stack)
 	 * gettimeofday will be totally dead. It's fine to use that for setting
 	 * breakpoints in the vDSO code pages though
 	 */
-	vma->vm_flags = VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
+	vma->vm_flags = VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC | VM_RESERVED;
 	vma->vm_flags |= mm->def_flags;
 	vma->vm_page_prot = protection_map[vma->vm_flags & 0x7];
 	vma->vm_ops = &vdso_vmops;
@@ -603,6 +603,8 @@ void __init vdso_init(void)
 		ClearPageReserved(pg);
 		get_page(pg);
 	}
+
+	get_page(virt_to_page(systemcfg));
 }
 
 int in_gate_area_no_task(unsigned long addr)

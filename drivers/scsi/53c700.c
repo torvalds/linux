@@ -128,6 +128,7 @@
 #include <linux/blkdev.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
+#include <linux/device.h>
 #include <asm/dma.h>
 #include <asm/system.h>
 #include <asm/io.h>
@@ -831,8 +832,8 @@ process_extended_message(struct Scsi_Host *host,
 
 		} else {
 			/* SDTR message out of the blue, reject it */
-			printk(KERN_WARNING "scsi%d Unexpected SDTR msg\n",
-			       host->host_no);
+			shost_printk(KERN_WARNING, host,
+				"Unexpected SDTR msg\n");
 			hostdata->msgout[0] = A_REJECT_MSG;
 			dma_cache_sync(hostdata->msgout, 1, DMA_TO_DEVICE);
 			script_patch_16(hostdata->script, MessageCount, 1);
@@ -906,15 +907,17 @@ process_message(struct Scsi_Host *host,	struct NCR_700_Host_Parameters *hostdata
 			NCR_700_clear_flag(SCp->device, NCR_700_DEV_BEGIN_SYNC_NEGOTIATION);
 		} else if(SCp != NULL && NCR_700_get_tag_neg_state(SCp->device) == NCR_700_DURING_TAG_NEGOTIATION) {
 			/* rejected our first simple tag message */
-			printk(KERN_WARNING "scsi%d (%d:%d) Rejected first tag queue attempt, turning off tag queueing\n", host->host_no, pun, lun);
+			scmd_printk(KERN_WARNING, SCp,
+				"Rejected first tag queue attempt, turning off tag queueing\n");
 			/* we're done negotiating */
 			NCR_700_set_tag_neg_state(SCp->device, NCR_700_FINISHED_TAG_NEGOTIATION);
-			hostdata->tag_negotiated &= ~(1<<SCp->device->id);
+			hostdata->tag_negotiated &= ~(1<<scmd_id(SCp));
 			SCp->device->tagged_supported = 0;
 			scsi_deactivate_tcq(SCp->device, host->cmd_per_lun);
 		} else {
-			printk(KERN_WARNING "scsi%d (%d:%d) Unexpected REJECT Message %s\n",
-			       host->host_no, pun, lun,
+			shost_printk(KERN_WARNING, host,
+				"(%d:%d) Unexpected REJECT Message %s\n",
+			       pun, lun,
 			       NCR_700_phase[(dsps & 0xf00) >> 8]);
 			/* however, just ignore it */
 		}
@@ -983,7 +986,8 @@ process_script_interrupt(__u32 dsps, __u32 dsp, struct scsi_cmnd *SCp,
 			if(SCp->cmnd[0] == REQUEST_SENSE) {
 				/* OOPS: bad device, returning another
 				 * contingent allegiance condition */
-				printk(KERN_ERR "scsi%d (%d:%d) broken device is looping in contingent allegiance: ignoring\n", host->host_no, pun, lun);
+				scmd_printk(KERN_ERR, SCp,
+					"broken device is looping in contingent allegiance: ignoring\n");
 				NCR_700_scsi_done(hostdata, SCp, hostdata->status[0]);
 			} else {
 #ifdef NCR_DEBUG
@@ -1047,12 +1051,13 @@ process_script_interrupt(__u32 dsps, __u32 dsp, struct scsi_cmnd *SCp,
 			//			    SCp->request_bufflen,
 			//			    DMA_FROM_DEVICE);
 			//	if(((char *)SCp->request_buffer)[7] & 0x02) {
-			//		printk(KERN_INFO "scsi%d: (%d:%d) Enabling Tag Command Queuing\n", host->host_no, pun, lun);
-			//		hostdata->tag_negotiated |= (1<<SCp->device->id);
+			//		scmd_printk(KERN_INFO, SCp,
+			//		     "Enabling Tag Command Queuing\n");
+			//		hostdata->tag_negotiated |= (1<<scmd_id(SCp));
 			//		NCR_700_set_flag(SCp->device, NCR_700_DEV_BEGIN_TAG_QUEUEING);
 			//	} else {
 			//		NCR_700_clear_flag(SCp->device, NCR_700_DEV_BEGIN_TAG_QUEUEING);
-			//		hostdata->tag_negotiated &= ~(1<<SCp->device->id);
+			//		hostdata->tag_negotiated &= ~(1<<scmd_id(SCp));
 			//	}
 			//}
 			NCR_700_scsi_done(hostdata, SCp, hostdata->status[0]);
@@ -1060,11 +1065,11 @@ process_script_interrupt(__u32 dsps, __u32 dsp, struct scsi_cmnd *SCp,
 	} else if((dsps & 0xfffff0f0) == A_UNEXPECTED_PHASE) {
 		__u8 i = (dsps & 0xf00) >> 8;
 
-		printk(KERN_ERR "scsi%d: (%d:%d), UNEXPECTED PHASE %s (%s)\n",
-		       host->host_no, pun, lun,
+		scmd_printk(KERN_ERR, SCp, "UNEXPECTED PHASE %s (%s)\n",
 		       NCR_700_phase[i],
 		       sbcl_to_string(NCR_700_readb(host, SBCL_REG)));
-		printk(KERN_ERR "         len = %d, cmd =", SCp->cmd_len);
+		scmd_printk(KERN_ERR, SCp, "         len = %d, cmd =",
+			SCp->cmd_len);
 		scsi_print_command(SCp);
 
 		NCR_700_internal_bus_reset(host);
@@ -1115,14 +1120,14 @@ process_script_interrupt(__u32 dsps, __u32 dsp, struct scsi_cmnd *SCp,
 			}
 
 			slot = (struct NCR_700_command_slot *)SCp->host_scribble;
-			DEBUG(("53c700: %d:%d:%d, reselection is tag %d, slot %p(%d)\n",
-			       host->host_no, SDp->id, SDp->lun,
-			       hostdata->msgin[2], slot, slot->tag));
+			DDEBUG(KERN_DEBUG, SDp,
+				"reselection is tag %d, slot %p(%d)\n",
+				hostdata->msgin[2], slot, slot->tag);
 		} else {
 			struct scsi_cmnd *SCp = scsi_find_tag(SDp, SCSI_NO_TAG);
 			if(unlikely(SCp == NULL)) {
-				printk(KERN_ERR "scsi%d: (%d:%d) no saved request for untagged cmd\n", 
-				       host->host_no, reselection_id, lun);
+				sdev_printk(KERN_ERR, SDp,
+					"no saved request for untagged cmd\n");
 				BUG();
 			}
 			slot = (struct NCR_700_command_slot *)SCp->host_scribble;
@@ -1422,7 +1427,7 @@ NCR_700_start_command(struct scsi_cmnd *SCp)
 	 * If a contingent allegiance condition exists, the device
 	 * will refuse all tags, so send the request sense as untagged
 	 * */
-	if((hostdata->tag_negotiated & (1<<SCp->device->id))
+	if((hostdata->tag_negotiated & (1<<scmd_id(SCp)))
 	   && (slot->tag != SCSI_NO_TAG && SCp->cmnd[0] != REQUEST_SENSE)) {
 		count += scsi_populate_tag_msg(SCp, &hostdata->msgout[count]);
 	}
@@ -1441,7 +1446,7 @@ NCR_700_start_command(struct scsi_cmnd *SCp)
 
 
 	script_patch_ID(hostdata->script,
-			Device_ID, 1<<SCp->device->id);
+			Device_ID, 1<<scmd_id(SCp));
 
 	script_patch_32_abs(hostdata->script, CommandAddress, 
 			    slot->pCmd);
@@ -1764,17 +1769,15 @@ NCR_700_queuecommand(struct scsi_cmnd *SCp, void (*done)(struct scsi_cmnd *))
 	 * - The blk layer sent and untagged command
 	 */
 	if(NCR_700_get_depth(SCp->device) != 0
-	   && (!(hostdata->tag_negotiated & (1<<SCp->device->id))
+	   && (!(hostdata->tag_negotiated & (1<<scmd_id(SCp)))
 	       || !blk_rq_tagged(SCp->request))) {
-		DEBUG((KERN_ERR "scsi%d (%d:%d) has non zero depth %d\n",
-		       SCp->device->host->host_no, SCp->device->id, SCp->device->lun,
-		       NCR_700_get_depth(SCp->device)));
+		CDEBUG(KERN_ERR, SCp, "has non zero depth %d\n",
+		       NCR_700_get_depth(SCp->device));
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 	}
 	if(NCR_700_get_depth(SCp->device) >= SCp->device->queue_depth) {
-		DEBUG((KERN_ERR "scsi%d (%d:%d) has max tag depth %d\n",
-		       SCp->device->host->host_no, SCp->device->id, SCp->device->lun,
-		       NCR_700_get_depth(SCp->device)));
+		CDEBUG(KERN_ERR, SCp, "has max tag depth %d\n",
+		       NCR_700_get_depth(SCp->device));
 		return SCSI_MLQUEUE_DEVICE_BUSY;
 	}
 	NCR_700_set_depth(SCp->device, NCR_700_get_depth(SCp->device) + 1);
@@ -1796,10 +1799,10 @@ NCR_700_queuecommand(struct scsi_cmnd *SCp, void (*done)(struct scsi_cmnd *))
 	scsi_print_command(SCp);
 #endif
 	if(blk_rq_tagged(SCp->request)
-	   && (hostdata->tag_negotiated &(1<<SCp->device->id)) == 0
+	   && (hostdata->tag_negotiated &(1<<scmd_id(SCp))) == 0
 	   && NCR_700_get_tag_neg_state(SCp->device) == NCR_700_START_TAG_NEGOTIATION) {
-		printk(KERN_ERR "scsi%d: (%d:%d) Enabling Tag Command Queuing\n", SCp->device->host->host_no, SCp->device->id, SCp->device->lun);
-		hostdata->tag_negotiated |= (1<<SCp->device->id);
+		scmd_printk(KERN_ERR, SCp, "Enabling Tag Command Queuing\n");
+		hostdata->tag_negotiated |= (1<<scmd_id(SCp));
 		NCR_700_set_tag_neg_state(SCp->device, NCR_700_DURING_TAG_NEGOTIATION);
 	}
 
@@ -1810,17 +1813,16 @@ NCR_700_queuecommand(struct scsi_cmnd *SCp, void (*done)(struct scsi_cmnd *))
 	 * FIXME: This will royally screw up on multiple LUN devices
 	 * */
 	if(!blk_rq_tagged(SCp->request)
-	   && (hostdata->tag_negotiated &(1<<SCp->device->id))) {
-		printk(KERN_INFO "scsi%d: (%d:%d) Disabling Tag Command Queuing\n", SCp->device->host->host_no, SCp->device->id, SCp->device->lun);
-		hostdata->tag_negotiated &= ~(1<<SCp->device->id);
+	   && (hostdata->tag_negotiated &(1<<scmd_id(SCp)))) {
+		scmd_printk(KERN_INFO, SCp, "Disabling Tag Command Queuing\n");
+		hostdata->tag_negotiated &= ~(1<<scmd_id(SCp));
 	}
 
-	if((hostdata->tag_negotiated &(1<<SCp->device->id))
+	if((hostdata->tag_negotiated &(1<<scmd_id(SCp)))
 	   && scsi_get_tag_type(SCp->device)) {
 		slot->tag = SCp->request->tag;
-		DEBUG(("53c700 %d:%d:%d, sending out tag %d, slot %p\n",
-		       SCp->device->host->host_no, SCp->device->id, SCp->device->lun, slot->tag,
-		       slot));
+		CDEBUG(KERN_DEBUG, SCp, "sending out tag %d, slot %p\n",
+		       slot->tag, slot);
 	} else {
 		slot->tag = SCSI_NO_TAG;
 		/* must populate current_cmnd for scsi_find_tag to work */
@@ -1920,8 +1922,8 @@ NCR_700_abort(struct scsi_cmnd * SCp)
 {
 	struct NCR_700_command_slot *slot;
 
-	printk(KERN_INFO "scsi%d (%d:%d) New error handler wants to abort command\n\t",
-	       SCp->device->host->host_no, SCp->device->id, SCp->device->lun);
+	scmd_printk(KERN_INFO, SCp,
+		"New error handler wants to abort command\n\t");
 	scsi_print_command(SCp);
 
 	slot = (struct NCR_700_command_slot *)SCp->host_scribble;
@@ -1954,8 +1956,8 @@ NCR_700_bus_reset(struct scsi_cmnd * SCp)
 	struct NCR_700_Host_Parameters *hostdata = 
 		(struct NCR_700_Host_Parameters *)SCp->device->host->hostdata[0];
 
-	printk(KERN_INFO "scsi%d (%d:%d) New error handler wants BUS reset, cmd %p\n\t",
-	       SCp->device->host->host_no, SCp->device->id, SCp->device->lun, SCp);
+	scmd_printk(KERN_INFO, SCp,
+		"New error handler wants BUS reset, cmd %p\n\t", SCp);
 	scsi_print_command(SCp);
 
 	/* In theory, eh_complete should always be null because the
@@ -1987,8 +1989,7 @@ NCR_700_bus_reset(struct scsi_cmnd * SCp)
 STATIC int
 NCR_700_host_reset(struct scsi_cmnd * SCp)
 {
-	printk(KERN_INFO "scsi%d (%d:%d) New error handler wants HOST reset\n\t",
-	       SCp->device->host->host_no, SCp->device->id, SCp->device->lun);
+	scmd_printk(KERN_INFO, SCp, "New error handler wants HOST reset\n\t");
 	scsi_print_command(SCp);
 
 	spin_lock_irq(SCp->device->host->host_lock);
@@ -2110,7 +2111,7 @@ static int NCR_700_change_queue_type(struct scsi_device *SDp, int tag_type)
 		/* shift back to the default unqueued number of commands
 		 * (the user can still raise this) */
 		scsi_deactivate_tcq(SDp, SDp->host->cmd_per_lun);
-		hostdata->tag_negotiated &= ~(1 << SDp->id);
+		hostdata->tag_negotiated &= ~(1 << sdev_id(SDp));
 	} else {
 		/* Here, we cleared the negotiation flag above, so this
 		 * will force the driver to renegotiate */

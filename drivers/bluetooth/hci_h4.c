@@ -1,33 +1,27 @@
-/* 
-   BlueZ - Bluetooth protocol stack for Linux
-   Copyright (C) 2000-2001 Qualcomm Incorporated
-
-   Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 as
-   published by the Free Software Foundation;
-
-   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
-   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
-   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
-   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
-   OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
-   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
-   SOFTWARE IS DISCLAIMED.
-*/
-
 /*
- * Bluetooth HCI UART(H4) protocol.
  *
- * $Id: hci_h4.c,v 1.3 2002/09/09 01:17:32 maxk Exp $    
+ *  Bluetooth HCI UART driver
+ *
+ *  Copyright (C) 2000-2001  Qualcomm Incorporated
+ *  Copyright (C) 2002-2003  Maxim Krasnyansky <maxk@qualcomm.com>
+ *  Copyright (C) 2004-2005  Marcel Holtmann <marcel@holtmann.org>
+ *
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
  */
-#define VERSION "1.2"
 
 #include <linux/config.h>
 #include <linux/module.h>
@@ -51,24 +45,41 @@
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
+
 #include "hci_uart.h"
-#include "hci_h4.h"
 
 #ifndef CONFIG_BT_HCIUART_DEBUG
 #undef  BT_DBG
 #define BT_DBG( A... )
 #endif
 
+#define VERSION "1.2"
+
+struct h4_struct {
+	unsigned long rx_state;
+	unsigned long rx_count;
+	struct sk_buff *rx_skb;
+	struct sk_buff_head txq;
+};
+
+/* H4 receiver States */
+#define H4_W4_PACKET_TYPE	0
+#define H4_W4_EVENT_HDR		1
+#define H4_W4_ACL_HDR		2
+#define H4_W4_SCO_HDR		3
+#define H4_W4_DATA		4
+
 /* Initialize protocol */
 static int h4_open(struct hci_uart *hu)
 {
 	struct h4_struct *h4;
-	
+
 	BT_DBG("hu %p", hu);
-	
+
 	h4 = kmalloc(sizeof(*h4), GFP_ATOMIC);
 	if (!h4)
 		return -ENOMEM;
+
 	memset(h4, 0, sizeof(*h4));
 
 	skb_queue_head_init(&h4->txq);
@@ -83,7 +94,9 @@ static int h4_flush(struct hci_uart *hu)
 	struct h4_struct *h4 = hu->priv;
 
 	BT_DBG("hu %p", hu);
+
 	skb_queue_purge(&h4->txq);
+
 	return 0;
 }
 
@@ -91,16 +104,19 @@ static int h4_flush(struct hci_uart *hu)
 static int h4_close(struct hci_uart *hu)
 {
 	struct h4_struct *h4 = hu->priv;
+
 	hu->priv = NULL;
 
 	BT_DBG("hu %p", hu);
 
 	skb_queue_purge(&h4->txq);
+
 	if (h4->rx_skb)
 		kfree_skb(h4->rx_skb);
 
 	hu->priv = NULL;
 	kfree(h4);
+
 	return 0;
 }
 
@@ -114,6 +130,7 @@ static int h4_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	/* Prepend skb with frame type */
 	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
 	skb_queue_tail(&h4->txq, skb);
+
 	return 0;
 }
 
@@ -122,6 +139,7 @@ static inline int h4_check_data_len(struct h4_struct *h4, int len)
 	register int room = skb_tailroom(h4->rx_skb);
 
 	BT_DBG("len %d room %d", len, room);
+
 	if (!len) {
 		hci_recv_frame(h4->rx_skb);
 	} else if (len > room) {
@@ -136,6 +154,7 @@ static inline int h4_check_data_len(struct h4_struct *h4, int len)
 	h4->rx_state = H4_W4_PACKET_TYPE;
 	h4->rx_skb   = NULL;
 	h4->rx_count = 0;
+
 	return 0;
 }
 
@@ -228,6 +247,7 @@ static int h4_recv(struct hci_uart *hu, void *data, int count)
 			ptr++; count--;
 			continue;
 		};
+
 		ptr++; count--;
 
 		/* Allocate packet */
@@ -238,9 +258,11 @@ static int h4_recv(struct hci_uart *hu, void *data, int count)
 			h4->rx_count = 0;
 			return 0;
 		}
+
 		h4->rx_skb->dev = (void *) hu->hdev;
 		bt_cb(h4->rx_skb)->pkt_type = type;
 	}
+
 	return count;
 }
 
@@ -251,23 +273,24 @@ static struct sk_buff *h4_dequeue(struct hci_uart *hu)
 }
 
 static struct hci_uart_proto h4p = {
-	.id      = HCI_UART_H4,
-	.open    = h4_open,
-	.close   = h4_close,
-	.recv    = h4_recv,
-	.enqueue = h4_enqueue,
-	.dequeue = h4_dequeue,
-	.flush   = h4_flush,
+	.id		= HCI_UART_H4,
+	.open		= h4_open,
+	.close		= h4_close,
+	.recv		= h4_recv,
+	.enqueue	= h4_enqueue,
+	.dequeue	= h4_dequeue,
+	.flush		= h4_flush,
 };
-	      
+
 int h4_init(void)
 {
 	int err = hci_uart_register_proto(&h4p);
+
 	if (!err)
 		BT_INFO("HCI H4 protocol initialized");
 	else
 		BT_ERR("HCI H4 protocol registration failed");
-	
+
 	return err;
 }
 

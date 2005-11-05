@@ -1,0 +1,33 @@
+
+config PPC_SPLPAR
+	depends on PPC_PSERIES
+	bool "Support for shared-processor logical partitions"
+	default n
+	help
+	  Enabling this option will make the kernel run more efficiently
+	  on logically-partitioned pSeries systems which use shared
+	  processors, that is, which share physical processors between
+	  two or more partitions.
+
+config HMT
+	bool "Hardware multithreading"
+	depends on SMP && PPC_PSERIES && BROKEN
+	help
+	  This option enables hardware multithreading on RS64 cpus.
+	  pSeries systems p620 and p660 have such a cpu type.
+
+config EEH
+	bool "PCI Extended Error Handling (EEH)" if EMBEDDED
+	depends on PPC_PSERIES
+	default y if !EMBEDDED
+
+config SCANLOG
+	tristate "Scanlog dump interface"
+	depends on RTAS_PROC && PPC_PSERIES
+
+config LPARCFG
+	tristate "LPAR Configuration Data"
+	depends on PPC_PSERIES || PPC_ISERIES
+	help
+	Provide system capacity information via human readable
+	<key word>=<value> pairs through a /proc/ppc64/lparcfg interface.

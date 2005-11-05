@@ -8,6 +8,7 @@
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  */
 #include <linux/config.h>
+#include <linux/cache.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/personality.h>
@@ -21,6 +22,7 @@
 #include <linux/unistd.h>
 #include <linux/compiler.h>
 
+#include <asm/abi.h>
 #include <asm/asm.h>
 #include <linux/bitops.h>
 #include <asm/cacheflush.h>
@@ -29,6 +31,7 @@
 #include <asm/uaccess.h>
 #include <asm/ucontext.h>
 #include <asm/cpu-features.h>
+#include <asm/war.h>
 
 #include "signal-common.h"
 
@@ -36,7 +39,7 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-static int do_signal(sigset_t *oldset, struct pt_regs *regs);
+int do_signal(sigset_t *oldset, struct pt_regs *regs);
 
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
@@ -47,9 +50,10 @@ save_static_function(sys_sigsuspend);
 __attribute_used__ noinline static int
 _sys_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
-	sigset_t *uset, saveset, newset;
+	sigset_t saveset, newset;
+	sigset_t __user *uset;
 
-	uset = (sigset_t *) regs.regs[4];
+	uset = (sigset_t __user *) regs.regs[4];
 	if (copy_from_user(&newset, uset, sizeof(sigset_t)))
 		return -EFAULT;
 	sigdelsetmask(&newset, ~_BLOCKABLE);
@@ -75,7 +79,8 @@ save_static_function(sys_rt_sigsuspend);
 __attribute_used__ noinline static int
 _sys_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 {
-	sigset_t *unewset, saveset, newset;
+	sigset_t saveset, newset;
+	sigset_t __user *unewset;
 	size_t sigsetsize;
 
 	/* XXX Don't preclude handling different sized sigset_t's.  */
@@ -83,7 +88,7 @@ _sys_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	if (sigsetsize != sizeof(sigset_t))
 		return -EINVAL;
 
-	unewset = (sigset_t *) regs.regs[4];
+	unewset = (sigset_t __user *) regs.regs[4];
 	if (copy_from_user(&newset, unewset, sizeof(newset)))
 		return -EFAULT;
 	sigdelsetmask(&newset, ~_BLOCKABLE);
@@ -147,33 +152,46 @@ asmlinkage int sys_sigaction(int sig, const struct sigaction *act,
 
 asmlinkage int sys_sigaltstack(nabi_no_regargs struct pt_regs regs)
 {
-	const stack_t *uss = (const stack_t *) regs.regs[4];
-	stack_t *uoss = (stack_t *) regs.regs[5];
+	const stack_t __user *uss = (const stack_t __user *) regs.regs[4];
+	stack_t __user *uoss = (stack_t __user *) regs.regs[5];
 	unsigned long usp = regs.regs[29];
 
 	return do_sigaltstack(uss, uoss, usp);
 }
 
-#if PLAT_TRAMPOLINE_STUFF_LINE
-#define __tramp __attribute__((aligned(PLAT_TRAMPOLINE_STUFF_LINE)))
-#else
-#define __tramp
-#endif
-
+/*
+ * Horribly complicated - with the bloody RM9000 workarounds enabled
+ * the signal trampolines is moving to the end of the structure so we can
+ * increase the alignment without breaking software compatibility.
+ */
 #ifdef CONFIG_TRAD_SIGNALS
 struct sigframe {
 	u32 sf_ass[4];			/* argument save space for o32 */
-	u32 sf_code[2] __tramp;		/* signal trampoline */
-	struct sigcontext sf_sc __tramp;
+#if ICACHE_REFILLS_WORKAROUND_WAR
+	u32 sf_pad[2];
+#else
+	u32 sf_code[2];			/* signal trampoline */
+#endif
+	struct sigcontext sf_sc;
 	sigset_t sf_mask;
+#if ICACHE_REFILLS_WORKAROUND_WAR
+	u32 sf_code[8] ____cacheline_aligned;	/* signal trampoline */
+#endif
 };
 #endif
 
 struct rt_sigframe {
 	u32 rs_ass[4];			/* argument save space for o32 */
-	u32 rs_code[2] __tramp;		/* signal trampoline */
-	struct siginfo rs_info __tramp;
+#if ICACHE_REFILLS_WORKAROUND_WAR
+	u32 rs_pad[2];
+#else
+	u32 rs_code[2];			/* signal trampoline */
+#endif
+	struct siginfo rs_info;
 	struct ucontext rs_uc;
+#if ICACHE_REFILLS_WORKAROUND_WAR
+	u32 rs_code[8] ____cacheline_aligned;	/* signal trampoline */
+#endif
 };
 
 #ifdef CONFIG_TRAD_SIGNALS
@@ -214,7 +232,7 @@ _sys_sigreturn(nabi_no_regargs struct pt_regs regs)
 badframe:
 	force_sig(SIGSEGV, current);
 }
-#endif
+#endif /* CONFIG_TRAD_SIGNALS */
 
 save_static_function(sys_rt_sigreturn);
 __attribute_used__ noinline static void
@@ -260,7 +278,7 @@ badframe:
 }
 
 #ifdef CONFIG_TRAD_SIGNALS
-static void inline setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
+int setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set)
 {
 	struct sigframe *frame;
@@ -270,17 +288,7 @@ static void inline setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		goto give_sigsegv;
 
-	/*
-	 * Set up the return code ...
-	 *
-	 *         li      v0, __NR_sigreturn
-	 *         syscall
-	 */
-	if (PLAT_TRAMPOLINE_STUFF_LINE)
-		__clear_user(frame->sf_code, PLAT_TRAMPOLINE_STUFF_LINE);
-	err |= __put_user(0x24020000 + __NR_sigreturn, frame->sf_code + 0);
-	err |= __put_user(0x0000000c                 , frame->sf_code + 1);
-	flush_cache_sigtramp((unsigned long) frame->sf_code);
+	install_sigtramp(frame->sf_code, __NR_sigreturn);
 
 	err |= setup_sigcontext(regs, &frame->sf_sc);
 	err |= __copy_to_user(&frame->sf_mask, set, sizeof(*set));
@@ -309,14 +317,15 @@ static void inline setup_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, frame->regs[31]);
 #endif
-        return;
+        return 1;
 
 give_sigsegv:
 	force_sigsegv(signr, current);
+	return 0;
 }
 #endif
 
-static void inline setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
+int setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	int signr, sigset_t *set, siginfo_t *info)
 {
 	struct rt_sigframe *frame;
@@ -326,17 +335,7 @@ static void inline setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof (*frame)))
 		goto give_sigsegv;
 
-	/*
-	 * Set up the return code ...
-	 *
-	 *         li      v0, __NR_rt_sigreturn
-	 *         syscall
-	 */
-	if (PLAT_TRAMPOLINE_STUFF_LINE)
-		__clear_user(frame->rs_code, PLAT_TRAMPOLINE_STUFF_LINE);
-	err |= __put_user(0x24020000 + __NR_rt_sigreturn, frame->rs_code + 0);
-	err |= __put_user(0x0000000c                    , frame->rs_code + 1);
-	flush_cache_sigtramp((unsigned long) frame->rs_code);
+	install_sigtramp(frame->rs_code, __NR_rt_sigreturn);
 
 	/* Create siginfo.  */
 	err |= copy_siginfo_to_user(&frame->rs_info, info);
@@ -378,18 +377,21 @@ static void inline setup_rt_frame(struct k_sigaction * ka, struct pt_regs *regs,
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, regs->regs[31]);
 #endif
-	return;
+	return 1;
 
 give_sigsegv:
 	force_sigsegv(signr, current);
+	return 0;
 }
 
 extern void setup_rt_frame_n32(struct k_sigaction * ka,
 	struct pt_regs *regs, int signr, sigset_t *set, siginfo_t *info);
 
-static inline void handle_signal(unsigned long sig, siginfo_t *info,
+static inline int handle_signal(unsigned long sig, siginfo_t *info,
 	struct k_sigaction *ka, sigset_t *oldset, struct pt_regs *regs)
 {
+	int ret;
+
 	switch(regs->regs[0]) {
 	case ERESTART_RESTARTBLOCK:
 	case ERESTARTNOHAND:
@@ -408,22 +410,10 @@ static inline void handle_signal(unsigned long sig, siginfo_t *info,
 
 	regs->regs[0] = 0;		/* Don't deal with this again.  */
 
-#ifdef CONFIG_TRAD_SIGNALS
-	if (ka->sa.sa_flags & SA_SIGINFO) {
-#else
-	if (1) {
-#endif
-#ifdef CONFIG_MIPS32_N32
-		if ((current->thread.mflags & MF_ABI_MASK) == MF_N32)
-			setup_rt_frame_n32 (ka, regs, sig, oldset, info);
-		else
-#endif
-			setup_rt_frame(ka, regs, sig, oldset, info);
-	}
-#ifdef CONFIG_TRAD_SIGNALS
+	if (sig_uses_siginfo(ka))
+		ret = current->thread.abi->setup_rt_frame(ka, regs, sig, oldset, info);
 	else
-		setup_frame(ka, regs, sig, oldset);
-#endif
+		ret = current->thread.abi->setup_frame(ka, regs, sig, oldset);
 
 	spin_lock_irq(&current->sighand->siglock);
 	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
@@ -431,22 +421,15 @@ static inline void handle_signal(unsigned long sig, siginfo_t *info,
 		sigaddset(&current->blocked,sig);
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
+
+	return ret;
 }
 
-extern int do_signal32(sigset_t *oldset, struct pt_regs *regs);
-extern int do_irix_signal(sigset_t *oldset, struct pt_regs *regs);
-
-static int do_signal(sigset_t *oldset, struct pt_regs *regs)
+int do_signal(sigset_t *oldset, struct pt_regs *regs)
 {
 	struct k_sigaction ka;
 	siginfo_t info;
 	int signr;
-
-#ifdef CONFIG_BINFMT_ELF32
-	if ((current->thread.mflags & MF_ABI_MASK) == MF_O32) {
-		return do_signal32(oldset, regs);
-	}
-#endif
 
 	/*
 	 * We want the common case to go fast, which is why we may in certain
@@ -463,10 +446,8 @@ static int do_signal(sigset_t *oldset, struct pt_regs *regs)
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
-	if (signr > 0) {
-		handle_signal(signr, &info, &ka, oldset, regs);
-		return 1;
-	}
+	if (signr > 0)
+		return handle_signal(signr, &info, &ka, oldset, regs);
 
 no_signal:
 	/*
@@ -499,18 +480,6 @@ asmlinkage void do_notify_resume(struct pt_regs *regs, sigset_t *oldset,
 {
 	/* deal with pending signal delivery */
 	if (thread_info_flags & _TIF_SIGPENDING) {
-#ifdef CONFIG_BINFMT_ELF32
-		if (likely((current->thread.mflags & MF_ABI_MASK) == MF_O32)) {
-			do_signal32(oldset, regs);
-			return;
-		}
-#endif
-#ifdef CONFIG_BINFMT_IRIX
-		if (unlikely(current->personality != PER_LINUX)) {
-			do_irix_signal(oldset, regs);
-			return;
-		}
-#endif
-		do_signal(oldset, regs);
+		current->thread.abi->do_signal(oldset, regs);
 	}
 }

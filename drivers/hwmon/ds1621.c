@@ -180,12 +180,14 @@ static DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO, show_temp_max, set_temp_max);
 
 static int ds1621_attach_adapter(struct i2c_adapter *adapter)
 {
+	if (!(adapter->class & I2C_CLASS_HWMON))
+		return 0;
 	return i2c_probe(adapter, &addr_data, ds1621_detect);
 }
 
 /* This function is called by i2c_probe */
-int ds1621_detect(struct i2c_adapter *adapter, int address,
-                  int kind)
+static int ds1621_detect(struct i2c_adapter *adapter, int address,
+			 int kind)
 {
 	int conf, temp;
 	struct i2c_client *new_client;
@@ -200,11 +202,10 @@ int ds1621_detect(struct i2c_adapter *adapter, int address,
 	/* OK. For now, we presume we have a valid client. We now create the
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access ds1621_{read,write}_value. */
-	if (!(data = kmalloc(sizeof(struct ds1621_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct ds1621_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct ds1621_data));
 	
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);

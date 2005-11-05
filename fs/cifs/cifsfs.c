@@ -59,6 +59,8 @@ unsigned int ntlmv2_support = 0;
 unsigned int sign_CIFS_PDUs = 1;
 extern struct task_struct * oplockThread; /* remove sparse warning */
 struct task_struct * oplockThread = NULL;
+extern struct task_struct * dnotifyThread; /* remove sparse warning */
+struct task_struct * dnotifyThread = NULL;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, int, 0);
 MODULE_PARM_DESC(CIFSMaxBufSize,"Network buffer size (not including header). Default: 16384 Range: 8192 to 130048");
@@ -73,6 +75,7 @@ module_param(cifs_max_pending, int, 0);
 MODULE_PARM_DESC(cifs_max_pending,"Simultaneous requests to server. Default: 50 Range: 2 to 256");
 
 static DECLARE_COMPLETION(cifs_oplock_exited);
+static DECLARE_COMPLETION(cifs_dnotify_exited);
 
 extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
@@ -202,6 +205,10 @@ cifs_statfs(struct super_block *sb, struct kstatfs *buf)
 #endif /* CIFS_EXPERIMENTAL */
 	rc = CIFSSMBQFSInfo(xid, pTcon, buf);
 
+	/* Old Windows servers do not support level 103, retry with level 
+	   one if old server failed the previous call */ 
+	if(rc)
+		rc = SMBOldQFSInfo(xid, pTcon, buf);
 	/*     
 	   int f_type;
 	   __fsid_t f_fsid;
@@ -253,7 +260,7 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->clientCanCacheAll = FALSE;
 	cifs_inode->vfs_inode.i_blksize = CIFS_MAX_MSGSIZE;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
-
+	cifs_inode->vfs_inode.i_flags = S_NOATIME | S_NOCMTIME;
 	INIT_LIST_HEAD(&cifs_inode->openFileList);
 	return &cifs_inode->vfs_inode;
 }
@@ -398,6 +405,34 @@ static struct quotactl_ops cifs_quotactl_ops = {
 };
 #endif
 
+static void cifs_umount_begin(struct super_block * sblock)
+{
+	struct cifs_sb_info *cifs_sb;
+	struct cifsTconInfo * tcon;
+
+	cifs_sb = CIFS_SB(sblock);
+	if(cifs_sb == NULL)
+		return;
+
+	tcon = cifs_sb->tcon;
+	if(tcon == NULL)
+		return;
+	down(&tcon->tconSem);
+	if (atomic_read(&tcon->useCount) == 1)
+		tcon->tidStatus = CifsExiting;
+	up(&tcon->tconSem);
+
+	if(tcon->ses && tcon->ses->server)
+	{
+		cERROR(1,("wake up tasks now - umount begin not complete"));
+		wake_up_all(&tcon->ses->server->request_q);
+	}
+/* BB FIXME - finish add checks for tidStatus BB */
+
+	return;
+}
+	
+
 static int cifs_remount(struct super_block *sb, int *flags, char *data)
 {
 	*flags |= MS_NODIRATIME;
@@ -415,7 +450,7 @@ struct super_operations cifs_super_ops = {
    unless later we add lazy close of inodes or unless the kernel forgets to call
    us with the same number of releases (closes) as opens */
 	.show_options = cifs_show_options,
-/*    .umount_begin   = cifs_umount_begin, *//* consider adding in the future */
+/*	.umount_begin   = cifs_umount_begin, */ /* BB finish in the future */
 	.remount_fs = cifs_remount,
 };
 
@@ -783,9 +818,7 @@ static int cifs_oplock_thread(void * dummyarg)
 	do {
 		if (try_to_freeze()) 
 			continue;
-		set_current_state(TASK_INTERRUPTIBLE);
 		
-		schedule_timeout(1*HZ);  
 		spin_lock(&GlobalMid_Lock);
 		if(list_empty(&GlobalOplock_Q)) {
 			spin_unlock(&GlobalMid_Lock);
@@ -834,10 +867,27 @@ static int cifs_oplock_thread(void * dummyarg)
 				}
 			} else
 				spin_unlock(&GlobalMid_Lock);
+			set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(1);  /* yield in case q were corrupt */
 		}
 	} while(!signal_pending(current));
-	complete_and_exit (&cifs_oplock_exited, 0);
 	oplockThread = NULL;
+	complete_and_exit (&cifs_oplock_exited, 0);
+}
+
+static int cifs_dnotify_thread(void * dummyarg)
+{
+	daemonize("cifsdnotifyd");
+	allow_signal(SIGTERM);
+
+	dnotifyThread = current;
+	do {
+		if(try_to_freeze())
+			continue;
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(39*HZ);
+	} while(!signal_pending(current));
+	complete_and_exit (&cifs_dnotify_exited, 0);
 }
 
 static int __init
@@ -851,6 +901,10 @@ init_cifs(void)
 	INIT_LIST_HEAD(&GlobalSMBSessionList);
 	INIT_LIST_HEAD(&GlobalTreeConnectionList);
 	INIT_LIST_HEAD(&GlobalOplock_Q);
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	INIT_LIST_HEAD(&GlobalDnotifyReqList);
+	INIT_LIST_HEAD(&GlobalDnotifyRsp_Q);
+#endif	
 /*
  *  Initialize Global counters
  */
@@ -886,10 +940,16 @@ init_cifs(void)
 				if (!rc) {                
 					rc = (int)kernel_thread(cifs_oplock_thread, NULL, 
 						CLONE_FS | CLONE_FILES | CLONE_VM);
-					if(rc > 0)
-						return 0;
-					else 
+					if(rc > 0) {
+						rc = (int)kernel_thread(cifs_dnotify_thread, NULL,
+							CLONE_FS | CLONE_FILES | CLONE_VM);
+						if(rc > 0)
+							return 0;
+						else
+							cERROR(1,("error %d create dnotify thread", rc));
+					} else {
 						cERROR(1,("error %d create oplock thread",rc));
+					}
 				}
 				cifs_destroy_request_bufs();
 			}
@@ -917,6 +977,10 @@ exit_cifs(void)
 	if(oplockThread) {
 		send_sig(SIGTERM, oplockThread, 1);
 		wait_for_completion(&cifs_oplock_exited);
+	}
+	if(dnotifyThread) {
+		send_sig(SIGTERM, dnotifyThread, 1);
+		wait_for_completion(&cifs_dnotify_exited);
 	}
 }
 

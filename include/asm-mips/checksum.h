@@ -34,8 +34,9 @@ unsigned int csum_partial(const unsigned char *buff, int len, unsigned int sum);
  * this is a new version of the above that records errors it finds in *errp,
  * but continues and zeros the rest of the buffer.
  */
-unsigned int csum_partial_copy_from_user(const unsigned char *src, unsigned char *dst, int len,
-                                         unsigned int sum, int *errp);
+unsigned int csum_partial_copy_from_user(const unsigned char __user *src,
+					 unsigned char *dst, int len,
+					 unsigned int sum, int *errp);
 
 /*
  * Copy and checksum to user
@@ -70,14 +71,15 @@ unsigned int csum_partial_copy_nocheck(const unsigned char *src, unsigned char *
 static inline unsigned short int csum_fold(unsigned int sum)
 {
 	__asm__(
-	".set\tnoat\t\t\t# csum_fold\n\t"
-	"sll\t$1,%0,16\n\t"
-	"addu\t%0,$1\n\t"
-	"sltu\t$1,%0,$1\n\t"
-	"srl\t%0,%0,16\n\t"
-	"addu\t%0,$1\n\t"
-	"xori\t%0,0xffff\n\t"
-	".set\tat"
+	"	.set	push		# csum_fold\n"
+	"	.set	noat		\n"
+	"	sll	$1, %0, 16	\n"
+	"	addu	%0, $1		\n"
+	"	sltu	$1, %0, $1	\n"
+	"	srl	%0, %0, 16	\n"
+	"	addu	%0, $1		\n"
+	"	xori	%0, 0xffff	\n"
+	"	.set	pop"
 	: "=r" (sum)
 	: "0" (sum));
 
@@ -127,29 +129,30 @@ static inline unsigned int csum_tcpudp_nofold(unsigned long saddr,
 	unsigned int sum)
 {
 	__asm__(
-	".set\tnoat\t\t\t# csum_tcpudp_nofold\n\t"
+	"	.set	push		# csum_tcpudp_nofold\n"
+	"	.set	noat		\n"
 #ifdef CONFIG_32BIT
-	"addu\t%0, %2\n\t"
-	"sltu\t$1, %0, %2\n\t"
-	"addu\t%0, $1\n\t"
+	"	addu	%0, %2		\n"
+	"	sltu	$1, %0, %2	\n"
+	"	addu	%0, $1		\n"
 
-	"addu\t%0, %3\n\t"
-	"sltu\t$1, %0, %3\n\t"
-	"addu\t%0, $1\n\t"
+	"	addu	%0, %3		\n"
+	"	sltu	$1, %0, %3	\n"
+	"	addu	%0, $1		\n"
 
-	"addu\t%0, %4\n\t"
-	"sltu\t$1, %0, %4\n\t"
-	"addu\t%0, $1\n\t"
+	"	addu	%0, %4		\n"
+	"	sltu	$1, %0, %4	\n"
+	"	addu	%0, $1		\n"
 #endif
 #ifdef CONFIG_64BIT
-	"daddu\t%0, %2\n\t"
-	"daddu\t%0, %3\n\t"
-	"daddu\t%0, %4\n\t"
-	"dsll32\t$1, %0, 0\n\t"
-	"daddu\t%0, $1\n\t"
-	"dsrl32\t%0, %0, 0\n\t"
+	"	daddu	%0, %2		\n"
+	"	daddu	%0, %3		\n"
+	"	daddu	%0, %4		\n"
+	"	dsll32	$1, %0, 0	\n"
+	"	daddu	%0, $1		\n"
+	"	dsra32	%0, %0, 0	\n"
 #endif
-	".set\tat"
+	"	.set	pop"
 	: "=r" (sum)
 	: "0" (daddr), "r"(saddr),
 #ifdef __MIPSEL__
@@ -192,57 +195,57 @@ static __inline__ unsigned short int csum_ipv6_magic(struct in6_addr *saddr,
 						     unsigned int sum)
 {
 	__asm__(
-	".set\tpush\t\t\t# csum_ipv6_magic\n\t"
-	".set\tnoreorder\n\t"
-	".set\tnoat\n\t"
-	"addu\t%0, %5\t\t\t# proto (long in network byte order)\n\t"
-	"sltu\t$1, %0, %5\n\t"
-	"addu\t%0, $1\n\t"
+	"	.set	push		# csum_ipv6_magic\n"
+	"	.set	noreorder	\n"
+	"	.set	noat		\n"
+	"	addu	%0, %5		# proto (long in network byte order)\n"
+	"	sltu	$1, %0, %5	\n"
+	"	addu	%0, $1		\n"
 
-	"addu\t%0, %6\t\t\t# csum\n\t"
-	"sltu\t$1, %0, %6\n\t"
-	"lw\t%1, 0(%2)\t\t\t# four words source address\n\t"
-	"addu\t%0, $1\n\t"
-	"addu\t%0, %1\n\t"
-	"sltu\t$1, %0, %1\n\t"
+	"	addu	%0, %6		# csum\n"
+	"	sltu	$1, %0, %6	\n"
+	"	lw	%1, 0(%2)	# four words source address\n"
+	"	addu	%0, $1		\n"
+	"	addu	%0, %1		\n"
+	"	sltu	$1, %0, %1	\n"
 
-	"lw\t%1, 4(%2)\n\t"
-	"addu\t%0, $1\n\t"
-	"addu\t%0, %1\n\t"
-	"sltu\t$1, %0, %1\n\t"
+	"	lw	%1, 4(%2)	\n"
+	"	addu	%0, $1		\n"
+	"	addu	%0, %1		\n"
+	"	sltu	$1, %0, %1	\n"
 
-	"lw\t%1, 8(%2)\n\t"
-	"addu\t%0, $1\n\t"
-	"addu\t%0, %1\n\t"
-	"sltu\t$1, %0, %1\n\t"
+	"	lw	%1, 8(%2)	\n"
+	"	addu	%0, $1		\n"
+	"	addu	%0, %1		\n"
+	"	sltu	$1, %0, %1	\n"
 
-	"lw\t%1, 12(%2)\n\t"
-	"addu\t%0, $1\n\t"
-	"addu\t%0, %1\n\t"
-	"sltu\t$1, %0, %1\n\t"
+	"	lw	%1, 12(%2)	\n"
+	"	addu	%0, $1		\n"
+	"	addu	%0, %1		\n"
+	"	sltu	$1, %0, %1	\n"
 
-	"lw\t%1, 0(%3)\n\t"
-	"addu\t%0, $1\n\t"
-	"addu\t%0, %1\n\t"
-	"sltu\t$1, %0, %1\n\t"
+	"	lw	%1, 0(%3)	\n"
+	"	addu	%0, $1		\n"
+	"	addu	%0, %1		\n"
+	"	sltu	$1, %0, %1	\n"
 
-	"lw\t%1, 4(%3)\n\t"
-	"addu\t%0, $1\n\t"
-	"addu\t%0, %1\n\t"
-	"sltu\t$1, %0, %1\n\t"
+	"	lw	%1, 4(%3)	\n"
+	"	addu	%0, $1		\n"
+	"	addu	%0, %1		\n"
+	"	sltu	$1, %0, %1	\n"
 
-	"lw\t%1, 8(%3)\n\t"
-	"addu\t%0, $1\n\t"
-	"addu\t%0, %1\n\t"
-	"sltu\t$1, %0, %1\n\t"
+	"	lw	%1, 8(%3)	\n"
+	"	addu	%0, $1		\n"
+	"	addu	%0, %1		\n"
+	"	sltu	$1, %0, %1	\n"
 
-	"lw\t%1, 12(%3)\n\t"
-	"addu\t%0, $1\n\t"
-	"addu\t%0, %1\n\t"
-	"sltu\t$1, %0, %1\n\t"
+	"	lw	%1, 12(%3)	\n"
+	"	addu	%0, $1		\n"
+	"	addu	%0, %1		\n"
+	"	sltu	$1, %0, %1	\n"
 
-	"addu\t%0, $1\t\t\t# Add final carry\n\t"
-	".set\tpop"
+	"	addu	%0, $1		# Add final carry\n"
+	"	.set	pop"
 	: "=r" (sum), "=r" (proto)
 	: "r" (saddr), "r" (daddr),
 	  "0" (htonl(len)), "1" (htonl(proto)), "r" (sum));

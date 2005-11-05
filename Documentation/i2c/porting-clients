@@ -82,7 +82,7 @@ Technical changes:
   exit and exit_free. For i2c+isa drivers, labels should be named
   ERROR0, ERROR1 and ERROR2. Don't forget to properly set err before
   jumping to error labels. By the way, labels should be left-aligned.
-  Use memset to fill the client and data area with 0x00.
+  Use kzalloc instead of kmalloc.
   Use i2c_set_clientdata to set the client data (as opposed to
   a direct access to client->data).
   Use strlcpy instead of strcpy to copy the client name.

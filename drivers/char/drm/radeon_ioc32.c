@@ -94,7 +94,7 @@ static int compat_radeon_cp_init(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_RADEON_CP_INIT, (unsigned long) init);
+			 DRM_IOCTL_RADEON_CP_INIT, (unsigned long)init);
 }
 
 typedef struct drm_radeon_clear32 {
@@ -102,8 +102,8 @@ typedef struct drm_radeon_clear32 {
 	unsigned int clear_color;
 	unsigned int clear_depth;
 	unsigned int color_mask;
-	unsigned int depth_mask;   /* misnamed field:  should be stencil */
-	u32	     depth_boxes;
+	unsigned int depth_mask;	/* misnamed field:  should be stencil */
+	u32 depth_boxes;
 } drm_radeon_clear32_t;
 
 static int compat_radeon_cp_clear(struct file *file, unsigned int cmd,
@@ -127,7 +127,7 @@ static int compat_radeon_cp_clear(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_RADEON_CLEAR, (unsigned long) clr);
+			 DRM_IOCTL_RADEON_CLEAR, (unsigned long)clr);
 }
 
 typedef struct drm_radeon_stipple32 {
@@ -137,7 +137,7 @@ typedef struct drm_radeon_stipple32 {
 static int compat_radeon_cp_stipple(struct file *file, unsigned int cmd,
 				    unsigned long arg)
 {
-	drm_radeon_stipple32_t __user *argp = (void __user *) arg;
+	drm_radeon_stipple32_t __user *argp = (void __user *)arg;
 	drm_radeon_stipple_t __user *request;
 	u32 mask;
 
@@ -146,16 +146,16 @@ static int compat_radeon_cp_stipple(struct file *file, unsigned int cmd,
 
 	request = compat_alloc_user_space(sizeof(*request));
 	if (!access_ok(VERIFY_WRITE, request, sizeof(*request))
-	    || __put_user((unsigned int __user *)(unsigned long) mask,
+	    || __put_user((unsigned int __user *)(unsigned long)mask,
 			  &request->mask))
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_RADEON_STIPPLE, (unsigned long) request);
+			 DRM_IOCTL_RADEON_STIPPLE, (unsigned long)request);
 }
 
 typedef struct drm_radeon_tex_image32 {
-	unsigned int x, y;		/* Blit coordinates */
+	unsigned int x, y;	/* Blit coordinates */
 	unsigned int width, height;
 	u32 data;
 } drm_radeon_tex_image32_t;
@@ -164,7 +164,7 @@ typedef struct drm_radeon_texture32 {
 	unsigned int offset;
 	int pitch;
 	int format;
-	int width;			/* Texture image coordinates */
+	int width;		/* Texture image coordinates */
 	int height;
 	u32 image;
 } drm_radeon_texture32_t;
@@ -177,7 +177,7 @@ static int compat_radeon_cp_texture(struct file *file, unsigned int cmd,
 	drm_radeon_tex_image32_t img32;
 	drm_radeon_tex_image_t __user *image;
 
-	if (copy_from_user(&req32, (void __user *) arg, sizeof(req32)))
+	if (copy_from_user(&req32, (void __user *)arg, sizeof(req32)))
 		return -EFAULT;
 	if (req32.image == 0)
 		return -EINVAL;
@@ -206,12 +206,12 @@ static int compat_radeon_cp_texture(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_RADEON_TEXTURE, (unsigned long) request);
+			 DRM_IOCTL_RADEON_TEXTURE, (unsigned long)request);
 }
 
 typedef struct drm_radeon_vertex2_32 {
-	int idx;			/* Index of vertex buffer */
-	int discard;			/* Client finished with buffer? */
+	int idx;		/* Index of vertex buffer */
+	int discard;		/* Client finished with buffer? */
 	int nr_states;
 	u32 state;
 	int nr_prims;
@@ -224,7 +224,7 @@ static int compat_radeon_cp_vertex2(struct file *file, unsigned int cmd,
 	drm_radeon_vertex2_32_t req32;
 	drm_radeon_vertex2_t __user *request;
 
-	if (copy_from_user(&req32, (void __user *) arg, sizeof(req32)))
+	if (copy_from_user(&req32, (void __user *)arg, sizeof(req32)))
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
@@ -240,7 +240,7 @@ static int compat_radeon_cp_vertex2(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_RADEON_VERTEX2, (unsigned long) request);
+			 DRM_IOCTL_RADEON_VERTEX2, (unsigned long)request);
 }
 
 typedef struct drm_radeon_cmd_buffer32 {
@@ -256,7 +256,7 @@ static int compat_radeon_cp_cmdbuf(struct file *file, unsigned int cmd,
 	drm_radeon_cmd_buffer32_t req32;
 	drm_radeon_cmd_buffer_t __user *request;
 
-	if (copy_from_user(&req32, (void __user *) arg, sizeof(req32)))
+	if (copy_from_user(&req32, (void __user *)arg, sizeof(req32)))
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
@@ -270,7 +270,7 @@ static int compat_radeon_cp_cmdbuf(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_RADEON_CMDBUF, (unsigned long) request);
+			 DRM_IOCTL_RADEON_CMDBUF, (unsigned long)request);
 }
 
 typedef struct drm_radeon_getparam32 {
@@ -284,7 +284,7 @@ static int compat_radeon_cp_getparam(struct file *file, unsigned int cmd,
 	drm_radeon_getparam32_t req32;
 	drm_radeon_getparam_t __user *request;
 
-	if (copy_from_user(&req32, (void __user *) arg, sizeof(req32)))
+	if (copy_from_user(&req32, (void __user *)arg, sizeof(req32)))
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
@@ -295,7 +295,7 @@ static int compat_radeon_cp_getparam(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_RADEON_GETPARAM, (unsigned long) request);
+			 DRM_IOCTL_RADEON_GETPARAM, (unsigned long)request);
 }
 
 typedef struct drm_radeon_mem_alloc32 {
@@ -311,7 +311,7 @@ static int compat_radeon_mem_alloc(struct file *file, unsigned int cmd,
 	drm_radeon_mem_alloc32_t req32;
 	drm_radeon_mem_alloc_t __user *request;
 
-	if (copy_from_user(&req32, (void __user *) arg, sizeof(req32)))
+	if (copy_from_user(&req32, (void __user *)arg, sizeof(req32)))
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
@@ -324,7 +324,7 @@ static int compat_radeon_mem_alloc(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_RADEON_ALLOC, (unsigned long) request);
+			 DRM_IOCTL_RADEON_ALLOC, (unsigned long)request);
 }
 
 typedef struct drm_radeon_irq_emit32 {
@@ -337,7 +337,7 @@ static int compat_radeon_irq_emit(struct file *file, unsigned int cmd,
 	drm_radeon_irq_emit32_t req32;
 	drm_radeon_irq_emit_t __user *request;
 
-	if (copy_from_user(&req32, (void __user *) arg, sizeof(req32)))
+	if (copy_from_user(&req32, (void __user *)arg, sizeof(req32)))
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
@@ -347,7 +347,7 @@ static int compat_radeon_irq_emit(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_RADEON_IRQ_EMIT, (unsigned long) request);
+			 DRM_IOCTL_RADEON_IRQ_EMIT, (unsigned long)request);
 }
 
 drm_ioctl_compat_t *radeon_compat_ioctls[] = {
@@ -371,8 +371,7 @@ drm_ioctl_compat_t *radeon_compat_ioctls[] = {
  * \param arg user argument.
  * \return zero on success or negative number on failure.
  */
-long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
-			 unsigned long arg)
+long radeon_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	unsigned int nr = DRM_IOCTL_NR(cmd);
 	drm_ioctl_compat_t *fn = NULL;
@@ -386,7 +385,7 @@ long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 
 	lock_kernel();		/* XXX for now */
 	if (fn != NULL)
-		ret = (*fn)(filp, cmd, arg);
+		ret = (*fn) (filp, cmd, arg);
 	else
 		ret = drm_ioctl(filp->f_dentry->d_inode, filp, cmd, arg);
 	unlock_kernel();

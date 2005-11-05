@@ -117,7 +117,9 @@
 #define PORT_M32R_SIO	68
 
 /*Digi jsm */
-#define PORT_JSM        65
+#define PORT_JSM        69
+
+#define PORT_IP3106	70
 
 #ifdef __KERNEL__
 

@@ -351,5 +351,10 @@ static inline long rwsem_atomic_update(long delta, struct rw_semaphore *sem)
 	return new;
 }
 
+static inline int rwsem_is_locked(struct rw_semaphore *sem)
+{
+	return (sem->count != 0);
+}
+
 #endif /* __KERNEL__ */
 #endif /* _S390_RWSEM_H */

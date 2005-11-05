@@ -11,6 +11,7 @@
 #include <linux/usb.h>
 #include <linux/debugfs.h>
 #include <linux/smp_lock.h>
+#include <linux/notifier.h>
 
 #include "usb_mon.h"
 #include "../core/hcd.h"
@@ -205,6 +206,23 @@ static void mon_bus_remove(struct usb_bus *ubus)
 	up(&mon_lock);
 }
 
+static int mon_notify(struct notifier_block *self, unsigned long action,
+		      void *dev)
+{
+	switch (action) {
+	case USB_BUS_ADD:
+		mon_bus_add(dev);
+		break;
+	case USB_BUS_REMOVE:
+		mon_bus_remove(dev);
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block mon_nb = {
+	.notifier_call = 	mon_notify,
+};
+
 /*
  * Ops
  */
@@ -212,8 +230,6 @@ static struct usb_mon_operations mon_ops_0 = {
 	.urb_submit =	mon_submit,
 	.urb_submit_error = mon_submit_error,
 	.urb_complete =	mon_complete,
-	.bus_add =	mon_bus_add,
-	.bus_remove =	mon_bus_remove,
 };
 
 /*
@@ -329,6 +345,8 @@ static int __init mon_init(void)
 	}
 	// MOD_INC_USE_COUNT(which_module?);
 
+	usb_register_notify(&mon_nb);
+
 	down(&usb_bus_list_lock);
 	list_for_each_entry (ubus, &usb_bus_list, bus_list) {
 		mon_bus_init(mondir, ubus);
@@ -342,6 +360,7 @@ static void __exit mon_exit(void)
 	struct mon_bus *mbus;
 	struct list_head *p;
 
+	usb_unregister_notify(&mon_nb);
 	usb_mon_deregister();
 
 	down(&mon_lock);

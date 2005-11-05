@@ -395,7 +395,6 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 		if (post_kprobe_handler(args->regs))
 			ret = NOTIFY_STOP;
 		break;
-	case DIE_GPF:
 	case DIE_PAGE_FAULT:
 		if (kprobe_running() &&
 		    kprobe_fault_handler(args->regs, args->trapnr))

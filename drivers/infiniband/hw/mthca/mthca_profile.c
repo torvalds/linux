@@ -35,6 +35,8 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 #include "mthca_profile.h"
 
@@ -80,11 +82,9 @@ u64 mthca_make_profile(struct mthca_dev *dev,
 	struct mthca_resource tmp;
 	int i, j;
 
-	profile = kmalloc(MTHCA_RES_NUM * sizeof *profile, GFP_KERNEL);
+	profile = kzalloc(MTHCA_RES_NUM * sizeof *profile, GFP_KERNEL);
 	if (!profile)
 		return -ENOMEM;
-
-	memset(profile, 0, MTHCA_RES_NUM * sizeof *profile);
 
 	profile[MTHCA_RES_QP].size   = dev_lim->qpc_entry_sz;
 	profile[MTHCA_RES_EEC].size  = dev_lim->eec_entry_sz;

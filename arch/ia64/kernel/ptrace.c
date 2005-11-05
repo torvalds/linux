@@ -587,8 +587,9 @@ thread_matches (struct task_struct *thread, unsigned long addr)
 static struct task_struct *
 find_thread_for_addr (struct task_struct *child, unsigned long addr)
 {
-	struct task_struct *g, *p;
+	struct task_struct *p;
 	struct mm_struct *mm;
+	struct list_head *this, *next;
 	int mm_users;
 
 	if (!(mm = get_task_mm(child)))
@@ -600,28 +601,21 @@ find_thread_for_addr (struct task_struct *child, unsigned long addr)
 		goto out;		/* not multi-threaded */
 
 	/*
-	 * First, traverse the child's thread-list.  Good for scalability with
-	 * NPTL-threads.
+	 * Traverse the current process' children list.  Every task that
+	 * one attaches to becomes a child.  And it is only attached children
+	 * of the debugger that are of interest (ptrace_check_attach checks
+	 * for this).
 	 */
-	p = child;
-	do {
-		if (thread_matches(p, addr)) {
-			child = p;
-			goto out;
-		}
-		if (mm_users-- <= 1)
-			goto out;
-	} while ((p = next_thread(p)) != child);
-
-	do_each_thread(g, p) {
-		if (child->mm != mm)
+ 	list_for_each_safe(this, next, &current->children) {
+		p = list_entry(this, struct task_struct, sibling);
+		if (p->mm != mm)
 			continue;
-
 		if (thread_matches(p, addr)) {
 			child = p;
 			goto out;
 		}
-	} while_each_thread(g, p);
+	}
+
   out:
 	mmput(mm);
 	return child;

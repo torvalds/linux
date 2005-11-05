@@ -197,11 +197,10 @@ static int max1619_detect(struct i2c_adapter *adapter, int address, int kind)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		goto exit;
 
-	if (!(data = kmalloc(sizeof(struct max1619_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct max1619_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct max1619_data));
 
 	/* The common I2C client data is placed right before the
 	   MAX1619-specific data. */

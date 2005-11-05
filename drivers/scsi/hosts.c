@@ -30,6 +30,7 @@
 #include <linux/init.h>
 #include <linux/completion.h>
 #include <linux/transport_class.h>
+#include <linux/platform_device.h>
 
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
@@ -139,11 +140,11 @@ int scsi_host_set_state(struct Scsi_Host *shost, enum scsi_host_state state)
 
  illegal:
 	SCSI_LOG_ERROR_RECOVERY(1,
-				dev_printk(KERN_ERR, &shost->shost_gendev,
-					   "Illegal host state transition"
-					   "%s->%s\n",
-					   scsi_host_state_name(oldstate),
-					   scsi_host_state_name(state)));
+				shost_printk(KERN_ERR, shost,
+					     "Illegal host state transition"
+					     "%s->%s\n",
+					     scsi_host_state_name(oldstate),
+					     scsi_host_state_name(state)));
 	return -EINVAL;
 }
 EXPORT_SYMBOL(scsi_host_set_state);

@@ -1653,8 +1653,7 @@ void stop_atmel_card(struct net_device *dev, int freeres)
 	unregister_netdev(dev);
 	remove_proc_entry("driver/atmel", NULL);
 	free_irq(dev->irq, dev);
-	if (priv->firmware)
-		kfree(priv->firmware);
+	kfree(priv->firmware);
 	if (freeres) {
 		/* PCMCIA frees this stuff, so only for PCI */
 	        release_region(dev->base_addr, 64);
@@ -2450,8 +2449,7 @@ static int atmel_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 			break;
 		}
 
-		if (priv->firmware)
-			kfree(priv->firmware);
+		kfree(priv->firmware);
 		
 		priv->firmware = new_firmware;
 		priv->firmware_length = com.len;

@@ -8,8 +8,6 @@
     *
     *  SB1250 specification level:  User's manual 1/02/02
     *
-    *  Author:  Mitch Lichtenberg
-    *
     *********************************************************************
     *
     *  Copyright 2000,2001,2002,2003
@@ -97,13 +95,17 @@
     *  ordering, so be careful when adding support for new minor revs.
     ********************************************************************* */
 
-#define	SIBYTE_HDR_FMASK_1250_ALL		0x00000ff
-#define	SIBYTE_HDR_FMASK_1250_PASS1		0x0000001
-#define	SIBYTE_HDR_FMASK_1250_PASS2		0x0000002
-#define	SIBYTE_HDR_FMASK_1250_PASS3		0x0000004
+#define	SIBYTE_HDR_FMASK_1250_ALL		0x000000ff
+#define	SIBYTE_HDR_FMASK_1250_PASS1		0x00000001
+#define	SIBYTE_HDR_FMASK_1250_PASS2		0x00000002
+#define	SIBYTE_HDR_FMASK_1250_PASS3		0x00000004
 
-#define	SIBYTE_HDR_FMASK_112x_ALL		0x0000f00
-#define	SIBYTE_HDR_FMASK_112x_PASS1		0x0000100
+#define	SIBYTE_HDR_FMASK_112x_ALL		0x00000f00
+#define	SIBYTE_HDR_FMASK_112x_PASS1		0x00000100
+
+#define SIBYTE_HDR_FMASK_1480_ALL		0x0000f000
+#define SIBYTE_HDR_FMASK_1480_PASS1		0x00001000
+#define SIBYTE_HDR_FMASK_1480_PASS2		0x00002000
 
 /* Bit mask for chip/revision.  (use _ALL for all revisions of a chip).  */
 #define	SIBYTE_HDR_FMASK(chip, pass)					\
@@ -111,8 +113,17 @@
 #define	SIBYTE_HDR_FMASK_ALLREVS(chip)					\
     (SIBYTE_HDR_FMASK_ ## chip ## _ALL)
 
+/* Default constant value for all chips, all revisions */
 #define	SIBYTE_HDR_FMASK_ALL						\
+    (SIBYTE_HDR_FMASK_1250_ALL | SIBYTE_HDR_FMASK_112x_ALL		\
+     | SIBYTE_HDR_FMASK_1480_ALL)
+
+/* This one is used for the "original" BCM1250/BCM112x chips.  We use this
+   to weed out constants and macros that do not exist on later chips like
+   the BCM1480  */
+#define SIBYTE_HDR_FMASK_1250_112x_ALL					\
     (SIBYTE_HDR_FMASK_1250_ALL | SIBYTE_HDR_FMASK_112x_ALL)
+#define SIBYTE_HDR_FMASK_1250_112x SIBYTE_HDR_FMASK_1250_112x_ALL
 
 #ifndef SIBYTE_HDR_FEATURES
 #define	SIBYTE_HDR_FEATURES			SIBYTE_HDR_FMASK_ALL
@@ -132,6 +143,12 @@
 /* True if header features enabled for (any revision of) that chip type.  */
 #define SIBYTE_HDR_FEATURE_CHIP(chip)					\
     (!! (SIBYTE_HDR_FMASK_ALLREVS(chip) & SIBYTE_HDR_FEATURES))
+
+/* True for all versions of the BCM1250 and BCM1125, but not true for
+   anything else */
+#define SIBYTE_HDR_FEATURE_1250_112x \
+      (SIBYTE_HDR_FEATURE_CHIP(1250) || SIBYTE_HDR_FEATURE_CHIP(112x))
+/*    (!!  (SIBYTE_HDR_FEATURES & SIBYHTE_HDR_FMASK_1250_112x)) */
 
 /* True if header features enabled for that rev or later, inclusive.  */
 #define SIBYTE_HDR_FEATURE(chip, pass)					\

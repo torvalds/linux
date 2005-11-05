@@ -8,8 +8,6 @@
     *
     *  SB1250 specification level:  01/02/2002
     *
-    *  Author:  Mitch Lichtenberg
-    *
     *********************************************************************
     *
     *  Copyright 2000,2001,2002,2003
@@ -61,6 +59,8 @@
  * XXX: can't remove MC base 0 if 112x, since it's used by other macros,
  * since there is one reg there (but it could get its addr/offset constant).
  */
+
+#if SIBYTE_HDR_FEATURE_1250_112x		/* This MC only on 1250 & 112x */
 #define A_MC_BASE_0                 0x0010051000
 #define A_MC_BASE_1                 0x0010052000
 #define MC_REGISTER_SPACING         0x1000
@@ -101,9 +101,13 @@
 #define R_MC_TEST_ECC               0x0000000420
 #define R_MC_MCLK_CFG               0x0000000500
 
+#endif	/* 1250 & 112x */
+
 /*  *********************************************************************
     * L2 Cache Control Registers
     ********************************************************************* */
+
+#if SIBYTE_HDR_FEATURE_1250_112x	/* This L2C only on 1250/112x */
 
 #define A_L2_READ_TAG               0x0010040018
 #define A_L2_ECC_TAG                0x0010040038
@@ -125,13 +129,16 @@
 #define A_L2_READ_ADDRESS           A_L2_READ_TAG
 #define A_L2_EEC_ADDRESS            A_L2_ECC_TAG
 
+#endif
 
 /*  *********************************************************************
     * PCI Interface Registers
     ********************************************************************* */
 
+#if SIBYTE_HDR_FEATURE_1250_112x	/* This PCI/HT only on 1250/112x */
 #define A_PCI_TYPE00_HEADER         0x00DE000000
 #define A_PCI_TYPE01_HEADER         0x00DE000800
+#endif
 
 
 /*  *********************************************************************
@@ -264,15 +271,15 @@
     ********************************************************************* */
 
 
+#if SIBYTE_HDR_FEATURE_1250_112x		/* This MC only on 1250 & 112x */
 #define R_DUART_NUM_PORTS           2
 
 #define A_DUART                     0x0010060000
 
-#define A_DUART_REG(r)
-
 #define DUART_CHANREG_SPACING       0x100
 #define A_DUART_CHANREG(chan,reg)   (A_DUART + DUART_CHANREG_SPACING*(chan) + (reg))
 #define R_DUART_CHANREG(chan,reg)   (DUART_CHANREG_SPACING*(chan) + (reg))
+#endif	/* 1250 & 112x */
 
 #define R_DUART_MODE_REG_1	    0x100
 #define R_DUART_MODE_REG_2	    0x110
@@ -307,11 +314,13 @@
 
 #define DUART_IMRISR_SPACING        0x20
 
+#if SIBYTE_HDR_FEATURE_1250_112x		/* This MC only on 1250 & 112x */
 #define R_DUART_IMRREG(chan)	    (R_DUART_IMR_A + (chan)*DUART_IMRISR_SPACING)
 #define R_DUART_ISRREG(chan)	    (R_DUART_ISR_A + (chan)*DUART_IMRISR_SPACING)
 
 #define A_DUART_IMRREG(chan)	    (A_DUART + R_DUART_IMRREG(chan))
 #define A_DUART_ISRREG(chan)	    (A_DUART + R_DUART_ISRREG(chan))
+#endif	/* 1250 & 112x */
 
 
 
@@ -367,6 +376,8 @@
     * Synchronous Serial Registers
     ********************************************************************* */
 
+
+#if SIBYTE_HDR_FEATURE_1250_112x	/* sync serial only on 1250/112x */
 
 #define A_SER_BASE_0                0x0010060400
 #define A_SER_BASE_1                0x0010060800
@@ -456,6 +467,8 @@
 #define R_SER_RMON_RX_OVERFLOW      0x000001E8
 #define R_SER_RMON_RX_ERRORS        0x000001F0
 #define R_SER_RMON_RX_BADADDR       0x000001F8
+
+#endif	/* 1250/112x */
 
 /*  *********************************************************************
     * Generic Bus Registers
@@ -634,12 +647,13 @@
 
 #if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1)
 #define A_SCD_SCRATCH		   0x0010020C10
+#endif /* 1250 PASS2 || 112x PASS1 */
 
+#if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) || SIBYTE_HDR_FEATURE_CHIP(1480)
 #define A_SCD_ZBBUS_CYCLE_COUNT	   0x0010030000
 #define A_SCD_ZBBUS_CYCLE_CP0	   0x0010020C00
 #define A_SCD_ZBBUS_CYCLE_CP1	   0x0010020C08
-#endif /* 1250 PASS2 || 112x PASS1 */
-
+#endif
 
 /*  *********************************************************************
     * System Control Registers
@@ -667,15 +681,16 @@
 #define A_ADDR_TRAP_CFG_1           0x0010020448
 #define A_ADDR_TRAP_CFG_2           0x0010020450
 #define A_ADDR_TRAP_CFG_3           0x0010020458
-#if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1)
+#if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) || SIBYTE_HDR_FEATURE_CHIP(1480)
 #define A_ADDR_TRAP_REG_DEBUG	    0x0010020460
-#endif /* 1250 PASS2 || 112x PASS1 */
+#endif /* 1250 PASS2 || 112x PASS1 || 1480 */
 
 
 /*  *********************************************************************
     * System Interrupt Mapper Registers
     ********************************************************************* */
 
+#if SIBYTE_HDR_FEATURE_1250_112x
 #define A_IMR_CPU0_BASE                 0x0010020000
 #define A_IMR_CPU1_BASE                 0x0010022000
 #define IMR_REGISTER_SPACING            0x2000
@@ -700,6 +715,7 @@
 #define R_IMR_INTERRUPT_STATUS_COUNT    7
 #define R_IMR_INTERRUPT_MAP_BASE        0x0200
 #define R_IMR_INTERRUPT_MAP_COUNT       64
+#endif	/* 1250/112x */
 
 /*  *********************************************************************
     * System Performance Counter Registers
@@ -718,6 +734,7 @@
 #define A_SCD_BUS_ERR_STATUS        0x0010020880
 #if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1)
 #define A_SCD_BUS_ERR_STATUS_DEBUG  0x00100208D0
+#define A_BUS_ERR_STATUS_DEBUG  0x00100208D0
 #endif /* 1250 PASS2 || 112x PASS1 */
 #define A_BUS_ERR_DATA_0            0x00100208A0
 #define A_BUS_ERR_DATA_1            0x00100208A8
@@ -798,6 +815,7 @@
     *  Physical Address Map
     ********************************************************************* */
 
+#if SIBYTE_HDR_FEATURE_1250_112x
 #define A_PHYS_MEMORY_0                 _SB_MAKE64(0x0000000000)
 #define A_PHYS_MEMORY_SIZE              _SB_MAKE64((256*1024*1024))
 #define A_PHYS_SYSTEM_CTL               _SB_MAKE64(0x0010000000)
@@ -831,6 +849,7 @@
 #define A_PHYS_L2CACHE_WAY1             _SB_MAKE64(0x00D01A0000)
 #define A_PHYS_L2CACHE_WAY2             _SB_MAKE64(0x00D01C0000)
 #define A_PHYS_L2CACHE_WAY3             _SB_MAKE64(0x00D01E0000)
+#endif
 
 
 #endif

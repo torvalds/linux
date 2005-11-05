@@ -201,7 +201,7 @@ static int nsp_queuecommand(Scsi_Cmnd *SCpnt, void (*done)(Scsi_Cmnd *))
 #ifdef NSP_DEBUG
 	/*unsigned int host_id = SCpnt->device->host->this_id;*/
 	/*unsigned int base    = SCpnt->device->host->io_port;*/
-	unsigned char target = SCpnt->device->id;
+	unsigned char target = scmd_id(SCpnt);
 #endif
 	nsp_hw_data *data = (nsp_hw_data *)SCpnt->device->host->hostdata;
 
@@ -373,7 +373,7 @@ static int nsphw_start_selection(Scsi_Cmnd *SCpnt)
 {
 	unsigned int  host_id	 = SCpnt->device->host->this_id;
 	unsigned int  base	 = SCpnt->device->host->io_port;
-	unsigned char target	 = SCpnt->device->id;
+	unsigned char target	 = scmd_id(SCpnt);
 	nsp_hw_data  *data = (nsp_hw_data *)SCpnt->device->host->hostdata;
 	int	      time_out;
 	unsigned char phase, arbit;
@@ -452,7 +452,7 @@ static struct nsp_sync_table nsp_sync_table_20M[] = {
  */
 static int nsp_analyze_sdtr(Scsi_Cmnd *SCpnt)
 {
-	unsigned char	       target = SCpnt->device->id;
+	unsigned char	       target = scmd_id(SCpnt);
 //	unsigned char	       lun    = SCpnt->device->lun;
 	nsp_hw_data           *data   = (nsp_hw_data *)SCpnt->device->host->hostdata;
 	sync_data	      *sync   = &(data->Sync[target]);
@@ -677,7 +677,7 @@ static int nsp_reselected(Scsi_Cmnd *SCpnt)
 		target++;
 	}
 
-	if (SCpnt->device->id != target) {
+	if (scmd_id(SCpnt) != target) {
 		nsp_msg(KERN_ERR, "XXX: reselect ID must be %d in this implementation.", target);
 	}
 
@@ -912,7 +912,7 @@ static void nsp_pio_write(Scsi_Cmnd *SCpnt)
 static int nsp_nexus(Scsi_Cmnd *SCpnt)
 {
 	unsigned int   base   = SCpnt->device->host->io_port;
-	unsigned char  target = SCpnt->device->id;
+	unsigned char  target = scmd_id(SCpnt);
 //	unsigned char  lun    = SCpnt->device->lun;
 	nsp_hw_data *data = (nsp_hw_data *)SCpnt->device->host->hostdata;
 	sync_data     *sync   = &(data->Sync[target]);

@@ -219,6 +219,7 @@ save_config_help[] = N_(
 search_help[] = N_(
 	"\n"
 	"Search for CONFIG_ symbols and display their relations.\n"
+	"Regular expressions are allowed.\n"
 	"Example: search for \"^FOO\"\n"
 	"Result:\n"
 	"-----------------------------------------------------------------\n"
@@ -531,7 +532,7 @@ again:
 	cprint("--title");
 	cprint(_("Search Configuration Parameter"));
 	cprint("--inputbox");
-	cprint(_("Enter Keyword"));
+	cprint(_("Enter CONFIG_ (sub)string to search for (omit CONFIG_)"));
 	cprint("10");
 	cprint("75");
 	cprint("");

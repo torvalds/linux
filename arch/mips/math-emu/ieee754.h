@@ -1,12 +1,7 @@
-/* single and double precision fp ops
- * missing extended precision.
-*/
 /*
  * MIPS floating point support
  * Copyright (C) 1994-2000 Algorithmics Ltd.
  * http://www.algor.co.uk
- *
- * ########################################################################
  *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
@@ -21,20 +16,18 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
- * ########################################################################
- */
-
-/**************************************************************************
  *  Nov 7, 2000
  *  Modification to allow integration with Linux kernel
  *
  *  Kevin D. Kissell, kevink@mips.com and Carsten Langgard, carstenl@mips.com
  *  Copyright (C) 2000 MIPS Technologies, Inc. All rights reserved.
- *************************************************************************/
+ */
+#ifndef __ARCH_MIPS_MATH_EMU_IEEE754_H
+#define __ARCH_MIPS_MATH_EMU_IEEE754_H
 
-#ifdef __KERNEL__
-/* Going from Algorithmics to Linux native environment, add this */
+#include <asm/byteorder.h>
 #include <linux/types.h>
+#include <linux/sched.h>
 
 /*
  * Not very pretty, but the Linux kernel's normal va_list definition
@@ -44,18 +37,7 @@
 #include <stdarg.h>
 #endif
 
-#else
-
-/* Note that __KERNEL__ is taken to mean Linux kernel */
-
-#if #system(OpenBSD)
-#include <machine/types.h>
-#endif
-#include <machine/endian.h>
-
-#endif				/* __KERNEL__ */
-
-#if (defined(BYTE_ORDER) && BYTE_ORDER == LITTLE_ENDIAN) || defined(__MIPSEL__)
+#ifdef __LITTLE_ENDIAN
 struct ieee754dp_konst {
 	unsigned mantlo:32;
 	unsigned manthi:20;
@@ -86,13 +68,14 @@ typedef union _ieee754sp {
 } ieee754sp;
 #endif
 
-#if (defined(BYTE_ORDER) && BYTE_ORDER == BIG_ENDIAN) || defined(__MIPSEB__)
+#ifdef __BIG_ENDIAN
 struct ieee754dp_konst {
 	unsigned sign:1;
 	unsigned bexp:11;
 	unsigned manthi:20;
 	unsigned mantlo:32;
 };
+
 typedef union _ieee754dp {
 	struct ieee754dp_konst oparts;
 	struct {
@@ -222,7 +205,6 @@ ieee754dp ieee754dp_sqrt(ieee754dp x);
 #define IEEE754_CLASS_INF	0x03
 #define IEEE754_CLASS_SNAN	0x04
 #define IEEE754_CLASS_QNAN	0x05
-extern const char *const ieee754_cname[];
 
 /* exception numbers */
 #define IEEE754_INEXACT			0x01
@@ -251,93 +233,109 @@ extern const char *const ieee754_cname[];
 
 /* "normal" comparisons
 */
-static __inline int ieee754sp_eq(ieee754sp x, ieee754sp y)
+static inline int ieee754sp_eq(ieee754sp x, ieee754sp y)
 {
 	return ieee754sp_cmp(x, y, IEEE754_CEQ, 0);
 }
 
-static __inline int ieee754sp_ne(ieee754sp x, ieee754sp y)
+static inline int ieee754sp_ne(ieee754sp x, ieee754sp y)
 {
 	return ieee754sp_cmp(x, y,
 			     IEEE754_CLT | IEEE754_CGT | IEEE754_CUN, 0);
 }
 
-static __inline int ieee754sp_lt(ieee754sp x, ieee754sp y)
+static inline int ieee754sp_lt(ieee754sp x, ieee754sp y)
 {
 	return ieee754sp_cmp(x, y, IEEE754_CLT, 0);
 }
 
-static __inline int ieee754sp_le(ieee754sp x, ieee754sp y)
+static inline int ieee754sp_le(ieee754sp x, ieee754sp y)
 {
 	return ieee754sp_cmp(x, y, IEEE754_CLT | IEEE754_CEQ, 0);
 }
 
-static __inline int ieee754sp_gt(ieee754sp x, ieee754sp y)
+static inline int ieee754sp_gt(ieee754sp x, ieee754sp y)
 {
 	return ieee754sp_cmp(x, y, IEEE754_CGT, 0);
 }
 
 
-static __inline int ieee754sp_ge(ieee754sp x, ieee754sp y)
+static inline int ieee754sp_ge(ieee754sp x, ieee754sp y)
 {
 	return ieee754sp_cmp(x, y, IEEE754_CGT | IEEE754_CEQ, 0);
 }
 
-static __inline int ieee754dp_eq(ieee754dp x, ieee754dp y)
+static inline int ieee754dp_eq(ieee754dp x, ieee754dp y)
 {
 	return ieee754dp_cmp(x, y, IEEE754_CEQ, 0);
 }
 
-static __inline int ieee754dp_ne(ieee754dp x, ieee754dp y)
+static inline int ieee754dp_ne(ieee754dp x, ieee754dp y)
 {
 	return ieee754dp_cmp(x, y,
 			     IEEE754_CLT | IEEE754_CGT | IEEE754_CUN, 0);
 }
 
-static __inline int ieee754dp_lt(ieee754dp x, ieee754dp y)
+static inline int ieee754dp_lt(ieee754dp x, ieee754dp y)
 {
 	return ieee754dp_cmp(x, y, IEEE754_CLT, 0);
 }
 
-static __inline int ieee754dp_le(ieee754dp x, ieee754dp y)
+static inline int ieee754dp_le(ieee754dp x, ieee754dp y)
 {
 	return ieee754dp_cmp(x, y, IEEE754_CLT | IEEE754_CEQ, 0);
 }
 
-static __inline int ieee754dp_gt(ieee754dp x, ieee754dp y)
+static inline int ieee754dp_gt(ieee754dp x, ieee754dp y)
 {
 	return ieee754dp_cmp(x, y, IEEE754_CGT, 0);
 }
 
-static __inline int ieee754dp_ge(ieee754dp x, ieee754dp y)
+static inline int ieee754dp_ge(ieee754dp x, ieee754dp y)
 {
 	return ieee754dp_cmp(x, y, IEEE754_CGT | IEEE754_CEQ, 0);
 }
 
 
-/* like strtod
-*/
+/*
+ * Like strtod
+ */
 ieee754dp ieee754dp_fstr(const char *s, char **endp);
 char *ieee754dp_tstr(ieee754dp x, int prec, int fmt, int af);
 
 
-/* the control status register
-*/
-struct ieee754_csr {
-	unsigned pad:13;
+/*
+ * The control status register
+ */
+struct _ieee754_csr {
+#ifdef __BIG_ENDIAN
+	unsigned pad0:7;
 	unsigned nod:1;		/* set 1 for no denormalised numbers */
-	unsigned cx:5;		/* exceptions this operation */
+	unsigned c:1;		/* condition */
+	unsigned pad1:5;
+	unsigned cx:6;		/* exceptions this operation */
 	unsigned mx:5;		/* exception enable  mask */
 	unsigned sx:5;		/* exceptions total */
 	unsigned rm:2;		/* current rounding mode */
+#endif
+#ifdef __LITTLE_ENDIAN
+	unsigned rm:2;		/* current rounding mode */
+	unsigned sx:5;		/* exceptions total */
+	unsigned mx:5;		/* exception enable  mask */
+	unsigned cx:6;		/* exceptions this operation */
+	unsigned pad1:5;
+	unsigned c:1;		/* condition */
+	unsigned nod:1;		/* set 1 for no denormalised numbers */
+	unsigned pad0:7;
+#endif
 };
-extern struct ieee754_csr ieee754_csr;
+#define ieee754_csr (*(struct _ieee754_csr *)(&current->thread.fpu.soft.fcr31))
 
-static __inline unsigned ieee754_getrm(void)
+static inline unsigned ieee754_getrm(void)
 {
 	return (ieee754_csr.rm);
 }
-static __inline unsigned ieee754_setrm(unsigned rm)
+static inline unsigned ieee754_setrm(unsigned rm)
 {
 	return (ieee754_csr.rm = rm);
 }
@@ -345,14 +343,14 @@ static __inline unsigned ieee754_setrm(unsigned rm)
 /*
  * get current exceptions
  */
-static __inline unsigned ieee754_getcx(void)
+static inline unsigned ieee754_getcx(void)
 {
 	return (ieee754_csr.cx);
 }
 
 /* test for current exception condition
  */
-static __inline int ieee754_cxtest(unsigned n)
+static inline int ieee754_cxtest(unsigned n)
 {
 	return (ieee754_csr.cx & n);
 }
@@ -360,21 +358,21 @@ static __inline int ieee754_cxtest(unsigned n)
 /*
  * get sticky exceptions
  */
-static __inline unsigned ieee754_getsx(void)
+static inline unsigned ieee754_getsx(void)
 {
 	return (ieee754_csr.sx);
 }
 
 /* clear sticky conditions
 */
-static __inline unsigned ieee754_clrsx(void)
+static inline unsigned ieee754_clrsx(void)
 {
 	return (ieee754_csr.sx = 0);
 }
 
 /* test for sticky exception condition
  */
-static __inline int ieee754_sxtest(unsigned n)
+static inline int ieee754_sxtest(unsigned n)
 {
 	return (ieee754_csr.sx & n);
 }
@@ -406,52 +404,34 @@ extern const struct ieee754sp_konst __ieee754sp_spcvals[];
 #define ieee754dp_spcvals ((const ieee754dp *)__ieee754dp_spcvals)
 #define ieee754sp_spcvals ((const ieee754sp *)__ieee754sp_spcvals)
 
-/* return infinity with given sign
-*/
-#define ieee754dp_inf(sn)	\
-  (ieee754dp_spcvals[IEEE754_SPCVAL_PINFINITY+(sn)])
-#define ieee754dp_zero(sn) \
-  (ieee754dp_spcvals[IEEE754_SPCVAL_PZERO+(sn)])
-#define ieee754dp_one(sn) \
-  (ieee754dp_spcvals[IEEE754_SPCVAL_PONE+(sn)])
-#define ieee754dp_ten(sn) \
-  (ieee754dp_spcvals[IEEE754_SPCVAL_PTEN+(sn)])
-#define ieee754dp_indef() \
-  (ieee754dp_spcvals[IEEE754_SPCVAL_INDEF])
-#define ieee754dp_max(sn) \
-  (ieee754dp_spcvals[IEEE754_SPCVAL_PMAX+(sn)])
-#define ieee754dp_min(sn) \
-  (ieee754dp_spcvals[IEEE754_SPCVAL_PMIN+(sn)])
-#define ieee754dp_mind(sn) \
-  (ieee754dp_spcvals[IEEE754_SPCVAL_PMIND+(sn)])
-#define ieee754dp_1e31() \
-  (ieee754dp_spcvals[IEEE754_SPCVAL_P1E31])
-#define ieee754dp_1e63() \
-  (ieee754dp_spcvals[IEEE754_SPCVAL_P1E63])
+/*
+ * Return infinity with given sign
+ */
+#define ieee754dp_inf(sn)     (ieee754dp_spcvals[IEEE754_SPCVAL_PINFINITY+(sn)])
+#define ieee754dp_zero(sn)	(ieee754dp_spcvals[IEEE754_SPCVAL_PZERO+(sn)])
+#define ieee754dp_one(sn)	(ieee754dp_spcvals[IEEE754_SPCVAL_PONE+(sn)])
+#define ieee754dp_ten(sn)	(ieee754dp_spcvals[IEEE754_SPCVAL_PTEN+(sn)])
+#define ieee754dp_indef()	(ieee754dp_spcvals[IEEE754_SPCVAL_INDEF])
+#define ieee754dp_max(sn)	(ieee754dp_spcvals[IEEE754_SPCVAL_PMAX+(sn)])
+#define ieee754dp_min(sn)	(ieee754dp_spcvals[IEEE754_SPCVAL_PMIN+(sn)])
+#define ieee754dp_mind(sn)	(ieee754dp_spcvals[IEEE754_SPCVAL_PMIND+(sn)])
+#define ieee754dp_1e31()	(ieee754dp_spcvals[IEEE754_SPCVAL_P1E31])
+#define ieee754dp_1e63()	(ieee754dp_spcvals[IEEE754_SPCVAL_P1E63])
 
-#define ieee754sp_inf(sn) \
-  (ieee754sp_spcvals[IEEE754_SPCVAL_PINFINITY+(sn)])
-#define ieee754sp_zero(sn) \
-  (ieee754sp_spcvals[IEEE754_SPCVAL_PZERO+(sn)])
-#define ieee754sp_one(sn) \
-  (ieee754sp_spcvals[IEEE754_SPCVAL_PONE+(sn)])
-#define ieee754sp_ten(sn) \
-  (ieee754sp_spcvals[IEEE754_SPCVAL_PTEN+(sn)])
-#define ieee754sp_indef() \
-  (ieee754sp_spcvals[IEEE754_SPCVAL_INDEF])
-#define ieee754sp_max(sn) \
-  (ieee754sp_spcvals[IEEE754_SPCVAL_PMAX+(sn)])
-#define ieee754sp_min(sn) \
-  (ieee754sp_spcvals[IEEE754_SPCVAL_PMIN+(sn)])
-#define ieee754sp_mind(sn) \
-  (ieee754sp_spcvals[IEEE754_SPCVAL_PMIND+(sn)])
-#define ieee754sp_1e31() \
-  (ieee754sp_spcvals[IEEE754_SPCVAL_P1E31])
-#define ieee754sp_1e63() \
-  (ieee754sp_spcvals[IEEE754_SPCVAL_P1E63])
+#define ieee754sp_inf(sn)     (ieee754sp_spcvals[IEEE754_SPCVAL_PINFINITY+(sn)])
+#define ieee754sp_zero(sn)	(ieee754sp_spcvals[IEEE754_SPCVAL_PZERO+(sn)])
+#define ieee754sp_one(sn)	(ieee754sp_spcvals[IEEE754_SPCVAL_PONE+(sn)])
+#define ieee754sp_ten(sn)	(ieee754sp_spcvals[IEEE754_SPCVAL_PTEN+(sn)])
+#define ieee754sp_indef()	(ieee754sp_spcvals[IEEE754_SPCVAL_INDEF])
+#define ieee754sp_max(sn)	(ieee754sp_spcvals[IEEE754_SPCVAL_PMAX+(sn)])
+#define ieee754sp_min(sn)	(ieee754sp_spcvals[IEEE754_SPCVAL_PMIN+(sn)])
+#define ieee754sp_mind(sn)	(ieee754sp_spcvals[IEEE754_SPCVAL_PMIND+(sn)])
+#define ieee754sp_1e31()	(ieee754sp_spcvals[IEEE754_SPCVAL_P1E31])
+#define ieee754sp_1e63()	(ieee754sp_spcvals[IEEE754_SPCVAL_P1E63])
 
-/* indefinite integer value
-*/
+/*
+ * Indefinite integer value
+ */
 #define ieee754si_indef()	INT_MAX
 #ifdef LONG_LONG_MAX
 #define ieee754di_indef()	LONG_LONG_MAX
@@ -487,3 +467,5 @@ extern void ieee754_xcpt(struct ieee754xctx *xcp);
 /* compat */
 #define ieee754dp_fix(x)	ieee754dp_tint(x)
 #define ieee754sp_fix(x)	ieee754sp_tint(x)
+
+#endif /* __ARCH_MIPS_MATH_EMU_IEEE754_H */

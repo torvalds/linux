@@ -33,8 +33,10 @@ typedef unsigned long long __u64;
 
 #ifdef __LP64__
 #define BITS_PER_LONG 64
+#define SHIFT_PER_LONG 6
 #else
 #define BITS_PER_LONG 32
+#define SHIFT_PER_LONG 5
 #endif
 
 #ifndef __ASSEMBLY__

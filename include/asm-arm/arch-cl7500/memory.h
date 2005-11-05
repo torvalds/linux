@@ -17,7 +17,7 @@
 /*
  * Physical DRAM offset.
  */
-#define PHYS_OFFSET	(0x10000000UL)
+#define PHYS_OFFSET	UL(0x10000000)
 
 /*
  * These are exactly the same on the RiscPC as the

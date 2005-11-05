@@ -351,7 +351,7 @@ static __init int __init ja_pci_init(void)
 
 arch_initcall(ja_pci_init);
 
-static int  __init momenco_jaguar_atx_setup(void)
+void __init plat_setup(void)
 {
 	unsigned int tmpword;
 
@@ -467,8 +467,4 @@ static int  __init momenco_jaguar_atx_setup(void)
 
 	}
 #endif
-
-	return 0;
 }
-
-early_initcall(momenco_jaguar_atx_setup);

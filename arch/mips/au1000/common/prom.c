@@ -75,7 +75,8 @@ void  prom_init_cmdline(void)
 	}
 	if (cp != &(arcs_cmdline[0])) /* get rid of trailing space */
 		--cp;
-	*cp = '\0';
+	if (prom_argc > 1)
+		*cp = '\0';
 
 }
 

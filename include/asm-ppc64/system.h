@@ -13,7 +13,7 @@
 #include <asm/page.h>
 #include <asm/processor.h>
 #include <asm/hw_irq.h>
-#include <asm/memory.h>
+#include <asm/synch.h>
 
 /*
  * Memory barrier.
@@ -48,7 +48,7 @@
 #ifdef CONFIG_SMP
 #define smp_mb()	mb()
 #define smp_rmb()	rmb()
-#define smp_wmb()	__asm__ __volatile__ ("eieio" : : : "memory")
+#define smp_wmb()	eieio()
 #define smp_read_barrier_depends()  read_barrier_depends()
 #else
 #define smp_mb()	__asm__ __volatile__("": : :"memory")
@@ -120,8 +120,8 @@ extern void giveup_altivec(struct task_struct *);
 extern void disable_kernel_altivec(void);
 extern void enable_kernel_altivec(void);
 extern int emulate_altivec(struct pt_regs *);
-extern void cvt_fd(float *from, double *to, unsigned long *fpscr);
-extern void cvt_df(double *from, float *to, unsigned long *fpscr);
+extern void cvt_fd(float *from, double *to, struct thread_struct *thread);
+extern void cvt_df(double *from, float *to, struct thread_struct *thread);
 
 #ifdef CONFIG_ALTIVEC
 extern void flush_altivec_to_thread(struct task_struct *);
@@ -131,7 +131,12 @@ static inline void flush_altivec_to_thread(struct task_struct *t)
 }
 #endif
 
+static inline void flush_spe_to_thread(struct task_struct *t)
+{
+}
+
 extern int mem_init_done;	/* set on boot once kmalloc can be called */
+extern unsigned long memory_limit;
 
 /* EBCDIC -> ASCII conversion for [0-9A-Z] on iSeries */
 extern unsigned char e2a(unsigned char);
@@ -144,12 +149,7 @@ struct thread_struct;
 extern struct task_struct * _switch(struct thread_struct *prev,
 				    struct thread_struct *next);
 
-static inline int __is_processor(unsigned long pv)
-{
-	unsigned long pvr;
-	asm("mfspr %0, 0x11F" : "=r" (pvr)); 
-	return(PVR_VER(pvr) == pv);
-}
+extern int powersave_nap;	/* set if nap mode can be used in idle loop */
 
 /*
  * Atomic exchange

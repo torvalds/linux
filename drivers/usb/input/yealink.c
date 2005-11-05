@@ -54,6 +54,7 @@
 #include <linux/module.h>
 #include <linux/rwsem.h>
 #include <linux/usb.h>
+#include <linux/usb_input.h>
 
 #include "map_to_7segment.h"
 #include "yealink.h"
@@ -101,12 +102,12 @@ static const struct lcd_segment_map {
 };
 
 struct yealink_dev {
-	struct input_dev idev;		/* input device */
+	struct input_dev *idev;		/* input device */
 	struct usb_device *udev;	/* usb device */
 
 	/* irq input channel */
 	struct yld_ctl_packet	*irq_data;
-	dma_addr_t 		irq_dma;
+	dma_addr_t		irq_dma;
 	struct urb		*urb_irq;
 
 	/* control output channel */
@@ -237,7 +238,7 @@ static int map_p1k_to_key(int scancode)
  */
 static void report_key(struct yealink_dev *yld, int key, struct pt_regs *regs)
 {
-	struct input_dev *idev = &yld->idev;
+	struct input_dev *idev = yld->idev;
 
 	input_regs(idev, regs);
 	if (yld->key_code >= 0) {
@@ -809,8 +810,12 @@ static int usb_cleanup(struct yealink_dev *yld, int err)
 	}
         if (yld->urb_ctl)
 		usb_free_urb(yld->urb_ctl);
-        if (yld->idev.dev)
-		input_unregister_device(&yld->idev);
+        if (yld->idev) {
+		if (err)
+			input_free_device(yld->idev);
+		else
+			input_unregister_device(yld->idev);
+	}
 	if (yld->ctl_req)
 		usb_buffer_free(yld->udev, sizeof(*(yld->ctl_req)),
 				yld->ctl_req, yld->ctl_req_dma);
@@ -857,7 +862,7 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *endpoint;
 	struct yealink_dev *yld;
-	char path[64];
+	struct input_dev *input_dev;
 	int ret, pipe, i;
 
 	i = usb_match(udev);
@@ -866,16 +871,20 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	interface = intf->cur_altsetting;
 	endpoint = &interface->endpoint[0].desc;
-	if (!(endpoint->bEndpointAddress & 0x80))
+	if (!(endpoint->bEndpointAddress & USB_DIR_IN))
 		return -EIO;
-	if ((endpoint->bmAttributes & 3) != 3)
+	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != USB_ENDPOINT_XFER_INT)
 		return -EIO;
 
-	if ((yld = kmalloc(sizeof(struct yealink_dev), GFP_KERNEL)) == NULL)
+	yld = kzalloc(sizeof(struct yealink_dev), GFP_KERNEL);
+	if (!yld)
 		return -ENOMEM;
 
-	memset(yld, 0, sizeof(*yld));
 	yld->udev = udev;
+
+	yld->idev = input_dev = input_allocate_device();
+	if (!input_dev)
+		return usb_cleanup(yld, -ENOMEM);
 
 	/* allocate usb buffers */
 	yld->irq_data = usb_buffer_alloc(udev, USB_PKT_LEN,
@@ -935,42 +944,37 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	yld->urb_ctl->dev = udev;
 
 	/* find out the physical bus location */
-	if (usb_make_path(udev, path, sizeof(path)) > 0)
-		snprintf(yld->phys, sizeof(yld->phys)-1,  "%s/input0", path);
+	usb_make_path(udev, yld->phys, sizeof(yld->phys));
+	strlcat(yld->phys,  "/input0", sizeof(yld->phys));
 
 	/* register settings for the input device */
-	init_input_dev(&yld->idev);
-	yld->idev.private	= yld;
-	yld->idev.id.bustype	= BUS_USB;
-	yld->idev.id.vendor	= le16_to_cpu(udev->descriptor.idVendor);
-	yld->idev.id.product	= le16_to_cpu(udev->descriptor.idProduct);
-	yld->idev.id.version	= le16_to_cpu(udev->descriptor.bcdDevice);
-	yld->idev.dev		= &intf->dev;
-	yld->idev.name		= yld_device[i].name;
-	yld->idev.phys		= yld->phys;
-	/* yld->idev.event		= input_ev;	TODO */
-	yld->idev.open		= input_open;
-	yld->idev.close		= input_close;
+	input_dev->name = yld_device[i].name;
+	input_dev->phys = yld->phys;
+	usb_to_input_id(udev, &input_dev->id);
+	input_dev->cdev.dev = &intf->dev;
+
+	input_dev->private = yld;
+	input_dev->open = input_open;
+	input_dev->close = input_close;
+	/* input_dev->event = input_ev;	TODO */
 
 	/* register available key events */
-	yld->idev.evbit[0] = BIT(EV_KEY);
+	input_dev->evbit[0] = BIT(EV_KEY);
 	for (i = 0; i < 256; i++) {
 		int k = map_p1k_to_key(i);
 		if (k >= 0) {
-			set_bit(k & 0xff, yld->idev.keybit);
+			set_bit(k & 0xff, input_dev->keybit);
 			if (k >> 8)
-				set_bit(k >> 8, yld->idev.keybit);
+				set_bit(k >> 8, input_dev->keybit);
 		}
 	}
 
-	printk(KERN_INFO "input: %s on %s\n", yld->idev.name, path);
-
-	input_register_device(&yld->idev);
+	input_register_device(yld->idev);
 
 	usb_set_intfdata(intf, yld);
 
 	/* clear visible elements */
-	for (i=0; i<ARRAY_SIZE(lcdMap); i++)
+	for (i = 0; i < ARRAY_SIZE(lcdMap); i++)
 		setChar(yld, i, ' ');
 
 	/* display driver version on LCD line 3 */

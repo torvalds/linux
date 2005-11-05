@@ -107,6 +107,7 @@ symbol		=	value
 /*
  * Print formatted string
  */
+#ifdef CONFIG_PRINTK
 #define PRINT(string)                                   \
 		.set	push;				\
 		.set	reorder;                        \
@@ -114,6 +115,9 @@ symbol		=	value
 		jal	printk;                         \
 		.set	pop;				\
 		TEXT(string)
+#else
+#define PRINT(string)
+#endif
 
 #define	TEXT(msg)                                       \
 		.pushsection .data;			\

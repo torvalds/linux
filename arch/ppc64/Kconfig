@@ -10,6 +10,9 @@ config MMU
 	bool
 	default y
 
+config PPC_STD_MMU
+	def_bool y
+
 config UID16
 	bool
 
@@ -86,12 +89,14 @@ config PPC_PMAC
 	bool "  Apple G5 based machines"
 	default y
 	select U3_DART
+	select GENERIC_TBSYNC
 
 config PPC_MAPLE
 	depends on PPC_MULTIPLATFORM
 	bool "  Maple 970FX Evaluation Board"
 	select U3_DART
 	select MPIC_BROKEN_U3
+	select GENERIC_TBSYNC
 	default n
 	help
           This option enables support for the Maple 970FX Evaluation Board.
@@ -117,6 +122,11 @@ config XICS
 
 config MPIC
 	depends on PPC_PSERIES || PPC_PMAC || PPC_MAPLE
+	bool
+	default y
+
+config PPC_I8259
+	depends on PPC_PSERIES
 	bool
 	default y
 
@@ -174,6 +184,9 @@ config MPIC_BROKEN_U3
 	depends on PPC_MAPLE
 	default y
 
+config GENERIC_TBSYNC
+	def_bool n
+
 config PPC_PMAC64
 	bool
 	depends on PPC_PMAC
@@ -185,6 +198,12 @@ config BOOTX_TEXT
 	help
 	  Say Y here to see progress messages from the boot firmware in text
 	  mode. Requires an Open Firmware compatible video card.
+
+config POWER4
+	def_bool y
+
+config PPC_FPU
+	def_bool y
 
 config POWER4_ONLY
 	bool "Optimize for POWER4"
@@ -234,6 +253,10 @@ config HMT
 	  This option enables hardware multithreading on RS64 cpus.
 	  pSeries systems p620 and p660 have such a cpu type.
 
+config NUMA
+	bool "NUMA support"
+	default y if SMP && PPC_PSERIES
+
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
 
@@ -248,9 +271,6 @@ config ARCH_DISCONTIGMEM_ENABLE
 config ARCH_DISCONTIGMEM_DEFAULT
 	def_bool y
 	depends on ARCH_DISCONTIGMEM_ENABLE
-
-config ARCH_FLATMEM_ENABLE
-	def_bool y
 
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
@@ -273,10 +293,6 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 config NODES_SPAN_OTHER_NODES
 	def_bool y
 	depends on NEED_MULTIPLE_NODES
-
-config NUMA
-	bool "NUMA support"
-	default y if DISCONTIGMEM || SPARSEMEM
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
@@ -305,6 +321,11 @@ config GENERIC_HARDIRQS
 config PPC_RTAS
 	bool
 	depends on PPC_PSERIES || PPC_BPA
+	default y
+
+config RTAS_ERROR_LOGGING
+	bool
+	depends on PPC_RTAS
 	default y
 
 config RTAS_PROC
@@ -357,7 +378,6 @@ config HOTPLUG_CPU
 
 config PROC_DEVICETREE
 	bool "Support for Open Firmware device tree in /proc"
-	depends on !PPC_ISERIES
 	help
 	  This option adds a device-tree directory under /proc which contains
 	  an image of the device tree that the kernel copies from Open
@@ -461,7 +481,7 @@ config VIOPATH
 	depends on VIOCONS || VIODASD || VIOCD || VIOTAPE || VETH
 	default y
 
-source "arch/ppc64/oprofile/Kconfig"
+source "arch/powerpc/oprofile/Kconfig"
 
 source "arch/ppc64/Kconfig.debug"
 

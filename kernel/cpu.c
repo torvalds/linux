@@ -17,6 +17,7 @@
 
 /* This protects CPUs going up and down... */
 DECLARE_MUTEX(cpucontrol);
+EXPORT_SYMBOL_GPL(cpucontrol);
 
 static struct notifier_block *cpu_chain;
 
