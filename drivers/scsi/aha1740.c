@@ -347,7 +347,7 @@ static int aha1740_queuecommand(Scsi_Cmnd * SCpnt, void (*done)(Scsi_Cmnd *))
 {
 	unchar direction;
 	unchar *cmd = (unchar *) SCpnt->cmnd;
-	unchar target = SCpnt->device->id;
+	unchar target = scmd_id(SCpnt);
 	struct aha1740_hostdata *host = HOSTDATA(SCpnt->device->host);
 	unsigned long flags;
 	void *buff = SCpnt->request_buffer;

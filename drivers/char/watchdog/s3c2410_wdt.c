@@ -44,7 +44,7 @@
 #include <linux/watchdog.h>
 #include <linux/fs.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/interrupt.h>
 
 #include <asm/uaccess.h>
@@ -497,6 +497,7 @@ static int s3c2410wdt_resume(struct device *dev)
 
 
 static struct device_driver s3c2410wdt_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "s3c2410-wdt",
 	.bus		= &platform_bus_type,
 	.probe		= s3c2410wdt_probe,

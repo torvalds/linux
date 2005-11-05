@@ -388,9 +388,8 @@ void m8xx_cpm_dpinit(void)
 
 /*
  * Allocate the requested size worth of DP memory.
- * This function used to return an index into the DPRAM area.
- * Now it returns the actuall physical address of that area.
- * use m8xx_cpm_dpram_offset() to get the index
+ * This function returns an offset into the DPRAM area.
+ * Use cpm_dpram_addr() to get the virtual address of the area.
  */
 uint cpm_dpalloc(uint size, uint align)
 {

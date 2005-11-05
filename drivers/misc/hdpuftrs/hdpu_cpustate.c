@@ -21,7 +21,7 @@
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <asm/uaccess.h>
 #include <linux/hdpu_features.h>
 

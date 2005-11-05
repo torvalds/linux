@@ -241,11 +241,10 @@ static inline void scsi_eh_prt_fail_stats(struct Scsi_Host *shost,
 
 		if (cmd_cancel || cmd_failed) {
 			SCSI_LOG_ERROR_RECOVERY(3,
-				printk("%s: %d:%d:%d:%d cmds failed: %d,"
-				       " cancel: %d\n",
-				       __FUNCTION__, shost->host_no,
-				       sdev->channel, sdev->id, sdev->lun,
-				       cmd_failed, cmd_cancel));
+				sdev_printk(KERN_INFO, sdev,
+					    "%s: cmds failed: %d, cancel: %d\n",
+					    __FUNCTION__, cmd_failed,
+					    cmd_cancel));
 			cmd_cancel = 0;
 			cmd_failed = 0;
 			++devices_failed;
@@ -674,10 +673,9 @@ static int scsi_eh_get_sense(struct list_head *work_q,
 		    SCSI_SENSE_VALID(scmd))
 			continue;
 
-		SCSI_LOG_ERROR_RECOVERY(2, printk("%s: requesting sense"
-						  " for id: %d\n",
-						  current->comm,
-						  scmd->device->id));
+		SCSI_LOG_ERROR_RECOVERY(2, scmd_printk(KERN_INFO, scmd,
+						  "%s: requesting sense\n",
+						  current->comm));
 		rtn = scsi_request_sense(scmd);
 		if (rtn != SUCCESS)
 			continue;
@@ -1035,7 +1033,8 @@ static int scsi_try_bus_reset(struct scsi_cmnd *scmd)
 		if (!scmd->device->host->hostt->skip_settle_delay)
 			ssleep(BUS_RESET_SETTLE_TIME);
 		spin_lock_irqsave(scmd->device->host->host_lock, flags);
-		scsi_report_bus_reset(scmd->device->host, scmd->device->channel);
+		scsi_report_bus_reset(scmd->device->host,
+				      scmd_channel(scmd));
 		spin_unlock_irqrestore(scmd->device->host->host_lock, flags);
 	}
 
@@ -1063,7 +1062,8 @@ static int scsi_try_host_reset(struct scsi_cmnd *scmd)
 		if (!scmd->device->host->hostt->skip_settle_delay)
 			ssleep(HOST_RESET_SETTLE_TIME);
 		spin_lock_irqsave(scmd->device->host->host_lock, flags);
-		scsi_report_bus_reset(scmd->device->host, scmd->device->channel);
+		scsi_report_bus_reset(scmd->device->host,
+				      scmd_channel(scmd));
 		spin_unlock_irqrestore(scmd->device->host->host_lock, flags);
 	}
 
@@ -1093,7 +1093,7 @@ static int scsi_eh_bus_reset(struct Scsi_Host *shost,
 	for (channel = 0; channel <= shost->max_channel; channel++) {
 		chan_scmd = NULL;
 		list_for_each_entry(scmd, work_q, eh_entry) {
-			if (channel == scmd->device->channel) {
+			if (channel == scmd_channel(scmd)) {
 				chan_scmd = scmd;
 				break;
 				/*
@@ -1111,7 +1111,7 @@ static int scsi_eh_bus_reset(struct Scsi_Host *shost,
 		rtn = scsi_try_bus_reset(chan_scmd);
 		if (rtn == SUCCESS) {
 			list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
-				if (channel == scmd->device->channel)
+				if (channel == scmd_channel(scmd))
 					if (!scsi_device_online(scmd->device) ||
 					    !scsi_eh_tur(scmd))
 						scsi_eh_finish_cmd(scmd,
@@ -1174,13 +1174,9 @@ static void scsi_eh_offline_sdevs(struct list_head *work_q,
 	struct scsi_cmnd *scmd, *next;
 
 	list_for_each_entry_safe(scmd, next, work_q, eh_entry) {
-		printk(KERN_INFO "scsi: Device offlined - not"
-		       		" ready after error recovery: host"
-				" %d channel %d id %d lun %d\n",
-				scmd->device->host->host_no,
-				scmd->device->channel,
-				scmd->device->id,
-				scmd->device->lun);
+		sdev_printk(KERN_INFO, scmd->device,
+			    "scsi: Device offlined - not"
+			    " ready after error recovery\n");
 		scsi_device_set_state(scmd->device, SDEV_OFFLINE);
 		if (scmd->eh_eflags & SCSI_EH_CANCEL_CMD) {
 			/*
@@ -1342,10 +1338,8 @@ int scsi_decide_disposition(struct scsi_cmnd *scmd)
 		return SUCCESS;
 
 	case RESERVATION_CONFLICT:
-		printk(KERN_INFO "scsi: reservation conflict: host"
-                                " %d channel %d id %d lun %d\n",
-		       scmd->device->host->host_no, scmd->device->channel,
-		       scmd->device->id, scmd->device->lun);
+		sdev_printk(KERN_INFO, scmd->device,
+			    "reservation conflict\n");
 		return SUCCESS; /* causes immediate i/o error */
 	default:
 		return FAILED;
@@ -1683,7 +1677,7 @@ void scsi_report_bus_reset(struct Scsi_Host *shost, int channel)
 	struct scsi_device *sdev;
 
 	__shost_for_each_device(sdev, shost) {
-		if (channel == sdev->channel) {
+		if (channel == sdev_channel(sdev)) {
 			sdev->was_reset = 1;
 			sdev->expecting_cc_ua = 1;
 		}
@@ -1718,8 +1712,8 @@ void scsi_report_device_reset(struct Scsi_Host *shost, int channel, int target)
 	struct scsi_device *sdev;
 
 	__shost_for_each_device(sdev, shost) {
-		if (channel == sdev->channel &&
-		    target == sdev->id) {
+		if (channel == sdev_channel(sdev) &&
+		    target == sdev_id(sdev)) {
 			sdev->was_reset = 1;
 			sdev->expecting_cc_ua = 1;
 		}

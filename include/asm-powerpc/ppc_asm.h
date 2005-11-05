@@ -506,6 +506,13 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #else
   #define __ASM_CONST(x) x##UL
   #define ASM_CONST(x) __ASM_CONST(x)
+
+#ifdef CONFIG_PPC64
+#define DATAL	".llong"
+#else
+#define DATAL	".long"
+#endif
+
 #endif /*  __ASSEMBLY__ */
 
 #endif /* _ASM_POWERPC_PPC_ASM_H */

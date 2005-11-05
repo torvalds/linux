@@ -29,7 +29,7 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/serial_core.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -51,7 +51,7 @@
  *************************************************************************/
 static void ixdp2x01_irq_mask(unsigned int irq)
 {
-	ixp2000_reg_write(IXDP2X01_INT_MASK_SET_REG,
+	ixp2000_reg_wrb(IXDP2X01_INT_MASK_SET_REG,
 				IXP2000_BOARD_IRQ_MASK(irq));
 }
 
@@ -114,7 +114,7 @@ void __init ixdp2x01_init_irq(void)
 
 	/* Mask all interrupts from CPLD, disable simulation */
 	ixp2000_reg_write(IXDP2X01_INT_MASK_SET_REG, 0xffffffff);
-	ixp2000_reg_write(IXDP2X01_INT_SIM_REG, 0);
+	ixp2000_reg_wrb(IXDP2X01_INT_SIM_REG, 0);
 
 	for (irq = NR_IXP2000_IRQS; irq < NR_IXDP2X01_IRQS; irq++) {
 		if (irq & valid_irq_mask) {
@@ -299,7 +299,6 @@ struct hw_pci ixdp2x01_pci __initdata = {
 
 int __init ixdp2x01_pci_init(void)
 {
-
 	pci_common_init(&ixdp2x01_pci);
 	return 0;
 }
@@ -316,7 +315,7 @@ static struct flash_platform_data ixdp2x01_flash_platform_data = {
 
 static unsigned long ixdp2x01_flash_bank_setup(unsigned long ofs)
 {
-	ixp2000_reg_write(IXDP2X01_CPLD_FLASH_REG,
+	ixp2000_reg_wrb(IXDP2X01_CPLD_FLASH_REG,
 		((ofs >> IXDP2X01_FLASH_WINDOW_BITS) | IXDP2X01_CPLD_FLASH_INTERN));
 	return (ofs & IXDP2X01_FLASH_WINDOW_MASK);
 }
@@ -363,7 +362,7 @@ static struct platform_device *ixdp2x01_devices[] __initdata = {
 
 static void __init ixdp2x01_init_machine(void)
 {
-	ixp2000_reg_write(IXDP2X01_CPLD_FLASH_REG,
+	ixp2000_reg_wrb(IXDP2X01_CPLD_FLASH_REG,
 		(IXDP2X01_CPLD_FLASH_BANK_MASK | IXDP2X01_CPLD_FLASH_INTERN));
 	
 	ixdp2x01_flash_data.nr_banks =

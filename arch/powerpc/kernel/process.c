@@ -48,8 +48,8 @@
 #include <asm/prom.h>
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
-#include <asm/plpar_wrappers.h>
 #include <asm/time.h>
+#include <asm/machdep.h>
 #endif
 
 extern unsigned long _get_SP(void);
@@ -201,27 +201,15 @@ int dump_spe(struct pt_regs *regs, elf_vrregset_t *evrregs)
 }
 #endif /* CONFIG_SPE */
 
-static void set_dabr_spr(unsigned long val)
-{
-	mtspr(SPRN_DABR, val);
-}
-
 int set_dabr(unsigned long dabr)
 {
-	int ret = 0;
-
 #ifdef CONFIG_PPC64
-	if (firmware_has_feature(FW_FEATURE_XDABR)) {
-		/* We want to catch accesses from kernel and userspace */
-		unsigned long flags = H_DABRX_KERNEL|H_DABRX_USER;
-		ret = plpar_set_xdabr(dabr, flags);
-	} else if (firmware_has_feature(FW_FEATURE_DABR)) {
-		ret = plpar_set_dabr(dabr);
-	} else
+	if (ppc_md.set_dabr)
+		return ppc_md.set_dabr(dabr);
 #endif
-		set_dabr_spr(dabr);
 
-	return ret;
+	mtspr(SPRN_DABR, dabr);
+	return 0;
 }
 
 #ifdef CONFIG_PPC64

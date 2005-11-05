@@ -66,7 +66,7 @@ static int via_do_init_map(drm_device_t * dev, drm_via_init_t * init)
 
 	dev_priv->agpAddr = init->agpAddr;
 
-	via_init_futex( dev_priv );
+	via_init_futex(dev_priv);
 	dev_priv->pro_group_a = (dev->pdev->device == 0x3118);
 
 	dev->dev_private = (void *)dev_priv;
@@ -107,5 +107,3 @@ int via_map_init(DRM_IOCTL_ARGS)
 
 	return -EINVAL;
 }
-
-

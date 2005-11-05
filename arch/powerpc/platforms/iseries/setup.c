@@ -27,6 +27,7 @@
 #include <linux/kdev_t.h>
 #include <linux/major.h>
 #include <linux/root_dev.h>
+#include <linux/kernel.h>
 
 #include <asm/processor.h>
 #include <asm/machdep.h>
@@ -40,19 +41,19 @@
 #include <asm/firmware.h>
 
 #include <asm/time.h>
-#include <asm/naca.h>
 #include <asm/paca.h>
 #include <asm/cache.h>
 #include <asm/sections.h>
 #include <asm/abs_addr.h>
-#include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/HvCallEvent.h>
-#include <asm/iSeries/HvCallXm.h>
-#include <asm/iSeries/ItLpQueue.h>
-#include <asm/iSeries/mf.h>
-#include <asm/iSeries/HvLpEvent.h>
-#include <asm/iSeries/LparMap.h>
+#include <asm/iseries/hv_lp_config.h>
+#include <asm/iseries/hv_call_event.h>
+#include <asm/iseries/hv_call_xm.h>
+#include <asm/iseries/it_lp_queue.h>
+#include <asm/iseries/mf.h>
+#include <asm/iseries/hv_lp_event.h>
+#include <asm/iseries/lpar_map.h>
 
+#include "naca.h"
 #include "setup.h"
 #include "irq.h"
 #include "vpd_areas.h"
@@ -93,6 +94,8 @@ extern unsigned long iSeries_recal_tb;
 extern unsigned long iSeries_recal_titan;
 
 static int mf_initialized;
+
+static unsigned long cmd_mem_limit;
 
 struct MemoryBlock {
 	unsigned long absStart;
@@ -340,23 +343,6 @@ static void __init iSeries_init_early(void)
 	 * Initialize the DMA/TCE management
 	 */
 	iommu_init_early_iSeries();
-
-	iSeries_get_cmdline();
-
-	/* Save unparsed command line copy for /proc/cmdline */
-	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
-
-	/* Parse early parameters, in particular mem=x */
-	parse_early_param();
-
-	if (memory_limit) {
-		if (memory_limit < systemcfg->physicalMemorySize)
-			systemcfg->physicalMemorySize = memory_limit;
-		else {
-			printk("Ignoring mem=%lu >= ram_top.\n", memory_limit);
-			memory_limit = 0;
-		}
-	}
 
 	/* Initialize machine-dependency vectors */
 #ifdef CONFIG_SMP
@@ -971,6 +957,8 @@ void build_flat_dt(struct iseries_flat_dt *dt)
 	/* /chosen */
 	dt_start_node(dt, "chosen");
 	dt_prop_u32(dt, "linux,platform", PLATFORM_ISERIES_LPAR);
+	if (cmd_mem_limit)
+		dt_prop_u64(dt, "linux,memory-limit", cmd_mem_limit);
 	dt_end_node(dt);
 
 	dt_cpus(dt);
@@ -990,7 +978,27 @@ void * __init iSeries_early_setup(void)
 	 */
 	build_iSeries_Memory_Map();
 
+	iSeries_get_cmdline();
+
+	/* Save unparsed command line copy for /proc/cmdline */
+	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
+
+	/* Parse early parameters, in particular mem=x */
+	parse_early_param();
+
 	build_flat_dt(&iseries_dt);
 
 	return (void *) __pa(&iseries_dt);
 }
+
+/*
+ * On iSeries we just parse the mem=X option from the command line.
+ * On pSeries it's a bit more complicated, see prom_init_mem()
+ */
+static int __init early_parsemem(char *p)
+{
+	if (p)
+		cmd_mem_limit = ALIGN(memparse(p, &p), PAGE_SIZE);
+	return 0;
+}
+early_param("mem", early_parsemem);

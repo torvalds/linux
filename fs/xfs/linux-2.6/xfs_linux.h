@@ -1,33 +1,19 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_LINUX__
 #define __XFS_LINUX__
@@ -197,10 +183,6 @@ static inline void set_buffer_unwritten_io(struct buffer_head *bh)
 /* bytes to clicks */
 #define btoc(x)         (((__psunsigned_t)(x)+(NBPC-1))>>BPCSHIFT)
 
-#ifndef CELL_CAPABLE
-#define FSC_NOTIFY_NAME_CHANGED(vp)
-#endif
-
 #ifndef ENOATTR
 #define ENOATTR		ENODATA		/* Attribute not found */
 #endif
@@ -235,30 +217,18 @@ static inline void set_buffer_unwritten_io(struct buffer_head *bh)
 #define Q_XSETPQLIM	XQM_CMD(10)	/* set projects disk limits */
 #define Q_XGETPQUOTA	XQM_CMD(11)	/* get projects disk limits */
 
-/* IRIX uses a dynamic sizing algorithm (ndquot = 200 + numprocs*2) */
-/* we may well need to fine-tune this if it ever becomes an issue.  */
-#define DQUOT_MAX_HEURISTIC	1024	/* NR_DQUOTS */
-#define ndquot			DQUOT_MAX_HEURISTIC
-
-/* IRIX uses the current size of the name cache to guess a good value */
-/* - this isn't the same but is a good enough starting point for now. */
-#define DQUOT_HASH_HEURISTIC	files_stat.nr_files
-
-/* IRIX inodes maintain the project ID also, zero this field on Linux */
-#define DEFAULT_PROJID	0
-#define dfltprid	DEFAULT_PROJID
-
+#define dfltprid	0
 #define MAXPATHLEN	1024
 
 #define MIN(a,b)	(min(a,b))
 #define MAX(a,b)	(max(a,b))
 #define howmany(x, y)	(((x)+((y)-1))/(y))
 #define roundup(x, y)	((((x)+((y)-1))/(y))*(y))
-#define qsort(a,n,s,fn)	sort(a,n,s,fn,NULL)
 
 /*
  * Various platform dependent calls that don't fit anywhere else
  */
+#define xfs_sort(a,n,s,fn)	sort(a,n,s,fn,NULL)
 #define xfs_stack_trace()	dump_stack()
 #define xfs_itruncate_data(ip, off)	\
 	(-vmtruncate(LINVFS_GET_IP(XFS_ITOV(ip)), (off)))

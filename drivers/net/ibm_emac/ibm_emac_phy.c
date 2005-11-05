@@ -236,12 +236,16 @@ static struct mii_phy_def genmii_phy_def = {
 };
 
 /* CIS8201 */
+#define MII_CIS8201_10BTCSR	0x16
+#define  TENBTCSR_ECHO_DISABLE	0x2000
 #define MII_CIS8201_EPCR	0x17
 #define  EPCR_MODE_MASK		0x3000
 #define  EPCR_GMII_MODE		0x0000
 #define  EPCR_RGMII_MODE	0x1000
 #define  EPCR_TBI_MODE		0x2000
 #define  EPCR_RTBI_MODE		0x3000
+#define MII_CIS8201_ACSR	0x1c
+#define  ACSR_PIN_PRIO_SELECT	0x0004
 
 static int cis8201_init(struct mii_phy *phy)
 {
@@ -269,6 +273,14 @@ static int cis8201_init(struct mii_phy *phy)
 	}
 
 	phy_write(phy, MII_CIS8201_EPCR, epcr);
+	
+	/* MII regs override strap pins */
+	phy_write(phy, MII_CIS8201_ACSR, 
+		  phy_read(phy, MII_CIS8201_ACSR) | ACSR_PIN_PRIO_SELECT);
+
+	/* Disable TX_EN -> CRS echo mode, otherwise 10/HDX doesn't work */
+	phy_write(phy, MII_CIS8201_10BTCSR,
+		  phy_read(phy, MII_CIS8201_10BTCSR) | TENBTCSR_ECHO_DISABLE);
 
 	return 0;
 }

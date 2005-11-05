@@ -19,7 +19,7 @@
 #include	<linux/config.h>
 #include	<asm/types.h>
 #include	<asm/lppaca.h>
-#include	<asm/iSeries/ItLpRegSave.h>
+#include	<asm/iseries/it_lp_reg_save.h>
 #include	<asm/mmu.h>
 
 register struct paca_struct *local_paca asm("r13");

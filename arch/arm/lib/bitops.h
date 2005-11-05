@@ -1,6 +1,6 @@
 #include <linux/config.h>
 
-#if __LINUX_ARM_ARCH__ >= 6 && defined(CONFIG_CPU_MPCORE)
+#if __LINUX_ARM_ARCH__ >= 6 && defined(CONFIG_CPU_32v6K)
 	.macro	bitop, instr
 	mov	r2, #1
 	and	r3, r0, #7		@ Get bit offset

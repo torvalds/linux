@@ -1498,10 +1498,9 @@ static int sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 
  overflow:
 	write_unlock_irqrestore(&sg_dev_arr_lock, iflags);
-	printk(KERN_WARNING
-	       "Unable to attach sg device <%d, %d, %d, %d> type=%d, minor "
-	       "number exceeds %d\n", scsidp->host->host_no, scsidp->channel,
-	       scsidp->id, scsidp->lun, scsidp->type, SG_MAX_DEVS - 1);
+	sdev_printk(KERN_WARNING, scsidp,
+		    "Unable to attach sg device type=%d, minor "
+		    "number exceeds %d\n", scsidp->type, SG_MAX_DEVS - 1);
 	error = -ENODEV;
 	goto out;
 }
@@ -1567,11 +1566,8 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 	} else
 		printk(KERN_WARNING "sg_add: sg_sys INvalid\n");
 
-	printk(KERN_NOTICE
-	       "Attached scsi generic sg%d at scsi%d, channel"
-	       " %d, id %d, lun %d,  type %d\n", k,
-	       scsidp->host->host_no, scsidp->channel, scsidp->id,
-	       scsidp->lun, scsidp->type);
+	sdev_printk(KERN_NOTICE, scsidp,
+		    "Attached scsi generic sg%d type %d\n", k,scsidp->type);
 
 	return 0;
 

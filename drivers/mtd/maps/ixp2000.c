@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>

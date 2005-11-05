@@ -1,40 +1,26 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -42,21 +28,20 @@
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_btree.h"
+#include "xfs_ialloc.h"
 #include "xfs_alloc.h"
 #include "xfs_rtalloc.h"
 #include "xfs_bmap.h"
 #include "xfs_error.h"
-#include "xfs_bit.h"
 #include "xfs_rw.h"
 #include "xfs_quota.h"
 #include "xfs_fsops.h"
@@ -180,6 +165,10 @@ xfs_mount_free(
 
 	if (mp->m_fsname != NULL)
 		kmem_free(mp->m_fsname, mp->m_fsname_len);
+	if (mp->m_rtname != NULL)
+		kmem_free(mp->m_rtname, strlen(mp->m_rtname) + 1);
+	if (mp->m_logname != NULL)
+		kmem_free(mp->m_logname, strlen(mp->m_logname) + 1);
 
 	if (remove_bhv) {
 		struct vfs	*vfsp = XFS_MTOVFS(mp);
@@ -318,7 +307,7 @@ xfs_mount_validate_sb(
 		"XFS: Attempted to mount file system with blocksize %d bytes",
 			sbp->sb_blocksize);
 		cmn_err(CE_WARN,
-		"XFS: Only page-sized (%d) or less blocksizes currently work.",
+		"XFS: Only page-sized (%ld) or less blocksizes currently work.",
 			PAGE_SIZE);
 		return XFS_ERROR(ENOSYS);
 	}
@@ -327,7 +316,10 @@ xfs_mount_validate_sb(
 }
 
 xfs_agnumber_t
-xfs_initialize_perag(xfs_mount_t *mp, xfs_agnumber_t agcount)
+xfs_initialize_perag(
+	struct vfs	*vfs,
+	xfs_mount_t	*mp,
+	xfs_agnumber_t	agcount)
 {
 	xfs_agnumber_t	index, max_metadata;
 	xfs_perag_t	*pag;
@@ -343,7 +335,7 @@ xfs_initialize_perag(xfs_mount_t *mp, xfs_agnumber_t agcount)
 	/* Clear the mount flag if no inode can overflow 32 bits
 	 * on this filesystem, or if specifically requested..
 	 */
-	if ((mp->m_flags & XFS_MOUNT_32BITINOOPT) && ino > max_inum) {
+	if ((vfs->vfs_flag & VFS_32BITINODES) && ino > max_inum) {
 		mp->m_flags |= XFS_MOUNT_32BITINODES;
 	} else {
 		mp->m_flags &= ~XFS_MOUNT_32BITINODES;
@@ -360,7 +352,7 @@ xfs_initialize_perag(xfs_mount_t *mp, xfs_agnumber_t agcount)
 			icount = sbp->sb_dblocks * sbp->sb_imax_pct;
 			do_div(icount, 100);
 			icount += sbp->sb_agblocks - 1;
-			do_div(icount, mp->m_ialloc_blks);
+			do_div(icount, sbp->sb_agblocks);
 			max_metadata = icount;
 		} else {
 			max_metadata = agcount;
@@ -584,12 +576,13 @@ xfs_mount_common(xfs_mount_t *mp, xfs_sb_t *sbp)
 	ASSERT(sbp->sb_inodesize >= 256 && sbp->sb_inodesize <= 2048);
 	switch (sbp->sb_inodesize) {
 	case 256:
-		mp->m_attroffset = XFS_LITINO(mp) - XFS_BMDR_SPACE_CALC(2);
+		mp->m_attroffset = XFS_LITINO(mp) -
+				   XFS_BMDR_SPACE_CALC(MINABTPTRS);
 		break;
 	case 512:
 	case 1024:
 	case 2048:
-		mp->m_attroffset = XFS_BMDR_SPACE_CALC(12);
+		mp->m_attroffset = XFS_BMDR_SPACE_CALC(6 * MINABTPTRS);
 		break;
 	default:
 		ASSERT(0);
@@ -954,7 +947,7 @@ xfs_mountfs(
 	mp->m_perag =
 		kmem_zalloc(sbp->sb_agcount * sizeof(xfs_perag_t), KM_SLEEP);
 
-	mp->m_maxagi = xfs_initialize_perag(mp, sbp->sb_agcount);
+	mp->m_maxagi = xfs_initialize_perag(vfsp, mp, sbp->sb_agcount);
 
 	/*
 	 * log's mount-time initialization. Perform 1st part recovery if needed

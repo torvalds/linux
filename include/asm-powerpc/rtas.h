@@ -149,28 +149,11 @@ struct rtas_error_log {
 	unsigned char buffer[1];
 };
 
-struct flash_block {
-	char *data;
-	unsigned long length;
-};
-
-/* This struct is very similar but not identical to
- * that needed by the rtas flash update.
- * All we need to do for rtas is rewrite num_blocks
- * into a version/length and translate the pointers
- * to absolute.
+/*
+ * This can be set by the rtas_flash module so that it can get called
+ * as the absolutely last thing before the kernel terminates.
  */
-#define FLASH_BLOCKS_PER_NODE ((PAGE_SIZE - 16) / sizeof(struct flash_block))
-struct flash_block_list {
-	unsigned long num_blocks;
-	struct flash_block_list *next;
-	struct flash_block blocks[FLASH_BLOCKS_PER_NODE];
-};
-struct flash_block_list_header { /* just the header of flash_block_list */
-	unsigned long num_blocks;
-	struct flash_block_list *next;
-};
-extern struct flash_block_list_header rtas_firmware_flash_list;
+extern void (*rtas_flash_term_hook)(int);
 
 extern struct rtas_t rtas;
 

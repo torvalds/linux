@@ -17,6 +17,7 @@
  *	10-Mar-2005 LCVR Changed S3C2410_VA to S3C24XX_VA
  *	14-Mar-2005 BJD  Fixed __iomem warnings
  *	20-Sep-2005 BJD  Added static to non-exported items
+ *	31-Oct-2005 BJD  Added LCD setup for framebuffer
 */
 
 #include <linux/kernel.h>
@@ -27,6 +28,7 @@
 #include <linux/init.h>
 #include <linux/tty.h>
 #include <linux/console.h>
+#include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
 
@@ -42,6 +44,9 @@
 
 #include <asm/arch/regs-serial.h>
 #include <asm/arch/regs-gpio.h>
+#include <asm/arch/regs-lcd.h>
+
+#include <asm/arch/fb.h>
 
 #include "clock.h"
 #include "devs.h"
@@ -96,6 +101,66 @@ static struct s3c2410_uartcfg rx3715_uartcfgs[] = {
 	}
 };
 
+/* framebuffer lcd controller information */
+
+static struct s3c2410fb_mach_info rx3715_lcdcfg __initdata = {
+	.regs	= {
+		.lcdcon1 =	S3C2410_LCDCON1_TFT16BPP | \
+				S3C2410_LCDCON1_TFT | \
+				S3C2410_LCDCON1_CLKVAL(0x0C),
+
+		.lcdcon2 =	S3C2410_LCDCON2_VBPD(5) | \
+				S3C2410_LCDCON2_LINEVAL(319) | \
+				S3C2410_LCDCON2_VFPD(6) | \
+				S3C2410_LCDCON2_VSPW(2),
+
+		.lcdcon3 =	S3C2410_LCDCON3_HBPD(35) | \
+				S3C2410_LCDCON3_HOZVAL(239) | \
+				S3C2410_LCDCON3_HFPD(35),
+
+		.lcdcon4 =	S3C2410_LCDCON4_MVAL(0) | \
+				S3C2410_LCDCON4_HSPW(7),
+
+		.lcdcon5 =	S3C2410_LCDCON5_INVVLINE |
+				S3C2410_LCDCON5_FRM565 |
+				S3C2410_LCDCON5_HWSWP,
+	},
+
+	.lpcsel =	0xf82,
+
+	.gpccon =	0xaa955699,
+	.gpccon_mask =	0xffc003cc,
+	.gpcup =	0x0000ffff,
+	.gpcup_mask =	0xffffffff,
+
+	.gpdcon =	0xaa95aaa1,
+	.gpdcon_mask =	0xffc0fff0,
+	.gpdup =	0x0000faff,
+	.gpdup_mask =	0xffffffff,
+
+	.fixed_syncs =	1,
+	.width  =	240,
+	.height =	320,
+
+	.xres	= {
+		.min =		240,
+		.max =		240,
+		.defval =	240,
+	},
+
+	.yres	= {
+		.max =		320,
+		.min =		320,
+		.defval	=	320,
+	},
+
+	.bpp	= {
+		.min =		16,
+		.max =		16,
+		.defval =	16,
+	},
+};
+
 static struct platform_device *rx3715_devices[] __initdata = {
 	&s3c_device_usb,
 	&s3c_device_lcd,
@@ -122,14 +187,12 @@ static void __init rx3715_init_irq(void)
 	s3c24xx_init_irq();
 }
 
-#ifdef CONFIG_PM
 static void __init rx3715_init_machine(void)
 {
 	s3c2410_pm_init();
+	s3c24xx_fb_set_platdata(&rx3715_lcdcfg);
 }
-#else
-#define rx3715_init_machine NULL
-#endif
+
 
 MACHINE_START(RX3715, "IPAQ-RX3715")
 	/* Maintainer: Ben Dooks <ben@fluff.org> */

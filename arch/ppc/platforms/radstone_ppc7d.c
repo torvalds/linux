@@ -40,6 +40,7 @@
 #include <linux/serial_core.h>
 #include <linux/mv643xx.h>
 #include <linux/netdevice.h>
+#include <linux/platform_device.h>
 
 #include <asm/system.h>
 #include <asm/pgtable.h>

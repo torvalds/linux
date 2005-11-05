@@ -38,7 +38,8 @@
 #include <asm/prom.h>
 #include <asm/abs_addr.h>
 #include <asm/cputable.h>
-#include <asm/plpar_wrappers.h>
+
+#include "plpar_wrappers.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -260,22 +261,18 @@ out:
 void vpa_init(int cpu)
 {
 	int hwcpu = get_hard_smp_processor_id(cpu);
-	unsigned long vpa = (unsigned long)&(paca[cpu].lppaca);
+	unsigned long vpa = __pa(&paca[cpu].lppaca);
 	long ret;
-	unsigned long flags;
-
-	/* Register the Virtual Processor Area (VPA) */
-	flags = 1UL << (63 - 18);
 
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
 		paca[cpu].lppaca.vmxregs_in_use = 1;
 
-	ret = register_vpa(flags, hwcpu, __pa(vpa));
+	ret = register_vpa(hwcpu, vpa);
 
 	if (ret)
 		printk(KERN_ERR "WARNING: vpa_init: VPA registration for "
 				"cpu %d (hw %d) of area %lx returns %ld\n",
-				cpu, hwcpu, __pa(vpa), ret);
+				cpu, hwcpu, vpa, ret);
 }
 
 long pSeries_lpar_hpte_insert(unsigned long hpte_group,

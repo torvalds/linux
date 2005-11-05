@@ -31,7 +31,7 @@
 
 #include <asm/paca.h>
 #include <asm/lppaca.h>
-#include <asm/iSeries/HvLpEvent.h>
+#include <asm/iseries/hv_lp_event.h>
 #include <asm/rtas.h>
 #include <asm/cputable.h>
 #include <asm/cache.h>

@@ -70,7 +70,7 @@ extern unsigned char ucBoardRevMaj, ucBoardRevMin;
 #define PLATFORM_LPAR         0x0001
 #define PLATFORM_POWERMAC     0x0400
 #define PLATFORM_MAPLE        0x0500
-#define PLATFORM_BPA          0x1000
+#define PLATFORM_CELL         0x1000
 
 /* Compatibility with drivers coming from PPC32 world */
 #define _machine	(systemcfg->platform)

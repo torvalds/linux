@@ -9,6 +9,7 @@
 
 static void elevator_noop_add_request(request_queue_t *q, struct request *rq)
 {
+	rq->flags |= REQ_NOMERGE;
 	elv_dispatch_add_tail(q, rq);
 }
 

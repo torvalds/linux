@@ -11,11 +11,11 @@
  * the rights to use, copy, modify, merge, publish, distribute, sublicense,
  * and/or sell copies of the Software, and to permit persons to whom the
  * Software is furnished to do so, subject to the following conditions:
- * 
+ *
  * The above copyright notice and this permission notice (including the next
  * paragraph) shall be included in all copies or substantial portions of the
  * Software.
- * 
+ *
  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
@@ -63,14 +63,14 @@
 #define USE_IRQS 0
 
 typedef struct drm_i830_buf_priv {
-   	u32 *in_use;
-   	int my_use_idx;
+	u32 *in_use;
+	int my_use_idx;
 	int currently_mapped;
 	void __user *virtual;
 	void *kernel_virtual;
 } drm_i830_buf_priv_t;
 
-typedef struct _drm_i830_ring_buffer{
+typedef struct _drm_i830_ring_buffer {
 	int tail_mask;
 	unsigned long Start;
 	unsigned long End;
@@ -86,17 +86,17 @@ typedef struct drm_i830_private {
 	drm_map_t *mmio_map;
 
 	drm_i830_sarea_t *sarea_priv;
-   	drm_i830_ring_buffer_t ring;
+	drm_i830_ring_buffer_t ring;
 
-      	void * hw_status_page;
-   	unsigned long counter;
+	void *hw_status_page;
+	unsigned long counter;
 
 	dma_addr_t dma_status_page;
 
 	drm_buf_t *mmap_buffer;
-	
+
 	u32 front_di1, back_di1, zi1;
-	
+
 	int back_offset;
 	int depth_offset;
 	int front_offset;
@@ -113,43 +113,39 @@ typedef struct drm_i830_private {
 	int page_flipping;
 
 	wait_queue_head_t irq_queue;
-   	atomic_t irq_received;
-   	atomic_t irq_emitted;
+	atomic_t irq_received;
+	atomic_t irq_emitted;
 
 	int use_mi_batchbuffer_start;
 
 } drm_i830_private_t;
 
+extern drm_ioctl_desc_t i830_ioctls[];
+extern int i830_max_ioctl;
+
 /* i830_dma.c */
-extern void i830_reclaim_buffers(drm_device_t *dev, struct file *filp);
+extern void i830_reclaim_buffers(drm_device_t * dev, struct file *filp);
 
 /* i830_irq.c */
-extern int i830_irq_emit( struct inode *inode, struct file *filp, 
-			  unsigned int cmd, unsigned long arg );
-extern int i830_irq_wait( struct inode *inode, struct file *filp,
-			  unsigned int cmd, unsigned long arg );
+extern int i830_irq_emit(struct inode *inode, struct file *filp,
+			 unsigned int cmd, unsigned long arg);
+extern int i830_irq_wait(struct inode *inode, struct file *filp,
+			 unsigned int cmd, unsigned long arg);
 
-extern irqreturn_t i830_driver_irq_handler( DRM_IRQ_ARGS );
-extern void i830_driver_irq_preinstall( drm_device_t *dev );
-extern void i830_driver_irq_postinstall( drm_device_t *dev );
-extern void i830_driver_irq_uninstall( drm_device_t *dev );
-extern void i830_driver_pretakedown(drm_device_t *dev);
-extern void i830_driver_release(drm_device_t *dev, struct file *filp);
-extern int i830_driver_dma_quiescent(drm_device_t *dev);
-extern void i830_driver_prerelease(drm_device_t *dev, DRMFILE filp);
+extern irqreturn_t i830_driver_irq_handler(DRM_IRQ_ARGS);
+extern void i830_driver_irq_preinstall(drm_device_t * dev);
+extern void i830_driver_irq_postinstall(drm_device_t * dev);
+extern void i830_driver_irq_uninstall(drm_device_t * dev);
+extern void i830_driver_pretakedown(drm_device_t * dev);
+extern void i830_driver_release(drm_device_t * dev, struct file *filp);
+extern int i830_driver_dma_quiescent(drm_device_t * dev);
+extern void i830_driver_prerelease(drm_device_t * dev, DRMFILE filp);
 extern int i830_driver_device_is_agp(drm_device_t * dev);
 
-#define I830_BASE(reg)		((unsigned long) \
-				dev_priv->mmio_map->handle)
-#define I830_ADDR(reg)		(I830_BASE(reg) + reg)
-#define I830_DEREF(reg)		*(__volatile__ unsigned int *)I830_ADDR(reg)
-#define I830_READ(reg)		readl((volatile u32 *)I830_ADDR(reg))
-#define I830_WRITE(reg,val) 	writel(val, (volatile u32 *)I830_ADDR(reg))
-#define I830_DEREF16(reg)	*(__volatile__ u16 *)I830_ADDR(reg)
-#define I830_READ16(reg) 	I830_DEREF16(reg)
-#define I830_WRITE16(reg,val)	do { I830_DEREF16(reg) = val; } while (0)
-
-
+#define I830_READ(reg)          DRM_READ32(dev_priv->mmio_map, reg)
+#define I830_WRITE(reg,val)     DRM_WRITE32(dev_priv->mmio_map, reg, val)
+#define I830_READ16(reg)        DRM_READ16(dev_priv->mmio_map, reg)
+#define I830_WRITE16(reg,val)   DRM_WRITE16(dev_priv->mmio_map, reg, val)
 
 #define I830_VERBOSE 0
 
@@ -168,7 +164,6 @@ extern int i830_driver_device_is_agp(drm_device_t * dev);
 	virt = dev_priv->ring.virtual_start;		\
 } while (0)
 
-
 #define OUT_RING(n) do {					\
 	if (I830_VERBOSE) printk("   OUT_RING %x\n", (int)(n));	\
 	*(volatile unsigned int *)(virt + outring) = n;		\
@@ -184,8 +179,7 @@ extern int i830_driver_device_is_agp(drm_device_t * dev);
 	I830_WRITE(LP_RING + RING_TAIL, outring);			\
 } while(0)
 
-extern int i830_wait_ring(drm_device_t *dev, int n, const char *caller);
-
+extern int i830_wait_ring(drm_device_t * dev, int n, const char *caller);
 
 #define GFX_OP_USER_INTERRUPT 		((0<<29)|(2<<23))
 #define GFX_OP_BREAKPOINT_INTERRUPT	((0<<29)|(1<<23))
@@ -200,7 +194,6 @@ extern int i830_wait_ring(drm_device_t *dev, int n, const char *caller);
 #define INST_OP_FLUSH        0x02000000
 #define INST_FLUSH_MAP_CACHE 0x00000001
 
-
 #define BB1_START_ADDR_MASK   (~0x7)
 #define BB1_PROTECTED         (1<<0)
 #define BB1_UNPROTECTED       (0<<0)
@@ -213,7 +206,6 @@ extern int i830_wait_ring(drm_device_t *dev, int n, const char *caller);
 
 #define I830_IRQ_RESERVED ((1<<13)|(3<<2))
 
-
 #define LP_RING     		0x2030
 #define HP_RING     		0x2040
 #define RING_TAIL      		0x00
@@ -225,7 +217,7 @@ extern int i830_wait_ring(drm_device_t *dev, int n, const char *caller);
 #define RING_START     		0x08
 #define START_ADDR          	0x0xFFFFF000
 #define RING_LEN       		0x0C
-#define RING_NR_PAGES       	0x001FF000 
+#define RING_NR_PAGES       	0x001FF000
 #define RING_REPORT_MASK    	0x00000006
 #define RING_REPORT_64K     	0x00000002
 #define RING_REPORT_128K    	0x00000004
@@ -291,10 +283,9 @@ extern int i830_wait_ring(drm_device_t *dev, int n, const char *caller);
 #define MI_BATCH_NON_SECURE	(1)
 
 #define MI_WAIT_FOR_EVENT       ((0x3<<23))
-#define MI_WAIT_FOR_PLANE_A_FLIP      (1<<2) 
-#define MI_WAIT_FOR_PLANE_A_SCANLINES (1<<1) 
+#define MI_WAIT_FOR_PLANE_A_FLIP      (1<<2)
+#define MI_WAIT_FOR_PLANE_A_SCANLINES (1<<1)
 
 #define MI_LOAD_SCAN_LINES_INCL  ((0x12<<23))
 
 #endif
-

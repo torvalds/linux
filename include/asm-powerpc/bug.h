@@ -12,20 +12,16 @@
 #ifndef __ASSEMBLY__
 
 #ifdef __powerpc64__
-#define BUG_TABLE_ENTRY(label, line, file, func) \
-	".llong " #label "\n .long " #line "\n .llong " #file ", " #func "\n"
-#define TRAP_OP(ra, rb) "1: tdnei " #ra ", " #rb "\n"
-#define DATA_TYPE long long
+#define BUG_TABLE_ENTRY		".llong"
+#define BUG_TRAP_OP		"tdnei"
 #else 
-#define BUG_TABLE_ENTRY(label, line, file, func) \
-	".long " #label ", " #line ", " #file ", " #func "\n"
-#define TRAP_OP(ra, rb) "1: twnei " #ra ", " #rb "\n"
-#define DATA_TYPE int
+#define BUG_TABLE_ENTRY		".long"
+#define BUG_TRAP_OP		"twnei"
 #endif /* __powerpc64__ */
 
 struct bug_entry {
 	unsigned long	bug_addr;
-	int		line;
+	long		line;
 	const char	*file;
 	const char	*function;
 };
@@ -43,29 +39,29 @@ struct bug_entry *find_bug(unsigned long bugaddr);
 #define BUG() do {							 \
 	__asm__ __volatile__(						 \
 		"1:	twi 31,0,0\n"					 \
-		".section __bug_table,\"a\"\n\t"			 \
-		BUG_TABLE_ENTRY(1b,%0,%1,%2)				 \
+		".section __bug_table,\"a\"\n"				 \
+		"\t"BUG_TABLE_ENTRY"	1b,%0,%1,%2\n"			 \
 		".previous"						 \
 		: : "i" (__LINE__), "i" (__FILE__), "i" (__FUNCTION__)); \
 } while (0)
 
 #define BUG_ON(x) do {						\
 	__asm__ __volatile__(					\
-		TRAP_OP(%0,0)					\
-		".section __bug_table,\"a\"\n\t"		\
-		BUG_TABLE_ENTRY(1b,%1,%2,%3)			\
+		"1:	"BUG_TRAP_OP"	%0,0\n"			\
+		".section __bug_table,\"a\"\n"			\
+		"\t"BUG_TABLE_ENTRY"	1b,%1,%2,%3\n"		\
 		".previous"					\
-		: : "r" ((DATA_TYPE)(x)), "i" (__LINE__),	\
+		: : "r" ((long)(x)), "i" (__LINE__),		\
 		    "i" (__FILE__), "i" (__FUNCTION__));	\
 } while (0)
 
 #define WARN_ON(x) do {						\
 	__asm__ __volatile__(					\
-		TRAP_OP(%0,0)					\
-		".section __bug_table,\"a\"\n\t"		\
-		BUG_TABLE_ENTRY(1b,%1,%2,%3)			\
+		"1:	"BUG_TRAP_OP"	%0,0\n"			\
+		".section __bug_table,\"a\"\n"			\
+		"\t"BUG_TABLE_ENTRY"	1b,%1,%2,%3\n"		\
 		".previous"					\
-		: : "r" ((DATA_TYPE)(x)),			\
+		: : "r" ((long)(x)),				\
 		    "i" (__LINE__ + BUG_WARNING_TRAP),		\
 		    "i" (__FILE__), "i" (__FUNCTION__));	\
 } while (0)

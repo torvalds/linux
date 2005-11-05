@@ -43,6 +43,7 @@
 #include <linux/sysfs.h>
 #include <linux/device.h>
 #include <linux/miscdevice.h>
+#include <linux/platform_device.h>
 #include <asm/io.h>		/* inb/outb */
 #include <asm/uaccess.h>
 

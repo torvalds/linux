@@ -251,9 +251,33 @@ static struct platform_device serial_device = {
 	},
 };
 
+static struct resource am79c961_resources[] = {
+	{
+		.start		= 0x220,
+		.end		= 0x238,
+		.flags		= IORESOURCE_IO,
+	}, {
+		.start		= IRQ_EBSA110_ETHERNET,
+		.end		= IRQ_EBSA110_ETHERNET,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device am79c961_device = {
+	.name			= "am79c961",
+	.id			= -1,
+	.num_resources		= ARRAY_SIZE(am79c961_resources),
+	.resource		= am79c961_resources,
+};
+
+static struct platform_device *ebsa110_devices[] = {
+	&serial_device,
+	&am79c961_device,
+};
+
 static int __init ebsa110_init(void)
 {
-	return platform_device_register(&serial_device);
+	return platform_add_devices(ebsa110_devices, ARRAY_SIZE(ebsa110_devices));
 }
 
 arch_initcall(ebsa110_init);

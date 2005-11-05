@@ -86,6 +86,7 @@
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/wait.h>
+#include <linux/platform_device.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>

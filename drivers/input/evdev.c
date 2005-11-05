@@ -565,6 +565,7 @@ static long evdev_ioctl_compat(struct file *file, unsigned int cmd, unsigned lon
 						case EV_LED: bits = dev->ledbit; max = LED_MAX; break;
 						case EV_SND: bits = dev->sndbit; max = SND_MAX; break;
 						case EV_FF:  bits = dev->ffbit;  max = FF_MAX;  break;
+						case EV_SW:  bits = dev->swbit;  max = SW_MAX;  break;
 						default: return -EINVAL;
 					}
 					bit_to_user(bits, max);
@@ -578,6 +579,9 @@ static long evdev_ioctl_compat(struct file *file, unsigned int cmd, unsigned lon
 
 				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGSND(0)))
 					bit_to_user(dev->snd, SND_MAX);
+
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGSW(0)))
+					bit_to_user(dev->sw, SW_MAX);
 
 				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGNAME(0))) {
 					int len;

@@ -34,8 +34,6 @@ extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
 extern struct task_struct * oplockThread;
 
-static __u16 GlobalMid;		/* multiplex id - rotating counter */
-
 /* The xid serves as a useful identifier for each incoming vfs request, 
    in a similar way to the mid which is useful to track each sent smb, 
    and CurrentXid can also provide a running counter (although it 
@@ -51,6 +49,8 @@ _GetXid(void)
 	GlobalTotalActiveXid++;
 	if (GlobalTotalActiveXid > GlobalMaxActiveXid)
 		GlobalMaxActiveXid = GlobalTotalActiveXid;	/* keep high water mark for number of simultaneous vfs ops in our filesystem */
+	if(GlobalTotalActiveXid > 65000)
+		cFYI(1,("warning: more than 65000 requests active"));
 	xid = GlobalCurrentXid++;
 	spin_unlock(&GlobalMid_Lock);
 	return xid;
@@ -218,6 +218,76 @@ cifs_small_buf_release(void *buf_to_free)
 	return;
 }
 
+/* 
+	Find a free multiplex id (SMB mid). Otherwise there could be
+	mid collisions which might cause problems, demultiplexing the
+	wrong response to this request. Multiplex ids could collide if
+	one of a series requests takes much longer than the others, or
+	if a very large number of long lived requests (byte range
+	locks or FindNotify requests) are pending.  No more than
+	64K-1 requests can be outstanding at one time.  If no 
+	mids are available, return zero.  A future optimization
+	could make the combination of mids and uid the key we use
+	to demultiplex on (rather than mid alone).  
+	In addition to the above check, the cifs demultiplex
+	code already used the command code as a secondary
+	check of the frame and if signing is negotiated the
+	response would be discarded if the mid were the same
+	but the signature was wrong.  Since the mid is not put in the
+	pending queue until later (when it is about to be dispatched)
+	we do have to limit the number of outstanding requests 
+	to somewhat less than 64K-1 although it is hard to imagine
+	so many threads being in the vfs at one time.
+*/
+__u16 GetNextMid(struct TCP_Server_Info *server)
+{
+	__u16 mid = 0;
+	__u16 last_mid;
+	int   collision;  
+
+	if(server == NULL)
+		return mid;
+
+	spin_lock(&GlobalMid_Lock);
+	last_mid = server->CurrentMid; /* we do not want to loop forever */
+	server->CurrentMid++;
+	/* This nested loop looks more expensive than it is.
+	In practice the list of pending requests is short, 
+	fewer than 50, and the mids are likely to be unique
+	on the first pass through the loop unless some request
+	takes longer than the 64 thousand requests before it
+	(and it would also have to have been a request that
+	 did not time out) */
+	while(server->CurrentMid != last_mid) {
+		struct list_head *tmp;
+		struct mid_q_entry *mid_entry;
+
+		collision = 0;
+		if(server->CurrentMid == 0)
+			server->CurrentMid++;
+
+		list_for_each(tmp, &server->pending_mid_q) {
+			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
+
+			if ((mid_entry->mid == server->CurrentMid) &&
+			    (mid_entry->midState == MID_REQUEST_SUBMITTED)) {
+				/* This mid is in use, try a different one */
+				collision = 1;
+				break;
+			}
+		}
+		if(collision == 0) {
+			mid = server->CurrentMid;
+			break;
+		}
+		server->CurrentMid++;
+	}
+	spin_unlock(&GlobalMid_Lock);
+	return mid;
+}
+
+/* NB: MID can not be set if treeCon not passed in, in that
+   case it is responsbility of caller to set the mid */
 void
 header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 		const struct cifsTconInfo *treeCon, int word_count
@@ -233,7 +303,8 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 	    (2 * word_count) + sizeof (struct smb_hdr) -
 	    4 /*  RFC 1001 length field does not count */  +
 	    2 /* for bcc field itself */ ;
-	/* Note that this is the only network field that has to be converted to big endian and it is done just before we send it */
+	/* Note that this is the only network field that has to be converted
+	   to big endian and it is done just before we send it */
 
 	buffer->Protocol[0] = 0xFF;
 	buffer->Protocol[1] = 'S';
@@ -245,8 +316,6 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 	buffer->Pid = cpu_to_le16((__u16)current->tgid);
 	buffer->PidHigh = cpu_to_le16((__u16)(current->tgid >> 16));
 	spin_lock(&GlobalMid_Lock);
-	GlobalMid++;
-	buffer->Mid = GlobalMid;
 	spin_unlock(&GlobalMid_Lock);
 	if (treeCon) {
 		buffer->Tid = treeCon->tid;
@@ -256,8 +325,9 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 			if (treeCon->ses->capabilities & CAP_STATUS32) {
 				buffer->Flags2 |= SMBFLG2_ERR_STATUS;
 			}
-
-			buffer->Uid = treeCon->ses->Suid;	/* always in LE format */
+			/* Uid is not converted */
+			buffer->Uid = treeCon->ses->Suid;
+			buffer->Mid = GetNextMid(treeCon->ses->server);
 			if(multiuser_mount != 0) {
 		/* For the multiuser case, there are few obvious technically  */
 		/* possible mechanisms to match the local linux user (uid)    */
@@ -305,6 +375,8 @@ header_assemble(struct smb_hdr *buffer, char smb_command /* command */ ,
 		}
 		if (treeCon->Flags & SMB_SHARE_IS_IN_DFS)
 			buffer->Flags2 |= SMBFLG2_DFS;
+		if (treeCon->nocase)
+			buffer->Flags  |= SMBFLG_CASELESS;
 		if((treeCon->ses) && (treeCon->ses->server))
 			if(treeCon->ses->server->secMode & 
 			  (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
@@ -347,7 +419,8 @@ checkSMBhdr(struct smb_hdr *smb, __u16 mid)
 int
 checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 {
-	__u32 len = be32_to_cpu(smb->smb_buf_length);
+	__u32 len = smb->smb_buf_length;
+	__u32 clc_len;  /* calculated length */
 	cFYI(0,
 	     ("Entering checkSMB with Length: %x, smb_buf_length: %x ",
 	      length, len));
@@ -368,23 +441,29 @@ checkSMB(struct smb_hdr *smb, __u16 mid, int length)
 			cERROR(1,
 			       ("smb_buf_length greater than MaxBufSize"));
 		cERROR(1,
-		       ("bad smb detected. Illegal length. The mid=%d",
+		       ("bad smb detected. Illegal length. mid=%d",
 			smb->Mid));
 		return 1;
 	}
 
 	if (checkSMBhdr(smb, mid))
 		return 1;
-
-	if ((4 + len != smbCalcSize(smb))
+	clc_len = smbCalcSize_LE(smb);
+	if ((4 + len != clc_len)
 	    || (4 + len != (unsigned int)length)) {
-		return 0;
-	} else {
-		cERROR(1, ("smbCalcSize %x ", smbCalcSize(smb)));
-		cERROR(1,
-		       ("bad smb size detected. The Mid=%d", smb->Mid));
-		return 1;
+		cERROR(1, ("Calculated size 0x%x vs actual length 0x%x",
+				clc_len, 4 + len));
+		cERROR(1, ("bad smb size detected for Mid=%d", smb->Mid));
+		/* Windows XP can return a few bytes too much, presumably
+		an illegal pad, at the end of byte range lock responses 
+		so we allow for up to eight byte pad, as long as actual
+		received length is as long or longer than calculated length */
+		if((4+len > clc_len) && (len <= clc_len + 3))
+			return 0;
+		else
+			return 1;
 	}
+	return 0;
 }
 int
 is_valid_oplock_break(struct smb_hdr *buf)
@@ -448,9 +527,7 @@ is_valid_oplock_break(struct smb_hdr *buf)
 	list_for_each(tmp, &GlobalTreeConnectionList) {
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
 		if (tcon->tid == buf->Tid) {
-#ifdef CONFIG_CIFS_STATS
-			atomic_inc(&tcon->num_oplock_brks);
-#endif
+			cifs_stats_inc(&tcon->num_oplock_brks);
 			list_for_each(tmp1,&tcon->openFileList){
 				netfile = list_entry(tmp1,struct cifsFileInfo,
 						     tlist);
@@ -603,6 +680,7 @@ cifsConvertToUCS(__le16 * target, const char *source, int maxlen,
 	int i,j,charlen;
 	int len_remaining = maxlen;
 	char src_char;
+	__u16 temp;
 
 	if(!mapChars) 
 		return cifs_strtoUCS((wchar_t *) target, source, PATH_MAX, cp);
@@ -639,13 +717,14 @@ cifsConvertToUCS(__le16 * target, const char *source, int maxlen,
 				break;*/
 			default:
 				charlen = cp->char2uni(source+i,
-					len_remaining, target+j);
+					len_remaining, &temp);
 				/* if no match, use question mark, which
 				at least in some cases servers as wild card */
 				if(charlen < 1) {
 					target[j] = cpu_to_le16(0x003f);
 					charlen = 1;
-				}
+				} else
+					target[j] = cpu_to_le16(temp);
 				len_remaining -= charlen;
 				/* character may take more than one byte in the
 				   the source string, but will take exactly two

@@ -1,33 +1,19 @@
 /*
- * Copyright (c) 2000-2001 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2001,2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_BTREE_H__
 #define	__XFS_BTREE_H__
@@ -53,25 +39,23 @@ struct xfs_trans;
 /*
  * Short form header: space allocation btrees.
  */
-typedef struct xfs_btree_sblock
-{
-	__uint32_t	bb_magic;	/* magic number for block type */
-	__uint16_t	bb_level;	/* 0 is a leaf */
-	__uint16_t	bb_numrecs;	/* current # of data records */
-	xfs_agblock_t	bb_leftsib;	/* left sibling block or NULLAGBLOCK */
-	xfs_agblock_t	bb_rightsib;	/* right sibling block or NULLAGBLOCK */
+typedef struct xfs_btree_sblock {
+	__be32		bb_magic;	/* magic number for block type */
+	__be16		bb_level;	/* 0 is a leaf */
+	__be16		bb_numrecs;	/* current # of data records */
+	__be32		bb_leftsib;	/* left sibling block or NULLAGBLOCK */
+	__be32		bb_rightsib;	/* right sibling block or NULLAGBLOCK */
 } xfs_btree_sblock_t;
 
 /*
  * Long form header: bmap btrees.
  */
-typedef struct xfs_btree_lblock
-{
-	__uint32_t	bb_magic;	/* magic number for block type */
-	__uint16_t	bb_level;	/* 0 is a leaf */
-	__uint16_t	bb_numrecs;	/* current # of data records */
-	xfs_dfsbno_t	bb_leftsib;	/* left sibling block or NULLDFSBNO */
-	xfs_dfsbno_t	bb_rightsib;	/* right sibling block or NULLDFSBNO */
+typedef struct xfs_btree_lblock {
+	__be32		bb_magic;	/* magic number for block type */
+	__be16		bb_level;	/* 0 is a leaf */
+	__be16		bb_numrecs;	/* current # of data records */
+	__be64		bb_leftsib;	/* left sibling block or NULLDFSBNO */
+	__be64		bb_rightsib;	/* right sibling block or NULLDFSBNO */
 } xfs_btree_lblock_t;
 
 /*
@@ -79,24 +63,23 @@ typedef struct xfs_btree_lblock
  */
 typedef struct xfs_btree_hdr
 {
-	__uint32_t	bb_magic;	/* magic number for block type */
-	__uint16_t	bb_level;	/* 0 is a leaf */
-	__uint16_t	bb_numrecs;	/* current # of data records */
+	__be32		bb_magic;	/* magic number for block type */
+	__be16		bb_level;	/* 0 is a leaf */
+	__be16		bb_numrecs;	/* current # of data records */
 } xfs_btree_hdr_t;
 
-typedef struct xfs_btree_block
-{
+typedef struct xfs_btree_block {
 	xfs_btree_hdr_t	bb_h;		/* header */
-	union		{
+	union {
+		struct {
+			__be32		bb_leftsib;
+			__be32		bb_rightsib;
+		} s;			/* short form pointers */
 		struct	{
-			xfs_agblock_t	bb_leftsib;
-			xfs_agblock_t	bb_rightsib;
-		}	s;		/* short form pointers */
-		struct	{
-			xfs_dfsbno_t	bb_leftsib;
-			xfs_dfsbno_t	bb_rightsib;
-		}	l;		/* long form pointers */
-	}		bb_u;		/* rest */
+			__be64		bb_leftsib;
+			__be64		bb_rightsib;
+		} l;			/* long form pointers */
+	} bb_u;				/* rest */
 } xfs_btree_block_t;
 
 /*
@@ -113,12 +96,7 @@ typedef struct xfs_btree_block
 /*
  * Boolean to select which form of xfs_btree_block_t.bb_u to use.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_BTREE_LONG_PTRS)
-int xfs_btree_long_ptrs(xfs_btnum_t btnum);
 #define	XFS_BTREE_LONG_PTRS(btnum)	((btnum) == XFS_BTNUM_BMAP)
-#else
-#define	XFS_BTREE_LONG_PTRS(btnum)	((btnum) == XFS_BTNUM_BMAP)
-#endif
 
 /*
  * Magic numbers for btree blocks.
@@ -165,7 +143,7 @@ typedef struct xfs_btree_cur
 	struct xfs_trans	*bc_tp;	/* transaction we're in, if any */
 	struct xfs_mount	*bc_mp;	/* file system mount struct */
 	union {
-		xfs_alloc_rec_t		a;
+		xfs_alloc_rec_incore_t	a;
 		xfs_bmbt_irec_t		b;
 		xfs_inobt_rec_t		i;
 	}		bc_rec;		/* current insert/search record value */
@@ -205,24 +183,10 @@ typedef struct xfs_btree_cur
 /*
  * Convert from buffer to btree block header.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_BUF_TO_BLOCK)
-xfs_btree_block_t *xfs_buf_to_block(struct xfs_buf *bp);
-#define	XFS_BUF_TO_BLOCK(bp)	xfs_buf_to_block(bp)
-#else
-#define	XFS_BUF_TO_BLOCK(bp)	((xfs_btree_block_t *)(XFS_BUF_PTR(bp)))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_BUF_TO_LBLOCK)
-xfs_btree_lblock_t *xfs_buf_to_lblock(struct xfs_buf *bp);
-#define	XFS_BUF_TO_LBLOCK(bp)	xfs_buf_to_lblock(bp)
-#else
-#define	XFS_BUF_TO_LBLOCK(bp)	((xfs_btree_lblock_t *)(XFS_BUF_PTR(bp)))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_BUF_TO_SBLOCK)
-xfs_btree_sblock_t *xfs_buf_to_sblock(struct xfs_buf *bp);
-#define	XFS_BUF_TO_SBLOCK(bp)	xfs_buf_to_sblock(bp)
-#else
-#define	XFS_BUF_TO_SBLOCK(bp)	((xfs_btree_sblock_t *)(XFS_BUF_PTR(bp)))
-#endif
+#define	XFS_BUF_TO_BLOCK(bp)	((xfs_btree_block_t *)XFS_BUF_PTR(bp))
+#define	XFS_BUF_TO_LBLOCK(bp)	((xfs_btree_lblock_t *)XFS_BUF_PTR(bp))
+#define	XFS_BUF_TO_SBLOCK(bp)	((xfs_btree_sblock_t *)XFS_BUF_PTR(bp))
+
 
 #ifdef __KERNEL__
 
@@ -477,106 +441,33 @@ xfs_btree_setbuf(
 /*
  * Min and max functions for extlen, agblock, fileoff, and filblks types.
  */
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_EXTLEN_MIN)
-xfs_extlen_t xfs_extlen_min(xfs_extlen_t a, xfs_extlen_t b);
-#define	XFS_EXTLEN_MIN(a,b)	xfs_extlen_min(a,b)
-#else
 #define	XFS_EXTLEN_MIN(a,b)	\
 	((xfs_extlen_t)(a) < (xfs_extlen_t)(b) ? \
-	 (xfs_extlen_t)(a) : (xfs_extlen_t)(b))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_EXTLEN_MAX)
-xfs_extlen_t xfs_extlen_max(xfs_extlen_t a, xfs_extlen_t b);
-#define	XFS_EXTLEN_MAX(a,b)	xfs_extlen_max(a,b)
-#else
+		(xfs_extlen_t)(a) : (xfs_extlen_t)(b))
 #define	XFS_EXTLEN_MAX(a,b)	\
 	((xfs_extlen_t)(a) > (xfs_extlen_t)(b) ? \
-	 (xfs_extlen_t)(a) : (xfs_extlen_t)(b))
-#endif
-
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_AGBLOCK_MIN)
-xfs_agblock_t xfs_agblock_min(xfs_agblock_t a, xfs_agblock_t b);
-#define	XFS_AGBLOCK_MIN(a,b)	xfs_agblock_min(a,b)
-#else
+		(xfs_extlen_t)(a) : (xfs_extlen_t)(b))
 #define	XFS_AGBLOCK_MIN(a,b)	\
 	((xfs_agblock_t)(a) < (xfs_agblock_t)(b) ? \
-	 (xfs_agblock_t)(a) : (xfs_agblock_t)(b))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_AGBLOCK_MAX)
-xfs_agblock_t xfs_agblock_max(xfs_agblock_t a, xfs_agblock_t b);
-#define	XFS_AGBLOCK_MAX(a,b)	xfs_agblock_max(a,b)
-#else
+		(xfs_agblock_t)(a) : (xfs_agblock_t)(b))
 #define	XFS_AGBLOCK_MAX(a,b)	\
 	((xfs_agblock_t)(a) > (xfs_agblock_t)(b) ? \
-	 (xfs_agblock_t)(a) : (xfs_agblock_t)(b))
-#endif
-
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_FILEOFF_MIN)
-xfs_fileoff_t xfs_fileoff_min(xfs_fileoff_t a, xfs_fileoff_t b);
-#define	XFS_FILEOFF_MIN(a,b)	xfs_fileoff_min(a,b)
-#else
+		(xfs_agblock_t)(a) : (xfs_agblock_t)(b))
 #define	XFS_FILEOFF_MIN(a,b)	\
 	((xfs_fileoff_t)(a) < (xfs_fileoff_t)(b) ? \
-	 (xfs_fileoff_t)(a) : (xfs_fileoff_t)(b))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_FILEOFF_MAX)
-xfs_fileoff_t xfs_fileoff_max(xfs_fileoff_t a, xfs_fileoff_t b);
-#define	XFS_FILEOFF_MAX(a,b)	xfs_fileoff_max(a,b)
-#else
+		(xfs_fileoff_t)(a) : (xfs_fileoff_t)(b))
 #define	XFS_FILEOFF_MAX(a,b)	\
 	((xfs_fileoff_t)(a) > (xfs_fileoff_t)(b) ? \
-	 (xfs_fileoff_t)(a) : (xfs_fileoff_t)(b))
-#endif
-
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_FILBLKS_MIN)
-xfs_filblks_t xfs_filblks_min(xfs_filblks_t a, xfs_filblks_t b);
-#define	XFS_FILBLKS_MIN(a,b)	xfs_filblks_min(a,b)
-#else
+		(xfs_fileoff_t)(a) : (xfs_fileoff_t)(b))
 #define	XFS_FILBLKS_MIN(a,b)	\
 	((xfs_filblks_t)(a) < (xfs_filblks_t)(b) ? \
-	 (xfs_filblks_t)(a) : (xfs_filblks_t)(b))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_FILBLKS_MAX)
-xfs_filblks_t xfs_filblks_max(xfs_filblks_t a, xfs_filblks_t b);
-#define	XFS_FILBLKS_MAX(a,b)	xfs_filblks_max(a,b)
-#else
+		(xfs_filblks_t)(a) : (xfs_filblks_t)(b))
 #define	XFS_FILBLKS_MAX(a,b)	\
 	((xfs_filblks_t)(a) > (xfs_filblks_t)(b) ? \
-	 (xfs_filblks_t)(a) : (xfs_filblks_t)(b))
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XFS_FSB_SANITY_CHECK)
-int xfs_fsb_sanity_check(struct xfs_mount *mp, xfs_fsblock_t fsb);
-#define	XFS_FSB_SANITY_CHECK(mp,fsb)	xfs_fsb_sanity_check(mp,fsb)
-#else
+		(xfs_filblks_t)(a) : (xfs_filblks_t)(b))
+
 #define	XFS_FSB_SANITY_CHECK(mp,fsb)	\
 	(XFS_FSB_TO_AGNO(mp, fsb) < mp->m_sb.sb_agcount && \
-	 XFS_FSB_TO_AGBNO(mp, fsb) < mp->m_sb.sb_agblocks)
-#endif
-
-/*
- * Macros to set EFSCORRUPTED & return/branch.
- */
-#define	XFS_WANT_CORRUPTED_GOTO(x,l)	\
-	{ \
-		int fs_is_ok = (x); \
-		ASSERT(fs_is_ok); \
-		if (unlikely(!fs_is_ok)) { \
-			XFS_ERROR_REPORT("XFS_WANT_CORRUPTED_GOTO", \
-					 XFS_ERRLEVEL_LOW, NULL); \
-			error = XFS_ERROR(EFSCORRUPTED); \
-			goto l; \
-		} \
-	}
-
-#define	XFS_WANT_CORRUPTED_RETURN(x)	\
-	{ \
-		int fs_is_ok = (x); \
-		ASSERT(fs_is_ok); \
-		if (unlikely(!fs_is_ok)) { \
-			XFS_ERROR_REPORT("XFS_WANT_CORRUPTED_RETURN", \
-					 XFS_ERRLEVEL_LOW, NULL); \
-			return XFS_ERROR(EFSCORRUPTED); \
-		} \
-	}
+		XFS_FSB_TO_AGBNO(mp, fsb) < mp->m_sb.sb_agblocks)
 
 #endif	/* __XFS_BTREE_H__ */

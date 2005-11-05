@@ -1028,7 +1028,7 @@ static ssize_t show_rev(struct class_device *cdev, char *buf)
 static ssize_t show_fw_ver(struct class_device *cdev, char *buf)
 {
 	struct mthca_dev *dev = container_of(cdev, struct mthca_dev, ib_dev.class_dev);
-	return sprintf(buf, "%x.%x.%x\n", (int) (dev->fw_ver >> 32),
+	return sprintf(buf, "%d.%d.%d\n", (int) (dev->fw_ver >> 32),
 		       (int) (dev->fw_ver >> 16) & 0xffff,
 		       (int) dev->fw_ver & 0xffff);
 }

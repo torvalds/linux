@@ -35,7 +35,7 @@
 #include <asm/cputable.h>
 #include <asm/setup.h>
 #include <asm/hvcall.h>
-#include <asm/iSeries/LparMap.h>
+#include <asm/iseries/lpar_map.h>
 #include <asm/thread_info.h>
 
 #ifdef CONFIG_PPC_ISERIES
@@ -1913,24 +1913,6 @@ _GLOBAL(hmt_start_secondary)
 	mtspr	SPRN_CTRLT, r4
 	blr
 #endif
-
-#if defined(CONFIG_KEXEC) || defined(CONFIG_SMP)
-_GLOBAL(smp_release_cpus)
-	/* All secondary cpus are spinning on a common
-	 * spinloop, release them all now so they can start
-	 * to spin on their individual paca spinloops.
-	 * For non SMP kernels, the secondary cpus never
-	 * get out of the common spinloop.
-	 * XXX This does nothing useful on iSeries, secondaries are
-	 * already waiting on their paca.
-	 */
-	li	r3,1
-	LOADADDR(r5,__secondary_hold_spinloop)
-	std	r3,0(r5)
-	sync
-	blr
-#endif /* CONFIG_SMP */
-
 
 /*
  * We put a few things here that have to be page-aligned.

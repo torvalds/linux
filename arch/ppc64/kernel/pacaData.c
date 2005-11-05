@@ -17,7 +17,7 @@
 #include <asm/page.h>
 
 #include <asm/lppaca.h>
-#include <asm/iSeries/ItLpQueue.h>
+#include <asm/iseries/it_lp_queue.h>
 #include <asm/paca.h>
 
 static union {

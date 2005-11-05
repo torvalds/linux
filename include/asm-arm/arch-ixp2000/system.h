@@ -26,29 +26,24 @@ static inline void arch_reset(char mode)
 	 * RedBoot bank.
 	 */
 	if (machine_is_ixdp2401()) {
-		*IXDP2X01_CPLD_FLASH_REG = ((0 >> IXDP2X01_FLASH_WINDOW_BITS)
-						| IXDP2X01_CPLD_FLASH_INTERN);
-		*IXDP2X01_CPLD_RESET_REG = 0xffffffff;
+		ixp2000_reg_write(IXDP2X01_CPLD_FLASH_REG,
+					((0 >> IXDP2X01_FLASH_WINDOW_BITS)
+						| IXDP2X01_CPLD_FLASH_INTERN));
+		ixp2000_reg_wrb(IXDP2X01_CPLD_RESET_REG, 0xffffffff);
 	}
 
 	/*
 	 * On IXDP2801 we need to write this magic sequence to the CPLD
 	 * to cause a complete reset of the CPU and all external devices
-	 * and moves the flash bank register back to 0.
+	 * and move the flash bank register back to 0.
 	 */
 	if (machine_is_ixdp2801()) {
 		unsigned long reset_reg = *IXDP2X01_CPLD_RESET_REG;
+
 		reset_reg = 0x55AA0000 | (reset_reg & 0x0000FFFF);
-		*IXDP2X01_CPLD_RESET_REG = reset_reg;
-		mb();
-		*IXDP2X01_CPLD_RESET_REG = 0x80000000;
+		ixp2000_reg_write(IXDP2X01_CPLD_RESET_REG, reset_reg);
+		ixp2000_reg_wrb(IXDP2X01_CPLD_RESET_REG, 0x80000000);
 	}
 
-	/*
-	 * We do a reset all if we are PCI master. We could be a slave and we
-	 * don't want to do anything funky on the PCI bus.
-	 */
-	if (*IXP2000_STRAP_OPTIONS & CFG_PCI_BOOT_HOST) {
-		*(IXP2000_RESET0) |= (RSTALL);
-	}
+	ixp2000_reg_wrb(IXP2000_RESET0, RSTALL);
 }

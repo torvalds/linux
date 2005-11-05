@@ -80,6 +80,7 @@ struct machdep_calls {
 	void		(*iommu_dev_setup)(struct pci_dev *dev);
 	void		(*iommu_bus_setup)(struct pci_bus *bus);
 	void		(*irq_bus_setup)(struct pci_bus *bus);
+	int		(*set_dabr)(unsigned long dabr);
 #endif
 
 	int		(*probe)(int platform);

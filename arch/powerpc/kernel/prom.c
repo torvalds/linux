@@ -1285,7 +1285,7 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 
 	endp = reg + (l / sizeof(cell_t));
 
-	DBG("memory scan node %s ..., reg size %ld, data: %x %x %x %x, ...\n",
+	DBG("memory scan node %s, reg size %ld, data: %x %x %x %x,\n",
 	    uname, l, reg[0], reg[1], reg[2], reg[3]);
 
 	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {

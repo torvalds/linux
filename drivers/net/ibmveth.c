@@ -535,7 +535,7 @@ static int ibmveth_open(struct net_device *netdev)
 	}
 
 	ibmveth_debug_printk("initial replenish cycle\n");
-	ibmveth_replenish_task(adapter);
+	ibmveth_interrupt(netdev->irq, netdev, NULL);
 
 	netif_start_queue(netdev);
 

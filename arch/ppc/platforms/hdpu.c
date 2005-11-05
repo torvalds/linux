@@ -22,6 +22,7 @@
 #include <linux/irq.h>
 #include <linux/ide.h>
 #include <linux/seq_file.h>
+#include <linux/platform_device.h>
 
 #include <linux/initrd.h>
 #include <linux/root_dev.h>

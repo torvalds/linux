@@ -19,6 +19,8 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/platform_device.h>
+
 #include <asm/io.h>
 #include <linux/fsl_devices.h>
 #include <linux/i2c.h>

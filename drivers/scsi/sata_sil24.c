@@ -411,15 +411,20 @@ static void sil24_phy_reset(struct ata_port *ap)
 static inline void sil24_fill_sg(struct ata_queued_cmd *qc,
 				 struct sil24_cmd_block *cb)
 {
-	struct scatterlist *sg = qc->sg;
 	struct sil24_sge *sge = cb->sge;
-	unsigned i;
+	struct scatterlist *sg;
+	unsigned int idx = 0;
 
-	for (i = 0; i < qc->n_elem; i++, sg++, sge++) {
+	ata_for_each_sg(sg, qc) {
 		sge->addr = cpu_to_le64(sg_dma_address(sg));
 		sge->cnt = cpu_to_le32(sg_dma_len(sg));
-		sge->flags = 0;
-		sge->flags = i < qc->n_elem - 1 ? 0 : cpu_to_le32(SGE_TRM);
+		if (ata_sg_is_last(sg, qc))
+			sge->flags = cpu_to_le32(SGE_TRM);
+		else
+			sge->flags = 0;
+
+		sge++;
+		idx++;
 	}
 }
 
@@ -630,6 +635,13 @@ static irqreturn_t sil24_interrupt(int irq, void *dev_instance, struct pt_regs *
 	return IRQ_RETVAL(handled);
 }
 
+static inline void sil24_cblk_free(struct sil24_port_priv *pp, struct device *dev)
+{
+	const size_t cb_size = sizeof(*pp->cmd_block);
+
+	dma_free_coherent(dev, cb_size, pp->cmd_block, pp->cmd_block_dma);
+}
+
 static int sil24_port_start(struct ata_port *ap)
 {
 	struct device *dev = ap->host_set->dev;
@@ -637,20 +649,22 @@ static int sil24_port_start(struct ata_port *ap)
 	struct sil24_cmd_block *cb;
 	size_t cb_size = sizeof(*cb);
 	dma_addr_t cb_dma;
+	int rc = -ENOMEM;
 
-	pp = kmalloc(sizeof(*pp), GFP_KERNEL);
+	pp = kzalloc(sizeof(*pp), GFP_KERNEL);
 	if (!pp)
-		return -ENOMEM;
-	memset(pp, 0, sizeof(*pp));
+		goto err_out;
 
 	pp->tf.command = ATA_DRDY;
 
 	cb = dma_alloc_coherent(dev, cb_size, &cb_dma, GFP_KERNEL);
-	if (!cb) {
-		kfree(pp);
-		return -ENOMEM;
-	}
+	if (!cb)
+		goto err_out_pp;
 	memset(cb, 0, cb_size);
+
+	rc = ata_pad_alloc(ap, dev);
+	if (rc)
+		goto err_out_pad;
 
 	pp->cmd_block = cb;
 	pp->cmd_block_dma = cb_dma;
@@ -658,15 +672,21 @@ static int sil24_port_start(struct ata_port *ap)
 	ap->private_data = pp;
 
 	return 0;
+
+err_out_pad:
+	sil24_cblk_free(pp, dev);
+err_out_pp:
+	kfree(pp);
+err_out:
+	return rc;
 }
 
 static void sil24_port_stop(struct ata_port *ap)
 {
 	struct device *dev = ap->host_set->dev;
 	struct sil24_port_priv *pp = ap->private_data;
-	size_t cb_size = sizeof(*pp->cmd_block);
 
-	dma_free_coherent(dev, cb_size, pp->cmd_block, pp->cmd_block_dma);
+	sil24_cblk_free(pp, dev);
 	kfree(pp);
 }
 

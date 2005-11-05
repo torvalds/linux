@@ -81,6 +81,8 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 	buf += length;
 	length = sprintf(buf,"CIFS Version %s\n",CIFS_VERSION);
 	buf += length;
+	length = sprintf(buf,"Active VFS Requests: %d\n", GlobalTotalActiveXid);
+	buf += length;
 	length = sprintf(buf, "Servers:");
 	buf += length;
 
@@ -97,7 +99,7 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 		} else {
 			length =
 			    sprintf(buf,
-				    "\n%d) Name: %s  Domain: %s Mounts: %d ServerOS: %s  \n\tServerNOS: %s\tCapabilities: 0x%x\n\tSMB session status: %d\t",
+				    "\n%d) Name: %s  Domain: %s Mounts: %d OS: %s  \n\tNOS: %s\tCapability: 0x%x\n\tSMB session status: %d\t",
 				i, ses->serverName, ses->serverDomain,
 				atomic_read(&ses->inUse),
 				ses->serverOS, ses->serverNOS,
@@ -105,12 +107,18 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 			buf += length;
 		}
 		if(ses->server) {
-			buf += sprintf(buf, "TCP status: %d\n\tLocal Users To Server: %d SecMode: 0x%x Req Active: %d",
+			buf += sprintf(buf, "TCP status: %d\n\tLocal Users To Server: %d SecMode: 0x%x Req On Wire: %d",
 				ses->server->tcpStatus,
 				atomic_read(&ses->server->socketUseCount),
 				ses->server->secMode,
 				atomic_read(&ses->server->inFlight));
-			
+
+#ifdef CONFIG_CIFS_STATS2
+			buf += sprintf(buf, " In Send: %d In MaxReq Wait: %d",
+				atomic_read(&ses->server->inSend), 
+				atomic_read(&ses->server->num_waiters));
+#endif
+
 			length = sprintf(buf, "\nMIDs:\n");
 			buf += length;
 
@@ -149,7 +157,7 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 		dev_type = le32_to_cpu(tcon->fsDevInfo.DeviceType);
 		length =
 		    sprintf(buf,
-			    "\n%d) %s Uses: %d Type: %s Characteristics: 0x%x Attributes: 0x%x\nPathComponentMax: %d Status: %d",
+			    "\n%d) %s Uses: %d Type: %s DevInfo: 0x%x Attributes: 0x%x\nPathComponentMax: %d Status: %d",
 			    i, tcon->treeName,
 			    atomic_read(&tcon->useCount),
 			    tcon->nativeFileSystem,
@@ -195,6 +203,49 @@ cifs_debug_data_read(char *buf, char **beginBuffer, off_t offset,
 }
 
 #ifdef CONFIG_CIFS_STATS
+
+static int
+cifs_stats_write(struct file *file, const char __user *buffer,
+               unsigned long count, void *data)
+{
+        char c;
+        int rc;
+	struct list_head *tmp;
+	struct cifsTconInfo *tcon;
+
+        rc = get_user(c, buffer);
+        if (rc)
+                return rc;
+
+        if (c == '1' || c == 'y' || c == 'Y' || c == '0') {
+		read_lock(&GlobalSMBSeslock);
+		list_for_each(tmp, &GlobalTreeConnectionList) {
+			tcon = list_entry(tmp, struct cifsTconInfo,
+					cifsConnectionList);
+			atomic_set(&tcon->num_smbs_sent, 0);
+			atomic_set(&tcon->num_writes, 0);
+			atomic_set(&tcon->num_reads, 0);
+			atomic_set(&tcon->num_oplock_brks, 0);
+			atomic_set(&tcon->num_opens, 0);
+			atomic_set(&tcon->num_closes, 0);
+			atomic_set(&tcon->num_deletes, 0);
+			atomic_set(&tcon->num_mkdirs, 0);
+			atomic_set(&tcon->num_rmdirs, 0);
+			atomic_set(&tcon->num_renames, 0);
+			atomic_set(&tcon->num_t2renames, 0);
+			atomic_set(&tcon->num_ffirst, 0);
+			atomic_set(&tcon->num_fnext, 0);
+			atomic_set(&tcon->num_fclose, 0);
+			atomic_set(&tcon->num_hardlinks, 0);
+			atomic_set(&tcon->num_symlinks, 0);
+			atomic_set(&tcon->num_locks, 0);
+		}
+		read_unlock(&GlobalSMBSeslock);
+	}
+
+        return count;
+}
+
 static int
 cifs_stats_read(char *buf, char **beginBuffer, off_t offset,
 		  int count, int *eof, void *data)
@@ -254,33 +305,49 @@ cifs_stats_read(char *buf, char **beginBuffer, off_t offset,
 			buf += sprintf(buf, "\tDISCONNECTED ");
 			length += 14;
 		}
-		item_length = sprintf(buf,"\nSMBs: %d Oplock Breaks: %d",
+		item_length = sprintf(buf, "\nSMBs: %d Oplock Breaks: %d",
 			atomic_read(&tcon->num_smbs_sent),
 			atomic_read(&tcon->num_oplock_brks));
 		buf += item_length;
 		length += item_length;
-		item_length = sprintf(buf,"\nReads: %d Bytes %lld",
+		item_length = sprintf(buf, "\nReads:  %d Bytes: %lld",
 			atomic_read(&tcon->num_reads),
 			(long long)(tcon->bytes_read));
 		buf += item_length;
 		length += item_length;
-		item_length = sprintf(buf,"\nWrites: %d Bytes: %lld",
+		item_length = sprintf(buf, "\nWrites: %d Bytes: %lld",
 			atomic_read(&tcon->num_writes),
 			(long long)(tcon->bytes_written));
+                buf += item_length;
+                length += item_length;
+                item_length = sprintf(buf, 
+			"\nLocks: %d HardLinks: %d Symlinks: %d",
+                        atomic_read(&tcon->num_locks),
+			atomic_read(&tcon->num_hardlinks),
+			atomic_read(&tcon->num_symlinks));
+                buf += item_length;
+                length += item_length;
+
+		item_length = sprintf(buf, "\nOpens: %d Closes: %d Deletes: %d",
+			atomic_read(&tcon->num_opens),
+			atomic_read(&tcon->num_closes),
+			atomic_read(&tcon->num_deletes));
 		buf += item_length;
 		length += item_length;
-		item_length = sprintf(buf,
-			"\nOpens: %d Deletes: %d\nMkdirs: %d Rmdirs: %d",
-			atomic_read(&tcon->num_opens),
-			atomic_read(&tcon->num_deletes),
+		item_length = sprintf(buf, "\nMkdirs: %d Rmdirs: %d",
 			atomic_read(&tcon->num_mkdirs),
 			atomic_read(&tcon->num_rmdirs));
 		buf += item_length;
 		length += item_length;
-		item_length = sprintf(buf,
-			"\nRenames: %d T2 Renames %d",
+		item_length = sprintf(buf, "\nRenames: %d T2 Renames %d",
 			atomic_read(&tcon->num_renames),
 			atomic_read(&tcon->num_t2renames));
+		buf += item_length;
+		length += item_length;
+		item_length = sprintf(buf, "\nFindFirst: %d FNext %d FClose %d",
+			atomic_read(&tcon->num_ffirst),
+			atomic_read(&tcon->num_fnext),
+			atomic_read(&tcon->num_fclose));
 		buf += item_length;
 		length += item_length;
 	}
@@ -341,8 +408,10 @@ cifs_proc_init(void)
 				cifs_debug_data_read, NULL);
 
 #ifdef CONFIG_CIFS_STATS
-	create_proc_read_entry("Stats", 0, proc_fs_cifs,
+	pde = create_proc_read_entry("Stats", 0, proc_fs_cifs,
 				cifs_stats_read, NULL);
+	if (pde)
+		pde->write_proc = cifs_stats_write;
 #endif
 	pde = create_proc_read_entry("cifsFYI", 0, proc_fs_cifs,
 				cifsFYI_read, NULL);
@@ -360,7 +429,7 @@ cifs_proc_init(void)
 	if (pde)
 		pde->write_proc = oplockEnabled_write;
 
-	pde = create_proc_read_entry("ReenableOldCifsReaddirCode", 0, proc_fs_cifs,
+	pde = create_proc_read_entry("Experimental", 0, proc_fs_cifs,
 				quotaEnabled_read, NULL);
 	if (pde)
 		pde->write_proc = quotaEnabled_write;
@@ -419,7 +488,7 @@ cifs_proc_clean(void)
 	remove_proc_entry("ExtendedSecurity",proc_fs_cifs);
 	remove_proc_entry("PacketSigningEnabled",proc_fs_cifs);
 	remove_proc_entry("LinuxExtensionsEnabled",proc_fs_cifs);
-	remove_proc_entry("ReenableOldCifsReaddirCode",proc_fs_cifs);
+	remove_proc_entry("Experimental",proc_fs_cifs);
 	remove_proc_entry("LookupCacheEnabled",proc_fs_cifs);
 	remove_proc_entry("cifs", proc_root_fs);
 }
@@ -459,6 +528,8 @@ cifsFYI_write(struct file *file, const char __user *buffer,
 		cifsFYI = 0;
 	else if (c == '1' || c == 'y' || c == 'Y')
 		cifsFYI = 1;
+	else if((c > '1') && (c <= '9'))
+		cifsFYI = (int) (c - '0'); /* see cifs_debug.h for meanings */
 
 	return count;
 }
