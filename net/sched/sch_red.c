@@ -9,38 +9,19 @@
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  *
  * Changes:
- * J Hadi Salim <hadi@nortel.com> 980914:	computation fixes
+ * J Hadi Salim 980914:	computation fixes
  * Alexey Makarenko <makar@phoenix.kharkov.ua> 990814: qave on idle link was calculated incorrectly.
- * J Hadi Salim <hadi@nortelnetworks.com> 980816:  ECN support	
+ * J Hadi Salim 980816:  ECN support
  */
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <asm/uaccess.h>
-#include <asm/system.h>
-#include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/socket.h>
-#include <linux/sockios.h>
-#include <linux/in.h>
-#include <linux/errno.h>
-#include <linux/interrupt.h>
-#include <linux/if_ether.h>
-#include <linux/inet.h>
 #include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/notifier.h>
-#include <net/ip.h>
-#include <net/route.h>
 #include <linux/skbuff.h>
-#include <net/sock.h>
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
-#include <net/dsfield.h>
 #include <net/red.h>
 
 
@@ -70,8 +51,7 @@ static inline int red_use_ecn(struct red_sched_data *q)
 	return q->flags & TC_RED_ECN;
 }
 
-static int
-red_enqueue(struct sk_buff *skb, struct Qdisc* sch)
+static int red_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
 
@@ -116,8 +96,7 @@ congestion_drop:
 	return NET_XMIT_CN;
 }
 
-static int
-red_requeue(struct sk_buff *skb, struct Qdisc* sch)
+static int red_requeue(struct sk_buff *skb, struct Qdisc* sch)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
 
@@ -127,8 +106,7 @@ red_requeue(struct sk_buff *skb, struct Qdisc* sch)
 	return qdisc_requeue(skb, sch);
 }
 
-static struct sk_buff *
-red_dequeue(struct Qdisc* sch)
+static struct sk_buff * red_dequeue(struct Qdisc* sch)
 {
 	struct sk_buff *skb;
 	struct red_sched_data *q = qdisc_priv(sch);
@@ -171,14 +149,16 @@ static void red_reset(struct Qdisc* sch)
 static int red_change(struct Qdisc *sch, struct rtattr *opt)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
-	struct rtattr *tb[TCA_RED_STAB];
+	struct rtattr *tb[TCA_RED_MAX];
 	struct tc_red_qopt *ctl;
 
-	if (opt == NULL ||
-	    rtattr_parse_nested(tb, TCA_RED_STAB, opt) ||
-	    tb[TCA_RED_PARMS-1] == 0 || tb[TCA_RED_STAB-1] == 0 ||
+	if (opt == NULL || rtattr_parse_nested(tb, TCA_RED_MAX, opt))
+		return -EINVAL;
+
+	if (tb[TCA_RED_PARMS-1] == NULL ||
 	    RTA_PAYLOAD(tb[TCA_RED_PARMS-1]) < sizeof(*ctl) ||
-	    RTA_PAYLOAD(tb[TCA_RED_STAB-1]) < 256)
+	    tb[TCA_RED_STAB-1] == NULL ||
+	    RTA_PAYLOAD(tb[TCA_RED_STAB-1]) < RED_STAB_SIZE)
 		return -EINVAL;
 
 	ctl = RTA_DATA(tb[TCA_RED_PARMS-1]);
@@ -193,6 +173,7 @@ static int red_change(struct Qdisc *sch, struct rtattr *opt)
 
 	if (skb_queue_empty(&sch->q))
 		red_end_of_idle_period(&q->parms);
+
 	sch_tree_unlock(sch);
 	return 0;
 }
@@ -205,8 +186,7 @@ static int red_init(struct Qdisc* sch, struct rtattr *opt)
 static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
-	unsigned char	 *b = skb->tail;
-	struct rtattr *rta;
+	struct rtattr *opts = NULL;
 	struct tc_red_qopt opt = {
 		.limit		= q->limit,
 		.flags		= q->flags,
@@ -217,16 +197,12 @@ static int red_dump(struct Qdisc *sch, struct sk_buff *skb)
 		.Scell_log	= q->parms.Scell_log,
 	};
 
-	rta = (struct rtattr*)b;
-	RTA_PUT(skb, TCA_OPTIONS, 0, NULL);
+	opts = RTA_NEST(skb, TCA_OPTIONS);
 	RTA_PUT(skb, TCA_RED_PARMS, sizeof(opt), &opt);
-	rta->rta_len = skb->tail - b;
-
-	return skb->len;
+	return RTA_NEST_END(skb, opts);
 
 rtattr_failure:
-	skb_trim(skb, b - skb->data);
-	return -1;
+	return RTA_NEST_CANCEL(skb, opts);
 }
 
 static int red_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
@@ -243,8 +219,6 @@ static int red_dump_stats(struct Qdisc *sch, struct gnet_dump *d)
 }
 
 static struct Qdisc_ops red_qdisc_ops = {
-	.next		=	NULL,
-	.cl_ops		=	NULL,
 	.id		=	"red",
 	.priv_size	=	sizeof(struct red_sched_data),
 	.enqueue	=	red_enqueue,
@@ -263,10 +237,13 @@ static int __init red_module_init(void)
 {
 	return register_qdisc(&red_qdisc_ops);
 }
-static void __exit red_module_exit(void) 
+
+static void __exit red_module_exit(void)
 {
 	unregister_qdisc(&red_qdisc_ops);
 }
+
 module_init(red_module_init)
 module_exit(red_module_exit)
+
 MODULE_LICENSE("GPL");
