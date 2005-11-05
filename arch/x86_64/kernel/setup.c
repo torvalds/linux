@@ -412,7 +412,6 @@ contig_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 {
 	unsigned long bootmap_size, bootmap;
 
-	memory_present(0, start_pfn, end_pfn);
 	bootmap_size = bootmem_bootmap_pages(end_pfn)<<PAGE_SHIFT;
 	bootmap = find_e820_area(0, end_pfn<<PAGE_SHIFT, bootmap_size);
 	if (bootmap == -1L)
@@ -658,8 +657,6 @@ void __init setup_arch(char **cmdline_p)
 			crashk_res.end - crashk_res.start + 1);
 	}
 #endif
-
-	sparse_init();
 
 	paging_init();
 

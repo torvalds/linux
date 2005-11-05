@@ -113,7 +113,6 @@ void __init setup_node_bootmem(int nodeid, unsigned long start, unsigned long en
 	start_pfn = start >> PAGE_SHIFT;
 	end_pfn = end >> PAGE_SHIFT;
 
-	memory_present(nodeid, start_pfn, end_pfn);
 	nodedata_phys = find_e820_area(start, end, pgdat_size); 
 	if (nodedata_phys == -1L) 
 		panic("Cannot find memory pgdat in node %d\n", nodeid);
@@ -285,9 +284,26 @@ unsigned long __init numa_free_all_bootmem(void)
 	return pages;
 } 
 
+#ifdef CONFIG_SPARSEMEM
+static void __init arch_sparse_init(void)
+{
+	int i;
+
+	for_each_online_node(i)
+		memory_present(i, node_start_pfn(i), node_end_pfn(i));
+
+	sparse_init();
+}
+#else
+#define arch_sparse_init() do {} while (0)
+#endif
+
 void __init paging_init(void)
 { 
 	int i;
+
+	arch_sparse_init();
+
 	for_each_online_node(i) {
 		setup_node_zones(i); 
 	}
