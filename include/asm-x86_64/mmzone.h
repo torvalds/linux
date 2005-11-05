@@ -17,16 +17,15 @@
 /* Simple perfect hash to map physical addresses to node numbers */
 extern int memnode_shift; 
 extern u8  memnodemap[NODEMAPSIZE]; 
-extern int maxnode;
 
 extern struct pglist_data *node_data[];
 
 static inline __attribute__((pure)) int phys_to_nid(unsigned long addr) 
 { 
-	int nid; 
+	unsigned nid; 
 	VIRTUAL_BUG_ON((addr >> memnode_shift) >= NODEMAPSIZE);
 	nid = memnodemap[addr >> memnode_shift]; 
-	VIRTUAL_BUG_ON(nid > maxnode); 
+	VIRTUAL_BUG_ON(nid >= MAX_NUMNODES || !node_data[nid]); 
 	return nid; 
 } 
 
