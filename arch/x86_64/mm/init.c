@@ -318,32 +318,51 @@ void zap_low_mappings(void)
 	flush_tlb_all();
 }
 
+/* Compute zone sizes for the DMA and DMA32 zones in a node. */
+__init void
+size_zones(unsigned long *z, unsigned long *h,
+	   unsigned long start_pfn, unsigned long end_pfn)
+{
+ 	int i;
+ 	unsigned long w;
+
+ 	for (i = 0; i < MAX_NR_ZONES; i++)
+ 		z[i] = 0;
+
+ 	if (start_pfn < MAX_DMA_PFN)
+ 		z[ZONE_DMA] = MAX_DMA_PFN - start_pfn;
+ 	if (start_pfn < MAX_DMA32_PFN) {
+ 		unsigned long dma32_pfn = MAX_DMA32_PFN;
+ 		if (dma32_pfn > end_pfn)
+ 			dma32_pfn = end_pfn;
+ 		z[ZONE_DMA32] = dma32_pfn - start_pfn;
+ 	}
+ 	z[ZONE_NORMAL] = end_pfn - start_pfn;
+
+ 	/* Remove lower zones from higher ones. */
+ 	w = 0;
+ 	for (i = 0; i < MAX_NR_ZONES; i++) {
+ 		if (z[i])
+ 			z[i] -= w;
+ 	        w += z[i];
+	}
+
+	/* Compute holes */
+	w = 0;
+	for (i = 0; i < MAX_NR_ZONES; i++) {
+		unsigned long s = w;
+		w += z[i];
+		h[i] = e820_hole_size(s, w);
+	}
+}
+
 #ifndef CONFIG_NUMA
 void __init paging_init(void)
 {
-	{
-		unsigned long zones_size[MAX_NR_ZONES];
-		unsigned long holes[MAX_NR_ZONES];
-		unsigned int max_dma;
-
-		memset(zones_size, 0, sizeof(zones_size));
-		memset(holes, 0, sizeof(holes));
-
-		max_dma = virt_to_phys((char *)MAX_DMA_ADDRESS) >> PAGE_SHIFT;
-
-		if (end_pfn < max_dma) {
-			zones_size[ZONE_DMA] = end_pfn;
-			holes[ZONE_DMA] = e820_hole_size(0, end_pfn);
-		} else {
-			zones_size[ZONE_DMA] = max_dma;
-			holes[ZONE_DMA] = e820_hole_size(0, max_dma);
-			zones_size[ZONE_NORMAL] = end_pfn - max_dma;
-			holes[ZONE_NORMAL] = e820_hole_size(max_dma, end_pfn);
-		}
-		free_area_init_node(0, NODE_DATA(0), zones_size,
-                        __pa(PAGE_OFFSET) >> PAGE_SHIFT, holes);
-	}
-	return;
+	unsigned long zones[MAX_NR_ZONES], holes[MAX_NR_ZONES];
+	size_zones(zones, holes, 0, end_pfn);
+	free_area_init_node(0, NODE_DATA(0), zones,
+			    __pa(PAGE_OFFSET) >> PAGE_SHIFT, holes);
 }
 #endif
 

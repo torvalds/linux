@@ -132,29 +132,14 @@ void __init setup_node_zones(int nodeid)
 	unsigned long start_pfn, end_pfn; 
 	unsigned long zones[MAX_NR_ZONES];
 	unsigned long holes[MAX_NR_ZONES];
-	unsigned long dma_end_pfn;
 
-	memset(zones, 0, sizeof(unsigned long) * MAX_NR_ZONES); 
-	memset(holes, 0, sizeof(unsigned long) * MAX_NR_ZONES);
+ 	start_pfn = node_start_pfn(nodeid);
+ 	end_pfn = node_end_pfn(nodeid);
 
-	start_pfn = node_start_pfn(nodeid);
-	end_pfn = node_end_pfn(nodeid);
+	Dprintk(KERN_INFO "setting up node %d %lx-%lx\n",
+		nodeid, start_pfn, end_pfn);
 
-	Dprintk(KERN_INFO "setting up node %d %lx-%lx\n", nodeid, start_pfn, end_pfn);
-	
-	/* All nodes > 0 have a zero length zone DMA */ 
-	dma_end_pfn = __pa(MAX_DMA_ADDRESS) >> PAGE_SHIFT; 
-	if (start_pfn < dma_end_pfn) { 
-		zones[ZONE_DMA] = dma_end_pfn - start_pfn;
-		holes[ZONE_DMA] = e820_hole_size(start_pfn, dma_end_pfn);
-		zones[ZONE_NORMAL] = end_pfn - dma_end_pfn; 
-		holes[ZONE_NORMAL] = e820_hole_size(dma_end_pfn, end_pfn);
-
-	} else { 
-		zones[ZONE_NORMAL] = end_pfn - start_pfn; 
-		holes[ZONE_NORMAL] = e820_hole_size(start_pfn, end_pfn);
-	} 
-    
+	size_zones(zones, holes, start_pfn, end_pfn);
 	free_area_init_node(nodeid, NODE_DATA(nodeid), zones,
 			    start_pfn, holes);
 } 
