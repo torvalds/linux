@@ -307,7 +307,7 @@ static void __cpuinit cache_shared_cpu_map_setup(unsigned int cpu, int index)
 #ifdef CONFIG_X86_HT
 	else if (num_threads_sharing == smp_num_siblings)
 		this_leaf->shared_cpu_map = cpu_sibling_map[cpu];
-	else if (num_threads_sharing == (c->x86_num_cores * smp_num_siblings))
+	else if (num_threads_sharing == (c->x86_max_cores * smp_num_siblings))
 		this_leaf->shared_cpu_map = cpu_core_map[cpu];
 	else
 		printk(KERN_DEBUG "Number of CPUs sharing cache didn't match "

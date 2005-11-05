@@ -795,7 +795,7 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 #endif
 
 	bits = 0;
-	while ((1 << bits) < c->x86_num_cores)
+	while ((1 << bits) < c->x86_max_cores)
 		bits++;
 
 	/* Low order bits define the core id (index of core in socket) */
@@ -828,7 +828,7 @@ static void __init amd_detect_cmp(struct cpuinfo_x86 *c)
 	numa_set_node(cpu, node);
 
   	printk(KERN_INFO "CPU %d(%d) -> Node %d -> Core %d\n",
-  			cpu, c->x86_num_cores, node, cpu_core_id[cpu]);
+  			cpu, c->x86_max_cores, node, cpu_core_id[cpu]);
 #endif
 #endif
 }
@@ -877,9 +877,9 @@ static int __init init_amd(struct cpuinfo_x86 *c)
 	display_cacheinfo(c);
 
 	if (c->extended_cpuid_level >= 0x80000008) {
-		c->x86_num_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
-		if (c->x86_num_cores & (c->x86_num_cores - 1))
-			c->x86_num_cores = 1;
+		c->x86_max_cores = (cpuid_ecx(0x80000008) & 0xff) + 1;
+		if (c->x86_max_cores & (c->x86_max_cores - 1))
+			c->x86_max_cores = 1;
 
 		amd_detect_cmp(c);
 	}
@@ -891,54 +891,44 @@ static void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	u32 	eax, ebx, ecx, edx;
-	int 	index_msb, tmp;
+	int 	index_msb, core_bits;
 	int 	cpu = smp_processor_id();
-	
+
+	cpuid(1, &eax, &ebx, &ecx, &edx);
+
+	c->apicid = phys_pkg_id(0);
+
 	if (!cpu_has(c, X86_FEATURE_HT) || cpu_has(c, X86_FEATURE_CMP_LEGACY))
 		return;
 
-	cpuid(1, &eax, &ebx, &ecx, &edx);
 	smp_num_siblings = (ebx & 0xff0000) >> 16;
-	
+
 	if (smp_num_siblings == 1) {
 		printk(KERN_INFO  "CPU: Hyper-Threading is disabled\n");
-	} else if (smp_num_siblings > 1) {
-		index_msb = 31;
-		/*
-		 * At this point we only support two siblings per
-		 * processor package.
-		 */
+	} else if (smp_num_siblings > 1 ) {
+
 		if (smp_num_siblings > NR_CPUS) {
 			printk(KERN_WARNING "CPU: Unsupported number of the siblings %d", smp_num_siblings);
 			smp_num_siblings = 1;
 			return;
 		}
-		tmp = smp_num_siblings;
-		while ((tmp & 0x80000000 ) == 0) {
-			tmp <<=1 ;
-			index_msb--;
-		}
-		if (smp_num_siblings & (smp_num_siblings - 1))
-			index_msb++;
+
+		index_msb = get_count_order(smp_num_siblings);
 		phys_proc_id[cpu] = phys_pkg_id(index_msb);
-		
+
 		printk(KERN_INFO  "CPU: Physical Processor ID: %d\n",
 		       phys_proc_id[cpu]);
 
-		smp_num_siblings = smp_num_siblings / c->x86_num_cores;
+		smp_num_siblings = smp_num_siblings / c->x86_max_cores;
 
-		tmp = smp_num_siblings;
-		index_msb = 31;
-		while ((tmp & 0x80000000) == 0) {
-			tmp <<=1 ;
-			index_msb--;
-		}
-		if (smp_num_siblings & (smp_num_siblings - 1))
-			index_msb++;
+		index_msb = get_count_order(smp_num_siblings) ;
 
-		cpu_core_id[cpu] = phys_pkg_id(index_msb);
+		core_bits = get_count_order(c->x86_max_cores);
 
-		if (c->x86_num_cores > 1)
+		cpu_core_id[cpu] = phys_pkg_id(index_msb) &
+					       ((1 << core_bits) - 1);
+
+		if (c->x86_max_cores > 1)
 			printk(KERN_INFO  "CPU: Processor Core ID: %d\n",
 			       cpu_core_id[cpu]);
 	}
@@ -1006,7 +996,7 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 		c->x86_cache_alignment = c->x86_clflush_size * 2;
 	if (c->x86 >= 15)
 		set_bit(X86_FEATURE_CONSTANT_TSC, &c->x86_capability);
- 	c->x86_num_cores = intel_num_cpu_cores(c);
+ 	c->x86_max_cores = intel_num_cpu_cores(c);
 
 	srat_detect_node();
 }
@@ -1044,7 +1034,7 @@ void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_model_id[0] = '\0';  /* Unset */
 	c->x86_clflush_size = 64;
 	c->x86_cache_alignment = c->x86_clflush_size;
-	c->x86_num_cores = 1;
+	c->x86_max_cores = 1;
 	c->extended_cpuid_level = 0;
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
 
@@ -1278,13 +1268,12 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		seq_printf(m, "cache size\t: %d KB\n", c->x86_cache_size);
 	
 #ifdef CONFIG_SMP
-	if (smp_num_siblings * c->x86_num_cores > 1) {
+	if (smp_num_siblings * c->x86_max_cores > 1) {
 		int cpu = c - cpu_data;
 		seq_printf(m, "physical id\t: %d\n", phys_proc_id[cpu]);
-		seq_printf(m, "siblings\t: %d\n",
-				c->x86_num_cores * smp_num_siblings);
+		seq_printf(m, "siblings\t: %d\n", cpus_weight(cpu_core_map[cpu]));
 		seq_printf(m, "core id\t\t: %d\n", cpu_core_id[cpu]);
-		seq_printf(m, "cpu cores\t: %d\n", c->x86_num_cores);
+		seq_printf(m, "cpu cores\t: %d\n", c->booted_cores);
 	}
 #endif	
 
