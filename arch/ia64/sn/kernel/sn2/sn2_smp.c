@@ -177,6 +177,7 @@ void sn_tlb_migrate_finish(struct mm_struct *mm)
 
 /**
  * sn2_global_tlb_purge - globally purge translation cache of virtual address range
+ * @mm: mm_struct containing virtual address range
  * @start: start of virtual address range
  * @end: end of virtual address range
  * @nbits: specifies number of bytes to purge per instruction (num = 1<<(nbits & 0xfc))
@@ -188,21 +189,22 @@ void sn_tlb_migrate_finish(struct mm_struct *mm)
  * 	- cpu_vm_mask is a bit mask that indicates which cpus have loaded the context.
  * 	- cpu_vm_mask is converted into a nodemask of the nodes containing the
  * 	  cpus in cpu_vm_mask.
- *	- if only one bit is set in cpu_vm_mask & it is the current cpu,
- *	  then only the local TLB needs to be flushed. This flushing can be done
- *	  using ptc.l. This is the common case & avoids the global spinlock.
+ *	- if only one bit is set in cpu_vm_mask & it is the current cpu & the
+ *	  process is purging its own virtual address range, then only the
+ *	  local TLB needs to be flushed. This flushing can be done using
+ *	  ptc.l. This is the common case & avoids the global spinlock.
  *	- if multiple cpus have loaded the context, then flushing has to be
  *	  done with ptc.g/MMRs under protection of the global ptc_lock.
  */
 
 void
-sn2_global_tlb_purge(unsigned long start, unsigned long end,
-		     unsigned long nbits)
+sn2_global_tlb_purge(struct mm_struct *mm, unsigned long start,
+		     unsigned long end, unsigned long nbits)
 {
 	int i, opt, shub1, cnode, mynasid, cpu, lcpu = 0, nasid, flushed = 0;
+	int mymm = (mm == current->active_mm);
 	volatile unsigned long *ptc0, *ptc1;
-	unsigned long itc, itc2, flags, data0 = 0, data1 = 0;
-	struct mm_struct *mm = current->active_mm;
+	unsigned long itc, itc2, flags, data0 = 0, data1 = 0, rr_value;
 	short nasids[MAX_NUMNODES], nix;
 	nodemask_t nodes_flushed;
 
@@ -216,9 +218,12 @@ sn2_global_tlb_purge(unsigned long start, unsigned long end,
 		i++;
 	}
 
+	if (i == 0)
+		return;
+
 	preempt_disable();
 
-	if (likely(i == 1 && lcpu == smp_processor_id())) {
+	if (likely(i == 1 && lcpu == smp_processor_id() && mymm)) {
 		do {
 			ia64_ptcl(start, nbits << 2);
 			start += (1UL << nbits);
@@ -229,7 +234,7 @@ sn2_global_tlb_purge(unsigned long start, unsigned long end,
 		return;
 	}
 
-	if (atomic_read(&mm->mm_users) == 1) {
+	if (atomic_read(&mm->mm_users) == 1 && mymm) {
 		flush_tlb_mm(mm);
 		__get_cpu_var(ptcstats).change_rid++;
 		preempt_enable();
@@ -241,11 +246,13 @@ sn2_global_tlb_purge(unsigned long start, unsigned long end,
 	for_each_node_mask(cnode, nodes_flushed)
 		nasids[nix++] = cnodeid_to_nasid(cnode);
 
+	rr_value = (mm->context << 3) | REGION_NUMBER(start);
+
 	shub1 = is_shub1();
 	if (shub1) {
 		data0 = (1UL << SH1_PTC_0_A_SHFT) |
 		    	(nbits << SH1_PTC_0_PS_SHFT) |
-		    	((ia64_get_rr(start) >> 8) << SH1_PTC_0_RID_SHFT) |
+			(rr_value << SH1_PTC_0_RID_SHFT) |
 		    	(1UL << SH1_PTC_0_START_SHFT);
 		ptc0 = (long *)GLOBAL_MMR_PHYS_ADDR(0, SH1_PTC_0);
 		ptc1 = (long *)GLOBAL_MMR_PHYS_ADDR(0, SH1_PTC_1);
@@ -254,7 +261,7 @@ sn2_global_tlb_purge(unsigned long start, unsigned long end,
 			(nbits << SH2_PTC_PS_SHFT) |
 		    	(1UL << SH2_PTC_START_SHFT);
 		ptc0 = (long *)GLOBAL_MMR_PHYS_ADDR(0, SH2_PTC + 
-			((ia64_get_rr(start) >> 8) << SH2_PTC_RID_SHFT) );
+			(rr_value << SH2_PTC_RID_SHFT));
 		ptc1 = NULL;
 	}
 	
@@ -275,7 +282,7 @@ sn2_global_tlb_purge(unsigned long start, unsigned long end,
 			data0 = (data0 & ~SH2_PTC_ADDR_MASK) | (start & SH2_PTC_ADDR_MASK);
 		for (i = 0; i < nix; i++) {
 			nasid = nasids[i];
-			if ((!(sn2_ptctest & 3)) && unlikely(nasid == mynasid)) {
+			if ((!(sn2_ptctest & 3)) && unlikely(nasid == mynasid && mymm)) {
 				ia64_ptcga(start, nbits << 2);
 				ia64_srlz_i();
 			} else {

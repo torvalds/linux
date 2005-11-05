@@ -12,6 +12,7 @@
 #include <linux/threads.h>
 #include <linux/numa.h>
 #include <linux/init.h>
+#include <linux/seqlock.h>
 #include <asm/atomic.h>
 
 /* Free memory management - zoned buddy allocator.  */
@@ -137,6 +138,10 @@ struct zone {
 	 * free areas of different sizes
 	 */
 	spinlock_t		lock;
+#ifdef CONFIG_MEMORY_HOTPLUG
+	/* see spanned/present_pages for more description */
+	seqlock_t		span_seqlock;
+#endif
 	struct free_area	free_area[MAX_ORDER];
 
 
@@ -220,6 +225,16 @@ struct zone {
 	/* zone_start_pfn == zone_start_paddr >> PAGE_SHIFT */
 	unsigned long		zone_start_pfn;
 
+	/*
+	 * zone_start_pfn, spanned_pages and present_pages are all
+	 * protected by span_seqlock.  It is a seqlock because it has
+	 * to be read outside of zone->lock, and it is done in the main
+	 * allocator path.  But, it is written quite infrequently.
+	 *
+	 * The lock is declared along with zone->lock because it is
+	 * frequently read in proximity to zone->lock.  It's good to
+	 * give them a chance of being in the same cacheline.
+	 */
 	unsigned long		spanned_pages;	/* total size, including holes */
 	unsigned long		present_pages;	/* amount of memory (excluding holes) */
 
@@ -273,6 +288,16 @@ typedef struct pglist_data {
 	struct page *node_mem_map;
 #endif
 	struct bootmem_data *bdata;
+#ifdef CONFIG_MEMORY_HOTPLUG
+	/*
+	 * Must be held any time you expect node_start_pfn, node_present_pages
+	 * or node_spanned_pages stay constant.  Holding this will also
+	 * guarantee that any pfn_valid() stays that way.
+	 *
+	 * Nests above zone->lock and zone->size_seqlock.
+	 */
+	spinlock_t node_size_lock;
+#endif
 	unsigned long node_start_pfn;
 	unsigned long node_present_pages; /* total number of physical pages */
 	unsigned long node_spanned_pages; /* total size of physical page
@@ -292,6 +317,8 @@ typedef struct pglist_data {
 #define pgdat_page_nr(pgdat, pagenr)	pfn_to_page((pgdat)->node_start_pfn + (pagenr))
 #endif
 #define nid_page_nr(nid, pagenr) 	pgdat_page_nr(NODE_DATA(nid),(pagenr))
+
+#include <linux/memory_hotplug.h>
 
 extern struct pglist_data *pgdat_list;
 
@@ -509,6 +536,7 @@ static inline struct mem_section *__nr_to_section(unsigned long nr)
 		return NULL;
 	return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
 }
+extern int __section_nr(struct mem_section* ms);
 
 /*
  * We use the lower bits of the mem_map pointer to store

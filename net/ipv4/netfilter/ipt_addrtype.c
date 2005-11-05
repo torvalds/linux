@@ -48,7 +48,7 @@ static int checkentry(const char *tablename, const struct ipt_ip *ip,
 		      unsigned int hook_mask)
 {
 	if (matchsize != IPT_ALIGN(sizeof(struct ipt_addrtype_info))) {
-		printk(KERN_ERR "ipt_addrtype: invalid size (%u != %Zu)\n.",
+		printk(KERN_ERR "ipt_addrtype: invalid size (%u != %Zu)\n",
 		       matchsize, IPT_ALIGN(sizeof(struct ipt_addrtype_info)));
 		return 0;
 	}

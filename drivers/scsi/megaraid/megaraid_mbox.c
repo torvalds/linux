@@ -76,7 +76,7 @@ static void megaraid_exit(void);
 
 static int megaraid_probe_one(struct pci_dev*, const struct pci_device_id *);
 static void megaraid_detach_one(struct pci_dev *);
-static void megaraid_mbox_shutdown(struct device *);
+static void megaraid_mbox_shutdown(struct pci_dev *);
 
 static int megaraid_io_attach(adapter_t *);
 static void megaraid_io_detach(adapter_t *);
@@ -369,9 +369,7 @@ static struct pci_driver megaraid_pci_driver_g = {
 	.id_table	= pci_id_table_g,
 	.probe		= megaraid_probe_one,
 	.remove		= __devexit_p(megaraid_detach_one),
-	.driver		= {
-		.shutdown	= megaraid_mbox_shutdown,
-	}
+	.shutdown	= megaraid_mbox_shutdown,
 };
 
 
@@ -673,9 +671,9 @@ megaraid_detach_one(struct pci_dev *pdev)
  * Shutdown notification, perform flush cache
  */
 static void
-megaraid_mbox_shutdown(struct device *device)
+megaraid_mbox_shutdown(struct pci_dev *pdev)
 {
-	adapter_t		*adapter = pci_get_drvdata(to_pci_dev(device));
+	adapter_t		*adapter = pci_get_drvdata(pdev);
 	static int		counter;
 
 	if (!adapter) {

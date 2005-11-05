@@ -22,6 +22,8 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 #include "dvb_frontend.h"
 #include "dvb_dummy_fe.h"

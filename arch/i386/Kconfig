@@ -5,7 +5,7 @@
 
 mainmenu "Linux Kernel Configuration"
 
-config X86
+config X86_32
 	bool
 	default y
 	help
@@ -15,6 +15,10 @@ config X86
 	  AMD, Cyrix, and others.
 
 config SEMAPHORE_SLEEPERS
+	bool
+	default y
+
+config X86
 	bool
 	default y
 
@@ -151,304 +155,7 @@ config ES7000_CLUSTERED_APIC
 	default y
 	depends on SMP && X86_ES7000 && MPENTIUMIII
 
-if !X86_ELAN
-
-choice
-	prompt "Processor family"
-	default M686
-
-config M386
-	bool "386"
-	---help---
-	  This is the processor type of your CPU. This information is used for
-	  optimizing purposes. In order to compile a kernel that can run on
-	  all x86 CPU types (albeit not optimally fast), you can specify
-	  "386" here.
-
-	  The kernel will not necessarily run on earlier architectures than
-	  the one you have chosen, e.g. a Pentium optimized kernel will run on
-	  a PPro, but not necessarily on a i486.
-
-	  Here are the settings recommended for greatest speed:
-	  - "386" for the AMD/Cyrix/Intel 386DX/DXL/SL/SLC/SX, Cyrix/TI
-	  486DLC/DLC2, UMC 486SX-S and NexGen Nx586.  Only "386" kernels
-	  will run on a 386 class machine.
-	  - "486" for the AMD/Cyrix/IBM/Intel 486DX/DX2/DX4 or
-	  SL/SLC/SLC2/SLC3/SX/SX2 and UMC U5D or U5S.
-	  - "586" for generic Pentium CPUs lacking the TSC
-	  (time stamp counter) register.
-	  - "Pentium-Classic" for the Intel Pentium.
-	  - "Pentium-MMX" for the Intel Pentium MMX.
-	  - "Pentium-Pro" for the Intel Pentium Pro.
-	  - "Pentium-II" for the Intel Pentium II or pre-Coppermine Celeron.
-	  - "Pentium-III" for the Intel Pentium III or Coppermine Celeron.
-	  - "Pentium-4" for the Intel Pentium 4 or P4-based Celeron.
-	  - "K6" for the AMD K6, K6-II and K6-III (aka K6-3D).
-	  - "Athlon" for the AMD K7 family (Athlon/Duron/Thunderbird).
-	  - "Crusoe" for the Transmeta Crusoe series.
-	  - "Efficeon" for the Transmeta Efficeon series.
-	  - "Winchip-C6" for original IDT Winchip.
-	  - "Winchip-2" for IDT Winchip 2.
-	  - "Winchip-2A" for IDT Winchips with 3dNow! capabilities.
-	  - "GeodeGX1" for Geode GX1 (Cyrix MediaGX).
-	  - "CyrixIII/VIA C3" for VIA Cyrix III or VIA C3.
-	  - "VIA C3-2 for VIA C3-2 "Nehemiah" (model 9 and above).
-
-	  If you don't know what to do, choose "386".
-
-config M486
-	bool "486"
-	help
-	  Select this for a 486 series processor, either Intel or one of the
-	  compatible processors from AMD, Cyrix, IBM, or Intel.  Includes DX,
-	  DX2, and DX4 variants; also SL/SLC/SLC2/SLC3/SX/SX2 and UMC U5D or
-	  U5S.
-
-config M586
-	bool "586/K5/5x86/6x86/6x86MX"
-	help
-	  Select this for an 586 or 686 series processor such as the AMD K5,
-	  the Cyrix 5x86, 6x86 and 6x86MX.  This choice does not
-	  assume the RDTSC (Read Time Stamp Counter) instruction.
-
-config M586TSC
-	bool "Pentium-Classic"
-	help
-	  Select this for a Pentium Classic processor with the RDTSC (Read
-	  Time Stamp Counter) instruction for benchmarking.
-
-config M586MMX
-	bool "Pentium-MMX"
-	help
-	  Select this for a Pentium with the MMX graphics/multimedia
-	  extended instructions.
-
-config M686
-	bool "Pentium-Pro"
-	help
-	  Select this for Intel Pentium Pro chips.  This enables the use of
-	  Pentium Pro extended instructions, and disables the init-time guard
-	  against the f00f bug found in earlier Pentiums.
-
-config MPENTIUMII
-	bool "Pentium-II/Celeron(pre-Coppermine)"
-	help
-	  Select this for Intel chips based on the Pentium-II and
-	  pre-Coppermine Celeron core.  This option enables an unaligned
-	  copy optimization, compiles the kernel with optimization flags
-	  tailored for the chip, and applies any applicable Pentium Pro
-	  optimizations.
-
-config MPENTIUMIII
-	bool "Pentium-III/Celeron(Coppermine)/Pentium-III Xeon"
-	help
-	  Select this for Intel chips based on the Pentium-III and
-	  Celeron-Coppermine core.  This option enables use of some
-	  extended prefetch instructions in addition to the Pentium II
-	  extensions.
-
-config MPENTIUMM
-	bool "Pentium M"
-	help
-	  Select this for Intel Pentium M (not Pentium-4 M)
-	  notebook chips.
-
-config MPENTIUM4
-	bool "Pentium-4/Celeron(P4-based)/Pentium-4 M/Xeon"
-	help
-	  Select this for Intel Pentium 4 chips.  This includes the
-	  Pentium 4, P4-based Celeron and Xeon, and Pentium-4 M
-	  (not Pentium M) chips.  This option enables compile flags
-	  optimized for the chip, uses the correct cache shift, and
-	  applies any applicable Pentium III optimizations.
-
-config MK6
-	bool "K6/K6-II/K6-III"
-	help
-	  Select this for an AMD K6-family processor.  Enables use of
-	  some extended instructions, and passes appropriate optimization
-	  flags to GCC.
-
-config MK7
-	bool "Athlon/Duron/K7"
-	help
-	  Select this for an AMD Athlon K7-family processor.  Enables use of
-	  some extended instructions, and passes appropriate optimization
-	  flags to GCC.
-
-config MK8
-	bool "Opteron/Athlon64/Hammer/K8"
-	help
-	  Select this for an AMD Opteron or Athlon64 Hammer-family processor.  Enables
-	  use of some extended instructions, and passes appropriate optimization
-	  flags to GCC.
-
-config MCRUSOE
-	bool "Crusoe"
-	help
-	  Select this for a Transmeta Crusoe processor.  Treats the processor
-	  like a 586 with TSC, and sets some GCC optimization flags (like a
-	  Pentium Pro with no alignment requirements).
-
-config MEFFICEON
-	bool "Efficeon"
-	help
-	  Select this for a Transmeta Efficeon processor.
-
-config MWINCHIPC6
-	bool "Winchip-C6"
-	help
-	  Select this for an IDT Winchip C6 chip.  Linux and GCC
-	  treat this chip as a 586TSC with some extended instructions
-	  and alignment requirements.
-
-config MWINCHIP2
-	bool "Winchip-2"
-	help
-	  Select this for an IDT Winchip-2.  Linux and GCC
-	  treat this chip as a 586TSC with some extended instructions
-	  and alignment requirements.
-
-config MWINCHIP3D
-	bool "Winchip-2A/Winchip-3"
-	help
-	  Select this for an IDT Winchip-2A or 3.  Linux and GCC
-	  treat this chip as a 586TSC with some extended instructions
-	  and alignment reqirements.  Also enable out of order memory
-	  stores for this CPU, which can increase performance of some
-	  operations.
-
-config MGEODEGX1
-	bool "GeodeGX1"
-	help
-	  Select this for a Geode GX1 (Cyrix MediaGX) chip.
-
-config MCYRIXIII
-	bool "CyrixIII/VIA-C3"
-	help
-	  Select this for a Cyrix III or C3 chip.  Presently Linux and GCC
-	  treat this chip as a generic 586. Whilst the CPU is 686 class,
-	  it lacks the cmov extension which gcc assumes is present when
-	  generating 686 code.
-	  Note that Nehemiah (Model 9) and above will not boot with this
-	  kernel due to them lacking the 3DNow! instructions used in earlier
-	  incarnations of the CPU.
-
-config MVIAC3_2
-	bool "VIA C3-2 (Nehemiah)"
-	help
-	  Select this for a VIA C3 "Nehemiah". Selecting this enables usage
-	  of SSE and tells gcc to treat the CPU as a 686.
-	  Note, this kernel will not boot on older (pre model 9) C3s.
-
-endchoice
-
-config X86_GENERIC
-       bool "Generic x86 support"
-       help
-	  Instead of just including optimizations for the selected
-	  x86 variant (e.g. PII, Crusoe or Athlon), include some more
-	  generic optimizations as well. This will make the kernel
-	  perform better on x86 CPUs other than that selected.
-
-	  This is really intended for distributors who need more
-	  generic optimizations.
-
-endif
-
-#
-# Define implied options from the CPU selection here
-#
-config X86_CMPXCHG
-	bool
-	depends on !M386
-	default y
-
-config X86_XADD
-	bool
-	depends on !M386
-	default y
-
-config X86_L1_CACHE_SHIFT
-	int
-	default "7" if MPENTIUM4 || X86_GENERIC
-	default "4" if X86_ELAN || M486 || M386
-	default "5" if MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCRUSOE || MEFFICEON || MCYRIXIII || MK6 || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || M586 || MVIAC3_2 || MGEODEGX1
-	default "6" if MK7 || MK8 || MPENTIUMM
-
-config RWSEM_GENERIC_SPINLOCK
-	bool
-	depends on M386
-	default y
-
-config RWSEM_XCHGADD_ALGORITHM
-	bool
-	depends on !M386
-	default y
-
-config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
-
-config X86_PPRO_FENCE
-	bool
-	depends on M686 || M586MMX || M586TSC || M586 || M486 || M386 || MGEODEGX1
-	default y
-
-config X86_F00F_BUG
-	bool
-	depends on M586MMX || M586TSC || M586 || M486 || M386
-	default y
-
-config X86_WP_WORKS_OK
-	bool
-	depends on !M386
-	default y
-
-config X86_INVLPG
-	bool
-	depends on !M386
-	default y
-
-config X86_BSWAP
-	bool
-	depends on !M386
-	default y
-
-config X86_POPAD_OK
-	bool
-	depends on !M386
-	default y
-
-config X86_ALIGNMENT_16
-	bool
-	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || X86_ELAN || MK6 || M586MMX || M586TSC || M586 || M486 || MVIAC3_2 || MGEODEGX1
-	default y
-
-config X86_GOOD_APIC
-	bool
-	depends on MK7 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || MK8 || MEFFICEON
-	default y
-
-config X86_INTEL_USERCOPY
-	bool
-	depends on MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M586MMX || X86_GENERIC || MK8 || MK7 || MEFFICEON
-	default y
-
-config X86_USE_PPRO_CHECKSUM
-	bool
-	depends on MWINCHIP3D || MWINCHIP2 || MWINCHIPC6 || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MK8 || MVIAC3_2 || MEFFICEON
-	default y
-
-config X86_USE_3DNOW
-	bool
-	depends on MCYRIXIII || MK7
-	default y
-
-config X86_OOSTORE
-	bool
-	depends on (MWINCHIP3D || MWINCHIP2 || MWINCHIPC6) && MTRR
-	default y
+source "arch/i386/Kconfig.cpu"
 
 config HPET_TIMER
 	bool "HPET Timer Support"
@@ -559,11 +266,6 @@ config X86_IO_APIC
 config X86_VISWS_APIC
 	bool
 	depends on X86_VISWS
-	default y
-
-config X86_TSC
-	bool
-	depends on (MWINCHIP3D || MWINCHIP2 || MCRUSOE || MEFFICEON || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || M586MMX || M586TSC || MK8 || MVIAC3_2 || MGEODEGX1) && !X86_NUMAQ
 	default y
 
 config X86_MCE
@@ -1339,9 +1041,4 @@ config X86_BIOS_REBOOT
 config X86_TRAMPOLINE
 	bool
 	depends on X86_SMP || (X86_VOYAGER && SMP)
-	default y
-
-config PC
-	bool
-	depends on X86 && !EMBEDDED
 	default y

@@ -80,7 +80,7 @@ static inline void __raw_spin_unlock(raw_spinlock_t *lock)
  */
 #define rwlock_is_locked(x)	(*((volatile unsigned int *)(x)) != 0)
 
-static inline void __raw_write_lock(rwlock_t *rw)
+static inline void __raw_write_lock(raw_rwlock_t *rw)
 {
 	unsigned long tmp;
 
@@ -97,7 +97,7 @@ static inline void __raw_write_lock(rwlock_t *rw)
 	smp_mb();
 }
 
-static inline int __raw_write_trylock(rwlock_t *rw)
+static inline int __raw_write_trylock(raw_rwlock_t *rw)
 {
 	unsigned long tmp;
 
@@ -157,7 +157,7 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 	smp_mb();
 }
 
-static inline void __raw_read_unlock(rwlock_t *rw)
+static inline void __raw_read_unlock(raw_rwlock_t *rw)
 {
 	unsigned long tmp, tmp2;
 

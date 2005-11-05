@@ -15,6 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/smp_lock.h>
+#include <linux/etherdevice.h>
 
 #include "br_private.h"
 #include "br_private_stp.h"
@@ -133,10 +134,10 @@ static void br_stp_change_bridge_id(struct net_bridge *br,
 	memcpy(br->dev->dev_addr, addr, ETH_ALEN);
 
 	list_for_each_entry(p, &br->port_list, list) {
-		if (!memcmp(p->designated_bridge.addr, oldaddr, ETH_ALEN))
+		if (!compare_ether_addr(p->designated_bridge.addr, oldaddr))
 			memcpy(p->designated_bridge.addr, addr, ETH_ALEN);
 
-		if (!memcmp(p->designated_root.addr, oldaddr, ETH_ALEN))
+		if (!compare_ether_addr(p->designated_root.addr, oldaddr))
 			memcpy(p->designated_root.addr, addr, ETH_ALEN);
 
 	}
@@ -157,12 +158,12 @@ void br_stp_recalculate_bridge_id(struct net_bridge *br)
 
 	list_for_each_entry(p, &br->port_list, list) {
 		if (addr == br_mac_zero ||
-		    memcmp(p->dev->dev_addr, addr, ETH_ALEN) < 0)
+		    compare_ether_addr(p->dev->dev_addr, addr) < 0)
 			addr = p->dev->dev_addr;
 
 	}
 
-	if (memcmp(br->bridge_id.addr, addr, ETH_ALEN))
+	if (compare_ether_addr(br->bridge_id.addr, addr))
 		br_stp_change_bridge_id(br, addr);
 }
 

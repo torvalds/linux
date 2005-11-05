@@ -1257,6 +1257,9 @@ dentry->d_parent->d_name.name, dentry->d_name.name);
 	sprintf(silly, ".nfs%*.*lx",
 		i_inosize, i_inosize, dentry->d_inode->i_ino);
 
+	/* Return delegation in anticipation of the rename */
+	nfs_inode_return_delegation(dentry->d_inode);
+
 	sdentry = NULL;
 	do {
 		char *suffix = silly + slen - countersize;

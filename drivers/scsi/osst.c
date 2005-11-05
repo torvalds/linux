@@ -5629,7 +5629,7 @@ static void osst_sysfs_add(dev_t dev, struct device *device, struct osst_tape * 
 
 	if (!osst_sysfs_valid) return;
 
-	osst_class_member = class_device_create(osst_sysfs_class, dev, device, "%s", name);
+	osst_class_member = class_device_create(osst_sysfs_class, NULL, dev, device, "%s", name);
 	if (IS_ERR(osst_class_member)) {
 		printk(KERN_WARNING "osst :W: Unable to add sysfs class member %s\n", name);
 		return;
@@ -5819,9 +5819,9 @@ static int osst_probe(struct device *dev)
 	}
 	drive->number = devfs_register_tape(SDp->devfs_name);
 
-	printk(KERN_INFO
-		"osst :I: Attached OnStream %.5s tape at scsi%d, channel %d, id %d, lun %d as %s\n",
-		SDp->model, SDp->host->host_no, SDp->channel, SDp->id, SDp->lun, tape_name(tpnt));
+	sdev_printk(KERN_INFO, SDp,
+		"osst :I: Attached OnStream %.5s tape as %s\n",
+		SDp->model, tape_name(tpnt));
 
 	return 0;
 

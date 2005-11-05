@@ -10,7 +10,6 @@
 #define LEVELS_PER_SLICE        128
 
 struct slice_data {
-	unsigned long irq_alloc_mask[2];
 	unsigned long irq_enable_mask[2];
 	int level_to_irq[LEVELS_PER_SLICE];
 };
@@ -20,6 +19,7 @@ struct hub_data {
 	DECLARE_BITMAP(h_bigwin_used, HUB_NUM_BIG_WINDOW);
 	cpumask_t	h_cpus;
 	unsigned long slice_map;
+	unsigned long irq_alloc_mask[2];
 	struct slice_data slice[2];
 };
 

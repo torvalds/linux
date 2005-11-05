@@ -17,8 +17,6 @@
 #include <asm/asm-offsets.h>
 #include <asm/cache.h>
 
-_GLOBAL(__setup_cpu_601)
-	blr
 _GLOBAL(__setup_cpu_603)
 	b	setup_common_caches
 _GLOBAL(__setup_cpu_604)
@@ -292,10 +290,10 @@ _GLOBAL(__init_fpu_registers)
 #define CS_SIZE		32
 
 	.data
-	.balign	L1_CACHE_LINE_SIZE
+	.balign	L1_CACHE_BYTES
 cpu_state_storage:
 	.space	CS_SIZE
-	.balign	L1_CACHE_LINE_SIZE,0
+	.balign	L1_CACHE_BYTES,0
 	.text
 
 /* Called in normal context to backup CPU 0 state. This

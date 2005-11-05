@@ -32,6 +32,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/cpumask.h>
+#include <linux/sched.h>	/* for current / set_cpus_allowed() */
 
 #include <asm/msr.h>
 #include <asm/io.h>

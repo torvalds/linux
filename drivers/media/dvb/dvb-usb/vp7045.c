@@ -247,7 +247,7 @@ static struct dvb_usb_properties vp7045_properties = {
 		  .cold_ids = { &vp7045_usb_table[2], NULL },
 		  .warm_ids = { &vp7045_usb_table[3], NULL },
 		},
-		{ 0 },
+		{ NULL },
 	}
 };
 

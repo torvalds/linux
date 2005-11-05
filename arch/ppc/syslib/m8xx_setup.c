@@ -45,6 +45,7 @@
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/xmon.h>
+#include <asm/ppc_sys.h>
 
 #include "ppc8xx_pic.h"
 
@@ -144,12 +145,12 @@ void __init m8xx_calibrate_decr(void)
 	int freq, fp, divisor;
 
 	/* Unlock the SCCR. */
-	((volatile immap_t *)IMAP_ADDR)->im_clkrstk.cark_sccrk = ~KAPWR_KEY;
-	((volatile immap_t *)IMAP_ADDR)->im_clkrstk.cark_sccrk = KAPWR_KEY;
+	out_be32(&((immap_t *)IMAP_ADDR)->im_clkrstk.cark_sccrk, ~KAPWR_KEY);
+	out_be32(&((immap_t *)IMAP_ADDR)->im_clkrstk.cark_sccrk, KAPWR_KEY);
 
 	/* Force all 8xx processors to use divide by 16 processor clock. */
-	((volatile immap_t *)IMAP_ADDR)->im_clkrst.car_sccr |= 0x02000000;
-
+	out_be32(&((immap_t *)IMAP_ADDR)->im_clkrst.car_sccr,
+		in_be32(&((immap_t *)IMAP_ADDR)->im_clkrst.car_sccr)|0x02000000);
 	/* Processor frequency is MHz.
 	 * The value 'fp' is the number of decrementer ticks per second.
 	 */
@@ -175,28 +176,24 @@ void __init m8xx_calibrate_decr(void)
 	 * we guarantee the registers are locked, then we unlock them
 	 * for our use.
 	 */
-	((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_tbscrk = ~KAPWR_KEY;
-	((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck = ~KAPWR_KEY;
-	((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_tbk    = ~KAPWR_KEY;
-	((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_tbscrk =  KAPWR_KEY;
-	((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck =  KAPWR_KEY;
-	((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_tbk    =  KAPWR_KEY;
+	out_be32(&((immap_t *)IMAP_ADDR)->im_sitk.sitk_tbscrk, ~KAPWR_KEY);
+	out_be32(&((immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck, ~KAPWR_KEY);
+	out_be32(&((immap_t *)IMAP_ADDR)->im_sitk.sitk_tbk, ~KAPWR_KEY);
+	out_be32(&((immap_t *)IMAP_ADDR)->im_sitk.sitk_tbscrk, KAPWR_KEY);
+	out_be32(&((immap_t *)IMAP_ADDR)->im_sitk.sitk_rtcsck, KAPWR_KEY);
+	out_be32(&((immap_t *)IMAP_ADDR)->im_sitk.sitk_tbk, KAPWR_KEY);
 
 	/* Disable the RTC one second and alarm interrupts. */
-	((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc &=
-						~(RTCSC_SIE | RTCSC_ALE);
+	out_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc, in_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc) & ~(RTCSC_SIE | RTCSC_ALE));
 	/* Enable the RTC */
-	((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc |=
-						(RTCSC_RTF | RTCSC_RTE);
+	out_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc, in_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtcsc) | (RTCSC_RTF | RTCSC_RTE));
 
 	/* Enabling the decrementer also enables the timebase interrupts
 	 * (or from the other point of view, to get decrementer interrupts
 	 * we have to enable the timebase).  The decrementer interrupt
 	 * is wired into the vector table, nothing to do here for that.
 	 */
-	((volatile immap_t *)IMAP_ADDR)->im_sit.sit_tbscr =
-				((mk_int_int_mask(DEC_INTERRUPT) << 8) |
-					 (TBSCR_TBF | TBSCR_TBE));
+	out_be16(&((immap_t *)IMAP_ADDR)->im_sit.sit_tbscr, (mk_int_int_mask(DEC_INTERRUPT) << 8) | (TBSCR_TBF | TBSCR_TBE));
 
 	if (setup_irq(DEC_INTERRUPT, &tbint_irqaction))
 		panic("Could not allocate timer IRQ!");
@@ -216,9 +213,9 @@ void __init m8xx_calibrate_decr(void)
 static int
 m8xx_set_rtc_time(unsigned long time)
 {
-	((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtck = KAPWR_KEY;
-	((volatile immap_t *)IMAP_ADDR)->im_sit.sit_rtc = time;
-	((volatile immap_t *)IMAP_ADDR)->im_sitk.sitk_rtck = ~KAPWR_KEY;
+	out_be32(&((immap_t *)IMAP_ADDR)->im_sitk.sitk_rtck, KAPWR_KEY);
+	out_be32(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtc, time);
+	out_be32(&((immap_t *)IMAP_ADDR)->im_sitk.sitk_rtck, ~KAPWR_KEY);
 	return(0);
 }
 
@@ -226,7 +223,7 @@ static unsigned long
 m8xx_get_rtc_time(void)
 {
 	/* Get time from the RTC. */
-	return((unsigned long)(((immap_t *)IMAP_ADDR)->im_sit.sit_rtc));
+	return (unsigned long) in_be32(&((immap_t *)IMAP_ADDR)->im_sit.sit_rtc);
 }
 
 static void
@@ -235,13 +232,13 @@ m8xx_restart(char *cmd)
 	__volatile__ unsigned char dummy;
 
 	local_irq_disable();
-	((immap_t *)IMAP_ADDR)->im_clkrst.car_plprcr |= 0x00000080;
+	out_be32(&((immap_t *)IMAP_ADDR)->im_clkrst.car_plprcr, in_be32(&((immap_t *)IMAP_ADDR)->im_clkrst.car_plprcr) | 0x00000080);
 
 	/* Clear the ME bit in MSR to cause checkstop on machine check
 	*/
 	mtmsr(mfmsr() & ~0x1000);
 
-	dummy = ((immap_t *)IMAP_ADDR)->im_clkrst.res[0];
+	dummy = in_8(&((immap_t *)IMAP_ADDR)->im_clkrst.res[0]);
 	printk("Restart failed\n");
 	while(1);
 }
@@ -306,8 +303,7 @@ m8xx_init_IRQ(void)
 	i8259_init(0);
 
 	/* The i8259 cascade interrupt must be level sensitive. */
-	((immap_t *)IMAP_ADDR)->im_siu_conf.sc_siel &=
-		~(0x80000000 >> ISA_BRIDGE_INT);
+	out_be32(&((immap_t *)IMAP_ADDR)->im_siu_conf.sc_siel, in_be32(&((immap_t *)IMAP_ADDR)->im_siu_conf.sc_siel & ~(0x80000000 >> ISA_BRIDGE_INT)));
 
 	if (setup_irq(ISA_BRIDGE_INT, &mbx_i8259_irqaction))
 		enable_irq(ISA_BRIDGE_INT);
@@ -404,9 +400,10 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 		strcpy(cmd_line, (char *)(r6+KERNELBASE));
 	}
 
+	identify_ppc_sys_by_name(BOARD_CHIP_NAME);
+
 	ppc_md.setup_arch		= m8xx_setup_arch;
 	ppc_md.show_percpuinfo		= m8xx_show_percpuinfo;
-	ppc_md.irq_canonicalize	= NULL;
 	ppc_md.init_IRQ			= m8xx_init_IRQ;
 	ppc_md.get_irq			= m8xx_get_irq;
 	ppc_md.init			= NULL;

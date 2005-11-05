@@ -169,12 +169,12 @@ static int __init amd756_s4882_init(void)
 	init_MUTEX(&amd756_lock);
 
 	/* Define the 5 virtual adapters and algorithms structures */
-	if (!(s4882_adapter = kmalloc(5 * sizeof(struct i2c_adapter),
+	if (!(s4882_adapter = kzalloc(5 * sizeof(struct i2c_adapter),
 				      GFP_KERNEL))) {
 		error = -ENOMEM;
 		goto ERROR1;
 	}
-	if (!(s4882_algo = kmalloc(5 * sizeof(struct i2c_algorithm),
+	if (!(s4882_algo = kzalloc(5 * sizeof(struct i2c_algorithm),
 				   GFP_KERNEL))) {
 		error = -ENOMEM;
 		goto ERROR2;

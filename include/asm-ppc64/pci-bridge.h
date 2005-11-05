@@ -2,7 +2,9 @@
 #ifndef _ASM_PCI_BRIDGE_H
 #define _ASM_PCI_BRIDGE_H
 
+#include <linux/config.h>
 #include <linux/pci.h>
+#include <linux/list.h>
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -34,7 +36,7 @@ struct pci_controller {
 
 	struct pci_ops *ops;
 	volatile unsigned int __iomem *cfg_addr;
-	volatile unsigned char __iomem *cfg_data;
+	volatile void __iomem *cfg_data;
 
 	/* Currently, we limit ourselves to 1 IO range and 3 mem
 	 * ranges since the common pci_bus structure can't handle more
@@ -71,6 +73,12 @@ struct pci_dn {
 	struct	iommu_table *iommu_table;	/* for phb's or bridges */
 	struct	pci_dev *pcidev;	/* back-pointer to the pci device */
 	struct	device_node *node;	/* back-pointer to the device_node */
+#ifdef CONFIG_PPC_ISERIES
+	struct	list_head Device_List;
+	int		Irq;		/* Assigned IRQ */
+	int		Flags;		/* Possible flags(disable/bist)*/
+	u8		LogicalSlot;	/* Hv Slot Index for Tces */
+#endif
 	u32	config_space[16];	/* saved PCI config space */
 };
 
@@ -96,6 +104,16 @@ static inline struct device_node *pci_device_to_OF_node(struct pci_dev *dev)
 	return fetch_dev_dn(dev);
 }
 
+static inline int pci_device_from_OF_node(struct device_node *np,
+					  u8 *bus, u8 *devfn)
+{
+	if (!PCI_DN(np))
+		return -ENODEV;
+	*bus = PCI_DN(np)->busno;
+	*devfn = PCI_DN(np)->devfn;
+	return 0;
+}
+
 static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
 {
 	if (bus->self)
@@ -105,7 +123,7 @@ static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
 }
 
 extern void pci_process_bridge_OF_ranges(struct pci_controller *hose,
-					 struct device_node *dev);
+					 struct device_node *dev, int primary);
 
 extern int pcibios_remove_root_bus(struct pci_controller *phb);
 

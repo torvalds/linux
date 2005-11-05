@@ -148,9 +148,14 @@ Commands:\n\
   r	print registers\n\
   S	print special registers\n\
   t	print backtrace\n\
-  la	lookup address in system.map\n\
-  ls	lookup symbol in system.map\n\
+  la	lookup address\n\
+  ls	lookup symbol\n\
+  C	checksum\n\
+  p	call function with arguments\n\
+  T	print time\n\
   x	exit monitor\n\
+  zr    reboot\n\
+  zh    halt\n\
 ";
 
 static int xmon_trace[NR_CPUS];

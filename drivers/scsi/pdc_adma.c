@@ -40,13 +40,14 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/device.h>
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <asm/io.h>
 #include <linux/libata.h>
 
 #define DRV_NAME	"pdc_adma"
-#define DRV_VERSION	"0.01"
+#define DRV_VERSION	"0.03"
 
 /* macro to calculate base address for ATA regs */
 #define ADMA_ATA_REGS(base,port_no)	((base) + ((port_no) * 0x40))
@@ -79,7 +80,6 @@ enum {
 	aNIEN			= (1 << 8), /* irq mask: 1==masked */
 	aGO			= (1 << 7), /* packet trigger ("Go!") */
 	aRSTADM			= (1 << 5), /* ADMA logic reset */
-	aRSTA			= (1 << 2), /* ATA hard reset */
 	aPIOMD4			= 0x0003,   /* PIO mode 4 */
 
 	/* ADMA_STATUS register bits */
@@ -293,14 +293,14 @@ static void adma_eng_timeout(struct ata_port *ap)
 
 static int adma_fill_sg(struct ata_queued_cmd *qc)
 {
-	struct scatterlist *sg = qc->sg;
+	struct scatterlist *sg;
 	struct ata_port *ap = qc->ap;
 	struct adma_port_priv *pp = ap->private_data;
 	u8  *buf = pp->pkt;
-	int nelem, i = (2 + buf[3]) * 8;
+	int i = (2 + buf[3]) * 8;
 	u8 pFLAGS = pORD | ((qc->tf.flags & ATA_TFLAG_WRITE) ? pDIRO : 0);
 
-	for (nelem = 0; nelem < qc->n_elem; nelem++,sg++) {
+	ata_for_each_sg(sg, qc) {
 		u32 addr;
 		u32 len;
 
@@ -312,7 +312,7 @@ static int adma_fill_sg(struct ata_queued_cmd *qc)
 		*(__le32 *)(buf + i) = cpu_to_le32(len);
 		i += 4;
 
-		if ((nelem + 1) == qc->n_elem)
+		if (ata_sg_is_last(sg, qc))
 			pFLAGS |= pEND;
 		buf[i++] = pFLAGS;
 		buf[i++] = qc->dev->dma_mode & 0xf;
@@ -452,24 +452,28 @@ static inline unsigned int adma_intr_pkt(struct ata_host_set *host_set)
 		struct adma_port_priv *pp;
 		struct ata_queued_cmd *qc;
 		void __iomem *chan = ADMA_REGS(mmio_base, port_no);
-		u8 drv_stat, status = readb(chan + ADMA_STATUS);
+		u8 status = readb(chan + ADMA_STATUS);
 
 		if (status == 0)
 			continue;
 		handled = 1;
 		adma_enter_reg_mode(ap);
-		if ((ap->flags & ATA_FLAG_PORT_DISABLED))
+		if (ap->flags & (ATA_FLAG_PORT_DISABLED | ATA_FLAG_NOINTR))
 			continue;
 		pp = ap->private_data;
 		if (!pp || pp->state != adma_state_pkt)
 			continue;
 		qc = ata_qc_from_tag(ap, ap->active_tag);
-		drv_stat = 0;
-		if ((status & (aPERR | aPSD | aUIRQ)))
-			drv_stat = ATA_ERR;
-		else if (pp->pkt[0] != cDONE)
-			drv_stat = ATA_ERR;
-		ata_qc_complete(qc, drv_stat);
+		if (qc && (!(qc->tf.ctl & ATA_NIEN))) {
+			unsigned int err_mask = 0;
+
+			if ((status & (aPERR | aPSD | aUIRQ)))
+				err_mask = AC_ERR_OTHER;
+			else if (pp->pkt[0] != cDONE)
+				err_mask = AC_ERR_OTHER;
+
+			ata_qc_complete(qc, err_mask);
+		}
 	}
 	return handled;
 }
@@ -490,7 +494,7 @@ static inline unsigned int adma_intr_mmio(struct ata_host_set *host_set)
 			if (qc && (!(qc->tf.ctl & ATA_NIEN))) {
 
 				/* check main status, clearing INTRQ */
-				u8 status = ata_chk_status(ap);
+				u8 status = ata_check_status(ap);
 				if ((status & ATA_BUSY))
 					continue;
 				DPRINTK("ata%u: protocol %d (dev_stat 0x%X)\n",
@@ -498,7 +502,7 @@ static inline unsigned int adma_intr_mmio(struct ata_host_set *host_set)
 		
 				/* complete taskfile transaction */
 				pp->state = adma_state_idle;
-				ata_qc_complete(qc, status);
+				ata_qc_complete(qc, ac_err_mask(status));
 				handled = 1;
 			}
 		}
@@ -561,15 +565,15 @@ static int adma_port_start(struct ata_port *ap)
 	if ((pp->pkt_dma & 7) != 0) {
 		printk("bad alignment for pp->pkt_dma: %08x\n",
 						(u32)pp->pkt_dma);
-		goto err_out_kfree2;
+		dma_free_coherent(dev, ADMA_PKT_BYTES,
+						pp->pkt, pp->pkt_dma);
+		goto err_out_kfree;
 	}
 	memset(pp->pkt, 0, ADMA_PKT_BYTES);
 	ap->private_data = pp;
 	adma_reinit_engine(ap);
 	return 0;
 
-err_out_kfree2:
-	kfree(pp);
 err_out_kfree:
 	kfree(pp);
 err_out:
@@ -623,16 +627,14 @@ static int adma_set_dma_masks(struct pci_dev *pdev, void __iomem *mmio_base)
 
 	rc = pci_set_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc) {
-		printk(KERN_ERR DRV_NAME
-			"(%s): 32-bit DMA enable failed\n",
-			pci_name(pdev));
+		dev_printk(KERN_ERR, &pdev->dev,
+			"32-bit DMA enable failed\n");
 		return rc;
 	}
 	rc = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 	if (rc) {
-		printk(KERN_ERR DRV_NAME
-			"(%s): 32-bit consistent DMA enable failed\n",
-			pci_name(pdev));
+		dev_printk(KERN_ERR, &pdev->dev,
+			"32-bit consistent DMA enable failed\n");
 		return rc;
 	}
 	return 0;
@@ -648,7 +650,7 @@ static int adma_ata_init_one(struct pci_dev *pdev,
 	int rc, port_no;
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc)

@@ -662,7 +662,7 @@ static void add_dquot_ref(struct super_block *sb, int type)
 restart:
 	file_list_lock();
 	list_for_each(p, &sb->s_files) {
-		struct file *filp = list_entry(p, struct file, f_list);
+		struct file *filp = list_entry(p, struct file, f_u.fu_list);
 		struct inode *inode = filp->f_dentry->d_inode;
 		if (filp->f_mode & FMODE_WRITE && dqinit_needed(inode, type)) {
 			struct dentry *dentry = dget(filp->f_dentry);

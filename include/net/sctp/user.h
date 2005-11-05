@@ -171,10 +171,10 @@ struct sctp_sndrcvinfo {
  */
 
 enum sctp_sinfo_flags {
-	MSG_UNORDERED = 1,  /* Send/receive message unordered. */
-	MSG_ADDR_OVER = 2,  /* Override the primary destination. */
-	MSG_ABORT=4,        /* Send an ABORT message to the peer. */
-	/* MSG_EOF is already defined per socket.h */
+	SCTP_UNORDERED = 1,  /* Send/receive message unordered. */
+	SCTP_ADDR_OVER = 2,  /* Override the primary destination. */
+	SCTP_ABORT=4,        /* Send an ABORT message to the peer. */
+	SCTP_EOF=MSG_FIN,    /* Initiate graceful shutdown process. */	
 };
 
 

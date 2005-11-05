@@ -1,25 +1,9 @@
-/********************************************************************************
-*                  QLOGIC LINUX SOFTWARE
-*
-* QLogic ISP2x00 device driver for Linux 2.6.x
-* Copyright (C) 2003-2005 QLogic Corporation
-* (www.qlogic.com)
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of the GNU General Public License as published by the
-* Free Software Foundation; either version 2, or (at your option) any
-* later version.
-*
-* This program is distributed in the hope that it will be useful, but
-* WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-* General Public License for more details.
-*
-******************************************************************************
-* Global include file.
-******************************************************************************/
-
-
+/*
+ * QLogic Fibre Channel HBA Driver
+ * Copyright (c)  2003-2005 QLogic Corporation
+ *
+ * See LICENSE.qla2xxx for copyright and licensing details.
+ */
 #ifndef __QLA_GBL_H
 #define	__QLA_GBL_H
 
@@ -76,8 +60,6 @@ extern char qla2x00_version_str[];
 extern int ql2xlogintimeout;
 extern int qlport_down_retry;
 extern int ql2xplogiabsentdevice;
-extern int ql2xenablezio;
-extern int ql2xintrdelaytimer;
 extern int ql2xloginretrycount;
 extern int ql2xfdmienable;
 
@@ -223,6 +205,7 @@ extern irqreturn_t qla2100_intr_handler(int, void *, struct pt_regs *);
 extern irqreturn_t qla2300_intr_handler(int, void *, struct pt_regs *);
 extern irqreturn_t qla24xx_intr_handler(int, void *, struct pt_regs *);
 extern void qla2x00_process_response_queue(struct scsi_qla_host *);
+extern void qla24xx_process_response_queue(struct scsi_qla_host *);
 
 /*
  * Global Function Prototypes in qla_sup.c source file.

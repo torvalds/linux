@@ -1,6 +1,8 @@
 /*
- * Carsten Langgaard, carstenl@mips.com
- * Copyright (C) 1999, 2000 MIPS Technologies, Inc.  All rights reserved.
+ * Copyright (C) 1999, 2000, 2004  MIPS Technologies, Inc.
+ *	All rights reserved.
+ *	Authors: Carsten Langgaard <carstenl@mips.com>
+ *		 Maciej W. Rozycki <macro@mips.com>
  *
  *  This program is free software; you can distribute it and/or modify it
  *  under the terms of the GNU General Public License (Version 2) as
@@ -17,7 +19,6 @@
  *
  * MIPS boards specific PCI support.
  */
-#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
@@ -56,13 +57,6 @@ static int bonito64_pcibios_config_access(unsigned char access_type,
 		/* We number bus 0 devices from 0..21 */
 		return -1;
 	}
-
-#ifdef CONFIG_MIPS_BOARDS_GEN
-	if ((busnum == 0) && (PCI_SLOT(devfn) == 17)) {
-		/* MIPS Core boards have Bonito connected as device 17 */
-		return -1;
-	}
-#endif
 
 	/* Clear cause register bits */
 	BONITO_PCICMD |= (BONITO_PCICMD_MABORT_CLR |

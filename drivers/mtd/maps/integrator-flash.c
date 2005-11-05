@@ -32,7 +32,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/ioport.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/init.h>
 
 #include <linux/mtd/mtd.h>

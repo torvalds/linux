@@ -77,7 +77,7 @@ static const char version[] =
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/crc32.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
@@ -2295,11 +2295,11 @@ static int smc_drv_remove(struct device *dev)
 	return 0;
 }
 
-static int smc_drv_suspend(struct device *dev, pm_message_t state, u32 level)
+static int smc_drv_suspend(struct device *dev, pm_message_t state)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
 
-	if (ndev && level == SUSPEND_DISABLE) {
+	if (ndev) {
 		if (netif_running(ndev)) {
 			netif_device_detach(ndev);
 			smc_shutdown(ndev);
@@ -2309,12 +2309,12 @@ static int smc_drv_suspend(struct device *dev, pm_message_t state, u32 level)
 	return 0;
 }
 
-static int smc_drv_resume(struct device *dev, u32 level)
+static int smc_drv_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct net_device *ndev = dev_get_drvdata(dev);
 
-	if (ndev && level == RESUME_ENABLE) {
+	if (ndev) {
 		struct smc_local *lp = netdev_priv(ndev);
 		smc_enable_device(pdev);
 		if (netif_running(ndev)) {

@@ -20,7 +20,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
@@ -519,30 +519,28 @@ static struct timespec s3c2410_rtc_delta;
 
 static int ticnt_save;
 
-static int s3c2410_rtc_suspend(struct device *dev, pm_message_t state, u32 level)
+static int s3c2410_rtc_suspend(struct device *dev, pm_message_t state)
 {
 	struct rtc_time tm;
 	struct timespec time;
 
 	time.tv_nsec = 0;
 
-	if (level == SUSPEND_POWER_DOWN) {
-		/* save TICNT for anyone using periodic interrupts */
+	/* save TICNT for anyone using periodic interrupts */
 
-		ticnt_save = readb(S3C2410_TICNT);
+	ticnt_save = readb(S3C2410_TICNT);
 
-		/* calculate time delta for suspend */
+	/* calculate time delta for suspend */
 
-		s3c2410_rtc_gettime(&tm);
-		rtc_tm_to_time(&tm, &time.tv_sec);
-		save_time_delta(&s3c2410_rtc_delta, &time);
-		s3c2410_rtc_enable(dev, 0);
-	}
+	s3c2410_rtc_gettime(&tm);
+	rtc_tm_to_time(&tm, &time.tv_sec);
+	save_time_delta(&s3c2410_rtc_delta, &time);
+	s3c2410_rtc_enable(dev, 0);
 
 	return 0;
 }
 
-static int s3c2410_rtc_resume(struct device *dev, u32 level)
+static int s3c2410_rtc_resume(struct device *dev)
 {
 	struct rtc_time tm;
 	struct timespec time;

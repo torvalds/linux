@@ -151,7 +151,7 @@ static struct dvb_usb_properties dtt200u_properties = {
 		  .cold_ids = { &dtt200u_usb_table[0], NULL },
 		  .warm_ids = { &dtt200u_usb_table[1], NULL },
 		},
-		{ 0 },
+		{ NULL },
 	}
 };
 
@@ -192,7 +192,7 @@ static struct dvb_usb_properties wt220u_properties = {
 		  .cold_ids = { &dtt200u_usb_table[2], NULL },
 		  .warm_ids = { &dtt200u_usb_table[3], NULL },
 		},
-		{ 0 },
+		{ NULL },
 	}
 };
 

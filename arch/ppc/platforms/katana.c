@@ -29,6 +29,7 @@
 #include <linux/seq_file.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mv643xx.h>
+#include <linux/platform_device.h>
 #ifdef CONFIG_BOOTIMG
 #include <linux/bootimg.h>
 #endif
@@ -42,6 +43,7 @@
 #include <asm/ppcboot.h>
 #include <asm/mv64x60.h>
 #include <platforms/katana.h>
+#include <asm/machdep.h>
 
 static struct mv64x60_handle	bh;
 static katana_id_t		katana_id;
@@ -520,7 +522,7 @@ katana_fixup_resources(struct pci_dev *dev)
 {
 	u16	v16;
 
-	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, L1_CACHE_LINE_SIZE>>2);
+	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, L1_CACHE_BYTES>>2);
 
 	pci_read_config_word(dev, PCI_COMMAND, &v16);
 	v16 |= PCI_COMMAND_INVALIDATE | PCI_COMMAND_FAST_BACK;

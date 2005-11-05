@@ -1,32 +1,29 @@
-/* 
-   BlueZ - Bluetooth protocol stack for Linux
-   Copyright (C) 2000-2001 Qualcomm Incorporated
-
-   Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License version 2 as
-   published by the Free Software Foundation;
-
-   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
-   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT OF THIRD PARTY RIGHTS.
-   IN NO EVENT SHALL THE COPYRIGHT HOLDER(S) AND AUTHOR(S) BE LIABLE FOR ANY
-   CLAIM, OR ANY SPECIAL INDIRECT OR CONSEQUENTIAL DAMAGES, OR ANY DAMAGES 
-   WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN 
-   ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF 
-   OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
-   ALL LIABILITY, INCLUDING LIABILITY FOR INFRINGEMENT OF ANY PATENTS, 
-   COPYRIGHTS, TRADEMARKS OR OTHER RIGHTS, RELATING TO USE OF THIS 
-   SOFTWARE IS DISCLAIMED.
-*/
-
 /*
- * $Id: hci_uart.h,v 1.2 2002/09/09 01:17:32 maxk Exp $
+ *
+ *  Bluetooth HCI UART driver
+ *
+ *  Copyright (C) 2000-2001  Qualcomm Incorporated
+ *  Copyright (C) 2002-2003  Maxim Krasnyansky <maxk@qualcomm.com>
+ *  Copyright (C) 2004-2005  Marcel Holtmann <marcel@holtmann.org>
+ *
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
  */
 
-#ifndef N_HCI 
+#ifndef N_HCI
 #define N_HCI	15
 #endif
 
@@ -42,7 +39,6 @@
 #define HCI_UART_3WIRE	2
 #define HCI_UART_H4DS	3
 
-#ifdef __KERNEL__
 struct hci_uart;
 
 struct hci_uart_proto {
@@ -56,27 +52,35 @@ struct hci_uart_proto {
 };
 
 struct hci_uart {
-	struct tty_struct  *tty;
-	struct hci_dev     *hdev;
-	unsigned long      flags;
+	struct tty_struct	*tty;
+	struct hci_dev		*hdev;
+	unsigned long		flags;
 
-	struct hci_uart_proto *proto;
-	void               *priv;
-	
-	struct sk_buff     *tx_skb;
-	unsigned long      tx_state;
-	spinlock_t         rx_lock;
+	struct hci_uart_proto	*proto;
+	void			*priv;
+
+	struct sk_buff		*tx_skb;
+	unsigned long		tx_state;
+	spinlock_t		rx_lock;
 };
 
 /* HCI_UART flag bits */
-#define HCI_UART_PROTO_SET		0
+#define HCI_UART_PROTO_SET	0
 
 /* TX states  */
-#define HCI_UART_SENDING		1
-#define HCI_UART_TX_WAKEUP		2
+#define HCI_UART_SENDING	1
+#define HCI_UART_TX_WAKEUP	2
 
 int hci_uart_register_proto(struct hci_uart_proto *p);
 int hci_uart_unregister_proto(struct hci_uart_proto *p);
 int hci_uart_tx_wakeup(struct hci_uart *hu);
 
-#endif /* __KERNEL__ */
+#ifdef CONFIG_BT_HCIUART_H4
+int h4_init(void);
+int h4_deinit(void);
+#endif
+
+#ifdef CONFIG_BT_HCIUART_BCSP
+int bcsp_init(void);
+int bcsp_deinit(void);
+#endif

@@ -214,16 +214,15 @@ static void update_open_stateid(struct nfs4_state *state, nfs4_stateid *stateid,
 	struct inode *inode = state->inode;
 
 	open_flags &= (FMODE_READ|FMODE_WRITE);
-	/* Protect against nfs4_find_state() */
+	/* Protect against nfs4_find_state_byowner() */
 	spin_lock(&state->owner->so_lock);
 	spin_lock(&inode->i_lock);
-	state->state |= open_flags;
-	/* NB! List reordering - see the reclaim code for why.  */
-	if ((open_flags & FMODE_WRITE) && 0 == state->nwriters++)
-		list_move(&state->open_states, &state->owner->so_states);
+	memcpy(&state->stateid, stateid, sizeof(state->stateid));
+	if ((open_flags & FMODE_WRITE))
+		state->nwriters++;
 	if (open_flags & FMODE_READ)
 		state->nreaders++;
-	memcpy(&state->stateid, stateid, sizeof(state->stateid));
+	nfs4_state_set_mode_locked(state, state->state | open_flags);
 	spin_unlock(&inode->i_lock);
 	spin_unlock(&state->owner->so_lock);
 }
@@ -896,7 +895,6 @@ static void nfs4_close_done(struct rpc_task *task)
 			break;
 		case -NFS4ERR_STALE_STATEID:
 		case -NFS4ERR_EXPIRED:
-			state->state = calldata->arg.open_flags;
 			nfs4_schedule_state_recovery(server->nfs4_state);
 			break;
 		default:
@@ -906,7 +904,6 @@ static void nfs4_close_done(struct rpc_task *task)
 			}
 	}
 	nfs_refresh_inode(calldata->inode, calldata->res.fattr);
-	state->state = calldata->arg.open_flags;
 	nfs4_free_closedata(calldata);
 }
 
@@ -920,24 +917,26 @@ static void nfs4_close_begin(struct rpc_task *task)
 		.rpc_resp = &calldata->res,
 		.rpc_cred = state->owner->so_cred,
 	};
-	int mode = 0;
+	int mode = 0, old_mode;
 	int status;
 
 	status = nfs_wait_on_sequence(calldata->arg.seqid, task);
 	if (status != 0)
 		return;
-	/* Don't reorder reads */
-	smp_rmb();
 	/* Recalculate the new open mode in case someone reopened the file
 	 * while we were waiting in line to be scheduled.
 	 */
-	if (state->nreaders != 0)
-		mode |= FMODE_READ;
-	if (state->nwriters != 0)
-		mode |= FMODE_WRITE;
-	if (test_bit(NFS_DELEGATED_STATE, &state->flags))
-		state->state = mode;
-	if (mode == state->state) {
+	spin_lock(&state->owner->so_lock);
+	spin_lock(&calldata->inode->i_lock);
+	mode = old_mode = state->state;
+	if (state->nreaders == 0)
+		mode &= ~FMODE_READ;
+	if (state->nwriters == 0)
+		mode &= ~FMODE_WRITE;
+	nfs4_state_set_mode_locked(state, mode);
+	spin_unlock(&calldata->inode->i_lock);
+	spin_unlock(&state->owner->so_lock);
+	if (mode == old_mode || test_bit(NFS_DELEGATED_STATE, &state->flags)) {
 		nfs4_free_closedata(calldata);
 		task->tk_exit = NULL;
 		rpc_exit(task, 0);
@@ -961,7 +960,7 @@ static void nfs4_close_begin(struct rpc_task *task)
  *
  * NOTE: Caller must be holding the sp->so_owner semaphore!
  */
-int nfs4_do_close(struct inode *inode, struct nfs4_state *state, mode_t mode) 
+int nfs4_do_close(struct inode *inode, struct nfs4_state *state) 
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs4_closedata *calldata;
@@ -1275,7 +1274,8 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 {
 	struct rpc_cred *cred;
 	struct inode *inode = dentry->d_inode;
-	struct nfs4_state *state;
+	struct nfs_open_context *ctx;
+	struct nfs4_state *state = NULL;
 	int status;
 
 	nfs_fattr_init(fattr);
@@ -1283,22 +1283,18 @@ nfs4_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	cred = rpcauth_lookupcred(NFS_SERVER(inode)->client->cl_auth, 0);
 	if (IS_ERR(cred))
 		return PTR_ERR(cred);
-	/* Search for an existing WRITE delegation first */
-	state = nfs4_open_delegated(inode, FMODE_WRITE, cred);
-	if (!IS_ERR(state)) {
-		/* NB: nfs4_open_delegated() bumps the inode->i_count */
-		iput(inode);
-	} else {
-		/* Search for an existing open(O_WRITE) stateid */
-		state = nfs4_find_state(inode, cred, FMODE_WRITE);
-	}
+
+	/* Search for an existing open(O_WRITE) file */
+	ctx = nfs_find_open_context(inode, cred, FMODE_WRITE);
+	if (ctx != NULL)
+		state = ctx->state;
 
 	status = nfs4_do_setattr(NFS_SERVER(inode), fattr,
 			NFS_FH(inode), sattr, state);
 	if (status == 0)
 		nfs_setattr_update_inode(inode, sattr);
-	if (state != NULL)
-		nfs4_close_state(state, FMODE_WRITE);
+	if (ctx != NULL)
+		put_nfs_open_context(ctx);
 	put_rpccred(cred);
 	return status;
 }
@@ -2599,12 +2595,10 @@ int nfs4_handle_exception(const struct nfs_server *server, int errorcode, struct
 		case -NFS4ERR_GRACE:
 		case -NFS4ERR_DELAY:
 			ret = nfs4_delay(server->client, &exception->timeout);
-			if (ret == 0)
-				exception->retry = 1;
-			break;
+			if (ret != 0)
+				break;
 		case -NFS4ERR_OLD_STATEID:
-			if (ret == 0)
-				exception->retry = 1;
+			exception->retry = 1;
 	}
 	/* We failed to handle the error */
 	return nfs4_map_errors(ret);
@@ -2924,6 +2918,10 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	struct nfs4_lock_state *lsp;
 	int status;
 
+	/* Is this a delegated lock? */
+	if (test_bit(NFS_DELEGATED_STATE, &state->flags))
+		return do_vfs_lock(request->fl_file, request);
+
 	status = nfs4_set_lock_state(state, request);
 	if (status != 0)
 		return status;
@@ -3038,6 +3036,9 @@ static int nfs4_lock_reclaim(struct nfs4_state *state, struct file_lock *request
 	struct nfs4_exception exception = { };
 	int err;
 
+	/* Cache the lock if possible... */
+	if (test_bit(NFS_DELEGATED_STATE, &state->flags))
+		return 0;
 	do {
 		err = _nfs4_do_setlk(state, F_SETLK, request, 1);
 		if (err != -NFS4ERR_DELAY)
@@ -3053,6 +3054,9 @@ static int nfs4_lock_expired(struct nfs4_state *state, struct file_lock *request
 	struct nfs4_exception exception = { };
 	int err;
 
+	err = nfs4_set_lock_state(state, request);
+	if (err != 0)
+		return err;
 	do {
 		err = _nfs4_do_setlk(state, F_SETLK, request, 0);
 		if (err != -NFS4ERR_DELAY)
@@ -3068,15 +3072,25 @@ static int _nfs4_proc_setlk(struct nfs4_state *state, int cmd, struct file_lock 
 	int status;
 
 	down_read(&clp->cl_sem);
-	status = nfs4_set_lock_state(state, request);
-	if (status == 0)
-		status = _nfs4_do_setlk(state, cmd, request, 0);
-	if (status == 0) {
-		/* Note: we always want to sleep here! */
-		request->fl_flags |= FL_SLEEP;
-		if (do_vfs_lock(request->fl_file, request) < 0)
-			printk(KERN_WARNING "%s: VFS is out of sync with lock manager!\n", __FUNCTION__);
+	/* Is this a delegated open? */
+	if (test_bit(NFS_DELEGATED_STATE, &state->flags)) {
+		/* Yes: cache locks! */
+		status = do_vfs_lock(request->fl_file, request);
+		/* ...but avoid races with delegation recall... */
+		if (status < 0 || test_bit(NFS_DELEGATED_STATE, &state->flags))
+			goto out;
 	}
+	status = nfs4_set_lock_state(state, request);
+	if (status != 0)
+		goto out;
+	status = _nfs4_do_setlk(state, cmd, request, 0);
+	if (status != 0)
+		goto out;
+	/* Note: we always want to sleep here! */
+	request->fl_flags |= FL_SLEEP;
+	if (do_vfs_lock(request->fl_file, request) < 0)
+		printk(KERN_WARNING "%s: VFS is out of sync with lock manager!\n", __FUNCTION__);
+out:
 	up_read(&clp->cl_sem);
 	return status;
 }
@@ -3130,6 +3144,24 @@ nfs4_proc_lock(struct file *filp, int cmd, struct file_lock *request)
 	return status;
 }
 
+int nfs4_lock_delegation_recall(struct nfs4_state *state, struct file_lock *fl)
+{
+	struct nfs_server *server = NFS_SERVER(state->inode);
+	struct nfs4_exception exception = { };
+	int err;
+
+	err = nfs4_set_lock_state(state, fl);
+	if (err != 0)
+		goto out;
+	do {
+		err = _nfs4_do_setlk(state, F_SETLK, fl, 0);
+		if (err != -NFS4ERR_DELAY)
+			break;
+		err = nfs4_handle_exception(server, err, &exception);
+	} while (exception.retry);
+out:
+	return err;
+}
 
 #define XATTR_NAME_NFSV4_ACL "system.nfs4_acl"
 

@@ -726,8 +726,7 @@ static int u14_34f_slave_configure(struct scsi_device *dev) {
    else
       link_suffix = "";
 
-   printk("%s: scsi%d, channel %d, id %d, lun %d, cmds/lun %d%s%s.\n",
-          BN(j), host->host_no, dev->channel, dev->id, dev->lun,
+   sdev_printk(KERN_INFO, dev, "cmds/lun %d%s%s.\n",
           dev->queue_depth, link_suffix, tag_suffix);
 
    return FALSE;
@@ -1319,8 +1318,8 @@ static int u14_34f_queuecommand(struct scsi_cmnd *SCpnt, void (*done)(struct scs
    if (wait_on_busy(sh[j]->io_port, MAXLOOP)) {
       unmap_dma(i, j);
       SCpnt->host_scribble = NULL;
-      printk("%s: qcomm, target %d.%d:%d, pid %ld, adapter busy.\n",
-             BN(j), SCpnt->device->channel, SCpnt->device->id, SCpnt->device->lun, SCpnt->pid);
+      scmd_printk(KERN_INFO, SCpnt,
+      		"qcomm, pid %ld, adapter busy.\n", SCpnt->pid);
       return 1;
       }
 
@@ -1340,14 +1339,14 @@ static int u14_34f_eh_abort(struct scsi_cmnd *SCarg) {
    j = ((struct hostdata *) SCarg->device->host->hostdata)->board_number;
 
    if (SCarg->host_scribble == NULL) {
-      printk("%s: abort, target %d.%d:%d, pid %ld inactive.\n",
-             BN(j), SCarg->device->channel, SCarg->device->id, SCarg->device->lun, SCarg->pid);
+      scmd_printk(KERN_INFO, SCarg, "abort, pid %ld inactive.\n",
+             SCarg->pid);
       return SUCCESS;
       }
 
    i = *(unsigned int *)SCarg->host_scribble;
-   printk("%s: abort, mbox %d, target %d.%d:%d, pid %ld.\n",
-          BN(j), i, SCarg->device->channel, SCarg->device->id, SCarg->device->lun, SCarg->pid);
+   scmd_printk(KERN_INFO, SCarg, "abort, mbox %d, pid %ld.\n",
+	       i, SCarg->pid);
 
    if (i >= sh[j]->can_queue)
       panic("%s: abort, invalid SCarg->host_scribble.\n", BN(j));
@@ -1405,8 +1404,7 @@ static int u14_34f_eh_host_reset(struct scsi_cmnd *SCarg) {
    struct scsi_cmnd *SCpnt;
 
    j = ((struct hostdata *) SCarg->device->host->hostdata)->board_number;
-   printk("%s: reset, enter, target %d.%d:%d, pid %ld.\n",
-          BN(j), SCarg->device->channel, SCarg->device->id, SCarg->device->lun, SCarg->pid);
+   scmd_printk(KERN_INFO, SCarg, "reset, enter, pid %ld.\n", SCarg->pid);
 
    spin_lock_irq(sh[j]->host_lock);
 
@@ -1709,9 +1707,10 @@ static void flush_dev(struct scsi_device *dev, unsigned long cursec, unsigned in
       k = il[n]; cpp = &HD(j)->cp[k]; SCpnt = cpp->SCpnt;
 
       if (wait_on_busy(sh[j]->io_port, MAXLOOP)) {
-         printk("%s: %s, target %d.%d:%d, pid %ld, mbox %d, adapter"\
-                " busy, will abort.\n", BN(j), (ihdlr ? "ihdlr" : "qcomm"),
-                SCpnt->device->channel, SCpnt->device->id, SCpnt->device->lun, SCpnt->pid, k);
+         scmd_printk(KERN_INFO, SCpnt,
+	 	"%s, pid %ld, mbox %d, adapter"
+                " busy, will abort.\n", (ihdlr ? "ihdlr" : "qcomm"),
+                SCpnt->pid, k);
          HD(j)->cp_stat[k] = ABORTING;
          continue;
          }
@@ -1823,7 +1822,7 @@ static irqreturn_t ihdlr(int irq, unsigned int j) {
 
          /* If there was a bus reset, redo operation on each target */
          else if (tstatus != GOOD && SCpnt->device->type == TYPE_DISK
-                  && HD(j)->target_redo[SCpnt->device->id][SCpnt->device->channel])
+                  && HD(j)->target_redo[scmd_id(SCpnt)][scmd_channel(SCpnt)])
             status = DID_BUS_BUSY << 16;
 
          /* Works around a flaw in scsi.c */
@@ -1836,29 +1835,28 @@ static irqreturn_t ihdlr(int irq, unsigned int j) {
             status = DID_OK << 16;
 
          if (tstatus == GOOD)
-            HD(j)->target_redo[SCpnt->device->id][SCpnt->device->channel] = FALSE;
+            HD(j)->target_redo[scmd_id(SCpnt)][scmd_channel(SCpnt)] = FALSE;
 
          if (spp->target_status && SCpnt->device->type == TYPE_DISK &&
              (!(tstatus == CHECK_CONDITION && HD(j)->iocount <= 1000 &&
                (SCpnt->sense_buffer[2] & 0xf) == NOT_READY)))
-            printk("%s: ihdlr, target %d.%d:%d, pid %ld, "\
-                   "target_status 0x%x, sense key 0x%x.\n", BN(j),
-                   SCpnt->device->channel, SCpnt->device->id, SCpnt->device->lun,
+            scmd_printk(KERN_INFO, SCpnt,
+	    	"ihdlr, pid %ld, target_status 0x%x, sense key 0x%x.\n",
                    SCpnt->pid, spp->target_status,
                    SCpnt->sense_buffer[2]);
 
-         HD(j)->target_to[SCpnt->device->id][SCpnt->device->channel] = 0;
+         HD(j)->target_to[scmd_id(SCpnt)][scmd_channel(SCpnt)] = 0;
 
          if (HD(j)->last_retried_pid == SCpnt->pid) HD(j)->retries = 0;
 
          break;
       case ASST:     /* Selection Time Out */
 
-         if (HD(j)->target_to[SCpnt->device->id][SCpnt->device->channel] > 1)
+         if (HD(j)->target_to[scmd_id(SCpnt)][scmd_channel(SCpnt)] > 1)
             status = DID_ERROR << 16;
          else {
             status = DID_TIME_OUT << 16;
-            HD(j)->target_to[SCpnt->device->id][SCpnt->device->channel]++;
+            HD(j)->target_to[scmd_id(SCpnt)][scmd_channel(SCpnt)]++;
             }
 
          break;
@@ -1914,10 +1912,9 @@ static irqreturn_t ihdlr(int irq, unsigned int j) {
         spp->adapter_status != ASST && HD(j)->iocount <= 1000) ||
         do_trace || msg_byte(spp->target_status))
 #endif
-      printk("%s: ihdlr, mbox %2d, err 0x%x:%x,"\
-             " target %d.%d:%d, pid %ld, reg 0x%x, count %d.\n",
-             BN(j), i, spp->adapter_status, spp->target_status,
-             SCpnt->device->channel, SCpnt->device->id, SCpnt->device->lun, SCpnt->pid,
+      scmd_printk(KERN_INFO, SCpnt, "ihdlr, mbox %2d, err 0x%x:%x,"\
+             " pid %ld, reg 0x%x, count %d.\n",
+             i, spp->adapter_status, spp->target_status, SCpnt->pid,
              reg, HD(j)->iocount);
 
    unmap_dma(i, j);

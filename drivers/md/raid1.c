@@ -647,6 +647,7 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	unsigned long flags;
 	struct bio_list bl;
 	struct page **behind_pages = NULL;
+	const int rw = bio_data_dir(bio);
 
 	if (unlikely(bio_barrier(bio))) {
 		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
@@ -665,13 +666,8 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	conf->nr_pending++;
 	spin_unlock_irq(&conf->resync_lock);
 
-	if (bio_data_dir(bio)==WRITE) {
-		disk_stat_inc(mddev->gendisk, writes);
-		disk_stat_add(mddev->gendisk, write_sectors, bio_sectors(bio));
-	} else {
-		disk_stat_inc(mddev->gendisk, reads);
-		disk_stat_add(mddev->gendisk, read_sectors, bio_sectors(bio));
-	}
+	disk_stat_inc(mddev->gendisk, ios[rw]);
+	disk_stat_add(mddev->gendisk, sectors[rw], bio_sectors(bio));
 
 	/*
 	 * make_request() can abort the operation when READA is being
@@ -686,7 +682,7 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	r1_bio->mddev = mddev;
 	r1_bio->sector = bio->bi_sector;
 
-	if (bio_data_dir(bio) == READ) {
+	if (rw == READ) {
 		/*
 		 * read balancing logic:
 		 */

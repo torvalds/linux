@@ -469,7 +469,7 @@ static int kaweth_reset(struct kaweth_device *kaweth)
 				0,
 				KAWETH_CONTROL_TIMEOUT);
 
-	udelay(10000);
+	mdelay(10);
 
 	kaweth_dbg("kaweth_reset() returns %d.",result);
 

@@ -47,5 +47,6 @@ struct irqaction;
 struct pt_regs;
 int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
 
+extern void migrate_irqs(void);
 #endif
 

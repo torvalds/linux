@@ -2912,7 +2912,7 @@ static int __init init_raw1394(void)
 
 	hpsb_register_highlevel(&raw1394_highlevel);
 
-	if (IS_ERR(class_device_create(hpsb_protocol_class, MKDEV(
+	if (IS_ERR(class_device_create(hpsb_protocol_class, NULL, MKDEV(
 		IEEE1394_MAJOR,	IEEE1394_MINOR_BLOCK_RAW1394 * 16), 
 		NULL, RAW1394_DEVICE_NAME))) {
 		ret = -EFAULT;

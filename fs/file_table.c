@@ -56,13 +56,13 @@ void filp_dtor(void * objp, struct kmem_cache_s *cachep, unsigned long dflags)
 
 static inline void file_free_rcu(struct rcu_head *head)
 {
-	struct file *f =  container_of(head, struct file, f_rcuhead);
+	struct file *f =  container_of(head, struct file, f_u.fu_rcuhead);
 	kmem_cache_free(filp_cachep, f);
 }
 
 static inline void file_free(struct file *f)
 {
-	call_rcu(&f->f_rcuhead, file_free_rcu);
+	call_rcu(&f->f_u.fu_rcuhead, file_free_rcu);
 }
 
 /* Find an unused file structure and return a pointer to it.
@@ -95,7 +95,7 @@ struct file *get_empty_filp(void)
 	f->f_gid = current->fsgid;
 	rwlock_init(&f->f_owner.lock);
 	/* f->f_version: 0 */
-	INIT_LIST_HEAD(&f->f_list);
+	INIT_LIST_HEAD(&f->f_u.fu_list);
 	return f;
 
 over:
@@ -225,15 +225,15 @@ void file_move(struct file *file, struct list_head *list)
 	if (!list)
 		return;
 	file_list_lock();
-	list_move(&file->f_list, list);
+	list_move(&file->f_u.fu_list, list);
 	file_list_unlock();
 }
 
 void file_kill(struct file *file)
 {
-	if (!list_empty(&file->f_list)) {
+	if (!list_empty(&file->f_u.fu_list)) {
 		file_list_lock();
-		list_del_init(&file->f_list);
+		list_del_init(&file->f_u.fu_list);
 		file_list_unlock();
 	}
 }
@@ -245,7 +245,7 @@ int fs_may_remount_ro(struct super_block *sb)
 	/* Check that no files are currently opened for writing. */
 	file_list_lock();
 	list_for_each(p, &sb->s_files) {
-		struct file *file = list_entry(p, struct file, f_list);
+		struct file *file = list_entry(p, struct file, f_u.fu_list);
 		struct inode *inode = file->f_dentry->d_inode;
 
 		/* File with pending delete? */

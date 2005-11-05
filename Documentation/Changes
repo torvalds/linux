@@ -65,7 +65,7 @@ o  isdn4k-utils           3.1pre1                 # isdnctrl 2>&1|grep version
 o  nfs-utils              1.0.5                   # showmount --version
 o  procps                 3.2.0                   # ps --version
 o  oprofile               0.9                     # oprofiled --version
-o  udev                   058                     # udevinfo -V
+o  udev                   071                     # udevinfo -V
 
 Kernel compilation
 ==================

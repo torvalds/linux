@@ -2419,6 +2419,7 @@ retry:
 			next = slab_bufctl(slabp)[slabp->free];
 #if DEBUG
 			slab_bufctl(slabp)[slabp->free] = BUFCTL_FREE;
+			WARN_ON(numa_node_id() != slabp->nodeid);
 #endif
 		       	slabp->free = next;
 		}
@@ -2633,8 +2634,10 @@ static void free_block(kmem_cache_t *cachep, void **objpp, int nr_objects, int n
 		check_spinlock_acquired_node(cachep, node);
 		check_slabp(cachep, slabp);
 
-
 #if DEBUG
+		/* Verify that the slab belongs to the intended node */
+		WARN_ON(slabp->nodeid != node);
+
 		if (slab_bufctl(slabp)[objnr] != BUFCTL_FREE) {
 			printk(KERN_ERR "slab: double free detected in cache "
 					"'%s', objp %p\n", cachep->name, objp);

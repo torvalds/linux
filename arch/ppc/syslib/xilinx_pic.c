@@ -17,6 +17,7 @@
 #include <asm/io.h>
 #include <asm/xparameters.h>
 #include <asm/ibm4xx.h>
+#include <asm/machdep.h>
 
 /* No one else should require these constants, so define them locally here. */
 #define ISR 0			/* Interrupt Status Register */

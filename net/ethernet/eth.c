@@ -146,19 +146,6 @@ int eth_rebuild_header(struct sk_buff *skb)
 	return 0;
 }
 
-static inline unsigned int compare_eth_addr(const unsigned char *__a, const unsigned char *__b)
-{
-	const unsigned short *dest = (unsigned short *) __a;
-	const unsigned short *devaddr = (unsigned short *) __b;
-	unsigned int res;
-
-	BUILD_BUG_ON(ETH_ALEN != 6);
-	res = ((dest[0] ^ devaddr[0]) |
-	       (dest[1] ^ devaddr[1]) |
-	       (dest[2] ^ devaddr[2])) != 0;
-
-	return res;
-}
 
 /*
  *	Determine the packet's protocol ID. The rule here is that we 
@@ -176,7 +163,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	eth = eth_hdr(skb);
 	
 	if (*eth->h_dest&1) {
-		if (!compare_eth_addr(eth->h_dest, dev->broadcast))
+		if (!compare_ether_addr(eth->h_dest, dev->broadcast))
 			skb->pkt_type = PACKET_BROADCAST;
 		else
 			skb->pkt_type = PACKET_MULTICAST;
@@ -191,7 +178,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 */
 	 
 	else if(1 /*dev->flags&IFF_PROMISC*/) {
-		if (unlikely(compare_eth_addr(eth->h_dest, dev->dev_addr)))
+		if (unlikely(compare_ether_addr(eth->h_dest, dev->dev_addr)))
 			skb->pkt_type = PACKET_OTHERHOST;
 	}
 	

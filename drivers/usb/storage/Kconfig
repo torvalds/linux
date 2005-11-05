@@ -2,7 +2,8 @@
 # USB Storage driver configuration
 #
 
-comment "NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support' may also be needed; see USB_STORAGE Help for more information"
+comment "NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support'"
+comment "may also be needed; see USB_STORAGE Help for more information"
 	depends on USB
 
 config USB_STORAGE

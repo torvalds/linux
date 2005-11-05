@@ -39,9 +39,7 @@ IOCTL_TABLE_START
 #include <linux/compat_ioctl.h>
 #define DECLARES
 #include "compat_ioctl.c"
-COMPATIBLE_IOCTL(TIOCSTART)
-COMPATIBLE_IOCTL(TIOCSTOP)
-COMPATIBLE_IOCTL(TIOCSLTC)
+
 /* Little p (/dev/rtc, /dev/envctrl, etc.) */
 COMPATIBLE_IOCTL(_IOR('p', 20, int[7])) /* RTCGET */
 COMPATIBLE_IOCTL(_IOW('p', 21, int[7])) /* RTCSET */

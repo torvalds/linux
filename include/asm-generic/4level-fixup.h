@@ -10,14 +10,9 @@
 
 #define pud_t				pgd_t
 
-#define pmd_alloc(mm, pud, address)			\
-({	pmd_t *ret;					\
-	if (pgd_none(*pud))				\
- 		ret = __pmd_alloc(mm, pud, address);	\
- 	else						\
-		ret = pmd_offset(pud, address);		\
- 	ret;						\
-})
+#define pmd_alloc(mm, pud, address) \
+	((unlikely(pgd_none(*(pud))) && __pmd_alloc(mm, pud, address))? \
+ 		NULL: pmd_offset(pud, address))
 
 #define pud_alloc(mm, pgd, address)	(pgd)
 #define pud_offset(pgd, start)		(pgd)

@@ -6,6 +6,11 @@ config 64BIT
 	bool
 	default y
 
+#XXX: this is so in the underlying arch, but it's wrong!!!
+config RWSEM_GENERIC_SPINLOCK
+	bool
+	default y
+
 config SEMAPHORE_SLEEPERS
 	bool
 	default y

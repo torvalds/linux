@@ -291,8 +291,8 @@ static int afs_file_releasepage(struct page *page, gfp_t gfp_flags)
 		cachefs_uncache_page(vnode->cache, page);
 #endif
 
-		pageio = (struct cachefs_page *) page->private;
-		page->private = 0;
+		pageio = (struct cachefs_page *) page_private(page);
+		set_page_private(page, 0);
 		ClearPagePrivate(page);
 
 		if (pageio)

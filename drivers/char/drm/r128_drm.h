@@ -93,7 +93,7 @@
 #define R128_MAX_TEXTURE_LEVELS		11
 #define R128_MAX_TEXTURE_UNITS		2
 
-#endif /* __R128_SAREA_DEFINES__ */
+#endif				/* __R128_SAREA_DEFINES__ */
 
 typedef struct {
 	/* Context state - can be written in one large chunk */
@@ -140,7 +140,6 @@ typedef struct {
 	unsigned int tex_border_color;
 } drm_r128_texture_regs_t;
 
-
 typedef struct drm_r128_sarea {
 	/* The channel for communication of state information to the kernel
 	 * on firing a vertex buffer.
@@ -161,13 +160,12 @@ typedef struct drm_r128_sarea {
 	unsigned int last_frame;
 	unsigned int last_dispatch;
 
-	drm_tex_region_t tex_list[R128_NR_TEX_HEAPS][R128_NR_TEX_REGIONS+1];
+	drm_tex_region_t tex_list[R128_NR_TEX_HEAPS][R128_NR_TEX_REGIONS + 1];
 	unsigned int tex_age[R128_NR_TEX_HEAPS];
 	int ctx_owner;
-	int pfAllowPageFlip;        /* number of 3d windows (0,1,2 or more) */
-	int pfCurrentPage;	    /* which buffer is being displayed? */
+	int pfAllowPageFlip;	/* number of 3d windows (0,1,2 or more) */
+	int pfCurrentPage;	/* which buffer is being displayed? */
 } drm_r128_sarea_t;
-
 
 /* WARNING: If you change any of these defines, make sure to change the
  * defines in the Xserver file (xf86drmR128.h)
@@ -220,7 +218,7 @@ typedef struct drm_r128_sarea {
 
 typedef struct drm_r128_init {
 	enum {
-		R128_INIT_CCE    = 0x01,
+		R128_INIT_CCE = 0x01,
 		R128_CLEANUP_CCE = 0x02
 	} func;
 #if CONFIG_XFREE86_VERSION < XFREE86_VERSION(4,1,0,0)
@@ -278,9 +276,9 @@ typedef struct drm_r128_clear {
 
 typedef struct drm_r128_vertex {
 	int prim;
-	int idx;			/* Index of vertex buffer */
-	int count;			/* Number of vertices in buffer */
-	int discard;			/* Client finished with buffer? */
+	int idx;		/* Index of vertex buffer */
+	int count;		/* Number of vertices in buffer */
+	int discard;		/* Client finished with buffer? */
 } drm_r128_vertex_t;
 
 typedef struct drm_r128_indices {
@@ -288,7 +286,7 @@ typedef struct drm_r128_indices {
 	int idx;
 	int start;
 	int end;
-	int discard;			/* Client finished with buffer? */
+	int discard;		/* Client finished with buffer? */
 } drm_r128_indices_t;
 
 typedef struct drm_r128_blit {
@@ -302,10 +300,10 @@ typedef struct drm_r128_blit {
 
 typedef struct drm_r128_depth {
 	enum {
-		R128_WRITE_SPAN		= 0x01,
-		R128_WRITE_PIXELS	= 0x02,
-		R128_READ_SPAN		= 0x03,
-		R128_READ_PIXELS	= 0x04
+		R128_WRITE_SPAN = 0x01,
+		R128_WRITE_PIXELS = 0x02,
+		R128_READ_SPAN = 0x03,
+		R128_READ_PIXELS = 0x04
 	} func;
 	int n;
 	int __user *x;
@@ -327,13 +325,13 @@ typedef struct drm_r128_indirect {
 
 typedef struct drm_r128_fullscreen {
 	enum {
-		R128_INIT_FULLSCREEN    = 0x01,
+		R128_INIT_FULLSCREEN = 0x01,
 		R128_CLEANUP_FULLSCREEN = 0x02
 	} func;
 } drm_r128_fullscreen_t;
 
 /* 2.3: An ioctl to get parameters that aren't available to the 3d
- * client any other way.  
+ * client any other way.
  */
 #define R128_PARAM_IRQ_NR            1
 

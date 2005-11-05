@@ -1024,12 +1024,8 @@ static int reiserfs_parse_options(struct super_block *s, char *options,	/* strin
 				strcpy(REISERFS_SB(s)->s_qf_names[qtype], arg);
 				*mount_options |= 1 << REISERFS_QUOTA;
 			} else {
-				if (REISERFS_SB(s)->s_qf_names[qtype]) {
-					kfree(REISERFS_SB(s)->
-					      s_qf_names[qtype]);
-					REISERFS_SB(s)->s_qf_names[qtype] =
-					    NULL;
-				}
+				kfree(REISERFS_SB(s)->s_qf_names[qtype]);
+				REISERFS_SB(s)->s_qf_names[qtype] = NULL;
 			}
 		}
 		if (c == 'f') {
@@ -1158,11 +1154,10 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	if (!reiserfs_parse_options
 	    (s, arg, &mount_options, &blocks, NULL, &commit_max_age)) {
 #ifdef CONFIG_QUOTA
-		for (i = 0; i < MAXQUOTAS; i++)
-			if (REISERFS_SB(s)->s_qf_names[i]) {
-				kfree(REISERFS_SB(s)->s_qf_names[i]);
-				REISERFS_SB(s)->s_qf_names[i] = NULL;
-			}
+		for (i = 0; i < MAXQUOTAS; i++) {
+			kfree(REISERFS_SB(s)->s_qf_names[i]);
+			REISERFS_SB(s)->s_qf_names[i] = NULL;
+		}
 #endif
 		return -EINVAL;
 	}
@@ -1940,13 +1935,11 @@ static int reiserfs_fill_super(struct super_block *s, void *data, int silent)
 		brelse(SB_BUFFER_WITH_SB(s));
 #ifdef CONFIG_QUOTA
 	for (j = 0; j < MAXQUOTAS; j++) {
-		if (sbi->s_qf_names[j])
-			kfree(sbi->s_qf_names[j]);
+		kfree(sbi->s_qf_names[j]);
+		sbi->s_qf_names[j] = NULL;
 	}
 #endif
-	if (sbi != NULL) {
-		kfree(sbi);
-	}
+	kfree(sbi);
 
 	s->s_fs_info = NULL;
 	return errval;

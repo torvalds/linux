@@ -119,13 +119,6 @@ done:
 	return 0;
 }
 
-unsigned int xprt_udp_slot_table_entries = RPC_DEF_SLOT_TABLE;
-unsigned int xprt_tcp_slot_table_entries = RPC_DEF_SLOT_TABLE;
-unsigned int xprt_min_resvport = RPC_DEF_MIN_RESVPORT;
-EXPORT_SYMBOL(xprt_min_resvport);
-unsigned int xprt_max_resvport = RPC_DEF_MAX_RESVPORT;
-EXPORT_SYMBOL(xprt_max_resvport);
-
 
 static unsigned int min_slot_table_size = RPC_MIN_SLOT_TABLE;
 static unsigned int max_slot_table_size = RPC_MAX_SLOT_TABLE;

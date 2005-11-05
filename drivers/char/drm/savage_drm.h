@@ -42,12 +42,13 @@
 #define SAVAGE_NR_TEX_REGIONS		16
 #define SAVAGE_LOG_MIN_TEX_REGION_SIZE	16
 
-#endif /* __SAVAGE_SAREA_DEFINES__ */
+#endif				/* __SAVAGE_SAREA_DEFINES__ */
 
 typedef struct _drm_savage_sarea {
 	/* LRU lists for texture memory in agp space and on the card.
 	 */
-	drm_tex_region_t texList[SAVAGE_NR_TEX_HEAPS][SAVAGE_NR_TEX_REGIONS+1];
+	drm_tex_region_t texList[SAVAGE_NR_TEX_HEAPS][SAVAGE_NR_TEX_REGIONS +
+						      1];
 	unsigned int texAge[SAVAGE_NR_TEX_HEAPS];
 
 	/* Mechanism to validate card state.
@@ -101,24 +102,24 @@ typedef struct drm_savage_init {
 
 typedef union drm_savage_cmd_header drm_savage_cmd_header_t;
 typedef struct drm_savage_cmdbuf {
-				/* command buffer in client's address space */
+	/* command buffer in client's address space */
 	drm_savage_cmd_header_t __user *cmd_addr;
 	unsigned int size;	/* size of the command buffer in 64bit units */
 
 	unsigned int dma_idx;	/* DMA buffer index to use */
 	int discard;		/* discard DMA buffer when done */
-				/* vertex buffer in client's address space */
+	/* vertex buffer in client's address space */
 	unsigned int __user *vb_addr;
 	unsigned int vb_size;	/* size of client vertex buffer in bytes */
 	unsigned int vb_stride;	/* stride of vertices in 32bit words */
-				/* boxes in client's address space */
+	/* boxes in client's address space */
 	drm_clip_rect_t __user *box_addr;
 	unsigned int nbox;	/* number of clipping boxes */
 } drm_savage_cmdbuf_t;
 
-#define SAVAGE_WAIT_2D  0x1 /* wait for 2D idle before updating event tag */
-#define SAVAGE_WAIT_3D  0x2 /* wait for 3D idle before updating event tag */
-#define SAVAGE_WAIT_IRQ 0x4 /* emit or wait for IRQ, not implemented yet */
+#define SAVAGE_WAIT_2D  0x1	/* wait for 2D idle before updating event tag */
+#define SAVAGE_WAIT_3D  0x2	/* wait for 3D idle before updating event tag */
+#define SAVAGE_WAIT_IRQ 0x4	/* emit or wait for IRQ, not implemented yet */
 typedef struct drm_savage_event {
 	unsigned int count;
 	unsigned int flags;
@@ -126,21 +127,21 @@ typedef struct drm_savage_event {
 
 /* Commands for the cmdbuf ioctl
  */
-#define SAVAGE_CMD_STATE	0  /* a range of state registers */
-#define SAVAGE_CMD_DMA_PRIM	1  /* vertices from DMA buffer */
-#define SAVAGE_CMD_VB_PRIM	2  /* vertices from client vertex buffer */
-#define SAVAGE_CMD_DMA_IDX	3  /* indexed vertices from DMA buffer */
-#define SAVAGE_CMD_VB_IDX	4  /* indexed vertices client vertex buffer */
-#define SAVAGE_CMD_CLEAR	5  /* clear buffers */
-#define SAVAGE_CMD_SWAP		6  /* swap buffers */
+#define SAVAGE_CMD_STATE	0	/* a range of state registers */
+#define SAVAGE_CMD_DMA_PRIM	1	/* vertices from DMA buffer */
+#define SAVAGE_CMD_VB_PRIM	2	/* vertices from client vertex buffer */
+#define SAVAGE_CMD_DMA_IDX	3	/* indexed vertices from DMA buffer */
+#define SAVAGE_CMD_VB_IDX	4	/* indexed vertices client vertex buffer */
+#define SAVAGE_CMD_CLEAR	5	/* clear buffers */
+#define SAVAGE_CMD_SWAP		6	/* swap buffers */
 
 /* Primitive types
 */
-#define SAVAGE_PRIM_TRILIST	0  /* triangle list */
-#define SAVAGE_PRIM_TRISTRIP	1  /* triangle strip */
-#define SAVAGE_PRIM_TRIFAN	2  /* triangle fan */
-#define SAVAGE_PRIM_TRILIST_201	3  /* reorder verts for correct flat
-				    * shading on s3d */
+#define SAVAGE_PRIM_TRILIST	0	/* triangle list */
+#define SAVAGE_PRIM_TRISTRIP	1	/* triangle strip */
+#define SAVAGE_PRIM_TRIFAN	2	/* triangle fan */
+#define SAVAGE_PRIM_TRILIST_201	3	/* reorder verts for correct flat
+					 * shading on s3d */
 
 /* Skip flags (vertex format)
  */
@@ -172,38 +173,38 @@ union drm_savage_cmd_header {
 		unsigned short pad1;
 		unsigned short pad2;
 		unsigned short pad3;
-	} cmd; /* generic */
+	} cmd;			/* generic */
 	struct {
 		unsigned char cmd;
 		unsigned char global;	/* need idle engine? */
 		unsigned short count;	/* number of consecutive registers */
 		unsigned short start;	/* first register */
 		unsigned short pad3;
-	} state; /* SAVAGE_CMD_STATE */
+	} state;		/* SAVAGE_CMD_STATE */
 	struct {
 		unsigned char cmd;
 		unsigned char prim;	/* primitive type */
 		unsigned short skip;	/* vertex format (skip flags) */
 		unsigned short count;	/* number of vertices */
 		unsigned short start;	/* first vertex in DMA/vertex buffer */
-	} prim; /* SAVAGE_CMD_DMA_PRIM, SAVAGE_CMD_VB_PRIM */
+	} prim;			/* SAVAGE_CMD_DMA_PRIM, SAVAGE_CMD_VB_PRIM */
 	struct {
 		unsigned char cmd;
 		unsigned char prim;
 		unsigned short skip;
 		unsigned short count;	/* number of indices that follow */
 		unsigned short pad3;
-	} idx; /* SAVAGE_CMD_DMA_IDX, SAVAGE_CMD_VB_IDX */
+	} idx;			/* SAVAGE_CMD_DMA_IDX, SAVAGE_CMD_VB_IDX */
 	struct {
 		unsigned char cmd;
 		unsigned char pad0;
 		unsigned short pad1;
 		unsigned int flags;
-	} clear0; /* SAVAGE_CMD_CLEAR */
+	} clear0;		/* SAVAGE_CMD_CLEAR */
 	struct {
 		unsigned int mask;
 		unsigned int value;
-	} clear1; /* SAVAGE_CMD_CLEAR data */
+	} clear1;		/* SAVAGE_CMD_CLEAR data */
 };
 
 #endif

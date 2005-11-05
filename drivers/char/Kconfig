@@ -661,7 +661,7 @@ config HW_RANDOM
 
 config NVRAM
 	tristate "/dev/nvram support"
-	depends on ATARI || X86 || X86_64 || ARM || GENERIC_NVRAM
+	depends on ATARI || X86 || ARM || GENERIC_NVRAM
 	---help---
 	  If you say Y here and create a character special file /dev/nvram
 	  with major number 10 and minor number 144 using mknod ("man mknod"),
@@ -985,7 +985,7 @@ config MAX_RAW_DEVS
 
 config HANGCHECK_TIMER
 	tristate "Hangcheck timer"
-	depends on X86_64 || X86 || IA64 || PPC64 || ARCH_S390
+	depends on X86 || IA64 || PPC64 || ARCH_S390
 	help
 	  The hangcheck-timer module detects when the system has gone
 	  out to lunch past a certain margin.  It can reboot the system
@@ -1000,6 +1000,18 @@ config MMTIMER
 	  Altix system timer.
 
 source "drivers/char/tpm/Kconfig"
+
+config TELCLOCK
+	tristate "Telecom clock driver for MPBL0010 ATCA SBC"
+	depends on EXPERIMENTAL
+	default n
+	help
+	  The telecom clock device is specific to the MPBL0010 ATCA computer and
+	  allows direct userspace access to the configuration of the telecom clock
+	  configuration settings.  This device is used for hardware synchronization
+	  across the ATCA backplane fabric.  Upon loading, the driver exports a
+	  sysfs directory, /sys/devices/platform/telco_clock, with a number of
+	  files for controlling the behavior of this hardware.
 
 endmenu
 

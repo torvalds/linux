@@ -12,6 +12,7 @@
 
 #include <linux/config.h>
 #include <linux/dccp.h>
+#include <linux/kernel.h>
 #include <linux/skbuff.h>
 
 #include <net/sock.h>
@@ -25,13 +26,20 @@ static inline void dccp_event_ack_sent(struct sock *sk)
 	inet_csk_clear_xmit_timer(sk, ICSK_TIME_DACK);
 }
 
+static inline void dccp_skb_entail(struct sock *sk, struct sk_buff *skb)
+{
+	skb_set_owner_w(skb, sk);
+	WARN_ON(sk->sk_send_head);
+	sk->sk_send_head = skb;
+}
+
 /*
  * All SKB's seen here are completely headerless. It is our
  * job to build the DCCP header, and pass the packet down to
  * IP so it can do the same plus pass the packet off to the
  * device.
  */
-int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
+static int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 {
 	if (likely(skb != NULL)) {
 		const struct inet_sock *inet = inet_sk(sk);
@@ -50,10 +58,21 @@ int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		switch (dcb->dccpd_type) {
 		case DCCP_PKT_DATA:
 			set_ack = 0;
+			/* fall through */
+		case DCCP_PKT_DATAACK:
 			break;
+
 		case DCCP_PKT_SYNC:
 		case DCCP_PKT_SYNCACK:
 			ackno = dcb->dccpd_seq;
+			/* fall through */
+		default:
+			/*
+			 * Only data packets should come through with skb->sk
+			 * set.
+			 */
+			WARN_ON(skb->sk);
+			skb_set_owner_w(skb, sk);
 			break;
 		}
 
@@ -62,9 +81,6 @@ int dccp_transmit_skb(struct sock *sk, struct sk_buff *skb)
 		
 		skb->h.raw = skb_push(skb, dccp_header_size);
 		dh = dccp_hdr(skb);
-
-		if (!skb->sk)
-			skb_set_owner_w(skb, sk);
 
 		/* Build DCCP header and checksum it. */
 		memset(dh, 0, dccp_header_size);
@@ -393,10 +409,8 @@ int dccp_connect(struct sock *sk)
 
 	DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_REQUEST;
 	skb->csum = 0;
-	skb_set_owner_w(skb, sk);
 
-	BUG_TRAP(sk->sk_send_head == NULL);
-	sk->sk_send_head = skb;
+	dccp_skb_entail(sk, skb);
 	dccp_transmit_skb(sk, skb_clone(skb, GFP_KERNEL));
 	DCCP_INC_STATS(DCCP_MIB_ACTIVEOPENS);
 
@@ -425,7 +439,6 @@ void dccp_send_ack(struct sock *sk)
 		skb_reserve(skb, MAX_DCCP_HEADER);
 		skb->csum = 0;
 		DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_ACK;
-		skb_set_owner_w(skb, sk);
 		dccp_transmit_skb(sk, skb);
 	}
 }
@@ -482,7 +495,6 @@ void dccp_send_sync(struct sock *sk, const u64 seq,
 	DCCP_SKB_CB(skb)->dccpd_type = pkt_type;
 	DCCP_SKB_CB(skb)->dccpd_seq = seq;
 
-	skb_set_owner_w(skb, sk);
 	dccp_transmit_skb(sk, skb);
 }
 
@@ -507,10 +519,8 @@ void dccp_send_close(struct sock *sk, const int active)
 	DCCP_SKB_CB(skb)->dccpd_type = dp->dccps_role == DCCP_ROLE_CLIENT ?
 					DCCP_PKT_CLOSE : DCCP_PKT_CLOSEREQ;
 
-	skb_set_owner_w(skb, sk);
 	if (active) {
-		BUG_TRAP(sk->sk_send_head == NULL);
-		sk->sk_send_head = skb;
+		dccp_skb_entail(sk, skb);
 		dccp_transmit_skb(sk, skb_clone(skb, prio));
 	} else
 		dccp_transmit_skb(sk, skb);

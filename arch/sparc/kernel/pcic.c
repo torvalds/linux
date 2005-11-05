@@ -497,8 +497,8 @@ static void pcic_map_pci_device(struct linux_pcic *pcic,
 				 * CheerIO makes a similar conversion.
 				 * See ebus.c for details.
 				 *
-				 * Note that check_region()/request_region()
-				 * work for these devices.
+				 * Note that request_region()
+				 * works for these devices.
 				 *
 				 * XXX Neat trick, but it's a *bad* idea
 				 * to shit into regions like that.

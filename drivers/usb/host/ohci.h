@@ -389,7 +389,6 @@ struct ohci_hcd {
 	unsigned long		next_statechange;	/* suspend/resume */
 	u32			fminterval;		/* saved register */
 
-	struct work_struct	rh_resume;
 	struct notifier_block	reboot_notifier;
 
 	unsigned long		flags;		/* for HC bugs */

@@ -34,10 +34,6 @@
 #include <asm/irq.h>
 #include <asm/ioc.h>
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 extern unsigned long wall_jiffies;
 
 /* this needs a better home */

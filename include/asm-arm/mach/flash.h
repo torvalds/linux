@@ -14,6 +14,7 @@ struct mtd_partition;
 
 /*
  * map_name:	the map probe function name
+ * name:	flash device name (eg, as used with mtdparts=)
  * width:	width of mapped device
  * init:	method called at driver/device initialisation
  * exit:	method called at driver/device removal
@@ -23,6 +24,7 @@ struct mtd_partition;
  */
 struct flash_platform_data {
 	const char	*map_name;
+	const char	*name;
 	unsigned int	width;
 	int		(*init)(void);
 	void		(*exit)(void);

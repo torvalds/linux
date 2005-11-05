@@ -141,7 +141,7 @@ fixup_bus_range(struct device_node *bridge)
 	|(((unsigned long)(off)) & 0xFCUL) \
 	|1UL)
 
-static void volatile __iomem * __pmac
+static void volatile __iomem *
 macrisc_cfg_access(struct pci_controller* hose, u8 bus, u8 dev_fn, u8 offset)
 {
 	unsigned int caddr;
@@ -162,7 +162,7 @@ macrisc_cfg_access(struct pci_controller* hose, u8 bus, u8 dev_fn, u8 offset)
 	return hose->cfg_data + offset;
 }
 
-static int __pmac
+static int
 macrisc_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 		    int len, u32 *val)
 {
@@ -190,7 +190,7 @@ macrisc_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int __pmac
+static int
 macrisc_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 		     int len, u32 val)
 {
@@ -230,7 +230,7 @@ static struct pci_ops macrisc_pci_ops =
 /*
  * Verifiy that a specific (bus, dev_fn) exists on chaos
  */
-static int __pmac
+static int
 chaos_validate_dev(struct pci_bus *bus, int devfn, int offset)
 {
 	struct device_node *np;
@@ -252,7 +252,7 @@ chaos_validate_dev(struct pci_bus *bus, int devfn, int offset)
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int __pmac
+static int
 chaos_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 		  int len, u32 *val)
 {
@@ -264,7 +264,7 @@ chaos_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 	return macrisc_read_config(bus, devfn, offset, len, val);
 }
 
-static int __pmac
+static int
 chaos_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 		   int len, u32 val)
 {
@@ -294,7 +294,7 @@ static struct pci_ops chaos_pci_ops =
 		+ (((unsigned long)bus) << 16) \
 		+ 0x01000000UL)
 
-static void volatile __iomem * __pmac
+static void volatile __iomem *
 u3_ht_cfg_access(struct pci_controller* hose, u8 bus, u8 devfn, u8 offset)
 {
 	if (bus == hose->first_busno) {
@@ -307,7 +307,7 @@ u3_ht_cfg_access(struct pci_controller* hose, u8 bus, u8 devfn, u8 offset)
 		return hose->cfg_data + U3_HT_CFA1(bus, devfn, offset);
 }
 
-static int __pmac
+static int
 u3_ht_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 		    int len, u32 *val)
 {
@@ -357,7 +357,7 @@ u3_ht_read_config(struct pci_bus *bus, unsigned int devfn, int offset,
 	return PCIBIOS_SUCCESSFUL;
 }
 
-static int __pmac
+static int
 u3_ht_write_config(struct pci_bus *bus, unsigned int devfn, int offset,
 		     int len, u32 val)
 {
@@ -575,7 +575,7 @@ pmac_find_bridges(void)
 	 * some offset between bus number and domains for now when we
 	 * assign all busses should help for now
 	 */
-	if (pci_assign_all_busses)
+	if (pci_assign_all_buses)
 		pcibios_assign_bus_offset = 0x10;
 
 #ifdef CONFIG_POWER4 
@@ -643,7 +643,7 @@ static inline void grackle_set_loop_snoop(struct pci_controller *bp, int enable)
 static int __init
 setup_uninorth(struct pci_controller* hose, struct reg_property* addr)
 {
-	pci_assign_all_busses = 1;
+	pci_assign_all_buses = 1;
 	has_uninorth = 1;
 	hose->ops = &macrisc_pci_ops;
 	hose->cfg_addr = ioremap(addr->address + 0x800000, 0x1000);
@@ -677,7 +677,7 @@ setup_u3_agp(struct pci_controller* hose, struct reg_property* addr)
 {
 	/* On G5, we move AGP up to high bus number so we don't need
 	 * to reassign bus numbers for HT. If we ever have P2P bridges
-	 * on AGP, we'll have to move pci_assign_all_busses to the
+	 * on AGP, we'll have to move pci_assign_all_buses to the
 	 * pci_controller structure so we enable it for AGP and not for
 	 * HT childs.
 	 * We hard code the address because of the different size of
@@ -899,7 +899,7 @@ pmac_pcibios_fixup(void)
 	pcibios_fixup_OF_interrupts();
 }
 
-int __pmac
+int
 pmac_pci_enable_device_hook(struct pci_dev *dev, int initial)
 {
 	struct device_node* node;
@@ -1096,7 +1096,7 @@ DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, pmac_pci_fixup_pciata);
  * Disable second function on K2-SATA, it's broken
  * and disable IO BARs on first one
  */
-void __pmac pmac_pci_fixup_k2_sata(struct pci_dev* dev)
+void pmac_pci_fixup_k2_sata(struct pci_dev* dev)
 {
 	int i;
 	u16 cmd;

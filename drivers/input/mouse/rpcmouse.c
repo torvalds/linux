@@ -34,20 +34,7 @@ MODULE_DESCRIPTION("Acorn RiscPC mouse driver");
 MODULE_LICENSE("GPL");
 
 static short rpcmouse_lastx, rpcmouse_lasty;
-
-static struct input_dev rpcmouse_dev = {
-	.evbit	= { BIT(EV_KEY) | BIT(EV_REL) },
-	.keybit = { [LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT) },
-	.relbit	= { BIT(REL_X) | BIT(REL_Y) },
-	.name	= "Acorn RiscPC Mouse",
-	.phys	= "rpcmouse/input0",
-	.id	= {
-		.bustype = BUS_HOST,
-		.vendor  = 0x0005,
-		.product = 0x0001,
-		.version = 0x0100,
-	},
-};
+static struct input_dev *rpcmouse_dev;
 
 static irqreturn_t rpcmouse_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
@@ -78,29 +65,41 @@ static irqreturn_t rpcmouse_irq(int irq, void *dev_id, struct pt_regs *regs)
 	return IRQ_HANDLED;
 }
 
+
 static int __init rpcmouse_init(void)
 {
-	init_input_dev(&rpcmouse_dev);
+	if (!(rpcmouse_dev = input_allocate_device()))
+		return -ENOMEM;
+
+	rpcmouse_dev->name = "Acorn RiscPC Mouse";
+	rpcmouse_dev->phys = "rpcmouse/input0";
+	rpcmouse_dev->id.bustype = BUS_HOST;
+	rpcmouse_dev->id.vendor  = 0x0005;
+	rpcmouse_dev->id.product = 0x0001;
+	rpcmouse_dev->id.version = 0x0100;
+
+	rpcmouse_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REL);
+	rpcmouse_dev->keybit[LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
+	rpcmouse_dev->relbit[0]	= BIT(REL_X) | BIT(REL_Y);
 
 	rpcmouse_lastx = (short) iomd_readl(IOMD_MOUSEX);
 	rpcmouse_lasty = (short) iomd_readl(IOMD_MOUSEY);
 
-	if (request_irq(IRQ_VSYNCPULSE, rpcmouse_irq, SA_SHIRQ, "rpcmouse", &rpcmouse_dev)) {
+	if (request_irq(IRQ_VSYNCPULSE, rpcmouse_irq, SA_SHIRQ, "rpcmouse", rpcmouse_dev)) {
 		printk(KERN_ERR "rpcmouse: unable to allocate VSYNC interrupt\n");
-		return -1;
+		input_free_device(rpcmouse_dev);
+		return -EBUSY;
 	}
 
-	input_register_device(&rpcmouse_dev);
-
-	printk(KERN_INFO "input: Acorn RiscPC mouse\n");
+	input_register_device(rpcmouse_dev);
 
 	return 0;
 }
 
 static void __exit rpcmouse_exit(void)
 {
-	input_unregister_device(&rpcmouse_dev);
-	free_irq(IRQ_VSYNCPULSE, &rpcmouse_dev);
+	free_irq(IRQ_VSYNCPULSE, rpcmouse_dev);
+	input_unregister_device(rpcmouse_dev);
 }
 
 module_init(rpcmouse_init);

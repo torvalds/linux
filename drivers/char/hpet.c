@@ -49,7 +49,9 @@
 #define	HPET_USER_FREQ	(64)
 #define	HPET_DRIFT	(500)
 
-static u32 hpet_ntimer, hpet_nhpet, hpet_max_freq = HPET_USER_FREQ;
+#define HPET_RANGE_SIZE		1024	/* from HPET spec */
+
+static u32 hpet_nhpet, hpet_max_freq = HPET_USER_FREQ;
 
 /* A lock for concurrent access by app and isr hpet activity. */
 static DEFINE_SPINLOCK(hpet_lock);
@@ -78,7 +80,7 @@ struct hpets {
 	struct hpet __iomem *hp_hpet;
 	unsigned long hp_hpet_phys;
 	struct time_interpolator *hp_interpolator;
-	unsigned long hp_period;
+	unsigned long long hp_tick_freq;
 	unsigned long hp_delta;
 	unsigned int hp_ntimer;
 	unsigned int hp_which;
@@ -90,6 +92,7 @@ static struct hpets *hpets;
 #define	HPET_OPEN		0x0001
 #define	HPET_IE			0x0002	/* interrupt enabled */
 #define	HPET_PERIODIC		0x0004
+#define	HPET_SHARED_IRQ		0x0008
 
 #if BITS_PER_LONG == 64
 #define	write_counter(V, MC)	writeq(V, MC)
@@ -120,6 +123,11 @@ static irqreturn_t hpet_interrupt(int irq, void *data, struct pt_regs *regs)
 	unsigned long isr;
 
 	devp = data;
+	isr = 1 << (devp - devp->hd_hpets->hp_dev);
+
+	if ((devp->hd_flags & HPET_SHARED_IRQ) &&
+	    !(isr & readl(&devp->hd_hpet->hpet_isr)))
+		return IRQ_NONE;
 
 	spin_lock(&hpet_lock);
 	devp->hd_irqdata++;
@@ -137,8 +145,8 @@ static irqreturn_t hpet_interrupt(int irq, void *data, struct pt_regs *regs)
 			      &devp->hd_timer->hpet_compare);
 	}
 
-	isr = (1 << (devp - devp->hd_hpets->hp_dev));
-	writeq(isr, &devp->hd_hpet->hpet_isr);
+	if (devp->hd_flags & HPET_SHARED_IRQ)
+		writel(isr, &devp->hd_hpet->hpet_isr);
 	spin_unlock(&hpet_lock);
 
 	spin_lock(&hpet_task_lock);
@@ -276,7 +284,8 @@ static int hpet_mmap(struct file *file, struct vm_area_struct *vma)
 
 	if (io_remap_pfn_range(vma, vma->vm_start, addr >> PAGE_SHIFT,
 					PAGE_SIZE, vma->vm_page_prot)) {
-		printk(KERN_ERR "remap_pfn_range failed in hpet.c\n");
+		printk(KERN_ERR "%s: io_remap_pfn_range failed\n",
+			__FUNCTION__);
 		return -EAGAIN;
 	}
 
@@ -364,7 +373,9 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 	hpet = devp->hd_hpet;
 	hpetp = devp->hd_hpets;
 
-	v = readq(&timer->hpet_config);
+	if (!devp->hd_ireqfreq)
+		return -EIO;
+
 	spin_lock_irq(&hpet_lock);
 
 	if (devp->hd_flags & HPET_IE) {
@@ -373,16 +384,21 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 	}
 
 	devp->hd_flags |= HPET_IE;
+
+	if (readl(&timer->hpet_config) & Tn_INT_TYPE_CNF_MASK)
+		devp->hd_flags |= HPET_SHARED_IRQ;
 	spin_unlock_irq(&hpet_lock);
 
-	t = readq(&timer->hpet_config);
 	irq = devp->hd_hdwirq;
 
 	if (irq) {
-		sprintf(devp->hd_name, "hpet%d", (int)(devp - hpetp->hp_dev));
+		unsigned long irq_flags;
 
-		if (request_irq
-		    (irq, hpet_interrupt, SA_INTERRUPT, devp->hd_name, (void *)devp)) {
+		sprintf(devp->hd_name, "hpet%d", (int)(devp - hpetp->hp_dev));
+		irq_flags = devp->hd_flags & HPET_SHARED_IRQ
+						? SA_SHIRQ : SA_INTERRUPT;
+		if (request_irq(irq, hpet_interrupt, irq_flags,
+				devp->hd_name, (void *)devp)) {
 			printk(KERN_ERR "hpet: IRQ %d is not free\n", irq);
 			irq = 0;
 		}
@@ -416,20 +432,24 @@ static int hpet_ioctl_ieon(struct hpet_dev *devp)
 		write_counter(t + m + hpetp->hp_delta, &timer->hpet_compare);
 	}
 
-	isr = (1 << (devp - hpets->hp_dev));
-	writeq(isr, &hpet->hpet_isr);
+	if (devp->hd_flags & HPET_SHARED_IRQ) {
+		isr = 1 << (devp - devp->hd_hpets->hp_dev);
+		writel(isr, &hpet->hpet_isr);
+	}
 	writeq(g, &timer->hpet_config);
 	local_irq_restore(flags);
 
 	return 0;
 }
 
-static inline unsigned long hpet_time_div(unsigned long dis)
+/* converts Hz to number of timer ticks */
+static inline unsigned long hpet_time_div(struct hpets *hpets,
+					  unsigned long dis)
 {
-	unsigned long long m = 1000000000000000ULL;
+	unsigned long long m;
 
+	m = hpets->hp_tick_freq + (dis >> 1);
 	do_div(m, dis);
-
 	return (unsigned long)m;
 }
 
@@ -477,14 +497,21 @@ hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg, int kernel)
 		{
 			struct hpet_info info;
 
-			info.hi_ireqfreq = hpet_time_div(hpetp->hp_period *
-							 devp->hd_ireqfreq);
+			if (devp->hd_ireqfreq)
+				info.hi_ireqfreq =
+					hpet_time_div(hpetp, devp->hd_ireqfreq);
+			else
+				info.hi_ireqfreq = 0;
 			info.hi_flags =
 			    readq(&timer->hpet_config) & Tn_PER_INT_CAP_MASK;
-			info.hi_hpet = devp->hd_hpets->hp_which;
-			info.hi_timer = devp - devp->hd_hpets->hp_dev;
-			if (copy_to_user((void __user *)arg, &info, sizeof(info)))
-				err = -EFAULT;
+			info.hi_hpet = hpetp->hp_which;
+			info.hi_timer = devp - hpetp->hp_dev;
+			if (kernel)
+				memcpy((void *)arg, &info, sizeof(info));
+			else
+				if (copy_to_user((void __user *)arg, &info,
+						 sizeof(info)))
+					err = -EFAULT;
 			break;
 		}
 	case HPET_EPI:
@@ -516,12 +543,12 @@ hpet_ioctl_common(struct hpet_dev *devp, int cmd, unsigned long arg, int kernel)
 			break;
 		}
 
-		if (arg & (arg - 1)) {
+		if (!arg) {
 			err = -EINVAL;
 			break;
 		}
 
-		devp->hd_ireqfreq = hpet_time_div(hpetp->hp_period * arg);
+		devp->hd_ireqfreq = hpet_time_div(hpetp, arg);
 	}
 
 	return err;
@@ -538,6 +565,17 @@ static struct file_operations hpet_fops = {
 	.fasync = hpet_fasync,
 	.mmap = hpet_mmap,
 };
+
+static int hpet_is_known(struct hpet_data *hdp)
+{
+	struct hpets *hpetp;
+
+	for (hpetp = hpets; hpetp; hpetp = hpetp->hp_next)
+		if (hpetp->hp_hpet_phys == hdp->hd_phys_address)
+			return 1;
+
+	return 0;
+}
 
 EXPORT_SYMBOL(hpet_alloc);
 EXPORT_SYMBOL(hpet_register);
@@ -562,6 +600,8 @@ int hpet_register(struct hpet_task *tp, int periodic)
 	default:
 		return -EINVAL;
 	}
+
+	tp->ht_opaque = NULL;
 
 	spin_lock_irq(&hpet_task_lock);
 	spin_lock(&hpet_lock);
@@ -702,15 +742,14 @@ static void hpet_register_interpolator(struct hpets *hpetp)
 #ifdef	CONFIG_TIME_INTERPOLATION
 	struct time_interpolator *ti;
 
-	ti = kmalloc(sizeof(*ti), GFP_KERNEL);
+	ti = kzalloc(sizeof(*ti), GFP_KERNEL);
 	if (!ti)
 		return;
 
-	memset(ti, 0, sizeof(*ti));
 	ti->source = TIME_SOURCE_MMIO64;
 	ti->shift = 10;
 	ti->addr = &hpetp->hp_hpet->hpet_mc;
-	ti->frequency = hpet_time_div(hpets->hp_period);
+	ti->frequency = hpetp->hp_tick_freq;
 	ti->drift = HPET_DRIFT;
 	ti->mask = -1;
 
@@ -743,11 +782,11 @@ static unsigned long hpet_calibrate(struct hpets *hpetp)
 	if (!timer)
 		return 0;
 
-	hpet = hpets->hp_hpet;
+	hpet = hpetp->hp_hpet;
 	t = read_counter(&timer->hpet_compare);
 
 	i = 0;
-	count = hpet_time_div(hpetp->hp_period * TICK_CALIBRATE);
+	count = hpet_time_div(hpetp, TICK_CALIBRATE);
 
 	local_irq_save(flags);
 
@@ -771,27 +810,28 @@ int hpet_alloc(struct hpet_data *hdp)
 	struct hpets *hpetp;
 	size_t siz;
 	struct hpet __iomem *hpet;
-	static struct hpets *last = (struct hpets *)0;
-	unsigned long ns;
+	static struct hpets *last = NULL;
+	unsigned long period;
+	unsigned long long temp;
 
 	/*
 	 * hpet_alloc can be called by platform dependent code.
-	 * if platform dependent code has allocated the hpet
-	 * ACPI also reports hpet, then we catch it here.
+	 * If platform dependent code has allocated the hpet that
+	 * ACPI has also reported, then we catch it here.
 	 */
-	for (hpetp = hpets; hpetp; hpetp = hpetp->hp_next)
-		if (hpetp->hp_hpet == hdp->hd_address)
-			return 0;
+	if (hpet_is_known(hdp)) {
+		printk(KERN_DEBUG "%s: duplicate HPET ignored\n",
+			__FUNCTION__);
+		return 0;
+	}
 
 	siz = sizeof(struct hpets) + ((hdp->hd_nirqs - 1) *
 				      sizeof(struct hpet_dev));
 
-	hpetp = kmalloc(siz, GFP_KERNEL);
+	hpetp = kzalloc(siz, GFP_KERNEL);
 
 	if (!hpetp)
 		return -ENOMEM;
-
-	memset(hpetp, 0, siz);
 
 	hpetp->hp_which = hpet_nhpet++;
 	hpetp->hp_hpet = hdp->hd_address;
@@ -822,21 +862,23 @@ int hpet_alloc(struct hpet_data *hdp)
 
 	last = hpetp;
 
-	hpetp->hp_period = (cap & HPET_COUNTER_CLK_PERIOD_MASK) >>
-	    HPET_COUNTER_CLK_PERIOD_SHIFT;
+	period = (cap & HPET_COUNTER_CLK_PERIOD_MASK) >>
+		HPET_COUNTER_CLK_PERIOD_SHIFT; /* fs, 10^-15 */
+	temp = 1000000000000000uLL; /* 10^15 femtoseconds per second */
+	temp += period >> 1; /* round */
+	do_div(temp, period);
+	hpetp->hp_tick_freq = temp; /* ticks per second */
 
-	printk(KERN_INFO "hpet%d: at MMIO 0x%lx, IRQ%s",
-		hpetp->hp_which, hdp->hd_phys_address,
+	printk(KERN_INFO "hpet%d: at MMIO 0x%lx (virtual 0x%p), IRQ%s",
+		hpetp->hp_which, hdp->hd_phys_address, hdp->hd_address,
 		hpetp->hp_ntimer > 1 ? "s" : "");
 	for (i = 0; i < hpetp->hp_ntimer; i++)
 		printk("%s %d", i > 0 ? "," : "", hdp->hd_irq[i]);
 	printk("\n");
 
-	ns = hpetp->hp_period;	/* femptoseconds, 10^-15 */
-	ns /= 1000000;		/* convert to nanoseconds, 10^-9 */
-	printk(KERN_INFO "hpet%d: %ldns tick, %d %d-bit timers\n",
-		hpetp->hp_which, ns, hpetp->hp_ntimer,
-		cap & HPET_COUNTER_SIZE_MASK ? 64 : 32);
+	printk(KERN_INFO "hpet%u: %u %d-bit timers, %Lu Hz\n",
+	       hpetp->hp_which, hpetp->hp_ntimer,
+	       cap & HPET_COUNTER_SIZE_MASK ? 64 : 32, hpetp->hp_tick_freq);
 
 	mcfg = readq(&hpet->hpet_config);
 	if ((mcfg & HPET_ENABLE_CNF_MASK) == 0) {
@@ -845,13 +887,10 @@ int hpet_alloc(struct hpet_data *hdp)
 		writeq(mcfg, &hpet->hpet_config);
 	}
 
-	for (i = 0, devp = hpetp->hp_dev; i < hpetp->hp_ntimer;
-	     i++, hpet_ntimer++, devp++) {
-		unsigned long v;
+	for (i = 0, devp = hpetp->hp_dev; i < hpetp->hp_ntimer; i++, devp++) {
 		struct hpet_timer __iomem *timer;
 
 		timer = &hpet->hpet_timers[devp - hpetp->hp_dev];
-		v = readq(&timer->hpet_config);
 
 		devp->hd_hpets = hpetp;
 		devp->hd_hpet = hpet;
@@ -880,7 +919,6 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 	struct hpet_data *hdp;
 	acpi_status status;
 	struct acpi_resource_address64 addr;
-	struct hpets *hpetp;
 
 	hdp = data;
 
@@ -893,9 +931,29 @@ static acpi_status hpet_resources(struct acpi_resource *res, void *data)
 		hdp->hd_phys_address = addr.min_address_range;
 		hdp->hd_address = ioremap(addr.min_address_range, size);
 
-		for (hpetp = hpets; hpetp; hpetp = hpetp->hp_next)
-			if (hpetp->hp_hpet == hdp->hd_address)
-				return -EBUSY;
+		if (hpet_is_known(hdp)) {
+			printk(KERN_DEBUG "%s: 0x%lx is busy\n",
+				__FUNCTION__, hdp->hd_phys_address);
+			iounmap(hdp->hd_address);
+			return -EBUSY;
+		}
+	} else if (res->id == ACPI_RSTYPE_FIXED_MEM32) {
+		struct acpi_resource_fixed_mem32 *fixmem32;
+
+		fixmem32 = &res->data.fixed_memory32;
+		if (!fixmem32)
+			return -EINVAL;
+
+		hdp->hd_phys_address = fixmem32->range_base_address;
+		hdp->hd_address = ioremap(fixmem32->range_base_address,
+						HPET_RANGE_SIZE);
+
+		if (hpet_is_known(hdp)) {
+			printk(KERN_DEBUG "%s: 0x%lx is busy\n",
+				__FUNCTION__, hdp->hd_phys_address);
+			iounmap(hdp->hd_address);
+			return -EBUSY;
+		}
 	} else if (res->id == ACPI_RSTYPE_EXT_IRQ) {
 		struct acpi_resource_ext_irq *irqp;
 		int i;

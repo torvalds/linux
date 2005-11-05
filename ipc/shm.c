@@ -233,10 +233,11 @@ static int newseg (key_t key, int shmflg, size_t size)
 	shp->id = shm_buildid(id,shp->shm_perm.seq);
 	shp->shm_file = file;
 	file->f_dentry->d_inode->i_ino = shp->id;
-	if (shmflg & SHM_HUGETLB)
-		set_file_hugepages(file);
-	else
+
+	/* Hugetlb ops would have already been assigned. */
+	if (!(shmflg & SHM_HUGETLB))
 		file->f_op = &shm_file_operations;
+
 	shm_tot += numpages;
 	shm_unlock(shp);
 	return shp->id;

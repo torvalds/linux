@@ -531,6 +531,7 @@ lpfc_config_port(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	size_t offset;
 	struct lpfc_hgp hgp;
 	void __iomem *to_slim;
+	int i;
 
 	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
 	mb->mbxCommand = MBX_CONFIG_PORT;
@@ -587,7 +588,11 @@ lpfc_config_port(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	/* write HGP data to SLIM at the required longword offset */
 	memset(&hgp, 0, sizeof(struct lpfc_hgp));
 	to_slim = phba->MBslimaddr + (SLIMOFF*sizeof (uint32_t));
-	lpfc_memcpy_to_slim(to_slim, &hgp, sizeof(struct lpfc_hgp));
+
+	for (i=0; i < phba->sli.num_rings; i++) {
+		lpfc_memcpy_to_slim(to_slim, &hgp, sizeof(struct lpfc_hgp));
+		to_slim += sizeof (struct lpfc_hgp);
+	}
 
 	/* Setup Port Group ring pointer */
 	offset = (uint8_t *)&phba->slim2p->mbx.us.s2.port -

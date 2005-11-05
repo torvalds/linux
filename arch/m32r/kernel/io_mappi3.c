@@ -36,9 +36,6 @@ static inline void *_port2addr(unsigned long port)
 	return (void *)(port + NONCACHE_OFFSET);
 }
 
-#define LAN_IOSTART	0x300
-#define LAN_IOEND	0x320
-
 #if defined(CONFIG_IDE) && !defined(CONFIG_M32R_CFC)
 static inline void *__port2addr_ata(unsigned long port)
 {
@@ -59,9 +56,11 @@ static inline void *__port2addr_ata(unsigned long port)
 }
 #endif
 
+#define LAN_IOSTART	0xa0000300
+#define LAN_IOEND	0xa0000320
 static inline void *_port2addr_ne(unsigned long port)
 {
-	return (void *)(port + NONCACHE_OFFSET + 0x10000000);
+	return (void *)(port + 0x10000000);
 }
 
 static inline void *_port2addr_usb(unsigned long port)

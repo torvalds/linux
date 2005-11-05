@@ -25,7 +25,10 @@
 #include <asm/cpu.h>
 #include <asm/war.h>
 
-#define half_scache_line_size()		(cpu_scache_line_size() >> 1)
+#define half_scache_line_size()	(cpu_scache_line_size() >> 1)
+#define cpu_is_r4600_v1_x()	((read_c0_prid() & 0xfffffff0) == 0x00002010)
+#define cpu_is_r4600_v2_x()	((read_c0_prid() & 0xfffffff0) == 0x00002020)
+
 
 /*
  * Maximum sizes:
@@ -198,15 +201,15 @@ static inline void build_cdex_p(void)
 	if (store_offset & (cpu_dcache_line_size() - 1))
 		return;
 
-	if (R4600_V1_HIT_CACHEOP_WAR && ((read_c0_prid() & 0xfff0) == 0x2010)) {
+	if (R4600_V1_HIT_CACHEOP_WAR && cpu_is_r4600_v1_x()) {
 		build_nop();
 		build_nop();
 		build_nop();
 		build_nop();
 	}
 
-	if (R4600_V2_HIT_CACHEOP_WAR && ((read_c0_prid() & 0xfff0) == 0x2020))
-		build_insn_word(0x8c200000);	/* lw      $zero, ($at) */
+	if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
+		build_insn_word(0x3c01a000);	/* lui     $at, 0xa000  */
 
 	mi.c_format.opcode     = cache_op;
 	mi.c_format.rs         = 4;		/* $a0 */
@@ -361,7 +364,7 @@ void __init build_clear_page(void)
 
 	build_addiu_a2_a0(PAGE_SIZE - (cpu_has_prefetch ? pref_offset_clear : 0));
 
-	if (R4600_V2_HIT_CACHEOP_WAR && ((read_c0_prid() & 0xfff0) == 0x2020))
+	if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
 		build_insn_word(0x3c01a000);	/* lui     $at, 0xa000  */
 
 dest = label();
@@ -404,9 +407,6 @@ dest = label();
 
 	build_jr_ra();
 
-	flush_icache_range((unsigned long)&clear_page_array,
-	                   (unsigned long) epc);
-
 	BUG_ON(epc > clear_page_array + ARRAY_SIZE(clear_page_array));
 }
 
@@ -420,7 +420,7 @@ void __init build_copy_page(void)
 
 	build_addiu_a2_a0(PAGE_SIZE - (cpu_has_prefetch ? pref_offset_copy : 0));
 
-	if (R4600_V2_HIT_CACHEOP_WAR && ((read_c0_prid() & 0xfff0) == 0x2020))
+	if (R4600_V2_HIT_CACHEOP_WAR && cpu_is_r4600_v2_x())
 		build_insn_word(0x3c01a000);	/* lui     $at, 0xa000  */
 
 dest = label();
@@ -481,9 +481,6 @@ dest = label();
 	}
 
 	build_jr_ra();
-
-	flush_icache_range((unsigned long)&copy_page_array,
-	                   (unsigned long) epc);
 
 	BUG_ON(epc > copy_page_array + ARRAY_SIZE(copy_page_array));
 }

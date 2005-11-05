@@ -80,19 +80,23 @@ static DEFINE_SPINLOCK(smp_call_function_lock);
 
 int __cpuinit __cpu_up(unsigned int cpu)
 {
-	struct task_struct *idle;
+	struct cpuinfo_arm *ci = &per_cpu(cpu_data, cpu);
+	struct task_struct *idle = ci->idle;
 	pgd_t *pgd;
 	pmd_t *pmd;
 	int ret;
 
 	/*
-	 * Spawn a new process manually.  Grab a pointer to
-	 * its task struct so we can mess with it
+	 * Spawn a new process manually, if not already done.
+	 * Grab a pointer to its task struct so we can mess with it
 	 */
-	idle = fork_idle(cpu);
-	if (IS_ERR(idle)) {
-		printk(KERN_ERR "CPU%u: fork() failed\n", cpu);
-		return PTR_ERR(idle);
+	if (!idle) {
+		idle = fork_idle(cpu);
+		if (IS_ERR(idle)) {
+			printk(KERN_ERR "CPU%u: fork() failed\n", cpu);
+			return PTR_ERR(idle);
+		}
+		ci->idle = idle;
 	}
 
 	/*
@@ -154,6 +158,91 @@ int __cpuinit __cpu_up(unsigned int cpu)
 
 	return ret;
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * __cpu_disable runs on the processor to be shutdown.
+ */
+int __cpuexit __cpu_disable(void)
+{
+	unsigned int cpu = smp_processor_id();
+	struct task_struct *p;
+	int ret;
+
+	ret = mach_cpu_disable(cpu);
+	if (ret)
+		return ret;
+
+	/*
+	 * Take this CPU offline.  Once we clear this, we can't return,
+	 * and we must not schedule until we're ready to give up the cpu.
+	 */
+	cpu_clear(cpu, cpu_online_map);
+
+	/*
+	 * OK - migrate IRQs away from this CPU
+	 */
+	migrate_irqs();
+
+	/*
+	 * Flush user cache and TLB mappings, and then remove this CPU
+	 * from the vm mask set of all processes.
+	 */
+	flush_cache_all();
+	local_flush_tlb_all();
+
+	read_lock(&tasklist_lock);
+	for_each_process(p) {
+		if (p->mm)
+			cpu_clear(cpu, p->mm->cpu_vm_mask);
+	}
+	read_unlock(&tasklist_lock);
+
+	return 0;
+}
+
+/*
+ * called on the thread which is asking for a CPU to be shutdown -
+ * waits until shutdown has completed, or it is timed out.
+ */
+void __cpuexit __cpu_die(unsigned int cpu)
+{
+	if (!platform_cpu_kill(cpu))
+		printk("CPU%u: unable to kill\n", cpu);
+}
+
+/*
+ * Called from the idle thread for the CPU which has been shutdown.
+ *
+ * Note that we disable IRQs here, but do not re-enable them
+ * before returning to the caller. This is also the behaviour
+ * of the other hotplug-cpu capable cores, so presumably coming
+ * out of idle fixes this.
+ */
+void __cpuexit cpu_die(void)
+{
+	unsigned int cpu = smp_processor_id();
+
+	local_irq_disable();
+	idle_task_exit();
+
+	/*
+	 * actual CPU shutdown procedure is at least platform (if not
+	 * CPU) specific
+	 */
+	platform_cpu_die(cpu);
+
+	/*
+	 * Do not return to the idle loop - jump back to the secondary
+	 * cpu initialisation.  There's some initialisation which needs
+	 * to be repeated to undo the effects of taking the CPU offline.
+	 */
+	__asm__("mov	sp, %0\n"
+	"	b	secondary_start_kernel"
+		:
+		: "r" ((void *)current->thread_info + THREAD_SIZE - 8));
+}
+#endif /* CONFIG_HOTPLUG_CPU */
 
 /*
  * This is the secondary CPU boot entry.  We're using this CPUs
@@ -236,6 +325,8 @@ void __init smp_prepare_boot_cpu(void)
 {
 	unsigned int cpu = smp_processor_id();
 
+	per_cpu(cpu_data, cpu).idle = current;
+
 	cpu_set(cpu, cpu_possible_map);
 	cpu_set(cpu, cpu_present_map);
 	cpu_set(cpu, cpu_online_map);
@@ -309,8 +400,8 @@ int smp_call_function_on_cpu(void (*func)(void *info), void *info, int retry,
 		printk(KERN_CRIT
 		       "CPU%u: smp_call_function timeout for %p(%p)\n"
 		       "      callmap %lx pending %lx, %swait\n",
-		       smp_processor_id(), func, info, callmap, data.pending,
-		       wait ? "" : "no ");
+		       smp_processor_id(), func, info, *cpus_addr(callmap),
+		       *cpus_addr(data.pending), wait ? "" : "no ");
 
 		/*
 		 * TRACE

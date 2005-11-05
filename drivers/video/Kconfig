@@ -494,7 +494,7 @@ config FB_TGA
 
 config FB_VESA
 	bool "VESA VGA graphics support"
-	depends on (FB = y) && (X86 || X86_64)
+	depends on (FB = y) && X86
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -712,7 +712,7 @@ config FB_RIVA_DEBUG
 
 config FB_I810
 	tristate "Intel 810/815 support (EXPERIMENTAL)"
-	depends on FB && EXPERIMENTAL && PCI && X86 && !X86_64
+	depends on FB && EXPERIMENTAL && PCI && X86_32
 	select AGP
 	select AGP_INTEL
 	select FB_MODE_HELPERS
@@ -761,7 +761,7 @@ config FB_I810_I2C
 
 config FB_INTEL
 	tristate "Intel 830M/845G/852GM/855GM/865G support (EXPERIMENTAL)"
-	depends on FB && EXPERIMENTAL && PCI && X86 && !X86_64
+	depends on FB && EXPERIMENTAL && PCI && X86_32
 	select AGP
 	select AGP_INTEL
 	select FB_MODE_HELPERS
@@ -1376,7 +1376,7 @@ config FB_HIT
 
 config FB_PMAG_AA
 	bool "PMAG-AA TURBOchannel framebuffer support"
-	depends on (FB = y) && MACH_DECSTATION && TC
+	depends on (FB = y) && TC
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT
@@ -1387,7 +1387,7 @@ config FB_PMAG_AA
 
 config FB_PMAG_BA
 	bool "PMAG-BA TURBOchannel framebuffer support"
-	depends on (FB = y) && MACH_DECSTATION && TC
+	depends on (FB = y) && TC
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT
@@ -1398,7 +1398,7 @@ config FB_PMAG_BA
 
 config FB_PMAGB_B
 	bool "PMAGB-B TURBOchannel framebuffer support"
-	depends on (FB = y) && MACH_DECSTATION && TC
+	depends on (FB = y) && TC
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT
@@ -1410,7 +1410,7 @@ config FB_PMAGB_B
 
 config FB_MAXINE
 	bool "Maxine (Personal DECstation) onboard framebuffer support"
-	depends on (FB = y) && MACH_DECSTATION && TC
+	depends on (FB = y) && MACH_DECSTATION
  	select FB_CFB_FILLRECT
  	select FB_CFB_COPYAREA
  	select FB_CFB_IMAGEBLIT

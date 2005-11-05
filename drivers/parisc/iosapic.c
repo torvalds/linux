@@ -244,7 +244,7 @@ static struct irt_entry *iosapic_alloc_irt(int num_entries)
 	 * 4-byte alignment on 32-bit kernels
 	 */
 	a = (unsigned long)kmalloc(sizeof(struct irt_entry) * num_entries + 8, GFP_KERNEL);
-	a = (a + 7) & ~7;
+	a = (a + 7UL) & ~7UL;
 	return (struct irt_entry *)a;
 }
 

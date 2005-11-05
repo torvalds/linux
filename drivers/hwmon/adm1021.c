@@ -121,7 +121,7 @@ static int adm1021_write_value(struct i2c_client *client, u8 reg,
 static struct adm1021_data *adm1021_update_device(struct device *dev);
 
 /* (amalysh) read only mode, otherwise any limit's writing confuse BIOS */
-static int read_only = 0;
+static int read_only;
 
 
 /* This is the driver that will be inserted */
@@ -204,11 +204,10 @@ static int adm1021_detect(struct i2c_adapter *adapter, int address, int kind)
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access adm1021_{read,write}_value. */
 
-	if (!(data = kmalloc(sizeof(struct adm1021_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct adm1021_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto error0;
 	}
-	memset(data, 0, sizeof(struct adm1021_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);

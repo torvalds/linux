@@ -359,6 +359,13 @@ static int do_vio_entry(const char *filename, struct vio_device_id *vio,
 	return 1;
 }
 
+static int do_i2c_entry(const char *filename, struct i2c_device_id *i2c, char *alias)
+{
+	strcpy(alias, "i2c:");
+	ADD(alias, "id", 1, i2c->id);
+	return 1;
+}
+
 /* Ignore any prefix, eg. v850 prepends _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
@@ -443,6 +450,9 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
         else if (sym_is(symname, "__mod_vio_device_table"))
 		do_table(symval, sym->st_size, sizeof(struct vio_device_id),
 			 do_vio_entry, mod);
+	else if (sym_is(symname, "__mod_i2c_device_table"))
+		do_table(symval, sym->st_size, sizeof(struct i2c_device_id),
+			 do_i2c_entry, mod);
 
 }
 

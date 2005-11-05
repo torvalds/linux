@@ -11,6 +11,8 @@
 #include <linux/module.h>
 #include <linux/config.h>
 #include <linux/init.h>
+#include <linux/jiffies.h>
+#include <linux/string.h>
 
 #include <asm/ccwdev.h>
 #include <asm/cio.h>

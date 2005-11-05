@@ -35,6 +35,7 @@
 #include <asm/open_pic.h>
 #include <asm/xmon.h>
 #include <asm/pmac_feature.h>
+#include <asm/machdep.h>
 
 #include "pmac_pic.h"
 
@@ -53,7 +54,7 @@ struct pmac_irq_hw {
 };
 
 /* Default addresses */
-static volatile struct pmac_irq_hw *pmac_irq_hw[4] __pmacdata = {
+static volatile struct pmac_irq_hw *pmac_irq_hw[4] = {
         (struct pmac_irq_hw *) 0xf3000020,
         (struct pmac_irq_hw *) 0xf3000010,
         (struct pmac_irq_hw *) 0xf4000020,
@@ -64,22 +65,22 @@ static volatile struct pmac_irq_hw *pmac_irq_hw[4] __pmacdata = {
 #define OHARE_LEVEL_MASK	0x1ff00000
 #define HEATHROW_LEVEL_MASK	0x1ff00000
 
-static int max_irqs __pmacdata;
-static int max_real_irqs __pmacdata;
-static u32 level_mask[4] __pmacdata;
+static int max_irqs;
+static int max_real_irqs;
+static u32 level_mask[4];
 
-static DEFINE_SPINLOCK(pmac_pic_lock __pmacdata);
+static DEFINE_SPINLOCK(pmac_pic_lock);
 
 
 #define GATWICK_IRQ_POOL_SIZE        10
-static struct interrupt_info gatwick_int_pool[GATWICK_IRQ_POOL_SIZE] __pmacdata;
+static struct interrupt_info gatwick_int_pool[GATWICK_IRQ_POOL_SIZE];
 
 /*
  * Mark an irq as "lost".  This is only used on the pmac
  * since it can lose interrupts (see pmac_set_irq_mask).
  * -- Cort
  */
-void __pmac
+void
 __set_lost(unsigned long irq_nr, int nokick)
 {
 	if (!test_and_set_bit(irq_nr, ppc_lost_interrupts)) {
@@ -89,7 +90,7 @@ __set_lost(unsigned long irq_nr, int nokick)
 	}
 }
 
-static void __pmac
+static void
 pmac_mask_and_ack_irq(unsigned int irq_nr)
 {
         unsigned long bit = 1UL << (irq_nr & 0x1f);
@@ -114,7 +115,7 @@ pmac_mask_and_ack_irq(unsigned int irq_nr)
 	spin_unlock_irqrestore(&pmac_pic_lock, flags);
 }
 
-static void __pmac pmac_set_irq_mask(unsigned int irq_nr, int nokicklost)
+static void pmac_set_irq_mask(unsigned int irq_nr, int nokicklost)
 {
         unsigned long bit = 1UL << (irq_nr & 0x1f);
         int i = irq_nr >> 5;
@@ -147,7 +148,7 @@ static void __pmac pmac_set_irq_mask(unsigned int irq_nr, int nokicklost)
 /* When an irq gets requested for the first client, if it's an
  * edge interrupt, we clear any previous one on the controller
  */
-static unsigned int __pmac pmac_startup_irq(unsigned int irq_nr)
+static unsigned int pmac_startup_irq(unsigned int irq_nr)
 {
         unsigned long bit = 1UL << (irq_nr & 0x1f);
         int i = irq_nr >> 5;
@@ -160,20 +161,20 @@ static unsigned int __pmac pmac_startup_irq(unsigned int irq_nr)
 	return 0;
 }
 
-static void __pmac pmac_mask_irq(unsigned int irq_nr)
+static void pmac_mask_irq(unsigned int irq_nr)
 {
         clear_bit(irq_nr, ppc_cached_irq_mask);
         pmac_set_irq_mask(irq_nr, 0);
         mb();
 }
 
-static void __pmac pmac_unmask_irq(unsigned int irq_nr)
+static void pmac_unmask_irq(unsigned int irq_nr)
 {
         set_bit(irq_nr, ppc_cached_irq_mask);
         pmac_set_irq_mask(irq_nr, 0);
 }
 
-static void __pmac pmac_end_irq(unsigned int irq_nr)
+static void pmac_end_irq(unsigned int irq_nr)
 {
 	if (!(irq_desc[irq_nr].status & (IRQ_DISABLED|IRQ_INPROGRESS))
 	    && irq_desc[irq_nr].action) {

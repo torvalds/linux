@@ -114,13 +114,12 @@ static struct sel_netif *sel_netif_lookup(struct net_device *dev)
 	if (likely(netif != NULL))
 		goto out;
 	
-	new = kmalloc(sizeof(*new), GFP_ATOMIC);
+	new = kzalloc(sizeof(*new), GFP_ATOMIC);
 	if (!new) {
 		netif = ERR_PTR(-ENOMEM);
 		goto out;
 	}
 	
-	memset(new, 0, sizeof(*new));
 	nsec = &new->nsec;
 
 	ret = security_netif_sid(dev->name, &nsec->if_sid, &nsec->msg_sid);

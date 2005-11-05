@@ -34,6 +34,17 @@ typedef unsigned long pte_basic_t;
 #define PTE_FMT		"%.8lx"
 #endif
 
+/* align addr on a size boundary - adjust address up/down if needed */
+#define _ALIGN_UP(addr,size)	(((addr)+((size)-1))&(~((size)-1)))
+#define _ALIGN_DOWN(addr,size)	((addr)&(~((size)-1)))
+
+/* align addr on a size boundary - adjust address up if needed */
+#define _ALIGN(addr,size)     _ALIGN_UP(addr,size)
+
+/* to align the pointer to the (next) page boundary */
+#define PAGE_ALIGN(addr)	_ALIGN(addr, PAGE_SIZE)
+
+
 #undef STRICT_MM_TYPECHECKS
 
 #ifdef STRICT_MM_TYPECHECKS
@@ -75,13 +86,6 @@ typedef unsigned long pgprot_t;
 #define __pgprot(x)	(x)
 
 #endif
-
-
-/* align addr on a size boundary - adjust address up if needed -- Cort */
-#define _ALIGN(addr,size)	(((addr)+(size)-1)&(~((size)-1)))
-
-/* to align the pointer to the (next) page boundary */
-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
 
 struct page;
 extern void clear_pages(void *page, int order);

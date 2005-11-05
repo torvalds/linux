@@ -24,7 +24,8 @@ extern spinlock_t key_serial_lock;
 #define	KEY_WRITE	0x04	/* require permission to update / modify */
 #define	KEY_SEARCH	0x08	/* require permission to search (keyring) or find (key) */
 #define	KEY_LINK	0x10	/* require permission to link */
-#define	KEY_ALL		0x1f	/* all the above permissions */
+#define	KEY_SETATTR	0x20	/* require permission to change attributes */
+#define	KEY_ALL		0x3f	/* all the above permissions */
 
 /*
  * the keyring payload contains a list of the keys to which the keyring is

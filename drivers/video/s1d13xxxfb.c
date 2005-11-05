@@ -30,7 +30,7 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 
 #include <linux/types.h>
@@ -655,7 +655,7 @@ bail:
 }
 
 #ifdef CONFIG_PM
-static int s1d13xxxfb_suspend(struct device *dev, pm_message_t state, u32 level)
+static int s1d13xxxfb_suspend(struct device *dev, pm_message_t state)
 {
 	struct fb_info *info = dev_get_drvdata(dev);
 	struct s1d13xxxfb_par *s1dfb = info->par;
@@ -702,14 +702,11 @@ static int s1d13xxxfb_suspend(struct device *dev, pm_message_t state, u32 level)
 		return 0;
 }
 
-static int s1d13xxxfb_resume(struct device *dev, u32 level)
+static int s1d13xxxfb_resume(struct device *dev)
 {
 	struct fb_info *info = dev_get_drvdata(dev);
 	struct s1d13xxxfb_par *s1dfb = info->par;
 	struct s1d13xxxfb_pdata *pdata = NULL;
-
-	if (level != RESUME_ENABLE)
-		return 0;
 
 	/* awaken the chip */
 	s1d13xxxfb_writereg(s1dfb, S1DREG_PS_CNF, 0x10);

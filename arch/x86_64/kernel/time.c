@@ -42,10 +42,6 @@
 #include <asm/apic.h>
 #endif
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 #ifdef CONFIG_CPU_FREQ
 static void cpufreq_delayed_get(void);
 #endif
@@ -481,9 +477,9 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static unsigned int cyc2ns_scale;
 #define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
 
-static inline void set_cyc2ns_scale(unsigned long cpu_mhz)
+static inline void set_cyc2ns_scale(unsigned long cpu_khz)
 {
-	cyc2ns_scale = (1000 << CYC2NS_SCALE_FACTOR)/cpu_mhz;
+	cyc2ns_scale = (1000000 << CYC2NS_SCALE_FACTOR)/cpu_khz;
 }
 
 static inline unsigned long long cycles_2_ns(unsigned long long cyc)
@@ -655,7 +651,7 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 			vxtime.tsc_quot = (1000L << 32) / cpu_khz;
 	}
 	
-	set_cyc2ns_scale(cpu_khz_ref / 1000);
+	set_cyc2ns_scale(cpu_khz_ref);
 
 	return 0;
 }
@@ -939,7 +935,7 @@ void __init time_init(void)
 	rdtscll_sync(&vxtime.last_tsc);
 	setup_irq(0, &irq0);
 
-	set_cyc2ns_scale(cpu_khz / 1000);
+	set_cyc2ns_scale(cpu_khz);
 
 #ifndef CONFIG_SMP
 	time_init_gtod();
@@ -1093,6 +1089,7 @@ static unsigned long PIE_freq = DEFAULT_RTC_INT_FREQ;
 static unsigned long PIE_count;
 
 static unsigned long hpet_rtc_int_freq; /* RTC interrupt frequency */
+static unsigned int hpet_t1_cmp; /* cached comparator register */
 
 int is_hpet_enabled(void)
 {
@@ -1129,10 +1126,12 @@ int hpet_rtc_timer_init(void)
 	cnt = hpet_readl(HPET_COUNTER);
 	cnt += ((hpet_tick*HZ)/hpet_rtc_int_freq);
 	hpet_writel(cnt, HPET_T1_CMP);
+	hpet_t1_cmp = cnt;
 	local_irq_restore(flags);
 
 	cfg = hpet_readl(HPET_T1_CFG);
-	cfg |= HPET_TN_ENABLE | HPET_TN_SETVAL | HPET_TN_32BIT;
+	cfg &= ~HPET_TN_PERIODIC;
+	cfg |= HPET_TN_ENABLE | HPET_TN_32BIT;
 	hpet_writel(cfg, HPET_T1_CFG);
 
 	return 1;
@@ -1142,8 +1141,12 @@ static void hpet_rtc_timer_reinit(void)
 {
 	unsigned int cfg, cnt;
 
-	if (!(PIE_on | AIE_on | UIE_on))
+	if (unlikely(!(PIE_on | AIE_on | UIE_on))) {
+		cfg = hpet_readl(HPET_T1_CFG);
+		cfg &= ~HPET_TN_ENABLE;
+		hpet_writel(cfg, HPET_T1_CFG);
 		return;
+	}
 
 	if (PIE_on && (PIE_freq > DEFAULT_RTC_INT_FREQ))
 		hpet_rtc_int_freq = PIE_freq;
@@ -1151,15 +1154,10 @@ static void hpet_rtc_timer_reinit(void)
 		hpet_rtc_int_freq = DEFAULT_RTC_INT_FREQ;
 
 	/* It is more accurate to use the comparator value than current count.*/
-	cnt = hpet_readl(HPET_T1_CMP);
+	cnt = hpet_t1_cmp;
 	cnt += hpet_tick*HZ/hpet_rtc_int_freq;
 	hpet_writel(cnt, HPET_T1_CMP);
-
-	cfg = hpet_readl(HPET_T1_CFG);
-	cfg |= HPET_TN_ENABLE | HPET_TN_SETVAL | HPET_TN_32BIT;
-	hpet_writel(cfg, HPET_T1_CFG);
-
-	return;
+	hpet_t1_cmp = cnt;
 }
 
 /*
