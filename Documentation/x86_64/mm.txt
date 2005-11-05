@@ -6,13 +6,17 @@ Virtual memory map with 4 level page tables:
 0000000000000000 - 00007fffffffffff (=47bits) user space, different per mm
 hole caused by [48:63] sign extension
 ffff800000000000 - ffff80ffffffffff (=40bits) guard hole
-ffff810000000000 - ffffc0ffffffffff (=46bits) direct mapping of phys. memory
+ffff810000000000 - ffffc0ffffffffff (=46bits) direct mapping of all phys. memory
 ffffc10000000000 - ffffc1ffffffffff (=40bits) hole
 ffffc20000000000 - ffffe1ffffffffff (=45bits) vmalloc/ioremap space
 ... unused hole ...
 ffffffff80000000 - ffffffff82800000 (=40MB)   kernel text mapping, from phys 0
 ... unused hole ...
 ffffffff88000000 - fffffffffff00000 (=1919MB) module mapping space
+
+The direct mapping covers all memory in the system upto the highest
+memory address (this means in some cases it can also include PCI memory
+holes)
 
 vmalloc space is lazily synchronized into the different PML4 pages of
 the processes using the page fault handler, with init_level4_pgt as
