@@ -451,12 +451,9 @@ static int gred_change(struct Qdisc *sch, struct rtattr *opt)
 			return -EINVAL;
 
 	ctl = RTA_DATA(tb[TCA_GRED_PARMS-1]);
-	if (ctl->DP > MAX_DPs-1 ) {
-		/* misbehaving is punished! Put in the default drop probability */
-		DPRINTK("\nGRED: DP %u not in  the proper range fixed. New DP "
-			"set to default at %d\n",ctl->DP,table->def);
-		ctl->DP=table->def;
-	}
+
+	if (ctl->DP >= table->DPs)
+		return -EINVAL;
 	
 	if (table->tab[ctl->DP] == NULL) {
 		table->tab[ctl->DP]=kmalloc(sizeof(struct gred_sched_data),
