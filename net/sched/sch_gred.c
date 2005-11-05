@@ -93,6 +93,7 @@ struct gred_sched_data
 
 enum {
 	GRED_WRED_MODE = 1,
+	GRED_RIO_MODE,
 };
 
 struct gred_sched
@@ -102,7 +103,6 @@ struct gred_sched
 	u32 		DPs;   
 	u32 		def; 
 	u8 		initd; 
-	u8 		grio; 
 };
 
 static inline int gred_wred_mode(struct gred_sched *table)
@@ -118,6 +118,21 @@ static inline void gred_enable_wred_mode(struct gred_sched *table)
 static inline void gred_disable_wred_mode(struct gred_sched *table)
 {
 	__clear_bit(GRED_WRED_MODE, &table->flags);
+}
+
+static inline int gred_rio_mode(struct gred_sched *table)
+{
+	return test_bit(GRED_RIO_MODE, &table->flags);
+}
+
+static inline void gred_enable_rio_mode(struct gred_sched *table)
+{
+	__set_bit(GRED_RIO_MODE, &table->flags);
+}
+
+static inline void gred_disable_rio_mode(struct gred_sched *table)
+{
+	__clear_bit(GRED_RIO_MODE, &table->flags);
 }
 
 static inline int gred_wred_mode_check(struct Qdisc *sch)
@@ -173,7 +188,7 @@ gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	    "general backlog %d\n",skb->tc_index&0xf,sch->handle,q->backlog,
 	    sch->qstats.backlog);
 	/* sum up all the qaves of prios <= to ours to get the new qave*/
-	if (!gred_wred_mode(t) && t->grio) {
+	if (!gred_wred_mode(t) && gred_rio_mode(t)) {
 		for (i=0;i<t->DPs;i++) {
 			if ((!t->tab[i]) || (i==q->DP))	
 				continue; 
@@ -386,12 +401,12 @@ static int gred_change(struct Qdisc *sch, struct rtattr *opt)
 		table->def=sopt->def_DP; 
 
 		if (sopt->grio) {
-			table->grio = 1;
+			gred_enable_rio_mode(table);
 			gred_disable_wred_mode(table);
 			if (gred_wred_mode_check(sch))
 				gred_enable_wred_mode(table);
 		} else {
-			table->grio = 0;
+			gred_disable_rio_mode(table);
 			gred_disable_wred_mode(table);
 		}
 
@@ -423,7 +438,7 @@ static int gred_change(struct Qdisc *sch, struct rtattr *opt)
 	}
 	q= table->tab[ctl->DP]; 
 
-	if (table->grio) {
+	if (gred_rio_mode(table)) {
 		if (ctl->prio <=0) {
 			if (table->def && table->tab[table->def]) {
 				DPRINTK("\nGRED: DP %u does not have a prio"
@@ -463,7 +478,7 @@ static int gred_change(struct Qdisc *sch, struct rtattr *opt)
 	PSCHED_SET_PASTPERFECT(q->qidlestart);
 	memcpy(q->Stab, RTA_DATA(tb[TCA_GRED_STAB-1]), 256);
 
-	if (table->grio) {
+	if (gred_rio_mode(table)) {
 		gred_disable_wred_mode(table);
 		if (gred_wred_mode_check(sch))
 			gred_enable_wred_mode(table);
@@ -496,7 +511,7 @@ static int gred_change(struct Qdisc *sch, struct rtattr *opt)
 		q->qth_min = ctl->qth_min<<ctl->Wlog;
 		q->qth_max = ctl->qth_max<<ctl->Wlog;
 
-		if (table->grio)
+		if (gred_rio_mode(table))
 			q->prio=table->tab[ctl->DP]->prio;
 		else
 			q->prio=8;
@@ -528,7 +543,12 @@ static int gred_init(struct Qdisc *sch, struct rtattr *opt)
 		sopt = RTA_DATA(tb2[TCA_GRED_DPS-1]);
 		table->DPs=sopt->DPs;   
 		table->def=sopt->def_DP; 
-		table->grio=sopt->grio; 
+
+		if (sopt->grio)
+			gred_enable_rio_mode(table);
+		else
+			gred_disable_rio_mode(table);
+
 		table->initd=0;
 		return 0;
 	}
