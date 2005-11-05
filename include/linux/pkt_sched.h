@@ -93,6 +93,7 @@ struct tc_fifo_qopt
 /* PRIO section */
 
 #define TCQ_PRIO_BANDS	16
+#define TCQ_MIN_PRIO_BANDS 2
 
 struct tc_prio_qopt
 {
@@ -169,6 +170,7 @@ struct tc_red_qopt
 	unsigned char   Scell_log;	/* cell size for idle damping */
 	unsigned char	flags;
 #define TC_RED_ECN	1
+#define TC_RED_HARDDROP	2
 };
 
 struct tc_red_xstats

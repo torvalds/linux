@@ -51,6 +51,11 @@ static inline int red_use_ecn(struct red_sched_data *q)
 	return q->flags & TC_RED_ECN;
 }
 
+static inline int red_use_harddrop(struct red_sched_data *q)
+{
+	return q->flags & TC_RED_HARDDROP;
+}
+
 static int red_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
 	struct red_sched_data *q = qdisc_priv(sch);
@@ -76,7 +81,8 @@ static int red_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 
 		case RED_HARD_MARK:
 			sch->qstats.overlimits++;
-			if (!red_use_ecn(q) || !INET_ECN_set_ce(skb)) {
+			if (red_use_harddrop(q) || !red_use_ecn(q) ||
+			    !INET_ECN_set_ce(skb)) {
 				q->stats.forced_drop++;
 				goto congestion_drop;
 			}

@@ -146,6 +146,11 @@ static inline int gred_use_ecn(struct gred_sched *t)
 	return t->red_flags & TC_RED_ECN;
 }
 
+static inline int gred_use_harddrop(struct gred_sched *t)
+{
+	return t->red_flags & TC_RED_HARDDROP;
+}
+
 static int gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 {
 	struct gred_sched_data *q=NULL;
@@ -214,7 +219,8 @@ static int gred_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 
 		case RED_HARD_MARK:
 			sch->qstats.overlimits++;
-			if (!gred_use_ecn(t) || !INET_ECN_set_ce(skb)) {
+			if (gred_use_harddrop(t) || !gred_use_ecn(t) ||
+			    !INET_ECN_set_ce(skb)) {
 				q->stats.forced_drop++;
 				goto congestion_drop;
 			}
