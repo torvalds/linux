@@ -562,8 +562,14 @@ static int gred_dump(struct Qdisc *sch, struct sk_buff *skb)
 	struct gred_sched *table = qdisc_priv(sch);
 	struct rtattr *parms, *opts = NULL;
 	int i;
+	struct tc_gred_sopt sopt = {
+		.DPs	= table->DPs,
+		.def_DP	= table->def,
+		.grio	= gred_rio_mode(table),
+	};
 
 	opts = RTA_NEST(skb, TCA_OPTIONS);
+	RTA_PUT(skb, TCA_GRED_DPS, sizeof(sopt), &sopt);
 	parms = RTA_NEST(skb, TCA_GRED_PARMS);
 
 	for (i = 0; i < MAX_DPs; i++) {
