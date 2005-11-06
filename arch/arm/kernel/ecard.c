@@ -41,6 +41,7 @@
 #include <linux/device.h>
 #include <linux/init.h>
 
+#include <asm/cacheflush.h>
 #include <asm/dma.h>
 #include <asm/ecard.h>
 #include <asm/hardware.h>
