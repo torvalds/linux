@@ -801,7 +801,7 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 		goto err_class;
 	port->sm_dev->owner = THIS_MODULE;
 	port->sm_dev->ops   = &umad_sm_fops;
-	kobject_set_name(&port->dev->kobj, "issm%d", port->dev_num);
+	kobject_set_name(&port->sm_dev->kobj, "issm%d", port->dev_num);
 	if (cdev_add(port->sm_dev, base_dev + port->dev_num + IB_UMAD_MAX_PORTS, 1))
 		goto err_sm_cdev;
 
@@ -913,7 +913,7 @@ static void ib_umad_add_one(struct ib_device *device)
 
 err:
 	while (--i >= s)
-		ib_umad_kill_port(&umad_dev->port[i]);
+		ib_umad_kill_port(&umad_dev->port[i - s]);
 
 	kref_put(&umad_dev->ref, ib_umad_release_dev);
 }
