@@ -338,7 +338,8 @@ void cpu_init(void)
 		BUG();
 	}
 
-	dump_cpu_info(cpu);
+	if (system_state == SYSTEM_BOOTING)
+		dump_cpu_info(cpu);
 
 	/*
 	 * setup stacks for re-entrant exception handlers
