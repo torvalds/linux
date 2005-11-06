@@ -1,21 +1,22 @@
 /* 
  * Direct MTD block device access
  *
- * $Id: mtdblock.c,v 1.66 2004/11/25 13:52:52 joern Exp $
+ * $Id: mtdblock.c,v 1.67 2005/11/06 10:04:37 gleixner Exp $
  *
  * (C) 2000-2003 Nicolas Pitre <nico@cam.org>
  * (C) 1999-2003 David Woodhouse <dwmw2@infradead.org>
  */
 
 #include <linux/config.h>
-#include <linux/types.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/types.h>
 #include <linux/vmalloc.h>
-#include <linux/sched.h>	/* TASK_* */
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/blktrans.h>
 

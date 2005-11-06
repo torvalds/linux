@@ -7,14 +7,15 @@
  *
  * This code is GPL
  *
- * $Id: mtdconcat.c,v 1.9 2004/06/30 15:17:41 dbrown Exp $
+ * $Id: mtdconcat.c,v 1.10 2005/11/06 10:04:37 gleixner Exp $
  */
 
-#include <linux/module.h>
-#include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/sched.h>	/* TASK_* */
+#include <linux/sched.h>
+#include <linux/types.h>
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/concat.h>
 

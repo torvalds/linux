@@ -1,22 +1,23 @@
 /*
- * $Id: mtdchar.c,v 1.74 2005/08/04 01:05:48 tpoynor Exp $
+ * $Id: mtdchar.c,v 1.75 2005/11/06 10:04:37 gleixner Exp $
  *
  * Character-device access to raw MTD devices.
  *
  */
 
 #include <linux/config.h>
+#include <linux/device.h>
+#include <linux/fs.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/sched.h>
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/compatmac.h>
-#include <linux/slab.h>
-#include <linux/init.h>
-#include <linux/fs.h>
-#include <linux/sched.h>	/* TASK_* */
-#include <asm/uaccess.h>
 
-#include <linux/device.h>
+#include <asm/uaccess.h>
 
 static struct class *mtd_class;
 
