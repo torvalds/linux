@@ -46,13 +46,10 @@
 #include <acpi/acpi.h>
 #include <acpi/acevents.h>
 #include <acpi/acnamesp.h>
-#include <acpi/acparser.h>
-#include <acpi/acdispat.h>
 #include <acpi/acdebug.h>
 
 #define _COMPONENT          ACPI_UTILITIES
-	 ACPI_MODULE_NAME    ("utxface")
-
+ACPI_MODULE_NAME("utxface")
 
 /*******************************************************************************
  *
@@ -66,60 +63,53 @@
  *              called, so any early initialization belongs here.
  *
  ******************************************************************************/
-
-acpi_status
-acpi_initialize_subsystem (
-	void)
+acpi_status acpi_initialize_subsystem(void)
 {
-	acpi_status                     status;
+	acpi_status status;
 
+	ACPI_FUNCTION_TRACE("acpi_initialize_subsystem");
 
-	ACPI_FUNCTION_TRACE ("acpi_initialize_subsystem");
-
-
-	ACPI_DEBUG_EXEC (acpi_ut_init_stack_ptr_trace ());
-
-
-	/* Initialize all globals used by the subsystem */
-
-	acpi_ut_init_globals ();
+	ACPI_DEBUG_EXEC(acpi_ut_init_stack_ptr_trace());
 
 	/* Initialize the OS-Dependent layer */
 
-	status = acpi_os_initialize ();
-	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("OSD failed to initialize, %s\n",
-			acpi_format_exception (status)));
-		return_ACPI_STATUS (status);
+	status = acpi_os_initialize();
+	if (ACPI_FAILURE(status)) {
+		ACPI_REPORT_ERROR(("OSD failed to initialize, %s\n",
+				   acpi_format_exception(status)));
+		return_ACPI_STATUS(status);
 	}
+
+	/* Initialize all globals used by the subsystem */
+
+	acpi_ut_init_globals();
 
 	/* Create the default mutex objects */
 
-	status = acpi_ut_mutex_initialize ();
-	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("Global mutex creation failure, %s\n",
-			acpi_format_exception (status)));
-		return_ACPI_STATUS (status);
+	status = acpi_ut_mutex_initialize();
+	if (ACPI_FAILURE(status)) {
+		ACPI_REPORT_ERROR(("Global mutex creation failure, %s\n",
+				   acpi_format_exception(status)));
+		return_ACPI_STATUS(status);
 	}
 
 	/*
 	 * Initialize the namespace manager and
 	 * the root of the namespace tree
 	 */
-	status = acpi_ns_root_initialize ();
-	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("Namespace initialization failure, %s\n",
-			acpi_format_exception (status)));
-		return_ACPI_STATUS (status);
+	status = acpi_ns_root_initialize();
+	if (ACPI_FAILURE(status)) {
+		ACPI_REPORT_ERROR(("Namespace initialization failure, %s\n",
+				   acpi_format_exception(status)));
+		return_ACPI_STATUS(status);
 	}
 
 	/* If configured, initialize the AML debugger */
 
-	ACPI_DEBUGGER_EXEC (status = acpi_db_initialize ());
+	ACPI_DEBUGGER_EXEC(status = acpi_db_initialize());
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -134,41 +124,39 @@ acpi_initialize_subsystem (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_enable_subsystem (
-	u32                             flags)
+acpi_status acpi_enable_subsystem(u32 flags)
 {
-	acpi_status                     status = AE_OK;
+	acpi_status status = AE_OK;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_enable_subsystem");
-
+	ACPI_FUNCTION_TRACE("acpi_enable_subsystem");
 
 	/*
 	 * We must initialize the hardware before we can enable ACPI.
 	 * The values from the FADT are validated here.
 	 */
 	if (!(flags & ACPI_NO_HARDWARE_INIT)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-			"[Init] Initializing ACPI hardware\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "[Init] Initializing ACPI hardware\n"));
 
-		status = acpi_hw_initialize ();
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_hw_initialize();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 
 	/* Enable ACPI mode */
 
 	if (!(flags & ACPI_NO_ACPI_ENABLE)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "[Init] Going into ACPI mode\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "[Init] Going into ACPI mode\n"));
 
 		acpi_gbl_original_mode = acpi_hw_get_mode();
 
-		status = acpi_enable ();
-		if (ACPI_FAILURE (status)) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_WARN, "acpi_enable failed.\n"));
-			return_ACPI_STATUS (status);
+		status = acpi_enable();
+		if (ACPI_FAILURE(status)) {
+			ACPI_DEBUG_PRINT((ACPI_DB_WARN,
+					  "acpi_enable failed.\n"));
+			return_ACPI_STATUS(status);
 		}
 	}
 
@@ -178,12 +166,12 @@ acpi_enable_subsystem (
 	 * install_address_space_handler interface.
 	 */
 	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-			"[Init] Installing default address space handlers\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "[Init] Installing default address space handlers\n"));
 
-		status = acpi_ev_install_region_handlers ();
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ev_install_region_handlers();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 
@@ -196,28 +184,28 @@ acpi_enable_subsystem (
 	 * execution!
 	 */
 	if (!(flags & ACPI_NO_EVENT_INIT)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-			"[Init] Initializing ACPI events\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "[Init] Initializing ACPI events\n"));
 
-		status = acpi_ev_initialize_events ();
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ev_initialize_events();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 
 	/* Install the SCI handler and Global Lock handler */
 
 	if (!(flags & ACPI_NO_HANDLER_INIT)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-			"[Init] Installing SCI/GL handlers\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "[Init] Installing SCI/GL handlers\n"));
 
-		status = acpi_ev_install_xrupt_handlers ();
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ev_install_xrupt_handlers();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
 
 /*******************************************************************************
@@ -233,15 +221,11 @@ acpi_enable_subsystem (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_initialize_objects (
-	u32                             flags)
+acpi_status acpi_initialize_objects(u32 flags)
 {
-	acpi_status                     status = AE_OK;
+	acpi_status status = AE_OK;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_initialize_objects");
-
+	ACPI_FUNCTION_TRACE("acpi_initialize_objects");
 
 	/*
 	 * Run all _REG methods
@@ -251,12 +235,12 @@ acpi_initialize_objects (
 	 * contain executable AML (see call to acpi_ns_initialize_objects below).
 	 */
 	if (!(flags & ACPI_NO_ADDRESS_SPACE_INIT)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-			"[Init] Executing _REG op_region methods\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "[Init] Executing _REG op_region methods\n"));
 
-		status = acpi_ev_initialize_op_regions ();
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ev_initialize_op_regions();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 
@@ -266,12 +250,12 @@ acpi_initialize_objects (
 	 * objects: operation_regions, buffer_fields, Buffers, and Packages.
 	 */
 	if (!(flags & ACPI_NO_OBJECT_INIT)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-			"[Init] Completing Initialization of ACPI Objects\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "[Init] Completing Initialization of ACPI Objects\n"));
 
-		status = acpi_ns_initialize_objects ();
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ns_initialize_objects();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 
@@ -280,12 +264,12 @@ acpi_initialize_objects (
 	 * This runs the _STA and _INI methods.
 	 */
 	if (!(flags & ACPI_NO_DEVICE_INIT)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-			"[Init] Initializing ACPI Devices\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "[Init] Initializing ACPI Devices\n"));
 
-		status = acpi_ns_initialize_devices ();
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ns_initialize_devices();
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 
@@ -294,12 +278,11 @@ acpi_initialize_objects (
 	 * the table load filled them up more than they will be at runtime --
 	 * thus wasting non-paged memory.
 	 */
-	status = acpi_purge_cached_objects ();
+	status = acpi_purge_cached_objects();
 
 	acpi_gbl_startup_flags |= ACPI_INITIALIZED_OK;
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -313,15 +296,11 @@ acpi_initialize_objects (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_terminate (
-	void)
+acpi_status acpi_terminate(void)
 {
-	acpi_status                 status;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_terminate");
-
+	ACPI_FUNCTION_TRACE("acpi_terminate");
 
 	/* Terminate the AML Debugger if present */
 
@@ -329,27 +308,24 @@ acpi_terminate (
 
 	/* Shutdown and free all resources */
 
-	acpi_ut_subsystem_shutdown ();
-
+	acpi_ut_subsystem_shutdown();
 
 	/* Free the mutex objects */
 
-	acpi_ut_mutex_terminate ();
-
+	acpi_ut_mutex_terminate();
 
 #ifdef ACPI_DEBUGGER
 
 	/* Shut down the debugger */
 
-	acpi_db_terminate ();
+	acpi_db_terminate();
 #endif
 
 	/* Now we can shutdown the OS-dependent layer */
 
-	status = acpi_os_terminate ();
-	return_ACPI_STATUS (status);
+	status = acpi_os_terminate();
+	return_ACPI_STATUS(status);
 }
-
 
 #ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
@@ -366,19 +342,15 @@ acpi_terminate (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_subsystem_status (
-	void)
+acpi_status acpi_subsystem_status(void)
 {
 
 	if (acpi_gbl_startup_flags & ACPI_INITIALIZED_OK) {
 		return (AE_OK);
-	}
-	else {
+	} else {
 		return (AE_ERROR);
 	}
 }
-
 
 /*******************************************************************************
  *
@@ -398,64 +370,60 @@ acpi_subsystem_status (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_get_system_info (
-	struct acpi_buffer              *out_buffer)
+acpi_status acpi_get_system_info(struct acpi_buffer * out_buffer)
 {
-	struct acpi_system_info         *info_ptr;
-	acpi_status                     status;
-	u32                             i;
+	struct acpi_system_info *info_ptr;
+	acpi_status status;
+	u32 i;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_get_system_info");
-
+	ACPI_FUNCTION_TRACE("acpi_get_system_info");
 
 	/* Parameter validation */
 
-	status = acpi_ut_validate_buffer (out_buffer);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_validate_buffer(out_buffer);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Validate/Allocate/Clear caller buffer */
 
-	status = acpi_ut_initialize_buffer (out_buffer, sizeof (struct acpi_system_info));
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status =
+	    acpi_ut_initialize_buffer(out_buffer,
+				      sizeof(struct acpi_system_info));
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/*
 	 * Populate the return buffer
 	 */
-	info_ptr = (struct acpi_system_info *) out_buffer->pointer;
+	info_ptr = (struct acpi_system_info *)out_buffer->pointer;
 
-	info_ptr->acpi_ca_version   = ACPI_CA_VERSION;
+	info_ptr->acpi_ca_version = ACPI_CA_VERSION;
 
 	/* System flags (ACPI capabilities) */
 
-	info_ptr->flags             = ACPI_SYS_MODE_ACPI;
+	info_ptr->flags = ACPI_SYS_MODE_ACPI;
 
 	/* Timer resolution - 24 or 32 bits  */
 
 	if (!acpi_gbl_FADT) {
 		info_ptr->timer_resolution = 0;
-	}
-	else if (acpi_gbl_FADT->tmr_val_ext == 0) {
+	} else if (acpi_gbl_FADT->tmr_val_ext == 0) {
 		info_ptr->timer_resolution = 24;
-	}
-	else {
+	} else {
 		info_ptr->timer_resolution = 32;
 	}
 
 	/* Clear the reserved fields */
 
-	info_ptr->reserved1         = 0;
-	info_ptr->reserved2         = 0;
+	info_ptr->reserved1 = 0;
+	info_ptr->reserved2 = 0;
 
 	/* Current debug levels */
 
-	info_ptr->debug_layer       = acpi_dbg_layer;
-	info_ptr->debug_level       = acpi_dbg_level;
+	info_ptr->debug_layer = acpi_dbg_layer;
+	info_ptr->debug_level = acpi_dbg_level;
 
 	/* Current status of the ACPI tables, per table type */
 
@@ -464,10 +432,10 @@ acpi_get_system_info (
 		info_ptr->table_info[i].count = acpi_gbl_table_lists[i].count;
 	}
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-EXPORT_SYMBOL(acpi_get_system_info);
 
+EXPORT_SYMBOL(acpi_get_system_info);
 
 /*****************************************************************************
  *
@@ -485,9 +453,7 @@ EXPORT_SYMBOL(acpi_get_system_info);
  ****************************************************************************/
 
 acpi_status
-acpi_install_initialization_handler (
-	acpi_init_handler               handler,
-	u32                             function)
+acpi_install_initialization_handler(acpi_init_handler handler, u32 function)
 {
 
 	if (!handler) {
@@ -502,7 +468,7 @@ acpi_install_initialization_handler (
 	return AE_OK;
 }
 
-#endif  /*  ACPI_FUTURE_USAGE  */
+#endif				/*  ACPI_FUTURE_USAGE  */
 
 /*****************************************************************************
  *
@@ -516,19 +482,13 @@ acpi_install_initialization_handler (
  *
  ****************************************************************************/
 
-acpi_status
-acpi_purge_cached_objects (
-	void)
+acpi_status acpi_purge_cached_objects(void)
 {
-	ACPI_FUNCTION_TRACE ("acpi_purge_cached_objects");
+	ACPI_FUNCTION_TRACE("acpi_purge_cached_objects");
 
-
-#ifdef ACPI_ENABLE_OBJECT_CACHE
-	acpi_ut_delete_generic_state_cache ();
-	acpi_ut_delete_object_cache ();
-	acpi_ds_delete_walk_state_cache ();
-	acpi_ps_delete_parse_cache ();
-#endif
-
-	return_ACPI_STATUS (AE_OK);
+	(void)acpi_os_purge_cache(acpi_gbl_state_cache);
+	(void)acpi_os_purge_cache(acpi_gbl_operand_cache);
+	(void)acpi_os_purge_cache(acpi_gbl_ps_node_cache);
+	(void)acpi_os_purge_cache(acpi_gbl_ps_node_ext_cache);
+	return_ACPI_STATUS(AE_OK);
 }

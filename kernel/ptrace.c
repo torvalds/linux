@@ -56,6 +56,10 @@ void ptrace_untrace(task_t *child)
 			signal_wake_up(child, 1);
 		}
 	}
+	if (child->signal->flags & SIGNAL_GROUP_EXIT) {
+		sigaddset(&child->pending.signal, SIGKILL);
+		signal_wake_up(child, 1);
+	}
 	spin_unlock(&child->sighand->siglock);
 }
 
@@ -77,8 +81,7 @@ void __ptrace_unlink(task_t *child)
 		SET_LINKS(child);
 	}
 
-	if (child->state == TASK_TRACED)
-		ptrace_untrace(child);
+	ptrace_untrace(child);
 }
 
 /*
@@ -118,6 +121,33 @@ int ptrace_check_attach(struct task_struct *child, int kill)
 	return ret;
 }
 
+static int may_attach(struct task_struct *task)
+{
+	if (!task->mm)
+		return -EPERM;
+	if (((current->uid != task->euid) ||
+	     (current->uid != task->suid) ||
+	     (current->uid != task->uid) ||
+	     (current->gid != task->egid) ||
+	     (current->gid != task->sgid) ||
+	     (current->gid != task->gid)) && !capable(CAP_SYS_PTRACE))
+		return -EPERM;
+	smp_rmb();
+	if (!task->mm->dumpable && !capable(CAP_SYS_PTRACE))
+		return -EPERM;
+
+	return security_ptrace(current, task);
+}
+
+int ptrace_may_attach(struct task_struct *task)
+{
+	int err;
+	task_lock(task);
+	err = may_attach(task);
+	task_unlock(task);
+	return !err;
+}
+
 int ptrace_attach(struct task_struct *task)
 {
 	int retval;
@@ -127,22 +157,10 @@ int ptrace_attach(struct task_struct *task)
 		goto bad;
 	if (task == current)
 		goto bad;
-	if (!task->mm)
-		goto bad;
-	if(((current->uid != task->euid) ||
-	    (current->uid != task->suid) ||
-	    (current->uid != task->uid) ||
- 	    (current->gid != task->egid) ||
- 	    (current->gid != task->sgid) ||
- 	    (current->gid != task->gid)) && !capable(CAP_SYS_PTRACE))
-		goto bad;
-	smp_rmb();
-	if (!task->mm->dumpable && !capable(CAP_SYS_PTRACE))
-		goto bad;
 	/* the same process cannot be attached many times */
 	if (task->ptrace & PT_PTRACED)
 		goto bad;
-	retval = security_ptrace(current, task);
+	retval = may_attach(task);
 	if (retval)
 		goto bad;
 

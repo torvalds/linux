@@ -59,7 +59,7 @@ extern void cpu_uninit(void);
 
 extern cpumask_t cpu_callout_map;
 extern cpumask_t cpu_callin_map;
-#define cpu_possible_map cpu_callout_map
+extern cpumask_t cpu_possible_map;
 
 /* We don't mark CPUs online until __cpu_up(), so we need another measure */
 static inline int num_booting_cpus(void)

@@ -7,12 +7,11 @@
 #ifndef _ORINOCO_H
 #define _ORINOCO_H
 
-#define DRIVER_VERSION "0.15rc2"
+#define DRIVER_VERSION "0.15rc3"
 
-#include <linux/types.h>
-#include <linux/spinlock.h>
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
+#include <net/iw_handler.h>
 #include <linux/version.h>
 
 #include "hermes.h"
@@ -28,7 +27,7 @@
 #define ORINOCO_MAX_KEYS	4
 
 struct orinoco_key {
-	u16 len;	/* always stored as little-endian */
+	__le16 len;	/* always stored as little-endian */
 	char data[ORINOCO_MAX_KEY_SIZE];
 } __attribute__ ((packed));
 
@@ -36,14 +35,14 @@ struct header_struct {
 	/* 802.3 */
 	u8 dest[ETH_ALEN];
 	u8 src[ETH_ALEN];
-	u16 len;
+	__be16 len;
 	/* 802.2 */
 	u8 dsap;
 	u8 ssap;
 	u8 ctrl;
 	/* SNAP */
 	u8 oui[3];
-	u16 ethertype;
+	unsigned short ethertype;
 } __attribute__ ((packed));
 
 typedef enum {
@@ -112,9 +111,8 @@ struct orinoco_private {
 	u16 pm_on, pm_mcast, pm_period, pm_timeout;
 	u16 preamble;
 #ifdef WIRELESS_SPY
-	int			spy_number;
-	u_char			spy_address[IW_MAX_SPY][ETH_ALEN];
-	struct iw_quality	spy_stat[IW_MAX_SPY];
+ 	struct iw_spy_data spy_data; /* iwspy support */
+	struct iw_public_data	wireless_data;
 #endif
 
 	/* Configuration dependent variables */

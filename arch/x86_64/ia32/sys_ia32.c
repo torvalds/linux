@@ -751,7 +751,7 @@ sys32_sendfile(int out_fd, int in_fd, compat_off_t __user *offset, s32 count)
 	ret = sys_sendfile(out_fd, in_fd, offset ? &of : NULL, count);
 	set_fs(old_fs);
 	
-	if (!ret && offset && put_user(of, offset))
+	if (offset && put_user(of, offset))
 		return -EFAULT;
 		
 	return ret;
@@ -969,32 +969,6 @@ long sys32_kill(int pid, int sig)
 	return sys_kill(pid, sig);
 }
  
-asmlinkage long sys32_open(const char __user * filename, int flags, int mode)
-{
-	char * tmp;
-	int fd, error;
-
-	/* don't force O_LARGEFILE */
-	tmp = getname(filename);
-	fd = PTR_ERR(tmp);
-	if (!IS_ERR(tmp)) {
-		fd = get_unused_fd();
-		if (fd >= 0) {
-			struct file *f = filp_open(tmp, flags, mode);
-			error = PTR_ERR(f);
-			if (IS_ERR(f)) {
-				put_unused_fd(fd); 
-				fd = error;
-			} else {
-				fsnotify_open(f->f_dentry);
-				fd_install(fd, f);
-			}
-		}
-		putname(tmp);
-	}
-	return fd;
-}
-
 extern asmlinkage long
 sys_timer_create(clockid_t which_clock,
 		 struct sigevent __user *timer_event_spec,

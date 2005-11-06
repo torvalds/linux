@@ -219,23 +219,24 @@ static inline void eeh_raw_writeq(u64 val, volatile void __iomem *addr)
 static inline void eeh_memset_io(volatile void __iomem *addr, int c,
 				 unsigned long n)
 {
+	void *p = (void __force *)addr;
 	u32 lc = c;
 	lc |= lc << 8;
 	lc |= lc << 16;
 
-	while(n && !EEH_CHECK_ALIGN(addr, 4)) {
-		*((volatile u8 *)addr) = c;
-		addr = (void *)((unsigned long)addr + 1);
+	while(n && !EEH_CHECK_ALIGN(p, 4)) {
+		*((volatile u8 *)p) = c;
+		p++;
 		n--;
 	}
 	while(n >= 4) {
-		*((volatile u32 *)addr) = lc;
-		addr = (void *)((unsigned long)addr + 4);
+		*((volatile u32 *)p) = lc;
+		p += 4;
 		n -= 4;
 	}
 	while(n) {
-		*((volatile u8 *)addr) = c;
-		addr = (void *)((unsigned long)addr + 1);
+		*((volatile u8 *)p) = c;
+		p++;
 		n--;
 	}
 	__asm__ __volatile__ ("sync" : : : "memory");
@@ -250,22 +251,22 @@ static inline void eeh_memcpy_fromio(void *dest, const volatile void __iomem *sr
 	while(n && (!EEH_CHECK_ALIGN(vsrc, 4) || !EEH_CHECK_ALIGN(dest, 4))) {
 		*((u8 *)dest) = *((volatile u8 *)vsrc);
 		__asm__ __volatile__ ("eieio" : : : "memory");
-		vsrc = (void *)((unsigned long)vsrc + 1);
-		dest = (void *)((unsigned long)dest + 1);			
+		vsrc++;
+		dest++;
 		n--;
 	}
 	while(n > 4) {
 		*((u32 *)dest) = *((volatile u32 *)vsrc);
 		__asm__ __volatile__ ("eieio" : : : "memory");
-		vsrc = (void *)((unsigned long)vsrc + 4);
-		dest = (void *)((unsigned long)dest + 4);			
+		vsrc += 4;
+		dest += 4;
 		n -= 4;
 	}
 	while(n) {
 		*((u8 *)dest) = *((volatile u8 *)vsrc);
 		__asm__ __volatile__ ("eieio" : : : "memory");
-		vsrc = (void *)((unsigned long)vsrc + 1);
-		dest = (void *)((unsigned long)dest + 1);			
+		vsrc++;
+		dest++;
 		n--;
 	}
 	__asm__ __volatile__ ("sync" : : : "memory");
@@ -286,20 +287,20 @@ static inline void eeh_memcpy_toio(volatile void __iomem *dest, const void *src,
 
 	while(n && (!EEH_CHECK_ALIGN(vdest, 4) || !EEH_CHECK_ALIGN(src, 4))) {
 		*((volatile u8 *)vdest) = *((u8 *)src);
-		src = (void *)((unsigned long)src + 1);
-		vdest = (void *)((unsigned long)vdest + 1);			
+		src++;
+		vdest++;
 		n--;
 	}
 	while(n > 4) {
 		*((volatile u32 *)vdest) = *((volatile u32 *)src);
-		src = (void *)((unsigned long)src + 4);
-		vdest = (void *)((unsigned long)vdest + 4);			
+		src += 4;
+		vdest += 4;
 		n-=4;
 	}
 	while(n) {
 		*((volatile u8 *)vdest) = *((u8 *)src);
-		src = (void *)((unsigned long)src + 1);
-		vdest = (void *)((unsigned long)vdest + 1);			
+		src++;
+		vdest++;
 		n--;
 	}
 	__asm__ __volatile__ ("sync" : : : "memory");

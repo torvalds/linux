@@ -1,0 +1,15 @@
+#ifndef __ASM_ARCH_OMAP24XX_H
+#define __ASM_ARCH_OMAP24XX_H
+
+#define OMAP24XX_L4_IO_BASE	0x48000000
+
+/* interrupt controller */
+#define OMAP24XX_IC_BASE	(OMAP24XX_L4_IO_BASE + 0xfe000)
+#define VA_IC_BASE		IO_ADDRESS(OMAP24XX_IC_BASE)
+
+#define OMAP24XX_IVA_INTC_BASE	0x40000000
+
+#define IRQ_SIR_IRQ		0x0040
+
+#endif /* __ASM_ARCH_OMAP24XX_H */
+

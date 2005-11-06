@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -34,7 +35,7 @@
 
 #include <linux/errno.h>
 
-#include <ib_pack.h>
+#include <rdma/ib_pack.h>
 
 #define STRUCT_FIELD(header, field) \
 	.struct_offset_bytes = offsetof(struct ib_unpacked_ ## header, field),      \
@@ -194,6 +195,7 @@ void ib_ud_header_init(int     		    payload_bytes,
 		       struct ib_ud_header *header)
 {
 	int header_len;
+	u16 packet_length;
 
 	memset(header, 0, sizeof *header);
 
@@ -208,7 +210,7 @@ void ib_ud_header_init(int     		    payload_bytes,
 	header->lrh.link_version     = 0;
 	header->lrh.link_next_header =
 		grh_present ? IB_LNH_IBA_GLOBAL : IB_LNH_IBA_LOCAL;
-	header->lrh.packet_length    = (IB_LRH_BYTES     +
+	packet_length		     = (IB_LRH_BYTES     +
 					IB_BTH_BYTES     +
 					IB_DETH_BYTES    +
 					payload_bytes    +
@@ -217,8 +219,7 @@ void ib_ud_header_init(int     		    payload_bytes,
 
 	header->grh_present          = grh_present;
 	if (grh_present) {
-		header->lrh.packet_length  += IB_GRH_BYTES / 4;
-
+		packet_length		   += IB_GRH_BYTES / 4;
 		header->grh.ip_version      = 6;
 		header->grh.payload_length  =
 			cpu_to_be16((IB_BTH_BYTES     +
@@ -229,7 +230,7 @@ void ib_ud_header_init(int     		    payload_bytes,
 		header->grh.next_header     = 0x1b;
 	}
 
-	cpu_to_be16s(&header->lrh.packet_length);
+	header->lrh.packet_length = cpu_to_be16(packet_length);
 
 	if (header->immediate_present)
 		header->bth.opcode           = IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE;

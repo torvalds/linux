@@ -1,3 +1,4 @@
+#include <asm/page.h>
 #include <asm-generic/vmlinux.lds.h>
 
 OUTPUT_ARCH(powerpc:common64)
@@ -15,8 +16,9 @@ SECTIONS
 	*(.text .text.*)
 	SCHED_TEXT
 	LOCK_TEXT
+	KPROBES_TEXT
 	*(.fixup)
-	. = ALIGN(4096);
+	. = ALIGN(PAGE_SIZE);
 	_etext = .;
 	}
 
@@ -42,7 +44,7 @@ SECTIONS
 
 
   /* will be freed after init */
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   __init_begin = .;
 
   .init.text : {
@@ -82,7 +84,7 @@ SECTIONS
 
   SECURITY_INIT
 
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   .init.ramfs : {
 	__initramfs_start = .;
 	*(.init.ramfs)
@@ -95,18 +97,22 @@ SECTIONS
 	__per_cpu_end = .;
 	}
 
+  . = ALIGN(PAGE_SIZE);
   . = ALIGN(16384);
   __init_end = .;
   /* freed after init ends here */
 
 
   /* Read/write sections */
+  . = ALIGN(PAGE_SIZE);
   . = ALIGN(16384);
+  _sdata = .;
   /* The initial task and kernel stack */
   .data.init_task : {
 	*(.data.init_task)
 	}
 
+  . = ALIGN(PAGE_SIZE);
   .data.page_aligned : {
 	*(.data.page_aligned)
 	}
@@ -128,18 +134,18 @@ SECTIONS
 	__toc_start = .;
 	*(.got)
 	*(.toc)
-	. = ALIGN(4096);
+	. = ALIGN(PAGE_SIZE);
 	_edata = .;
 	}
 
 
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   .bss : {
 	__bss_start = .;
 	*(.bss)
 	__bss_stop = .;
 	}
 
-  . = ALIGN(4096);
+  . = ALIGN(PAGE_SIZE);
   _end = . ;
 }

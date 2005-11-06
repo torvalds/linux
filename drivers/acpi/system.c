@@ -30,10 +30,8 @@
 
 #include <acpi/acpi_drivers.h>
 
-
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
-ACPI_MODULE_NAME		("acpi_system")
-
+ACPI_MODULE_NAME("acpi_system")
 #define ACPI_SYSTEM_CLASS		"system"
 #define ACPI_SYSTEM_DRIVER_NAME		"ACPI System Driver"
 #define ACPI_SYSTEM_DEVICE_NAME		"System"
@@ -41,15 +39,13 @@ ACPI_MODULE_NAME		("acpi_system")
 #define ACPI_SYSTEM_FILE_EVENT		"event"
 #define ACPI_SYSTEM_FILE_DSDT		"dsdt"
 #define ACPI_SYSTEM_FILE_FADT		"fadt"
-
-extern FADT_DESCRIPTOR		acpi_fadt;
+extern FADT_DESCRIPTOR acpi_fadt;
 
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
 
-static int
-acpi_system_read_info (struct seq_file *seq, void *offset)
+static int acpi_system_read_info(struct seq_file *seq, void *offset)
 {
 	ACPI_FUNCTION_TRACE("acpi_system_read_info");
 
@@ -63,28 +59,26 @@ static int acpi_system_info_open_fs(struct inode *inode, struct file *file)
 }
 
 static struct file_operations acpi_system_info_ops = {
-	.open		= acpi_system_info_open_fs,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+	.open = acpi_system_info_open_fs,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
-static ssize_t acpi_system_read_dsdt (struct file*, char __user *, size_t, loff_t*);
+static ssize_t acpi_system_read_dsdt(struct file *, char __user *, size_t,
+				     loff_t *);
 
 static struct file_operations acpi_system_dsdt_ops = {
-	.read =			acpi_system_read_dsdt,
+	.read = acpi_system_read_dsdt,
 };
 
 static ssize_t
-acpi_system_read_dsdt (
-	struct file		*file,
-	char			__user *buffer,
-	size_t			count,
-	loff_t			*ppos)
+acpi_system_read_dsdt(struct file *file,
+		      char __user * buffer, size_t count, loff_t * ppos)
 {
-	acpi_status		status = AE_OK;
-	struct acpi_buffer	dsdt = {ACPI_ALLOCATE_BUFFER, NULL};
-	ssize_t			res;
+	acpi_status status = AE_OK;
+	struct acpi_buffer dsdt = { ACPI_ALLOCATE_BUFFER, NULL };
+	ssize_t res;
 
 	ACPI_FUNCTION_TRACE("acpi_system_read_dsdt");
 
@@ -99,23 +93,20 @@ acpi_system_read_dsdt (
 	return_VALUE(res);
 }
 
-
-static ssize_t acpi_system_read_fadt (struct file*, char __user *, size_t, loff_t*);
+static ssize_t acpi_system_read_fadt(struct file *, char __user *, size_t,
+				     loff_t *);
 
 static struct file_operations acpi_system_fadt_ops = {
-	.read =			acpi_system_read_fadt,
+	.read = acpi_system_read_fadt,
 };
 
 static ssize_t
-acpi_system_read_fadt (
-	struct file		*file,
-	char			__user *buffer,
-	size_t			count,
-	loff_t			*ppos)
+acpi_system_read_fadt(struct file *file,
+		      char __user * buffer, size_t count, loff_t * ppos)
 {
-	acpi_status		status = AE_OK;
-	struct acpi_buffer	fadt = {ACPI_ALLOCATE_BUFFER, NULL};
-	ssize_t			res;
+	acpi_status status = AE_OK;
+	struct acpi_buffer fadt = { ACPI_ALLOCATE_BUFFER, NULL };
+	ssize_t res;
 
 	ACPI_FUNCTION_TRACE("acpi_system_read_fadt");
 
@@ -130,12 +121,11 @@ acpi_system_read_fadt (
 	return_VALUE(res);
 }
 
-
-static int __init acpi_system_init (void)
+static int __init acpi_system_init(void)
 {
-	struct proc_dir_entry	*entry;
+	struct proc_dir_entry *entry;
 	int error = 0;
-	char * name;
+	char *name;
 
 	ACPI_FUNCTION_TRACE("acpi_system_init");
 
@@ -144,8 +134,7 @@ static int __init acpi_system_init (void)
 
 	/* 'info' [R] */
 	name = ACPI_SYSTEM_FILE_INFO;
-	entry = create_proc_entry(name,
-		S_IRUGO, acpi_root_dir);
+	entry = create_proc_entry(name, S_IRUGO, acpi_root_dir);
 	if (!entry)
 		goto Error;
 	else {
@@ -157,7 +146,7 @@ static int __init acpi_system_init (void)
 	entry = create_proc_entry(name, S_IRUSR, acpi_root_dir);
 	if (entry)
 		entry->proc_fops = &acpi_system_dsdt_ops;
-	else 
+	else
 		goto Error;
 
 	/* 'fadt' [R] */
@@ -168,12 +157,12 @@ static int __init acpi_system_init (void)
 	else
 		goto Error;
 
- Done:
+      Done:
 	return_VALUE(error);
 
- Error:
-	ACPI_DEBUG_PRINT((ACPI_DB_ERROR, 
-			 "Unable to create '%s' proc fs entry\n", name));
+      Error:
+	ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+			  "Unable to create '%s' proc fs entry\n", name));
 
 	remove_proc_entry(ACPI_SYSTEM_FILE_FADT, acpi_root_dir);
 	remove_proc_entry(ACPI_SYSTEM_FILE_DSDT, acpi_root_dir);
@@ -182,6 +171,5 @@ static int __init acpi_system_init (void)
 	error = -EFAULT;
 	goto Done;
 }
-
 
 subsys_initcall(acpi_system_init);

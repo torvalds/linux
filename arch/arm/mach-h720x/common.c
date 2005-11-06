@@ -108,7 +108,7 @@ h720x_gpio_handler(unsigned int mask, unsigned int irq,
 	while (mask) {
 		if (mask & 1) {
 			IRQDBG("handling irq %d\n", irq);
-			desc->handle(irq, desc, regs);
+			desc_handle_irq(irq, desc, regs);
 		}
 		irq++;
 		desc++;
@@ -237,7 +237,12 @@ void __init h720x_init_irq (void)
 }
 
 static struct map_desc h720x_io_desc[] __initdata = {
-	{ IO_VIRT, IO_PHYS, IO_SIZE, MT_DEVICE },
+	{
+		.virtual	= IO_VIRT,
+		.pfn		= __phys_to_pfn(IO_PHYS),
+		.length		= IO_SIZE,
+		.type		= MT_DEVICE
+	},
 };
 
 /* Initialize io tables */

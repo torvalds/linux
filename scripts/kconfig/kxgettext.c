@@ -14,6 +14,11 @@ static char *escape(const char* text, char *bf, int len)
 {
 	char *bfp = bf;
 	int multiline = strchr(text, '\n') != NULL;
+	int eol = 0;
+	int textlen = strlen(text);
+
+	if ((textlen > 0) && (text[textlen-1] == '\n'))
+		eol = 1;
 
 	*bfp++ = '"';
 	--len;
@@ -43,7 +48,7 @@ next:
 		--len;
 	}
 
-	if (multiline)
+	if (multiline && eol)
 		bfp -= 3;
 
 	*bfp++ = '"';
@@ -179,16 +184,17 @@ static void message__print_file_lineno(struct message *self)
 {
 	struct file_line *fl = self->files;
 
-	printf("\n#: %s:%d", fl->file, fl->lineno);
+	putchar('\n');
+	if (self->option != NULL)
+		printf("# %s:00000\n", self->option);
+
+	printf("#: %s:%d", fl->file, fl->lineno);
 	fl = fl->next;
 
 	while (fl != NULL) {
 		printf(", %s:%d", fl->file, fl->lineno);
 		fl = fl->next;
 	}
-
-	if (self->option != NULL)
-		printf(", %s:00000", self->option);
 
 	putchar('\n');
 }

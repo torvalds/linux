@@ -26,7 +26,6 @@
 #include <linux/types.h>
 #include <asm/byteorder.h>
 #include <asm/memory.h>
-#include <asm/arch/hardware.h>
 
 /*
  * ISA I/O bus memory addresses are 1:1 with the physical address.
@@ -136,9 +135,9 @@ extern void __readwrite_bug(const char *fn);
 /*
  * String version of IO memory access ops:
  */
-extern void _memcpy_fromio(void *, void __iomem *, size_t);
-extern void _memcpy_toio(void __iomem *, const void *, size_t);
-extern void _memset_io(void __iomem *, int, size_t);
+extern void _memcpy_fromio(void *, const volatile void __iomem *, size_t);
+extern void _memcpy_toio(volatile void __iomem *, const void *, size_t);
+extern void _memset_io(volatile void __iomem *, int, size_t);
 
 #define mmiowb()
 

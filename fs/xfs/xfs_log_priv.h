@@ -1,33 +1,19 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef	__XFS_LOG_PRIV_H__
 #define __XFS_LOG_PRIV_H__
@@ -35,6 +21,7 @@
 struct xfs_buf;
 struct ktrace;
 struct log;
+struct xlog_ticket;
 struct xfs_buf_cancel;
 struct xfs_mount;
 
@@ -112,84 +99,13 @@ struct xfs_mount;
  * this has endian issues, of course.
  */
 
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+#ifndef XFS_NATIVE_HOST
 #define GET_CLIENT_ID(i,arch) \
     ((i) & 0xff)
 #else
 #define GET_CLIENT_ID(i,arch) \
     ((i) >> 24)
 #endif
-
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XLOG_GRANT_SUB_SPACE)
-void xlog_grant_sub_space(struct log *log, int bytes, int type);
-#define XLOG_GRANT_SUB_SPACE(log,bytes,type)	\
-	xlog_grant_sub_space(log,bytes,type)
-#else
-#define XLOG_GRANT_SUB_SPACE(log,bytes,type)				\
-    {									\
-	if (type == 'w') {						\
-		(log)->l_grant_write_bytes -= (bytes);			\
-		if ((log)->l_grant_write_bytes < 0) {			\
-			(log)->l_grant_write_bytes += (log)->l_logsize;	\
-			(log)->l_grant_write_cycle--;			\
-		}							\
-	} else {							\
-		(log)->l_grant_reserve_bytes -= (bytes);		\
-		if ((log)->l_grant_reserve_bytes < 0) {			\
-			(log)->l_grant_reserve_bytes += (log)->l_logsize;\
-			(log)->l_grant_reserve_cycle--;			\
-		}							\
-	 }								\
-    }
-#endif
-#if XFS_WANT_FUNCS || (XFS_WANT_SPACE && XFSSO_XLOG_GRANT_ADD_SPACE)
-void xlog_grant_add_space(struct log *log, int bytes, int type);
-#define XLOG_GRANT_ADD_SPACE(log,bytes,type)	\
-	xlog_grant_add_space(log,bytes,type)
-#else
-#define XLOG_GRANT_ADD_SPACE(log,bytes,type)				\
-    {									\
-	if (type == 'w') {						\
-		(log)->l_grant_write_bytes += (bytes);			\
-		if ((log)->l_grant_write_bytes > (log)->l_logsize) {	\
-			(log)->l_grant_write_bytes -= (log)->l_logsize;	\
-			(log)->l_grant_write_cycle++;			\
-		}							\
-	} else {							\
-		(log)->l_grant_reserve_bytes += (bytes);		\
-		if ((log)->l_grant_reserve_bytes > (log)->l_logsize) {	\
-			(log)->l_grant_reserve_bytes -= (log)->l_logsize;\
-			(log)->l_grant_reserve_cycle++;			\
-		}							\
-	 }								\
-    }
-#endif
-#define XLOG_INS_TICKETQ(q,tic)				\
-    {							\
-	if (q) {					\
-		(tic)->t_next	    = (q);		\
-		(tic)->t_prev	    = (q)->t_prev;	\
-		(q)->t_prev->t_next = (tic);		\
-		(q)->t_prev	    = (tic);		\
-	} else {					\
-		(tic)->t_prev = (tic)->t_next = (tic);	\
-		(q) = (tic);				\
-	}						\
-	(tic)->t_flags |= XLOG_TIC_IN_Q;		\
-    }
-#define XLOG_DEL_TICKETQ(q,tic)				\
-    {							\
-	if ((tic) == (tic)->t_next) {			\
-		(q) = NULL;				\
-	} else {					\
-		(q) = (tic)->t_next;			\
-		(tic)->t_next->t_prev = (tic)->t_prev;	\
-		(tic)->t_prev->t_next = (tic)->t_next;	\
-	}						\
-	(tic)->t_next = (tic)->t_prev = NULL;		\
-	(tic)->t_flags &= ~XLOG_TIC_IN_Q;		\
-    }
-
 
 #define GRANT_LOCK(log)		mutex_spinlock(&(log)->l_grant_lock)
 #define GRANT_UNLOCK(log, s)	mutex_spinunlock(&(log)->l_grant_lock, s)
@@ -335,18 +251,66 @@ typedef __uint32_t xlog_tid_t;
 
 #define XLOG_COVER_OPS		5
 
+
+/* Ticket reservation region accounting */ 
+#if defined(XFS_LOG_RES_DEBUG)
+#define XLOG_TIC_LEN_MAX	15
+#define XLOG_TIC_RESET_RES(t) ((t)->t_res_num = \
+				(t)->t_res_arr_sum = (t)->t_res_num_ophdrs = 0)
+#define XLOG_TIC_ADD_OPHDR(t) ((t)->t_res_num_ophdrs++)
+#define XLOG_TIC_ADD_REGION(t, len, type)				\
+	do {								\
+		if ((t)->t_res_num == XLOG_TIC_LEN_MAX) { 		\
+			/* add to overflow and start again */		\
+			(t)->t_res_o_flow += (t)->t_res_arr_sum;	\
+			(t)->t_res_num = 0;				\
+			(t)->t_res_arr_sum = 0;				\
+		}							\
+		(t)->t_res_arr[(t)->t_res_num].r_len = (len);		\
+		(t)->t_res_arr[(t)->t_res_num].r_type = (type);		\
+		(t)->t_res_arr_sum += (len);				\
+		(t)->t_res_num++;					\
+	} while (0)
+
+/*
+ * Reservation region
+ * As would be stored in xfs_log_iovec but without the i_addr which
+ * we don't care about.
+ */
+typedef struct xlog_res {
+	uint	r_len;
+	uint	r_type;
+} xlog_res_t;
+#else
+#define XLOG_TIC_RESET_RES(t)
+#define XLOG_TIC_ADD_OPHDR(t)
+#define XLOG_TIC_ADD_REGION(t, len, type)
+#endif
+
+
 typedef struct xlog_ticket {
-	sv_t		   t_sema;	 /* sleep on this semaphore	 :20 */
-	struct xlog_ticket *t_next;	 /*			         : 4 */
-	struct xlog_ticket *t_prev;	 /*				 : 4 */
-	xlog_tid_t	   t_tid;	 /* transaction identifier	 : 4 */
-	int		   t_curr_res;	 /* current reservation in bytes : 4 */
-	int		   t_unit_res;	 /* unit reservation in bytes    : 4 */
-	__uint8_t	   t_ocnt;	 /* original count		 : 1 */
-	__uint8_t	   t_cnt;	 /* current count		 : 1 */
-	__uint8_t	   t_clientid;	 /* who does this belong to;	 : 1 */
-	__uint8_t	   t_flags;	 /* properties of reservation	 : 1 */
+	sv_t		   t_sema;	 /* sleep on this semaphore      : 20 */
+ 	struct xlog_ticket *t_next;	 /*			         :4|8 */
+	struct xlog_ticket *t_prev;	 /*				 :4|8 */
+	xlog_tid_t	   t_tid;	 /* transaction identifier	 : 4  */
+	int		   t_curr_res;	 /* current reservation in bytes : 4  */
+	int		   t_unit_res;	 /* unit reservation in bytes    : 4  */
+	char		   t_ocnt;	 /* original count		 : 1  */
+	char		   t_cnt;	 /* current count		 : 1  */
+	char		   t_clientid;	 /* who does this belong to;	 : 1  */
+	char		   t_flags;	 /* properties of reservation	 : 1  */
+	uint		   t_trans_type; /* transaction type             : 4  */
+
+#if defined (XFS_LOG_RES_DEBUG)
+        /* reservation array fields */
+	uint		   t_res_num;                    /* num in array : 4 */
+	xlog_res_t	   t_res_arr[XLOG_TIC_LEN_MAX];  /* array of res : X */ 
+	uint		   t_res_num_ophdrs;		 /* num op hdrs  : 4 */
+	uint		   t_res_arr_sum;		 /* array sum    : 4 */
+	uint		   t_res_o_flow;		 /* sum overflow : 4 */
+#endif
 } xlog_ticket_t;
+
 #endif
 
 
@@ -366,14 +330,10 @@ typedef struct xlog_op_header {
 #define XLOG_FMT_IRIX_BE  3
 
 /* our fmt */
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-#define XLOG_FMT XLOG_FMT_LINUX_LE
-#else
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef XFS_NATIVE_HOST
 #define XLOG_FMT XLOG_FMT_LINUX_BE
 #else
-#error unknown byte order
-#endif
+#define XLOG_FMT XLOG_FMT_LINUX_LE
 #endif
 
 typedef struct xlog_rec_header {
@@ -532,6 +492,77 @@ typedef struct log {
 						 * alignment mask */
 } xlog_t;
 
+#define XLOG_FORCED_SHUTDOWN(log)	((log)->l_flags & XLOG_IO_ERROR)
+
+#define XLOG_GRANT_SUB_SPACE(log,bytes,type)	\
+	xlog_grant_sub_space(log,bytes,type)
+static inline void xlog_grant_sub_space(struct log *log, int bytes, int type)
+{
+	if (type == 'w') {						\
+		(log)->l_grant_write_bytes -= (bytes);			\
+		if ((log)->l_grant_write_bytes < 0) {			\
+			(log)->l_grant_write_bytes += (log)->l_logsize;	\
+			(log)->l_grant_write_cycle--;			\
+		}							\
+	} else {							\
+		(log)->l_grant_reserve_bytes -= (bytes);		\
+		if ((log)->l_grant_reserve_bytes < 0) {			\
+			(log)->l_grant_reserve_bytes += (log)->l_logsize;\
+			(log)->l_grant_reserve_cycle--;			\
+		}							\
+	 }								\
+}
+
+#define XLOG_GRANT_ADD_SPACE(log,bytes,type)	\
+	xlog_grant_add_space(log,bytes,type)
+static inline void
+xlog_grant_add_space(struct log *log, int bytes, int type)
+{
+	if (type == 'w') {						\
+		(log)->l_grant_write_bytes += (bytes);			\
+		if ((log)->l_grant_write_bytes > (log)->l_logsize) {	\
+			(log)->l_grant_write_bytes -= (log)->l_logsize;	\
+			(log)->l_grant_write_cycle++;			\
+		}							\
+	} else {							\
+		(log)->l_grant_reserve_bytes += (bytes);		\
+		if ((log)->l_grant_reserve_bytes > (log)->l_logsize) {	\
+			(log)->l_grant_reserve_bytes -= (log)->l_logsize;\
+			(log)->l_grant_reserve_cycle++;			\
+		}							\
+	 }								\
+}
+
+#define XLOG_INS_TICKETQ(q, tic)	xlog_ins_ticketq(q, tic)
+static inline void
+xlog_ins_ticketq(struct xlog_ticket *q, struct xlog_ticket *tic)
+{							\
+	if (q) {					\
+		(tic)->t_next	    = (q);		\
+		(tic)->t_prev	    = (q)->t_prev;	\
+		(q)->t_prev->t_next = (tic);		\
+		(q)->t_prev	    = (tic);		\
+	} else {					\
+		(tic)->t_prev = (tic)->t_next = (tic);	\
+		(q) = (tic);				\
+	}						\
+	(tic)->t_flags |= XLOG_TIC_IN_Q;		\
+}
+
+#define XLOG_DEL_TICKETQ(q, tic)	xlog_del_ticketq(q, tic)
+static inline void
+xlog_del_ticketq(struct xlog_ticket *q, struct xlog_ticket *tic)
+{							\
+	if ((tic) == (tic)->t_next) {			\
+		(q) = NULL;				\
+	} else {					\
+		(q) = (tic)->t_next;			\
+		(tic)->t_next->t_prev = (tic)->t_prev;	\
+		(tic)->t_prev->t_next = (tic)->t_next;	\
+	}						\
+	(tic)->t_next = (tic)->t_prev = NULL;		\
+	(tic)->t_flags &= ~XLOG_TIC_IN_Q;		\
+}
 
 /* common routines */
 extern xfs_lsn_t xlog_assign_tail_lsn(struct xfs_mount *mp);

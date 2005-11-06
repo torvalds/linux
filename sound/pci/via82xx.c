@@ -104,14 +104,6 @@ module_param_array(dxs_support, int, NULL, 0444);
 MODULE_PARM_DESC(dxs_support, "Support for DXS channels (0 = auto, 1 = enable, 2 = disable, 3 = 48k only, 4 = no VRA, 5 = enable any sample rate)");
 
 
-/* pci ids */
-#ifndef PCI_DEVICE_ID_VIA_82C686_5
-#define PCI_DEVICE_ID_VIA_82C686_5	0x3058
-#endif
-#ifndef PCI_DEVICE_ID_VIA_8233_5
-#define PCI_DEVICE_ID_VIA_8233_5	0x3059
-#endif
-
 /* revision numbers for via686 */
 #define VIA_REV_686_A		0x10
 #define VIA_REV_686_B		0x11
@@ -663,10 +655,12 @@ static int snd_via82xx_pcm_trigger(snd_pcm_substream_t * substream, int cmd)
 		val = 0;
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_RESUME:
 		val |= VIA_REG_CTRL_START;
 		viadev->running = 1;
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		val = VIA_REG_CTRL_TERMINATE;
 		viadev->running = 0;
 		break;
@@ -929,12 +923,12 @@ static int snd_via8233_playback_prepare(snd_pcm_substream_t *substream)
 
 	if ((rate_changed = via_lock_rate(&chip->rates[0], ac97_rate)) < 0)
 		return rate_changed;
-	if (rate_changed) {
+	if (rate_changed)
 		snd_ac97_set_rate(chip->ac97, AC97_PCM_FRONT_DAC_RATE,
 				  chip->no_vra ? 48000 : runtime->rate);
-		snd_ac97_set_rate(chip->ac97, AC97_SPDIF,
-				  chip->no_vra ? 48000 : runtime->rate);
-	}
+	if (chip->spdif_on && viadev->reg_offset == 0x30)
+		snd_ac97_set_rate(chip->ac97, AC97_SPDIF, runtime->rate);
+
 	if (runtime->rate == 48000)
 		rbits = 0xfffff;
 	else
@@ -1035,7 +1029,7 @@ static snd_pcm_hardware_t snd_via82xx_hw =
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID |
-				 SNDRV_PCM_INFO_RESUME |
+				 /* SNDRV_PCM_INFO_RESUME | */
 				 SNDRV_PCM_INFO_PAUSE),
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_48000,
@@ -1484,7 +1478,7 @@ static int snd_via8233_dxs3_spdif_put(snd_kcontrol_t *kcontrol, snd_ctl_elem_val
 }
 
 static snd_kcontrol_new_t snd_via8233_dxs3_spdif_control __devinitdata = {
-	.name = "IEC958 Output Switch",
+	.name = SNDRV_CTL_NAME_IEC958("Output ",NONE,SWITCH),
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info = snd_via8233_dxs3_spdif_info,
 	.get = snd_via8233_dxs3_spdif_get,
@@ -1933,11 +1927,12 @@ static int snd_via82xx_chip_init(via82xx_t *chip)
 		 * DXS channels don't work properly with VRA if MC97 is disabled.
 		 */
 		struct pci_dev *pci;
-		pci = pci_find_device(0x1106, 0x3068, NULL); /* MC97 */
+		pci = pci_get_device(0x1106, 0x3068, NULL); /* MC97 */
 		if (pci) {
 			unsigned char data;
 			pci_read_config_byte(pci, 0x44, &data);
 			pci_write_config_byte(pci, 0x44, data | 0x40);
+			pci_dev_put(pci);
 		}
 	}
 
@@ -2063,7 +2058,7 @@ static int __devinit snd_via82xx_create(snd_card_t * card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	if ((chip = kcalloc(1, sizeof(*chip), GFP_KERNEL)) == NULL) {
+	if ((chip = kzalloc(sizeof(*chip), GFP_KERNEL)) == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
@@ -2152,10 +2147,13 @@ static int __devinit check_dxs_list(struct pci_dev *pci)
 		{ .subvendor = 0x1019, .subdevice = 0x0996, .action = VIA_DXS_48K },
 		{ .subvendor = 0x1019, .subdevice = 0x0a81, .action = VIA_DXS_NO_VRA }, /* ECS K7VTA3 v8.0 */
 		{ .subvendor = 0x1019, .subdevice = 0x0a85, .action = VIA_DXS_NO_VRA }, /* ECS L7VMM2 */
+		{ .subvendor = 0x1019, .subdevice = 0xa101, .action = VIA_DXS_SRC },
 		{ .subvendor = 0x1025, .subdevice = 0x0033, .action = VIA_DXS_NO_VRA }, /* Acer Inspire 1353LM */
+		{ .subvendor = 0x1025, .subdevice = 0x0046, .action = VIA_DXS_SRC }, /* Acer Aspire 1524 WLMi */
 		{ .subvendor = 0x1043, .subdevice = 0x8095, .action = VIA_DXS_NO_VRA }, /* ASUS A7V8X (FIXME: possibly VIA_DXS_ENABLE?)*/
 		{ .subvendor = 0x1043, .subdevice = 0x80a1, .action = VIA_DXS_NO_VRA }, /* ASUS A7V8-X */
 		{ .subvendor = 0x1043, .subdevice = 0x80b0, .action = VIA_DXS_NO_VRA }, /* ASUS A7V600 & K8V*/ 
+		{ .subvendor = 0x1043, .subdevice = 0x810d, .action = VIA_DXS_SRC }, /* ASUS */
 		{ .subvendor = 0x1043, .subdevice = 0x812a, .action = VIA_DXS_SRC    }, /* ASUS A8V Deluxe */ 
 		{ .subvendor = 0x1071, .subdevice = 0x8375, .action = VIA_DXS_NO_VRA }, /* Vobis/Yakumo/Mitac notebook */
 		{ .subvendor = 0x1071, .subdevice = 0x8399, .action = VIA_DXS_NO_VRA }, /* Umax AB 595T (VIA K8N800A - VT8237) */
@@ -2168,10 +2166,12 @@ static int __devinit check_dxs_list(struct pci_dev *pci)
 		{ .subvendor = 0x1297, .subdevice = 0xc160, .action = VIA_DXS_ENABLE }, /* Shuttle SK41G */
 		{ .subvendor = 0x1458, .subdevice = 0xa002, .action = VIA_DXS_ENABLE }, /* Gigabyte GA-7VAXP */
 		{ .subvendor = 0x1462, .subdevice = 0x0080, .action = VIA_DXS_SRC }, /* MSI K8T Neo-FIS2R */
+		{ .subvendor = 0x1462, .subdevice = 0x0430, .action = VIA_DXS_SRC }, /* MSI 7142 (K8MM-V) */
 		{ .subvendor = 0x1462, .subdevice = 0x3800, .action = VIA_DXS_ENABLE }, /* MSI KT266 */
 		{ .subvendor = 0x1462, .subdevice = 0x5901, .action = VIA_DXS_NO_VRA }, /* MSI KT6 Delta-SR */
 		{ .subvendor = 0x1462, .subdevice = 0x7023, .action = VIA_DXS_NO_VRA }, /* MSI K8T Neo2-FI */
 		{ .subvendor = 0x1462, .subdevice = 0x7120, .action = VIA_DXS_ENABLE }, /* MSI KT4V */
+		{ .subvendor = 0x1462, .subdevice = 0x7142, .action = VIA_DXS_ENABLE }, /* MSI K8MM-V */
 		{ .subvendor = 0x147b, .subdevice = 0x1401, .action = VIA_DXS_ENABLE }, /* ABIT KD7(-RAID) */
 		{ .subvendor = 0x147b, .subdevice = 0x1411, .action = VIA_DXS_ENABLE }, /* ABIT VA-20 */
 		{ .subvendor = 0x147b, .subdevice = 0x1413, .action = VIA_DXS_ENABLE }, /* ABIT KV8 Pro */
@@ -2345,6 +2345,7 @@ static void __devexit snd_via82xx_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "VIA 82xx Audio",
+	.owner = THIS_MODULE,
 	.id_table = snd_via82xx_ids,
 	.probe = snd_via82xx_probe,
 	.remove = __devexit_p(snd_via82xx_remove),

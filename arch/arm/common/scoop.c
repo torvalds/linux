@@ -12,14 +12,24 @@
  */
 
 #include <linux/device.h>
+#include <linux/string.h>
+#include <linux/platform_device.h>
 #include <asm/io.h>
 #include <asm/hardware/scoop.h>
 
 #define SCOOP_REG(d,adr) (*(volatile unsigned short*)(d +(adr)))
 
+/* PCMCIA to Scoop linkage structures for pxa2xx_sharpsl.c
+   There is no easy way to link multiple scoop devices into one
+   single entity for the pxa2xx_pcmcia device */
+int scoop_num;
+struct scoop_pcmcia_dev *scoop_devs;
+
 struct  scoop_dev {
 	void  *base;
 	spinlock_t scoop_lock;
+	unsigned short suspend_clr;
+	unsigned short suspend_set;
 	u32 scoop_gpwr;
 };
 
@@ -84,25 +94,34 @@ EXPORT_SYMBOL(reset_scoop);
 EXPORT_SYMBOL(read_scoop_reg);
 EXPORT_SYMBOL(write_scoop_reg);
 
-#ifdef CONFIG_PM
-static int scoop_suspend(struct device *dev, uint32_t state, uint32_t level)
+static void check_scoop_reg(struct scoop_dev *sdev)
 {
-	if (level == SUSPEND_POWER_DOWN) {
-		struct scoop_dev *sdev = dev_get_drvdata(dev);
+	unsigned short mcr;
 
-		sdev->scoop_gpwr = SCOOP_REG(sdev->base,SCOOP_GPWR);
-		SCOOP_REG(sdev->base,SCOOP_GPWR) = 0;
-	}
+	mcr = SCOOP_REG(sdev->base, SCOOP_MCR);
+	if ((mcr & 0x100) == 0)
+		SCOOP_REG(sdev->base, SCOOP_MCR) = 0x0101;
+}
+
+#ifdef CONFIG_PM
+static int scoop_suspend(struct device *dev, pm_message_t state)
+{
+	struct scoop_dev *sdev = dev_get_drvdata(dev);
+
+	check_scoop_reg(sdev);
+	sdev->scoop_gpwr = SCOOP_REG(sdev->base, SCOOP_GPWR);
+	SCOOP_REG(sdev->base, SCOOP_GPWR) = (sdev->scoop_gpwr & ~sdev->suspend_clr) | sdev->suspend_set;
+
 	return 0;
 }
 
-static int scoop_resume(struct device *dev, uint32_t level)
+static int scoop_resume(struct device *dev)
 {
-	if (level == RESUME_POWER_ON) {
-		struct scoop_dev *sdev = dev_get_drvdata(dev);
+	struct scoop_dev *sdev = dev_get_drvdata(dev);
 
-		SCOOP_REG(sdev->base,SCOOP_GPWR) = sdev->scoop_gpwr;
-	}
+	check_scoop_reg(sdev);
+	SCOOP_REG(sdev->base,SCOOP_GPWR) = sdev->scoop_gpwr;
+
 	return 0;
 }
 #else
@@ -144,6 +163,9 @@ int __init scoop_probe(struct device *dev)
 	reset_scoop(dev);
 	SCOOP_REG(devptr->base, SCOOP_GPCR) = inf->io_dir & 0xffff;
 	SCOOP_REG(devptr->base, SCOOP_GPWR) = inf->io_out & 0xffff;
+
+	devptr->suspend_clr = inf->suspend_clr;
+	devptr->suspend_set = inf->suspend_set;
 
 	return 0;
 }

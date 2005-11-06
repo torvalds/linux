@@ -9,6 +9,7 @@
 #include <asm/user.h>
 #include <asm/processor.h>
 #include <asm/system.h>		/* for savesegment */
+#include <asm/auxvec.h>
 
 #include <linux/utsname.h>
 
@@ -108,13 +109,6 @@ typedef struct user_fxsr_struct elf_fpxregset_t;
    but that could change... */
 
 #define ELF_PLATFORM  (system_utsname.machine)
-
-/*
- * Architecture-neutral AT_ values in 0-17, leave some room
- * for more of them, start the x86-specific ones at 32.
- */
-#define AT_SYSINFO		32
-#define AT_SYSINFO_EHDR		33
 
 #ifdef __KERNEL__
 #define SET_PERSONALITY(ex, ibcs2) do { } while (0)

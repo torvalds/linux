@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 
 #define IPI_SCHEDULE 1
 #define IPI_CALL 2
@@ -28,6 +29,7 @@ spinlock_t cris_atomic_locks[] = { [0 ... LOCK_COUNT - 1] = SPIN_LOCK_UNLOCKED};
 /* CPU masks */
 cpumask_t cpu_online_map = CPU_MASK_NONE;
 cpumask_t phys_cpu_present_map = CPU_MASK_NONE;
+EXPORT_SYMBOL(phys_cpu_present_map);
 
 /* Variables used during SMP boot */
 volatile int cpu_now_booting = 0;

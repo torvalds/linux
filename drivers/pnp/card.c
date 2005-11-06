@@ -8,13 +8,6 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-
-#ifdef CONFIG_PNP_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
-
 #include <linux/pnp.h>
 #include "base.h"
 
@@ -312,6 +305,8 @@ found:
 	if (drv->link.driver.probe) {
 		if (drv->link.driver.probe(&dev->dev)) {
 			dev->dev.driver = NULL;
+			dev->card_link = NULL;
+			up_write(&dev->dev.bus->subsys.rwsem);
 			return NULL;
 		}
 	}

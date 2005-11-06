@@ -265,7 +265,7 @@ ahc_scb_timer_reset(struct scb *scb, u_int usec)
 /***************************** SMP support ************************************/
 #include <linux/spinlock.h>
 
-#define AIC7XXX_DRIVER_VERSION "6.2.36"
+#define AIC7XXX_DRIVER_VERSION "7.0"
 
 /*************************** Device Data Structures ***************************/
 /*
@@ -493,8 +493,6 @@ ahc_insb(struct ahc_softc * ahc, long port, uint8_t *array, int count)
 /**************************** Initialization **********************************/
 int		ahc_linux_register_host(struct ahc_softc *,
 					struct scsi_host_template *);
-
-uint64_t	ahc_linux_get_memsize(void);
 
 /*************************** Pretty Printing **********************************/
 struct info_str {

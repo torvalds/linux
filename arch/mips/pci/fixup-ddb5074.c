@@ -5,7 +5,7 @@ static void ddb5074_fixup(struct pci_dev *dev)
 {
 	extern struct pci_dev *pci_pmu;
 	u8 t8;
-                                                                
+
 	pci_pmu = dev;  /* for LEDs D2 and D3 */
 	/* Program the lines for LEDs D2 and D3 to output */
 	pci_read_config_byte(dev, 0x7d, &t8);

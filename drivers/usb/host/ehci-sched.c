@@ -301,7 +301,7 @@ static int qh_link_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	dev_dbg (&qh->dev->dev,
 		"link qh%d-%04x/%p start %d [%d/%d us]\n",
-		period, le32_to_cpup (&qh->hw_info2) & 0xffff,
+		period, le32_to_cpup (&qh->hw_info2) & (QH_CMASK | QH_SMASK),
 		qh, qh->start, qh->usecs, qh->c_usecs);
 
 	/* high bandwidth, or otherwise every microframe */
@@ -385,7 +385,8 @@ static void qh_unlink_periodic (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	dev_dbg (&qh->dev->dev,
 		"unlink qh%d-%04x/%p start %d [%d/%d us]\n",
-		qh->period, le32_to_cpup (&qh->hw_info2) & 0xffff,
+		qh->period,
+		le32_to_cpup (&qh->hw_info2) & (QH_CMASK | QH_SMASK),
 		qh, qh->start, qh->usecs, qh->c_usecs);
 
 	/* qh->qh_next still "live" to HC */
@@ -411,7 +412,7 @@ static void intr_deschedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	 * active high speed queues may need bigger delays...
 	 */
 	if (list_empty (&qh->qtd_list)
-			|| (__constant_cpu_to_le32 (0x0ff << 8)
+			|| (__constant_cpu_to_le32 (QH_CMASK)
 					& qh->hw_info2) != 0)
 		wait = 2;
 	else
@@ -533,7 +534,7 @@ static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	/* reuse the previous schedule slots, if we can */
 	if (frame < qh->period) {
-		uframe = ffs (le32_to_cpup (&qh->hw_info2) & 0x00ff);
+		uframe = ffs (le32_to_cpup (&qh->hw_info2) & QH_SMASK);
 		status = check_intr_schedule (ehci, frame, --uframe,
 				qh, &c_mask);
 	} else {
@@ -569,10 +570,10 @@ static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		qh->start = frame;
 
 		/* reset S-frame and (maybe) C-frame masks */
-		qh->hw_info2 &= __constant_cpu_to_le32 (~0xffff);
+		qh->hw_info2 &= __constant_cpu_to_le32(~(QH_CMASK | QH_SMASK));
 		qh->hw_info2 |= qh->period
 			? cpu_to_le32 (1 << uframe)
-			: __constant_cpu_to_le32 (0xff);
+			: __constant_cpu_to_le32 (QH_SMASK);
 		qh->hw_info2 |= c_mask;
 	} else
 		ehci_dbg (ehci, "reused qh %p schedule\n", qh);
@@ -588,7 +589,7 @@ static int intr_submit (
 	struct usb_host_endpoint *ep,
 	struct urb		*urb,
 	struct list_head	*qtd_list,
-	unsigned		mem_flags
+	gfp_t			mem_flags
 ) {
 	unsigned		epnum;
 	unsigned long		flags;
@@ -633,11 +634,11 @@ done:
 /* ehci_iso_stream ops work with both ITD and SITD */
 
 static struct ehci_iso_stream *
-iso_stream_alloc (unsigned mem_flags)
+iso_stream_alloc (gfp_t mem_flags)
 {
 	struct ehci_iso_stream *stream;
 
-	stream = kcalloc(1, sizeof *stream, mem_flags);
+	stream = kzalloc(sizeof *stream, mem_flags);
 	if (likely (stream != NULL)) {
 		INIT_LIST_HEAD(&stream->td_list);
 		INIT_LIST_HEAD(&stream->free_list);
@@ -699,6 +700,7 @@ iso_stream_init (
 
 	} else {
 		u32		addr;
+		int		think_time;
 
 		addr = dev->ttport << 24;
 		if (!ehci_is_TDI(ehci)
@@ -708,6 +710,9 @@ iso_stream_init (
 		addr |= epnum << 8;
 		addr |= dev->devnum;
 		stream->usecs = HS_USECS_ISO (maxp);
+		think_time = dev->tt ? dev->tt->think_time : 0;
+		stream->tt_usecs = NS_TO_US (think_time + usb_calc_bus_time (
+				dev->speed, is_input, 1, maxp));
 		if (is_input) {
 			u32	tmp;
 
@@ -846,7 +851,7 @@ iso_stream_find (struct ehci_hcd *ehci, struct urb *urb)
 /* ehci_iso_sched ops can be ITD-only or SITD-only */
 
 static struct ehci_iso_sched *
-iso_sched_alloc (unsigned packets, unsigned mem_flags)
+iso_sched_alloc (unsigned packets, gfp_t mem_flags)
 {
 	struct ehci_iso_sched	*iso_sched;
 	int			size = sizeof *iso_sched;
@@ -919,7 +924,7 @@ itd_urb_transaction (
 	struct ehci_iso_stream	*stream,
 	struct ehci_hcd		*ehci,
 	struct urb		*urb,
-	unsigned		mem_flags
+	gfp_t			mem_flags
 )
 {
 	struct ehci_itd		*itd;
@@ -1413,7 +1418,7 @@ itd_complete (
 /*-------------------------------------------------------------------------*/
 
 static int itd_submit (struct ehci_hcd *ehci, struct urb *urb,
-	unsigned mem_flags)
+	gfp_t mem_flags)
 {
 	int			status = -EINVAL;
 	unsigned long		flags;
@@ -1524,7 +1529,7 @@ sitd_urb_transaction (
 	struct ehci_iso_stream	*stream,
 	struct ehci_hcd		*ehci,
 	struct urb		*urb,
-	unsigned		mem_flags
+	gfp_t			mem_flags
 )
 {
 	struct ehci_sitd	*sitd;
@@ -1774,7 +1779,7 @@ sitd_complete (
 
 
 static int sitd_submit (struct ehci_hcd *ehci, struct urb *urb,
-	unsigned mem_flags)
+	gfp_t mem_flags)
 {
 	int			status = -EINVAL;
 	unsigned long		flags;

@@ -26,14 +26,13 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/usb_otg.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 
 #include <asm/arch/mux.h>
 #include <asm/arch/usb.h>
@@ -41,6 +40,7 @@
 
 /* These routines should handle the standard chip-specific modes
  * for usb0/1/2 ports, covering basic mux and transceiver setup.
+ * Call omap_usb_init() once, from INIT_MACHINE().
  *
  * Some board-*.c files will need to set up additional mux options,
  * like for suspend handling, vbus sensing, GPIOs, and the D+ pullup.

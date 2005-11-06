@@ -10,7 +10,7 @@
 #include <linux/linkage.h>
 
 #include <asm/assembler.h>
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/errno.h>
 #include <asm/hardware.h>
 #include <asm/sysirq.h>

@@ -1,0 +1,3 @@
+config EVB_PCI1
+	bool "Enable Second PCI (PCI1)"
+	depends on MIPS_EV64120

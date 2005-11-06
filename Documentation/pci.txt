@@ -84,7 +84,7 @@ Each entry consists of:
 
 Most drivers don't need to use the driver_data field.  Best practice
 for use of driver_data is to use it as an index into a static list of
-equivalant device types, not to use it as a pointer.
+equivalent device types, not to use it as a pointer.
 
 Have a table entry {PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID}
 to have probe() called for every PCI device known to the system.
@@ -266,20 +266,6 @@ port an old driver to the new PCI interface.  They are no longer present
 in the kernel as they aren't compatible with hotplug or PCI domains or
 having sane locking.
 
-pcibios_present() and		Since ages, you don't need to test presence
-pci_present()			of PCI subsystem when trying to talk to it.
-				If it's not there, the list of PCI devices
-				is empty and all functions for searching for
-				devices just return NULL.
-pcibios_(read|write)_*		Superseded by their pci_(read|write)_*
-				counterparts.
-pcibios_find_*			Superseded by their pci_get_* counterparts.
-pci_for_each_dev()		Superseded by pci_get_device()
-pci_for_each_dev_reverse()	Superseded by pci_find_device_reverse()
-pci_for_each_bus()		Superseded by pci_find_next_bus()
 pci_find_device()		Superseded by pci_get_device()
 pci_find_subsys()		Superseded by pci_get_subsys()
 pci_find_slot()			Superseded by pci_get_slot()
-pcibios_find_class()		Superseded by pci_get_class()
-pci_find_class()		Superseded by pci_get_class()
-pci_(read|write)_*_nodev()	Superseded by pci_bus_(read|write)_*()

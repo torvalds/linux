@@ -42,14 +42,12 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acinterp.h>
 #include <acpi/acevents.h>
 
 #define _COMPONENT          ACPI_EXECUTER
-	 ACPI_MODULE_NAME    ("exsystem")
-
+ACPI_MODULE_NAME("exsystem")
 
 /*******************************************************************************
  *
@@ -65,48 +63,41 @@
  *              interpreter is released.
  *
  ******************************************************************************/
-
-acpi_status
-acpi_ex_system_wait_semaphore (
-	acpi_handle                     semaphore,
-	u16                             timeout)
+acpi_status acpi_ex_system_wait_semaphore(acpi_handle semaphore, u16 timeout)
 {
-	acpi_status                     status;
-	acpi_status                     status2;
+	acpi_status status;
+	acpi_status status2;
 
+	ACPI_FUNCTION_TRACE("ex_system_wait_semaphore");
 
-	ACPI_FUNCTION_TRACE ("ex_system_wait_semaphore");
-
-
-	status = acpi_os_wait_semaphore (semaphore, 1, 0);
-	if (ACPI_SUCCESS (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_os_wait_semaphore(semaphore, 1, 0);
+	if (ACPI_SUCCESS(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	if (status == AE_TIME) {
 		/* We must wait, so unlock the interpreter */
 
-		acpi_ex_exit_interpreter ();
+		acpi_ex_exit_interpreter();
 
-		status = acpi_os_wait_semaphore (semaphore, 1, timeout);
+		status = acpi_os_wait_semaphore(semaphore, 1, timeout);
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-			"*** Thread awake after blocking, %s\n",
-			acpi_format_exception (status)));
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "*** Thread awake after blocking, %s\n",
+				  acpi_format_exception(status)));
 
 		/* Reacquire the interpreter */
 
-		status2 = acpi_ex_enter_interpreter ();
-		if (ACPI_FAILURE (status2)) {
+		status2 = acpi_ex_enter_interpreter();
+		if (ACPI_FAILURE(status2)) {
 			/* Report fatal error, could not acquire interpreter */
 
-			return_ACPI_STATUS (status2);
+			return_ACPI_STATUS(status2);
 		}
 	}
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -125,34 +116,28 @@ acpi_ex_system_wait_semaphore (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ex_system_do_stall (
-	u32                             how_long)
+acpi_status acpi_ex_system_do_stall(u32 how_long)
 {
-	acpi_status                     status = AE_OK;
+	acpi_status status = AE_OK;
 
+	ACPI_FUNCTION_ENTRY();
 
-	ACPI_FUNCTION_ENTRY ();
-
-
-	if (how_long > 255) /* 255 microseconds */ {
+	if (how_long > 255) {	/* 255 microseconds */
 		/*
 		 * Longer than 255 usec, this is an error
 		 *
 		 * (ACPI specifies 100 usec as max, but this gives some slack in
 		 * order to support existing BIOSs)
 		 */
-		ACPI_REPORT_ERROR (("Stall: Time parameter is too large (%d)\n",
-			how_long));
+		ACPI_REPORT_ERROR(("Stall: Time parameter is too large (%d)\n",
+				   how_long));
 		status = AE_AML_OPERAND_VALUE;
-	}
-	else {
-		acpi_os_stall (how_long);
+	} else {
+		acpi_os_stall(how_long);
 	}
 
 	return (status);
 }
-
 
 /*******************************************************************************
  *
@@ -167,28 +152,23 @@ acpi_ex_system_do_stall (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ex_system_do_suspend (
-	acpi_integer                    how_long)
+acpi_status acpi_ex_system_do_suspend(acpi_integer how_long)
 {
-	acpi_status                     status;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	/* Since this thread will sleep, we must release the interpreter */
 
-	acpi_ex_exit_interpreter ();
+	acpi_ex_exit_interpreter();
 
-	acpi_os_sleep (how_long);
+	acpi_os_sleep(how_long);
 
 	/* And now we must get the interpreter again */
 
-	status = acpi_ex_enter_interpreter ();
+	status = acpi_ex_enter_interpreter();
 	return (status);
 }
-
 
 /*******************************************************************************
  *
@@ -206,32 +186,29 @@ acpi_ex_system_do_suspend (
  ******************************************************************************/
 
 acpi_status
-acpi_ex_system_acquire_mutex (
-	union acpi_operand_object       *time_desc,
-	union acpi_operand_object       *obj_desc)
+acpi_ex_system_acquire_mutex(union acpi_operand_object * time_desc,
+			     union acpi_operand_object * obj_desc)
 {
-	acpi_status                     status = AE_OK;
+	acpi_status status = AE_OK;
 
-
-	ACPI_FUNCTION_TRACE_PTR ("ex_system_acquire_mutex", obj_desc);
-
+	ACPI_FUNCTION_TRACE_PTR("ex_system_acquire_mutex", obj_desc);
 
 	if (!obj_desc) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Support for the _GL_ Mutex object -- go get the global lock */
 
 	if (obj_desc->mutex.semaphore == acpi_gbl_global_lock_semaphore) {
-		status = acpi_ev_acquire_global_lock ((u16) time_desc->integer.value);
-		return_ACPI_STATUS (status);
+		status =
+		    acpi_ev_acquire_global_lock((u16) time_desc->integer.value);
+		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_ex_system_wait_semaphore (obj_desc->mutex.semaphore,
-			 (u16) time_desc->integer.value);
-	return_ACPI_STATUS (status);
+	status = acpi_ex_system_wait_semaphore(obj_desc->mutex.semaphore,
+					       (u16) time_desc->integer.value);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -248,31 +225,26 @@ acpi_ex_system_acquire_mutex (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ex_system_release_mutex (
-	union acpi_operand_object       *obj_desc)
+acpi_status acpi_ex_system_release_mutex(union acpi_operand_object *obj_desc)
 {
-	acpi_status                     status = AE_OK;
+	acpi_status status = AE_OK;
 
-
-	ACPI_FUNCTION_TRACE ("ex_system_release_mutex");
-
+	ACPI_FUNCTION_TRACE("ex_system_release_mutex");
 
 	if (!obj_desc) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Support for the _GL_ Mutex object -- release the global lock */
 
 	if (obj_desc->mutex.semaphore == acpi_gbl_global_lock_semaphore) {
-		status = acpi_ev_release_global_lock ();
-		return_ACPI_STATUS (status);
+		status = acpi_ev_release_global_lock();
+		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_os_signal_semaphore (obj_desc->mutex.semaphore, 1);
-	return_ACPI_STATUS (status);
+	status = acpi_os_signal_semaphore(obj_desc->mutex.semaphore, 1);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -287,23 +259,18 @@ acpi_ex_system_release_mutex (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ex_system_signal_event (
-	union acpi_operand_object       *obj_desc)
+acpi_status acpi_ex_system_signal_event(union acpi_operand_object *obj_desc)
 {
-	acpi_status                     status = AE_OK;
+	acpi_status status = AE_OK;
 
-
-	ACPI_FUNCTION_TRACE ("ex_system_signal_event");
-
+	ACPI_FUNCTION_TRACE("ex_system_signal_event");
 
 	if (obj_desc) {
-		status = acpi_os_signal_semaphore (obj_desc->event.semaphore, 1);
+		status = acpi_os_signal_semaphore(obj_desc->event.semaphore, 1);
 	}
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -321,24 +288,22 @@ acpi_ex_system_signal_event (
  ******************************************************************************/
 
 acpi_status
-acpi_ex_system_wait_event (
-	union acpi_operand_object       *time_desc,
-	union acpi_operand_object       *obj_desc)
+acpi_ex_system_wait_event(union acpi_operand_object *time_desc,
+			  union acpi_operand_object *obj_desc)
 {
-	acpi_status                     status = AE_OK;
+	acpi_status status = AE_OK;
 
-
-	ACPI_FUNCTION_TRACE ("ex_system_wait_event");
-
+	ACPI_FUNCTION_TRACE("ex_system_wait_event");
 
 	if (obj_desc) {
-		status = acpi_ex_system_wait_semaphore (obj_desc->event.semaphore,
-				 (u16) time_desc->integer.value);
+		status =
+		    acpi_ex_system_wait_semaphore(obj_desc->event.semaphore,
+						  (u16) time_desc->integer.
+						  value);
 	}
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -352,27 +317,23 @@ acpi_ex_system_wait_event (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ex_system_reset_event (
-	union acpi_operand_object       *obj_desc)
+acpi_status acpi_ex_system_reset_event(union acpi_operand_object *obj_desc)
 {
-	acpi_status                     status = AE_OK;
-	void                            *temp_semaphore;
+	acpi_status status = AE_OK;
+	void *temp_semaphore;
 
-
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	/*
 	 * We are going to simply delete the existing semaphore and
 	 * create a new one!
 	 */
-	status = acpi_os_create_semaphore (ACPI_NO_UNIT_LIMIT, 0, &temp_semaphore);
-	if (ACPI_SUCCESS (status)) {
-		(void) acpi_os_delete_semaphore (obj_desc->event.semaphore);
+	status =
+	    acpi_os_create_semaphore(ACPI_NO_UNIT_LIMIT, 0, &temp_semaphore);
+	if (ACPI_SUCCESS(status)) {
+		(void)acpi_os_delete_semaphore(obj_desc->event.semaphore);
 		obj_desc->event.semaphore = temp_semaphore;
 	}
 
 	return (status);
 }
-

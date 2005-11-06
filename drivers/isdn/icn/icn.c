@@ -1650,7 +1650,7 @@ static void __exit icn_exit(void)
 {
 	isdn_ctrl cmd;
 	icn_card *card = cards;
-	icn_card *last;
+	icn_card *last, *tmpcard;
 	int i;
 	unsigned long flags;
 
@@ -1670,8 +1670,9 @@ static void __exit icn_exit(void)
 			for (i = 0; i < ICN_BCH; i++)
 				icn_free_queue(card, i);
 		}
-		card = card->next;
+		tmpcard = card->next;
 		spin_unlock_irqrestore(&card->lock, flags);
+		card = tmpcard;
 	}
 	card = cards;
 	cards = NULL;

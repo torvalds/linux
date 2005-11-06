@@ -155,10 +155,7 @@ static const char *amikbd_messages[8] = {
 	[7] = KERN_WARNING "amikbd: keyboard interrupt\n"
 };
 
-static struct input_dev amikbd_dev;
-
-static char *amikbd_name = "Amiga keyboard";
-static char *amikbd_phys = "amikbd/input0";
+static struct input_dev *amikbd_dev;
 
 static irqreturn_t amikbd_interrupt(int irq, void *dummy, struct pt_regs *fp)
 {
@@ -176,16 +173,16 @@ static irqreturn_t amikbd_interrupt(int irq, void *dummy, struct pt_regs *fp)
 
 		scancode = amikbd_keycode[scancode];
 
-		input_regs(&amikbd_dev, fp);
+		input_regs(amikbd_dev, fp);
 
 		if (scancode == KEY_CAPSLOCK) {	/* CapsLock is a toggle switch key on Amiga */
-			input_report_key(&amikbd_dev, scancode, 1);
-			input_report_key(&amikbd_dev, scancode, 0);
-			input_sync(&amikbd_dev);
+			input_report_key(amikbd_dev, scancode, 1);
+			input_report_key(amikbd_dev, scancode, 0);
 		} else {
-			input_report_key(&amikbd_dev, scancode, down);
-			input_sync(&amikbd_dev);
+			input_report_key(amikbd_dev, scancode, down);
 		}
+
+		input_sync(amikbd_dev);
 	} else				/* scancodes >= 0x78 are error codes */
 		printk(amikbd_messages[scancode - 0x78]);
 
@@ -202,39 +199,41 @@ static int __init amikbd_init(void)
 	if (!request_mem_region(CIAA_PHYSADDR-1+0xb00, 0x100, "amikeyb"))
 		return -EBUSY;
 
-	init_input_dev(&amikbd_dev);
+	amikbd_dev = input_allocate_device();
+	if (!amikbd_dev) {
+		printk(KERN_ERR "amikbd: not enough memory for input device\n");
+		release_mem_region(CIAA_PHYSADDR - 1 + 0xb00, 0x100);
+		return -ENOMEM;
+	}
 
-	amikbd_dev.evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
-	amikbd_dev.keycode = amikbd_keycode;
-	amikbd_dev.keycodesize = sizeof(unsigned char);
-	amikbd_dev.keycodemax = ARRAY_SIZE(amikbd_keycode);
+	amikbd_dev->name = "Amiga Keyboard";
+	amikbd_dev->phys = "amikbd/input0";
+	amikbd_dev->id.bustype = BUS_AMIGA;
+	amikbd_dev->id.vendor = 0x0001;
+	amikbd_dev->id.product = 0x0001;
+	amikbd_dev->id.version = 0x0100;
+
+	amikbd_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
+	amikbd_dev->keycode = amikbd_keycode;
+	amikbd_dev->keycodesize = sizeof(unsigned char);
+	amikbd_dev->keycodemax = ARRAY_SIZE(amikbd_keycode);
 
 	for (i = 0; i < 0x78; i++)
 		if (amikbd_keycode[i])
-			set_bit(amikbd_keycode[i], amikbd_dev.keybit);
+			set_bit(amikbd_keycode[i], amikbd_dev->keybit);
 
 	ciaa.cra &= ~0x41;	 /* serial data in, turn off TA */
 	request_irq(IRQ_AMIGA_CIAA_SP, amikbd_interrupt, 0, "amikbd", amikbd_interrupt);
 
-	amikbd_dev.name = amikbd_name;
-	amikbd_dev.phys = amikbd_phys;
-	amikbd_dev.id.bustype = BUS_AMIGA;
-	amikbd_dev.id.vendor = 0x0001;
-	amikbd_dev.id.product = 0x0001;
-	amikbd_dev.id.version = 0x0100;
-
-	input_register_device(&amikbd_dev);
-
-	printk(KERN_INFO "input: %s\n", amikbd_name);
-
+	input_register_device(amikbd_dev);
 	return 0;
 }
 
 static void __exit amikbd_exit(void)
 {
-	input_unregister_device(&amikbd_dev);
 	free_irq(IRQ_AMIGA_CIAA_SP, amikbd_interrupt);
-	release_mem_region(CIAA_PHYSADDR-1+0xb00, 0x100);
+	input_unregister_device(amikbd_dev);
+	release_mem_region(CIAA_PHYSADDR - 1 + 0xb00, 0x100);
 }
 
 module_init(amikbd_init);

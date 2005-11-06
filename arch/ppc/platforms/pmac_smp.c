@@ -33,6 +33,7 @@
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/hardirq.h>
+#include <linux/cpu.h>
 
 #include <asm/ptrace.h>
 #include <asm/atomic.h>
@@ -55,9 +56,7 @@
  * Powersurge (old powermac SMP) support.
  */
 
-extern void __secondary_start_psurge(void);
-extern void __secondary_start_psurge2(void);	/* Temporary horrible hack */
-extern void __secondary_start_psurge3(void);	/* Temporary horrible hack */
+extern void __secondary_start_pmac_0(void);
 
 /* Addresses for powersurge registers */
 #define HAMMERHEAD_BASE		0xf8000000
@@ -119,7 +118,7 @@ static volatile int sec_tb_reset = 0;
 static unsigned int pri_tb_hi, pri_tb_lo;
 static unsigned int pri_tb_stamp;
 
-static void __init core99_init_caches(int cpu)
+static void __devinit core99_init_caches(int cpu)
 {
 	if (!cpu_has_feature(CPU_FTR_L2CR))
 		return;
@@ -187,7 +186,7 @@ static inline void psurge_clr_ipi(int cpu)
  */
 static unsigned long psurge_smp_message[NR_CPUS];
 
-void __pmac psurge_smp_message_recv(struct pt_regs *regs)
+void psurge_smp_message_recv(struct pt_regs *regs)
 {
 	int cpu = smp_processor_id();
 	int msg;
@@ -204,14 +203,13 @@ void __pmac psurge_smp_message_recv(struct pt_regs *regs)
 			smp_message_recv(msg, regs);
 }
 
-irqreturn_t __pmac psurge_primary_intr(int irq, void *d, struct pt_regs *regs)
+irqreturn_t psurge_primary_intr(int irq, void *d, struct pt_regs *regs)
 {
 	psurge_smp_message_recv(regs);
 	return IRQ_HANDLED;
 }
 
-static void __pmac smp_psurge_message_pass(int target, int msg, unsigned long data,
-					   int wait)
+static void smp_psurge_message_pass(int target, int msg)
 {
 	int i;
 
@@ -346,7 +344,7 @@ static int __init smp_psurge_probe(void)
 
 static void __init smp_psurge_kick_cpu(int nr)
 {
-	void (*start)(void) = __secondary_start_psurge;
+	unsigned long start = __pa(__secondary_start_pmac_0) + nr * 8;
 	unsigned long a;
 
 	/* may need to flush here if secondary bats aren't setup */
@@ -356,17 +354,7 @@ static void __init smp_psurge_kick_cpu(int nr)
 
 	if (ppc_md.progress) ppc_md.progress("smp_psurge_kick_cpu", 0x353);
 
-	/* setup entry point of secondary processor */
-	switch (nr) {
-	case 2:
-		start = __secondary_start_psurge2;
-		break;
-	case 3:
-		start = __secondary_start_psurge3;
-		break;
-	}
-
-	out_be32(psurge_start, __pa(start));
+	out_be32(psurge_start, start);
 	mb();
 
 	psurge_set_ipi(nr);
@@ -500,14 +488,14 @@ static int __init smp_core99_probe(void)
 	return ncpus;
 }
 
-static void __init smp_core99_kick_cpu(int nr)
+static void __devinit smp_core99_kick_cpu(int nr)
 {
 	unsigned long save_vector, new_vector;
 	unsigned long flags;
 
 	volatile unsigned long *vector
 		 = ((volatile unsigned long *)(KERNELBASE+0x100));
-	if (nr < 1 || nr > 3)
+	if (nr < 0 || nr > 3)
 		return;
 	if (ppc_md.progress) ppc_md.progress("smp_core99_kick_cpu", 0x346);
 
@@ -518,19 +506,9 @@ static void __init smp_core99_kick_cpu(int nr)
 	save_vector = *vector;
 
 	/* Setup fake reset vector that does	
-	 *   b __secondary_start_psurge - KERNELBASE
+	 *   b __secondary_start_pmac_0 + nr*8 - KERNELBASE
 	 */
-	switch(nr) {
-		case 1:
-			new_vector = (unsigned long)__secondary_start_psurge;
-			break;
-		case 2:
-			new_vector = (unsigned long)__secondary_start_psurge2;
-			break;
-		case 3:
-			new_vector = (unsigned long)__secondary_start_psurge3;
-			break;
-	}
+	new_vector = (unsigned long) __secondary_start_pmac_0 + nr * 8;
 	*vector = 0x48000002 + new_vector - KERNELBASE;
 
 	/* flush data cache and inval instruction cache */
@@ -554,7 +532,7 @@ static void __init smp_core99_kick_cpu(int nr)
 	if (ppc_md.progress) ppc_md.progress("smp_core99_kick_cpu done", 0x347);
 }
 
-static void __init smp_core99_setup_cpu(int cpu_nr)
+static void __devinit smp_core99_setup_cpu(int cpu_nr)
 {
 	/* Setup L2/L3 */
 	if (cpu_nr != 0)
@@ -650,7 +628,7 @@ void smp_core99_give_timebase(void)
 
 
 /* PowerSurge-style Macs */
-struct smp_ops_t psurge_smp_ops __pmacdata = {
+struct smp_ops_t psurge_smp_ops = {
 	.message_pass	= smp_psurge_message_pass,
 	.probe		= smp_psurge_probe,
 	.kick_cpu	= smp_psurge_kick_cpu,
@@ -660,7 +638,7 @@ struct smp_ops_t psurge_smp_ops __pmacdata = {
 };
 
 /* Core99 Macs (dual G4s) */
-struct smp_ops_t core99_smp_ops __pmacdata = {
+struct smp_ops_t core99_smp_ops = {
 	.message_pass	= smp_openpic_message_pass,
 	.probe		= smp_core99_probe,
 	.kick_cpu	= smp_core99_kick_cpu,
@@ -668,3 +646,47 @@ struct smp_ops_t core99_smp_ops __pmacdata = {
 	.give_timebase	= smp_core99_give_timebase,
 	.take_timebase	= smp_core99_take_timebase,
 };
+
+#ifdef CONFIG_HOTPLUG_CPU
+
+int __cpu_disable(void)
+{
+	cpu_clear(smp_processor_id(), cpu_online_map);
+
+	/* XXX reset cpu affinity here */
+	openpic_set_priority(0xf);
+	asm volatile("mtdec %0" : : "r" (0x7fffffff));
+	mb();
+	udelay(20);
+	asm volatile("mtdec %0" : : "r" (0x7fffffff));
+	return 0;
+}
+
+extern void low_cpu_die(void) __attribute__((noreturn)); /* in pmac_sleep.S */
+static int cpu_dead[NR_CPUS];
+
+void cpu_die(void)
+{
+	local_irq_disable();
+	cpu_dead[smp_processor_id()] = 1;
+	mb();
+	low_cpu_die();
+}
+
+void __cpu_die(unsigned int cpu)
+{
+	int timeout;
+
+	timeout = 1000;
+	while (!cpu_dead[cpu]) {
+		if (--timeout == 0) {
+			printk("CPU %u refused to die!\n", cpu);
+			break;
+		}
+		msleep(1);
+	}
+	cpu_callin_map[cpu] = 0;
+	cpu_dead[cpu] = 0;
+}
+
+#endif

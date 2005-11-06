@@ -20,7 +20,6 @@
 #include <linux/major.h>
 #include <linux/smp_lock.h>
 #include <linux/device.h>
-#include <linux/devfs_fs_kernel.h>
 #include <linux/compat.h>
 
 struct evdev {
@@ -160,6 +159,8 @@ struct input_event_compat {
 #  define COMPAT_TEST IS_IA32_PROCESS(ia64_task_regs(current))
 #elif defined(CONFIG_ARCH_S390)
 #  define COMPAT_TEST test_thread_flag(TIF_31BIT)
+#elif defined(CONFIG_MIPS)
+#  define COMPAT_TEST (current->thread.mflags & MF_32BIT_ADDR)
 #else
 #  define COMPAT_TEST test_thread_flag(TIF_32BIT)
 #endif
@@ -320,7 +321,7 @@ static long evdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (t < 0 || t >= dev->keycodemax || !dev->keycodesize) return -EINVAL;
 			if (get_user(v, ip + 1)) return -EFAULT;
 			if (v < 0 || v > KEY_MAX) return -EINVAL;
-			if (v >> (dev->keycodesize * 8)) return -EINVAL;
+			if (dev->keycodesize < sizeof(v) && (v >> (dev->keycodesize * 8))) return -EINVAL;
 			u = SET_INPUT_KEYCODE(dev, t, v);
 			clear_bit(u, dev->keybit);
 			set_bit(v, dev->keybit);
@@ -391,6 +392,7 @@ static long evdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 						case EV_LED: bits = dev->ledbit; len = LED_MAX; break;
 						case EV_SND: bits = dev->sndbit; len = SND_MAX; break;
 						case EV_FF:  bits = dev->ffbit;  len = FF_MAX;  break;
+						case EV_SW:  bits = dev->swbit;  len = SW_MAX;  break;
 						default: return -EINVAL;
 					}
 					len = NBITS(len) * sizeof(long);
@@ -417,6 +419,13 @@ static long evdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					len = NBITS(SND_MAX) * sizeof(long);
 					if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
 					return copy_to_user(p, dev->snd, len) ? -EFAULT : len;
+				}
+
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGSW(0))) {
+					int len;
+					len = NBITS(SW_MAX) * sizeof(long);
+					if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd);
+					return copy_to_user(p, dev->sw, len) ? -EFAULT : len;
 				}
 
 				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGNAME(0))) {
@@ -499,7 +508,7 @@ do { \
 	int len = NBITS_COMPAT((max)) * sizeof(compat_long_t); \
 	if (len > _IOC_SIZE(cmd)) len = _IOC_SIZE(cmd); \
 	for (i = 0; i < len / sizeof(compat_long_t); i++) \
-		if (copy_to_user((compat_long_t*) p + i, \
+		if (copy_to_user((compat_long_t __user *) p + i, \
 				 (compat_long_t*) (bit) + i + 1 - ((i % 2) << 1), \
 				 sizeof(compat_long_t))) \
 			return -EFAULT; \
@@ -556,6 +565,7 @@ static long evdev_ioctl_compat(struct file *file, unsigned int cmd, unsigned lon
 						case EV_LED: bits = dev->ledbit; max = LED_MAX; break;
 						case EV_SND: bits = dev->sndbit; max = SND_MAX; break;
 						case EV_FF:  bits = dev->ffbit;  max = FF_MAX;  break;
+						case EV_SW:  bits = dev->swbit;  max = SW_MAX;  break;
 						default: return -EINVAL;
 					}
 					bit_to_user(bits, max);
@@ -569,6 +579,9 @@ static long evdev_ioctl_compat(struct file *file, unsigned int cmd, unsigned lon
 
 				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGSND(0)))
 					bit_to_user(dev->snd, SND_MAX);
+
+				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGSW(0)))
+					bit_to_user(dev->sw, SW_MAX);
 
 				if (_IOC_NR(cmd) == _IOC_NR(EVIOCGNAME(0))) {
 					int len;
@@ -652,6 +665,7 @@ static struct file_operations evdev_fops = {
 static struct input_handle *evdev_connect(struct input_handler *handler, struct input_dev *dev, struct input_device_id *id)
 {
 	struct evdev *evdev;
+	struct class_device *cdev;
 	int minor;
 
 	for (minor = 0; minor < EVDEV_MINORS && evdev_table[minor]; minor++);
@@ -677,11 +691,13 @@ static struct input_handle *evdev_connect(struct input_handler *handler, struct 
 
 	evdev_table[minor] = evdev;
 
-	devfs_mk_cdev(MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor),
-			S_IFCHR|S_IRUGO|S_IWUSR, "input/event%d", minor);
-	class_device_create(input_class,
+	cdev = class_device_create(&input_class, &dev->cdev,
 			MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + minor),
-			dev->dev, "event%d", minor);
+			dev->cdev.dev, evdev->name);
+
+	/* temporary symlink to keep userspace happy */
+	sysfs_create_link(&input_class.subsys.kset.kobj, &cdev->kobj,
+			  evdev->name);
 
 	return &evdev->handle;
 }
@@ -691,9 +707,9 @@ static void evdev_disconnect(struct input_handle *handle)
 	struct evdev *evdev = handle->private;
 	struct evdev_list *list;
 
-	class_device_destroy(input_class,
+	sysfs_remove_link(&input_class.subsys.kset.kobj, evdev->name);
+	class_device_destroy(&input_class,
 			MKDEV(INPUT_MAJOR, EVDEV_MINOR_BASE + evdev->minor));
-	devfs_remove("input/event%d", evdev->minor);
 	evdev->exist = 0;
 
 	if (evdev->open) {

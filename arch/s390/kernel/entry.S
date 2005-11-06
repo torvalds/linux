@@ -18,7 +18,7 @@
 #include <asm/errno.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/unistd.h>
 #include <asm/page.h>
 
@@ -108,7 +108,7 @@ STACK_SIZE  = 1 << STACK_SHIFT
 	bl	BASED(0f)
 	l	%r14,BASED(.Lcleanup_critical)
 	basr	%r14,%r14
-	tm	0(%r12),0x01		# retest problem state after cleanup
+	tm	1(%r12),0x01		# retest problem state after cleanup
 	bnz	BASED(1f)
 0:	l	%r14,__LC_ASYNC_STACK	# are we already on the async stack ?
 	slr	%r14,%r15
@@ -138,14 +138,14 @@ STACK_SIZE  = 1 << STACK_SHIFT
 	st	%r12,__SF_BACKCHAIN(%r15)	# clear back chain
 	.endm
 
-	.macro  RESTORE_ALL sync
-	mvc	__LC_RETURN_PSW(8),SP_PSW(%r15) # move user PSW to lowcore
+	.macro  RESTORE_ALL psworg,sync
+	mvc	\psworg(8),SP_PSW(%r15) # move user PSW to lowcore
 	.if !\sync
-	ni	__LC_RETURN_PSW+1,0xfd	# clear wait state bit
+	ni	\psworg+1,0xfd		# clear wait state bit
 	.endif
 	lm	%r0,%r15,SP_R0(%r15)	# load gprs 0-15 of user
 	STORE_TIMER __LC_EXIT_TIMER
-	lpsw	__LC_RETURN_PSW		# back to caller
+	lpsw	\psworg			# back to caller
 	.endm
 
 /*
@@ -235,7 +235,7 @@ sysc_return:
 	tm	__TI_flags+3(%r9),_TIF_WORK_SVC
 	bnz	BASED(sysc_work)  # there is work to do (signals etc.)
 sysc_leave:
-        RESTORE_ALL 1
+        RESTORE_ALL __LC_RETURN_PSW,1
 
 #
 # recheck if there is more work to do
@@ -311,8 +311,6 @@ sysc_singlestep:
 	l	%r1,BASED(.Lhandle_per)	# load adr. of per handler
 	la	%r14,BASED(sysc_return)	# load adr. of system return
 	br	%r1			# branch to do_single_step
-
-__critical_end:
 
 #
 # call trace before and after sys_call
@@ -571,7 +569,8 @@ io_return:
 	tm	__TI_flags+3(%r9),_TIF_WORK_INT
 	bnz	BASED(io_work)         # there is work to do (signals etc.)
 io_leave:
-        RESTORE_ALL 0
+        RESTORE_ALL __LC_RETURN_PSW,0
+io_done:
 
 #ifdef CONFIG_PREEMPT
 io_preempt:
@@ -621,7 +620,7 @@ io_work_loop:
 #
 io_mcck_pending:
 	l	%r1,BASED(.Ls390_handle_mcck)
-	l	%r14,BASED(io_work_loop)
+	la	%r14,BASED(io_work_loop)
 	br	%r1		       # TIF bit will be cleared by handler
 
 #
@@ -674,6 +673,8 @@ ext_no_vtime:
 	basr	%r14,%r1
 	b	BASED(io_return)
 
+__critical_end:
+
 /*
  * Machine check handler routines
  */
@@ -681,6 +682,7 @@ ext_no_vtime:
         .globl mcck_int_handler
 mcck_int_handler:
 	spt	__LC_CPU_TIMER_SAVE_AREA	# revalidate cpu timer
+	mvc	__LC_ASYNC_ENTER_TIMER(8),__LC_CPU_TIMER_SAVE_AREA
 	lm	%r0,%r15,__LC_GPREGS_SAVE_AREA	# revalidate gprs
 	SAVE_ALL_BASE __LC_SAVE_AREA+32
 	la	%r12,__LC_MCK_OLD_PSW
@@ -693,17 +695,8 @@ mcck_int_handler:
 	mvc	__LC_ASYNC_ENTER_TIMER(8),__LC_LAST_UPDATE_TIMER
 	mvc	__LC_SYNC_ENTER_TIMER(8),__LC_LAST_UPDATE_TIMER
 	mvc	__LC_EXIT_TIMER(8),__LC_LAST_UPDATE_TIMER
-0:	tm	__LC_MCCK_CODE+2,0x08   # mwp of old psw valid?
-	bno	BASED(mcck_no_vtime)	# no -> skip cleanup critical
-	tm	__LC_MCK_OLD_PSW+1,0x01 # interrupting from user ?
-	bz	BASED(mcck_no_vtime)
-	UPDATE_VTIME __LC_EXIT_TIMER,__LC_ASYNC_ENTER_TIMER,__LC_USER_TIMER
-	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
-	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_ASYNC_ENTER_TIMER
-mcck_no_vtime:
 #endif
-0:
-	tm	__LC_MCCK_CODE+2,0x09   # mwp + ia of old psw valid?
+0:	tm	__LC_MCCK_CODE+2,0x09   # mwp + ia of old psw valid?
 	bno	BASED(mcck_int_main)	# no -> skip cleanup critical
 	tm	__LC_MCK_OLD_PSW+1,0x01	# test problem state bit
 	bnz	BASED(mcck_int_main)	# from user -> load async stack
@@ -720,6 +713,16 @@ mcck_int_main:
 	be	BASED(0f)
 	l	%r15,__LC_PANIC_STACK	# load panic stack
 0:	CREATE_STACK_FRAME __LC_MCK_OLD_PSW,__LC_SAVE_AREA+32
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	tm	__LC_MCCK_CODE+2,0x08   # mwp of old psw valid?
+	bno	BASED(mcck_no_vtime)	# no -> skip cleanup critical
+	tm	__LC_MCK_OLD_PSW+1,0x01 # interrupting from user ?
+	bz	BASED(mcck_no_vtime)
+	UPDATE_VTIME __LC_EXIT_TIMER,__LC_ASYNC_ENTER_TIMER,__LC_USER_TIMER
+	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
+	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_ASYNC_ENTER_TIMER
+mcck_no_vtime:
+#endif
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
 	l       %r1,BASED(.Ls390_mcck)
@@ -737,7 +740,7 @@ mcck_int_main:
 	l	%r1,BASED(.Ls390_handle_mcck)
 	basr	%r14,%r1		# call machine check handler
 mcck_return:
-        RESTORE_ALL 0
+        RESTORE_ALL __LC_RETURN_MCCK_PSW,0
 
 #ifdef CONFIG_SMP
 /*
@@ -803,6 +806,10 @@ cleanup_table_sysc_leave:
 	.long	sysc_leave + 0x80000000, sysc_work_loop + 0x80000000
 cleanup_table_sysc_work_loop:
 	.long	sysc_work_loop + 0x80000000, sysc_reschedule + 0x80000000
+cleanup_table_io_leave:
+	.long	io_leave + 0x80000000, io_done + 0x80000000
+cleanup_table_io_work_loop:
+	.long	io_work_loop + 0x80000000, io_mcck_pending + 0x80000000
 
 cleanup_critical:
 	clc	4(4,%r12),BASED(cleanup_table_system_call)
@@ -825,10 +832,26 @@ cleanup_critical:
 	clc	4(4,%r12),BASED(cleanup_table_sysc_work_loop+4)
 	bl	BASED(cleanup_sysc_return)
 0:
+	clc	4(4,%r12),BASED(cleanup_table_io_leave)
+	bl	BASED(0f)
+	clc	4(4,%r12),BASED(cleanup_table_io_leave+4)
+	bl	BASED(cleanup_io_leave)
+0:
+	clc	4(4,%r12),BASED(cleanup_table_io_work_loop)
+	bl	BASED(0f)
+	clc	4(4,%r12),BASED(cleanup_table_io_work_loop+4)
+	bl	BASED(cleanup_io_return)
+0:
 	br	%r14
 
 cleanup_system_call:
 	mvc	__LC_RETURN_PSW(8),0(%r12)
+	c	%r12,BASED(.Lmck_old_psw)
+	be	BASED(0f)
+	la	%r12,__LC_SAVE_AREA+16
+	b	BASED(1f)
+0:	la	%r12,__LC_SAVE_AREA+32
+1:
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	clc	__LC_RETURN_PSW+4(4),BASED(cleanup_system_call_insn+4)
 	bh	BASED(0f)
@@ -838,11 +861,13 @@ cleanup_system_call:
 #endif
 	clc	__LC_RETURN_PSW+4(4),BASED(cleanup_system_call_insn)
 	bh	BASED(0f)
-	mvc	__LC_SAVE_AREA(16),__LC_SAVE_AREA+16
-0:	st	%r13,__LC_SAVE_AREA+20
+	mvc	__LC_SAVE_AREA(16),0(%r12)
+0:	st	%r13,4(%r12)
+	st	%r12,__LC_SAVE_AREA+48	# argh
 	SAVE_ALL __LC_SVC_OLD_PSW,__LC_SAVE_AREA,1
 	CREATE_STACK_FRAME __LC_SVC_OLD_PSW,__LC_SAVE_AREA
-	st	%r15,__LC_SAVE_AREA+28
+	l	%r12,__LC_SAVE_AREA+48	# argh
+	st	%r15,12(%r12)
 	lh	%r7,0x8a
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 cleanup_vtime:
@@ -879,23 +904,57 @@ cleanup_sysc_return:
 
 cleanup_sysc_leave:
 	clc	4(4,%r12),BASED(cleanup_sysc_leave_insn)
-	be	BASED(0f)
+	be	BASED(2f)
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
 	clc	4(4,%r12),BASED(cleanup_sysc_leave_insn+4)
-	be	BASED(0f)
+	be	BASED(2f)
 #endif
 	mvc	__LC_RETURN_PSW(8),SP_PSW(%r15)
-	mvc	__LC_SAVE_AREA+16(16),SP_R12(%r15)
-	lm	%r0,%r11,SP_R0(%r15)
+	c	%r12,BASED(.Lmck_old_psw)
+	bne	BASED(0f)
+	mvc	__LC_SAVE_AREA+32(16),SP_R12(%r15)
+	b	BASED(1f)
+0:	mvc	__LC_SAVE_AREA+16(16),SP_R12(%r15)
+1:	lm	%r0,%r11,SP_R0(%r15)
 	l	%r15,SP_R15(%r15)
-0:	la	%r12,__LC_RETURN_PSW
+2:	la	%r12,__LC_RETURN_PSW
 	br	%r14
 cleanup_sysc_leave_insn:
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 	.long	sysc_leave + 14 + 0x80000000
 #endif
 	.long	sysc_leave + 10 + 0x80000000
+
+cleanup_io_return:
+	mvc	__LC_RETURN_PSW(4),0(%r12)
+	mvc	__LC_RETURN_PSW+4(4),BASED(cleanup_table_io_work_loop)
+	la	%r12,__LC_RETURN_PSW
+	br	%r14
+
+cleanup_io_leave:
+	clc	4(4,%r12),BASED(cleanup_io_leave_insn)
+	be	BASED(2f)
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
+	clc	4(4,%r12),BASED(cleanup_io_leave_insn+4)
+	be	BASED(2f)
+#endif
+	mvc	__LC_RETURN_PSW(8),SP_PSW(%r15)
+	c	%r12,BASED(.Lmck_old_psw)
+	bne	BASED(0f)
+	mvc	__LC_SAVE_AREA+32(16),SP_R12(%r15)
+	b	BASED(1f)
+0:	mvc	__LC_SAVE_AREA+16(16),SP_R12(%r15)
+1:	lm	%r0,%r11,SP_R0(%r15)
+	l	%r15,SP_R15(%r15)
+2:	la	%r12,__LC_RETURN_PSW
+	br	%r14
+cleanup_io_leave_insn:
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	.long	io_leave + 18 + 0x80000000
+#endif
+	.long	io_leave + 14 + 0x80000000
 
 /*
  * Integer constants
@@ -918,6 +977,7 @@ cleanup_sysc_leave_insn:
 .Ls390_mcck:   .long  s390_do_machine_check
 .Ls390_handle_mcck:
 	       .long  s390_handle_mcck
+.Lmck_old_psw: .long  __LC_MCK_OLD_PSW
 .Ldo_IRQ:      .long  do_IRQ
 .Ldo_extint:   .long  do_extint
 .Ldo_signal:   .long  do_signal

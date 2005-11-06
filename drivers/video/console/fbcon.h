@@ -18,7 +18,8 @@
 
 #include <asm/io.h>
 
-#define FBCON_FLAGS_INIT 1
+#define FBCON_FLAGS_INIT         1
+#define FBCON_FLAGS_CURSOR_TIMER 2
 
    /*
     *    This is the interface between the low-level console driver and the
@@ -29,7 +30,7 @@ struct display {
     /* Filled in by the frame buffer device */
     u_short inverse;                /* != 0 text black on white as default */
     /* Filled in by the low-level console driver */
-    u_char *fontdata;
+    const u_char *fontdata;
     int userfont;                   /* != 0 if fontdata kmalloc()ed */
     u_short scrollmode;             /* Scroll Method */
     short yscroll;                  /* Hardware scrolling */

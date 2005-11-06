@@ -2,6 +2,8 @@
  *  linux/drivers/mmc/mmc.c
  *
  *  Copyright (C) 2003-2004 Russell King, All Rights Reserved.
+ *  SD support Copyright (C) 2004 Ian Molton, All Rights Reserved.
+ *  SD support Copyright (C) 2005 Pierre Ossman, All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,6 +18,8 @@
 #include <linux/delay.h>
 #include <linux/pagemap.h>
 #include <linux/err.h>
+#include <asm/scatterlist.h>
+#include <linux/scatterlist.h>
 
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
@@ -172,7 +176,81 @@ int mmc_wait_for_cmd(struct mmc_host *host, struct mmc_command *cmd, int retries
 
 EXPORT_SYMBOL(mmc_wait_for_cmd);
 
+/**
+ *	mmc_wait_for_app_cmd - start an application command and wait for
+ 			       completion
+ *	@host: MMC host to start command
+ *	@rca: RCA to send MMC_APP_CMD to
+ *	@cmd: MMC command to start
+ *	@retries: maximum number of retries
+ *
+ *	Sends a MMC_APP_CMD, checks the card response, sends the command
+ *	in the parameter and waits for it to complete. Return any error
+ *	that occurred while the command was executing.  Do not attempt to
+ *	parse the response.
+ */
+int mmc_wait_for_app_cmd(struct mmc_host *host, unsigned int rca,
+	struct mmc_command *cmd, int retries)
+{
+	struct mmc_request mrq;
+	struct mmc_command appcmd;
 
+	int i, err;
+
+	BUG_ON(host->card_busy == NULL);
+	BUG_ON(retries < 0);
+
+	err = MMC_ERR_INVALID;
+
+	/*
+	 * We have to resend MMC_APP_CMD for each attempt so
+	 * we cannot use the retries field in mmc_command.
+	 */
+	for (i = 0;i <= retries;i++) {
+		memset(&mrq, 0, sizeof(struct mmc_request));
+
+		appcmd.opcode = MMC_APP_CMD;
+		appcmd.arg = rca << 16;
+		appcmd.flags = MMC_RSP_R1;
+		appcmd.retries = 0;
+		memset(appcmd.resp, 0, sizeof(appcmd.resp));
+		appcmd.data = NULL;
+
+		mrq.cmd = &appcmd;
+		appcmd.data = NULL;
+
+		mmc_wait_for_req(host, &mrq);
+
+		if (appcmd.error) {
+			err = appcmd.error;
+			continue;
+		}
+
+		/* Check that card supported application commands */
+		if (!(appcmd.resp[0] & R1_APP_CMD))
+			return MMC_ERR_FAILED;
+
+		memset(&mrq, 0, sizeof(struct mmc_request));
+
+		memset(cmd->resp, 0, sizeof(cmd->resp));
+		cmd->retries = 0;
+
+		mrq.cmd = cmd;
+		cmd->data = NULL;
+
+		mmc_wait_for_req(host, &mrq);
+
+		err = cmd->error;
+		if (cmd->error == MMC_ERR_NONE)
+			break;
+	}
+
+	return err;
+}
+
+EXPORT_SYMBOL(mmc_wait_for_app_cmd);
+
+static int mmc_select_card(struct mmc_host *host, struct mmc_card *card);
 
 /**
  *	__mmc_claim_host - exclusively claim a host
@@ -206,16 +284,10 @@ int __mmc_claim_host(struct mmc_host *host, struct mmc_card *card)
 	spin_unlock_irqrestore(&host->lock, flags);
 	remove_wait_queue(&host->wq, &wait);
 
-	if (card != (void *)-1 && host->card_selected != card) {
-		struct mmc_command cmd;
-
-		host->card_selected = card;
-
-		cmd.opcode = MMC_SELECT_CARD;
-		cmd.arg = card->rca << 16;
-		cmd.flags = MMC_RSP_R1;
-
-		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+	if (card != (void *)-1) {
+		err = mmc_select_card(host, card);
+		if (err != MMC_ERR_NONE)
+			return err;
 	}
 
 	return err;
@@ -244,6 +316,63 @@ void mmc_release_host(struct mmc_host *host)
 }
 
 EXPORT_SYMBOL(mmc_release_host);
+
+static int mmc_select_card(struct mmc_host *host, struct mmc_card *card)
+{
+	int err;
+	struct mmc_command cmd;
+
+	BUG_ON(host->card_busy == NULL);
+
+	if (host->card_selected == card)
+		return MMC_ERR_NONE;
+
+	host->card_selected = card;
+
+	cmd.opcode = MMC_SELECT_CARD;
+	cmd.arg = card->rca << 16;
+	cmd.flags = MMC_RSP_R1;
+
+	err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+	if (err != MMC_ERR_NONE)
+		return err;
+
+	/*
+	 * Default bus width is 1 bit.
+	 */
+	host->ios.bus_width = MMC_BUS_WIDTH_1;
+
+	/*
+	 * We can only change the bus width of the selected
+	 * card so therefore we have to put the handling
+	 * here.
+	 */
+	if (host->caps & MMC_CAP_4_BIT_DATA) {
+		/*
+		 * The card is in 1 bit mode by default so
+		 * we only need to change if it supports the
+		 * wider version.
+		 */
+		if (mmc_card_sd(card) &&
+			(card->scr.bus_widths & SD_SCR_BUS_WIDTH_4)) {
+			struct mmc_command cmd;
+			cmd.opcode = SD_APP_SET_BUS_WIDTH;
+			cmd.arg = SD_BUS_WIDTH_4;
+			cmd.flags = MMC_RSP_R1;
+
+			err = mmc_wait_for_app_cmd(host, card->rca, &cmd,
+				CMD_RETRIES);
+			if (err != MMC_ERR_NONE)
+				return err;
+
+			host->ios.bus_width = MMC_BUS_WIDTH_4;
+		}
+	}
+
+	host->ops->set_ios(host, &host->ios);
+
+	return MMC_ERR_NONE;
+}
 
 /*
  * Ensure that no card is selected.
@@ -322,48 +451,69 @@ static void mmc_decode_cid(struct mmc_card *card)
 
 	memset(&card->cid, 0, sizeof(struct mmc_cid));
 
-	/*
-	 * The selection of the format here is guesswork based upon
-	 * information people have sent to date.
-	 */
-	switch (card->csd.mmca_vsn) {
-	case 0: /* MMC v1.? */
-	case 1: /* MMC v1.4 */
-		card->cid.manfid	= UNSTUFF_BITS(resp, 104, 24);
-		card->cid.prod_name[0]	= UNSTUFF_BITS(resp, 96, 8);
-		card->cid.prod_name[1]	= UNSTUFF_BITS(resp, 88, 8);
-		card->cid.prod_name[2]	= UNSTUFF_BITS(resp, 80, 8);
-		card->cid.prod_name[3]	= UNSTUFF_BITS(resp, 72, 8);
-		card->cid.prod_name[4]	= UNSTUFF_BITS(resp, 64, 8);
-		card->cid.prod_name[5]	= UNSTUFF_BITS(resp, 56, 8);
-		card->cid.prod_name[6]	= UNSTUFF_BITS(resp, 48, 8);
-		card->cid.hwrev		= UNSTUFF_BITS(resp, 44, 4);
-		card->cid.fwrev		= UNSTUFF_BITS(resp, 40, 4);
-		card->cid.serial	= UNSTUFF_BITS(resp, 16, 24);
-		card->cid.month		= UNSTUFF_BITS(resp, 12, 4);
-		card->cid.year		= UNSTUFF_BITS(resp, 8, 4) + 1997;
-		break;
+	if (mmc_card_sd(card)) {
+		/*
+		 * SD doesn't currently have a version field so we will
+		 * have to assume we can parse this.
+		 */
+		card->cid.manfid		= UNSTUFF_BITS(resp, 120, 8);
+		card->cid.oemid			= UNSTUFF_BITS(resp, 104, 16);
+		card->cid.prod_name[0]		= UNSTUFF_BITS(resp, 96, 8);
+		card->cid.prod_name[1]		= UNSTUFF_BITS(resp, 88, 8);
+		card->cid.prod_name[2]		= UNSTUFF_BITS(resp, 80, 8);
+		card->cid.prod_name[3]		= UNSTUFF_BITS(resp, 72, 8);
+		card->cid.prod_name[4]		= UNSTUFF_BITS(resp, 64, 8);
+		card->cid.hwrev			= UNSTUFF_BITS(resp, 60, 4);
+		card->cid.fwrev			= UNSTUFF_BITS(resp, 56, 4);
+		card->cid.serial		= UNSTUFF_BITS(resp, 24, 32);
+		card->cid.year			= UNSTUFF_BITS(resp, 12, 8);
+		card->cid.month			= UNSTUFF_BITS(resp, 8, 4);
 
-	case 2: /* MMC v2.x ? */
-	case 3: /* MMC v3.x ? */
-		card->cid.manfid	= UNSTUFF_BITS(resp, 120, 8);
-		card->cid.oemid		= UNSTUFF_BITS(resp, 104, 16);
-		card->cid.prod_name[0]	= UNSTUFF_BITS(resp, 96, 8);
-		card->cid.prod_name[1]	= UNSTUFF_BITS(resp, 88, 8);
-		card->cid.prod_name[2]	= UNSTUFF_BITS(resp, 80, 8);
-		card->cid.prod_name[3]	= UNSTUFF_BITS(resp, 72, 8);
-		card->cid.prod_name[4]	= UNSTUFF_BITS(resp, 64, 8);
-		card->cid.prod_name[5]	= UNSTUFF_BITS(resp, 56, 8);
-		card->cid.serial	= UNSTUFF_BITS(resp, 16, 32);
-		card->cid.month		= UNSTUFF_BITS(resp, 12, 4);
-		card->cid.year		= UNSTUFF_BITS(resp, 8, 4) + 1997;
-		break;
+		card->cid.year += 2000; /* SD cards year offset */
+	} else {
+		/*
+		 * The selection of the format here is based upon published
+		 * specs from sandisk and from what people have reported.
+		 */
+		switch (card->csd.mmca_vsn) {
+		case 0: /* MMC v1.0 - v1.2 */
+		case 1: /* MMC v1.4 */
+			card->cid.manfid	= UNSTUFF_BITS(resp, 104, 24);
+			card->cid.prod_name[0]	= UNSTUFF_BITS(resp, 96, 8);
+			card->cid.prod_name[1]	= UNSTUFF_BITS(resp, 88, 8);
+			card->cid.prod_name[2]	= UNSTUFF_BITS(resp, 80, 8);
+			card->cid.prod_name[3]	= UNSTUFF_BITS(resp, 72, 8);
+			card->cid.prod_name[4]	= UNSTUFF_BITS(resp, 64, 8);
+			card->cid.prod_name[5]	= UNSTUFF_BITS(resp, 56, 8);
+			card->cid.prod_name[6]	= UNSTUFF_BITS(resp, 48, 8);
+			card->cid.hwrev		= UNSTUFF_BITS(resp, 44, 4);
+			card->cid.fwrev		= UNSTUFF_BITS(resp, 40, 4);
+			card->cid.serial	= UNSTUFF_BITS(resp, 16, 24);
+			card->cid.month		= UNSTUFF_BITS(resp, 12, 4);
+			card->cid.year		= UNSTUFF_BITS(resp, 8, 4) + 1997;
+			break;
 
-	default:
-		printk("%s: card has unknown MMCA version %d\n",
-			card->host->host_name, card->csd.mmca_vsn);
-		mmc_card_set_bad(card);
-		break;
+		case 2: /* MMC v2.0 - v2.2 */
+		case 3: /* MMC v3.1 - v3.3 */
+			card->cid.manfid	= UNSTUFF_BITS(resp, 120, 8);
+			card->cid.oemid		= UNSTUFF_BITS(resp, 104, 16);
+			card->cid.prod_name[0]	= UNSTUFF_BITS(resp, 96, 8);
+			card->cid.prod_name[1]	= UNSTUFF_BITS(resp, 88, 8);
+			card->cid.prod_name[2]	= UNSTUFF_BITS(resp, 80, 8);
+			card->cid.prod_name[3]	= UNSTUFF_BITS(resp, 72, 8);
+			card->cid.prod_name[4]	= UNSTUFF_BITS(resp, 64, 8);
+			card->cid.prod_name[5]	= UNSTUFF_BITS(resp, 56, 8);
+			card->cid.serial	= UNSTUFF_BITS(resp, 16, 32);
+			card->cid.month		= UNSTUFF_BITS(resp, 12, 4);
+			card->cid.year		= UNSTUFF_BITS(resp, 8, 4) + 1997;
+			break;
+
+		default:
+			printk("%s: card has unknown MMCA version %d\n",
+				mmc_hostname(card->host), card->csd.mmca_vsn);
+			mmc_card_set_bad(card);
+			break;
+		}
 	}
 }
 
@@ -376,34 +526,86 @@ static void mmc_decode_csd(struct mmc_card *card)
 	unsigned int e, m, csd_struct;
 	u32 *resp = card->raw_csd;
 
-	/*
-	 * We only understand CSD structure v1.1 and v2.
-	 * v2 has extra information in bits 15, 11 and 10.
-	 */
-	csd_struct = UNSTUFF_BITS(resp, 126, 2);
-	if (csd_struct != 1 && csd_struct != 2) {
-		printk("%s: unrecognised CSD structure version %d\n",
-			card->host->host_name, csd_struct);
+	if (mmc_card_sd(card)) {
+		csd_struct = UNSTUFF_BITS(resp, 126, 2);
+		if (csd_struct != 0) {
+			printk("%s: unrecognised CSD structure version %d\n",
+				mmc_hostname(card->host), csd_struct);
+			mmc_card_set_bad(card);
+			return;
+		}
+
+		m = UNSTUFF_BITS(resp, 115, 4);
+		e = UNSTUFF_BITS(resp, 112, 3);
+		csd->tacc_ns	 = (tacc_exp[e] * tacc_mant[m] + 9) / 10;
+		csd->tacc_clks	 = UNSTUFF_BITS(resp, 104, 8) * 100;
+
+		m = UNSTUFF_BITS(resp, 99, 4);
+		e = UNSTUFF_BITS(resp, 96, 3);
+		csd->max_dtr	  = tran_exp[e] * tran_mant[m];
+		csd->cmdclass	  = UNSTUFF_BITS(resp, 84, 12);
+
+		e = UNSTUFF_BITS(resp, 47, 3);
+		m = UNSTUFF_BITS(resp, 62, 12);
+		csd->capacity	  = (1 + m) << (e + 2);
+
+		csd->read_blkbits = UNSTUFF_BITS(resp, 80, 4);
+	} else {
+		/*
+		 * We only understand CSD structure v1.1 and v1.2.
+		 * v1.2 has extra information in bits 15, 11 and 10.
+		 */
+		csd_struct = UNSTUFF_BITS(resp, 126, 2);
+		if (csd_struct != 1 && csd_struct != 2) {
+			printk("%s: unrecognised CSD structure version %d\n",
+				mmc_hostname(card->host), csd_struct);
+			mmc_card_set_bad(card);
+			return;
+		}
+
+		csd->mmca_vsn	 = UNSTUFF_BITS(resp, 122, 4);
+		m = UNSTUFF_BITS(resp, 115, 4);
+		e = UNSTUFF_BITS(resp, 112, 3);
+		csd->tacc_ns	 = (tacc_exp[e] * tacc_mant[m] + 9) / 10;
+		csd->tacc_clks	 = UNSTUFF_BITS(resp, 104, 8) * 100;
+
+		m = UNSTUFF_BITS(resp, 99, 4);
+		e = UNSTUFF_BITS(resp, 96, 3);
+		csd->max_dtr	  = tran_exp[e] * tran_mant[m];
+		csd->cmdclass	  = UNSTUFF_BITS(resp, 84, 12);
+
+		e = UNSTUFF_BITS(resp, 47, 3);
+		m = UNSTUFF_BITS(resp, 62, 12);
+		csd->capacity	  = (1 + m) << (e + 2);
+
+		csd->read_blkbits = UNSTUFF_BITS(resp, 80, 4);
+	}
+}
+
+/*
+ * Given a 64-bit response, decode to our card SCR structure.
+ */
+static void mmc_decode_scr(struct mmc_card *card)
+{
+	struct sd_scr *scr = &card->scr;
+	unsigned int scr_struct;
+	u32 resp[4];
+
+	BUG_ON(!mmc_card_sd(card));
+
+	resp[3] = card->raw_scr[1];
+	resp[2] = card->raw_scr[0];
+
+	scr_struct = UNSTUFF_BITS(resp, 60, 4);
+	if (scr_struct != 0) {
+		printk("%s: unrecognised SCR structure version %d\n",
+			mmc_hostname(card->host), scr_struct);
 		mmc_card_set_bad(card);
 		return;
 	}
 
-	csd->mmca_vsn	 = UNSTUFF_BITS(resp, 122, 4);
-	m = UNSTUFF_BITS(resp, 115, 4);
-	e = UNSTUFF_BITS(resp, 112, 3);
-	csd->tacc_ns	 = (tacc_exp[e] * tacc_mant[m] + 9) / 10;
-	csd->tacc_clks	 = UNSTUFF_BITS(resp, 104, 8) * 100;
-
-	m = UNSTUFF_BITS(resp, 99, 4);
-	e = UNSTUFF_BITS(resp, 96, 3);
-	csd->max_dtr	  = tran_exp[e] * tran_mant[m];
-	csd->cmdclass	  = UNSTUFF_BITS(resp, 84, 12);
-
-	e = UNSTUFF_BITS(resp, 47, 3);
-	m = UNSTUFF_BITS(resp, 62, 12);
-	csd->capacity	  = (1 + m) << (e + 2);
-
-	csd->read_blkbits = UNSTUFF_BITS(resp, 80, 4);
+	scr->sda_vsn = UNSTUFF_BITS(resp, 56, 4);
+	scr->bus_widths = UNSTUFF_BITS(resp, 48, 4);
 }
 
 /*
@@ -457,11 +659,21 @@ static void mmc_idle_cards(struct mmc_host *host)
 {
 	struct mmc_command cmd;
 
+	host->ios.chip_select = MMC_CS_HIGH;
+	host->ops->set_ios(host, &host->ios);
+
+	mmc_delay(1);
+
 	cmd.opcode = MMC_GO_IDLE_STATE;
 	cmd.arg = 0;
 	cmd.flags = MMC_RSP_NONE;
 
 	mmc_wait_for_cmd(host, &cmd, 0);
+
+	mmc_delay(1);
+
+	host->ios.chip_select = MMC_CS_DONTCARE;
+	host->ops->set_ios(host, &host->ios);
 
 	mmc_delay(1);
 }
@@ -475,7 +687,9 @@ static void mmc_power_up(struct mmc_host *host)
 
 	host->ios.vdd = bit;
 	host->ios.bus_mode = MMC_BUSMODE_OPENDRAIN;
+	host->ios.chip_select = MMC_CS_DONTCARE;
 	host->ios.power_mode = MMC_POWER_UP;
+	host->ios.bus_width = MMC_BUS_WIDTH_1;
 	host->ops->set_ios(host, &host->ios);
 
 	mmc_delay(1);
@@ -492,7 +706,9 @@ static void mmc_power_off(struct mmc_host *host)
 	host->ios.clock = 0;
 	host->ios.vdd = 0;
 	host->ios.bus_mode = MMC_BUSMODE_OPENDRAIN;
+	host->ios.chip_select = MMC_CS_DONTCARE;
 	host->ios.power_mode = MMC_POWER_OFF;
+	host->ios.bus_width = MMC_BUS_WIDTH_1;
 	host->ops->set_ios(host, &host->ios);
 }
 
@@ -507,6 +723,34 @@ static int mmc_send_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
 
 	for (i = 100; i; i--) {
 		err = mmc_wait_for_cmd(host, &cmd, 0);
+		if (err != MMC_ERR_NONE)
+			break;
+
+		if (cmd.resp[0] & MMC_CARD_BUSY || ocr == 0)
+			break;
+
+		err = MMC_ERR_TIMEOUT;
+
+		mmc_delay(10);
+	}
+
+	if (rocr)
+		*rocr = cmd.resp[0];
+
+	return err;
+}
+
+static int mmc_send_app_op_cond(struct mmc_host *host, u32 ocr, u32 *rocr)
+{
+	struct mmc_command cmd;
+	int i, err = 0;
+
+	cmd.opcode = SD_APP_OP_COND;
+	cmd.arg = ocr;
+	cmd.flags = MMC_RSP_R3;
+
+	for (i = 100; i; i--) {
+		err = mmc_wait_for_app_cmd(host, 0, &cmd, CMD_RETRIES);
 		if (err != MMC_ERR_NONE)
 			break;
 
@@ -551,7 +795,7 @@ static void mmc_discover_cards(struct mmc_host *host)
 		}
 		if (err != MMC_ERR_NONE) {
 			printk(KERN_ERR "%s: error requesting CID: %d\n",
-				host->host_name, err);
+				mmc_hostname(host), err);
 			break;
 		}
 
@@ -567,13 +811,38 @@ static void mmc_discover_cards(struct mmc_host *host)
 
 		card->state &= ~MMC_STATE_DEAD;
 
-		cmd.opcode = MMC_SET_RELATIVE_ADDR;
-		cmd.arg = card->rca << 16;
-		cmd.flags = MMC_RSP_R1;
+		if (host->mode == MMC_MODE_SD) {
+			mmc_card_set_sd(card);
 
-		err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
-		if (err != MMC_ERR_NONE)
-			mmc_card_set_dead(card);
+			cmd.opcode = SD_SEND_RELATIVE_ADDR;
+			cmd.arg = 0;
+			cmd.flags = MMC_RSP_R1;
+
+			err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+			if (err != MMC_ERR_NONE)
+				mmc_card_set_dead(card);
+			else {
+				card->rca = cmd.resp[0] >> 16;
+
+				if (!host->ops->get_ro) {
+					printk(KERN_WARNING "%s: host does not "
+						"support reading read-only "
+						"switch. assuming write-enable.\n",
+						mmc_hostname(host));
+				} else {
+					if (host->ops->get_ro(host))
+						mmc_card_set_readonly(card);
+				}
+			}
+		} else {
+			cmd.opcode = MMC_SET_RELATIVE_ADDR;
+			cmd.arg = card->rca << 16;
+			cmd.flags = MMC_RSP_R1;
+
+			err = mmc_wait_for_cmd(host, &cmd, CMD_RETRIES);
+			if (err != MMC_ERR_NONE)
+				mmc_card_set_dead(card);
+		}
 	}
 }
 
@@ -603,6 +872,79 @@ static void mmc_read_csds(struct mmc_host *host)
 		mmc_decode_csd(card);
 		mmc_decode_cid(card);
 	}
+}
+
+static void mmc_read_scrs(struct mmc_host *host)
+{
+	int err;
+	struct mmc_card *card;
+
+	struct mmc_request mrq;
+	struct mmc_command cmd;
+	struct mmc_data data;
+
+	struct scatterlist sg;
+
+	list_for_each_entry(card, &host->cards, node) {
+		if (card->state & (MMC_STATE_DEAD|MMC_STATE_PRESENT))
+			continue;
+		if (!mmc_card_sd(card))
+			continue;
+
+		err = mmc_select_card(host, card);
+		if (err != MMC_ERR_NONE) {
+			mmc_card_set_dead(card);
+			continue;
+		}
+
+		memset(&cmd, 0, sizeof(struct mmc_command));
+
+		cmd.opcode = MMC_APP_CMD;
+		cmd.arg = card->rca << 16;
+		cmd.flags = MMC_RSP_R1;
+
+		err = mmc_wait_for_cmd(host, &cmd, 0);
+		if ((err != MMC_ERR_NONE) || !(cmd.resp[0] & R1_APP_CMD)) {
+			mmc_card_set_dead(card);
+			continue;
+		}
+
+		memset(&cmd, 0, sizeof(struct mmc_command));
+
+		cmd.opcode = SD_APP_SEND_SCR;
+		cmd.arg = 0;
+		cmd.flags = MMC_RSP_R1;
+
+		memset(&data, 0, sizeof(struct mmc_data));
+
+		data.timeout_ns = card->csd.tacc_ns * 10;
+		data.timeout_clks = card->csd.tacc_clks * 10;
+		data.blksz_bits = 3;
+		data.blocks = 1;
+		data.flags = MMC_DATA_READ;
+		data.sg = &sg;
+		data.sg_len = 1;
+
+		memset(&mrq, 0, sizeof(struct mmc_request));
+
+		mrq.cmd = &cmd;
+		mrq.data = &data;
+
+		sg_init_one(&sg, (u8*)card->raw_scr, 8);
+
+		err = mmc_wait_for_req(host, &mrq);
+		if (err != MMC_ERR_NONE) {
+			mmc_card_set_dead(card);
+			continue;
+		}
+
+		card->raw_scr[0] = ntohl(card->raw_scr[0]);
+		card->raw_scr[1] = ntohl(card->raw_scr[1]);
+
+		mmc_decode_scr(card);
+	}
+
+	mmc_deselect_cards(host);
 }
 
 static unsigned int mmc_calculate_clock(struct mmc_host *host)
@@ -657,12 +999,24 @@ static void mmc_setup(struct mmc_host *host)
 		int err;
 		u32 ocr;
 
+		host->mode = MMC_MODE_SD;
+
 		mmc_power_up(host);
 		mmc_idle_cards(host);
 
-		err = mmc_send_op_cond(host, 0, &ocr);
-		if (err != MMC_ERR_NONE)
-			return;
+		err = mmc_send_app_op_cond(host, 0, &ocr);
+
+		/*
+		 * If we fail to detect any SD cards then try
+		 * searching for MMC cards.
+		 */
+		if (err != MMC_ERR_NONE) {
+			host->mode = MMC_MODE_MMC;
+
+			err = mmc_send_op_cond(host, 0, &ocr);
+			if (err != MMC_ERR_NONE)
+				return;
+		}
 
 		host->ocr = mmc_select_voltage(host, ocr);
 
@@ -702,7 +1056,10 @@ static void mmc_setup(struct mmc_host *host)
 	 * all get the idea that they should be ready for CMD2.
 	 * (My SanDisk card seems to need this.)
 	 */
-	mmc_send_op_cond(host, host->ocr, NULL);
+	if (host->mode == MMC_MODE_SD)
+		mmc_send_app_op_cond(host, host->ocr, NULL);
+	else
+		mmc_send_op_cond(host, host->ocr, NULL);
 
 	mmc_discover_cards(host);
 
@@ -713,19 +1070,26 @@ static void mmc_setup(struct mmc_host *host)
 	host->ops->set_ios(host, &host->ios);
 
 	mmc_read_csds(host);
+
+	if (host->mode == MMC_MODE_SD)
+		mmc_read_scrs(host);
 }
 
 
 /**
  *	mmc_detect_change - process change of state on a MMC socket
  *	@host: host which changed state.
+ *	@delay: optional delay to wait before detection (jiffies)
  *
  *	All we know is that card(s) have been inserted or removed
  *	from the socket(s).  We don't know which socket or cards.
  */
-void mmc_detect_change(struct mmc_host *host)
+void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 {
-	schedule_work(&host->detect);
+	if (delay)
+		schedule_delayed_work(&host->detect, delay);
+	else
+		schedule_work(&host->detect);
 }
 
 EXPORT_SYMBOL(mmc_detect_change);
@@ -796,16 +1160,12 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 {
 	struct mmc_host *host;
 
-	host = kmalloc(sizeof(struct mmc_host) + extra, GFP_KERNEL);
+	host = mmc_alloc_host_sysfs(extra, dev);
 	if (host) {
-		memset(host, 0, sizeof(struct mmc_host) + extra);
-
 		spin_lock_init(&host->lock);
 		init_waitqueue_head(&host->wq);
 		INIT_LIST_HEAD(&host->cards);
 		INIT_WORK(&host->detect, mmc_rescan, host);
-
-		host->dev = dev;
 
 		/*
 		 * By default, hosts do not support SGIO or large requests.
@@ -828,15 +1188,15 @@ EXPORT_SYMBOL(mmc_alloc_host);
  */
 int mmc_add_host(struct mmc_host *host)
 {
-	static unsigned int host_num;
+	int ret;
 
-	snprintf(host->host_name, sizeof(host->host_name),
-		 "mmc%d", host_num++);
+	ret = mmc_add_host_sysfs(host);
+	if (ret == 0) {
+		mmc_power_off(host);
+		mmc_detect_change(host, 0);
+	}
 
-	mmc_power_off(host);
-	mmc_detect_change(host);
-
-	return 0;
+	return ret;
 }
 
 EXPORT_SYMBOL(mmc_add_host);
@@ -859,6 +1219,7 @@ void mmc_remove_host(struct mmc_host *host)
 	}
 
 	mmc_power_off(host);
+	mmc_remove_host_sysfs(host);
 }
 
 EXPORT_SYMBOL(mmc_remove_host);
@@ -872,7 +1233,7 @@ EXPORT_SYMBOL(mmc_remove_host);
 void mmc_free_host(struct mmc_host *host)
 {
 	flush_scheduled_work();
-	kfree(host);
+	mmc_free_host_sysfs(host);
 }
 
 EXPORT_SYMBOL(mmc_free_host);
@@ -902,7 +1263,7 @@ EXPORT_SYMBOL(mmc_suspend_host);
  */
 int mmc_resume_host(struct mmc_host *host)
 {
-	mmc_detect_change(host);
+	mmc_detect_change(host, 0);
 
 	return 0;
 }

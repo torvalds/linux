@@ -91,6 +91,13 @@ config OMAP_32K_TIMER_HZ
 	  Kernel internal timer frequency should be a divisor of 32768,
 	  such as 64 or 128.
 
+config OMAP_DM_TIMER
+	bool "Use dual-mode timer"
+	default n
+	depends on ARCH_OMAP16XX
+	help
+	 Select this option if you want to use OMAP Dual-Mode timers.
+
 choice
 	prompt "Low-level debug console UART"
 	depends on ARCH_OMAP
@@ -106,6 +113,15 @@ config OMAP_LL_DEBUG_UART3
 	bool "UART3"
 
 endchoice
+
+config OMAP_SERIAL_WAKE
+	bool "Enable wake-up events for serial ports"
+	depends OMAP_MUX
+	default y
+	help
+	  Select this option if you want to have your system wake up
+	  to data on the serial RX line. This allows you to wake the
+	  system from serial console.
 
 endmenu
 

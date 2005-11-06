@@ -592,7 +592,7 @@ static void ip22zilog_set_mctrl(struct uart_port *port, unsigned int mctrl)
 }
 
 /* The port lock is held and interrupts are disabled.  */
-static void ip22zilog_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void ip22zilog_stop_tx(struct uart_port *port)
 {
 	struct uart_ip22zilog_port *up = (struct uart_ip22zilog_port *) port;
 
@@ -600,7 +600,7 @@ static void ip22zilog_stop_tx(struct uart_port *port, unsigned int tty_stop)
 }
 
 /* The port lock is held and interrupts are disabled.  */
-static void ip22zilog_start_tx(struct uart_port *port, unsigned int tty_start)
+static void ip22zilog_start_tx(struct uart_port *port)
 {
 	struct uart_ip22zilog_port *up = (struct uart_ip22zilog_port *) port;
 	struct zilog_channel *channel = ZILOG_CHANNEL_FROM_PORT(port);

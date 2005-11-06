@@ -22,7 +22,7 @@
 #include "geodefb.h"
 #include "display_gx1.h"
 
-static spinlock_t gx1_conf_reg_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(gx1_conf_reg_lock);
 
 static u8 gx1_read_conf_reg(u8 reg)
 {

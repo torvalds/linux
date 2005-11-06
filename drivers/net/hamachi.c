@@ -204,6 +204,10 @@ KERN_INFO "   Further modifications by Keith Underwood <keithu@parl.clemson.edu>
 
 #define RUN_AT(x) (jiffies + (x))
 
+#ifndef ADDRLEN
+#define ADDRLEN 32
+#endif
+
 /* Condensed bus+endian portability operations. */
 #if ADDRLEN == 64
 #define cpu_to_leXX(addr)	cpu_to_le64(addr)

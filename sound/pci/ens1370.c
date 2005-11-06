@@ -100,13 +100,6 @@ MODULE_PARM_DESC(joystick, "Enable joystick.");
 #endif
 #endif /* SUPPORT_JOYSTICK */
 
-#ifndef PCI_DEVICE_ID_ENSONIQ_CT5880
-#define PCI_DEVICE_ID_ENSONIQ_CT5880    0x5880
-#endif
-#ifndef PCI_DEVICE_ID_ENSONIQ_ES1371
-#define PCI_DEVICE_ID_ENSONIQ_ES1371	0x1371
-#endif
-
 /* ES1371 chip ID */
 /* This is a little confusing because all ES1371 compatible chips have the
    same DEVICE_ID, the only thing differentiating them is the REV_ID field.
@@ -1444,7 +1437,7 @@ static int snd_es1371_spdif_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t 
 
 /* spdif controls */
 static snd_kcontrol_new_t snd_es1371_mixer_spdif[] __devinitdata = {
-	ES1371_SPDIF("IEC958 Playback Switch"),
+	ES1371_SPDIF(SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH)),
 	{
 		.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 		.name =		SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
@@ -1950,7 +1943,7 @@ static int __devinit snd_ensoniq_create(snd_card_t * card,
 	*rensoniq = NULL;
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
-	ensoniq = kcalloc(1, sizeof(*ensoniq), GFP_KERNEL);
+	ensoniq = kzalloc(sizeof(*ensoniq), GFP_KERNEL);
 	if (ensoniq == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -2394,6 +2387,7 @@ static void __devexit snd_audiopci_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = DRIVER_NAME,
+	.owner = THIS_MODULE,
 	.id_table = snd_audiopci_ids,
 	.probe = snd_audiopci_probe,
 	.remove = __devexit_p(snd_audiopci_remove),

@@ -41,8 +41,8 @@ static struct inode *befs_alloc_inode(struct super_block *sb);
 static void befs_destroy_inode(struct inode *inode);
 static int befs_init_inodecache(void);
 static void befs_destroy_inodecache(void);
-static int befs_follow_link(struct dentry *, struct nameidata *);
-static void befs_put_link(struct dentry *, struct nameidata *);
+static void *befs_follow_link(struct dentry *, struct nameidata *);
+static void befs_put_link(struct dentry *, struct nameidata *, void *);
 static int befs_utf2nls(struct super_block *sb, const char *in, int in_len,
 			char **out, int *out_len);
 static int befs_nls2utf(struct super_block *sb, const char *in, int in_len,
@@ -461,7 +461,7 @@ befs_destroy_inodecache(void)
  * The data stream become link name. Unless the LONG_SYMLINK
  * flag is set.
  */
-static int
+static void *
 befs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	befs_inode_info *befs_ino = BEFS_I(dentry->d_inode);
@@ -487,10 +487,10 @@ befs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	}
 
 	nd_set_link(nd, link);
-	return 0;
+	return NULL;
 }
 
-static void befs_put_link(struct dentry *dentry, struct nameidata *nd)
+static void befs_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
 {
 	befs_inode_info *befs_ino = BEFS_I(dentry->d_inode);
 	if (befs_ino->i_flags & BEFS_LONG_SYMLINK) {

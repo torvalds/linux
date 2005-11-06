@@ -81,10 +81,11 @@ extern int cifs_dir_notify(struct file *, unsigned long arg);
 
 /* Functions related to dir entries */
 extern struct dentry_operations cifs_dentry_ops;
+extern struct dentry_operations cifs_ci_dentry_ops;
 
 /* Functions related to symlinks */
-extern int cifs_follow_link(struct dentry *direntry, struct nameidata *nd);
-extern void cifs_put_link(struct dentry *direntry, struct nameidata *nd);
+extern void *cifs_follow_link(struct dentry *direntry, struct nameidata *nd);
+extern void cifs_put_link(struct dentry *direntry, struct nameidata *nd, void *);
 extern int cifs_readlink(struct dentry *direntry, char __user *buffer, 
 			 int buflen);
 extern int cifs_symlink(struct inode *inode, struct dentry *direntry,
@@ -96,5 +97,5 @@ extern ssize_t	cifs_getxattr(struct dentry *, const char *, void *, size_t);
 extern ssize_t	cifs_listxattr(struct dentry *, char *, size_t);
 extern int cifs_ioctl (struct inode * inode, struct file * filep,
 		       unsigned int command, unsigned long arg);
-#define CIFS_VERSION   "1.35"
+#define CIFS_VERSION   "1.39"
 #endif				/* _CIFSFS_H */

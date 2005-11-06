@@ -105,11 +105,10 @@ static struct file_operations idmouse_fops = {
 	.release = idmouse_release,
 };
 
-/* class driver information for devfs */
+/* class driver information */
 static struct usb_class_driver idmouse_class = {
-	.name = "usb/idmouse%d",
+	.name = "idmouse%d",
 	.fops = &idmouse_fops,
-	.mode = S_IFCHR | S_IRUSR | S_IRGRP | S_IROTH, /* filemode (char, 444) */
 	.minor_base = USB_IDMOUSE_MINOR_BASE,
 };
 
@@ -320,20 +319,8 @@ static ssize_t idmouse_read(struct file *file, char __user *buffer, size_t count
 		return -ENODEV;
 	}
 
-	if (*ppos >= IMGSIZE) {
-		up (&dev->sem);
-		return 0;
-	}
-
-	count = min ((loff_t)count, IMGSIZE - (*ppos));
-
-	if (copy_to_user (buffer, dev->bulk_in_buffer + *ppos, count)) {
-		result = -EFAULT;
-	} else {
-		result = count;
-		*ppos += count;
-	}
-
+	result = simple_read_from_buffer(buffer, count, ppos,
+					dev->bulk_in_buffer, IMGSIZE);
 	/* unlock the device */
 	up(&dev->sem);
 	return result;

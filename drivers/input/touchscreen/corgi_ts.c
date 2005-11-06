@@ -1,5 +1,5 @@
 /*
- *  Touchscreen driver for Sharp Corgi models (SL-C7xx)
+ *  Touchscreen driver for Sharp SL-C7xx and SL-Cxx00 models
  *
  *  Copyright (c) 2004-2005 Richard Purdie
  *
@@ -11,7 +11,7 @@
 
 
 #include <linux/delay.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
@@ -19,7 +19,7 @@
 #include <linux/slab.h>
 #include <asm/irq.h>
 
-#include <asm/arch/corgi.h>
+#include <asm/arch/sharpsl.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/pxa-regs.h>
 
@@ -41,24 +41,25 @@ struct ts_event {
 };
 
 struct corgi_ts {
-	char phys[32];
-	struct input_dev input;
+	struct input_dev *input;
 	struct timer_list timer;
 	struct ts_event tc;
 	int pendown;
 	int power_mode;
+	int irq_gpio;
+	struct corgits_machinfo *machinfo;
 };
 
-#define STATUS_HSYNC		(GPLR(CORGI_GPIO_HSYNC) & GPIO_bit(CORGI_GPIO_HSYNC))
-
-#define SyncHS()	while((STATUS_HSYNC) == 0); while((STATUS_HSYNC) != 0);
+#ifdef CONFIG_PXA25x
 #define CCNT(a)		asm volatile ("mrc p14, 0, %0, C1, C0, 0" : "=r"(a))
-#define CCNT_ON()	{int pmnc = 1; asm volatile ("mcr p14, 0, %0, C0, C0, 0" : : "r"(pmnc));}
-#define CCNT_OFF()	{int pmnc = 0; asm volatile ("mcr p14, 0, %0, C0, C0, 0" : : "r"(pmnc));}
-
-#define WAIT_HS_400_VGA		7013U	// 17.615us
-#define WAIT_HS_400_QVGA	16622U	// 41.750us
-
+#define PMNC_GET(x)	asm volatile ("mrc p14, 0, %0, C0, C0, 0" : "=r"(x))
+#define PMNC_SET(x)	asm volatile ("mcr p14, 0, %0, C0, C0, 0" : : "r"(x))
+#endif
+#ifdef CONFIG_PXA27x
+#define CCNT(a)		asm volatile ("mrc p14, 0, %0, C1, C1, 0" : "=r"(a))
+#define PMNC_GET(x)	asm volatile ("mrc p14, 0, %0, C0, C1, 0" : "=r"(x))
+#define PMNC_SET(x)	asm volatile ("mcr p14, 0, %0, C0, C1, 0" : : "r"(x))
+#endif
 
 /* ADS7846 Touch Screen Controller bit definitions */
 #define ADSCTRL_PD0		(1u << 0)	/* PD0 */
@@ -69,43 +70,31 @@ struct corgi_ts {
 #define ADSCTRL_STS		(1u << 7)	/* Start Bit */
 
 /* External Functions */
-extern int w100fb_get_xres(void);
-extern int w100fb_get_blanking(void);
-extern int w100fb_get_fastsysclk(void);
 extern unsigned int get_clk_frequency_khz(int info);
 
-static unsigned long calc_waittime(void)
+static unsigned long calc_waittime(struct corgi_ts *corgi_ts)
 {
-	int w100fb_xres = w100fb_get_xres();
-	unsigned int waittime = 0;
+	unsigned long hsync_len = corgi_ts->machinfo->get_hsync_len();
 
-	if (w100fb_xres == 480 || w100fb_xres == 640) {
-		waittime = WAIT_HS_400_VGA * get_clk_frequency_khz(0) / 398131U;
-
-		if (w100fb_get_fastsysclk() == 100)
-			waittime = waittime * 75 / 100;
-
-		if (w100fb_xres == 640)
-			waittime *= 3;
-
-		return waittime;
-	}
-
-	return WAIT_HS_400_QVGA * get_clk_frequency_khz(0) / 398131U;
+	if (hsync_len)
+		return get_clk_frequency_khz(0)*1000/hsync_len;
+	else
+		return 0;
 }
 
-static int sync_receive_data_send_cmd(int doRecive, int doSend, unsigned int address, unsigned long wait_time)
+static int sync_receive_data_send_cmd(struct corgi_ts *corgi_ts, int doRecive, int doSend,
+		unsigned int address, unsigned long wait_time)
 {
+	unsigned long timer1 = 0, timer2, pmnc = 0;
 	int pos = 0;
-	unsigned long timer1 = 0, timer2;
-	int dosleep;
 
-	dosleep = !w100fb_get_blanking();
+	if (wait_time && doSend) {
+		PMNC_GET(pmnc);
+		if (!(pmnc & 0x01))
+			PMNC_SET(0x01);
 
-	if (dosleep && doSend) {
-		CCNT_ON();
 		/* polling HSync */
-		SyncHS();
+		corgi_ts->machinfo->wait_hsync();
 		/* get CCNT */
 		CCNT(timer1);
 	}
@@ -119,12 +108,12 @@ static int sync_receive_data_send_cmd(int doRecive, int doSend, unsigned int add
 		corgi_ssp_ads7846_put(cmd);
 		corgi_ssp_ads7846_get();
 
-		if (dosleep) {
+		if (wait_time) {
 			/* Wait after HSync */
 			CCNT(timer2);
 			if (timer2-timer1 > wait_time) {
-				/* timeout */
-				SyncHS();
+				/* too slow - timeout, try again */
+				corgi_ts->machinfo->wait_hsync();
 				/* get OSCR */
 				CCNT(timer1);
 				/* Wait after HSync */
@@ -134,8 +123,8 @@ static int sync_receive_data_send_cmd(int doRecive, int doSend, unsigned int add
 				CCNT(timer2);
 		}
 		corgi_ssp_ads7846_put(cmd);
-		if (dosleep)
-			CCNT_OFF();
+		if (wait_time && !(pmnc & 0x01))
+			PMNC_SET(pmnc);
 	}
 	return pos;
 }
@@ -148,23 +137,23 @@ static int read_xydata(struct corgi_ts *corgi_ts)
 	/* critical section */
 	local_irq_save(flags);
 	corgi_ssp_ads7846_lock();
-	wait_time=calc_waittime();
+	wait_time = calc_waittime(corgi_ts);
 
 	/* Y-axis */
-	sync_receive_data_send_cmd(0, 1, 1u, wait_time);
+	sync_receive_data_send_cmd(corgi_ts, 0, 1, 1u, wait_time);
 
 	/* Y-axis */
-	sync_receive_data_send_cmd(1, 1, 1u, wait_time);
+	sync_receive_data_send_cmd(corgi_ts, 1, 1, 1u, wait_time);
 
 	/* X-axis */
-	y = sync_receive_data_send_cmd(1, 1, 5u, wait_time);
+	y = sync_receive_data_send_cmd(corgi_ts, 1, 1, 5u, wait_time);
 
 	/* Z1 */
-	x = sync_receive_data_send_cmd(1, 1, 3u, wait_time);
+	x = sync_receive_data_send_cmd(corgi_ts, 1, 1, 3u, wait_time);
 
 	/* Z2 */
-	z1 = sync_receive_data_send_cmd(1, 1, 4u, wait_time);
-	z2 = sync_receive_data_send_cmd(1, 0, 4u, wait_time);
+	z1 = sync_receive_data_send_cmd(corgi_ts, 1, 1, 4u, wait_time);
+	z2 = sync_receive_data_send_cmd(corgi_ts, 1, 0, 4u, wait_time);
 
 	/* Power-Down Enable */
 	corgi_ssp_ads7846_put((1u << ADSCTRL_ADR_SH) | ADSCTRL_STS);
@@ -192,21 +181,19 @@ static void new_data(struct corgi_ts *corgi_ts, struct pt_regs *regs)
 	if (!corgi_ts->tc.pressure && corgi_ts->pendown == 0)
 		return;
 
-	if (regs)
-		input_regs(&corgi_ts->input, regs);
-
-	input_report_abs(&corgi_ts->input, ABS_X, corgi_ts->tc.x);
-	input_report_abs(&corgi_ts->input, ABS_Y, corgi_ts->tc.y);
-	input_report_abs(&corgi_ts->input, ABS_PRESSURE, corgi_ts->tc.pressure);
-	input_report_key(&corgi_ts->input, BTN_TOUCH, (corgi_ts->pendown != 0));
-	input_sync(&corgi_ts->input);
+	input_regs(corgi_ts->input, regs);
+	input_report_abs(corgi_ts->input, ABS_X, corgi_ts->tc.x);
+	input_report_abs(corgi_ts->input, ABS_Y, corgi_ts->tc.y);
+	input_report_abs(corgi_ts->input, ABS_PRESSURE, corgi_ts->tc.pressure);
+	input_report_key(corgi_ts->input, BTN_TOUCH, (corgi_ts->pendown != 0));
+	input_sync(corgi_ts->input);
 }
 
 static void ts_interrupt_main(struct corgi_ts *corgi_ts, int isTimer, struct pt_regs *regs)
 {
-	if ((GPLR(CORGI_GPIO_TP_INT) & GPIO_bit(CORGI_GPIO_TP_INT)) == 0) {
+	if ((GPLR(IRQ_TO_GPIO(corgi_ts->irq_gpio)) & GPIO_bit(IRQ_TO_GPIO(corgi_ts->irq_gpio))) == 0) {
 		/* Disable Interrupt */
-		set_irq_type(CORGI_IRQ_GPIO_TP_INT, IRQT_NOEDGE);
+		set_irq_type(corgi_ts->irq_gpio, IRQT_NOEDGE);
 		if (read_xydata(corgi_ts)) {
 			corgi_ts->pendown = 1;
 			new_data(corgi_ts, regs);
@@ -225,7 +212,7 @@ static void ts_interrupt_main(struct corgi_ts *corgi_ts, int isTimer, struct pt_
 		}
 
 		/* Enable Falling Edge */
-		set_irq_type(CORGI_IRQ_GPIO_TP_INT, IRQT_FALLING);
+		set_irq_type(corgi_ts->irq_gpio, IRQT_FALLING);
 		corgi_ts->pendown = 0;
 	}
 }
@@ -244,34 +231,32 @@ static irqreturn_t ts_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 #ifdef CONFIG_PM
-static int corgits_suspend(struct device *dev, uint32_t state, uint32_t level)
+static int corgits_suspend(struct device *dev, pm_message_t state)
 {
-	if (level == SUSPEND_POWER_DOWN) {
-		struct corgi_ts *corgi_ts = dev_get_drvdata(dev);
+	struct corgi_ts *corgi_ts = dev_get_drvdata(dev);
 
-		if (corgi_ts->pendown) {
-			del_timer_sync(&corgi_ts->timer);
-			corgi_ts->tc.pressure = 0;
-			new_data(corgi_ts, NULL);
-			corgi_ts->pendown = 0;
-		}
-		corgi_ts->power_mode = PWR_MODE_SUSPEND;
-
-		corgi_ssp_ads7846_putget((1u << ADSCTRL_ADR_SH) | ADSCTRL_STS);
+	if (corgi_ts->pendown) {
+		del_timer_sync(&corgi_ts->timer);
+		corgi_ts->tc.pressure = 0;
+		new_data(corgi_ts, NULL);
+		corgi_ts->pendown = 0;
 	}
+	corgi_ts->power_mode = PWR_MODE_SUSPEND;
+
+	corgi_ssp_ads7846_putget((1u << ADSCTRL_ADR_SH) | ADSCTRL_STS);
+
 	return 0;
 }
 
-static int corgits_resume(struct device *dev, uint32_t level)
+static int corgits_resume(struct device *dev)
 {
-	if (level == RESUME_POWER_ON) {
-		struct corgi_ts *corgi_ts = dev_get_drvdata(dev);
+	struct corgi_ts *corgi_ts = dev_get_drvdata(dev);
 
-		corgi_ssp_ads7846_putget((4u << ADSCTRL_ADR_SH) | ADSCTRL_STS);
-		/* Enable Falling Edge */
-		set_irq_type(CORGI_IRQ_GPIO_TP_INT, IRQT_FALLING);
-		corgi_ts->power_mode = PWR_MODE_ACTIVE;
-	}
+	corgi_ssp_ads7846_putget((4u << ADSCTRL_ADR_SH) | ADSCTRL_STS);
+	/* Enable Falling Edge */
+	set_irq_type(corgi_ts->irq_gpio, IRQT_FALLING);
+	corgi_ts->power_mode = PWR_MODE_ACTIVE;
+
 	return 0;
 }
 #else
@@ -282,34 +267,47 @@ static int corgits_resume(struct device *dev, uint32_t level)
 static int __init corgits_probe(struct device *dev)
 {
 	struct corgi_ts *corgi_ts;
+	struct platform_device *pdev = to_platform_device(dev);
+	struct input_dev *input_dev;
+	int err = -ENOMEM;
 
-	if (!(corgi_ts = kmalloc(sizeof(struct corgi_ts), GFP_KERNEL)))
-		return -ENOMEM;
+	corgi_ts = kzalloc(sizeof(struct corgi_ts), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!corgi_ts || !input_dev)
+		goto fail;
 
 	dev_set_drvdata(dev, corgi_ts);
 
-	memset(corgi_ts, 0, sizeof(struct corgi_ts));
+	corgi_ts->machinfo = dev->platform_data;
+	corgi_ts->irq_gpio = platform_get_irq(pdev, 0);
 
-	init_input_dev(&corgi_ts->input);
-	corgi_ts->input.evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
-	corgi_ts->input.keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
-	input_set_abs_params(&corgi_ts->input, ABS_X, X_AXIS_MIN, X_AXIS_MAX, 0, 0);
-	input_set_abs_params(&corgi_ts->input, ABS_Y, Y_AXIS_MIN, Y_AXIS_MAX, 0, 0);
-	input_set_abs_params(&corgi_ts->input, ABS_PRESSURE, PRESSURE_MIN, PRESSURE_MAX, 0, 0);
+	if (corgi_ts->irq_gpio < 0) {
+		err = -ENODEV;
+		goto fail;
+	}
 
-	strcpy(corgi_ts->phys, "corgits/input0");
+	corgi_ts->input = input_dev;
 
-	corgi_ts->input.private = corgi_ts;
-	corgi_ts->input.name = "Corgi Touchscreen";
-	corgi_ts->input.dev = dev;
-	corgi_ts->input.phys = corgi_ts->phys;
-	corgi_ts->input.id.bustype = BUS_HOST;
-	corgi_ts->input.id.vendor = 0x0001;
-	corgi_ts->input.id.product = 0x0002;
-	corgi_ts->input.id.version = 0x0100;
+	init_timer(&corgi_ts->timer);
+	corgi_ts->timer.data = (unsigned long) corgi_ts;
+	corgi_ts->timer.function = corgi_ts_timer;
 
-	pxa_gpio_mode(CORGI_GPIO_TP_INT | GPIO_IN);
-	pxa_gpio_mode(CORGI_GPIO_HSYNC | GPIO_IN);
+	input_dev->name = "Corgi Touchscreen";
+	input_dev->phys = "corgits/input0";
+	input_dev->id.bustype = BUS_HOST;
+	input_dev->id.vendor = 0x0001;
+	input_dev->id.product = 0x0002;
+	input_dev->id.version = 0x0100;
+	input_dev->cdev.dev = dev;
+	input_dev->private = corgi_ts;
+
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_ABS);
+	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
+	input_set_abs_params(input_dev, ABS_X, X_AXIS_MIN, X_AXIS_MAX, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, Y_AXIS_MIN, Y_AXIS_MAX, 0, 0);
+	input_set_abs_params(input_dev, ABS_PRESSURE, PRESSURE_MIN, PRESSURE_MAX, 0, 0);
+
+	pxa_gpio_mode(IRQ_TO_GPIO(corgi_ts->irq_gpio) | GPIO_IN);
 
 	/* Initiaize ADS7846 Difference Reference mode */
 	corgi_ssp_ads7846_putget((1u << ADSCTRL_ADR_SH) | ADSCTRL_STS);
@@ -321,34 +319,34 @@ static int __init corgits_probe(struct device *dev)
 	corgi_ssp_ads7846_putget((5u << ADSCTRL_ADR_SH) | ADSCTRL_STS);
 	mdelay(5);
 
-	init_timer(&corgi_ts->timer);
-	corgi_ts->timer.data = (unsigned long) corgi_ts;
-	corgi_ts->timer.function = corgi_ts_timer;
-
-	input_register_device(&corgi_ts->input);
-	corgi_ts->power_mode = PWR_MODE_ACTIVE;
-
-	if (request_irq(CORGI_IRQ_GPIO_TP_INT, ts_interrupt, SA_INTERRUPT, "ts", corgi_ts)) {
-		input_unregister_device(&corgi_ts->input);
-		kfree(corgi_ts);
-		return -EBUSY;
+	if (request_irq(corgi_ts->irq_gpio, ts_interrupt, SA_INTERRUPT, "ts", corgi_ts)) {
+		err = -EBUSY;
+		goto fail;
 	}
 
-	/* Enable Falling Edge */
-	set_irq_type(CORGI_IRQ_GPIO_TP_INT, IRQT_FALLING);
+	input_register_device(corgi_ts->input);
 
-	printk(KERN_INFO "input: Corgi Touchscreen Registered\n");
+	corgi_ts->power_mode = PWR_MODE_ACTIVE;
+
+	/* Enable Falling Edge */
+	set_irq_type(corgi_ts->irq_gpio, IRQT_FALLING);
 
 	return 0;
+
+ fail:	input_free_device(input_dev);
+	kfree(corgi_ts);
+	return err;
+
 }
 
 static int corgits_remove(struct device *dev)
 {
 	struct corgi_ts *corgi_ts = dev_get_drvdata(dev);
 
-	free_irq(CORGI_IRQ_GPIO_TP_INT, NULL);
+	free_irq(corgi_ts->irq_gpio, NULL);
 	del_timer_sync(&corgi_ts->timer);
-	input_unregister_device(&corgi_ts->input);
+	corgi_ts->machinfo->put_hsync();
+	input_unregister_device(corgi_ts->input);
 	kfree(corgi_ts);
 	return 0;
 }

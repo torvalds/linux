@@ -19,8 +19,9 @@
  * This file is licenced under the GPL.
 */
 
+#include <linux/platform_device.h>
+
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 #include <asm/hardware/clock.h>
 #include <asm/arch/usb-control.h>
 
@@ -129,7 +130,7 @@ static void s3c2410_usb_set_power(struct s3c2410_hcd_info *info,
 
 	if (info->power_control != NULL) {
 		info->port[port-1].power = to;
-		(info->power_control)(port, to);
+		(info->power_control)(port-1, to);
 	}
 }
 
@@ -339,8 +340,8 @@ int usb_hcd_s3c2410_probe (const struct hc_driver *driver,
 	struct usb_hcd *hcd = NULL;
 	int retval;
 
-	s3c2410_usb_set_power(dev->dev.platform_data, 0, 1);
 	s3c2410_usb_set_power(dev->dev.platform_data, 1, 1);
+	s3c2410_usb_set_power(dev->dev.platform_data, 2, 1);
 
 	hcd = usb_create_hcd(driver, &dev->dev, "s3c24xx");
 	if (hcd == NULL)
@@ -449,11 +450,11 @@ static const struct hc_driver ohci_s3c2410_hc_driver = {
 	 */
 	.hub_status_data =	ohci_s3c2410_hub_status_data,
 	.hub_control =		ohci_s3c2410_hub_control,
-
-#if defined(CONFIG_USB_SUSPEND) && 0
-	.hub_suspend =		ohci_hub_suspend,
-	.hub_resume =		ohci_hub_resume,
+#ifdef	CONFIG_PM
+	.bus_suspend =		ohci_bus_suspend,
+	.bus_resume =		ohci_bus_resume,
 #endif
+	.start_port_reset =	ohci_start_port_reset,
 };
 
 /* device driver */
@@ -475,6 +476,7 @@ static int ohci_hcd_s3c2410_drv_remove(struct device *dev)
 
 static struct device_driver ohci_hcd_s3c2410_driver = {
 	.name		= "s3c2410-ohci",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= ohci_hcd_s3c2410_drv_probe,
 	.remove		= ohci_hcd_s3c2410_drv_remove,

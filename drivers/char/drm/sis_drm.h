@@ -39,4 +39,4 @@ typedef struct {
 	unsigned int offset, size;
 } drm_sis_fb_t;
 
-#endif /* __SIS_DRM_H__ */
+#endif				/* __SIS_DRM_H__ */

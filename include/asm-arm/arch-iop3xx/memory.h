@@ -12,9 +12,9 @@
  * Physical DRAM offset.
  */
 #ifndef CONFIG_ARCH_IOP331
-#define PHYS_OFFSET	(0xa0000000UL)
+#define PHYS_OFFSET	UL(0xa0000000)
 #else
-#define PHYS_OFFSET	(0x00000000UL)
+#define PHYS_OFFSET	UL(0x00000000)
 #endif
 
 /*
@@ -35,7 +35,5 @@
 #define __bus_to_virt(x)    (__phys_to_virt(((x) & ~(*IOP331_IALR2)) | ( *IOP331_IATVR2)))
 
 #endif
-
-#define PFN_TO_NID(addr)	(0)
 
 #endif

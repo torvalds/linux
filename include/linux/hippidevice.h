@@ -26,8 +26,12 @@
 #include <linux/if_hippi.h>
 
 #ifdef __KERNEL__
-extern unsigned short hippi_type_trans(struct sk_buff *skb,
-				       struct net_device *dev);
+
+struct hippi_cb {
+	__u32	ifield;
+};
+
+extern __be16 hippi_type_trans(struct sk_buff *skb, struct net_device *dev);
 
 extern struct net_device *alloc_hippi_dev(int sizeof_priv);
 #endif

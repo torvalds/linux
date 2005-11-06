@@ -859,6 +859,7 @@ static struct action_ops snd_pcm_action_start = {
 
 /**
  * snd_pcm_start
+ * @substream: the PCM substream instance
  *
  * Start all linked streams.
  */
@@ -908,6 +909,8 @@ static struct action_ops snd_pcm_action_stop = {
 
 /**
  * snd_pcm_stop
+ * @substream: the PCM substream instance
+ * @state: PCM state after stopping the stream
  *
  * Try to stop all running streams in the substream group.
  * The state of each stream is changed to the given value after that unconditionally.
@@ -919,6 +922,7 @@ int snd_pcm_stop(snd_pcm_substream_t *substream, int state)
 
 /**
  * snd_pcm_drain_done
+ * @substream: the PCM substream
  *
  * Stop the DMA only when the given stream is playback.
  * The state is changed to SETUP.
@@ -1025,7 +1029,7 @@ static void snd_pcm_post_suspend(snd_pcm_substream_t *substream, int state)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	snd_pcm_trigger_tstamp(substream);
 	if (substream->timer)
-		snd_timer_notify(substream->timer, SNDRV_TIMER_EVENT_MPAUSE, &runtime->trigger_tstamp);
+		snd_timer_notify(substream->timer, SNDRV_TIMER_EVENT_MSUSPEND, &runtime->trigger_tstamp);
 	runtime->status->suspended_state = runtime->status->state;
 	runtime->status->state = SNDRV_PCM_STATE_SUSPENDED;
 	snd_pcm_tick_set(substream, 0);
@@ -1040,6 +1044,7 @@ static struct action_ops snd_pcm_action_suspend = {
 
 /**
  * snd_pcm_suspend
+ * @substream: the PCM substream
  *
  * Trigger SUSPEND to all linked streams.
  * After this call, all streams are changed to SUSPENDED state.
@@ -1057,6 +1062,7 @@ int snd_pcm_suspend(snd_pcm_substream_t *substream)
 
 /**
  * snd_pcm_suspend_all
+ * @pcm: the PCM instance
  *
  * Trigger SUSPEND to all substreams in the given pcm.
  * After this call, all streams are changed to SUSPENDED state.
@@ -1115,7 +1121,7 @@ static void snd_pcm_post_resume(snd_pcm_substream_t *substream, int state)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	snd_pcm_trigger_tstamp(substream);
 	if (substream->timer)
-		snd_timer_notify(substream->timer, SNDRV_TIMER_EVENT_MCONTINUE, &runtime->trigger_tstamp);
+		snd_timer_notify(substream->timer, SNDRV_TIMER_EVENT_MRESUME, &runtime->trigger_tstamp);
 	runtime->status->state = runtime->status->suspended_state;
 	if (runtime->sleep_min)
 		snd_pcm_tick_prepare(substream);
@@ -1272,6 +1278,9 @@ static struct action_ops snd_pcm_action_prepare = {
 
 /**
  * snd_pcm_prepare
+ * @substream: the PCM substream instance
+ *
+ * Prepare the PCM substream to be triggerable.
  */
 int snd_pcm_prepare(snd_pcm_substream_t *substream)
 {
@@ -1967,13 +1976,12 @@ static int snd_pcm_release_file(snd_pcm_file_t * pcm_file)
 	runtime = substream->runtime;
 	str = substream->pstr;
 	snd_pcm_unlink(substream);
-	if (substream->open_flag) {
+	if (substream->ffile != NULL) {
 		if (substream->ops->hw_free != NULL)
 			substream->ops->hw_free(substream);
 		substream->ops->close(substream);
-		substream->open_flag = 0;
+		substream->ffile = NULL;
 	}
-	substream->ffile = NULL;
 	snd_pcm_remove_file(str, pcm_file);
 	snd_pcm_release_substream(substream);
 	kfree(pcm_file);
@@ -1993,7 +2001,7 @@ static int snd_pcm_open_file(struct file *file,
 	snd_assert(rpcm_file != NULL, return -EINVAL);
 	*rpcm_file = NULL;
 
-	pcm_file = kcalloc(1, sizeof(*pcm_file), GFP_KERNEL);
+	pcm_file = kzalloc(sizeof(*pcm_file), GFP_KERNEL);
 	if (pcm_file == NULL) {
 		return -ENOMEM;
 	}
@@ -2022,17 +2030,14 @@ static int snd_pcm_open_file(struct file *file,
 		snd_pcm_release_file(pcm_file);
 		return err;
 	}
-	substream->open_flag = 1;
+	substream->ffile = file;
 
 	err = snd_pcm_hw_constraints_complete(substream);
 	if (err < 0) {
 		snd_printd("snd_pcm_hw_constraints_complete failed\n");
-		substream->ops->close(substream);
 		snd_pcm_release_file(pcm_file);
 		return err;
 	}
-
-	substream->ffile = file;
 
 	file->private_data = pcm_file;
 	*rpcm_file = pcm_file;
@@ -2944,8 +2949,7 @@ static struct page * snd_pcm_mmap_status_nopage(struct vm_area_struct *area, uns
 		return NOPAGE_OOM;
 	runtime = substream->runtime;
 	page = virt_to_page(runtime->status);
-	if (!PageReserved(page))
-		get_page(page);
+	get_page(page);
 	if (type)
 		*type = VM_FAULT_MINOR;
 	return page;
@@ -2987,8 +2991,7 @@ static struct page * snd_pcm_mmap_control_nopage(struct vm_area_struct *area, un
 		return NOPAGE_OOM;
 	runtime = substream->runtime;
 	page = virt_to_page(runtime->control);
-	if (!PageReserved(page))
-		get_page(page);
+	get_page(page);
 	if (type)
 		*type = VM_FAULT_MINOR;
 	return page;
@@ -3061,8 +3064,7 @@ static struct page *snd_pcm_mmap_data_nopage(struct vm_area_struct *area, unsign
 		vaddr = runtime->dma_area + offset;
 		page = virt_to_page(vaddr);
 	}
-	if (!PageReserved(page))
-		get_page(page);
+	get_page(page);
 	if (type)
 		*type = VM_FAULT_MINOR;
 	return page;

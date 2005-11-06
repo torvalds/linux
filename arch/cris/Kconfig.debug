@@ -5,10 +5,13 @@ config PROFILING
 	bool "Kernel profiling support"
 
 config SYSTEM_PROFILER
-        bool "System profiling support"
+	bool "System profiling support"
+
+source "lib/Kconfig.debug"
 
 config ETRAX_KGDB
 	bool "Use kernel GDB debugger"
+	depends on DEBUG_KERNEL
 	---help---
 	  The CRIS version of gdb can be used to remotely debug a running
 	  Linux kernel via the serial debug port.  Provided you have gdb-cris
@@ -22,25 +25,11 @@ config ETRAX_KGDB
 	  this option is turned on!
 
 
-config DEBUG_INFO
-        bool "Compile the kernel with debug info"
-        help
-          If you say Y here the resulting kernel image will include
-          debugging info resulting in a larger kernel image.
-          Say Y here only if you plan to use gdb to debug the kernel.
-          If you don't debug the kernel, you can say N.
-
-config FRAME_POINTER
-        bool "Compile the kernel with frame pointers"
-        help
-          If you say Y here the resulting kernel image will be slightly larger
-          and slower, but it will give very useful debugging information.
-          If you don't debug the kernel, you can say N, but we may not be able
-          to solve problems without frame pointers.
-
 config DEBUG_NMI_OOPS
-       bool "NMI causes oops printout"
-       help
-         If the system locks up without any debug information you can say Y
-         here to make it possible to dump an OOPS with an external NMI.
+	bool "NMI causes oops printout"
+	depends on DEBUG_KERNEL
+	help
+	  If the system locks up without any debug information you can say Y
+	  here to make it possible to dump an OOPS with an external NMI.
+
 endmenu

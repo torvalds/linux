@@ -236,8 +236,8 @@ int sctp_rcv(struct sk_buff *skb)
 	}
 
 	/* SCTP seems to always need a timestamp right now (FIXME) */
-	if (skb->stamp.tv_sec == 0) {
-		do_gettimeofday(&skb->stamp);
+	if (skb->tstamp.off_sec == 0) {
+		__net_timestamp(skb);
 		sock_enable_timestamp(sk); 
 	}
 

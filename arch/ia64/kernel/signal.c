@@ -467,15 +467,12 @@ handle_signal (unsigned long sig, struct k_sigaction *ka, siginfo_t *info, sigse
 		if (!setup_frame(sig, ka, info, oldset, scr))
 			return 0;
 
-	if (!(ka->sa.sa_flags & SA_NODEFER)) {
-		spin_lock_irq(&current->sighand->siglock);
-		{
-			sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
-			sigaddset(&current->blocked, sig);
-			recalc_sigpending();
-		}
-		spin_unlock_irq(&current->sighand->siglock);
-	}
+	spin_lock_irq(&current->sighand->siglock);
+	sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
+	if (!(ka->sa.sa_flags & SA_NODEFER))
+		sigaddset(&current->blocked, sig);
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
 	return 1;
 }
 

@@ -597,7 +597,7 @@ static int arcnet_send_packet(struct sk_buff *skb, struct net_device *dev)
 	struct ArcProto *proto;
 	int txbuf;
 	unsigned long flags;
-	int freeskb = 0;
+	int freeskb, retval;
 
 	BUGMSG(D_DURING,
 	       "transmit requested (status=%Xh, txbufs=%d/%d, len=%d, protocol %x)\n",
@@ -615,7 +615,7 @@ static int arcnet_send_packet(struct sk_buff *skb, struct net_device *dev)
 	if (skb->len - ARC_HDR_SIZE > XMTU && !proto->continue_tx) {
 		BUGMSG(D_NORMAL, "fixme: packet too large: compensating badly!\n");
 		dev_kfree_skb(skb);
-		return 0;	/* don't try again */
+		return NETDEV_TX_OK;	/* don't try again */
 	}
 
 	/* We're busy transmitting a packet... */
@@ -623,8 +623,11 @@ static int arcnet_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irqsave(&lp->lock, flags);
 	AINTMASK(0);
-
-	txbuf = get_arcbuf(dev);
+	if(lp->next_tx == -1)
+		txbuf = get_arcbuf(dev);
+	else {
+		txbuf = -1;
+	}
 	if (txbuf != -1) {
 		if (proto->prepare_tx(dev, pkt, skb->len, txbuf) &&
 		    !proto->ack_tx) {
@@ -638,6 +641,8 @@ static int arcnet_send_packet(struct sk_buff *skb, struct net_device *dev)
 			lp->outgoing.skb = skb;
 			lp->outgoing.pkt = pkt;
 
+			freeskb = 0;
+
 			if (proto->continue_tx &&
 			    proto->continue_tx(dev, txbuf)) {
 			  BUGMSG(D_NORMAL,
@@ -645,10 +650,12 @@ static int arcnet_send_packet(struct sk_buff *skb, struct net_device *dev)
 				 "(proto='%c')\n", proto->suffix);
 			}
 		}
-
+		retval = NETDEV_TX_OK;
+		dev->trans_start = jiffies;
 		lp->next_tx = txbuf;
 	} else {
-		freeskb = 1;
+		retval = NETDEV_TX_BUSY;
+		freeskb = 0;
 	}
 
 	BUGMSG(D_DEBUG, "%s: %d: %s, status: %x\n",__FILE__,__LINE__,__FUNCTION__,ASTATUS());
@@ -664,7 +671,7 @@ static int arcnet_send_packet(struct sk_buff *skb, struct net_device *dev)
 	if (freeskb) {
 		dev_kfree_skb(skb);
 	}
-	return 0;		/* no need to try again */
+	return retval;		/* no need to try again */
 }
 
 
@@ -690,7 +697,6 @@ static int go_tx(struct net_device *dev)
 	/* start sending */
 	ACOMMAND(TXcmd | (lp->cur_tx << 3));
 
-	dev->trans_start = jiffies;
 	lp->stats.tx_packets++;
 	lp->lasttrans_dest = lp->lastload_dest;
 	lp->lastload_dest = 0;
@@ -917,6 +923,9 @@ irqreturn_t arcnet_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 			BUGMSG(D_RECON, "Network reconfiguration detected (status=%Xh)\n",
 			       status);
+			/* MYRECON bit is at bit 7 of diagstatus */
+			if(diagstatus & 0x80)
+				BUGMSG(D_RECON,"Put out that recon myself\n");
 
 			/* is the RECON info empty or old? */
 			if (!lp->first_recon || !lp->last_recon ||

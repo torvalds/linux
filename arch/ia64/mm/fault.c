@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/smp_lock.h>
 #include <linux/interrupt.h>
+#include <linux/kprobes.h>
 
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -17,32 +18,6 @@
 #include <asm/kdebug.h>
 
 extern void die (char *, struct pt_regs *, long);
-
-/*
- * This routine is analogous to expand_stack() but instead grows the
- * register backing store (which grows towards higher addresses).
- * Since the register backing store is access sequentially, we
- * disallow growing the RBS by more than a page at a time.  Note that
- * the VM_GROWSUP flag can be set on any VM area but that's fine
- * because the total process size is still limited by RLIMIT_STACK and
- * RLIMIT_AS.
- */
-static inline long
-expand_backing_store (struct vm_area_struct *vma, unsigned long address)
-{
-	unsigned long grow;
-
-	grow = PAGE_SIZE >> PAGE_SHIFT;
-	if (address - vma->vm_start > current->signal->rlim[RLIMIT_STACK].rlim_cur
-	    || (((vma->vm_mm->total_vm + grow) << PAGE_SHIFT) > current->signal->rlim[RLIMIT_AS].rlim_cur))
-		return -ENOMEM;
-	vma->vm_end += PAGE_SIZE;
-	vma->vm_mm->total_vm += grow;
-	if (vma->vm_flags & VM_LOCKED)
-		vma->vm_mm->locked_vm += grow;
-	__vm_stat_account(vma->vm_mm, vma->vm_flags, vma->vm_file, grow);
-	return 0;
-}
 
 /*
  * Return TRUE if ADDRESS points at a page in the kernel's mapped segment
@@ -76,7 +51,7 @@ mapped_kernel_page_is_present (unsigned long address)
 	return pte_present(pte);
 }
 
-void
+void __kprobes
 ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *regs)
 {
 	int signal = SIGSEGV, code = SEGV_MAPERR;
@@ -184,7 +159,13 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 		if (REGION_NUMBER(address) != REGION_NUMBER(vma->vm_start)
 		    || REGION_OFFSET(address) >= RGN_MAP_LIMIT)
 			goto bad_area;
-		if (expand_backing_store(vma, address))
+		/*
+		 * Since the register backing store is accessed sequentially,
+		 * we disallow growing it by more than a page at a time.
+		 */
+		if (address > vma->vm_end + PAGE_SIZE - sizeof(long))
+			goto bad_area;
+		if (expand_upwards(vma, address))
 			goto bad_area;
 	}
 	goto good_area;
@@ -229,9 +210,6 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 		return;
 	}
 
-	if (ia64_done_with_exception(regs))
-		return;
-
 	/*
 	 * Since we have no vma's for region 5, we might get here even if the address is
 	 * valid, due to the VHPT walker inserting a non present translation that becomes
@@ -240,6 +218,9 @@ ia64_do_page_fault (unsigned long address, unsigned long isr, struct pt_regs *re
 	 * valid, and return if it is.
 	 */
 	if (REGION_NUMBER(address) == 5 && mapped_kernel_page_is_present(address))
+		return;
+
+	if (ia64_done_with_exception(regs))
 		return;
 
 	/*

@@ -68,6 +68,9 @@
  *               "David C. Hansen" <haveblue@us.ibm.com>
  *                     Fixes
  *
+ *               "Ian Romanick" <idr@us.ibm.com>
+ *                     Find PInS data in BIOS on PowerPC systems.
+ *
  * (following author is not in any relation with this code, but his code
  *  is included in this driver)
  *
@@ -496,10 +499,35 @@ static void parse_bios(unsigned char __iomem* vbios, struct matrox_bios* bd) {
 	get_bios_version(vbios, bd);
 	get_bios_output(vbios, bd);
 	get_bios_tvout(vbios, bd);
+#if defined(__powerpc__)
+	/* On PowerPC cards, the PInS offset isn't stored at the end of the
+	 * BIOS image.  Instead, you must search the entire BIOS image for
+	 * the magic PInS signature.
+	 *
+	 * This actually applies to all OpenFirmware base cards.  Since these
+	 * cards could be put in a MIPS or SPARC system, should the condition
+	 * be something different?
+	 */
+	for ( pins_offset = 0 ; pins_offset <= 0xFF80 ; pins_offset++ ) {
+		unsigned char header[3];
+
+		header[0] = readb(vbios + pins_offset);
+		header[1] = readb(vbios + pins_offset + 1);
+		header[2] = readb(vbios + pins_offset + 2);
+		if ( (header[0] == 0x2E) && (header[1] == 0x41)
+		     && ((header[2] == 0x40) || (header[2] == 0x80)) ) {
+			printk(KERN_INFO "PInS data found at offset %u\n",
+			       pins_offset);
+			get_pins(vbios + pins_offset, bd);
+			break;
+		}
+	}
+#else
 	pins_offset = readb(vbios + 0x7FFC) | (readb(vbios + 0x7FFD) << 8);
 	if (pins_offset <= 0xFF80) {
 		get_pins(vbios + pins_offset, bd);
 	}
+#endif
 }
 
 #define get_u16(x) (le16_to_cpu(get_unaligned((__u16*)(x))))
@@ -755,6 +783,8 @@ void matroxfb_read_pins(WPMINFO2) {
 	}
 #endif
 	matroxfb_set_limits(PMINFO &ACCESS_FBINFO(bios));
+	printk(KERN_INFO "PInS memtype = %u\n",
+	       (ACCESS_FBINFO(values).reg.opt & 0x1C00) >> 10);
 }
 
 EXPORT_SYMBOL(matroxfb_DAC_in);

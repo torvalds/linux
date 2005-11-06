@@ -102,7 +102,7 @@ Here is the list of words, from left to right:
 - URB Status. This field makes no sense for submissions, but is present
   to help scripts with parsing. In error case, it contains the error code.
   In case of a setup packet, it contains a Setup Tag. If scripts read a number
-  in this field, the proceed to read Data Length. Otherwise, they read
+  in this field, they proceed to read Data Length. Otherwise, they read
   the setup packet before reading the Data Length.
 - Setup packet, if present, consists of 5 words: one of each for bmRequestType,
   bRequest, wValue, wIndex, wLength, as specified by the USB Specification 2.0.

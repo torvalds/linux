@@ -30,11 +30,8 @@ extern struct pci_bus *ixp4xx_scan_bus(int nr, struct pci_sys_data *sys);
 
 void __init coyote_pci_preinit(void)
 {
-	gpio_line_config(COYOTE_PCI_SLOT0_PIN,
-			IXP4XX_GPIO_IN | IXP4XX_GPIO_ACTIVE_LOW);
-
-	gpio_line_config(COYOTE_PCI_SLOT1_PIN,
-			IXP4XX_GPIO_IN | IXP4XX_GPIO_ACTIVE_LOW);
+	set_irq_type(IRQ_COYOTE_PCI_SLOT0, IRQT_LOW);
+	set_irq_type(IRQ_COYOTE_PCI_SLOT1, IRQT_LOW);
 
 	gpio_line_isr_clear(COYOTE_PCI_SLOT0_PIN);
 	gpio_line_isr_clear(COYOTE_PCI_SLOT1_PIN);

@@ -105,7 +105,7 @@ static inline unsigned short ip_fast_csum(unsigned char * iph,
 		"	addx	%0, %3 \n"
 		"	.fillinsn\n"
 		"2: \n"
-	/* Since the input registers which are loaded with iph and ipl
+	/* Since the input registers which are loaded with iph and ihl
 	   are modified, we must also specify them as outputs, or gcc
 	   will assume they contain their original values. */
 	: "=&r" (sum), "=r" (iph), "=r" (ihl), "=&r" (tmpreg0), "=&r" (tmpreg1)

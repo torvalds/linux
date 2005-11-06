@@ -108,19 +108,8 @@ $(boot)/vmlinux.gz: vmlinux
 bootimage bootpfile bootpzfile: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
-
-prepare: include/asm-$(ARCH)/asm_offsets.h
-
-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
-				   include/config/MARKER
-
-include/asm-$(ARCH)/asm_offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
-	$(call filechk,gen-asm-offsets)
-
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
-
-CLEAN_FILES += include/asm-$(ARCH)/asm_offsets.h
 
 define archhelp
   echo '* boot		- Compressed kernel image (arch/alpha/boot/vmlinux.gz)'

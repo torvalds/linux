@@ -104,28 +104,35 @@ int copy_sc_to_user_skas(struct sigcontext *to, struct _fpstate *to_fp,
 int copy_sc_from_user_tt(struct sigcontext *to, struct sigcontext *from,
                         int fpsize)
 {
-       struct _fpstate *to_fp, *from_fp;
-       unsigned long sigs;
-       int err;
+	struct _fpstate *to_fp, *from_fp;
+	unsigned long sigs;
+	int err;
 
-       to_fp = to->fpstate;
-       from_fp = from->fpstate;
-       sigs = to->oldmask;
-       err = copy_from_user(to, from, sizeof(*to));
-       to->oldmask = sigs;
-       return(err);
+	to_fp = to->fpstate;
+	sigs = to->oldmask;
+	err = copy_from_user(to, from, sizeof(*to));
+	from_fp = to->fpstate;
+	to->fpstate = to_fp;
+	to->oldmask = sigs;
+	if(to_fp != NULL)
+		err |= copy_from_user(to_fp, from_fp, fpsize);
+	return(err);
 }
 
 int copy_sc_to_user_tt(struct sigcontext *to, struct _fpstate *fp,
                       struct sigcontext *from, int fpsize)
 {
-       struct _fpstate *to_fp, *from_fp;
-       int err;
+	struct _fpstate *to_fp, *from_fp;
+	int err;
 
-       to_fp = (fp ? fp : (struct _fpstate *) (to + 1));
-       from_fp = from->fpstate;
-       err = copy_to_user(to, from, sizeof(*to));
-       return(err);
+	to_fp = (fp ? fp : (struct _fpstate *) (to + 1));
+	from_fp = from->fpstate;
+	err = copy_to_user(to, from, sizeof(*to));
+	if(from_fp != NULL){
+		err |= copy_to_user(&to->fpstate, &to_fp, sizeof(to->fpstate));
+		err |= copy_to_user(to_fp, from_fp, fpsize);
+	}
+	return(err);
 }
 
 #endif

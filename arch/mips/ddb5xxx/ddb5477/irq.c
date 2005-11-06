@@ -76,7 +76,7 @@ set_pci_int_attr(u32 pci, u32 intn, u32 active, u32 trigger)
 extern void vrc5477_irq_init(u32 base);
 extern void mips_cpu_irq_init(u32 base);
 extern asmlinkage void ddb5477_handle_int(void);
-extern int setup_irq(unsigned int irq, struct irqaction *irqaction);  
+extern int setup_irq(unsigned int irq, struct irqaction *irqaction);
 static struct irqaction irq_cascade = { no_action, 0, CPU_MASK_NONE, "cascade", NULL, NULL };
 
 void __init arch_init_irq(void)
@@ -94,7 +94,7 @@ void __init arch_init_irq(void)
 	/* setup PCI interrupt attributes */
 	set_pci_int_attr(PCI0, INTA, ACTIVE_LOW, LEVEL_SENSE);
 	set_pci_int_attr(PCI0, INTB, ACTIVE_LOW, LEVEL_SENSE);
-	if (mips_machtype == MACH_NEC_ROCKHOPPERII) 
+	if (mips_machtype == MACH_NEC_ROCKHOPPERII)
 		set_pci_int_attr(PCI0, INTC, ACTIVE_HIGH, LEVEL_SENSE);
 	else
 		set_pci_int_attr(PCI0, INTC, ACTIVE_LOW, LEVEL_SENSE);
@@ -134,7 +134,7 @@ void __init arch_init_irq(void)
 
 	/* setup cascade interrupts */
 	setup_irq(VRC5477_IRQ_BASE + VRC5477_I8259_CASCADE, &irq_cascade);
-	setup_irq(CPU_IRQ_BASE + CPU_VRC5477_CASCADE, &irq_cascade);      
+	setup_irq(CPU_IRQ_BASE + CPU_VRC5477_CASCADE, &irq_cascade);
 
 	/* hook up the first-level interrupt handler */
 	set_except_vector(0, ddb5477_handle_int);

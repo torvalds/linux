@@ -151,7 +151,7 @@ static char __devinit *table_lookup_model(struct cpuinfo_x86 *c)
 }
 
 
-void __devinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
+static void __devinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
 {
 	char *v = c->x86_vendor_id;
 	int i;
@@ -573,6 +573,7 @@ void __devinit cpu_init(void)
 	int cpu = smp_processor_id();
 	struct tss_struct * t = &per_cpu(init_tss, cpu);
 	struct thread_struct *thread = &current->thread;
+	struct desc_struct *gdt = get_cpu_gdt_table(cpu);
 	__u32 stk16_off = (__u32)&per_cpu(cpu_16bit_stack, cpu);
 
 	if (cpu_test_and_set(cpu, cpu_initialized)) {
@@ -594,27 +595,19 @@ void __devinit cpu_init(void)
 	 * Initialize the per-CPU GDT with the boot GDT,
 	 * and set up the GDT descriptor:
 	 */
-	memcpy(&per_cpu(cpu_gdt_table, cpu), cpu_gdt_table,
-	       GDT_SIZE);
+ 	memcpy(gdt, cpu_gdt_table, GDT_SIZE);
 
 	/* Set up GDT entry for 16bit stack */
-	*(__u64 *)&(per_cpu(cpu_gdt_table, cpu)[GDT_ENTRY_ESPFIX_SS]) |=
+ 	*(__u64 *)(&gdt[GDT_ENTRY_ESPFIX_SS]) |=
 		((((__u64)stk16_off) << 16) & 0x000000ffffff0000ULL) |
 		((((__u64)stk16_off) << 32) & 0xff00000000000000ULL) |
 		(CPU_16BIT_STACK_SIZE - 1);
 
 	cpu_gdt_descr[cpu].size = GDT_SIZE - 1;
-	cpu_gdt_descr[cpu].address =
-	    (unsigned long)&per_cpu(cpu_gdt_table, cpu);
+ 	cpu_gdt_descr[cpu].address = (unsigned long)gdt;
 
-	/*
-	 * Set up the per-thread TLS descriptor cache:
-	 */
-	memcpy(thread->tls_array, &per_cpu(cpu_gdt_table, cpu),
-		GDT_ENTRY_TLS_ENTRIES * 8);
-
-	__asm__ __volatile__("lgdt %0" : : "m" (cpu_gdt_descr[cpu]));
-	__asm__ __volatile__("lidt %0" : : "m" (idt_descr));
+	load_gdt(&cpu_gdt_descr[cpu]);
+	load_idt(&idt_descr);
 
 	/*
 	 * Delete NT
@@ -642,12 +635,12 @@ void __devinit cpu_init(void)
 	asm volatile ("xorl %eax, %eax; movl %eax, %fs; movl %eax, %gs");
 
 	/* Clear all 6 debug registers: */
-
-#define CD(register) set_debugreg(0, register)
-
-	CD(0); CD(1); CD(2); CD(3); /* no db4 and db5 */; CD(6); CD(7);
-
-#undef CD
+	set_debugreg(0, 0);
+	set_debugreg(0, 1);
+	set_debugreg(0, 2);
+	set_debugreg(0, 3);
+	set_debugreg(0, 6);
+	set_debugreg(0, 7);
 
 	/*
 	 * Force FPU initialization:

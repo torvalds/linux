@@ -57,4 +57,11 @@ static inline struct raw_sock *raw_sk(const struct sock *sk)
 	return (struct raw_sock *)sk;
 }
 
+extern int sysctl_icmp_echo_ignore_all;
+extern int sysctl_icmp_echo_ignore_broadcasts;
+extern int sysctl_icmp_ignore_bogus_error_responses;
+extern int sysctl_icmp_errors_use_inbound_ifaddr;
+extern int sysctl_icmp_ratelimit;
+extern int sysctl_icmp_ratemask;
+
 #endif	/* _ICMP_H */

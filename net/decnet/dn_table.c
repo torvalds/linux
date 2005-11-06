@@ -79,7 +79,7 @@ for( ; ((f) = *(fp)) != NULL && dn_key_eq((f)->fn_key, (key)); (fp) = &(f)->fn_n
 static DEFINE_RWLOCK(dn_fib_tables_lock);
 struct dn_fib_table *dn_fib_tables[RT_TABLE_MAX + 1];
 
-static kmem_cache_t *dn_hash_kmem;
+static kmem_cache_t *dn_hash_kmem __read_mostly;
 static int dn_fib_hash_zombies;
 
 static inline dn_fib_idx_t dn_hash(dn_fib_key_t key, struct dn_zone *dz)
@@ -349,10 +349,10 @@ static void dn_rtmsg_fib(int event, struct dn_fib_node *f, int z, int tb_id,
                 kfree_skb(skb);
                 return;
         }
-        NETLINK_CB(skb).dst_groups = RTMGRP_DECnet_ROUTE;
+        NETLINK_CB(skb).dst_group = RTNLGRP_DECnet_ROUTE;
         if (nlh->nlmsg_flags & NLM_F_ECHO)
                 atomic_inc(&skb->users);
-        netlink_broadcast(rtnl, skb, pid, RTMGRP_DECnet_ROUTE, GFP_KERNEL);
+        netlink_broadcast(rtnl, skb, pid, RTNLGRP_DECnet_ROUTE, GFP_KERNEL);
         if (nlh->nlmsg_flags & NLM_F_ECHO)
                 netlink_unicast(rtnl, skb, pid, MSG_DONTWAIT);
 }

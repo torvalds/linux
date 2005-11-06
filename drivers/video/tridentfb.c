@@ -1061,6 +1061,11 @@ static int __devinit trident_pci_probe(struct pci_dev * dev, const struct pci_de
 
 	chip_id = id->device;
 
+	if(chip_id == CYBERBLADEi1)
+		output("*** Please do use cyblafb, Cyberblade/i1 support "
+		       "will soon be removed from tridentfb!\n");
+
+
 	/* If PCI id is 0x9660 then further detect chip type */
 	
 	if (chip_id == TGUI9660) {

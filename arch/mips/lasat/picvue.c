@@ -1,7 +1,7 @@
-/* 
+/*
  * Picvue PVC160206 display driver
  *
- * Brian Murphy <brian@murphy.dk> 
+ * Brian Murphy <brian@murphy.dk>
  *
  */
 #include <linux/kernel.h>
@@ -24,12 +24,12 @@ struct pvc_defs *picvue = NULL;
 
 DECLARE_MUTEX(pvc_sem);
 
-static void pvc_reg_write(u32 val) 
+static void pvc_reg_write(u32 val)
 {
 	*picvue->reg = val;
 }
 
-static u32 pvc_reg_read(void) 
+static u32 pvc_reg_read(void)
 {
 	u32 tmp = *picvue->reg;
 	return tmp;
@@ -65,12 +65,12 @@ static u8 pvc_read_data(void)
 {
 	u32 data = pvc_reg_read();
 	u8 byte;
-	data |= picvue->rw; 
+	data |= picvue->rw;
 	data &= ~picvue->rs;
 	pvc_reg_write(data);
 	ndelay(40);
 	byte = pvc_read_byte(data);
-	data |= picvue->rs; 
+	data |= picvue->rs;
 	pvc_reg_write(data);
 	return byte;
 }

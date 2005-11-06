@@ -140,12 +140,12 @@ struct platform_device ppc_sys_platform_devices[] = {
 	},
 	[MPC10X_UART0] = {
 		.name = "serial8250",
-		.id	= 0,
+		.id	= PLAT8250_DEV_PLATFORM,
 		.dev.platform_data = serial_plat_uart0,
 	},
 	[MPC10X_UART1] = {
 		.name = "serial8250",
-		.id	= 1,
+		.id	= PLAT8250_DEV_PLATFORM1,
 		.dev.platform_data = serial_plat_uart1,
 	},
 

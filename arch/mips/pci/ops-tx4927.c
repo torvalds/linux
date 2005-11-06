@@ -1,16 +1,16 @@
 /*
  * Copyright 2001 MontaVista Software Inc.
  * Author: MontaVista Software, Inc.
- *              ahennessy@mvista.com       
+ *              ahennessy@mvista.com
  *
- * Copyright (C) 2000-2001 Toshiba Corporation 
+ * Copyright (C) 2000-2001 Toshiba Corporation
  * Copyright (C) 2004 by Ralf Baechle (ralf@linux-mips.org)
  *
  * Based on arch/mips/ddb5xxx/ddb5477/pci_ops.c
  *
  *     Define the pci_ops for the Toshiba rbtx4927
  *
- * Much of the code is derived from the original DDB5074 port by 
+ * Much of the code is derived from the original DDB5074 port by
  * Geert Uytterhoeven <geert@sonycom.com>
  *
  * Copyright 2004 MontaVista Software Inc.

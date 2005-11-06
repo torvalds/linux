@@ -14,7 +14,7 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/processor.h>
 #include <asm/thread_info.h>
 #include <asm/uaccess.h>

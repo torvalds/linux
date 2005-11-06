@@ -207,8 +207,8 @@ void enable_irq_wake(unsigned int irq)
 	unsigned long flags;
 
 	spin_lock_irqsave(&irq_controller_lock, flags);
-	if (desc->chip->wake)
-		desc->chip->wake(irq, 1);
+	if (desc->chip->set_wake)
+		desc->chip->set_wake(irq, 1);
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 }
 EXPORT_SYMBOL(enable_irq_wake);
@@ -219,8 +219,8 @@ void disable_irq_wake(unsigned int irq)
 	unsigned long flags;
 
 	spin_lock_irqsave(&irq_controller_lock, flags);
-	if (desc->chip->wake)
-		desc->chip->wake(irq, 0);
+	if (desc->chip->set_wake)
+		desc->chip->set_wake(irq, 0);
 	spin_unlock_irqrestore(&irq_controller_lock, flags);
 }
 EXPORT_SYMBOL(disable_irq_wake);
@@ -517,7 +517,7 @@ static void do_pending_irqs(struct pt_regs *regs)
 		list_for_each_safe(l, n, &head) {
 			desc = list_entry(l, struct irqdesc, pend);
 			list_del_init(&desc->pend);
-			desc->handle(desc - irq_desc, desc, regs);
+			desc_handle_irq(desc - irq_desc, desc, regs);
 		}
 
 		/*
@@ -545,7 +545,7 @@ asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
 
 	irq_enter();
 	spin_lock(&irq_controller_lock);
-	desc->handle(irq, desc, regs);
+	desc_handle_irq(irq, desc, regs);
 
 	/*
 	 * Now re-run any pending interrupts.
@@ -624,9 +624,9 @@ int set_irq_type(unsigned int irq, unsigned int type)
 	}
 
 	desc = irq_desc + irq;
-	if (desc->chip->type) {
+	if (desc->chip->set_type) {
 		spin_lock_irqsave(&irq_controller_lock, flags);
-		ret = desc->chip->type(irq, type);
+		ret = desc->chip->set_type(irq, type);
 		spin_unlock_irqrestore(&irq_controller_lock, flags);
 	}
 
@@ -846,8 +846,8 @@ unsigned long probe_irq_on(void)
 
 		irq_desc[i].probing = 1;
 		irq_desc[i].triggered = 0;
-		if (irq_desc[i].chip->type)
-			irq_desc[i].chip->type(i, IRQT_PROBE);
+		if (irq_desc[i].chip->set_type)
+			irq_desc[i].chip->set_type(i, IRQT_PROBE);
 		irq_desc[i].chip->unmask(i);
 		irqs += 1;
 	}
@@ -1050,3 +1050,34 @@ static int __init noirqdebug_setup(char *str)
 }
 
 __setup("noirqdebug", noirqdebug_setup);
+
+#ifdef CONFIG_HOTPLUG_CPU
+/*
+ * The CPU has been marked offline.  Migrate IRQs off this CPU.  If
+ * the affinity settings do not allow other CPUs, force them onto any
+ * available CPU.
+ */
+void migrate_irqs(void)
+{
+	unsigned int i, cpu = smp_processor_id();
+
+	for (i = 0; i < NR_IRQS; i++) {
+		struct irqdesc *desc = irq_desc + i;
+
+		if (desc->cpu == cpu) {
+			unsigned int newcpu = any_online_cpu(desc->affinity);
+
+			if (newcpu == NR_CPUS) {
+				if (printk_ratelimit())
+					printk(KERN_INFO "IRQ%u no longer affine to CPU%u\n",
+					       i, cpu);
+
+				cpus_setall(desc->affinity);
+				newcpu = any_online_cpu(desc->affinity);
+			}
+
+			route_irq(desc, i, newcpu);
+		}
+	}
+}
+#endif /* CONFIG_HOTPLUG_CPU */

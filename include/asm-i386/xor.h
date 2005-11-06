@@ -535,14 +535,14 @@ static struct xor_block_template xor_block_p5_mmx = {
 
 #define XMMS_SAVE do {				\
 	preempt_disable();			\
+	cr0 = read_cr0();			\
+	clts();					\
 	__asm__ __volatile__ ( 			\
-		"movl %%cr0,%0		;\n\t"	\
-		"clts			;\n\t"	\
-		"movups %%xmm0,(%1)	;\n\t"	\
-		"movups %%xmm1,0x10(%1)	;\n\t"	\
-		"movups %%xmm2,0x20(%1)	;\n\t"	\
-		"movups %%xmm3,0x30(%1)	;\n\t"	\
-		: "=&r" (cr0)			\
+		"movups %%xmm0,(%0)	;\n\t"	\
+		"movups %%xmm1,0x10(%0)	;\n\t"	\
+		"movups %%xmm2,0x20(%0)	;\n\t"	\
+		"movups %%xmm3,0x30(%0)	;\n\t"	\
+		:				\
 		: "r" (xmm_save) 		\
 		: "memory");			\
 } while(0)
@@ -550,14 +550,14 @@ static struct xor_block_template xor_block_p5_mmx = {
 #define XMMS_RESTORE do {			\
 	__asm__ __volatile__ ( 			\
 		"sfence			;\n\t"	\
-		"movups (%1),%%xmm0	;\n\t"	\
-		"movups 0x10(%1),%%xmm1	;\n\t"	\
-		"movups 0x20(%1),%%xmm2	;\n\t"	\
-		"movups 0x30(%1),%%xmm3	;\n\t"	\
-		"movl 	%0,%%cr0	;\n\t"	\
+		"movups (%0),%%xmm0	;\n\t"	\
+		"movups 0x10(%0),%%xmm1	;\n\t"	\
+		"movups 0x20(%0),%%xmm2	;\n\t"	\
+		"movups 0x30(%0),%%xmm3	;\n\t"	\
 		:				\
-		: "r" (cr0), "r" (xmm_save)	\
+		: "r" (xmm_save)		\
 		: "memory");			\
+	write_cr0(cr0);				\
 	preempt_enable();			\
 } while(0)
 

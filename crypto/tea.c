@@ -1,10 +1,14 @@
 /* 
  * Cryptographic API.
  *
- * TEA and Xtended TEA Algorithms
+ * TEA, XTEA, and XETA crypto alogrithms
  *
  * The TEA and Xtended TEA algorithms were developed by David Wheeler 
  * and Roger Needham at the Computer Laboratory of Cambridge University.
+ *
+ * Due to the order of evaluation in XTEA many people have incorrectly
+ * implemented it.  XETA (XTEA in the wrong order), exists for
+ * compatibility with these implementations.
  *
  * Copyright (c) 2004 Aaron Grothe ajgrothe@yahoo.com
  *
@@ -153,9 +157,9 @@ static void xtea_encrypt(void *ctx_arg, u8 *dst, const u8 *src)
 	z = u32_in (src + 4);
 
 	while (sum != limit) {
-		y += (z << 4 ^ z >> 5) + (z ^ sum) + ctx->KEY[sum&3]; 
+		y += ((z << 4 ^ z >> 5) + z) ^ (sum + ctx->KEY[sum&3]); 
 		sum += XTEA_DELTA;
-		z += (y << 4 ^ y >> 5) + (y ^ sum) + ctx->KEY[sum>>11 &3]; 
+		z += ((y << 4 ^ y >> 5) + y) ^ (sum + ctx->KEY[sum>>11 &3]); 
 	}
 	
 	u32_out (dst, y);
@@ -164,6 +168,51 @@ static void xtea_encrypt(void *ctx_arg, u8 *dst, const u8 *src)
 }
 
 static void xtea_decrypt(void *ctx_arg, u8 *dst, const u8 *src)
+{ 
+
+	u32 y, z, sum;
+	struct tea_ctx *ctx = ctx_arg;
+
+	y = u32_in (src);
+	z = u32_in (src + 4);
+
+	sum = XTEA_DELTA * XTEA_ROUNDS;
+
+	while (sum) {
+		z -= ((y << 4 ^ y >> 5) + y) ^ (sum + ctx->KEY[sum>>11 & 3]);
+		sum -= XTEA_DELTA;
+		y -= ((z << 4 ^ z >> 5) + z) ^ (sum + ctx->KEY[sum & 3]);
+	}
+	
+	u32_out (dst, y);
+	u32_out (dst + 4, z);
+
+}
+
+
+static void xeta_encrypt(void *ctx_arg, u8 *dst, const u8 *src)
+{ 
+
+	u32 y, z, sum = 0;
+	u32 limit = XTEA_DELTA * XTEA_ROUNDS;
+
+	struct xtea_ctx *ctx = ctx_arg;
+
+	y = u32_in (src);
+	z = u32_in (src + 4);
+
+	while (sum != limit) {
+		y += (z << 4 ^ z >> 5) + (z ^ sum) + ctx->KEY[sum&3];
+		sum += XTEA_DELTA;
+		z += (y << 4 ^ y >> 5) + (y ^ sum) + ctx->KEY[sum>>11 &3];
+	}
+	
+	u32_out (dst, y);
+	u32_out (dst + 4, z);
+
+}
+
+static void xeta_decrypt(void *ctx_arg, u8 *dst, const u8 *src)
 { 
 
 	u32 y, z, sum;
@@ -215,6 +264,21 @@ static struct crypto_alg xtea_alg = {
 	.cia_decrypt		=	xtea_decrypt } }
 };
 
+static struct crypto_alg xeta_alg = {
+	.cra_name		=	"xeta",
+	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
+	.cra_blocksize		=	XTEA_BLOCK_SIZE,
+	.cra_ctxsize		=	sizeof (struct xtea_ctx),
+	.cra_module		=	THIS_MODULE,
+	.cra_list		=	LIST_HEAD_INIT(xtea_alg.cra_list),
+	.cra_u			=	{ .cipher = {
+	.cia_min_keysize	=	XTEA_KEY_SIZE,
+	.cia_max_keysize	=	XTEA_KEY_SIZE,
+	.cia_setkey		= 	xtea_setkey,
+	.cia_encrypt		=	xeta_encrypt,
+	.cia_decrypt		=	xeta_decrypt } }
+};
+
 static int __init init(void)
 {
 	int ret = 0;
@@ -229,6 +293,13 @@ static int __init init(void)
 		goto out;
 	}
 
+	ret = crypto_register_alg(&xeta_alg);
+	if (ret < 0) {
+		crypto_unregister_alg(&tea_alg);
+		crypto_unregister_alg(&xtea_alg);
+		goto out;
+	}
+
 out:	
 	return ret;
 }
@@ -237,12 +308,14 @@ static void __exit fini(void)
 {
 	crypto_unregister_alg(&tea_alg);
 	crypto_unregister_alg(&xtea_alg);
+	crypto_unregister_alg(&xeta_alg);
 }
 
 MODULE_ALIAS("xtea");
+MODULE_ALIAS("xeta");
 
 module_init(init);
 module_exit(fini);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("TEA & XTEA Cryptographic Algorithms");
+MODULE_DESCRIPTION("TEA, XTEA & XETA Cryptographic Algorithms");

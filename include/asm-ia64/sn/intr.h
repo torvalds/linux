@@ -12,13 +12,12 @@
 #include <linux/rcupdate.h>
 
 #define SGI_UART_VECTOR		(0xe9)
-#define SGI_PCIBR_ERROR		(0x33)
 
 /* Reserved IRQs : Note, not to exceed IA64_SN2_FIRST_DEVICE_VECTOR */
 #define SGI_XPC_ACTIVATE                (0x30)
 #define SGI_II_ERROR                    (0x31)
 #define SGI_XBOW_ERROR                  (0x32)
-#define SGI_PCIBR_ERROR                 (0x33)
+#define SGI_PCIASIC_ERROR               (0x33)
 #define SGI_ACPI_SCI_INT                (0x34)
 #define SGI_TIOCA_ERROR                 (0x35)
 #define SGI_TIO_ERROR                   (0x36)

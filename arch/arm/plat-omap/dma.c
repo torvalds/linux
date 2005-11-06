@@ -425,7 +425,7 @@ static int dma_handle_ch(int ch)
 		dma_chan[ch + 6].saved_csr = csr >> 7;
 		csr &= 0x7f;
 	}
-	if (!csr)
+	if ((csr & 0x3f) == 0)
 		return 0;
 	if (unlikely(dma_chan[ch].dev_id == -1)) {
 		printk(KERN_WARNING "Spurious interrupt from DMA channel %d (CSR %04x)\n",
@@ -890,11 +890,11 @@ void omap_enable_lcd_dma(void)
 	w |= 1 << 8;
 	omap_writew(w, OMAP1610_DMA_LCD_CTRL);
 
+	lcd_dma.active = 1;
+
 	w = omap_readw(OMAP1610_DMA_LCD_CCR);
 	w |= 1 << 7;
 	omap_writew(w, OMAP1610_DMA_LCD_CCR);
-
-	lcd_dma.active = 1;
 }
 
 void omap_setup_lcd_dma(void)
@@ -965,8 +965,8 @@ void omap_clear_dma(int lch)
  */
 dma_addr_t omap_get_dma_src_pos(int lch)
 {
-	return (dma_addr_t) (OMAP_DMA_CSSA_L(lch) |
-			     (OMAP_DMA_CSSA_U(lch) << 16));
+	return (dma_addr_t) (omap_readw(OMAP_DMA_CSSA_L(lch)) |
+	(omap_readw(OMAP_DMA_CSSA_U(lch)) << 16));
 }
 
 /*
@@ -979,8 +979,18 @@ dma_addr_t omap_get_dma_src_pos(int lch)
  */
 dma_addr_t omap_get_dma_dst_pos(int lch)
 {
-	return (dma_addr_t) (OMAP_DMA_CDSA_L(lch) |
-			     (OMAP_DMA_CDSA_U(lch) << 16));
+	return (dma_addr_t) (omap_readw(OMAP_DMA_CDSA_L(lch)) |
+	(omap_readw(OMAP_DMA_CDSA_U(lch)) << 16));
+}
+
+/*
+ * Returns current source transfer counting for the given DMA channel.
+ * Can be used to monitor the progress of a transfer inside a  block.
+ * It must be called with disabled interrupts.
+ */
+int omap_get_dma_src_addr_counter(int lch)
+{
+	return (dma_addr_t) omap_readw(OMAP_DMA_CSAC(lch));
 }
 
 int omap_dma_running(void)
@@ -1076,6 +1086,7 @@ arch_initcall(omap_init_dma);
 
 EXPORT_SYMBOL(omap_get_dma_src_pos);
 EXPORT_SYMBOL(omap_get_dma_dst_pos);
+EXPORT_SYMBOL(omap_get_dma_src_addr_counter);
 EXPORT_SYMBOL(omap_clear_dma);
 EXPORT_SYMBOL(omap_set_dma_priority);
 EXPORT_SYMBOL(omap_request_dma);

@@ -105,7 +105,7 @@ void __init it8172_init_ram_resource(unsigned long memsize)
 	it8172_resources.ram.end = memsize;
 }
 
-static void __init it8172_setup(void)
+void __init plat_setup(void)
 {
 	unsigned short dsr;
 	char *argptr;
@@ -129,7 +129,7 @@ static void __init it8172_setup(void)
 
 	/*
 	 * IO/MEM resources.
-	 * 
+	 *
 	 * revisit this area.
 	 */
 	set_io_port_base(KSEG1);
@@ -250,8 +250,6 @@ static void __init it8172_setup(void)
 	}
 #endif /* CONFIG_IT8172_SCR1 */
 }
-
-early_initcall(it8172_setup);
 
 #ifdef CONFIG_SERIO_I8042
 /*

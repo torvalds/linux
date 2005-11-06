@@ -112,13 +112,12 @@ struct uart_port_lh7a40x {
 	unsigned int statusPrev; /* Most recently read modem status */
 };
 
-static void lh7a40xuart_stop_tx (struct uart_port* port, unsigned int tty_stop)
+static void lh7a40xuart_stop_tx (struct uart_port* port)
 {
 	BIT_CLR (port, UART_R_INTEN, TxInt);
 }
 
-static void lh7a40xuart_start_tx (struct uart_port* port,
-				  unsigned int tty_start)
+static void lh7a40xuart_start_tx (struct uart_port* port)
 {
 	BIT_SET (port, UART_R_INTEN, TxInt);
 
@@ -208,7 +207,7 @@ static void lh7a40xuart_tx_chars (struct uart_port* port)
 		return;
 	}
 	if (uart_circ_empty (xmit) || uart_tx_stopped (port)) {
-		lh7a40xuart_stop_tx (port, 0);
+		lh7a40xuart_stop_tx (port);
 		return;
 	}
 
@@ -230,7 +229,7 @@ static void lh7a40xuart_tx_chars (struct uart_port* port)
 		uart_write_wakeup (port);
 
 	if (uart_circ_empty (xmit))
-		lh7a40xuart_stop_tx (port, 0);
+		lh7a40xuart_stop_tx (port);
 }
 
 static void lh7a40xuart_modem_status (struct uart_port* port)
@@ -633,7 +632,7 @@ static int __init lh7a40xuart_console_setup (struct console* co, char* options)
 	return uart_set_options (port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver lh7a40x_reg;
+static struct uart_driver lh7a40x_reg;
 static struct console lh7a40x_console = {
 	.name		= "ttyAM",
 	.write		= lh7a40xuart_console_write,

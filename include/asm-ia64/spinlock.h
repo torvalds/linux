@@ -17,28 +17,20 @@
 #include <asm/intrinsics.h>
 #include <asm/system.h>
 
-typedef struct {
-	volatile unsigned int lock;
-#ifdef CONFIG_PREEMPT
-	unsigned int break_lock;
-#endif
-} spinlock_t;
-
-#define SPIN_LOCK_UNLOCKED			(spinlock_t) { 0 }
-#define spin_lock_init(x)			((x)->lock = 0)
+#define __raw_spin_lock_init(x)			((x)->lock = 0)
 
 #ifdef ASM_SUPPORTED
 /*
  * Try to get the lock.  If we fail to get the lock, make a non-standard call to
  * ia64_spinlock_contention().  We do not use a normal call because that would force all
- * callers of spin_lock() to be non-leaf routines.  Instead, ia64_spinlock_contention() is
- * carefully coded to touch only those registers that spin_lock() marks "clobbered".
+ * callers of __raw_spin_lock() to be non-leaf routines.  Instead, ia64_spinlock_contention() is
+ * carefully coded to touch only those registers that __raw_spin_lock() marks "clobbered".
  */
 
 #define IA64_SPINLOCK_CLOBBERS "ar.ccv", "ar.pfs", "p14", "p15", "r27", "r28", "r29", "r30", "b6", "memory"
 
 static inline void
-_raw_spin_lock_flags (spinlock_t *lock, unsigned long flags)
+__raw_spin_lock_flags (raw_spinlock_t *lock, unsigned long flags)
 {
 	register volatile unsigned int *ptr asm ("r31") = &lock->lock;
 
@@ -93,10 +85,18 @@ _raw_spin_lock_flags (spinlock_t *lock, unsigned long flags)
 # endif /* CONFIG_MCKINLEY */
 #endif
 }
-#define _raw_spin_lock(lock) _raw_spin_lock_flags(lock, 0)
+
+#define __raw_spin_lock(lock) __raw_spin_lock_flags(lock, 0)
+
+/* Unlock by doing an ordered store and releasing the cacheline with nta */
+static inline void __raw_spin_unlock(raw_spinlock_t *x) {
+	barrier();
+	asm volatile ("st4.rel.nta [%0] = r0\n\t" :: "r"(x));
+}
+
 #else /* !ASM_SUPPORTED */
-#define _raw_spin_lock_flags(lock, flags) _raw_spin_lock(lock)
-# define _raw_spin_lock(x)								\
+#define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
+# define __raw_spin_lock(x)								\
 do {											\
 	__u32 *ia64_spinlock_ptr = (__u32 *) (x);					\
 	__u64 ia64_spinlock_val;							\
@@ -109,29 +109,20 @@ do {											\
 		} while (ia64_spinlock_val);						\
 	}										\
 } while (0)
+#define __raw_spin_unlock(x)	do { barrier(); ((raw_spinlock_t *) x)->lock = 0; } while (0)
 #endif /* !ASM_SUPPORTED */
 
-#define spin_is_locked(x)	((x)->lock != 0)
-#define _raw_spin_unlock(x)	do { barrier(); ((spinlock_t *) x)->lock = 0; } while (0)
-#define _raw_spin_trylock(x)	(cmpxchg_acq(&(x)->lock, 0, 1) == 0)
-#define spin_unlock_wait(x)	do { barrier(); } while ((x)->lock)
+#define __raw_spin_is_locked(x)		((x)->lock != 0)
+#define __raw_spin_trylock(x)		(cmpxchg_acq(&(x)->lock, 0, 1) == 0)
+#define __raw_spin_unlock_wait(lock) \
+	do { while (__raw_spin_is_locked(lock)) cpu_relax(); } while (0)
 
-typedef struct {
-	volatile unsigned int read_counter	: 31;
-	volatile unsigned int write_lock	:  1;
-#ifdef CONFIG_PREEMPT
-	unsigned int break_lock;
-#endif
-} rwlock_t;
-#define RW_LOCK_UNLOCKED (rwlock_t) { 0, 0 }
+#define __raw_read_can_lock(rw)		(*(volatile int *)(rw) >= 0)
+#define __raw_write_can_lock(rw)	(*(volatile int *)(rw) == 0)
 
-#define rwlock_init(x)		do { *(x) = RW_LOCK_UNLOCKED; } while(0)
-#define read_can_lock(rw)	(*(volatile int *)(rw) >= 0)
-#define write_can_lock(rw)	(*(volatile int *)(rw) == 0)
-
-#define _raw_read_lock(rw)								\
+#define __raw_read_lock(rw)								\
 do {											\
-	rwlock_t *__read_lock_ptr = (rw);						\
+	raw_rwlock_t *__read_lock_ptr = (rw);						\
 											\
 	while (unlikely(ia64_fetchadd(1, (int *) __read_lock_ptr, acq) < 0)) {		\
 		ia64_fetchadd(-1, (int *) __read_lock_ptr, rel);			\
@@ -140,14 +131,14 @@ do {											\
 	}										\
 } while (0)
 
-#define _raw_read_unlock(rw)					\
+#define __raw_read_unlock(rw)					\
 do {								\
-	rwlock_t *__read_lock_ptr = (rw);			\
+	raw_rwlock_t *__read_lock_ptr = (rw);			\
 	ia64_fetchadd(-1, (int *) __read_lock_ptr, rel);	\
 } while (0)
 
 #ifdef ASM_SUPPORTED
-#define _raw_write_lock(rw)							\
+#define __raw_write_lock(rw)							\
 do {										\
  	__asm__ __volatile__ (							\
 		"mov ar.ccv = r0\n"						\
@@ -162,7 +153,7 @@ do {										\
 		:: "r"(rw) : "ar.ccv", "p7", "r2", "r29", "memory");		\
 } while(0)
 
-#define _raw_write_trylock(rw)							\
+#define __raw_write_trylock(rw)							\
 ({										\
 	register long result;							\
 										\
@@ -174,9 +165,16 @@ do {										\
 	(result == 0);								\
 })
 
+static inline void __raw_write_unlock(raw_rwlock_t *x)
+{
+	u8 *y = (u8 *)x;
+	barrier();
+	asm volatile ("st1.rel.nta [%0] = r0\n\t" :: "r"(y+3) : "memory" );
+}
+
 #else /* !ASM_SUPPORTED */
 
-#define _raw_write_lock(l)								\
+#define __raw_write_lock(l)								\
 ({											\
 	__u64 ia64_val, ia64_set_val = ia64_dep_mi(-1, 0, 31, 1);			\
 	__u32 *ia64_write_lock_ptr = (__u32 *) (l);					\
@@ -187,7 +185,7 @@ do {										\
 	} while (ia64_val);								\
 })
 
-#define _raw_write_trylock(rw)						\
+#define __raw_write_trylock(rw)						\
 ({									\
 	__u64 ia64_val;							\
 	__u64 ia64_set_val = ia64_dep_mi(-1, 0, 31,1);			\
@@ -195,14 +193,14 @@ do {										\
 	(ia64_val == 0);						\
 })
 
+static inline void __raw_write_unlock(raw_rwlock_t *x)
+{
+	barrier();
+	x->write_lock = 0;
+}
+
 #endif /* !ASM_SUPPORTED */
 
-#define _raw_read_trylock(lock) generic_raw_read_trylock(lock)
-
-#define _raw_write_unlock(x)								\
-({											\
-	smp_mb__before_clear_bit();	/* need barrier before releasing lock... */	\
-	clear_bit(31, (x));								\
-})
+#define __raw_read_trylock(lock) generic__raw_read_trylock(lock)
 
 #endif /*  _ASM_IA64_SPINLOCK_H */

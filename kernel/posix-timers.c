@@ -427,21 +427,23 @@ int posix_timer_event(struct k_itimer *timr,int si_private)
 	timr->sigq->info.si_code = SI_TIMER;
 	timr->sigq->info.si_tid = timr->it_id;
 	timr->sigq->info.si_value = timr->it_sigev_value;
+
 	if (timr->it_sigev_notify & SIGEV_THREAD_ID) {
-		if (unlikely(timr->it_process->flags & PF_EXITING)) {
-			timr->it_sigev_notify = SIGEV_SIGNAL;
-			put_task_struct(timr->it_process);
-			timr->it_process = timr->it_process->group_leader;
-			goto group;
-		}
-		return send_sigqueue(timr->it_sigev_signo, timr->sigq,
-			timr->it_process);
+		struct task_struct *leader;
+		int ret = send_sigqueue(timr->it_sigev_signo, timr->sigq,
+					timr->it_process);
+
+		if (likely(ret >= 0))
+			return ret;
+
+		timr->it_sigev_notify = SIGEV_SIGNAL;
+		leader = timr->it_process->group_leader;
+		put_task_struct(timr->it_process);
+		timr->it_process = leader;
 	}
-	else {
-	group:
-		return send_group_sigqueue(timr->it_sigev_signo, timr->sigq,
-			timr->it_process);
-	}
+
+	return send_group_sigqueue(timr->it_sigev_signo, timr->sigq,
+				   timr->it_process);
 }
 EXPORT_SYMBOL_GPL(posix_timer_event);
 
@@ -1155,7 +1157,7 @@ retry_delete:
 }
 
 /*
- * This is called by __exit_signal, only when there are no more
+ * This is called by do_exit or de_thread, only when there are no more
  * references to the shared signal_struct.
  */
 void exit_itimers(struct signal_struct *sig)
@@ -1166,7 +1168,6 @@ void exit_itimers(struct signal_struct *sig)
 		tmr = list_entry(sig->posix_timers.next, struct k_itimer, list);
 		itimer_delete(tmr);
 	}
-	del_timer_sync(&sig->real_timer);
 }
 
 /*
@@ -1292,13 +1293,6 @@ sys_clock_getres(clockid_t which_clock, struct timespec __user *tp)
 	}
 
 	return error;
-}
-
-static void nanosleep_wake_up(unsigned long __data)
-{
-	struct task_struct *p = (struct task_struct *) __data;
-
-	wake_up_process(p);
 }
 
 /*
@@ -1441,7 +1435,6 @@ static int common_nsleep(clockid_t which_clock,
 			 int flags, struct timespec *tsave)
 {
 	struct timespec t, dum;
-	struct timer_list new_timer;
 	DECLARE_WAITQUEUE(abs_wqueue, current);
 	u64 rq_time = (u64)0;
 	s64 left;
@@ -1450,10 +1443,6 @@ static int common_nsleep(clockid_t which_clock,
 	    &current_thread_info()->restart_block;
 
 	abs_wqueue.flags = 0;
-	init_timer(&new_timer);
-	new_timer.expires = 0;
-	new_timer.data = (unsigned long) current;
-	new_timer.function = nanosleep_wake_up;
 	abs = flags & TIMER_ABSTIME;
 
 	if (restart_block->fn == clock_nanosleep_restart) {
@@ -1489,13 +1478,8 @@ static int common_nsleep(clockid_t which_clock,
 		if (left < (s64)0)
 			break;
 
-		new_timer.expires = jiffies + left;
-		__set_current_state(TASK_INTERRUPTIBLE);
-		add_timer(&new_timer);
+		schedule_timeout_interruptible(left);
 
-		schedule();
-
-		del_timer_sync(&new_timer);
 		left = rq_time - get_jiffies_64();
 	} while (left > (s64)0 && !test_thread_flag(TIF_SIGPENDING));
 

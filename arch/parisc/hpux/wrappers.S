@@ -24,7 +24,7 @@
 #warning PA64 support needs more work...did first cut
 #endif
 
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/assembly.h>
 #include <asm/signal.h>
 

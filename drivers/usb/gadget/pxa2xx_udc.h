@@ -73,7 +73,7 @@ struct pxa2xx_ep {
 	volatile u32				*reg_ubcr;
 	volatile u32				*reg_uddr;
 #ifdef USE_DMA
-	volatile u32				*reg_drcmr;
+	volatile u32			*reg_drcmr;
 #define	drcmr(n)  .reg_drcmr = & DRCMR ## n ,
 #else
 #define	drcmr(n)  

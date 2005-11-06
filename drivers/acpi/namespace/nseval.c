@@ -42,26 +42,19 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acparser.h>
 #include <acpi/acinterp.h>
 #include <acpi/acnamesp.h>
 
-
 #define _COMPONENT          ACPI_NAMESPACE
-	 ACPI_MODULE_NAME    ("nseval")
+ACPI_MODULE_NAME("nseval")
 
 /* Local prototypes */
-
 static acpi_status
-acpi_ns_execute_control_method (
-	struct acpi_parameter_info      *info);
+acpi_ns_execute_control_method(struct acpi_parameter_info *info);
 
-static acpi_status
-acpi_ns_get_object_value (
-	struct acpi_parameter_info      *info);
-
+static acpi_status acpi_ns_get_object_value(struct acpi_parameter_info *info);
 
 /*******************************************************************************
  *
@@ -85,48 +78,44 @@ acpi_ns_get_object_value (
  ******************************************************************************/
 
 acpi_status
-acpi_ns_evaluate_relative (
-	char                            *pathname,
-	struct acpi_parameter_info      *info)
+acpi_ns_evaluate_relative(char *pathname, struct acpi_parameter_info *info)
 {
-	acpi_status                     status;
-	struct acpi_namespace_node      *node = NULL;
-	union acpi_generic_state        *scope_info;
-	char                            *internal_path = NULL;
+	acpi_status status;
+	struct acpi_namespace_node *node = NULL;
+	union acpi_generic_state *scope_info;
+	char *internal_path = NULL;
 
-
-	ACPI_FUNCTION_TRACE ("ns_evaluate_relative");
-
+	ACPI_FUNCTION_TRACE("ns_evaluate_relative");
 
 	/*
 	 * Must have a valid object handle
 	 */
 	if (!info || !info->node) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Build an internal name string for the method */
 
-	status = acpi_ns_internalize_name (pathname, &internal_path);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ns_internalize_name(pathname, &internal_path);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
-	scope_info = acpi_ut_create_generic_state ();
+	scope_info = acpi_ut_create_generic_state();
 	if (!scope_info) {
 		goto cleanup1;
 	}
 
 	/* Get the prefix handle and Node */
 
-	status = acpi_ut_acquire_mutex (ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
 
-	info->node = acpi_ns_map_handle_to_node (info->node);
+	info->node = acpi_ns_map_handle_to_node(info->node);
 	if (!info->node) {
-		(void) acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
+		(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 		status = AE_BAD_PARAMETER;
 		goto cleanup;
 	}
@@ -134,38 +123,37 @@ acpi_ns_evaluate_relative (
 	/* Lookup the name in the namespace */
 
 	scope_info->scope.node = info->node;
-	status = acpi_ns_lookup (scope_info, internal_path, ACPI_TYPE_ANY,
-			 ACPI_IMODE_EXECUTE, ACPI_NS_NO_UPSEARCH, NULL,
-			 &node);
+	status = acpi_ns_lookup(scope_info, internal_path, ACPI_TYPE_ANY,
+				ACPI_IMODE_EXECUTE, ACPI_NS_NO_UPSEARCH, NULL,
+				&node);
 
-	(void) acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
-	if (ACPI_FAILURE (status)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Object [%s] not found [%s]\n",
-			pathname, acpi_format_exception (status)));
+	if (ACPI_FAILURE(status)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_NAMES, "Object [%s] not found [%s]\n",
+				  pathname, acpi_format_exception(status)));
 		goto cleanup;
 	}
 
 	/*
 	 * Now that we have a handle to the object, we can attempt to evaluate it.
 	 */
-	ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "%s [%p] Value %p\n",
-		pathname, node, acpi_ns_get_attached_object (node)));
+	ACPI_DEBUG_PRINT((ACPI_DB_NAMES, "%s [%p] Value %p\n",
+			  pathname, node, acpi_ns_get_attached_object(node)));
 
 	info->node = node;
-	status = acpi_ns_evaluate_by_handle (info);
+	status = acpi_ns_evaluate_by_handle(info);
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "*** Completed eval of object %s ***\n",
-		pathname));
+	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+			  "*** Completed eval of object %s ***\n", pathname));
 
-cleanup:
-	acpi_ut_delete_generic_state (scope_info);
+      cleanup:
+	acpi_ut_delete_generic_state(scope_info);
 
-cleanup1:
-	ACPI_MEM_FREE (internal_path);
-	return_ACPI_STATUS (status);
+      cleanup1:
+	ACPI_MEM_FREE(internal_path);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -189,67 +177,62 @@ cleanup1:
  ******************************************************************************/
 
 acpi_status
-acpi_ns_evaluate_by_name (
-	char                            *pathname,
-	struct acpi_parameter_info      *info)
+acpi_ns_evaluate_by_name(char *pathname, struct acpi_parameter_info *info)
 {
-	acpi_status                     status;
-	char                            *internal_path = NULL;
+	acpi_status status;
+	char *internal_path = NULL;
 
-
-	ACPI_FUNCTION_TRACE ("ns_evaluate_by_name");
-
+	ACPI_FUNCTION_TRACE("ns_evaluate_by_name");
 
 	/* Build an internal name string for the method */
 
-	status = acpi_ns_internalize_name (pathname, &internal_path);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ns_internalize_name(pathname, &internal_path);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_ut_acquire_mutex (ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
 
 	/* Lookup the name in the namespace */
 
-	status = acpi_ns_lookup (NULL, internal_path, ACPI_TYPE_ANY,
-			 ACPI_IMODE_EXECUTE, ACPI_NS_NO_UPSEARCH, NULL,
-			 &info->node);
+	status = acpi_ns_lookup(NULL, internal_path, ACPI_TYPE_ANY,
+				ACPI_IMODE_EXECUTE, ACPI_NS_NO_UPSEARCH, NULL,
+				&info->node);
 
-	(void) acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
-	if (ACPI_FAILURE (status)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-			"Object at [%s] was not found, status=%.4X\n",
-			pathname, status));
+	if (ACPI_FAILURE(status)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+				  "Object at [%s] was not found, status=%.4X\n",
+				  pathname, status));
 		goto cleanup;
 	}
 
 	/*
 	 * Now that we have a handle to the object, we can attempt to evaluate it.
 	 */
-	ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "%s [%p] Value %p\n",
-		pathname, info->node, acpi_ns_get_attached_object (info->node)));
+	ACPI_DEBUG_PRINT((ACPI_DB_NAMES, "%s [%p] Value %p\n",
+			  pathname, info->node,
+			  acpi_ns_get_attached_object(info->node)));
 
-	status = acpi_ns_evaluate_by_handle (info);
+	status = acpi_ns_evaluate_by_handle(info);
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "*** Completed eval of object %s ***\n",
-		pathname));
+	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+			  "*** Completed eval of object %s ***\n", pathname));
 
-
-cleanup:
+      cleanup:
 
 	/* Cleanup */
 
 	if (internal_path) {
-		ACPI_MEM_FREE (internal_path);
+		ACPI_MEM_FREE(internal_path);
 	}
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -275,26 +258,22 @@ cleanup:
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ns_evaluate_by_handle (
-	struct acpi_parameter_info      *info)
+acpi_status acpi_ns_evaluate_by_handle(struct acpi_parameter_info *info)
 {
-	acpi_status                     status;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("ns_evaluate_by_handle");
-
+	ACPI_FUNCTION_TRACE("ns_evaluate_by_handle");
 
 	/* Check if namespace has been initialized */
 
 	if (!acpi_gbl_root_node) {
-		return_ACPI_STATUS (AE_NO_NAMESPACE);
+		return_ACPI_STATUS(AE_NO_NAMESPACE);
 	}
 
 	/* Parameter Validation */
 
 	if (!info) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Initialize the return value to an invalid object */
@@ -303,23 +282,25 @@ acpi_ns_evaluate_by_handle (
 
 	/* Get the prefix handle and Node */
 
-	status = acpi_ut_acquire_mutex (ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
-	info->node = acpi_ns_map_handle_to_node (info->node);
+	info->node = acpi_ns_map_handle_to_node(info->node);
 	if (!info->node) {
-		(void) acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/*
 	 * For a method alias, we must grab the actual method node so that proper
 	 * scoping context will be established before execution.
 	 */
-	if (acpi_ns_get_type (info->node) == ACPI_TYPE_LOCAL_METHOD_ALIAS) {
-		info->node = ACPI_CAST_PTR (struct acpi_namespace_node, info->node->object);
+	if (acpi_ns_get_type(info->node) == ACPI_TYPE_LOCAL_METHOD_ALIAS) {
+		info->node =
+		    ACPI_CAST_PTR(struct acpi_namespace_node,
+				  info->node->object);
 	}
 
 	/*
@@ -329,17 +310,16 @@ acpi_ns_evaluate_by_handle (
 	 *
 	 * In both cases, the namespace is unlocked by the acpi_ns* procedure
 	 */
-	if (acpi_ns_get_type (info->node) == ACPI_TYPE_METHOD) {
+	if (acpi_ns_get_type(info->node) == ACPI_TYPE_METHOD) {
 		/*
 		 * Case 1) We have an actual control method to execute
 		 */
-		status = acpi_ns_execute_control_method (info);
-	}
-	else {
+		status = acpi_ns_execute_control_method(info);
+	} else {
 		/*
 		 * Case 2) Object is NOT a method, just return its current value
 		 */
-		status = acpi_ns_get_object_value (info);
+		status = acpi_ns_get_object_value(info);
 	}
 
 	/*
@@ -355,9 +335,8 @@ acpi_ns_evaluate_by_handle (
 	 * Namespace was unlocked by the handling acpi_ns* function, so we
 	 * just return
 	 */
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -365,6 +344,7 @@ acpi_ns_evaluate_by_handle (
  *
  * PARAMETERS:  Info            - Method info block, contains:
  *                  Node            - Method Node to execute
+ *                  obj_desc        - Method object
  *                  Parameters      - List of parameters to pass to the method,
  *                                    terminated by NULL. Params itself may be
  *                                    NULL if no parameters are being passed.
@@ -383,31 +363,29 @@ acpi_ns_evaluate_by_handle (
  ******************************************************************************/
 
 static acpi_status
-acpi_ns_execute_control_method (
-	struct acpi_parameter_info      *info)
+acpi_ns_execute_control_method(struct acpi_parameter_info *info)
 {
-	acpi_status                     status;
-	union acpi_operand_object       *obj_desc;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("ns_execute_control_method");
-
+	ACPI_FUNCTION_TRACE("ns_execute_control_method");
 
 	/* Verify that there is a method associated with this object */
 
-	obj_desc = acpi_ns_get_attached_object (info->node);
-	if (!obj_desc) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No attached method object\n"));
+	info->obj_desc = acpi_ns_get_attached_object(info->node);
+	if (!info->obj_desc) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "No attached method object\n"));
 
-		(void) acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
-		return_ACPI_STATUS (AE_NULL_OBJECT);
+		(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+		return_ACPI_STATUS(AE_NULL_OBJECT);
 	}
 
-	ACPI_DUMP_PATHNAME (info->node, "Execute Method:",
-		ACPI_LV_INFO, _COMPONENT);
+	ACPI_DUMP_PATHNAME(info->node, "Execute Method:",
+			   ACPI_LV_INFO, _COMPONENT);
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Method at AML address %p Length %X\n",
-		obj_desc->method.aml_start + 1, obj_desc->method.aml_length - 1));
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Method at AML address %p Length %X\n",
+			  info->obj_desc->method.aml_start + 1,
+			  info->obj_desc->method.aml_length - 1));
 
 	/*
 	 * Unlock the namespace before execution.  This allows namespace access
@@ -416,26 +394,25 @@ acpi_ns_execute_control_method (
 	 * interpreter locks to ensure that no thread is using the portion of the
 	 * namespace that is being deleted.
 	 */
-	status = acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/*
 	 * Execute the method via the interpreter.  The interpreter is locked
 	 * here before calling into the AML parser
 	 */
-	status = acpi_ex_enter_interpreter ();
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ex_enter_interpreter();
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_psx_execute (info);
-	acpi_ex_exit_interpreter ();
+	status = acpi_ps_execute_method(info);
+	acpi_ex_exit_interpreter();
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -454,16 +431,12 @@ acpi_ns_execute_control_method (
  *
  ******************************************************************************/
 
-static acpi_status
-acpi_ns_get_object_value (
-	struct acpi_parameter_info      *info)
+static acpi_status acpi_ns_get_object_value(struct acpi_parameter_info *info)
 {
-	acpi_status                     status = AE_OK;
-	struct acpi_namespace_node      *resolved_node = info->node;
+	acpi_status status = AE_OK;
+	struct acpi_namespace_node *resolved_node = info->node;
 
-
-	ACPI_FUNCTION_TRACE ("ns_get_object_value");
-
+	ACPI_FUNCTION_TRACE("ns_get_object_value");
 
 	/*
 	 * Objects require additional resolution steps (e.g., the Node may be a
@@ -486,32 +459,33 @@ acpi_ns_get_object_value (
 	 *
 	 * We must release the namespace lock before entering the intepreter.
 	 */
-	status = acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
-	status = acpi_ex_enter_interpreter ();
-	if (ACPI_SUCCESS (status)) {
-		status = acpi_ex_resolve_node_to_value (&resolved_node, NULL);
+	status = acpi_ex_enter_interpreter();
+	if (ACPI_SUCCESS(status)) {
+		status = acpi_ex_resolve_node_to_value(&resolved_node, NULL);
 		/*
 		 * If acpi_ex_resolve_node_to_value() succeeded, the return value was placed
 		 * in resolved_node.
 		 */
-		acpi_ex_exit_interpreter ();
+		acpi_ex_exit_interpreter();
 
-		if (ACPI_SUCCESS (status)) {
+		if (ACPI_SUCCESS(status)) {
 			status = AE_CTRL_RETURN_VALUE;
 			info->return_object = ACPI_CAST_PTR
-					 (union acpi_operand_object, resolved_node);
-			ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "Returning object %p [%s]\n",
-				info->return_object,
-				acpi_ut_get_object_type_name (info->return_object)));
+			    (union acpi_operand_object, resolved_node);
+			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+					  "Returning object %p [%s]\n",
+					  info->return_object,
+					  acpi_ut_get_object_type_name(info->
+								       return_object)));
 		}
 	}
 
 	/* Namespace is unlocked */
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-

@@ -61,7 +61,7 @@ static struct net_device_stats *hdlc_get_stats(struct net_device *dev)
 
 
 static int hdlc_rcv(struct sk_buff *skb, struct net_device *dev,
-		    struct packet_type *p)
+		    struct packet_type *p, struct net_device *orig_dev)
 {
 	hdlc_device *hdlc = dev_to_hdlc(dev);
 	if (hdlc->proto.netif_rx)

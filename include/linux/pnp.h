@@ -443,7 +443,7 @@ static inline void pnp_unregister_driver(struct pnp_driver *drv) { ; }
 #define pnp_info(format, arg...) printk(KERN_INFO "pnp: " format "\n" , ## arg)
 #define pnp_warn(format, arg...) printk(KERN_WARNING "pnp: " format "\n" , ## arg)
 
-#ifdef DEBUG
+#ifdef CONFIG_PNP_DEBUG
 #define pnp_dbg(format, arg...) printk(KERN_DEBUG "pnp: " format "\n" , ## arg)
 #else
 #define pnp_dbg(format, arg...) do {} while (0)

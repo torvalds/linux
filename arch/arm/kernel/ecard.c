@@ -585,7 +585,7 @@ ecard_irq_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
 
 		if (pending) {
 			struct irqdesc *d = irq_desc + ec->irq;
-			d->handle(ec->irq, d, regs);
+			desc_handle_irq(ec->irq, d, regs);
 			called ++;
 		}
 	}
@@ -632,7 +632,7 @@ ecard_irqexp_handler(unsigned int irq, struct irqdesc *desc, struct pt_regs *reg
 			 * Serial cards should go in 0/1, ethernet/scsi in 2/3
 			 * otherwise you will lose serial data at high speeds!
 			 */
-			d->handle(ec->irq, d, regs);
+			desc_handle_irq(ec->irq, d, regs);
 		} else {
 			printk(KERN_WARNING "card%d: interrupt from unclaimed "
 			       "card???\n", slot);

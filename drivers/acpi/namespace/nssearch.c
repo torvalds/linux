@@ -41,23 +41,18 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 
-
 #define _COMPONENT          ACPI_NAMESPACE
-	 ACPI_MODULE_NAME    ("nssearch")
+ACPI_MODULE_NAME("nssearch")
 
 /* Local prototypes */
-
 static acpi_status
-acpi_ns_search_parent_tree (
-	u32                             target_name,
-	struct acpi_namespace_node      *node,
-	acpi_object_type                type,
-	struct acpi_namespace_node      **return_node);
-
+acpi_ns_search_parent_tree(u32 target_name,
+			   struct acpi_namespace_node *node,
+			   acpi_object_type type,
+			   struct acpi_namespace_node **return_node);
 
 /*******************************************************************************
  *
@@ -87,30 +82,28 @@ acpi_ns_search_parent_tree (
  ******************************************************************************/
 
 acpi_status
-acpi_ns_search_node (
-	u32                             target_name,
-	struct acpi_namespace_node      *node,
-	acpi_object_type                type,
-	struct acpi_namespace_node      **return_node)
+acpi_ns_search_node(u32 target_name,
+		    struct acpi_namespace_node *node,
+		    acpi_object_type type,
+		    struct acpi_namespace_node **return_node)
 {
-	struct acpi_namespace_node      *next_node;
+	struct acpi_namespace_node *next_node;
 
-
-	ACPI_FUNCTION_TRACE ("ns_search_node");
-
+	ACPI_FUNCTION_TRACE("ns_search_node");
 
 #ifdef ACPI_DEBUG_OUTPUT
 	if (ACPI_LV_NAMES & acpi_dbg_level) {
-		char                        *scope_name;
+		char *scope_name;
 
-		scope_name = acpi_ns_get_external_pathname (node);
+		scope_name = acpi_ns_get_external_pathname(node);
 		if (scope_name) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-				"Searching %s (%p) For [%4.4s] (%s)\n",
-				scope_name, node, (char *) &target_name,
-				acpi_ut_get_type_name (type)));
+			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+					  "Searching %s (%p) For [%4.4s] (%s)\n",
+					  scope_name, node,
+					  (char *)&target_name,
+					  acpi_ut_get_type_name(type)));
 
-			ACPI_MEM_FREE (scope_name);
+			ACPI_MEM_FREE(scope_name);
 		}
 	}
 #endif
@@ -126,20 +119,26 @@ acpi_ns_search_node (
 		if (next_node->name.integer == target_name) {
 			/* Resolve a control method alias if any */
 
-			if (acpi_ns_get_type (next_node) == ACPI_TYPE_LOCAL_METHOD_ALIAS) {
-				next_node = ACPI_CAST_PTR (struct acpi_namespace_node, next_node->object);
+			if (acpi_ns_get_type(next_node) ==
+			    ACPI_TYPE_LOCAL_METHOD_ALIAS) {
+				next_node =
+				    ACPI_CAST_PTR(struct acpi_namespace_node,
+						  next_node->object);
 			}
 
 			/*
 			 * Found matching entry.
 			 */
-			ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-				"Name [%4.4s] (%s) %p found in scope [%4.4s] %p\n",
-				(char *) &target_name, acpi_ut_get_type_name (next_node->type),
-				next_node, acpi_ut_get_node_name (node), node));
+			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+					  "Name [%4.4s] (%s) %p found in scope [%4.4s] %p\n",
+					  (char *)&target_name,
+					  acpi_ut_get_type_name(next_node->
+								type),
+					  next_node,
+					  acpi_ut_get_node_name(node), node));
 
 			*return_node = next_node;
-			return_ACPI_STATUS (AE_OK);
+			return_ACPI_STATUS(AE_OK);
 		}
 
 		/*
@@ -159,14 +158,13 @@ acpi_ns_search_node (
 
 	/* Searched entire namespace level, not found */
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-		"Name [%4.4s] (%s) not found in search in scope [%4.4s] %p first child %p\n",
-		(char *) &target_name, acpi_ut_get_type_name (type),
-		acpi_ut_get_node_name (node), node, node->child));
+	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+			  "Name [%4.4s] (%s) not found in search in scope [%4.4s] %p first child %p\n",
+			  (char *)&target_name, acpi_ut_get_type_name(type),
+			  acpi_ut_get_node_name(node), node, node->child));
 
-	return_ACPI_STATUS (AE_NOT_FOUND);
+	return_ACPI_STATUS(AE_NOT_FOUND);
 }
-
 
 /*******************************************************************************
  *
@@ -194,43 +192,42 @@ acpi_ns_search_node (
  ******************************************************************************/
 
 static acpi_status
-acpi_ns_search_parent_tree (
-	u32                             target_name,
-	struct acpi_namespace_node      *node,
-	acpi_object_type                type,
-	struct acpi_namespace_node      **return_node)
+acpi_ns_search_parent_tree(u32 target_name,
+			   struct acpi_namespace_node *node,
+			   acpi_object_type type,
+			   struct acpi_namespace_node **return_node)
 {
-	acpi_status                     status;
-	struct acpi_namespace_node      *parent_node;
+	acpi_status status;
+	struct acpi_namespace_node *parent_node;
 
+	ACPI_FUNCTION_TRACE("ns_search_parent_tree");
 
-	ACPI_FUNCTION_TRACE ("ns_search_parent_tree");
-
-
-	parent_node = acpi_ns_get_parent_node (node);
+	parent_node = acpi_ns_get_parent_node(node);
 
 	/*
 	 * If there is no parent (i.e., we are at the root) or type is "local",
 	 * we won't be searching the parent tree.
 	 */
 	if (!parent_node) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "[%4.4s] has no parent\n",
-			(char *) &target_name));
-		return_ACPI_STATUS (AE_NOT_FOUND);
+		ACPI_DEBUG_PRINT((ACPI_DB_NAMES, "[%4.4s] has no parent\n",
+				  (char *)&target_name));
+		return_ACPI_STATUS(AE_NOT_FOUND);
 	}
 
-	if (acpi_ns_local (type)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-			"[%4.4s] type [%s] must be local to this scope (no parent search)\n",
-			(char *) &target_name, acpi_ut_get_type_name (type)));
-		return_ACPI_STATUS (AE_NOT_FOUND);
+	if (acpi_ns_local(type)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+				  "[%4.4s] type [%s] must be local to this scope (no parent search)\n",
+				  (char *)&target_name,
+				  acpi_ut_get_type_name(type)));
+		return_ACPI_STATUS(AE_NOT_FOUND);
 	}
 
 	/* Search the parent tree */
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-		"Searching parent [%4.4s] for [%4.4s]\n",
-		acpi_ut_get_node_name (parent_node), (char *) &target_name));
+	ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+			  "Searching parent [%4.4s] for [%4.4s]\n",
+			  acpi_ut_get_node_name(parent_node),
+			  (char *)&target_name));
 
 	/*
 	 * Search parents until target is found or we have backed up to the root
@@ -241,24 +238,23 @@ acpi_ns_search_parent_tree (
 		 * object type at this point, we only care about the existence of
 		 * the actual name we are searching for.  Typechecking comes later.
 		 */
-		status = acpi_ns_search_node (target_name, parent_node,
-				  ACPI_TYPE_ANY, return_node);
-		if (ACPI_SUCCESS (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ns_search_node(target_name, parent_node,
+					     ACPI_TYPE_ANY, return_node);
+		if (ACPI_SUCCESS(status)) {
+			return_ACPI_STATUS(status);
 		}
 
 		/*
 		 * Not found here, go up another level
 		 * (until we reach the root)
 		 */
-		parent_node = acpi_ns_get_parent_node (parent_node);
+		parent_node = acpi_ns_get_parent_node(parent_node);
 	}
 
 	/* Not found in parent tree */
 
-	return_ACPI_STATUS (AE_NOT_FOUND);
+	return_ACPI_STATUS(AE_NOT_FOUND);
 }
-
 
 /*******************************************************************************
  *
@@ -286,52 +282,46 @@ acpi_ns_search_parent_tree (
  ******************************************************************************/
 
 acpi_status
-acpi_ns_search_and_enter (
-	u32                             target_name,
-	struct acpi_walk_state          *walk_state,
-	struct acpi_namespace_node      *node,
-	acpi_interpreter_mode           interpreter_mode,
-	acpi_object_type                type,
-	u32                             flags,
-	struct acpi_namespace_node      **return_node)
+acpi_ns_search_and_enter(u32 target_name,
+			 struct acpi_walk_state *walk_state,
+			 struct acpi_namespace_node *node,
+			 acpi_interpreter_mode interpreter_mode,
+			 acpi_object_type type,
+			 u32 flags, struct acpi_namespace_node **return_node)
 {
-	acpi_status                     status;
-	struct acpi_namespace_node      *new_node;
+	acpi_status status;
+	struct acpi_namespace_node *new_node;
 
-
-	ACPI_FUNCTION_TRACE ("ns_search_and_enter");
-
+	ACPI_FUNCTION_TRACE("ns_search_and_enter");
 
 	/* Parameter validation */
 
 	if (!node || !target_name || !return_node) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Null param: Node %p Name %X return_node %p\n",
-			node, target_name, return_node));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Null param: Node %p Name %X return_node %p\n",
+				  node, target_name, return_node));
 
-		ACPI_REPORT_ERROR (("ns_search_and_enter: Null parameter\n"));
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		ACPI_REPORT_ERROR(("ns_search_and_enter: Null parameter\n"));
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Name must consist of printable characters */
 
-	if (!acpi_ut_valid_acpi_name (target_name)) {
-		ACPI_REPORT_ERROR (("ns_search_and_enter: Bad character in ACPI Name: %X\n",
-			target_name));
-		return_ACPI_STATUS (AE_BAD_CHARACTER);
+	if (!acpi_ut_valid_acpi_name(target_name)) {
+		ACPI_REPORT_ERROR(("ns_search_and_enter: Bad character in ACPI Name: %X\n", target_name));
+		return_ACPI_STATUS(AE_BAD_CHARACTER);
 	}
 
 	/* Try to find the name in the namespace level specified by the caller */
 
 	*return_node = ACPI_ENTRY_NOT_FOUND;
-	status = acpi_ns_search_node (target_name, node, type, return_node);
+	status = acpi_ns_search_node(target_name, node, type, return_node);
 	if (status != AE_NOT_FOUND) {
 		/*
 		 * If we found it AND the request specifies that a find is an error,
 		 * return the error
 		 */
-		if ((status == AE_OK) &&
-			(flags & ACPI_NS_ERROR_IF_FOUND)) {
+		if ((status == AE_OK) && (flags & ACPI_NS_ERROR_IF_FOUND)) {
 			status = AE_ALREADY_EXISTS;
 		}
 
@@ -339,7 +329,7 @@ acpi_ns_search_and_enter (
 		 * Either found it or there was an error
 		 * -- finished either way
 		 */
-		return_ACPI_STATUS (status);
+		return_ACPI_STATUS(status);
 	}
 
 	/*
@@ -351,14 +341,16 @@ acpi_ns_search_and_enter (
 	 * and during the execution phase.
 	 */
 	if ((interpreter_mode != ACPI_IMODE_LOAD_PASS1) &&
-		(flags & ACPI_NS_SEARCH_PARENT)) {
+	    (flags & ACPI_NS_SEARCH_PARENT)) {
 		/*
 		 * Not found at this level - search parent tree according to the
 		 * ACPI specification
 		 */
-		status = acpi_ns_search_parent_tree (target_name, node, type, return_node);
-		if (ACPI_SUCCESS (status)) {
-			return_ACPI_STATUS (status);
+		status =
+		    acpi_ns_search_parent_tree(target_name, node, type,
+					       return_node);
+		if (ACPI_SUCCESS(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 
@@ -366,25 +358,24 @@ acpi_ns_search_and_enter (
 	 * In execute mode, just search, never add names.  Exit now.
 	 */
 	if (interpreter_mode == ACPI_IMODE_EXECUTE) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-			"%4.4s Not found in %p [Not adding]\n",
-			(char *) &target_name, node));
+		ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
+				  "%4.4s Not found in %p [Not adding]\n",
+				  (char *)&target_name, node));
 
-		return_ACPI_STATUS (AE_NOT_FOUND);
+		return_ACPI_STATUS(AE_NOT_FOUND);
 	}
 
 	/* Create the new named object */
 
-	new_node = acpi_ns_create_node (target_name);
+	new_node = acpi_ns_create_node(target_name);
 	if (!new_node) {
-		return_ACPI_STATUS (AE_NO_MEMORY);
+		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
 	/* Install the new object into the parent's list of children */
 
-	acpi_ns_install_node (walk_state, node, new_node, type);
+	acpi_ns_install_node(walk_state, node, new_node, type);
 	*return_node = new_node;
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-

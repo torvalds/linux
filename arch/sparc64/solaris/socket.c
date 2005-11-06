@@ -16,6 +16,7 @@
 #include <linux/net.h>
 #include <linux/compat.h>
 #include <net/compat.h>
+#include <net/sock.h>
 
 #include <asm/uaccess.h>
 #include <asm/string.h>
@@ -297,121 +298,165 @@ asmlinkage int solaris_sendmsg(int fd, struct sol_nmsghdr __user *user_msg, unsi
 {
 	struct socket *sock;
 	char address[MAX_SOCK_ADDR];
-	struct iovec iov[UIO_FASTIOV];
+	struct iovec iovstack[UIO_FASTIOV], *iov = iovstack;
 	unsigned char ctl[sizeof(struct cmsghdr) + 20];
 	unsigned char *ctl_buf = ctl;
-	struct msghdr kern_msg;
-	int err, total_len;
+	struct msghdr msg_sys;
+	int err, ctl_len, iov_size, total_len;
 
-	if(msghdr_from_user32_to_kern(&kern_msg, user_msg))
-		return -EFAULT;
-	if(kern_msg.msg_iovlen > UIO_MAXIOV)
-		return -EINVAL;
-	err = verify_compat_iovec(&kern_msg, iov, address, VERIFY_READ);
-	if (err < 0)
+	err = -EFAULT;
+	if (msghdr_from_user32_to_kern(&msg_sys, user_msg))
 		goto out;
+
+	sock = sockfd_lookup(fd, &err);
+	if (!sock)
+		goto out;
+
+	/* do not move before msg_sys is valid */
+	err = -EMSGSIZE;
+	if (msg_sys.msg_iovlen > UIO_MAXIOV)
+		goto out_put;
+
+	/* Check whether to allocate the iovec area*/
+	err = -ENOMEM;
+	iov_size = msg_sys.msg_iovlen * sizeof(struct iovec);
+	if (msg_sys.msg_iovlen > UIO_FASTIOV) {
+		iov = sock_kmalloc(sock->sk, iov_size, GFP_KERNEL);
+		if (!iov)
+			goto out_put;
+	}
+
+	err = verify_compat_iovec(&msg_sys, iov, address, VERIFY_READ);
+	if (err < 0)
+		goto out_freeiov;
 	total_len = err;
 
-	if(kern_msg.msg_controllen) {
-		struct sol_cmsghdr __user *ucmsg = kern_msg.msg_control;
+	err = -ENOBUFS;
+	if (msg_sys.msg_controllen > INT_MAX)
+		goto out_freeiov;
+
+	ctl_len = msg_sys.msg_controllen;
+	if (ctl_len) {
+		struct sol_cmsghdr __user *ucmsg = msg_sys.msg_control;
 		unsigned long *kcmsg;
 		compat_size_t cmlen;
 
-		if (kern_msg.msg_controllen <= sizeof(compat_size_t))
-			return -EINVAL;
+		err = -EINVAL;
+		if (ctl_len <= sizeof(compat_size_t))
+			goto out_freeiov;
 
-		if(kern_msg.msg_controllen > sizeof(ctl)) {
+		if (ctl_len > sizeof(ctl)) {
 			err = -ENOBUFS;
-			ctl_buf = kmalloc(kern_msg.msg_controllen, GFP_KERNEL);
-			if(!ctl_buf)
+			ctl_buf = kmalloc(ctl_len, GFP_KERNEL);
+			if (!ctl_buf)
 				goto out_freeiov;
 		}
 		__get_user(cmlen, &ucmsg->cmsg_len);
 		kcmsg = (unsigned long *) ctl_buf;
 		*kcmsg++ = (unsigned long)cmlen;
 		err = -EFAULT;
-		if(copy_from_user(kcmsg, &ucmsg->cmsg_level,
-				  kern_msg.msg_controllen - sizeof(compat_size_t)))
+		if (copy_from_user(kcmsg, &ucmsg->cmsg_level,
+				   ctl_len - sizeof(compat_size_t)))
 			goto out_freectl;
-		kern_msg.msg_control = ctl_buf;
+		msg_sys.msg_control = ctl_buf;
 	}
-	kern_msg.msg_flags = solaris_to_linux_msgflags(user_flags);
+	msg_sys.msg_flags = solaris_to_linux_msgflags(user_flags);
 
-	lock_kernel();
-	sock = sockfd_lookup(fd, &err);
-	if (sock != NULL) {
-		if (sock->file->f_flags & O_NONBLOCK)
-			kern_msg.msg_flags |= MSG_DONTWAIT;
-		err = sock_sendmsg(sock, &kern_msg, total_len);
-		sockfd_put(sock);
-	}
-	unlock_kernel();
+	if (sock->file->f_flags & O_NONBLOCK)
+		msg_sys.msg_flags |= MSG_DONTWAIT;
+	err = sock_sendmsg(sock, &msg_sys, total_len);
 
 out_freectl:
-	/* N.B. Use kfree here, as kern_msg.msg_controllen might change? */
-	if(ctl_buf != ctl)
-		kfree(ctl_buf);
+	if (ctl_buf != ctl)    
+		sock_kfree_s(sock->sk, ctl_buf, ctl_len);
 out_freeiov:
-	if(kern_msg.msg_iov != iov)
-		kfree(kern_msg.msg_iov);
-out:
+	if (iov != iovstack)
+		sock_kfree_s(sock->sk, iov, iov_size);
+out_put:
+	sockfd_put(sock);
+out:       
 	return err;
 }
 
 asmlinkage int solaris_recvmsg(int fd, struct sol_nmsghdr __user *user_msg, unsigned int user_flags)
 {
-	struct iovec iovstack[UIO_FASTIOV];
-	struct msghdr kern_msg;
-	char addr[MAX_SOCK_ADDR];
 	struct socket *sock;
+	struct iovec iovstack[UIO_FASTIOV];
 	struct iovec *iov = iovstack;
+	struct msghdr msg_sys;
+	unsigned long cmsg_ptr;
+	int err, iov_size, total_len, len;
+
+	/* kernel mode address */
+	char addr[MAX_SOCK_ADDR];
+
+	/* user mode address pointers */
 	struct sockaddr __user *uaddr;
 	int __user *uaddr_len;
-	unsigned long cmsg_ptr;
-	int err, total_len, len = 0;
 
-	if(msghdr_from_user32_to_kern(&kern_msg, user_msg))
+	if (msghdr_from_user32_to_kern(&msg_sys, user_msg))
 		return -EFAULT;
-	if(kern_msg.msg_iovlen > UIO_MAXIOV)
-		return -EINVAL;
 
-	uaddr = kern_msg.msg_name;
-	uaddr_len = &user_msg->msg_namelen;
-	err = verify_compat_iovec(&kern_msg, iov, addr, VERIFY_WRITE);
-	if (err < 0)
+	sock = sockfd_lookup(fd, &err);
+	if (!sock)
 		goto out;
+
+	err = -EMSGSIZE;
+	if (msg_sys.msg_iovlen > UIO_MAXIOV)
+		goto out_put;
+
+	/* Check whether to allocate the iovec area*/
+	err = -ENOMEM;
+	iov_size = msg_sys.msg_iovlen * sizeof(struct iovec);
+	if (msg_sys.msg_iovlen > UIO_FASTIOV) {
+		iov = sock_kmalloc(sock->sk, iov_size, GFP_KERNEL);
+		if (!iov)
+			goto out_put;
+	}
+
+	/*
+	 *	Save the user-mode address (verify_iovec will change the
+	 *	kernel msghdr to use the kernel address space)
+	 */
+	 
+	uaddr = (void __user *) msg_sys.msg_name;
+	uaddr_len = &user_msg->msg_namelen;
+	err = verify_compat_iovec(&msg_sys, iov, addr, VERIFY_WRITE);
+	if (err < 0)
+		goto out_freeiov;
 	total_len = err;
 
-	cmsg_ptr = (unsigned long) kern_msg.msg_control;
-	kern_msg.msg_flags = 0;
+	cmsg_ptr = (unsigned long) msg_sys.msg_control;
+	msg_sys.msg_flags = MSG_CMSG_COMPAT;
 
-	lock_kernel();
-	sock = sockfd_lookup(fd, &err);
-	if (sock != NULL) {
-		if (sock->file->f_flags & O_NONBLOCK)
-			user_flags |= MSG_DONTWAIT;
-		err = sock_recvmsg(sock, &kern_msg, total_len, user_flags);
-		if(err >= 0)
-			len = err;
-		sockfd_put(sock);
-	}
-	unlock_kernel();
+	if (sock->file->f_flags & O_NONBLOCK)
+		user_flags |= MSG_DONTWAIT;
 
-	if(uaddr != NULL && err >= 0)
-		err = move_addr_to_user(addr, kern_msg.msg_namelen, uaddr, uaddr_len);
-	if(err >= 0) {
-		err = __put_user(linux_to_solaris_msgflags(kern_msg.msg_flags), &user_msg->msg_flags);
-		if(!err) {
-			/* XXX Convert cmsg back into userspace 32-bit format... */
-			err = __put_user((unsigned long)kern_msg.msg_control - cmsg_ptr,
-					 &user_msg->msg_controllen);
-		}
-	}
-
-	if(kern_msg.msg_iov != iov)
-		kfree(kern_msg.msg_iov);
-out:
+	err = sock_recvmsg(sock, &msg_sys, total_len, user_flags);
 	if(err < 0)
-		return err;
-	return len;
+		goto out_freeiov;
+
+	len = err;
+
+	if (uaddr != NULL) {
+		err = move_addr_to_user(addr, msg_sys.msg_namelen, uaddr, uaddr_len);
+		if (err < 0)
+			goto out_freeiov;
+	}
+	err = __put_user(linux_to_solaris_msgflags(msg_sys.msg_flags), &user_msg->msg_flags);
+	if (err)
+		goto out_freeiov;
+	err = __put_user((unsigned long)msg_sys.msg_control - cmsg_ptr,
+			 &user_msg->msg_controllen);
+	if (err)
+		goto out_freeiov;
+	err = len;
+
+out_freeiov:
+	if (iov != iovstack)
+		sock_kfree_s(sock->sk, iov, iov_size);
+out_put:
+	sockfd_put(sock);
+out:
+	return err;
 }

@@ -39,8 +39,7 @@ static unsigned long dst_gc_timer_inc = DST_GC_MAX;
 static void dst_run_gc(unsigned long);
 static void ___dst_free(struct dst_entry * dst);
 
-static struct timer_list dst_gc_timer =
-	TIMER_INITIALIZER(dst_run_gc, DST_GC_MIN, 0);
+static DEFINE_TIMER(dst_gc_timer, dst_run_gc, DST_GC_MIN, 0);
 
 static void dst_run_gc(unsigned long dummy)
 {

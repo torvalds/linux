@@ -459,8 +459,6 @@ static u32 pcf_func(struct i2c_adapter *adap)
 /* -----exported algorithm data: -------------------------------------	*/
 
 static struct i2c_algorithm pcf_algo = {
-	.name		= "PCF8584 algorithm",
-	.id		= I2C_ALGO_PCF,
 	.master_xfer	= pcf_xfer,
 	.functionality	= pcf_func,
 };
@@ -476,8 +474,6 @@ int i2c_pcf_add_bus(struct i2c_adapter *adap)
 	DEB2(dev_dbg(&adap->dev, "hw routines registered.\n"));
 
 	/* register new adapter to i2c module... */
-
-	adap->id |= pcf_algo.id;
 	adap->algo = &pcf_algo;
 
 	adap->timeout = 100;		/* default values, should	*/

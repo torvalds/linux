@@ -40,6 +40,8 @@
  * bitmap_weight(src, nbits)			Hamming Weight: number set bits
  * bitmap_shift_right(dst, src, n, nbits)	*dst = *src >> n
  * bitmap_shift_left(dst, src, n, nbits)	*dst = *src << n
+ * bitmap_remap(dst, src, old, new, nbits)	*dst = map(old, new)(src)
+ * bitmap_bitremap(oldbit, old, new, nbits)	newbit = map(old, new)(oldbit)
  * bitmap_scnprintf(buf, len, src, nbits)	Print bitmap src to buf
  * bitmap_parse(ubuf, ulen, dst, nbits)		Parse bitmap dst from user buf
  * bitmap_scnlistprintf(buf, len, src, nbits)	Print bitmap src as list to buf
@@ -104,6 +106,10 @@ extern int bitmap_scnlistprintf(char *buf, unsigned int len,
 			const unsigned long *src, int nbits);
 extern int bitmap_parselist(const char *buf, unsigned long *maskp,
 			int nmaskbits);
+extern void bitmap_remap(unsigned long *dst, const unsigned long *src,
+		const unsigned long *old, const unsigned long *new, int bits);
+extern int bitmap_bitremap(int oldbit,
+		const unsigned long *old, const unsigned long *new, int bits);
 extern int bitmap_find_free_region(unsigned long *bitmap, int bits, int order);
 extern void bitmap_release_region(unsigned long *bitmap, int pos, int order);
 extern int bitmap_allocate_region(unsigned long *bitmap, int pos, int order);

@@ -46,8 +46,6 @@
 #include <linux/ipmi_msgdefs.h>		/* for completion codes */
 #include "ipmi_si_sm.h"
 
-#define IPMI_SMIC_VERSION "v33"
-
 /* smic_debug is a bit-field
  *	SMIC_DEBUG_ENABLE -	turned on for now
  *	SMIC_DEBUG_MSG -	commands and their responses
@@ -588,7 +586,6 @@ static int smic_size(void)
 
 struct si_sm_handlers smic_smi_handlers =
 {
-	.version           = IPMI_SMIC_VERSION,
 	.init_data         = init_smic_data,
 	.start_transaction = start_smic_transaction,
 	.get_result        = smic_get_result,

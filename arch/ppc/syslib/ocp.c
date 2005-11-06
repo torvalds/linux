@@ -165,7 +165,7 @@ ocp_device_remove(struct device *dev)
 }
 
 static int
-ocp_device_suspend(struct device *dev, u32 state)
+ocp_device_suspend(struct device *dev, pm_message_t state)
 {
 	struct ocp_device *ocp_dev = to_ocp_dev(dev);
 	struct ocp_driver *ocp_drv = to_ocp_drv(dev->driver);

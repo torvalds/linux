@@ -44,10 +44,14 @@ pci_config_attr(subsystem_device, "0x%04x\n");
 pci_config_attr(class, "0x%06x\n");
 pci_config_attr(irq, "%u\n");
 
-static ssize_t local_cpus_show(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t local_cpus_show(struct device *dev,
+			struct device_attribute *attr, char *buf)
 {		
-	cpumask_t mask = pcibus_to_cpumask(to_pci_dev(dev)->bus);
-	int len = cpumask_scnprintf(buf, PAGE_SIZE-2, mask);
+	cpumask_t mask;
+	int len;
+
+	mask = pcibus_to_cpumask(to_pci_dev(dev)->bus);
+	len = cpumask_scnprintf(buf, PAGE_SIZE-2, mask);
 	strcat(buf,"\n"); 
 	return 1+len;
 }
@@ -126,7 +130,7 @@ pci_read_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
 
 	if ((off & 1) && size) {
 		u8 val;
-		pci_read_config_byte(dev, off, &val);
+		pci_user_read_config_byte(dev, off, &val);
 		data[off - init_off] = val;
 		off++;
 		size--;
@@ -134,7 +138,7 @@ pci_read_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
 
 	if ((off & 3) && size > 2) {
 		u16 val;
-		pci_read_config_word(dev, off, &val);
+		pci_user_read_config_word(dev, off, &val);
 		data[off - init_off] = val & 0xff;
 		data[off - init_off + 1] = (val >> 8) & 0xff;
 		off += 2;
@@ -143,7 +147,7 @@ pci_read_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
 
 	while (size > 3) {
 		u32 val;
-		pci_read_config_dword(dev, off, &val);
+		pci_user_read_config_dword(dev, off, &val);
 		data[off - init_off] = val & 0xff;
 		data[off - init_off + 1] = (val >> 8) & 0xff;
 		data[off - init_off + 2] = (val >> 16) & 0xff;
@@ -154,7 +158,7 @@ pci_read_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
 
 	if (size >= 2) {
 		u16 val;
-		pci_read_config_word(dev, off, &val);
+		pci_user_read_config_word(dev, off, &val);
 		data[off - init_off] = val & 0xff;
 		data[off - init_off + 1] = (val >> 8) & 0xff;
 		off += 2;
@@ -163,7 +167,7 @@ pci_read_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
 
 	if (size > 0) {
 		u8 val;
-		pci_read_config_byte(dev, off, &val);
+		pci_user_read_config_byte(dev, off, &val);
 		data[off - init_off] = val;
 		off++;
 		--size;
@@ -188,7 +192,7 @@ pci_write_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
 	}
 	
 	if ((off & 1) && size) {
-		pci_write_config_byte(dev, off, data[off - init_off]);
+		pci_user_write_config_byte(dev, off, data[off - init_off]);
 		off++;
 		size--;
 	}
@@ -196,7 +200,7 @@ pci_write_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
 	if ((off & 3) && size > 2) {
 		u16 val = data[off - init_off];
 		val |= (u16) data[off - init_off + 1] << 8;
-                pci_write_config_word(dev, off, val);
+                pci_user_write_config_word(dev, off, val);
                 off += 2;
                 size -= 2;
         }
@@ -206,7 +210,7 @@ pci_write_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
 		val |= (u32) data[off - init_off + 1] << 8;
 		val |= (u32) data[off - init_off + 2] << 16;
 		val |= (u32) data[off - init_off + 3] << 24;
-		pci_write_config_dword(dev, off, val);
+		pci_user_write_config_dword(dev, off, val);
 		off += 4;
 		size -= 4;
 	}
@@ -214,13 +218,13 @@ pci_write_config(struct kobject *kobj, char *buf, loff_t off, size_t count)
 	if (size >= 2) {
 		u16 val = data[off - init_off];
 		val |= (u16) data[off - init_off + 1] << 8;
-		pci_write_config_word(dev, off, val);
+		pci_user_write_config_word(dev, off, val);
 		off += 2;
 		size -= 2;
 	}
 
 	if (size) {
-		pci_write_config_byte(dev, off, data[off - init_off]);
+		pci_user_write_config_byte(dev, off, data[off - init_off]);
 		off++;
 		--size;
 	}
@@ -356,7 +360,7 @@ pci_create_resource_files(struct pci_dev *pdev)
 			continue;
 
 		/* allocate attribute structure, piggyback attribute name */
-		res_attr = kcalloc(1, sizeof(*res_attr) + 10, GFP_ATOMIC);
+		res_attr = kzalloc(sizeof(*res_attr) + 10, GFP_ATOMIC);
 		if (res_attr) {
 			char *res_attr_name = (char *)(res_attr + 1);
 

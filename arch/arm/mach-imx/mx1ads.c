@@ -14,6 +14,7 @@
 
 #include <linux/device.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
 #include <asm/system.h>
 #include <asm/hardware.h>
 #include <asm/irq.h>
@@ -55,19 +56,43 @@ static void __init
 mx1ads_init(void)
 {
 #ifdef CONFIG_LEDS
-	imx_gpio_mode(GPIO_PORTA | GPIO_OUT | GPIO_GPIO | 2);
+	imx_gpio_mode(GPIO_PORTA | GPIO_OUT | 2);
 #endif
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
 static struct map_desc mx1ads_io_desc[] __initdata = {
-	/* virtual     physical    length      type */
-	{IMX_CS0_VIRT, IMX_CS0_PHYS, IMX_CS0_SIZE, MT_DEVICE},
-	{IMX_CS1_VIRT, IMX_CS1_PHYS, IMX_CS1_SIZE, MT_DEVICE},
-	{IMX_CS2_VIRT, IMX_CS2_PHYS, IMX_CS2_SIZE, MT_DEVICE},
-	{IMX_CS3_VIRT, IMX_CS3_PHYS, IMX_CS3_SIZE, MT_DEVICE},
-	{IMX_CS4_VIRT, IMX_CS4_PHYS, IMX_CS4_SIZE, MT_DEVICE},
-	{IMX_CS5_VIRT, IMX_CS5_PHYS, IMX_CS5_SIZE, MT_DEVICE},
+	{
+		.virtual	= IMX_CS0_VIRT,
+		.pfn		= __phys_to_pfn(IMX_CS0_PHYS),
+		.length		= IMX_CS0_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IMX_CS1_VIRT,
+		.pfn		= __phys_to_pfn(IMX_CS1_PHYS),
+		.length		= IMX_CS1_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IMX_CS2_VIRT,
+		.pfn		= __phys_to_pfn(IMX_CS2_PHYS),
+		.length		= IMX_CS2_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IMX_CS3_VIRT,
+		.pfn		= __phys_to_pfn(IMX_CS3_PHYS),
+		.length		= IMX_CS3_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IMX_CS4_VIRT,
+		.pfn		= __phys_to_pfn(IMX_CS4_PHYS),
+		.length		= IMX_CS4_SIZE,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= IMX_CS5_VIRT,
+		.pfn		= __phys_to_pfn(IMX_CS5_PHYS),
+		.length		= IMX_CS5_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init

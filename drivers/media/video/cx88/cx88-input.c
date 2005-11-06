@@ -1,5 +1,4 @@
 /*
- * $Id: cx88-input.c,v 1.15 2005/07/07 13:58:38 mchehab Exp $
  *
  * Device driver for GPIO attached remote control interfaces
  * on Conexant 2388x based TV/DVB cards.
@@ -212,9 +211,56 @@ static IR_KEYTAB_TYPE ir_codes_msi_tvanywhere[IR_KEYTAB_SIZE] = {
 
 /* ---------------------------------------------------------------------- */
 
+/* Cinergy 1400 DVB-T */
+static IR_KEYTAB_TYPE ir_codes_cinergy_1400[IR_KEYTAB_SIZE] = {
+	[0x01] = KEY_POWER,
+	[0x02] = KEY_1,
+	[0x03] = KEY_2,
+	[0x04] = KEY_3,
+	[0x05] = KEY_4,
+	[0x06] = KEY_5,
+	[0x07] = KEY_6,
+	[0x08] = KEY_7,
+	[0x09] = KEY_8,
+	[0x0a] = KEY_9,
+	[0x0c] = KEY_0,
+
+	[0x0b] = KEY_VIDEO,
+	[0x0d] = KEY_REFRESH,
+	[0x0e] = KEY_SELECT,
+	[0x0f] = KEY_EPG,
+	[0x10] = KEY_UP,
+	[0x11] = KEY_LEFT,
+	[0x12] = KEY_OK,
+	[0x13] = KEY_RIGHT,
+	[0x14] = KEY_DOWN,
+	[0x15] = KEY_TEXT,
+	[0x16] = KEY_INFO,
+
+	[0x17] = KEY_RED,
+	[0x18] = KEY_GREEN,
+	[0x19] = KEY_YELLOW,
+	[0x1a] = KEY_BLUE,
+
+	[0x1b] = KEY_CHANNELUP,
+	[0x1c] = KEY_VOLUMEUP,
+	[0x1d] = KEY_MUTE,
+	[0x1e] = KEY_VOLUMEDOWN,
+	[0x1f] = KEY_CHANNELDOWN,
+
+	[0x40] = KEY_PAUSE,
+	[0x4c] = KEY_PLAY,
+	[0x58] = KEY_RECORD,
+	[0x54] = KEY_PREVIOUS,
+	[0x48] = KEY_STOP,
+	[0x5c] = KEY_NEXT,
+};
+
+/* ---------------------------------------------------------------------- */
+
 struct cx88_IR {
 	struct cx88_core *core;
-	struct input_dev input;
+	struct input_dev *input;
 	struct ir_input_state ir;
 	char name[32];
 	char phys[32];
@@ -241,7 +287,7 @@ module_param(ir_debug, int, 0644);	/* debug level [IR] */
 MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
 
 #define ir_dprintk(fmt, arg...)	if (ir_debug) \
-	printk(KERN_DEBUG "%s IR: " fmt , ir->core->name, ## arg)
+	printk(KERN_DEBUG "%s IR: " fmt , ir->core->name , ##arg)
 
 /* ---------------------------------------------------------------------- */
 
@@ -269,23 +315,23 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 	if (ir->mask_keydown) {
 		/* bit set on keydown */
 		if (gpio & ir->mask_keydown) {
-			ir_input_keydown(&ir->input, &ir->ir, data, data);
+			ir_input_keydown(ir->input, &ir->ir, data, data);
 		} else {
-			ir_input_nokey(&ir->input, &ir->ir);
+			ir_input_nokey(ir->input, &ir->ir);
 		}
 
 	} else if (ir->mask_keyup) {
 		/* bit cleared on keydown */
 		if (0 == (gpio & ir->mask_keyup)) {
-			ir_input_keydown(&ir->input, &ir->ir, data, data);
+			ir_input_keydown(ir->input, &ir->ir, data, data);
 		} else {
-			ir_input_nokey(&ir->input, &ir->ir);
+			ir_input_nokey(ir->input, &ir->ir);
 		}
 
 	} else {
 		/* can't distinguish keydown/up :-/ */
-		ir_input_keydown(&ir->input, &ir->ir, data, data);
-		ir_input_nokey(&ir->input, &ir->ir);
+		ir_input_keydown(ir->input, &ir->ir, data, data);
+		ir_input_nokey(ir->input, &ir->ir);
 	}
 }
 
@@ -311,13 +357,19 @@ static void cx88_ir_work(void *data)
 int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 {
 	struct cx88_IR *ir;
+	struct input_dev *input_dev;
 	IR_KEYTAB_TYPE *ir_codes = NULL;
 	int ir_type = IR_TYPE_OTHER;
 
-	ir = kmalloc(sizeof(*ir), GFP_KERNEL);
-	if (NULL == ir)
+	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!ir || !input_dev) {
+		kfree(ir);
+		input_free_device(input_dev);
 		return -ENOMEM;
-	memset(ir, 0, sizeof(*ir));
+	}
+
+	ir->input = input_dev;
 
 	/* detect & configure */
 	switch (core->board) {
@@ -328,6 +380,11 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		ir->mask_keycode = 0x1f;
 		ir->mask_keyup = 0x60;
 		ir->polling = 50; /* ms */
+		break;
+	case CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1:
+		ir_codes = ir_codes_cinergy_1400;
+		ir_type = IR_TYPE_PD;
+		ir->sampling = 1;
 		break;
 	case CX88_BOARD_HAUPPAUGE:
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
@@ -374,6 +431,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 
 	if (NULL == ir_codes) {
 		kfree(ir);
+		input_free_device(input_dev);
 		return -ENODEV;
 	}
 
@@ -382,18 +440,19 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 		 cx88_boards[core->board].name);
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0", pci_name(pci));
 
-	ir_input_init(&ir->input, &ir->ir, ir_type, ir_codes);
-	ir->input.name = ir->name;
-	ir->input.phys = ir->phys;
-	ir->input.id.bustype = BUS_PCI;
-	ir->input.id.version = 1;
+	ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
+	input_dev->name = ir->name;
+	input_dev->phys = ir->phys;
+	input_dev->id.bustype = BUS_PCI;
+	input_dev->id.version = 1;
 	if (pci->subsystem_vendor) {
-		ir->input.id.vendor = pci->subsystem_vendor;
-		ir->input.id.product = pci->subsystem_device;
+		input_dev->id.vendor = pci->subsystem_vendor;
+		input_dev->id.product = pci->subsystem_device;
 	} else {
-		ir->input.id.vendor = pci->vendor;
-		ir->input.id.product = pci->device;
+		input_dev->id.vendor = pci->vendor;
+		input_dev->id.product = pci->device;
 	}
+	input_dev->cdev.dev = &pci->dev;
 
 	/* record handles to ourself */
 	ir->core = core;
@@ -413,8 +472,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	}
 
 	/* all done */
-	input_register_device(&ir->input);
-	printk("%s: registered IR remote control\n", core->name);
+	input_register_device(ir->input);
 
 	return 0;
 }
@@ -432,7 +490,7 @@ int cx88_ir_fini(struct cx88_core *core)
 		flush_scheduled_work();
 	}
 
-	input_unregister_device(&ir->input);
+	input_unregister_device(ir->input);
 	kfree(ir);
 
 	/* done */
@@ -445,7 +503,7 @@ int cx88_ir_fini(struct cx88_core *core)
 void cx88_ir_irq(struct cx88_core *core)
 {
 	struct cx88_IR *ir = core->ir;
-	u32 samples, rc5;
+	u32 samples, ircode;
 	int i;
 
 	if (NULL == ir)
@@ -463,7 +521,7 @@ void cx88_ir_irq(struct cx88_core *core)
 	if (!ir->scount) {
 		/* nothing to sample */
 		if (ir->ir.keypressed && time_after(jiffies, ir->release))
-			ir_input_nokey(&ir->input, &ir->ir);
+			ir_input_nokey(ir->input, &ir->ir);
 		return;
 	}
 
@@ -477,13 +535,44 @@ void cx88_ir_irq(struct cx88_core *core)
 
 	/* decode it */
 	switch (core->board) {
+	case CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1:
+		ircode = ir_decode_pulsedistance(ir->samples, ir->scount, 1, 4);
+
+		if (ircode == 0xffffffff) { /* decoding error */
+			ir_dprintk("pulse distance decoding error\n");
+			break;
+		}
+
+		ir_dprintk("pulse distance decoded: %x\n", ircode);
+
+		if (ircode == 0) { /* key still pressed */
+			ir_dprintk("pulse distance decoded repeat code\n");
+			ir->release = jiffies + msecs_to_jiffies(120);
+			break;
+		}
+
+		if ((ircode & 0xffff) != 0xeb04) { /* wrong address */
+			ir_dprintk("pulse distance decoded wrong address\n");
+ 			break;
+		}
+
+		if (((~ircode >> 24) & 0xff) != ((ircode >> 16) & 0xff)) { /* wrong checksum */
+			ir_dprintk("pulse distance decoded wrong check sum\n");
+			break;
+		}
+
+		ir_dprintk("Key Code: %x\n", (ircode >> 16) & 0x7f);
+
+		ir_input_keydown(ir->input, &ir->ir, (ircode >> 16) & 0x7f, (ircode >> 16) & 0xff);
+		ir->release = jiffies + msecs_to_jiffies(120);
+		break;
 	case CX88_BOARD_HAUPPAUGE:
 	case CX88_BOARD_HAUPPAUGE_DVB_T1:
-		rc5 = ir_decode_biphase(ir->samples, ir->scount, 5, 7);
-		ir_dprintk("biphase decoded: %x\n", rc5);
-		if ((rc5 & 0xfffff000) != 0x3000)
+		ircode = ir_decode_biphase(ir->samples, ir->scount, 5, 7);
+		ir_dprintk("biphase decoded: %x\n", ircode);
+		if ((ircode & 0xfffff000) != 0x3000)
 			break;
-		ir_input_keydown(&ir->input, &ir->ir, rc5 & 0x3f, rc5);
+		ir_input_keydown(ir->input, &ir->ir, ircode & 0x3f, ircode);
 		ir->release = jiffies + msecs_to_jiffies(120);
 		break;
 	}

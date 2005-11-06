@@ -27,10 +27,6 @@
 #include <linux/timex.h>
 #include <linux/profile.h>
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 static inline int set_rtc_mmss(unsigned long nowtime)
 {
   if (mach_set_clock_mmss)
@@ -166,10 +162,7 @@ int do_settimeofday(struct timespec *tv)
 	set_normalized_timespec(&xtime, sec, nsec);
 	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
 
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();
 	return 0;

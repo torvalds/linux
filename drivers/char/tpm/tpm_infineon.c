@@ -1,10 +1,11 @@
 /*
  * Description:
  * Device Driver for the Infineon Technologies
- * SLD 9630 TT Trusted Platform Module
+ * SLD 9630 TT 1.1 and SLB 9635 TT 1.2 Trusted Platform Module
  * Specifications at www.trustedcomputinggroup.org
  *
  * Copyright (C) 2005, Marcel Selhorst <selhorst@crypto.rub.de>
+ * Sirrix AG - security technologies, http://www.sirrix.com and
  * Applied Data Security Group, Ruhr-University Bochum, Germany
  * Project-Homepage: http://www.prosec.rub.de/tpm
  *
@@ -12,9 +13,9 @@
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, version 2 of the
  * License.
- *
  */
 
+#include <linux/pnp.h>
 #include "tpm.h"
 
 /* Infineon specific definitions */
@@ -26,8 +27,13 @@
 #define	TPM_MSLEEP_TIME 	3
 /* gives number of max. msleep()-calls before throwing timeout */
 #define	TPM_MAX_TRIES		5000
-#define	TCPA_INFINEON_DEV_VEN_VALUE	0x15D1
-#define	TPM_DATA 			(TPM_ADDR + 1) & 0xff
+#define	TPM_INFINEON_DEV_VEN_VALUE	0x15D1
+
+/* These values will be filled after PnP-call */
+static int TPM_INF_DATA;
+static int TPM_INF_ADDR;
+static int TPM_INF_BASE;
+static int TPM_INF_PORT_LEN;
 
 /* TPM header definitions */
 enum infineon_tpm_header {
@@ -139,11 +145,9 @@ static int wait(struct tpm_chip *chip, int wait_for_bit)
 	}
 	if (i == TPM_MAX_TRIES) {	/* timeout occurs */
 		if (wait_for_bit == STAT_XFE)
-			dev_err(&chip->pci_dev->dev,
-				"Timeout in wait(STAT_XFE)\n");
+			dev_err(chip->dev, "Timeout in wait(STAT_XFE)\n");
 		if (wait_for_bit == STAT_RDA)
-			dev_err(&chip->pci_dev->dev,
-				"Timeout in wait(STAT_RDA)\n");
+			dev_err(chip->dev, "Timeout in wait(STAT_RDA)\n");
 		return -EIO;
 	}
 	return 0;
@@ -166,7 +170,7 @@ static void wait_and_send(struct tpm_chip *chip, u8 sendbyte)
 static void tpm_wtx(struct tpm_chip *chip)
 {
 	number_of_wtx++;
-	dev_info(&chip->pci_dev->dev, "Granting WTX (%02d / %02d)\n",
+	dev_info(chip->dev, "Granting WTX (%02d / %02d)\n",
 		 number_of_wtx, TPM_MAX_WTX_PACKAGES);
 	wait_and_send(chip, TPM_VL_VER);
 	wait_and_send(chip, TPM_CTRL_WTX);
@@ -177,7 +181,7 @@ static void tpm_wtx(struct tpm_chip *chip)
 
 static void tpm_wtx_abort(struct tpm_chip *chip)
 {
-	dev_info(&chip->pci_dev->dev, "Aborting WTX\n");
+	dev_info(chip->dev, "Aborting WTX\n");
 	wait_and_send(chip, TPM_VL_VER);
 	wait_and_send(chip, TPM_CTRL_WTX_ABORT);
 	wait_and_send(chip, 0x00);
@@ -202,7 +206,7 @@ recv_begin:
 	}
 
 	if (buf[0] != TPM_VL_VER) {
-		dev_err(&chip->pci_dev->dev,
+		dev_err(chip->dev,
 			"Wrong transport protocol implementation!\n");
 		return -EIO;
 	}
@@ -217,8 +221,7 @@ recv_begin:
 		}
 
 		if ((size == 0x6D00) && (buf[1] == 0x80)) {
-			dev_err(&chip->pci_dev->dev,
-				"Error handling on vendor layer!\n");
+			dev_err(chip->dev, "Error handling on vendor layer!\n");
 			return -EIO;
 		}
 
@@ -230,7 +233,7 @@ recv_begin:
 	}
 
 	if (buf[1] == TPM_CTRL_WTX) {
-		dev_info(&chip->pci_dev->dev, "WTX-package received\n");
+		dev_info(chip->dev, "WTX-package received\n");
 		if (number_of_wtx < TPM_MAX_WTX_PACKAGES) {
 			tpm_wtx(chip);
 			goto recv_begin;
@@ -241,14 +244,14 @@ recv_begin:
 	}
 
 	if (buf[1] == TPM_CTRL_WTX_ABORT_ACK) {
-		dev_info(&chip->pci_dev->dev, "WTX-abort acknowledged\n");
+		dev_info(chip->dev, "WTX-abort acknowledged\n");
 		return size;
 	}
 
 	if (buf[1] == TPM_CTRL_ERROR) {
-		dev_err(&chip->pci_dev->dev, "ERROR-package received:\n");
+		dev_err(chip->dev, "ERROR-package received:\n");
 		if (buf[4] == TPM_INF_NAK)
-			dev_err(&chip->pci_dev->dev,
+			dev_err(chip->dev,
 				"-> Negative acknowledgement"
 				" - retransmit command!\n");
 		return -EIO;
@@ -267,7 +270,7 @@ static int tpm_inf_send(struct tpm_chip *chip, u8 * buf, size_t count)
 
 	ret = empty_fifo(chip, 1);
 	if (ret) {
-		dev_err(&chip->pci_dev->dev, "Timeout while clearing FIFO\n");
+		dev_err(chip->dev, "Timeout while clearing FIFO\n");
 		return -EIO;
 	}
 
@@ -305,10 +308,16 @@ static int tpm_inf_send(struct tpm_chip *chip, u8 * buf, size_t count)
 
 static void tpm_inf_cancel(struct tpm_chip *chip)
 {
-	/* Nothing yet!
-	   This has something to do with the internal functions
-	   of the TPM. Abort isn't really necessary...
+	/*
+	   Since we are using the legacy mode to communicate
+	   with the TPM, we have no cancel functions, but have
+	   a workaround for interrupting the TPM through WTX.
 	 */
+}
+
+static u8 tpm_inf_status(struct tpm_chip *chip)
+{
+	return inb(chip->vendor->base + STAT);
 }
 
 static DEVICE_ATTR(pubek, S_IRUGO, tpm_show_pubek, NULL);
@@ -339,129 +348,175 @@ static struct tpm_vendor_specific tpm_inf = {
 	.recv = tpm_inf_recv,
 	.send = tpm_inf_send,
 	.cancel = tpm_inf_cancel,
+	.status = tpm_inf_status,
 	.req_complete_mask = 0,
 	.req_complete_val = 0,
 	.attr_group = &inf_attr_grp,
 	.miscdev = {.fops = &inf_ops,},
 };
 
-static int __devinit tpm_inf_probe(struct pci_dev *pci_dev,
-				   const struct pci_device_id *pci_id)
+static const struct pnp_device_id tpm_pnp_tbl[] = {
+	/* Infineon TPMs */
+	{"IFX0101", 0},
+	{"IFX0102", 0},
+	{"", 0}
+};
+
+MODULE_DEVICE_TABLE(pnp, tpm_pnp_tbl);
+
+static int __devinit tpm_inf_pnp_probe(struct pnp_dev *dev,
+				       const struct pnp_device_id *dev_id)
 {
 	int rc = 0;
 	u8 iol, ioh;
 	int vendorid[2];
 	int version[2];
 	int productid[2];
+	char chipname[20];
 
-	if (pci_enable_device(pci_dev))
-		return -EIO;
-
-	dev_info(&pci_dev->dev, "LPC-bus found at 0x%x\n", pci_id->device);
+	/* read IO-ports through PnP */
+	if (pnp_port_valid(dev, 0) && pnp_port_valid(dev, 1) &&
+	    !(pnp_port_flags(dev, 0) & IORESOURCE_DISABLED)) {
+		TPM_INF_ADDR = pnp_port_start(dev, 0);
+		TPM_INF_DATA = (TPM_INF_ADDR + 1);
+		TPM_INF_BASE = pnp_port_start(dev, 1);
+		TPM_INF_PORT_LEN = pnp_port_len(dev, 1);
+		if (!TPM_INF_PORT_LEN)
+			return -EINVAL;
+		dev_info(&dev->dev, "Found %s with ID %s\n",
+			 dev->name, dev_id->id);
+		if (!((TPM_INF_BASE >> 8) & 0xff))
+			return -EINVAL;
+		/* publish my base address and request region */
+		tpm_inf.base = TPM_INF_BASE;
+		if (request_region
+		    (tpm_inf.base, TPM_INF_PORT_LEN, "tpm_infineon0") == NULL) {
+			release_region(tpm_inf.base, TPM_INF_PORT_LEN);
+			return -EINVAL;
+		}
+	} else {
+		return -EINVAL;
+	}
 
 	/* query chip for its vendor, its version number a.s.o. */
-	outb(ENABLE_REGISTER_PAIR, TPM_ADDR);
-	outb(IDVENL, TPM_ADDR);
-	vendorid[1] = inb(TPM_DATA);
-	outb(IDVENH, TPM_ADDR);
-	vendorid[0] = inb(TPM_DATA);
-	outb(IDPDL, TPM_ADDR);
-	productid[1] = inb(TPM_DATA);
-	outb(IDPDH, TPM_ADDR);
-	productid[0] = inb(TPM_DATA);
-	outb(CHIP_ID1, TPM_ADDR);
-	version[1] = inb(TPM_DATA);
-	outb(CHIP_ID2, TPM_ADDR);
-	version[0] = inb(TPM_DATA);
+	outb(ENABLE_REGISTER_PAIR, TPM_INF_ADDR);
+	outb(IDVENL, TPM_INF_ADDR);
+	vendorid[1] = inb(TPM_INF_DATA);
+	outb(IDVENH, TPM_INF_ADDR);
+	vendorid[0] = inb(TPM_INF_DATA);
+	outb(IDPDL, TPM_INF_ADDR);
+	productid[1] = inb(TPM_INF_DATA);
+	outb(IDPDH, TPM_INF_ADDR);
+	productid[0] = inb(TPM_INF_DATA);
+	outb(CHIP_ID1, TPM_INF_ADDR);
+	version[1] = inb(TPM_INF_DATA);
+	outb(CHIP_ID2, TPM_INF_ADDR);
+	version[0] = inb(TPM_INF_DATA);
 
-	if ((vendorid[0] << 8 | vendorid[1]) == (TCPA_INFINEON_DEV_VEN_VALUE)) {
+	switch ((productid[0] << 8) | productid[1]) {
+	case 6:
+		snprintf(chipname, sizeof(chipname), " (SLD 9630 TT 1.1)");
+		break;
+	case 11:
+		snprintf(chipname, sizeof(chipname), " (SLB 9635 TT 1.2)");
+		break;
+	default:
+		snprintf(chipname, sizeof(chipname), " (unknown chip)");
+		break;
+	}
 
-		/* read IO-ports from TPM */
-		outb(IOLIMH, TPM_ADDR);
-		ioh = inb(TPM_DATA);
-		outb(IOLIML, TPM_ADDR);
-		iol = inb(TPM_DATA);
-		tpm_inf.base = (ioh << 8) | iol;
+	if ((vendorid[0] << 8 | vendorid[1]) == (TPM_INFINEON_DEV_VEN_VALUE)) {
 
-		if (tpm_inf.base == 0) {
-			dev_err(&pci_dev->dev, "No IO-ports set!\n");
-			pci_disable_device(pci_dev);
-			return -ENODEV;
+		/* configure TPM with IO-ports */
+		outb(IOLIMH, TPM_INF_ADDR);
+		outb(((tpm_inf.base >> 8) & 0xff), TPM_INF_DATA);
+		outb(IOLIML, TPM_INF_ADDR);
+		outb((tpm_inf.base & 0xff), TPM_INF_DATA);
+
+		/* control if IO-ports are set correctly */
+		outb(IOLIMH, TPM_INF_ADDR);
+		ioh = inb(TPM_INF_DATA);
+		outb(IOLIML, TPM_INF_ADDR);
+		iol = inb(TPM_INF_DATA);
+
+		if ((ioh << 8 | iol) != tpm_inf.base) {
+			dev_err(&dev->dev,
+				"Could not set IO-ports to %04x\n",
+				tpm_inf.base);
+			release_region(tpm_inf.base, TPM_INF_PORT_LEN);
+			return -EIO;
 		}
 
 		/* activate register */
-		outb(TPM_DAR, TPM_ADDR);
-		outb(0x01, TPM_DATA);
-		outb(DISABLE_REGISTER_PAIR, TPM_ADDR);
+		outb(TPM_DAR, TPM_INF_ADDR);
+		outb(0x01, TPM_INF_DATA);
+		outb(DISABLE_REGISTER_PAIR, TPM_INF_ADDR);
 
 		/* disable RESET, LP and IRQC */
 		outb(RESET_LP_IRQC_DISABLE, tpm_inf.base + CMD);
 
 		/* Finally, we're done, print some infos */
-		dev_info(&pci_dev->dev, "TPM found: "
+		dev_info(&dev->dev, "TPM found: "
+			 "config base 0x%x, "
 			 "io base 0x%x, "
 			 "chip version %02x%02x, "
 			 "vendor id %x%x (Infineon), "
 			 "product id %02x%02x"
 			 "%s\n",
-			 tpm_inf.base,
+			 TPM_INF_ADDR,
+			 TPM_INF_BASE,
 			 version[0], version[1],
 			 vendorid[0], vendorid[1],
-			 productid[0], productid[1], ((productid[0] == 0)
-						      && (productid[1] ==
-							  6)) ?
-			 " (SLD 9630 TT 1.1)" : "");
+			 productid[0], productid[1], chipname);
 
-		rc = tpm_register_hardware(pci_dev, &tpm_inf);
+		rc = tpm_register_hardware(&dev->dev, &tpm_inf);
 		if (rc < 0) {
-			pci_disable_device(pci_dev);
+			release_region(tpm_inf.base, TPM_INF_PORT_LEN);
 			return -ENODEV;
 		}
 		return 0;
 	} else {
-		dev_info(&pci_dev->dev, "No Infineon TPM found!\n");
-		pci_disable_device(pci_dev);
+		dev_info(&dev->dev, "No Infineon TPM found!\n");
 		return -ENODEV;
 	}
 }
 
-static struct pci_device_id tpm_pci_tbl[] __devinitdata = {
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801BA_0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_12)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801DB_12)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801EB_0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_0)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_1)},
-	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ICH6_2)},
-	{0,}
-};
+static __devexit void tpm_inf_pnp_remove(struct pnp_dev *dev)
+{
+	struct tpm_chip *chip = pnp_get_drvdata(dev);
 
-MODULE_DEVICE_TABLE(pci, tpm_pci_tbl);
+	if (chip) {
+		release_region(chip->vendor->base, TPM_INF_PORT_LEN);
+		tpm_remove_hardware(chip->dev);
+	}
+}
 
-static struct pci_driver inf_pci_driver = {
-	.name = "tpm_inf",
-	.id_table = tpm_pci_tbl,
-	.probe = tpm_inf_probe,
-	.remove = __devexit_p(tpm_remove),
-	.suspend = tpm_pm_suspend,
-	.resume = tpm_pm_resume,
+static struct pnp_driver tpm_inf_pnp = {
+	.name = "tpm_inf_pnp",
+	.driver = {
+		.owner = THIS_MODULE,
+		.suspend = tpm_pm_suspend,
+		.resume = tpm_pm_resume,
+	},
+	.id_table = tpm_pnp_tbl,
+	.probe = tpm_inf_pnp_probe,
+	.remove = tpm_inf_pnp_remove,
 };
 
 static int __init init_inf(void)
 {
-	return pci_register_driver(&inf_pci_driver);
+	return pnp_register_driver(&tpm_inf_pnp);
 }
 
 static void __exit cleanup_inf(void)
 {
-	pci_unregister_driver(&inf_pci_driver);
+	pnp_unregister_driver(&tpm_inf_pnp);
 }
 
 module_init(init_inf);
 module_exit(cleanup_inf);
 
 MODULE_AUTHOR("Marcel Selhorst <selhorst@crypto.rub.de>");
-MODULE_DESCRIPTION("Driver for Infineon TPM SLD 9630 TT");
-MODULE_VERSION("1.4");
+MODULE_DESCRIPTION("Driver for Infineon TPM SLD 9630 TT 1.1 / SLB 9635 TT 1.2");
+MODULE_VERSION("1.6");
 MODULE_LICENSE("GPL");

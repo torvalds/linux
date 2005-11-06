@@ -1,41 +1,26 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-
-#include "xfs_macros.h"
+#include "xfs_fs.h"
 #include "xfs_types.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -43,19 +28,18 @@
 #include "xfs_dir2.h"
 #include "xfs_dmapi.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_btree.h"
+#include "xfs_ialloc.h"
 #include "xfs_quota.h"
 #include "xfs_utils.h"
-#include "xfs_bit.h"
 
 /*
  * Initialize the inode hash table for the newly mounted file system.
@@ -505,17 +489,15 @@ xfs_iget(
 	vnode_t		*vp = NULL;
 	int		error;
 
-retry:
 	XFS_STATS_INC(xs_ig_attempts);
 
+retry:
 	if ((inode = iget_locked(XFS_MTOVFS(mp)->vfs_super, ino))) {
 		bhv_desc_t	*bdp;
 		xfs_inode_t	*ip;
-		int		newnode;
 
 		vp = LINVFS_GET_VP(inode);
 		if (inode->i_state & I_NEW) {
-inode_allocate:
 			vn_initialize(inode);
 			error = xfs_iget_core(vp, mp, tp, ino, flags,
 					lock_flags, ipp, bno);
@@ -526,32 +508,25 @@ inode_allocate:
 				iput(inode);
 			}
 		} else {
-			/* These are true if the inode is in inactive or
-			 * reclaim. The linux inode is about to go away,
-			 * wait for that path to finish, and try again.
+			/*
+			 * If the inode is not fully constructed due to
+			 * filehandle mistmatches wait for the inode to go
+			 * away and try again.
+			 *
+			 * iget_locked will call __wait_on_freeing_inode
+			 * to wait for the inode to go away.
 			 */
-			if (vp->v_flag & (VINACT | VRECLM)) {
-				vn_wait(vp);
+			if (is_bad_inode(inode) ||
+			    ((bdp = vn_bhv_lookup(VN_BHV_HEAD(vp),
+						  &xfs_vnodeops)) == NULL)) {
 				iput(inode);
+				delay(1);
 				goto retry;
 			}
 
-			if (is_bad_inode(inode)) {
-				iput(inode);
-				return EIO;
-			}
-
-			bdp = vn_bhv_lookup(VN_BHV_HEAD(vp), &xfs_vnodeops);
-			if (bdp == NULL) {
-				XFS_STATS_INC(xs_ig_dup);
-				goto inode_allocate;
-			}
 			ip = XFS_BHVTOI(bdp);
 			if (lock_flags != 0)
 				xfs_ilock(ip, lock_flags);
-			newnode = (ip->i_d.di_mode == 0);
-			if (newnode)
-				xfs_iocore_inode_reinit(ip);
 			XFS_STATS_INC(xs_ig_found);
 			*ipp = ip;
 			error = 0;

@@ -17,6 +17,7 @@
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_request.h>
 #include <scsi/scsi_eh.h>
+#include <scsi/scsi_dbg.h>
 
 
 
@@ -1155,6 +1156,31 @@ scsi_show_extd_sense(unsigned char asc, unsigned char ascq)
 	}
 }
 
+void
+scsi_print_sense_hdr(const char *name, struct scsi_sense_hdr *sshdr)
+{
+	const char *sense_txt;
+	/* An example of deferred is when an earlier write to disk cache
+	 * succeeded, but now the disk discovers that it cannot write the
+	 * data to the magnetic media.
+	 */
+	const char *error = scsi_sense_is_deferred(sshdr) ? 
+		"<<DEFERRED>>" : "Current";
+	printk(KERN_INFO "%s: %s", name, error);
+	if (sshdr->response_code >= 0x72)
+		printk(" [descriptor]");
+
+	sense_txt = scsi_sense_key_string(sshdr->sense_key);
+	if (sense_txt)
+		printk(": sense key: %s\n", sense_txt);
+	else
+		printk(": sense key=0x%x\n", sshdr->sense_key);
+	printk(KERN_INFO "    ");
+	scsi_show_extd_sense(sshdr->asc, sshdr->ascq);
+	printk("\n");
+}
+EXPORT_SYMBOL(scsi_print_sense_hdr);
+
 /* Print sense information */
 void
 __scsi_print_sense(const char *name, const unsigned char *sense_buffer,
@@ -1162,8 +1188,6 @@ __scsi_print_sense(const char *name, const unsigned char *sense_buffer,
 {
 	int k, num, res;
 	unsigned int info;
-	const char *error;
-	const char *sense_txt;
 	struct scsi_sense_hdr ssh;
     
 	res = scsi_normalize_sense(sense_buffer, sense_len, &ssh);
@@ -1181,26 +1205,7 @@ __scsi_print_sense(const char *name, const unsigned char *sense_buffer,
 		printk("\n");
 		return;
 	}
-
-	/* An example of deferred is when an earlier write to disk cache
-	 * succeeded, but now the disk discovers that it cannot write the
-	 * data to the magnetic media.
-	 */
-	error = scsi_sense_is_deferred(&ssh) ? 
-			"<<DEFERRED>>" : "Current";
-	printk(KERN_INFO "%s: %s", name, error);
-	if (ssh.response_code >= 0x72)
-		printk(" [descriptor]");
-
-	sense_txt = scsi_sense_key_string(ssh.sense_key);
-	if (sense_txt)
-		printk(": sense key: %s\n", sense_txt);
-	else
-		printk(": sense key=0x%x\n", ssh.sense_key);
-	printk(KERN_INFO "    ");
-	scsi_show_extd_sense(ssh.asc, ssh.ascq);
-	printk("\n");
-
+	scsi_print_sense_hdr(name, &ssh);
 	if (ssh.response_code < 0x72) {
 		/* only decode extras for "fixed" format now */
 		char buff[80];

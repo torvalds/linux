@@ -215,7 +215,7 @@ static inline void iosapic_write(void __iomem *iosapic, unsigned int reg, u32 va
 #define IOSAPIC_IRDT_ID_EID_SHIFT              0x10
 
 
-static spinlock_t iosapic_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(iosapic_lock);
 
 static inline void iosapic_eoi(void __iomem *addr, unsigned int data)
 {
@@ -244,7 +244,7 @@ static struct irt_entry *iosapic_alloc_irt(int num_entries)
 	 * 4-byte alignment on 32-bit kernels
 	 */
 	a = (unsigned long)kmalloc(sizeof(struct irt_entry) * num_entries + 8, GFP_KERNEL);
-	a = (a + 7) & ~7;
+	a = (a + 7UL) & ~7UL;
 	return (struct irt_entry *)a;
 }
 

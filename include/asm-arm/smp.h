@@ -66,4 +66,14 @@ struct secondary_data {
 };
 extern struct secondary_data secondary_data;
 
+extern int __cpu_disable(void);
+extern int mach_cpu_disable(unsigned int cpu);
+
+extern void __cpu_die(unsigned int cpu);
+extern void cpu_die(void);
+
+extern void platform_cpu_die(unsigned int cpu);
+extern int platform_cpu_kill(unsigned int cpu);
+extern void platform_cpu_enable(unsigned int cpu);
+
 #endif /* ifndef __ASM_ARM_SMP_H */

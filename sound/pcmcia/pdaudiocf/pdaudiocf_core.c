@@ -151,7 +151,7 @@ pdacf_t *snd_pdacf_create(snd_card_t *card)
 {
 	pdacf_t *chip;
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return NULL;
 	chip->card = card;

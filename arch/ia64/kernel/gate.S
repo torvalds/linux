@@ -10,7 +10,7 @@
 
 #include <asm/asmmacro.h>
 #include <asm/errno.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/sigcontext.h>
 #include <asm/system.h>
 #include <asm/unistd.h>

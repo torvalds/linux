@@ -40,12 +40,6 @@ extern int fixup_exception(struct pt_regs *regs);
 
 #define access_ok(type,addr,size)	(__range_ok(addr,size) == 0)
 
-/* this function will go away soon - use access_ok() instead */
-static inline int __deprecated verify_area(int type, const void * addr, unsigned long size)
-{
-	return access_ok(type, addr, size) ? 0 : -EFAULT;
-}
-
 /*
  * Single-value transfer routines.  They automatically use the right
  * size if we just have the right pointer type.  Note that the functions

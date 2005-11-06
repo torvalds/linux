@@ -18,7 +18,6 @@
 #include <linux/init.h>
 
 #include <linux/mm.h>
-#include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/bootmem.h>
 #include <linux/smp_lock.h>
@@ -109,11 +108,8 @@ void clear_local_APIC(void)
 	if (maxlvt >= 4)
 		apic_write_around(APIC_LVTPC, APIC_LVT_MASKED);
 	v = GET_APIC_VERSION(apic_read(APIC_LVR));
-	if (APIC_INTEGRATED(v)) {	/* !82489DX */
-		if (maxlvt > 3)		/* Due to Pentium errata 3AP and 11AP. */
-			apic_write(APIC_ESR, 0);
-		apic_read(APIC_ESR);
-	}
+	apic_write(APIC_ESR, 0);
+	apic_read(APIC_ESR);
 }
 
 void __init connect_bsp_APIC(void)
@@ -316,22 +312,12 @@ void __init init_bsp_APIC(void)
 	 */
 	apic_write_around(APIC_LVT0, APIC_DM_EXTINT);
 	value = APIC_DM_NMI;
-	if (!APIC_INTEGRATED(ver))		/* 82489DX */
-		value |= APIC_LVT_LEVEL_TRIGGER;
 	apic_write_around(APIC_LVT1, value);
 }
 
 void __cpuinit setup_local_APIC (void)
 {
 	unsigned int value, ver, maxlvt;
-
-	/* Pound the ESR really hard over the head with a big hammer - mbligh */
-	if (esr_disable) {
-		apic_write(APIC_ESR, 0);
-		apic_write(APIC_ESR, 0);
-		apic_write(APIC_ESR, 0);
-		apic_write(APIC_ESR, 0);
-	}
 
 	value = apic_read(APIC_LVR);
 	ver = GET_APIC_VERSION(value);
@@ -430,15 +416,11 @@ void __cpuinit setup_local_APIC (void)
 		value = APIC_DM_NMI;
 	else
 		value = APIC_DM_NMI | APIC_LVT_MASKED;
-	if (!APIC_INTEGRATED(ver))		/* 82489DX */
-		value |= APIC_LVT_LEVEL_TRIGGER;
 	apic_write_around(APIC_LVT1, value);
 
-	if (APIC_INTEGRATED(ver) && !esr_disable) {		/* !82489DX */
+	{
 		unsigned oldvalue;
 		maxlvt = get_maxlvt();
-		if (maxlvt > 3)		/* Due to the Pentium erratum 3AP. */
-			apic_write(APIC_ESR, 0);
 		oldvalue = apic_read(APIC_ESR);
 		value = ERROR_APIC_VECTOR;      // enables sending errors
 		apic_write_around(APIC_LVTERR, value);
@@ -452,17 +434,6 @@ void __cpuinit setup_local_APIC (void)
 			apic_printk(APIC_VERBOSE,
 			"ESR value after enabling vector: %08x, after %08x\n",
 			oldvalue, value);
-	} else {
-		if (esr_disable)	
-			/* 
-			 * Something untraceble is creating bad interrupts on 
-			 * secondary quads ... for the moment, just leave the
-			 * ESR disabled - we can't do anything useful with the
-			 * errors anyway - mbligh
-			 */
-			apic_printk(APIC_DEBUG, "Leaving ESR disabled.\n");
-		else 
-			apic_printk(APIC_DEBUG, "No ESR for 82489DX.\n");
 	}
 
 	nmi_watchdog_default();
@@ -650,8 +621,7 @@ void __init init_apic_mappings(void)
 	 * Fetch the APIC ID of the BSP in case we have a
 	 * default configuration (or the MP table is broken).
 	 */
-	if (boot_cpu_id == -1U)
-		boot_cpu_id = GET_APIC_ID(apic_read(APIC_ID));
+	boot_cpu_id = GET_APIC_ID(apic_read(APIC_ID));
 
 #ifdef CONFIG_X86_IO_APIC
 	{
@@ -693,8 +663,6 @@ static void __setup_APIC_LVTT(unsigned int clocks)
 
 	ver = GET_APIC_VERSION(apic_read(APIC_LVR));
 	lvtt_value = APIC_LVT_TIMER_PERIODIC | LOCAL_TIMER_VECTOR;
-	if (!APIC_INTEGRATED(ver))
-		lvtt_value |= SET_APIC_TIMER_BASE(APIC_TIMER_BASE_DIV);
 	apic_write_around(APIC_LVTT, lvtt_value);
 
 	/*
@@ -1081,7 +1049,7 @@ int __init APIC_init_uniprocessor (void)
 
 	connect_bsp_APIC();
 
-	phys_cpu_present_map = physid_mask_of_physid(0);
+	phys_cpu_present_map = physid_mask_of_physid(boot_cpu_id);
 	apic_write_around(APIC_ID, boot_cpu_id);
 
 	setup_local_APIC();

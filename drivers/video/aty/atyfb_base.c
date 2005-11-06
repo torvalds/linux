@@ -911,20 +911,6 @@ static int aty_var_to_crtc(const struct fb_info *info,
 		vdisplay  = par->lcd_height;
 #endif
 
-	if(vdisplay < 400) {
-		h_sync_pol = 1;
-		v_sync_pol = 0;
-	} else if(vdisplay < 480) {
-		h_sync_pol = 0;
-		v_sync_pol = 1;
-	} else if(vdisplay < 768) {
-		h_sync_pol = 0;
-		v_sync_pol = 0;
-	} else {
-		h_sync_pol = 1;
-		v_sync_pol = 1;
-	}
-
 	v_disp--;
 	v_sync_strt--;
 	v_sync_end--;
@@ -2022,17 +2008,16 @@ static int atyfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
 
-#ifdef CONFIG_PPC_PMAC
+#ifndef CONFIG_PPC_PMAC
 	/* HACK ALERT ! Once I find a proper way to say to each driver
 	 * individually what will happen with it's PCI slot, I'll change
 	 * that. On laptops, the AGP slot is just unclocked, so D2 is
 	 * expected, while on desktops, the card is powered off
 	 */
-	if (state >= 3)
-		state = 2;
+	return 0;
 #endif /* CONFIG_PPC_PMAC */
 
-	if (state != 2 || state == pdev->dev.power.power_state)
+	if (state.event == pdev->dev.power.power_state.event)
 		return 0;
 
 	acquire_console_sem();
@@ -2071,12 +2056,12 @@ static int atyfb_pci_resume(struct pci_dev *pdev)
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
 
-	if (pdev->dev.power.power_state == 0)
+	if (pdev->dev.power.power_state.event == PM_EVENT_ON)
 		return 0;
 
 	acquire_console_sem();
 
-	if (pdev->dev.power.power_state == 2)
+	if (pdev->dev.power.power_state.event == 2)
 		aty_power_mgmt(0, par);
 	par->asleep = 0;
 

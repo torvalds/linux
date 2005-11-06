@@ -35,13 +35,13 @@ static void end_systemh_irq(unsigned int irq);
 
 /* hw_interrupt_type */
 static struct hw_interrupt_type systemh_irq_type = {
-	" SystemH Register",
-	startup_systemh_irq,
-	shutdown_systemh_irq,
-	enable_systemh_irq,
-	disable_systemh_irq,
-	mask_and_ack_systemh,
-	end_systemh_irq
+	.typename = " SystemH Register",
+	.startup = startup_systemh_irq,
+	.shutdown = shutdown_systemh_irq,
+	.enable = enable_systemh_irq,
+	.disable = disable_systemh_irq,
+	.ack = mask_and_ack_systemh,
+	.end = end_systemh_irq
 };
 
 static unsigned int startup_systemh_irq(unsigned int irq)

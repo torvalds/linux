@@ -957,7 +957,7 @@ static int usX2Y_audio_stream_new(snd_card_t *card, int playback_endpoint, int c
 
 	for (i = playback_endpoint ? SNDRV_PCM_STREAM_PLAYBACK : SNDRV_PCM_STREAM_CAPTURE;
 	     i <= SNDRV_PCM_STREAM_CAPTURE; ++i) {
-		usX2Y_substream[i] = kcalloc(1, sizeof(snd_usX2Y_substream_t), GFP_KERNEL);
+		usX2Y_substream[i] = kzalloc(sizeof(snd_usX2Y_substream_t), GFP_KERNEL);
 		if (NULL == usX2Y_substream[i]) {
 			snd_printk(KERN_ERR "cannot malloc\n");
 			return -ENOMEM;

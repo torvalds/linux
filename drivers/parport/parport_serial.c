@@ -23,12 +23,7 @@
 #include <linux/pci.h>
 #include <linux/parport.h>
 #include <linux/parport_pc.h>
-#include <linux/serial.h>
-#include <linux/serialP.h>
-#include <linux/list.h>
 #include <linux/8250_pci.h>
-
-#include <asm/serial.h>
 
 enum parport_pc_pci_cards {
 	titan_110l = 0,
@@ -168,182 +163,147 @@ static struct pci_device_id parport_serial_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci,parport_serial_pci_tbl);
 
-struct pci_board_no_ids {
-	int flags;
-	int num_ports;
-	int base_baud;
-	int uart_offset;
-	int reg_shift;
-	int (*init_fn)(struct pci_dev *dev, struct pci_board_no_ids *board,
-			int enable);
-	int first_uart_offset;
-};
-
-static int __devinit siig10x_init_fn(struct pci_dev *dev, struct pci_board_no_ids *board, int enable)
-{
-	return pci_siig10x_fn(dev, enable);
-}
-
-static int __devinit siig20x_init_fn(struct pci_dev *dev, struct pci_board_no_ids *board, int enable)
-{
-	return pci_siig20x_fn(dev, enable);
-}
-
-static int __devinit netmos_serial_init(struct pci_dev *dev, struct pci_board_no_ids *board, int enable)
-{
-	board->num_ports = dev->subsystem_device & 0xf;
-	return 0;
-}
-
-static struct pci_board_no_ids pci_boards[] __devinitdata = {
-	/*
-	 * PCI Flags, Number of Ports, Base (Maximum) Baud Rate,
-	 * Offset to get to next UART's registers,
-	 * Register shift to use for memory-mapped I/O,
-	 * Initialization function, first UART offset
-	 */
-
-// Cards not tested are marked n/t
-// If you have one of these cards and it works for you, please tell me..
-
-/* titan_110l */	{ SPCI_FL_BASE1 | SPCI_FL_BASE_TABLE, 1, 921600 },
-/* titan_210l */	{ SPCI_FL_BASE1 | SPCI_FL_BASE_TABLE, 2, 921600 },
-/* netmos_9xx5_combo */	{ SPCI_FL_BASE0 | SPCI_FL_BASE_TABLE, 1, 115200, 0, 0, netmos_serial_init },
-/* netmos_9855 */	{ SPCI_FL_BASE2 | SPCI_FL_BASE_TABLE, 1, 115200, 0, 0, netmos_serial_init },
-/* avlab_1s1p (n/t) */	{ SPCI_FL_BASE0 | SPCI_FL_BASE_TABLE, 1, 115200 },
-/* avlab_1s1p_650 (nt)*/{ SPCI_FL_BASE0 | SPCI_FL_BASE_TABLE, 1, 115200 },
-/* avlab_1s1p_850 (nt)*/{ SPCI_FL_BASE0 | SPCI_FL_BASE_TABLE, 1, 115200 },
-/* avlab_1s2p (n/t) */	{ SPCI_FL_BASE0 | SPCI_FL_BASE_TABLE, 1, 115200 },
-/* avlab_1s2p_650 (nt)*/{ SPCI_FL_BASE0 | SPCI_FL_BASE_TABLE, 1, 115200 },
-/* avlab_1s2p_850 (nt)*/{ SPCI_FL_BASE0 | SPCI_FL_BASE_TABLE, 1, 115200 },
-/* avlab_2s1p (n/t) */	{ SPCI_FL_BASE0 | SPCI_FL_BASE_TABLE, 2, 115200 },
-/* avlab_2s1p_650 (nt)*/{ SPCI_FL_BASE0 | SPCI_FL_BASE_TABLE, 2, 115200 },
-/* avlab_2s1p_850 (nt)*/{ SPCI_FL_BASE0 | SPCI_FL_BASE_TABLE, 2, 115200 },
-/* siig_1s1p_10x */	{ SPCI_FL_BASE2, 1, 460800, 0, 0, siig10x_init_fn },
-/* siig_2s1p_10x */	{ SPCI_FL_BASE2, 1, 921600, 0, 0, siig10x_init_fn },
-/* siig_2p1s_20x */	{ SPCI_FL_BASE0, 1, 921600, 0, 0, siig20x_init_fn },
-/* siig_1s1p_20x */	{ SPCI_FL_BASE0, 1, 921600, 0, 0, siig20x_init_fn },
-/* siig_2s1p_20x */	{ SPCI_FL_BASE0, 1, 921600, 0, 0, siig20x_init_fn },
+/*
+ * This table describes the serial "geometry" of these boards.  Any
+ * quirks for these can be found in drivers/serial/8250_pci.c
+ *
+ * Cards not tested are marked n/t
+ * If you have one of these cards and it works for you, please tell me..
+ */
+static struct pciserial_board pci_parport_serial_boards[] __devinitdata = {
+	[titan_110l] = {
+		.flags		= FL_BASE1 | FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[titan_210l] = {
+		.flags		= FL_BASE1 | FL_BASE_BARS,
+		.num_ports	= 2,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[netmos_9xx5_combo] = {
+		.flags		= FL_BASE0 | FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[netmos_9855] = {
+		.flags		= FL_BASE2 | FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[avlab_1s1p] = { /* n/t */
+		.flags		= FL_BASE0 | FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[avlab_1s1p_650] = { /* nt */
+		.flags		= FL_BASE0 | FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[avlab_1s1p_850] = { /* nt */
+		.flags		= FL_BASE0 | FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[avlab_1s2p] = { /* n/t */
+		.flags		= FL_BASE0 | FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[avlab_1s2p_650] = { /* nt */
+		.flags		= FL_BASE0 | FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[avlab_1s2p_850] = { /* nt */
+		.flags		= FL_BASE0 | FL_BASE_BARS,
+		.num_ports	= 1,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[avlab_2s1p] = { /* n/t */
+		.flags		= FL_BASE0 | FL_BASE_BARS,
+		.num_ports	= 2,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[avlab_2s1p_650] = { /* nt */
+		.flags		= FL_BASE0 | FL_BASE_BARS,
+		.num_ports	= 2,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[avlab_2s1p_850] = { /* nt */
+		.flags		= FL_BASE0 | FL_BASE_BARS,
+		.num_ports	= 2,
+		.base_baud	= 115200,
+		.uart_offset	= 8,
+	},
+	[siig_1s1p_10x] = {
+		.flags		= FL_BASE2,
+		.num_ports	= 1,
+		.base_baud	= 460800,
+		.uart_offset	= 8,
+	},
+	[siig_2s1p_10x] = {
+		.flags		= FL_BASE2,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[siig_2p1s_20x] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[siig_1s1p_20x] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
+	[siig_2s1p_20x] = {
+		.flags		= FL_BASE0,
+		.num_ports	= 1,
+		.base_baud	= 921600,
+		.uart_offset	= 8,
+	},
 };
 
 struct parport_serial_private {
-	int num_ser;
-	int line[20];
-	struct pci_board_no_ids ser;
+	struct serial_private	*serial;
 	int num_par;
 	struct parport *port[PARPORT_MAX];
 	struct parport_pc_pci par;
 };
 
-static int __devinit get_pci_port (struct pci_dev *dev,
-				   struct pci_board_no_ids *board,
-				   struct serial_struct *req,
-				   int idx)
-{
-	unsigned long port;
-	int base_idx;
-	int max_port;
-	int offset;
-
-	base_idx = SPCI_FL_GET_BASE(board->flags);
-	if (board->flags & SPCI_FL_BASE_TABLE)
-		base_idx += idx;
-
-	if (board->flags & SPCI_FL_REGION_SZ_CAP) {
-		max_port = pci_resource_len(dev, base_idx) / 8;
-		if (idx >= max_port)
-			return 1;
-	}
-			
-	offset = board->first_uart_offset;
-
-	/* Timedia/SUNIX uses a mixture of BARs and offsets */
-	/* Ugh, this is ugly as all hell --- TYT */
-	if(dev->vendor == PCI_VENDOR_ID_TIMEDIA )  /* 0x1409 */
-		switch(idx) {
-			case 0: base_idx=0;
-				break;
-			case 1: base_idx=0; offset=8;
-				break;
-			case 2: base_idx=1; 
-				break;
-			case 3: base_idx=1; offset=8;
-				break;
-			case 4: /* BAR 2*/
-			case 5: /* BAR 3 */
-			case 6: /* BAR 4*/
-			case 7: base_idx=idx-2; /* BAR 5*/
-		}
-  
-	port =  pci_resource_start(dev, base_idx) + offset;
-
-	if ((board->flags & SPCI_FL_BASE_TABLE) == 0)
-		port += idx * (board->uart_offset ? board->uart_offset : 8);
-
-	if (pci_resource_flags (dev, base_idx) & IORESOURCE_IO) {
-		int high_bits_offset = ((sizeof(long)-sizeof(int))*8);
-		req->port = port;
-		if (high_bits_offset)
-			req->port_high = port >> high_bits_offset;
-		else
-			req->port_high = 0;
-		return 0;
-	}
-	req->io_type = SERIAL_IO_MEM;
-	req->iomem_base = ioremap(port, board->uart_offset);
-	req->iomem_reg_shift = board->reg_shift;
-	req->port = 0;
-	return req->iomem_base ? 0 : 1;
-}
-
 /* Register the serial port(s) of a PCI card. */
 static int __devinit serial_register (struct pci_dev *dev,
 				      const struct pci_device_id *id)
 {
-	struct pci_board_no_ids *board;
 	struct parport_serial_private *priv = pci_get_drvdata (dev);
-	struct serial_struct serial_req;
-	int base_baud;
-	int k;
-	int success = 0;
+	struct pciserial_board *board;
+	struct serial_private *serial;
 
-	priv->ser = pci_boards[id->driver_data];
-	board = &priv->ser;
-	if (board->init_fn && ((board->init_fn) (dev, board, 1) != 0))
-		return 1;
+	board = &pci_parport_serial_boards[id->driver_data];
+	serial = pciserial_init_ports(dev, board);
 
-	base_baud = board->base_baud;
-	if (!base_baud)
-		base_baud = BASE_BAUD;
-	memset (&serial_req, 0, sizeof (serial_req));
+	if (IS_ERR(serial))
+		return PTR_ERR(serial);
 
-	for (k = 0; k < board->num_ports; k++) {
-		int line;
-
-		if (priv->num_ser == ARRAY_SIZE (priv->line)) {
-			printk (KERN_WARNING
-				"parport_serial: %s: only %u serial lines "
-				"supported (%d reported)\n", pci_name (dev),
-				ARRAY_SIZE (priv->line), board->num_ports);
-			break;
-		}
-
-		serial_req.irq = dev->irq;
-		if (get_pci_port (dev, board, &serial_req, k))
-			break;
-		serial_req.flags = ASYNC_SKIP_TEST | ASYNC_AUTOPROBE;
-		serial_req.baud_base = base_baud;
-		line = register_serial (&serial_req);
-		if (line < 0) {
-			printk (KERN_DEBUG
-				"parport_serial: register_serial failed\n");
-			continue;
-		}
-		priv->line[priv->num_ser++] = line;
-		success = 1;
-	}
-
-	return success ? 0 : 1;
+	priv->serial = serial;
+	return 0;
 }
 
 /* Register the parallel port(s) of a PCI card. */
@@ -411,7 +371,7 @@ static int __devinit parport_serial_pci_probe (struct pci_dev *dev,
 	priv = kmalloc (sizeof *priv, GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
-	priv->num_ser = priv->num_par = 0;
+	memset(priv, 0, sizeof(struct parport_serial_private));
 	pci_set_drvdata (dev, priv);
 
 	err = pci_enable_device (dev);
@@ -444,15 +404,12 @@ static void __devexit parport_serial_pci_remove (struct pci_dev *dev)
 	struct parport_serial_private *priv = pci_get_drvdata (dev);
 	int i;
 
-	// Serial ports
-	for (i = 0; i < priv->num_ser; i++) {
-		unregister_serial (priv->line[i]);
+	pci_set_drvdata(dev, NULL);
 
-		if (priv->ser.init_fn)
-			(priv->ser.init_fn) (dev, &priv->ser, 0);
-	}
-	pci_set_drvdata (dev, NULL);
-	
+	// Serial ports
+	if (priv->serial)
+		pciserial_remove_ports(priv->serial);
+
 	// Parallel ports
 	for (i = 0; i < priv->num_par; i++)
 		parport_pc_unregister_port (priv->port[i]);
@@ -461,11 +418,47 @@ static void __devexit parport_serial_pci_remove (struct pci_dev *dev)
 	return;
 }
 
+static int parport_serial_pci_suspend(struct pci_dev *dev, pm_message_t state)
+{
+	struct parport_serial_private *priv = pci_get_drvdata(dev);
+
+	if (priv->serial)
+		pciserial_suspend_ports(priv->serial);
+
+	/* FIXME: What about parport? */
+
+	pci_save_state(dev);
+	pci_set_power_state(dev, pci_choose_state(dev, state));
+	return 0;
+}
+
+static int parport_serial_pci_resume(struct pci_dev *dev)
+{
+	struct parport_serial_private *priv = pci_get_drvdata(dev);
+
+	pci_set_power_state(dev, PCI_D0);
+	pci_restore_state(dev);
+
+	/*
+	 * The device may have been disabled.  Re-enable it.
+	 */
+	pci_enable_device(dev);
+
+	if (priv->serial)
+		pciserial_resume_ports(priv->serial);
+
+	/* FIXME: What about parport? */
+
+	return 0;
+}
+
 static struct pci_driver parport_serial_pci_driver = {
 	.name		= "parport_serial",
 	.id_table	= parport_serial_pci_tbl,
 	.probe		= parport_serial_pci_probe,
 	.remove		= __devexit_p(parport_serial_pci_remove),
+	.suspend	= parport_serial_pci_suspend,
+	.resume		= parport_serial_pci_resume,
 };
 
 

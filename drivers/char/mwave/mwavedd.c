@@ -57,6 +57,7 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/delay.h>
+#include <linux/serial_8250.h>
 #include "smapi.h"
 #include "mwavedd.h"
 #include "3780i.h"
@@ -410,8 +411,8 @@ static ssize_t mwave_write(struct file *file, const char __user *buf,
 
 static int register_serial_portandirq(unsigned int port, int irq)
 {
-	struct serial_struct serial;
-
+	struct uart_port uart;
+	
 	switch ( port ) {
 		case 0x3f8:
 		case 0x2f8:
@@ -442,12 +443,14 @@ static int register_serial_portandirq(unsigned int port, int irq)
 	} /* switch */
 	/* irq is okay */
 
-	memset(&serial, 0, sizeof(serial));
-	serial.port = port;
-	serial.irq = irq;
-	serial.flags = ASYNC_SHARE_IRQ;
-
-	return register_serial(&serial);
+	memset(&uart, 0, sizeof(struct uart_port));
+	
+	uart.uartclk =  1843200;
+	uart.iobase = port;
+	uart.irq = irq;
+	uart.iotype = UPIO_PORT;
+	uart.flags =  UPF_SHARE_IRQ;
+	return serial8250_register_port(&uart);
 }
 
 
@@ -523,7 +526,7 @@ static void mwave_exit(void)
 #endif
 
 	if ( pDrvData->sLine >= 0 ) {
-		unregister_serial(pDrvData->sLine);
+		serial8250_unregister_port(pDrvData->sLine);
 	}
 	if (pDrvData->bMwaveDevRegistered) {
 		misc_deregister(&mwave_misc_dev);

@@ -104,11 +104,11 @@ int mcf_timerirqpending(int timer)
 
 void config_BSP(char *commandp, int size)
 {
-#if 0
-	volatile unsigned long	*pivrp;
+#if defined (CONFIG_MOD5272)
+	volatile unsigned char	*pivrp;
 
 	/* Set base of device vectors to be 64 */
-	pivrp = (volatile unsigned long *) (MCF_MBAR + MCFSIM_PIVR);
+	pivrp = (volatile unsigned char *) (MCF_MBAR + MCFSIM_PIVR);
 	*pivrp = 0x40;
 #endif
 

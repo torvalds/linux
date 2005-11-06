@@ -5,7 +5,7 @@
 #include <linux/percpu.h>
 #include <asm/atomic.h>
 
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 
 typedef atomic_t local_t;
 
@@ -20,7 +20,7 @@ typedef atomic_t local_t;
 
 #endif
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 
 typedef atomic64_t local_t;
 

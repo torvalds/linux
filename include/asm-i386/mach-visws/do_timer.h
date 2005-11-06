@@ -1,6 +1,7 @@
 /* defines for inline arch setup functions */
 
 #include <asm/fixmap.h>
+#include <asm/i8259.h>
 #include "cobalt.h"
 
 static inline void do_timer_interrupt_hook(struct pt_regs *regs)

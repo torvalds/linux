@@ -17,25 +17,31 @@
 #include "os.h"
 #include "tlb.h"
 
-static void do_ops(union mm_context *mmu, struct host_vm_op *ops, int last)
+static int do_ops(union mm_context *mmu, struct host_vm_op *ops, int last,
+		    int finished, void **flush)
 {
 	struct host_vm_op *op;
-	int i;
+        int i, ret=0;
 
-	for(i = 0; i <= last; i++){
+        for(i = 0; i <= last && !ret; i++){
 		op = &ops[i];
 		switch(op->type){
 		case MMAP:
-                        os_map_memory((void *) op->u.mmap.addr, op->u.mmap.fd,
-				      op->u.mmap.offset, op->u.mmap.len,
-				      op->u.mmap.r, op->u.mmap.w,
-				      op->u.mmap.x);
+                        ret = os_map_memory((void *) op->u.mmap.addr,
+                                            op->u.mmap.fd, op->u.mmap.offset,
+                                            op->u.mmap.len, op->u.mmap.r,
+                                            op->u.mmap.w, op->u.mmap.x);
 			break;
 		case MUNMAP:
-			os_unmap_memory((void *) op->u.munmap.addr,
-					op->u.munmap.len);
+                        ret = os_unmap_memory((void *) op->u.munmap.addr,
+                                              op->u.munmap.len);
 			break;
 		case MPROTECT:
+                        ret = protect_memory(op->u.mprotect.addr,
+                                             op->u.munmap.len,
+                                             op->u.mprotect.r,
+                                             op->u.mprotect.w,
+                                             op->u.mprotect.x, 1);
 			protect_memory(op->u.mprotect.addr, op->u.munmap.len,
 				       op->u.mprotect.r, op->u.mprotect.w,
 				       op->u.mprotect.x, 1);
@@ -45,6 +51,8 @@ static void do_ops(union mm_context *mmu, struct host_vm_op *ops, int last)
 			break;
 		}
 	}
+
+	return ret;
 }
 
 static void fix_range(struct mm_struct *mm, unsigned long start_addr, 
@@ -64,42 +72,6 @@ void flush_tlb_kernel_range_tt(unsigned long start, unsigned long end)
 {
         if(flush_tlb_kernel_range_common(start, end))
                 atomic_inc(&vmchange_seq);
-}
-
-static void protect_vm_page(unsigned long addr, int w, int must_succeed)
-{
-	int err;
-
-	err = protect_memory(addr, PAGE_SIZE, 1, w, 1, must_succeed);
-	if(err == 0) return;
-	else if((err == -EFAULT) || (err == -ENOMEM)){
-		flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
-		protect_vm_page(addr, w, 1);
-	}
-	else panic("protect_vm_page : protect failed, errno = %d\n", err);
-}
-
-void mprotect_kernel_vm(int w)
-{
-	struct mm_struct *mm;
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-	unsigned long addr;
-	
-	mm = &init_mm;
-	for(addr = start_vm; addr < end_vm;){
-		pgd = pgd_offset(mm, addr);
-		pud = pud_offset(pgd, addr);
-		pmd = pmd_offset(pud, addr);
-		if(pmd_present(*pmd)){
-			pte = pte_offset_kernel(pmd, addr);
-			if(pte_present(*pte)) protect_vm_page(addr, w, 0);
-			addr += PAGE_SIZE;
-		}
-		else addr += PMD_SIZE;
-	}
 }
 
 void flush_tlb_kernel_vm_tt(void)

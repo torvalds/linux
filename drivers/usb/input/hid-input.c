@@ -76,10 +76,10 @@ static struct {
 static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_field *field,
 				     struct hid_usage *usage)
 {
-	struct input_dev *input = &hidinput->input;
-	struct hid_device *device = hidinput->input.private;
-	int max, code;
-	unsigned long *bit;
+	struct input_dev *input = hidinput->input;
+	struct hid_device *device = input->private;
+	int max = 0, code;
+	unsigned long *bit = NULL;
 
 	field->hidinput = hidinput;
 
@@ -129,6 +129,15 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			}
 
 			map_key(code);
+			break;
+
+
+		case HID_UP_SIMULATION:
+
+			switch (usage->hid & 0xffff) {
+				case 0xba: map_abs(ABS_RUDDER); break;
+				case 0xbb: map_abs(ABS_THROTTLE); break;
+			}
 			break;
 
 		case HID_UP_GENDESK:
@@ -238,8 +247,12 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x000: goto ignore;
 				case 0x034: map_key_clear(KEY_SLEEP);		break;
 				case 0x036: map_key_clear(BTN_MISC);		break;
+				case 0x045: map_key_clear(KEY_RADIO);		break;
 				case 0x08a: map_key_clear(KEY_WWW);		break;
+				case 0x08d: map_key_clear(KEY_PROGRAM);		break;
 				case 0x095: map_key_clear(KEY_HELP);		break;
+				case 0x09c: map_key_clear(KEY_CHANNELUP);	break;
+				case 0x09d: map_key_clear(KEY_CHANNELDOWN);	break;
 				case 0x0b0: map_key_clear(KEY_PLAY);		break;
 				case 0x0b1: map_key_clear(KEY_PAUSE);		break;
 				case 0x0b2: map_key_clear(KEY_RECORD);		break;
@@ -259,6 +272,11 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x18a: map_key_clear(KEY_MAIL);		break;
 				case 0x192: map_key_clear(KEY_CALC);		break;
 				case 0x194: map_key_clear(KEY_FILE);		break;
+				case 0x1a7: map_key_clear(KEY_DOCUMENTS);	break;
+				case 0x201: map_key_clear(KEY_NEW);		break;
+				case 0x207: map_key_clear(KEY_SAVE);		break;
+				case 0x208: map_key_clear(KEY_PRINT);		break;
+				case 0x209: map_key_clear(KEY_PROPS);		break;
 				case 0x21a: map_key_clear(KEY_UNDO);		break;
 				case 0x21b: map_key_clear(KEY_COPY);		break;
 				case 0x21c: map_key_clear(KEY_CUT);		break;
@@ -271,7 +289,11 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 				case 0x227: map_key_clear(KEY_REFRESH);		break;
 				case 0x22a: map_key_clear(KEY_BOOKMARKS);	break;
 				case 0x238: map_rel(REL_HWHEEL);		break;
-				default:    goto unknown;
+				case 0x279: map_key_clear(KEY_REDO);		break;
+				case 0x289: map_key_clear(KEY_REPLY);		break;
+				case 0x28b: map_key_clear(KEY_FORWARDMAIL);	break;
+				case 0x28c: map_key_clear(KEY_SEND);		break;
+				default:    goto ignore;
 			}
 			break;
 
@@ -296,8 +318,41 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			break;
 
 		case HID_UP_MSVENDOR:
-
 			goto ignore;
+
+		case HID_UP_CUSTOM: /* Reported on Logitech and Powerbook USB keyboards */
+
+			set_bit(EV_REP, input->evbit);
+			switch(usage->hid & HID_USAGE) {
+				case 0x003: map_key_clear(KEY_FN);		break;
+				default:    goto ignore;
+			}
+			break;
+
+		case HID_UP_LOGIVENDOR: /* Reported on Logitech Ultra X Media Remote */
+
+			set_bit(EV_REP, input->evbit);
+			switch(usage->hid & HID_USAGE) {
+				case 0x004: map_key_clear(KEY_AGAIN);		break;
+				case 0x00d: map_key_clear(KEY_HOME);		break;
+				case 0x024: map_key_clear(KEY_SHUFFLE);		break;
+				case 0x025: map_key_clear(KEY_TV);		break;
+				case 0x026: map_key_clear(KEY_MENU);		break;
+				case 0x031: map_key_clear(KEY_AUDIO);		break;
+				case 0x032: map_key_clear(KEY_SUBTITLE);	break;
+				case 0x033: map_key_clear(KEY_LAST);		break;
+				case 0x047: map_key_clear(KEY_MP3);		break;
+				case 0x048: map_key_clear(KEY_DVD);		break;
+				case 0x049: map_key_clear(KEY_MEDIA);		break;
+				case 0x04a: map_key_clear(KEY_VIDEO);		break;
+				case 0x04b: map_key_clear(KEY_ANGLE);		break;
+				case 0x04c: map_key_clear(KEY_LANGUAGE);	break;
+				case 0x04d: map_key_clear(KEY_SUBTITLE);	break;
+				case 0x051: map_key_clear(KEY_RED);		break;
+				case 0x052: map_key_clear(KEY_CLOSE);		break;
+				default:    goto ignore;
+			}
+			break;
 
 		case HID_UP_PID:
 
@@ -348,6 +403,9 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 
 	if (usage->code > max)
 		goto ignore;
+
+	if (((device->quirks & (HID_QUIRK_2WHEEL_POWERMOUSE)) && (usage->hid == 0x00010032)))
+		map_rel(REL_HWHEEL);
 
 	if ((device->quirks & (HID_QUIRK_2WHEEL_MOUSE_HACK_7 | HID_QUIRK_2WHEEL_MOUSE_HACK_5)) &&
 		 (usage->type == EV_REL) && (usage->code == REL_WHEEL))
@@ -403,7 +461,8 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 
 	if (!field->hidinput)
 		return;
-	input = &field->hidinput->input;
+
+	input = field->hidinput->input;
 
 	input_regs(input, regs);
 
@@ -475,13 +534,10 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 
 void hidinput_report_event(struct hid_device *hid, struct hid_report *report)
 {
-	struct list_head *lh;
 	struct hid_input *hidinput;
 
-	list_for_each (lh, &hid->inputs) {
-		hidinput = list_entry(lh, struct hid_input, list);
-		input_sync(&hidinput->input);
-	}
+	list_for_each_entry(hidinput, &hid->inputs, list)
+		input_sync(hidinput->input);
 }
 
 static int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int code, struct hid_field **field)
@@ -546,6 +602,7 @@ int hidinput_connect(struct hid_device *hid)
 	struct usb_device *dev = hid->dev;
 	struct hid_report *report;
 	struct hid_input *hidinput = NULL;
+	struct input_dev *input_dev;
 	int i, j, k;
 
 	INIT_LIST_HEAD(&hid->inputs);
@@ -566,25 +623,28 @@ int hidinput_connect(struct hid_device *hid)
 				continue;
 
 			if (!hidinput) {
-				hidinput = kmalloc(sizeof(*hidinput), GFP_KERNEL);
-				if (!hidinput) {
+				hidinput = kzalloc(sizeof(*hidinput), GFP_KERNEL);
+				input_dev = input_allocate_device();
+				if (!hidinput || !input_dev) {
+					kfree(hidinput);
+					input_free_device(input_dev);
 					err("Out of memory during hid input probe");
 					return -1;
 				}
-				memset(hidinput, 0, sizeof(*hidinput));
 
+				input_dev->private = hid;
+				input_dev->event = hidinput_input_event;
+				input_dev->open = hidinput_open;
+				input_dev->close = hidinput_close;
+
+				input_dev->name = hid->name;
+				input_dev->phys = hid->phys;
+				input_dev->uniq = hid->uniq;
+				usb_to_input_id(dev, &input_dev->id);
+				input_dev->cdev.dev = &hid->intf->dev;
+
+				hidinput->input = input_dev;
 				list_add_tail(&hidinput->list, &hid->inputs);
-
-				hidinput->input.private = hid;
-				hidinput->input.event = hidinput_input_event;
-				hidinput->input.open = hidinput_open;
-				hidinput->input.close = hidinput_close;
-
-				hidinput->input.name = hid->name;
-				hidinput->input.phys = hid->phys;
-				hidinput->input.uniq = hid->uniq;
-				usb_to_input_id(dev, &hidinput->input.id);
-				hidinput->input.dev = &hid->intf->dev;
 			}
 
 			for (i = 0; i < report->maxfield; i++)
@@ -599,7 +659,7 @@ int hidinput_connect(struct hid_device *hid)
 				 * UGCI) cram a lot of unrelated inputs into the
 				 * same interface. */
 				hidinput->report = report;
-				input_register_device(&hidinput->input);
+				input_register_device(hidinput->input);
 				hidinput = NULL;
 			}
 		}
@@ -609,7 +669,7 @@ int hidinput_connect(struct hid_device *hid)
 	 * only useful in this case, and not for multi-input quirks. */
 	if (hidinput) {
 		hid_ff_init(hid);
-		input_register_device(&hidinput->input);
+		input_register_device(hidinput->input);
 	}
 
 	return 0;
@@ -617,13 +677,11 @@ int hidinput_connect(struct hid_device *hid)
 
 void hidinput_disconnect(struct hid_device *hid)
 {
-	struct list_head *lh, *next;
-	struct hid_input *hidinput;
+	struct hid_input *hidinput, *next;
 
-	list_for_each_safe(lh, next, &hid->inputs) {
-		hidinput = list_entry(lh, struct hid_input, list);
-		input_unregister_device(&hidinput->input);
+	list_for_each_entry_safe(hidinput, next, &hid->inputs, list) {
 		list_del(&hidinput->list);
+		input_unregister_device(hidinput->input);
 		kfree(hidinput);
 	}
 }

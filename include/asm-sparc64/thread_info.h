@@ -68,6 +68,9 @@ struct thread_info {
 
 	struct restart_block	restart_block;
 
+	struct pt_regs		*kern_una_regs;
+	unsigned int		kern_una_insn;
+
 	unsigned long		fpregs[0] __attribute__ ((aligned(64)));
 };
 
@@ -103,6 +106,8 @@ struct thread_info {
 #define TI_PCR		0x00000490
 #define TI_CEE_STUFF	0x00000498
 #define TI_RESTART_BLOCK 0x000004a0
+#define TI_KUNA_REGS	0x000004c8
+#define TI_KUNA_INSN	0x000004d0
 #define TI_FPREGS	0x00000500
 
 /* We embed this in the uppermost byte of thread_info->flags */

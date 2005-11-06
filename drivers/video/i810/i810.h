@@ -16,6 +16,9 @@
 #include <linux/list.h>
 #include <linux/agp_backend.h>
 #include <linux/fb.h>
+#include <linux/i2c.h>
+#include <linux/i2c-id.h>
+#include <linux/i2c-algo-bit.h>
 #include <video/vga.h>
 
 /* Fence */
@@ -201,7 +204,6 @@
 #define HAS_ACCELERATION            2
 #define ALWAYS_SYNC                 4
 #define LOCKUP                      8
-#define USE_HWCUR                  16
 
 struct gtt_data {
 	struct agp_memory *i810_fb_memory;
@@ -241,6 +243,14 @@ struct state_registers {
 	u8 cr39, cr41, cr70, sr01, msr;
 };
 
+struct i810fb_par;
+
+struct i810fb_i2c_chan {
+	struct i810fb_par *par;
+	struct i2c_adapter adapter;
+	struct i2c_algo_bit_data algo;
+};
+
 struct i810fb_par {
 	struct mode_registers    regs;
 	struct state_registers   hw_state;
@@ -252,10 +262,12 @@ struct i810fb_par {
 	struct heap_data         iring;
 	struct heap_data         cursor_heap;
 	struct vgastate          state;
+	struct i810fb_i2c_chan   chan[2];
 	atomic_t                 use_count;
 	u32 pseudo_palette[17];
 	unsigned long mmio_start_phys;
 	u8 __iomem *mmio_start_virtual;
+	u8 *edid;
 	u32 pitch;
 	u32 pixconf;
 	u32 watermark;

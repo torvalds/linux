@@ -1,7 +1,7 @@
 /*
     cx24110 - Single Chip Satellite Channel Receiver driver module
 
-    Copyright (C) 2002 Peter Hettkamp <peter.hettkamp@t-online.de> based on
+    Copyright (C) 2002 Peter Hettkamp <peter.hettkamp@htp-tel.de> based on
     work
     Copyright (C) 1999 Convergence Integrated Media GmbH <ralph@convergence.de>
 

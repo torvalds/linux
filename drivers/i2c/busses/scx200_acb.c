@@ -395,8 +395,6 @@ static u32 scx200_acb_func(struct i2c_adapter *adapter)
 
 /* For now, we only handle combined mode (smbus) */
 static struct i2c_algorithm scx200_acb_algorithm = {
-	.name		= "NatSemi SCx200 ACCESS.bus",
-	.id		= I2C_ALGO_SMBUS,
 	.smbus_xfer	= scx200_acb_smbus_xfer,
 	.functionality	= scx200_acb_func,
 };
@@ -444,19 +442,18 @@ static int  __init scx200_acb_create(int base, int index)
 	int rc = 0;
 	char description[64];
 
-	iface = kmalloc(sizeof(*iface), GFP_KERNEL);
+	iface = kzalloc(sizeof(*iface), GFP_KERNEL);
 	if (!iface) {
 		printk(KERN_ERR NAME ": can't allocate memory\n");
 		rc = -ENOMEM;
 		goto errout;
 	}
 
-	memset(iface, 0, sizeof(*iface));
 	adapter = &iface->adapter;
 	i2c_set_adapdata(adapter, iface);
 	snprintf(adapter->name, I2C_NAME_SIZE, "SCx200 ACB%d", index);
 	adapter->owner = THIS_MODULE;
-	adapter->id = I2C_ALGO_SMBUS;
+	adapter->id = I2C_HW_SMBUS_SCX200;
 	adapter->algo = &scx200_acb_algorithm;
 	adapter->class = I2C_CLASS_HWMON;
 

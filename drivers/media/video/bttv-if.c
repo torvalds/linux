@@ -1,5 +1,4 @@
 /*
-    $Id: bttv-if.c,v 1.4 2004/11/17 18:47:47 kraxel Exp $
 
     bttv-if.c  --  old gpio interface to other kernel modules
                    don't use in new code, will go away in 2.7

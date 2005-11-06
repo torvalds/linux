@@ -33,13 +33,13 @@
 #include <linux/string.h>
 #include <linux/ioport.h>
 #include <linux/device.h>
-
+#include <linux/slab.h>
+#include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 
 #include <asm/io.h>
-#include <asm/mach-types.h>
 #include <asm/mach/flash.h>
 
 #include <asm/arch/map.h>

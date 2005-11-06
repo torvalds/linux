@@ -31,7 +31,7 @@ set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 	    != (einfo->ip_ect & IPT_ECN_IP_MASK)) {
 		u_int16_t diffs[2];
 
-		if (!skb_ip_make_writable(pskb, sizeof(struct iphdr)))
+		if (!skb_make_writable(pskb, sizeof(struct iphdr)))
 			return 0;
 
 		diffs[0] = htons((*pskb)->nh.iph->tos) ^ 0xFFFF;
@@ -43,7 +43,6 @@ set_ect_ip(struct sk_buff **pskb, const struct ipt_ECN_info *einfo)
 						 sizeof(diffs),
 						 (*pskb)->nh.iph->check
 						 ^0xFFFF));
-		(*pskb)->nfcache |= NFC_ALTERED;
 	} 
 	return 1;
 }
@@ -61,15 +60,19 @@ set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo, int inward)
 	if (!tcph)
 		return 0;
 
-	if (!(einfo->operation & IPT_ECN_OP_SET_ECE
-	      || tcph->ece == einfo->proto.tcp.ece)
-	    && (!(einfo->operation & IPT_ECN_OP_SET_CWR
-		  || tcph->cwr == einfo->proto.tcp.cwr)))
+	if ((!(einfo->operation & IPT_ECN_OP_SET_ECE) ||
+	     tcph->ece == einfo->proto.tcp.ece) &&
+	    ((!(einfo->operation & IPT_ECN_OP_SET_CWR) ||
+	     tcph->cwr == einfo->proto.tcp.cwr)))
 		return 1;
 
-	if (!skb_ip_make_writable(pskb, (*pskb)->nh.iph->ihl*4+sizeof(*tcph)))
+	if (!skb_make_writable(pskb, (*pskb)->nh.iph->ihl*4+sizeof(*tcph)))
 		return 0;
 	tcph = (void *)(*pskb)->nh.iph + (*pskb)->nh.iph->ihl*4;
+
+	if ((*pskb)->ip_summed == CHECKSUM_HW &&
+	    skb_checksum_help(*pskb, inward))
+		return 0;
 
 	diffs[0] = ((u_int16_t *)tcph)[6];
 	if (einfo->operation & IPT_ECN_OP_SET_ECE)
@@ -79,14 +82,10 @@ set_ect_tcp(struct sk_buff **pskb, const struct ipt_ECN_info *einfo, int inward)
 	diffs[1] = ((u_int16_t *)tcph)[6];
 	diffs[0] = diffs[0] ^ 0xFFFF;
 
-	if ((*pskb)->ip_summed != CHECKSUM_HW)
+	if ((*pskb)->ip_summed != CHECKSUM_UNNECESSARY)
 		tcph->check = csum_fold(csum_partial((char *)diffs,
 						     sizeof(diffs),
 						     tcph->check^0xFFFF));
-	else
-		if (skb_checksum_help(*pskb, inward))
-			return 0;
-	(*pskb)->nfcache |= NFC_ALTERED;
 	return 1;
 }
 

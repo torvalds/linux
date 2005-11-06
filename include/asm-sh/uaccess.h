@@ -146,12 +146,6 @@ static inline int access_ok(int type, const void __user *p, unsigned long size)
 	return __access_ok(addr, size);
 }
 
-/* this function will go away soon - use access_ok() instead */
-static inline int __deprecated verify_area(int type, const void __user * addr, unsigned long size)
-{
-	return access_ok(type,addr,size) ? 0 : -EFAULT;
-}
-
 /*
  * Uh, these should become the main single-value transfer routines ...
  * They automatically use the right size if we just have the right

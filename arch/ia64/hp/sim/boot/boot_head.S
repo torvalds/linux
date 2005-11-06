@@ -4,6 +4,7 @@
  */
 
 #include <asm/asmmacro.h>
+#include <asm/pal.h>
 
 	.bss
 	.align 16
@@ -22,7 +23,7 @@ GLOBAL_ENTRY(_start)
 	.save rp, r0
 	.body
 	movl gp = __gp
-	movl sp = stack_mem
+	movl sp = stack_mem+16384-16
 	bsw.1
 	br.call.sptk.many rp=start_bootloader
 END(_start)
@@ -49,7 +50,11 @@ GLOBAL_ENTRY(jmp_to_kernel)
 	br.sptk.few b7
 END(jmp_to_kernel)
 
-
+/*
+ * r28 contains the index of the PAL function
+ * r29--31 the args
+ * Return values in ret0--3 (r8--11)
+ */
 GLOBAL_ENTRY(pal_emulator_static)
 	mov r8=-1
 	mov r9=256
@@ -62,7 +67,7 @@ GLOBAL_ENTRY(pal_emulator_static)
 	cmp.gtu p6,p7=r9,r28
 (p6)	br.cond.sptk.few stacked
 	;;
-static:	cmp.eq p6,p7=6,r28		/* PAL_PTCE_INFO */
+static:	cmp.eq p6,p7=PAL_PTCE_INFO,r28
 (p7)	br.cond.sptk.few 1f
 	;;
 	mov r8=0			/* status = 0 */
@@ -70,21 +75,21 @@ static:	cmp.eq p6,p7=6,r28		/* PAL_PTCE_INFO */
 	movl r10=0x0000000200000003	/* count[0], count[1] */
 	movl r11=0x1000000000002000	/* stride[0], stride[1] */
 	br.cond.sptk.few rp
-1:	cmp.eq p6,p7=14,r28		/* PAL_FREQ_RATIOS */
+1:	cmp.eq p6,p7=PAL_FREQ_RATIOS,r28
 (p7)	br.cond.sptk.few 1f
 	mov r8=0			/* status = 0 */
 	movl r9 =0x100000064		/* proc_ratio (1/100) */
 	movl r10=0x100000100		/* bus_ratio<<32 (1/256) */
 	movl r11=0x100000064		/* itc_ratio<<32 (1/100) */
 	;;
-1:	cmp.eq p6,p7=19,r28		/* PAL_RSE_INFO */
+1:	cmp.eq p6,p7=PAL_RSE_INFO,r28
 (p7)	br.cond.sptk.few 1f
 	mov r8=0			/* status = 0 */
 	mov r9=96			/* num phys stacked */
 	mov r10=0			/* hints */
 	mov r11=0
 	br.cond.sptk.few rp
-1:	cmp.eq p6,p7=1,r28		/* PAL_CACHE_FLUSH */
+1:	cmp.eq p6,p7=PAL_CACHE_FLUSH,r28		/* PAL_CACHE_FLUSH */
 (p7)	br.cond.sptk.few 1f
 	mov r9=ar.lc
 	movl r8=524288			/* flush 512k million cache lines (16MB) */
@@ -102,7 +107,7 @@ static:	cmp.eq p6,p7=6,r28		/* PAL_PTCE_INFO */
 	mov ar.lc=r9
 	mov r8=r0
 	;;
-1:	cmp.eq p6,p7=15,r28		/* PAL_PERF_MON_INFO */
+1:	cmp.eq p6,p7=PAL_PERF_MON_INFO,r28
 (p7)	br.cond.sptk.few 1f
 	mov r8=0			/* status = 0 */
 	movl r9 =0x08122f04		/* generic=4 width=47 retired=8 cycles=18 */
@@ -137,6 +142,20 @@ static:	cmp.eq p6,p7=6,r28		/* PAL_PTCE_INFO */
 	;;
 	st8 [r29]=r0,16			/* clear remaining bits  */
 	st8 [r18]=r0,16			/* clear remaining bits  */
+	;;
+1:	cmp.eq p6,p7=PAL_VM_SUMMARY,r28
+(p7)	br.cond.sptk.few 1f
+	mov	r8=0			/* status = 0  */
+	movl	r9=0x2044040020F1865	/* num_tc_levels=2, num_unique_tcs=4 */
+					/* max_itr_entry=64, max_dtr_entry=64 */
+					/* hash_tag_id=2, max_pkr=15 */
+					/* key_size=24, phys_add_size=50, vw=1 */
+	movl	r10=0x183C		/* rid_size=24, impl_va_msb=60 */
+	;;
+1:	cmp.eq p6,p7=PAL_MEM_ATTRIB,r28
+(p7)	br.cond.sptk.few 1f
+	mov	r8=0			/* status = 0 */
+	mov	r9=0x80|0x01		/* NatPage|WB */
 	;;
 1:	br.cond.sptk.few rp
 stacked:

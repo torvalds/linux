@@ -158,7 +158,7 @@ ia64_init_addr_space (void)
 		vma->vm_start = current->thread.rbs_bot & PAGE_MASK;
 		vma->vm_end = vma->vm_start + PAGE_SIZE;
 		vma->vm_page_prot = protection_map[VM_DATA_DEFAULT_FLAGS & 0x7];
-		vma->vm_flags = VM_DATA_DEFAULT_FLAGS | VM_GROWSUP;
+		vma->vm_flags = VM_DATA_DEFAULT_FLAGS|VM_GROWSUP|VM_ACCOUNT;
 		down_write(&current->mm->mmap_sem);
 		if (insert_vm_struct(current->mm, vma)) {
 			up_write(&current->mm->mmap_sem);
@@ -275,26 +275,21 @@ put_kernel_page (struct page *page, unsigned long address, pgprot_t pgprot)
 
 	pgd = pgd_offset_k(address);		/* note: this is NOT pgd_offset()! */
 
-	spin_lock(&init_mm.page_table_lock);
 	{
 		pud = pud_alloc(&init_mm, pgd, address);
 		if (!pud)
 			goto out;
-
 		pmd = pmd_alloc(&init_mm, pud, address);
 		if (!pmd)
 			goto out;
-		pte = pte_alloc_map(&init_mm, pmd, address);
+		pte = pte_alloc_kernel(pmd, address);
 		if (!pte)
 			goto out;
-		if (!pte_none(*pte)) {
-			pte_unmap(pte);
+		if (!pte_none(*pte))
 			goto out;
-		}
 		set_pte(pte, mk_pte(page, pgprot));
-		pte_unmap(pte);
 	}
-  out:	spin_unlock(&init_mm.page_table_lock);
+  out:
 	/* no need for flush_tlb */
 	return page;
 }
@@ -382,13 +377,22 @@ ia64_mmu_init (void *my_cpu_data)
 
 	if (impl_va_bits < 51 || impl_va_bits > 61)
 		panic("CPU has bogus IMPL_VA_MSB value of %lu!\n", impl_va_bits - 1);
+	/*
+	 * mapped_space_bits - PAGE_SHIFT is the total number of ptes we need,
+	 * which must fit into "vmlpt_bits - pte_bits" slots. Second half of
+	 * the test makes sure that our mapped space doesn't overlap the
+	 * unimplemented hole in the middle of the region.
+	 */
+	if ((mapped_space_bits - PAGE_SHIFT > vmlpt_bits - pte_bits) ||
+	    (mapped_space_bits > impl_va_bits - 1))
+		panic("Cannot build a big enough virtual-linear page table"
+		      " to cover mapped address space.\n"
+		      " Try using a smaller page size.\n");
+
 
 	/* place the VMLPT at the end of each page-table mapped region: */
 	pta = POW2(61) - POW2(vmlpt_bits);
 
-	if (POW2(mapped_space_bits) >= pta)
-		panic("mm/init: overlap between virtually mapped linear page table and "
-		      "mapped kernel space!");
 	/*
 	 * Set the (virtually mapped linear) page table address.  Bit
 	 * 8 selects between the short and long format, bits 2-7 the
@@ -584,7 +588,7 @@ mem_init (void)
 	platform_dma_init();
 #endif
 
-#ifndef CONFIG_DISCONTIGMEM
+#ifdef CONFIG_FLATMEM
 	if (!mem_map)
 		BUG();
 	max_mapnr = max_low_pfn;

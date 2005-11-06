@@ -1,5 +1,5 @@
 /*
- * Helpfile for sonic.c
+ * Header file for sonic.c
  *
  * (C) Waldorf Electronics, Germany
  * Written by Andreas Busse
@@ -9,10 +9,16 @@
  * and pad structure members must be exchanged. Also, the structures
  * need to be changed accordingly to the bus size. 
  *
- * 981229 MSch:	did just that for the 68k Mac port (32 bit, big endian),
- *		see CONFIG_MACSONIC branch below.
+ * 981229 MSch:	did just that for the 68k Mac port (32 bit, big endian)
  *
+ * 990611 David Huggins-Daines <dhd@debian.org>: This machine abstraction
+ * does not cope with 16-bit bus sizes very well.  Therefore I have
+ * rewritten it with ugly macros and evil inlines.
+ *
+ * 050625 Finn Thain: introduced more 32-bit cards and dhd's support
+ *        for 16-bit cards (from the mac68k project).
  */
+
 #ifndef SONIC_H
 #define SONIC_H
 
@@ -83,6 +89,7 @@
 /*
  * Error counters
  */
+
 #define SONIC_CRCT              0x2c
 #define SONIC_FAET              0x2d
 #define SONIC_MPT               0x2e
@@ -182,14 +189,14 @@
 
 #define SONIC_INT_BR		0x4000
 #define SONIC_INT_HBL		0x2000
-#define SONIC_INT_LCD           0x1000
-#define SONIC_INT_PINT          0x0800
-#define SONIC_INT_PKTRX         0x0400
-#define SONIC_INT_TXDN          0x0200
-#define SONIC_INT_TXER          0x0100
-#define SONIC_INT_TC            0x0080
-#define SONIC_INT_RDE           0x0040
-#define SONIC_INT_RBE           0x0020
+#define SONIC_INT_LCD		0x1000
+#define SONIC_INT_PINT		0x0800
+#define SONIC_INT_PKTRX		0x0400
+#define SONIC_INT_TXDN		0x0200
+#define SONIC_INT_TXER		0x0100
+#define SONIC_INT_TC		0x0080
+#define SONIC_INT_RDE		0x0040
+#define SONIC_INT_RBE		0x0020
 #define SONIC_INT_RBAE		0x0010
 #define SONIC_INT_CRC		0x0008
 #define SONIC_INT_FAE		0x0004
@@ -201,224 +208,61 @@
  * The interrupts we allow.
  */
 
-#define SONIC_IMR_DEFAULT	(SONIC_INT_BR | \
-				SONIC_INT_LCD | \
-                                SONIC_INT_PINT | \
+#define SONIC_IMR_DEFAULT     ( SONIC_INT_BR | \
+                                SONIC_INT_LCD | \
+                                SONIC_INT_RFO | \
                                 SONIC_INT_PKTRX | \
                                 SONIC_INT_TXDN | \
                                 SONIC_INT_TXER | \
                                 SONIC_INT_RDE | \
-                                SONIC_INT_RBE | \
                                 SONIC_INT_RBAE | \
                                 SONIC_INT_CRC | \
                                 SONIC_INT_FAE | \
                                 SONIC_INT_MP)
 
 
-#define	SONIC_END_OF_LINKS	0x0001
-
-
-#ifdef CONFIG_MACSONIC
-/*
- * Big endian like structures on 680x0 Macs
- */
-
-typedef struct {
-	u32 rx_bufadr_l;	/* receive buffer ptr */
-	u32 rx_bufadr_h;
-
-	u32 rx_bufsize_l;	/* no. of words in the receive buffer */
-	u32 rx_bufsize_h;
-} sonic_rr_t;
-
-/*
- * Sonic receive descriptor. Receive descriptors are
- * kept in a linked list of these structures.
- */
-
-typedef struct {
-	SREGS_PAD(pad0);
-	u16 rx_status;		/* status after reception of a packet */
-	 SREGS_PAD(pad1);
-	u16 rx_pktlen;		/* length of the packet incl. CRC */
-
-	/*
-	 * Pointers to the location in the receive buffer area (RBA)
-	 * where the packet resides. A packet is always received into
-	 * a contiguous piece of memory.
-	 */
-	 SREGS_PAD(pad2);
-	u16 rx_pktptr_l;
-	 SREGS_PAD(pad3);
-	u16 rx_pktptr_h;
-
-	 SREGS_PAD(pad4);
-	u16 rx_seqno;		/* sequence no. */
-
-	 SREGS_PAD(pad5);
-	u16 link;		/* link to next RDD (end if EOL bit set) */
-
-	/*
-	 * Owner of this descriptor, 0= driver, 1=sonic
-	 */
-
-	 SREGS_PAD(pad6);
-	u16 in_use;
-
-	caddr_t rda_next;	/* pointer to next RD */
-} sonic_rd_t;
-
-
-/*
- * Describes a Transmit Descriptor
- */
-typedef struct {
-	SREGS_PAD(pad0);
-	u16 tx_status;		/* status after transmission of a packet */
-	 SREGS_PAD(pad1);
-	u16 tx_config;		/* transmit configuration for this packet */
-	 SREGS_PAD(pad2);
-	u16 tx_pktsize;		/* size of the packet to be transmitted */
-	 SREGS_PAD(pad3);
-	u16 tx_frag_count;	/* no. of fragments */
-
-	 SREGS_PAD(pad4);
-	u16 tx_frag_ptr_l;
-	 SREGS_PAD(pad5);
-	u16 tx_frag_ptr_h;
-	 SREGS_PAD(pad6);
-	u16 tx_frag_size;
-
-	 SREGS_PAD(pad7);
-	u16 link;		/* ptr to next descriptor */
-} sonic_td_t;
-
-
-/*
- * Describes an entry in the CAM Descriptor Area.
- */
-
-typedef struct {
-	SREGS_PAD(pad0);
-	u16 cam_entry_pointer;
-	 SREGS_PAD(pad1);
-	u16 cam_cap0;
-	 SREGS_PAD(pad2);
-	u16 cam_cap1;
-	 SREGS_PAD(pad3);
-	u16 cam_cap2;
-} sonic_cd_t;
-
+#define SONIC_EOL       0x0001
 #define CAM_DESCRIPTORS 16
 
+/* Offsets in the various DMA buffers accessed by the SONIC */
 
-typedef struct {
-	sonic_cd_t cam_desc[CAM_DESCRIPTORS];
-	 SREGS_PAD(pad);
-	u16 cam_enable;
-} sonic_cda_t;
+#define SONIC_BITMODE16 0
+#define SONIC_BITMODE32 1
+#define SONIC_BUS_SCALE(bitmode) ((bitmode) ? 4 : 2)
+/* Note!  These are all measured in bus-size units, so use SONIC_BUS_SCALE */
+#define SIZEOF_SONIC_RR 4
+#define SONIC_RR_BUFADR_L  0
+#define SONIC_RR_BUFADR_H  1
+#define SONIC_RR_BUFSIZE_L 2
+#define SONIC_RR_BUFSIZE_H 3
 
-#else				/* original declarations, little endian 32 bit */
+#define SIZEOF_SONIC_RD 7
+#define SONIC_RD_STATUS   0
+#define SONIC_RD_PKTLEN   1
+#define SONIC_RD_PKTPTR_L 2
+#define SONIC_RD_PKTPTR_H 3
+#define SONIC_RD_SEQNO    4
+#define SONIC_RD_LINK     5
+#define SONIC_RD_IN_USE   6
 
-/*
- * structure definitions
- */
+#define SIZEOF_SONIC_TD 8
+#define SONIC_TD_STATUS       0
+#define SONIC_TD_CONFIG       1
+#define SONIC_TD_PKTSIZE      2
+#define SONIC_TD_FRAG_COUNT   3
+#define SONIC_TD_FRAG_PTR_L   4
+#define SONIC_TD_FRAG_PTR_H   5
+#define SONIC_TD_FRAG_SIZE    6
+#define SONIC_TD_LINK         7
 
-typedef struct {
-	u32 rx_bufadr_l;	/* receive buffer ptr */
-	u32 rx_bufadr_h;
+#define SIZEOF_SONIC_CD 4
+#define SONIC_CD_ENTRY_POINTER 0
+#define SONIC_CD_CAP0          1
+#define SONIC_CD_CAP1          2
+#define SONIC_CD_CAP2          3
 
-	u32 rx_bufsize_l;	/* no. of words in the receive buffer */
-	u32 rx_bufsize_h;
-} sonic_rr_t;
-
-/*
- * Sonic receive descriptor. Receive descriptors are
- * kept in a linked list of these structures.
- */
-
-typedef struct {
-	u16 rx_status;		/* status after reception of a packet */
-	 SREGS_PAD(pad0);
-	u16 rx_pktlen;		/* length of the packet incl. CRC */
-	 SREGS_PAD(pad1);
-
-	/*
-	 * Pointers to the location in the receive buffer area (RBA)
-	 * where the packet resides. A packet is always received into
-	 * a contiguous piece of memory.
-	 */
-	u16 rx_pktptr_l;
-	 SREGS_PAD(pad2);
-	u16 rx_pktptr_h;
-	 SREGS_PAD(pad3);
-
-	u16 rx_seqno;		/* sequence no. */
-	 SREGS_PAD(pad4);
-
-	u16 link;		/* link to next RDD (end if EOL bit set) */
-	 SREGS_PAD(pad5);
-
-	/*
-	 * Owner of this descriptor, 0= driver, 1=sonic
-	 */
-
-	u16 in_use;
-	 SREGS_PAD(pad6);
-
-	caddr_t rda_next;	/* pointer to next RD */
-} sonic_rd_t;
-
-
-/*
- * Describes a Transmit Descriptor
- */
-typedef struct {
-	u16 tx_status;		/* status after transmission of a packet */
-	 SREGS_PAD(pad0);
-	u16 tx_config;		/* transmit configuration for this packet */
-	 SREGS_PAD(pad1);
-	u16 tx_pktsize;		/* size of the packet to be transmitted */
-	 SREGS_PAD(pad2);
-	u16 tx_frag_count;	/* no. of fragments */
-	 SREGS_PAD(pad3);
-
-	u16 tx_frag_ptr_l;
-	 SREGS_PAD(pad4);
-	u16 tx_frag_ptr_h;
-	 SREGS_PAD(pad5);
-	u16 tx_frag_size;
-	 SREGS_PAD(pad6);
-
-	u16 link;		/* ptr to next descriptor */
-	 SREGS_PAD(pad7);
-} sonic_td_t;
-
-
-/*
- * Describes an entry in the CAM Descriptor Area.
- */
-
-typedef struct {
-	u16 cam_entry_pointer;
-	 SREGS_PAD(pad0);
-	u16 cam_cap0;
-	 SREGS_PAD(pad1);
-	u16 cam_cap1;
-	 SREGS_PAD(pad2);
-	u16 cam_cap2;
-	 SREGS_PAD(pad3);
-} sonic_cd_t;
-
-#define CAM_DESCRIPTORS 16
-
-
-typedef struct {
-	sonic_cd_t cam_desc[CAM_DESCRIPTORS];
-	u16 cam_enable;
-	 SREGS_PAD(pad);
-} sonic_cda_t;
-#endif				/* endianness */
+#define SIZEOF_SONIC_CDA ((CAM_DESCRIPTORS * SIZEOF_SONIC_CD) + 1)
+#define SONIC_CDA_CAM_ENABLE   (CAM_DESCRIPTORS * SIZEOF_SONIC_CD)
 
 /*
  * Some tunables for the buffer areas. Power of 2 is required
@@ -426,44 +270,60 @@ typedef struct {
  *
  * MSch: use more buffer space for the slow m68k Macs!
  */
-#ifdef CONFIG_MACSONIC
-#define SONIC_NUM_RRS    32	/* number of receive resources */
-#define SONIC_NUM_RDS    SONIC_NUM_RRS	/* number of receive descriptors */
-#define SONIC_NUM_TDS    32	/* number of transmit descriptors */
-#else
-#define SONIC_NUM_RRS    16	/* number of receive resources */
-#define SONIC_NUM_RDS    SONIC_NUM_RRS	/* number of receive descriptors */
-#define SONIC_NUM_TDS    16	/* number of transmit descriptors */
-#endif
-#define SONIC_RBSIZE   1520	/* size of one resource buffer */
+#define SONIC_NUM_RRS   16            /* number of receive resources */
+#define SONIC_NUM_RDS   SONIC_NUM_RRS /* number of receive descriptors */
+#define SONIC_NUM_TDS   16            /* number of transmit descriptors */
 
-#define SONIC_RDS_MASK   (SONIC_NUM_RDS-1)
-#define SONIC_TDS_MASK   (SONIC_NUM_TDS-1)
+#define SONIC_RDS_MASK  (SONIC_NUM_RDS-1)
+#define SONIC_TDS_MASK  (SONIC_NUM_TDS-1)
 
+#define SONIC_RBSIZE	1520          /* size of one resource buffer */
+
+/* Again, measured in bus size units! */
+#define SIZEOF_SONIC_DESC (SIZEOF_SONIC_CDA	\
+	+ (SIZEOF_SONIC_TD * SONIC_NUM_TDS)	\
+	+ (SIZEOF_SONIC_RD * SONIC_NUM_RDS)	\
+	+ (SIZEOF_SONIC_RR * SONIC_NUM_RRS))
 
 /* Information that need to be kept for each board. */
 struct sonic_local {
-	sonic_cda_t cda;	/* virtual CPU address of CDA */
-	sonic_td_t tda[SONIC_NUM_TDS];	/* transmit descriptor area */
-	sonic_rr_t rra[SONIC_NUM_RRS];	/* receive resource area */
-	sonic_rd_t rda[SONIC_NUM_RDS];	/* receive descriptor area */
-	struct sk_buff *tx_skb[SONIC_NUM_TDS];	/* skbuffs for packets to transmit */
-	unsigned int tx_laddr[SONIC_NUM_TDS];	/* logical DMA address fro skbuffs */
-	unsigned char *rba;	/* start of receive buffer areas */
-	unsigned int cda_laddr;	/* logical DMA address of CDA */
-	unsigned int tda_laddr;	/* logical DMA address of TDA */
-	unsigned int rra_laddr;	/* logical DMA address of RRA */
-	unsigned int rda_laddr;	/* logical DMA address of RDA */
-	unsigned int rba_laddr;	/* logical DMA address of RBA */
-	unsigned int cur_rra;	/* current indexes to resource areas */
+	/* Bus size.  0 == 16 bits, 1 == 32 bits. */
+	int dma_bitmode;
+	/* Register offset within the longword (independent of endianness,
+	   and varies from one type of Macintosh SONIC to another
+	   (Aarrgh)) */
+	int reg_offset;
+	void *descriptors;
+	/* Crud.  These areas have to be within the same 64K.  Therefore
+       we allocate a desriptors page, and point these to places within it. */
+	void *cda;  /* CAM descriptor area */
+	void *tda;  /* Transmit descriptor area */
+	void *rra;  /* Receive resource area */
+	void *rda;  /* Receive descriptor area */
+	struct sk_buff* volatile rx_skb[SONIC_NUM_RRS];	/* packets to be received */
+	struct sk_buff* volatile tx_skb[SONIC_NUM_TDS];	/* packets to be transmitted */
+	unsigned int tx_len[SONIC_NUM_TDS]; /* lengths of tx DMA mappings */
+	/* Logical DMA addresses on MIPS, bus addresses on m68k
+	 * (so "laddr" is a bit misleading) */
+	dma_addr_t descriptors_laddr;
+	u32 cda_laddr;              /* logical DMA address of CDA */
+	u32 tda_laddr;              /* logical DMA address of TDA */
+	u32 rra_laddr;              /* logical DMA address of RRA */
+	u32 rda_laddr;              /* logical DMA address of RDA */
+	dma_addr_t rx_laddr[SONIC_NUM_RRS]; /* logical DMA addresses of rx skbuffs */
+	dma_addr_t tx_laddr[SONIC_NUM_TDS]; /* logical DMA addresses of tx skbuffs */
+	unsigned int rra_end;
+	unsigned int cur_rwp;
 	unsigned int cur_rx;
-	unsigned int cur_tx;
-	unsigned int dirty_tx;	/* last unacked transmit packet */
-	char tx_full;
+	unsigned int cur_tx;           /* first unacked transmit packet */
+	unsigned int eol_rx;
+	unsigned int eol_tx;           /* last unacked transmit packet */
+	unsigned int next_tx;          /* next free TD */
+	struct device *device;         /* generic device */
 	struct net_device_stats stats;
 };
 
-#define TX_TIMEOUT 6
+#define TX_TIMEOUT (3 * HZ)
 
 /* Index to functions, as function prototypes. */
 
@@ -476,6 +336,114 @@ static struct net_device_stats *sonic_get_stats(struct net_device *dev);
 static void sonic_multicast_list(struct net_device *dev);
 static int sonic_init(struct net_device *dev);
 static void sonic_tx_timeout(struct net_device *dev);
+
+/* Internal inlines for reading/writing DMA buffers.  Note that bus
+   size and endianness matter here, whereas they don't for registers,
+   as far as we can tell. */
+/* OpenBSD calls this "SWO".  I'd like to think that sonic_buf_put()
+   is a much better name. */
+static inline void sonic_buf_put(void* base, int bitmode,
+				 int offset, __u16 val)
+{
+	if (bitmode)
+#ifdef __BIG_ENDIAN
+		((__u16 *) base + (offset*2))[1] = val;
+#else
+		((__u16 *) base + (offset*2))[0] = val;
+#endif
+	else
+	 	((__u16 *) base)[offset] = val;
+}
+
+static inline __u16 sonic_buf_get(void* base, int bitmode,
+				  int offset)
+{
+	if (bitmode)
+#ifdef __BIG_ENDIAN
+		return ((volatile __u16 *) base + (offset*2))[1];
+#else
+		return ((volatile __u16 *) base + (offset*2))[0];
+#endif
+	else
+		return ((volatile __u16 *) base)[offset];
+}
+
+/* Inlines that you should actually use for reading/writing DMA buffers */
+static inline void sonic_cda_put(struct net_device* dev, int entry,
+				 int offset, __u16 val)
+{
+	struct sonic_local* lp = (struct sonic_local *) dev->priv;
+	sonic_buf_put(lp->cda, lp->dma_bitmode,
+		      (entry * SIZEOF_SONIC_CD) + offset, val);
+}
+
+static inline __u16 sonic_cda_get(struct net_device* dev, int entry,
+				  int offset)
+{
+	struct sonic_local* lp = (struct sonic_local *) dev->priv;
+	return sonic_buf_get(lp->cda, lp->dma_bitmode,
+			     (entry * SIZEOF_SONIC_CD) + offset);
+}
+
+static inline void sonic_set_cam_enable(struct net_device* dev, __u16 val)
+{
+	struct sonic_local* lp = (struct sonic_local *) dev->priv;
+	sonic_buf_put(lp->cda, lp->dma_bitmode, SONIC_CDA_CAM_ENABLE, val);
+}
+
+static inline __u16 sonic_get_cam_enable(struct net_device* dev)
+{
+	struct sonic_local* lp = (struct sonic_local *) dev->priv;
+	return sonic_buf_get(lp->cda, lp->dma_bitmode, SONIC_CDA_CAM_ENABLE);
+}
+
+static inline void sonic_tda_put(struct net_device* dev, int entry,
+				 int offset, __u16 val)
+{
+	struct sonic_local* lp = (struct sonic_local *) dev->priv;
+	sonic_buf_put(lp->tda, lp->dma_bitmode,
+		      (entry * SIZEOF_SONIC_TD) + offset, val);
+}
+
+static inline __u16 sonic_tda_get(struct net_device* dev, int entry,
+				  int offset)
+{
+	struct sonic_local* lp = (struct sonic_local *) dev->priv;
+	return sonic_buf_get(lp->tda, lp->dma_bitmode,
+			     (entry * SIZEOF_SONIC_TD) + offset);
+}
+
+static inline void sonic_rda_put(struct net_device* dev, int entry,
+				 int offset, __u16 val)
+{
+	struct sonic_local* lp = (struct sonic_local *) dev->priv;
+	sonic_buf_put(lp->rda, lp->dma_bitmode,
+		      (entry * SIZEOF_SONIC_RD) + offset, val);
+}
+
+static inline __u16 sonic_rda_get(struct net_device* dev, int entry,
+				  int offset)
+{
+	struct sonic_local* lp = (struct sonic_local *) dev->priv;
+	return sonic_buf_get(lp->rda, lp->dma_bitmode,
+			     (entry * SIZEOF_SONIC_RD) + offset);
+}
+
+static inline void sonic_rra_put(struct net_device* dev, int entry,
+				 int offset, __u16 val)
+{
+	struct sonic_local* lp = (struct sonic_local *) dev->priv;
+	sonic_buf_put(lp->rra, lp->dma_bitmode,
+		      (entry * SIZEOF_SONIC_RR) + offset, val);
+}
+
+static inline __u16 sonic_rra_get(struct net_device* dev, int entry,
+				  int offset)
+{
+	struct sonic_local* lp = (struct sonic_local *) dev->priv;
+	return sonic_buf_get(lp->rra, lp->dma_bitmode,
+			     (entry * SIZEOF_SONIC_RR) + offset);
+}
 
 static const char *version =
     "sonic.c:v0.92 20.9.98 tsbogend@alpha.franken.de\n";

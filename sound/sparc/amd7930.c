@@ -967,7 +967,7 @@ static int __init snd_amd7930_create(snd_card_t *card,
 	int err;
 
 	*ramd = NULL;
-	amd = kcalloc(1, sizeof(*amd), GFP_KERNEL);
+	amd = kzalloc(sizeof(*amd), GFP_KERNEL);
 	if (amd == NULL)
 		return -ENOMEM;
 
@@ -1086,6 +1086,9 @@ static int __init amd7930_attach(int prom_node, struct sbus_dev *sdev)
 		goto out_err;
 
 	if ((err = snd_amd7930_mixer(amd)) < 0)
+		goto out_err;
+
+	if ((err = snd_card_set_generic_dev(card)) < 0)
 		goto out_err;
 
 	if ((err = snd_card_register(card)) < 0)

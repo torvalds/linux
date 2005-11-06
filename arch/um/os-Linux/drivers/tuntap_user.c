@@ -75,7 +75,7 @@ static int tuntap_open_tramp(char *gate, int *fd_out, int me, int remote,
 	struct msghdr msg;
 	struct cmsghdr *cmsg;
 	struct iovec iov;
-	int pid, n;
+	int pid, n, err;
 
 	sprintf(version_buf, "%d", UML_NET_VERSION);
 
@@ -105,9 +105,10 @@ static int tuntap_open_tramp(char *gate, int *fd_out, int me, int remote,
 	n = recvmsg(me, &msg, 0);
 	*used_out = n;
 	if(n < 0){
+		err = -errno;
 		printk("tuntap_open_tramp : recvmsg failed - errno = %d\n", 
 		       errno);
-		return(-errno);
+		return err;
 	}
 	CATCH_EINTR(waitpid(pid, NULL, 0));
 
@@ -147,9 +148,10 @@ static int tuntap_open(void *data)
 		ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
 		strlcpy(ifr.ifr_name, pri->dev_name, sizeof(ifr.ifr_name));
 		if(ioctl(pri->fd, TUNSETIFF, (void *) &ifr) < 0){
+			err = -errno;
 			printk("TUNSETIFF failed, errno = %d\n", errno);
 			os_close_file(pri->fd);
-			return(-errno);
+			return err;
 		}
 	}
 	else {

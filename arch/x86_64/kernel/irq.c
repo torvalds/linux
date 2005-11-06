@@ -99,7 +99,6 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 	unsigned irq = regs->orig_rax & 0xff;
 
 	irq_enter();
-	BUG_ON(irq > 256);
 
 	__do_IRQ(irq, regs);
 	irq_exit();

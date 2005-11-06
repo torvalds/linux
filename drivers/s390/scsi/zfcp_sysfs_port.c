@@ -67,7 +67,6 @@ static DEVICE_ATTR(_name, S_IRUGO, zfcp_sysfs_port_##_name##_show, NULL);
 ZFCP_DEFINE_PORT_ATTR(status, "0x%08x\n", atomic_read(&port->status));
 ZFCP_DEFINE_PORT_ATTR(wwnn, "0x%016llx\n", port->wwnn);
 ZFCP_DEFINE_PORT_ATTR(d_id, "0x%06x\n", port->d_id);
-ZFCP_DEFINE_PORT_ATTR(scsi_id, "0x%x\n", port->scsi_id);
 ZFCP_DEFINE_PORT_ATTR(in_recovery, "%d\n", atomic_test_mask
 		      (ZFCP_STATUS_COMMON_ERP_INUSE, &port->status));
 ZFCP_DEFINE_PORT_ATTR(access_denied, "%d\n", atomic_test_mask
@@ -263,7 +262,6 @@ static struct attribute_group zfcp_port_common_attr_group = {
 static struct attribute *zfcp_port_no_ns_attrs[] = {
 	&dev_attr_unit_add.attr,
 	&dev_attr_unit_remove.attr,
-	&dev_attr_scsi_id.attr,
 	NULL
 };
 

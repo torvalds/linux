@@ -57,6 +57,11 @@ extern void disable_irq(unsigned int irq);
 extern void enable_irq(unsigned int irq);
 #endif
 
+#ifndef __ARCH_SET_SOFTIRQ_PENDING
+#define set_softirq_pending(x) (local_softirq_pending() = (x))
+#define or_softirq_pending(x)  (local_softirq_pending() |= (x))
+#endif
+
 /*
  * Temporary defines for UP kernels, until all code gets fixed.
  */
@@ -123,7 +128,7 @@ struct softirq_action
 asmlinkage void do_softirq(void);
 extern void open_softirq(int nr, void (*action)(struct softirq_action*), void *data);
 extern void softirq_init(void);
-#define __raise_softirq_irqoff(nr) do { local_softirq_pending() |= 1UL << (nr); } while (0)
+#define __raise_softirq_irqoff(nr) do { or_softirq_pending(1UL << (nr)); } while (0)
 extern void FASTCALL(raise_softirq_irqoff(unsigned int nr));
 extern void FASTCALL(raise_softirq(unsigned int nr));
 

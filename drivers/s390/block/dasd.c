@@ -7,7 +7,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999-2001
  *
- * $Revision: 1.165 $
+ * $Revision: 1.167 $
  */
 
 #include <linux/config.h>
@@ -1131,15 +1131,11 @@ __dasd_process_blk_queue(struct dasd_device * device)
 	request_queue_t *queue;
 	struct request *req;
 	struct dasd_ccw_req *cqr;
-	int nr_queued, feature_ro;
+	int nr_queued;
 
 	queue = device->request_queue;
 	/* No queue ? Then there is nothing to do. */
 	if (queue == NULL)
-		return;
-
-	feature_ro = dasd_get_feature(device->cdev, DASD_FEATURE_READONLY);
-	if (feature_ro < 0) 	/* no devmap */
 		return;
 
 	/*
@@ -1162,7 +1158,8 @@ __dasd_process_blk_queue(struct dasd_device * device)
 		nr_queued < DASD_CHANQ_MAX_SIZE) {
 		req = elv_next_request(queue);
 
-		if (feature_ro && rq_data_dir(req) == WRITE) {
+		if (device->features & DASD_FEATURE_READONLY &&
+		    rq_data_dir(req) == WRITE) {
 			DBF_DEV_EVENT(DBF_ERR, device,
 				      "Rejecting write request %p",
 				      req);
@@ -1814,17 +1811,13 @@ dasd_generic_set_online (struct ccw_device *cdev,
 
 {
 	struct dasd_device *device;
-	int feature_diag, rc;
+	int rc;
 
 	device = dasd_create_device(cdev);
 	if (IS_ERR(device))
 		return PTR_ERR(device);
 
-	feature_diag = dasd_get_feature(cdev, DASD_FEATURE_USEDIAG);
-	if (feature_diag < 0)
-		return feature_diag;
-
-	if (feature_diag) {
+	if (device->features & DASD_FEATURE_USEDIAG) {
 	  	if (!dasd_diag_discipline_pointer) {
 		        printk (KERN_WARNING
 				"dasd_generic couldn't online device %s "

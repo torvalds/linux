@@ -10,10 +10,6 @@
  *  VIDC sound function prototypes
  */
 
-/* vidc.c */
-
-extern int vidc_busy;
-
 /* vidc_fill.S */
 
 /*

@@ -98,7 +98,6 @@ snd_emux_note_on(void *p, int note, int vel, snd_midi_channel_t *chan)
 		vp = emu->ops.get_voice(emu, port);
 		if (vp == NULL || vp->ch < 0)
 			continue;
-		snd_assert(vp->emu != NULL && vp->hw != NULL, return);
 		if (STATE_IS_PLAYING(vp->state))
 			emu->ops.terminate(vp);
 

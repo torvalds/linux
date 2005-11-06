@@ -7,7 +7,7 @@
  * Copyright (c) 1999 Silicon Graphics, Inc.
  */
 #include <asm/asm.h>
-#include <asm/offset.h>
+#include <asm/asm-offsets.h>
 #include <asm/regdef.h>
 
 #define EX(insn,reg,addr,handler)			\

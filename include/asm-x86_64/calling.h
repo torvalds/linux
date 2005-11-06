@@ -65,27 +65,36 @@
 	.if \skipr11
 	.else
 	movq (%rsp),%r11
+	CFI_RESTORE r11
 	.endif
 	.if \skipr8910
 	.else
 	movq 1*8(%rsp),%r10
+	CFI_RESTORE r10
 	movq 2*8(%rsp),%r9
+	CFI_RESTORE r9
 	movq 3*8(%rsp),%r8
+	CFI_RESTORE r8
 	.endif
 	.if \skiprax
 	.else
 	movq 4*8(%rsp),%rax
+	CFI_RESTORE rax
 	.endif
 	.if \skiprcx
 	.else
 	movq 5*8(%rsp),%rcx
+	CFI_RESTORE rcx
 	.endif
 	.if \skiprdx
 	.else
 	movq 6*8(%rsp),%rdx
+	CFI_RESTORE rdx
 	.endif
 	movq 7*8(%rsp),%rsi
+	CFI_RESTORE rsi
 	movq 8*8(%rsp),%rdi
+	CFI_RESTORE rdi
 	.if ARG_SKIP+\addskip > 0
 	addq $ARG_SKIP+\addskip,%rsp
 	CFI_ADJUST_CFA_OFFSET	-(ARG_SKIP+\addskip)
@@ -124,11 +133,17 @@
 
 	.macro RESTORE_REST
 	movq (%rsp),%r15
+	CFI_RESTORE r15
 	movq 1*8(%rsp),%r14
+	CFI_RESTORE r14
 	movq 2*8(%rsp),%r13
+	CFI_RESTORE r13
 	movq 3*8(%rsp),%r12
+	CFI_RESTORE r12
 	movq 4*8(%rsp),%rbp
+	CFI_RESTORE rbp
 	movq 5*8(%rsp),%rbx
+	CFI_RESTORE rbx
 	addq $REST_SKIP,%rsp
 	CFI_ADJUST_CFA_OFFSET	-(REST_SKIP)
 	.endm
@@ -146,11 +161,3 @@
 	.macro icebp
 	.byte 0xf1
 	.endm
-
-#ifdef CONFIG_FRAME_POINTER
-#define ENTER enter
-#define LEAVE leave
-#else
-#define ENTER
-#define LEAVE
-#endif

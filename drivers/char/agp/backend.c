@@ -206,10 +206,9 @@ static void agp_backend_cleanup(struct agp_bridge_data *bridge)
 		bridge->driver->cleanup();
 	if (bridge->driver->free_gatt_table)
 		bridge->driver->free_gatt_table(bridge);
-	if (bridge->key_list) {
-		vfree(bridge->key_list);
-		bridge->key_list = NULL;
-	}
+
+	vfree(bridge->key_list);
+	bridge->key_list = NULL;
 
 	if (bridge->driver->agp_destroy_page &&
 	    bridge->driver->needs_scratch_page)

@@ -34,7 +34,7 @@ static struct dmi_system_id lifebook_dmi_table[] = {
 static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse, struct pt_regs *regs)
 {
 	unsigned char *packet = psmouse->packet;
-	struct input_dev *dev = &psmouse->dev;
+	struct input_dev *dev = psmouse->dev;
 
 	if (psmouse->pktcnt != 3)
 		return PSMOUSE_GOOD_DATA;
@@ -113,15 +113,17 @@ int lifebook_detect(struct psmouse *psmouse, int set_properties)
 
 int lifebook_init(struct psmouse *psmouse)
 {
+	struct input_dev *input_dev = psmouse->dev;
+
 	if (lifebook_absolute_mode(psmouse))
 		return -1;
 
-	psmouse->dev.evbit[0] = BIT(EV_ABS) | BIT(EV_KEY) | BIT(EV_REL);
-	psmouse->dev.keybit[LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
-	psmouse->dev.keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
-	psmouse->dev.relbit[0] = BIT(REL_X) | BIT(REL_Y);
-	input_set_abs_params(&psmouse->dev, ABS_X, 0, 1024, 0, 0);
-	input_set_abs_params(&psmouse->dev, ABS_Y, 0, 1024, 0, 0);
+	input_dev->evbit[0] = BIT(EV_ABS) | BIT(EV_KEY) | BIT(EV_REL);
+	input_dev->keybit[LONG(BTN_LEFT)] = BIT(BTN_LEFT) | BIT(BTN_MIDDLE) | BIT(BTN_RIGHT);
+	input_dev->keybit[LONG(BTN_TOUCH)] = BIT(BTN_TOUCH);
+	input_dev->relbit[0] = BIT(REL_X) | BIT(REL_Y);
+	input_set_abs_params(input_dev, ABS_X, 0, 1024, 0, 0);
+	input_set_abs_params(input_dev, ABS_Y, 0, 1024, 0, 0);
 
 	psmouse->protocol_handler = lifebook_process_byte;
 	psmouse->set_resolution = lifebook_set_resolution;

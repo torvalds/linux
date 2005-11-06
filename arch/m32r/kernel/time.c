@@ -39,10 +39,6 @@ extern void send_IPI_allbutself(int, int);
 extern void smp_local_timer_interrupt(struct pt_regs *);
 #endif
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 extern unsigned long wall_jiffies;
 #define TICK_SIZE	(tick_nsec / 1000)
 
@@ -171,10 +167,7 @@ int do_settimeofday(struct timespec *tv)
 	set_normalized_timespec(&xtime, sec, nsec);
 	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
 
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();
 
@@ -221,7 +214,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * called as close as possible to 500 ms before the new second starts.
 	 */
 	write_seqlock(&xtime_lock);
-	if ((time_status & STA_UNSYNC) == 0
+	if (ntp_synced()
 		&& xtime.tv_sec > last_rtc_update + 660
 		&& (xtime.tv_nsec / 1000) >= 500000 - ((unsigned)TICK_SIZE) / 2
 		&& (xtime.tv_nsec / 1000) <= 500000 + ((unsigned)TICK_SIZE) / 2)

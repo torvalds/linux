@@ -22,6 +22,27 @@ pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
 	region->end = res->end;
 }
 
+static inline void
+pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
+			struct pci_bus_region *region)
+{
+	res->start = region->start;
+	res->end = region->end;
+}
+
+static inline struct resource *
+pcibios_select_root(struct pci_dev *pdev, struct resource *res)
+{
+	struct resource *root = NULL;
+
+	if (res->flags & IORESOURCE_IO)
+		root = &ioport_resource;
+	if (res->flags & IORESOURCE_MEM)
+		root = &iomem_resource;
+
+	return root;
+}
+
 #define pcibios_scan_all_fns(a, b)	0
 
 #ifndef HAVE_ARCH_PCI_GET_LEGACY_IDE_IRQ

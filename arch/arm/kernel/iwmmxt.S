@@ -17,7 +17,7 @@
 #include <linux/linkage.h>
 #include <asm/ptrace.h>
 #include <asm/thread_info.h>
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
 
 #define MMX_WR0		 	(0x00)
 #define MMX_WR1		 	(0x08)

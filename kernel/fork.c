@@ -35,6 +35,7 @@
 #include <linux/syscalls.h>
 #include <linux/jiffies.h>
 #include <linux/futex.h>
+#include <linux/rcupdate.h>
 #include <linux/ptrace.h>
 #include <linux/mount.h>
 #include <linux/audit.h>
@@ -176,41 +177,42 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 
 	/* One for us, one for whoever does the "release_task()" (usually parent) */
 	atomic_set(&tsk->usage,2);
+	atomic_set(&tsk->fs_excl, 0);
 	return tsk;
 }
 
 #ifdef CONFIG_MMU
-static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
+static inline int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 {
-	struct vm_area_struct * mpnt, *tmp, **pprev;
+	struct vm_area_struct *mpnt, *tmp, **pprev;
 	struct rb_node **rb_link, *rb_parent;
 	int retval;
 	unsigned long charge;
 	struct mempolicy *pol;
 
 	down_write(&oldmm->mmap_sem);
-	flush_cache_mm(current->mm);
+	flush_cache_mm(oldmm);
+	down_write(&mm->mmap_sem);
+
 	mm->locked_vm = 0;
 	mm->mmap = NULL;
 	mm->mmap_cache = NULL;
 	mm->free_area_cache = oldmm->mmap_base;
 	mm->cached_hole_size = ~0UL;
 	mm->map_count = 0;
-	set_mm_counter(mm, rss, 0);
-	set_mm_counter(mm, anon_rss, 0);
 	cpus_clear(mm->cpu_vm_mask);
 	mm->mm_rb = RB_ROOT;
 	rb_link = &mm->mm_rb.rb_node;
 	rb_parent = NULL;
 	pprev = &mm->mmap;
 
-	for (mpnt = current->mm->mmap ; mpnt ; mpnt = mpnt->vm_next) {
+	for (mpnt = oldmm->mmap; mpnt; mpnt = mpnt->vm_next) {
 		struct file *file;
 
 		if (mpnt->vm_flags & VM_DONTCOPY) {
 			long pages = vma_pages(mpnt);
 			mm->total_vm -= pages;
-			__vm_stat_account(mm, mpnt->vm_flags, mpnt->vm_file,
+			vm_stat_account(mm, mpnt->vm_flags, mpnt->vm_file,
 								-pages);
 			continue;
 		}
@@ -251,12 +253,8 @@ static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
 		}
 
 		/*
-		 * Link in the new vma and copy the page table entries:
-		 * link in first so that swapoff can see swap entries.
-		 * Note that, exceptionally, here the vma is inserted
-		 * without holding mm->mmap_sem.
+		 * Link in the new vma and copy the page table entries.
 		 */
-		spin_lock(&mm->page_table_lock);
 		*pprev = tmp;
 		pprev = &tmp->vm_next;
 
@@ -265,8 +263,7 @@ static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
 		rb_parent = &tmp->vm_rb;
 
 		mm->map_count++;
-		retval = copy_page_range(mm, current->mm, tmp);
-		spin_unlock(&mm->page_table_lock);
+		retval = copy_page_range(mm, oldmm, tmp);
 
 		if (tmp->vm_ops && tmp->vm_ops->open)
 			tmp->vm_ops->open(tmp);
@@ -275,9 +272,9 @@ static inline int dup_mmap(struct mm_struct * mm, struct mm_struct * oldmm)
 			goto out;
 	}
 	retval = 0;
-
 out:
-	flush_tlb_mm(current->mm);
+	up_write(&mm->mmap_sem);
+	flush_tlb_mm(oldmm);
 	up_write(&oldmm->mmap_sem);
 	return retval;
 fail_nomem_policy:
@@ -321,6 +318,8 @@ static struct mm_struct * mm_init(struct mm_struct * mm)
 	INIT_LIST_HEAD(&mm->mmlist);
 	mm->core_waiters = 0;
 	mm->nr_ptes = 0;
+	set_mm_counter(mm, file_rss, 0);
+	set_mm_counter(mm, anon_rss, 0);
 	spin_lock_init(&mm->page_table_lock);
 	rwlock_init(&mm->ioctx_list_lock);
 	mm->ioctx_list = NULL;
@@ -497,7 +496,7 @@ static int copy_mm(unsigned long clone_flags, struct task_struct * tsk)
 	if (retval)
 		goto free_pt;
 
-	mm->hiwater_rss = get_mm_counter(mm,rss);
+	mm->hiwater_rss = get_mm_rss(mm);
 	mm->hiwater_vm = mm->total_vm;
 
 good_mm:
@@ -564,17 +563,45 @@ static inline int copy_fs(unsigned long clone_flags, struct task_struct * tsk)
 	return 0;
 }
 
-static int count_open_files(struct files_struct *files, int size)
+static int count_open_files(struct fdtable *fdt)
 {
+	int size = fdt->max_fdset;
 	int i;
 
 	/* Find the last open fd */
 	for (i = size/(8*sizeof(long)); i > 0; ) {
-		if (files->open_fds->fds_bits[--i])
+		if (fdt->open_fds->fds_bits[--i])
 			break;
 	}
 	i = (i+1) * 8 * sizeof(long);
 	return i;
+}
+
+static struct files_struct *alloc_files(void)
+{
+	struct files_struct *newf;
+	struct fdtable *fdt;
+
+	newf = kmem_cache_alloc(files_cachep, SLAB_KERNEL);
+	if (!newf)
+		goto out;
+
+	atomic_set(&newf->count, 1);
+
+	spin_lock_init(&newf->file_lock);
+	fdt = &newf->fdtab;
+	fdt->next_fd = 0;
+	fdt->max_fds = NR_OPEN_DEFAULT;
+	fdt->max_fdset = __FD_SETSIZE;
+	fdt->close_on_exec = &newf->close_on_exec_init;
+	fdt->open_fds = &newf->open_fds_init;
+	fdt->fd = &newf->fd_array[0];
+	INIT_RCU_HEAD(&fdt->rcu);
+	fdt->free_files = NULL;
+	fdt->next = NULL;
+	rcu_assign_pointer(newf->fdt, fdt);
+out:
+	return newf;
 }
 
 static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
@@ -582,6 +609,7 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
 	struct files_struct *oldf, *newf;
 	struct file **old_fds, **new_fds;
 	int open_files, size, i, error = 0, expand;
+	struct fdtable *old_fdt, *new_fdt;
 
 	/*
 	 * A background process may not have any files ...
@@ -602,35 +630,27 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
 	 */
 	tsk->files = NULL;
 	error = -ENOMEM;
-	newf = kmem_cache_alloc(files_cachep, SLAB_KERNEL);
-	if (!newf) 
+	newf = alloc_files();
+	if (!newf)
 		goto out;
 
-	atomic_set(&newf->count, 1);
-
-	spin_lock_init(&newf->file_lock);
-	newf->next_fd	    = 0;
-	newf->max_fds	    = NR_OPEN_DEFAULT;
-	newf->max_fdset	    = __FD_SETSIZE;
-	newf->close_on_exec = &newf->close_on_exec_init;
-	newf->open_fds	    = &newf->open_fds_init;
-	newf->fd	    = &newf->fd_array[0];
-
 	spin_lock(&oldf->file_lock);
-
-	open_files = count_open_files(oldf, oldf->max_fdset);
+	old_fdt = files_fdtable(oldf);
+	new_fdt = files_fdtable(newf);
+	size = old_fdt->max_fdset;
+	open_files = count_open_files(old_fdt);
 	expand = 0;
 
 	/*
 	 * Check whether we need to allocate a larger fd array or fd set.
 	 * Note: we're not a clone task, so the open count won't  change.
 	 */
-	if (open_files > newf->max_fdset) {
-		newf->max_fdset = 0;
+	if (open_files > new_fdt->max_fdset) {
+		new_fdt->max_fdset = 0;
 		expand = 1;
 	}
-	if (open_files > newf->max_fds) {
-		newf->max_fds = 0;
+	if (open_files > new_fdt->max_fds) {
+		new_fdt->max_fds = 0;
 		expand = 1;
 	}
 
@@ -642,14 +662,21 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
 		spin_unlock(&newf->file_lock);
 		if (error < 0)
 			goto out_release;
+		new_fdt = files_fdtable(newf);
+		/*
+		 * Reacquire the oldf lock and a pointer to its fd table
+		 * who knows it may have a new bigger fd table. We need
+		 * the latest pointer.
+		 */
 		spin_lock(&oldf->file_lock);
+		old_fdt = files_fdtable(oldf);
 	}
 
-	old_fds = oldf->fd;
-	new_fds = newf->fd;
+	old_fds = old_fdt->fd;
+	new_fds = new_fdt->fd;
 
-	memcpy(newf->open_fds->fds_bits, oldf->open_fds->fds_bits, open_files/8);
-	memcpy(newf->close_on_exec->fds_bits, oldf->close_on_exec->fds_bits, open_files/8);
+	memcpy(new_fdt->open_fds->fds_bits, old_fdt->open_fds->fds_bits, open_files/8);
+	memcpy(new_fdt->close_on_exec->fds_bits, old_fdt->close_on_exec->fds_bits, open_files/8);
 
 	for (i = open_files; i != 0; i--) {
 		struct file *f = *old_fds++;
@@ -662,24 +689,24 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
 			 * is partway through open().  So make sure that this
 			 * fd is available to the new process.
 			 */
-			FD_CLR(open_files - i, newf->open_fds);
+			FD_CLR(open_files - i, new_fdt->open_fds);
 		}
-		*new_fds++ = f;
+		rcu_assign_pointer(*new_fds++, f);
 	}
 	spin_unlock(&oldf->file_lock);
 
 	/* compute the remainder to be cleared */
-	size = (newf->max_fds - open_files) * sizeof(struct file *);
+	size = (new_fdt->max_fds - open_files) * sizeof(struct file *);
 
 	/* This is long word aligned thus could use a optimized version */ 
 	memset(new_fds, 0, size); 
 
-	if (newf->max_fdset > open_files) {
-		int left = (newf->max_fdset-open_files)/8;
+	if (new_fdt->max_fdset > open_files) {
+		int left = (new_fdt->max_fdset-open_files)/8;
 		int start = open_files / (8 * sizeof(unsigned long));
 
-		memset(&newf->open_fds->fds_bits[start], 0, left);
-		memset(&newf->close_on_exec->fds_bits[start], 0, left);
+		memset(&new_fdt->open_fds->fds_bits[start], 0, left);
+		memset(&new_fdt->close_on_exec->fds_bits[start], 0, left);
 	}
 
 	tsk->files = newf;
@@ -688,9 +715,9 @@ out:
 	return error;
 
 out_release:
-	free_fdset (newf->close_on_exec, newf->max_fdset);
-	free_fdset (newf->open_fds, newf->max_fdset);
-	free_fd_array(newf->fd, newf->max_fds);
+	free_fdset (new_fdt->close_on_exec, new_fdt->max_fdset);
+	free_fdset (new_fdt->open_fds, new_fdt->max_fdset);
+	free_fd_array(new_fdt->fd, new_fdt->max_fds);
 	kmem_cache_free(files_cachep, newf);
 	goto out;
 }
@@ -818,7 +845,7 @@ static inline void copy_flags(unsigned long clone_flags, struct task_struct *p)
 {
 	unsigned long new_flags = p->flags;
 
-	new_flags &= ~PF_SUPERPRIV;
+	new_flags &= ~(PF_SUPERPRIV | PF_NOFREEZE);
 	new_flags |= PF_FORKNOEXEC;
 	if (!(clone_flags & CLONE_PTRACE))
 		p->ptrace = 0;
@@ -994,6 +1021,9 @@ static task_t *copy_process(unsigned long clone_flags,
 	 * of CLONE_PTRACE.
 	 */
 	clear_tsk_thread_flag(p, TIF_SYSCALL_TRACE);
+#ifdef TIF_SYSCALL_EMU
+	clear_tsk_thread_flag(p, TIF_SYSCALL_EMU);
+#endif
 
 	/* Our parent execution domain becomes current domain
 	   These must match for thread signalling to apply */
@@ -1029,7 +1059,8 @@ static task_t *copy_process(unsigned long clone_flags,
 	 * parent's CPU). This avoids alot of nasty races.
 	 */
 	p->cpus_allowed = current->cpus_allowed;
-	if (unlikely(!cpu_isset(task_cpu(p), p->cpus_allowed)))
+	if (unlikely(!cpu_isset(task_cpu(p), p->cpus_allowed) ||
+			!cpu_online(task_cpu(p))))
 		set_task_cpu(p, smp_processor_id());
 
 	/*
@@ -1111,6 +1142,9 @@ static task_t *copy_process(unsigned long clone_flags,
 		if (p->pid)
 			__get_cpu_var(process_counts)++;
 	}
+
+	if (!current->signal->tty && p->signal->tty)
+		p->signal->tty = NULL;
 
 	nr_threads++;
 	total_forks++;

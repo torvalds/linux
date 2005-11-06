@@ -58,7 +58,7 @@ static int snd_seq_iwffff_copy_env_from_stream(__u32 req_stype,
 					       iwffff_xenv_t *ex,
 					       char __user **data,
 					       long *len,
-					       unsigned int __nocast gfp_mask)
+					       gfp_t gfp_mask)
 {
 	__u32 stype;
 	iwffff_env_record_t *rp, *rp_last;
@@ -92,7 +92,7 @@ static int snd_seq_iwffff_copy_env_from_stream(__u32 req_stype,
 		points_size = (le16_to_cpu(rx.nattack) + le16_to_cpu(rx.nrelease)) * 2 * sizeof(__u16);
 		if (points_size > *len)
 			return -EINVAL;
-		rp = kcalloc(1, sizeof(*rp) + points_size, gfp_mask);
+		rp = kzalloc(sizeof(*rp) + points_size, gfp_mask);
 		if (rp == NULL)
 			return -ENOMEM;
 		rp->nattack = le16_to_cpu(rx.nattack);
@@ -129,7 +129,7 @@ static int snd_seq_iwffff_copy_wave_from_stream(snd_iwffff_ops_t *ops,
 	iwffff_wave_t *wp, *prev;
 	iwffff_xwave_t xp;
 	int err;
-	unsigned int gfp_mask;
+	gfp_t gfp_mask;
 	unsigned int real_size;
 	
 	gfp_mask = atomic ? GFP_ATOMIC : GFP_KERNEL;
@@ -139,7 +139,7 @@ static int snd_seq_iwffff_copy_wave_from_stream(snd_iwffff_ops_t *ops,
 		return -EFAULT;
 	*data += sizeof(xp);
 	*len -= sizeof(xp);
-	wp = kcalloc(1, sizeof(*wp), gfp_mask);
+	wp = kzalloc(sizeof(*wp), gfp_mask);
 	if (wp == NULL)
 		return -ENOMEM;
 	wp->share_id[0] = le32_to_cpu(xp.share_id[0]);
@@ -236,7 +236,7 @@ static int snd_seq_iwffff_put(void *private_data, snd_seq_kinstr_t *instr,
 	iwffff_layer_t *lp, *prev_lp;
 	iwffff_xlayer_t lx;
 	int err;
-	unsigned int gfp_mask;
+	gfp_t gfp_mask;
 
 	if (cmd != SNDRV_SEQ_INSTR_PUT_CMD_CREATE)
 		return -EINVAL;
@@ -273,7 +273,7 @@ static int snd_seq_iwffff_put(void *private_data, snd_seq_kinstr_t *instr,
 			snd_seq_iwffff_instr_free(ops, ip, atomic);
 			return -EINVAL;
 		}
-		lp = kcalloc(1, sizeof(*lp), gfp_mask);
+		lp = kzalloc(sizeof(*lp), gfp_mask);
 		if (lp == NULL) {
 			snd_seq_iwffff_instr_free(ops, ip, atomic);
 			return -ENOMEM;

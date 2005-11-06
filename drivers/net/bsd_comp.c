@@ -323,33 +323,27 @@ static void bsd_reset (void *state)
  */
 
 static void bsd_free (void *state)
-  {
-    struct bsd_db *db = (struct bsd_db *) state;
+{
+	struct bsd_db *db = state;
     
-    if (db)
-      {
+	if (!db)
+		return;
+
 /*
  * Release the dictionary
  */
-	if (db->dict)
-	  {
-	    vfree (db->dict);
-	    db->dict = NULL;
-	  }
+	vfree(db->dict);
+	db->dict = NULL;
 /*
  * Release the string buffer
  */
-	if (db->lens)
-	  {
-	    vfree (db->lens);
-	    db->lens = NULL;
-	  }
+	vfree(db->lens);
+	db->lens = NULL;
 /*
  * Finally release the structure itself.
  */
-	kfree (db);
-      }
-  }
+	kfree(db);
+}
 
 /*
  * Allocate space for a (de) compressor.

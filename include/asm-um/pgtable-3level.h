@@ -57,35 +57,6 @@ static inline int pgd_newpage(pgd_t pgd)
 
 static inline void pgd_mkuptodate(pgd_t pgd) { pgd_val(pgd) &= ~_PAGE_NEWPAGE; }
 
-
-#define pte_present(x)	pte_get_bits(x, (_PAGE_PRESENT | _PAGE_PROTNONE))
-
-static inline pte_t pte_mknewprot(pte_t pte)
-{
-        pte_set_bits(pte, _PAGE_NEWPROT);
-	return(pte);
-}
-
-static inline pte_t pte_mknewpage(pte_t pte)
-{
-	pte_set_bits(pte, _PAGE_NEWPAGE);
-	return(pte);
-}
-
-static inline void set_pte(pte_t *pteptr, pte_t pteval)
-{
-	pte_copy(*pteptr, pteval);
-
-	/* If it's a swap entry, it needs to be marked _PAGE_NEWPAGE so
-	 * fix_range knows to unmap it.  _PAGE_NEWPROT is specific to
-	 * mapped pages.
-	 */
-
-	*pteptr = pte_mknewpage(*pteptr);
-	if(pte_present(*pteptr)) *pteptr = pte_mknewprot(*pteptr);
-}
-#define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
-
 #define set_pmd(pmdptr, pmdval) set_64bit((phys_t *) (pmdptr), pmd_val(pmdval))
 
 static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
@@ -98,13 +69,10 @@ static inline pmd_t *pmd_alloc_one(struct mm_struct *mm, unsigned long address)
         return pmd;
 }
 
-static inline void pmd_free(pmd_t *pmd){
-	free_page((unsigned long) pmd);
+extern inline void pud_clear (pud_t *pud)
+{
+        set_pud(pud, __pud(0));
 }
-
-#define __pmd_free_tlb(tlb,x)   do { } while (0)
-
-static inline void pud_clear (pud_t * pud) { }
 
 #define pud_page(pud) \
 	((struct page *) __va(pud_val(pud) & PAGE_MASK))
@@ -112,13 +80,6 @@ static inline void pud_clear (pud_t * pud) { }
 /* Find an entry in the second-level page table.. */
 #define pmd_offset(pud, address) ((pmd_t *) pud_page(*(pud)) + \
 			pmd_index(address))
-
-#define pte_page(x) pfn_to_page(pte_pfn(x))
-
-static inline int pte_none(pte_t pte)
-{
-	return pte_is_zero(pte);
-}
 
 static inline unsigned long pte_pfn(pte_t pte)
 {

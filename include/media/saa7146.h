@@ -1,7 +1,6 @@
 #ifndef __SAA7146__
 #define __SAA7146__
 
-#include <linux/version.h>	/* for version macros */
 #include <linux/module.h>	/* for module-version */
 #include <linux/delay.h>	/* for delay-stuff */
 #include <linux/slab.h>		/* for kmalloc/kfree */
@@ -15,12 +14,7 @@
 #include <linux/vmalloc.h>	/* for vmalloc() */
 #include <linux/mm.h>		/* for vmalloc_to_page() */
 
-/* ugly, but necessary to build the dvb stuff under 2.4. */
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,51)
-	#include "dvb_functions.h"
-#endif
-
-#define SAA7146_VERSION_CODE KERNEL_VERSION(0,5,0)
+#define SAA7146_VERSION_CODE 0x000500   /* 0.5.0 */
 
 #define saa7146_write(sxy,adr,dat)    writel((dat),(sxy->mem+(adr)))
 #define saa7146_read(sxy,adr)         readl(sxy->mem+(adr))
@@ -33,13 +27,8 @@ extern unsigned int saa7146_debug;
 	#define DEBUG_VARIABLE saa7146_debug
 #endif
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,51)
-#define DEBUG_PROLOG printk("%s: %s(): ",__stringify(KBUILD_BASENAME),__FUNCTION__)
-#define INFO(x) { printk("%s: ",__stringify(KBUILD_BASENAME)); printk x; }
-#else
 #define DEBUG_PROLOG printk("%s: %s(): ",__stringify(KBUILD_MODNAME),__FUNCTION__)
 #define INFO(x) { printk("%s: ",__stringify(KBUILD_MODNAME)); printk x; }
-#endif
 
 #define ERR(x) { DEBUG_PROLOG; printk x; }
 

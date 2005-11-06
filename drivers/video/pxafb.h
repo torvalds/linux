@@ -83,6 +83,8 @@ struct pxafb_info {
 	u_int			reg_lccr2;
 	u_int			reg_lccr3;
 
+	unsigned long	hsync_time;
+
 	volatile u_char		state;
 	volatile u_char		task_state;
 	struct semaphore	ctrlr_sem;
@@ -110,15 +112,6 @@ struct pxafb_info {
 #define C_STARTUP		(7)
 
 #define PXA_NAME	"PXA"
-
-/*
- *  Debug macros
- */
-#if DEBUG
-#  define DPRINTK(fmt, args...)	printk("%s: " fmt, __FUNCTION__ , ## args)
-#else
-#  define DPRINTK(fmt, args...)
-#endif
 
 /*
  * Minimum X and Y resolutions

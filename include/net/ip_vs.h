@@ -84,6 +84,7 @@
 #define IP_VS_CONN_F_IN_SEQ	0x0400		/* must do input seq adjust */
 #define IP_VS_CONN_F_SEQ_MASK	0x0600		/* in/out sequence mask */
 #define IP_VS_CONN_F_NO_CPORT	0x0800		/* no client port set yet */
+#define IP_VS_CONN_F_TEMPLATE	0x1000		/* template, not connection */
 
 /* Move it to better place one day, for now keep it unique */
 #define NFC_IPVS_PROPERTY	0x10000
@@ -255,7 +256,6 @@ struct ip_vs_daemon_user {
 #include <asm/atomic.h>                 /* for struct atomic_t */
 #include <linux/netdevice.h>		/* for struct neighbour */
 #include <net/dst.h>			/* for struct dst_entry */
-#include <net/tcp.h>
 #include <net/udp.h>
 #include <linux/compiler.h>
 
@@ -740,6 +740,8 @@ enum {
 
 extern struct ip_vs_conn *ip_vs_conn_in_get
 (int protocol, __u32 s_addr, __u16 s_port, __u32 d_addr, __u16 d_port);
+extern struct ip_vs_conn *ip_vs_ct_in_get
+(int protocol, __u32 s_addr, __u16 s_port, __u32 d_addr, __u16 d_port);
 extern struct ip_vs_conn *ip_vs_conn_out_get
 (int protocol, __u32 s_addr, __u16 s_port, __u32 d_addr, __u16 d_port);
 
@@ -830,7 +832,7 @@ extern void ip_vs_app_inc_put(struct ip_vs_app *inc);
 
 extern int ip_vs_app_pkt_out(struct ip_vs_conn *, struct sk_buff **pskb);
 extern int ip_vs_app_pkt_in(struct ip_vs_conn *, struct sk_buff **pskb);
-extern int ip_vs_skb_replace(struct sk_buff *skb, int pri,
+extern int ip_vs_skb_replace(struct sk_buff *skb, gfp_t pri,
 			     char *o_buf, int o_len, char *n_buf, int n_len);
 extern int ip_vs_app_init(void);
 extern void ip_vs_app_cleanup(void);
@@ -959,7 +961,7 @@ static __inline__ int ip_vs_todrop(void)
  */
 #define IP_VS_FWD_METHOD(cp)  (cp->flags & IP_VS_CONN_F_FWD_MASK)
 
-extern __inline__ char ip_vs_fwd_tag(struct ip_vs_conn *cp)
+static inline char ip_vs_fwd_tag(struct ip_vs_conn *cp)
 {
 	char fwd;
 

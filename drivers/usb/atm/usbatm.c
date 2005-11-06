@@ -960,7 +960,7 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 			intf->altsetting->desc.bInterfaceNumber);
 
 	/* instance init */
-	instance = kcalloc(1, sizeof(*instance) + sizeof(struct urb *) * (num_rcv_urbs + num_snd_urbs), GFP_KERNEL);
+	instance = kzalloc(sizeof(*instance) + sizeof(struct urb *) * (num_rcv_urbs + num_snd_urbs), GFP_KERNEL);
 	if (!instance) {
 		dev_dbg(dev, "%s: no memory for instance data!\n", __func__);
 		return -ENOMEM;

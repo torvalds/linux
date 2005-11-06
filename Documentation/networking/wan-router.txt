@@ -355,7 +355,7 @@ REVISION HISTORY
 				There is no functional difference between the two packages         
 
 2.0.7   Aug 26, 1999		o  Merged X25API code into WANPIPE.
-				o  Fixed a memeory leak for X25API
+				o  Fixed a memory leak for X25API
 				o  Updated the X25API code for 2.2.X kernels.
 				o  Improved NEM handling.   
 
@@ -514,7 +514,7 @@ beta2-2.2.0	Jan 8 2001
 				o Patches for 2.4.0 kernel
 				o Patches for 2.2.18 kernel
 				o Minor updates to PPP and CHLDC drivers.
-				  Note: No functinal difference. 
+				  Note: No functional difference.
 
 beta3-2.2.9	Jan 10 2001
 				o I missed the 2.2.18 kernel patches in beta2-2.2.0

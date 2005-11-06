@@ -497,8 +497,8 @@ static void pcic_map_pci_device(struct linux_pcic *pcic,
 				 * CheerIO makes a similar conversion.
 				 * See ebus.c for details.
 				 *
-				 * Note that check_region()/request_region()
-				 * work for these devices.
+				 * Note that request_region()
+				 * works for these devices.
 				 *
 				 * XXX Neat trick, but it's a *bad* idea
 				 * to shit into regions like that.
@@ -840,10 +840,7 @@ static int pci_do_settimeofday(struct timespec *tv)
 
 	xtime.tv_sec = tv->tv_sec;
 	xtime.tv_nsec = tv->tv_nsec;
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 	return 0;
 }
 

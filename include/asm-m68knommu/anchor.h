@@ -14,7 +14,7 @@
 /*
  *	Define basic addressing info.
  */
-#if defined(CONFIG_MOTOROLA) && defined(CONFIG_M5407)
+#if defined(CONFIG_M5407C3)
 #define	COMEM_BASE	0xFFFF0000	/* Base of CO-MEM address space */
 #define	COMEM_IRQ	25		/* IRQ of anchor part */
 #else
@@ -96,7 +96,7 @@
  *	The PCI bus will be limited in what slots will actually be used.
  *	Define valid device numbers for different boards.
  */
-#if defined(CONFIG_MOTOROLA) && defined(CONFIG_M5407)
+#if defined(CONFIG_M5407C3)
 #define	COMEM_MINDEV	14		/* Minimum valid DEVICE */
 #define	COMEM_MAXDEV	14		/* Maximum valid DEVICE */
 #define	COMEM_BRIDGEDEV	15		/* Slot bridge is in */

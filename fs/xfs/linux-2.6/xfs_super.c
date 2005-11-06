@@ -1,60 +1,45 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_clnt.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_alloc.h"
 #include "xfs_dmapi.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_btree.h"
+#include "xfs_ialloc.h"
 #include "xfs_bmap.h"
-#include "xfs_bit.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_itable.h"
@@ -70,11 +55,15 @@
 #include <linux/namei.h>
 #include <linux/init.h>
 #include <linux/mount.h>
+#include <linux/mempool.h>
 #include <linux/writeback.h>
+#include <linux/kthread.h>
 
 STATIC struct quotactl_ops linvfs_qops;
 STATIC struct super_operations linvfs_sops;
-STATIC kmem_zone_t *linvfs_inode_zone;
+STATIC kmem_zone_t *xfs_vnode_zone;
+STATIC kmem_zone_t *xfs_ioend_zone;
+mempool_t *xfs_ioend_pool;
 
 STATIC struct xfs_mount_args *
 xfs_args_allocate(
@@ -138,24 +127,25 @@ STATIC __inline__ void
 xfs_set_inodeops(
 	struct inode		*inode)
 {
-	vnode_t			*vp = LINVFS_GET_VP(inode);
-
-	if (vp->v_type == VNON) {
-		vn_mark_bad(vp);
-	} else if (S_ISREG(inode->i_mode)) {
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFREG:
 		inode->i_op = &linvfs_file_inode_operations;
 		inode->i_fop = &linvfs_file_operations;
 		inode->i_mapping->a_ops = &linvfs_aops;
-	} else if (S_ISDIR(inode->i_mode)) {
+		break;
+	case S_IFDIR:
 		inode->i_op = &linvfs_dir_inode_operations;
 		inode->i_fop = &linvfs_dir_operations;
-	} else if (S_ISLNK(inode->i_mode)) {
+		break;
+	case S_IFLNK:
 		inode->i_op = &linvfs_symlink_inode_operations;
 		if (inode->i_blocks)
 			inode->i_mapping->a_ops = &linvfs_aops;
-	} else {
+		break;
+	default:
 		inode->i_op = &linvfs_file_inode_operations;
 		init_special_inode(inode, inode->i_mode, inode->i_rdev);
+		break;
 	}
 }
 
@@ -167,17 +157,24 @@ xfs_revalidate_inode(
 {
 	struct inode		*inode = LINVFS_GET_IP(vp);
 
-	inode->i_mode	= (ip->i_d.di_mode & MODEMASK) | VTTOIF(vp->v_type);
+	inode->i_mode	= ip->i_d.di_mode;
 	inode->i_nlink	= ip->i_d.di_nlink;
 	inode->i_uid	= ip->i_d.di_uid;
 	inode->i_gid	= ip->i_d.di_gid;
-	if (((1 << vp->v_type) & ((1<<VBLK) | (1<<VCHR))) == 0) {
+
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFBLK:
+	case S_IFCHR:
+		inode->i_rdev =
+			MKDEV(sysv_major(ip->i_df.if_u2.if_rdev) & 0x1ff,
+			      sysv_minor(ip->i_df.if_u2.if_rdev));
+		break;
+	default:
 		inode->i_rdev = 0;
-	} else {
-		xfs_dev_t dev = ip->i_df.if_u2.if_rdev;
-		inode->i_rdev = MKDEV(sysv_major(dev) & 0x1ff, sysv_minor(dev));
+		break;
 	}
-	inode->i_blksize = PAGE_CACHE_SIZE;
+
+	inode->i_blksize = xfs_preferred_iosize(mp);
 	inode->i_generation = ip->i_d.di_gen;
 	i_size_write(inode, ip->i_d.di_size);
 	inode->i_blocks =
@@ -231,7 +228,6 @@ xfs_initialize_vnode(
 	 * finish our work.
 	 */
 	if (ip->i_d.di_mode != 0 && unlock && (inode->i_state & I_NEW)) {
-		vp->v_type = IFTOVT(ip->i_d.di_mode);
 		xfs_revalidate_inode(XFS_BHVTOM(bdp), vp, ip);
 		xfs_set_inodeops(inode);
 	
@@ -267,6 +263,72 @@ xfs_blkdev_put(
 		close_bdev_excl(bdev);
 }
 
+/*
+ * Try to write out the superblock using barriers.
+ */
+STATIC int
+xfs_barrier_test(
+	xfs_mount_t	*mp)
+{
+	xfs_buf_t	*sbp = xfs_getsb(mp, 0);
+	int		error;
+
+	XFS_BUF_UNDONE(sbp);
+	XFS_BUF_UNREAD(sbp);
+	XFS_BUF_UNDELAYWRITE(sbp);
+	XFS_BUF_WRITE(sbp);
+	XFS_BUF_UNASYNC(sbp);
+	XFS_BUF_ORDERED(sbp);
+
+	xfsbdstrat(mp, sbp);
+	error = xfs_iowait(sbp);
+
+	/*
+	 * Clear all the flags we set and possible error state in the
+	 * buffer.  We only did the write to try out whether barriers
+	 * worked and shouldn't leave any traces in the superblock
+	 * buffer.
+	 */
+	XFS_BUF_DONE(sbp);
+	XFS_BUF_ERROR(sbp, 0);
+	XFS_BUF_UNORDERED(sbp);
+
+	xfs_buf_relse(sbp);
+	return error;
+}
+
+void
+xfs_mountfs_check_barriers(xfs_mount_t *mp)
+{
+	int error;
+
+	if (mp->m_logdev_targp != mp->m_ddev_targp) {
+		xfs_fs_cmn_err(CE_NOTE, mp,
+		  "Disabling barriers, not supported with external log device");
+		mp->m_flags &= ~XFS_MOUNT_BARRIER;
+	}
+
+	if (mp->m_ddev_targp->pbr_bdev->bd_disk->queue->ordered ==
+					QUEUE_ORDERED_NONE) {
+		xfs_fs_cmn_err(CE_NOTE, mp,
+		  "Disabling barriers, not supported by the underlying device");
+		mp->m_flags &= ~XFS_MOUNT_BARRIER;
+	}
+
+	error = xfs_barrier_test(mp);
+	if (error) {
+		xfs_fs_cmn_err(CE_NOTE, mp,
+		  "Disabling barriers, trial barrier write failed");
+		mp->m_flags &= ~XFS_MOUNT_BARRIER;
+	}
+}
+
+void
+xfs_blkdev_issue_flush(
+	xfs_buftarg_t		*buftarg)
+{
+	blkdev_issue_flush(buftarg->pbr_bdev, NULL);
+}
 
 STATIC struct inode *
 linvfs_alloc_inode(
@@ -274,8 +336,7 @@ linvfs_alloc_inode(
 {
 	vnode_t			*vp;
 
-	vp = (vnode_t *)kmem_cache_alloc(linvfs_inode_zone, 
-                kmem_flags_convert(KM_SLEEP));
+	vp = kmem_cache_alloc(xfs_vnode_zone, kmem_flags_convert(KM_SLEEP));
 	if (!vp)
 		return NULL;
 	return LINVFS_GET_IP(vp);
@@ -285,11 +346,11 @@ STATIC void
 linvfs_destroy_inode(
 	struct inode		*inode)
 {
-	kmem_cache_free(linvfs_inode_zone, LINVFS_GET_VP(inode));
+	kmem_zone_free(xfs_vnode_zone, LINVFS_GET_VP(inode));
 }
 
 STATIC void
-init_once(
+linvfs_inode_init_once(
 	void			*data,
 	kmem_cache_t		*cachep,
 	unsigned long		flags)
@@ -302,21 +363,41 @@ init_once(
 }
 
 STATIC int
-init_inodecache( void )
+linvfs_init_zones(void)
 {
-	linvfs_inode_zone = kmem_cache_create("linvfs_icache",
+	xfs_vnode_zone = kmem_cache_create("xfs_vnode",
 				sizeof(vnode_t), 0, SLAB_RECLAIM_ACCOUNT,
-				init_once, NULL);
-	if (linvfs_inode_zone == NULL)
-		return -ENOMEM;
+				linvfs_inode_init_once, NULL);
+	if (!xfs_vnode_zone)
+		goto out;
+
+	xfs_ioend_zone = kmem_zone_init(sizeof(xfs_ioend_t), "xfs_ioend");
+	if (!xfs_ioend_zone)
+		goto out_destroy_vnode_zone;
+
+	xfs_ioend_pool = mempool_create(4 * MAX_BUF_PER_PAGE,
+			mempool_alloc_slab, mempool_free_slab,
+			xfs_ioend_zone);
+	if (!xfs_ioend_pool)
+		goto out_free_ioend_zone;
+
 	return 0;
+
+
+ out_free_ioend_zone:
+	kmem_zone_destroy(xfs_ioend_zone);
+ out_destroy_vnode_zone:
+	kmem_zone_destroy(xfs_vnode_zone);
+ out:
+	return -ENOMEM;
 }
 
 STATIC void
-destroy_inodecache( void )
+linvfs_destroy_zones(void)
 {
-	if (kmem_cache_destroy(linvfs_inode_zone))
-		printk(KERN_WARNING "%s: cache still in use!\n", __FUNCTION__);
+	mempool_destroy(xfs_ioend_pool);
+	kmem_zone_destroy(xfs_vnode_zone);
+	kmem_zone_destroy(xfs_ioend_zone);
 }
 
 /*
@@ -354,17 +435,38 @@ linvfs_clear_inode(
 	struct inode		*inode)
 {
 	vnode_t			*vp = LINVFS_GET_VP(inode);
+	int			error, cache;
 
-	if (vp) {
-		vn_rele(vp);
-		vn_trace_entry(vp, __FUNCTION__, (inst_t *)__return_address);
-		/*
-		 * Do all our cleanup, and remove this vnode.
-		 */
-		vn_remove(vp);
+	vn_trace_entry(vp, "clear_inode", (inst_t *)__return_address);
+
+	XFS_STATS_INC(vn_rele);
+	XFS_STATS_INC(vn_remove);
+	XFS_STATS_INC(vn_reclaim);
+	XFS_STATS_DEC(vn_active);
+
+	/*
+	 * This can happen because xfs_iget_core calls xfs_idestroy if we
+	 * find an inode with di_mode == 0 but without IGET_CREATE set.
+	 */
+	if (vp->v_fbhv)
+		VOP_INACTIVE(vp, NULL, cache);
+
+	VN_LOCK(vp);
+	vp->v_flag &= ~VMODIFIED;
+	VN_UNLOCK(vp, 0);
+
+	if (vp->v_fbhv) {
+		VOP_RECLAIM(vp, error);
+		if (error)
+			panic("vn_purge: cannot reclaim");
 	}
-}
 
+	ASSERT(vp->v_fbhv == NULL);
+
+#ifdef XFS_VNODE_TRACE
+	ktrace_free(vp->v_trace);
+#endif
+}
 
 /*
  * Enqueue a work item to be picked up by the vfs xfssyncd thread.
@@ -416,7 +518,7 @@ xfs_flush_inode(
 
 	igrab(inode);
 	xfs_syncd_queue_work(vfs, inode, xfs_flush_inode_work);
-	delay(HZ/2);
+	delay(msecs_to_jiffies(500));
 }
 
 /*
@@ -441,7 +543,7 @@ xfs_flush_device(
 
 	igrab(inode);
 	xfs_syncd_queue_work(vfs, inode, xfs_flush_device_work);
-	delay(HZ/2);
+	delay(msecs_to_jiffies(500));
 	xfs_log_force(ip->i_mount, (xfs_lsn_t)0, XFS_LOG_FORCE|XFS_LOG_SYNC);
 }
 
@@ -466,25 +568,15 @@ xfssyncd(
 {
 	long			timeleft;
 	vfs_t			*vfsp = (vfs_t *) arg;
-	struct list_head	tmp;
 	struct vfs_sync_work	*work, *n;
+	LIST_HEAD		(tmp);
 
-	daemonize("xfssyncd");
-
-	vfsp->vfs_sync_work.w_vfs = vfsp;
-	vfsp->vfs_sync_work.w_syncer = vfs_sync_worker;
-	vfsp->vfs_sync_task = current;
-	wmb();
-	wake_up(&vfsp->vfs_wait_sync_task);
-
-	INIT_LIST_HEAD(&tmp);
-	timeleft = (xfs_syncd_centisecs * HZ) / 100;
+	timeleft = xfs_syncd_centisecs * msecs_to_jiffies(10);
 	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		timeleft = schedule_timeout(timeleft);
+		timeleft = schedule_timeout_interruptible(timeleft);
 		/* swsusp */
 		try_to_freeze();
-		if (vfsp->vfs_flag & VFS_UMOUNT)
+		if (kthread_should_stop())
 			break;
 
 		spin_lock(&vfsp->vfs_sync_lock);
@@ -495,7 +587,8 @@ xfssyncd(
 		 */
 		if (!timeleft || list_empty(&vfsp->vfs_sync_list)) {
 			if (!timeleft)
-				timeleft = (xfs_syncd_centisecs * HZ) / 100;
+				timeleft = xfs_syncd_centisecs *
+							msecs_to_jiffies(10);
 			INIT_LIST_HEAD(&vfsp->vfs_sync_work.w_list);
 			list_add_tail(&vfsp->vfs_sync_work.w_list,
 					&vfsp->vfs_sync_list);
@@ -513,10 +606,6 @@ xfssyncd(
 		}
 	}
 
-	vfsp->vfs_sync_task = NULL;
-	wmb();
-	wake_up(&vfsp->vfs_wait_sync_task);
-
 	return 0;
 }
 
@@ -524,13 +613,11 @@ STATIC int
 linvfs_start_syncd(
 	vfs_t			*vfsp)
 {
-	int			pid;
-
-	pid = kernel_thread(xfssyncd, (void *) vfsp,
-			CLONE_VM | CLONE_FS | CLONE_FILES);
-	if (pid < 0)
-		return -pid;
-	wait_event(vfsp->vfs_wait_sync_task, vfsp->vfs_sync_task);
+	vfsp->vfs_sync_work.w_syncer = vfs_sync_worker;
+	vfsp->vfs_sync_work.w_vfs = vfsp;
+	vfsp->vfs_sync_task = kthread_run(xfssyncd, vfsp, "xfssyncd");
+	if (IS_ERR(vfsp->vfs_sync_task))
+		return -PTR_ERR(vfsp->vfs_sync_task);
 	return 0;
 }
 
@@ -538,11 +625,7 @@ STATIC void
 linvfs_stop_syncd(
 	vfs_t			*vfsp)
 {
-	vfsp->vfs_flag |= VFS_UMOUNT;
-	wmb();
-
-	wake_up_process(vfsp->vfs_sync_task);
-	wait_event(vfsp->vfs_wait_sync_task, !vfsp->vfs_sync_task);
+	kthread_stop(vfsp->vfs_sync_task);
 }
 
 STATIC void
@@ -666,6 +749,18 @@ linvfs_show_options(
 
 	VFS_SHOWARGS(vfsp, m, error);
 	return error;
+}
+
+STATIC int
+linvfs_quotasync(
+	struct super_block	*sb,
+	int			type)
+{
+	struct vfs		*vfsp = LINVFS_GET_VFS(sb);
+	int			error;
+
+	VFS_QUOTACTL(vfsp, Q_XQUOTASYNC, 0, (caddr_t)NULL, error);
+	return -error;
 }
 
 STATIC int
@@ -836,6 +931,7 @@ STATIC struct super_operations linvfs_sops = {
 };
 
 STATIC struct quotactl_ops linvfs_qops = {
+	.quota_sync		= linvfs_quotasync,
 	.get_xstate		= linvfs_getxstate,
 	.set_xstate		= linvfs_setxstate,
 	.get_xquota		= linvfs_getxquota,
@@ -866,9 +962,9 @@ init_xfs_fs( void )
 
 	ktrace_init(64);
 
-	error = init_inodecache();
+	error = linvfs_init_zones();
 	if (error < 0)
-		goto undo_inodecache;
+		goto undo_zones;
 
 	error = pagebuf_init();
 	if (error < 0)
@@ -889,9 +985,9 @@ undo_register:
 	pagebuf_terminate();
 
 undo_pagebuf:
-	destroy_inodecache();
+	linvfs_destroy_zones();
 
-undo_inodecache:
+undo_zones:
 	return error;
 }
 
@@ -903,7 +999,7 @@ exit_xfs_fs( void )
 	unregister_filesystem(&xfs_fs_type);
 	xfs_cleanup();
 	pagebuf_terminate();
-	destroy_inodecache();
+	linvfs_destroy_zones();
 	ktrace_uninit();
 }
 

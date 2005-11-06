@@ -62,7 +62,7 @@
 #define _COMPONENT              ACPI_HOTKEY_COMPONENT
 ACPI_MODULE_NAME("acpi_hotkey")
 
-MODULE_AUTHOR("luming.yu@intel.com");
+    MODULE_AUTHOR("luming.yu@intel.com");
 MODULE_DESCRIPTION(ACPI_HOTK_NAME);
 MODULE_LICENSE("GPL");
 
@@ -180,8 +180,8 @@ static int hotkey_config_seq_show(struct seq_file *seq, void *offset);
 static int hotkey_poll_config_seq_show(struct seq_file *seq, void *offset);
 static int hotkey_polling_open_fs(struct inode *inode, struct file *file);
 static union acpi_hotkey *get_hotkey_by_event(struct
-			      acpi_hotkey_list
-			      *hotkey_list, int event);
+					      acpi_hotkey_list
+					      *hotkey_list, int event);
 
 /* event based config */
 static struct file_operations hotkey_config_fops = {
@@ -246,7 +246,7 @@ static int hotkey_info_open_fs(struct inode *inode, struct file *file)
 static char *format_result(union acpi_object *object)
 {
 	char *buf = NULL;
-	
+
 	buf = (char *)kmalloc(RESULT_STR_LEN, GFP_KERNEL);
 	if (buf)
 		memset(buf, 0, RESULT_STR_LEN);
@@ -256,7 +256,7 @@ static char *format_result(union acpi_object *object)
 	/* Now, just support integer type */
 	if (object->type == ACPI_TYPE_INTEGER)
 		sprintf(buf, "%d\n", (u32) object->integer.value);
-do_fail:
+      do_fail:
 	return (buf);
 }
 
@@ -268,9 +268,9 @@ static int hotkey_polling_seq_show(struct seq_file *seq, void *offset)
 
 	ACPI_FUNCTION_TRACE("hotkey_polling_seq_show");
 
-	if (poll_hotkey->poll_result){
+	if (poll_hotkey->poll_result) {
 		buf = format_result(poll_hotkey->poll_result);
-		if(buf)
+		if (buf)
 			seq_printf(seq, "%s", buf);
 		kfree(buf);
 	}
@@ -299,7 +299,7 @@ static int hotkey_get_internal_event(int event, struct acpi_hotkey_list *list)
 		union acpi_hotkey *key =
 		    container_of(entries, union acpi_hotkey, entries);
 		if (key->link.hotkey_type == ACPI_HOTKEY_EVENT
-		    && key->event_hotkey.external_hotkey_num == event){
+		    && key->event_hotkey.external_hotkey_num == event) {
 			val = key->link.hotkey_standard_num;
 			break;
 		}
@@ -343,7 +343,7 @@ static int auto_hotkey_remove(struct acpi_device *device, int type)
 static int create_polling_proc(union acpi_hotkey *device)
 {
 	struct proc_dir_entry *proc;
-	char  proc_name[80];
+	char proc_name[80];
 	mode_t mode;
 
 	ACPI_FUNCTION_TRACE("create_polling_proc");
@@ -351,8 +351,8 @@ static int create_polling_proc(union acpi_hotkey *device)
 
 	sprintf(proc_name, "%d", device->link.hotkey_standard_num);
 	/*
-	strcat(proc_name, device->poll_hotkey.poll_method);
-	*/
+	   strcat(proc_name, device->poll_hotkey.poll_method);
+	 */
 	proc = create_proc_entry(proc_name, mode, hotkey_proc_dir);
 
 	if (!proc) {
@@ -415,50 +415,50 @@ static int hotkey_remove(union acpi_hotkey *device)
 	return_VALUE(0);
 }
 
-static int  hotkey_update(union acpi_hotkey *key)
+static int hotkey_update(union acpi_hotkey *key)
 {
 	struct list_head *entries;
 
 	ACPI_FUNCTION_TRACE("hotkey_update");
 
 	list_for_each(entries, global_hotkey_list.entries) {
-		union acpi_hotkey *tmp=
+		union acpi_hotkey *tmp =
 		    container_of(entries, union acpi_hotkey, entries);
 		if (tmp->link.hotkey_standard_num ==
 		    key->link.hotkey_standard_num) {
 			if (key->link.hotkey_type == ACPI_HOTKEY_EVENT) {
 				free_hotkey_buffer(tmp);
 				tmp->event_hotkey.bus_handle =
-			    		key->event_hotkey.bus_handle;
+				    key->event_hotkey.bus_handle;
 				tmp->event_hotkey.external_hotkey_num =
-			    		key->event_hotkey.external_hotkey_num;
+				    key->event_hotkey.external_hotkey_num;
 				tmp->event_hotkey.action_handle =
-			    		key->event_hotkey.action_handle;
+				    key->event_hotkey.action_handle;
 				tmp->event_hotkey.action_method =
-			    		key->event_hotkey.action_method;
+				    key->event_hotkey.action_method;
 				kfree(key);
 			} else {
 				/*
-				char  proc_name[80];
+				   char  proc_name[80];
 
-				sprintf(proc_name, "%d", tmp->link.hotkey_standard_num);
-				strcat(proc_name, tmp->poll_hotkey.poll_method);
-				remove_proc_entry(proc_name,hotkey_proc_dir);
-				*/
+				   sprintf(proc_name, "%d", tmp->link.hotkey_standard_num);
+				   strcat(proc_name, tmp->poll_hotkey.poll_method);
+				   remove_proc_entry(proc_name,hotkey_proc_dir);
+				 */
 				free_poll_hotkey_buffer(tmp);
 				tmp->poll_hotkey.poll_handle =
-					key->poll_hotkey.poll_handle;
+				    key->poll_hotkey.poll_handle;
 				tmp->poll_hotkey.poll_method =
-					key->poll_hotkey.poll_method;
+				    key->poll_hotkey.poll_method;
 				tmp->poll_hotkey.action_handle =
-					key->poll_hotkey.action_handle;
+				    key->poll_hotkey.action_handle;
 				tmp->poll_hotkey.action_method =
-					key->poll_hotkey.action_method;
+				    key->poll_hotkey.action_method;
 				tmp->poll_hotkey.poll_result =
-					key->poll_hotkey.poll_result;
+				    key->poll_hotkey.poll_result;
 				/*
-				create_polling_proc(tmp);
-				*/
+				   create_polling_proc(tmp);
+				 */
 				kfree(key);
 			}
 			return_VALUE(0);
@@ -483,27 +483,25 @@ static void free_hotkey_device(union acpi_hotkey *key)
 						   acpi_hotkey_notify_handler);
 		free_hotkey_buffer(key);
 	} else {
-		char  proc_name[80];
+		char proc_name[80];
 
 		sprintf(proc_name, "%d", key->link.hotkey_standard_num);
 		/*
-		strcat(proc_name, key->poll_hotkey.poll_method);
-		*/
-		remove_proc_entry(proc_name,hotkey_proc_dir);
+		   strcat(proc_name, key->poll_hotkey.poll_method);
+		 */
+		remove_proc_entry(proc_name, hotkey_proc_dir);
 		free_poll_hotkey_buffer(key);
 	}
 	kfree(key);
 	return_VOID;
 }
 
-static void
-free_hotkey_buffer(union acpi_hotkey *key)
+static void free_hotkey_buffer(union acpi_hotkey *key)
 {
 	kfree(key->event_hotkey.action_method);
 }
 
-static void
-free_poll_hotkey_buffer(union acpi_hotkey *key)
+static void free_poll_hotkey_buffer(union acpi_hotkey *key)
 {
 	kfree(key->poll_hotkey.action_method);
 	kfree(key->poll_hotkey.poll_method);
@@ -513,15 +511,15 @@ static int
 init_hotkey_device(union acpi_hotkey *key, char *bus_str, char *action_str,
 		   char *method, int std_num, int external_num)
 {
-	acpi_handle	tmp_handle;
+	acpi_handle tmp_handle;
 	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE("init_hotkey_device");
 
-	if(std_num < 0 || IS_POLL(std_num) || !key )
+	if (std_num < 0 || IS_POLL(std_num) || !key)
 		goto do_fail;
 
-	if(!bus_str || !action_str || !method)
+	if (!bus_str || !action_str || !method)
 		goto do_fail;
 
 	key->link.hotkey_type = ACPI_HOTKEY_EVENT;
@@ -529,19 +527,22 @@ init_hotkey_device(union acpi_hotkey *key, char *bus_str, char *action_str,
 	key->event_hotkey.flag = 0;
 	key->event_hotkey.action_method = method;
 
-	status = acpi_get_handle(NULL,bus_str, &(key->event_hotkey.bus_handle));
-	if(ACPI_FAILURE(status))
+	status =
+	    acpi_get_handle(NULL, bus_str, &(key->event_hotkey.bus_handle));
+	if (ACPI_FAILURE(status))
 		goto do_fail;
 	key->event_hotkey.external_hotkey_num = external_num;
-	status = acpi_get_handle(NULL,action_str, &(key->event_hotkey.action_handle));
-	if(ACPI_FAILURE(status))
+	status =
+	    acpi_get_handle(NULL, action_str,
+			    &(key->event_hotkey.action_handle));
+	if (ACPI_FAILURE(status))
 		goto do_fail;
 	status = acpi_get_handle(key->event_hotkey.action_handle,
-				method, &tmp_handle);
+				 method, &tmp_handle);
 	if (ACPI_FAILURE(status))
 		goto do_fail;
 	return_VALUE(AE_OK);
-do_fail:
+      do_fail:
 	return_VALUE(-ENODEV);
 }
 
@@ -552,14 +553,14 @@ init_poll_hotkey_device(union acpi_hotkey *key,
 			char *action_str, char *action_method, int std_num)
 {
 	acpi_status status = AE_OK;
-	acpi_handle	tmp_handle;
+	acpi_handle tmp_handle;
 
 	ACPI_FUNCTION_TRACE("init_poll_hotkey_device");
 
-	if(std_num < 0 || IS_EVENT(std_num) || !key)
+	if (std_num < 0 || IS_EVENT(std_num) || !key)
 		goto do_fail;
 
-	if(!poll_str || !poll_method || !action_str || !action_method)
+	if (!poll_str || !poll_method || !action_str || !action_method)
 		goto do_fail;
 
 	key->link.hotkey_type = ACPI_HOTKEY_POLLING;
@@ -568,29 +569,31 @@ init_poll_hotkey_device(union acpi_hotkey *key,
 	key->poll_hotkey.poll_method = poll_method;
 	key->poll_hotkey.action_method = action_method;
 
-	status = acpi_get_handle(NULL,poll_str, &(key->poll_hotkey.poll_handle));
-	if(ACPI_FAILURE(status))
+	status =
+	    acpi_get_handle(NULL, poll_str, &(key->poll_hotkey.poll_handle));
+	if (ACPI_FAILURE(status))
 		goto do_fail;
 	status = acpi_get_handle(key->poll_hotkey.poll_handle,
-				poll_method, &tmp_handle);
-        if (ACPI_FAILURE(status))
-       		goto do_fail;
-	status = acpi_get_handle(NULL,action_str, &(key->poll_hotkey.action_handle));
+				 poll_method, &tmp_handle);
+	if (ACPI_FAILURE(status))
+		goto do_fail;
+	status =
+	    acpi_get_handle(NULL, action_str,
+			    &(key->poll_hotkey.action_handle));
 	if (ACPI_FAILURE(status))
 		goto do_fail;
 	status = acpi_get_handle(key->poll_hotkey.action_handle,
-				action_method, &tmp_handle);
+				 action_method, &tmp_handle);
 	if (ACPI_FAILURE(status))
 		goto do_fail;
 	key->poll_hotkey.poll_result =
 	    (union acpi_object *)kmalloc(sizeof(union acpi_object), GFP_KERNEL);
-	if(!key->poll_hotkey.poll_result)
+	if (!key->poll_hotkey.poll_result)
 		goto do_fail;
 	return_VALUE(AE_OK);
-do_fail:
+      do_fail:
 	return_VALUE(-ENODEV);
 }
-
 
 static int hotkey_open_config(struct inode *inode, struct file *file)
 {
@@ -679,8 +682,9 @@ get_parms(char *config_record,
 
 	sscanf(config_record, "%d", cmd);
 
-	if(*cmd == 1){
-		if(sscanf(config_record, "%d:%d", cmd, internal_event_num)!=2)
+	if (*cmd == 1) {
+		if (sscanf(config_record, "%d:%d", cmd, internal_event_num) !=
+		    2)
 			goto do_fail;
 		else
 			return (6);
@@ -694,8 +698,8 @@ get_parms(char *config_record,
 		goto do_fail;
 
 	count = tmp1 - tmp;
-	*bus_handle = (char *) kmalloc(count+1, GFP_KERNEL);
-	if(!*bus_handle)
+	*bus_handle = (char *)kmalloc(count + 1, GFP_KERNEL);
+	if (!*bus_handle)
 		goto do_fail;
 	strncpy(*bus_handle, tmp, count);
 	*(*bus_handle + count) = 0;
@@ -706,8 +710,8 @@ get_parms(char *config_record,
 	if (!tmp1)
 		goto do_fail;
 	count = tmp1 - tmp;
-	*bus_method = (char *) kmalloc(count+1, GFP_KERNEL);
-	if(!*bus_method)
+	*bus_method = (char *)kmalloc(count + 1, GFP_KERNEL);
+	if (!*bus_method)
 		goto do_fail;
 	strncpy(*bus_method, tmp, count);
 	*(*bus_method + count) = 0;
@@ -718,7 +722,7 @@ get_parms(char *config_record,
 	if (!tmp1)
 		goto do_fail;
 	count = tmp1 - tmp;
-	*action_handle = (char *) kmalloc(count+1, GFP_KERNEL);
+	*action_handle = (char *)kmalloc(count + 1, GFP_KERNEL);
 	strncpy(*action_handle, tmp, count);
 	*(*action_handle + count) = 0;
 
@@ -728,17 +732,18 @@ get_parms(char *config_record,
 	if (!tmp1)
 		goto do_fail;
 	count = tmp1 - tmp;
-	*method = (char *) kmalloc(count+1, GFP_KERNEL);
-	if(!*method)
+	*method = (char *)kmalloc(count + 1, GFP_KERNEL);
+	if (!*method)
 		goto do_fail;
 	strncpy(*method, tmp, count);
 	*(*method + count) = 0;
 
-	if(sscanf(tmp1 + 1, "%d:%d", internal_event_num, external_event_num)<=0)
+	if (sscanf(tmp1 + 1, "%d:%d", internal_event_num, external_event_num) <=
+	    0)
 		goto do_fail;
 
 	return_VALUE(6);
-do_fail:
+      do_fail:
 	return_VALUE(-1);
 }
 
@@ -758,8 +763,8 @@ static ssize_t hotkey_write_config(struct file *file,
 
 	ACPI_FUNCTION_TRACE(("hotkey_write_config"));
 
-	config_record = (char *) kmalloc(count+1, GFP_KERNEL);
-	if(!config_record)
+	config_record = (char *)kmalloc(count + 1, GFP_KERNEL);
+	if (!config_record)
 		return_VALUE(-ENOMEM);
 
 	if (copy_from_user(config_record, buffer, count)) {
@@ -777,10 +782,10 @@ static ssize_t hotkey_write_config(struct file *file,
 			&method, &internal_event_num, &external_event_num);
 
 	kfree(config_record);
-	if(IS_OTHERS(internal_event_num))
+	if (IS_OTHERS(internal_event_num))
 		goto do_fail;
 	if (ret != 6) {
-do_fail:	
+	      do_fail:
 		kfree(bus_handle);
 		kfree(bus_method);
 		kfree(action_handle);
@@ -791,14 +796,14 @@ do_fail:
 	}
 
 	key = kmalloc(sizeof(union acpi_hotkey), GFP_KERNEL);
-	if(!key)
+	if (!key)
 		goto do_fail;
 	memset(key, 0, sizeof(union acpi_hotkey));
-	if(cmd == 1) {
+	if (cmd == 1) {
 		union acpi_hotkey *tmp = NULL;
 		tmp = get_hotkey_by_event(&global_hotkey_list,
-				internal_event_num);
-		if(!tmp)
+					  internal_event_num);
+		if (!tmp)
 			ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid key"));
 		else
 			memcpy(key, tmp, sizeof(union acpi_hotkey));
@@ -807,15 +812,16 @@ do_fail:
 	if (IS_EVENT(internal_event_num)) {
 		kfree(bus_method);
 		ret = init_hotkey_device(key, bus_handle, action_handle, method,
-				 internal_event_num, external_event_num);
+					 internal_event_num,
+					 external_event_num);
 	} else
 		ret = init_poll_hotkey_device(key, bus_handle, bus_method,
-				      action_handle, method,
-				      internal_event_num);
+					      action_handle, method,
+					      internal_event_num);
 	if (ret) {
 		kfree(bus_handle);
 		kfree(action_handle);
-		if(IS_EVENT(internal_event_num))
+		if (IS_EVENT(internal_event_num))
 			free_hotkey_buffer(key);
 		else
 			free_poll_hotkey_buffer(key);
@@ -824,13 +830,14 @@ do_fail:
 		return_VALUE(-EINVAL);
 	}
 
-cont_cmd:
+      cont_cmd:
 	kfree(bus_handle);
 	kfree(action_handle);
 
 	switch (cmd) {
 	case 0:
-		if(get_hotkey_by_event(&global_hotkey_list,key->link.hotkey_standard_num))
+		if (get_hotkey_by_event
+		    (&global_hotkey_list, key->link.hotkey_standard_num))
 			goto fail_out;
 		else
 			hotkey_add(key);
@@ -839,7 +846,7 @@ cont_cmd:
 		hotkey_remove(key);
 		break;
 	case 2:
-		if(hotkey_update(key))
+		if (hotkey_update(key))
 			goto fail_out;
 		break;
 	default:
@@ -847,8 +854,8 @@ cont_cmd:
 		break;
 	}
 	return_VALUE(count);
-fail_out:
-	if(IS_EVENT(internal_event_num))
+      fail_out:
+	if (IS_EVENT(internal_event_num))
 		free_hotkey_buffer(key);
 	else
 		free_poll_hotkey_buffer(key);
@@ -882,7 +889,8 @@ static int write_acpi_int(acpi_handle handle, const char *method, int val,
 	return_VALUE(status == AE_OK);
 }
 
-static int read_acpi_int(acpi_handle handle, const char *method, union acpi_object *val)
+static int read_acpi_int(acpi_handle handle, const char *method,
+			 union acpi_object *val)
 {
 	struct acpi_buffer output;
 	union acpi_object out_obj;
@@ -893,7 +901,7 @@ static int read_acpi_int(acpi_handle handle, const char *method, union acpi_obje
 	output.pointer = &out_obj;
 
 	status = acpi_evaluate_object(handle, (char *)method, NULL, &output);
-	if(val){
+	if (val) {
 		val->integer.value = out_obj.integer.value;
 		val->type = out_obj.type;
 	} else
@@ -903,8 +911,8 @@ static int read_acpi_int(acpi_handle handle, const char *method, union acpi_obje
 }
 
 static union acpi_hotkey *get_hotkey_by_event(struct
-			      acpi_hotkey_list
-			      *hotkey_list, int event)
+					      acpi_hotkey_list
+					      *hotkey_list, int event)
 {
 	struct list_head *entries;
 
@@ -912,10 +920,10 @@ static union acpi_hotkey *get_hotkey_by_event(struct
 		union acpi_hotkey *key =
 		    container_of(entries, union acpi_hotkey, entries);
 		if (key->link.hotkey_standard_num == event) {
-			return(key);
+			return (key);
 		}
 	}
-	return(NULL);
+	return (NULL);
 }
 
 /*
@@ -932,15 +940,15 @@ static ssize_t hotkey_execute_aml_method(struct file *file,
 {
 	struct acpi_hotkey_list *hotkey_list = &global_hotkey_list;
 	char *arg;
-	int event,method_type,type, value;
+	int event, method_type, type, value;
 	union acpi_hotkey *key;
 
 	ACPI_FUNCTION_TRACE("hotkey_execte_aml_method");
 
-	arg = (char *) kmalloc(count+1, GFP_KERNEL);
-	if(!arg)
+	arg = (char *)kmalloc(count + 1, GFP_KERNEL);
+	if (!arg)
 		return_VALUE(-ENOMEM);
-	arg[count]=0;
+	arg[count] = 0;
 
 	if (copy_from_user(arg, buffer, count)) {
 		kfree(arg);
@@ -948,7 +956,8 @@ static ssize_t hotkey_execute_aml_method(struct file *file,
 		return_VALUE(-EINVAL);
 	}
 
-	if (sscanf(arg, "%d:%d:%d:%d", &event, &method_type, &type, &value) != 4) {
+	if (sscanf(arg, "%d:%d:%d:%d", &event, &method_type, &type, &value) !=
+	    4) {
 		kfree(arg);
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Invalid argument 3"));
 		return_VALUE(-EINVAL);
@@ -956,19 +965,21 @@ static ssize_t hotkey_execute_aml_method(struct file *file,
 	kfree(arg);
 	if (type == ACPI_TYPE_INTEGER) {
 		key = get_hotkey_by_event(hotkey_list, event);
-		if(!key)
+		if (!key)
 			goto do_fail;
 		if (IS_EVENT(event))
 			write_acpi_int(key->event_hotkey.action_handle,
-					key->event_hotkey.action_method, value, NULL);
+				       key->event_hotkey.action_method, value,
+				       NULL);
 		else if (IS_POLL(event)) {
-			if ( method_type == POLL_METHOD )
+			if (method_type == POLL_METHOD)
 				read_acpi_int(key->poll_hotkey.poll_handle,
-					key->poll_hotkey.poll_method,
-					key->poll_hotkey.poll_result);
-			else if ( method_type == ACTION_METHOD )
+					      key->poll_hotkey.poll_method,
+					      key->poll_hotkey.poll_result);
+			else if (method_type == ACTION_METHOD)
 				write_acpi_int(key->poll_hotkey.action_handle,
-					key->poll_hotkey.action_method, value, NULL);
+					       key->poll_hotkey.action_method,
+					       value, NULL);
 			else
 				goto do_fail;
 
@@ -978,7 +989,7 @@ static ssize_t hotkey_execute_aml_method(struct file *file,
 		return_VALUE(-EINVAL);
 	}
 	return_VALUE(count);
-do_fail:
+      do_fail:
 	return_VALUE(-EINVAL);
 
 }
@@ -1074,15 +1085,15 @@ static int __init hotkey_init(void)
 
 	return (0);
 
-do_fail5:
+      do_fail5:
 	remove_proc_entry(HOTKEY_INFO, hotkey_proc_dir);
-do_fail4:
+      do_fail4:
 	remove_proc_entry(HOTKEY_ACTION, hotkey_proc_dir);
-do_fail3:
+      do_fail3:
 	remove_proc_entry(HOTKEY_PL_CONFIG, hotkey_proc_dir);
-do_fail2:
+      do_fail2:
 	remove_proc_entry(HOTKEY_EV_CONFIG, hotkey_proc_dir);
-do_fail1:
+      do_fail1:
 	remove_proc_entry(HOTKEY_PROC, acpi_root_dir);
 	return (-ENODEV);
 }

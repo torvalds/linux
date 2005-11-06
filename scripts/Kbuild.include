@@ -1,0 +1,99 @@
+####
+# kbuild: Generic definitions
+
+# Convinient variables
+comma   := ,
+empty   :=
+space   := $(empty) $(empty)
+
+###
+# The temporary file to save gcc -MD generated dependencies must not
+# contain a comma
+depfile = $(subst $(comma),_,$(@D)/.$(@F).d)
+
+###
+# filechk is used to check if the content of a generated file is updated.
+# Sample usage:
+# define filechk_sample
+#	echo $KERNELRELEASE
+# endef
+# version.h : Makefile
+#	$(call filechk,sample)
+# The rule defined shall write to stdout the content of the new file.
+# The existing file will be compared with the new one.
+# - If no file exist it is created
+# - If the content differ the new file is used
+# - If they are equal no change, and no timestamp update
+# - stdin is piped in from the first prerequisite ($<) so one has
+#   to specify a valid file as first prerequisite (often the kbuild file)
+define filechk
+	$(Q)set -e;				\
+	echo '  CHK     $@';			\
+	mkdir -p $(dir $@);			\
+	$(filechk_$(1)) < $< > $@.tmp;		\
+	if [ -r $@ ] && cmp -s $@ $@.tmp; then	\
+		rm -f $@.tmp;			\
+	else					\
+		echo '  UPD     $@';		\
+		mv -f $@.tmp $@;		\
+	fi
+endef
+
+###
+# Shorthand for $(Q)$(MAKE) -f scripts/Makefile.build obj=
+# Usage:
+# $(Q)$(MAKE) $(build)=dir
+build := -f $(if $(KBUILD_SRC),$(srctree)/)scripts/Makefile.build obj
+
+# If quiet is set, only print short version of command
+cmd = @$(if $($(quiet)cmd_$(1)),\
+      echo '  $(subst ','\'',$($(quiet)cmd_$(1)))' &&) $(cmd_$(1))
+
+# Add $(obj)/ for paths that is not absolute
+objectify = $(foreach o,$(1),$(if $(filter /%,$(o)),$(o),$(obj)/$(o)))
+
+###
+# if_changed      - execute command if any prerequisite is newer than 
+#                   target, or command line has changed
+# if_changed_dep  - as if_changed, but uses fixdep to reveal dependencies
+#                   including used config symbols
+# if_changed_rule - as if_changed but execute rule instead
+# See Documentation/kbuild/makefiles.txt for more info
+
+ifneq ($(KBUILD_NOCMDDEP),1)
+# Check if both arguments has same arguments. Result in empty string if equal
+# User may override this check using make KBUILD_NOCMDDEP=1
+arg-check = $(strip $(filter-out $(1), $(2)) $(filter-out $(2), $(1)) )
+endif
+
+# echo command. Short version is $(quiet) equals quiet, otherwise full command
+echo-cmd = $(if $($(quiet)cmd_$(1)), \
+	echo '  $(subst ','\'',$($(quiet)cmd_$(1)))';)
+
+# function to only execute the passed command if necessary
+# >'< substitution is for echo to work, >$< substitution to preserve $ when reloading .cmd file
+# note: when using inline perl scripts [perl -e '...$$t=1;...'] in $(cmd_xxx) double $$ your perl vars
+# 
+if_changed = $(if $(strip $? $(call arg-check, $(cmd_$(1)), $(cmd_$@)) ), \
+	@set -e; \
+	$(echo-cmd) \
+	$(cmd_$(1)); \
+	echo 'cmd_$@ := $(subst $$,$$$$,$(subst ','\'',$(cmd_$(1))))' > $(@D)/.$(@F).cmd)
+
+# execute the command and also postprocess generated .d dependencies
+# file
+if_changed_dep = $(if $(strip $? $(filter-out FORCE $(wildcard $^),$^)\
+	$(call arg-check, $(cmd_$(1)), $(cmd_$@)) ),                  \
+	@set -e; \
+	$(echo-cmd) \
+	$(cmd_$(1)); \
+	scripts/basic/fixdep $(depfile) $@ '$(subst $$,$$$$,$(subst ','\'',$(cmd_$(1))))' > $(@D)/.$(@F).tmp; \
+	rm -f $(depfile); \
+	mv -f $(@D)/.$(@F).tmp $(@D)/.$(@F).cmd)
+
+# Usage: $(call if_changed_rule,foo)
+# will check if $(cmd_foo) changed, or any of the prequisites changed,
+# and if so will execute $(rule_foo)
+if_changed_rule = $(if $(strip $? $(call arg-check, $(cmd_$(1)), $(cmd_$@)) ),\
+			@set -e; \
+			$(rule_$(1)))

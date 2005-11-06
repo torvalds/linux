@@ -41,7 +41,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 
 static struct platform_device serial_device = {
 	.name			= "serial8250",
-	.id			= 0,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= serial_platform_data,
 	},
@@ -62,7 +62,12 @@ arch_initcall(shark_init);
 extern void shark_init_irq(void);
 
 static struct map_desc shark_io_desc[] __initdata = {
-	{ IO_BASE	, IO_START	, IO_SIZE	, MT_DEVICE }
+	{
+		.virtual	= IO_BASE,
+		.pfn		= __phys_to_pfn(IO_START),
+		.length		= IO_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init shark_map_io(void)

@@ -211,6 +211,138 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *ha)
 	sysfs_remove_bin_file(&host->shost_gendev.kobj, &sysfs_nvram_attr);
 }
 
+/* Scsi_Host attributes. */
+
+static ssize_t
+qla2x00_drvr_version_show(struct class_device *cdev, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%s\n", qla2x00_version_str);
+}
+
+static ssize_t
+qla2x00_fw_version_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+	char fw_str[30];
+
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+	    ha->isp_ops.fw_version_str(ha, fw_str));
+}
+
+static ssize_t
+qla2x00_serial_num_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+	uint32_t sn;
+
+	sn = ((ha->serial0 & 0x1f) << 16) | (ha->serial2 << 8) | ha->serial1;
+	return snprintf(buf, PAGE_SIZE, "%c%05d\n", 'A' + sn / 100000,
+	    sn % 100000);
+}
+
+static ssize_t
+qla2x00_isp_name_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+	return snprintf(buf, PAGE_SIZE, "%s\n", ha->brd_info->isp_name);
+}
+
+static ssize_t
+qla2x00_isp_id_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+	return snprintf(buf, PAGE_SIZE, "%04x %04x %04x %04x\n",
+	    ha->product_id[0], ha->product_id[1], ha->product_id[2],
+	    ha->product_id[3]);
+}
+
+static ssize_t
+qla2x00_model_name_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+	return snprintf(buf, PAGE_SIZE, "%s\n", ha->model_number);
+}
+
+static ssize_t
+qla2x00_model_desc_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+	    ha->model_desc ? ha->model_desc: "");
+}
+
+static ssize_t
+qla2x00_pci_info_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+	char pci_info[30];
+
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+	    ha->isp_ops.pci_info_str(ha, pci_info));
+}
+
+static ssize_t
+qla2x00_state_show(struct class_device *cdev, char *buf)
+{
+	scsi_qla_host_t *ha = to_qla_host(class_to_shost(cdev));
+	int len = 0;
+
+	if (atomic_read(&ha->loop_state) == LOOP_DOWN ||
+	    atomic_read(&ha->loop_state) == LOOP_DEAD)
+		len = snprintf(buf, PAGE_SIZE, "Link Down\n");
+	else if (atomic_read(&ha->loop_state) != LOOP_READY ||
+	    test_bit(ABORT_ISP_ACTIVE, &ha->dpc_flags) ||
+	    test_bit(ISP_ABORT_NEEDED, &ha->dpc_flags))
+		len = snprintf(buf, PAGE_SIZE, "Unknown Link State\n");
+	else {
+		len = snprintf(buf, PAGE_SIZE, "Link Up - ");
+
+		switch (ha->current_topology) {
+		case ISP_CFG_NL:
+			len += snprintf(buf + len, PAGE_SIZE-len, "Loop\n");
+			break;
+		case ISP_CFG_FL:
+			len += snprintf(buf + len, PAGE_SIZE-len, "FL_Port\n");
+			break;
+		case ISP_CFG_N:
+			len += snprintf(buf + len, PAGE_SIZE-len,
+			    "N_Port to N_Port\n");
+			break;
+		case ISP_CFG_F:
+			len += snprintf(buf + len, PAGE_SIZE-len, "F_Port\n");
+			break;
+		default:
+			len += snprintf(buf + len, PAGE_SIZE-len, "Loop\n");
+			break;
+		}
+	}
+	return len;
+}
+
+static CLASS_DEVICE_ATTR(driver_version, S_IRUGO, qla2x00_drvr_version_show,
+	NULL);
+static CLASS_DEVICE_ATTR(fw_version, S_IRUGO, qla2x00_fw_version_show, NULL);
+static CLASS_DEVICE_ATTR(serial_num, S_IRUGO, qla2x00_serial_num_show, NULL);
+static CLASS_DEVICE_ATTR(isp_name, S_IRUGO, qla2x00_isp_name_show, NULL);
+static CLASS_DEVICE_ATTR(isp_id, S_IRUGO, qla2x00_isp_id_show, NULL);
+static CLASS_DEVICE_ATTR(model_name, S_IRUGO, qla2x00_model_name_show, NULL);
+static CLASS_DEVICE_ATTR(model_desc, S_IRUGO, qla2x00_model_desc_show, NULL);
+static CLASS_DEVICE_ATTR(pci_info, S_IRUGO, qla2x00_pci_info_show, NULL);
+static CLASS_DEVICE_ATTR(state, S_IRUGO, qla2x00_state_show, NULL);
+
+struct class_device_attribute *qla2x00_host_attrs[] = {
+	&class_device_attr_driver_version,
+	&class_device_attr_fw_version,
+	&class_device_attr_serial_num,
+	&class_device_attr_isp_name,
+	&class_device_attr_isp_id,
+	&class_device_attr_model_name,
+	&class_device_attr_model_desc,
+	&class_device_attr_pci_info,
+	&class_device_attr_state,
+	NULL,
+};
+
 /* Host attributes. */
 
 static void
@@ -228,16 +360,16 @@ qla2x00_get_starget_node_name(struct scsi_target *starget)
 	struct Scsi_Host *host = dev_to_shost(starget->dev.parent);
 	scsi_qla_host_t *ha = to_qla_host(host);
 	fc_port_t *fcport;
-	uint64_t node_name = 0;
+	u64 node_name = 0;
 
 	list_for_each_entry(fcport, &ha->fcports, list) {
 		if (starget->id == fcport->os_target_id) {
-			node_name = *(uint64_t *)fcport->node_name;
+			node_name = wwn_to_u64(fcport->node_name);
 			break;
 		}
 	}
 
-	fc_starget_node_name(starget) = be64_to_cpu(node_name);
+	fc_starget_node_name(starget) = node_name;
 }
 
 static void
@@ -246,16 +378,16 @@ qla2x00_get_starget_port_name(struct scsi_target *starget)
 	struct Scsi_Host *host = dev_to_shost(starget->dev.parent);
 	scsi_qla_host_t *ha = to_qla_host(host);
 	fc_port_t *fcport;
-	uint64_t port_name = 0;
+	u64 port_name = 0;
 
 	list_for_each_entry(fcport, &ha->fcports, list) {
 		if (starget->id == fcport->os_target_id) {
-			port_name = *(uint64_t *)fcport->port_name;
+			port_name = wwn_to_u64(fcport->port_name);
 			break;
 		}
 	}
 
-	fc_starget_port_name(starget) = be64_to_cpu(port_name);
+	fc_starget_port_name(starget) = port_name;
 }
 
 static void
@@ -304,10 +436,13 @@ struct fc_function_template qla2xxx_transport_functions = {
 
 	.show_host_node_name = 1,
 	.show_host_port_name = 1,
+	.show_host_supported_classes = 1,
+
 	.get_host_port_id = qla2x00_get_host_port_id,
 	.show_host_port_id = 1,
 
 	.dd_fcrport_size = sizeof(struct fc_port *),
+	.show_rport_supported_classes = 1,
 
 	.get_starget_node_name = qla2x00_get_starget_node_name,
 	.show_starget_node_name = 1,
@@ -325,8 +460,7 @@ struct fc_function_template qla2xxx_transport_functions = {
 void
 qla2x00_init_host_attr(scsi_qla_host_t *ha)
 {
-	fc_host_node_name(ha->host) =
-	    be64_to_cpu(*(uint64_t *)ha->init_cb->node_name);
-	fc_host_port_name(ha->host) =
-	    be64_to_cpu(*(uint64_t *)ha->init_cb->port_name);
+	fc_host_node_name(ha->host) = wwn_to_u64(ha->init_cb->node_name);
+	fc_host_port_name(ha->host) = wwn_to_u64(ha->init_cb->port_name);
+	fc_host_supported_classes(ha->host) = FC_COS_CLASS3;
 }

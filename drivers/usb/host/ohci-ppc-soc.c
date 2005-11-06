@@ -14,7 +14,7 @@
  * This file is licenced under the GPL.
  */
 
-#include <asm/usb.h>
+#include <linux/platform_device.h>
 
 /* configure so an HC device and id are always provided */
 /* always called with process context; sleeping is OK */
@@ -23,9 +23,7 @@
  * usb_hcd_ppc_soc_probe - initialize On-Chip HCDs
  * Context: !in_interrupt()
  *
- * Allocates basic resources for this USB host controller, and
- * then invokes the start() method for the HCD associated with it
- * through the hotplug entry's driver_data.
+ * Allocates basic resources for this USB host controller.
  *
  * Store this function in the HCD's struct pci_driver as probe().
  */
@@ -37,7 +35,6 @@ static int usb_hcd_ppc_soc_probe(const struct hc_driver *driver,
 	struct ohci_hcd	*ohci;
 	struct resource *res;
 	int irq;
-	struct usb_hcd_platform_data *pd = pdev->dev.platform_data;
 
 	pr_debug("initializing PPC-SOC USB Controller\n");
 
@@ -73,9 +70,6 @@ static int usb_hcd_ppc_soc_probe(const struct hc_driver *driver,
 		goto err2;
 	}
 
-	if (pd->start && (retval = pd->start(pdev)))
-		goto err3;
-
 	ohci = hcd_to_ohci(hcd);
 	ohci->flags |= OHCI_BIG_ENDIAN;
 	ohci_hcd_init(ohci);
@@ -85,9 +79,7 @@ static int usb_hcd_ppc_soc_probe(const struct hc_driver *driver,
 		return retval;
 
 	pr_debug("Removing PPC-SOC USB Controller\n");
-	if (pd && pd->stop)
-		pd->stop(pdev);
- err3:
+
 	iounmap(hcd->regs);
  err2:
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
@@ -105,25 +97,21 @@ static int usb_hcd_ppc_soc_probe(const struct hc_driver *driver,
  * @pdev: USB Host Controller being removed
  * Context: !in_interrupt()
  *
- * Reverses the effect of usb_hcd_ppc_soc_probe(), first invoking
- * the HCD's stop() method.  It is always called from a thread
+ * Reverses the effect of usb_hcd_ppc_soc_probe().
+ * It is always called from a thread
  * context, normally "rmmod", "apmd", or something similar.
  *
  */
 static void usb_hcd_ppc_soc_remove(struct usb_hcd *hcd,
 		struct platform_device *pdev)
 {
-	struct usb_hcd_platform_data *pd = pdev->dev.platform_data;
-
 	usb_remove_hcd(hcd);
 
 	pr_debug("stopping PPC-SOC USB Controller\n");
-	if (pd && pd->stop)
-		pd->stop(pdev);
 
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-	usb_hcd_put(hcd);
+	usb_put_hcd(hcd);
 }
 
 static int __devinit
@@ -177,9 +165,9 @@ static const struct hc_driver ohci_ppc_soc_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
-#ifdef	CONFIG_USB_SUSPEND
-	.hub_suspend =		ohci_hub_suspend,
-	.hub_resume =		ohci_hub_resume,
+#ifdef	CONFIG_PM
+	.bus_suspend =		ohci_bus_suspend,
+	.bus_resume =		ohci_bus_resume,
 #endif
 	.start_port_reset =	ohci_start_port_reset,
 };
@@ -207,10 +195,11 @@ static int ohci_hcd_ppc_soc_drv_remove(struct device *dev)
 
 static struct device_driver ohci_hcd_ppc_soc_driver = {
 	.name		= "ppc-soc-ohci",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= ohci_hcd_ppc_soc_drv_probe,
 	.remove		= ohci_hcd_ppc_soc_drv_remove,
-#if	defined(CONFIG_USB_SUSPEND) || defined(CONFIG_PM)
+#ifdef	CONFIG_PM
 	/*.suspend	= ohci_hcd_ppc_soc_drv_suspend,*/
 	/*.resume	= ohci_hcd_ppc_soc_drv_resume,*/
 #endif

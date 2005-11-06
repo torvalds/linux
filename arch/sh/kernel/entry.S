@@ -1145,5 +1145,10 @@ ENTRY(sys_call_table)
 	.long sys_add_key		/* 285 */
 	.long sys_request_key
 	.long sys_keyctl
+	.long sys_ioprio_set
+	.long sys_ioprio_get
+	.long sys_inotify_init		/* 290 */
+	.long sys_inotify_add_watch
+	.long sys_inotify_rm_watch
 
 /* End of entry.S */

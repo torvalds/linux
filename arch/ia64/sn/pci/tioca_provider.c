@@ -11,6 +11,7 @@
 #include <linux/pci.h>
 #include <asm/sn/sn_sal.h>
 #include <asm/sn/addrs.h>
+#include <asm/sn/io.h>
 #include <asm/sn/pcidev.h>
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/tioca_provider.h>
@@ -37,7 +38,7 @@ tioca_gart_init(struct tioca_kernel *tioca_kern)
 	uint64_t offset;
 	struct page *tmp;
 	struct tioca_common *tioca_common;
-	volatile struct tioca *ca_base;
+	struct tioca *ca_base;
 
 	tioca_common = tioca_kern->ca_common;
 	ca_base = (struct tioca *)tioca_common->ca_common.bs_base;
@@ -148,7 +149,7 @@ tioca_gart_init(struct tioca_kernel *tioca_kern)
 	tioca_kern->ca_pcigart_entries =
 	    tioca_kern->ca_pciap_size / tioca_kern->ca_ap_pagesize;
 	tioca_kern->ca_pcigart_pagemap =
-	    kcalloc(1, tioca_kern->ca_pcigart_entries / 8, GFP_KERNEL);
+	    kzalloc(tioca_kern->ca_pcigart_entries / 8, GFP_KERNEL);
 	if (!tioca_kern->ca_pcigart_pagemap) {
 		free_pages((unsigned long)tioca_kern->ca_gart,
 			   get_order(tioca_kern->ca_gart_size));
@@ -174,27 +175,29 @@ tioca_gart_init(struct tioca_kernel *tioca_kern)
 	 * 	DISABLE GART PREFETCHING due to hw bug tracked in SGI PV930029
 	 */
 
-	ca_base->ca_control1 |= CA_AGPDMA_OP_ENB_COMBDELAY;	/* PV895469 ? */
-	ca_base->ca_control2 &= ~(CA_GART_MEM_PARAM);
-	ca_base->ca_control2 |= (0x2ull << CA_GART_MEM_PARAM_SHFT);
+	__sn_setq_relaxed(&ca_base->ca_control1,
+			CA_AGPDMA_OP_ENB_COMBDELAY);	/* PV895469 ? */
+	__sn_clrq_relaxed(&ca_base->ca_control2, CA_GART_MEM_PARAM);
+	__sn_setq_relaxed(&ca_base->ca_control2,
+			(0x2ull << CA_GART_MEM_PARAM_SHFT));
 	tioca_kern->ca_gart_iscoherent = 1;
-	ca_base->ca_control2 &=
-	    ~(CA_GART_WR_PREFETCH_ENB | CA_GART_RD_PREFETCH_ENB);
+	__sn_clrq_relaxed(&ca_base->ca_control2,
+	    		(CA_GART_WR_PREFETCH_ENB | CA_GART_RD_PREFETCH_ENB));
 
 	/*
 	 * Unmask GART fetch error interrupts.  Clear residual errors first.
 	 */
 
-	ca_base->ca_int_status_alias = CA_GART_FETCH_ERR;
-	ca_base->ca_mult_error_alias = CA_GART_FETCH_ERR;
-	ca_base->ca_int_mask &= ~CA_GART_FETCH_ERR;
+	writeq(CA_GART_FETCH_ERR, &ca_base->ca_int_status_alias);
+	writeq(CA_GART_FETCH_ERR, &ca_base->ca_mult_error_alias);
+	__sn_clrq_relaxed(&ca_base->ca_int_mask, CA_GART_FETCH_ERR);
 
 	/*
 	 * Program the aperature and gart registers in TIOCA
 	 */
 
-	ca_base->ca_gart_aperature = ap_reg;
-	ca_base->ca_gart_ptr_table = tioca_kern->ca_gart_coretalk_addr | 1;
+	writeq(ap_reg, &ca_base->ca_gart_aperature);
+	writeq(tioca_kern->ca_gart_coretalk_addr|1, &ca_base->ca_gart_ptr_table);
 
 	return 0;
 }
@@ -211,7 +214,6 @@ void
 tioca_fastwrite_enable(struct tioca_kernel *tioca_kern)
 {
 	int cap_ptr;
-	uint64_t ca_control1;
 	uint32_t reg;
 	struct tioca *tioca_base;
 	struct pci_dev *pdev;
@@ -256,9 +258,7 @@ tioca_fastwrite_enable(struct tioca_kernel *tioca_kern)
 	 */
 
 	tioca_base = (struct tioca *)common->ca_common.bs_base;
-	ca_control1 = tioca_base->ca_control1;
-	ca_control1 |= CA_AGP_FW_ENABLE;
-	tioca_base->ca_control1 = ca_control1;
+	__sn_setq_relaxed(&tioca_base->ca_control1, CA_AGP_FW_ENABLE);
 }
 
 EXPORT_SYMBOL(tioca_fastwrite_enable);	/* used by agp-sgi */
@@ -345,7 +345,7 @@ tioca_dma_d48(struct pci_dev *pdev, uint64_t paddr)
 		return 0;
 	}
 
-	agp_dma_extn = ca_base->ca_agp_dma_addr_extn;
+	agp_dma_extn = __sn_readq_relaxed(&ca_base->ca_agp_dma_addr_extn);
 	if (node_upper != (agp_dma_extn >> CA_AGP_DMA_NODE_ID_SHFT)) {
 		printk(KERN_ERR "%s:  coretalk upper node (%u) "
 		       "mismatch with ca_agp_dma_addr_extn (%lu)\n",
@@ -392,7 +392,7 @@ tioca_dma_mapped(struct pci_dev *pdev, uint64_t paddr, size_t req_size)
 	 * allocate a map struct
 	 */
 
-	ca_dmamap = kcalloc(1, sizeof(struct tioca_dmamap), GFP_ATOMIC);
+	ca_dmamap = kzalloc(sizeof(struct tioca_dmamap), GFP_ATOMIC);
 	if (!ca_dmamap)
 		goto map_return;
 
@@ -559,7 +559,7 @@ tioca_error_intr_handler(int irq, void *arg, struct pt_regs *pt)
 	ret_stuff.status = 0;
 	ret_stuff.v0 = 0;
 
-	segment = 0;
+	segment = soft->ca_common.bs_persist_segment;
 	busnum = soft->ca_common.bs_persist_busnum;
 
 	SAL_CALL_NOLOCK(ret_stuff,
@@ -600,7 +600,7 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	 * Allocate kernel bus soft and copy from prom.
 	 */
 
-	tioca_common = kcalloc(1, sizeof(struct tioca_common), GFP_KERNEL);
+	tioca_common = kzalloc(sizeof(struct tioca_common), GFP_KERNEL);
 	if (!tioca_common)
 		return NULL;
 
@@ -609,7 +609,7 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 
 	/* init kernel-private area */
 
-	tioca_kern = kcalloc(1, sizeof(struct tioca_kernel), GFP_KERNEL);
+	tioca_kern = kzalloc(sizeof(struct tioca_kernel), GFP_KERNEL);
 	if (!tioca_kern) {
 		kfree(tioca_common);
 		return NULL;
@@ -622,7 +622,8 @@ tioca_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	    nasid_to_cnodeid(tioca_common->ca_closest_nasid);
 	tioca_common->ca_kernel_private = (uint64_t) tioca_kern;
 
-	bus = pci_find_bus(0, tioca_common->ca_common.bs_persist_busnum);
+	bus = pci_find_bus(tioca_common->ca_common.bs_persist_segment,
+		tioca_common->ca_common.bs_persist_busnum);
 	BUG_ON(!bus);
 	tioca_kern->ca_devices = &bus->devices;
 
@@ -656,6 +657,8 @@ static struct sn_pcibus_provider tioca_pci_interfaces = {
 	.dma_map_consistent = tioca_dma_map,
 	.dma_unmap = tioca_dma_unmap,
 	.bus_fixup = tioca_bus_fixup,
+	.force_interrupt = NULL,
+	.target_interrupt = NULL
 };
 
 /**

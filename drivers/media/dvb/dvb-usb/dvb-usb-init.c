@@ -128,7 +128,9 @@ static struct dvb_usb_device_description * dvb_usb_find_device(struct usb_device
 /*
  * USB
  */
-int dvb_usb_device_init(struct usb_interface *intf, struct dvb_usb_properties *props, struct module *owner)
+
+int dvb_usb_device_init(struct usb_interface *intf, struct dvb_usb_properties
+		*props, struct module *owner,struct dvb_usb_device **du)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct dvb_usb_device *d = NULL;
@@ -170,6 +172,9 @@ int dvb_usb_device_init(struct usb_interface *intf, struct dvb_usb_properties *p
 
 		usb_set_intfdata(intf, d);
 
+		if (du != NULL)
+			*du = d;
+
 		ret = dvb_usb_init(d);
 	}
 
@@ -195,19 +200,6 @@ void dvb_usb_device_exit(struct usb_interface *intf)
 
 }
 EXPORT_SYMBOL(dvb_usb_device_exit);
-
-/* module stuff */
-static int __init dvb_usb_module_init(void)
-{
-	return 0;
-}
-
-static void __exit dvb_usb_module_exit(void)
-{
-}
-
-module_init (dvb_usb_module_init);
-module_exit (dvb_usb_module_exit);
 
 MODULE_VERSION("0.3");
 MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");

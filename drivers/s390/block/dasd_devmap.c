@@ -11,7 +11,7 @@
  * functions may not be called from interrupt context. In particular
  * dasd_get_device is a no-no from interrupt context.
  *
- * $Revision: 1.40 $
+ * $Revision: 1.43 $
  */
 
 #include <linux/config.h>
@@ -513,6 +513,7 @@ dasd_create_device(struct ccw_device *cdev)
 	if (!devmap->device) {
 		devmap->device = device;
 		device->devindex = devmap->devindex;
+		device->features = devmap->features;
 		get_device(&cdev->dev);
 		device->cdev = cdev;
 		rc = 0;
@@ -643,6 +644,8 @@ dasd_ro_store(struct device *dev, struct device_attribute *attr, const char *buf
 		devmap->features |= DASD_FEATURE_READONLY;
 	else
 		devmap->features &= ~DASD_FEATURE_READONLY;
+	if (devmap->device)
+		devmap->device->features = devmap->features;
 	if (devmap->device && devmap->device->gdp)
 		set_disk_ro(devmap->device->gdp, ro_flag);
 	spin_unlock(&dasd_devmap_lock);
@@ -758,7 +761,8 @@ dasd_set_feature(struct ccw_device *cdev, int feature, int flag)
 		devmap->features |= feature;
 	else
 		devmap->features &= ~feature;
-
+	if (devmap->device)
+		devmap->device->features = devmap->features;
 	spin_unlock(&dasd_devmap_lock);
 	return 0;
 }

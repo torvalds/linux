@@ -473,8 +473,7 @@ static int vlsi_free_ring(struct vlsi_ring *r)
 		rd_set_addr_status(rd, 0, 0);
 		if (busaddr)
 			pci_unmap_single(r->pdev, busaddr, r->len, r->dir);
-		if (rd->buf)
-			kfree(rd->buf);
+		kfree(rd->buf);
 	}
 	kfree(r);
 	return 0;
@@ -1749,11 +1748,6 @@ static int vlsi_irda_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct net_device *ndev = pci_get_drvdata(pdev);
 	vlsi_irda_dev_t *idev;
 
-	if (state < 1 || state > 3 ) {
-		IRDA_ERROR("%s - %s: invalid pm state request: %u\n",
-			   __FUNCTION__, PCIDEV_NAME(pdev), state);
-		return 0;
-	}
 	if (!ndev) {
 		IRDA_ERROR("%s - %s: no netdevice \n",
 			   __FUNCTION__, PCIDEV_NAME(pdev));
@@ -1762,12 +1756,12 @@ static int vlsi_irda_suspend(struct pci_dev *pdev, pm_message_t state)
 	idev = ndev->priv;	
 	down(&idev->sem);
 	if (pdev->current_state != 0) {			/* already suspended */
-		if (state > pdev->current_state) {	/* simply go deeper */
-			pci_set_power_state(pdev,state);
-			pdev->current_state = state;
+		if (state.event > pdev->current_state) {	/* simply go deeper */
+			pci_set_power_state(pdev, pci_choose_state(pdev, state));
+			pdev->current_state = state.event;
 		}
 		else
-			IRDA_ERROR("%s - %s: invalid suspend request %u -> %u\n", __FUNCTION__, PCIDEV_NAME(pdev), pdev->current_state, state);
+			IRDA_ERROR("%s - %s: invalid suspend request %u -> %u\n", __FUNCTION__, PCIDEV_NAME(pdev), pdev->current_state, state.event);
 		up(&idev->sem);
 		return 0;
 	}
@@ -1781,8 +1775,8 @@ static int vlsi_irda_suspend(struct pci_dev *pdev, pm_message_t state)
 			idev->new_baud = idev->baud;
 	}
 
-	pci_set_power_state(pdev,state);
-	pdev->current_state = state;
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	pdev->current_state = state.event;
 	idev->resume_ok = 1;
 	up(&idev->sem);
 	return 0;
@@ -1807,8 +1801,8 @@ static int vlsi_irda_resume(struct pci_dev *pdev)
 		return 0;
 	}
 	
-	pci_set_power_state(pdev, 0);
-	pdev->current_state = 0;
+	pci_set_power_state(pdev, PCI_D0);
+	pdev->current_state = PM_EVENT_ON;
 
 	if (!idev->resume_ok) {
 		/* should be obsolete now - but used to happen due to:
@@ -1880,11 +1874,11 @@ static int __init vlsi_mod_init(void)
 
 	sirpulse = !!sirpulse;
 
-	/* create_proc_entry returns NULL if !CONFIG_PROC_FS.
+	/* proc_mkdir returns NULL if !CONFIG_PROC_FS.
 	 * Failure to create the procfs entry is handled like running
 	 * without procfs - it's not required for the driver to work.
 	 */
-	vlsi_proc_root = create_proc_entry(PROC_DIR, S_IFDIR, NULL);
+	vlsi_proc_root = proc_mkdir(PROC_DIR, NULL);
 	if (vlsi_proc_root) {
 		/* protect registered procdir against module removal.
 		 * Because we are in the module init path there's no race

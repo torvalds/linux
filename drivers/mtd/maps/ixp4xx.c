@@ -20,13 +20,16 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/slab.h>
+#include <linux/ioport.h>
+#include <linux/device.h>
+#include <linux/platform_device.h>
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
-#include <linux/ioport.h>
-#include <linux/device.h>
+
 #include <asm/io.h>
-#include <asm/mach-types.h>
 #include <asm/mach/flash.h>
 
 #include <linux/reboot.h>
@@ -254,6 +257,6 @@ module_init(ixp4xx_flash_init);
 module_exit(ixp4xx_flash_exit);
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("MTD map driver for Intel IXP4xx systems")
+MODULE_DESCRIPTION("MTD map driver for Intel IXP4xx systems");
 MODULE_AUTHOR("Deepak Saxena");
 

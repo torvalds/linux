@@ -9,9 +9,8 @@ config USB_MON
 	help
 	  If you say Y here, a component which captures the USB traffic
 	  between peripheral-specific drivers and HC drivers will be built.
-	  The USB_MON is similar in spirit and may be compatible with Dave
-	  Harding's USBMon.
+	  For more information, see <file:Documentation/usb/usbmon.txt>.
 
-	  This is somewhat experimental at this time, but it should be safe,
-	  as long as you aren't using modular USB and try to remove this
-	  module.
+	  This is somewhat experimental at this time, but it should be safe.
+
+	  If unsure, say Y.

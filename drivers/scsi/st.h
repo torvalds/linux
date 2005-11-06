@@ -3,7 +3,7 @@
 #define _ST_H
 
 #include <linux/completion.h>
-
+#include <linux/kref.h>
 
 /* Descriptor for analyzed sense data */
 struct st_cmdstatus {
@@ -156,6 +156,7 @@ struct scsi_tape {
 	unsigned char last_sense[16];
 #endif
 	struct gendisk *disk;
+	struct kref     kref;
 };
 
 /* Bit masks for use_pf */

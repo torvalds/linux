@@ -344,7 +344,7 @@
    /proc/scsi/ibmmca/<host_no>. ibmmca_proc_info() provides this information.
    
    This table is quite informative for interested users. It shows the load
-   of commands on the subsystem and wether you are running the bypassed 
+   of commands on the subsystem and whether you are running the bypassed
    (software) or integrated (hardware) SCSI-command set (see below). The
    amount of accesses is shown. Read, write, modeselect is shown separately
    in order to help debugging problems with CD-ROMs or tapedrives.

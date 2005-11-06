@@ -44,7 +44,7 @@ struct fcllc {
 	__u8  ssap;			/* source SAP */
 	__u8  llc;			/* LLC control field */
 	__u8  protid[3];		/* protocol id */
-	__u16 ethertype;		/* ether type field */
+	__be16 ethertype;		/* ether type field */
 };
 
 #endif	/* _LINUX_IF_FC_H */

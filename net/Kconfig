@@ -140,6 +140,7 @@ config BRIDGE_NETFILTER
 
 	  If unsure, say N.
 
+source "net/netfilter/Kconfig"
 source "net/ipv4/netfilter/Kconfig"
 source "net/ipv6/netfilter/Kconfig"
 source "net/decnet/netfilter/Kconfig"
@@ -147,6 +148,7 @@ source "net/bridge/netfilter/Kconfig"
 
 endif
 
+source "net/dccp/Kconfig"
 source "net/sctp/Kconfig"
 source "net/atm/Kconfig"
 source "net/bridge/Kconfig"
@@ -212,6 +214,7 @@ endmenu
 source "net/ax25/Kconfig"
 source "net/irda/Kconfig"
 source "net/bluetooth/Kconfig"
+source "net/ieee80211/Kconfig"
 
 endif   # if NET
 endmenu # Networking

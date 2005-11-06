@@ -33,12 +33,6 @@ extern unsigned long uml_physmem;
          (((unsigned long) (addr) <= ((unsigned long) (addr) + (size))) && \
           (under_task_size(addr, size) || is_stack(addr, size))))
 
-static inline int verify_area_tt(int type, const void * addr,
-                                 unsigned long size)
-{
-	return(access_ok_tt(type, addr, size) ? 0 : -EFAULT);
-}
-
 extern unsigned long get_fault_addr(void);
 
 extern int __do_copy_from_user(void *to, const void *from, int n,
@@ -50,12 +44,12 @@ extern int __do_clear_user(void *mem, size_t len, void **fault_addr,
 extern int __do_strnlen_user(const char *str, unsigned long n,
 			     void **fault_addr, void **fault_catcher);
 
-extern int copy_from_user_tt(void *to, const void *from, int n);
-extern int copy_to_user_tt(void *to, const void *from, int n);
-extern int strncpy_from_user_tt(char *dst, const char *src, int count);
-extern int __clear_user_tt(void *mem, int len);
-extern int clear_user_tt(void *mem, int len);
-extern int strnlen_user_tt(const void *str, int len);
+extern int copy_from_user_tt(void *to, const void __user *from, int n);
+extern int copy_to_user_tt(void __user *to, const void *from, int n);
+extern int strncpy_from_user_tt(char *dst, const char __user *src, int count);
+extern int __clear_user_tt(void __user *mem, int len);
+extern int clear_user_tt(void __user *mem, int len);
+extern int strnlen_user_tt(const void __user *str, int len);
 
 #endif
 

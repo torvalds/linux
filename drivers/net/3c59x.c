@@ -973,6 +973,11 @@ static int vortex_suspend (struct pci_dev *pdev, pm_message_t state)
 			netif_device_detach(dev);
 			vortex_down(dev, 1);
 		}
+		pci_save_state(pdev);
+		pci_enable_wake(pdev, pci_choose_state(pdev, state), 0);
+		free_irq(dev->irq, dev);
+		pci_disable_device(pdev);
+		pci_set_power_state(pdev, pci_choose_state(pdev, state));
 	}
 	return 0;
 }
@@ -980,8 +985,19 @@ static int vortex_suspend (struct pci_dev *pdev, pm_message_t state)
 static int vortex_resume (struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
+	struct vortex_private *vp = netdev_priv(dev);
 
-	if (dev && dev->priv) {
+	if (dev && vp) {
+		pci_set_power_state(pdev, PCI_D0);
+		pci_restore_state(pdev);
+		pci_enable_device(pdev);
+		pci_set_master(pdev);
+		if (request_irq(dev->irq, vp->full_bus_master_rx ?
+				&boomerang_interrupt : &vortex_interrupt, SA_SHIRQ, dev->name, dev)) {
+			printk(KERN_WARNING "%s: Could not reserve IRQ %d\n", dev->name, dev->irq);
+			pci_disable_device(pdev);
+			return -EBUSY;
+		}
 		if (netif_running(dev)) {
 			vortex_up(dev);
 			netif_device_attach(dev);
@@ -1872,6 +1888,7 @@ vortex_timer(unsigned long data)
 	case XCVR_MII: case XCVR_NWAY:
 		{
 			spin_lock_bh(&vp->lock);
+			mii_status = mdio_read(dev, vp->phys[0], 1);
 			mii_status = mdio_read(dev, vp->phys[0], 1);
 			ok = 1;
 			if (vortex_debug > 2)

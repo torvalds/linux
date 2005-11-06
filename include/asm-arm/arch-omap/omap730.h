@@ -36,10 +36,6 @@
 
 /* Syntax: XX_BASE = Virtual base address, XX_START = Physical base address */
 
-#define OMAP730_SRAM_BASE	0xD0000000
-#define OMAP730_SRAM_SIZE	(SZ_128K + SZ_64K + SZ_8K)
-#define OMAP730_SRAM_START	0x20000000
-
 #define OMAP730_DSP_BASE	0xE0000000
 #define OMAP730_DSP_SIZE	0x50000
 #define OMAP730_DSP_START	0xE0000000

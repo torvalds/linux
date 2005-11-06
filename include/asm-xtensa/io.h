@@ -41,12 +41,12 @@ static inline unsigned int _swapl (unsigned int v)
  * These are trivial on the 1:1 Linux/Xtensa mapping
  */
 
-extern inline unsigned long virt_to_phys(volatile void * address)
+static inline unsigned long virt_to_phys(volatile void * address)
 {
 	return PHYSADDR((unsigned long)address);
 }
 
-extern inline void * phys_to_virt(unsigned long address)
+static inline void * phys_to_virt(unsigned long address)
 {
 	return (void*) CACHED_ADDR(address);
 }
@@ -55,12 +55,12 @@ extern inline void * phys_to_virt(unsigned long address)
  * IO bus memory addresses are also 1:1 with the physical address
  */
 
-extern inline unsigned long virt_to_bus(volatile void * address)
+static inline unsigned long virt_to_bus(volatile void * address)
 {
 	return PHYSADDR((unsigned long)address);
 }
 
-extern inline void * bus_to_virt (unsigned long address)
+static inline void * bus_to_virt (unsigned long address)
 {
 	return (void *) CACHED_ADDR(address);
 }
@@ -69,17 +69,17 @@ extern inline void * bus_to_virt (unsigned long address)
  * Change "struct page" to physical address.
  */
 
-extern inline void *ioremap(unsigned long offset, unsigned long size)
+static inline void *ioremap(unsigned long offset, unsigned long size)
 {
         return (void *) CACHED_ADDR_IO(offset);
 }
 
-extern inline void *ioremap_nocache(unsigned long offset, unsigned long size)
+static inline void *ioremap_nocache(unsigned long offset, unsigned long size)
 {
         return (void *) BYPASS_ADDR_IO(offset);
 }
 
-extern inline void iounmap(void *addr)
+static inline void iounmap(void *addr)
 {
 }
 

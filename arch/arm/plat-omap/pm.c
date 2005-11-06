@@ -39,23 +39,31 @@
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
 #include <linux/pm.h>
+#include <linux/interrupt.h>
 
 #include <asm/io.h>
+#include <asm/irq.h>
 #include <asm/mach/time.h>
-#include <asm/mach-types.h>
+#include <asm/mach/irq.h>
 
-#include <asm/arch/omap16xx.h>
+#include <asm/mach-types.h>
+#include <asm/arch/irqs.h>
+#include <asm/arch/tc.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/mux.h>
-#include <asm/arch/tc.h>
 #include <asm/arch/tps65010.h>
+#include <asm/arch/dsp_common.h>
 
 #include "clock.h"
+#include "sram.h"
 
 static unsigned int arm_sleep_save[ARM_SLEEP_SAVE_SIZE];
 static unsigned short ulpd_sleep_save[ULPD_SLEEP_SAVE_SIZE];
 static unsigned int mpui1510_sleep_save[MPUI1510_SLEEP_SAVE_SIZE];
 static unsigned int mpui1610_sleep_save[MPUI1610_SLEEP_SAVE_SIZE];
+
+static void (*omap_sram_idle)(void) = NULL;
+static void (*omap_sram_suspend)(unsigned long r0, unsigned long r1) = NULL;
 
 /*
  * Let's power down on idle, but only if we are really
@@ -65,7 +73,6 @@ static unsigned int mpui1610_sleep_save[MPUI1610_SLEEP_SAVE_SIZE];
  */
 void omap_pm_idle(void)
 {
-	int (*func_ptr)(void) = 0;
 	unsigned int mask32 = 0;
 
 	/*
@@ -84,6 +91,13 @@ void omap_pm_idle(void)
 	mask32 = omap_readl(ARM_SYSST);
 
 	/*
+	 * Prevent the ULPD from entering low power state by setting
+	 * POWER_CTRL_REG:4 = 0
+	 */
+	omap_writew(omap_readw(ULPD_POWER_CTRL) &
+		    ~ULPD_DEEP_SLEEP_TRANSITION_EN, ULPD_POWER_CTRL);
+
+	/*
 	 * Since an interrupt may set up a timer, we don't want to
 	 * reprogram the hardware timer with interrupts enabled.
 	 * Re-enable interrupts only after returning from idle.
@@ -92,18 +106,9 @@ void omap_pm_idle(void)
 
 	if ((mask32 & DSP_IDLE) == 0) {
 		__asm__ volatile ("mcr	p15, 0, r0, c7, c0, 4");
-	} else {
+	} else
+		omap_sram_idle();
 
-		if (cpu_is_omap1510()) {
-			func_ptr = (void *)(OMAP1510_SRAM_IDLE_SUSPEND);
-		} else if (cpu_is_omap1610() || cpu_is_omap1710()) {
-			func_ptr = (void *)(OMAP1610_SRAM_IDLE_SUSPEND);
-		} else if (cpu_is_omap5912()) {
-			func_ptr = (void *)(OMAP5912_SRAM_IDLE_SUSPEND);
-		}
-
-		func_ptr();
-	}
 	local_fiq_enable();
 	local_irq_enable();
 }
@@ -115,58 +120,55 @@ void omap_pm_idle(void)
  */
 static void omap_pm_wakeup_setup(void)
 {
-	/*
-	 * Enable ARM XOR clock and release peripheral from reset by
-	 * writing 1 to PER_EN bit in ARM_RSTCT2, this is required
-	 * for UART configuration to use UART2 to wake up.
-	 */
-
-	omap_writel(omap_readl(ARM_IDLECT2) | ENABLE_XORCLK, ARM_IDLECT2);
-	omap_writel(omap_readl(ARM_RSTCT2) | PER_EN, ARM_RSTCT2);
-	omap_writew(MODEM_32K_EN, ULPD_CLOCK_CTRL);
+	u32 level1_wake = OMAP_IRQ_BIT(INT_IH2_IRQ);
+	u32 level2_wake = OMAP_IRQ_BIT(INT_UART2) | OMAP_IRQ_BIT(INT_KEYBOARD);
 
 	/*
-	 * Turn off all interrupts except L1-2nd level cascade,
-	 * and the L2 wakeup interrupts: keypad and UART2.
+	 * Turn off all interrupts except GPIO bank 1, L1-2nd level cascade,
+	 * and the L2 wakeup interrupts: keypad and UART2. Note that the
+	 * drivers must still separately call omap_set_gpio_wakeup() to
+	 * wake up to a GPIO interrupt.
 	 */
+	if (cpu_is_omap1510() || cpu_is_omap16xx())
+		level1_wake |= OMAP_IRQ_BIT(INT_GPIO_BANK1);
+	else if (cpu_is_omap730())
+		level1_wake |= OMAP_IRQ_BIT(INT_730_GPIO_BANK1);
 
-	omap_writel(~IRQ_LEVEL2, OMAP_IH1_MIR);
+	omap_writel(~level1_wake, OMAP_IH1_MIR);
 
-	if (cpu_is_omap1510()) {
-		omap_writel(~(IRQ_UART2 | IRQ_KEYBOARD),  OMAP_IH2_MIR);
-	}
+	if (cpu_is_omap1510())
+		omap_writel(~level2_wake,  OMAP_IH2_MIR);
 
+	/* INT_1610_WAKE_UP_REQ is needed for GPIO wakeup... */
 	if (cpu_is_omap16xx()) {
-		omap_writel(~(IRQ_UART2 | IRQ_KEYBOARD), OMAP_IH2_0_MIR);
-
-		omap_writel(~0x0, OMAP_IH2_1_MIR);
+		omap_writel(~level2_wake, OMAP_IH2_0_MIR);
+		omap_writel(~OMAP_IRQ_BIT(INT_1610_WAKE_UP_REQ), OMAP_IH2_1_MIR);
 		omap_writel(~0x0, OMAP_IH2_2_MIR);
 		omap_writel(~0x0, OMAP_IH2_3_MIR);
 	}
 
-	/*  New IRQ agreement */
+	/*  New IRQ agreement, recalculate in cascade order */
+	omap_writel(1, OMAP_IH2_CONTROL);
  	omap_writel(1, OMAP_IH1_CONTROL);
-
-	/* external PULL to down, bit 22 = 0 */
-	omap_writel(omap_readl(PULL_DWN_CTRL_2) & ~(1<<22), PULL_DWN_CTRL_2);
 }
 
 void omap_pm_suspend(void)
 {
-	unsigned int mask32 = 0;
 	unsigned long arg0 = 0, arg1 = 0;
-	int (*func_ptr)(unsigned short, unsigned short) = 0;
-	unsigned short save_dsp_idlect2;
 
-	printk("PM: OMAP%x is entering deep sleep now ...\n", system_rev);
+	printk("PM: OMAP%x is trying to enter deep sleep...\n", system_rev);
+
+	omap_serial_wake_trigger(1);
 
 	if (machine_is_omap_osk()) {
 		/* Stop LED1 (D9) blink */
 		tps65010_set_led(LED1, OFF);
 	}
 
+	omap_writew(0xffff, ULPD_SOFT_DISABLE_REQ_REG);
+
 	/*
-	 * Step 1: turn off interrupts
+	 * Step 1: turn off interrupts (FIXME: NOTE: already disabled)
 	 */
 
 	local_irq_disable();
@@ -207,6 +209,8 @@ void omap_pm_suspend(void)
 	ARM_SAVE(ARM_CKCTL);
 	ARM_SAVE(ARM_IDLECT1);
 	ARM_SAVE(ARM_IDLECT2);
+	if (!(cpu_is_omap1510()))
+		ARM_SAVE(ARM_IDLECT3);
 	ARM_SAVE(ARM_EWUPCT);
 	ARM_SAVE(ARM_RSTCT1);
 	ARM_SAVE(ARM_RSTCT2);
@@ -214,42 +218,12 @@ void omap_pm_suspend(void)
 	ULPD_SAVE(ULPD_CLOCK_CTRL);
 	ULPD_SAVE(ULPD_STATUS_REQ);
 
-	/*
-	 * Step 3: LOW_PWR signal enabling
-	 *
-	 * Allow the LOW_PWR signal to be visible on MPUIO5 ball.
-	 */
-	if (cpu_is_omap1510()) {
-		/* POWER_CTRL_REG = 0x1 (LOW_POWER is available) */
-		omap_writew(omap_readw(ULPD_POWER_CTRL) |
-			    OMAP1510_ULPD_LOW_POWER_REQ, ULPD_POWER_CTRL);
-	} else if (cpu_is_omap16xx()) {
-		/* POWER_CTRL_REG = 0x1 (LOW_POWER is available) */
-		omap_writew(omap_readw(ULPD_POWER_CTRL) |
-			    OMAP1610_ULPD_LOW_POWER_REQ, ULPD_POWER_CTRL);
-	}
-
-	/* configure LOW_PWR pin */
-	omap_cfg_reg(T20_1610_LOW_PWR);
+	/* (Step 3 removed - we now allow deep sleep by default) */
 
 	/*
 	 * Step 4: OMAP DSP Shutdown
 	 */
 
-	/* Set DSP_RST = 1 and DSP_EN = 0, put DSP block into reset */
-	omap_writel((omap_readl(ARM_RSTCT1) | DSP_RST) & ~DSP_ENABLE,
-		    ARM_RSTCT1);
-
-	/* Set DSP boot mode to DSP-IDLE, DSP_BOOT_MODE = 0x2 */
-        omap_writel(DSP_IDLE_MODE, MPUI_DSP_BOOT_CONFIG);
-
-	/* Set EN_DSPCK = 0, stop DSP block clock */
-	omap_writel(omap_readl(ARM_CKCTL) & ~DSP_CLOCK_ENABLE, ARM_CKCTL);
-
-	/* Stop any DSP domain clocks */
-	omap_writel(omap_readl(ARM_IDLECT2) | (1<<EN_APICK), ARM_IDLECT2);
-	save_dsp_idlect2 = __raw_readw(DSP_IDLECT2);
-	__raw_writew(0, DSP_IDLECT2);
 
 	/*
 	 * Step 5: Wakeup Event Setup
@@ -258,23 +232,8 @@ void omap_pm_suspend(void)
 	omap_pm_wakeup_setup();
 
 	/*
-	 * Step 6a: ARM and Traffic controller shutdown
-	 *
-	 * Step 6 starts here with clock and watchdog disable
+	 * Step 6: ARM and Traffic controller shutdown
 	 */
-
-	/* stop clocks */
-	mask32 = omap_readl(ARM_IDLECT2);
-	mask32 &= ~(1<<EN_WDTCK);  /* bit 0 -> 0 (WDT clock) */
-	mask32 |=  (1<<EN_XORPCK); /* bit 1 -> 1 (XORPCK clock) */
-	mask32 &= ~(1<<EN_PERCK);  /* bit 2 -> 0 (MPUPER_CK clock) */
-	mask32 &= ~(1<<EN_LCDCK);  /* bit 3 -> 0 (LCDC clock) */
-	mask32 &= ~(1<<EN_LBCK);   /* bit 4 -> 0 (local bus clock) */
-	mask32 |=  (1<<EN_APICK);  /* bit 6 -> 1 (MPUI clock) */
-	mask32 &= ~(1<<EN_TIMCK);  /* bit 7 -> 0 (MPU timer clock) */
-	mask32 &= ~(1<<DMACK_REQ); /* bit 8 -> 0 (DMAC clock) */
-	mask32 &= ~(1<<EN_GPIOCK); /* bit 9 -> 0 (GPIO clock) */
-	omap_writel(mask32, ARM_IDLECT2);
 
 	/* disable ARM watchdog */
 	omap_writel(0x00F5, OMAP_WDT_TIMER_MODE);
@@ -295,47 +254,24 @@ void omap_pm_suspend(void)
 	arg0 = arm_sleep_save[ARM_SLEEP_SAVE_ARM_IDLECT1];
 	arg1 = arm_sleep_save[ARM_SLEEP_SAVE_ARM_IDLECT2];
 
-	if (cpu_is_omap1510()) {
-		func_ptr = (void *)(OMAP1510_SRAM_API_SUSPEND);
-	} else if (cpu_is_omap1610() || cpu_is_omap1710()) {
-		func_ptr = (void *)(OMAP1610_SRAM_API_SUSPEND);
-	} else if (cpu_is_omap5912()) {
-		func_ptr = (void *)(OMAP5912_SRAM_API_SUSPEND);
-	}
-
 	/*
 	 * Step 6c: ARM and Traffic controller shutdown
 	 *
 	 * Jump to assembly code. The processor will stay there
  	 * until wake up.
 	 */
-
-        func_ptr(arg0, arg1);
+        omap_sram_suspend(arg0, arg1);
 
 	/*
 	 * If we are here, processor is woken up!
 	 */
 
-	if (cpu_is_omap1510()) {
-		/* POWER_CTRL_REG = 0x0 (LOW_POWER is disabled) */
-		omap_writew(omap_readw(ULPD_POWER_CTRL) &
-			    ~OMAP1510_ULPD_LOW_POWER_REQ, ULPD_POWER_CTRL);
-	} else if (cpu_is_omap16xx()) {
-		/* POWER_CTRL_REG = 0x0 (LOW_POWER is disabled) */
-		omap_writew(omap_readw(ULPD_POWER_CTRL) &
-			    ~OMAP1610_ULPD_LOW_POWER_REQ, ULPD_POWER_CTRL);
-	}
-
-
-	/* Restore DSP clocks */
-	omap_writel(omap_readl(ARM_IDLECT2) | (1<<EN_APICK), ARM_IDLECT2);
-	__raw_writew(save_dsp_idlect2, DSP_IDLECT2);
-	ARM_RESTORE(ARM_IDLECT2);
-
 	/*
 	 * Restore ARM state, except ARM_IDLECT1/2 which omap_cpu_suspend did
 	 */
 
+	if (!(cpu_is_omap1510()))
+		ARM_RESTORE(ARM_IDLECT3);
 	ARM_RESTORE(ARM_CKCTL);
 	ARM_RESTORE(ARM_EWUPCT);
 	ARM_RESTORE(ARM_RSTCT1);
@@ -366,12 +302,16 @@ void omap_pm_suspend(void)
 		MPUI1610_RESTORE(OMAP_IH2_3_MIR);
 	}
 
+	omap_writew(0, ULPD_SOFT_DISABLE_REQ_REG);
+
 	/*
 	 * Reenable interrupts
 	 */
 
 	local_irq_enable();
 	local_fiq_enable();
+
+	omap_serial_wake_trigger(0);
 
 	printk("PM: OMAP%x is re-starting from deep sleep...\n", system_rev);
 
@@ -401,6 +341,8 @@ static int omap_pm_read_proc(
 	ARM_SAVE(ARM_CKCTL);
 	ARM_SAVE(ARM_IDLECT1);
 	ARM_SAVE(ARM_IDLECT2);
+	if (!(cpu_is_omap1510()))
+		ARM_SAVE(ARM_IDLECT3);
 	ARM_SAVE(ARM_EWUPCT);
 	ARM_SAVE(ARM_RSTCT1);
 	ARM_SAVE(ARM_RSTCT2);
@@ -436,6 +378,7 @@ static int omap_pm_read_proc(
 		   "ARM_CKCTL_REG:            0x%-8x     \n"
 		   "ARM_IDLECT1_REG:          0x%-8x     \n"
 		   "ARM_IDLECT2_REG:          0x%-8x     \n"
+		   "ARM_IDLECT3_REG:	      0x%-8x     \n"
 		   "ARM_EWUPCT_REG:           0x%-8x     \n"
 		   "ARM_RSTCT1_REG:           0x%-8x     \n"
 		   "ARM_RSTCT2_REG:           0x%-8x     \n"
@@ -449,6 +392,7 @@ static int omap_pm_read_proc(
 		   ARM_SHOW(ARM_CKCTL),
 		   ARM_SHOW(ARM_IDLECT1),
 		   ARM_SHOW(ARM_IDLECT2),
+		   ARM_SHOW(ARM_IDLECT3),
 		   ARM_SHOW(ARM_EWUPCT),
 		   ARM_SHOW(ARM_RSTCT1),
 		   ARM_SHOW(ARM_RSTCT2),
@@ -507,7 +451,7 @@ static void omap_pm_init_proc(void)
 
 	entry = create_proc_read_entry("driver/omap_pm",
 				       S_IWUSR | S_IRUGO, NULL,
-				       omap_pm_read_proc, 0);
+	   omap_pm_read_proc, NULL);
 }
 
 #endif /* DEBUG && CONFIG_PROC_FS */
@@ -580,7 +524,21 @@ static int omap_pm_finish(suspend_state_t state)
 }
 
 
-struct pm_ops omap_pm_ops ={
+static irqreturn_t  omap_wakeup_interrupt(int  irq, void *  dev,
+				     struct pt_regs *  regs)
+{
+	return IRQ_HANDLED;
+}
+
+static struct irqaction omap_wakeup_irq = {
+	.name		= "peripheral wakeup",
+	.flags		= SA_INTERRUPT,
+	.handler	= omap_wakeup_interrupt
+};
+
+
+
+static struct pm_ops omap_pm_ops ={
 	.pm_disk_mode = 0,
         .prepare        = omap_pm_prepare,
         .enter          = omap_pm_enter,
@@ -590,41 +548,60 @@ struct pm_ops omap_pm_ops ={
 static int __init omap_pm_init(void)
 {
 	printk("Power Management for TI OMAP.\n");
-	pm_idle = omap_pm_idle;
 	/*
 	 * We copy the assembler sleep/wakeup routines to SRAM.
 	 * These routines need to be in SRAM as that's the only
 	 * memory the MPU can see when it wakes up.
 	 */
-
-#ifdef	CONFIG_ARCH_OMAP1510
 	if (cpu_is_omap1510()) {
-		memcpy((void *)OMAP1510_SRAM_IDLE_SUSPEND,
-		       omap1510_idle_loop_suspend,
-		       omap1510_idle_loop_suspend_sz);
-		memcpy((void *)OMAP1510_SRAM_API_SUSPEND, omap1510_cpu_suspend,
-		       omap1510_cpu_suspend_sz);
-	} else
-#endif
-	if (cpu_is_omap1610() || cpu_is_omap1710()) {
-		memcpy((void *)OMAP1610_SRAM_IDLE_SUSPEND,
-		       omap1610_idle_loop_suspend,
-		       omap1610_idle_loop_suspend_sz);
-		memcpy((void *)OMAP1610_SRAM_API_SUSPEND, omap1610_cpu_suspend,
-		       omap1610_cpu_suspend_sz);
-	} else if (cpu_is_omap5912()) {
-		memcpy((void *)OMAP5912_SRAM_IDLE_SUSPEND,
-		       omap1610_idle_loop_suspend,
-		       omap1610_idle_loop_suspend_sz);
-		memcpy((void *)OMAP5912_SRAM_API_SUSPEND, omap1610_cpu_suspend,
-		       omap1610_cpu_suspend_sz);
+		omap_sram_idle = omap_sram_push(omap1510_idle_loop_suspend,
+						omap1510_idle_loop_suspend_sz);
+		omap_sram_suspend = omap_sram_push(omap1510_cpu_suspend,
+						   omap1510_cpu_suspend_sz);
+	} else if (cpu_is_omap16xx()) {
+		omap_sram_idle = omap_sram_push(omap1610_idle_loop_suspend,
+						omap1610_idle_loop_suspend_sz);
+		omap_sram_suspend = omap_sram_push(omap1610_cpu_suspend,
+						   omap1610_cpu_suspend_sz);
 	}
+
+	if (omap_sram_idle == NULL || omap_sram_suspend == NULL) {
+		printk(KERN_ERR "PM not initialized: Missing SRAM support\n");
+		return -ENODEV;
+	}
+
+	pm_idle = omap_pm_idle;
+
+	setup_irq(INT_1610_WAKE_UP_REQ, &omap_wakeup_irq);
+#if 0
+	/* --- BEGIN BOARD-DEPENDENT CODE --- */
+	/* Sleepx mask direction */
+	omap_writew((omap_readw(0xfffb5008) & ~2), 0xfffb5008);
+	/* Unmask sleepx signal */
+	omap_writew((omap_readw(0xfffb5004) & ~2), 0xfffb5004);
+	/* --- END BOARD-DEPENDENT CODE --- */
+#endif
+
+	/* Program new power ramp-up time
+	 * (0 for most boards since we don't lower voltage when in deep sleep)
+	 */
+	omap_writew(ULPD_SETUP_ANALOG_CELL_3_VAL, ULPD_SETUP_ANALOG_CELL_3);
+
+	/* Setup ULPD POWER_CTRL_REG - enter deep sleep whenever possible */
+	omap_writew(ULPD_POWER_CTRL_REG_VAL, ULPD_POWER_CTRL);
+
+	/* Configure IDLECT3 */
+	if (cpu_is_omap16xx())
+		omap_writel(OMAP1610_IDLECT3_VAL, OMAP1610_IDLECT3);
 
 	pm_set_ops(&omap_pm_ops);
 
 #if defined(DEBUG) && defined(CONFIG_PROC_FS)
 	omap_pm_init_proc();
 #endif
+
+	/* configure LOW_PWR pin */
+	omap_cfg_reg(T20_1610_LOW_PWR);
 
 	return 0;
 }

@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2000-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2000-2005 Silicon Graphics, Inc. All rights reserved.
  */
 #include <linux/config.h>
 #include <asm/uaccess.h>
@@ -15,7 +15,7 @@
 
 static int partition_id_show(struct seq_file *s, void *p)
 {
-	seq_printf(s, "%d\n", sn_local_partid());
+	seq_printf(s, "%d\n", sn_partition_id);
 	return 0;
 }
 
@@ -52,7 +52,7 @@ static int licenseID_open(struct inode *inode, struct file *file)
  * the bridge chip.  The hardware will then send an interrupt message if the
  * interrupt line is active.  This mimics a level sensitive interrupt.
  */
-int sn_force_interrupt_flag = 1;
+extern int sn_force_interrupt_flag;
 
 static int sn_force_interrupt_show(struct seq_file *s, void *p)
 {

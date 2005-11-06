@@ -7,7 +7,7 @@ To protect itself the kernel has to verify this address.
 
 In older versions of Linux this was done with the 
 int verify_area(int type, const void * addr, unsigned long size) 
-function.
+function (which has since been replaced by access_ok()).
 
 This function verified that the memory area starting at address 
 addr and of size size was accessible for the operation specified 

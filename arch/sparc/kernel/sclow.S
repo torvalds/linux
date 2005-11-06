@@ -7,7 +7,7 @@
  */
 
 #include <asm/ptrace.h>
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/errno.h>
 #include <asm/winmacro.h>
 #include <asm/thread_info.h>

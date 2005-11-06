@@ -73,11 +73,7 @@ compressed: zImage
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 
-prepare: include/asm-$(ARCH)/asm-offsets.h arch/$(ARCH)/lib/syscalltab.h
-
-include/asm-$(ARCH)/asm-offsets.h: arch/$(ARCH)/kernel/asm-offsets.s \
-				   include/asm include/linux/version.h
-	$(call filechk,gen-asm-offsets)
+archprepare: arch/$(ARCH)/lib/syscalltab.h
 
 define filechk_gen-syscalltab
        (set -e; \
@@ -108,7 +104,7 @@ endef
 arch/$(ARCH)/lib/syscalltab.h: arch/sh64/kernel/syscalls.S
 	$(call filechk,gen-syscalltab)
 
-CLEAN_FILES += include/asm-$(ARCH)/asm-offsets.h arch/$(ARCH)/lib/syscalltab.h
+CLEAN_FILES += arch/$(ARCH)/lib/syscalltab.h
 
 define archhelp
 	@echo '  zImage 	           - Compressed kernel image (arch/sh64/boot/zImage)'

@@ -10,12 +10,15 @@
  * information.
  */
 
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/bootmem.h>
 #include <linux/err.h>
+#include <linux/slab.h>
+
+#include "base.h"
 
 struct device platform_bus = {
 	.bus_id		= "platform",
@@ -225,13 +228,12 @@ struct platform_device *platform_device_register_simple(char *name, unsigned int
 	struct platform_object *pobj;
 	int retval;
 
-	pobj = kmalloc(sizeof(struct platform_object) + sizeof(struct resource) * num, GFP_KERNEL);
+	pobj = kzalloc(sizeof(*pobj) + sizeof(struct resource) * num, GFP_KERNEL);
 	if (!pobj) {
 		retval = -ENOMEM;
 		goto error;
 	}
 
-	memset(pobj, 0, sizeof(*pobj));
 	pobj->pdev.name = name;
 	pobj->pdev.id = id;
 	pobj->pdev.dev.release = platform_device_release_simple;
@@ -280,13 +282,9 @@ static int platform_suspend(struct device * dev, pm_message_t state)
 {
 	int ret = 0;
 
-	if (dev->driver && dev->driver->suspend) {
-		ret = dev->driver->suspend(dev, state, SUSPEND_DISABLE);
-		if (ret == 0)
-			ret = dev->driver->suspend(dev, state, SUSPEND_SAVE_STATE);
-		if (ret == 0)
-			ret = dev->driver->suspend(dev, state, SUSPEND_POWER_DOWN);
-	}
+	if (dev->driver && dev->driver->suspend)
+		ret = dev->driver->suspend(dev, state);
+
 	return ret;
 }
 
@@ -294,13 +292,9 @@ static int platform_resume(struct device * dev)
 {
 	int ret = 0;
 
-	if (dev->driver && dev->driver->resume) {
-		ret = dev->driver->resume(dev, RESUME_POWER_ON);
-		if (ret == 0)
-			ret = dev->driver->resume(dev, RESUME_RESTORE_STATE);
-		if (ret == 0)
-			ret = dev->driver->resume(dev, RESUME_ENABLE);
-	}
+	if (dev->driver && dev->driver->resume)
+		ret = dev->driver->resume(dev);
+
 	return ret;
 }
 

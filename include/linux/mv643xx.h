@@ -980,7 +980,7 @@
 /* I2C Registers                        */
 /****************************************/
 
-#define MV64XXX_I2C_CTLR_NAME					"mv64xxx i2c"
+#define MV64XXX_I2C_CTLR_NAME					"mv64xxx_i2c"
 #define MV64XXX_I2C_OFFSET                                          0xc000
 #define MV64XXX_I2C_REG_BLOCK_SIZE                                  0x0020
 

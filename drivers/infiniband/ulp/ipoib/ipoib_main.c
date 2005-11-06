@@ -1,5 +1,7 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
+ * Copyright (c) 2004 Voltaire, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -34,7 +36,6 @@
 
 #include "ipoib.h"
 
-#include <linux/version.h>
 #include <linux/module.h>
 
 #include <linux/init.h>
@@ -355,18 +356,15 @@ static struct ipoib_path *path_rec_create(struct net_device *dev,
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ipoib_path *path;
 
-	path = kmalloc(sizeof *path, GFP_ATOMIC);
+	path = kzalloc(sizeof *path, GFP_ATOMIC);
 	if (!path)
 		return NULL;
 
-	path->dev          = dev;
-	path->pathrec.dlid = 0;
-	path->ah           = NULL;
+	path->dev = dev;
 
 	skb_queue_head_init(&path->queue);
 
 	INIT_LIST_HEAD(&path->neigh_list);
-	path->query = NULL;
 	init_completion(&path->done);
 
 	memcpy(path->pathrec.dgid.raw, gid->raw, sizeof (union ib_gid));
@@ -473,7 +471,7 @@ err:
 	spin_unlock(&priv->lock);
 }
 
-static void path_lookup(struct sk_buff *skb, struct net_device *dev)
+static void ipoib_path_lookup(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(skb->dev);
 
@@ -550,11 +548,8 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ipoib_neigh *neigh;
 	unsigned long flags;
 
-	local_irq_save(flags);
-	if (!spin_trylock(&priv->tx_lock)) {
-		local_irq_restore(flags);
+	if (!spin_trylock_irqsave(&priv->tx_lock, flags))
 		return NETDEV_TX_LOCKED;
-	}
 
 	/*
 	 * Check if our queue is stopped.  Since we have the LLTX bit
@@ -568,7 +563,7 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (skb->dst && skb->dst->neighbour) {
 		if (unlikely(!*to_ipoib_neigh(skb->dst->neighbour))) {
-			path_lookup(skb, dev);
+			ipoib_path_lookup(skb, dev);
 			goto out;
 		}
 
@@ -600,14 +595,15 @@ static int ipoib_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 			ipoib_mcast_send(dev, (union ib_gid *) (phdr->hwaddr + 4), skb);
 		} else {
-			/* unicast GID -- should be ARP reply */
+			/* unicast GID -- should be ARP or RARP reply */
 
-			if (be16_to_cpup((u16 *) skb->data) != ETH_P_ARP) {
+			if ((be16_to_cpup((__be16 *) skb->data) != ETH_P_ARP) &&
+			    (be16_to_cpup((__be16 *) skb->data) != ETH_P_RARP)) {
 				ipoib_warn(priv, "Unicast, no %s: type %04x, QPN %06x "
 					   IPOIB_GID_FMT "\n",
 					   skb->dst ? "neigh" : "dst",
-					   be16_to_cpup((u16 *) skb->data),
-					   be32_to_cpup((u32 *) phdr->hwaddr),
+					   be16_to_cpup((__be16 *) skb->data),
+					   be32_to_cpup((__be32 *) phdr->hwaddr),
 					   IPOIB_GID_ARG(*(union ib_gid *) (phdr->hwaddr + 4)));
 				dev_kfree_skb_any(skb);
 				++priv->stats.tx_dropped;
@@ -635,8 +631,11 @@ static void ipoib_timeout(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
-	ipoib_warn(priv, "transmit timeout: latency %ld\n",
-		   jiffies - dev->trans_start);
+	ipoib_warn(priv, "transmit timeout: latency %d msecs\n",
+		   jiffies_to_msecs(jiffies - dev->trans_start));
+	ipoib_warn(priv, "queue stopped %d, tx_head %u, tx_tail %u\n",
+		   netif_queue_stopped(dev),
+		   priv->tx_head, priv->tx_tail);
 	/* XXX reset QP, etc. */
 }
 
@@ -670,7 +669,7 @@ static void ipoib_set_mcast_list(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 
-	schedule_work(&priv->restart_task);
+	queue_work(ipoib_workqueue, &priv->restart_task);
 }
 
 static void ipoib_neigh_destructor(struct neighbour *n)
@@ -727,25 +726,21 @@ int ipoib_dev_init(struct net_device *dev, struct ib_device *ca, int port)
 
 	/* Allocate RX/TX "rings" to hold queued skbs */
 
-	priv->rx_ring =	kmalloc(IPOIB_RX_RING_SIZE * sizeof (struct ipoib_buf),
+	priv->rx_ring =	kzalloc(IPOIB_RX_RING_SIZE * sizeof (struct ipoib_rx_buf),
 				GFP_KERNEL);
 	if (!priv->rx_ring) {
 		printk(KERN_WARNING "%s: failed to allocate RX ring (%d entries)\n",
 		       ca->name, IPOIB_RX_RING_SIZE);
 		goto out;
 	}
-	memset(priv->rx_ring, 0,
-	       IPOIB_RX_RING_SIZE * sizeof (struct ipoib_buf));
 
-	priv->tx_ring = kmalloc(IPOIB_TX_RING_SIZE * sizeof (struct ipoib_buf),
+	priv->tx_ring = kzalloc(IPOIB_TX_RING_SIZE * sizeof (struct ipoib_tx_buf),
 				GFP_KERNEL);
 	if (!priv->tx_ring) {
 		printk(KERN_WARNING "%s: failed to allocate TX ring (%d entries)\n",
 		       ca->name, IPOIB_TX_RING_SIZE);
 		goto out_rx_ring_cleanup;
 	}
-	memset(priv->tx_ring, 0,
-	       IPOIB_TX_RING_SIZE * sizeof (struct ipoib_buf));
 
 	/* priv->tx_head & tx_tail are already 0 */
 
@@ -779,15 +774,11 @@ void ipoib_dev_cleanup(struct net_device *dev)
 
 	ipoib_ib_dev_cleanup(dev);
 
-	if (priv->rx_ring) {
-		kfree(priv->rx_ring);
-		priv->rx_ring = NULL;
-	}
+	kfree(priv->rx_ring);
+	kfree(priv->tx_ring);
 
-	if (priv->tx_ring) {
-		kfree(priv->tx_ring);
-		priv->tx_ring = NULL;
-	}
+	priv->rx_ring = NULL;
+	priv->tx_ring = NULL;
 }
 
 static void ipoib_setup(struct net_device *dev)
@@ -805,10 +796,6 @@ static void ipoib_setup(struct net_device *dev)
 	dev->neigh_setup         = ipoib_neigh_setup_dev;
 
 	dev->watchdog_timeo 	 = HZ;
-
-	dev->rebuild_header 	 = NULL;
-	dev->set_mac_address 	 = NULL;
-	dev->header_cache_update = NULL;
 
 	dev->flags              |= IFF_BROADCAST | IFF_MULTICAST;
 
@@ -885,6 +872,12 @@ static ssize_t create_child(struct class_device *cdev,
 	if (pkey < 0 || pkey > 0xffff)
 		return -EINVAL;
 
+	/*
+	 * Set the full membership bit, so that we join the right
+	 * broadcast group, etc.
+	 */
+	pkey |= 0x8000;
+
 	ret = ipoib_vlan_add(container_of(cdev, struct net_device, class_dev),
 			     pkey);
 
@@ -936,6 +929,12 @@ static struct net_device *ipoib_add_port(const char *format,
 		       hca->name, port, result);
 		goto alloc_mem_failed;
 	}
+
+	/*
+	 * Set the full membership bit, so that we join the right
+	 * broadcast group, etc.
+	 */
+	priv->pkey |= 0x8000;
 
 	priv->dev->broadcast[8] = priv->pkey >> 8;
 	priv->dev->broadcast[9] = priv->pkey & 0xff;
@@ -995,6 +994,7 @@ debug_failed:
 
 register_failed:
 	ib_unregister_event_handler(&priv->event_handler);
+	flush_scheduled_work();
 
 event_failed:
 	ipoib_dev_cleanup(priv->dev);
@@ -1047,11 +1047,14 @@ static void ipoib_remove_one(struct ib_device *device)
 
 	list_for_each_entry_safe(priv, tmp, dev_list, list) {
 		ib_unregister_event_handler(&priv->event_handler);
+		flush_scheduled_work();
 
 		unregister_netdev(priv->dev);
 		ipoib_dev_cleanup(priv->dev);
 		free_netdev(priv->dev);
 	}
+
+	kfree(dev_list);
 }
 
 static int __init ipoib_init_module(void)

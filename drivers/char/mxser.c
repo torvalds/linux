@@ -63,7 +63,6 @@
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/segment.h>
 #include <asm/bitops.h>
 #include <asm/uaccess.h>
 
@@ -1059,8 +1058,7 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 		 */
 		timeout = jiffies + HZ;
 		while (!(inb(info->base + UART_LSR) & UART_LSR_TEMT)) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(5);
+			schedule_timeout_interruptible(5);
 			if (time_after(jiffies, timeout))
 				break;
 		}
@@ -1081,10 +1079,8 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	info->event = 0;
 	info->tty = NULL;
 	if (info->blocked_open) {
-		if (info->close_delay) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(info->close_delay);
-		}
+		if (info->close_delay)
+			schedule_timeout_interruptible(info->close_delay);
 		wake_up_interruptible(&info->open_wait);
 	}
 
@@ -1802,8 +1798,7 @@ static void mxser_wait_until_sent(struct tty_struct *tty, int timeout)
 #ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
 		printk("lsr = %d (jiff=%lu)...", lsr, jiffies);
 #endif
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(char_time);
+		schedule_timeout_interruptible(char_time);
 		if (signal_pending(current))
 			break;
 		if (timeout && time_after(jiffies, orig_jiffies + timeout))

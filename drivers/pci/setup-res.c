@@ -26,12 +26,17 @@
 #include "pci.h"
 
 
-static void
+void
 pci_update_resource(struct pci_dev *dev, struct resource *res, int resno)
 {
 	struct pci_bus_region region;
 	u32 new, check, mask;
 	int reg;
+
+	/* Ignore resources for unimplemented BARs and unused resource slots
+	   for 64 bit BARs. */
+	if (!res->flags)
+		return;
 
 	pcibios_resource_to_bus(dev, &region, res);
 
@@ -48,7 +53,9 @@ pci_update_resource(struct pci_dev *dev, struct resource *res, int resno)
 	if (resno < 6) {
 		reg = PCI_BASE_ADDRESS_0 + 4 * resno;
 	} else if (resno == PCI_ROM_RESOURCE) {
-		new |= res->flags & IORESOURCE_ROM_ENABLE;
+		if (!(res->flags & IORESOURCE_ROM_ENABLE))
+			return;
+		new |= PCI_ROM_ADDRESS_ENABLE;
 		reg = dev->rom_base_reg;
 	} else {
 		/* Hmm, non-standard resource. */
@@ -67,7 +74,7 @@ pci_update_resource(struct pci_dev *dev, struct resource *res, int resno)
 
 	if ((new & (PCI_BASE_ADDRESS_SPACE|PCI_BASE_ADDRESS_MEM_TYPE_MASK)) ==
 	    (PCI_BASE_ADDRESS_SPACE_MEMORY|PCI_BASE_ADDRESS_MEM_TYPE_64)) {
-		new = 0; /* currently everyone zeros the high address */
+		new = region.start >> 16 >> 16;
 		pci_write_config_dword(dev, reg + 4, new);
 		pci_read_config_dword(dev, reg + 4, &check);
 		if (check != new) {
@@ -90,10 +97,7 @@ pci_claim_resource(struct pci_dev *dev, int resource)
 	char *dtype = resource < PCI_BRIDGE_RESOURCES ? "device" : "bridge";
 	int err;
 
-	if (res->flags & IORESOURCE_IO)
-		root = &ioport_resource;
-	if (res->flags & IORESOURCE_MEM)
-		root = &iomem_resource;
+	root = pcibios_select_root(dev, res);
 
 	err = -EINVAL;
 	if (root != NULL)

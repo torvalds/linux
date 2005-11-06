@@ -1786,7 +1786,6 @@ isdn_net_receive(struct net_device *ndev, struct sk_buff *skb)
 		lp->stats.rx_bytes += skb->len;
 	}
 	skb->dev = ndev;
-	skb->input_dev = ndev;
 	skb->pkt_type = PACKET_HOST;
 	skb->mac.raw = skb->data;
 #ifdef ISDN_DEBUG_NET_DUMP

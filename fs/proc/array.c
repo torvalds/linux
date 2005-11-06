@@ -74,6 +74,7 @@
 #include <linux/file.h>
 #include <linux/times.h>
 #include <linux/cpuset.h>
+#include <linux/rcupdate.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -159,6 +160,7 @@ static inline char * task_state(struct task_struct *p, char *buffer)
 {
 	struct group_info *group_info;
 	int g;
+	struct fdtable *fdt = NULL;
 
 	read_lock(&tasklist_lock);
 	buffer += sprintf(buffer,
@@ -179,10 +181,14 @@ static inline char * task_state(struct task_struct *p, char *buffer)
 		p->gid, p->egid, p->sgid, p->fsgid);
 	read_unlock(&tasklist_lock);
 	task_lock(p);
+	rcu_read_lock();
+	if (p->files)
+		fdt = files_fdtable(p->files);
 	buffer += sprintf(buffer,
 		"FDSize:\t%d\n"
 		"Groups:\t",
-		p->files ? p->files->max_fds : 0);
+		fdt ? fdt->max_fds : 0);
+	rcu_read_unlock();
 
 	group_info = p->group_info;
 	get_group_info(group_info);
@@ -432,7 +438,7 @@ static int do_task_stat(struct task_struct *task, char * buffer, int whole)
 		jiffies_to_clock_t(it_real_value),
 		start_time,
 		vsize,
-		mm ? get_mm_counter(mm, rss) : 0, /* you might want to shift this left 3 */
+		mm ? get_mm_rss(mm) : 0,
 	        rsslim,
 		mm ? mm->start_code : 0,
 		mm ? mm->end_code : 0,

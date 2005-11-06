@@ -339,7 +339,7 @@ static int __init moxa_init(void)
 
 	init_MUTEX(&moxaBuffSem);
 	moxaDriver->owner = THIS_MODULE;
-	moxaDriver->name = "ttya";
+	moxaDriver->name = "ttyMX";
 	moxaDriver->devfs_name = "tts/a";
 	moxaDriver->major = ttymajor;
 	moxaDriver->minor_start = 0;

@@ -50,7 +50,6 @@
 #include <linux/mc146818rtc.h>
 #include <linux/timex.h>
 
-extern void startup_match20_interrupt(void);
 extern void do_softirq(void);
 extern volatile unsigned long wall_jiffies;
 unsigned long missed_heart_beats = 0;
@@ -58,14 +57,17 @@ unsigned long missed_heart_beats = 0;
 static unsigned long r4k_offset; /* Amount to increment compare reg each time */
 static unsigned long r4k_cur;    /* What counter should be at next timer irq */
 int	no_au1xxx_32khz;
-void	(*au1k_wait_ptr)(void);
+extern int allow_au1k_wait; /* default off for CP0 Counter */
 
 /* Cycle counter value at the previous timer interrupt.. */
 static unsigned int timerhi = 0, timerlo = 0;
 
 #ifdef CONFIG_PM
-#define MATCH20_INC 328
-extern void startup_match20_interrupt(void);
+#if HZ < 100 || HZ > 1000
+#error "unsupported HZ value! Must be in [100,1000]"
+#endif
+#define MATCH20_INC (328*100/HZ) /* magic number 328 is for HZ=100... */
+extern void startup_match20_interrupt(irqreturn_t (*handler)(int, void *, struct pt_regs *));
 static unsigned long last_pc0, last_match20;
 #endif
 
@@ -117,17 +119,16 @@ null:
 }
 
 #ifdef CONFIG_PM
-void counter0_irq(int irq, void *dev_id, struct pt_regs *regs)
+irqreturn_t counter0_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
 	unsigned long pc0;
 	int time_elapsed;
 	static int jiffie_drift = 0;
 
-	kstat.irqs[0][irq]++;
 	if (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_M20) {
 		/* should never happen! */
-		printk(KERN_WARNING "counter 0 w status eror\n");
-		return;
+		printk(KERN_WARNING "counter 0 w status error\n");
+		return IRQ_NONE;
 	}
 
 	pc0 = au_readl(SYS_TOYREAD);
@@ -164,6 +165,8 @@ void counter0_irq(int irq, void *dev_id, struct pt_regs *regs)
 		update_process_times(user_mode(regs));
 #endif
 	}
+
+	return IRQ_HANDLED;
 }
 
 /* When we wakeup from sleep, we have to "catch up" on all of the
@@ -281,7 +284,7 @@ unsigned long cal_r4koff(void)
 			cpu_speed = count * 2;
 		}
 #else
-		cpu_speed = (au_readl(SYS_CPUPLL) & 0x0000003f) * 
+		cpu_speed = (au_readl(SYS_CPUPLL) & 0x0000003f) *
 			AU1000_SRC_CLK;
 		count = cpu_speed / 2;
 #endif
@@ -356,7 +359,7 @@ static unsigned long do_fast_cp0_gettimeoffset(void)
 		: "hi", "lo", GCC_REG_ACCUM);
 
 	/*
- 	 * Due to possible jiffies inconsistencies, we need to check 
+ 	 * Due to possible jiffies inconsistencies, we need to check
 	 * the result so that we'll get a timer that is monotonic.
 	 */
 	if (res >= USECS_PER_JIFFY)
@@ -375,8 +378,8 @@ static unsigned long do_fast_pm_gettimeoffset(void)
 	au_sync();
 	offset = pc0 - last_pc0;
 	if (offset > 2*MATCH20_INC) {
-		printk("huge offset %x, last_pc0 %x last_match20 %x pc0 %x\n", 
-				(unsigned)offset, (unsigned)last_pc0, 
+		printk("huge offset %x, last_pc0 %x last_match20 %x pc0 %x\n",
+				(unsigned)offset, (unsigned)last_pc0,
 				(unsigned)last_match20, (unsigned)pc0);
 	}
 	offset = (unsigned long)((offset * 305) / 10);
@@ -388,17 +391,16 @@ void au1xxx_timer_setup(struct irqaction *irq)
 {
         unsigned int est_freq;
 	extern unsigned long (*do_gettimeoffset)(void);
-	extern void au1k_wait(void);
 
 	printk("calculating r4koff... ");
 	r4k_offset = cal_r4koff();
 	printk("%08lx(%d)\n", r4k_offset, (int) r4k_offset);
 
-	//est_freq = 2*r4k_offset*HZ;	
-	est_freq = r4k_offset*HZ;	
+	//est_freq = 2*r4k_offset*HZ;
+	est_freq = r4k_offset*HZ;
 	est_freq += 5000;    /* round */
 	est_freq -= est_freq%10000;
-	printk("CPU frequency %d.%02d MHz\n", est_freq/1000000, 
+	printk("CPU frequency %d.%02d MHz\n", est_freq/1000000,
 	       (est_freq%1000000)*100/1000000);
  	set_au1x00_speed(est_freq);
  	set_au1x00_lcd_clock(); // program the LCD clock
@@ -441,18 +443,18 @@ void au1xxx_timer_setup(struct irqaction *irq)
 		au_sync();
 		while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_M20);
 
-		/* setup match20 to interrupt once every 10ms */
+		/* setup match20 to interrupt once every HZ */
 		last_pc0 = last_match20 = au_readl(SYS_TOYREAD);
 		au_writel(last_match20 + MATCH20_INC, SYS_TOYMATCH2);
 		au_sync();
 		while (au_readl(SYS_COUNTER_CNTRL) & SYS_CNTRL_M20);
-		startup_match20_interrupt();
+		startup_match20_interrupt(counter0_irq);
 
 		do_gettimeoffset = do_fast_pm_gettimeoffset;
 
 		/* We can use the real 'wait' instruction.
 		*/
-		au1k_wait_ptr = au1k_wait;
+		allow_au1k_wait = 1;
 	}
 
 #else

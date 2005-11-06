@@ -9,12 +9,15 @@
  * with ':' vs. '/' as the path-element separator.
  */
 
+#include <linux/types.h>
+#include <linux/nls.h>
+
 #include "hfs_fs.h"
 
 /*================ Global functions ================*/
 
 /*
- * hfs_mac2triv()
+ * hfs_mac2asc()
  *
  * Given a 'Pascal String' (a string preceded by a length byte) in
  * the Macintosh character set produce the corresponding filename using
@@ -27,23 +30,58 @@
  * by ':' which never appears in HFS filenames.	 All other characters
  * are passed unchanged from input to output.
  */
-int hfs_mac2triv(char *out, const struct hfs_name *in)
+int hfs_mac2asc(struct super_block *sb, char *out, const struct hfs_name *in)
 {
-	const char *p;
-	char c;
-	int i, len;
+	struct nls_table *nls_disk = HFS_SB(sb)->nls_disk;
+	struct nls_table *nls_io = HFS_SB(sb)->nls_io;
+	const char *src;
+	char *dst;
+	int srclen, dstlen, size;
 
-	len = in->len;
-	p = in->name;
-	for (i = 0; i < len; i++) {
-		c = *p++;
-		*out++ = c == '/' ? ':' : c;
+	src = in->name;
+	srclen = in->len;
+	dst = out;
+	dstlen = HFS_MAX_NAMELEN;
+	if (nls_io) {
+		wchar_t ch;
+
+		while (srclen > 0) {
+			if (nls_disk) {
+				size = nls_disk->char2uni(src, srclen, &ch);
+				if (size <= 0) {
+					ch = '?';
+					size = 1;
+				}
+				src += size;
+				srclen -= size;
+			} else {
+				ch = *src++;
+				srclen--;
+			}
+			if (ch == '/')
+				ch = ':';
+			size = nls_io->uni2char(ch, dst, dstlen);
+			if (size < 0) {
+				if (size == -ENAMETOOLONG)
+					goto out;
+				*dst = '?';
+				size = 1;
+			}
+			dst += size;
+			dstlen -= size;
+		}
+	} else {
+		char ch;
+
+		while (--srclen >= 0)
+			*dst++ = (ch = *src++) == '/' ? ':' : ch;
 	}
-	return i;
+out:
+	return dst - out;
 }
 
 /*
- * hfs_triv2mac()
+ * hfs_asc2mac()
  *
  * Given an ASCII string (not null-terminated) and its length,
  * generate the corresponding filename in the Macintosh character set
@@ -54,19 +92,57 @@ int hfs_mac2triv(char *out, const struct hfs_name *in)
  * This routine is a inverse to hfs_mac2triv().
  * A ':' is replaced by a '/'.
  */
-void hfs_triv2mac(struct hfs_name *out, struct qstr *in)
+void hfs_asc2mac(struct super_block *sb, struct hfs_name *out, struct qstr *in)
 {
+	struct nls_table *nls_disk = HFS_SB(sb)->nls_disk;
+	struct nls_table *nls_io = HFS_SB(sb)->nls_io;
 	const char *src;
-	char *dst, c;
-	int i, len;
+	char *dst;
+	int srclen, dstlen, size;
 
-	out->len = len = min((unsigned int)HFS_NAMELEN, in->len);
 	src = in->name;
+	srclen = in->len;
 	dst = out->name;
-	for (i = 0; i < len; i++) {
-		c = *src++;
-		*dst++ = c == ':' ? '/' : c;
+	dstlen = HFS_NAMELEN;
+	if (nls_io) {
+		wchar_t ch;
+
+		while (srclen > 0) {
+			size = nls_io->char2uni(src, srclen, &ch);
+			if (size < 0) {
+				ch = '?';
+				size = 1;
+			}
+			src += size;
+			srclen -= size;
+			if (ch == ':')
+				ch = '/';
+			if (nls_disk) {
+				size = nls_disk->uni2char(ch, dst, dstlen);
+				if (size < 0) {
+					if (size == -ENAMETOOLONG)
+						goto out;
+					*dst = '?';
+					size = 1;
+				}
+				dst += size;
+				dstlen -= size;
+			} else {
+				*dst++ = ch > 0xff ? '?' : ch;
+				dstlen--;
+			}
+		}
+	} else {
+		char ch;
+
+		if (dstlen > srclen)
+			dstlen = srclen;
+		while (--dstlen >= 0)
+			*dst++ = (ch = *src++) == ':' ? '/' : ch;
 	}
-	for (; i < HFS_NAMELEN; i++)
+out:
+	out->len = dst - (char *)out->name;
+	dstlen = HFS_NAMELEN - out->len;
+	while (--dstlen >= 0)
 		*dst++ = 0;
 }

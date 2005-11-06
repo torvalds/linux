@@ -945,11 +945,11 @@ config_buf (enum usb_device_speed speed,
 
 /*-------------------------------------------------------------------------*/
 
-static void eth_start (struct eth_dev *dev, unsigned gfp_flags);
-static int alloc_requests (struct eth_dev *dev, unsigned n, unsigned gfp_flags);
+static void eth_start (struct eth_dev *dev, gfp_t gfp_flags);
+static int alloc_requests (struct eth_dev *dev, unsigned n, gfp_t gfp_flags);
 
 static int
-set_ether_config (struct eth_dev *dev, unsigned gfp_flags)
+set_ether_config (struct eth_dev *dev, gfp_t gfp_flags)
 {
 	int					result = 0;
 	struct usb_gadget			*gadget = dev->gadget;
@@ -1081,7 +1081,7 @@ static void eth_reset_config (struct eth_dev *dev)
  * that returns config descriptors, and altsetting code.
  */
 static int
-eth_set_config (struct eth_dev *dev, unsigned number, unsigned gfp_flags)
+eth_set_config (struct eth_dev *dev, unsigned number, gfp_t gfp_flags)
 {
 	int			result = 0;
 	struct usb_gadget	*gadget = dev->gadget;
@@ -1598,7 +1598,7 @@ static void defer_kevent (struct eth_dev *dev, int flag)
 static void rx_complete (struct usb_ep *ep, struct usb_request *req);
 
 static int
-rx_submit (struct eth_dev *dev, struct usb_request *req, unsigned gfp_flags)
+rx_submit (struct eth_dev *dev, struct usb_request *req, gfp_t gfp_flags)
 {
 	struct sk_buff		*skb;
 	int			retval = -ENOMEM;
@@ -1724,7 +1724,7 @@ clean:
 }
 
 static int prealloc (struct list_head *list, struct usb_ep *ep,
-			unsigned n, unsigned gfp_flags)
+			unsigned n, gfp_t gfp_flags)
 {
 	unsigned		i;
 	struct usb_request	*req;
@@ -1763,7 +1763,7 @@ extra:
 	return 0;
 }
 
-static int alloc_requests (struct eth_dev *dev, unsigned n, unsigned gfp_flags)
+static int alloc_requests (struct eth_dev *dev, unsigned n, gfp_t gfp_flags)
 {
 	int status;
 
@@ -1779,7 +1779,7 @@ fail:
 	return status;
 }
 
-static void rx_fill (struct eth_dev *dev, unsigned gfp_flags)
+static void rx_fill (struct eth_dev *dev, gfp_t gfp_flags)
 {
 	struct usb_request	*req;
 	unsigned long		flags;
@@ -1962,7 +1962,7 @@ drop:
  * normally just one notification will be queued.
  */
 
-static struct usb_request *eth_req_alloc (struct usb_ep *, unsigned, unsigned);
+static struct usb_request *eth_req_alloc (struct usb_ep *, unsigned, gfp_t);
 static void eth_req_free (struct usb_ep *ep, struct usb_request *req);
 
 static void
@@ -2024,7 +2024,7 @@ static int rndis_control_ack (struct net_device *net)
 
 #endif	/* RNDIS */
 
-static void eth_start (struct eth_dev *dev, unsigned gfp_flags)
+static void eth_start (struct eth_dev *dev, gfp_t gfp_flags)
 {
 	DEBUG (dev, "%s\n", __FUNCTION__);
 
@@ -2092,7 +2092,7 @@ static int eth_stop (struct net_device *net)
 /*-------------------------------------------------------------------------*/
 
 static struct usb_request *
-eth_req_alloc (struct usb_ep *ep, unsigned size, unsigned gfp_flags)
+eth_req_alloc (struct usb_ep *ep, unsigned size, gfp_t gfp_flags)
 {
 	struct usb_request	*req;
 
@@ -2181,6 +2181,7 @@ eth_bind (struct usb_gadget *gadget)
 	u8			cdc = 1, zlp = 1, rndis = 1;
 	struct usb_ep		*in_ep, *out_ep, *status_ep = NULL;
 	int			status = -ENOMEM;
+	int			gcnum;
 
 	/* these flags are only ever cleared; compiler take note */
 #ifndef	DEV_CONFIG_CDC
@@ -2194,44 +2195,26 @@ eth_bind (struct usb_gadget *gadget)
 	 * standard protocol is _strongly_ preferred for interop purposes.
 	 * (By everyone except Microsoft.)
 	 */
-	if (gadget_is_net2280 (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0201);
-	} else if (gadget_is_dummy (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0202);
-	} else if (gadget_is_pxa (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0203);
+	if (gadget_is_pxa (gadget)) {
 		/* pxa doesn't support altsettings */
 		cdc = 0;
 	} else if (gadget_is_sh(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0204);
 		/* sh doesn't support multiple interfaces or configs */
 		cdc = 0;
 		rndis = 0;
 	} else if (gadget_is_sa1100 (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0205);
 		/* hardware can't write zlps */
 		zlp = 0;
 		/* sa1100 CAN do CDC, without status endpoint ... we use
 		 * non-CDC to be compatible with ARM Linux-2.4 "usb-eth".
 		 */
 		cdc = 0;
-	} else if (gadget_is_goku (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0206);
-	} else if (gadget_is_mq11xx (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0207);
-	} else if (gadget_is_omap (gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0208);
-	} else if (gadget_is_lh7a40x(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0209);
-	} else if (gadget_is_n9604(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0210);
-	} else if (gadget_is_pxa27x(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0211);
-	} else if (gadget_is_s3c2410(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0212);
-	} else if (gadget_is_at91(gadget)) {
-		device_desc.bcdDevice = __constant_cpu_to_le16 (0x0213);
-	} else {
+	}
+
+	gcnum = usb_gadget_controller_number (gadget);
+	if (gcnum >= 0)
+		device_desc.bcdDevice = cpu_to_le16 (0x0200 + gcnum);
+	else {
 		/* can't assume CDC works.  don't want to default to
 		 * anything less functional on CDC-capable hardware,
 		 * so we fail in this case.
@@ -2550,6 +2533,7 @@ static struct usb_gadget_driver eth_driver = {
 
 	.driver 	= {
 		.name		= (char *) shortname,
+		.owner		= THIS_MODULE,
 		// .shutdown = ...
 		// .suspend = ...
 		// .resume = ...

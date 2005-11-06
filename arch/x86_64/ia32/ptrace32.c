@@ -43,11 +43,11 @@ static int putreg32(struct task_struct *child, unsigned regno, u32 val)
 	switch (regno) {
 	case offsetof(struct user32, regs.fs):
 		if (val && (val & 3) != 3) return -EIO; 
-		child->thread.fs = val & 0xffff; 
+		child->thread.fsindex = val & 0xffff;
 		break;
 	case offsetof(struct user32, regs.gs):
 		if (val && (val & 3) != 3) return -EIO; 
-		child->thread.gs = val & 0xffff;
+		child->thread.gsindex = val & 0xffff;
 		break;
 	case offsetof(struct user32, regs.ds):
 		if (val && (val & 3) != 3) return -EIO; 
@@ -138,10 +138,10 @@ static int getreg32(struct task_struct *child, unsigned regno, u32 *val)
 
 	switch (regno) {
 	case offsetof(struct user32, regs.fs):
-	        *val = child->thread.fs; 
+	        *val = child->thread.fsindex;
 		break;
 	case offsetof(struct user32, regs.gs):
-		*val = child->thread.gs;
+		*val = child->thread.gsindex;
 		break;
 	case offsetof(struct user32, regs.ds):
 		*val = child->thread.ds;

@@ -34,23 +34,24 @@
 #include <asm/thread_info.h>
 #include <asm/tlbflush.h>
 #include <asm/xmon.h>
+#include <asm/machdep.h>
 
 volatile int smp_commenced;
 int smp_tb_synchronized;
 struct cpuinfo_PPC cpu_data[NR_CPUS];
-struct klock_info_struct klock_info = { KLOCK_CLEAR, 0 };
 atomic_t ipi_recv;
 atomic_t ipi_sent;
 cpumask_t cpu_online_map;
 cpumask_t cpu_possible_map;
 int smp_hw_index[NR_CPUS];
 struct thread_info *secondary_ti;
+static struct task_struct *idle_tasks[NR_CPUS];
 
 EXPORT_SYMBOL(cpu_online_map);
 EXPORT_SYMBOL(cpu_possible_map);
 
 /* SMP operations for this machine */
-static struct smp_ops_t *smp_ops;
+struct smp_ops_t *smp_ops;
 
 /* all cpu mappings are 1-1 -- Cort */
 volatile unsigned long cpu_callin_map[NR_CPUS];
@@ -73,11 +74,11 @@ extern void __save_cpu_setup(void);
 #define PPC_MSG_XMON_BREAK	3
 
 static inline void
-smp_message_pass(int target, int msg, unsigned long data, int wait)
+smp_message_pass(int target, int msg)
 {
-	if (smp_ops){
+	if (smp_ops) {
 		atomic_inc(&ipi_sent);
-		smp_ops->message_pass(target,msg,data,wait);
+		smp_ops->message_pass(target, msg);
 	}
 }
 
@@ -118,7 +119,7 @@ void smp_message_recv(int msg, struct pt_regs *regs)
 void smp_send_tlb_invalidate(int cpu)
 {
 	if ( PVR_VER(mfspr(SPRN_PVR)) == 8 )
-		smp_message_pass(MSG_ALL_BUT_SELF, PPC_MSG_INVALIDATE_TLB, 0, 0);
+		smp_message_pass(MSG_ALL_BUT_SELF, PPC_MSG_INVALIDATE_TLB);
 }
 
 void smp_send_reschedule(int cpu)
@@ -134,13 +135,13 @@ void smp_send_reschedule(int cpu)
 	 */
 	/* This is only used if `cpu' is running an idle task,
 	   so it will reschedule itself anyway... */
-	smp_message_pass(cpu, PPC_MSG_RESCHEDULE, 0, 0);
+	smp_message_pass(cpu, PPC_MSG_RESCHEDULE);
 }
 
 #ifdef CONFIG_XMON
 void smp_send_xmon_break(int cpu)
 {
-	smp_message_pass(cpu, PPC_MSG_XMON_BREAK, 0, 0);
+	smp_message_pass(cpu, PPC_MSG_XMON_BREAK);
 }
 #endif /* CONFIG_XMON */
 
@@ -223,7 +224,7 @@ static int __smp_call_function(void (*func) (void *info), void *info,
 	spin_lock(&call_lock);
 	call_data = &data;
 	/* Send a message to all other CPUs and wait for them to respond */
-	smp_message_pass(target, PPC_MSG_CALL_FUNCTION, 0, 0);
+	smp_message_pass(target, PPC_MSG_CALL_FUNCTION);
 
 	/* Wait for response */
 	timeout = 1000000;
@@ -286,13 +287,13 @@ static void __devinit smp_store_cpu_info(int id)
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
-	int num_cpus, i;
+	int num_cpus, i, cpu;
+	struct task_struct *p;
 
 	/* Fixup boot cpu */
         smp_store_cpu_info(smp_processor_id());
 	cpu_callin_map[smp_processor_id()] = 1;
 
-	smp_ops = ppc_md.smp_ops;
 	if (smp_ops == NULL) {
 		printk("SMP not supported on this machine.\n");
 		return;
@@ -306,8 +307,16 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	/* Backup CPU 0 state */
 	__save_cpu_setup();
 
-	if (smp_ops->space_timers)
-		smp_ops->space_timers(num_cpus);
+	for_each_cpu(cpu) {
+		if (cpu == smp_processor_id())
+			continue;
+		/* create a process for the processor */
+		p = fork_idle(cpu);
+		if (IS_ERR(p))
+			panic("failed fork for CPU %u: %li", cpu, PTR_ERR(p));
+		p->thread_info->cpu = cpu;
+		idle_tasks[cpu] = p;
+	}
 }
 
 void __devinit smp_prepare_boot_cpu(void)
@@ -334,12 +343,17 @@ int __devinit start_secondary(void *unused)
 	set_dec(tb_ticks_per_jiffy);
 	cpu_callin_map[cpu] = 1;
 
-	printk("CPU %i done callin...\n", cpu);
+	printk("CPU %d done callin...\n", cpu);
 	smp_ops->setup_cpu(cpu);
-	printk("CPU %i done setup...\n", cpu);
-	local_irq_enable();
+	printk("CPU %d done setup...\n", cpu);
 	smp_ops->take_timebase();
-	printk("CPU %i done timebase take...\n", cpu);
+	printk("CPU %d done timebase take...\n", cpu);
+
+	spin_lock(&call_lock);
+	cpu_set(cpu, cpu_online_map);
+	spin_unlock(&call_lock);
+
+	local_irq_enable();
 
 	cpu_idle();
 	return 0;
@@ -347,17 +361,11 @@ int __devinit start_secondary(void *unused)
 
 int __cpu_up(unsigned int cpu)
 {
-	struct task_struct *p;
 	char buf[32];
 	int c;
 
-	/* create a process for the processor */
-	/* only regs.msr is actually used, and 0 is OK for it */
-	p = fork_idle(cpu);
-	if (IS_ERR(p))
-		panic("failed fork for CPU %u: %li", cpu, PTR_ERR(p));
-	secondary_ti = p->thread_info;
-	p->thread_info->cpu = cpu;
+	secondary_ti = idle_tasks[cpu]->thread_info;
+	mb();
 
 	/*
 	 * There was a cache flush loop here to flush the cache
@@ -389,7 +397,11 @@ int __cpu_up(unsigned int cpu)
 	printk("Processor %d found.\n", cpu);
 
 	smp_ops->give_timebase();
-	cpu_set(cpu, cpu_online_map);
+
+	/* Wait until cpu puts itself in the online map */
+	while (!cpu_online(cpu))
+		cpu_relax();
+
 	return 0;
 }
 

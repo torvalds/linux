@@ -75,7 +75,7 @@ static int __devinit emu_probe(struct pci_dev *pdev, const struct pci_device_id 
 	if (!request_region(ioport, iolen, "emu10k1-gp"))
 		return -EBUSY;
 
-	emu = kcalloc(1, sizeof(struct emu), GFP_KERNEL);
+	emu = kzalloc(sizeof(struct emu), GFP_KERNEL);
 	port = gameport_allocate_port();
 	if (!emu || !port) {
 		printk(KERN_ERR "emu10k1-gp: Memory allocation failed\n");

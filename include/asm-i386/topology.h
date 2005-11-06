@@ -60,7 +60,7 @@ static inline int node_to_first_cpu(int node)
 	return first_cpu(mask);
 }
 
-#define pcibus_to_node(bus) mp_bus_id_to_node[(bus)->number]
+#define pcibus_to_node(bus) ((long) (bus)->sysdata)
 #define pcibus_to_cpumask(bus) node_to_cpumask(pcibus_to_node(bus))
 
 /* sched_domains SD_NODE_INIT for NUMAQ machines */

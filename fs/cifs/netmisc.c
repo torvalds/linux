@@ -133,7 +133,6 @@ static const struct smb_to_posix_error mapping_table_ERRHRD[] = {
 int
 cifs_inet_pton(int address_family, char *cp,void *dst)
 {
-	struct in_addr address;
 	int value;
 	int digit;
 	int i;
@@ -190,8 +189,7 @@ cifs_inet_pton(int address_family, char *cp,void *dst)
 	if (value > addr_class_max[end - bytes])
 		return 0;
 
-	address.s_addr = *((__be32 *) bytes) | htonl(value);
-	*((__be32 *)dst) = address.s_addr;
+	*((__be32 *)dst) = *((__be32 *) bytes) | htonl(value);
 	return 1; /* success */
 }
 
@@ -815,7 +813,7 @@ map_smb_to_linux_error(struct smb_hdr *smb)
 	if (smb->Flags2 & SMBFLG2_ERR_STATUS) {
 		/* translate the newer STATUS codes to old style errors and then to POSIX errors */
 		__u32 err = le32_to_cpu(smb->Status.CifsError);
-		if(cifsFYI)
+		if(cifsFYI & CIFS_RC)
 			cifs_print_status(err);
 		ntstatus_to_dos(err, &smberrclass, &smberrcode);
 	} else {
@@ -870,7 +868,14 @@ unsigned int
 smbCalcSize(struct smb_hdr *ptr)
 {
 	return (sizeof (struct smb_hdr) + (2 * ptr->WordCount) +
-		BCC(ptr));
+		2 /* size of the bcc field */ + BCC(ptr));
+}
+
+unsigned int
+smbCalcSize_LE(struct smb_hdr *ptr)
+{
+	return (sizeof (struct smb_hdr) + (2 * ptr->WordCount) +
+		2 /* size of the bcc field */ + le16_to_cpu(BCC_LE(ptr)));
 }
 
 /* The following are taken from fs/ntfs/util.c */

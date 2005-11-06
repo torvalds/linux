@@ -22,7 +22,7 @@
 #include <linux/ptrace.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
@@ -268,8 +268,8 @@ static struct irqchip sa1111_low_chip = {
 	.mask		= sa1111_mask_lowirq,
 	.unmask		= sa1111_unmask_lowirq,
 	.retrigger	= sa1111_retrigger_lowirq,
-	.type		= sa1111_type_lowirq,
-	.wake		= sa1111_wake_lowirq,
+	.set_type	= sa1111_type_lowirq,
+	.set_wake	= sa1111_wake_lowirq,
 };
 
 static void sa1111_mask_highirq(unsigned int irq)
@@ -364,8 +364,8 @@ static struct irqchip sa1111_high_chip = {
 	.mask		= sa1111_mask_highirq,
 	.unmask		= sa1111_unmask_highirq,
 	.retrigger	= sa1111_retrigger_highirq,
-	.type		= sa1111_type_highirq,
-	.wake		= sa1111_wake_highirq,
+	.set_type	= sa1111_type_highirq,
+	.set_wake	= sa1111_wake_highirq,
 };
 
 static void sa1111_setup_irq(struct sa1111 *sachip)
@@ -801,16 +801,13 @@ struct sa1111_save_data {
 
 #ifdef CONFIG_PM
 
-static int sa1111_suspend(struct device *dev, pm_message_t state, u32 level)
+static int sa1111_suspend(struct device *dev, pm_message_t state)
 {
 	struct sa1111 *sachip = dev_get_drvdata(dev);
 	struct sa1111_save_data *save;
 	unsigned long flags;
 	unsigned int val;
 	void __iomem *base;
-
-	if (level != SUSPEND_DISABLE)
-		return 0;
 
 	save = kmalloc(sizeof(struct sa1111_save_data), GFP_KERNEL);
 	if (!save)
@@ -856,22 +853,18 @@ static int sa1111_suspend(struct device *dev, pm_message_t state, u32 level)
 /*
  *	sa1111_resume - Restore the SA1111 device state.
  *	@dev: device to restore
- *	@level: resume level
  *
  *	Restore the general state of the SA1111; clock control and
  *	interrupt controller.  Other parts of the SA1111 must be
  *	restored by their respective drivers, and must be called
  *	via LDM after this function.
  */
-static int sa1111_resume(struct device *dev, u32 level)
+static int sa1111_resume(struct device *dev)
 {
 	struct sa1111 *sachip = dev_get_drvdata(dev);
 	struct sa1111_save_data *save;
 	unsigned long flags, id;
 	void __iomem *base;
-
-	if (level != RESUME_ENABLE)
-		return 0;
 
 	save = (struct sa1111_save_data *)dev->power.saved_state;
 	if (!save)

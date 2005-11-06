@@ -11,6 +11,7 @@
 
 #include <linux/config.h>
 
+#define __ARCH_SIGEV_PREAMBLE_SIZE (sizeof(long) + 2*sizeof(int))
 #undef __ARCH_SI_TRAPNO	/* exception code needs to fill this ...  */
 
 #define HAVE_ARCH_SIGINFO_T
@@ -25,10 +26,10 @@ struct siginfo;
 /*
  * Careful to keep union _sifields from shifting ...
  */
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 #define __ARCH_SI_PREAMBLE_SIZE (3 * sizeof(int))
 #endif
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 #define __ARCH_SI_PREAMBLE_SIZE (4 * sizeof(int))
 #endif
 

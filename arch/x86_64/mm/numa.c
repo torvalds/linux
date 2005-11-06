@@ -22,14 +22,19 @@
 #define Dprintk(x...)
 #endif
 
-struct pglist_data *node_data[MAX_NUMNODES];
+struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 bootmem_data_t plat_node_bdata[MAX_NUMNODES];
 
 int memnode_shift;
 u8  memnodemap[NODEMAPSIZE];
 
-unsigned char cpu_to_node[NR_CPUS] = { [0 ... NR_CPUS-1] = NUMA_NO_NODE };
-cpumask_t     node_to_cpumask[MAX_NUMNODES];
+unsigned char cpu_to_node[NR_CPUS] __read_mostly = {
+	[0 ... NR_CPUS-1] = NUMA_NO_NODE
+};
+unsigned char apicid_to_node[MAX_LOCAL_APIC] __cpuinitdata = {
+ 	[0 ... MAX_LOCAL_APIC-1] = NUMA_NO_NODE
+};
+cpumask_t node_to_cpumask[MAX_NUMNODES] __read_mostly;
 
 int numa_off __initdata;
 
@@ -126,9 +131,11 @@ void __init setup_node_zones(int nodeid)
 { 
 	unsigned long start_pfn, end_pfn; 
 	unsigned long zones[MAX_NR_ZONES];
+	unsigned long holes[MAX_NR_ZONES];
 	unsigned long dma_end_pfn;
 
 	memset(zones, 0, sizeof(unsigned long) * MAX_NR_ZONES); 
+	memset(holes, 0, sizeof(unsigned long) * MAX_NR_ZONES);
 
 	start_pfn = node_start_pfn(nodeid);
 	end_pfn = node_end_pfn(nodeid);
@@ -139,13 +146,17 @@ void __init setup_node_zones(int nodeid)
 	dma_end_pfn = __pa(MAX_DMA_ADDRESS) >> PAGE_SHIFT; 
 	if (start_pfn < dma_end_pfn) { 
 		zones[ZONE_DMA] = dma_end_pfn - start_pfn;
+		holes[ZONE_DMA] = e820_hole_size(start_pfn, dma_end_pfn);
 		zones[ZONE_NORMAL] = end_pfn - dma_end_pfn; 
+		holes[ZONE_NORMAL] = e820_hole_size(dma_end_pfn, end_pfn);
+
 	} else { 
 		zones[ZONE_NORMAL] = end_pfn - start_pfn; 
+		holes[ZONE_NORMAL] = e820_hole_size(start_pfn, end_pfn);
 	} 
     
 	free_area_init_node(nodeid, NODE_DATA(nodeid), zones,
-			    start_pfn, NULL); 
+			    start_pfn, holes);
 } 
 
 void __init numa_init_array(void)
@@ -156,18 +167,16 @@ void __init numa_init_array(void)
 	   mapping. To avoid this fill in the mapping for all possible
 	   CPUs, as the number of CPUs is not known yet. 
 	   We round robin the existing nodes. */
-	rr = 0;
+	rr = first_node(node_online_map);
 	for (i = 0; i < NR_CPUS; i++) {
 		if (cpu_to_node[i] != NUMA_NO_NODE)
 			continue;
+		cpu_to_node[i] = rr;
 		rr = next_node(rr, node_online_map);
 		if (rr == MAX_NUMNODES)
 			rr = first_node(node_online_map);
-		cpu_to_node[i] = rr;
-		rr++; 
 	}
 
-	set_bit(0, &node_to_cpumask[cpu_to_node(0)]);
 }
 
 #ifdef CONFIG_NUMA_EMU
@@ -255,9 +264,7 @@ void __init numa_initmem_init(unsigned long start_pfn, unsigned long end_pfn)
 
 __cpuinit void numa_add_cpu(int cpu)
 {
-	/* BP is initialized elsewhere */
-	if (cpu) 
-		set_bit(cpu, &node_to_cpumask[cpu_to_node(cpu)]);
+	set_bit(cpu, &node_to_cpumask[cpu_to_node(cpu)]);
 } 
 
 unsigned long __init numa_free_all_bootmem(void) 

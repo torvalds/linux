@@ -32,7 +32,6 @@
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
-
 #define ACPI_AC_COMPONENT		0x00020000
 #define ACPI_AC_CLASS			"ac_adapter"
 #define ACPI_AC_HID 			"ACPI0003"
@@ -45,47 +44,45 @@
 #define ACPI_AC_STATUS_UNKNOWN		0xFF
 
 #define _COMPONENT		ACPI_AC_COMPONENT
-ACPI_MODULE_NAME		("acpi_ac")
+ACPI_MODULE_NAME("acpi_ac")
 
-MODULE_AUTHOR("Paul Diefenbaugh");
+    MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_DESCRIPTION(ACPI_AC_DRIVER_NAME);
 MODULE_LICENSE("GPL");
 
-static int acpi_ac_add (struct acpi_device *device);
-static int acpi_ac_remove (struct acpi_device *device, int type);
+static int acpi_ac_add(struct acpi_device *device);
+static int acpi_ac_remove(struct acpi_device *device, int type);
 static int acpi_ac_open_fs(struct inode *inode, struct file *file);
 
 static struct acpi_driver acpi_ac_driver = {
-	.name =		ACPI_AC_DRIVER_NAME,
-	.class =	ACPI_AC_CLASS,
-	.ids =		ACPI_AC_HID,
-	.ops =		{
-				.add =		acpi_ac_add,
-				.remove =	acpi_ac_remove,
-			},
+	.name = ACPI_AC_DRIVER_NAME,
+	.class = ACPI_AC_CLASS,
+	.ids = ACPI_AC_HID,
+	.ops = {
+		.add = acpi_ac_add,
+		.remove = acpi_ac_remove,
+		},
 };
 
 struct acpi_ac {
-	acpi_handle		handle;
-	unsigned long		state;
+	acpi_handle handle;
+	unsigned long state;
 };
 
 static struct file_operations acpi_ac_fops = {
-	.open		= acpi_ac_open_fs,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+	.open = acpi_ac_open_fs,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
 /* --------------------------------------------------------------------------
                                AC Adapter Management
    -------------------------------------------------------------------------- */
 
-static int
-acpi_ac_get_state (
-	struct acpi_ac		*ac)
+static int acpi_ac_get_state(struct acpi_ac *ac)
 {
-	acpi_status		status = AE_OK;
+	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE("acpi_ac_get_state");
 
@@ -95,24 +92,23 @@ acpi_ac_get_state (
 	status = acpi_evaluate_integer(ac->handle, "_PSR", NULL, &ac->state);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			"Error reading AC Adapter state\n"));
+				  "Error reading AC Adapter state\n"));
 		ac->state = ACPI_AC_STATUS_UNKNOWN;
 		return_VALUE(-ENODEV);
 	}
-	
+
 	return_VALUE(0);
 }
-
 
 /* --------------------------------------------------------------------------
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
 
-static struct proc_dir_entry	*acpi_ac_dir;
+static struct proc_dir_entry *acpi_ac_dir;
 
 static int acpi_ac_seq_show(struct seq_file *seq, void *offset)
 {
-	struct acpi_ac		*ac = (struct acpi_ac *) seq->private;
+	struct acpi_ac *ac = (struct acpi_ac *)seq->private;
 
 	ACPI_FUNCTION_TRACE("acpi_ac_seq_show");
 
@@ -139,23 +135,21 @@ static int acpi_ac_seq_show(struct seq_file *seq, void *offset)
 
 	return_VALUE(0);
 }
-	
+
 static int acpi_ac_open_fs(struct inode *inode, struct file *file)
 {
 	return single_open(file, acpi_ac_seq_show, PDE(inode)->data);
 }
 
-static int
-acpi_ac_add_fs (
-	struct acpi_device	*device)
+static int acpi_ac_add_fs(struct acpi_device *device)
 {
-	struct proc_dir_entry	*entry = NULL;
+	struct proc_dir_entry *entry = NULL;
 
 	ACPI_FUNCTION_TRACE("acpi_ac_add_fs");
 
 	if (!acpi_device_dir(device)) {
 		acpi_device_dir(device) = proc_mkdir(acpi_device_bid(device),
-			acpi_ac_dir);
+						     acpi_ac_dir);
 		if (!acpi_device_dir(device))
 			return_VALUE(-ENODEV);
 		acpi_device_dir(device)->owner = THIS_MODULE;
@@ -163,11 +157,11 @@ acpi_ac_add_fs (
 
 	/* 'state' [R] */
 	entry = create_proc_entry(ACPI_AC_FILE_STATE,
-		S_IRUGO, acpi_device_dir(device));
+				  S_IRUGO, acpi_device_dir(device));
 	if (!entry)
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			"Unable to create '%s' fs entry\n",
-			ACPI_AC_FILE_STATE));
+				  "Unable to create '%s' fs entry\n",
+				  ACPI_AC_FILE_STATE));
 	else {
 		entry->proc_fops = &acpi_ac_fops;
 		entry->data = acpi_driver_data(device);
@@ -177,16 +171,12 @@ acpi_ac_add_fs (
 	return_VALUE(0);
 }
 
-
-static int
-acpi_ac_remove_fs (
-	struct acpi_device	*device)
+static int acpi_ac_remove_fs(struct acpi_device *device)
 {
 	ACPI_FUNCTION_TRACE("acpi_ac_remove_fs");
 
 	if (acpi_device_dir(device)) {
-		remove_proc_entry(ACPI_AC_FILE_STATE,
-				  acpi_device_dir(device));
+		remove_proc_entry(ACPI_AC_FILE_STATE, acpi_device_dir(device));
 
 		remove_proc_entry(acpi_device_bid(device), acpi_ac_dir);
 		acpi_device_dir(device) = NULL;
@@ -195,19 +185,14 @@ acpi_ac_remove_fs (
 	return_VALUE(0);
 }
 
-
 /* --------------------------------------------------------------------------
                                    Driver Model
    -------------------------------------------------------------------------- */
 
-static void
-acpi_ac_notify (
-	acpi_handle		handle,
-	u32			event,
-	void			*data)
+static void acpi_ac_notify(acpi_handle handle, u32 event, void *data)
 {
-	struct acpi_ac		*ac = (struct acpi_ac *) data;
-	struct acpi_device	*device = NULL;
+	struct acpi_ac *ac = (struct acpi_ac *)data;
+	struct acpi_device *device = NULL;
 
 	ACPI_FUNCTION_TRACE("acpi_ac_notify");
 
@@ -224,21 +209,18 @@ acpi_ac_notify (
 		break;
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-			"Unsupported event [0x%x]\n", event));
+				  "Unsupported event [0x%x]\n", event));
 		break;
 	}
 
 	return_VOID;
 }
 
-
-static int
-acpi_ac_add (
-	struct acpi_device	*device)
+static int acpi_ac_add(struct acpi_device *device)
 {
-	int			result = 0;
-	acpi_status		status = AE_OK;
-	struct acpi_ac		*ac = NULL;
+	int result = 0;
+	acpi_status status = AE_OK;
+	struct acpi_ac *ac = NULL;
 
 	ACPI_FUNCTION_TRACE("acpi_ac_add");
 
@@ -264,19 +246,20 @@ acpi_ac_add (
 		goto end;
 
 	status = acpi_install_notify_handler(ac->handle,
-		ACPI_DEVICE_NOTIFY, acpi_ac_notify, ac);
+					     ACPI_DEVICE_NOTIFY, acpi_ac_notify,
+					     ac);
 	if (ACPI_FAILURE(status)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			"Error installing notify handler\n"));
+				  "Error installing notify handler\n"));
 		result = -ENODEV;
 		goto end;
 	}
 
-	printk(KERN_INFO PREFIX "%s [%s] (%s)\n", 
-		acpi_device_name(device), acpi_device_bid(device), 
-		ac->state?"on-line":"off-line");
+	printk(KERN_INFO PREFIX "%s [%s] (%s)\n",
+	       acpi_device_name(device), acpi_device_bid(device),
+	       ac->state ? "on-line" : "off-line");
 
-end:
+      end:
 	if (result) {
 		acpi_ac_remove_fs(device);
 		kfree(ac);
@@ -285,27 +268,23 @@ end:
 	return_VALUE(result);
 }
 
-
-static int
-acpi_ac_remove (
-	struct acpi_device	*device,
-	int			type)
+static int acpi_ac_remove(struct acpi_device *device, int type)
 {
-	acpi_status		status = AE_OK;
-	struct acpi_ac		*ac = NULL;
+	acpi_status status = AE_OK;
+	struct acpi_ac *ac = NULL;
 
 	ACPI_FUNCTION_TRACE("acpi_ac_remove");
 
 	if (!device || !acpi_driver_data(device))
 		return_VALUE(-EINVAL);
 
-	ac = (struct acpi_ac *) acpi_driver_data(device);
+	ac = (struct acpi_ac *)acpi_driver_data(device);
 
 	status = acpi_remove_notify_handler(ac->handle,
-		ACPI_DEVICE_NOTIFY, acpi_ac_notify);
+					    ACPI_DEVICE_NOTIFY, acpi_ac_notify);
 	if (ACPI_FAILURE(status))
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
-			"Error removing notify handler\n"));
+				  "Error removing notify handler\n"));
 
 	acpi_ac_remove_fs(device);
 
@@ -314,11 +293,9 @@ acpi_ac_remove (
 	return_VALUE(0);
 }
 
-
-static int __init
-acpi_ac_init (void)
+static int __init acpi_ac_init(void)
 {
-	int			result = 0;
+	int result = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_ac_init");
 
@@ -336,9 +313,7 @@ acpi_ac_init (void)
 	return_VALUE(0);
 }
 
-
-static void __exit
-acpi_ac_exit (void)
+static void __exit acpi_ac_exit(void)
 {
 	ACPI_FUNCTION_TRACE("acpi_ac_exit");
 
@@ -348,7 +323,6 @@ acpi_ac_exit (void)
 
 	return_VOID;
 }
-
 
 module_init(acpi_ac_init);
 module_exit(acpi_ac_exit);

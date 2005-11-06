@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/moduleloader.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/elf.h>
@@ -498,7 +499,7 @@ static inline int try_force(unsigned int flags)
 {
 	int ret = (flags & O_TRUNC);
 	if (ret)
-		tainted |= TAINT_FORCED_MODULE;
+		add_taint(TAINT_FORCED_MODULE);
 	return ret;
 }
 #else
@@ -897,7 +898,7 @@ static int check_version(Elf_Shdr *sechdrs,
 	if (!(tainted & TAINT_FORCED_MODULE)) {
 		printk("%s: no version for \"%s\" found: kernel tainted.\n",
 		       mod->name, symname);
-		tainted |= TAINT_FORCED_MODULE;
+		add_taint(TAINT_FORCED_MODULE);
 	}
 	return 1;
 }
@@ -1352,7 +1353,7 @@ static void set_license(struct module *mod, const char *license)
 	if (!mod->license_gplok && !(tainted & TAINT_PROPRIETARY_MODULE)) {
 		printk(KERN_WARNING "%s: module license '%s' taints kernel.\n",
 		       mod->name, license);
-		tainted |= TAINT_PROPRIETARY_MODULE;
+		add_taint(TAINT_PROPRIETARY_MODULE);
 	}
 }
 
@@ -1509,6 +1510,7 @@ static struct module *load_module(void __user *umod,
 	long err = 0;
 	void *percpu = NULL, *ptr = NULL; /* Stops spurious gcc warning */
 	struct exception_table_entry *extable;
+	mm_segment_t old_fs;
 
 	DEBUGP("load_module: umod=%p, len=%lu, uargs=%p\n",
 	       umod, len, uargs);
@@ -1609,7 +1611,7 @@ static struct module *load_module(void __user *umod,
 	modmagic = get_modinfo(sechdrs, infoindex, "vermagic");
 	/* This is allowed: modprobe --force will invalidate it. */
 	if (!modmagic) {
-		tainted |= TAINT_FORCED_MODULE;
+		add_taint(TAINT_FORCED_MODULE);
 		printk(KERN_WARNING "%s: no version magic, tainting kernel.\n",
 		       mod->name);
 	} else if (!same_magic(modmagic, vermagic)) {
@@ -1738,7 +1740,7 @@ static struct module *load_module(void __user *umod,
 	    (mod->num_gpl_syms && !gplcrcindex)) {
 		printk(KERN_WARNING "%s: No versions for exported symbols."
 		       " Tainting kernel.\n", mod->name);
-		tainted |= TAINT_FORCED_MODULE;
+		add_taint(TAINT_FORCED_MODULE);
 	}
 #endif
 
@@ -1778,6 +1780,24 @@ static struct module *load_module(void __user *umod,
 	err = module_finalize(hdr, sechdrs, mod);
 	if (err < 0)
 		goto cleanup;
+
+	/* flush the icache in correct context */
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	/*
+	 * Flush the instruction cache, since we've played with text.
+	 * Do it before processing of module parameters, so the module
+	 * can provide parameter accessor functions of its own.
+	 */
+	if (mod->module_init)
+		flush_icache_range((unsigned long)mod->module_init,
+				   (unsigned long)mod->module_init
+				   + mod->init_size);
+	flush_icache_range((unsigned long)mod->module_core,
+			   (unsigned long)mod->module_core + mod->core_size);
+
+	set_fs(old_fs);
 
 	mod->args = args;
 	if (obsparmindex) {
@@ -1860,7 +1880,6 @@ sys_init_module(void __user *umod,
 		const char __user *uargs)
 {
 	struct module *mod;
-	mm_segment_t old_fs = get_fs();
 	int ret = 0;
 
 	/* Must have permission */
@@ -1877,19 +1896,6 @@ sys_init_module(void __user *umod,
 		up(&module_mutex);
 		return PTR_ERR(mod);
 	}
-
-	/* flush the icache in correct context */
-	set_fs(KERNEL_DS);
-
-	/* Flush the instruction cache, since we've played with text */
-	if (mod->module_init)
-		flush_icache_range((unsigned long)mod->module_init,
-				   (unsigned long)mod->module_init
-				   + mod->init_size);
-	flush_icache_range((unsigned long)mod->module_core,
-			   (unsigned long)mod->module_core + mod->core_size);
-
-	set_fs(old_fs);
 
 	/* Now sew it into the lists.  They won't access us, since
            strong_try_module_get() will fail. */

@@ -290,10 +290,10 @@ void rtmsg_fib(int event, u32 key, struct fib_alias *fa,
 		kfree_skb(skb);
 		return;
 	}
-	NETLINK_CB(skb).dst_groups = RTMGRP_IPV4_ROUTE;
+	NETLINK_CB(skb).dst_group = RTNLGRP_IPV4_ROUTE;
 	if (n->nlmsg_flags&NLM_F_ECHO)
 		atomic_inc(&skb->users);
-	netlink_broadcast(rtnl, skb, pid, RTMGRP_IPV4_ROUTE, GFP_KERNEL);
+	netlink_broadcast(rtnl, skb, pid, RTNLGRP_IPV4_ROUTE, GFP_KERNEL);
 	if (n->nlmsg_flags&NLM_F_ECHO)
 		netlink_unicast(rtnl, skb, pid, MSG_DONTWAIT);
 }
@@ -593,10 +593,13 @@ static void fib_hash_move(struct hlist_head *new_info_hash,
 			  struct hlist_head *new_laddrhash,
 			  unsigned int new_size)
 {
+	struct hlist_head *old_info_hash, *old_laddrhash;
 	unsigned int old_size = fib_hash_size;
-	unsigned int i;
+	unsigned int i, bytes;
 
 	write_lock(&fib_info_lock);
+	old_info_hash = fib_info_hash;
+	old_laddrhash = fib_info_laddrhash;
 	fib_hash_size = new_size;
 
 	for (i = 0; i < old_size; i++) {
@@ -636,6 +639,10 @@ static void fib_hash_move(struct hlist_head *new_info_hash,
 	fib_info_laddrhash = new_laddrhash;
 
 	write_unlock(&fib_info_lock);
+
+	bytes = old_size * sizeof(struct hlist_head *);
+	fib_hash_free(old_info_hash, bytes);
+	fib_hash_free(old_laddrhash, bytes);
 }
 
 struct fib_info *
@@ -847,6 +854,7 @@ failure:
 	return NULL;
 }
 
+/* Note! fib_semantic_match intentionally uses  RCU list functions. */
 int fib_semantic_match(struct list_head *head, const struct flowi *flp,
 		       struct fib_result *res, __u32 zone, __u32 mask, 
 			int prefixlen)
@@ -854,7 +862,7 @@ int fib_semantic_match(struct list_head *head, const struct flowi *flp,
 	struct fib_alias *fa;
 	int nh_sel = 0;
 
-	list_for_each_entry(fa, head, fa_list) {
+	list_for_each_entry_rcu(fa, head, fa_list) {
 		int err;
 
 		if (fa->fa_tos &&
@@ -1079,7 +1087,7 @@ fib_convert_rtentry(int cmd, struct nlmsghdr *nl, struct rtmsg *rtm,
 		rta->rta_oif = &dev->ifindex;
 		if (colon) {
 			struct in_ifaddr *ifa;
-			struct in_device *in_dev = __in_dev_get(dev);
+			struct in_device *in_dev = __in_dev_get_rtnl(dev);
 			if (!in_dev)
 				return -ENODEV;
 			*colon = ':';
@@ -1260,7 +1268,7 @@ int fib_sync_up(struct net_device *dev)
 			}
 			if (nh->nh_dev == NULL || !(nh->nh_dev->flags&IFF_UP))
 				continue;
-			if (nh->nh_dev != dev || __in_dev_get(dev) == NULL)
+			if (nh->nh_dev != dev || !__in_dev_get_rtnl(dev))
 				continue;
 			alive++;
 			spin_lock_bh(&fib_multipath_lock);

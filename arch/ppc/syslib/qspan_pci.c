@@ -94,7 +94,7 @@
 #define mk_config_type1(bus, dev, offset) \
 	mk_config_addr(bus, dev, offset) | 1;
 
-static spinlock_t pcibios_lock = SPIN_LOCK_UNLOCKED;
+static DEFINE_SPINLOCK(pcibios_lock);
 
 int qspan_pcibios_read_config_byte(unsigned char bus, unsigned char dev_fn,
 				  unsigned char offset, unsigned char *val)

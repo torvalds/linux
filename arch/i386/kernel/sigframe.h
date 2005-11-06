@@ -1,6 +1,6 @@
 struct sigframe
 {
-	char *pretcode;
+	char __user *pretcode;
 	int sig;
 	struct sigcontext sc;
 	struct _fpstate fpstate;
@@ -10,10 +10,10 @@ struct sigframe
 
 struct rt_sigframe
 {
-	char *pretcode;
+	char __user *pretcode;
 	int sig;
-	struct siginfo *pinfo;
-	void *puc;
+	struct siginfo __user *pinfo;
+	void __user *puc;
 	struct siginfo info;
 	struct ucontext uc;
 	struct _fpstate fpstate;

@@ -12,11 +12,12 @@
 
 #include "autofs_i.h"
 
-static int autofs_follow_link(struct dentry *dentry, struct nameidata *nd)
+/* Nothing to release.. */
+static void *autofs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	char *s=((struct autofs_symlink *)dentry->d_inode->u.generic_ip)->data;
 	nd_set_link(nd, s);
-	return 0;
+	return NULL;
 }
 
 struct inode_operations autofs_symlink_inode_operations = {

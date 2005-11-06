@@ -715,13 +715,11 @@ static int cxacru_bind(struct usbatm_data *usbatm_instance,
 			usb_dev, usb_rcvintpipe(usb_dev, CXACRU_EP_CMD),
 			instance->rcv_buf, PAGE_SIZE,
 			cxacru_blocking_completion, &instance->rcv_done, 1);
-	instance->rcv_urb->transfer_flags |= URB_ASYNC_UNLINK;
 
 	usb_fill_int_urb(instance->snd_urb,
 			usb_dev, usb_sndintpipe(usb_dev, CXACRU_EP_CMD),
 			instance->snd_buf, PAGE_SIZE,
 			cxacru_blocking_completion, &instance->snd_done, 4);
-	instance->snd_urb->transfer_flags |= URB_ASYNC_UNLINK;
 
 	init_MUTEX(&instance->cm_serialize);
 

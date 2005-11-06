@@ -34,7 +34,7 @@ void NVLockUnlock(struct nvidia_par *par, int);
 #if defined(CONFIG_FB_NVIDIA_I2C) || defined (CONFIG_PPC_OF)
 void nvidia_create_i2c_busses(struct nvidia_par *par);
 void nvidia_delete_i2c_busses(struct nvidia_par *par);
-int nvidia_probe_i2c_connector(struct nvidia_par *par, int conn,
+int nvidia_probe_i2c_connector(struct fb_info *info, int conn,
 			       u8 ** out_edid);
 #else
 #define nvidia_create_i2c_busses(...)

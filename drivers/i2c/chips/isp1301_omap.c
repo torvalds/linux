@@ -27,7 +27,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/usb_ch9.h>
 #include <linux/usb_gadget.h>
 #include <linux/usb.h>
@@ -888,6 +888,7 @@ static int otg_remove(struct device *dev)
 }
 
 struct device_driver omap_otg_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "omap_otg",
 	.bus		= &platform_bus_type,
 	.probe		= otg_probe,
@@ -1489,7 +1490,7 @@ static int isp1301_probe(struct i2c_adapter *bus, int address, int kind)
 	if (the_transceiver)
 		return 0;
 
-	isp = kcalloc(1, sizeof *isp, GFP_KERNEL);
+	isp = kzalloc(sizeof *isp, GFP_KERNEL);
 	if (!isp)
 		return 0;
 

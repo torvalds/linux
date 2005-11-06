@@ -20,7 +20,7 @@ License along with this program; if not, write to the Free
 Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
 MA 02111-1307 USA.
 
-This document and the the gadget serial driver itself are
+This document and the gadget serial driver itself are
 Copyright (C) 2004 by Al Borchers (alborchers@steinerpoint.com).
 
 If you have questions, problems, or suggestions for this driver

@@ -201,7 +201,7 @@ tcf_ipt_cleanup(struct tc_action *a, int bind)
 }
 
 static int
-tcf_ipt(struct sk_buff **pskb, struct tc_action *a)
+tcf_ipt(struct sk_buff **pskb, struct tc_action *a, struct tcf_result *res)
 {
 	int ret = 0, result = 0;
 	struct tcf_ipt *p = PRIV(a, ipt);

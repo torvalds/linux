@@ -202,18 +202,64 @@ extern unsigned long ioremap_bot, ioremap_base;
  *
  * Note that these bits preclude future use of a page size
  * less than 4KB.
+ *
+ *
+ * PPC 440 core has following TLB attribute fields;
+ *
+ *   TLB1:
+ *   0  1  2  3  4  ... 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
+ *   RPN.................................  -  -  -  -  -  - ERPN.......
+ *
+ *   TLB2:
+ *   0  1  2  3  4  ... 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
+ *   -  -  -  -  -    - U0 U1 U2 U3 W  I  M  G  E   - UX UW UR SX SW SR
+ *
+ * There are some constrains and options, to decide mapping software bits
+ * into TLB entry.
+ *
+ *   - PRESENT *must* be in the bottom three bits because swap cache
+ *     entries use the top 29 bits for TLB2.
+ *
+ *   - FILE *must* be in the bottom three bits because swap cache
+ *     entries use the top 29 bits for TLB2.
+ *
+ *   - CACHE COHERENT bit (M) has no effect on PPC440 core, because it
+ *     doesn't support SMP. So we can use this as software bit, like
+ *     DIRTY.
+ *
+ * With the PPC 44x Linux implementation, the 0-11th LSBs of the PTE are used
+ * for memory protection related functions (see PTE structure in
+ * include/asm-ppc/mmu.h).  The _PAGE_XXX definitions in this file map to the
+ * above bits.  Note that the bit values are CPU specific, not architecture
+ * specific.
+ *
+ * The kernel PTE entry holds an arch-dependent swp_entry structure under
+ * certain situations. In other words, in such situations some portion of
+ * the PTE bits are used as a swp_entry. In the PPC implementation, the
+ * 3-24th LSB are shared with swp_entry, however the 0-2nd three LSB still
+ * hold protection values. That means the three protection bits are
+ * reserved for both PTE and SWAP entry at the most significant three
+ * LSBs.
+ *
+ * There are three protection bits available for SWAP entry:
+ *	_PAGE_PRESENT
+ *	_PAGE_FILE
+ *	_PAGE_HASHPTE (if HW has)
+ *
+ * So those three bits have to be inside of 0-2nd LSB of PTE.
+ *
  */
+
 #define _PAGE_PRESENT	0x00000001		/* S: PTE valid */
 #define	_PAGE_RW	0x00000002		/* S: Write permission */
-#define	_PAGE_DIRTY	0x00000004		/* S: Page dirty */
+#define _PAGE_FILE	0x00000004		/* S: nonlinear file mapping */
 #define _PAGE_ACCESSED	0x00000008		/* S: Page referenced */
 #define _PAGE_HWWRITE	0x00000010		/* H: Dirty & RW */
 #define _PAGE_HWEXEC	0x00000020		/* H: Execute permission */
 #define	_PAGE_USER	0x00000040		/* S: User page */
 #define	_PAGE_ENDIAN	0x00000080		/* H: E bit */
 #define	_PAGE_GUARDED	0x00000100		/* H: G bit */
-#define	_PAGE_COHERENT	0x00000200		/* H: M bit */
-#define _PAGE_FILE	0x00000400		/* S: nonlinear file mapping */
+#define	_PAGE_DIRTY	0x00000200		/* S: Page dirty */
 #define	_PAGE_NO_CACHE	0x00000400		/* H: I bit */
 #define	_PAGE_WRITETHRU	0x00000800		/* H: W bit */
 
@@ -659,7 +705,7 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry, int dirty)
 #define pgprot_noncached(prot)	(__pgprot(pgprot_val(prot) | _PAGE_NO_CACHE | _PAGE_GUARDED))
 
 struct file;
-extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long addr,
+extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				     unsigned long size, pgprot_t vma_prot);
 #define __HAVE_PHYS_MEM_ACCESS_PROT
 
@@ -766,15 +812,6 @@ extern void kernel_set_cachemode (unsigned long address, unsigned long size,
 #ifdef CONFIG_PHYS_64BIT
 extern int remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 			unsigned long paddr, unsigned long size, pgprot_t prot);
-static inline int io_remap_page_range(struct vm_area_struct *vma,
-					unsigned long vaddr,
-					unsigned long paddr,
-					unsigned long size,
-					pgprot_t prot)
-{
-	phys_addr_t paddr64 = fixup_bigphys_addr(paddr, size);
-	return remap_pfn_range(vma, vaddr, paddr64 >> PAGE_SHIFT, size, prot);
-}
 
 static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 					unsigned long vaddr,
@@ -786,8 +823,6 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 	return remap_pfn_range(vma, vaddr, paddr64 >> PAGE_SHIFT, size, prot);
 }
 #else
-#define io_remap_page_range(vma, vaddr, paddr, size, prot)		\
-		remap_pfn_range(vma, vaddr, (paddr) >> PAGE_SHIFT, size, prot)
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)
 #endif

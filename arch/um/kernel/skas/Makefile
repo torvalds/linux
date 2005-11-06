@@ -4,9 +4,7 @@
 #
 
 obj-y := clone.o exec_kern.o mem.o mem_user.o mmu.o process.o process_kern.o \
-	syscall_kern.o syscall_user.o tlb.o trap_user.o uaccess.o \
-
-subdir- := util
+	syscall.o tlb.o trap_user.o uaccess.o
 
 USER_OBJS := process.o clone.o
 

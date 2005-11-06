@@ -32,7 +32,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/cacheflush.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
@@ -490,15 +490,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 give_sigsegv:
 	DBG(1,"setup_rt_frame: sending SIGSEGV\n");
-	if (sig == SIGSEGV)
-		ka->sa.sa_handler = SIG_DFL;
-	si.si_signo = SIGSEGV;
-	si.si_errno = 0;
-	si.si_code = SI_KERNEL;
-	si.si_pid = current->pid;
-	si.si_uid = current->uid;
-	si.si_addr = frame;
-	force_sig_info(SIGSEGV, &si, current);
+	force_sigsegv(sig, current);
 	return 0;
 }
 
@@ -517,13 +509,12 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	if (!setup_rt_frame(sig, ka, info, oldset, regs, in_syscall))
 		return 0;
 
-	if (!(ka->sa.sa_flags & SA_NODEFER)) {
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
+	spin_lock_irq(&current->sighand->siglock);
+	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
+	if (!(ka->sa.sa_flags & SA_NODEFER))
 		sigaddset(&current->blocked,sig);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-	}
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
 	return 1;
 }
 
@@ -634,10 +625,14 @@ do_signal(sigset_t *oldset, struct pt_regs *regs, int in_syscall)
 			put_user(0xe0008200, &usp[3]);
 			put_user(0x34140000, &usp[4]);
 
-			/* Stack is 64-byte aligned, and we only 
-			 * need to flush 1 cache line */
-			asm("fdc 0(%%sr3, %0)\n"
-			    "fic 0(%%sr3, %0)\n"
+			/* Stack is 64-byte aligned, and we only need
+			 * to flush 1 cache line.
+			 * Flushing one cacheline is cheap.
+			 * "sync" on bigger (> 4 way) boxes is not.
+			 */
+			asm("fdc %%r0(%%sr3, %0)\n"
+			    "sync\n"
+			    "fic %%r0(%%sr3, %0)\n"
 			    "sync\n"
 			    : : "r"(regs->gr[30]));
 

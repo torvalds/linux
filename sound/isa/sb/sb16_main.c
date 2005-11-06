@@ -729,7 +729,7 @@ static int snd_sb16_dma_control_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_valu
 }
 
 static snd_kcontrol_new_t snd_sb16_dma_control = {
-	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
 	.name = "16-bit DMA Allocation",
 	.info = snd_sb16_dma_control_info,
 	.get = snd_sb16_dma_control_get,

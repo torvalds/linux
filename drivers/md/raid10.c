@@ -47,7 +47,7 @@
 
 static void unplug_slaves(mddev_t *mddev);
 
-static void * r10bio_pool_alloc(unsigned int __nocast gfp_flags, void *data)
+static void * r10bio_pool_alloc(gfp_t gfp_flags, void *data)
 {
 	conf_t *conf = data;
 	r10bio_t *r10_bio;
@@ -81,7 +81,7 @@ static void r10bio_pool_free(void *r10_bio, void *data)
  * one for write (we recover only one drive per r10buf)
  *
  */
-static void * r10buf_pool_alloc(unsigned int __nocast gfp_flags, void *data)
+static void * r10buf_pool_alloc(gfp_t gfp_flags, void *data)
 {
 	conf_t *conf = data;
 	struct page *page;
@@ -538,7 +538,8 @@ static int read_balance(conf_t *conf, r10bio_t *r10_bio)
 	}
 
 
-	current_distance = abs(this_sector - conf->mirrors[disk].head_position);
+	current_distance = abs(r10_bio->devs[slot].addr -
+			       conf->mirrors[disk].head_position);
 
 	/* Find the disk whose head is closest */
 
@@ -667,6 +668,12 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	struct bio *read_bio;
 	int i;
 	int chunk_sects = conf->chunk_mask + 1;
+	const int rw = bio_data_dir(bio);
+
+	if (unlikely(bio_barrier(bio))) {
+		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
+		return 0;
+	}
 
 	/* If this request crosses a chunk boundary, we need to
 	 * split it.  This will only happen for 1 PAGE (or less) requests.
@@ -712,13 +719,8 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	conf->nr_pending++;
 	spin_unlock_irq(&conf->resync_lock);
 
-	if (bio_data_dir(bio)==WRITE) {
-		disk_stat_inc(mddev->gendisk, writes);
-		disk_stat_add(mddev->gendisk, write_sectors, bio_sectors(bio));
-	} else {
-		disk_stat_inc(mddev->gendisk, reads);
-		disk_stat_add(mddev->gendisk, read_sectors, bio_sectors(bio));
-	}
+	disk_stat_inc(mddev->gendisk, ios[rw]);
+	disk_stat_add(mddev->gendisk, sectors[rw], bio_sectors(bio));
 
 	r10_bio = mempool_alloc(conf->r10bio_pool, GFP_NOIO);
 
@@ -728,7 +730,7 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	r10_bio->mddev = mddev;
 	r10_bio->sector = bio->bi_sector;
 
-	if (bio_data_dir(bio) == READ) {
+	if (rw == READ) {
 		/*
 		 * read balancing logic:
 		 */
@@ -900,6 +902,27 @@ static void close_sync(conf_t *conf)
 	conf->r10buf_pool = NULL;
 }
 
+/* check if there are enough drives for
+ * every block to appear on atleast one
+ */
+static int enough(conf_t *conf)
+{
+	int first = 0;
+
+	do {
+		int n = conf->copies;
+		int cnt = 0;
+		while (n--) {
+			if (conf->mirrors[first].rdev)
+				cnt++;
+			first = (first+1) % conf->raid_disks;
+		}
+		if (cnt == 0)
+			return 0;
+	} while (first != 0);
+	return 1;
+}
+
 static int raid10_spare_active(mddev_t *mddev)
 {
 	int i;
@@ -937,6 +960,8 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 		/* only hot-add to in-sync arrays, as recovery is
 		 * very different from resync
 		 */
+		return 0;
+	if (!enough(conf))
 		return 0;
 
 	for (mirror=0; mirror < mddev->raid_disks; mirror++)
@@ -1445,7 +1470,13 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 					}
 				}
 				if (j == conf->copies) {
-					BUG();
+					/* Cannot recover, so abort the recovery */
+					put_buf(r10_bio);
+					r10_bio = rb2;
+					if (!test_and_set_bit(MD_RECOVERY_ERR, &mddev->recovery))
+						printk(KERN_INFO "raid10: %s: insufficient working devices for recovery.\n",
+						       mdname(mddev));
+					break;
 				}
 			}
 		if (biolist == NULL) {
@@ -1678,9 +1709,10 @@ static int run(mddev_t *mddev)
 	init_waitqueue_head(&conf->wait_idle);
 	init_waitqueue_head(&conf->wait_resume);
 
-	if (!conf->working_disks) {
-		printk(KERN_ERR "raid10: no operational mirrors for %s\n",
-			mdname(mddev));
+	/* need to check that every block has at least one working mirror */
+	if (!enough(conf)) {
+		printk(KERN_ERR "raid10: not enough operational mirrors for %s\n",
+		       mdname(mddev));
 		goto out_free_conf;
 	}
 

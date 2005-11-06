@@ -188,7 +188,7 @@ int rw_verify_area(int read_write, struct file *file, loff_t *ppos, size_t count
 	struct inode *inode;
 	loff_t pos;
 
-	if (unlikely(count > file->f_maxcount))
+	if (unlikely(count > INT_MAX))
 		goto Einval;
 	pos = *ppos;
 	if (unlikely((pos < 0) || (loff_t) (pos + count) < 0))
@@ -497,6 +497,9 @@ static ssize_t do_readv_writev(int type, struct file *file,
 	}
 
 	ret = rw_verify_area(type, file, pos, tot_len);
+	if (ret)
+		goto out;
+	ret = security_file_permission(file, type == READ ? MAY_READ : MAY_WRITE);
 	if (ret)
 		goto out;
 

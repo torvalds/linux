@@ -60,23 +60,10 @@ int llc_conn_ac_clear_remote_busy(struct sock *sk, struct sk_buff *skb)
 
 int llc_conn_ac_conn_ind(struct sock *sk, struct sk_buff *skb)
 {
-	int rc = -ENOTCONN;
-	u8 dsap;
-	struct llc_sap *sap;
+	struct llc_conn_state_ev *ev = llc_conn_ev(skb);
 
-	llc_pdu_decode_dsap(skb, &dsap);
-	sap = llc_sap_find(dsap);
-	if (sap) {
-		struct llc_conn_state_ev *ev = llc_conn_ev(skb);
-		struct llc_sock *llc = llc_sk(sk);
-
-		llc_pdu_decode_sa(skb, llc->daddr.mac);
-		llc_pdu_decode_da(skb, llc->laddr.mac);
-		llc->dev = skb->dev;
-		ev->ind_prim = LLC_CONN_PRIM;
-		rc = 0;
-	}
-	return rc;
+	ev->ind_prim = LLC_CONN_PRIM;
+	return 0;
 }
 
 int llc_conn_ac_conn_confirm(struct sock *sk, struct sk_buff *skb)
@@ -120,10 +107,8 @@ int llc_conn_ac_disc_ind(struct sock *sk, struct sk_buff *skb)
 			reason = LLC_DISC_REASON_RX_DISC_CMD_PDU;
 	} else if (ev->type == LLC_CONN_EV_TYPE_ACK_TMR)
 		reason = LLC_DISC_REASON_ACK_TMR_EXP;
-	else {
-		reason = 0;
+	else
 		rc = -EINVAL;
-	}
 	if (!rc) {
 		ev->reason   = reason;
 		ev->ind_prim = LLC_DISC_PRIM;
@@ -160,9 +145,6 @@ int llc_conn_ac_rst_ind(struct sock *sk, struct sk_buff *skb)
 			   LLC_U_PDU_CMD(pdu) == LLC_2_PDU_CMD_SABME) {
 			reason = LLC_RESET_REASON_REMOTE;
 			rc = 0;
-		} else {
-			reason = 0;
-			rc  = 1;
 		}
 		break;
 	case LLC_CONN_EV_TYPE_ACK_TMR:
@@ -172,8 +154,7 @@ int llc_conn_ac_rst_ind(struct sock *sk, struct sk_buff *skb)
 		if (llc->retry_count > llc->n2) {
 			reason = LLC_RESET_REASON_LOCAL;
 			rc = 0;
-		} else
-			rc = 1;
+		}
 		break;
 	}
 	if (!rc) {
@@ -217,18 +198,17 @@ int llc_conn_ac_stop_rej_tmr_if_data_flag_eq_2(struct sock *sk,
 int llc_conn_ac_send_disc_cmd_p_set_x(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_CMD);
 		llc_pdu_init_as_disc_cmd(nskb, 1);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 		llc_conn_ac_set_p_flag_1(sk, skb);
@@ -243,20 +223,19 @@ free:
 int llc_conn_ac_send_dm_rsp_f_set_p(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 		u8 f_bit;
 
-		nskb->dev = llc->dev;
 		llc_pdu_decode_pf_bit(skb, &f_bit);
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
 		llc_pdu_init_as_dm_rsp(nskb, f_bit);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -270,19 +249,17 @@ free:
 int llc_conn_ac_send_dm_rsp_f_set_1(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
-		u8 f_bit = 1;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_dm_rsp(nskb, f_bit);
+		llc_pdu_init_as_dm_rsp(nskb, 1);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -306,17 +283,16 @@ int llc_conn_ac_send_frmr_rsp_f_set_x(struct sock *sk, struct sk_buff *skb)
 		llc_pdu_decode_pf_bit(skb, &f_bit);
 	else
 		f_bit = 0;
-	nskb = llc_alloc_frame();
+	nskb = llc_alloc_frame(sk, llc->dev);
 	if (nskb) {
 		struct llc_sap *sap = llc->sap;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
 		llc_pdu_init_as_frmr_rsp(nskb, pdu, f_bit, llc->vS,
 					 llc->vR, INCORRECT);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -330,21 +306,19 @@ free:
 int llc_conn_ac_resend_frmr_rsp_f_set_0(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		u8 f_bit = 0;
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 		struct llc_pdu_sn *pdu = (struct llc_pdu_sn *)&llc->rx_pdu_hdr;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_frmr_rsp(nskb, pdu, f_bit, llc->vS,
+		llc_pdu_init_as_frmr_rsp(nskb, pdu, 0, llc->vS,
 					 llc->vR, INCORRECT);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -360,21 +334,20 @@ int llc_conn_ac_resend_frmr_rsp_f_set_p(struct sock *sk, struct sk_buff *skb)
 	u8 f_bit;
 	int rc = -ENOBUFS;
 	struct sk_buff *nskb;
+	struct llc_sock *llc = llc_sk(sk);
 
 	llc_pdu_decode_pf_bit(skb, &f_bit);
-	nskb = llc_alloc_frame();
+	nskb = llc_alloc_frame(sk, llc->dev);
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 		struct llc_pdu_sn *pdu = llc_pdu_sn_hdr(skb);
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
 		llc_pdu_init_as_frmr_rsp(nskb, pdu, f_bit, llc->vS,
 					 llc->vR, INCORRECT);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -395,7 +368,7 @@ int llc_conn_ac_send_i_cmd_p_set_1(struct sock *sk, struct sk_buff *skb)
 			    llc->daddr.lsap, LLC_PDU_CMD);
 	llc_pdu_init_as_i_cmd(skb, 1, llc->vS, llc->vR);
 	rc = llc_mac_hdr_init(skb, llc->dev->dev_addr, llc->daddr.mac);
-	if (!rc) {
+	if (likely(!rc)) {
 		llc_conn_send_pdu(sk, skb);
 		llc_conn_ac_inc_vs_by_1(sk, skb);
 	}
@@ -412,7 +385,7 @@ static int llc_conn_ac_send_i_cmd_p_set_0(struct sock *sk, struct sk_buff *skb)
 			    llc->daddr.lsap, LLC_PDU_CMD);
 	llc_pdu_init_as_i_cmd(skb, 0, llc->vS, llc->vR);
 	rc = llc_mac_hdr_init(skb, llc->dev->dev_addr, llc->daddr.mac);
-	if (!rc) {
+	if (likely(!rc)) {
 		llc_conn_send_pdu(sk, skb);
 		llc_conn_ac_inc_vs_by_1(sk, skb);
 	}
@@ -429,7 +402,7 @@ int llc_conn_ac_send_i_xxx_x_set_0(struct sock *sk, struct sk_buff *skb)
 			    llc->daddr.lsap, LLC_PDU_CMD);
 	llc_pdu_init_as_i_cmd(skb, 0, llc->vS, llc->vR);
 	rc = llc_mac_hdr_init(skb, llc->dev->dev_addr, llc->daddr.mac);
-	if (!rc) {
+	if (likely(!rc)) {
 		llc_conn_send_pdu(sk, skb);
 		llc_conn_ac_inc_vs_by_1(sk, skb);
 	}
@@ -451,18 +424,17 @@ int llc_conn_ac_resend_i_xxx_x_set_0_or_send_rr(struct sock *sk,
 	u8 nr;
 	struct llc_pdu_sn *pdu = llc_pdu_sn_hdr(skb);
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
 		llc_pdu_init_as_rr_rsp(nskb, 0, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (!rc)
+		if (likely(!rc))
 			llc_conn_send_pdu(sk, nskb);
 		else
 			kfree_skb(skb);
@@ -487,18 +459,17 @@ int llc_conn_ac_resend_i_rsp_f_set_1(struct sock *sk, struct sk_buff *skb)
 int llc_conn_ac_send_rej_cmd_p_set_1(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_CMD);
 		llc_pdu_init_as_rej_cmd(nskb, 1, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -512,19 +483,17 @@ free:
 int llc_conn_ac_send_rej_rsp_f_set_1(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		u8 f_bit = 1;
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_rej_rsp(nskb, f_bit, llc->vR);
+		llc_pdu_init_as_rej_rsp(nskb, 1, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -538,19 +507,17 @@ free:
 int llc_conn_ac_send_rej_xxx_x_set_0(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
-		u8 f_bit = 0;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_rej_rsp(nskb, f_bit, llc->vR);
+		llc_pdu_init_as_rej_rsp(nskb, 0, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -564,18 +531,17 @@ free:
 int llc_conn_ac_send_rnr_cmd_p_set_1(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_CMD);
 		llc_pdu_init_as_rnr_cmd(nskb, 1, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -589,19 +555,17 @@ free:
 int llc_conn_ac_send_rnr_rsp_f_set_1(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
-		u8 f_bit = 1;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_rnr_rsp(nskb, f_bit, llc->vR);
+		llc_pdu_init_as_rnr_rsp(nskb, 1, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -615,19 +579,17 @@ free:
 int llc_conn_ac_send_rnr_xxx_x_set_0(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		u8 f_bit = 0;
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_rnr_rsp(nskb, f_bit, llc->vR);
+		llc_pdu_init_as_rnr_rsp(nskb, 0, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -645,7 +607,7 @@ int llc_conn_ac_set_remote_busy(struct sock *sk, struct sk_buff *skb)
 	if (!llc->remote_busy_flag) {
 		llc->remote_busy_flag = 1;
 		mod_timer(&llc->busy_state_timer.timer,
-			 jiffies + llc->busy_state_timer.expire * HZ);
+			 jiffies + llc->busy_state_timer.expire);
 	}
 	return 0;
 }
@@ -653,18 +615,17 @@ int llc_conn_ac_set_remote_busy(struct sock *sk, struct sk_buff *skb)
 int llc_conn_ac_opt_send_rnr_xxx_x_set_0(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
 		llc_pdu_init_as_rnr_rsp(nskb, 0, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -678,18 +639,17 @@ free:
 int llc_conn_ac_send_rr_cmd_p_set_1(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_CMD);
 		llc_pdu_init_as_rr_cmd(nskb, 1, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -703,19 +663,18 @@ free:
 int llc_conn_ac_send_rr_rsp_f_set_1(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 		u8 f_bit = 1;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
 		llc_pdu_init_as_rr_rsp(nskb, f_bit, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -729,19 +688,17 @@ free:
 int llc_conn_ac_send_ack_rsp_f_set_1(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
-		u8 f_bit = 1;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
-		llc_pdu_init_as_rr_rsp(nskb, f_bit, llc->vR);
+		llc_pdu_init_as_rr_rsp(nskb, 1, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -755,18 +712,17 @@ free:
 int llc_conn_ac_send_rr_xxx_x_set_0(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
 		llc_pdu_init_as_rr_rsp(nskb, 0, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -780,18 +736,17 @@ free:
 int llc_conn_ac_send_ack_xxx_x_set_0(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
 		llc_pdu_init_as_rr_rsp(nskb, 0, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -815,8 +770,8 @@ void llc_conn_set_p_flag(struct sock *sk, u8 value)
 int llc_conn_ac_send_sabme_cmd_p_set_x(struct sock *sk, struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
 	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
 		struct llc_sap *sap = llc->sap;
@@ -824,12 +779,11 @@ int llc_conn_ac_send_sabme_cmd_p_set_x(struct sock *sk, struct sk_buff *skb)
 
 		if (llc->dev->flags & IFF_LOOPBACK)
 			dmac = llc->dev->dev_addr;
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_U, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_CMD);
 		llc_pdu_init_as_sabme_cmd(nskb, 1);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, dmac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 		llc_conn_set_p_flag(sk, 1);
@@ -845,11 +799,11 @@ int llc_conn_ac_send_ua_rsp_f_set_p(struct sock *sk, struct sk_buff *skb)
 {
 	u8 f_bit;
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	llc_pdu_decode_pf_bit(skb, &f_bit);
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
 		nskb->dev = llc->dev;
@@ -857,7 +811,7 @@ int llc_conn_ac_send_ua_rsp_f_set_p(struct sock *sk, struct sk_buff *skb)
 				    llc->daddr.lsap, LLC_PDU_RSP);
 		llc_pdu_init_as_ua_rsp(nskb, f_bit);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -886,7 +840,7 @@ int llc_conn_ac_start_p_timer(struct sock *sk, struct sk_buff *skb)
 
 	llc_conn_set_p_flag(sk, 1);
 	mod_timer(&llc->pf_cycle_timer.timer,
-		  jiffies + llc->pf_cycle_timer.expire * HZ);
+		  jiffies + llc->pf_cycle_timer.expire);
 	return 0;
 }
 
@@ -957,7 +911,7 @@ static int llc_conn_ac_send_i_rsp_f_set_ackpf(struct sock *sk,
 			    llc->daddr.lsap, LLC_PDU_RSP);
 	llc_pdu_init_as_i_cmd(skb, llc->ack_pf, llc->vS, llc->vR);
 	rc = llc_mac_hdr_init(skb, llc->dev->dev_addr, llc->daddr.mac);
-	if (!rc) {
+	if (likely(!rc)) {
 		llc_conn_send_pdu(sk, skb);
 		llc_conn_ac_inc_vs_by_1(sk, skb);
 	}
@@ -1001,18 +955,17 @@ static int llc_conn_ac_send_rr_rsp_f_set_ackpf(struct sock *sk,
 					       struct sk_buff *skb)
 {
 	int rc = -ENOBUFS;
-	struct sk_buff *nskb = llc_alloc_frame();
+	struct llc_sock *llc = llc_sk(sk);
+	struct sk_buff *nskb = llc_alloc_frame(sk, llc->dev);
 
 	if (nskb) {
-		struct llc_sock *llc = llc_sk(sk);
 		struct llc_sap *sap = llc->sap;
 
-		nskb->dev = llc->dev;
 		llc_pdu_header_init(nskb, LLC_PDU_TYPE_S, sap->laddr.lsap,
 				    llc->daddr.lsap, LLC_PDU_RSP);
 		llc_pdu_init_as_rr_rsp(nskb, llc->ack_pf, llc->vR);
 		rc = llc_mac_hdr_init(nskb, llc->dev->dev_addr, llc->daddr.mac);
-		if (rc)
+		if (unlikely(rc))
 			goto free;
 		llc_conn_send_pdu(sk, nskb);
 	}
@@ -1165,7 +1118,7 @@ int llc_conn_ac_start_ack_timer(struct sock *sk, struct sk_buff *skb)
 {
 	struct llc_sock *llc = llc_sk(sk);
 
-	mod_timer(&llc->ack_timer.timer, jiffies + llc->ack_timer.expire * HZ);
+	mod_timer(&llc->ack_timer.timer, jiffies + llc->ack_timer.expire);
 	return 0;
 }
 
@@ -1174,7 +1127,7 @@ int llc_conn_ac_start_rej_timer(struct sock *sk, struct sk_buff *skb)
 	struct llc_sock *llc = llc_sk(sk);
 
 	mod_timer(&llc->rej_sent_timer.timer,
-		  jiffies + llc->rej_sent_timer.expire * HZ);
+		  jiffies + llc->rej_sent_timer.expire);
 	return 0;
 }
 
@@ -1185,7 +1138,7 @@ int llc_conn_ac_start_ack_tmr_if_not_running(struct sock *sk,
 
 	if (!timer_pending(&llc->ack_timer.timer))
 		mod_timer(&llc->ack_timer.timer,
-			  jiffies + llc->ack_timer.expire * HZ);
+			  jiffies + llc->ack_timer.expire);
 	return 0;
 }
 
@@ -1233,7 +1186,7 @@ int llc_conn_ac_upd_nr_received(struct sock *sk, struct sk_buff *skb)
 		}
 		if (unacked)
 			mod_timer(&llc->ack_timer.timer,
-				  jiffies + llc->ack_timer.expire * HZ);
+				  jiffies + llc->ack_timer.expire);
 	} else if (llc->failed_data_req) {
 		u8 f_bit;
 
@@ -1354,13 +1307,13 @@ int llc_conn_ac_set_vs_nr(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-int llc_conn_ac_inc_vs_by_1(struct sock *sk, struct sk_buff *skb)
+static int llc_conn_ac_inc_vs_by_1(struct sock *sk, struct sk_buff *skb)
 {
 	llc_sk(sk)->vS = (llc_sk(sk)->vS + 1) % 128;
 	return 0;
 }
 
-void llc_conn_pf_cycle_tmr_cb(unsigned long timeout_data)
+static void llc_conn_tmr_common_cb(unsigned long timeout_data, u8 type)
 {
 	struct sock *sk = (struct sock *)timeout_data;
 	struct sk_buff *skb = alloc_skb(0, GFP_ATOMIC);
@@ -1369,59 +1322,31 @@ void llc_conn_pf_cycle_tmr_cb(unsigned long timeout_data)
 	if (skb) {
 		struct llc_conn_state_ev *ev = llc_conn_ev(skb);
 
-		skb->sk  = sk;
-		ev->type = LLC_CONN_EV_TYPE_P_TMR;
+		skb_set_owner_r(skb, sk);
+		ev->type = type;
 		llc_process_tmr_ev(sk, skb);
 	}
 	bh_unlock_sock(sk);
+}
+
+void llc_conn_pf_cycle_tmr_cb(unsigned long timeout_data)
+{
+	llc_conn_tmr_common_cb(timeout_data, LLC_CONN_EV_TYPE_P_TMR);
 }
 
 void llc_conn_busy_tmr_cb(unsigned long timeout_data)
 {
-	struct sock *sk = (struct sock *)timeout_data;
-	struct sk_buff *skb = alloc_skb(0, GFP_ATOMIC);
-
-	bh_lock_sock(sk);
-	if (skb) {
-		struct llc_conn_state_ev *ev = llc_conn_ev(skb);
-
-		skb->sk  = sk;
-		ev->type = LLC_CONN_EV_TYPE_BUSY_TMR;
-		llc_process_tmr_ev(sk, skb);
-	}
-	bh_unlock_sock(sk);
+	llc_conn_tmr_common_cb(timeout_data, LLC_CONN_EV_TYPE_BUSY_TMR);
 }
 
 void llc_conn_ack_tmr_cb(unsigned long timeout_data)
 {
-	struct sock* sk = (struct sock *)timeout_data;
-	struct sk_buff *skb = alloc_skb(0, GFP_ATOMIC);
-
-	bh_lock_sock(sk);
-	if (skb) {
-		struct llc_conn_state_ev *ev = llc_conn_ev(skb);
-
-		skb->sk  = sk;
-		ev->type = LLC_CONN_EV_TYPE_ACK_TMR;
-		llc_process_tmr_ev(sk, skb);
-	}
-	bh_unlock_sock(sk);
+	llc_conn_tmr_common_cb(timeout_data, LLC_CONN_EV_TYPE_ACK_TMR);
 }
 
 void llc_conn_rej_tmr_cb(unsigned long timeout_data)
 {
-	struct sock *sk = (struct sock *)timeout_data;
-	struct sk_buff *skb = alloc_skb(0, GFP_ATOMIC);
-
-	bh_lock_sock(sk);
-	if (skb) {
-		struct llc_conn_state_ev *ev = llc_conn_ev(skb);
-
-		skb->sk  = sk;
-		ev->type = LLC_CONN_EV_TYPE_REJ_TMR;
-		llc_process_tmr_ev(sk, skb);
-	}
-	bh_unlock_sock(sk);
+	llc_conn_tmr_common_cb(timeout_data, LLC_CONN_EV_TYPE_REJ_TMR);
 }
 
 int llc_conn_ac_rst_vs(struct sock *sk, struct sk_buff *skb)

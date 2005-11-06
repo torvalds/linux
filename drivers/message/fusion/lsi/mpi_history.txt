@@ -6,17 +6,17 @@
  Copyright (c) 2000-2005 LSI Logic Corporation.
 
  ---------------------------------------
- Header Set Release Version:    01.05.09
+ Header Set Release Version:    01.05.10
  Header Set Release Date:       03-11-05
  ---------------------------------------
 
  Filename               Current version     Prior version
  ----------             ---------------     -------------
- mpi.h                  01.05.07            01.05.06
- mpi_ioc.h              01.05.08            01.05.07
- mpi_cnfg.h             01.05.08            01.05.07
- mpi_init.h             01.05.04            01.05.03
- mpi_targ.h             01.05.04            01.05.03
+ mpi.h                  01.05.08            01.05.07
+ mpi_ioc.h              01.05.09            01.05.08
+ mpi_cnfg.h             01.05.09            01.05.08
+ mpi_init.h             01.05.05            01.05.04
+ mpi_targ.h             01.05.05            01.05.04
  mpi_fc.h               01.05.01            01.05.01
  mpi_lan.h              01.05.01            01.05.01
  mpi_raid.h             01.05.02            01.05.02
@@ -24,7 +24,7 @@
  mpi_inb.h              01.05.01            01.05.01
  mpi_sas.h              01.05.01            01.05.01
  mpi_type.h             01.05.01            01.05.01
- mpi_history.txt        01.05.09            01.05.08
+ mpi_history.txt        01.05.09            01.05.09
 
 
  *  Date      Version   Description
@@ -88,6 +88,9 @@ mpi.h
  *  03-11-05  01.05.07  Removed function codes for SCSI IO 32 and
  *                      TargetAssistExtended requests.
  *                      Removed EEDP IOCStatus codes.
+ *  06-24-05  01.05.08  Added function codes for SCSI IO 32 and
+ *                      TargetAssistExtended requests.
+ *                      Added EEDP IOCStatus codes.
  *  --------------------------------------------------------------------------
 
 mpi_ioc.h
@@ -159,6 +162,8 @@ mpi_ioc.h
  *                      Reply and IOC Init Request.
  *  03-11-05  01.05.08  Added family code for 1068E family.
  *                      Removed IOCFacts Reply EEDP Capability bit.
+ *  06-24-05  01.05.09  Added 5 new IOCFacts Reply IOCCapabilities bits.
+ *                      Added Max SATA Targets to SAS Discovery Error event.
  *  --------------------------------------------------------------------------
 
 mpi_cnfg.h
@@ -380,6 +385,23 @@ mpi_cnfg.h
  *                      New physical mapping mode in SAS IO Unit Page 2.
  *                      Added CONFIG_PAGE_SAS_ENCLOSURE_0.
  *                      Added Slot and Enclosure fields to SAS Device Page 0.
+ *  06-24-05  01.05.09  Added EEDP defines to IOC Page 1.
+ *                      Added more RAID type defines to IOC Page 2.
+ *                      Added Port Enable Delay settings to BIOS Page 1.
+ *                      Added Bad Block Table Full define to RAID Volume Page 0.
+ *                      Added Previous State defines to RAID Physical Disk
+ *                      Page 0.
+ *                      Added Max Sata Targets define for DiscoveryStatus field
+ *                      of SAS IO Unit Page 0.
+ *                      Added Device Self Test to Control Flags of SAS IO Unit
+ *                      Page 1.
+ *                      Added Direct Attach Starting Slot Number define for SAS
+ *                      IO Unit Page 2.
+ *                      Added new fields in SAS Device Page 2 for enclosure
+ *                      mapping.
+ *                      Added OwnerDevHandle and Flags field to SAS PHY Page 0.
+ *                      Added IOC GPIO Flags define to SAS Enclosure Page 0.
+ *                      Fixed the value for MPI_SAS_IOUNIT1_CONTROL_DEV_SATA_SUPPORT.
  *  --------------------------------------------------------------------------
 
 mpi_init.h
@@ -418,6 +440,8 @@ mpi_init.h
  *                      Modified SCSI Enclosure Processor Request and Reply to
  *                      support Enclosure/Slot addressing rather than WWID
  *                      addressing.
+ *  06-24-05  01.05.05  Added SCSI IO 32 structures and defines.
+ *                      Added four new defines for SEP SlotStatus.
  *  --------------------------------------------------------------------------
 
 mpi_targ.h
@@ -461,6 +485,7 @@ mpi_targ.h
  *  10-05-04  01.05.02  MSG_TARGET_CMD_BUFFER_POST_BASE_LIST_REPLY added.
  *  02-22-05  01.05.03  Changed a comment.
  *  03-11-05  01.05.04  Removed TargetAssistExtended Request.
+ *  06-24-05  01.05.05  Added TargetAssistExtended structures and defines.
  *  --------------------------------------------------------------------------
 
 mpi_fc.h
@@ -571,20 +596,20 @@ mpi_type.h
 
 mpi_history.txt         Parts list history
 
-Filename    01.05.09
-----------  --------
-mpi.h       01.05.07
-mpi_ioc.h   01.05.08
-mpi_cnfg.h  01.05.08
-mpi_init.h  01.05.04
-mpi_targ.h  01.05.04
-mpi_fc.h    01.05.01
-mpi_lan.h   01.05.01
-mpi_raid.h  01.05.02
-mpi_tool.h  01.05.03
-mpi_inb.h   01.05.01
-mpi_sas.h   01.05.01
-mpi_type.h  01.05.01
+Filename    01.05.10  01.05.09
+----------  --------  --------
+mpi.h       01.05.08  01.05.07
+mpi_ioc.h   01.05.09  01.05.08
+mpi_cnfg.h  01.05.09  01.05.08
+mpi_init.h  01.05.05  01.05.04
+mpi_targ.h  01.05.05  01.05.04
+mpi_fc.h    01.05.01  01.05.01
+mpi_lan.h   01.05.01  01.05.01
+mpi_raid.h  01.05.02  01.05.02
+mpi_tool.h  01.05.03  01.05.03
+mpi_inb.h   01.05.01  01.05.01
+mpi_sas.h   01.05.01  01.05.01
+mpi_type.h  01.05.01  01.05.01
 
 Filename    01.05.08   01.05.07   01.05.06   01.05.05   01.05.04   01.05.03
 ----------  --------   --------   --------   --------   --------   --------

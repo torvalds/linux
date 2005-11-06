@@ -28,7 +28,7 @@ static int ioremap_pte_range(pmd_t *pmd, unsigned long addr,
 	unsigned long pfn;
 
 	pfn = phys_addr >> PAGE_SHIFT;
-	pte = pte_alloc_kernel(&init_mm, pmd, addr);
+	pte = pte_alloc_kernel(pmd, addr);
 	if (!pte)
 		return -ENOMEM;
 	do {
@@ -87,14 +87,12 @@ static int ioremap_page_range(unsigned long addr,
 	flush_cache_all();
 	phys_addr -= addr;
 	pgd = pgd_offset_k(addr);
-	spin_lock(&init_mm.page_table_lock);
 	do {
 		next = pgd_addr_end(addr, end);
 		err = ioremap_pud_range(pgd, addr, next, phys_addr+addr, flags);
 		if (err)
 			break;
 	} while (pgd++, addr = next, addr != end);
-	spin_unlock(&init_mm.page_table_lock);
 	flush_tlb_all();
 	return err;
 }

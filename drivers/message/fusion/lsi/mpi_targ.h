@@ -6,7 +6,7 @@
  *          Title:  MPI Target mode messages and structures
  *  Creation Date:  June 22, 2000
  *
- *    mpi_targ.h Version:  01.05.04
+ *    mpi_targ.h Version:  01.05.05
  *
  *  Version History
  *  ---------------
@@ -53,6 +53,7 @@
  *  10-05-04  01.05.02  MSG_TARGET_CMD_BUFFER_POST_BASE_LIST_REPLY added.
  *  02-22-05  01.05.03  Changed a comment.
  *  03-11-05  01.05.04  Removed TargetAssistExtended Request.
+ *  06-24-05  01.05.05  Added TargetAssistExtended structures and defines.
  *  --------------------------------------------------------------------------
  */
 
@@ -368,6 +369,77 @@ typedef struct _MSG_TARGET_ERROR_REPLY
     U32                     TransferCount;              /* 18h */
 } MSG_TARGET_ERROR_REPLY, MPI_POINTER PTR_MSG_TARGET_ERROR_REPLY,
   TargetErrorReply_t, MPI_POINTER pTargetErrorReply_t;
+
+
+/****************************************************************************/
+/* Target Assist Extended Request                                           */
+/****************************************************************************/
+
+typedef struct _MSG_TARGET_ASSIST_EXT_REQUEST
+{
+    U8                      StatusCode;                     /* 00h */
+    U8                      TargetAssistFlags;              /* 01h */
+    U8                      ChainOffset;                    /* 02h */
+    U8                      Function;                       /* 03h */
+    U16                     QueueTag;                       /* 04h */
+    U8                      Reserved1;                      /* 06h */
+    U8                      MsgFlags;                       /* 07h */
+    U32                     MsgContext;                     /* 08h */
+    U32                     ReplyWord;                      /* 0Ch */
+    U8                      LUN[8];                         /* 10h */
+    U32                     RelativeOffset;                 /* 18h */
+    U32                     Reserved2;                      /* 1Ch */
+    U32                     Reserved3;                      /* 20h */
+    U32                     PrimaryReferenceTag;            /* 24h */
+    U16                     PrimaryApplicationTag;          /* 28h */
+    U16                     PrimaryApplicationTagMask;      /* 2Ah */
+    U32                     Reserved4;                      /* 2Ch */
+    U32                     DataLength;                     /* 30h */
+    U32                     BidirectionalDataLength;        /* 34h */
+    U32                     SecondaryReferenceTag;          /* 38h */
+    U16                     SecondaryApplicationTag;        /* 3Ch */
+    U16                     Reserved5;                      /* 3Eh */
+    U16                     EEDPFlags;                      /* 40h */
+    U16                     ApplicationTagTranslationMask;  /* 42h */
+    U32                     EEDPBlockSize;                  /* 44h */
+    U8                      SGLOffset0;                     /* 48h */
+    U8                      SGLOffset1;                     /* 49h */
+    U8                      SGLOffset2;                     /* 4Ah */
+    U8                      SGLOffset3;                     /* 4Bh */
+    U32                     Reserved6;                      /* 4Ch */
+    SGE_IO_UNION            SGL[1];                         /* 50h */
+} MSG_TARGET_ASSIST_EXT_REQUEST, MPI_POINTER PTR_MSG_TARGET_ASSIST_EXT_REQUEST,
+  TargetAssistExtRequest_t, MPI_POINTER pTargetAssistExtRequest_t;
+
+/* see the defines after MSG_TARGET_ASSIST_REQUEST for TargetAssistFlags */
+
+/* defines for the MsgFlags field */
+#define TARGET_ASSIST_EXT_MSGFLAGS_BIDIRECTIONAL        (0x20)
+#define TARGET_ASSIST_EXT_MSGFLAGS_MULTICAST            (0x10)
+#define TARGET_ASSIST_EXT_MSGFLAGS_SGL_OFFSET_CHAINS    (0x08)
+
+/* defines for the EEDPFlags field */
+#define TARGET_ASSIST_EXT_EEDP_MASK_OP          (0x0007)
+#define TARGET_ASSIST_EXT_EEDP_NOOP_OP          (0x0000)
+#define TARGET_ASSIST_EXT_EEDP_CHK_OP           (0x0001)
+#define TARGET_ASSIST_EXT_EEDP_STRIP_OP         (0x0002)
+#define TARGET_ASSIST_EXT_EEDP_CHKRM_OP         (0x0003)
+#define TARGET_ASSIST_EXT_EEDP_INSERT_OP        (0x0004)
+#define TARGET_ASSIST_EXT_EEDP_REPLACE_OP       (0x0006)
+#define TARGET_ASSIST_EXT_EEDP_CHKREGEN_OP      (0x0007)
+
+#define TARGET_ASSIST_EXT_EEDP_PASS_REF_TAG     (0x0008)
+
+#define TARGET_ASSIST_EXT_EEDP_T10_CHK_MASK     (0x0700)
+#define TARGET_ASSIST_EXT_EEDP_T10_CHK_GUARD    (0x0100)
+#define TARGET_ASSIST_EXT_EEDP_T10_CHK_APPTAG   (0x0200)
+#define TARGET_ASSIST_EXT_EEDP_T10_CHK_REFTAG   (0x0400)
+#define TARGET_ASSIST_EXT_EEDP_T10_CHK_SHIFT    (8)
+
+#define TARGET_ASSIST_EXT_EEDP_INC_SEC_APPTAG   (0x1000)
+#define TARGET_ASSIST_EXT_EEDP_INC_PRI_APPTAG   (0x2000)
+#define TARGET_ASSIST_EXT_EEDP_INC_SEC_REFTAG   (0x4000)
+#define TARGET_ASSIST_EXT_EEDP_INC_PRI_REFTAG   (0x8000)
 
 
 /****************************************************************************/

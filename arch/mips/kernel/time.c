@@ -11,6 +11,7 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
+#include <linux/config.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -25,6 +26,7 @@
 #include <linux/module.h>
 
 #include <asm/bootinfo.h>
+#include <asm/cache.h>
 #include <asm/compiler.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
@@ -42,10 +44,6 @@
 #define USECS_PER_JIFFY_FRAC	((unsigned long)(u32)((1000000ULL << 32) / HZ))
 
 #define TICK_SIZE	(tick_nsec / 1000)
-
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
 
 /*
  * forward reference
@@ -76,7 +74,7 @@ int (*rtc_set_mmss)(unsigned long);
 static unsigned int sll32_usecs_per_cycle;
 
 /* how many counter cycles in a jiffy */
-static unsigned long cycles_per_jiffy;
+static unsigned long cycles_per_jiffy __read_mostly;
 
 /* Cycle counter value at the previous timer interrupt.. */
 static unsigned int timerhi, timerlo;
@@ -98,7 +96,10 @@ static unsigned int null_hpt_read(void)
 	return 0;
 }
 
-static void null_hpt_init(unsigned int count) { /* nothing */ }
+static void null_hpt_init(unsigned int count)
+{
+	/* nothing */
+}
 
 
 /*
@@ -108,8 +109,10 @@ static void c0_timer_ack(void)
 {
 	unsigned int count;
 
+#ifndef CONFIG_SOC_PNX8550	/* pnx8550 resets to zero */
 	/* Ack this timer interrupt and set the next one.  */
 	expirelo += cycles_per_jiffy;
+#endif
 	write_c0_compare(expirelo);
 
 	/* Check to see if we have missed any timer interrupts.  */
@@ -223,11 +226,7 @@ int do_settimeofday(struct timespec *tv)
 	set_normalized_timespec(&xtime, sec, nsec);
 	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
 
-	time_adjust = 0;			/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
-
+	ntp_clear();
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();
 	return 0;
@@ -442,7 +441,7 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * called as close as possible to 500 ms before the new second starts.
 	 */
 	write_seqlock(&xtime_lock);
-	if ((time_status & STA_UNSYNC) == 0 &&
+	if (ntp_synced() &&
 	    xtime.tv_sec > last_rtc_update + 660 &&
 	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
 	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {

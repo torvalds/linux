@@ -98,8 +98,6 @@ extern struct page *empty_zero_page;
 #define pfn_pte(pfn,prot)	(__pte(((pfn) << PAGE_SHIFT) | pgprot_val(prot)))
 #define pages_to_mb(x)		((x) >> (20 - PAGE_SHIFT))
 #define mk_pte(page,prot)	pfn_pte(page_to_pfn(page),prot)
-#define page_pte_prot(page,prot)	mk_pte(page, prot)
-#define page_pte(page)		mk_pte(page, __pgprot(0))
 
 /*
  * Terminology: PGD = Page Directory, PMD = Page Middle Directory,
@@ -294,12 +292,9 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 #include <asm-generic/pgtable.h>
 
 /*
- * remap a physical address `phys' of size `size' with page protection `prot'
+ * remap a physical page `pfn' of size `size' with page protection `prot'
  * into virtual address `from'
  */
-#define io_remap_page_range(vma,from,phys,size,prot) \
-		remap_pfn_range(vma, from, (phys) >> PAGE_SHIFT, size, prot)
-
 #define io_remap_pfn_range(vma,from,pfn,size,prot) \
 		remap_pfn_range(vma, from, pfn, size, prot)
 

@@ -21,9 +21,6 @@
 #include <linux/jffs2.h>
 #include "nodelist.h"
 
-extern int generic_file_open(struct inode *, struct file *) __attribute__((weak));
-extern loff_t generic_file_llseek(struct file *file, loff_t offset, int origin) __attribute__((weak));
-
 static int jffs2_commit_write (struct file *filp, struct page *pg,
 			       unsigned start, unsigned end);
 static int jffs2_prepare_write (struct file *filp, struct page *pg,

@@ -593,6 +593,9 @@ static int new_inode_init(struct inode *inode, struct inode *dir, int mode)
 	 */
 	inode->i_uid = current->fsuid;
 	inode->i_mode = mode;
+	/* Make inode invalid - just in case we are going to drop it before
+	 * the initialization happens */
+	INODE_PKEY(inode)->k_objectid = 0;
 
 	if (dir->i_mode & S_ISGID) {
 		inode->i_gid = dir->i_gid;

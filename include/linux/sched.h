@@ -35,6 +35,8 @@
 #include <linux/topology.h>
 #include <linux/seccomp.h>
 
+#include <linux/auxvec.h>	/* For AT_VECTOR_SIZE */
+
 struct exec_domain;
 
 /*
@@ -105,19 +107,43 @@ extern unsigned long nr_iowait(void);
 
 #include <asm/processor.h>
 
+/*
+ * Task state bitmask. NOTE! These bits are also
+ * encoded in fs/proc/array.c: get_task_state().
+ *
+ * We have two separate sets of flags: task->state
+ * is about runnability, while task->exit_state are
+ * about the task exiting. Confusing, but this way
+ * modifying one set can't modify the other one by
+ * mistake.
+ */
 #define TASK_RUNNING		0
 #define TASK_INTERRUPTIBLE	1
 #define TASK_UNINTERRUPTIBLE	2
 #define TASK_STOPPED		4
 #define TASK_TRACED		8
+/* in tsk->exit_state */
 #define EXIT_ZOMBIE		16
 #define EXIT_DEAD		32
+/* in tsk->state again */
+#define TASK_NONINTERACTIVE	64
 
 #define __set_task_state(tsk, state_value)		\
 	do { (tsk)->state = (state_value); } while (0)
 #define set_task_state(tsk, state_value)		\
 	set_mb((tsk)->state, (state_value))
 
+/*
+ * set_current_state() includes a barrier so that the write of current->state
+ * is correctly serialised wrt the caller's subsequent test of whether to
+ * actually sleep:
+ *
+ *	set_current_state(TASK_UNINTERRUPTIBLE);
+ *	if (do_i_need_to_sleep())
+ *		schedule();
+ *
+ * If the caller does not need such serialisation then use __set_current_state()
+ */
 #define __set_current_state(state_value)			\
 	do { current->state = (state_value); } while (0)
 #define set_current_state(state_value)		\
@@ -176,6 +202,23 @@ extern void trap_init(void);
 extern void update_process_times(int user);
 extern void scheduler_tick(void);
 
+#ifdef CONFIG_DETECT_SOFTLOCKUP
+extern void softlockup_tick(struct pt_regs *regs);
+extern void spawn_softlockup_task(void);
+extern void touch_softlockup_watchdog(void);
+#else
+static inline void softlockup_tick(struct pt_regs *regs)
+{
+}
+static inline void spawn_softlockup_task(void)
+{
+}
+static inline void touch_softlockup_watchdog(void)
+{
+}
+#endif
+
+
 /* Attach to any functions which should be ignored in wchan output. */
 #define __sched		__attribute__((__section__(".sched.text")))
 /* Is this address in the __sched functions? */
@@ -183,6 +226,8 @@ extern int in_sched_functions(unsigned long addr);
 
 #define	MAX_SCHEDULE_TIMEOUT	LONG_MAX
 extern signed long FASTCALL(schedule_timeout(signed long timeout));
+extern signed long schedule_timeout_interruptible(signed long timeout);
+extern signed long schedule_timeout_uninterruptible(signed long timeout);
 asmlinkage void schedule(void);
 
 struct namespace;
@@ -204,12 +249,56 @@ arch_get_unmapped_area_topdown(struct file *filp, unsigned long addr,
 extern void arch_unmap_area(struct mm_struct *, unsigned long);
 extern void arch_unmap_area_topdown(struct mm_struct *, unsigned long);
 
+#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+/*
+ * The mm counters are not protected by its page_table_lock,
+ * so must be incremented atomically.
+ */
+#ifdef ATOMIC64_INIT
+#define set_mm_counter(mm, member, value) atomic64_set(&(mm)->_##member, value)
+#define get_mm_counter(mm, member) ((unsigned long)atomic64_read(&(mm)->_##member))
+#define add_mm_counter(mm, member, value) atomic64_add(value, &(mm)->_##member)
+#define inc_mm_counter(mm, member) atomic64_inc(&(mm)->_##member)
+#define dec_mm_counter(mm, member) atomic64_dec(&(mm)->_##member)
+typedef atomic64_t mm_counter_t;
+#else /* !ATOMIC64_INIT */
+/*
+ * The counters wrap back to 0 at 2^32 * PAGE_SIZE,
+ * that is, at 16TB if using 4kB page size.
+ */
+#define set_mm_counter(mm, member, value) atomic_set(&(mm)->_##member, value)
+#define get_mm_counter(mm, member) ((unsigned long)atomic_read(&(mm)->_##member))
+#define add_mm_counter(mm, member, value) atomic_add(value, &(mm)->_##member)
+#define inc_mm_counter(mm, member) atomic_inc(&(mm)->_##member)
+#define dec_mm_counter(mm, member) atomic_dec(&(mm)->_##member)
+typedef atomic_t mm_counter_t;
+#endif /* !ATOMIC64_INIT */
+
+#else  /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
+/*
+ * The mm counters are protected by its page_table_lock,
+ * so can be incremented directly.
+ */
 #define set_mm_counter(mm, member, value) (mm)->_##member = (value)
 #define get_mm_counter(mm, member) ((mm)->_##member)
 #define add_mm_counter(mm, member, value) (mm)->_##member += (value)
 #define inc_mm_counter(mm, member) (mm)->_##member++
 #define dec_mm_counter(mm, member) (mm)->_##member--
 typedef unsigned long mm_counter_t;
+
+#endif /* NR_CPUS < CONFIG_SPLIT_PTLOCK_CPUS */
+
+#define get_mm_rss(mm)					\
+	(get_mm_counter(mm, file_rss) + get_mm_counter(mm, anon_rss))
+#define update_hiwater_rss(mm)	do {			\
+	unsigned long _rss = get_mm_rss(mm);		\
+	if ((mm)->hiwater_rss < _rss)			\
+		(mm)->hiwater_rss = _rss;		\
+} while (0)
+#define update_hiwater_vm(mm)	do {			\
+	if ((mm)->hiwater_vm < (mm)->total_vm)		\
+		(mm)->hiwater_vm = (mm)->total_vm;	\
+} while (0)
 
 struct mm_struct {
 	struct vm_area_struct * mmap;		/* list of VMAs */
@@ -234,17 +323,22 @@ struct mm_struct {
 						 * by mmlist_lock
 						 */
 
+	/* Special counters, in some configurations protected by the
+	 * page_table_lock, in other configurations by being atomic.
+	 */
+	mm_counter_t _file_rss;
+	mm_counter_t _anon_rss;
+
+	unsigned long hiwater_rss;	/* High-watermark of RSS usage */
+	unsigned long hiwater_vm;	/* High-water virtual memory usage */
+
+	unsigned long total_vm, locked_vm, shared_vm, exec_vm;
+	unsigned long stack_vm, reserved_vm, def_flags, nr_ptes;
 	unsigned long start_code, end_code, start_data, end_data;
 	unsigned long start_brk, brk, start_stack;
 	unsigned long arg_start, arg_end, env_start, env_end;
-	unsigned long total_vm, locked_vm, shared_vm;
-	unsigned long exec_vm, stack_vm, reserved_vm, def_flags, nr_ptes;
 
-	/* Special counters protected by the page_table_lock */
-	mm_counter_t _rss;
-	mm_counter_t _anon_rss;
-
-	unsigned long saved_auxv[42]; /* for /proc/PID/auxv */
+	unsigned long saved_auxv[AT_VECTOR_SIZE]; /* for /proc/PID/auxv */
 
 	unsigned dumpable:2;
 	cpumask_t cpu_vm_mask;
@@ -263,11 +357,7 @@ struct mm_struct {
 	/* aio bits */
 	rwlock_t		ioctx_list_lock;
 	struct kioctx		*ioctx_list;
-
 	struct kioctx		default_kioctx;
-
-	unsigned long hiwater_rss;	/* High-water RSS usage */
-	unsigned long hiwater_vm;	/* High-water virtual memory usage */
 };
 
 struct sighand_struct {
@@ -545,13 +635,6 @@ struct sched_domain {
 
 extern void partition_sched_domains(cpumask_t *partition1,
 				    cpumask_t *partition2);
-#ifdef ARCH_HAS_SCHED_DOMAIN
-/* Useful helpers that arch setup code may use. Defined in kernel/sched.c */
-extern cpumask_t cpu_isolated_map;
-extern void init_sched_build_groups(struct sched_group groups[],
-	                        cpumask_t span, int (*group_fn)(int cpu));
-extern void cpu_attach_domain(struct sched_domain *sd, int cpu);
-#endif /* ARCH_HAS_SCHED_DOMAIN */
 #endif /* CONFIG_SMP */
 
 
@@ -592,6 +675,11 @@ extern int groups_search(struct group_info *group_info, gid_t grp);
 #define GROUP_AT(gi, i) \
     ((gi)->blocks[(i)/NGROUPS_PER_BLOCK][(i)%NGROUPS_PER_BLOCK])
 
+#ifdef ARCH_HAS_PREFETCH_SWITCH_STACK
+extern void prefetch_stack(struct task_struct*);
+#else
+static inline void prefetch_stack(struct task_struct *t) { }
+#endif
 
 struct audit_context;		/* See audit.c */
 struct mempolicy;
@@ -852,7 +940,7 @@ extern int set_cpus_allowed(task_t *p, cpumask_t new_mask);
 #else
 static inline int set_cpus_allowed(task_t *p, cpumask_t new_mask)
 {
-	if (!cpus_intersects(new_mask, cpu_online_map))
+	if (!cpu_isset(0, new_mask))
 		return -EINVAL;
 	return 0;
 }
@@ -883,6 +971,8 @@ extern int task_curr(const task_t *p);
 extern int idle_cpu(int cpu);
 extern int sched_setscheduler(struct task_struct *, int, struct sched_param *);
 extern task_t *idle_task(int cpu);
+extern task_t *curr_task(int cpu);
+extern void set_curr_task(int cpu, task_t *p);
 
 void yield(void);
 
@@ -973,6 +1063,7 @@ extern int force_sig_info(int, struct siginfo *, struct task_struct *);
 extern int __kill_pg_info(int sig, struct siginfo *info, pid_t pgrp);
 extern int kill_pg_info(int, struct siginfo *, pid_t);
 extern int kill_proc_info(int, struct siginfo *, pid_t);
+extern int kill_proc_info_as_uid(int, struct siginfo *, pid_t, uid_t, uid_t);
 extern void do_notify_parent(struct task_struct *, int);
 extern void force_sig(int, struct task_struct *);
 extern void force_sig_specific(int, struct task_struct *);
@@ -992,6 +1083,11 @@ extern int do_sigaltstack(const stack_t __user *, stack_t __user *, unsigned lon
 #define SEND_SIG_NOINFO ((struct siginfo *) 0)
 #define SEND_SIG_PRIV	((struct siginfo *) 1)
 #define SEND_SIG_FORCED	((struct siginfo *) 2)
+
+static inline int is_si_special(const struct siginfo *info)
+{
+	return info <= SEND_SIG_FORCED;
+}
 
 /* True if we are on the alternate signal stack.  */
 
@@ -1120,7 +1216,7 @@ extern void unhash_process(struct task_struct *p);
 /*
  * Protects ->fs, ->files, ->mm, ->ptrace, ->group_info, ->comm, keyring
  * subscriptions and synchronises with wait4().  Also used in procfs.  Also
- * pins the final release of task.io_context.
+ * pins the final release of task.io_context.  Also protects ->cpuset.
  *
  * Nests both inside and outside of read_lock(&tasklist_lock).
  * It must not be nested with write_lock_irq(&tasklist_lock),

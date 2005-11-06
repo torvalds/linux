@@ -401,7 +401,7 @@ void NVCommonSetup(struct fb_info *info)
 	nvidia_create_i2c_busses(par);
 	if (!par->twoHeads) {
 		par->CRTCnumber = 0;
-		nvidia_probe_i2c_connector(par, 1, &edidA);
+		nvidia_probe_i2c_connector(info, 1, &edidA);
 		if (edidA && !fb_parse_edid(edidA, &var)) {
 			printk("nvidiafb: EDID found from BUS1\n");
 			monA = &monitorA;
@@ -488,14 +488,14 @@ void NVCommonSetup(struct fb_info *info)
 		oldhead = NV_RD32(par->PCRTC0, 0x00000860);
 		NV_WR32(par->PCRTC0, 0x00000860, oldhead | 0x00000010);
 
-		nvidia_probe_i2c_connector(par, 1, &edidA);
+		nvidia_probe_i2c_connector(info, 1, &edidA);
 		if (edidA && !fb_parse_edid(edidA, &var)) {
 			printk("nvidiafb: EDID found from BUS1\n");
 			monA = &monitorA;
 			fb_edid_to_monspecs(edidA, monA);
 		}
 
-		nvidia_probe_i2c_connector(par, 2, &edidB);
+		nvidia_probe_i2c_connector(info, 2, &edidB);
 		if (edidB && !fb_parse_edid(edidB, &var)) {
 			printk("nvidiafb: EDID found from BUS2\n");
 			monB = &monitorB;

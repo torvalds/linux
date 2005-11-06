@@ -57,6 +57,7 @@ static struct snmp_mib sctp_snmp_list[] = {
 	SNMP_MIB_ITEM("SctpReasmUsrMsgs", SCTP_MIB_REASMUSRMSGS),
 	SNMP_MIB_ITEM("SctpOutSCTPPacks", SCTP_MIB_OUTSCTPPACKS),
 	SNMP_MIB_ITEM("SctpInSCTPPacks", SCTP_MIB_INSCTPPACKS),
+	SNMP_MIB_SENTINEL
 };
 
 /* Return the current value of a particular entry in the mib by adding its
@@ -68,9 +69,7 @@ fold_field(void *mib[], int nr)
 	unsigned long res = 0;
 	int i;
 
-	for (i = 0; i < NR_CPUS; i++) {
-		if (!cpu_possible(i))
-			continue;
+	for_each_cpu(i) {
 		res +=
 		    *((unsigned long *) (((void *) per_cpu_ptr(mib[0], i)) +
 					 sizeof (unsigned long) * nr));

@@ -1,34 +1,38 @@
 /*
-   sata_via.c - VIA Serial ATA controllers
-
-   Maintained by:  Jeff Garzik <jgarzik@pobox.com>
-   		   Please ALWAYS copy linux-ide@vger.kernel.org
+ *  sata_via.c - VIA Serial ATA controllers
+ *
+ *  Maintained by:  Jeff Garzik <jgarzik@pobox.com>
+ * 		   Please ALWAYS copy linux-ide@vger.kernel.org
  		   on emails.
-
-   Copyright 2003-2004 Red Hat, Inc.  All rights reserved.
-   Copyright 2003-2004 Jeff Garzik
-
-   The contents of this file are subject to the Open
-   Software License version 1.1 that can be found at
-   http://www.opensource.org/licenses/osl-1.1.txt and is included herein
-   by reference.
-
-   Alternatively, the contents of this file may be used under the terms
-   of the GNU General Public License version 2 (the "GPL") as distributed
-   in the kernel source COPYING file, in which case the provisions of
-   the GPL are applicable instead of the above.  If you wish to allow
-   the use of your version of this file only under the terms of the
-   GPL and not to allow others to use your version of this file under
-   the OSL, indicate your decision by deleting the provisions above and
-   replace them with the notice and other provisions required by the GPL.
-   If you do not delete the provisions above, a recipient may use your
-   version of this file under either the OSL or the GPL.
-
-   ----------------------------------------------------------------------
-
-   To-do list:
-   * VT6421 PATA support
-
+ *
+ *  Copyright 2003-2004 Red Hat, Inc.  All rights reserved.
+ *  Copyright 2003-2004 Jeff Garzik
+ *
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2, or (at your option)
+ *  any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; see the file COPYING.  If not, write to
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ *  libata documentation is available via 'make {ps|pdf}docs',
+ *  as Documentation/DocBook/libata.*
+ *
+ *  Hardware documentation available under NDA.
+ *
+ *
+ *  To-do list:
+ *  - VT6421 PATA support
+ *
  */
 
 #include <linux/kernel.h>
@@ -37,6 +41,7 @@
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
@@ -105,7 +110,7 @@ static Scsi_Host_Template svia_sht = {
 	.ordered_flush		= 1,
 };
 
-static struct ata_port_operations svia_sata_ops = {
+static const struct ata_port_operations svia_sata_ops = {
 	.port_disable		= ata_port_disable,
 
 	.tf_load		= ata_tf_load,
@@ -208,7 +213,7 @@ static struct ata_probe_ent *vt6420_init_probe_ent(struct pci_dev *pdev)
 	struct ata_probe_ent *probe_ent;
 	struct ata_port_info *ppi = &svia_port_info;
 
-	probe_ent = ata_pci_init_native_mode(pdev, &ppi);
+	probe_ent = ata_pci_init_native_mode(pdev, &ppi, ATA_PORT_PRIMARY | ATA_PORT_SECONDARY);
 	if (!probe_ent)
 		return NULL;
 
@@ -255,15 +260,15 @@ static void svia_configure(struct pci_dev *pdev)
 	u8 tmp8;
 
 	pci_read_config_byte(pdev, PCI_INTERRUPT_LINE, &tmp8);
-	printk(KERN_INFO DRV_NAME "(%s): routed to hard irq line %d\n",
-	       pci_name(pdev),
+	dev_printk(KERN_INFO, &pdev->dev, "routed to hard irq line %d\n",
 	       (int) (tmp8 & 0xf0) == 0xf0 ? 0 : tmp8 & 0x0f);
 
 	/* make sure SATA channels are enabled */
 	pci_read_config_byte(pdev, SATA_CHAN_ENAB, &tmp8);
 	if ((tmp8 & ALL_PORTS) != ALL_PORTS) {
-		printk(KERN_DEBUG DRV_NAME "(%s): enabling SATA channels (0x%x)\n",
-		       pci_name(pdev), (int) tmp8);
+		dev_printk(KERN_DEBUG, &pdev->dev,
+			   "enabling SATA channels (0x%x)\n",
+		           (int) tmp8);
 		tmp8 |= ALL_PORTS;
 		pci_write_config_byte(pdev, SATA_CHAN_ENAB, tmp8);
 	}
@@ -271,8 +276,9 @@ static void svia_configure(struct pci_dev *pdev)
 	/* make sure interrupts for each channel sent to us */
 	pci_read_config_byte(pdev, SATA_INT_GATE, &tmp8);
 	if ((tmp8 & ALL_PORTS) != ALL_PORTS) {
-		printk(KERN_DEBUG DRV_NAME "(%s): enabling SATA channel interrupts (0x%x)\n",
-		       pci_name(pdev), (int) tmp8);
+		dev_printk(KERN_DEBUG, &pdev->dev,
+			   "enabling SATA channel interrupts (0x%x)\n",
+		           (int) tmp8);
 		tmp8 |= ALL_PORTS;
 		pci_write_config_byte(pdev, SATA_INT_GATE, tmp8);
 	}
@@ -280,8 +286,9 @@ static void svia_configure(struct pci_dev *pdev)
 	/* make sure native mode is enabled */
 	pci_read_config_byte(pdev, SATA_NATIVE_MODE, &tmp8);
 	if ((tmp8 & NATIVE_MODE_ALL) != NATIVE_MODE_ALL) {
-		printk(KERN_DEBUG DRV_NAME "(%s): enabling SATA channel native mode (0x%x)\n",
-		       pci_name(pdev), (int) tmp8);
+		dev_printk(KERN_DEBUG, &pdev->dev,
+			   "enabling SATA channel native mode (0x%x)\n",
+		           (int) tmp8);
 		tmp8 |= NATIVE_MODE_ALL;
 		pci_write_config_byte(pdev, SATA_NATIVE_MODE, tmp8);
 	}
@@ -299,7 +306,7 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	u8 tmp8;
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc)
@@ -314,8 +321,9 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (board_id == vt6420) {
 		pci_read_config_byte(pdev, SATA_PATA_SHARING, &tmp8);
 		if (tmp8 & SATA_2DEV) {
-			printk(KERN_ERR DRV_NAME "(%s): SATA master/slave not supported (0x%x)\n",
-		       	pci_name(pdev), (int) tmp8);
+			dev_printk(KERN_ERR, &pdev->dev,
+				   "SATA master/slave not supported (0x%x)\n",
+		       		   (int) tmp8);
 			rc = -EIO;
 			goto err_out_regions;
 		}
@@ -328,10 +336,11 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	for (i = 0; i < ARRAY_SIZE(svia_bar_sizes); i++)
 		if ((pci_resource_start(pdev, i) == 0) ||
 		    (pci_resource_len(pdev, i) < bar_sizes[i])) {
-			printk(KERN_ERR DRV_NAME "(%s): invalid PCI BAR %u (sz 0x%lx, val 0x%lx)\n",
-			       pci_name(pdev), i,
-			       pci_resource_start(pdev, i),
-			       pci_resource_len(pdev, i));
+			dev_printk(KERN_ERR, &pdev->dev,
+				   "invalid PCI BAR %u (sz 0x%lx, val 0x%lx)\n",
+				   i,
+			           pci_resource_start(pdev, i),
+			           pci_resource_len(pdev, i));
 			rc = -ENODEV;
 			goto err_out_regions;
 		}
@@ -347,10 +356,9 @@ static int svia_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		probe_ent = vt6420_init_probe_ent(pdev);
 	else
 		probe_ent = vt6421_init_probe_ent(pdev);
-	
+
 	if (!probe_ent) {
-		printk(KERN_ERR DRV_NAME "(%s): out of memory\n",
-		       pci_name(pdev));
+		dev_printk(KERN_ERR, &pdev->dev, "out of memory\n");
 		rc = -ENOMEM;
 		goto err_out_regions;
 	}

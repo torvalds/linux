@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -32,7 +33,7 @@
  * $Id: ipoib_verbs.c 1349 2004-12-16 21:09:43Z roland $
  */
 
-#include <ib_cache.h>
+#include <rdma/ib_cache.h>
 
 #include "ipoib.h"
 
@@ -40,7 +41,6 @@ int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	struct ib_qp_attr *qp_attr;
-	int attr_mask;
 	int ret;
 	u16 pkey_index;
 
@@ -58,8 +58,7 @@ int ipoib_mcast_attach(struct net_device *dev, u16 mlid, union ib_gid *mgid)
 
 	/* set correct QKey for QP */
 	qp_attr->qkey = priv->qkey;
-	attr_mask = IB_QP_QKEY;
-	ret = ib_modify_qp(priv->qp, qp_attr, attr_mask);
+	ret = ib_modify_qp(priv->qp, qp_attr, IB_QP_QKEY);
 	if (ret) {
 		ipoib_warn(priv, "failed to modify QP, ret = %d\n", ret);
 		goto out;
@@ -91,7 +90,7 @@ int ipoib_mcast_detach(struct net_device *dev, u16 mlid, union ib_gid *mgid)
 	return ret;
 }
 
-int ipoib_qp_create(struct net_device *dev)
+int ipoib_init_qp(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = netdev_priv(dev);
 	int ret;
@@ -148,10 +147,11 @@ int ipoib_qp_create(struct net_device *dev)
 	return 0;
 
 out_fail:
-	ib_destroy_qp(priv->qp);
-	priv->qp = NULL;
+	qp_attr.qp_state = IB_QPS_RESET;
+	if (ib_modify_qp(priv->qp, &qp_attr, IB_QP_STATE))
+		ipoib_warn(priv, "Failed to modify QP to RESET state\n");
 
-	return -EINVAL;
+	return ret;
 }
 
 int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)

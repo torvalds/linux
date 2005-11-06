@@ -590,7 +590,6 @@ asmlinkage long sys_clone(struct pt_regs regs);
 asmlinkage long sys_fork(struct pt_regs regs);
 asmlinkage long sys_vfork(struct pt_regs regs);
 asmlinkage long sys_pipe(unsigned long __user *fildes);
-asmlinkage long sys_ptrace(long request, long pid, long addr, long data);
 struct sigaction;
 asmlinkage long sys_rt_sigaction(int sig,
 				const struct sigaction __user *act,

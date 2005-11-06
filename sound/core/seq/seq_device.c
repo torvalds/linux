@@ -200,7 +200,7 @@ int snd_seq_device_new(snd_card_t *card, int device, char *id, int argsize,
 	if (ops == NULL)
 		return -ENOMEM;
 
-	dev = kcalloc(1, sizeof(*dev)*2 + argsize, GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev)*2 + argsize, GFP_KERNEL);
 	if (dev == NULL) {
 		unlock_driver(ops);
 		return -ENOMEM;

@@ -341,7 +341,8 @@ static struct bin_attribute pccard_cis_attr = {
 	.write = pccard_store_cis,
 };
 
-static int __devinit pccard_sysfs_add_socket(struct class_device *class_dev)
+static int __devinit pccard_sysfs_add_socket(struct class_device *class_dev,
+					     struct class_interface *class_intf)
 {
 	struct class_device_attribute **attr;
 	int ret = 0;
@@ -357,7 +358,8 @@ static int __devinit pccard_sysfs_add_socket(struct class_device *class_dev)
 	return ret;
 }
 
-static void __devexit pccard_sysfs_remove_socket(struct class_device *class_dev)
+static void __devexit pccard_sysfs_remove_socket(struct class_device *class_dev,
+						 struct class_interface *class_intf)
 {
 	struct class_device_attribute **attr;
 

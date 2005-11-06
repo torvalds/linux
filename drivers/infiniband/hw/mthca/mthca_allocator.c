@@ -177,3 +177,119 @@ void mthca_array_cleanup(struct mthca_array *array, int nent)
 
 	kfree(array->page_list);
 }
+
+/*
+ * Handling for queue buffers -- we allocate a bunch of memory and
+ * register it in a memory region at HCA virtual address 0.  If the
+ * requested size is > max_direct, we split the allocation into
+ * multiple pages, so we don't require too much contiguous memory.
+ */
+
+int mthca_buf_alloc(struct mthca_dev *dev, int size, int max_direct,
+		    union mthca_buf *buf, int *is_direct, struct mthca_pd *pd,
+		    int hca_write, struct mthca_mr *mr)
+{
+	int err = -ENOMEM;
+	int npages, shift;
+	u64 *dma_list = NULL;
+	dma_addr_t t;
+	int i;
+
+	if (size <= max_direct) {
+		*is_direct = 1;
+		npages     = 1;
+		shift      = get_order(size) + PAGE_SHIFT;
+
+		buf->direct.buf = dma_alloc_coherent(&dev->pdev->dev,
+						     size, &t, GFP_KERNEL);
+		if (!buf->direct.buf)
+			return -ENOMEM;
+
+		pci_unmap_addr_set(&buf->direct, mapping, t);
+
+		memset(buf->direct.buf, 0, size);
+
+		while (t & ((1 << shift) - 1)) {
+			--shift;
+			npages *= 2;
+		}
+
+		dma_list = kmalloc(npages * sizeof *dma_list, GFP_KERNEL);
+		if (!dma_list)
+			goto err_free;
+
+		for (i = 0; i < npages; ++i)
+			dma_list[i] = t + i * (1 << shift);
+	} else {
+		*is_direct = 0;
+		npages     = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+		shift      = PAGE_SHIFT;
+
+		dma_list = kmalloc(npages * sizeof *dma_list, GFP_KERNEL);
+		if (!dma_list)
+			return -ENOMEM;
+
+		buf->page_list = kmalloc(npages * sizeof *buf->page_list,
+					 GFP_KERNEL);
+		if (!buf->page_list)
+			goto err_out;
+
+		for (i = 0; i < npages; ++i)
+			buf->page_list[i].buf = NULL;
+
+		for (i = 0; i < npages; ++i) {
+			buf->page_list[i].buf =
+				dma_alloc_coherent(&dev->pdev->dev, PAGE_SIZE,
+						   &t, GFP_KERNEL);
+			if (!buf->page_list[i].buf)
+				goto err_free;
+
+			dma_list[i] = t;
+			pci_unmap_addr_set(&buf->page_list[i], mapping, t);
+
+			memset(buf->page_list[i].buf, 0, PAGE_SIZE);
+		}
+	}
+
+	err = mthca_mr_alloc_phys(dev, pd->pd_num,
+				  dma_list, shift, npages,
+				  0, size,
+				  MTHCA_MPT_FLAG_LOCAL_READ |
+				  (hca_write ? MTHCA_MPT_FLAG_LOCAL_WRITE : 0),
+				  mr);
+	if (err)
+		goto err_free;
+
+	kfree(dma_list);
+
+	return 0;
+
+err_free:
+	mthca_buf_free(dev, size, buf, *is_direct, NULL);
+
+err_out:
+	kfree(dma_list);
+
+	return err;
+}
+
+void mthca_buf_free(struct mthca_dev *dev, int size, union mthca_buf *buf,
+		    int is_direct, struct mthca_mr *mr)
+{
+	int i;
+
+	if (mr)
+		mthca_free_mr(dev, mr);
+
+	if (is_direct)
+		dma_free_coherent(&dev->pdev->dev, size, buf->direct.buf,
+				  pci_unmap_addr(&buf->direct, mapping));
+	else {
+		for (i = 0; i < (size + PAGE_SIZE - 1) / PAGE_SIZE; ++i)
+			dma_free_coherent(&dev->pdev->dev, PAGE_SIZE,
+					  buf->page_list[i].buf,
+					  pci_unmap_addr(&buf->page_list[i],
+							 mapping));
+		kfree(buf->page_list);
+	}
+}

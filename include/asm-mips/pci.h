@@ -40,6 +40,11 @@ struct pci_controller {
 	unsigned int need_domain_info;
 
 	int iommu;
+
+	/* Optional access methods for reading/writing the bus number
+	   of the PCI controller */
+	int (*get_busno)(void);
+	void (*set_busno)(int busno);
 };
 
 /*
@@ -94,7 +99,7 @@ struct pci_dev;
  */
 extern unsigned int PCI_DMA_BUS_IS_PHYS;
 
-#ifdef CONFIG_MAPPED_DMA_IO
+#ifdef CONFIG_DMA_NEED_PCI_MAP_STATE
 
 /* pci_unmap_{single,page} is not a nop, thus... */
 #define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)	dma_addr_t ADDR_NAME;
@@ -104,7 +109,7 @@ extern unsigned int PCI_DMA_BUS_IS_PHYS;
 #define pci_unmap_len(PTR, LEN_NAME)		((PTR)->LEN_NAME)
 #define pci_unmap_len_set(PTR, LEN_NAME, VAL)	(((PTR)->LEN_NAME) = (VAL))
 
-#else /* CONFIG_MAPPED_DMA_IO  */
+#else /* CONFIG_DMA_NEED_PCI_MAP_STATE  */
 
 /* pci_unmap_{page,single} is a nop so... */
 #define DECLARE_PCI_UNMAP_ADDR(ADDR_NAME)
@@ -114,7 +119,7 @@ extern unsigned int PCI_DMA_BUS_IS_PHYS;
 #define pci_unmap_len(PTR, LEN_NAME)		(0)
 #define pci_unmap_len_set(PTR, LEN_NAME, VAL)	do { } while (0)
 
-#endif /* CONFIG_MAPPED_DMA_IO  */
+#endif /* CONFIG_DMA_NEED_PCI_MAP_STATE  */
 
 /* This is always fine. */
 #define pci_dac_dma_supported(pci_dev, mask)	(1)
@@ -142,6 +147,22 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 
 extern void pcibios_resource_to_bus(struct pci_dev *dev,
 	struct pci_bus_region *region, struct resource *res);
+
+extern void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
+				    struct pci_bus_region *region);
+
+static inline struct resource *
+pcibios_select_root(struct pci_dev *pdev, struct resource *res)
+{
+	struct resource *root = NULL;
+
+	if (res->flags & IORESOURCE_IO)
+		root = &ioport_resource;
+	if (res->flags & IORESOURCE_MEM)
+		root = &iomem_resource;
+
+	return root;
+}
 
 #ifdef CONFIG_PCI_DOMAINS
 

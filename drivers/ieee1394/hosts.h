@@ -135,17 +135,17 @@ enum isoctl_cmd {
 
 enum reset_types {
         /* 166 microsecond reset -- only type of reset available on
-           non-1394a capable IEEE 1394 controllers */
+           non-1394a capable controllers */
         LONG_RESET,
 
         /* Short (arbitrated) reset -- only available on 1394a capable
-           IEEE 1394 capable controllers */
+           controllers */
         SHORT_RESET,
 
-	/* Variants, that set force_root before issueing the bus reset */
+	/* Variants that set force_root before issueing the bus reset */
 	LONG_RESET_FORCE_ROOT, SHORT_RESET_FORCE_ROOT,
 
-	/* Variants, that clear force_root before issueing the bus reset */
+	/* Variants that clear force_root before issueing the bus reset */
 	LONG_RESET_NO_FORCE_ROOT, SHORT_RESET_NO_FORCE_ROOT
 };
 

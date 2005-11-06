@@ -7,6 +7,7 @@
 
 #include <linux/mm.h>
 #include <linux/sysctl.h>
+#include <linux/if_ether.h>
 
 ctl_table ether_table[] = {
 	{0}

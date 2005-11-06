@@ -12,7 +12,7 @@ $(obj)/unmap.o: _c_flags = $(call unprofile,$(CFLAGS))
 
 quiet_cmd_wrapld = LD      $@
 define cmd_wrapld
-	$(LD) $(LDFLAGS) -r -o $(obj)/unmap_tmp.o $< $(shell $(CC) $(CFLAGS) -print-file-name=libc.a); \
+	$(LD) $(LDFLAGS) -r -o $(obj)/unmap_tmp.o $< ; \
 	$(OBJCOPY) $(UML_OBJCOPYFLAGS) $(obj)/unmap_tmp.o $@ -G switcheroo
 endef
 

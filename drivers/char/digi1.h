@@ -1,46 +1,46 @@
 /*          Definitions for DigiBoard ditty(1) command.                 */
 
 #if !defined(TIOCMODG)
-#define	TIOCMODG	('d'<<8) | 250		/* get modem ctrl state	*/
-#define	TIOCMODS	('d'<<8) | 251		/* set modem ctrl state	*/
+#define	TIOCMODG	(('d'<<8) | 250)	/* get modem ctrl state	*/
+#define	TIOCMODS	(('d'<<8) | 251)	/* set modem ctrl state	*/
 #endif
 
 #if !defined(TIOCMSET)
-#define	TIOCMSET	('d'<<8) | 252		/* set modem ctrl state	*/
-#define	TIOCMGET	('d'<<8) | 253		/* set modem ctrl state	*/
+#define	TIOCMSET	(('d'<<8) | 252)	/* set modem ctrl state	*/
+#define	TIOCMGET	(('d'<<8) | 253)	/* set modem ctrl state	*/
 #endif
 
 #if !defined(TIOCMBIC)
-#define	TIOCMBIC	('d'<<8) | 254		/* set modem ctrl state */
-#define	TIOCMBIS	('d'<<8) | 255		/* set modem ctrl state */
+#define	TIOCMBIC	(('d'<<8) | 254)	/* set modem ctrl state */
+#define	TIOCMBIS	(('d'<<8) | 255)	/* set modem ctrl state */
 #endif
 
 #if !defined(TIOCSDTR)
-#define	TIOCSDTR	('e'<<8) | 0		/* set DTR		*/
-#define	TIOCCDTR	('e'<<8) | 1		/* clear DTR		*/
+#define	TIOCSDTR	(('e'<<8) | 0)		/* set DTR		*/
+#define	TIOCCDTR	(('e'<<8) | 1)		/* clear DTR		*/
 #endif
 
 /************************************************************************
  * Ioctl command arguments for DIGI parameters.
  ************************************************************************/
-#define DIGI_GETA	('e'<<8) | 94		/* Read params		*/
+#define DIGI_GETA	(('e'<<8) | 94)		/* Read params		*/
 
-#define DIGI_SETA	('e'<<8) | 95		/* Set params		*/
-#define DIGI_SETAW	('e'<<8) | 96		/* Drain & set params	*/
-#define DIGI_SETAF	('e'<<8) | 97		/* Drain, flush & set params */
+#define DIGI_SETA	(('e'<<8) | 95)		/* Set params		*/
+#define DIGI_SETAW	(('e'<<8) | 96)		/* Drain & set params	*/
+#define DIGI_SETAF	(('e'<<8) | 97)		/* Drain, flush & set params */
 
-#define	DIGI_GETFLOW	('e'<<8) | 99		/* Get startc/stopc flow */
+#define	DIGI_GETFLOW	(('e'<<8) | 99)		/* Get startc/stopc flow */
 						/* control characters 	 */
-#define	DIGI_SETFLOW	('e'<<8) | 100		/* Set startc/stopc flow */
+#define	DIGI_SETFLOW	(('e'<<8) | 100)	/* Set startc/stopc flow */
 						/* control characters	 */
-#define	DIGI_GETAFLOW	('e'<<8) | 101		/* Get Aux. startc/stopc */
+#define	DIGI_GETAFLOW	(('e'<<8) | 101)	/* Get Aux. startc/stopc */
 						/* flow control chars 	 */
-#define	DIGI_SETAFLOW	('e'<<8) | 102		/* Set Aux. startc/stopc */
+#define	DIGI_SETAFLOW	(('e'<<8) | 102)	/* Set Aux. startc/stopc */
 						/* flow control chars	 */
 
-#define	DIGI_GETINFO	('e'<<8) | 103		/* Fill in digi_info */
-#define	DIGI_POLLER	('e'<<8) | 104		/* Turn on/off poller */
-#define	DIGI_INIT	('e'<<8) | 105		/* Allow things to run. */
+#define	DIGI_GETINFO	(('e'<<8) | 103)	/* Fill in digi_info */
+#define	DIGI_POLLER	(('e'<<8) | 104)	/* Turn on/off poller */
+#define	DIGI_INIT	(('e'<<8) | 105)	/* Allow things to run. */
 
 struct	digiflow_struct 
 {

@@ -32,6 +32,8 @@
 #include <linux/i2o.h>
 #include "core.h"
 
+#define OSM_DESCRIPTION	"I2O-subsystem"
+
 /* PCI device id table for all I2O controllers */
 static struct pci_device_id __devinitdata i2o_pci_ids[] = {
 	{PCI_DEVICE_CLASS(PCI_CLASS_INTELLIGENT_I2O << 8, 0xffff00)},
@@ -66,6 +68,8 @@ static void i2o_pci_free(struct i2o_controller *c)
 
 	if (c->base.virt)
 		iounmap(c->base.virt);
+
+	pci_release_regions(c->pdev);
 }
 
 /**
@@ -83,6 +87,11 @@ static int __devinit i2o_pci_alloc(struct i2o_controller *c)
 	struct pci_dev *pdev = c->pdev;
 	struct device *dev = &pdev->dev;
 	int i;
+
+	if (pci_request_regions(pdev, OSM_DESCRIPTION)) {
+		printk(KERN_ERR "%s: device already claimed\n", c->name);
+		return -ENODEV;
+	}
 
 	for (i = 0; i < 6; i++) {
 		/* Skip I/O spaces */
@@ -138,6 +147,7 @@ static int __devinit i2o_pci_alloc(struct i2o_controller *c)
 	c->base.virt = ioremap_nocache(c->base.phys, c->base.len);
 	if (!c->base.virt) {
 		printk(KERN_ERR "%s: Unable to map controller.\n", c->name);
+		i2o_pci_free(c);
 		return -ENOMEM;
 	}
 

@@ -116,37 +116,6 @@ static inline int io_remap_pud_range(struct mm_struct *mm, pud_t * pud, unsigned
 	return 0;
 }
 
-int io_remap_page_range(struct vm_area_struct *vma, unsigned long from, unsigned long offset, unsigned long size, pgprot_t prot, int space)
-{
-	int error = 0;
-	pgd_t * dir;
-	unsigned long beg = from;
-	unsigned long end = from + size;
-	struct mm_struct *mm = vma->vm_mm;
-
-	prot = __pgprot(pg_iobits);
-	offset -= from;
-	dir = pgd_offset(mm, from);
-	flush_cache_range(vma, beg, end);
-
-	spin_lock(&mm->page_table_lock);
-	while (from < end) {
-		pud_t *pud = pud_alloc(mm, dir, from);
-		error = -ENOMEM;
-		if (!pud)
-			break;
-		error = io_remap_pud_range(mm, pud, from, end - from, offset + from, prot, space);
-		if (error)
-			break;
-		from = (from + PGDIR_SIZE) & PGDIR_MASK;
-		dir++;
-	}
-	flush_tlb_range(vma, beg, end);
-	spin_unlock(&mm->page_table_lock);
-
-	return error;
-}
-
 int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 		unsigned long pfn, unsigned long size, pgprot_t prot)
 {
@@ -158,14 +127,16 @@ int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 	int space = GET_IOSPACE(pfn);
 	unsigned long offset = GET_PFN(pfn) << PAGE_SHIFT;
 
+	/* See comment in mm/memory.c remap_pfn_range */
+	vma->vm_flags |= VM_IO | VM_RESERVED;
+
 	prot = __pgprot(pg_iobits);
 	offset -= from;
 	dir = pgd_offset(mm, from);
 	flush_cache_range(vma, beg, end);
 
-	spin_lock(&mm->page_table_lock);
 	while (from < end) {
-		pud_t *pud = pud_alloc(current->mm, dir, from);
+		pud_t *pud = pud_alloc(mm, dir, from);
 		error = -ENOMEM;
 		if (!pud)
 			break;
@@ -175,8 +146,7 @@ int io_remap_pfn_range(struct vm_area_struct *vma, unsigned long from,
 		from = (from + PGDIR_SIZE) & PGDIR_MASK;
 		dir++;
 	}
-	flush_tlb_range(vma, beg, end);
-	spin_unlock(&mm->page_table_lock);
 
+	flush_tlb_range(vma, beg, end);
 	return error;
 }

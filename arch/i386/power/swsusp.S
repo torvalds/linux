@@ -12,7 +12,7 @@
 #include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/page.h>
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 
 	.text
 

@@ -214,8 +214,6 @@ enum {
 
 /*	B2_IRQM_HWE_MSK	32 bit	IRQ Moderation HW Error Mask */
 enum {
-	IS_ERR_MSK	= 0x00003fff,/* 		All Error bits */
-
 	IS_IRQ_TIST_OV	= 1<<13, /* Time Stamp Timer Overflow (YUKON only) */
 	IS_IRQ_SENSOR	= 1<<12, /* IRQ from Sensor (YUKON only) */
 	IS_IRQ_MST_ERR	= 1<<11, /* IRQ master error detected */
@@ -230,6 +228,12 @@ enum {
 	IS_M2_PAR_ERR	= 1<<2,	/* MAC 2 Parity Error */
 	IS_R1_PAR_ERR	= 1<<1,	/* Queue R1 Parity Error */
 	IS_R2_PAR_ERR	= 1<<0,	/* Queue R2 Parity Error */
+
+	IS_ERR_MSK	= IS_IRQ_MST_ERR | IS_IRQ_STAT
+			| IS_NO_STAT_M1 | IS_NO_STAT_M2
+			| IS_RAM_RD_PAR | IS_RAM_WR_PAR
+			| IS_M1_PAR_ERR | IS_M2_PAR_ERR
+			| IS_R1_PAR_ERR | IS_R2_PAR_ERR,
 };
 
 /*	B2_TST_CTRL1	 8 bit	Test Control Register 1 */
@@ -949,6 +953,7 @@ enum {
  */
 enum {
 	XMR_FS_LEN	= 0x3fff<<18,	/* Bit 31..18:	Rx Frame Length */
+	XMR_FS_LEN_SHIFT = 18,
 	XMR_FS_2L_VLAN	= 1<<17, /* Bit 17:	tagged wh 2Lev VLAN ID*/
 	XMR_FS_1_VLAN	= 1<<16, /* Bit 16:	tagged wh 1ev VLAN ID*/
 	XMR_FS_BC	= 1<<15, /* Bit 15:	Broadcast Frame */
@@ -1864,6 +1869,7 @@ enum {
 /* Receive Frame Status Encoding */
 enum {
 	GMR_FS_LEN	= 0xffff<<16, /* Bit 31..16:	Rx Frame Length */
+	GMR_FS_LEN_SHIFT = 16,
 	GMR_FS_VLAN	= 1<<13, /* Bit 13:	VLAN Packet */
 	GMR_FS_JABBER	= 1<<12, /* Bit 12:	Jabber Packet */
 	GMR_FS_UN_SIZE	= 1<<11, /* Bit 11:	Undersize Packet */
@@ -2004,7 +2010,7 @@ enum {
 	GM_IS_RX_FF_OR	= 1<<1,	/* Receive FIFO Overrun */
 	GM_IS_RX_COMPL	= 1<<0,	/* Frame Reception Complete */
 
-#define GMAC_DEF_MSK	(GM_IS_TX_CO_OV | GM_IS_RX_CO_OV | GM_IS_TX_FF_UR)
+#define GMAC_DEF_MSK	(GM_IS_RX_FF_OR | GM_IS_TX_FF_UR)
 
 /*	GMAC_LINK_CTRL	16 bit	GMAC Link Control Reg (YUKON only) */
 						/* Bits 15.. 2:	reserved */
@@ -2456,23 +2462,16 @@ struct skge_hw {
 
 	u8	     	     chip_id;
 	u8		     chip_rev;
-	u8		     phy_type;
-	u8		     pmd_type;
-	u16		     phy_addr;
+	u8		     copper;
 	u8		     ports;
 
 	u32	     	     ram_size;
 	u32	     	     ram_offset;
+	u16		     phy_addr;
 
 	struct tasklet_struct ext_tasklet;
 	spinlock_t	     phy_lock;
 };
-
-
-static inline int iscopper(const struct skge_hw *hw)
-{
-	return (hw->pmd_type == 'T');
-}
 
 enum {
 	FLOW_MODE_NONE 		= 0, /* No Flow-Control */

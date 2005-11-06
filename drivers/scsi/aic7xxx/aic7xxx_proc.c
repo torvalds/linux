@@ -54,6 +54,49 @@ static void	ahc_dump_device_state(struct info_str *info,
 static int	ahc_proc_write_seeprom(struct ahc_softc *ahc,
 				       char *buffer, int length);
 
+/*
+ * Table of syncrates that don't follow the "divisible by 4"
+ * rule. This table will be expanded in future SCSI specs.
+ */
+static struct {
+	u_int period_factor;
+	u_int period;	/* in 100ths of ns */
+} scsi_syncrates[] = {
+	{ 0x08, 625 },	/* FAST-160 */
+	{ 0x09, 1250 },	/* FAST-80 */
+	{ 0x0a, 2500 },	/* FAST-40 40MHz */
+	{ 0x0b, 3030 },	/* FAST-40 33MHz */
+	{ 0x0c, 5000 }	/* FAST-20 */
+};
+
+/*
+ * Return the frequency in kHz corresponding to the given
+ * sync period factor.
+ */
+static u_int
+ahc_calc_syncsrate(u_int period_factor)
+{
+	int i;
+	int num_syncrates;
+
+	num_syncrates = sizeof(scsi_syncrates) / sizeof(scsi_syncrates[0]);
+	/* See if the period is in the "exception" table */
+	for (i = 0; i < num_syncrates; i++) {
+
+		if (period_factor == scsi_syncrates[i].period_factor) {
+			/* Period in kHz */
+			return (100000000 / scsi_syncrates[i].period);
+		}
+	}
+
+	/*
+	 * Wasn't in the table, so use the standard
+	 * 4 times conversion.
+	 */
+	return (10000000 / (period_factor * 4 * 10));
+}
+
+
 static void
 copy_mem_info(struct info_str *info, char *data, int len)
 {
@@ -106,7 +149,7 @@ ahc_format_transinfo(struct info_str *info, struct ahc_transinfo *tinfo)
         speed = 3300;
         freq = 0;
 	if (tinfo->offset != 0) {
-		freq = aic_calc_syncsrate(tinfo->period);
+		freq = ahc_calc_syncsrate(tinfo->period);
 		speed = freq;
 	}
 	speed *= (0x01 << tinfo->width);

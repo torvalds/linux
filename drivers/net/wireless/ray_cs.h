@@ -63,13 +63,10 @@ typedef struct ray_dev_t {
     UCHAR last_rsl;
     int beacon_rxed;
     struct beacon_rx last_bcn;
-#ifdef WIRELESS_EXT
     iw_stats	wstats;		/* Wireless specific stats */
-#endif
 #ifdef WIRELESS_SPY
-    int		spy_number;		/* Number of addresses to spy */
-    mac_addr	spy_address[IW_MAX_SPY + 1];	/* The addresses to spy */
-    iw_qual	spy_stat[IW_MAX_SPY + 1];	/* Statistics gathered */
+    struct iw_spy_data		spy_data;
+    struct iw_public_data	wireless_data;
 #endif	/* WIRELESS_SPY */
 
 } ray_dev_t;

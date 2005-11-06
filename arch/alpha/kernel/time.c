@@ -55,10 +55,6 @@
 #include "proto.h"
 #include "irq_impl.h"
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 extern unsigned long wall_jiffies;	/* kernel/timer.c */
 
 static int set_rtc_mmss(unsigned long);
@@ -149,7 +145,7 @@ irqreturn_t timer_interrupt(int irq, void *dev, struct pt_regs * regs)
 	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
 	 * called as close as possible to 500 ms before the new second starts.
 	 */
-	if ((time_status & STA_UNSYNC) == 0
+	if (ntp_synced()
 	    && xtime.tv_sec > state.last_rtc_update + 660
 	    && xtime.tv_nsec >= 500000 - ((unsigned) TICK_SIZE) / 2
 	    && xtime.tv_nsec <= 500000 + ((unsigned) TICK_SIZE) / 2) {
@@ -502,10 +498,7 @@ do_settimeofday(struct timespec *tv)
 	set_normalized_timespec(&xtime, sec, nsec);
 	set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
 
-	time_adjust = 0;		/* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();

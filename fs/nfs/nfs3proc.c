@@ -34,8 +34,7 @@ nfs3_rpc_wrapper(struct rpc_clnt *clnt, struct rpc_message *msg, int flags)
 		res = rpc_call_sync(clnt, msg, flags);
 		if (res != -EJUKEBOX)
 			break;
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(NFS_JUKEBOX_RETRY_TIME);
+		schedule_timeout_interruptible(NFS_JUKEBOX_RETRY_TIME);
 		res = -ERESTARTSYS;
 	} while (!signalled());
 	rpc_clnt_sigunmask(clnt, &oldset);
@@ -79,7 +78,7 @@ nfs3_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
 	int	status;
 
 	dprintk("%s: call  fsinfo\n", __FUNCTION__);
-	info->fattr->valid = 0;
+	nfs_fattr_init(info->fattr);
 	status = rpc_call(server->client_sys, NFS3PROC_FSINFO, fhandle, info, 0);
 	dprintk("%s: reply fsinfo: %d\n", __FUNCTION__, status);
 	if (!(info->fattr->valid & NFS_ATTR_FATTR)) {
@@ -99,7 +98,7 @@ nfs3_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
 	int	status;
 
 	dprintk("NFS call  getattr\n");
-	fattr->valid = 0;
+	nfs_fattr_init(fattr);
 	status = rpc_call(server->client, NFS3PROC_GETATTR,
 			  fhandle, fattr, 0);
 	dprintk("NFS reply getattr: %d\n", status);
@@ -118,8 +117,10 @@ nfs3_proc_setattr(struct dentry *dentry, struct nfs_fattr *fattr,
 	int	status;
 
 	dprintk("NFS call  setattr\n");
-	fattr->valid = 0;
+	nfs_fattr_init(fattr);
 	status = rpc_call(NFS_CLIENT(inode), NFS3PROC_SETATTR, &arg, fattr, 0);
+	if (status == 0)
+		nfs_setattr_update_inode(inode, sattr);
 	dprintk("NFS reply setattr: %d\n", status);
 	return status;
 }
@@ -142,8 +143,8 @@ nfs3_proc_lookup(struct inode *dir, struct qstr *name,
 	int			status;
 
 	dprintk("NFS call  lookup %s\n", name->name);
-	dir_attr.valid = 0;
-	fattr->valid = 0;
+	nfs_fattr_init(&dir_attr);
+	nfs_fattr_init(fattr);
 	status = rpc_call(NFS_CLIENT(dir), NFS3PROC_LOOKUP, &arg, &res, 0);
 	if (status >= 0 && !(fattr->valid & NFS_ATTR_FATTR))
 		status = rpc_call(NFS_CLIENT(dir), NFS3PROC_GETATTR,
@@ -173,7 +174,6 @@ static int nfs3_proc_access(struct inode *inode, struct nfs_access_entry *entry)
 	int status;
 
 	dprintk("NFS call  access\n");
-	fattr.valid = 0;
 
 	if (mode & MAY_READ)
 		arg.access |= NFS3_ACCESS_READ;
@@ -188,6 +188,7 @@ static int nfs3_proc_access(struct inode *inode, struct nfs_access_entry *entry)
 		if (mode & MAY_EXEC)
 			arg.access |= NFS3_ACCESS_EXECUTE;
 	}
+	nfs_fattr_init(&fattr);
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
 	nfs_refresh_inode(inode, &fattr);
 	if (status == 0) {
@@ -216,7 +217,7 @@ static int nfs3_proc_readlink(struct inode *inode, struct page *page,
 	int			status;
 
 	dprintk("NFS call  readlink\n");
-	fattr.valid = 0;
+	nfs_fattr_init(&fattr);
 	status = rpc_call(NFS_CLIENT(inode), NFS3PROC_READLINK,
 			  &args, &fattr, 0);
 	nfs_refresh_inode(inode, &fattr);
@@ -239,7 +240,7 @@ static int nfs3_proc_read(struct nfs_read_data *rdata)
 
 	dprintk("NFS call  read %d @ %Ld\n", rdata->args.count,
 			(long long) rdata->args.offset);
-	fattr->valid = 0;
+	nfs_fattr_init(fattr);
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, flags);
 	if (status >= 0)
 		nfs_refresh_inode(inode, fattr);
@@ -262,10 +263,10 @@ static int nfs3_proc_write(struct nfs_write_data *wdata)
 
 	dprintk("NFS call  write %d @ %Ld\n", wdata->args.count,
 			(long long) wdata->args.offset);
-	fattr->valid = 0;
+	nfs_fattr_init(fattr);
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, rpcflags);
 	if (status >= 0)
-		nfs_refresh_inode(inode, fattr);
+		nfs_post_op_update_inode(inode, fattr);
 	dprintk("NFS reply write: %d\n", status);
 	return status < 0? status : wdata->res.count;
 }
@@ -284,10 +285,10 @@ static int nfs3_proc_commit(struct nfs_write_data *cdata)
 
 	dprintk("NFS call  commit %d @ %Ld\n", cdata->args.count,
 			(long long) cdata->args.offset);
-	fattr->valid = 0;
+	nfs_fattr_init(fattr);
 	status = rpc_call_sync(NFS_CLIENT(inode), &msg, 0);
 	if (status >= 0)
-		nfs_refresh_inode(inode, fattr);
+		nfs_post_op_update_inode(inode, fattr);
 	dprintk("NFS reply commit: %d\n", status);
 	return status;
 }
@@ -298,7 +299,7 @@ static int nfs3_proc_commit(struct nfs_write_data *cdata)
  */
 static int
 nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
-		 int flags)
+		 int flags, struct nameidata *nd)
 {
 	struct nfs_fh		fhandle;
 	struct nfs_fattr	fattr;
@@ -328,10 +329,10 @@ nfs3_proc_create(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 	sattr->ia_mode &= ~current->fs->umask;
 
 again:
-	dir_attr.valid = 0;
-	fattr.valid = 0;
+	nfs_fattr_init(&dir_attr);
+	nfs_fattr_init(&fattr);
 	status = rpc_call(NFS_CLIENT(dir), NFS3PROC_CREATE, &arg, &res, 0);
-	nfs_refresh_inode(dir, &dir_attr);
+	nfs_post_op_update_inode(dir, &dir_attr);
 
 	/* If the server doesn't support the exclusive creation semantics,
 	 * try again with simple 'guarded' mode. */
@@ -370,6 +371,8 @@ again:
 		 * not sure this buys us anything (and I'd have
 		 * to revamp the NFSv3 XDR code) */
 		status = nfs3_proc_setattr(dentry, &fattr, sattr);
+		if (status == 0)
+			nfs_setattr_update_inode(dentry->d_inode, sattr);
 		nfs_refresh_inode(dentry->d_inode, &fattr);
 		dprintk("NFS reply setattr (post-create): %d\n", status);
 	}
@@ -398,9 +401,9 @@ nfs3_proc_remove(struct inode *dir, struct qstr *name)
 	int			status;
 
 	dprintk("NFS call  remove %s\n", name->name);
-	dir_attr.valid = 0;
+	nfs_fattr_init(&dir_attr);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
-	nfs_refresh_inode(dir, &dir_attr);
+	nfs_post_op_update_inode(dir, &dir_attr);
 	dprintk("NFS reply remove: %d\n", status);
 	return status;
 }
@@ -419,7 +422,7 @@ nfs3_proc_unlink_setup(struct rpc_message *msg, struct dentry *dir, struct qstr 
 	ptr->arg.fh = NFS_FH(dir->d_inode);
 	ptr->arg.name = name->name;
 	ptr->arg.len = name->len;
-	ptr->res.valid = 0;
+	nfs_fattr_init(&ptr->res);
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_REMOVE];
 	msg->rpc_argp = &ptr->arg;
 	msg->rpc_resp = &ptr->res;
@@ -436,7 +439,7 @@ nfs3_proc_unlink_done(struct dentry *dir, struct rpc_task *task)
 		return 1;
 	if (msg->rpc_argp) {
 		dir_attr = (struct nfs_fattr*)msg->rpc_resp;
-		nfs_refresh_inode(dir->d_inode, dir_attr);
+		nfs_post_op_update_inode(dir->d_inode, dir_attr);
 		kfree(msg->rpc_argp);
 	}
 	return 0;
@@ -462,11 +465,11 @@ nfs3_proc_rename(struct inode *old_dir, struct qstr *old_name,
 	int			status;
 
 	dprintk("NFS call  rename %s -> %s\n", old_name->name, new_name->name);
-	old_dir_attr.valid = 0;
-	new_dir_attr.valid = 0;
+	nfs_fattr_init(&old_dir_attr);
+	nfs_fattr_init(&new_dir_attr);
 	status = rpc_call(NFS_CLIENT(old_dir), NFS3PROC_RENAME, &arg, &res, 0);
-	nfs_refresh_inode(old_dir, &old_dir_attr);
-	nfs_refresh_inode(new_dir, &new_dir_attr);
+	nfs_post_op_update_inode(old_dir, &old_dir_attr);
+	nfs_post_op_update_inode(new_dir, &new_dir_attr);
 	dprintk("NFS reply rename: %d\n", status);
 	return status;
 }
@@ -488,11 +491,11 @@ nfs3_proc_link(struct inode *inode, struct inode *dir, struct qstr *name)
 	int			status;
 
 	dprintk("NFS call  link %s\n", name->name);
-	dir_attr.valid = 0;
-	fattr.valid = 0;
+	nfs_fattr_init(&dir_attr);
+	nfs_fattr_init(&fattr);
 	status = rpc_call(NFS_CLIENT(inode), NFS3PROC_LINK, &arg, &res, 0);
-	nfs_refresh_inode(dir, &dir_attr);
-	nfs_refresh_inode(inode, &fattr);
+	nfs_post_op_update_inode(dir, &dir_attr);
+	nfs_post_op_update_inode(inode, &fattr);
 	dprintk("NFS reply link: %d\n", status);
 	return status;
 }
@@ -521,10 +524,10 @@ nfs3_proc_symlink(struct inode *dir, struct qstr *name, struct qstr *path,
 	if (path->len > NFS3_MAXPATHLEN)
 		return -ENAMETOOLONG;
 	dprintk("NFS call  symlink %s -> %s\n", name->name, path->name);
-	dir_attr.valid = 0;
-	fattr->valid = 0;
+	nfs_fattr_init(&dir_attr);
+	nfs_fattr_init(fattr);
 	status = rpc_call(NFS_CLIENT(dir), NFS3PROC_SYMLINK, &arg, &res, 0);
-	nfs_refresh_inode(dir, &dir_attr);
+	nfs_post_op_update_inode(dir, &dir_attr);
 	dprintk("NFS reply symlink: %d\n", status);
 	return status;
 }
@@ -549,13 +552,13 @@ nfs3_proc_mkdir(struct inode *dir, struct dentry *dentry, struct iattr *sattr)
 	int status;
 
 	dprintk("NFS call  mkdir %s\n", dentry->d_name.name);
-	dir_attr.valid = 0;
-	fattr.valid = 0;
 
 	sattr->ia_mode &= ~current->fs->umask;
 
+	nfs_fattr_init(&dir_attr);
+	nfs_fattr_init(&fattr);
 	status = rpc_call(NFS_CLIENT(dir), NFS3PROC_MKDIR, &arg, &res, 0);
-	nfs_refresh_inode(dir, &dir_attr);
+	nfs_post_op_update_inode(dir, &dir_attr);
 	if (status != 0)
 		goto out;
 	status = nfs_instantiate(dentry, &fhandle, &fattr);
@@ -579,9 +582,9 @@ nfs3_proc_rmdir(struct inode *dir, struct qstr *name)
 	int			status;
 
 	dprintk("NFS call  rmdir %s\n", name->name);
-	dir_attr.valid = 0;
+	nfs_fattr_init(&dir_attr);
 	status = rpc_call(NFS_CLIENT(dir), NFS3PROC_RMDIR, &arg, &dir_attr, 0);
-	nfs_refresh_inode(dir, &dir_attr);
+	nfs_post_op_update_inode(dir, &dir_attr);
 	dprintk("NFS reply rmdir: %d\n", status);
 	return status;
 }
@@ -631,7 +634,7 @@ nfs3_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 	dprintk("NFS call  readdir%s %d\n",
 			plus? "plus" : "", (unsigned int) cookie);
 
-	dir_attr.valid = 0;
+	nfs_fattr_init(&dir_attr);
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 	nfs_refresh_inode(dir, &dir_attr);
 	dprintk("NFS reply readdir: %d\n", status);
@@ -673,10 +676,10 @@ nfs3_proc_mknod(struct inode *dir, struct dentry *dentry, struct iattr *sattr,
 
 	sattr->ia_mode &= ~current->fs->umask;
 
-	dir_attr.valid = 0;
-	fattr.valid = 0;
+	nfs_fattr_init(&dir_attr);
+	nfs_fattr_init(&fattr);
 	status = rpc_call(NFS_CLIENT(dir), NFS3PROC_MKNOD, &arg, &res, 0);
-	nfs_refresh_inode(dir, &dir_attr);
+	nfs_post_op_update_inode(dir, &dir_attr);
 	if (status != 0)
 		goto out;
 	status = nfs_instantiate(dentry, &fh, &fattr);
@@ -695,7 +698,7 @@ nfs3_proc_statfs(struct nfs_server *server, struct nfs_fh *fhandle,
 	int	status;
 
 	dprintk("NFS call  fsstat\n");
-	stat->fattr->valid = 0;
+	nfs_fattr_init(stat->fattr);
 	status = rpc_call(server->client, NFS3PROC_FSSTAT, fhandle, stat, 0);
 	dprintk("NFS reply statfs: %d\n", status);
 	return status;
@@ -708,7 +711,7 @@ nfs3_proc_fsinfo(struct nfs_server *server, struct nfs_fh *fhandle,
 	int	status;
 
 	dprintk("NFS call  fsinfo\n");
-	info->fattr->valid = 0;
+	nfs_fattr_init(info->fattr);
 	status = rpc_call(server->client_sys, NFS3PROC_FSINFO, fhandle, info, 0);
 	dprintk("NFS reply fsinfo: %d\n", status);
 	return status;
@@ -721,7 +724,7 @@ nfs3_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 	int	status;
 
 	dprintk("NFS call  pathconf\n");
-	info->fattr->valid = 0;
+	nfs_fattr_init(info->fattr);
 	status = rpc_call(server->client, NFS3PROC_PATHCONF, fhandle, info, 0);
 	dprintk("NFS reply pathconf: %d\n", status);
 	return status;
@@ -732,7 +735,7 @@ extern u32 *nfs3_decode_dirent(u32 *, struct nfs_entry *, int);
 static void
 nfs3_read_done(struct rpc_task *task)
 {
-	struct nfs_write_data *data = (struct nfs_write_data *) task->tk_calldata;
+	struct nfs_read_data *data = (struct nfs_read_data *) task->tk_calldata;
 
 	if (nfs3_async_handle_jukebox(task))
 		return;
@@ -772,7 +775,7 @@ nfs3_write_done(struct rpc_task *task)
 		return;
 	data = (struct nfs_write_data *)task->tk_calldata;
 	if (task->tk_status >= 0)
-		nfs_refresh_inode(data->inode, data->res.fattr);
+		nfs_post_op_update_inode(data->inode, data->res.fattr);
 	nfs_writeback_done(task);
 }
 
@@ -816,7 +819,7 @@ nfs3_commit_done(struct rpc_task *task)
 		return;
 	data = (struct nfs_write_data *)task->tk_calldata;
 	if (task->tk_status >= 0)
-		nfs_refresh_inode(data->inode, data->res.fattr);
+		nfs_post_op_update_inode(data->inode, data->res.fattr);
 	nfs_commit_done(task);
 }
 

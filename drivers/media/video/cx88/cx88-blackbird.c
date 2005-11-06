@@ -1,5 +1,4 @@
 /*
- * $Id: cx88-blackbird.c,v 1.27 2005/06/03 13:31:50 mchehab Exp $
  *
  *  Support for a cx23416 mpeg encoder via cx2388x host port.
  *  "blackbird" reference design.
@@ -62,7 +61,6 @@ static LIST_HEAD(cx8802_devlist);
 #define IVTV_CMD_HW_BLOCKS_RST 0xFFFFFFFF
 
 /* Firmware API commands */
-/* #define IVTV_API_STD_TIMEOUT 0x00010000 // 65536, units?? */
 #define IVTV_API_STD_TIMEOUT 500
 
 #define BLACKBIRD_API_PING               0x80
@@ -696,7 +694,6 @@ static void blackbird_codec_settings(struct cx8802_dev *dev)
 
 	/* assign stream type */
 	blackbird_api_cmd(dev, BLACKBIRD_API_SET_STREAM_TYPE, 1, 0, BLACKBIRD_STREAM_PROGRAM);
-	/* blackbird_api_cmd(dev, BLACKBIRD_API_SET_STREAM_TYPE, 1, 0, BLACKBIRD_STREAM_TRANSPORT); */
 
 	/* assign output port */
 	blackbird_api_cmd(dev, BLACKBIRD_API_SET_OUTPUT_PORT, 1, 0, BLACKBIRD_OUTPUT_PORT_STREAMING); /* Host */
@@ -824,7 +821,8 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 			BLACKBIRD_CUSTOM_EXTENSION_USR_DATA,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
-	blackbird_api_cmd(dev, BLACKBIRD_API_INIT_VIDEO_INPUT, 0, 0); /* initialize the video input */
+	/* initialize the video input */
+	blackbird_api_cmd(dev, BLACKBIRD_API_INIT_VIDEO_INPUT, 0, 0);
 
 	msleep(1);
 
@@ -833,11 +831,12 @@ static int blackbird_initialize_codec(struct cx8802_dev *dev)
 	blackbird_api_cmd(dev, BLACKBIRD_API_MUTE_AUDIO, 1, 0, BLACKBIRD_UNMUTE);
 	msleep(1);
 
-	/* blackbird_api_cmd(dev, BLACKBIRD_API_BEGIN_CAPTURE, 2, 0, 0, 0x13); // start capturing to the host interface */
+	/* start capturing to the host interface */
+	/* blackbird_api_cmd(dev, BLACKBIRD_API_BEGIN_CAPTURE, 2, 0, 0, 0x13); */
 	blackbird_api_cmd(dev, BLACKBIRD_API_BEGIN_CAPTURE, 2, 0,
 			BLACKBIRD_MPEG_CAPTURE,
 			BLACKBIRD_RAW_BITS_NONE
-		); /* start capturing to the host interface */
+		);
 	msleep(10);
 
 	blackbird_api_cmd(dev, BLACKBIRD_API_REFRESH_INPUT, 0,0);
@@ -851,8 +850,8 @@ static int bb_buf_setup(struct videobuf_queue *q,
 {
 	struct cx8802_fh *fh = q->priv_data;
 
-	fh->dev->ts_packet_size  = 512;
-	fh->dev->ts_packet_count = 100;
+	fh->dev->ts_packet_size  = 188 * 4; /* was: 512 */
+	fh->dev->ts_packet_count = 32; /* was: 100 */
 
 	*size = fh->dev->ts_packet_size * fh->dev->ts_packet_count;
 	if (0 == *count)
@@ -900,11 +899,35 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 {
 	struct cx8802_fh  *fh  = file->private_data;
 	struct cx8802_dev *dev = fh->dev;
+	struct cx88_core  *core = dev->core;
 
 	if (debug > 1)
-		cx88_print_ioctl(dev->core->name,cmd);
+		cx88_print_ioctl(core->name,cmd);
 
 	switch (cmd) {
+
+	/* --- capabilities ------------------------------------------ */
+	case VIDIOC_QUERYCAP:
+	{
+		struct v4l2_capability *cap = arg;
+
+		memset(cap,0,sizeof(*cap));
+		strcpy(cap->driver, "cx88_blackbird");
+		strlcpy(cap->card, cx88_boards[core->board].name,sizeof(cap->card));
+		sprintf(cap->bus_info,"PCI:%s",pci_name(dev->pci));
+		cap->version = CX88_VERSION_CODE;
+		cap->capabilities =
+			V4L2_CAP_VIDEO_CAPTURE |
+			V4L2_CAP_READWRITE     |
+			V4L2_CAP_STREAMING     |
+			V4L2_CAP_VBI_CAPTURE   |
+			V4L2_CAP_VIDEO_OVERLAY |
+			0;
+		if (UNSET != core->tuner_type)
+			cap->capabilities |= V4L2_CAP_TUNER;
+
+		return 0;
+	}
 
 	/* --- capture ioctls ---------------------------------------- */
 	case VIDIOC_ENUM_FMT:
@@ -935,7 +958,11 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 		f->fmt.pix.width        = dev->width;
 		f->fmt.pix.height       = dev->height;
 		f->fmt.pix.pixelformat  = V4L2_PIX_FMT_MPEG;
-		f->fmt.pix.sizeimage    = 1024 * 512 /* FIXME: BUFFER_SIZE */;
+		f->fmt.pix.field        = V4L2_FIELD_NONE;
+		f->fmt.pix.bytesperline = 0;
+		f->fmt.pix.sizeimage    = 188 * 4 * 1024; /* 1024 * 512 */ /* FIXME: BUFFER_SIZE */;
+		f->fmt.pix.colorspace   = 0;
+		return 0;
 	}
 
 	/* --- streaming capture ------------------------------------- */
@@ -959,15 +986,25 @@ static int mpeg_do_ioctl(struct inode *inode, struct file *file,
 		return videobuf_streamoff(&fh->mpegq);
 
 	default:
-		return -EINVAL;
+		return cx88_do_ioctl( inode, file, 0, dev->core, cmd, arg, cx88_ioctl_hook );
 	}
 	return 0;
 }
 
-static int mpeg_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, unsigned long arg)
+int (*cx88_ioctl_hook)(struct inode *inode, struct file *file,
+			unsigned int cmd, void *arg);
+unsigned int (*cx88_ioctl_translator)(unsigned int cmd);
+
+static unsigned int mpeg_translate_ioctl(unsigned int cmd)
 {
-	return video_usercopy(inode, file, cmd, arg, mpeg_do_ioctl);
+	return cmd;
+}
+
+static int mpeg_ioctl(struct inode *inode, struct file *file,
+			unsigned int cmd, unsigned long arg)
+{
+	cmd = cx88_ioctl_translator( cmd );
+	return video_usercopy(inode, file, cmd, arg, cx88_ioctl_hook);
 }
 
 static int mpeg_open(struct inode *inode, struct file *file)
@@ -1135,7 +1172,7 @@ static int __devinit blackbird_probe(struct pci_dev *pci_dev,
 	dev->pci = pci_dev;
 	dev->core = core;
 	dev->width = 720;
-	dev->height = 480;
+	dev->height = 576;
 
 	err = cx8802_init_common(dev);
 	if (0 != err)
@@ -1148,6 +1185,9 @@ static int __devinit blackbird_probe(struct pci_dev *pci_dev,
 
 	list_add_tail(&dev->devlist,&cx8802_devlist);
 	blackbird_register_video(dev);
+
+	/* initial device configuration: needed ? */
+
 	return 0;
 
  fail_free:
@@ -1202,6 +1242,8 @@ static int blackbird_init(void)
 	printk(KERN_INFO "cx2388x: snapshot date %04d-%02d-%02d\n",
 	       SNAPSHOT/10000, (SNAPSHOT/100)%100, SNAPSHOT%100);
 #endif
+	cx88_ioctl_hook = mpeg_do_ioctl;
+	cx88_ioctl_translator = mpeg_translate_ioctl;
 	return pci_register_driver(&blackbird_pci_driver);
 }
 
@@ -1212,6 +1254,9 @@ static void blackbird_fini(void)
 
 module_init(blackbird_init);
 module_exit(blackbird_fini);
+
+EXPORT_SYMBOL(cx88_ioctl_hook);
+EXPORT_SYMBOL(cx88_ioctl_translator);
 
 /* ----------------------------------------------------------- */
 /*

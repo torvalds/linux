@@ -34,14 +34,9 @@ EXPORT_SYMBOL(host_task_size);
 EXPORT_SYMBOL(arch_validate);
 EXPORT_SYMBOL(get_kmem_end);
 
-EXPORT_SYMBOL(page_to_phys);
-EXPORT_SYMBOL(phys_to_page);
 EXPORT_SYMBOL(high_physmem);
 EXPORT_SYMBOL(empty_zero_page);
 EXPORT_SYMBOL(um_virt_to_phys);
-EXPORT_SYMBOL(__virt_to_page);
-EXPORT_SYMBOL(to_phys);
-EXPORT_SYMBOL(to_virt);
 EXPORT_SYMBOL(mode_tt);
 EXPORT_SYMBOL(handle_page_fault);
 EXPORT_SYMBOL(find_iomem);
@@ -114,22 +109,3 @@ extern void FASTCALL( __read_lock_failed(rwlock_t *rw));
 EXPORT_SYMBOL(__read_lock_failed);
 
 #endif
-
-#ifdef CONFIG_HIGHMEM
-EXPORT_SYMBOL(kmap);
-EXPORT_SYMBOL(kunmap);
-EXPORT_SYMBOL(kmap_atomic);
-EXPORT_SYMBOL(kunmap_atomic);
-EXPORT_SYMBOL(kmap_atomic_to_page);
-#endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

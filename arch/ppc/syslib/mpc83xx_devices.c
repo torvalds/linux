@@ -21,6 +21,7 @@
 #include <asm/mpc83xx.h>
 #include <asm/irq.h>
 #include <asm/ppc_sys.h>
+#include <asm/machdep.h>
 
 /* We use offsets for IORESOURCE_MEM since we do not know at compile time
  * what IMMRBAR is, will get fixed up by mach_mpc83xx_fixup
@@ -165,7 +166,7 @@ struct platform_device ppc_sys_platform_devices[] = {
 	},
 	[MPC83xx_DUART] = {
 		.name = "serial8250",
-		.id	= 0,
+		.id	= PLAT8250_DEV_PLATFORM,
 		.dev.platform_data = serial_platform_data,
 	},
 	[MPC83xx_SEC2] = {
@@ -191,8 +192,8 @@ struct platform_device ppc_sys_platform_devices[] = {
 		.num_resources	 = 2,
 		.resource = (struct resource[]) {
 			{
-				.start	= 0x22000,
-				.end	= 0x22fff,
+				.start	= 0x23000,
+				.end	= 0x23fff,
 				.flags	= IORESOURCE_MEM,
 			},
 			{
@@ -208,8 +209,8 @@ struct platform_device ppc_sys_platform_devices[] = {
 		.num_resources	 = 2,
 		.resource = (struct resource[]) {
 			{
-				.start	= 0x23000,
-				.end	= 0x23fff,
+				.start	= 0x22000,
+				.end	= 0x22fff,
 				.flags	= IORESOURCE_MEM,
 			},
 			{

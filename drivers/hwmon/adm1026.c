@@ -28,16 +28,16 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
-#include <linux/i2c-vid.h>
+#include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/hwmon-vid.h>
+#include <linux/err.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_1(adm1026);
+I2C_CLIENT_INSMOD_1(adm1026);
 
 static int gpio_input[17]  = { -1, -1, -1, -1, -1, -1, -1, -1, -1,
 				-1, -1, -1, -1, -1, -1, -1, -1 }; 
@@ -259,6 +259,7 @@ struct pwm_data {
 
 struct adm1026_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore lock;
 	enum chips type;
 
@@ -314,22 +315,24 @@ static struct i2c_driver adm1026_driver = {
 	.detach_client  = adm1026_detach_client,
 };
 
-int adm1026_attach_adapter(struct i2c_adapter *adapter)
+static int adm1026_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON)) {
 		return 0;
 	}
-	return i2c_detect(adapter, &addr_data, adm1026_detect);
+	return i2c_probe(adapter, &addr_data, adm1026_detect);
 }
 
-int adm1026_detach_client(struct i2c_client *client)
+static int adm1026_detach_client(struct i2c_client *client)
 {
+	struct adm1026_data *data = i2c_get_clientdata(client);
+	hwmon_device_unregister(data->class_dev);
 	i2c_detach_client(client);
-	kfree(client);
+	kfree(data);
 	return 0;
 }
 
-int adm1026_read_value(struct i2c_client *client, u8 reg)
+static int adm1026_read_value(struct i2c_client *client, u8 reg)
 {
 	int res;
 
@@ -343,7 +346,7 @@ int adm1026_read_value(struct i2c_client *client, u8 reg)
 	return res;
 }
 
-int adm1026_write_value(struct i2c_client *client, u8 reg, int value)
+static int adm1026_write_value(struct i2c_client *client, u8 reg, int value)
 {
 	int res;
 
@@ -357,7 +360,7 @@ int adm1026_write_value(struct i2c_client *client, u8 reg, int value)
 	return res;
 }
 
-void adm1026_init_client(struct i2c_client *client)
+static void adm1026_init_client(struct i2c_client *client)
 {
 	int value, i;
 	struct adm1026_data *data = i2c_get_clientdata(client);
@@ -457,7 +460,7 @@ void adm1026_init_client(struct i2c_client *client)
 	}
 }
 
-void adm1026_print_gpio(struct i2c_client *client)
+static void adm1026_print_gpio(struct i2c_client *client)
 {
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	int  i;
@@ -489,7 +492,7 @@ void adm1026_print_gpio(struct i2c_client *client)
 	}
 }
 
-void adm1026_fixup_gpio(struct i2c_client *client)
+static void adm1026_fixup_gpio(struct i2c_client *client)
 {
 	struct adm1026_data *data = i2c_get_clientdata(client);
 	int  i;
@@ -1449,8 +1452,8 @@ static DEVICE_ATTR(temp1_auto_point2_pwm, S_IRUGO, show_auto_pwm_max, NULL);
 static DEVICE_ATTR(temp2_auto_point2_pwm, S_IRUGO, show_auto_pwm_max, NULL);
 static DEVICE_ATTR(temp3_auto_point2_pwm, S_IRUGO, show_auto_pwm_max, NULL);
 
-int adm1026_detect(struct i2c_adapter *adapter, int address,
-		int kind)
+static int adm1026_detect(struct i2c_adapter *adapter, int address,
+			  int kind)
 {
 	int company, verstep;
 	struct i2c_client *new_client;
@@ -1467,12 +1470,10 @@ int adm1026_detect(struct i2c_adapter *adapter, int address,
 	   client structure, even though we cannot fill it completely yet.
 	   But it allows us to access adm1026_{read,write}_value. */
 
-	if (!(data = kmalloc(sizeof(struct adm1026_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct adm1026_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-
-	memset(data, 0, sizeof(struct adm1026_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
@@ -1549,12 +1550,18 @@ int adm1026_detect(struct i2c_adapter *adapter, int address,
 		goto exitfree;
 
 	/* Set the VRM version */
-	data->vrm = i2c_which_vrm();
+	data->vrm = vid_which_vrm();
 
 	/* Initialize the ADM1026 chip */
 	adm1026_init_client(new_client);
 
 	/* Register sysfs hooks */
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exitdetach;
+	}
+
 	device_create_file(&new_client->dev, &sensor_dev_attr_in0_input.dev_attr);
 	device_create_file(&new_client->dev, &sensor_dev_attr_in0_max.dev_attr);
 	device_create_file(&new_client->dev, &sensor_dev_attr_in0_min.dev_attr);
@@ -1690,8 +1697,10 @@ int adm1026_detect(struct i2c_adapter *adapter, int address,
 	return 0;
 
 	/* Error out and cleanup code */
+exitdetach:
+	i2c_detach_client(new_client);
 exitfree:
-	kfree(new_client);
+	kfree(data);
 exit:
 	return err;
 }

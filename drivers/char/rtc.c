@@ -938,10 +938,9 @@ found:
 
 	/*
 	 * XXX Interrupt pin #7 in Espresso is shared between RTC and
-	 * PCI Slot 2 INTA# (and some INTx# in Slot 1). SA_INTERRUPT here
-	 * is asking for trouble with add-on boards. Change to SA_SHIRQ.
+	 * PCI Slot 2 INTA# (and some INTx# in Slot 1).
 	 */
-	if (request_irq(rtc_irq, rtc_interrupt, SA_INTERRUPT, "rtc", (void *)&rtc_port)) {
+	if (request_irq(rtc_irq, rtc_interrupt, SA_SHIRQ, "rtc", (void *)&rtc_port)) {
 		/*
 		 * Standard way for sparc to print irq's is to use
 		 * __irq_itoa(). I think for EBus it's ok to use %d.
@@ -1209,6 +1208,7 @@ static int rtc_proc_open(struct inode *inode, struct file *file)
 
 void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 {
+	unsigned long uip_watchdog = jiffies;
 	unsigned char ctrl;
 #ifdef CONFIG_MACH_DECSTATION
 	unsigned int real_year;
@@ -1224,8 +1224,10 @@ void rtc_get_rtc_time(struct rtc_time *rtc_tm)
 	 * Once the read clears, read the RTC time (again via ioctl). Easy.
 	 */
 
-	if (rtc_is_updating() != 0)
-		msleep(20);
+	while (rtc_is_updating() != 0 && jiffies - uip_watchdog < 2*HZ/100) {
+		barrier();
+		cpu_relax();
+	}
 
 	/*
 	 * Only the values that we read from the RTC are set. We leave

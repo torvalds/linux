@@ -30,7 +30,7 @@ static struct dentry *afs_mntpt_lookup(struct inode *dir,
 				       struct dentry *dentry,
 				       struct nameidata *nd);
 static int afs_mntpt_open(struct inode *inode, struct file *file);
-static int afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd);
+static void *afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd);
 
 struct file_operations afs_mntpt_file_operations = {
 	.open		= afs_mntpt_open,
@@ -233,7 +233,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 /*
  * follow a link from a mountpoint directory, thus causing it to be mounted
  */
-static int afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void *afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct vfsmount *newmnt;
 	struct dentry *old_dentry;
@@ -249,7 +249,7 @@ static int afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd)
 	newmnt = afs_mntpt_do_automount(dentry);
 	if (IS_ERR(newmnt)) {
 		path_release(nd);
-		return PTR_ERR(newmnt);
+		return (void *)newmnt;
 	}
 
 	old_dentry = nd->dentry;
@@ -267,7 +267,7 @@ static int afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd)
 	}
 
 	kleave(" = %d", err);
-	return err;
+	return ERR_PTR(err);
 } /* end afs_mntpt_follow_link() */
 
 /*****************************************************************************/

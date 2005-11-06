@@ -9,9 +9,29 @@
  *
  *  Bits from Jeff Garzik, Copyright RedHat, Inc.
  *
- *  This file is subject to the terms and conditions of the GNU General Public
- *  License.  See the file "COPYING" in the main directory of this archive
- *  for more details.
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2, or (at your option)
+ *  any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; see the file COPYING.  If not, write to
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ *  libata documentation is available via 'make {ps|pdf}docs',
+ *  as Documentation/DocBook/libata.*
+ *
+ *  Vitesse hardware documentation presumably available under NDA.
+ *  Intel 31244 (same hardware interface) documentation presumably
+ *  available from http://developer.intel.com/
+ *
  */
 
 #include <linux/kernel.h>
@@ -22,6 +42,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/device.h>
 #include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
@@ -66,7 +87,7 @@ static u32 vsc_sata_scr_read (struct ata_port *ap, unsigned int sc_reg)
 {
 	if (sc_reg > SCR_CONTROL)
 		return 0xffffffffU;
-	return readl((void *) ap->ioaddr.scr_addr + (sc_reg * 4));
+	return readl((void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 
@@ -75,16 +96,16 @@ static void vsc_sata_scr_write (struct ata_port *ap, unsigned int sc_reg,
 {
 	if (sc_reg > SCR_CONTROL)
 		return;
-	writel(val, (void *) ap->ioaddr.scr_addr + (sc_reg * 4));
+	writel(val, (void __iomem *) ap->ioaddr.scr_addr + (sc_reg * 4));
 }
 
 
 static void vsc_intr_mask_update(struct ata_port *ap, u8 ctl)
 {
-	unsigned long mask_addr;
+	void __iomem *mask_addr;
 	u8 mask;
 
-	mask_addr = (unsigned long) ap->host_set->mmio_base +
+	mask_addr = ap->host_set->mmio_base +
 		VSC_SATA_INT_MASK_OFFSET + ap->port_no;
 	mask = readb(mask_addr);
 	if (ctl & ATA_NIEN)
@@ -95,7 +116,7 @@ static void vsc_intr_mask_update(struct ata_port *ap, u8 ctl)
 }
 
 
-static void vsc_sata_tf_load(struct ata_port *ap, struct ata_taskfile *tf)
+static void vsc_sata_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
 	unsigned int is_addr = tf->flags & ATA_TFLAG_ISADDR;
@@ -133,16 +154,24 @@ static void vsc_sata_tf_load(struct ata_port *ap, struct ata_taskfile *tf)
 static void vsc_sata_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
-	u16 nsect, lbal, lbam, lbah;
+	u16 nsect, lbal, lbam, lbah, feature;
 
-	nsect = tf->nsect = readw(ioaddr->nsect_addr);
-	lbal = tf->lbal = readw(ioaddr->lbal_addr);
-	lbam = tf->lbam = readw(ioaddr->lbam_addr);
-	lbah = tf->lbah = readw(ioaddr->lbah_addr);
+	tf->command = ata_check_status(ap);
 	tf->device = readw(ioaddr->device_addr);
+	feature = readw(ioaddr->error_addr);
+	nsect = readw(ioaddr->nsect_addr);
+	lbal = readw(ioaddr->lbal_addr);
+	lbam = readw(ioaddr->lbam_addr);
+	lbah = readw(ioaddr->lbah_addr);
+
+	tf->feature = feature;
+	tf->nsect = nsect;
+	tf->lbal = lbal;
+	tf->lbam = lbam;
+	tf->lbah = lbah;
 
 	if (tf->flags & ATA_TFLAG_LBA48) {
-		tf->hob_feature = readb(ioaddr->error_addr);
+		tf->hob_feature = feature >> 8;
 		tf->hob_nsect = nsect >> 8;
 		tf->hob_lbal = lbal >> 8;
 		tf->hob_lbam = lbam >> 8;
@@ -173,7 +202,8 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance,
 			struct ata_port *ap;
 
 			ap = host_set->ports[i];
-			if (ap && (!(ap->flags & ATA_FLAG_PORT_DISABLED))) {
+			if (ap && !(ap->flags &
+				    (ATA_FLAG_PORT_DISABLED|ATA_FLAG_NOINTR))) {
 				struct ata_queued_cmd *qc;
 
 				qc = ata_qc_from_tag(ap, ap->active_tag);
@@ -210,7 +240,7 @@ static Scsi_Host_Template vsc_sata_sht = {
 };
 
 
-static struct ata_port_operations vsc_sata_ops = {
+static const struct ata_port_operations vsc_sata_ops = {
 	.port_disable		= ata_port_disable,
 	.tf_load		= vsc_sata_tf_load,
 	.tf_read		= vsc_sata_tf_read,
@@ -231,7 +261,7 @@ static struct ata_port_operations vsc_sata_ops = {
 	.scr_write		= vsc_sata_scr_write,
 	.port_start		= ata_port_start,
 	.port_stop		= ata_port_stop,
-	.host_stop		= ata_host_stop,
+	.host_stop		= ata_pci_host_stop,
 };
 
 static void __devinit vsc_sata_setup_port(struct ata_ioports *port, unsigned long base)
@@ -262,11 +292,11 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	struct ata_probe_ent *probe_ent = NULL;
 	unsigned long base;
 	int pci_dev_busy = 0;
-	void *mmio_base;
+	void __iomem *mmio_base;
 	int rc;
 
 	if (!printed_version++)
-		printk(KERN_DEBUG DRV_NAME " version " DRV_VERSION "\n");
+		dev_printk(KERN_DEBUG, &pdev->dev, "version " DRV_VERSION "\n");
 
 	rc = pci_enable_device(pdev);
 	if (rc)
@@ -305,8 +335,7 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 	probe_ent->dev = pci_dev_to_dev(pdev);
 	INIT_LIST_HEAD(&probe_ent->node);
 
-	mmio_base = ioremap(pci_resource_start(pdev, 0),
-		            pci_resource_len(pdev, 0));
+	mmio_base = pci_iomap(pdev, 0, 0);
 	if (mmio_base == NULL) {
 		rc = -ENOMEM;
 		goto err_out_free_ent;
@@ -342,7 +371,7 @@ static int __devinit vsc_sata_init_one (struct pci_dev *pdev, const struct pci_d
 
 	pci_set_master(pdev);
 
-	/* 
+	/*
 	 * Config offset 0x98 is "Extended Control and Status Register 0"
 	 * Default value is (1 << 28).  All bits except bit 28 are reserved in
 	 * DPA mode.  If bit 28 is set, LED 0 reflects all ports' activity.

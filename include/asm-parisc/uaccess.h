@@ -40,10 +40,6 @@ static inline long access_ok(int type, const void __user * addr,
 	return 1;
 }
 
-#define verify_area(type,addr,size) (0)	/* FIXME: all users should go away soon,
-                                         * and use access_ok instead, then this
-                                         * should be removed. */
-
 #define put_user __put_user
 #define get_user __get_user
 

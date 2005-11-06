@@ -105,7 +105,7 @@ void __init bus_error_init(void) { /* nothing */ }
 
 static __init void wire_stupidity_into_tlb(void)
 {
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 	write_c0_wired(0);
 	local_flush_tlb_all();
 
@@ -351,7 +351,7 @@ static __init int __init ja_pci_init(void)
 
 arch_initcall(ja_pci_init);
 
-static int  __init momenco_jaguar_atx_setup(void)
+void __init plat_setup(void)
 {
 	unsigned int tmpword;
 
@@ -451,7 +451,7 @@ static int  __init momenco_jaguar_atx_setup(void)
 #ifdef GEMDEBUG_TRACEBUFFER
 	{
 	  unsigned int tbControl;
-	  tbControl = 
+	  tbControl =
 	    0 << 26 |  /* post trigger delay 0 */
 	    	    0x2 << 16 |		/* sequential trace mode */
 	    //	    0x0 << 16 |		/* non-sequential trace mode */
@@ -467,8 +467,4 @@ static int  __init momenco_jaguar_atx_setup(void)
 
 	}
 #endif
-
-	return 0;
 }
-
-early_initcall(momenco_jaguar_atx_setup);

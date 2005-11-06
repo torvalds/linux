@@ -384,8 +384,8 @@ static unsigned int mdio_phy_addr; /* Transciever address */
 static unsigned int network_tr_ctrl_shadow = 0;
 
 /* Network speed indication. */
-static struct timer_list speed_timer = TIMER_INITIALIZER(NULL, 0, 0);
-static struct timer_list clear_led_timer = TIMER_INITIALIZER(NULL, 0, 0);
+static DEFINE_TIMER(speed_timer, NULL, 0, 0);
+static DEFINE_TIMER(clear_led_timer, NULL, 0, 0);
 static int current_speed; /* Speed read from transceiver */
 static int current_speed_selection; /* Speed selected by user */
 static unsigned long led_next_time;
@@ -393,7 +393,7 @@ static int led_active;
 static int rx_queue_len;
 
 /* Duplex */
-static struct timer_list duplex_timer = TIMER_INITIALIZER(NULL, 0, 0);
+static DEFINE_TIMER(duplex_timer, NULL, 0, 0);
 static int full_duplex;
 static enum duplex current_duplex;
 

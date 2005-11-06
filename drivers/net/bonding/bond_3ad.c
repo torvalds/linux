@@ -2419,22 +2419,19 @@ out:
 	return 0;
 }
 
-int bond_3ad_lacpdu_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type* ptype)
+int bond_3ad_lacpdu_recv(struct sk_buff *skb, struct net_device *dev, struct packet_type* ptype, struct net_device *orig_dev)
 {
 	struct bonding *bond = dev->priv;
 	struct slave *slave = NULL;
 	int ret = NET_RX_DROP;
 
-	if (!(dev->flags & IFF_MASTER)) {
+	if (!(dev->flags & IFF_MASTER))
 		goto out;
-	}
 
 	read_lock(&bond->lock);
-	slave = bond_get_slave_by_dev((struct bonding *)dev->priv,
-				      skb->real_dev);
-	if (slave == NULL) {
+	slave = bond_get_slave_by_dev((struct bonding *)dev->priv, orig_dev);
+	if (!slave)
 		goto out_unlock;
-	}
 
 	bond_3ad_rx_indication((struct lacpdu *) skb->data, slave, skb->len);
 

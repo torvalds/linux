@@ -130,7 +130,7 @@ tcf_pedit_cleanup(struct tc_action *a, int bind)
 }
 
 static int
-tcf_pedit(struct sk_buff **pskb, struct tc_action *a)
+tcf_pedit(struct sk_buff **pskb, struct tc_action *a, struct tcf_result *res)
 {
 	struct tcf_pedit *p = PRIV(a, pedit);
 	struct sk_buff *skb = *pskb;

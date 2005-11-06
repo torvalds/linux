@@ -10,6 +10,14 @@
 #define VM_MAP		0x00000004	/* vmap()ed pages */
 /* bits [20..32] reserved for arch specific ioremap internals */
 
+/*
+ * Maximum alignment for ioremap() regions.
+ * Can be overriden by arch-specific value.
+ */
+#ifndef IOREMAP_MAX_ORDER
+#define IOREMAP_MAX_ORDER	(7 + PAGE_SHIFT)	/* 128 pages */
+#endif
+
 struct vm_struct {
 	void			*addr;
 	unsigned long		size;
@@ -24,10 +32,14 @@ struct vm_struct {
  *	Highlevel APIs for driver use
  */
 extern void *vmalloc(unsigned long size);
+extern void *vmalloc_node(unsigned long size, int node);
 extern void *vmalloc_exec(unsigned long size);
 extern void *vmalloc_32(unsigned long size);
-extern void *__vmalloc(unsigned long size, unsigned int __nocast gfp_mask, pgprot_t prot);
-extern void *__vmalloc_area(struct vm_struct *area, unsigned int __nocast gfp_mask, pgprot_t prot);
+extern void *__vmalloc(unsigned long size, gfp_t gfp_mask, pgprot_t prot);
+extern void *__vmalloc_area(struct vm_struct *area, gfp_t gfp_mask,
+				pgprot_t prot);
+extern void *__vmalloc_node(unsigned long size, gfp_t gfp_mask,
+				pgprot_t prot, int node);
 extern void vfree(void *addr);
 
 extern void *vmap(struct page **pages, unsigned int count,
@@ -40,6 +52,8 @@ extern void vunmap(void *addr);
 extern struct vm_struct *get_vm_area(unsigned long size, unsigned long flags);
 extern struct vm_struct *__get_vm_area(unsigned long size, unsigned long flags,
 					unsigned long start, unsigned long end);
+extern struct vm_struct *get_vm_area_node(unsigned long size,
+					unsigned long flags, int node);
 extern struct vm_struct *remove_vm_area(void *addr);
 extern struct vm_struct *__remove_vm_area(void *addr);
 extern int map_vm_area(struct vm_struct *area, pgprot_t prot,

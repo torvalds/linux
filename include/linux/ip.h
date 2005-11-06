@@ -196,6 +196,8 @@ static inline void inet_sk_copy_descendant(struct sock *sk_to,
 #endif
 #endif
 
+extern int inet_sk_rebuild_header(struct sock *sk);
+
 struct iphdr {
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u8	ihl:4,

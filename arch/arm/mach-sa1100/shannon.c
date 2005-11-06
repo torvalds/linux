@@ -18,6 +18,7 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/mach/serial_sa1100.h>
+#include <asm/arch/mcp.h>
 #include <asm/arch/shannon.h>
 
 #include "generic.h"
@@ -52,9 +53,15 @@ static struct resource shannon_flash_resource = {
 	.flags		= IORESOURCE_MEM,
 };
 
+static struct mcp_plat_data shannon_mcp_data = {
+	.mccr0		= MCCR0_ADM,
+	.sclk_rate	= 11981000,
+};
+
 static void __init shannon_init(void)
 {
 	sa11x0_set_flash_data(&shannon_flash_data, &shannon_flash_resource, 1);
+	sa11x0_set_mcp_data(&shannon_mcp_data);
 }
 
 static void __init shannon_map_io(void)

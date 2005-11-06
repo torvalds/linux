@@ -244,6 +244,7 @@ struct netdev_boot_setup {
 };
 #define NETDEV_BOOT_SETUP_MAX 8
 
+extern int __init netdev_boot_setup(char *str);
 
 /*
  *	The DEVICE structure.
@@ -264,6 +265,8 @@ struct net_device
 	 * the interface.
 	 */
 	char			name[IFNAMSIZ];
+	/* device name hash chain */
+	struct hlist_node	name_hlist;
 
 	/*
 	 *	I/O specific fields
@@ -291,6 +294,22 @@ struct net_device
 
 	/* ------- Fields preinitialized in Space.c finish here ------- */
 
+	/* Net device features */
+	unsigned long		features;
+#define NETIF_F_SG		1	/* Scatter/gather IO. */
+#define NETIF_F_IP_CSUM		2	/* Can checksum only TCP/UDP over IPv4. */
+#define NETIF_F_NO_CSUM		4	/* Does not require checksum. F.e. loopack. */
+#define NETIF_F_HW_CSUM		8	/* Can checksum all the packets. */
+#define NETIF_F_HIGHDMA		32	/* Can DMA to high memory. */
+#define NETIF_F_FRAGLIST	64	/* Scatter/gather IO. */
+#define NETIF_F_HW_VLAN_TX	128	/* Transmit VLAN hw acceleration */
+#define NETIF_F_HW_VLAN_RX	256	/* Receive VLAN hw acceleration */
+#define NETIF_F_HW_VLAN_FILTER	512	/* Receive filtering on VLAN */
+#define NETIF_F_VLAN_CHALLENGED	1024	/* Device cannot handle VLAN packets */
+#define NETIF_F_TSO		2048	/* Can offload TCP/IP segmentation */
+#define NETIF_F_LLTX		4096	/* LockLess TX */
+#define NETIF_F_UFO             8192    /* Can offload UDP Large Send*/
+
 	struct net_device	*next_sched;
 
 	/* Interface index. Unique device identifier	*/
@@ -315,9 +334,6 @@ struct net_device
 	 * will (read: may be cleaned up at will).
 	 */
 
-	/* These may be needed for future network-power-down code. */
-	unsigned long		trans_start;	/* Time (in jiffies) of last Tx	*/
-	unsigned long		last_rx;	/* Time of last Rx	*/
 
 	unsigned short		flags;	/* interface flags (a la BSD)	*/
 	unsigned short		gflags;
@@ -327,15 +343,13 @@ struct net_device
 	unsigned		mtu;	/* interface MTU value		*/
 	unsigned short		type;	/* interface hardware type	*/
 	unsigned short		hard_header_len;	/* hardware hdr length	*/
-	void			*priv;	/* pointer to private data	*/
 
 	struct net_device	*master; /* Pointer to master device of a group,
 					  * which this device is member of.
 					  */
 
 	/* Interface address info. */
-	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
-	unsigned char		dev_addr[MAX_ADDR_LEN];	/* hw address	*/
+	unsigned char		perm_addr[MAX_ADDR_LEN]; /* permanent hw address */
 	unsigned char		addr_len;	/* hardware address length	*/
 	unsigned short          dev_id;		/* for shared network cards */
 
@@ -344,8 +358,6 @@ struct net_device
 	int			promiscuity;
 	int			allmulti;
 
-	int			watchdog_timeo;
-	struct timer_list	watchdog_timer;
 
 	/* Protocol specific pointers */
 	
@@ -356,32 +368,62 @@ struct net_device
 	void			*ec_ptr;	/* Econet specific data	*/
 	void			*ax25_ptr;	/* AX.25 specific data */
 
-	struct list_head	poll_list;	/* Link to poll list	*/
+/*
+ * Cache line mostly used on receive path (including eth_type_trans())
+ */
+	struct list_head	poll_list ____cacheline_aligned_in_smp;
+					/* Link to poll list	*/
+
+	int			(*poll) (struct net_device *dev, int *quota);
 	int			quota;
 	int			weight;
+	unsigned long		last_rx;	/* Time of last Rx	*/
+	/* Interface address info used in eth_type_trans() */
+	unsigned char		dev_addr[MAX_ADDR_LEN];	/* hw address, (before bcast 
+							because most packets are unicast) */
 
+	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
+
+/*
+ * Cache line mostly used on queue transmit path (qdisc)
+ */
+	/* device queue lock */
+	spinlock_t		queue_lock ____cacheline_aligned_in_smp;
 	struct Qdisc		*qdisc;
 	struct Qdisc		*qdisc_sleeping;
-	struct Qdisc		*qdisc_ingress;
 	struct list_head	qdisc_list;
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
 
 	/* ingress path synchronizer */
 	spinlock_t		ingress_lock;
+	struct Qdisc		*qdisc_ingress;
+
+/*
+ * One part is mostly used on xmit path (device)
+ */
 	/* hard_start_xmit synchronizer */
-	spinlock_t		xmit_lock;
+	spinlock_t		xmit_lock ____cacheline_aligned_in_smp;
 	/* cpu id of processor entered to hard_start_xmit or -1,
 	   if nobody entered there.
 	 */
 	int			xmit_lock_owner;
-	/* device queue lock */
-	spinlock_t		queue_lock;
+	void			*priv;	/* pointer to private data	*/
+	int			(*hard_start_xmit) (struct sk_buff *skb,
+						    struct net_device *dev);
+	/* These may be needed for future network-power-down code. */
+	unsigned long		trans_start;	/* Time (in jiffies) of last Tx	*/
+
+	int			watchdog_timeo; /* used by dev_watchdog() */
+	struct timer_list	watchdog_timer;
+
+/*
+ * refcnt is a very hot point, so align it on SMP
+ */
 	/* Number of references to this device */
-	atomic_t		refcnt;
+	atomic_t		refcnt ____cacheline_aligned_in_smp;
+
 	/* delayed register/unregister */
 	struct list_head	todo_list;
-	/* device name hash chain */
-	struct hlist_node	name_hlist;
 	/* device index hash chain */
 	struct hlist_node	index_hlist;
 
@@ -394,21 +436,6 @@ struct net_device
 	       NETREG_RELEASED,		/* called free_netdev */
 	} reg_state;
 
-	/* Net device features */
-	unsigned long		features;
-#define NETIF_F_SG		1	/* Scatter/gather IO. */
-#define NETIF_F_IP_CSUM		2	/* Can checksum only TCP/UDP over IPv4. */
-#define NETIF_F_NO_CSUM		4	/* Does not require checksum. F.e. loopack. */
-#define NETIF_F_HW_CSUM		8	/* Can checksum all the packets. */
-#define NETIF_F_HIGHDMA		32	/* Can DMA to high memory. */
-#define NETIF_F_FRAGLIST	64	/* Scatter/gather IO. */
-#define NETIF_F_HW_VLAN_TX	128	/* Transmit VLAN hw acceleration */
-#define NETIF_F_HW_VLAN_RX	256	/* Receive VLAN hw acceleration */
-#define NETIF_F_HW_VLAN_FILTER	512	/* Receive filtering on VLAN */
-#define NETIF_F_VLAN_CHALLENGED	1024	/* Device cannot handle VLAN packets */
-#define NETIF_F_TSO		2048	/* Can offload TCP/IP segmentation */
-#define NETIF_F_LLTX		4096	/* LockLess TX */
-
 	/* Called after device is detached from network. */
 	void			(*uninit)(struct net_device *dev);
 	/* Called after last user reference disappears. */
@@ -417,10 +444,7 @@ struct net_device
 	/* Pointers to interface service routines.	*/
 	int			(*open)(struct net_device *dev);
 	int			(*stop)(struct net_device *dev);
-	int			(*hard_start_xmit) (struct sk_buff *skb,
-						    struct net_device *dev);
 #define HAVE_NETDEV_POLL
-	int			(*poll) (struct net_device *dev, int *quota);
 	int			(*hard_header) (struct sk_buff *skb,
 						struct net_device *dev,
 						unsigned short type,
@@ -497,10 +521,12 @@ static inline void *netdev_priv(struct net_device *dev)
 #define SET_NETDEV_DEV(net, pdev)	((net)->class_dev.dev = (pdev))
 
 struct packet_type {
-	__be16			type;	/* This is really htons(ether_type).	*/
-	struct net_device		*dev;	/* NULL is wildcarded here		*/
-	int			(*func) (struct sk_buff *, struct net_device *,
-					 struct packet_type *);
+	__be16			type;	/* This is really htons(ether_type). */
+	struct net_device	*dev;	/* NULL is wildcarded here	     */
+	int			(*func) (struct sk_buff *,
+					 struct net_device *,
+					 struct packet_type *,
+					 struct net_device *);
 	void			*af_packet_priv;
 	struct list_head	list;
 };
@@ -671,6 +697,7 @@ extern void		dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev);
 extern void		dev_init(void);
 
 extern int		netdev_nit;
+extern int		netdev_budget;
 
 /* Called by rtnetlink.c:rtnl_unlock() */
 extern void netdev_run_todo(void);
@@ -697,19 +724,9 @@ static inline int netif_carrier_ok(const struct net_device *dev)
 
 extern void __netdev_watchdog_up(struct net_device *dev);
 
-static inline void netif_carrier_on(struct net_device *dev)
-{
-	if (test_and_clear_bit(__LINK_STATE_NOCARRIER, &dev->state))
-		linkwatch_fire_event(dev);
-	if (netif_running(dev))
-		__netdev_watchdog_up(dev);
-}
+extern void netif_carrier_on(struct net_device *dev);
 
-static inline void netif_carrier_off(struct net_device *dev)
-{
-	if (!test_and_set_bit(__LINK_STATE_NOCARRIER, &dev->state))
-		linkwatch_fire_event(dev);
-}
+extern void netif_carrier_off(struct net_device *dev);
 
 /* Hot-plugging. */
 static inline int netif_device_present(struct net_device *dev)
@@ -857,11 +874,9 @@ static inline void netif_rx_complete(struct net_device *dev)
 
 static inline void netif_poll_disable(struct net_device *dev)
 {
-	while (test_and_set_bit(__LINK_STATE_RX_SCHED, &dev->state)) {
+	while (test_and_set_bit(__LINK_STATE_RX_SCHED, &dev->state))
 		/* No hurry. */
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(1);
-	}
+		schedule_timeout_interruptible(1);
 }
 
 static inline void netif_poll_enable(struct net_device *dev)
@@ -915,6 +930,14 @@ extern int skb_checksum_help(struct sk_buff *skb, int inward);
 /* rx skb timestamps */
 extern void		net_enable_timestamp(void);
 extern void		net_disable_timestamp(void);
+
+#ifdef CONFIG_PROC_FS
+extern void *dev_seq_start(struct seq_file *seq, loff_t *pos);
+extern void *dev_seq_next(struct seq_file *seq, void *v, loff_t *pos);
+extern void dev_seq_stop(struct seq_file *seq, void *v);
+#endif
+
+extern void linkwatch_run_queue(void);
 
 #endif /* __KERNEL__ */
 

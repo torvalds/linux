@@ -1,5 +1,4 @@
 /*
- * $Id: saa7134-tvaudio.c,v 1.30 2005/06/28 23:41:47 mkrufky Exp $
  *
  * device driver for philips saa7134 based TV cards
  * tv audio decoder (fm stereo, nicam, ...)

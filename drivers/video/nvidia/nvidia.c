@@ -384,6 +384,14 @@ static struct pci_device_id nvidiafb_pci_tbl[] = {
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_GEFORCE_6800B_GT,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_GEFORCE_7800_GT,
+	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_GEFORCE_7800_GTX,
+	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_GEFORCE_GO_7800,
+	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
+	{PCI_VENDOR_ID_NVIDIA, PCI_DEVICE_ID_NVIDIA_GEFORCE_GO_7800_GTX,
+	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NVIDIA, 0x021d,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{PCI_VENDOR_ID_NVIDIA, 0x021e,
@@ -658,7 +666,7 @@ static int nvidia_calc_regs(struct fb_info *info)
 {
 	struct nvidia_par *par = info->par;
 	struct _riva_hw_state *state = &par->ModeReg;
-	int i, depth = fb_get_color_depth(&info->var);
+	int i, depth = fb_get_color_depth(&info->var, &info->fix);
 	int h_display = info->var.xres / 8 - 1;
 	int h_start = (info->var.xres + info->var.right_margin) / 8 - 1;
 	int h_end = (info->var.xres + info->var.right_margin +
@@ -978,6 +986,9 @@ static int nvidiafb_set_par(struct fb_info *info)
 	    !par->twoHeads)
 		par->FPDither = 0;
 
+	info->fix.visual = (info->var.bits_per_pixel == 8) ?
+	    FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_DIRECTCOLOR;
+
 	nvidia_init_vga(info);
 	nvidia_calc_regs(info);
 	nvidia_write_regs(par);
@@ -992,9 +1003,6 @@ static int nvidiafb_set_par(struct fb_info *info)
 	NVWriteCrtc(par, 0x11, 0x00);
 	info->fix.line_length = (info->var.xres_virtual *
 				 info->var.bits_per_pixel) >> 3;
-	info->fix.visual = (info->var.bits_per_pixel == 8) ?
-	    FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_DIRECTCOLOR;
-
 	if (info->var.accel_flags) {
 		info->fbops->fb_imageblit = nvidiafb_imageblit;
 		info->fbops->fb_fillrect = nvidiafb_fillrect;
@@ -1324,6 +1332,13 @@ static int __devinit nvidia_set_fbinfo(struct fb_info *info)
 
 		fb_videomode_to_var(&nvidiafb_default_var, &modedb);
 		nvidiafb_default_var.bits_per_pixel = 8;
+	} else if (par->fpWidth && par->fpHeight) {
+		char buf[16];
+
+		memset(buf, 0, 16);
+		snprintf(buf, 15, "%dx%dMR", par->fpWidth, par->fpHeight);
+		fb_find_mode(&nvidiafb_default_var, info, buf, specs->modedb,
+			     specs->modedb_len, &modedb, 8);
 	}
 
 	if (mode_option)
@@ -1350,7 +1365,8 @@ static int __devinit nvidia_set_fbinfo(struct fb_info *info)
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 
 	if (!hwcur)
-		info->fbops->fb_cursor = soft_cursor;
+	    info->fbops->fb_cursor = soft_cursor;
+
 	info->var.accel_flags = (!noaccel);
 
 	switch (par->Architecture) {
@@ -1465,10 +1481,6 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 
 	par->Chipset = (pd->vendor << 16) | pd->device;
 	printk(KERN_INFO PFX "nVidia device/chipset %X\n", par->Chipset);
-
-#ifdef CONFIG_PCI_NAMES
-	printk(KERN_INFO PFX "%s\n", pd->pretty_name);
-#endif
 
 	if (par->Architecture == 0) {
 		printk(KERN_ERR PFX "unknown NV_ARCH\n");

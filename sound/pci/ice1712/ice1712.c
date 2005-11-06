@@ -100,12 +100,6 @@ MODULE_PARM_DESC(cs8427_timeout, "Define reset timeout for cs8427 chip in msec r
 module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
 
-#ifndef PCI_VENDOR_ID_ICE
-#define PCI_VENDOR_ID_ICE		0x1412
-#endif
-#ifndef PCI_DEVICE_ID_ICE_1712
-#define PCI_DEVICE_ID_ICE_1712		0x1712
-#endif
 
 static struct pci_device_id snd_ice1712_ids[] = {
 	{ PCI_VENDOR_ID_ICE, PCI_DEVICE_ID_ICE_1712, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },   /* ICE1712 */
@@ -1422,7 +1416,7 @@ static snd_kcontrol_new_t snd_ice1712_multi_capture_analog_switch __devinitdata 
 
 static snd_kcontrol_new_t snd_ice1712_multi_capture_spdif_switch __devinitdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "IEC958 Multi Capture Switch",
+	.name = SNDRV_CTL_NAME_IEC958("Multi ",CAPTURE,SWITCH),
 	.info = snd_ice1712_pro_mixer_switch_info,
 	.get = snd_ice1712_pro_mixer_switch_get,
 	.put = snd_ice1712_pro_mixer_switch_put,
@@ -1441,7 +1435,7 @@ static snd_kcontrol_new_t snd_ice1712_multi_capture_analog_volume __devinitdata 
 
 static snd_kcontrol_new_t snd_ice1712_multi_capture_spdif_volume __devinitdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "IEC958 Multi Capture Volume",
+	.name = SNDRV_CTL_NAME_IEC958("Multi ",CAPTURE,VOLUME),
 	.info = snd_ice1712_pro_mixer_volume_info,
 	.get = snd_ice1712_pro_mixer_volume_get,
 	.put = snd_ice1712_pro_mixer_volume_put,
@@ -1715,7 +1709,7 @@ static int snd_ice1712_spdif_maskp_get(snd_kcontrol_t * kcontrol,
 static snd_kcontrol_new_t snd_ice1712_spdif_maskc __devinitdata =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,CON_MASK),
 	.info =		snd_ice1712_spdif_info,
 	.get =		snd_ice1712_spdif_maskc_get,
@@ -1724,7 +1718,7 @@ static snd_kcontrol_new_t snd_ice1712_spdif_maskc __devinitdata =
 static snd_kcontrol_new_t snd_ice1712_spdif_maskp __devinitdata =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,PRO_MASK),
 	.info =		snd_ice1712_spdif_info,
 	.get =		snd_ice1712_spdif_maskp_get,
@@ -2203,7 +2197,7 @@ static snd_kcontrol_new_t snd_ice1712_mixer_pro_analog_route __devinitdata = {
 
 static snd_kcontrol_new_t snd_ice1712_mixer_pro_spdif_route __devinitdata = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "IEC958 Playback Route",
+	.name = SNDRV_CTL_NAME_IEC958("",PLAYBACK,NONE) "Route",
 	.info = snd_ice1712_pro_route_info,
 	.get = snd_ice1712_pro_route_spdif_get,
 	.put = snd_ice1712_pro_route_spdif_put,
@@ -2535,7 +2529,7 @@ static int __devinit snd_ice1712_create(snd_card_t * card,
 		return -ENXIO;
 	}
 
-	ice = kcalloc(1, sizeof(*ice), GFP_KERNEL);
+	ice = kzalloc(sizeof(*ice), GFP_KERNEL);
 	if (ice == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -2741,6 +2735,7 @@ static void __devexit snd_ice1712_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "ICE1712",
+	.owner = THIS_MODULE,
 	.id_table = snd_ice1712_ids,
 	.probe = snd_ice1712_probe,
 	.remove = __devexit_p(snd_ice1712_remove),

@@ -1,8 +1,8 @@
 /*
- * 	ds_w1_bridge.c
+ *	ds_w1_bridge.c
  *
  * Copyright (c) 2004 Evgeniy Polyakov <johnpol@2ka.mipt.ru>
- * 
+ *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #include "../w1/w1.h"
 #include "../w1/w1_int.h"
 #include "dscore.h"
-	
+
 static struct ds_device *ds_dev;
 static struct w1_bus_master *ds_bus_master;
 
@@ -120,7 +120,7 @@ static u8 ds9490r_reset(unsigned long data)
 static int __devinit ds_w1_init(void)
 {
 	int err;
-	
+
 	ds_bus_master = kmalloc(sizeof(*ds_bus_master), GFP_KERNEL);
 	if (!ds_bus_master) {
 		printk(KERN_ERR "Failed to allocate DS9490R USB<->W1 bus_master structure.\n");
@@ -136,14 +136,14 @@ static int __devinit ds_w1_init(void)
 
 	memset(ds_bus_master, 0, sizeof(*ds_bus_master));
 
-	ds_bus_master->data 		= (unsigned long)ds_dev;
-	ds_bus_master->touch_bit 	= &ds9490r_touch_bit;
-	ds_bus_master->read_bit 	= &ds9490r_read_bit;
-	ds_bus_master->write_bit 	= &ds9490r_write_bit;
-	ds_bus_master->read_byte 	= &ds9490r_read_byte;
-	ds_bus_master->write_byte 	= &ds9490r_write_byte;
-	ds_bus_master->read_block 	= &ds9490r_read_block;
-	ds_bus_master->write_block 	= &ds9490r_write_block;
+	ds_bus_master->data		= (unsigned long)ds_dev;
+	ds_bus_master->touch_bit	= &ds9490r_touch_bit;
+	ds_bus_master->read_bit		= &ds9490r_read_bit;
+	ds_bus_master->write_bit	= &ds9490r_write_bit;
+	ds_bus_master->read_byte	= &ds9490r_read_byte;
+	ds_bus_master->write_byte	= &ds9490r_write_byte;
+	ds_bus_master->read_block	= &ds9490r_read_block;
+	ds_bus_master->write_block	= &ds9490r_write_block;
 	ds_bus_master->reset_bus	= &ds9490r_reset;
 
 	err = w1_add_master_device(ds_bus_master);

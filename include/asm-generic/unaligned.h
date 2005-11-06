@@ -16,9 +16,9 @@
  * The main single-value unaligned transfer routines.
  */
 #define get_unaligned(ptr) \
-	((__typeof__(*(ptr)))__get_unaligned((ptr), sizeof(*(ptr))))
+	__get_unaligned((ptr), sizeof(*(ptr)))
 #define put_unaligned(x,ptr) \
-	__put_unaligned((unsigned long)(x), (ptr), sizeof(*(ptr)))
+	__put_unaligned((__u64)(x), (ptr), sizeof(*(ptr)))
 
 /*
  * This function doesn't actually exist.  The idea is that when
@@ -36,19 +36,19 @@ struct __una_u16 { __u16 x __attribute__((packed)); };
  * Elemental unaligned loads 
  */
 
-static inline unsigned long __uldq(const __u64 *addr)
+static inline __u64 __uldq(const __u64 *addr)
 {
 	const struct __una_u64 *ptr = (const struct __una_u64 *) addr;
 	return ptr->x;
 }
 
-static inline unsigned long __uldl(const __u32 *addr)
+static inline __u32 __uldl(const __u32 *addr)
 {
 	const struct __una_u32 *ptr = (const struct __una_u32 *) addr;
 	return ptr->x;
 }
 
-static inline unsigned long __uldw(const __u16 *addr)
+static inline __u16 __uldw(const __u16 *addr)
 {
 	const struct __una_u16 *ptr = (const struct __una_u16 *) addr;
 	return ptr->x;
@@ -78,7 +78,7 @@ static inline void __ustw(__u16 val, __u16 *addr)
 
 #define __get_unaligned(ptr, size) ({		\
 	const void *__gu_p = ptr;		\
-	unsigned long val;			\
+	__typeof__(*(ptr)) val;			\
 	switch (size) {				\
 	case 1:					\
 		val = *(const __u8 *)__gu_p;	\

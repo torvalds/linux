@@ -622,6 +622,11 @@ snd_wavefront_probe (int dev, struct pnp_card_link *pcard,
 		 ics2115_port[dev],
 		 ics2115_irq[dev]);
 
+	if ((err = snd_card_set_generic_dev(card)) < 0) {
+		snd_card_free(card);
+		return err;
+	}
+
 	if ((err = snd_card_register(card)) < 0) {
 		snd_card_free(card);
 		return err;

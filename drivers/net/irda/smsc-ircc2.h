@@ -1,5 +1,5 @@
 /*********************************************************************
- * $Id: smsc-ircc2.h,v 1.12.2.1 2002/10/27 10:52:37 dip Exp $               
+ * $Id: smsc-ircc2.h,v 1.12.2.1 2002/10/27 10:52:37 dip Exp $
  *
  * Description:   Definitions for the SMC IrCC chipset
  * Status:        Experimental.
@@ -9,25 +9,25 @@
  *     All Rights Reserved.
  *
  * Based on smc-ircc.h:
- * 
+ *
  *     Copyright (c) 1999-2000, Dag Brattli <dagb@cs.uit.no>
  *     Copyright (c) 1998-1999, Thomas Davis (tadavis@jps.net>
  *     All Rights Reserved
  *
- *      
- *     This program is free software; you can redistribute it and/or 
- *     modify it under the terms of the GNU General Public License as 
- *     published by the Free Software Foundation; either version 2 of 
+ *
+ *     This program is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of
  *     the License, or (at your option) any later version.
- * 
+ *
  *     This program is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  *     GNU General Public License for more details.
- * 
- *     You should have received a copy of the GNU General Public License 
- *     along with this program; if not, write to the Free Software 
- *     Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
+ *
+ *     You should have received a copy of the GNU General Public License
+ *     along with this program; if not, write to the Free Software
+ *     Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  *     MA 02111-1307 USA
  *
  ********************************************************************/
@@ -112,10 +112,10 @@
 
 #define   IRCC_CFGA_COM				0x00
 #define		IRCC_SCE_CFGA_BLOCK_CTRL_BITS_MASK	0x87
-#define   	IRCC_CFGA_IRDA_SIR_A	0x08
-#define   	IRCC_CFGA_ASK_SIR		0x10
-#define   	IRCC_CFGA_IRDA_SIR_B	0x18
-#define   	IRCC_CFGA_IRDA_HDLC		0x20
+#define		IRCC_CFGA_IRDA_SIR_A	0x08
+#define		IRCC_CFGA_ASK_SIR		0x10
+#define		IRCC_CFGA_IRDA_SIR_B	0x18
+#define		IRCC_CFGA_IRDA_HDLC		0x20
 #define		IRCC_CFGA_IRDA_4PPM		0x28
 #define		IRCC_CFGA_CONSUMER		0x30
 #define		IRCC_CFGA_RAW_IR		0x38
@@ -130,7 +130,7 @@
 #define IRCC_CFGB_LPBCK_TX_CRC	   0x10
 #define IRCC_CFGB_NOWAIT	   0x08
 #define IRCC_CFGB_STRING_MOVE	   0x04
-#define IRCC_CFGB_DMA_BURST 	   0x02
+#define IRCC_CFGB_DMA_BURST	   0x02
 #define IRCC_CFGB_DMA_ENABLE	   0x01
 
 #define IRCC_CFGB_MUX_COM          0x00
@@ -141,11 +141,11 @@
 /* Register block 3 - Identification Registers! */
 #define IRCC_ID_HIGH	           0x00   /* 0x10 */
 #define IRCC_ID_LOW	           0x01   /* 0xB8 */
-#define IRCC_CHIP_ID 	           0x02   /* 0xF1 */
+#define IRCC_CHIP_ID	           0x02   /* 0xF1 */
 #define IRCC_VERSION	           0x03   /* 0x01 */
 #define IRCC_INTERFACE	           0x04   /* low 4 = DMA, high 4 = IRQ */
-#define 	IRCC_INTERFACE_DMA_MASK	0x0F   /* low 4 = DMA, high 4 = IRQ */
-#define 	IRCC_INTERFACE_IRQ_MASK	0xF0   /* low 4 = DMA, high 4 = IRQ */
+#define		IRCC_INTERFACE_DMA_MASK	0x0F   /* low 4 = DMA, high 4 = IRQ */
+#define		IRCC_INTERFACE_IRQ_MASK	0xF0   /* low 4 = DMA, high 4 = IRQ */
 
 /* Register block 4 - IrDA */
 #define IRCC_CONTROL               0x00
@@ -163,10 +163,10 @@
 
 /* Register block 5 - IrDA */
 #define IRCC_ATC					0x00
-#define 	IRCC_ATC_nPROGREADY		0x80
-#define 	IRCC_ATC_SPEED			0x40
-#define 	IRCC_ATC_ENABLE			0x20
-#define 	IRCC_ATC_MASK			0xE0
+#define		IRCC_ATC_nPROGREADY		0x80
+#define		IRCC_ATC_SPEED			0x40
+#define		IRCC_ATC_ENABLE			0x20
+#define		IRCC_ATC_MASK			0xE0
 
 
 #define IRCC_IRHALFDUPLEX_TIMEOUT	0x01
@@ -178,8 +178,8 @@
  */
 
 #define SMSC_IRCC2_MAX_SIR_SPEED		115200
-#define SMSC_IRCC2_FIR_CHIP_IO_EXTENT 	8
-#define SMSC_IRCC2_SIR_CHIP_IO_EXTENT 	8
+#define SMSC_IRCC2_FIR_CHIP_IO_EXTENT	8
+#define SMSC_IRCC2_SIR_CHIP_IO_EXTENT	8
 #define SMSC_IRCC2_FIFO_SIZE			16
 #define SMSC_IRCC2_FIFO_THRESHOLD		64
 /* Max DMA buffer size needed = (data_size + 6) * (window_size) + 6; */

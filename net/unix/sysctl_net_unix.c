@@ -12,7 +12,7 @@
 #include <linux/mm.h>
 #include <linux/sysctl.h>
 
-extern int sysctl_unix_max_dgram_qlen;
+#include <net/af_unix.h>
 
 static ctl_table unix_table[] = {
 	{

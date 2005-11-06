@@ -150,7 +150,6 @@ typedef struct {
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/major.h>
-#include <asm/segment.h>
 #include <asm/io.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>

@@ -81,25 +81,6 @@ int tulip_mdio_read(struct net_device *dev, int phy_id, int location)
 		return retval & 0xffff;
 	}
 
-	if(tp->chip_id == ULI526X && tp->revision >= 0x40) {
-		int value;
-		int i = 1000;
-		
-		value = ioread32(ioaddr + CSR9);
-		iowrite32(value & 0xFFEFFFFF, ioaddr + CSR9);
-		
-		value = (phy_id << 21) | (location << 16) | 0x08000000;
-		iowrite32(value, ioaddr + CSR10);
-		
-		while(--i > 0) {
-			mdio_delay();
-			if(ioread32(ioaddr + CSR10) & 0x10000000)
-				break;
-		}
-		retval = ioread32(ioaddr + CSR10);
-		spin_unlock_irqrestore(&tp->mii_lock, flags);
-		return retval & 0xFFFF;
-	}
 	/* Establish sync by sending at least 32 logic ones. */
 	for (i = 32; i >= 0; i--) {
 		iowrite32(MDIO_ENB | MDIO_DATA_WRITE1, mdio_addr);
@@ -156,23 +137,6 @@ void tulip_mdio_write(struct net_device *dev, int phy_id, int location, int val)
 			if ( ! (ioread32(ioaddr + 0xA0) & 0x80000000))
 				break;
 		} while (--i > 0);
-		spin_unlock_irqrestore(&tp->mii_lock, flags);
-		return;
-	}
-	if (tp->chip_id == ULI526X && tp->revision >= 0x40) {
-		int value;
-		int i = 1000;
-		
-		value = ioread32(ioaddr + CSR9);
-		iowrite32(value & 0xFFEFFFFF, ioaddr + CSR9);
-		
-		value = (phy_id << 21) | (location << 16) | 0x04000000 | (val & 0xFFFF);
-		iowrite32(value, ioaddr + CSR10);
-		
-		while(--i > 0) {
-			if (ioread32(ioaddr + CSR10) & 0x10000000)
-				break;
-		}
 		spin_unlock_irqrestore(&tp->mii_lock, flags);
 		return;
 	}

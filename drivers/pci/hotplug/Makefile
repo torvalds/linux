@@ -41,8 +41,7 @@ acpiphp-objs		:=	acpiphp_core.o	\
 
 rpaphp-objs		:=	rpaphp_core.o	\
 				rpaphp_pci.o	\
-				rpaphp_slot.o	\
-				rpaphp_vio.o
+				rpaphp_slot.o
 
 rpadlpar_io-objs	:=	rpadlpar_core.o \
 				rpadlpar_sysfs.o
@@ -51,7 +50,7 @@ pciehp-objs		:=	pciehp_core.o	\
 				pciehp_ctrl.o	\
 				pciehp_pci.o	\
 				pciehp_hpc.o
-ifdef CONFIG_ACPI_BUS
+ifdef CONFIG_ACPI
 	pciehp-objs += pciehprm_acpi.o
 else
 	pciehp-objs += pciehprm_nonacpi.o
@@ -62,7 +61,7 @@ shpchp-objs		:=	shpchp_core.o	\
 				shpchp_pci.o	\
 				shpchp_sysfs.o	\
 				shpchp_hpc.o
-ifdef CONFIG_ACPI_BUS
+ifdef CONFIG_ACPI
 	shpchp-objs += shpchprm_acpi.o
 else
 	ifdef CONFIG_HOTPLUG_PCI_SHPC_PHPRM_LEGACY

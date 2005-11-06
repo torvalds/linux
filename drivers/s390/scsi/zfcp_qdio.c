@@ -54,8 +54,7 @@ static inline int zfcp_qdio_sbals_from_buffer
 static qdio_handler_t zfcp_qdio_request_handler;
 static qdio_handler_t zfcp_qdio_response_handler;
 static int zfcp_qdio_handler_error_check(struct zfcp_adapter *,
-					 unsigned int,
-					 unsigned int, unsigned int);
+	unsigned int, unsigned int, unsigned int, int, int);
 
 #define ZFCP_LOG_AREA                   ZFCP_LOG_AREA_QDIO
 
@@ -214,22 +213,12 @@ zfcp_qdio_allocate(struct zfcp_adapter *adapter)
  *
  */
 static inline int
-zfcp_qdio_handler_error_check(struct zfcp_adapter *adapter,
-			      unsigned int status,
-			      unsigned int qdio_error, unsigned int siga_error)
+zfcp_qdio_handler_error_check(struct zfcp_adapter *adapter, unsigned int status,
+			      unsigned int qdio_error, unsigned int siga_error,
+			      int first_element, int elements_processed)
 {
 	int retval = 0;
 
-	if (ZFCP_LOG_CHECK(ZFCP_LOG_LEVEL_TRACE)) {
-		if (status & QDIO_STATUS_INBOUND_INT) {
-			ZFCP_LOG_TRACE("status is"
-				       " QDIO_STATUS_INBOUND_INT \n");
-		}
-		if (status & QDIO_STATUS_OUTBOUND_INT) {
-			ZFCP_LOG_TRACE("status is"
-				       " QDIO_STATUS_OUTBOUND_INT \n");
-		}
-	}
 	if (unlikely(status & QDIO_STATUS_LOOK_FOR_ERROR)) {
 		retval = -EIO;
 
@@ -237,9 +226,10 @@ zfcp_qdio_handler_error_check(struct zfcp_adapter *adapter,
 			      "qdio_error=0x%x, siga_error=0x%x)\n",
 			      status, qdio_error, siga_error);
 
-		/* Restarting IO on the failed adapter from scratch */
-		debug_text_event(adapter->erp_dbf, 1, "qdio_err");
+		zfcp_hba_dbf_event_qdio(adapter, status, qdio_error, siga_error,
+				first_element, elements_processed);
                /*
+               	* Restarting IO on the failed adapter from scratch.
                 * Since we have been using this adapter, it is save to assume
                 * that it is not failed but recoverable. The card seems to
                 * report link-up events by self-initiated queue shutdown.
@@ -282,7 +272,8 @@ zfcp_qdio_request_handler(struct ccw_device *ccw_device,
 		       first_element, elements_processed);
 
 	if (unlikely(zfcp_qdio_handler_error_check(adapter, status, qdio_error,
-					           siga_error)))
+						   siga_error, first_element,
+						   elements_processed)))
 		goto out;
 	/*
 	 * we stored address of struct zfcp_adapter  data structure
@@ -334,7 +325,8 @@ zfcp_qdio_response_handler(struct ccw_device *ccw_device,
 	queue = &adapter->response_queue;
 
 	if (unlikely(zfcp_qdio_handler_error_check(adapter, status, qdio_error,
-					           siga_error)))
+						   siga_error, first_element,
+						   elements_processed)))
 		goto out;
 
 	/*

@@ -430,10 +430,9 @@ EXPORT_SYMBOL(adjust_resource);
  */
 struct resource * __request_region(struct resource *parent, unsigned long start, unsigned long n, const char *name)
 {
-	struct resource *res = kmalloc(sizeof(*res), GFP_KERNEL);
+	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
 
 	if (res) {
-		memset(res, 0, sizeof(*res));
 		res->name = name;
 		res->start = start;
 		res->end = start + n - 1;

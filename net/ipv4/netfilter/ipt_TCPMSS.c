@@ -58,7 +58,11 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 	unsigned int i;
 	u_int8_t *opt;
 
-	if (!skb_ip_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(pskb, (*pskb)->len))
+		return NF_DROP;
+
+	if ((*pskb)->ip_summed == CHECKSUM_HW &&
+	    skb_checksum_help(*pskb, out == NULL))
 		return NF_DROP;
 
 	iph = (*pskb)->nh.iph;
@@ -186,10 +190,6 @@ ipt_tcpmss_target(struct sk_buff **pskb,
 	       newmss);
 
  retmodified:
-	/* We never hw checksum SYN packets.  */
-	BUG_ON((*pskb)->ip_summed == CHECKSUM_HW);
-
-	(*pskb)->nfcache |= NFC_UNKNOWN | NFC_ALTERED;
 	return IPT_CONTINUE;
 }
 

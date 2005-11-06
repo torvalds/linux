@@ -191,7 +191,7 @@ static int lbmIOWait(struct lbuf * bp, int flag);
 static bio_end_io_t lbmIODone;
 static void lbmStartIO(struct lbuf * bp);
 static void lmGCwrite(struct jfs_log * log, int cant_block);
-static int lmLogSync(struct jfs_log * log, int nosyncwait);
+static int lmLogSync(struct jfs_log * log, int hard_sync);
 
 
 
@@ -915,19 +915,17 @@ static void lmPostGC(struct lbuf * bp)
  *	if new sync address is available
  *	(normally the case if sync() is executed by back-ground
  *	process).
- *	if not, explicitly run jfs_blogsync() to initiate
- *	getting of new sync address.
  *	calculate new value of i_nextsync which determines when
  *	this code is called again.
  *
  * PARAMETERS:	log	- log structure
- * 		nosyncwait - 1 if called asynchronously
+ * 		hard_sync - 1 to force all metadata to be written
  *
  * RETURN:	0
  *			
  * serialization: LOG_LOCK() held on entry/exit
  */
-static int lmLogSync(struct jfs_log * log, int nosyncwait)
+static int lmLogSync(struct jfs_log * log, int hard_sync)
 {
 	int logsize;
 	int written;		/* written since last syncpt */
@@ -941,11 +939,18 @@ static int lmLogSync(struct jfs_log * log, int nosyncwait)
 	unsigned long flags;
 
 	/* push dirty metapages out to disk */
-	list_for_each_entry(sbi, &log->sb_list, log_list) {
-		filemap_flush(sbi->ipbmap->i_mapping);
-		filemap_flush(sbi->ipimap->i_mapping);
-		filemap_flush(sbi->direct_inode->i_mapping);
-	}
+	if (hard_sync)
+		list_for_each_entry(sbi, &log->sb_list, log_list) {
+			filemap_fdatawrite(sbi->ipbmap->i_mapping);
+			filemap_fdatawrite(sbi->ipimap->i_mapping);
+			filemap_fdatawrite(sbi->direct_inode->i_mapping);
+		}
+	else
+		list_for_each_entry(sbi, &log->sb_list, log_list) {
+			filemap_flush(sbi->ipbmap->i_mapping);
+			filemap_flush(sbi->ipimap->i_mapping);
+			filemap_flush(sbi->direct_inode->i_mapping);
+		}
 
 	/*
 	 *      forward syncpt
@@ -1021,10 +1026,6 @@ static int lmLogSync(struct jfs_log * log, int nosyncwait)
 		/* next syncpt trigger = written + more */
 		log->nextsync = written + more;
 
-	/* return if lmLogSync() from outside of transaction, e.g., sync() */
-	if (nosyncwait)
-		return lsn;
-
 	/* if number of bytes written from last sync point is more
 	 * than 1/4 of the log size, stop new transactions from
 	 * starting until all current transactions are completed
@@ -1049,11 +1050,12 @@ static int lmLogSync(struct jfs_log * log, int nosyncwait)
  *
  * FUNCTION:	write log SYNCPT record for specified log
  *
- * PARAMETERS:	log	- log structure
+ * PARAMETERS:	log	  - log structure
+ * 		hard_sync - set to 1 to force metadata to be written
  */
-void jfs_syncpt(struct jfs_log *log)
+void jfs_syncpt(struct jfs_log *log, int hard_sync)
 {	LOG_LOCK(log);
-	lmLogSync(log, 1);
+	lmLogSync(log, hard_sync);
 	LOG_UNLOCK(log);
 }
 

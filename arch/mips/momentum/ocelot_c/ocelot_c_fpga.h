@@ -32,7 +32,7 @@
 
 #include <linux/config.h>
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 #define OCELOT_C_CS0_ADDR       (0xfffffffffc000000)
 #else
 #define OCELOT_C_CS0_ADDR               (0xfc000000)

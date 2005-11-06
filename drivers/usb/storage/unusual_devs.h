@@ -71,13 +71,30 @@ UNUSUAL_DEV(  0x03f0, 0x0107, 0x0200, 0x0200,
 UNUSUAL_DEV(  0x03f0, 0x0207, 0x0001, 0x0001, 
 		"HP",
 		"CD-Writer+ 8200e",
-		US_SC_8070, US_PR_SCM_ATAPI, init_usbat, 0), 
+		US_SC_8070, US_PR_USBAT, init_usbat, 0),
 
 UNUSUAL_DEV(  0x03f0, 0x0307, 0x0001, 0x0001, 
 		"HP",
 		"CD-Writer+ CD-4e",
-		US_SC_8070, US_PR_SCM_ATAPI, init_usbat, 0), 
+		US_SC_8070, US_PR_USBAT, init_usbat, 0),
 #endif
+
+/* Patch submitted by Mihnea-Costin Grigore <mihnea@zulu.ro> */
+UNUSUAL_DEV(  0x040d, 0x6205, 0x0003, 0x0003,
+		"VIA Technologies Inc.",
+		"USB 2.0 Card Reader",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
+/* Reported by Sebastian Kapfer <sebastian_kapfer@gmx.net>
+ * and Olaf Hering <olh@suse.de> (different bcd's, same vendor/product)
+ * for USB floppies that need the SINGLE_LUN enforcement.
+ */
+UNUSUAL_DEV(  0x0409, 0x0040, 0x0000, 0x9999,
+		"NEC",
+		"NEC USB UF000x",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
 
 /* Deduced by Jonathan Woithe <jwoithe@physics.adelaide.edu.au>
  * Entry needed for flags: US_FL_FIX_INQUIRY because initial inquiry message
@@ -89,12 +106,44 @@ UNUSUAL_DEV(  0x0411, 0x001c, 0x0113, 0x0113,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY ),
 
+/* Reported by Stefan Werner <dustbln@gmx.de> */
+UNUSUAL_DEV(  0x0419, 0xaaf6, 0x0100, 0x0100,
+		"TrekStor",
+		"i.Beat Joy 2.0",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_IGNORE_RESIDUE ),
+
+/* Reported by Olaf Hering <olh@suse.de> from novell bug #105878 */
+UNUSUAL_DEV(  0x0424, 0x0fdc, 0x0210, 0x0210,
+		"SMSC",
+		"FDC GOLD-2.30",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_SINGLE_LUN ),
+
 #ifdef CONFIG_USB_STORAGE_DPCM
 UNUSUAL_DEV(  0x0436, 0x0005, 0x0100, 0x0100,
 		"Microtech",
 		"CameraMate (DPCM_USB)",
  		US_SC_SCSI, US_PR_DPCM_USB, NULL, 0 ),
 #endif
+
+/*
+ * Pete Zaitcev <zaitcev@yahoo.com>, from Patrick C. F. Ernzer, bz#162559.
+ * The key does not actually break, but it returns zero sense which
+ * makes our SCSI stack to print confusing messages.
+ */
+UNUSUAL_DEV(  0x0457, 0x0150, 0x0100, 0x0100,
+		"USBest Technology",	/* sold by Transcend */
+		"USB Mass Storage Device",
+		US_SC_DEVICE, US_PR_DEVICE, NULL, US_FL_NOT_LOCKABLE ),
+
+/* Patch submitted by Daniel Drake <dsd@gentoo.org>
+ * Device reports nonsense bInterfaceProtocol 6 when connected over USB2 */
+UNUSUAL_DEV(  0x0451, 0x5416, 0x0100, 0x0100,
+		"Neuros Audio",
+		"USB 2.0 HD 2.5",
+		US_SC_DEVICE, US_PR_BULK, NULL,
+		US_FL_NEED_OVERRIDE ),
 
 /* Patch submitted by Philipp Friedrich <philipp@void.at> */
 UNUSUAL_DEV(  0x0482, 0x0100, 0x0100, 0x0100,
@@ -202,6 +251,13 @@ UNUSUAL_DEV(  0x04da, 0x2372, 0x0000, 0x9999,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY | US_FL_NOT_LOCKABLE ),
 
+/* Reported by Simeon Simeonov <simeonov_2000@yahoo.com> */
+UNUSUAL_DEV(  0x04da, 0x2373, 0x0000, 0x9999,
+		"LEICA",
+		"D-LUX Camera",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY | US_FL_NOT_LOCKABLE ),
+
 /* Most of the following entries were developed with the help of
  * Shuttle/SCM directly.
  */
@@ -291,9 +347,9 @@ UNUSUAL_DEV(  0x04fc, 0x80c2, 0x0100, 0x0100,
 
 #ifdef CONFIG_USB_STORAGE_USBAT
 UNUSUAL_DEV(  0x04e6, 0x1010, 0x0000, 0x9999,
-		"SCM",
-		"SCM USBAT-02",
-		US_SC_SCSI, US_PR_SCM_ATAPI, init_usbat,
+		"Shuttle/SCM",
+		"USBAT-02",
+		US_SC_SCSI, US_PR_USBAT, init_usbat,
 		US_FL_SINGLE_LUN),
 #endif
 
@@ -556,6 +612,16 @@ UNUSUAL_DEV( 0x05ac, 0x1205, 0x0000, 0x9999,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_CAPACITY ),
 
+/*
+ * Reported by Tyson Vinson <lornoss@gmail.com>
+ * This particular productId is the iPod Nano
+ */
+UNUSUAL_DEV( 0x05ac, 0x120a, 0x0000, 0x9999,
+		"Apple",
+		"iPod",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY ),
+
 #ifdef CONFIG_USB_STORAGE_JUMPSHOT
 UNUSUAL_DEV(  0x05dc, 0x0001, 0x0000, 0x0001,
 		"Lexar",
@@ -660,6 +726,14 @@ UNUSUAL_DEV(  0x0781, 0x0001, 0x0200, 0x0200,
 		US_SC_SCSI, US_PR_CB, NULL,
 		US_FL_SINGLE_LUN ),
 
+#ifdef CONFIG_USB_STORAGE_USBAT
+UNUSUAL_DEV(  0x0781, 0x0005, 0x0005, 0x0005,
+		"Sandisk",
+		"ImageMate SDDR-05b",
+		US_SC_SCSI, US_PR_USBAT, init_usbat,
+		US_FL_SINGLE_LUN ),
+#endif
+
 UNUSUAL_DEV(  0x0781, 0x0100, 0x0100, 0x0100,
 		"Sandisk",
 		"ImageMate SDDR-12",
@@ -682,7 +756,7 @@ UNUSUAL_DEV(  0x07ab, 0xfc01, 0x0000, 0x9999,
 #endif
 
 /* Reported by Eero Volotinen <eero@ping-viini.org> */
-UNUSUAL_DEV(  0x07ab, 0xfccd, 0x0406, 0x0406,
+UNUSUAL_DEV(  0x07ab, 0xfccd, 0x0000, 0x9999,
 		"Freecom Technologies",
 		"FHD-Classic",
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
@@ -927,6 +1001,18 @@ UNUSUAL_DEV( 0x0c0b, 0xa109, 0x0000, 0xffff,
 	       "SM",
 	       US_SC_SCSI, US_PR_SDDR55, NULL,
 	       US_FL_SINGLE_LUN ),
+#endif
+
+/* Submitted by: Nick Sillik <n.sillik@temple.edu>
+ * Needed for OneTouch extension to usb-storage
+ *
+ */
+#ifdef CONFIG_USB_STORAGE_ONETOUCH
+	UNUSUAL_DEV(  0x0d49, 0x7010, 0x0000, 0x9999,
+			"Maxtor",
+			"OneTouch External Harddrive",
+			US_SC_DEVICE, US_PR_DEVICE, onetouch_connect_input,
+			0),
 #endif
 
 /* Submitted by Joris Struyve <joris@struyve.be> */

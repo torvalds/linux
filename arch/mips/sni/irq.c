@@ -58,14 +58,13 @@ static void end_pciasic_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type pciasic_irq_type = {
-	"ASIC-PCI",
-	startup_pciasic_irq,
-	shutdown_pciasic_irq,
-	enable_pciasic_irq,
-	disable_pciasic_irq,
-	mask_and_ack_pciasic_irq,
-	end_pciasic_irq,
-	NULL
+	.typename = "ASIC-PCI",
+	.startup = startup_pciasic_irq,
+	.shutdown = shutdown_pciasic_irq,
+	.enable = enable_pciasic_irq,
+	.disable = disable_pciasic_irq,
+	.ack = mask_and_ack_pciasic_irq,
+	.end = end_pciasic_irq,
 };
 
 /*
@@ -103,7 +102,7 @@ static unsigned int ls1bit8(unsigned int x)
 
 /*
  * hwint 1 deals with EISA and SCSI interrupts,
- * 
+ *
  * The EISA_INT bit in CSITPEND is high active, all others are low active.
  */
 void pciasic_hwint1(struct pt_regs *regs)

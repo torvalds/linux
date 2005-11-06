@@ -67,13 +67,13 @@ static void ack_none(unsigned int irq)
 #define end_none	enable_none
 
 struct hw_interrupt_type no_irq_type = {
-	"none",
-	startup_none,
-	shutdown_none,
-	enable_none,
-	disable_none,
-	ack_none,
-	end_none
+	.typename = "none",
+	.startup = startup_none,
+	.shutdown = shutdown_none,
+	.enable = enable_none,
+	.disable = disable_none,
+	.ack = ack_none,
+	.end = end_none
 };
 
 volatile unsigned long irq_err_count, spurious_count;

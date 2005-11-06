@@ -563,12 +563,14 @@ pfault_interrupt(struct pt_regs *regs, __u16 error_code)
 			 * interrupt. pfault_wait is valid. Set pfault_wait
 			 * back to zero and wake up the process. This can
 			 * safely be done because the task is still sleeping
-			 * and can't procude new pfaults. */
+			 * and can't produce new pfaults. */
 			tsk->thread.pfault_wait = 0;
 			wake_up_process(tsk);
+			put_task_struct(tsk);
 		}
 	} else {
 		/* signal bit not set -> a real page is missing. */
+		get_task_struct(tsk);
 		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
 		if (xchg(&tsk->thread.pfault_wait, 1) != 0) {
 			/* Completion interrupt was faster than the initial
@@ -578,6 +580,7 @@ pfault_interrupt(struct pt_regs *regs, __u16 error_code)
 			 * mode and can't produce new pfaults. */
 			tsk->thread.pfault_wait = 0;
 			set_task_state(tsk, TASK_RUNNING);
+			put_task_struct(tsk);
 		} else
 			set_tsk_need_resched(tsk);
 	}

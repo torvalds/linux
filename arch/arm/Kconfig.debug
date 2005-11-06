@@ -53,7 +53,7 @@ config DEBUG_LL
 	bool "Kernel low-level debugging functions"
 	depends on DEBUG_KERNEL
 	help
-	  Say Y here to include definitions of printascii, printchar, printhex
+	  Say Y here to include definitions of printascii, printch, printhex
 	  in the kernel.  This is helpful if you are debugging code that
 	  executes before the console is initialized.
 

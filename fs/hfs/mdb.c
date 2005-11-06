@@ -10,6 +10,7 @@
 
 #include <linux/cdrom.h>
 #include <linux/genhd.h>
+#include <linux/nls.h>
 
 #include "hfs_fs.h"
 #include "btree.h"
@@ -342,6 +343,11 @@ void hfs_mdb_put(struct super_block *sb)
 	/* free the buffers holding the primary and alternate MDBs */
 	brelse(HFS_SB(sb)->mdb_bh);
 	brelse(HFS_SB(sb)->alt_mdb_bh);
+
+	if (HFS_SB(sb)->nls_io)
+		unload_nls(HFS_SB(sb)->nls_io);
+	if (HFS_SB(sb)->nls_disk)
+		unload_nls(HFS_SB(sb)->nls_disk);
 
 	kfree(HFS_SB(sb));
 	sb->s_fs_info = NULL;

@@ -45,7 +45,7 @@ struct scsi_request {
  					   level driver) of this request */
 };
 
-extern struct scsi_request *scsi_allocate_request(struct scsi_device *, int);
+extern struct scsi_request *scsi_allocate_request(struct scsi_device *, gfp_t);
 extern void scsi_release_request(struct scsi_request *);
 extern void scsi_wait_req(struct scsi_request *, const void *cmnd,
 			  void *buffer, unsigned bufflen,
@@ -54,20 +54,4 @@ extern void scsi_do_req(struct scsi_request *, const void *cmnd,
 			void *buffer, unsigned bufflen,
 			void (*done) (struct scsi_cmnd *),
 			int timeout, int retries);
-
-struct scsi_mode_data {
-	__u32	length;
-	__u16	block_descriptor_length;
-	__u8	medium_type;
-	__u8	device_specific;
-	__u8	header_length;
-	__u8	longlba:1;
-};
-
-extern int __scsi_mode_sense(struct scsi_request *SRpnt, int dbd,
-			     int modepage, unsigned char *buffer, int len,
-			     int timeout, int retries,
-			     struct scsi_mode_data *data);
-
-
 #endif /* _SCSI_SCSI_REQUEST_H */

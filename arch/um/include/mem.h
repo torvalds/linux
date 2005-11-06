@@ -13,7 +13,17 @@ extern int physmem_subst_mapping(void *virt, int fd, __u64 offset, int w);
 extern int is_remapped(void *virt);
 extern int physmem_remove_mapping(void *virt);
 extern void physmem_forget_descriptor(int fd);
-extern unsigned long to_phys(void *virt);
+
+extern unsigned long uml_physmem;
+static inline unsigned long to_phys(void *virt)
+{
+	return(((unsigned long) virt) - uml_physmem);
+}
+
+static inline void *to_virt(unsigned long phys)
+{
+	return((void *) uml_physmem + phys);
+}
 
 #endif
 

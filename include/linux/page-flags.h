@@ -134,6 +134,7 @@ struct page_state {
 };
 
 extern void get_page_state(struct page_state *ret);
+extern void get_page_state_node(struct page_state *ret, int node);
 extern void get_full_page_state(struct page_state *ret);
 extern unsigned long __read_page_state(unsigned long offset);
 extern void __mod_page_state(unsigned long offset, unsigned long delta);
@@ -194,6 +195,7 @@ extern void __mod_page_state(unsigned long offset, unsigned long delta);
 #define SetPageDirty(page)	set_bit(PG_dirty, &(page)->flags)
 #define TestSetPageDirty(page)	test_and_set_bit(PG_dirty, &(page)->flags)
 #define ClearPageDirty(page)	clear_bit(PG_dirty, &(page)->flags)
+#define __ClearPageDirty(page)	__clear_bit(PG_dirty, &(page)->flags)
 #define TestClearPageDirty(page) test_and_clear_bit(PG_dirty, &(page)->flags)
 
 #define SetPageLRU(page)	set_bit(PG_lru, &(page)->flags)

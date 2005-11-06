@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 1992 - 1997, 2000-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 1992 - 1997, 2000-2005 Silicon Graphics, Inc. All rights reserved.
  */
 #ifndef _ASM_IA64_SN_XTALK_HUBDEV_H
 #define _ASM_IA64_SN_XTALK_HUBDEV_H
@@ -15,6 +15,9 @@
 #define IIO_ITTE_WIDGET_BITS    4       /* size of widget field */
 #define IIO_ITTE_WIDGET_MASK    ((1<<IIO_ITTE_WIDGET_BITS)-1)
 #define IIO_ITTE_WIDGET_SHIFT   8
+
+#define IIO_ITTE_WIDGET(itte)	\
+	(((itte) >> IIO_ITTE_WIDGET_SHIFT) & IIO_ITTE_WIDGET_MASK)
 
 /*
  * Use the top big window as a surrogate for the first small window
@@ -34,7 +37,8 @@ struct sn_flush_device_list {
 	unsigned long sfdl_force_int_addr;
 	unsigned long sfdl_flush_value;
 	volatile unsigned long *sfdl_flush_addr;
-	uint64_t sfdl_persistent_busnum;
+	uint32_t sfdl_persistent_busnum;
+	uint32_t sfdl_persistent_segment;
 	struct pcibus_info *sfdl_pcibus_info;
 	spinlock_t sfdl_flush_lock;
 };
@@ -58,7 +62,8 @@ struct hubdev_info {
 
 	void				*hdi_nodepda;
 	void				*hdi_node_vertex;
-	void				*hdi_xtalk_vertex;
+	uint32_t			max_segment_number;
+	uint32_t			max_pcibus_number;
 };
 
 extern void hubdev_init_node(nodepda_t *, cnodeid_t);

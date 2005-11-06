@@ -1,7 +1,7 @@
 /*
  * bt878.c: part of the driver for the Pinnacle PCTV Sat DVB PCI card
  *
- * Copyright (C) 2002 Peter Hettkamp <peter.hettkamp@t-online.de>
+ * Copyright (C) 2002 Peter Hettkamp <peter.hettkamp@htp-tel.de>
  *
  * large parts based on the bttv driver
  * Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@metzlerbros.de)
@@ -219,7 +219,7 @@ void bt878_start(struct bt878 *bt, u32 controlreg, u32 op_sync_orin,
 	controlreg &= ~0x1f;
 	controlreg |= 0x1b;
 
-	btwrite(cpu_to_le32(bt->risc_dma), BT878_ARISC_START);
+	btwrite(bt->risc_dma, BT878_ARISC_START);
 
 	/* original int mask had :
 	 *    6    2    8    4    0

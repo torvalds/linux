@@ -66,7 +66,8 @@ static inline struct crypto_alg *crypto_alg_mod_lookup(const char *name)
 
 static int crypto_init_flags(struct crypto_tfm *tfm, u32 flags)
 {
-	tfm->crt_flags = 0;
+	tfm->crt_flags = flags & CRYPTO_TFM_REQ_MASK;
+	flags &= ~CRYPTO_TFM_REQ_MASK;
 	
 	switch (crypto_tfm_alg_type(tfm)) {
 	case CRYPTO_ALG_TYPE_CIPHER:
@@ -214,7 +215,10 @@ int crypto_register_alg(struct crypto_alg *alg)
 	if (alg->cra_alignmask & (alg->cra_alignmask + 1))
 		return -EINVAL;
 
-	if (alg->cra_alignmask > PAGE_SIZE)
+	if (alg->cra_alignmask & alg->cra_blocksize)
+		return -EINVAL;
+
+	if (alg->cra_blocksize > PAGE_SIZE)
 		return -EINVAL;
 	
 	down_write(&crypto_alg_sem);

@@ -105,7 +105,7 @@
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
 #include <net/sock.h>
-#include <linux/tcp.h>
+#include <net/tcp_states.h>
 #include <net/af_unix.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -2025,14 +2025,6 @@ static struct net_proto_family unix_family_ops = {
 	.create = unix_create,
 	.owner	= THIS_MODULE,
 };
-
-#ifdef CONFIG_SYSCTL
-extern void unix_sysctl_register(void);
-extern void unix_sysctl_unregister(void);
-#else
-static inline void unix_sysctl_register(void) {}
-static inline void unix_sysctl_unregister(void) {}
-#endif
 
 static int __init af_unix_init(void)
 {

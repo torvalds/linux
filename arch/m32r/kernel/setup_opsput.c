@@ -16,7 +16,7 @@
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/system.h>
 #include <asm/m32r.h>
@@ -31,9 +31,11 @@
 typedef struct {
 	unsigned long icucr;  /* ICU Control Register */
 } icu_data_t;
+static icu_data_t icu_data[OPSPUT_NUM_CPU_IRQ];
+#else
+icu_data_t icu_data[OPSPUT_NUM_CPU_IRQ];
 #endif /* CONFIG_SMP */
 
-static icu_data_t icu_data[OPSPUT_NUM_CPU_IRQ];
 
 static void disable_opsput_irq(unsigned int irq)
 {

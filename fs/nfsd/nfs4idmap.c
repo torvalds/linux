@@ -187,6 +187,7 @@ static int         idtoname_parse(struct cache_detail *, char *, int);
 static struct ent *idtoname_lookup(struct ent *, int);
 
 static struct cache_detail idtoname_cache = {
+	.owner		= THIS_MODULE,
 	.hash_size	= ENT_HASHMAX,
 	.hash_table	= idtoname_table,
 	.name		= "nfs4.idtoname",
@@ -320,6 +321,7 @@ static struct ent *nametoid_lookup(struct ent *, int);
 static int         nametoid_parse(struct cache_detail *, char *, int);
 
 static struct cache_detail nametoid_cache = {
+	.owner		= THIS_MODULE,
 	.hash_size	= ENT_HASHMAX,
 	.hash_table	= nametoid_table,
 	.name		= "nfs4.nametoid",
@@ -404,8 +406,10 @@ nfsd_idmap_init(void)
 void
 nfsd_idmap_shutdown(void)
 {
-	cache_unregister(&idtoname_cache);
-	cache_unregister(&nametoid_cache);
+	if (cache_unregister(&idtoname_cache))
+		printk(KERN_ERR "nfsd: failed to unregister idtoname cache\n");
+	if (cache_unregister(&nametoid_cache))
+		printk(KERN_ERR "nfsd: failed to unregister nametoid cache\n");
 }
 
 /*

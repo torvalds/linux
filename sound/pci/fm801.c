@@ -1155,10 +1155,10 @@ FM801_SINGLE("FM Playback Switch", FM801_FM_VOL, 15, 1, 1),
 static snd_kcontrol_new_t snd_fm801_controls_multi[] __devinitdata = {
 FM801_SINGLE("AC97 2ch->4ch Copy Switch", FM801_CODEC_CTRL, 7, 1, 0),
 FM801_SINGLE("AC97 18-bit Switch", FM801_CODEC_CTRL, 10, 1, 0),
-FM801_SINGLE("IEC958 Capture Switch", FM801_I2S_MODE, 8, 1, 0),
-FM801_SINGLE("IEC958 Raw Data Playback Switch", FM801_I2S_MODE, 9, 1, 0),
-FM801_SINGLE("IEC958 Raw Data Capture Switch", FM801_I2S_MODE, 10, 1, 0),
-FM801_SINGLE("IEC958 Playback Switch", FM801_GEN_CTRL, 2, 1, 0),
+FM801_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), FM801_I2S_MODE, 8, 1, 0),
+FM801_SINGLE(SNDRV_CTL_NAME_IEC958("Raw Data ",PLAYBACK,SWITCH), FM801_I2S_MODE, 9, 1, 0),
+FM801_SINGLE(SNDRV_CTL_NAME_IEC958("Raw Data ",CAPTURE,SWITCH), FM801_I2S_MODE, 10, 1, 0),
+FM801_SINGLE(SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH), FM801_GEN_CTRL, 2, 1, 0),
 };
 
 static void snd_fm801_mixer_free_ac97_bus(ac97_bus_t *bus)
@@ -1263,7 +1263,7 @@ static int __devinit snd_fm801_create(snd_card_t * card,
 	*rchip = NULL;
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -1462,6 +1462,7 @@ static void __devexit snd_card_fm801_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "FM801",
+	.owner = THIS_MODULE,
 	.id_table = snd_fm801_ids,
 	.probe = snd_card_fm801_probe,
 	.remove = __devexit_p(snd_card_fm801_remove),

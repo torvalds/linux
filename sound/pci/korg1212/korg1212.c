@@ -442,7 +442,7 @@ static char* stateName[] = {
                         "Setup for play",
                         "Playing",
                         "Monitor mode on",
-                        "Calibrating"
+			"Calibrating",
                         "Invalid"
 };
 
@@ -2067,7 +2067,7 @@ static int snd_korg1212_control_sync_put(snd_kcontrol_t * kcontrol, snd_ctl_elem
         },                                                                                      \
         {											\
                 .access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_WRITE,	\
-                .iface =        SNDRV_CTL_ELEM_IFACE_PCM,					\
+                .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,					\
                 .name =		c_name " Monitor Phase Invert",					\
                 .info =		snd_korg1212_control_phase_info,				\
                 .get =		snd_korg1212_control_phase_get,					\
@@ -2082,7 +2082,7 @@ static snd_kcontrol_new_t snd_korg1212_controls[] = {
         MON_MIXER(4, "ADAT-5"), MON_MIXER(5, "ADAT-6"), MON_MIXER(6, "ADAT-7"), MON_MIXER(7, "ADAT-8"),
 	{
                 .access =	SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_WRITE,
-                .iface =        SNDRV_CTL_ELEM_IFACE_PCM,
+                .iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
                 .name =		"Sync Source",
                 .info =		snd_korg1212_control_sync_info,
                 .get =		snd_korg1212_control_sync_get,
@@ -2220,7 +2220,7 @@ static int __devinit snd_korg1212_create(snd_card_t * card, struct pci_dev *pci,
         if ((err = pci_enable_device(pci)) < 0)
                 return err;
 
-        korg1212 = kcalloc(1, sizeof(*korg1212), GFP_KERNEL);
+        korg1212 = kzalloc(sizeof(*korg1212), GFP_KERNEL);
         if (korg1212 == NULL) {
 		pci_disable_device(pci);
                 return -ENOMEM;
@@ -2534,6 +2534,7 @@ static void __devexit snd_korg1212_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "korg1212",
+	.owner = THIS_MODULE,
 	.id_table = snd_korg1212_ids,
 	.probe = snd_korg1212_probe,
 	.remove = __devexit_p(snd_korg1212_remove),

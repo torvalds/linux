@@ -12,7 +12,7 @@
 
 #include <asm/smp.h>
 
-#define NODEMAPSIZE 0xff
+#define NODEMAPSIZE 0xfff
 
 /* Simple perfect hash to map physical addresses to node numbers */
 extern int memnode_shift; 
@@ -54,7 +54,7 @@ static inline __attribute__((pure)) int phys_to_nid(unsigned long addr)
 
 #define pfn_valid(pfn) ((pfn) >= num_physpages ? 0 : \
 			({ u8 nid__ = pfn_to_nid(pfn); \
-			   nid__ != 0xff && (pfn) >= node_start_pfn(nid__) && (pfn) <= node_end_pfn(nid__); }))
+			   nid__ != 0xff && (pfn) >= node_start_pfn(nid__) && (pfn) < node_end_pfn(nid__); }))
 #endif
 
 #define local_mapnr(kvaddr) \

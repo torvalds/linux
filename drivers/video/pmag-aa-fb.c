@@ -413,7 +413,7 @@ static struct fb_ops aafb_ops = {
 
 static int __init init_one(int slot)
 {
-	unsigned long base_addr = get_tc_base_addr(slot);
+	unsigned long base_addr = CKSEG1ADDR(get_tc_base_addr(slot));
 	struct aafb_info *ip = &my_fb_info[slot];
 
 	memset(ip, 0, sizeof(struct aafb_info));

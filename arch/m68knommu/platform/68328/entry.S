@@ -79,7 +79,7 @@ ENTRY(system_call)
 	movel	%sp@(PT_ORIG_D0),%d0
 
 	movel	%sp,%d1			/* get thread_info pointer */
-	andl	#0xffffe000,%d1
+	andl	#-THREAD_SIZE,%d1
 	movel	%d1,%a2
 	btst    #TIF_SYSCALL_TRACE,%a2@(TI_FLAGS)
 	jne	do_trace
@@ -105,7 +105,7 @@ Luser_return:
 	andw	#ALLOWINT,%sr
 
 	movel	%sp,%d1			/* get thread_info pointer */
-	andl	#0xffffe000,%d1
+	andl	#-THREAD_SIZE,%d1
 	movel	%d1,%a2
 	move	%a2@(TI_FLAGS),%d1	/* thread_info->flags */
 	andl	#_TIF_WORK_MASK,%d1

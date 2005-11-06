@@ -219,7 +219,7 @@ config CRYPTO_CAST6
 	  described in RFC2612.
 
 config CRYPTO_TEA
-	tristate "TEA and XTEA cipher algorithms"
+	tristate "TEA, XTEA and XETA cipher algorithms"
 	depends on CRYPTO
 	help
 	  TEA cipher algorithm.
@@ -231,6 +231,9 @@ config CRYPTO_TEA
 	  Xtendend Tiny Encryption Algorithm is a modification to
 	  the TEA algorithm to address a potential key weakness
 	  in the TEA algorithm.
+
+	  Xtendend Encryption Tiny Algorithm is a mis-implementation 
+	  of the XTEA algorithm for compatibility purposes.
 
 config CRYPTO_ARC4
 	tristate "ARC4 cipher algorithm"

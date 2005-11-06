@@ -116,7 +116,7 @@ filesystem. Almost.
 
 You still need to actually journal your filesystem changes, this
 is done by wrapping them into transactions. Additionally you
-also need to wrap the modification of each of the the buffers
+also need to wrap the modification of each of the buffers
 with calls to the journal layer, so it knows what the modifications
 you are actually making are. To do this use  journal_start() which
 returns a transaction handle.
@@ -128,7 +128,7 @@ and its counterpart journal_stop(), which indicates the end of a transaction
 are nestable calls, so you can reenter a transaction if necessary,
 but remember you must call journal_stop() the same number of times as
 journal_start() before the transaction is completed (or more accurately
-leaves the the update phase). Ext3/VFS makes use of this feature to simplify 
+leaves the update phase). Ext3/VFS makes use of this feature to simplify
 quota support.
 </para>
 

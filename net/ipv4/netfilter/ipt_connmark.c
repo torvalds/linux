@@ -54,8 +54,15 @@ checkentry(const char *tablename,
 	   unsigned int matchsize,
 	   unsigned int hook_mask)
 {
+	struct ipt_connmark_info *cm = 
+				(struct ipt_connmark_info *)matchinfo;
 	if (matchsize != IPT_ALIGN(sizeof(struct ipt_connmark_info)))
 		return 0;
+
+	if (cm->mark > 0xffffffff || cm->mask > 0xffffffff) {
+		printk(KERN_WARNING "connmark: only support 32bit mark\n");
+		return 0;
+	}
 
 	return 1;
 }

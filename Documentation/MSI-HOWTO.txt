@@ -430,7 +430,7 @@ which may result in system hang. The software driver of specific
 MSI-capable hardware is responsible for whether calling
 pci_enable_msi or not. A return of zero indicates the kernel
 successfully initializes the MSI/MSI-X capability structure of the
-device funtion. The device function is now running on MSI/MSI-X mode.
+device function. The device function is now running on MSI/MSI-X mode.
 
 5.6 How to tell whether MSI/MSI-X is enabled on device function
 

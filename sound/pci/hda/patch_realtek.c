@@ -687,6 +687,12 @@ static snd_kcontrol_new_t alc880_asus_w1v_mixer[] = {
 	{ } /* end */
 };
 
+/* additional mixers to alc880_asus_mixer */
+static snd_kcontrol_new_t alc880_pcbeep_mixer[] = {
+	HDA_CODEC_VOLUME("PC Speaker Playback Volume", 0x0b, 0x05, HDA_INPUT),
+	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
+	{ } /* end */
+};
 
 /*
  * build control elements
@@ -1379,8 +1385,8 @@ static snd_kcontrol_new_t alc880_test_mixer[] = {
 	HDA_CODEC_VOLUME("Side Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
 	ALC_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
 	ALC_BIND_MUTE("Surround Playback Switch", 0x0d, 2, HDA_INPUT),
-	ALC_BIND_MUTE("CLFE Playback Volume", 0x0e, 2, HDA_INPUT),
-	ALC_BIND_MUTE("Side Playback Volume", 0x0f, 2, HDA_INPUT),
+	ALC_BIND_MUTE("CLFE Playback Switch", 0x0e, 2, HDA_INPUT),
+	ALC_BIND_MUTE("Side Playback Switch", 0x0f, 2, HDA_INPUT),
 	PIN_CTL_TEST("Front Pin Mode", 0x14),
 	PIN_CTL_TEST("Surround Pin Mode", 0x15),
 	PIN_CTL_TEST("CLFE Pin Mode", 0x16),
@@ -1403,18 +1409,6 @@ static snd_kcontrol_new_t alc880_test_mixer[] = {
 	HDA_CODEC_MUTE("In-4 Playback Switch", 0x0b, 0x3, HDA_INPUT),
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x4, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x4, HDA_INPUT),
-	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x09, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x09, 0x0, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Input Source",
-		.count = 2,
-		.info = alc_mux_enum_info,
-		.get = alc_mux_enum_get,
-		.put = alc_mux_enum_put,
-	},
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Channel Mode",
@@ -1520,10 +1514,12 @@ static struct hda_board_config alc880_cfg_tbl[] = {
 	/* Back 3 jack, front 2 jack (Internal add Aux-In) */
 	{ .pci_subvendor = 0x1025, .pci_subdevice = 0xe310, .config = ALC880_3ST },
 	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81d6, .config = ALC880_3ST }, 
+	{ .pci_subvendor = 0x104d, .pci_subdevice = 0x81a0, .config = ALC880_3ST },
 
 	/* Back 3 jack plus 1 SPDIF out jack, front 2 jack */
 	{ .modelname = "3stack-digout", .config = ALC880_3ST_DIG },
 	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe308, .config = ALC880_3ST_DIG },
+	{ .pci_subvendor = 0x1025, .pci_subdevice = 0x0070, .config = ALC880_3ST_DIG },
 
 	/* Back 3 jack plus 1 SPDIF out jack, front 2 jack (Internal add Aux-In)*/
 	{ .pci_subvendor = 0x8086, .pci_subdevice = 0xe305, .config = ALC880_3ST_DIG },
@@ -1574,6 +1570,7 @@ static struct hda_board_config alc880_cfg_tbl[] = {
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1973, .config = ALC880_ASUS_DIG },
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x19b3, .config = ALC880_ASUS_DIG },
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1113, .config = ALC880_ASUS_DIG },
+	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1173, .config = ALC880_ASUS_DIG },
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1993, .config = ALC880_ASUS },
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x10c3, .config = ALC880_ASUS_DIG },
 	{ .pci_subvendor = 0x1043, .pci_subdevice = 0x1133, .config = ALC880_ASUS },
@@ -1734,7 +1731,7 @@ static struct alc_config_preset alc880_presets[] = {
 		.input_mux = &alc880_capture_source,
 	},
 	[ALC880_UNIWILL_DIG] = {
-		.mixers = { alc880_asus_mixer },
+		.mixers = { alc880_asus_mixer, alc880_pcbeep_mixer },
 		.init_verbs = { alc880_volume_init_verbs, alc880_pin_asus_init_verbs },
 		.num_dacs = ARRAY_SIZE(alc880_asus_dac_nids),
 		.dac_nids = alc880_asus_dac_nids,
@@ -2086,7 +2083,7 @@ static int patch_alc880(struct hda_codec *codec)
 	int board_config;
 	int i, err;
 
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
@@ -2234,7 +2231,7 @@ static snd_kcontrol_new_t alc260_base_mixer[] = {
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x09, 0x0, HDA_OUTPUT),
 	ALC_BIND_MUTE("Headphone Playback Switch", 0x09, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME_MONO("Mono Playback Volume", 0x0a, 1, 0x0, HDA_OUTPUT),
-	ALC_BIND_MUTE_MONO("Mono Playback Switch", 0x0a, 1, 2, HDA_OUTPUT),
+	ALC_BIND_MUTE_MONO("Mono Playback Switch", 0x0a, 1, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x04, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x04, 0x0, HDA_INPUT),
 	{
@@ -2261,7 +2258,7 @@ static snd_kcontrol_new_t alc260_hp_mixer[] = {
 	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x09, 0x0, HDA_OUTPUT),
 	ALC_BIND_MUTE("Headphone Playback Switch", 0x09, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME_MONO("Mono Playback Volume", 0x0a, 1, 0x0, HDA_OUTPUT),
-	ALC_BIND_MUTE_MONO("Mono Playback Switch", 0x0a, 1, 2, HDA_OUTPUT),
+	ALC_BIND_MUTE_MONO("Mono Playback Switch", 0x0a, 1, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x05, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x05, 0x0, HDA_INPUT),
 	{
@@ -2358,7 +2355,7 @@ static int patch_alc260(struct hda_codec *codec)
 	struct alc_spec *spec;
 	int board_config;
 
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
@@ -2492,7 +2489,7 @@ static snd_kcontrol_new_t alc882_base_mixer[] = {
 	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x0e, 1, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x0e, 2, 0x0, HDA_OUTPUT),
 	ALC_BIND_MUTE_MONO("Center Playback Switch", 0x0e, 1, 2, HDA_INPUT),
-	ALC_BIND_MUTE_MONO("LFE Playback Switch", 0x0e, 2, 2, HDA_OUTPUT),
+	ALC_BIND_MUTE_MONO("LFE Playback Switch", 0x0e, 2, 2, HDA_INPUT),
 	HDA_CODEC_VOLUME("Side Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
 	ALC_BIND_MUTE("Side Playback Switch", 0x0f, 2, HDA_INPUT),
 	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
@@ -2608,7 +2605,7 @@ static int patch_alc882(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
 
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 

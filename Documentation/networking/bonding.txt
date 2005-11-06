@@ -777,7 +777,7 @@ doing so is the same as described in the "Configuring Multiple Bonds
 Manually" section, below.
 
 	NOTE: It has been observed that some Red Hat supplied kernels
-are apparently unable to rename modules at load time (the "-obonding1"
+are apparently unable to rename modules at load time (the "-o bond1"
 part).  Attempts to pass that option to modprobe will produce an
 "Operation not permitted" error.  This has been reported on some
 Fedora Core kernels, and has been seen on RHEL 4 as well.  On kernels
@@ -883,7 +883,8 @@ the above does not work, and the second bonding instance never sees
 its options.  In that case, the second options line can be substituted
 as follows:
 
-install bonding1 /sbin/modprobe bonding -obond1 mode=balance-alb miimon=50
+install bond1 /sbin/modprobe --ignore-install bonding -o bond1 \
+	mode=balance-alb miimon=50
 
 	This may be repeated any number of times, specifying a new and
 unique name in place of bond1 for each subsequent instance.
@@ -1241,7 +1242,7 @@ traffic while still maintaining carrier on.
 
 	If running SNMP agents, the bonding driver should be loaded
 before any network drivers participating in a bond.  This requirement
-is due to the the interface index (ipAdEntIfIndex) being associated to
+is due to the interface index (ipAdEntIfIndex) being associated to
 the first interface found with a given IP address.  That is, there is
 only one ipAdEntIfIndex for each IP address.  For example, if eth0 and
 eth1 are slaves of bond0 and the driver for eth0 is loaded before the
@@ -1937,7 +1938,7 @@ switches currently available support 802.3ad.
 	If not explicitly configured (with ifconfig or ip link), the
 MAC address of the bonding device is taken from its first slave
 device.  This MAC address is then passed to all following slaves and
-remains persistent (even if the the first slave is removed) until the
+remains persistent (even if the first slave is removed) until the
 bonding device is brought down or reconfigured.
 
 	If you wish to change the MAC address, you can set it with

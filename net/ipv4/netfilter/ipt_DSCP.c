@@ -39,7 +39,7 @@ target(struct sk_buff **pskb,
 	if (((*pskb)->nh.iph->tos & IPT_DSCP_MASK) != sh_dscp) {
 		u_int16_t diffs[2];
 
-		if (!skb_ip_make_writable(pskb, sizeof(struct iphdr)))
+		if (!skb_make_writable(pskb, sizeof(struct iphdr)))
 			return NF_DROP;
 
 		diffs[0] = htons((*pskb)->nh.iph->tos) ^ 0xFFFF;
@@ -51,7 +51,6 @@ target(struct sk_buff **pskb,
 						 sizeof(diffs),
 						 (*pskb)->nh.iph->check
 						 ^ 0xFFFF));
-		(*pskb)->nfcache |= NFC_ALTERED;
 	}
 	return IPT_CONTINUE;
 }

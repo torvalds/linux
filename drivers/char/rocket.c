@@ -256,7 +256,6 @@ static int sInitController(CONTROLLER_T * CtlP, int CtlNum, ByteIO_t MudbacIO,
 static int sReadAiopID(ByteIO_t io);
 static int sReadAiopNumChan(WordIO_t io);
 
-#ifdef MODULE
 MODULE_AUTHOR("Theodore Ts'o");
 MODULE_DESCRIPTION("Comtrol RocketPort driver");
 module_param(board1, ulong, 0);
@@ -288,17 +287,14 @@ MODULE_PARM_DESC(pc104_3, "set interface types for ISA(PC104) board #3 (e.g. pc1
 module_param_array(pc104_4, ulong, NULL, 0);
 MODULE_PARM_DESC(pc104_4, "set interface types for ISA(PC104) board #4 (e.g. pc104_4=232,232,485,485,...");
 
-int rp_init(void);
+static int rp_init(void);
 static void rp_cleanup_module(void);
 
 module_init(rp_init);
 module_exit(rp_cleanup_module);
 
-#endif
 
-#ifdef MODULE_LICENSE
 MODULE_LICENSE("Dual BSD/GPL");
-#endif
 
 /*************************************************************************/
 /*                     Module code starts here                           */
@@ -2378,7 +2374,7 @@ static struct tty_operations rocket_ops = {
 /*
  * The module "startup" routine; it's run when the module is loaded.
  */
-int __init rp_init(void)
+static int __init rp_init(void)
 {
 	int retval, pci_boards_found, isa_boards_found, i;
 
@@ -2502,7 +2498,6 @@ int __init rp_init(void)
 	return 0;
 }
 
-#ifdef MODULE
 
 static void rp_cleanup_module(void)
 {
@@ -2530,7 +2525,6 @@ static void rp_cleanup_module(void)
 	if (controller)
 		release_region(controller, 4);
 }
-#endif
 
 /***************************************************************************
 Function: sInitController

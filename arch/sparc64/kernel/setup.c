@@ -33,7 +33,6 @@
 #include <linux/cpu.h>
 #include <linux/initrd.h>
 
-#include <asm/segment.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -188,17 +187,13 @@ int prom_callback(long *args)
 		}
 
 		if ((va >= KERNBASE) && (va < (KERNBASE + (4 * 1024 * 1024)))) {
-			unsigned long kernel_pctx = 0;
-
-			if (tlb_type == cheetah_plus)
-				kernel_pctx |= (CTX_CHEETAH_PLUS_NUC |
-						CTX_CHEETAH_PLUS_CTX0);
+			extern unsigned long sparc64_kern_pri_context;
 
 			/* Spitfire Errata #32 workaround */
 			__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
 					     "flush	%%g6"
 					     : /* No outputs */
-					     : "r" (kernel_pctx),
+					     : "r" (sparc64_kern_pri_context),
 					       "r" (PRIMARY_CONTEXT),
 					       "i" (ASI_DMMU));
 
@@ -465,8 +460,6 @@ static void __init boot_flags_init(char *commands)
 	}
 }
 
-extern int prom_probe_memory(void);
-extern unsigned long start, end;
 extern void panic_setup(char *, int *);
 
 extern unsigned short root_flags;
@@ -493,13 +486,8 @@ void register_prom_callbacks(void)
 		   "' linux-.soft2 to .soft2");
 }
 
-extern void paging_init(void);
-
 void __init setup_arch(char **cmdline_p)
 {
-	unsigned long highest_paddr;
-	int i;
-
 	/* Initialize PROM console and command line. */
 	*cmdline_p = prom_getbootargs();
 	strcpy(saved_command_line, *cmdline_p);
@@ -512,58 +500,12 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &prom_con;
 #endif
 
-#ifdef CONFIG_SMP
-	i = (unsigned long)&irq_stat[1] - (unsigned long)&irq_stat[0];
-	if ((i == SMP_CACHE_BYTES) || (i == (2 * SMP_CACHE_BYTES))) {
-		extern unsigned int irqsz_patchme[1];
-		irqsz_patchme[0] |= ((i == SMP_CACHE_BYTES) ? SMP_CACHE_BYTES_SHIFT : \
-							SMP_CACHE_BYTES_SHIFT + 1);
-		flushi((long)&irqsz_patchme[0]);
-	} else {
-		prom_printf("Unexpected size of irq_stat[] elements\n");
-		prom_halt();
-	}
-#endif
 	/* Work out if we are starfire early on */
 	check_if_starfire();
 
 	boot_flags_init(*cmdline_p);
 
 	idprom_init();
-	(void) prom_probe_memory();
-
-	/* In paging_init() we tip off this value to see if we need
-	 * to change init_mm.pgd to point to the real alias mapping.
-	 */
-	phys_base = 0xffffffffffffffffUL;
-	highest_paddr = 0UL;
-	for (i = 0; sp_banks[i].num_bytes != 0; i++) {
-		unsigned long top;
-
-		if (sp_banks[i].base_addr < phys_base)
-			phys_base = sp_banks[i].base_addr;
-		top = sp_banks[i].base_addr +
-			sp_banks[i].num_bytes;
-		if (highest_paddr < top)
-			highest_paddr = top;
-	}
-	pfn_base = phys_base >> PAGE_SHIFT;
-
-	switch (tlb_type) {
-	default:
-	case spitfire:
-		kern_base = spitfire_get_itlb_data(sparc64_highest_locked_tlbent());
-		kern_base &= _PAGE_PADDR_SF;
-		break;
-
-	case cheetah:
-	case cheetah_plus:
-		kern_base = cheetah_get_litlb_data(sparc64_highest_locked_tlbent());
-		kern_base &= _PAGE_PADDR;
-		break;
-	};
-
-	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
 
 	if (!root_flags)
 		root_mountflags &= ~MS_RDONLY;
@@ -638,6 +580,9 @@ extern void smp_info(struct seq_file *);
 extern void smp_bogo(struct seq_file *);
 extern void mmu_info(struct seq_file *);
 
+unsigned int dcache_parity_tl1_occurred;
+unsigned int icache_parity_tl1_occurred;
+
 static int show_cpuinfo(struct seq_file *m, void *__unused)
 {
 	seq_printf(m, 
@@ -648,6 +593,8 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   "type\t\t: sun4u\n"
 		   "ncpus probed\t: %ld\n"
 		   "ncpus active\t: %ld\n"
+		   "D$ parity tl1\t: %u\n"
+		   "I$ parity tl1\t: %u\n"
 #ifndef CONFIG_SMP
 		   "Cpu0Bogo\t: %lu.%02lu\n"
 		   "Cpu0ClkTck\t: %016lx\n"
@@ -660,7 +607,9 @@ static int show_cpuinfo(struct seq_file *m, void *__unused)
 		   (prom_prev >> 8) & 0xff,
 		   prom_prev & 0xff,
 		   (long)num_possible_cpus(),
-		   (long)num_online_cpus()
+		   (long)num_online_cpus(),
+		   dcache_parity_tl1_occurred,
+		   icache_parity_tl1_occurred
 #ifndef CONFIG_SMP
 		   , cpu_data(0).udelay_val/(500000/HZ),
 		   (cpu_data(0).udelay_val/(5000/HZ)) % 100,

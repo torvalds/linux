@@ -1,6 +1,8 @@
 /*
- * SiS 300/630/730/540/315/550/650/740 frame buffer driver
- * for Linux kernels 2.4.x and 2.5.x
+ * SiS 300/540/630[S]/730[S],
+ * SiS 315[E|PRO]/550/[M]650/651/[M]661[F|M]X/740/[M]741[GX]/330/[M]760[GX],
+ * XGI V3XT/V5/V8, Z7
+ * frame buffer driver for Linux kernels >= 2.4.14 and >=2.6.3
  *
  * 2D acceleration part
  *
@@ -283,6 +285,8 @@
   { \
   	while( (MMIO_IN16(ivideo->mmio_vbase, Q_STATUS+2) & 0x8000) != 0x8000){}; \
   	while( (MMIO_IN16(ivideo->mmio_vbase, Q_STATUS+2) & 0x8000) != 0x8000){}; \
+	while( (MMIO_IN16(ivideo->mmio_vbase, Q_STATUS+2) & 0x8000) != 0x8000){}; \
+  	while( (MMIO_IN16(ivideo->mmio_vbase, Q_STATUS+2) & 0x8000) != 0x8000){}; \
   	CmdQueLen = 0; \
   }
 
@@ -402,6 +406,7 @@ void fbcon_sis_clear32(struct vc_data *conp, struct display *p, int srcy,
 			int srcx, int height, int width);
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,34)
+int  fbcon_sis_sync(struct fb_info *info);
 void fbcon_sis_fillrect(struct fb_info *info, const struct fb_fillrect *rect);
 void fbcon_sis_copyarea(struct fb_info *info, const struct fb_copyarea *area);
 #endif

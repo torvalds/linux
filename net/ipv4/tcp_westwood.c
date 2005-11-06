@@ -8,7 +8,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
-#include <linux/tcp_diag.h>
+#include <linux/inet_diag.h>
 #include <net/tcp.h>
 
 /* TCP Westwood structure */
@@ -40,9 +40,9 @@ struct westwood {
  * way as soon as possible. It will reasonably happen within the first
  * RTT period of the connection lifetime.
  */
-static void tcp_westwood_init(struct tcp_sock *tp)
+static void tcp_westwood_init(struct sock *sk)
 {
-	struct westwood *w = tcp_ca(tp);
+	struct westwood *w = inet_csk_ca(sk);
 
 	w->bk = 0;
         w->bw_ns_est = 0;
@@ -51,7 +51,7 @@ static void tcp_westwood_init(struct tcp_sock *tp)
         w->cumul_ack = 0;
 	w->rtt_min = w->rtt = TCP_WESTWOOD_INIT_RTT;
 	w->rtt_win_sx = tcp_time_stamp;
-	w->snd_una = tp->snd_una;
+	w->snd_una = tcp_sk(sk)->snd_una;
 }
 
 /*
@@ -74,11 +74,11 @@ static inline void westwood_filter(struct westwood *w, u32 delta)
  * Called after processing group of packets.
  * but all westwood needs is the last sample of srtt.
  */
-static void tcp_westwood_pkts_acked(struct tcp_sock *tp, u32 cnt)
+static void tcp_westwood_pkts_acked(struct sock *sk, u32 cnt)
 {
-	struct westwood *w = tcp_ca(tp);
+	struct westwood *w = inet_csk_ca(sk);
 	if (cnt > 0)
-		w->rtt = tp->srtt >> 3;
+		w->rtt = tcp_sk(sk)->srtt >> 3;
 }
 
 /*
@@ -86,9 +86,9 @@ static void tcp_westwood_pkts_acked(struct tcp_sock *tp, u32 cnt)
  * It updates RTT evaluation window if it is the right moment to do
  * it. If so it calls filter for evaluating bandwidth.
  */
-static void westwood_update_window(struct tcp_sock *tp)
+static void westwood_update_window(struct sock *sk)
 {
-	struct westwood *w = tcp_ca(tp);
+	struct westwood *w = inet_csk_ca(sk);
 	s32 delta = tcp_time_stamp - w->rtt_win_sx;
 
 	/*
@@ -114,11 +114,12 @@ static void westwood_update_window(struct tcp_sock *tp)
  * header prediction is successful. In such case in fact update is
  * straight forward and doesn't need any particular care.
  */
-static inline void westwood_fast_bw(struct tcp_sock *tp)
+static inline void westwood_fast_bw(struct sock *sk)
 {
-	struct westwood *w = tcp_ca(tp);
+	const struct tcp_sock *tp = tcp_sk(sk);
+	struct westwood *w = inet_csk_ca(sk);
 
-	westwood_update_window(tp);
+	westwood_update_window(sk);
 
 	w->bk += tp->snd_una - w->snd_una;
 	w->snd_una = tp->snd_una;
@@ -130,9 +131,10 @@ static inline void westwood_fast_bw(struct tcp_sock *tp)
  * This function evaluates cumul_ack for evaluating bk in case of
  * delayed or partial acks.
  */
-static inline u32 westwood_acked_count(struct tcp_sock *tp)
+static inline u32 westwood_acked_count(struct sock *sk)
 {
-	struct westwood *w = tcp_ca(tp);
+	const struct tcp_sock *tp = tcp_sk(sk);
+	struct westwood *w = inet_csk_ca(sk);
 
 	w->cumul_ack = tp->snd_una - w->snd_una;
 
@@ -160,9 +162,10 @@ static inline u32 westwood_acked_count(struct tcp_sock *tp)
 	return w->cumul_ack;
 }
 
-static inline u32 westwood_bw_rttmin(const struct tcp_sock *tp)
+static inline u32 westwood_bw_rttmin(const struct sock *sk)
 {
-	struct westwood *w = tcp_ca(tp);
+	const struct tcp_sock *tp = tcp_sk(sk);
+	const struct westwood *w = inet_csk_ca(sk);
 	return max_t(u32, (w->bw_est * w->rtt_min) / tp->mss_cache, 2);
 }
 
@@ -172,31 +175,32 @@ static inline u32 westwood_bw_rttmin(const struct tcp_sock *tp)
  * in packets we use mss_cache). Rttmin is guaranteed to be >= 2
  * so avoids ever returning 0.
  */
-static u32 tcp_westwood_cwnd_min(struct tcp_sock *tp)
+static u32 tcp_westwood_cwnd_min(struct sock *sk)
 {
-	return westwood_bw_rttmin(tp);
+	return westwood_bw_rttmin(sk);
 }
 
-static void tcp_westwood_event(struct tcp_sock *tp, enum tcp_ca_event event)
+static void tcp_westwood_event(struct sock *sk, enum tcp_ca_event event)
 {
-	struct westwood *w = tcp_ca(tp);
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct westwood *w = inet_csk_ca(sk);
 
 	switch(event) {
 	case CA_EVENT_FAST_ACK:
-		westwood_fast_bw(tp);
+		westwood_fast_bw(sk);
 		break;
 
 	case CA_EVENT_COMPLETE_CWR:
-		tp->snd_cwnd = tp->snd_ssthresh = westwood_bw_rttmin(tp);
+		tp->snd_cwnd = tp->snd_ssthresh = westwood_bw_rttmin(sk);
 		break;
 
 	case CA_EVENT_FRTO:
-		tp->snd_ssthresh = westwood_bw_rttmin(tp);
+		tp->snd_ssthresh = westwood_bw_rttmin(sk);
 		break;
 
 	case CA_EVENT_SLOW_ACK:
-		westwood_update_window(tp);
-		w->bk += westwood_acked_count(tp);
+		westwood_update_window(sk);
+		w->bk += westwood_acked_count(sk);
 		w->rtt_min = min(w->rtt, w->rtt_min);
 		break;
 
@@ -208,15 +212,15 @@ static void tcp_westwood_event(struct tcp_sock *tp, enum tcp_ca_event event)
 
 
 /* Extract info for Tcp socket info provided via netlink. */
-static void tcp_westwood_info(struct tcp_sock *tp, u32 ext,
+static void tcp_westwood_info(struct sock *sk, u32 ext,
 			      struct sk_buff *skb)
 {
-	const struct westwood *ca = tcp_ca(tp);
-	if (ext & (1<<(TCPDIAG_VEGASINFO-1))) {
+	const struct westwood *ca = inet_csk_ca(sk);
+	if (ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
 		struct rtattr *rta;
 		struct tcpvegas_info *info;
 
-		rta = __RTA_PUT(skb, TCPDIAG_VEGASINFO, sizeof(*info));
+		rta = __RTA_PUT(skb, INET_DIAG_VEGASINFO, sizeof(*info));
 		info = RTA_DATA(rta);
 		info->tcpv_enabled = 1;
 		info->tcpv_rttcnt = 0;
@@ -242,7 +246,7 @@ static struct tcp_congestion_ops tcp_westwood = {
 
 static int __init tcp_westwood_register(void)
 {
-	BUG_ON(sizeof(struct westwood) > TCP_CA_PRIV_SIZE);
+	BUG_ON(sizeof(struct westwood) > ICSK_CA_PRIV_SIZE);
 	return tcp_register_congestion_control(&tcp_westwood);
 }
 

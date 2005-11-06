@@ -1427,7 +1427,7 @@ static void vcc_rx_aal5(struct lanai_vcc *lvcc, int endptr)
 	skb_put(skb, size);
 	vcc_rx_memcpy(skb->data, lvcc, size);
 	ATM_SKB(skb)->vcc = lvcc->rx.atmvcc;
-	do_gettimeofday(&skb->stamp);
+	__net_timestamp(skb);
 	lvcc->rx.atmvcc->push(lvcc->rx.atmvcc, skb);
 	atomic_inc(&lvcc->rx.atmvcc->stats->rx);
     out:

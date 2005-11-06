@@ -266,8 +266,11 @@ static int context_struct_compute_av(struct context *scontext,
 	struct constraint_node *constraint;
 	struct role_allow *ra;
 	struct avtab_key avkey;
-	struct avtab_datum *avdatum;
+	struct avtab_node *node;
 	struct class_datum *tclass_datum;
+	struct ebitmap *sattr, *tattr;
+	struct ebitmap_node *snode, *tnode;
+	unsigned int i, j;
 
 	/*
 	 * Remap extended Netlink classes for old policy versions.
@@ -300,21 +303,34 @@ static int context_struct_compute_av(struct context *scontext,
 	 * If a specific type enforcement rule was defined for
 	 * this permission check, then use it.
 	 */
-	avkey.source_type = scontext->type;
-	avkey.target_type = tcontext->type;
 	avkey.target_class = tclass;
-	avdatum = avtab_search(&policydb.te_avtab, &avkey, AVTAB_AV);
-	if (avdatum) {
-		if (avdatum->specified & AVTAB_ALLOWED)
-			avd->allowed = avtab_allowed(avdatum);
-		if (avdatum->specified & AVTAB_AUDITDENY)
-			avd->auditdeny = avtab_auditdeny(avdatum);
-		if (avdatum->specified & AVTAB_AUDITALLOW)
-			avd->auditallow = avtab_auditallow(avdatum);
-	}
+	avkey.specified = AVTAB_AV;
+	sattr = &policydb.type_attr_map[scontext->type - 1];
+	tattr = &policydb.type_attr_map[tcontext->type - 1];
+	ebitmap_for_each_bit(sattr, snode, i) {
+		if (!ebitmap_node_get_bit(snode, i))
+			continue;
+		ebitmap_for_each_bit(tattr, tnode, j) {
+			if (!ebitmap_node_get_bit(tnode, j))
+				continue;
+			avkey.source_type = i + 1;
+			avkey.target_type = j + 1;
+			for (node = avtab_search_node(&policydb.te_avtab, &avkey);
+			     node != NULL;
+			     node = avtab_search_node_next(node, avkey.specified)) {
+				if (node->key.specified == AVTAB_ALLOWED)
+					avd->allowed |= node->datum.data;
+				else if (node->key.specified == AVTAB_AUDITALLOW)
+					avd->auditallow |= node->datum.data;
+				else if (node->key.specified == AVTAB_AUDITDENY)
+					avd->auditdeny &= node->datum.data;
+			}
 
-	/* Check conditional av table for additional permissions */
-	cond_compute_av(&policydb.te_cond_avtab, &avkey, avd);
+			/* Check conditional av table for additional permissions */
+			cond_compute_av(&policydb.te_cond_avtab, &avkey, avd);
+
+		}
+	}
 
 	/*
 	 * Remove any permissions prohibited by a constraint (this includes
@@ -365,7 +381,7 @@ static int security_validtrans_handle_fail(struct context *ocontext,
 		goto out;
 	if (context_struct_to_string(tcontext, &t, &tlen) < 0)
 		goto out;
-	audit_log(current->audit_context, AUDIT_SELINUX_ERR,
+	audit_log(current->audit_context, GFP_ATOMIC, AUDIT_SELINUX_ERR,
 	          "security_validate_transition:  denied for"
 	          " oldcontext=%s newcontext=%s taskcontext=%s tclass=%s",
 	          o, n, t, policydb.p_class_val_to_name[tclass-1]);
@@ -771,7 +787,7 @@ static int compute_sid_handle_invalid_context(
 		goto out;
 	if (context_struct_to_string(newcontext, &n, &nlen) < 0)
 		goto out;
-	audit_log(current->audit_context, AUDIT_SELINUX_ERR,
+	audit_log(current->audit_context, GFP_ATOMIC, AUDIT_SELINUX_ERR,
 		  "security_compute_sid:  invalid context %s"
 		  " for scontext=%s"
 		  " tcontext=%s"
@@ -797,7 +813,6 @@ static int security_compute_sid(u32 ssid,
 	struct avtab_key avkey;
 	struct avtab_datum *avdatum;
 	struct avtab_node *node;
-	unsigned int type_change = 0;
 	int rc = 0;
 
 	if (!ss_initialized) {
@@ -862,33 +877,23 @@ static int security_compute_sid(u32 ssid,
 	avkey.source_type = scontext->type;
 	avkey.target_type = tcontext->type;
 	avkey.target_class = tclass;
-	avdatum = avtab_search(&policydb.te_avtab, &avkey, AVTAB_TYPE);
+	avkey.specified = specified;
+	avdatum = avtab_search(&policydb.te_avtab, &avkey);
 
 	/* If no permanent rule, also check for enabled conditional rules */
 	if(!avdatum) {
-		node = avtab_search_node(&policydb.te_cond_avtab, &avkey, specified);
+		node = avtab_search_node(&policydb.te_cond_avtab, &avkey);
 		for (; node != NULL; node = avtab_search_node_next(node, specified)) {
-			if (node->datum.specified & AVTAB_ENABLED) {
+			if (node->key.specified & AVTAB_ENABLED) {
 				avdatum = &node->datum;
 				break;
 			}
 		}
 	}
 
-	type_change = (avdatum && (avdatum->specified & specified));
-	if (type_change) {
+	if (avdatum) {
 		/* Use the type from the type transition/member/change rule. */
-		switch (specified) {
-		case AVTAB_TRANSITION:
-			newcontext.type = avtab_transition(avdatum);
-			break;
-		case AVTAB_MEMBER:
-			newcontext.type = avtab_member(avdatum);
-			break;
-		case AVTAB_CHANGE:
-			newcontext.type = avtab_change(avdatum);
-			break;
-		}
+		newcontext.type = avdatum->data;
 	}
 
 	/* Check for class-specific changes. */
@@ -1502,6 +1507,7 @@ int security_get_user_sids(u32 fromsid,
 	struct user_datum *user;
 	struct role_datum *role;
 	struct av_decision avd;
+	struct ebitmap_node *rnode, *tnode;
 	int rc = 0, i, j;
 
 	if (!ss_initialized) {
@@ -1525,20 +1531,19 @@ int security_get_user_sids(u32 fromsid,
 	}
 	usercon.user = user->value;
 
-	mysids = kmalloc(maxnel*sizeof(*mysids), GFP_ATOMIC);
+	mysids = kcalloc(maxnel, sizeof(*mysids), GFP_ATOMIC);
 	if (!mysids) {
 		rc = -ENOMEM;
 		goto out_unlock;
 	}
-	memset(mysids, 0, maxnel*sizeof(*mysids));
 
-	for (i = ebitmap_startbit(&user->roles); i < ebitmap_length(&user->roles); i++) {
-		if (!ebitmap_get_bit(&user->roles, i))
+	ebitmap_for_each_bit(&user->roles, rnode, i) {
+		if (!ebitmap_node_get_bit(rnode, i))
 			continue;
 		role = policydb.role_val_to_struct[i];
 		usercon.role = i+1;
-		for (j = ebitmap_startbit(&role->types); j < ebitmap_length(&role->types); j++) {
-			if (!ebitmap_get_bit(&role->types, j))
+		ebitmap_for_each_bit(&role->types, tnode, j) {
+			if (!ebitmap_node_get_bit(tnode, j))
 				continue;
 			usercon.type = j+1;
 
@@ -1560,13 +1565,12 @@ int security_get_user_sids(u32 fromsid,
 				mysids[mynel++] = sid;
 			} else {
 				maxnel += SIDS_NEL;
-				mysids2 = kmalloc(maxnel*sizeof(*mysids2), GFP_ATOMIC);
+				mysids2 = kcalloc(maxnel, sizeof(*mysids2), GFP_ATOMIC);
 				if (!mysids2) {
 					rc = -ENOMEM;
 					kfree(mysids);
 					goto out_unlock;
 				}
-				memset(mysids2, 0, maxnel*sizeof(*mysids2));
 				memcpy(mysids2, mysids, mynel * sizeof(*mysids2));
 				kfree(mysids);
 				mysids = mysids2;
@@ -1708,12 +1712,11 @@ int security_get_bools(int *len, char ***names, int **values)
 		goto out;
 	}
 
-	*names = (char**)kmalloc(sizeof(char*) * *len, GFP_ATOMIC);
+	*names = (char**)kcalloc(*len, sizeof(char*), GFP_ATOMIC);
 	if (!*names)
 		goto err;
-	memset(*names, 0, sizeof(char*) * *len);
 
-	*values = (int*)kmalloc(sizeof(int) * *len, GFP_ATOMIC);
+	*values = (int*)kcalloc(*len, sizeof(int), GFP_ATOMIC);
 	if (!*values)
 		goto err;
 

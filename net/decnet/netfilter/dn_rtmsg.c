@@ -19,6 +19,7 @@
 #include <linux/netfilter.h>
 #include <linux/spinlock.h>
 #include <linux/netlink.h>
+#include <linux/netfilter_decnet.h>
 
 #include <net/sock.h>
 #include <net/flow.h>
@@ -71,10 +72,10 @@ static void dnrmg_send_peer(struct sk_buff *skb)
 
 	switch(flags & DN_RT_CNTL_MSK) {
 		case DN_RT_PKT_L1RT:
-			group = DNRMG_L1_GROUP;
+			group = DNRNG_NLGRP_L1;
 			break;
 		case DN_RT_PKT_L2RT:
-			group = DNRMG_L2_GROUP;
+			group = DNRNG_NLGRP_L2;
 			break;
 		default:
 			return;
@@ -83,7 +84,7 @@ static void dnrmg_send_peer(struct sk_buff *skb)
 	skb2 = dnrmg_build_message(skb, &status);
 	if (skb2 == NULL)
 		return;
-	NETLINK_CB(skb2).dst_groups = group;
+	NETLINK_CB(skb2).dst_group = group;
 	netlink_broadcast(dnrmg, skb2, 0, group, GFP_ATOMIC);
 }
 
@@ -138,7 +139,8 @@ static int __init init(void)
 {
 	int rv = 0;
 
-	dnrmg = netlink_kernel_create(NETLINK_DNRTMSG, dnrmg_receive_user_sk);
+	dnrmg = netlink_kernel_create(NETLINK_DNRTMSG, DNRNG_NLGRP_MAX,
+	                              dnrmg_receive_user_sk, THIS_MODULE);
 	if (dnrmg == NULL) {
 		printk(KERN_ERR "dn_rtmsg: Cannot create netlink socket");
 		return -ENOMEM;
@@ -162,6 +164,7 @@ static void __exit fini(void)
 MODULE_DESCRIPTION("DECnet Routing Message Grabulator");
 MODULE_AUTHOR("Steven Whitehouse <steve@chygwyn.com>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_DNRTMSG);
 
 module_init(init);
 module_exit(fini);

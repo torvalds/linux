@@ -17,9 +17,9 @@
 #ifndef _RAW_H
 #define _RAW_H
 
+#include <linux/config.h>
 
 extern struct proto raw_prot;
-
 
 extern void 	raw_err(struct sock *, struct sk_buff *, u32 info);
 extern int 	raw_rcv(struct sock *, struct sk_buff *);
@@ -37,6 +37,11 @@ extern struct sock *__raw_v4_lookup(struct sock *sk, unsigned short num,
 				    unsigned long raddr, unsigned long laddr,
 				    int dif);
 
-extern void raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash);
+extern int raw_v4_input(struct sk_buff *skb, struct iphdr *iph, int hash);
+
+#ifdef CONFIG_PROC_FS
+extern int  raw_proc_init(void);
+extern void raw_proc_exit(void);
+#endif
 
 #endif	/* _RAW_H */

@@ -74,10 +74,6 @@ EXPORT_SYMBOL(vme_brdtype);
 EXPORT_SYMBOL(__ashldi3);
 EXPORT_SYMBOL(__ashrdi3);
 EXPORT_SYMBOL(__lshrdi3);
-EXPORT_SYMBOL(memcpy);
-EXPORT_SYMBOL(memset);
-EXPORT_SYMBOL(memcmp);
-EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(__muldi3);
 
 EXPORT_SYMBOL(__down_failed);

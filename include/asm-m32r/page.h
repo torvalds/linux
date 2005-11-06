@@ -61,25 +61,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 /* This handles the memory map.. */
 
-#ifndef __ASSEMBLY__
-
-/* Pure 2^n version of get_order */
-static __inline__ int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size - 1) >> (PAGE_SHIFT - 1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-
-	return order;
-}
-
-#endif /* __ASSEMBLY__ */
-
 #define __MEMORY_START  CONFIG_MEMORY_START
 #define __MEMORY_SIZE   CONFIG_MEMORY_SIZE
 
@@ -110,6 +91,8 @@ static __inline__ int get_order(unsigned long size)
 #define devmem_is_allowed(x) 1
 
 #endif /* __KERNEL__ */
+
+#include <asm-generic/page.h>
 
 #endif /* _ASM_M32R_PAGE_H */
 

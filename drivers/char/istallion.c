@@ -780,7 +780,7 @@ static struct file_operations	stli_fsiomem = {
  *	much cheaper on host cpu than using interrupts. It turns out to
  *	not increase character latency by much either...
  */
-static struct timer_list stli_timerlist = TIMER_INITIALIZER(stli_poll, 0, 0);
+static DEFINE_TIMER(stli_timerlist, stli_poll, 0, 0);
 
 static int	stli_timeron;
 
@@ -5246,7 +5246,8 @@ int __init stli_init(void)
 		devfs_mk_cdev(MKDEV(STL_SIOMEMMAJOR, i),
 			       S_IFCHR | S_IRUSR | S_IWUSR,
 			       "staliomem/%d", i);
-		class_device_create(istallion_class, MKDEV(STL_SIOMEMMAJOR, i),
+		class_device_create(istallion_class, NULL,
+				MKDEV(STL_SIOMEMMAJOR, i),
 				NULL, "staliomem%d", i);
 	}
 

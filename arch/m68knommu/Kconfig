@@ -71,20 +71,30 @@ config M5206e
 	help
 	  Motorola ColdFire 5206e processor support.
 
+config M523x
+	bool "MCF523x"
+	help
+	  Freescale Coldfire 5230/1/2/4/5 processor support
+
 config M5249
 	bool "MCF5249"
 	help
 	  Motorola ColdFire 5249 processor support.
 
-config M527x
-	bool "MCF527x"
+config M5271
+	bool "MCF5271"
 	help
-	  Freescale (Motorola) ColdFire 5270/5271/5274/5275 processor support.
+	  Freescale (Motorola) ColdFire 5270/5271 processor support.
 
 config M5272
 	bool "MCF5272"
 	help
 	  Motorola ColdFire 5272 processor support.
+
+config M5275
+	bool "MCF5275"
+	help
+	  Freescale (Motorola) ColdFire 5274/5275 processor support.
 
 config M528x
 	bool "MCF528x"
@@ -103,9 +113,14 @@ config M5407
 
 endchoice
 
+config M527x
+	bool
+	depends on (M5271 || M5275)
+	default y
+
 config COLDFIRE
 	bool
-	depends on (M5206 || M5206e || M5249 || M527x || M5272 || M528x || M5307 || M5407)
+	depends on (M5206 || M5206e || M523x || M5249 || M527x || M5272 || M528x || M5307 || M5407)
 	default y
 
 choice
@@ -182,6 +197,11 @@ config CLOCK_60MHz
 	bool "60MHz"
 	help
 	  Select a 60MHz CPU clock frequency.
+
+config CLOCK_62_5MHz
+	bool "62.5MHz"
+	help
+	  Select a 62.5MHz CPU clock frequency.
 
 config CLOCK_64MHz
 	bool "64MHz"
@@ -302,6 +322,12 @@ config ELITE
 	help
 	  Support for the Motorola M5206eLITE board.
 
+config M5235EVB
+	bool "Freescale M5235EVB support"
+	depends on M523x
+	help
+	  Support for the Freescale M5235EVB board.
+
 config M5249C3
 	bool "Motorola M5249C3 board support"
 	depends on M5249
@@ -310,13 +336,13 @@ config M5249C3
 
 config M5271EVB
 	bool "Freescale (Motorola) M5271EVB board support"
-	depends on M527x
+	depends on M5271
 	help
 	  Support for the Freescale (Motorola) M5271EVB board.
 
 config M5275EVB
 	bool "Freescale (Motorola) M5275EVB board support"
-	depends on M527x
+	depends on M5275
 	help
 	  Support for the Freescale (Motorola) M5275EVB board.
 
@@ -343,6 +369,12 @@ config COBRA5282
 	depends on M528x
 	help
 	  Support for the senTec COBRA5282 board.
+	  
+config SOM5282EM
+	bool "EMAC.Inc SOM5282EM board support"
+	depends on M528x
+	help
+	  Support for the EMAC.Inc SOM5282EM module.  
 
 config ARN5307
 	bool "Arnewsh 5307 board support"
@@ -410,6 +442,12 @@ config CPU16B
 	help
 	  Support for the SNEHA CPU16B board.
 
+config MOD5272
+	bool "Netburner MOD-5272 board support"
+	depends on M5272
+	help
+	  Support for the Netburner MOD-5272 board.
+
 config ROMFS_FROM_ROM
 	bool "  ROMFS image not RAM resident"
 	depends on (NETtel || SNAPGEAR)
@@ -430,7 +468,7 @@ config ARNEWSH
 config MOTOROLA
 	bool
 	default y
-	depends on (M5206eC3 || M5249C3 || M5271EVB || M5272C3 || M5275EVB || M5282EVB || M5307C3 || M5407C3)
+	depends on (M5206eC3 || M5235EVB || M5249C3 || M5271EVB || M5272C3 || M5275EVB || M5282EVB || M5307C3 || M5407C3)
 
 config HW_FEITH
 	bool
@@ -441,6 +479,11 @@ config senTec
 	bool
 	default y
 	depends on (COBRA5272 || COBRA5282)
+	
+config EMAC_INC
+	bool
+	default y
+	depends on (SOM5282EM)
 
 config SNEHA
         bool
@@ -454,6 +497,15 @@ config LARGE_ALLOCS
 	  memory sizes - upto 32MB. You may need this if your system has
 	  a lot of RAM, and you need to able to allocate very large
 	  contiguous chunks. If unsure, say N.
+
+config 4KSTACKS
+	bool "Use 4Kb for kernel stacks instead of 8Kb"
+	default y
+	help
+	  If you say Y here the kernel will use a 4Kb stacksize for the
+	  kernel stack attached to each process/thread. This facilitates
+	  running more threads on a system and also reduces the pressure
+	  on the VM subsystem for higher order allocations.
 
 choice
 	prompt "RAM size"

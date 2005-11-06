@@ -39,7 +39,7 @@ extern void flush_tlb_range(struct vm_area_struct*,unsigned long,unsigned long);
  * page-table pages.
  */
 
-extern inline void flush_tlb_pgtables(struct mm_struct *mm,
+static inline void flush_tlb_pgtables(struct mm_struct *mm,
                                       unsigned long start, unsigned long end)
 {
 }
@@ -51,26 +51,26 @@ extern inline void flush_tlb_pgtables(struct mm_struct *mm,
 #define ITLB_PROBE_SUCCESS  (1 << ITLB_WAYS_LOG2)
 #define DTLB_PROBE_SUCCESS  (1 << DTLB_WAYS_LOG2)
 
-extern inline unsigned long itlb_probe(unsigned long addr)
+static inline unsigned long itlb_probe(unsigned long addr)
 {
 	unsigned long tmp;
 	__asm__ __volatile__("pitlb  %0, %1\n\t" : "=a" (tmp) : "a" (addr));
 	return tmp;
 }
 
-extern inline unsigned long dtlb_probe(unsigned long addr)
+static inline unsigned long dtlb_probe(unsigned long addr)
 {
 	unsigned long tmp;
 	__asm__ __volatile__("pdtlb  %0, %1\n\t" : "=a" (tmp) : "a" (addr));
 	return tmp;
 }
 
-extern inline void invalidate_itlb_entry (unsigned long probe)
+static inline void invalidate_itlb_entry (unsigned long probe)
 {
 	__asm__ __volatile__("iitlb  %0; isync\n\t" : : "a" (probe));
 }
 
-extern inline void invalidate_dtlb_entry (unsigned long probe)
+static inline void invalidate_dtlb_entry (unsigned long probe)
 {
 	__asm__ __volatile__("idtlb  %0; dsync\n\t" : : "a" (probe));
 }
@@ -80,68 +80,68 @@ extern inline void invalidate_dtlb_entry (unsigned long probe)
  * caller must follow up with an 'isync', which can be relatively
  * expensive on some Xtensa implementations.
  */
-extern inline void invalidate_itlb_entry_no_isync (unsigned entry)
+static inline void invalidate_itlb_entry_no_isync (unsigned entry)
 {
 	/* Caller must follow up with 'isync'. */
 	__asm__ __volatile__ ("iitlb  %0\n" : : "a" (entry) );
 }
 
-extern inline void invalidate_dtlb_entry_no_isync (unsigned entry)
+static inline void invalidate_dtlb_entry_no_isync (unsigned entry)
 {
 	/* Caller must follow up with 'isync'. */
 	__asm__ __volatile__ ("idtlb  %0\n" : : "a" (entry) );
 }
 
-extern inline void set_itlbcfg_register (unsigned long val)
+static inline void set_itlbcfg_register (unsigned long val)
 {
 	__asm__ __volatile__("wsr  %0, "__stringify(ITLBCFG)"\n\t" "isync\n\t"
 			     : : "a" (val));
 }
 
-extern inline void set_dtlbcfg_register (unsigned long val)
+static inline void set_dtlbcfg_register (unsigned long val)
 {
 	__asm__ __volatile__("wsr  %0, "__stringify(DTLBCFG)"; dsync\n\t"
 	    		     : : "a" (val));
 }
 
-extern inline void set_ptevaddr_register (unsigned long val)
+static inline void set_ptevaddr_register (unsigned long val)
 {
 	__asm__ __volatile__(" wsr  %0, "__stringify(PTEVADDR)"; isync\n"
 			     : : "a" (val));
 }
 
-extern inline unsigned long read_ptevaddr_register (void)
+static inline unsigned long read_ptevaddr_register (void)
 {
 	unsigned long tmp;
 	__asm__ __volatile__("rsr  %0, "__stringify(PTEVADDR)"\n\t" : "=a" (tmp));
 	return tmp;
 }
 
-extern inline void write_dtlb_entry (pte_t entry, int way)
+static inline void write_dtlb_entry (pte_t entry, int way)
 {
 	__asm__ __volatile__("wdtlb  %1, %0; dsync\n\t"
 			     : : "r" (way), "r" (entry) );
 }
 
-extern inline void write_itlb_entry (pte_t entry, int way)
+static inline void write_itlb_entry (pte_t entry, int way)
 {
 	__asm__ __volatile__("witlb  %1, %0; isync\n\t"
 	                     : : "r" (way), "r" (entry) );
 }
 
-extern inline void invalidate_page_directory (void)
+static inline void invalidate_page_directory (void)
 {
 	invalidate_dtlb_entry (DTLB_WAY_PGTABLE);
 }
 
-extern inline void invalidate_itlb_mapping (unsigned address)
+static inline void invalidate_itlb_mapping (unsigned address)
 {
 	unsigned long tlb_entry;
 	while ((tlb_entry = itlb_probe (address)) & ITLB_PROBE_SUCCESS)
 		invalidate_itlb_entry (tlb_entry);
 }
 
-extern inline void invalidate_dtlb_mapping (unsigned address)
+static inline void invalidate_dtlb_mapping (unsigned address)
 {
 	unsigned long tlb_entry;
 	while ((tlb_entry = dtlb_probe (address)) & DTLB_PROBE_SUCCESS)
@@ -165,28 +165,28 @@ extern inline void invalidate_dtlb_mapping (unsigned address)
  *      as[07..00] contain the asid
  */
 
-extern inline unsigned long read_dtlb_virtual (int way)
+static inline unsigned long read_dtlb_virtual (int way)
 {
 	unsigned long tmp;
 	__asm__ __volatile__("rdtlb0  %0, %1\n\t" : "=a" (tmp), "+a" (way));
 	return tmp;
 }
 
-extern inline unsigned long read_dtlb_translation (int way)
+static inline unsigned long read_dtlb_translation (int way)
 {
 	unsigned long tmp;
 	__asm__ __volatile__("rdtlb1  %0, %1\n\t" : "=a" (tmp), "+a" (way));
 	return tmp;
 }
 
-extern inline unsigned long read_itlb_virtual (int way)
+static inline unsigned long read_itlb_virtual (int way)
 {
 	unsigned long tmp;
 	__asm__ __volatile__("ritlb0  %0, %1\n\t" : "=a" (tmp), "+a" (way));
 	return tmp;
 }
 
-extern inline unsigned long read_itlb_translation (int way)
+static inline unsigned long read_itlb_translation (int way)
 {
 	unsigned long tmp;
 	__asm__ __volatile__("ritlb1  %0, %1\n\t" : "=a" (tmp), "+a" (way));

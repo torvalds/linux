@@ -80,6 +80,9 @@ struct r1bio_s {
 	atomic_t		remaining; /* 'have we finished' count,
 					    * used from IRQ handlers
 					    */
+	atomic_t		behind_remaining; /* number of write-behind ios remaining
+						 * in this BehindIO request
+						 */
 	sector_t		sector;
 	int			sectors;
 	unsigned long		state;
@@ -107,4 +110,14 @@ struct r1bio_s {
 #define	R1BIO_Uptodate	0
 #define	R1BIO_IsSync	1
 #define	R1BIO_Degraded	2
+#define	R1BIO_BehindIO   3
+/* For write-behind requests, we call bi_end_io when
+ * the last non-write-behind device completes, providing
+ * any write was successful.  Otherwise we call when
+ * any write-behind write succeeds, otherwise we call
+ * with failure when last write completes (and all failed).
+ * Record that bi_end_io was called with this flag...
+ */
+#define	R1BIO_Returned 4
+
 #endif

@@ -133,6 +133,7 @@ Table 1-1: Process specific entries in /proc
  statm   Process memory status information              
  status  Process status in human readable form          
  wchan   If CONFIG_KALLSYMS is set, a pre-decoded wchan
+ smaps	 Extension based on maps, presenting the rss size for each mapped file
 ..............................................................................
 
 For example, to get the status information of a process, all you have to do is
@@ -1240,16 +1241,38 @@ swap-intensive.
 overcommit_memory
 -----------------
 
-This file  contains  one  value.  The following algorithm is used to decide if
-there's enough  memory:  if  the  value of overcommit_memory is positive, then
-there's always  enough  memory. This is a useful feature, since programs often
-malloc() huge  amounts  of  memory 'just in case', while they only use a small
-part of  it.  Leaving  this value at 0 will lead to the failure of such a huge
-malloc(), when in fact the system has enough memory for the program to run.
+Controls overcommit of system memory, possibly allowing processes
+to allocate (but not use) more memory than is actually available.
 
-On the  other  hand,  enabling this feature can cause you to run out of memory
-and thrash the system to death, so large and/or important servers will want to
-set this value to 0.
+
+0	-	Heuristic overcommit handling. Obvious overcommits of
+		address space are refused. Used for a typical system. It
+		ensures a seriously wild allocation fails while allowing
+		overcommit to reduce swap usage.  root is allowed to
+		allocate slighly more memory in this mode. This is the
+		default.
+
+1	-	Always overcommit. Appropriate for some scientific
+		applications.
+
+2	-	Don't overcommit. The total address space commit
+		for the system is not permitted to exceed swap plus a
+		configurable percentage (default is 50) of physical RAM.
+		Depending on the percentage you use, in most situations
+		this means a process will not be killed while attempting
+		to use already-allocated memory but will receive errors
+		on memory allocation as	appropriate.
+
+overcommit_ratio
+----------------
+
+Percentage of physical memory size to include in overcommit calculations
+(see above.)
+
+Memory allocation limit = swapspace + physmem * (overcommit_ratio / 100)
+
+	swapspace = total size of all swap areas
+	physmem = size of physical memory in system
 
 nr_hugepages and hugetlb_shm_group
 ----------------------------------

@@ -10,13 +10,13 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
-/* 
+/*
  * The Bus Watcher monitors internal bus transactions and maintains
  * counts of transactions with error status, logging details and
  * causing one of several interrupts.  This driver provides a handler
@@ -155,7 +155,7 @@ static int bw_read_proc(char *page, char **start, off_t off,
 static void create_proc_decoder(struct bw_stats_struct *stats)
 {
 	struct proc_dir_entry *ent;
-	
+
 	ent = create_proc_read_entry("bus_watcher", S_IWUSR | S_IRUGO, NULL,
 				     bw_read_proc, stats);
 	if (!ent) {
@@ -189,7 +189,7 @@ static irqreturn_t sibyte_bw_int(int irq, void *data, struct pt_regs *regs)
 
 	for (i=0; i<256*6; i++)
 		printk("%016llx\n",
-		       (unsigned long long)bus_readq(IOADDR(A_SCD_TRACE_READ)));
+		       (long long)__raw_readq(IOADDR(A_SCD_TRACE_READ)));
 
 	csr_out32(M_SCD_TRACE_CFG_RESET, IOADDR(A_SCD_TRACE_CFG));
 	csr_out32(M_SCD_TRACE_CFG_START, IOADDR(A_SCD_TRACE_CFG));

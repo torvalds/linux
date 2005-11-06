@@ -439,8 +439,7 @@ prism54_bring_down(islpci_private *priv)
 	wmb();
 
 	/* wait a while for the device to reset */
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(50*HZ/1000);
+	schedule_timeout_uninterruptible(msecs_to_jiffies(50));
 
 	return 0;
 }
@@ -491,8 +490,7 @@ islpci_reset_if(islpci_private *priv)
 		/* The software reset acknowledge needs about 220 msec here.
 		 * Be conservative and wait for up to one second. */
 	
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		remaining = schedule_timeout(HZ);
+		remaining = schedule_timeout_uninterruptible(HZ);
 
 		if(remaining > 0) {
 			result = 0;
@@ -756,8 +754,7 @@ islpci_free_memory(islpci_private *priv)
 			pci_unmap_single(priv->pdev, buf->pci_addr,
 					 buf->size, PCI_DMA_FROMDEVICE);
 		buf->pci_addr = 0;
-		if (buf->mem)
-			kfree(buf->mem);
+		kfree(buf->mem);
 		buf->size = 0;
 		buf->mem = NULL;
         }
@@ -815,7 +812,6 @@ islpci_setup(struct pci_dev *pdev)
 	ndev->open = &islpci_open;
 	ndev->stop = &islpci_close;
 	ndev->get_stats = &islpci_statistics;
-	ndev->get_wireless_stats = &prism54_get_wireless_stats;
 	ndev->do_ioctl = &prism54_ioctl;
 	ndev->wireless_handlers =
 	    (struct iw_handler_def *) &prism54_handler_def;
@@ -840,11 +836,9 @@ islpci_setup(struct pci_dev *pdev)
 	priv->ndev->type = (priv->iw_mode == IW_MODE_MONITOR) ?
 		priv->monitor_type : ARPHRD_ETHER;
 
-#if WIRELESS_EXT > 16
 	/* Add pointers to enable iwspy support. */
 	priv->wireless_data.spy_data = &priv->spy_data;
 	ndev->wireless_data = &priv->wireless_data;
-#endif /* WIRELESS_EXT > 16 */
 
 	/* save the start and end address of the PCI memory area */
 	ndev->mem_start = (unsigned long) priv->device_base;

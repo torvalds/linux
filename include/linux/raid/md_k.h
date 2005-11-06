@@ -86,70 +86,6 @@ typedef struct mdk_rdev_s mdk_rdev_t;
 #define MAX_CHUNK_SIZE (4096*1024)
 
 /*
- * default readahead
- */
-
-static inline int disk_faulty(mdp_disk_t * d)
-{
-	return d->state & (1 << MD_DISK_FAULTY);
-}
-
-static inline int disk_active(mdp_disk_t * d)
-{
-	return d->state & (1 << MD_DISK_ACTIVE);
-}
-
-static inline int disk_sync(mdp_disk_t * d)
-{
-	return d->state & (1 << MD_DISK_SYNC);
-}
-
-static inline int disk_spare(mdp_disk_t * d)
-{
-	return !disk_sync(d) && !disk_active(d) && !disk_faulty(d);
-}
-
-static inline int disk_removed(mdp_disk_t * d)
-{
-	return d->state & (1 << MD_DISK_REMOVED);
-}
-
-static inline void mark_disk_faulty(mdp_disk_t * d)
-{
-	d->state |= (1 << MD_DISK_FAULTY);
-}
-
-static inline void mark_disk_active(mdp_disk_t * d)
-{
-	d->state |= (1 << MD_DISK_ACTIVE);
-}
-
-static inline void mark_disk_sync(mdp_disk_t * d)
-{
-	d->state |= (1 << MD_DISK_SYNC);
-}
-
-static inline void mark_disk_spare(mdp_disk_t * d)
-{
-	d->state = 0;
-}
-
-static inline void mark_disk_removed(mdp_disk_t * d)
-{
-	d->state = (1 << MD_DISK_FAULTY) | (1 << MD_DISK_REMOVED);
-}
-
-static inline void mark_disk_inactive(mdp_disk_t * d)
-{
-	d->state &= ~(1 << MD_DISK_ACTIVE);
-}
-
-static inline void mark_disk_nonsync(mdp_disk_t * d)
-{
-	d->state &= ~(1 << MD_DISK_SYNC);
-}
-
-/*
  * MD's 'extended' device
  */
 struct mdk_rdev_s
@@ -166,6 +102,7 @@ struct mdk_rdev_s
 	int		sb_loaded;
 	sector_t	data_offset;	/* start of data in array */
 	sector_t	sb_offset;
+	int		sb_size;	/* bytes in the superblock */
 	int		preferred_minor;	/* autorun support */
 
 	/* A device can be in one of three states based on two flags:
@@ -180,6 +117,9 @@ struct mdk_rdev_s
 	 */
 	int faulty;			/* if faulty do not issue IO requests */
 	int in_sync;			/* device is a full member of the array */
+
+	unsigned long	flags;		/* Should include faulty and in_sync here. */
+#define	WriteMostly	4		/* Avoid reading if at all possible */
 
 	int desc_nr;			/* descriptor index in the superblock */
 	int raid_disk;			/* role of device in array */
@@ -272,12 +212,19 @@ struct mddev_s
 	atomic_t			writes_pending; 
 	request_queue_t			*queue;	/* for plugging ... */
 
+	atomic_t                        write_behind; /* outstanding async IO */
+	unsigned int                    max_write_behind; /* 0 = sync */
+
 	struct bitmap                   *bitmap; /* the bitmap for the device */
 	struct file			*bitmap_file; /* the bitmap file */
 	long				bitmap_offset; /* offset from superblock of
 							* start of bitmap. May be
 							* negative, but not '0'
 							*/
+	long				default_bitmap_offset; /* this is the offset to use when
+								* hot-adding a bitmap.  It should
+								* eventually be settable by sysfs.
+								*/
 
 	struct list_head		all_mddevs;
 };
@@ -314,6 +261,12 @@ struct mdk_personality_s
 	int (*resize) (mddev_t *mddev, sector_t sectors);
 	int (*reshape) (mddev_t *mddev, int raid_disks);
 	int (*reconfig) (mddev_t *mddev, int layout, int chunk_size);
+	/* quiesce moves between quiescence states
+	 * 0 - fully active
+	 * 1 - no new requests allowed
+	 * others - reserved
+	 */
+	void (*quiesce) (mddev_t *mddev, int state);
 };
 
 

@@ -222,7 +222,7 @@ __acquires(ehci->lock)
 		struct ehci_qh	*qh = (struct ehci_qh *) urb->hcpriv;
 
 		/* S-mask in a QH means it's an interrupt urb */
-		if ((qh->hw_info2 & __constant_cpu_to_le32 (0x00ff)) != 0) {
+		if ((qh->hw_info2 & __constant_cpu_to_le32 (QH_SMASK)) != 0) {
 
 			/* ... update hc-wide periodic stats (for usbfs) */
 			ehci_to_hcd(ehci)->self.bandwidth_int_reqs--;
@@ -428,7 +428,8 @@ halt:
 			/* should be rare for periodic transfers,
 			 * except maybe high bandwidth ...
 			 */
-			if (qh->period) {
+			if ((__constant_cpu_to_le32 (QH_SMASK)
+					& qh->hw_info2) != 0) {
 				intr_deschedule (ehci, qh);
 				(void) qh_schedule (ehci, qh);
 			} else
@@ -476,7 +477,7 @@ qh_urb_transaction (
 	struct ehci_hcd		*ehci,
 	struct urb		*urb,
 	struct list_head	*head,
-	int			flags
+	gfp_t			flags
 ) {
 	struct ehci_qtd		*qtd, *qtd_prev;
 	dma_addr_t		buf;
@@ -628,7 +629,7 @@ static struct ehci_qh *
 qh_make (
 	struct ehci_hcd		*ehci,
 	struct urb		*urb,
-	int			flags
+	gfp_t			flags
 ) {
 	struct ehci_qh		*qh = ehci_qh_alloc (ehci, flags);
 	u32			info1 = 0, info2 = 0;
@@ -676,6 +677,9 @@ qh_make (
 				goto done;
 			}
 		} else {
+			struct usb_tt	*tt = urb->dev->tt;
+			int		think_time;
+
 			/* gap is f(FS/LS transfer times) */
 			qh->gap_uf = 1 + usb_calc_bus_time (urb->dev->speed,
 					is_input, 0, maxp) / (125 * 1000);
@@ -689,6 +693,10 @@ qh_make (
 				qh->c_usecs = HS_USECS (0);
 			}
 
+			think_time = tt ? tt->think_time : 0;
+			qh->tt_usecs = NS_TO_US (think_time +
+					usb_calc_bus_time (urb->dev->speed,
+					is_input, 0, max_packet (maxp)));
 			qh->period = urb->interval;
 		}
 	}
@@ -898,7 +906,7 @@ submit_async (
 	struct usb_host_endpoint *ep,
 	struct urb		*urb,
 	struct list_head	*qtd_list,
-	unsigned		mem_flags
+	gfp_t			mem_flags
 ) {
 	struct ehci_qtd		*qtd;
 	int			epnum;

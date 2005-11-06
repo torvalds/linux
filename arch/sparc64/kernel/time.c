@@ -55,10 +55,6 @@ unsigned long ds1287_regs = 0UL;
 
 extern unsigned long wall_jiffies;
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 static void __iomem *mstk48t08_regs;
 static void __iomem *mstk48t59_regs;
 
@@ -449,7 +445,7 @@ static inline void timer_check_rtc(void)
 	static long last_rtc_update;
 
 	/* Determine when to update the Mostek clock. */
-	if ((time_status & STA_UNSYNC) == 0 &&
+	if (ntp_synced() &&
 	    xtime.tv_sec > last_rtc_update + 660 &&
 	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
 	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {

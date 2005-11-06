@@ -27,14 +27,13 @@
  */
 
 /*
- * Header file for atmel_read_eeprom.c 
+ * Header file for atmel_read_eeprom.c
  */
 
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/version.h>
 #include <asm/pci.h>
 #include <asm/io.h>
 #include <linux/init.h>
@@ -46,7 +45,7 @@
 #define	DEFAULT_PORT 	"/dev/ttyS0"	/* Port to open */
 #define	TXX		0 		/* Dummy loop for spinning */
 
-#define	BLOCK_SEL	0x00		
+#define	BLOCK_SEL	0x00
 #define	SLAVE_ADDR	0xa0
 #define	READ_BIT	0x01
 #define	WRITE_BIT	0x00

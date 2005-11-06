@@ -26,6 +26,7 @@
 
 #include <asm/byteorder.h>
 
+#include "bitmap.h"
 #include "xattr.h"
 #include "acl.h"
 
@@ -597,22 +598,22 @@ got:
 
 	ret = inode;
 	if(DQUOT_ALLOC_INODE(inode)) {
-		DQUOT_DROP(inode);
 		err = -EDQUOT;
-		goto fail2;
+		goto fail_drop;
 	}
+
 	err = ext3_init_acl(handle, inode, dir);
-	if (err) {
-		DQUOT_FREE_INODE(inode);
-		DQUOT_DROP(inode);
-		goto fail2;
-  	}
+	if (err)
+		goto fail_free_drop;
+
+	err = ext3_init_security(handle,inode, dir);
+	if (err)
+		goto fail_free_drop;
+
 	err = ext3_mark_inode_dirty(handle, inode);
 	if (err) {
 		ext3_std_error(sb, err);
-		DQUOT_FREE_INODE(inode);
-		DQUOT_DROP(inode);
-		goto fail2;
+		goto fail_free_drop;
 	}
 
 	ext3_debug("allocating inode %lu\n", inode->i_ino);
@@ -626,7 +627,11 @@ really_out:
 	brelse(bitmap_bh);
 	return ret;
 
-fail2:
+fail_free_drop:
+	DQUOT_FREE_INODE(inode);
+
+fail_drop:
+	DQUOT_DROP(inode);
 	inode->i_flags |= S_NOQUOTA;
 	inode->i_nlink = 0;
 	iput(inode);
@@ -700,7 +705,6 @@ unsigned long ext3_count_free_inodes (struct super_block * sb)
 	unsigned long bitmap_count, x;
 	struct buffer_head *bitmap_bh = NULL;
 
-	lock_super (sb);
 	es = EXT3_SB(sb)->s_es;
 	desc_count = 0;
 	bitmap_count = 0;
@@ -723,7 +727,6 @@ unsigned long ext3_count_free_inodes (struct super_block * sb)
 	brelse(bitmap_bh);
 	printk("ext3_count_free_inodes: stored = %u, computed = %lu, %lu\n",
 		le32_to_cpu(es->s_free_inodes_count), desc_count, bitmap_count);
-	unlock_super(sb);
 	return desc_count;
 #else
 	desc_count = 0;

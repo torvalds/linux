@@ -69,7 +69,7 @@ static int snd_ctl_open(struct inode *inode, struct file *file)
 		err = -EFAULT;
 		goto __error2;
 	}
-	ctl = kcalloc(1, sizeof(*ctl), GFP_KERNEL);
+	ctl = kzalloc(sizeof(*ctl), GFP_KERNEL);
 	if (ctl == NULL) {
 		err = -ENOMEM;
 		goto __error;
@@ -162,7 +162,7 @@ void snd_ctl_notify(snd_card_t *card, unsigned int mask, snd_ctl_elem_id_t *id)
 				goto _found;
 			}
 		}
-		ev = kcalloc(1, sizeof(*ev), GFP_ATOMIC);
+		ev = kzalloc(sizeof(*ev), GFP_ATOMIC);
 		if (ev) {
 			ev->id = *id;
 			ev->mask = mask;
@@ -195,7 +195,7 @@ snd_kcontrol_t *snd_ctl_new(snd_kcontrol_t * control, unsigned int access)
 	
 	snd_runtime_check(control != NULL, return NULL);
 	snd_runtime_check(control->count > 0, return NULL);
-	kctl = kcalloc(1, sizeof(*kctl) + sizeof(snd_kcontrol_volatile_t) * control->count, GFP_KERNEL);
+	kctl = kzalloc(sizeof(*kctl) + sizeof(snd_kcontrol_volatile_t) * control->count, GFP_KERNEL);
 	if (kctl == NULL)
 		return NULL;
 	*kctl = *control;
@@ -521,7 +521,7 @@ static int snd_ctl_card_info(snd_card_t * card, snd_ctl_file_t * ctl,
 {
 	snd_ctl_card_info_t *info;
 
-	info = kcalloc(1, sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (! info)
 		return -ENOMEM;
 	down_read(&snd_ioctl_rwsem);
@@ -929,7 +929,7 @@ static int snd_ctl_elem_add(snd_ctl_file_t *file, snd_ctl_elem_info_t *info, int
 		return -EINVAL;
 	}
 	private_size *= info->count;
-	ue = kcalloc(1, sizeof(struct user_element) + private_size, GFP_KERNEL);
+	ue = kzalloc(sizeof(struct user_element) + private_size, GFP_KERNEL);
 	if (ue == NULL)
 		return -ENOMEM;
 	ue->info = *info;
@@ -1185,7 +1185,7 @@ static int _snd_ctl_register_ioctl(snd_kctl_ioctl_func_t fcn, struct list_head *
 {
 	snd_kctl_ioctl_t *pn;
 
-	pn = kcalloc(1, sizeof(snd_kctl_ioctl_t), GFP_KERNEL);
+	pn = kzalloc(sizeof(snd_kctl_ioctl_t), GFP_KERNEL);
 	if (pn == NULL)
 		return -ENOMEM;
 	pn->fioctl = fcn;

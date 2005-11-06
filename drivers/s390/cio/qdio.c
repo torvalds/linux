@@ -112,7 +112,7 @@ qdio_min(int a,int b)
 
 /***************** SCRUBBER HELPER ROUTINES **********************/
 
-static inline volatile __u64 
+static inline __u64 
 qdio_get_micros(void)
 {
         return (get_clock() >> 10); /* time>>12 is microseconds */
@@ -230,7 +230,7 @@ qdio_siga_input(struct qdio_q *q)
 }
 
 /* locked by the locks in qdio_activate and qdio_cleanup */
-static __u32 * volatile 
+static __u32 volatile *
 qdio_get_indicator(void)
 {
 	int i;

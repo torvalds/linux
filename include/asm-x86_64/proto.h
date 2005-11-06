@@ -8,7 +8,6 @@
 struct cpuinfo_x86; 
 struct pt_regs;
 
-extern void get_cpu_vendor(struct cpuinfo_x86*);
 extern void start_kernel(void);
 extern void pda_init(int); 
 
@@ -75,9 +74,6 @@ extern void acpi_reserve_bootmem(void);
 
 extern void swap_low_mappings(void);
 
-extern void oops_begin(void);
-extern void die(const char *,struct pt_regs *,long);
-extern void __die(const char * str, struct pt_regs * regs, long err);
 extern void __show_regs(struct pt_regs * regs);
 extern void show_regs(struct pt_regs * regs);
 
@@ -94,8 +90,6 @@ extern int unhandled_signal(struct task_struct *tsk, int sig);
 extern void select_idle_routine(const struct cpuinfo_x86 *c);
 extern void swiotlb_init(void);
 
-extern unsigned long max_mapnr;
-extern unsigned long end_pfn; 
 extern unsigned long table_start, table_end;
 
 extern int exception_trace;

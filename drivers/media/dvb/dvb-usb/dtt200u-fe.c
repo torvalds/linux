@@ -18,6 +18,7 @@ struct dtt200u_fe_state {
 
 	struct dvb_frontend_parameters fep;
 	struct dvb_frontend frontend;
+	struct dvb_frontend_ops ops;
 };
 
 static int dtt200u_fe_read_status(struct dvb_frontend* fe, fe_status_t *stat)
@@ -163,8 +164,9 @@ struct dvb_frontend* dtt200u_fe_attach(struct dvb_usb_device *d)
 	deb_info("attaching frontend dtt200u\n");
 
 	state->d = d;
+	memcpy(&state->ops,&dtt200u_fe_ops,sizeof(struct dvb_frontend_ops));
 
-	state->frontend.ops = &dtt200u_fe_ops;
+	state->frontend.ops = &state->ops;
 	state->frontend.demodulator_priv = state;
 
 	goto success;

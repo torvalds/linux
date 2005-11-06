@@ -23,7 +23,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * Send feedback to <greg@kroah.com>, <dely.l.sy@intel.com>
+ * Send feedback to <greg@kroah.com>, <kristen.c.accardi@intel.com>
  *
  */
 
@@ -33,10 +33,13 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/slab.h>
+
 #include <asm/uaccess.h>
 #ifdef CONFIG_IA64
 #include <asm/iosapic.h>
 #endif
+
 #include "pciehp.h"
 #include "pciehprm.h"
 #include "pciehprm_nonacpi.h"

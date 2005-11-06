@@ -82,16 +82,13 @@ static void __devinit Intel_errata_workarounds(struct cpuinfo_x86 *c)
  */
 static int __devinit num_cpu_cores(struct cpuinfo_x86 *c)
 {
-	unsigned int eax;
+	unsigned int eax, ebx, ecx, edx;
 
 	if (c->cpuid_level < 4)
 		return 1;
 
-	__asm__("cpuid"
-		: "=a" (eax)
-		: "0" (4), "c" (0)
-		: "bx", "dx");
-
+	/* Intel has a non-standard dependency on %ecx for this CPUID level. */
+	cpuid_count(4, 0, &eax, &ebx, &ecx, &edx);
 	if (eax & 0x1f)
 		return ((eax >> 26) + 1);
 	else

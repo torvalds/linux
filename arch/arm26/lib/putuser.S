@@ -26,7 +26,7 @@
  * Note that ADDR_LIMIT is either 0 or 0xc0000000
  * Note also that it is intended that __put_user_bad is not global.
  */
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/errno.h>
 

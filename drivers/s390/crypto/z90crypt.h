@@ -36,15 +36,6 @@
 #define z90crypt_VARIANT 2	// 2 = added PCIXCC MCL3 and CEX2C support
 
 /**
- * If we are not using the sparse checker, __user has no use.
- */
-#ifdef __CHECKER__
-# define __user		__attribute__((noderef, address_space(1)))
-#else
-# define __user
-#endif
-
-/**
  * struct ica_rsa_modexpo
  *
  * Requirements:

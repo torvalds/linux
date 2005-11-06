@@ -8,7 +8,7 @@
  *  - update the page tables
  *  - inform the TLB about the new one
  *
- * We hold the mm semaphore for reading and vma->vm_mm->page_table_lock.
+ * We hold the mm semaphore for reading, and the pte lock.
  *
  * Note: the old pte is known to not be writable, so we don't need to
  * worry about dirty bits etc getting lost.
@@ -101,6 +101,22 @@ do {				  					  \
 })
 #endif
 
+#ifndef __HAVE_ARCH_PTEP_GET_AND_CLEAR_FULL
+#define ptep_get_and_clear_full(__mm, __address, __ptep, __full)	\
+({									\
+	pte_t __pte;							\
+	__pte = ptep_get_and_clear((__mm), (__address), (__ptep));	\
+	__pte;								\
+})
+#endif
+
+#ifndef __HAVE_ARCH_PTE_CLEAR_FULL
+#define pte_clear_full(__mm, __address, __ptep, __full)			\
+do {									\
+	pte_clear((__mm), (__address), (__ptep));			\
+} while (0)
+#endif
+
 #ifndef __HAVE_ARCH_PTEP_CLEAR_FLUSH
 #define ptep_clear_flush(__vma, __address, __ptep)			\
 ({									\
@@ -140,6 +156,19 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addres
 
 #ifndef __HAVE_ARCH_LAZY_MMU_PROT_UPDATE
 #define lazy_mmu_prot_update(pte)	do { } while (0)
+#endif
+
+#ifndef __HAVE_ARCH_MULTIPLE_ZERO_PAGE
+#define move_pte(pte, prot, old_addr, new_addr)	(pte)
+#else
+#define move_pte(pte, prot, old_addr, new_addr)				\
+({									\
+ 	pte_t newpte = (pte);						\
+	if (pte_present(pte) && pfn_valid(pte_pfn(pte)) &&		\
+			pte_page(pte) == ZERO_PAGE(old_addr))		\
+		newpte = mk_pte(ZERO_PAGE(new_addr), (prot));		\
+	newpte;								\
+})
 #endif
 
 /*

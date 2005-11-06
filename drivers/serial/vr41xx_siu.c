@@ -26,7 +26,7 @@
 #endif
 
 #include <linux/console.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -284,7 +284,7 @@ static unsigned int siu_get_mctrl(struct uart_port *port)
 	return mctrl;
 }
 
-static void siu_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void siu_stop_tx(struct uart_port *port)
 {
 	unsigned long flags;
 	uint8_t ier;
@@ -298,7 +298,7 @@ static void siu_stop_tx(struct uart_port *port, unsigned int tty_stop)
 	spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static void siu_start_tx(struct uart_port *port, unsigned int tty_start)
+static void siu_start_tx(struct uart_port *port)
 {
 	unsigned long flags;
 	uint8_t ier;
@@ -458,7 +458,7 @@ static inline void transmit_chars(struct uart_port *port)
 	}
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		siu_stop_tx(port, 0);
+		siu_stop_tx(port);
 		return;
 	}
 
@@ -474,7 +474,7 @@ static inline void transmit_chars(struct uart_port *port)
 		uart_write_wakeup(port);
 
 	if (uart_circ_empty(xmit))
-		siu_stop_tx(port, 0);
+		siu_stop_tx(port);
 }
 
 static irqreturn_t siu_interrupt(int irq, void *dev_id, struct pt_regs *regs)
@@ -976,13 +976,10 @@ static int siu_remove(struct device *dev)
 	return 0;
 }
 
-static int siu_suspend(struct device *dev, pm_message_t state, u32 level)
+static int siu_suspend(struct device *dev, pm_message_t state)
 {
 	struct uart_port *port;
 	int i;
-
-	if (level != SUSPEND_DISABLE)
-		return 0;
 
 	for (i = 0; i < siu_uart_driver.nr; i++) {
 		port = &siu_uart_ports[i];
@@ -995,13 +992,10 @@ static int siu_suspend(struct device *dev, pm_message_t state, u32 level)
 	return 0;
 }
 
-static int siu_resume(struct device *dev, u32 level)
+static int siu_resume(struct device *dev)
 {
 	struct uart_port *port;
 	int i;
-
-	if (level != RESUME_ENABLE)
-		return 0;
 
 	for (i = 0; i < siu_uart_driver.nr; i++) {
 		port = &siu_uart_ports[i];

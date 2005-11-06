@@ -87,15 +87,14 @@
       #define scsi_set_pci_device(sh,dev) (0)
    #endif
 
-   #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
-   
-      #ifndef irqreturn_t
-         typedef void irqreturn_t;
-      #endif 
-      
+   #ifndef IRQ_NONE
+      typedef void irqreturn_t;
       #define IRQ_NONE
       #define IRQ_HANDLED
       #define IRQ_RETVAL(x)
+   #endif
+   
+   #if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,0)
       #define IPS_REGISTER_HOSTS(SHT)      scsi_register_module(MODULE_SCSI_HA,SHT)
       #define IPS_UNREGISTER_HOSTS(SHT)    scsi_unregister_module(MODULE_SCSI_HA,SHT)
       #define IPS_ADD_HOST(shost,device)
@@ -122,6 +121,10 @@
 
    #ifndef min
       #define min(x,y) ((x) < (y) ? x : y)
+   #endif
+   
+   #ifndef __iomem       /* For clean compiles in earlier kernels without __iomem annotations */
+      #define __iomem
    #endif
 
    #define pci_dma_hi32(a)         ((a >> 16) >> 16)
@@ -1206,13 +1209,13 @@ typedef struct {
 
 #define IPS_VER_MAJOR 7
 #define IPS_VER_MAJOR_STRING "7"
-#define IPS_VER_MINOR 10
-#define IPS_VER_MINOR_STRING "10"
-#define IPS_VER_BUILD 18
-#define IPS_VER_BUILD_STRING "18"
-#define IPS_VER_STRING "7.10.18"
+#define IPS_VER_MINOR 12
+#define IPS_VER_MINOR_STRING "12"
+#define IPS_VER_BUILD 02
+#define IPS_VER_BUILD_STRING "02"
+#define IPS_VER_STRING "7.12.02"
 #define IPS_RELEASE_ID 0x00020000
-#define IPS_BUILD_IDENT 731
+#define IPS_BUILD_IDENT 761
 #define IPS_LEGALCOPYRIGHT_STRING "(C) Copyright IBM Corp. 1994, 2002. All Rights Reserved."
 #define IPS_ADAPTECCOPYRIGHT_STRING "(c) Copyright Adaptec, Inc. 2002 to 2004. All Rights Reserved."
 #define IPS_DELLCOPYRIGHT_STRING "(c) Copyright Dell 2004. All Rights Reserved."
@@ -1223,12 +1226,12 @@ typedef struct {
 #define IPS_VER_SERVERAID2 "2.88.13"
 #define IPS_VER_NAVAJO "2.88.13"
 #define IPS_VER_SERVERAID3 "6.10.24"
-#define IPS_VER_SERVERAID4H "7.10.11"
-#define IPS_VER_SERVERAID4MLx "7.10.18"
-#define IPS_VER_SARASOTA "7.10.18"
-#define IPS_VER_MARCO "7.10.18"
-#define IPS_VER_SEBRING "7.10.18"
-#define IPS_VER_KEYWEST "7.10.18"
+#define IPS_VER_SERVERAID4H "7.12.02"
+#define IPS_VER_SERVERAID4MLx "7.12.02"
+#define IPS_VER_SARASOTA "7.12.02"
+#define IPS_VER_MARCO "7.12.02"
+#define IPS_VER_SEBRING "7.12.02"
+#define IPS_VER_KEYWEST "7.12.02"
 
 /* Compatability IDs for various adapters */
 #define IPS_COMPAT_UNKNOWN ""

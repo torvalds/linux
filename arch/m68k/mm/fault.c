@@ -160,13 +160,13 @@ good_area:
 	printk("handle_mm_fault returns %d\n",fault);
 #endif
 	switch (fault) {
-	case 1:
+	case VM_FAULT_MINOR:
 		current->min_flt++;
 		break;
-	case 2:
+	case VM_FAULT_MAJOR:
 		current->maj_flt++;
 		break;
-	case 0:
+	case VM_FAULT_SIGBUS:
 		goto bus_err;
 	default:
 		goto out_of_memory;

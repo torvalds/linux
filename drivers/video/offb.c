@@ -363,7 +363,7 @@ static void __init offb_init_nodriver(struct device_node *dp)
 		address = (u_long) dp->addrs[i].address;
 
 #ifdef CONFIG_PPC64
-		address += dp->phb->pci_mem_offset;
+		address += ((struct pci_dn *)dp->data)->phb->pci_mem_offset;
 #endif
 
 		/* kludge for valkyrie */

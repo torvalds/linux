@@ -6090,8 +6090,8 @@ NCR53c7x0_release(struct Scsi_Host *host) {
     if (hostdata->num_cmds)
 	printk ("scsi%d : leaked %d NCR53c7x0_cmd structures\n",
 	    host->host_no, hostdata->num_cmds);
-    if (hostdata->events) 
-	vfree ((void *)hostdata->events);
+
+    vfree(hostdata->events);
 
     /* XXX This assumes default cache mode to be IOMAP_FULL_CACHING, which
      * XXX may be invalid (CONFIG_060_WRITETHROUGH)

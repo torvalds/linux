@@ -1,23 +1,21 @@
 /*  *********************************************************************
     *  SB1250 Board Support Package
-    *  
-    *  Global constants and macros		File: sb1250_defs.h	
-    *  
+    *
+    *  Global constants and macros		File: sb1250_defs.h
+    *
     *  This file contains macros and definitions used by the other
     *  include files.
     *
     *  SB1250 specification level:  User's manual 1/02/02
-    *  
-    *  Author:  Mitch Lichtenberg
-    *  
-    *********************************************************************  
+    *
+    *********************************************************************
     *
     *  Copyright 2000,2001,2002,2003
     *  Broadcom Corporation. All rights reserved.
-    *  
-    *  This program is free software; you can redistribute it and/or 
-    *  modify it under the terms of the GNU General Public License as 
-    *  published by the Free Software Foundation; either version 2 of 
+    *
+    *  This program is free software; you can redistribute it and/or
+    *  modify it under the terms of the GNU General Public License as
+    *  published by the Free Software Foundation; either version 2 of
     *  the License, or (at your option) any later version.
     *
     *  This program is distributed in the hope that it will be useful,
@@ -27,7 +25,7 @@
     *
     *  You should have received a copy of the GNU General Public License
     *  along with this program; if not, write to the Free Software
-    *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
+    *  Foundation, Inc., 59 Temple Place, Suite 330, Boston,
     *  MA 02111-1307 USA
     ********************************************************************* */
 
@@ -97,22 +95,35 @@
     *  ordering, so be careful when adding support for new minor revs.
     ********************************************************************* */
 
-#define	SIBYTE_HDR_FMASK_1250_ALL		0x00000ff
-#define	SIBYTE_HDR_FMASK_1250_PASS1		0x0000001
-#define	SIBYTE_HDR_FMASK_1250_PASS2		0x0000002
-#define	SIBYTE_HDR_FMASK_1250_PASS3		0x0000004
+#define	SIBYTE_HDR_FMASK_1250_ALL		0x000000ff
+#define	SIBYTE_HDR_FMASK_1250_PASS1		0x00000001
+#define	SIBYTE_HDR_FMASK_1250_PASS2		0x00000002
+#define	SIBYTE_HDR_FMASK_1250_PASS3		0x00000004
 
-#define	SIBYTE_HDR_FMASK_112x_ALL		0x0000f00
-#define	SIBYTE_HDR_FMASK_112x_PASS1		0x0000100
+#define	SIBYTE_HDR_FMASK_112x_ALL		0x00000f00
+#define	SIBYTE_HDR_FMASK_112x_PASS1		0x00000100
 
-/* Bit mask for chip/revision.  (use _ALL for all revisions of a chip).  */ 
+#define SIBYTE_HDR_FMASK_1480_ALL		0x0000f000
+#define SIBYTE_HDR_FMASK_1480_PASS1		0x00001000
+#define SIBYTE_HDR_FMASK_1480_PASS2		0x00002000
+
+/* Bit mask for chip/revision.  (use _ALL for all revisions of a chip).  */
 #define	SIBYTE_HDR_FMASK(chip, pass)					\
     (SIBYTE_HDR_FMASK_ ## chip ## _ ## pass)
 #define	SIBYTE_HDR_FMASK_ALLREVS(chip)					\
     (SIBYTE_HDR_FMASK_ ## chip ## _ALL)
 
+/* Default constant value for all chips, all revisions */
 #define	SIBYTE_HDR_FMASK_ALL						\
+    (SIBYTE_HDR_FMASK_1250_ALL | SIBYTE_HDR_FMASK_112x_ALL		\
+     | SIBYTE_HDR_FMASK_1480_ALL)
+
+/* This one is used for the "original" BCM1250/BCM112x chips.  We use this
+   to weed out constants and macros that do not exist on later chips like
+   the BCM1480  */
+#define SIBYTE_HDR_FMASK_1250_112x_ALL					\
     (SIBYTE_HDR_FMASK_1250_ALL | SIBYTE_HDR_FMASK_112x_ALL)
+#define SIBYTE_HDR_FMASK_1250_112x SIBYTE_HDR_FMASK_1250_112x_ALL
 
 #ifndef SIBYTE_HDR_FEATURES
 #define	SIBYTE_HDR_FEATURES			SIBYTE_HDR_FMASK_ALL
@@ -133,6 +144,12 @@
 #define SIBYTE_HDR_FEATURE_CHIP(chip)					\
     (!! (SIBYTE_HDR_FMASK_ALLREVS(chip) & SIBYTE_HDR_FEATURES))
 
+/* True for all versions of the BCM1250 and BCM1125, but not true for
+   anything else */
+#define SIBYTE_HDR_FEATURE_1250_112x \
+      (SIBYTE_HDR_FEATURE_CHIP(1250) || SIBYTE_HDR_FEATURE_CHIP(112x))
+/*    (!!  (SIBYTE_HDR_FEATURES & SIBYHTE_HDR_FMASK_1250_112x)) */
+
 /* True if header features enabled for that rev or later, inclusive.  */
 #define SIBYTE_HDR_FEATURE(chip, pass)					\
     (!! ((SIBYTE_HDR_FMASK(chip, pass)					\
@@ -150,31 +167,31 @@
 
 /*  *********************************************************************
     *  Naming schemes for constants in these files:
-    *  
-    *  M_xxx           MASK constant (identifies bits in a register). 
+    *
+    *  M_xxx           MASK constant (identifies bits in a register).
     *                  For multi-bit fields, all bits in the field will
     *                  be set.
     *
     *  K_xxx           "Code" constant (value for data in a multi-bit
     *                  field).  The value is right justified.
     *
-    *  V_xxx           "Value" constant.  This is the same as the 
+    *  V_xxx           "Value" constant.  This is the same as the
     *                  corresponding "K_xxx" constant, except it is
     *                  shifted to the correct position in the register.
     *
     *  S_xxx           SHIFT constant.  This is the number of bits that
-    *                  a field value (code) needs to be shifted 
+    *                  a field value (code) needs to be shifted
     *                  (towards the left) to put the value in the right
     *                  position for the register.
     *
-    *  A_xxx           ADDRESS constant.  This will be a physical 
+    *  A_xxx           ADDRESS constant.  This will be a physical
     *                  address.  Use the PHYS_TO_K1 macro to generate
     *                  a K1SEG address.
     *
     *  R_xxx           RELATIVE offset constant.  This is an offset from
     *                  an A_xxx constant (usually the first register in
     *                  a group).
-    *  
+    *
     *  G_xxx(X)        GET value.  This macro obtains a multi-bit field
     *                  from a register, masks it, and shifts it to
     *                  the bottom of the register (retrieving a K_xxx
@@ -189,7 +206,7 @@
 
 
 /*
- * Cast to 64-bit number.  Presumably the syntax is different in 
+ * Cast to 64-bit number.  Presumably the syntax is different in
  * assembly language.
  *
  * Note: you'll need to define uint32_t and uint64_t in your headers.

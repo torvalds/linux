@@ -36,7 +36,6 @@
 #include <linux/proc_fs.h>
 #include <linux/stat.h>
 #include <linux/mca.h>
-#include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/init.h>
 #include <linux/mca-legacy.h>
@@ -461,6 +460,8 @@ MODULE_PARM(adisplay, "1i");
 MODULE_PARM(normal, "1i");
 MODULE_PARM(ansi, "1i");
 #endif
+
+MODULE_LICENSE("GPL");
 #endif
 /*counter of concurrent disk read/writes, to turn on/off disk led */
 static int disk_rw_in_progress = 0;

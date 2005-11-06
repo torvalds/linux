@@ -6,7 +6,7 @@ menu "Block devices"
 
 config BLK_DEV_FD
 	tristate "Normal floppy disk support"
-	depends on (!ARCH_S390 && !M68K && !IA64 && !UML && !ARM) || Q40 || (SUN3X && BROKEN) || ARCH_RPC || ARCH_EBSA285
+	depends on ARCH_MAY_HAVE_PC_FDC
 	---help---
 	  If you want to use the floppy disk drive(s) of your PC under Linux,
 	  say Y. Information about this driver, especially important for IBM
@@ -408,54 +408,12 @@ config BLK_DEV_INITRD
 	  "real" root file system, etc. See <file:Documentation/initrd.txt>
 	  for details.
 
-config INITRAMFS_SOURCE
-	string "Initramfs source file(s)"
-	default ""
-	help
-	  This can be either a single cpio archive with a .cpio suffix or a
-	  space-separated list of directories and files for building the
-	  initramfs image.  A cpio archive should contain a filesystem archive
-	  to be used as an initramfs image.  Directories should contain a
-	  filesystem layout to be included in the initramfs image.  Files
-	  should contain entries according to the format described by the
-	  "usr/gen_init_cpio" program in the kernel tree.
-
-	  When multiple directories and files are specified then the
-	  initramfs image will be the aggregate of all of them.
-
-	  See <file:Documentation/early-userspace/README for more details.
-
-	  If you are not sure, leave it blank.
-
-config INITRAMFS_ROOT_UID
-	int "User ID to map to 0 (user root)"
-	depends on INITRAMFS_SOURCE!=""
-	default "0"
-	help
-	  This setting is only meaningful if the INITRAMFS_SOURCE is
-	  contains a directory.  Setting this user ID (UID) to something
-	  other than "0" will cause all files owned by that UID to be
-	  owned by user root in the initial ramdisk image.
-
-	  If you are not sure, leave it set to "0".
-
-config INITRAMFS_ROOT_GID
-	int "Group ID to map to 0 (group root)"
-	depends on INITRAMFS_SOURCE!=""
-	default "0"
-	help
-	  This setting is only meaningful if the INITRAMFS_SOURCE is
-	  contains a directory.  Setting this group ID (GID) to something
-	  other than "0" will cause all files owned by that GID to be
-	  owned by group root in the initial ramdisk image.
-
-	  If you are not sure, leave it set to "0".
 
 #XXX - it makes sense to enable this only for 32-bit subarch's, not for x86_64
 #for instance.
 config LBD
 	bool "Support for Large Block Devices"
-	depends on X86 || MIPS32 || PPC32 || ARCH_S390_31 || SUPERH || UML
+	depends on X86 || (MIPS && 32BIT) || PPC32 || ARCH_S390_31 || SUPERH || UML
 	help
 	  Say Y here if you want to attach large (bigger than 2TB) discs to
 	  your machine, or if you want to have a raid or loopback device

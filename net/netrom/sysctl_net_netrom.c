@@ -30,6 +30,7 @@ static int min_idle[]    = {0 * HZ};
 static int max_idle[]    = {65535 * HZ};
 static int min_route[]   = {0}, max_route[]   = {1};
 static int min_fails[]   = {1}, max_fails[]   = {10};
+static int min_reset[]   = {0}, max_reset[]   = {1};
 
 static struct ctl_table_header *nr_table_header;
 
@@ -154,6 +155,17 @@ static ctl_table nr_table[] = {
 		.strategy	= &sysctl_intvec,
 		.extra1		= &min_fails,
 		.extra2		= &max_fails
+	},
+        {
+		.ctl_name	= NET_NETROM_RESET,
+		.procname	= "reset",
+		.data		= &sysctl_netrom_reset_circuit,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= &proc_dointvec_minmax,
+		.strategy	= &sysctl_intvec,
+		.extra1		= &min_reset,
+		.extra2		= &max_reset
 	},
 	{ .ctl_name = 0 }
 };

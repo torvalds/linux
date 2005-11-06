@@ -363,7 +363,14 @@ __neigh_lookup_errno(struct neigh_table *tbl, const void *pkey,
 	return neigh_create(tbl, pkey, dev);
 }
 
-#define LOCALLY_ENQUEUED -2
+struct neighbour_cb {
+	unsigned long sched_next;
+	unsigned int flags;
+};
+
+#define LOCALLY_ENQUEUED 0x1
+
+#define NEIGH_CB(skb)	((struct neighbour_cb *)(skb)->cb)
 
 #endif
 #endif

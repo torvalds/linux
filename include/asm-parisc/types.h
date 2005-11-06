@@ -33,8 +33,10 @@ typedef unsigned long long __u64;
 
 #ifdef __LP64__
 #define BITS_PER_LONG 64
+#define SHIFT_PER_LONG 6
 #else
 #define BITS_PER_LONG 32
+#define SHIFT_PER_LONG 5
 #endif
 
 #ifndef __ASSEMBLY__
@@ -55,8 +57,6 @@ typedef unsigned long long u64;
 
 typedef u32 dma_addr_t;
 typedef u64 dma64_addr_t;
-
-typedef unsigned int kmem_bufctl_t;
 
 #endif /* __ASSEMBLY__ */
 

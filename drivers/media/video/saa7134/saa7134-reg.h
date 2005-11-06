@@ -1,5 +1,4 @@
 /*
- * $Id: saa7134-reg.h,v 1.2 2004/09/15 16:15:24 kraxel Exp $
  *
  * philips saa7134 registers
  */

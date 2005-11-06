@@ -1,0 +1,29 @@
+menu "DCCP CCIDs Configuration (EXPERIMENTAL)"
+	depends on IP_DCCP && EXPERIMENTAL
+
+config IP_DCCP_CCID3
+	tristate "CCID3 (TFRC) (EXPERIMENTAL)"
+	depends on IP_DCCP
+	---help---
+	  CCID 3 denotes TCP-Friendly Rate Control (TFRC), an equation-based
+	  rate-controlled congestion control mechanism.  TFRC is designed to
+	  be reasonably fair when competing for bandwidth with TCP-like flows,
+	  where a flow is "reasonably fair" if its sending rate is generally
+	  within a factor of two of the sending rate of a TCP flow under the
+	  same conditions.  However, TFRC has a much lower variation of
+	  throughput over time compared with TCP, which makes CCID 3 more
+	  suitable than CCID 2 for applications such streaming media where a
+	  relatively smooth sending rate is of importance.
+
+	  CCID 3 is further described in [CCID 3 PROFILE]. The TFRC
+	  congestion control algorithms were initially described in RFC 3448.
+
+	  This text was extracted from draft-ietf-dccp-spec-11.txt.
+	  
+	  If in doubt, say M.
+
+config IP_DCCP_TFRC_LIB
+	depends on IP_DCCP_CCID3
+	def_tristate IP_DCCP_CCID3
+
+endmenu

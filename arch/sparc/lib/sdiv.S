@@ -43,7 +43,9 @@
 
 
 	.globl .div
+	.globl _Div
 .div:
+_Div:	/* needed for export */
 	! compute sign of result; if neither is negative, no problem
 	orcc	%o1, %o0, %g0	! either negative?
 	bge	2f			! no, go do the divide

@@ -691,8 +691,7 @@ int cpqfcTS_ioctl( struct scsi_device *ScsiDev, int Cmnd, void *arg)
         if(  copy_to_user( vendor_cmd->bufp, buf, vendor_cmd->len))
 		result = -EFAULT;
 
-        if( buf) 
-	  kfree( buf);
+	kfree(buf);
 
         return result;
       }

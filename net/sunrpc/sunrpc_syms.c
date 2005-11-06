@@ -10,7 +10,6 @@
 #include <linux/module.h>
 
 #include <linux/types.h>
-#include <linux/socket.h>
 #include <linux/sched.h>
 #include <linux/uio.h>
 #include <linux/unistd.h>
@@ -64,8 +63,6 @@ EXPORT_SYMBOL(rpc_mkpipe);
 /* Client transport */
 EXPORT_SYMBOL(xprt_create_proto);
 EXPORT_SYMBOL(xprt_set_timeout);
-EXPORT_SYMBOL(xprt_udp_slot_table_entries);
-EXPORT_SYMBOL(xprt_tcp_slot_table_entries);
 
 /* Client credential cache */
 EXPORT_SYMBOL(rpcauth_register);
@@ -176,8 +173,10 @@ cleanup_sunrpc(void)
 {
 	unregister_rpc_pipefs();
 	rpc_destroy_mempool();
-	cache_unregister(&auth_domain_cache);
-	cache_unregister(&ip_map_cache);
+	if (cache_unregister(&auth_domain_cache))
+		printk(KERN_ERR "sunrpc: failed to unregister auth_domain cache\n");
+	if (cache_unregister(&ip_map_cache))
+		printk(KERN_ERR "sunrpc: failed to unregister ip_map cache\n");
 #ifdef RPC_DEBUG
 	rpc_unregister_sysctl();
 #endif

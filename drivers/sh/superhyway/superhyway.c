@@ -16,6 +16,8 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/superhyway.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 static int superhyway_devices;
 

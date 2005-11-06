@@ -486,9 +486,9 @@ struct netdrv_private {
 MODULE_AUTHOR ("Jeff Garzik <jgarzik@pobox.com>");
 MODULE_DESCRIPTION ("Skeleton for a PCI Fast Ethernet driver");
 MODULE_LICENSE("GPL");
-MODULE_PARM (multicast_filter_limit, "i");
-MODULE_PARM (max_interrupt_work, "i");
-MODULE_PARM (media, "1-" __MODULE_STRING(8) "i");
+module_param(multicast_filter_limit, int, 0);
+module_param(max_interrupt_work, int, 0);
+module_param_array(media, int, NULL, 0);
 MODULE_PARM_DESC (multicast_filter_limit, "pci-skeleton maximum number of filtered multicast addresses");
 MODULE_PARM_DESC (max_interrupt_work, "pci-skeleton maximum events handled per interrupt");
 MODULE_PARM_DESC (media, "pci-skeleton: Bits 0-3: media type, bit 17: full duplex");

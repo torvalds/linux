@@ -35,10 +35,6 @@
 # include <linux/efi.h>
 #endif
 
-#if defined(CONFIG_S390_TAPE) && defined(CONFIG_S390_TAPE_CHAR)
-extern void tapechar_init(void);
-#endif
-
 /*
  * Architectures vary in how they handle caching for addresses
  * outside of main memory.
@@ -235,9 +231,7 @@ static ssize_t write_mem(struct file * file, const char __user * buf,
 static int mmap_mem(struct file * file, struct vm_area_struct * vma)
 {
 #if defined(__HAVE_PHYS_MEM_ACCESS_PROT)
-	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
-
-	vma->vm_page_prot = phys_mem_access_prot(file, offset,
+	vma->vm_page_prot = phys_mem_access_prot(file, vma->vm_pgoff,
 						 vma->vm_end - vma->vm_start,
 						 vma->vm_page_prot);
 #elif defined(pgprot_noncached)
@@ -261,7 +255,11 @@ static int mmap_mem(struct file * file, struct vm_area_struct * vma)
 
 static int mmap_kmem(struct file * file, struct vm_area_struct * vma)
 {
-        unsigned long long val;
+	unsigned long pfn;
+
+	/* Turn a kernel-virtual address into a physical page frame */
+	pfn = __pa((u64)vma->vm_pgoff << PAGE_SHIFT) >> PAGE_SHIFT;
+
 	/*
 	 * RED-PEN: on some architectures there is more mapped memory
 	 * than available in mem_map which pfn_valid checks
@@ -269,10 +267,10 @@ static int mmap_kmem(struct file * file, struct vm_area_struct * vma)
 	 *
 	 * RED-PEN: vmalloc is not supported right now.
 	 */
-	if (!pfn_valid(vma->vm_pgoff))
+	if (!pfn_valid(pfn))
 		return -EIO;
-	val = (u64)vma->vm_pgoff << PAGE_SHIFT;
-	vma->vm_pgoff = __pa(val) >> PAGE_SHIFT;
+
+	vma->vm_pgoff = pfn;
 	return mmap_mem(file, vma);
 }
 
@@ -920,7 +918,8 @@ static int __init chr_dev_init(void)
 
 	mem_class = class_create(THIS_MODULE, "mem");
 	for (i = 0; i < ARRAY_SIZE(devlist); i++) {
-		class_device_create(mem_class, MKDEV(MEM_MAJOR, devlist[i].minor),
+		class_device_create(mem_class, NULL,
+					MKDEV(MEM_MAJOR, devlist[i].minor),
 					NULL, devlist[i].name);
 		devfs_mk_cdev(MKDEV(MEM_MAJOR, devlist[i].minor),
 				S_IFCHR | devlist[i].mode, devlist[i].name);

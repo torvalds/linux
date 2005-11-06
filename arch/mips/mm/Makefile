@@ -5,8 +5,8 @@
 obj-y				+= cache.o extable.o fault.o init.o pgtable.o \
 				   tlbex.o tlbex-fault.o
 
-obj-$(CONFIG_MIPS32)		+= ioremap.o pgtable-32.o
-obj-$(CONFIG_MIPS64)		+= pgtable-64.o
+obj-$(CONFIG_32BIT)		+= ioremap.o pgtable-32.o
+obj-$(CONFIG_64BIT)		+= pgtable-64.o
 obj-$(CONFIG_HIGHMEM)		+= highmem.o
 
 obj-$(CONFIG_CPU_MIPS32)	+= c-r4k.o cex-gen.o pg-r4k.o tlb-r4k.o
@@ -22,7 +22,7 @@ obj-$(CONFIG_CPU_R8000)		+= c-r4k.o cex-gen.o pg-r4k.o tlb-r8k.o
 obj-$(CONFIG_CPU_RM7000)	+= c-r4k.o cex-gen.o pg-r4k.o tlb-r4k.o
 obj-$(CONFIG_CPU_RM9000)	+= c-r4k.o cex-gen.o pg-r4k.o tlb-r4k.o
 obj-$(CONFIG_CPU_SB1)		+= c-sb1.o cerr-sb1.o cex-sb1.o pg-sb1.o \
-				   tlb-sb1.o
+				   tlb-r4k.o
 obj-$(CONFIG_CPU_TX39XX)	+= c-tx39.o pg-r4k.o tlb-r3k.o
 obj-$(CONFIG_CPU_TX49XX)	+= c-r4k.o cex-gen.o pg-r4k.o tlb-r4k.o
 obj-$(CONFIG_CPU_VR41XX)	+= c-r4k.o cex-gen.o pg-r4k.o tlb-r4k.o

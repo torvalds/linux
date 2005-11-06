@@ -182,7 +182,7 @@ int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int flen)
 				A = ntohl(*(u32 *)ptr);
 				continue;
 			}
-			return 0;
+			break;
 		case BPF_LD|BPF_H|BPF_ABS:
 			k = fentry->k;
  load_h:
@@ -191,7 +191,7 @@ int sk_run_filter(struct sk_buff *skb, struct sock_filter *filter, int flen)
 				A = ntohs(*(u16 *)ptr);
 				continue;
 			}
-			return 0;
+			break;
 		case BPF_LD|BPF_B|BPF_ABS:
 			k = fentry->k;
 load_b:
@@ -200,7 +200,7 @@ load_b:
 				A = *(u8 *)ptr;
 				continue;
 			}
-			return 0;
+			break;
 		case BPF_LD|BPF_W|BPF_LEN:
 			A = skb->len;
 			continue;

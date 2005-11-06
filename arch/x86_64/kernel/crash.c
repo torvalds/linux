@@ -11,7 +11,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/smp.h>
-#include <linux/irq.h>
 #include <linux/reboot.h>
 #include <linux/kexec.h>
 

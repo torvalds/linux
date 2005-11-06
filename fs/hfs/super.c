@@ -15,8 +15,11 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
+#include <linux/mount.h>
 #include <linux/init.h>
+#include <linux/nls.h>
 #include <linux/parser.h>
+#include <linux/seq_file.h>
 #include <linux/vfs.h>
 
 #include "hfs_fs.h"
@@ -111,6 +114,32 @@ static int hfs_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
+static int hfs_show_options(struct seq_file *seq, struct vfsmount *mnt)
+{
+	struct hfs_sb_info *sbi = HFS_SB(mnt->mnt_sb);
+
+	if (sbi->s_creator != cpu_to_be32(0x3f3f3f3f))
+		seq_printf(seq, ",creator=%.4s", (char *)&sbi->s_creator);
+	if (sbi->s_type != cpu_to_be32(0x3f3f3f3f))
+		seq_printf(seq, ",type=%.4s", (char *)&sbi->s_type);
+	seq_printf(seq, ",uid=%u,gid=%u", sbi->s_uid, sbi->s_gid);
+	if (sbi->s_file_umask != 0133)
+		seq_printf(seq, ",file_umask=%o", sbi->s_file_umask);
+	if (sbi->s_dir_umask != 0022)
+		seq_printf(seq, ",dir_umask=%o", sbi->s_dir_umask);
+	if (sbi->part >= 0)
+		seq_printf(seq, ",part=%u", sbi->part);
+	if (sbi->session >= 0)
+		seq_printf(seq, ",session=%u", sbi->session);
+	if (sbi->nls_disk)
+		seq_printf(seq, ",codepage=%s", sbi->nls_disk->charset);
+	if (sbi->nls_io)
+		seq_printf(seq, ",iocharset=%s", sbi->nls_io->charset);
+	if (sbi->s_quiet)
+		seq_printf(seq, ",quiet");
+	return 0;
+}
+
 static struct inode *hfs_alloc_inode(struct super_block *sb)
 {
 	struct hfs_inode_info *i;
@@ -133,11 +162,13 @@ static struct super_operations hfs_super_operations = {
 	.write_super	= hfs_write_super,
 	.statfs		= hfs_statfs,
 	.remount_fs     = hfs_remount,
+	.show_options	= hfs_show_options,
 };
 
 enum {
 	opt_uid, opt_gid, opt_umask, opt_file_umask, opt_dir_umask,
 	opt_part, opt_session, opt_type, opt_creator, opt_quiet,
+	opt_codepage, opt_iocharset,
 	opt_err
 };
 
@@ -152,6 +183,8 @@ static match_table_t tokens = {
 	{ opt_type, "type=%s" },
 	{ opt_creator, "creator=%s" },
 	{ opt_quiet, "quiet" },
+	{ opt_codepage, "codepage=%s" },
+	{ opt_iocharset, "iocharset=%s" },
 	{ opt_err, NULL }
 };
 
@@ -257,11 +290,46 @@ static int parse_options(char *options, struct hfs_sb_info *hsb)
 		case opt_quiet:
 			hsb->s_quiet = 1;
 			break;
+		case opt_codepage:
+			if (hsb->nls_disk) {
+				printk("HFS+-fs: unable to change codepage\n");
+				return 0;
+			}
+			p = match_strdup(&args[0]);
+			hsb->nls_disk = load_nls(p);
+			if (!hsb->nls_disk) {
+				printk("HFS+-fs: unable to load codepage \"%s\"\n", p);
+				kfree(p);
+				return 0;
+			}
+			kfree(p);
+			break;
+		case opt_iocharset:
+			if (hsb->nls_io) {
+				printk("HFS: unable to change iocharset\n");
+				return 0;
+			}
+			p = match_strdup(&args[0]);
+			hsb->nls_io = load_nls(p);
+			if (!hsb->nls_io) {
+				printk("HFS: unable to load iocharset \"%s\"\n", p);
+				kfree(p);
+				return 0;
+			}
+			kfree(p);
+			break;
 		default:
 			return 0;
 		}
 	}
 
+	if (hsb->nls_disk && !hsb->nls_io) {
+		hsb->nls_io = load_nls_default();
+		if (!hsb->nls_io) {
+			printk("HFS: unable to load default iocharset\n");
+			return 0;
+		}
+	}
 	hsb->s_dir_umask &= 0777;
 	hsb->s_file_umask &= 0577;
 

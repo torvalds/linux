@@ -1004,7 +1004,7 @@ static int __devinit snd_mixart_create(mixart_mgr_t *mgr, snd_card_t *card, int 
 		.dev_free = snd_mixart_chip_dev_free,
 	};
 
-	mgr->chip[idx] = chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	mgr->chip[idx] = chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (! chip) {
 		snd_printk(KERN_ERR "cannot allocate chip\n");
 		return -ENOMEM;
@@ -1292,7 +1292,7 @@ static int __devinit snd_mixart_probe(struct pci_dev *pci,
 
 	/*
 	 */
-	mgr = kcalloc(1, sizeof(*mgr), GFP_KERNEL);
+	mgr = kzalloc(sizeof(*mgr), GFP_KERNEL);
 	if (! mgr) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -1424,6 +1424,7 @@ static void __devexit snd_mixart_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "Digigram miXart",
+	.owner = THIS_MODULE,
 	.id_table = snd_mixart_ids,
 	.probe = snd_mixart_probe,
 	.remove = __devexit_p(snd_mixart_remove),

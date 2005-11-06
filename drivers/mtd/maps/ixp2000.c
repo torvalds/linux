@@ -22,15 +22,17 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/slab.h>
+#include <linux/ioport.h>
+#include <linux/device.h>
+#include <linux/platform_device.h>
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
-#include <linux/ioport.h>
-#include <linux/device.h>
 
 #include <asm/io.h>
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 #include <asm/mach/flash.h>
 
 #include <linux/reboot.h>

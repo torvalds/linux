@@ -301,7 +301,7 @@ static int ov6x30_mode_init(struct i2c_client *c, struct ovcamchip_window *win)
 	/******** Palette-specific regs ********/
 
 	if (win->format == VIDEO_PALETTE_GREY) {
-		if (c->adapter->id == (I2C_ALGO_SMBUS | I2C_HW_SMBUS_OV518)) {
+		if (c->adapter->id == I2C_HW_SMBUS_OV518) {
 			/* Do nothing - we're already in 8-bit mode */
 		} else {
 			ov_write_mask(c, 0x13, 0x20, 0x20);
@@ -313,7 +313,7 @@ static int ov6x30_mode_init(struct i2c_client *c, struct ovcamchip_window *win)
 		 * Therefore, the OV6630 needs to be in 8-bit multiplexed
 		 * output mode */
 
-		if (c->adapter->id == (I2C_ALGO_SMBUS | I2C_HW_SMBUS_OV518)) {
+		if (c->adapter->id == I2C_HW_SMBUS_OV518) {
 			/* Do nothing - we want to stay in 8-bit mode */
 			/* Warning: Messing with reg 0x13 breaks OV518 color */
 		} else {

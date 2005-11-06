@@ -1020,7 +1020,7 @@ struct gem {
 		
 	struct gem_init_block	*init_block;
 	struct sk_buff		*rx_skbs[RX_RING_SIZE];
-	struct sk_buff		*tx_skbs[RX_RING_SIZE];
+	struct sk_buff		*tx_skbs[TX_RING_SIZE];
 	dma_addr_t		gblock_dvma;
 
 	struct pci_dev		*pdev;
@@ -1035,7 +1035,8 @@ struct gem {
 			
 #define ALIGNED_RX_SKB_ADDR(addr) \
         ((((unsigned long)(addr) + (64UL - 1UL)) & ~(64UL - 1UL)) - (unsigned long)(addr))
-static __inline__ struct sk_buff *gem_alloc_skb(int size, int gfp_flags)
+static __inline__ struct sk_buff *gem_alloc_skb(int size,
+						gfp_t gfp_flags)
 {
 	struct sk_buff *skb = alloc_skb(size + 64, gfp_flags);
 

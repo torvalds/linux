@@ -16,6 +16,7 @@
 #include <asm/tlbflush.h>
 
 #ifdef CONFIG_CPU_CACHE_VIPT
+
 #define ALIAS_FLUSH_START	0xffff4000
 
 #define TOP_PTE(x)	pte_offset_kernel(top_pmd, x)
@@ -32,6 +33,57 @@ static void flush_pfn_alias(unsigned long pfn, unsigned long vaddr)
 	    :
 	    : "r" (to), "r" (to + PAGE_SIZE - L1_CACHE_BYTES)
 	    : "cc");
+}
+
+void flush_cache_mm(struct mm_struct *mm)
+{
+	if (cache_is_vivt()) {
+		if (cpu_isset(smp_processor_id(), mm->cpu_vm_mask))
+			__cpuc_flush_user_all();
+		return;
+	}
+
+	if (cache_is_vipt_aliasing()) {
+		asm(	"mcr	p15, 0, %0, c7, c14, 0\n"
+		"	mcr	p15, 0, %0, c7, c5, 0\n"
+		"	mcr	p15, 0, %0, c7, c10, 4"
+		    :
+		    : "r" (0)
+		    : "cc");
+	}
+}
+
+void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end)
+{
+	if (cache_is_vivt()) {
+		if (cpu_isset(smp_processor_id(), vma->vm_mm->cpu_vm_mask))
+			__cpuc_flush_user_range(start & PAGE_MASK, PAGE_ALIGN(end),
+						vma->vm_flags);
+		return;
+	}
+
+	if (cache_is_vipt_aliasing()) {
+		asm(	"mcr	p15, 0, %0, c7, c14, 0\n"
+		"	mcr	p15, 0, %0, c7, c5, 0\n"
+		"	mcr	p15, 0, %0, c7, c10, 4"
+		    :
+		    : "r" (0)
+		    : "cc");
+	}
+}
+
+void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsigned long pfn)
+{
+	if (cache_is_vivt()) {
+		if (cpu_isset(smp_processor_id(), vma->vm_mm->cpu_vm_mask)) {
+			unsigned long addr = user_addr & PAGE_MASK;
+			__cpuc_flush_user_range(addr, addr + PAGE_SIZE, vma->vm_flags);
+		}
+		return;
+	}
+
+	if (cache_is_vipt_aliasing())
+		flush_pfn_alias(pfn, user_addr);
 }
 #else
 #define flush_pfn_alias(pfn,vaddr)	do { } while (0)

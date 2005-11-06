@@ -5,6 +5,7 @@
 #include <net/esp.h>
 #include <asm/scatterlist.h>
 #include <linux/crypto.h>
+#include <linux/kernel.h>
 #include <linux/pfkeyv2.h>
 #include <linux/random.h>
 #include <net/icmp.h>
@@ -42,10 +43,10 @@ static int esp_output(struct xfrm_state *x, struct sk_buff *skb)
 	esp = x->data;
 	alen = esp->auth.icv_trunc_len;
 	tfm = esp->conf.tfm;
-	blksize = (crypto_tfm_alg_blocksize(tfm) + 3) & ~3;
-	clen = (clen + 2 + blksize-1)&~(blksize-1);
+	blksize = ALIGN(crypto_tfm_alg_blocksize(tfm), 4);
+	clen = ALIGN(clen + 2, blksize);
 	if (esp->conf.padlen)
-		clen = (clen + esp->conf.padlen-1)&~(esp->conf.padlen-1);
+		clen = ALIGN(clen, esp->conf.padlen);
 
 	if ((nfrags = skb_cow_data(skb, clen-skb->len+alen, &trailer)) < 0)
 		goto error;
@@ -143,7 +144,7 @@ static int esp_input(struct xfrm_state *x, struct xfrm_decap_state *decap, struc
 	struct ip_esp_hdr *esph;
 	struct esp_data *esp = x->data;
 	struct sk_buff *trailer;
-	int blksize = crypto_tfm_alg_blocksize(esp->conf.tfm);
+	int blksize = ALIGN(crypto_tfm_alg_blocksize(esp->conf.tfm), 4);
 	int alen = esp->auth.icv_trunc_len;
 	int elen = skb->len - sizeof(struct ip_esp_hdr) - esp->conf.ivlen - alen;
 	int nfrags;
@@ -304,16 +305,16 @@ static int esp_post_input(struct xfrm_state *x, struct xfrm_decap_state *decap, 
 static u32 esp4_get_max_size(struct xfrm_state *x, int mtu)
 {
 	struct esp_data *esp = x->data;
-	u32 blksize = crypto_tfm_alg_blocksize(esp->conf.tfm);
+	u32 blksize = ALIGN(crypto_tfm_alg_blocksize(esp->conf.tfm), 4);
 
 	if (x->props.mode) {
-		mtu = (mtu + 2 + blksize-1)&~(blksize-1);
+		mtu = ALIGN(mtu + 2, blksize);
 	} else {
 		/* The worst case. */
-		mtu += 2 + blksize;
+		mtu = ALIGN(mtu + 2, 4) + blksize - 4;
 	}
 	if (esp->conf.padlen)
-		mtu = (mtu + esp->conf.padlen-1)&~(esp->conf.padlen-1);
+		mtu = ALIGN(mtu, esp->conf.padlen);
 
 	return mtu + x->props.header_len + esp->auth.icv_trunc_len;
 }
@@ -331,8 +332,8 @@ static void esp4_err(struct sk_buff *skb, u32 info)
 	x = xfrm_state_lookup((xfrm_address_t *)&iph->daddr, esph->spi, IPPROTO_ESP, AF_INET);
 	if (!x)
 		return;
-	NETDEBUG(printk(KERN_DEBUG "pmtu discovery on SA ESP/%08x/%08x\n",
-			ntohl(esph->spi), ntohl(iph->daddr)));
+	NETDEBUG(KERN_DEBUG "pmtu discovery on SA ESP/%08x/%08x\n",
+		 ntohl(esph->spi), ntohl(iph->daddr));
 	xfrm_state_put(x);
 }
 
@@ -343,22 +344,14 @@ static void esp_destroy(struct xfrm_state *x)
 	if (!esp)
 		return;
 
-	if (esp->conf.tfm) {
-		crypto_free_tfm(esp->conf.tfm);
-		esp->conf.tfm = NULL;
-	}
-	if (esp->conf.ivec) {
-		kfree(esp->conf.ivec);
-		esp->conf.ivec = NULL;
-	}
-	if (esp->auth.tfm) {
-		crypto_free_tfm(esp->auth.tfm);
-		esp->auth.tfm = NULL;
-	}
-	if (esp->auth.work_icv) {
-		kfree(esp->auth.work_icv);
-		esp->auth.work_icv = NULL;
-	}
+	crypto_free_tfm(esp->conf.tfm);
+	esp->conf.tfm = NULL;
+	kfree(esp->conf.ivec);
+	esp->conf.ivec = NULL;
+	crypto_free_tfm(esp->auth.tfm);
+	esp->auth.tfm = NULL;
+	kfree(esp->auth.work_icv);
+	esp->auth.work_icv = NULL;
 	kfree(esp);
 }
 
@@ -395,10 +388,10 @@ static int esp_init_state(struct xfrm_state *x)
 
 		if (aalg_desc->uinfo.auth.icv_fullbits/8 !=
 		    crypto_tfm_alg_digestsize(esp->auth.tfm)) {
-			NETDEBUG(printk(KERN_INFO "ESP: %s digestsize %u != %hu\n",
-			       x->aalg->alg_name,
-			       crypto_tfm_alg_digestsize(esp->auth.tfm),
-			       aalg_desc->uinfo.auth.icv_fullbits/8));
+			NETDEBUG(KERN_INFO "ESP: %s digestsize %u != %hu\n",
+				 x->aalg->alg_name,
+				 crypto_tfm_alg_digestsize(esp->auth.tfm),
+				 aalg_desc->uinfo.auth.icv_fullbits/8);
 			goto error;
 		}
 

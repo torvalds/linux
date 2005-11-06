@@ -2,6 +2,17 @@ menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
 
+config CMDLINE_ON_HOST
+	bool "Show command line arguments on the host in TT mode"
+	depends on MODE_TT
+	default !DEBUG_INFO
+	help
+	This controls whether arguments in guest processes should be shown on
+	the host's ps output.
+	Enabling this option hinders debugging on some recent GDB versions
+	(because GDB gets "confused" when we do an execvp()). So probably you
+	should disable it.
+
 config PT_PROXY
 	bool "Enable ptrace proxy"
 	depends on XTERM_CHAN && DEBUG_INFO && MODE_TT

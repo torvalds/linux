@@ -1,4 +1,4 @@
-/* 
+/*
  * Thomas Horsten <thh@lasat.com>
  * Copyright (C) 2000 LASAT Networks A/S.
  *

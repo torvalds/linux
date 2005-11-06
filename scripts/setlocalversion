@@ -1,0 +1,56 @@
+#!/usr/bin/perl
+# Copyright 2004 - Ryan Anderson <ryan@michonline.com>  GPL v2
+
+use strict;
+use warnings;
+use Digest::MD5;
+require 5.006;
+
+if (@ARGV != 1) {
+	print <<EOT;
+Usage: setlocalversion <srctree>
+EOT
+	exit(1);
+}
+
+my ($srctree) = @ARGV;
+chdir($srctree);
+
+my @LOCALVERSIONS = ();
+
+# We are going to use the following commands to try and determine if this
+# repository is at a Version boundary (i.e, 2.6.10 vs 2.6.10 + some patches) We
+# currently assume that all meaningful version boundaries are marked by a tag.
+# We don't care what the tag is, just that something exists.
+
+# Git/Cogito store the top-of-tree "commit" in .git/HEAD
+# A list of known tags sits in .git/refs/tags/
+#
+# The simple trick here is to just compare the two of these, and if we get a
+# match, return nothing, otherwise, return a subset of the SHA-1 hash in
+# .git/HEAD
+
+sub do_git_checks {
+	open(H,"<.git/HEAD") or return;
+	my $head = <H>;
+	chomp $head;
+	close(H);
+
+	opendir(D,".git/refs/tags") or return;
+	foreach my $tagfile (grep !/^\.{1,2}$/, readdir(D)) {
+		open(F,"<.git/refs/tags/" . $tagfile) or return;
+		my $tag = <F>;
+		chomp $tag;
+		close(F);
+		return if ($tag eq $head);
+	}
+	closedir(D);
+
+	push @LOCALVERSIONS, "g" . substr($head,0,8);
+}
+
+if ( -d ".git") {
+	do_git_checks();
+}
+
+printf "-%s\n", join("-",@LOCALVERSIONS) if (scalar @LOCALVERSIONS > 0);

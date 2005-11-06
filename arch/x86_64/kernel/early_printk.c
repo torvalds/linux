@@ -5,6 +5,7 @@
 #include <linux/tty.h>
 #include <asm/io.h>
 #include <asm/processor.h>
+#include <asm/fcntl.h>
 
 /* Simple VGA output */
 
@@ -158,6 +159,47 @@ static struct console early_serial_console = {
 	.index =	-1,
 };
 
+/* Console interface to a host file on AMD's SimNow! */
+
+static int simnow_fd;
+
+enum {
+	MAGIC1 = 0xBACCD00A,
+	MAGIC2 = 0xCA110000,
+	XOPEN = 5,
+	XWRITE = 4,
+};
+
+static noinline long simnow(long cmd, long a, long b, long c)
+{
+	long ret;
+	asm volatile("cpuid" :
+		     "=a" (ret) :
+		     "b" (a), "c" (b), "d" (c), "0" (MAGIC1), "D" (cmd + MAGIC2));
+	return ret;
+}
+
+void __init simnow_init(char *str)
+{
+	char *fn = "klog";
+	if (*str == '=')
+		fn = ++str;
+	/* error ignored */
+	simnow_fd = simnow(XOPEN, (unsigned long)fn, O_WRONLY|O_APPEND|O_CREAT, 0644);
+}
+
+static void simnow_write(struct console *con, const char *s, unsigned n)
+{
+	simnow(XWRITE, simnow_fd, (unsigned long)s, n);
+}
+
+static struct console simnow_console = {
+	.name =		"simnow",
+	.write =	simnow_write,
+	.flags =	CON_PRINTBUFFER,
+	.index =	-1,
+};
+
 /* Direct interface for emergencies */
 struct console *early_console = &early_vga_console;
 static int early_console_initialized = 0;
@@ -205,6 +247,10 @@ int __init setup_early_printk(char *opt)
 		max_xpos = SCREEN_INFO.orig_video_cols;
 		max_ypos = SCREEN_INFO.orig_video_lines;
 		early_console = &early_vga_console; 
+ 	} else if (!strncmp(buf, "simnow", 6)) {
+ 		simnow_init(buf + 6);
+ 		early_console = &simnow_console;
+ 		keep_early = 1;
 	}
 	early_console_initialized = 1;
 	register_console(early_console);       

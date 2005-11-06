@@ -2,7 +2,8 @@ Read the F-ing Papers!
 
 
 This document describes RCU-related publications, and is followed by
-the corresponding bibtex entries.
+the corresponding bibtex entries.  A number of the publications may
+be found at http://www.rdrop.com/users/paulmck/RCU/.
 
 The first thing resembling RCU was published in 1980, when Kung and Lehman
 [Kung80] recommended use of a garbage collector to defer destruction
@@ -112,6 +113,10 @@ number of operating-system kernels [PaulEdwardMcKenneyPhD], a paper
 describing how to make RCU safe for soft-realtime applications [Sarma04c],
 and a paper describing SELinux performance with RCU [JamesMorris04b].
 
+
+2005 has seen further adaptation of RCU to realtime use, permitting
+preemption of RCU realtime critical sections [PaulMcKenney05a,
+PaulMcKenney05b].
 
 Bibtex Entries
 
@@ -409,4 +414,33 @@ Oregon Health and Sciences University"
 ,note="Available:
 \url{http://www.livejournal.com/users/james_morris/2153.html}
 [Viewed December 10, 2004]"
+}
+
+@unpublished{PaulMcKenney05a
+,Author="Paul E. McKenney"
+,Title="{[RFC]} {RCU} and {CONFIG\_PREEMPT\_RT} progress"
+,month="May"
+,year="2005"
+,note="Available:
+\url{http://lkml.org/lkml/2005/5/9/185}
+[Viewed May 13, 2005]"
+,annotation="
+	First publication of working lock-based deferred free patches
+	for the CONFIG_PREEMPT_RT environment.
+"
+}
+
+@conference{PaulMcKenney05b
+,Author="Paul E. McKenney and Dipankar Sarma"
+,Title="Towards Hard Realtime Response from the Linux Kernel on SMP Hardware"
+,Booktitle="linux.conf.au 2005"
+,month="April"
+,year="2005"
+,address="Canberra, Australia"
+,note="Available:
+\url{http://www.rdrop.com/users/paulmck/RCU/realtimeRCU.2005.04.23a.pdf}
+[Viewed May 13, 2005]"
+,annotation="
+	Realtime turns into making RCU yet more realtime friendly.
+"
 }

@@ -168,7 +168,9 @@ static void init_av7110_av(struct av7110 *av7110)
 		if (ret < 0)
 			printk("dvb-ttpci:cannot switch on SCART(AD):%d\n",ret);
 		if (rgb_on &&
-		    (av7110->dev->pci->subsystem_vendor == 0x110a) && (av7110->dev->pci->subsystem_device == 0x0000)) {
+		    ((av7110->dev->pci->subsystem_vendor == 0x110a) ||
+		     (av7110->dev->pci->subsystem_vendor == 0x13c2)) &&
+		     (av7110->dev->pci->subsystem_device == 0x0000)) {
 			saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTHI); // RGB on, SCART pin 16
 			//saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTLO); // SCARTpin 8
 		}
@@ -177,9 +179,6 @@ static void init_av7110_av(struct av7110 *av7110)
 	ret = av7110_set_volume(av7110, av7110->mixer.volume_left, av7110->mixer.volume_right);
 	if (ret < 0)
 		printk("dvb-ttpci:cannot set volume :%d\n",ret);
-	ret = av7110_setup_irc_config(av7110, 0);
-	if (ret < 0)
-		printk("dvb-ttpci:cannot setup irc config :%d\n",ret);
 }
 
 static void recover_arm(struct av7110 *av7110)
@@ -264,60 +263,6 @@ static int arm_thread(void *data)
 	return 0;
 }
 
-
-/**
- *  Hack! we save the last av7110 ptr. This should be ok, since
- *  you rarely will use more then one IR control.
- *
- *  If we want to support multiple controls we would have to do much more...
- */
-int av7110_setup_irc_config(struct av7110 *av7110, u32 ir_config)
-{
-	int ret = 0;
-	static struct av7110 *last;
-
-	dprintk(4, "%p\n", av7110);
-
-	if (!av7110)
-		av7110 = last;
-	else
-		last = av7110;
-
-	if (av7110) {
-		ret = av7110_fw_cmd(av7110, COMTYPE_PIDFILTER, SetIR, 1, ir_config);
-		av7110->ir_config = ir_config;
-	}
-	return ret;
-}
-
-static void (*irc_handler)(u32);
-
-void av7110_register_irc_handler(void (*func)(u32))
-{
-	dprintk(4, "registering %p\n", func);
-	irc_handler = func;
-}
-
-void av7110_unregister_irc_handler(void (*func)(u32))
-{
-	dprintk(4, "unregistering %p\n", func);
-	irc_handler = NULL;
-}
-
-static void run_handlers(unsigned long ircom)
-{
-	if (irc_handler != NULL)
-		(*irc_handler)((u32) ircom);
-}
-
-static DECLARE_TASKLET(irtask, run_handlers, 0);
-
-static void IR_handle(struct av7110 *av7110, u32 ircom)
-{
-	dprintk(4, "ircommand = %08x\n", ircom);
-	irtask.data = (unsigned long) ircom;
-	tasklet_schedule(&irtask);
-}
 
 /****************************************************************************
  * IRQ handling
@@ -711,8 +656,9 @@ static void gpioirq(unsigned long data)
 		return;
 
 	case DATA_IRCOMMAND:
-		IR_handle(av7110,
-			  swahw32(irdebi(av7110, DEBINOSWAP, Reserved, 0, 4)));
+		if (av7110->ir_handler)
+			av7110->ir_handler(av7110,
+				swahw32(irdebi(av7110, DEBINOSWAP, Reserved, 0, 4)));
 		iwdebi(av7110, DEBINOSWAP, RX_BUFF, 0, 2);
 		break;
 
@@ -1668,9 +1614,8 @@ static int alps_bsru6_set_symbol_rate(struct dvb_frontend* fe, u32 srate, u32 ra
 	return 0;
 }
 
-static int alps_bsru6_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_bsru6_pll_set(struct dvb_frontend* fe, struct i2c_adapter *i2c, struct dvb_frontend_parameters* params)
 {
-	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
 	int ret;
 	u8 data[4];
 	u32 div;
@@ -1687,7 +1632,7 @@ static int alps_bsru6_pll_set(struct dvb_frontend* fe, struct dvb_frontend_param
 
 	if (params->frequency > 1530000) data[3] = 0xc0;
 
-	ret = i2c_transfer(&av7110->i2c_adap, &msg, 1);
+	ret = i2c_transfer(i2c, &msg, 1);
 	if (ret != 1)
 		return -EIO;
 	return 0;
@@ -1751,9 +1696,8 @@ static u8 alps_bsbe1_inittab[] = {
 	0xff, 0xff
 };
 
-static int alps_bsbe1_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_bsbe1_pll_set(struct dvb_frontend* fe, struct i2c_adapter *i2c, struct dvb_frontend_parameters* params)
 {
-	struct av7110* av7110 = (struct av7110*) fe->dvb->priv;
 	int ret;
 	u8 data[4];
 	u32 div;
@@ -1768,7 +1712,7 @@ static int alps_bsbe1_pll_set(struct dvb_frontend* fe, struct dvb_frontend_param
 	data[2] = 0x80 | ((div & 0x18000) >> 10) | 4;
 	data[3] = (params->frequency > 1530000) ? 0xE0 : 0xE4;
 
-	ret = i2c_transfer(&av7110->i2c_adap, &msg, 1);
+	ret = i2c_transfer(i2c, &msg, 1);
 	return (ret != 1) ? -EIO : 0;
 }
 
@@ -1936,6 +1880,98 @@ static struct sp8870_config alps_tdlb7_config = {
 };
 
 
+static u8 nexusca_stv0297_inittab[] = {
+	0x80, 0x01,
+	0x80, 0x00,
+	0x81, 0x01,
+	0x81, 0x00,
+	0x00, 0x09,
+	0x01, 0x69,
+	0x03, 0x00,
+	0x04, 0x00,
+	0x07, 0x00,
+	0x08, 0x00,
+	0x20, 0x00,
+	0x21, 0x40,
+	0x22, 0x00,
+	0x23, 0x00,
+	0x24, 0x40,
+	0x25, 0x88,
+	0x30, 0xff,
+	0x31, 0x00,
+	0x32, 0xff,
+	0x33, 0x00,
+	0x34, 0x50,
+	0x35, 0x7f,
+	0x36, 0x00,
+	0x37, 0x20,
+	0x38, 0x00,
+	0x40, 0x1c,
+	0x41, 0xff,
+	0x42, 0x29,
+	0x43, 0x00,
+	0x44, 0xff,
+	0x45, 0x00,
+	0x46, 0x00,
+	0x49, 0x04,
+	0x4a, 0x00,
+	0x4b, 0x7b,
+	0x52, 0x30,
+	0x55, 0xae,
+	0x56, 0x47,
+	0x57, 0xe1,
+	0x58, 0x3a,
+	0x5a, 0x1e,
+	0x5b, 0x34,
+	0x60, 0x00,
+	0x63, 0x00,
+	0x64, 0x00,
+	0x65, 0x00,
+	0x66, 0x00,
+	0x67, 0x00,
+	0x68, 0x00,
+	0x69, 0x00,
+	0x6a, 0x02,
+	0x6b, 0x00,
+	0x70, 0xff,
+	0x71, 0x00,
+	0x72, 0x00,
+	0x73, 0x00,
+	0x74, 0x0c,
+	0x80, 0x00,
+	0x81, 0x00,
+	0x82, 0x00,
+	0x83, 0x00,
+	0x84, 0x04,
+	0x85, 0x80,
+	0x86, 0x24,
+	0x87, 0x78,
+	0x88, 0x10,
+	0x89, 0x00,
+	0x90, 0x01,
+	0x91, 0x01,
+	0xa0, 0x04,
+	0xa1, 0x00,
+	0xa2, 0x00,
+	0xb0, 0x91,
+	0xb1, 0x0b,
+	0xc0, 0x53,
+	0xc1, 0x70,
+	0xc2, 0x12,
+	0xd0, 0x00,
+	0xd1, 0x00,
+	0xd2, 0x00,
+	0xd3, 0x00,
+	0xd4, 0x00,
+	0xd5, 0x00,
+	0xde, 0x00,
+	0xdf, 0x00,
+	0x61, 0x49,
+	0x62, 0x0b,
+	0x53, 0x08,
+	0x59, 0x08,
+	0xff, 0xff,
+};
 
 static int nexusca_stv0297_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
 {
@@ -1984,6 +2020,7 @@ static int nexusca_stv0297_pll_set(struct dvb_frontend* fe, struct dvb_frontend_
 static struct stv0297_config nexusca_stv0297_config = {
 
 	.demod_address = 0x1C,
+	.inittab = nexusca_stv0297_inittab,
 	.invert = 1,
 	.pll_set = nexusca_stv0297_pll_set,
 };
@@ -2261,7 +2298,7 @@ static int frontend_init(struct av7110 *av7110)
 
 		case 0x000A: // Hauppauge/TT Nexus-CA rev1.X
 
-			av7110->fe = stv0297_attach(&nexusca_stv0297_config, &av7110->i2c_adap, 0x7b);
+			av7110->fe = stv0297_attach(&nexusca_stv0297_config, &av7110->i2c_adap);
 			if (av7110->fe) {
 				/* set TDA9819 into DVB mode */
 				saa7146_setgpio(av7110->dev, 1, SAA7146_GPIO_OUTLO); // TDA9198 pin9(STD)
@@ -2692,7 +2729,7 @@ static int av7110_attach(struct saa7146_dev* dev, struct saa7146_pci_extension_d
 		goto err_av7110_exit_v4l_12;
 
 #if defined(CONFIG_INPUT_EVDEV) || defined(CONFIG_INPUT_EVDEV_MODULE)
-	av7110_ir_init();
+	av7110_ir_init(av7110);
 #endif
 	printk(KERN_INFO "dvb-ttpci: found av7110-%d.\n", av7110_num);
 	av7110_num++;
@@ -2734,6 +2771,9 @@ static int av7110_detach(struct saa7146_dev* saa)
 	struct av7110 *av7110 = saa->ext_priv;
 	dprintk(4, "%p\n", av7110);
 
+#if defined(CONFIG_INPUT_EVDEV) || defined(CONFIG_INPUT_EVDEV_MODULE)
+	av7110_ir_exit(av7110);
+#endif
 	if (budgetpatch) {
 		/* Disable RPS1 */
 		saa7146_write(saa, MC1, MASK_29);
@@ -2830,7 +2870,7 @@ static struct saa7146_pci_extension_data x_var = { \
 	.ext_priv = x_name, \
 	.ext = &av7110_extension }
 
-MAKE_AV7110_INFO(tts_1_X,    "Technotrend/Hauppauge WinTV DVB-S rev1.X");
+MAKE_AV7110_INFO(tts_1_X_fsc,"Technotrend/Hauppauge WinTV DVB-S rev1.X or Fujitsu Siemens DVB-C");
 MAKE_AV7110_INFO(ttt_1_X,    "Technotrend/Hauppauge WinTV DVB-T rev1.X");
 MAKE_AV7110_INFO(ttc_1_X,    "Technotrend/Hauppauge WinTV Nexus-CA rev1.X");
 MAKE_AV7110_INFO(ttc_2_X,    "Technotrend/Hauppauge WinTV DVB-C rev2.X");
@@ -2842,16 +2882,16 @@ MAKE_AV7110_INFO(fsc,        "Fujitsu Siemens DVB-C");
 MAKE_AV7110_INFO(fss,        "Fujitsu Siemens DVB-S rev1.6");
 
 static struct pci_device_id pci_tbl[] = {
-	MAKE_EXTENSION_PCI(fsc,       0x110a, 0x0000),
-	MAKE_EXTENSION_PCI(tts_1_X,   0x13c2, 0x0000),
-	MAKE_EXTENSION_PCI(ttt_1_X,   0x13c2, 0x0001),
-	MAKE_EXTENSION_PCI(ttc_2_X,   0x13c2, 0x0002),
-	MAKE_EXTENSION_PCI(tts_2_X,   0x13c2, 0x0003),
-	MAKE_EXTENSION_PCI(fss,       0x13c2, 0x0006),
-	MAKE_EXTENSION_PCI(ttt,       0x13c2, 0x0008),
-	MAKE_EXTENSION_PCI(ttc_1_X,   0x13c2, 0x000a),
-	MAKE_EXTENSION_PCI(tts_2_3,   0x13c2, 0x000e),
-	MAKE_EXTENSION_PCI(tts_1_3se, 0x13c2, 0x1002),
+	MAKE_EXTENSION_PCI(fsc,         0x110a, 0x0000),
+	MAKE_EXTENSION_PCI(tts_1_X_fsc, 0x13c2, 0x0000),
+	MAKE_EXTENSION_PCI(ttt_1_X,     0x13c2, 0x0001),
+	MAKE_EXTENSION_PCI(ttc_2_X,     0x13c2, 0x0002),
+	MAKE_EXTENSION_PCI(tts_2_X,     0x13c2, 0x0003),
+	MAKE_EXTENSION_PCI(fss,         0x13c2, 0x0006),
+	MAKE_EXTENSION_PCI(ttt,         0x13c2, 0x0008),
+	MAKE_EXTENSION_PCI(ttc_1_X,     0x13c2, 0x000a),
+	MAKE_EXTENSION_PCI(tts_2_3,     0x13c2, 0x000e),
+	MAKE_EXTENSION_PCI(tts_1_3se,   0x13c2, 0x1002),
 
 /*	MAKE_EXTENSION_PCI(???, 0x13c2, 0x0004), UNDEFINED CARD */ // Galaxis DVB PC-Sat-Carte
 /*	MAKE_EXTENSION_PCI(???, 0x13c2, 0x0005), UNDEFINED CARD */ // Technisat SkyStar1
@@ -2889,9 +2929,6 @@ static int __init av7110_init(void)
 
 static void __exit av7110_exit(void)
 {
-#if defined(CONFIG_INPUT_EVDEV) || defined(CONFIG_INPUT_EVDEV_MODULE)
-	av7110_ir_exit();
-#endif
 	saa7146_unregister_extension(&av7110_extension);
 }
 

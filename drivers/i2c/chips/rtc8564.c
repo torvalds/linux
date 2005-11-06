@@ -67,7 +67,6 @@ static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_addr,
 	.probe			= ignore,
 	.ignore			= ignore,
-	.force			= ignore,
 };
 
 static int rtc8564_read_mem(struct i2c_client *client, struct mem *mem);
@@ -149,17 +148,16 @@ static int rtc8564_attach(struct i2c_adapter *adap, int addr, int kind)
 		{addr, I2C_M_RD, 2, data}
 	};
 
-	d = kmalloc(sizeof(struct rtc8564_data), GFP_KERNEL);
+	d = kzalloc(sizeof(struct rtc8564_data), GFP_KERNEL);
 	if (!d) {
 		ret = -ENOMEM;
 		goto done;
 	}
-	memset(d, 0, sizeof(struct rtc8564_data));
 	new_client = &d->client;
 
 	strlcpy(new_client->name, "RTC8564", I2C_NAME_SIZE);
 	i2c_set_clientdata(new_client, d);
-	new_client->flags = I2C_CLIENT_ALLOW_USE | I2C_DF_NOTIFY;
+	new_client->flags = I2C_CLIENT_ALLOW_USE;
 	new_client->addr = addr;
 	new_client->adapter = adap;
 	new_client->driver = &rtc8564_driver;

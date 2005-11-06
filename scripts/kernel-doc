@@ -1665,11 +1665,17 @@ sub xml_escape($) {
 }
 
 sub process_file($) {
-    my ($file) = "$ENV{'SRCTREE'}@_";
+    my $file;
     my $identifier;
     my $func;
     my $initial_section_counter = $section_counter;
 
+    if (defined($ENV{'SRCTREE'})) {
+	$file = "$ENV{'SRCTREE'}" . "/" . "@_";
+    }
+    else {
+	$file = "@_";
+    }
     if (defined($source_map{$file})) {
 	$file = $source_map{$file};
     }

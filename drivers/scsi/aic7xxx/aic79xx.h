@@ -1247,9 +1247,6 @@ struct ahd_softc {
 	uint16_t		  user_tagenable;/* Tagged Queuing allowed */
 };
 
-TAILQ_HEAD(ahd_softc_tailq, ahd_softc);
-extern struct ahd_softc_tailq ahd_tailq;
-
 /*************************** IO Cell Configuration ****************************/
 #define	AHD_PRECOMP_SLEW_INDEX						\
     (AHD_ANNEXCOL_PRECOMP_SLEW - AHD_ANNEXCOL_PER_DEV0)
@@ -1374,8 +1371,6 @@ void			 ahd_enable_coalescing(struct ahd_softc *ahd,
 void			 ahd_pause_and_flushwork(struct ahd_softc *ahd);
 int			 ahd_suspend(struct ahd_softc *ahd); 
 int			 ahd_resume(struct ahd_softc *ahd);
-void			 ahd_softc_insert(struct ahd_softc *);
-struct ahd_softc	*ahd_find_softc(struct ahd_softc *ahd);
 void			 ahd_set_unit(struct ahd_softc *, int);
 void			 ahd_set_name(struct ahd_softc *, char *);
 struct scb		*ahd_get_scb(struct ahd_softc *ahd, u_int col_idx);
@@ -1524,7 +1519,6 @@ void			ahd_print_scb(struct scb *scb);
 void			ahd_print_devinfo(struct ahd_softc *ahd,
 					  struct ahd_devinfo *devinfo);
 void			ahd_dump_sglist(struct scb *scb);
-void			ahd_dump_all_cards_state(void);
 void			ahd_dump_card_state(struct ahd_softc *ahd);
 int			ahd_print_register(ahd_reg_parse_entry_t *table,
 					   u_int num_entries,

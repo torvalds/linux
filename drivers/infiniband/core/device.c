@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -160,17 +161,9 @@ static int alloc_name(char *name)
  */
 struct ib_device *ib_alloc_device(size_t size)
 {
-	void *dev;
-
 	BUG_ON(size < sizeof (struct ib_device));
 
-	dev = kmalloc(size, GFP_KERNEL);
-	if (!dev)
-		return NULL;
-
-	memset(dev, 0, size);
-
-	return dev;
+	return kzalloc(size, GFP_KERNEL);
 }
 EXPORT_SYMBOL(ib_alloc_device);
 
@@ -513,6 +506,12 @@ int ib_query_port(struct ib_device *device,
 		  u8 port_num,
 		  struct ib_port_attr *port_attr)
 {
+	if (device->node_type == IB_NODE_SWITCH) {
+		if (port_num)
+			return -EINVAL;
+	} else if (port_num < 1 || port_num > device->phys_port_cnt)
+		return -EINVAL;
+
 	return device->query_port(device, port_num, port_attr);
 }
 EXPORT_SYMBOL(ib_query_port);
@@ -582,6 +581,12 @@ int ib_modify_port(struct ib_device *device,
 		   u8 port_num, int port_modify_mask,
 		   struct ib_port_modify *port_modify)
 {
+	if (device->node_type == IB_NODE_SWITCH) {
+		if (port_num)
+			return -EINVAL;
+	} else if (port_num < 1 || port_num > device->phys_port_cnt)
+		return -EINVAL;
+
 	return device->modify_port(device, port_num, port_modify_mask,
 				   port_modify);
 }

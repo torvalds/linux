@@ -5,7 +5,6 @@
 
 #include <linux/smp.h>
 #include <linux/init.h>
-#include <linux/irq.h>
 #include <linux/interrupt.h>
 
 #include <asm/fixmap.h>
@@ -13,6 +12,8 @@
 #include <asm/io.h>
 #include "cobalt.h"
 #include "piix4.h"
+
+int no_broadcast;
 
 char visws_board_type = -1;
 char visws_board_rev = -1;

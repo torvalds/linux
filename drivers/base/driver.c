@@ -28,6 +28,7 @@ static struct device * next_device(struct klist_iter * i)
 /**
  *	driver_for_each_device - Iterator for devices bound to a driver.
  *	@drv:	Driver we're iterating.
+ *	@start: Device to begin with
  *	@data:	Data to pass to the callback.
  *	@fn:	Function to call for each device.
  *
@@ -57,7 +58,7 @@ EXPORT_SYMBOL_GPL(driver_for_each_device);
 
 /**
  * driver_find_device - device iterator for locating a particular device.
- * @driver: The device's driver
+ * @drv: The device's driver
  * @start: Device to begin with
  * @data: Data to pass to match function
  * @match: Callback function to check device
@@ -142,6 +143,19 @@ void put_driver(struct device_driver * drv)
 	kobject_put(&drv->kobj);
 }
 
+static void klist_devices_get(struct klist_node *n)
+{
+	struct device *dev = container_of(n, struct device, knode_driver);
+
+	get_device(dev);
+}
+
+static void klist_devices_put(struct klist_node *n)
+{
+	struct device *dev = container_of(n, struct device, knode_driver);
+
+	put_device(dev);
+}
 
 /**
  *	driver_register - register driver with bus
@@ -157,7 +171,7 @@ void put_driver(struct device_driver * drv)
  */
 int driver_register(struct device_driver * drv)
 {
-	klist_init(&drv->klist_devices);
+	klist_init(&drv->klist_devices, klist_devices_get, klist_devices_put);
 	init_completion(&drv->unloaded);
 	return bus_add_driver(drv);
 }

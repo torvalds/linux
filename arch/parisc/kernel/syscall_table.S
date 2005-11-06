@@ -35,7 +35,7 @@
 #undef ENTRY_UHOH
 #undef ENTRY_COMP
 #undef ENTRY_OURS
-#if defined(__LP64__) && !defined(SYSCALL_TABLE_64BIT)
+#if defined(CONFIG_64BIT) && !defined(SYSCALL_TABLE_64BIT)
 /* Use ENTRY_SAME for 32-bit syscalls which are the same on wide and
  * narrow palinux.  Use ENTRY_DIFF for those where a 32-bit specific
  * implementation is required on wide palinux.  Use ENTRY_COMP where
@@ -46,7 +46,7 @@
 #define ENTRY_UHOH(_name_) .dword sys32_##unimplemented
 #define ENTRY_OURS(_name_) .dword parisc_##_name_
 #define ENTRY_COMP(_name_) .dword compat_sys_##_name_
-#elif defined(__LP64__) && defined(SYSCALL_TABLE_64BIT)
+#elif defined(CONFIG_64BIT) && defined(SYSCALL_TABLE_64BIT)
 #define ENTRY_SAME(_name_) .dword sys_##_name_
 #define ENTRY_DIFF(_name_) .dword sys_##_name_
 #define ENTRY_UHOH(_name_) .dword sys_##_name_
@@ -368,5 +368,11 @@
 	ENTRY_COMP(mbind)		/* 260 */
 	ENTRY_COMP(get_mempolicy)
 	ENTRY_COMP(set_mempolicy)
+	ENTRY_SAME(ni_syscall)	/* 263: reserved for vserver */
+	ENTRY_SAME(add_key)
+	ENTRY_SAME(request_key)		/* 265 */
+	ENTRY_SAME(keyctl)
+	ENTRY_SAME(ioprio_set)
+	ENTRY_SAME(ioprio_get)
 	/* Nothing yet */
 

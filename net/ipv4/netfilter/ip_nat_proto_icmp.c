@@ -62,7 +62,7 @@ icmp_manip_pkt(struct sk_buff **pskb,
 	struct icmphdr *hdr;
 	unsigned int hdroff = iphdroff + iph->ihl*4;
 
-	if (!skb_ip_make_writable(pskb, hdroff + sizeof(*hdr)))
+	if (!skb_make_writable(pskb, hdroff + sizeof(*hdr)))
 		return 0;
 
 	hdr = (struct icmphdr *)((*pskb)->data + hdroff);
@@ -106,11 +106,18 @@ icmp_print_range(char *buffer, const struct ip_nat_range *range)
 	else return 0;
 }
 
-struct ip_nat_protocol ip_nat_protocol_icmp
-= { "ICMP", IPPROTO_ICMP,
-    icmp_manip_pkt,
-    icmp_in_range,
-    icmp_unique_tuple,
-    icmp_print,
-    icmp_print_range
+struct ip_nat_protocol ip_nat_protocol_icmp = {
+	.name			= "ICMP",
+	.protonum		= IPPROTO_ICMP,
+	.me			= THIS_MODULE,
+	.manip_pkt		= icmp_manip_pkt,
+	.in_range		= icmp_in_range,
+	.unique_tuple		= icmp_unique_tuple,
+	.print			= icmp_print,
+	.print_range		= icmp_print_range,
+#if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
+    defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
+	.range_to_nfattr	= ip_nat_port_range_to_nfattr,
+	.nfattr_to_range	= ip_nat_port_nfattr_to_range,
+#endif
 };

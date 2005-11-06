@@ -482,6 +482,7 @@ static int nxt6000_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	if ((result = nxt6000_set_inversion(state, param->inversion)) < 0)
 		return result;
 
+	msleep(500);
 	return 0;
 }
 
@@ -522,6 +523,12 @@ static int nxt6000_read_signal_strength(struct dvb_frontend* fe, u16* signal_str
 		(nxt6000_readreg(state, AGC_GAIN_1) +
 		((nxt6000_readreg(state, AGC_GAIN_2) & 0x03) << 8)));
 
+	return 0;
+}
+
+static int nxt6000_fe_get_tune_settings(struct dvb_frontend* fe, struct dvb_frontend_tune_settings *tune)
+{
+	tune->min_delay_ms = 500;
 	return 0;
 }
 
@@ -577,6 +584,8 @@ static struct dvb_frontend_ops nxt6000_ops = {
 	.release = nxt6000_release,
 
 	.init = nxt6000_init,
+
+	.get_tune_settings = nxt6000_fe_get_tune_settings,
 
 	.set_frontend = nxt6000_set_frontend,
 

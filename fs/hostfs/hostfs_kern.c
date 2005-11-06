@@ -284,6 +284,7 @@ static struct inode *hostfs_alloc_inode(struct super_block *sb)
 
 static void hostfs_delete_inode(struct inode *inode)
 {
+	truncate_inode_pages(&inode->i_data, 0);
 	if(HOSTFS_I(inode)->fd != -1) {
 		close_file(&HOSTFS_I(inode)->fd);
 		HOSTFS_I(inode)->fd = -1;
@@ -792,11 +793,6 @@ int hostfs_rename(struct inode *from_ino, struct dentry *from,
 	return(err);
 }
 
-void hostfs_truncate(struct inode *ino)
-{
-	not_implemented();
-}
-
 int hostfs_permission(struct inode *ino, int desired, struct nameidata *nd)
 {
 	char *name;
@@ -893,7 +889,6 @@ static struct inode_operations hostfs_iops = {
 	.rmdir		= hostfs_rmdir,
 	.mknod		= hostfs_mknod,
 	.rename		= hostfs_rename,
-	.truncate	= hostfs_truncate,
 	.permission	= hostfs_permission,
 	.setattr	= hostfs_setattr,
 	.getattr	= hostfs_getattr,
@@ -909,7 +904,6 @@ static struct inode_operations hostfs_dir_iops = {
 	.rmdir		= hostfs_rmdir,
 	.mknod		= hostfs_mknod,
 	.rename		= hostfs_rename,
-	.truncate	= hostfs_truncate,
 	.permission	= hostfs_permission,
 	.setattr	= hostfs_setattr,
 	.getattr	= hostfs_getattr,

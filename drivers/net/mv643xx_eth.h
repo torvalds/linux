@@ -49,7 +49,7 @@
 /* Checksum offload for Tx works for most packets, but
  * fails if previous packet sent did not use hw csum
  */
-#undef	MV643XX_CHECKSUM_OFFLOAD_TX
+#define	MV643XX_CHECKSUM_OFFLOAD_TX
 #define	MV643XX_NAPI
 #define	MV643XX_TX_FAST_REFILL
 #undef	MV643XX_RX_QUEUE_FILL_ON_TASK	/* Does not work, yet */
@@ -216,6 +216,8 @@
 #define ETH_GEN_CRC				(BIT22)
 #define ETH_TX_ENABLE_INTERRUPT			(BIT23)
 #define ETH_AUTO_MODE				(BIT30)
+
+#define ETH_TX_IHL_SHIFT			11
 
 /* typedefs */
 
@@ -405,10 +407,6 @@ struct mv643xx_private {
 static void eth_port_init(struct mv643xx_private *mp);
 static void eth_port_reset(unsigned int eth_port_num);
 static void eth_port_start(struct mv643xx_private *mp);
-
-static void ethernet_set_config_reg(unsigned int eth_port_num,
-				    unsigned int value);
-static unsigned int ethernet_get_config_reg(unsigned int eth_port_num);
 
 /* Port MAC address routines */
 static void eth_port_uc_addr_set(unsigned int eth_port_num,

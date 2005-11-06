@@ -11,7 +11,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
 
 #define COPY_COUNT (PAGE_SZ/64 PLD( -1 ))
 

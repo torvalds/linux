@@ -33,10 +33,6 @@
 
 #include <linux/timex.h>
 
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
-
 /* xtime and wall_jiffies keep wall-clock time */
 extern unsigned long wall_jiffies;
 
@@ -89,20 +85,30 @@ irqreturn_t timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		}
 	}
     
-#ifdef CONFIG_CHASSIS_LCD_LED
-	/* Only schedule the led tasklet on cpu 0, and only if it
-	 * is enabled.
-	 */
-	if (cpu == 0 && !atomic_read(&led_tasklet.count))
-		tasklet_schedule(&led_tasklet);
-#endif
-
 	/* check soft power switch status */
 	if (cpu == 0 && !atomic_read(&power_tasklet.count))
 		tasklet_schedule(&power_tasklet);
 
 	return IRQ_HANDLED;
 }
+
+
+unsigned long profile_pc(struct pt_regs *regs)
+{
+	unsigned long pc = instruction_pointer(regs);
+
+	if (regs->gr[0] & PSW_N)
+		pc -= 4;
+
+#ifdef CONFIG_SMP
+	if (in_lock_functions(pc))
+		pc = regs->gr[2];
+#endif
+
+	return pc;
+}
+EXPORT_SYMBOL(profile_pc);
+
 
 /*** converted from ia64 ***/
 /*
@@ -188,10 +194,7 @@ do_settimeofday (struct timespec *tv)
 		set_normalized_timespec(&xtime, sec, nsec);
 		set_normalized_timespec(&wall_to_monotonic, wtm_sec, wtm_nsec);
 
-		time_adjust = 0;		/* stop active adjtime() */
-		time_status |= STA_UNSYNC;
-		time_maxerror = NTP_PHASE_LIMIT;
-		time_esterror = NTP_PHASE_LIMIT;
+		ntp_clear();
 	}
 	write_sequnlock_irq(&xtime_lock);
 	clock_was_set();

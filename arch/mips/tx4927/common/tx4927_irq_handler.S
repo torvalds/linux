@@ -42,13 +42,13 @@
 		CLI
 		.set	at
 
-		mfc0	t0, CP0_CAUSE  
+		mfc0	t0, CP0_CAUSE
 		mfc0	t1, CP0_STATUS
 		and	t0, t1
-        
+
 		andi	t1, t0, STATUSF_IP7	/* cpu timer */
 		bnez	t1, ll_ip7
-		
+
 		/* IP6..IP3 multiplexed -- do not use */
 
 		andi	t1, t0, STATUSF_IP2	/* tx4927 pic */

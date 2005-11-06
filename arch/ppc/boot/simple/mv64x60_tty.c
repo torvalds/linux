@@ -22,9 +22,16 @@
 #include <asm/mv64x60_defs.h>
 #include <mpsc_defs.h>
 
+#ifdef CONFIG_EV64360
+#include <platforms/ev64360.h>
+u32	mv64x60_console_baud = EV64360_DEFAULT_BAUD;
+u32	mv64x60_mpsc_clk_src = EV64360_MPSC_CLK_SRC; /* TCLK */
+u32	mv64x60_mpsc_clk_freq = EV64360_MPSC_CLK_FREQ;
+#else
 u32	mv64x60_console_baud = 9600;
 u32	mv64x60_mpsc_clk_src = 8; /* TCLK */
 u32	mv64x60_mpsc_clk_freq = 100000000;
+#endif
 
 extern void udelay(long);
 static void stop_dma(int chan);

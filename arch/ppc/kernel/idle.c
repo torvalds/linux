@@ -22,6 +22,7 @@
 #include <linux/ptrace.h>
 #include <linux/slab.h>
 #include <linux/sysctl.h>
+#include <linux/cpu.h>
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -31,10 +32,12 @@
 #include <asm/cache.h>
 #include <asm/cputable.h>
 #include <asm/machdep.h>
+#include <asm/smp.h>
 
 void default_idle(void)
 {
 	void (*powersave)(void);
+	int cpu = smp_processor_id();
 
 	powersave = ppc_md.power_save;
 
@@ -44,7 +47,7 @@ void default_idle(void)
 #ifdef CONFIG_SMP
 		else {
 			set_thread_flag(TIF_POLLING_NRFLAG);
-			while (!need_resched())
+			while (!need_resched() && !cpu_is_offline(cpu))
 				barrier();
 			clear_thread_flag(TIF_POLLING_NRFLAG);
 		}
@@ -52,6 +55,8 @@ void default_idle(void)
 	}
 	if (need_resched())
 		schedule();
+	if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
+		cpu_die();
 }
 
 /*
@@ -70,7 +75,7 @@ void cpu_idle(void)
 /*
  * Register the sysctl to set/clear powersave_nap.
  */
-extern unsigned long powersave_nap;
+extern int powersave_nap;
 
 static ctl_table powersave_nap_ctl_table[]={
 	{

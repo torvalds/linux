@@ -18,12 +18,12 @@ static inline void pmd_populate(struct mm_struct *mm, pmd_t *pmd, struct page *p
 	set_pmd(pmd, __pmd(_PAGE_TABLE | (page_to_pfn(pte) << PAGE_SHIFT)));
 }
 
-extern __inline__ pmd_t *get_pmd(void)
+static inline pmd_t *get_pmd(void)
 {
 	return (pmd_t *)get_zeroed_page(GFP_KERNEL);
 }
 
-extern __inline__ void pmd_free(pmd_t *pmd)
+static inline void pmd_free(pmd_t *pmd)
 {
 	BUG_ON((unsigned long)pmd & (PAGE_SIZE-1));
 	free_page((unsigned long)pmd);
@@ -86,13 +86,13 @@ static inline struct page *pte_alloc_one(struct mm_struct *mm, unsigned long add
 /* Should really implement gc for free page table pages. This could be
    done with a reference count in struct page. */
 
-extern __inline__ void pte_free_kernel(pte_t *pte)
+static inline void pte_free_kernel(pte_t *pte)
 {
 	BUG_ON((unsigned long)pte & (PAGE_SIZE-1));
 	free_page((unsigned long)pte); 
 }
 
-extern inline void pte_free(struct page *pte)
+static inline void pte_free(struct page *pte)
 {
 	__free_page(pte);
 } 

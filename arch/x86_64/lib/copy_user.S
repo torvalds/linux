@@ -7,7 +7,7 @@
 #define FIX_ALIGNMENT 1
 		
 	#include <asm/current.h>
-	#include <asm/offset.h>
+	#include <asm/asm-offsets.h>
 	#include <asm/thread_info.h>
 	#include <asm/cpufeature.h>
 

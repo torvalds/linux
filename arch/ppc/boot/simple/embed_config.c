@@ -784,28 +784,12 @@ embed_config(bd_t ** bdp)
 #ifdef CONFIG_IBM_OPENBIOS
 /* This could possibly work for all treeboot roms.
 */
-#if defined(CONFIG_ASH) || defined(CONFIG_BEECH) || defined(CONFIG_BUBINGA)
+#if defined(CONFIG_BUBINGA)
 #define BOARD_INFO_VECTOR       0xFFF80B50 /* openbios 1.19 moved this vector down  - armin */
 #else
 #define BOARD_INFO_VECTOR	0xFFFE0B50
 #endif
 
-#ifdef CONFIG_BEECH
-static void
-get_board_info(bd_t **bdp)
-{
-	typedef void (*PFV)(bd_t *bd);
-	((PFV)(*(unsigned long *)BOARD_INFO_VECTOR))(*bdp);
-	return;
-}
-
-void
-embed_config(bd_t **bdp)
-{
-        *bdp = &bdinfo;
-	get_board_info(bdp);
-}
-#else /* !CONFIG_BEECH */
 void
 embed_config(bd_t **bdp)
 {
@@ -860,7 +844,6 @@ embed_config(bd_t **bdp)
 #endif
 	timebase_period_ns = 1000000000 / bd->bi_tbfreq;
 }
-#endif /* CONFIG_BEECH */
 #endif /* CONFIG_IBM_OPENBIOS */
 
 #ifdef CONFIG_EP405
@@ -943,39 +926,3 @@ embed_config(bd_t **bdp)
 #endif
 }
 #endif
-
-#ifdef CONFIG_RAINIER
-/* Rainier uses vxworks bootrom */
-void
-embed_config(bd_t **bdp)
-{
-	u_char	*cp;
-	int	i;
-	bd_t	*bd;
-	
-	bd = &bdinfo;
-	*bdp = bd;
-	
-	for(i=0;i<8192;i+=32) {
-		__asm__("dccci 0,%0" :: "r" (i));
-	}
-	__asm__("iccci 0,0");
-	__asm__("sync;isync");
-
-	/* init ram for parity */
-	memset(0, 0,0x400000);  /* Lo memory */
-
-
-	bd->bi_memsize   = (32 * 1024 * 1024) ;
-	bd->bi_intfreq = 133000000; //the internal clock is 133 MHz
-	bd->bi_busfreq   = 100000000;
-	bd->bi_pci_busfreq= 33000000;
-
-	cp = (u_char *)def_enet_addr;
-	for (i=0; i<6; i++) {
-		bd->bi_enetaddr[i] = *cp++;
-	}
-
-}
-#endif
-

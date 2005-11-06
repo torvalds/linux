@@ -58,7 +58,6 @@
 #include <linux/init.h>
 #include <linux/profile.h>
 
-#include <asm/segment.h>
 #include <asm/io.h>
 #include <asm/nvram.h>
 #include <asm/cache.h>
@@ -66,11 +65,6 @@
 #include <asm/machdep.h>
 
 #include <asm/time.h>
-
-/* XXX false sharing with below? */
-u64 jiffies_64 = INITIAL_JIFFIES;
-
-EXPORT_SYMBOL(jiffies_64);
 
 unsigned long disarm_decr[NR_CPUS];
 
@@ -122,6 +116,15 @@ unsigned long profile_pc(struct pt_regs *regs)
 EXPORT_SYMBOL(profile_pc);
 #endif
 
+void wakeup_decrementer(void)
+{
+	set_dec(tb_ticks_per_jiffy);
+	/* No currently-supported powerbook has a 601,
+	 * so use get_tbl, not native
+	 */
+	last_jiffy_stamp(0) = tb_last_stamp = get_tbl();
+}
+
 /*
  * timer_interrupt - gets called when the decrementer overflows,
  * with interrupts disabled.
@@ -169,7 +172,7 @@ void timer_interrupt(struct pt_regs * regs)
 		 * We should have an rtc call that only sets the minutes and
 		 * seconds like on Intel to avoid problems with non UTC clocks.
 		 */
-		if ( ppc_md.set_rtc_time && (time_status & STA_UNSYNC) == 0 &&
+		if ( ppc_md.set_rtc_time && ntp_synced() &&
 		     xtime.tv_sec - last_rtc_update >= 659 &&
 		     abs((xtime.tv_nsec / 1000) - (1000000-1000000/HZ)) < 500000/HZ &&
 		     jiffies - wall_jiffies == 1) {
@@ -271,10 +274,7 @@ int do_settimeofday(struct timespec *tv)
 	 */
 	last_rtc_update = new_sec - 658;
 
-	time_adjust = 0;                /* stop active adjtime() */
-	time_status |= STA_UNSYNC;
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_esterror = NTP_PHASE_LIMIT;
+	ntp_clear();
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 	clock_was_set();
 	return 0;

@@ -1,5 +1,4 @@
 /*
- * $Id: audiochip.h,v 1.5 2005/06/16 22:59:16 hhackmann Exp $
  */
 
 #ifndef AUDIOCHIP_H

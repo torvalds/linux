@@ -52,6 +52,8 @@
  * 4) AFAICT, hardware flow control isn't supported by the controller --MAG.
  */
 
+#include <linux/platform_device.h>
+
 #include "mpsc.h"
 
 /*
@@ -1072,18 +1074,18 @@ mpsc_get_mctrl(struct uart_port *port)
 }
 
 static void
-mpsc_stop_tx(struct uart_port *port, uint tty_start)
+mpsc_stop_tx(struct uart_port *port)
 {
 	struct mpsc_port_info *pi = (struct mpsc_port_info *)port;
 
-	pr_debug("mpsc_stop_tx[%d]: tty_start: %d\n", port->line, tty_start);
+	pr_debug("mpsc_stop_tx[%d]\n", port->line);
 
 	mpsc_freeze(pi);
 	return;
 }
 
 static void
-mpsc_start_tx(struct uart_port *port, uint tty_start)
+mpsc_start_tx(struct uart_port *port)
 {
 	struct mpsc_port_info *pi = (struct mpsc_port_info *)port;
 
@@ -1091,7 +1093,7 @@ mpsc_start_tx(struct uart_port *port, uint tty_start)
 	mpsc_copy_tx_data(pi);
 	mpsc_sdma_start_tx(pi);
 
-	pr_debug("mpsc_start_tx[%d]: tty_start: %d\n", port->line, tty_start);
+	pr_debug("mpsc_start_tx[%d]\n", port->line);
 	return;
 }
 
@@ -1100,6 +1102,8 @@ mpsc_start_rx(struct mpsc_port_info *pi)
 {
 	pr_debug("mpsc_start_rx[%d]: Starting...\n", pi->port.line);
 
+	/* Issue a Receive Abort to clear any receive errors */
+	writel(MPSC_CHR_2_RA, pi->mpsc_base + MPSC_CHR_2);
 	if (pi->rcv_data) {
 		mpsc_enter_hunt(pi);
 		mpsc_sdma_cmd(pi, SDMA_SDCM_ERD);

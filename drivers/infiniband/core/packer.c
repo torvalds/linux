@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004 Topspin Corporation.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -32,7 +33,7 @@
  * $Id: packer.c 1349 2004-12-16 21:09:43Z roland $
  */
 
-#include <ib_pack.h>
+#include <rdma/ib_pack.h>
 
 static u64 value_read(int offset, int size, void *structure)
 {

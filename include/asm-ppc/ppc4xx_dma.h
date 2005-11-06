@@ -285,7 +285,7 @@ typedef uint32_t sgl_handle_t;
 
 #define GET_DMA_POLARITY(chan) (DMAReq_ActiveLow(chan) | DMAAck_ActiveLow(chan) | EOT_ActiveLow(chan))
 
-#elif defined(CONFIG_STBXXX_DMA)		/* stb03xxx */
+#elif defined(CONFIG_STB03xxx)		/* stb03xxx */
 
 #define DMA_PPC4xx_SIZE	4096
 

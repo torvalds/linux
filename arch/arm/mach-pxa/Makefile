@@ -11,7 +11,8 @@ obj-$(CONFIG_PXA27x) += pxa27x.o
 obj-$(CONFIG_ARCH_LUBBOCK) += lubbock.o
 obj-$(CONFIG_MACH_MAINSTONE) += mainstone.o
 obj-$(CONFIG_ARCH_PXA_IDP) += idp.o
-obj-$(CONFIG_PXA_SHARP_C7xx)	+= corgi.o corgi_ssp.o ssp.o
+obj-$(CONFIG_PXA_SHARP_C7xx)	+= corgi.o corgi_ssp.o corgi_lcd.o ssp.o
+obj-$(CONFIG_PXA_SHARP_Cxx00)	+= spitz.o corgi_ssp.o corgi_lcd.o ssp.o
 obj-$(CONFIG_MACH_POODLE)	+= poodle.o
 
 # Support for blinky lights

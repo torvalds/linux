@@ -473,7 +473,7 @@ static u32 test_step(u32 init, unsigned char *buf, size_t len)
 	init = bitreverse(init);
 	crc2 = bitreverse(crc1);
 	if (crc1 != bitreverse(crc2))
-		printf("\nBit reversal fail: 0x%08x -> %0x08x -> 0x%08x\n",
+		printf("\nBit reversal fail: 0x%08x -> 0x%08x -> 0x%08x\n",
 		       crc1, crc2, bitreverse(crc2));
 	crc1 = crc32_le(init, buf, len);
 	if (crc1 != crc2)

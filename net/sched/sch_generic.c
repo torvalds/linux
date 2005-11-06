@@ -238,6 +238,20 @@ static void dev_watchdog_down(struct net_device *dev)
 	spin_unlock_bh(&dev->xmit_lock);
 }
 
+void netif_carrier_on(struct net_device *dev)
+{
+	if (test_and_clear_bit(__LINK_STATE_NOCARRIER, &dev->state))
+		linkwatch_fire_event(dev);
+	if (netif_running(dev))
+		__netdev_watchdog_up(dev);
+}
+
+void netif_carrier_off(struct net_device *dev)
+{
+	if (!test_and_set_bit(__LINK_STATE_NOCARRIER, &dev->state))
+		linkwatch_fire_event(dev);
+}
+
 /* "NOOP" scheduler: the best scheduler, recommended for all interfaces
    under all circumstances. It is difficult to invent anything faster or
    cheaper.
@@ -438,6 +452,7 @@ struct Qdisc * qdisc_create_dflt(struct net_device *dev, struct Qdisc_ops *ops)
 	if (!ops->init || ops->init(sch, NULL) == 0)
 		return sch;
 
+	qdisc_destroy(sch);
 errout:
 	return NULL;
 }
@@ -599,6 +614,8 @@ void dev_shutdown(struct net_device *dev)
 }
 
 EXPORT_SYMBOL(__netdev_watchdog_up);
+EXPORT_SYMBOL(netif_carrier_on);
+EXPORT_SYMBOL(netif_carrier_off);
 EXPORT_SYMBOL(noop_qdisc);
 EXPORT_SYMBOL(noop_qdisc_ops);
 EXPORT_SYMBOL(qdisc_create_dflt);

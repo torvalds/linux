@@ -29,7 +29,6 @@
 #include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
 
-
 #define ACPI_MAX_STRING			80
 
 #define ACPI_BUS_COMPONENT		0x00010000
@@ -44,60 +43,55 @@
 #define ACPI_BUTTON_HID_POWERF		"ACPI_FPB"
 #define ACPI_BUTTON_HID_SLEEPF		"ACPI_FSB"
 
-
 /* --------------------------------------------------------------------------
                                        PCI
    -------------------------------------------------------------------------- */
-
-#ifdef CONFIG_ACPI_PCI
 
 #define ACPI_PCI_COMPONENT		0x00400000
 
 /* ACPI PCI Interrupt Link (pci_link.c) */
 
-int acpi_irq_penalty_init (void);
-int acpi_pci_link_allocate_irq (acpi_handle handle, int index, int *edge_level,
-	int *active_high_low, char **name);
+int acpi_irq_penalty_init(void);
+int acpi_pci_link_allocate_irq(acpi_handle handle, int index, int *edge_level,
+			       int *active_high_low, char **name);
 int acpi_pci_link_free_irq(acpi_handle handle);
 
 /* ACPI PCI Interrupt Routing (pci_irq.c) */
 
-int acpi_pci_irq_add_prt (acpi_handle handle, int segment, int bus);
-void acpi_pci_irq_del_prt (int segment, int bus);
+int acpi_pci_irq_add_prt(acpi_handle handle, int segment, int bus);
+void acpi_pci_irq_del_prt(int segment, int bus);
 
 /* ACPI PCI Device Binding (pci_bind.c) */
 
 struct pci_bus;
 
-acpi_status acpi_get_pci_id (acpi_handle handle, struct acpi_pci_id *id);
-int acpi_pci_bind (struct acpi_device *device);
-int acpi_pci_unbind (struct acpi_device *device);
-int acpi_pci_bind_root (struct acpi_device *device, struct acpi_pci_id *id, struct pci_bus *bus);
+acpi_status acpi_get_pci_id(acpi_handle handle, struct acpi_pci_id *id);
+int acpi_pci_bind(struct acpi_device *device);
+int acpi_pci_unbind(struct acpi_device *device);
+int acpi_pci_bind_root(struct acpi_device *device, struct acpi_pci_id *id,
+		       struct pci_bus *bus);
 
 /* Arch-defined function to add a bus to the system */
 
-struct pci_bus *pci_acpi_scan_root(struct acpi_device *device, int domain, int bus);
-
-#endif /*CONFIG_ACPI_PCI*/
-
+struct pci_bus *pci_acpi_scan_root(struct acpi_device *device, int domain,
+				   int bus);
 
 /* --------------------------------------------------------------------------
                                   Power Resource
    -------------------------------------------------------------------------- */
 
 #ifdef CONFIG_ACPI_POWER
-int acpi_enable_wakeup_device_power (struct acpi_device *dev);
-int acpi_disable_wakeup_device_power (struct acpi_device *dev);
-int acpi_power_get_inferred_state (struct acpi_device *device);
-int acpi_power_transition (struct acpi_device *device, int state);
+int acpi_enable_wakeup_device_power(struct acpi_device *dev);
+int acpi_disable_wakeup_device_power(struct acpi_device *dev);
+int acpi_power_get_inferred_state(struct acpi_device *device);
+int acpi_power_transition(struct acpi_device *device, int state);
 #endif
-
 
 /* --------------------------------------------------------------------------
                                   Embedded Controller
    -------------------------------------------------------------------------- */
 #ifdef CONFIG_ACPI_EC
-int acpi_ec_ecdt_probe (void);
+int acpi_ec_ecdt_probe(void);
 #endif
 
 /* --------------------------------------------------------------------------

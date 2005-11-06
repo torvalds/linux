@@ -22,7 +22,7 @@
 #include <asm/irq.h>
 #include <asm/errno.h>
 
-#include <asm/asm-consts.h>
+#include <asm/asm-offsets.h>
 
 
 /* Make a slightly more convenient alias for C_SYMBOL_NAME.  */

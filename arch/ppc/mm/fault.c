@@ -278,11 +278,7 @@ bad_area:
 
 	/* User mode accesses cause a SIGSEGV */
 	if (user_mode(regs)) {
-		info.si_signo = SIGSEGV;
-		info.si_errno = 0;
-		info.si_code = code;
-		info.si_addr = (void __user *) address;
-		force_sig_info(SIGSEGV, &info, current);
+		_exception(SIGSEGV, regs, code, address);
 		return 0;
 	}
 

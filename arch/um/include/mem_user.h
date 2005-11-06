@@ -51,7 +51,6 @@ extern unsigned long task_size;
 
 extern void check_devanon(void);
 extern int init_mem_user(void);
-extern int create_mem_file(unsigned long len);
 extern void setup_memory(void *entry);
 extern unsigned long find_iomem(char *driver, unsigned long *len_out);
 extern int init_maps(unsigned long physmem, unsigned long iomem,
@@ -64,20 +63,6 @@ extern unsigned long phys_offset(unsigned long phys);
 extern void unmap_physmem(void);
 extern void map_memory(unsigned long virt, unsigned long phys,
 		       unsigned long len, int r, int w, int x);
-extern int protect_memory(unsigned long addr, unsigned long len, 
-			  int r, int w, int x, int must_succeed);
 extern unsigned long get_kmem_end(void);
-extern void check_tmpexec(void);
 
 #endif
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

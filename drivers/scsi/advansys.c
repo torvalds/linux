@@ -9200,8 +9200,8 @@ asc_prt_scsi_cmnd(struct scsi_cmnd *s)
         (unsigned) s->serial_number, s->retries, s->allowed);
 
     printk(
-" timeout_per_command %d, timeout_total %d, timeout %d\n",
-        s->timeout_per_command, s->timeout_total, s->timeout);
+" timeout_per_command %d\n",
+        s->timeout_per_command);
 
     printk(
 " scsi_done 0x%lx, done 0x%lx, host_scribble 0x%lx, result 0x%x\n",

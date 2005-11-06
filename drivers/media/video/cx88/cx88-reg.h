@@ -1,5 +1,4 @@
 /*
-    $Id: cx88-reg.h,v 1.8 2005/07/07 13:58:38 mchehab Exp $
 
     cx88x-hw.h - CX2388x register offsets
 
@@ -40,6 +39,29 @@
 #define CX88X_EN_TBFX 0x02
 #define CX88X_EN_VSFX 0x04
 
+/* ---------------------------------------------------------------------- */
+/* PCI controller registers                                               */
+
+/* Command and Status Register */
+#define F0_CMD_STAT_MM      0x2f0004
+#define F1_CMD_STAT_MM      0x2f0104
+#define F2_CMD_STAT_MM      0x2f0204
+#define F3_CMD_STAT_MM      0x2f0304
+#define F4_CMD_STAT_MM      0x2f0404
+
+/* Device Control #1 */
+#define F0_DEV_CNTRL1_MM    0x2f0040
+#define F1_DEV_CNTRL1_MM    0x2f0140
+#define F2_DEV_CNTRL1_MM    0x2f0240
+#define F3_DEV_CNTRL1_MM    0x2f0340
+#define F4_DEV_CNTRL1_MM    0x2f0440
+
+/* Device Control #1 */
+#define F0_BAR0_MM          0x2f0010
+#define F1_BAR0_MM          0x2f0110
+#define F2_BAR0_MM          0x2f0210
+#define F3_BAR0_MM          0x2f0310
+#define F4_BAR0_MM          0x2f0410
 
 /* ---------------------------------------------------------------------- */
 /* DMA Controller registers                                               */

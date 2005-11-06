@@ -132,11 +132,7 @@ static void __init set_cx86_memwb(void)
 	setCx86(CX86_CCR2, getCx86(CX86_CCR2) & ~0x04);
 	/* set 'Not Write-through' */
 	cr0 = 0x20000000;
-	__asm__("movl %%cr0,%%eax\n\t"
-		"orl %0,%%eax\n\t"
-		"movl %%eax,%%cr0\n"
-		: : "r" (cr0)
-		:"ax");
+	write_cr0(read_cr0() | cr0);
 	/* CCR2 bit 2: lock NW bit and set WT1 */
 	setCx86(CX86_CCR2, getCx86(CX86_CCR2) | 0x14 );
 }

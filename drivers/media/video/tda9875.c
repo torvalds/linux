@@ -262,7 +262,7 @@ static int tda9875_probe(struct i2c_adapter *adap)
 	if (adap->class & I2C_CLASS_TV_ANALOG)
 		return i2c_probe(adap, &addr_data, tda9875_attach);
 #else
-	if (adap->id == (I2C_ALGO_BIT | I2C_HW_B_BT848))
+	if (adap->id == I2C_HW_B_BT848)
 		return i2c_probe(adap, &addr_data, tda9875_attach);
 #endif
 	return 0;
@@ -384,7 +384,7 @@ static struct i2c_driver driver = {
 
 static struct i2c_client client_template =
 {
-        I2C_DEVNAME("tda9875"),
+        .name      = "tda9875",
         .driver    = &driver,
 };
 

@@ -103,8 +103,14 @@
 
 #define NS_IOREMAP_SIZE 4096
 
-#define BUF_SM 0x00000000	/* These two are used for push_rxbufs() */
-#define BUF_LG 0x00000001       /* CMD, Write_FreeBufQ, LBUF bit */
+/*
+ * BUF_XX distinguish the Rx buffers depending on their (small/large) size.
+ * BUG_SM and BUG_LG are both used by the driver and the device.
+ * BUF_NONE is only used by the driver.
+ */
+#define BUF_SM		0x00000000	/* These two are used for push_rxbufs() */
+#define BUF_LG		0x00000001	/* CMD, Write_FreeBufQ, LBUF bit */
+#define BUF_NONE 	0xffffffff	/* Software only: */
 
 #define NS_HBUFSIZE 65568	/* Size of max. AAL5 PDU */
 #define NS_MAX_IOVECS (2 + (65568 - NS_SMBUFSIZE) / \
@@ -683,6 +689,12 @@ enum ns_regs
 
 /* Device driver structures ***************************************************/
 
+
+struct ns_skb_cb {
+	u32 buf_type;			/* BUF_SM/BUF_LG/BUF_NONE */
+};
+
+#define NS_SKB_CB(skb)	((struct ns_skb_cb *)((skb)->cb))
 
 typedef struct tsq_info
 {

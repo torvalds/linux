@@ -35,13 +35,6 @@
 #include <linux/interrupt.h>
 #include <asm/io.h>
 
-#ifndef PCI_VENDOR_ID_CREATIVE
-#define PCI_VENDOR_ID_CREATIVE		0x1102
-#endif
-#ifndef PCI_DEVICE_ID_CREATIVE_EMU10K1
-#define PCI_DEVICE_ID_CREATIVE_EMU10K1	0x0002
-#endif
-
 /* ------------------- DEFINES -------------------- */
 
 #define EMUPAGESIZE     4096
@@ -1062,11 +1055,12 @@ typedef struct {
 	unsigned char emu10k2_chip; /* Audigy 1 or Audigy 2. */
 	unsigned char ca0102_chip;  /* Audigy 1 or Audigy 2. Not SB Audigy 2 Value. */
 	unsigned char ca0108_chip;  /* Audigy 2 Value */
+	unsigned char ca_cardbus_chip; /* Audigy 2 ZS Notebook */
 	unsigned char ca0151_chip;  /* P16V */
 	unsigned char spk71;        /* Has 7.1 speakers */
 	unsigned char sblive51;	    /* SBLive! 5.1 - extout 0x11 -> center, 0x12 -> lfe */
 	unsigned char spdif_bug;    /* Has Spdif phasing bug */
-	unsigned char ac97_chip;    /* Has an AC97 chip */
+	unsigned char ac97_chip;    /* Has an AC97 chip: 1 = mandatory, 2 = optional */
 	unsigned char ecard;        /* APS EEPROM */
 	const char *driver;
 	const char *name;
@@ -1178,7 +1172,7 @@ int snd_p16v_free(emu10k1_t * emu);
 int snd_p16v_mixer(emu10k1_t * emu);
 int snd_emu10k1_pcm_multi(emu10k1_t * emu, int device, snd_pcm_t ** rpcm);
 int snd_emu10k1_fx8010_pcm(emu10k1_t * emu, int device, snd_pcm_t ** rpcm);
-int snd_emu10k1_mixer(emu10k1_t * emu);
+int snd_emu10k1_mixer(emu10k1_t * emu, int pcm_device, int multi_device);
 int snd_emu10k1_timer(emu10k1_t * emu, int device);
 int snd_emu10k1_fx8010_new(emu10k1_t *emu, int device, snd_hwdep_t ** rhwdep);
 

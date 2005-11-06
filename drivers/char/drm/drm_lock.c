@@ -1,7 +1,7 @@
 /**
- * \file drm_lock.h 
+ * \file drm_lock.c
  * IOCTLs for locking
- * 
+ *
  * \author Rickard E. (Rik) Faith <faith@valinux.com>
  * \author Gareth Hughes <gareth@valinux.com>
  */
@@ -35,12 +35,12 @@
 
 #include "drmP.h"
 
-static int drm_lock_transfer(drm_device_t *dev,
+static int drm_lock_transfer(drm_device_t * dev,
 			     __volatile__ unsigned int *lock,
 			     unsigned int context);
 static int drm_notifier(void *priv);
 
-/** 
+/**
  * Lock ioctl.
  *
  * \param inode device inode.
@@ -51,91 +51,89 @@ static int drm_notifier(void *priv);
  *
  * Add the current task to the lock wait queue, and attempt to take to lock.
  */
-int drm_lock( struct inode *inode, struct file *filp,
-	       unsigned int cmd, unsigned long arg )
+int drm_lock(struct inode *inode, struct file *filp,
+	     unsigned int cmd, unsigned long arg)
 {
-        drm_file_t *priv = filp->private_data;
-        drm_device_t *dev = priv->head->dev;
-        DECLARE_WAITQUEUE( entry, current );
-        drm_lock_t lock;
-        int ret = 0;
+	drm_file_t *priv = filp->private_data;
+	drm_device_t *dev = priv->head->dev;
+	DECLARE_WAITQUEUE(entry, current);
+	drm_lock_t lock;
+	int ret = 0;
 
 	++priv->lock_count;
 
-        if ( copy_from_user( &lock, (drm_lock_t __user *)arg, sizeof(lock) ) )
+	if (copy_from_user(&lock, (drm_lock_t __user *) arg, sizeof(lock)))
 		return -EFAULT;
 
-        if ( lock.context == DRM_KERNEL_CONTEXT ) {
-                DRM_ERROR( "Process %d using kernel context %d\n",
-			   current->pid, lock.context );
-                return -EINVAL;
-        }
+	if (lock.context == DRM_KERNEL_CONTEXT) {
+		DRM_ERROR("Process %d using kernel context %d\n",
+			  current->pid, lock.context);
+		return -EINVAL;
+	}
 
-        DRM_DEBUG( "%d (pid %d) requests lock (0x%08x), flags = 0x%08x\n",
-		   lock.context, current->pid,
-		   dev->lock.hw_lock->lock, lock.flags );
+	DRM_DEBUG("%d (pid %d) requests lock (0x%08x), flags = 0x%08x\n",
+		  lock.context, current->pid,
+		  dev->lock.hw_lock->lock, lock.flags);
 
 	if (drm_core_check_feature(dev, DRIVER_DMA_QUEUE))
-		if ( lock.context < 0 )
+		if (lock.context < 0)
 			return -EINVAL;
 
-	add_wait_queue( &dev->lock.lock_queue, &entry );
+	add_wait_queue(&dev->lock.lock_queue, &entry);
 	for (;;) {
 		__set_current_state(TASK_INTERRUPTIBLE);
-		if ( !dev->lock.hw_lock ) {
+		if (!dev->lock.hw_lock) {
 			/* Device has been unregistered */
 			ret = -EINTR;
 			break;
 		}
-		if ( drm_lock_take( &dev->lock.hw_lock->lock,
-				     lock.context ) ) {
-			dev->lock.filp      = filp;
+		if (drm_lock_take(&dev->lock.hw_lock->lock, lock.context)) {
+			dev->lock.filp = filp;
 			dev->lock.lock_time = jiffies;
-			atomic_inc( &dev->counts[_DRM_STAT_LOCKS] );
-			break;  /* Got lock */
+			atomic_inc(&dev->counts[_DRM_STAT_LOCKS]);
+			break;	/* Got lock */
 		}
-		
+
 		/* Contention */
 		schedule();
-		if ( signal_pending( current ) ) {
+		if (signal_pending(current)) {
 			ret = -ERESTARTSYS;
 			break;
 		}
 	}
 	__set_current_state(TASK_RUNNING);
-	remove_wait_queue( &dev->lock.lock_queue, &entry );
+	remove_wait_queue(&dev->lock.lock_queue, &entry);
 
-	sigemptyset( &dev->sigmask );
-	sigaddset( &dev->sigmask, SIGSTOP );
-	sigaddset( &dev->sigmask, SIGTSTP );
-	sigaddset( &dev->sigmask, SIGTTIN );
-	sigaddset( &dev->sigmask, SIGTTOU );
+	sigemptyset(&dev->sigmask);
+	sigaddset(&dev->sigmask, SIGSTOP);
+	sigaddset(&dev->sigmask, SIGTSTP);
+	sigaddset(&dev->sigmask, SIGTTIN);
+	sigaddset(&dev->sigmask, SIGTTOU);
 	dev->sigdata.context = lock.context;
-	dev->sigdata.lock    = dev->lock.hw_lock;
-	block_all_signals( drm_notifier,
-			   &dev->sigdata, &dev->sigmask );
-	
+	dev->sigdata.lock = dev->lock.hw_lock;
+	block_all_signals(drm_notifier, &dev->sigdata, &dev->sigmask);
+
 	if (dev->driver->dma_ready && (lock.flags & _DRM_LOCK_READY))
 		dev->driver->dma_ready(dev);
-	
-	if ( dev->driver->dma_quiescent && (lock.flags & _DRM_LOCK_QUIESCENT ))
+
+	if (dev->driver->dma_quiescent && (lock.flags & _DRM_LOCK_QUIESCENT))
 		return dev->driver->dma_quiescent(dev);
-	
-	/* dev->driver->kernel_context_switch isn't used by any of the x86 
+
+	/* dev->driver->kernel_context_switch isn't used by any of the x86
 	 *  drivers but is used by the Sparc driver.
 	 */
-	
-	if (dev->driver->kernel_context_switch && 
-	    dev->last_context != lock.context) {
-	  dev->driver->kernel_context_switch(dev, dev->last_context, 
-					    lock.context);
-	}
-        DRM_DEBUG( "%d %s\n", lock.context, ret ? "interrupted" : "has lock" );
 
-        return ret;
+	if (dev->driver->kernel_context_switch &&
+	    dev->last_context != lock.context) {
+		dev->driver->kernel_context_switch(dev, dev->last_context,
+						   lock.context);
+	}
+	DRM_DEBUG("%d %s\n", lock.context, ret ? "interrupted" : "has lock");
+
+	return ret;
 }
 
-/** 
+/**
  * Unlock ioctl.
  *
  * \param inode device inode.
@@ -146,23 +144,23 @@ int drm_lock( struct inode *inode, struct file *filp,
  *
  * Transfer and free the lock.
  */
-int drm_unlock( struct inode *inode, struct file *filp,
-		 unsigned int cmd, unsigned long arg )
+int drm_unlock(struct inode *inode, struct file *filp,
+	       unsigned int cmd, unsigned long arg)
 {
 	drm_file_t *priv = filp->private_data;
 	drm_device_t *dev = priv->head->dev;
 	drm_lock_t lock;
 
-	if ( copy_from_user( &lock, (drm_lock_t __user *)arg, sizeof(lock) ) )
+	if (copy_from_user(&lock, (drm_lock_t __user *) arg, sizeof(lock)))
 		return -EFAULT;
 
-	if ( lock.context == DRM_KERNEL_CONTEXT ) {
-		DRM_ERROR( "Process %d using kernel context %d\n",
-			   current->pid, lock.context );
+	if (lock.context == DRM_KERNEL_CONTEXT) {
+		DRM_ERROR("Process %d using kernel context %d\n",
+			  current->pid, lock.context);
 		return -EINVAL;
 	}
 
-	atomic_inc( &dev->counts[_DRM_STAT_UNLOCKS] );
+	atomic_inc(&dev->counts[_DRM_STAT_UNLOCKS]);
 
 	/* kernel_context_switch isn't used by any of the x86 drm
 	 * modules but is required by the Sparc driver.
@@ -170,12 +168,12 @@ int drm_unlock( struct inode *inode, struct file *filp,
 	if (dev->driver->kernel_context_switch_unlock)
 		dev->driver->kernel_context_switch_unlock(dev, &lock);
 	else {
-		drm_lock_transfer( dev, &dev->lock.hw_lock->lock, 
-				    DRM_KERNEL_CONTEXT );
-		
-		if ( drm_lock_free( dev, &dev->lock.hw_lock->lock,
-				     DRM_KERNEL_CONTEXT ) ) {
-			DRM_ERROR( "\n" );
+		drm_lock_transfer(dev, &dev->lock.hw_lock->lock,
+				  DRM_KERNEL_CONTEXT);
+
+		if (drm_lock_free(dev, &dev->lock.hw_lock->lock,
+				  DRM_KERNEL_CONTEXT)) {
+			DRM_ERROR("\n");
 		}
 	}
 
@@ -198,8 +196,10 @@ int drm_lock_take(__volatile__ unsigned int *lock, unsigned int context)
 
 	do {
 		old = *lock;
-		if (old & _DRM_LOCK_HELD) new = old | _DRM_LOCK_CONT;
-		else			  new = context | _DRM_LOCK_HELD;
+		if (old & _DRM_LOCK_HELD)
+			new = old | _DRM_LOCK_CONT;
+		else
+			new = context | _DRM_LOCK_HELD;
 		prev = cmpxchg(lock, old, new);
 	} while (prev != old);
 	if (_DRM_LOCKING_CONTEXT(old) == context) {
@@ -212,7 +212,7 @@ int drm_lock_take(__volatile__ unsigned int *lock, unsigned int context)
 		}
 	}
 	if (new == (context | _DRM_LOCK_HELD)) {
-				/* Have lock */
+		/* Have lock */
 		return 1;
 	}
 	return 0;
@@ -220,8 +220,8 @@ int drm_lock_take(__volatile__ unsigned int *lock, unsigned int context)
 
 /**
  * This takes a lock forcibly and hands it to context.	Should ONLY be used
- * inside *_unlock to give lock to kernel before calling *_dma_schedule. 
- * 
+ * inside *_unlock to give lock to kernel before calling *_dma_schedule.
+ *
  * \param dev DRM device.
  * \param lock lock pointer.
  * \param context locking context.
@@ -230,7 +230,7 @@ int drm_lock_take(__volatile__ unsigned int *lock, unsigned int context)
  * Resets the lock file pointer.
  * Marks the lock as held by the given context, via the \p cmpxchg instruction.
  */
-static int drm_lock_transfer(drm_device_t *dev,
+static int drm_lock_transfer(drm_device_t * dev,
 			     __volatile__ unsigned int *lock,
 			     unsigned int context)
 {
@@ -238,8 +238,8 @@ static int drm_lock_transfer(drm_device_t *dev,
 
 	dev->lock.filp = NULL;
 	do {
-		old  = *lock;
-		new  = context | _DRM_LOCK_HELD;
+		old = *lock;
+		new = context | _DRM_LOCK_HELD;
 		prev = cmpxchg(lock, old, new);
 	} while (prev != old);
 	return 1;
@@ -247,30 +247,29 @@ static int drm_lock_transfer(drm_device_t *dev,
 
 /**
  * Free lock.
- * 
+ *
  * \param dev DRM device.
  * \param lock lock.
  * \param context context.
- * 
+ *
  * Resets the lock file pointer.
  * Marks the lock as not held, via the \p cmpxchg instruction. Wakes any task
  * waiting on the lock queue.
  */
-int drm_lock_free(drm_device_t *dev,
-		   __volatile__ unsigned int *lock, unsigned int context)
+int drm_lock_free(drm_device_t * dev,
+		  __volatile__ unsigned int *lock, unsigned int context)
 {
 	unsigned int old, new, prev;
 
 	dev->lock.filp = NULL;
 	do {
-		old  = *lock;
-		new  = 0;
+		old = *lock;
+		new = 0;
 		prev = cmpxchg(lock, old, new);
 	} while (prev != old);
 	if (_DRM_LOCK_IS_HELD(old) && _DRM_LOCKING_CONTEXT(old) != context) {
 		DRM_ERROR("%d freed heavyweight lock held by %d\n",
-			  context,
-			  _DRM_LOCKING_CONTEXT(old));
+			  context, _DRM_LOCKING_CONTEXT(old));
 		return 1;
 	}
 	wake_up_interruptible(&dev->lock.lock_queue);
@@ -290,19 +289,19 @@ int drm_lock_free(drm_device_t *dev,
  */
 static int drm_notifier(void *priv)
 {
-	drm_sigdata_t *s = (drm_sigdata_t *)priv;
-	unsigned int  old, new, prev;
+	drm_sigdata_t *s = (drm_sigdata_t *) priv;
+	unsigned int old, new, prev;
 
-
-				/* Allow signal delivery if lock isn't held */
+	/* Allow signal delivery if lock isn't held */
 	if (!s->lock || !_DRM_LOCK_IS_HELD(s->lock->lock)
-	    || _DRM_LOCKING_CONTEXT(s->lock->lock) != s->context) return 1;
+	    || _DRM_LOCKING_CONTEXT(s->lock->lock) != s->context)
+		return 1;
 
-				/* Otherwise, set flag to force call to
-                                   drmUnlock */
+	/* Otherwise, set flag to force call to
+	   drmUnlock */
 	do {
-		old  = s->lock->lock;
-		new  = old | _DRM_LOCK_CONT;
+		old = s->lock->lock;
+		new = old | _DRM_LOCK_CONT;
 		prev = cmpxchg(&s->lock->lock, old, new);
 	} while (prev != old);
 	return 0;

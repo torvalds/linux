@@ -32,6 +32,10 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/device.h>
+#include <linux/jiffies.h>
+#include <linux/string.h>
+#include <linux/slab.h>
+
 #include "dvb_frontend.h"
 #include "tda1004x.h"
 
@@ -1046,8 +1050,7 @@ static int tda1004x_read_snr(struct dvb_frontend* fe, u16 * snr)
 	tmp = tda1004x_read_byte(state, TDA1004X_SNR);
 	if (tmp < 0)
 		return -EIO;
-	if (tmp)
-		tmp = 255 - tmp;
+	tmp = 255 - tmp;
 
 	*snr = ((tmp << 8) | tmp);
 	dprintk("%s: snr=0x%x\n", __FUNCTION__, *snr);

@@ -60,7 +60,6 @@
 
 #define S3_SAVAGE_SERIES(chip)    ((chip>=S3_SAVAGE3D) && (chip<=S3_SAVAGE2000))
 
-
 /* Chip tags.  These are used to group the adapters into
  * related families.
  */
@@ -128,6 +127,10 @@ typedef enum {
 #define BCI_CMD_SET_ROP(cmd, rop)    ((cmd) |= ((rop & 0xFF) << 16))
 #define BCI_CMD_SEND_COLOR           0x00008000
 
+#define DISP_CRT     1
+#define DISP_LCD     2
+#define DISP_DFP     3
+
 struct xtimings {
 	unsigned int Clock;
 	unsigned int HDisplay;
@@ -166,6 +169,10 @@ struct savagefb_par {
 	struct savagefb_i2c_chan chan;
 	unsigned char   *edid;
 	u32 pseudo_palette[16];
+	int pm_state;
+	int display_type;
+	int dvi;
+	int crtonly;
 	int dacSpeedBpp;
 	int maxClock;
 	int minClock;
@@ -338,7 +345,7 @@ do {                       \
 	} \
 }
 
-extern int savagefb_probe_i2c_connector(struct savagefb_par *par,
+extern int savagefb_probe_i2c_connector(struct fb_info *info,
 					u8 **out_edid);
 extern void savagefb_create_i2c_busses(struct fb_info *info);
 extern void savagefb_delete_i2c_busses(struct fb_info *info);

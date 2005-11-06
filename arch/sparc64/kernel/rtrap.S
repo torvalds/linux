@@ -153,11 +153,14 @@ __handle_signal:
 rtrap_irq:
 rtrap_clr_l6:	clr			%l6
 rtrap:
-		ldub			[%g6 + TI_CPU], %l0
-		sethi			%hi(irq_stat), %l2	! &softirq_active
-		or			%l2, %lo(irq_stat), %l2	! &softirq_active
-irqsz_patchme:	sllx			%l0, 0, %l0
-		lduw			[%l2 + %l0], %l1	! softirq_pending
+#ifndef CONFIG_SMP
+		sethi			%hi(per_cpu____cpu_data), %l0
+		lduw			[%l0 + %lo(per_cpu____cpu_data)], %l1
+#else
+		sethi			%hi(per_cpu____cpu_data), %l0
+		or			%l0, %lo(per_cpu____cpu_data), %l0
+		lduw			[%l0 + %g5], %l1
+#endif
 		cmp			%l1, 0
 
 		/* mm/ultra.S:xcall_report_regs KNOWS about this load. */
@@ -253,9 +256,8 @@ rt_continue:	ldx			[%sp + PTREGS_OFF + PT_V9_G1], %g1
 		brnz,pn			%l3, kern_rtt
 		 mov			PRIMARY_CONTEXT, %l7
 		ldxa			[%l7 + %l7] ASI_DMMU, %l0
-cplus_rtrap_insn_1:
-		sethi			%hi(0), %l1
-		sllx			%l1, 32, %l1
+		sethi			%hi(sparc64_kern_pri_nuc_bits), %l1
+		ldx			[%l1 + %lo(sparc64_kern_pri_nuc_bits)], %l1
 		or			%l0, %l1, %l0
 		stxa			%l0, [%l7] ASI_DMMU
 		flush			%g6
@@ -310,53 +312,36 @@ kern_fpucheck:	ldub			[%g6 + TI_FPDEPTH], %l5
 		wr			%g1, FPRS_FEF, %fprs
 		ldx			[%o1 + %o5], %g1
 		add			%g6, TI_XFSR, %o1
-		membar			#StoreLoad | #LoadLoad
 		sll			%o0, 8, %o2
 		add			%g6, TI_FPREGS, %o3
 		brz,pn			%l6, 1f
 		 add			%g6, TI_FPREGS+0x40, %o4
 
+		membar			#Sync
 		ldda			[%o3 + %o2] ASI_BLK_P, %f0
 		ldda			[%o4 + %o2] ASI_BLK_P, %f16
+		membar			#Sync
 1:		andcc			%l2, FPRS_DU, %g0
 		be,pn			%icc, 1f
 		 wr			%g1, 0, %gsr
 		add			%o2, 0x80, %o2
+		membar			#Sync
 		ldda			[%o3 + %o2] ASI_BLK_P, %f32
 		ldda			[%o4 + %o2] ASI_BLK_P, %f48
-
 1:		membar			#Sync
 		ldx			[%o1 + %o5], %fsr
 2:		stb			%l5, [%g6 + TI_FPDEPTH]
 		ba,pt			%xcc, rt_continue
 		 nop
 5:		wr			%g0, FPRS_FEF, %fprs
-		membar			#StoreLoad | #LoadLoad
 		sll			%o0, 8, %o2
 
 		add			%g6, TI_FPREGS+0x80, %o3
 		add			%g6, TI_FPREGS+0xc0, %o4
+		membar			#Sync
 		ldda			[%o3 + %o2] ASI_BLK_P, %f32
 		ldda			[%o4 + %o2] ASI_BLK_P, %f48
 		membar			#Sync
 		wr			%g0, FPRS_DU, %fprs
 		ba,pt			%xcc, rt_continue
 		 stb			%l5, [%g6 + TI_FPDEPTH]
-
-cplus_rinsn_1:
-		sethi			%uhi(CTX_CHEETAH_PLUS_NUC), %l1
-
-		.globl			cheetah_plus_patch_rtrap
-cheetah_plus_patch_rtrap:
-		/* We configure the dTLB512_0 for 4MB pages and the
-		 * dTLB512_1 for 8K pages when in context zero.
-		 */
-		sethi			%hi(cplus_rinsn_1), %o0
-		sethi			%hi(cplus_rtrap_insn_1), %o2
-		lduw			[%o0 + %lo(cplus_rinsn_1)], %o1
-		or			%o2, %lo(cplus_rtrap_insn_1), %o2
-		stw			%o1, [%o2]
-		flush			%o2
-
-		retl
-		 nop

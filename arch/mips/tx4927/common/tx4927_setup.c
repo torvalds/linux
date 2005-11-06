@@ -64,7 +64,7 @@ static void tx4927_write_buffer_flush(void)
 }
 
 
-static void __init tx4927_setup(void)
+void __init plat_setup(void)
 {
 	board_time_init = tx4927_time_init;
 	board_timer_setup = tx4927_timer_setup;
@@ -76,11 +76,7 @@ static void __init tx4927_setup(void)
 		toshiba_rbtx4927_setup();
 	}
 #endif
-
-	return;
 }
-
-early_initcall(tx4927_setup);
 
 void __init tx4927_time_init(void)
 {
@@ -152,7 +148,7 @@ dump_cp0(char *key)
 	print_cp0(key, 16, "CONFIG  ", read_c0_config());
 	return;
 }
-	
+
 void print_pic(char *key, u32 reg, char *name)
 {
 	printk("%s pic:0x%08x:%s=0x%08x\n", key, reg, name,

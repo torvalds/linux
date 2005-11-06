@@ -26,8 +26,13 @@ obj-$(CONFIG_CPU_S3C2440)  += s3c2440.o s3c2440-dsc.o
 obj-$(CONFIG_CPU_S3C2440)  += s3c2440-irq.o
 obj-$(CONFIG_CPU_S3C2440)  += s3c2440-clock.o
 
+# bast extras
+
+obj-$(CONFIG_BAST_PC104_IRQ)	+= bast-irq.o
+
 # machine specific support
 
+obj-$(CONFIG_MACH_ANUBIS)	+= mach-anubis.o
 obj-$(CONFIG_ARCH_BAST)		+= mach-bast.o usb-simtec.o
 obj-$(CONFIG_ARCH_H1940)	+= mach-h1940.o
 obj-$(CONFIG_MACH_N30)		+= mach-n30.o

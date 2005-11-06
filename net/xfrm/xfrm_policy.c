@@ -37,7 +37,7 @@ EXPORT_SYMBOL(xfrm_policy_list);
 static DEFINE_RWLOCK(xfrm_policy_afinfo_lock);
 static struct xfrm_policy_afinfo *xfrm_policy_afinfo[NPROTO];
 
-static kmem_cache_t *xfrm_dst_cache;
+static kmem_cache_t *xfrm_dst_cache __read_mostly;
 
 static struct work_struct xfrm_policy_gc_work;
 static struct list_head xfrm_policy_gc_list =
@@ -163,7 +163,7 @@ static void xfrm_policy_timer(unsigned long data)
 	if (xp->dead)
 		goto out;
 
-	dir = xp->index & 7;
+	dir = xfrm_policy_id2dir(xp->index);
 
 	if (xp->lft.hard_add_expires_seconds) {
 		long tmo = xp->lft.hard_add_expires_seconds +
@@ -225,7 +225,7 @@ expired:
  * SPD calls.
  */
 
-struct xfrm_policy *xfrm_policy_alloc(int gfp)
+struct xfrm_policy *xfrm_policy_alloc(gfp_t gfp)
 {
 	struct xfrm_policy *policy;
 
@@ -417,7 +417,7 @@ struct xfrm_policy *xfrm_policy_byid(int dir, u32 id, int delete)
 	struct xfrm_policy *pol, **p;
 
 	write_lock_bh(&xfrm_policy_lock);
-	for (p = &xfrm_policy_list[id & 7]; (pol=*p)!=NULL; p = &pol->next) {
+	for (p = &xfrm_policy_list[dir]; (pol=*p)!=NULL; p = &pol->next) {
 		if (pol->index == id) {
 			xfrm_pol_hold(pol);
 			if (delete)
@@ -765,8 +765,8 @@ restart:
 	switch (policy->action) {
 	case XFRM_POLICY_BLOCK:
 		/* Prohibit the flow */
-		xfrm_pol_put(policy);
-		return -EPERM;
+		err = -EPERM;
+		goto error;
 
 	case XFRM_POLICY_ALLOW:
 		if (policy->xfrm_nr == 0) {
@@ -782,8 +782,8 @@ restart:
 		 */
 		dst = xfrm_find_bundle(fl, policy, family);
 		if (IS_ERR(dst)) {
-			xfrm_pol_put(policy);
-			return PTR_ERR(dst);
+			err = PTR_ERR(dst);
+			goto error;
 		}
 
 		if (dst)
@@ -1192,46 +1192,6 @@ int xfrm_bundle_ok(struct xfrm_dst *first, struct flowi *fl, int family)
 
 EXPORT_SYMBOL(xfrm_bundle_ok);
 
-/* Well... that's _TASK_. We need to scan through transformation
- * list and figure out what mss tcp should generate in order to
- * final datagram fit to mtu. Mama mia... :-)
- *
- * Apparently, some easy way exists, but we used to choose the most
- * bizarre ones. :-) So, raising Kalashnikov... tra-ta-ta.
- *
- * Consider this function as something like dark humour. :-)
- */
-static int xfrm_get_mss(struct dst_entry *dst, u32 mtu)
-{
-	int res = mtu - dst->header_len;
-
-	for (;;) {
-		struct dst_entry *d = dst;
-		int m = res;
-
-		do {
-			struct xfrm_state *x = d->xfrm;
-			if (x) {
-				spin_lock_bh(&x->lock);
-				if (x->km.state == XFRM_STATE_VALID &&
-				    x->type && x->type->get_max_size)
-					m = x->type->get_max_size(d->xfrm, m);
-				else
-					m += x->props.header_len;
-				spin_unlock_bh(&x->lock);
-			}
-		} while ((d = d->child) != NULL);
-
-		if (m <= mtu)
-			break;
-		res -= (m - mtu);
-		if (res < 88)
-			return mtu;
-	}
-
-	return res + dst->header_len;
-}
-
 int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 {
 	int err = 0;
@@ -1252,8 +1212,6 @@ int xfrm_policy_register_afinfo(struct xfrm_policy_afinfo *afinfo)
 			dst_ops->negative_advice = xfrm_negative_advice;
 		if (likely(dst_ops->link_failure == NULL))
 			dst_ops->link_failure = xfrm_link_failure;
-		if (likely(dst_ops->get_mss == NULL))
-			dst_ops->get_mss = xfrm_get_mss;
 		if (likely(afinfo->garbage_collect == NULL))
 			afinfo->garbage_collect = __xfrm_garbage_collect;
 		xfrm_policy_afinfo[afinfo->family] = afinfo;
@@ -1281,7 +1239,6 @@ int xfrm_policy_unregister_afinfo(struct xfrm_policy_afinfo *afinfo)
 			dst_ops->check = NULL;
 			dst_ops->negative_advice = NULL;
 			dst_ops->link_failure = NULL;
-			dst_ops->get_mss = NULL;
 			afinfo->garbage_collect = NULL;
 		}
 	}

@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/signal.h>	/* for SIGBUS */
 
 #include <asm/module.h>
 #include <asm/sn/addrs.h>

@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/net.h>
+#include <net/ip.h>
 #include <net/inetpeer.h>
 
 /*
@@ -72,7 +73,7 @@
 /* Exported for inet_getid inline function.  */
 DEFINE_SPINLOCK(inet_peer_idlock);
 
-static kmem_cache_t *peer_cachep;
+static kmem_cache_t *peer_cachep __read_mostly;
 
 #define node_height(x) x->avl_height
 static struct inet_peer peer_fake_node = {
@@ -99,8 +100,7 @@ DEFINE_SPINLOCK(inet_peer_unused_lock);
 #define PEER_MAX_CLEANUP_WORK 30
 
 static void peer_check_expire(unsigned long dummy);
-static struct timer_list peer_periodic_timer =
-	TIMER_INITIALIZER(peer_check_expire, 0, 0);
+static DEFINE_TIMER(peer_periodic_timer, peer_check_expire, 0, 0);
 
 /* Exported for sysctl_net_ipv4.  */
 int inet_peer_gc_mintime = 10 * HZ,
@@ -450,11 +450,12 @@ static void peer_check_expire(unsigned long dummy)
 	/* Trigger the timer after inet_peer_gc_mintime .. inet_peer_gc_maxtime
 	 * interval depending on the total number of entries (more entries,
 	 * less interval). */
-	peer_periodic_timer.expires = jiffies
-		+ inet_peer_gc_maxtime
-		- (inet_peer_gc_maxtime - inet_peer_gc_mintime) / HZ *
-			peer_total / inet_peer_threshold * HZ;
+	if (peer_total >= inet_peer_threshold)
+		peer_periodic_timer.expires = jiffies + inet_peer_gc_mintime;
+	else
+		peer_periodic_timer.expires = jiffies
+			+ inet_peer_gc_maxtime
+			- (inet_peer_gc_maxtime - inet_peer_gc_mintime) / HZ *
+				peer_total / inet_peer_threshold * HZ;
 	add_timer(&peer_periodic_timer);
 }
-
-EXPORT_SYMBOL(inet_peer_idlock);

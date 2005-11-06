@@ -15,7 +15,6 @@
 #include <linux/ioport.h>
 
 #include <asm/sections.h>
-#include <asm/segment.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/prep_nvram.h>
@@ -23,14 +22,14 @@
 static char nvramData[MAX_PREP_NVRAM];
 static NVRAM_MAP *nvram=(NVRAM_MAP *)&nvramData[0];
 
-unsigned char __prep prep_nvram_read_val(int addr)
+unsigned char prep_nvram_read_val(int addr)
 {
 	outb(addr, PREP_NVRAM_AS0);
 	outb(addr>>8, PREP_NVRAM_AS1);
 	return inb(PREP_NVRAM_DATA);
 }
 
-void __prep prep_nvram_write_val(int           addr,
+void prep_nvram_write_val(int           addr,
 			  unsigned char val)
 {
 	outb(addr, PREP_NVRAM_AS0);
@@ -82,8 +81,7 @@ void __init init_prep_nvram(void)
 	}
 }
 
-__prep
-char __prep *prep_nvram_get_var(const char *name)
+char *prep_nvram_get_var(const char *name)
 {
 	char *cp;
 	int  namelen;
@@ -102,8 +100,7 @@ char __prep *prep_nvram_get_var(const char *name)
 	return NULL;
 }
 
-__prep
-char __prep *prep_nvram_first_var(void)
+char *prep_nvram_first_var(void)
 {
         if (nvram->Header.GELength == 0) {
 		return NULL;
@@ -113,8 +110,7 @@ char __prep *prep_nvram_first_var(void)
 	}
 }
 
-__prep
-char __prep *prep_nvram_next_var(char *name)
+char *prep_nvram_next_var(char *name)
 {
 	char *cp;
 

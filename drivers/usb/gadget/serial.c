@@ -300,18 +300,18 @@ static int gs_build_config_buf(u8 *buf, enum usb_device_speed speed,
 		u8 type, unsigned int index, int is_otg);
 
 static struct usb_request *gs_alloc_req(struct usb_ep *ep, unsigned int len,
-	unsigned kmalloc_flags);
+	gfp_t kmalloc_flags);
 static void gs_free_req(struct usb_ep *ep, struct usb_request *req);
 
 static struct gs_req_entry *gs_alloc_req_entry(struct usb_ep *ep, unsigned len,
-	unsigned kmalloc_flags);
+	gfp_t kmalloc_flags);
 static void gs_free_req_entry(struct usb_ep *ep, struct gs_req_entry *req);
 
-static int gs_alloc_ports(struct gs_dev *dev, unsigned kmalloc_flags);
+static int gs_alloc_ports(struct gs_dev *dev, gfp_t kmalloc_flags);
 static void gs_free_ports(struct gs_dev *dev);
 
 /* circular buffer */
-static struct gs_buf *gs_buf_alloc(unsigned int size, unsigned kmalloc_flags);
+static struct gs_buf *gs_buf_alloc(unsigned int size, gfp_t kmalloc_flags);
 static void gs_buf_free(struct gs_buf *gb);
 static void gs_buf_clear(struct gs_buf *gb);
 static unsigned int gs_buf_data_avail(struct gs_buf *gb);
@@ -1422,49 +1422,20 @@ static int gs_bind(struct usb_gadget *gadget)
 	int ret;
 	struct usb_ep *ep;
 	struct gs_dev *dev;
+	int gcnum;
 
-	/* device specific */
-	if (gadget_is_net2280(gadget)) {
-		gs_device_desc.bcdDevice =
-			__constant_cpu_to_le16(GS_VERSION_NUM|0x0001);
-	} else if (gadget_is_pxa(gadget)) {
-		gs_device_desc.bcdDevice =
-			__constant_cpu_to_le16(GS_VERSION_NUM|0x0002);
-	} else if (gadget_is_sh(gadget)) {
-		gs_device_desc.bcdDevice =
-			__constant_cpu_to_le16(GS_VERSION_NUM|0x0003);
-		/* sh doesn't support multiple interfaces or configs */
+	/* Some controllers can't support CDC ACM:
+	 * - sh doesn't support multiple interfaces or configs;
+	 * - sa1100 doesn't have a third interrupt endpoint
+	 */
+	if (gadget_is_sh(gadget) || gadget_is_sa1100(gadget))
 		use_acm = 0;
-	} else if (gadget_is_sa1100(gadget)) {
+
+	gcnum = usb_gadget_controller_number(gadget);
+	if (gcnum >= 0)
 		gs_device_desc.bcdDevice =
-			__constant_cpu_to_le16(GS_VERSION_NUM|0x0004);
-		/* sa1100 doesn't support necessary endpoints */
-		use_acm = 0;
-	} else if (gadget_is_goku(gadget)) {
-		gs_device_desc.bcdDevice =
-			__constant_cpu_to_le16(GS_VERSION_NUM|0x0005);
-	} else if (gadget_is_mq11xx(gadget)) {
-		gs_device_desc.bcdDevice =
-			__constant_cpu_to_le16(GS_VERSION_NUM|0x0006);
-	} else if (gadget_is_omap(gadget)) {
-		gs_device_desc.bcdDevice =
-			__constant_cpu_to_le16(GS_VERSION_NUM|0x0007);
-	} else if (gadget_is_lh7a40x(gadget)) {
-		gs_device_desc.bcdDevice =
-			__constant_cpu_to_le16(GS_VERSION_NUM|0x0008);
-	} else if (gadget_is_n9604(gadget)) {
-		gs_device_desc.bcdDevice =
-			__constant_cpu_to_le16(GS_VERSION_NUM|0x0009);
-	} else if (gadget_is_pxa27x(gadget)) {
-		gs_device_desc.bcdDevice =
-			__constant_cpu_to_le16(GS_VERSION_NUM|0x0011);
-	} else if (gadget_is_s3c2410(gadget)) {
-		gs_device_desc.bcdDevice =
-			__constant_cpu_to_le16(GS_VERSION_NUM|0x0012);
-	} else if (gadget_is_at91(gadget)) {
-		gs_device_desc.bcdDevice =
-			__constant_cpu_to_le16(GS_VERSION_NUM|0x0013);
-	} else {
+				cpu_to_le16(GS_VERSION_NUM | gcnum);
+	else {
 		printk(KERN_WARNING "gs_bind: controller '%s' not recognized\n",
 			gadget->name);
 		/* unrecognized, but safe unless bulk is REALLY quirky */
@@ -2120,7 +2091,7 @@ static int gs_build_config_buf(u8 *buf, enum usb_device_speed speed,
  * usb_request or NULL if there is an error.
  */
 static struct usb_request *
-gs_alloc_req(struct usb_ep *ep, unsigned int len, unsigned kmalloc_flags)
+gs_alloc_req(struct usb_ep *ep, unsigned int len, gfp_t kmalloc_flags)
 {
 	struct usb_request *req;
 
@@ -2161,7 +2132,7 @@ static void gs_free_req(struct usb_ep *ep, struct usb_request *req)
  * endpoint, buffer len, and kmalloc flags.
  */
 static struct gs_req_entry *
-gs_alloc_req_entry(struct usb_ep *ep, unsigned len, unsigned kmalloc_flags)
+gs_alloc_req_entry(struct usb_ep *ep, unsigned len, gfp_t kmalloc_flags)
 {
 	struct gs_req_entry	*req;
 
@@ -2202,7 +2173,7 @@ static void gs_free_req_entry(struct usb_ep *ep, struct gs_req_entry *req)
  *
  * The device lock is normally held when calling this function.
  */
-static int gs_alloc_ports(struct gs_dev *dev, unsigned kmalloc_flags)
+static int gs_alloc_ports(struct gs_dev *dev, gfp_t kmalloc_flags)
 {
 	int i;
 	struct gs_port *port;
@@ -2284,7 +2255,7 @@ static void gs_free_ports(struct gs_dev *dev)
  *
  * Allocate a circular buffer and all associated memory.
  */
-static struct gs_buf *gs_buf_alloc(unsigned int size, unsigned kmalloc_flags)
+static struct gs_buf *gs_buf_alloc(unsigned int size, gfp_t kmalloc_flags)
 {
 	struct gs_buf *gb;
 

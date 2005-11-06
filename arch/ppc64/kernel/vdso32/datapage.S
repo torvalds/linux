@@ -12,7 +12,7 @@
 #include <linux/config.h>
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/unistd.h>
 #include <asm/vdso.h>
 

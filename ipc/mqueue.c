@@ -69,7 +69,7 @@ struct mqueue_inode_info {
 
 	struct sigevent notify;
 	pid_t notify_owner;
- 	struct user_struct *user;	/* user who created, for accouting */
+	struct user_struct *user;	/* user who created, for accounting */
 	struct sock *notify_sock;
 	struct sk_buff *notify_cookie;
 
@@ -611,6 +611,7 @@ static struct file *do_create(struct dentry *dir, struct dentry *dentry,
 		dentry->d_fsdata = &attr;
 	}
 
+	mode &= ~current->fs->umask;
 	ret = vfs_create(dir->d_inode, dentry, mode, NULL);
 	dentry->d_fsdata = NULL;
 	if (ret)

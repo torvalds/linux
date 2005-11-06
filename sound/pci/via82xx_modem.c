@@ -521,6 +521,7 @@ static int snd_via82xx_pcm_trigger(snd_pcm_substream_t * substream, int cmd)
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+	case SNDRV_PCM_TRIGGER_SUSPEND:
 		val |= VIA_REG_CTRL_START;
 		viadev->running = 1;
 		break;
@@ -697,7 +698,7 @@ static snd_pcm_hardware_t snd_via82xx_hw =
 	.info =			(SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
 				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
 				 SNDRV_PCM_INFO_MMAP_VALID |
-				 SNDRV_PCM_INFO_RESUME |
+				 /* SNDRV_PCM_INFO_RESUME | */
 				 SNDRV_PCM_INFO_PAUSE),
 	.formats =		SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE,
 	.rates =		SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_KNOT,
@@ -1082,7 +1083,7 @@ static int __devinit snd_via82xx_create(snd_card_t * card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	if ((chip = kcalloc(1, sizeof(*chip), GFP_KERNEL)) == NULL) {
+	if ((chip = kzalloc(sizeof(*chip), GFP_KERNEL)) == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
@@ -1206,6 +1207,7 @@ static void __devexit snd_via82xx_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "VIA 82xx Modem",
+	.owner = THIS_MODULE,
 	.id_table = snd_via82xx_modem_ids,
 	.probe = snd_via82xx_probe,
 	.remove = __devexit_p(snd_via82xx_remove),

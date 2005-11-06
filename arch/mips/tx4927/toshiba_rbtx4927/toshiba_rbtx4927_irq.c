@@ -31,7 +31,7 @@
 
 
 /*
-IRQ  Device  
+IRQ  Device
 00   RBTX4927-ISA/00
 01   RBTX4927-ISA/01 PS2/Keyboard
 02   RBTX4927-ISA/02 Cascade RBTX4927-ISA (irqs 8-15)
@@ -52,15 +52,15 @@ IRQ  Device
 16   TX4927-CP0/00 Software 0
 17   TX4927-CP0/01 Software 1
 18   TX4927-CP0/02 Cascade TX4927-CP0
-19   TX4927-CP0/03 Multiplexed -- do not use 
-20   TX4927-CP0/04 Multiplexed -- do not use 
-21   TX4927-CP0/05 Multiplexed -- do not use 
-22   TX4927-CP0/06 Multiplexed -- do not use 
+19   TX4927-CP0/03 Multiplexed -- do not use
+20   TX4927-CP0/04 Multiplexed -- do not use
+21   TX4927-CP0/05 Multiplexed -- do not use
+22   TX4927-CP0/06 Multiplexed -- do not use
 23   TX4927-CP0/07 CPU TIMER
 
 24   TX4927-PIC/00
 25   TX4927-PIC/01
-26   TX4927-PIC/02  
+26   TX4927-PIC/02
 27   TX4927-PIC/03 Cascade RBTX4927-IOC
 28   TX4927-PIC/04
 29   TX4927-PIC/05 RBTX4927 RTL-8019AS ethernet
@@ -80,7 +80,7 @@ IRQ  Device
 43   TX4927-PIC/19
 44   TX4927-PIC/20
 45   TX4927-PIC/21
-46   TX4927-PIC/22 TX4927 PCI PCI-ERR 
+46   TX4927-PIC/22 TX4927 PCI PCI-ERR
 47   TX4927-PIC/23 TX4927 PCI PCI-PMA (not used)
 48   TX4927-PIC/24
 49   TX4927-PIC/25
@@ -100,7 +100,7 @@ IRQ  Device
 62 RBTX4927-IOC/06
 63 RBTX4927-IOC/07
 
-NOTES: 
+NOTES:
 SouthBridge/INTR is mapped to SouthBridge/A=PCI-B/#58
 SouthBridge/ISA/pin=0 no pci irq used by this device
 SouthBridge/IDE/pin=1 no pci irq used by this device, using INTR via ISA IRQ14
@@ -175,19 +175,19 @@ JP7 is not bus master -- do NOT use -- only 4 pci bus master's allowed -- SouthB
 static const u32 toshiba_rbtx4927_irq_debug_flag =
     (TOSHIBA_RBTX4927_IRQ_NONE | TOSHIBA_RBTX4927_IRQ_INFO |
      TOSHIBA_RBTX4927_IRQ_WARN | TOSHIBA_RBTX4927_IRQ_EROR
-//                                                 | TOSHIBA_RBTX4927_IRQ_IOC_INIT  
-//                                                 | TOSHIBA_RBTX4927_IRQ_IOC_STARTUP  
-//                                                 | TOSHIBA_RBTX4927_IRQ_IOC_SHUTDOWN  
-//                                                 | TOSHIBA_RBTX4927_IRQ_IOC_ENABLE  
-//                                                 | TOSHIBA_RBTX4927_IRQ_IOC_DISABLE  
-//                                                 | TOSHIBA_RBTX4927_IRQ_IOC_MASK  
-//                                                 | TOSHIBA_RBTX4927_IRQ_IOC_ENDIRQ  
-//                                                 | TOSHIBA_RBTX4927_IRQ_ISA_INIT  
-//                                                 | TOSHIBA_RBTX4927_IRQ_ISA_STARTUP  
-//                                                 | TOSHIBA_RBTX4927_IRQ_ISA_SHUTDOWN  
-//                                                 | TOSHIBA_RBTX4927_IRQ_ISA_ENABLE  
-//                                                 | TOSHIBA_RBTX4927_IRQ_ISA_DISABLE  
-//                                                 | TOSHIBA_RBTX4927_IRQ_ISA_MASK  
+//                                                 | TOSHIBA_RBTX4927_IRQ_IOC_INIT
+//                                                 | TOSHIBA_RBTX4927_IRQ_IOC_STARTUP
+//                                                 | TOSHIBA_RBTX4927_IRQ_IOC_SHUTDOWN
+//                                                 | TOSHIBA_RBTX4927_IRQ_IOC_ENABLE
+//                                                 | TOSHIBA_RBTX4927_IRQ_IOC_DISABLE
+//                                                 | TOSHIBA_RBTX4927_IRQ_IOC_MASK
+//                                                 | TOSHIBA_RBTX4927_IRQ_IOC_ENDIRQ
+//                                                 | TOSHIBA_RBTX4927_IRQ_ISA_INIT
+//                                                 | TOSHIBA_RBTX4927_IRQ_ISA_STARTUP
+//                                                 | TOSHIBA_RBTX4927_IRQ_ISA_SHUTDOWN
+//                                                 | TOSHIBA_RBTX4927_IRQ_ISA_ENABLE
+//                                                 | TOSHIBA_RBTX4927_IRQ_ISA_DISABLE
+//                                                 | TOSHIBA_RBTX4927_IRQ_ISA_MASK
 //                                                 | TOSHIBA_RBTX4927_IRQ_ISA_ENDIRQ
     );
 #endif

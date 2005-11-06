@@ -462,9 +462,9 @@ static int chipsfb_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
         struct fb_info *p = pci_get_drvdata(pdev);
 
-	if (state == pdev->dev.power.power_state)
+	if (state.event == pdev->dev.power.power_state.event)
 		return 0;
-	if (state != PM_SUSPEND_MEM)
+	if (state.event != PM_SUSPEND_MEM)
 		goto done;
 
 	acquire_console_sem();

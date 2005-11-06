@@ -93,19 +93,13 @@ static struct plat_serial8250_port gtwx5715_uart_platform_data[] = {
 
 static struct platform_device gtwx5715_uart_device = {
 	.name		= "serial8250",
-	.id		= 0,
+	.id		= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= gtwx5715_uart_platform_data,
 	},
 	.num_resources	= 2,
 	.resource	= gtwx5715_uart_resources,
 };
-
-
-void __init gtwx5715_map_io(void)
-{
-	ixp4xx_map_io();
-}
 
 static struct flash_platform_data gtwx5715_flash_data = {
 	.map_name	= "cfi_probe",
@@ -114,7 +108,7 @@ static struct flash_platform_data gtwx5715_flash_data = {
 
 static struct resource gtwx5715_flash_resource = {
 	.start		= GTWX5715_FLASH_BASE,
-	.end		= GTWX5715_FLASH_BASE + GTWX5715_FLASH_SIZE,
+	.end		= GTWX5715_FLASH_BASE + GTWX5715_FLASH_SIZE - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
@@ -144,7 +138,7 @@ MACHINE_START(GTWX5715, "Gemtek GTWX5715 (Linksys WRV54G)")
 	.phys_ram	= PHYS_OFFSET,
 	.phys_io	= IXP4XX_UART2_BASE_PHYS,
 	.io_pg_offst	= ((IXP4XX_UART2_BASE_VIRT) >> 18) & 0xfffc,
-	.map_io		= gtwx5715_map_io,
+	.map_io		= ixp4xx_map_io,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
 	.boot_params	= 0x0100,

@@ -285,7 +285,7 @@ static unsigned char schizo_pil_table[] = {
 /*0x3f*/0,		/* Reserved for NewLink		*/
 };
 
-static int __init schizo_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
+static int schizo_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
 {
 	int ret;
 
@@ -330,7 +330,7 @@ static int __init schizo_ino_to_pil(struct pci_dev *pdev, unsigned int ino)
 static void tomatillo_wsync_handler(struct ino_bucket *bucket, void *_arg1, void *_arg2)
 {
 	unsigned long sync_reg = (unsigned long) _arg2;
-	u64 mask = 1 << (__irq_ino(__irq(bucket)) & IMAP_INO);
+	u64 mask = 1UL << (__irq_ino(__irq(bucket)) & IMAP_INO);
 	u64 val;
 	int limit;
 
@@ -1221,7 +1221,7 @@ static irqreturn_t schizo_safarierr_intr(int irq, void *dev_id, struct pt_regs *
  * PCI bus units of the same Tomatillo.  I still have not really
  * figured this out...
  */
-static void __init tomatillo_register_error_handlers(struct pci_controller_info *p)
+static void tomatillo_register_error_handlers(struct pci_controller_info *p)
 {
 	struct pci_pbm_info *pbm;
 	unsigned int irq;
@@ -1359,7 +1359,7 @@ static void __init tomatillo_register_error_handlers(struct pci_controller_info 
 		     (SCHIZO_SAFIRQCTRL_EN | (BUS_ERROR_UNMAP)));
 }
 
-static void __init schizo_register_error_handlers(struct pci_controller_info *p)
+static void schizo_register_error_handlers(struct pci_controller_info *p)
 {
 	struct pci_pbm_info *pbm;
 	unsigned int irq;
@@ -1505,7 +1505,7 @@ static void __init schizo_register_error_handlers(struct pci_controller_info *p)
 		     (SCHIZO_SAFIRQCTRL_EN | (BUS_ERROR_UNMAP)));
 }
 
-static void __init pbm_config_busmastering(struct pci_pbm_info *pbm)
+static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 {
 	u8 *addr;
 
@@ -1522,8 +1522,8 @@ static void __init pbm_config_busmastering(struct pci_pbm_info *pbm)
 	pci_config_write8(addr, 64);
 }
 
-static void __init pbm_scan_bus(struct pci_controller_info *p,
-				struct pci_pbm_info *pbm)
+static void pbm_scan_bus(struct pci_controller_info *p,
+			 struct pci_pbm_info *pbm)
 {
 	struct pcidev_cookie *cookie = kmalloc(sizeof(*cookie), GFP_KERNEL);
 
@@ -1550,8 +1550,8 @@ static void __init pbm_scan_bus(struct pci_controller_info *p,
 	pci_setup_busmastering(pbm, pbm->pci_bus);
 }
 
-static void __init __schizo_scan_bus(struct pci_controller_info *p,
-				     int chip_type)
+static void __schizo_scan_bus(struct pci_controller_info *p,
+			      int chip_type)
 {
 	if (!p->pbm_B.prom_node || !p->pbm_A.prom_node) {
 		printk("PCI: Only one PCI bus module of controller found.\n");
@@ -1577,17 +1577,17 @@ static void __init __schizo_scan_bus(struct pci_controller_info *p,
 		schizo_register_error_handlers(p);
 }
 
-static void __init schizo_scan_bus(struct pci_controller_info *p)
+static void schizo_scan_bus(struct pci_controller_info *p)
 {
 	__schizo_scan_bus(p, PBM_CHIP_TYPE_SCHIZO);
 }
 
-static void __init tomatillo_scan_bus(struct pci_controller_info *p)
+static void tomatillo_scan_bus(struct pci_controller_info *p)
 {
 	__schizo_scan_bus(p, PBM_CHIP_TYPE_TOMATILLO);
 }
 
-static void __init schizo_base_address_update(struct pci_dev *pdev, int resource)
+static void schizo_base_address_update(struct pci_dev *pdev, int resource)
 {
 	struct pcidev_cookie *pcp = pdev->sysdata;
 	struct pci_pbm_info *pbm = pcp->pbm;
@@ -1632,9 +1632,9 @@ static void __init schizo_base_address_update(struct pci_dev *pdev, int resource
 		pci_write_config_dword(pdev, where + 4, 0);
 }
 
-static void __init schizo_resource_adjust(struct pci_dev *pdev,
-					  struct resource *res,
-					  struct resource *root)
+static void schizo_resource_adjust(struct pci_dev *pdev,
+				   struct resource *res,
+				   struct resource *root)
 {
 	res->start += root->start;
 	res->end += root->start;
@@ -1702,8 +1702,8 @@ static void schizo_determine_mem_io_space(struct pci_pbm_info *pbm)
 	       pbm->mem_space.start);
 }
 
-static void __init pbm_register_toplevel_resources(struct pci_controller_info *p,
-						   struct pci_pbm_info *pbm)
+static void pbm_register_toplevel_resources(struct pci_controller_info *p,
+					    struct pci_pbm_info *pbm)
 {
 	pbm->io_space.name = pbm->mem_space.name = pbm->name;
 
@@ -1765,7 +1765,7 @@ static void schizo_pbm_strbuf_init(struct pci_pbm_info *pbm)
 static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 {
 	struct pci_iommu *iommu = pbm->iommu;
-	unsigned long tsbbase, i, tagbase, database, order;
+	unsigned long i, tagbase, database;
 	u32 vdma[2], dma_mask;
 	u64 control;
 	int err, tsbsize;
@@ -1800,10 +1800,6 @@ static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 			prom_halt();
 	};
 
-	/* Setup initial software IOMMU state. */
-	spin_lock_init(&iommu->lock);
-	iommu->ctx_lowest_free = 1;
-
 	/* Register addresses, SCHIZO has iommu ctx flushing. */
 	iommu->iommu_control  = pbm->pbm_regs + SCHIZO_IOMMU_CONTROL;
 	iommu->iommu_tsbbase  = pbm->pbm_regs + SCHIZO_IOMMU_TSBBASE;
@@ -1832,56 +1828,9 @@ static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 	/* Leave diag mode enabled for full-flushing done
 	 * in pci_iommu.c
 	 */
+	pci_iommu_table_init(iommu, tsbsize * 8 * 1024, vdma[0], dma_mask);
 
-	iommu->dummy_page = __get_free_pages(GFP_KERNEL, 0);
-	if (!iommu->dummy_page) {
-		prom_printf("PSYCHO_IOMMU: Error, gfp(dummy_page) failed.\n");
-		prom_halt();
-	}
-	memset((void *)iommu->dummy_page, 0, PAGE_SIZE);
-	iommu->dummy_page_pa = (unsigned long) __pa(iommu->dummy_page);
-
-	/* Using assumed page size 8K with 128K entries we need 1MB iommu page
-	 * table (128K ioptes * 8 bytes per iopte).  This is
-	 * page order 7 on UltraSparc.
-	 */
-	order = get_order(tsbsize * 8 * 1024);
-	tsbbase = __get_free_pages(GFP_KERNEL, order);
-	if (!tsbbase) {
-		prom_printf("%s: Error, gfp(tsb) failed.\n", pbm->name);
-		prom_halt();
-	}
-
-	iommu->page_table = (iopte_t *)tsbbase;
-	iommu->page_table_map_base = vdma[0];
-	iommu->dma_addr_mask = dma_mask;
-	pci_iommu_table_init(iommu, PAGE_SIZE << order);
-
-	switch (tsbsize) {
-	case 64:
-		iommu->page_table_sz_bits = 16;
-		break;
-
-	case 128:
-		iommu->page_table_sz_bits = 17;
-		break;
-
-	default:
-		prom_printf("iommu_init: Illegal TSB size %d\n", tsbsize);
-		prom_halt();
-		break;
-	};
-
-	/* We start with no consistent mappings. */
-	iommu->lowest_consistent_map =
-		1 << (iommu->page_table_sz_bits - PBM_LOGCLUSTERS);
-
-	for (i = 0; i < PBM_NCLUSTERS; i++) {
-		iommu->alloc_info[i].flush = 0;
-		iommu->alloc_info[i].next = 0;
-	}
-
-	schizo_write(iommu->iommu_tsbbase, __pa(tsbbase));
+	schizo_write(iommu->iommu_tsbbase, __pa(iommu->page_table));
 
 	control = schizo_read(iommu->iommu_control);
 	control &= ~(SCHIZO_IOMMU_CTRL_TSBSZ | SCHIZO_IOMMU_CTRL_TBWSZ);
@@ -1932,7 +1881,7 @@ static void schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 #define TOMATILLO_PCI_IOC_TDIAG		(0x2250UL)
 #define TOMATILLO_PCI_IOC_DDIAG		(0x2290UL)
 
-static void __init schizo_pbm_hw_init(struct pci_pbm_info *pbm)
+static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 {
 	u64 tmp;
 
@@ -1986,9 +1935,9 @@ static void __init schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 	}
 }
 
-static void __init schizo_pbm_init(struct pci_controller_info *p,
-				   int prom_node, u32 portid,
-				   int chip_type)
+static void schizo_pbm_init(struct pci_controller_info *p,
+			    int prom_node, u32 portid,
+			    int chip_type)
 {
 	struct linux_prom64_registers pr_regs[4];
 	unsigned int busrange[2];
@@ -2145,7 +2094,7 @@ static inline int portid_compare(u32 x, u32 y, int chip_type)
 	return (x == y);
 }
 
-static void __init __schizo_init(int node, char *model_name, int chip_type)
+static void __schizo_init(int node, char *model_name, int chip_type)
 {
 	struct pci_controller_info *p;
 	struct pci_iommu *iommu;
@@ -2213,17 +2162,17 @@ static void __init __schizo_init(int node, char *model_name, int chip_type)
 	schizo_pbm_init(p, node, portid, chip_type);
 }
 
-void __init schizo_init(int node, char *model_name)
+void schizo_init(int node, char *model_name)
 {
 	__schizo_init(node, model_name, PBM_CHIP_TYPE_SCHIZO);
 }
 
-void __init schizo_plus_init(int node, char *model_name)
+void schizo_plus_init(int node, char *model_name)
 {
 	__schizo_init(node, model_name, PBM_CHIP_TYPE_SCHIZO_PLUS);
 }
 
-void __init tomatillo_init(int node, char *model_name)
+void tomatillo_init(int node, char *model_name)
 {
 	__schizo_init(node, model_name, PBM_CHIP_TYPE_TOMATILLO);
 }

@@ -183,7 +183,7 @@
  * cross a page boundy.
  */
 #define SEGMENTX_LEN	(sizeof(struct SGentry)*DC395x_MAX_SG_LISTENTRY)
-#define VIRTX_LEN	(sizeof(void *) * DC395x_MAX_SG_LISTENTRY)
+
 
 struct SGentry {
 	u32 address;		/* bus! address */
@@ -235,7 +235,6 @@ struct ScsiReqBlk {
 	u8 sg_count;			/* No of HW sg entries for this request */
 	u8 sg_index;			/* Index of HW sg entry for this request */
 	u32 total_xfer_length;		/* Total number of bytes remaining to be transfered */
-	void **virt_map;
 	unsigned char *virt_addr;	/* Virtual address of current transfer position */
 
 	/*
@@ -1022,14 +1021,14 @@ static void build_srb(struct scsi_cmnd *cmd, struct DeviceCtlBlk *dcb,
 			reqlen, cmd->request_buffer, cmd->use_sg,
 			srb->sg_count);
 
+		srb->virt_addr = page_address(sl->page);
 		for (i = 0; i < srb->sg_count; i++) {
-			u32 seglen = (u32)sg_dma_len(sl + i);
-			sgp[i].address = (u32)sg_dma_address(sl + i);
+			u32 busaddr = (u32)sg_dma_address(&sl[i]);
+			u32 seglen = (u32)sl[i].length;
+			sgp[i].address = busaddr;
 			sgp[i].length = seglen;
 			srb->total_xfer_length += seglen;
-			srb->virt_map[i] = kmap(sl[i].page);
 		}
-		srb->virt_addr = srb->virt_map[0];
 		sgp += srb->sg_count - 1;
 
 		/*
@@ -1976,7 +1975,6 @@ static void sg_update_list(struct ScsiReqBlk *srb, u32 left)
 	int segment = cmd->use_sg;
 	u32 xferred = srb->total_xfer_length - left; /* bytes transfered */
 	struct SGentry *psge = srb->segment_x + srb->sg_index;
-	void **virt = srb->virt_map;
 
 	dprintkdbg(DBG_0,
 		"sg_update_list: Transfered %i of %i bytes, %i remain\n",
@@ -2016,16 +2014,16 @@ static void sg_update_list(struct ScsiReqBlk *srb, u32 left)
 
 	/* We have to walk the scatterlist to find it */
 	sg = (struct scatterlist *)cmd->request_buffer;
-	idx = 0;
 	while (segment--) {
 		unsigned long mask =
 		    ~((unsigned long)sg->length - 1) & PAGE_MASK;
 		if ((sg_dma_address(sg) & mask) == (psge->address & mask)) {
-			srb->virt_addr = virt[idx] + (psge->address & ~PAGE_MASK);
+			srb->virt_addr = (page_address(sg->page)
+					   + psge->address -
+					   (psge->address & PAGE_MASK));
 			return;
 		}
 		++sg;
-		++idx;
 	}
 
 	dprintkl(KERN_ERR, "sg_update_list: sg_to_virt failed\n");
@@ -2151,7 +2149,7 @@ static void data_out_phase0(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb,
 				DC395x_read32(acb, TRM_S1040_DMA_CXCNT));
 		}
 		/*
-		 * calculate all the residue data that not yet transfered
+		 * calculate all the residue data that not yet tranfered
 		 * SCSI transfer counter + left in SCSI FIFO data
 		 *
 		 * .....TRM_S1040_SCSI_COUNTER (24bits)
@@ -3269,7 +3267,6 @@ static void pci_unmap_srb(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb)
 	struct scsi_cmnd *cmd = srb->cmd;
 	enum dma_data_direction dir = cmd->sc_data_direction;
 	if (cmd->use_sg && dir != PCI_DMA_NONE) {
-		int i;
 		/* unmap DC395x SG list */
 		dprintkdbg(DBG_SG, "pci_unmap_srb: list=%08x(%05x)\n",
 			srb->sg_bus_addr, SEGMENTX_LEN);
@@ -3279,8 +3276,6 @@ static void pci_unmap_srb(struct AdapterCtlBlk *acb, struct ScsiReqBlk *srb)
 		dprintkdbg(DBG_SG, "pci_unmap_srb: segs=%i buffer=%p\n",
 			cmd->use_sg, cmd->request_buffer);
 		/* unmap the sg segments */
-		for (i = 0; i < srb->sg_count; i++)
-			kunmap(virt_to_page(srb->virt_map[i]));
 		pci_unmap_sg(acb->dev,
 			     (struct scatterlist *)cmd->request_buffer,
 			     cmd->use_sg, dir);
@@ -3327,7 +3322,7 @@ static void srb_done(struct AdapterCtlBlk *acb, struct DeviceCtlBlk *dcb,
 
 	if (cmd->use_sg) {
 		struct scatterlist* sg = (struct scatterlist *)cmd->request_buffer;
-		ptr = (struct ScsiInqData *)(srb->virt_map[0] + sg->offset);
+		ptr = (struct ScsiInqData *)(page_address(sg->page) + sg->offset);
 	} else {
 		ptr = (struct ScsiInqData *)(cmd->request_buffer);
 	}
@@ -4262,9 +4257,8 @@ static void adapter_sg_tables_free(struct AdapterCtlBlk *acb)
 	const unsigned srbs_per_page = PAGE_SIZE/SEGMENTX_LEN;
 
 	for (i = 0; i < DC395x_MAX_SRB_CNT; i += srbs_per_page)
-		kfree(acb->srb_array[i].segment_x);
-
-	vfree(acb->srb_array[0].virt_map);
+		if (acb->srb_array[i].segment_x)
+			kfree(acb->srb_array[i].segment_x);
 }
 
 
@@ -4280,12 +4274,9 @@ static int __devinit adapter_sg_tables_alloc(struct AdapterCtlBlk *acb)
 	int srb_idx = 0;
 	unsigned i = 0;
 	struct SGentry *ptr;
-	void **virt_array;
 
-	for (i = 0; i < DC395x_MAX_SRB_CNT; i++) {
+	for (i = 0; i < DC395x_MAX_SRB_CNT; i++)
 		acb->srb_array[i].segment_x = NULL;
-		acb->srb_array[i].virt_map = NULL;
-	}
 
 	dprintkdbg(DBG_1, "Allocate %i pages for SG tables\n", pages);
 	while (pages--) {
@@ -4306,19 +4297,6 @@ static int __devinit adapter_sg_tables_alloc(struct AdapterCtlBlk *acb)
 		    ptr + (i * DC395x_MAX_SG_LISTENTRY);
 	else
 		dprintkl(KERN_DEBUG, "No space for tmsrb SG table reserved?!\n");
-
-	virt_array = vmalloc((DC395x_MAX_SRB_CNT + 1) * DC395x_MAX_SG_LISTENTRY * sizeof(void*));
-
-	if (!virt_array) {
-		adapter_sg_tables_free(acb);
-		return 1;
-	}
-
-	for (i = 0; i < DC395x_MAX_SRB_CNT + 1; i++) {
-		acb->srb_array[i].virt_map = virt_array;
-		virt_array += DC395x_MAX_SG_LISTENTRY;
-	}
-
 	return 0;
 }
 

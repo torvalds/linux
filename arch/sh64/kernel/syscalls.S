@@ -342,4 +342,9 @@ sys_call_table:
 	.long sys_add_key
 	.long sys_request_key
 	.long sys_keyctl		/* 315 */
+	.long sys_ioprio_set
+	.long sys_ioprio_get
+	.long sys_inotify_init
+	.long sys_inotify_add_watch
+	.long sys_inotify_rm_watch	/* 320 */
 

@@ -48,20 +48,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 /* to align the pointer to the (next) page boundary */
 #define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
 
-/* Pure 2^n version of get_order */
-extern __inline__ int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size-1) >> (PAGE_SHIFT-1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
-
 extern unsigned long memory_start;
 extern unsigned long memory_end;
 
@@ -73,8 +59,8 @@ extern unsigned long memory_end;
 
 #ifndef __ASSEMBLY__
 
-#define __pa(vaddr)		virt_to_phys((void *)vaddr)
-#define __va(paddr)		phys_to_virt((unsigned long)paddr)
+#define __pa(vaddr)		virt_to_phys((void *)(vaddr))
+#define __va(paddr)		phys_to_virt((unsigned long)(paddr))
 
 #define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
 #define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
@@ -84,6 +70,7 @@ extern unsigned long memory_end;
 
 #define pfn_to_page(pfn)	virt_to_page(pfn_to_virt(pfn))
 #define page_to_pfn(page)	virt_to_pfn(page_to_virt(page))
+#define pfn_valid(pfn)	        ((pfn) < max_mapnr)
 
 #define	virt_addr_valid(kaddr)	(((void *)(kaddr) >= (void *)PAGE_OFFSET) && \
 				((void *)(kaddr) < (void *)memory_end))
@@ -91,5 +78,7 @@ extern unsigned long memory_end;
 #endif /* __ASSEMBLY__ */
 
 #endif /* __KERNEL__ */
+
+#include <asm-generic/page.h>
 
 #endif /* _M68KNOMMU_PAGE_H */

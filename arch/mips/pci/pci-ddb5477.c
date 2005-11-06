@@ -76,7 +76,7 @@ struct pci_controller ddb5477_io_controller = {
  */
 
 /*
- * irq mapping : device -> pci int # -> vrc4377 irq# , 
+ * irq mapping : device -> pci int # -> vrc4377 irq# ,
  * ddb5477 board manual page 4  and vrc5477 manual page 46
  */
 
@@ -137,9 +137,9 @@ int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 	unsigned char *slot_irq_map;
 	unsigned char irq;
 
-	/* 
+	/*
 	 * We ignore the swizzled slot and pin values.  The original
-	 * pci_fixup_irq() codes largely base irq number on the dev slot 
+	 * pci_fixup_irq() codes largely base irq number on the dev slot
 	 * numbers because except for one case they are unique even
 	 * though there are multiple pci buses.
 	 */
@@ -160,7 +160,7 @@ int __init pcibios_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 
 	if (mips_machtype == MACH_NEC_ROCKHOPPERII) {
 		/* hack to distinquish overlapping slot 20s, one
-		 * on bus 0 (ALI USB on the M1535 on the backplane), 
+		 * on bus 0 (ALI USB on the M1535 on the backplane),
 		 * and one on bus 2 (NEC USB controller on the CPU board)
 		 * Make the M1535 USB - ISA IRQ number 9.
 		 */

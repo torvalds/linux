@@ -32,7 +32,6 @@
 #include <linux/spinlock.h>
 #include <linux/root_dev.h>
 
-#include <asm/segment.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <asm/processor.h>
@@ -249,8 +248,6 @@ enum sparc_cpu sparc_cpu_model;
 struct tt_entry *sparc_ttable;
 
 struct pt_regs fake_swapper_regs;
-
-extern void paging_init(void);
 
 void __init setup_arch(char **cmdline_p)
 {

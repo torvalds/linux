@@ -14,7 +14,6 @@
 
 #include <linux/config.h>
 #include <linux/mm.h>
-#include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/bootmem.h>
 #include <linux/smp_lock.h>
@@ -290,7 +289,7 @@ void enable_timer_nmi_watchdog(void)
 
 static int nmi_pm_active; /* nmi_active before suspend */
 
-static int lapic_nmi_suspend(struct sys_device *dev, u32 state)
+static int lapic_nmi_suspend(struct sys_device *dev, pm_message_t state)
 {
 	nmi_pm_active = nmi_active;
 	disable_lapic_nmi_watchdog();
@@ -367,7 +366,7 @@ static void setup_k7_watchdog(void)
 		| K7_NMI_EVENT;
 
 	wrmsr(MSR_K7_EVNTSEL0, evntsel, 0);
-	wrmsr(MSR_K7_PERFCTR0, -(cpu_khz/nmi_hz*1000), -1);
+	wrmsrl(MSR_K7_PERFCTR0, -((u64)cpu_khz * 1000 / nmi_hz));
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 	evntsel |= K7_EVNTSEL_ENABLE;
 	wrmsr(MSR_K7_EVNTSEL0, evntsel, 0);
@@ -408,8 +407,8 @@ static int setup_p4_watchdog(void)
 
 	wrmsr(MSR_P4_CRU_ESCR0, P4_NMI_CRU_ESCR0, 0);
 	wrmsr(MSR_P4_IQ_CCCR0, P4_NMI_IQ_CCCR0 & ~P4_CCCR_ENABLE, 0);
-	Dprintk("setting P4_IQ_COUNTER0 to 0x%08lx\n", -(cpu_khz/nmi_hz*1000));
-	wrmsr(MSR_P4_IQ_COUNTER0, -(cpu_khz/nmi_hz*1000), -1);
+	Dprintk("setting P4_IQ_COUNTER0 to 0x%08lx\n", -(cpu_khz * 1000UL / nmi_hz));
+	wrmsrl(MSR_P4_IQ_COUNTER0, -((u64)cpu_khz * 1000 / nmi_hz));
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
 	wrmsr(MSR_P4_IQ_CCCR0, nmi_p4_cccr_val, 0);
 	return 1;
@@ -463,6 +462,8 @@ void touch_nmi_watchdog (void)
 	 */
 	for (i = 0; i < NR_CPUS; i++)
 		per_cpu(nmi_touch, i) = 1;
+
+ 	touch_softlockup_watchdog();
 }
 
 void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)
@@ -486,8 +487,8 @@ void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)
 							== NOTIFY_STOP) {
 				local_set(&__get_cpu_var(alert_counter), 0);
 				return;
-			} 
-			die_nmi("NMI Watchdog detected LOCKUP on CPU%d", regs);
+			}
+			die_nmi("NMI Watchdog detected LOCKUP on CPU %d\n", regs);
 		}
 	} else {
 		__get_cpu_var(last_irq_sum) = sum;
@@ -505,7 +506,7 @@ void nmi_watchdog_tick (struct pt_regs * regs, unsigned reason)
  			wrmsr(MSR_P4_IQ_CCCR0, nmi_p4_cccr_val, 0);
  			apic_write(APIC_LVTPC, APIC_DM_NMI);
  		}
-		wrmsr(nmi_perfctr_msr, -(cpu_khz/nmi_hz*1000), -1);
+		wrmsrl(nmi_perfctr_msr, -((u64)cpu_khz * 1000 / nmi_hz));
 	}
 }
 
@@ -522,14 +523,14 @@ asmlinkage void do_nmi(struct pt_regs * regs, long error_code)
 
 	nmi_enter();
 	add_pda(__nmi_count,1);
-	if (!nmi_callback(regs, cpu))
+	if (!rcu_dereference(nmi_callback)(regs, cpu))
 		default_do_nmi(regs);
 	nmi_exit();
 }
 
 void set_nmi_callback(nmi_callback_t callback)
 {
-	nmi_callback = callback;
+	rcu_assign_pointer(nmi_callback, callback);
 }
 
 void unset_nmi_callback(void)

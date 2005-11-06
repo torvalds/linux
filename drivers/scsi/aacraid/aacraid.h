@@ -1,6 +1,10 @@
 #if (!defined(dprintk))
 # define dprintk(x)
 #endif
+/* eg: if (nblank(dprintk(x))) */
+#define _nblank(x) #x
+#define nblank(x) _nblank(x)[0]
+
 
 /*------------------------------------------------------------------------------
  *              D E F I N E S
@@ -15,7 +19,7 @@
 #define AAC_MAX_LUN		(8)
 
 #define AAC_MAX_HOSTPHYSMEMPAGES (0xfffff)
-#define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)512)
+#define AAC_MAX_32BIT_SGBCOUNT	((unsigned short)256)
 
 /*
  * These macros convert from physical channels to virtual channels
@@ -110,6 +114,22 @@ struct user_sgentry64 {
 	u32	count;	/* Length. */
 };
 
+struct sgentryraw {
+	__le32		next;	/* reserved for F/W use */
+	__le32		prev;	/* reserved for F/W use */
+	__le32		addr[2];
+	__le32		count;
+	__le32		flags;	/* reserved for F/W use */
+};
+
+struct user_sgentryraw {
+	u32		next;	/* reserved for F/W use */
+	u32		prev;	/* reserved for F/W use */
+	u32		addr[2];
+	u32		count;
+	u32		flags;	/* reserved for F/W use */
+};
+
 /*
  *	SGMAP
  *
@@ -135,6 +155,16 @@ struct sgmap64 {
 struct user_sgmap64 {
 	u32		count;
 	struct user_sgentry64 sg[1];
+};
+
+struct sgmapraw {
+	__le32		  count;
+	struct sgentryraw sg[1];
+};
+
+struct user_sgmapraw {
+	u32		  count;
+	struct user_sgentryraw sg[1];
 };
 
 struct creation_info
@@ -276,7 +306,6 @@ enum aac_queue_types {
  */
 
 #define		FsaNormal	1
-#define		FsaHigh		2
 
 /*
  * Define the FIB. The FIB is the where all the requested data and
@@ -351,6 +380,7 @@ struct hw_fib {
  */
 #define		ContainerCommand		500
 #define		ContainerCommand64		501
+#define		ContainerRawIo			502
 /*
  *	Cluster Commands
  */
@@ -456,6 +486,7 @@ struct adapter_ops
 {
 	void (*adapter_interrupt)(struct aac_dev *dev);
 	void (*adapter_notify)(struct aac_dev *dev, u32 event);
+	void (*adapter_disable_int)(struct aac_dev *dev);
 	int  (*adapter_sync_cmd)(struct aac_dev *dev, u32 command, u32 p1, u32 p2, u32 p3, u32 p4, u32 p5, u32 p6, u32 *status, u32 *r1, u32 *r2, u32 *r3, u32 *r4);
 	int  (*adapter_check_health)(struct aac_dev *dev);
 };
@@ -518,8 +549,6 @@ struct aac_queue {
                   /* This is only valid for adapter to host command queues. */ 
 	spinlock_t	 	*lock;		/* Spinlock for this queue must take this lock before accessing the lock */
 	spinlock_t		lockdata;	/* Actual lock (used only on one side of the lock) */
-	unsigned long		SavedIrql;     	/* Previous IRQL when the spin lock is taken */
-	u32			padding;	/* Padding - FIXME - can remove I believe */
 	struct list_head 	cmdq;	   	/* A queue of FIBs which need to be prcessed by the FS thread. This is */
                                 		/* only valid for command queues which receive entries from the adapter. */
 	struct list_head	pendingq;	/* A queue of outstanding fib's to the adapter. */
@@ -748,7 +777,9 @@ struct fsa_dev_info {
 	u64		last;
 	u64		size;
 	u32		type;
+	u32		config_waiting_on;
 	u16		queue_depth;
+	u8		config_needed;
 	u8		valid;
 	u8		ro;
 	u8		locked;
@@ -981,6 +1012,10 @@ struct aac_dev
 	u8			nondasd_support; 
 	u8			dac_support;
 	u8			raid_scsi_mode;
+	/* macro side-effects BEWARE */
+#	define			raw_io_interface \
+	  init->InitStructRevision==cpu_to_le32(ADAPTER_INIT_STRUCT_REVISION_4)
+	u8			raw_io_64;
 	u8			printf_enabled;
 };
 
@@ -989,6 +1024,9 @@ struct aac_dev
 
 #define aac_adapter_notify(dev, event) \
 	(dev)->a_ops.adapter_notify(dev, event)
+
+#define aac_adapter_disable_int(dev) \
+	(dev)->a_ops.adapter_disable_int(dev)
 
 #define aac_adapter_sync_cmd(dev, command, p1, p2, p3, p4, p5, p6, status, r1, r2, r3, r4) \
 	(dev)->a_ops.adapter_sync_cmd(dev, command, p1, p2, p3, p4, p5, p6, status, r1, r2, r3, r4)
@@ -1156,6 +1194,17 @@ struct aac_write_reply
 	__le32		committed;
 };
 
+struct aac_raw_io
+{
+	__le32		block[2];
+	__le32		count;
+	__le16		cid;
+	__le16		flags;		/* 00 W, 01 R */
+	__le16		bpTotal;	/* reserved for F/W use */
+	__le16		bpComplete;	/* reserved for F/W use */
+	struct sgmapraw	sg;
+};
+
 #define CT_FLUSH_CACHE 129
 struct aac_synchronize {
 	__le32		command;	/* VM_ContainerConfig */
@@ -1196,7 +1245,7 @@ struct aac_srb
 };
 
 /*
- * This and assocated data structs are used by the 
+ * This and associated data structs are used by the
  * ioctl caller and are in cpu order.
  */
 struct user_aac_srb
@@ -1317,8 +1366,10 @@ struct aac_srb_reply
 #define		VM_CtBlockVerify64	18
 #define		VM_CtHostRead64		19
 #define		VM_CtHostWrite64	20
+#define		VM_DrvErrTblLog		21
+#define		VM_NameServe64		22
 
-#define		MAX_VMCOMMAND_NUM	21	/* used for sizing stats array - leave last */
+#define		MAX_VMCOMMAND_NUM	23	/* used for sizing stats array - leave last */
 
 /*
  *	Descriptive information (eg, vital stats)
@@ -1427,6 +1478,7 @@ struct aac_mntent {
 						   manager (eg, filesystem) */
 	__le32			altoid;		/* != oid <==> snapshot or 
 						   broken mirror exists */
+	__le32			capacityhigh;
 };
 
 #define FSCS_NOTCLEAN	0x0001  /* fsck is neccessary before mounting */
@@ -1508,11 +1560,12 @@ struct fib_ioctl
 
 struct revision
 {
-	u32 compat;
-	u32 version;
-	u32 build;
+	__le32 compat;
+	__le32 version;
+	__le32 build;
 };
 	
+
 /*
  * 	Ugly - non Linux like ioctl coding for back compat.
  */
@@ -1661,6 +1714,7 @@ extern struct aac_common aac_config;
 #define		AifCmdJobProgress	2	/* Progress report */
 #define			AifJobCtrZero	101	/* Array Zero progress */
 #define			AifJobStsSuccess 1	/* Job completes */
+#define			AifJobStsRunning 102	/* Job running */
 #define		AifCmdAPIReport		3	/* Report from other user of API */
 #define		AifCmdDriverNotify	4	/* Notify host driver of event */
 #define			AifDenMorphComplete 200	/* A morph operation completed */
@@ -1731,5 +1785,7 @@ int fib_adapter_complete(struct fib * fibptr, unsigned short size);
 struct aac_driver_ident* aac_get_driver_ident(int devtype);
 int aac_get_adapter_info(struct aac_dev* dev);
 int aac_send_shutdown(struct aac_dev *dev);
+int probe_container(struct aac_dev *dev, int cid);
 extern int numacb;
 extern int acbsize;
+extern char aac_driver_version[];

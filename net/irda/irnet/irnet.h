@@ -517,9 +517,6 @@ extern int
 	irda_irnet_init(void);		/* Initialise IrDA part of IrNET */
 extern void
 	irda_irnet_cleanup(void);	/* Teardown IrDA part of IrNET */
-/* ---------------------------- MODULE ---------------------------- */
-extern int
-	irnet_init(void);		/* Initialise IrNET module */
 
 /**************************** VARIABLES ****************************/
 

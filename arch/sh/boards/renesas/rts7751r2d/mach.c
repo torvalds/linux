@@ -23,7 +23,7 @@ extern void init_rts7751r2d_IRQ(void);
 extern void *rts7751r2d_ioremap(unsigned long, unsigned long);
 extern int rts7751r2d_irq_demux(int irq);
 
-extern void *voyagergx_consistent_alloc(struct device *, size_t, dma_addr_t *, int);
+extern void *voyagergx_consistent_alloc(struct device *, size_t, dma_addr_t *, gfp_t);
 extern int voyagergx_consistent_free(struct device *, size_t, void *, dma_addr_t);
 
 /*

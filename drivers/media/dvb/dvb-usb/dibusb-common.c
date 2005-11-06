@@ -70,13 +70,22 @@ EXPORT_SYMBOL(dibusb_power_ctrl);
 
 int dibusb2_0_streaming_ctrl(struct dvb_usb_device *d, int onoff)
 {
-	u8 b[2];
+	u8 b[3] = { 0 };
+	int ret;
+
+	if ((ret = dibusb_streaming_ctrl(d,onoff)) < 0)
+		return ret;
+
+	if (onoff) {
+		b[0] = DIBUSB_REQ_SET_STREAMING_MODE;
+		b[1] = 0x00;
+		if ((ret = dvb_usb_generic_write(d,b,2)) < 0)
+			return ret;
+	}
+
 	b[0] = DIBUSB_REQ_SET_IOCTL;
 	b[1] = onoff ? DIBUSB_IOCTL_CMD_ENABLE_STREAM : DIBUSB_IOCTL_CMD_DISABLE_STREAM;
-
-	dvb_usb_generic_write(d,b,3);
-
-	return dibusb_streaming_ctrl(d,onoff);
+	return dvb_usb_generic_write(d,b,3);
 }
 EXPORT_SYMBOL(dibusb2_0_streaming_ctrl);
 
@@ -147,8 +156,6 @@ static u32 dibusb_i2c_func(struct i2c_adapter *adapter)
 }
 
 struct i2c_algorithm dibusb_i2c_algo = {
-	.name          = "DiBcom USB I2C algorithm",
-	.id            = I2C_ALGO_BIT,
 	.master_xfer   = dibusb_i2c_xfer,
 	.functionality = dibusb_i2c_func,
 };

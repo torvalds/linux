@@ -765,7 +765,8 @@ snd_pmac_ctrl_intr(int irq, void *devid, struct pt_regs *regs)
  */
 static void snd_pmac_sound_feature(pmac_t *chip, int enable)
 {
-	ppc_md.feature_call(PMAC_FTR_SOUND_CHIP_ENABLE, chip->node, 0, enable);
+	if (ppc_md.feature_call)
+		ppc_md.feature_call(PMAC_FTR_SOUND_CHIP_ENABLE, chip->node, 0, enable);
 }
 
 /*
@@ -987,6 +988,8 @@ static int __init snd_pmac_detect(pmac_t *chip)
 		case 0x33:
 		case 0x29:
 		case 0x24:
+		case 0x50:
+		case 0x5c:
 			chip->num_freqs = ARRAY_SIZE(tumbler_freqs);
 			chip->model = PMAC_SNAPPER;
 			chip->can_byte_swap = 0; /* FIXME: check this */
@@ -1158,7 +1161,7 @@ int __init snd_pmac_new(snd_card_t *card, pmac_t **chip_return)
 	snd_runtime_check(chip_return, return -EINVAL);
 	*chip_return = NULL;
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 	chip->card = card;

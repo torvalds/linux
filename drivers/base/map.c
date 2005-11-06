@@ -135,7 +135,7 @@ retry:
 struct kobj_map *kobj_map_init(kobj_probe_t *base_probe, struct semaphore *sem)
 {
 	struct kobj_map *p = kmalloc(sizeof(struct kobj_map), GFP_KERNEL);
-	struct probe *base = kmalloc(sizeof(struct probe), GFP_KERNEL);
+	struct probe *base = kzalloc(sizeof(*base), GFP_KERNEL);
 	int i;
 
 	if ((p == NULL) || (base == NULL)) {
@@ -144,7 +144,6 @@ struct kobj_map *kobj_map_init(kobj_probe_t *base_probe, struct semaphore *sem)
 		return NULL;
 	}
 
-	memset(base, 0, sizeof(struct probe));
 	base->dev = 1;
 	base->range = ~0;
 	base->get = base_probe;

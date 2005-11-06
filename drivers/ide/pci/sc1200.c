@@ -350,9 +350,9 @@ static int sc1200_suspend (struct pci_dev *dev, pm_message_t state)
 {
 	ide_hwif_t		*hwif = NULL;
 
-	printk("SC1200: suspend(%u)\n", state);
+	printk("SC1200: suspend(%u)\n", state.event);
 
-	if (state == 0) {
+	if (state.event == PM_EVENT_ON) {
 		// we only save state when going from full power to less
 
 		//
@@ -386,8 +386,8 @@ static int sc1200_suspend (struct pci_dev *dev, pm_message_t state)
 	/* You don't need to iterate over disks -- sysfs should have done that for you already */ 
 
 	pci_disable_device(dev);
-	pci_set_power_state(dev,state);
-	dev->current_state = state;
+	pci_set_power_state(dev, pci_choose_state(dev, state));
+	dev->current_state = state.event;
 	return 0;
 }
 
@@ -396,8 +396,8 @@ static int sc1200_resume (struct pci_dev *dev)
 	ide_hwif_t	*hwif = NULL;
 
 printk("SC1200: resume\n");
-	pci_set_power_state(dev,0);	// bring chip back from sleep state
-	dev->current_state = 0;
+	pci_set_power_state(dev, PCI_D0);	// bring chip back from sleep state
+	dev->current_state = PM_EVENT_ON;
 	pci_enable_device(dev);
 	//
 	// loop over all interfaces that are part of this pci device:

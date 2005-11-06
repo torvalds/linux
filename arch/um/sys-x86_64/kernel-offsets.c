@@ -2,6 +2,7 @@
 #include <linux/stddef.h>
 #include <linux/sched.h>
 #include <linux/time.h>
+#include <linux/elf.h>
 #include <asm/page.h>
 
 #define DEFINE(sym, val) \
@@ -18,7 +19,7 @@
 void foo(void)
 {
 #ifdef CONFIG_MODE_TT
-	OFFSET(TASK_EXTERN_PID, task_struct, thread.mode.tt.extern_pid);
+	OFFSET(HOST_TASK_EXTERN_PID, task_struct, thread.mode.tt.extern_pid);
 #endif
 #include <common-offsets.h>
 }

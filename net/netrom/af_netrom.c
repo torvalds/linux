@@ -39,7 +39,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <net/ip.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <net/arp.h>
 #include <linux/init.h>
 
@@ -56,6 +56,7 @@ int sysctl_netrom_transport_requested_window_size = NR_DEFAULT_WINDOW;
 int sysctl_netrom_transport_no_activity_timeout   = NR_DEFAULT_IDLE;
 int sysctl_netrom_routing_control                 = NR_DEFAULT_ROUTING;
 int sysctl_netrom_link_fails_count                = NR_DEFAULT_FAILS;
+int sysctl_netrom_reset_circuit                   = NR_DEFAULT_RESET;
 
 static unsigned short circuit = 0x101;
 
@@ -459,12 +460,7 @@ static struct sock *nr_make_new(struct sock *osk)
 	sk->sk_sndbuf   = osk->sk_sndbuf;
 	sk->sk_state    = TCP_ESTABLISHED;
 	sk->sk_sleep    = osk->sk_sleep;
-
-	if (sock_flag(osk, SOCK_ZAPPED))
-		sock_set_flag(sk, SOCK_ZAPPED);
-
-	if (sock_flag(osk, SOCK_DBG))
-		sock_set_flag(sk, SOCK_DBG);
+	sock_copy_flags(sk, osk);
 
 	skb_queue_head_init(&nr->ack_queue);
 	skb_queue_head_init(&nr->reseq_queue);
@@ -541,7 +537,8 @@ static int nr_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct nr_sock *nr = nr_sk(sk);
 	struct full_sockaddr_ax25 *addr = (struct full_sockaddr_ax25 *)uaddr;
 	struct net_device *dev;
-	ax25_address *user, *source;
+	ax25_uid_assoc *user;
+	ax25_address *source;
 
 	lock_sock(sk);
 	if (!sock_flag(sk, SOCK_ZAPPED)) {
@@ -580,16 +577,19 @@ static int nr_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	} else {
 		source = &addr->fsa_ax25.sax25_call;
 
-		if ((user = ax25_findbyuid(current->euid)) == NULL) {
+		user = ax25_findbyuid(current->euid);
+		if (user) {
+			nr->user_addr   = user->call;
+			ax25_uid_put(user);
+		} else {
 			if (ax25_uid_policy && !capable(CAP_NET_BIND_SERVICE)) {
 				release_sock(sk);
 				dev_put(dev);
 				return -EPERM;
 			}
-			user = source;
+			nr->user_addr   = *source;
 		}
 
-		nr->user_addr   = *user;
 		nr->source_addr = *source;
 	}
 
@@ -609,7 +609,8 @@ static int nr_connect(struct socket *sock, struct sockaddr *uaddr,
 	struct sock *sk = sock->sk;
 	struct nr_sock *nr = nr_sk(sk);
 	struct sockaddr_ax25 *addr = (struct sockaddr_ax25 *)uaddr;
-	ax25_address *user, *source = NULL;
+	ax25_address *source = NULL;
+	ax25_uid_assoc *user;
 	struct net_device *dev;
 
 	lock_sock(sk);
@@ -650,16 +651,19 @@ static int nr_connect(struct socket *sock, struct sockaddr *uaddr,
 		}
 		source = (ax25_address *)dev->dev_addr;
 
-		if ((user = ax25_findbyuid(current->euid)) == NULL) {
+		user = ax25_findbyuid(current->euid);
+		if (user) {
+			nr->user_addr   = user->call;
+			ax25_uid_put(user);
+		} else {
 			if (ax25_uid_policy && !capable(CAP_NET_ADMIN)) {
 				dev_put(dev);
 				release_sock(sk);
 				return -EPERM;
 			}
-			user = source;
+			nr->user_addr   = *source;
 		}
 
-		nr->user_addr   = *user;
 		nr->source_addr = *source;
 		nr->device      = dev;
 
@@ -855,17 +859,16 @@ int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 	frametype          = skb->data[19] & 0x0F;
 	flags              = skb->data[19] & 0xF0;
 
-#ifdef CONFIG_INET
 	/*
 	 * Check for an incoming IP over NET/ROM frame.
 	 */
-	if (frametype == NR_PROTOEXT && circuit_index == NR_PROTO_IP && circuit_id == NR_PROTO_IP) {
+	if (frametype == NR_PROTOEXT &&
+	    circuit_index == NR_PROTO_IP && circuit_id == NR_PROTO_IP) {
 		skb_pull(skb, NR_NETWORK_LEN + NR_TRANSPORT_LEN);
 		skb->h.raw = skb->data;
 
 		return nr_rx_ip(skb, dev);
 	}
-#endif
 
 	/*
 	 * Find an existing socket connection, based on circuit ID, if it's
@@ -906,17 +909,17 @@ int nr_rx_frame(struct sk_buff *skb, struct net_device *dev)
 	if (frametype != NR_CONNREQ) {
 		/*
 		 * Here it would be nice to be able to send a reset but
-		 * NET/ROM doesn't have one. The following hack would
-		 * have been a way to extend the protocol but apparently
-		 * it kills BPQ boxes... :-(
+		 * NET/ROM doesn't have one.  We've tried to extend the protocol
+		 * by sending NR_CONNACK | NR_CHOKE_FLAGS replies but that
+		 * apparently kills BPQ boxes... :-(
+		 * So now we try to follow the established behaviour of
+		 * G8PZT's Xrouter which is sending packets with command type 7
+		 * as an extension of the protocol.
 		 */
-#if 0
-		/*
-		 * Never reply to a CONNACK/CHOKE.
-		 */
-		if (frametype != NR_CONNACK || flags != NR_CHOKE_FLAG)
-			nr_transmit_refusal(skb, 1);
-#endif
+		if (sysctl_netrom_reset_circuit &&
+		    (frametype != NR_RESET || flags != 0))
+			nr_transmit_reset(skb, 1);
+
 		return 0;
 	}
 
@@ -1185,9 +1188,7 @@ static int nr_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 	}
 
 	case SIOCGSTAMP:
-		ret = -EINVAL;
-		if (sk != NULL)
-			ret = sock_get_timestamp(sk, argp);
+		ret = sock_get_timestamp(sk, argp);
 		release_sock(sk);
 		return ret;
 
@@ -1259,6 +1260,7 @@ static int nr_info_show(struct seq_file *seq, void *v)
 	struct net_device *dev;
 	struct nr_sock *nr;
 	const char *devname;
+	char buf[11];
 
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq,
@@ -1274,11 +1276,11 @@ static int nr_info_show(struct seq_file *seq, void *v)
 		else
 			devname = dev->name;
 
-		seq_printf(seq, "%-9s ", ax2asc(&nr->user_addr));
-		seq_printf(seq, "%-9s ", ax2asc(&nr->dest_addr));
+		seq_printf(seq, "%-9s ", ax2asc(buf, &nr->user_addr));
+		seq_printf(seq, "%-9s ", ax2asc(buf, &nr->dest_addr));
 		seq_printf(seq, 
 "%-9s %-3s  %02X/%02X %02X/%02X %2d %3d %3d %3d %3lu/%03lu %2lu/%02lu %3lu/%03lu %3lu/%03lu %2d/%02d %3d %5d %5d %ld\n",
-			ax2asc(&nr->source_addr),
+			ax2asc(buf, &nr->source_addr),
 			devname,
 			nr->my_index,
 			nr->my_id,
@@ -1390,8 +1392,7 @@ static int __init nr_proto_init(void)
 		struct net_device *dev;
 
 		sprintf(name, "nr%d", i);
-		dev = alloc_netdev(sizeof(struct net_device_stats), name,
-					  nr_setup);
+		dev = alloc_netdev(sizeof(struct nr_private), name, nr_setup);
 		if (!dev) {
 			printk(KERN_ERR "NET/ROM: nr_proto_init - unable to allocate device structure\n");
 			goto fail;

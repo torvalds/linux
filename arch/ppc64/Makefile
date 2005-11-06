@@ -49,12 +49,14 @@ NM		:= $(NM) --synthetic
 
 endif
 
-CHECKFLAGS	+= -m64 -D__powerpc__
+CHECKFLAGS	+= -m64 -D__powerpc__ -D__powerpc64__
 
 LDFLAGS		:= -m elf64ppc
 LDFLAGS_vmlinux	:= -Bstatic -e $(KERNELLOAD) -Ttext $(KERNELLOAD)
 CFLAGS		+= -msoft-float -pipe -mminimal-toc -mtraceback=none \
 		   -mcall-aixdesc
+# Temporary hack until we have migrated to asm-powerpc
+CPPFLAGS	+= -Iarch/$(ARCH)/include
 
 GCC_VERSION     := $(call cc-version)
 GCC_BROKEN_VEC	:= $(shell if [ $(GCC_VERSION) -lt 0400 ] ; then echo "y"; fi ;)
@@ -73,38 +75,46 @@ else
 	CFLAGS += $(call cc-option,-mtune=power4)
 endif
 
+# No AltiVec instruction when building kernel
+CFLAGS	+= $(call cc-option, -mno-altivec)
+
 # Enable unit-at-a-time mode when possible. It shrinks the
 # kernel considerably.
 CFLAGS += $(call cc-option,-funit-at-a-time)
 
 head-y := arch/ppc64/kernel/head.o
+head-y += arch/powerpc/kernel/fpu.o
+head-y += arch/powerpc/kernel/entry_64.o
 
-libs-y				+= arch/ppc64/lib/
-core-y				+= arch/ppc64/kernel/
-core-y				+= arch/ppc64/mm/
-core-$(CONFIG_XMON)		+= arch/ppc64/xmon/
-drivers-$(CONFIG_OPROFILE)	+= arch/ppc64/oprofile/
+core-y				+= arch/ppc64/kernel/ arch/powerpc/kernel/
+core-y				+= arch/powerpc/mm/
+core-y				+= arch/powerpc/sysdev/
+core-y				+= arch/powerpc/platforms/
+core-y				+= arch/powerpc/lib/
+core-$(CONFIG_XMON)		+= arch/powerpc/xmon/
+drivers-$(CONFIG_OPROFILE)	+= arch/powerpc/oprofile/
 
 boot := arch/ppc64/boot
 
-boottarget-$(CONFIG_PPC_PSERIES) := zImage zImage.initrd
-boottarget-$(CONFIG_PPC_MAPLE) := zImage zImage.initrd
-boottarget-$(CONFIG_PPC_ISERIES) := vmlinux.sminitrd vmlinux.initrd vmlinux.sm
-boottarget-$(CONFIG_PPC_BPA) := zImage zImage.initrd
-$(boottarget-y): vmlinux
+boottargets-$(CONFIG_PPC_PSERIES) += zImage zImage.initrd
+boottargets-$(CONFIG_PPC_PMAC) += zImage.vmode zImage.initrd.vmode
+boottargets-$(CONFIG_PPC_MAPLE) += zImage zImage.initrd
+boottargets-$(CONFIG_PPC_ISERIES) += vmlinux.sminitrd vmlinux.initrd vmlinux.sm
+boottargets-$(CONFIG_PPC_BPA) += zImage zImage.initrd
+$(boottargets-y): vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
 bootimage-$(CONFIG_PPC_PSERIES) := $(boot)/zImage
 bootimage-$(CONFIG_PPC_PMAC) := vmlinux
 bootimage-$(CONFIG_PPC_MAPLE) := $(boot)/zImage
-bootimage-$(CONFIG_PPC_BPA) := zImage
+bootimage-$(CONFIG_PPC_BPA) := $(boot)/zImage
 bootimage-$(CONFIG_PPC_ISERIES) := vmlinux
 BOOTIMAGE := $(bootimage-y)
 install: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) BOOTIMAGE=$(BOOTIMAGE) $@
 
 defaultimage-$(CONFIG_PPC_PSERIES) := zImage
-defaultimage-$(CONFIG_PPC_PMAC) := vmlinux
+defaultimage-$(CONFIG_PPC_PMAC) := zImage.vmode
 defaultimage-$(CONFIG_PPC_MAPLE) := zImage
 defaultimage-$(CONFIG_PPC_ISERIES) := vmlinux
 KBUILD_IMAGE := $(defaultimage-y)
@@ -112,20 +122,21 @@ all: $(KBUILD_IMAGE)
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
+	# Temporary hack until we have migrated to asm-powerpc
+	$(Q)rm -rf arch/$(ARCH)/include
 
-prepare: include/asm-ppc64/offsets.h
 
-arch/ppc64/kernel/asm-offsets.s: include/asm include/linux/version.h \
-				   include/config/MARKER
-
-include/asm-ppc64/offsets.h: arch/ppc64/kernel/asm-offsets.s
-	$(call filechk,gen-asm-offsets)
+# Temporary hack until we have migrated to asm-powerpc
+include/asm: arch/$(ARCH)/include/asm
+arch/$(ARCH)/include/asm:
+	$(Q)if [ ! -d arch/$(ARCH)/include ]; then mkdir -p arch/$(ARCH)/include; fi
+	$(Q)ln -fsn $(srctree)/include/asm-powerpc arch/$(ARCH)/include/asm
 
 define archhelp
-  echo  '* zImage       - Compressed kernel image (arch/$(ARCH)/boot/zImage)'
-  echo  '  zImage.initrd- Compressed kernel image with initrd attached,'
-  echo  '		   sourced from arch/$(ARCH)/boot/ramdisk.image.gz'
-  echo  '		   (arch/$(ARCH)/boot/zImage.initrd)'
+  echo  '  zImage.vmode        - Compressed kernel image (arch/$(ARCH)/boot/zImage.vmode)'
+  echo  '  zImage.initrd.vmode - Compressed kernel image with initrd attached,'
+  echo  '                        sourced from arch/$(ARCH)/boot/ramdisk.image.gz'
+  echo  '                        (arch/$(ARCH)/boot/zImage.initrd.vmode)'
+  echo  '  zImage              - zImage for pSeries machines'
+  echo  '  zImage.initrd       - zImage with initrd for pSeries machines'
 endef
-
-CLEAN_FILES += include/asm-ppc64/offsets.h

@@ -146,13 +146,23 @@ config I82365
 
 config TCIC
 	tristate "Databook TCIC host bridge support"
-	depends on PCMCIA
+	depends on PCMCIA && ISA
 	select PCCARD_NONSTATIC
 	help
 	  Say Y here to include support for the Databook TCIC family of PCMCIA
 	  host bridges. These are only found on a handful of old systems.
 	  "Bridge" is the name used for the hardware inside your computer that
 	  PCMCIA cards are plugged into. If unsure, say N.
+
+config PCMCIA_M8XX
+        tristate "MPC8xx PCMCIA support"
+        depends on PCMCIA && PPC
+        select PCCARD_NONSTATIC
+        help
+        Say Y here to include support for PowerPC 8xx series PCMCIA
+        controller.
+
+        This driver is also available as a module called m8xx_pcmcia.
 
 config HD64465_PCMCIA
 	tristate "HD64465 host bridge support"
@@ -220,6 +230,13 @@ config PCMCIA_VRC4171
 config PCMCIA_VRC4173
 	tristate "NEC VRC4173 CARDU support"
 	depends on CPU_VR41XX && PCI && PCMCIA
+
+config OMAP_CF
+	tristate "OMAP CompactFlash Controller"
+	depends on PCMCIA && ARCH_OMAP16XX
+	help
+	  Say Y here to support the CompactFlash controller on OMAP.
+	  Note that this doesn't support "True IDE" mode.
 
 config PCCARD_NONSTATIC
 	tristate

@@ -21,7 +21,7 @@ struct tpi_info {
  * Some S390 specific IO instructions as inline
  */
 
-extern __inline__ int stsch(int irq, volatile struct schib *addr)
+static inline int stsch(int irq, volatile struct schib *addr)
 {
 	int ccode;
 
@@ -36,7 +36,7 @@ extern __inline__ int stsch(int irq, volatile struct schib *addr)
 	return ccode;
 }
 
-extern __inline__ int msch(int irq, volatile struct schib *addr)
+static inline int msch(int irq, volatile struct schib *addr)
 {
 	int ccode;
 
@@ -51,7 +51,7 @@ extern __inline__ int msch(int irq, volatile struct schib *addr)
 	return ccode;
 }
 
-extern __inline__ int msch_err(int irq, volatile struct schib *addr)
+static inline int msch_err(int irq, volatile struct schib *addr)
 {
 	int ccode;
 
@@ -79,7 +79,7 @@ extern __inline__ int msch_err(int irq, volatile struct schib *addr)
 	return ccode;
 }
 
-extern __inline__ int tsch(int irq, volatile struct irb *addr)
+static inline int tsch(int irq, volatile struct irb *addr)
 {
 	int ccode;
 
@@ -94,7 +94,7 @@ extern __inline__ int tsch(int irq, volatile struct irb *addr)
 	return ccode;
 }
 
-extern __inline__ int tpi( volatile struct tpi_info *addr)
+static inline int tpi( volatile struct tpi_info *addr)
 {
 	int ccode;
 
@@ -108,7 +108,7 @@ extern __inline__ int tpi( volatile struct tpi_info *addr)
 	return ccode;
 }
 
-extern __inline__ int ssch(int irq, volatile struct orb *addr)
+static inline int ssch(int irq, volatile struct orb *addr)
 {
 	int ccode;
 
@@ -123,7 +123,7 @@ extern __inline__ int ssch(int irq, volatile struct orb *addr)
 	return ccode;
 }
 
-extern __inline__ int rsch(int irq)
+static inline int rsch(int irq)
 {
 	int ccode;
 
@@ -138,7 +138,7 @@ extern __inline__ int rsch(int irq)
 	return ccode;
 }
 
-extern __inline__ int csch(int irq)
+static inline int csch(int irq)
 {
 	int ccode;
 
@@ -153,7 +153,7 @@ extern __inline__ int csch(int irq)
 	return ccode;
 }
 
-extern __inline__ int hsch(int irq)
+static inline int hsch(int irq)
 {
 	int ccode;
 
@@ -168,7 +168,7 @@ extern __inline__ int hsch(int irq)
 	return ccode;
 }
 
-extern __inline__ int xsch(int irq)
+static inline int xsch(int irq)
 {
 	int ccode;
 
@@ -183,7 +183,7 @@ extern __inline__ int xsch(int irq)
 	return ccode;
 }
 
-extern __inline__ int chsc(void *chsc_area)
+static inline int chsc(void *chsc_area)
 {
 	int cc;
 
@@ -198,7 +198,7 @@ extern __inline__ int chsc(void *chsc_area)
 	return cc;
 }
 
-extern __inline__ int iac( void)
+static inline int iac( void)
 {
 	int ccode;
 
@@ -210,7 +210,7 @@ extern __inline__ int iac( void)
 	return ccode;
 }
 
-extern __inline__ int rchp(int chpid)
+static inline int rchp(int chpid)
 {
 	int ccode;
 

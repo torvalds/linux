@@ -165,7 +165,7 @@ static void pamsnet_tick(unsigned long);
 
 static irqreturn_t pamsnet_intr(int irq, void *data, struct pt_regs *fp);
 
-static struct timer_list pamsnet_timer = TIMER_INITIALIZER(pamsnet_tick, 0, 0);
+static DEFINE_TIMER(pamsnet_timer, pamsnet_tick, 0, 0);
 
 #define STRAM_ADDR(a)	(((a) & 0xff000000) == 0)
 

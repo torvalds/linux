@@ -816,7 +816,7 @@ static int qdisc_notify(struct sk_buff *oskb, struct nlmsghdr *n,
 	}
 
 	if (skb->len)
-		return rtnetlink_send(skb, pid, RTMGRP_TC, n->nlmsg_flags&NLM_F_ECHO);
+		return rtnetlink_send(skb, pid, RTNLGRP_TC, n->nlmsg_flags&NLM_F_ECHO);
 
 err_out:
 	kfree_skb(skb);
@@ -1040,7 +1040,7 @@ static int tclass_notify(struct sk_buff *oskb, struct nlmsghdr *n,
 		return -EINVAL;
 	}
 
-	return rtnetlink_send(skb, pid, RTMGRP_TC, n->nlmsg_flags&NLM_F_ECHO);
+	return rtnetlink_send(skb, pid, RTNLGRP_TC, n->nlmsg_flags&NLM_F_ECHO);
 }
 
 struct qdisc_dump_args
@@ -1194,7 +1194,7 @@ EXPORT_SYMBOL(psched_time_base);
  * with 32-bit get_cycles(). Safe up to 4GHz CPU.
  */
 static void psched_tick(unsigned long);
-static struct timer_list psched_timer = TIMER_INITIALIZER(psched_tick, 0, 0);
+static DEFINE_TIMER(psched_timer, psched_tick, 0, 0);
 
 static void psched_tick(unsigned long dummy)
 {

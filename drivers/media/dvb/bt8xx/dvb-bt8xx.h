@@ -2,7 +2,7 @@
  * Bt8xx based DVB adapter driver
  *
  * Copyright (C) 2002,2003 Florian Schirmer <jolt@tuxbox.org>
- * Copyright (C) 2002 Peter Hettkamp <peter.hettkamp@t-online.de>
+ * Copyright (C) 2002 Peter Hettkamp <peter.hettkamp@htp-tel.de>
  * Copyright (C) 1999-2001 Ralph  Metzler & Marcus Metzler for convergence integrated media GmbH
  * Copyright (C) 1998,1999 Christian Theiss <mistert@rz.fh-augsburg.de>
  *

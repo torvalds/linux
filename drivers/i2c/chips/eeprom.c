@@ -33,15 +33,13 @@
 #include <linux/sched.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x50, 0x51, 0x52, 0x53, 0x54,
 					0x55, 0x56, 0x57, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_1(eeprom);
+I2C_CLIENT_INSMOD_1(eeprom);
 
 
 /* Size of EEPROM in bytes */
@@ -90,8 +88,8 @@ static void eeprom_update_client(struct i2c_client *client, u8 slice)
 		dev_dbg(&client->dev, "Starting eeprom update, slice %u\n", slice);
 
 		if (i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_READ_I2C_BLOCK)) {
-			for (i = slice << 5; i < (slice + 1) << 5; i += I2C_SMBUS_I2C_BLOCK_MAX)
-				if (i2c_smbus_read_i2c_block_data(client, i, data->data + i) != I2C_SMBUS_I2C_BLOCK_MAX)
+			for (i = slice << 5; i < (slice + 1) << 5; i += I2C_SMBUS_BLOCK_MAX)
+				if (i2c_smbus_read_i2c_block_data(client, i, data->data + i) != I2C_SMBUS_BLOCK_MAX)
 					goto exit;
 		} else {
 			if (i2c_smbus_write_byte(client, slice << 5)) {
@@ -153,20 +151,15 @@ static struct bin_attribute eeprom_attr = {
 
 static int eeprom_attach_adapter(struct i2c_adapter *adapter)
 {
-	return i2c_detect(adapter, &addr_data, eeprom_detect);
+	return i2c_probe(adapter, &addr_data, eeprom_detect);
 }
 
-/* This function is called by i2c_detect */
-int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
+/* This function is called by i2c_probe */
+static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	struct i2c_client *new_client;
 	struct eeprom_data *data;
 	int err = 0;
-
-	/* prevent 24RF08 corruption */
-	if (kind < 0)
-		i2c_smbus_xfer(adapter, address, 0, 0, 0,
-			       I2C_SMBUS_QUICK, NULL);
 
 	/* There are three ways we can read the EEPROM data:
 	   (1) I2C block reads (faster, but unsupported by most adapters)
@@ -178,11 +171,10 @@ int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 					    | I2C_FUNC_SMBUS_BYTE))
 		goto exit;
 
-	if (!(data = kmalloc(sizeof(struct eeprom_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct eeprom_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct eeprom_data));
 
 	new_client = &data->client;
 	memset(data->data, 0xff, EEPROM_SIZE);
@@ -231,10 +223,8 @@ static int eeprom_detach_client(struct i2c_client *client)
 	int err;
 
 	err = i2c_detach_client(client);
-	if (err) {
-		dev_err(&client->dev, "Client deregistration failed, client not detached.\n");
+	if (err)
 		return err;
-	}
 
 	kfree(i2c_get_clientdata(client));
 

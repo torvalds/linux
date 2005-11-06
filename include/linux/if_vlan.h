@@ -42,8 +42,8 @@ struct hlist_node;
 struct vlan_ethhdr {
    unsigned char	h_dest[ETH_ALEN];	   /* destination eth addr	*/
    unsigned char	h_source[ETH_ALEN];	   /* source ether addr	*/
-   unsigned short       h_vlan_proto;              /* Should always be 0x8100 */
-   unsigned short       h_vlan_TCI;                /* Encapsulates priority and VLAN ID */
+   __be16               h_vlan_proto;              /* Should always be 0x8100 */
+   __be16               h_vlan_TCI;                /* Encapsulates priority and VLAN ID */
    unsigned short	h_vlan_encapsulated_proto; /* packet type ID field (or len) */
 };
 
@@ -55,8 +55,8 @@ static inline struct vlan_ethhdr *vlan_eth_hdr(const struct sk_buff *skb)
 }
 
 struct vlan_hdr {
-   unsigned short       h_vlan_TCI;                /* Encapsulates priority and VLAN ID */
-   unsigned short       h_vlan_encapsulated_proto; /* packet type ID field (or len) */
+   __be16               h_vlan_TCI;                /* Encapsulates priority and VLAN ID */
+   __be16               h_vlan_encapsulated_proto; /* packet type ID field (or len) */
 };
 
 #define VLAN_VID_MASK	0xfff
@@ -155,7 +155,6 @@ static inline int __vlan_hwaccel_rx(struct sk_buff *skb,
 {
 	struct net_device_stats *stats;
 
-	skb->real_dev = skb->dev;
 	skb->dev = grp->vlan_devices[vlan_tag & VLAN_VID_MASK];
 	if (skb->dev == NULL) {
 		dev_kfree_skb_any(skb);

@@ -1,5 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies Ltd.  All rights reserved.
+ * Copyright (c) 2005 Sun Microsystems, Inc. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -34,7 +36,7 @@
 
 #include "core_priv.h"
 
-#include <ib_mad.h>
+#include <rdma/ib_mad.h>
 
 struct ib_port {
 	struct kobject         kobj;
@@ -63,6 +65,11 @@ struct port_table_attribute {
 	int			index;
 };
 
+static inline int ibdev_is_alive(const struct ib_device *dev) 
+{
+	return dev->reg_state == IB_DEV_REGISTERED;
+}
+
 static ssize_t port_attr_show(struct kobject *kobj,
 			      struct attribute *attr, char *buf)
 {
@@ -72,6 +79,8 @@ static ssize_t port_attr_show(struct kobject *kobj,
 
 	if (!port_attr->show)
 		return -EIO;
+	if (!ibdev_is_alive(p->ibdev))
+		return -ENODEV;
 
 	return port_attr->show(p, port_attr, buf);
 }
@@ -253,14 +262,14 @@ static ssize_t show_port_gid(struct ib_port *p, struct port_attribute *attr,
 		return ret;
 
 	return sprintf(buf, "%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(((u16 *) gid.raw)[0]),
-		       be16_to_cpu(((u16 *) gid.raw)[1]),
-		       be16_to_cpu(((u16 *) gid.raw)[2]),
-		       be16_to_cpu(((u16 *) gid.raw)[3]),
-		       be16_to_cpu(((u16 *) gid.raw)[4]),
-		       be16_to_cpu(((u16 *) gid.raw)[5]),
-		       be16_to_cpu(((u16 *) gid.raw)[6]),
-		       be16_to_cpu(((u16 *) gid.raw)[7]));
+		       be16_to_cpu(((__be16 *) gid.raw)[0]),
+		       be16_to_cpu(((__be16 *) gid.raw)[1]),
+		       be16_to_cpu(((__be16 *) gid.raw)[2]),
+		       be16_to_cpu(((__be16 *) gid.raw)[3]),
+		       be16_to_cpu(((__be16 *) gid.raw)[4]),
+		       be16_to_cpu(((__be16 *) gid.raw)[5]),
+		       be16_to_cpu(((__be16 *) gid.raw)[6]),
+		       be16_to_cpu(((__be16 *) gid.raw)[7]));
 }
 
 static ssize_t show_port_pkey(struct ib_port *p, struct port_attribute *attr,
@@ -298,14 +307,13 @@ static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
 	if (!p->ibdev->process_mad)
 		return sprintf(buf, "N/A (no PMA)\n");
 
-	in_mad  = kmalloc(sizeof *in_mad, GFP_KERNEL);
+	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
 	out_mad = kmalloc(sizeof *in_mad, GFP_KERNEL);
 	if (!in_mad || !out_mad) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	memset(in_mad, 0, sizeof *in_mad);
 	in_mad->mad_hdr.base_version  = 1;
 	in_mad->mad_hdr.mgmt_class    = IB_MGMT_CLASS_PERF_MGMT;
 	in_mad->mad_hdr.class_version = 1;
@@ -332,11 +340,11 @@ static ssize_t show_pma_counter(struct ib_port *p, struct port_attribute *attr,
 		break;
 	case 16:
 		ret = sprintf(buf, "%u\n",
-			      be16_to_cpup((u16 *)(out_mad->data + 40 + offset / 8)));
+			      be16_to_cpup((__be16 *)(out_mad->data + 40 + offset / 8)));
 		break;
 	case 32:
 		ret = sprintf(buf, "%u\n",
-			      be32_to_cpup((u32 *)(out_mad->data + 40 + offset / 8)));
+			      be32_to_cpup((__be32 *)(out_mad->data + 40 + offset / 8)));
 		break;
 	default:
 		ret = 0;
@@ -461,7 +469,7 @@ alloc_group_attrs(ssize_t (*show)(struct ib_port *,
 		return NULL;
 
 	for (i = 0; i < len; i++) {
-		element = kcalloc(1, sizeof(struct port_table_attribute),
+		element = kzalloc(sizeof(struct port_table_attribute),
 				  GFP_KERNEL);
 		if (!element)
 			goto err;
@@ -499,10 +507,9 @@ static int add_port(struct ib_device *device, int port_num)
 	if (ret)
 		return ret;
 
-	p = kmalloc(sizeof *p, GFP_KERNEL);
+	p = kzalloc(sizeof *p, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
-	memset(p, 0, sizeof *p);
 
 	p->ibdev      = device;
 	p->port_num   = port_num;
@@ -579,6 +586,9 @@ static ssize_t show_node_type(struct class_device *cdev, char *buf)
 {
 	struct ib_device *dev = container_of(cdev, struct ib_device, class_dev);
 
+	if (!ibdev_is_alive(dev))
+		return -ENODEV;
+
 	switch (dev->node_type) {
 	case IB_NODE_CA:     return sprintf(buf, "%d: CA\n", dev->node_type);
 	case IB_NODE_SWITCH: return sprintf(buf, "%d: switch\n", dev->node_type);
@@ -593,15 +603,18 @@ static ssize_t show_sys_image_guid(struct class_device *cdev, char *buf)
 	struct ib_device_attr attr;
 	ssize_t ret;
 
+	if (!ibdev_is_alive(dev))
+		return -ENODEV;
+
 	ret = ib_query_device(dev, &attr);
 	if (ret)
 		return ret;
 
 	return sprintf(buf, "%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(((u16 *) &attr.sys_image_guid)[0]),
-		       be16_to_cpu(((u16 *) &attr.sys_image_guid)[1]),
-		       be16_to_cpu(((u16 *) &attr.sys_image_guid)[2]),
-		       be16_to_cpu(((u16 *) &attr.sys_image_guid)[3]));
+		       be16_to_cpu(((__be16 *) &attr.sys_image_guid)[0]),
+		       be16_to_cpu(((__be16 *) &attr.sys_image_guid)[1]),
+		       be16_to_cpu(((__be16 *) &attr.sys_image_guid)[2]),
+		       be16_to_cpu(((__be16 *) &attr.sys_image_guid)[3]));
 }
 
 static ssize_t show_node_guid(struct class_device *cdev, char *buf)
@@ -610,15 +623,18 @@ static ssize_t show_node_guid(struct class_device *cdev, char *buf)
 	struct ib_device_attr attr;
 	ssize_t ret;
 
+	if (!ibdev_is_alive(dev))
+		return -ENODEV;
+
 	ret = ib_query_device(dev, &attr);
 	if (ret)
 		return ret;
 
 	return sprintf(buf, "%04x:%04x:%04x:%04x\n",
-		       be16_to_cpu(((u16 *) &attr.node_guid)[0]),
-		       be16_to_cpu(((u16 *) &attr.node_guid)[1]),
-		       be16_to_cpu(((u16 *) &attr.node_guid)[2]),
-		       be16_to_cpu(((u16 *) &attr.node_guid)[3]));
+		       be16_to_cpu(((__be16 *) &attr.node_guid)[0]),
+		       be16_to_cpu(((__be16 *) &attr.node_guid)[1]),
+		       be16_to_cpu(((__be16 *) &attr.node_guid)[2]),
+		       be16_to_cpu(((__be16 *) &attr.node_guid)[3]));
 }
 
 static CLASS_DEVICE_ATTR(node_type, S_IRUGO, show_node_type, NULL);

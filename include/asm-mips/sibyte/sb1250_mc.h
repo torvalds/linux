@@ -1,23 +1,21 @@
 /*  *********************************************************************
     *  SB1250 Board Support Package
-    *  
-    *  Memory Controller constants              File: sb1250_mc.h       
-    *  
+    *
+    *  Memory Controller constants              File: sb1250_mc.h
+    *
     *  This module contains constants and macros useful for
     *  programming the memory controller.
-    *  
+    *
     *  SB1250 specification level:  User's manual 1/02/02
-    *  
-    *  Author:  Mitch Lichtenberg
-    *  
-    *********************************************************************  
+    *
+    *********************************************************************
     *
     *  Copyright 2000,2001,2002,2003
     *  Broadcom Corporation. All rights reserved.
-    *  
-    *  This program is free software; you can redistribute it and/or 
-    *  modify it under the terms of the GNU General Public License as 
-    *  published by the Free Software Foundation; either version 2 of 
+    *
+    *  This program is free software; you can redistribute it and/or
+    *  modify it under the terms of the GNU General Public License as
+    *  published by the Free Software Foundation; either version 2 of
     *  the License, or (at your option) any later version.
     *
     *  This program is distributed in the hope that it will be useful,
@@ -27,7 +25,7 @@
     *
     *  You should have received a copy of the GNU General Public License
     *  along with this program; if not, write to the Free Software
-    *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
+    *  Foundation, Inc., 59 Temple Place, Suite 330, Boston,
     *  MA 02111-1307 USA
     ********************************************************************* */
 
@@ -166,7 +164,7 @@
 
 #define K_MC_REF_RATE_100MHz         0x62
 #define K_MC_REF_RATE_133MHz         0x81
-#define K_MC_REF_RATE_200MHz         0xC4 
+#define K_MC_REF_RATE_200MHz         0xC4
 
 #define V_MC_REF_RATE_100MHz         V_MC_REF_RATE(K_MC_REF_RATE_100MHz)
 #define V_MC_REF_RATE_133MHz         V_MC_REF_RATE(K_MC_REF_RATE_133MHz)
@@ -228,7 +226,7 @@
                                      V_MC_ADDR_DRIVE_DEFAULT | \
                                      V_MC_DATA_DRIVE_DEFAULT | \
                                      V_MC_CLOCK_DRIVE_DEFAULT | \
-                                     V_MC_REF_RATE_DEFAULT 
+                                     V_MC_REF_RATE_DEFAULT
 
 
 
@@ -323,6 +321,10 @@
 #define G_MC_tRFC(x)              _SB_GETVALUE(x,S_MC_tRFC,M_MC_tRFC)
 #define K_MC_tRFC_DEFAULT         12
 #define V_MC_tRFC_DEFAULT         V_MC_tRFC(K_MC_tRFC_DEFAULT)
+
+#if SIBYTE_HDR_FEATURE(1250, PASS3)
+#define M_MC_tRFC_PLUS16          _SB_MAKEMASK1(51)	/* 1250C3 and later.  */
+#endif
 
 #define S_MC_tCwCr                40
 #define M_MC_tCwCr                _SB_MAKEMASK(4,S_MC_tCwCr)

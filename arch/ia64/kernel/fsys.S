@@ -14,7 +14,7 @@
 
 #include <asm/asmmacro.h>
 #include <asm/errno.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/percpu.h>
 #include <asm/thread_info.h>
 #include <asm/sal.h>

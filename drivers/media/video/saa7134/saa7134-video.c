@@ -1,5 +1,4 @@
 /*
- * $Id: saa7134-video.c,v 1.36 2005/06/28 23:41:47 mkrufky Exp $
  *
  * device driver for philips saa7134 based TV cards
  * video4linux video interface
@@ -1368,29 +1367,7 @@ static int video_release(struct inode *inode, struct file *file)
 	saa_andorb(SAA7134_OFMT_DATA_A, 0x1f, 0);
 	saa_andorb(SAA7134_OFMT_DATA_B, 0x1f, 0);
 
-	if (dev->tuner_type == TUNER_PHILIPS_TDA8290) {
-		u8 data[2];
-		int ret;
-		struct i2c_msg msg = {.addr=I2C_ADDR_TDA8290, .flags=0, .buf=data, .len = 2};
-		data[0] = 0x21;
-		data[1] = 0xc0;
-		ret = i2c_transfer(&dev->i2c_adap, &msg, 1);
-		if (ret != 1)
-			printk(KERN_ERR "TDA8290 access failure\n");
-		msg.addr = I2C_ADDR_TDA8275;
-		data[0] = 0x30;
-		data[1] = 0xd0;
-		ret = i2c_transfer(&dev->i2c_adap, &msg, 1);
-		if (ret != 1)
-			printk(KERN_ERR "TDA8275 access failure\n");
-		msg.addr = I2C_ADDR_TDA8290;
-		data[0] = 0x21;
-		data[1] = 0x80;
-		i2c_transfer(&dev->i2c_adap, &msg, 1);
-		data[0] = 0x00;
-		data[1] = 0x02;
-		i2c_transfer(&dev->i2c_adap, &msg, 1);
-	}
+	saa7134_i2c_call_clients(dev, TUNER_SET_STANDBY, NULL);
 
 	/* free stuff */
 	videobuf_mmap_free(&fh->cap);

@@ -28,7 +28,7 @@ void momenco_ocelot_restart(char *command)
 {
 	/* base address of timekeeper portion of part */
 	void *nvram = (void *)
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 		0xfffffffffc807000;
 #else
 		0xfc807000;

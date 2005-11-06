@@ -226,6 +226,10 @@ typedef struct _ErrorInfo_struct {
 #define CMD_MSG_DONE	0x04
 #define CMD_MSG_TIMEOUT 0x05
 
+/* This structure needs to be divisible by 8 for new
+ * indexing method.
+ */
+#define PADSIZE (sizeof(long) - 4)
 typedef struct _CommandList_struct {
   CommandListHeader_struct Header;
   RequestBlock_struct      Request;
@@ -236,14 +240,14 @@ typedef struct _CommandList_struct {
   ErrorInfo_struct * 	   err_info; /* pointer to the allocated mem */ 
   int			   ctlr;
   int			   cmd_type; 
+  long			   cmdindex;
   struct _CommandList_struct *prev;
   struct _CommandList_struct *next;
   struct request *	   rq;
   struct completion *waiting;
   int	 retry_count;
-#ifdef CONFIG_CISS_SCSI_TAPE
   void * scsi_cmd;
-#endif
+  char   pad[PADSIZE];
 } CommandList_struct;
 
 //Configuration Table Structure

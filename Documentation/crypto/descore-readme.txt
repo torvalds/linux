@@ -1,4 +1,4 @@
-Below is the orginal README file from the descore.shar package.
+Below is the original README file from the descore.shar package.
 ------------------------------------------------------------------------------
 
 des - fast & portable DES encryption & decryption.

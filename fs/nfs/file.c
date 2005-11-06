@@ -134,9 +134,11 @@ nfs_file_release(struct inode *inode, struct file *filp)
  */
 static int nfs_revalidate_file(struct inode *inode, struct file *filp)
 {
+	struct nfs_inode *nfsi = NFS_I(inode);
 	int retval = 0;
 
-	if ((NFS_FLAGS(inode) & NFS_INO_REVAL_PAGECACHE) || nfs_attribute_timeout(inode))
+	if ((nfsi->cache_validity & (NFS_INO_REVAL_PAGECACHE|NFS_INO_INVALID_ATTR))
+			|| nfs_attribute_timeout(inode))
 		retval = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
 	nfs_revalidate_mapping(inode, filp->f_mapping);
 	return 0;
@@ -164,7 +166,7 @@ static int nfs_revalidate_file_size(struct inode *inode, struct file *filp)
 		goto force_reval;
 	if (nfsi->npages != 0)
 		return 0;
-	if (!(NFS_FLAGS(inode) & NFS_INO_REVAL_PAGECACHE) && !nfs_attribute_timeout(inode))
+	if (!(nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE) && !nfs_attribute_timeout(inode))
 		return 0;
 force_reval:
 	return __nfs_revalidate_inode(server, inode);
@@ -203,8 +205,8 @@ nfs_file_flush(struct file *file)
 	if (!status) {
 		status = ctx->error;
 		ctx->error = 0;
-		if (!status && !nfs_have_delegation(inode, FMODE_READ))
-			__nfs_revalidate_inode(NFS_SERVER(inode), inode);
+		if (!status)
+			nfs_revalidate_inode(NFS_SERVER(inode), inode);
 	}
 	unlock_kernel();
 	return status;
@@ -374,22 +376,31 @@ out_swapfile:
 
 static int do_getlk(struct file *filp, int cmd, struct file_lock *fl)
 {
+	struct file_lock *cfl;
 	struct inode *inode = filp->f_mapping->host;
 	int status = 0;
 
 	lock_kernel();
-	/* Use local locking if mounted with "-onolock" */
-	if (!(NFS_SERVER(inode)->flags & NFS_MOUNT_NONLM))
-		status = NFS_PROTO(inode)->lock(filp, cmd, fl);
-	else {
-		struct file_lock *cfl = posix_test_lock(filp, fl);
-
-		fl->fl_type = F_UNLCK;
-		if (cfl != NULL)
-			memcpy(fl, cfl, sizeof(*fl));
+	/* Try local locking first */
+	cfl = posix_test_lock(filp, fl);
+	if (cfl != NULL) {
+		locks_copy_lock(fl, cfl);
+		goto out;
 	}
+
+	if (nfs_have_delegation(inode, FMODE_READ))
+		goto out_noconflict;
+
+	if (NFS_SERVER(inode)->flags & NFS_MOUNT_NONLM)
+		goto out_noconflict;
+
+	status = NFS_PROTO(inode)->lock(filp, cmd, fl);
+out:
 	unlock_kernel();
 	return status;
+out_noconflict:
+	fl->fl_type = F_UNLCK;
+	goto out;
 }
 
 static int do_vfs_lock(struct file *file, struct file_lock *fl)

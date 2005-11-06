@@ -38,7 +38,7 @@
 #include "vxfs_inode.h"
 
 
-static int	vxfs_immed_follow_link(struct dentry *, struct nameidata *);
+static void *	vxfs_immed_follow_link(struct dentry *, struct nameidata *);
 
 static int	vxfs_immed_readpage(struct file *, struct page *);
 
@@ -72,12 +72,12 @@ struct address_space_operations vxfs_immed_aops = {
  * Returns:
  *   Zero on success, else a negative error code.
  */
-static int
+static void *
 vxfs_immed_follow_link(struct dentry *dp, struct nameidata *np)
 {
 	struct vxfs_inode_info		*vip = VXFS_INO(dp->d_inode);
 	nd_set_link(np, vip->vii_immed.vi_immed);
-	return 0;
+	return NULL;
 }
 
 /**

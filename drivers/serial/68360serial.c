@@ -2474,8 +2474,7 @@ static struct tty_operations rs_360_ops = {
 	.tiocmset = rs_360_tiocmset,
 };
 
-/* int __init rs_360_init(void) */
-int rs_360_init(void)
+static int __init rs_360_init(void)
 {
 	struct serial_state * state;
 	ser_info_t	*info;
@@ -2827,10 +2826,7 @@ int rs_360_init(void)
 
 	return 0;
 }
-
-
-
-
+module_init(rs_360_init);
 
 /* This must always be called before the rs_360_init() function, otherwise
  * it blows away the port control information.

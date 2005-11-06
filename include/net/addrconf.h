@@ -45,6 +45,7 @@ struct prefix_info {
 
 #ifdef __KERNEL__
 
+#include <linux/config.h>
 #include <linux/netdevice.h>
 #include <net/if_inet6.h>
 #include <net/ipv6.h>
@@ -237,6 +238,11 @@ static inline int ipv6_addr_is_ll_all_routers(const struct in6_addr *addr)
 		addr->s6_addr32[2] == 0 &&
 		addr->s6_addr32[3] == htonl(0x00000002));
 }
+
+#ifdef CONFIG_PROC_FS
+extern int if6_proc_init(void);
+extern void if6_proc_exit(void);
+#endif
 
 #endif
 #endif

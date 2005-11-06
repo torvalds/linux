@@ -15,8 +15,11 @@
 #include <linux/device.h>
 #include <linux/kdev_t.h>
 #include <linux/err.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 
 #include "drm_core.h"
+#include "drmP.h"
 
 struct drm_sysfs_class {
 	struct class_device_attribute attr;

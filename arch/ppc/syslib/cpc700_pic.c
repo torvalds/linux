@@ -90,14 +90,10 @@ cpc700_mask_and_ack_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type cpc700_pic = {
-	"CPC700 PIC",
-	NULL,
-	NULL,
-	cpc700_unmask_irq,
-	cpc700_mask_irq,
-	cpc700_mask_and_ack_irq,
-	NULL,
-	NULL
+	.typename = "CPC700 PIC",
+	.enable = cpc700_unmask_irq,
+	.disable = cpc700_mask_irq,
+	.ack = cpc700_mask_and_ack_irq,
 };
 
 __init static void

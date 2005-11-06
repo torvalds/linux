@@ -4,6 +4,8 @@
  *
  * Copyright (C) 2004 FUJITSU LIMITED
  * Copyright (C) Hidetoshi Seto (seto.hidetoshi@jp.fujitsu.com)
+ * Copyright (C) 2005 Silicon Graphics, Inc
+ * Copyright (C) 2005 Keith Owens <kaos@sgi.com>
  */
 #include <linux/config.h>
 #include <linux/types.h>
@@ -38,10 +40,6 @@
 /* max size of SAL error record (default) */
 static int sal_rec_max = 10000;
 
-/* from mca.c */
-static ia64_mca_sal_to_os_state_t *sal_to_os_handoff_state;
-static ia64_mca_os_to_sal_state_t *os_to_sal_handoff_state;
-
 /* from mca_drv_asm.S */
 extern void *mca_handler_bhhook(void);
 
@@ -58,8 +56,9 @@ static struct page *page_isolate[MAX_PAGE_ISOLATE];
 static int num_page_isolate = 0;
 
 typedef enum {
-	ISOLATE_NG = 0,
-	ISOLATE_OK = 1
+	ISOLATE_NG,
+	ISOLATE_OK,
+	ISOLATE_NONE
 } isolate_status_t;
 
 /*
@@ -76,7 +75,7 @@ static struct {
  * @paddr:	poisoned memory location
  *
  * Return value:
- *	ISOLATE_OK / ISOLATE_NG
+ *	one of isolate_status_t, ISOLATE_OK/NG/NONE.
  */
 
 static isolate_status_t
@@ -86,23 +85,26 @@ mca_page_isolate(unsigned long paddr)
 	struct page *p;
 
 	/* whether physical address is valid or not */
-	if ( !ia64_phys_addr_valid(paddr) ) 
-		return ISOLATE_NG;
+	if (!ia64_phys_addr_valid(paddr))
+		return ISOLATE_NONE;
+
+	if (!pfn_valid(paddr))
+		return ISOLATE_NONE;
 
 	/* convert physical address to physical page number */
 	p = pfn_to_page(paddr>>PAGE_SHIFT);
 
 	/* check whether a page number have been already registered or not */
-	for( i = 0; i < num_page_isolate; i++ )
-		if( page_isolate[i] == p )
+	for (i = 0; i < num_page_isolate; i++)
+		if (page_isolate[i] == p)
 			return ISOLATE_OK; /* already listed */
 
 	/* limitation check */
-	if( num_page_isolate == MAX_PAGE_ISOLATE ) 
+	if (num_page_isolate == MAX_PAGE_ISOLATE)
 		return ISOLATE_NG;
 
 	/* kick pages having attribute 'SLAB' or 'Reserved' */
-	if( PageSlab(p) || PageReserved(p) ) 
+	if (PageSlab(p) || PageReserved(p))
 		return ISOLATE_NG;
 
 	/* add attribute 'Reserved' and register the page */
@@ -124,10 +126,15 @@ mca_handler_bh(unsigned long paddr)
 		current->pid, current->comm);
 
 	spin_lock(&mca_bh_lock);
-	if (mca_page_isolate(paddr) == ISOLATE_OK) {
+	switch (mca_page_isolate(paddr)) {
+	case ISOLATE_OK:
 		printk(KERN_DEBUG "Page isolation: ( %lx ) success.\n", paddr);
-	} else {
+		break;
+	case ISOLATE_NG:
 		printk(KERN_DEBUG "Page isolation: ( %lx ) failure.\n", paddr);
+		break;
+	default:
+		break;
 	}
 	spin_unlock(&mca_bh_lock);
 
@@ -141,10 +148,10 @@ mca_handler_bh(unsigned long paddr)
  * @peidx:	pointer to index of processor error section
  */
 
-static void 
+static void
 mca_make_peidx(sal_log_processor_info_t *slpi, peidx_table_t *peidx)
 {
-	/* 
+	/*
 	 * calculate the start address of
 	 *   "struct cpuid_info" and "sal_processor_static_info_t".
 	 */
@@ -166,7 +173,7 @@ mca_make_peidx(sal_log_processor_info_t *slpi, peidx_table_t *peidx)
 }
 
 /**
- * mca_make_slidx -  Make index of SAL error record 
+ * mca_make_slidx -  Make index of SAL error record
  * @buffer:	pointer to SAL error record
  * @slidx:	pointer to index of SAL error record
  *
@@ -174,12 +181,12 @@ mca_make_peidx(sal_log_processor_info_t *slpi, peidx_table_t *peidx)
  *	1 if record has platform error / 0 if not
  */
 #define LOG_INDEX_ADD_SECT_PTR(sect, ptr) \
-        { slidx_list_t *hl = &slidx_pool.buffer[slidx_pool.cur_idx]; \
-          hl->hdr = ptr; \
-          list_add(&hl->list, &(sect)); \
-          slidx_pool.cur_idx = (slidx_pool.cur_idx + 1)%slidx_pool.max_idx; }
+	{slidx_list_t *hl = &slidx_pool.buffer[slidx_pool.cur_idx]; \
+	hl->hdr = ptr; \
+	list_add(&hl->list, &(sect)); \
+	slidx_pool.cur_idx = (slidx_pool.cur_idx + 1)%slidx_pool.max_idx; }
 
-static int 
+static int
 mca_make_slidx(void *buffer, slidx_table_t *slidx)
 {
 	int platform_err = 0;
@@ -216,28 +223,36 @@ mca_make_slidx(void *buffer, slidx_table_t *slidx)
 		sp = (sal_log_section_hdr_t *)((char*)buffer + ercd_pos);
 		if (!efi_guidcmp(sp->guid, SAL_PROC_DEV_ERR_SECT_GUID)) {
 			LOG_INDEX_ADD_SECT_PTR(slidx->proc_err, sp);
-		} else if (!efi_guidcmp(sp->guid, SAL_PLAT_MEM_DEV_ERR_SECT_GUID)) {
+		} else if (!efi_guidcmp(sp->guid,
+				SAL_PLAT_MEM_DEV_ERR_SECT_GUID)) {
 			platform_err = 1;
 			LOG_INDEX_ADD_SECT_PTR(slidx->mem_dev_err, sp);
-		} else if (!efi_guidcmp(sp->guid, SAL_PLAT_SEL_DEV_ERR_SECT_GUID)) {
+		} else if (!efi_guidcmp(sp->guid,
+				SAL_PLAT_SEL_DEV_ERR_SECT_GUID)) {
 			platform_err = 1;
 			LOG_INDEX_ADD_SECT_PTR(slidx->sel_dev_err, sp);
-		} else if (!efi_guidcmp(sp->guid, SAL_PLAT_PCI_BUS_ERR_SECT_GUID)) {
+		} else if (!efi_guidcmp(sp->guid,
+				SAL_PLAT_PCI_BUS_ERR_SECT_GUID)) {
 			platform_err = 1;
 			LOG_INDEX_ADD_SECT_PTR(slidx->pci_bus_err, sp);
-		} else if (!efi_guidcmp(sp->guid, SAL_PLAT_SMBIOS_DEV_ERR_SECT_GUID)) {
+		} else if (!efi_guidcmp(sp->guid,
+				SAL_PLAT_SMBIOS_DEV_ERR_SECT_GUID)) {
 			platform_err = 1;
 			LOG_INDEX_ADD_SECT_PTR(slidx->smbios_dev_err, sp);
-		} else if (!efi_guidcmp(sp->guid, SAL_PLAT_PCI_COMP_ERR_SECT_GUID)) {
+		} else if (!efi_guidcmp(sp->guid,
+				SAL_PLAT_PCI_COMP_ERR_SECT_GUID)) {
 			platform_err = 1;
 			LOG_INDEX_ADD_SECT_PTR(slidx->pci_comp_err, sp);
-		} else if (!efi_guidcmp(sp->guid, SAL_PLAT_SPECIFIC_ERR_SECT_GUID)) {
+		} else if (!efi_guidcmp(sp->guid,
+				SAL_PLAT_SPECIFIC_ERR_SECT_GUID)) {
 			platform_err = 1;
 			LOG_INDEX_ADD_SECT_PTR(slidx->plat_specific_err, sp);
-		} else if (!efi_guidcmp(sp->guid, SAL_PLAT_HOST_CTLR_ERR_SECT_GUID)) {
+		} else if (!efi_guidcmp(sp->guid,
+				SAL_PLAT_HOST_CTLR_ERR_SECT_GUID)) {
 			platform_err = 1;
 			LOG_INDEX_ADD_SECT_PTR(slidx->host_ctlr_err, sp);
-		} else if (!efi_guidcmp(sp->guid, SAL_PLAT_BUS_ERR_SECT_GUID)) {
+		} else if (!efi_guidcmp(sp->guid,
+				SAL_PLAT_BUS_ERR_SECT_GUID)) {
 			platform_err = 1;
 			LOG_INDEX_ADD_SECT_PTR(slidx->plat_bus_err, sp);
 		} else {
@@ -255,15 +270,16 @@ mca_make_slidx(void *buffer, slidx_table_t *slidx)
  * Return value:
  *	0 on Success / -ENOMEM on Failure
  */
-static int 
+static int
 init_record_index_pools(void)
 {
 	int i;
 	int rec_max_size;  /* Maximum size of SAL error records */
 	int sect_min_size; /* Minimum size of SAL error sections */
 	/* minimum size table of each section */
-	static int sal_log_sect_min_sizes[] = { 
-		sizeof(sal_log_processor_info_t) + sizeof(sal_processor_static_info_t),
+	static int sal_log_sect_min_sizes[] = {
+		sizeof(sal_log_processor_info_t)
+		+ sizeof(sal_processor_static_info_t),
 		sizeof(sal_log_mem_dev_err_info_t),
 		sizeof(sal_log_sel_dev_err_info_t),
 		sizeof(sal_log_pci_bus_err_info_t),
@@ -296,7 +312,8 @@ init_record_index_pools(void)
 
 	/* - 3 - */
 	slidx_pool.max_idx = (rec_max_size/sect_min_size) * 2 + 1;
-	slidx_pool.buffer = (slidx_list_t *) kmalloc(slidx_pool.max_idx * sizeof(slidx_list_t), GFP_KERNEL);
+	slidx_pool.buffer = (slidx_list_t *)
+		kmalloc(slidx_pool.max_idx * sizeof(slidx_list_t), GFP_KERNEL);
 
 	return slidx_pool.buffer ? 0 : -ENOMEM;
 }
@@ -310,24 +327,27 @@ init_record_index_pools(void)
  * is_mca_global - Check whether this MCA is global or not
  * @peidx:	pointer of index of processor error section
  * @pbci:	pointer to pal_bus_check_info_t
+ * @sos:	pointer to hand off struct between SAL and OS
  *
  * Return value:
  *	MCA_IS_LOCAL / MCA_IS_GLOBAL
  */
 
 static mca_type_t
-is_mca_global(peidx_table_t *peidx, pal_bus_check_info_t *pbci)
+is_mca_global(peidx_table_t *peidx, pal_bus_check_info_t *pbci,
+	      struct ia64_sal_os_state *sos)
 {
-	pal_processor_state_info_t *psp = (pal_processor_state_info_t*)peidx_psp(peidx);
+	pal_processor_state_info_t *psp =
+		(pal_processor_state_info_t*)peidx_psp(peidx);
 
-	/* 
+	/*
 	 * PAL can request a rendezvous, if the MCA has a global scope.
-	 * If "rz_always" flag is set, SAL requests MCA rendezvous 
+	 * If "rz_always" flag is set, SAL requests MCA rendezvous
 	 * in spite of global MCA.
 	 * Therefore it is local MCA when rendezvous has not been requested.
 	 * Failed to rendezvous, the system must be down.
 	 */
-	switch (sal_to_os_handoff_state->imsto_rendez_state) {
+	switch (sos->rv_rc) {
 		case -1: /* SAL rendezvous unsuccessful */
 			return MCA_IS_GLOBAL;
 		case  0: /* SAL rendezvous not required */
@@ -382,13 +402,16 @@ is_mca_global(peidx_table_t *peidx, pal_bus_check_info_t *pbci)
  * @slidx:	pointer of index of SAL error record
  * @peidx:	pointer of index of processor error section
  * @pbci:	pointer of pal_bus_check_info
+ * @sos:	pointer to hand off struct between SAL and OS
  *
  * Return value:
  *	1 on Success / 0 on Failure
  */
 
 static int
-recover_from_read_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_check_info_t *pbci)
+recover_from_read_error(slidx_table_t *slidx,
+			peidx_table_t *peidx, pal_bus_check_info_t *pbci,
+			struct ia64_sal_os_state *sos)
 {
 	sal_log_mod_error_info_t *smei;
 	pal_min_state_area_t *pmsa;
@@ -426,7 +449,7 @@ recover_from_read_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_chec
 			 *  setup for resume to bottom half of MCA,
 			 * "mca_handler_bhhook"
 			 */
-			pmsa = (pal_min_state_area_t *)(sal_to_os_handoff_state->pal_min_state | (6ul<<61));
+			pmsa = sos->pal_min_state;
 			/* pass to bhhook as 1st argument (gr8) */
 			pmsa->pmsa_gr[8-1] = smei->target_identifier;
 			/* set interrupted return address (but no use) */
@@ -453,23 +476,28 @@ recover_from_read_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_chec
  * @slidx:	pointer of index of SAL error record
  * @peidx:	pointer of index of processor error section
  * @pbci:	pointer of pal_bus_check_info
+ * @sos:	pointer to hand off struct between SAL and OS
  *
  * Return value:
  *	1 on Success / 0 on Failure
  */
 
 static int
-recover_from_platform_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_check_info_t *pbci)
+recover_from_platform_error(slidx_table_t *slidx, peidx_table_t *peidx,
+			    pal_bus_check_info_t *pbci,
+			    struct ia64_sal_os_state *sos)
 {
 	int status = 0;
-	pal_processor_state_info_t *psp = (pal_processor_state_info_t*)peidx_psp(peidx);
+	pal_processor_state_info_t *psp =
+		(pal_processor_state_info_t*)peidx_psp(peidx);
 
 	if (psp->bc && pbci->eb && pbci->bsi == 0) {
 		switch(pbci->type) {
 		case 1: /* partial read */
 		case 3: /* full line(cpu) read */
 		case 9: /* I/O space read */
-			status = recover_from_read_error(slidx, peidx, pbci);
+			status = recover_from_read_error(slidx, peidx, pbci,
+							 sos);
 			break;
 		case 0: /* unknown */
 		case 2: /* partial write */
@@ -480,7 +508,8 @@ recover_from_platform_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_
 		case 8: /* write coalescing transactions */
 		case 10: /* I/O space write */
 		case 11: /* inter-processor interrupt message(IPI) */
-		case 12: /* interrupt acknowledge or external task priority cycle */
+		case 12: /* interrupt acknowledge or
+				external task priority cycle */
 		default:
 			break;
 		}
@@ -495,6 +524,7 @@ recover_from_platform_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_
  * @slidx:	pointer of index of SAL error record
  * @peidx:	pointer of index of processor error section
  * @pbci:	pointer of pal_bus_check_info
+ * @sos:	pointer to hand off struct between SAL and OS
  *
  * Return value:
  *	1 on Success / 0 on Failure
@@ -508,14 +538,17 @@ recover_from_platform_error(slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_
  */
 
 static int
-recover_from_processor_error(int platform, slidx_table_t *slidx, peidx_table_t *peidx, pal_bus_check_info_t *pbci)
+recover_from_processor_error(int platform, slidx_table_t *slidx,
+			     peidx_table_t *peidx, pal_bus_check_info_t *pbci,
+			     struct ia64_sal_os_state *sos)
 {
-	pal_processor_state_info_t *psp = (pal_processor_state_info_t*)peidx_psp(peidx);
+	pal_processor_state_info_t *psp =
+		(pal_processor_state_info_t*)peidx_psp(peidx);
 
-	/* 
+	/*
 	 * We cannot recover errors with other than bus_check.
 	 */
-	if (psp->cc || psp->rc || psp->uc) 
+	if (psp->cc || psp->rc || psp->uc)
 		return 0;
 
 	/*
@@ -544,10 +577,10 @@ recover_from_processor_error(int platform, slidx_table_t *slidx, peidx_table_t *
 	 * (e.g. a load from poisoned memory)
 	 * This means "there are some platform errors".
 	 */
-	if (platform) 
-		return recover_from_platform_error(slidx, peidx, pbci);
-	/* 
-	 * On account of strange SAL error record, we cannot recover. 
+	if (platform)
+		return recover_from_platform_error(slidx, peidx, pbci, sos);
+	/*
+	 * On account of strange SAL error record, we cannot recover.
 	 */
 	return 0;
 }
@@ -555,25 +588,20 @@ recover_from_processor_error(int platform, slidx_table_t *slidx, peidx_table_t *
 /**
  * mca_try_to_recover - Try to recover from MCA
  * @rec:	pointer to a SAL error record
+ * @sos:	pointer to hand off struct between SAL and OS
  *
  * Return value:
  *	1 on Success / 0 on Failure
  */
 
 static int
-mca_try_to_recover(void *rec, 
-	ia64_mca_sal_to_os_state_t *sal_to_os_state,
-	ia64_mca_os_to_sal_state_t *os_to_sal_state)
+mca_try_to_recover(void *rec, struct ia64_sal_os_state *sos)
 {
 	int platform_err;
 	int n_proc_err;
 	slidx_table_t slidx;
 	peidx_table_t peidx;
 	pal_bus_check_info_t pbci;
-
-	/* handoff state from/to mca.c */
-	sal_to_os_handoff_state = sal_to_os_state;
-	os_to_sal_handoff_state = os_to_sal_state;
 
 	/* Make index of SAL error record */
 	platform_err = mca_make_slidx(rec, &slidx);
@@ -591,17 +619,19 @@ mca_try_to_recover(void *rec,
 	}
 
 	/* Make index of processor error section */
-	mca_make_peidx((sal_log_processor_info_t*)slidx_first_entry(&slidx.proc_err)->hdr, &peidx);
+	mca_make_peidx((sal_log_processor_info_t*)
+		slidx_first_entry(&slidx.proc_err)->hdr, &peidx);
 
 	/* Extract Processor BUS_CHECK[0] */
 	*((u64*)&pbci) = peidx_check_info(&peidx, bus_check, 0);
 
 	/* Check whether MCA is global or not */
-	if (is_mca_global(&peidx, &pbci))
+	if (is_mca_global(&peidx, &pbci, sos))
 		return 0;
 	
 	/* Try to recover a processor error */
-	return recover_from_processor_error(platform_err, &slidx, &peidx, &pbci);
+	return recover_from_processor_error(platform_err, &slidx, &peidx,
+					    &pbci, sos);
 }
 
 /*
@@ -614,7 +644,7 @@ int __init mca_external_handler_init(void)
 		return -ENOMEM;
 
 	/* register external mca handlers */
-	if (ia64_reg_MCA_extension(mca_try_to_recover)){	
+	if (ia64_reg_MCA_extension(mca_try_to_recover)) {	
 		printk(KERN_ERR "ia64_reg_MCA_extension failed.\n");
 		kfree(slidx_pool.buffer);
 		return -EFAULT;

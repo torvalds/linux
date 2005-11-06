@@ -46,6 +46,12 @@ There are a few types of systems where video works after S3 resume:
   POSTing bios works. Ole Rohne has patch to do just that at
   http://dev.gentoo.org/~marineam/patch-radeonfb-2.6.11-rc2-mm2.
 
+(8) on some systems, you can use the video_post utility mentioned here:
+  http://bugzilla.kernel.org/show_bug.cgi?id=3670. Do echo 3 > /sys/power/state
+  && /usr/sbin/video_post - which will initialize the display in console mode.
+  If  you are in X, you can switch to a virtual terminal and back to X using
+  CTRL+ALT+F1 - CTRL+ALT+F7 to get the display working in graphical mode again.
+
 Now, if you pass acpi_sleep=something, and it does not work with your
 bios, you'll get a hard crash during resume. Be careful. Also it is
 safest to do your experiments with plain old VGA console. The vesafb
@@ -64,7 +70,8 @@ Model                           hack (or "how to do it")
 ------------------------------------------------------------------------------
 Acer Aspire 1406LC		ole's late BIOS init (7), turn off DRI
 Acer TM 242FX			vbetool (6)
-Acer TM C300                    vga=normal (only suspend on console, not in X), vbetool (6)
+Acer TM C110			video_post (8)
+Acer TM C300                    vga=normal (only suspend on console, not in X), vbetool (6) or video_post (8)
 Acer TM 4052LCi		        s3_bios (2)
 Acer TM 636Lci			s3_bios vga=normal (2)
 Acer TM 650 (Radeon M7)		vga=normal plus boot-radeon (5) gets text console back
@@ -113,6 +120,7 @@ IBM ThinkPad T42p (2373-GTG)	s3_bios (2)
 IBM TP X20			??? (*)
 IBM TP X30			s3_bios (2)
 IBM TP X31 / Type 2672-XXH      none (1), use radeontool (http://fdd.com/software/radeon/) to turn off backlight.
+IBM TP X32			none (1), but backlight is on and video is trashed after long suspend
 IBM Thinkpad X40 Type 2371-7JG  s3_bios,s3_mode (4)
 Medion MD4220			??? (*)
 Samsung P35			vbetool needed (6)

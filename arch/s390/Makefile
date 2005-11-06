@@ -19,6 +19,7 @@ CFLAGS		+= -m31
 AFLAGS		+= -m31
 UTS_MACHINE	:= s390
 STACK_SIZE	:= 8192
+CHECKFLAGS	+= -D__s390__
 endif
 
 ifdef CONFIG_ARCH_S390X
@@ -28,6 +29,7 @@ CFLAGS		+= -m64
 AFLAGS		+= -m64
 UTS_MACHINE	:= s390x
 STACK_SIZE	:= 16384
+CHECKFLAGS	+= -D__s390__ -D__s390x__
 endif
 
 cflags-$(CONFIG_MARCH_G5)   += $(call cc-option,-march=g5)
@@ -99,16 +101,6 @@ image: vmlinux
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
-
-prepare: include/asm-$(ARCH)/offsets.h
-
-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
-				   include/config/MARKER
-
-include/asm-$(ARCH)/offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
-	$(call filechk,gen-asm-offsets)
-
-CLEAN_FILES += include/asm-$(ARCH)/offsets.h
 
 # Don't use tabs in echo arguments
 define archhelp

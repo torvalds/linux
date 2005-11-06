@@ -27,11 +27,11 @@
 		SAVE_ALL
 		CLI
 		.set	at
-		mfc0	t0, CP0_CAUSE  
+		mfc0	t0, CP0_CAUSE
 		mfc0	t2, CP0_STATUS
 
 		and	t0, t2
-        
+
 		andi	t1, t0, STATUSF_IP0	/* sw0 software interrupt */
 		bnez	t1, ll_sw0_irq
 		andi	t1, t0, STATUSF_IP1	/* sw1 software interrupt */
@@ -103,25 +103,25 @@ ll_pcia_irq:
 		move	a1, sp
 		jal	do_IRQ
 		j	ret_from_irq
-	
+
 ll_pcib_irq:
 		li	a0, 5
 		move	a1, sp
 		jal	do_IRQ
 		j	ret_from_irq
-	
+
 ll_uart_irq:
 		li	a0, 6
 		move	a1, sp
 		jal	do_IRQ
 		j	ret_from_irq
-	
+
 ll_cputimer_irq:
 		li	a0, 7
 		move	a1, sp
 		jal	ll_timer_interrupt
 		j	ret_from_irq
-	
+
 ll_mv64340_decode_irq:
 		move	a0, sp
 		jal	ll_mv64340_irq

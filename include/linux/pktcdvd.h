@@ -166,6 +166,9 @@ struct packet_iosched
 /*
  * 32 buffers of 2048 bytes
  */
+#if (PAGE_SIZE % CD_FRAMESIZE) != 0
+#error "PAGE_SIZE must be a multiple of CD_FRAMESIZE"
+#endif
 #define PACKET_MAX_SIZE		32
 #define PAGES_PER_PACKET	(PACKET_MAX_SIZE * CD_FRAMESIZE / PAGE_SIZE)
 #define PACKET_MAX_SECTORS	(PACKET_MAX_SIZE * CD_FRAMESIZE >> 9)

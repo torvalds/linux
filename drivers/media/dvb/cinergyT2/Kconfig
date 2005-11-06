@@ -77,7 +77,7 @@ config DVB_CINERGYT2_ENABLE_RC_INPUT_DEVICE
 config DVB_CINERGYT2_RC_QUERY_INTERVAL
 	int "Infrared Remote Controller update interval [milliseconds]"
 	depends on DVB_CINERGYT2_TUNING && DVB_CINERGYT2_ENABLE_RC_INPUT_DEVICE
-        default "100"
+        default "50"
 	help
 	  If you have a very fast-repeating remote control you can try lower
 	  values, for normal consumer receivers the default value should be

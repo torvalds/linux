@@ -3,7 +3,7 @@
  *
  * OMAP GPIO handling defines and functions
  *
- * Copyright (C) 2003 Nokia Corporation
+ * Copyright (C) 2003-2005 Nokia Corporation
  *
  * Written by Juha Yrjölä <juha.yrjola@nokia.com>
  *
@@ -30,7 +30,23 @@
 #include <asm/arch/irqs.h>
 #include <asm/io.h>
 
-#define OMAP_MPUIO_BASE			0xfffb5000
+#define OMAP_MPUIO_BASE			(void __iomem *)0xfffb5000
+
+#ifdef CONFIG_ARCH_OMAP730
+#define OMAP_MPUIO_INPUT_LATCH		0x00
+#define OMAP_MPUIO_OUTPUT		0x02
+#define OMAP_MPUIO_IO_CNTL		0x04
+#define OMAP_MPUIO_KBR_LATCH		0x08
+#define OMAP_MPUIO_KBC			0x0a
+#define OMAP_MPUIO_GPIO_EVENT_MODE	0x0c
+#define OMAP_MPUIO_GPIO_INT_EDGE	0x0e
+#define OMAP_MPUIO_KBD_INT		0x10
+#define OMAP_MPUIO_GPIO_INT		0x12
+#define OMAP_MPUIO_KBD_MASKIT		0x14
+#define OMAP_MPUIO_GPIO_MASKIT		0x16
+#define OMAP_MPUIO_GPIO_DEBOUNCING	0x18
+#define OMAP_MPUIO_LATCH		0x1a
+#else
 #define OMAP_MPUIO_INPUT_LATCH		0x00
 #define OMAP_MPUIO_OUTPUT		0x04
 #define OMAP_MPUIO_IO_CNTL		0x08
@@ -44,6 +60,7 @@
 #define OMAP_MPUIO_GPIO_MASKIT		0x2c
 #define OMAP_MPUIO_GPIO_DEBOUNCING	0x30
 #define OMAP_MPUIO_LATCH		0x34
+#endif
 
 #define OMAP_MPUIO(nr)		(OMAP_MAX_GPIO_LINES + (nr))
 #define OMAP_GPIO_IS_MPUIO(nr)	((nr) >= OMAP_MAX_GPIO_LINES)
@@ -52,18 +69,11 @@
 				 IH_MPUIO_BASE + ((nr) & 0x0f) : \
 				 IH_GPIO_BASE + ((nr) & 0x3f))
 
-/* For EDGECTRL */
-#define OMAP_GPIO_NO_EDGE	  0x00
-#define OMAP_GPIO_FALLING_EDGE	  0x01
-#define OMAP_GPIO_RISING_EDGE	  0x02
-#define OMAP_GPIO_BOTH_EDGES	  0x03
-
 extern int omap_gpio_init(void);	/* Call from board init only */
 extern int omap_request_gpio(int gpio);
 extern void omap_free_gpio(int gpio);
 extern void omap_set_gpio_direction(int gpio, int is_input);
 extern void omap_set_gpio_dataout(int gpio, int enable);
 extern int omap_get_gpio_datain(int gpio);
-extern void omap_set_gpio_edge_ctrl(int gpio, int edge);
 
 #endif

@@ -87,14 +87,14 @@ static inline void pgd_list_add(pgd_t *pgd)
 	if (pgd_list)
 		pgd_list->private = (unsigned long) &page->index;
 	pgd_list = page;
-	page->private = (unsigned long) &pgd_list;
+	set_page_private(page, (unsigned long)&pgd_list);
 }
 
 static inline void pgd_list_del(pgd_t *pgd)
 {
 	struct page *next, **pprev, *page = virt_to_page(pgd);
 	next = (struct page *) page->index;
-	pprev = (struct page **) page->private;
+	pprev = (struct page **)page_private(page);
 	*pprev = next;
 	if (next)
 		next->private = (unsigned long) pprev;

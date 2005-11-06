@@ -28,7 +28,7 @@ if [ -x /sbin/${CROSS_COMPILE}installkernel ]; then exec /sbin/${CROSS_COMPILE}i
 # Default install
 
 # this should work for both the pSeries zImage and the iSeries vmlinux.sm
-image_name=`basename $5`
+image_name=`basename $2`
 
 if [ -f $4/$image_name ]; then
 	mv $4/$image_name $4/$image_name.old

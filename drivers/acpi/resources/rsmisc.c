@@ -41,13 +41,11 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acresrc.h>
 
 #define _COMPONENT          ACPI_RESOURCES
-	 ACPI_MODULE_NAME    ("rsmisc")
-
+ACPI_MODULE_NAME("rsmisc")
 
 /*******************************************************************************
  *
@@ -69,20 +67,15 @@
  *              number of bytes consumed from the byte stream.
  *
  ******************************************************************************/
-
 acpi_status
-acpi_rs_end_tag_resource (
-	u8                              *byte_stream_buffer,
-	acpi_size                       *bytes_consumed,
-	u8                              **output_buffer,
-	acpi_size                       *structure_size)
+acpi_rs_end_tag_resource(u8 * byte_stream_buffer,
+			 acpi_size * bytes_consumed,
+			 u8 ** output_buffer, acpi_size * structure_size)
 {
-	struct acpi_resource            *output_struct = (void *) *output_buffer;
-	acpi_size                       struct_size = ACPI_RESOURCE_LENGTH;
+	struct acpi_resource *output_struct = (void *)*output_buffer;
+	acpi_size struct_size = ACPI_RESOURCE_LENGTH;
 
-
-	ACPI_FUNCTION_TRACE ("rs_end_tag_resource");
-
+	ACPI_FUNCTION_TRACE("rs_end_tag_resource");
 
 	/* The number of bytes consumed is static */
 
@@ -99,9 +92,8 @@ acpi_rs_end_tag_resource (
 	/* Return the final size of the structure */
 
 	*structure_size = struct_size;
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -120,17 +112,13 @@ acpi_rs_end_tag_resource (
  ******************************************************************************/
 
 acpi_status
-acpi_rs_end_tag_stream (
-	struct acpi_resource            *linked_list,
-	u8                              **output_buffer,
-	acpi_size                       *bytes_consumed)
+acpi_rs_end_tag_stream(struct acpi_resource *linked_list,
+		       u8 ** output_buffer, acpi_size * bytes_consumed)
 {
-	u8                              *buffer = *output_buffer;
-	u8                              temp8 = 0;
+	u8 *buffer = *output_buffer;
+	u8 temp8 = 0;
 
-
-	ACPI_FUNCTION_TRACE ("rs_end_tag_stream");
-
+	ACPI_FUNCTION_TRACE("rs_end_tag_stream");
 
 	/* The descriptor field is static */
 
@@ -148,10 +136,9 @@ acpi_rs_end_tag_stream (
 
 	/* Return the number of bytes consumed in this operation */
 
-	*bytes_consumed = ACPI_PTR_DIFF (buffer, *output_buffer);
-	return_ACPI_STATUS (AE_OK);
+	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -175,23 +162,19 @@ acpi_rs_end_tag_stream (
  ******************************************************************************/
 
 acpi_status
-acpi_rs_vendor_resource (
-	u8                              *byte_stream_buffer,
-	acpi_size                       *bytes_consumed,
-	u8                              **output_buffer,
-	acpi_size                       *structure_size)
+acpi_rs_vendor_resource(u8 * byte_stream_buffer,
+			acpi_size * bytes_consumed,
+			u8 ** output_buffer, acpi_size * structure_size)
 {
-	u8                              *buffer = byte_stream_buffer;
-	struct acpi_resource            *output_struct = (void *) *output_buffer;
-	u16                             temp16 = 0;
-	u8                              temp8 = 0;
-	u8                              index;
-	acpi_size                       struct_size = ACPI_SIZEOF_RESOURCE (
-			  struct acpi_resource_vendor);
+	u8 *buffer = byte_stream_buffer;
+	struct acpi_resource *output_struct = (void *)*output_buffer;
+	u16 temp16 = 0;
+	u8 temp8 = 0;
+	u8 index;
+	acpi_size struct_size =
+	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_vendor);
 
-
-	ACPI_FUNCTION_TRACE ("rs_vendor_resource");
-
+	ACPI_FUNCTION_TRACE("rs_vendor_resource");
 
 	/* Dereference the Descriptor to find if this is a large or small item. */
 
@@ -204,7 +187,7 @@ acpi_rs_vendor_resource (
 
 		/* Dereference */
 
-		ACPI_MOVE_16_TO_16 (&temp16, buffer);
+		ACPI_MOVE_16_TO_16(&temp16, buffer);
 
 		/* Calculate bytes consumed */
 
@@ -213,11 +196,10 @@ acpi_rs_vendor_resource (
 		/* Point to the first vendor byte */
 
 		buffer += 2;
-	}
-	else {
+	} else {
 		/* Small Item, dereference the size */
 
-		temp16 = (u8)(*buffer & 0x07);
+		temp16 = (u8) (*buffer & 0x07);
 
 		/* Calculate bytes consumed */
 
@@ -241,7 +223,7 @@ acpi_rs_vendor_resource (
 	 * calculate the length of the vendor string and expand the
 	 * struct_size to the next 32-bit boundary.
 	 */
-	struct_size += ACPI_ROUND_UP_to_32_bITS (temp16);
+	struct_size += ACPI_ROUND_UP_to_32_bITS(temp16);
 
 	/* Set the Length parameter */
 
@@ -250,9 +232,8 @@ acpi_rs_vendor_resource (
 	/* Return the final size of the structure */
 
 	*structure_size = struct_size;
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -271,23 +252,19 @@ acpi_rs_vendor_resource (
  ******************************************************************************/
 
 acpi_status
-acpi_rs_vendor_stream (
-	struct acpi_resource            *linked_list,
-	u8                              **output_buffer,
-	acpi_size                       *bytes_consumed)
+acpi_rs_vendor_stream(struct acpi_resource *linked_list,
+		      u8 ** output_buffer, acpi_size * bytes_consumed)
 {
-	u8                              *buffer = *output_buffer;
-	u16                             temp16 = 0;
-	u8                              temp8 = 0;
-	u8                              index;
+	u8 *buffer = *output_buffer;
+	u16 temp16 = 0;
+	u8 temp8 = 0;
+	u8 index;
 
-
-	ACPI_FUNCTION_TRACE ("rs_vendor_stream");
-
+	ACPI_FUNCTION_TRACE("rs_vendor_stream");
 
 	/* Dereference the length to find if this is a large or small item. */
 
-	if(linked_list->data.vendor_specific.length > 7) {
+	if (linked_list->data.vendor_specific.length > 7) {
 		/* Large Item, Set the descriptor field and length bytes */
 
 		*buffer = 0x84;
@@ -295,10 +272,9 @@ acpi_rs_vendor_stream (
 
 		temp16 = (u16) linked_list->data.vendor_specific.length;
 
-		ACPI_MOVE_16_TO_16 (buffer, &temp16);
+		ACPI_MOVE_16_TO_16(buffer, &temp16);
 		buffer += 2;
-	}
-	else {
+	} else {
 		/* Small Item, Set the descriptor field */
 
 		temp8 = 0x70;
@@ -310,7 +286,8 @@ acpi_rs_vendor_stream (
 
 	/* Loop through all of the Vendor Specific fields */
 
-	for (index = 0; index < linked_list->data.vendor_specific.length; index++) {
+	for (index = 0; index < linked_list->data.vendor_specific.length;
+	     index++) {
 		temp8 = linked_list->data.vendor_specific.reserved[index];
 
 		*buffer = temp8;
@@ -319,10 +296,9 @@ acpi_rs_vendor_stream (
 
 	/* Return the number of bytes consumed in this operation */
 
-	*bytes_consumed = ACPI_PTR_DIFF (buffer, *output_buffer);
-	return_ACPI_STATUS (AE_OK);
+	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -346,21 +322,18 @@ acpi_rs_vendor_stream (
  ******************************************************************************/
 
 acpi_status
-acpi_rs_start_depend_fns_resource (
-	u8                              *byte_stream_buffer,
-	acpi_size                       *bytes_consumed,
-	u8                              **output_buffer,
-	acpi_size                       *structure_size)
+acpi_rs_start_depend_fns_resource(u8 * byte_stream_buffer,
+				  acpi_size * bytes_consumed,
+				  u8 ** output_buffer,
+				  acpi_size * structure_size)
 {
-	u8                              *buffer = byte_stream_buffer;
-	struct acpi_resource            *output_struct = (void *) *output_buffer;
-	u8                              temp8 = 0;
-	acpi_size                       struct_size = ACPI_SIZEOF_RESOURCE (
-			  struct acpi_resource_start_dpf);
+	u8 *buffer = byte_stream_buffer;
+	struct acpi_resource *output_struct = (void *)*output_buffer;
+	u8 temp8 = 0;
+	acpi_size struct_size =
+	    ACPI_SIZEOF_RESOURCE(struct acpi_resource_start_dpf);
 
-
-	ACPI_FUNCTION_TRACE ("rs_start_depend_fns_resource");
-
+	ACPI_FUNCTION_TRACE("rs_start_depend_fns_resource");
 
 	/* The number of bytes consumed are found in the descriptor (Bits:0-1) */
 
@@ -378,26 +351,27 @@ acpi_rs_start_depend_fns_resource (
 
 		/* Check Compatibility priority */
 
-		output_struct->data.start_dpf.compatibility_priority = temp8 & 0x03;
+		output_struct->data.start_dpf.compatibility_priority =
+		    temp8 & 0x03;
 
 		if (3 == output_struct->data.start_dpf.compatibility_priority) {
-			return_ACPI_STATUS (AE_AML_BAD_RESOURCE_VALUE);
+			return_ACPI_STATUS(AE_AML_BAD_RESOURCE_VALUE);
 		}
 
 		/* Check Performance/Robustness preference */
 
-		output_struct->data.start_dpf.performance_robustness = (temp8 >> 2) & 0x03;
+		output_struct->data.start_dpf.performance_robustness =
+		    (temp8 >> 2) & 0x03;
 
 		if (3 == output_struct->data.start_dpf.performance_robustness) {
-			return_ACPI_STATUS (AE_AML_BAD_RESOURCE_VALUE);
+			return_ACPI_STATUS(AE_AML_BAD_RESOURCE_VALUE);
 		}
-	}
-	else {
+	} else {
 		output_struct->data.start_dpf.compatibility_priority =
-			ACPI_ACCEPTABLE_CONFIGURATION;
+		    ACPI_ACCEPTABLE_CONFIGURATION;
 
 		output_struct->data.start_dpf.performance_robustness =
-			ACPI_ACCEPTABLE_CONFIGURATION;
+		    ACPI_ACCEPTABLE_CONFIGURATION;
 	}
 
 	/* Set the Length parameter */
@@ -407,9 +381,8 @@ acpi_rs_start_depend_fns_resource (
 	/* Return the final size of the structure */
 
 	*structure_size = struct_size;
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -433,18 +406,14 @@ acpi_rs_start_depend_fns_resource (
  ******************************************************************************/
 
 acpi_status
-acpi_rs_end_depend_fns_resource (
-	u8                              *byte_stream_buffer,
-	acpi_size                       *bytes_consumed,
-	u8                              **output_buffer,
-	acpi_size                       *structure_size)
+acpi_rs_end_depend_fns_resource(u8 * byte_stream_buffer,
+				acpi_size * bytes_consumed,
+				u8 ** output_buffer, acpi_size * structure_size)
 {
-	struct acpi_resource            *output_struct = (void *) *output_buffer;
-	acpi_size                       struct_size = ACPI_RESOURCE_LENGTH;
+	struct acpi_resource *output_struct = (void *)*output_buffer;
+	acpi_size struct_size = ACPI_RESOURCE_LENGTH;
 
-
-	ACPI_FUNCTION_TRACE ("rs_end_depend_fns_resource");
-
+	ACPI_FUNCTION_TRACE("rs_end_depend_fns_resource");
 
 	/* The number of bytes consumed is static */
 
@@ -461,9 +430,8 @@ acpi_rs_end_depend_fns_resource (
 	/* Return the final size of the structure */
 
 	*structure_size = struct_size;
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -483,39 +451,35 @@ acpi_rs_end_depend_fns_resource (
  ******************************************************************************/
 
 acpi_status
-acpi_rs_start_depend_fns_stream (
-	struct acpi_resource            *linked_list,
-	u8                              **output_buffer,
-	acpi_size                       *bytes_consumed)
+acpi_rs_start_depend_fns_stream(struct acpi_resource *linked_list,
+				u8 ** output_buffer, acpi_size * bytes_consumed)
 {
-	u8                              *buffer = *output_buffer;
-	u8                              temp8 = 0;
+	u8 *buffer = *output_buffer;
+	u8 temp8 = 0;
 
-
-	ACPI_FUNCTION_TRACE ("rs_start_depend_fns_stream");
-
+	ACPI_FUNCTION_TRACE("rs_start_depend_fns_stream");
 
 	/*
 	 * The descriptor field is set based upon whether a byte is needed
 	 * to contain Priority data.
 	 */
 	if (ACPI_ACCEPTABLE_CONFIGURATION ==
-			linked_list->data.start_dpf.compatibility_priority &&
-		ACPI_ACCEPTABLE_CONFIGURATION ==
-			linked_list->data.start_dpf.performance_robustness) {
+	    linked_list->data.start_dpf.compatibility_priority &&
+	    ACPI_ACCEPTABLE_CONFIGURATION ==
+	    linked_list->data.start_dpf.performance_robustness) {
 		*buffer = 0x30;
-	}
-	else {
+	} else {
 		*buffer = 0x31;
 		buffer += 1;
 
 		/* Set the Priority Byte Definition */
 
 		temp8 = 0;
-		temp8 = (u8) ((linked_list->data.start_dpf.performance_robustness &
-				   0x03) << 2);
-		temp8 |= (linked_list->data.start_dpf.compatibility_priority &
-				   0x03);
+		temp8 =
+		    (u8) ((linked_list->data.start_dpf.
+			   performance_robustness & 0x03) << 2);
+		temp8 |=
+		    (linked_list->data.start_dpf.compatibility_priority & 0x03);
 		*buffer = temp8;
 	}
 
@@ -523,10 +487,9 @@ acpi_rs_start_depend_fns_stream (
 
 	/* Return the number of bytes consumed in this operation */
 
-	*bytes_consumed = ACPI_PTR_DIFF (buffer, *output_buffer);
-	return_ACPI_STATUS (AE_OK);
+	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -545,16 +508,12 @@ acpi_rs_start_depend_fns_stream (
  ******************************************************************************/
 
 acpi_status
-acpi_rs_end_depend_fns_stream (
-	struct acpi_resource            *linked_list,
-	u8                              **output_buffer,
-	acpi_size                       *bytes_consumed)
+acpi_rs_end_depend_fns_stream(struct acpi_resource *linked_list,
+			      u8 ** output_buffer, acpi_size * bytes_consumed)
 {
-	u8                              *buffer = *output_buffer;
+	u8 *buffer = *output_buffer;
 
-
-	ACPI_FUNCTION_TRACE ("rs_end_depend_fns_stream");
-
+	ACPI_FUNCTION_TRACE("rs_end_depend_fns_stream");
 
 	/* The descriptor field is static */
 
@@ -563,7 +522,6 @@ acpi_rs_end_depend_fns_stream (
 
 	/* Return the number of bytes consumed in this operation */
 
-	*bytes_consumed = ACPI_PTR_DIFF (buffer, *output_buffer);
-	return_ACPI_STATUS (AE_OK);
+	*bytes_consumed = ACPI_PTR_DIFF(buffer, *output_buffer);
+	return_ACPI_STATUS(AE_OK);
 }
-

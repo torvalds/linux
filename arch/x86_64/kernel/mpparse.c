@@ -14,7 +14,6 @@
  */
 
 #include <linux/mm.h>
-#include <linux/irq.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/config.h>
@@ -46,8 +45,6 @@ int acpi_found_madt;
 int apic_version [MAX_APICS];
 unsigned char mp_bus_id_to_type [MAX_MP_BUSSES] = { [0 ... MAX_MP_BUSSES-1] = -1 };
 int mp_bus_id_to_pci_bus [MAX_MP_BUSSES] = { [0 ... MAX_MP_BUSSES-1] = -1 };
-unsigned char pci_bus_to_node [256];
-EXPORT_SYMBOL(pci_bus_to_node);
 
 static int mp_current_pci_id = 0;
 /* I/O APIC entries */
@@ -74,7 +71,7 @@ static unsigned int num_processors = 0;
 physid_mask_t phys_cpu_present_map = PHYSID_MASK_NONE;
 
 /* ACPI MADT entry parsing functions */
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 extern struct acpi_boot_flags acpi_boot;
 #ifdef CONFIG_X86_LOCAL_APIC
 extern int acpi_parse_lapic (acpi_table_entry_header *header);
@@ -84,7 +81,7 @@ extern int acpi_parse_lapic_nmi (acpi_table_entry_header *header);
 #ifdef CONFIG_X86_IO_APIC
 extern int acpi_parse_ioapic (acpi_table_entry_header *header);
 #endif /*CONFIG_X86_IO_APIC*/
-#endif /*CONFIG_ACPI_BOOT*/
+#endif /*CONFIG_ACPI*/
 
 u8 bios_cpu_apicid[NR_CPUS] = { [0 ... NR_CPUS-1] = BAD_APICID };
 
@@ -519,8 +516,6 @@ void __init get_smp_config (void)
 	struct intel_mp_floating *mpf = mpf_found;
 
 	/*
- 	 * ACPI may be used to obtain the entire SMP configuration or just to 
- 	 * enumerate/configure processors (CONFIG_ACPI_BOOT).  Note that 
  	 * ACPI supports both logical (e.g. Hyper-Threading) and physical 
  	 * processors, where MPS only supports physical.
  	 */
@@ -673,7 +668,7 @@ void __init find_smp_config (void)
                             ACPI-based MP Configuration
    -------------------------------------------------------------------------- */
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 
 void __init mp_register_lapic_address (
 	u64			address)
@@ -707,7 +702,7 @@ void __init mp_register_lapic (
 
 	processor.mpc_type = MP_PROCESSOR;
 	processor.mpc_apicid = id;
-	processor.mpc_apicver = 0x10; /* TBD: lapic version */
+	processor.mpc_apicver = GET_APIC_VERSION(apic_read(APIC_LVR));
 	processor.mpc_cpuflag = (enabled ? CPU_ENABLED : 0);
 	processor.mpc_cpuflag |= (boot_cpu ? CPU_BOOTPROCESSOR : 0);
 	processor.mpc_cpufeature = (boot_cpu_data.x86 << 8) | 
@@ -929,11 +924,9 @@ int mp_register_gsi(u32 gsi, int edge_level, int active_high_low)
 	if (acpi_irq_model != ACPI_IRQ_MODEL_IOAPIC)
 		return gsi;
 
-#ifdef CONFIG_ACPI_BUS
 	/* Don't set up the ACPI SCI because it's already set up */
 	if (acpi_fadt.sci_int == gsi)
 		return gsi;
-#endif
 
 	ioapic = mp_find_ioapic(gsi);
 	if (ioapic < 0) {
@@ -973,13 +966,11 @@ int mp_register_gsi(u32 gsi, int edge_level, int active_high_low)
 		if (gsi < MAX_GSI_NUM) {
 			if (gsi > 15)
 				gsi = pci_irq++;
-#ifdef CONFIG_ACPI_BUS
 			/*
 			 * Don't assign IRQ used by ACPI SCI
 			 */
 			if (gsi == acpi_fadt.sci_int)
 				gsi = pci_irq++;
-#endif
 			gsi_to_irq[irq] = gsi;
 		} else {
 			printk(KERN_ERR "GSI %u is too high\n", gsi);
@@ -994,4 +985,4 @@ int mp_register_gsi(u32 gsi, int edge_level, int active_high_low)
 }
 
 #endif /*CONFIG_X86_IO_APIC*/
-#endif /*CONFIG_ACPI_BOOT*/
+#endif /*CONFIG_ACPI*/

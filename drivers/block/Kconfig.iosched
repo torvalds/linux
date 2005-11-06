@@ -38,4 +38,32 @@ config IOSCHED_CFQ
 	  among all processes in the system. It should provide a fair
 	  working environment, suitable for desktop systems.
 
+choice
+	prompt "Default I/O scheduler"
+	default DEFAULT_AS
+	help
+	  Select the I/O scheduler which will be used by default for all
+	  block devices.
+
+	config DEFAULT_AS
+		bool "Anticipatory" if IOSCHED_AS
+
+	config DEFAULT_DEADLINE
+		bool "Deadline" if IOSCHED_DEADLINE
+
+	config DEFAULT_CFQ
+		bool "CFQ" if IOSCHED_CFQ
+
+	config DEFAULT_NOOP
+		bool "No-op"
+
+endchoice
+
+config DEFAULT_IOSCHED
+	string
+	default "anticipatory" if DEFAULT_AS
+	default "deadline" if DEFAULT_DEADLINE
+	default "cfq" if DEFAULT_CFQ
+	default "noop" if DEFAULT_NOOP
+
 endmenu

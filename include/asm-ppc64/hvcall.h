@@ -56,6 +56,11 @@
 #define H_PP1			(1UL<<(63-62))
 #define H_PP2			(1UL<<(63-63))
 
+/* DABRX flags */
+#define H_DABRX_HYPERVISOR	(1UL<<(63-61))
+#define H_DABRX_KERNEL		(1UL<<(63-62))
+#define H_DABRX_USER		(1UL<<(63-63))
+
 /* pSeries hypervisor opcodes */
 #define H_REMOVE		0x04
 #define H_ENTER			0x08
@@ -101,6 +106,7 @@
 #define H_VIO_SIGNAL		0x104
 #define H_SEND_CRQ		0x108
 #define H_COPY_RDMA             0x110
+#define H_SET_XDABR		0x134
 #define H_STUFF_TCE		0x138
 #define H_PUT_TCE_INDIRECT	0x13C
 #define H_VTERM_PARTNER_INFO	0x150

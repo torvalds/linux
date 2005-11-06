@@ -18,6 +18,7 @@
  *     28-Sep-2004 BJD  Updates for new serial port bits
  *     04-Nov-2004 BJD  Updated UART configuration process
  *     10-Jan-2005 BJD  Removed s3c2410_clock_tick_rate
+ *     13-Aug-2005 DA   Removed UART from initial I/O mappings
 */
 
 #include <linux/kernel.h>
@@ -26,7 +27,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -49,10 +50,9 @@ static struct map_desc s3c2410_iodesc[] __initdata = {
 	IODESC_ENT(USBHOST),
 	IODESC_ENT(CLKPWR),
 	IODESC_ENT(LCD),
-	IODESC_ENT(UART),
 	IODESC_ENT(TIMER),
 	IODESC_ENT(ADC),
-	IODESC_ENT(WATCHDOG)
+	IODESC_ENT(WATCHDOG),
 };
 
 static struct resource s3c_uart0_resource[] = {
@@ -124,9 +124,6 @@ static struct platform_device *uart_devices[] __initdata = {
 	&s3c_uart1,
 	&s3c_uart2
 };
-
-/* store our uart devices for the serial driver console */
-struct platform_device *s3c2410_uart_devices[3];
 
 static int s3c2410_uart_count = 0;
 

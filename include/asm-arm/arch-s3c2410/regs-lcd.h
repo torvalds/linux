@@ -51,10 +51,16 @@
 
 #define S3C2410_LCDCON1_ENVID	   (1)
 
+#define S3C2410_LCDCON1_MODEMASK    0x1E
+
 #define S3C2410_LCDCON2_VBPD(x)	    ((x) << 24)
 #define S3C2410_LCDCON2_LINEVAL(x)  ((x) << 14)
 #define S3C2410_LCDCON2_VFPD(x)	    ((x) << 6)
 #define S3C2410_LCDCON2_VSPW(x)	    ((x) << 0)
+
+#define S3C2410_LCDCON2_GET_VBPD(x) ( ((x) >> 24) & 0xFF)
+#define S3C2410_LCDCON2_GET_VFPD(x) ( ((x) >>  6) & 0xFF)
+#define S3C2410_LCDCON2_GET_VSPW(x) ( ((x) >>  0) & 0x3F)
 
 #define S3C2410_LCDCON3_HBPD(x)	    ((x) << 19)
 #define S3C2410_LCDCON3_WDLY(x)	    ((x) << 19)
@@ -62,9 +68,14 @@
 #define S3C2410_LCDCON3_HFPD(x)	    ((x) << 0)
 #define S3C2410_LCDCON3_LINEBLANK(x)((x) << 0)
 
+#define S3C2410_LCDCON3_GET_HBPD(x) ( ((x) >> 19) & 0x7F)
+#define S3C2410_LCDCON3_GET_HFPD(x) ( ((x) >>  0) & 0xFF)
+
 #define S3C2410_LCDCON4_MVAL(x)	    ((x) << 8)
 #define S3C2410_LCDCON4_HSPW(x)	    ((x) << 0)
 #define S3C2410_LCDCON4_WLH(x)	    ((x) << 0)
+
+#define S3C2410_LCDCON4_GET_HSPW(x) ( ((x) >>  0) & 0xFF)
 
 #define S3C2410_LCDCON5_BPP24BL	    (1<<12)
 #define S3C2410_LCDCON5_FRM565	    (1<<11)
@@ -100,10 +111,16 @@
 #define S3C2410_DITHMODE   S3C2410_LCDREG(0x4C)
 #define S3C2410_TPAL	   S3C2410_LCDREG(0x50)
 
+#define S3C2410_TPAL_EN		(1<<24)
+
 /* interrupt info */
 #define S3C2410_LCDINTPND  S3C2410_LCDREG(0x54)
 #define S3C2410_LCDSRCPND  S3C2410_LCDREG(0x58)
 #define S3C2410_LCDINTMSK  S3C2410_LCDREG(0x5C)
+#define S3C2410_LCDINT_FIWSEL	(1<<2)
+#define	S3C2410_LCDINT_FRSYNC	(1<<1)
+#define S3C2410_LCDINT_FICNT	(1<<0)
+
 #define S3C2410_LPCSEL	   S3C2410_LCDREG(0x60)
 
 #define S3C2410_TFTPAL(x)  S3C2410_LCDREG((0x400 + (x)*4))

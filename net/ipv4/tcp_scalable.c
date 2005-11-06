@@ -16,9 +16,10 @@
 #define TCP_SCALABLE_AI_CNT	50U
 #define TCP_SCALABLE_MD_SCALE	3
 
-static void tcp_scalable_cong_avoid(struct tcp_sock *tp, u32 ack, u32 rtt,
+static void tcp_scalable_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
 				    u32 in_flight, int flag)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
 	if (in_flight < tp->snd_cwnd)
 		return;
 
@@ -35,8 +36,9 @@ static void tcp_scalable_cong_avoid(struct tcp_sock *tp, u32 ack, u32 rtt,
 	tp->snd_cwnd_stamp = tcp_time_stamp;
 }
 
-static u32 tcp_scalable_ssthresh(struct tcp_sock *tp)
+static u32 tcp_scalable_ssthresh(struct sock *sk)
 {
+	const struct tcp_sock *tp = tcp_sk(sk);
 	return max(tp->snd_cwnd - (tp->snd_cwnd>>TCP_SCALABLE_MD_SCALE), 2U);
 }
 

@@ -43,8 +43,8 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
-#include <ib_cache.h>
-#include <ib_cm.h>
+#include <rdma/ib_cache.h>
+#include <rdma/ib_cm.h>
 #include "cm_msgs.h"
 
 MODULE_AUTHOR("Sean Hefty");
@@ -83,7 +83,7 @@ struct cm_port {
 struct cm_device {
 	struct list_head list;
 	struct ib_device *device;
-	u64 ca_guid;
+	__be64 ca_guid;
 	struct cm_port port[0];
 };
 
@@ -100,8 +100,8 @@ struct cm_work {
 	struct list_head list;
 	struct cm_port *port;
 	struct ib_mad_recv_wc *mad_recv_wc;	/* Received MADs */
-	u32 local_id;				/* Established / timewait */
-	u32 remote_id;
+	__be32 local_id;			/* Established / timewait */
+	__be32 remote_id;
 	struct ib_cm_event cm_event;
 	struct ib_sa_path_rec path[0];
 };
@@ -110,8 +110,8 @@ struct cm_timewait_info {
 	struct cm_work work;			/* Must be first. */
 	struct rb_node remote_qp_node;
 	struct rb_node remote_id_node;
-	u64 remote_ca_guid;
-	u32 remote_qpn;
+	__be64 remote_ca_guid;
+	__be32 remote_qpn;
 	u8 inserted_remote_qp;
 	u8 inserted_remote_id;
 };
@@ -132,11 +132,12 @@ struct cm_id_private {
 	struct cm_av alt_av;
 
 	void *private_data;
-	u64 tid;
-	u32 local_qpn;
-	u32 remote_qpn;
-	u32 sq_psn;
-	u32 rq_psn;
+	__be64 tid;
+	__be32 local_qpn;
+	__be32 remote_qpn;
+	enum ib_qp_type qp_type;
+	__be32 sq_psn;
+	__be32 rq_psn;
 	int timeout_ms;
 	enum ib_mtu path_mtu;
 	u8 private_data_len;
@@ -173,9 +174,9 @@ static int cm_alloc_msg(struct cm_id_private *cm_id_priv,
 	if (IS_ERR(ah))
 		return PTR_ERR(ah);
 
-	m = ib_create_send_mad(mad_agent, 1, cm_id_priv->av.pkey_index,
-			       ah, 0, sizeof(struct ib_mad_hdr),
-			       sizeof(struct ib_mad)-sizeof(struct ib_mad_hdr),
+	m = ib_create_send_mad(mad_agent, cm_id_priv->id.remote_cm_qpn, 
+			       cm_id_priv->av.pkey_index,
+			       0, IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
 			       GFP_ATOMIC);
 	if (IS_ERR(m)) {
 		ib_destroy_ah(ah);
@@ -183,7 +184,8 @@ static int cm_alloc_msg(struct cm_id_private *cm_id_priv,
 	}
 
 	/* Timeout set by caller if response is expected. */
-	m->send_wr.wr.ud.retries = cm_id_priv->max_cm_retries;
+	m->ah = ah;
+	m->retries = cm_id_priv->max_cm_retries;
 
 	atomic_inc(&cm_id_priv->refcount);
 	m->context[0] = cm_id_priv;
@@ -204,20 +206,20 @@ static int cm_alloc_response_msg(struct cm_port *port,
 		return PTR_ERR(ah);
 
 	m = ib_create_send_mad(port->mad_agent, 1, mad_recv_wc->wc->pkey_index,
-			       ah, 0, sizeof(struct ib_mad_hdr),
-			       sizeof(struct ib_mad)-sizeof(struct ib_mad_hdr),
+			       0, IB_MGMT_MAD_HDR, IB_MGMT_MAD_DATA,
 			       GFP_ATOMIC);
 	if (IS_ERR(m)) {
 		ib_destroy_ah(ah);
 		return PTR_ERR(m);
 	}
+	m->ah = ah;
 	*msg = m;
 	return 0;
 }
 
 static void cm_free_msg(struct ib_mad_send_buf *msg)
 {
-	ib_destroy_ah(msg->send_wr.wr.ud.ah);
+	ib_destroy_ah(msg->ah);
 	if (msg->context[0])
 		cm_deref_id(msg->context[0]);
 	ib_free_send_mad(msg);
@@ -253,7 +255,7 @@ static void cm_set_ah_attr(struct ib_ah_attr *ah_attr, u8 port_num,
 			   u16 dlid, u8 sl, u16 src_path_bits)
 {
 	memset(ah_attr, 0, sizeof ah_attr);
-	ah_attr->dlid = be16_to_cpu(dlid);
+	ah_attr->dlid = dlid;
 	ah_attr->sl = sl;
 	ah_attr->src_path_bits = src_path_bits;
 	ah_attr->port_num = port_num;
@@ -264,7 +266,7 @@ static void cm_init_av_for_response(struct cm_port *port,
 {
 	av->port = port;
 	av->pkey_index = wc->pkey_index;
-	cm_set_ah_attr(&av->ah_attr, port->port_num, cpu_to_be16(wc->slid),
+	cm_set_ah_attr(&av->ah_attr, port->port_num, wc->slid,
 		       wc->sl, wc->dlid_path_bits);
 }
 
@@ -295,8 +297,9 @@ static int cm_init_av_by_path(struct ib_sa_path_rec *path, struct cm_av *av)
 		return ret;
 
 	av->port = port;
-	cm_set_ah_attr(&av->ah_attr, av->port->port_num, path->dlid,
-		       path->sl, path->slid & 0x7F);
+	cm_set_ah_attr(&av->ah_attr, av->port->port_num,
+		       be16_to_cpu(path->dlid), path->sl,
+		       be16_to_cpu(path->slid) & 0x7F);
 	av->packet_life_time = path->packet_life_time;
 	return 0;
 }
@@ -309,26 +312,26 @@ static int cm_alloc_id(struct cm_id_private *cm_id_priv)
 	do {
 		spin_lock_irqsave(&cm.lock, flags);
 		ret = idr_get_new_above(&cm.local_id_table, cm_id_priv, 1,
-					(int *) &cm_id_priv->id.local_id);
+					(__force int *) &cm_id_priv->id.local_id);
 		spin_unlock_irqrestore(&cm.lock, flags);
 	} while( (ret == -EAGAIN) && idr_pre_get(&cm.local_id_table, GFP_KERNEL) );
 	return ret;
 }
 
-static void cm_free_id(u32 local_id)
+static void cm_free_id(__be32 local_id)
 {
 	unsigned long flags;
 
 	spin_lock_irqsave(&cm.lock, flags);
-	idr_remove(&cm.local_id_table, (int) local_id);
+	idr_remove(&cm.local_id_table, (__force int) local_id);
 	spin_unlock_irqrestore(&cm.lock, flags);
 }
 
-static struct cm_id_private * cm_get_id(u32 local_id, u32 remote_id)
+static struct cm_id_private * cm_get_id(__be32 local_id, __be32 remote_id)
 {
 	struct cm_id_private *cm_id_priv;
 
-	cm_id_priv = idr_find(&cm.local_id_table, (int) local_id);
+	cm_id_priv = idr_find(&cm.local_id_table, (__force int) local_id);
 	if (cm_id_priv) {
 		if (cm_id_priv->id.remote_id == remote_id)
 			atomic_inc(&cm_id_priv->refcount);
@@ -339,7 +342,7 @@ static struct cm_id_private * cm_get_id(u32 local_id, u32 remote_id)
 	return cm_id_priv;
 }
 
-static struct cm_id_private * cm_acquire_id(u32 local_id, u32 remote_id)
+static struct cm_id_private * cm_acquire_id(__be32 local_id, __be32 remote_id)
 {
 	struct cm_id_private *cm_id_priv;
 	unsigned long flags;
@@ -356,17 +359,23 @@ static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 	struct rb_node **link = &cm.listen_service_table.rb_node;
 	struct rb_node *parent = NULL;
 	struct cm_id_private *cur_cm_id_priv;
-	u64 service_id = cm_id_priv->id.service_id;
-	u64 service_mask = cm_id_priv->id.service_mask;
+	__be64 service_id = cm_id_priv->id.service_id;
+	__be64 service_mask = cm_id_priv->id.service_mask;
 
 	while (*link) {
 		parent = *link;
 		cur_cm_id_priv = rb_entry(parent, struct cm_id_private,
 					  service_node);
 		if ((cur_cm_id_priv->id.service_mask & service_id) ==
-		    (service_mask & cur_cm_id_priv->id.service_id))
-			return cm_id_priv;
-		if (service_id < cur_cm_id_priv->id.service_id)
+		    (service_mask & cur_cm_id_priv->id.service_id) &&
+		    (cm_id_priv->id.device == cur_cm_id_priv->id.device))
+			return cur_cm_id_priv;
+
+		if (cm_id_priv->id.device < cur_cm_id_priv->id.device)
+			link = &(*link)->rb_left;
+		else if (cm_id_priv->id.device > cur_cm_id_priv->id.device)
+			link = &(*link)->rb_right;
+		else if (service_id < cur_cm_id_priv->id.service_id)
 			link = &(*link)->rb_left;
 		else
 			link = &(*link)->rb_right;
@@ -376,7 +385,8 @@ static struct cm_id_private * cm_insert_listen(struct cm_id_private *cm_id_priv)
 	return NULL;
 }
 
-static struct cm_id_private * cm_find_listen(u64 service_id)
+static struct cm_id_private * cm_find_listen(struct ib_device *device,
+					     __be64 service_id)
 {
 	struct rb_node *node = cm.listen_service_table.rb_node;
 	struct cm_id_private *cm_id_priv;
@@ -384,9 +394,15 @@ static struct cm_id_private * cm_find_listen(u64 service_id)
 	while (node) {
 		cm_id_priv = rb_entry(node, struct cm_id_private, service_node);
 		if ((cm_id_priv->id.service_mask & service_id) ==
-		    (cm_id_priv->id.service_mask & cm_id_priv->id.service_id))
+		     cm_id_priv->id.service_id &&
+		    (cm_id_priv->id.device == device))
 			return cm_id_priv;
-		if (service_id < cm_id_priv->id.service_id)
+
+		if (device < cm_id_priv->id.device)
+			node = node->rb_left;
+		else if (device > cm_id_priv->id.device)
+			node = node->rb_right;
+		else if (service_id < cm_id_priv->id.service_id)
 			node = node->rb_left;
 		else
 			node = node->rb_right;
@@ -400,8 +416,8 @@ static struct cm_timewait_info * cm_insert_remote_id(struct cm_timewait_info
 	struct rb_node **link = &cm.remote_id_table.rb_node;
 	struct rb_node *parent = NULL;
 	struct cm_timewait_info *cur_timewait_info;
-	u64 remote_ca_guid = timewait_info->remote_ca_guid;
-	u32 remote_id = timewait_info->work.remote_id;
+	__be64 remote_ca_guid = timewait_info->remote_ca_guid;
+	__be32 remote_id = timewait_info->work.remote_id;
 
 	while (*link) {
 		parent = *link;
@@ -424,8 +440,8 @@ static struct cm_timewait_info * cm_insert_remote_id(struct cm_timewait_info
 	return NULL;
 }
 
-static struct cm_timewait_info * cm_find_remote_id(u64 remote_ca_guid,
-						   u32 remote_id)
+static struct cm_timewait_info * cm_find_remote_id(__be64 remote_ca_guid,
+						   __be32 remote_id)
 {
 	struct rb_node *node = cm.remote_id_table.rb_node;
 	struct cm_timewait_info *timewait_info;
@@ -453,8 +469,8 @@ static struct cm_timewait_info * cm_insert_remote_qpn(struct cm_timewait_info
 	struct rb_node **link = &cm.remote_qp_table.rb_node;
 	struct rb_node *parent = NULL;
 	struct cm_timewait_info *cur_timewait_info;
-	u64 remote_ca_guid = timewait_info->remote_ca_guid;
-	u32 remote_qpn = timewait_info->remote_qpn;
+	__be64 remote_ca_guid = timewait_info->remote_ca_guid;
+	__be32 remote_qpn = timewait_info->remote_qpn;
 
 	while (*link) {
 		parent = *link;
@@ -484,7 +500,7 @@ static struct cm_id_private * cm_insert_remote_sidr(struct cm_id_private
 	struct rb_node *parent = NULL;
 	struct cm_id_private *cur_cm_id_priv;
 	union ib_gid *port_gid = &cm_id_priv->av.dgid;
-	u32 remote_id = cm_id_priv->id.remote_id;
+	__be32 remote_id = cm_id_priv->id.remote_id;
 
 	while (*link) {
 		parent = *link;
@@ -521,20 +537,22 @@ static void cm_reject_sidr_req(struct cm_id_private *cm_id_priv,
 	ib_send_cm_sidr_rep(&cm_id_priv->id, &param);
 }
 
-struct ib_cm_id *ib_create_cm_id(ib_cm_handler cm_handler,
+struct ib_cm_id *ib_create_cm_id(struct ib_device *device,
+				 ib_cm_handler cm_handler,
 				 void *context)
 {
 	struct cm_id_private *cm_id_priv;
 	int ret;
 
-	cm_id_priv = kmalloc(sizeof *cm_id_priv, GFP_KERNEL);
+	cm_id_priv = kzalloc(sizeof *cm_id_priv, GFP_KERNEL);
 	if (!cm_id_priv)
 		return ERR_PTR(-ENOMEM);
 
-	memset(cm_id_priv, 0, sizeof *cm_id_priv);
 	cm_id_priv->id.state = IB_CM_IDLE;
+	cm_id_priv->id.device = device;
 	cm_id_priv->id.cm_handler = cm_handler;
 	cm_id_priv->id.context = context;
+	cm_id_priv->id.remote_cm_qpn = 1;
 	ret = cm_alloc_id(cm_id_priv);
 	if (ret)
 		goto error;
@@ -598,14 +616,13 @@ static void cm_cleanup_timewait(struct cm_timewait_info *timewait_info)
 	spin_unlock_irqrestore(&cm.lock, flags);
 }
 
-static struct cm_timewait_info * cm_create_timewait_info(u32 local_id)
+static struct cm_timewait_info * cm_create_timewait_info(__be32 local_id)
 {
 	struct cm_timewait_info *timewait_info;
 
-	timewait_info = kmalloc(sizeof *timewait_info, GFP_KERNEL);
+	timewait_info = kzalloc(sizeof *timewait_info, GFP_KERNEL);
 	if (!timewait_info)
 		return ERR_PTR(-ENOMEM);
-	memset(timewait_info, 0, sizeof *timewait_info);
 
 	timewait_info->work.local_id = local_id;
 	INIT_WORK(&timewait_info->work.work, cm_work_handler,
@@ -659,8 +676,7 @@ retest:
 		break;
 	case IB_CM_SIDR_REQ_SENT:
 		cm_id->state = IB_CM_IDLE;
-		ib_cancel_mad(cm_id_priv->av.port->mad_agent,
-			      (unsigned long) cm_id_priv->msg);
+		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		break;
 	case IB_CM_SIDR_REQ_RCVD:
@@ -671,8 +687,7 @@ retest:
 	case IB_CM_MRA_REQ_RCVD:
 	case IB_CM_REP_SENT:
 	case IB_CM_MRA_REP_RCVD:
-		ib_cancel_mad(cm_id_priv->av.port->mad_agent,
-			      (unsigned long) cm_id_priv->msg);
+		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 		/* Fall through */
 	case IB_CM_REQ_RCVD:
 	case IB_CM_MRA_REQ_SENT:
@@ -689,8 +704,7 @@ retest:
 		ib_send_cm_dreq(cm_id, NULL, 0);
 		goto retest;
 	case IB_CM_DREQ_SENT:
-		ib_cancel_mad(cm_id_priv->av.port->mad_agent,
-			      (unsigned long) cm_id_priv->msg);
+		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 		cm_enter_timewait(cm_id_priv);
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		break;
@@ -715,14 +729,15 @@ retest:
 EXPORT_SYMBOL(ib_destroy_cm_id);
 
 int ib_cm_listen(struct ib_cm_id *cm_id,
-		 u64 service_id,
-		 u64 service_mask)
+		 __be64 service_id,
+		 __be64 service_mask)
 {
 	struct cm_id_private *cm_id_priv, *cur_cm_id_priv;
 	unsigned long flags;
 	int ret = 0;
 
-	service_mask = service_mask ? service_mask : ~0ULL;
+	service_mask = service_mask ? service_mask :
+		       __constant_cpu_to_be64(~0ULL);
 	service_id &= service_mask;
 	if ((service_id & IB_SERVICE_ID_AGN_MASK) == IB_CM_ASSIGN_SERVICE_ID &&
 	    (service_id != IB_CM_ASSIGN_SERVICE_ID))
@@ -735,8 +750,8 @@ int ib_cm_listen(struct ib_cm_id *cm_id,
 
 	spin_lock_irqsave(&cm.lock, flags);
 	if (service_id == IB_CM_ASSIGN_SERVICE_ID) {
-		cm_id->service_id = __cpu_to_be64(cm.listen_service_id++);
-		cm_id->service_mask = ~0ULL;
+		cm_id->service_id = cpu_to_be64(cm.listen_service_id++);
+		cm_id->service_mask = __constant_cpu_to_be64(~0ULL);
 	} else {
 		cm_id->service_id = service_id;
 		cm_id->service_mask = service_mask;
@@ -752,18 +767,19 @@ int ib_cm_listen(struct ib_cm_id *cm_id,
 }
 EXPORT_SYMBOL(ib_cm_listen);
 
-static u64 cm_form_tid(struct cm_id_private *cm_id_priv,
-		       enum cm_msg_sequence msg_seq)
+static __be64 cm_form_tid(struct cm_id_private *cm_id_priv,
+			  enum cm_msg_sequence msg_seq)
 {
 	u64 hi_tid, low_tid;
 
 	hi_tid   = ((u64) cm_id_priv->av.port->mad_agent->hi_tid) << 32;
-	low_tid  = (u64) (cm_id_priv->id.local_id | (msg_seq << 30));
+	low_tid  = (u64) ((__force u32)cm_id_priv->id.local_id |
+			  (msg_seq << 30));
 	return cpu_to_be64(hi_tid | low_tid);
 }
 
 static void cm_format_mad_hdr(struct ib_mad_hdr *hdr,
-			      enum cm_msg_attr_id attr_id, u64 tid)
+			      __be16 attr_id, __be64 tid)
 {
 	hdr->base_version  = IB_MGMT_BASE_VERSION;
 	hdr->mgmt_class	   = IB_MGMT_CLASS_CM;
@@ -862,7 +878,6 @@ int ib_send_cm_req(struct ib_cm_id *cm_id,
 		   struct ib_cm_req_param *param)
 {
 	struct cm_id_private *cm_id_priv;
-	struct ib_send_wr *bad_send_wr;
 	struct cm_req_msg *req_msg;
 	unsigned long flags;
 	int ret;
@@ -896,7 +911,7 @@ int ib_send_cm_req(struct ib_cm_id *cm_id,
 			goto error1;
 	}
 	cm_id->service_id = param->service_id;
-	cm_id->service_mask = ~0ULL;
+	cm_id->service_mask = __constant_cpu_to_be64(~0ULL);
 	cm_id_priv->timeout_ms = cm_convert_to_ms(
 				    param->primary_path->packet_life_time) * 2 +
 				 cm_convert_to_ms(
@@ -906,6 +921,7 @@ int ib_send_cm_req(struct ib_cm_id *cm_id,
 	cm_id_priv->responder_resources = param->responder_resources;
 	cm_id_priv->retry_count = param->retry_count;
 	cm_id_priv->path_mtu = param->primary_path->mtu;
+	cm_id_priv->qp_type = param->qp_type;
 
 	ret = cm_alloc_msg(cm_id_priv, &cm_id_priv->msg);
 	if (ret)
@@ -914,7 +930,7 @@ int ib_send_cm_req(struct ib_cm_id *cm_id,
 	req_msg = (struct cm_req_msg *) cm_id_priv->msg->mad;
 	cm_format_req(req_msg, cm_id_priv, param);
 	cm_id_priv->tid = req_msg->hdr.tid;
-	cm_id_priv->msg->send_wr.wr.ud.timeout_ms = cm_id_priv->timeout_ms;
+	cm_id_priv->msg->timeout_ms = cm_id_priv->timeout_ms;
 	cm_id_priv->msg->context[1] = (void *) (unsigned long) IB_CM_REQ_SENT;
 
 	cm_id_priv->local_qpn = cm_req_get_local_qpn(req_msg);
@@ -923,8 +939,7 @@ int ib_send_cm_req(struct ib_cm_id *cm_id,
 				cm_req_get_primary_local_ack_timeout(req_msg);
 
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
-	ret = ib_post_send_mad(cm_id_priv->av.port->mad_agent,
-				&cm_id_priv->msg->send_wr, &bad_send_wr);
+	ret = ib_post_send_mad(cm_id_priv->msg, NULL);
 	if (ret) {
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		goto error2;
@@ -947,7 +962,6 @@ static int cm_issue_rej(struct cm_port *port,
 			void *ari, u8 ari_length)
 {
 	struct ib_mad_send_buf *msg = NULL;
-	struct ib_send_wr *bad_send_wr;
 	struct cm_rej_msg *rej_msg, *rcv_msg;
 	int ret;
 
@@ -963,22 +977,22 @@ static int cm_issue_rej(struct cm_port *port,
 	rej_msg->remote_comm_id = rcv_msg->local_comm_id;
 	rej_msg->local_comm_id = rcv_msg->remote_comm_id;
 	cm_rej_set_msg_rejected(rej_msg, msg_rejected);
-	rej_msg->reason = reason;
+	rej_msg->reason = cpu_to_be16(reason);
 
 	if (ari && ari_length) {
 		cm_rej_set_reject_info_len(rej_msg, ari_length);
 		memcpy(rej_msg->ari, ari, ari_length);
 	}
 
-	ret = ib_post_send_mad(port->mad_agent, &msg->send_wr, &bad_send_wr);
+	ret = ib_post_send_mad(msg, NULL);
 	if (ret)
 		cm_free_msg(msg);
 
 	return ret;
 }
 
-static inline int cm_is_active_peer(u64 local_ca_guid, u64 remote_ca_guid,
-				    u32 local_qpn, u32 remote_qpn)
+static inline int cm_is_active_peer(__be64 local_ca_guid, __be64 remote_ca_guid,
+				    __be32 local_qpn, __be32 remote_qpn)
 {
 	return (be64_to_cpu(local_ca_guid) > be64_to_cpu(remote_ca_guid) ||
 		((local_ca_guid == remote_ca_guid) &&
@@ -1042,7 +1056,6 @@ static void cm_format_req_event(struct cm_work *work,
 	req_msg = (struct cm_req_msg *)work->mad_recv_wc->recv_buf.mad;
 	param = &work->cm_event.param.req_rcvd;
 	param->listen_id = listen_id;
-	param->device = cm_id_priv->av.port->mad_agent->device;
 	param->port = cm_id_priv->av.port->port_num;
 	param->primary_path = &work->path[0];
 	if (req_msg->alt_local_lid)
@@ -1137,7 +1150,7 @@ static void cm_format_rej(struct cm_rej_msg *rej_msg,
 		break;
 	}
 
-	rej_msg->reason = reason;
+	rej_msg->reason = cpu_to_be16(reason);
 	if (ari && ari_length) {
 		cm_rej_set_reject_info_len(rej_msg, ari_length);
 		memcpy(rej_msg->ari, ari, ari_length);
@@ -1151,7 +1164,6 @@ static void cm_dup_req_handler(struct cm_work *work,
 			       struct cm_id_private *cm_id_priv)
 {
 	struct ib_mad_send_buf *msg = NULL;
-	struct ib_send_wr *bad_send_wr;
 	unsigned long flags;
 	int ret;
 
@@ -1180,8 +1192,7 @@ static void cm_dup_req_handler(struct cm_work *work,
 	}
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 
-	ret = ib_post_send_mad(cm_id_priv->av.port->mad_agent, &msg->send_wr,
-			       &bad_send_wr);
+	ret = ib_post_send_mad(msg, NULL);
 	if (ret)
 		goto free;
 	return;
@@ -1221,7 +1232,8 @@ static struct cm_id_private * cm_match_req(struct cm_work *work,
 	}
 
 	/* Find matching listen request. */
-	listen_cm_id_priv = cm_find_listen(req_msg->service_id);
+	listen_cm_id_priv = cm_find_listen(cm_id_priv->id.device,
+					   req_msg->service_id);
 	if (!listen_cm_id_priv) {
 		spin_unlock_irqrestore(&cm.lock, flags);
 		cm_issue_rej(work->port, work->mad_recv_wc,
@@ -1249,7 +1261,7 @@ static int cm_req_handler(struct cm_work *work)
 
 	req_msg = (struct cm_req_msg *)work->mad_recv_wc->recv_buf.mad;
 
-	cm_id = ib_create_cm_id(NULL, NULL);
+	cm_id = ib_create_cm_id(work->port->cm_dev->device, NULL, NULL);
 	if (IS_ERR(cm_id))
 		return PTR_ERR(cm_id);
 
@@ -1276,7 +1288,7 @@ static int cm_req_handler(struct cm_work *work)
 	cm_id_priv->id.cm_handler = listen_cm_id_priv->id.cm_handler;
 	cm_id_priv->id.context = listen_cm_id_priv->id.context;
 	cm_id_priv->id.service_id = req_msg->service_id;
-	cm_id_priv->id.service_mask = ~0ULL;
+	cm_id_priv->id.service_mask = __constant_cpu_to_be64(~0ULL);
 
 	cm_format_paths_from_req(req_msg, &work->path[0], &work->path[1]);
 	ret = cm_init_av_by_path(&work->path[0], &cm_id_priv->av);
@@ -1300,6 +1312,7 @@ static int cm_req_handler(struct cm_work *work)
 				cm_req_get_primary_local_ack_timeout(req_msg);
 	cm_id_priv->retry_count = cm_req_get_retry_count(req_msg);
 	cm_id_priv->rnr_retry_count = cm_req_get_rnr_retry_count(req_msg);
+	cm_id_priv->qp_type = cm_req_get_qp_type(req_msg);
 
 	cm_format_req_event(work, cm_id_priv, &listen_cm_id_priv->id);
 	cm_process_work(cm_id_priv, work);
@@ -1310,6 +1323,7 @@ error3:	atomic_dec(&cm_id_priv->refcount);
 	cm_deref_id(listen_cm_id_priv);
 	cm_cleanup_timewait(cm_id_priv->timewait_info);
 error2:	kfree(cm_id_priv->timewait_info);
+	cm_id_priv->timewait_info = NULL;
 error1:	ib_destroy_cm_id(&cm_id_priv->id);
 	return ret;
 }
@@ -1343,7 +1357,6 @@ int ib_send_cm_rep(struct ib_cm_id *cm_id,
 	struct cm_id_private *cm_id_priv;
 	struct ib_mad_send_buf *msg;
 	struct cm_rep_msg *rep_msg;
-	struct ib_send_wr *bad_send_wr;
 	unsigned long flags;
 	int ret;
 
@@ -1365,11 +1378,10 @@ int ib_send_cm_rep(struct ib_cm_id *cm_id,
 
 	rep_msg = (struct cm_rep_msg *) msg->mad;
 	cm_format_rep(rep_msg, cm_id_priv, param);
-	msg->send_wr.wr.ud.timeout_ms = cm_id_priv->timeout_ms;
+	msg->timeout_ms = cm_id_priv->timeout_ms;
 	msg->context[1] = (void *) (unsigned long) IB_CM_REP_SENT;
 
-	ret = ib_post_send_mad(cm_id_priv->av.port->mad_agent,
-			       &msg->send_wr, &bad_send_wr);
+	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		cm_free_msg(msg);
@@ -1407,7 +1419,6 @@ int ib_send_cm_rtu(struct ib_cm_id *cm_id,
 {
 	struct cm_id_private *cm_id_priv;
 	struct ib_mad_send_buf *msg;
-	struct ib_send_wr *bad_send_wr;
 	unsigned long flags;
 	void *data;
 	int ret;
@@ -1434,8 +1445,7 @@ int ib_send_cm_rtu(struct ib_cm_id *cm_id,
 	cm_format_rtu((struct cm_rtu_msg *) msg->mad, cm_id_priv,
 		      private_data, private_data_len);
 
-	ret = ib_post_send_mad(cm_id_priv->av.port->mad_agent,
-			       &msg->send_wr, &bad_send_wr);
+	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		cm_free_msg(msg);
@@ -1480,7 +1490,6 @@ static void cm_dup_rep_handler(struct cm_work *work)
 	struct cm_id_private *cm_id_priv;
 	struct cm_rep_msg *rep_msg;
 	struct ib_mad_send_buf *msg = NULL;
-	struct ib_send_wr *bad_send_wr;
 	unsigned long flags;
 	int ret;
 
@@ -1508,8 +1517,7 @@ static void cm_dup_rep_handler(struct cm_work *work)
 		goto unlock;
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 
-	ret = ib_post_send_mad(cm_id_priv->av.port->mad_agent, &msg->send_wr,
-			       &bad_send_wr);
+	ret = ib_post_send_mad(msg, NULL);
 	if (ret)
 		goto free;
 	goto deref;
@@ -1577,8 +1585,7 @@ static int cm_rep_handler(struct cm_work *work)
 
 	/* todo: handle peer_to_peer */
 
-	ib_cancel_mad(cm_id_priv->av.port->mad_agent,
-		      (unsigned long) cm_id_priv->msg);
+	ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 	ret = atomic_inc_and_test(&cm_id_priv->work_count);
 	if (!ret)
 		list_add_tail(&work->list, &cm_id_priv->work_list);
@@ -1612,8 +1619,7 @@ static int cm_establish_handler(struct cm_work *work)
 		goto out;
 	}
 
-	ib_cancel_mad(cm_id_priv->av.port->mad_agent,
-		      (unsigned long) cm_id_priv->msg);
+	ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 	ret = atomic_inc_and_test(&cm_id_priv->work_count);
 	if (!ret)
 		list_add_tail(&work->list, &cm_id_priv->work_list);
@@ -1652,8 +1658,7 @@ static int cm_rtu_handler(struct cm_work *work)
 	}
 	cm_id_priv->id.state = IB_CM_ESTABLISHED;
 
-	ib_cancel_mad(cm_id_priv->av.port->mad_agent,
-		      (unsigned long) cm_id_priv->msg);
+	ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 	ret = atomic_inc_and_test(&cm_id_priv->work_count);
 	if (!ret)
 		list_add_tail(&work->list, &cm_id_priv->work_list);
@@ -1690,7 +1695,6 @@ int ib_send_cm_dreq(struct ib_cm_id *cm_id,
 {
 	struct cm_id_private *cm_id_priv;
 	struct ib_mad_send_buf *msg;
-	struct ib_send_wr *bad_send_wr;
 	unsigned long flags;
 	int ret;
 
@@ -1712,11 +1716,10 @@ int ib_send_cm_dreq(struct ib_cm_id *cm_id,
 
 	cm_format_dreq((struct cm_dreq_msg *) msg->mad, cm_id_priv,
 		       private_data, private_data_len);
-	msg->send_wr.wr.ud.timeout_ms = cm_id_priv->timeout_ms;
+	msg->timeout_ms = cm_id_priv->timeout_ms;
 	msg->context[1] = (void *) (unsigned long) IB_CM_DREQ_SENT;
 
-	ret = ib_post_send_mad(cm_id_priv->av.port->mad_agent,
-			       &msg->send_wr, &bad_send_wr);
+	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
 		cm_enter_timewait(cm_id_priv);
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
@@ -1750,7 +1753,6 @@ int ib_send_cm_drep(struct ib_cm_id *cm_id,
 {
 	struct cm_id_private *cm_id_priv;
 	struct ib_mad_send_buf *msg;
-	struct ib_send_wr *bad_send_wr;
 	unsigned long flags;
 	void *data;
 	int ret;
@@ -1780,8 +1782,7 @@ int ib_send_cm_drep(struct ib_cm_id *cm_id,
 	cm_format_drep((struct cm_drep_msg *) msg->mad, cm_id_priv,
 		       private_data, private_data_len);
 
-	ret = ib_post_send_mad(cm_id_priv->av.port->mad_agent, &msg->send_wr,
-			       &bad_send_wr);
+	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		cm_free_msg(msg);
@@ -1798,7 +1799,6 @@ static int cm_dreq_handler(struct cm_work *work)
 	struct cm_id_private *cm_id_priv;
 	struct cm_dreq_msg *dreq_msg;
 	struct ib_mad_send_buf *msg = NULL;
-	struct ib_send_wr *bad_send_wr;
 	unsigned long flags;
 	int ret;
 
@@ -1817,8 +1817,7 @@ static int cm_dreq_handler(struct cm_work *work)
 	switch (cm_id_priv->id.state) {
 	case IB_CM_REP_SENT:
 	case IB_CM_DREQ_SENT:
-		ib_cancel_mad(cm_id_priv->av.port->mad_agent,
-			      (unsigned long) cm_id_priv->msg);
+		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 		break;
 	case IB_CM_ESTABLISHED:
 	case IB_CM_MRA_REP_RCVD:
@@ -1832,8 +1831,7 @@ static int cm_dreq_handler(struct cm_work *work)
 			       cm_id_priv->private_data_len);
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 
-		if (ib_post_send_mad(cm_id_priv->av.port->mad_agent,
-				     &msg->send_wr, &bad_send_wr))
+		if (ib_post_send_mad(msg, NULL))
 			cm_free_msg(msg);
 		goto deref;
 	default:
@@ -1880,8 +1878,7 @@ static int cm_drep_handler(struct cm_work *work)
 	}
 	cm_enter_timewait(cm_id_priv);
 
-	ib_cancel_mad(cm_id_priv->av.port->mad_agent,
-		      (unsigned long) cm_id_priv->msg);
+	ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 	ret = atomic_inc_and_test(&cm_id_priv->work_count);
 	if (!ret)
 		list_add_tail(&work->list, &cm_id_priv->work_list);
@@ -1906,7 +1903,6 @@ int ib_send_cm_rej(struct ib_cm_id *cm_id,
 {
 	struct cm_id_private *cm_id_priv;
 	struct ib_mad_send_buf *msg;
-	struct ib_send_wr *bad_send_wr;
 	unsigned long flags;
 	int ret;
 
@@ -1950,8 +1946,7 @@ int ib_send_cm_rej(struct ib_cm_id *cm_id,
 	if (ret)
 		goto out;
 
-	ret = ib_post_send_mad(cm_id_priv->av.port->mad_agent,
-			       &msg->send_wr, &bad_send_wr);
+	ret = ib_post_send_mad(msg, NULL);
 	if (ret)
 		cm_free_msg(msg);
 
@@ -1969,7 +1964,7 @@ static void cm_format_rej_event(struct cm_work *work)
 	param = &work->cm_event.param.rej_rcvd;
 	param->ari = rej_msg->ari;
 	param->ari_length = cm_rej_get_reject_info_len(rej_msg);
-	param->reason = rej_msg->reason;
+	param->reason = __be16_to_cpu(rej_msg->reason);
 	work->cm_event.private_data = &rej_msg->private_data;
 }
 
@@ -1978,20 +1973,20 @@ static struct cm_id_private * cm_acquire_rejected_id(struct cm_rej_msg *rej_msg)
 	struct cm_timewait_info *timewait_info;
 	struct cm_id_private *cm_id_priv;
 	unsigned long flags;
-	u32 remote_id;
+	__be32 remote_id;
 
 	remote_id = rej_msg->local_comm_id;
 
-	if (rej_msg->reason == IB_CM_REJ_TIMEOUT) {
+	if (__be16_to_cpu(rej_msg->reason) == IB_CM_REJ_TIMEOUT) {
 		spin_lock_irqsave(&cm.lock, flags);
-		timewait_info = cm_find_remote_id( *((u64 *) rej_msg->ari),
+		timewait_info = cm_find_remote_id( *((__be64 *) rej_msg->ari),
 						  remote_id);
 		if (!timewait_info) {
 			spin_unlock_irqrestore(&cm.lock, flags);
 			return NULL;
 		}
 		cm_id_priv = idr_find(&cm.local_id_table,
-				      (int) timewait_info->work.local_id);
+				      (__force int) timewait_info->work.local_id);
 		if (cm_id_priv) {
 			if (cm_id_priv->id.remote_id == remote_id)
 				atomic_inc(&cm_id_priv->refcount);
@@ -2027,19 +2022,17 @@ static int cm_rej_handler(struct cm_work *work)
 	case IB_CM_MRA_REQ_RCVD:
 	case IB_CM_REP_SENT:
 	case IB_CM_MRA_REP_RCVD:
-		ib_cancel_mad(cm_id_priv->av.port->mad_agent,
-			      (unsigned long) cm_id_priv->msg);
+		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 		/* fall through */
 	case IB_CM_REQ_RCVD:
 	case IB_CM_MRA_REQ_SENT:
-		if (rej_msg->reason == IB_CM_REJ_STALE_CONN)
+		if (__be16_to_cpu(rej_msg->reason) == IB_CM_REJ_STALE_CONN)
 			cm_enter_timewait(cm_id_priv);
 		else
 			cm_reset_to_idle(cm_id_priv);
 		break;
 	case IB_CM_DREQ_SENT:
-		ib_cancel_mad(cm_id_priv->av.port->mad_agent,
-			      (unsigned long) cm_id_priv->msg);
+		ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 		/* fall through */
 	case IB_CM_REP_RCVD:
 	case IB_CM_MRA_REP_SENT:
@@ -2074,7 +2067,6 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 {
 	struct cm_id_private *cm_id_priv;
 	struct ib_mad_send_buf *msg;
-	struct ib_send_wr *bad_send_wr;
 	void *data;
 	unsigned long flags;
 	int ret;
@@ -2098,8 +2090,7 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 		cm_format_mra((struct cm_mra_msg *) msg->mad, cm_id_priv,
 			      CM_MSG_RESPONSE_REQ, service_timeout,
 			      private_data, private_data_len);
-		ret = ib_post_send_mad(cm_id_priv->av.port->mad_agent,
-				       &msg->send_wr, &bad_send_wr);
+		ret = ib_post_send_mad(msg, NULL);
 		if (ret)
 			goto error2;
 		cm_id->state = IB_CM_MRA_REQ_SENT;
@@ -2112,8 +2103,7 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 		cm_format_mra((struct cm_mra_msg *) msg->mad, cm_id_priv,
 			      CM_MSG_RESPONSE_REP, service_timeout,
 			      private_data, private_data_len);
-		ret = ib_post_send_mad(cm_id_priv->av.port->mad_agent,
-				       &msg->send_wr, &bad_send_wr);
+		ret = ib_post_send_mad(msg, NULL);
 		if (ret)
 			goto error2;
 		cm_id->state = IB_CM_MRA_REP_SENT;
@@ -2126,8 +2116,7 @@ int ib_send_cm_mra(struct ib_cm_id *cm_id,
 		cm_format_mra((struct cm_mra_msg *) msg->mad, cm_id_priv,
 			      CM_MSG_RESPONSE_OTHER, service_timeout,
 			      private_data, private_data_len);
-		ret = ib_post_send_mad(cm_id_priv->av.port->mad_agent,
-				       &msg->send_wr, &bad_send_wr);
+		ret = ib_post_send_mad(msg, NULL);
 		if (ret)
 			goto error2;
 		cm_id->lap_state = IB_CM_MRA_LAP_SENT;
@@ -2189,14 +2178,14 @@ static int cm_mra_handler(struct cm_work *work)
 	case IB_CM_REQ_SENT:
 		if (cm_mra_get_msg_mraed(mra_msg) != CM_MSG_RESPONSE_REQ ||
 		    ib_modify_mad(cm_id_priv->av.port->mad_agent,
-				  (unsigned long) cm_id_priv->msg, timeout))
+				  cm_id_priv->msg, timeout))
 			goto out;
 		cm_id_priv->id.state = IB_CM_MRA_REQ_RCVD;
 		break;
 	case IB_CM_REP_SENT:
 		if (cm_mra_get_msg_mraed(mra_msg) != CM_MSG_RESPONSE_REP ||
 		    ib_modify_mad(cm_id_priv->av.port->mad_agent,
-				  (unsigned long) cm_id_priv->msg, timeout))
+				  cm_id_priv->msg, timeout))
 			goto out;
 		cm_id_priv->id.state = IB_CM_MRA_REP_RCVD;
 		break;
@@ -2204,7 +2193,7 @@ static int cm_mra_handler(struct cm_work *work)
 		if (cm_mra_get_msg_mraed(mra_msg) != CM_MSG_RESPONSE_OTHER ||
 		    cm_id_priv->id.lap_state != IB_CM_LAP_SENT ||
 		    ib_modify_mad(cm_id_priv->av.port->mad_agent,
-				  (unsigned long) cm_id_priv->msg, timeout))
+				  cm_id_priv->msg, timeout))
 			goto out;
 		cm_id_priv->id.lap_state = IB_CM_MRA_LAP_RCVD;
 		break;
@@ -2267,7 +2256,6 @@ int ib_send_cm_lap(struct ib_cm_id *cm_id,
 {
 	struct cm_id_private *cm_id_priv;
 	struct ib_mad_send_buf *msg;
-	struct ib_send_wr *bad_send_wr;
 	unsigned long flags;
 	int ret;
 
@@ -2288,11 +2276,10 @@ int ib_send_cm_lap(struct ib_cm_id *cm_id,
 
 	cm_format_lap((struct cm_lap_msg *) msg->mad, cm_id_priv,
 		      alternate_path, private_data, private_data_len);
-	msg->send_wr.wr.ud.timeout_ms = cm_id_priv->timeout_ms;
+	msg->timeout_ms = cm_id_priv->timeout_ms;
 	msg->context[1] = (void *) (unsigned long) IB_CM_ESTABLISHED;
 
-	ret = ib_post_send_mad(cm_id_priv->av.port->mad_agent,
-			       &msg->send_wr, &bad_send_wr);
+	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		cm_free_msg(msg);
@@ -2336,7 +2323,6 @@ static int cm_lap_handler(struct cm_work *work)
 	struct cm_lap_msg *lap_msg;
 	struct ib_cm_lap_event_param *param;
 	struct ib_mad_send_buf *msg = NULL;
-	struct ib_send_wr *bad_send_wr;
 	unsigned long flags;
 	int ret;
 
@@ -2370,8 +2356,7 @@ static int cm_lap_handler(struct cm_work *work)
 			      cm_id_priv->private_data_len);
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 
-		if (ib_post_send_mad(cm_id_priv->av.port->mad_agent,
-				     &msg->send_wr, &bad_send_wr))
+		if (ib_post_send_mad(msg, NULL))
 			cm_free_msg(msg);
 		goto deref;
 	default:
@@ -2427,7 +2412,6 @@ int ib_send_cm_apr(struct ib_cm_id *cm_id,
 {
 	struct cm_id_private *cm_id_priv;
 	struct ib_mad_send_buf *msg;
-	struct ib_send_wr *bad_send_wr;
 	unsigned long flags;
 	int ret;
 
@@ -2450,8 +2434,7 @@ int ib_send_cm_apr(struct ib_cm_id *cm_id,
 
 	cm_format_apr((struct cm_apr_msg *) msg->mad, cm_id_priv, status,
 		      info, info_length, private_data, private_data_len);
-	ret = ib_post_send_mad(cm_id_priv->av.port->mad_agent,
-			       &msg->send_wr, &bad_send_wr);
+	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		cm_free_msg(msg);
@@ -2490,8 +2473,7 @@ static int cm_apr_handler(struct cm_work *work)
 		goto out;
 	}
 	cm_id_priv->id.lap_state = IB_CM_LAP_IDLE;
-	ib_cancel_mad(cm_id_priv->av.port->mad_agent,
-		      (unsigned long) cm_id_priv->msg);
+	ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 	cm_id_priv->msg = NULL;
 
 	ret = atomic_inc_and_test(&cm_id_priv->work_count);
@@ -2553,7 +2535,7 @@ static void cm_format_sidr_req(struct cm_sidr_req_msg *sidr_req_msg,
 	cm_format_mad_hdr(&sidr_req_msg->hdr, CM_SIDR_REQ_ATTR_ID,
 			  cm_form_tid(cm_id_priv, CM_MSG_SEQUENCE_SIDR));
 	sidr_req_msg->request_id = cm_id_priv->id.local_id;
-	sidr_req_msg->pkey = param->pkey;
+	sidr_req_msg->pkey = cpu_to_be16(param->pkey);
 	sidr_req_msg->service_id = param->service_id;
 
 	if (param->private_data && param->private_data_len)
@@ -2566,7 +2548,6 @@ int ib_send_cm_sidr_req(struct ib_cm_id *cm_id,
 {
 	struct cm_id_private *cm_id_priv;
 	struct ib_mad_send_buf *msg;
-	struct ib_send_wr *bad_send_wr;
 	unsigned long flags;
 	int ret;
 
@@ -2580,7 +2561,7 @@ int ib_send_cm_sidr_req(struct ib_cm_id *cm_id,
 		goto out;
 
 	cm_id->service_id = param->service_id;
-	cm_id->service_mask = ~0ULL;
+	cm_id->service_mask = __constant_cpu_to_be64(~0ULL);
 	cm_id_priv->timeout_ms = param->timeout_ms;
 	cm_id_priv->max_cm_retries = param->max_cm_retries;
 	ret = cm_alloc_msg(cm_id_priv, &msg);
@@ -2589,13 +2570,12 @@ int ib_send_cm_sidr_req(struct ib_cm_id *cm_id,
 
 	cm_format_sidr_req((struct cm_sidr_req_msg *) msg->mad, cm_id_priv,
 			   param);
-	msg->send_wr.wr.ud.timeout_ms = cm_id_priv->timeout_ms;
+	msg->timeout_ms = cm_id_priv->timeout_ms;
 	msg->context[1] = (void *) (unsigned long) IB_CM_SIDR_REQ_SENT;
 
 	spin_lock_irqsave(&cm_id_priv->lock, flags);
 	if (cm_id->state == IB_CM_IDLE)
-		ret = ib_post_send_mad(cm_id_priv->av.port->mad_agent,
-				       &msg->send_wr, &bad_send_wr);
+		ret = ib_post_send_mad(msg, NULL);
 	else
 		ret = -EINVAL;
 
@@ -2621,9 +2601,8 @@ static void cm_format_sidr_req_event(struct cm_work *work,
 	sidr_req_msg = (struct cm_sidr_req_msg *)
 				work->mad_recv_wc->recv_buf.mad;
 	param = &work->cm_event.param.sidr_req_rcvd;
-	param->pkey = sidr_req_msg->pkey;
+	param->pkey = __be16_to_cpu(sidr_req_msg->pkey);
 	param->listen_id = listen_id;
-	param->device = work->port->mad_agent->device;
 	param->port = work->port->port_num;
 	work->cm_event.private_data = &sidr_req_msg->private_data;
 }
@@ -2636,7 +2615,7 @@ static int cm_sidr_req_handler(struct cm_work *work)
 	struct ib_wc *wc;
 	unsigned long flags;
 
-	cm_id = ib_create_cm_id(NULL, NULL);
+	cm_id = ib_create_cm_id(work->port->cm_dev->device, NULL, NULL);
 	if (IS_ERR(cm_id))
 		return PTR_ERR(cm_id);
 	cm_id_priv = container_of(cm_id, struct cm_id_private, id);
@@ -2645,7 +2624,7 @@ static int cm_sidr_req_handler(struct cm_work *work)
 	sidr_req_msg = (struct cm_sidr_req_msg *)
 				work->mad_recv_wc->recv_buf.mad;
 	wc = work->mad_recv_wc->wc;
-	cm_id_priv->av.dgid.global.subnet_prefix = wc->slid;
+	cm_id_priv->av.dgid.global.subnet_prefix = cpu_to_be64(wc->slid);
 	cm_id_priv->av.dgid.global.interface_id = 0;
 	cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
 				&cm_id_priv->av);
@@ -2660,7 +2639,8 @@ static int cm_sidr_req_handler(struct cm_work *work)
 		spin_unlock_irqrestore(&cm.lock, flags);
 		goto out; /* Duplicate message. */
 	}
-	cur_cm_id_priv = cm_find_listen(sidr_req_msg->service_id);
+	cur_cm_id_priv = cm_find_listen(cm_id->device,
+					sidr_req_msg->service_id);
 	if (!cur_cm_id_priv) {
 		rb_erase(&cm_id_priv->sidr_id_node, &cm.remote_sidr_table);
 		spin_unlock_irqrestore(&cm.lock, flags);
@@ -2673,7 +2653,7 @@ static int cm_sidr_req_handler(struct cm_work *work)
 	cm_id_priv->id.cm_handler = cur_cm_id_priv->id.cm_handler;
 	cm_id_priv->id.context = cur_cm_id_priv->id.context;
 	cm_id_priv->id.service_id = sidr_req_msg->service_id;
-	cm_id_priv->id.service_mask = ~0ULL;
+	cm_id_priv->id.service_mask = __constant_cpu_to_be64(~0ULL);
 
 	cm_format_sidr_req_event(work, &cur_cm_id_priv->id);
 	cm_process_work(cm_id_priv, work);
@@ -2709,7 +2689,6 @@ int ib_send_cm_sidr_rep(struct ib_cm_id *cm_id,
 {
 	struct cm_id_private *cm_id_priv;
 	struct ib_mad_send_buf *msg;
-	struct ib_send_wr *bad_send_wr;
 	unsigned long flags;
 	int ret;
 
@@ -2731,8 +2710,7 @@ int ib_send_cm_sidr_rep(struct ib_cm_id *cm_id,
 
 	cm_format_sidr_rep((struct cm_sidr_rep_msg *) msg->mad, cm_id_priv,
 			   param);
-	ret = ib_post_send_mad(cm_id_priv->av.port->mad_agent,
-			       &msg->send_wr, &bad_send_wr);
+	ret = ib_post_send_mad(msg, NULL);
 	if (ret) {
 		spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 		cm_free_msg(msg);
@@ -2785,8 +2763,7 @@ static int cm_sidr_rep_handler(struct cm_work *work)
 		goto out;
 	}
 	cm_id_priv->id.state = IB_CM_IDLE;
-	ib_cancel_mad(cm_id_priv->av.port->mad_agent,
-		      (unsigned long) cm_id_priv->msg);
+	ib_cancel_mad(cm_id_priv->av.port->mad_agent, cm_id_priv->msg);
 	spin_unlock_irqrestore(&cm_id_priv->lock, flags);
 
 	cm_format_sidr_rep_event(work);
@@ -2854,9 +2831,7 @@ discard:
 static void cm_send_handler(struct ib_mad_agent *mad_agent,
 			    struct ib_mad_send_wc *mad_send_wc)
 {
-	struct ib_mad_send_buf *msg;
-
-	msg = (struct ib_mad_send_buf *)(unsigned long)mad_send_wc->wr_id;
+	struct ib_mad_send_buf *msg = mad_send_wc->send_buf;
 
 	switch (mad_send_wc->status) {
 	case IB_WC_SUCCESS:
@@ -3058,10 +3033,10 @@ static int cm_init_qp_init_attr(struct cm_id_private *cm_id_priv,
 	case IB_CM_ESTABLISHED:
 		*qp_attr_mask = IB_QP_STATE | IB_QP_ACCESS_FLAGS |
 				IB_QP_PKEY_INDEX | IB_QP_PORT;
-		qp_attr->qp_access_flags = IB_ACCESS_LOCAL_WRITE;
+		qp_attr->qp_access_flags = IB_ACCESS_LOCAL_WRITE |
+					   IB_ACCESS_REMOTE_WRITE;
 		if (cm_id_priv->responder_resources)
-			qp_attr->qp_access_flags |= IB_ACCESS_REMOTE_WRITE |
-						    IB_ACCESS_REMOTE_READ;
+			qp_attr->qp_access_flags |= IB_ACCESS_REMOTE_READ;
 		qp_attr->pkey_index = cm_id_priv->av.pkey_index;
 		qp_attr->port_num = cm_id_priv->av.port->port_num;
 		ret = 0;
@@ -3091,14 +3066,18 @@ static int cm_init_qp_rtr_attr(struct cm_id_private *cm_id_priv,
 	case IB_CM_MRA_REP_RCVD:
 	case IB_CM_ESTABLISHED:
 		*qp_attr_mask = IB_QP_STATE | IB_QP_AV | IB_QP_PATH_MTU |
-				IB_QP_DEST_QPN | IB_QP_RQ_PSN |
-				IB_QP_MAX_DEST_RD_ATOMIC | IB_QP_MIN_RNR_TIMER;
+				IB_QP_DEST_QPN | IB_QP_RQ_PSN;
 		qp_attr->ah_attr = cm_id_priv->av.ah_attr;
 		qp_attr->path_mtu = cm_id_priv->path_mtu;
 		qp_attr->dest_qp_num = be32_to_cpu(cm_id_priv->remote_qpn);
 		qp_attr->rq_psn = be32_to_cpu(cm_id_priv->rq_psn);
-		qp_attr->max_dest_rd_atomic = cm_id_priv->responder_resources;
-		qp_attr->min_rnr_timer = 0;
+		if (cm_id_priv->qp_type == IB_QPT_RC) {
+			*qp_attr_mask |= IB_QP_MAX_DEST_RD_ATOMIC |
+					 IB_QP_MIN_RNR_TIMER;
+			qp_attr->max_dest_rd_atomic =
+					cm_id_priv->responder_resources;
+			qp_attr->min_rnr_timer = 0;
+		}
 		if (cm_id_priv->alt_av.ah_attr.dlid) {
 			*qp_attr_mask |= IB_QP_ALT_PATH;
 			qp_attr->alt_ah_attr = cm_id_priv->alt_av.ah_attr;
@@ -3127,14 +3106,17 @@ static int cm_init_qp_rts_attr(struct cm_id_private *cm_id_priv,
 	case IB_CM_REP_SENT:
 	case IB_CM_MRA_REP_RCVD:
 	case IB_CM_ESTABLISHED:
-		*qp_attr_mask = IB_QP_STATE | IB_QP_TIMEOUT | IB_QP_RETRY_CNT |
-				IB_QP_RNR_RETRY | IB_QP_SQ_PSN |
-				IB_QP_MAX_QP_RD_ATOMIC;
-		qp_attr->timeout = cm_id_priv->local_ack_timeout;
-		qp_attr->retry_cnt = cm_id_priv->retry_count;
-		qp_attr->rnr_retry = cm_id_priv->rnr_retry_count;
+		*qp_attr_mask = IB_QP_STATE | IB_QP_SQ_PSN;
 		qp_attr->sq_psn = be32_to_cpu(cm_id_priv->sq_psn);
-		qp_attr->max_rd_atomic = cm_id_priv->initiator_depth;
+		if (cm_id_priv->qp_type == IB_QPT_RC) {
+			*qp_attr_mask |= IB_QP_TIMEOUT | IB_QP_RETRY_CNT |
+					 IB_QP_RNR_RETRY |
+					 IB_QP_MAX_QP_RD_ATOMIC;
+			qp_attr->timeout = cm_id_priv->local_ack_timeout;
+			qp_attr->retry_cnt = cm_id_priv->retry_count;
+			qp_attr->rnr_retry = cm_id_priv->rnr_retry_count;
+			qp_attr->max_rd_atomic = cm_id_priv->initiator_depth;
+		}
 		if (cm_id_priv->alt_av.ah_attr.dlid) {
 			*qp_attr_mask |= IB_QP_PATH_MIG_STATE;
 			qp_attr->path_mig_state = IB_MIG_REARM;
@@ -3175,10 +3157,10 @@ int ib_cm_init_qp_attr(struct ib_cm_id *cm_id,
 }
 EXPORT_SYMBOL(ib_cm_init_qp_attr);
 
-static u64 cm_get_ca_guid(struct ib_device *device)
+static __be64 cm_get_ca_guid(struct ib_device *device)
 {
 	struct ib_device_attr *device_attr;
-	u64 guid;
+	__be64 guid;
 	int ret;
 
 	device_attr = kmalloc(sizeof *device_attr, GFP_KERNEL);
@@ -3317,6 +3299,7 @@ static void __exit ib_cm_cleanup(void)
 	flush_workqueue(cm.wq);
 	destroy_workqueue(cm.wq);
 	ib_unregister_client(&cm_client);
+	idr_destroy(&cm.local_id_table);
 }
 
 module_init(ib_cm_init);

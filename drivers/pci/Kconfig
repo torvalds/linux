@@ -30,23 +30,6 @@ config PCI_LEGACY_PROC
 
 	  When in doubt, say N.
 
-config PCI_NAMES
-	bool "PCI device name database"
-	depends on PCI
-	---help---
-	  By default, the kernel contains a database of all known PCI device
-	  names to make the information in /proc/pci, /proc/ioports and
-	  similar files comprehensible to the user. 
-
-	  This database increases size of the kernel image by about 80KB. This 
-	  memory is freed after the system boots up if CONFIG_HOTPLUG is not set.
-
-	  Anyway, if you are building an installation floppy or kernel for an 
-	  embedded system where kernel image size really matters, you can disable 
-	  this feature and you'll get device ID numbers instead of names.
-
-	  When in doubt, say Y.
-
 config PCI_DEBUG
 	bool "PCI Debugging"
 	depends on PCI && DEBUG_KERNEL

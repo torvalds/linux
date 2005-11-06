@@ -50,7 +50,7 @@ struct mmc_command {
 #define MMC_ERR_INVALID	5
 
 	struct mmc_data		*data;		/* data segment associated with cmd */
-	struct mmc_request	*mrq;		/* assoicated request */
+	struct mmc_request	*mrq;		/* associated request */
 };
 
 struct mmc_data {
@@ -68,7 +68,7 @@ struct mmc_data {
 	unsigned int		bytes_xfered;
 
 	struct mmc_command	*stop;		/* stop command */
-	struct mmc_request	*mrq;		/* assoicated request */
+	struct mmc_request	*mrq;		/* associated request */
 
 	unsigned int		sg_len;		/* size of scatter list */
 	struct scatterlist	*sg;		/* I/O scatter list */
@@ -88,6 +88,8 @@ struct mmc_card;
 
 extern int mmc_wait_for_req(struct mmc_host *, struct mmc_request *);
 extern int mmc_wait_for_cmd(struct mmc_host *, struct mmc_command *, int);
+extern int mmc_wait_for_app_cmd(struct mmc_host *, unsigned int,
+	struct mmc_command *, int);
 
 extern int __mmc_claim_host(struct mmc_host *host, struct mmc_card *card);
 

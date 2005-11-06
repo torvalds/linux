@@ -98,7 +98,7 @@ static char bcast_addr[6]={0xFF,0xFF,0xFF,0xFF,0xFF,0xFF};
 
 static char bpq_eth_addr[6];
 
-static int bpq_rcv(struct sk_buff *, struct net_device *, struct packet_type *);
+static int bpq_rcv(struct sk_buff *, struct net_device *, struct packet_type *, struct net_device *);
 static int bpq_device_event(struct notifier_block *, unsigned long, void *);
 static const char *bpq_print_ethaddr(const unsigned char *);
 
@@ -144,7 +144,7 @@ static inline struct net_device *bpq_get_ax25_dev(struct net_device *dev)
 {
 	struct bpqdev *bpq;
 
-	list_for_each_entry(bpq, &bpq_devices, bpq_list) {
+	list_for_each_entry_rcu(bpq, &bpq_devices, bpq_list) {
 		if (bpq->ethdev == dev)
 			return bpq->axdev;
 	}
@@ -165,7 +165,7 @@ static inline int dev_is_ethdev(struct net_device *dev)
 /*
  *	Receive an AX.25 frame via an ethernet interface.
  */
-static int bpq_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *ptype)
+static int bpq_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *ptype, struct net_device *orig_dev)
 {
 	int len;
 	char * ptr;
@@ -399,7 +399,7 @@ static void *bpq_seq_start(struct seq_file *seq, loff_t *pos)
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
 	
-	list_for_each_entry(bpqdev, &bpq_devices, bpq_list) {
+	list_for_each_entry_rcu(bpqdev, &bpq_devices, bpq_list) {
 		if (i == *pos)
 			return bpqdev;
 	}
@@ -418,7 +418,7 @@ static void *bpq_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		p = ((struct bpqdev *)v)->bpq_list.next;
 
 	return (p == &bpq_devices) ? NULL 
-		: list_entry(p, struct bpqdev, bpq_list);
+		: rcu_dereference(list_entry(p, struct bpqdev, bpq_list));
 }
 
 static void bpq_seq_stop(struct seq_file *seq, void *v)
@@ -488,7 +488,7 @@ static void bpq_setup(struct net_device *dev)
 	dev->flags      = 0;
 
 #if defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
-	dev->hard_header     = ax25_encapsulate;
+	dev->hard_header     = ax25_hard_header;
 	dev->rebuild_header  = ax25_rebuild_header;
 #endif
 
@@ -561,8 +561,6 @@ static int bpq_device_event(struct notifier_block *this,unsigned long event, voi
 	if (!dev_is_ethdev(dev))
 		return NOTIFY_DONE;
 
-	rcu_read_lock();
-
 	switch (event) {
 	case NETDEV_UP:		/* new ethernet device -> new BPQ interface */
 		if (bpq_get_ax25_dev(dev) == NULL)
@@ -581,7 +579,6 @@ static int bpq_device_event(struct notifier_block *this,unsigned long event, voi
 	default:
 		break;
 	}
-	rcu_read_unlock();
 
 	return NOTIFY_DONE;
 }

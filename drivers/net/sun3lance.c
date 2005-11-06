@@ -162,7 +162,7 @@ struct lance_private {
 #define	MEM	lp->mem
 #define	DREG	lp->iobase[0]
 #define	AREG	lp->iobase[1]
-#define	REGA(a)	( AREG = (a), DREG )
+#define	REGA(a)	(*( AREG = (a), &DREG ))
 
 /* Definitions for the Lance */
 

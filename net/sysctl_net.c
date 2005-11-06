@@ -16,18 +16,18 @@
 #include <linux/mm.h>
 #include <linux/sysctl.h>
 
+#include <net/sock.h>
+
 #ifdef CONFIG_INET
-extern struct ctl_table ipv4_table[];
+#include <net/ip.h>
 #endif
 
-extern struct ctl_table core_table[];
-
 #ifdef CONFIG_NET
-extern struct ctl_table ether_table[];
+#include <linux/if_ether.h>
 #endif
 
 #ifdef CONFIG_TR
-extern struct ctl_table tr_table[];
+#include <linux/if_tr.h>
 #endif
 
 struct ctl_table net_table[] = {

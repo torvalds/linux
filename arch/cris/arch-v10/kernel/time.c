@@ -240,7 +240,7 @@ timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	 * The division here is not time critical since it will run once in 
 	 * 11 minutes
 	 */
-	if ((time_status & STA_UNSYNC) == 0 &&
+	if (ntp_synced() &&
 	    xtime.tv_sec > last_rtc_update + 660 &&
 	    (xtime.tv_nsec / 1000) >= 500000 - (tick_nsec / 1000) / 2 &&
 	    (xtime.tv_nsec / 1000) <= 500000 + (tick_nsec / 1000) / 2) {

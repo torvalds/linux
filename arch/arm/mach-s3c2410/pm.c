@@ -585,13 +585,15 @@ static int s3c2410_pm_enter(suspend_state_t state)
 
 	s3c2410_pm_check_store();
 
-	// need to make some form of time-delta
-
 	/* send the cpu to sleep... */
 
 	__raw_writel(0x00, S3C2410_CLKCON);  /* turn off clocks over sleep */
 
 	s3c2410_cpu_suspend(regs_save);
+
+	/* restore the cpu state */
+
+	cpu_init();
 
 	/* unset the return-from-sleep flag, to ensure reset */
 

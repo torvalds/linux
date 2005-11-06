@@ -36,7 +36,7 @@ static int expand_data;	/* Data for expanding */
 /*** Low level stuff *********************************************************/
 
 
-static void *Q40Alloc(unsigned int size, int flags);
+static void *Q40Alloc(unsigned int size, gfp_t flags);
 static void Q40Free(void *, unsigned int);
 static int Q40IrqInit(void);
 #ifdef MODULE
@@ -358,7 +358,7 @@ static TRANS transQ40Compressing = {
 
 /*** Low level stuff *********************************************************/
 
-static void *Q40Alloc(unsigned int size, int flags)
+static void *Q40Alloc(unsigned int size, gfp_t flags)
 {
          return kmalloc(size, flags); /* change to vmalloc */
 }

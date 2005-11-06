@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/leds-h2p2-debug.c
+ * linux/arch/arm/mach-omap1/leds-h2p2-debug.c
  *
  * Copyright 2003 by Texas Instruments Incorporated
  *
@@ -13,6 +13,7 @@
 #include <linux/init.h>
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>
+#include <linux/version.h>
 
 #include <asm/io.h>
 #include <asm/hardware.h>

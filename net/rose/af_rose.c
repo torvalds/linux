@@ -41,7 +41,7 @@
 #include <net/rose.h>
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <net/ip.h>
 #include <net/arp.h>
 
@@ -556,12 +556,7 @@ static struct sock *rose_make_new(struct sock *osk)
 	sk->sk_sndbuf   = osk->sk_sndbuf;
 	sk->sk_state    = TCP_ESTABLISHED;
 	sk->sk_sleep    = osk->sk_sleep;
-
-	if (sock_flag(osk, SOCK_ZAPPED))
-		sock_set_flag(sk, SOCK_ZAPPED);
-
-	if (sock_flag(osk, SOCK_DBG))
-		sock_set_flag(sk, SOCK_DBG);
+	sock_copy_flags(sk, osk);
 
 	init_timer(&rose->timer);
 	init_timer(&rose->idletimer);
@@ -631,7 +626,8 @@ static int rose_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 	struct rose_sock *rose = rose_sk(sk);
 	struct sockaddr_rose *addr = (struct sockaddr_rose *)uaddr;
 	struct net_device *dev;
-	ax25_address *user, *source;
+	ax25_address *source;
+	ax25_uid_assoc *user;
 	int n;
 
 	if (!sock_flag(sk, SOCK_ZAPPED))
@@ -656,14 +652,17 @@ static int rose_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 
 	source = &addr->srose_call;
 
-	if ((user = ax25_findbyuid(current->euid)) == NULL) {
+	user = ax25_findbyuid(current->euid);
+	if (user) {
+		rose->source_call = user->call;
+		ax25_uid_put(user);
+	} else {
 		if (ax25_uid_policy && !capable(CAP_NET_BIND_SERVICE))
 			return -EACCES;
-		user = source;
+		rose->source_call   = *source;
 	}
 
 	rose->source_addr   = addr->srose_addr;
-	rose->source_call   = *user;
 	rose->device        = dev;
 	rose->source_ndigis = addr->srose_ndigis;
 
@@ -690,8 +689,8 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 	struct rose_sock *rose = rose_sk(sk);
 	struct sockaddr_rose *addr = (struct sockaddr_rose *)uaddr;
 	unsigned char cause, diagnostic;
-	ax25_address *user;
 	struct net_device *dev;
+	ax25_uid_assoc *user;
 	int n;
 
 	if (sk->sk_state == TCP_ESTABLISHED && sock->state == SS_CONNECTING) {
@@ -741,12 +740,14 @@ static int rose_connect(struct socket *sock, struct sockaddr *uaddr, int addr_le
 		if ((dev = rose_dev_first()) == NULL)
 			return -ENETUNREACH;
 
-		if ((user = ax25_findbyuid(current->euid)) == NULL)
+		user = ax25_findbyuid(current->euid);
+		if (!user)
 			return -EINVAL;
 
 		memcpy(&rose->source_addr, dev->dev_addr, ROSE_ADDR_LEN);
-		rose->source_call = *user;
+		rose->source_call = user->call;
 		rose->device      = dev;
+		ax25_uid_put(user);
 
 		rose_insert_socket(sk);		/* Finish the bind */
 	}
@@ -1242,7 +1243,7 @@ static int rose_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		amount = sk->sk_sndbuf - atomic_read(&sk->sk_wmem_alloc);
 		if (amount < 0)
 			amount = 0;
-		return put_user(amount, (unsigned int __user *)argp);
+		return put_user(amount, (unsigned int __user *) argp);
 	}
 
 	case TIOCINQ: {
@@ -1251,13 +1252,11 @@ static int rose_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		/* These two are safe on a single CPU system as only user tasks fiddle here */
 		if ((skb = skb_peek(&sk->sk_receive_queue)) != NULL)
 			amount = skb->len;
-		return put_user(amount, (unsigned int __user *)argp);
+		return put_user(amount, (unsigned int __user *) argp);
 	}
 
 	case SIOCGSTAMP:
-		if (sk != NULL) 
-			return sock_get_timestamp(sk, (struct timeval __user *)argp);
-		return -EINVAL;
+		return sock_get_timestamp(sk, (struct timeval __user *) argp);
 
 	case SIOCGIFADDR:
 	case SIOCSIFADDR:
@@ -1362,6 +1361,8 @@ static void rose_info_stop(struct seq_file *seq, void *v)
 
 static int rose_info_show(struct seq_file *seq, void *v)
 {
+	char buf[11];
+
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, 
 			 "dest_addr  dest_call src_addr   src_call  dev   lci neigh st vs vr va   t  t1  t2  t3  hb    idle Snd-Q Rcv-Q inode\n");
@@ -1379,12 +1380,12 @@ static int rose_info_show(struct seq_file *seq, void *v)
 		
 		seq_printf(seq, "%-10s %-9s ",
 			rose2asc(&rose->dest_addr),
-			ax2asc(&rose->dest_call));
+			ax2asc(buf, &rose->dest_call));
 
 		if (ax25cmp(&rose->source_call, &null_ax25_address) == 0)
 			callsign = "??????-?";
 		else
-			callsign = ax2asc(&rose->source_call);
+			callsign = ax2asc(buf, &rose->source_call);
 
 		seq_printf(seq,
 			   "%-10s %-9s %-5s %3.3X %05d  %d  %d  %d  %d %3lu %3lu %3lu %3lu %3lu %3lu/%03lu %5d %5d %ld\n",
@@ -1471,22 +1472,25 @@ static const char banner[] = KERN_INFO "F6FBB/G4KLX ROSE for Linux. Version 0.62
 static int __init rose_proto_init(void)
 {
 	int i;
-	int rc = proto_register(&rose_proto, 0);
+	int rc;
 
+	if (rose_ndevs > 0x7FFFFFFF/sizeof(struct net_device *)) {
+		printk(KERN_ERR "ROSE: rose_proto_init - rose_ndevs parameter to large\n");
+		rc = -EINVAL;
+		goto out;
+	}
+
+	rc = proto_register(&rose_proto, 0);
 	if (rc != 0)
 		goto out;
 
 	rose_callsign = null_ax25_address;
 
-	if (rose_ndevs > 0x7FFFFFFF/sizeof(struct net_device *)) {
-		printk(KERN_ERR "ROSE: rose_proto_init - rose_ndevs parameter to large\n");
-		return -1;
-	}
-
 	dev_rose = kmalloc(rose_ndevs * sizeof(struct net_device *), GFP_KERNEL);
 	if (dev_rose == NULL) {
 		printk(KERN_ERR "ROSE: rose_proto_init - unable to allocate device structure\n");
-		return -1;
+		rc = -ENOMEM;
+		goto out_proto_unregister;
 	}
 
 	memset(dev_rose, 0x00, rose_ndevs * sizeof(struct net_device*));
@@ -1499,10 +1503,12 @@ static int __init rose_proto_init(void)
 				   name, rose_setup);
 		if (!dev) {
 			printk(KERN_ERR "ROSE: rose_proto_init - unable to allocate memory\n");
+			rc = -ENOMEM;
 			goto fail;
 		}
-		if (register_netdev(dev)) {
-			printk(KERN_ERR "ROSE: netdevice regeistration failed\n");
+		rc = register_netdev(dev);
+		if (rc) {
+			printk(KERN_ERR "ROSE: netdevice registration failed\n");
 			free_netdev(dev);
 			goto fail;
 		}
@@ -1535,8 +1541,9 @@ fail:
 		free_netdev(dev_rose[i]);
 	}
 	kfree(dev_rose);
+out_proto_unregister:
 	proto_unregister(&rose_proto);
-	return -ENOMEM;
+	goto out;
 }
 module_init(rose_proto_init);
 

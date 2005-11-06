@@ -15,6 +15,7 @@
  */
 #include <linux/config.h>
 
+#include <asm/memory.h>
 #include <asm/glue.h>
 #include <asm/vfpmacros.h>
 #include <asm/hardware.h>		/* should be moved into entry-macro.S */
@@ -310,7 +311,7 @@ __pabt_svc:
 
 #if __LINUX_ARM_ARCH__ < 6 && !defined(CONFIG_NEEDS_SYSCALL_FOR_CMPXCHG)
 	@ make sure our user space atomic helper is aborted
-	cmp	r2, #VIRT_OFFSET
+	cmp	r2, #TASK_SIZE
 	bichs	r3, r3, #PSR_Z_BIT
 #endif
 
@@ -533,6 +534,13 @@ ENTRY(__switch_to)
 	ldr	r3, [r2, #TI_TP_VALUE]
 	stmia	ip!, {r4 - sl, fp, sp, lr}	@ Store most regs on stack
 	ldr	r6, [r2, #TI_CPU_DOMAIN]!
+#if __LINUX_ARM_ARCH__ >= 6
+#ifdef CONFIG_CPU_MPCORE
+	clrex
+#else
+	strex	r5, r4, [ip]			@ Clear exclusive monitor
+#endif
+#endif
 #if defined(CONFIG_CPU_XSCALE) && !defined(CONFIG_IWMMXT)
 	mra	r4, r5, acc0
 	stmia   ip, {r4, r5}

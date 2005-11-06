@@ -169,8 +169,6 @@ static inline int cookie_check(struct sk_buff *skb, __u32 cookie)
 	return mssind < NUM_MSS ? msstab[mssind] + 1 : 0;
 }
 
-extern struct request_sock_ops tcp_request_sock_ops;
-
 static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 					   struct request_sock *req,
 					   struct dst_entry *dst)
@@ -180,7 +178,7 @@ static inline struct sock *get_cookie_sock(struct sock *sk, struct sk_buff *skb,
 
 	child = tp->af_specific->syn_recv_sock(sk, skb, req, dst);
 	if (child)
-		tcp_acceptq_queue(sk, req, child);
+		inet_csk_reqsk_queue_add(sk, req, child);
 	else
 		reqsk_free(req);
 

@@ -25,7 +25,7 @@
 
 #define _ASMLANGUAGE
 #include <asm/current.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/processor.h>
 
 /*
@@ -211,7 +211,7 @@
 #define __access_ok(addr,size) (__kernel_ok || __user_ok((addr),(size)))
 #define access_ok(type,addr,size) __access_ok((unsigned long)(addr),(size))
 
-extern inline int verify_area(int type, const void * addr, unsigned long size)
+static inline int verify_area(int type, const void * addr, unsigned long size)
 {
 	return access_ok(type,addr,size) ? 0 : -EFAULT;
 }
@@ -464,7 +464,7 @@ __generic_copy_from_user(void *to, const void *from, unsigned long n)
  * success.
  */
 
-extern inline unsigned long
+static inline unsigned long
 __xtensa_clear_user(void *addr, unsigned long size)
 {
 	if ( ! memset(addr, 0, size) )
@@ -472,7 +472,7 @@ __xtensa_clear_user(void *addr, unsigned long size)
 	return 0;
 }
 
-extern inline unsigned long
+static inline unsigned long
 clear_user(void *addr, unsigned long size)
 {
 	if (access_ok(VERIFY_WRITE, addr, size))
@@ -486,7 +486,7 @@ clear_user(void *addr, unsigned long size)
 extern long __strncpy_user(char *, const char *, long);
 #define __strncpy_from_user __strncpy_user
 
-extern inline long
+static inline long
 strncpy_from_user(char *dst, const char *src, long count)
 {
 	if (access_ok(VERIFY_READ, src, 1))
@@ -502,7 +502,7 @@ strncpy_from_user(char *dst, const char *src, long count)
  */
 extern long __strnlen_user(const char *, long);
 
-extern inline long strnlen_user(const char *str, long len)
+static inline long strnlen_user(const char *str, long len)
 {
 	unsigned long top = __kernel_ok ? ~0UL : TASK_SIZE - 1;
 

@@ -13,7 +13,7 @@
 
 #include <linux/config.h>
 
-#define PHYS_OFFSET	(0xf0000000UL)
+#define PHYS_OFFSET	UL(0xf0000000)
 
 #define __virt_to_bus(x)	__virt_to_phys(x)
 #define __bus_to_virt(x)	__phys_to_virt(x)
@@ -63,10 +63,6 @@
 
 #define NODE_MAX_MEM_SHIFT	26
 #define NODE_MAX_MEM_SIZE	(1 << NODE_MAX_MEM_SHIFT)
-
-#else
-
-#define PFN_TO_NID(addr)	(0)
 
 #endif /* CONFIG_DISCONTIGMEM */
 

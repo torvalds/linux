@@ -18,7 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -29,6 +29,7 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
+#include <asm/arch/mux.h>
 #include <asm/arch/fpga.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/tc.h>
@@ -102,8 +103,12 @@ static struct platform_device innovator_flash_device = {
 
 /* Only FPGA needs to be mapped here. All others are done with ioremap */
 static struct map_desc innovator1510_io_desc[] __initdata = {
-{ OMAP1510_FPGA_BASE, OMAP1510_FPGA_START, OMAP1510_FPGA_SIZE,
-	MT_DEVICE },
+	{
+		.virtual	= OMAP1510_FPGA_BASE,
+		.pfn		= __phys_to_pfn(OMAP1510_FPGA_START),
+		.length		= OMAP1510_FPGA_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static struct resource innovator1510_smc91x_resources[] = {
@@ -173,7 +178,6 @@ static void __init innovator_init_smc91x(void)
 			printk("Error requesting gpio 0 for smc91x irq\n");
 			return;
 		}
-		omap_set_gpio_edge_ctrl(0, OMAP_GPIO_RISING_EDGE);
 	}
 }
 
@@ -220,8 +224,19 @@ static struct omap_usb_config h2_usb_config __initdata = {
 };
 #endif
 
+static struct omap_mmc_config innovator_mmc_config __initdata = {
+	.mmc [0] = {
+		.enabled 	= 1,
+		.wire4		= 1,
+		.wp_pin		= OMAP_MPUIO(3),
+		.power_pin	= -1,	/* FPGA F3 UIO42 */
+		.switch_pin	= -1,	/* FPGA F4 UIO43 */
+	},
+};
+
 static struct omap_board_config_kernel innovator_config[] = {
 	{ OMAP_TAG_USB,         NULL },
+	{ OMAP_TAG_MMC,		&innovator_mmc_config },
 };
 
 static void __init innovator_init(void)

@@ -99,7 +99,7 @@ static int speedstep_smi_get_freqs (unsigned int *low, unsigned int *high)
 	u32 function = GET_SPEEDSTEP_FREQS;
 
 	if (!(ist_info.event & 0xFFFF)) {
-		dprintk("bug #1422 -- can't read freqs from BIOS\n", result);
+		dprintk("bug #1422 -- can't read freqs from BIOS\n");
 		return -ENODEV;
 	}
 

@@ -231,7 +231,7 @@ int snd_register_device(int type, snd_card_t * card, int dev, snd_minor_t * reg,
 		devfs_mk_cdev(MKDEV(major, minor), S_IFCHR | device_mode, "snd/%s", name);
 	if (card)
 		device = card->dev;
-	class_device_create(sound_class, MKDEV(major, minor), device, "%s", name);
+	class_device_create(sound_class, NULL, MKDEV(major, minor), device, "%s", name);
 
 	up(&sound_mutex);
 	return 0;
@@ -328,6 +328,10 @@ int __exit snd_minor_info_done(void)
  *  INIT PART
  */
 
+#ifdef CONFIG_SND_GENERIC_DRIVER
+extern struct device_driver snd_generic_driver;
+#endif
+
 static int __init alsa_sound_init(void)
 {
 	short controlnum;
@@ -354,6 +358,9 @@ static int __init alsa_sound_init(void)
 		return -ENOMEM;
 	}
 	snd_info_minor_register();
+#ifdef CONFIG_SND_GENERIC_DRIVER
+	driver_register(&snd_generic_driver);
+#endif
 	for (controlnum = 0; controlnum < cards_limit; controlnum++)
 		devfs_mk_cdev(MKDEV(major, controlnum<<5), S_IFCHR | device_mode, "snd/controlC%d", controlnum);
 #ifndef MODULE
@@ -369,6 +376,9 @@ static void __exit alsa_sound_exit(void)
 	for (controlnum = 0; controlnum < cards_limit; controlnum++)
 		devfs_remove("snd/controlC%d", controlnum);
 
+#ifdef CONFIG_SND_GENERIC_DRIVER
+	driver_unregister(&snd_generic_driver);
+#endif
 	snd_info_minor_unregister();
 	snd_info_done();
 	snd_memory_done();
@@ -416,10 +426,13 @@ EXPORT_SYMBOL(snd_card_register);
 EXPORT_SYMBOL(snd_component_add);
 EXPORT_SYMBOL(snd_card_file_add);
 EXPORT_SYMBOL(snd_card_file_remove);
+#ifdef CONFIG_SND_GENERIC_DRIVER
+EXPORT_SYMBOL(snd_card_set_generic_dev);
+#endif
 #ifdef CONFIG_PM
 EXPORT_SYMBOL(snd_power_wait);
 EXPORT_SYMBOL(snd_card_set_pm_callback);
-#if defined(CONFIG_PM) && defined(CONFIG_SND_GENERIC_PM)
+#ifdef CONFIG_SND_GENERIC_DRIVER
 EXPORT_SYMBOL(snd_card_set_generic_pm_callback);
 #endif
 #ifdef CONFIG_PCI
@@ -432,7 +445,7 @@ EXPORT_SYMBOL(snd_device_new);
 EXPORT_SYMBOL(snd_device_register);
 EXPORT_SYMBOL(snd_device_free);
   /* isadma.c */
-#ifdef CONFIG_ISA
+#ifdef CONFIG_ISA_DMA_API
 EXPORT_SYMBOL(snd_dma_program);
 EXPORT_SYMBOL(snd_dma_disable);
 EXPORT_SYMBOL(snd_dma_pointer);

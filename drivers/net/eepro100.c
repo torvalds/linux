@@ -1263,8 +1263,8 @@ speedo_init_rx_ring(struct net_device *dev)
 	for (i = 0; i < RX_RING_SIZE; i++) {
 		struct sk_buff *skb;
 		skb = dev_alloc_skb(PKT_BUF_SZ + sizeof(struct RxFD));
-		/* XXX: do we really want to call this before the NULL check? --hch */
-		rx_align(skb);			/* Align IP on 16 byte boundary */
+		if (skb)
+			rx_align(skb);        /* Align IP on 16 byte boundary */
 		sp->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;			/* OK.  Just initially short of Rx bufs. */
@@ -1654,8 +1654,8 @@ static inline struct RxFD *speedo_rx_alloc(struct net_device *dev, int entry)
 	struct sk_buff *skb;
 	/* Get a fresh skbuff to replace the consumed one. */
 	skb = dev_alloc_skb(PKT_BUF_SZ + sizeof(struct RxFD));
-	/* XXX: do we really want to call this before the NULL check? --hch */
-	rx_align(skb);				/* Align IP on 16 byte boundary */
+	if (skb)
+		rx_align(skb);		/* Align IP on 16 byte boundary */
 	sp->rx_skbuff[entry] = skb;
 	if (skb == NULL) {
 		sp->rx_ringp[entry] = NULL;

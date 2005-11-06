@@ -36,7 +36,9 @@
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
+#include <linux/err.h>
 
 /* How many retries on register read error */
 #define MAX_RETRIES	5
@@ -47,13 +49,12 @@
  */
 
 static unsigned short normal_i2c[] = { 0x2e, I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
 /*
  * Insmod parameters
  */
 
-SENSORS_INSMOD_1(w83l785ts);
+I2C_CLIENT_INSMOD_1(w83l785ts);
 
 /*
  * The W83L785TS-S registers
@@ -73,7 +74,7 @@ SENSORS_INSMOD_1(w83l785ts);
  * The W83L785TS-S uses signed 8-bit values.
  */
 
-#define TEMP_FROM_REG(val)	((val & 0x80 ? val-0x100 : val) * 1000)
+#define TEMP_FROM_REG(val)	((val) * 1000)
 
 /*
  * Functions declaration
@@ -105,32 +106,30 @@ static struct i2c_driver w83l785ts_driver = {
 
 struct w83l785ts_data {
 	struct i2c_client client;
+	struct class_device *class_dev;
 	struct semaphore update_lock;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
 
 	/* registers values */
-	u8 temp, temp_over;
+	s8 temp[2]; /* 0: input
+		       1: critical limit */
 };
 
 /*
  * Sysfs stuff
  */
 
-static ssize_t show_temp(struct device *dev, struct device_attribute *attr, char *buf)
+static ssize_t show_temp(struct device *dev, struct device_attribute *devattr,
+	char *buf)
 {
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct w83l785ts_data *data = w83l785ts_update_device(dev);
-	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp));
+	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp[attr->index]));
 }
 
-static ssize_t show_temp_over(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct w83l785ts_data *data = w83l785ts_update_device(dev);
-	return sprintf(buf, "%d\n", TEMP_FROM_REG(data->temp_over));
-}
-
-static DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL);
-static DEVICE_ATTR(temp1_max, S_IRUGO, show_temp_over, NULL);
+static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
+static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, show_temp, NULL, 1);
 
 /*
  * Real code
@@ -140,7 +139,7 @@ static int w83l785ts_attach_adapter(struct i2c_adapter *adapter)
 {
 	if (!(adapter->class & I2C_CLASS_HWMON))
 		return 0;
-	return i2c_detect(adapter, &addr_data, w83l785ts_detect);
+	return i2c_probe(adapter, &addr_data, w83l785ts_detect);
 }
 
 /*
@@ -157,12 +156,10 @@ static int w83l785ts_detect(struct i2c_adapter *adapter, int address, int kind)
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		goto exit;
 
-	if (!(data = kmalloc(sizeof(struct w83l785ts_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct w83l785ts_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct w83l785ts_data));
-
 
 	/* The common I2C client data is placed right before the
 	 * W83L785TS-specific data. */
@@ -227,7 +224,7 @@ static int w83l785ts_detect(struct i2c_adapter *adapter, int address, int kind)
 	init_MUTEX(&data->update_lock);
 
 	/* Default values in case the first read fails (unlikely). */
-	data->temp_over = data->temp = 0;
+	data->temp[1] = data->temp[0] = 0;
 
 	/* Tell the I2C layer a new client has arrived. */
 	if ((err = i2c_attach_client(new_client))) 
@@ -239,11 +236,21 @@ static int w83l785ts_detect(struct i2c_adapter *adapter, int address, int kind)
 	 */
 
 	/* Register sysfs hooks */
-	device_create_file(&new_client->dev, &dev_attr_temp1_input);
-	device_create_file(&new_client->dev, &dev_attr_temp1_max);
+	data->class_dev = hwmon_device_register(&new_client->dev);
+	if (IS_ERR(data->class_dev)) {
+		err = PTR_ERR(data->class_dev);
+		goto exit_detach;
+	}
+
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp1_input.dev_attr);
+	device_create_file(&new_client->dev,
+			   &sensor_dev_attr_temp1_max.dev_attr);
 
 	return 0;
 
+exit_detach:
+	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
@@ -252,15 +259,15 @@ exit:
 
 static int w83l785ts_detach_client(struct i2c_client *client)
 {
+	struct w83l785ts_data *data = i2c_get_clientdata(client);
 	int err;
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev, "Client deregistration failed, "
-			"client not detached.\n");
-		return err;
-	}
+	hwmon_device_unregister(data->class_dev);
 
-	kfree(i2c_get_clientdata(client));
+	if ((err = i2c_detach_client(client)))
+		return err;
+
+	kfree(data);
 	return 0;
 }
 
@@ -296,10 +303,10 @@ static struct w83l785ts_data *w83l785ts_update_device(struct device *dev)
 
 	if (!data->valid || time_after(jiffies, data->last_updated + HZ * 2)) {
 		dev_dbg(&client->dev, "Updating w83l785ts data.\n");
-		data->temp = w83l785ts_read_value(client,
-			     W83L785TS_REG_TEMP, data->temp);
-		data->temp_over = w83l785ts_read_value(client,
-				  W83L785TS_REG_TEMP_OVER, data->temp_over);
+		data->temp[0] = w83l785ts_read_value(client,
+				W83L785TS_REG_TEMP, data->temp[0]);
+		data->temp[1] = w83l785ts_read_value(client,
+				W83L785TS_REG_TEMP_OVER, data->temp[1]);
 
 		data->last_updated = jiffies;
 		data->valid = 1;

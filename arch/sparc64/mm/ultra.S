@@ -10,6 +10,7 @@
 #include <asm/page.h>
 #include <asm/spitfire.h>
 #include <asm/mmu_context.h>
+#include <asm/mmu.h>
 #include <asm/pil.h>
 #include <asm/head.h>
 #include <asm/thread_info.h>
@@ -45,6 +46,8 @@ __flush_tlb_mm: /* %o0=(ctx & TAG_CONTEXT_BITS), %o1=SECONDARY_CONTEXT */
 	nop
 	nop
 	nop
+	nop
+	nop
 
 	.align		32
 	.globl		__flush_tlb_pending
@@ -72,6 +75,9 @@ __flush_tlb_pending:
 	flush		%g6
 	retl
 	 wrpr		%g7, 0x0, %pstate
+	nop
+	nop
+	nop
 	nop
 
 	.align		32
@@ -113,6 +119,7 @@ __spitfire_flush_tlb_mm_slow:
 #else
 #error unsupported PAGE_SIZE
 #endif
+	.section .kprobes.text, "ax"
 	.align		32
 	.globl		__flush_icache_page
 __flush_icache_page:	/* %o0 = phys_page */
@@ -137,42 +144,29 @@ __flush_icache_page:	/* %o0 = phys_page */
 
 #define DTAG_MASK 0x3
 
+	/* This routine is Spitfire specific so the hardcoded
+	 * D-cache size and line-size are OK.
+	 */
 	.align		64
 	.globl		__flush_dcache_page
 __flush_dcache_page:	/* %o0=kaddr, %o1=flush_icache */
 	sethi		%uhi(PAGE_OFFSET), %g1
 	sllx		%g1, 32, %g1
-	sub		%o0, %g1, %o0
-	clr		%o4
-	srlx		%o0, 11, %o0
-	sethi		%hi(1 << 14), %o2
-1:	ldxa		[%o4] ASI_DCACHE_TAG, %o3	! LSU	Group
-	add		%o4, (1 << 5), %o4		! IEU0
-	ldxa		[%o4] ASI_DCACHE_TAG, %g1	! LSU	Group
-	add		%o4, (1 << 5), %o4		! IEU0
-	ldxa		[%o4] ASI_DCACHE_TAG, %g2	! LSU	Group	o3 available
-	add		%o4, (1 << 5), %o4		! IEU0
-	andn		%o3, DTAG_MASK, %o3		! IEU1
-	ldxa		[%o4] ASI_DCACHE_TAG, %g3	! LSU	Group
-	add		%o4, (1 << 5), %o4		! IEU0
-	andn		%g1, DTAG_MASK, %g1		! IEU1
-	cmp		%o0, %o3			! IEU1	Group
-	be,a,pn		%xcc, dflush1			! CTI
-	 sub		%o4, (4 << 5), %o4		! IEU0	(Group)
-	cmp		%o0, %g1			! IEU1	Group
-	andn		%g2, DTAG_MASK, %g2		! IEU0
-	be,a,pn		%xcc, dflush2			! CTI
-	 sub		%o4, (3 << 5), %o4		! IEU0	(Group)
-	cmp		%o0, %g2			! IEU1	Group
-	andn		%g3, DTAG_MASK, %g3		! IEU0
-	be,a,pn		%xcc, dflush3			! CTI
-	 sub		%o4, (2 << 5), %o4		! IEU0	(Group)
-	cmp		%o0, %g3			! IEU1	Group
-	be,a,pn		%xcc, dflush4			! CTI
-	 sub		%o4, (1 << 5), %o4		! IEU0
-2:	cmp		%o4, %o2			! IEU1	Group
-	bne,pt		%xcc, 1b			! CTI
-	 nop						! IEU0
+	sub		%o0, %g1, %o0			! physical address
+	srlx		%o0, 11, %o0			! make D-cache TAG
+	sethi		%hi(1 << 14), %o2		! D-cache size
+	sub		%o2, (1 << 5), %o2		! D-cache line size
+1:	ldxa		[%o2] ASI_DCACHE_TAG, %o3	! load D-cache TAG
+	andcc		%o3, DTAG_MASK, %g0		! Valid?
+	be,pn		%xcc, 2f			! Nope, branch
+	 andn		%o3, DTAG_MASK, %o3		! Clear valid bits
+	cmp		%o3, %o0			! TAG match?
+	bne,pt		%xcc, 2f			! Nope, branch
+	 nop
+	stxa		%g0, [%o2] ASI_DCACHE_TAG	! Invalidate TAG
+	membar		#Sync
+2:	brnz,pt		%o2, 1b
+	 sub		%o2, (1 << 5), %o2		! D-cache line size
 
 	/* The I-cache does not snoop local stores so we
 	 * better flush that too when necessary.
@@ -182,58 +176,12 @@ __flush_dcache_page:	/* %o0=kaddr, %o1=flush_icache */
 	retl
 	 nop
 
-dflush1:stxa		%g0, [%o4] ASI_DCACHE_TAG
-	add		%o4, (1 << 5), %o4
-dflush2:stxa		%g0, [%o4] ASI_DCACHE_TAG
-	add		%o4, (1 << 5), %o4
-dflush3:stxa		%g0, [%o4] ASI_DCACHE_TAG
-	add		%o4, (1 << 5), %o4
-dflush4:stxa		%g0, [%o4] ASI_DCACHE_TAG
-	add		%o4, (1 << 5), %o4
-	membar		#Sync
-	ba,pt		%xcc, 2b
-	 nop
 #endif /* DCACHE_ALIASING_POSSIBLE */
 
-	.align		32
-__prefill_dtlb:
-	rdpr		%pstate, %g7
-	wrpr		%g7, PSTATE_IE, %pstate
-	mov		TLB_TAG_ACCESS, %g1
-	stxa		%o5, [%g1] ASI_DMMU
-	stxa		%o2, [%g0] ASI_DTLB_DATA_IN
-	flush		%g6
-	retl
-	 wrpr		%g7, %pstate
-__prefill_itlb:
-	rdpr		%pstate, %g7
-	wrpr		%g7, PSTATE_IE, %pstate
-	mov		TLB_TAG_ACCESS, %g1
-	stxa		%o5, [%g1] ASI_IMMU
-	stxa		%o2, [%g0] ASI_ITLB_DATA_IN
-	flush		%g6
-	retl
-	 wrpr		%g7, %pstate
+	.previous
 
-	.globl		__update_mmu_cache
-__update_mmu_cache:	/* %o0=hw_context, %o1=address, %o2=pte, %o3=fault_code */
-	srlx		%o1, PAGE_SHIFT, %o1
-	andcc		%o3, FAULT_CODE_DTLB, %g0
-	sllx		%o1, PAGE_SHIFT, %o5
-	bne,pt		%xcc, __prefill_dtlb
-	 or		%o5, %o0, %o5
-	ba,a,pt		%xcc, __prefill_itlb
-
-	/* Cheetah specific versions, patched at boot time.
-	 *
-	 * This writes of the PRIMARY_CONTEXT register in this file are
-	 * safe even on Cheetah+ and later wrt. the page size fields.
-	 * The nucleus page size fields do not matter because we make
-	 * no data references, and these instructions execute out of a
-	 * locked I-TLB entry sitting in the fully assosciative I-TLB.
-	 * This sequence should also never trap.
-	 */
-__cheetah_flush_tlb_mm: /* 15 insns */
+	/* Cheetah specific versions, patched at boot time. */
+__cheetah_flush_tlb_mm: /* 18 insns */
 	rdpr		%pstate, %g7
 	andn		%g7, PSTATE_IE, %g2
 	wrpr		%g2, 0x0, %pstate
@@ -241,6 +189,9 @@ __cheetah_flush_tlb_mm: /* 15 insns */
 	mov		PRIMARY_CONTEXT, %o2
 	mov		0x40, %g3
 	ldxa		[%o2] ASI_DMMU, %g2
+	srlx		%g2, CTX_PGSZ1_NUC_SHIFT, %o1
+	sllx		%o1, CTX_PGSZ1_NUC_SHIFT, %o1
+	or		%o0, %o1, %o0	/* Preserve nucleus page size fields */
 	stxa		%o0, [%o2] ASI_DMMU
 	stxa		%g0, [%g3] ASI_DMMU_DEMAP
 	stxa		%g0, [%g3] ASI_IMMU_DEMAP
@@ -250,7 +201,7 @@ __cheetah_flush_tlb_mm: /* 15 insns */
 	retl
 	 wrpr		%g7, 0x0, %pstate
 
-__cheetah_flush_tlb_pending:	/* 23 insns */
+__cheetah_flush_tlb_pending:	/* 26 insns */
 	/* %o0 = context, %o1 = nr, %o2 = vaddrs[] */
 	rdpr		%pstate, %g7
 	sllx		%o1, 3, %o1
@@ -259,6 +210,9 @@ __cheetah_flush_tlb_pending:	/* 23 insns */
 	wrpr		%g0, 1, %tl
 	mov		PRIMARY_CONTEXT, %o4
 	ldxa		[%o4] ASI_DMMU, %g2
+	srlx		%g2, CTX_PGSZ1_NUC_SHIFT, %o3
+	sllx		%o3, CTX_PGSZ1_NUC_SHIFT, %o3
+	or		%o0, %o3, %o0	/* Preserve nucleus page size fields */
 	stxa		%o0, [%o4] ASI_DMMU
 1:	sub		%o1, (1 << 3), %o1
 	ldx		[%o2 + %o1], %o3
@@ -277,7 +231,7 @@ __cheetah_flush_tlb_pending:	/* 23 insns */
 	 wrpr		%g7, 0x0, %pstate
 
 #ifdef DCACHE_ALIASING_POSSIBLE
-flush_dcpage_cheetah: /* 11 insns */
+__cheetah_flush_dcache_page: /* 11 insns */
 	sethi		%uhi(PAGE_OFFSET), %g1
 	sllx		%g1, 32, %g1
 	sub		%o0, %g1, %o0
@@ -311,20 +265,20 @@ cheetah_patch_cachetlbops:
 	sethi		%hi(__cheetah_flush_tlb_mm), %o1
 	or		%o1, %lo(__cheetah_flush_tlb_mm), %o1
 	call		cheetah_patch_one
-	 mov		15, %o2
+	 mov		18, %o2
 
 	sethi		%hi(__flush_tlb_pending), %o0
 	or		%o0, %lo(__flush_tlb_pending), %o0
 	sethi		%hi(__cheetah_flush_tlb_pending), %o1
 	or		%o1, %lo(__cheetah_flush_tlb_pending), %o1
 	call		cheetah_patch_one
-	 mov		23, %o2
+	 mov		26, %o2
 
 #ifdef DCACHE_ALIASING_POSSIBLE
 	sethi		%hi(__flush_dcache_page), %o0
 	or		%o0, %lo(__flush_dcache_page), %o0
-	sethi		%hi(flush_dcpage_cheetah), %o1
-	or		%o1, %lo(flush_dcpage_cheetah), %o1
+	sethi		%hi(__cheetah_flush_dcache_page), %o1
+	or		%o1, %lo(__cheetah_flush_dcache_page), %o1
 	call		cheetah_patch_one
 	 mov		11, %o2
 #endif /* DCACHE_ALIASING_POSSIBLE */
@@ -352,9 +306,12 @@ cheetah_patch_cachetlbops:
 	.globl		xcall_flush_tlb_mm
 xcall_flush_tlb_mm:
 	mov		PRIMARY_CONTEXT, %g2
-	mov		0x40, %g4
 	ldxa		[%g2] ASI_DMMU, %g3
+	srlx		%g3, CTX_PGSZ1_NUC_SHIFT, %g4
+	sllx		%g4, CTX_PGSZ1_NUC_SHIFT, %g4
+	or		%g5, %g4, %g5	/* Preserve nucleus page size fields */
 	stxa		%g5, [%g2] ASI_DMMU
+	mov		0x40, %g4
 	stxa		%g0, [%g4] ASI_DMMU_DEMAP
 	stxa		%g0, [%g4] ASI_IMMU_DEMAP
 	stxa		%g3, [%g2] ASI_DMMU
@@ -366,6 +323,10 @@ xcall_flush_tlb_pending:
 	sllx		%g1, 3, %g1
 	mov		PRIMARY_CONTEXT, %g4
 	ldxa		[%g4] ASI_DMMU, %g2
+	srlx		%g2, CTX_PGSZ1_NUC_SHIFT, %g4
+	sllx		%g4, CTX_PGSZ1_NUC_SHIFT, %g4
+	or		%g5, %g4, %g5
+	mov		PRIMARY_CONTEXT, %g4
 	stxa		%g5, [%g4] ASI_DMMU
 1:	sub		%g1, (1 << 3), %g1
 	ldx		[%g7 + %g1], %g5
@@ -490,22 +451,6 @@ xcall_flush_dcache_page_spitfire: /* %g1 == physical page address
 
 2:	retry
 	nop
-	nop
-
-	.globl		xcall_promstop
-xcall_promstop:
-	rdpr		%pstate, %g2
-	wrpr		%g2, PSTATE_IG | PSTATE_AG, %pstate
-	rdpr		%pil, %g2
-	wrpr		%g0, 15, %pil
-	sethi		%hi(109f), %g7
-	b,pt		%xcc, etrap_irq
-109:	 or		%g7, %lo(109b), %g7
-	flushw
-	call		prom_stopself
-	 nop
-	/* We should not return, just spin if we do... */
-1:	b,a,pt		%xcc, 1b
 	nop
 
 	.data

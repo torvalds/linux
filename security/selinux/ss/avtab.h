@@ -21,12 +21,9 @@
 #define _SS_AVTAB_H_
 
 struct avtab_key {
-	u32 source_type;	/* source type */
-	u32 target_type;	/* target type */
-	u32 target_class;	/* target object class */
-};
-
-struct avtab_datum {
+	u16 source_type;	/* source type */
+	u16 target_type;	/* target type */
+	u16 target_class;	/* target object class */
 #define AVTAB_ALLOWED     1
 #define AVTAB_AUDITALLOW  2
 #define AVTAB_AUDITDENY   4
@@ -35,15 +32,13 @@ struct avtab_datum {
 #define AVTAB_MEMBER     32
 #define AVTAB_CHANGE     64
 #define AVTAB_TYPE       (AVTAB_TRANSITION | AVTAB_MEMBER | AVTAB_CHANGE)
-#define AVTAB_ENABLED    0x80000000 /* reserved for used in cond_avtab */
-	u32 specified;	/* what fields are specified */
-	u32 data[3];	/* access vectors or types */
-#define avtab_allowed(x) (x)->data[0]
-#define avtab_auditdeny(x) (x)->data[1]
-#define avtab_auditallow(x) (x)->data[2]
-#define avtab_transition(x) (x)->data[0]
-#define avtab_change(x) (x)->data[1]
-#define avtab_member(x) (x)->data[2]
+#define AVTAB_ENABLED_OLD    0x80000000 /* reserved for used in cond_avtab */
+#define AVTAB_ENABLED    0x8000 /* reserved for used in cond_avtab */
+	u16 specified;	/* what field is specified */
+};
+
+struct avtab_datum {
+	u32 data; /* access vector or type value */
 };
 
 struct avtab_node {
@@ -58,17 +53,21 @@ struct avtab {
 };
 
 int avtab_init(struct avtab *);
-struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *k, int specified);
+struct avtab_datum *avtab_search(struct avtab *h, struct avtab_key *k);
 void avtab_destroy(struct avtab *h);
 void avtab_hash_eval(struct avtab *h, char *tag);
 
-int avtab_read_item(void *fp, struct avtab_datum *avdatum, struct avtab_key *avkey);
-int avtab_read(struct avtab *a, void *fp, u32 config);
+int avtab_read_item(void *fp, uint32_t vers, struct avtab *a,
+		    int (*insert)(struct avtab *a, struct avtab_key *k,
+				  struct avtab_datum *d, void *p),
+		    void *p);
+
+int avtab_read(struct avtab *a, void *fp, u32 vers);
 
 struct avtab_node *avtab_insert_nonunique(struct avtab *h, struct avtab_key *key,
 					  struct avtab_datum *datum);
 
-struct avtab_node *avtab_search_node(struct avtab *h, struct avtab_key *key, int specified);
+struct avtab_node *avtab_search_node(struct avtab *h, struct avtab_key *key);
 
 struct avtab_node *avtab_search_node_next(struct avtab_node *node, int specified);
 

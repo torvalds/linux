@@ -115,24 +115,8 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
 
-#ifndef __ASSEMBLY__
-
-/* Pure 2^n version of get_order */
-extern __inline__ int get_order(unsigned long size)
-{
-	int order;
-
-	size = (size-1) >> (PAGE_SHIFT-1);
-	order = -1;
-	do {
-		size >>= 1;
-		order++;
-	} while (size);
-	return order;
-}
-
-#endif
-
 #endif /* __KERNEL__ */
+
+#include <asm-generic/page.h>
 
 #endif /* __ASM_SH64_PAGE_H */

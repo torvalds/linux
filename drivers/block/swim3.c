@@ -834,8 +834,7 @@ static int fd_eject(struct floppy_state *fs)
 			break;
 		}
 		swim3_select(fs, RELAX);
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(1);
+		schedule_timeout_interruptible(1);
 		if (swim3_readbit(fs, DISK_IN) == 0)
 			break;
 	}
@@ -906,8 +905,7 @@ static int floppy_open(struct inode *inode, struct file *filp)
 				break;
 			}
 			swim3_select(fs, RELAX);
-			current->state = TASK_INTERRUPTIBLE;
-			schedule_timeout(1);
+			schedule_timeout_interruptible(1);
 		}
 		if (err == 0 && (swim3_readbit(fs, SEEK_COMPLETE) == 0
 				 || swim3_readbit(fs, DISK_IN) == 0))
@@ -992,8 +990,7 @@ static int floppy_revalidate(struct gendisk *disk)
 		if (signal_pending(current))
 			break;
 		swim3_select(fs, RELAX);
-		current->state = TASK_INTERRUPTIBLE;
-		schedule_timeout(1);
+		schedule_timeout_interruptible(1);
 	}
 	ret = swim3_readbit(fs, SEEK_COMPLETE) == 0
 		|| swim3_readbit(fs, DISK_IN) == 0;

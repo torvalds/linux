@@ -83,19 +83,18 @@ single address space optimization, so that the zap_page_range (from
 vmtruncate) does not lose sending ipi's to cloned threads that might 
 be spawned underneath it and go to user mode to drag in pte's into tlbs.
 
-swap_list_lock/swap_device_lock
--------------------------------
+swap_lock
+--------------
 The swap devices are chained in priority order from the "swap_list" header. 
 The "swap_list" is used for the round-robin swaphandle allocation strategy.
 The #free swaphandles is maintained in "nr_swap_pages". These two together
-are protected by the swap_list_lock. 
+are protected by the swap_lock.
 
-The swap_device_lock, which is per swap device, protects the reference 
-counts on the corresponding swaphandles, maintained in the "swap_map"
-array, and the "highest_bit" and "lowest_bit" fields.
+The swap_lock also protects all the device reference counts on the
+corresponding swaphandles, maintained in the "swap_map" array, and the
+"highest_bit" and "lowest_bit" fields.
 
-Both of these are spinlocks, and are never acquired from intr level. The
-locking hierarchy is swap_list_lock -> swap_device_lock.
+The swap_lock is a spinlock, and is never acquired from intr level.
 
 To prevent races between swap space deletion or async readahead swapins
 deciding whether a swap handle is being used, ie worthy of being read in

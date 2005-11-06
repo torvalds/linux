@@ -41,7 +41,7 @@
 #include <asm/acpi.h>
 
 
-#ifdef CONFIG_ACPI_BOOT
+#ifdef CONFIG_ACPI
 
 enum acpi_irq_model_id {
 	ACPI_IRQ_MODEL_PIC = 0,
@@ -429,23 +429,13 @@ extern int pci_mmcfg_config_num;
 
 extern int sbf_port ;
 
-#else	/*!CONFIG_ACPI_BOOT*/
+#else	/* !CONFIG_ACPI */
 
 #define acpi_mp_config	0
 
-static inline int acpi_boot_init(void)
-{
-	return 0;
-}
+#endif 	/* !CONFIG_ACPI */
 
-static inline int acpi_boot_table_init(void)
-{
-	return 0;
-}
-
-#endif 	/*!CONFIG_ACPI_BOOT*/
-
-unsigned int acpi_register_gsi (u32 gsi, int edge_level, int active_high_low);
+int acpi_register_gsi (u32 gsi, int edge_level, int active_high_low);
 int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
 
 /*
@@ -455,7 +445,7 @@ int acpi_gsi_to_irq (u32 gsi, unsigned int *irq);
  */
 void acpi_unregister_gsi (u32 gsi);
 
-#ifdef CONFIG_ACPI_PCI
+#ifdef CONFIG_ACPI
 
 struct acpi_prt_entry {
 	struct list_head	node;
@@ -489,7 +479,7 @@ struct acpi_pci_driver {
 int acpi_pci_register_driver(struct acpi_pci_driver *driver);
 void acpi_pci_unregister_driver(struct acpi_pci_driver *driver);
 
-#endif /*CONFIG_ACPI_PCI*/
+#endif /* CONFIG_ACPI */
 
 #ifdef CONFIG_ACPI_EC
 
@@ -498,19 +488,8 @@ extern int ec_write(u8 addr, u8 val);
 
 #endif /*CONFIG_ACPI_EC*/
 
-#ifdef CONFIG_ACPI_INTERPRETER
-
 extern int acpi_blacklisted(void);
 extern void acpi_bios_year(char *s);
-
-#else /*!CONFIG_ACPI_INTERPRETER*/
-
-static inline int acpi_blacklisted(void)
-{
-	return 0;
-}
-
-#endif /*!CONFIG_ACPI_INTERPRETER*/
 
 #define	ACPI_CSTATE_LIMIT_DEFINED	/* for driver builds */
 #ifdef	CONFIG_ACPI
@@ -548,6 +527,18 @@ static inline int acpi_get_pxm(acpi_handle handle)
 #endif
 
 extern int pnpacpi_disabled;
+
+#else	/* CONFIG_ACPI */
+
+static inline int acpi_boot_init(void)
+{
+	return 0;
+}
+
+static inline int acpi_boot_table_init(void)
+{
+	return 0;
+}
 
 #endif	/* CONFIG_ACPI */
 #endif	/*_LINUX_ACPI_H*/

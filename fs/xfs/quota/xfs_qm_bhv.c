@@ -1,70 +1,55 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.	 Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_clnt.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_alloc.h"
 #include "xfs_dmapi.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_ialloc.h"
+#include "xfs_itable.h"
+#include "xfs_btree.h"
 #include "xfs_bmap.h"
-#include "xfs_bit.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
-#include "xfs_itable.h"
 #include "xfs_rw.h"
 #include "xfs_acl.h"
 #include "xfs_cap.h"
 #include "xfs_mac.h"
 #include "xfs_attr.h"
 #include "xfs_buf_item.h"
-
 #include "xfs_qm.h"
 
 #define MNTOPT_QUOTA	"quota"		/* disk quotas (user) */
@@ -227,48 +212,6 @@ xfs_qm_syncall(
 	}
 	PVFS_SYNC(BHV_NEXT(bhv), flags, credp, error);
 	return error;
-}
-
-/*
- * Clear the quotaflags in memory and in the superblock.
- */
-void
-xfs_mount_reset_sbqflags(
-	xfs_mount_t		*mp)
-{
-	xfs_trans_t		*tp;
-	unsigned long		s;
-
-	mp->m_qflags = 0;
-	/*
-	 * It is OK to look at sb_qflags here in mount path,
-	 * without SB_LOCK.
-	 */
-	if (mp->m_sb.sb_qflags == 0)
-		return;
-	s = XFS_SB_LOCK(mp);
-	mp->m_sb.sb_qflags = 0;
-	XFS_SB_UNLOCK(mp, s);
-
-	/*
-	 * if the fs is readonly, let the incore superblock run
-	 * with quotas off but don't flush the update out to disk
-	 */
-	if (XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY)
-		return;
-#ifdef QUOTADEBUG
-	xfs_fs_cmn_err(CE_NOTE, mp, "Writing superblock quota changes");
-#endif
-	tp = xfs_trans_alloc(mp, XFS_TRANS_QM_SBCHANGE);
-	if (xfs_trans_reserve(tp, 0, mp->m_sb.sb_sectsize + 128, 0, 0,
-				      XFS_DEFAULT_LOG_COUNT)) {
-		xfs_trans_cancel(tp, 0);
-		xfs_fs_cmn_err(CE_ALERT, mp,
-			"xfs_mount_reset_sbqflags: Superblock update failed!");
-		return;
-	}
-	xfs_mod_sb(tp, XFS_SB_QFLAGS);
-	xfs_trans_commit(tp, 0, NULL);
 }
 
 STATIC int

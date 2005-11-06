@@ -60,6 +60,7 @@ struct cache_head {
 #define	CACHE_NEW_EXPIRY 120	/* keep new things pending confirmation for 120 seconds */
 
 struct cache_detail {
+	struct module *		owner;
 	int			hash_size;
 	struct cache_head **	hash_table;
 	rwlock_t		hash_lock;

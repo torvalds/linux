@@ -21,7 +21,7 @@
 #include <linux/hdpu_features.h>
 #include <linux/pci.h>
 
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 static int hdpu_nexus_probe(struct device *ddev);
 static int hdpu_nexus_remove(struct device *ddev);

@@ -133,3 +133,14 @@ exit_ext3_xattr(void)
 #define ext3_xattr_handlers	NULL
 
 # endif  /* CONFIG_EXT3_FS_XATTR */
+
+#ifdef CONFIG_EXT3_FS_SECURITY
+extern int ext3_init_security(handle_t *handle, struct inode *inode,
+				struct inode *dir);
+#else
+static inline int ext3_init_security(handle_t *handle, struct inode *inode,
+				struct inode *dir)
+{
+	return 0;
+}
+#endif

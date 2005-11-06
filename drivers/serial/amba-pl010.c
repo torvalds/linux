@@ -50,6 +50,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
+#include <asm/hardware.h>
 #include <asm/hardware/amba.h>
 #include <asm/hardware/amba_serial.h>
 
@@ -105,7 +106,7 @@ struct uart_amba_port {
 	unsigned int		old_status;
 };
 
-static void pl010_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void pl010_stop_tx(struct uart_port *port)
 {
 	unsigned int cr;
 
@@ -114,7 +115,7 @@ static void pl010_stop_tx(struct uart_port *port, unsigned int tty_stop)
 	UART_PUT_CR(port, cr);
 }
 
-static void pl010_start_tx(struct uart_port *port, unsigned int tty_start)
+static void pl010_start_tx(struct uart_port *port)
 {
 	unsigned int cr;
 
@@ -219,7 +220,7 @@ static void pl010_tx_chars(struct uart_port *port)
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		pl010_stop_tx(port, 0);
+		pl010_stop_tx(port);
 		return;
 	}
 
@@ -236,7 +237,7 @@ static void pl010_tx_chars(struct uart_port *port)
 		uart_write_wakeup(port);
 
 	if (uart_circ_empty(xmit))
-		pl010_stop_tx(port, 0);
+		pl010_stop_tx(port);
 }
 
 static void pl010_modem_status(struct uart_port *port)
@@ -689,7 +690,7 @@ static int __init pl010_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver amba_reg;
+static struct uart_driver amba_reg;
 static struct console amba_console = {
 	.name		= "ttyAM",
 	.write		= pl010_console_write,

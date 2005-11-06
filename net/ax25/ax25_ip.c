@@ -47,7 +47,7 @@
 
 #ifdef CONFIG_INET
 
-int ax25_encapsulate(struct sk_buff *skb, struct net_device *dev, unsigned short type, void *daddr, void *saddr, unsigned len)
+int ax25_hard_header(struct sk_buff *skb, struct net_device *dev, unsigned short type, void *daddr, void *saddr, unsigned len)
 {
 	unsigned char *buff;
 
@@ -88,7 +88,7 @@ int ax25_encapsulate(struct sk_buff *skb, struct net_device *dev, unsigned short
   		*buff++ = AX25_P_ARP;
   		break;
   	default:
-  		printk(KERN_ERR "AX.25: ax25_encapsulate - wrong protocol type 0x%2.2x\n", type);
+  		printk(KERN_ERR "AX.25: ax25_hard_header - wrong protocol type 0x%2.2x\n", type);
   		*buff++ = 0;
   		break;
  	}
@@ -209,7 +209,7 @@ put:
 
 #else	/* INET */
 
-int ax25_encapsulate(struct sk_buff *skb, struct net_device *dev, unsigned short type, void *daddr, void *saddr, unsigned len)
+int ax25_hard_header(struct sk_buff *skb, struct net_device *dev, unsigned short type, void *daddr, void *saddr, unsigned len)
 {
 	return -AX25_HEADER_LEN;
 }

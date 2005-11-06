@@ -31,6 +31,8 @@
  *     17-Jul-2005 BJD  Changed to platform device for SuperIO 16550s
  *     25-Jul-2005 BJD  Removed ASIX static mappings
  *     27-Jul-2005 BJD  Ensure maximum frequency of i2c bus
+ *     20-Sep-2005 BJD  Added static to non-exported items
+ *     26-Oct-2005 BJD  Added FB platform data
 */
 
 #include <linux/kernel.h>
@@ -39,7 +41,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/dm9000.h>
 
 #include <asm/mach/arch.h>
@@ -60,8 +62,10 @@
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-mem.h>
 #include <asm/arch/regs-lcd.h>
+
 #include <asm/arch/nand.h>
 #include <asm/arch/iic.h>
+#include <asm/arch/fb.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
@@ -229,7 +233,7 @@ static int chip0_map[] = { 1 };
 static int chip1_map[] = { 2 };
 static int chip2_map[] = { 3 };
 
-struct mtd_partition bast_default_nand_part[] = {
+static struct mtd_partition bast_default_nand_part[] = {
 	[0] = {
 		.name	= "Boot Agent",
 		.size	= SZ_16K,
@@ -306,9 +310,9 @@ static void bast_nand_select(struct s3c2410_nand_set *set, int slot)
 }
 
 static struct s3c2410_platform_nand bast_nand_info = {
-	.tacls		= 40,
-	.twrph0		= 80,
-	.twrph1		= 80,
+	.tacls		= 30,
+	.twrph0		= 60,
+	.twrph1		= 60,
 	.nr_sets	= ARRAY_SIZE(bast_nand_sets),
 	.sets		= bast_nand_sets,
 	.select_chip	= bast_nand_select,
@@ -339,7 +343,7 @@ static struct resource bast_dm9k_resource[] = {
  * better IO routines can be written and tested
 */
 
-struct dm9000_plat_data bast_dm9k_platdata = {
+static struct dm9000_plat_data bast_dm9k_platdata = {
 	.flags		= DM9000_PLATF_16BITONLY
 };
 
@@ -381,7 +385,7 @@ static struct plat_serial8250_port bast_sio_data[] = {
 
 static struct platform_device bast_sio = {
 	.name			= "serial8250",
-	.id			= 0,
+	.id			= PLAT8250_DEV_PLATFORM,
 	.dev			= {
 		.platform_data	= &bast_sio_data,
 	},
@@ -396,6 +400,38 @@ static struct s3c2410_platform_i2c bast_i2c_info = {
 	.slave_addr	= 0x10,
 	.bus_freq	= 100*1000,
 	.max_freq	= 130*1000,
+};
+
+
+static struct s3c2410fb_mach_info __initdata bast_lcd_info = {
+	.width		= 640,
+	.height		= 480,
+
+	.xres		= {
+		.min		= 320,
+		.max		= 1024,
+		.defval		= 640,
+	},
+
+	.yres		= {
+		.min		= 240,
+		.max	        = 600,
+		.defval		= 480,
+	},
+
+	.bpp		= {
+		.min		= 4,
+		.max		= 16,
+		.defval		= 8,
+	},
+
+	.regs		= {
+		.lcdcon1	= 0x00000176,
+		.lcdcon2	= 0x1d77c7c2,
+		.lcdcon3	= 0x013a7f13,
+		.lcdcon4	= 0x00000057,
+		.lcdcon5	= 0x00014b02,
+	}
 };
 
 /* Standard BAST devices */
@@ -428,7 +464,7 @@ static struct s3c24xx_board bast_board __initdata = {
 	.clocks_count  = ARRAY_SIZE(bast_clocks)
 };
 
-void __init bast_map_io(void)
+static void __init bast_map_io(void)
 {
 	/* initialise the clocks */
 
@@ -453,6 +489,10 @@ void __init bast_map_io(void)
 	usb_simtec_init();
 }
 
+static void __init bast_init(void)
+{
+	s3c24xx_fb_set_platdata(&bast_lcd_info);
+}
 
 MACHINE_START(BAST, "Simtec-BAST")
 	/* Maintainer: Ben Dooks <ben@simtec.co.uk> */
@@ -462,5 +502,6 @@ MACHINE_START(BAST, "Simtec-BAST")
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
 	.map_io		= bast_map_io,
 	.init_irq	= s3c24xx_init_irq,
+	.init_machine	= bast_init,
 	.timer		= &s3c24xx_timer,
 MACHINE_END

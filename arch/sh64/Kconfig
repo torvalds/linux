@@ -29,10 +29,6 @@ config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
 
-config LOG_BUF_SHIFT
-	int
-	default 14
-
 config RWSEM_XCHGADD_ALGORITHM
 	bool
 

@@ -188,7 +188,7 @@ config DVB_BCM3510
 	  support this frontend.
 
 config DVB_LGDT330X
-	tristate "LGDT3302 or LGDT3303 based (DViCO FusionHDTV Gold)"
+	tristate "LG Electronics LGDT3302/LGDT3303 based"
 	depends on DVB_CORE
 	help
 	  An ATSC 8VSB and QAM64/256 tuner module. Say Y when you want

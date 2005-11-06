@@ -32,7 +32,7 @@
 #include "z90crypt.h"
 #include "z90common.h"
 
-#define VERSION_Z90HARDWARE_C "$Revision: 1.33 $"
+#define VERSION_Z90HARDWARE_C "$Revision: 1.34 $"
 
 char z90hardware_version[] __initdata =
 	"z90hardware.o (" VERSION_Z90HARDWARE_C "/"
@@ -283,48 +283,6 @@ struct type6_msg {
 	struct CPRB	 CPRB;
 };
 
-union request_msg {
-	union  type4_msg t4msg;
-	struct type6_msg t6msg;
-};
-
-struct request_msg_ext {
-	int		  q_nr;
-	unsigned char	  *psmid;
-	union request_msg reqMsg;
-};
-
-struct type82_hdr {
-	unsigned char reserved1;
-	unsigned char type;
-	unsigned char reserved2[2];
-	unsigned char reply_code;
-	unsigned char reserved3[3];
-};
-
-#define TYPE82_RSP_CODE 0x82
-
-#define REPLY_ERROR_MACHINE_FAILURE  0x10
-#define REPLY_ERROR_PREEMPT_FAILURE  0x12
-#define REPLY_ERROR_CHECKPT_FAILURE  0x14
-#define REPLY_ERROR_MESSAGE_TYPE     0x20
-#define REPLY_ERROR_INVALID_COMM_CD  0x21
-#define REPLY_ERROR_INVALID_MSG_LEN  0x23
-#define REPLY_ERROR_RESERVD_FIELD    0x24
-#define REPLY_ERROR_FORMAT_FIELD     0x29
-#define REPLY_ERROR_INVALID_COMMAND  0x30
-#define REPLY_ERROR_MALFORMED_MSG    0x40
-#define REPLY_ERROR_RESERVED_FIELDO  0x50
-#define REPLY_ERROR_WORD_ALIGNMENT   0x60
-#define REPLY_ERROR_MESSAGE_LENGTH   0x80
-#define REPLY_ERROR_OPERAND_INVALID  0x82
-#define REPLY_ERROR_OPERAND_SIZE     0x84
-#define REPLY_ERROR_EVEN_MOD_IN_OPND 0x85
-#define REPLY_ERROR_RESERVED_FIELD   0x88
-#define REPLY_ERROR_TRANSPORT_FAIL   0x90
-#define REPLY_ERROR_PACKET_TRUNCATED 0xA0
-#define REPLY_ERROR_ZERO_BUFFER_LEN  0xB0
-
 struct type86_hdr {
 	unsigned char reserved1;
 	unsigned char type;
@@ -338,7 +296,7 @@ struct type86_hdr {
 #define TYPE86_FMT2	0x02
 
 struct type86_fmt2_msg {
-	struct type86_hdr hdr;
+	struct type86_hdr header;
 	unsigned char	  reserved[4];
 	unsigned char	  apfs[4];
 	unsigned int	  count1;
@@ -538,6 +496,8 @@ static struct function_and_rules_block static_pke_function_and_rulesX = {
 	{'M','R','P',' ',' ',' ',' ',' '}
 };
 
+static unsigned char static_PKE_function_code[2] = {0x50, 0x4B};
+
 struct T6_keyBlock_hdrX {
 	unsigned short blen;
 	unsigned short ulen;
@@ -688,9 +648,38 @@ static struct cca_public_sec static_cca_pub_sec = {
 #define RESPONSE_CPRB_SIZE  0x000006B8
 #define RESPONSE_CPRBX_SIZE 0x00000724
 
-#define CALLER_HEADER 12
+struct error_hdr {
+	unsigned char reserved1;
+	unsigned char type;
+	unsigned char reserved2[2];
+	unsigned char reply_code;
+	unsigned char reserved3[3];
+};
 
-static unsigned char static_PKE_function_code[2] = {0x50, 0x4B};
+#define TYPE82_RSP_CODE 0x82
+
+#define REP82_ERROR_MACHINE_FAILURE  0x10
+#define REP82_ERROR_PREEMPT_FAILURE  0x12
+#define REP82_ERROR_CHECKPT_FAILURE  0x14
+#define REP82_ERROR_MESSAGE_TYPE     0x20
+#define REP82_ERROR_INVALID_COMM_CD  0x21
+#define REP82_ERROR_INVALID_MSG_LEN  0x23
+#define REP82_ERROR_RESERVD_FIELD    0x24
+#define REP82_ERROR_FORMAT_FIELD     0x29
+#define REP82_ERROR_INVALID_COMMAND  0x30
+#define REP82_ERROR_MALFORMED_MSG    0x40
+#define REP82_ERROR_RESERVED_FIELDO  0x50
+#define REP82_ERROR_WORD_ALIGNMENT   0x60
+#define REP82_ERROR_MESSAGE_LENGTH   0x80
+#define REP82_ERROR_OPERAND_INVALID  0x82
+#define REP82_ERROR_OPERAND_SIZE     0x84
+#define REP82_ERROR_EVEN_MOD_IN_OPND 0x85
+#define REP82_ERROR_RESERVED_FIELD   0x88
+#define REP82_ERROR_TRANSPORT_FAIL   0x90
+#define REP82_ERROR_PACKET_TRUNCATED 0xA0
+#define REP82_ERROR_ZERO_BUFFER_LEN  0xB0
+
+#define CALLER_HEADER 12
 
 static inline int
 testq(int q_nr, int *q_depth, int *dev_type, struct ap_status_word *stat)
@@ -1212,9 +1201,9 @@ send_to_AP(int dev_nr, int cdx, int msg_len, unsigned char *msg_ext)
 	struct ap_status_word stat_word;
 	enum devstat stat;
 	int ccode;
+	u32 *q_nr_p = (u32 *)msg_ext;
 
-	((struct request_msg_ext *) msg_ext)->q_nr =
-		(dev_nr << SKIP_BITL) + cdx;
+	*q_nr_p = (dev_nr << SKIP_BITL) + cdx;
 	PDEBUG("msg_len passed to sen: %d\n", msg_len);
 	PDEBUG("q number passed to sen: %02x%02x%02x%02x\n",
 	       msg_ext[0], msg_ext[1], msg_ext[2], msg_ext[3]);
@@ -2104,7 +2093,7 @@ convert_response(unsigned char *response, unsigned char *buffer,
 		 int *respbufflen_p, unsigned char *resp_buff)
 {
 	struct ica_rsa_modexpo *icaMsg_p = (struct ica_rsa_modexpo *) buffer;
-	struct type82_hdr *t82h_p = (struct type82_hdr *) response;
+	struct error_hdr *errh_p = (struct error_hdr *) response;
 	struct type84_hdr *t84h_p = (struct type84_hdr *) response;
 	struct type86_fmt2_msg *t86m_p =  (struct type86_fmt2_msg *) response;
 	int reply_code, service_rc, service_rs, src_l;
@@ -2117,12 +2106,13 @@ convert_response(unsigned char *response, unsigned char *buffer,
 	service_rc = 0;
 	service_rs = 0;
 	src_l = 0;
-	switch (t82h_p->type) {
+	switch (errh_p->type) {
 	case TYPE82_RSP_CODE:
-		reply_code = t82h_p->reply_code;
-		src_p = (unsigned char *)t82h_p;
-		PRINTK("Hardware error: Type 82 Message Header: "
+		reply_code = errh_p->reply_code;
+		src_p = (unsigned char *)errh_p;
+		PRINTK("Hardware error: Type %02X Message Header: "
 		       "%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		       errh_p->type,
 		       src_p[0], src_p[1], src_p[2], src_p[3],
 		       src_p[4], src_p[5], src_p[6], src_p[7]);
 		break;
@@ -2131,7 +2121,7 @@ convert_response(unsigned char *response, unsigned char *buffer,
 		src_p = response + (int)t84h_p->len - src_l;
 		break;
 	case TYPE86_RSP_CODE:
-		reply_code = t86m_p->hdr.reply_code;
+		reply_code = t86m_p->header.reply_code;
 		if (reply_code != 0)
 			break;
 		cprb_p = (struct CPRB *)
@@ -2143,6 +2133,9 @@ convert_response(unsigned char *response, unsigned char *buffer,
 				le2toI(cprb_p->ccp_rscode, &service_rs);
 				if ((service_rc == 8) && (service_rs == 66))
 					PDEBUG("Bad block format on PCICC\n");
+				else if ((service_rc == 8) && (service_rs == 65))
+					PDEBUG("Probably an even modulus on "
+					       "PCICC\n");
 				else if ((service_rc == 8) && (service_rs == 770)) {
 					PDEBUG("Invalid key length on PCICC\n");
 					unset_ext_bitlens();
@@ -2155,7 +2148,7 @@ convert_response(unsigned char *response, unsigned char *buffer,
 					return REC_USE_PCICA;
 				}
 				else
-					PRINTK("service rc/rs: %d/%d\n",
+					PRINTK("service rc/rs (PCICC): %d/%d\n",
 					       service_rc, service_rs);
 				return REC_OPERAND_INV;
 			}
@@ -2169,7 +2162,10 @@ convert_response(unsigned char *response, unsigned char *buffer,
 			if (service_rc != 0) {
 				service_rs = (int) cprbx_p->ccp_rscode;
 				if ((service_rc == 8) && (service_rs == 66))
-					PDEBUG("Bad block format on PCXICC\n");
+					PDEBUG("Bad block format on PCIXCC\n");
+				else if ((service_rc == 8) && (service_rs == 65))
+					PDEBUG("Probably an even modulus on "
+					       "PCIXCC\n");
 				else if ((service_rc == 8) && (service_rs == 770)) {
 					PDEBUG("Invalid key length on PCIXCC\n");
 					unset_ext_bitlens();
@@ -2182,7 +2178,7 @@ convert_response(unsigned char *response, unsigned char *buffer,
 					return REC_USE_PCICA;
 				}
 				else
-					PRINTK("service rc/rs: %d/%d\n",
+					PRINTK("service rc/rs (PCIXCC): %d/%d\n",
 					       service_rc, service_rs);
 				return REC_OPERAND_INV;
 			}
@@ -2195,20 +2191,25 @@ convert_response(unsigned char *response, unsigned char *buffer,
 		}
 		break;
 	default:
+		src_p = (unsigned char *)errh_p;
+		PRINTK("Unrecognized Message Header: "
+		       "%02x%02x%02x%02x%02x%02x%02x%02x\n",
+		       src_p[0], src_p[1], src_p[2], src_p[3],
+		       src_p[4], src_p[5], src_p[6], src_p[7]);
 		return REC_BAD_MESSAGE;
 	}
 
 	if (reply_code)
 		switch (reply_code) {
-		case REPLY_ERROR_OPERAND_INVALID:
+		case REP82_ERROR_OPERAND_INVALID:
 			return REC_OPERAND_INV;
-		case REPLY_ERROR_OPERAND_SIZE:
+		case REP82_ERROR_OPERAND_SIZE:
 			return REC_OPERAND_SIZE;
-		case REPLY_ERROR_EVEN_MOD_IN_OPND:
+		case REP82_ERROR_EVEN_MOD_IN_OPND:
 			return REC_EVEN_MOD;
-		case REPLY_ERROR_MESSAGE_TYPE:
+		case REP82_ERROR_MESSAGE_TYPE:
 			return WRONG_DEVICE_TYPE;
-		case REPLY_ERROR_TRANSPORT_FAIL:
+		case REP82_ERROR_TRANSPORT_FAIL:
 			PRINTKW("Transport failed (APFS = %02X%02X%02X%02X)\n",
 				t86m_p->apfs[0], t86m_p->apfs[1],
 				t86m_p->apfs[2], t86m_p->apfs[3]);
@@ -2229,7 +2230,7 @@ convert_response(unsigned char *response, unsigned char *buffer,
 	PDEBUG("Length returned = %d\n", src_l);
 	tgt_p = resp_buff + icaMsg_p->outputdatalength - src_l;
 	memcpy(tgt_p, src_p, src_l);
-	if ((t82h_p->type == TYPE86_RSP_CODE) && (resp_buff < tgt_p)) {
+	if ((errh_p->type == TYPE86_RSP_CODE) && (resp_buff < tgt_p)) {
 		memset(resp_buff, 0, icaMsg_p->outputdatalength - src_l);
 		if (pad_msg(resp_buff, icaMsg_p->outputdatalength, src_l))
 			return REC_INVALID_PAD;

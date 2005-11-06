@@ -85,7 +85,7 @@ struct fddi_snap_hdr
 	__u8	ssap;					/* always 0xAA */
 	__u8	ctrl;					/* always 0x03 */
 	__u8	oui[FDDI_K_OUI_LEN];	/* organizational universal id */
-	__u16	ethertype;				/* packet type ID field */
+	__be16	ethertype;				/* packet type ID field */
 	} __attribute__ ((packed));
 
 /* Define FDDI LLC frame header */

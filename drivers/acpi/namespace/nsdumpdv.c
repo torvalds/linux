@@ -41,20 +41,15 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
-
 
 /* TBD: This entire module is apparently obsolete and should be removed */
 
 #define _COMPONENT          ACPI_NAMESPACE
-	 ACPI_MODULE_NAME    ("nsdumpdv")
-
+ACPI_MODULE_NAME("nsdumpdv")
 #ifdef ACPI_OBSOLETE_FUNCTIONS
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
-
 #include <acpi/acnamesp.h>
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_dump_one_device
@@ -70,43 +65,38 @@
  *              This procedure is a user_function called by acpi_ns_walk_namespace.
  *
  ******************************************************************************/
-
 static acpi_status
-acpi_ns_dump_one_device (
-	acpi_handle                     obj_handle,
-	u32                             level,
-	void                            *context,
-	void                            **return_value)
+acpi_ns_dump_one_device(acpi_handle obj_handle,
+			u32 level, void *context, void **return_value)
 {
-	struct acpi_buffer              buffer;
-	struct acpi_device_info         *info;
-	acpi_status                     status;
-	u32                             i;
+	struct acpi_buffer buffer;
+	struct acpi_device_info *info;
+	acpi_status status;
+	u32 i;
 
+	ACPI_FUNCTION_NAME("ns_dump_one_device");
 
-	ACPI_FUNCTION_NAME ("ns_dump_one_device");
-
-
-	status = acpi_ns_dump_one_object (obj_handle, level, context, return_value);
+	status =
+	    acpi_ns_dump_one_object(obj_handle, level, context, return_value);
 
 	buffer.length = ACPI_ALLOCATE_LOCAL_BUFFER;
-	status = acpi_get_object_info (obj_handle, &buffer);
-	if (ACPI_SUCCESS (status)) {
+	status = acpi_get_object_info(obj_handle, &buffer);
+	if (ACPI_SUCCESS(status)) {
 		info = buffer.pointer;
 		for (i = 0; i < level; i++) {
-			ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES, " "));
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_TABLES, " "));
 		}
 
-		ACPI_DEBUG_PRINT_RAW ((ACPI_DB_TABLES,
-			"    HID: %s, ADR: %8.8X%8.8X, Status: %X\n",
-			info->hardware_id.value, ACPI_FORMAT_UINT64 (info->address),
-			info->current_status));
-		ACPI_MEM_FREE (info);
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_TABLES,
+				      "    HID: %s, ADR: %8.8X%8.8X, Status: %X\n",
+				      info->hardware_id.value,
+				      ACPI_FORMAT_UINT64(info->address),
+				      info->current_status));
+		ACPI_MEM_FREE(info);
 	}
 
 	return (status);
 }
-
 
 /*******************************************************************************
  *
@@ -120,16 +110,12 @@ acpi_ns_dump_one_device (
  *
  ******************************************************************************/
 
-void
-acpi_ns_dump_root_devices (
-	void)
+void acpi_ns_dump_root_devices(void)
 {
-	acpi_handle                     sys_bus_handle;
-	acpi_status                     status;
+	acpi_handle sys_bus_handle;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_NAME ("ns_dump_root_devices");
-
+	ACPI_FUNCTION_NAME("ns_dump_root_devices");
 
 	/* Only dump the table if tracing is enabled */
 
@@ -138,19 +124,17 @@ acpi_ns_dump_root_devices (
 	}
 
 	status = acpi_get_handle(NULL, ACPI_NS_SYSTEM_BUS, &sys_bus_handle);
-	if (ACPI_FAILURE (status)) {
+	if (ACPI_FAILURE(status)) {
 		return;
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_TABLES,
-		"Display of all devices in the namespace:\n"));
+	ACPI_DEBUG_PRINT((ACPI_DB_TABLES,
+			  "Display of all devices in the namespace:\n"));
 
-	status = acpi_ns_walk_namespace (ACPI_TYPE_DEVICE, sys_bus_handle,
-			 ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK,
-			 acpi_ns_dump_one_device, NULL, NULL);
+	status = acpi_ns_walk_namespace(ACPI_TYPE_DEVICE, sys_bus_handle,
+					ACPI_UINT32_MAX, ACPI_NS_WALK_NO_UNLOCK,
+					acpi_ns_dump_one_device, NULL, NULL);
 }
 
 #endif
 #endif
-
-

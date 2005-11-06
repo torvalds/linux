@@ -53,12 +53,12 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/tcp.h>
 #include <linux/if_arp.h>
 #include <linux/termios.h>	/* For TIOCOUTQ/INQ */
 #include <net/datalink.h>
 #include <net/psnap.h>
 #include <net/sock.h>
+#include <net/tcp_states.h>
 #include <net/route.h>
 #include <linux/atalk.h>
 
@@ -100,8 +100,7 @@ static struct sock *atalk_search_socket(struct sockaddr_at *to,
 			continue;
 
 	    	if (to->sat_addr.s_net == ATADDR_ANYNET &&
-		    to->sat_addr.s_node == ATADDR_BCAST &&
-		    at->src_net == atif->address.s_net)
+		    to->sat_addr.s_node == ATADDR_BCAST)
 			goto found;
 
 	    	if (to->sat_addr.s_net == at->src_net &&
@@ -1390,7 +1389,7 @@ free_it:
  *	[ie ARPHRD_ETHERTALK]
  */
 static int atalk_rcv(struct sk_buff *skb, struct net_device *dev,
-		     struct packet_type *pt)
+		     struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct ddpehdr *ddp;
 	struct sock *sock;
@@ -1443,8 +1442,10 @@ static int atalk_rcv(struct sk_buff *skb, struct net_device *dev,
 	else
 		atif = atalk_find_interface(ddp->deh_dnet, ddp->deh_dnode);
 
-	/* Not ours, so we route the packet via the correct AppleTalk iface */
 	if (!atif) {
+		/* Not ours, so we route the packet via the correct
+		 * AppleTalk iface
+		 */
 		atalk_route_packet(skb, dev, ddp, &ddphv, origlen);
 		goto out;
 	}
@@ -1482,7 +1483,7 @@ freeit:
  * header and append a long one.
  */
 static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
-			struct packet_type *pt)
+		     struct packet_type *pt, struct net_device *orig_dev)
 {
 	/* Expand any short form frames */
 	if (skb->mac.raw[2] == 1) {
@@ -1528,7 +1529,7 @@ static int ltalk_rcv(struct sk_buff *skb, struct net_device *dev,
 	}
 	skb->h.raw = skb->data;
 
-	return atalk_rcv(skb, dev, pt);
+	return atalk_rcv(skb, dev, pt, orig_dev);
 freeit:
 	kfree_skb(skb);
 	return 0;
@@ -1592,9 +1593,6 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 
 	if (usat->sat_addr.s_net || usat->sat_addr.s_node == ATADDR_ANYNODE) {
 		rt = atrtr_find(&usat->sat_addr);
-		if (!rt)
-			return -ENETUNREACH;
-
 		dev = rt->dev;
 	} else {
 		struct atalk_addr at_hint;
@@ -1603,11 +1601,12 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 		at_hint.s_net  = at->src_net;
 
 		rt = atrtr_find(&at_hint);
-		if (!rt)
-			return -ENETUNREACH;
-
 		dev = rt->dev;
 	}
+	if (!rt)
+		return -ENETUNREACH;
+
+	dev = rt->dev;
 
 	SOCK_DEBUG(sk, "SK %p: Size needed %d, device %s\n",
 			sk, size, dev->name);
@@ -1677,6 +1676,20 @@ static int atalk_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr 
 		SOCK_DEBUG(sk, "SK %p: Loop back.\n", sk);
 		/* loop back */
 		skb_orphan(skb);
+		if (ddp->deh_dnode == ATADDR_BCAST) {
+			struct atalk_addr at_lo;
+
+			at_lo.s_node = 0;
+			at_lo.s_net  = 0;
+
+			rt = atrtr_find(&at_lo);
+			if (!rt) {
+				kfree_skb(skb);
+				return -ENETUNREACH;
+			}
+			dev = rt->dev;
+			skb->dev = dev;
+		}
 		ddp_dl->request(ddp_dl, skb, dev->dev_addr);
 	} else {
 		SOCK_DEBUG(sk, "SK %p: send out.\n", sk);

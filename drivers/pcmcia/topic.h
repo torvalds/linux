@@ -101,6 +101,8 @@
 #define  TOPIC97_AVS_AUDIO_CONTROL	0x02
 #define  TOPIC97_AVS_VIDEO_CONTROL	0x01
 
+#define TOPIC_EXCA_IF_CONTROL		0x3e	/* 8 bit */
+#define TOPIC_EXCA_IFC_33V_ENA		0x01
 
 static void topic97_zoom_video(struct pcmcia_socket *sock, int onoff)
 {
@@ -134,6 +136,21 @@ static int topic97_override(struct yenta_socket *socket)
 {
 	/* ToPIC97/100 support ZV */
 	socket->socket.zoom_video = topic97_zoom_video;
+	return 0;
+}
+
+
+static int topic95_override(struct yenta_socket *socket)
+{
+	u8 fctrl;
+
+	/* enable 3.3V support for 16bit cards */
+	fctrl = exca_readb(socket, TOPIC_EXCA_IF_CONTROL);
+	exca_writeb(socket, TOPIC_EXCA_IF_CONTROL, fctrl | TOPIC_EXCA_IFC_33V_ENA);
+
+	/* tell yenta to use exca registers to power 16bit cards */
+	socket->flags |= YENTA_16BIT_POWER_EXCA | YENTA_16BIT_POWER_DF;
+
 	return 0;
 }
 

@@ -7,6 +7,9 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/mempolicy.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 #include "pci.h"
 
 /*
@@ -25,7 +28,10 @@ struct pci_dynid {
 #ifdef CONFIG_HOTPLUG
 
 /**
- * store_new_id
+ * store_new_id - add a new PCI device ID to this driver and re-probe devices
+ * @driver: target device driver
+ * @buf: buffer for scanning device ID data
+ * @count: input size
  *
  * Adds a new dynamic pci device ID to this driver,
  * and causes the driver to probe for all devices again.
@@ -163,10 +169,40 @@ const struct pci_device_id *pci_match_device(struct pci_driver *drv,
 	return NULL;
 }
 
+static int pci_call_probe(struct pci_driver *drv, struct pci_dev *dev,
+			  const struct pci_device_id *id)
+{
+	int error;
+#ifdef CONFIG_NUMA
+	/* Execute driver initialization on node where the
+	   device's bus is attached to.  This way the driver likely
+	   allocates its local memory on the right node without
+	   any need to change it. */
+	struct mempolicy *oldpol;
+	cpumask_t oldmask = current->cpus_allowed;
+	int node = pcibus_to_node(dev->bus);
+	if (node >= 0 && node_online(node))
+	    set_cpus_allowed(current, node_to_cpumask(node));
+	/* And set default memory allocation policy */
+	oldpol = current->mempolicy;
+	current->mempolicy = &default_policy;
+	mpol_get(current->mempolicy);
+#endif
+	error = drv->probe(dev, id);
+#ifdef CONFIG_NUMA
+	set_cpus_allowed(current, oldmask);
+	mpol_free(current->mempolicy);
+	current->mempolicy = oldpol;
+#endif
+	return error;
+}
+
 /**
  * __pci_device_probe()
+ * @drv: driver to call to check if it wants the PCI device
+ * @pci_dev: PCI device being probed
  * 
- * returns 0  on success, else error.
+ * returns 0 on success, else error.
  * side-effect: pci_dev->driver is set to drv when drv claims pci_dev.
  */
 static int
@@ -180,7 +216,7 @@ __pci_device_probe(struct pci_driver *drv, struct pci_dev *pci_dev)
 
 		id = pci_match_device(drv, pci_dev);
 		if (id)
-			error = drv->probe(pci_dev, id);
+			error = pci_call_probe(drv, pci_dev, id);
 		if (error >= 0) {
 			pci_dev->driver = drv;
 			error = 0;
@@ -243,17 +279,19 @@ static int pci_device_suspend(struct device * dev, pm_message_t state)
 }
 
 
-/* 
+/*
  * Default resume method for devices that have no driver provided resume,
  * or not even a driver at all.
  */
 static void pci_default_resume(struct pci_dev *pci_dev)
 {
+	int retval;
+
 	/* restore the PCI config space */
 	pci_restore_state(pci_dev);
 	/* if the device was enabled before suspend, reenable */
 	if (pci_dev->is_enabled)
-		pci_enable_device(pci_dev);
+		retval = pci_enable_device(pci_dev);
 	/* if the device was busmaster before the suspend, make it busmaster again */
 	if (pci_dev->is_busmaster)
 		pci_set_master(pci_dev);
@@ -346,6 +384,10 @@ int pci_register_driver(struct pci_driver *drv)
 	 * the pci shutdown function, this test can go away. */
 	if (!drv->driver.shutdown)
 		drv->driver.shutdown = pci_device_shutdown;
+	else
+		printk(KERN_WARNING "Warning: PCI driver %s has a struct "
+			"device_driver shutdown method, please update!\n",
+			drv->name);
 	drv->driver.owner = drv->owner;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
 
@@ -405,11 +447,11 @@ pci_dev_driver(const struct pci_dev *dev)
 
 /**
  * pci_bus_match - Tell if a PCI device structure has a matching PCI device id structure
- * @ids: array of PCI device id structures to search in
  * @dev: the PCI device structure to match against
+ * @drv: the device driver to search for matching PCI device id structures
  * 
  * Used by a driver to check whether a PCI device present in the
- * system is in its list of supported devices.Returns the matching
+ * system is in its list of supported devices. Returns the matching
  * pci_device_id structure or %NULL if there is no match.
  */
 static int pci_bus_match(struct device *dev, struct device_driver *drv)

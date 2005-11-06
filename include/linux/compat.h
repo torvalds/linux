@@ -18,6 +18,9 @@
 #define compat_jiffies_to_clock_t(x)	\
 		(((unsigned long)(x) * COMPAT_USER_HZ) / HZ)
 
+typedef __compat_uid32_t	compat_uid_t;
+typedef __compat_gid32_t	compat_gid_t;
+
 struct rusage;
 
 struct compat_itimerspec { 

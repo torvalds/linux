@@ -178,8 +178,8 @@ static __u8 root_hub_hub_des[] =
 	0xff   /*  __u8  PortPwrCtrlMask; *** 7 ports max *** */
 };
 
-static struct timer_list bulk_start_timer = TIMER_INITIALIZER(NULL, 0, 0);
-static struct timer_list bulk_eot_timer = TIMER_INITIALIZER(NULL, 0, 0);
+static DEFINE_TIMER(bulk_start_timer, NULL, 0, 0);
+static DEFINE_TIMER(bulk_eot_timer, NULL, 0, 0);
 
 /* We want the start timer to expire before the eot timer, because the former might start
    traffic, thus making it unnecessary for the latter to time out. */

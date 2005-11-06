@@ -51,6 +51,7 @@ static int hippi_header(struct sk_buff *skb, struct net_device *dev,
 			unsigned len)
 {
 	struct hippi_hdr *hip = (struct hippi_hdr *)skb_push(skb, HIPPI_HLEN);
+	struct hippi_cb *hcb = (struct hippi_cb *) skb->cb;
 
 	if (!len){
 		len = skb->len - HIPPI_HLEN;
@@ -84,9 +85,10 @@ static int hippi_header(struct sk_buff *skb, struct net_device *dev,
 	if (daddr)
 	{
 		memcpy(hip->le.dest_switch_addr, daddr + 3, 3);
-		memcpy(&skb->private.ifield, daddr + 2, 4);
+		memcpy(&hcb->ifield, daddr + 2, 4);
 		return HIPPI_HLEN;
 	}
+	hcb->ifield = 0;
 	return -((int)HIPPI_HLEN);
 }
 
@@ -122,7 +124,7 @@ static int hippi_rebuild_header(struct sk_buff *skb)
  *	Determine the packet's protocol ID.
  */
  
-unsigned short hippi_type_trans(struct sk_buff *skb, struct net_device *dev)
+__be16 hippi_type_trans(struct sk_buff *skb, struct net_device *dev)
 {
 	struct hippi_hdr *hip;
 	

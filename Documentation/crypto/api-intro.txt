@@ -223,6 +223,7 @@ CAST5 algorithm contributors:
 
 TEA/XTEA algorithm contributors:
   Aaron Grothe
+  Michael Ringe
 
 Khazad algorithm contributors:
   Aaron Grothe

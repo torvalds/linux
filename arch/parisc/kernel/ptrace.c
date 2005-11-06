@@ -23,7 +23,7 @@
 #include <asm/pgtable.h>
 #include <asm/system.h>
 #include <asm/processor.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 
 /* PSW bits we allow the debugger to modify */
 #define USER_PSW_BITS	(PSW_N | PSW_V | PSW_CB)
@@ -78,7 +78,7 @@ void ptrace_disable(struct task_struct *child)
 	pa_psw(child)->l = 0;
 }
 
-long sys_ptrace(long request, pid_t pid, long addr, long data)
+long sys_ptrace(long request, long pid, long addr, long data)
 {
 	struct task_struct *child;
 	long ret;

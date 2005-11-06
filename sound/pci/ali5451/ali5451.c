@@ -78,15 +78,7 @@ MODULE_PARM_DESC(spdif, "Support SPDIF I/O");
  *  Constants definition
  */
 
-#ifndef PCI_VENDOR_ID_ALI
-#define PCI_VENDOR_ID_ALI	0x10b9
-#endif
-
-#ifndef PCI_DEVICE_ID_ALI_5451
-#define PCI_DEVICE_ID_ALI_5451	0x5451
-#endif
-
-#define DEVICE_ID_ALI5451	((PCI_VENDOR_ID_ALI<<16)|PCI_DEVICE_ID_ALI_5451)
+#define DEVICE_ID_ALI5451	((PCI_VENDOR_ID_AL<<16)|PCI_DEVICE_ID_AL_M5451)
 
 
 #define ALI_CHANNELS		32
@@ -326,13 +318,12 @@ static void ali_read_regs(ali_t *codec, int channel)
 static void ali_read_cfg(unsigned int vendor, unsigned deviceid)
 {
 	unsigned int dwVal;
-	struct pci_dev *pci_dev = NULL;
+	struct pci_dev *pci_dev;
 	int i,j;
 
-
-        pci_dev = pci_find_device(vendor, deviceid, pci_dev);
-        if (pci_dev == NULL)
-                return ;
+	pci_dev = pci_get_device(vendor, deviceid, NULL);
+	if (pci_dev == NULL)
+		return ;
 
 	printk("\nM%x PCI CFG\n", deviceid);
 	printk("    ");
@@ -349,6 +340,7 @@ static void ali_read_cfg(unsigned int vendor, unsigned deviceid)
 		}
 		printk("\n");
 	}
+	pci_dev_put(pci_dev);
  }
 static void ali_read_ac97regs(ali_t *codec, int secondary)
 {
@@ -1842,7 +1834,7 @@ static int __devinit snd_ali_pcm(ali_t * codec, int device, struct ali_pcm_descr
 	return 0;
 }
 
-struct ali_pcm_description ali_pcms[] = {
+static struct ali_pcm_description ali_pcms[] = {
 	{ "ALI 5451", ALI_CHANNELS, 1, &snd_ali_playback_ops, &snd_ali_capture_ops },
 	{ "ALI 5451 modem", 1, 1, &snd_ali_modem_playback_ops, &snd_ali_modem_capture_ops }
 };
@@ -1959,9 +1951,9 @@ static int snd_ali5451_spdif_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 static snd_kcontrol_new_t snd_ali5451_mixer_spdif[] __devinitdata = {
 	/* spdif aplayback switch */
 	/* FIXME: "IEC958 Playback Switch" may conflict with one on ac97_codec */
-	ALI5451_SPDIF("IEC958 Output switch", 0, 0),
+	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("Output ",NONE,SWITCH), 0, 0),
 	/* spdif out to spdif channel */
-	ALI5451_SPDIF("IEC958 Channel Output Switch", 0, 1),
+	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("Channel Output ",NONE,SWITCH), 0, 1),
 	/* spdif in from spdif channel */
 	ALI5451_SPDIF(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), 0, 2)
 };
@@ -2001,8 +1993,10 @@ static int __devinit snd_ali_mixer(ali_t * codec)
 		if ((err = snd_ac97_mixer(codec->ac97_bus, &ac97, &codec->ac97[i])) < 0) {
 			snd_printk("ali mixer %d creating error.\n", i);
 			if(i == 0)
-		return err;
-	}
+				return err;
+			codec->num_of_codecs = 1;
+			break;
+		}
 	}
 
 	if (codec->spdif_support) {
@@ -2116,6 +2110,8 @@ static int snd_ali_free(ali_t * codec)
 #ifdef CONFIG_PM
 	kfree(codec->image);
 #endif
+	pci_dev_put(codec->pci_m1533);
+	pci_dev_put(codec->pci_m7101);
 	kfree(codec);
 	return 0;
 }
@@ -2249,7 +2245,7 @@ static int __devinit snd_ali_create(snd_card_t * card,
 		return -ENXIO;
 	}
 
-	if ((codec = kcalloc(1, sizeof(*codec), GFP_KERNEL)) == NULL) {
+	if ((codec = kzalloc(sizeof(*codec), GFP_KERNEL)) == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
@@ -2305,7 +2301,7 @@ static int __devinit snd_ali_create(snd_card_t * card,
 	codec->chregs.data.ainten = 0x00;
 
 	/* M1533: southbridge */
-       	pci_dev = pci_find_device(0x10b9, 0x1533, NULL);
+	pci_dev = pci_get_device(0x10b9, 0x1533, NULL);
 	codec->pci_m1533 = pci_dev;
 	if (! codec->pci_m1533) {
 		snd_printk(KERN_ERR "ali5451: cannot find ALi 1533 chip.\n");
@@ -2313,7 +2309,7 @@ static int __devinit snd_ali_create(snd_card_t * card,
 		return -ENODEV;
 	}
 	/* M7101: power management */
-       	pci_dev = pci_find_device(0x10b9, 0x7101, NULL);
+	pci_dev = pci_get_device(0x10b9, 0x7101, NULL);
 	codec->pci_m7101 = pci_dev;
 	if (! codec->pci_m7101 && codec->revision == ALI_5451_V02) {
 		snd_printk(KERN_ERR "ali5451: cannot find ALi 7101 chip.\n");
@@ -2417,6 +2413,7 @@ static void __devexit snd_ali_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "ALI 5451",
+	.owner = THIS_MODULE,
 	.id_table = snd_ali_ids,
 	.probe = snd_ali_probe,
 	.remove = __devexit_p(snd_ali_remove),

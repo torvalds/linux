@@ -18,7 +18,6 @@
 #include <linux/init.h>
 
 #include <linux/mm.h>
-#include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/bootmem.h>
 #include <linux/smp_lock.h>
@@ -726,14 +725,10 @@ __setup("apic=", apic_set_verbosity);
 static int __init detect_init_APIC (void)
 {
 	u32 h, l, features;
-	extern void get_cpu_vendor(struct cpuinfo_x86*);
 
 	/* Disabled by kernel option? */
 	if (enable_local_apic < 0)
 		return -1;
-
-	/* Workaround for us being called before identify_cpu(). */
-	get_cpu_vendor(&boot_cpu_data);
 
 	switch (boot_cpu_data.x86_vendor) {
 	case X86_VENDOR_AMD:
@@ -1051,10 +1046,11 @@ static unsigned int calibration_result;
 
 void __init setup_boot_APIC_clock(void)
 {
+	unsigned long flags;
 	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n");
 	using_apic_timer = 1;
 
-	local_irq_disable();
+	local_irq_save(flags);
 
 	calibration_result = calibrate_APIC_clock();
 	/*
@@ -1062,7 +1058,7 @@ void __init setup_boot_APIC_clock(void)
 	 */
 	setup_APIC_timer(calibration_result);
 
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 void __devinit setup_secondary_APIC_clock(void)

@@ -6,7 +6,7 @@
 
 #include <asm/dwarf2.h>
 #include <asm/calling.h>
-#include <asm/offset.h>
+#include <asm/asm-offsets.h>
 #include <asm/current.h>
 #include <asm/errno.h>
 #include <asm/ia32_unistd.h>	
@@ -55,20 +55,34 @@
  * with the int 0x80 path.
  */ 	
 ENTRY(ia32_sysenter_target)
-	CFI_STARTPROC
+	CFI_STARTPROC	simple
+	CFI_DEF_CFA	rsp,0
+	CFI_REGISTER	rsp,rbp
 	swapgs
 	movq	%gs:pda_kernelstack, %rsp
 	addq	$(PDA_STACKOFFSET),%rsp	
 	sti	
  	movl	%ebp,%ebp		/* zero extension */
 	pushq	$__USER32_DS
+	CFI_ADJUST_CFA_OFFSET 8
+	/*CFI_REL_OFFSET ss,0*/
 	pushq	%rbp
+	CFI_ADJUST_CFA_OFFSET 8
+	CFI_REL_OFFSET rsp,0
 	pushfq
+	CFI_ADJUST_CFA_OFFSET 8
+	/*CFI_REL_OFFSET rflags,0*/
 	movl	$VSYSCALL32_SYSEXIT, %r10d
+	CFI_REGISTER rip,r10
 	pushq	$__USER32_CS
+	CFI_ADJUST_CFA_OFFSET 8
+	/*CFI_REL_OFFSET cs,0*/
 	movl	%eax, %eax
 	pushq	%r10
+	CFI_ADJUST_CFA_OFFSET 8
+	CFI_REL_OFFSET rip,0
 	pushq	%rax
+	CFI_ADJUST_CFA_OFFSET 8
 	cld
 	SAVE_ARGS 0,0,1
  	/* no need to do an access_ok check here because rbp has been
@@ -79,6 +93,7 @@ ENTRY(ia32_sysenter_target)
  	.previous	
 	GET_THREAD_INFO(%r10)
 	testl  $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
+	CFI_REMEMBER_STATE
 	jnz  sysenter_tracesys
 sysenter_do_call:	
 	cmpl	$(IA32_NR_syscalls),%eax
@@ -94,14 +109,20 @@ sysenter_do_call:
 	andl  $~0x200,EFLAGS-R11(%rsp) 
 	RESTORE_ARGS 1,24,1,1,1,1
 	popfq
+	CFI_ADJUST_CFA_OFFSET -8
+	/*CFI_RESTORE rflags*/
 	popq	%rcx				/* User %esp */
+	CFI_ADJUST_CFA_OFFSET -8
+	CFI_REGISTER rsp,rcx
 	movl	$VSYSCALL32_SYSEXIT,%edx	/* User %eip */
+	CFI_REGISTER rip,rdx
 	swapgs
 	sti		/* sti only takes effect after the next instruction */
 	/* sysexit */
 	.byte	0xf, 0x35
 
 sysenter_tracesys:
+	CFI_RESTORE_STATE
 	SAVE_REST
 	CLEAR_RREGS
 	movq	$-ENOSYS,RAX(%rsp)	/* really needed? */
@@ -140,21 +161,28 @@ sysenter_tracesys:
  * with the int 0x80 path.	
  */ 	
 ENTRY(ia32_cstar_target)
-	CFI_STARTPROC
+	CFI_STARTPROC	simple
+	CFI_DEF_CFA	rsp,0
+	CFI_REGISTER	rip,rcx
+	/*CFI_REGISTER	rflags,r11*/
 	swapgs
 	movl	%esp,%r8d
+	CFI_REGISTER	rsp,r8
 	movq	%gs:pda_kernelstack,%rsp
 	sti
 	SAVE_ARGS 8,1,1
 	movl 	%eax,%eax	/* zero extension */
 	movq	%rax,ORIG_RAX-ARGOFFSET(%rsp)
 	movq	%rcx,RIP-ARGOFFSET(%rsp)
+	CFI_REL_OFFSET rip,RIP-ARGOFFSET
 	movq	%rbp,RCX-ARGOFFSET(%rsp) /* this lies slightly to ptrace */
 	movl	%ebp,%ecx
 	movq	$__USER32_CS,CS-ARGOFFSET(%rsp)
 	movq	$__USER32_DS,SS-ARGOFFSET(%rsp)
 	movq	%r11,EFLAGS-ARGOFFSET(%rsp)
+	/*CFI_REL_OFFSET rflags,EFLAGS-ARGOFFSET*/
 	movq	%r8,RSP-ARGOFFSET(%rsp)	
+	CFI_REL_OFFSET rsp,RSP-ARGOFFSET
 	/* no need to do an access_ok check here because r8 has been
 	   32bit zero extended */ 
 	/* hardware stack frame is complete now */	
@@ -164,6 +192,7 @@ ENTRY(ia32_cstar_target)
 	.previous	
 	GET_THREAD_INFO(%r10)
 	testl $(_TIF_SYSCALL_TRACE|_TIF_SYSCALL_AUDIT|_TIF_SECCOMP),threadinfo_flags(%r10)
+	CFI_REMEMBER_STATE
 	jnz   cstar_tracesys
 cstar_do_call:	
 	cmpl $IA32_NR_syscalls,%eax
@@ -177,12 +206,16 @@ cstar_do_call:
 	jnz  int_ret_from_sys_call
 	RESTORE_ARGS 1,-ARG_SKIP,1,1,1
 	movl RIP-ARGOFFSET(%rsp),%ecx
+	CFI_REGISTER rip,rcx
 	movl EFLAGS-ARGOFFSET(%rsp),%r11d	
+	/*CFI_REGISTER rflags,r11*/
 	movl RSP-ARGOFFSET(%rsp),%esp
+	CFI_RESTORE rsp
 	swapgs
 	sysretl
 	
 cstar_tracesys:	
+	CFI_RESTORE_STATE
 	SAVE_REST
 	CLEAR_RREGS
 	movq $-ENOSYS,RAX(%rsp)	/* really needed? */
@@ -226,11 +259,18 @@ ia32_badarg:
  */ 				
 
 ENTRY(ia32_syscall)
-	CFI_STARTPROC
+	CFI_STARTPROC	simple
+	CFI_DEF_CFA	rsp,SS+8-RIP
+	/*CFI_REL_OFFSET	ss,SS-RIP*/
+	CFI_REL_OFFSET	rsp,RSP-RIP
+	/*CFI_REL_OFFSET	rflags,EFLAGS-RIP*/
+	/*CFI_REL_OFFSET	cs,CS-RIP*/
+	CFI_REL_OFFSET	rip,RIP-RIP
 	swapgs	
 	sti
 	movl %eax,%eax
 	pushq %rax
+	CFI_ADJUST_CFA_OFFSET 8
 	cld
 	/* note the registers are not zero extended to the sf.
 	   this could be a problem. */
@@ -278,6 +318,8 @@ quiet_ni_syscall:
 	jmp  ia32_ptregs_common	
 	.endm
 
+	CFI_STARTPROC
+
 	PTREGSCALL stub32_rt_sigreturn, sys32_rt_sigreturn, %rdi
 	PTREGSCALL stub32_sigreturn, sys32_sigreturn, %rdi
 	PTREGSCALL stub32_sigaltstack, sys32_sigaltstack, %rdx
@@ -290,8 +332,9 @@ quiet_ni_syscall:
 	PTREGSCALL stub32_rt_sigsuspend, sys_rt_sigsuspend, %rdx
 
 ENTRY(ia32_ptregs_common)
-	CFI_STARTPROC
 	popq %r11
+	CFI_ADJUST_CFA_OFFSET -8
+	CFI_REGISTER rip, r11
 	SAVE_REST
 	call *%rax
 	RESTORE_REST
@@ -307,7 +350,7 @@ ia32_sys_call_table:
 	.quad stub32_fork
 	.quad sys_read
 	.quad sys_write
-	.quad sys32_open		/* 5 */
+	.quad compat_sys_open		/* 5 */
 	.quad sys_close
 	.quad sys32_waitpid
 	.quad sys_creat

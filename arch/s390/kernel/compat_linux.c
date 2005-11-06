@@ -678,7 +678,7 @@ asmlinkage long sys32_sendfile(int out_fd, int in_fd, compat_off_t *offset, size
 	ret = sys_sendfile(out_fd, in_fd, offset ? &of : NULL, count);
 	set_fs(old_fs);
 	
-	if (!ret && offset && put_user(of, offset))
+	if (offset && put_user(of, offset))
 		return -EFAULT;
 		
 	return ret;

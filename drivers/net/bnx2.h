@@ -50,6 +50,7 @@
 #endif
 #include <linux/workqueue.h>
 #include <linux/crc32.h>
+#include <linux/prefetch.h>
 
 /* Hardware data structures and register definitions automatically
  * generated from RTL code. Do not modify.
@@ -3841,12 +3842,12 @@ struct bnx2 {
 	struct status_block	*status_blk;
 	u32 			last_status_idx;
 
-	atomic_t		tx_avail_bd;
 	struct tx_bd		*tx_desc_ring;
 	struct sw_bd		*tx_buf_ring;
 	u32			tx_prod_bseq;
 	u16			tx_prod;
 	u16			tx_cons;
+	int			tx_ring_size;
 
 #ifdef BCM_VLAN 
 	struct			vlan_group *vlgrp;
@@ -3872,8 +3873,10 @@ struct bnx2 {
 	char			*name;
 
 	int			timer_interval;
+	int			current_interval;
 	struct			timer_list timer;
 	struct work_struct	reset_task;
+	int			in_reset_task;
 
 	/* Used to synchronize phy accesses. */
 	spinlock_t		phy_lock;
@@ -3927,7 +3930,6 @@ struct bnx2 {
 	u16			fw_wr_seq;
 	u16			fw_drv_pulse_wr_seq;
 
-	int			tx_ring_size;
 	dma_addr_t		tx_desc_mapping;
 
 
@@ -3985,7 +3987,7 @@ struct bnx2 {
 #define PHY_LOOPBACK		2
 
 	u8			serdes_an_pending;
-#define SERDES_AN_TIMEOUT	(2 * HZ)
+#define SERDES_AN_TIMEOUT	(HZ / 3)
 
 	u8			mac_addr[8];
 
@@ -4171,6 +4173,9 @@ struct fw_info {
 
 #define BNX2_PORT_HW_CFG_MAC_LOWER		0x00000054
 #define BNX2_PORT_HW_CFG_CONFIG			0x00000058
+#define BNX2_PORT_HW_CFG_CFG_DFLT_LINK_MASK	 0x001f0000
+#define BNX2_PORT_HW_CFG_CFG_DFLT_LINK_AN	 0x00000000
+#define BNX2_PORT_HW_CFG_CFG_DFLT_LINK_1G	 0x00030000
 
 #define BNX2_PORT_HW_CFG_IMD_MAC_A_UPPER	0x00000068
 #define BNX2_PORT_HW_CFG_IMD_MAC_A_LOWER	0x0000006c

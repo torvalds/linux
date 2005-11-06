@@ -19,6 +19,8 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <linux/platform_device.h>
+
 #include <asm/io.h>
 #include <linux/fsl_devices.h>
 #include <linux/i2c.h>
@@ -272,8 +274,6 @@ static u32 mpc_functionality(struct i2c_adapter *adap)
 }
 
 static struct i2c_algorithm mpc_algo = {
-	.name = "MPC algorithm",
-	.id = I2C_ALGO_MPC107,
 	.master_xfer = mpc_xfer,
 	.functionality = mpc_functionality,
 };
@@ -281,7 +281,7 @@ static struct i2c_algorithm mpc_algo = {
 static struct i2c_adapter mpc_ops = {
 	.owner = THIS_MODULE,
 	.name = "MPC adapter",
-	.id = I2C_ALGO_MPC107 | I2C_HW_MPC107,
+	.id = I2C_HW_MPC107,
 	.algo = &mpc_algo,
 	.class = I2C_CLASS_HWMON,
 	.timeout = 1,
@@ -298,10 +298,9 @@ static int fsl_i2c_probe(struct device *device)
 
 	pdata = (struct fsl_i2c_platform_data *) pdev->dev.platform_data;
 
-	if (!(i2c = kmalloc(sizeof(*i2c), GFP_KERNEL))) {
+	if (!(i2c = kzalloc(sizeof(*i2c), GFP_KERNEL))) {
 		return -ENOMEM;
 	}
-	memset(i2c, 0, sizeof(*i2c));
 
 	i2c->irq = platform_get_irq(pdev, 0);
 	i2c->flags = pdata->device_flags;
@@ -363,6 +362,7 @@ static int fsl_i2c_remove(struct device *device)
 
 /* Structure for a device driver */
 static struct device_driver fsl_i2c_driver = {
+	.owner = THIS_MODULE,
 	.name = "fsl-i2c",
 	.bus = &platform_bus_type,
 	.probe = fsl_i2c_probe,

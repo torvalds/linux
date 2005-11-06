@@ -100,7 +100,7 @@ static int __devinit tms_pci_attach(struct pci_dev *pdev, const struct pci_devic
 	unsigned int pci_irq_line;
 	unsigned long pci_ioaddr;
 	struct card_info *cardinfo = &card_info_table[ent->driver_data];
-		
+
 	if (versionprinted++ == 0)
 		printk("%s", version);
 
@@ -143,7 +143,7 @@ static int __devinit tms_pci_attach(struct pci_dev *pdev, const struct pci_devic
 		printk(":%2.2x", dev->dev_addr[i]);
 	printk("\n");
 		
-	ret = tmsdev_init(dev, PCI_MAX_ADDRESS, pdev);
+	ret = tmsdev_init(dev, &pdev->dev);
 	if (ret) {
 		printk("%s: unable to get memory for dev->priv.\n", dev->name);
 		goto err_out_irq;

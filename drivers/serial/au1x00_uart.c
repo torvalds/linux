@@ -200,7 +200,7 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	DEBUG_AUTOCONF("type=%s\n", uart_config[up->port.type].name);
 }
 
-static void serial8250_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void serial8250_stop_tx(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
 
@@ -210,7 +210,7 @@ static void serial8250_stop_tx(struct uart_port *port, unsigned int tty_stop)
 	}
 }
 
-static void serial8250_start_tx(struct uart_port *port, unsigned int tty_start)
+static void serial8250_start_tx(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
 
@@ -337,7 +337,7 @@ static _INLINE_ void transmit_chars(struct uart_8250_port *up)
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
-		serial8250_stop_tx(&up->port, 0);
+		serial8250_stop_tx(&up->port);
 		return;
 	}
 
@@ -356,7 +356,7 @@ static _INLINE_ void transmit_chars(struct uart_8250_port *up)
 	DEBUG_INTR("THRE...");
 
 	if (uart_circ_empty(xmit))
-		serial8250_stop_tx(&up->port, 0);
+		serial8250_stop_tx(&up->port);
 }
 
 static _INLINE_ void check_modem_status(struct uart_8250_port *up)

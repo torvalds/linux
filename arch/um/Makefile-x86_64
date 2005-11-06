@@ -6,29 +6,9 @@ START := 0x60000000
 
 #We #undef __x86_64__ for kernelspace, not for userspace where
 #it's needed for headers to work!
-CFLAGS += -U__$(SUBARCH)__ -fno-builtin $(STUB_CFLAGS)
+CFLAGS += -U__$(SUBARCH)__ -fno-builtin
 USER_CFLAGS += -fno-builtin
+CHECKFLAGS  += -m64
 
 ELF_ARCH := i386:x86-64
 ELF_FORMAT := elf64-x86-64
-
-SYS_UTIL_DIR := $(ARCH_DIR)/sys-x86_64/util
-SYS_DIR := $(ARCH_DIR)/include/sysdep-x86_64
-
-SYS_HEADERS = $(SYS_DIR)/sc.h $(SYS_DIR)/thread.h
-
-prepare: $(SYS_HEADERS)
-
-$(SYS_DIR)/sc.h: $(SYS_UTIL_DIR)/mk_sc
-	$(call filechk,gen_header)
-
-$(SYS_DIR)/thread.h: $(SYS_UTIL_DIR)/mk_thread
-	$(call filechk,gen_header)
-
-$(SYS_UTIL_DIR)/mk_sc: scripts_basic $(ARCH_DIR)/user-offsets.h FORCE
-	$(Q)$(MAKE) $(build)=$(SYS_UTIL_DIR) $@
-
-$(SYS_UTIL_DIR)/mk_thread: scripts_basic $(GEN_HEADERS) $(ARCH_DIR)/kernel-offsets.h FORCE
-	$(Q)$(MAKE) $(build)=$(SYS_UTIL_DIR) $@
-
-CLEAN_FILES += $(SYS_HEADERS)

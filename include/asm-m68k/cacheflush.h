@@ -130,20 +130,25 @@ static inline void __flush_page_to_ram(void *vaddr)
 #define flush_dcache_mmap_lock(mapping)		do { } while (0)
 #define flush_dcache_mmap_unlock(mapping)	do { } while (0)
 #define flush_icache_page(vma, page)	__flush_page_to_ram(page_address(page))
-#define flush_icache_user_range(vma,pg,adr,len)	do { } while (0)
 
-#define copy_to_user_page(vma, page, vaddr, dst, src, len) \
-	do {							\
-		flush_cache_page(vma, vaddr, page_to_pfn(page));\
-		memcpy(dst, src, len);				\
-	} while (0)
-
-#define copy_from_user_page(vma, page, vaddr, dst, src, len) \
-	do {							\
-		flush_cache_page(vma, vaddr, page_to_pfn(page));\
-		memcpy(dst, src, len);				\
-	} while (0)
-
+extern void flush_icache_user_range(struct vm_area_struct *vma, struct page *page,
+				    unsigned long addr, int len);
 extern void flush_icache_range(unsigned long address, unsigned long endaddr);
+
+static inline void copy_to_user_page(struct vm_area_struct *vma,
+				     struct page *page, unsigned long vaddr,
+				     void *dst, void *src, int len)
+{
+	flush_cache_page(vma, vaddr, page_to_pfn(page));
+	memcpy(dst, src, len);
+	flush_icache_user_range(vma, page, vaddr, len);
+}
+static inline void copy_from_user_page(struct vm_area_struct *vma,
+				       struct page *page, unsigned long vaddr,
+				       void *dst, void *src, int len)
+{
+	flush_cache_page(vma, vaddr, page_to_pfn(page));
+	memcpy(dst, src, len);
+}
 
 #endif /* _M68K_CACHEFLUSH_H */

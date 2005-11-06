@@ -376,7 +376,7 @@ static int net2280_disable (struct usb_ep *_ep)
 /*-------------------------------------------------------------------------*/
 
 static struct usb_request *
-net2280_alloc_request (struct usb_ep *_ep, unsigned gfp_flags)
+net2280_alloc_request (struct usb_ep *_ep, gfp_t gfp_flags)
 {
 	struct net2280_ep	*ep;
 	struct net2280_request	*req;
@@ -463,7 +463,7 @@ net2280_alloc_buffer (
 	struct usb_ep		*_ep,
 	unsigned		bytes,
 	dma_addr_t		*dma,
-	unsigned		gfp_flags
+	gfp_t			gfp_flags
 )
 {
 	void			*retval;
@@ -897,7 +897,7 @@ done (struct net2280_ep *ep, struct net2280_request *req, int status)
 /*-------------------------------------------------------------------------*/
 
 static int
-net2280_queue (struct usb_ep *_ep, struct usb_request *_req, unsigned gfp_flags)
+net2280_queue (struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 {
 	struct net2280_request	*req;
 	struct net2280_ep	*ep;
@@ -2948,6 +2948,7 @@ MODULE_DEVICE_TABLE (pci, pci_ids);
 static struct pci_driver net2280_pci_driver = {
 	.name =		(char *) driver_name,
 	.id_table =	pci_ids,
+	.owner =	THIS_MODULE,
 
 	.probe =	net2280_probe,
 	.remove =	net2280_remove,

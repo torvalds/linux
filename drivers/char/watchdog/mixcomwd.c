@@ -45,6 +45,8 @@
 #include <linux/fs.h>
 #include <linux/reboot.h>
 #include <linux/init.h>
+#include <linux/jiffies.h>
+#include <linux/timer.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
@@ -59,7 +61,7 @@ static unsigned long mixcomwd_opened; /* long req'd for setbit --RR */
 
 static int watchdog_port;
 static int mixcomwd_timer_alive;
-static struct timer_list mixcomwd_timer = TIMER_INITIALIZER(NULL, 0, 0);
+static DEFINE_TIMER(mixcomwd_timer, NULL, 0, 0);
 static char expect_close;
 
 static int nowayout = WATCHDOG_NOWAYOUT;

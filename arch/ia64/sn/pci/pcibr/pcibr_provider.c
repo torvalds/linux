@@ -15,6 +15,7 @@
 #include <asm/sn/pcibus_provider_defs.h>
 #include <asm/sn/pcidev.h>
 #include <asm/sn/sn_sal.h>
+#include <asm/sn/sn2/sn_hwperf.h>
 #include "xtalk/xwidgetdev.h"
 #include "xtalk/hubdev.h"
 
@@ -60,7 +61,7 @@ static int sal_pcibr_error_interrupt(struct pcibus_info *soft)
 	ret_stuff.status = 0;
 	ret_stuff.v0 = 0;
 
-	segment = 0;
+	segment = soft->pbi_buscommon.bs_persist_segment;
 	busnum = soft->pbi_buscommon.bs_persist_busnum;
 	SAL_CALL_NOLOCK(ret_stuff,
 			(u64) SN_SAL_IOIF_ERROR_INTERRUPT,
@@ -88,6 +89,7 @@ void *
 pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *controller)
 {
 	int nasid, cnode, j;
+	cnodeid_t near_cnode;
 	struct hubdev_info *hubdev_info;
 	struct pcibus_info *soft;
 	struct sn_flush_device_list *sn_flush_device_list;
@@ -115,7 +117,7 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	/*
 	 * register the bridge's error interrupt handler
 	 */
-	if (request_irq(SGI_PCIBR_ERROR, (void *)pcibr_error_intr_handler,
+	if (request_irq(SGI_PCIASIC_ERROR, (void *)pcibr_error_intr_handler,
 			SA_SHIRQ, "PCIBR error", (void *)(soft))) {
 		printk(KERN_WARNING
 		       "pcibr cannot allocate interrupt for error handler\n");
@@ -142,9 +144,12 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 			     j++, sn_flush_device_list++) {
 				if (sn_flush_device_list->sfdl_slot == -1)
 					continue;
-				if (sn_flush_device_list->
-				    sfdl_persistent_busnum ==
-				    soft->pbi_buscommon.bs_persist_busnum)
+				if ((sn_flush_device_list->
+				     sfdl_persistent_segment ==
+				     soft->pbi_buscommon.bs_persist_segment) &&
+				     (sn_flush_device_list->
+				     sfdl_persistent_busnum ==
+				     soft->pbi_buscommon.bs_persist_busnum))
 					sn_flush_device_list->sfdl_pcibus_info =
 					    soft;
 			}
@@ -158,12 +163,18 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	memset(soft->pbi_int_ate_resource.ate, 0,
  	       (soft->pbi_int_ate_size * sizeof(uint64_t)));
 
-	if (prom_bussoft->bs_asic_type == PCIIO_ASIC_TYPE_TIOCP)
-		/*
-		 * TIO PCI Bridge with no closest node information.
-		 * FIXME: Find another way to determine the closest node
-		 */
-		controller->node = -1;
+	if (prom_bussoft->bs_asic_type == PCIIO_ASIC_TYPE_TIOCP) {
+		/* TIO PCI Bridge: find nearest node with CPUs */
+		int e = sn_hwperf_get_nearest_node(cnode, NULL, &near_cnode);
+
+		if (e < 0) {
+			near_cnode = (cnodeid_t)-1; /* use any node */
+			printk(KERN_WARNING "pcibr_bus_fixup: failed to find "
+				"near node with CPUs to TIO node %d, err=%d\n",
+				cnode, e);
+		}
+		controller->node = near_cnode;
+	}
 	else
 		controller->node = cnode;
 	return soft;
@@ -175,6 +186,9 @@ void pcibr_force_interrupt(struct sn_irq_info *sn_irq_info)
 	struct pcibus_info *pcibus_info;
 	int bit = sn_irq_info->irq_int_bit;
 
+	if (! sn_irq_info->irq_bridge)
+		return;
+
 	pcidev_info = (struct pcidev_info *)sn_irq_info->irq_pciioinfo;
 	if (pcidev_info) {
 		pcibus_info =
@@ -184,7 +198,7 @@ void pcibr_force_interrupt(struct sn_irq_info *sn_irq_info)
 	}
 }
 
-void pcibr_change_devices_irq(struct sn_irq_info *sn_irq_info)
+void pcibr_target_interrupt(struct sn_irq_info *sn_irq_info)
 {
 	struct pcidev_info *pcidev_info;
 	struct pcibus_info *pcibus_info;
@@ -219,6 +233,8 @@ struct sn_pcibus_provider pcibr_provider = {
 	.dma_map_consistent = pcibr_dma_map_consistent,
 	.dma_unmap = pcibr_dma_unmap,
 	.bus_fixup = pcibr_bus_fixup,
+	.force_interrupt = pcibr_force_interrupt,
+	.target_interrupt = pcibr_target_interrupt
 };
 
 int

@@ -285,8 +285,7 @@ next:;
 		}
 	}
 	if (IS_SYNC(inode) && ind_ubh && ubh_buffer_dirty(ind_ubh)) {
-		ubh_wait_on_buffer (ind_ubh);
-		ubh_ll_rw_block (WRITE, 1, &ind_ubh);
+		ubh_ll_rw_block (SWRITE, 1, &ind_ubh);
 		ubh_wait_on_buffer (ind_ubh);
 	}
 	ubh_brelse (ind_ubh);
@@ -353,8 +352,7 @@ static int ufs_trunc_dindirect (struct inode *inode, unsigned offset, __fs32 *p)
 		}
 	}
 	if (IS_SYNC(inode) && dind_bh && ubh_buffer_dirty(dind_bh)) {
-		ubh_wait_on_buffer (dind_bh);
-		ubh_ll_rw_block (WRITE, 1, &dind_bh);
+		ubh_ll_rw_block (SWRITE, 1, &dind_bh);
 		ubh_wait_on_buffer (dind_bh);
 	}
 	ubh_brelse (dind_bh);
@@ -418,8 +416,7 @@ static int ufs_trunc_tindirect (struct inode * inode)
 		}
 	}
 	if (IS_SYNC(inode) && tind_bh && ubh_buffer_dirty(tind_bh)) {
-		ubh_wait_on_buffer (tind_bh);
-		ubh_ll_rw_block (WRITE, 1, &tind_bh);
+		ubh_ll_rw_block (SWRITE, 1, &tind_bh);
 		ubh_wait_on_buffer (tind_bh);
 	}
 	ubh_brelse (tind_bh);

@@ -100,8 +100,7 @@ MODULE_LICENSE("GPL");
 /* utility
  */
 
-static __inline__ void
-_set_bit(u32* word, u32 mask, int value)
+static __inline__ void _set_bit(u32 * word, u32 mask, int value)
 {
 	*word = (*word & ~mask) | (mask * value);
 }
@@ -109,35 +108,32 @@ _set_bit(u32* word, u32 mask, int value)
 /* acpi interface wrappers
  */
 
-static int
-is_valid_acpi_path(const char* methodName)
+static int is_valid_acpi_path(const char *methodName)
 {
 	acpi_handle handle;
 	acpi_status status;
 
-	status = acpi_get_handle(NULL, (char*)methodName, &handle);
+	status = acpi_get_handle(NULL, (char *)methodName, &handle);
 	return !ACPI_FAILURE(status);
 }
 
-static int
-write_acpi_int(const char* methodName, int val)
+static int write_acpi_int(const char *methodName, int val)
 {
 	struct acpi_object_list params;
 	union acpi_object in_objs[1];
 	acpi_status status;
 
-	params.count = sizeof(in_objs)/sizeof(in_objs[0]);
+	params.count = sizeof(in_objs) / sizeof(in_objs[0]);
 	params.pointer = in_objs;
 	in_objs[0].type = ACPI_TYPE_INTEGER;
 	in_objs[0].integer.value = val;
 
-	status = acpi_evaluate_object(NULL, (char*)methodName, &params, NULL);
+	status = acpi_evaluate_object(NULL, (char *)methodName, &params, NULL);
 	return (status == AE_OK);
 }
 
 #if 0
-static int
-read_acpi_int(const char* methodName, int* pVal)
+static int read_acpi_int(const char *methodName, int *pVal)
 {
 	struct acpi_buffer results;
 	union acpi_object out_objs[1];
@@ -146,25 +142,24 @@ read_acpi_int(const char* methodName, int* pVal)
 	results.length = sizeof(out_objs);
 	results.pointer = out_objs;
 
-	status = acpi_evaluate_object(0, (char*)methodName, 0, &results);
+	status = acpi_evaluate_object(0, (char *)methodName, 0, &results);
 	*pVal = out_objs[0].integer.value;
 
 	return (status == AE_OK) && (out_objs[0].type == ACPI_TYPE_INTEGER);
 }
 #endif
 
-static const char*		method_hci /*= 0*/;
+static const char *method_hci /*= 0*/ ;
 
 /* Perform a raw HCI call.  Here we don't care about input or output buffer
  * format.
  */
-static acpi_status
-hci_raw(const u32 in[HCI_WORDS], u32 out[HCI_WORDS])
+static acpi_status hci_raw(const u32 in[HCI_WORDS], u32 out[HCI_WORDS])
 {
 	struct acpi_object_list params;
 	union acpi_object in_objs[HCI_WORDS];
 	struct acpi_buffer results;
-	union acpi_object out_objs[HCI_WORDS+1];
+	union acpi_object out_objs[HCI_WORDS + 1];
 	acpi_status status;
 	int i;
 
@@ -178,8 +173,8 @@ hci_raw(const u32 in[HCI_WORDS], u32 out[HCI_WORDS])
 	results.length = sizeof(out_objs);
 	results.pointer = out_objs;
 
-	status = acpi_evaluate_object(NULL, (char*)method_hci, &params,
-		&results);
+	status = acpi_evaluate_object(NULL, (char *)method_hci, &params,
+				      &results);
 	if ((status == AE_OK) && (out_objs->package.count <= HCI_WORDS)) {
 		for (i = 0; i < out_objs->package.count; ++i) {
 			out[i] = out_objs->package.elements[i].integer.value;
@@ -195,8 +190,7 @@ hci_raw(const u32 in[HCI_WORDS], u32 out[HCI_WORDS])
  * may be useful (such as "not supported").
  */
 
-static acpi_status
-hci_write1(u32 reg, u32 in1, u32* result)
+static acpi_status hci_write1(u32 reg, u32 in1, u32 * result)
 {
 	u32 in[HCI_WORDS] = { HCI_SET, reg, in1, 0, 0, 0 };
 	u32 out[HCI_WORDS];
@@ -205,8 +199,7 @@ hci_write1(u32 reg, u32 in1, u32* result)
 	return status;
 }
 
-static acpi_status
-hci_read1(u32 reg, u32* out1, u32* result)
+static acpi_status hci_read1(u32 reg, u32 * out1, u32 * result)
 {
 	u32 in[HCI_WORDS] = { HCI_GET, reg, 0, 0, 0, 0 };
 	u32 out[HCI_WORDS];
@@ -216,26 +209,25 @@ hci_read1(u32 reg, u32* out1, u32* result)
 	return status;
 }
 
-static struct proc_dir_entry*	toshiba_proc_dir /*= 0*/;
-static int			force_fan;
-static int			last_key_event;
-static int			key_event_valid;
+static struct proc_dir_entry *toshiba_proc_dir /*= 0*/ ;
+static int force_fan;
+static int last_key_event;
+static int key_event_valid;
 
-typedef struct _ProcItem
-{
-	const char* name;
-	char* (*read_func)(char*);
-	unsigned long (*write_func)(const char*, unsigned long);
+typedef struct _ProcItem {
+	const char *name;
+	char *(*read_func) (char *);
+	unsigned long (*write_func) (const char *, unsigned long);
 } ProcItem;
 
 /* proc file handlers
  */
 
 static int
-dispatch_read(char* page, char** start, off_t off, int count, int* eof,
-	ProcItem* item)
+dispatch_read(char *page, char **start, off_t off, int count, int *eof,
+	      ProcItem * item)
 {
-	char* p = page;
+	char *p = page;
 	int len;
 
 	if (off == 0)
@@ -243,33 +235,35 @@ dispatch_read(char* page, char** start, off_t off, int count, int* eof,
 
 	/* ISSUE: I don't understand this code */
 	len = (p - page);
-	if (len <= off+count) *eof = 1;
+	if (len <= off + count)
+		*eof = 1;
 	*start = page + off;
 	len -= off;
-	if (len>count) len = count;
-	if (len<0) len = 0;
+	if (len > count)
+		len = count;
+	if (len < 0)
+		len = 0;
 	return len;
 }
 
 static int
-dispatch_write(struct file* file, const char __user * buffer,
-	unsigned long count, ProcItem* item)
+dispatch_write(struct file *file, const char __user * buffer,
+	       unsigned long count, ProcItem * item)
 {
 	int result;
-	char* tmp_buffer;
+	char *tmp_buffer;
 
 	/* Arg buffer points to userspace memory, which can't be accessed
 	 * directly.  Since we're making a copy, zero-terminate the
 	 * destination so that sscanf can be used on it safely.
 	 */
 	tmp_buffer = kmalloc(count + 1, GFP_KERNEL);
-	if(!tmp_buffer)
+	if (!tmp_buffer)
 		return -ENOMEM;
 
 	if (copy_from_user(tmp_buffer, buffer, count)) {
 		result = -EFAULT;
-	}
-	else {
+	} else {
 		tmp_buffer[count] = 0;
 		result = item->write_func(tmp_buffer, count);
 	}
@@ -277,8 +271,7 @@ dispatch_write(struct file* file, const char __user * buffer,
 	return result;
 }
 
-static char*
-read_lcd(char* p)
+static char *read_lcd(char *p)
 {
 	u32 hci_result;
 	u32 value;
@@ -288,7 +281,7 @@ read_lcd(char* p)
 		value = value >> HCI_LCD_BRIGHTNESS_SHIFT;
 		p += sprintf(p, "brightness:              %d\n", value);
 		p += sprintf(p, "brightness_levels:       %d\n",
-			HCI_LCD_BRIGHTNESS_LEVELS);
+			     HCI_LCD_BRIGHTNESS_LEVELS);
 	} else {
 		printk(MY_ERR "Error reading LCD brightness\n");
 	}
@@ -296,14 +289,13 @@ read_lcd(char* p)
 	return p;
 }
 
-static unsigned long
-write_lcd(const char* buffer, unsigned long count)
+static unsigned long write_lcd(const char *buffer, unsigned long count)
 {
 	int value;
 	u32 hci_result;
 
 	if (sscanf(buffer, " brightness : %i", &value) == 1 &&
-			value >= 0 && value < HCI_LCD_BRIGHTNESS_LEVELS) {
+	    value >= 0 && value < HCI_LCD_BRIGHTNESS_LEVELS) {
 		value = value << HCI_LCD_BRIGHTNESS_SHIFT;
 		hci_write1(HCI_LCD_BRIGHTNESS, value, &hci_result);
 		if (hci_result != HCI_SUCCESS)
@@ -315,8 +307,7 @@ write_lcd(const char* buffer, unsigned long count)
 	return count;
 }
 
-static char*
-read_video(char* p)
+static char *read_video(char *p)
 {
 	u32 hci_result;
 	u32 value;
@@ -325,7 +316,7 @@ read_video(char* p)
 	if (hci_result == HCI_SUCCESS) {
 		int is_lcd = (value & HCI_VIDEO_OUT_LCD) ? 1 : 0;
 		int is_crt = (value & HCI_VIDEO_OUT_CRT) ? 1 : 0;
-		int is_tv  = (value & HCI_VIDEO_OUT_TV ) ? 1 : 0;
+		int is_tv = (value & HCI_VIDEO_OUT_TV) ? 1 : 0;
 		p += sprintf(p, "lcd_out:                 %d\n", is_lcd);
 		p += sprintf(p, "crt_out:                 %d\n", is_crt);
 		p += sprintf(p, "tv_out:                  %d\n", is_tv);
@@ -336,8 +327,7 @@ read_video(char* p)
 	return p;
 }
 
-static unsigned long
-write_video(const char* buffer, unsigned long count)
+static unsigned long write_video(const char *buffer, unsigned long count)
 {
 	int value;
 	int remain = count;
@@ -363,7 +353,7 @@ write_video(const char* buffer, unsigned long count)
 			++buffer;
 			--remain;
 		}
-		while (remain && *(buffer-1) != ';');
+		while (remain && *(buffer - 1) != ';');
 	}
 
 	hci_read1(HCI_VIDEO_OUT, &video_out, &hci_result);
@@ -386,8 +376,7 @@ write_video(const char* buffer, unsigned long count)
 	return count;
 }
 
-static char*
-read_fan(char* p)
+static char *read_fan(char *p)
 {
 	u32 hci_result;
 	u32 value;
@@ -403,14 +392,13 @@ read_fan(char* p)
 	return p;
 }
 
-static unsigned long
-write_fan(const char* buffer, unsigned long count)
+static unsigned long write_fan(const char *buffer, unsigned long count)
 {
 	int value;
 	u32 hci_result;
 
 	if (sscanf(buffer, " force_on : %i", &value) == 1 &&
-			value >= 0 && value <= 1) {
+	    value >= 0 && value <= 1) {
 		hci_write1(HCI_FAN, value, &hci_result);
 		if (hci_result != HCI_SUCCESS)
 			return -EFAULT;
@@ -423,8 +411,7 @@ write_fan(const char* buffer, unsigned long count)
 	return count;
 }
 
-static char*
-read_keys(char* p)
+static char *read_keys(char *p)
 {
 	u32 hci_result;
 	u32 value;
@@ -451,17 +438,15 @@ read_keys(char* p)
 	p += sprintf(p, "hotkey_ready:            %d\n", key_event_valid);
 	p += sprintf(p, "hotkey:                  0x%04x\n", last_key_event);
 
-end:
+      end:
 	return p;
 }
 
-static unsigned long
-write_keys(const char* buffer, unsigned long count)
+static unsigned long write_keys(const char *buffer, unsigned long count)
 {
 	int value;
 
-	if (sscanf(buffer, " hotkey_ready : %i", &value) == 1 &&
-			value == 0) {
+	if (sscanf(buffer, " hotkey_ready : %i", &value) == 1 && value == 0) {
 		key_event_valid = 0;
 	} else {
 		return -EINVAL;
@@ -470,12 +455,11 @@ write_keys(const char* buffer, unsigned long count)
 	return count;
 }
 
-static char*
-read_version(char* p)
+static char *read_version(char *p)
 {
 	p += sprintf(p, "driver:                  %s\n", TOSHIBA_ACPI_VERSION);
 	p += sprintf(p, "proc_interface:          %d\n",
-		PROC_INTERFACE_VERSION);
+		     PROC_INTERFACE_VERSION);
 	return p;
 }
 
@@ -484,48 +468,45 @@ read_version(char* p)
 
 #define PROC_TOSHIBA		"toshiba"
 
-static ProcItem proc_items[] =
-{
-	{ "lcd"		, read_lcd	, write_lcd	},
-	{ "video"	, read_video	, write_video	},
-	{ "fan"		, read_fan	, write_fan	},
-	{ "keys"	, read_keys	, write_keys	},
-	{ "version"	, read_version	, NULL		},
-	{ NULL }
+static ProcItem proc_items[] = {
+	{"lcd", read_lcd, write_lcd},
+	{"video", read_video, write_video},
+	{"fan", read_fan, write_fan},
+	{"keys", read_keys, write_keys},
+	{"version", read_version, NULL},
+	{NULL}
 };
 
-static acpi_status __init
-add_device(void)
+static acpi_status __init add_device(void)
 {
-	struct proc_dir_entry* proc;
-	ProcItem* item;
+	struct proc_dir_entry *proc;
+	ProcItem *item;
 
-	for (item = proc_items; item->name; ++item)
-	{
+	for (item = proc_items; item->name; ++item) {
 		proc = create_proc_read_entry(item->name,
-			S_IFREG | S_IRUGO | S_IWUSR,
-			toshiba_proc_dir, (read_proc_t*)dispatch_read, item);
+					      S_IFREG | S_IRUGO | S_IWUSR,
+					      toshiba_proc_dir,
+					      (read_proc_t *) dispatch_read,
+					      item);
 		if (proc)
 			proc->owner = THIS_MODULE;
 		if (proc && item->write_func)
-			proc->write_proc = (write_proc_t*)dispatch_write;
+			proc->write_proc = (write_proc_t *) dispatch_write;
 	}
 
 	return AE_OK;
 }
 
-static acpi_status __exit
-remove_device(void)
+static acpi_status __exit remove_device(void)
 {
-	ProcItem* item;
+	ProcItem *item;
 
 	for (item = proc_items; item->name; ++item)
 		remove_proc_entry(item->name, toshiba_proc_dir);
 	return AE_OK;
 }
 
-static int __init
-toshiba_acpi_init(void)
+static int __init toshiba_acpi_init(void)
 {
 	acpi_status status = AE_OK;
 	u32 hci_result;
@@ -533,9 +514,9 @@ toshiba_acpi_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	if (!acpi_specific_hotkey_enabled){
+	if (!acpi_specific_hotkey_enabled) {
 		printk(MY_INFO "Using generic hotkey driver\n");
-		return -ENODEV;	
+		return -ENODEV;
 	}
 	/* simple device detection: look for HCI method */
 	if (is_valid_acpi_path(METHOD_HCI_1))
@@ -546,7 +527,7 @@ toshiba_acpi_init(void)
 		return -ENODEV;
 
 	printk(MY_INFO "Toshiba Laptop ACPI Extras version %s\n",
-		TOSHIBA_ACPI_VERSION);
+	       TOSHIBA_ACPI_VERSION);
 	printk(MY_INFO "    HCI method: %s\n", method_hci);
 
 	force_fan = 0;
@@ -568,8 +549,7 @@ toshiba_acpi_init(void)
 	return (ACPI_SUCCESS(status)) ? 0 : -ENODEV;
 }
 
-static void __exit
-toshiba_acpi_exit(void)
+static void __exit toshiba_acpi_exit(void)
 {
 	remove_device();
 

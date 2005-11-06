@@ -6,7 +6,7 @@
  *  Copyleft  ()) 2000       James D. Schettine {james@telos-systems.com}
  *  Copyright (C) 1998       Kenneth Albanowski <kjahds@kjahds.com>
  *  Copyright (C) 1995       Hamish Macdonald
- *  Copyright (C) 2000       Lineo Inc. (www.lineo.com) 
+ *  Copyright (C) 2000       Lineo Inc. (www.lineo.com)
  *  Copyright (C) 2001 	     Lineo, Inc. <www.lineo.com>
  *
  *  68VZ328 Fixes/support    Evan Stawnyczy <e@lineo.ca>
@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/fb.h>
+#include <linux/module.h>
 #include <linux/console.h>
 #include <linux/genhd.h>
 #include <linux/errno.h>
@@ -44,6 +45,9 @@
 unsigned long rom_length;
 unsigned long memory_start;
 unsigned long memory_end;
+
+EXPORT_SYMBOL(memory_start);
+EXPORT_SYMBOL(memory_end);
 
 char command_line[COMMAND_LINE_SIZE];
 
@@ -103,14 +107,20 @@ void (*mach_power_off)( void ) = NULL;
 #if defined(CONFIG_M5206e)
 	#define	CPU "COLDFIRE(m5206e)"
 #endif
+#if defined(CONFIG_M523x)
+	#define CPU "COLDFIRE(m523x)"
+#endif
 #if defined(CONFIG_M5249)
 	#define CPU "COLDFIRE(m5249)"
 #endif
-#if defined(CONFIG_M527x)
-	#define CPU "COLDFIRE(m5270/5271/5274/5275)"
+#if defined(CONFIG_M5271)
+	#define CPU "COLDFIRE(m5270/5271)"
 #endif
 #if defined(CONFIG_M5272)
 	#define CPU "COLDFIRE(m5272)"
+#endif
+#if defined(CONFIG_M5275)
+	#define CPU "COLDFIRE(m5274/5275)"
 #endif
 #if defined(CONFIG_M528x)
 	#define CPU "COLDFIRE(m5280/5282)"
@@ -152,7 +162,7 @@ void setup_arch(char **cmdline_p)
 	init_mm.start_code = (unsigned long) &_stext;
 	init_mm.end_code = (unsigned long) &_etext;
 	init_mm.end_data = (unsigned long) &_edata;
-	init_mm.brk = (unsigned long) 0; 
+	init_mm.brk = (unsigned long) 0;
 
 	config_BSP(&command_line[0], sizeof(command_line));
 
@@ -171,7 +181,7 @@ void setup_arch(char **cmdline_p)
 #endif
 #ifdef CONFIG_ELITE
 	printk(KERN_INFO "Modified for M5206eLITE by Rob Scott, rscott@mtrob.fdns.net\n");
-#endif  
+#endif
 #ifdef CONFIG_TELOS
 	printk(KERN_INFO "Modified for Omnia ToolVox by James D. Schettine, james@telos-systems.com\n");
 #endif
@@ -200,6 +210,9 @@ void setup_arch(char **cmdline_p)
 #ifdef CONFIG_DRAGEN2
 	printk(KERN_INFO "DragonEngine II board support by Georges Menie\n");
 #endif
+#ifdef CONFIG_M5235EVB
+	printk(KERN_INFO "Motorola M5235EVB support (C)2005 Syn-tech Systems, Inc. (Jate Sujjavanich)");
+#endif
 
 #ifdef DEBUG
 	printk(KERN_DEBUG "KERNEL -> TEXT=0x%06x-0x%06x DATA=0x%06x-0x%06x "
@@ -223,7 +236,7 @@ void setup_arch(char **cmdline_p)
 	saved_command_line[COMMAND_LINE_SIZE-1] = 0;
 
 #ifdef DEBUG
-	if (strlen(*cmdline_p)) 
+	if (strlen(*cmdline_p))
 		printk(KERN_DEBUG "Command line: '%s'\n", *cmdline_p);
 #endif
 

@@ -26,6 +26,7 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/sched.h>	/* workqueue stuff, HZ */
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
@@ -252,7 +253,8 @@ struct fc_internal {
 
 #define to_fc_internal(tmpl)	container_of(tmpl, struct fc_internal, t)
 
-static int fc_target_setup(struct device *dev)
+static int fc_target_setup(struct transport_container *tc, struct device *dev,
+			   struct class_device *cdev)
 {
 	struct scsi_target *starget = to_scsi_target(dev);
 	struct fc_rport *rport = starget_to_rport(starget);
@@ -281,7 +283,8 @@ static DECLARE_TRANSPORT_CLASS(fc_transport_class,
 			       NULL,
 			       NULL);
 
-static int fc_host_setup(struct device *dev)
+static int fc_host_setup(struct transport_container *tc, struct device *dev,
+			 struct class_device *cdev)
 {
 	struct Scsi_Host *shost = dev_to_shost(dev);
 
@@ -817,12 +820,15 @@ show_fc_private_host_tgtid_bind_type(struct class_device *cdev, char *buf)
 	return snprintf(buf, FC_BINDTYPE_MAX_NAMELEN, "%s\n", name);
 }
 
+#define get_list_head_entry(pos, head, member) 		\
+	pos = list_entry((head)->next, typeof(*pos), member)
+
 static ssize_t
 store_fc_private_host_tgtid_bind_type(struct class_device *cdev,
 	const char *buf, size_t count)
 {
 	struct Scsi_Host *shost = transport_class_to_shost(cdev);
-	struct fc_rport *rport, *next_rport;
+	struct fc_rport *rport;
  	enum fc_tgtid_binding_type val;
 	unsigned long flags;
 
@@ -832,9 +838,13 @@ store_fc_private_host_tgtid_bind_type(struct class_device *cdev,
 	/* if changing bind type, purge all unused consistent bindings */
 	if (val != fc_host_tgtid_bind_type(shost)) {
 		spin_lock_irqsave(shost->host_lock, flags);
-		list_for_each_entry_safe(rport, next_rport,
-				&fc_host_rport_bindings(shost), peers)
+		while (!list_empty(&fc_host_rport_bindings(shost))) {
+			get_list_head_entry(rport,
+				&fc_host_rport_bindings(shost), peers);
+			spin_unlock_irqrestore(shost->host_lock, flags);
 			fc_rport_terminate(rport);
+			spin_lock_irqsave(shost->host_lock, flags);
+		}
 		spin_unlock_irqrestore(shost->host_lock, flags);
 	}
 
@@ -1022,6 +1032,23 @@ static int fc_rport_match(struct attribute_container *cont,
 	return &i->rport_attr_cont.ac == cont;
 }
 
+
+/*
+ * Must be called with shost->host_lock held
+ */
+static struct device *fc_target_parent(struct Scsi_Host *shost,
+					int channel, uint id)
+{
+	struct fc_rport *rport;
+
+	list_for_each_entry(rport, &fc_host_rports(shost), peers)
+		if ((rport->channel == channel) &&
+		    (rport->scsi_target_id == id))
+			return &rport->dev;
+
+	return NULL;
+}
+
 struct scsi_transport_template *
 fc_attach_transport(struct fc_function_template *ft)
 {
@@ -1057,6 +1084,8 @@ fc_attach_transport(struct fc_function_template *ft)
 
 	/* Transport uses the shost workq for scsi scanning */
 	i->t.create_work_queue = 1;
+
+	i->t.target_parent = fc_target_parent;
 	
 	/*
 	 * Setup SCSI Target Attributes.

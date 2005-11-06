@@ -178,14 +178,12 @@ fore200e_irq_itoa(int irq)
 
 
 static void*
-fore200e_kmalloc(int size, int flags)
+fore200e_kmalloc(int size, gfp_t flags)
 {
-    void* chunk = kmalloc(size, flags);
+    void *chunk = kzalloc(size, flags);
 
-    if (chunk)
-	memset(chunk, 0x00, size);
-    else
-	printk(FORE200E "kmalloc() failed, requested size = %d, flags = 0x%x\n", size, flags);
+    if (!chunk)
+	printk(FORE200E "kmalloc() failed, requested size = %d, flags = 0x%x\n",			size, flags);
     
     return chunk;
 }
@@ -1176,7 +1174,7 @@ fore200e_push_rpd(struct fore200e* fore200e, struct atm_vcc* vcc, struct rpd* rp
 	return -ENOMEM;
     } 
 
-    do_gettimeofday(&skb->stamp);
+    __net_timestamp(skb);
     
 #ifdef FORE200E_52BYTE_AAL0_SDU
     if (cell_header) {

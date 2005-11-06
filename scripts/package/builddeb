@@ -14,18 +14,38 @@ set -e
 # Some variables and settings used throughout the script
 version=$KERNELRELEASE
 tmpdir="$objtree/debian/tmp"
+packagename=linux-$version
+
+if [ "$ARCH" == "um" ] ; then
+	packagename=user-mode-linux-$version
+fi
 
 # Setup the directory structure
 rm -rf "$tmpdir"
 mkdir -p "$tmpdir/DEBIAN" "$tmpdir/lib" "$tmpdir/boot"
+if [ "$ARCH" == "um" ] ; then
+	mkdir -p "$tmpdir/usr/lib/uml/modules/$version" "$tmpdir/usr/share/doc/$packagename" "$tmpdir/usr/bin"
+fi
 
 # Build and install the kernel
-cp System.map "$tmpdir/boot/System.map-$version"
-cp .config "$tmpdir/boot/config-$version"
-cp $KBUILD_IMAGE "$tmpdir/boot/vmlinuz-$version"
+if [ "$ARCH" == "um" ] ; then
+	$MAKE linux
+	cp System.map "$tmpdir/usr/lib/uml/modules/$version/System.map"
+	cp .config "$tmpdir/usr/share/doc/$packagename/config"
+	gzip "$tmpdir/usr/share/doc/$packagename/config"
+	cp $KBUILD_IMAGE "$tmpdir/usr/bin/linux-$version"
+else 
+	cp System.map "$tmpdir/boot/System.map-$version"
+	cp .config "$tmpdir/boot/config-$version"
+	cp $KBUILD_IMAGE "$tmpdir/boot/vmlinuz-$version"
+fi
 
 if grep -q '^CONFIG_MODULES=y' .config ; then
-	INSTALL_MOD_PATH="$tmpdir" make modules_install
+	INSTALL_MOD_PATH="$tmpdir" make KBUILD_SRC= modules_install
+	if [ "$ARCH" == "um" ] ; then
+		mv "$tmpdir/lib/modules/$version"/* "$tmpdir/usr/lib/uml/modules/$version/"
+		rmdir "$tmpdir/lib/modules/$version"
+	fi
 fi
 
 # Install the maintainer scripts
@@ -53,6 +73,8 @@ linux ($version) unstable; urgency=low
 EOF
 
 # Generate a control file
+if [ "$ARCH" == "um" ]; then
+
 cat <<EOF > debian/control
 Source: linux
 Section: base
@@ -60,12 +82,34 @@ Priority: optional
 Maintainer: $name
 Standards-Version: 3.6.1
 
-Package: linux-$version
+Package: $packagename
+Architecture: any
+Description: User Mode Linux kernel, version $version
+ User-mode Linux is a port of the Linux kernel to its own system call
+ interface.  It provides a kind of virtual machine, which runs Linux
+ as a user process under another Linux kernel.  This is useful for
+ kernel development, sandboxes, jails, experimentation, and
+ many other things.
+ .
+ This package contains the Linux kernel, modules and corresponding other
+ files version $version
+EOF
+
+else
+cat <<EOF > debian/control
+Source: linux
+Section: base
+Priority: optional
+Maintainer: $name
+Standards-Version: 3.6.1
+
+Package: $packagename
 Architecture: any
 Description: Linux kernel, version $version
  This package contains the Linux kernel, modules and corresponding other
- files version $version.
+ files version $version
 EOF
+fi
 
 # Fix some ownership and permissions
 chown -R root:root "$tmpdir"

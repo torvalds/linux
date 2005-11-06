@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <asm/kmap_types.h>
 
 extern enum km_type crypto_km_types[];
@@ -38,7 +39,7 @@ static inline void crypto_kunmap(void *vaddr, int out)
 
 static inline void crypto_yield(struct crypto_tfm *tfm)
 {
-	if (!in_atomic())
+	if (tfm->crt_flags & CRYPTO_TFM_REQ_MAY_SLEEP)
 		cond_resched();
 }
 

@@ -12,6 +12,7 @@
 #include "tt.h"
 #include "mem_user.h"
 #include "user_util.h"
+#include "os.h"
 
 void remap_data(void *segment_start, void *segment_end, int w)
 {

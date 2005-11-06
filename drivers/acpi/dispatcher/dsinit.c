@@ -41,23 +41,17 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acdispat.h>
 #include <acpi/acnamesp.h>
 
 #define _COMPONENT          ACPI_DISPATCHER
-	 ACPI_MODULE_NAME    ("dsinit")
+ACPI_MODULE_NAME("dsinit")
 
 /* Local prototypes */
-
 static acpi_status
-acpi_ds_init_one_object (
-	acpi_handle                     obj_handle,
-	u32                             level,
-	void                            *context,
-	void                            **return_value);
-
+acpi_ds_init_one_object(acpi_handle obj_handle,
+			u32 level, void *context, void **return_value);
 
 /*******************************************************************************
  *
@@ -80,26 +74,23 @@ acpi_ds_init_one_object (
  ******************************************************************************/
 
 static acpi_status
-acpi_ds_init_one_object (
-	acpi_handle                     obj_handle,
-	u32                             level,
-	void                            *context,
-	void                            **return_value)
+acpi_ds_init_one_object(acpi_handle obj_handle,
+			u32 level, void *context, void **return_value)
 {
-	acpi_object_type                type;
-	acpi_status                     status;
-	struct acpi_init_walk_info      *info = (struct acpi_init_walk_info *) context;
+	struct acpi_init_walk_info *info =
+	    (struct acpi_init_walk_info *)context;
+	struct acpi_namespace_node *node =
+	    (struct acpi_namespace_node *)obj_handle;
+	acpi_object_type type;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_NAME ("ds_init_one_object");
-
+	ACPI_FUNCTION_NAME("ds_init_one_object");
 
 	/*
-	 * We are only interested in objects owned by the table that
+	 * We are only interested in NS nodes owned by the table that
 	 * was just loaded
 	 */
-	if (((struct acpi_namespace_node *) obj_handle)->owner_id !=
-			info->table_desc->table_id) {
+	if (node->owner_id != info->table_desc->owner_id) {
 		return (AE_OK);
 	}
 
@@ -107,33 +98,31 @@ acpi_ds_init_one_object (
 
 	/* And even then, we are only interested in a few object types */
 
-	type = acpi_ns_get_type (obj_handle);
+	type = acpi_ns_get_type(obj_handle);
 
 	switch (type) {
 	case ACPI_TYPE_REGION:
 
-		status = acpi_ds_initialize_region (obj_handle);
-		if (ACPI_FAILURE (status)) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-				"Region %p [%4.4s] - Init failure, %s\n",
-				obj_handle, acpi_ut_get_node_name (obj_handle),
-				acpi_format_exception (status)));
+		status = acpi_ds_initialize_region(obj_handle);
+		if (ACPI_FAILURE(status)) {
+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+					  "Region %p [%4.4s] - Init failure, %s\n",
+					  obj_handle,
+					  acpi_ut_get_node_name(obj_handle),
+					  acpi_format_exception(status)));
 		}
 
 		info->op_region_count++;
 		break;
 
-
 	case ACPI_TYPE_METHOD:
-
-		info->method_count++;
 
 		/*
 		 * Print a dot for each method unless we are going to print
 		 * the entire pathname
 		 */
 		if (!(acpi_dbg_level & ACPI_LV_INIT_NAMES)) {
-			ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "."));
+			ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT, "."));
 		}
 
 		/*
@@ -143,40 +132,31 @@ acpi_ds_init_one_object (
 		 * on a per-table basis. Currently, we just use a global for the width.
 		 */
 		if (info->table_desc->pointer->revision == 1) {
-			((struct acpi_namespace_node *) obj_handle)->flags |= ANOBJ_DATA_WIDTH_32;
+			node->flags |= ANOBJ_DATA_WIDTH_32;
 		}
 
 		/*
 		 * Always parse methods to detect errors, we will delete
 		 * the parse tree below
 		 */
-		status = acpi_ds_parse_method (obj_handle);
-		if (ACPI_FAILURE (status)) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-				"Method %p [%4.4s] - parse failure, %s\n",
-				obj_handle, acpi_ut_get_node_name (obj_handle),
-				acpi_format_exception (status)));
+		status = acpi_ds_parse_method(obj_handle);
+		if (ACPI_FAILURE(status)) {
+			ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+					  "\n+Method %p [%4.4s] - parse failure, %s\n",
+					  obj_handle,
+					  acpi_ut_get_node_name(obj_handle),
+					  acpi_format_exception(status)));
 
 			/* This parse failed, but we will continue parsing more methods */
-
-			break;
 		}
 
-		/*
-		 * Delete the parse tree.  We simply re-parse the method
-		 * for every execution since there isn't much overhead
-		 */
-		acpi_ns_delete_namespace_subtree (obj_handle);
-		acpi_ns_delete_namespace_by_owner (
-			((struct acpi_namespace_node *) obj_handle)->object->method.owning_id);
+		info->method_count++;
 		break;
-
 
 	case ACPI_TYPE_DEVICE:
 
 		info->device_count++;
 		break;
-
 
 	default:
 		break;
@@ -188,7 +168,6 @@ acpi_ds_init_one_object (
 	 */
 	return (AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -205,45 +184,43 @@ acpi_ds_init_one_object (
  ******************************************************************************/
 
 acpi_status
-acpi_ds_initialize_objects (
-	struct acpi_table_desc          *table_desc,
-	struct acpi_namespace_node      *start_node)
+acpi_ds_initialize_objects(struct acpi_table_desc * table_desc,
+			   struct acpi_namespace_node * start_node)
 {
-	acpi_status                     status;
-	struct acpi_init_walk_info      info;
+	acpi_status status;
+	struct acpi_init_walk_info info;
 
+	ACPI_FUNCTION_TRACE("ds_initialize_objects");
 
-	ACPI_FUNCTION_TRACE ("ds_initialize_objects");
+	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+			  "**** Starting initialization of namespace objects ****\n"));
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT, "Parsing all Control Methods:"));
 
-
-	ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-		"**** Starting initialization of namespace objects ****\n"));
-	ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT, "Parsing all Control Methods:"));
-
-	info.method_count   = 0;
+	info.method_count = 0;
 	info.op_region_count = 0;
-	info.object_count   = 0;
-	info.device_count   = 0;
-	info.table_desc     = table_desc;
+	info.object_count = 0;
+	info.device_count = 0;
+	info.table_desc = table_desc;
 
 	/* Walk entire namespace from the supplied root */
 
-	status = acpi_walk_namespace (ACPI_TYPE_ANY, start_node, ACPI_UINT32_MAX,
-			  acpi_ds_init_one_object, &info, NULL);
-	if (ACPI_FAILURE (status)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "walk_namespace failed, %s\n",
-			acpi_format_exception (status)));
+	status = acpi_walk_namespace(ACPI_TYPE_ANY, start_node, ACPI_UINT32_MAX,
+				     acpi_ds_init_one_object, &info, NULL);
+	if (ACPI_FAILURE(status)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "walk_namespace failed, %s\n",
+				  acpi_format_exception(status)));
 	}
 
-	ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INIT,
-		"\nTable [%4.4s](id %4.4X) - %hd Objects with %hd Devices %hd Methods %hd Regions\n",
-		table_desc->pointer->signature, table_desc->table_id, info.object_count,
-		info.device_count, info.method_count, info.op_region_count));
+	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
+			      "\nTable [%4.4s](id %4.4X) - %hd Objects with %hd Devices %hd Methods %hd Regions\n",
+			      table_desc->pointer->signature,
+			      table_desc->owner_id, info.object_count,
+			      info.device_count, info.method_count,
+			      info.op_region_count));
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
-		"%hd Methods, %hd Regions\n", info.method_count, info.op_region_count));
+	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
+			  "%hd Methods, %hd Regions\n", info.method_count,
+			  info.op_region_count));
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
-

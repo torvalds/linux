@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
  * Copyright (c) 2005 Cisco Systems.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -81,7 +82,7 @@ void mthca_free_icm(struct mthca_dev *dev, struct mthca_icm *icm)
 }
 
 struct mthca_icm *mthca_alloc_icm(struct mthca_dev *dev, int npages,
-				  unsigned int gfp_mask)
+				  gfp_t gfp_mask)
 {
 	struct mthca_icm *icm;
 	struct mthca_icm_chunk *chunk = NULL;
@@ -285,10 +286,11 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 {
 	struct mthca_icm_table *table;
 	int num_icm;
+	unsigned chunk_size;
 	int i;
 	u8 status;
 
-	num_icm = obj_size * nobj / MTHCA_TABLE_CHUNK_SIZE;
+	num_icm = (obj_size * nobj + MTHCA_TABLE_CHUNK_SIZE - 1) / MTHCA_TABLE_CHUNK_SIZE;
 
 	table = kmalloc(sizeof *table + num_icm * sizeof *table->icm, GFP_KERNEL);
 	if (!table)
@@ -305,7 +307,11 @@ struct mthca_icm_table *mthca_alloc_icm_table(struct mthca_dev *dev,
 		table->icm[i] = NULL;
 
 	for (i = 0; i * MTHCA_TABLE_CHUNK_SIZE < reserved * obj_size; ++i) {
-		table->icm[i] = mthca_alloc_icm(dev, MTHCA_TABLE_CHUNK_SIZE >> PAGE_SHIFT,
+		chunk_size = MTHCA_TABLE_CHUNK_SIZE;
+		if ((i + 1) * MTHCA_TABLE_CHUNK_SIZE > nobj * obj_size)
+			chunk_size = nobj * obj_size - i * MTHCA_TABLE_CHUNK_SIZE;
+
+		table->icm[i] = mthca_alloc_icm(dev, chunk_size >> PAGE_SHIFT,
 						(use_lowmem ? GFP_KERNEL : GFP_HIGHUSER) |
 						__GFP_NOWARN);
 		if (!table->icm[i])
@@ -481,7 +487,8 @@ void mthca_cleanup_user_db_tab(struct mthca_dev *dev, struct mthca_uar *uar,
 	}
 }
 
-int mthca_alloc_db(struct mthca_dev *dev, int type, u32 qn, u32 **db)
+int mthca_alloc_db(struct mthca_dev *dev, enum mthca_db_type type,
+		   u32 qn, __be32 **db)
 {
 	int group;
 	int start, end, dir;
@@ -523,12 +530,25 @@ int mthca_alloc_db(struct mthca_dev *dev, int type, u32 qn, u32 **db)
 			goto found;
 		}
 
+	for (i = start; i != end; i += dir)
+		if (!dev->db_tab->page[i].db_rec) {
+			page = dev->db_tab->page + i;
+			goto alloc;
+		}
+
 	if (dev->db_tab->max_group1 >= dev->db_tab->min_group2 - 1) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
+	if (group == 0)
+		++dev->db_tab->max_group1;
+	else
+		--dev->db_tab->min_group2;
+
 	page = dev->db_tab->page + end;
+
+alloc:
 	page->db_rec = dma_alloc_coherent(&dev->pdev->dev, 4096,
 					  &page->mapping, GFP_KERNEL);
 	if (!page->db_rec) {
@@ -548,10 +568,6 @@ int mthca_alloc_db(struct mthca_dev *dev, int type, u32 qn, u32 **db)
 	}
 
 	bitmap_zero(page->used, MTHCA_DB_REC_PER_PAGE);
-	if (group == 0)
-		++dev->db_tab->max_group1;
-	else
-		--dev->db_tab->min_group2;
 
 found:
 	j = find_first_zero_bit(page->used, MTHCA_DB_REC_PER_PAGE);
@@ -564,7 +580,7 @@ found:
 
 	page->db_rec[j] = cpu_to_be64((qn << 8) | (type << 5));
 
-	*db = (u32 *) &page->db_rec[j];
+	*db = (__be32 *) &page->db_rec[j];
 
 out:
 	up(&dev->db_tab->mutex);

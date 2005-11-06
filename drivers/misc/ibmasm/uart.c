@@ -25,15 +25,15 @@
 #include <linux/termios.h>
 #include <linux/tty.h>
 #include <linux/serial_core.h>
-#include <linux/serial.h>
 #include <linux/serial_reg.h>
+#include <linux/serial_8250.h>
 #include "ibmasm.h"
 #include "lowlevel.h"
 
 
 void ibmasm_register_uart(struct service_processor *sp)
 {
-	struct serial_struct serial;
+	struct uart_port uport;
 	void __iomem *iomem_base;
 
 	iomem_base = sp->base_address + SCOUT_COM_B_BASE;
@@ -47,14 +47,14 @@ void ibmasm_register_uart(struct service_processor *sp)
 		return;
 	}
 
-	memset(&serial, 0, sizeof(serial));
-	serial.irq		= sp->irq;
-	serial.baud_base	= 3686400 / 16;
-	serial.flags		= UPF_AUTOPROBE | UPF_SHARE_IRQ;
-	serial.io_type		= UPIO_MEM;
-	serial.iomem_base	= iomem_base;
+	memset(&uport, 0, sizeof(struct uart_port));
+	uport.irq	= sp->irq;
+	uport.uartclk	= 3686400;
+	uport.flags	= UPF_AUTOPROBE | UPF_SHARE_IRQ;
+	uport.iotype	= UPIO_MEM;
+	uport.membase	= iomem_base;
 
-	sp->serial_line = register_serial(&serial);
+	sp->serial_line = serial8250_register_port(&uport);
 	if (sp->serial_line < 0) {
 		dev_err(sp->dev, "Failed to register serial port\n");
 		return;
@@ -68,5 +68,5 @@ void ibmasm_unregister_uart(struct service_processor *sp)
 		return;
 
 	disable_uart_interrupts(sp->base_address);
-	unregister_serial(sp->serial_line);
+	serial8250_unregister_port(sp->serial_line);
 }

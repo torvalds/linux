@@ -117,6 +117,10 @@ YAMAHA_DEVICE(0x103a, NULL),
 YAMAHA_DEVICE(0x103b, NULL),
 YAMAHA_DEVICE(0x103c, NULL),
 YAMAHA_DEVICE(0x103d, NULL),
+YAMAHA_DEVICE(0x103e, NULL),
+YAMAHA_DEVICE(0x103f, NULL),
+YAMAHA_DEVICE(0x1040, NULL),
+YAMAHA_DEVICE(0x1041, NULL),
 YAMAHA_DEVICE(0x2000, "DGP-7"),
 YAMAHA_DEVICE(0x2001, "DGP-5"),
 YAMAHA_DEVICE(0x2002, NULL),
@@ -1010,6 +1014,40 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		}
 	}
 },
+{
+	USB_DEVICE_VENDOR_SPEC(0x0582, 0x007a),
+	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
+		.vendor_name = "Roland",
+		/* RD-700SX, RD-300SX */
+		.ifnum = 0,
+		.type = QUIRK_MIDI_FIXED_ENDPOINT,
+		.data = & (const snd_usb_midi_endpoint_info_t) {
+			.out_cables = 0x0003,
+			.in_cables  = 0x0003
+		}
+	}
+},
+
+/* Guillemot devices */
+{
+	/*
+	 * This is for the "Windows Edition" where the external MIDI ports are
+	 * the only MIDI ports; the control data is reported through HID
+	 * interfaces.  The "Macintosh Edition" has ID 0xd002 and uses standard
+	 * compliant USB MIDI ports for external MIDI and controls.
+	 */
+	USB_DEVICE_VENDOR_SPEC(0x06f8, 0xb000),
+	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
+		.vendor_name = "Hercules",
+		.product_name = "DJ Console (WE)",
+		.ifnum = 4,
+		.type = QUIRK_MIDI_FIXED_ENDPOINT,
+		.data = & (const snd_usb_midi_endpoint_info_t) {
+			.out_cables = 0x0001,
+			.in_cables = 0x0001
+		}
+	}
+},
 
 /* Midiman/M-Audio devices */
 {
@@ -1339,10 +1377,20 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 
+/* TerraTec devices */
+{
+	USB_DEVICE_VENDOR_SPEC(0x0ccd, 0x0012),
+	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
+		.vendor_name = "TerraTec",
+		.product_name = "PHASE 26",
+		.ifnum = 3,
+		.type = QUIRK_MIDI_STANDARD_INTERFACE
+	}
+},
 {
 	USB_DEVICE_VENDOR_SPEC(0x0ccd, 0x0013),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
-		.vendor_name = "Terratec",
+		.vendor_name = "TerraTec",
 		.product_name = "PHASE 26",
 		.ifnum = 3,
 		.type = QUIRK_MIDI_STANDARD_INTERFACE

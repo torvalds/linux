@@ -24,9 +24,9 @@ struct pci_dev;
  * Set this to 1 if you want the kernel to re-assign all PCI
  * bus numbers
  */
-extern int pci_assign_all_busses;
+extern int pci_assign_all_buses;
 
-#define pcibios_assign_all_busses()	(pci_assign_all_busses)
+#define pcibios_assign_all_busses()	(pci_assign_all_buses)
 #define pcibios_scan_all_fns(a, b)	0
 
 #define PCIBIOS_MIN_IO		0x1000
@@ -105,11 +105,28 @@ extern void
 pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
 			struct resource *res);
 
+extern void
+pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
+			struct pci_bus_region *region);
+
+static inline struct resource *
+pcibios_select_root(struct pci_dev *pdev, struct resource *res)
+{
+	struct resource *root = NULL;
+
+	if (res->flags & IORESOURCE_IO)
+		root = &ioport_resource;
+	if (res->flags & IORESOURCE_MEM)
+		root = &iomem_resource;
+
+	return root;
+}
+
 extern void pcibios_add_platform_entries(struct pci_dev *dev);
 
 struct file;
 extern pgprot_t	pci_phys_mem_access_prot(struct file *file,
-					 unsigned long offset,
+					 unsigned long pfn,
 					 unsigned long size,
 					 pgprot_t prot);
 

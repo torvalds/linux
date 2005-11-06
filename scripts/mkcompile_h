@@ -1,7 +1,8 @@
 TARGET=$1
 ARCH=$2
 SMP=$3
-CC=$4
+PREEMPT=$4
+CC=$5
 
 # If compile.h exists already and we don't own autoconf.h
 # (i.e. we're not the same user who did make *config), don't
@@ -26,8 +27,10 @@ fi
 
 
 UTS_VERSION="#$VERSION"
-if [ -n "$SMP" ] ; then UTS_VERSION="$UTS_VERSION SMP"; fi
-UTS_VERSION="$UTS_VERSION `LC_ALL=C LANG=C date`"
+CONFIG_FLAGS=""
+if [ -n "$SMP" ] ; then CONFIG_FLAGS="SMP"; fi
+if [ -n "$PREEMPT" ] ; then CONFIG_FLAGS="$CONFIG_FLAGS PREEMPT"; fi
+UTS_VERSION="$UTS_VERSION $CONFIG_FLAGS `LC_ALL=C LANG=C date`"
 
 # Truncate to maximum length
 
@@ -37,7 +40,8 @@ UTS_TRUNCATE="sed -e s/\(.\{1,$UTS_LEN\}\).*/\1/"
 # Generate a temporary compile.h
 
 ( echo /\* This file is auto generated, version $VERSION \*/
-
+  if [ -n "$CONFIG_FLAGS" ] ; then echo "/* $CONFIG_FLAGS */"; fi
+  
   echo \#define UTS_MACHINE \"$ARCH\"
 
   echo \#define UTS_VERSION \"`echo $UTS_VERSION | $UTS_TRUNCATE`\"

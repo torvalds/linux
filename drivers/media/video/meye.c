@@ -37,6 +37,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>
+#include <linux/dma-mapping.h>
 
 #include "meye.h"
 #include <linux/meye.h>
@@ -121,7 +122,7 @@ static int ptable_alloc(void)
 	memset(meye.mchip_ptable, 0, sizeof(meye.mchip_ptable));
 
 	/* give only 32 bit DMA addresses */
-	if (dma_set_mask(&meye.mchip_dev->dev, 0xffffffff))
+	if (dma_set_mask(&meye.mchip_dev->dev, DMA_32BIT_MASK))
 		return -1;
 
 	meye.mchip_ptable_toc = dma_alloc_coherent(&meye.mchip_dev->dev,

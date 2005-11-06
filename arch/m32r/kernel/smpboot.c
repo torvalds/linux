@@ -91,6 +91,7 @@ extern struct {
 
 /* which physical physical ID maps to which logical CPU number */
 static volatile int physid_2_cpu[NR_CPUS];
+#define physid_to_cpu(physid)	physid_2_cpu[physid]
 
 /* which logical CPU number maps to which physical ID */
 volatile int cpu_2_physid[NR_CPUS];

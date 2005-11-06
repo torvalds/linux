@@ -134,7 +134,7 @@ typedef struct local_info_t {
     u_char mc_filter[8];
 } local_info_t;
 
-#define MC_FILTERBREAK 64
+#define MC_FILTERBREAK 8
 
 /*====================================================================*/
 /* 
@@ -1012,7 +1012,7 @@ static void fjn_reset(struct net_device *dev)
 	outb(BANK_1U, ioaddr + CONFIG_1);
 
     /* set the multicast table to accept none. */
-    for (i = 0; i < 6; i++) 
+    for (i = 0; i < 8; i++) 
         outb(0x00, ioaddr + MAR_ADR + i);
 
     /* Switch to bank 2 (runtime mode) */
@@ -1269,6 +1269,16 @@ static void set_rx_mode(struct net_device *dev)
     u_long flags;
     int i;
     
+    int saved_config_0 = inb(ioaddr + CONFIG_0);
+     
+    local_irq_save(flags); 
+
+    /* Disable Tx and Rx */
+    if (sram_config == 0) 
+	outb(CONFIG0_RST, ioaddr + CONFIG_0);
+    else
+	outb(CONFIG0_RST_1, ioaddr + CONFIG_0);
+
     if (dev->flags & IFF_PROMISC) {
 	/* Unconditionally log net taps. */
 	printk("%s: Promiscuous mode enabled.\n", dev->name);
@@ -1290,20 +1300,23 @@ static void set_rx_mode(struct net_device *dev)
 	for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
 	     i++, mclist = mclist->next) {
 	    unsigned int bit =
-	    	ether_crc_le(ETH_ALEN, mclist->dmi_addr) & 0x3f;
-	    mc_filter[bit >> 3] |= (1 << bit);
+	    	ether_crc_le(ETH_ALEN, mclist->dmi_addr) >> 26;
+	    mc_filter[bit >> 3] |= (1 << (bit & 7));
 	}
+	outb(2, ioaddr + RX_MODE);	/* Use normal mode. */
     }
 
-    local_irq_save(flags); 
     if (memcmp(mc_filter, lp->mc_filter, sizeof(mc_filter))) {
 	int saved_bank = inb(ioaddr + CONFIG_1);
 	/* Switch to bank 1 and set the multicast table. */
 	outb(0xe4, ioaddr + CONFIG_1);
 	for (i = 0; i < 8; i++)
-	    outb(mc_filter[i], ioaddr + 8 + i);
+	    outb(mc_filter[i], ioaddr + MAR_ADR + i);
 	memcpy(lp->mc_filter, mc_filter, sizeof(mc_filter));
 	outb(saved_bank, ioaddr + CONFIG_1);
     }
+
+    outb(saved_config_0, ioaddr + CONFIG_0);
+
     local_irq_restore(flags);
 }

@@ -185,7 +185,7 @@ void kexec_copy_flush(struct kimage *image)
 void kexec_smp_down(void *arg)
 {
 	if (ppc_md.cpu_irq_down)
-		ppc_md.cpu_irq_down();
+		ppc_md.cpu_irq_down(1);
 
 	local_irq_disable();
 	kexec_smp_wait();
@@ -205,6 +205,7 @@ static void kexec_prepare_cpus(void)
 			continue;
 
 		while (paca[i].hw_cpu_id != -1) {
+			barrier();
 			if (!cpu_possible(i)) {
 				printk("kexec: cpu %d hw_cpu_id %d is not"
 						" possible, ignoring\n",
@@ -232,7 +233,7 @@ static void kexec_prepare_cpus(void)
 
 	/* after we tell the others to go down */
 	if (ppc_md.cpu_irq_down)
-		ppc_md.cpu_irq_down();
+		ppc_md.cpu_irq_down(0);
 
 	put_cpu();
 
@@ -248,10 +249,13 @@ static void kexec_prepare_cpus(void)
 	 * the new kernel 0-0x100 safely
 	 *
 	 * do this if kexec in setup.c ?
+	 *
+	 * We need to release the cpus if we are ever going from an
+	 * UP to an SMP kernel.
 	 */
-	smp_relase_cpus();
+	smp_release_cpus();
 	if (ppc_md.cpu_irq_down)
-		ppc_md.cpu_irq_down();
+		ppc_md.cpu_irq_down(0);
 	local_irq_disable();
 }
 

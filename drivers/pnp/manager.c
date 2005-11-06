@@ -11,14 +11,9 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
-
-#ifdef CONFIG_PNP_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
-
 #include <linux/pnp.h>
+#include <linux/slab.h>
+#include <linux/bitmap.h>
 #include "base.h"
 
 DECLARE_MUTEX(pnp_res_mutex);

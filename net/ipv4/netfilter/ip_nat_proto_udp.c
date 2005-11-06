@@ -94,7 +94,7 @@ udp_manip_pkt(struct sk_buff **pskb,
 	u32 oldip, newip;
 	u16 *portptr, newport;
 
-	if (!skb_ip_make_writable(pskb, hdroff + sizeof(*hdr)))
+	if (!skb_make_writable(pskb, hdroff + sizeof(*hdr)))
 		return 0;
 
 	iph = (struct iphdr *)((*pskb)->data + iphdroff);
@@ -156,11 +156,18 @@ udp_print_range(char *buffer, const struct ip_nat_range *range)
 	else return 0;
 }
 
-struct ip_nat_protocol ip_nat_protocol_udp
-= { "UDP", IPPROTO_UDP,
-    udp_manip_pkt,
-    udp_in_range,
-    udp_unique_tuple,
-    udp_print,
-    udp_print_range
+struct ip_nat_protocol ip_nat_protocol_udp = {
+	.name			= "UDP",
+	.protonum		= IPPROTO_UDP,
+	.me			= THIS_MODULE,
+	.manip_pkt		= udp_manip_pkt,
+	.in_range		= udp_in_range,
+	.unique_tuple		= udp_unique_tuple,
+	.print			= udp_print,
+	.print_range		= udp_print_range,
+#if defined(CONFIG_IP_NF_CONNTRACK_NETLINK) || \
+    defined(CONFIG_IP_NF_CONNTRACK_NETLINK_MODULE)
+	.range_to_nfattr	= ip_nat_port_range_to_nfattr,
+	.nfattr_to_range	= ip_nat_port_nfattr_to_range,
+#endif
 };

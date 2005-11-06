@@ -34,31 +34,6 @@
 
 #include <net/bluetooth/bluetooth.h>
 
-void bt_dump(char *pref, __u8 *buf, int count)
-{
-	char *ptr;
-	char line[100];
-	unsigned int i;
-
-	printk(KERN_INFO "%s: dump, len %d\n", pref, count);
-
-	ptr = line;
-	*ptr = 0;
-	for (i = 0; i < count; i++) {
-		ptr += sprintf(ptr, " %2.2X", buf[i]);
-
-		if (i && !((i + 1) % 20)) {
-			printk(KERN_INFO "%s:%s\n", pref, line);
-			ptr = line;
-			*ptr = 0;
-		}
-	}
-
-	if (line[0])
-		printk(KERN_INFO "%s:%s\n", pref, line);
-}
-EXPORT_SYMBOL(bt_dump);
-
 void baswap(bdaddr_t *dst, bdaddr_t *src)
 {
 	unsigned char *d = (unsigned char *) dst;

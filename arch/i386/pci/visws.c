@@ -18,8 +18,10 @@
 extern struct pci_raw_ops pci_direct_conf1;
 
 static int pci_visws_enable_irq(struct pci_dev *dev) { return 0; }
+static void pci_visws_disable_irq(struct pci_dev *dev) { }
 
 int (*pcibios_enable_irq)(struct pci_dev *dev) = &pci_visws_enable_irq;
+void (*pcibios_disable_irq)(struct pci_dev *dev) = &pci_visws_disable_irq;
 
 void __init pcibios_penalize_isa_irq(int irq, int active) {}
 

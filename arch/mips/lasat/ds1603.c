@@ -1,7 +1,7 @@
-/* 
- * Dallas Semiconductors 1603 RTC driver 
+/*
+ * Dallas Semiconductors 1603 RTC driver
  *
- * Brian Murphy <brian@murphy.dk> 
+ * Brian Murphy <brian@murphy.dk>
  *
  */
 #include <linux/kernel.h>
@@ -20,12 +20,12 @@
 struct ds_defs *ds1603 = NULL;
 
 /* HW specific register functions */
-static void rtc_reg_write(unsigned long val) 
+static void rtc_reg_write(unsigned long val)
 {
 	*ds1603->reg = val;
 }
 
-static unsigned long rtc_reg_read(void) 
+static unsigned long rtc_reg_read(void)
 {
 	unsigned long tmp = *ds1603->reg;
 	return tmp;
@@ -80,7 +80,7 @@ static unsigned int rtc_read_databit(void)
 {
 	unsigned int data;
 
-	data = (rtc_datareg_read() & (1 << ds1603->data_read_shift)) 
+	data = (rtc_datareg_read() & (1 << ds1603->data_read_shift))
 		>> ds1603->data_read_shift;
 	rtc_cycle_clock(rtc_reg_read());
 	return data;

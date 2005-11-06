@@ -46,9 +46,9 @@ int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 				"lra	3,0(%4)\n"
 				"lr	5,%5\n"
 				"diag	2,4,0x8\n"
-				"brc	8, .Litfits\n"
+				"brc	8, 1f\n"
 				"ar	5, %5\n"
-				".Litfits: \n"
+				"1: \n"
 				"lr	%0,4\n"
 				"lr	%1,5\n"
 				: "=d" (return_code), "=d" (return_len)
@@ -64,9 +64,9 @@ int  __cpcmd(const char *cmd, char *response, int rlen, int *response_code)
 				"sam31\n"
 				"diag	2,4,0x8\n"
 				"sam64\n"
-				"brc	8, .Litfits\n"
+				"brc	8, 1f\n"
 				"agr	5, %5\n"
-				".Litfits: \n"
+				"1: \n"
 				"lgr	%0,4\n"
 				"lgr	%1,5\n"
 				: "=d" (return_code), "=d" (return_len)

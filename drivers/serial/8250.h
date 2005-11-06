@@ -16,11 +16,7 @@
  */
 
 #include <linux/config.h>
-
-int serial8250_register_port(struct uart_port *);
-void serial8250_unregister_port(int line);
-void serial8250_suspend_port(int line);
-void serial8250_resume_port(int line);
+#include <linux/serial_8250.h>
 
 struct old_serial_port {
 	unsigned int uart;

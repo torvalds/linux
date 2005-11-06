@@ -20,12 +20,12 @@
  *
  * Given the ID of the parent and the name build a search key.
  */
-void hfs_cat_build_key(btree_key *key, u32 parent, struct qstr *name)
+void hfs_cat_build_key(struct super_block *sb, btree_key *key, u32 parent, struct qstr *name)
 {
 	key->cat.reserved = 0;
 	key->cat.ParID = cpu_to_be32(parent);
 	if (name) {
-		hfs_triv2mac(&key->cat.CName, name);
+		hfs_asc2mac(sb, &key->cat.CName, name);
 		key->key_len = 6 + key->cat.CName.len;
 	} else {
 		memset(&key->cat.CName, 0, sizeof(struct hfs_name));
@@ -62,13 +62,14 @@ static int hfs_cat_build_record(hfs_cat_rec *rec, u32 cnid, struct inode *inode)
 	}
 }
 
-static int hfs_cat_build_thread(hfs_cat_rec *rec, int type,
+static int hfs_cat_build_thread(struct super_block *sb,
+				hfs_cat_rec *rec, int type,
 				u32 parentid, struct qstr *name)
 {
 	rec->type = type;
 	memset(rec->thread.reserved, 0, sizeof(rec->thread.reserved));
 	rec->thread.ParID = cpu_to_be32(parentid);
-	hfs_triv2mac(&rec->thread.CName, name);
+	hfs_asc2mac(sb, &rec->thread.CName, name);
 	return sizeof(struct hfs_cat_thread);
 }
 
@@ -93,8 +94,8 @@ int hfs_cat_create(u32 cnid, struct inode *dir, struct qstr *str, struct inode *
 	sb = dir->i_sb;
 	hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
 
-	hfs_cat_build_key(fd.search_key, cnid, NULL);
-	entry_size = hfs_cat_build_thread(&entry, S_ISDIR(inode->i_mode) ?
+	hfs_cat_build_key(sb, fd.search_key, cnid, NULL);
+	entry_size = hfs_cat_build_thread(sb, &entry, S_ISDIR(inode->i_mode) ?
 			HFS_CDR_THD : HFS_CDR_FTH,
 			dir->i_ino, str);
 	err = hfs_brec_find(&fd);
@@ -107,7 +108,7 @@ int hfs_cat_create(u32 cnid, struct inode *dir, struct qstr *str, struct inode *
 	if (err)
 		goto err2;
 
-	hfs_cat_build_key(fd.search_key, dir->i_ino, str);
+	hfs_cat_build_key(sb, fd.search_key, dir->i_ino, str);
 	entry_size = hfs_cat_build_record(&entry, cnid, inode);
 	err = hfs_brec_find(&fd);
 	if (err != -ENOENT) {
@@ -127,7 +128,7 @@ int hfs_cat_create(u32 cnid, struct inode *dir, struct qstr *str, struct inode *
 	return 0;
 
 err1:
-	hfs_cat_build_key(fd.search_key, cnid, NULL);
+	hfs_cat_build_key(sb, fd.search_key, cnid, NULL);
 	if (!hfs_brec_find(&fd))
 		hfs_brec_remove(&fd);
 err2:
@@ -176,7 +177,7 @@ int hfs_cat_find_brec(struct super_block *sb, u32 cnid,
 	hfs_cat_rec rec;
 	int res, len, type;
 
-	hfs_cat_build_key(fd->search_key, cnid, NULL);
+	hfs_cat_build_key(sb, fd->search_key, cnid, NULL);
 	res = hfs_brec_read(fd, &rec, sizeof(rec));
 	if (res)
 		return res;
@@ -211,7 +212,7 @@ int hfs_cat_delete(u32 cnid, struct inode *dir, struct qstr *str)
 	sb = dir->i_sb;
 	hfs_find_init(HFS_SB(sb)->cat_tree, &fd);
 
-	hfs_cat_build_key(fd.search_key, dir->i_ino, str);
+	hfs_cat_build_key(sb, fd.search_key, dir->i_ino, str);
 	res = hfs_brec_find(&fd);
 	if (res)
 		goto out;
@@ -239,7 +240,7 @@ int hfs_cat_delete(u32 cnid, struct inode *dir, struct qstr *str)
 	if (res)
 		goto out;
 
-	hfs_cat_build_key(fd.search_key, cnid, NULL);
+	hfs_cat_build_key(sb, fd.search_key, cnid, NULL);
 	res = hfs_brec_find(&fd);
 	if (!res) {
 		res = hfs_brec_remove(&fd);
@@ -280,7 +281,7 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, struct qstr *src_name,
 	dst_fd = src_fd;
 
 	/* find the old dir entry and read the data */
-	hfs_cat_build_key(src_fd.search_key, src_dir->i_ino, src_name);
+	hfs_cat_build_key(sb, src_fd.search_key, src_dir->i_ino, src_name);
 	err = hfs_brec_find(&src_fd);
 	if (err)
 		goto out;
@@ -289,7 +290,7 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, struct qstr *src_name,
 			    src_fd.entrylength);
 
 	/* create new dir entry with the data from the old entry */
-	hfs_cat_build_key(dst_fd.search_key, dst_dir->i_ino, dst_name);
+	hfs_cat_build_key(sb, dst_fd.search_key, dst_dir->i_ino, dst_name);
 	err = hfs_brec_find(&dst_fd);
 	if (err != -ENOENT) {
 		if (!err)
@@ -305,7 +306,7 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, struct qstr *src_name,
 	mark_inode_dirty(dst_dir);
 
 	/* finally remove the old entry */
-	hfs_cat_build_key(src_fd.search_key, src_dir->i_ino, src_name);
+	hfs_cat_build_key(sb, src_fd.search_key, src_dir->i_ino, src_name);
 	err = hfs_brec_find(&src_fd);
 	if (err)
 		goto out;
@@ -321,7 +322,7 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, struct qstr *src_name,
 		goto out;
 
 	/* remove old thread entry */
-	hfs_cat_build_key(src_fd.search_key, cnid, NULL);
+	hfs_cat_build_key(sb, src_fd.search_key, cnid, NULL);
 	err = hfs_brec_find(&src_fd);
 	if (err)
 		goto out;
@@ -330,8 +331,8 @@ int hfs_cat_move(u32 cnid, struct inode *src_dir, struct qstr *src_name,
 		goto out;
 
 	/* create new thread entry */
-	hfs_cat_build_key(dst_fd.search_key, cnid, NULL);
-	entry_size = hfs_cat_build_thread(&entry, type == HFS_CDR_FIL ? HFS_CDR_FTH : HFS_CDR_THD,
+	hfs_cat_build_key(sb, dst_fd.search_key, cnid, NULL);
+	entry_size = hfs_cat_build_thread(sb, &entry, type == HFS_CDR_FIL ? HFS_CDR_FTH : HFS_CDR_THD,
 					dst_dir->i_ino, dst_name);
 	err = hfs_brec_find(&dst_fd);
 	if (err != -ENOENT) {

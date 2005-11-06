@@ -13,29 +13,18 @@
 
 #include "sleep.h"
 
-#ifdef	CONFIG_ACPI_SLEEP_PROC_SLEEP
-#define ACPI_SYSTEM_FILE_SLEEP		"sleep"
-#endif
-
-#define ACPI_SYSTEM_FILE_ALARM		"alarm"
-#define ACPI_SYSTEM_FILE_WAKEUP_DEVICE   "wakeup"
-
 #define _COMPONENT		ACPI_SYSTEM_COMPONENT
-ACPI_MODULE_NAME		("sleep")
-
+ACPI_MODULE_NAME("sleep")
 #ifdef	CONFIG_ACPI_SLEEP_PROC_SLEEP
-
 static int acpi_system_sleep_seq_show(struct seq_file *seq, void *offset)
 {
-	int			i;
+	int i;
 
 	ACPI_FUNCTION_TRACE("acpi_system_sleep_seq_show");
 
 	for (i = 0; i <= ACPI_STATE_S5; i++) {
 		if (sleep_states[i]) {
-			seq_printf(seq,"S%d ", i);
-			if (i == ACPI_STATE_S4 && acpi_gbl_FACS->S4bios_f)
-				seq_printf(seq, "S4bios ");
+			seq_printf(seq, "S%d ", i);
 		}
 	}
 
@@ -50,24 +39,21 @@ static int acpi_system_sleep_open_fs(struct inode *inode, struct file *file)
 }
 
 static ssize_t
-acpi_system_write_sleep (
-	struct file		*file,
-	const char __user	*buffer,
-	size_t			count,
-	loff_t			*ppos)
+acpi_system_write_sleep(struct file *file,
+			const char __user * buffer, size_t count, loff_t * ppos)
 {
-	char	str[12];
-	u32	state = 0;
-	int	error = 0;
+	char str[12];
+	u32 state = 0;
+	int error = 0;
 
 	if (count > sizeof(str) - 1)
 		goto Done;
-	memset(str,0,sizeof(str));
+	memset(str, 0, sizeof(str));
 	if (copy_from_user(str, buffer, count))
 		return -EFAULT;
 
 	/* Check for S4 bios request */
-	if (!strcmp(str,"4b")) {
+	if (!strcmp(str, "4b")) {
 		error = acpi_suspend(4);
 		goto Done;
 	}
@@ -79,17 +65,17 @@ acpi_system_write_sleep (
 	}
 #endif
 	error = acpi_suspend(state);
- Done:
+      Done:
 	return error ? error : count;
 }
-#endif	/* CONFIG_ACPI_SLEEP_PROC_SLEEP */
+#endif				/* CONFIG_ACPI_SLEEP_PROC_SLEEP */
 
 static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 {
-	u32			sec, min, hr;
-	u32			day, mo, yr;
-	unsigned char		rtc_control = 0;
-	unsigned long 		flags;
+	u32 sec, min, hr;
+	u32 day, mo, yr;
+	unsigned char rtc_control = 0;
+	unsigned long flags;
 
 	ACPI_FUNCTION_TRACE("acpi_system_alarm_seq_show");
 
@@ -105,13 +91,14 @@ static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 		/* ACPI spec: only low 6 its should be cared */
 		day = CMOS_READ(acpi_gbl_FADT->day_alrm) & 0x3F;
 	else
-		day =  CMOS_READ(RTC_DAY_OF_MONTH);
+		day = CMOS_READ(RTC_DAY_OF_MONTH);
 	if (acpi_gbl_FADT->mon_alrm)
 		mo = CMOS_READ(acpi_gbl_FADT->mon_alrm);
 	else
 		mo = CMOS_READ(RTC_MONTH);
 	if (acpi_gbl_FADT->century)
-		yr = CMOS_READ(acpi_gbl_FADT->century) * 100 + CMOS_READ(RTC_YEAR);
+		yr = CMOS_READ(acpi_gbl_FADT->century) * 100 +
+		    CMOS_READ(RTC_YEAR);
 	else
 		yr = CMOS_READ(RTC_YEAR);
 
@@ -126,33 +113,33 @@ static int acpi_system_alarm_seq_show(struct seq_file *seq, void *offset)
 		BCD_TO_BIN(yr);
 	}
 
-	/* we're trusting the FADT (see above)*/
+	/* we're trusting the FADT (see above) */
 	if (!acpi_gbl_FADT->century)
-	/* If we're not trusting the FADT, we should at least make it
-	 * right for _this_ century... ehm, what is _this_ century?
-	 *
-	 * TBD:
-	 *  ASAP: find piece of code in the kernel, e.g. star tracker driver,
-	 *        which we can trust to determine the century correctly. Atom
-	 *        watch driver would be nice, too...
-	 *
-	 *  if that has not happened, change for first release in 2050:
- 	 *        if (yr<50)
-	 *                yr += 2100;
-	 *        else
-	 *                yr += 2000;   // current line of code
-	 *
-	 *  if that has not happened either, please do on 2099/12/31:23:59:59
-	 *        s/2000/2100
-	 *
-	 */
+		/* If we're not trusting the FADT, we should at least make it
+		 * right for _this_ century... ehm, what is _this_ century?
+		 *
+		 * TBD:
+		 *  ASAP: find piece of code in the kernel, e.g. star tracker driver,
+		 *        which we can trust to determine the century correctly. Atom
+		 *        watch driver would be nice, too...
+		 *
+		 *  if that has not happened, change for first release in 2050:
+		 *        if (yr<50)
+		 *                yr += 2100;
+		 *        else
+		 *                yr += 2000;   // current line of code
+		 *
+		 *  if that has not happened either, please do on 2099/12/31:23:59:59
+		 *        s/2000/2100
+		 *
+		 */
 		yr += 2000;
 
-	seq_printf(seq,"%4.4u-", yr);
-	(mo > 12)  ? seq_puts(seq, "**-")  : seq_printf(seq, "%2.2u-", mo);
-	(day > 31) ? seq_puts(seq, "** ")  : seq_printf(seq, "%2.2u ", day);
-	(hr > 23)  ? seq_puts(seq, "**:")  : seq_printf(seq, "%2.2u:", hr);
-	(min > 59) ? seq_puts(seq, "**:")  : seq_printf(seq, "%2.2u:", min);
+	seq_printf(seq, "%4.4u-", yr);
+	(mo > 12) ? seq_puts(seq, "**-") : seq_printf(seq, "%2.2u-", mo);
+	(day > 31) ? seq_puts(seq, "** ") : seq_printf(seq, "%2.2u ", day);
+	(hr > 23) ? seq_puts(seq, "**:") : seq_printf(seq, "%2.2u:", hr);
+	(min > 59) ? seq_puts(seq, "**:") : seq_printf(seq, "%2.2u:", min);
 	(sec > 59) ? seq_puts(seq, "**\n") : seq_printf(seq, "%2.2u\n", sec);
 
 	return 0;
@@ -163,15 +150,11 @@ static int acpi_system_alarm_open_fs(struct inode *inode, struct file *file)
 	return single_open(file, acpi_system_alarm_seq_show, PDE(inode)->data);
 }
 
-
-static int
-get_date_field (
-	char			**p,
-	u32			*value)
+static int get_date_field(char **p, u32 * value)
 {
-	char			*next = NULL;
-	char			*string_end = NULL;
-	int			result = -EINVAL;
+	char *next = NULL;
+	char *string_end = NULL;
+	int result = -EINVAL;
 
 	/*
 	 * Try to find delimeter, only to insert null.  The end of the
@@ -193,26 +176,22 @@ get_date_field (
 	return result;
 }
 
-
 static ssize_t
-acpi_system_write_alarm (
-	struct file		*file,
-	const char __user	*buffer,
-	size_t			count,
-	loff_t			*ppos)
+acpi_system_write_alarm(struct file *file,
+			const char __user * buffer, size_t count, loff_t * ppos)
 {
-	int			result = 0;
-	char			alarm_string[30] = {'\0'};
-	char			*p = alarm_string;
-	u32			sec, min, hr, day, mo, yr;
-	int			adjust = 0;
-	unsigned char		rtc_control = 0;
+	int result = 0;
+	char alarm_string[30] = { '\0' };
+	char *p = alarm_string;
+	u32 sec, min, hr, day, mo, yr;
+	int adjust = 0;
+	unsigned char rtc_control = 0;
 
 	ACPI_FUNCTION_TRACE("acpi_system_write_alarm");
 
 	if (count > sizeof(alarm_string) - 1)
 		return_VALUE(-EINVAL);
-	
+
 	if (copy_from_user(alarm_string, buffer, count))
 		return_VALUE(-EFAULT);
 
@@ -271,10 +250,10 @@ acpi_system_write_alarm (
 	}
 
 	if (adjust) {
-		yr  += CMOS_READ(RTC_YEAR);
-		mo  += CMOS_READ(RTC_MONTH);
+		yr += CMOS_READ(RTC_YEAR);
+		mo += CMOS_READ(RTC_MONTH);
 		day += CMOS_READ(RTC_DAY_OF_MONTH);
-		hr  += CMOS_READ(RTC_HOURS);
+		hr += CMOS_READ(RTC_HOURS);
 		min += CMOS_READ(RTC_MINUTES);
 		sec += CMOS_READ(RTC_SECONDS);
 	}
@@ -343,7 +322,7 @@ acpi_system_write_alarm (
 	if (acpi_gbl_FADT->mon_alrm)
 		CMOS_WRITE(mo, acpi_gbl_FADT->mon_alrm);
 	if (acpi_gbl_FADT->century)
-		CMOS_WRITE(yr/100, acpi_gbl_FADT->century);
+		CMOS_WRITE(yr / 100, acpi_gbl_FADT->century);
 	/* enable the rtc alarm interrupt */
 	rtc_control |= RTC_AIE;
 	CMOS_WRITE(rtc_control, RTC_CONTROL);
@@ -357,35 +336,33 @@ acpi_system_write_alarm (
 	*ppos += count;
 
 	result = 0;
-end:
+      end:
 	return_VALUE(result ? result : count);
 }
 
-extern struct list_head	acpi_wakeup_device_list;
+extern struct list_head acpi_wakeup_device_list;
 extern spinlock_t acpi_device_lock;
 
 static int
 acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 {
-	struct list_head * node, * next;
+	struct list_head *node, *next;
 
 	seq_printf(seq, "Device	Sleep state	Status\n");
 
 	spin_lock(&acpi_device_lock);
 	list_for_each_safe(node, next, &acpi_wakeup_device_list) {
-		struct acpi_device * dev = container_of(node, struct acpi_device, wakeup_list);
+		struct acpi_device *dev =
+		    container_of(node, struct acpi_device, wakeup_list);
 
 		if (!dev->wakeup.flags.valid)
 			continue;
 		spin_unlock(&acpi_device_lock);
-		if (dev->wakeup.flags.run_wake)
-			seq_printf(seq, "%4s	%4d		%8s\n",
-				dev->pnp.bus_id, (u32) dev->wakeup.sleep_state,
-				dev->wakeup.state.enabled ? "*enabled" : "*disabled");
-		else
-			seq_printf(seq, "%4s	%4d		%8s\n",
-				dev->pnp.bus_id, (u32) dev->wakeup.sleep_state,
-				dev->wakeup.state.enabled ? "enabled" : "disabled");
+		seq_printf(seq, "%4s	%4d		%s%8s\n",
+			   dev->pnp.bus_id,
+			   (u32) dev->wakeup.sleep_state,
+			   dev->wakeup.flags.run_wake ? "*" : "",
+			   dev->wakeup.state.enabled ? "enabled" : "disabled");
 		spin_lock(&acpi_device_lock);
 	}
 	spin_unlock(&acpi_device_lock);
@@ -393,19 +370,18 @@ acpi_system_wakeup_device_seq_show(struct seq_file *seq, void *offset)
 }
 
 static ssize_t
-acpi_system_write_wakeup_device (
-	struct file		*file,
-	const char __user	*buffer,
-	size_t			count,
-	loff_t			*ppos)
+acpi_system_write_wakeup_device(struct file *file,
+				const char __user * buffer,
+				size_t count, loff_t * ppos)
 {
-	struct list_head * node, * next;
-	char		strbuf[5];
-	char		str[5] = "";
-	int 		len = count;
+	struct list_head *node, *next;
+	char strbuf[5];
+	char str[5] = "";
+	int len = count;
 	struct acpi_device *found_dev = NULL;
 
-	if (len > 4) len = 4;
+	if (len > 4)
+		len = 4;
 
 	if (copy_from_user(strbuf, buffer, len))
 		return -EFAULT;
@@ -414,28 +390,36 @@ acpi_system_write_wakeup_device (
 
 	spin_lock(&acpi_device_lock);
 	list_for_each_safe(node, next, &acpi_wakeup_device_list) {
-		struct acpi_device * dev = container_of(node, struct acpi_device, wakeup_list);
+		struct acpi_device *dev =
+		    container_of(node, struct acpi_device, wakeup_list);
 		if (!dev->wakeup.flags.valid)
 			continue;
 
 		if (!strncmp(dev->pnp.bus_id, str, 4)) {
-			dev->wakeup.state.enabled = dev->wakeup.state.enabled ? 0:1;
+			dev->wakeup.state.enabled =
+			    dev->wakeup.state.enabled ? 0 : 1;
 			found_dev = dev;
 			break;
 		}
 	}
 	if (found_dev) {
 		list_for_each_safe(node, next, &acpi_wakeup_device_list) {
-			struct acpi_device * dev = container_of(node,
-				struct acpi_device, wakeup_list);
+			struct acpi_device *dev = container_of(node,
+							       struct
+							       acpi_device,
+							       wakeup_list);
 
 			if ((dev != found_dev) &&
-				(dev->wakeup.gpe_number == found_dev->wakeup.gpe_number) &&
-				(dev->wakeup.gpe_device == found_dev->wakeup.gpe_device)) {
-				printk(KERN_WARNING "ACPI: '%s' and '%s' have the same GPE, "
-					"can't disable/enable one seperately\n",
-					dev->pnp.bus_id, found_dev->pnp.bus_id);
-				dev->wakeup.state.enabled = found_dev->wakeup.state.enabled;
+			    (dev->wakeup.gpe_number ==
+			     found_dev->wakeup.gpe_number)
+			    && (dev->wakeup.gpe_device ==
+				found_dev->wakeup.gpe_device)) {
+				printk(KERN_WARNING
+				       "ACPI: '%s' and '%s' have the same GPE, "
+				       "can't disable/enable one seperately\n",
+				       dev->pnp.bus_id, found_dev->pnp.bus_id);
+				dev->wakeup.state.enabled =
+				    found_dev->wakeup.state.enabled;
 			}
 		}
 	}
@@ -446,37 +430,37 @@ acpi_system_write_wakeup_device (
 static int
 acpi_system_wakeup_device_open_fs(struct inode *inode, struct file *file)
 {
-	return single_open(file, acpi_system_wakeup_device_seq_show, PDE(inode)->data);
+	return single_open(file, acpi_system_wakeup_device_seq_show,
+			   PDE(inode)->data);
 }
 
 static struct file_operations acpi_system_wakeup_device_fops = {
-	.open		= acpi_system_wakeup_device_open_fs,
-	.read		= seq_read,
-	.write		= acpi_system_write_wakeup_device,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+	.open = acpi_system_wakeup_device_open_fs,
+	.read = seq_read,
+	.write = acpi_system_write_wakeup_device,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
 #ifdef	CONFIG_ACPI_SLEEP_PROC_SLEEP
 static struct file_operations acpi_system_sleep_fops = {
-	.open		= acpi_system_sleep_open_fs,
-	.read		= seq_read,
-	.write		= acpi_system_write_sleep,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+	.open = acpi_system_sleep_open_fs,
+	.read = seq_read,
+	.write = acpi_system_write_sleep,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
-#endif	/* CONFIG_ACPI_SLEEP_PROC_SLEEP */
+#endif				/* CONFIG_ACPI_SLEEP_PROC_SLEEP */
 
 static struct file_operations acpi_system_alarm_fops = {
-	.open		= acpi_system_alarm_open_fs,
-	.read		= seq_read,
-	.write		= acpi_system_write_alarm,
-	.llseek		= seq_lseek,
-	.release	= single_release,
+	.open = acpi_system_alarm_open_fs,
+	.read = seq_read,
+	.write = acpi_system_write_alarm,
+	.llseek = seq_lseek,
+	.release = single_release,
 };
 
-
-static u32 rtc_handler(void * context)
+static u32 rtc_handler(void *context)
 {
 	acpi_clear_event(ACPI_EVENT_RTC);
 	acpi_disable_event(ACPI_EVENT_RTC, 0);
@@ -486,28 +470,31 @@ static u32 rtc_handler(void * context)
 
 static int acpi_sleep_proc_init(void)
 {
-	struct proc_dir_entry	*entry = NULL;
+	struct proc_dir_entry *entry = NULL;
 
 	if (acpi_disabled)
 		return 0;
- 
+
 #ifdef	CONFIG_ACPI_SLEEP_PROC_SLEEP
-	/* 'sleep' [R/W]*/
-	entry = create_proc_entry(ACPI_SYSTEM_FILE_SLEEP,
-				  S_IFREG|S_IRUGO|S_IWUSR, acpi_root_dir);
+	/* 'sleep' [R/W] */
+	entry =
+	    create_proc_entry("sleep", S_IFREG | S_IRUGO | S_IWUSR,
+			      acpi_root_dir);
 	if (entry)
 		entry->proc_fops = &acpi_system_sleep_fops;
 #endif
 
 	/* 'alarm' [R/W] */
-	entry = create_proc_entry(ACPI_SYSTEM_FILE_ALARM,
-		S_IFREG|S_IRUGO|S_IWUSR, acpi_root_dir);
+	entry =
+	    create_proc_entry("alarm", S_IFREG | S_IRUGO | S_IWUSR,
+			      acpi_root_dir);
 	if (entry)
 		entry->proc_fops = &acpi_system_alarm_fops;
 
-	/* 'wakeup device' [R/W]*/
-	entry = create_proc_entry(ACPI_SYSTEM_FILE_WAKEUP_DEVICE,
-				  S_IFREG|S_IRUGO|S_IWUSR, acpi_root_dir);
+	/* 'wakeup device' [R/W] */
+	entry =
+	    create_proc_entry("wakeup", S_IFREG | S_IRUGO | S_IWUSR,
+			      acpi_root_dir);
 	if (entry)
 		entry->proc_fops = &acpi_system_wakeup_device_fops;
 

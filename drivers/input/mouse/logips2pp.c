@@ -40,7 +40,7 @@ struct ps2pp_info {
 
 static psmouse_ret_t ps2pp_process_byte(struct psmouse *psmouse, struct pt_regs *regs)
 {
-	struct input_dev *dev = &psmouse->dev;
+	struct input_dev *dev = psmouse->dev;
 	unsigned char *packet = psmouse->packet;
 
 	if (psmouse->pktcnt < 3)
@@ -150,12 +150,12 @@ static void ps2pp_set_smartscroll(struct psmouse *psmouse, unsigned int smartscr
 	ps2_command(ps2dev, param, PSMOUSE_CMD_SETRES);
 }
 
-static ssize_t psmouse_attr_show_smartscroll(struct psmouse *psmouse, char *buf)
+static ssize_t ps2pp_attr_show_smartscroll(struct psmouse *psmouse, void *data, char *buf)
 {
 	return sprintf(buf, "%d\n", psmouse->smartscroll ? 1 : 0);
 }
 
-static ssize_t psmouse_attr_set_smartscroll(struct psmouse *psmouse, const char *buf, size_t count)
+static ssize_t ps2pp_attr_set_smartscroll(struct psmouse *psmouse, void *data, const char *buf, size_t count)
 {
 	unsigned long value;
 	char *rest;
@@ -169,7 +169,8 @@ static ssize_t psmouse_attr_set_smartscroll(struct psmouse *psmouse, const char 
 	return count;
 }
 
-PSMOUSE_DEFINE_ATTR(smartscroll);
+PSMOUSE_DEFINE_ATTR(smartscroll, S_IWUSR | S_IRUGO, NULL,
+			ps2pp_attr_show_smartscroll, ps2pp_attr_set_smartscroll);
 
 /*
  * Support 800 dpi resolution _only_ if the user wants it (there are good
@@ -194,7 +195,7 @@ static void ps2pp_set_resolution(struct psmouse *psmouse, unsigned int resolutio
 
 static void ps2pp_disconnect(struct psmouse *psmouse)
 {
-	device_remove_file(&psmouse->ps2dev.serio->dev, &psmouse_attr_smartscroll);
+	device_remove_file(&psmouse->ps2dev.serio->dev, &psmouse_attr_smartscroll.dattr);
 }
 
 static struct ps2pp_info *get_model_info(unsigned char model)
@@ -222,6 +223,7 @@ static struct ps2pp_info *get_model_info(unsigned char model)
 		{ 80,	PS2PP_KIND_WHEEL,	PS2PP_SIDE_BTN | PS2PP_WHEEL },
 		{ 81,	PS2PP_KIND_WHEEL,	PS2PP_WHEEL },
 		{ 83,	PS2PP_KIND_WHEEL,	PS2PP_WHEEL },
+		{ 86,	PS2PP_KIND_WHEEL,	PS2PP_WHEEL },
 		{ 88,	PS2PP_KIND_WHEEL,	PS2PP_WHEEL },
 		{ 96,	0,			0 },
 		{ 97,	PS2PP_KIND_TP3,		PS2PP_WHEEL | PS2PP_HWHEEL },
@@ -255,25 +257,27 @@ static struct ps2pp_info *get_model_info(unsigned char model)
 static void ps2pp_set_model_properties(struct psmouse *psmouse, struct ps2pp_info *model_info,
 				       int using_ps2pp)
 {
+	struct input_dev *input_dev = psmouse->dev;
+
 	if (model_info->features & PS2PP_SIDE_BTN)
-		set_bit(BTN_SIDE, psmouse->dev.keybit);
+		set_bit(BTN_SIDE, input_dev->keybit);
 
 	if (model_info->features & PS2PP_EXTRA_BTN)
-		set_bit(BTN_EXTRA, psmouse->dev.keybit);
+		set_bit(BTN_EXTRA, input_dev->keybit);
 
 	if (model_info->features & PS2PP_TASK_BTN)
-		set_bit(BTN_TASK, psmouse->dev.keybit);
+		set_bit(BTN_TASK, input_dev->keybit);
 
 	if (model_info->features & PS2PP_NAV_BTN) {
-		set_bit(BTN_FORWARD, psmouse->dev.keybit);
-		set_bit(BTN_BACK, psmouse->dev.keybit);
+		set_bit(BTN_FORWARD, input_dev->keybit);
+		set_bit(BTN_BACK, input_dev->keybit);
 	}
 
 	if (model_info->features & PS2PP_WHEEL)
-		set_bit(REL_WHEEL, psmouse->dev.relbit);
+		set_bit(REL_WHEEL, input_dev->relbit);
 
 	if (model_info->features & PS2PP_HWHEEL)
-		set_bit(REL_HWHEEL, psmouse->dev.relbit);
+		set_bit(REL_HWHEEL, input_dev->relbit);
 
 	switch (model_info->kind) {
 		case PS2PP_KIND_WHEEL:
@@ -379,12 +383,13 @@ int ps2pp_init(struct psmouse *psmouse, int set_properties)
 				psmouse->set_resolution = ps2pp_set_resolution;
 				psmouse->disconnect = ps2pp_disconnect;
 
-				device_create_file(&psmouse->ps2dev.serio->dev, &psmouse_attr_smartscroll);
+				device_create_file(&psmouse->ps2dev.serio->dev,
+						   &psmouse_attr_smartscroll.dattr);
 			}
 		}
 
 		if (buttons < 3)
-			clear_bit(BTN_MIDDLE, psmouse->dev.keybit);
+			clear_bit(BTN_MIDDLE, psmouse->dev->keybit);
 
 		if (model_info)
 			ps2pp_set_model_properties(psmouse, model_info, use_ps2pp);

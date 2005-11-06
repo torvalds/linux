@@ -538,7 +538,7 @@ void __init mem_init(void)
 	for_each_online_node(node) {
 		unsigned slot, numslots;
 		struct page *end, *p;
-	
+
 		/*
 	 	 * This will free up the bootmem, ie, slot 0 memory.
 	 	 */

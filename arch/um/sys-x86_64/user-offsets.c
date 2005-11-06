@@ -16,71 +16,76 @@ typedef __u32 u32;
 #define DEFINE(sym, val) \
         asm volatile("\n->" #sym " %0 " #val : : "i" (val))
 
+#define DEFINE_LONGS(sym, val) \
+        asm volatile("\n->" #sym " %0 " #val : : "i" (val/sizeof(unsigned long)))
+
 #define OFFSET(sym, str, mem) \
 	DEFINE(sym, offsetof(struct str, mem));
 
 void foo(void)
 {
-	OFFSET(SC_RBX, sigcontext, rbx);
-	OFFSET(SC_RCX, sigcontext, rcx);
-	OFFSET(SC_RDX, sigcontext, rdx);
-	OFFSET(SC_RSI, sigcontext, rsi);
-	OFFSET(SC_RDI, sigcontext, rdi);
-	OFFSET(SC_RBP, sigcontext, rbp);
-	OFFSET(SC_RAX, sigcontext, rax);
-	OFFSET(SC_R8, sigcontext, r8);
-	OFFSET(SC_R9, sigcontext, r9);
-	OFFSET(SC_R10, sigcontext, r10);
-	OFFSET(SC_R11, sigcontext, r11);
-	OFFSET(SC_R12, sigcontext, r12);
-	OFFSET(SC_R13, sigcontext, r13);
-	OFFSET(SC_R14, sigcontext, r14);
-	OFFSET(SC_R15, sigcontext, r15);
-	OFFSET(SC_IP, sigcontext, rip);
-	OFFSET(SC_SP, sigcontext, rsp);
-	OFFSET(SC_CR2, sigcontext, cr2);
-	OFFSET(SC_ERR, sigcontext, err);
-	OFFSET(SC_TRAPNO, sigcontext, trapno);
-	OFFSET(SC_CS, sigcontext, cs);
-	OFFSET(SC_FS, sigcontext, fs);
-	OFFSET(SC_GS, sigcontext, gs);
-	OFFSET(SC_EFLAGS, sigcontext, eflags);
-	OFFSET(SC_SIGMASK, sigcontext, oldmask);
+	OFFSET(HOST_SC_RBX, sigcontext, rbx);
+	OFFSET(HOST_SC_RCX, sigcontext, rcx);
+	OFFSET(HOST_SC_RDX, sigcontext, rdx);
+	OFFSET(HOST_SC_RSI, sigcontext, rsi);
+	OFFSET(HOST_SC_RDI, sigcontext, rdi);
+	OFFSET(HOST_SC_RBP, sigcontext, rbp);
+	OFFSET(HOST_SC_RAX, sigcontext, rax);
+	OFFSET(HOST_SC_R8, sigcontext, r8);
+	OFFSET(HOST_SC_R9, sigcontext, r9);
+	OFFSET(HOST_SC_R10, sigcontext, r10);
+	OFFSET(HOST_SC_R11, sigcontext, r11);
+	OFFSET(HOST_SC_R12, sigcontext, r12);
+	OFFSET(HOST_SC_R13, sigcontext, r13);
+	OFFSET(HOST_SC_R14, sigcontext, r14);
+	OFFSET(HOST_SC_R15, sigcontext, r15);
+	OFFSET(HOST_SC_IP, sigcontext, rip);
+	OFFSET(HOST_SC_SP, sigcontext, rsp);
+	OFFSET(HOST_SC_CR2, sigcontext, cr2);
+	OFFSET(HOST_SC_ERR, sigcontext, err);
+	OFFSET(HOST_SC_TRAPNO, sigcontext, trapno);
+	OFFSET(HOST_SC_CS, sigcontext, cs);
+	OFFSET(HOST_SC_FS, sigcontext, fs);
+	OFFSET(HOST_SC_GS, sigcontext, gs);
+	OFFSET(HOST_SC_EFLAGS, sigcontext, eflags);
+	OFFSET(HOST_SC_SIGMASK, sigcontext, oldmask);
 #if 0
-	OFFSET(SC_ORIG_RAX, sigcontext, orig_rax);
-	OFFSET(SC_DS, sigcontext, ds);
-	OFFSET(SC_ES, sigcontext, es);
-	OFFSET(SC_SS, sigcontext, ss);
+	OFFSET(HOST_SC_ORIG_RAX, sigcontext, orig_rax);
+	OFFSET(HOST_SC_DS, sigcontext, ds);
+	OFFSET(HOST_SC_ES, sigcontext, es);
+	OFFSET(HOST_SC_SS, sigcontext, ss);
 #endif
 
-	DEFINE(HOST_FRAME_SIZE, FRAME_SIZE);
-	DEFINE(HOST_RBX, RBX);
-	DEFINE(HOST_RCX, RCX);
-	DEFINE(HOST_RDI, RDI);
-	DEFINE(HOST_RSI, RSI);
-	DEFINE(HOST_RDX, RDX);
-	DEFINE(HOST_RBP, RBP);
-	DEFINE(HOST_RAX, RAX);
-	DEFINE(HOST_R8, R8);
-	DEFINE(HOST_R9, R9);
-	DEFINE(HOST_R10, R10);
-	DEFINE(HOST_R11, R11);
-	DEFINE(HOST_R12, R12);
-	DEFINE(HOST_R13, R13);
-	DEFINE(HOST_R14, R14);
-	DEFINE(HOST_R15, R15);
-	DEFINE(HOST_ORIG_RAX, ORIG_RAX);
-	DEFINE(HOST_CS, CS);
-	DEFINE(HOST_SS, SS);
-	DEFINE(HOST_EFLAGS, EFLAGS);
+	DEFINE_LONGS(HOST_FRAME_SIZE, FRAME_SIZE);
+	DEFINE(HOST_FP_SIZE, 0);
+	DEFINE(HOST_XFP_SIZE, 0);
+	DEFINE_LONGS(HOST_RBX, RBX);
+	DEFINE_LONGS(HOST_RCX, RCX);
+	DEFINE_LONGS(HOST_RDI, RDI);
+	DEFINE_LONGS(HOST_RSI, RSI);
+	DEFINE_LONGS(HOST_RDX, RDX);
+	DEFINE_LONGS(HOST_RBP, RBP);
+	DEFINE_LONGS(HOST_RAX, RAX);
+	DEFINE_LONGS(HOST_R8, R8);
+	DEFINE_LONGS(HOST_R9, R9);
+	DEFINE_LONGS(HOST_R10, R10);
+	DEFINE_LONGS(HOST_R11, R11);
+	DEFINE_LONGS(HOST_R12, R12);
+	DEFINE_LONGS(HOST_R13, R13);
+	DEFINE_LONGS(HOST_R14, R14);
+	DEFINE_LONGS(HOST_R15, R15);
+	DEFINE_LONGS(HOST_ORIG_RAX, ORIG_RAX);
+	DEFINE_LONGS(HOST_CS, CS);
+	DEFINE_LONGS(HOST_SS, SS);
+	DEFINE_LONGS(HOST_EFLAGS, EFLAGS);
 #if 0
-	DEFINE(HOST_FS, FS);
-	DEFINE(HOST_GS, GS);
-	DEFINE(HOST_DS, DS);
-	DEFINE(HOST_ES, ES);
+	DEFINE_LONGS(HOST_FS, FS);
+	DEFINE_LONGS(HOST_GS, GS);
+	DEFINE_LONGS(HOST_DS, DS);
+	DEFINE_LONGS(HOST_ES, ES);
 #endif
 
-	DEFINE(HOST_IP, RIP);
-	DEFINE(HOST_SP, RSP);
-	DEFINE(__UM_FRAME_SIZE, sizeof(struct user_regs_struct));
+	DEFINE_LONGS(HOST_IP, RIP);
+	DEFINE_LONGS(HOST_SP, RSP);
+	DEFINE(UM_FRAME_SIZE, sizeof(struct user_regs_struct));
 }

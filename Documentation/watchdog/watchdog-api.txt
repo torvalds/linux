@@ -228,6 +228,26 @@ advantechwdt.c -- Advantech Single Board Computer
 	The GETSTATUS call returns if the device is open or not.
 	[FIXME -- silliness again?]
 	
+booke_wdt.c -- PowerPC BookE Watchdog Timer
+
+	Timeout default varies according to frequency, supports
+	SETTIMEOUT
+
+	Watchdog can not be turned off, CONFIG_WATCHDOG_NOWAYOUT
+	does not make sense
+
+	GETSUPPORT returns the watchdog_info struct, and
+	GETSTATUS returns the supported options. GETBOOTSTATUS
+	returns a 1 if the last reset was caused by the
+	watchdog and a 0 otherwise. This watchdog can not be
+	disabled once it has been started. The wdt_period kernel
+	parameter selects which bit of the time base changing
+	from 0->1 will trigger the watchdog exception. Changing
+	the timeout from the ioctl calls will change the
+	wdt_period as defined above. Finally if you would like to
+	replace the default Watchdog Handler you can implement the
+	WatchdogHandler() function in your own code.
+
 eurotechwdt.c -- Eurotech CPU-1220/1410
 
 	The timeout can be set using the SETTIMEOUT ioctl and defaults

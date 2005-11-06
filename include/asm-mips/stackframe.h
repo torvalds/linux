@@ -15,7 +15,7 @@
 
 #include <asm/asm.h>
 #include <asm/mipsregs.h>
-#include <asm/offset.h>
+#include <asm/asm-offsets.h>
 
 		.macro	SAVE_AT
 		.set	push
@@ -26,7 +26,7 @@
 
 		.macro	SAVE_TEMP
 		mfhi	v1
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 		LONG_S	$8, PT_R8(sp)
 		LONG_S	$9, PT_R9(sp)
 #endif
@@ -56,15 +56,14 @@
 
 #ifdef CONFIG_SMP
 		.macro	get_saved_sp	/* SMP variation */
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 		mfc0	k0, CP0_CONTEXT
 		lui	k1, %hi(kernelsp)
 		srl	k0, k0, 23
-		sll	k0, k0, 2
 		addu	k1, k0
 		LONG_L	k1, %lo(kernelsp)(k1)
 #endif
-#if defined(CONFIG_MIPS64) && !defined(CONFIG_BUILD_ELF64)
+#if defined(CONFIG_64BIT) && !defined(CONFIG_BUILD_ELF64)
 		MFC0	k1, CP0_CONTEXT
 		dsra	k1, 23
 		lui	k0, %hi(pgd_current)
@@ -74,37 +73,45 @@
 		daddu	k1, k0
 		LONG_L	k1, %lo(kernelsp)(k1)
 #endif
-#if defined(CONFIG_MIPS64) && defined(CONFIG_BUILD_ELF64)
+#if defined(CONFIG_64BIT) && defined(CONFIG_BUILD_ELF64)
 		MFC0	k1, CP0_CONTEXT
+		lui	k0, %highest(kernelsp)
 		dsrl	k1, 23
-		dsll	k1, k1, 3
-		LONG_L	k1, kernelsp(k1)
+		daddiu	k0, %higher(kernelsp)
+		dsll	k0, k0, 16
+		daddiu	k0, %hi(kernelsp)
+		dsll	k0, k0, 16
+		daddu	k1, k1, k0
+		LONG_L	k1, %lo(kernelsp)(k1)
 #endif
 		.endm
 
 		.macro	set_saved_sp stackp temp temp2
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 		mfc0	\temp, CP0_CONTEXT
 		srl	\temp, 23
-		sll	\temp, 2
-		LONG_S	\stackp, kernelsp(\temp)
 #endif
-#if defined(CONFIG_MIPS64) && !defined(CONFIG_BUILD_ELF64)
+#if defined(CONFIG_64BIT) && !defined(CONFIG_BUILD_ELF64)
 		lw	\temp, TI_CPU(gp)
 		dsll	\temp, 3
-		lui	\temp2, %hi(kernelsp)
-		daddu	\temp, \temp2
-		LONG_S	\stackp, %lo(kernelsp)(\temp)
 #endif
-#if defined(CONFIG_MIPS64) && defined(CONFIG_BUILD_ELF64)
-		lw	\temp, TI_CPU(gp)
-		dsll	\temp, 3
+#if defined(CONFIG_64BIT) && defined(CONFIG_BUILD_ELF64)
+		MFC0	\temp, CP0_CONTEXT
+		dsrl	\temp, 23
+#endif
 		LONG_S	\stackp, kernelsp(\temp)
-#endif
 		.endm
 #else
 		.macro	get_saved_sp	/* Uniprocessor variation */
+#if defined(CONFIG_64BIT) && defined(CONFIG_BUILD_ELF64)
+		lui	k1, %highest(kernelsp)
+		daddiu	k1, %higher(kernelsp)
+		dsll	k1, k1, 16
+		daddiu	k1, %hi(kernelsp)
+		dsll	k1, k1, 16
+#else
 		lui	k1, %hi(kernelsp)
+#endif
 		LONG_L	k1, %lo(kernelsp)(k1)
 		.endm
 
@@ -140,7 +147,7 @@
 		LONG_S	$6, PT_R6(sp)
 		MFC0	v1, CP0_EPC
 		LONG_S	$7, PT_R7(sp)
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 		LONG_S	$8, PT_R8(sp)
 		LONG_S	$9, PT_R9(sp)
 #endif
@@ -169,7 +176,7 @@
 
 		.macro	RESTORE_TEMP
 		LONG_L	$24, PT_LO(sp)
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 		LONG_L	$8, PT_R8(sp)
 		LONG_L	$9, PT_R9(sp)
 #endif
@@ -217,7 +224,7 @@
 		LONG_L	$31, PT_R31(sp)
 		LONG_L	$28, PT_R28(sp)
 		LONG_L	$25, PT_R25(sp)
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 		LONG_L	$8, PT_R8(sp)
 		LONG_L	$9, PT_R9(sp)
 #endif
@@ -262,7 +269,7 @@
 		LONG_L	$31, PT_R31(sp)
 		LONG_L	$28, PT_R28(sp)
 		LONG_L	$25, PT_R25(sp)
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 		LONG_L	$8, PT_R8(sp)
 		LONG_L	$9, PT_R9(sp)
 #endif

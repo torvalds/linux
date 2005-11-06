@@ -76,11 +76,11 @@
 #include <linux/netdevice.h>
 #include <linux/file.h>
 #include <linux/proc_fs.h>
-#include <linux/tcp.h>
 
 #include <net/sock.h>
 #include <net/af_unix.h>
 #include <net/scm.h>
+#include <net/tcp_states.h>
 
 /* Internal data structures and random procedures: */
 
@@ -286,16 +286,16 @@ void unix_gc(void)
 			skb = skb_peek(&s->sk_receive_queue);
 			while (skb &&
 			       skb != (struct sk_buff *)&s->sk_receive_queue) {
-				nextsk=skb->next;
+				nextsk = skb->next;
 				/*
 				 *	Do we have file descriptors ?
 				 */
-				if(UNIXCB(skb).fp)
-				{
-					__skb_unlink(skb, skb->list);
-					__skb_queue_tail(&hitlist,skb);
+				if (UNIXCB(skb).fp) {
+					__skb_unlink(skb,
+						     &s->sk_receive_queue);
+					__skb_queue_tail(&hitlist, skb);
 				}
-				skb=nextsk;
+				skb = nextsk;
 			}
 			spin_unlock(&s->sk_receive_queue.lock);
 		}

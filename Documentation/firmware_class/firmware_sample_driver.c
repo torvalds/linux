@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/string.h>
 
 #include "linux/firmware.h"
 
@@ -32,14 +33,14 @@ static void sample_firmware_load(char *firmware, int size)
 	u8 buf[size+1];
 	memcpy(buf, firmware, size);
 	buf[size] = '\0';
-	printk("firmware_sample_driver: firmware: %s\n", buf);
+	printk(KERN_INFO "firmware_sample_driver: firmware: %s\n", buf);
 }
 
 static void sample_probe_default(void)
 {
 	/* uses the default method to get the firmware */
         const struct firmware *fw_entry;
-	printk("firmware_sample_driver: a ghost device got inserted :)\n");
+	printk(KERN_INFO "firmware_sample_driver: a ghost device got inserted :)\n");
 
         if(request_firmware(&fw_entry, "sample_driver_fw", &ghost_device)!=0)
 	{
@@ -61,7 +62,7 @@ static void sample_probe_specific(void)
 
 	/* NOTE: This currently doesn't work */
 
-	printk("firmware_sample_driver: a ghost device got inserted :)\n");
+	printk(KERN_INFO "firmware_sample_driver: a ghost device got inserted :)\n");
 
         if(request_firmware(NULL, "sample_driver_fw", &ghost_device)!=0)
 	{
@@ -83,7 +84,7 @@ static void sample_probe_async_cont(const struct firmware *fw, void *context)
 		return;
 	}
 
-	printk("firmware_sample_driver: device pointer \"%s\"\n",
+	printk(KERN_INFO "firmware_sample_driver: device pointer \"%s\"\n",
 	       (char *)context);
 	sample_firmware_load(fw->data, fw->size);
 }

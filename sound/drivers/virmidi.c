@@ -116,6 +116,10 @@ static int __init snd_card_virmidi_probe(int dev)
 	strcpy(card->driver, "VirMIDI");
 	strcpy(card->shortname, "VirMIDI");
 	sprintf(card->longname, "Virtual MIDI Card %i", dev + 1);
+
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto __nodev;
+
 	if ((err = snd_card_register(card)) == 0) {
 		snd_virmidi_cards[dev] = card;
 		return 0;

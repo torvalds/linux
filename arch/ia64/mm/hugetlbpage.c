@@ -76,7 +76,7 @@ int is_aligned_hugepage_range(unsigned long addr, unsigned long len)
 		return -EINVAL;
 	if (addr & ~HPAGE_MASK)
 		return -EINVAL;
-	if (REGION_NUMBER(addr) != REGION_HPAGE)
+	if (REGION_NUMBER(addr) != RGN_HPAGE)
 		return -EINVAL;
 
 	return 0;
@@ -87,7 +87,7 @@ struct page *follow_huge_addr(struct mm_struct *mm, unsigned long addr, int writ
 	struct page *page;
 	pte_t *ptep;
 
-	if (REGION_NUMBER(addr) != REGION_HPAGE)
+	if (REGION_NUMBER(addr) != RGN_HPAGE)
 		return ERR_PTR(-EINVAL);
 
 	ptep = huge_pte_offset(mm, addr);
@@ -142,8 +142,8 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr, u
 		return -ENOMEM;
 	if (len & ~HPAGE_MASK)
 		return -EINVAL;
-	/* This code assumes that REGION_HPAGE != 0. */
-	if ((REGION_NUMBER(addr) != REGION_HPAGE) || (addr & (HPAGE_SIZE - 1)))
+	/* This code assumes that RGN_HPAGE != 0. */
+	if ((REGION_NUMBER(addr) != RGN_HPAGE) || (addr & (HPAGE_SIZE - 1)))
 		addr = HPAGE_REGION_BASE;
 	else
 		addr = ALIGN(addr, HPAGE_SIZE);

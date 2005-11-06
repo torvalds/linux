@@ -8,55 +8,43 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
-#include "ppc32-types.h"
+#include <stdarg.h>
+#include <stddef.h>
+#include "elf.h"
+#include "page.h"
+#include "string.h"
+#include "stdio.h"
+#include "prom.h"
 #include "zlib.h"
-#include <linux/elf.h>
-#include <linux/string.h>
-#include <asm/processor.h>
-#include <asm/page.h>
 
-extern void *finddevice(const char *);
-extern int getprop(void *, const char *, void *, int);
-extern void printf(const char *fmt, ...);
-extern int sprintf(char *buf, const char *fmt, ...);
-void gunzip(void *, int, unsigned char *, int *);
-void *claim(unsigned int, unsigned int, unsigned int);
-void flush_cache(void *, unsigned long);
-void pause(void);
-extern void exit(void);
+extern void flush_cache(void *, unsigned long);
 
-unsigned long strlen(const char *s);
-void *memmove(void *dest, const void *src, unsigned long n);
-void *memcpy(void *dest, const void *src, unsigned long n);
 
 /* Value picked to match that used by yaboot */
 #define PROG_START	0x01400000
-#define RAM_END		(256<<20) // Fixme: use OF */
-
-char *avail_ram;
-char *begin_avail, *end_avail;
-char *avail_high;
-unsigned int heap_use;
-unsigned int heap_max;
+#define RAM_END		(512<<20) // Fixme: use OF */
+#define	ONE_MB		0x100000
 
 extern char _start[];
+extern char __bss_start[];
+extern char _end[];
 extern char _vmlinux_start[];
 extern char _vmlinux_end[];
 extern char _initrd_start[];
 extern char _initrd_end[];
-extern unsigned long vmlinux_filesize;
-extern unsigned long vmlinux_memsize;
 
 struct addr_range {
 	unsigned long addr;
 	unsigned long size;
 	unsigned long memsize;
 };
-struct addr_range vmlinux = {0, 0, 0};
-struct addr_range vmlinuz = {0, 0, 0};
-struct addr_range initrd  = {0, 0, 0};
+static struct addr_range vmlinux;
+static struct addr_range vmlinuz;
+static struct addr_range initrd;
 
-static char scratch[128<<10];	/* 128kB of scratch space for gunzip */
+static char scratch[46912];	/* scratch space for gunzip, from zlib_inflate_workspacesize() */
+static char elfheader[256];
+
 
 typedef void (*kernel_entry_t)( unsigned long,
                                 unsigned long,
@@ -64,22 +52,72 @@ typedef void (*kernel_entry_t)( unsigned long,
 				void *);
 
 
-int (*prom)(void *);
-
-void *chosen_handle;
-void *stdin;
-void *stdout;
-void *stderr;
-
 #undef DEBUG
 
-static unsigned long claim_base = PROG_START;
+static unsigned long claim_base;
+
+#define HEAD_CRC	2
+#define EXTRA_FIELD	4
+#define ORIG_NAME	8
+#define COMMENT		0x10
+#define RESERVED	0xe0
+
+static void gunzip(void *dst, int dstlen, unsigned char *src, int *lenp)
+{
+	z_stream s;
+	int r, i, flags;
+
+	/* skip header */
+	i = 10;
+	flags = src[3];
+	if (src[2] != Z_DEFLATED || (flags & RESERVED) != 0) {
+		printf("bad gzipped data\n\r");
+		exit();
+	}
+	if ((flags & EXTRA_FIELD) != 0)
+		i = 12 + src[10] + (src[11] << 8);
+	if ((flags & ORIG_NAME) != 0)
+		while (src[i++] != 0)
+			;
+	if ((flags & COMMENT) != 0)
+		while (src[i++] != 0)
+			;
+	if ((flags & HEAD_CRC) != 0)
+		i += 2;
+	if (i >= *lenp) {
+		printf("gunzip: ran out of data in header\n\r");
+		exit();
+	}
+
+	if (zlib_inflate_workspacesize() > sizeof(scratch)) {
+		printf("gunzip needs more mem\n");
+		exit();
+	}
+	memset(&s, 0, sizeof(s));
+	s.workspace = scratch;
+	r = zlib_inflateInit2(&s, -MAX_WBITS);
+	if (r != Z_OK) {
+		printf("inflateInit2 returned %d\n\r", r);
+		exit();
+	}
+	s.next_in = src + i;
+	s.avail_in = *lenp - i;
+	s.next_out = dst;
+	s.avail_out = dstlen;
+	r = zlib_inflate(&s, Z_FULL_FLUSH);
+	if (r != Z_OK && r != Z_STREAM_END) {
+		printf("inflate returned %d msg: %s\n\r", r, s.msg);
+		exit();
+	}
+	*lenp = s.next_out - (unsigned char *) dst;
+	zlib_inflateEnd(&s);
+}
 
 static unsigned long try_claim(unsigned long size)
 {
 	unsigned long addr = 0;
 
-	for(; claim_base < RAM_END; claim_base += 0x100000) {
+	for(; claim_base < RAM_END; claim_base += ONE_MB) {
 #ifdef DEBUG
 		printf("    trying: 0x%08lx\n\r", claim_base);
 #endif
@@ -93,12 +131,15 @@ static unsigned long try_claim(unsigned long size)
 	return addr;
 }
 
-void start(unsigned long a1, unsigned long a2, void *promptr)
+void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 {
 	unsigned long i;
+	int len;
 	kernel_entry_t kernel_entry;
 	Elf64_Ehdr *elf64;
 	Elf64_Phdr *elf64ph;
+
+	memset(__bss_start, 0, _end - __bss_start);
 
 	prom = (int (*)(void *)) promptr;
 	chosen_handle = finddevice("/chosen");
@@ -110,27 +151,66 @@ void start(unsigned long a1, unsigned long a2, void *promptr)
 	if (getprop(chosen_handle, "stdin", &stdin, sizeof(stdin)) != 4)
 		exit();
 
-	printf("\n\rzImage starting: loaded at 0x%x\n\r", (unsigned)_start);
+	printf("\n\rzImage starting: loaded at 0x%p (sp: 0x%p)\n\r", _start, sp);
 
 	/*
-	 * Now we try to claim some memory for the kernel itself
-	 * our "vmlinux_memsize" is the memory footprint in RAM, _HOWEVER_, what
-	 * our Makefile stuffs in is an image containing all sort of junk including
-	 * an ELF header. We need to do some calculations here to find the right
-	 * size... In practice we add 1Mb, that is enough, but we should really
-	 * consider fixing the Makefile to put a _raw_ kernel in there !
+	 * The first available claim_base must be above the end of the
+	 * the loaded kernel wrapper file (_start to _end includes the
+	 * initrd image if it is present) and rounded up to a nice
+	 * 1 MB boundary for good measure.
 	 */
-	vmlinux_memsize += 0x100000;
-	printf("Allocating 0x%lx bytes for kernel ...\n\r", vmlinux_memsize);
-	vmlinux.addr = try_claim(vmlinux_memsize);
+
+	claim_base = _ALIGN_UP((unsigned long)_end, ONE_MB);
+
+#if defined(PROG_START)
+	/*
+	 * Maintain a "magic" minimum address. This keeps some older
+	 * firmware platforms running.
+	 */
+
+	if (claim_base < PROG_START)
+		claim_base = PROG_START;
+#endif
+
+	vmlinuz.addr = (unsigned long)_vmlinux_start;
+	vmlinuz.size = (unsigned long)(_vmlinux_end - _vmlinux_start);
+
+	/* gunzip the ELF header of the kernel */
+	if (*(unsigned short *)vmlinuz.addr == 0x1f8b) {
+		len = vmlinuz.size;
+		gunzip(elfheader, sizeof(elfheader),
+				(unsigned char *)vmlinuz.addr, &len);
+	} else
+		memcpy(elfheader, (const void *)vmlinuz.addr, sizeof(elfheader));
+
+	elf64 = (Elf64_Ehdr *)elfheader;
+	if ( elf64->e_ident[EI_MAG0]  != ELFMAG0	||
+	     elf64->e_ident[EI_MAG1]  != ELFMAG1	||
+	     elf64->e_ident[EI_MAG2]  != ELFMAG2	||
+	     elf64->e_ident[EI_MAG3]  != ELFMAG3	||
+	     elf64->e_ident[EI_CLASS] != ELFCLASS64	||
+	     elf64->e_ident[EI_DATA]  != ELFDATA2MSB	||
+	     elf64->e_type            != ET_EXEC	||
+	     elf64->e_machine         != EM_PPC64 )
+	{
+		printf("Error: not a valid PPC64 ELF file!\n\r");
+		exit();
+	}
+
+	elf64ph = (Elf64_Phdr *)((unsigned long)elf64 +
+				(unsigned long)elf64->e_phoff);
+	for(i=0; i < (unsigned int)elf64->e_phnum ;i++,elf64ph++) {
+		if (elf64ph->p_type == PT_LOAD && elf64ph->p_offset != 0)
+			break;
+	}
+	vmlinux.size = (unsigned long)elf64ph->p_filesz;
+	vmlinux.memsize = (unsigned long)elf64ph->p_memsz;
+	printf("Allocating 0x%lx bytes for kernel ...\n\r", vmlinux.memsize);
+	vmlinux.addr = try_claim(vmlinux.memsize);
 	if (vmlinux.addr == 0) {
 		printf("Can't allocate memory for kernel image !\n\r");
 		exit();
 	}
-	vmlinuz.addr = (unsigned long)_vmlinux_start;
-	vmlinuz.size = (unsigned long)(_vmlinux_end - _vmlinux_start);
-	vmlinux.size = PAGE_ALIGN(vmlinux_filesize);
-	vmlinux.memsize = vmlinux_memsize;
 
 	/*
 	 * Now we try to claim memory for the initrd (and copy it there)
@@ -154,49 +234,22 @@ void start(unsigned long a1, unsigned long a2, void *promptr)
 
 	/* Eventually gunzip the kernel */
 	if (*(unsigned short *)vmlinuz.addr == 0x1f8b) {
-		int len;
-		avail_ram = scratch;
-		begin_avail = avail_high = avail_ram;
-		end_avail = scratch + sizeof(scratch);
 		printf("gunzipping (0x%lx <- 0x%lx:0x%0lx)...",
 		       vmlinux.addr, vmlinuz.addr, vmlinuz.addr+vmlinuz.size);
 		len = vmlinuz.size;
-		gunzip((void *)vmlinux.addr, vmlinux.size,
+		gunzip((void *)vmlinux.addr, vmlinux.memsize,
 			(unsigned char *)vmlinuz.addr, &len);
 		printf("done 0x%lx bytes\n\r", len);
-		printf("0x%x bytes of heap consumed, max in use 0x%x\n\r",
-		       (unsigned)(avail_high - begin_avail), heap_max);
 	} else {
 		memmove((void *)vmlinux.addr,(void *)vmlinuz.addr,vmlinuz.size);
 	}
 
 	/* Skip over the ELF header */
-	elf64 = (Elf64_Ehdr *)vmlinux.addr;
-	if ( elf64->e_ident[EI_MAG0]  != ELFMAG0	||
-	     elf64->e_ident[EI_MAG1]  != ELFMAG1	||
-	     elf64->e_ident[EI_MAG2]  != ELFMAG2	||
-	     elf64->e_ident[EI_MAG3]  != ELFMAG3	||
-	     elf64->e_ident[EI_CLASS] != ELFCLASS64	||
-	     elf64->e_ident[EI_DATA]  != ELFDATA2MSB	||
-	     elf64->e_type            != ET_EXEC	||
-	     elf64->e_machine         != EM_PPC64 )
-	{
-		printf("Error: not a valid PPC64 ELF file!\n\r");
-		exit();
-	}
-
-	elf64ph = (Elf64_Phdr *)((unsigned long)elf64 +
-				(unsigned long)elf64->e_phoff);
-	for(i=0; i < (unsigned int)elf64->e_phnum ;i++,elf64ph++) {
-		if (elf64ph->p_type == PT_LOAD && elf64ph->p_offset != 0)
-			break;
-	}
 #ifdef DEBUG
 	printf("... skipping 0x%lx bytes of ELF header\n\r",
 			(unsigned long)elf64ph->p_offset);
 #endif
 	vmlinux.addr += (unsigned long)elf64ph->p_offset;
-	vmlinux.size -= (unsigned long)elf64ph->p_offset;
 
 	flush_cache((void *)vmlinux.addr, vmlinux.size);
 
@@ -217,110 +270,5 @@ void start(unsigned long a1, unsigned long a2, void *promptr)
 	printf("Error: Linux kernel returned to zImage bootloader!\n\r");
 
 	exit();
-}
-
-struct memchunk {
-	unsigned int size;
-	unsigned int pad;
-	struct memchunk *next;
-};
-
-static struct memchunk *freechunks;
-
-void *zalloc(void *x, unsigned items, unsigned size)
-{
-	void *p;
-	struct memchunk **mpp, *mp;
-
-	size *= items;
-	size = _ALIGN(size, sizeof(struct memchunk));
-	heap_use += size;
-	if (heap_use > heap_max)
-		heap_max = heap_use;
-	for (mpp = &freechunks; (mp = *mpp) != 0; mpp = &mp->next) {
-		if (mp->size == size) {
-			*mpp = mp->next;
-			return mp;
-		}
-	}
-	p = avail_ram;
-	avail_ram += size;
-	if (avail_ram > avail_high)
-		avail_high = avail_ram;
-	if (avail_ram > end_avail) {
-		printf("oops... out of memory\n\r");
-		pause();
-	}
-	return p;
-}
-
-void zfree(void *x, void *addr, unsigned nb)
-{
-	struct memchunk *mp = addr;
-
-	nb = _ALIGN(nb, sizeof(struct memchunk));
-	heap_use -= nb;
-	if (avail_ram == addr + nb) {
-		avail_ram = addr;
-		return;
-	}
-	mp->size = nb;
-	mp->next = freechunks;
-	freechunks = mp;
-}
-
-#define HEAD_CRC	2
-#define EXTRA_FIELD	4
-#define ORIG_NAME	8
-#define COMMENT		0x10
-#define RESERVED	0xe0
-
-#define DEFLATED	8
-
-void gunzip(void *dst, int dstlen, unsigned char *src, int *lenp)
-{
-	z_stream s;
-	int r, i, flags;
-
-	/* skip header */
-	i = 10;
-	flags = src[3];
-	if (src[2] != DEFLATED || (flags & RESERVED) != 0) {
-		printf("bad gzipped data\n\r");
-		exit();
-	}
-	if ((flags & EXTRA_FIELD) != 0)
-		i = 12 + src[10] + (src[11] << 8);
-	if ((flags & ORIG_NAME) != 0)
-		while (src[i++] != 0)
-			;
-	if ((flags & COMMENT) != 0)
-		while (src[i++] != 0)
-			;
-	if ((flags & HEAD_CRC) != 0)
-		i += 2;
-	if (i >= *lenp) {
-		printf("gunzip: ran out of data in header\n\r");
-		exit();
-	}
-
-	s.zalloc = zalloc;
-	s.zfree = zfree;
-	r = inflateInit2(&s, -MAX_WBITS);
-	if (r != Z_OK) {
-		printf("inflateInit2 returned %d\n\r", r);
-		exit();
-	}
-	s.next_in = src + i;
-	s.avail_in = *lenp - i;
-	s.next_out = dst;
-	s.avail_out = dstlen;
-	r = inflate(&s, Z_FINISH);
-	if (r != Z_OK && r != Z_STREAM_END) {
-		printf("inflate returned %d msg: %s\n\r", r, s.msg);
-		exit();
-	}
-	*lenp = s.next_out - (unsigned char *) dst;
-	inflateEnd(&s);
 }
 

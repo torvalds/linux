@@ -247,13 +247,6 @@ unsigned long long sched_clock(void)
 #define OMAP_32K_TIMER_TCR		0x04
 
 #define OMAP_32K_TICKS_PER_HZ		(32768 / HZ)
-#if (32768 % HZ) != 0
-/* We cannot ignore modulo.
- * Potential error can be as high as several percent.
- */
-#define OMAP_32K_TICK_MODULO		(32768 % HZ)
-static unsigned modulo_count = 0; /* Counts 1/HZ units */
-#endif
 
 /*
  * TRM says 1 / HZ = ( TVR + 1) / 32768, so TRV = (32768 / HZ) - 1
@@ -296,11 +289,20 @@ static inline void omap_32k_timer_stop(void)
 }
 
 /*
- * Rounds down to nearest usec
+ * Rounds down to nearest usec. Note that this will overflow for larger values.
  */
 static inline unsigned long omap_32k_ticks_to_usecs(unsigned long ticks_32k)
 {
 	return (ticks_32k * 5*5*5*5*5*5) >> 9;
+}
+
+/*
+ * Rounds down to nearest nsec.
+ */
+static inline unsigned long long
+omap_32k_ticks_to_nsecs(unsigned long ticks_32k)
+{
+	return (unsigned long long) ticks_32k * 1000 * 5*5*5*5*5*5 >> 9;
 }
 
 static unsigned long omap_32k_last_tick = 0;
@@ -312,6 +314,15 @@ static unsigned long omap_32k_timer_gettimeoffset(void)
 {
 	unsigned long now = omap_32k_sync_timer_read();
 	return omap_32k_ticks_to_usecs(now - omap_32k_last_tick);
+}
+
+/*
+ * Returns current time from boot in nsecs. It's OK for this to wrap
+ * around for now, as it's just a relative time stamp.
+ */
+unsigned long long sched_clock(void)
+{
+	return omap_32k_ticks_to_nsecs(omap_32k_sync_timer_read());
 }
 
 /*
@@ -330,19 +341,6 @@ static irqreturn_t omap_32k_timer_interrupt(int irq, void *dev_id,
 	now = omap_32k_sync_timer_read();
 
 	while (now - omap_32k_last_tick >= OMAP_32K_TICKS_PER_HZ) {
-#ifdef OMAP_32K_TICK_MODULO
-		/* Modulo addition may put omap_32k_last_tick ahead of now
-		 * and cause unwanted repetition of the while loop.
-		 */
-		if (unlikely(now - omap_32k_last_tick == ~0))
-			break;
-
-		modulo_count += OMAP_32K_TICK_MODULO;
-		if (modulo_count > HZ) {
-			++omap_32k_last_tick;
-			modulo_count -= HZ;
-		}
-#endif
 		omap_32k_last_tick += OMAP_32K_TICKS_PER_HZ;
 		timer_tick(regs);
 	}

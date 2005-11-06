@@ -35,7 +35,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
-#include <linux/tcp_diag.h>
+#include <linux/inet_diag.h>
 
 #include <net/tcp.h>
 
@@ -82,9 +82,10 @@ struct vegas {
  * Instead we must wait until the completion of an RTT during
  * which we actually receive ACKs.
  */
-static inline void vegas_enable(struct tcp_sock *tp)
+static inline void vegas_enable(struct sock *sk)
 {
-	struct vegas *vegas = tcp_ca(tp);
+	const struct tcp_sock *tp = tcp_sk(sk);
+	struct vegas *vegas = inet_csk_ca(sk);
 
 	/* Begin taking Vegas samples next time we send something. */
 	vegas->doing_vegas_now = 1;
@@ -97,19 +98,19 @@ static inline void vegas_enable(struct tcp_sock *tp)
 }
 
 /* Stop taking Vegas samples for now. */
-static inline void vegas_disable(struct tcp_sock *tp)
+static inline void vegas_disable(struct sock *sk)
 {
-	struct vegas *vegas = tcp_ca(tp);
+	struct vegas *vegas = inet_csk_ca(sk);
 
 	vegas->doing_vegas_now = 0;
 }
 
-static void tcp_vegas_init(struct tcp_sock *tp)
+static void tcp_vegas_init(struct sock *sk)
 {
-	struct vegas *vegas = tcp_ca(tp);
+	struct vegas *vegas = inet_csk_ca(sk);
 
 	vegas->baseRTT = 0x7fffffff;
-	vegas_enable(tp);
+	vegas_enable(sk);
 }
 
 /* Do RTT sampling needed for Vegas.
@@ -120,9 +121,9 @@ static void tcp_vegas_init(struct tcp_sock *tp)
  *   o min-filter RTT samples from a much longer window (forever for now)
  *     to find the propagation delay (baseRTT)
  */
-static void tcp_vegas_rtt_calc(struct tcp_sock *tp, u32 usrtt)
+static void tcp_vegas_rtt_calc(struct sock *sk, u32 usrtt)
 {
-	struct vegas *vegas = tcp_ca(tp);
+	struct vegas *vegas = inet_csk_ca(sk);
 	u32 vrtt = usrtt + 1; /* Never allow zero rtt or baseRTT */
 
 	/* Filter to find propagation delay: */
@@ -136,13 +137,13 @@ static void tcp_vegas_rtt_calc(struct tcp_sock *tp, u32 usrtt)
 	vegas->cntRTT++;
 }
 
-static void tcp_vegas_state(struct tcp_sock *tp, u8 ca_state)
+static void tcp_vegas_state(struct sock *sk, u8 ca_state)
 {
 
 	if (ca_state == TCP_CA_Open)
-		vegas_enable(tp);
+		vegas_enable(sk);
 	else
-		vegas_disable(tp);
+		vegas_disable(sk);
 }
 
 /*
@@ -154,20 +155,21 @@ static void tcp_vegas_state(struct tcp_sock *tp, u8 ca_state)
  * packets, _then_ we can make Vegas calculations
  * again.
  */
-static void tcp_vegas_cwnd_event(struct tcp_sock *tp, enum tcp_ca_event event)
+static void tcp_vegas_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 {
 	if (event == CA_EVENT_CWND_RESTART ||
 	    event == CA_EVENT_TX_START)
-		tcp_vegas_init(tp);
+		tcp_vegas_init(sk);
 }
 
-static void tcp_vegas_cong_avoid(struct tcp_sock *tp, u32 ack,
+static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack,
 				 u32 seq_rtt, u32 in_flight, int flag)
 {
-	struct vegas *vegas = tcp_ca(tp);
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct vegas *vegas = inet_csk_ca(sk);
 
 	if (!vegas->doing_vegas_now)
-		return tcp_reno_cong_avoid(tp, ack, seq_rtt, in_flight, flag);
+		return tcp_reno_cong_avoid(sk, ack, seq_rtt, in_flight, flag);
 
 	/* The key players are v_beg_snd_una and v_beg_snd_nxt.
 	 *
@@ -219,7 +221,7 @@ static void tcp_vegas_cong_avoid(struct tcp_sock *tp, u32 ack,
 		 * but that's not too awful, since we're taking the min,
 		 * rather than averaging.
 		 */
-		tcp_vegas_rtt_calc(tp, seq_rtt*1000);
+		tcp_vegas_rtt_calc(sk, seq_rtt * 1000);
 
 		/* We do the Vegas calculations only if we got enough RTT
 		 * samples that we can be reasonably sure that we got
@@ -359,14 +361,14 @@ static void tcp_vegas_cong_avoid(struct tcp_sock *tp, u32 ack,
 }
 
 /* Extract info for Tcp socket info provided via netlink. */
-static void tcp_vegas_get_info(struct tcp_sock *tp, u32 ext,
+static void tcp_vegas_get_info(struct sock *sk, u32 ext,
 			       struct sk_buff *skb)
 {
-	const struct vegas *ca = tcp_ca(tp);
-	if (ext & (1<<(TCPDIAG_VEGASINFO-1))) {
+	const struct vegas *ca = inet_csk_ca(sk);
+	if (ext & (1 << (INET_DIAG_VEGASINFO - 1))) {
 		struct tcpvegas_info *info;
 
-		info = RTA_DATA(__RTA_PUT(skb, TCPDIAG_VEGASINFO,
+		info = RTA_DATA(__RTA_PUT(skb, INET_DIAG_VEGASINFO,
 					  sizeof(*info)));
 
 		info->tcpv_enabled = ca->doing_vegas_now;
@@ -393,7 +395,7 @@ static struct tcp_congestion_ops tcp_vegas = {
 
 static int __init tcp_vegas_register(void)
 {
-	BUG_ON(sizeof(struct vegas) > TCP_CA_PRIV_SIZE);
+	BUG_ON(sizeof(struct vegas) > ICSK_CA_PRIV_SIZE);
 	tcp_register_congestion_control(&tcp_vegas);
 	return 0;
 }

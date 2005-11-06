@@ -124,6 +124,7 @@
 #include <linux/smp_lock.h>
 #include <linux/syscalls.h>
 #include <linux/time.h>
+#include <linux/rcupdate.h>
 
 #include <asm/semaphore.h>
 #include <asm/uaccess.h>
@@ -315,21 +316,22 @@ static int flock_to_posix_lock(struct file *filp, struct file_lock *fl,
 	/* POSIX-1996 leaves the case l->l_len < 0 undefined;
 	   POSIX-2001 defines it. */
 	start += l->l_start;
-	end = start + l->l_len - 1;
-	if (l->l_len < 0) {
-		end = start - 1;
-		start += l->l_len;
-	}
-
 	if (start < 0)
 		return -EINVAL;
-	if (l->l_len > 0 && end < 0)
-		return -EOVERFLOW;
-
+	fl->fl_end = OFFSET_MAX;
+	if (l->l_len > 0) {
+		end = start + l->l_len - 1;
+		fl->fl_end = end;
+	} else if (l->l_len < 0) {
+		end = start - 1;
+		fl->fl_end = end;
+		start += l->l_len;
+		if (start < 0)
+			return -EINVAL;
+	}
 	fl->fl_start = start;	/* we record the absolute position */
-	fl->fl_end = end;
-	if (l->l_len == 0)
-		fl->fl_end = OFFSET_MAX;
+	if (fl->fl_end < fl->fl_start)
+		return -EOVERFLOW;
 	
 	fl->fl_owner = current->files;
 	fl->fl_pid = current->tgid;
@@ -361,14 +363,21 @@ static int flock64_to_posix_lock(struct file *filp, struct file_lock *fl,
 		return -EINVAL;
 	}
 
-	if (((start += l->l_start) < 0) || (l->l_len < 0))
+	start += l->l_start;
+	if (start < 0)
 		return -EINVAL;
-	fl->fl_end = start + l->l_len - 1;
-	if (l->l_len > 0 && fl->fl_end < 0)
-		return -EOVERFLOW;
+	fl->fl_end = OFFSET_MAX;
+	if (l->l_len > 0) {
+		fl->fl_end = start + l->l_len - 1;
+	} else if (l->l_len < 0) {
+		fl->fl_end = start - 1;
+		start += l->l_len;
+		if (start < 0)
+			return -EINVAL;
+	}
 	fl->fl_start = start;	/* we record the absolute position */
-	if (l->l_len == 0)
-		fl->fl_end = OFFSET_MAX;
+	if (fl->fl_end < fl->fl_start)
+		return -EOVERFLOW;
 	
 	fl->fl_owner = current->files;
 	fl->fl_pid = current->tgid;
@@ -828,12 +837,16 @@ static int __posix_lock_file(struct inode *inode, struct file_lock *request)
 		/* Detect adjacent or overlapping regions (if same lock type)
 		 */
 		if (request->fl_type == fl->fl_type) {
+			/* In all comparisons of start vs end, use
+			 * "start - 1" rather than "end + 1". If end
+			 * is OFFSET_MAX, end + 1 will become negative.
+			 */
 			if (fl->fl_end < request->fl_start - 1)
 				goto next_lock;
 			/* If the next lock in the list has entirely bigger
 			 * addresses than the new one, insert the lock here.
 			 */
-			if (fl->fl_start > request->fl_end + 1)
+			if (fl->fl_start - 1 > request->fl_end)
 				break;
 
 			/* If we come here, the new and old lock are of the
@@ -2198,21 +2211,24 @@ void steal_locks(fl_owner_t from)
 {
 	struct files_struct *files = current->files;
 	int i, j;
+	struct fdtable *fdt;
 
 	if (from == files)
 		return;
 
 	lock_kernel();
 	j = 0;
+	rcu_read_lock();
+	fdt = files_fdtable(files);
 	for (;;) {
 		unsigned long set;
 		i = j * __NFDBITS;
-		if (i >= files->max_fdset || i >= files->max_fds)
+		if (i >= fdt->max_fdset || i >= fdt->max_fds)
 			break;
-		set = files->open_fds->fds_bits[j++];
+		set = fdt->open_fds->fds_bits[j++];
 		while (set) {
 			if (set & 1) {
-				struct file *file = files->fd[i];
+				struct file *file = fdt->fd[i];
 				if (file)
 					__steal_locks(file, from);
 			}
@@ -2220,6 +2236,7 @@ void steal_locks(fl_owner_t from)
 			set >>= 1;
 		}
 	}
+	rcu_read_unlock();
 	unlock_kernel();
 }
 EXPORT_SYMBOL(steal_locks);

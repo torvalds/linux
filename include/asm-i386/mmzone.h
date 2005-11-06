@@ -29,7 +29,7 @@ static inline void get_memcfg_numa(void)
 #ifdef CONFIG_X86_NUMAQ
 	if (get_memcfg_numaq())
 		return;
-#elif CONFIG_ACPI_SRAT
+#elif defined(CONFIG_ACPI_SRAT)
 	if (get_memcfg_from_srat())
 		return;
 #endif
@@ -86,12 +86,6 @@ static inline int pfn_to_nid(unsigned long pfn)
 ({									\
 	pg_data_t *__pgdat = NODE_DATA(nid);				\
 	__pgdat->node_start_pfn + __pgdat->node_spanned_pages;		\
-})
-
-#define local_mapnr(kvaddr)						\
-({									\
-	unsigned long __pfn = __pa(kvaddr) >> PAGE_SHIFT;		\
-	(__pfn - node_start_pfn(pfn_to_nid(__pfn)));			\
 })
 
 /* XXX: FIXME -- wli */

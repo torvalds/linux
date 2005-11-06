@@ -7,28 +7,31 @@
 #include <asm/io.h>
 #include <asm/byteorder.h>
 
-void outsb(void __iomem *addr, const void *src, unsigned long count)
+void outsb(unsigned long __addr, const void *src, unsigned long count)
 {
+	void __iomem *addr = (void __iomem *) __addr;
 	const u8 *p = src;
 
-	while(count--)
+	while (count--)
 		outb(*p++, addr);
 }
 
-void outsw(void __iomem *addr, const void *src, unsigned long count)
+void outsw(unsigned long __addr, const void *src, unsigned long count)
 {
-	if(count) {
+	void __iomem *addr = (void __iomem *) __addr;
+
+	if (count) {
 		u16 *ps = (u16 *)src;
 		u32 *pi;
 
-		if(((u64)src) & 0x2) {
+		if (((u64)src) & 0x2) {
 			u16 val = le16_to_cpup(ps);
 			outw(val, addr);
 			ps++;
 			count--;
 		}
 		pi = (u32 *)ps;
-		while(count >= 2) {
+		while (count >= 2) {
 			u32 w = le32_to_cpup(pi);
 
 			pi++;
@@ -37,19 +40,21 @@ void outsw(void __iomem *addr, const void *src, unsigned long count)
 			count -= 2;
 		}
 		ps = (u16 *)pi;
-		if(count) {
+		if (count) {
 			u16 val = le16_to_cpup(ps);
 			outw(val, addr);
 		}
 	}
 }
 
-void outsl(void __iomem *addr, const void *src, unsigned long count)
+void outsl(unsigned long __addr, const void *src, unsigned long count)
 {
-	if(count) {
-		if((((u64)src) & 0x3) == 0) {
+	void __iomem *addr = (void __iomem *) __addr;
+
+	if (count) {
+		if ((((u64)src) & 0x3) == 0) {
 			u32 *p = (u32 *)src;
-			while(count--) {
+			while (count--) {
 				u32 val = cpu_to_le32p(p);
 				outl(val, addr);
 				p++;
@@ -60,13 +65,13 @@ void outsl(void __iomem *addr, const void *src, unsigned long count)
 			u32 l = 0, l2;
 			u32 *pi;
 
-			switch(((u64)src) & 0x3) {
+			switch (((u64)src) & 0x3) {
 			case 0x2:
 				count -= 1;
 				l = cpu_to_le16p(ps) << 16;
 				ps++;
 				pi = (u32 *)ps;
-				while(count--) {
+				while (count--) {
 					l2 = cpu_to_le32p(pi);
 					pi++;
 					outl(((l >> 16) | (l2 << 16)), addr);
@@ -86,7 +91,7 @@ void outsl(void __iomem *addr, const void *src, unsigned long count)
 				ps++;
 				l |= (l2 << 16);
 				pi = (u32 *)ps;
-				while(count--) {
+				while (count--) {
 					l2 = cpu_to_le32p(pi);
 					pi++;
 					outl(((l >> 8) | (l2 << 24)), addr);
@@ -101,7 +106,7 @@ void outsl(void __iomem *addr, const void *src, unsigned long count)
 				pb = (u8 *)src;
 				l = (*pb++ << 24);
 				pi = (u32 *)pb;
-				while(count--) {
+				while (count--) {
 					l2 = cpu_to_le32p(pi);
 					pi++;
 					outl(((l >> 24) | (l2 << 8)), addr);
@@ -119,16 +124,18 @@ void outsl(void __iomem *addr, const void *src, unsigned long count)
 	}
 }
 
-void insb(void __iomem *addr, void *dst, unsigned long count)
+void insb(unsigned long __addr, void *dst, unsigned long count)
 {
-	if(count) {
+	void __iomem *addr = (void __iomem *) __addr;
+
+	if (count) {
 		u32 *pi;
 		u8 *pb = dst;
 
-		while((((unsigned long)pb) & 0x3) && count--)
+		while ((((unsigned long)pb) & 0x3) && count--)
 			*pb++ = inb(addr);
 		pi = (u32 *)pb;
-		while(count >= 4) {
+		while (count >= 4) {
 			u32 w;
 
 			w  = (inb(addr) << 24);
@@ -139,23 +146,25 @@ void insb(void __iomem *addr, void *dst, unsigned long count)
 			count -= 4;
 		}
 		pb = (u8 *)pi;
-		while(count--)
+		while (count--)
 			*pb++ = inb(addr);
 	}
 }
 
-void insw(void __iomem *addr, void *dst, unsigned long count)
+void insw(unsigned long __addr, void *dst, unsigned long count)
 {
-	if(count) {
+	void __iomem *addr = (void __iomem *) __addr;
+
+	if (count) {
 		u16 *ps = dst;
 		u32 *pi;
 
-		if(((unsigned long)ps) & 0x2) {
+		if (((unsigned long)ps) & 0x2) {
 			*ps++ = le16_to_cpu(inw(addr));
 			count--;
 		}
 		pi = (u32 *)ps;
-		while(count >= 2) {
+		while (count >= 2) {
 			u32 w;
 
 			w  = (le16_to_cpu(inw(addr)) << 16);
@@ -164,31 +173,33 @@ void insw(void __iomem *addr, void *dst, unsigned long count)
 			count -= 2;
 		}
 		ps = (u16 *)pi;
-		if(count)
+		if (count)
 			*ps = le16_to_cpu(inw(addr));
 	}
 }
 
-void insl(void __iomem *addr, void *dst, unsigned long count)
+void insl(unsigned long __addr, void *dst, unsigned long count)
 {
-	if(count) {
-		if((((unsigned long)dst) & 0x3) == 0) {
+	void __iomem *addr = (void __iomem *) __addr;
+
+	if (count) {
+		if ((((unsigned long)dst) & 0x3) == 0) {
 			u32 *pi = dst;
-			while(count--)
+			while (count--)
 				*pi++ = le32_to_cpu(inl(addr));
 		} else {
 			u32 l = 0, l2, *pi;
 			u16 *ps;
 			u8 *pb;
 
-			switch(((unsigned long)dst) & 3) {
+			switch (((unsigned long)dst) & 3) {
 			case 0x2:
 				ps = dst;
 				count -= 1;
 				l = le32_to_cpu(inl(addr));
 				*ps++ = l;
 				pi = (u32 *)ps;
-				while(count--) {
+				while (count--) {
 					l2 = le32_to_cpu(inl(addr));
 					*pi++ = (l << 16) | (l2 >> 16);
 					l = l2;
@@ -205,7 +216,7 @@ void insl(void __iomem *addr, void *dst, unsigned long count)
 				ps = (u16 *)pb;
 				*ps++ = ((l >> 8) & 0xffff);
 				pi = (u32 *)ps;
-				while(count--) {
+				while (count--) {
 					l2 = le32_to_cpu(inl(addr));
 					*pi++ = (l << 24) | (l2 >> 8);
 					l = l2;
@@ -220,7 +231,7 @@ void insl(void __iomem *addr, void *dst, unsigned long count)
 				l = le32_to_cpu(inl(addr));
 				*pb++ = l >> 24;
 				pi = (u32 *)pb;
-				while(count--) {
+				while (count--) {
 					l2 = le32_to_cpu(inl(addr));
 					*pi++ = (l << 8) | (l2 >> 24);
 					l = l2;

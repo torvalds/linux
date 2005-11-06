@@ -32,7 +32,7 @@
  * Device 4: Unused
  * Device 5: Slot 2
  * Device 6: Slot 3
- * Device 7: Slot 4	
+ * Device 7: Slot 4
  *
  * Documentation says the VGA is device 5 and device 3 is unused but that
  * seem to be a documentation error.  At least on my RM200C the Cirrus

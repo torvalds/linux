@@ -13,13 +13,13 @@
 #include <asm/stackframe.h>
 #include <asm/gdb-stub.h>
 
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 #define DMFC0	mfc0
 #define DMTC0	mtc0
 #define LDC1	lwc1
 #define SDC1	lwc1
 #endif
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 #define DMFC0	dmfc0
 #define DMTC0	dmtc0
 #define LDC1	ldc1
@@ -52,16 +52,15 @@
 		/*
 		 * Called from user mode, go somewhere else.
 		 */
-		lui	k1, %hi(saved_vectors)
 		mfc0	k0, CP0_CAUSE
 		andi	k0, k0, 0x7c
 		add	k1, k1, k0
-		lw	k0, %lo(saved_vectors)(k1)
+		PTR_L	k0, saved_vectors(k1)
 		jr	k0
 		nop
 1:
 		move	k0, sp
-		subu	sp, k1, GDB_FR_SIZE*2	# see comment above
+		PTR_SUBU sp, k1, GDB_FR_SIZE*2	# see comment above
 		LONG_S	k0, GDB_FR_REG29(sp)
 		LONG_S	$2, GDB_FR_REG2(sp)
 

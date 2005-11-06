@@ -295,4 +295,9 @@ static inline void fib_res_put(struct fib_result *res)
 #endif
 }
 
+#ifdef CONFIG_PROC_FS
+extern int  fib_proc_init(void);
+extern void fib_proc_exit(void);
+#endif
+
 #endif  /* _NET_FIB_H */

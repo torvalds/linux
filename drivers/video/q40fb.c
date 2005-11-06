@@ -18,10 +18,10 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 
 #include <asm/uaccess.h>
 #include <asm/setup.h>
-#include <asm/segment.h>
 #include <asm/system.h>
 #include <asm/q40_master.h>
 #include <linux/fb.h>

@@ -12,6 +12,16 @@
 #ifndef __ASM_ARM_MEMORY_H
 #define __ASM_ARM_MEMORY_H
 
+/*
+ * Allow for constants defined here to be used from assembly code
+ * by prepending the UL suffix only with actual C code compilation.
+ */
+#ifndef __ASSEMBLY__
+#define UL(x) (x##UL)
+#else
+#define UL(x) (x)
+#endif
+
 #include <linux/config.h>
 #include <linux/compiler.h>
 #include <asm/arch/memory.h>
@@ -21,20 +31,20 @@
  * TASK_SIZE - the maximum size of a user space task.
  * TASK_UNMAPPED_BASE - the lower boundary of the mmap VM area
  */
-#define TASK_SIZE		(0xbf000000UL)
-#define TASK_UNMAPPED_BASE	(0x40000000UL)
+#define TASK_SIZE		UL(0xbf000000)
+#define TASK_UNMAPPED_BASE	UL(0x40000000)
 #endif
 
 /*
  * The maximum size of a 26-bit user space task.
  */
-#define TASK_SIZE_26		(0x04000000UL)
+#define TASK_SIZE_26		UL(0x04000000)
 
 /*
  * Page offset: 3GB
  */
 #ifndef PAGE_OFFSET
-#define PAGE_OFFSET		(0xc0000000UL)
+#define PAGE_OFFSET		UL(0xc0000000)
 #endif
 
 /*
@@ -57,6 +67,13 @@
 #if TASK_SIZE > MODULE_START
 #error Top of user space clashes with start of module space
 #endif
+
+/*
+ * The XIP kernel gets mapped at the bottom of the module vm area.
+ * Since we use sections to map it, this macro replaces the physical address
+ * with its virtual address while keeping offset from the base section.
+ */
+#define XIP_VIRT_ADDR(physaddr)  (MODULE_START + ((physaddr) & 0x000fffff))
 
 #ifndef __ASSEMBLY__
 
@@ -160,12 +177,25 @@ static inline __deprecated void *bus_to_virt(unsigned long x)
 #define page_to_pfn(page)					\
 	(( (page) - page_zone(page)->zone_mem_map)		\
 	  + page_zone(page)->zone_start_pfn)
+
 #define pfn_to_page(pfn)					\
 	(PFN_TO_MAPBASE(pfn) + LOCAL_MAP_NR((pfn) << PAGE_SHIFT))
-#define pfn_valid(pfn)		(PFN_TO_NID(pfn) < MAX_NUMNODES)
+
+#define pfn_valid(pfn)						\
+	({							\
+		unsigned int nid = PFN_TO_NID(pfn);		\
+		int valid = nid < MAX_NUMNODES;			\
+		if (valid) {					\
+			pg_data_t *node = NODE_DATA(nid);	\
+			valid = (pfn - node->node_start_pfn) <	\
+				node->node_spanned_pages;	\
+		}						\
+		valid;						\
+	})
 
 #define virt_to_page(kaddr)					\
 	(ADDR_TO_MAPBASE(kaddr) + LOCAL_MAP_NR(kaddr))
+
 #define virt_addr_valid(kaddr)	(KVADDR_TO_NID(kaddr) < MAX_NUMNODES)
 
 /*

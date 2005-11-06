@@ -150,7 +150,7 @@ static void ide_complete_power_step(ide_drive_t *drive, struct request *rq, u8 s
 
 	switch (rq->pm->pm_step) {
 	case ide_pm_flush_cache:	/* Suspend step 1 (flush cache) complete */
-		if (rq->pm->pm_state == 4)
+		if (rq->pm->pm_state == PM_EVENT_FREEZE)
 			rq->pm->pm_step = ide_pm_state_completed;
 		else
 			rq->pm->pm_step = idedisk_pm_standby;
@@ -560,7 +560,7 @@ ide_startstop_t __ide_abort(ide_drive_t *drive, struct request *rq)
 EXPORT_SYMBOL_GPL(__ide_abort);
 
 /**
- *	ide_abort	-	abort pending IDE operatins
+ *	ide_abort	-	abort pending IDE operations
  *	@drive: drive the error occurred on
  *	@msg: message to report
  *
@@ -623,7 +623,7 @@ static void ide_cmd (ide_drive_t *drive, u8 cmd, u8 nsect,
  *	@drive: drive the completion interrupt occurred on
  *
  *	drive_cmd_intr() is invoked on completion of a special DRIVE_CMD.
- *	We do any necessary daya reading and then wait for the drive to
+ *	We do any necessary data reading and then wait for the drive to
  *	go non busy. At that point we may read the error data and complete
  *	the request
  */
@@ -773,7 +773,7 @@ EXPORT_SYMBOL_GPL(ide_init_sg_cmd);
 
 /**
  *	execute_drive_command	-	issue special drive command
- *	@drive: the drive to issue th command on
+ *	@drive: the drive to issue the command on
  *	@rq: the request structure holding the command
  *
  *	execute_drive_cmd() issues a special drive command,  usually 
@@ -1101,6 +1101,7 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 	ide_hwif_t	*hwif;
 	struct request	*rq;
 	ide_startstop_t	startstop;
+	int             loops = 0;
 
 	/* for atari only: POSSIBLY BROKEN HERE(?) */
 	ide_get_lock(ide_intr, hwgroup);
@@ -1153,6 +1154,7 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 			/* no more work for this hwgroup (for now) */
 			return;
 		}
+	again:
 		hwif = HWIF(drive);
 		if (hwgroup->hwif->sharing_irq &&
 		    hwif != hwgroup->hwif &&
@@ -1192,8 +1194,14 @@ static void ide_do_request (ide_hwgroup_t *hwgroup, int masked_irq)
 		 * though. I hope that doesn't happen too much, hopefully not
 		 * unless the subdriver triggers such a thing in its own PM
 		 * state machine.
+		 *
+		 * We count how many times we loop here to make sure we service
+		 * all drives in the hwgroup without looping for ever
 		 */
 		if (drive->blocked && !blk_pm_request(rq) && !(rq->flags & REQ_PREEMPT)) {
+			drive = drive->next ? drive->next : hwgroup->drive;
+			if (loops++ < 4 && !blk_queue_plugged(drive->queue))
+				goto again;
 			/* We clear busy, there should be no pending ATA command at this point. */
 			hwgroup->busy = 0;
 			break;

@@ -1557,7 +1557,7 @@ static void scc_net_setup(struct net_device *dev)
 	dev->stop	     = scc_net_close;
 
 	dev->hard_start_xmit = scc_net_tx;
-	dev->hard_header     = ax25_encapsulate;
+	dev->hard_header     = ax25_hard_header;
 	dev->rebuild_header  = ax25_rebuild_header;
 	dev->set_mac_address = scc_net_set_mac_address;
 	dev->get_stats       = scc_net_get_stats;

@@ -149,15 +149,62 @@ mtrr_write(struct file *file, const char __user *buf, size_t len, loff_t * ppos)
 	return -EINVAL;
 }
 
-static int
-mtrr_ioctl(struct inode *inode, struct file *file,
-	   unsigned int cmd, unsigned long __arg)
+static long
+mtrr_ioctl(struct file *file, unsigned int cmd, unsigned long __arg)
 {
-	int err;
+	int err = 0;
 	mtrr_type type;
 	struct mtrr_sentry sentry;
 	struct mtrr_gentry gentry;
 	void __user *arg = (void __user *) __arg;
+
+	switch (cmd) {
+	case MTRRIOC_ADD_ENTRY:
+	case MTRRIOC_SET_ENTRY:
+	case MTRRIOC_DEL_ENTRY:
+	case MTRRIOC_KILL_ENTRY:
+	case MTRRIOC_ADD_PAGE_ENTRY:
+	case MTRRIOC_SET_PAGE_ENTRY:
+	case MTRRIOC_DEL_PAGE_ENTRY:
+	case MTRRIOC_KILL_PAGE_ENTRY:
+		if (copy_from_user(&sentry, arg, sizeof sentry))
+			return -EFAULT;
+		break;
+	case MTRRIOC_GET_ENTRY:
+	case MTRRIOC_GET_PAGE_ENTRY:
+		if (copy_from_user(&gentry, arg, sizeof gentry))
+			return -EFAULT;
+		break;
+#ifdef CONFIG_COMPAT
+	case MTRRIOC32_ADD_ENTRY:
+	case MTRRIOC32_SET_ENTRY:
+	case MTRRIOC32_DEL_ENTRY:
+	case MTRRIOC32_KILL_ENTRY:
+	case MTRRIOC32_ADD_PAGE_ENTRY:
+	case MTRRIOC32_SET_PAGE_ENTRY:
+	case MTRRIOC32_DEL_PAGE_ENTRY:
+	case MTRRIOC32_KILL_PAGE_ENTRY: {
+		struct mtrr_sentry32 __user *s32 = (struct mtrr_sentry32 __user *)__arg;
+		err = get_user(sentry.base, &s32->base);
+		err |= get_user(sentry.size, &s32->size);
+		err |= get_user(sentry.type, &s32->type);
+		if (err)
+			return err;
+		break;
+	}
+	case MTRRIOC32_GET_ENTRY:
+	case MTRRIOC32_GET_PAGE_ENTRY: {
+		struct mtrr_gentry32 __user *g32 = (struct mtrr_gentry32 __user *)__arg;
+		err = get_user(gentry.regnum, &g32->regnum);
+		err |= get_user(gentry.base, &g32->base);
+		err |= get_user(gentry.size, &g32->size);
+		err |= get_user(gentry.type, &g32->type);
+		if (err)
+			return err;
+		break;
+	}
+#endif
+	}
 
 	switch (cmd) {
 	default:
@@ -165,44 +212,26 @@ mtrr_ioctl(struct inode *inode, struct file *file,
 	case MTRRIOC_ADD_ENTRY:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		if (copy_from_user(&sentry, arg, sizeof sentry))
-			return -EFAULT;
 		err =
 		    mtrr_file_add(sentry.base, sentry.size, sentry.type, 1,
 				  file, 0);
-		if (err < 0)
-			return err;
 		break;
 	case MTRRIOC_SET_ENTRY:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		if (copy_from_user(&sentry, arg, sizeof sentry))
-			return -EFAULT;
 		err = mtrr_add(sentry.base, sentry.size, sentry.type, 0);
-		if (err < 0)
-			return err;
 		break;
 	case MTRRIOC_DEL_ENTRY:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		if (copy_from_user(&sentry, arg, sizeof sentry))
-			return -EFAULT;
 		err = mtrr_file_del(sentry.base, sentry.size, file, 0);
-		if (err < 0)
-			return err;
 		break;
 	case MTRRIOC_KILL_ENTRY:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		if (copy_from_user(&sentry, arg, sizeof sentry))
-			return -EFAULT;
 		err = mtrr_del(-1, sentry.base, sentry.size);
-		if (err < 0)
-			return err;
 		break;
 	case MTRRIOC_GET_ENTRY:
-		if (copy_from_user(&gentry, arg, sizeof gentry))
-			return -EFAULT;
 		if (gentry.regnum >= num_var_ranges)
 			return -EINVAL;
 		mtrr_if->get(gentry.regnum, &gentry.base, &gentry.size, &type);
@@ -217,60 +246,59 @@ mtrr_ioctl(struct inode *inode, struct file *file,
 			gentry.type = type;
 		}
 
-		if (copy_to_user(arg, &gentry, sizeof gentry))
-			return -EFAULT;
 		break;
 	case MTRRIOC_ADD_PAGE_ENTRY:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		if (copy_from_user(&sentry, arg, sizeof sentry))
-			return -EFAULT;
 		err =
 		    mtrr_file_add(sentry.base, sentry.size, sentry.type, 1,
 				  file, 1);
-		if (err < 0)
-			return err;
 		break;
 	case MTRRIOC_SET_PAGE_ENTRY:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		if (copy_from_user(&sentry, arg, sizeof sentry))
-			return -EFAULT;
 		err = mtrr_add_page(sentry.base, sentry.size, sentry.type, 0);
-		if (err < 0)
-			return err;
 		break;
 	case MTRRIOC_DEL_PAGE_ENTRY:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		if (copy_from_user(&sentry, arg, sizeof sentry))
-			return -EFAULT;
 		err = mtrr_file_del(sentry.base, sentry.size, file, 1);
-		if (err < 0)
-			return err;
 		break;
 	case MTRRIOC_KILL_PAGE_ENTRY:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		if (copy_from_user(&sentry, arg, sizeof sentry))
-			return -EFAULT;
 		err = mtrr_del_page(-1, sentry.base, sentry.size);
-		if (err < 0)
-			return err;
 		break;
 	case MTRRIOC_GET_PAGE_ENTRY:
-		if (copy_from_user(&gentry, arg, sizeof gentry))
-			return -EFAULT;
 		if (gentry.regnum >= num_var_ranges)
 			return -EINVAL;
 		mtrr_if->get(gentry.regnum, &gentry.base, &gentry.size, &type);
 		gentry.type = type;
-
-		if (copy_to_user(arg, &gentry, sizeof gentry))
-			return -EFAULT;
 		break;
 	}
-	return 0;
+
+	if (err)
+		return err;
+
+	switch(cmd) {
+	case MTRRIOC_GET_ENTRY:
+	case MTRRIOC_GET_PAGE_ENTRY:
+		if (copy_to_user(arg, &gentry, sizeof gentry))
+			err = -EFAULT;
+		break;
+#ifdef CONFIG_COMPAT
+	case MTRRIOC32_GET_ENTRY:
+	case MTRRIOC32_GET_PAGE_ENTRY: {
+		struct mtrr_gentry32 __user *g32 = (struct mtrr_gentry32 __user *)__arg;
+		err = put_user(gentry.base, &g32->base);
+		err |= put_user(gentry.size, &g32->size);
+		err |= put_user(gentry.regnum, &g32->regnum);
+		err |= put_user(gentry.type, &g32->type);
+		break;
+	}
+#endif
+	}
+	return err;
 }
 
 static int
@@ -310,7 +338,8 @@ static struct file_operations mtrr_fops = {
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.write   = mtrr_write,
-	.ioctl   = mtrr_ioctl,
+	.unlocked_ioctl = mtrr_ioctl,
+	.compat_ioctl = mtrr_ioctl,
 	.release = mtrr_close,
 };
 

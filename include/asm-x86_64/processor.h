@@ -32,7 +32,7 @@
 #define ID_MASK		0x00200000
 
 #define desc_empty(desc) \
-               (!((desc)->a + (desc)->b))
+               (!((desc)->a | (desc)->b))
 
 #define desc_equal(desc1, desc2) \
                (((desc1)->a == (desc2)->a) && ((desc1)->b == (desc2)->b))
@@ -254,7 +254,13 @@ struct thread_struct {
 	u64 tls_array[GDT_ENTRY_TLS_ENTRIES];
 } __attribute__((aligned(16)));
 
-#define INIT_THREAD  {}
+#define INIT_THREAD  { \
+	.rsp0 = (unsigned long)&init_stack + sizeof(init_stack) \
+}
+
+#define INIT_TSS  { \
+	.rsp0 = (unsigned long)&init_stack + sizeof(init_stack) \
+}
 
 #define INIT_MMAP \
 { &init_mm, 0, 0, NULL, PAGE_SHARED, VM_READ | VM_WRITE | VM_EXEC, 1, NULL, NULL }
@@ -375,13 +381,13 @@ struct extended_sigtable {
 #define ASM_NOP_MAX 8
 
 /* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
-extern inline void rep_nop(void)
+static inline void rep_nop(void)
 {
 	__asm__ __volatile__("rep;nop": : :"memory");
 }
 
 /* Stop speculative execution */
-extern inline void sync_core(void)
+static inline void sync_core(void)
 { 
 	int tmp;
 	asm volatile("cpuid" : "=a" (tmp) : "0" (1) : "ebx","ecx","edx","memory");
@@ -398,7 +404,7 @@ static inline void prefetch(void *x)
 #define ARCH_HAS_PREFETCHW 1
 static inline void prefetchw(void *x) 
 { 
-	alternative_input(ASM_NOP5,
+	alternative_input("prefetcht0 (%1)",
 			  "prefetchw (%1)",
 			  X86_FEATURE_3DNOW,
 			  "r" (x));
@@ -436,6 +442,11 @@ static inline void prefetchw(void *x)
 	outb((reg), 0x22); \
 	outb((data), 0x23); \
 } while (0)
+
+static inline void serialize_cpu(void)
+{
+	__asm__ __volatile__ ("cpuid" : : : "ax", "bx", "cx", "dx");
+}
 
 static inline void __monitor(const void *eax, unsigned long ecx,
 		unsigned long edx)

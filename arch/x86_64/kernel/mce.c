@@ -17,6 +17,7 @@
 #include <linux/fs.h>
 #include <linux/cpu.h>
 #include <linux/percpu.h>
+#include <linux/ctype.h>
 #include <asm/processor.h> 
 #include <asm/msr.h>
 #include <asm/mce.h>
@@ -36,6 +37,7 @@ static unsigned long bank[NR_BANKS] = { [0 ... NR_BANKS-1] = ~0UL };
 static unsigned long console_logged;
 static int notify_user;
 static int rip_msr;
+static int mce_bootlog;
 
 /*
  * Lockless MCE logging infrastructure.
@@ -52,27 +54,35 @@ void mce_log(struct mce *mce)
 {
 	unsigned next, entry;
 	mce->finished = 0;
-	smp_wmb();
+	wmb();
 	for (;;) {
 		entry = rcu_dereference(mcelog.next);
-		/* When the buffer fills up discard new entries. Assume 
-		   that the earlier errors are the more interesting. */
-		if (entry >= MCE_LOG_LEN) {
-			set_bit(MCE_OVERFLOW, &mcelog.flags);
-			return;
+		/* The rmb forces the compiler to reload next in each
+		    iteration */
+		rmb();
+		for (;;) {
+			/* When the buffer fills up discard new entries. Assume
+			   that the earlier errors are the more interesting. */
+			if (entry >= MCE_LOG_LEN) {
+				set_bit(MCE_OVERFLOW, &mcelog.flags);
+				return;
+			}
+			/* Old left over entry. Skip. */
+			if (mcelog.entry[entry].finished) {
+				entry++;
+				continue;
+			}
+			break;
 		}
-		/* Old left over entry. Skip. */
-		if (mcelog.entry[entry].finished)
-			continue;
 		smp_rmb();
 		next = entry + 1;
 		if (cmpxchg(&mcelog.next, entry, next) == entry)
 			break;
 	}
 	memcpy(mcelog.entry + entry, mce, sizeof(struct mce));
-	smp_wmb();
+	wmb();
 	mcelog.entry[entry].finished = 1;
-	smp_wmb();
+	wmb();
 
 	if (!test_and_set_bit(0, &console_logged))
 		notify_user = 1;
@@ -197,10 +207,11 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 			rdmsrl(MSR_IA32_MC0_ADDR + i*4, m.addr);
 
 		mce_get_rip(&m, regs);
-		if (error_code != -1)
+		if (error_code >= 0)
 			rdtscll(m.tsc);
 		wrmsrl(MSR_IA32_MC0_STATUS + i*4, 0);
-		mce_log(&m);
+		if (error_code != -2)
+			mce_log(&m);
 
 		/* Did this bank cause the exception? */
 		/* Assume that the bank with uncorrectable errors did it,
@@ -210,7 +221,7 @@ void do_machine_check(struct pt_regs * regs, long error_code)
 			panicm_found = 1;
 		}
 
-		tainted |= TAINT_MACHINE_CHECK;
+		add_taint(TAINT_MACHINE_CHECK);
 	}
 
 	/* Never do anything final in the polling timer */
@@ -315,7 +326,7 @@ static void mce_init(void *dummy)
 
 	/* Log the machine checks left over from the previous reset.
 	   This also clears all registers */
-	do_machine_check(NULL, -1);
+	do_machine_check(NULL, mce_bootlog ? -1 : -2);
 
 	set_in_cr4(X86_CR4_MCE);
 
@@ -402,9 +413,15 @@ static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize, loff
 	}
 
 	err = 0;
-	for (i = 0; i < next; i++) {
-		if (!mcelog.entry[i].finished)
-			continue;
+	for (i = 0; i < next; i++) {		
+		unsigned long start = jiffies;
+		while (!mcelog.entry[i].finished) {
+			if (!time_before(jiffies, start + 2)) {
+				memset(mcelog.entry + i,0, sizeof(struct mce));
+				continue;
+			}
+			cpu_relax();
+		}
 		smp_rmb();
 		err |= copy_to_user(buf, mcelog.entry + i, sizeof(struct mce));
 		buf += sizeof(struct mce); 
@@ -476,11 +493,20 @@ static int __init mcheck_disable(char *str)
 }
 
 /* mce=off disables machine check. Note you can reenable it later
-   using sysfs */
+   using sysfs.
+   mce=TOLERANCELEVEL (number, see above)
+   mce=bootlog Log MCEs from before booting. Disabled by default to work
+   around buggy BIOS that leave bogus MCEs.  */
 static int __init mcheck_enable(char *str)
 {
+	if (*str == '=')
+		str++;
 	if (!strcmp(str, "off"))
 		mce_dont_init = 1;
+	else if (!strcmp(str, "bootlog"))
+		mce_bootlog = 1;
+	else if (isdigit(str[0]))
+		get_option(&str, &tolerant);
 	else
 		printk("mce= argument %s ignored. Please use /sys", str); 
 	return 0;
@@ -493,10 +519,12 @@ __setup("mce", mcheck_enable);
  * Sysfs support
  */ 
 
-/* On resume clear all MCE state. Don't want to see leftovers from the BIOS. */
+/* On resume clear all MCE state. Don't want to see leftovers from the BIOS.
+   Only one CPU is active at this time, the others get readded later using
+   CPU hotplug. */
 static int mce_resume(struct sys_device *dev)
 {
-	on_each_cpu(mce_init, NULL, 1, 1);
+	mce_init(NULL);
 	return 0;
 }
 

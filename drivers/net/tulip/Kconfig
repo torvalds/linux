@@ -135,6 +135,18 @@ config DM9102
 	  <file:Documentation/networking/net-modules.txt>.  The module will
 	  be called dmfe.
 
+config ULI526X
+	tristate "ULi M526x controller support"
+	depends on NET_TULIP && PCI
+	select CRC32
+	---help---
+	  This driver is for ULi M5261/M5263 10/100M Ethernet Controller
+	  (<http://www.uli.com.tw/>).
+
+	  To compile this driver as a module, choose M here and read
+	  <file:Documentation/networking/net-modules.txt>.  The module will
+	  be called uli526x.
+	  
 config PCMCIA_XIRCOM
 	tristate "Xircom CardBus support (new driver)"
 	depends on NET_TULIP && CARDBUS

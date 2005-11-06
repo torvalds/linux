@@ -597,7 +597,7 @@ int snd_pcm_new_stream(snd_pcm_t *pcm, int stream, int substream_count)
 	}
 	prev = NULL;
 	for (idx = 0, prev = NULL; idx < substream_count; idx++) {
-		substream = kcalloc(1, sizeof(*substream), GFP_KERNEL);
+		substream = kzalloc(sizeof(*substream), GFP_KERNEL);
 		if (substream == NULL)
 			return -ENOMEM;
 		substream->pcm = pcm;
@@ -657,7 +657,7 @@ int snd_pcm_new(snd_card_t * card, char *id, int device,
 	snd_assert(rpcm != NULL, return -EINVAL);
 	*rpcm = NULL;
 	snd_assert(card != NULL, return -ENXIO);
-	pcm = kcalloc(1, sizeof(*pcm), GFP_KERNEL);
+	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
 	if (pcm == NULL)
 		return -ENOMEM;
 	pcm->card = card;
@@ -795,7 +795,7 @@ int snd_pcm_open_substream(snd_pcm_t *pcm, int stream,
 	if (substream == NULL)
 		return -EAGAIN;
 
-	runtime = kcalloc(1, sizeof(*runtime), GFP_KERNEL);
+	runtime = kzalloc(sizeof(*runtime), GFP_KERNEL);
 	if (runtime == NULL)
 		return -ENOMEM;
 

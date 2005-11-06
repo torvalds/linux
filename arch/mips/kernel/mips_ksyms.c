@@ -35,7 +35,7 @@ EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(strcat);
 EXPORT_SYMBOL(strchr);
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 EXPORT_SYMBOL(strncmp);
 #endif
 EXPORT_SYMBOL(strlen);

@@ -948,7 +948,6 @@ static void device_change_handler(void *self)
 			msleep(10);
 		check_mute(chip, &mix->amp_mute, 1, mix->auto_mute_notify,
 			   chip->speaker_sw_ctl);
-		mix->drc_enable = 0;
 	} else {
 		/* unmute speaker, mute others */
 		check_mute(chip, &mix->amp_mute, 0, mix->auto_mute_notify,
@@ -960,20 +959,21 @@ static void device_change_handler(void *self)
 		if (mix->line_mute.addr != 0)
 			check_mute(chip, &mix->line_mute, 1, mix->auto_mute_notify,
 				   chip->lineout_sw_ctl);
-		mix->drc_enable = 1;
 	}
-	if (mix->auto_mute_notify) {
+	if (mix->auto_mute_notify)
 		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 				       &chip->hp_detect_ctl->id);
+
+#ifdef CONFIG_SND_POWERMAC_AUTO_DRC
+	mix->drc_enable = ! (headphone || lineout);
+	if (mix->auto_mute_notify)
 		snd_ctl_notify(chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &chip->drc_sw_ctl->id);
-	}
-
-	/* first set the DRC so the speaker do not explode -ReneR */
 	if (chip->model == PMAC_TUMBLER)
 		tumbler_set_drc(mix);
 	else
 		snapper_set_drc(mix);
+#endif
 
 	/* reset the master volume so the correct amplification is applied */
 	tumbler_set_master_volume(mix);
@@ -1369,6 +1369,17 @@ int __init snd_pmac_tumbler_init(pmac_t *chip)
 	chip->drc_sw_ctl = snd_ctl_new1(&tumbler_drc_sw, chip);
 	if ((err = snd_ctl_add(chip->card, chip->drc_sw_ctl)) < 0)
 		return err;
+
+	/* set initial DRC range to 60% */
+	if (chip->model == PMAC_TUMBLER)
+		mix->drc_range = (TAS3001_DRC_MAX * 6) / 10;
+	else
+		mix->drc_range = (TAS3004_DRC_MAX * 6) / 10;
+	mix->drc_enable = 1; /* will be changed later if AUTO_DRC is set */
+	if (chip->model == PMAC_TUMBLER)
+		tumbler_set_drc(mix);
+	else
+		snapper_set_drc(mix);
 
 #ifdef CONFIG_PM
 	chip->suspend = tumbler_suspend;

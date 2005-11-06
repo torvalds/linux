@@ -2,7 +2,8 @@
 # USB Storage driver configuration
 #
 
-comment "NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support' may also be needed; see USB_STORAGE Help for more information"
+comment "NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support'"
+comment "may also be needed; see USB_STORAGE Help for more information"
 	depends on USB
 
 config USB_STORAGE
@@ -111,3 +112,15 @@ config USB_STORAGE_JUMPSHOT
 	  Say Y here to include additional code to support the Lexar Jumpshot
 	  USB CompactFlash reader.
 
+
+config USB_STORAGE_ONETOUCH
+	bool "Support OneTouch Button on Maxtor Hard Drives (EXPERIMENTAL)"
+	depends on USB_STORAGE && INPUT_EVDEV && EXPERIMENTAL
+	help
+	  Say Y here to include additional code to support the Maxtor OneTouch
+	  USB hard drive's onetouch button.
+
+	  This code registers the button on the front of Maxtor OneTouch USB
+	  hard drive's as an input device. An action can be associated with
+	  this input in any keybinding software. (e.g. gnome's keyboard short-
+	  cuts)

@@ -456,7 +456,7 @@ cpu_arm922_name:
 
 	.align
 
-	.section ".proc.info", #alloc, #execinstr
+	.section ".proc.info.init", #alloc, #execinstr
 
 	.type	__arm922_proc_info,#object
 __arm922_proc_info:

@@ -37,7 +37,7 @@ static long madvise_behavior(struct vm_area_struct * vma,
 
 	if (new_flags == vma->vm_flags) {
 		*prev = vma;
-		goto success;
+		goto out;
 	}
 
 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
@@ -62,6 +62,7 @@ static long madvise_behavior(struct vm_area_struct * vma,
 			goto out;
 	}
 
+success:
 	/*
 	 * vm_flags is protected by the mmap_sem held in write mode.
 	 */
@@ -70,7 +71,6 @@ static long madvise_behavior(struct vm_area_struct * vma,
 out:
 	if (error == -ENOMEM)
 		error = -EAGAIN;
-success:
 	return error;
 }
 
@@ -82,6 +82,9 @@ static long madvise_willneed(struct vm_area_struct * vma,
 			     unsigned long start, unsigned long end)
 {
 	struct file *file = vma->vm_file;
+
+	if (!file)
+		return -EBADF;
 
 	if (file->f_mapping->a_ops->get_xip_page) {
 		/* no bad return value, but ignore advice */
@@ -123,7 +126,7 @@ static long madvise_dontneed(struct vm_area_struct * vma,
 			     unsigned long start, unsigned long end)
 {
 	*prev = vma;
-	if ((vma->vm_flags & VM_LOCKED) || is_vm_hugetlb_page(vma))
+	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_RESERVED))
 		return -EINVAL;
 
 	if (unlikely(vma->vm_flags & VM_NONLINEAR)) {
@@ -141,11 +144,7 @@ static long
 madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
 		unsigned long start, unsigned long end, int behavior)
 {
-	struct file *filp = vma->vm_file;
-	long error = -EBADF;
-
-	if (!filp)
-		goto  out;
+	long error;
 
 	switch (behavior) {
 	case MADV_NORMAL:
@@ -166,8 +165,6 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
 		error = -EINVAL;
 		break;
 	}
-		
-out:
 	return error;
 }
 
@@ -237,8 +234,9 @@ asmlinkage long sys_madvise(unsigned long start, size_t len_in, int behavior)
 	 * - different from the way of handling in mlock etc.
 	 */
 	vma = find_vma_prev(current->mm, start, &prev);
-	if (!vma && prev)
-		vma = prev->vm_next;
+	if (vma && start > vma->vm_start)
+		prev = vma;
+
 	for (;;) {
 		/* Still start < end. */
 		error = -ENOMEM;

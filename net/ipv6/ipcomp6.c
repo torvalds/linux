@@ -341,8 +341,7 @@ static void ipcomp6_free_tfms(struct crypto_tfm **tfms)
 
 	for_each_cpu(cpu) {
 		struct crypto_tfm *tfm = *per_cpu_ptr(tfms, cpu);
-		if (tfm)
-			crypto_free_tfm(tfm);
+		crypto_free_tfm(tfm);
 	}
 	free_percpu(tfms);
 }
@@ -354,7 +353,7 @@ static struct crypto_tfm **ipcomp6_alloc_tfms(const char *alg_name)
 	int cpu;
 
 	/* This can be any valid CPU ID so we don't need locking. */
-	cpu = smp_processor_id();
+	cpu = raw_smp_processor_id();
 
 	list_for_each_entry(pos, &ipcomp6_tfms_list, list) {
 		struct crypto_tfm *tfm;

@@ -223,10 +223,22 @@ static void h3xxx_lcd_power(int enable)
 }
 
 static struct map_desc h3600_io_desc[] __initdata = {
- /* virtual	       physical 	  length      type */
-  { H3600_BANK_2_VIRT, SA1100_CS2_PHYS,   0x02800000, MT_DEVICE }, /* static memory bank 2  CS#2 */
-  { H3600_BANK_4_VIRT, SA1100_CS4_PHYS,   0x00800000, MT_DEVICE }, /* static memory bank 4  CS#4 */
-  { H3600_EGPIO_VIRT,  H3600_EGPIO_PHYS,  0x01000000, MT_DEVICE }, /* EGPIO 0		CS#5 */
+  	{	/* static memory bank 2  CS#2 */
+		.virtual	=  H3600_BANK_2_VIRT,
+		.pfn		= __phys_to_pfn(SA1100_CS2_PHYS),
+		.length		= 0x02800000,
+		.type		= MT_DEVICE
+	}, {	/* static memory bank 4  CS#4 */
+		.virtual	=  H3600_BANK_4_VIRT,
+		.pfn		= __phys_to_pfn(SA1100_CS4_PHYS),
+		.length		= 0x00800000,
+		.type		= MT_DEVICE
+	}, {	/* EGPIO 0		CS#5 */
+		.virtual	=  H3600_EGPIO_VIRT,
+		.pfn		= __phys_to_pfn(H3600_EGPIO_PHYS),
+		.length		= 0x01000000,
+		.type		= MT_DEVICE
+	}
 };
 
 /*

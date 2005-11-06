@@ -50,8 +50,7 @@
 #include <acpi/acevents.h>
 
 #define _COMPONENT          ACPI_HARDWARE
-	 ACPI_MODULE_NAME    ("hwregs")
-
+ACPI_MODULE_NAME("hwregs")
 
 /*******************************************************************************
  *
@@ -65,56 +64,51 @@
  *              THIS FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
  *
  ******************************************************************************/
-
-acpi_status
-acpi_hw_clear_acpi_status (
-	u32                             flags)
+acpi_status acpi_hw_clear_acpi_status(u32 flags)
 {
-	acpi_status                     status;
+	acpi_status status;
 
+	ACPI_FUNCTION_TRACE("hw_clear_acpi_status");
 
-	ACPI_FUNCTION_TRACE ("hw_clear_acpi_status");
-
-
-	ACPI_DEBUG_PRINT ((ACPI_DB_IO, "About to write %04X to %04X\n",
-		ACPI_BITMASK_ALL_FIXED_STATUS,
-		(u16) acpi_gbl_FADT->xpm1a_evt_blk.address));
+	ACPI_DEBUG_PRINT((ACPI_DB_IO, "About to write %04X to %04X\n",
+			  ACPI_BITMASK_ALL_FIXED_STATUS,
+			  (u16) acpi_gbl_FADT->xpm1a_evt_blk.address));
 
 	if (flags & ACPI_MTX_LOCK) {
-		status = acpi_ut_acquire_mutex (ACPI_MTX_HARDWARE);
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 
-	status = acpi_hw_register_write (ACPI_MTX_DO_NOT_LOCK,
-			 ACPI_REGISTER_PM1_STATUS,
-			 ACPI_BITMASK_ALL_FIXED_STATUS);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_hw_register_write(ACPI_MTX_DO_NOT_LOCK,
+					ACPI_REGISTER_PM1_STATUS,
+					ACPI_BITMASK_ALL_FIXED_STATUS);
+	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
 	}
 
 	/* Clear the fixed events */
 
 	if (acpi_gbl_FADT->xpm1b_evt_blk.address) {
-		status = acpi_hw_low_level_write (16, ACPI_BITMASK_ALL_FIXED_STATUS,
-				 &acpi_gbl_FADT->xpm1b_evt_blk);
-		if (ACPI_FAILURE (status)) {
+		status =
+		    acpi_hw_low_level_write(16, ACPI_BITMASK_ALL_FIXED_STATUS,
+					    &acpi_gbl_FADT->xpm1b_evt_blk);
+		if (ACPI_FAILURE(status)) {
 			goto unlock_and_exit;
 		}
 	}
 
 	/* Clear the GPE Bits in all GPE registers in all GPE blocks */
 
-	status = acpi_ev_walk_gpe_list (acpi_hw_clear_gpe_block, ACPI_ISR);
+	status = acpi_ev_walk_gpe_list(acpi_hw_clear_gpe_block);
 
-unlock_and_exit:
+      unlock_and_exit:
 	if (flags & ACPI_MTX_LOCK) {
-		(void) acpi_ut_release_mutex (ACPI_MTX_HARDWARE);
+		(void)acpi_ut_release_mutex(ACPI_MTX_HARDWARE);
 	}
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -132,53 +126,48 @@ unlock_and_exit:
  ******************************************************************************/
 
 acpi_status
-acpi_get_sleep_type_data (
-	u8                              sleep_state,
-	u8                              *sleep_type_a,
-	u8                              *sleep_type_b)
+acpi_get_sleep_type_data(u8 sleep_state, u8 * sleep_type_a, u8 * sleep_type_b)
 {
-	acpi_status                     status = AE_OK;
-	struct acpi_parameter_info      info;
-	char                            *sleep_state_name;
+	acpi_status status = AE_OK;
+	struct acpi_parameter_info info;
+	char *sleep_state_name;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_get_sleep_type_data");
-
+	ACPI_FUNCTION_TRACE("acpi_get_sleep_type_data");
 
 	/* Validate parameters */
 
-	if ((sleep_state > ACPI_S_STATES_MAX) ||
-		!sleep_type_a || !sleep_type_b) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+	if ((sleep_state > ACPI_S_STATES_MAX) || !sleep_type_a || !sleep_type_b) {
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Evaluate the namespace object containing the values for this state */
 
 	info.parameters = NULL;
 	info.return_object = NULL;
-	sleep_state_name = (char *) acpi_gbl_sleep_state_names[sleep_state];
+	sleep_state_name = (char *)acpi_gbl_sleep_state_names[sleep_state];
 
-	status = acpi_ns_evaluate_by_name (sleep_state_name, &info);
-	if (ACPI_FAILURE (status)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-			"%s while evaluating sleep_state [%s]\n",
-			acpi_format_exception (status), sleep_state_name));
+	status = acpi_ns_evaluate_by_name(sleep_state_name, &info);
+	if (ACPI_FAILURE(status)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+				  "%s while evaluating sleep_state [%s]\n",
+				  acpi_format_exception(status),
+				  sleep_state_name));
 
-		return_ACPI_STATUS (status);
+		return_ACPI_STATUS(status);
 	}
 
 	/* Must have a return object */
 
 	if (!info.return_object) {
-		ACPI_REPORT_ERROR (("No Sleep State object returned from [%s]\n",
-			sleep_state_name));
+		ACPI_REPORT_ERROR(("No Sleep State object returned from [%s]\n",
+				   sleep_state_name));
 		status = AE_NOT_EXIST;
 	}
 
 	/* It must be of type Package */
 
-	else if (ACPI_GET_OBJECT_TYPE (info.return_object) != ACPI_TYPE_PACKAGE) {
-		ACPI_REPORT_ERROR (("Sleep State return object is not a Package\n"));
+	else if (ACPI_GET_OBJECT_TYPE(info.return_object) != ACPI_TYPE_PACKAGE) {
+		ACPI_REPORT_ERROR(("Sleep State return object is not a Package\n"));
 		status = AE_AML_OPERAND_TYPE;
 	}
 
@@ -190,45 +179,41 @@ acpi_get_sleep_type_data (
 	 * one per sleep type (A/B).
 	 */
 	else if (info.return_object->package.count < 2) {
-		ACPI_REPORT_ERROR ((
-			"Sleep State return package does not have at least two elements\n"));
+		ACPI_REPORT_ERROR(("Sleep State return package does not have at least two elements\n"));
 		status = AE_AML_NO_OPERAND;
 	}
 
 	/* The first two elements must both be of type Integer */
 
-	else if ((ACPI_GET_OBJECT_TYPE (info.return_object->package.elements[0])
-			 != ACPI_TYPE_INTEGER) ||
-			 (ACPI_GET_OBJECT_TYPE (info.return_object->package.elements[1])
-				!= ACPI_TYPE_INTEGER)) {
-		ACPI_REPORT_ERROR ((
-			"Sleep State return package elements are not both Integers (%s, %s)\n",
-			acpi_ut_get_object_type_name (info.return_object->package.elements[0]),
-			acpi_ut_get_object_type_name (info.return_object->package.elements[1])));
+	else if ((ACPI_GET_OBJECT_TYPE(info.return_object->package.elements[0])
+		  != ACPI_TYPE_INTEGER) ||
+		 (ACPI_GET_OBJECT_TYPE(info.return_object->package.elements[1])
+		  != ACPI_TYPE_INTEGER)) {
+		ACPI_REPORT_ERROR(("Sleep State return package elements are not both Integers (%s, %s)\n", acpi_ut_get_object_type_name(info.return_object->package.elements[0]), acpi_ut_get_object_type_name(info.return_object->package.elements[1])));
 		status = AE_AML_OPERAND_TYPE;
-	}
-	else {
+	} else {
 		/* Valid _Sx_ package size, type, and value */
 
 		*sleep_type_a = (u8)
-			(info.return_object->package.elements[0])->integer.value;
+		    (info.return_object->package.elements[0])->integer.value;
 		*sleep_type_b = (u8)
-			(info.return_object->package.elements[1])->integer.value;
+		    (info.return_object->package.elements[1])->integer.value;
 	}
 
-	if (ACPI_FAILURE (status)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"%s While evaluating sleep_state [%s], bad Sleep object %p type %s\n",
-			acpi_format_exception (status),
-			sleep_state_name, info.return_object,
-			acpi_ut_get_object_type_name (info.return_object)));
+	if (ACPI_FAILURE(status)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "%s While evaluating sleep_state [%s], bad Sleep object %p type %s\n",
+				  acpi_format_exception(status),
+				  sleep_state_name, info.return_object,
+				  acpi_ut_get_object_type_name(info.
+							       return_object)));
 	}
 
-	acpi_ut_remove_reference (info.return_object);
-	return_ACPI_STATUS (status);
+	acpi_ut_remove_reference(info.return_object);
+	return_ACPI_STATUS(status);
 }
-EXPORT_SYMBOL(acpi_get_sleep_type_data);
 
+EXPORT_SYMBOL(acpi_get_sleep_type_data);
 
 /*******************************************************************************
  *
@@ -242,21 +227,19 @@ EXPORT_SYMBOL(acpi_get_sleep_type_data);
  *
  ******************************************************************************/
 
-struct acpi_bit_register_info *
-acpi_hw_get_bit_register_info (
-	u32                             register_id)
+struct acpi_bit_register_info *acpi_hw_get_bit_register_info(u32 register_id)
 {
-	ACPI_FUNCTION_NAME ("hw_get_bit_register_info");
-
+	ACPI_FUNCTION_NAME("hw_get_bit_register_info");
 
 	if (register_id > ACPI_BITREG_MAX) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Invalid bit_register ID: %X\n", register_id));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Invalid bit_register ID: %X\n",
+				  register_id));
 		return (NULL);
 	}
 
 	return (&acpi_gbl_bit_register_info[register_id]);
 }
-
 
 /*******************************************************************************
  *
@@ -273,59 +256,56 @@ acpi_hw_get_bit_register_info (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_get_register (
-	u32                             register_id,
-	u32                             *return_value,
-	u32                             flags)
+acpi_status acpi_get_register(u32 register_id, u32 * return_value, u32 flags)
 {
-	u32                             register_value = 0;
-	struct acpi_bit_register_info   *bit_reg_info;
-	acpi_status                     status;
+	u32 register_value = 0;
+	struct acpi_bit_register_info *bit_reg_info;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_get_register");
-
+	ACPI_FUNCTION_TRACE("acpi_get_register");
 
 	/* Get the info structure corresponding to the requested ACPI Register */
 
-	bit_reg_info = acpi_hw_get_bit_register_info (register_id);
+	bit_reg_info = acpi_hw_get_bit_register_info(register_id);
 	if (!bit_reg_info) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	if (flags & ACPI_MTX_LOCK) {
-		status = acpi_ut_acquire_mutex (ACPI_MTX_HARDWARE);
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 
 	/* Read from the register */
 
-	status = acpi_hw_register_read (ACPI_MTX_DO_NOT_LOCK,
-			  bit_reg_info->parent_register, &register_value);
+	status = acpi_hw_register_read(ACPI_MTX_DO_NOT_LOCK,
+				       bit_reg_info->parent_register,
+				       &register_value);
 
 	if (flags & ACPI_MTX_LOCK) {
-		(void) acpi_ut_release_mutex (ACPI_MTX_HARDWARE);
+		(void)acpi_ut_release_mutex(ACPI_MTX_HARDWARE);
 	}
 
-	if (ACPI_SUCCESS (status)) {
+	if (ACPI_SUCCESS(status)) {
 		/* Normalize the value that was read */
 
-		register_value = ((register_value & bit_reg_info->access_bit_mask)
-				   >> bit_reg_info->bit_position);
+		register_value =
+		    ((register_value & bit_reg_info->access_bit_mask)
+		     >> bit_reg_info->bit_position);
 
 		*return_value = register_value;
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_IO, "Read value %8.8X register %X\n",
-				register_value, bit_reg_info->parent_register));
+		ACPI_DEBUG_PRINT((ACPI_DB_IO, "Read value %8.8X register %X\n",
+				  register_value,
+				  bit_reg_info->parent_register));
 	}
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-EXPORT_SYMBOL(acpi_get_register);
 
+EXPORT_SYMBOL(acpi_get_register);
 
 /*******************************************************************************
  *
@@ -342,40 +322,36 @@ EXPORT_SYMBOL(acpi_get_register);
  *
  ******************************************************************************/
 
-acpi_status
-acpi_set_register (
-	u32                             register_id,
-	u32                             value,
-	u32                             flags)
+acpi_status acpi_set_register(u32 register_id, u32 value, u32 flags)
 {
-	u32                             register_value = 0;
-	struct acpi_bit_register_info   *bit_reg_info;
-	acpi_status                     status;
+	u32 register_value = 0;
+	struct acpi_bit_register_info *bit_reg_info;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE_U32 ("acpi_set_register", register_id);
-
+	ACPI_FUNCTION_TRACE_U32("acpi_set_register", register_id);
 
 	/* Get the info structure corresponding to the requested ACPI Register */
 
-	bit_reg_info = acpi_hw_get_bit_register_info (register_id);
+	bit_reg_info = acpi_hw_get_bit_register_info(register_id);
 	if (!bit_reg_info) {
-		ACPI_REPORT_ERROR (("Bad ACPI HW register_id: %X\n", register_id));
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		ACPI_REPORT_ERROR(("Bad ACPI HW register_id: %X\n",
+				   register_id));
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	if (flags & ACPI_MTX_LOCK) {
-		status = acpi_ut_acquire_mutex (ACPI_MTX_HARDWARE);
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 
 	/* Always do a register read first so we can insert the new bits  */
 
-	status = acpi_hw_register_read (ACPI_MTX_DO_NOT_LOCK,
-			 bit_reg_info->parent_register, &register_value);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_hw_register_read(ACPI_MTX_DO_NOT_LOCK,
+				       bit_reg_info->parent_register,
+				       &register_value);
+	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
 	}
 
@@ -395,25 +371,29 @@ acpi_set_register (
 		 * information is the single bit we're interested in, all others should
 		 * be written as 0 so they will be left unchanged.
 		 */
-		value = ACPI_REGISTER_PREPARE_BITS (value,
-				 bit_reg_info->bit_position, bit_reg_info->access_bit_mask);
+		value = ACPI_REGISTER_PREPARE_BITS(value,
+						   bit_reg_info->bit_position,
+						   bit_reg_info->
+						   access_bit_mask);
 		if (value) {
-			status = acpi_hw_register_write (ACPI_MTX_DO_NOT_LOCK,
-					 ACPI_REGISTER_PM1_STATUS, (u16) value);
+			status = acpi_hw_register_write(ACPI_MTX_DO_NOT_LOCK,
+							ACPI_REGISTER_PM1_STATUS,
+							(u16) value);
 			register_value = 0;
 		}
 		break;
 
-
 	case ACPI_REGISTER_PM1_ENABLE:
 
-		ACPI_REGISTER_INSERT_VALUE (register_value, bit_reg_info->bit_position,
-				bit_reg_info->access_bit_mask, value);
+		ACPI_REGISTER_INSERT_VALUE(register_value,
+					   bit_reg_info->bit_position,
+					   bit_reg_info->access_bit_mask,
+					   value);
 
-		status = acpi_hw_register_write (ACPI_MTX_DO_NOT_LOCK,
-				 ACPI_REGISTER_PM1_ENABLE, (u16) register_value);
+		status = acpi_hw_register_write(ACPI_MTX_DO_NOT_LOCK,
+						ACPI_REGISTER_PM1_ENABLE,
+						(u16) register_value);
 		break;
-
 
 	case ACPI_REGISTER_PM1_CONTROL:
 
@@ -422,65 +402,73 @@ acpi_set_register (
 		 * Note that at this level, the fact that there are actually TWO
 		 * registers (A and B - and B may not exist) is abstracted.
 		 */
-		ACPI_DEBUG_PRINT ((ACPI_DB_IO, "PM1 control: Read %X\n", register_value));
+		ACPI_DEBUG_PRINT((ACPI_DB_IO, "PM1 control: Read %X\n",
+				  register_value));
 
-		ACPI_REGISTER_INSERT_VALUE (register_value, bit_reg_info->bit_position,
-				bit_reg_info->access_bit_mask, value);
+		ACPI_REGISTER_INSERT_VALUE(register_value,
+					   bit_reg_info->bit_position,
+					   bit_reg_info->access_bit_mask,
+					   value);
 
-		status = acpi_hw_register_write (ACPI_MTX_DO_NOT_LOCK,
-				 ACPI_REGISTER_PM1_CONTROL, (u16) register_value);
+		status = acpi_hw_register_write(ACPI_MTX_DO_NOT_LOCK,
+						ACPI_REGISTER_PM1_CONTROL,
+						(u16) register_value);
 		break;
-
 
 	case ACPI_REGISTER_PM2_CONTROL:
 
-		status = acpi_hw_register_read (ACPI_MTX_DO_NOT_LOCK,
-				 ACPI_REGISTER_PM2_CONTROL, &register_value);
-		if (ACPI_FAILURE (status)) {
+		status = acpi_hw_register_read(ACPI_MTX_DO_NOT_LOCK,
+					       ACPI_REGISTER_PM2_CONTROL,
+					       &register_value);
+		if (ACPI_FAILURE(status)) {
 			goto unlock_and_exit;
 		}
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_IO, "PM2 control: Read %X from %8.8X%8.8X\n",
-			register_value,
-			ACPI_FORMAT_UINT64 (
-				acpi_gbl_FADT->xpm2_cnt_blk.address)));
+		ACPI_DEBUG_PRINT((ACPI_DB_IO,
+				  "PM2 control: Read %X from %8.8X%8.8X\n",
+				  register_value,
+				  ACPI_FORMAT_UINT64(acpi_gbl_FADT->
+						     xpm2_cnt_blk.address)));
 
-		ACPI_REGISTER_INSERT_VALUE (register_value, bit_reg_info->bit_position,
-				bit_reg_info->access_bit_mask, value);
+		ACPI_REGISTER_INSERT_VALUE(register_value,
+					   bit_reg_info->bit_position,
+					   bit_reg_info->access_bit_mask,
+					   value);
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_IO, "About to write %4.4X to %8.8X%8.8X\n",
-			register_value,
-			ACPI_FORMAT_UINT64 (
-				acpi_gbl_FADT->xpm2_cnt_blk.address)));
+		ACPI_DEBUG_PRINT((ACPI_DB_IO,
+				  "About to write %4.4X to %8.8X%8.8X\n",
+				  register_value,
+				  ACPI_FORMAT_UINT64(acpi_gbl_FADT->
+						     xpm2_cnt_blk.address)));
 
-		status = acpi_hw_register_write (ACPI_MTX_DO_NOT_LOCK,
-				 ACPI_REGISTER_PM2_CONTROL, (u8) (register_value));
+		status = acpi_hw_register_write(ACPI_MTX_DO_NOT_LOCK,
+						ACPI_REGISTER_PM2_CONTROL,
+						(u8) (register_value));
 		break;
-
 
 	default:
 		break;
 	}
 
-
-unlock_and_exit:
+      unlock_and_exit:
 
 	if (flags & ACPI_MTX_LOCK) {
-		(void) acpi_ut_release_mutex (ACPI_MTX_HARDWARE);
+		(void)acpi_ut_release_mutex(ACPI_MTX_HARDWARE);
 	}
 
 	/* Normalize the value that was read */
 
-	ACPI_DEBUG_EXEC (register_value =
-		((register_value & bit_reg_info->access_bit_mask) >>
-			bit_reg_info->bit_position));
+	ACPI_DEBUG_EXEC(register_value =
+			((register_value & bit_reg_info->access_bit_mask) >>
+			 bit_reg_info->bit_position));
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_IO, "Set bits: %8.8X actual %8.8X register %X\n",
-			value, register_value, bit_reg_info->parent_register));
-	return_ACPI_STATUS (status);
+	ACPI_DEBUG_PRINT((ACPI_DB_IO,
+			  "Set bits: %8.8X actual %8.8X register %X\n", value,
+			  register_value, bit_reg_info->parent_register));
+	return_ACPI_STATUS(status);
 }
-EXPORT_SYMBOL(acpi_set_register);
 
+EXPORT_SYMBOL(acpi_set_register);
 
 /******************************************************************************
  *
@@ -498,102 +486,106 @@ EXPORT_SYMBOL(acpi_set_register);
  ******************************************************************************/
 
 acpi_status
-acpi_hw_register_read (
-	u8                              use_lock,
-	u32                             register_id,
-	u32                             *return_value)
+acpi_hw_register_read(u8 use_lock, u32 register_id, u32 * return_value)
 {
-	u32                             value1 = 0;
-	u32                             value2 = 0;
-	acpi_status                     status;
+	u32 value1 = 0;
+	u32 value2 = 0;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("hw_register_read");
-
+	ACPI_FUNCTION_TRACE("hw_register_read");
 
 	if (ACPI_MTX_LOCK == use_lock) {
-		status = acpi_ut_acquire_mutex (ACPI_MTX_HARDWARE);
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 
 	switch (register_id) {
-	case ACPI_REGISTER_PM1_STATUS:           /* 16-bit access */
+	case ACPI_REGISTER_PM1_STATUS:	/* 16-bit access */
 
-		status = acpi_hw_low_level_read (16, &value1, &acpi_gbl_FADT->xpm1a_evt_blk);
-		if (ACPI_FAILURE (status)) {
+		status =
+		    acpi_hw_low_level_read(16, &value1,
+					   &acpi_gbl_FADT->xpm1a_evt_blk);
+		if (ACPI_FAILURE(status)) {
 			goto unlock_and_exit;
 		}
 
 		/* PM1B is optional */
 
-		status = acpi_hw_low_level_read (16, &value2, &acpi_gbl_FADT->xpm1b_evt_blk);
+		status =
+		    acpi_hw_low_level_read(16, &value2,
+					   &acpi_gbl_FADT->xpm1b_evt_blk);
 		value1 |= value2;
 		break;
 
+	case ACPI_REGISTER_PM1_ENABLE:	/* 16-bit access */
 
-	case ACPI_REGISTER_PM1_ENABLE:           /* 16-bit access */
-
-		status = acpi_hw_low_level_read (16, &value1, &acpi_gbl_xpm1a_enable);
-		if (ACPI_FAILURE (status)) {
+		status =
+		    acpi_hw_low_level_read(16, &value1, &acpi_gbl_xpm1a_enable);
+		if (ACPI_FAILURE(status)) {
 			goto unlock_and_exit;
 		}
 
 		/* PM1B is optional */
 
-		status = acpi_hw_low_level_read (16, &value2, &acpi_gbl_xpm1b_enable);
+		status =
+		    acpi_hw_low_level_read(16, &value2, &acpi_gbl_xpm1b_enable);
 		value1 |= value2;
 		break;
 
+	case ACPI_REGISTER_PM1_CONTROL:	/* 16-bit access */
 
-	case ACPI_REGISTER_PM1_CONTROL:          /* 16-bit access */
-
-		status = acpi_hw_low_level_read (16, &value1, &acpi_gbl_FADT->xpm1a_cnt_blk);
-		if (ACPI_FAILURE (status)) {
+		status =
+		    acpi_hw_low_level_read(16, &value1,
+					   &acpi_gbl_FADT->xpm1a_cnt_blk);
+		if (ACPI_FAILURE(status)) {
 			goto unlock_and_exit;
 		}
 
-		status = acpi_hw_low_level_read (16, &value2, &acpi_gbl_FADT->xpm1b_cnt_blk);
+		status =
+		    acpi_hw_low_level_read(16, &value2,
+					   &acpi_gbl_FADT->xpm1b_cnt_blk);
 		value1 |= value2;
 		break;
 
+	case ACPI_REGISTER_PM2_CONTROL:	/* 8-bit access */
 
-	case ACPI_REGISTER_PM2_CONTROL:          /* 8-bit access */
-
-		status = acpi_hw_low_level_read (8, &value1, &acpi_gbl_FADT->xpm2_cnt_blk);
+		status =
+		    acpi_hw_low_level_read(8, &value1,
+					   &acpi_gbl_FADT->xpm2_cnt_blk);
 		break;
 
+	case ACPI_REGISTER_PM_TIMER:	/* 32-bit access */
 
-	case ACPI_REGISTER_PM_TIMER:             /* 32-bit access */
-
-		status = acpi_hw_low_level_read (32, &value1, &acpi_gbl_FADT->xpm_tmr_blk);
+		status =
+		    acpi_hw_low_level_read(32, &value1,
+					   &acpi_gbl_FADT->xpm_tmr_blk);
 		break;
 
-	case ACPI_REGISTER_SMI_COMMAND_BLOCK:    /* 8-bit access */
+	case ACPI_REGISTER_SMI_COMMAND_BLOCK:	/* 8-bit access */
 
-		status = acpi_os_read_port (acpi_gbl_FADT->smi_cmd, &value1, 8);
+		status = acpi_os_read_port(acpi_gbl_FADT->smi_cmd, &value1, 8);
 		break;
 
 	default:
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unknown Register ID: %X\n",
-			register_id));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "Unknown Register ID: %X\n",
+				  register_id));
 		status = AE_BAD_PARAMETER;
 		break;
 	}
 
-unlock_and_exit:
+      unlock_and_exit:
 	if (ACPI_MTX_LOCK == use_lock) {
-		(void) acpi_ut_release_mutex (ACPI_MTX_HARDWARE);
+		(void)acpi_ut_release_mutex(ACPI_MTX_HARDWARE);
 	}
 
-	if (ACPI_SUCCESS (status)) {
+	if (ACPI_SUCCESS(status)) {
 		*return_value = value1;
 	}
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /******************************************************************************
  *
@@ -610,108 +602,111 @@ unlock_and_exit:
  *
  ******************************************************************************/
 
-acpi_status
-acpi_hw_register_write (
-	u8                              use_lock,
-	u32                             register_id,
-	u32                             value)
+acpi_status acpi_hw_register_write(u8 use_lock, u32 register_id, u32 value)
 {
-	acpi_status                     status;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("hw_register_write");
-
+	ACPI_FUNCTION_TRACE("hw_register_write");
 
 	if (ACPI_MTX_LOCK == use_lock) {
-		status = acpi_ut_acquire_mutex (ACPI_MTX_HARDWARE);
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_ut_acquire_mutex(ACPI_MTX_HARDWARE);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 	}
 
 	switch (register_id) {
-	case ACPI_REGISTER_PM1_STATUS:           /* 16-bit access */
+	case ACPI_REGISTER_PM1_STATUS:	/* 16-bit access */
 
-		status = acpi_hw_low_level_write (16, value, &acpi_gbl_FADT->xpm1a_evt_blk);
-		if (ACPI_FAILURE (status)) {
+		status =
+		    acpi_hw_low_level_write(16, value,
+					    &acpi_gbl_FADT->xpm1a_evt_blk);
+		if (ACPI_FAILURE(status)) {
 			goto unlock_and_exit;
 		}
 
 		/* PM1B is optional */
 
-		status = acpi_hw_low_level_write (16, value, &acpi_gbl_FADT->xpm1b_evt_blk);
+		status =
+		    acpi_hw_low_level_write(16, value,
+					    &acpi_gbl_FADT->xpm1b_evt_blk);
 		break;
 
+	case ACPI_REGISTER_PM1_ENABLE:	/* 16-bit access */
 
-	case ACPI_REGISTER_PM1_ENABLE:           /* 16-bit access*/
-
-		status = acpi_hw_low_level_write (16, value, &acpi_gbl_xpm1a_enable);
-		if (ACPI_FAILURE (status)) {
+		status =
+		    acpi_hw_low_level_write(16, value, &acpi_gbl_xpm1a_enable);
+		if (ACPI_FAILURE(status)) {
 			goto unlock_and_exit;
 		}
 
 		/* PM1B is optional */
 
-		status = acpi_hw_low_level_write (16, value, &acpi_gbl_xpm1b_enable);
+		status =
+		    acpi_hw_low_level_write(16, value, &acpi_gbl_xpm1b_enable);
 		break;
 
+	case ACPI_REGISTER_PM1_CONTROL:	/* 16-bit access */
 
-	case ACPI_REGISTER_PM1_CONTROL:          /* 16-bit access */
-
-		status = acpi_hw_low_level_write (16, value, &acpi_gbl_FADT->xpm1a_cnt_blk);
-		if (ACPI_FAILURE (status)) {
+		status =
+		    acpi_hw_low_level_write(16, value,
+					    &acpi_gbl_FADT->xpm1a_cnt_blk);
+		if (ACPI_FAILURE(status)) {
 			goto unlock_and_exit;
 		}
 
-		status = acpi_hw_low_level_write (16, value, &acpi_gbl_FADT->xpm1b_cnt_blk);
+		status =
+		    acpi_hw_low_level_write(16, value,
+					    &acpi_gbl_FADT->xpm1b_cnt_blk);
 		break;
 
+	case ACPI_REGISTER_PM1A_CONTROL:	/* 16-bit access */
 
-	case ACPI_REGISTER_PM1A_CONTROL:         /* 16-bit access */
-
-		status = acpi_hw_low_level_write (16, value, &acpi_gbl_FADT->xpm1a_cnt_blk);
+		status =
+		    acpi_hw_low_level_write(16, value,
+					    &acpi_gbl_FADT->xpm1a_cnt_blk);
 		break;
 
+	case ACPI_REGISTER_PM1B_CONTROL:	/* 16-bit access */
 
-	case ACPI_REGISTER_PM1B_CONTROL:         /* 16-bit access */
-
-		status = acpi_hw_low_level_write (16, value, &acpi_gbl_FADT->xpm1b_cnt_blk);
+		status =
+		    acpi_hw_low_level_write(16, value,
+					    &acpi_gbl_FADT->xpm1b_cnt_blk);
 		break;
 
+	case ACPI_REGISTER_PM2_CONTROL:	/* 8-bit access */
 
-	case ACPI_REGISTER_PM2_CONTROL:          /* 8-bit access */
-
-		status = acpi_hw_low_level_write (8, value, &acpi_gbl_FADT->xpm2_cnt_blk);
+		status =
+		    acpi_hw_low_level_write(8, value,
+					    &acpi_gbl_FADT->xpm2_cnt_blk);
 		break;
 
+	case ACPI_REGISTER_PM_TIMER:	/* 32-bit access */
 
-	case ACPI_REGISTER_PM_TIMER:             /* 32-bit access */
-
-		status = acpi_hw_low_level_write (32, value, &acpi_gbl_FADT->xpm_tmr_blk);
+		status =
+		    acpi_hw_low_level_write(32, value,
+					    &acpi_gbl_FADT->xpm_tmr_blk);
 		break;
 
-
-	case ACPI_REGISTER_SMI_COMMAND_BLOCK:    /* 8-bit access */
+	case ACPI_REGISTER_SMI_COMMAND_BLOCK:	/* 8-bit access */
 
 		/* SMI_CMD is currently always in IO space */
 
-		status = acpi_os_write_port (acpi_gbl_FADT->smi_cmd, value, 8);
+		status = acpi_os_write_port(acpi_gbl_FADT->smi_cmd, value, 8);
 		break;
-
 
 	default:
 		status = AE_BAD_PARAMETER;
 		break;
 	}
 
-unlock_and_exit:
+      unlock_and_exit:
 	if (ACPI_MTX_LOCK == use_lock) {
-		(void) acpi_ut_release_mutex (ACPI_MTX_HARDWARE);
+		(void)acpi_ut_release_mutex(ACPI_MTX_HARDWARE);
 	}
 
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /******************************************************************************
  *
@@ -728,17 +723,12 @@ unlock_and_exit:
  ******************************************************************************/
 
 acpi_status
-acpi_hw_low_level_read (
-	u32                             width,
-	u32                             *value,
-	struct acpi_generic_address     *reg)
+acpi_hw_low_level_read(u32 width, u32 * value, struct acpi_generic_address *reg)
 {
-	u64                             address;
-	acpi_status                     status;
+	u64 address;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_NAME ("hw_low_level_read");
-
+	ACPI_FUNCTION_NAME("hw_low_level_read");
 
 	/*
 	 * Must have a valid pointer to a GAS structure, and
@@ -751,7 +741,7 @@ acpi_hw_low_level_read (
 
 	/* Get a local copy of the address.  Handles possible alignment issues */
 
-	ACPI_MOVE_64_TO_64 (&address, &reg->address);
+	ACPI_MOVE_64_TO_64(&address, &reg->address);
 	if (!address) {
 		return (AE_OK);
 	}
@@ -764,34 +754,31 @@ acpi_hw_low_level_read (
 	switch (reg->address_space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
 
-		status = acpi_os_read_memory (
-				 (acpi_physical_address) address,
-				 value, width);
+		status = acpi_os_read_memory((acpi_physical_address) address,
+					     value, width);
 		break;
-
 
 	case ACPI_ADR_SPACE_SYSTEM_IO:
 
-		status = acpi_os_read_port ((acpi_io_address) address,
-				 value, width);
+		status = acpi_os_read_port((acpi_io_address) address,
+					   value, width);
 		break;
 
-
 	default:
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Unsupported address space: %X\n", reg->address_space_id));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Unsupported address space: %X\n",
+				  reg->address_space_id));
 		return (AE_BAD_PARAMETER);
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_IO,
-		"Read:  %8.8X width %2d from %8.8X%8.8X (%s)\n",
-		*value, width,
-		ACPI_FORMAT_UINT64 (address),
-		acpi_ut_get_region_name (reg->address_space_id)));
+	ACPI_DEBUG_PRINT((ACPI_DB_IO,
+			  "Read:  %8.8X width %2d from %8.8X%8.8X (%s)\n",
+			  *value, width,
+			  ACPI_FORMAT_UINT64(address),
+			  acpi_ut_get_region_name(reg->address_space_id)));
 
 	return (status);
 }
-
 
 /******************************************************************************
  *
@@ -808,17 +795,12 @@ acpi_hw_low_level_read (
  ******************************************************************************/
 
 acpi_status
-acpi_hw_low_level_write (
-	u32                             width,
-	u32                             value,
-	struct acpi_generic_address     *reg)
+acpi_hw_low_level_write(u32 width, u32 value, struct acpi_generic_address * reg)
 {
-	u64                             address;
-	acpi_status                     status;
+	u64 address;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_NAME ("hw_low_level_write");
-
+	ACPI_FUNCTION_NAME("hw_low_level_write");
 
 	/*
 	 * Must have a valid pointer to a GAS structure, and
@@ -831,7 +813,7 @@ acpi_hw_low_level_write (
 
 	/* Get a local copy of the address.  Handles possible alignment issues */
 
-	ACPI_MOVE_64_TO_64 (&address, &reg->address);
+	ACPI_MOVE_64_TO_64(&address, &reg->address);
 	if (!address) {
 		return (AE_OK);
 	}
@@ -843,30 +825,28 @@ acpi_hw_low_level_write (
 	switch (reg->address_space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
 
-		status = acpi_os_write_memory (
-				 (acpi_physical_address) address,
-				 value, width);
+		status = acpi_os_write_memory((acpi_physical_address) address,
+					      value, width);
 		break;
-
 
 	case ACPI_ADR_SPACE_SYSTEM_IO:
 
-		status = acpi_os_write_port ((acpi_io_address) address,
-				 value, width);
+		status = acpi_os_write_port((acpi_io_address) address,
+					    value, width);
 		break;
 
-
 	default:
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-			"Unsupported address space: %X\n", reg->address_space_id));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Unsupported address space: %X\n",
+				  reg->address_space_id));
 		return (AE_BAD_PARAMETER);
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_IO,
-		"Wrote: %8.8X width %2d   to %8.8X%8.8X (%s)\n",
-		value, width,
-		ACPI_FORMAT_UINT64 (address),
-		acpi_ut_get_region_name (reg->address_space_id)));
+	ACPI_DEBUG_PRINT((ACPI_DB_IO,
+			  "Wrote: %8.8X width %2d   to %8.8X%8.8X (%s)\n",
+			  value, width,
+			  ACPI_FORMAT_UINT64(address),
+			  acpi_ut_get_region_name(reg->address_space_id)));
 
 	return (status);
 }

@@ -138,6 +138,13 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 		},
 	},
 	{
+		.ident = "Fujitsu-Siemens Lifebook E4010",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK E4010"),
+		},
+	},
+	{
 		.ident = "Toshiba P10",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
@@ -256,9 +263,10 @@ static void i8042_pnp_exit(void)
 	}
 }
 
-static int i8042_pnp_init(void)
+static int __init i8042_pnp_init(void)
 {
-	int result_kbd, result_aux;
+	int result_kbd = 0, result_aux = 0;
+	char kbd_irq_str[4] = { 0 }, aux_irq_str[4] = { 0 };
 
 	if (i8042_nopnp) {
 		printk(KERN_INFO "i8042: PNP detection disabled\n");
@@ -267,6 +275,7 @@ static int i8042_pnp_init(void)
 
 	if ((result_kbd = pnp_register_driver(&i8042_pnp_kbd_driver)) >= 0)
 		i8042_pnp_kbd_registered = 1;
+
 	if ((result_aux = pnp_register_driver(&i8042_pnp_aux_driver)) >= 0)
 		i8042_pnp_aux_registered = 1;
 
@@ -279,6 +288,27 @@ static int i8042_pnp_init(void)
 		return 0;
 #endif
 	}
+
+	if (result_kbd > 0)
+		snprintf(kbd_irq_str, sizeof(kbd_irq_str),
+			"%d", i8042_pnp_kbd_irq);
+	if (result_aux > 0)
+		snprintf(aux_irq_str, sizeof(aux_irq_str),
+			"%d", i8042_pnp_aux_irq);
+
+	printk(KERN_INFO "PNP: PS/2 Controller [%s%s%s] at %#x,%#x irq %s%s%s\n",
+		i8042_pnp_kbd_name, (result_kbd > 0 && result_aux > 0) ? "," : "",
+		i8042_pnp_aux_name,
+		i8042_pnp_data_reg, i8042_pnp_command_reg,
+		kbd_irq_str, (result_kbd > 0 && result_aux > 0) ? "," : "",
+		aux_irq_str);
+
+#if defined(__ia64__)
+	if (result_kbd <= 0)
+		i8042_nokbd = 1;
+	if (result_aux <= 0)
+		i8042_noaux = 1;
+#endif
 
 	if (((i8042_pnp_data_reg & ~0xf) == (i8042_data_reg & ~0xf) &&
 	      i8042_pnp_data_reg != i8042_data_reg) || !i8042_pnp_data_reg) {
@@ -294,53 +324,47 @@ static int i8042_pnp_init(void)
 		i8042_pnp_command_reg = i8042_command_reg;
 	}
 
-	if (!i8042_pnp_kbd_irq) {
-		printk(KERN_WARNING "PNP: PS/2 controller doesn't have KBD irq; using default %#x\n", i8042_kbd_irq);
+	if (!i8042_nokbd && !i8042_pnp_kbd_irq) {
+		printk(KERN_WARNING "PNP: PS/2 controller doesn't have KBD irq; using default %d\n", i8042_kbd_irq);
 		i8042_pnp_kbd_irq = i8042_kbd_irq;
 	}
 
-	if (!i8042_pnp_aux_irq) {
-		printk(KERN_WARNING "PNP: PS/2 controller doesn't have AUX irq; using default %#x\n", i8042_aux_irq);
+	if (!i8042_noaux && !i8042_pnp_aux_irq) {
+		printk(KERN_WARNING "PNP: PS/2 controller doesn't have AUX irq; using default %d\n", i8042_aux_irq);
 		i8042_pnp_aux_irq = i8042_aux_irq;
 	}
-
-#if defined(__ia64__)
-	if (result_aux <= 0)
-		i8042_noaux = 1;
-#endif
 
 	i8042_data_reg = i8042_pnp_data_reg;
 	i8042_command_reg = i8042_pnp_command_reg;
 	i8042_kbd_irq = i8042_pnp_kbd_irq;
 	i8042_aux_irq = i8042_pnp_aux_irq;
 
-	printk(KERN_INFO "PNP: PS/2 Controller [%s%s%s] at %#x,%#x irq %d%s%d\n",
-		i8042_pnp_kbd_name, (result_kbd > 0 && result_aux > 0) ? "," : "", i8042_pnp_aux_name,
-		i8042_data_reg, i8042_command_reg, i8042_kbd_irq,
-		(result_aux > 0) ? "," : "", i8042_aux_irq);
-
 	return 0;
 }
 
+#else
+static inline int i8042_pnp_init(void) { return 0; }
+static inline void i8042_pnp_exit(void) { }
 #endif
 
-static inline int i8042_platform_init(void)
+static int __init i8042_platform_init(void)
 {
+	int retval;
+
 /*
  * On ix86 platforms touching the i8042 data register region can do really
  * bad things. Because of this the region is always reserved on ix86 boxes.
  *
  *	if (!request_region(I8042_DATA_REG, 16, "i8042"))
- *		return -1;
+ *		return -EBUSY;
  */
 
 	i8042_kbd_irq = I8042_MAP_IRQ(1);
 	i8042_aux_irq = I8042_MAP_IRQ(12);
 
-#ifdef CONFIG_PNP
-	if (i8042_pnp_init())
-		return -1;
-#endif
+	retval = i8042_pnp_init();
+	if (retval)
+		return retval;
 
 #if defined(__ia64__)
         i8042_reset = 1;
@@ -354,14 +378,12 @@ static inline int i8042_platform_init(void)
 		i8042_nomux = 1;
 #endif
 
-	return 0;
+	return retval;
 }
 
 static inline void i8042_platform_exit(void)
 {
-#ifdef CONFIG_PNP
 	i8042_pnp_exit();
-#endif
 }
 
 #endif /* _I8042_X86IA64IO_H */

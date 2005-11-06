@@ -42,16 +42,13 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acinterp.h>
 #include <acpi/acparser.h>
 #include <acpi/amlcode.h>
 
-
 #define _COMPONENT          ACPI_EXECUTER
-	 ACPI_MODULE_NAME    ("exoparg3")
-
+ACPI_MODULE_NAME("exoparg3")
 
 /*!
  * Naming convention for AML interpreter execution routines.
@@ -74,8 +71,6 @@
  * The AcpiExOpcode* functions are called via the Dispatcher component with
  * fully resolved operands.
 !*/
-
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ex_opcode_3A_0T_0R
@@ -87,60 +82,52 @@
  * DESCRIPTION: Execute Triadic operator (3 operands)
  *
  ******************************************************************************/
-
-acpi_status
-acpi_ex_opcode_3A_0T_0R (
-	struct acpi_walk_state          *walk_state)
+acpi_status acpi_ex_opcode_3A_0T_0R(struct acpi_walk_state *walk_state)
 {
-	union acpi_operand_object       **operand = &walk_state->operands[0];
-	struct acpi_signal_fatal_info   *fatal;
-	acpi_status                     status = AE_OK;
+	union acpi_operand_object **operand = &walk_state->operands[0];
+	struct acpi_signal_fatal_info *fatal;
+	acpi_status status = AE_OK;
 
-
-	ACPI_FUNCTION_TRACE_STR ("ex_opcode_3A_0T_0R",
-		acpi_ps_get_opcode_name (walk_state->opcode));
-
+	ACPI_FUNCTION_TRACE_STR("ex_opcode_3A_0T_0R",
+				acpi_ps_get_opcode_name(walk_state->opcode));
 
 	switch (walk_state->opcode) {
-	case AML_FATAL_OP:          /* Fatal (fatal_type fatal_code fatal_arg) */
+	case AML_FATAL_OP:	/* Fatal (fatal_type fatal_code fatal_arg) */
 
-		ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-			"fatal_op: Type %X Code %X Arg %X <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
-			(u32) operand[0]->integer.value,
-			(u32) operand[1]->integer.value,
-			(u32) operand[2]->integer.value));
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				  "fatal_op: Type %X Code %X Arg %X <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
+				  (u32) operand[0]->integer.value,
+				  (u32) operand[1]->integer.value,
+				  (u32) operand[2]->integer.value));
 
-		fatal = ACPI_MEM_ALLOCATE (sizeof (struct acpi_signal_fatal_info));
+		fatal =
+		    ACPI_MEM_ALLOCATE(sizeof(struct acpi_signal_fatal_info));
 		if (fatal) {
-			fatal->type     = (u32) operand[0]->integer.value;
-			fatal->code     = (u32) operand[1]->integer.value;
+			fatal->type = (u32) operand[0]->integer.value;
+			fatal->code = (u32) operand[1]->integer.value;
 			fatal->argument = (u32) operand[2]->integer.value;
 		}
 
 		/* Always signal the OS! */
 
-		status = acpi_os_signal (ACPI_SIGNAL_FATAL, fatal);
+		status = acpi_os_signal(ACPI_SIGNAL_FATAL, fatal);
 
 		/* Might return while OS is shutting down, just continue */
 
-		ACPI_MEM_FREE (fatal);
+		ACPI_MEM_FREE(fatal);
 		break;
-
 
 	default:
 
-		ACPI_REPORT_ERROR (("acpi_ex_opcode_3A_0T_0R: Unknown opcode %X\n",
-				walk_state->opcode));
+		ACPI_REPORT_ERROR(("acpi_ex_opcode_3A_0T_0R: Unknown opcode %X\n", walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}
 
+      cleanup:
 
-cleanup:
-
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -154,31 +141,28 @@ cleanup:
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ex_opcode_3A_1T_1R (
-	struct acpi_walk_state          *walk_state)
+acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 {
-	union acpi_operand_object       **operand = &walk_state->operands[0];
-	union acpi_operand_object       *return_desc = NULL;
-	char                            *buffer;
-	acpi_status                     status = AE_OK;
-	acpi_integer                    index;
-	acpi_size                       length;
+	union acpi_operand_object **operand = &walk_state->operands[0];
+	union acpi_operand_object *return_desc = NULL;
+	char *buffer = NULL;
+	acpi_status status = AE_OK;
+	acpi_integer index;
+	acpi_size length;
 
-
-	ACPI_FUNCTION_TRACE_STR ("ex_opcode_3A_1T_1R",
-		acpi_ps_get_opcode_name (walk_state->opcode));
-
+	ACPI_FUNCTION_TRACE_STR("ex_opcode_3A_1T_1R",
+				acpi_ps_get_opcode_name(walk_state->opcode));
 
 	switch (walk_state->opcode) {
-	case AML_MID_OP:    /* Mid (Source[0], Index[1], Length[2], Result[3]) */
+	case AML_MID_OP:	/* Mid (Source[0], Index[1], Length[2], Result[3]) */
 
 		/*
 		 * Create the return object.  The Source operand is guaranteed to be
 		 * either a String or a Buffer, so just use its type.
 		 */
-		return_desc = acpi_ut_create_internal_object (
-				  ACPI_GET_OBJECT_TYPE (operand[0]));
+		return_desc =
+		    acpi_ut_create_internal_object(ACPI_GET_OBJECT_TYPE
+						   (operand[0]));
 		if (!return_desc) {
 			status = AE_NO_MEMORY;
 			goto cleanup;
@@ -193,67 +177,92 @@ acpi_ex_opcode_3A_1T_1R (
 		 * If the index is beyond the length of the String/Buffer, or if the
 		 * requested length is zero, return a zero-length String/Buffer
 		 */
-		if ((index < operand[0]->string.length) &&
-			(length > 0)) {
-			/* Truncate request if larger than the actual String/Buffer */
+		if (index >= operand[0]->string.length) {
+			length = 0;
+		}
 
-			if ((index + length) >
-				operand[0]->string.length) {
-				length = (acpi_size) operand[0]->string.length -
-						 (acpi_size) index;
-			}
+		/* Truncate request if larger than the actual String/Buffer */
 
-			/* Allocate a new buffer for the String/Buffer */
+		else if ((index + length) > operand[0]->string.length) {
+			length = (acpi_size) operand[0]->string.length -
+			    (acpi_size) index;
+		}
 
-			buffer = ACPI_MEM_CALLOCATE ((acpi_size) length + 1);
+		/* Strings always have a sub-pointer, not so for buffers */
+
+		switch (ACPI_GET_OBJECT_TYPE(operand[0])) {
+		case ACPI_TYPE_STRING:
+
+			/* Always allocate a new buffer for the String */
+
+			buffer = ACPI_MEM_CALLOCATE((acpi_size) length + 1);
 			if (!buffer) {
 				status = AE_NO_MEMORY;
 				goto cleanup;
 			}
+			break;
 
+		case ACPI_TYPE_BUFFER:
+
+			/* If the requested length is zero, don't allocate a buffer */
+
+			if (length > 0) {
+				/* Allocate a new buffer for the Buffer */
+
+				buffer = ACPI_MEM_CALLOCATE(length);
+				if (!buffer) {
+					status = AE_NO_MEMORY;
+					goto cleanup;
+				}
+			}
+			break;
+
+		default:	/* Should not happen */
+
+			status = AE_AML_OPERAND_TYPE;
+			goto cleanup;
+		}
+
+		if (length > 0) {
 			/* Copy the portion requested */
 
-			ACPI_MEMCPY (buffer, operand[0]->string.pointer + index,
-					  length);
-
-			/* Set the length of the new String/Buffer */
-
-			return_desc->string.pointer = buffer;
-			return_desc->string.length = (u32) length;
+			ACPI_MEMCPY(buffer, operand[0]->string.pointer + index,
+				    length);
 		}
+
+		/* Set the length of the new String/Buffer */
+
+		return_desc->string.pointer = buffer;
+		return_desc->string.length = (u32) length;
 
 		/* Mark buffer initialized */
 
 		return_desc->buffer.flags |= AOPOBJ_DATA_VALID;
 		break;
 
-
 	default:
 
-		ACPI_REPORT_ERROR (("acpi_ex_opcode_3A_0T_0R: Unknown opcode %X\n",
-				walk_state->opcode));
+		ACPI_REPORT_ERROR(("acpi_ex_opcode_3A_0T_0R: Unknown opcode %X\n", walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}
 
 	/* Store the result in the target */
 
-	status = acpi_ex_store (return_desc, operand[3], walk_state);
+	status = acpi_ex_store(return_desc, operand[3], walk_state);
 
-cleanup:
+      cleanup:
 
 	/* Delete return object on error */
 
-	if (ACPI_FAILURE (status)) {
-		acpi_ut_remove_reference (return_desc);
+	if (ACPI_FAILURE(status) || walk_state->result_obj) {
+		acpi_ut_remove_reference(return_desc);
 	}
 
 	/* Set the return object and exit */
 
-	if (!walk_state->result_obj) {
+	else {
 		walk_state->result_obj = return_desc;
 	}
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
-

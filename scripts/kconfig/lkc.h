@@ -8,7 +8,13 @@
 
 #include "expr.h"
 
-#include <libintl.h>
+#ifndef KBUILD_NO_NLS
+# include <libintl.h>
+#else
+# define gettext(Msgid) ((const char *) (Msgid))
+# define textdomain(Domainname) ((const char *) (Domainname))
+# define bindtextdomain(Domainname, Dirname) ((const char *) (Dirname))
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,7 +65,7 @@ void menu_add_entry(struct symbol *sym);
 void menu_end_entry(void);
 void menu_add_dep(struct expr *dep);
 struct property *menu_add_prop(enum prop_type type, char *prompt, struct expr *expr, struct expr *dep);
-void menu_add_prompt(enum prop_type type, char *prompt, struct expr *dep);
+struct property *menu_add_prompt(enum prop_type type, char *prompt, struct expr *dep);
 void menu_add_expr(enum prop_type type, struct expr *expr, struct expr *dep);
 void menu_add_symbol(enum prop_type type, struct symbol *sym, struct expr *dep);
 void menu_finalize(struct menu *parent);

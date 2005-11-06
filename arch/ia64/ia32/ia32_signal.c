@@ -29,7 +29,6 @@
 #include <asm/uaccess.h>
 #include <asm/rse.h>
 #include <asm/sigcontext.h>
-#include <asm/segment.h>
 
 #include "ia32priv.h"
 

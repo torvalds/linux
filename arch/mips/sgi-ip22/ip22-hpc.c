@@ -49,7 +49,7 @@ void __init sgihpc_init(void)
 		sgint = &sgioc->int3;
 		system_type = "SGI Indy";
 	}
-	
+
 	sgi_ioc_reset = (SGIOC_RESET_PPORT | SGIOC_RESET_KBDMOUSE |
 			 SGIOC_RESET_EISA | SGIOC_RESET_ISDN |
 			 SGIOC_RESET_LC0OFF);

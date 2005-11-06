@@ -25,9 +25,11 @@ ld -v | awk -F\) '{print $1}' | awk \
 '/BFD/{print "binutils              ",$NF} \
 /^GNU/{print "binutils              ",$4}'
 
-fdformat --version | awk -F\- '{print "util-linux            ", $NF}'
+echo -n "util-linux             "
+fdformat --version | awk '{print $NF}' | sed -e s/^util-linux-// -e s/\)$//
 
-mount --version | awk -F\- '{print "mount                 ", $NF}'
+echo -n "mount                  "
+mount --version | awk '{print $NF}' | sed -e s/^mount-// -e s/\)$//
 
 depmod -V  2>&1 | awk 'NR==1 {print "module-init-tools     ",$NF}'
 

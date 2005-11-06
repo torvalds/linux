@@ -354,15 +354,14 @@ static void rlb_update_entry_from_arp(struct bonding *bond, struct arp_pkt *arp)
 	_unlock_rx_hashtbl(bond);
 }
 
-static int rlb_arp_recv(struct sk_buff *skb, struct net_device *bond_dev, struct packet_type *ptype)
+static int rlb_arp_recv(struct sk_buff *skb, struct net_device *bond_dev, struct packet_type *ptype, struct net_device *orig_dev)
 {
 	struct bonding *bond = bond_dev->priv;
 	struct arp_pkt *arp = (struct arp_pkt *)skb->data;
 	int res = NET_RX_DROP;
 
-	if (!(bond_dev->flags & IFF_MASTER)) {
+	if (!(bond_dev->flags & IFF_MASTER))
 		goto out;
-	}
 
 	if (!arp) {
 		dprintk("Packet has no ARP data\n");
@@ -1106,18 +1105,13 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
 			}
 		}
 
-		if (found) {
-			/* a slave was found that is using the mac address
-			 * of the new slave
-			 */
-			printk(KERN_ERR DRV_NAME
-			       ": Error: the hw address of slave %s is not "
-			       "unique - cannot enslave it!",
-			       slave->dev->name);
-			return -EINVAL;
-		}
+		if (!found)
+			return 0;
 
-		return 0;
+		/* Try setting slave mac to bond address and fall-through
+		   to code handling that situation below... */
+		alb_set_slave_mac_addr(slave, bond->dev->dev_addr,
+				       bond->alb_info.rlb_enabled);
 	}
 
 	/* The slave's address is equal to the address of the bond.

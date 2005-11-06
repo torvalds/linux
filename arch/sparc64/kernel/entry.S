@@ -21,6 +21,7 @@
 #include <asm/visasm.h>
 #include <asm/estate.h>
 #include <asm/auxio.h>
+#include <asm/sfafsr.h>
 
 #define curptr      g6
 
@@ -29,164 +30,10 @@
 	.text
 	.align		32
 
-	.globl		sparc64_vpte_patchme1
-	.globl		sparc64_vpte_patchme2
-/*
- * On a second level vpte miss, check whether the original fault is to the OBP 
- * range (note that this is only possible for instruction miss, data misses to
- * obp range do not use vpte). If so, go back directly to the faulting address.
- * This is because we want to read the tpc, otherwise we have no way of knowing
- * the 8k aligned faulting address if we are using >8k kernel pagesize. This
- * also ensures no vpte range addresses are dropped into tlb while obp is
- * executing (see inherit_locked_prom_mappings() rant).
- */
-sparc64_vpte_nucleus:
-	/* Load 0xf0000000, which is LOW_OBP_ADDRESS.  */
-	mov		0xf, %g5
-	sllx		%g5, 28, %g5
-
-	/* Is addr >= LOW_OBP_ADDRESS?  */
-	cmp		%g4, %g5
-	blu,pn		%xcc, sparc64_vpte_patchme1
-	 mov		0x1, %g5
-
-	/* Load 0x100000000, which is HI_OBP_ADDRESS.  */
-	sllx		%g5, 32, %g5
-
-	/* Is addr < HI_OBP_ADDRESS?  */
-	cmp		%g4, %g5
-	blu,pn		%xcc, obp_iaddr_patch
-	 nop
-
-	/* These two instructions are patched by paginig_init().  */
-sparc64_vpte_patchme1:
-	sethi		%hi(0), %g5
-sparc64_vpte_patchme2:
-	or		%g5, %lo(0), %g5
-
-	/* With kernel PGD in %g5, branch back into dtlb_backend.  */
-	ba,pt		%xcc, sparc64_kpte_continue
-	 andn		%g1, 0x3, %g1	/* Finish PMD offset adjustment.  */
-
-vpte_noent:
-	/* Restore previous TAG_ACCESS, %g5 is zero, and we will
-	 * skip over the trap instruction so that the top level
-	 * TLB miss handler will thing this %g5 value is just an
-	 * invalid PTE, thus branching to full fault processing.
-	 */
-	mov		TLB_SFSR, %g1
-	stxa		%g4, [%g1 + %g1] ASI_DMMU
-	done
-
-	.globl		obp_iaddr_patch
-obp_iaddr_patch:
-	/* These two instructions patched by inherit_prom_mappings().  */
-	sethi		%hi(0), %g5
-	or		%g5, %lo(0), %g5
-
-	/* Behave as if we are at TL0.  */
-	wrpr		%g0, 1, %tl
-	rdpr		%tpc, %g4	/* Find original faulting iaddr */
-	srlx		%g4, 13, %g4	/* Throw out context bits */
-	sllx		%g4, 13, %g4	/* g4 has vpn + ctx0 now */
-
-	/* Restore previous TAG_ACCESS.  */
-	mov		TLB_SFSR, %g1
-	stxa		%g4, [%g1 + %g1] ASI_IMMU
-
-	/* Get PMD offset.  */
-	srlx		%g4, 23, %g6
-	and		%g6, 0x7ff, %g6
-	sllx		%g6, 2, %g6
-
-	/* Load PMD, is it valid?  */
-	lduwa		[%g5 + %g6] ASI_PHYS_USE_EC, %g5
-	brz,pn		%g5, longpath
-	 sllx		%g5, 11, %g5
-
-	/* Get PTE offset.  */
-	srlx		%g4, 13, %g6
-	and		%g6, 0x3ff, %g6
-	sllx		%g6, 3, %g6
-
-	/* Load PTE.  */
-	ldxa		[%g5 + %g6] ASI_PHYS_USE_EC, %g5
-	brgez,pn	%g5, longpath
-	 nop
-
-	/* TLB load and return from trap.  */
-	stxa		%g5, [%g0] ASI_ITLB_DATA_IN
-	retry
-
-	.globl		obp_daddr_patch
-obp_daddr_patch:
-	/* These two instructions patched by inherit_prom_mappings().  */
-	sethi		%hi(0), %g5
-	or		%g5, %lo(0), %g5
-
-	/* Get PMD offset.  */
-	srlx		%g4, 23, %g6
-	and		%g6, 0x7ff, %g6
-	sllx		%g6, 2, %g6
-
-	/* Load PMD, is it valid?  */
-	lduwa		[%g5 + %g6] ASI_PHYS_USE_EC, %g5
-	brz,pn		%g5, longpath
-	 sllx		%g5, 11, %g5
-
-	/* Get PTE offset.  */
-	srlx		%g4, 13, %g6
-	and		%g6, 0x3ff, %g6
-	sllx		%g6, 3, %g6
-
-	/* Load PTE.  */
-	ldxa		[%g5 + %g6] ASI_PHYS_USE_EC, %g5
-	brgez,pn	%g5, longpath
-	 nop
-
-	/* TLB load and return from trap.  */
-	stxa		%g5, [%g0] ASI_DTLB_DATA_IN
-	retry
-
-/*
- * On a first level data miss, check whether this is to the OBP range (note
- * that such accesses can be made by prom, as well as by kernel using
- * prom_getproperty on "address"), and if so, do not use vpte access ...
- * rather, use information saved during inherit_prom_mappings() using 8k
- * pagesize.
- */
-kvmap:
-	/* Load 0xf0000000, which is LOW_OBP_ADDRESS.  */
-	mov		0xf, %g5
-	sllx		%g5, 28, %g5
-
-	/* Is addr >= LOW_OBP_ADDRESS?  */
-	cmp		%g4, %g5
-	blu,pn		%xcc, vmalloc_addr
-	 mov		0x1, %g5
-
-	/* Load 0x100000000, which is HI_OBP_ADDRESS.  */
-	sllx		%g5, 32, %g5
-
-	/* Is addr < HI_OBP_ADDRESS?  */
-	cmp		%g4, %g5
-	blu,pn		%xcc, obp_daddr_patch
-	 nop
-
-vmalloc_addr:
-	/* If we get here, a vmalloc addr accessed, load kernel VPTE.  */
-	ldxa		[%g3 + %g6] ASI_N, %g5
-	brgez,pn	%g5, longpath
-	 nop
-
-	/* PTE is valid, load into TLB and return from trap.  */
-	stxa		%g5, [%g0] ASI_DTLB_DATA_IN	! Reload TLB
-	retry
-
 	/* This is trivial with the new code... */
 	.globl		do_fpdis
 do_fpdis:
-	sethi		%hi(TSTATE_PEF), %g4					! IEU0
+	sethi		%hi(TSTATE_PEF), %g4
 	rdpr		%tstate, %g5
 	andcc		%g5, %g4, %g0
 	be,pt		%xcc, 1f
@@ -203,18 +50,18 @@ do_fpdis:
 	add		%g0, %g0, %g0
 	ba,a,pt		%xcc, rtrap_clr_l6
 
-1:	ldub		[%g6 + TI_FPSAVED], %g5					! Load	Group
-	wr		%g0, FPRS_FEF, %fprs					! LSU	Group+4bubbles
-	andcc		%g5, FPRS_FEF, %g0					! IEU1	Group
-	be,a,pt		%icc, 1f						! CTI
-	 clr		%g7							! IEU0
-	ldx		[%g6 + TI_GSR], %g7					! Load	Group
-1:	andcc		%g5, FPRS_DL, %g0					! IEU1
-	bne,pn		%icc, 2f						! CTI
-	 fzero		%f0							! FPA
-	andcc		%g5, FPRS_DU, %g0					! IEU1  Group
-	bne,pn		%icc, 1f						! CTI
-	 fzero		%f2							! FPA
+1:	ldub		[%g6 + TI_FPSAVED], %g5
+	wr		%g0, FPRS_FEF, %fprs
+	andcc		%g5, FPRS_FEF, %g0
+	be,a,pt		%icc, 1f
+	 clr		%g7
+	ldx		[%g6 + TI_GSR], %g7
+1:	andcc		%g5, FPRS_DL, %g0
+	bne,pn		%icc, 2f
+	 fzero		%f0
+	andcc		%g5, FPRS_DU, %g0
+	bne,pn		%icc, 1f
+	 fzero		%f2
 	faddd		%f0, %f2, %f4
 	fmuld		%f0, %f2, %f6
 	faddd		%f0, %f2, %f8
@@ -250,15 +97,17 @@ do_fpdis:
 	faddd		%f0, %f2, %f4
 	fmuld		%f0, %f2, %f6
 	ldxa		[%g3] ASI_DMMU, %g5
-cplus_fptrap_insn_1:
-	sethi		%hi(0), %g2
+	sethi		%hi(sparc64_kern_sec_context), %g2
+	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
 	stxa		%g2, [%g3] ASI_DMMU
 	membar		#Sync
 	add		%g6, TI_FPREGS + 0xc0, %g2
 	faddd		%f0, %f2, %f8
 	fmuld		%f0, %f2, %f10
-	ldda		[%g1] ASI_BLK_S, %f32	! grrr, where is ASI_BLK_NUCLEUS 8-(
+	membar		#Sync
+	ldda		[%g1] ASI_BLK_S, %f32
 	ldda		[%g2] ASI_BLK_S, %f48
+	membar		#Sync
 	faddd		%f0, %f2, %f12
 	fmuld		%f0, %f2, %f14
 	faddd		%f0, %f2, %f16
@@ -269,7 +118,6 @@ cplus_fptrap_insn_1:
 	fmuld		%f0, %f2, %f26
 	faddd		%f0, %f2, %f28
 	fmuld		%f0, %f2, %f30
-	membar		#Sync
 	b,pt		%xcc, fpdis_exit
 	 nop
 2:	andcc		%g5, FPRS_DU, %g0
@@ -279,15 +127,17 @@ cplus_fptrap_insn_1:
 	fzero		%f34
 	ldxa		[%g3] ASI_DMMU, %g5
 	add		%g6, TI_FPREGS, %g1
-cplus_fptrap_insn_2:
-	sethi		%hi(0), %g2
+	sethi		%hi(sparc64_kern_sec_context), %g2
+	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
 	stxa		%g2, [%g3] ASI_DMMU
 	membar		#Sync
 	add		%g6, TI_FPREGS + 0x40, %g2
 	faddd		%f32, %f34, %f36
 	fmuld		%f32, %f34, %f38
-	ldda		[%g1] ASI_BLK_S, %f0	! grrr, where is ASI_BLK_NUCLEUS 8-(
+	membar		#Sync
+	ldda		[%g1] ASI_BLK_S, %f0
 	ldda		[%g2] ASI_BLK_S, %f16
+	membar		#Sync
 	faddd		%f32, %f34, %f40
 	fmuld		%f32, %f34, %f42
 	faddd		%f32, %f34, %f44
@@ -300,18 +150,18 @@ cplus_fptrap_insn_2:
 	fmuld		%f32, %f34, %f58
 	faddd		%f32, %f34, %f60
 	fmuld		%f32, %f34, %f62
-	membar		#Sync
 	ba,pt		%xcc, fpdis_exit
 	 nop
 3:	mov		SECONDARY_CONTEXT, %g3
 	add		%g6, TI_FPREGS, %g1
 	ldxa		[%g3] ASI_DMMU, %g5
-cplus_fptrap_insn_3:
-	sethi		%hi(0), %g2
+	sethi		%hi(sparc64_kern_sec_context), %g2
+	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
 	stxa		%g2, [%g3] ASI_DMMU
 	membar		#Sync
 	mov		0x40, %g2
-	ldda		[%g1] ASI_BLK_S, %f0		! grrr, where is ASI_BLK_NUCLEUS 8-(
+	membar		#Sync
+	ldda		[%g1] ASI_BLK_S, %f0
 	ldda		[%g1 + %g2] ASI_BLK_S, %f16
 	add		%g1, 0x80, %g1
 	ldda		[%g1] ASI_BLK_S, %f32
@@ -472,8 +322,8 @@ do_fptrap_after_fsr:
 	stx		%g3, [%g6 + TI_GSR]
 	mov		SECONDARY_CONTEXT, %g3
 	ldxa		[%g3] ASI_DMMU, %g5
-cplus_fptrap_insn_4:
-	sethi		%hi(0), %g2
+	sethi		%hi(sparc64_kern_sec_context), %g2
+	ldx		[%g2 + %lo(sparc64_kern_sec_context)], %g2
 	stxa		%g2, [%g3] ASI_DMMU
 	membar		#Sync
 	add		%g6, TI_FPREGS, %g2
@@ -494,45 +344,17 @@ cplus_fptrap_insn_4:
 	ba,pt		%xcc, etrap
 	 wr		%g0, 0, %fprs
 
-cplus_fptrap_1:
-	sethi		%hi(CTX_CHEETAH_PLUS_CTX0), %g2
-
-	.globl		cheetah_plus_patch_fpdis
-cheetah_plus_patch_fpdis:
-	/* We configure the dTLB512_0 for 4MB pages and the
-	 * dTLB512_1 for 8K pages when in context zero.
-	 */
-	sethi			%hi(cplus_fptrap_1), %o0
-	lduw			[%o0 + %lo(cplus_fptrap_1)], %o1
-
-	set			cplus_fptrap_insn_1, %o2
-	stw			%o1, [%o2]
-	flush			%o2
-	set			cplus_fptrap_insn_2, %o2
-	stw			%o1, [%o2]
-	flush			%o2
-	set			cplus_fptrap_insn_3, %o2
-	stw			%o1, [%o2]
-	flush			%o2
-	set			cplus_fptrap_insn_4, %o2
-	stw			%o1, [%o2]
-	flush			%o2
-
-	retl
-	 nop
-
 	/* The registers for cross calls will be:
 	 *
 	 * DATA 0: [low 32-bits]  Address of function to call, jmp to this
 	 *         [high 32-bits] MMU Context Argument 0, place in %g5
-	 * DATA 1: Address Argument 1, place in %g6
+	 * DATA 1: Address Argument 1, place in %g1
 	 * DATA 2: Address Argument 2, place in %g7
 	 *
 	 * With this method we can do most of the cross-call tlb/cache
 	 * flushing very quickly.
 	 *
-	 * Current CPU's IRQ worklist table is locked into %g1,
-	 * don't touch.
+	 * Current CPU's IRQ worklist table is locked into %g6, don't touch.
 	 */
 	.text
 	.align		32
@@ -690,79 +512,102 @@ netbsd_syscall:
 	retl
 	 nop
 
-	/* These next few routines must be sure to clear the
-	 * SFSR FaultValid bit so that the fast tlb data protection
-	 * handler does not flush the wrong context and lock up the
-	 * box.
+	/* We need to carefully read the error status, ACK
+	 * the errors, prevent recursive traps, and pass the
+	 * information on to C code for logging.
+	 *
+	 * We pass the AFAR in as-is, and we encode the status
+	 * information as described in asm-sparc64/sfafsr.h
 	 */
-	.globl		__do_data_access_exception
-	.globl		__do_data_access_exception_tl1
-__do_data_access_exception_tl1:
-	rdpr		%pstate, %g4
-	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
-	mov		TLB_SFSR, %g3
-	mov		DMMU_SFAR, %g5
-	ldxa		[%g3] ASI_DMMU, %g4	! Get SFSR
-	ldxa		[%g5] ASI_DMMU, %g5	! Get SFAR
-	stxa		%g0, [%g3] ASI_DMMU	! Clear SFSR.FaultValid bit
+	.globl		__spitfire_access_error
+__spitfire_access_error:
+	/* Disable ESTATE error reporting so that we do not
+	 * take recursive traps and RED state the processor.
+	 */
+	stxa		%g0, [%g0] ASI_ESTATE_ERROR_EN
 	membar		#Sync
-	ba,pt		%xcc, winfix_dax
-	 rdpr		%tpc, %g3
-__do_data_access_exception:
-	rdpr		%pstate, %g4
-	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
-	mov		TLB_SFSR, %g3
-	mov		DMMU_SFAR, %g5
-	ldxa		[%g3] ASI_DMMU, %g4	! Get SFSR
-	ldxa		[%g5] ASI_DMMU, %g5	! Get SFAR
-	stxa		%g0, [%g3] ASI_DMMU	! Clear SFSR.FaultValid bit
-	membar		#Sync
-	sethi		%hi(109f), %g7
-	ba,pt		%xcc, etrap
-109:	 or		%g7, %lo(109b), %g7
-	mov		%l4, %o1
-	mov		%l5, %o2
-	call		data_access_exception
-	 add		%sp, PTREGS_OFF, %o0
-	ba,pt		%xcc, rtrap
-	 clr		%l6
 
-	.globl		__do_instruction_access_exception
-	.globl		__do_instruction_access_exception_tl1
-__do_instruction_access_exception_tl1:
-	rdpr		%pstate, %g4
-	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
-	mov		TLB_SFSR, %g3
-	mov		DMMU_SFAR, %g5
-	ldxa		[%g3] ASI_DMMU, %g4	! Get SFSR
-	ldxa		[%g5] ASI_DMMU, %g5	! Get SFAR
-	stxa		%g0, [%g3] ASI_IMMU	! Clear FaultValid bit
+	mov		UDBE_UE, %g1
+	ldxa		[%g0] ASI_AFSR, %g4	! Get AFSR
+
+	/* __spitfire_cee_trap branches here with AFSR in %g4 and
+	 * UDBE_CE in %g1.  It only clears ESTATE_ERR_CE in the
+	 * ESTATE Error Enable register.
+	 */
+__spitfire_cee_trap_continue:
+	ldxa		[%g0] ASI_AFAR, %g5	! Get AFAR
+
+	rdpr		%tt, %g3
+	and		%g3, 0x1ff, %g3		! Paranoia
+	sllx		%g3, SFSTAT_TRAP_TYPE_SHIFT, %g3
+	or		%g4, %g3, %g4
+	rdpr		%tl, %g3
+	cmp		%g3, 1
+	mov		1, %g3
+	bleu		%xcc, 1f
+	 sllx		%g3, SFSTAT_TL_GT_ONE_SHIFT, %g3
+
+	or		%g4, %g3, %g4
+
+	/* Read in the UDB error register state, clearing the
+	 * sticky error bits as-needed.  We only clear them if
+	 * the UE bit is set.  Likewise, __spitfire_cee_trap
+	 * below will only do so if the CE bit is set.
+	 *
+	 * NOTE: UltraSparc-I/II have high and low UDB error
+	 *       registers, corresponding to the two UDB units
+	 *       present on those chips.  UltraSparc-IIi only
+	 *       has a single UDB, called "SDB" in the manual.
+	 *       For IIi the upper UDB register always reads
+	 *       as zero so for our purposes things will just
+	 *       work with the checks below.
+	 */
+1:	ldxa		[%g0] ASI_UDBH_ERROR_R, %g3
+	and		%g3, 0x3ff, %g7		! Paranoia
+	sllx		%g7, SFSTAT_UDBH_SHIFT, %g7
+	or		%g4, %g7, %g4
+	andcc		%g3, %g1, %g3		! UDBE_UE or UDBE_CE
+	be,pn		%xcc, 1f
+	 nop
+	stxa		%g3, [%g0] ASI_UDB_ERROR_W
 	membar		#Sync
-	sethi		%hi(109f), %g7
+
+1:	mov		0x18, %g3
+	ldxa		[%g3] ASI_UDBL_ERROR_R, %g3
+	and		%g3, 0x3ff, %g7		! Paranoia
+	sllx		%g7, SFSTAT_UDBL_SHIFT, %g7
+	or		%g4, %g7, %g4
+	andcc		%g3, %g1, %g3		! UDBE_UE or UDBE_CE
+	be,pn		%xcc, 1f
+	 nop
+	mov		0x18, %g7
+	stxa		%g3, [%g7] ASI_UDB_ERROR_W
+	membar		#Sync
+
+1:	/* Ok, now that we've latched the error state,
+	 * clear the sticky bits in the AFSR.
+	 */
+	stxa		%g4, [%g0] ASI_AFSR
+	membar		#Sync
+
+	rdpr		%tl, %g2
+	cmp		%g2, 1
+	rdpr		%pil, %g2
+	bleu,pt		%xcc, 1f
+	 wrpr		%g0, 15, %pil
+
 	ba,pt		%xcc, etraptl1
-109:	 or		%g7, %lo(109b), %g7
-	mov		%l4, %o1
-	mov		%l5, %o2
-	call		instruction_access_exception_tl1
-	 add		%sp, PTREGS_OFF, %o0
-	ba,pt		%xcc, rtrap
-	 clr		%l6
+	 rd		%pc, %g7
 
-__do_instruction_access_exception:
-	rdpr		%pstate, %g4
-	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
-	mov		TLB_SFSR, %g3
-	mov		DMMU_SFAR, %g5
-	ldxa		[%g3] ASI_DMMU, %g4	! Get SFSR
-	ldxa		[%g5] ASI_DMMU, %g5	! Get SFAR
-	stxa		%g0, [%g3] ASI_IMMU	! Clear FaultValid bit
-	membar		#Sync
-	sethi		%hi(109f), %g7
-	ba,pt		%xcc, etrap
-109:	 or		%g7, %lo(109b), %g7
-	mov		%l4, %o1
+	ba,pt		%xcc, 2f
+	 nop
+
+1:	ba,pt		%xcc, etrap_irq
+	 rd		%pc, %g7
+
+2:	mov		%l4, %o1
 	mov		%l5, %o2
-	call		instruction_access_exception
+	call		spitfire_access_error
 	 add		%sp, PTREGS_OFF, %o0
 	ba,pt		%xcc, rtrap
 	 clr		%l6
@@ -784,212 +629,124 @@ __do_instruction_access_exception:
 	 * as it is the only situation where we can safely record
 	 * and log.  For trap level >1 we just clear the CE bit
 	 * in the AFSR and return.
-	 */
-
-	/* Our trap handling infrastructure allows us to preserve
-	 * two 64-bit values during etrap for arguments to
-	 * subsequent C code.  Therefore we encode the information
-	 * as follows:
 	 *
-	 * value 1) Full 64-bits of AFAR
-	 * value 2) Low 33-bits of AFSR, then bits 33-->42
-	 *          are UDBL error status and bits 43-->52
-	 *          are UDBH error status
+	 * This is just like __spiftire_access_error above, but it
+	 * specifically handles correctable errors.  If an
+	 * uncorrectable error is indicated in the AFSR we
+	 * will branch directly above to __spitfire_access_error
+	 * to handle it instead.  Uncorrectable therefore takes
+	 * priority over correctable, and the error logging
+	 * C code will notice this case by inspecting the
+	 * trap type.
 	 */
-	.align	64
-	.globl	cee_trap
-cee_trap:
-	ldxa	[%g0] ASI_AFSR, %g1		! Read AFSR
-	ldxa	[%g0] ASI_AFAR, %g2		! Read AFAR
-	sllx	%g1, 31, %g1			! Clear reserved bits
-	srlx	%g1, 31, %g1			! in AFSR
-
-	/* NOTE: UltraSparc-I/II have high and low UDB error
-	 *       registers, corresponding to the two UDB units
-	 *       present on those chips.  UltraSparc-IIi only
-	 *       has a single UDB, called "SDB" in the manual.
-	 *       For IIi the upper UDB register always reads
-	 *       as zero so for our purposes things will just
-	 *       work with the checks below.
-	 */
-	ldxa	[%g0] ASI_UDBL_ERROR_R, %g3	! Read UDB-Low error status
-	andcc	%g3, (1 << 8), %g4		! Check CE bit
-	sllx	%g3, (64 - 10), %g3		! Clear reserved bits
-	srlx	%g3, (64 - 10), %g3		! in UDB-Low error status
-
-	sllx	%g3, (33 + 0), %g3		! Shift up to encoding area
-	or	%g1, %g3, %g1			! Or it in
-	be,pn	%xcc, 1f			! Branch if CE bit was clear
+	.globl		__spitfire_cee_trap
+__spitfire_cee_trap:
+	ldxa		[%g0] ASI_AFSR, %g4	! Get AFSR
+	mov		1, %g3
+	sllx		%g3, SFAFSR_UE_SHIFT, %g3
+	andcc		%g4, %g3, %g0		! Check for UE
+	bne,pn		%xcc, __spitfire_access_error
 	 nop
-	stxa	%g4, [%g0] ASI_UDB_ERROR_W	! Clear CE sticky bit in UDBL
-	membar	#Sync				! Synchronize ASI stores
-1:	mov	0x18, %g5			! Addr of UDB-High error status
-	ldxa	[%g5] ASI_UDBH_ERROR_R, %g3	! Read it
 
-	andcc	%g3, (1 << 8), %g4		! Check CE bit
-	sllx	%g3, (64 - 10), %g3		! Clear reserved bits
-	srlx	%g3, (64 - 10), %g3		! in UDB-High error status
-	sllx	%g3, (33 + 10), %g3		! Shift up to encoding area
-	or	%g1, %g3, %g1			! Or it in
-	be,pn	%xcc, 1f			! Branch if CE bit was clear
-	 nop
-	nop
-
-	stxa	%g4, [%g5] ASI_UDB_ERROR_W	! Clear CE sticky bit in UDBH
-	membar	#Sync				! Synchronize ASI stores
-1:	mov	1, %g5				! AFSR CE bit is
-	sllx	%g5, 20, %g5			! bit 20
-	stxa	%g5, [%g0] ASI_AFSR		! Clear CE sticky bit in AFSR
-	membar	#Sync				! Synchronize ASI stores
-	sllx	%g2, (64 - 41), %g2		! Clear reserved bits
-	srlx	%g2, (64 - 41), %g2		! in latched AFAR
-
-	andn	%g2, 0x0f, %g2			! Finish resv bit clearing
-	mov	%g1, %g4			! Move AFSR+UDB* into save reg
-	mov	%g2, %g5			! Move AFAR into save reg
-	rdpr	%pil, %g2
-	wrpr	%g0, 15, %pil
-	ba,pt	%xcc, etrap_irq
-	 rd	%pc, %g7
-	mov	%l4, %o0
-
-	mov	%l5, %o1
-	call	cee_log
-	 add	%sp, PTREGS_OFF, %o2
-	ba,a,pt	%xcc, rtrap_irq
-
-	/* Capture I/D/E-cache state into per-cpu error scoreboard.
-	 *
-	 * %g1:		(TL>=0) ? 1 : 0
-	 * %g2:		scratch
-	 * %g3:		scratch
-	 * %g4:		AFSR
-	 * %g5:		AFAR
-	 * %g6:		current thread ptr
-	 * %g7:		scratch
+	/* Ok, in this case we only have a correctable error.
+	 * Indicate we only wish to capture that state in register
+	 * %g1, and we only disable CE error reporting unlike UE
+	 * handling which disables all errors.
 	 */
-#define CHEETAH_LOG_ERROR						\
-	/* Put "TL1" software bit into AFSR. */				\
-	and		%g1, 0x1, %g1;					\
-	sllx		%g1, 63, %g2;					\
-	or		%g4, %g2, %g4;					\
-	/* Get log entry pointer for this cpu at this trap level. */	\
-	BRANCH_IF_JALAPENO(g2,g3,50f)					\
-	ldxa		[%g0] ASI_SAFARI_CONFIG, %g2;			\
-	srlx		%g2, 17, %g2;					\
-	ba,pt		%xcc, 60f; 					\
-	 and		%g2, 0x3ff, %g2;				\
-50:	ldxa		[%g0] ASI_JBUS_CONFIG, %g2;			\
-	srlx		%g2, 17, %g2;					\
-	and		%g2, 0x1f, %g2;					\
-60:	sllx		%g2, 9, %g2;					\
-	sethi		%hi(cheetah_error_log), %g3;			\
-	ldx		[%g3 + %lo(cheetah_error_log)], %g3;		\
-	brz,pn		%g3, 80f;					\
-	 nop;								\
-	add		%g3, %g2, %g3;					\
-	sllx		%g1, 8, %g1;					\
-	add		%g3, %g1, %g1;					\
-	/* %g1 holds pointer to the top of the logging scoreboard */	\
-	ldx		[%g1 + 0x0], %g7;				\
-	cmp		%g7, -1;					\
-	bne,pn		%xcc, 80f;					\
-	 nop;								\
-	stx		%g4, [%g1 + 0x0];				\
-	stx		%g5, [%g1 + 0x8];				\
-	add		%g1, 0x10, %g1;					\
-	/* %g1 now points to D-cache logging area */			\
-	set		0x3ff8, %g2;	/* DC_addr mask		*/	\
-	and		%g5, %g2, %g2;	/* DC_addr bits of AFAR	*/	\
-	srlx		%g5, 12, %g3;					\
-	or		%g3, 1, %g3;	/* PHYS tag + valid	*/	\
-10:	ldxa		[%g2] ASI_DCACHE_TAG, %g7;			\
-	cmp		%g3, %g7;	/* TAG match?		*/	\
-	bne,pt		%xcc, 13f;					\
-	 nop;								\
-	/* Yep, what we want, capture state. */				\
-	stx		%g2, [%g1 + 0x20];				\
-	stx		%g7, [%g1 + 0x28];				\
-	/* A membar Sync is required before and after utag access. */	\
-	membar		#Sync;						\
-	ldxa		[%g2] ASI_DCACHE_UTAG, %g7;			\
-	membar		#Sync;						\
-	stx		%g7, [%g1 + 0x30];				\
-	ldxa		[%g2] ASI_DCACHE_SNOOP_TAG, %g7;		\
-	stx		%g7, [%g1 + 0x38];				\
-	clr		%g3;						\
-12:	ldxa		[%g2 + %g3] ASI_DCACHE_DATA, %g7;		\
-	stx		%g7, [%g1];					\
-	add		%g3, (1 << 5), %g3;				\
-	cmp		%g3, (4 << 5);					\
-	bl,pt		%xcc, 12b;					\
-	 add		%g1, 0x8, %g1;					\
-	ba,pt		%xcc, 20f;					\
-	 add		%g1, 0x20, %g1;					\
-13:	sethi		%hi(1 << 14), %g7;				\
-	add		%g2, %g7, %g2;					\
-	srlx		%g2, 14, %g7;					\
-	cmp		%g7, 4;						\
-	bl,pt		%xcc, 10b;					\
-	 nop;								\
-	add		%g1, 0x40, %g1;					\
-20:	/* %g1 now points to I-cache logging area */			\
-	set		0x1fe0, %g2;	/* IC_addr mask		*/	\
-	and		%g5, %g2, %g2;	/* IC_addr bits of AFAR	*/	\
-	sllx		%g2, 1, %g2;	/* IC_addr[13:6]==VA[12:5] */	\
-	srlx		%g5, (13 - 8), %g3; /* Make PTAG */		\
-	andn		%g3, 0xff, %g3;	/* Mask off undefined bits */	\
-21:	ldxa		[%g2] ASI_IC_TAG, %g7;				\
-	andn		%g7, 0xff, %g7;					\
-	cmp		%g3, %g7;					\
-	bne,pt		%xcc, 23f;					\
-	 nop;								\
-	/* Yep, what we want, capture state. */				\
-	stx		%g2, [%g1 + 0x40];				\
-	stx		%g7, [%g1 + 0x48];				\
-	add		%g2, (1 << 3), %g2;				\
-	ldxa		[%g2] ASI_IC_TAG, %g7;				\
-	add		%g2, (1 << 3), %g2;				\
-	stx		%g7, [%g1 + 0x50];				\
-	ldxa		[%g2] ASI_IC_TAG, %g7;				\
-	add		%g2, (1 << 3), %g2;				\
-	stx		%g7, [%g1 + 0x60];				\
-	ldxa		[%g2] ASI_IC_TAG, %g7;				\
-	stx		%g7, [%g1 + 0x68];				\
-	sub		%g2, (3 << 3), %g2;				\
-	ldxa		[%g2] ASI_IC_STAG, %g7;				\
-	stx		%g7, [%g1 + 0x58];				\
-	clr		%g3;						\
-	srlx		%g2, 2, %g2;					\
-22:	ldxa		[%g2 + %g3] ASI_IC_INSTR, %g7;			\
-	stx		%g7, [%g1];					\
-	add		%g3, (1 << 3), %g3;				\
-	cmp		%g3, (8 << 3);					\
-	bl,pt		%xcc, 22b;					\
-	 add		%g1, 0x8, %g1;					\
-	ba,pt		%xcc, 30f;					\
-	 add		%g1, 0x30, %g1;					\
-23:	sethi		%hi(1 << 14), %g7;				\
-	add		%g2, %g7, %g2;					\
-	srlx		%g2, 14, %g7;					\
-	cmp		%g7, 4;						\
-	bl,pt		%xcc, 21b;					\
-	 nop;								\
-	add		%g1, 0x70, %g1;					\
-30:	/* %g1 now points to E-cache logging area */			\
-	andn		%g5, (32 - 1), %g2;	/* E-cache subblock */	\
-	stx		%g2, [%g1 + 0x20];				\
-	ldxa		[%g2] ASI_EC_TAG_DATA, %g7;			\
-	stx		%g7, [%g1 + 0x28];				\
-	ldxa		[%g2] ASI_EC_R, %g0;				\
-	clr		%g3;						\
-31:	ldxa		[%g3] ASI_EC_DATA, %g7;				\
-	stx		%g7, [%g1 + %g3];				\
-	add		%g3, 0x8, %g3;					\
-	cmp		%g3, 0x20;					\
-	bl,pt		%xcc, 31b;					\
-	 nop;								\
-80:	/* DONE */
+	ldxa		[%g0] ASI_ESTATE_ERROR_EN, %g3
+	andn		%g3, ESTATE_ERR_CE, %g3
+	stxa		%g3, [%g0] ASI_ESTATE_ERROR_EN
+	membar		#Sync
+
+	/* Preserve AFSR in %g4, indicate UDB state to capture in %g1 */
+	ba,pt		%xcc, __spitfire_cee_trap_continue
+	 mov		UDBE_CE, %g1
+
+	.globl		__spitfire_data_access_exception
+	.globl		__spitfire_data_access_exception_tl1
+__spitfire_data_access_exception_tl1:
+	rdpr		%pstate, %g4
+	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
+	mov		TLB_SFSR, %g3
+	mov		DMMU_SFAR, %g5
+	ldxa		[%g3] ASI_DMMU, %g4	! Get SFSR
+	ldxa		[%g5] ASI_DMMU, %g5	! Get SFAR
+	stxa		%g0, [%g3] ASI_DMMU	! Clear SFSR.FaultValid bit
+	membar		#Sync
+	rdpr		%tt, %g3
+	cmp		%g3, 0x80		! first win spill/fill trap
+	blu,pn		%xcc, 1f
+	 cmp		%g3, 0xff		! last win spill/fill trap
+	bgu,pn		%xcc, 1f
+	 nop
+	ba,pt		%xcc, winfix_dax
+	 rdpr		%tpc, %g3
+1:	sethi		%hi(109f), %g7
+	ba,pt		%xcc, etraptl1
+109:	 or		%g7, %lo(109b), %g7
+	mov		%l4, %o1
+	mov		%l5, %o2
+	call		spitfire_data_access_exception_tl1
+	 add		%sp, PTREGS_OFF, %o0
+	ba,pt		%xcc, rtrap
+	 clr		%l6
+
+__spitfire_data_access_exception:
+	rdpr		%pstate, %g4
+	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
+	mov		TLB_SFSR, %g3
+	mov		DMMU_SFAR, %g5
+	ldxa		[%g3] ASI_DMMU, %g4	! Get SFSR
+	ldxa		[%g5] ASI_DMMU, %g5	! Get SFAR
+	stxa		%g0, [%g3] ASI_DMMU	! Clear SFSR.FaultValid bit
+	membar		#Sync
+	sethi		%hi(109f), %g7
+	ba,pt		%xcc, etrap
+109:	 or		%g7, %lo(109b), %g7
+	mov		%l4, %o1
+	mov		%l5, %o2
+	call		spitfire_data_access_exception
+	 add		%sp, PTREGS_OFF, %o0
+	ba,pt		%xcc, rtrap
+	 clr		%l6
+
+	.globl		__spitfire_insn_access_exception
+	.globl		__spitfire_insn_access_exception_tl1
+__spitfire_insn_access_exception_tl1:
+	rdpr		%pstate, %g4
+	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
+	mov		TLB_SFSR, %g3
+	ldxa		[%g3] ASI_IMMU, %g4	! Get SFSR
+	rdpr		%tpc, %g5		! IMMU has no SFAR, use TPC
+	stxa		%g0, [%g3] ASI_IMMU	! Clear FaultValid bit
+	membar		#Sync
+	sethi		%hi(109f), %g7
+	ba,pt		%xcc, etraptl1
+109:	 or		%g7, %lo(109b), %g7
+	mov		%l4, %o1
+	mov		%l5, %o2
+	call		spitfire_insn_access_exception_tl1
+	 add		%sp, PTREGS_OFF, %o0
+	ba,pt		%xcc, rtrap
+	 clr		%l6
+
+__spitfire_insn_access_exception:
+	rdpr		%pstate, %g4
+	wrpr		%g4, PSTATE_MG|PSTATE_AG, %pstate
+	mov		TLB_SFSR, %g3
+	ldxa		[%g3] ASI_IMMU, %g4	! Get SFSR
+	rdpr		%tpc, %g5		! IMMU has no SFAR, use TPC
+	stxa		%g0, [%g3] ASI_IMMU	! Clear FaultValid bit
+	membar		#Sync
+	sethi		%hi(109f), %g7
+	ba,pt		%xcc, etrap
+109:	 or		%g7, %lo(109b), %g7
+	mov		%l4, %o1
+	mov		%l5, %o2
+	call		spitfire_insn_access_exception
+	 add		%sp, PTREGS_OFF, %o0
+	ba,pt		%xcc, rtrap
+	 clr		%l6
 
 	/* These get patched into the trap table at boot time
 	 * once we know we have a cheetah processor.
@@ -1071,13 +828,14 @@ cheetah_plus_dcpe_trap_vector:
 	nop
 
 do_cheetah_plus_data_parity:
-	ba,pt		%xcc, etrap
+	rdpr		%pil, %g2
+	wrpr		%g0, 15, %pil
+	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
 	mov		0x0, %o0
 	call		cheetah_plus_parity_error
 	 add		%sp, PTREGS_OFF, %o1
-	ba,pt		%xcc, rtrap
-	 clr		%l6
+	ba,a,pt		%xcc, rtrap_irq
 
 cheetah_plus_dcpe_trap_vector_tl1:
 	membar		#Sync
@@ -1101,13 +859,14 @@ cheetah_plus_icpe_trap_vector:
 	nop
 
 do_cheetah_plus_insn_parity:
-	ba,pt		%xcc, etrap
+	rdpr		%pil, %g2
+	wrpr		%g0, 15, %pil
+	ba,pt		%xcc, etrap_irq
 	 rd		%pc, %g7
 	mov		0x1, %o0
 	call		cheetah_plus_parity_error
 	 add		%sp, PTREGS_OFF, %o1
-	ba,pt		%xcc, rtrap
-	 clr		%l6
+	ba,a,pt		%xcc, rtrap_irq
 
 cheetah_plus_icpe_trap_vector_tl1:
 	membar		#Sync
@@ -1140,6 +899,10 @@ do_dcpe_tl1:
 	 nop
 	wrpr		%g1, %tl		! Restore original trap level
 do_dcpe_tl1_nonfatal:	/* Ok we may use interrupt globals safely. */
+	sethi		%hi(dcache_parity_tl1_occurred), %g2
+	lduw		[%g2 + %lo(dcache_parity_tl1_occurred)], %g1
+	add		%g1, 1, %g1
+	stw		%g1, [%g2 + %lo(dcache_parity_tl1_occurred)]
 	/* Reset D-cache parity */
 	sethi		%hi(1 << 16), %g1	! D-cache size
 	mov		(1 << 5), %g2		! D-cache line size
@@ -1186,6 +949,10 @@ do_icpe_tl1:
 	 nop
 	wrpr		%g1, %tl		! Restore original trap level
 do_icpe_tl1_nonfatal:	/* Ok we may use interrupt globals safely. */
+	sethi		%hi(icache_parity_tl1_occurred), %g2
+	lduw		[%g2 + %lo(icache_parity_tl1_occurred)], %g1
+	add		%g1, 1, %g1
+	stw		%g1, [%g2 + %lo(icache_parity_tl1_occurred)]
 	/* Flush I-cache */
 	sethi		%hi(1 << 15), %g1	! I-cache size
 	mov		(1 << 5), %g2		! I-cache line size
@@ -1227,6 +994,170 @@ dcpe_icpe_tl1_common:
 	membar		#Sync
 	retry
 
+	/* Capture I/D/E-cache state into per-cpu error scoreboard.
+	 *
+	 * %g1:		(TL>=0) ? 1 : 0
+	 * %g2:		scratch
+	 * %g3:		scratch
+	 * %g4:		AFSR
+	 * %g5:		AFAR
+	 * %g6:		current thread ptr
+	 * %g7:		scratch
+	 */
+__cheetah_log_error:
+	/* Put "TL1" software bit into AFSR. */
+	and		%g1, 0x1, %g1
+	sllx		%g1, 63, %g2
+	or		%g4, %g2, %g4
+
+	/* Get log entry pointer for this cpu at this trap level. */
+	BRANCH_IF_JALAPENO(g2,g3,50f)
+	ldxa		[%g0] ASI_SAFARI_CONFIG, %g2
+	srlx		%g2, 17, %g2
+	ba,pt		%xcc, 60f
+	 and		%g2, 0x3ff, %g2
+
+50:	ldxa		[%g0] ASI_JBUS_CONFIG, %g2
+	srlx		%g2, 17, %g2
+	and		%g2, 0x1f, %g2
+
+60:	sllx		%g2, 9, %g2
+	sethi		%hi(cheetah_error_log), %g3
+	ldx		[%g3 + %lo(cheetah_error_log)], %g3
+	brz,pn		%g3, 80f
+	 nop
+
+	add		%g3, %g2, %g3
+	sllx		%g1, 8, %g1
+	add		%g3, %g1, %g1
+
+	/* %g1 holds pointer to the top of the logging scoreboard */
+	ldx		[%g1 + 0x0], %g7
+	cmp		%g7, -1
+	bne,pn		%xcc, 80f
+	 nop
+
+	stx		%g4, [%g1 + 0x0]
+	stx		%g5, [%g1 + 0x8]
+	add		%g1, 0x10, %g1
+
+	/* %g1 now points to D-cache logging area */
+	set		0x3ff8, %g2	/* DC_addr mask		*/
+	and		%g5, %g2, %g2	/* DC_addr bits of AFAR	*/
+	srlx		%g5, 12, %g3
+	or		%g3, 1, %g3	/* PHYS tag + valid	*/
+
+10:	ldxa		[%g2] ASI_DCACHE_TAG, %g7
+	cmp		%g3, %g7	/* TAG match?		*/
+	bne,pt		%xcc, 13f
+	 nop
+
+	/* Yep, what we want, capture state. */
+	stx		%g2, [%g1 + 0x20]
+	stx		%g7, [%g1 + 0x28]
+
+	/* A membar Sync is required before and after utag access. */
+	membar		#Sync
+	ldxa		[%g2] ASI_DCACHE_UTAG, %g7
+	membar		#Sync
+	stx		%g7, [%g1 + 0x30]
+	ldxa		[%g2] ASI_DCACHE_SNOOP_TAG, %g7
+	stx		%g7, [%g1 + 0x38]
+	clr		%g3
+
+12:	ldxa		[%g2 + %g3] ASI_DCACHE_DATA, %g7
+	stx		%g7, [%g1]
+	add		%g3, (1 << 5), %g3
+	cmp		%g3, (4 << 5)
+	bl,pt		%xcc, 12b
+	 add		%g1, 0x8, %g1
+
+	ba,pt		%xcc, 20f
+	 add		%g1, 0x20, %g1
+
+13:	sethi		%hi(1 << 14), %g7
+	add		%g2, %g7, %g2
+	srlx		%g2, 14, %g7
+	cmp		%g7, 4
+	bl,pt		%xcc, 10b
+	 nop
+
+	add		%g1, 0x40, %g1
+
+	/* %g1 now points to I-cache logging area */
+20:	set		0x1fe0, %g2	/* IC_addr mask		*/
+	and		%g5, %g2, %g2	/* IC_addr bits of AFAR	*/
+	sllx		%g2, 1, %g2	/* IC_addr[13:6]==VA[12:5] */
+	srlx		%g5, (13 - 8), %g3 /* Make PTAG */
+	andn		%g3, 0xff, %g3	/* Mask off undefined bits */
+
+21:	ldxa		[%g2] ASI_IC_TAG, %g7
+	andn		%g7, 0xff, %g7
+	cmp		%g3, %g7
+	bne,pt		%xcc, 23f
+	 nop
+
+	/* Yep, what we want, capture state. */
+	stx		%g2, [%g1 + 0x40]
+	stx		%g7, [%g1 + 0x48]
+	add		%g2, (1 << 3), %g2
+	ldxa		[%g2] ASI_IC_TAG, %g7
+	add		%g2, (1 << 3), %g2
+	stx		%g7, [%g1 + 0x50]
+	ldxa		[%g2] ASI_IC_TAG, %g7
+	add		%g2, (1 << 3), %g2
+	stx		%g7, [%g1 + 0x60]
+	ldxa		[%g2] ASI_IC_TAG, %g7
+	stx		%g7, [%g1 + 0x68]
+	sub		%g2, (3 << 3), %g2
+	ldxa		[%g2] ASI_IC_STAG, %g7
+	stx		%g7, [%g1 + 0x58]
+	clr		%g3
+	srlx		%g2, 2, %g2
+
+22:	ldxa		[%g2 + %g3] ASI_IC_INSTR, %g7
+	stx		%g7, [%g1]
+	add		%g3, (1 << 3), %g3
+	cmp		%g3, (8 << 3)
+	bl,pt		%xcc, 22b
+	 add		%g1, 0x8, %g1
+
+	ba,pt		%xcc, 30f
+	 add		%g1, 0x30, %g1
+
+23:	sethi		%hi(1 << 14), %g7
+	add		%g2, %g7, %g2
+	srlx		%g2, 14, %g7
+	cmp		%g7, 4
+	bl,pt		%xcc, 21b
+	 nop
+
+	add		%g1, 0x70, %g1
+
+	/* %g1 now points to E-cache logging area */
+30:	andn		%g5, (32 - 1), %g2
+	stx		%g2, [%g1 + 0x20]
+	ldxa		[%g2] ASI_EC_TAG_DATA, %g7
+	stx		%g7, [%g1 + 0x28]
+	ldxa		[%g2] ASI_EC_R, %g0
+	clr		%g3
+
+31:	ldxa		[%g3] ASI_EC_DATA, %g7
+	stx		%g7, [%g1 + %g3]
+	add		%g3, 0x8, %g3
+	cmp		%g3, 0x20
+
+	bl,pt		%xcc, 31b
+	 nop
+80:
+	rdpr		%tt, %g2
+	cmp		%g2, 0x70
+	be		c_fast_ecc
+	 cmp		%g2, 0x63
+	be		c_cee
+	 nop
+	ba,pt		%xcc, c_deferred
+
 	/* Cheetah FECC trap handling, we get here from tl{0,1}_fecc
 	 * in the trap table.  That code has done a memory barrier
 	 * and has disabled both the I-cache and D-cache in the DCU
@@ -1252,8 +1183,10 @@ cheetah_fast_ecc:
 	stxa		%g4, [%g0] ASI_AFSR
 	membar		#Sync
 
-	CHEETAH_LOG_ERROR
+	ba,pt		%xcc, __cheetah_log_error
+	 nop
 
+c_fast_ecc:
 	rdpr		%pil, %g2
 	wrpr		%g0, 15, %pil
 	ba,pt		%xcc, etrap_irq
@@ -1278,8 +1211,10 @@ cheetah_cee:
 	stxa		%g4, [%g0] ASI_AFSR
 	membar		#Sync
 
-	CHEETAH_LOG_ERROR
+	ba,pt		%xcc, __cheetah_log_error
+	 nop
 
+c_cee:
 	rdpr		%pil, %g2
 	wrpr		%g0, 15, %pil
 	ba,pt		%xcc, etrap_irq
@@ -1304,8 +1239,10 @@ cheetah_deferred_trap:
 	stxa		%g4, [%g0] ASI_AFSR
 	membar		#Sync
 
-	CHEETAH_LOG_ERROR
+	ba,pt		%xcc, __cheetah_log_error
+	 nop
 
+c_deferred:
 	rdpr		%pil, %g2
 	wrpr		%g0, 15, %pil
 	ba,pt		%xcc, etrap_irq

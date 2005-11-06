@@ -36,7 +36,7 @@
 
 /*-------------------------------------------------------------------------*/
 
-#if	defined(CONFIG_USB_SUSPEND) || defined(CONFIG_PM)
+#ifdef	CONFIG_PM
 
 #define OHCI_SCHED_ENABLES \
 	(OHCI_CTRL_CLE|OHCI_CTRL_BLE|OHCI_CTRL_PLE|OHCI_CTRL_IE)
@@ -45,7 +45,7 @@ static void dl_done_list (struct ohci_hcd *, struct pt_regs *);
 static void finish_unlinks (struct ohci_hcd *, u16 , struct pt_regs *);
 static int ohci_restart (struct ohci_hcd *ohci);
 
-static int ohci_hub_suspend (struct usb_hcd *hcd)
+static int ohci_bus_suspend (struct usb_hcd *hcd)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 	int			status = 0;
@@ -73,7 +73,6 @@ static int ohci_hub_suspend (struct usb_hcd *hcd)
 	ohci_dbg (ohci, "suspend root hub\n");
 
 	/* First stop any processing */
-	hcd->state = HC_STATE_QUIESCING;
 	if (ohci->hc_control & OHCI_SCHED_ENABLES) {
 		int		limit;
 
@@ -108,7 +107,9 @@ static int ohci_hub_suspend (struct usb_hcd *hcd)
 	else
 		ohci->hc_control &= ~OHCI_CTRL_RWE;
 
-	/* Suspend hub */
+	/* Suspend hub ... this is the "global (to this bus) suspend" mode,
+	 * which doesn't imply ports will first be individually suspended.
+	 */
 	ohci->hc_control &= ~OHCI_CTRL_HCFS;
 	ohci->hc_control |= OHCI_USB_SUSPEND;
 	ohci_writel (ohci, ohci->hc_control, &ohci->regs->control);
@@ -118,8 +119,9 @@ static int ohci_hub_suspend (struct usb_hcd *hcd)
 	ohci->next_statechange = jiffies + msecs_to_jiffies (5);
 
 done:
+	/* external suspend vs self autosuspend ... same effect */
 	if (status == 0)
-		hcd->state = HC_STATE_SUSPENDED;
+		usb_hcd_suspend_root_hub(hcd);
 	spin_unlock_irqrestore (&ohci->lock, flags);
 	return status;
 }
@@ -133,7 +135,7 @@ static inline struct ed *find_head (struct ed *ed)
 }
 
 /* caller has locked the root hub */
-static int ohci_hub_resume (struct usb_hcd *hcd)
+static int ohci_bus_resume (struct usb_hcd *hcd)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
 	u32			temp, enables;
@@ -146,7 +148,7 @@ static int ohci_hub_resume (struct usb_hcd *hcd)
 	ohci->hc_control = ohci_readl (ohci, &ohci->regs->control);
 
 	if (ohci->hc_control & (OHCI_CTRL_IR | OHCI_SCHED_ENABLES)) {
-		/* this can happen after suspend-to-disk */
+		/* this can happen after resuming a swsusp snapshot */
 		if (hcd->state == HC_STATE_RESUMING) {
 			ohci_dbg (ohci, "BIOS/SMM active, control %03x\n",
 					ohci->hc_control);
@@ -169,11 +171,12 @@ static int ohci_hub_resume (struct usb_hcd *hcd)
 		ohci_info (ohci, "wakeup\n");
 		break;
 	case OHCI_USB_OPER:
-		ohci_dbg (ohci, "already resumed\n");
-		status = 0;
+		/* this can happen after resuming a swsusp snapshot */
+		ohci_dbg (ohci, "snapshot resume? reinit\n");
+		status = -EBUSY;
 		break;
 	default:		/* RESET, we lost power */
-		ohci_dbg (ohci, "root hub hardware reset\n");
+		ohci_dbg (ohci, "lost power\n");
 		status = -EBUSY;
 	}
 	spin_unlock_irq (&ohci->lock);
@@ -184,7 +187,7 @@ static int ohci_hub_resume (struct usb_hcd *hcd)
 	if (status != -EINPROGRESS)
 		return status;
 
-	temp = roothub_a (ohci) & RH_A_NDP;
+	temp = ohci->num_ports;
 	enables = 0;
 	while (temp--) {
 		u32 stat = ohci_readl (ohci,
@@ -198,8 +201,7 @@ static int ohci_hub_resume (struct usb_hcd *hcd)
 	}
 
 	/* Some controllers (lucent erratum) need extra-long delays */
-	hcd->state = HC_STATE_RESUMING;
-	mdelay (20 /* usb 11.5.1.10 */ + 15);
+	msleep (20 /* usb 11.5.1.10 */ + 12 /* 32 msec counter */ + 1);
 
 	temp = ohci_readl (ohci, &ohci->regs->control);
 	temp &= OHCI_CTRL_HCFS;
@@ -273,28 +275,10 @@ static int ohci_hub_resume (struct usb_hcd *hcd)
 		(void) ohci_readl (ohci, &ohci->regs->control);
 	}
 
-	hcd->state = HC_STATE_RUNNING;
 	return 0;
 }
 
-static void ohci_rh_resume (void *_hcd)
-{
-	struct usb_hcd	*hcd = _hcd;
-
-	usb_lock_device (hcd->self.root_hub);
-	(void) ohci_hub_resume (hcd);
-	usb_unlock_device (hcd->self.root_hub);
-}
-
-#else
-
-static void ohci_rh_resume (void *_hcd)
-{
-	struct ohci_hcd	*ohci = hcd_to_ohci (_hcd);
-	ohci_dbg(ohci, "rh_resume ??\n");
-}
-
-#endif	/* CONFIG_USB_SUSPEND || CONFIG_PM */
+#endif	/* CONFIG_PM */
 
 /*-------------------------------------------------------------------------*/
 
@@ -304,7 +288,7 @@ static int
 ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci (hcd);
-	int		ports, i, changed = 0, length = 1;
+	int		i, changed = 0, length = 1;
 	int		can_suspend = hcd->can_wakeup;
 	unsigned long	flags;
 
@@ -319,9 +303,10 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		goto done;
 	}
 
-	ports = roothub_a (ohci) & RH_A_NDP; 
-	if (ports > MAX_ROOT_PORTS) {
-		ohci_err (ohci, "bogus NDP=%d, rereads as NDP=%d\n", ports,
+	/* undocumented erratum seen on at least rev D */
+	if ((ohci->flags & OHCI_QUIRK_AMD756)
+			&& (roothub_a (ohci) & RH_A_NDP) > MAX_ROOT_PORTS) {
+		ohci_warn (ohci, "bogus NDP, rereads as NDP=%d\n",
 			  ohci_readl (ohci, &ohci->regs->roothub.a) & RH_A_NDP);
 		/* retry later; "should not happen" */
 		goto done;
@@ -332,13 +317,13 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		buf [0] = changed = 1;
 	else
 		buf [0] = 0;
-	if (ports > 7) {
+	if (ohci->num_ports > 7) {
 		buf [1] = 0;
 		length++;
 	}
 
 	/* look at each port */
-	for (i = 0; i < ports; i++) {
+	for (i = 0; i < ohci->num_ports; i++) {
 		u32	status = roothub_portstatus (ohci, i);
 
 		if (status & (RH_PS_CSC | RH_PS_PESC | RH_PS_PSSC
@@ -366,7 +351,6 @@ done:
 #ifdef CONFIG_PM
 	/* save power by suspending idle root hubs;
 	 * INTR_RD wakes us when there's work
-	 * NOTE: if we can do this, we don't need a root hub timer!
 	 */
 	if (can_suspend
 			&& !changed
@@ -378,8 +362,7 @@ done:
 			&& usb_trylock_device (hcd->self.root_hub)
 			) {
 		ohci_vdbg (ohci, "autosuspend\n");
-		(void) ohci_hub_suspend (hcd);
-		hcd->state = HC_STATE_RUNNING;
+		(void) ohci_bus_suspend (hcd);
 		usb_unlock_device (hcd->self.root_hub);
 	}
 #endif
@@ -395,15 +378,14 @@ ohci_hub_descriptor (
 	struct usb_hub_descriptor	*desc
 ) {
 	u32		rh = roothub_a (ohci);
-	int		ports = rh & RH_A_NDP; 
 	u16		temp;
 
 	desc->bDescriptorType = 0x29;
 	desc->bPwrOn2PwrGood = (rh & RH_A_POTPGT) >> 24;
 	desc->bHubContrCurrent = 0;
 
-	desc->bNbrPorts = ports;
-	temp = 1 + (ports / 8);
+	desc->bNbrPorts = ohci->num_ports;
+	temp = 1 + (ohci->num_ports / 8);
 	desc->bDescLength = 7 + 2 * temp;
 
 	temp = 0;
@@ -421,7 +403,7 @@ ohci_hub_descriptor (
 	rh = roothub_b (ohci);
 	memset(desc->bitmap, 0xff, sizeof(desc->bitmap));
 	desc->bitmap [0] = rh & RH_B_DR;
-	if (ports > 7) {
+	if (ohci->num_ports > 7) {
 		desc->bitmap [1] = (rh & RH_B_DR) >> 8;
 		desc->bitmap [2] = 0xff;
 	} else
@@ -554,7 +536,7 @@ static int ohci_hub_control (
 			temp = RH_PS_POCI;
 			if ((ohci->hc_control & OHCI_CTRL_HCFS)
 					!= OHCI_USB_OPER)
-				schedule_work (&ohci->rh_resume);
+				usb_hcd_resume_root_hub(hcd);
 			break;
 		case USB_PORT_FEAT_C_SUSPEND:
 			temp = RH_PS_PSSC;

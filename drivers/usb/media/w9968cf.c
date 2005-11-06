@@ -1523,7 +1523,6 @@ static u32 w9968cf_i2c_func(struct i2c_adapter* adap)
 static int w9968cf_i2c_attach_inform(struct i2c_client* client)
 {
 	struct w9968cf_device* cam = i2c_get_adapdata(client->adapter);
-	const char* clientname = i2c_clientname(client);
 	int id = client->driver->id, err = 0;
 
 	if (id == I2C_DRIVERID_OVCAMCHIP) {
@@ -1535,12 +1534,12 @@ static int w9968cf_i2c_attach_inform(struct i2c_client* client)
 		}
 	} else {
 		DBG(4, "Rejected client [%s] with driver [%s]", 
-		    clientname, client->driver->name)
+		    client->name, client->driver->name)
 		return -EINVAL;
 	}
 
 	DBG(5, "I2C attach client [%s] with driver [%s]",
-	    clientname, client->driver->name)
+	    client->name, client->driver->name)
 
 	return 0;
 }
@@ -1549,12 +1548,11 @@ static int w9968cf_i2c_attach_inform(struct i2c_client* client)
 static int w9968cf_i2c_detach_inform(struct i2c_client* client)
 {
 	struct w9968cf_device* cam = i2c_get_adapdata(client->adapter);
-	const char* clientname = i2c_clientname(client);
 
 	if (cam->sensor_client == client)
 		cam->sensor_client = NULL;
 
-	DBG(5, "I2C detach client [%s]", clientname)
+	DBG(5, "I2C detach client [%s]", client->name)
 
 	return 0;
 }
@@ -1573,15 +1571,13 @@ static int w9968cf_i2c_init(struct w9968cf_device* cam)
 	int err = 0;
 
 	static struct i2c_algorithm algo = {
-		.name =          "W996[87]CF algorithm",
-		.id =            I2C_ALGO_SMBUS,
 		.smbus_xfer =    w9968cf_i2c_smbus_xfer,
 		.algo_control =  w9968cf_i2c_control,
 		.functionality = w9968cf_i2c_func,
 	};
 
 	static struct i2c_adapter adap = {
-		.id =                I2C_ALGO_SMBUS | I2C_HW_SMBUS_W9968CF,
+		.id =                I2C_HW_SMBUS_W9968CF,
 		.class =             I2C_CLASS_CAM_DIGITAL,
 		.owner =             THIS_MODULE,
 		.client_register =   w9968cf_i2c_attach_inform,

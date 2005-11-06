@@ -10,7 +10,6 @@
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/major.h>
-#include <asm/segment.h>
 #include <asm/io.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
@@ -1242,6 +1241,8 @@ struct IsdnCardState {
 
 #ifdef CONFIG_HISAX_ENTERNOW_PCI
 #define CARD_FN_ENTERNOW_PCI 1
+#else
+#define CARD_FN_ENTERNOW_PCI 0
 #endif
 
 #define TEI_PER_CARD 1

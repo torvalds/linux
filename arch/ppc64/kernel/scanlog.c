@@ -25,6 +25,7 @@
 #include <linux/errno.h>
 #include <linux/proc_fs.h>
 #include <linux/init.h>
+#include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <asm/rtas.h>
 #include <asm/prom.h>
@@ -77,7 +78,7 @@ static ssize_t scanlog_read(struct file *file, char __user *buf,
 		return -EFAULT;
 
 	for (;;) {
-		wait_time = HZ/2;	/* default wait if no data */
+		wait_time = 500;	/* default wait if no data */
 		spin_lock(&rtas_data_buf_lock);
 		memcpy(rtas_data_buf, data, RTAS_DATA_BUF_SIZE);
 		status = rtas_call(ibm_scan_log_dump, 2, 1, NULL,
@@ -107,24 +108,14 @@ static ssize_t scanlog_read(struct file *file, char __user *buf,
 			break;
 		    default:
 			if (status > 9900 && status <= 9905) {
-				/* No data.  RTAS is hinting at a delay required
-				 * between 1-100000 milliseconds
-				 */
-				int ms = 1;
-				for (; status > 9900; status--)
-					ms = ms * 10;
-				/* Use microseconds for reasonable accuracy */
-				ms *= 1000;
-				wait_time = ms / (1000000/HZ); /* round down is fine */
-				/* Fall through to sleep */
+				wait_time = rtas_extended_busy_delay_time(status);
 			} else {
 				printk(KERN_ERR "scanlog: unknown error from rtas: %d\n", status);
 				return -EIO;
 			}
 		}
 		/* Apparently no data yet.  Wait and try again. */
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(wait_time);
+		msleep_interruptible(wait_time);
 	}
 	/*NOTREACHED*/
 }

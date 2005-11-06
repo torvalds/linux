@@ -259,11 +259,11 @@ static void bt3c_receive(bt3c_info_t *info)
 		if (info->rx_state == RECV_WAIT_PACKET_TYPE) {
 
 			info->rx_skb->dev = (void *) info->hdev;
-			info->rx_skb->pkt_type = inb(iobase + DATA_L);
+			bt_cb(info->rx_skb)->pkt_type = inb(iobase + DATA_L);
 			inb(iobase + DATA_H);
-			//printk("bt3c: PACKET_TYPE=%02x\n", info->rx_skb->pkt_type);
+			//printk("bt3c: PACKET_TYPE=%02x\n", bt_cb(info->rx_skb)->pkt_type);
 
-			switch (info->rx_skb->pkt_type) {
+			switch (bt_cb(info->rx_skb)->pkt_type) {
 
 			case HCI_EVENT_PKT:
 				info->rx_state = RECV_WAIT_EVENT_HEADER;
@@ -282,7 +282,7 @@ static void bt3c_receive(bt3c_info_t *info)
 
 			default:
 				/* Unknown packet */
-				BT_ERR("Unknown HCI packet with type 0x%02x received", info->rx_skb->pkt_type);
+				BT_ERR("Unknown HCI packet with type 0x%02x received", bt_cb(info->rx_skb)->pkt_type);
 				info->hdev->stat.err_rx++;
 				clear_bit(HCI_RUNNING, &(info->hdev->flags));
 
@@ -439,7 +439,7 @@ static int bt3c_hci_send_frame(struct sk_buff *skb)
 
 	info = (bt3c_info_t *) (hdev->driver_data);
 
-	switch (skb->pkt_type) {
+	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
 		hdev->stat.cmd_tx++;
 		break;
@@ -452,7 +452,7 @@ static int bt3c_hci_send_frame(struct sk_buff *skb)
 	};
 
 	/* Prepend skb with frame type */
-	memcpy(skb_push(skb, 1), &(skb->pkt_type), 1);
+	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
 	skb_queue_tail(&(info->txq), skb);
 
 	spin_lock_irqsave(&(info->lock), flags);

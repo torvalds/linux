@@ -45,7 +45,6 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <linux/sched.h>
-#include <asm/segment.h>
 #include <linux/types.h>
 
 #include <linux/videodev.h>
@@ -827,7 +826,6 @@ static struct i2c_client_address_data addr_data = {
 	.normal_i2c		= normal_i2c,
 	.probe			= &ignore,
 	.ignore			= &ignore,
-	.force			= &ignore,
 };
 
 static struct i2c_driver i2c_driver_saa7114;

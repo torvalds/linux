@@ -9,10 +9,8 @@
  */
 struct bug_frame {
 	unsigned char ud2[2];
-	unsigned char mov;
-	/* should use 32bit offset instead, but the assembler doesn't 
-	   like it */
-	char *filename;
+	unsigned char push;
+	signed int filename;
 	unsigned char ret;
 	unsigned short line;
 } __attribute__((packed));
@@ -25,8 +23,8 @@ struct bug_frame {
    The magic numbers generate mov $64bitimm,%eax ; ret $offset. */
 #define BUG() 								\
 	asm volatile(							\
-	"ud2 ; .byte 0xa3 ; .quad %c1 ; .byte 0xc2 ; .short %c0" :: 	\
-		     "i"(__LINE__), "i" (__stringify(__FILE__)))
+	"ud2 ; pushq $%c1 ; ret $%c0" :: 				\
+		     "i"(__LINE__), "i" (__FILE__))
 void out_of_line_bug(void);
 #else
 static inline void out_of_line_bug(void) { }

@@ -24,6 +24,10 @@ config X86
 	bool
 	default y
 
+config SEMAPHORE_SLEEPERS
+	bool
+	default y
+
 config MMU
 	bool
 	default y
@@ -58,6 +62,10 @@ config GENERIC_ISA_DMA
 	default y
 
 config GENERIC_IOMAP
+	bool
+	default y
+
+config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
@@ -144,7 +152,6 @@ config X86_CPUID
 	  with major 203 and minors 0 to 31 for /dev/cpu/0/cpuid to
 	  /dev/cpu/31/cpuid.
 
-# disable it for opteron optimized builds because it pulls in ACPI_BOOT
 config X86_HT
 	bool
 	depends on SMP && !MK8
@@ -270,11 +277,6 @@ source "mm/Kconfig"
 config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool y
 
-config HAVE_DEC_LOCK
-	bool
-	depends on SMP
-	default y
-
 config NR_CPUS
 	int "Maximum number of CPUs (2-256)"
 	range 2 256
@@ -306,7 +308,7 @@ config HPET_TIMER
 	  present.  The HPET provides a stable time base on SMP
 	  systems, unlike the TSC, but it is more expensive to access,
 	  as it is off-chip.  You can find the HPET spec at
-	  <http://www.intel.com/labs/platcomp/hpet/hpetspec.htm>.
+	  <http://www.intel.com/hardwaredesign/hpetspec.htm>.
 
 config X86_PM_TIMER
 	bool "PM timer"
@@ -437,6 +439,11 @@ config ISA_DMA_API
 	bool
 	default y
 
+config GENERIC_PENDING_IRQ
+	bool
+	depends on GENERIC_HARDIRQS && SMP
+	default y
+
 menu "Power management options"
 
 source kernel/power/Kconfig
@@ -461,7 +468,6 @@ config PCI_DIRECT
 config PCI_MMCONFIG
 	bool "Support mmconfig PCI config space access"
 	depends on PCI && ACPI
-	select ACPI_BOOT
 
 config UNORDERED_IO
        bool "Unordered IO mapping access"

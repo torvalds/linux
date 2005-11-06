@@ -94,6 +94,9 @@ extern int ntfs_mapping_pairs_build(const ntfs_volume *vol, s8 *dst,
 extern int ntfs_rl_truncate_nolock(const ntfs_volume *vol,
 		runlist *const runlist, const s64 new_length);
 
+int ntfs_rl_punch_nolock(const ntfs_volume *vol, runlist *const runlist,
+		const VCN start, const s64 length);
+
 #endif /* NTFS_RW */
 
 #endif /* _LINUX_NTFS_RUNLIST_H */

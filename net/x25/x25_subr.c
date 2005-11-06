@@ -27,7 +27,7 @@
 #include <linux/string.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <net/x25.h>
 
 /*
@@ -80,7 +80,7 @@ void x25_requeue_frames(struct sock *sk)
 		if (!skb_prev)
 			skb_queue_head(&sk->sk_write_queue, skb);
 		else
-			skb_append(skb_prev, skb);
+			skb_append(skb_prev, skb, &sk->sk_write_queue);
 		skb_prev = skb;
 	}
 }

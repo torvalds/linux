@@ -18,10 +18,10 @@
 
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/string.h>
 
 #include <net/checksum.h>
 #include <asm/byteorder.h>
-#include <asm/string.h>
 #include <asm/uaccess.h>
 
 /*
@@ -58,3 +58,4 @@ csum_partial_copy_from_user (const unsigned char __user *src,
 	return csum_partial(dst, len-missing, sum);
 }
 EXPORT_SYMBOL(csum_partial_copy_from_user);
+EXPORT_SYMBOL(csum_partial);

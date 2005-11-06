@@ -35,13 +35,13 @@ static int rpc_proc_show(struct seq_file *seq, void *v) {
 	int		i, j;
 
 	seq_printf(seq,
-		"net %d %d %d %d\n",
+		"net %u %u %u %u\n",
 			statp->netcnt,
 			statp->netudpcnt,
 			statp->nettcpcnt,
 			statp->nettcpconn);
 	seq_printf(seq,
-		"rpc %d %d %d\n",
+		"rpc %u %u %u\n",
 			statp->rpccnt,
 			statp->rpcretrans,
 			statp->rpcauthrefresh);
@@ -50,10 +50,10 @@ static int rpc_proc_show(struct seq_file *seq, void *v) {
 		const struct rpc_version *vers = prog->version[i];
 		if (!vers)
 			continue;
-		seq_printf(seq, "proc%d %d",
+		seq_printf(seq, "proc%u %u",
 					vers->number, vers->nrprocs);
 		for (j = 0; j < vers->nrprocs; j++)
-			seq_printf(seq, " %d",
+			seq_printf(seq, " %u",
 					vers->procs[j].p_count);
 		seq_putc(seq, '\n');
 	}
@@ -83,13 +83,13 @@ void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp) {
 	int		i, j;
 
 	seq_printf(seq,
-		"net %d %d %d %d\n",
+		"net %u %u %u %u\n",
 			statp->netcnt,
 			statp->netudpcnt,
 			statp->nettcpcnt,
 			statp->nettcpconn);
 	seq_printf(seq,
-		"rpc %d %d %d %d %d\n",
+		"rpc %u %u %u %u %u\n",
 			statp->rpccnt,
 			statp->rpcbadfmt+statp->rpcbadauth+statp->rpcbadclnt,
 			statp->rpcbadfmt,
@@ -99,9 +99,9 @@ void svc_seq_show(struct seq_file *seq, const struct svc_stat *statp) {
 	for (i = 0; i < prog->pg_nvers; i++) {
 		if (!(vers = prog->pg_vers[i]) || !(proc = vers->vs_proc))
 			continue;
-		seq_printf(seq, "proc%d %d", i, vers->vs_nproc);
+		seq_printf(seq, "proc%d %u", i, vers->vs_nproc);
 		for (j = 0; j < vers->vs_nproc; j++, proc++)
-			seq_printf(seq, " %d", proc->pc_count);
+			seq_printf(seq, " %u", proc->pc_count);
 		seq_putc(seq, '\n');
 	}
 }

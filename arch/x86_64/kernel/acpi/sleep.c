@@ -34,7 +34,6 @@
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/bootmem.h>
-#include <linux/irq.h>
 #include <linux/acpi.h>
 #include <asm/mpspec.h>
 #include <asm/io.h>
@@ -46,7 +45,6 @@
 #include <asm/io_apic.h>
 #include <asm/proto.h>
 #include <asm/tlbflush.h>
-
 
 /* --------------------------------------------------------------------------
                               Low-Level Sleep Support
@@ -77,11 +75,12 @@ static void init_low_mapping(void)
  * Create an identity mapped page table and copy the wakeup routine to
  * low memory.
  */
-int acpi_save_state_mem (void)
+int acpi_save_state_mem(void)
 {
 	init_low_mapping();
 
-	memcpy((void *) acpi_wakeup_address, &wakeup_start, &wakeup_end - &wakeup_start);
+	memcpy((void *)acpi_wakeup_address, &wakeup_start,
+	       &wakeup_end - &wakeup_start);
 	acpi_copy_wakeup_routine(acpi_wakeup_address);
 
 	return 0;
@@ -90,7 +89,7 @@ int acpi_save_state_mem (void)
 /*
  * acpi_restore_state
  */
-void acpi_restore_state_mem (void)
+void acpi_restore_state_mem(void)
 {
 	set_pgd(pgd_offset(current->mm, 0UL), low_ptr);
 	flush_tlb_all();
@@ -108,7 +107,8 @@ void __init acpi_reserve_bootmem(void)
 {
 	acpi_wakeup_address = (unsigned long)alloc_bootmem_low(PAGE_SIZE);
 	if ((&wakeup_end - &wakeup_start) > PAGE_SIZE)
-		printk(KERN_CRIT "ACPI: Wakeup code way too big, will crash on attempt to suspend\n");
+		printk(KERN_CRIT
+		       "ACPI: Wakeup code way too big, will crash on attempt to suspend\n");
 }
 
 static int __init acpi_sleep_setup(char *str)
@@ -127,6 +127,8 @@ static int __init acpi_sleep_setup(char *str)
 
 __setup("acpi_sleep=", acpi_sleep_setup);
 
-#endif /*CONFIG_ACPI_SLEEP*/
+#endif				/*CONFIG_ACPI_SLEEP */
 
-void acpi_pci_link_exit(void) {}
+void acpi_pci_link_exit(void)
+{
+}

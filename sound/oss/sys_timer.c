@@ -28,8 +28,7 @@ static unsigned long prev_event_time;
 
 static void     poll_def_tmr(unsigned long dummy);
 static DEFINE_SPINLOCK(lock);
-
-static struct timer_list def_tmr = TIMER_INITIALIZER(poll_def_tmr, 0, 0);
+static DEFINE_TIMER(def_tmr, poll_def_tmr, 0, 0);
 
 static unsigned long
 tmr2ticks(int tmr_value)

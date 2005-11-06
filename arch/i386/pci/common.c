@@ -165,7 +165,6 @@ static int __init pcibios_init(void)
 	if ((pci_probe & PCI_BIOS_SORT) && !(pci_probe & PCI_NO_SORT))
 		pcibios_sort();
 #endif
-	pci_assign_unassigned_resources();
 	return 0;
 }
 

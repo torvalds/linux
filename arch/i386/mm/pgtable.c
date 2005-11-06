@@ -31,11 +31,13 @@ void show_mem(void)
 	pg_data_t *pgdat;
 	unsigned long i;
 	struct page_state ps;
+	unsigned long flags;
 
 	printk(KERN_INFO "Mem-info:\n");
 	show_free_areas();
 	printk(KERN_INFO "Free swap:       %6ldkB\n", nr_swap_pages<<(PAGE_SHIFT-10));
 	for_each_pgdat(pgdat) {
+		pgdat_resize_lock(pgdat, &flags);
 		for (i = 0; i < pgdat->node_spanned_pages; ++i) {
 			page = pgdat_page_nr(pgdat, i);
 			total++;
@@ -48,6 +50,7 @@ void show_mem(void)
 			else if (page_count(page))
 				shared += page_count(page) - 1;
 		}
+		pgdat_resize_unlock(pgdat, &flags);
 	}
 	printk(KERN_INFO "%d pages of RAM\n", total);
 	printk(KERN_INFO "%d pages of HIGHMEM\n", highmem);
@@ -188,38 +191,38 @@ static inline void pgd_list_add(pgd_t *pgd)
 	struct page *page = virt_to_page(pgd);
 	page->index = (unsigned long)pgd_list;
 	if (pgd_list)
-		pgd_list->private = (unsigned long)&page->index;
+		set_page_private(pgd_list, (unsigned long)&page->index);
 	pgd_list = page;
-	page->private = (unsigned long)&pgd_list;
+	set_page_private(page, (unsigned long)&pgd_list);
 }
 
 static inline void pgd_list_del(pgd_t *pgd)
 {
 	struct page *next, **pprev, *page = virt_to_page(pgd);
 	next = (struct page *)page->index;
-	pprev = (struct page **)page->private;
+	pprev = (struct page **)page_private(page);
 	*pprev = next;
 	if (next)
-		next->private = (unsigned long)pprev;
+		set_page_private(next, (unsigned long)pprev);
 }
 
 void pgd_ctor(void *pgd, kmem_cache_t *cache, unsigned long unused)
 {
 	unsigned long flags;
 
-	if (PTRS_PER_PMD == 1)
+	if (PTRS_PER_PMD == 1) {
+		memset(pgd, 0, USER_PTRS_PER_PGD*sizeof(pgd_t));
 		spin_lock_irqsave(&pgd_lock, flags);
+	}
 
-	memcpy((pgd_t *)pgd + USER_PTRS_PER_PGD,
+	clone_pgd_range((pgd_t *)pgd + USER_PTRS_PER_PGD,
 			swapper_pg_dir + USER_PTRS_PER_PGD,
-			(PTRS_PER_PGD - USER_PTRS_PER_PGD) * sizeof(pgd_t));
-
+			KERNEL_PGD_PTRS);
 	if (PTRS_PER_PMD > 1)
 		return;
 
 	pgd_list_add(pgd);
 	spin_unlock_irqrestore(&pgd_lock, flags);
-	memset(pgd, 0, USER_PTRS_PER_PGD*sizeof(pgd_t));
 }
 
 /* never called when PTRS_PER_PMD > 1 */

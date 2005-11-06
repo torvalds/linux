@@ -23,11 +23,6 @@
 #include <asm/io.h>
 #include <asm/vr41xx/workpad.h>
 
-const char *get_system_type(void)
-{
-	return "IBM WorkPad z50";
-}
-
 static int __init ibm_workpad_setup(void)
 {
 	set_io_port_base(IO_PORT_BASE);

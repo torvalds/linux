@@ -25,6 +25,8 @@
 
 #if defined(CONFIG_MPC86XADS)
 
+#define BOARD_CHIP_NAME "MPC86X"
+
 /* U-Boot maps BCSR to 0xff080000 */
 #define BCSR_ADDR		((uint)0xff080000)
 

@@ -88,6 +88,16 @@ static irqreturn_t aac_rkt_intr(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 /**
+ *	aac_rkt_disable_interrupt	-	Disable interrupts
+ *	@dev: Adapter
+ */
+
+static void aac_rkt_disable_interrupt(struct aac_dev *dev)
+{
+	rkt_writeb(dev, MUnit.OIMR, dev->OIMR = 0xff);
+}
+
+/**
  *	rkt_sync_cmd	-	send a command and wait
  *	@dev: Adapter
  *	@command: Command to execute
@@ -412,9 +422,18 @@ int aac_rkt_init(struct aac_dev *dev)
 	 *	Fill in the function dispatch table.
 	 */
 	dev->a_ops.adapter_interrupt = aac_rkt_interrupt_adapter;
+	dev->a_ops.adapter_disable_int = aac_rkt_disable_interrupt;
 	dev->a_ops.adapter_notify = aac_rkt_notify_adapter;
 	dev->a_ops.adapter_sync_cmd = rkt_sync_cmd;
 	dev->a_ops.adapter_check_health = aac_rkt_check_health;
+
+	/*
+	 *	First clear out all interrupts.  Then enable the one's that we
+	 *	can handle.
+	 */
+	rkt_writeb(dev, MUnit.OIMR, 0xff);
+	rkt_writel(dev, MUnit.ODR, 0xffffffff);
+	rkt_writeb(dev, MUnit.OIMR, dev->OIMR = 0xfb);
 
 	if (aac_init_adapter(dev) == NULL)
 		goto error_irq;
@@ -438,6 +457,7 @@ error_kfree:
 	kfree(dev->queues);
 
 error_irq:
+	rkt_writeb(dev, MUnit.OIMR, dev->OIMR = 0xff);
 	free_irq(dev->scsi_host_ptr->irq, (void *)dev);
 
 error_iounmap:

@@ -90,7 +90,7 @@ void device_remove_file(struct device *, struct device_attribute *);
 
 It also defines this helper for defining device attributes: 
 
-#define DEVICE_ATTR(_name,_mode,_show,_store)      \
+#define DEVICE_ATTR(_name, _mode, _show, _store)      \
 struct device_attribute dev_attr_##_name = {            \
         .attr = {.name  = __stringify(_name) , .mode   = _mode },      \
         .show   = _show,                                \
@@ -99,14 +99,14 @@ struct device_attribute dev_attr_##_name = {            \
 
 For example, declaring
 
-static DEVICE_ATTR(foo,0644,show_foo,store_foo);
+static DEVICE_ATTR(foo, S_IWUSR | S_IRUGO, show_foo, store_foo);
 
 is equivalent to doing:
 
 static struct device_attribute dev_attr_foo = {
        .attr	= {
 		.name = "foo",
-		.mode = 0644,
+		.mode = S_IWUSR | S_IRUGO,
 	},
 	.show = show_foo,
 	.store = store_foo,
@@ -121,8 +121,8 @@ set of sysfs operations for forwarding read and write calls to the
 show and store methods of the attribute owners. 
 
 struct sysfs_ops {
-        ssize_t (*show)(struct kobject *, struct attribute *,char *);
-        ssize_t (*store)(struct kobject *,struct attribute *,const char *);
+        ssize_t (*show)(struct kobject *, struct attribute *, char *);
+        ssize_t (*store)(struct kobject *, struct attribute *, const char *);
 };
 
 [ Subsystems should have already defined a struct kobj_type as a
@@ -137,7 +137,7 @@ calls the associated methods.
 
 To illustrate:
 
-#define to_dev_attr(_attr) container_of(_attr,struct device_attribute,attr)
+#define to_dev_attr(_attr) container_of(_attr, struct device_attribute, attr)
 #define to_dev(d) container_of(d, struct device, kobj)
 
 static ssize_t
@@ -148,7 +148,7 @@ dev_attr_show(struct kobject * kobj, struct attribute * attr, char * buf)
         ssize_t ret = 0;
 
         if (dev_attr->show)
-                ret = dev_attr->show(dev,buf);
+                ret = dev_attr->show(dev, buf);
         return ret;
 }
 
@@ -216,16 +216,16 @@ A very simple (and naive) implementation of a device attribute is:
 
 static ssize_t show_name(struct device *dev, struct device_attribute *attr, char *buf)
 {
-        return sprintf(buf,"%s\n",dev->name);
+	return snprintf(buf, PAGE_SIZE, "%s\n", dev->name);
 }
 
 static ssize_t store_name(struct device * dev, const char * buf)
 {
-	sscanf(buf,"%20s",dev->name);
-	return strlen(buf);
+	sscanf(buf, "%20s", dev->name);
+	return strnlen(buf, PAGE_SIZE);
 }
 
-static DEVICE_ATTR(name,S_IRUGO,show_name,store_name);
+static DEVICE_ATTR(name, S_IRUGO, show_name, store_name);
 
 
 (Note that the real implementation doesn't allow userspace to set the 
@@ -290,7 +290,7 @@ struct device_attribute {
 
 Declaring:
 
-DEVICE_ATTR(_name,_str,_mode,_show,_store);
+DEVICE_ATTR(_name, _str, _mode, _show, _store);
 
 Creation/Removal:
 
@@ -310,7 +310,7 @@ struct bus_attribute {
 
 Declaring:
 
-BUS_ATTR(_name,_mode,_show,_store)
+BUS_ATTR(_name, _mode, _show, _store)
 
 Creation/Removal:
 
@@ -331,7 +331,7 @@ struct driver_attribute {
 
 Declaring:
 
-DRIVER_ATTR(_name,_mode,_show,_store)
+DRIVER_ATTR(_name, _mode, _show, _store)
 
 Creation/Removal:
 

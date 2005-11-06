@@ -47,7 +47,7 @@ module_free(struct module *mod, void *module_region)
 
 struct got_entry {
 	struct got_entry *next;
-	Elf64_Addr r_offset;
+	Elf64_Sxword r_addend;
 	int got_offset;
 };
 
@@ -57,14 +57,14 @@ process_reloc_for_got(Elf64_Rela *rela,
 {
 	unsigned long r_sym = ELF64_R_SYM (rela->r_info);
 	unsigned long r_type = ELF64_R_TYPE (rela->r_info);
-	Elf64_Addr r_offset = rela->r_offset;
+	Elf64_Sxword r_addend = rela->r_addend;
 	struct got_entry *g;
 
 	if (r_type != R_ALPHA_LITERAL)
 		return;
 
 	for (g = chains + r_sym; g ; g = g->next)
-		if (g->r_offset == r_offset) {
+		if (g->r_addend == r_addend) {
 			if (g->got_offset == 0) {
 				g->got_offset = *poffset;
 				*poffset += 8;
@@ -74,7 +74,7 @@ process_reloc_for_got(Elf64_Rela *rela,
 
 	g = kmalloc (sizeof (*g), GFP_KERNEL);
 	g->next = chains[r_sym].next;
-	g->r_offset = r_offset;
+	g->r_addend = r_addend;
 	g->got_offset = *poffset;
 	*poffset += 8;
 	chains[r_sym].next = g;

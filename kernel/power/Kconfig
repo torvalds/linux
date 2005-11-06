@@ -1,5 +1,6 @@
 config PM
 	bool "Power Management support"
+	depends on !IA64_HP_SIM
 	---help---
 	  "Power Management" means that parts of your computer are shut
 	  off or put into a power conserving "sleep" mode if they are not
@@ -28,7 +29,7 @@ config PM_DEBUG
 
 config SOFTWARE_SUSPEND
 	bool "Software Suspend"
-	depends on EXPERIMENTAL && PM && SWAP && ((X86 && SMP) || ((FVR || PPC32 || X86) && !SMP))
+	depends on PM && SWAP && (X86 && (!SMP || SUSPEND_SMP)) || ((FVR || PPC32) && !SMP)
 	---help---
 	  Enable the possibility of suspending the machine.
 	  It doesn't need APM.
@@ -71,6 +72,18 @@ config PM_STD_PARTITION
 	  Note there is currently not a way to specify which device to save the
 	  suspended image to. It will simply pick the first available swap 
 	  device.
+
+config SWSUSP_ENCRYPT
+	bool "Encrypt suspend image"
+	depends on SOFTWARE_SUSPEND && CRYPTO=y && (CRYPTO_AES=y || CRYPTO_AES_586=y || CRYPTO_AES_X86_64=y)
+	default ""
+	---help---
+	  To prevent data gathering from swap after resume you can encrypt
+	  the suspend image with a temporary key that is deleted on
+	  resume.
+
+	  Note that the temporary key is stored unencrypted on disk while the
+	  system is suspended.
 
 config SUSPEND_SMP
 	bool

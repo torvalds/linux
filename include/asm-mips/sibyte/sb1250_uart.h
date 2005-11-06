@@ -1,23 +1,21 @@
 /*  *********************************************************************
     *  SB1250 Board Support Package
-    *  
+    *
     *  UART Constants				File: sb1250_uart.h
-    *  
-    *  This module contains constants and macros useful for 
+    *
+    *  This module contains constants and macros useful for
     *  manipulating the SB1250's UARTs
     *
     *  SB1250 specification level:  User's manual 1/02/02
-    *  
-    *  Author:  Mitch Lichtenberg
-    *  
-    *********************************************************************  
+    *
+    *********************************************************************
     *
     *  Copyright 2000,2001,2002,2003
     *  Broadcom Corporation. All rights reserved.
-    *  
-    *  This program is free software; you can redistribute it and/or 
-    *  modify it under the terms of the GNU General Public License as 
-    *  published by the Free Software Foundation; either version 2 of 
+    *
+    *  This program is free software; you can redistribute it and/or
+    *  modify it under the terms of the GNU General Public License as
+    *  published by the Free Software Foundation; either version 2 of
     *  the License, or (at your option) any later version.
     *
     *  This program is distributed in the hope that it will be useful,
@@ -27,7 +25,7 @@
     *
     *  You should have received a copy of the GNU General Public License
     *  along with this program; if not, write to the Free Software
-    *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
+    *  Foundation, Inc., 59 Temple Place, Suite 330, Boston,
     *  MA 02111-1307 USA
     ********************************************************************* */
 
@@ -37,7 +35,7 @@
 
 #include "sb1250_defs.h"
 
-/* ********************************************************************** 
+/* **********************************************************************
    * DUART Registers
    ********************************************************************** */
 
@@ -145,7 +143,7 @@
 #define V_DUART_MISC_CMD_START_BREAK     V_DUART_MISC_CMD(K_DUART_MISC_CMD_START_BREAK)
 #define V_DUART_MISC_CMD_STOP_BREAK      V_DUART_MISC_CMD(K_DUART_MISC_CMD_STOP_BREAK)
 
-#define M_DUART_CMD_RESERVED             _SB_MAKEMASK1(7) 
+#define M_DUART_CMD_RESERVED             _SB_MAKEMASK1(7)
 
 /*
  * DUART Status Register (Table 10-6)
@@ -165,7 +163,7 @@
 
 /*
  * DUART Baud Rate Register (Table 10-7)
- * Register: DUART_CLK_SEL_A 
+ * Register: DUART_CLK_SEL_A
  * Register: DUART_CLK_SEL_B
  */
 
@@ -240,7 +238,12 @@
  */
 
 #define M_DUART_ISR_TX_A            _SB_MAKEMASK1(0)
-#define M_DUART_ISR_RX_A            _SB_MAKEMASK1(1)
+
+#define S_DUART_ISR_RX_A            1
+#define M_DUART_ISR_RX_A            _SB_MAKEMASK1(S_DUART_ISR_RX_A)
+#define V_DUART_ISR_RX_A(x)         _SB_MAKEVALUE(x,S_DUART_ISR_RX_A)
+#define G_DUART_ISR_RX_A(x)         _SB_GETVALUE(x,S_DUART_ISR_RX_A,M_DUART_ISR_RX_A)
+
 #define M_DUART_ISR_BRK_A           _SB_MAKEMASK1(2)
 #define M_DUART_ISR_IN_A            _SB_MAKEMASK1(3)
 #define M_DUART_ISR_TX_B            _SB_MAKEMASK1(4)
@@ -331,8 +334,8 @@
 #define M_DUART_OUT_PIN_CLR(chan) \
     (chan == 0 ? M_DUART_OUT_PIN_CLR0 : M_DUART_OUT_PIN_CLR1)
 
-#if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1)
-/* 
+#if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) || SIBYTE_HDR_FEATURE_CHIP(1480)
+/*
  * Full Interrupt Control Register
  */
 
@@ -345,7 +348,7 @@
 #define M_DUART_INT_TIME           _SB_MAKEMASK(4,S_DUART_INT_TIME)
 #define V_DUART_INT_TIME(x)        _SB_MAKEVALUE(x,S_DUART_INT_TIME)
 #define G_DUART_INT_TIME(x)        _SB_GETVALUE(x,S_DUART_INT_TIME,M_DUART_INT_TIME)
-#endif /* 1250 PASS2 || 112x PASS1 */
+#endif /* 1250 PASS2 || 112x PASS1 || 1480 */
 
 
 /* ********************************************************************** */

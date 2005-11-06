@@ -737,7 +737,8 @@ MODULE_LICENSE("GPL");
 extern u32 tl0_solaris[8];
 #define update_ttable(x) 										\
 	tl0_solaris[3] = (((long)(x) - (long)tl0_solaris - 3) >> 2) | 0x40000000;			\
-	__asm__ __volatile__ ("membar #StoreStore; flush %0" : : "r" (&tl0_solaris[3]))
+	wmb();		\
+	__asm__ __volatile__ ("flush %0" : : "r" (&tl0_solaris[3]))
 #else
 #endif	
 
@@ -761,7 +762,8 @@ int init_module(void)
 	entry64_personality_patch |=
 		(offsetof(struct task_struct, personality) +
 		 (sizeof(unsigned long) - 1));
-	__asm__ __volatile__("membar #StoreStore; flush %0"
+	wmb();
+	__asm__ __volatile__("flush %0"
 			     : : "r" (&entry64_personality_patch));
 	return 0;
 }

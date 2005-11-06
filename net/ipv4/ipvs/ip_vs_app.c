@@ -26,6 +26,7 @@
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <net/protocol.h>
+#include <net/tcp.h>
 #include <asm/system.h>
 #include <linux/stat.h>
 #include <linux/proc_fs.h>
@@ -603,7 +604,7 @@ static struct file_operations ip_vs_app_fops = {
 /*
  *	Replace a segment of data with a new segment
  */
-int ip_vs_skb_replace(struct sk_buff *skb, int pri,
+int ip_vs_skb_replace(struct sk_buff *skb, gfp_t pri,
 		      char *o_buf, int o_len, char *n_buf, int n_len)
 {
 	struct iphdr *iph;

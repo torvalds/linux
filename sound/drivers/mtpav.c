@@ -688,7 +688,7 @@ static int snd_mtpav_get_RAWMIDI(mtpav_t * mcard)
 
 static mtpav_t *new_mtpav(void)
 {
-	mtpav_t *ncrd = kcalloc(1, sizeof(*ncrd), GFP_KERNEL);
+	mtpav_t *ncrd = kzalloc(sizeof(*ncrd), GFP_KERNEL);
 	if (ncrd != NULL) {
 		spin_lock_init(&ncrd->spinlock);
 
@@ -755,6 +755,9 @@ static int __init alsa_card_mtpav_init(void)
 	err = snd_mtpav_get_RAWMIDI(mtp_card);
 	//snd_printk("snd_mtapv_get_RAWMIDI returned: %d\n", err);
 	if (err < 0)
+		goto __error;
+
+	if ((err = snd_card_set_generic_dev(mtp_card->card)) < 0)
 		goto __error;
 
 	err = snd_card_register(mtp_card->card);	// don't snd_card_register until AFTER all cards reources done!

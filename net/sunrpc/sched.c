@@ -34,10 +34,10 @@ static int			rpc_task_id;
 #define RPC_BUFFER_MAXSIZE	(2048)
 #define RPC_BUFFER_POOLSIZE	(8)
 #define RPC_TASK_POOLSIZE	(8)
-static kmem_cache_t	*rpc_task_slabp;
-static kmem_cache_t	*rpc_buffer_slabp;
-static mempool_t	*rpc_task_mempool;
-static mempool_t	*rpc_buffer_mempool;
+static kmem_cache_t	*rpc_task_slabp __read_mostly;
+static kmem_cache_t	*rpc_buffer_slabp __read_mostly;
+static mempool_t	*rpc_task_mempool __read_mostly;
+static mempool_t	*rpc_buffer_mempool __read_mostly;
 
 static void			__rpc_default_timer(struct rpc_task *task);
 static void			rpciod_killall(void);
@@ -719,7 +719,7 @@ static void rpc_async_schedule(void *arg)
 void *
 rpc_malloc(struct rpc_task *task, size_t size)
 {
-	int	gfp;
+	gfp_t	gfp;
 
 	if (task->tk_flags & RPC_TASK_SWAPPER)
 		gfp = GFP_ATOMIC;

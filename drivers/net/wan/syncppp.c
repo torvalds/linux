@@ -221,7 +221,7 @@ static void sppp_clear_timeout(struct sppp *p)
  *	here.
  */
  
-void sppp_input (struct net_device *dev, struct sk_buff *skb)
+static void sppp_input (struct net_device *dev, struct sk_buff *skb)
 {
 	struct ppp_header *h;
 	struct sppp *sp = (struct sppp *)sppp_of(dev);
@@ -354,8 +354,6 @@ done:
 	sppp_flush_xmit();
 	return;
 }
-
-EXPORT_SYMBOL(sppp_input);
 
 /*
  *	Handle transmit packets.
@@ -769,7 +767,7 @@ static void sppp_cisco_input (struct sppp *sp, struct sk_buff *skb)
 		u32 addr = 0, mask = ~0; /* FIXME: is the mask correct? */
 #ifdef CONFIG_INET
 		rcu_read_lock();
-		if ((in_dev = __in_dev_get(dev)) != NULL)
+		if ((in_dev = __in_dev_get_rcu(dev)) != NULL)
 		{
 			for (ifa=in_dev->ifa_list; ifa != NULL;
 				ifa=ifa->ifa_next) {
@@ -990,15 +988,13 @@ EXPORT_SYMBOL(sppp_reopen);
  *	the mtu is out of range.
  */
  
-int sppp_change_mtu(struct net_device *dev, int new_mtu)
+static int sppp_change_mtu(struct net_device *dev, int new_mtu)
 {
 	if(new_mtu<128||new_mtu>PPP_MTU||(dev->flags&IFF_UP))
 		return -EINVAL;
 	dev->mtu=new_mtu;
 	return 0;
 }
-
-EXPORT_SYMBOL(sppp_change_mtu);
 
 /**
  *	sppp_do_ioctl - Ioctl handler for ppp/hdlc
@@ -1440,6 +1436,7 @@ static void sppp_print_bytes (u_char *p, u16 len)
  *	@skb:	The buffer to process
  *	@dev:	The device it arrived on
  *	@p: Unused
+ *	@orig_dev: Unused
  *
  *	Protocol glue. This drives the deferred processing mode the poorer
  *	cards use. This can be called directly by cards that do not have
@@ -1447,7 +1444,7 @@ static void sppp_print_bytes (u_char *p, u16 len)
  *	after interrupt servicing to process frames queued via netif_rx.
  */
 
-static int sppp_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *p)
+static int sppp_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *p, struct net_device *orig_dev)
 {
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL)
 		return NET_RX_DROP;
@@ -1455,7 +1452,7 @@ static int sppp_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_t
 	return 0;
 }
 
-struct packet_type sppp_packet_type = {
+static struct packet_type sppp_packet_type = {
 	.type	= __constant_htons(ETH_P_WAN_PPP),
 	.func	= sppp_rcv,
 };

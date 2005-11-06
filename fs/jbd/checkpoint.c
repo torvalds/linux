@@ -204,7 +204,7 @@ __flush_batch(journal_t *journal, struct buffer_head **bhs, int *batch_count)
 	int i;
 
 	spin_unlock(&journal->j_list_lock);
-	ll_rw_block(WRITE, *batch_count, bhs);
+	ll_rw_block(SWRITE, *batch_count, bhs);
 	spin_lock(&journal->j_list_lock);
 	for (i = 0; i < *batch_count; i++) {
 		struct buffer_head *bh = bhs[i];

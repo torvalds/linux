@@ -37,6 +37,7 @@
 #include <net/irda/parameters.h>
 #include <net/irda/qos.h>
 #include <net/irda/irlap.h>
+#include <net/irda/irlap_frame.h>
 
 /*
  * Maximum values of the baud rate we negociate with the other end.

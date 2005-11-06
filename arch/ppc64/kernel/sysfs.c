@@ -13,6 +13,7 @@
 #include <asm/current.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
+#include <asm/firmware.h>
 #include <asm/hvcall.h>
 #include <asm/prom.h>
 #include <asm/systemcfg.h>
@@ -100,6 +101,8 @@ static int __init setup_smt_snooze_delay(char *str)
 }
 __setup("smt-snooze-delay=", setup_smt_snooze_delay);
 
+#endif /* CONFIG_PPC_MULTIPLATFORM */
+
 /*
  * Enabling PMCs will slow partition context switch times so we only do
  * it the first time we write to the PMCs.
@@ -109,65 +112,15 @@ static DEFINE_PER_CPU(char, pmcs_enabled);
 
 void ppc64_enable_pmcs(void)
 {
-	unsigned long hid0;
-#ifdef CONFIG_PPC_PSERIES
-	unsigned long set, reset;
-#endif /* CONFIG_PPC_PSERIES */
-
 	/* Only need to enable them once */
 	if (__get_cpu_var(pmcs_enabled))
 		return;
 
 	__get_cpu_var(pmcs_enabled) = 1;
 
-	switch (systemcfg->platform) {
-	case PLATFORM_PSERIES:
-	case PLATFORM_POWERMAC:
-		hid0 = mfspr(HID0);
-		hid0 |= 1UL << (63 - 20);
-
-		/* POWER4 requires the following sequence */
-		asm volatile(
-			     "sync\n"
-			     "mtspr	%1, %0\n"
-			     "mfspr	%0, %1\n"
-			     "mfspr	%0, %1\n"
-			     "mfspr	%0, %1\n"
-			     "mfspr	%0, %1\n"
-			     "mfspr	%0, %1\n"
-			     "mfspr	%0, %1\n"
-			     "isync" : "=&r" (hid0) : "i" (HID0), "0" (hid0):
-			     "memory");
-		break;
-
-#ifdef CONFIG_PPC_PSERIES
-	case PLATFORM_PSERIES_LPAR:
-		set = 1UL << 63;
-		reset = 0;
-		plpar_hcall_norets(H_PERFMON, set, reset);
-		break;
-#endif /* CONFIG_PPC_PSERIES */
-
-	default:
-		break;
-	}
-
-#ifdef CONFIG_PPC_PSERIES
-	/* instruct hypervisor to maintain PMCs */
-	if (cur_cpu_spec->firmware_features & FW_FEATURE_SPLPAR)
-		get_paca()->lppaca.pmcregs_in_use = 1;
-#endif /* CONFIG_PPC_PSERIES */
+	if (ppc_md.enable_pmcs)
+		ppc_md.enable_pmcs();
 }
-
-#else
-
-/* PMC stuff */
-void ppc64_enable_pmcs(void)
-{
-	/* XXX Implement for iseries */
-}
-#endif /* CONFIG_PPC_MULTIPLATFORM */
-
 EXPORT_SYMBOL(ppc64_enable_pmcs);
 
 /* XXX convert to rusty's on_one_cpu */
@@ -262,18 +215,23 @@ static void register_cpu_online(unsigned int cpu)
 	if (cpu_has_feature(CPU_FTR_MMCRA))
 		sysdev_create_file(s, &attr_mmcra);
 
-	sysdev_create_file(s, &attr_pmc1);
-	sysdev_create_file(s, &attr_pmc2);
-	sysdev_create_file(s, &attr_pmc3);
-	sysdev_create_file(s, &attr_pmc4);
-	sysdev_create_file(s, &attr_pmc5);
-	sysdev_create_file(s, &attr_pmc6);
-
-	if (cpu_has_feature(CPU_FTR_PMC8)) {
+	if (cur_cpu_spec->num_pmcs >= 1)
+		sysdev_create_file(s, &attr_pmc1);
+	if (cur_cpu_spec->num_pmcs >= 2)
+		sysdev_create_file(s, &attr_pmc2);
+	if (cur_cpu_spec->num_pmcs >= 3)
+		sysdev_create_file(s, &attr_pmc3);
+	if (cur_cpu_spec->num_pmcs >= 4)
+		sysdev_create_file(s, &attr_pmc4);
+	if (cur_cpu_spec->num_pmcs >= 5)
+		sysdev_create_file(s, &attr_pmc5);
+	if (cur_cpu_spec->num_pmcs >= 6)
+		sysdev_create_file(s, &attr_pmc6);
+	if (cur_cpu_spec->num_pmcs >= 7)
 		sysdev_create_file(s, &attr_pmc7);
+	if (cur_cpu_spec->num_pmcs >= 8)
 		sysdev_create_file(s, &attr_pmc8);
-	}
-
+  
 	if (cpu_has_feature(CPU_FTR_SMT))
 		sysdev_create_file(s, &attr_purr);
 }
@@ -299,17 +257,22 @@ static void unregister_cpu_online(unsigned int cpu)
 	if (cpu_has_feature(CPU_FTR_MMCRA))
 		sysdev_remove_file(s, &attr_mmcra);
 
-	sysdev_remove_file(s, &attr_pmc1);
-	sysdev_remove_file(s, &attr_pmc2);
-	sysdev_remove_file(s, &attr_pmc3);
-	sysdev_remove_file(s, &attr_pmc4);
-	sysdev_remove_file(s, &attr_pmc5);
-	sysdev_remove_file(s, &attr_pmc6);
-
-	if (cpu_has_feature(CPU_FTR_PMC8)) {
+	if (cur_cpu_spec->num_pmcs >= 1)
+		sysdev_remove_file(s, &attr_pmc1);
+	if (cur_cpu_spec->num_pmcs >= 2)
+		sysdev_remove_file(s, &attr_pmc2);
+	if (cur_cpu_spec->num_pmcs >= 3)
+		sysdev_remove_file(s, &attr_pmc3);
+	if (cur_cpu_spec->num_pmcs >= 4)
+		sysdev_remove_file(s, &attr_pmc4);
+	if (cur_cpu_spec->num_pmcs >= 5)
+		sysdev_remove_file(s, &attr_pmc5);
+	if (cur_cpu_spec->num_pmcs >= 6)
+		sysdev_remove_file(s, &attr_pmc6);
+	if (cur_cpu_spec->num_pmcs >= 7)
 		sysdev_remove_file(s, &attr_pmc7);
+	if (cur_cpu_spec->num_pmcs >= 8)
 		sysdev_remove_file(s, &attr_pmc8);
-	}
 
 	if (cpu_has_feature(CPU_FTR_SMT))
 		sysdev_remove_file(s, &attr_purr);

@@ -53,8 +53,6 @@
 
 #define	PFX "IPMI Watchdog: "
 
-#define IPMI_WATCHDOG_VERSION "v33"
-
 /*
  * The IPMI command/response information for the watchdog timer.
  */
@@ -259,7 +257,7 @@ static int i_ipmi_set_timeout(struct ipmi_smi_msg  *smi_msg,
 
 	data[1] = 0;
 	WDOG_SET_TIMEOUT_ACT(data[1], ipmi_watchdog_state);
-	if (pretimeout > 0) {
+	if ((pretimeout > 0) && (ipmi_watchdog_state != WDOG_TIMEOUT_NONE)) {
 	    WDOG_SET_PRETIMEOUT_ACT(data[1], preaction_val);
 	    data[2] = pretimeout;
 	} else {
@@ -659,19 +657,18 @@ static ssize_t ipmi_read(struct file *file,
 
 static int ipmi_open(struct inode *ino, struct file *filep)
 {
-        switch (iminor(ino))
-        {
-                case WATCHDOG_MINOR:
-		    if(test_and_set_bit(0, &ipmi_wdog_open))
+        switch (iminor(ino)) {
+        case WATCHDOG_MINOR:
+		if (test_and_set_bit(0, &ipmi_wdog_open))
                         return -EBUSY;
 
-		    /* Don't start the timer now, let it start on the
-		       first heartbeat. */
-		    ipmi_start_timer_on_heartbeat = 1;
-                    return nonseekable_open(ino, filep);
+		/* Don't start the timer now, let it start on the
+		   first heartbeat. */
+		ipmi_start_timer_on_heartbeat = 1;
+		return nonseekable_open(ino, filep);
 
-                default:
-                    return (-ENODEV);
+	default:
+		return (-ENODEV);
         }
 }
 
@@ -817,15 +814,19 @@ static void ipmi_register_watchdog(int ipmi_intf)
 static int
 ipmi_nmi(void *dev_id, struct pt_regs *regs, int cpu, int handled)
 {
+        /* If we are not expecting a timeout, ignore it. */
+	if (ipmi_watchdog_state == WDOG_TIMEOUT_NONE)
+		return NOTIFY_DONE;
+
 	/* If no one else handled the NMI, we assume it was the IPMI
            watchdog. */
-	if ((!handled) && (preop_val == WDOG_PREOP_PANIC))
+	if ((!handled) && (preop_val == WDOG_PREOP_PANIC)) {
+		/* On some machines, the heartbeat will give
+		   an error and not work unless we re-enable
+		   the timer.   So do so. */
+		pretimeout_since_last_heartbeat = 1;
 		panic(PFX "pre-timeout");
-
-	/* On some machines, the heartbeat will give
-	   an error and not work unless we re-enable
-	   the timer.   So do so. */
-	pretimeout_since_last_heartbeat = 1;
+	}
 
 	return NOTIFY_DONE;
 }
@@ -924,9 +925,6 @@ static int __init ipmi_wdog_init(void)
 {
 	int rv;
 
-	printk(KERN_INFO PFX "driver version "
-	       IPMI_WATCHDOG_VERSION "\n");
-
 	if (strcmp(action, "reset") == 0) {
 		action_val = WDOG_TIMEOUT_RESET;
 	} else if (strcmp(action, "none") == 0) {
@@ -1011,6 +1009,8 @@ static int __init ipmi_wdog_init(void)
 	register_reboot_notifier(&wdog_reboot_notifier);
 	notifier_chain_register(&panic_notifier_list, &wdog_panic_notifier);
 
+	printk(KERN_INFO PFX "driver initialized\n");
+
 	return 0;
 }
 
@@ -1037,10 +1037,8 @@ static __exit void ipmi_unregister_watchdog(void)
 	/* Wait to make sure the message makes it out.  The lower layer has
 	   pointers to our buffers, we want to make sure they are done before
 	   we release our memory. */
-	while (atomic_read(&set_timeout_tofree)) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	while (atomic_read(&set_timeout_tofree))
+		schedule_timeout_uninterruptible(1);
 
 	/* Disconnect from IPMI. */
 	rv = ipmi_destroy_user(watchdog_user);
@@ -1062,3 +1060,5 @@ static void __exit ipmi_wdog_exit(void)
 module_exit(ipmi_wdog_exit);
 module_init(ipmi_wdog_init);
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Corey Minyard <minyard@mvista.com>");
+MODULE_DESCRIPTION("watchdog timer based upon the IPMI interface.");

@@ -18,8 +18,6 @@
 #include <platforms/powerpmc250.h>
 #elif defined(CONFIG_LOPEC)
 #include <platforms/lopec.h>
-#elif defined(CONFIG_MCPN765)
-#include <platforms/mcpn765.h>
 #elif defined(CONFIG_MVME5100)
 #include <platforms/mvme5100.h>
 #elif defined(CONFIG_PAL4)

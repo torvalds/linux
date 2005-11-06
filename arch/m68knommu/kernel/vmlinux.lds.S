@@ -107,7 +107,7 @@
  */
 #if defined(CONFIG_ELITE)
 #define	RAM_START	0x30020000
-#define	RAM_END		0xe0000
+#define	RAM_LENGTH	0xe0000
 #endif
 
 /*
@@ -118,7 +118,8 @@
 #if defined(CONFIG_M5206eC3) || defined(CONFIG_M5249C3) || \
     defined(CONFIG_M5272C3) || defined(CONFIG_M5307C3) || \
     defined(CONFIG_ARN5307) || defined(CONFIG_M5407C3) || \
-    defined(CONFIG_M5271EVB) || defined(CONFIG_M5275EVB)
+    defined(CONFIG_M5271EVB) || defined(CONFIG_M5275EVB) || \
+    defined(CONFIG_M5235EVB)
 #define	RAM_START	0x20000
 #define	RAM_LENGTH	0x3e0000
 #endif
@@ -145,6 +146,16 @@
 #define  RAM_LENGTH  0x3f0000
 #endif
 
+
+/*
+ *	The EMAC SoM-5282EM module.
+ */
+#if defined(CONFIG_SOM5282EM)
+#define  RAM_START   0x10000
+#define  RAM_LENGTH  0xff0000
+#endif
+
+
 /*
  *	These flash boot boards use all of ram for operation. Again the
  *	actual memory size is not important here, assume at least 4MiB.
@@ -158,7 +169,7 @@
 #endif
 
 /*
- *	Sneha Boards mimimun memmory
+ *	Sneha Boards mimimun memory
  *	The end of RAM will vary depending on how much ram is fitted,
  *	but this isn't important here, we assume at least 4MiB.
  */
@@ -167,6 +178,12 @@
 #define	RAM_LENGTH	0x3e0000
 #endif
 
+#if defined(CONFIG_MOD5272)
+#define RAM_START	0x02000000
+#define RAM_LENGTH	0x00800000
+#define RAMVEC_START	0x20000000
+#define RAMVEC_LENGTH	0x00000400
+#endif
 
 #if defined(CONFIG_RAMKERNEL)
 #define	TEXT		ram

@@ -107,13 +107,13 @@ static void mask_and_ack_intc(unsigned int);
 static void end_intc_irq(unsigned int irq);
 
 static struct hw_interrupt_type intc_irq_type = {
-	"INTC",
-	startup_intc_irq,
-	shutdown_intc_irq,
-	enable_intc_irq,
-	disable_intc_irq,
-	mask_and_ack_intc,
-	end_intc_irq
+	.typename = "INTC",
+	.startup = startup_intc_irq,
+	.shutdown = shutdown_intc_irq,
+	.enable = enable_intc_irq,
+	.disable = disable_intc_irq,
+	.ack = mask_and_ack_intc,
+	.end = end_intc_irq
 };
 
 static int irlm;		/* IRL mode */

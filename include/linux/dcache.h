@@ -88,8 +88,9 @@ struct dentry {
 					 * negative */
 	/*
 	 * The next three fields are touched by __d_lookup.  Place them here
-	 * so they all fit in a 16-byte range, with 16-byte alignment.
+	 * so they all fit in a cache line.
 	 */
+	struct hlist_node d_hash;	/* lookup hash list */
 	struct dentry *d_parent;	/* parent directory */
 	struct qstr d_name;
 
@@ -103,7 +104,6 @@ struct dentry {
 	void *d_fsdata;			/* fs-specific data */
  	struct rcu_head d_rcu;
 	struct dcookie_struct *d_cookie; /* cookie, if any */
-	struct hlist_node d_hash;	/* lookup hash list */	
 	int d_mounted;
 	unsigned char d_iname[DNAME_INLINE_LEN_MIN];	/* small names */
 };

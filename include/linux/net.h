@@ -84,6 +84,7 @@ enum sock_type {
 	SOCK_RAW	= 3,
 	SOCK_RDM	= 4,
 	SOCK_SEQPACKET	= 5,
+	SOCK_DCCP	= 6,
 	SOCK_PACKET	= 10,
 };
 
@@ -281,6 +282,16 @@ static struct proto_ops name##_ops = {			\
 
 #define MODULE_ALIAS_NETPROTO(proto) \
 	MODULE_ALIAS("net-pf-" __stringify(proto))
+
+#define MODULE_ALIAS_NET_PF_PROTO(pf, proto) \
+	MODULE_ALIAS("net-pf-" __stringify(pf) "-proto-" __stringify(proto))
+
+#ifdef CONFIG_SYSCTL
+#include <linux/sysctl.h>
+extern ctl_table net_table[];
+extern int net_msg_cost;
+extern int net_msg_burst;
+#endif
 
 #endif /* __KERNEL__ */
 #endif	/* _LINUX_NET_H */

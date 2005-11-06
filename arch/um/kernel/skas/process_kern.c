@@ -24,7 +24,7 @@
 #include "proc_mm.h"
 #include "registers.h"
 
-void *switch_to_skas(void *prev, void *next)
+void switch_to_skas(void *prev, void *next)
 {
 	struct task_struct *from, *to;
 
@@ -35,16 +35,11 @@ void *switch_to_skas(void *prev, void *next)
 	if(current->pid == 0)
 		switch_timers(0);
 
-	to->thread.prev_sched = from;
-	set_current(to);
-
 	switch_threads(&from->thread.mode.skas.switch_buf, 
 		       to->thread.mode.skas.switch_buf);
 
 	if(current->pid == 0)
 		switch_timers(1);
-
-	return(current->thread.prev_sched);
 }
 
 extern void schedule_tail(struct task_struct *prev);
@@ -129,7 +124,9 @@ int copy_thread_skas(int nr, unsigned long clone_flags, unsigned long sp,
 	return(0);
 }
 
-int new_mm(int from)
+extern void map_stub_pages(int fd, unsigned long code,
+			   unsigned long data, unsigned long stack);
+int new_mm(int from, unsigned long stack)
 {
 	struct proc_mm_op copy;
 	int n, fd;
@@ -147,6 +144,9 @@ int new_mm(int from)
 			printk("new_mm : /proc/mm copy_segments failed, "
 			       "err = %d\n", -n);
 	}
+
+	if(!ptrace_faultinfo)
+		map_stub_pages(fd, CONFIG_STUB_CODE, CONFIG_STUB_DATA, stack);
 
 	return(fd);
 }

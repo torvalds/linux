@@ -85,6 +85,12 @@ static void mmc_blk_put(struct mmc_blk_data *md)
 	up(&open_lock);
 }
 
+static inline int mmc_blk_readonly(struct mmc_card *card)
+{
+	return mmc_card_readonly(card) ||
+	       !(card->csd.cmdclass & CCC_BLOCK_WRITE);
+}
+
 static int mmc_blk_open(struct inode *inode, struct file *filp)
 {
 	struct mmc_blk_data *md;
@@ -95,6 +101,10 @@ static int mmc_blk_open(struct inode *inode, struct file *filp)
 		if (md->usage == 2)
 			check_disk_change(inode->i_bdev);
 		ret = 0;
+
+		if ((filp->f_mode & FMODE_WRITE) &&
+			mmc_blk_readonly(md->queue.card))
+			ret = -EROFS;
 	}
 
 	return ret;
@@ -403,9 +413,10 @@ static int mmc_blk_probe(struct mmc_card *card)
 	if (err)
 		goto out;
 
-	printk(KERN_INFO "%s: %s %s %dKiB\n",
+	printk(KERN_INFO "%s: %s %s %dKiB %s\n",
 		md->disk->disk_name, mmc_card_id(card), mmc_card_name(card),
-		(card->csd.capacity << card->csd.read_blkbits) / 1024);
+		(card->csd.capacity << card->csd.read_blkbits) / 1024,
+		mmc_blk_readonly(card)?"(ro)":"");
 
 	mmc_set_drvdata(card, md);
 	add_disk(md->disk);

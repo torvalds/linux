@@ -85,7 +85,7 @@ static void __init ddb_time_init(void)
 
 
 
-static void __init ddb5074_setup(void)
+void __init plat_setup(void)
 {
 	set_io_port_base(NILE4_PCI_IO_BASE);
 	isa_slot_offset = NILE4_PCI_MEM_BASE;
@@ -105,8 +105,6 @@ static void __init ddb5074_setup(void)
 	/* Reboot on panic */
 	panic_timeout = 180;
 }
-
-early_initcall(ddb5074_setup);
 
 #define USE_NILE4_SERIAL	0
 

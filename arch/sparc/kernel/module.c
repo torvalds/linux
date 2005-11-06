@@ -10,6 +10,7 @@
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/string.h>
+#include <linux/ctype.h>
 
 void *module_alloc(unsigned long size)
 {
@@ -37,7 +38,7 @@ void module_free(struct module *mod, void *module_region)
 }
 
 /* Make generic code ignore STT_REGISTER dummy undefined symbols,
- * and replace references to .func with func as in ppc64's dedotify.
+ * and replace references to .func with _Func
  */
 int module_frob_arch_sections(Elf_Ehdr *hdr,
 			      Elf_Shdr *sechdrs,
@@ -64,8 +65,10 @@ int module_frob_arch_sections(Elf_Ehdr *hdr,
 				sym[i].st_shndx = SHN_ABS;
 			else {
 				char *name = strtab + sym[i].st_name;
-				if (name[0] == '.')
-					memmove(name, name+1, strlen(name));
+				if (name[0] == '.') {
+					name[0] = '_';
+					name[1] = toupper(name[1]);
+				}
 			}
 		}
 	}

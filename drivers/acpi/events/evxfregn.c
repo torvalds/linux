@@ -49,8 +49,7 @@
 #include <acpi/acevents.h>
 
 #define _COMPONENT          ACPI_EVENTS
-	 ACPI_MODULE_NAME    ("evxfregn")
-
+ACPI_MODULE_NAME("evxfregn")
 
 /*******************************************************************************
  *
@@ -67,36 +66,31 @@
  * DESCRIPTION: Install a handler for all op_regions of a given space_id.
  *
  ******************************************************************************/
-
 acpi_status
-acpi_install_address_space_handler (
-	acpi_handle                     device,
-	acpi_adr_space_type             space_id,
-	acpi_adr_space_handler          handler,
-	acpi_adr_space_setup            setup,
-	void                            *context)
+acpi_install_address_space_handler(acpi_handle device,
+				   acpi_adr_space_type space_id,
+				   acpi_adr_space_handler handler,
+				   acpi_adr_space_setup setup, void *context)
 {
-	struct acpi_namespace_node      *node;
-	acpi_status                     status;
+	struct acpi_namespace_node *node;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_install_address_space_handler");
-
+	ACPI_FUNCTION_TRACE("acpi_install_address_space_handler");
 
 	/* Parameter validation */
 
 	if (!device) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status = acpi_ut_acquire_mutex (ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_map_handle_to_node (device);
+	node = acpi_ns_map_handle_to_node(device);
 	if (!node) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
@@ -104,21 +98,23 @@ acpi_install_address_space_handler (
 
 	/* Install the handler for all Regions for this Space ID */
 
-	status = acpi_ev_install_space_handler (node, space_id, handler, setup, context);
-	if (ACPI_FAILURE (status)) {
+	status =
+	    acpi_ev_install_space_handler(node, space_id, handler, setup,
+					  context);
+	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
 	}
 
 	/* Run all _REG methods for this address space */
 
-	status = acpi_ev_execute_reg_methods (node, space_id);
+	status = acpi_ev_execute_reg_methods(node, space_id);
 
-unlock_and_exit:
-	(void) acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
-	return_ACPI_STATUS (status);
+      unlock_and_exit:
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+	return_ACPI_STATUS(status);
 }
-EXPORT_SYMBOL(acpi_install_address_space_handler);
 
+EXPORT_SYMBOL(acpi_install_address_space_handler);
 
 /*******************************************************************************
  *
@@ -135,36 +131,33 @@ EXPORT_SYMBOL(acpi_install_address_space_handler);
  ******************************************************************************/
 
 acpi_status
-acpi_remove_address_space_handler (
-	acpi_handle                     device,
-	acpi_adr_space_type             space_id,
-	acpi_adr_space_handler          handler)
+acpi_remove_address_space_handler(acpi_handle device,
+				  acpi_adr_space_type space_id,
+				  acpi_adr_space_handler handler)
 {
-	union acpi_operand_object       *obj_desc;
-	union acpi_operand_object       *handler_obj;
-	union acpi_operand_object       *region_obj;
-	union acpi_operand_object       **last_obj_ptr;
-	struct acpi_namespace_node      *node;
-	acpi_status                     status;
+	union acpi_operand_object *obj_desc;
+	union acpi_operand_object *handler_obj;
+	union acpi_operand_object *region_obj;
+	union acpi_operand_object **last_obj_ptr;
+	struct acpi_namespace_node *node;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("acpi_remove_address_space_handler");
-
+	ACPI_FUNCTION_TRACE("acpi_remove_address_space_handler");
 
 	/* Parameter validation */
 
 	if (!device) {
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status = acpi_ut_acquire_mutex (ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_map_handle_to_node (device);
+	node = acpi_ns_map_handle_to_node(device);
 	if (!node) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
@@ -172,7 +165,7 @@ acpi_remove_address_space_handler (
 
 	/* Make sure the internal object exists */
 
-	obj_desc = acpi_ns_get_attached_object (node);
+	obj_desc = acpi_ns_get_attached_object(node);
 	if (!obj_desc) {
 		status = AE_NOT_EXIST;
 		goto unlock_and_exit;
@@ -188,10 +181,11 @@ acpi_remove_address_space_handler (
 		if (handler_obj->address_space.space_id == space_id) {
 			/* Matched space_id, first dereference this in the Regions */
 
-			ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
-				"Removing address handler %p(%p) for region %s on Device %p(%p)\n",
-				handler_obj, handler, acpi_ut_get_region_name (space_id),
-				node, obj_desc));
+			ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
+					  "Removing address handler %p(%p) for region %s on Device %p(%p)\n",
+					  handler_obj, handler,
+					  acpi_ut_get_region_name(space_id),
+					  node, obj_desc));
 
 			region_obj = handler_obj->address_space.region_list;
 
@@ -205,13 +199,14 @@ acpi_remove_address_space_handler (
 				 * The region is just inaccessible as indicated to
 				 * the _REG method
 				 */
-				acpi_ev_detach_region (region_obj, TRUE);
+				acpi_ev_detach_region(region_obj, TRUE);
 
 				/*
 				 * Walk the list: Just grab the head because the
 				 * detach_region removed the previous head.
 				 */
-				region_obj = handler_obj->address_space.region_list;
+				region_obj =
+				    handler_obj->address_space.region_list;
 
 			}
 
@@ -221,7 +216,7 @@ acpi_remove_address_space_handler (
 
 			/* Now we can delete the handler object */
 
-			acpi_ut_remove_reference (handler_obj);
+			acpi_ut_remove_reference(handler_obj);
 			goto unlock_and_exit;
 		}
 
@@ -233,15 +228,16 @@ acpi_remove_address_space_handler (
 
 	/* The handler does not exist */
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
-		"Unable to remove address handler %p for %s(%X), dev_node %p, obj %p\n",
-		handler, acpi_ut_get_region_name (space_id), space_id, node, obj_desc));
+	ACPI_DEBUG_PRINT((ACPI_DB_OPREGION,
+			  "Unable to remove address handler %p for %s(%X), dev_node %p, obj %p\n",
+			  handler, acpi_ut_get_region_name(space_id), space_id,
+			  node, obj_desc));
 
 	status = AE_NOT_EXIST;
 
-unlock_and_exit:
-	(void) acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
-	return_ACPI_STATUS (status);
+      unlock_and_exit:
+	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
+	return_ACPI_STATUS(status);
 }
-EXPORT_SYMBOL(acpi_remove_address_space_handler);
 
+EXPORT_SYMBOL(acpi_remove_address_space_handler);

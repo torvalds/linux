@@ -2491,11 +2491,11 @@ static int devfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	return 0;
 }				/*  End Function devfs_mknod  */
 
-static int devfs_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void *devfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct devfs_entry *p = get_devfs_entry_from_vfs_inode(dentry->d_inode);
 	nd_set_link(nd, p ? p->u.symlink.linkname : ERR_PTR(-ENODEV));
-	return 0;
+	return NULL;
 }				/*  End Function devfs_follow_link  */
 
 static struct inode_operations devfs_iops = {

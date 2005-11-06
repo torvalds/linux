@@ -187,6 +187,8 @@ void ext3_delete_inode (struct inode * inode)
 {
 	handle_t *handle;
 
+	truncate_inode_pages(&inode->i_data, 0);
+
 	if (is_bad_inode(inode))
 		goto no_delete;
 
@@ -489,7 +491,7 @@ static unsigned long ext3_find_goal(struct inode *inode, long block,
  *	the same format as ext3_get_branch() would do. We are calling it after
  *	we had read the existing part of chain and partial points to the last
  *	triple of that (one with zero ->key). Upon the exit we have the same
- *	picture as after the successful ext3_get_block(), excpet that in one
+ *	picture as after the successful ext3_get_block(), except that in one
  *	place chain is disconnected - *branch->p is still zero (we did not
  *	set the last link), but branch->key contains the number that should
  *	be placed into *branch->p to fill that gap.
@@ -521,7 +523,6 @@ static int ext3_alloc_branch(handle_t *handle, struct inode *inode,
 			if (!nr)
 				break;
 			branch[n].key = cpu_to_le32(nr);
-			keys = n+1;
 
 			/*
 			 * Get buffer_head for parent block, zero it out
@@ -529,6 +530,9 @@ static int ext3_alloc_branch(handle_t *handle, struct inode *inode,
 			 * parent to disk.  
 			 */
 			bh = sb_getblk(inode->i_sb, parent);
+			if (!bh)
+				break;
+			keys = n+1;
 			branch[n].bh = bh;
 			lock_buffer(bh);
 			BUFFER_TRACE(bh, "call get_create_access");
@@ -862,6 +866,10 @@ struct buffer_head *ext3_getblk(handle_t *handle, struct inode * inode,
 	if (!*errp && buffer_mapped(&dummy)) {
 		struct buffer_head *bh;
 		bh = sb_getblk(inode->i_sb, dummy.b_blocknr);
+		if (!bh) {
+			*errp = -EIO;
+			goto err;
+		}
 		if (buffer_new(&dummy)) {
 			J_ASSERT(create != 0);
 			J_ASSERT(handle != 0);
@@ -894,6 +902,7 @@ struct buffer_head *ext3_getblk(handle_t *handle, struct inode * inode,
 		}
 		return bh;
 	}
+err:
 	return NULL;
 }
 
@@ -1432,7 +1441,7 @@ static int ext3_invalidatepage(struct page *page, unsigned long offset)
 	return journal_invalidatepage(journal, page, offset);
 }
 
-static int ext3_releasepage(struct page *page, int wait)
+static int ext3_releasepage(struct page *page, gfp_t wait)
 {
 	journal_t *journal = EXT3_JOURNAL(page->mapping->host);
 

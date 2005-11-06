@@ -20,6 +20,9 @@
  */
 
 #include <linux/device.h>
+#include <linux/signal.h>
+#include <linux/platform_device.h>
+
 #include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/arch/pxa-regs.h>
@@ -75,33 +78,6 @@ static int pxa27x_ohci_select_pmm( int mode )
 	return 0;
 }
 
-/*
-  If you select PMM_PERPORT_MODE, you should set the port power
- */
-static int pxa27x_ohci_set_port_power( int port )
-{
-	if ( (pxa27x_ohci_pmm_state==PMM_PERPORT_MODE)
-	     && (port>0) && (port<PXA_UHC_MAX_PORTNUM) ) {
-		UHCRHPS(port) |= 0x100;
-		return 0;
-	}
-	return -1;
-}
-
-/*
-  If you select PMM_PERPORT_MODE, you should set the port power
- */
-static int pxa27x_ohci_clear_port_power( int port )
-{
-	if ( (pxa27x_ohci_pmm_state==PMM_PERPORT_MODE) 
-	     && (port>0) && (port<PXA_UHC_MAX_PORTNUM) ) {
-		UHCRHPS(port) |= 0x200;
-		return 0;
-	}
-	 
-	return -1;
-}
-
 extern int usb_disabled(void);
 
 /*-------------------------------------------------------------------------*/
@@ -130,11 +106,17 @@ static void pxa27x_start_hc(struct platform_device *dev)
 		   Polarity Low to active low. Supply power to USB ports. */
 		UHCHR = (UHCHR | UHCHR_PCPL | UHCHR_PSPL) &
 			~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSEP3 | UHCHR_SSE);
+
+		pxa27x_ohci_pmm_state = PMM_PERPORT_MODE;
 	}
 
 	UHCHR &= ~UHCHR_SSE;
 
 	UHCHIE = (UHCHIE_UPRIE | UHCHIE_RWIE);
+
+	/* Clear any OTG Pin Hold */
+	if (PSSR & PSSR_OTGPH)
+		PSSR |= PSSR_OTGPH;
 }
 
 static void pxa27x_stop_hc(struct platform_device *dev)
@@ -198,17 +180,7 @@ int usb_hcd_pxa27x_probe (const struct hc_driver *driver,
 	pxa27x_start_hc(dev);
 
 	/* Select Power Management Mode */
-	pxa27x_ohci_select_pmm( PMM_PERPORT_MODE );
-
-	/* If choosing PMM_PERPORT_MODE, we should set the port power before we use it. */
-	if (pxa27x_ohci_set_port_power(1) < 0)
-		printk(KERN_ERR "Setting port 1 power failed.\n");
-
-	if (pxa27x_ohci_clear_port_power(2) < 0)
-		printk(KERN_ERR "Setting port 2 power failed.\n");
-
-	if (pxa27x_ohci_clear_port_power(3) < 0)
-		printk(KERN_ERR "Setting port 3 power failed.\n");
+	pxa27x_ohci_select_pmm(pxa27x_ohci_pmm_state);
 
 	ohci_hcd_init(hcd_to_ohci(hcd));
 
@@ -258,6 +230,9 @@ ohci_pxa27x_start (struct usb_hcd *hcd)
 
 	ohci_dbg (ohci, "ohci_pxa27x_start, ohci:%p", ohci);
 
+	/* The value of NDP in roothub_a is incorrect on this hardware */
+	ohci->num_ports = 3;
+
 	if ((ret = ohci_init(ohci)) < 0)
 		return ret;
 
@@ -306,10 +281,11 @@ static const struct hc_driver ohci_pxa27x_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
-#ifdef  CONFIG_USB_SUSPEND
-	.hub_suspend =		ohci_hub_suspend,
-	.hub_resume =		ohci_hub_resume,
+#ifdef  CONFIG_PM
+	.bus_suspend =		ohci_bus_suspend,
+	.bus_resume =		ohci_bus_resume,
 #endif
+	.start_port_reset =	ohci_start_port_reset,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -337,7 +313,7 @@ static int ohci_hcd_pxa27x_drv_remove(struct device *dev)
 	return 0;
 }
 
-static int ohci_hcd_pxa27x_drv_suspend(struct device *dev, pm_message_t state, u32 level)
+static int ohci_hcd_pxa27x_drv_suspend(struct device *dev, pm_message_t state)
 {
 //	struct platform_device *pdev = to_platform_device(dev);
 //	struct usb_hcd *hcd = dev_get_drvdata(dev);
@@ -346,7 +322,7 @@ static int ohci_hcd_pxa27x_drv_suspend(struct device *dev, pm_message_t state, u
 	return 0;
 }
 
-static int ohci_hcd_pxa27x_drv_resume(struct device *dev, u32 level)
+static int ohci_hcd_pxa27x_drv_resume(struct device *dev)
 {
 //	struct platform_device *pdev = to_platform_device(dev);
 //	struct usb_hcd *hcd = dev_get_drvdata(dev);

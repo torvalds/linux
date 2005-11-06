@@ -57,7 +57,8 @@ struct ip6t_entry_match
 			u_int16_t match_size;
 
 			/* Used by userspace */
-			char name[IP6T_FUNCTION_MAXNAMELEN];
+			char name[IP6T_FUNCTION_MAXNAMELEN-1];
+			u_int8_t revision;
 		} user;
 		struct {
 			u_int16_t match_size;
@@ -80,7 +81,8 @@ struct ip6t_entry_target
 			u_int16_t target_size;
 
 			/* Used by userspace */
-			char name[IP6T_FUNCTION_MAXNAMELEN];
+			char name[IP6T_FUNCTION_MAXNAMELEN-1];
+			u_int8_t revision;
 		} user;
 		struct {
 			u_int16_t target_size;
@@ -111,7 +113,8 @@ struct ip6t_counters
 #define IP6T_F_PROTO		0x01	/* Set if rule cares about upper 
 					   protocols */
 #define IP6T_F_TOS		0x02	/* Match the TOS. */
-#define IP6T_F_MASK		0x03	/* All possible flag bits mask. */
+#define IP6T_F_GOTO		0x04	/* Set if jump is a goto */
+#define IP6T_F_MASK		0x07	/* All possible flag bits mask. */
 
 /* Values for "inv" field in struct ip6t_ip6. */
 #define IP6T_INV_VIA_IN		0x01	/* Invert the sense of IN IFACE. */
@@ -160,7 +163,9 @@ struct ip6t_entry
 
 #define IP6T_SO_GET_INFO		(IP6T_BASE_CTL)
 #define IP6T_SO_GET_ENTRIES		(IP6T_BASE_CTL + 1)
-#define IP6T_SO_GET_MAX			IP6T_SO_GET_ENTRIES
+#define	IP6T_SO_GET_REVISION_MATCH	(IP6T_BASE_CTL + 2)
+#define	IP6T_SO_GET_REVISION_TARGET	(IP6T_BASE_CTL + 3)
+#define IP6T_SO_GET_MAX			IP6T_SO_GET_REVISION_TARGET
 
 /* CONTINUE verdict for targets */
 #define IP6T_CONTINUE 0xFFFFFFFF
@@ -290,6 +295,15 @@ struct ip6t_get_entries
 	struct ip6t_entry entrytable[0];
 };
 
+/* The argument to IP6T_SO_GET_REVISION_*.  Returns highest revision
+ * kernel supports, if >= revision. */
+struct ip6t_get_revision
+{
+	char name[IP6T_FUNCTION_MAXNAMELEN-1];
+
+	u_int8_t revision;
+};
+
 /* Standard return verdict, or do jump. */
 #define IP6T_STANDARD_TARGET ""
 /* Error verdict. */
@@ -351,7 +365,9 @@ struct ip6t_match
 {
 	struct list_head list;
 
-	const char name[IP6T_FUNCTION_MAXNAMELEN];
+	const char name[IP6T_FUNCTION_MAXNAMELEN-1];
+
+	u_int8_t revision;
 
 	/* Return true or false: return FALSE and set *hotdrop = 1 to
            force immediate packet drop. */
@@ -386,7 +402,9 @@ struct ip6t_target
 {
 	struct list_head list;
 
-	const char name[IP6T_FUNCTION_MAXNAMELEN];
+	const char name[IP6T_FUNCTION_MAXNAMELEN-1];
+
+	u_int8_t revision;
 
 	/* Returns verdict. Argument order changed since 2.6.9, as this
 	   must now handle non-linear skbs, using skb_copy_bits and
@@ -454,6 +472,9 @@ extern unsigned int ip6t_do_table(struct sk_buff **pskb,
 
 /* Check for an extension */
 extern int ip6t_ext_hdr(u8 nexthdr);
+/* find specified header and get offset to it */
+extern int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
+			 u8 target);
 
 #define IP6T_ALIGN(s) (((s) + (__alignof__(struct ip6t_entry)-1)) & ~(__alignof__(struct ip6t_entry)-1))
 

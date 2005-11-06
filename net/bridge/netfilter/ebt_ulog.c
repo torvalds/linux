@@ -78,8 +78,8 @@ static void ulog_send(unsigned int nlgroup)
 	if (ub->qlen > 1)
 		ub->lastnlh->nlmsg_type = NLMSG_DONE;
 
-	NETLINK_CB(ub->skb).dst_groups = 1 << nlgroup;
-	netlink_broadcast(ebtulognl, ub->skb, 0, 1 << nlgroup, GFP_ATOMIC);
+	NETLINK_CB(ub->skb).dst_group = nlgroup + 1;
+	netlink_broadcast(ebtulognl, ub->skb, 0, nlgroup + 1, GFP_ATOMIC);
 
 	ub->qlen = 0;
 	ub->skb = NULL;
@@ -162,7 +162,7 @@ static void ebt_ulog(const struct sk_buff *skb, unsigned int hooknr,
 	pm->version = EBT_ULOG_VERSION;
 	do_gettimeofday(&pm->stamp);
 	if (ub->qlen == 1)
-		ub->skb->stamp = pm->stamp;
+		skb_set_timestamp(ub->skb, &pm->stamp);
 	pm->data_len = copy_len;
 	pm->mark = skb->nfmark;
 	pm->hook = hooknr;
@@ -258,7 +258,8 @@ static int __init init(void)
 		spin_lock_init(&ulog_buffers[i].lock);
 	}
 
-	ebtulognl = netlink_kernel_create(NETLINK_NFLOG, NULL);
+	ebtulognl = netlink_kernel_create(NETLINK_NFLOG, EBT_ULOG_MAXNLGROUPS,
+	                                  NULL, THIS_MODULE);
 	if (!ebtulognl)
 		ret = -ENOMEM;
 	else if ((ret = ebt_register_watcher(&ulog)))

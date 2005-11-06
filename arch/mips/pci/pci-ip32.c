@@ -84,7 +84,7 @@ static irqreturn_t macepci_error(int irq, void *dev, struct pt_regs *regs)
 
 
 extern struct pci_ops mace_pci_ops;
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 static struct resource mace_pci_mem_resource = {
 	.name	= "SGI O2 PCI MEM",
 	.start	= MACEPCI_HI_MEMORY,
@@ -136,7 +136,9 @@ static int __init mace_init(void)
 	BUG_ON(request_irq(MACE_PCI_BRIDGE_IRQ, macepci_error, 0,
 			   "MACE PCI error", NULL));
 
-	ioport_resource.end = mace_pci_io_resource.end;
+	iomem_resource = mace_pci_mem_resource;
+	ioport_resource = mace_pci_io_resource;
+
 	register_pci_controller(&mace_pci_controller);
 
 	return 0;

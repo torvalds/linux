@@ -38,7 +38,7 @@ static void cfe_console_write(struct console *cons, const char *str,
 			last += written;
 		} while (last < count);
 	}
-			
+
 }
 
 static int cfe_console_setup(struct console *cons, char *str)

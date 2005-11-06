@@ -131,6 +131,8 @@ config NET_SB1000
 
 	source "drivers/net/arcnet/Kconfig"
 
+source "drivers/net/phy/Kconfig"
+
 #
 #	Ethernet
 #
@@ -395,7 +397,7 @@ config SUN3LANCE
 	  If you're not building a kernel for a Sun 3, say N.
 
 config SUN3_82586
-	tristate "Sun3 on-board Intel 82586 support"
+	bool "Sun3 on-board Intel 82586 support"
 	depends on NET_ETHERNET && SUN3
 	help
 	  This driver enables support for the on-board Intel 82586 based
@@ -445,7 +447,7 @@ config NET_SB1250_MAC
 
 config SGI_IOC3_ETH
 	bool "SGI IOC3 Ethernet"
-	depends on NET_ETHERNET && PCI && SGI_IP27
+	depends on NET_ETHERNET && PCI && SGI_IP27 && BROKEN
 	select CRC32
 	select MII
 	help
@@ -472,6 +474,14 @@ config SGI_IOC3_ETH_HW_TX_CSUM
 	  hardware to offload processing of these checksums from the CPU.  At
 	  the moment only acceleration of IPv4 is supported.  This option
 	  enables offloading for checksums on transmit.  If unsure, say Y.
+
+config MIPS_SIM_NET
+	tristate "MIPS simulator Network device (EXPERIMENTAL)"
+	depends on NETDEVICES && MIPS_SIM && EXPERIMENTAL
+	help
+	  The MIPSNET device is a simple Ethernet network device which is
+	  emulated by the MIPS Simulator.
+	  If you are not using a MIPSsim or are unsure, say N.
 
 config SGI_O2MACE_ETH
 	tristate "SGI O2 MACE Fast Ethernet support"
@@ -545,6 +555,14 @@ config SUNGEM
 	help
 	  Support for the Sun GEM chip, aka Sun GigabitEthernet/P 2.0.  See also
 	  <http://www.sun.com/products-n-solutions/hardware/docs/pdf/806-3985-10.pdf>.
+
+config CASSINI
+	tristate "Sun Cassini support"
+	depends on NET_ETHERNET && PCI
+	select CRC32
+	help
+	  Support for the Sun Cassini chip, aka Sun GigaSwift Ethernet. See also
+	  <http://www.sun.com/products-n-solutions/hardware/docs/pdf/817-4341-10.pdf>
 
 config NET_VENDOR_3COM
 	bool "3COM cards"
@@ -1145,38 +1163,74 @@ config IBMVETH
 	  be called ibmveth.
 
 config IBM_EMAC
-	tristate "IBM PPC4xx EMAC driver support"
+	tristate "PowerPC 4xx on-chip Ethernet support"
 	depends on 4xx
-	select CRC32
-	---help---
-	  This driver supports the IBM PPC4xx EMAC family of on-chip
-	  Ethernet controllers.
-
-config IBM_EMAC_ERRMSG
-	bool "Verbose error messages"
-	depends on IBM_EMAC
+	help
+	  This driver supports the PowerPC 4xx EMAC family of on-chip
+          Ethernet controllers.
 
 config IBM_EMAC_RXB
 	int "Number of receive buffers"
 	depends on IBM_EMAC
-	default "128" if IBM_EMAC4
-	default "64"
+	default "128"
 
 config IBM_EMAC_TXB
 	int "Number of transmit buffers"
 	depends on IBM_EMAC
-	default "128" if IBM_EMAC4
-	default "8"
+	default "64"
 
-config IBM_EMAC_FGAP
-	int "Frame gap"
+config IBM_EMAC_POLL_WEIGHT
+	int "MAL NAPI polling weight"
 	depends on IBM_EMAC
-	default "8"
+	default "32"
 
-config IBM_EMAC_SKBRES
-	int "Skb reserve amount"
+config IBM_EMAC_RX_COPY_THRESHOLD
+	int "RX skb copy threshold (bytes)"
+	depends on IBM_EMAC
+	default "256"
+
+config IBM_EMAC_RX_SKB_HEADROOM
+	int "Additional RX skb headroom (bytes)"
 	depends on IBM_EMAC
 	default "0"
+	help
+	  Additional receive skb headroom. Note, that driver
+	  will always reserve at least 2 bytes to make IP header
+	  aligned, so usualy there is no need to add any additional
+	  headroom.
+	  
+	  If unsure, set to 0.
+
+config IBM_EMAC_PHY_RX_CLK_FIX
+	bool "PHY Rx clock workaround"
+	depends on IBM_EMAC && (405EP || 440GX || 440EP)
+	help
+	  Enable this if EMAC attached to a PHY which doesn't generate
+	  RX clock if there is no link, if this is the case, you will 
+	  see "TX disable timeout" or "RX disable timeout" in the system
+	  log.
+	  
+	  If unsure, say N.
+
+config IBM_EMAC_DEBUG
+	bool "Debugging"
+	depends on IBM_EMAC
+	default n
+
+config IBM_EMAC_ZMII
+	bool
+	depends on IBM_EMAC && (NP405H || NP405L || 44x)
+	default y
+
+config IBM_EMAC_RGMII
+	bool
+	depends on IBM_EMAC && 440GX
+	default y
+		
+config IBM_EMAC_TAH
+	bool
+	depends on IBM_EMAC && 440GX
+	default y
 
 config NET_PCI
 	bool "EISA, VLB, PCI and on board controllers"
@@ -1645,7 +1699,7 @@ config LAN_SAA9730
 
 config NET_POCKET
 	bool "Pocket and portable adapters"
-	depends on NET_ETHERNET && ISA
+	depends on NET_ETHERNET && PARPORT
 	---help---
 	  Cute little network (Ethernet) devices which attach to the parallel
 	  port ("pocket adapters"), commonly used with laptops. If you have
@@ -1669,7 +1723,7 @@ config NET_POCKET
 
 config ATP
 	tristate "AT-LAN-TEC/RealTek pocket adapter support"
-	depends on NET_POCKET && ISA && X86
+	depends on NET_POCKET && PARPORT && X86
 	select CRC32
 	---help---
 	  This is a network (Ethernet) device which attaches to your parallel
@@ -1684,7 +1738,7 @@ config ATP
 
 config DE600
 	tristate "D-Link DE600 pocket adapter support"
-	depends on NET_POCKET && ISA
+	depends on NET_POCKET && PARPORT
 	---help---
 	  This is a network (Ethernet) device which attaches to your parallel
 	  port. Read <file:Documentation/networking/DLINK.txt> as well as the
@@ -1699,7 +1753,7 @@ config DE600
 
 config DE620
 	tristate "D-Link DE620 pocket adapter support"
-	depends on NET_POCKET && ISA
+	depends on NET_POCKET && PARPORT
 	---help---
 	  This is a network (Ethernet) device which attaches to your parallel
 	  port. Read <file:Documentation/networking/DLINK.txt> as well as the
@@ -1736,11 +1790,18 @@ config 68360_ENET
 	  the Motorola 68360 processor.
 
 config FEC
-	bool "FEC ethernet controller (of ColdFire 5272)"
-	depends on M5272 || M5282
+	bool "FEC ethernet controller (of ColdFire CPUs)"
+	depends on M523x || M527x || M5272 || M528x
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
-	  controller on the Motorola ColdFire 5272 processor.
+	  controller on some Motorola ColdFire processors.
+
+config FEC2
+	bool "Second FEC ethernet controller (on some ColdFire CPUs)"
+	depends on FEC
+	help
+	  Say Y here if you want to use the second built-in 10/100 Fast
+	  ethernet controller on some Motorola ColdFire processors.
 
 config NE_H8300
 	tristate "NE2000 compatible support for H8/300"
@@ -1750,6 +1811,7 @@ config NE_H8300
 	  controller on the Renesas H8/300 processor.
 
 source "drivers/net/fec_8xx/Kconfig"
+source "drivers/net/fs_enet/Kconfig"
 
 endmenu
 
@@ -1921,6 +1983,20 @@ config R8169_VLAN
 	  
 	  If in doubt, say Y.
 
+config SIS190
+	tristate "SiS190/SiS191 gigabit ethernet support"
+	depends on PCI
+	select CRC32
+	select MII
+	---help---
+	  Say Y here if you have a SiS 190 PCI Fast Ethernet adapter or
+	  a SiS 191 PCI Gigabit Ethernet adapter. Both are expected to
+	  appear in lan on motherboard designs which are based on SiS 965
+	  and SiS 966 south bridge.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called sis190.  This is recommended.
+
 config SKGE
 	tristate "New SysKonnect GigaEthernet support (EXPERIMENTAL)"
 	depends on PCI && EXPERIMENTAL
@@ -1928,7 +2004,7 @@ config SKGE
 	---help---
 	  This driver support the Marvell Yukon or SysKonnect SK-98xx/SK-95xx
 	  and related Gigabit Ethernet adapters. It is a new smaller driver
-	  driver with better performance and more complete ethtool support.
+	  with better performance and more complete ethtool support.
 
 	  It does not support the link failover and network management 
 	  features that "portable" vendor supplied sk98lin driver does.
@@ -2042,9 +2118,17 @@ config BNX2
 	  To compile this driver as a module, choose M here: the module
 	  will be called bnx2.  This is recommended.
 
+config SPIDER_NET
+	tristate "Spider Gigabit Ethernet driver"
+	depends on PCI && PPC_BPA
+	help
+	  This driver supports the Gigabit Ethernet chips present on the
+	  Cell Processor-Based Blades from IBM.
+
 config GIANFAR
 	tristate "Gianfar Ethernet"
 	depends on 85xx || 83xx
+	select PHYLIB
 	help
 	  This driver supports the Gigabit TSEC on the MPC85xx 
 	  family of chips, and the FEC on the 8540
@@ -2091,6 +2175,25 @@ endmenu
 menu "Ethernet (10000 Mbit)"
 	depends on !UML
 
+config CHELSIO_T1
+        tristate "Chelsio 10Gb Ethernet support"
+        depends on PCI
+        help
+          This driver supports Chelsio N110 and N210 models 10Gb Ethernet
+          cards. More information about adapter features and performance
+          tuning is in <file:Documentation/networking/cxgb.txt>.
+
+          For general information about Chelsio and our products, visit
+          our website at <http://www.chelsio.com>.
+
+          For customer support, please visit our customer support page at
+          <http://www.chelsio.com/support.htm>.
+
+          Please send feedback to <linux-bugs@chelsio.com>.
+
+          To compile this driver as a module, choose M here: the module
+          will be called cxgb.
+
 config IXGB
 	tristate "Intel(R) PRO/10GbE support"
 	depends on PCI
@@ -2135,8 +2238,8 @@ config S2IO
 	depends on PCI
 	---help---
 	  This driver supports the 10Gbe XFrame NIC of S2IO. 
-	  For help regarding driver compilation, installation and 
-	  tuning please look into ~/drivers/net/s2io/README.txt.
+	  More specific information on configuring the driver is in 
+	  <file:Documentation/networking/s2io.txt>.
 
 config S2IO_NAPI
 	bool "Use Rx Polling (NAPI) (EXPERIMENTAL)"
@@ -2185,6 +2288,20 @@ source "drivers/s390/net/Kconfig"
 config ISERIES_VETH
 	tristate "iSeries Virtual Ethernet driver support"
 	depends on PPC_ISERIES
+
+config RIONET
+	tristate "RapidIO Ethernet over messaging driver support"
+	depends on NETDEVICES && RAPIDIO
+
+config RIONET_TX_SIZE
+	int "Number of outbound queue entries"
+	depends on RIONET
+	default "128"
+
+config RIONET_RX_SIZE
+	int "Number of inbound queue entries"
+	depends on RIONET
+	default "128"
 
 config FDDI
 	bool "FDDI driver support"

@@ -192,6 +192,7 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 struct part_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct hd_struct *,char *);
+	ssize_t (*store)(struct hd_struct *,const char *, size_t);
 };
 
 static ssize_t 
@@ -201,14 +202,33 @@ part_attr_show(struct kobject * kobj, struct attribute * attr, char * page)
 	struct part_attribute * part_attr = container_of(attr,struct part_attribute,attr);
 	ssize_t ret = 0;
 	if (part_attr->show)
-		ret = part_attr->show(p,page);
+		ret = part_attr->show(p, page);
+	return ret;
+}
+static ssize_t
+part_attr_store(struct kobject * kobj, struct attribute * attr,
+		const char *page, size_t count)
+{
+	struct hd_struct * p = container_of(kobj,struct hd_struct,kobj);
+	struct part_attribute * part_attr = container_of(attr,struct part_attribute,attr);
+	ssize_t ret = 0;
+
+	if (part_attr->store)
+		ret = part_attr->store(p, page, count);
 	return ret;
 }
 
 static struct sysfs_ops part_sysfs_ops = {
 	.show	=	part_attr_show,
+	.store	=	part_attr_store,
 };
 
+static ssize_t part_uevent_store(struct hd_struct * p,
+				 const char *page, size_t count)
+{
+	kobject_hotplug(&p->kobj, KOBJ_ADD);
+	return count;
+}
 static ssize_t part_dev_read(struct hd_struct * p, char *page)
 {
 	struct gendisk *disk = container_of(p->kobj.parent,struct gendisk,kobj);
@@ -226,9 +246,13 @@ static ssize_t part_size_read(struct hd_struct * p, char *page)
 static ssize_t part_stat_read(struct hd_struct * p, char *page)
 {
 	return sprintf(page, "%8u %8llu %8u %8llu\n",
-		       p->reads, (unsigned long long)p->read_sectors,
-		       p->writes, (unsigned long long)p->write_sectors);
+		       p->ios[0], (unsigned long long)p->sectors[0],
+		       p->ios[1], (unsigned long long)p->sectors[1]);
 }
+static struct part_attribute part_attr_uevent = {
+	.attr = {.name = "uevent", .mode = S_IWUSR },
+	.store	= part_uevent_store
+};
 static struct part_attribute part_attr_dev = {
 	.attr = {.name = "dev", .mode = S_IRUGO },
 	.show	= part_dev_read
@@ -247,6 +271,7 @@ static struct part_attribute part_attr_stat = {
 };
 
 static struct attribute * default_attrs[] = {
+	&part_attr_uevent.attr,
 	&part_attr_dev.attr,
 	&part_attr_start.attr,
 	&part_attr_size.attr,
@@ -278,7 +303,8 @@ void delete_partition(struct gendisk *disk, int part)
 	disk->part[part-1] = NULL;
 	p->start_sect = 0;
 	p->nr_sects = 0;
-	p->reads = p->writes = p->read_sectors = p->write_sectors = 0;
+	p->ios[0] = p->ios[1] = 0;
+	p->sectors[0] = p->sectors[1] = 0;
 	devfs_remove("%s/part%d", disk->devfs_name, part);
 	kobject_unregister(&p->kobj);
 }
@@ -430,7 +456,7 @@ void del_gendisk(struct gendisk *disk)
 	disk->flags &= ~GENHD_FL_UP;
 	unlink_gendisk(disk);
 	disk_stat_set_all(disk, 0);
-	disk->stamp = disk->stamp_idle = 0;
+	disk->stamp = 0;
 
 	devfs_remove_disk(disk);
 

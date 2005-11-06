@@ -43,6 +43,10 @@ over a rather long period of time, but improvements are always welcome!
 	rcu_read_lock_bh()) in the read-side critical sections,
 	and are also an excellent aid to readability.
 
+	As a rough rule of thumb, any dereference of an RCU-protected
+	pointer must be covered by rcu_read_lock() or rcu_read_lock_bh()
+	or by the appropriate update-side lock.
+
 3.	Does the update code tolerate concurrent accesses?
 
 	The whole point of RCU is to permit readers to run without
@@ -90,7 +94,11 @@ over a rather long period of time, but improvements are always welcome!
 
 		The rcu_dereference() primitive is used by the various
 		"_rcu()" list-traversal primitives, such as the
-		list_for_each_entry_rcu().
+		list_for_each_entry_rcu().  Note that it is perfectly
+		legal (if redundant) for update-side code to use
+		rcu_dereference() and the "_rcu()" list-traversal
+		primitives.  This is particularly useful in code
+		that is common to readers and updaters.
 
 	b.	If the list macros are being used, the list_add_tail_rcu()
 		and list_add_rcu() primitives must be used in order
@@ -150,16 +158,9 @@ over a rather long period of time, but improvements are always welcome!
 
 	Use of the _rcu() list-traversal primitives outside of an
 	RCU read-side critical section causes no harm other than
-	a slight performance degradation on Alpha CPUs and some
-	confusion on the part of people trying to read the code.
-
-	Another way of thinking of this is "If you are holding the
-	lock that prevents the data structure from changing, why do
-	you also need RCU-based protection?"  That said, there may
-	well be situations where use of the _rcu() list-traversal
-	primitives while the update-side lock is held results in
-	simpler and more maintainable code.  The jury is still out
-	on this question.
+	a slight performance degradation on Alpha CPUs.  It can
+	also be quite helpful in reducing code bloat when common
+	code is shared between readers and updaters.
 
 10.	Conversely, if you are in an RCU read-side critical section,
 	you -must- use the "_rcu()" variants of the list macros.

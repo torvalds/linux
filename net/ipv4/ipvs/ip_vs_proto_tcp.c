@@ -604,14 +604,14 @@ void ip_vs_tcp_conn_listen(struct ip_vs_conn *cp)
 }
 
 
-static void tcp_init(struct ip_vs_protocol *pp)
+static void ip_vs_tcp_init(struct ip_vs_protocol *pp)
 {
 	IP_VS_INIT_HASH_TABLE(tcp_apps);
 	pp->timeout_table = tcp_timeouts;
 }
 
 
-static void tcp_exit(struct ip_vs_protocol *pp)
+static void ip_vs_tcp_exit(struct ip_vs_protocol *pp)
 {
 }
 
@@ -621,8 +621,8 @@ struct ip_vs_protocol ip_vs_protocol_tcp = {
 	.protocol =		IPPROTO_TCP,
 	.dont_defrag =		0,
 	.appcnt =		ATOMIC_INIT(0),
-	.init =			tcp_init,
-	.exit =			tcp_exit,
+	.init =			ip_vs_tcp_init,
+	.exit =			ip_vs_tcp_exit,
 	.register_app =		tcp_register_app,
 	.unregister_app =	tcp_unregister_app,
 	.conn_schedule =	tcp_conn_schedule,

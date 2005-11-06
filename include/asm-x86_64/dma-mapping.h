@@ -17,7 +17,7 @@ extern dma_addr_t bad_dma_address;
 	(swiotlb ? swiotlb_dma_mapping_error(x) : ((x) == bad_dma_address))
 
 void *dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
-			 unsigned gfp);
+			 gfp_t gfp);
 void dma_free_coherent(struct device *dev, size_t size, void *vaddr,
 			 dma_addr_t dma_handle);
 
@@ -81,6 +81,34 @@ static inline void dma_sync_single_for_device(struct device *hwdev,
 
 	if (swiotlb)
 		return swiotlb_sync_single_for_device(hwdev,dma_handle,size,direction);
+
+	flush_write_buffers();
+}
+
+static inline void dma_sync_single_range_for_cpu(struct device *hwdev,
+						 dma_addr_t dma_handle,
+						 unsigned long offset,
+						 size_t size, int direction)
+{
+	if (direction == DMA_NONE)
+		out_of_line_bug();
+
+	if (swiotlb)
+		return swiotlb_sync_single_range_for_cpu(hwdev,dma_handle,offset,size,direction);
+
+	flush_write_buffers();
+}
+
+static inline void dma_sync_single_range_for_device(struct device *hwdev,
+						    dma_addr_t dma_handle,
+						    unsigned long offset,
+						    size_t size, int direction)
+{
+        if (direction == DMA_NONE)
+		out_of_line_bug();
+
+	if (swiotlb)
+		return swiotlb_sync_single_range_for_device(hwdev,dma_handle,offset,size,direction);
 
 	flush_write_buffers();
 }

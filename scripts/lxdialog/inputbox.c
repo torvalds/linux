@@ -21,7 +21,7 @@
 
 #include "dialog.h"
 
-unsigned char dialog_input_result[MAX_LEN + 1];
+char dialog_input_result[MAX_LEN + 1];
 
 /*
  *  Print the termination buttons
@@ -48,7 +48,7 @@ dialog_inputbox (const char *title, const char *prompt, int height, int width,
 {
     int i, x, y, box_y, box_x, box_width;
     int input_x = 0, scroll = 0, key = 0, button = -1;
-    unsigned char *instr = dialog_input_result;
+    char *instr = dialog_input_result;
     WINDOW *dialog;
 
     /* center dialog box on screen */

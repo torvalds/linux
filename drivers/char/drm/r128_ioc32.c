@@ -65,10 +65,10 @@ static int compat_r128_init(struct file *file, unsigned int cmd,
 {
 	drm_r128_init32_t init32;
 	drm_r128_init_t __user *init;
-	
+
 	if (copy_from_user(&init32, (void __user *)arg, sizeof(init32)))
 		return -EFAULT;
-	
+
 	init = compat_alloc_user_space(sizeof(*init));
 	if (!access_ok(VERIFY_WRITE, init, sizeof(*init))
 	    || __put_user(init32.func, &init->func)
@@ -92,13 +92,13 @@ static int compat_r128_init(struct file *file, unsigned int cmd,
 	    || __put_user(init32.ring_offset, &init->ring_offset)
 	    || __put_user(init32.ring_rptr_offset, &init->ring_rptr_offset)
 	    || __put_user(init32.buffers_offset, &init->buffers_offset)
-	    || __put_user(init32.agp_textures_offset, &init->agp_textures_offset))
+	    || __put_user(init32.agp_textures_offset,
+			  &init->agp_textures_offset))
 		return -EFAULT;
-	
+
 	return drm_ioctl(file->f_dentry->d_inode, file,
 			 DRM_IOCTL_R128_INIT, (unsigned long)init);
 }
-
 
 typedef struct drm_r128_depth32 {
 	int func;
@@ -124,13 +124,15 @@ static int compat_r128_depth(struct file *file, unsigned int cmd,
 	    || __put_user(depth32.n, &depth->n)
 	    || __put_user((int __user *)(unsigned long)depth32.x, &depth->x)
 	    || __put_user((int __user *)(unsigned long)depth32.y, &depth->y)
-	    || __put_user((unsigned int __user *)(unsigned long)depth32.buffer, &depth->buffer)
-	    || __put_user((unsigned char __user *)(unsigned long)depth32.mask, &depth->mask))
+	    || __put_user((unsigned int __user *)(unsigned long)depth32.buffer,
+			  &depth->buffer)
+	    || __put_user((unsigned char __user *)(unsigned long)depth32.mask,
+			  &depth->mask))
 		return -EFAULT;
-	
+
 	return drm_ioctl(file->f_dentry->d_inode, file,
-			 DRM_IOCTL_R128_DEPTH, (unsigned long)depth);	
-	
+			 DRM_IOCTL_R128_DEPTH, (unsigned long)depth);
+
 }
 
 typedef struct drm_r128_stipple32 {
@@ -148,7 +150,8 @@ static int compat_r128_stipple(struct file *file, unsigned int cmd,
 
 	stipple = compat_alloc_user_space(sizeof(*stipple));
 	if (!access_ok(VERIFY_WRITE, stipple, sizeof(*stipple))
-	    || __put_user((unsigned int __user *)(unsigned long)stipple32.mask, &stipple->mask))
+	    || __put_user((unsigned int __user *)(unsigned long)stipple32.mask,
+			  &stipple->mask))
 		return -EFAULT;
 
 	return drm_ioctl(file->f_dentry->d_inode, file,
@@ -172,9 +175,10 @@ static int compat_r128_getparam(struct file *file, unsigned int cmd,
 	getparam = compat_alloc_user_space(sizeof(*getparam));
 	if (!access_ok(VERIFY_WRITE, getparam, sizeof(*getparam))
 	    || __put_user(getparam32.param, &getparam->param)
-	    || __put_user((void __user *)(unsigned long)getparam32.value, &getparam->value))
+	    || __put_user((void __user *)(unsigned long)getparam32.value,
+			  &getparam->value))
 		return -EFAULT;
-	
+
 	return drm_ioctl(file->f_dentry->d_inode, file,
 			 DRM_IOCTL_R128_GETPARAM, (unsigned long)getparam);
 }
@@ -195,8 +199,7 @@ drm_ioctl_compat_t *r128_compat_ioctls[] = {
  * \param arg user argument.
  * \return zero on success or negative number on failure.
  */
-long r128_compat_ioctl(struct file *filp, unsigned int cmd,
-			 unsigned long arg)
+long r128_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	unsigned int nr = DRM_IOCTL_NR(cmd);
 	drm_ioctl_compat_t *fn = NULL;
@@ -210,7 +213,7 @@ long r128_compat_ioctl(struct file *filp, unsigned int cmd,
 
 	lock_kernel();		/* XXX for now */
 	if (fn != NULL)
-		ret = (*fn)(filp, cmd, arg);
+		ret = (*fn) (filp, cmd, arg);
 	else
 		ret = drm_ioctl(filp->f_dentry->d_inode, filp, cmd, arg);
 	unlock_kernel();

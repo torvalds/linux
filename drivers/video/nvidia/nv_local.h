@@ -95,6 +95,7 @@
 
 #define READ_GET(par) (NV_RD32(&(par)->FIFO[0x0011], 0) >> 2)
 
+#ifdef __LITTLE_ENDIAN
 #define reverse_order(l)        \
 do {                            \
 	u8 *a = (u8 *)(l);      \
@@ -103,5 +104,8 @@ do {                            \
 	*a = byte_rev[*a], a++; \
 	*a = byte_rev[*a];      \
 } while(0)
+#else
+#define reverse_order(l)
+#endif                          /* __LITTLE_ENDIAN */
 
 #endif				/* __NV_LOCAL_H__ */

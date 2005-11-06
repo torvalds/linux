@@ -1285,7 +1285,7 @@ static int matroxfb_getmemory(WPMINFO unsigned int maxSize, unsigned int *realSi
 	vaddr_t vm;
 	unsigned int offs;
 	unsigned int offs2;
-	unsigned char store;
+	unsigned char store, orig;
 	unsigned char bytes[32];
 	unsigned char* tmp;
 
@@ -1298,7 +1298,8 @@ static int matroxfb_getmemory(WPMINFO unsigned int maxSize, unsigned int *realSi
 	if (maxSize > 0x2000000) maxSize = 0x2000000;
 
 	mga_outb(M_EXTVGA_INDEX, 0x03);
-	mga_outb(M_EXTVGA_DATA, mga_inb(M_EXTVGA_DATA) | 0x80);
+	orig = mga_inb(M_EXTVGA_DATA);
+	mga_outb(M_EXTVGA_DATA, orig | 0x80);
 
 	store = mga_readb(vm, 0x1234);
 	tmp = bytes;
@@ -1323,7 +1324,7 @@ static int matroxfb_getmemory(WPMINFO unsigned int maxSize, unsigned int *realSi
 	mga_writeb(vm, 0x1234, store);
 
 	mga_outb(M_EXTVGA_INDEX, 0x03);
-	mga_outb(M_EXTVGA_DATA, mga_inb(M_EXTVGA_DATA) & ~0x80);
+	mga_outb(M_EXTVGA_DATA, orig);
 
 	*realSize = offs - 0x100000;
 #ifdef CONFIG_FB_MATROX_MILLENIUM
@@ -1858,6 +1859,8 @@ static int initMatrox2(WPMINFO struct board* b){
 							to yres_virtual * xres_virtual < 2^32 */
 	}
 	matroxfb_init_fix(PMINFO2);
+	ACCESS_FBINFO(fbcon.screen_base) = vaddr_va(ACCESS_FBINFO(video.vbase));
+	matroxfb_update_fix(PMINFO2);
 	/* Normalize values (namely yres_virtual) */
 	matroxfb_check_var(&vesafb_defined, &ACCESS_FBINFO(fbcon));
 	/* And put it into "current" var. Do NOT program hardware yet, or we'll not take over
@@ -2010,11 +2013,11 @@ static int matroxfb_probe(struct pci_dev* pdev, const struct pci_device_id* dumm
 	}
 	/* not match... */
 	if (!b->vendor)
-		return -1;
+		return -ENODEV;
 	if (dev > 0) {
 		/* not requested one... */
 		dev--;
-		return -1;
+		return -ENODEV;
 	}
 	pci_read_config_dword(pdev, PCI_COMMAND, &cmd);
 	if (pci_enable_device(pdev)) {

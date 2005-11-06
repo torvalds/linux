@@ -526,6 +526,7 @@ static void nand_wait_ready(struct mtd_info *mtd)
 	do {
 		if (this->dev_ready(mtd))
 			return;
+		touch_softlockup_watchdog();
 	} while (time_before(jiffies, timeo));	
 }
 

@@ -399,6 +399,11 @@ struct clone_info {
 	unsigned short idx;
 };
 
+static void dm_bio_destructor(struct bio *bio)
+{
+	bio_free(bio, dm_set);
+}
+
 /*
  * Creates a little bio that is just does part of a bvec.
  */
@@ -410,6 +415,7 @@ static struct bio *split_bvec(struct bio *bio, sector_t sector,
 	struct bio_vec *bv = bio->bi_io_vec + idx;
 
 	clone = bio_alloc_bioset(GFP_NOIO, 1, dm_set);
+	clone->bi_destructor = dm_bio_destructor;
 	*clone->bi_io_vec = *bv;
 
 	clone->bi_sector = sector;

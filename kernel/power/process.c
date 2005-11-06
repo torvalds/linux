@@ -38,7 +38,6 @@ void refrigerator(void)
 	   processes around? */
 	long save;
 	save = current->state;
-	current->state = TASK_UNINTERRUPTIBLE;
 	pr_debug("%s entered refrigerator\n", current->comm);
 	printk("=");
 
@@ -47,8 +46,10 @@ void refrigerator(void)
 	recalc_sigpending(); /* We sent fake signal, clean it up */
 	spin_unlock_irq(&current->sighand->siglock);
 
-	while (frozen(current))
+	while (frozen(current)) {
+		current->state = TASK_UNINTERRUPTIBLE;
 		schedule();
+	}
 	pr_debug("%s left refrigerator\n", current->comm);
 	current->state = save;
 }
@@ -80,12 +81,32 @@ int freeze_processes(void)
 		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);
 		yield();			/* Yield is okay here */
-		if (time_after(jiffies, start_time + TIMEOUT)) {
+		if (todo && time_after(jiffies, start_time + TIMEOUT)) {
 			printk( "\n" );
 			printk(KERN_ERR " stopping tasks failed (%d tasks remaining)\n", todo );
-			return todo;
+			break;
 		}
 	} while(todo);
+
+	/* This does not unfreeze processes that are already frozen
+	 * (we have slightly ugly calling convention in that respect,
+	 * and caller must call thaw_processes() if something fails),
+	 * but it cleans up leftover PF_FREEZE requests.
+	 */
+	if (todo) {
+		read_lock(&tasklist_lock);
+		do_each_thread(g, p)
+			if (freezing(p)) {
+				pr_debug("  clean up: %s\n", p->comm);
+				p->flags &= ~PF_FREEZE;
+				spin_lock_irqsave(&p->sighand->siglock, flags);
+				recalc_sigpending_tsk(p);
+				spin_unlock_irqrestore(&p->sighand->siglock, flags);
+			}
+		while_each_thread(g, p);
+		read_unlock(&tasklist_lock);
+		return todo;
+	}
 
 	printk( "|\n" );
 	BUG_ON(in_atomic());

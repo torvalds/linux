@@ -41,9 +41,16 @@ enum die_val {
 	DIE_PAGE_FAULT,
 };
 
-static inline int notify_die(enum die_val val,char *str,struct pt_regs *regs,long err,int trap, int sig)
+static inline int notify_die(enum die_val val, const char *str,
+			struct pt_regs *regs, long err, int trap, int sig)
 {
-	struct die_args args = { .regs=regs, .str=str, .err=err, .trapnr=trap,.signr=sig };
+	struct die_args args = {
+		.regs = regs,
+		.str = str,
+		.err = err,
+		.trapnr = trap,
+		.signr = sig
+	};
 	return notifier_call_chain(&i386die_chain, val, &args);
 }
 

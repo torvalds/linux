@@ -19,6 +19,7 @@
 
 #define ia64_rid(ctx,addr)	(((ctx) << 3) | (addr >> 61))
 
+# include <asm/page.h>
 # ifndef __ASSEMBLY__
 
 #include <linux/compiler.h>
@@ -55,34 +56,46 @@ static inline void
 delayed_tlb_flush (void)
 {
 	extern void local_flush_tlb_all (void);
+	unsigned long flags;
 
 	if (unlikely(__ia64_per_cpu_var(ia64_need_tlb_flush))) {
-		local_flush_tlb_all();
-		__ia64_per_cpu_var(ia64_need_tlb_flush) = 0;
+		spin_lock_irqsave(&ia64_ctx.lock, flags);
+		{
+			if (__ia64_per_cpu_var(ia64_need_tlb_flush)) {
+				local_flush_tlb_all();
+				__ia64_per_cpu_var(ia64_need_tlb_flush) = 0;
+			}
+		}
+		spin_unlock_irqrestore(&ia64_ctx.lock, flags);
 	}
 }
 
-static inline mm_context_t
+static inline nv_mm_context_t
 get_mmu_context (struct mm_struct *mm)
 {
 	unsigned long flags;
-	mm_context_t context = mm->context;
+	nv_mm_context_t context = mm->context;
 
-	if (context)
-		return context;
-
-	spin_lock_irqsave(&ia64_ctx.lock, flags);
-	{
-		/* re-check, now that we've got the lock: */
-		context = mm->context;
-		if (context == 0) {
-			cpus_clear(mm->cpu_vm_mask);
-			if (ia64_ctx.next >= ia64_ctx.limit)
-				wrap_mmu_context(mm);
-			mm->context = context = ia64_ctx.next++;
+	if (unlikely(!context)) {
+		spin_lock_irqsave(&ia64_ctx.lock, flags);
+		{
+			/* re-check, now that we've got the lock: */
+			context = mm->context;
+			if (context == 0) {
+				cpus_clear(mm->cpu_vm_mask);
+				if (ia64_ctx.next >= ia64_ctx.limit)
+					wrap_mmu_context(mm);
+				mm->context = context = ia64_ctx.next++;
+			}
 		}
+		spin_unlock_irqrestore(&ia64_ctx.lock, flags);
 	}
-	spin_unlock_irqrestore(&ia64_ctx.lock, flags);
+	/*
+	 * Ensure we're not starting to use "context" before any old
+	 * uses of it are gone from our TLB.
+	 */
+	delayed_tlb_flush();
+
 	return context;
 }
 
@@ -104,13 +117,13 @@ destroy_context (struct mm_struct *mm)
 }
 
 static inline void
-reload_context (mm_context_t context)
+reload_context (nv_mm_context_t context)
 {
 	unsigned long rid;
 	unsigned long rid_incr = 0;
 	unsigned long rr0, rr1, rr2, rr3, rr4, old_rr4;
 
-	old_rr4 = ia64_get_rr(0x8000000000000000UL);
+	old_rr4 = ia64_get_rr(RGN_BASE(RGN_HPAGE));
 	rid = context << 3;	/* make space for encoding the region number */
 	rid_incr = 1 << 8;
 
@@ -122,6 +135,10 @@ reload_context (mm_context_t context)
 	rr4 = rr0 + 4*rid_incr;
 #ifdef  CONFIG_HUGETLB_PAGE
 	rr4 = (rr4 & (~(0xfcUL))) | (old_rr4 & 0xfc);
+
+#  if RGN_HPAGE != 4
+#    error "reload_context assumes RGN_HPAGE is 4"
+#  endif
 #endif
 
 	ia64_set_rr(0x0000000000000000UL, rr0);
@@ -138,7 +155,7 @@ reload_context (mm_context_t context)
 static inline void
 activate_context (struct mm_struct *mm)
 {
-	mm_context_t context;
+	nv_mm_context_t context;
 
 	do {
 		context = get_mmu_context(mm);
@@ -157,8 +174,6 @@ activate_context (struct mm_struct *mm)
 static inline void
 activate_mm (struct mm_struct *prev, struct mm_struct *next)
 {
-	delayed_tlb_flush();
-
 	/*
 	 * We may get interrupts here, but that's OK because interrupt handlers cannot
 	 * touch user-space.

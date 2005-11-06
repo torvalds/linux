@@ -1,49 +1,37 @@
 /*
- * Copyright (c) 2001-2002 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2001-2002,2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-
+#include "xfs_fs.h"
+#include "xfs_types.h"
+#include "xfs_bit.h"
 #include "xfs_inum.h"
+#include "xfs_ag.h"
 #include "xfs_dir.h"
 #include "xfs_dir2.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_btree.h"
 #include "xfs_acl.h"
 #include "xfs_mac.h"
 #include "xfs_attr.h"
@@ -85,7 +73,7 @@ xfs_acl_vhasacl_default(
 {
 	int		error;
 
-	if (vp->v_type != VDIR)
+	if (!VN_ISDIR(vp))
 		return 0;
 	xfs_acl_get_attr(vp, NULL, _ACL_TYPE_DEFAULT, ATTR_KERNOVAL, &error);
 	return (error == 0);
@@ -155,7 +143,7 @@ posix_acl_xattr_to_xfs(
 }
 
 /*
- * Comparison function called from qsort().
+ * Comparison function called from xfs_sort().
  * Primary key is ae_tag, secondary key is ae_id.
  */
 STATIC int
@@ -189,8 +177,8 @@ posix_acl_xfs_to_xattr(
 		return -ERANGE;
 
 	/* Need to sort src XFS ACL by <ae_tag,ae_id> */
-	qsort(src->acl_entry, src->acl_cnt, sizeof(src->acl_entry[0]),
-		xfs_acl_entry_compare);
+	xfs_sort(src->acl_entry, src->acl_cnt, sizeof(src->acl_entry[0]),
+		 xfs_acl_entry_compare);
 
 	dest->a_version = cpu_to_le32(POSIX_ACL_XATTR_VERSION);
 	dest_entry = &dest->a_entries[0];
@@ -389,7 +377,7 @@ xfs_acl_allow_set(
 
 	if (vp->v_inode.i_flags & (S_IMMUTABLE|S_APPEND))
 		return EPERM;
-	if (kind == _ACL_TYPE_DEFAULT && vp->v_type != VDIR)
+	if (kind == _ACL_TYPE_DEFAULT && !VN_ISDIR(vp))
 		return ENOTDIR;
 	if (vp->v_vfsp->vfs_flag & VFS_RDONLY)
 		return EROFS;
@@ -448,6 +436,7 @@ xfs_acl_access(
 	int		seen_userobj = 0;
 
 	matched.ae_tag = 0;	/* Invalid type */
+	matched.ae_perm = 0;
 	md >>= 6;	/* Normalize the bits for comparison */
 
 	for (i = 0; i < fap->acl_cnt; i++) {
@@ -750,7 +739,7 @@ xfs_acl_inherit(
 	 * If the new file is a directory, its default ACL is a copy of
 	 * the containing directory's default ACL.
 	 */
-	if (vp->v_type == VDIR)
+	if (VN_ISDIR(vp))
 		xfs_acl_set_attr(vp, pdaclp, _ACL_TYPE_DEFAULT, &error);
 	if (!error && !basicperms)
 		xfs_acl_set_attr(vp, cacl, _ACL_TYPE_ACCESS, &error);

@@ -491,6 +491,7 @@ asmlinkage long sys_nfsservctl(int cmd,
 asmlinkage long sys_syslog(int type, char __user *buf, int len);
 asmlinkage long sys_uselib(const char __user *library);
 asmlinkage long sys_ni_syscall(void);
+asmlinkage long sys_ptrace(long request, long pid, long addr, long data);
 
 asmlinkage long sys_add_key(const char __user *_type,
 			    const char __user *_description,
@@ -508,5 +509,7 @@ asmlinkage long sys_keyctl(int cmd, unsigned long arg2, unsigned long arg3,
 
 asmlinkage long sys_ioprio_set(int which, int who, int ioprio);
 asmlinkage long sys_ioprio_get(int which, int who);
+asmlinkage long sys_set_mempolicy(int mode, unsigned long __user *nmask,
+					unsigned long maxnode);
 
 #endif

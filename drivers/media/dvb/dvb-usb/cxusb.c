@@ -48,35 +48,26 @@ static int cxusb_ctrl_msg(struct dvb_usb_device *d,
 	return 0;
 }
 
-/* I2C */
-static void cxusb_set_i2c_path(struct dvb_usb_device *d, enum cxusb_i2c_pathes path)
+/* GPIO */
+static void cxusb_gpio_tuner(struct dvb_usb_device *d, int onoff)
 {
 	struct cxusb_state *st = d->priv;
 	u8 o[2],i;
 
-	if (path == st->cur_i2c_path)
+	if (st->gpio_write_state[GPIO_TUNER] == onoff)
 		return;
 
-	o[0] = IOCTL_SET_I2C_PATH;
-	switch (path) {
-		case PATH_CX22702:
-			o[1] = 0;
-			break;
-		case PATH_TUNER_OTHER:
-			o[1] = 1;
-			break;
-		default:
-			err("unkown i2c path");
-			return;
-	}
-	cxusb_ctrl_msg(d,CMD_IOCTL,o,2,&i,1);
+	o[0] = GPIO_TUNER;
+	o[1] = onoff;
+	cxusb_ctrl_msg(d,CMD_GPIO_WRITE,o,2,&i,1);
 
 	if (i != 0x01)
-		deb_info("i2c_path setting failed.\n");
+		deb_info("gpio_write failed.\n");
 
-	st->cur_i2c_path = path;
+	st->gpio_write_state[GPIO_TUNER] = onoff;
 }
 
+/* I2C */
 static int cxusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
@@ -92,10 +83,10 @@ static int cxusb_i2c_xfer(struct i2c_adapter *adap,struct i2c_msg msg[],int num)
 
 		switch (msg[i].addr) {
 			case 0x63:
-				cxusb_set_i2c_path(d,PATH_CX22702);
+				cxusb_gpio_tuner(d,0);
 				break;
 			default:
-				cxusb_set_i2c_path(d,PATH_TUNER_OTHER);
+				cxusb_gpio_tuner(d,1);
 				break;
 		}
 
@@ -141,24 +132,26 @@ static u32 cxusb_i2c_func(struct i2c_adapter *adapter)
 }
 
 static struct i2c_algorithm cxusb_i2c_algo = {
-	.name          = "Conexant USB I2C algorithm",
-	.id            = I2C_ALGO_BIT,
 	.master_xfer   = cxusb_i2c_xfer,
 	.functionality = cxusb_i2c_func,
 };
 
 static int cxusb_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
-	return 0;
+	u8 b = 0;
+	if (onoff)
+		return cxusb_ctrl_msg(d, CMD_POWER_ON, &b, 1, NULL, 0);
+	else
+		return cxusb_ctrl_msg(d, CMD_POWER_OFF, &b, 1, NULL, 0);
 }
 
 static int cxusb_streaming_ctrl(struct dvb_usb_device *d, int onoff)
 {
 	u8 buf[2] = { 0x03, 0x00 };
 	if (onoff)
-		cxusb_ctrl_msg(d,0x36, buf, 2, NULL, 0);
+		cxusb_ctrl_msg(d,CMD_STREAMING_ON, buf, 2, NULL, 0);
 	else
-		cxusb_ctrl_msg(d,0x37, NULL, 0, NULL, 0);
+		cxusb_ctrl_msg(d,CMD_STREAMING_OFF, NULL, 0, NULL, 0);
 
 	return 0;
 }
@@ -184,22 +177,11 @@ static int cxusb_tuner_attach(struct dvb_usb_device *d)
 
 static int cxusb_frontend_attach(struct dvb_usb_device *d)
 {
-	u8 buf[2] = { 0x03, 0x00 };
-	u8 b = 0;
-
-	if (usb_set_interface(d->udev,0,0) < 0)
-		err("set interface to alts=0 failed");
-
-	cxusb_ctrl_msg(d,0xde,&b,0,NULL,0);
-	cxusb_set_i2c_path(d,PATH_TUNER_OTHER);
-	cxusb_ctrl_msg(d,CMD_POWER_OFF, NULL, 0, &b, 1);
-
+	u8 b;
 	if (usb_set_interface(d->udev,0,6) < 0)
 		err("set interface failed");
 
-	cxusb_ctrl_msg(d,0x36, buf, 2, NULL, 0);
-	cxusb_set_i2c_path(d,PATH_CX22702);
-	cxusb_ctrl_msg(d,CMD_POWER_ON, NULL, 0, &b, 1);
+	cxusb_ctrl_msg(d,CMD_DIGITAL, NULL, 0, &b, 1);
 
 	if ((d->fe = cx22702_attach(&cxusb_cx22702_config, &d->i2c_adap)) != NULL)
 		return 0;
@@ -213,7 +195,7 @@ static struct dvb_usb_properties cxusb_properties;
 static int cxusb_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
-	return dvb_usb_device_init(intf,&cxusb_properties,THIS_MODULE);
+	return dvb_usb_device_init(intf,&cxusb_properties,THIS_MODULE,NULL);
 }
 
 static struct usb_device_id cxusb_table [] = {
@@ -239,14 +221,12 @@ static struct dvb_usb_properties cxusb_properties = {
 	.generic_bulk_ctrl_endpoint = 0x01,
 	/* parameter for the MPEG2-data transfer */
 	.urb = {
-		.type = DVB_USB_ISOC,
+		.type = DVB_USB_BULK,
 		.count = 5,
 		.endpoint = 0x02,
 		.u = {
-			.isoc = {
-				.framesperurb = 32,
-				.framesize = 940,
-				.interval = 5,
+			.bulk = {
+				.buffersize = 8192,
 			}
 		}
 	},

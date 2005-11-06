@@ -37,7 +37,7 @@
 #include <asm/mmzone.h>
 #include <bios_ebda.h>
 
-struct pglist_data *node_data[MAX_NUMNODES];
+struct pglist_data *node_data[MAX_NUMNODES] __read_mostly;
 EXPORT_SYMBOL(node_data);
 bootmem_data_t node0_bdata;
 
@@ -49,8 +49,8 @@ bootmem_data_t node0_bdata;
  * 2) node_start_pfn   - the starting page frame number for a node
  * 3) node_end_pfn     - the ending page fram number for a node
  */
-unsigned long node_start_pfn[MAX_NUMNODES];
-unsigned long node_end_pfn[MAX_NUMNODES];
+unsigned long node_start_pfn[MAX_NUMNODES] __read_mostly;
+unsigned long node_end_pfn[MAX_NUMNODES] __read_mostly;
 
 
 #ifdef CONFIG_DISCONTIGMEM
@@ -66,7 +66,7 @@ unsigned long node_end_pfn[MAX_NUMNODES];
  *     physnode_map[4-7] = 1;
  *     physnode_map[8- ] = -1;
  */
-s8 physnode_map[MAX_ELEMENTS] = { [0 ... (MAX_ELEMENTS - 1)] = -1};
+s8 physnode_map[MAX_ELEMENTS] __read_mostly = { [0 ... (MAX_ELEMENTS - 1)] = -1};
 EXPORT_SYMBOL(physnode_map);
 
 void memory_present(int nid, unsigned long start, unsigned long end)
@@ -98,7 +98,7 @@ unsigned long node_memmap_size_bytes(int nid, unsigned long start_pfn,
 
 extern unsigned long find_max_low_pfn(void);
 extern void find_max_pfn(void);
-extern void one_highpage_init(struct page *, int, int);
+extern void add_one_highpage_init(struct page *, int, int);
 
 extern struct e820map e820;
 extern unsigned long init_pg_tables_end;
@@ -243,14 +243,6 @@ static unsigned long calculate_numa_remap_pages(void)
 		/* now the roundup is correct, convert to PAGE_SIZE pages */
 		size = size * PTRS_PER_PTE;
 
-		if (node_end_pfn[nid] & (PTRS_PER_PTE-1)) {
-			/*
-			 * Adjust size if node_end_pfn is not on a proper
-			 * pmd boundary. remap_numa_kva will barf otherwise.
-			 */
-			size +=  node_end_pfn[nid] & (PTRS_PER_PTE-1);
-		}
-
 		/*
 		 * Validate the region we are allocating only contains valid
 		 * pages.
@@ -270,6 +262,17 @@ static unsigned long calculate_numa_remap_pages(void)
 		reserve_pages += size;
 		printk("Shrinking node %d from %ld pages to %ld pages\n",
 			nid, node_end_pfn[nid], node_end_pfn[nid] - size);
+
+		if (node_end_pfn[nid] & (PTRS_PER_PTE-1)) {
+			/*
+			 * Align node_end_pfn[] and node_remap_start_pfn[] to
+			 * pmd boundary. remap_numa_kva will barf otherwise.
+			 */
+			printk("Shrinking node %d further by %ld pages for proper alignment\n",
+				nid, node_end_pfn[nid] & (PTRS_PER_PTE-1));
+			size +=  node_end_pfn[nid] & (PTRS_PER_PTE-1);
+		}
+
 		node_end_pfn[nid] -= size;
 		node_remap_start_pfn[nid] = node_end_pfn[nid];
 	}
@@ -424,7 +427,7 @@ void __init set_highmem_pages_init(int bad_ppro)
 			if (!pfn_valid(node_pfn))
 				continue;
 			page = pfn_to_page(node_pfn);
-			one_highpage_init(page, node_pfn, bad_ppro);
+			add_one_highpage_init(page, node_pfn, bad_ppro);
 		}
 	}
 	totalram_pages += totalhigh_pages;

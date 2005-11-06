@@ -27,6 +27,7 @@
 #include <linux/seq_file.h>
 
 #include <net/irda/irlan_common.h>
+#include <net/irda/irlan_filter.h>
 
 /*
  * Function irlan_filter_request (self, skb)

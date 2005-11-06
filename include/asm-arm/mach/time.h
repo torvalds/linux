@@ -47,9 +47,7 @@ struct sys_timer {
 
 #ifdef CONFIG_NO_IDLE_HZ
 
-#define DYN_TICK_SKIPPING	(1 << 2)
 #define DYN_TICK_ENABLED	(1 << 1)
-#define DYN_TICK_SUITABLE	(1 << 0)
 
 struct dyn_tick_timer {
 	unsigned int	state;			/* Current state */

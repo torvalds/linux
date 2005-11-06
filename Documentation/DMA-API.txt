@@ -121,7 +121,7 @@ pool's device.
 			dma_addr_t addr);
 
 This puts memory back into the pool.  The pool is what was passed to
-the the pool allocation routine; the cpu and dma addresses are what
+the pool allocation routine; the cpu and dma addresses are what
 were returned when that routine allocated the memory being freed.
 
 

@@ -342,16 +342,11 @@ static void vga_cleanup(struct vgastate *state)
 	if (state->vidstate != NULL) {
 		struct regstate *saved = (struct regstate *) state->vidstate;
 
-		if (saved->vga_font0) 
-			vfree(saved->vga_font0);
-		if (saved->vga_font1) 
-			vfree(saved->vga_font1);
-		if (saved->vga_text)
-			vfree(saved->vga_text);
-		if (saved->vga_cmap)
-			vfree(saved->vga_cmap);
-		if (saved->attr)
-			vfree(saved->attr);
+		vfree(saved->vga_font0);
+		vfree(saved->vga_font1);
+		vfree(saved->vga_text);
+		vfree(saved->vga_cmap);
+		vfree(saved->attr);
 		kfree(saved);
 		state->vidstate = NULL;
 	}

@@ -6,6 +6,7 @@
 #ifndef __OS_H__
 #define __OS_H__
 
+#include "uml-config.h"
 #include "asm/types.h"
 #include "../os/include/file.h"
 
@@ -153,6 +154,22 @@ extern int os_file_type(char *file);
 extern int os_file_mode(char *file, struct openflags *mode_out);
 extern int os_lock_file(int fd, int excl);
 
+/* start_up.c */
+extern void os_early_checks(void);
+extern int can_do_skas(void);
+
+/* Make sure they are clear when running in TT mode. Required by
+ * SEGV_MAYBE_FIXABLE */
+#ifdef UML_CONFIG_MODE_SKAS
+#define clear_can_do_skas() do { ptrace_faultinfo = proc_mm = 0; } while (0)
+#else
+#define clear_can_do_skas() do {} while (0)
+#endif
+
+/* mem.c */
+extern int create_mem_file(unsigned long len);
+
+/* process.c */
 extern unsigned long os_process_pc(int pid);
 extern int os_process_parent(int pid);
 extern void os_stop_process(int pid);
@@ -161,6 +178,9 @@ extern void os_kill_ptraced_process(int pid, int reap_child);
 extern void os_usr1_process(int pid);
 extern int os_getpid(void);
 extern int os_getpgrp(void);
+extern void init_new_thread_stack(void *sig_stack, void (*usr1_handler)(int));
+extern void init_new_thread_signals(int altstack);
+extern int run_kernel_thread(int (*fn)(void *), void *arg, void **jmp_ptr);
 
 extern int os_map_memory(void *virt, int fd, unsigned long long off,
 			 unsigned long len, int r, int w, int x);
@@ -169,6 +189,15 @@ extern int os_protect_memory(void *addr, unsigned long len,
 extern int os_unmap_memory(void *addr, int len);
 extern void os_flush_stdout(void);
 extern unsigned long long os_usecs(void);
+
+/* tt.c
+ * for tt mode only (will be deleted in future...)
+ */
+extern int protect_memory(unsigned long addr, unsigned long len,
+			  int r, int w, int x, int must_succeed);
+extern void forward_pending_sigio(int target);
+extern int start_fork_tramp(void *arg, unsigned long temp_stack,
+			    int clone_flags, int (*tramp)(void *));
 
 #endif
 

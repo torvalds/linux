@@ -19,9 +19,6 @@
 #include <linux/ioport.h>
 #include <asm/page.h>
 #include <asm/system.h>
-#ifdef __alpha__
-#include <asm/segment.h>
-#endif
 #include <linux/vmalloc.h>
 #include <asm/uaccess.h>
 #include <linux/poll.h>

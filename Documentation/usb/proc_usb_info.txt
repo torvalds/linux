@@ -20,7 +20,7 @@ the /proc/bus/usb/BBB/DDD files.
 
 	  to /etc/fstab.  This will mount usbfs at each reboot.
 	  You can then issue `cat /proc/bus/usb/devices` to extract
-	  USB device information, and user mode drivers can use usbfs 
+	  USB device information, and user mode drivers can use usbfs
 	  to interact with USB devices.
 
 	  There are a number of mount options supported by usbfs.
@@ -32,7 +32,7 @@ the /proc/bus/usb/BBB/DDD files.
 	  still see references to the older "usbdevfs" name.
 
 For more information on mounting the usbfs file system, see the
-"USB Device Filesystem" section of the USB Guide. The latest copy 
+"USB Device Filesystem" section of the USB Guide. The latest copy
 of the USB Guide can be found at http://www.linux-usb.org/
 
 
@@ -133,7 +133,7 @@ B:  Alloc=ddd/ddd us (xx%), #Int=ddd, #Iso=ddd
     are the only transfers that reserve bandwidth.  Control and bulk
     transfers use all other bandwidth, including reserved bandwidth that
     is not used for transfers (such as for short packets).
-    
+
     The percentage is how much of the "reserved" bandwidth is scheduled by
     those transfers.  For a low or full speed bus (loosely, "USB 1.1"),
     90% of the bus bandwidth is reserved.  For a high speed bus (loosely,
@@ -197,7 +197,7 @@ C:* #Ifs=dd Cfg#=dd Atr=xx MPwr=dddmA
 | | |__NumberOfInterfaces
 | |__ "*" indicates the active configuration (others are " ")
 |__Config info tag
-    
+
     USB devices may have multiple configurations, each of which act
     rather differently.  For example, a bus-powered configuration
     might be much less capable than one that is self-powered.  Only
@@ -228,7 +228,7 @@ I:  If#=dd Alt=dd #EPs=dd Cls=xx(sssss) Sub=xx Prot=xx Driver=ssss
     For example, default settings may not use more than a small
     amount of periodic bandwidth.  To use significant fractions
     of bus bandwidth, drivers must select a non-default altsetting.
-    
+
     Only one setting for an interface may be active at a time, and
     only one driver may bind to an interface at a time.  Most devices
     have only one alternate setting per interface.
@@ -297,18 +297,21 @@ S:  SerialNumber=dce0
 C:* #Ifs= 1 Cfg#= 1 Atr=40 MxPwr=  0mA
 I:  If#= 0 Alt= 0 #EPs= 1 Cls=09(hub  ) Sub=00 Prot=00 Driver=hub
 E:  Ad=81(I) Atr=03(Int.) MxPS=   8 Ivl=255ms
+
 T:  Bus=00 Lev=01 Prnt=01 Port=00 Cnt=01 Dev#=  2 Spd=12  MxCh= 4
 D:  Ver= 1.00 Cls=09(hub  ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
 P:  Vendor=0451 ProdID=1446 Rev= 1.00
 C:* #Ifs= 1 Cfg#= 1 Atr=e0 MxPwr=100mA
 I:  If#= 0 Alt= 0 #EPs= 1 Cls=09(hub  ) Sub=00 Prot=00 Driver=hub
 E:  Ad=81(I) Atr=03(Int.) MxPS=   1 Ivl=255ms
+
 T:  Bus=00 Lev=02 Prnt=02 Port=00 Cnt=01 Dev#=  3 Spd=1.5 MxCh= 0
 D:  Ver= 1.00 Cls=00(>ifc ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
 P:  Vendor=04b4 ProdID=0001 Rev= 0.00
 C:* #Ifs= 1 Cfg#= 1 Atr=80 MxPwr=100mA
 I:  If#= 0 Alt= 0 #EPs= 1 Cls=03(HID  ) Sub=01 Prot=02 Driver=mouse
 E:  Ad=81(I) Atr=03(Int.) MxPS=   3 Ivl= 10ms
+
 T:  Bus=00 Lev=02 Prnt=02 Port=02 Cnt=02 Dev#=  4 Spd=12  MxCh= 0
 D:  Ver= 1.00 Cls=00(>ifc ) Sub=00 Prot=00 MxPS= 8 #Cfgs=  1
 P:  Vendor=0565 ProdID=0001 Rev= 1.08

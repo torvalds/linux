@@ -2,7 +2,9 @@
 #ifndef _ASM_PCI_BRIDGE_H
 #define _ASM_PCI_BRIDGE_H
 
+#include <linux/config.h>
 #include <linux/pci.h>
+#include <linux/list.h>
 
 /*
  * This program is free software; you can redistribute it and/or
@@ -34,7 +36,7 @@ struct pci_controller {
 
 	struct pci_ops *ops;
 	volatile unsigned int __iomem *cfg_addr;
-	volatile unsigned char __iomem *cfg_data;
+	volatile void __iomem *cfg_data;
 
 	/* Currently, we limit ourselves to 1 IO range and 3 mem
 	 * ranges since the common pci_bus structure can't handle more
@@ -48,19 +50,68 @@ struct pci_controller {
 	unsigned long dma_window_size;
 };
 
+/*
+ * PCI stuff, for nodes representing PCI devices, pointed to
+ * by device_node->data.
+ */
+struct pci_controller;
+struct iommu_table;
+
+struct pci_dn {
+	int	busno;			/* for pci devices */
+	int	bussubno;		/* for pci devices */
+	int	devfn;			/* for pci devices */
+	int	eeh_mode;		/* See eeh.h for possible EEH_MODEs */
+	int	eeh_config_addr;
+	int	eeh_capable;		/* from firmware */
+	int 	eeh_check_count;	/* # times driver ignored error */
+	int 	eeh_freeze_count;	/* # times this device froze up. */
+	int	eeh_is_bridge;		/* device is pci-to-pci bridge */
+
+	int	pci_ext_config_space;	/* for pci devices */
+	struct  pci_controller *phb;	/* for pci devices */
+	struct	iommu_table *iommu_table;	/* for phb's or bridges */
+	struct	pci_dev *pcidev;	/* back-pointer to the pci device */
+	struct	device_node *node;	/* back-pointer to the device_node */
+#ifdef CONFIG_PPC_ISERIES
+	struct	list_head Device_List;
+	int		Irq;		/* Assigned IRQ */
+	int		Flags;		/* Possible flags(disable/bist)*/
+	u8		LogicalSlot;	/* Hv Slot Index for Tces */
+#endif
+	u32	config_space[16];	/* saved PCI config space */
+};
+
+/* Get the pointer to a device_node's pci_dn */
+#define PCI_DN(dn)	((struct pci_dn *) (dn)->data)
+
 struct device_node *fetch_dev_dn(struct pci_dev *dev);
 
-/* Get a device_node from a pci_dev.  This code must be fast except in the case
- * where the sysdata is incorrect and needs to be fixed up (hopefully just once)
+/* Get a device_node from a pci_dev.  This code must be fast except
+ * in the case where the sysdata is incorrect and needs to be fixed
+ * up (this will only happen once).
+ * In this case the sysdata will have been inherited from a PCI host
+ * bridge or a PCI-PCI bridge further up the tree, so it will point
+ * to a valid struct pci_dn, just not the one we want.
  */
 static inline struct device_node *pci_device_to_OF_node(struct pci_dev *dev)
 {
 	struct device_node *dn = dev->sysdata;
+	struct pci_dn *pdn = dn->data;
 
-	if (dn->devfn == dev->devfn && dn->busno == dev->bus->number)
+	if (pdn && pdn->devfn == dev->devfn && pdn->busno == dev->bus->number)
 		return dn;	/* fast path.  sysdata is good */
-	else
-		return fetch_dev_dn(dev);
+	return fetch_dev_dn(dev);
+}
+
+static inline int pci_device_from_OF_node(struct device_node *np,
+					  u8 *bus, u8 *devfn)
+{
+	if (!PCI_DN(np))
+		return -ENODEV;
+	*bus = PCI_DN(np)->busno;
+	*devfn = PCI_DN(np)->devfn;
+	return 0;
 }
 
 static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
@@ -72,7 +123,7 @@ static inline struct device_node *pci_bus_to_OF_node(struct pci_bus *bus)
 }
 
 extern void pci_process_bridge_OF_ranges(struct pci_controller *hose,
-					 struct device_node *dev);
+					 struct device_node *dev, int primary);
 
 extern int pcibios_remove_root_bus(struct pci_controller *phb);
 
@@ -83,8 +134,13 @@ static inline struct pci_controller *pci_bus_to_host(struct pci_bus *bus)
 	struct device_node *busdn = bus->sysdata;
 
 	BUG_ON(busdn == NULL);
-	return busdn->phb;
+	return PCI_DN(busdn)->phb;
 }
+
+/* Return values for ppc_md.pci_probe_mode function */
+#define PCI_PROBE_NONE		-1	/* Don't look at this bus at all */
+#define PCI_PROBE_NORMAL	0	/* Do normal PCI probing */
+#define PCI_PROBE_DEVTREE	1	/* Instantiate from device tree */
 
 #endif
 #endif /* __KERNEL__ */

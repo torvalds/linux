@@ -38,9 +38,8 @@
 #include <asm/pci-bridge.h>
 #include <asm/iommu.h>
 #include <asm/rtas.h>
-
-#include "mpic.h"
-#include "pci.h"
+#include <asm/mpic.h>
+#include <asm/ppc-pci.h>
 
 /* RTAS tokens */
 static int read_pci_config;
@@ -48,7 +47,7 @@ static int write_pci_config;
 static int ibm_read_pci_config;
 static int ibm_write_pci_config;
 
-static int config_access_valid(struct device_node *dn, int where)
+static int config_access_valid(struct pci_dn *dn, int where)
 {
 	if (where < 256)
 		return 1;
@@ -58,20 +57,37 @@ static int config_access_valid(struct device_node *dn, int where)
 	return 0;
 }
 
+static int of_device_available(struct device_node * dn)
+{
+        char * status;
+
+        status = get_property(dn, "status", NULL);
+
+        if (!status)
+                return 1;
+
+        if (!strcmp(status, "okay"))
+                return 1;
+
+        return 0;
+}
+
 static int rtas_read_config(struct device_node *dn, int where, int size, u32 *val)
 {
 	int returnval = -1;
 	unsigned long buid, addr;
 	int ret;
+	struct pci_dn *pdn;
 
-	if (!dn)
+	if (!dn || !dn->data)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-	if (!config_access_valid(dn, where))
+	pdn = dn->data;
+	if (!config_access_valid(pdn, where))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
-	addr = ((where & 0xf00) << 20) | (dn->busno << 16) |
-		(dn->devfn << 8) | (where & 0xff);
-	buid = dn->phb->buid;
+	addr = ((where & 0xf00) << 20) | (pdn->busno << 16) |
+		(pdn->devfn << 8) | (where & 0xff);
+	buid = pdn->phb->buid;
 	if (buid) {
 		ret = rtas_call(ibm_read_pci_config, 4, 2, &returnval,
 				addr, buid >> 32, buid & 0xffffffff, size);
@@ -83,8 +99,8 @@ static int rtas_read_config(struct device_node *dn, int where, int size, u32 *va
 	if (ret)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	if (returnval == EEH_IO_ERROR_VALUE(size)
-	    && eeh_dn_check_failure (dn, NULL))
+	if (returnval == EEH_IO_ERROR_VALUE(size) &&
+	    eeh_dn_check_failure (dn, NULL))
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
 	return PCIBIOS_SUCCESSFUL;
@@ -103,24 +119,28 @@ static int rtas_pci_read_config(struct pci_bus *bus,
 
 	/* Search only direct children of the bus */
 	for (dn = busdn->child; dn; dn = dn->sibling)
-		if (dn->devfn == devfn)
+		if (dn->data && PCI_DN(dn)->devfn == devfn
+		    && of_device_available(dn))
 			return rtas_read_config(dn, where, size, val);
+
 	return PCIBIOS_DEVICE_NOT_FOUND;
 }
 
-static int rtas_write_config(struct device_node *dn, int where, int size, u32 val)
+int rtas_write_config(struct device_node *dn, int where, int size, u32 val)
 {
 	unsigned long buid, addr;
 	int ret;
+	struct pci_dn *pdn;
 
-	if (!dn)
+	if (!dn || !dn->data)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-	if (!config_access_valid(dn, where))
+	pdn = dn->data;
+	if (!config_access_valid(pdn, where))
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 
-	addr = ((where & 0xf00) << 20) | (dn->busno << 16) |
-		(dn->devfn << 8) | (where & 0xff);
-	buid = dn->phb->buid;
+	addr = ((where & 0xf00) << 20) | (pdn->busno << 16) |
+		(pdn->devfn << 8) | (where & 0xff);
+	buid = pdn->phb->buid;
 	if (buid) {
 		ret = rtas_call(ibm_write_pci_config, 5, 1, NULL, addr, buid >> 32, buid & 0xffffffff, size, (ulong) val);
 	} else {
@@ -146,7 +166,8 @@ static int rtas_pci_write_config(struct pci_bus *bus,
 
 	/* Search only direct children of the bus */
 	for (dn = busdn->child; dn; dn = dn->sibling)
-		if (dn->devfn == devfn)
+		if (dn->data && PCI_DN(dn)->devfn == devfn
+		    && of_device_available(dn))
 			return rtas_write_config(dn, where, size, val);
 	return PCIBIOS_DEVICE_NOT_FOUND;
 }
@@ -379,7 +400,7 @@ unsigned long __init find_and_init_phbs(void)
 		if (!phb)
 			continue;
 
-		pci_process_bridge_OF_ranges(phb, node);
+		pci_process_bridge_OF_ranges(phb, node, 0);
 		pci_setup_phb_io(phb, index == 0);
 #ifdef CONFIG_PPC_PSERIES
 		if (ppc64_interrupt_controller == IC_OPEN_PIC && pSeries_mpic) {
@@ -429,7 +450,7 @@ struct pci_controller * __devinit init_phb_dynamic(struct device_node *dn)
 	if (!phb)
 		return NULL;
 
-	pci_process_bridge_OF_ranges(phb, dn);
+	pci_process_bridge_OF_ranges(phb, dn, primary);
 
 	pci_setup_phb_io_dynamic(phb, primary);
 	of_node_put(root);

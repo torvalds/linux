@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/cpumask.h>
 #include <linux/smp.h>
+#include <linux/sched.h>	/* set_cpus_allowed() */
 
 #include <asm/processor.h>
 #include <asm/watchdog.h>

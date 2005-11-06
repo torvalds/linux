@@ -178,7 +178,9 @@ int main(int argc, char ** argv)
 		die("Output: seek failed");
 	buf[0] = (sys_size & 0xff);
 	buf[1] = ((sys_size >> 8) & 0xff);
-	if (write(1, buf, 2) != 2)
+	buf[2] = ((sys_size >> 16) & 0xff);
+	buf[3] = ((sys_size >> 24) & 0xff);
+	if (write(1, buf, 4) != 4)
 		die("Write of image length failed");
 
 	return 0;					    /* Everything is OK */

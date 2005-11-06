@@ -27,10 +27,6 @@ config UID16
 	bool
 	default y
 
-config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
-
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
@@ -39,6 +35,12 @@ config GENERIC_CALIBRATE_DELAY
 config IRQ_RELEASE_METHOD
 	bool
 	default y
+
+menu "Host processor type and features"
+
+source "arch/i386/Kconfig.cpu"
+
+endmenu
 
 menu "UML-specific options"
 
@@ -73,7 +75,7 @@ config MODE_SKAS
 	to CONFIG_MODE_TT).  Otherwise, it is safe to say Y.  Disabling this
 	option will shrink the UML binary slightly.
 
-source "arch/um/Kconfig_arch"
+source "arch/um/Kconfig.arch"
 source "mm/Kconfig"
 
 config LD_SCRIPT_STATIC
@@ -196,7 +198,7 @@ config HOST_2G_2G
 config SMP
 	bool "Symmetric multi-processing support (EXPERIMENTAL)"
 	default n
-	depends on MODE_TT && EXPERIMENTAL
+	depends on (MODE_TT && EXPERIMENTAL && !SMP_BROKEN) || (BROKEN && SMP_BROKEN)
 	help
 	This option enables UML SMP support.
 	It is NOT related to having a real SMP box. Not directly, at least.
@@ -279,7 +281,7 @@ source "net/Kconfig"
 
 source "drivers/base/Kconfig"
 
-source "arch/um/Kconfig_char"
+source "arch/um/Kconfig.char"
 
 source "drivers/block/Kconfig"
 
@@ -287,7 +289,7 @@ config NETDEVICES
 	bool
 	default NET
 
-source "arch/um/Kconfig_net"
+source "arch/um/Kconfig.net"
 
 source "drivers/net/Kconfig"
 
@@ -311,7 +313,7 @@ config GENERIC_ISA_DMA
 	depends on SCSI
 	default y
 
-source "arch/um/Kconfig_scsi"
+source "arch/um/Kconfig.scsi"
 
 endmenu
 

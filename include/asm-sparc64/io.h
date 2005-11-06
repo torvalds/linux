@@ -100,18 +100,41 @@ static __inline__ void _outl(u32 l, unsigned long addr)
 #define inl_p(__addr)		inl(__addr)
 #define outl_p(__l, __addr)	outl(__l, __addr)
 
-extern void outsb(void __iomem *addr, const void *src, unsigned long count);
-extern void outsw(void __iomem *addr, const void *src, unsigned long count);
-extern void outsl(void __iomem *addr, const void *src, unsigned long count);
-extern void insb(void __iomem *addr, void *dst, unsigned long count);
-extern void insw(void __iomem *addr, void *dst, unsigned long count);
-extern void insl(void __iomem *addr, void *dst, unsigned long count);
-#define ioread8_rep(a,d,c)	insb(a,d,c)
-#define ioread16_rep(a,d,c)	insw(a,d,c)
-#define ioread32_rep(a,d,c)	insl(a,d,c)
-#define iowrite8_rep(a,s,c)	outsb(a,s,c)
-#define iowrite16_rep(a,s,c)	outsw(a,s,c)
-#define iowrite32_rep(a,s,c)	outsl(a,s,c)
+extern void outsb(unsigned long, const void *, unsigned long);
+extern void outsw(unsigned long, const void *, unsigned long);
+extern void outsl(unsigned long, const void *, unsigned long);
+extern void insb(unsigned long, void *, unsigned long);
+extern void insw(unsigned long, void *, unsigned long);
+extern void insl(unsigned long, void *, unsigned long);
+
+static inline void ioread8_rep(void __iomem *port, void *buf, unsigned long count)
+{
+	insb((unsigned long __force)port, buf, count);
+}
+static inline void ioread16_rep(void __iomem *port, void *buf, unsigned long count)
+{
+	insw((unsigned long __force)port, buf, count);
+}
+
+static inline void ioread32_rep(void __iomem *port, void *buf, unsigned long count)
+{
+	insl((unsigned long __force)port, buf, count);
+}
+
+static inline void iowrite8_rep(void __iomem *port, const void *buf, unsigned long count)
+{
+	outsb((unsigned long __force)port, buf, count);
+}
+
+static inline void iowrite16_rep(void __iomem *port, const void *buf, unsigned long count)
+{
+	outsw((unsigned long __force)port, buf, count);
+}
+
+static inline void iowrite32_rep(void __iomem *port, const void *buf, unsigned long count)
+{
+	outsl((unsigned long __force)port, buf, count);
+}
 
 /* Memory functions, same as I/O accesses on Ultra. */
 static inline u8 _readb(const volatile void __iomem *addr)

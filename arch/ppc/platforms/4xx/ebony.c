@@ -30,7 +30,6 @@
 #include <linux/delay.h>
 #include <linux/ide.h>
 #include <linux/initrd.h>
-#include <linux/irq.h>
 #include <linux/seq_file.h>
 #include <linux/root_dev.h>
 #include <linux/tty.h>
@@ -55,14 +54,7 @@
 #include <syslib/gen550.h>
 #include <syslib/ibm440gp_common.h>
 
-/*
- * This is a horrible kludge, we eventually need to abstract this
- * generic PHY stuff, so the  standard phy mode defines can be
- * easily used from arch code.
- */
-#include "../../../../drivers/net/ibm_emac/ibm_emac_phy.h"
-
-bd_t __res;
+extern bd_t __res;
 
 static struct ibm44x_clocks clocks __initdata;
 
@@ -98,15 +90,10 @@ ebony_calibrate_decr(void)
 	 * on Rev. C silicon then errata forces us to
 	 * use the internal clock.
 	 */
-	switch (PVR_REV(mfspr(SPRN_PVR))) {
-		case PVR_REV(PVR_440GP_RB):
-			freq = EBONY_440GP_RB_SYSCLK;
-			break;
-		case PVR_REV(PVR_440GP_RC1):
-		default:
-			freq = EBONY_440GP_RC_SYSCLK;
-			break;
-	}
+	if (strcmp(cur_cpu_spec->cpu_name, "440GP Rev. B") == 0)
+		freq = EBONY_440GP_RB_SYSCLK;
+	else
+		freq = EBONY_440GP_RC_SYSCLK;
 
 	ibm44x_calibrate_decr(freq);
 }
@@ -330,16 +317,7 @@ ebony_setup_arch(void)
 void __init platform_init(unsigned long r3, unsigned long r4,
 		unsigned long r5, unsigned long r6, unsigned long r7)
 {
-	parse_bootinfo(find_bootinfo());
-
-	/*
-	 * If we were passed in a board information, copy it into the
-	 * residual data area.
-	 */
-	if (r3)
-		__res = *(bd_t *)(r3 + KERNELBASE);
-
-	ibm44x_platform_init();
+	ibm44x_platform_init(r3, r4, r5, r6, r7);
 
 	ppc_md.setup_arch = ebony_setup_arch;
 	ppc_md.show_cpuinfo = ebony_show_cpuinfo;

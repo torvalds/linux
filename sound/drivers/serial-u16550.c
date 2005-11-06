@@ -779,7 +779,7 @@ static int __init snd_uart16550_create(snd_card_t * card,
 	int err;
 
 
-	if ((uart = kcalloc(1, sizeof(*uart), GFP_KERNEL)) == NULL)
+	if ((uart = kzalloc(sizeof(*uart), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
 	uart->adaptor = adaptor;
 	uart->card = card;
@@ -928,15 +928,11 @@ static int __init snd_serial_probe(int dev)
 					base[dev],
 					adaptor[dev],
 					droponfull[dev],
-					&uart)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+					&uart)) < 0)
+		goto _err;
 
-	if ((err = snd_uart16550_rmidi(uart, 0, outs[dev], ins[dev], &uart->rmidi)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_uart16550_rmidi(uart, 0, outs[dev], ins[dev], &uart->rmidi)) < 0)
+		goto _err;
 
 	sprintf(card->longname, "%s at 0x%lx, irq %d speed %d div %d outs %d ins %d adaptor %s droponfull %d",
 		card->shortname,
@@ -949,12 +945,18 @@ static int __init snd_serial_probe(int dev)
 		adaptor_names[uart->adaptor],
 		uart->drop_on_full);
 
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto _err;
+
+	if ((err = snd_card_register(card)) < 0)
+		goto _err;
+
 	snd_serial_cards[dev] = card;
 	return 0;
+
+ _err:
+	snd_card_free(card);
+	return err;
 }
 
 static int __init alsa_card_serial_init(void)

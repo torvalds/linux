@@ -50,13 +50,6 @@ MODULE_SUPPORTED_DEVICE("{{S3,SonicVibes PCI}}");
 #define SUPPORT_JOYSTICK 1
 #endif
 
-#ifndef PCI_VENDOR_ID_S3
-#define PCI_VENDOR_ID_S3             0x5333
-#endif
-#ifndef PCI_DEVICE_ID_S3_SONICVIBES
-#define PCI_DEVICE_ID_S3_SONICVIBES  0xca00
-#endif
-
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
@@ -1257,7 +1250,7 @@ static int __devinit snd_sonicvibes_create(snd_card_t * card,
                 return -ENXIO;
         }
 
-	sonic = kcalloc(1, sizeof(*sonic), GFP_KERNEL);
+	sonic = kzalloc(sizeof(*sonic), GFP_KERNEL);
 	if (sonic == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -1515,6 +1508,7 @@ static void __devexit snd_sonic_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "S3 SonicVibes",
+	.owner = THIS_MODULE,
 	.id_table = snd_sonic_ids,
 	.probe = snd_sonic_probe,
 	.remove = __devexit_p(snd_sonic_remove),

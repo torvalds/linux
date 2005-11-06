@@ -2,9 +2,9 @@
  *  drivers/s390/net/claw.c
  *    ESCON CLAW network driver
  *
- *    $Revision: 1.35 $ $Date: 2005/03/24 12:25:38 $
+ *    $Revision: 1.38 $ $Date: 2005/08/29 09:47:04 $
  *
- *  Linux fo zSeries version
+ *  Linux for zSeries version
  *    Copyright (C) 2002,2005 IBM Corporation
  *  Author(s) Original code written by:
  *              Kazuo Iimura (iimura@jp.ibm.com)
@@ -431,12 +431,12 @@ claw_pack_skb(struct claw_privbk *privptr)
 	if (!skb_queue_empty(&p_ch->collect_queue)) {
 	/* some data */
 		held_skb = skb_dequeue(&p_ch->collect_queue);
-		if (p_env->packing != DO_PACKED)
-			return held_skb;
 		if (held_skb)
-			atomic_dec(&held_skb->users);
+			dev_kfree_skb_any(held_skb);
 		else
 			return NULL;
+		if (p_env->packing != DO_PACKED)
+			return held_skb;
 		/* get a new SKB we will pack at least one */
 		new_skb = dev_alloc_skb(p_env->write_size);
 		if (new_skb == NULL) {
@@ -455,7 +455,7 @@ claw_pack_skb(struct claw_privbk *privptr)
 				privptr->stats.tx_packets++;
 				so_far += held_skb->len;
 				pkt_cnt++;
-				dev_kfree_skb_irq(held_skb);
+				dev_kfree_skb_any(held_skb);
 				held_skb = skb_dequeue(&p_ch->collect_queue);
 				if (held_skb)
 					atomic_dec(&held_skb->users);
@@ -1092,7 +1092,7 @@ claw_release(struct net_device *dev)
                 }
         }
 	if (privptr->pk_skb != NULL) {
-		dev_kfree_skb(privptr->pk_skb);
+		dev_kfree_skb_any(privptr->pk_skb);
 		privptr->pk_skb = NULL;
 	}
 	if(privptr->buffs_alloc != 1) {
@@ -2016,7 +2016,7 @@ claw_hw_tx(struct sk_buff *skb, struct net_device *dev, long linkid)
         p_buf=(struct ccwbk*)privptr->p_end_ccw;
         dumpit((char *)p_buf, sizeof(struct endccw));
 #endif
-        dev_kfree_skb(skb);
+        dev_kfree_skb_any(skb);
 	if (linkid==0) {
         	lock=LOCK_NO;
         }
@@ -4061,7 +4061,7 @@ claw_purge_skb_queue(struct sk_buff_head *q)
 
         while ((skb = skb_dequeue(q))) {
                 atomic_dec(&skb->users);
-                dev_kfree_skb_irq(skb);
+                dev_kfree_skb_any(skb);
         }
 }
 
@@ -4410,7 +4410,7 @@ claw_init(void)
 #else
                 "compiled into kernel "
 #endif
-                " $Revision: 1.35 $ $Date: 2005/03/24 12:25:38 $ \n");
+                " $Revision: 1.38 $ $Date: 2005/08/29 09:47:04 $ \n");
 
 
 #ifdef FUNCTRACE

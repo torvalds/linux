@@ -97,6 +97,7 @@ struct ehci_hcd {			/* one per controller */
 #else
 #	define COUNT(x) do {} while (0)
 #endif
+	u8			sbrn;		/* packed release number */
 };
 
 /* convert between an HCD pointer and the corresponding EHCI_HCD */ 
@@ -263,6 +264,7 @@ struct ehci_regs {
 #define PORT_PE		(1<<2)		/* port enable */
 #define PORT_CSC	(1<<1)		/* connect status change */
 #define PORT_CONNECT	(1<<0)		/* device connected */
+#define PORT_RWC_BITS   (PORT_CSC | PORT_PEC | PORT_OCC)
 } __attribute__ ((packed));
 
 /* Appendix C, Debug port ... intended for use with special "debug devices"
@@ -385,6 +387,11 @@ struct ehci_qh {
 	__le32			hw_info1;        /* see EHCI 3.6.2 */
 #define	QH_HEAD		0x00008000
 	__le32			hw_info2;        /* see EHCI 3.6.2 */
+#define	QH_SMASK	0x000000ff
+#define	QH_CMASK	0x0000ff00
+#define	QH_HUBADDR	0x007f0000
+#define	QH_HUBPORT	0x3f800000
+#define	QH_MULT		0xc0000000
 	__le32			hw_current;	 /* qtd list - see EHCI 3.6.4 */
 	
 	/* qtd overlay (hardware parts of a struct ehci_qtd) */
@@ -416,6 +423,7 @@ struct ehci_qh {
 	u8			usecs;		/* intr bandwidth */
 	u8			gap_uf;		/* uframes split/csplit gap */
 	u8			c_usecs;	/* ... split completion bw */
+	u16			tt_usecs;	/* tt downstream bandwidth */
 	unsigned short		period;		/* polling interval */
 	unsigned short		start;		/* where polling starts */
 #define NO_FRAME ((unsigned short)~0)			/* pick new start */
@@ -474,6 +482,7 @@ struct ehci_iso_stream {
 	 */
 	u8			interval;
 	u8			usecs, c_usecs;
+	u16			tt_usecs;
 	u16			maxp;
 	u16			raw_mask;
 	unsigned		bandwidth;

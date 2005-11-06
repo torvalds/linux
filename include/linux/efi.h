@@ -91,11 +91,6 @@ typedef	struct {
 
 #define EFI_PAGE_SHIFT		12
 
-/*
- * For current x86 implementations of EFI, there is
- * additional padding in the mem descriptors.  This is not
- * the case in ia64.  Need to have this fixed in the f/w.
- */
 typedef struct {
 	u32 type;
 	u32 pad;
@@ -103,9 +98,6 @@ typedef struct {
 	u64 virt_addr;
 	u64 num_pages;
 	u64 attribute;
-#if defined (__i386__)
-	u64 pad1;
-#endif
 } efi_memory_desc_t;
 
 typedef int (*efi_freemem_callback_t) (unsigned long start, unsigned long end, void *arg);
@@ -240,10 +232,12 @@ typedef struct {
 } efi_system_table_t;
 
 struct efi_memory_map {
-	efi_memory_desc_t *phys_map;
-	efi_memory_desc_t *map;
+	void *phys_map;
+	void *map;
+	void *map_end;
 	int nr_map;
 	unsigned long desc_version;
+	unsigned long desc_size;
 };
 
 /*

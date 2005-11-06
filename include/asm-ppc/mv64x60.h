@@ -27,6 +27,8 @@
 #include <asm/pci-bridge.h>
 #include <asm/mv64x60_defs.h>
 
+struct platform_device;
+
 extern u8	mv64x60_pci_exclude_bridge;
 
 extern spinlock_t mv64x60_lock;
@@ -118,6 +120,14 @@ extern spinlock_t mv64x60_lock;
 #define	MV64x60_PCI12MEM_SNOOP_3_WIN		23
 
 #define	MV64x60_64BIT_WIN_COUNT			24
+
+/* Watchdog Platform Device, Driver Data */
+#define	MV64x60_WDT_NAME			"wdt"
+
+struct mv64x60_wdt_pdata {
+	int	timeout;	/* watchdog expiry in seconds, default 10 */
+	int	bus_clk;	/* bus clock in MHz, default 133 */
+};
 
 /*
  * Define a structure that's used to pass in config information to the
@@ -225,7 +235,7 @@ struct mv64x60_chip_info {
 struct mv64x60_handle {
 	u32		type;		/* type of bridge */
 	u32		rev;		/* revision of bridge */
-	void		*v_base;	/* virtual base addr of bridge regs */
+	void		__iomem *v_base;/* virtual base addr of bridge regs */
 	phys_addr_t	p_base;		/* physical base addr of bridge regs */
 
 	u32		pci_mode_a;	/* pci 0 mode: conventional pci, pci-x*/
@@ -278,6 +288,13 @@ mv64x60_modify(struct mv64x60_handle *bh, u32 offs, u32 data, u32 mask)
 #define	mv64x60_set_bits(bh, offs, bits) mv64x60_modify(bh, offs, ~0, bits)
 #define	mv64x60_clr_bits(bh, offs, bits) mv64x60_modify(bh, offs, 0, bits)
 
+#if defined(CONFIG_SYSFS) && !defined(CONFIG_GT64260)
+#define	MV64XXX_DEV_NAME	"mv64xxx"
+
+struct mv64xxx_pdata {
+	u32	hs_reg_valid;
+};
+#endif
 
 /* Externally visible function prototypes */
 int mv64x60_init(struct mv64x60_handle *bh, struct mv64x60_setup_info *si);
@@ -288,7 +305,7 @@ void mv64x60_alloc_hose(struct mv64x60_handle *bh, u32 cfg_addr,
 	u32 cfg_data, struct pci_controller **hose);
 int mv64x60_get_type(struct mv64x60_handle *bh);
 int mv64x60_setup_for_chip(struct mv64x60_handle *bh);
-void *mv64x60_get_bridge_vbase(void);
+void __iomem *mv64x60_get_bridge_vbase(void);
 u32 mv64x60_get_bridge_type(void);
 u32 mv64x60_get_bridge_rev(void);
 void mv64x60_get_mem_windows(struct mv64x60_handle *bh,

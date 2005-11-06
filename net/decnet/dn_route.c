@@ -117,8 +117,7 @@ static struct dn_rt_hash_bucket *dn_rt_hash_table;
 static unsigned dn_rt_hash_mask;
 
 static struct timer_list dn_route_timer;
-static struct timer_list dn_rt_flush_timer =
-		TIMER_INITIALIZER(dn_run_flush, 0, 0);
+static DEFINE_TIMER(dn_rt_flush_timer, dn_run_flush, 0, 0);
 int decnet_dst_gc_interval = 2;
 
 static struct dst_ops dn_dst_ops = {
@@ -572,7 +571,7 @@ static int dn_route_ptp_hello(struct sk_buff *skb)
 	return NET_RX_SUCCESS;
 }
 
-int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt)
+int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
 	struct dn_skb_cb *cb;
 	unsigned char flags = 0;

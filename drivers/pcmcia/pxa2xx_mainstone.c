@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <pcmcia/ss.h>
 
@@ -196,7 +196,7 @@ static void __exit mst_pcmcia_exit(void)
 	platform_device_unregister(mst_pcmcia_device);
 }
 
-module_init(mst_pcmcia_init);
+fs_initcall(mst_pcmcia_init);
 module_exit(mst_pcmcia_exit);
 
 MODULE_LICENSE("GPL");

@@ -9,10 +9,11 @@ endif
 obj-$(CONFIG_E1000) += e1000/
 obj-$(CONFIG_IBM_EMAC) += ibm_emac/
 obj-$(CONFIG_IXGB) += ixgb/
+obj-$(CONFIG_CHELSIO_T1) += chelsio/
 obj-$(CONFIG_BONDING) += bonding/
 obj-$(CONFIG_GIANFAR) += gianfar_driver.o
 
-gianfar_driver-objs := gianfar.o gianfar_ethtool.o gianfar_phy.o
+gianfar_driver-objs := gianfar.o gianfar_ethtool.o gianfar_mii.o
 
 #
 # link order important here
@@ -27,6 +28,7 @@ obj-$(CONFIG_SUNQE) += sunqe.o
 obj-$(CONFIG_SUNBMAC) += sunbmac.o
 obj-$(CONFIG_MYRI_SBUS) += myri_sbus.o
 obj-$(CONFIG_SUNGEM) += sungem.o sungem_phy.o
+obj-$(CONFIG_CASSINI) += cassini.o
 
 obj-$(CONFIG_MACE) += mace.o
 obj-$(CONFIG_BMAC) += bmac.o
@@ -42,6 +44,7 @@ obj-$(CONFIG_EEPRO100) += eepro100.o
 obj-$(CONFIG_E100) += e100.o
 obj-$(CONFIG_TLAN) += tlan.o
 obj-$(CONFIG_EPIC100) += epic100.o
+obj-$(CONFIG_SIS190) += sis190.o
 obj-$(CONFIG_SIS900) += sis900.o
 obj-$(CONFIG_YELLOWFIN) += yellowfin.o
 obj-$(CONFIG_ACENIC) += acenic.o
@@ -52,6 +55,8 @@ obj-$(CONFIG_STNIC) += stnic.o 8390.o
 obj-$(CONFIG_FEALNX) += fealnx.o
 obj-$(CONFIG_TIGON3) += tg3.o
 obj-$(CONFIG_BNX2) += bnx2.o
+spidernet-y += spider_net.o spider_net_ethtool.o sungem_phy.o
+obj-$(CONFIG_SPIDER_NET) += spidernet.o
 obj-$(CONFIG_TC35815) += tc35815.o
 obj-$(CONFIG_SKGE) += skge.o
 obj-$(CONFIG_SK98LIN) += sk98lin/
@@ -59,12 +64,14 @@ obj-$(CONFIG_SKFP) += skfp/
 obj-$(CONFIG_VIA_RHINE) += via-rhine.o
 obj-$(CONFIG_VIA_VELOCITY) += via-velocity.o
 obj-$(CONFIG_ADAPTEC_STARFIRE) += starfire.o
+obj-$(CONFIG_RIONET) += rionet.o
 
 #
 # end link order section
 #
 
 obj-$(CONFIG_MII) += mii.o
+obj-$(CONFIG_PHYLIB) += phy/
 
 obj-$(CONFIG_SUNDANCE) += sundance.o
 obj-$(CONFIG_HAMACHI) += hamachi.o
@@ -160,6 +167,7 @@ obj-$(CONFIG_EQUALIZER) += eql.o
 obj-$(CONFIG_MIPS_JAZZ_SONIC) += jazzsonic.o
 obj-$(CONFIG_MIPS_GT96100ETH) += gt96100eth.o
 obj-$(CONFIG_MIPS_AU1X00_ENET) += au1000_eth.o
+obj-$(CONFIG_MIPS_SIM_NET) += mipsnet.o
 obj-$(CONFIG_SGI_IOC3_ETH) += ioc3-eth.o
 obj-$(CONFIG_DECLANCE) += declance.o
 obj-$(CONFIG_ATARILANCE) += atarilance.o
@@ -195,3 +203,6 @@ obj-$(CONFIG_IRDA) += irda/
 obj-$(CONFIG_ETRAX_ETHERNET) += cris/
 
 obj-$(CONFIG_NETCONSOLE) += netconsole.o
+
+obj-$(CONFIG_FS_ENET) += fs_enet/
+

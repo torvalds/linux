@@ -21,9 +21,7 @@ int acpi_sleep_prepare(u32 acpi_state)
 {
 #ifdef CONFIG_ACPI_SLEEP
 	/* do we have a wakeup address for S2 and S3? */
-	/* Here, we support only S4BIOS, those we set the wakeup address */
-	/* S4OS is only supported for now via swsusp.. */
-	if (acpi_state == ACPI_STATE_S3 || acpi_state == ACPI_STATE_S4) {
+	if (acpi_state == ACPI_STATE_S3) {
 		if (!acpi_wakeup_address) {
 			return -EFAULT;
 		}
@@ -55,7 +53,11 @@ void acpi_power_off(void)
 
 static int acpi_shutdown(struct sys_device *x)
 {
-	return acpi_sleep_prepare(ACPI_STATE_S5);
+	if (system_state == SYSTEM_POWER_OFF) {
+		/* Prepare if we are going to power off the system */
+		return acpi_sleep_prepare(ACPI_STATE_S5);
+	}
+	return 0;
 }
 
 static struct sysdev_class acpi_sysclass = {
@@ -91,4 +93,4 @@ static int acpi_poweroff_init(void)
 
 late_initcall(acpi_poweroff_init);
 
-#endif /* CONFIG_PM */
+#endif				/* CONFIG_PM */

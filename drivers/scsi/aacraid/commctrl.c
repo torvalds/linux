@@ -287,7 +287,6 @@ return_fib:
 		kfree(fib->hw_fib);
 		kfree(fib);
 		status = 0;
-		fibctx->jiffies = jiffies/HZ;
 	} else {
 		spin_unlock_irqrestore(&dev->fib_lock, flags);
 		if (f.wait) {
@@ -302,6 +301,7 @@ return_fib:
 			status = -EAGAIN;
 		}	
 	}
+	fibctx->jiffies = jiffies/HZ;
 	return status;
 }
 
@@ -405,10 +405,20 @@ static int close_getadapter_fib(struct aac_dev * dev, void __user *arg)
 static int check_revision(struct aac_dev *dev, void __user *arg)
 {
 	struct revision response;
+	char *driver_version = aac_driver_version;
+	u32 version;
 
-	response.compat = 1;
-	response.version = le32_to_cpu(dev->adapter_info.kernelrev);
-	response.build = le32_to_cpu(dev->adapter_info.kernelbuild);
+	response.compat = cpu_to_le32(1);
+	version = (simple_strtol(driver_version, 
+				&driver_version, 10) << 24) | 0x00000400;
+	version += simple_strtol(driver_version + 1, &driver_version, 10) << 16;
+	version += simple_strtol(driver_version + 1, NULL, 10);
+	response.version = cpu_to_le32(version);
+#	if (defined(AAC_DRIVER_BUILD))
+		response.build = cpu_to_le32(AAC_DRIVER_BUILD);
+#	else
+		response.build = cpu_to_le32(9999);
+#	endif
 
 	if (copy_to_user(arg, &response, sizeof(response)))
 		return -EFAULT;

@@ -1,4 +1,4 @@
-version 1.34 April 29, 2005
+version 1.37 October 9, 2005
 
 A Partial List of Missing Features
 ==================================
@@ -7,14 +7,14 @@ Contributions are welcome.  There are plenty of opportunities
 for visible, important contributions to this module.  Here
 is a partial list of the known problems and missing features:
 
-a) Support for SecurityDescriptors for chmod/chgrp/chown so
-these can be supported for Windows servers
+a) Support for SecurityDescriptors(Windows/CIFS ACLs) for chmod/chgrp/chown
+so that these operations can be supported to Windows servers
 
-b) Better pam/winbind integration (e.g. to handle uid mapping
+b) Mapping POSIX ACLs (and eventually NFSv4 ACLs) to CIFS
+SecurityDescriptors
+
+c) Better pam/winbind integration (e.g. to handle uid mapping
 better)
-
-c) multi-user mounts - multiplexed sessionsetups over single vc
-(ie tcp session) - more testing needed
 
 d) Kerberos/SPNEGO session setup support - (started)
 
@@ -29,12 +29,17 @@ f) Directory entry caching relies on a 1 second timer, rather than
 using FindNotify or equivalent.  - (started)
 
 g) A few byte range testcases fail due to POSIX vs. Windows/CIFS
-style byte range lock differences
+style byte range lock differences.  Save byte range locks so
+reconnect can replay them.  
 
-h) quota support
+h) Support unlock all (unlock 0,MAX_OFFSET)
+by unlocking all known byte range locks that we locked on the file.
 
-j) finish writepages support (multi-page write behind for improved
-performance) and syncpage
+i) quota support (needs minor kernel change since quota calls
+to make it to network filesystems or deviceless filesystems)
+
+j) investigate sync behavior (including syncpage) and check  
+for proper behavior of intr/nointr
 
 k) hook lower into the sockets api (as NFS/SunRPC does) to avoid the
 extra copy in/out of the socket buffers in some cases.
@@ -57,26 +62,35 @@ p) Add support for storing symlink and fifo info to Windows servers
 in the Extended Attribute format their SFU clients would recognize.
 
 q) Finish fcntl D_NOTIFY support so kde and gnome file list windows
-will autorefresh (started)
+will autorefresh (partially complete by Asser). Needs minor kernel
+vfs change to support removing D_NOTIFY on a file.   
 
 r) Add GUI tool to configure /proc/fs/cifs settings and for display of
 the CIFS statistics (started)
 
-q) implement support for security and trusted categories of xattrs
+s) implement support for security and trusted categories of xattrs
 (requires minor protocol extension) to enable better support for SELINUX
 
-r) Implement O_DIRECT flag on open (already supported on mount)
+t) Implement O_DIRECT flag on open (already supported on mount)
 
-s) Allow remapping of last remaining character (\) to +0xF000 which
-(this character is valid for POSIX but not for Windows)
-
-t) Create UID mapping facility so server UIDs can be mapped on a per
+u) Create UID mapping facility so server UIDs can be mapped on a per
 mount or a per server basis to client UIDs or nobody if no mapping
 exists.  This is helpful when Unix extensions are negotiated to
 allow better permission checking when UIDs differ on the server
 and client.  Add new protocol request to the CIFS protocol 
 standard for asking the server for the corresponding name of a
 particular uid.
+
+v) Add support for CIFS Unix and also the newer POSIX extensions to the
+server side for Samba 4.
+
+w) Finish up the dos time conversion routines needed to return old server
+time to the client (default time, of now or time 0 is used now for these 
+very old servers)
+
+x) Add support for OS/2 (LANMAN 1.2 and LANMAN2.1 based SMB servers)
+
+y) Finish testing of Windows 9x/Windows ME server support (started).
 
 KNOWN BUGS (updated April 29, 2005)
 ====================================

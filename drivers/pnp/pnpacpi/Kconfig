@@ -3,7 +3,7 @@
 #
 config PNPACPI
 	bool "Plug and Play ACPI support (EXPERIMENTAL)"
-	depends on PNP && ACPI_BUS && EXPERIMENTAL
+	depends on PNP && ACPI && EXPERIMENTAL
 	default y
 	---help---
 	  Linux uses the PNPACPI to autodetect built-in

@@ -67,7 +67,7 @@ static void init_flash_sizes(void)
 
 	if (mips_machtype == MACH_LASAT_100) {
 		lasat_board_info.li_flash_base = 0x1e000000;
-		
+
 		lb[LASAT_MTD_BOOTLOADER] = 0x1e400000;
 
 		if (lasat_board_info.li_flash_size > 0x200000) {
@@ -103,7 +103,7 @@ int lasat_init_board_info(void)
 	memset(&lasat_board_info, 0, sizeof(lasat_board_info));
 
 	/* First read the EEPROM info */
-	EEPROMRead(0, (unsigned char *)&lasat_board_info.li_eeprom_info, 
+	EEPROMRead(0, (unsigned char *)&lasat_board_info.li_eeprom_info,
 		   sizeof(struct lasat_eeprom_struct));
 
 	/* Check the CRC */
@@ -188,7 +188,7 @@ int lasat_init_board_info(void)
 	case 0x1:
 		lasat_board_info.li_cpu_hz =
 			lasat_board_info.li_bus_hz +
-			(lasat_board_info.li_bus_hz >> 1);	
+			(lasat_board_info.li_bus_hz >> 1);
 		break;
 	case 0x2:
 		lasat_board_info.li_cpu_hz =
@@ -271,7 +271,7 @@ void lasat_write_eeprom_info(void)
 	lasat_board_info.li_eeprom_info.crc32 = crc;
 
 	/* Write the EEPROM info */
-	EEPROMWrite(0, (unsigned char *)&lasat_board_info.li_eeprom_info, 
+	EEPROMWrite(0, (unsigned char *)&lasat_board_info.li_eeprom_info,
 		    sizeof(struct lasat_eeprom_struct));
 }
 

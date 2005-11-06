@@ -286,6 +286,8 @@ ncp_iget(struct super_block *sb, struct ncp_entry_info *info)
 static void
 ncp_delete_inode(struct inode *inode)
 {
+	truncate_inode_pages(&inode->i_data, 0);
+
 	if (S_ISDIR(inode->i_mode)) {
 		DDPRINTK("ncp_delete_inode: put directory %ld\n", inode->i_ino);
 	}

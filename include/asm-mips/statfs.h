@@ -57,7 +57,7 @@ struct statfs64 {
 };
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI32 */
- 
+
 #if _MIPS_SIM == _MIPS_SIM_ABI64
 
 struct statfs64 {			/* Same as struct statfs */

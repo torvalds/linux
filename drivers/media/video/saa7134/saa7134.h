@@ -1,5 +1,4 @@
 /*
- * $Id: saa7134.h,v 1.49 2005/07/13 17:25:25 mchehab Exp $
  *
  * v4l2 device driver for philips saa7134 based TV cards
  *
@@ -185,6 +184,9 @@ struct saa7134_format {
 #define SAA7134_BOARD_PHILIPS_TOUGH 61
 #define SAA7134_BOARD_VIDEOMATE_TV_GOLD_PLUSII 62
 #define SAA7134_BOARD_KWORLD_XPERT 63
+#define SAA7134_BOARD_FLYTV_DIGIMATRIX 64
+#define SAA7134_BOARD_KWORLD_TERMINATOR 65
+#define SAA7134_BOARD_YUAN_TUN900 66
 
 #define SAA7134_MAXBOARDS 8
 #define SAA7134_INPUT_MAX 8
@@ -349,7 +351,7 @@ struct saa7134_oss {
 
 /* IR input */
 struct saa7134_ir {
-	struct input_dev           dev;
+	struct input_dev           *dev;
 	struct ir_input_state      ir;
 	char                       name[32];
 	char                       phys[32];

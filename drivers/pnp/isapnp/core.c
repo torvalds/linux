@@ -142,17 +142,6 @@ static void isapnp_write_word(unsigned char idx, unsigned short val)
 	isapnp_write_byte(idx+1, val);
 }
 
-static void *isapnp_alloc(long size)
-{
-	void *result;
-
-	result = kmalloc(size, GFP_KERNEL);
-	if (!result)
-		return NULL;
-	memset(result, 0, size);
-	return result;
-}
-
 static void isapnp_key(void)
 {
 	unsigned char code = 0x6a, msb;
@@ -406,7 +395,7 @@ static void isapnp_parse_id(struct pnp_dev * dev, unsigned short vendor, unsigne
 	struct pnp_id * id;
 	if (!dev)
 		return;
-	id = isapnp_alloc(sizeof(struct pnp_id));
+	id = kcalloc(1, sizeof(struct pnp_id), GFP_KERNEL);
 	if (!id)
 		return;
 	sprintf(id->id, "%c%c%c%x%x%x%x",
@@ -430,7 +419,7 @@ static struct pnp_dev * __init isapnp_parse_device(struct pnp_card *card, int si
 	struct pnp_dev *dev;
 
 	isapnp_peek(tmp, size);
-	dev = isapnp_alloc(sizeof(struct pnp_dev));
+	dev = kcalloc(1, sizeof(struct pnp_dev), GFP_KERNEL);
 	if (!dev)
 		return NULL;
 	dev->number = number;
@@ -461,7 +450,7 @@ static void __init isapnp_parse_irq_resource(struct pnp_option *option,
 	unsigned long bits;
 
 	isapnp_peek(tmp, size);
-	irq = isapnp_alloc(sizeof(struct pnp_irq));
+	irq = kcalloc(1, sizeof(struct pnp_irq), GFP_KERNEL);
 	if (!irq)
 		return;
 	bits = (tmp[1] << 8) | tmp[0];
@@ -485,7 +474,7 @@ static void __init isapnp_parse_dma_resource(struct pnp_option *option,
 	struct pnp_dma *dma;
 
 	isapnp_peek(tmp, size);
-	dma = isapnp_alloc(sizeof(struct pnp_dma));
+	dma = kcalloc(1, sizeof(struct pnp_dma), GFP_KERNEL);
 	if (!dma)
 		return;
 	dma->map = tmp[0];
@@ -505,7 +494,7 @@ static void __init isapnp_parse_port_resource(struct pnp_option *option,
 	struct pnp_port *port;
 
 	isapnp_peek(tmp, size);
-	port = isapnp_alloc(sizeof(struct pnp_port));
+	port = kcalloc(1, sizeof(struct pnp_port), GFP_KERNEL);
 	if (!port)
 		return;
 	port->min = (tmp[2] << 8) | tmp[1];
@@ -528,7 +517,7 @@ static void __init isapnp_parse_fixed_port_resource(struct pnp_option *option,
 	struct pnp_port *port;
 
 	isapnp_peek(tmp, size);
-	port = isapnp_alloc(sizeof(struct pnp_port));
+	port = kcalloc(1, sizeof(struct pnp_port), GFP_KERNEL);
 	if (!port)
 		return;
 	port->min = port->max = (tmp[1] << 8) | tmp[0];
@@ -550,7 +539,7 @@ static void __init isapnp_parse_mem_resource(struct pnp_option *option,
 	struct pnp_mem *mem;
 
 	isapnp_peek(tmp, size);
-	mem = isapnp_alloc(sizeof(struct pnp_mem));
+	mem = kcalloc(1, sizeof(struct pnp_mem), GFP_KERNEL);
 	if (!mem)
 		return;
 	mem->min = ((tmp[2] << 8) | tmp[1]) << 8;
@@ -573,7 +562,7 @@ static void __init isapnp_parse_mem32_resource(struct pnp_option *option,
 	struct pnp_mem *mem;
 
 	isapnp_peek(tmp, size);
-	mem = isapnp_alloc(sizeof(struct pnp_mem));
+	mem = kcalloc(1, sizeof(struct pnp_mem), GFP_KERNEL);
 	if (!mem)
 		return;
 	mem->min = (tmp[4] << 24) | (tmp[3] << 16) | (tmp[2] << 8) | tmp[1];
@@ -595,7 +584,7 @@ static void __init isapnp_parse_fixed_mem32_resource(struct pnp_option *option,
 	struct pnp_mem *mem;
 
 	isapnp_peek(tmp, size);
-	mem = isapnp_alloc(sizeof(struct pnp_mem));
+	mem = kcalloc(1, sizeof(struct pnp_mem), GFP_KERNEL);
 	if (!mem)
 		return;
 	mem->min = mem->max = (tmp[4] << 24) | (tmp[3] << 16) | (tmp[2] << 8) | tmp[1];
@@ -838,7 +827,7 @@ static unsigned char __init isapnp_checksum(unsigned char *data)
 
 static void isapnp_parse_card_id(struct pnp_card * card, unsigned short vendor, unsigned short device)
 {
-	struct pnp_id * id = isapnp_alloc(sizeof(struct pnp_id));
+	struct pnp_id * id = kcalloc(1, sizeof(struct pnp_id), GFP_KERNEL);
 	if (!id)
 		return;
 	sprintf(id->id, "%c%c%c%x%x%x%x",
@@ -874,7 +863,7 @@ static int __init isapnp_build_device_list(void)
 			header[4], header[5], header[6], header[7], header[8]);
 		printk(KERN_DEBUG "checksum = 0x%x\n", checksum);
 #endif
-		if ((card = isapnp_alloc(sizeof(struct pnp_card))) == NULL)
+		if ((card = kcalloc(1, sizeof(struct pnp_card), GFP_KERNEL)) == NULL)
 			continue;
 
 		card->number = csn;

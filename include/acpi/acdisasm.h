@@ -46,327 +46,219 @@
 
 #include "amlresrc.h"
 
-
 #define BLOCK_NONE              0
 #define BLOCK_PAREN             1
 #define BLOCK_BRACE             2
 #define BLOCK_COMMA_LIST        4
 
-struct acpi_external_list
-{
-	char                                *path;
-	struct acpi_external_list           *next;
+struct acpi_external_list {
+	char *path;
+	struct acpi_external_list *next;
 };
 
-extern struct acpi_external_list        *acpi_gbl_external_list;
-extern const char                       *acpi_gbl_io_decode[2];
-extern const char                       *acpi_gbl_word_decode[4];
-extern const char                       *acpi_gbl_consume_decode[2];
-extern const char                       *acpi_gbl_min_decode[2];
-extern const char                       *acpi_gbl_max_decode[2];
-extern const char                       *acpi_gbl_DECdecode[2];
-extern const char                       *acpi_gbl_RNGdecode[4];
-extern const char                       *acpi_gbl_MEMdecode[4];
-extern const char                       *acpi_gbl_RWdecode[2];
-extern const char                       *acpi_gbl_irq_decode[2];
-extern const char                       *acpi_gbl_HEdecode[2];
-extern const char                       *acpi_gbl_LLdecode[2];
-extern const char                       *acpi_gbl_SHRdecode[2];
-extern const char                       *acpi_gbl_TYPdecode[4];
-extern const char                       *acpi_gbl_BMdecode[2];
-extern const char                       *acpi_gbl_SIZdecode[4];
-extern const char                       *acpi_gbl_TTPdecode[2];
-extern const char                       *acpi_gbl_MTPdecode[4];
-extern const char                       *acpi_gbl_TRSdecode[2];
+extern struct acpi_external_list *acpi_gbl_external_list;
+extern const char *acpi_gbl_io_decode[2];
+extern const char *acpi_gbl_word_decode[4];
+extern const char *acpi_gbl_consume_decode[2];
+extern const char *acpi_gbl_min_decode[2];
+extern const char *acpi_gbl_max_decode[2];
+extern const char *acpi_gbl_DECdecode[2];
+extern const char *acpi_gbl_RNGdecode[4];
+extern const char *acpi_gbl_MEMdecode[4];
+extern const char *acpi_gbl_RWdecode[2];
+extern const char *acpi_gbl_irq_decode[2];
+extern const char *acpi_gbl_HEdecode[2];
+extern const char *acpi_gbl_LLdecode[2];
+extern const char *acpi_gbl_SHRdecode[2];
+extern const char *acpi_gbl_TYPdecode[4];
+extern const char *acpi_gbl_BMdecode[2];
+extern const char *acpi_gbl_SIZdecode[4];
+extern const char *acpi_gbl_TTPdecode[2];
+extern const char *acpi_gbl_MTPdecode[4];
+extern const char *acpi_gbl_TRSdecode[2];
 
+extern const char *acpi_gbl_lock_rule[ACPI_NUM_LOCK_RULES];
+extern const char *acpi_gbl_access_types[ACPI_NUM_ACCESS_TYPES];
+extern const char *acpi_gbl_update_rules[ACPI_NUM_UPDATE_RULES];
+extern const char *acpi_gbl_match_ops[ACPI_NUM_MATCH_OPS];
 
-extern const char                       *acpi_gbl_lock_rule[ACPI_NUM_LOCK_RULES];
-extern const char                       *acpi_gbl_access_types[ACPI_NUM_ACCESS_TYPES];
-extern const char                       *acpi_gbl_update_rules[ACPI_NUM_UPDATE_RULES];
-extern const char                       *acpi_gbl_match_ops[ACPI_NUM_MATCH_OPS];
-
-
-struct acpi_op_walk_info
-{
-	u32                             level;
-	u32                             bit_offset;
+struct acpi_op_walk_info {
+	u32 level;
+	u32 bit_offset;
+	struct acpi_walk_state *walk_state;
 };
 
 typedef
-acpi_status (*asl_walk_callback) (
-	union acpi_parse_object             *op,
-	u32                                 level,
-	void                                *context);
-
+acpi_status(*asl_walk_callback) (union acpi_parse_object * op,
+				 u32 level, void *context);
 
 /*
  * dmwalk
  */
 void
-acpi_dm_disassemble (
-	struct acpi_walk_state          *walk_state,
-	union acpi_parse_object         *origin,
-	u32                             num_opcodes);
-
+acpi_dm_disassemble(struct acpi_walk_state *walk_state,
+		    union acpi_parse_object *origin, u32 num_opcodes);
 
 /*
  * dmopcode
  */
 void
-acpi_dm_disassemble_one_op (
-	struct acpi_walk_state          *walk_state,
-	struct acpi_op_walk_info        *info,
-	union acpi_parse_object         *op);
+acpi_dm_disassemble_one_op(struct acpi_walk_state *walk_state,
+			   struct acpi_op_walk_info *info,
+			   union acpi_parse_object *op);
 
-void
-acpi_dm_decode_internal_object (
-	union acpi_operand_object       *obj_desc);
+void acpi_dm_decode_internal_object(union acpi_operand_object *obj_desc);
 
-u32
-acpi_dm_list_type (
-	union acpi_parse_object         *op);
+u32 acpi_dm_list_type(union acpi_parse_object *op);
 
-void
-acpi_dm_method_flags (
-	union acpi_parse_object         *op);
+void acpi_dm_method_flags(union acpi_parse_object *op);
 
-void
-acpi_dm_field_flags (
-	union acpi_parse_object         *op);
+void acpi_dm_field_flags(union acpi_parse_object *op);
 
-void
-acpi_dm_address_space (
-	u8                              space_id);
+void acpi_dm_address_space(u8 space_id);
 
-void
-acpi_dm_region_flags (
-	union acpi_parse_object         *op);
+void acpi_dm_region_flags(union acpi_parse_object *op);
 
-void
-acpi_dm_match_op (
-	union acpi_parse_object         *op);
+void acpi_dm_match_op(union acpi_parse_object *op);
 
-u8
-acpi_dm_comma_if_list_member (
-	union acpi_parse_object         *op);
+u8 acpi_dm_comma_if_list_member(union acpi_parse_object *op);
 
-void
-acpi_dm_comma_if_field_member (
-	union acpi_parse_object         *op);
-
+void acpi_dm_comma_if_field_member(union acpi_parse_object *op);
 
 /*
  * dmnames
  */
-u32
-acpi_dm_dump_name (
-	char                            *name);
+u32 acpi_dm_dump_name(char *name);
 
 acpi_status
-acpi_ps_display_object_pathname (
-	struct acpi_walk_state          *walk_state,
-	union acpi_parse_object         *op);
+acpi_ps_display_object_pathname(struct acpi_walk_state *walk_state,
+				union acpi_parse_object *op);
 
-void
-acpi_dm_namestring (
-	char                            *name);
-
+void acpi_dm_namestring(char *name);
 
 /*
  * dmobject
  */
 void
-acpi_dm_display_internal_object (
-	union acpi_operand_object       *obj_desc,
-	struct acpi_walk_state          *walk_state);
+acpi_dm_display_internal_object(union acpi_operand_object *obj_desc,
+				struct acpi_walk_state *walk_state);
+
+void acpi_dm_display_arguments(struct acpi_walk_state *walk_state);
+
+void acpi_dm_display_locals(struct acpi_walk_state *walk_state);
 
 void
-acpi_dm_display_arguments (
-	struct acpi_walk_state          *walk_state);
-
-void
-acpi_dm_display_locals (
-	struct acpi_walk_state          *walk_state);
-
-void
-acpi_dm_dump_method_info (
-	acpi_status                     status,
-	struct acpi_walk_state          *walk_state,
-	union acpi_parse_object         *op);
-
+acpi_dm_dump_method_info(acpi_status status,
+			 struct acpi_walk_state *walk_state,
+			 union acpi_parse_object *op);
 
 /*
  * dmbuffer
  */
-void
-acpi_dm_disasm_byte_list (
-	u32                             level,
-	u8                              *byte_data,
-	u32                             byte_count);
+void acpi_dm_disasm_byte_list(u32 level, u8 * byte_data, u32 byte_count);
 
 void
-acpi_dm_byte_list (
-	struct acpi_op_walk_info        *info,
-	union acpi_parse_object         *op);
+acpi_dm_byte_list(struct acpi_op_walk_info *info, union acpi_parse_object *op);
 
-void
-acpi_is_eisa_id (
-	union acpi_parse_object         *op);
+void acpi_dm_is_eisa_id(union acpi_parse_object *op);
 
-void
-acpi_dm_eisa_id (
-	u32                             encoded_id);
+void acpi_dm_eisa_id(u32 encoded_id);
 
-u8
-acpi_dm_is_unicode_buffer (
-	union acpi_parse_object         *op);
+u8 acpi_dm_is_unicode_buffer(union acpi_parse_object *op);
 
-u8
-acpi_dm_is_string_buffer (
-	union acpi_parse_object         *op);
-
+u8 acpi_dm_is_string_buffer(union acpi_parse_object *op);
 
 /*
  * dmresrc
  */
 void
-acpi_dm_resource_descriptor (
-	struct acpi_op_walk_info        *info,
-	u8                              *byte_data,
-	u32                             byte_count);
+acpi_dm_resource_descriptor(struct acpi_op_walk_info *info,
+			    u8 * byte_data, u32 byte_count);
 
-u8
-acpi_dm_is_resource_descriptor (
-	union acpi_parse_object         *op);
+u8 acpi_dm_is_resource_descriptor(union acpi_parse_object *op);
 
-void
-acpi_dm_indent (
-	u32                             level);
+void acpi_dm_indent(u32 level);
 
-void
-acpi_dm_bit_list (
-	u16                             mask);
+void acpi_dm_bit_list(u16 mask);
 
-void
-acpi_dm_decode_attribute (
-	u8                              attribute);
-
+void acpi_dm_decode_attribute(u8 attribute);
 
 /*
  * dmresrcl
  */
 void
-acpi_dm_word_descriptor (
-	struct asl_word_address_desc    *resource,
-	u32                             length,
-	u32                             level);
+acpi_dm_word_descriptor(struct asl_word_address_desc *resource,
+			u32 length, u32 level);
 
 void
-acpi_dm_dword_descriptor (
-	struct asl_dword_address_desc   *resource,
-	u32                             length,
-	u32                             level);
+acpi_dm_dword_descriptor(struct asl_dword_address_desc *resource,
+			 u32 length, u32 level);
 
 void
-acpi_dm_extended_descriptor (
-	struct asl_extended_address_desc   *resource,
-	u32                             length,
-	u32                             level);
+acpi_dm_extended_descriptor(struct asl_extended_address_desc *resource,
+			    u32 length, u32 level);
 
 void
-acpi_dm_qword_descriptor (
-	struct asl_qword_address_desc   *resource,
-	u32                             length,
-	u32                             level);
+acpi_dm_qword_descriptor(struct asl_qword_address_desc *resource,
+			 u32 length, u32 level);
 
 void
-acpi_dm_memory24_descriptor (
-	struct asl_memory_24_desc       *resource,
-	u32                             length,
-	u32                             level);
+acpi_dm_memory24_descriptor(struct asl_memory_24_desc *resource,
+			    u32 length, u32 level);
 
 void
-acpi_dm_memory32_descriptor (
-	struct asl_memory_32_desc       *resource,
-	u32                             length,
-	u32                             level);
+acpi_dm_memory32_descriptor(struct asl_memory_32_desc *resource,
+			    u32 length, u32 level);
 
 void
-acpi_dm_fixed_mem32_descriptor (
-	struct asl_fixed_memory_32_desc *resource,
-	u32                             length,
-	u32                             level);
+acpi_dm_fixed_mem32_descriptor(struct asl_fixed_memory_32_desc *resource,
+			       u32 length, u32 level);
 
 void
-acpi_dm_generic_register_descriptor (
-	struct asl_general_register_desc *resource,
-	u32                             length,
-	u32                             level);
+acpi_dm_generic_register_descriptor(struct asl_general_register_desc *resource,
+				    u32 length, u32 level);
 
 void
-acpi_dm_interrupt_descriptor (
-	struct asl_extended_xrupt_desc *resource,
-	u32                             length,
-	u32                             level);
+acpi_dm_interrupt_descriptor(struct asl_extended_xrupt_desc *resource,
+			     u32 length, u32 level);
 
 void
-acpi_dm_vendor_large_descriptor (
-	struct asl_large_vendor_desc    *resource,
-	u32                             length,
-	u32                             level);
-
+acpi_dm_vendor_large_descriptor(struct asl_large_vendor_desc *resource,
+				u32 length, u32 level);
 
 /*
  * dmresrcs
  */
 void
-acpi_dm_irq_descriptor (
-	struct asl_irq_format_desc      *resource,
-	u32                             length,
-	u32                             level);
+acpi_dm_irq_descriptor(struct asl_irq_format_desc *resource,
+		       u32 length, u32 level);
 
 void
-acpi_dm_dma_descriptor (
-	struct asl_dma_format_desc      *resource,
-	u32                             length,
-	u32                             level);
+acpi_dm_dma_descriptor(struct asl_dma_format_desc *resource,
+		       u32 length, u32 level);
 
 void
-acpi_dm_io_descriptor (
-	struct asl_io_port_desc         *resource,
-	u32                             length,
-	u32                             level);
+acpi_dm_io_descriptor(struct asl_io_port_desc *resource, u32 length, u32 level);
 
 void
-acpi_dm_fixed_io_descriptor (
-	struct asl_fixed_io_port_desc   *resource,
-	u32                             length,
-	u32                             level);
+acpi_dm_fixed_io_descriptor(struct asl_fixed_io_port_desc *resource,
+			    u32 length, u32 level);
 
 void
-acpi_dm_start_dependent_descriptor (
-	struct asl_start_dependent_desc *resource,
-	u32                             length,
-	u32                             level);
+acpi_dm_start_dependent_descriptor(struct asl_start_dependent_desc *resource,
+				   u32 length, u32 level);
 
 void
-acpi_dm_end_dependent_descriptor (
-	struct asl_start_dependent_desc *resource,
-	u32                             length,
-	u32                             level);
+acpi_dm_end_dependent_descriptor(struct asl_start_dependent_desc *resource,
+				 u32 length, u32 level);
 
 void
-acpi_dm_vendor_small_descriptor (
-	struct asl_small_vendor_desc    *resource,
-	u32                             length,
-	u32                             level);
-
+acpi_dm_vendor_small_descriptor(struct asl_small_vendor_desc *resource,
+				u32 length, u32 level);
 
 /*
  * dmutils
  */
-void
-acpi_dm_add_to_external_list (
-	char                            *path);
+void acpi_dm_add_to_external_list(char *path);
 
-#endif  /* __ACDISASM_H__ */
+#endif				/* __ACDISASM_H__ */

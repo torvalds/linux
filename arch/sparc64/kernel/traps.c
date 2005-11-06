@@ -33,6 +33,7 @@
 #include <asm/dcu.h>
 #include <asm/estate.h>
 #include <asm/chafsr.h>
+#include <asm/sfafsr.h>
 #include <asm/psrcompat.h>
 #include <asm/processor.h>
 #include <asm/timer.h>
@@ -143,8 +144,7 @@ void do_BUG(const char *file, int line)
 }
 #endif
 
-void instruction_access_exception(struct pt_regs *regs,
-				  unsigned long sfsr, unsigned long sfar)
+void spitfire_insn_access_exception(struct pt_regs *regs, unsigned long sfsr, unsigned long sfar)
 {
 	siginfo_t info;
 
@@ -153,8 +153,8 @@ void instruction_access_exception(struct pt_regs *regs,
 		return;
 
 	if (regs->tstate & TSTATE_PRIV) {
-		printk("instruction_access_exception: SFSR[%016lx] SFAR[%016lx], going.\n",
-		       sfsr, sfar);
+		printk("spitfire_insn_access_exception: SFSR[%016lx] "
+		       "SFAR[%016lx], going.\n", sfsr, sfar);
 		die_if_kernel("Iax", regs);
 	}
 	if (test_thread_flag(TIF_32BIT)) {
@@ -169,19 +169,17 @@ void instruction_access_exception(struct pt_regs *regs,
 	force_sig_info(SIGSEGV, &info, current);
 }
 
-void instruction_access_exception_tl1(struct pt_regs *regs,
-				      unsigned long sfsr, unsigned long sfar)
+void spitfire_insn_access_exception_tl1(struct pt_regs *regs, unsigned long sfsr, unsigned long sfar)
 {
 	if (notify_die(DIE_TRAP_TL1, "instruction access exception tl1", regs,
 		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
 		return;
 
 	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
-	instruction_access_exception(regs, sfsr, sfar);
+	spitfire_insn_access_exception(regs, sfsr, sfar);
 }
 
-void data_access_exception(struct pt_regs *regs,
-			   unsigned long sfsr, unsigned long sfar)
+void spitfire_data_access_exception(struct pt_regs *regs, unsigned long sfsr, unsigned long sfar)
 {
 	siginfo_t info;
 
@@ -191,24 +189,23 @@ void data_access_exception(struct pt_regs *regs,
 
 	if (regs->tstate & TSTATE_PRIV) {
 		/* Test if this comes from uaccess places. */
-		unsigned long fixup;
-		unsigned long g2 = regs->u_regs[UREG_G2];
+		const struct exception_table_entry *entry;
 
-		if ((fixup = search_extables_range(regs->tpc, &g2))) {
-			/* Ouch, somebody is trying ugly VM hole tricks on us... */
+		entry = search_exception_tables(regs->tpc);
+		if (entry) {
+			/* Ouch, somebody is trying VM hole tricks on us... */
 #ifdef DEBUG_EXCEPTIONS
 			printk("Exception: PC<%016lx> faddr<UNKNOWN>\n", regs->tpc);
-			printk("EX_TABLE: insn<%016lx> fixup<%016lx> "
-			       "g2<%016lx>\n", regs->tpc, fixup, g2);
+			printk("EX_TABLE: insn<%016lx> fixup<%016lx>\n",
+			       regs->tpc, entry->fixup);
 #endif
-			regs->tpc = fixup;
+			regs->tpc = entry->fixup;
 			regs->tnpc = regs->tpc + 4;
-			regs->u_regs[UREG_G2] = g2;
 			return;
 		}
 		/* Shit... */
-		printk("data_access_exception: SFSR[%016lx] SFAR[%016lx], going.\n",
-		       sfsr, sfar);
+		printk("spitfire_data_access_exception: SFSR[%016lx] "
+		       "SFAR[%016lx], going.\n", sfsr, sfar);
 		die_if_kernel("Dax", regs);
 	}
 
@@ -218,6 +215,16 @@ void data_access_exception(struct pt_regs *regs,
 	info.si_addr = (void __user *)sfar;
 	info.si_trapno = 0;
 	force_sig_info(SIGSEGV, &info, current);
+}
+
+void spitfire_data_access_exception_tl1(struct pt_regs *regs, unsigned long sfsr, unsigned long sfar)
+{
+	if (notify_die(DIE_TRAP_TL1, "data access exception tl1", regs,
+		       0, 0x30, SIGTRAP) == NOTIFY_STOP)
+		return;
+
+	dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
+	spitfire_data_access_exception(regs, sfsr, sfar);
 }
 
 #ifdef CONFIG_PCI
@@ -253,54 +260,13 @@ static void spitfire_clean_and_reenable_l1_caches(void)
 			     : "memory");
 }
 
-void do_iae(struct pt_regs *regs)
+static void spitfire_enable_estate_errors(void)
 {
-	siginfo_t info;
-
-	spitfire_clean_and_reenable_l1_caches();
-
-	if (notify_die(DIE_TRAP, "instruction access exception", regs,
-		       0, 0x8, SIGTRAP) == NOTIFY_STOP)
-		return;
-
-	info.si_signo = SIGBUS;
-	info.si_errno = 0;
-	info.si_code = BUS_OBJERR;
-	info.si_addr = (void *)0;
-	info.si_trapno = 0;
-	force_sig_info(SIGBUS, &info, current);
-}
-
-void do_dae(struct pt_regs *regs)
-{
-	siginfo_t info;
-
-#ifdef CONFIG_PCI
-	if (pci_poke_in_progress && pci_poke_cpu == smp_processor_id()) {
-		spitfire_clean_and_reenable_l1_caches();
-
-		pci_poke_faulted = 1;
-
-		/* Why the fuck did they have to change this? */
-		if (tlb_type == cheetah || tlb_type == cheetah_plus)
-			regs->tpc += 4;
-
-		regs->tnpc = regs->tpc + 4;
-		return;
-	}
-#endif
-	spitfire_clean_and_reenable_l1_caches();
-
-	if (notify_die(DIE_TRAP, "data access exception", regs,
-		       0, 0x30, SIGTRAP) == NOTIFY_STOP)
-		return;
-
-	info.si_signo = SIGBUS;
-	info.si_errno = 0;
-	info.si_code = BUS_OBJERR;
-	info.si_addr = (void *)0;
-	info.si_trapno = 0;
-	force_sig_info(SIGBUS, &info, current);
+	__asm__ __volatile__("stxa	%0, [%%g0] %1\n\t"
+			     "membar	#Sync"
+			     : /* no outputs */
+			     : "r" (ESTATE_ERR_ALL),
+			       "i" (ASI_ESTATE_ERROR_EN));
 }
 
 static char ecc_syndrome_table[] = {
@@ -338,65 +304,15 @@ static char ecc_syndrome_table[] = {
 	0x0b, 0x48, 0x48, 0x4b, 0x48, 0x4b, 0x4b, 0x4a
 };
 
-/* cee_trap in entry.S encodes AFSR/UDBH/UDBL error status
- * in the following format.  The AFAR is left as is, with
- * reserved bits cleared, and is a raw 40-bit physical
- * address.
- */
-#define CE_STATUS_UDBH_UE		(1UL << (43 + 9))
-#define CE_STATUS_UDBH_CE		(1UL << (43 + 8))
-#define CE_STATUS_UDBH_ESYNDR		(0xffUL << 43)
-#define CE_STATUS_UDBH_SHIFT		43
-#define CE_STATUS_UDBL_UE		(1UL << (33 + 9))
-#define CE_STATUS_UDBL_CE		(1UL << (33 + 8))
-#define CE_STATUS_UDBL_ESYNDR		(0xffUL << 33)
-#define CE_STATUS_UDBL_SHIFT		33
-#define CE_STATUS_AFSR_MASK		(0x1ffffffffUL)
-#define CE_STATUS_AFSR_ME		(1UL << 32)
-#define CE_STATUS_AFSR_PRIV		(1UL << 31)
-#define CE_STATUS_AFSR_ISAP		(1UL << 30)
-#define CE_STATUS_AFSR_ETP		(1UL << 29)
-#define CE_STATUS_AFSR_IVUE		(1UL << 28)
-#define CE_STATUS_AFSR_TO		(1UL << 27)
-#define CE_STATUS_AFSR_BERR		(1UL << 26)
-#define CE_STATUS_AFSR_LDP		(1UL << 25)
-#define CE_STATUS_AFSR_CP		(1UL << 24)
-#define CE_STATUS_AFSR_WP		(1UL << 23)
-#define CE_STATUS_AFSR_EDP		(1UL << 22)
-#define CE_STATUS_AFSR_UE		(1UL << 21)
-#define CE_STATUS_AFSR_CE		(1UL << 20)
-#define CE_STATUS_AFSR_ETS		(0xfUL << 16)
-#define CE_STATUS_AFSR_ETS_SHIFT	16
-#define CE_STATUS_AFSR_PSYND		(0xffffUL << 0)
-#define CE_STATUS_AFSR_PSYND_SHIFT	0
-
-/* Layout of Ecache TAG Parity Syndrome of AFSR */
-#define AFSR_ETSYNDROME_7_0		0x1UL /* E$-tag bus bits  <7:0> */
-#define AFSR_ETSYNDROME_15_8		0x2UL /* E$-tag bus bits <15:8> */
-#define AFSR_ETSYNDROME_21_16		0x4UL /* E$-tag bus bits <21:16> */
-#define AFSR_ETSYNDROME_24_22		0x8UL /* E$-tag bus bits <24:22> */
-
 static char *syndrome_unknown = "<Unknown>";
 
-asmlinkage void cee_log(unsigned long ce_status,
-			unsigned long afar,
-			struct pt_regs *regs)
+static void spitfire_log_udb_syndrome(unsigned long afar, unsigned long udbh, unsigned long udbl, unsigned long bit)
 {
-	char memmod_str[64];
-	char *p;
-	unsigned short scode, udb_reg;
+	unsigned short scode;
+	char memmod_str[64], *p;
 
-	printk(KERN_WARNING "CPU[%d]: Correctable ECC Error "
-	       "AFSR[%lx] AFAR[%016lx] UDBL[%lx] UDBH[%lx]\n",
-	       smp_processor_id(),
-	       (ce_status & CE_STATUS_AFSR_MASK),
-	       afar,
-	       ((ce_status >> CE_STATUS_UDBL_SHIFT) & 0x3ffUL),
-	       ((ce_status >> CE_STATUS_UDBH_SHIFT) & 0x3ffUL));
-
-	udb_reg = ((ce_status >> CE_STATUS_UDBL_SHIFT) & 0x3ffUL);
-	if (udb_reg & (1 << 8)) {
-		scode = ecc_syndrome_table[udb_reg & 0xff];
+	if (udbl & bit) {
+		scode = ecc_syndrome_table[udbl & 0xff];
 		if (prom_getunumber(scode, afar,
 				    memmod_str, sizeof(memmod_str)) == -1)
 			p = syndrome_unknown;
@@ -407,9 +323,8 @@ asmlinkage void cee_log(unsigned long ce_status,
 		       smp_processor_id(), scode, p);
 	}
 
-	udb_reg = ((ce_status >> CE_STATUS_UDBH_SHIFT) & 0x3ffUL);
-	if (udb_reg & (1 << 8)) {
-		scode = ecc_syndrome_table[udb_reg & 0xff];
+	if (udbh & bit) {
+		scode = ecc_syndrome_table[udbh & 0xff];
 		if (prom_getunumber(scode, afar,
 				    memmod_str, sizeof(memmod_str)) == -1)
 			p = syndrome_unknown;
@@ -418,6 +333,127 @@ asmlinkage void cee_log(unsigned long ce_status,
 		printk(KERN_WARNING "CPU[%d]: UDBH Syndrome[%x] "
 		       "Memory Module \"%s\"\n",
 		       smp_processor_id(), scode, p);
+	}
+
+}
+
+static void spitfire_cee_log(unsigned long afsr, unsigned long afar, unsigned long udbh, unsigned long udbl, int tl1, struct pt_regs *regs)
+{
+
+	printk(KERN_WARNING "CPU[%d]: Correctable ECC Error "
+	       "AFSR[%lx] AFAR[%016lx] UDBL[%lx] UDBH[%lx] TL>1[%d]\n",
+	       smp_processor_id(), afsr, afar, udbl, udbh, tl1);
+
+	spitfire_log_udb_syndrome(afar, udbh, udbl, UDBE_CE);
+
+	/* We always log it, even if someone is listening for this
+	 * trap.
+	 */
+	notify_die(DIE_TRAP, "Correctable ECC Error", regs,
+		   0, TRAP_TYPE_CEE, SIGTRAP);
+
+	/* The Correctable ECC Error trap does not disable I/D caches.  So
+	 * we only have to restore the ESTATE Error Enable register.
+	 */
+	spitfire_enable_estate_errors();
+}
+
+static void spitfire_ue_log(unsigned long afsr, unsigned long afar, unsigned long udbh, unsigned long udbl, unsigned long tt, int tl1, struct pt_regs *regs)
+{
+	siginfo_t info;
+
+	printk(KERN_WARNING "CPU[%d]: Uncorrectable Error AFSR[%lx] "
+	       "AFAR[%lx] UDBL[%lx] UDBH[%ld] TT[%lx] TL>1[%d]\n",
+	       smp_processor_id(), afsr, afar, udbl, udbh, tt, tl1);
+
+	/* XXX add more human friendly logging of the error status
+	 * XXX as is implemented for cheetah
+	 */
+
+	spitfire_log_udb_syndrome(afar, udbh, udbl, UDBE_UE);
+
+	/* We always log it, even if someone is listening for this
+	 * trap.
+	 */
+	notify_die(DIE_TRAP, "Uncorrectable Error", regs,
+		   0, tt, SIGTRAP);
+
+	if (regs->tstate & TSTATE_PRIV) {
+		if (tl1)
+			dump_tl1_traplog((struct tl1_traplog *)(regs + 1));
+		die_if_kernel("UE", regs);
+	}
+
+	/* XXX need more intelligent processing here, such as is implemented
+	 * XXX for cheetah errors, in fact if the E-cache still holds the
+	 * XXX line with bad parity this will loop
+	 */
+
+	spitfire_clean_and_reenable_l1_caches();
+	spitfire_enable_estate_errors();
+
+	if (test_thread_flag(TIF_32BIT)) {
+		regs->tpc &= 0xffffffff;
+		regs->tnpc &= 0xffffffff;
+	}
+	info.si_signo = SIGBUS;
+	info.si_errno = 0;
+	info.si_code = BUS_OBJERR;
+	info.si_addr = (void *)0;
+	info.si_trapno = 0;
+	force_sig_info(SIGBUS, &info, current);
+}
+
+void spitfire_access_error(struct pt_regs *regs, unsigned long status_encoded, unsigned long afar)
+{
+	unsigned long afsr, tt, udbh, udbl;
+	int tl1;
+
+	afsr = (status_encoded & SFSTAT_AFSR_MASK) >> SFSTAT_AFSR_SHIFT;
+	tt = (status_encoded & SFSTAT_TRAP_TYPE) >> SFSTAT_TRAP_TYPE_SHIFT;
+	tl1 = (status_encoded & SFSTAT_TL_GT_ONE) ? 1 : 0;
+	udbl = (status_encoded & SFSTAT_UDBL_MASK) >> SFSTAT_UDBL_SHIFT;
+	udbh = (status_encoded & SFSTAT_UDBH_MASK) >> SFSTAT_UDBH_SHIFT;
+
+#ifdef CONFIG_PCI
+	if (tt == TRAP_TYPE_DAE &&
+	    pci_poke_in_progress && pci_poke_cpu == smp_processor_id()) {
+		spitfire_clean_and_reenable_l1_caches();
+		spitfire_enable_estate_errors();
+
+		pci_poke_faulted = 1;
+		regs->tnpc = regs->tpc + 4;
+		return;
+	}
+#endif
+
+	if (afsr & SFAFSR_UE)
+		spitfire_ue_log(afsr, afar, udbh, udbl, tt, tl1, regs);
+
+	if (tt == TRAP_TYPE_CEE) {
+		/* Handle the case where we took a CEE trap, but ACK'd
+		 * only the UE state in the UDB error registers.
+		 */
+		if (afsr & SFAFSR_UE) {
+			if (udbh & UDBE_CE) {
+				__asm__ __volatile__(
+					"stxa	%0, [%1] %2\n\t"
+					"membar	#Sync"
+					: /* no outputs */
+					: "r" (udbh & UDBE_CE),
+					  "r" (0x0), "i" (ASI_UDB_ERROR_W));
+			}
+			if (udbl & UDBE_CE) {
+				__asm__ __volatile__(
+					"stxa	%0, [%1] %2\n\t"
+					"membar	#Sync"
+					: /* no outputs */
+					: "r" (udbl & UDBE_CE),
+					  "r" (0x18), "i" (ASI_UDB_ERROR_W));
+			}
+		}
+
+		spitfire_cee_log(afsr, afar, udbh, udbl, tl1, regs);
 	}
 }
 
@@ -721,26 +757,12 @@ void __init cheetah_ecache_flush_init(void)
 	ecache_flush_size = (2 * largest_size);
 	ecache_flush_linesize = smallest_linesize;
 
-	/* Discover a physically contiguous chunk of physical
-	 * memory in 'sp_banks' of size ecache_flush_size calculated
-	 * above.  Store the physical base of this area at
-	 * ecache_flush_physbase.
-	 */
-	for (node = 0; ; node++) {
-		if (sp_banks[node].num_bytes == 0)
-			break;
-		if (sp_banks[node].num_bytes >= ecache_flush_size) {
-			ecache_flush_physbase = sp_banks[node].base_addr;
-			break;
-		}
-	}
+	ecache_flush_physbase = find_ecache_flush_span(ecache_flush_size);
 
-	/* Note: Zero would be a valid value of ecache_flush_physbase so
-	 * don't use that as the success test. :-)
-	 */
-	if (sp_banks[node].num_bytes == 0) {
+	if (ecache_flush_physbase == ~0UL) {
 		prom_printf("cheetah_ecache_flush_init: Cannot find %d byte "
-			    "contiguous physical memory.\n", ecache_flush_size);
+			    "contiguous physical memory.\n",
+			    ecache_flush_size);
 		prom_halt();
 	}
 
@@ -832,14 +854,19 @@ static void cheetah_flush_ecache_line(unsigned long physaddr)
  */
 static void __cheetah_flush_icache(void)
 {
-	unsigned long i;
+	unsigned int icache_size, icache_line_size;
+	unsigned long addr;
+
+	icache_size = local_cpu_data().icache_size;
+	icache_line_size = local_cpu_data().icache_line_size;
 
 	/* Clear the valid bits in all the tags. */
-	for (i = 0; i < (1 << 15); i += (1 << 5)) {
+	for (addr = 0; addr < icache_size; addr += icache_line_size) {
 		__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
 				     "membar #Sync"
 				     : /* no outputs */
-				     : "r" (i | (2 << 3)), "i" (ASI_IC_TAG));
+				     : "r" (addr | (2 << 3)),
+				       "i" (ASI_IC_TAG));
 	}
 }
 
@@ -867,13 +894,17 @@ static void cheetah_flush_icache(void)
 
 static void cheetah_flush_dcache(void)
 {
-	unsigned long i;
+	unsigned int dcache_size, dcache_line_size;
+	unsigned long addr;
 
-	for (i = 0; i < (1 << 16); i += (1 << 5)) {
+	dcache_size = local_cpu_data().dcache_size;
+	dcache_line_size = local_cpu_data().dcache_line_size;
+
+	for (addr = 0; addr < dcache_size; addr += dcache_line_size) {
 		__asm__ __volatile__("stxa %%g0, [%0] %1\n\t"
 				     "membar #Sync"
 				     : /* no outputs */
-				     : "r" (i), "i" (ASI_DCACHE_TAG));
+				     : "r" (addr), "i" (ASI_DCACHE_TAG));
 	}
 }
 
@@ -884,24 +915,29 @@ static void cheetah_flush_dcache(void)
  */
 static void cheetah_plus_zap_dcache_parity(void)
 {
-	unsigned long i;
+	unsigned int dcache_size, dcache_line_size;
+	unsigned long addr;
 
-	for (i = 0; i < (1 << 16); i += (1 << 5)) {
-		unsigned long tag = (i >> 14);
-		unsigned long j;
+	dcache_size = local_cpu_data().dcache_size;
+	dcache_line_size = local_cpu_data().dcache_line_size;
+
+	for (addr = 0; addr < dcache_size; addr += dcache_line_size) {
+		unsigned long tag = (addr >> 14);
+		unsigned long line;
 
 		__asm__ __volatile__("membar	#Sync\n\t"
 				     "stxa	%0, [%1] %2\n\t"
 				     "membar	#Sync"
 				     : /* no outputs */
-				     : "r" (tag), "r" (i),
+				     : "r" (tag), "r" (addr),
 				       "i" (ASI_DCACHE_UTAG));
-		for (j = i; j < i + (1 << 5); j += (1 << 3))
+		for (line = addr; line < addr + dcache_line_size; line += 8)
 			__asm__ __volatile__("membar	#Sync\n\t"
 					     "stxa	%%g0, [%0] %1\n\t"
 					     "membar	#Sync"
 					     : /* no outputs */
-					     : "r" (j), "i" (ASI_DCACHE_DATA));
+					     : "r" (line),
+					       "i" (ASI_DCACHE_DATA));
 	}
 }
 
@@ -1295,16 +1331,12 @@ static int cheetah_fix_ce(unsigned long physaddr)
 /* Return non-zero if PADDR is a valid physical memory address. */
 static int cheetah_check_main_memory(unsigned long paddr)
 {
-	int i;
+	unsigned long vaddr = PAGE_OFFSET + paddr;
 
-	for (i = 0; ; i++) {
-		if (sp_banks[i].num_bytes == 0)
-			break;
-		if (paddr >= sp_banks[i].base_addr &&
-		    paddr < (sp_banks[i].base_addr + sp_banks[i].num_bytes))
-			return 1;
-	}
-	return 0;
+	if (vaddr > (unsigned long) high_memory)
+		return 0;
+
+	return kern_addr_valid(vaddr);
 }
 
 void cheetah_cee_handler(struct pt_regs *regs, unsigned long afsr, unsigned long afar)
@@ -1559,10 +1591,10 @@ void cheetah_deferred_handler(struct pt_regs *regs, unsigned long afsr, unsigned
 			/* OK, usermode access. */
 			recoverable = 1;
 		} else {
-			unsigned long g2 = regs->u_regs[UREG_G2];
-			unsigned long fixup = search_extables_range(regs->tpc, &g2);
+			const struct exception_table_entry *entry;
 
-			if (fixup != 0UL) {
+			entry = search_exception_tables(regs->tpc);
+			if (entry) {
 				/* OK, kernel access to userspace. */
 				recoverable = 1;
 
@@ -1581,9 +1613,8 @@ void cheetah_deferred_handler(struct pt_regs *regs, unsigned long afsr, unsigned
 				 * recoverable condition.
 				 */
 				if (recoverable) {
-					regs->tpc = fixup;
+					regs->tpc = entry->fixup;
 					regs->tnpc = regs->tpc + 4;
-					regs->u_regs[UREG_G2] = g2;
 				}
 			}
 		}
@@ -2127,6 +2158,9 @@ void __init trap_init(void)
 	    TI_PRE_COUNT != offsetof(struct thread_info, preempt_count) ||
 	    TI_NEW_CHILD != offsetof(struct thread_info, new_child) ||
 	    TI_SYS_NOERROR != offsetof(struct thread_info, syscall_noerror) ||
+	    TI_RESTART_BLOCK != offsetof(struct thread_info, restart_block) ||
+	    TI_KUNA_REGS != offsetof(struct thread_info, kern_una_regs) ||
+	    TI_KUNA_INSN != offsetof(struct thread_info, kern_una_insn) ||
 	    TI_FPREGS != offsetof(struct thread_info, fpregs) ||
 	    (TI_FPREGS & (64 - 1)))
 		thread_info_offsets_are_bolixed_dave();

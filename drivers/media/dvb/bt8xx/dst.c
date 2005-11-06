@@ -1,5 +1,4 @@
 /*
-
 	Frontend/Card driver for TwinHan DST Frontend
 	Copyright (C) 2003 Jamie Honan
 	Copyright (C) 2004, 2005 Manu Abraham (manu@kromtek.com)
@@ -19,7 +18,6 @@
 	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -28,31 +26,45 @@
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
 #include <asm/div64.h>
-
 #include "dvb_frontend.h"
 #include "dst_priv.h"
 #include "dst_common.h"
-
 
 static unsigned int verbose = 1;
 module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "verbose startup messages, default is 1 (yes)");
 
-static unsigned int debug = 1;
-module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "debug messages, default is 0 (yes)");
-
 static unsigned int dst_addons;
 module_param(dst_addons, int, 0644);
 MODULE_PARM_DESC(dst_addons, "CA daughterboard, default is 0 (No addons)");
 
-#define dprintk	if (debug) printk
+#define HAS_LOCK		1
+#define ATTEMPT_TUNE		2
+#define HAS_POWER		4
 
-#define HAS_LOCK	1
-#define ATTEMPT_TUNE	2
-#define HAS_POWER	4
+#define DST_ERROR		0
+#define DST_NOTICE		1
+#define DST_INFO		2
+#define DST_DEBUG		3
 
-static void dst_packsize(struct dst_state* state, int psize)
+#define dprintk(x, y, z, format, arg...) do {						\
+	if (z) {									\
+		if	((x > DST_ERROR) && (x > y))					\
+			printk(KERN_ERR "%s: " format "\n", __FUNCTION__ , ##arg);	\
+		else if	((x > DST_NOTICE) && (x > y))					\
+			printk(KERN_NOTICE "%s: " format "\n", __FUNCTION__ , ##arg);	\
+		else if ((x > DST_INFO) && (x > y))					\
+			printk(KERN_INFO "%s: " format "\n", __FUNCTION__ , ##arg);	\
+		else if ((x > DST_DEBUG) && (x > y))					\
+			printk(KERN_DEBUG "%s: " format "\n", __FUNCTION__ , ##arg);	\
+	} else {									\
+		if (x > y)								\
+			printk(format, ##arg);						\
+	}										\
+} while(0)
+
+
+static void dst_packsize(struct dst_state *state, int psize)
 {
 	union dst_gpio_packet bits;
 
@@ -60,7 +72,7 @@ static void dst_packsize(struct dst_state* state, int psize)
 	bt878_device_control(state->bt, DST_IG_TS, &bits);
 }
 
-int dst_gpio_outb(struct dst_state* state, u32 mask, u32 enbb, u32 outhigh, int delay)
+int dst_gpio_outb(struct dst_state *state, u32 mask, u32 enbb, u32 outhigh, int delay)
 {
 	union dst_gpio_packet enb;
 	union dst_gpio_packet bits;
@@ -68,63 +80,55 @@ int dst_gpio_outb(struct dst_state* state, u32 mask, u32 enbb, u32 outhigh, int 
 
 	enb.enb.mask = mask;
 	enb.enb.enable = enbb;
-	if (verbose > 4)
-		dprintk("%s: mask=[%04x], enbb=[%04x], outhigh=[%04x]\n", __FUNCTION__, mask, enbb, outhigh);
 
+	dprintk(verbose, DST_INFO, 1, "mask=[%04x], enbb=[%04x], outhigh=[%04x]", mask, enbb, outhigh);
 	if ((err = bt878_device_control(state->bt, DST_IG_ENABLE, &enb)) < 0) {
-		dprintk("%s: dst_gpio_enb error (err == %i, mask == %02x, enb == %02x)\n", __FUNCTION__, err, mask, enbb);
+		dprintk(verbose, DST_INFO, 1, "dst_gpio_enb error (err == %i, mask == %02x, enb == %02x)", err, mask, enbb);
 		return -EREMOTEIO;
 	}
 	udelay(1000);
 	/* because complete disabling means no output, no need to do output packet */
 	if (enbb == 0)
 		return 0;
-
 	if (delay)
 		msleep(10);
-
 	bits.outp.mask = enbb;
 	bits.outp.highvals = outhigh;
-
 	if ((err = bt878_device_control(state->bt, DST_IG_WRITE, &bits)) < 0) {
-		dprintk("%s: dst_gpio_outb error (err == %i, enbb == %02x, outhigh == %02x)\n", __FUNCTION__, err, enbb, outhigh);
+		dprintk(verbose, DST_INFO, 1, "dst_gpio_outb error (err == %i, enbb == %02x, outhigh == %02x)", err, enbb, outhigh);
 		return -EREMOTEIO;
 	}
+
 	return 0;
 }
 EXPORT_SYMBOL(dst_gpio_outb);
 
-int dst_gpio_inb(struct dst_state *state, u8 * result)
+int dst_gpio_inb(struct dst_state *state, u8 *result)
 {
 	union dst_gpio_packet rd_packet;
 	int err;
 
 	*result = 0;
-
 	if ((err = bt878_device_control(state->bt, DST_IG_READ, &rd_packet)) < 0) {
-		dprintk("%s: dst_gpio_inb error (err == %i)\n", __FUNCTION__, err);
+		dprintk(verbose, DST_ERROR, 1, "dst_gpio_inb error (err == %i)\n", err);
 		return -EREMOTEIO;
 	}
-
 	*result = (u8) rd_packet.rd.value;
+
 	return 0;
 }
 EXPORT_SYMBOL(dst_gpio_inb);
 
 int rdc_reset_state(struct dst_state *state)
 {
-	if (verbose > 1)
-		dprintk("%s: Resetting state machine\n", __FUNCTION__);
-
+	dprintk(verbose, DST_INFO, 1, "Resetting state machine");
 	if (dst_gpio_outb(state, RDC_8820_INT, RDC_8820_INT, 0, NO_DELAY) < 0) {
-		dprintk("%s: dst_gpio_outb ERROR !\n", __FUNCTION__);
+		dprintk(verbose, DST_ERROR, 1, "dst_gpio_outb ERROR !");
 		return -1;
 	}
-
 	msleep(10);
-
 	if (dst_gpio_outb(state, RDC_8820_INT, RDC_8820_INT, RDC_8820_INT, NO_DELAY) < 0) {
-		dprintk("%s: dst_gpio_outb ERROR !\n", __FUNCTION__);
+		dprintk(verbose, DST_ERROR, 1, "dst_gpio_outb ERROR !");
 		msleep(10);
 		return -1;
 	}
@@ -135,16 +139,14 @@ EXPORT_SYMBOL(rdc_reset_state);
 
 int rdc_8820_reset(struct dst_state *state)
 {
-	if (verbose > 1)
-		dprintk("%s: Resetting DST\n", __FUNCTION__);
-
+	dprintk(verbose, DST_DEBUG, 1, "Resetting DST");
 	if (dst_gpio_outb(state, RDC_8820_RESET, RDC_8820_RESET, 0, NO_DELAY) < 0) {
-		dprintk("%s: dst_gpio_outb ERROR !\n", __FUNCTION__);
+		dprintk(verbose, DST_ERROR, 1, "dst_gpio_outb ERROR !");
 		return -1;
 	}
 	udelay(1000);
 	if (dst_gpio_outb(state, RDC_8820_RESET, RDC_8820_RESET, RDC_8820_RESET, DELAY) < 0) {
-		dprintk("%s: dst_gpio_outb ERROR !\n", __FUNCTION__);
+		dprintk(verbose, DST_ERROR, 1, "dst_gpio_outb ERROR !");
 		return -1;
 	}
 
@@ -155,10 +157,11 @@ EXPORT_SYMBOL(rdc_8820_reset);
 int dst_pio_enable(struct dst_state *state)
 {
 	if (dst_gpio_outb(state, ~0, RDC_8820_PIO_0_ENABLE, 0, NO_DELAY) < 0) {
-		dprintk("%s: dst_gpio_outb ERROR !\n", __FUNCTION__);
+		dprintk(verbose, DST_ERROR, 1, "dst_gpio_outb ERROR !");
 		return -1;
 	}
 	udelay(1000);
+
 	return 0;
 }
 EXPORT_SYMBOL(dst_pio_enable);
@@ -166,7 +169,7 @@ EXPORT_SYMBOL(dst_pio_enable);
 int dst_pio_disable(struct dst_state *state)
 {
 	if (dst_gpio_outb(state, ~0, RDC_8820_PIO_0_DISABLE, RDC_8820_PIO_0_DISABLE, NO_DELAY) < 0) {
-		dprintk("%s: dst_gpio_outb ERROR !\n", __FUNCTION__);
+		dprintk(verbose, DST_ERROR, 1, "dst_gpio_outb ERROR !");
 		return -1;
 	}
 	if (state->type_flags & DST_TYPE_HAS_FW_1)
@@ -183,19 +186,16 @@ int dst_wait_dst_ready(struct dst_state *state, u8 delay_mode)
 
 	for (i = 0; i < 200; i++) {
 		if (dst_gpio_inb(state, &reply) < 0) {
-			dprintk("%s: dst_gpio_inb ERROR !\n", __FUNCTION__);
+			dprintk(verbose, DST_ERROR, 1, "dst_gpio_inb ERROR !");
 			return -1;
 		}
-
 		if ((reply & RDC_8820_PIO_0_ENABLE) == 0) {
-			if (verbose > 4)
-				dprintk("%s: dst wait ready after %d\n", __FUNCTION__, i);
+			dprintk(verbose, DST_INFO, 1, "dst wait ready after %d", i);
 			return 1;
 		}
 		msleep(10);
 	}
-	if (verbose > 1)
-		dprintk("%s: dst wait NOT ready after %d\n", __FUNCTION__, i);
+	dprintk(verbose, DST_NOTICE, 1, "dst wait NOT ready after %d", i);
 
 	return 0;
 }
@@ -203,7 +203,7 @@ EXPORT_SYMBOL(dst_wait_dst_ready);
 
 int dst_error_recovery(struct dst_state *state)
 {
-	dprintk("%s: Trying to return from previous errors...\n", __FUNCTION__);
+	dprintk(verbose, DST_NOTICE, 1, "Trying to return from previous errors.");
 	dst_pio_disable(state);
 	msleep(10);
 	dst_pio_enable(state);
@@ -215,7 +215,7 @@ EXPORT_SYMBOL(dst_error_recovery);
 
 int dst_error_bailout(struct dst_state *state)
 {
-	dprintk("%s: Trying to bailout from previous error...\n", __FUNCTION__);
+	dprintk(verbose, DST_INFO, 1, "Trying to bailout from previous error.");
 	rdc_8820_reset(state);
 	dst_pio_disable(state);
 	msleep(10);
@@ -224,17 +224,15 @@ int dst_error_bailout(struct dst_state *state)
 }
 EXPORT_SYMBOL(dst_error_bailout);
 
-
-int dst_comm_init(struct dst_state* state)
+int dst_comm_init(struct dst_state *state)
 {
-	if (verbose > 1)
-		dprintk ("%s: Initializing DST..\n", __FUNCTION__);
+	dprintk(verbose, DST_INFO, 1, "Initializing DST.");
 	if ((dst_pio_enable(state)) < 0) {
-		dprintk("%s: PIO Enable Failed.\n", __FUNCTION__);
+		dprintk(verbose, DST_ERROR, 1, "PIO Enable Failed");
 		return -1;
 	}
 	if ((rdc_reset_state(state)) < 0) {
-		dprintk("%s: RDC 8820 State RESET Failed.\n", __FUNCTION__);
+		dprintk(verbose, DST_ERROR, 1, "RDC 8820 State RESET Failed.");
 		return -1;
 	}
 	if (state->type_flags & DST_TYPE_HAS_FW_1)
@@ -246,36 +244,33 @@ int dst_comm_init(struct dst_state* state)
 }
 EXPORT_SYMBOL(dst_comm_init);
 
-
 int write_dst(struct dst_state *state, u8 *data, u8 len)
 {
 	struct i2c_msg msg = {
-		.addr = state->config->demod_address,.flags = 0,.buf = data,.len = len
+		.addr = state->config->demod_address,
+		.flags = 0,
+		.buf = data,
+		.len = len
 	};
 
 	int err;
-	int cnt;
-	if (debug && (verbose > 4)) {
-		u8 i;
-		if (verbose > 4) {
-			dprintk("%s writing [ ", __FUNCTION__);
-			for (i = 0; i < len; i++)
-				dprintk("%02x ", data[i]);
-			dprintk("]\n");
-		}
-	}
+	u8 cnt, i;
+
+	dprintk(verbose, DST_NOTICE, 0, "writing [ ");
+	for (i = 0; i < len; i++)
+		dprintk(verbose, DST_NOTICE, 0, "%02x ", data[i]);
+	dprintk(verbose, DST_NOTICE, 0, "]\n");
+
 	for (cnt = 0; cnt < 2; cnt++) {
 		if ((err = i2c_transfer(state->i2c, &msg, 1)) < 0) {
-			dprintk("%s: _write_dst error (err == %i, len == 0x%02x, b0 == 0x%02x)\n", __FUNCTION__, err, len, data[0]);
+			dprintk(verbose, DST_INFO, 1, "_write_dst error (err == %i, len == 0x%02x, b0 == 0x%02x)", err, len, data[0]);
 			dst_error_recovery(state);
 			continue;
 		} else
 			break;
 	}
-
 	if (cnt >= 2) {
-		if (verbose > 1)
-			printk("%s: RDC 8820 RESET...\n", __FUNCTION__);
+		dprintk(verbose, DST_INFO, 1, "RDC 8820 RESET");
 		dst_error_bailout(state);
 
 		return -1;
@@ -285,36 +280,37 @@ int write_dst(struct dst_state *state, u8 *data, u8 len)
 }
 EXPORT_SYMBOL(write_dst);
 
-int read_dst(struct dst_state *state, u8 * ret, u8 len)
+int read_dst(struct dst_state *state, u8 *ret, u8 len)
 {
-	struct i2c_msg msg = {.addr = state->config->demod_address,.flags = I2C_M_RD,.buf = ret,.len = len };
+	struct i2c_msg msg = {
+		.addr = state->config->demod_address,
+		.flags = I2C_M_RD,
+		.buf = ret,
+		.len = len
+	};
+
 	int err;
 	int cnt;
 
 	for (cnt = 0; cnt < 2; cnt++) {
 		if ((err = i2c_transfer(state->i2c, &msg, 1)) < 0) {
-
-			dprintk("%s: read_dst error (err == %i, len == 0x%02x, b0 == 0x%02x)\n", __FUNCTION__, err, len, ret[0]);
+			dprintk(verbose, DST_INFO, 1, "read_dst error (err == %i, len == 0x%02x, b0 == 0x%02x)", err, len, ret[0]);
 			dst_error_recovery(state);
-
 			continue;
 		} else
 			break;
 	}
 	if (cnt >= 2) {
-		if (verbose > 1)
-			printk("%s: RDC 8820 RESET...\n", __FUNCTION__);
+		dprintk(verbose, DST_INFO, 1, "RDC 8820 RESET");
 		dst_error_bailout(state);
 
 		return -1;
 	}
-	if (debug && (verbose > 4)) {
-		dprintk("%s reply is 0x%x\n", __FUNCTION__, ret[0]);
-		for (err = 1; err < len; err++)
-			dprintk(" 0x%x", ret[err]);
-		if (err > 1)
-			dprintk("\n");
-	}
+	dprintk(verbose, DST_DEBUG, 1, "reply is 0x%x", ret[0]);
+	for (err = 1; err < len; err++)
+		dprintk(verbose, DST_DEBUG, 0, " 0x%x", ret[err]);
+	if (err > 1)
+		dprintk(verbose, DST_DEBUG, 0, "\n");
 
 	return 0;
 }
@@ -323,19 +319,16 @@ EXPORT_SYMBOL(read_dst);
 static int dst_set_polarization(struct dst_state *state)
 {
 	switch (state->voltage) {
-		case SEC_VOLTAGE_13:	// vertical
-			printk("%s: Polarization=[Vertical]\n", __FUNCTION__);
-			state->tx_tuna[8] &= ~0x40;  //1
-			break;
-
-		case SEC_VOLTAGE_18:	// horizontal
-			printk("%s: Polarization=[Horizontal]\n", __FUNCTION__);
-			state->tx_tuna[8] |= 0x40;  // 0
-			break;
-
-		case SEC_VOLTAGE_OFF:
-
-			break;
+	case SEC_VOLTAGE_13:	/*	Vertical	*/
+		dprintk(verbose, DST_INFO, 1, "Polarization=[Vertical]");
+		state->tx_tuna[8] &= ~0x40;
+		break;
+	case SEC_VOLTAGE_18:	/*	Horizontal	*/
+		dprintk(verbose, DST_INFO, 1, "Polarization=[Horizontal]");
+		state->tx_tuna[8] |= 0x40;
+		break;
+	case SEC_VOLTAGE_OFF:
+		break;
 	}
 
 	return 0;
@@ -344,14 +337,12 @@ static int dst_set_polarization(struct dst_state *state)
 static int dst_set_freq(struct dst_state *state, u32 freq)
 {
 	state->frequency = freq;
-	if (debug > 4)
-		dprintk("%s: set Frequency %u\n", __FUNCTION__, freq);
+	dprintk(verbose, DST_INFO, 1, "set Frequency %u", freq);
 
 	if (state->dst_type == DST_TYPE_IS_SAT) {
 		freq = freq / 1000;
 		if (freq < 950 || freq > 2150)
 			return -EINVAL;
-
 		state->tx_tuna[2] = (freq >> 8);
 		state->tx_tuna[3] = (u8) freq;
 		state->tx_tuna[4] = 0x01;
@@ -360,27 +351,25 @@ static int dst_set_freq(struct dst_state *state, u32 freq)
 			if (freq < 1531)
 				state->tx_tuna[8] |= 0x04;
 		}
-
 	} else if (state->dst_type == DST_TYPE_IS_TERR) {
 		freq = freq / 1000;
 		if (freq < 137000 || freq > 858000)
 			return -EINVAL;
-
 		state->tx_tuna[2] = (freq >> 16) & 0xff;
 		state->tx_tuna[3] = (freq >> 8) & 0xff;
 		state->tx_tuna[4] = (u8) freq;
-
 	} else if (state->dst_type == DST_TYPE_IS_CABLE) {
+		freq = freq / 1000;
 		state->tx_tuna[2] = (freq >> 16) & 0xff;
 		state->tx_tuna[3] = (freq >> 8) & 0xff;
 		state->tx_tuna[4] = (u8) freq;
-
 	} else
 		return -EINVAL;
+
 	return 0;
 }
 
-static int dst_set_bandwidth(struct dst_state* state, fe_bandwidth_t bandwidth)
+static int dst_set_bandwidth(struct dst_state *state, fe_bandwidth_t bandwidth)
 {
 	state->bandwidth = bandwidth;
 
@@ -388,103 +377,95 @@ static int dst_set_bandwidth(struct dst_state* state, fe_bandwidth_t bandwidth)
 		return 0;
 
 	switch (bandwidth) {
-		case BANDWIDTH_6_MHZ:
-			if (state->dst_hw_cap & DST_TYPE_HAS_CA)
-				state->tx_tuna[7] = 0x06;
-			else {
-				state->tx_tuna[6] = 0x06;
-				state->tx_tuna[7] = 0x00;
-			}
-			break;
-
-		case BANDWIDTH_7_MHZ:
-			if (state->dst_hw_cap & DST_TYPE_HAS_CA)
-				state->tx_tuna[7] = 0x07;
-			else {
-				state->tx_tuna[6] = 0x07;
-				state->tx_tuna[7] = 0x00;
-			}
-			break;
-
-		case BANDWIDTH_8_MHZ:
-			if (state->dst_hw_cap & DST_TYPE_HAS_CA)
-				state->tx_tuna[7] = 0x08;
-			else {
-				state->tx_tuna[6] = 0x08;
-				state->tx_tuna[7] = 0x00;
-			}
-			break;
-
-		default:
-			return -EINVAL;
+	case BANDWIDTH_6_MHZ:
+		if (state->dst_hw_cap & DST_TYPE_HAS_CA)
+			state->tx_tuna[7] = 0x06;
+		else {
+			state->tx_tuna[6] = 0x06;
+			state->tx_tuna[7] = 0x00;
+		}
+		break;
+	case BANDWIDTH_7_MHZ:
+		if (state->dst_hw_cap & DST_TYPE_HAS_CA)
+			state->tx_tuna[7] = 0x07;
+		else {
+			state->tx_tuna[6] = 0x07;
+			state->tx_tuna[7] = 0x00;
+		}
+		break;
+	case BANDWIDTH_8_MHZ:
+		if (state->dst_hw_cap & DST_TYPE_HAS_CA)
+			state->tx_tuna[7] = 0x08;
+		else {
+			state->tx_tuna[6] = 0x08;
+			state->tx_tuna[7] = 0x00;
+		}
+		break;
+	default:
+		return -EINVAL;
 	}
+
 	return 0;
 }
 
-static int dst_set_inversion(struct dst_state* state, fe_spectral_inversion_t inversion)
+static int dst_set_inversion(struct dst_state *state, fe_spectral_inversion_t inversion)
 {
 	state->inversion = inversion;
 	switch (inversion) {
-		case INVERSION_OFF:	// Inversion = Normal
-			state->tx_tuna[8] &= ~0x80;
-			break;
-
-		case INVERSION_ON:
-			state->tx_tuna[8] |= 0x80;
-			break;
-		default:
-			return -EINVAL;
+	case INVERSION_OFF:	/*	Inversion = Normal	*/
+		state->tx_tuna[8] &= ~0x80;
+		break;
+	case INVERSION_ON:
+		state->tx_tuna[8] |= 0x80;
+		break;
+	default:
+		return -EINVAL;
 	}
+
 	return 0;
 }
 
-static int dst_set_fec(struct dst_state* state, fe_code_rate_t fec)
+static int dst_set_fec(struct dst_state *state, fe_code_rate_t fec)
 {
 	state->fec = fec;
 	return 0;
 }
 
-static fe_code_rate_t dst_get_fec(struct dst_state* state)
+static fe_code_rate_t dst_get_fec(struct dst_state *state)
 {
 	return state->fec;
 }
 
-static int dst_set_symbolrate(struct dst_state* state, u32 srate)
+static int dst_set_symbolrate(struct dst_state *state, u32 srate)
 {
-	u8 *val;
 	u32 symcalc;
 	u64 sval;
 
 	state->symbol_rate = srate;
-
 	if (state->dst_type == DST_TYPE_IS_TERR) {
 		return 0;
 	}
-	if (debug > 4)
-		dprintk("%s: set symrate %u\n", __FUNCTION__, srate);
+	dprintk(verbose, DST_INFO, 1, "set symrate %u", srate);
 	srate /= 1000;
-	val = &state->tx_tuna[0];
-
 	if (state->type_flags & DST_TYPE_HAS_SYMDIV) {
 		sval = srate;
 		sval <<= 20;
 		do_div(sval, 88000);
 		symcalc = (u32) sval;
-
-		if (debug > 4)
-			dprintk("%s: set symcalc %u\n", __FUNCTION__, symcalc);
-
-		val[5] = (u8) (symcalc >> 12);
-		val[6] = (u8) (symcalc >> 4);
-		val[7] = (u8) (symcalc << 4);
+		dprintk(verbose, DST_INFO, 1, "set symcalc %u", symcalc);
+		state->tx_tuna[5] = (u8) (symcalc >> 12);
+		state->tx_tuna[6] = (u8) (symcalc >> 4);
+		state->tx_tuna[7] = (u8) (symcalc << 4);
 	} else {
-		val[5] = (u8) (srate >> 16) & 0x7f;
-		val[6] = (u8) (srate >> 8);
-		val[7] = (u8) srate;
+		state->tx_tuna[5] = (u8) (srate >> 16) & 0x7f;
+		state->tx_tuna[6] = (u8) (srate >> 8);
+		state->tx_tuna[7] = (u8) srate;
 	}
-	val[8] &= ~0x20;
-	if (srate > 8000)
-		val[8] |= 0x20;
+	state->tx_tuna[8] &= ~0x20;
+	if (state->type_flags & DST_TYPE_HAS_OBS_REGS) {
+		if (srate > 8000)
+			state->tx_tuna[8] |= 0x20;
+	}
 	return 0;
 }
 
@@ -496,32 +477,27 @@ static int dst_set_modulation(struct dst_state *state, fe_modulation_t modulatio
 
 	state->modulation = modulation;
 	switch (modulation) {
-		case QAM_16:
-			state->tx_tuna[8] = 0x10;
-			break;
-
-		case QAM_32:
-			state->tx_tuna[8] = 0x20;
-			break;
-
-		case QAM_64:
-			state->tx_tuna[8] = 0x40;
-			break;
-
-		case QAM_128:
-			state->tx_tuna[8] = 0x80;
-			break;
-
-		case QAM_256:
-			state->tx_tuna[8] = 0x00;
-			break;
-
-		case QPSK:
-		case QAM_AUTO:
-		case VSB_8:
-		case VSB_16:
-		default:
-			return -EINVAL;
+	case QAM_16:
+		state->tx_tuna[8] = 0x10;
+		break;
+	case QAM_32:
+		state->tx_tuna[8] = 0x20;
+		break;
+	case QAM_64:
+		state->tx_tuna[8] = 0x40;
+		break;
+	case QAM_128:
+		state->tx_tuna[8] = 0x80;
+		break;
+	case QAM_256:
+		state->tx_tuna[8] = 0x00;
+		break;
+	case QPSK:
+	case QAM_AUTO:
+	case VSB_8:
+	case VSB_16:
+	default:
+		return -EINVAL;
 
 	}
 
@@ -534,7 +510,7 @@ static fe_modulation_t dst_get_modulation(struct dst_state *state)
 }
 
 
-u8 dst_check_sum(u8 * buf, u32 len)
+u8 dst_check_sum(u8 *buf, u32 len)
 {
 	u32 i;
 	u8 val = 0;
@@ -549,26 +525,24 @@ EXPORT_SYMBOL(dst_check_sum);
 
 static void dst_type_flags_print(u32 type_flags)
 {
-	printk("DST type flags :");
+	dprintk(verbose, DST_ERROR, 0, "DST type flags :");
 	if (type_flags & DST_TYPE_HAS_NEWTUNE)
-		printk(" 0x%x newtuner", DST_TYPE_HAS_NEWTUNE);
+		dprintk(verbose, DST_ERROR, 0, " 0x%x newtuner", DST_TYPE_HAS_NEWTUNE);
 	if (type_flags & DST_TYPE_HAS_TS204)
-		printk(" 0x%x ts204", DST_TYPE_HAS_TS204);
+		dprintk(verbose, DST_ERROR, 0, " 0x%x ts204", DST_TYPE_HAS_TS204);
 	if (type_flags & DST_TYPE_HAS_SYMDIV)
-		printk(" 0x%x symdiv", DST_TYPE_HAS_SYMDIV);
+		dprintk(verbose, DST_ERROR, 0, " 0x%x symdiv", DST_TYPE_HAS_SYMDIV);
 	if (type_flags & DST_TYPE_HAS_FW_1)
-		printk(" 0x%x firmware version = 1", DST_TYPE_HAS_FW_1);
+		dprintk(verbose, DST_ERROR, 0, " 0x%x firmware version = 1", DST_TYPE_HAS_FW_1);
 	if (type_flags & DST_TYPE_HAS_FW_2)
-		printk(" 0x%x firmware version = 2", DST_TYPE_HAS_FW_2);
+		dprintk(verbose, DST_ERROR, 0, " 0x%x firmware version = 2", DST_TYPE_HAS_FW_2);
 	if (type_flags & DST_TYPE_HAS_FW_3)
-		printk(" 0x%x firmware version = 3", DST_TYPE_HAS_FW_3);
-//	if ((type_flags & DST_TYPE_HAS_FW_BUILD) && new_fw)
-
-	printk("\n");
+		dprintk(verbose, DST_ERROR, 0, " 0x%x firmware version = 3", DST_TYPE_HAS_FW_3);
+	dprintk(verbose, DST_ERROR, 0, "\n");
 }
 
 
-static int dst_type_print (u8 type)
+static int dst_type_print(u8 type)
 {
 	char *otype;
 	switch (type) {
@@ -585,10 +559,10 @@ static int dst_type_print (u8 type)
 		break;
 
 	default:
-		printk("%s: invalid dst type %d\n", __FUNCTION__, type);
+		dprintk(verbose, DST_INFO, 1, "invalid dst type %d", type);
 		return -EINVAL;
 	}
-	printk("DST type : %s\n", otype);
+	dprintk(verbose, DST_INFO, 1, "DST type: %s", otype);
 
 	return 0;
 }
@@ -700,7 +674,7 @@ struct dst_types dst_tlist[] = {
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_CABLE,
 		.type_flags = DST_TYPE_HAS_TS204 | DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_1
-							| DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_FW_BUILD,
+							| DST_TYPE_HAS_FW_2,
 		.dst_feature = DST_TYPE_HAS_CA
 	},
 
@@ -708,7 +682,7 @@ struct dst_types dst_tlist[] = {
 		.device_id = "DCTNEW",
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_CABLE,
-		.type_flags = DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_3,
+		.type_flags = DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_3 | DST_TYPE_HAS_FW_BUILD,
 		.dst_feature = 0
 	},
 
@@ -716,7 +690,7 @@ struct dst_types dst_tlist[] = {
 		.device_id = "DTT-CI",
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_TERR,
-		.type_flags = DST_TYPE_HAS_TS204 | DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_FW_BUILD,
+		.type_flags = DST_TYPE_HAS_TS204 | DST_TYPE_HAS_FW_2,
 		.dst_feature = 0
 	},
 
@@ -756,6 +730,71 @@ struct dst_types dst_tlist[] = {
 
 };
 
+static int dst_get_mac(struct dst_state *state)
+{
+	u8 get_mac[] = { 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	get_mac[7] = dst_check_sum(get_mac, 7);
+	if (dst_command(state, get_mac, 8) < 0) {
+		dprintk(verbose, DST_INFO, 1, "Unsupported Command");
+		return -1;
+	}
+	memset(&state->mac_address, '\0', 8);
+	memcpy(&state->mac_address, &state->rxbuffer, 6);
+	dprintk(verbose, DST_ERROR, 1, "MAC Address=[%02x:%02x:%02x:%02x:%02x:%02x]",
+		state->mac_address[0], state->mac_address[1], state->mac_address[2],
+		state->mac_address[4], state->mac_address[5], state->mac_address[6]);
+
+	return 0;
+}
+
+static int dst_fw_ver(struct dst_state *state)
+{
+	u8 get_ver[] = { 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	get_ver[7] = dst_check_sum(get_ver, 7);
+	if (dst_command(state, get_ver, 8) < 0) {
+		dprintk(verbose, DST_INFO, 1, "Unsupported Command");
+		return -1;
+	}
+	memset(&state->fw_version, '\0', 8);
+	memcpy(&state->fw_version, &state->rxbuffer, 8);
+	dprintk(verbose, DST_ERROR, 1, "Firmware Ver = %x.%x Build = %02x, on %x:%x, %x-%x-20%02x",
+		state->fw_version[0] >> 4, state->fw_version[0] & 0x0f,
+		state->fw_version[1],
+		state->fw_version[5], state->fw_version[6],
+		state->fw_version[4], state->fw_version[3], state->fw_version[2]);
+
+	return 0;
+}
+
+static int dst_card_type(struct dst_state *state)
+{
+	u8 get_type[] = { 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	get_type[7] = dst_check_sum(get_type, 7);
+	if (dst_command(state, get_type, 8) < 0) {
+		dprintk(verbose, DST_INFO, 1, "Unsupported Command");
+		return -1;
+	}
+	memset(&state->card_info, '\0', 8);
+	memcpy(&state->card_info, &state->rxbuffer, 8);
+	dprintk(verbose, DST_ERROR, 1, "Device Model=[%s]", &state->card_info[0]);
+
+	return 0;
+}
+
+static int dst_get_vendor(struct dst_state *state)
+{
+	u8 get_vendor[] = { 0x00, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	get_vendor[7] = dst_check_sum(get_vendor, 7);
+	if (dst_command(state, get_vendor, 8) < 0) {
+		dprintk(verbose, DST_INFO, 1, "Unsupported Command");
+		return -1;
+	}
+	memset(&state->vendor, '\0', 8);
+	memcpy(&state->vendor, &state->rxbuffer, 8);
+	dprintk(verbose, DST_ERROR, 1, "Vendor=[%s]", &state->vendor[0]);
+
+	return 0;
+}
 
 static int dst_get_device_id(struct dst_state *state)
 {
@@ -772,53 +811,45 @@ static int dst_get_device_id(struct dst_state *state)
 
 	if (write_dst(state, device_type, FIXED_COMM))
 		return -1;		/*	Write failed		*/
-
 	if ((dst_pio_disable(state)) < 0)
 		return -1;
-
 	if (read_dst(state, &reply, GET_ACK))
 		return -1;		/*	Read failure		*/
-
 	if (reply != ACK) {
-		dprintk("%s: Write not Acknowledged! [Reply=0x%02x]\n", __FUNCTION__, reply);
+		dprintk(verbose, DST_INFO, 1, "Write not Acknowledged! [Reply=0x%02x]", reply);
 		return -1;		/*	Unack'd write		*/
 	}
-
 	if (!dst_wait_dst_ready(state, DEVICE_INIT))
 		return -1;		/*	DST not ready yet	*/
-
 	if (read_dst(state, state->rxbuffer, FIXED_COMM))
 		return -1;
 
 	dst_pio_disable(state);
-
 	if (state->rxbuffer[7] != dst_check_sum(state->rxbuffer, 7)) {
-		dprintk("%s: Checksum failure! \n", __FUNCTION__);
+		dprintk(verbose, DST_INFO, 1, "Checksum failure!");
 		return -1;		/*	Checksum failure	*/
 	}
-
 	state->rxbuffer[7] = '\0';
 
-	for (i = 0, p_dst_type = dst_tlist; i < ARRAY_SIZE (dst_tlist); i++, p_dst_type++) {
+	for (i = 0, p_dst_type = dst_tlist; i < ARRAY_SIZE(dst_tlist); i++, p_dst_type++) {
 		if (!strncmp (&state->rxbuffer[p_dst_type->offset], p_dst_type->device_id, strlen (p_dst_type->device_id))) {
 			use_type_flags = p_dst_type->type_flags;
 			use_dst_type = p_dst_type->dst_type;
 
 			/*	Card capabilities	*/
 			state->dst_hw_cap = p_dst_type->dst_feature;
-			printk ("%s: Recognise [%s]\n", __FUNCTION__, p_dst_type->device_id);
+			dprintk(verbose, DST_ERROR, 1, "Recognise [%s]\n", p_dst_type->device_id);
 
 			break;
 		}
 	}
 
 	if (i >= sizeof (dst_tlist) / sizeof (dst_tlist [0])) {
-		printk("%s: Unable to recognize %s or %s\n", __FUNCTION__, &state->rxbuffer[0], &state->rxbuffer[1]);
-		printk("%s: please email linux-dvb@linuxtv.org with this type in\n", __FUNCTION__);
+		dprintk(verbose, DST_ERROR, 1, "Unable to recognize %s or %s", &state->rxbuffer[0], &state->rxbuffer[1]);
+		dprintk(verbose, DST_ERROR, 1, "please email linux-dvb@linuxtv.org with this type in");
 		use_dst_type = DST_TYPE_IS_SAT;
 		use_type_flags = DST_TYPE_HAS_SYMDIV;
 	}
-
 	dst_type_print(use_dst_type);
 	state->type_flags = use_type_flags;
 	state->dst_type = use_dst_type;
@@ -834,7 +865,7 @@ static int dst_get_device_id(struct dst_state *state)
 static int dst_probe(struct dst_state *state)
 {
 	if ((rdc_8820_reset(state)) < 0) {
-		dprintk("%s: RDC 8820 RESET Failed.\n", __FUNCTION__);
+		dprintk(verbose, DST_ERROR, 1, "RDC 8820 RESET Failed.");
 		return -1;
 	}
 	if (dst_addons & DST_TYPE_HAS_CA)
@@ -843,80 +874,87 @@ static int dst_probe(struct dst_state *state)
 		msleep(100);
 
 	if ((dst_comm_init(state)) < 0) {
-		dprintk("%s: DST Initialization Failed.\n", __FUNCTION__);
+		dprintk(verbose, DST_ERROR, 1, "DST Initialization Failed.");
 		return -1;
 	}
 	msleep(100);
 	if (dst_get_device_id(state) < 0) {
-		dprintk("%s: unknown device.\n", __FUNCTION__);
+		dprintk(verbose, DST_ERROR, 1, "unknown device.");
 		return -1;
+	}
+	if (dst_get_mac(state) < 0) {
+		dprintk(verbose, DST_INFO, 1, "MAC: Unsupported command");
+		return 0;
+	}
+	if (state->type_flags & DST_TYPE_HAS_FW_BUILD) {
+		if (dst_fw_ver(state) < 0) {
+			dprintk(verbose, DST_INFO, 1, "FW: Unsupported command");
+			return 0;
+		}
+		if (dst_card_type(state) < 0) {
+			dprintk(verbose, DST_INFO, 1, "Card: Unsupported command");
+			return 0;
+		}
+		if (dst_get_vendor(state) < 0) {
+			dprintk(verbose, DST_INFO, 1, "Vendor: Unsupported command");
+			return 0;
+		}
 	}
 
 	return 0;
 }
 
-int dst_command(struct dst_state* state, u8 * data, u8 len)
+int dst_command(struct dst_state *state, u8 *data, u8 len)
 {
 	u8 reply;
 	if ((dst_comm_init(state)) < 0) {
-		dprintk("%s: DST Communication Initialization Failed.\n", __FUNCTION__);
+		dprintk(verbose, DST_NOTICE, 1, "DST Communication Initialization Failed.");
 		return -1;
 	}
-
 	if (write_dst(state, data, len)) {
-		if (verbose > 1)
-			dprintk("%s: Tring to recover.. \n", __FUNCTION__);
+		dprintk(verbose, DST_INFO, 1, "Tring to recover.. ");
 		if ((dst_error_recovery(state)) < 0) {
-			dprintk("%s: Recovery Failed.\n", __FUNCTION__);
+			dprintk(verbose, DST_ERROR, 1, "Recovery Failed.");
 			return -1;
 		}
 		return -1;
 	}
 	if ((dst_pio_disable(state)) < 0) {
-		dprintk("%s: PIO Disable Failed.\n", __FUNCTION__);
+		dprintk(verbose, DST_ERROR, 1, "PIO Disable Failed.");
 		return -1;
 	}
 	if (state->type_flags & DST_TYPE_HAS_FW_1)
 		udelay(3000);
-
 	if (read_dst(state, &reply, GET_ACK)) {
-		if (verbose > 1)
-			dprintk("%s: Trying to recover.. \n", __FUNCTION__);
+		dprintk(verbose, DST_DEBUG, 1, "Trying to recover.. ");
 		if ((dst_error_recovery(state)) < 0) {
-			dprintk("%s: Recovery Failed.\n", __FUNCTION__);
+			dprintk(verbose, DST_INFO, 1, "Recovery Failed.");
 			return -1;
 		}
 		return -1;
 	}
-
 	if (reply != ACK) {
-		dprintk("%s: write not acknowledged 0x%02x \n", __FUNCTION__, reply);
+		dprintk(verbose, DST_INFO, 1, "write not acknowledged 0x%02x ", reply);
 		return -1;
 	}
 	if (len >= 2 && data[0] == 0 && (data[1] == 1 || data[1] == 3))
 		return 0;
-
-//	udelay(3000);
 	if (state->type_flags & DST_TYPE_HAS_FW_1)
 		udelay(3000);
 	else
 		udelay(2000);
-
 	if (!dst_wait_dst_ready(state, NO_DELAY))
 		return -1;
-
 	if (read_dst(state, state->rxbuffer, FIXED_COMM)) {
-		if (verbose > 1)
-			dprintk("%s: Trying to recover.. \n", __FUNCTION__);
+		dprintk(verbose, DST_DEBUG, 1, "Trying to recover.. ");
 		if ((dst_error_recovery(state)) < 0) {
-			dprintk("%s: Recovery failed.\n", __FUNCTION__);
+			dprintk(verbose, DST_INFO, 1, "Recovery failed.");
 			return -1;
 		}
 		return -1;
 	}
-
 	if (state->rxbuffer[7] != dst_check_sum(state->rxbuffer, 7)) {
-		dprintk("%s: checksum failure\n", __FUNCTION__);
+		dprintk(verbose, DST_INFO, 1, "checksum failure");
 		return -1;
 	}
 
@@ -924,11 +962,11 @@ int dst_command(struct dst_state* state, u8 * data, u8 len)
 }
 EXPORT_SYMBOL(dst_command);
 
-static int dst_get_signal(struct dst_state* state)
+static int dst_get_signal(struct dst_state *state)
 {
 	int retval;
 	u8 get_signal[] = { 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0xfb };
-	dprintk("%s: Getting Signal strength and other parameters\n", __FUNCTION__);
+	//dprintk("%s: Getting Signal strength and other parameters\n", __FUNCTION__);
 	if ((state->diseq_flags & ATTEMPT_TUNE) == 0) {
 		state->decode_lock = state->decode_strength = state->decode_snr = 0;
 		return 0;
@@ -955,13 +993,12 @@ static int dst_get_signal(struct dst_state* state)
 	return 0;
 }
 
-static int dst_tone_power_cmd(struct dst_state* state)
+static int dst_tone_power_cmd(struct dst_state *state)
 {
 	u8 paket[8] = { 0x00, 0x09, 0xff, 0xff, 0x01, 0x00, 0x00, 0x00 };
 
 	if (state->dst_type == DST_TYPE_IS_TERR)
 		return 0;
-
 	paket[4] = state->tx_tuna[4];
 	paket[2] = state->tx_tuna[2];
 	paket[3] = state->tx_tuna[3];
@@ -971,61 +1008,53 @@ static int dst_tone_power_cmd(struct dst_state* state)
 	return 0;
 }
 
-static int dst_get_tuna(struct dst_state* state)
+static int dst_get_tuna(struct dst_state *state)
 {
 	int retval;
 
 	if ((state->diseq_flags & ATTEMPT_TUNE) == 0)
 		return 0;
-
 	state->diseq_flags &= ~(HAS_LOCK);
 	if (!dst_wait_dst_ready(state, NO_DELAY))
 		return 0;
-
-	if (state->type_flags & DST_TYPE_HAS_NEWTUNE) {
+	if (state->type_flags & DST_TYPE_HAS_NEWTUNE)
 		/* how to get variable length reply ???? */
 		retval = read_dst(state, state->rx_tuna, 10);
-	} else {
+	else
 		retval = read_dst(state, &state->rx_tuna[2], FIXED_COMM);
-	}
-
 	if (retval < 0) {
-		dprintk("%s: read not successful\n", __FUNCTION__);
+		dprintk(verbose, DST_DEBUG, 1, "read not successful");
 		return 0;
 	}
-
 	if (state->type_flags & DST_TYPE_HAS_NEWTUNE) {
 		if (state->rx_tuna[9] != dst_check_sum(&state->rx_tuna[0], 9)) {
-			dprintk("%s: checksum failure?\n", __FUNCTION__);
+			dprintk(verbose, DST_INFO, 1, "checksum failure ? ");
 			return 0;
 		}
 	} else {
 		if (state->rx_tuna[9] != dst_check_sum(&state->rx_tuna[2], 7)) {
-			dprintk("%s: checksum failure?\n", __FUNCTION__);
+			dprintk(verbose, DST_INFO, 1, "checksum failure? ");
 			return 0;
 		}
 	}
 	if (state->rx_tuna[2] == 0 && state->rx_tuna[3] == 0)
 		return 0;
 	state->decode_freq = ((state->rx_tuna[2] & 0x7f) << 8) + state->rx_tuna[3];
-
 	state->decode_lock = 1;
 	state->diseq_flags |= HAS_LOCK;
 
 	return 1;
 }
 
-static int dst_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage);
+static int dst_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage);
 
-static int dst_write_tuna(struct dvb_frontend* fe)
+static int dst_write_tuna(struct dvb_frontend *fe)
 {
-	struct dst_state* state = fe->demodulator_priv;
+	struct dst_state *state = fe->demodulator_priv;
 	int retval;
 	u8 reply;
 
-	if (debug > 4)
-		dprintk("%s: type_flags 0x%x \n", __FUNCTION__, state->type_flags);
-
+	dprintk(verbose, DST_INFO, 1, "type_flags 0x%x ", state->type_flags);
 	state->decode_freq = 0;
 	state->decode_lock = state->decode_strength = state->decode_snr = 0;
 	if (state->dst_type == DST_TYPE_IS_SAT) {
@@ -1035,35 +1064,31 @@ static int dst_write_tuna(struct dvb_frontend* fe)
 	state->diseq_flags &= ~(HAS_LOCK | ATTEMPT_TUNE);
 
 	if ((dst_comm_init(state)) < 0) {
-		dprintk("%s: DST Communication initialization failed.\n", __FUNCTION__);
+		dprintk(verbose, DST_DEBUG, 1, "DST Communication initialization failed.");
 		return -1;
 	}
-
 	if (state->type_flags & DST_TYPE_HAS_NEWTUNE) {
 		state->tx_tuna[9] = dst_check_sum(&state->tx_tuna[0], 9);
 		retval = write_dst(state, &state->tx_tuna[0], 10);
-
 	} else {
 		state->tx_tuna[9] = dst_check_sum(&state->tx_tuna[2], 7);
 		retval = write_dst(state, &state->tx_tuna[2], FIXED_COMM);
 	}
 	if (retval < 0) {
 		dst_pio_disable(state);
-		dprintk("%s: write not successful\n", __FUNCTION__);
+		dprintk(verbose, DST_DEBUG, 1, "write not successful");
 		return retval;
 	}
-
 	if ((dst_pio_disable(state)) < 0) {
-		dprintk("%s: DST PIO disable failed !\n", __FUNCTION__);
+		dprintk(verbose, DST_DEBUG, 1, "DST PIO disable failed !");
 		return -1;
 	}
-
 	if ((read_dst(state, &reply, GET_ACK) < 0)) {
-		dprintk("%s: read verify not successful.\n", __FUNCTION__);
+		dprintk(verbose, DST_DEBUG, 1, "read verify not successful.");
 		return -1;
 	}
 	if (reply != ACK) {
-		dprintk("%s: write not acknowledged 0x%02x \n", __FUNCTION__, reply);
+		dprintk(verbose, DST_DEBUG, 1, "write not acknowledged 0x%02x ", reply);
 		return 0;
 	}
 	state->diseq_flags |= ATTEMPT_TUNE;
@@ -1085,14 +1110,13 @@ static int dst_write_tuna(struct dvb_frontend* fe)
  * Diseqc 4    0x00, 0x08, 0x04, 0xe0, 0x10, 0x38, 0xfc, 0xe0
  */
 
-static int dst_set_diseqc(struct dvb_frontend* fe, struct dvb_diseqc_master_cmd* cmd)
+static int dst_set_diseqc(struct dvb_frontend *fe, struct dvb_diseqc_master_cmd *cmd)
 {
-	struct dst_state* state = fe->demodulator_priv;
+	struct dst_state *state = fe->demodulator_priv;
 	u8 paket[8] = { 0x00, 0x08, 0x04, 0xe0, 0x10, 0x38, 0xf0, 0xec };
 
 	if (state->dst_type != DST_TYPE_IS_SAT)
 		return 0;
-
 	if (cmd->msg_len == 0 || cmd->msg_len > 4)
 		return -EINVAL;
 	memcpy(&paket[3], cmd->msg, cmd->msg_len);
@@ -1101,65 +1125,61 @@ static int dst_set_diseqc(struct dvb_frontend* fe, struct dvb_diseqc_master_cmd*
 	return 0;
 }
 
-static int dst_set_voltage(struct dvb_frontend* fe, fe_sec_voltage_t voltage)
+static int dst_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 {
 	int need_cmd;
-	struct dst_state* state = fe->demodulator_priv;
+	struct dst_state *state = fe->demodulator_priv;
 
 	state->voltage = voltage;
-
 	if (state->dst_type != DST_TYPE_IS_SAT)
 		return 0;
 
 	need_cmd = 0;
+
 	switch (voltage) {
-		case SEC_VOLTAGE_13:
-		case SEC_VOLTAGE_18:
-			if ((state->diseq_flags & HAS_POWER) == 0)
-				need_cmd = 1;
-			state->diseq_flags |= HAS_POWER;
-			state->tx_tuna[4] = 0x01;
-			break;
-
-		case SEC_VOLTAGE_OFF:
+	case SEC_VOLTAGE_13:
+	case SEC_VOLTAGE_18:
+		if ((state->diseq_flags & HAS_POWER) == 0)
 			need_cmd = 1;
-			state->diseq_flags &= ~(HAS_POWER | HAS_LOCK | ATTEMPT_TUNE);
-			state->tx_tuna[4] = 0x00;
-			break;
-
-		default:
-			return -EINVAL;
+		state->diseq_flags |= HAS_POWER;
+		state->tx_tuna[4] = 0x01;
+		break;
+	case SEC_VOLTAGE_OFF:
+		need_cmd = 1;
+		state->diseq_flags &= ~(HAS_POWER | HAS_LOCK | ATTEMPT_TUNE);
+		state->tx_tuna[4] = 0x00;
+		break;
+	default:
+		return -EINVAL;
 	}
+
 	if (need_cmd)
 		dst_tone_power_cmd(state);
 
 	return 0;
 }
 
-static int dst_set_tone(struct dvb_frontend* fe, fe_sec_tone_mode_t tone)
+static int dst_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 {
-	struct dst_state* state = fe->demodulator_priv;
+	struct dst_state *state = fe->demodulator_priv;
 
 	state->tone = tone;
-
 	if (state->dst_type != DST_TYPE_IS_SAT)
 		return 0;
 
 	switch (tone) {
-		case SEC_TONE_OFF:
-			if (state->type_flags & DST_TYPE_HAS_OBS_REGS)
-			    state->tx_tuna[2] = 0x00;
-			else
-			    state->tx_tuna[2] = 0xff;
+	case SEC_TONE_OFF:
+		if (state->type_flags & DST_TYPE_HAS_OBS_REGS)
+		    state->tx_tuna[2] = 0x00;
+		else
+		    state->tx_tuna[2] = 0xff;
+		break;
 
-			break;
-
-		case SEC_TONE_ON:
-			state->tx_tuna[2] = 0x02;
-			break;
-
-		default:
-			return -EINVAL;
+	case SEC_TONE_ON:
+		state->tx_tuna[2] = 0x02;
+		break;
+	default:
+		return -EINVAL;
 	}
 	dst_tone_power_cmd(state);
 
@@ -1172,16 +1192,14 @@ static int dst_send_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t minicmd)
 
 	if (state->dst_type != DST_TYPE_IS_SAT)
 		return 0;
-
 	state->minicmd = minicmd;
-
 	switch (minicmd) {
-		case SEC_MINI_A:
-			state->tx_tuna[3] = 0x02;
-			break;
-		case SEC_MINI_B:
-			state->tx_tuna[3] = 0xff;
-			break;
+	case SEC_MINI_A:
+		state->tx_tuna[3] = 0x02;
+		break;
+	case SEC_MINI_B:
+		state->tx_tuna[3] = 0xff;
+		break;
 	}
 	dst_tone_power_cmd(state);
 
@@ -1189,42 +1207,37 @@ static int dst_send_burst(struct dvb_frontend *fe, fe_sec_mini_cmd_t minicmd)
 }
 
 
-static int dst_init(struct dvb_frontend* fe)
+static int dst_init(struct dvb_frontend *fe)
 {
-	struct dst_state* state = fe->demodulator_priv;
-	static u8 ini_satci_tuna[] = { 9, 0, 3, 0xb6, 1, 0, 0x73, 0x21, 0, 0 };
-	static u8 ini_satfta_tuna[] = { 0, 0, 3, 0xb6, 1, 0x55, 0xbd, 0x50, 0, 0 };
-	static u8 ini_tvfta_tuna[] = { 0, 0, 3, 0xb6, 1, 7, 0x0, 0x0, 0, 0 };
-	static u8 ini_tvci_tuna[] = { 9, 0, 3, 0xb6, 1, 7, 0x0, 0x0, 0, 0 };
-	static u8 ini_cabfta_tuna[] = { 0, 0, 3, 0xb6, 1, 7, 0x0, 0x0, 0, 0 };
-	static u8 ini_cabci_tuna[] = { 9, 0, 3, 0xb6, 1, 7, 0x0, 0x0, 0, 0 };
-//	state->inversion = INVERSION_ON;
+	struct dst_state *state = fe->demodulator_priv;
+
+	static u8 sat_tuna_188[] = { 0x09, 0x00, 0x03, 0xb6, 0x01, 0x00, 0x73, 0x21, 0x00, 0x00 };
+	static u8 sat_tuna_204[] = { 0x00, 0x00, 0x03, 0xb6, 0x01, 0x55, 0xbd, 0x50, 0x00, 0x00 };
+	static u8 ter_tuna_188[] = { 0x09, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
+	static u8 ter_tuna_204[] = { 0x00, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
+	static u8 cab_tuna_204[] = { 0x00, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
+	static u8 cab_tuna_188[] = { 0x09, 0x00, 0x03, 0xb6, 0x01, 0x07, 0x00, 0x00, 0x00, 0x00 };
+
 	state->inversion = INVERSION_OFF;
 	state->voltage = SEC_VOLTAGE_13;
 	state->tone = SEC_TONE_OFF;
-	state->symbol_rate = 29473000;
-	state->fec = FEC_AUTO;
 	state->diseq_flags = 0;
 	state->k22 = 0x02;
 	state->bandwidth = BANDWIDTH_7_MHZ;
 	state->cur_jiff = jiffies;
-	if (state->dst_type == DST_TYPE_IS_SAT) {
-		state->frequency = 950000;
-		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_NEWTUNE) ? ini_satci_tuna : ini_satfta_tuna), sizeof(ini_satfta_tuna));
-	} else if (state->dst_type == DST_TYPE_IS_TERR) {
-		state->frequency = 137000000;
-		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_NEWTUNE) ? ini_tvci_tuna : ini_tvfta_tuna), sizeof(ini_tvfta_tuna));
-	} else if (state->dst_type == DST_TYPE_IS_CABLE) {
-		state->frequency = 51000000;
-		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_NEWTUNE) ? ini_cabci_tuna : ini_cabfta_tuna), sizeof(ini_cabfta_tuna));
-	}
+	if (state->dst_type == DST_TYPE_IS_SAT)
+		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_NEWTUNE) ? sat_tuna_188 : sat_tuna_204), sizeof (sat_tuna_204));
+	else if (state->dst_type == DST_TYPE_IS_TERR)
+		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_NEWTUNE) ? ter_tuna_188 : ter_tuna_204), sizeof (ter_tuna_204));
+	else if (state->dst_type == DST_TYPE_IS_CABLE)
+		memcpy(state->tx_tuna, ((state->type_flags & DST_TYPE_HAS_NEWTUNE) ? cab_tuna_188 : cab_tuna_204), sizeof (cab_tuna_204));
 
 	return 0;
 }
 
-static int dst_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int dst_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
-	struct dst_state* state = fe->demodulator_priv;
+	struct dst_state *state = fe->demodulator_priv;
 
 	*status = 0;
 	if (state->diseq_flags & HAS_LOCK) {
@@ -1236,9 +1249,9 @@ static int dst_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	return 0;
 }
 
-static int dst_read_signal_strength(struct dvb_frontend* fe, u16* strength)
+static int dst_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 {
-	struct dst_state* state = fe->demodulator_priv;
+	struct dst_state *state = fe->demodulator_priv;
 
 	dst_get_signal(state);
 	*strength = state->decode_strength;
@@ -1246,9 +1259,9 @@ static int dst_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 	return 0;
 }
 
-static int dst_read_snr(struct dvb_frontend* fe, u16* snr)
+static int dst_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	struct dst_state* state = fe->demodulator_priv;
+	struct dst_state *state = fe->demodulator_priv;
 
 	dst_get_signal(state);
 	*snr = state->decode_snr;
@@ -1256,28 +1269,24 @@ static int dst_read_snr(struct dvb_frontend* fe, u16* snr)
 	return 0;
 }
 
-static int dst_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int dst_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
 {
-	struct dst_state* state = fe->demodulator_priv;
+	struct dst_state *state = fe->demodulator_priv;
 
 	dst_set_freq(state, p->frequency);
-	if (verbose > 4)
-		dprintk("Set Frequency=[%d]\n", p->frequency);
+	dprintk(verbose, DST_DEBUG, 1, "Set Frequency=[%d]", p->frequency);
 
-//	dst_set_inversion(state, p->inversion);
 	if (state->dst_type == DST_TYPE_IS_SAT) {
 		if (state->type_flags & DST_TYPE_HAS_OBS_REGS)
 			dst_set_inversion(state, p->inversion);
-
 		dst_set_fec(state, p->u.qpsk.fec_inner);
 		dst_set_symbolrate(state, p->u.qpsk.symbol_rate);
 		dst_set_polarization(state);
-		if (verbose > 4)
-			dprintk("Set Symbolrate=[%d]\n", p->u.qpsk.symbol_rate);
+		dprintk(verbose, DST_DEBUG, 1, "Set Symbolrate=[%d]", p->u.qpsk.symbol_rate);
 
-	} else if (state->dst_type == DST_TYPE_IS_TERR) {
+	} else if (state->dst_type == DST_TYPE_IS_TERR)
 		dst_set_bandwidth(state, p->u.ofdm.bandwidth);
-	} else if (state->dst_type == DST_TYPE_IS_CABLE) {
+	else if (state->dst_type == DST_TYPE_IS_CABLE) {
 		dst_set_fec(state, p->u.qam.fec_inner);
 		dst_set_symbolrate(state, p->u.qam.symbol_rate);
 		dst_set_modulation(state, p->u.qam.modulation);
@@ -1287,16 +1296,14 @@ static int dst_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_paramet
 	return 0;
 }
 
-static int dst_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int dst_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
 {
-	struct dst_state* state = fe->demodulator_priv;
+	struct dst_state *state = fe->demodulator_priv;
 
 	p->frequency = state->decode_freq;
-//	p->inversion = state->inversion;
 	if (state->dst_type == DST_TYPE_IS_SAT) {
 		if (state->type_flags & DST_TYPE_HAS_OBS_REGS)
 			p->inversion = state->inversion;
-
 		p->u.qpsk.symbol_rate = state->symbol_rate;
 		p->u.qpsk.fec_inner = dst_get_fec(state);
 	} else if (state->dst_type == DST_TYPE_IS_TERR) {
@@ -1304,16 +1311,15 @@ static int dst_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_paramet
 	} else if (state->dst_type == DST_TYPE_IS_CABLE) {
 		p->u.qam.symbol_rate = state->symbol_rate;
 		p->u.qam.fec_inner = dst_get_fec(state);
-//		p->u.qam.modulation = QAM_AUTO;
 		p->u.qam.modulation = dst_get_modulation(state);
 	}
 
 	return 0;
 }
 
-static void dst_release(struct dvb_frontend* fe)
+static void dst_release(struct dvb_frontend *fe)
 {
-	struct dst_state* state = fe->demodulator_priv;
+	struct dst_state *state = fe->demodulator_priv;
 	kfree(state);
 }
 
@@ -1321,9 +1327,8 @@ static struct dvb_frontend_ops dst_dvbt_ops;
 static struct dvb_frontend_ops dst_dvbs_ops;
 static struct dvb_frontend_ops dst_dvbc_ops;
 
-struct dst_state* dst_attach(struct dst_state *state, struct dvb_adapter *dvb_adapter)
+struct dst_state *dst_attach(struct dst_state *state, struct dvb_adapter *dvb_adapter)
 {
-
 	/* check if the ASIC is there */
 	if (dst_probe(state) < 0) {
 		if (state)
@@ -1336,17 +1341,14 @@ struct dst_state* dst_attach(struct dst_state *state, struct dvb_adapter *dvb_ad
 	case DST_TYPE_IS_TERR:
 		memcpy(&state->ops, &dst_dvbt_ops, sizeof(struct dvb_frontend_ops));
 		break;
-
 	case DST_TYPE_IS_CABLE:
 		memcpy(&state->ops, &dst_dvbc_ops, sizeof(struct dvb_frontend_ops));
 		break;
-
 	case DST_TYPE_IS_SAT:
 		memcpy(&state->ops, &dst_dvbs_ops, sizeof(struct dvb_frontend_ops));
 		break;
-
 	default:
-		printk("%s: unknown DST type. please report to the LinuxTV.org DVB mailinglist.\n", __FUNCTION__);
+		dprintk(verbose, DST_ERROR, 1, "unknown DST type. please report to the LinuxTV.org DVB mailinglist.");
 		if (state)
 			kfree(state);
 
@@ -1374,12 +1376,9 @@ static struct dvb_frontend_ops dst_dvbt_ops = {
 	},
 
 	.release = dst_release,
-
 	.init = dst_init,
-
 	.set_frontend = dst_set_frontend,
 	.get_frontend = dst_get_frontend,
-
 	.read_status = dst_read_status,
 	.read_signal_strength = dst_read_signal_strength,
 	.read_snr = dst_read_snr,
@@ -1401,16 +1400,12 @@ static struct dvb_frontend_ops dst_dvbs_ops = {
 	},
 
 	.release = dst_release,
-
 	.init = dst_init,
-
 	.set_frontend = dst_set_frontend,
 	.get_frontend = dst_get_frontend,
-
 	.read_status = dst_read_status,
 	.read_signal_strength = dst_read_signal_strength,
 	.read_snr = dst_read_snr,
-
 	.diseqc_send_burst = dst_send_burst,
 	.diseqc_send_master_cmd = dst_set_diseqc,
 	.set_voltage = dst_set_voltage,
@@ -1432,17 +1427,13 @@ static struct dvb_frontend_ops dst_dvbc_ops = {
 	},
 
 	.release = dst_release,
-
 	.init = dst_init,
-
 	.set_frontend = dst_set_frontend,
 	.get_frontend = dst_get_frontend,
-
 	.read_status = dst_read_status,
 	.read_signal_strength = dst_read_signal_strength,
 	.read_snr = dst_read_snr,
 };
-
 
 MODULE_DESCRIPTION("DST DVB-S/T/C Combo Frontend driver");
 MODULE_AUTHOR("Jamie Honan, Manu Abraham");

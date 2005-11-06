@@ -18,7 +18,6 @@
 #include <asm/a.out.h>
 #include <asm/pstate.h>
 #include <asm/ptrace.h>
-#include <asm/segment.h>
 #include <asm/page.h>
 
 /* The sparc has no problems with write protection */

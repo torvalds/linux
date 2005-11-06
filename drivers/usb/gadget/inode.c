@@ -483,6 +483,7 @@ ep_release (struct inode *inode, struct file *fd)
 		data->state = STATE_EP_DISABLED;
 		data->desc.bDescriptorType = 0;
 		data->hs_desc.bDescriptorType = 0;
+		usb_ep_disable(data->ep);
 	}
 	put_ep (data);
 	return 0;

@@ -107,7 +107,7 @@ static force_inline long time_syscall(long *t)
 	return secs;
 }
 
-static int __vsyscall(0) vgettimeofday(struct timeval * tv, struct timezone * tz)
+int __vsyscall(0) vgettimeofday(struct timeval * tv, struct timezone * tz)
 {
 	if (unlikely(!__sysctl_vsyscall))
 		return gettimeofday(tv,tz);
@@ -120,7 +120,7 @@ static int __vsyscall(0) vgettimeofday(struct timeval * tv, struct timezone * tz
 
 /* This will break when the xtime seconds get inaccurate, but that is
  * unlikely */
-static time_t __vsyscall(1) vtime(time_t *t)
+time_t __vsyscall(1) vtime(time_t *t)
 {
 	if (unlikely(!__sysctl_vsyscall))
 		return time_syscall(t);
@@ -129,12 +129,12 @@ static time_t __vsyscall(1) vtime(time_t *t)
 	return __xtime.tv_sec;
 }
 
-static long __vsyscall(2) venosys_0(void)
+long __vsyscall(2) venosys_0(void)
 {
 	return -ENOSYS;
 }
 
-static long __vsyscall(3) venosys_1(void)
+long __vsyscall(3) venosys_1(void)
 {
 	return -ENOSYS;
 }

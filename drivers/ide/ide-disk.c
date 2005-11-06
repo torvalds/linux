@@ -754,7 +754,7 @@ static int idedisk_issue_flush(request_queue_t *q, struct gendisk *disk,
 
 	idedisk_prepare_flush(q, rq);
 
-	ret = blk_execute_rq(q, disk, rq);
+	ret = blk_execute_rq(q, disk, rq, 0);
 
 	/*
 	 * if we failed and caller wants error offset, get it
@@ -1220,7 +1220,7 @@ static int ide_disk_probe(struct device *dev)
 		goto failed;
 
 	g = alloc_disk_node(1 << PARTN_BITS,
-			pcibus_to_node(drive->hwif->pci_dev->bus));
+			hwif_to_node(drive->hwif));
 	if (!g)
 		goto out_free_idkp;
 

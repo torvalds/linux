@@ -120,15 +120,6 @@ haveOF:
 	mtspr	SPRN_DER,r4
 #endif
 
-#ifdef CONFIG_REDWOOD_4
-	/* All of this Redwood 4 stuff will soon disappear when the
-	 * boot rom is straightened out.
-	 */
-	mr	r29, r3		/* Easier than changing the other code */
-	bl	HdwInit
-	mr	r3, r29
-#endif
-
 #if defined(CONFIG_MBX) || defined(CONFIG_RPX8260) || defined(CONFIG_PPC_PREP)
 	mr	r4,r29	/* put the board info pointer where the relocate
 			 * routine will find it

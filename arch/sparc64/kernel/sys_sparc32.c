@@ -1002,29 +1002,7 @@ asmlinkage long sys32_adjtimex(struct timex32 __user *utp)
 asmlinkage long sparc32_open(const char __user *filename,
 			     int flags, int mode)
 {
-	char * tmp;
-	int fd, error;
-
-	tmp = getname(filename);
-	fd = PTR_ERR(tmp);
-	if (!IS_ERR(tmp)) {
-		fd = get_unused_fd();
-		if (fd >= 0) {
-			struct file * f = filp_open(tmp, flags, mode);
-			error = PTR_ERR(f);
-			if (IS_ERR(f))
-				goto out_error;
-			fd_install(fd, f);
-		}
-out:
-		putname(tmp);
-	}
-	return fd;
-
-out_error:
-	put_unused_fd(fd);
-	fd = error;
-	goto out;
+	return do_sys_open(filename, flags, mode);
 }
 
 extern unsigned long do_mremap(unsigned long addr,

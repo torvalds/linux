@@ -17,7 +17,7 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_ioctl.h>
-#include <scsi/scsi_request.h>
+#include <scsi/scsi_cmnd.h>
 
 #include "sr.h"
 
@@ -84,41 +84,37 @@ static int sr_fake_playtrkind(struct cdrom_device_info *cdi, struct cdrom_ti *ti
 
 int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 {
-	struct scsi_request *SRpnt;
 	struct scsi_device *SDev;
-        struct request *req;
+	struct scsi_sense_hdr sshdr;
 	int result, err = 0, retries = 0;
+	struct request_sense *sense = cgc->sense;
 
 	SDev = cd->device;
-	SRpnt = scsi_allocate_request(SDev, GFP_KERNEL);
-        if (!SRpnt) {
-                printk(KERN_ERR "Unable to allocate SCSI request in sr_do_ioctl");
-		err = -ENOMEM;
-		goto out;
-        }
-	SRpnt->sr_data_direction = cgc->data_direction;
+
+	if (!sense) {
+		sense = kmalloc(sizeof(*sense), GFP_KERNEL);
+		if (!sense) {
+			err = -ENOMEM;
+			goto out;
+		}
+	}
 
       retry:
 	if (!scsi_block_when_processing_errors(SDev)) {
 		err = -ENODEV;
-		goto out_free;
+		goto out;
 	}
 
-	scsi_wait_req(SRpnt, cgc->cmd, cgc->buffer, cgc->buflen,
-		      cgc->timeout, IOCTL_RETRIES);
+	memset(sense, 0, sizeof(*sense));
+	result = scsi_execute(SDev, cgc->cmd, cgc->data_direction,
+			      cgc->buffer, cgc->buflen, (char *)sense,
+			      cgc->timeout, IOCTL_RETRIES, 0);
 
-	req = SRpnt->sr_request;
-	if (SRpnt->sr_buffer && req->buffer && SRpnt->sr_buffer != req->buffer) {
-		memcpy(req->buffer, SRpnt->sr_buffer, SRpnt->sr_bufflen);
-		kfree(SRpnt->sr_buffer);
-		SRpnt->sr_buffer = req->buffer;
-        }
-
-	result = SRpnt->sr_result;
+	scsi_normalize_sense((char *)sense, sizeof(*sense), &sshdr);
 
 	/* Minimal error checking.  Ignore cases we know about, and report the rest. */
 	if (driver_byte(result) != 0) {
-		switch (SRpnt->sr_sense_buffer[2] & 0xf) {
+		switch (sshdr.sense_key) {
 		case UNIT_ATTENTION:
 			SDev->changed = 1;
 			if (!cgc->quiet)
@@ -128,8 +124,8 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 			err = -ENOMEDIUM;
 			break;
 		case NOT_READY:	/* This happens if there is no disc in drive */
-			if (SRpnt->sr_sense_buffer[12] == 0x04 &&
-			    SRpnt->sr_sense_buffer[13] == 0x01) {
+			if (sshdr.asc == 0x04 &&
+			    sshdr.ascq == 0x01) {
 				/* sense: Logical unit is in process of becoming ready */
 				if (!cgc->quiet)
 					printk(KERN_INFO "%s: CDROM not ready yet.\n", cd->cdi.name);
@@ -146,37 +142,33 @@ int sr_do_ioctl(Scsi_CD *cd, struct packet_command *cgc)
 			if (!cgc->quiet)
 				printk(KERN_INFO "%s: CDROM not ready.  Make sure there is a disc in the drive.\n", cd->cdi.name);
 #ifdef DEBUG
-			scsi_print_req_sense("sr", SRpnt);
+			scsi_print_sense_hdr("sr", &sshdr);
 #endif
 			err = -ENOMEDIUM;
 			break;
 		case ILLEGAL_REQUEST:
 			err = -EIO;
-			if (SRpnt->sr_sense_buffer[12] == 0x20 &&
-			    SRpnt->sr_sense_buffer[13] == 0x00)
+			if (sshdr.asc == 0x20 &&
+			    sshdr.ascq == 0x00)
 				/* sense: Invalid command operation code */
 				err = -EDRIVE_CANT_DO_THIS;
 #ifdef DEBUG
 			__scsi_print_command(cgc->cmd);
-			scsi_print_req_sense("sr", SRpnt);
+			scsi_print_sense_hdr("sr", &sshdr);
 #endif
 			break;
 		default:
 			printk(KERN_ERR "%s: CDROM (ioctl) error, command: ", cd->cdi.name);
 			__scsi_print_command(cgc->cmd);
-			scsi_print_req_sense("sr", SRpnt);
+			scsi_print_sense_hdr("sr", &sshdr);
 			err = -EIO;
 		}
 	}
 
-	if (cgc->sense)
-		memcpy(cgc->sense, SRpnt->sr_sense_buffer, sizeof(*cgc->sense));
-
 	/* Wake up a process waiting for device */
-      out_free:
-	scsi_release_request(SRpnt);
-	SRpnt = NULL;
       out:
+	if (!cgc->sense)
+		kfree(sense);
 	cgc->stat = err;
 	return err;
 }

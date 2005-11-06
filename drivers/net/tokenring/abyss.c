@@ -139,7 +139,7 @@ static int __devinit abyss_attach(struct pci_dev *pdev, const struct pci_device_
 	 */
 	dev->base_addr += 0x10;
 		
-	ret = tmsdev_init(dev, PCI_MAX_ADDRESS, pdev);
+	ret = tmsdev_init(dev, &pdev->dev);
 	if (ret) {
 		printk("%s: unable to get memory for dev->priv.\n", 
 		       dev->name);

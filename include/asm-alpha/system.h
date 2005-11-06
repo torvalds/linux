@@ -4,6 +4,7 @@
 #include <linux/config.h>
 #include <asm/pal.h>
 #include <asm/page.h>
+#include <asm/barrier.h>
 
 /*
  * System defines.. Note that this is included both from .c and .S
@@ -138,36 +139,6 @@ extern void halt(void) __attribute__((noreturn));
 
 struct task_struct;
 extern struct task_struct *alpha_switch_to(unsigned long, struct task_struct*);
-
-#define mb() \
-__asm__ __volatile__("mb": : :"memory")
-
-#define rmb() \
-__asm__ __volatile__("mb": : :"memory")
-
-#define wmb() \
-__asm__ __volatile__("wmb": : :"memory")
-
-#define read_barrier_depends() \
-__asm__ __volatile__("mb": : :"memory")
-
-#ifdef CONFIG_SMP
-#define smp_mb()	mb()
-#define smp_rmb()	rmb()
-#define smp_wmb()	wmb()
-#define smp_read_barrier_depends()	read_barrier_depends()
-#else
-#define smp_mb()	barrier()
-#define smp_rmb()	barrier()
-#define smp_wmb()	barrier()
-#define smp_read_barrier_depends()	barrier()
-#endif
-
-#define set_mb(var, value) \
-do { var = value; mb(); } while (0)
-
-#define set_wmb(var, value) \
-do { var = value; wmb(); } while (0)
 
 #define imb() \
 __asm__ __volatile__ ("call_pal %0 #imb" : : "i" (PAL_imb) : "memory")
@@ -443,22 +414,19 @@ __xchg_u64(volatile long *m, unsigned long val)
    if something tries to do an invalid xchg().  */
 extern void __xchg_called_with_bad_pointer(void);
 
-static inline unsigned long
-__xchg(volatile void *ptr, unsigned long x, int size)
-{
-	switch (size) {
-		case 1:
-			return __xchg_u8(ptr, x);
-		case 2:
-			return __xchg_u16(ptr, x);
-		case 4:
-			return __xchg_u32(ptr, x);
-		case 8:
-			return __xchg_u64(ptr, x);
-	}
-	__xchg_called_with_bad_pointer();
-	return x;
-}
+#define __xchg(ptr, x, size) \
+({ \
+	unsigned long __xchg__res; \
+	volatile void *__xchg__ptr = (ptr); \
+	switch (size) { \
+		case 1: __xchg__res = __xchg_u8(__xchg__ptr, x); break; \
+		case 2: __xchg__res = __xchg_u16(__xchg__ptr, x); break; \
+		case 4: __xchg__res = __xchg_u32(__xchg__ptr, x); break; \
+		case 8: __xchg__res = __xchg_u64(__xchg__ptr, x); break; \
+		default: __xchg_called_with_bad_pointer(); __xchg__res = x; \
+	} \
+	__xchg__res; \
+})
 
 #define xchg(ptr,x)							     \
   ({									     \

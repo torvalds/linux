@@ -1,32 +1,35 @@
 /*
-   libata.h - helper library for ATA
-
-   Copyright 2003-2004 Red Hat, Inc.  All rights reserved.
-   Copyright 2003-2004 Jeff Garzik
-
-   The contents of this file are subject to the Open
-   Software License version 1.1 that can be found at
-   http://www.opensource.org/licenses/osl-1.1.txt and is included herein
-   by reference.
-
-   Alternatively, the contents of this file may be used under the terms
-   of the GNU General Public License version 2 (the "GPL") as distributed
-   in the kernel source COPYING file, in which case the provisions of
-   the GPL are applicable instead of the above.  If you wish to allow
-   the use of your version of this file only under the terms of the
-   GPL and not to allow others to use your version of this file under
-   the OSL, indicate your decision by deleting the provisions above and
-   replace them with the notice and other provisions required by the GPL.
-   If you do not delete the provisions above, a recipient may use your
-   version of this file under either the OSL or the GPL.
-
+ *  libata.h - helper library for ATA
+ *
+ *  Copyright 2003-2004 Red Hat, Inc.  All rights reserved.
+ *  Copyright 2003-2004 Jeff Garzik
+ *
+ *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2, or (at your option)
+ *  any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; see the file COPYING.  If not, write to
+ *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
+ *  libata documentation is available via 'make {ps|pdf}docs',
+ *  as Documentation/DocBook/libata.*
+ *
  */
 
 #ifndef __LIBATA_H__
 #define __LIBATA_H__
 
 #define DRV_NAME	"libata"
-#define DRV_VERSION	"1.11"	/* must be exactly four chars */
+#define DRV_VERSION	"1.12"	/* must be exactly four chars */
 
 struct ata_scsi_args {
 	u16			*id;
@@ -35,19 +38,25 @@ struct ata_scsi_args {
 };
 
 /* libata-core.c */
+extern int atapi_enabled;
+extern int ata_qc_complete_noop(struct ata_queued_cmd *qc, unsigned int err_mask);
 extern struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 				      struct ata_device *dev);
+extern void ata_rwcmd_protocol(struct ata_queued_cmd *qc);
 extern void ata_qc_free(struct ata_queued_cmd *qc);
 extern int ata_qc_issue(struct ata_queued_cmd *qc);
 extern int ata_check_atapi_dma(struct ata_queued_cmd *qc);
 extern void ata_dev_select(struct ata_port *ap, unsigned int device,
                            unsigned int wait, unsigned int can_sleep);
-extern void ata_tf_to_host_nolock(struct ata_port *ap, struct ata_taskfile *tf);
 extern void swap_buf_le16(u16 *buf, unsigned int buf_words);
+extern int ata_task_ioctl(struct scsi_device *scsidev, void __user *arg);
+extern int ata_cmd_ioctl(struct scsi_device *scsidev, void __user *arg);
 
 
 /* libata-scsi.c */
-extern void ata_to_sense_error(struct ata_queued_cmd *qc, u8 drv_stat);
+extern void atapi_request_sense(struct ata_port *ap, struct ata_device *dev,
+			 struct scsi_cmnd *cmd);
+extern void ata_scsi_scan_host(struct ata_port *ap);
 extern int ata_scsi_error(struct Scsi_Host *host);
 extern unsigned int ata_scsiop_inq_std(struct ata_scsi_args *args, u8 *rbuf,
 			       unsigned int buflen);
@@ -72,18 +81,10 @@ extern unsigned int ata_scsiop_report_luns(struct ata_scsi_args *args, u8 *rbuf,
 extern void ata_scsi_badcmd(struct scsi_cmnd *cmd,
 			    void (*done)(struct scsi_cmnd *),
 			    u8 asc, u8 ascq);
-extern void ata_scsi_rbuf_fill(struct ata_scsi_args *args, 
+extern void ata_scsi_set_sense(struct scsi_cmnd *cmd,
+			       u8 sk, u8 asc, u8 ascq);
+extern void ata_scsi_rbuf_fill(struct ata_scsi_args *args,
                         unsigned int (*actor) (struct ata_scsi_args *args,
                                            u8 *rbuf, unsigned int buflen));
-
-static inline void ata_bad_scsiop(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
-{
-	ata_scsi_badcmd(cmd, done, 0x20, 0x00);
-}
-
-static inline void ata_bad_cdb(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
-{
-	ata_scsi_badcmd(cmd, done, 0x24, 0x00);
-}
 
 #endif /* __LIBATA_H__ */

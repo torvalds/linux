@@ -27,7 +27,7 @@
  * but we keep the old value on MIPS32,
  * for compatibility:
  */
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 # define RLIM_INFINITY		0x7fffffffUL
 #endif
 

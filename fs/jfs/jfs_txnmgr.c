@@ -552,6 +552,11 @@ void txEnd(tid_t tid)
 		 * synchronize with logsync barrier
 		 */
 		if (test_bit(log_SYNCBARRIER, &log->flag)) {
+			TXN_UNLOCK();
+
+			/* write dirty metadata & forward log syncpt */
+			jfs_syncpt(log, 1);
+
 			jfs_info("log barrier off: 0x%x", log->lsn);
 
 			/* enable new transactions start */
@@ -559,11 +564,6 @@ void txEnd(tid_t tid)
 
 			/* wakeup all waitors for logsync barrier */
 			TXN_WAKEUP(&log->syncwait);
-
-			TXN_UNLOCK();
-
-			/* forward log syncpt */
-			jfs_syncpt(log);
 
 			goto wakeup;
 		}
@@ -657,7 +657,9 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 				/* only anonymous txn.
 				 * Remove from anon_list
 				 */
+				TXN_LOCK();
 				list_del_init(&jfs_ip->anon_inode_list);
+				TXN_UNLOCK();
 			}
 			jfs_ip->atlhead = tlck->next;
 		} else {
@@ -722,6 +724,9 @@ struct tlock *txLock(tid_t tid, struct inode *ip, struct metapage * mp,
 	/* mark tlock for in-memory inode */
 	else
 		tlck->flag = tlckINODELOCK;
+
+	if (S_ISDIR(ip->i_mode))
+		tlck->flag |= tlckDIRECTORY;
 
 	tlck->type = 0;
 
@@ -1007,6 +1012,8 @@ struct tlock *txMaplock(tid_t tid, struct inode *ip, int type)
 
 	/* bind the tlock and the object */
 	tlck->flag = tlckINODELOCK;
+	if (S_ISDIR(ip->i_mode))
+		tlck->flag |= tlckDIRECTORY;
 	tlck->ip = ip;
 	tlck->mp = NULL;
 
@@ -1075,6 +1082,8 @@ struct linelock *txLinelock(struct linelock * tlock)
 	linelock->flag = tlckLINELOCK;
 	linelock->maxcnt = TLOCKLONG;
 	linelock->index = 0;
+	if (tlck->flag & tlckDIRECTORY)
+		linelock->flag |= tlckDIRECTORY;
 
 	/* append linelock after tlock */
 	linelock->next = tlock->next;
@@ -2068,8 +2077,8 @@ static void xtLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
  *
  * function:    log from maplock of freed data extents;
  */
-void mapLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
-	    struct tlock * tlck)
+static void mapLog(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
+		   struct tlock * tlck)
 {
 	struct pxd_lock *pxdlock;
 	int i, nlock;
@@ -2207,7 +2216,7 @@ void txEA(tid_t tid, struct inode *ip, dxd_t * oldea, dxd_t * newea)
  * function: synchronously write pages locked by transaction
  *              after txLog() but before txUpdateMap();
  */
-void txForce(struct tblock * tblk)
+static void txForce(struct tblock * tblk)
 {
 	struct tlock *tlck;
 	lid_t lid, next;
@@ -2356,7 +2365,7 @@ static void txUpdateMap(struct tblock * tblk)
 			 */
 			else {	/* (maplock->flag & mlckFREE) */
 
-				if (S_ISDIR(tlck->ip->i_mode))
+				if (tlck->flag & tlckDIRECTORY)
 					txFreeMap(ipimap, maplock,
 						  tblk, COMMIT_PWMAP);
 				else
@@ -2387,7 +2396,6 @@ static void txUpdateMap(struct tblock * tblk)
 	 */
 	if (tblk->xflag & COMMIT_CREATE) {
 		diUpdatePMap(ipimap, tblk->ino, FALSE, tblk);
-		ipimap->i_state |= I_DIRTY;
 		/* update persistent block allocation map
 		 * for the allocation of inode extent;
 		 */
@@ -2398,7 +2406,6 @@ static void txUpdateMap(struct tblock * tblk)
 	} else if (tblk->xflag & COMMIT_DELETE) {
 		ip = tblk->u.ip;
 		diUpdatePMap(ipimap, ip->i_ino, TRUE, tblk);
-		ipimap->i_state |= I_DIRTY;
 		iput(ip);
 	}
 }

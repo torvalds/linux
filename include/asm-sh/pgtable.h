@@ -224,8 +224,6 @@ static inline pgprot_t pgprot_noncached(pgprot_t _prot)
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 { set_pte(&pte, __pte((pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot))); return pte; }
 
-#define page_pte(page) page_pte_prot(page, __pgprot(0))
-
 #define pmd_page_kernel(pmd) \
 ((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
 
@@ -276,9 +274,6 @@ typedef pte_t *pte_addr_t;
 #endif /* !__ASSEMBLY__ */
 
 #define kern_addr_valid(addr)	(1)
-
-#define io_remap_page_range(vma, vaddr, paddr, size, prot)		\
-		remap_pfn_range(vma, vaddr, (paddr) >> PAGE_SHIFT, size, prot)
 
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)

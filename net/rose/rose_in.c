@@ -26,8 +26,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <net/ip.h>			/* For ip_rcv */
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <asm/system.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>

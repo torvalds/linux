@@ -130,7 +130,7 @@ static void rs_stop(struct tty_struct *tty)
 
 static void rs_start(struct tty_struct *tty)
 {
-#if SIMSERIAL_DEBUG
+#ifdef SIMSERIAL_DEBUG
 	printk("rs_start: tty->stopped=%d tty->hw_stopped=%d tty->flow_stopped=%d\n",
 		tty->stopped, tty->hw_stopped, tty->flow_stopped);
 #endif

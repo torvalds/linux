@@ -240,7 +240,7 @@ console_initcall(v850e_uart_console_init);
 
 /* TX/RX interrupt handlers.  */
 
-static void v850e_uart_stop_tx (struct uart_port *port, unsigned tty_stop);
+static void v850e_uart_stop_tx (struct uart_port *port);
 
 void v850e_uart_tx (struct uart_port *port)
 {
@@ -339,14 +339,14 @@ static unsigned v850e_uart_get_mctrl (struct uart_port *port)
 	return mctrl;
 }
 
-static void v850e_uart_start_tx (struct uart_port *port, unsigned tty_start)
+static void v850e_uart_start_tx (struct uart_port *port)
 {
 	v850e_intc_disable_irq (V850E_UART_TX_IRQ (port->line));
 	v850e_uart_tx (port);
 	v850e_intc_enable_irq (V850E_UART_TX_IRQ (port->line));
 }
 
-static void v850e_uart_stop_tx (struct uart_port *port, unsigned tty_stop)
+static void v850e_uart_stop_tx (struct uart_port *port)
 {
 	v850e_intc_disable_irq (V850E_UART_TX_IRQ (port->line));
 }

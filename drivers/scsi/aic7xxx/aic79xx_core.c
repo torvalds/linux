@@ -52,8 +52,6 @@
 #include <dev/aic7xxx/aicasm/aicasm_insformat.h>
 #endif
 
-/******************************** Globals *************************************/
-struct ahd_softc_tailq ahd_tailq = TAILQ_HEAD_INITIALIZER(ahd_tailq);
 
 /***************************** Lookup Tables **********************************/
 char *ahd_chip_names[] =
@@ -5180,74 +5178,6 @@ ahd_softc_init(struct ahd_softc *ahd)
 }
 
 void
-ahd_softc_insert(struct ahd_softc *ahd)
-{
-	struct ahd_softc *list_ahd;
-
-#if AHD_PCI_CONFIG > 0
-	/*
-	 * Second Function PCI devices need to inherit some
-	 * settings from function 0.
-	 */
-	if ((ahd->features & AHD_MULTI_FUNC) != 0) {
-		TAILQ_FOREACH(list_ahd, &ahd_tailq, links) {
-			ahd_dev_softc_t list_pci;
-			ahd_dev_softc_t pci;
-
-			list_pci = list_ahd->dev_softc;
-			pci = ahd->dev_softc;
-			if (ahd_get_pci_slot(list_pci) == ahd_get_pci_slot(pci)
-			 && ahd_get_pci_bus(list_pci) == ahd_get_pci_bus(pci)) {
-				struct ahd_softc *master;
-				struct ahd_softc *slave;
-
-				if (ahd_get_pci_function(list_pci) == 0) {
-					master = list_ahd;
-					slave = ahd;
-				} else {
-					master = ahd;
-					slave = list_ahd;
-				}
-				slave->flags &= ~AHD_BIOS_ENABLED; 
-				slave->flags |=
-				    master->flags & AHD_BIOS_ENABLED;
-				break;
-			}
-		}
-	}
-#endif
-
-	/*
-	 * Insertion sort into our list of softcs.
-	 */
-	list_ahd = TAILQ_FIRST(&ahd_tailq);
-	while (list_ahd != NULL
-	    && ahd_softc_comp(ahd, list_ahd) <= 0)
-		list_ahd = TAILQ_NEXT(list_ahd, links);
-	if (list_ahd != NULL)
-		TAILQ_INSERT_BEFORE(list_ahd, ahd, links);
-	else
-		TAILQ_INSERT_TAIL(&ahd_tailq, ahd, links);
-	ahd->init_level++;
-}
-
-/*
- * Verify that the passed in softc pointer is for a
- * controller that is still configured.
- */
-struct ahd_softc *
-ahd_find_softc(struct ahd_softc *ahd)
-{
-	struct ahd_softc *list_ahd;
-
-	TAILQ_FOREACH(list_ahd, &ahd_tailq, links) {
-		if (list_ahd == ahd)
-			return (ahd);
-	}
-	return (NULL);
-}
-
-void
 ahd_set_unit(struct ahd_softc *ahd, int unit)
 {
 	ahd->unit = unit;
@@ -7902,18 +7832,10 @@ ahd_reset_channel(struct ahd_softc *ahd, char channel, int initiate_reset)
 static void
 ahd_reset_poll(void *arg)
 {
-	struct	ahd_softc *ahd;
+	struct	ahd_softc *ahd = arg;
 	u_int	scsiseq1;
-	u_long	l;
 	u_long	s;
 	
-	ahd_list_lock(&l);
-	ahd = ahd_find_softc((struct ahd_softc *)arg);
-	if (ahd == NULL) {
-		printf("ahd_reset_poll: Instance %p no longer exists\n", arg);
-		ahd_list_unlock(&l);
-		return;
-	}
 	ahd_lock(ahd, &s);
 	ahd_pause(ahd);
 	ahd_update_modes(ahd);
@@ -7924,7 +7846,6 @@ ahd_reset_poll(void *arg)
 				ahd_reset_poll, ahd);
 		ahd_unpause(ahd);
 		ahd_unlock(ahd, &s);
-		ahd_list_unlock(&l);
 		return;
 	}
 
@@ -7936,25 +7857,16 @@ ahd_reset_poll(void *arg)
 	ahd->flags &= ~AHD_RESET_POLL_ACTIVE;
 	ahd_unlock(ahd, &s);
 	ahd_release_simq(ahd);
-	ahd_list_unlock(&l);
 }
 
 /**************************** Statistics Processing ***************************/
 static void
 ahd_stat_timer(void *arg)
 {
-	struct	ahd_softc *ahd;
-	u_long	l;
+	struct	ahd_softc *ahd = arg;
 	u_long	s;
 	int	enint_coal;
 	
-	ahd_list_lock(&l);
-	ahd = ahd_find_softc((struct ahd_softc *)arg);
-	if (ahd == NULL) {
-		printf("ahd_stat_timer: Instance %p no longer exists\n", arg);
-		ahd_list_unlock(&l);
-		return;
-	}
 	ahd_lock(ahd, &s);
 
 	enint_coal = ahd->hs_mailbox & ENINT_COALESCE;
@@ -7981,7 +7893,6 @@ ahd_stat_timer(void *arg)
 	ahd_timer_reset(&ahd->stat_timer, AHD_STAT_UPDATE_US,
 			ahd_stat_timer, ahd);
 	ahd_unlock(ahd, &s);
-	ahd_list_unlock(&l);
 }
 
 /****************************** Status Processing *****************************/
@@ -8745,16 +8656,6 @@ sized:
 	return (last_probe);
 }
 
-void
-ahd_dump_all_cards_state(void)
-{
-	struct ahd_softc *list_ahd;
-
-	TAILQ_FOREACH(list_ahd, &ahd_tailq, links) {
-		ahd_dump_card_state(list_ahd);
-	}
-}
-
 int
 ahd_print_register(ahd_reg_parse_entry_t *table, u_int num_entries,
 		   const char *name, u_int address, u_int value,
@@ -9039,7 +8940,6 @@ ahd_dump_card_state(struct ahd_softc *ahd)
 		ahd_outb(ahd, STACK, (ahd->saved_stack[i] >> 8) & 0xFF);
 	}
 	printf("\n<<<<<<<<<<<<<<<<< Dump Card State Ends >>>>>>>>>>>>>>>>>>\n");
-	ahd_platform_dump_card_state(ahd);
 	ahd_restore_modes(ahd, saved_modes);
 	if (paused == 0)
 		ahd_unpause(ahd);

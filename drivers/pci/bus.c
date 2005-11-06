@@ -140,15 +140,64 @@ void __devinit pci_bus_add_devices(struct pci_bus *bus)
 void pci_enable_bridges(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
+	int retval;
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		if (dev->subordinate) {
-			pci_enable_device(dev);
+			retval = pci_enable_device(dev);
 			pci_set_master(dev);
 			pci_enable_bridges(dev->subordinate);
 		}
 	}
 }
+
+/** pci_walk_bus - walk devices on/under bus, calling callback.
+ *  @top      bus whose devices should be walked
+ *  @cb       callback to be called for each device found
+ *  @userdata arbitrary pointer to be passed to callback.
+ *
+ *  Walk the given bus, including any bridged devices
+ *  on buses under this bus.  Call the provided callback
+ *  on each device found.
+ */
+void pci_walk_bus(struct pci_bus *top, void (*cb)(struct pci_dev *, void *),
+		  void *userdata)
+{
+	struct pci_dev *dev;
+	struct pci_bus *bus;
+	struct list_head *next;
+
+	bus = top;
+	spin_lock(&pci_bus_lock);
+	next = top->devices.next;
+	for (;;) {
+		if (next == &bus->devices) {
+			/* end of this bus, go up or finish */
+			if (bus == top)
+				break;
+			next = bus->self->bus_list.next;
+			bus = bus->self->bus;
+			continue;
+		}
+		dev = list_entry(next, struct pci_dev, bus_list);
+		pci_dev_get(dev);
+		if (dev->subordinate) {
+			/* this is a pci-pci bridge, do its devices next */
+			next = dev->subordinate->devices.next;
+			bus = dev->subordinate;
+		} else
+			next = dev->bus_list.next;
+		spin_unlock(&pci_bus_lock);
+
+		/* Run device routines with the bus unlocked */
+		cb(dev, userdata);
+
+		spin_lock(&pci_bus_lock);
+		pci_dev_put(dev);
+	}
+	spin_unlock(&pci_bus_lock);
+}
+EXPORT_SYMBOL_GPL(pci_walk_bus);
 
 EXPORT_SYMBOL(pci_bus_alloc_resource);
 EXPORT_SYMBOL_GPL(pci_bus_add_device);

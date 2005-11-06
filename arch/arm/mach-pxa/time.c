@@ -70,6 +70,11 @@ static unsigned long pxa_gettimeoffset (void)
 	return usec;
 }
 
+#ifdef CONFIG_NO_IDLE_HZ
+static unsigned long initial_match;
+static int match_posponed;
+#endif
+
 static irqreturn_t
 pxa_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
@@ -77,11 +82,19 @@ pxa_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	write_seqlock(&xtime_lock);
 
+#ifdef CONFIG_NO_IDLE_HZ
+	if (match_posponed) {
+		match_posponed = 0;
+		OSMR0 = initial_match;
+	}
+#endif
+
 	/* Loop until we get ahead of the free running timer.
 	 * This ensures an exact clock tick count and time accuracy.
-	 * IRQs are disabled inside the loop to ensure coherence between
-	 * lost_ticks (updated in do_timer()) and the match reg value, so we
-	 * can use do_gettimeofday() from interrupt handlers.
+	 * Since IRQs are disabled at this point, coherence between
+	 * lost_ticks(updated in do_timer()) and the match reg value is
+	 * ensured, hence we can use do_gettimeofday() from interrupt
+	 * handlers.
 	 *
 	 * HACK ALERT: it seems that the PXA timer regs aren't updated right
 	 * away in all cases when a write occurs.  We therefore compare with
@@ -126,6 +139,42 @@ static void __init pxa_timer_init(void)
 	OSCR = 0;		/* initialize free-running timer, force first match */
 }
 
+#ifdef CONFIG_NO_IDLE_HZ
+static int pxa_dyn_tick_enable_disable(void)
+{
+	/* nothing to do */
+	return 0;
+}
+
+static void pxa_dyn_tick_reprogram(unsigned long ticks)
+{
+	if (ticks > 1) {
+		initial_match = OSMR0;
+		OSMR0 = initial_match + ticks * LATCH;
+		match_posponed = 1;
+	}
+}
+
+static irqreturn_t
+pxa_dyn_tick_handler(int irq, void *dev_id, struct pt_regs *regs)
+{
+	if (match_posponed) {
+		match_posponed = 0;
+		OSMR0 = initial_match;
+		if ( (signed long)(initial_match - OSCR) <= 8 )
+			return pxa_timer_interrupt(irq, dev_id, regs);
+	}
+	return IRQ_NONE;
+}
+
+static struct dyn_tick_timer pxa_dyn_tick = {
+	.enable		= pxa_dyn_tick_enable_disable,
+	.disable	= pxa_dyn_tick_enable_disable,
+	.reprogram	= pxa_dyn_tick_reprogram,
+	.handler	= pxa_dyn_tick_handler,
+};
+#endif
+
 #ifdef CONFIG_PM
 static unsigned long osmr[4], oier;
 
@@ -161,4 +210,7 @@ struct sys_timer pxa_timer = {
 	.suspend	= pxa_timer_suspend,
 	.resume		= pxa_timer_resume,
 	.offset		= pxa_gettimeoffset,
+#ifdef CONFIG_NO_IDLE_HZ
+	.dyn_tick	= &pxa_dyn_tick,
+#endif
 };

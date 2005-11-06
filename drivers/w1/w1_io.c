@@ -277,6 +277,29 @@ void w1_search_devices(struct w1_master *dev, w1_slave_found_callback cb)
 		w1_search(dev, cb);
 }
 
+/**
+ * Resets the bus and then selects the slave by sending either a skip rom
+ * or a rom match.
+ * The w1 master lock must be held.
+ *
+ * @param sl	the slave to select
+ * @return 	0=success, anything else=error
+ */
+int w1_reset_select_slave(struct w1_slave *sl)
+{
+	if (w1_reset_bus(sl->master))
+		return -1;
+
+	if (sl->master->slave_count == 1)
+		w1_write_8(sl->master, W1_SKIP_ROM);
+	else {
+		u8 match[9] = {W1_MATCH_ROM, };
+		memcpy(&match[1], (u8 *)&sl->reg_num, 8);
+		w1_write_block(sl->master, match, 9);
+	}
+	return 0;
+}
+
 EXPORT_SYMBOL(w1_touch_bit);
 EXPORT_SYMBOL(w1_write_8);
 EXPORT_SYMBOL(w1_read_8);
@@ -286,3 +309,4 @@ EXPORT_SYMBOL(w1_delay);
 EXPORT_SYMBOL(w1_read_block);
 EXPORT_SYMBOL(w1_write_block);
 EXPORT_SYMBOL(w1_search_devices);
+EXPORT_SYMBOL(w1_reset_select_slave);

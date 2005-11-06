@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap/leds.c
+ * linux/arch/arm/mach-omap1/leds.c
  *
  * OMAP LEDs dispatcher
  */
@@ -20,7 +20,9 @@ omap_leds_init(void)
 	if (machine_is_omap_innovator())
 		leds_event = innovator_leds_event;
 
-	else if (machine_is_omap_h2() || machine_is_omap_perseus2())
+	else if (machine_is_omap_h2()
+			|| machine_is_omap_h3()
+			|| machine_is_omap_perseus2())
 		leds_event = h2p2_dbg_leds_event;
 
 	else if (machine_is_omap_osk())
@@ -30,8 +32,12 @@ omap_leds_init(void)
 		return -1;
 
 	if (machine_is_omap_h2()
+			|| machine_is_omap_h3()
 			|| machine_is_omap_perseus2()
-			|| machine_is_omap_osk()) {
+#ifdef	CONFIG_OMAP_OSK_MISTRAL
+			|| machine_is_omap_osk()
+#endif
+			) {
 
 		/* LED1/LED2 pins can be used as GPIO (as done here), or by
 		 * the LPG (works even in deep sleep!), to drive a bicolor

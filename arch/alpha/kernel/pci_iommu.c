@@ -397,7 +397,7 @@ pci_alloc_consistent(struct pci_dev *pdev, size_t size, dma_addr_t *dma_addrp)
 {
 	void *cpu_addr;
 	long order = get_order(size);
-	int gfp = GFP_ATOMIC;
+	gfp_t gfp = GFP_ATOMIC;
 
 try_again:
 	cpu_addr = (void *)__get_free_pages(gfp, order);

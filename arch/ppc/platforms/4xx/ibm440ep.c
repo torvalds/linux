@@ -14,6 +14,7 @@
  */
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <platforms/4xx/ibm440ep.h>
 #include <asm/ocp.h>
 #include <asm/ppc4xx_pic.h>
@@ -53,6 +54,7 @@ static struct ocp_func_mal_data ibm440ep_mal0_def = {
 	.txde_irq	= 33,		/* TX Descriptor Error IRQ */
 	.rxde_irq	= 34,		/* RX Descriptor Error IRQ */
 	.serr_irq	= 32,		/* MAL System Error IRQ    */
+	.dcr_base	= DCRN_MAL_BASE /* MAL0_CFG DCR number */
 };
 OCP_SYSFS_MAL_DATA()
 

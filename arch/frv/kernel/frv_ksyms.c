@@ -71,7 +71,6 @@ EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memscan);
 EXPORT_SYMBOL(memmove);
-EXPORT_SYMBOL(strtok);
 
 EXPORT_SYMBOL(get_wchan);
 

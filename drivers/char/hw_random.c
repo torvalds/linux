@@ -513,10 +513,7 @@ static ssize_t rng_dev_read (struct file *filp, char __user *buf, size_t size,
 			return ret ? : -EAGAIN;
 
 		if(need_resched())
-		{
-			current->state = TASK_INTERRUPTIBLE;
-			schedule_timeout(1);
-		}
+			schedule_timeout_interruptible(1);
 		else
 			udelay(200);	/* FIXME: We could poll for 250uS ?? */
 

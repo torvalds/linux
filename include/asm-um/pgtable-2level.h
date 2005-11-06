@@ -35,35 +35,8 @@
 static inline int pgd_newpage(pgd_t pgd)	{ return 0; }
 static inline void pgd_mkuptodate(pgd_t pgd)	{ }
 
-#define pte_present(x)	(pte_val(x) & (_PAGE_PRESENT | _PAGE_PROTNONE))
-
-static inline pte_t pte_mknewprot(pte_t pte)
-{
- 	pte_val(pte) |= _PAGE_NEWPROT;
-	return(pte);
-}
-
-static inline pte_t pte_mknewpage(pte_t pte)
-{
-	pte_val(pte) |= _PAGE_NEWPAGE;
-	return(pte);
-}
-
-static inline void set_pte(pte_t *pteptr, pte_t pteval)
-{
-	/* If it's a swap entry, it needs to be marked _PAGE_NEWPAGE so
-	 * fix_range knows to unmap it.  _PAGE_NEWPROT is specific to
-	 * mapped pages.
-	 */
-	*pteptr = pte_mknewpage(pteval);
-	if(pte_present(*pteptr)) *pteptr = pte_mknewprot(*pteptr);
-}
-#define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
-
 #define set_pmd(pmdptr, pmdval) (*(pmdptr) = (pmdval))
 
-#define pte_page(x) pfn_to_page(pte_pfn(x))
-#define pte_none(x) !(pte_val(x) & ~_PAGE_NEWPAGE)
 #define pte_pfn(x) phys_to_pfn(pte_val(x))
 #define pfn_pte(pfn, prot) __pte(pfn_to_phys(pfn) | pgprot_val(prot))
 #define pfn_pmd(pfn, prot) __pmd(pfn_to_phys(pfn) | pgprot_val(prot))

@@ -7,43 +7,19 @@
  * 2 of the License, or (at your option) any later version.
  */
 #include <stdarg.h>
-#include <linux/types.h>
-#include <linux/string.h>
-#include <linux/ctype.h>
-
-extern __u32 __div64_32(unsigned long long *dividend, __u32 divisor);
-
-/* The unnecessary pointer compare is there
- * to check for type safety (n must be 64bit)
- */
-# define do_div(n,base) ({				\
-	__u32 __base = (base);			\
-	__u32 __rem;					\
-	(void)(((typeof((n)) *)0) == ((unsigned long long *)0));	\
-	if (((n) >> 32) == 0) {			\
-		__rem = (__u32)(n) % __base;		\
-		(n) = (__u32)(n) / __base;		\
-	} else 						\
-		__rem = __div64_32(&(n), __base);	\
-	__rem;						\
- })
+#include <stddef.h>
+#include "string.h"
+#include "stdio.h"
+#include "prom.h"
 
 int (*prom)(void *);
 
 void *chosen_handle;
+
 void *stdin;
 void *stdout;
 void *stderr;
 
-void exit(void);
-void *finddevice(const char *name);
-int getprop(void *phandle, const char *name, void *buf, int buflen);
-void chrpboot(int a1, int a2, void *prom);	/* in main.c */
-
-int printf(char *fmt, ...);
-
-/* there is no convenient header to get this from...  -- paulus */
-extern unsigned long strlen(const char *);
 
 int
 write(void *handle, void *ptr, int nb)
@@ -210,107 +186,6 @@ fputs(char *str, void *f)
 	return write(f, str, n) == n? 0: -1;
 }
 
-int
-readchar(void)
-{
-	char ch;
-
-	for (;;) {
-		switch (read(stdin, &ch, 1)) {
-		case 1:
-			return ch;
-		case -1:
-			printf("read(stdin) returned -1\r\n");
-			return -1;
-		}
-	}
-}
-
-static char line[256];
-static char *lineptr;
-static int lineleft;
-
-int
-getchar(void)
-{
-	int c;
-
-	if (lineleft == 0) {
-		lineptr = line;
-		for (;;) {
-			c = readchar();
-			if (c == -1 || c == 4)
-				break;
-			if (c == '\r' || c == '\n') {
-				*lineptr++ = '\n';
-				putchar('\n');
-				break;
-			}
-			switch (c) {
-			case 0177:
-			case '\b':
-				if (lineptr > line) {
-					putchar('\b');
-					putchar(' ');
-					putchar('\b');
-					--lineptr;
-				}
-				break;
-			case 'U' & 0x1F:
-				while (lineptr > line) {
-					putchar('\b');
-					putchar(' ');
-					putchar('\b');
-					--lineptr;
-				}
-				break;
-			default:
-				if (lineptr >= &line[sizeof(line) - 1])
-					putchar('\a');
-				else {
-					putchar(c);
-					*lineptr++ = c;
-				}
-			}
-		}
-		lineleft = lineptr - line;
-		lineptr = line;
-	}
-	if (lineleft == 0)
-		return -1;
-	--lineleft;
-	return *lineptr++;
-}
-
-
-
-/* String functions lifted from lib/vsprintf.c and lib/ctype.c */
-unsigned char _ctype[] = {
-_C,_C,_C,_C,_C,_C,_C,_C,			/* 0-7 */
-_C,_C|_S,_C|_S,_C|_S,_C|_S,_C|_S,_C,_C,		/* 8-15 */
-_C,_C,_C,_C,_C,_C,_C,_C,			/* 16-23 */
-_C,_C,_C,_C,_C,_C,_C,_C,			/* 24-31 */
-_S|_SP,_P,_P,_P,_P,_P,_P,_P,			/* 32-39 */
-_P,_P,_P,_P,_P,_P,_P,_P,			/* 40-47 */
-_D,_D,_D,_D,_D,_D,_D,_D,			/* 48-55 */
-_D,_D,_P,_P,_P,_P,_P,_P,			/* 56-63 */
-_P,_U|_X,_U|_X,_U|_X,_U|_X,_U|_X,_U|_X,_U,	/* 64-71 */
-_U,_U,_U,_U,_U,_U,_U,_U,			/* 72-79 */
-_U,_U,_U,_U,_U,_U,_U,_U,			/* 80-87 */
-_U,_U,_U,_P,_P,_P,_P,_P,			/* 88-95 */
-_P,_L|_X,_L|_X,_L|_X,_L|_X,_L|_X,_L|_X,_L,	/* 96-103 */
-_L,_L,_L,_L,_L,_L,_L,_L,			/* 104-111 */
-_L,_L,_L,_L,_L,_L,_L,_L,			/* 112-119 */
-_L,_L,_L,_P,_P,_P,_P,_C,			/* 120-127 */
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,		/* 128-143 */
-0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,		/* 144-159 */
-_S|_SP,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,   /* 160-175 */
-_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,_P,       /* 176-191 */
-_U,_U,_U,_U,_U,_U,_U,_U,_U,_U,_U,_U,_U,_U,_U,_U,       /* 192-207 */
-_U,_U,_U,_U,_U,_U,_U,_P,_U,_U,_U,_U,_U,_U,_U,_L,       /* 208-223 */
-_L,_L,_L,_L,_L,_L,_L,_L,_L,_L,_L,_L,_L,_L,_L,_L,       /* 224-239 */
-_L,_L,_L,_L,_L,_L,_L,_P,_L,_L,_L,_L,_L,_L,_L,_L};      /* 240-255 */
-
 size_t strnlen(const char * s, size_t count)
 {
 	const char *sc;
@@ -320,44 +195,30 @@ size_t strnlen(const char * s, size_t count)
 	return sc - s;
 }
 
-unsigned long simple_strtoul(const char *cp,char **endp,unsigned int base)
-{
-	unsigned long result = 0,value;
+extern unsigned int __div64_32(unsigned long long *dividend,
+			       unsigned int divisor);
 
-	if (!base) {
-		base = 10;
-		if (*cp == '0') {
-			base = 8;
-			cp++;
-			if ((*cp == 'x') && isxdigit(cp[1])) {
-				cp++;
-				base = 16;
-			}
-		}
-	}
-	while (isxdigit(*cp) &&
-	       (value = isdigit(*cp) ? *cp-'0' : toupper(*cp)-'A'+10) < base) {
-		result = result*base + value;
-		cp++;
-	}
-	if (endp)
-		*endp = (char *)cp;
-	return result;
-}
-
-long simple_strtol(const char *cp,char **endp,unsigned int base)
-{
-	if(*cp=='-')
-		return -simple_strtoul(cp+1,endp,base);
-	return simple_strtoul(cp,endp,base);
-}
+/* The unnecessary pointer compare is there
+ * to check for type safety (n must be 64bit)
+ */
+# define do_div(n,base) ({						\
+	unsigned int __base = (base);					\
+	unsigned int __rem;						\
+	(void)(((typeof((n)) *)0) == ((unsigned long long *)0));	\
+	if (((n) >> 32) == 0) {						\
+		__rem = (unsigned int)(n) % __base;			\
+		(n) = (unsigned int)(n) / __base;			\
+	} else								\
+		__rem = __div64_32(&(n), __base);			\
+	__rem;								\
+ })
 
 static int skip_atoi(const char **s)
 {
-	int i=0;
+	int i, c;
 
-	while (isdigit(**s))
-		i = i*10 + *((*s)++) - '0';
+	for (i = 0; '0' <= (c = **s) && c <= '9'; ++*s)
+		i = i*10 + c - '0';
 	return i;
 }
 
@@ -436,9 +297,6 @@ static char * number(char * str, unsigned long long num, int base, int size, int
 	return str;
 }
 
-/* Forward decl. needed for IP address printing stuff... */
-int sprintf(char * buf, const char *fmt, ...);
-
 int vsprintf(char *buf, const char *fmt, va_list args)
 {
 	int len;
@@ -477,7 +335,7 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 		
 		/* get field width */
 		field_width = -1;
-		if (isdigit(*fmt))
+		if ('0' <= *fmt && *fmt <= '9')
 			field_width = skip_atoi(&fmt);
 		else if (*fmt == '*') {
 			++fmt;
@@ -493,7 +351,7 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 		precision = -1;
 		if (*fmt == '.') {
 			++fmt;	
-			if (isdigit(*fmt))
+			if ('0' <= *fmt && *fmt <= '9')
 				precision = skip_atoi(&fmt);
 			else if (*fmt == '*') {
 				++fmt;
@@ -628,7 +486,7 @@ int sprintf(char * buf, const char *fmt, ...)
 static char sprint_buf[1024];
 
 int
-printf(char *fmt, ...)
+printf(const char *fmt, ...)
 {
 	va_list args;
 	int n;

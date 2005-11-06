@@ -353,8 +353,6 @@ struct cp_private {
 
 	struct net_device_stats net_stats;
 	struct cp_extra_stats	cp_stats;
-	struct cp_dma_stats	*nic_stats;
-	dma_addr_t		nic_stats_dma;
 
 	unsigned		rx_tail		____cacheline_aligned;
 	struct cp_desc		*rx_ring;
@@ -1029,8 +1027,7 @@ static void cp_reset_hw (struct cp_private *cp)
 		if (!(cpr8(Cmd) & CmdReset))
 			return;
 
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(10);
+		schedule_timeout_uninterruptible(10);
 	}
 
 	printk(KERN_ERR "%s: hardware reset timeout\n", cp->dev->name);
@@ -1143,10 +1140,6 @@ static int cp_alloc_rings (struct cp_private *cp)
 	cp->rx_ring = mem;
 	cp->tx_ring = &cp->rx_ring[CP_RX_RING_SIZE];
 
-	mem += (CP_RING_BYTES - CP_STATS_SIZE);
-	cp->nic_stats = mem;
-	cp->nic_stats_dma = cp->ring_dma + (CP_RING_BYTES - CP_STATS_SIZE);
-
 	return cp_init_rings(cp);
 }
 
@@ -1187,7 +1180,6 @@ static void cp_free_rings (struct cp_private *cp)
 	pci_free_consistent(cp->pdev, CP_RING_BYTES, cp->rx_ring, cp->ring_dma);
 	cp->rx_ring = NULL;
 	cp->tx_ring = NULL;
-	cp->nic_stats = NULL;
 }
 
 static int cp_open (struct net_device *dev)
@@ -1516,13 +1508,17 @@ static void cp_get_ethtool_stats (struct net_device *dev,
 				  struct ethtool_stats *estats, u64 *tmp_stats)
 {
 	struct cp_private *cp = netdev_priv(dev);
+	struct cp_dma_stats *nic_stats;
+	dma_addr_t dma;
 	int i;
 
-	memset(cp->nic_stats, 0, sizeof(struct cp_dma_stats));
+	nic_stats = pci_alloc_consistent(cp->pdev, sizeof(*nic_stats), &dma);
+	if (!nic_stats)
+		return;
 
 	/* begin NIC statistics dump */
-	cpw32(StatsAddr + 4, (cp->nic_stats_dma >> 16) >> 16);
-	cpw32(StatsAddr, (cp->nic_stats_dma & 0xffffffff) | DumpStats);
+	cpw32(StatsAddr + 4, (u64)dma >> 32);
+	cpw32(StatsAddr, ((u64)dma & DMA_32BIT_MASK) | DumpStats);
 	cpr32(StatsAddr);
 
 	for (i = 0; i < 1000; i++) {
@@ -1532,24 +1528,27 @@ static void cp_get_ethtool_stats (struct net_device *dev,
 	}
 	cpw32(StatsAddr, 0);
 	cpw32(StatsAddr + 4, 0);
+	cpr32(StatsAddr);
 
 	i = 0;
-	tmp_stats[i++] = le64_to_cpu(cp->nic_stats->tx_ok);
-	tmp_stats[i++] = le64_to_cpu(cp->nic_stats->rx_ok);
-	tmp_stats[i++] = le64_to_cpu(cp->nic_stats->tx_err);
-	tmp_stats[i++] = le32_to_cpu(cp->nic_stats->rx_err);
-	tmp_stats[i++] = le16_to_cpu(cp->nic_stats->rx_fifo);
-	tmp_stats[i++] = le16_to_cpu(cp->nic_stats->frame_align);
-	tmp_stats[i++] = le32_to_cpu(cp->nic_stats->tx_ok_1col);
-	tmp_stats[i++] = le32_to_cpu(cp->nic_stats->tx_ok_mcol);
-	tmp_stats[i++] = le64_to_cpu(cp->nic_stats->rx_ok_phys);
-	tmp_stats[i++] = le64_to_cpu(cp->nic_stats->rx_ok_bcast);
-	tmp_stats[i++] = le32_to_cpu(cp->nic_stats->rx_ok_mcast);
-	tmp_stats[i++] = le16_to_cpu(cp->nic_stats->tx_abort);
-	tmp_stats[i++] = le16_to_cpu(cp->nic_stats->tx_underrun);
+	tmp_stats[i++] = le64_to_cpu(nic_stats->tx_ok);
+	tmp_stats[i++] = le64_to_cpu(nic_stats->rx_ok);
+	tmp_stats[i++] = le64_to_cpu(nic_stats->tx_err);
+	tmp_stats[i++] = le32_to_cpu(nic_stats->rx_err);
+	tmp_stats[i++] = le16_to_cpu(nic_stats->rx_fifo);
+	tmp_stats[i++] = le16_to_cpu(nic_stats->frame_align);
+	tmp_stats[i++] = le32_to_cpu(nic_stats->tx_ok_1col);
+	tmp_stats[i++] = le32_to_cpu(nic_stats->tx_ok_mcol);
+	tmp_stats[i++] = le64_to_cpu(nic_stats->rx_ok_phys);
+	tmp_stats[i++] = le64_to_cpu(nic_stats->rx_ok_bcast);
+	tmp_stats[i++] = le32_to_cpu(nic_stats->rx_ok_mcast);
+	tmp_stats[i++] = le16_to_cpu(nic_stats->tx_abort);
+	tmp_stats[i++] = le16_to_cpu(nic_stats->tx_underrun);
 	tmp_stats[i++] = cp->cp_stats.rx_frags;
 	if (i != CP_NUM_STATS)
 		BUG();
+
+	pci_free_consistent(cp->pdev, sizeof(*nic_stats), nic_stats, dma);
 }
 
 static struct ethtool_ops cp_ethtool_ops = {
@@ -1575,6 +1574,7 @@ static struct ethtool_ops cp_ethtool_ops = {
 	.set_wol		= cp_set_wol,
 	.get_strings		= cp_get_strings,
 	.get_ethtool_stats	= cp_get_ethtool_stats,
+	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
 static int cp_ioctl (struct net_device *dev, struct ifreq *rq, int cmd)
@@ -1773,6 +1773,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	for (i = 0; i < 3; i++)
 		((u16 *) (dev->dev_addr))[i] =
 		    le16_to_cpu (read_eeprom (regs, i + 7, addr_len));
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	dev->open = cp_open;
 	dev->stop = cp_close;
@@ -1897,6 +1898,7 @@ static int cp_resume (struct pci_dev *pdev)
 {
 	struct net_device *dev;
 	struct cp_private *cp;
+	unsigned long flags;
 
 	dev = pci_get_drvdata (pdev);
 	cp  = netdev_priv(dev);
@@ -1910,6 +1912,12 @@ static int cp_resume (struct pci_dev *pdev)
 	
 	cp_init_hw (cp);
 	netif_start_queue (dev);
+
+	spin_lock_irqsave (&cp->lock, flags);
+
+	mii_check_media(&cp->mii_if, netif_msg_link(cp), FALSE);
+
+	spin_unlock_irqrestore (&cp->lock, flags);
 	
 	return 0;
 }

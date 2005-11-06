@@ -75,11 +75,9 @@ struct w1_slave
 
 	struct w1_master	*master;
 	struct w1_family	*family;
+	void			*family_data;
 	struct device		dev;
-	struct completion	dev_released;
-
-	struct bin_attribute	attr_bin;
-	struct device_attribute	attr_name;
+	struct completion	released;
 };
 
 typedef void (* w1_slave_found_callback)(unsigned long, u64);
@@ -179,7 +177,6 @@ struct w1_master
 
 	struct device_driver	*driver;
 	struct device		dev;
-	struct completion	dev_released;
 	struct completion	dev_exited;
 
 	struct w1_bus_master	*bus_master;
@@ -190,6 +187,21 @@ struct w1_master
 
 int w1_create_master_attributes(struct w1_master *);
 void w1_search(struct w1_master *dev, w1_slave_found_callback cb);
+
+static inline struct w1_slave* dev_to_w1_slave(struct device *dev)
+{
+	return container_of(dev, struct w1_slave, dev);
+}
+
+static inline struct w1_slave* kobj_to_w1_slave(struct kobject *kobj)
+{
+	return dev_to_w1_slave(container_of(kobj, struct device, kobj));
+}
+
+static inline struct w1_master* dev_to_w1_master(struct device *dev)
+{
+	return container_of(dev, struct w1_master, dev);
+}
 
 #endif /* __KERNEL__ */
 

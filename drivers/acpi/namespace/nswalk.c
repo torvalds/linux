@@ -41,14 +41,11 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
 
-
 #define _COMPONENT          ACPI_NAMESPACE
-	 ACPI_MODULE_NAME    ("nswalk")
-
+ACPI_MODULE_NAME("nswalk")
 
 /*******************************************************************************
  *
@@ -68,18 +65,15 @@
  *              within Scope is returned.
  *
  ******************************************************************************/
-
-struct acpi_namespace_node *
-acpi_ns_get_next_node (
-	acpi_object_type                type,
-	struct acpi_namespace_node      *parent_node,
-	struct acpi_namespace_node      *child_node)
+struct acpi_namespace_node *acpi_ns_get_next_node(acpi_object_type type,
+						  struct acpi_namespace_node
+						  *parent_node,
+						  struct acpi_namespace_node
+						  *child_node)
 {
-	struct acpi_namespace_node      *next_node = NULL;
+	struct acpi_namespace_node *next_node = NULL;
 
-
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	if (!child_node) {
 		/* It's really the parent's _scope_ that we want */
@@ -92,7 +86,7 @@ acpi_ns_get_next_node (
 	else {
 		/* Start search at the NEXT node */
 
-		next_node = acpi_ns_get_next_valid_node (child_node);
+		next_node = acpi_ns_get_next_valid_node(child_node);
 	}
 
 	/* If any type is OK, we are done */
@@ -114,14 +108,13 @@ acpi_ns_get_next_node (
 
 		/* Otherwise, move on to the next node */
 
-		next_node = acpi_ns_get_next_valid_node (next_node);
+		next_node = acpi_ns_get_next_valid_node(next_node);
 	}
 
 	/* Not found */
 
 	return (NULL);
 }
-
 
 /*******************************************************************************
  *
@@ -154,25 +147,21 @@ acpi_ns_get_next_node (
  ******************************************************************************/
 
 acpi_status
-acpi_ns_walk_namespace (
-	acpi_object_type                type,
-	acpi_handle                     start_node,
-	u32                             max_depth,
-	u8                              unlock_before_callback,
-	acpi_walk_callback              user_function,
-	void                            *context,
-	void                            **return_value)
+acpi_ns_walk_namespace(acpi_object_type type,
+		       acpi_handle start_node,
+		       u32 max_depth,
+		       u8 unlock_before_callback,
+		       acpi_walk_callback user_function,
+		       void *context, void **return_value)
 {
-	acpi_status                     status;
-	acpi_status                     mutex_status;
-	struct acpi_namespace_node      *child_node;
-	struct acpi_namespace_node      *parent_node;
-	acpi_object_type                child_type;
-	u32                             level;
+	acpi_status status;
+	acpi_status mutex_status;
+	struct acpi_namespace_node *child_node;
+	struct acpi_namespace_node *parent_node;
+	acpi_object_type child_type;
+	u32 level;
 
-
-	ACPI_FUNCTION_TRACE ("ns_walk_namespace");
-
+	ACPI_FUNCTION_TRACE("ns_walk_namespace");
 
 	/* Special case for the namespace Root Node */
 
@@ -183,9 +172,9 @@ acpi_ns_walk_namespace (
 	/* Null child means "get first node" */
 
 	parent_node = start_node;
-	child_node  = NULL;
-	child_type  = ACPI_TYPE_ANY;
-	level       = 1;
+	child_node = NULL;
+	child_type = ACPI_TYPE_ANY;
+	level = 1;
 
 	/*
 	 * Traverse the tree of nodes until we bubble back up to where we
@@ -196,7 +185,9 @@ acpi_ns_walk_namespace (
 		/* Get the next node in this scope.  Null if not found */
 
 		status = AE_OK;
-		child_node = acpi_ns_get_next_node (ACPI_TYPE_ANY, parent_node, child_node);
+		child_node =
+		    acpi_ns_get_next_node(ACPI_TYPE_ANY, parent_node,
+					  child_node);
 		if (child_node) {
 			/*
 			 * Found node, Get the type if we are not
@@ -212,19 +203,25 @@ acpi_ns_walk_namespace (
 				 * callback function
 				 */
 				if (unlock_before_callback) {
-					mutex_status = acpi_ut_release_mutex (ACPI_MTX_NAMESPACE);
-					if (ACPI_FAILURE (mutex_status)) {
-						return_ACPI_STATUS (mutex_status);
+					mutex_status =
+					    acpi_ut_release_mutex
+					    (ACPI_MTX_NAMESPACE);
+					if (ACPI_FAILURE(mutex_status)) {
+						return_ACPI_STATUS
+						    (mutex_status);
 					}
 				}
 
-				status = user_function (child_node, level,
-						 context, return_value);
+				status = user_function(child_node, level,
+						       context, return_value);
 
 				if (unlock_before_callback) {
-					mutex_status = acpi_ut_acquire_mutex (ACPI_MTX_NAMESPACE);
-					if (ACPI_FAILURE (mutex_status)) {
-						return_ACPI_STATUS (mutex_status);
+					mutex_status =
+					    acpi_ut_acquire_mutex
+					    (ACPI_MTX_NAMESPACE);
+					if (ACPI_FAILURE(mutex_status)) {
+						return_ACPI_STATUS
+						    (mutex_status);
 					}
 				}
 
@@ -239,13 +236,13 @@ acpi_ns_walk_namespace (
 
 					/* Exit now, with OK status */
 
-					return_ACPI_STATUS (AE_OK);
+					return_ACPI_STATUS(AE_OK);
 
 				default:
 
 					/* All others are valid exceptions */
 
-					return_ACPI_STATUS (status);
+					return_ACPI_STATUS(status);
 				}
 			}
 
@@ -258,7 +255,8 @@ acpi_ns_walk_namespace (
 			 * maximum depth has been reached.
 			 */
 			if ((level < max_depth) && (status != AE_CTRL_DEPTH)) {
-				if (acpi_ns_get_next_node (ACPI_TYPE_ANY, child_node, NULL)) {
+				if (acpi_ns_get_next_node
+				    (ACPI_TYPE_ANY, child_node, NULL)) {
 					/*
 					 * There is at least one child of this
 					 * node, visit the onde
@@ -268,8 +266,7 @@ acpi_ns_walk_namespace (
 					child_node = NULL;
 				}
 			}
-		}
-		else {
+		} else {
 			/*
 			 * No more children of this node (acpi_ns_get_next_node
 			 * failed), go back upwards in the namespace tree to
@@ -277,13 +274,11 @@ acpi_ns_walk_namespace (
 			 */
 			level--;
 			child_node = parent_node;
-			parent_node = acpi_ns_get_parent_node (parent_node);
+			parent_node = acpi_ns_get_parent_node(parent_node);
 		}
 	}
 
 	/* Complete walk, not terminated by user function */
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
-

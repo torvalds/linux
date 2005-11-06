@@ -83,12 +83,6 @@ MODULE_PARM_DESC(enable, "Enable ICE1724 soundcard.");
 module_param_array(model, charp, NULL, 0444);
 MODULE_PARM_DESC(model, "Use the given board model.");
 
-#ifndef PCI_VENDOR_ID_ICE
-#define PCI_VENDOR_ID_ICE		0x1412
-#endif
-#ifndef PCI_DEVICE_ID_VT1724
-#define PCI_DEVICE_ID_VT1724		0x1724
-#endif
 
 /* Both VT1720 and VT1724 have the same PCI IDs */
 static struct pci_device_id snd_vt1724_ids[] = {
@@ -1414,7 +1408,7 @@ static int snd_vt1724_spdif_maskp_get(snd_kcontrol_t * kcontrol,
 static snd_kcontrol_new_t snd_vt1724_spdif_maskc __devinitdata =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,CON_MASK),
 	.info =		snd_vt1724_spdif_info,
 	.get =		snd_vt1724_spdif_maskc_get,
@@ -1423,7 +1417,7 @@ static snd_kcontrol_new_t snd_vt1724_spdif_maskc __devinitdata =
 static snd_kcontrol_new_t snd_vt1724_spdif_maskp __devinitdata =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,PRO_MASK),
 	.info =		snd_vt1724_spdif_info,
 	.get =		snd_vt1724_spdif_maskp_get,
@@ -1466,7 +1460,7 @@ static snd_kcontrol_new_t snd_vt1724_spdif_switch __devinitdata =
 	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
 	/* FIXME: the following conflict with IEC958 Playback Route */
 	// .name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH),
-	.name =         "IEC958 Output Switch",
+	.name =         SNDRV_CTL_NAME_IEC958("Output ",NONE,SWITCH),
 	.info =		snd_vt1724_spdif_sw_info,
 	.get =		snd_vt1724_spdif_sw_get,
 	.put =		snd_vt1724_spdif_sw_put
@@ -2130,7 +2124,7 @@ static int __devinit snd_vt1724_create(snd_card_t * card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	ice = kcalloc(1, sizeof(*ice), GFP_KERNEL);
+	ice = kzalloc(sizeof(*ice), GFP_KERNEL);
 	if (ice == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -2321,6 +2315,7 @@ static void __devexit snd_vt1724_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "ICE1724",
+	.owner = THIS_MODULE,
 	.id_table = snd_vt1724_ids,
 	.probe = snd_vt1724_probe,
 	.remove = __devexit_p(snd_vt1724_remove),

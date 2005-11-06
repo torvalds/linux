@@ -4,7 +4,7 @@
  *  VMA_VM_FLAGS
  *  VM_EXEC
  */
-#include <asm/constants.h>
+#include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 
 /*

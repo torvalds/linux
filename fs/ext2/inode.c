@@ -71,6 +71,8 @@ void ext2_put_inode(struct inode *inode)
  */
 void ext2_delete_inode (struct inode * inode)
 {
+	truncate_inode_pages(&inode->i_data, 0);
+
 	if (is_bad_inode(inode))
 		goto no_delete;
 	EXT2_I(inode)->i_dtime	= get_seconds();
@@ -438,6 +440,10 @@ static int ext2_alloc_branch(struct inode *inode,
 		 * the pointer to new one, then send parent to disk.
 		 */
 		bh = sb_getblk(inode->i_sb, parent);
+		if (!bh) {
+			err = -EIO;
+			break;
+		}
 		lock_buffer(bh);
 		memset(bh->b_data, 0, blocksize);
 		branch[n].bh = bh;

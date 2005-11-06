@@ -35,7 +35,6 @@
 #include <asm/time.h>
 #include <asm/dma.h>
 #include <asm/io.h>
-#include <linux/irq.h>
 #include <asm/hw_irq.h>
 #include <asm/machdep.h>
 #include <asm/kgdb.h>
@@ -542,7 +541,6 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 
 	ppc_md.setup_arch = chestnut_setup_arch;
 	ppc_md.show_cpuinfo = chestnut_show_cpuinfo;
-	ppc_md.irq_canonicalize = NULL;
 	ppc_md.init_IRQ = mv64360_init_irq;
 	ppc_md.get_irq = mv64360_get_irq;
 	ppc_md.init = NULL;

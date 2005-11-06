@@ -36,61 +36,12 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Evgeniy Polyakov <johnpol@2ka.mipt.ru>");
 MODULE_DESCRIPTION("Driver for 1-wire Dallas network protocol, 64bit memory family.");
 
-static ssize_t w1_smem_read_name(struct device *, struct device_attribute *attr, char *);
-static ssize_t w1_smem_read_bin(struct kobject *, char *, loff_t, size_t);
-
-static struct w1_family_ops w1_smem_fops = {
-	.rname = &w1_smem_read_name,
-	.rbin = &w1_smem_read_bin,
-};
-
-static ssize_t w1_smem_read_name(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
-
-	return sprintf(buf, "%s\n", sl->name);
-}
-
-static ssize_t w1_smem_read_bin(struct kobject *kobj, char *buf, loff_t off, size_t count)
-{
-	struct w1_slave *sl = container_of(container_of(kobj, struct device, kobj),
-					   struct w1_slave, dev);
-	int i;
-
-	atomic_inc(&sl->refcnt);
-	if (down_interruptible(&sl->master->mutex)) {
-		count = 0;
-		goto out_dec;
-	}
-
-	if (off > W1_SLAVE_DATA_SIZE) {
-		count = 0;
-		goto out;
-	}
-	if (off + count > W1_SLAVE_DATA_SIZE) {
-		count = 0;
-		goto out;
-	}
-	for (i = 0; i < 8; ++i)
-		count += sprintf(buf + count, "%02x ", ((u8 *)&sl->reg_num)[i]);
-	count += sprintf(buf + count, "\n");
-
-out:
-	up(&sl->master->mutex);
-out_dec:
-	atomic_dec(&sl->refcnt);
-
-	return count;
-}
-
 static struct w1_family w1_smem_family_01 = {
 	.fid = W1_FAMILY_SMEM_01,
-	.fops = &w1_smem_fops,
 };
 
 static struct w1_family w1_smem_family_81 = {
 	.fid = W1_FAMILY_SMEM_81,
-	.fops = &w1_smem_fops,
 };
 
 static int __init w1_smem_init(void)

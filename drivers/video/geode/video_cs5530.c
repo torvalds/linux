@@ -69,8 +69,6 @@ static const struct cs5530_pll_entry cs5530_pll_table[] = {
 	{  4310, 0x2FB1B802, }, /* 232.0000 */
 };
 
-#define NUM_CS5530_FREQUENCIES sizeof(cs5530_pll_table)/sizeof(struct cs5530_pll_entry)
-
 static void cs5530_set_dclk_frequency(struct fb_info *info)
 {
 	struct geodefb_par *par = info->par;
@@ -82,7 +80,7 @@ static void cs5530_set_dclk_frequency(struct fb_info *info)
 	value = cs5530_pll_table[0].pll_value;
 	min = cs5530_pll_table[0].pixclock - info->var.pixclock;
 	if (min < 0) min = -min;
-	for (i = 1; i < NUM_CS5530_FREQUENCIES; i++) {
+	for (i = 1; i < ARRAY_SIZE(cs5530_pll_table); i++) {
 		diff = cs5530_pll_table[i].pixclock - info->var.pixclock;
 		if (diff < 0L) diff = -diff;
 		if (diff < min) {

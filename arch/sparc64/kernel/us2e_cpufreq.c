@@ -88,7 +88,6 @@ static void frob_mem_refresh(int cpu_slowing_down,
 {
 	unsigned long old_refr_count, refr_count, mctrl;
 
-
 	refr_count  = (clock_tick * MCTRL0_REFR_INTERVAL);
 	refr_count /= (MCTRL0_REFR_CLKS_P_CNT * divisor * 1000000000UL);
 
@@ -230,6 +229,25 @@ static unsigned long estar_to_divisor(unsigned long estar)
 	return ret;
 }
 
+static unsigned int us2e_freq_get(unsigned int cpu)
+{
+	cpumask_t cpus_allowed;
+	unsigned long clock_tick, estar;
+
+	if (!cpu_online(cpu))
+		return 0;
+
+	cpus_allowed = current->cpus_allowed;
+	set_cpus_allowed(current, cpumask_of_cpu(cpu));
+
+	clock_tick = sparc64_get_clock_tick(cpu) / 1000;
+	estar = read_hbreg(HBIRD_ESTAR_MODE_ADDR);
+
+	set_cpus_allowed(current, cpus_allowed);
+
+	return clock_tick / estar_to_divisor(estar);
+}
+
 static void us2e_set_cpu_divider_index(unsigned int cpu, unsigned int index)
 {
 	unsigned long new_bits, new_freq;
@@ -243,7 +261,7 @@ static void us2e_set_cpu_divider_index(unsigned int cpu, unsigned int index)
 	cpus_allowed = current->cpus_allowed;
 	set_cpus_allowed(current, cpumask_of_cpu(cpu));
 
-	new_freq = clock_tick = sparc64_get_clock_tick(cpu);
+	new_freq = clock_tick = sparc64_get_clock_tick(cpu) / 1000;
 	new_bits = index_to_estar_mode(index);
 	divisor = index_to_divisor(index);
 	new_freq /= divisor;
@@ -258,7 +276,8 @@ static void us2e_set_cpu_divider_index(unsigned int cpu, unsigned int index)
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 
 	if (old_divisor != divisor)
-		us2e_transition(estar, new_bits, clock_tick, old_divisor, divisor);
+		us2e_transition(estar, new_bits, clock_tick * 1000,
+				old_divisor, divisor);
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
@@ -272,10 +291,8 @@ static int us2e_freq_target(struct cpufreq_policy *policy,
 	unsigned int new_index = 0;
 
 	if (cpufreq_frequency_table_target(policy,
-					      &us2e_freq_table[policy->cpu].table[0],
-					      target_freq,
-					      relation,
-					      &new_index))
+					   &us2e_freq_table[policy->cpu].table[0],
+					   target_freq, relation, &new_index))
 		return -EINVAL;
 
 	us2e_set_cpu_divider_index(policy->cpu, new_index);
@@ -292,7 +309,7 @@ static int us2e_freq_verify(struct cpufreq_policy *policy)
 static int __init us2e_freq_cpu_init(struct cpufreq_policy *policy)
 {
 	unsigned int cpu = policy->cpu;
-	unsigned long clock_tick = sparc64_get_clock_tick(cpu);
+	unsigned long clock_tick = sparc64_get_clock_tick(cpu) / 1000;
 	struct cpufreq_frequency_table *table =
 		&us2e_freq_table[cpu].table[0];
 
@@ -351,9 +368,10 @@ static int __init us2e_freq_init(void)
 		memset(us2e_freq_table, 0,
 		       (NR_CPUS * sizeof(struct us2e_freq_percpu_info)));
 
+		driver->init = us2e_freq_cpu_init;
 		driver->verify = us2e_freq_verify;
 		driver->target = us2e_freq_target;
-		driver->init = us2e_freq_cpu_init;
+		driver->get = us2e_freq_get;
 		driver->exit = us2e_freq_cpu_exit;
 		driver->owner = THIS_MODULE,
 		strcpy(driver->name, "UltraSPARC-IIe");

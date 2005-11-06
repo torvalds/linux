@@ -16,7 +16,7 @@
 #include <linux/types.h>
 #include <asm/sgi/pi1.h>
 
-/* 
+/*
  * All registers are 8-bit wide alligned on 32-bit boundary. Bad things
  * happen if you try word access them. You have been warned.
  */
@@ -138,7 +138,7 @@ struct sgioc_regs {
 	u8 _sysid[3];
 	volatile u8 sysid;
 #define SGIOC_SYSID_FULLHOUSE	0x01
-#define SGIOC_SYSID_BOARDREV(x)	((x & 0xe0) > 5) 
+#define SGIOC_SYSID_BOARDREV(x)	((x & 0xe0) > 5)
 #define SGIOC_SYSID_CHIPREV(x)	((x & 0x1e) > 1)
 	u32 _unused2;
 	u8 _read[3];

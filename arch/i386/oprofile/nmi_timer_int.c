@@ -9,7 +9,7 @@
 
 #include <linux/init.h>
 #include <linux/smp.h>
-#include <linux/irq.h>
+#include <linux/errno.h>
 #include <linux/oprofile.h>
 #include <linux/rcupdate.h>
 
@@ -40,7 +40,7 @@ static void timer_stop(void)
 }
 
 
-int __init nmi_timer_init(struct oprofile_operations * ops)
+int __init op_nmi_timer_init(struct oprofile_operations * ops)
 {
 	extern int nmi_active;
 

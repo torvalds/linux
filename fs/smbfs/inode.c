@@ -331,6 +331,7 @@ static void
 smb_delete_inode(struct inode *ino)
 {
 	DEBUG1("ino=%ld\n", ino->i_ino);
+	truncate_inode_pages(&ino->i_data, 0);
 	lock_kernel();
 	if (smb_close(ino))
 		PARANOIA("could not close inode %ld\n", ino->i_ino);

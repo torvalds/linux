@@ -41,14 +41,11 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/actables.h>
 
-
 #define _COMPONENT          ACPI_TABLES
-	 ACPI_MODULE_NAME    ("tbrsdt")
-
+ACPI_MODULE_NAME("tbrsdt")
 
 /*******************************************************************************
  *
@@ -61,18 +58,13 @@
  * DESCRIPTION: Load and validate the RSDP (ptr) and RSDT (table)
  *
  ******************************************************************************/
-
-acpi_status
-acpi_tb_verify_rsdp (
-	struct acpi_pointer             *address)
+acpi_status acpi_tb_verify_rsdp(struct acpi_pointer *address)
 {
-	struct acpi_table_desc          table_info;
-	acpi_status                     status;
-	struct rsdp_descriptor          *rsdp;
+	struct acpi_table_desc table_info;
+	acpi_status status;
+	struct rsdp_descriptor *rsdp;
 
-
-	ACPI_FUNCTION_TRACE ("tb_verify_rsdp");
-
+	ACPI_FUNCTION_TRACE("tb_verify_rsdp");
 
 	switch (address->pointer_type) {
 	case ACPI_LOGICAL_POINTER:
@@ -84,72 +76,52 @@ acpi_tb_verify_rsdp (
 		/*
 		 * Obtain access to the RSDP structure
 		 */
-		status = acpi_os_map_memory (address->pointer.physical,
-				 sizeof (struct rsdp_descriptor),
-						   (void *) &rsdp);
-		if (ACPI_FAILURE (status)) {
-			return_ACPI_STATUS (status);
+		status = acpi_os_map_memory(address->pointer.physical,
+					    sizeof(struct rsdp_descriptor),
+					    (void *)&rsdp);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
 		}
 		break;
 
 	default:
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	/*
-	 *  The signature and checksum must both be correct
-	 */
-	if (ACPI_STRNCMP ((char *) rsdp, RSDP_SIG, sizeof (RSDP_SIG)-1) != 0) {
-		/* Nope, BAD Signature */
+	/* Verify RSDP signature and checksum */
 
-		status = AE_BAD_SIGNATURE;
+	status = acpi_tb_validate_rsdp(rsdp);
+	if (ACPI_FAILURE(status)) {
 		goto cleanup;
-	}
-
-	/* Check the standard checksum */
-
-	if (acpi_tb_checksum (rsdp, ACPI_RSDP_CHECKSUM_LENGTH) != 0) {
-		status = AE_BAD_CHECKSUM;
-		goto cleanup;
-	}
-
-	/* Check extended checksum if table version >= 2 */
-
-	if (rsdp->revision >= 2) {
-		if (acpi_tb_checksum (rsdp, ACPI_RSDP_XCHECKSUM_LENGTH) != 0) {
-			status = AE_BAD_CHECKSUM;
-			goto cleanup;
-		}
 	}
 
 	/* The RSDP supplied is OK */
 
-	table_info.pointer     = ACPI_CAST_PTR (struct acpi_table_header, rsdp);
-	table_info.length      = sizeof (struct rsdp_descriptor);
-	table_info.allocation  = ACPI_MEM_MAPPED;
+	table_info.pointer = ACPI_CAST_PTR(struct acpi_table_header, rsdp);
+	table_info.length = sizeof(struct rsdp_descriptor);
+	table_info.allocation = ACPI_MEM_MAPPED;
 
 	/* Save the table pointers and allocation info */
 
-	status = acpi_tb_init_table_descriptor (ACPI_TABLE_RSDP, &table_info);
-	if (ACPI_FAILURE (status)) {
+	status = acpi_tb_init_table_descriptor(ACPI_TABLE_RSDP, &table_info);
+	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
 
 	/* Save the RSDP in a global for easy access */
 
-	acpi_gbl_RSDP = ACPI_CAST_PTR (struct rsdp_descriptor, table_info.pointer);
-	return_ACPI_STATUS (status);
-
+	acpi_gbl_RSDP =
+	    ACPI_CAST_PTR(struct rsdp_descriptor, table_info.pointer);
+	return_ACPI_STATUS(status);
 
 	/* Error exit */
-cleanup:
+      cleanup:
 
 	if (acpi_gbl_table_flags & ACPI_PHYSICAL_POINTER) {
-		acpi_os_unmap_memory (rsdp, sizeof (struct rsdp_descriptor));
+		acpi_os_unmap_memory(rsdp, sizeof(struct rsdp_descriptor));
 	}
-	return_ACPI_STATUS (status);
+	return_ACPI_STATUS(status);
 }
-
 
 /*******************************************************************************
  *
@@ -159,34 +131,34 @@ cleanup:
  *
  * RETURN:      None, Address
  *
- * DESCRIPTION: Extract the address of the RSDT or XSDT, depending on the
- *              version of the RSDP
+ * DESCRIPTION: Extract the address of either the RSDT or XSDT, depending on the
+ *              version of the RSDP and whether the XSDT pointer is valid
  *
  ******************************************************************************/
 
-void
-acpi_tb_get_rsdt_address (
-	struct acpi_pointer             *out_address)
+void acpi_tb_get_rsdt_address(struct acpi_pointer *out_address)
 {
 
-	ACPI_FUNCTION_ENTRY ();
+	ACPI_FUNCTION_ENTRY();
 
+	out_address->pointer_type =
+	    acpi_gbl_table_flags | ACPI_LOGICAL_ADDRESSING;
 
-	out_address->pointer_type = acpi_gbl_table_flags | ACPI_LOGICAL_ADDRESSING;
+	/* Use XSDT if it is present */
 
-	/*
-	 * For RSDP revision 0 or 1, we use the RSDT.
-	 * For RSDP revision 2 (and above), we use the XSDT
-	 */
-	if (acpi_gbl_RSDP->revision < 2) {
-		out_address->pointer.value = acpi_gbl_RSDP->rsdt_physical_address;
-	}
-	else {
+	if ((acpi_gbl_RSDP->revision >= 2) &&
+	    acpi_gbl_RSDP->xsdt_physical_address) {
 		out_address->pointer.value =
-			acpi_gbl_RSDP->xsdt_physical_address;
+		    acpi_gbl_RSDP->xsdt_physical_address;
+		acpi_gbl_root_table_type = ACPI_TABLE_TYPE_XSDT;
+	} else {
+		/* No XSDT, use the RSDT */
+
+		out_address->pointer.value =
+		    acpi_gbl_RSDP->rsdt_physical_address;
+		acpi_gbl_root_table_type = ACPI_TABLE_TYPE_RSDT;
 	}
 }
-
 
 /*******************************************************************************
  *
@@ -200,57 +172,49 @@ acpi_tb_get_rsdt_address (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_tb_validate_rsdt (
-	struct acpi_table_header        *table_ptr)
+acpi_status acpi_tb_validate_rsdt(struct acpi_table_header *table_ptr)
 {
-	int                             no_match;
+	int no_match;
 
-
-	ACPI_FUNCTION_NAME ("tb_validate_rsdt");
-
+	ACPI_FUNCTION_NAME("tb_validate_rsdt");
 
 	/*
-	 * For RSDP revision 0 or 1, we use the RSDT.
-	 * For RSDP revision 2 and above, we use the XSDT
+	 * Search for appropriate signature, RSDT or XSDT
 	 */
-	if (acpi_gbl_RSDP->revision < 2) {
-		no_match = ACPI_STRNCMP ((char *) table_ptr, RSDT_SIG,
-				  sizeof (RSDT_SIG) -1);
-	}
-	else {
-		no_match = ACPI_STRNCMP ((char *) table_ptr, XSDT_SIG,
-				  sizeof (XSDT_SIG) -1);
+	if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
+		no_match = ACPI_STRNCMP((char *)table_ptr, RSDT_SIG,
+					sizeof(RSDT_SIG) - 1);
+	} else {
+		no_match = ACPI_STRNCMP((char *)table_ptr, XSDT_SIG,
+					sizeof(XSDT_SIG) - 1);
 	}
 
 	if (no_match) {
 		/* Invalid RSDT or XSDT signature */
 
-		ACPI_REPORT_ERROR ((
-			"Invalid signature where RSDP indicates RSDT/XSDT should be located\n"));
+		ACPI_REPORT_ERROR(("Invalid signature where RSDP indicates RSDT/XSDT should be located\n"));
 
-		ACPI_DUMP_BUFFER (acpi_gbl_RSDP, 20);
+		ACPI_DUMP_BUFFER(acpi_gbl_RSDP, 20);
 
-		ACPI_DEBUG_PRINT_RAW ((ACPI_DB_ERROR,
-			"RSDT/XSDT signature at %X (%p) is invalid\n",
-			acpi_gbl_RSDP->rsdt_physical_address,
-			(void *) (acpi_native_uint) acpi_gbl_RSDP->rsdt_physical_address));
+		ACPI_DEBUG_PRINT_RAW((ACPI_DB_ERROR,
+				      "RSDT/XSDT signature at %X (%p) is invalid\n",
+				      acpi_gbl_RSDP->rsdt_physical_address,
+				      (void *)(acpi_native_uint) acpi_gbl_RSDP->
+				      rsdt_physical_address));
 
-		if (acpi_gbl_RSDP->revision < 2) {
-			ACPI_REPORT_ERROR (("Looking for RSDT (RSDP->Rev < 2)\n"))
+		if (acpi_gbl_root_table_type == ACPI_TABLE_TYPE_RSDT) {
+			ACPI_REPORT_ERROR(("Looking for RSDT\n"))
+		} else {
+			ACPI_REPORT_ERROR(("Looking for XSDT\n"))
 		}
-		else {
-			ACPI_REPORT_ERROR (("Looking for XSDT (RSDP->Rev >= 2)\n"))
-		}
 
-		ACPI_DUMP_BUFFER ((char *) table_ptr, 48);
+		ACPI_DUMP_BUFFER((char *)table_ptr, 48);
 
 		return (AE_BAD_SIGNATURE);
 	}
 
 	return (AE_OK);
 }
-
 
 /*******************************************************************************
  *
@@ -264,66 +228,61 @@ acpi_tb_validate_rsdt (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_tb_get_table_rsdt (
-	void)
+acpi_status acpi_tb_get_table_rsdt(void)
 {
-	struct acpi_table_desc          table_info;
-	acpi_status                     status;
-	struct acpi_pointer             address;
+	struct acpi_table_desc table_info;
+	acpi_status status;
+	struct acpi_pointer address;
 
-
-	ACPI_FUNCTION_TRACE ("tb_get_table_rsdt");
-
+	ACPI_FUNCTION_TRACE("tb_get_table_rsdt");
 
 	/* Get the RSDT/XSDT via the RSDP */
 
-	acpi_tb_get_rsdt_address (&address);
+	acpi_tb_get_rsdt_address(&address);
 
 	table_info.type = ACPI_TABLE_XSDT;
-	status = acpi_tb_get_table (&address, &table_info);
-	if (ACPI_FAILURE (status)) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not get the RSDT/XSDT, %s\n",
-			acpi_format_exception (status)));
+	status = acpi_tb_get_table(&address, &table_info);
+	if (ACPI_FAILURE(status)) {
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+				  "Could not get the RSDT/XSDT, %s\n",
+				  acpi_format_exception(status)));
 
-		return_ACPI_STATUS (status);
+		return_ACPI_STATUS(status);
 	}
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-		"RSDP located at %p, points to RSDT physical=%8.8X%8.8X \n",
-		acpi_gbl_RSDP,
-		ACPI_FORMAT_UINT64 (address.pointer.value)));
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			  "RSDP located at %p, points to RSDT physical=%8.8X%8.8X \n",
+			  acpi_gbl_RSDP,
+			  ACPI_FORMAT_UINT64(address.pointer.value)));
 
 	/* Check the RSDT or XSDT signature */
 
-	status = acpi_tb_validate_rsdt (table_info.pointer);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_tb_validate_rsdt(table_info.pointer);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Get the number of tables defined in the RSDT or XSDT */
 
-	acpi_gbl_rsdt_table_count = acpi_tb_get_table_count (acpi_gbl_RSDP,
-			  table_info.pointer);
+	acpi_gbl_rsdt_table_count = acpi_tb_get_table_count(acpi_gbl_RSDP,
+							    table_info.pointer);
 
 	/* Convert and/or copy to an XSDT structure */
 
-	status = acpi_tb_convert_to_xsdt (&table_info);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_tb_convert_to_xsdt(&table_info);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
 	/* Save the table pointers and allocation info */
 
-	status = acpi_tb_init_table_descriptor (ACPI_TABLE_XSDT, &table_info);
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_tb_init_table_descriptor(ACPI_TABLE_XSDT, &table_info);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
-	acpi_gbl_XSDT = ACPI_CAST_PTR (XSDT_DESCRIPTOR, table_info.pointer);
+	acpi_gbl_XSDT = ACPI_CAST_PTR(XSDT_DESCRIPTOR, table_info.pointer);
 
-	ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "XSDT located at %p\n", acpi_gbl_XSDT));
-	return_ACPI_STATUS (status);
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "XSDT located at %p\n", acpi_gbl_XSDT));
+	return_ACPI_STATUS(status);
 }
-
-

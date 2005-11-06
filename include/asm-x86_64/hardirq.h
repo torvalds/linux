@@ -9,11 +9,12 @@
 
 #define __ARCH_IRQ_STAT 1
 
-/* Generate a lvalue for a pda member. Should fix softirq.c instead to use
-   special access macros. This would generate better code. */ 
-#define __IRQ_STAT(cpu,member) (read_pda(me)->member)
+#define local_softirq_pending() read_pda(__softirq_pending)
 
-#include <linux/irq_cpustat.h>	/* Standard mappings for irq_cpustat_t above */
+#define __ARCH_SET_SOFTIRQ_PENDING 1
+
+#define set_softirq_pending(x) write_pda(__softirq_pending, (x))
+#define or_softirq_pending(x)  or_pda(__softirq_pending, (x))
 
 /*
  * 'what should we do if we get a hw irq event on an illegal vector'.

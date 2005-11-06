@@ -237,6 +237,9 @@ struct policydb {
 	/* range transitions */
 	struct range_trans *range_tr;
 
+	/* type -> attribute reverse mapping */
+	struct ebitmap *type_attr_map;
+
 	unsigned int policyvers;
 };
 

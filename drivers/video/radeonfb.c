@@ -80,7 +80,7 @@
 #include <video/radeon.h>
 #include <linux/radeonfb.h>
 
-#define DEBUG	1
+#define DEBUG  0
 
 #if DEBUG
 #define RTRACE		printk

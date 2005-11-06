@@ -141,6 +141,8 @@ struct hfs_sb_info {
 
 	int session, part;
 
+	struct nls_table *nls_io, *nls_disk;
+
 	struct semaphore bitmap_lock;
 
 	unsigned long flags;
@@ -168,7 +170,7 @@ extern int hfs_cat_create(u32, struct inode *, struct qstr *, struct inode *);
 extern int hfs_cat_delete(u32, struct inode *, struct qstr *);
 extern int hfs_cat_move(u32, struct inode *, struct qstr *,
 			struct inode *, struct qstr *);
-extern void hfs_cat_build_key(btree_key *, u32, struct qstr *);
+extern void hfs_cat_build_key(struct super_block *, btree_key *, u32, struct qstr *);
 
 /* dir.c */
 extern struct file_operations hfs_dir_operations;
@@ -222,8 +224,8 @@ extern int hfs_strcmp(const unsigned char *, unsigned int,
 extern int hfs_compare_dentry(struct dentry *, struct qstr *, struct qstr *);
 
 /* trans.c */
-extern void hfs_triv2mac(struct hfs_name *, struct qstr *);
-extern int hfs_mac2triv(char *, const struct hfs_name *);
+extern void hfs_asc2mac(struct super_block *, struct hfs_name *, struct qstr *);
+extern int hfs_mac2asc(struct super_block *, char *, const struct hfs_name *);
 
 extern struct timezone sys_tz;
 

@@ -26,6 +26,8 @@ extern u32 mv64x60_mpsc_clk_freq;
 #define	min(a,b)	(((a) < (b)) ? (a) : (b))
 #endif
 
+unsigned long mv64360_get_mem_size(void);
+
 void
 mv64x60_board_init(void __iomem *old_base, void __iomem *new_base)
 {
@@ -34,4 +36,10 @@ mv64x60_board_init(void __iomem *old_base, void __iomem *new_base)
 	mv64x60_mpsc_clk_freq =
 		min(katana_bus_freq((void __iomem *)KATANA_CPLD_BASE),
 			MV64x60_TCLK_FREQ_MAX);
+}
+
+unsigned long
+get_mem_size(void)
+{
+	return mv64360_get_mem_size();
 }

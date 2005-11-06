@@ -2361,7 +2361,7 @@ static void dv1394_add_host (struct hpsb_host *host)
 
 	ohci = (struct ti_ohci *)host->hostdata;
 
-	class_device_create(hpsb_protocol_class, MKDEV(
+	class_device_create(hpsb_protocol_class, NULL, MKDEV(
 		IEEE1394_MAJOR,	IEEE1394_MINOR_BLOCK_DV1394 * 16 + (id<<2)), 
 		NULL, "dv1394-%d", id);
 	devfs_mk_dir("ieee1394/dv/host%d", id);
@@ -2660,4 +2660,3 @@ static int __init dv1394_init_module(void)
 
 module_init(dv1394_init_module);
 module_exit(dv1394_exit_module);
-MODULE_ALIAS_CHARDEV(IEEE1394_MAJOR, IEEE1394_MINOR_BLOCK_DV1394 * 16);

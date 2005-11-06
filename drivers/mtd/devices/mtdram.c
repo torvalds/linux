@@ -91,8 +91,7 @@ static void __exit cleanup_mtdram(void)
 {
 	if (mtd_info) {
 		del_mtd_device(mtd_info);
-		if (mtd_info->priv)
-			vfree(mtd_info->priv);
+		vfree(mtd_info->priv);
 		kfree(mtd_info);
 	}
 }

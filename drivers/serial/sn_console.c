@@ -259,10 +259,9 @@ static unsigned int snp_tx_empty(struct uart_port *port)
 /**
  * snp_stop_tx - stop the transmitter - no-op for us
  * @port: Port to operat eon - we ignore - no-op function
- * @tty_stop: Set to 1 if called via uart_stop
  *
  */
-static void snp_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void snp_stop_tx(struct uart_port *port)
 {
 }
 
@@ -325,10 +324,9 @@ static void snp_stop_rx(struct uart_port *port)
 /**
  * snp_start_tx - Start transmitter
  * @port: Port to operate on
- * @tty_stop: Set to 1 if called via uart_start
  *
  */
-static void snp_start_tx(struct uart_port *port, unsigned int tty_stop)
+static void snp_start_tx(struct uart_port *port)
 {
 	if (sal_console_port.sc_ops->sal_wakeup_transmit)
 		sal_console_port.sc_ops->sal_wakeup_transmit(&sal_console_port,
@@ -615,7 +613,7 @@ static void sn_transmit_chars(struct sn_cons_port *port, int raw)
 		uart_write_wakeup(&port->sc_port);
 
 	if (uart_circ_empty(xmit))
-		snp_stop_tx(&port->sc_port, 0);	/* no-op for us */
+		snp_stop_tx(&port->sc_port);	/* no-op for us */
 }
 
 /**
@@ -1093,6 +1091,7 @@ int __init sn_serial_console_early_setup(void)
 		return -1;
 
 	sal_console_port.sc_ops = &poll_ops;
+	spin_lock_init(&sal_console_port.sc_port.lock);
 	early_sn_setup();	/* Find SAL entry points */
 	register_console(&sal_console_early);
 

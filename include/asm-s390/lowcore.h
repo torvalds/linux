@@ -68,6 +68,7 @@
 #define __LC_SYSTEM_TIMER		0x270
 #define __LC_LAST_UPDATE_CLOCK		0x278
 #define __LC_STEAL_CLOCK		0x280
+#define __LC_RETURN_MCCK_PSW            0x288
 #define __LC_KERNEL_STACK               0xC40
 #define __LC_THREAD_INFO		0xC44
 #define __LC_ASYNC_STACK                0xC48
@@ -90,6 +91,7 @@
 #define __LC_SYSTEM_TIMER		0x278
 #define __LC_LAST_UPDATE_CLOCK		0x280
 #define __LC_STEAL_CLOCK		0x288
+#define __LC_RETURN_MCCK_PSW            0x290
 #define __LC_KERNEL_STACK               0xD40
 #define __LC_THREAD_INFO		0xD48
 #define __LC_ASYNC_STACK                0xD50
@@ -196,7 +198,8 @@ struct _lowcore
 	__u64        system_timer;             /* 0x270 */
 	__u64        last_update_clock;        /* 0x278 */
 	__u64        steal_clock;              /* 0x280 */
-	__u8         pad8[0xc00-0x288];        /* 0x288 */
+        psw_t        return_mcck_psw;          /* 0x288 */
+	__u8         pad8[0xc00-0x290];        /* 0x290 */
 
         /* System info area */
 	__u32        save_area[16];            /* 0xc00 */
@@ -285,7 +288,8 @@ struct _lowcore
 	__u64        system_timer;             /* 0x278 */
 	__u64        last_update_clock;        /* 0x280 */
 	__u64        steal_clock;              /* 0x288 */
-        __u8         pad8[0xc00-0x290];        /* 0x290 */
+        psw_t        return_mcck_psw;          /* 0x290 */
+        __u8         pad8[0xc00-0x2a0];        /* 0x2a0 */
         /* System info area */
 	__u64        save_area[16];            /* 0xc00 */
         __u8         pad9[0xd40-0xc80];        /* 0xc80 */

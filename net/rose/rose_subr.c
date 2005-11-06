@@ -21,7 +21,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <asm/system.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
@@ -74,7 +74,7 @@ void rose_requeue_frames(struct sock *sk)
 		if (skb_prev == NULL)
 			skb_queue_head(&sk->sk_write_queue, skb);
 		else
-			skb_append(skb_prev, skb);
+			skb_append(skb_prev, skb, &sk->sk_write_queue);
 		skb_prev = skb;
 	}
 }
@@ -337,13 +337,13 @@ static int rose_parse_ccitt(unsigned char *p, struct rose_facilities_struct *fac
 				memcpy(&facilities->source_addr, p + 7, ROSE_ADDR_LEN);
 				memcpy(callsign, p + 12,   l - 10);
 				callsign[l - 10] = '\0';
-				facilities->source_call = *asc2ax(callsign);
+				asc2ax(&facilities->source_call, callsign);
 			}
 			if (*p == FAC_CCITT_SRC_NSAP) {
 				memcpy(&facilities->dest_addr, p + 7, ROSE_ADDR_LEN);
 				memcpy(callsign, p + 12, l - 10);
 				callsign[l - 10] = '\0';
-				facilities->dest_call = *asc2ax(callsign);
+				asc2ax(&facilities->dest_call, callsign);
 			}
 			p   += l + 2;
 			n   += l + 2;
@@ -400,6 +400,7 @@ static int rose_create_facilities(unsigned char *buffer, struct rose_sock *rose)
 {
 	unsigned char *p = buffer + 1;
 	char *callsign;
+	char buf[11];
 	int len, nb;
 
 	/* National Facilities */
@@ -456,7 +457,7 @@ static int rose_create_facilities(unsigned char *buffer, struct rose_sock *rose)
 
 	*p++ = FAC_CCITT_DEST_NSAP;
 
-	callsign = ax2asc(&rose->dest_call);
+	callsign = ax2asc(buf, &rose->dest_call);
 
 	*p++ = strlen(callsign) + 10;
 	*p++ = (strlen(callsign) + 9) * 2;		/* ??? */
@@ -471,7 +472,7 @@ static int rose_create_facilities(unsigned char *buffer, struct rose_sock *rose)
 
 	*p++ = FAC_CCITT_SRC_NSAP;
 
-	callsign = ax2asc(&rose->source_call);
+	callsign = ax2asc(buf, &rose->source_call);
 
 	*p++ = strlen(callsign) + 10;
 	*p++ = (strlen(callsign) + 9) * 2;		/* ??? */

@@ -102,9 +102,9 @@ struct hippi_fp_hdr
 #error	"Please fix <asm/byteorder.h>"
 #endif
 #else
-	__u32		fixed;
+	__be32		fixed;
 #endif
-	__u32		d2_size;
+	__be32		d2_size;
 } __attribute__ ((packed));
 
 struct hippi_le_hdr
@@ -144,7 +144,7 @@ struct hippi_snap_hdr
 	__u8	ssap;			/* always 0xAA */
 	__u8	ctrl;			/* always 0x03 */
 	__u8	oui[HIPPI_OUI_LEN];	/* organizational universal id (zero)*/
-	__u16	ethertype;		/* packet type ID field */
+	__be16	ethertype;		/* packet type ID field */
 } __attribute__ ((packed));
 
 struct hippi_hdr

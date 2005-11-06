@@ -176,8 +176,10 @@ int kgdb_enabled;
 /*
  * spin locks for smp case
  */
-static spinlock_t kgdb_lock = SPIN_LOCK_UNLOCKED;
-static spinlock_t kgdb_cpulock[NR_CPUS] = { [0 ... NR_CPUS-1] = SPIN_LOCK_UNLOCKED};
+static DEFINE_SPINLOCK(kgdb_lock);
+static raw_spinlock_t kgdb_cpulock[NR_CPUS] = {
+	[0 ... NR_CPUS-1] = __RAW_SPIN_LOCK_UNLOCKED;
+};
 
 /*
  * BUFMAX defines the maximum number of characters in inbound/outbound buffers
@@ -637,29 +639,32 @@ static struct gdb_bp_save async_bp;
  * and only one can be active at a time.
  */
 extern spinlock_t smp_call_lock;
+
 void set_async_breakpoint(unsigned long *epc)
 {
 	/* skip breaking into userland */
 	if ((*epc & 0x80000000) == 0)
 		return;
 
+#ifdef CONFIG_SMP
 	/* avoid deadlock if someone is make IPC */
 	if (spin_is_locked(&smp_call_lock))
 		return;
+#endif
 
 	async_bp.addr = *epc;
 	*epc = (unsigned long)async_breakpoint;
 }
 
-void kgdb_wait(void *arg)
+static void kgdb_wait(void *arg)
 {
 	unsigned flags;
 	int cpu = smp_processor_id();
 
 	local_irq_save(flags);
 
-	spin_lock(&kgdb_cpulock[cpu]);
-	spin_unlock(&kgdb_cpulock[cpu]);
+	__raw_spin_lock(&kgdb_cpulock[cpu]);
+	__raw_spin_unlock(&kgdb_cpulock[cpu]);
 
 	local_irq_restore(flags);
 }
@@ -687,8 +692,8 @@ void handle_exception (struct gdb_regs *regs)
 	 * acquire the big kgdb spinlock
 	 */
 	if (!spin_trylock(&kgdb_lock)) {
-		/* 
-		 * some other CPU has the lock, we should go back to 
+		/*
+		 * some other CPU has the lock, we should go back to
 		 * receive the gdb_wait IPC
 		 */
 		return;
@@ -703,11 +708,11 @@ void handle_exception (struct gdb_regs *regs)
 		async_bp.addr = 0;
 	}
 
-	/* 
+	/*
 	 * acquire the CPU spinlocks
 	 */
 	for (i = num_online_cpus()-1; i >= 0; i--)
-		if (spin_trylock(&kgdb_cpulock[i]) == 0)
+		if (__raw_spin_trylock(&kgdb_cpulock[i]) == 0)
 			panic("kgdb: couldn't get cpulock %d\n", i);
 
 	/*
@@ -894,7 +899,7 @@ void handle_exception (struct gdb_regs *regs)
 			ptr = &input_buffer[1];
 			if (hexToLong(&ptr, &addr))
 				regs->cp0_epc = addr;
-	  
+
 			goto exit_kgdb_exception;
 			break;
 
@@ -982,7 +987,7 @@ finish_kgdb:
 exit_kgdb_exception:
 	/* release locks so other CPUs can go */
 	for (i = num_online_cpus()-1; i >= 0; i--)
-		spin_unlock(&kgdb_cpulock[i]);
+		__raw_spin_unlock(&kgdb_cpulock[i]);
 	spin_unlock(&kgdb_lock);
 
 	__flush_cache_all();
@@ -1001,7 +1006,7 @@ void breakpoint(void)
 		return;
 
 	__asm__ __volatile__(
-			".globl	breakinst\n\t" 
+			".globl	breakinst\n\t"
 			".set\tnoreorder\n\t"
 			"nop\n"
 			"breakinst:\tbreak\n\t"
@@ -1014,7 +1019,7 @@ void breakpoint(void)
 void async_breakpoint(void)
 {
 	__asm__ __volatile__(
-			".globl	async_breakinst\n\t" 
+			".globl	async_breakinst\n\t"
 			".set\tnoreorder\n\t"
 			"nop\n"
 			"async_breakinst:\tbreak\n\t"
@@ -1036,12 +1041,12 @@ void adel(void)
  * malloc is needed by gdb client in "call func()", even a private one
  * will make gdb happy
  */
-static void *malloc(size_t size)
+static void * __attribute_used__ malloc(size_t size)
 {
 	return kmalloc(size, GFP_ATOMIC);
 }
 
-static void free(void *where)
+static void __attribute_used__ free (void *where)
 {
 	kfree(where);
 }

@@ -80,9 +80,10 @@ void free_stack(unsigned long stack, int order)
 unsigned long alloc_stack(int order, int atomic)
 {
 	unsigned long page;
-	int flags = GFP_KERNEL;
+	gfp_t flags = GFP_KERNEL;
 
-	if(atomic) flags |= GFP_ATOMIC;
+	if (atomic)
+		flags = GFP_ATOMIC;
 	page = __get_free_pages(flags, order);
 	if(page == 0)
 		return(0);
@@ -113,8 +114,23 @@ void set_current(void *t)
 
 void *_switch_to(void *prev, void *next, void *last)
 {
-	return(CHOOSE_MODE(switch_to_tt(prev, next), 
-			   switch_to_skas(prev, next)));
+        struct task_struct *from = prev;
+        struct task_struct *to= next;
+
+        to->thread.prev_sched = from;
+        set_current(to);
+
+	do {
+		current->thread.saved_task = NULL ;
+		CHOOSE_MODE_PROC(switch_to_tt, switch_to_skas, prev, next);
+		if(current->thread.saved_task)
+			show_regs(&(current->thread.regs));
+		next= current->thread.saved_task;
+		prev= current;
+	} while(current->thread.saved_task);
+
+        return(current->thread.prev_sched);
+
 }
 
 void interrupt_end(void)
@@ -206,6 +222,7 @@ void *um_virt_to_phys(struct task_struct *task, unsigned long addr,
 	pud_t *pud;
 	pmd_t *pmd;
 	pte_t *pte;
+	pte_t ptent;
 
 	if(task->mm == NULL) 
 		return(ERR_PTR(-EINVAL));
@@ -222,12 +239,13 @@ void *um_virt_to_phys(struct task_struct *task, unsigned long addr,
 		return(ERR_PTR(-EINVAL));
 
 	pte = pte_offset_kernel(pmd, addr);
-	if(!pte_present(*pte)) 
+	ptent = *pte;
+	if(!pte_present(ptent))
 		return(ERR_PTR(-EINVAL));
 
 	if(pte_out != NULL)
-		*pte_out = *pte;
-	return((void *) (pte_val(*pte) & PAGE_MASK) + (addr & ~PAGE_MASK));
+		*pte_out = ptent;
+	return((void *) (pte_val(ptent) & PAGE_MASK) + (addr & ~PAGE_MASK));
 }
 
 char *current_cmd(void)

@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2000-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2000-2005 Silicon Graphics, Inc. All rights reserved.
  */
 
 #include <asm/types.h>
@@ -11,7 +11,7 @@
 
 #define DEADLOCKBIT	SH_PIO_WRITE_STATUS_WRITE_DEADLOCK_SHFT
 #define WRITECOUNTMASK	SH_PIO_WRITE_STATUS_PENDING_WRITE_COUNT_MASK
-#define ALIAS_OFFSET	(SH1_PIO_WRITE_STATUS_0_ALIAS-SH1_PIO_WRITE_STATUS_0)
+#define ALIAS_OFFSET	8
 
 
 	.global	sn2_ptc_deadlock_recovery_core
@@ -36,13 +36,15 @@ sn2_ptc_deadlock_recovery_core:
 	extr.u	piowcphy=piowc,0,61;;	// Convert piowc to uncached physical address
 	dep	piowcphy=-1,piowcphy,63,1
 	movl	mask=WRITECOUNTMASK
+	mov	r8=r0
 
 1:
 	add	scr2=ALIAS_OFFSET,piowc	// Address of WRITE_STATUS alias register 
-	mov	scr1=7;;		// Clear DEADLOCK, WRITE_ERROR, MULTI_WRITE_ERROR
-	st8.rel	[scr2]=scr1;;
+	;;
+	ld8.acq	scr1=[scr2];;
 
 5:	ld8.acq	scr1=[piowc];;		// Wait for PIOs to complete.
+	hint	@pause
 	and	scr2=scr1,mask;;	// mask of writecount bits
 	cmp.ne	p6,p0=zeroval,scr2
 (p6)	br.cond.sptk 5b
@@ -57,6 +59,7 @@ sn2_ptc_deadlock_recovery_core:
 	st8.rel [ptc0]=data0		// Write PTC0 & wait for completion.
 
 5:	ld8.acq	scr1=[piowcphy];;	// Wait for PIOs to complete.
+	hint	@pause
 	and	scr2=scr1,mask;;	// mask of writecount bits
 	cmp.ne	p6,p0=zeroval,scr2
 (p6)	br.cond.sptk 5b;;
@@ -67,6 +70,7 @@ sn2_ptc_deadlock_recovery_core:
 (p7)	st8.rel [ptc1]=data1;;		// Now write PTC1.
 
 5:	ld8.acq	scr1=[piowcphy];;	// Wait for PIOs to complete.
+	hint	@pause
 	and	scr2=scr1,mask;;	// mask of writecount bits
 	cmp.ne	p6,p0=zeroval,scr2
 (p6)	br.cond.sptk 5b
@@ -77,6 +81,7 @@ sn2_ptc_deadlock_recovery_core:
 	srlz.i;;
 	////////////// END   PHYSICAL MODE ////////////////////
 
+(p8)	add	r8=1,r8
 (p8)	br.cond.spnt 1b;;		// Repeat if DEADLOCK occurred.
 
 	br.ret.sptk	rp

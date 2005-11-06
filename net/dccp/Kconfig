@@ -1,0 +1,50 @@
+menu "DCCP Configuration (EXPERIMENTAL)"
+	depends on INET && EXPERIMENTAL
+
+config IP_DCCP
+	tristate "The DCCP Protocol (EXPERIMENTAL)"
+	---help---
+	  Datagram Congestion Control Protocol
+
+	  From draft-ietf-dccp-spec-11 <http://www.icir.org/kohler/dcp/draft-ietf-dccp-spec-11.txt>.
+
+	  The Datagram Congestion Control Protocol (DCCP) is a transport
+	  protocol that implements bidirectional, unicast connections of
+	  congestion-controlled, unreliable datagrams. It should be suitable
+	  for use by applications such as streaming media, Internet telephony,
+	  and on-line games
+
+	  To compile this protocol support as a module, choose M here: the
+	  module will be called dccp.
+
+	  If in doubt, say N.
+
+config INET_DCCP_DIAG
+	depends on IP_DCCP && INET_DIAG
+	def_tristate y if (IP_DCCP = y && INET_DIAG = y)
+	def_tristate m
+
+source "net/dccp/ccids/Kconfig"
+
+menu "DCCP Kernel Hacking"
+	depends on IP_DCCP && DEBUG_KERNEL=y
+
+config IP_DCCP_DEBUG
+	bool "DCCP debug messages"
+	---help---
+	  Only use this if you're hacking DCCP.
+
+	  Just say N.
+
+config IP_DCCP_UNLOAD_HACK
+	depends on IP_DCCP=m && IP_DCCP_CCID3=m
+	bool "DCCP control sock unload hack"
+	---help---
+	  Enable this to be able to unload the dccp module when the it
+	  has only one refcount held, the control sock one. Just execute
+	  "rmmod dccp_ccid3 dccp"
+
+	  Just say N.
+endmenu
+
+endmenu

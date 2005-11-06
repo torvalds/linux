@@ -48,13 +48,13 @@ static unsigned int startup_ipr_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type ipr_irq_type = {
-	"IPR-IRQ",
-	startup_ipr_irq,
-	shutdown_ipr_irq,
-	enable_ipr_irq,
-	disable_ipr_irq,
-	mask_and_ack_ipr,
-	end_ipr_irq
+	.typename = "IPR-IRQ",
+	.startup = startup_ipr_irq,
+	.shutdown = shutdown_ipr_irq,
+	.enable = enable_ipr_irq,
+	.disable = disable_ipr_irq,
+	.ack = mask_and_ack_ipr,
+	.end = end_ipr_irq
 };
 
 static void disable_ipr_irq(unsigned int irq)
@@ -142,13 +142,13 @@ static unsigned int startup_pint_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type pint_irq_type = {
-	"PINT-IRQ",
-	startup_pint_irq,
-	shutdown_pint_irq,
-	enable_pint_irq,
-	disable_pint_irq,
-	mask_and_ack_pint,
-	end_pint_irq
+	.typename = "PINT-IRQ",
+	.startup = startup_pint_irq,
+	.shutdown = shutdown_pint_irq,
+	.enable = enable_pint_irq,
+	.disable = disable_pint_irq,
+	.ack = mask_and_ack_pint,
+	.end = end_pint_irq
 };
 
 static void disable_pint_irq(unsigned int irq)

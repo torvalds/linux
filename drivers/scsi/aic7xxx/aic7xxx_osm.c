@@ -125,12 +125,6 @@
 
 static struct scsi_transport_template *ahc_linux_transport_template = NULL;
 
-/*
- * Include aiclib.c as part of our
- * "module dependencies are hard" work around.
- */
-#include "aiclib.c"
-
 #include <linux/init.h>		/* __setup */
 #include <linux/mm.h>		/* For fetching system memory size */
 #include <linux/blkdev.h>		/* For block_size() */
@@ -391,7 +385,6 @@ static int ahc_linux_run_command(struct ahc_softc*,
 				 struct ahc_linux_device *,
 				 struct scsi_cmnd *);
 static void ahc_linux_setup_tag_info_global(char *p);
-static aic_option_callback_t ahc_linux_setup_tag_info;
 static int  aic7xxx_setup(char *s);
 
 static int ahc_linux_unit;
@@ -634,6 +627,8 @@ ahc_linux_slave_alloc(struct scsi_device *sdev)
 	dev->maxtags = 0;
 	
 	targ->sdev[sdev->lun] = sdev;
+
+	spi_period(starget) = 0;
 
 	return 0;
 }
@@ -918,6 +913,86 @@ ahc_linux_setup_tag_info(u_long arg, int instance, int targ, int32_t value)
 	}
 }
 
+static char *
+ahc_parse_brace_option(char *opt_name, char *opt_arg, char *end, int depth,
+		       void (*callback)(u_long, int, int, int32_t),
+		       u_long callback_arg)
+{
+	char	*tok_end;
+	char	*tok_end2;
+	int      i;
+	int      instance;
+	int	 targ;
+	int	 done;
+	char	 tok_list[] = {'.', ',', '{', '}', '\0'};
+
+	/* All options use a ':' name/arg separator */
+	if (*opt_arg != ':')
+		return (opt_arg);
+	opt_arg++;
+	instance = -1;
+	targ = -1;
+	done = FALSE;
+	/*
+	 * Restore separator that may be in
+	 * the middle of our option argument.
+	 */
+	tok_end = strchr(opt_arg, '\0');
+	if (tok_end < end)
+		*tok_end = ',';
+	while (!done) {
+		switch (*opt_arg) {
+		case '{':
+			if (instance == -1) {
+				instance = 0;
+			} else {
+				if (depth > 1) {
+					if (targ == -1)
+						targ = 0;
+				} else {
+					printf("Malformed Option %s\n",
+					       opt_name);
+					done = TRUE;
+				}
+			}
+			opt_arg++;
+			break;
+		case '}':
+			if (targ != -1)
+				targ = -1;
+			else if (instance != -1)
+				instance = -1;
+			opt_arg++;
+			break;
+		case ',':
+		case '.':
+			if (instance == -1)
+				done = TRUE;
+			else if (targ >= 0)
+				targ++;
+			else if (instance >= 0)
+				instance++;
+			opt_arg++;
+			break;
+		case '\0':
+			done = TRUE;
+			break;
+		default:
+			tok_end = end;
+			for (i = 0; tok_list[i]; i++) {
+				tok_end2 = strchr(opt_arg, tok_list[i]);
+				if ((tok_end2) && (tok_end2 < tok_end))
+					tok_end = tok_end2;
+			}
+			callback(callback_arg, instance, targ,
+				 simple_strtol(opt_arg, NULL, 0));
+			opt_arg = tok_end;
+			break;
+		}
+	}
+	return (opt_arg);
+}
+
 /*
  * Handle Linux boot parameters. This routine allows for assigning a value
  * to a parameter with a ':' between the parameter and the value.
@@ -972,7 +1047,7 @@ aic7xxx_setup(char *s)
 		if (strncmp(p, "global_tag_depth", n) == 0) {
 			ahc_linux_setup_tag_info_global(p + n);
 		} else if (strncmp(p, "tag_info", n) == 0) {
-			s = aic_parse_brace_option("tag_info", p + n, end,
+			s = ahc_parse_brace_option("tag_info", p + n, end,
 			    2, ahc_linux_setup_tag_info, 0);
 		} else if (p[n] == ':') {
 			*(options[i].flag) = simple_strtoul(p + n + 1, NULL, 0);
@@ -1032,15 +1107,6 @@ ahc_linux_register_host(struct ahc_softc *ahc, struct scsi_host_template *templa
 	scsi_add_host(host, (ahc->dev_softc ? &ahc->dev_softc->dev : NULL)); /* XXX handle failure */
 	scsi_scan_host(host);
 	return (0);
-}
-
-uint64_t
-ahc_linux_get_memsize(void)
-{
-	struct sysinfo si;
-
-	si_meminfo(&si);
-	return ((uint64_t)si.totalram << PAGE_SHIFT);
 }
 
 /*
@@ -1143,11 +1209,6 @@ ahc_platform_free(struct ahc_softc *ahc)
 	int i, j;
 
 	if (ahc->platform_data != NULL) {
-		if (ahc->platform_data->host != NULL) {
-			scsi_remove_host(ahc->platform_data->host);
-			scsi_host_put(ahc->platform_data->host);
-		}
-
 		/* destroy all of the device and target objects */
 		for (i = 0; i < AHC_NUM_TARGETS; i++) {
 			starget = ahc->platform_data->starget[i];
@@ -1175,6 +1236,9 @@ ahc_platform_free(struct ahc_softc *ahc)
 			release_mem_region(ahc->platform_data->mem_busaddr,
 					   0x1000);
 		}
+
+		if (ahc->platform_data->host)
+			scsi_host_put(ahc->platform_data->host);
 
 		free(ahc->platform_data, M_DEVBUF);
 	}
@@ -1264,14 +1328,12 @@ ahc_platform_set_tags(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 	}
 	switch ((dev->flags & (AHC_DEV_Q_BASIC|AHC_DEV_Q_TAGGED))) {
 	case AHC_DEV_Q_BASIC:
-		scsi_adjust_queue_depth(sdev,
-					MSG_SIMPLE_TASK,
-					dev->openings + dev->active);
+		scsi_set_tag_type(sdev, MSG_SIMPLE_TAG);
+		scsi_activate_tcq(sdev, dev->openings + dev->active);
 		break;
 	case AHC_DEV_Q_TAGGED:
-		scsi_adjust_queue_depth(sdev,
-					MSG_ORDERED_TASK,
-					dev->openings + dev->active);
+		scsi_set_tag_type(sdev, MSG_ORDERED_TAG);
+		scsi_activate_tcq(sdev, dev->openings + dev->active);
 		break;
 	default:
 		/*
@@ -1280,9 +1342,7 @@ ahc_platform_set_tags(struct ahc_softc *ahc, struct ahc_devinfo *devinfo,
 		 * serially on the controller/device.  This should
 		 * remove some latency.
 		 */
-		scsi_adjust_queue_depth(sdev,
-					/*NON-TAGGED*/0,
-					/*queue depth*/2);
+		scsi_deactivate_tcq(sdev, 2);
 		break;
 	}
 }
@@ -1616,9 +1676,9 @@ ahc_send_async(struct ahc_softc *ahc, char channel,
 		if (channel == 'B')
 			target_offset += 8;
 		starget = ahc->platform_data->starget[target_offset];
-		targ = scsi_transport_target_data(starget);
-		if (targ == NULL)
+		if (starget == NULL)
 			break;
+		targ = scsi_transport_target_data(starget);
 
 		target_ppr_options =
 			(spi_dt(starget) ? MSG_EXT_PPR_DT_REQ : 0)
@@ -1635,9 +1695,9 @@ ahc_send_async(struct ahc_softc *ahc, char channel,
 		spi_period(starget) = tinfo->curr.period;
 		spi_width(starget) = tinfo->curr.width;
 		spi_offset(starget) = tinfo->curr.offset;
-		spi_dt(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_DT_REQ;
-		spi_qas(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_QAS_REQ;
-		spi_iu(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_IU_REQ;
+		spi_dt(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_DT_REQ ? 1 : 0;
+		spi_qas(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_QAS_REQ ? 1 : 0;
+		spi_iu(starget) = tinfo->curr.ppr_options & MSG_EXT_PPR_IU_REQ ? 1 : 0;
 		spi_display_xfer_agreement(starget);
 		break;
 	}
@@ -2333,8 +2393,6 @@ ahc_platform_dump_card_state(struct ahc_softc *ahc)
 {
 }
 
-static void ahc_linux_exit(void);
-
 static void ahc_linux_set_width(struct scsi_target *starget, int width)
 {
 	struct Scsi_Host *shost = dev_to_shost(starget->dev.parent);
@@ -2429,12 +2487,14 @@ static void ahc_linux_set_dt(struct scsi_target *starget, int dt)
 	unsigned int ppr_options = tinfo->goal.ppr_options
 		& ~MSG_EXT_PPR_DT_REQ;
 	unsigned int period = tinfo->goal.period;
+	unsigned int width = tinfo->goal.width;
 	unsigned long flags;
 	struct ahc_syncrate *syncrate;
 
 	if (dt) {
-		period = 9;	/* 12.5ns is the only period valid for DT */
 		ppr_options |= MSG_EXT_PPR_DT_REQ;
+		if (!width)
+			ahc_linux_set_width(starget, 1);
 	} else if (period == 9)
 		period = 10;	/* if resetting DT, period must be >= 25ns */
 

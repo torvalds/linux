@@ -43,7 +43,7 @@
 #include <asm/mmu.h>
 #include <asm/irq.h>
 #include <asm/atomic.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/coprocessor.h>
 
 extern void ret_from_fork(void);
@@ -457,7 +457,7 @@ int
 dump_task_fpu(struct pt_regs *regs, struct task_struct *task, elf_fpregset_t *r)
 {
 /* see asm/coprocessor.h for this magic number 16 */
-#if TOTAL_CPEXTRA_SIZE > 16
+#if XTENSA_CP_EXTRA_SIZE > 16
 	do_save_fpregs (r, regs, task);
 
 	/*  For now, bit 16 means some extra state may be present:  */

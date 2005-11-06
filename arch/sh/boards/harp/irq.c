@@ -39,13 +39,13 @@ static unsigned int startup_harp_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type harp_irq_type = {
-	"Harp-IRQ",
-	startup_harp_irq,
-	shutdown_harp_irq,
-	enable_harp_irq,
-	disable_harp_irq,
-	mask_and_ack_harp,
-	end_harp_irq
+	.typename = "Harp-IRQ",
+	.startup = startup_harp_irq,
+	.shutdown = shutdown_harp_irq,
+	.enable = enable_harp_irq,
+	.disable = disable_harp_irq,
+	.ack = mask_and_ack_harp,
+	.end = end_harp_irq
 };
 
 static void disable_harp_irq(unsigned int irq)

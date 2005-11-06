@@ -1,23 +1,21 @@
 /*  *********************************************************************
     *  SB1250 Board Support Package
-    *  
+    *
     *  Register Definitions                     File: sb1250_regs.h
-    *  
+    *
     *  This module contains the addresses of the on-chip peripherals
     *  on the SB1250.
-    *  
+    *
     *  SB1250 specification level:  01/02/2002
-    *  
-    *  Author:  Mitch Lichtenberg
-    *  
-    *********************************************************************  
+    *
+    *********************************************************************
     *
     *  Copyright 2000,2001,2002,2003
     *  Broadcom Corporation. All rights reserved.
-    *  
-    *  This program is free software; you can redistribute it and/or 
-    *  modify it under the terms of the GNU General Public License as 
-    *  published by the Free Software Foundation; either version 2 of 
+    *
+    *  This program is free software; you can redistribute it and/or
+    *  modify it under the terms of the GNU General Public License as
+    *  published by the Free Software Foundation; either version 2 of
     *  the License, or (at your option) any later version.
     *
     *  This program is distributed in the hope that it will be useful,
@@ -27,7 +25,7 @@
     *
     *  You should have received a copy of the GNU General Public License
     *  along with this program; if not, write to the Free Software
-    *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, 
+    *  Foundation, Inc., 59 Temple Place, Suite 330, Boston,
     *  MA 02111-1307 USA
     ********************************************************************* */
 
@@ -40,20 +38,20 @@
 
 /*  *********************************************************************
     *  Some general notes:
-    *  
+    *
     *  For the most part, when there is more than one peripheral
     *  of the same type on the SOC, the constants below will be
     *  offsets from the base of each peripheral.  For example,
     *  the MAC registers are described as offsets from the first
     *  MAC register, and there will be a MAC_REGISTER() macro
-    *  to calculate the base address of a given MAC.  
-    *  
+    *  to calculate the base address of a given MAC.
+    *
     *  The information in this file is based on the SB1250 SOC
     *  manual version 0.2, July 2000.
     ********************************************************************* */
 
 
-/*  ********************************************************************* 
+/*  *********************************************************************
     * Memory Controller Registers
     ********************************************************************* */
 
@@ -61,6 +59,8 @@
  * XXX: can't remove MC base 0 if 112x, since it's used by other macros,
  * since there is one reg there (but it could get its addr/offset constant).
  */
+
+#if SIBYTE_HDR_FEATURE_1250_112x		/* This MC only on 1250 & 112x */
 #define A_MC_BASE_0                 0x0010051000
 #define A_MC_BASE_1                 0x0010052000
 #define MC_REGISTER_SPACING         0x1000
@@ -101,9 +101,13 @@
 #define R_MC_TEST_ECC               0x0000000420
 #define R_MC_MCLK_CFG               0x0000000500
 
-/*  ********************************************************************* 
+#endif	/* 1250 & 112x */
+
+/*  *********************************************************************
     * L2 Cache Control Registers
     ********************************************************************* */
+
+#if SIBYTE_HDR_FEATURE_1250_112x	/* This L2C only on 1250/112x */
 
 #define A_L2_READ_TAG               0x0010040018
 #define A_L2_ECC_TAG                0x0010040038
@@ -125,16 +129,19 @@
 #define A_L2_READ_ADDRESS           A_L2_READ_TAG
 #define A_L2_EEC_ADDRESS            A_L2_ECC_TAG
 
+#endif
 
-/*  ********************************************************************* 
+/*  *********************************************************************
     * PCI Interface Registers
     ********************************************************************* */
 
+#if SIBYTE_HDR_FEATURE_1250_112x	/* This PCI/HT only on 1250/112x */
 #define A_PCI_TYPE00_HEADER         0x00DE000000
 #define A_PCI_TYPE01_HEADER         0x00DE000800
+#endif
 
 
-/*  ********************************************************************* 
+/*  *********************************************************************
     * Ethernet DMA and MACs
     ********************************************************************* */
 
@@ -184,7 +191,7 @@
             (R_MAC_DMA_CHANNEL_BASE(txrx,chan) +    \
             (reg))
 
-/* 
+/*
  * DMA channel registers, relative to A_MAC_DMA_CHANNEL_BASE
  */
 
@@ -259,20 +266,20 @@
 #define MAC_CHMAP_COUNT			4
 
 
-/*  ********************************************************************* 
+/*  *********************************************************************
     * DUART Registers
     ********************************************************************* */
 
 
+#if SIBYTE_HDR_FEATURE_1250_112x		/* This MC only on 1250 & 112x */
 #define R_DUART_NUM_PORTS           2
 
 #define A_DUART                     0x0010060000
 
-#define A_DUART_REG(r)
-
 #define DUART_CHANREG_SPACING       0x100
 #define A_DUART_CHANREG(chan,reg)   (A_DUART + DUART_CHANREG_SPACING*(chan) + (reg))
 #define R_DUART_CHANREG(chan,reg)   (DUART_CHANREG_SPACING*(chan) + (reg))
+#endif	/* 1250 & 112x */
 
 #define R_DUART_MODE_REG_1	    0x100
 #define R_DUART_MODE_REG_2	    0x110
@@ -307,11 +314,13 @@
 
 #define DUART_IMRISR_SPACING        0x20
 
+#if SIBYTE_HDR_FEATURE_1250_112x		/* This MC only on 1250 & 112x */
 #define R_DUART_IMRREG(chan)	    (R_DUART_IMR_A + (chan)*DUART_IMRISR_SPACING)
 #define R_DUART_ISRREG(chan)	    (R_DUART_ISR_A + (chan)*DUART_IMRISR_SPACING)
 
 #define A_DUART_IMRREG(chan)	    (A_DUART + R_DUART_IMRREG(chan))
 #define A_DUART_ISRREG(chan)	    (A_DUART + R_DUART_ISRREG(chan))
+#endif	/* 1250 & 112x */
 
 
 
@@ -363,10 +372,12 @@
 #endif /* 1250 PASS2 || 112x PASS1 */
 
 
-/*  ********************************************************************* 
+/*  *********************************************************************
     * Synchronous Serial Registers
     ********************************************************************* */
 
+
+#if SIBYTE_HDR_FEATURE_1250_112x	/* sync serial only on 1250/112x */
 
 #define A_SER_BASE_0                0x0010060400
 #define A_SER_BASE_1                0x0010060800
@@ -397,7 +408,7 @@
             (reg))
 
 
-/* 
+/*
  * DMA channel registers, relative to A_SER_DMA_CHANNEL_BASE
  */
 
@@ -457,7 +468,9 @@
 #define R_SER_RMON_RX_ERRORS        0x000001F0
 #define R_SER_RMON_RX_BADADDR       0x000001F8
 
-/*  ********************************************************************* 
+#endif	/* 1250/112x */
+
+/*  *********************************************************************
     * Generic Bus Registers
     ********************************************************************* */
 
@@ -513,7 +526,7 @@
 #define R_IO_PCMCIA_CFG             0x0A60
 #define R_IO_PCMCIA_STATUS          0x0A70
 
-/*  ********************************************************************* 
+/*  *********************************************************************
     * GPIO Registers
     ********************************************************************* */
 
@@ -537,7 +550,7 @@
 #define R_GPIO_PIN_CLR              0x30
 #define R_GPIO_PIN_SET              0x38
 
-/*  ********************************************************************* 
+/*  *********************************************************************
     * SMBus Registers
     ********************************************************************* */
 
@@ -573,7 +586,7 @@
 #define R_SMB_CONTROL               0x0000000060
 #define R_SMB_PEC                   0x0000000070
 
-/*  ********************************************************************* 
+/*  *********************************************************************
     * Timer Registers
     ********************************************************************* */
 
@@ -634,14 +647,15 @@
 
 #if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1)
 #define A_SCD_SCRATCH		   0x0010020C10
+#endif /* 1250 PASS2 || 112x PASS1 */
 
+#if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) || SIBYTE_HDR_FEATURE_CHIP(1480)
 #define A_SCD_ZBBUS_CYCLE_COUNT	   0x0010030000
 #define A_SCD_ZBBUS_CYCLE_CP0	   0x0010020C00
 #define A_SCD_ZBBUS_CYCLE_CP1	   0x0010020C08
-#endif /* 1250 PASS2 || 112x PASS1 */
+#endif
 
-
-/*  ********************************************************************* 
+/*  *********************************************************************
     * System Control Registers
     ********************************************************************* */
 
@@ -649,7 +663,7 @@
 #define A_SCD_SYSTEM_CFG            0x0010020008
 #define A_SCD_SYSTEM_MANUF          0x0010038000
 
-/*  ********************************************************************* 
+/*  *********************************************************************
     * System Address Trap Registers
     ********************************************************************* */
 
@@ -667,15 +681,16 @@
 #define A_ADDR_TRAP_CFG_1           0x0010020448
 #define A_ADDR_TRAP_CFG_2           0x0010020450
 #define A_ADDR_TRAP_CFG_3           0x0010020458
-#if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1)
+#if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) || SIBYTE_HDR_FEATURE_CHIP(1480)
 #define A_ADDR_TRAP_REG_DEBUG	    0x0010020460
-#endif /* 1250 PASS2 || 112x PASS1 */
+#endif /* 1250 PASS2 || 112x PASS1 || 1480 */
 
 
-/*  ********************************************************************* 
+/*  *********************************************************************
     * System Interrupt Mapper Registers
     ********************************************************************* */
 
+#if SIBYTE_HDR_FEATURE_1250_112x
 #define A_IMR_CPU0_BASE                 0x0010020000
 #define A_IMR_CPU1_BASE                 0x0010022000
 #define IMR_REGISTER_SPACING            0x2000
@@ -700,8 +715,9 @@
 #define R_IMR_INTERRUPT_STATUS_COUNT    7
 #define R_IMR_INTERRUPT_MAP_BASE        0x0200
 #define R_IMR_INTERRUPT_MAP_COUNT       64
+#endif	/* 1250/112x */
 
-/*  ********************************************************************* 
+/*  *********************************************************************
     * System Performance Counter Registers
     ********************************************************************* */
 
@@ -711,13 +727,14 @@
 #define A_SCD_PERF_CNT_2            0x00100204E0
 #define A_SCD_PERF_CNT_3            0x00100204E8
 
-/*  ********************************************************************* 
+/*  *********************************************************************
     * System Bus Watcher Registers
     ********************************************************************* */
 
 #define A_SCD_BUS_ERR_STATUS        0x0010020880
 #if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1)
 #define A_SCD_BUS_ERR_STATUS_DEBUG  0x00100208D0
+#define A_BUS_ERR_STATUS_DEBUG  0x00100208D0
 #endif /* 1250 PASS2 || 112x PASS1 */
 #define A_BUS_ERR_DATA_0            0x00100208A0
 #define A_BUS_ERR_DATA_1            0x00100208A8
@@ -726,13 +743,13 @@
 #define A_BUS_L2_ERRORS             0x00100208C0
 #define A_BUS_MEM_IO_ERRORS         0x00100208C8
 
-/*  ********************************************************************* 
+/*  *********************************************************************
     * System Debug Controller Registers
     ********************************************************************* */
 
 #define A_SCD_JTAG_BASE             0x0010000000
 
-/*  ********************************************************************* 
+/*  *********************************************************************
     * System Trace Buffer Registers
     ********************************************************************* */
 
@@ -755,7 +772,7 @@
 #define A_SCD_TRACE_SEQUENCE_6      0x0010020A90
 #define A_SCD_TRACE_SEQUENCE_7      0x0010020A98
 
-/*  ********************************************************************* 
+/*  *********************************************************************
     * System Generic DMA Registers
     ********************************************************************* */
 
@@ -798,6 +815,7 @@
     *  Physical Address Map
     ********************************************************************* */
 
+#if SIBYTE_HDR_FEATURE_1250_112x
 #define A_PHYS_MEMORY_0                 _SB_MAKE64(0x0000000000)
 #define A_PHYS_MEMORY_SIZE              _SB_MAKE64((256*1024*1024))
 #define A_PHYS_SYSTEM_CTL               _SB_MAKE64(0x0010000000)
@@ -831,6 +849,7 @@
 #define A_PHYS_L2CACHE_WAY1             _SB_MAKE64(0x00D01A0000)
 #define A_PHYS_L2CACHE_WAY2             _SB_MAKE64(0x00D01C0000)
 #define A_PHYS_L2CACHE_WAY3             _SB_MAKE64(0x00D01E0000)
+#endif
 
 
 #endif

@@ -38,6 +38,12 @@
 #include <linux/types.h>
 
 /*
+ * Increment this value if any changes that break userspace ABI
+ * compatibility are made.
+ */
+#define MTHCA_UVERBS_ABI_VERSION	1
+
+/*
  * Make sure that all structs defined in this file remain laid out so
  * that they pack the same way on 32-bit and 64-bit architectures (to
  * avoid incompatibility between 32-bit userspace and 64-bit kernels).
@@ -66,6 +72,17 @@ struct mthca_create_cq {
 
 struct mthca_create_cq_resp {
 	__u32 cqn;
+	__u32 reserved;
+};
+
+struct mthca_create_srq {
+	__u32 lkey;
+	__u32 db_index;
+	__u64 db_page;
+};
+
+struct mthca_create_srq_resp {
+	__u32 srqn;
 	__u32 reserved;
 };
 

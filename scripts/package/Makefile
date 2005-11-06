@@ -59,7 +59,7 @@ $(objtree)/binkernel.spec: $(MKSPEC) $(srctree)/Makefile
 	$(CONFIG_SHELL) $(MKSPEC) prebuilt > $@
 	
 binrpm-pkg: $(objtree)/binkernel.spec
-	$(MAKE)
+	$(MAKE) KBUILD_SRC=
 	set -e; \
 	$(CONFIG_SHELL) $(srctree)/scripts/mkversion > $(objtree)/.tmp_version
 	set -e; \
@@ -74,16 +74,30 @@ clean-files += $(objtree)/binkernel.spec
 #
 .PHONY: deb-pkg
 deb-pkg:
-	$(MAKE)
+	$(MAKE) KBUILD_SRC=
 	$(CONFIG_SHELL) $(srctree)/scripts/package/builddeb
 
 clean-dirs += $(objtree)/debian/
 
 
+# tarball targets
+# ---------------------------------------------------------------------------
+.PHONY: tar%pkg
+tar%pkg:
+	$(MAKE)
+	$(CONFIG_SHELL) $(srctree)/scripts/package/buildtar $@
+
+clean-dirs += $(objtree)/tar-install/
+
+
 # Help text displayed when executing 'make help'
 # ---------------------------------------------------------------------------
 help:
-	@echo  '  rpm-pkg         - Build the kernel as an RPM package'
-	@echo  '  binrpm-pkg      - Build an rpm package containing the compiled kernel & modules'
-	@echo  '  deb-pkg         - Build the kernel as an deb package'
+	@echo '  rpm-pkg         - Build the kernel as an RPM package'
+	@echo '  binrpm-pkg      - Build an rpm package containing the compiled kernel'
+	@echo '                    and modules'
+	@echo '  deb-pkg         - Build the kernel as an deb package'
+	@echo '  tar-pkg         - Build the kernel as an uncompressed tarball'
+	@echo '  targz-pkg       - Build the kernel as a gzip compressed tarball'
+	@echo '  tarbz2-pkg      - Build the kernel as a bzip2 compressed tarball'
 

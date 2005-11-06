@@ -8,13 +8,6 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
-
-#ifdef CONFIG_PNP_DEBUG
-	#define DEBUG
-#else
-	#undef DEBUG
-#endif
-
 #include <linux/pnp.h>
 #include "base.h"
 

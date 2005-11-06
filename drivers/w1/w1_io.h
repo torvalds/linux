@@ -34,5 +34,6 @@ u8 w1_calc_crc8(u8 *, int);
 void w1_write_block(struct w1_master *, const u8 *, int);
 u8 w1_read_block(struct w1_master *, u8 *, int);
 void w1_search_devices(struct w1_master *dev, w1_slave_found_callback cb);
+int w1_reset_select_slave(struct w1_slave *sl);
 
 #endif /* __W1_IO_H */

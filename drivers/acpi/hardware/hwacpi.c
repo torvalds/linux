@@ -42,13 +42,10 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 
-
 #define _COMPONENT          ACPI_HARDWARE
-	 ACPI_MODULE_NAME    ("hwacpi")
-
+ACPI_MODULE_NAME("hwacpi")
 
 /******************************************************************************
  *
@@ -62,35 +59,29 @@
  *              the FADT.
  *
  ******************************************************************************/
-
-acpi_status
-acpi_hw_initialize (
-	void)
+acpi_status acpi_hw_initialize(void)
 {
-	acpi_status                     status;
+	acpi_status status;
 
-
-	ACPI_FUNCTION_TRACE ("hw_initialize");
-
+	ACPI_FUNCTION_TRACE("hw_initialize");
 
 	/* We must have the ACPI tables by the time we get here */
 
 	if (!acpi_gbl_FADT) {
-		ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No FADT is present\n"));
+		ACPI_DEBUG_PRINT((ACPI_DB_ERROR, "No FADT is present\n"));
 
-		return_ACPI_STATUS (AE_NO_ACPI_TABLES);
+		return_ACPI_STATUS(AE_NO_ACPI_TABLES);
 	}
 
 	/* Sanity check the FADT for valid values */
 
-	status = acpi_ut_validate_fadt ();
-	if (ACPI_FAILURE (status)) {
-		return_ACPI_STATUS (status);
+	status = acpi_ut_validate_fadt();
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
 	}
 
-	return_ACPI_STATUS (AE_OK);
+	return_ACPI_STATUS(AE_OK);
 }
-
 
 /******************************************************************************
  *
@@ -104,24 +95,21 @@ acpi_hw_initialize (
  *
  ******************************************************************************/
 
-acpi_status
-acpi_hw_set_mode (
-	u32                             mode)
+acpi_status acpi_hw_set_mode(u32 mode)
 {
 
-	acpi_status                     status;
-	u32                             retry;
+	acpi_status status;
+	u32 retry;
 
-
-	ACPI_FUNCTION_TRACE ("hw_set_mode");
+	ACPI_FUNCTION_TRACE("hw_set_mode");
 
 	/*
 	 * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,
 	 * system does not support mode transition.
 	 */
 	if (!acpi_gbl_FADT->smi_cmd) {
-		ACPI_REPORT_ERROR (("No SMI_CMD in FADT, mode transition failed.\n"));
-		return_ACPI_STATUS (AE_NO_HARDWARE_RESPONSE);
+		ACPI_REPORT_ERROR(("No SMI_CMD in FADT, mode transition failed.\n"));
+		return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
 	}
 
 	/*
@@ -132,9 +120,8 @@ acpi_hw_set_mode (
 	 * transitions are not supported.
 	 */
 	if (!acpi_gbl_FADT->acpi_enable && !acpi_gbl_FADT->acpi_disable) {
-		ACPI_REPORT_ERROR ((
-			"No ACPI mode transition supported in this system (enable/disable both zero)\n"));
-		return_ACPI_STATUS (AE_OK);
+		ACPI_REPORT_ERROR(("No ACPI mode transition supported in this system (enable/disable both zero)\n"));
+		return_ACPI_STATUS(AE_OK);
 	}
 
 	switch (mode) {
@@ -142,9 +129,11 @@ acpi_hw_set_mode (
 
 		/* BIOS should have disabled ALL fixed and GP events */
 
-		status = acpi_os_write_port (acpi_gbl_FADT->smi_cmd,
-				  (u32) acpi_gbl_FADT->acpi_enable, 8);
-		ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Attempting to enable ACPI mode\n"));
+		status = acpi_os_write_port(acpi_gbl_FADT->smi_cmd,
+					    (u32) acpi_gbl_FADT->acpi_enable,
+					    8);
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				  "Attempting to enable ACPI mode\n"));
 		break;
 
 	case ACPI_SYS_MODE_LEGACY:
@@ -153,20 +142,21 @@ acpi_hw_set_mode (
 		 * BIOS should clear all fixed status bits and restore fixed event
 		 * enable bits to default
 		 */
-		status = acpi_os_write_port (acpi_gbl_FADT->smi_cmd,
-				 (u32) acpi_gbl_FADT->acpi_disable, 8);
-		ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-				 "Attempting to enable Legacy (non-ACPI) mode\n"));
+		status = acpi_os_write_port(acpi_gbl_FADT->smi_cmd,
+					    (u32) acpi_gbl_FADT->acpi_disable,
+					    8);
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				  "Attempting to enable Legacy (non-ACPI) mode\n"));
 		break;
 
 	default:
-		return_ACPI_STATUS (AE_BAD_PARAMETER);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	if (ACPI_FAILURE (status)) {
-		ACPI_REPORT_ERROR (("Could not write mode change, %s\n",
-			acpi_format_exception (status)));
-		return_ACPI_STATUS (status);
+	if (ACPI_FAILURE(status)) {
+		ACPI_REPORT_ERROR(("Could not write mode change, %s\n",
+				   acpi_format_exception(status)));
+		return_ACPI_STATUS(status);
 	}
 
 	/*
@@ -176,18 +166,18 @@ acpi_hw_set_mode (
 	retry = 3000;
 	while (retry) {
 		if (acpi_hw_get_mode() == mode) {
-			ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Mode %X successfully enabled\n",
-				mode));
-			return_ACPI_STATUS (AE_OK);
+			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+					  "Mode %X successfully enabled\n",
+					  mode));
+			return_ACPI_STATUS(AE_OK);
 		}
 		acpi_os_stall(1000);
 		retry--;
 	}
 
-	ACPI_REPORT_ERROR (("Hardware never changed modes\n"));
-	return_ACPI_STATUS (AE_NO_HARDWARE_RESPONSE);
+	ACPI_REPORT_ERROR(("Hardware never changed modes\n"));
+	return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
 }
-
 
 /*******************************************************************************
  *
@@ -202,34 +192,30 @@ acpi_hw_set_mode (
  *
  ******************************************************************************/
 
-u32
-acpi_hw_get_mode (
-	void)
+u32 acpi_hw_get_mode(void)
 {
-	acpi_status                     status;
-	u32                             value;
+	acpi_status status;
+	u32 value;
 
-
-	ACPI_FUNCTION_TRACE ("hw_get_mode");
-
+	ACPI_FUNCTION_TRACE("hw_get_mode");
 
 	/*
 	 * ACPI 2.0 clarified that if SMI_CMD in FADT is zero,
 	 * system does not support mode transition.
 	 */
 	if (!acpi_gbl_FADT->smi_cmd) {
-		return_VALUE (ACPI_SYS_MODE_ACPI);
+		return_VALUE(ACPI_SYS_MODE_ACPI);
 	}
 
-	status = acpi_get_register (ACPI_BITREG_SCI_ENABLE, &value, ACPI_MTX_LOCK);
-	if (ACPI_FAILURE (status)) {
-		return_VALUE (ACPI_SYS_MODE_LEGACY);
+	status =
+	    acpi_get_register(ACPI_BITREG_SCI_ENABLE, &value, ACPI_MTX_LOCK);
+	if (ACPI_FAILURE(status)) {
+		return_VALUE(ACPI_SYS_MODE_LEGACY);
 	}
 
 	if (value) {
-		return_VALUE (ACPI_SYS_MODE_ACPI);
-	}
-	else {
-		return_VALUE (ACPI_SYS_MODE_LEGACY);
+		return_VALUE(ACPI_SYS_MODE_ACPI);
+	} else {
+		return_VALUE(ACPI_SYS_MODE_LEGACY);
 	}
 }

@@ -107,8 +107,7 @@ archclean:
 	rm -f timage vmlinux.bin decompress.bin rescue.bin cramfs.img
 	rm -rf $(LD_SCRIPT).tmp
 
-prepare: $(SRC_ARCH)/.links $(srctree)/include/asm-$(ARCH)/.arch \
-	 include/asm-$(ARCH)/$(SARCH)/offset.h
+archprepare: $(SRC_ARCH)/.links $(srctree)/include/asm-$(ARCH)/.arch
 
 # Create some links to make all tools happy
 $(SRC_ARCH)/.links:
@@ -120,6 +119,7 @@ $(SRC_ARCH)/.links:
 	@ln -sfn $(SRC_ARCH)/$(SARCH)/lib $(SRC_ARCH)/lib
 	@ln -sfn $(SRC_ARCH)/$(SARCH) $(SRC_ARCH)/arch
 	@ln -sfn $(SRC_ARCH)/$(SARCH)/vmlinux.lds.S $(SRC_ARCH)/kernel/vmlinux.lds.S
+	@ln -sfn $(SRC_ARCH)/$(SARCH)/asm-offsets.c $(SRC_ARCH)/kernel/asm-offsets.c
 	@touch $@
 
 # Create link to sub arch includes
@@ -128,9 +128,3 @@ $(srctree)/include/asm-$(ARCH)/.arch: $(wildcard include/config/arch/*.h)
 	@rm -f include/asm-$(ARCH)/arch
 	@ln -sf $(srctree)/include/asm-$(ARCH)/$(SARCH) $(srctree)/include/asm-$(ARCH)/arch
 	@touch $@
-
-arch/$(ARCH)/$(SARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
-					include/config/MARKER
-
-include/asm-$(ARCH)/$(SARCH)/offset.h: arch/$(ARCH)/$(SARCH)/kernel/asm-offsets.s
-	$(call filechk,gen-asm-offsets)

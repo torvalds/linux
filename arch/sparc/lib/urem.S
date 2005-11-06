@@ -41,7 +41,9 @@
  */
 
 	.globl .urem
+	.globl _Urem
 .urem:
+_Urem:	/* needed for export */
 
 	! Ready to divide.  Compute size of quotient; scale comparand.
 	orcc	%o1, %g0, %o5

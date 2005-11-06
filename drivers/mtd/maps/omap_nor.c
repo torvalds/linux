@@ -30,19 +30,20 @@
  * 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/slab.h>
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>
 
 #include <asm/io.h>
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 #include <asm/mach/flash.h>
 #include <asm/arch/tc.h>
 

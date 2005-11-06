@@ -22,7 +22,7 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <net/sock.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 #include <asm/system.h>
 #include <linux/fcntl.h>
 #include <linux/mm.h>
@@ -138,6 +138,7 @@ static void rose_heartbeat_expiry(unsigned long param)
 		   is accepted() it isn't 'dead' so doesn't get removed. */
 		if (sock_flag(sk, SOCK_DESTROY) ||
 		    (sk->sk_state == TCP_LISTEN && sock_flag(sk, SOCK_DEAD))) {
+			bh_unlock_sock(sk);
 			rose_destroy_socket(sk);
 			return;
 		}

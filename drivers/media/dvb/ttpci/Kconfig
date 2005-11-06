@@ -102,6 +102,9 @@ config DVB_BUDGET_AV
 	select VIDEO_DEV
 	select VIDEO_SAA7146_VV
 	select DVB_STV0299
+	select DVB_TDA1004X
+	select DVB_TDA10021
+	select FW_LOADER
 	help
 	  Support for simple SAA7146 based DVB cards
 	  (so called Budget- or Nova-PCI cards) without onboard

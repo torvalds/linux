@@ -99,6 +99,7 @@ statically linked into the kernel). Those options are:
 				SONYPI_MEYE_MASK		0x0400
 				SONYPI_MEMORYSTICK_MASK		0x0800
 				SONYPI_BATTERY_MASK		0x1000
+				SONYPI_WIRELESS_MASK		0x2000
 
 	useinput:	if set (which is the default) two input devices are
 			created, one which interprets the jogdial events as
@@ -136,6 +137,15 @@ Bugs:
 	  mode (but without additional ACPI control, like processor
 	  speed handling etc). Use ACPI instead of APM if it works on your
 	  laptop.
+
+	- sonypi lacks the ability to distinguish between certain key
+	  events on some models.
+
+	- some models with the nvidia card (geforce go 6200 tc) uses a
+	  different way to adjust the backlighting of the screen. There
+	  is a userspace utility to adjust the brightness on those models,
+	  which can be downloaded from
+	  http://www.acc.umu.se/~erikw/program/smartdimmer-0.1.tar.bz2
 
 	- since all development was done by reverse engineering, there is
 	  _absolutely no guarantee_ that this driver will not crash your

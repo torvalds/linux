@@ -1,39 +1,20 @@
 /*
- * Copyright (c) 2000-2004 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
-/*
- * Written by Steve Lord, Jim Mostek, Russell Cattelan at SGI
- */
-
 #ifndef __XFS_BUF_H__
 #define __XFS_BUF_H__
 
@@ -69,15 +50,12 @@ typedef enum page_buf_flags_e {		/* pb_flags values */
 	PBF_READ = (1 << 0),	/* buffer intended for reading from device */
 	PBF_WRITE = (1 << 1),	/* buffer intended for writing to device   */
 	PBF_MAPPED = (1 << 2),  /* buffer mapped (pb_addr valid)           */
-	PBF_PARTIAL = (1 << 3), /* buffer partially read                   */
 	PBF_ASYNC = (1 << 4),   /* initiator will not wait for completion  */
-	PBF_NONE = (1 << 5),    /* buffer not read at all                  */
+	PBF_DONE = (1 << 5),    /* all pages in the buffer uptodate	   */
 	PBF_DELWRI = (1 << 6),  /* buffer has dirty pages                  */
 	PBF_STALE = (1 << 7),	/* buffer has been staled, do not find it  */
 	PBF_FS_MANAGED = (1 << 8),  /* filesystem controls freeing memory  */
-	PBF_FS_DATAIOD = (1 << 9),  /* schedule IO completion on fs datad  */
-	PBF_FORCEIO = (1 << 10),    /* ignore any cache state		   */
-	PBF_FLUSH = (1 << 11),	    /* flush disk write cache		   */
+ 	PBF_ORDERED = (1 << 11),    /* use ordered writes		   */
 	PBF_READ_AHEAD = (1 << 12), /* asynchronous read-ahead		   */
 
 	/* flags used only as arguments to access routines */
@@ -89,11 +67,9 @@ typedef enum page_buf_flags_e {		/* pb_flags values */
 	_PBF_PAGE_CACHE = (1 << 17),/* backed by pagecache		   */
 	_PBF_KMEM_ALLOC = (1 << 18),/* backed by kmem_alloc()		   */
 	_PBF_RUN_QUEUES = (1 << 19),/* run block device task queue	   */
+	_PBF_DELWRI_Q = (1 << 21),   /* buffer on delwri queue		   */
 } page_buf_flags_t;
 
-#define PBF_UPDATE (PBF_READ | PBF_WRITE)
-#define PBF_NOT_DONE(pb) (((pb)->pb_flags & (PBF_PARTIAL|PBF_NONE)) != 0)
-#define PBF_DONE(pb) (((pb)->pb_flags & (PBF_PARTIAL|PBF_NONE)) == 0)
 
 typedef struct xfs_bufhash {
 	struct list_head	bh_list;
@@ -206,13 +182,6 @@ extern xfs_buf_t *xfs_buf_read_flags(	/* allocate and read a buffer	*/
 #define xfs_buf_read(target, blkno, len, flags) \
 	xfs_buf_read_flags((target), (blkno), (len), PBF_LOCK | PBF_MAPPED)
 
-extern xfs_buf_t *pagebuf_lookup(
-		xfs_buftarg_t *,
-		loff_t,			/* starting offset of range	*/
-		size_t,			/* length of range		*/
-		page_buf_flags_t);	/* PBF_READ, PBF_WRITE,		*/
-					/* PBF_FORCEIO, 		*/
-
 extern xfs_buf_t *pagebuf_get_empty(	/* allocate pagebuf struct with	*/
 					/*  no memory or disk address	*/
 		size_t len,
@@ -264,7 +233,6 @@ extern void pagebuf_unlock(		/* unlock buffer		*/
 
 extern void pagebuf_iodone(		/* mark buffer I/O complete	*/
 		xfs_buf_t *,		/* buffer to mark		*/
-		int,			/* use data/log helper thread.	*/
 		int);			/* run completion locally, or in
 					 * a helper thread.		*/
 
@@ -344,8 +312,6 @@ extern void pagebuf_trace(
 
 
 
-
-
 /* These are just for xfs_syncsub... it sets an internal variable
  * then passes it to VOP_FLUSH_PAGES or adds the flags to a newly gotten buf_t
  */
@@ -386,21 +352,21 @@ extern void pagebuf_trace(
 #define XFS_BUF_GETERROR(x)	 pagebuf_geterror(x)
 #define XFS_BUF_ISERROR(x)	 (pagebuf_geterror(x)?1:0)
 
-#define XFS_BUF_DONE(x)		 ((x)->pb_flags &= ~(PBF_PARTIAL|PBF_NONE))
-#define XFS_BUF_UNDONE(x)	 ((x)->pb_flags |= PBF_PARTIAL|PBF_NONE)
-#define XFS_BUF_ISDONE(x)	 (!(PBF_NOT_DONE(x)))
+#define XFS_BUF_DONE(x)		 ((x)->pb_flags |= PBF_DONE)
+#define XFS_BUF_UNDONE(x)	 ((x)->pb_flags &= ~PBF_DONE)
+#define XFS_BUF_ISDONE(x)	 ((x)->pb_flags & PBF_DONE)
 
-#define XFS_BUF_BUSY(x)		 ((x)->pb_flags |= PBF_FORCEIO)
-#define XFS_BUF_UNBUSY(x)	 ((x)->pb_flags &= ~PBF_FORCEIO)
+#define XFS_BUF_BUSY(x)		 do { } while (0)
+#define XFS_BUF_UNBUSY(x)	 do { } while (0)
 #define XFS_BUF_ISBUSY(x)	 (1)
 
 #define XFS_BUF_ASYNC(x)	 ((x)->pb_flags |= PBF_ASYNC)
 #define XFS_BUF_UNASYNC(x)	 ((x)->pb_flags &= ~PBF_ASYNC)
 #define XFS_BUF_ISASYNC(x)	 ((x)->pb_flags & PBF_ASYNC)
 
-#define XFS_BUF_FLUSH(x)	 ((x)->pb_flags |= PBF_FLUSH)
-#define XFS_BUF_UNFLUSH(x)	 ((x)->pb_flags &= ~PBF_FLUSH)
-#define XFS_BUF_ISFLUSH(x)	 ((x)->pb_flags & PBF_FLUSH)
+#define XFS_BUF_ORDERED(x)	 ((x)->pb_flags |= PBF_ORDERED)
+#define XFS_BUF_UNORDERED(x)	 ((x)->pb_flags &= ~PBF_ORDERED)
+#define XFS_BUF_ISORDERED(x)	 ((x)->pb_flags & PBF_ORDERED)
 
 #define XFS_BUF_SHUT(x)		 printk("XFS_BUF_SHUT not implemented yet\n")
 #define XFS_BUF_UNSHUT(x)	 printk("XFS_BUF_UNSHUT not implemented yet\n")
@@ -419,9 +385,6 @@ extern void pagebuf_trace(
 #define XFS_BUF_UNUNINITIAL(x)	 (0)
 
 #define XFS_BUF_BP_ISMAPPED(bp)	 1
-
-#define XFS_BUF_DATAIO(x)	((x)->pb_flags |= PBF_FS_DATAIOD)
-#define XFS_BUF_UNDATAIO(x)	((x)->pb_flags &= ~PBF_FS_DATAIOD)
 
 #define XFS_BUF_IODONE_FUNC(buf)	(buf)->pb_iodone
 #define XFS_BUF_SET_IODONE_FUNC(buf, func)	\
@@ -452,7 +415,7 @@ extern void pagebuf_trace(
 
 #define XFS_BUF_PTR(bp)		(xfs_caddr_t)((bp)->pb_addr)
 
-extern inline xfs_caddr_t xfs_buf_offset(xfs_buf_t *bp, size_t offset)
+static inline xfs_caddr_t xfs_buf_offset(xfs_buf_t *bp, size_t offset)
 {
 	if (bp->pb_flags & PBF_MAPPED)
 		return XFS_BUF_PTR(bp) + offset;
@@ -518,7 +481,7 @@ static inline void	xfs_buf_relse(xfs_buf_t *bp)
 	    pagebuf_trace(bp, id, NULL, (void *)__builtin_return_address(0))
 
 #define xfs_biodone(pb)		    \
-	    pagebuf_iodone(pb, (pb->pb_flags & PBF_FS_DATAIOD), 0)
+	    pagebuf_iodone(pb, 0)
 
 #define xfs_biomove(pb, off, len, data, rw) \
 	    pagebuf_iomove((pb), (off), (len), (data), \

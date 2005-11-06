@@ -39,7 +39,7 @@
 #include <linux/jhash.h>
 #include <linux/kthread.h>
 
-#include <ib_fmr_pool.h>
+#include <rdma/ib_fmr_pool.h>
 
 #include "core_priv.h"
 
@@ -334,6 +334,7 @@ void ib_destroy_fmr_pool(struct ib_fmr_pool *pool)
 {
 	struct ib_pool_fmr *fmr;
 	struct ib_pool_fmr *tmp;
+	LIST_HEAD(fmr_list);
 	int                 i;
 
 	kthread_stop(pool->thread);
@@ -341,6 +342,11 @@ void ib_destroy_fmr_pool(struct ib_fmr_pool *pool)
 
 	i = 0;
 	list_for_each_entry_safe(fmr, tmp, &pool->free_list, list) {
+		if (fmr->remap_count) {
+			INIT_LIST_HEAD(&fmr_list);
+			list_add_tail(&fmr->fmr->list, &fmr_list);
+			ib_unmap_fmr(&fmr_list);
+		}
 		ib_dealloc_fmr(fmr->fmr);
 		list_del(&fmr->list);
 		kfree(fmr);

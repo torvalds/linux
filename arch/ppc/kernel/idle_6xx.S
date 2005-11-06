@@ -20,7 +20,7 @@
 #include <asm/cputable.h>
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
-#include <asm/offsets.h>
+#include <asm/asm-offsets.h>
 
 #undef DEBUG
 

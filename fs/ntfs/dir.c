@@ -1051,7 +1051,8 @@ static inline int ntfs_filldir(ntfs_volume *vol, loff_t fpos,
 			ie->key.file_name.file_name_length, &name,
 			NTFS_MAX_NAME_LEN * NLS_MAX_CHARSET_SIZE + 1);
 	if (name_len <= 0) {
-		ntfs_debug("Skipping unrepresentable file.");
+		ntfs_warning(vol->sb, "Skipping unrepresentable inode 0x%llx.",
+				(long long)MREF_LE(ie->data.dir.indexed_file));
 		return 0;
 	}
 	if (ie->key.file_name.file_attributes &

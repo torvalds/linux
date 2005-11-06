@@ -806,8 +806,8 @@ static void __iomem * __init aty128_map_ROM(const struct aty128fb_par *par, stru
 
 	/* Very simple test to make sure it appeared */
 	if (BIOS_IN16(0) != 0xaa55) {
-		printk(KERN_ERR "aty128fb: Invalid ROM signature %x should be 0xaa55\n",
-		       BIOS_IN16(0));
+		printk(KERN_DEBUG "aty128fb: Invalid ROM signature %x should "
+			" be 0xaa55\n", BIOS_IN16(0));
 		goto failed;
 	}
 
@@ -2323,17 +2323,16 @@ static int aty128_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	 * can properly take care of D3 ? Also, with swsusp, we
 	 * know we'll be rebooted, ...
 	 */
-#ifdef CONFIG_PPC_PMAC
+#ifndef CONFIG_PPC_PMAC
 	/* HACK ALERT ! Once I find a proper way to say to each driver
 	 * individually what will happen with it's PCI slot, I'll change
 	 * that. On laptops, the AGP slot is just unclocked, so D2 is
 	 * expected, while on desktops, the card is powered off
 	 */
-	if (state >= 3)
-		state = 2;
+	return 0;
 #endif /* CONFIG_PPC_PMAC */
 	 
-	if (state != 2 || state == pdev->dev.power.power_state)
+	if (state.event == pdev->dev.power.power_state.event)
 		return 0;
 
 	printk(KERN_DEBUG "aty128fb: suspending...\n");
@@ -2367,7 +2366,7 @@ static int aty128_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	 * used dummy fb ops, 2.5 need proper support for this at the
 	 * fbdev level
 	 */
-	if (state == 2)
+	if (state.event != PM_EVENT_ON)
 		aty128_set_suspend(par, 1);
 
 	release_console_sem();
@@ -2382,12 +2381,11 @@ static int aty128_do_resume(struct pci_dev *pdev)
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct aty128fb_par *par = info->par;
 
-	if (pdev->dev.power.power_state == 0)
+	if (pdev->dev.power.power_state.event == PM_EVENT_ON)
 		return 0;
 
 	/* Wakeup chip */
-	if (pdev->dev.power.power_state == 2)
-		aty128_set_suspend(par, 0);
+	aty128_set_suspend(par, 0);
 	par->asleep = 0;
 
 	/* Restore display & engine */

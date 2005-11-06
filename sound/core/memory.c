@@ -56,7 +56,7 @@ static DEFINE_SPINLOCK(snd_alloc_vmalloc_lock);
 #define VMALLOC_MAGIC 0x87654320
 static snd_info_entry_t *snd_memory_info_entry;
 
-void snd_memory_init(void)
+void __init snd_memory_init(void)
 {
 	snd_alloc_kmalloc = 0;
 	snd_alloc_vmalloc = 0;
@@ -89,7 +89,7 @@ void snd_memory_done(void)
 	}
 }
 
-static void *__snd_kmalloc(size_t size, unsigned int __nocast flags, void *caller)
+static void *__snd_kmalloc(size_t size, gfp_t flags, void *caller)
 {
 	unsigned long cpu_flags;
 	struct snd_alloc_track *t;
@@ -111,20 +111,26 @@ static void *__snd_kmalloc(size_t size, unsigned int __nocast flags, void *calle
 }
 
 #define _snd_kmalloc(size, flags) __snd_kmalloc((size), (flags), __builtin_return_address(0));
-void *snd_hidden_kmalloc(size_t size, unsigned int __nocast flags)
+void *snd_hidden_kmalloc(size_t size, gfp_t flags)
 {
 	return _snd_kmalloc(size, flags);
 }
 
-void *snd_hidden_kcalloc(size_t n, size_t size, unsigned int __nocast flags)
+void *snd_hidden_kzalloc(size_t size, gfp_t flags)
+{
+	void *ret = _snd_kmalloc(size, flags);
+	if (ret)
+		memset(ret, 0, size);
+	return ret;
+}
+EXPORT_SYMBOL(snd_hidden_kzalloc);
+
+void *snd_hidden_kcalloc(size_t n, size_t size, gfp_t flags)
 {
 	void *ret = NULL;
 	if (n != 0 && size > INT_MAX / n)
 		return ret;
-	ret = _snd_kmalloc(n * size, flags);
-	if (ret)
-		memset(ret, 0, n * size);
-	return ret;
+	return snd_hidden_kzalloc(n * size, flags);
 }
 
 void snd_hidden_kfree(const void *obj)
@@ -184,7 +190,7 @@ void snd_hidden_vfree(void *obj)
 	snd_wrapper_vfree(obj);
 }
 
-char *snd_hidden_kstrdup(const char *s, unsigned int __nocast flags)
+char *snd_hidden_kstrdup(const char *s, gfp_t flags)
 {
 	int len;
 	char *buf;
@@ -243,7 +249,7 @@ int __exit snd_memory_info_done(void)
 int copy_to_user_fromio(void __user *dst, const volatile void __iomem *src, size_t count)
 {
 #if defined(__i386__) || defined(CONFIG_SPARC32)
-	return copy_to_user(dst, (const void*)src, count) ? -EFAULT : 0;
+	return copy_to_user(dst, (const void __force*)src, count) ? -EFAULT : 0;
 #else
 	char buf[256];
 	while (count) {
@@ -274,7 +280,7 @@ int copy_to_user_fromio(void __user *dst, const volatile void __iomem *src, size
 int copy_from_user_toio(volatile void __iomem *dst, const void __user *src, size_t count)
 {
 #if defined(__i386__) || defined(CONFIG_SPARC32)
-	return copy_from_user((void*)dst, src, count) ? -EFAULT : 0;
+	return copy_from_user((void __force *)dst, src, count) ? -EFAULT : 0;
 #else
 	char buf[256];
 	while (count) {

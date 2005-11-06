@@ -45,14 +45,14 @@
 
 
 /* TX4927 SDRAM controller (64-bit registers) */
-#define TX4927_SDRAMC_BASE              0x8000 
-#define TX4927_SDRAMC_SDCCR0            0x8000 
+#define TX4927_SDRAMC_BASE              0x8000
+#define TX4927_SDRAMC_SDCCR0            0x8000
 #define TX4927_SDRAMC_SDCCR1            0x8008
 #define TX4927_SDRAMC_SDCCR2            0x8010
 #define TX4927_SDRAMC_SDCCR3            0x8018
 #define TX4927_SDRAMC_SDCTR             0x8040
 #define TX4927_SDRAMC_SDCMD             0x8058
-#define TX4927_SDRAMC_LIMIT             0x8fff 
+#define TX4927_SDRAMC_LIMIT             0x8fff
 
 
 /* TX4927 external bus controller (64-bit registers) */
@@ -289,8 +289,8 @@
 
 
 /* TX4927 serial port 0 (32-bit registers) */
-#define TX4927_SIO0_BASE                         0xf300 
-#define TX4927_SIO0_SILCR0                       0xf300 
+#define TX4927_SIO0_BASE                         0xf300
+#define TX4927_SIO0_SILCR0                       0xf300
 #define TX4927_SIO0_SILCR0_RESERVED_16_31                BM_16_31
 #define TX4927_SIO0_SILCR0_RWUB                          BM_15_15
 #define TX4927_SIO0_SILCR0_TWUB                          BM_14_14
@@ -309,7 +309,7 @@
 #define TX4927_SIO0_SILCR0_UMODE_DATA_7_BIT            (~BM_00_01)
 #define TX4927_SIO0_SILCR0_UMODE_DATA_8_BIT_MC           BM_01_01
 #define TX4927_SIO0_SILCR0_UMODE_DATA_7_BIT_MC           BM_00_01
-#define TX4927_SIO0_SIDICR0                      0xf304 
+#define TX4927_SIO0_SIDICR0                      0xf304
 #define TX4927_SIO0_SIDICR0_RESERVED_16_31               BM_16_31
 #define TX4927_SIO0_SIDICR0_TDE                          BM_15_15
 #define TX4927_SIO0_SIDICR0_RDE                          BM_14_14
@@ -330,7 +330,7 @@
 #define TX4927_SIO0_SIDICR0_STIE_TRDY                    BM_02_02
 #define TX4927_SIO0_SIDICR0_STIE_TXALS                   BM_01_01
 #define TX4927_SIO0_SIDICR0_STIE_UBRKD                   BM_00_00
-#define TX4927_SIO0_SIDISR0                      0xf308 
+#define TX4927_SIO0_SIDISR0                      0xf308
 #define TX4927_SIO0_SIDISR0_RESERVED_16_31               BM_16_31
 #define TX4927_SIO0_SIDISR0_UBRK                         BM_15_15
 #define TX4927_SIO0_SIDISR0_UVALID                       BM_14_14
@@ -344,7 +344,7 @@
 #define TX4927_SIO0_SIDISR0_STIS                         BM_06_06
 #define TX4927_SIO0_SIDISR0_RESERVED_05_05               BM_05_05
 #define TX4927_SIO0_SIDISR0_RFDN                         BM_00_04
-#define TX4927_SIO0_SISCISR0                     0xf30c 
+#define TX4927_SIO0_SISCISR0                     0xf30c
 #define TX4927_SIO0_SISCISR0_RESERVED_06_31              BM_06_31
 #define TX4927_SIO0_SISCISR0_OERS                        BM_05_05
 #define TX4927_SIO0_SISCISR0_CTSS                        BM_04_04
@@ -352,7 +352,7 @@
 #define TX4927_SIO0_SISCISR0_TRDY                        BM_02_02
 #define TX4927_SIO0_SISCISR0_TXALS                       BM_01_01
 #define TX4927_SIO0_SISCISR0_UBRKD                       BM_00_00
-#define TX4927_SIO0_SIFCR0                       0xf310 
+#define TX4927_SIO0_SIFCR0                       0xf310
 #define TX4927_SIO0_SIFCR0_RESERVED_16_31                BM_16_31
 #define TX4927_SIO0_SIFCR0_SWRST                         BM_16_31
 #define TX4927_SIO0_SIFCR0_RESERVED_09_14                BM_09_14
@@ -370,7 +370,7 @@
 #define TX4927_SIO0_SIFCR0_TFRST                         BM_02_02
 #define TX4927_SIO0_SIFCR0_RFRST                         BM_01_01
 #define TX4927_SIO0_SIFCR0_FRSTE                         BM_00_00
-#define TX4927_SIO0_SIFLCR0                      0xf314 
+#define TX4927_SIO0_SIFLCR0                      0xf314
 #define TX4927_SIO0_SIFLCR0_RESERVED_13_31               BM_13_31
 #define TX4927_SIO0_SIFLCR0_RCS                          BM_12_12
 #define TX4927_SIO0_SIFLCR0_TES                          BM_11_11
@@ -381,7 +381,7 @@
 #define TX4927_SIO0_SIFLCR0_RESERVED_05_06               BM_05_06
 #define TX4927_SIO0_SIFLCR0_RTSTL                        BM_01_04
 #define TX4927_SIO0_SIFLCR0_TBRK                         BM_00_00
-#define TX4927_SIO0_SIBGR0                       0xf318 
+#define TX4927_SIO0_SIBGR0                       0xf318
 #define TX4927_SIO0_SIBGR0_RESERVED_10_31                BM_10_31
 #define TX4927_SIO0_SIBGR0_BCLK                          BM_08_09
 #define TX4927_SIO0_SIBGR0_BCLK_T0                     (~BM_08_09)
@@ -389,28 +389,28 @@
 #define TX4927_SIO0_SIBGR0_BCLK_T4                       BM_09_09
 #define TX4927_SIO0_SIBGR0_BCLK_T6                       BM_08_09
 #define TX4927_SIO0_SIBGR0_BRD                           BM_00_07
-#define TX4927_SIO0_SITFIF00                     0xf31c 
+#define TX4927_SIO0_SITFIF00                     0xf31c
 #define TX4927_SIO0_SITFIF00_RESERVED_08_31              BM_08_31
 #define TX4927_SIO0_SITFIF00_TXD                         BM_00_07
-#define TX4927_SIO0_SIRFIFO0                     0xf320          
+#define TX4927_SIO0_SIRFIFO0                     0xf320
 #define TX4927_SIO0_SIRFIFO0_RESERVED_08_31              BM_08_31
 #define TX4927_SIO0_SIRFIFO0_RXD                         BM_00_07
-#define TX4927_SIO0_SIRFIFO0                     0xf320          
-#define TX4927_SIO0_LIMIT                        0xf3ff 
+#define TX4927_SIO0_SIRFIFO0                     0xf320
+#define TX4927_SIO0_LIMIT                        0xf3ff
 
 
 /* TX4927 serial port 1 (32-bit registers) */
-#define TX4927_SIO1_BASE                0xf400 
-#define TX4927_SIO1_SILCR1              0xf400 
-#define TX4927_SIO1_SIDICR1             0xf404 
-#define TX4927_SIO1_SIDISR1             0xf408 
-#define TX4927_SIO1_SISCISR1            0xf40c 
-#define TX4927_SIO1_SIFCR1              0xf410 
-#define TX4927_SIO1_SIFLCR1             0xf414 
-#define TX4927_SIO1_SIBGR1              0xf418 
-#define TX4927_SIO1_SITFIF01            0xf41c 
-#define TX4927_SIO1_SIRFIFO1            0xf420 
-#define TX4927_SIO1_LIMIT               0xf4ff 
+#define TX4927_SIO1_BASE                0xf400
+#define TX4927_SIO1_SILCR1              0xf400
+#define TX4927_SIO1_SIDICR1             0xf404
+#define TX4927_SIO1_SIDISR1             0xf408
+#define TX4927_SIO1_SISCISR1            0xf40c
+#define TX4927_SIO1_SIFCR1              0xf410
+#define TX4927_SIO1_SIFLCR1             0xf414
+#define TX4927_SIO1_SIBGR1              0xf418
+#define TX4927_SIO1_SITFIF01            0xf41c
+#define TX4927_SIO1_SIRFIFO1            0xf420
+#define TX4927_SIO1_LIMIT               0xf4ff
 
 
 /* TX4927 parallel port (32-bit registers) */

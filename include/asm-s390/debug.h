@@ -52,8 +52,6 @@ struct __debug_entry{
 #define DEBUG_DATA(entry) (char*)(entry + 1) /* data is stored behind */
                                              /* the entry information */
 
-#define STCK(x)	asm volatile ("STCK 0(%1)" : "=m" (x) : "a" (&(x)) : "cc")
-
 typedef struct __debug_entry debug_entry_t;
 
 struct debug_view;

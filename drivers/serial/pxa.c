@@ -39,7 +39,7 @@
 #include <linux/circ_buf.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
@@ -80,7 +80,7 @@ static void serial_pxa_enable_ms(struct uart_port *port)
 	serial_out(up, UART_IER, up->ier);
 }
 
-static void serial_pxa_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void serial_pxa_stop_tx(struct uart_port *port)
 {
 	struct uart_pxa_port *up = (struct uart_pxa_port *)port;
 
@@ -185,7 +185,7 @@ static void transmit_chars(struct uart_pxa_port *up)
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
-		serial_pxa_stop_tx(&up->port, 0);
+		serial_pxa_stop_tx(&up->port);
 		return;
 	}
 
@@ -203,10 +203,10 @@ static void transmit_chars(struct uart_pxa_port *up)
 
 
 	if (uart_circ_empty(xmit))
-		serial_pxa_stop_tx(&up->port, 0);
+		serial_pxa_stop_tx(&up->port);
 }
 
-static void serial_pxa_start_tx(struct uart_port *port, unsigned int tty_start)
+static void serial_pxa_start_tx(struct uart_port *port)
 {
 	struct uart_pxa_port *up = (struct uart_pxa_port *)port;
 
@@ -358,6 +358,9 @@ static int serial_pxa_startup(struct uart_port *port)
 	unsigned long flags;
 	int retval;
 
+	if (port->line == 3) /* HWUART */
+		up->mcr |= UART_MCR_AFE;
+	else
 	up->mcr = 0;
 
 	/*
@@ -481,8 +484,10 @@ serial_pxa_set_termios(struct uart_port *port, struct termios *termios,
 
 	if ((up->port.uartclk / quot) < (2400 * 16))
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_PXAR1;
-	else
+	else if ((up->port.uartclk / quot) < (230400 * 16))
 		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_PXAR8;
+	else
+		fcr = UART_FCR_ENABLE_FIFO | UART_FCR_PXAR32;
 
 	/*
 	 * Ok, we're now changing the port state.  Do it with
@@ -499,7 +504,7 @@ serial_pxa_set_termios(struct uart_port *port, struct termios *termios,
 	/*
 	 * Update the per-port timeout.
 	 */
-	uart_update_timeout(port, termios->c_cflag, quot);
+	uart_update_timeout(port, termios->c_cflag, baud);
 
 	up->port.read_status_mask = UART_LSR_OE | UART_LSR_THRE | UART_LSR_DR;
 	if (termios->c_iflag & INPCK)
@@ -589,8 +594,8 @@ serial_pxa_type(struct uart_port *port)
 
 #ifdef CONFIG_SERIAL_PXA_CONSOLE
 
-extern struct uart_pxa_port serial_pxa_ports[];
-extern struct uart_driver serial_pxa_reg;
+static struct uart_pxa_port serial_pxa_ports[];
+static struct uart_driver serial_pxa_reg;
 
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 
@@ -772,6 +777,20 @@ static struct uart_pxa_port serial_pxa_ports[] = {
 		.ops		= &serial_pxa_pops,
 		.line		= 2,
 	},
+  }, {  /* HWUART */
+	.name	= "HWUART",
+	.cken	= CKEN4_HWUART,
+	.port = {
+		.type		= PORT_PXA,
+		.iotype		= UPIO_MEM,
+		.membase	= (void *)&HWUART,
+		.mapbase	= __PREG(HWUART),
+		.irq		= IRQ_HWUART,
+		.uartclk	= 921600 * 16,
+		.fifosize	= 64,
+		.ops		= &serial_pxa_pops,
+		.line		= 3,
+	},
   }
 };
 
@@ -786,21 +805,21 @@ static struct uart_driver serial_pxa_reg = {
 	.cons		= PXA_CONSOLE,
 };
 
-static int serial_pxa_suspend(struct device *_dev, pm_message_t state, u32 level)
+static int serial_pxa_suspend(struct device *_dev, pm_message_t state)
 {
         struct uart_pxa_port *sport = dev_get_drvdata(_dev);
 
-        if (sport && level == SUSPEND_DISABLE)
+        if (sport)
                 uart_suspend_port(&serial_pxa_reg, &sport->port);
 
         return 0;
 }
 
-static int serial_pxa_resume(struct device *_dev, u32 level)
+static int serial_pxa_resume(struct device *_dev)
 {
         struct uart_pxa_port *sport = dev_get_drvdata(_dev);
 
-        if (sport && level == RESUME_ENABLE)
+        if (sport)
                 uart_resume_port(&serial_pxa_reg, &sport->port);
 
         return 0;

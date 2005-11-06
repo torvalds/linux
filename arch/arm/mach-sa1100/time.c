@@ -70,15 +70,11 @@ static unsigned long sa1100_gettimeoffset (void)
 	return usec;
 }
 
-/*
- * We will be entered with IRQs enabled.
- *
- * Loop until we get ahead of the free running timer.
- * This ensures an exact clock tick count and time accuracy.
- * IRQs are disabled inside the loop to ensure coherence between
- * lost_ticks (updated in do_timer()) and the match reg value, so we
- * can use do_gettimeofday() from interrupt handlers.
- */
+#ifdef CONFIG_NO_IDLE_HZ
+static unsigned long initial_match;
+static int match_posponed;
+#endif
+
 static irqreturn_t
 sa1100_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
@@ -86,6 +82,21 @@ sa1100_timer_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 
 	write_seqlock(&xtime_lock);
 
+#ifdef CONFIG_NO_IDLE_HZ
+	if (match_posponed) {
+		match_posponed = 0;
+		OSMR0 = initial_match;
+	}
+#endif
+
+	/*
+	 * Loop until we get ahead of the free running timer.
+	 * This ensures an exact clock tick count and time accuracy.
+	 * Since IRQs are disabled at this point, coherence between
+	 * lost_ticks(updated in do_timer()) and the match reg value is
+	 * ensured, hence we can use do_gettimeofday() from interrupt
+	 * handlers.
+	 */
 	do {
 		timer_tick(regs);
 		OSSR = OSSR_M0;  /* Clear match on timer 0 */
@@ -119,6 +130,42 @@ static void __init sa1100_timer_init(void)
 	OIER |= OIER_E0;	/* enable match on timer 0 to cause interrupts */
 	OSCR = 0;		/* initialize free-running timer, force first match */
 }
+
+#ifdef CONFIG_NO_IDLE_HZ
+static int sa1100_dyn_tick_enable_disable(void)
+{
+	/* nothing to do */
+	return 0;
+}
+
+static void sa1100_dyn_tick_reprogram(unsigned long ticks)
+{
+	if (ticks > 1) {
+		initial_match = OSMR0;
+		OSMR0 = initial_match + ticks * LATCH;
+		match_posponed = 1;
+	}
+}
+
+static irqreturn_t
+sa1100_dyn_tick_handler(int irq, void *dev_id, struct pt_regs *regs)
+{
+	if (match_posponed) {
+		match_posponed = 0;
+		OSMR0 = initial_match;
+		if ((signed long)(initial_match - OSCR) <= 0)
+			return sa1100_timer_interrupt(irq, dev_id, regs);
+	}
+	return IRQ_NONE;
+}
+
+static struct dyn_tick_timer sa1100_dyn_tick = {
+	.enable		= sa1100_dyn_tick_enable_disable,
+	.disable	= sa1100_dyn_tick_enable_disable,
+	.reprogram	= sa1100_dyn_tick_reprogram,
+	.handler	= sa1100_dyn_tick_handler,
+};
+#endif
 
 #ifdef CONFIG_PM
 unsigned long osmr[4], oier;
@@ -156,4 +203,7 @@ struct sys_timer sa1100_timer = {
 	.suspend	= sa1100_timer_suspend,
 	.resume		= sa1100_timer_resume,
 	.offset		= sa1100_gettimeoffset,
+#ifdef CONFIG_NO_IDLE_HZ
+	.dyn_tick	= &sa1100_dyn_tick,
+#endif
 };

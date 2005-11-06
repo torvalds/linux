@@ -7,7 +7,7 @@
 #ifndef _ASM_ASMMACRO_32_H
 #define _ASM_ASMMACRO_32_H
 
-#include <asm/offset.h>
+#include <asm/asm-offsets.h>
 #include <asm/regdef.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>

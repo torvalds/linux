@@ -1,5 +1,4 @@
 /*
- * $Id: msp3400.h,v 1.3 2005/06/12 04:19:19 mchehab Exp $
  */
 
 #ifndef MSP3400_H

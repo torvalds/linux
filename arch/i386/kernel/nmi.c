@@ -15,7 +15,6 @@
 
 #include <linux/config.h>
 #include <linux/mm.h>
-#include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/bootmem.h>
 #include <linux/smp_lock.h>
@@ -101,15 +100,43 @@ int nmi_active;
 	(P4_CCCR_OVF_PMI0|P4_CCCR_THRESHOLD(15)|P4_CCCR_COMPLEMENT|	\
 	 P4_CCCR_COMPARE|P4_CCCR_REQUIRED|P4_CCCR_ESCR_SELECT(4)|P4_CCCR_ENABLE)
 
+#ifdef CONFIG_SMP
+/* The performance counters used by NMI_LOCAL_APIC don't trigger when
+ * the CPU is idle. To make sure the NMI watchdog really ticks on all
+ * CPUs during the test make them busy.
+ */
+static __init void nmi_cpu_busy(void *data)
+{
+	volatile int *endflag = data;
+	local_irq_enable();
+	/* Intentionally don't use cpu_relax here. This is
+	   to make sure that the performance counter really ticks,
+	   even if there is a simulator or similar that catches the
+	   pause instruction. On a real HT machine this is fine because
+	   all other CPUs are busy with "useless" delay loops and don't
+	   care if they get somewhat less cycles. */
+	while (*endflag == 0)
+		barrier();
+}
+#endif
+
 static int __init check_nmi_watchdog(void)
 {
-	unsigned int prev_nmi_count[NR_CPUS];
+	volatile int endflag = 0;
+	unsigned int *prev_nmi_count;
 	int cpu;
 
 	if (nmi_watchdog == NMI_NONE)
 		return 0;
 
+	prev_nmi_count = kmalloc(NR_CPUS * sizeof(int), GFP_KERNEL);
+	if (!prev_nmi_count)
+		return -1;
+
 	printk(KERN_INFO "Testing NMI watchdog ... ");
+
+	if (nmi_watchdog == NMI_LOCAL_APIC)
+		smp_call_function(nmi_cpu_busy, (void *)&endflag, 0, 0);
 
 	for (cpu = 0; cpu < NR_CPUS; cpu++)
 		prev_nmi_count[cpu] = per_cpu(irq_stat, cpu).__nmi_count;
@@ -124,12 +151,18 @@ static int __init check_nmi_watchdog(void)
 			continue;
 #endif
 		if (nmi_count(cpu) - prev_nmi_count[cpu] <= 5) {
-			printk("CPU#%d: NMI appears to be stuck!\n", cpu);
+			endflag = 1;
+			printk("CPU#%d: NMI appears to be stuck (%d->%d)!\n",
+				cpu,
+				prev_nmi_count[cpu],
+				nmi_count(cpu));
 			nmi_active = 0;
 			lapic_nmi_owner &= ~LAPIC_NMI_WATCHDOG;
+			kfree(prev_nmi_count);
 			return -1;
 		}
 	}
+	endflag = 1;
 	printk("OK.\n");
 
 	/* now that we know it works we can reduce NMI frequency to
@@ -137,6 +170,7 @@ static int __init check_nmi_watchdog(void)
 	if (nmi_watchdog == NMI_LOCAL_APIC)
 		nmi_hz = 1;
 
+	kfree(prev_nmi_count);
 	return 0;
 }
 /* This needs to happen later in boot so counters are working */
@@ -195,7 +229,7 @@ static void disable_lapic_nmi_watchdog(void)
 			wrmsr(MSR_P6_EVNTSEL0, 0, 0);
 			break;
 		case 15:
-			if (boot_cpu_data.x86_model > 0x3)
+			if (boot_cpu_data.x86_model > 0x4)
 				break;
 
 			wrmsr(MSR_P4_IQ_CCCR0, 0, 0);
@@ -432,7 +466,7 @@ void setup_apic_nmi_watchdog (void)
 			setup_p6_watchdog();
 			break;
 		case 15:
-			if (boot_cpu_data.x86_model > 0x3)
+			if (boot_cpu_data.x86_model > 0x4)
 				return;
 
 			if (!setup_p4_watchdog())
@@ -478,6 +512,11 @@ void touch_nmi_watchdog (void)
 	 */
 	for (i = 0; i < NR_CPUS; i++)
 		alert_counter[i] = 0;
+
+	/*
+	 * Tickle the softlockup detector too:
+	 */
+	touch_softlockup_watchdog();
 }
 
 extern void die_nmi(struct pt_regs *, const char *msg);
@@ -501,8 +540,11 @@ void nmi_watchdog_tick (struct pt_regs * regs)
 		 */
 		alert_counter[cpu]++;
 		if (alert_counter[cpu] == 5*nmi_hz)
+			/*
+			 * die_nmi will return ONLY if NOTIFY_STOP happens..
+			 */
 			die_nmi(regs, "NMI Watchdog detected LOCKUP");
-	} else {
+
 		last_irq_sums[cpu] = sum;
 		alert_counter[cpu] = 0;
 	}

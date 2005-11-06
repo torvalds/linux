@@ -182,7 +182,7 @@ void __init board_setup(void)
 	au_writel(0xf0000000, Au1500_PCI_MWMASK_DEV);
 	au_writel(0, Au1500_PCI_MWBASE_REV_CCL);
 	au_writel(0x02a00356, Au1500_PCI_STATCMD);
-	au_writel(0x00003c04, Au1500_PCI_HDRTYPE);	
+	au_writel(0x00003c04, Au1500_PCI_HDRTYPE);
 	au_writel(0x00000008, Au1500_PCI_MBAR);
 	au_sync();
 
@@ -216,7 +216,7 @@ csb250_pci_idsel(unsigned int devsel, int assert)
 	unsigned int	gpio2_pins;
 
 	retval = 1;
-	
+
 	/* First, disable both selects, then assert the one requested.
 	*/
 	au_writel(0xc000c000, GPIO2_OUTPUT);

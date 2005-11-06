@@ -168,7 +168,7 @@ ip_nat_mangle_tcp_packet(struct sk_buff **pskb,
 	struct tcphdr *tcph;
 	int datalen;
 
-	if (!skb_ip_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(pskb, (*pskb)->len))
 		return 0;
 
 	if (rep_len > match_len
@@ -199,6 +199,7 @@ ip_nat_mangle_tcp_packet(struct sk_buff **pskb,
 	}
 	return 1;
 }
+EXPORT_SYMBOL(ip_nat_mangle_tcp_packet);
 			
 /* Generic function for mangling variable-length address changes inside
  * NATed UDP connections (like the CONNECT DATA XXXXX MESG XXXXX INDEX XXXXX
@@ -228,7 +229,7 @@ ip_nat_mangle_udp_packet(struct sk_buff **pskb,
 	                       match_offset + match_len)
 		return 0;
 
-	if (!skb_ip_make_writable(pskb, (*pskb)->len))
+	if (!skb_make_writable(pskb, (*pskb)->len))
 		return 0;
 
 	if (rep_len > match_len
@@ -256,6 +257,7 @@ ip_nat_mangle_udp_packet(struct sk_buff **pskb,
 
 	return 1;
 }
+EXPORT_SYMBOL(ip_nat_mangle_udp_packet);
 
 /* Adjust one found SACK option including checksum correction */
 static void
@@ -315,7 +317,7 @@ ip_nat_sack_adjust(struct sk_buff **pskb,
 	optoff = (*pskb)->nh.iph->ihl*4 + sizeof(struct tcphdr);
 	optend = (*pskb)->nh.iph->ihl*4 + tcph->doff*4;
 
-	if (!skb_ip_make_writable(pskb, optend))
+	if (!skb_make_writable(pskb, optend))
 		return 0;
 
 	dir = CTINFO2DIR(ctinfo);
@@ -363,7 +365,7 @@ ip_nat_seq_adjust(struct sk_buff **pskb,
 	this_way = &ct->nat.info.seq[dir];
 	other_way = &ct->nat.info.seq[!dir];
 
-	if (!skb_ip_make_writable(pskb, (*pskb)->nh.iph->ihl*4+sizeof(*tcph)))
+	if (!skb_make_writable(pskb, (*pskb)->nh.iph->ihl*4+sizeof(*tcph)))
 		return 0;
 
 	tcph = (void *)(*pskb)->data + (*pskb)->nh.iph->ihl*4;
@@ -399,6 +401,7 @@ ip_nat_seq_adjust(struct sk_buff **pskb,
 
 	return 1;
 }
+EXPORT_SYMBOL(ip_nat_seq_adjust);
 
 /* Setup NAT on this expected conntrack so it follows master. */
 /* If we fail to get a free NAT slot, we'll get dropped on confirm */
@@ -425,3 +428,4 @@ void ip_nat_follow_master(struct ip_conntrack *ct,
 	/* hook doesn't matter, but it has to do destination manip */
 	ip_nat_setup_info(ct, &range, NF_IP_PRE_ROUTING);
 }
+EXPORT_SYMBOL(ip_nat_follow_master);

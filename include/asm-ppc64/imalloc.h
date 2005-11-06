@@ -6,7 +6,7 @@
  */
 #define PHBS_IO_BASE  	  VMALLOC_END
 #define IMALLOC_BASE      (PHBS_IO_BASE + 0x80000000ul)	/* Reserve 2 gigs for PHBs */
-#define IMALLOC_END       (VMALLOC_START + EADDR_MASK)
+#define IMALLOC_END       (VMALLOC_START + PGTABLE_RANGE)
 
 
 /* imalloc region types */

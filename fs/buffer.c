@@ -40,6 +40,7 @@
 #include <linux/cpu.h>
 #include <linux/bitops.h>
 #include <linux/mpage.h>
+#include <linux/bit_spinlock.h>
 
 static int fsync_buffers_list(spinlock_t *lock, struct list_head *list);
 static void invalidate_bh_lrus(void);
@@ -95,7 +96,7 @@ static void
 __clear_page_buffers(struct page *page)
 {
 	ClearPagePrivate(page);
-	page->private = 0;
+	set_page_private(page, 0);
 	page_cache_release(page);
 }
 
@@ -501,7 +502,7 @@ static void free_more_memory(void)
 	yield();
 
 	for_each_pgdat(pgdat) {
-		zones = pgdat->node_zonelists[GFP_NOFS&GFP_ZONEMASK].zones;
+		zones = pgdat->node_zonelists[gfp_zone(GFP_NOFS)].zones;
 		if (*zones)
 			try_to_free_pages(zones, GFP_NOFS);
 	}
@@ -917,8 +918,7 @@ static int fsync_buffers_list(spinlock_t *lock, struct list_head *list)
 				 * contents - it is a noop if I/O is still in
 				 * flight on potentially older contents.
 				 */
-				wait_on_buffer(bh);
-				ll_rw_block(WRITE, 1, &bh);
+				ll_rw_block(SWRITE, 1, &bh);
 				brelse(bh);
 				spin_lock(lock);
 			}
@@ -1478,8 +1478,10 @@ EXPORT_SYMBOL(__getblk);
 void __breadahead(struct block_device *bdev, sector_t block, int size)
 {
 	struct buffer_head *bh = __getblk(bdev, block, size);
-	ll_rw_block(READA, 1, &bh);
-	brelse(bh);
+	if (likely(bh)) {
+		ll_rw_block(READA, 1, &bh);
+		brelse(bh);
+	}
 }
 EXPORT_SYMBOL(__breadahead);
 
@@ -1497,7 +1499,7 @@ __bread(struct block_device *bdev, sector_t block, int size)
 {
 	struct buffer_head *bh = __getblk(bdev, block, size);
 
-	if (!buffer_uptodate(bh))
+	if (likely(bh) && !buffer_uptodate(bh))
 		bh = __bread_slow(bh);
 	return bh;
 }
@@ -1571,7 +1573,7 @@ static inline void discard_buffer(struct buffer_head * bh)
  *
  * NOTE: @gfp_mask may go away, and this function may become non-blocking.
  */
-int try_to_release_page(struct page *page, int gfp_mask)
+int try_to_release_page(struct page *page, gfp_t gfp_mask)
 {
 	struct address_space * const mapping = page->mapping;
 
@@ -1636,6 +1638,15 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL(block_invalidatepage);
+
+int do_invalidatepage(struct page *page, unsigned long offset)
+{
+	int (*invalidatepage)(struct page *, unsigned long);
+	invalidatepage = page->mapping->a_ops->invalidatepage;
+	if (invalidatepage == NULL)
+		invalidatepage = block_invalidatepage;
+	return (*invalidatepage)(page, offset);
+}
 
 /*
  * We attach and possibly dirty the buffers atomically wrt
@@ -2696,7 +2707,7 @@ int block_write_full_page(struct page *page, get_block_t *get_block,
 		 * they may have been added in ext3_writepage().  Make them
 		 * freeable here, so the page does not leak.
 		 */
-		block_invalidatepage(page, 0);
+		do_invalidatepage(page, 0);
 		unlock_page(page);
 		return 0; /* don't care */
 	}
@@ -2793,21 +2804,22 @@ int submit_bh(int rw, struct buffer_head * bh)
 
 /**
  * ll_rw_block: low-level access to block devices (DEPRECATED)
- * @rw: whether to %READ or %WRITE or maybe %READA (readahead)
+ * @rw: whether to %READ or %WRITE or %SWRITE or maybe %READA (readahead)
  * @nr: number of &struct buffer_heads in the array
  * @bhs: array of pointers to &struct buffer_head
  *
- * ll_rw_block() takes an array of pointers to &struct buffer_heads,
- * and requests an I/O operation on them, either a %READ or a %WRITE.
- * The third %READA option is described in the documentation for
- * generic_make_request() which ll_rw_block() calls.
+ * ll_rw_block() takes an array of pointers to &struct buffer_heads, and
+ * requests an I/O operation on them, either a %READ or a %WRITE.  The third
+ * %SWRITE is like %WRITE only we make sure that the *current* data in buffers
+ * are sent to disk. The fourth %READA option is described in the documentation
+ * for generic_make_request() which ll_rw_block() calls.
  *
  * This function drops any buffer that it cannot get a lock on (with the
- * BH_Lock state bit), any buffer that appears to be clean when doing a
- * write request, and any buffer that appears to be up-to-date when doing
- * read request.  Further it marks as clean buffers that are processed for
- * writing (the buffer cache won't assume that they are actually clean until
- * the buffer gets unlocked).
+ * BH_Lock state bit) unless SWRITE is required, any buffer that appears to be
+ * clean when doing a write request, and any buffer that appears to be
+ * up-to-date when doing read request.  Further it marks as clean buffers that
+ * are processed for writing (the buffer cache won't assume that they are
+ * actually clean until the buffer gets unlocked).
  *
  * ll_rw_block sets b_end_io to simple completion handler that marks
  * the buffer up-to-date (if approriate), unlocks the buffer and wakes
@@ -2823,11 +2835,13 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 	for (i = 0; i < nr; i++) {
 		struct buffer_head *bh = bhs[i];
 
-		if (test_set_buffer_locked(bh))
+		if (rw == SWRITE)
+			lock_buffer(bh);
+		else if (test_set_buffer_locked(bh))
 			continue;
 
 		get_bh(bh);
-		if (rw == WRITE) {
+		if (rw == WRITE || rw == SWRITE) {
 			if (test_clear_buffer_dirty(bh)) {
 				bh->b_end_io = end_buffer_write_sync;
 				submit_bh(WRITE, bh);
@@ -3042,14 +3056,13 @@ static void recalc_bh_state(void)
 	buffer_heads_over_limit = (tot > max_buffer_heads);
 }
 	
-struct buffer_head *alloc_buffer_head(unsigned int __nocast gfp_flags)
+struct buffer_head *alloc_buffer_head(gfp_t gfp_flags)
 {
 	struct buffer_head *ret = kmem_cache_alloc(bh_cachep, gfp_flags);
 	if (ret) {
-		preempt_disable();
-		__get_cpu_var(bh_accounting).nr++;
+		get_cpu_var(bh_accounting).nr++;
 		recalc_bh_state();
-		preempt_enable();
+		put_cpu_var(bh_accounting);
 	}
 	return ret;
 }
@@ -3059,10 +3072,9 @@ void free_buffer_head(struct buffer_head *bh)
 {
 	BUG_ON(!list_empty(&bh->b_assoc_buffers));
 	kmem_cache_free(bh_cachep, bh);
-	preempt_disable();
-	__get_cpu_var(bh_accounting).nr--;
+	get_cpu_var(bh_accounting).nr--;
 	recalc_bh_state();
-	preempt_enable();
+	put_cpu_var(bh_accounting);
 }
 EXPORT_SYMBOL(free_buffer_head);
 

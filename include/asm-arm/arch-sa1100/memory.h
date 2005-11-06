@@ -13,7 +13,7 @@
 /*
  * Physical DRAM offset is 0xc0000000 on the SA1100
  */
-#define PHYS_OFFSET	(0xc0000000UL)
+#define PHYS_OFFSET	UL(0xc0000000)
 
 #ifndef __ASSEMBLY__
 
@@ -98,10 +98,6 @@ __arch_adjust_zones(int node, unsigned long *size, unsigned long *holes)
  */
 #define LOCAL_MAP_NR(addr) \
 	(((unsigned long)(addr) & 0x07ffffff) >> PAGE_SHIFT)
-
-#else
-
-#define PFN_TO_NID(addr)	(0)
 
 #endif
 

@@ -66,13 +66,7 @@ boot		:= arch/xtensa/boot
 
 archinc		:= include/asm-xtensa
 
-arch/xtensa/kernel/asm-offsets.s: \
-	arch/xtensa/kernel/asm-offsets.c $(archinc)/.platform
-
-include/asm-xtensa/offsets.h: arch/xtensa/kernel/asm-offsets.s
-	$(call filechk,gen-asm-offsets)
-
-prepare: $(archinc)/.platform $(archinc)/offsets.h
+archprepare: $(archinc)/.platform
 
 # Update machine cpu and platform symlinks if something which affects
 # them changed.
@@ -94,7 +88,7 @@ bzImage : zImage
 zImage zImage.initrd: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
-CLEAN_FILES	+= arch/xtensa/vmlinux.lds $(archinc)/offset.h \
+CLEAN_FILES	+= arch/xtensa/vmlinux.lds                      \
 		   $(archinc)/platform $(archinc)/xtensa/config \
 		   $(archinc)/.platform
 

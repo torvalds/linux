@@ -73,51 +73,6 @@ MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (0 = auto-detect).");
 /*
  *  Direct registers
  */
-
-#ifndef PCI_DEVICE_ID_INTEL_82801_6
-#define PCI_DEVICE_ID_INTEL_82801_6     0x2416
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_82901_6
-#define PCI_DEVICE_ID_INTEL_82901_6     0x2426
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_82801BA_6
-#define PCI_DEVICE_ID_INTEL_82801BA_6   0x2446
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_440MX_6
-#define PCI_DEVICE_ID_INTEL_440MX_6     0x7196
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_ICH3_6
-#define PCI_DEVICE_ID_INTEL_ICH3_6	0x2486
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_ICH4_6
-#define PCI_DEVICE_ID_INTEL_ICH4_6	0x24c6
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_ICH5_6
-#define PCI_DEVICE_ID_INTEL_ICH5_6	0x24d6
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_ICH6_6
-#define PCI_DEVICE_ID_INTEL_ICH6_6	0x266d
-#endif
-#ifndef PCI_DEVICE_ID_INTEL_ICH7_6
-#define PCI_DEVICE_ID_INTEL_ICH7_6	0x27dd
-#endif
-#ifndef PCI_DEVICE_ID_SI_7013
-#define PCI_DEVICE_ID_SI_7013		0x7013
-#endif
-#ifndef PCI_DEVICE_ID_NVIDIA_MCP_MODEM
-#define PCI_DEVICE_ID_NVIDIA_MCP_MODEM	0x01c1
-#endif
-#ifndef PCI_DEVICE_ID_NVIDIA_MCP2_MODEM
-#define PCI_DEVICE_ID_NVIDIA_MCP2_MODEM	0x0069
-#endif
-#ifndef PCI_DEVICE_ID_NVIDIA_MCP2S_MODEM
-#define PCI_DEVICE_ID_NVIDIA_MCP2S_MODEM 0x0089
-#endif
-#ifndef PCI_DEVICE_ID_NVIDIA_MCP3_MODEM
-#define PCI_DEVICE_ID_NVIDIA_MCP3_MODEM	0x00d9
-#endif
-
-
 enum { DEVICE_INTEL, DEVICE_SIS, DEVICE_ALI, DEVICE_NFORCE };
 
 #define ICHREG(x) ICH_REG_##x
@@ -1158,7 +1113,7 @@ static int __devinit snd_intel8x0m_create(snd_card_t * card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -1283,18 +1238,18 @@ static struct shortname_table {
 	unsigned int id;
 	const char *s;
 } shortnames[] __devinitdata = {
-	{ PCI_DEVICE_ID_INTEL_82801_6, "Intel 82801AA-ICH" },
-	{ PCI_DEVICE_ID_INTEL_82901_6, "Intel 82901AB-ICH0" },
+	{ PCI_DEVICE_ID_INTEL_82801AA_6, "Intel 82801AA-ICH" },
+	{ PCI_DEVICE_ID_INTEL_82801AB_6, "Intel 82901AB-ICH0" },
 	{ PCI_DEVICE_ID_INTEL_82801BA_6, "Intel 82801BA-ICH2" },
 	{ PCI_DEVICE_ID_INTEL_440MX_6, "Intel 440MX" },
-	{ PCI_DEVICE_ID_INTEL_ICH3_6, "Intel 82801CA-ICH3" },
-	{ PCI_DEVICE_ID_INTEL_ICH4_6, "Intel 82801DB-ICH4" },
-	{ PCI_DEVICE_ID_INTEL_ICH5_6, "Intel ICH5" },
-	{ PCI_DEVICE_ID_INTEL_ICH6_6, "Intel ICH6" },
-	{ PCI_DEVICE_ID_INTEL_ICH7_6, "Intel ICH7" },
+	{ PCI_DEVICE_ID_INTEL_82801CA_6, "Intel 82801CA-ICH3" },
+	{ PCI_DEVICE_ID_INTEL_82801DB_6, "Intel 82801DB-ICH4" },
+	{ PCI_DEVICE_ID_INTEL_82801EB_6, "Intel ICH5" },
+	{ PCI_DEVICE_ID_INTEL_ICH6_17, "Intel ICH6" },
+	{ PCI_DEVICE_ID_INTEL_ICH7_19, "Intel ICH7" },
 	{ 0x7446, "AMD AMD768" },
 	{ PCI_DEVICE_ID_SI_7013, "SiS SI7013" },
-	{ PCI_DEVICE_ID_NVIDIA_MCP_MODEM, "NVidia nForce" },
+	{ PCI_DEVICE_ID_NVIDIA_MCP1_MODEM, "NVidia nForce" },
 	{ PCI_DEVICE_ID_NVIDIA_MCP2_MODEM, "NVidia nForce2" },
 	{ PCI_DEVICE_ID_NVIDIA_MCP2S_MODEM, "NVidia nForce2s" },
 	{ PCI_DEVICE_ID_NVIDIA_MCP3_MODEM, "NVidia nForce3" },
@@ -1371,6 +1326,7 @@ static void __devexit snd_intel8x0m_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "Intel ICH Modem",
+	.owner = THIS_MODULE,
 	.id_table = snd_intel8x0m_ids,
 	.probe = snd_intel8x0m_probe,
 	.remove = __devexit_p(snd_intel8x0m_remove),

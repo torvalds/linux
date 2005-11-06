@@ -12,6 +12,7 @@
 #include <linux/threads.h>
 #include <linux/numa.h>
 #include <linux/init.h>
+#include <linux/seqlock.h>
 #include <asm/atomic.h>
 
 /* Free memory management - zoned buddy allocator.  */
@@ -137,6 +138,10 @@ struct zone {
 	 * free areas of different sizes
 	 */
 	spinlock_t		lock;
+#ifdef CONFIG_MEMORY_HOTPLUG
+	/* see spanned/present_pages for more description */
+	seqlock_t		span_seqlock;
+#endif
 	struct free_area	free_area[MAX_ORDER];
 
 
@@ -220,6 +225,16 @@ struct zone {
 	/* zone_start_pfn == zone_start_paddr >> PAGE_SHIFT */
 	unsigned long		zone_start_pfn;
 
+	/*
+	 * zone_start_pfn, spanned_pages and present_pages are all
+	 * protected by span_seqlock.  It is a seqlock because it has
+	 * to be read outside of zone->lock, and it is done in the main
+	 * allocator path.  But, it is written quite infrequently.
+	 *
+	 * The lock is declared along with zone->lock because it is
+	 * frequently read in proximity to zone->lock.  It's good to
+	 * give them a chance of being in the same cacheline.
+	 */
 	unsigned long		spanned_pages;	/* total size, including holes */
 	unsigned long		present_pages;	/* amount of memory (excluding holes) */
 
@@ -273,6 +288,16 @@ typedef struct pglist_data {
 	struct page *node_mem_map;
 #endif
 	struct bootmem_data *bdata;
+#ifdef CONFIG_MEMORY_HOTPLUG
+	/*
+	 * Must be held any time you expect node_start_pfn, node_present_pages
+	 * or node_spanned_pages stay constant.  Holding this will also
+	 * guarantee that any pfn_valid() stays that way.
+	 *
+	 * Nests above zone->lock and zone->size_seqlock.
+	 */
+	spinlock_t node_size_lock;
+#endif
 	unsigned long node_start_pfn;
 	unsigned long node_present_pages; /* total number of physical pages */
 	unsigned long node_spanned_pages; /* total size of physical page
@@ -293,6 +318,8 @@ typedef struct pglist_data {
 #endif
 #define nid_page_nr(nid, pagenr) 	pgdat_page_nr(NODE_DATA(nid),(pagenr))
 
+#include <linux/memory_hotplug.h>
+
 extern struct pglist_data *pgdat_list;
 
 void __get_zone_counts(unsigned long *active, unsigned long *inactive,
@@ -302,7 +329,7 @@ void get_zone_counts(unsigned long *active, unsigned long *inactive,
 void build_all_zonelists(void);
 void wakeup_kswapd(struct zone *zone, int order);
 int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
-		int alloc_type, int can_try_harder, int gfp_high);
+		int alloc_type, int can_try_harder, gfp_t gfp_high);
 
 #ifdef CONFIG_HAVE_MEMORY_PRESENT
 void memory_present(int nid, unsigned long start, unsigned long end);
@@ -487,12 +514,29 @@ struct mem_section {
 	unsigned long section_mem_map;
 };
 
-extern struct mem_section mem_section[NR_MEM_SECTIONS];
+#ifdef CONFIG_SPARSEMEM_EXTREME
+#define SECTIONS_PER_ROOT       (PAGE_SIZE / sizeof (struct mem_section))
+#else
+#define SECTIONS_PER_ROOT	1
+#endif
+
+#define SECTION_NR_TO_ROOT(sec)	((sec) / SECTIONS_PER_ROOT)
+#define NR_SECTION_ROOTS	(NR_MEM_SECTIONS / SECTIONS_PER_ROOT)
+#define SECTION_ROOT_MASK	(SECTIONS_PER_ROOT - 1)
+
+#ifdef CONFIG_SPARSEMEM_EXTREME
+extern struct mem_section *mem_section[NR_SECTION_ROOTS];
+#else
+extern struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT];
+#endif
 
 static inline struct mem_section *__nr_to_section(unsigned long nr)
 {
-	return &mem_section[nr];
+	if (!mem_section[SECTION_NR_TO_ROOT(nr)])
+		return NULL;
+	return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
 }
+extern int __section_nr(struct mem_section* ms);
 
 /*
  * We use the lower bits of the mem_map pointer to store
@@ -513,12 +557,12 @@ static inline struct page *__section_mem_map_addr(struct mem_section *section)
 
 static inline int valid_section(struct mem_section *section)
 {
-	return (section->section_mem_map & SECTION_MARKED_PRESENT);
+	return (section && (section->section_mem_map & SECTION_MARKED_PRESENT));
 }
 
 static inline int section_has_mem_map(struct mem_section *section)
 {
-	return (section->section_mem_map & SECTION_HAS_MEM_MAP);
+	return (section && (section->section_mem_map & SECTION_HAS_MEM_MAP));
 }
 
 static inline int valid_section_nr(unsigned long nr)
@@ -572,6 +616,7 @@ static inline int pfn_valid(unsigned long pfn)
 void sparse_init(void);
 #else
 #define sparse_init()	do {} while (0)
+#define sparse_index_init(_sec, _nid)  do {} while (0)
 #endif /* CONFIG_SPARSEMEM */
 
 #ifdef CONFIG_NODES_SPAN_OTHER_NODES

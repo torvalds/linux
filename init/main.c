@@ -47,6 +47,7 @@
 #include <linux/rmap.h>
 #include <linux/mempolicy.h>
 #include <linux/key.h>
+#include <net/sock.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -80,7 +81,6 @@
 static int init(void *);
 
 extern void init_IRQ(void);
-extern void sock_init(void);
 extern void fork_init(unsigned long);
 extern void mca_init(void);
 extern void sbus_init(void);
@@ -123,6 +123,7 @@ extern void softirq_init(void);
 char saved_command_line[COMMAND_LINE_SIZE];
 
 static char *execute_command;
+static char *ramdisk_execute_command;
 
 /* Setup configured maximum number of CPUs to activate */
 static unsigned int max_cpus = NR_CPUS;
@@ -296,6 +297,18 @@ static int __init init_setup(char *str)
 	return 1;
 }
 __setup("init=", init_setup);
+
+static int __init rdinit_setup(char *str)
+{
+	unsigned int i;
+
+	ramdisk_execute_command = str;
+	/* See "auto" comment in init_setup */
+	for (i = 1; i < MAX_INIT_ARGS; i++)
+		argv_init[i] = NULL;
+	return 1;
+}
+__setup("rdinit=", rdinit_setup);
 
 extern void setup_arch(char **);
 
@@ -614,6 +627,7 @@ static void do_pre_smp_initcalls(void)
 	migration_init();
 #endif
 	spawn_ksoftirqd();
+	spawn_softlockup_task();
 }
 
 static void run_init_process(char *init_filename)
@@ -680,10 +694,14 @@ static int init(void * unused)
 	 * check if there is an early userspace init.  If yes, let it do all
 	 * the work
 	 */
-	if (sys_access((const char __user *) "/init", 0) == 0)
-		execute_command = "/init";
-	else
+
+	if (!ramdisk_execute_command)
+		ramdisk_execute_command = "/init";
+
+	if (sys_access((const char __user *) ramdisk_execute_command, 0) != 0) {
+		ramdisk_execute_command = NULL;
 		prepare_namespace();
+	}
 
 	/*
 	 * Ok, we have completed the initial bootup, and
@@ -700,17 +718,24 @@ static int init(void * unused)
 
 	(void) sys_dup(0);
 	(void) sys_dup(0);
-	
+
+	if (ramdisk_execute_command) {
+		run_init_process(ramdisk_execute_command);
+		printk(KERN_WARNING "Failed to execute %s\n",
+				ramdisk_execute_command);
+	}
+
 	/*
 	 * We try each of these until one succeeds.
 	 *
 	 * The Bourne shell can be used instead of init if we are 
 	 * trying to recover a really broken machine.
 	 */
-
-	if (execute_command)
+	if (execute_command) {
 		run_init_process(execute_command);
-
+		printk(KERN_WARNING "Failed to execute %s.  Attempting "
+					"defaults...\n", execute_command);
+	}
 	run_init_process("/sbin/init");
 	run_init_process("/etc/init");
 	run_init_process("/bin/init");

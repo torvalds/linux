@@ -35,7 +35,7 @@
 #include <linux/init.h>
 #include <linux/console.h>
 #include <linux/sysrq.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/serial_core.h>
@@ -145,7 +145,7 @@ static void sa1100_timeout(unsigned long data)
 /*
  * interrupts disabled on entry
  */
-static void sa1100_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void sa1100_stop_tx(struct uart_port *port)
 {
 	struct sa1100_port *sport = (struct sa1100_port *)port;
 	u32 utcr3;
@@ -158,7 +158,7 @@ static void sa1100_stop_tx(struct uart_port *port, unsigned int tty_stop)
 /*
  * interrupts may not be disabled on entry
  */
-static void sa1100_start_tx(struct uart_port *port, unsigned int tty_start)
+static void sa1100_start_tx(struct uart_port *port)
 {
 	struct sa1100_port *sport = (struct sa1100_port *)port;
 	unsigned long flags;
@@ -264,7 +264,7 @@ static void sa1100_tx_chars(struct sa1100_port *sport)
 	sa1100_mctrl_check(sport);
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&sport->port)) {
-		sa1100_stop_tx(&sport->port, 0);
+		sa1100_stop_tx(&sport->port);
 		return;
 	}
 
@@ -284,7 +284,7 @@ static void sa1100_tx_chars(struct sa1100_port *sport)
 		uart_write_wakeup(&sport->port);
 
 	if (uart_circ_empty(xmit))
-		sa1100_stop_tx(&sport->port, 0);
+		sa1100_stop_tx(&sport->port);
 }
 
 static irqreturn_t sa1100_int(int irq, void *dev_id, struct pt_regs *regs)
@@ -799,7 +799,7 @@ sa1100_console_setup(struct console *co, char *options)
 	return uart_set_options(&sport->port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver sa1100_reg;
+static struct uart_driver sa1100_reg;
 static struct console sa1100_console = {
 	.name		= "ttySA",
 	.write		= sa1100_console_write,
@@ -834,21 +834,21 @@ static struct uart_driver sa1100_reg = {
 	.cons			= SA1100_CONSOLE,
 };
 
-static int sa1100_serial_suspend(struct device *_dev, pm_message_t state, u32 level)
+static int sa1100_serial_suspend(struct device *_dev, pm_message_t state)
 {
 	struct sa1100_port *sport = dev_get_drvdata(_dev);
 
-	if (sport && level == SUSPEND_DISABLE)
+	if (sport)
 		uart_suspend_port(&sa1100_reg, &sport->port);
 
 	return 0;
 }
 
-static int sa1100_serial_resume(struct device *_dev, u32 level)
+static int sa1100_serial_resume(struct device *_dev)
 {
 	struct sa1100_port *sport = dev_get_drvdata(_dev);
 
-	if (sport && level == RESUME_ENABLE)
+	if (sport)
 		uart_resume_port(&sa1100_reg, &sport->port);
 
 	return 0;

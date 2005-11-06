@@ -50,7 +50,7 @@ static struct resource jazz_io_resources[] = {
 	{ "dma2", 0xc0, 0xdf, IORESOURCE_BUSY },
 };
 
-static void __init jazz_setup(void)
+void __init plat_setup(void)
 {
 	int i;
 
@@ -97,5 +97,3 @@ static void __init jazz_setup(void)
 
 	vdma_init();
 }
-
-early_initcall(jazz_setup);

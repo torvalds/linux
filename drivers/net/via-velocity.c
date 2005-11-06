@@ -1212,10 +1212,8 @@ static void velocity_free_td_ring(struct velocity_info *vptr)
 			velocity_free_td_ring_entry(vptr, j, i);
 
 		}
-		if (vptr->td_infos[j]) {
-			kfree(vptr->td_infos[j]);
-			vptr->td_infos[j] = NULL;
-		}
+		kfree(vptr->td_infos[j]);
+		vptr->td_infos[j] = NULL;
 	}
 }
 

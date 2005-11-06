@@ -26,10 +26,6 @@ MODULE_AUTHOR("Jan Rekorajski <baggins@pld.org.pl>");
 MODULE_DESCRIPTION("IP6 tables LOG target module");
 MODULE_LICENSE("GPL");
 
-static unsigned int nflog = 1;
-module_param(nflog, int, 0400);
-MODULE_PARM_DESC(nflog, "register as internal netfilter logging module");
- 
 struct in_device;
 #include <net/route.h>
 #include <linux/netfilter_ipv6/ip6t_LOG.h>
@@ -44,7 +40,7 @@ struct in_device;
 static DEFINE_SPINLOCK(log_lock);
 
 /* One level of recursion won't kill us */
-static void dump_packet(const struct ip6t_log_info *info,
+static void dump_packet(const struct nf_loginfo *info,
 			const struct sk_buff *skb, unsigned int ip6hoff,
 			int recurse)
 {
@@ -53,6 +49,12 @@ static void dump_packet(const struct ip6t_log_info *info,
 	struct ipv6hdr _ip6h, *ih;
 	unsigned int ptr;
 	unsigned int hdrlen = 0;
+	unsigned int logflags;
+
+	if (info->type == NF_LOG_TYPE_LOG)
+		logflags = info->u.log.logflags;
+	else
+		logflags = NF_LOG_MASK;
 
 	ih = skb_header_pointer(skb, ip6hoff, sizeof(_ip6h), &_ip6h);
 	if (ih == NULL) {
@@ -84,7 +86,7 @@ static void dump_packet(const struct ip6t_log_info *info,
 		}
 
 		/* Max length: 48 "OPT (...) " */
-		if (info->logflags & IP6T_LOG_IPOPT)
+		if (logflags & IP6T_LOG_IPOPT)
 			printk("OPT ( ");
 
 		switch (currenthdr) {
@@ -119,7 +121,7 @@ static void dump_packet(const struct ip6t_log_info *info,
 		case IPPROTO_ROUTING:
 		case IPPROTO_HOPOPTS:
 			if (fragment) {
-				if (info->logflags & IP6T_LOG_IPOPT)
+				if (logflags & IP6T_LOG_IPOPT)
 					printk(")");
 				return;
 			}
@@ -127,7 +129,7 @@ static void dump_packet(const struct ip6t_log_info *info,
 			break;
 		/* Max Length */
 		case IPPROTO_AH:
-			if (info->logflags & IP6T_LOG_IPOPT) {
+			if (logflags & IP6T_LOG_IPOPT) {
 				struct ip_auth_hdr _ahdr, *ah;
 
 				/* Max length: 3 "AH " */
@@ -158,7 +160,7 @@ static void dump_packet(const struct ip6t_log_info *info,
 			hdrlen = (hp->hdrlen+2)<<2;
 			break;
 		case IPPROTO_ESP:
-			if (info->logflags & IP6T_LOG_IPOPT) {
+			if (logflags & IP6T_LOG_IPOPT) {
 				struct ip_esp_hdr _esph, *eh;
 
 				/* Max length: 4 "ESP " */
@@ -190,7 +192,7 @@ static void dump_packet(const struct ip6t_log_info *info,
 			printk("Unknown Ext Hdr %u", currenthdr);
 			return;
 		}
-		if (info->logflags & IP6T_LOG_IPOPT)
+		if (logflags & IP6T_LOG_IPOPT)
 			printk(") ");
 
 		currenthdr = hp->nexthdr;
@@ -218,7 +220,7 @@ static void dump_packet(const struct ip6t_log_info *info,
 		printk("SPT=%u DPT=%u ",
 		       ntohs(th->source), ntohs(th->dest));
 		/* Max length: 30 "SEQ=4294967295 ACK=4294967295 " */
-		if (info->logflags & IP6T_LOG_TCPSEQ)
+		if (logflags & IP6T_LOG_TCPSEQ)
 			printk("SEQ=%u ACK=%u ",
 			       ntohl(th->seq), ntohl(th->ack_seq));
 		/* Max length: 13 "WINDOW=65535 " */
@@ -245,7 +247,7 @@ static void dump_packet(const struct ip6t_log_info *info,
 		/* Max length: 11 "URGP=65535 " */
 		printk("URGP=%u ", ntohs(th->urg_ptr));
 
-		if ((info->logflags & IP6T_LOG_TCPOPT)
+		if ((logflags & IP6T_LOG_TCPOPT)
 		    && th->doff * 4 > sizeof(struct tcphdr)) {
 			u_int8_t _opt[60 - sizeof(struct tcphdr)], *op;
 			unsigned int i;
@@ -349,7 +351,7 @@ static void dump_packet(const struct ip6t_log_info *info,
 	}
 
 	/* Max length: 15 "UID=4294967295 " */
-	if ((info->logflags & IP6T_LOG_UID) && recurse && skb->sk) {
+	if ((logflags & IP6T_LOG_UID) && recurse && skb->sk) {
 		read_lock_bh(&skb->sk->sk_callback_lock);
 		if (skb->sk->sk_socket && skb->sk->sk_socket->file)
 			printk("UID=%u ", skb->sk->sk_socket->file->f_uid);
@@ -357,19 +359,31 @@ static void dump_packet(const struct ip6t_log_info *info,
 	}
 }
 
+static struct nf_loginfo default_loginfo = {
+	.type	= NF_LOG_TYPE_LOG,
+	.u = {
+		.log = {
+			.level	  = 0,
+			.logflags = NF_LOG_MASK,
+		},
+	},
+};
+
 static void
-ip6t_log_packet(unsigned int hooknum,
+ip6t_log_packet(unsigned int pf,
+		unsigned int hooknum,
 		const struct sk_buff *skb,
 		const struct net_device *in,
 		const struct net_device *out,
-		const struct ip6t_log_info *loginfo,
-		const char *level_string,
+		const struct nf_loginfo *loginfo,
 		const char *prefix)
 {
+	if (!loginfo)
+		loginfo = &default_loginfo;
+
 	spin_lock_bh(&log_lock);
-	printk(level_string);
-	printk("%sIN=%s OUT=%s ",
-		prefix == NULL ? loginfo->prefix : prefix,
+	printk("<%d>%sIN=%s OUT=%s ", loginfo->u.log.level, 
+		prefix,
 		in ? in->name : "",
 		out ? out->name : "");
 	if (in && !out) {
@@ -416,29 +430,17 @@ ip6t_log_target(struct sk_buff **pskb,
 		void *userinfo)
 {
 	const struct ip6t_log_info *loginfo = targinfo;
-	char level_string[4] = "< >";
+	struct nf_loginfo li;
 
-	level_string[1] = '0' + (loginfo->level % 8);
-	ip6t_log_packet(hooknum, *pskb, in, out, loginfo, level_string, NULL);
+	li.type = NF_LOG_TYPE_LOG;
+	li.u.log.level = loginfo->level;
+	li.u.log.logflags = loginfo->logflags;
+
+	nf_log_packet(PF_INET6, hooknum, *pskb, in, out, &li, loginfo->prefix);
 
 	return IP6T_CONTINUE;
 }
 
-static void
-ip6t_logfn(unsigned int hooknum,
-	   const struct sk_buff *skb,
-	   const struct net_device *in,
-	   const struct net_device *out,
-	   const char *prefix)
-{
-	struct ip6t_log_info loginfo = {
-		.level = 0,
-		.logflags = IP6T_LOG_MASK,
-		.prefix = ""
-	};
-
-	ip6t_log_packet(hooknum, skb, in, out, &loginfo, KERN_WARNING, prefix);
-}
 
 static int ip6t_log_checkentry(const char *tablename,
 			       const struct ip6t_entry *e,
@@ -475,20 +477,29 @@ static struct ip6t_target ip6t_log_reg = {
 	.me 		= THIS_MODULE,
 };
 
+static struct nf_logger ip6t_logger = {
+	.name		= "ip6t_LOG",
+	.logfn		= &ip6t_log_packet,
+	.me		= THIS_MODULE,
+};
+
 static int __init init(void)
 {
 	if (ip6t_register_target(&ip6t_log_reg))
 		return -EINVAL;
-	if (nflog)
-		nf_log_register(PF_INET6, &ip6t_logfn);
+	if (nf_log_register(PF_INET6, &ip6t_logger) < 0) {
+		printk(KERN_WARNING "ip6t_LOG: not logging via system console "
+		       "since somebody else already registered for PF_INET6\n");
+		/* we cannot make module load fail here, since otherwise
+		 * ip6tables userspace would abort */
+	}
 
 	return 0;
 }
 
 static void __exit fini(void)
 {
-	if (nflog)
-		nf_log_unregister(PF_INET6, &ip6t_logfn);
+	nf_log_unregister_logger(&ip6t_logger);
 	ip6t_unregister_target(&ip6t_log_reg);
 }
 

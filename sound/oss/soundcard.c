@@ -567,7 +567,7 @@ static int __init oss_init(void)
 		devfs_mk_cdev(MKDEV(SOUND_MAJOR, dev_list[i].minor),
 				S_IFCHR | dev_list[i].mode,
 				"sound/%s", dev_list[i].name);
-		class_device_create(sound_class,
+		class_device_create(sound_class, NULL,
 				    MKDEV(SOUND_MAJOR, dev_list[i].minor),
 				    NULL, "%s", dev_list[i].name);
 
@@ -579,7 +579,7 @@ static int __init oss_init(void)
 						dev_list[i].minor + (j*0x10)),
 					S_IFCHR | dev_list[i].mode,
 					"sound/%s%d", dev_list[i].name, j);
-			class_device_create(sound_class,
+			class_device_create(sound_class, NULL,
 					    MKDEV(SOUND_MAJOR, dev_list[i].minor + (j*0x10)),
 					    NULL, "%s%d", dev_list[i].name, j);
 		}
@@ -681,8 +681,7 @@ static void do_sequencer_timer(unsigned long dummy)
 }
 
 
-static struct timer_list seq_timer =
-		TIMER_INITIALIZER(do_sequencer_timer, 0, 0);
+static DEFINE_TIMER(seq_timer, do_sequencer_timer, 0, 0);
 
 void request_sound_timer(int count)
 {

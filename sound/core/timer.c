@@ -98,7 +98,7 @@ static void snd_timer_reschedule(snd_timer_t * timer, unsigned long ticks_left);
 static snd_timer_instance_t *snd_timer_instance_new(char *owner, snd_timer_t *timer)
 {
 	snd_timer_instance_t *timeri;
-	timeri = kcalloc(1, sizeof(*timeri), GFP_KERNEL);
+	timeri = kzalloc(sizeof(*timeri), GFP_KERNEL);
 	if (timeri == NULL)
 		return NULL;
 	timeri->owner = kstrdup(owner, GFP_KERNEL);
@@ -764,7 +764,7 @@ int snd_timer_new(snd_card_t *card, char *id, snd_timer_id_t *tid, snd_timer_t *
 	snd_assert(tid != NULL, return -EINVAL);
 	snd_assert(rtimer != NULL, return -EINVAL);
 	*rtimer = NULL;
-	timer = kcalloc(1, sizeof(*timer), GFP_KERNEL);
+	timer = kzalloc(sizeof(*timer), GFP_KERNEL);
 	if (timer == NULL)
 		return -ENOMEM;
 	timer->tmr_class = tid->dev_class;
@@ -799,13 +799,13 @@ static int snd_timer_free(snd_timer_t *timer)
 	return 0;
 }
 
-int snd_timer_dev_free(snd_device_t *device)
+static int snd_timer_dev_free(snd_device_t *device)
 {
 	snd_timer_t *timer = device->device_data;
 	return snd_timer_free(timer);
 }
 
-int snd_timer_dev_register(snd_device_t *dev)
+static int snd_timer_dev_register(snd_device_t *dev)
 {
 	snd_timer_t *timer = dev->device_data;
 	snd_timer_t *timer1;
@@ -880,9 +880,11 @@ void snd_timer_notify(snd_timer_t *timer, enum sndrv_timer_event event, struct t
 	struct list_head *p, *n;
 
 	snd_runtime_check(timer->hw.flags & SNDRV_TIMER_HW_SLAVE, return);	
-	snd_assert(event >= SNDRV_TIMER_EVENT_MSTART && event <= SNDRV_TIMER_EVENT_MPAUSE, return);
+	snd_assert(event >= SNDRV_TIMER_EVENT_MSTART && event <= SNDRV_TIMER_EVENT_MRESUME, return);
 	spin_lock_irqsave(&timer->lock, flags);
-	if (event == SNDRV_TIMER_EVENT_MSTART || event == SNDRV_TIMER_EVENT_MCONTINUE) {
+	if (event == SNDRV_TIMER_EVENT_MSTART ||
+	    event == SNDRV_TIMER_EVENT_MCONTINUE ||
+	    event == SNDRV_TIMER_EVENT_MRESUME) {
 		if (timer->hw.c_resolution)
 			resolution = timer->hw.c_resolution(timer);
 		else
@@ -1015,7 +1017,7 @@ static int snd_timer_register_system(void)
 		return err;
 	strcpy(timer->name, "system timer");
 	timer->hw = snd_timer_system;
-	priv = kcalloc(1, sizeof(*priv), GFP_KERNEL);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (priv == NULL) {
 		snd_timer_free(timer);
 		return -ENOMEM;
@@ -1200,7 +1202,7 @@ static int snd_timer_user_open(struct inode *inode, struct file *file)
 {
 	snd_timer_user_t *tu;
 	
-	tu = kcalloc(1, sizeof(*tu), GFP_KERNEL);
+	tu = kzalloc(sizeof(*tu), GFP_KERNEL);
 	if (tu == NULL)
 		return -ENOMEM;
 	spin_lock_init(&tu->qlock);
@@ -1511,7 +1513,7 @@ static int snd_timer_user_info(struct file *file, snd_timer_info_t __user *_info
 	t = tu->timeri->timer;
 	snd_assert(t != NULL, return -ENXIO);
 
-	info = kcalloc(1, sizeof(*info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (! info)
 		return -ENOMEM;
 	info->card = t->card ? t->card->number : -1;
@@ -1555,10 +1557,14 @@ static int snd_timer_user_params(struct file *file, snd_timer_params_t __user *_
 			      (1<<SNDRV_TIMER_EVENT_STOP)|
 			      (1<<SNDRV_TIMER_EVENT_CONTINUE)|
 			      (1<<SNDRV_TIMER_EVENT_PAUSE)|
+			      (1<<SNDRV_TIMER_EVENT_SUSPEND)|
+			      (1<<SNDRV_TIMER_EVENT_RESUME)|
 			      (1<<SNDRV_TIMER_EVENT_MSTART)|
 			      (1<<SNDRV_TIMER_EVENT_MSTOP)|
 			      (1<<SNDRV_TIMER_EVENT_MCONTINUE)|
-			      (1<<SNDRV_TIMER_EVENT_MPAUSE))) {
+			      (1<<SNDRV_TIMER_EVENT_MPAUSE)|
+			      (1<<SNDRV_TIMER_EVENT_MSUSPEND)|
+			      (1<<SNDRV_TIMER_EVENT_MRESUME))) {
 		err = -EINVAL;
 		goto _end;
 	}

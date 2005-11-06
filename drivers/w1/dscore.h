@@ -1,8 +1,8 @@
 /*
- * 	dscore.h
+ *	dscore.h
  *
  * Copyright (c) 2004 Evgeniy Polyakov <johnpol@2ka.mipt.ru>
- * 
+ *
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -122,7 +122,7 @@
 
 struct ds_device
 {
-	struct usb_device 	*udev;
+	struct usb_device	*udev;
 	struct usb_interface	*intf;
 
 	int			ep[NUM_EP];
@@ -156,11 +156,7 @@ int ds_read_byte(struct ds_device *, u8 *);
 int ds_read_bit(struct ds_device *, u8 *);
 int ds_write_byte(struct ds_device *, u8);
 int ds_write_bit(struct ds_device *, u8);
-int ds_start_pulse(struct ds_device *, int);
-int ds_set_speed(struct ds_device *, int);
 int ds_reset(struct ds_device *, struct ds_status *);
-int ds_detect(struct ds_device *, struct ds_status *);
-int ds_stop_pulse(struct ds_device *, int);
 struct ds_device * ds_get_device(void);
 void ds_put_device(struct ds_device *);
 int ds_write_block(struct ds_device *, u8 *, int);

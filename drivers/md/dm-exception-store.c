@@ -568,12 +568,9 @@ int dm_create_persistent(struct exception_store *store, uint32_t chunk_size)
 
       bad:
 	dm_io_put(sectors_to_pages(chunk_size));
-	if (ps) {
-		if (ps->area)
-			free_area(ps);
-
-		kfree(ps);
-	}
+	if (ps && ps->area)
+		free_area(ps);
+	kfree(ps);
 	return r;
 }
 

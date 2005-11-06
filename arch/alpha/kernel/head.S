@@ -9,7 +9,7 @@
 
 #include <linux/config.h>
 #include <asm/system.h>
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 
 .globl swapper_pg_dir
 .globl _stext

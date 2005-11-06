@@ -116,6 +116,11 @@ extern int __initdata nid_to_pxm_map[MAX_NUMNODES];
 
 extern u16 ia64_acpiid_to_sapicid[];
 
+/*
+ * Refer Intel ACPI _PDC support document for bit definitions
+ */
+#define ACPI_PDC_EST_CAPABILITY_SMP     0x8
+
 #endif /*__KERNEL__*/
 
 #endif /*_ASM_ACPI_H*/

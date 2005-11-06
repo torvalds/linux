@@ -36,7 +36,7 @@ cpufreq stats provides following statistics (explained in detail below).
 
 All the statistics will be from the time the stats driver has been inserted 
 to the time when a read of a particular statistic is done. Obviously, stats 
-driver will not have any information about the the frequcny transitions before
+driver will not have any information about the frequency transitions before
 the stats driver insertion.
 
 --------------------------------------------------------------------------------

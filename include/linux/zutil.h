@@ -15,7 +15,6 @@
 
 #include <linux/zlib.h>
 #include <linux/string.h>
-#include <linux/errno.h>
 #include <linux/kernel.h>
 
 typedef unsigned char  uch;

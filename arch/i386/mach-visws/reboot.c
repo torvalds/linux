@@ -9,17 +9,26 @@
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
-void machine_restart(char * __unused)
+void machine_shutdown(void)
 {
 #ifdef CONFIG_SMP
 	smp_send_stop();
 #endif
+}
 
+void machine_emergency_restart(void)
+{
 	/*
 	 * Visual Workstations restart after this
 	 * register is poked on the PIIX4
 	 */
 	outb(PIIX4_RESET_VAL, PIIX4_RESET_PORT);
+}
+
+void machine_restart(char * __unused)
+{
+	machine_shutdown();
+	machine_emergency_restart();
 }
 
 void machine_power_off(void)

@@ -27,7 +27,6 @@
 #include <asm/voyager.h>
 #include <asm/vic.h>
 #include <linux/pm.h>
-#include <linux/irq.h>
 #include <asm/tlbflush.h>
 #include <asm/arch_hooks.h>
 #include <asm/i8253.h>
@@ -234,10 +233,9 @@ voyager_power_off(void)
 #endif
 	}
 	/* and wait for it to happen */
-	for(;;) {
-		__asm("cli");
-		__asm("hlt");
-	}
+	local_irq_disable();
+	for(;;)
+		halt();
 }
 
 /* copied from process.c */
@@ -249,6 +247,12 @@ kb_wait(void)
 	for (i=0; i<0x10000; i++)
 		if ((inb_p(0x64) & 0x02) == 0)
 			break;
+}
+
+void
+machine_shutdown(void)
+{
+	/* Architecture specific shutdown needed before a kexec */
 }
 
 void
@@ -272,10 +276,16 @@ machine_restart(char *cmd)
 		outb(basebd | 0x08, VOYAGER_MC_SETUP);
 		outb(0x02, catbase + 0x21);
 	}
-	for(;;) {
-		asm("cli");
-		asm("hlt");
-	}
+	local_irq_disable();
+	for(;;)
+		halt();
+}
+
+void
+machine_emergency_restart(void)
+{
+	/*for now, just hook this to a warm restart */
+	machine_restart(NULL);
 }
 
 void

@@ -103,7 +103,7 @@ config PMAC_MEDIABAY
 # on non-powerbook machines (but only on PMU based ones AFAIK)
 config PMAC_BACKLIGHT
 	bool "Backlight control for LCD screens"
-	depends on ADB_PMU
+	depends on ADB_PMU && (BROKEN || !PPC64)
 	help
 	  Say Y here to build in code to manage the LCD backlight on a
 	  Macintosh PowerBook.  With this code, the backlight will be turned

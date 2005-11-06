@@ -32,7 +32,12 @@
 #define IRQ_WAITING	32	/* IRQ not yet seen - for autodetection */
 #define IRQ_LEVEL	64	/* IRQ level triggered */
 #define IRQ_MASKED	128	/* IRQ masked - shouldn't be seen again */
-#define IRQ_PER_CPU	256	/* IRQ is per CPU */
+#if defined(ARCH_HAS_IRQ_PER_CPU)
+# define IRQ_PER_CPU	256	/* IRQ is per CPU */
+# define CHECK_IRQ_PER_CPU(var) ((var) & IRQ_PER_CPU)
+#else
+# define CHECK_IRQ_PER_CPU(var) 0
+#endif
 
 /*
  * Interrupt controller descriptor. This is all we need
@@ -71,9 +76,19 @@ typedef struct irq_desc {
 	unsigned int irq_count;		/* For detecting broken interrupts */
 	unsigned int irqs_unhandled;
 	spinlock_t lock;
+#if defined (CONFIG_GENERIC_PENDING_IRQ) || defined (CONFIG_IRQBALANCE)
+	unsigned int move_irq;		/* Flag need to re-target intr dest*/
+#endif
 } ____cacheline_aligned irq_desc_t;
 
 extern irq_desc_t irq_desc [NR_IRQS];
+
+/* Return a pointer to the irq descriptor for IRQ.  */
+static inline irq_desc_t *
+irq_descp (int irq)
+{
+	return irq_desc + irq;
+}
 
 #include <asm/hw_irq.h> /* the arch dependent stuff */
 
@@ -81,6 +96,119 @@ extern int setup_irq(unsigned int irq, struct irqaction * new);
 
 #ifdef CONFIG_GENERIC_HARDIRQS
 extern cpumask_t irq_affinity[NR_IRQS];
+
+#ifdef CONFIG_SMP
+static inline void set_native_irq_info(int irq, cpumask_t mask)
+{
+	irq_affinity[irq] = mask;
+}
+#else
+static inline void set_native_irq_info(int irq, cpumask_t mask)
+{
+}
+#endif
+
+#ifdef CONFIG_SMP
+
+#if defined (CONFIG_GENERIC_PENDING_IRQ) || defined (CONFIG_IRQBALANCE)
+extern cpumask_t pending_irq_cpumask[NR_IRQS];
+
+static inline void set_pending_irq(unsigned int irq, cpumask_t mask)
+{
+	irq_desc_t *desc = irq_desc + irq;
+	unsigned long flags;
+
+	spin_lock_irqsave(&desc->lock, flags);
+	desc->move_irq = 1;
+	pending_irq_cpumask[irq] = mask;
+	spin_unlock_irqrestore(&desc->lock, flags);
+}
+
+static inline void
+move_native_irq(int irq)
+{
+	cpumask_t tmp;
+	irq_desc_t *desc = irq_descp(irq);
+
+	if (likely (!desc->move_irq))
+		return;
+
+	desc->move_irq = 0;
+
+	if (likely(cpus_empty(pending_irq_cpumask[irq])))
+		return;
+
+	if (!desc->handler->set_affinity)
+		return;
+
+	/* note - we hold the desc->lock */
+	cpus_and(tmp, pending_irq_cpumask[irq], cpu_online_map);
+
+	/*
+	 * If there was a valid mask to work with, please
+	 * do the disable, re-program, enable sequence.
+	 * This is *not* particularly important for level triggered
+	 * but in a edge trigger case, we might be setting rte
+	 * when an active trigger is comming in. This could
+	 * cause some ioapics to mal-function.
+	 * Being paranoid i guess!
+	 */
+	if (unlikely(!cpus_empty(tmp))) {
+		desc->handler->disable(irq);
+		desc->handler->set_affinity(irq,tmp);
+		desc->handler->enable(irq);
+	}
+	cpus_clear(pending_irq_cpumask[irq]);
+}
+
+#ifdef CONFIG_PCI_MSI
+/*
+ * Wonder why these are dummies?
+ * For e.g the set_ioapic_affinity_vector() calls the set_ioapic_affinity_irq()
+ * counter part after translating the vector to irq info. We need to perform
+ * this operation on the real irq, when we dont use vector, i.e when
+ * pci_use_vector() is false.
+ */
+static inline void move_irq(int irq)
+{
+}
+
+static inline void set_irq_info(int irq, cpumask_t mask)
+{
+}
+
+#else // CONFIG_PCI_MSI
+
+static inline void move_irq(int irq)
+{
+	move_native_irq(irq);
+}
+
+static inline void set_irq_info(int irq, cpumask_t mask)
+{
+	set_native_irq_info(irq, mask);
+}
+#endif // CONFIG_PCI_MSI
+
+#else	// CONFIG_GENERIC_PENDING_IRQ || CONFIG_IRQBALANCE
+
+#define move_irq(x)
+#define move_native_irq(x)
+#define set_pending_irq(x,y)
+static inline void set_irq_info(int irq, cpumask_t mask)
+{
+	set_native_irq_info(irq, mask);
+}
+
+#endif // CONFIG_GENERIC_PENDING_IRQ
+
+#else // CONFIG_SMP
+
+#define move_irq(x)
+#define move_native_irq(x)
+
+#endif // CONFIG_SMP
+
 extern int no_irq_affinity;
 extern int noirqdebug_setup(char *str);
 

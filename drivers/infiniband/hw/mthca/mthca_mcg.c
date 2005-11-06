@@ -33,19 +33,17 @@
  */
 
 #include <linux/init.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
 
-enum {
-	MTHCA_QP_PER_MGM = 4 * (MTHCA_MGM_ENTRY_SIZE / 16 - 2)
-};
-
 struct mthca_mgm {
-	u32 next_gid_index;
-	u32 reserved[3];
-	u8  gid[16];
-	u32 qp[MTHCA_QP_PER_MGM];
+	__be32 next_gid_index;
+	u32    reserved[3];
+	u8     gid[16];
+	__be32 qp[MTHCA_QP_PER_MGM];
 };
 
 static const u8 zero_gid[16];	/* automatically initialized to 0 */
@@ -94,10 +92,14 @@ static int find_mgm(struct mthca_dev *dev,
 	if (0)
 		mthca_dbg(dev, "Hash for %04x:%04x:%04x:%04x:"
 			  "%04x:%04x:%04x:%04x is %04x\n",
-			  be16_to_cpu(((u16 *) gid)[0]), be16_to_cpu(((u16 *) gid)[1]),
-			  be16_to_cpu(((u16 *) gid)[2]), be16_to_cpu(((u16 *) gid)[3]),
-			  be16_to_cpu(((u16 *) gid)[4]), be16_to_cpu(((u16 *) gid)[5]),
-			  be16_to_cpu(((u16 *) gid)[6]), be16_to_cpu(((u16 *) gid)[7]),
+			  be16_to_cpu(((__be16 *) gid)[0]),
+			  be16_to_cpu(((__be16 *) gid)[1]),
+			  be16_to_cpu(((__be16 *) gid)[2]),
+			  be16_to_cpu(((__be16 *) gid)[3]),
+			  be16_to_cpu(((__be16 *) gid)[4]),
+			  be16_to_cpu(((__be16 *) gid)[5]),
+			  be16_to_cpu(((__be16 *) gid)[6]),
+			  be16_to_cpu(((__be16 *) gid)[7]),
 			  *hash);
 
 	*index = *hash;
@@ -185,7 +187,12 @@ int mthca_multicast_attach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	}
 
 	for (i = 0; i < MTHCA_QP_PER_MGM; ++i)
-		if (!(mgm->qp[i] & cpu_to_be32(1 << 31))) {
+		if (mgm->qp[i] == cpu_to_be32(ibqp->qp_num | (1 << 31))) {
+			mthca_dbg(dev, "QP %06x already a member of MGM\n", 
+				  ibqp->qp_num);
+			err = 0;
+			goto out;
+		} else if (!(mgm->qp[i] & cpu_to_be32(1 << 31))) {
 			mgm->qp[i] = cpu_to_be32(ibqp->qp_num | (1 << 31));
 			break;
 		}
@@ -258,14 +265,14 @@ int mthca_multicast_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 	if (index == -1) {
 		mthca_err(dev, "MGID %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x "
 			  "not found\n",
-			  be16_to_cpu(((u16 *) gid->raw)[0]),
-			  be16_to_cpu(((u16 *) gid->raw)[1]),
-			  be16_to_cpu(((u16 *) gid->raw)[2]),
-			  be16_to_cpu(((u16 *) gid->raw)[3]),
-			  be16_to_cpu(((u16 *) gid->raw)[4]),
-			  be16_to_cpu(((u16 *) gid->raw)[5]),
-			  be16_to_cpu(((u16 *) gid->raw)[6]),
-			  be16_to_cpu(((u16 *) gid->raw)[7]));
+			  be16_to_cpu(((__be16 *) gid->raw)[0]),
+			  be16_to_cpu(((__be16 *) gid->raw)[1]),
+			  be16_to_cpu(((__be16 *) gid->raw)[2]),
+			  be16_to_cpu(((__be16 *) gid->raw)[3]),
+			  be16_to_cpu(((__be16 *) gid->raw)[4]),
+			  be16_to_cpu(((__be16 *) gid->raw)[5]),
+			  be16_to_cpu(((__be16 *) gid->raw)[6]),
+			  be16_to_cpu(((__be16 *) gid->raw)[7]));
 		err = -EINVAL;
 		goto out;
 	}

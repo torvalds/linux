@@ -1,5 +1,4 @@
 /*
-    $Id: bttv-risc.c,v 1.10 2004/11/19 18:07:12 kraxel Exp $
 
     bttv-risc.c  --  interfaces to other kernel modules
 

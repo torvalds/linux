@@ -87,12 +87,12 @@ static int handle_signal(struct pt_regs *regs, unsigned long signr,
 		recalc_sigpending();
 		spin_unlock_irq(&current->sighand->siglock);
 		force_sigsegv(signr, current);
-	}
-	else if(!(ka->sa.sa_flags & SA_NODEFER)){
+	} else {
 		spin_lock_irq(&current->sighand->siglock);
 		sigorsets(&current->blocked, &current->blocked, 
 			  &ka->sa.sa_mask);
-		sigaddset(&current->blocked, signr);
+		 if(!(ka->sa.sa_flags & SA_NODEFER))
+			sigaddset(&current->blocked, signr);
 		recalc_sigpending();
 		spin_unlock_irq(&current->sighand->siglock);
 	}

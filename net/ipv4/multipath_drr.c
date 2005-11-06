@@ -107,7 +107,7 @@ static int drr_dev_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-struct notifier_block drr_dev_notifier = {
+static struct notifier_block drr_dev_notifier = {
 	.notifier_call	= drr_dev_event,
 };
 

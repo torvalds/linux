@@ -1271,7 +1271,7 @@ ERROR0:;
 }
 
 static int maven_attach_adapter(struct i2c_adapter* adapter) {
-	if (adapter->id == (I2C_ALGO_BIT | I2C_HW_B_G400))
+	if (adapter->id == I2C_HW_B_G400)
 		return i2c_probe(adapter, &addr_data, &maven_detect_client);
 	return 0;
 }

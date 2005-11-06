@@ -68,7 +68,8 @@
 #include <asm/uaccess.h>
 #include <asm/system.h>
 
-static kmem_cache_t *skbuff_head_cache;
+static kmem_cache_t *skbuff_head_cache __read_mostly;
+static kmem_cache_t *skbuff_fclone_cache __read_mostly;
 
 /*
  *	Keep out-of-line to prevent kernel bloat.
@@ -118,9 +119,11 @@ void skb_under_panic(struct sk_buff *skb, int sz, void *here)
  */
 
 /**
- *	alloc_skb	-	allocate a network buffer
+ *	__alloc_skb	-	allocate a network buffer
  *	@size: size to allocate
  *	@gfp_mask: allocation mask
+ *	@fclone: allocate from fclone cache instead of head cache
+ *		and allocate a cloned (child) skb
  *
  *	Allocate a new &sk_buff. The returned buffer has no headroom and a
  *	tail room of size bytes. The object has a reference count of one.
@@ -129,14 +132,20 @@ void skb_under_panic(struct sk_buff *skb, int sz, void *here)
  *	Buffers may only be allocated from interrupts using a @gfp_mask of
  *	%GFP_ATOMIC.
  */
-struct sk_buff *alloc_skb(unsigned int size, unsigned int __nocast gfp_mask)
+struct sk_buff *__alloc_skb(unsigned int size, gfp_t gfp_mask,
+			    int fclone)
 {
 	struct sk_buff *skb;
 	u8 *data;
 
 	/* Get the HEAD */
-	skb = kmem_cache_alloc(skbuff_head_cache,
-			       gfp_mask & ~__GFP_DMA);
+	if (fclone)
+		skb = kmem_cache_alloc(skbuff_fclone_cache,
+				       gfp_mask & ~__GFP_DMA);
+	else
+		skb = kmem_cache_alloc(skbuff_head_cache,
+				       gfp_mask & ~__GFP_DMA);
+
 	if (!skb)
 		goto out;
 
@@ -153,12 +162,22 @@ struct sk_buff *alloc_skb(unsigned int size, unsigned int __nocast gfp_mask)
 	skb->data = data;
 	skb->tail = data;
 	skb->end  = data + size;
+	if (fclone) {
+		struct sk_buff *child = skb + 1;
+		atomic_t *fclone_ref = (atomic_t *) (child + 1);
 
+		skb->fclone = SKB_FCLONE_ORIG;
+		atomic_set(fclone_ref, 1);
+
+		child->fclone = SKB_FCLONE_UNAVAILABLE;
+	}
 	atomic_set(&(skb_shinfo(skb)->dataref), 1);
 	skb_shinfo(skb)->nr_frags  = 0;
 	skb_shinfo(skb)->tso_size = 0;
 	skb_shinfo(skb)->tso_segs = 0;
 	skb_shinfo(skb)->frag_list = NULL;
+	skb_shinfo(skb)->ufo_size = 0;
+	skb_shinfo(skb)->ip6_frag_id = 0;
 out:
 	return skb;
 nodata:
@@ -183,7 +202,7 @@ nodata:
  */
 struct sk_buff *alloc_skb_from_cache(kmem_cache_t *cp,
 				     unsigned int size,
-				     unsigned int __nocast gfp_mask)
+				     gfp_t gfp_mask)
 {
 	struct sk_buff *skb;
 	u8 *data;
@@ -266,8 +285,34 @@ void skb_release_data(struct sk_buff *skb)
  */
 void kfree_skbmem(struct sk_buff *skb)
 {
+	struct sk_buff *other;
+	atomic_t *fclone_ref;
+
 	skb_release_data(skb);
-	kmem_cache_free(skbuff_head_cache, skb);
+	switch (skb->fclone) {
+	case SKB_FCLONE_UNAVAILABLE:
+		kmem_cache_free(skbuff_head_cache, skb);
+		break;
+
+	case SKB_FCLONE_ORIG:
+		fclone_ref = (atomic_t *) (skb + 2);
+		if (atomic_dec_and_test(fclone_ref))
+			kmem_cache_free(skbuff_fclone_cache, skb);
+		break;
+
+	case SKB_FCLONE_CLONE:
+		fclone_ref = (atomic_t *) (skb + 1);
+		other = skb - 1;
+
+		/* The clone portion is available for
+		 * fast-cloning again.
+		 */
+		skb->fclone = SKB_FCLONE_UNAVAILABLE;
+
+		if (atomic_dec_and_test(fclone_ref))
+			kmem_cache_free(skbuff_fclone_cache, other);
+		break;
+	};
 }
 
 /**
@@ -281,8 +326,6 @@ void kfree_skbmem(struct sk_buff *skb)
 
 void __kfree_skb(struct sk_buff *skb)
 {
-	BUG_ON(skb->list != NULL);
-
 	dst_release(skb->dst);
 #ifdef CONFIG_XFRM
 	secpath_put(skb->sp);
@@ -302,7 +345,6 @@ void __kfree_skb(struct sk_buff *skb)
 	skb->tc_index = 0;
 #ifdef CONFIG_NET_CLS_ACT
 	skb->tc_verd = 0;
-	skb->tc_classid = 0;
 #endif
 #endif
 
@@ -323,21 +365,29 @@ void __kfree_skb(struct sk_buff *skb)
  *	%GFP_ATOMIC.
  */
 
-struct sk_buff *skb_clone(struct sk_buff *skb, unsigned int __nocast gfp_mask)
+struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t gfp_mask)
 {
-	struct sk_buff *n = kmem_cache_alloc(skbuff_head_cache, gfp_mask);
+	struct sk_buff *n;
 
-	if (!n) 
-		return NULL;
+	n = skb + 1;
+	if (skb->fclone == SKB_FCLONE_ORIG &&
+	    n->fclone == SKB_FCLONE_UNAVAILABLE) {
+		atomic_t *fclone_ref = (atomic_t *) (n + 1);
+		n->fclone = SKB_FCLONE_CLONE;
+		atomic_inc(fclone_ref);
+	} else {
+		n = kmem_cache_alloc(skbuff_head_cache, gfp_mask);
+		if (!n)
+			return NULL;
+		n->fclone = SKB_FCLONE_UNAVAILABLE;
+	}
 
 #define C(x) n->x = skb->x
 
 	n->next = n->prev = NULL;
-	n->list = NULL;
 	n->sk = NULL;
-	C(stamp);
+	C(tstamp);
 	C(dev);
-	C(real_dev);
 	C(h);
 	C(nh);
 	C(mac);
@@ -361,18 +411,17 @@ struct sk_buff *skb_clone(struct sk_buff *skb, unsigned int __nocast gfp_mask)
 	n->destructor = NULL;
 #ifdef CONFIG_NETFILTER
 	C(nfmark);
-	C(nfcache);
 	C(nfct);
 	nf_conntrack_get(skb->nfct);
 	C(nfctinfo);
+#if defined(CONFIG_IP_VS) || defined(CONFIG_IP_VS_MODULE)
+	C(ipvs_property);
+#endif
 #ifdef CONFIG_BRIDGE_NETFILTER
 	C(nf_bridge);
 	nf_bridge_get(skb->nf_bridge);
 #endif
 #endif /*CONFIG_NETFILTER*/
-#if defined(CONFIG_HIPPI)
-	C(private);
-#endif
 #ifdef CONFIG_NET_SCHED
 	C(tc_index);
 #ifdef CONFIG_NET_CLS_ACT
@@ -380,7 +429,6 @@ struct sk_buff *skb_clone(struct sk_buff *skb, unsigned int __nocast gfp_mask)
 	n->tc_verd = CLR_TC_OK2MUNGE(n->tc_verd);
 	n->tc_verd = CLR_TC_MUNGED(n->tc_verd);
 	C(input_dev);
-	C(tc_classid);
 #endif
 
 #endif
@@ -404,10 +452,8 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	 */
 	unsigned long offset = new->data - old->data;
 
-	new->list	= NULL;
 	new->sk		= NULL;
 	new->dev	= old->dev;
-	new->real_dev	= old->real_dev;
 	new->priority	= old->priority;
 	new->protocol	= old->protocol;
 	new->dst	= dst_clone(old->dst);
@@ -419,15 +465,18 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->mac.raw	= old->mac.raw + offset;
 	memcpy(new->cb, old->cb, sizeof(old->cb));
 	new->local_df	= old->local_df;
+	new->fclone	= SKB_FCLONE_UNAVAILABLE;
 	new->pkt_type	= old->pkt_type;
-	new->stamp	= old->stamp;
+	new->tstamp	= old->tstamp;
 	new->destructor = NULL;
 #ifdef CONFIG_NETFILTER
 	new->nfmark	= old->nfmark;
-	new->nfcache	= old->nfcache;
 	new->nfct	= old->nfct;
 	nf_conntrack_get(old->nfct);
 	new->nfctinfo	= old->nfctinfo;
+#if defined(CONFIG_IP_VS) || defined(CONFIG_IP_VS_MODULE)
+	new->ipvs_property = old->ipvs_property;
+#endif
 #ifdef CONFIG_BRIDGE_NETFILTER
 	new->nf_bridge	= old->nf_bridge;
 	nf_bridge_get(old->nf_bridge);
@@ -461,7 +510,7 @@ static void copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
  *	header is going to be modified. Use pskb_copy() instead.
  */
 
-struct sk_buff *skb_copy(const struct sk_buff *skb, unsigned int __nocast gfp_mask)
+struct sk_buff *skb_copy(const struct sk_buff *skb, gfp_t gfp_mask)
 {
 	int headerlen = skb->data - skb->head;
 	/*
@@ -500,7 +549,7 @@ struct sk_buff *skb_copy(const struct sk_buff *skb, unsigned int __nocast gfp_ma
  *	The returned buffer has a reference count of 1.
  */
 
-struct sk_buff *pskb_copy(struct sk_buff *skb, unsigned int __nocast gfp_mask)
+struct sk_buff *pskb_copy(struct sk_buff *skb, gfp_t gfp_mask)
 {
 	/*
 	 *	Allocate the copy buffer
@@ -559,7 +608,7 @@ out:
  */
 
 int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
-		     unsigned int __nocast gfp_mask)
+		     gfp_t gfp_mask)
 {
 	int i;
 	u8 *data;
@@ -650,7 +699,7 @@ struct sk_buff *skb_realloc_headroom(struct sk_buff *skb, unsigned int headroom)
  */
 struct sk_buff *skb_copy_expand(const struct sk_buff *skb,
 				int newheadroom, int newtailroom,
-				unsigned int __nocast gfp_mask)
+				gfp_t gfp_mask)
 {
 	/*
 	 *	Allocate the copy buffer
@@ -1344,50 +1393,43 @@ void skb_queue_tail(struct sk_buff_head *list, struct sk_buff *newsk)
 	__skb_queue_tail(list, newsk);
 	spin_unlock_irqrestore(&list->lock, flags);
 }
+
 /**
  *	skb_unlink	-	remove a buffer from a list
  *	@skb: buffer to remove
+ *	@list: list to use
  *
- *	Place a packet after a given packet in a list. The list locks are taken
- *	and this function is atomic with respect to other list locked calls
+ *	Remove a packet from a list. The list locks are taken and this
+ *	function is atomic with respect to other list locked calls
  *
- *	Works even without knowing the list it is sitting on, which can be
- *	handy at times. It also means that THE LIST MUST EXIST when you
- *	unlink. Thus a list must have its contents unlinked before it is
- *	destroyed.
+ *	You must know what list the SKB is on.
  */
-void skb_unlink(struct sk_buff *skb)
+void skb_unlink(struct sk_buff *skb, struct sk_buff_head *list)
 {
-	struct sk_buff_head *list = skb->list;
+	unsigned long flags;
 
-	if (list) {
-		unsigned long flags;
-
-		spin_lock_irqsave(&list->lock, flags);
-		if (skb->list == list)
-			__skb_unlink(skb, skb->list);
-		spin_unlock_irqrestore(&list->lock, flags);
-	}
+	spin_lock_irqsave(&list->lock, flags);
+	__skb_unlink(skb, list);
+	spin_unlock_irqrestore(&list->lock, flags);
 }
-
 
 /**
  *	skb_append	-	append a buffer
  *	@old: buffer to insert after
  *	@newsk: buffer to insert
+ *	@list: list to use
  *
  *	Place a packet after a given packet in a list. The list locks are taken
  *	and this function is atomic with respect to other list locked calls.
  *	A buffer cannot be placed on two lists at the same time.
  */
-
-void skb_append(struct sk_buff *old, struct sk_buff *newsk)
+void skb_append(struct sk_buff *old, struct sk_buff *newsk, struct sk_buff_head *list)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&old->list->lock, flags);
-	__skb_append(old, newsk);
-	spin_unlock_irqrestore(&old->list->lock, flags);
+	spin_lock_irqsave(&list->lock, flags);
+	__skb_append(old, newsk, list);
+	spin_unlock_irqrestore(&list->lock, flags);
 }
 
 
@@ -1395,19 +1437,21 @@ void skb_append(struct sk_buff *old, struct sk_buff *newsk)
  *	skb_insert	-	insert a buffer
  *	@old: buffer to insert before
  *	@newsk: buffer to insert
+ *	@list: list to use
  *
- *	Place a packet before a given packet in a list. The list locks are taken
- *	and this function is atomic with respect to other list locked calls
+ *	Place a packet before a given packet in a list. The list locks are
+ * 	taken and this function is atomic with respect to other list locked
+ *	calls.
+ *
  *	A buffer cannot be placed on two lists at the same time.
  */
-
-void skb_insert(struct sk_buff *old, struct sk_buff *newsk)
+void skb_insert(struct sk_buff *old, struct sk_buff *newsk, struct sk_buff_head *list)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&old->list->lock, flags);
-	__skb_insert(newsk, old->prev, old, old->list);
-	spin_unlock_irqrestore(&old->list->lock, flags);
+	spin_lock_irqsave(&list->lock, flags);
+	__skb_insert(newsk, old->prev, old, list);
+	spin_unlock_irqrestore(&list->lock, flags);
 }
 
 #if 0
@@ -1654,6 +1698,78 @@ unsigned int skb_find_text(struct sk_buff *skb, unsigned int from,
 	return textsearch_find(config, state);
 }
 
+/**
+ * skb_append_datato_frags: - append the user data to a skb
+ * @sk: sock  structure
+ * @skb: skb structure to be appened with user data.
+ * @getfrag: call back function to be used for getting the user data
+ * @from: pointer to user message iov
+ * @length: length of the iov message
+ *
+ * Description: This procedure append the user data in the fragment part
+ * of the skb if any page alloc fails user this procedure returns  -ENOMEM
+ */
+int skb_append_datato_frags(struct sock *sk, struct sk_buff *skb,
+			int getfrag(void *from, char *to, int offset,
+					int len, int odd, struct sk_buff *skb),
+			void *from, int length)
+{
+	int frg_cnt = 0;
+	skb_frag_t *frag = NULL;
+	struct page *page = NULL;
+	int copy, left;
+	int offset = 0;
+	int ret;
+
+	do {
+		/* Return error if we don't have space for new frag */
+		frg_cnt = skb_shinfo(skb)->nr_frags;
+		if (frg_cnt >= MAX_SKB_FRAGS)
+			return -EFAULT;
+
+		/* allocate a new page for next frag */
+		page = alloc_pages(sk->sk_allocation, 0);
+
+		/* If alloc_page fails just return failure and caller will
+		 * free previous allocated pages by doing kfree_skb()
+		 */
+		if (page == NULL)
+			return -ENOMEM;
+
+		/* initialize the next frag */
+		sk->sk_sndmsg_page = page;
+		sk->sk_sndmsg_off = 0;
+		skb_fill_page_desc(skb, frg_cnt, page, 0, 0);
+		skb->truesize += PAGE_SIZE;
+		atomic_add(PAGE_SIZE, &sk->sk_wmem_alloc);
+
+		/* get the new initialized frag */
+		frg_cnt = skb_shinfo(skb)->nr_frags;
+		frag = &skb_shinfo(skb)->frags[frg_cnt - 1];
+
+		/* copy the user data to page */
+		left = PAGE_SIZE - frag->page_offset;
+		copy = (length > left)? left : length;
+
+		ret = getfrag(from, (page_address(frag->page) +
+			    frag->page_offset + frag->size),
+			    offset, copy, 0, skb);
+		if (ret < 0)
+			return -EFAULT;
+
+		/* copy was successful so update the size parameters */
+		sk->sk_sndmsg_off += copy;
+		frag->size += copy;
+		skb->len += copy;
+		skb->data_len += copy;
+		offset += copy;
+		length -= copy;
+
+	} while (length > 0);
+
+	return 0;
+}
+
 void __init skb_init(void)
 {
 	skbuff_head_cache = kmem_cache_create("skbuff_head_cache",
@@ -1663,12 +1779,21 @@ void __init skb_init(void)
 					      NULL, NULL);
 	if (!skbuff_head_cache)
 		panic("cannot create skbuff cache");
+
+	skbuff_fclone_cache = kmem_cache_create("skbuff_fclone_cache",
+						(2*sizeof(struct sk_buff)) +
+						sizeof(atomic_t),
+						0,
+						SLAB_HWCACHE_ALIGN,
+						NULL, NULL);
+	if (!skbuff_fclone_cache)
+		panic("cannot create skbuff cache");
 }
 
 EXPORT_SYMBOL(___pskb_trim);
 EXPORT_SYMBOL(__kfree_skb);
 EXPORT_SYMBOL(__pskb_pull_tail);
-EXPORT_SYMBOL(alloc_skb);
+EXPORT_SYMBOL(__alloc_skb);
 EXPORT_SYMBOL(pskb_copy);
 EXPORT_SYMBOL(pskb_expand_head);
 EXPORT_SYMBOL(skb_checksum);
@@ -1696,3 +1821,4 @@ EXPORT_SYMBOL(skb_prepare_seq_read);
 EXPORT_SYMBOL(skb_seq_read);
 EXPORT_SYMBOL(skb_abort_seq_read);
 EXPORT_SYMBOL(skb_find_text);
+EXPORT_SYMBOL(skb_append_datato_frags);

@@ -1,5 +1,4 @@
 /*
- * $Id: bttv.h,v 1.22 2005/07/28 18:41:21 mchehab Exp $
  *
  *  bttv - Bt848 frame grabber driver
  *
@@ -218,6 +217,8 @@ struct tvcard
 #define PLL_35   2
 
 	unsigned int tuner_type;
+	unsigned int tuner_addr;
+
 	unsigned int has_radio;
 	void (*audio_hook)(struct bttv *btv, struct video_audio *v, int set);
 	void (*muxsel_hook)(struct bttv *btv, unsigned int input);

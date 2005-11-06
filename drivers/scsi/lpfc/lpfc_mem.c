@@ -23,6 +23,11 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_transport_fc.h>
+
+#include <scsi/scsi.h>
+
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
 #include "lpfc_disc.h"
@@ -34,7 +39,7 @@
 #define LPFC_MEM_POOL_SIZE      64      /* max elem in non-DMA safety pool */
 
 static void *
-lpfc_pool_kmalloc(unsigned int gfp_flags, void *data)
+lpfc_pool_kmalloc(gfp_t gfp_flags, void *data)
 {
 	return kmalloc((unsigned long)data, gfp_flags);
 }

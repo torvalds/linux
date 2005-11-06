@@ -1,5 +1,4 @@
 /*
- * $Id: cx88-mpeg.c,v 1.31 2005/07/07 14:17:47 mchehab Exp $
  *
  *  Support for the mpeg transport stream transfers
  *  PCI function #2 of the cx2388x.
@@ -73,11 +72,15 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 		udelay(100);
 		cx_write(MO_PINMUX_IO, 0x00);
 		cx_write(TS_HW_SOP_CNTRL,0x47<<16|188<<4|0x01);
-		if ((core->board == CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q) ||
-		    (core->board == CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T)) {
+		switch (core->board) {
+		case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_Q:
+		case CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T:
+		case CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD:
 			cx_write(TS_SOP_STAT, 1<<13);
-		} else {
+			break;
+		default:
 			cx_write(TS_SOP_STAT, 0x00);
+			break;
 		}
 		cx_write(TS_GEN_CNTRL, dev->ts_gen_cntrl);
 		udelay(100);
@@ -86,12 +89,10 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 	if (cx88_boards[core->board].blackbird) {
 		cx_write(MO_PINMUX_IO, 0x88); /* enable MPEG parallel IO */
 
-		// cx_write(TS_F2_CMD_STAT_MM, 0x2900106); /* F2_CMD_STAT_MM defaults + master + memory space */
 		cx_write(TS_GEN_CNTRL, 0x46); /* punctured clock TS & posedge driven & software reset */
 		udelay(100);
 
 		cx_write(TS_HW_SOP_CNTRL, 0x408); /* mpeg start byte */
-		//cx_write(TS_HW_SOP_CNTRL, 0x2F0BC0); /* mpeg start byte ts: 0x2F0BC0 ? */
 		cx_write(TS_VALERR_CNTRL, 0x2000);
 
 		cx_write(TS_GEN_CNTRL, 0x06); /* punctured clock TS & posedge driven */
@@ -106,7 +107,6 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 	dprintk( 0, "setting the interrupt mask\n" );
 	cx_set(MO_PCI_INTMSK, core->pci_irqmask | 0x04);
 	cx_set(MO_TS_INTMSK,  0x1f0011);
-	//cx_write(MO_TS_INTMSK,  0x0f0011);
 
 	/* start dma */
 	cx_set(MO_DEV_CNTRL2, (1<<5));
@@ -206,7 +206,6 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 		mod_timer(&q->timeout, jiffies+BUFFER_TIMEOUT);
 		dprintk(0,"[%p/%d] %s - first active\n",
 			buf, buf->vb.i, __FUNCTION__);
-		//udelay(100);
 
 	} else {
 		dprintk( 1, "queue is not empty - append to active\n" );
@@ -217,7 +216,6 @@ void cx8802_buf_queue(struct cx8802_dev *dev, struct cx88_buffer *buf)
 		prev->risc.jmp[1] = cpu_to_le32(buf->risc.dma);
 		dprintk( 1, "[%p/%d] %s - append to active\n",
 			buf, buf->vb.i, __FUNCTION__);
-		//udelay(100);
 	}
 }
 
@@ -387,7 +385,6 @@ int cx8802_init_common(struct cx8802_dev *dev)
 	       dev->pci_lat,pci_resource_start(dev->pci,0));
 
 	/* initialize driver struct */
-        init_MUTEX(&dev->lock);
 	spin_lock_init(&dev->slock);
 
 	/* init dma queue */
@@ -458,14 +455,28 @@ int cx8802_suspend_common(struct pci_dev *pci_dev, pm_message_t state)
 
 int cx8802_resume_common(struct pci_dev *pci_dev)
 {
-        struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
+	struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
 	struct cx88_core *core = dev->core;
+	int err;
 
 	if (dev->state.disabled) {
-		pci_enable_device(pci_dev);
+		err=pci_enable_device(pci_dev);
+		if (err) {
+			printk(KERN_ERR "%s: can't enable device\n",
+					       dev->core->name);
+			return err;
+		}
 		dev->state.disabled = 0;
 	}
-	pci_set_power_state(pci_dev, PCI_D0);
+	err=pci_set_power_state(pci_dev, PCI_D0);
+	if (err) {
+		printk(KERN_ERR "%s: can't enable device\n",
+					       dev->core->name);
+		pci_disable_device(pci_dev);
+		dev->state.disabled = 1;
+
+		return err;
+	}
 	pci_restore_state(pci_dev);
 
 	/* FIXME: re-initialize hardware */

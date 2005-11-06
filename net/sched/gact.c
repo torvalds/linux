@@ -135,7 +135,7 @@ tcf_gact_cleanup(struct tc_action *a, int bind)
 }
 
 static int
-tcf_gact(struct sk_buff **pskb, struct tc_action *a)
+tcf_gact(struct sk_buff **pskb, struct tc_action *a, struct tcf_result *res)
 {
 	struct tcf_gact *p = PRIV(a, gact);
 	struct sk_buff *skb = *pskb;

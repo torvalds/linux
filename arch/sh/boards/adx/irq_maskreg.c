@@ -37,13 +37,13 @@ static void end_maskreg_irq(unsigned int irq);
 
 /* hw_interrupt_type */
 static struct hw_interrupt_type maskreg_irq_type = {
-	" Mask Register",
-	startup_maskreg_irq,
-	shutdown_maskreg_irq,
-	enable_maskreg_irq,
-	disable_maskreg_irq,
-	mask_and_ack_maskreg,
-	end_maskreg_irq
+	.typename = " Mask Register",
+	.startup = startup_maskreg_irq,
+	.shutdown = shutdown_maskreg_irq,
+	.enable = enable_maskreg_irq,
+	.disable = disable_maskreg_irq,
+	.ack = mask_and_ack_maskreg,
+	.end = end_maskreg_irq
 };
 
 /* actual implementatin */

@@ -127,10 +127,10 @@ fail:
  *	   used when disk name of partitioned disk ends on a digit.
  *
  *	If name doesn't have fall into the categories above, we return 0.
- *	Driverfs is used to check if something is a disk name - it has
+ *	Sysfs is used to check if something is a disk name - it has
  *	all known disks under bus/block/devices.  If the disk name
- *	contains slashes, name of driverfs node has them replaced with
- *	bangs.  try_name() does the actual checks, assuming that driverfs
+ *	contains slashes, name of sysfs node has them replaced with
+ *	bangs.  try_name() does the actual checks, assuming that sysfs
  *	is mounted on rootfs /sys.
  */
 

@@ -66,8 +66,8 @@
 #include <linux/seq_file.h>
 
 #include <net/protocol.h>
-#include <net/tcp.h>
 #include <net/ndisc.h>
+#include <net/ip.h>
 #include <net/ipv6.h>
 #include <net/transp_v6.h>
 #include <net/addrconf.h>
@@ -641,10 +641,7 @@ static struct sock *sctp_v6_create_accept_sk(struct sock *sk,
 	else
 		newinet->pmtudisc = IP_PMTUDISC_WANT;
 
-#ifdef INET_REFCNT_DEBUG
-	atomic_inc(&inet6_sock_nr);
-	atomic_inc(&inet_sock_nr);
-#endif
+	sk_refcnt_debug_inc(newsk);
 
 	if (newsk->sk_prot->init(newsk)) {
 		sk_common_release(newsk);

@@ -56,7 +56,7 @@ static void __init malta_piix_func0_fixup(struct pci_dev *pdev)
 		0,  0, 	0,  3,
 		4,  5,  6,  7,
 		0,  9, 10, 11,
-		12, 0, 14, 15 
+		12, 0, 14, 15
 	};
 	int i;
 

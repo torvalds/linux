@@ -304,12 +304,6 @@ ret_point:
 	call	restore_processor_state
 	ret
 
-ENTRY(do_suspend_lowlevel_s4bios)
-	call save_processor_state
-	call save_registers
-	call acpi_enter_sleep_state_s4bios
-	ret
-
 ALIGN
 # saved registers
 saved_gdt:	.long	0,0

@@ -1,5 +1,4 @@
 /*
- * $Id: btcx-risc.h,v 1.2 2004/09/15 16:15:24 kraxel Exp $
  */
 struct btcx_riscmem {
 	unsigned int   size;

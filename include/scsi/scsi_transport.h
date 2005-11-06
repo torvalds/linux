@@ -29,6 +29,14 @@ struct scsi_transport_template {
 	struct transport_container target_attrs;
 	struct transport_container device_attrs;
 
+	/*
+	 * If set, call target_parent prior to allocating a scsi_target,
+	 * so we get the appropriate parent for the target. This function
+	 * is required for transports like FC and iSCSI that do not put the
+	 * scsi_target under scsi_host.
+	 */
+	struct device *(*target_parent)(struct Scsi_Host *, int, uint);
+
 	/* The size of the specific transport attribute structure (a
 	 * space of this size will be left at the end of the
 	 * scsi_* structure */

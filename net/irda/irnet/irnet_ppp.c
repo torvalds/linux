@@ -1107,7 +1107,7 @@ ppp_irnet_cleanup(void)
 /*
  * Module main entry point
  */
-int __init
+static int __init
 irnet_init(void)
 {
   int err;

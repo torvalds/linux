@@ -620,6 +620,7 @@ ppc4xx_clr_dma_status(unsigned int dmanr)
 	return DMA_STATUS_GOOD;
 }
 
+#ifdef CONFIG_PPC4xx_EDMA
 /*
  * Enables the burst on the channel (BTEN bit in the control/count register)
  * Note:
@@ -685,6 +686,11 @@ ppc4xx_set_burst_size(unsigned int dmanr, unsigned int bsize)
 	return DMA_STATUS_GOOD;
 }
 
+EXPORT_SYMBOL(ppc4xx_enable_burst);
+EXPORT_SYMBOL(ppc4xx_disable_burst);
+EXPORT_SYMBOL(ppc4xx_set_burst_size);
+#endif /* CONFIG_PPC4xx_EDMA */
+
 EXPORT_SYMBOL(ppc4xx_init_dma_channel);
 EXPORT_SYMBOL(ppc4xx_get_channel_config);
 EXPORT_SYMBOL(ppc4xx_set_channel_priority);
@@ -703,6 +709,4 @@ EXPORT_SYMBOL(ppc4xx_enable_dma_interrupt);
 EXPORT_SYMBOL(ppc4xx_disable_dma_interrupt);
 EXPORT_SYMBOL(ppc4xx_get_dma_status);
 EXPORT_SYMBOL(ppc4xx_clr_dma_status);
-EXPORT_SYMBOL(ppc4xx_enable_burst);
-EXPORT_SYMBOL(ppc4xx_disable_burst);
-EXPORT_SYMBOL(ppc4xx_set_burst_size);
+

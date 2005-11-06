@@ -67,8 +67,6 @@ typedef __u64 u64;
 
 typedef u64 dma_addr_t;
 
-typedef unsigned short kmem_bufctl_t;
-
 # endif /* __KERNEL__ */
 #endif /* !__ASSEMBLY__ */
 

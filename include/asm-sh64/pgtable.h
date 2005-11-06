@@ -457,9 +457,6 @@ extern inline pte_t pte_mkhuge(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _
 extern inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 { set_pte(&pte, __pte((pte_val(pte) & _PAGE_CHG_MASK) | pgprot_val(newprot))); return pte; }
 
-#define page_pte_prot(page, prot) mk_pte(page, prot)
-#define page_pte(page) page_pte_prot(page, __pgprot(0))
-
 typedef pte_t *pte_addr_t;
 #define pgtable_cache_init()	do { } while (0)
 
@@ -481,9 +478,6 @@ extern void update_mmu_cache(struct vm_area_struct * vma,
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 #define PageSkip(page)		(0)
 #define kern_addr_valid(addr)	(1)
-
-#define io_remap_page_range(vma, vaddr, paddr, size, prot)		\
-		remap_pfn_range(vma, vaddr, (paddr) >> PAGE_SHIFT, size, prot)
 
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)

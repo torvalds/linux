@@ -584,7 +584,7 @@ static inline int ns83820_add_rx_skb(struct ns83820 *dev, struct sk_buff *skb)
 	return 0;
 }
 
-static inline int rx_refill(struct net_device *ndev, int gfp)
+static inline int rx_refill(struct net_device *ndev, gfp_t gfp)
 {
 	struct ns83820 *dev = PRIV(ndev);
 	unsigned i;
@@ -1632,8 +1632,7 @@ static void ns83820_run_bist(struct net_device *ndev, const char *name, u32 enab
 			timed_out = 1;
 			break;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 
 	if (status & fail)

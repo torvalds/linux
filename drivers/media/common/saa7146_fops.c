@@ -1,5 +1,4 @@
 #include <media/saa7146_vv.h>
-#include <linux/version.h>
 
 #define BOARD_CAN_DO_VBI(dev)   (dev->revision != 0 && dev->vv_data->vbi_minor != -1) 
 

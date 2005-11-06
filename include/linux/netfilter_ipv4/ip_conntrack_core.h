@@ -2,6 +2,9 @@
 #define _IP_CONNTRACK_CORE_H
 #include <linux/netfilter.h>
 
+#define MAX_IP_CT_PROTO 256
+extern struct ip_conntrack_protocol *ip_ct_protos[MAX_IP_CT_PROTO];
+
 /* This header is used to share core functionality between the
    standalone connection tracking module, and the compatibility layer's use
    of connection tracking. */
@@ -38,11 +41,18 @@ extern int __ip_conntrack_confirm(struct sk_buff **pskb);
 /* Confirm a connection: returns NF_DROP if packet must be dropped. */
 static inline int ip_conntrack_confirm(struct sk_buff **pskb)
 {
-	if ((*pskb)->nfct
-	    && !is_confirmed((struct ip_conntrack *)(*pskb)->nfct))
-		return __ip_conntrack_confirm(pskb);
-	return NF_ACCEPT;
+	struct ip_conntrack *ct = (struct ip_conntrack *)(*pskb)->nfct;
+	int ret = NF_ACCEPT;
+
+	if (ct) {
+		if (!is_confirmed(ct))
+			ret = __ip_conntrack_confirm(pskb);
+		ip_ct_deliver_cached_events(ct);
+	}
+	return ret;
 }
+
+extern void ip_ct_unlink_expect(struct ip_conntrack_expect *exp);
 
 extern struct list_head *ip_conntrack_hash;
 extern struct list_head ip_conntrack_expect_list;

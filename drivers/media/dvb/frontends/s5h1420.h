@@ -30,6 +30,9 @@ struct s5h1420_config
 	/* the demodulator's i2c address */
 	u8 demod_address;
 
+	/* does the inversion require inversion? */
+	u8 invert:1;
+
 	/* PLL maintenance */
 	int (*pll_init)(struct dvb_frontend* fe);
 	int (*pll_set)(struct dvb_frontend* fe, struct dvb_frontend_parameters* params, u32* freqout);

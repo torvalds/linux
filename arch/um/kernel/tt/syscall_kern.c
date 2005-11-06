@@ -12,36 +12,41 @@
 #include "asm/uaccess.h"
 #include "asm/stat.h"
 #include "sysdep/syscalls.h"
+#include "sysdep/sigcontext.h"
 #include "kern_util.h"
+#include "syscall.h"
 
-extern syscall_handler_t *sys_call_table[];
-
-long execute_syscall_tt(void *r)
+void syscall_handler_tt(int sig, struct pt_regs *regs)
 {
-	struct pt_regs *regs = r;
-	long res;
+	void *sc;
+	long result;
 	int syscall;
-
 #ifdef CONFIG_SYSCALL_DEBUG
+	int index;
+  	index = record_syscall_start(syscall);
+#endif
+	sc = UPT_SC(&regs->regs);
+	SC_START_SYSCALL(sc);
+
+	syscall_trace(&regs->regs, 0);
+
 	current->thread.nsyscalls++;
 	nsyscalls++;
-#endif
 	syscall = UPT_SYSCALL_NR(&regs->regs);
 
 	if((syscall >= NR_syscalls) || (syscall < 0))
-		res = -ENOSYS;
-	else res = EXECUTE_SYSCALL(syscall, regs);
+		result = -ENOSYS;
+	else result = EXECUTE_SYSCALL(syscall, regs);
 
-	return(res);
+	/* regs->sc may have changed while the system call ran (there may
+	 * have been an interrupt or segfault), so it needs to be refreshed.
+	 */
+	UPT_SC(&regs->regs) = sc;
+
+	SC_SET_SYSCALL_RETURN(sc, result);
+
+	syscall_trace(&regs->regs, 1);
+#ifdef CONFIG_SYSCALL_DEBUG
+  	record_syscall_end(index, result);
+#endif
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */

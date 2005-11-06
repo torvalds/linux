@@ -468,20 +468,11 @@ qla24xx_read_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
     uint32_t dwords)
 {
 	uint32_t i;
-	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
-
-	/* Pause RISC. */
-	WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_PAUSE);
-	RD_REG_DWORD(&reg->hccr);		/* PCI Posting. */
 
 	/* Dword reads to flash. */
 	for (i = 0; i < dwords; i++, faddr++)
 		dwptr[i] = cpu_to_le32(qla24xx_read_flash_dword(ha,
 		    flash_data_to_access_addr(faddr)));
-
-	/* Release RISC pause. */
-	WRT_REG_DWORD(&reg->hccr, HCCRX_REL_RISC_PAUSE);
-	RD_REG_DWORD(&reg->hccr);		/* PCI Posting. */
 
 	return dwptr;
 }
@@ -531,10 +522,6 @@ qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 
 	ret = QLA_SUCCESS;
-
-	/* Pause RISC. */
-	WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_PAUSE);
-	RD_REG_DWORD(&reg->hccr);		/* PCI Posting. */
 
 	qla24xx_get_flash_manufacturer(ha, &man_id, &flash_id);
 	DEBUG9(printk("%s(%ld): Flash man_id=%d flash_id=%d\n", __func__,
@@ -599,10 +586,6 @@ qla24xx_write_flash_data(scsi_qla_host_t *ha, uint32_t *dwptr, uint32_t faddr,
 	    RD_REG_DWORD(&reg->ctrl_status) & ~CSRX_FLASH_ENABLE);
 	RD_REG_DWORD(&reg->ctrl_status);	/* PCI Posting. */
 
-	/* Release RISC pause. */
-	WRT_REG_DWORD(&reg->hccr, HCCRX_REL_RISC_PAUSE);
-	RD_REG_DWORD(&reg->hccr);		/* PCI Posting. */
-
 	return ret;
 }
 
@@ -630,21 +613,12 @@ qla24xx_read_nvram_data(scsi_qla_host_t *ha, uint8_t *buf, uint32_t naddr,
 {
 	uint32_t i;
 	uint32_t *dwptr;
-	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
-
-	/* Pause RISC. */
-	WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_PAUSE);
-	RD_REG_DWORD(&reg->hccr);	/* PCI Posting. */
 
 	/* Dword reads to flash. */
 	dwptr = (uint32_t *)buf;
 	for (i = 0; i < bytes >> 2; i++, naddr++)
 		dwptr[i] = cpu_to_le32(qla24xx_read_flash_dword(ha,
 		    nvram_data_to_access_addr(naddr)));
-
-	/* Release RISC pause. */
-	WRT_REG_DWORD(&reg->hccr, HCCRX_REL_RISC_PAUSE);
-	RD_REG_DWORD(&reg->hccr);	/* PCI Posting. */
 
 	return buf;
 }
@@ -690,10 +664,6 @@ qla24xx_write_nvram_data(scsi_qla_host_t *ha, uint8_t *buf, uint32_t naddr,
 
 	ret = QLA_SUCCESS;
 
-	/* Pause RISC. */
-	WRT_REG_DWORD(&reg->hccr, HCCRX_SET_RISC_PAUSE);
-	RD_REG_DWORD(&reg->hccr);		/* PCI Posting. */
-
 	/* Enable flash write. */
 	WRT_REG_DWORD(&reg->ctrl_status,
 	    RD_REG_DWORD(&reg->ctrl_status) | CSRX_FLASH_ENABLE);
@@ -727,10 +697,6 @@ qla24xx_write_nvram_data(scsi_qla_host_t *ha, uint8_t *buf, uint32_t naddr,
 	WRT_REG_DWORD(&reg->ctrl_status,
 	    RD_REG_DWORD(&reg->ctrl_status) & ~CSRX_FLASH_ENABLE);
 	RD_REG_DWORD(&reg->ctrl_status);	/* PCI Posting. */
-
-	/* Release RISC pause. */
-	WRT_REG_DWORD(&reg->hccr, HCCRX_REL_RISC_PAUSE);
-	RD_REG_DWORD(&reg->hccr);		/* PCI Posting. */
 
 	return ret;
 }

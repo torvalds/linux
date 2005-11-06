@@ -200,7 +200,7 @@ int snd_cs8427_create(snd_i2c_bus_t *bus,
 
 	if ((err = snd_i2c_device_create(bus, "CS8427", CS8427_ADDR | (addr & 7), &device)) < 0)
 		return err;
-	chip = device->private_data = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = device->private_data = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 	      	snd_i2c_device_free(device);
 		return -ENOMEM;

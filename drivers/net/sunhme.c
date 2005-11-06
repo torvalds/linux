@@ -2954,7 +2954,7 @@ static int is_quattro_p(struct pci_dev *pdev)
 }
 
 /* Fetch MAC address from vital product data of PCI ROM. */
-static void find_eth_addr_in_vpd(void __iomem *rom_base, int len, int index, unsigned char *dev_addr)
+static int find_eth_addr_in_vpd(void __iomem *rom_base, int len, int index, unsigned char *dev_addr)
 {
 	int this_offset;
 
@@ -2977,42 +2977,33 @@ static void find_eth_addr_in_vpd(void __iomem *rom_base, int len, int index, uns
 
 			for (i = 0; i < 6; i++)
 				dev_addr[i] = readb(p + i);
-			break;
+			return 1;
 		}
 		index--;
 	}
+	return 0;
 }
 
 static void get_hme_mac_nonsparc(struct pci_dev *pdev, unsigned char *dev_addr)
 {
-	u32 rom_reg_orig;
-	void __iomem *p;
-	int index;
+	size_t size;
+	void __iomem *p = pci_map_rom(pdev, &size);
 
-	index = 0;
-	if (is_quattro_p(pdev))
-		index = PCI_SLOT(pdev->devfn);
+	if (p) {
+		int index = 0;
+		int found;
 
-	if (pdev->resource[PCI_ROM_RESOURCE].parent == NULL) {
-		if (pci_assign_resource(pdev, PCI_ROM_RESOURCE) < 0)
-			goto use_random;
+		if (is_quattro_p(pdev))
+			index = PCI_SLOT(pdev->devfn);
+
+		found = readb(p) == 0x55 &&
+			readb(p + 1) == 0xaa &&
+			find_eth_addr_in_vpd(p, (64 * 1024), index, dev_addr);
+		pci_unmap_rom(pdev, p);
+		if (found)
+			return;
 	}
 
-	pci_read_config_dword(pdev, pdev->rom_base_reg, &rom_reg_orig);
-	pci_write_config_dword(pdev, pdev->rom_base_reg,
-			       rom_reg_orig | PCI_ROM_ADDRESS_ENABLE);
-
-	p = ioremap(pci_resource_start(pdev, PCI_ROM_RESOURCE), (64 * 1024));
-	if (p != NULL && readb(p) == 0x55 && readb(p + 1) == 0xaa)
-		find_eth_addr_in_vpd(p, (64 * 1024), index, dev_addr);
-
-	if (p != NULL)
-		iounmap(p);
-
-	pci_write_config_dword(pdev, pdev->rom_base_reg, rom_reg_orig);
-	return;
-
-use_random:
 	/* Sun MAC prefix then 3 random bytes. */
 	dev_addr[0] = 0x08;
 	dev_addr[1] = 0x00;

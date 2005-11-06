@@ -22,12 +22,15 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
 	pud_t *pud;
-	pmd_t *pmd = NULL;
+	pte_t *pte = NULL;
 
 	pgd = pgd_offset(mm, addr);
 	pud = pud_alloc(mm, pgd, addr);
-	pmd = pmd_alloc(mm, pud, addr);
-	return (pte_t *) pmd;
+	if (pud)
+		pte = (pte_t *) pmd_alloc(mm, pud, addr);
+	BUG_ON(pte && !pte_none(*pte) && !pte_huge(*pte));
+
+	return pte;
 }
 
 pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
@@ -37,8 +40,11 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 	pmd_t *pmd = NULL;
 
 	pgd = pgd_offset(mm, addr);
-	pud = pud_offset(pgd, addr);
-	pmd = pmd_offset(pud, addr);
+	if (pgd_present(*pgd)) {
+		pud = pud_offset(pgd, addr);
+		if (pud_present(*pud))
+			pmd = pmd_offset(pud, addr);
+	}
 	return (pte_t *) pmd;
 }
 
@@ -117,17 +123,6 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
 	return page;
 }
 #endif
-
-void hugetlb_clean_stale_pgtable(pte_t *pte)
-{
-	pmd_t *pmd = (pmd_t *) pte;
-	struct page *page;
-
-	page = pmd_page(*pmd);
-	pmd_clear(pmd);
-	dec_page_state(nr_page_table_pages);
-	page_cache_release(page);
-}
 
 /* x86_64 also uses this file */
 

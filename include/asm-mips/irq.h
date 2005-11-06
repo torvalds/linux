@@ -24,11 +24,9 @@ static inline int irq_canonicalize(int irq)
 
 struct pt_regs;
 
-#ifdef CONFIG_PREEMPT
-
 extern asmlinkage unsigned int do_IRQ(unsigned int irq, struct pt_regs *regs);
 
-#else
+#ifdef CONFIG_PREEMPT
 
 /*
  * do_IRQ handles all normal device IRQ's (the special
@@ -48,8 +46,5 @@ do {									\
 #endif
 
 extern void arch_init_irq(void);
-
-struct irqaction;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
 
 #endif /* _ASM_IRQ_H */

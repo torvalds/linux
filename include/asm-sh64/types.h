@@ -65,8 +65,6 @@ typedef u32 dma_addr_t;
 #endif
 typedef u64 dma64_addr_t;
 
-typedef unsigned int kmem_bufctl_t;
-
 #endif /* __ASSEMBLY__ */
 
 #define BITS_PER_LONG 32

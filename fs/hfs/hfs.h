@@ -25,6 +25,7 @@
 #define HFS_SECTOR_SIZE		512    /* size of an HFS sector */
 #define HFS_SECTOR_SIZE_BITS	9      /* log_2(HFS_SECTOR_SIZE) */
 #define HFS_NAMELEN		31     /* maximum length of an HFS filename */
+#define HFS_MAX_NAMELEN		128
 #define HFS_MAX_VALENCE		32767U
 
 /* Meanings of the drAtrb field of the MDB,

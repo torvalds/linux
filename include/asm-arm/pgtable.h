@@ -188,12 +188,18 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 /*
  *   - extended small page/tiny page
  */
+#define PTE_EXT_XN		(1 << 0)	/* v6 */
 #define PTE_EXT_AP_MASK		(3 << 4)
+#define PTE_EXT_AP0		(1 << 4)
+#define PTE_EXT_AP1		(2 << 4)
 #define PTE_EXT_AP_UNO_SRO	(0 << 4)
-#define PTE_EXT_AP_UNO_SRW	(1 << 4)
-#define PTE_EXT_AP_URO_SRW	(2 << 4)
-#define PTE_EXT_AP_URW_SRW	(3 << 4)
+#define PTE_EXT_AP_UNO_SRW	(PTE_EXT_AP0)
+#define PTE_EXT_AP_URO_SRW	(PTE_EXT_AP1)
+#define PTE_EXT_AP_URW_SRW	(PTE_EXT_AP1|PTE_EXT_AP0)
 #define PTE_EXT_TEX(x)		((x) << 6)	/* v5 */
+#define PTE_EXT_APX		(1 << 9)	/* v6 */
+#define PTE_EXT_SHARED		(1 << 10)	/* v6 */
+#define PTE_EXT_NG		(1 << 11)	/* v6 */
 
 /*
  *   - small page
@@ -224,6 +230,8 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #define L_PTE_WRITE		(1 << 5)
 #define L_PTE_EXEC		(1 << 6)
 #define L_PTE_DIRTY		(1 << 7)
+#define L_PTE_SHARED		(1 << 10)	/* shared between CPUs (v6) */
+#define L_PTE_ASID		(1 << 11)	/* non-global (use ASID, v6) */
 
 #ifndef __ASSEMBLY__
 
@@ -389,9 +397,6 @@ static inline pte_t *pmd_page_kernel(pmd_t pmd)
 #define pgd_clear(pgdp)		do { } while (0)
 #define set_pgd(pgd,pgdp)	do { } while (0)
 
-#define page_pte_prot(page,prot)	mk_pte(page, prot)
-#define page_pte(page)		mk_pte(page, __pgprot(0))
-
 /* to find an entry in a page-table-directory */
 #define pgd_index(addr)		((addr) >> PGDIR_SHIFT)
 
@@ -437,12 +442,9 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 #define HAVE_ARCH_UNMAPPED_AREA
 
 /*
- * remap a physical address `phys' of size `size' with page protection `prot'
+ * remap a physical page `pfn' of size `size' with page protection `prot'
  * into virtual address `from'
  */
-#define io_remap_page_range(vma,from,phys,size,prot) \
-		remap_pfn_range(vma, from, (phys) >> PAGE_SHIFT, size, prot)
-
 #define io_remap_pfn_range(vma,from,pfn,size,prot) \
 		remap_pfn_range(vma, from, pfn, size, prot)
 

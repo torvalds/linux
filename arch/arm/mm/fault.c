@@ -233,14 +233,24 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	if (in_interrupt() || !mm)
 		goto no_context;
 
-	down_read(&mm->mmap_sem);
+	/*
+	 * As per x86, we may deadlock here.  However, since the kernel only
+	 * validly references user space from well defined areas of the code,
+	 * we can bug out early if this is from code which shouldn't.
+	 */
+	if (!down_read_trylock(&mm->mmap_sem)) {
+		if (!user_mode(regs) && !search_exception_tables(regs->ARM_pc))
+			goto no_context;
+		down_read(&mm->mmap_sem);
+	}
+
 	fault = __do_page_fault(mm, addr, fsr, tsk);
 	up_read(&mm->mmap_sem);
 
 	/*
-	 * Handle the "normal" case first
+	 * Handle the "normal" case first - VM_FAULT_MAJOR / VM_FAULT_MINOR
 	 */
-	if (fault > 0)
+	if (fault >= VM_FAULT_MINOR)
 		return 0;
 
 	/*
@@ -261,7 +271,7 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 		do_exit(SIGKILL);
 		return 0;
 
-	case 0:
+	case VM_FAULT_SIGBUS:
 		/*
 		 * We had some memory, but were unable to
 		 * successfully fix up this page fault.

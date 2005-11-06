@@ -149,6 +149,6 @@ void rose_setup(struct net_device *dev)
 	dev->set_mac_address    = rose_set_mac_address;
 
 	/* New-style flags. */
-	dev->flags		= 0;
+	dev->flags		= IFF_NOARP;
 	dev->get_stats = rose_get_stats;
 }

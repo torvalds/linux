@@ -1034,13 +1034,12 @@ handle_signal(unsigned long signr, struct k_sigaction *ka,
 		else
 			setup_frame(&ka->sa, regs, signr, oldset, info);
 	}
-	if (!(ka->sa.sa_flags & SA_NOMASK)) {
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
+	spin_lock_irq(&current->sighand->siglock);
+	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
+	if (!(ka->sa.sa_flags & SA_NOMASK))
 		sigaddset(&current->blocked, signr);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-	}
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
 }
 
 static inline void syscall_restart(unsigned long orig_i0, struct pt_regs *regs,

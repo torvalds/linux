@@ -7,7 +7,7 @@
  * Author: MontaVista Software, Inc.
  *              ppopov@mvista.com or source@mvista.com
  *
- * Copyright (C) 2000-2001 Toshiba Corporation 
+ * Copyright (C) 2000-2001 Toshiba Corporation
  *
  * Copyright (C) 2004 MontaVista Software Inc.
  * Author: Manish Lachwani (mlachwani@mvista.com)

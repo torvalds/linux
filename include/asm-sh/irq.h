@@ -587,10 +587,6 @@ static inline int generic_irq_demux(int irq)
 #define irq_canonicalize(irq)	(irq)
 #define irq_demux(irq)		__irq_demux(sh_mv.mv_irq_demux(irq))
 
-struct irqaction;
-struct pt_regs;
-int handle_IRQ_event(unsigned int, struct pt_regs *, struct irqaction *);
-
 #if defined(CONFIG_CPU_SUBTYPE_SH73180)
 #include <asm/irq-sh73180.h>
 #endif

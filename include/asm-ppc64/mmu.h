@@ -14,6 +14,7 @@
 #define _PPC64_MMU_H_
 
 #include <linux/config.h>
+#include <asm/ppc_asm.h> /* for ASM_CONST */
 #include <asm/page.h>
 
 /*
@@ -28,9 +29,12 @@
 #define STE_VSID_SHIFT	12
 
 /* Location of cpu0's segment table */
-#define STAB0_PAGE	0x9
-#define STAB0_PHYS_ADDR	(STAB0_PAGE<<PAGE_SHIFT)
-#define STAB0_VIRT_ADDR	(KERNELBASE+STAB0_PHYS_ADDR)
+#define STAB0_PAGE	0x6
+#define STAB0_PHYS_ADDR	(STAB0_PAGE<<12)
+
+#ifndef __ASSEMBLY__
+extern char initial_stab[];
+#endif /* ! __ASSEMBLY */
 
 /*
  * SLB
@@ -51,8 +55,10 @@
 #define SLB_VSID_C		ASM_CONST(0x0000000000000080) /* class */
 #define SLB_VSID_LS		ASM_CONST(0x0000000000000070) /* size of largepage */
  
-#define SLB_VSID_KERNEL		(SLB_VSID_KP|SLB_VSID_C)
-#define SLB_VSID_USER		(SLB_VSID_KP|SLB_VSID_KS)
+#define SLB_VSID_KERNEL		(SLB_VSID_KP)
+#define SLB_VSID_USER		(SLB_VSID_KP|SLB_VSID_KS|SLB_VSID_C)
+
+#define SLBIE_C			(0x08000000)
 
 /*
  * Hash table
@@ -200,6 +206,10 @@ extern long native_hpte_insert(unsigned long hpte_group, unsigned long va,
 			       unsigned long prpn,
 			       unsigned long vflags, unsigned long rflags);
 
+extern long iSeries_hpte_bolt_or_insert(unsigned long hpte_group,
+		unsigned long va, unsigned long prpn,
+		unsigned long vflags, unsigned long rflags);
+
 extern void stabs_alloc(void);
 
 #endif /* __ASSEMBLY__ */
@@ -259,8 +269,10 @@ extern void stabs_alloc(void);
 #define VSID_BITS	36
 #define VSID_MODULUS	((1UL<<VSID_BITS)-1)
 
-#define CONTEXT_BITS	20
-#define USER_ESID_BITS	15
+#define CONTEXT_BITS	19
+#define USER_ESID_BITS	16
+
+#define USER_VSID_RANGE	(1UL << (USER_ESID_BITS + SID_SHIFT))
 
 /*
  * This macro generates asm code to compute the VSID scramble
@@ -302,8 +314,7 @@ typedef unsigned long mm_context_id_t;
 typedef struct {
 	mm_context_id_t id;
 #ifdef CONFIG_HUGETLB_PAGE
-	pgd_t *huge_pgdir;
-	u16 htlb_segs; /* bitmask */
+	u16 low_htlb_areas, high_htlb_areas;
 #endif
 } mm_context_t;
 

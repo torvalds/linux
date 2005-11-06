@@ -32,7 +32,7 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/err.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/sysdev.h>
 
 #include <linux/interrupt.h>
@@ -98,7 +98,10 @@ struct clk *clk_get(struct device *dev, const char *id)
 	struct clk *clk = ERR_PTR(-ENOENT);
 	int idno;
 
-	idno = (dev == NULL) ? -1 : to_platform_device(dev)->id;
+	if (dev == NULL || dev->bus != &platform_bus_type)
+		idno = -1;
+	else
+		idno = to_platform_device(dev)->id;
 
 	down(&clocks_sem);
 
@@ -388,6 +391,7 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 				unsigned long hclk,
 				unsigned long pclk)
 {
+	unsigned long clkslow = __raw_readl(S3C2410_CLKSLOW);
 	struct clk *clkp = init_clocks;
 	int ptr;
 	int ret;
@@ -445,6 +449,14 @@ int __init s3c24xx_setup_clocks(unsigned long xtal,
 			       clkp->name, ret);
 		}
 	}
+
+	/* show the clock-slow value */
+
+	printk("CLOCK: Slow mode (%ld.%ld MHz), %s, MPLL %s, UPLL %s\n",
+	       print_mhz(xtal / ( 2 * S3C2410_CLKSLOW_GET_SLOWVAL(clkslow))),
+	       (clkslow & S3C2410_CLKSLOW_SLOW) ? "slow" : "fast",
+	       (clkslow & S3C2410_CLKSLOW_MPLL_OFF) ? "off" : "on",
+	       (clkslow & S3C2410_CLKSLOW_UCLK_OFF) ? "off" : "on");
 
 	return 0;
 }

@@ -24,7 +24,7 @@
  * PMAX/3MAX PROM entry points for DS2100/3100's and DS5000/2xx's.
  * Many of these will work for MIPSen as well!
  */
-#define VEC_RESET		(u64 *)KSEG1ADDR(0x1fc00000)
+#define VEC_RESET		(u64 *)CKSEG1ADDR(0x1fc00000)
 							/* Prom base address */
 
 #define PMAX_PROM_ENTRY(x)	(VEC_RESET + (x))	/* Prom jump table */
@@ -48,15 +48,15 @@
  */
 #define REX_PROM_MAGIC		0x30464354
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 
 #define prom_is_rex(magic)	1	/* KN04 and KN05 are REX PROMs.  */
 
-#else /* !CONFIG_MIPS64 */
+#else /* !CONFIG_64BIT */
 
 #define prom_is_rex(magic)	((magic) == REX_PROM_MAGIC)
 
-#endif /* !CONFIG_MIPS64 */
+#endif /* !CONFIG_64BIT */
 
 
 /*
@@ -105,25 +105,27 @@ extern int (*__pmax_read)(int, void *, int);
 extern int (*__pmax_close)(int);
 
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 
 /*
  * On MIPS64 we have to call PROM functions via a helper
  * dispatcher to accomodate ABI incompatibilities.
  */
-#define __DEC_PROM_O32 __attribute__((alias("call_o32")))
+#define __DEC_PROM_O32(fun, arg) fun arg __asm__(#fun); \
+				 __asm__(#fun " = call_o32")
 
-int _rex_bootinit(int (*)(void)) __DEC_PROM_O32;
-int _rex_bootread(int (*)(void)) __DEC_PROM_O32;
-int _rex_getbitmap(int (*)(memmap *), memmap *) __DEC_PROM_O32;
-unsigned long *_rex_slot_address(unsigned long *(*)(int), int) __DEC_PROM_O32;
-void *_rex_gettcinfo(void *(*)(void)) __DEC_PROM_O32;
-int _rex_getsysid(int (*)(void)) __DEC_PROM_O32;
-void _rex_clear_cache(void (*)(void)) __DEC_PROM_O32;
+int __DEC_PROM_O32(_rex_bootinit, (int (*)(void)));
+int __DEC_PROM_O32(_rex_bootread, (int (*)(void)));
+int __DEC_PROM_O32(_rex_getbitmap, (int (*)(memmap *), memmap *));
+unsigned long *__DEC_PROM_O32(_rex_slot_address,
+			     (unsigned long *(*)(int), int));
+void *__DEC_PROM_O32(_rex_gettcinfo, (void *(*)(void)));
+int __DEC_PROM_O32(_rex_getsysid, (int (*)(void)));
+void __DEC_PROM_O32(_rex_clear_cache, (void (*)(void)));
 
-int _prom_getchar(int (*)(void)) __DEC_PROM_O32;
-char *_prom_getenv(char *(*)(char *), char *) __DEC_PROM_O32;
-int _prom_printf(int (*)(char *, ...), char *, ...) __DEC_PROM_O32;
+int __DEC_PROM_O32(_prom_getchar, (int (*)(void)));
+char *__DEC_PROM_O32(_prom_getenv, (char *(*)(char *), char *));
+int __DEC_PROM_O32(_prom_printf, (int (*)(char *, ...), char *, ...));
 
 
 #define rex_bootinit()		_rex_bootinit(__rex_bootinit)
@@ -138,7 +140,7 @@ int _prom_printf(int (*)(char *, ...), char *, ...) __DEC_PROM_O32;
 #define prom_getenv(x)		_prom_getenv(__prom_getenv, x)
 #define prom_printf(x...)	_prom_printf(__prom_printf, x)
 
-#else /* !CONFIG_MIPS64 */
+#else /* !CONFIG_64BIT */
 
 /*
  * On plain MIPS we just call PROM functions directly.
@@ -160,7 +162,7 @@ int _prom_printf(int (*)(char *, ...), char *, ...) __DEC_PROM_O32;
 #define pmax_read		__pmax_read
 #define pmax_close		__pmax_close
 
-#endif /* !CONFIG_MIPS64 */
+#endif /* !CONFIG_64BIT */
 
 
 extern void prom_meminit(u32);

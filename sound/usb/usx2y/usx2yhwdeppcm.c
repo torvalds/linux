@@ -624,7 +624,7 @@ static int usX2Y_pcms_lock_check(snd_card_t *card)
 		for (s = 0; s < 2; ++s) {
 			snd_pcm_substream_t *substream;
 			substream = pcm->streams[s].substream;
-			if (substream && substream->open_flag)
+			if (substream && substream->ffile != NULL)
 				err = -EBUSY;
 		}
 	}

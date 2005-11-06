@@ -204,7 +204,7 @@ int snd_opl4_create(snd_card_t *card,
 	if (ropl4)
 		*ropl4 = NULL;
 
-	opl4 = kcalloc(1, sizeof(*opl4), GFP_KERNEL);
+	opl4 = kzalloc(sizeof(*opl4), GFP_KERNEL);
 	if (!opl4)
 		return -ENOMEM;
 

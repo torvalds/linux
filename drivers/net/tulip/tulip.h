@@ -88,7 +88,6 @@ enum chips {
 	I21145,
 	DM910X,
 	CONEXANT,
-	ULI526X
 };
 
 
@@ -482,11 +481,8 @@ static inline void tulip_stop_rxtx(struct tulip_private *tp)
 
 static inline void tulip_restart_rxtx(struct tulip_private *tp)
 {
-	if(!(tp->chip_id == ULI526X && 
-		(tp->revision == 0x40 || tp->revision == 0x50))) {
-		tulip_stop_rxtx(tp);
-		udelay(5);
-	}
+	tulip_stop_rxtx(tp);
+	udelay(5);
 	tulip_start_rxtx(tp);
 }
 

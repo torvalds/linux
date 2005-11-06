@@ -12,12 +12,14 @@
 #include <linux/mmzone.h>
 #include <linux/initrd.h>
 #include <linux/nodemask.h>
+#include <linux/module.h>
 
 #include <asm/setup.h>
 
 extern char _end[];
 
 struct pglist_data *node_data[MAX_NUMNODES];
+EXPORT_SYMBOL(node_data);
 static bootmem_data_t node_bdata[MAX_NUMNODES] __initdata;
 
 pg_data_t m32r_node_data[MAX_NUMNODES];

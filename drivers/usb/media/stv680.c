@@ -260,7 +260,7 @@ static int stv_stop_video (struct usb_stv *dev)
 			PDEBUG (0, "STV(i): Camera set to original resolution");
 	}
 	/* origMode */
-	kfree (buf);
+	kfree(buf);
 	return i;
 }
 
@@ -276,7 +276,7 @@ static int stv_set_video_mode (struct usb_stv *dev)
 	}
 
 	if ((i = stv_set_config (dev, 1, 0, 0)) < 0) {
-		kfree (buf);
+		kfree(buf);
 		return i;
 	}
 
@@ -301,13 +301,13 @@ static int stv_set_video_mode (struct usb_stv *dev)
 	goto exit;
 
 error:
-	kfree (buf);
+	kfree(buf);
 	if (stop_video == 1)
 		stv_stop_video (dev);
 	return -1;
 
 exit:
-	kfree (buf);
+	kfree(buf);
 	return 0;
 }
 
@@ -327,7 +327,7 @@ static int stv_init (struct usb_stv *stv680)
 
 	/* set config 1, interface 0, alternate 0 */
 	if ((i = stv_set_config (stv680, 1, 0, 0)) < 0) {
-		kfree (buffer);
+		kfree(buffer);
 		PDEBUG (0, "STV(e): set config 1,0,0 failed");
 		return -1;
 	}
@@ -435,11 +435,11 @@ static int stv_init (struct usb_stv *stv680)
 error:
 	i = stv_sndctrl (0, stv680, 0x80, 0, buffer, 0x02);	/* Get Last Error */
 	PDEBUG (1, "STV(i): last error: %i,  command = 0x%x", buffer[0], buffer[1]);
-	kfree (buffer);
+	kfree(buffer);
 	return -1;
 
 exit:
-	kfree (buffer);
+	kfree(buffer);
 
 	/* video = 320x240, 352x288 */
 	if (stv680->CIF == 1) {
@@ -708,10 +708,10 @@ static int stv680_stop_stream (struct usb_stv *stv680)
 			usb_kill_urb (stv680->urb[i]);
 			usb_free_urb (stv680->urb[i]);
 			stv680->urb[i] = NULL;
-			kfree (stv680->sbuf[i].data);
+			kfree(stv680->sbuf[i].data);
 		}
 	for (i = 0; i < STV680_NUMSCRATCH; i++) {
-		kfree (stv680->scratch[i].data);
+		kfree(stv680->scratch[i].data);
 		stv680->scratch[i].data = NULL;
 	}
 
@@ -1068,7 +1068,7 @@ static int stv_close (struct inode *inode, struct file *file)
 	stv680->user = 0;
 
 	if (stv680->removed) {
-		kfree (stv680);
+		kfree(stv680);
 		stv680 = NULL;
 		PDEBUG (0, "STV(i): device unregistered");
 	}
@@ -1445,14 +1445,14 @@ static inline void usb_stv680_remove_disconnected (struct usb_stv *stv680)
 			usb_kill_urb (stv680->urb[i]);
 			usb_free_urb (stv680->urb[i]);
 			stv680->urb[i] = NULL;
-			kfree (stv680->sbuf[i].data);
+			kfree(stv680->sbuf[i].data);
 		}
 	for (i = 0; i < STV680_NUMSCRATCH; i++)
-		kfree (stv680->scratch[i].data);
+		kfree(stv680->scratch[i].data);
 	PDEBUG (0, "STV(i): %s disconnected", stv680->camera_name);
 
 	/* Free the memory */
-	kfree (stv680);
+	kfree(stv680);
 }
 
 static void stv680_disconnect (struct usb_interface *intf)

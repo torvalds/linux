@@ -1,5 +1,4 @@
 /*
- * $Id: v4l1-compat.c,v 1.9 2005/06/12 04:19:19 mchehab Exp $
  *
  *	Video for Linux Two
  *	Backward Compatibility Layer
@@ -604,9 +603,6 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 			dprintk("VIDIOCGPICT / VIDIOC_G_FMT: %d\n",err);
 			break;
 		}
-#if 0 /* FIXME */
-		pict->depth   = fmt2->fmt.pix.depth;
-#endif
 		pict->palette = pixelformat_to_palette(
 			fmt2->fmt.pix.pixelformat);
 		break;
@@ -707,13 +703,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	}
 	case VIDIOCSTUNER: /*  select a tuner input  */
 	{
-#if 0 /* FIXME */
-		err = drv(inode, file, VIDIOC_S_INPUT, &i);
-		if (err < 0)
-			dprintk("VIDIOCSTUNER / VIDIOC_S_INPUT: %d\n",err);
-#else
 		err = 0;
-#endif
 		break;
 	}
 	case VIDIOCGFREQ: /*  get frequency  */
@@ -852,12 +842,6 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 		err = 0;
 		break;
 	}
-#if 0
-	case VIDIOCGMBUF:
-		/* v4l2 drivers must implement that themself.  The
-		   mmap() differences can't be translated fully
-		   transparent, thus there is no point to try that */
-#endif
 	case VIDIOCMCAPTURE: /*  capture a frame  */
 	{
 		struct video_mmap	*mm = arg;

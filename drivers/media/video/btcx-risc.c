@@ -1,5 +1,4 @@
 /*
-    $Id: btcx-risc.c,v 1.6 2005/02/21 13:57:59 kraxel Exp $
 
     btcx-risc.c
 

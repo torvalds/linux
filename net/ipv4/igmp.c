@@ -904,7 +904,7 @@ int igmp_rcv(struct sk_buff *skb)
 	case IGMP_MTRACE_RESP:
 		break;
 	default:
-		NETDEBUG(printk(KERN_DEBUG "New IGMP type=%d, why we do not know about it?\n", ih->type));
+		NETDEBUG(KERN_DEBUG "New IGMP type=%d, why we do not know about it?\n", ih->type);
 	}
 	in_dev_put(in_dev);
 	kfree_skb(skb);
@@ -1323,7 +1323,7 @@ static struct in_device * ip_mc_find_dev(struct ip_mreqn *imr)
 	}
 	if (dev) {
 		imr->imr_ifindex = dev->ifindex;
-		idev = __in_dev_get(dev);
+		idev = __in_dev_get_rtnl(dev);
 	}
 	return idev;
 }
@@ -1603,7 +1603,7 @@ static void ip_mc_clear_src(struct ip_mc_list *pmc)
 	}
 	pmc->sources = NULL;
 	pmc->sfmode = MCAST_EXCLUDE;
-	pmc->sfcount[MCAST_EXCLUDE] = 0;
+	pmc->sfcount[MCAST_INCLUDE] = 0;
 	pmc->sfcount[MCAST_EXCLUDE] = 1;
 }
 
@@ -1908,8 +1908,11 @@ int ip_mc_msfilter(struct sock *sk, struct ip_msfilter *msf, int ifindex)
 			sock_kfree_s(sk, newpsl, IP_SFLSIZE(newpsl->sl_max));
 			goto done;
 		}
-	} else
+	} else {
 		newpsl = NULL;
+		(void) ip_mc_add_src(in_dev, &msf->imsf_multiaddr,
+				     msf->imsf_fmode, 0, NULL, 0);
+	}
 	psl = pmc->sflist;
 	if (psl) {
 		(void) ip_mc_del_src(in_dev, &msf->imsf_multiaddr, pmc->sfmode,

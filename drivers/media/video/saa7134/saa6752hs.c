@@ -598,7 +598,7 @@ static struct i2c_driver driver = {
 
 static struct i2c_client client_template =
 {
-	I2C_DEVNAME("saa6752hs"),
+	.name       = "saa6752hs",
 	.flags      = I2C_CLIENT_ALLOW_USE,
         .driver     = &driver,
 };

@@ -142,7 +142,7 @@ static int ns558_isa_probe(int io)
 			return -EBUSY;
 	}
 
-	ns558 = kcalloc(1, sizeof(struct ns558), GFP_KERNEL);
+	ns558 = kzalloc(sizeof(struct ns558), GFP_KERNEL);
 	port = gameport_allocate_port();
 	if (!ns558 || !port) {
 		printk(KERN_ERR "ns558: Memory allocation failed.\n");
@@ -215,7 +215,7 @@ static int ns558_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *did)
 	if (!request_region(ioport, iolen, "ns558-pnp"))
 		return -EBUSY;
 
-	ns558 = kcalloc(1, sizeof(struct ns558), GFP_KERNEL);
+	ns558 = kzalloc(sizeof(struct ns558), GFP_KERNEL);
 	port = gameport_allocate_port();
 	if (!ns558 || !port) {
 		printk(KERN_ERR "ns558: Memory allocation failed\n");
@@ -275,9 +275,9 @@ static int __init ns558_init(void)
 
 static void __exit ns558_exit(void)
 {
-	struct ns558 *ns558;
+	struct ns558 *ns558, *safe;
 
-	list_for_each_entry(ns558, &ns558_list, node) {
+	list_for_each_entry_safe(ns558, safe, &ns558_list, node) {
 		gameport_unregister_port(ns558->gameport);
 		release_region(ns558->io & ~(ns558->size - 1), ns558->size);
 		kfree(ns558);

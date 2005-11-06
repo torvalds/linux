@@ -103,7 +103,7 @@ __acpi_release_global_lock (unsigned int *lock)
         :"=r"(n_hi), "=r"(n_lo)     \
         :"0"(n_hi), "1"(n_lo))
 
-#ifdef CONFIG_ACPI_BOOT 
+#ifdef CONFIG_ACPI 
 extern int acpi_lapic;
 extern int acpi_ioapic;
 extern int acpi_noirq;
@@ -146,13 +146,6 @@ static inline void check_acpi_pci(void) { }
 
 #endif
 
-#else	/* CONFIG_ACPI_BOOT */
-#  define acpi_lapic 0
-#  define acpi_ioapic 0
-
-#endif
-
-#ifdef CONFIG_ACPI_PCI
 static inline void acpi_noirq_set(void) { acpi_noirq = 1; }
 static inline void acpi_disable_pci(void) 
 {
@@ -160,11 +153,16 @@ static inline void acpi_disable_pci(void)
 	acpi_noirq_set();
 }
 extern int acpi_irq_balance_set(char *str);
-#else
+
+#else	/* !CONFIG_ACPI */
+
+#define acpi_lapic 0
+#define acpi_ioapic 0
 static inline void acpi_noirq_set(void) { }
 static inline void acpi_disable_pci(void) { }
-static inline int acpi_irq_balance_set(char *str) { return 0; }
-#endif
+
+#endif	/* !CONFIG_ACPI */
+
 
 #ifdef CONFIG_ACPI_SLEEP
 

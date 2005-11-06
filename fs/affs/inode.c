@@ -255,6 +255,7 @@ void
 affs_delete_inode(struct inode *inode)
 {
 	pr_debug("AFFS: delete_inode(ino=%lu, nlink=%u)\n", inode->i_ino, inode->i_nlink);
+	truncate_inode_pages(&inode->i_data, 0);
 	inode->i_size = 0;
 	if (S_ISREG(inode->i_mode))
 		affs_truncate(inode);

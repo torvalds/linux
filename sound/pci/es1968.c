@@ -160,25 +160,6 @@ MODULE_PARM_DESC(joystick, "Enable joystick.");
 #endif
 
 
-/* PCI Dev ID's */
-
-#ifndef PCI_VENDOR_ID_ESS
-#define PCI_VENDOR_ID_ESS	0x125D
-#endif
-
-#define PCI_VENDOR_ID_ESS_OLD	0x1285	/* Platform Tech, the people the ESS
-					   was bought form */
-
-#ifndef PCI_DEVICE_ID_ESS_M2E
-#define PCI_DEVICE_ID_ESS_M2E	0x1978
-#endif
-#ifndef PCI_DEVICE_ID_ESS_M2
-#define PCI_DEVICE_ID_ESS_M2	0x1968
-#endif
-#ifndef PCI_DEVICE_ID_ESS_M1
-#define PCI_DEVICE_ID_ESS_M1	0x0100
-#endif
-
 #define NR_APUS			64
 #define NR_APU_REGS		16
 
@@ -1596,7 +1577,7 @@ static int snd_es1968_playback_open(snd_pcm_substream_t *substream)
 	if (apu1 < 0)
 		return apu1;
 
-	es = kcalloc(1, sizeof(*es), GFP_KERNEL);
+	es = kzalloc(sizeof(*es), GFP_KERNEL);
 	if (!es) {
 		snd_es1968_free_apu_pair(chip, apu1);
 		return -ENOMEM;
@@ -1641,7 +1622,7 @@ static int snd_es1968_capture_open(snd_pcm_substream_t *substream)
 		return apu2;
 	}
 	
-	es = kcalloc(1, sizeof(*es), GFP_KERNEL);
+	es = kzalloc(sizeof(*es), GFP_KERNEL);
 	if (!es) {
 		snd_es1968_free_apu_pair(chip, apu1);
 		snd_es1968_free_apu_pair(chip, apu2);
@@ -2588,7 +2569,7 @@ static int __devinit snd_es1968_create(snd_card_t * card,
 		return -ENXIO;
 	}
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (! chip) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -2782,6 +2763,7 @@ static void __devexit snd_es1968_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "ES1968 (ESS Maestro)",
+	.owner = THIS_MODULE,
 	.id_table = snd_es1968_ids,
 	.probe = snd_es1968_probe,
 	.remove = __devexit_p(snd_es1968_remove),

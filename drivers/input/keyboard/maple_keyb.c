@@ -37,7 +37,7 @@ static unsigned char dc_kbd_keycode[256] = {
 
 
 struct dc_kbd {
-	struct input_dev dev;
+	struct input_dev *dev;
 	unsigned char new[8];
 	unsigned char old[8];
 };
@@ -46,30 +46,24 @@ struct dc_kbd {
 static void dc_scan_kbd(struct dc_kbd *kbd)
 {
 	int i;
-	struct input_dev *dev = &kbd->dev;
+	struct input_dev *dev = kbd->dev;
 
-	for(i=0; i<8; i++)
-		input_report_key(dev,
-				 dc_kbd_keycode[i+224],
-				 (kbd->new[0]>>i)&1);
+	for (i = 0; i < 8; i++)
+		input_report_key(dev, dc_kbd_keycode[i + 224], (kbd->new[0] >> i) & 1);
 
-	for(i=2; i<8; i++) {
+	for (i = 2; i < 8; i++) {
 
-		if(kbd->old[i]>3&&memscan(kbd->new+2, kbd->old[i], 6)==NULL) {
-			if(dc_kbd_keycode[kbd->old[i]])
-				input_report_key(dev,
-						 dc_kbd_keycode[kbd->old[i]],
-						 0);
+		if (kbd->old[i] > 3 && memscan(kbd->new + 2, kbd->old[i], 6) == NULL) {
+			if (dc_kbd_keycode[kbd->old[i]])
+				input_report_key(dev, dc_kbd_keycode[kbd->old[i]], 0);
 			else
 				printk("Unknown key (scancode %#x) released.",
 				       kbd->old[i]);
 		}
 
-		if(kbd->new[i]>3&&memscan(kbd->old+2, kbd->new[i], 6)!=NULL) {
+		if (kbd->new[i] > 3 && memscan(kbd->old + 2, kbd->new[i], 6) != NULL) {
 			if(dc_kbd_keycode[kbd->new[i]])
-				input_report_key(dev,
-						 dc_kbd_keycode[kbd->new[i]],
-						 1);
+				input_report_key(dev, dc_kbd_keycode[kbd->new[i]], 1);
 			else
 				printk("Unknown key (scancode %#x) pressed.",
 				       kbd->new[i]);
@@ -89,43 +83,39 @@ static void dc_kbd_callback(struct mapleq *mq)
 	unsigned long *buf = mq->recvbuf;
 
 	if (buf[1] == mapledev->function) {
-		memcpy(kbd->new, buf+2, 8);
+		memcpy(kbd->new, buf + 2, 8);
 		dc_scan_kbd(kbd);
 	}
 }
 
 static int dc_kbd_connect(struct maple_device *dev)
 {
-	int i;
-	unsigned long data = be32_to_cpu(dev->devinfo.function_data[0]);
 	struct dc_kbd *kbd;
+	struct input_dev *input_dev;
+	unsigned long data = be32_to_cpu(dev->devinfo.function_data[0]);
+	int i;
 
-	if (!(kbd = kmalloc(sizeof(struct dc_kbd), GFP_KERNEL)))
-		return -1;
-	memset(kbd, 0, sizeof(struct dc_kbd));
+	dev->private_data = kbd = kzalloc(sizeof(struct dc_kbd), GFP_KERNEL);
+	input_dev = input_allocate_device();
+	if (!kbd || !input_dev) {
+		kfree(kbd);
+		input_free_device(input_dev);
+		return -ENOMEM;
+	}
 
-	dev->private_data = kbd;
+	kbd->dev = input_dev;
 
-	kbd->dev.evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
+	input_dev->name = dev->product_name;
+	input_dev->id.bustype = BUS_MAPLE;
+	input_dev->private = kbd;
+	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
+	for (i = 0; i < 255; i++)
+		set_bit(dc_kbd_keycode[i], input_dev->keybit);
+	clear_bit(0, input_dev->keybit);
 
-	init_input_dev(&kbd->dev);
-
-	for (i=0; i<255; i++)
-		set_bit(dc_kbd_keycode[i], kbd->dev.keybit);
-
-	clear_bit(0, kbd->dev.keybit);
-
-	kbd->dev.private = kbd;
-
-	kbd->dev.name = dev->product_name;
-	kbd->dev.id.bustype = BUS_MAPLE;
-
-	input_register_device(&kbd->dev);
+	input_register_device(kbd->dev);
 
 	maple_getcond_callback(dev, dc_kbd_callback, 1, MAPLE_FUNC_KEYBOARD);
-
-	printk(KERN_INFO "input: keyboard(0x%lx): %s\n", data, kbd->dev.name);
-
 	return 0;
 }
 
@@ -134,7 +124,7 @@ static void dc_kbd_disconnect(struct maple_device *dev)
 {
 	struct dc_kbd *kbd = dev->private_data;
 
-	input_unregister_device(&kbd->dev);
+	input_unregister_device(kbd->dev);
 	kfree(kbd);
 }
 

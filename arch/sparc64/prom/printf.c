@@ -34,7 +34,7 @@ prom_write(const char *buf, unsigned int n)
 }
 
 void
-prom_printf(char *fmt, ...)
+prom_printf(const char *fmt, ...)
 {
 	va_list args;
 	int i;

@@ -143,7 +143,7 @@ int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
 			break;
 		case __SI_FAULT >> 16:
 			err |= __get_user(tmp, &from->si_addr);
-			to->si_addr = (void *)(u64) (tmp & PSW32_ADDR_INSN);
+			to->si_addr = (void __user *)(u64) (tmp & PSW32_ADDR_INSN);
 			break;
 		case __SI_POLL >> 16:
 			err |= __get_user(to->si_band, &from->si_band);
@@ -338,7 +338,7 @@ sys32_sigaltstack(const stack_t32 __user *uss, stack_t32 __user *uoss,
 		err |= __get_user(kss.ss_flags, &uss->ss_flags);
 		if (err)
 			return -EFAULT;
-		kss.ss_sp = (void *) ss_sp;
+		kss.ss_sp = (void __user *) ss_sp;
 	}
 
 	set_fs (KERNEL_DS);
@@ -461,7 +461,7 @@ asmlinkage long sys32_rt_sigreturn(struct pt_regs *regs)
 		goto badframe;
 
 	err = __get_user(ss_sp, &frame->uc.uc_stack.ss_sp);
-	st.ss_sp = (void *) A((unsigned long)ss_sp);
+	st.ss_sp = compat_ptr(ss_sp);
 	err |= __get_user(st.ss_size, &frame->uc.uc_stack.ss_size);
 	err |= __get_user(st.ss_flags, &frame->uc.uc_stack.ss_flags);
 	if (err)
@@ -637,12 +637,11 @@ handle_signal32(unsigned long sig, struct k_sigaction *ka,
 	else
 		setup_frame32(sig, ka, oldset, regs);
 
-	if (!(ka->sa.sa_flags & SA_NODEFER)) {
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
+	spin_lock_irq(&current->sighand->siglock);
+	sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
+	if (!(ka->sa.sa_flags & SA_NODEFER))
 		sigaddset(&current->blocked,sig);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
-	}
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
 }
 

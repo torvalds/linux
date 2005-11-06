@@ -10,7 +10,7 @@
 
 #include <linux/module.h>	/* Modules 			*/
 #include <linux/init.h>		/* Initdata			*/
-#include <linux/ioport.h>	/* check_region, request_region	*/
+#include <linux/ioport.h>	/* request_region		*/
 #include <linux/delay.h>	/* udelay			*/
 #include <asm/io.h>		/* outb, outb_p			*/
 #include <asm/uaccess.h>	/* copy to/from user		*/

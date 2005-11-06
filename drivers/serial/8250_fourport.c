@@ -35,7 +35,7 @@ static struct plat_serial8250_port fourport_data[] = {
 
 static struct platform_device fourport_device = {
 	.name			= "serial8250",
-	.id			= 1,
+	.id			= PLAT8250_DEV_FOURPORT,
 	.dev			= {
 		.platform_data	= fourport_data,
 	},

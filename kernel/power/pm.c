@@ -60,9 +60,8 @@ struct pm_dev *pm_register(pm_dev_t type,
 			   unsigned long id,
 			   pm_callback callback)
 {
-	struct pm_dev *dev = kmalloc(sizeof(struct pm_dev), GFP_KERNEL);
+	struct pm_dev *dev = kzalloc(sizeof(struct pm_dev), GFP_KERNEL);
 	if (dev) {
-		memset(dev, 0, sizeof(*dev));
 		dev->type = type;
 		dev->id = id;
 		dev->callback = callback;

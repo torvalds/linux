@@ -17,7 +17,7 @@
 #include <asm/desc.h>
 #include <asm/cache.h>
 #include <asm/thread_info.h>
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/setup.h>
 
 /*
@@ -77,6 +77,32 @@ ENTRY(startup_32)
 	subl %edi,%ecx
 	shrl $2,%ecx
 	rep ; stosl
+/*
+ * Copy bootup parameters out of the way.
+ * Note: %esi still has the pointer to the real-mode data.
+ * With the kexec as boot loader, parameter segment might be loaded beyond
+ * kernel image and might not even be addressable by early boot page tables.
+ * (kexec on panic case). Hence copy out the parameters before initializing
+ * page tables.
+ */
+	movl $(boot_params - __PAGE_OFFSET),%edi
+	movl $(PARAM_SIZE/4),%ecx
+	cld
+	rep
+	movsl
+	movl boot_params - __PAGE_OFFSET + NEW_CL_POINTER,%esi
+	andl %esi,%esi
+	jnz 2f			# New command line protocol
+	cmpw $(OLD_CL_MAGIC),OLD_CL_MAGIC_ADDR
+	jne 1f
+	movzwl OLD_CL_OFFSET,%esi
+	addl $(OLD_CL_BASE_ADDR),%esi
+2:
+	movl $(saved_command_line - __PAGE_OFFSET),%edi
+	movl $(COMMAND_LINE_SIZE/4),%ecx
+	rep
+	movsl
+1:
 
 /*
  * Initialize page tables.  This creates a PDE and a set of page
@@ -214,28 +240,6 @@ ENTRY(startup_32_smp)
  */
 	call setup_idt
 
-/*
- * Copy bootup parameters out of the way.
- * Note: %esi still has the pointer to the real-mode data.
- */
-	movl $boot_params,%edi
-	movl $(PARAM_SIZE/4),%ecx
-	cld
-	rep
-	movsl
-	movl boot_params+NEW_CL_POINTER,%esi
-	andl %esi,%esi
-	jnz 2f			# New command line protocol
-	cmpw $(OLD_CL_MAGIC),OLD_CL_MAGIC_ADDR
-	jne 1f
-	movzwl OLD_CL_OFFSET,%esi
-	addl $(OLD_CL_BASE_ADDR),%esi
-2:
-	movl $saved_command_line,%edi
-	movl $(COMMAND_LINE_SIZE/4),%ecx
-	rep
-	movsl
-1:
 checkCPUtype:
 
 	movl $-1,X86_CPUID		#  -1 for no CPUID initially

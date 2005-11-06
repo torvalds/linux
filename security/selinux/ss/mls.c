@@ -27,6 +27,7 @@
 int mls_compute_context_len(struct context * context)
 {
 	int i, l, len, range;
+	struct ebitmap_node *node;
 
 	if (!selinux_mls_enabled)
 		return 0;
@@ -36,24 +37,24 @@ int mls_compute_context_len(struct context * context)
 		range = 0;
 		len += strlen(policydb.p_sens_val_to_name[context->range.level[l].sens - 1]);
 
-		for (i = 1; i <= ebitmap_length(&context->range.level[l].cat); i++) {
-			if (ebitmap_get_bit(&context->range.level[l].cat, i - 1)) {
+		ebitmap_for_each_bit(&context->range.level[l].cat, node, i) {
+			if (ebitmap_node_get_bit(node, i)) {
 				if (range) {
 					range++;
 					continue;
 				}
 
-				len += strlen(policydb.p_cat_val_to_name[i - 1]) + 1;
+				len += strlen(policydb.p_cat_val_to_name[i]) + 1;
 				range++;
 			} else {
 				if (range > 1)
-					len += strlen(policydb.p_cat_val_to_name[i - 2]) + 1;
+					len += strlen(policydb.p_cat_val_to_name[i - 1]) + 1;
 				range = 0;
 			}
 		}
 		/* Handle case where last category is the end of range */
 		if (range > 1)
-			len += strlen(policydb.p_cat_val_to_name[i - 2]) + 1;
+			len += strlen(policydb.p_cat_val_to_name[i - 1]) + 1;
 
 		if (l == 0) {
 			if (mls_level_eq(&context->range.level[0],
@@ -77,6 +78,7 @@ void mls_sid_to_context(struct context *context,
 {
 	char *scontextp;
 	int i, l, range, wrote_sep;
+	struct ebitmap_node *node;
 
 	if (!selinux_mls_enabled)
 		return;
@@ -94,8 +96,8 @@ void mls_sid_to_context(struct context *context,
 		scontextp += strlen(policydb.p_sens_val_to_name[context->range.level[l].sens - 1]);
 
 		/* categories */
-		for (i = 1; i <= ebitmap_length(&context->range.level[l].cat); i++) {
-			if (ebitmap_get_bit(&context->range.level[l].cat, i - 1)) {
+		ebitmap_for_each_bit(&context->range.level[l].cat, node, i) {
+			if (ebitmap_node_get_bit(node, i)) {
 				if (range) {
 					range++;
 					continue;
@@ -106,8 +108,8 @@ void mls_sid_to_context(struct context *context,
 					wrote_sep = 1;
 				} else
 					*scontextp++ = ',';
-				strcpy(scontextp, policydb.p_cat_val_to_name[i - 1]);
-				scontextp += strlen(policydb.p_cat_val_to_name[i - 1]);
+				strcpy(scontextp, policydb.p_cat_val_to_name[i]);
+				scontextp += strlen(policydb.p_cat_val_to_name[i]);
 				range++;
 			} else {
 				if (range > 1) {
@@ -116,8 +118,8 @@ void mls_sid_to_context(struct context *context,
 					else
 						*scontextp++ = ',';
 
-					strcpy(scontextp, policydb.p_cat_val_to_name[i - 2]);
-					scontextp += strlen(policydb.p_cat_val_to_name[i - 2]);
+					strcpy(scontextp, policydb.p_cat_val_to_name[i - 1]);
+					scontextp += strlen(policydb.p_cat_val_to_name[i - 1]);
 				}
 				range = 0;
 			}
@@ -130,8 +132,8 @@ void mls_sid_to_context(struct context *context,
 			else
 				*scontextp++ = ',';
 
-			strcpy(scontextp, policydb.p_cat_val_to_name[i - 2]);
-			scontextp += strlen(policydb.p_cat_val_to_name[i - 2]);
+			strcpy(scontextp, policydb.p_cat_val_to_name[i - 1]);
+			scontextp += strlen(policydb.p_cat_val_to_name[i - 1]);
 		}
 
 		if (l == 0) {
@@ -157,6 +159,7 @@ int mls_context_isvalid(struct policydb *p, struct context *c)
 {
 	struct level_datum *levdatum;
 	struct user_datum *usrdatum;
+	struct ebitmap_node *node;
 	int i, l;
 
 	if (!selinux_mls_enabled)
@@ -179,11 +182,11 @@ int mls_context_isvalid(struct policydb *p, struct context *c)
 		if (!levdatum)
 			return 0;
 
-		for (i = 1; i <= ebitmap_length(&c->range.level[l].cat); i++) {
-			if (ebitmap_get_bit(&c->range.level[l].cat, i - 1)) {
+		ebitmap_for_each_bit(&c->range.level[l].cat, node, i) {
+			if (ebitmap_node_get_bit(node, i)) {
 				if (i > p->p_cats.nprim)
 					return 0;
-				if (!ebitmap_get_bit(&levdatum->level->cat, i - 1))
+				if (!ebitmap_get_bit(&levdatum->level->cat, i))
 					/*
 					 * Category may not be associated with
 					 * sensitivity in low level.
@@ -468,6 +471,7 @@ int mls_convert_context(struct policydb *oldp,
 	struct level_datum *levdatum;
 	struct cat_datum *catdatum;
 	struct ebitmap bitmap;
+	struct ebitmap_node *node;
 	int l, i;
 
 	if (!selinux_mls_enabled)
@@ -482,12 +486,12 @@ int mls_convert_context(struct policydb *oldp,
 		c->range.level[l].sens = levdatum->level->sens;
 
 		ebitmap_init(&bitmap);
-		for (i = 1; i <= ebitmap_length(&c->range.level[l].cat); i++) {
-			if (ebitmap_get_bit(&c->range.level[l].cat, i - 1)) {
+		ebitmap_for_each_bit(&c->range.level[l].cat, node, i) {
+			if (ebitmap_node_get_bit(node, i)) {
 				int rc;
 
 				catdatum = hashtab_search(newp->p_cats.table,
-				         	oldp->p_cat_val_to_name[i - 1]);
+				         	oldp->p_cat_val_to_name[i]);
 				if (!catdatum)
 					return -EINVAL;
 				rc = ebitmap_set_bit(&bitmap, catdatum->value - 1, 1);

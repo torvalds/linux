@@ -20,6 +20,7 @@
 	 *
 	 *	Note: "in0" and "in1" are preserved for debugging purposes.
 	 */
+	.section .kprobes.text,"ax"
 GLOBAL_ENTRY(flush_icache_range)
 
 	.prologue

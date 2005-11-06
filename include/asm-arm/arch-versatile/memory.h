@@ -23,7 +23,7 @@
 /*
  * Physical DRAM offset.
  */
-#define PHYS_OFFSET	(0x00000000UL)
+#define PHYS_OFFSET	UL(0x00000000)
 
 /*
  * Virtual view <-> DMA view memory address translations

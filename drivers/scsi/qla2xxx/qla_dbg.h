@@ -81,6 +81,7 @@
 #define DEBUG2_3_11(x)  do {x;} while (0);
 #define DEBUG2_9_10(x)    do {x;} while (0);
 #define DEBUG2_11(x)    do {x;} while (0);
+#define DEBUG2_13(x)    do {x;} while (0);
 #else
 #define DEBUG2(x)	do {} while (0);
 #endif
@@ -169,8 +170,14 @@
 
 #if defined(QL_DEBUG_LEVEL_13)
 #define DEBUG13(x)      do {x;} while (0)
+#if !defined(DEBUG2_13)
+#define DEBUG2_13(x)    do {x;} while(0)
+#endif
 #else
 #define DEBUG13(x)	do {} while (0)
+#if !defined(QL_DEBUG_LEVEL_2)
+#define DEBUG2_13(x)	do {} while(0)
+#endif
 #endif
 
 #if defined(QL_DEBUG_LEVEL_14)

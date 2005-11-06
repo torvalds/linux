@@ -204,21 +204,18 @@ ia64_phys_addr_valid (unsigned long addr)
 #define set_pte(ptep, pteval)	(*(ptep) = (pteval))
 #define set_pte_at(mm,addr,ptep,pteval) set_pte(ptep,pteval)
 
-#define RGN_SIZE	(1UL << 61)
-#define RGN_KERNEL	7
-
-#define VMALLOC_START		0xa000000200000000UL
+#define VMALLOC_START		(RGN_BASE(RGN_GATE) + 0x200000000UL)
 #ifdef CONFIG_VIRTUAL_MEM_MAP
-# define VMALLOC_END_INIT	(0xa000000000000000UL + (1UL << (4*PAGE_SHIFT - 9)))
+# define VMALLOC_END_INIT	(RGN_BASE(RGN_GATE) + (1UL << (4*PAGE_SHIFT - 9)))
 # define VMALLOC_END		vmalloc_end
   extern unsigned long vmalloc_end;
 #else
-# define VMALLOC_END		(0xa000000000000000UL + (1UL << (4*PAGE_SHIFT - 9)))
+# define VMALLOC_END		(RGN_BASE(RGN_GATE) + (1UL << (4*PAGE_SHIFT - 9)))
 #endif
 
 /* fs/proc/kcore.c */
-#define	kc_vaddr_to_offset(v) ((v) - 0xa000000000000000UL)
-#define	kc_offset_to_vaddr(o) ((o) + 0xa000000000000000UL)
+#define	kc_vaddr_to_offset(v) ((v) - RGN_BASE(RGN_GATE))
+#define	kc_offset_to_vaddr(o) ((o) + RGN_BASE(RGN_GATE))
 
 /*
  * Conversion functions: convert page frame number (pfn) and a protection value to a page
@@ -238,9 +235,6 @@ ia64_phys_addr_valid (unsigned long addr)
 
 #define pte_modify(_pte, newprot) \
 	(__pte((pte_val(_pte) & ~_PAGE_CHG_MASK) | (pgprot_val(newprot) & _PAGE_CHG_MASK)))
-
-#define page_pte_prot(page,prot)	mk_pte(page, prot)
-#define page_pte(page)			page_pte_prot(page, __pgprot(0))
 
 #define pte_none(pte) 			(!pte_val(pte))
 #define pte_present(pte)		(pte_val(pte) & (_PAGE_P | _PAGE_PROTNONE))
@@ -445,10 +439,6 @@ extern void paging_init (void);
 #define PTE_FILE_MAX_BITS		61
 #define pte_to_pgoff(pte)		((pte_val(pte) << 1) >> 3)
 #define pgoff_to_pte(off)		((pte_t) { ((off) << 2) | _PAGE_FILE })
-
-/* XXX is this right? */
-#define io_remap_page_range(vma, vaddr, paddr, size, prot)		\
-		remap_pfn_range(vma, vaddr, (paddr) >> PAGE_SHIFT, size, prot)
 
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)		\
 		remap_pfn_range(vma, vaddr, pfn, size, prot)

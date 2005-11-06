@@ -73,33 +73,36 @@ void tcp_unregister_congestion_control(struct tcp_congestion_ops *ca)
 EXPORT_SYMBOL_GPL(tcp_unregister_congestion_control);
 
 /* Assign choice of congestion control. */
-void tcp_init_congestion_control(struct tcp_sock *tp)
+void tcp_init_congestion_control(struct sock *sk)
 {
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_congestion_ops *ca;
 
-	if (tp->ca_ops != &tcp_init_congestion_ops)
+	if (icsk->icsk_ca_ops != &tcp_init_congestion_ops)
 		return;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ca, &tcp_cong_list, list) {
 		if (try_module_get(ca->owner)) {
-			tp->ca_ops = ca;
+			icsk->icsk_ca_ops = ca;
 			break;
 		}
 
 	}
 	rcu_read_unlock();
 
-	if (tp->ca_ops->init)
-		tp->ca_ops->init(tp);
+	if (icsk->icsk_ca_ops->init)
+		icsk->icsk_ca_ops->init(sk);
 }
 
 /* Manage refcounts on socket close. */
-void tcp_cleanup_congestion_control(struct tcp_sock *tp)
+void tcp_cleanup_congestion_control(struct sock *sk)
 {
-	if (tp->ca_ops->release)
-		tp->ca_ops->release(tp);
-	module_put(tp->ca_ops->owner);
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	if (icsk->icsk_ca_ops->release)
+		icsk->icsk_ca_ops->release(sk);
+	module_put(icsk->icsk_ca_ops->owner);
 }
 
 /* Used by sysctl to change default congestion control */
@@ -143,14 +146,15 @@ void tcp_get_default_congestion_control(char *name)
 }
 
 /* Change congestion control for socket */
-int tcp_set_congestion_control(struct tcp_sock *tp, const char *name)
+int tcp_set_congestion_control(struct sock *sk, const char *name)
 {
+	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_congestion_ops *ca;
 	int err = 0;
 
 	rcu_read_lock();
 	ca = tcp_ca_find(name);
-	if (ca == tp->ca_ops)
+	if (ca == icsk->icsk_ca_ops)
 		goto out;
 
 	if (!ca)
@@ -160,10 +164,10 @@ int tcp_set_congestion_control(struct tcp_sock *tp, const char *name)
 		err = -EBUSY;
 
 	else {
-		tcp_cleanup_congestion_control(tp);
-		tp->ca_ops = ca;
-		if (tp->ca_ops->init)
-			tp->ca_ops->init(tp);
+		tcp_cleanup_congestion_control(sk);
+		icsk->icsk_ca_ops = ca;
+		if (icsk->icsk_ca_ops->init)
+			icsk->icsk_ca_ops->init(sk);
 	}
  out:
 	rcu_read_unlock();
@@ -177,9 +181,11 @@ int tcp_set_congestion_control(struct tcp_sock *tp, const char *name)
 /* This is Jacobson's slow start and congestion avoidance.
  * SIGCOMM '88, p. 328.
  */
-void tcp_reno_cong_avoid(struct tcp_sock *tp, u32 ack, u32 rtt, u32 in_flight,
+void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 rtt, u32 in_flight,
 			 int flag)
 {
+	struct tcp_sock *tp = tcp_sk(sk);
+
 	if (in_flight < tp->snd_cwnd)
 		return;
 
@@ -202,15 +208,17 @@ void tcp_reno_cong_avoid(struct tcp_sock *tp, u32 ack, u32 rtt, u32 in_flight,
 EXPORT_SYMBOL_GPL(tcp_reno_cong_avoid);
 
 /* Slow start threshold is half the congestion window (min 2) */
-u32 tcp_reno_ssthresh(struct tcp_sock *tp)
+u32 tcp_reno_ssthresh(struct sock *sk)
 {
+	const struct tcp_sock *tp = tcp_sk(sk);
 	return max(tp->snd_cwnd >> 1U, 2U);
 }
 EXPORT_SYMBOL_GPL(tcp_reno_ssthresh);
 
 /* Lower bound on congestion window. */
-u32 tcp_reno_min_cwnd(struct tcp_sock *tp)
+u32 tcp_reno_min_cwnd(struct sock *sk)
 {
+	const struct tcp_sock *tp = tcp_sk(sk);
 	return tp->snd_ssthresh/2;
 }
 EXPORT_SYMBOL_GPL(tcp_reno_min_cwnd);

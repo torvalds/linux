@@ -14,7 +14,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 #include <asm/procinfo.h>
 #include <asm/ptrace.h>
 

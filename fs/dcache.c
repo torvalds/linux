@@ -19,6 +19,7 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
+#include <linux/fsnotify.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/smp_lock.h>
@@ -101,6 +102,8 @@ static inline void dentry_iput(struct dentry * dentry)
 		list_del_init(&dentry->d_alias);
 		spin_unlock(&dentry->d_lock);
 		spin_unlock(&dcache_lock);
+		if (!inode->i_nlink)
+			fsnotify_inoderemove(inode);
 		if (dentry->d_op && dentry->d_op->d_iput)
 			dentry->d_op->d_iput(dentry, inode);
 		else
@@ -335,12 +338,10 @@ struct dentry * d_find_alias(struct inode *inode)
  */
 void d_prune_aliases(struct inode *inode)
 {
-	struct list_head *tmp, *head = &inode->i_dentry;
+	struct dentry *dentry;
 restart:
 	spin_lock(&dcache_lock);
-	tmp = head;
-	while ((tmp = tmp->next) != head) {
-		struct dentry *dentry = list_entry(tmp, struct dentry, d_alias);
+	list_for_each_entry(dentry, &inode->i_dentry, d_alias) {
 		spin_lock(&dentry->d_lock);
 		if (!atomic_read(&dentry->d_count)) {
 			__dget_locked(dentry);
@@ -461,10 +462,7 @@ void shrink_dcache_sb(struct super_block * sb)
 	 * superblock to the most recent end of the unused list.
 	 */
 	spin_lock(&dcache_lock);
-	next = dentry_unused.next;
-	while (next != &dentry_unused) {
-		tmp = next;
-		next = tmp->next;
+	list_for_each_safe(tmp, next, &dentry_unused) {
 		dentry = list_entry(tmp, struct dentry, d_lru);
 		if (dentry->d_sb != sb)
 			continue;
@@ -476,10 +474,7 @@ void shrink_dcache_sb(struct super_block * sb)
 	 * Pass two ... free the dentries for this superblock.
 	 */
 repeat:
-	next = dentry_unused.next;
-	while (next != &dentry_unused) {
-		tmp = next;
-		next = tmp->next;
+	list_for_each_safe(tmp, next, &dentry_unused) {
 		dentry = list_entry(tmp, struct dentry, d_lru);
 		if (dentry->d_sb != sb)
 			continue;
@@ -694,7 +689,7 @@ void shrink_dcache_anon(struct hlist_head *head)
  *
  * In this case we return -1 to tell the caller that we baled.
  */
-static int shrink_dcache_memory(int nr, unsigned int gfp_mask)
+static int shrink_dcache_memory(int nr, gfp_t gfp_mask)
 {
 	if (nr) {
 		if (!(gfp_mask & __GFP_FS))
@@ -1165,13 +1160,16 @@ out:
  
 void d_delete(struct dentry * dentry)
 {
+	int isdir = 0;
 	/*
 	 * Are we the only user?
 	 */
 	spin_lock(&dcache_lock);
 	spin_lock(&dentry->d_lock);
+	isdir = S_ISDIR(dentry->d_inode->i_mode);
 	if (atomic_read(&dentry->d_count) == 1) {
 		dentry_iput(dentry);
+		fsnotify_nameremove(dentry, isdir);
 		return;
 	}
 
@@ -1180,6 +1178,8 @@ void d_delete(struct dentry * dentry)
 
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&dcache_lock);
+
+	fsnotify_nameremove(dentry, isdir);
 }
 
 static void __d_rehash(struct dentry * entry, struct hlist_head *list)

@@ -117,7 +117,7 @@ __setup("hcheck_reboot", hangcheck_parse_reboot);
 __setup("hcheck_dump_tasks", hangcheck_parse_dump_tasks);
 #endif /* not MODULE */
 
-#if defined(CONFIG_X86) || defined(CONFIG_X86_64)
+#if defined(CONFIG_X86)
 # define HAVE_MONOTONIC
 # define TIMER_FREQ 1000000000ULL
 #elif defined(CONFIG_ARCH_S390)
@@ -149,8 +149,7 @@ static unsigned long long hangcheck_tsc, hangcheck_tsc_margin;
 
 static void hangcheck_fire(unsigned long);
 
-static struct timer_list hangcheck_ticktock =
-		TIMER_INITIALIZER(hangcheck_fire, 0, 0);
+static DEFINE_TIMER(hangcheck_ticktock, hangcheck_fire, 0, 0);
 
 
 static void hangcheck_fire(unsigned long data)

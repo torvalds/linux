@@ -82,7 +82,7 @@ int __init init_sharpsl(void)
 	} else if (machine_is_tosa()) {
 		sharpsl_partitions[0].size=0x006a0000;
 		sharpsl_partitions[0].offset=0x00160000;
-	} else if (machine_is_spitz()) {
+	} else if (machine_is_spitz() || machine_is_akita() || machine_is_borzoi()) {
 		sharpsl_partitions[0].size=0x006b0000;
 		sharpsl_partitions[0].offset=0x00140000;
 	} else {

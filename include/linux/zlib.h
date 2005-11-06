@@ -506,6 +506,11 @@ extern int zlib_deflateReset (z_streamp strm);
    stream state was inconsistent (such as zalloc or state being NULL).
 */
 
+static inline unsigned long deflateBound(unsigned long s)
+{
+	return s + ((s + 7) >> 3) + ((s + 63) >> 6) + 11;
+}
+
 extern int zlib_deflateParams (z_streamp strm, int level, int strategy);
 /*
      Dynamically update the compression level and compression strategy.  The

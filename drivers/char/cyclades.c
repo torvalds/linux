@@ -281,7 +281,7 @@ static char rcsid[] =
  * make sure "cyc" appears in all kernel messages; all soft interrupts
  * handled by same routine; recognize out-of-band reception; comment
  * out some diagnostic messages; leave RTS/CTS flow control to hardware;
- * fix race condition in -Z buffer management; only -Y needs to explictly
+ * fix race condition in -Z buffer management; only -Y needs to explicitly
  * flush chars; tidy up some startup messages;
  *
  * Revision 1.36.4.18  1996/07/25 18:57:31  bentson
@@ -865,7 +865,7 @@ static void cyz_poll(unsigned long);
 static long cyz_polling_cycle = CZ_DEF_POLL;
 
 static int cyz_timeron = 0;
-static struct timer_list cyz_timerlist = TIMER_INITIALIZER(cyz_poll, 0, 0);
+static DEFINE_TIMER(cyz_timerlist, cyz_poll, 0, 0);
 
 #else /* CONFIG_CYZ_INTR */
 static void cyz_rx_restart(unsigned long);

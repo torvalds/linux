@@ -222,7 +222,7 @@ was introduced in 1991, is used in the DC10 old
 can generate: PAL , NTSC , SECAM
 
 The adv717x, should be able to produce PAL N. But you find nothing PAL N 
-specific in the the registers. Seem that you have to reuse a other standard
+specific in the registers. Seem that you have to reuse a other standard
 to generate PAL N, maybe it would work if you use the PAL M settings. 
 
 ==========================

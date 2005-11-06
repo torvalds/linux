@@ -34,6 +34,7 @@
 #include <linux/init.h>
 #include <linux/gameport.h>
 #include <linux/input.h>
+#include <linux/jiffies.h>
 
 #define DRIVER_DESC	"FP-Gaming Assasin 3D joystick driver"
 
@@ -269,7 +270,7 @@ static int a3d_connect(struct gameport *gameport, struct gameport_driver *drv)
 	int i;
 	int err;
 
-	if (!(a3d = kcalloc(1, sizeof(struct a3d), GFP_KERNEL)))
+	if (!(a3d = kzalloc(sizeof(struct a3d), GFP_KERNEL)))
 		return -ENOMEM;
 
 	a3d->gameport = gameport;

@@ -8,7 +8,7 @@
  * Basic handling of the devices is done in drivers/base/cpu.c
  * and system devices are handled in drivers/base/sys.c. 
  *
- * CPUs are exported via driverfs in the class/cpu/devices/
+ * CPUs are exported via sysfs in the class/cpu/devices/
  * directory. 
  *
  * Per-cpu interfaces can be implemented using a struct device_interface. 
@@ -32,6 +32,7 @@ struct cpu {
 };
 
 extern int register_cpu(struct cpu *, int, struct node *);
+extern struct sys_device *get_cpu_sysdev(int cpu);
 #ifdef CONFIG_HOTPLUG_CPU
 extern void unregister_cpu(struct cpu *, struct node *);
 #endif

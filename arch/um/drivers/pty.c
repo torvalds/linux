@@ -43,8 +43,9 @@ static int pts_open(int input, int output, int primary, void *d,
 
 	fd = get_pty();
 	if(fd < 0){
+		err = -errno;
 		printk("open_pts : Failed to open pts\n");
-		return(-errno);
+		return err;
 	}
 	if(data->raw){
 		CATCH_EINTR(err = tcgetattr(fd, &data->tt));

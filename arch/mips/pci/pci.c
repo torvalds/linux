@@ -127,15 +127,20 @@ static int __init pcibios_init(void)
 		if (!hose->iommu)
 			PCI_DMA_BUS_IS_PHYS = 1;
 
+		if (hose->get_busno && pci_probe_only)
+			next_busno = (*hose->get_busno)();
+
 		bus = pci_scan_bus(next_busno, hose->pci_ops, hose);
 		hose->bus = bus;
 		hose->need_domain_info = need_domain_info;
-		next_busno = bus->subordinate + 1;
-		/* Don't allow 8-bit bus number overflow inside the hose -
-		   reserve some space for bridges. */ 
-		if (next_busno > 224) {
-			next_busno = 0;
-			need_domain_info = 1;
+		if (bus) {
+			next_busno = bus->subordinate + 1;
+			/* Don't allow 8-bit bus number overflow inside the hose -
+			   reserve some space for bridges. */
+			if (next_busno > 224) {
+				next_busno = 0;
+				need_domain_info = 1;
+			}
 		}
 		continue;
 
@@ -164,7 +169,7 @@ static int pcibios_enable_resources(struct pci_dev *dev, int mask)
 
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
 	old_cmd = cmd;
-	for(idx=0; idx<6; idx++) {
+	for (idx=0; idx < PCI_NUM_RESOURCES; idx++) {
 		/* Only set up the requested stuff */
 		if (!(mask & (1<<idx)))
 			continue;
@@ -260,7 +265,7 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 		   (dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
 		pci_read_bridge_bases(bus);
 		pcibios_fixup_device_resources(dev, bus);
-	} 
+	}
 
 	for (ln = bus->devices.next; ln != &bus->devices; ln = ln->next) {
 		struct pci_dev *dev = pci_dev_b(ln);
@@ -292,8 +297,25 @@ pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
 	region->end = res->end - offset;
 }
 
+void __devinit
+pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
+			struct pci_bus_region *region)
+{
+	struct pci_controller *hose = (struct pci_controller *)dev->sysdata;
+	unsigned long offset = 0;
+
+	if (res->flags & IORESOURCE_IO)
+		offset = hose->io_offset;
+	else if (res->flags & IORESOURCE_MEM)
+		offset = hose->mem_offset;
+
+	res->start = region->start + offset;
+	res->end = region->end + offset;
+}
+
 #ifdef CONFIG_HOTPLUG
 EXPORT_SYMBOL(pcibios_resource_to_bus);
+EXPORT_SYMBOL(pcibios_bus_to_resource);
 EXPORT_SYMBOL(PCIBIOS_MIN_IO);
 EXPORT_SYMBOL(PCIBIOS_MIN_MEM);
 #endif

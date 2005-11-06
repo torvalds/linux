@@ -12,7 +12,7 @@
 
 #include <linux/config.h>
 
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 
 #define CAC_BASE		0x80000000
 #define IO_BASE			0xa0000000
@@ -32,9 +32,9 @@
 #define HIGHMEM_START		0x20000000UL
 #endif
 
-#endif /* CONFIG_MIPS32 */
+#endif /* CONFIG_32BIT */
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 
 /*
  * This handles the memory map.
@@ -55,18 +55,18 @@
 #endif
 
 #ifdef CONFIG_DMA_NONCOHERENT
-#define CAC_BASE		0x9800000000000000
+#define CAC_BASE		0x9800000000000000UL
 #else
-#define CAC_BASE		0xa800000000000000
+#define CAC_BASE		0xa800000000000000UL
 #endif
-#define IO_BASE			0x9000000000000000
-#define UNCAC_BASE		0x9000000000000000
-#define MAP_BASE		0xc000000000000000
+#define IO_BASE			0x9000000000000000UL
+#define UNCAC_BASE		0x9000000000000000UL
+#define MAP_BASE		0xc000000000000000UL
 
 #define TO_PHYS(x)		(             ((x) & TO_PHYS_MASK))
 #define TO_CAC(x)		(CAC_BASE   | ((x) & TO_PHYS_MASK))
 #define TO_UNCAC(x)		(UNCAC_BASE | ((x) & TO_PHYS_MASK))
 
-#endif /* CONFIG_MIPS64 */
+#endif /* CONFIG_64BIT */
 
 #endif /* __ASM_MACH_GENERIC_SPACES_H */

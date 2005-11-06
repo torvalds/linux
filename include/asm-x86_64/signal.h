@@ -143,23 +143,23 @@ typedef struct sigaltstack {
 #undef __HAVE_ARCH_SIG_BITOPS
 #if 0
 
-extern __inline__ void sigaddset(sigset_t *set, int _sig)
+static inline void sigaddset(sigset_t *set, int _sig)
 {
 	__asm__("btsq %1,%0" : "=m"(*set) : "Ir"(_sig - 1) : "cc");
 }
 
-extern __inline__ void sigdelset(sigset_t *set, int _sig)
+static inline void sigdelset(sigset_t *set, int _sig)
 {
 	__asm__("btrq %1,%0" : "=m"(*set) : "Ir"(_sig - 1) : "cc");
 }
 
-extern __inline__ int __const_sigismember(sigset_t *set, int _sig)
+static inline int __const_sigismember(sigset_t *set, int _sig)
 {
 	unsigned long sig = _sig - 1;
 	return 1 & (set->sig[sig / _NSIG_BPW] >> (sig & ~(_NSIG_BPW-1)));
 }
 
-extern __inline__ int __gen_sigismember(sigset_t *set, int _sig)
+static inline int __gen_sigismember(sigset_t *set, int _sig)
 {
 	int ret;
 	__asm__("btq %2,%1\n\tsbbq %0,%0"
@@ -172,7 +172,7 @@ extern __inline__ int __gen_sigismember(sigset_t *set, int _sig)
 	 __const_sigismember((set),(sig)) :	\
 	 __gen_sigismember((set),(sig)))
 
-extern __inline__ int sigfindinword(unsigned long word)
+static inline int sigfindinword(unsigned long word)
 {
 	__asm__("bsfq %1,%0" : "=r"(word) : "rm"(word) : "cc");
 	return word;

@@ -36,6 +36,7 @@
 #include <linux/vmalloc.h>
 #include <linux/delay.h>
 #include <linux/rwsem.h>
+#include <linux/sched.h>
 
 #include "dvb_ca_en50221.h"
 #include "dvb_ringbuffer.h"
@@ -47,7 +48,7 @@ MODULE_PARM_DESC(cam_debug, "enable verbose debug messages");
 
 #define dprintk if (dvb_ca_en50221_debug) printk
 
-#define INIT_TIMEOUT_SECS 5
+#define INIT_TIMEOUT_SECS 10
 
 #define HOST_LINK_BUF_SIZE 0x200
 

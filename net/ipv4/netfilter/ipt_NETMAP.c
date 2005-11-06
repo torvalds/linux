@@ -46,7 +46,8 @@ check(const char *tablename,
 		DEBUGP(MODULENAME":check: size %u.\n", targinfosize);
 		return 0;
 	}
-	if (hook_mask & ~((1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_POST_ROUTING))) {
+	if (hook_mask & ~((1 << NF_IP_PRE_ROUTING) | (1 << NF_IP_POST_ROUTING) |
+	                  (1 << NF_IP_LOCAL_OUT))) {
 		DEBUGP(MODULENAME":check: bad hooks %x.\n", hook_mask);
 		return 0;
 	}
@@ -76,12 +77,13 @@ target(struct sk_buff **pskb,
 	struct ip_nat_range newrange;
 
 	IP_NF_ASSERT(hooknum == NF_IP_PRE_ROUTING
-		     || hooknum == NF_IP_POST_ROUTING);
+		     || hooknum == NF_IP_POST_ROUTING
+		     || hooknum == NF_IP_LOCAL_OUT);
 	ct = ip_conntrack_get(*pskb, &ctinfo);
 
 	netmask = ~(mr->range[0].min_ip ^ mr->range[0].max_ip);
 
-	if (hooknum == NF_IP_PRE_ROUTING)
+	if (hooknum == NF_IP_PRE_ROUTING || hooknum == NF_IP_LOCAL_OUT)
 		new_ip = (*pskb)->nh.iph->daddr & ~netmask;
 	else
 		new_ip = (*pskb)->nh.iph->saddr & ~netmask;

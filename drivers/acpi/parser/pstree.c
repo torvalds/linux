@@ -41,22 +41,17 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 #include <acpi/acpi.h>
 #include <acpi/acparser.h>
 #include <acpi/amlcode.h>
 
 #define _COMPONENT          ACPI_PARSER
-	 ACPI_MODULE_NAME    ("pstree")
+ACPI_MODULE_NAME("pstree")
 
 /* Local prototypes */
-
 #ifdef ACPI_OBSOLETE_FUNCTIONS
-union acpi_parse_object *
-acpi_ps_get_child (
-	union acpi_parse_object         *op);
+union acpi_parse_object *acpi_ps_get_child(union acpi_parse_object *op);
 #endif
-
 
 /*******************************************************************************
  *
@@ -71,21 +66,16 @@ acpi_ps_get_child (
  *
  ******************************************************************************/
 
-union acpi_parse_object *
-acpi_ps_get_arg (
-	union acpi_parse_object         *op,
-	u32                             argn)
+union acpi_parse_object *acpi_ps_get_arg(union acpi_parse_object *op, u32 argn)
 {
-	union acpi_parse_object         *arg = NULL;
-	const struct acpi_opcode_info   *op_info;
+	union acpi_parse_object *arg = NULL;
+	const struct acpi_opcode_info *op_info;
 
-
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	/* Get the info structure for this opcode */
 
-	op_info = acpi_ps_get_opcode_info (op->common.aml_opcode);
+	op_info = acpi_ps_get_opcode_info(op->common.aml_opcode);
 	if (op_info->class == AML_CLASS_UNKNOWN) {
 		/* Invalid opcode or ASCII character */
 
@@ -111,7 +101,6 @@ acpi_ps_get_arg (
 	return (arg);
 }
 
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ps_append_arg
@@ -126,16 +115,12 @@ acpi_ps_get_arg (
  ******************************************************************************/
 
 void
-acpi_ps_append_arg (
-	union acpi_parse_object         *op,
-	union acpi_parse_object         *arg)
+acpi_ps_append_arg(union acpi_parse_object *op, union acpi_parse_object *arg)
 {
-	union acpi_parse_object         *prev_arg;
-	const struct acpi_opcode_info   *op_info;
+	union acpi_parse_object *prev_arg;
+	const struct acpi_opcode_info *op_info;
 
-
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	if (!op) {
 		return;
@@ -143,12 +128,11 @@ acpi_ps_append_arg (
 
 	/* Get the info structure for this opcode */
 
-	op_info = acpi_ps_get_opcode_info (op->common.aml_opcode);
+	op_info = acpi_ps_get_opcode_info(op->common.aml_opcode);
 	if (op_info->class == AML_CLASS_UNKNOWN) {
 		/* Invalid opcode */
 
-		ACPI_REPORT_ERROR (("ps_append_arg: Invalid AML Opcode: 0x%2.2X\n",
-			op->common.aml_opcode));
+		ACPI_REPORT_ERROR(("ps_append_arg: Invalid AML Opcode: 0x%2.2X\n", op->common.aml_opcode));
 		return;
 	}
 
@@ -170,8 +154,7 @@ acpi_ps_append_arg (
 			prev_arg = prev_arg->common.next;
 		}
 		prev_arg->common.next = arg;
-	}
-	else {
+	} else {
 		/* No argument list, this will be the first argument */
 
 		op->common.value.arg = arg;
@@ -184,7 +167,6 @@ acpi_ps_append_arg (
 		arg = arg->common.next;
 	}
 }
-
 
 #ifdef ACPI_FUTURE_USAGE
 /*******************************************************************************
@@ -201,18 +183,14 @@ acpi_ps_append_arg (
  *
  ******************************************************************************/
 
-union acpi_parse_object *
-acpi_ps_get_depth_next (
-	union acpi_parse_object         *origin,
-	union acpi_parse_object         *op)
+union acpi_parse_object *acpi_ps_get_depth_next(union acpi_parse_object *origin,
+						union acpi_parse_object *op)
 {
-	union acpi_parse_object         *next = NULL;
-	union acpi_parse_object         *parent;
-	union acpi_parse_object         *arg;
+	union acpi_parse_object *next = NULL;
+	union acpi_parse_object *parent;
+	union acpi_parse_object *arg;
 
-
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	if (!op) {
 		return (NULL);
@@ -220,7 +198,7 @@ acpi_ps_get_depth_next (
 
 	/* Look for an argument or child */
 
-	next = acpi_ps_get_arg (op, 0);
+	next = acpi_ps_get_arg(op, 0);
 	if (next) {
 		return (next);
 	}
@@ -237,7 +215,7 @@ acpi_ps_get_depth_next (
 	parent = op->common.parent;
 
 	while (parent) {
-		arg = acpi_ps_get_arg (parent, 0);
+		arg = acpi_ps_get_arg(parent, 0);
 		while (arg && (arg != origin) && (arg != op)) {
 			arg = arg->common.next;
 		}
@@ -261,7 +239,6 @@ acpi_ps_get_depth_next (
 	return (next);
 }
 
-
 #ifdef ACPI_OBSOLETE_FUNCTIONS
 /*******************************************************************************
  *
@@ -275,15 +252,11 @@ acpi_ps_get_depth_next (
  *
  ******************************************************************************/
 
-union acpi_parse_object *
-acpi_ps_get_child (
-	union acpi_parse_object         *op)
+union acpi_parse_object *acpi_ps_get_child(union acpi_parse_object *op)
 {
-	union acpi_parse_object         *child = NULL;
+	union acpi_parse_object *child = NULL;
 
-
-	ACPI_FUNCTION_ENTRY ();
-
+	ACPI_FUNCTION_ENTRY();
 
 	switch (op->common.aml_opcode) {
 	case AML_SCOPE_OP:
@@ -292,9 +265,8 @@ acpi_ps_get_child (
 	case AML_THERMAL_ZONE_OP:
 	case AML_INT_METHODCALL_OP:
 
-		child = acpi_ps_get_arg (op, 0);
+		child = acpi_ps_get_arg(op, 0);
 		break;
-
 
 	case AML_BUFFER_OP:
 	case AML_PACKAGE_OP:
@@ -303,23 +275,20 @@ acpi_ps_get_child (
 	case AML_WHILE_OP:
 	case AML_FIELD_OP:
 
-		child = acpi_ps_get_arg (op, 1);
+		child = acpi_ps_get_arg(op, 1);
 		break;
-
 
 	case AML_POWER_RES_OP:
 	case AML_INDEX_FIELD_OP:
 
-		child = acpi_ps_get_arg (op, 2);
+		child = acpi_ps_get_arg(op, 2);
 		break;
-
 
 	case AML_PROCESSOR_OP:
 	case AML_BANK_FIELD_OP:
 
-		child = acpi_ps_get_arg (op, 3);
+		child = acpi_ps_get_arg(op, 3);
 		break;
-
 
 	default:
 		/* All others have no children */
@@ -330,5 +299,4 @@ acpi_ps_get_child (
 }
 #endif
 
-#endif  /*  ACPI_FUTURE_USAGE  */
-
+#endif				/*  ACPI_FUTURE_USAGE  */

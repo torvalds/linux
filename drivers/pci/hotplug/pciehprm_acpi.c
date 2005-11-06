@@ -20,7 +20,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * Send feedback to <dely.l.sy@intel.com>
+ * Send feedback to <kristen.c.accardi@intel.com>
  *
  */
 
@@ -1696,15 +1696,15 @@ void pciehprm_enable_card(
 	pci_bus->number = func->bus;
 	devfn = PCI_DEVFN(func->device, func->function);
 
-	rc = pci_bus_read_config_word(pci_bus, devfn, PCI_COMMAND, &command);
+	rc = pci_bus_read_config_word(pci_bus, devfn, PCI_COMMAND, &cmd);
 
 	if (card_type == PCI_HEADER_TYPE_BRIDGE) {
-		rc = pci_bus_read_config_word(pci_bus, devfn, PCI_BRIDGE_CONTROL, &bcommand);
+		rc = pci_bus_read_config_word(pci_bus, devfn, PCI_BRIDGE_CONTROL, &bcmd);
 	}
 
-	cmd = command  = command | PCI_COMMAND_MASTER | PCI_COMMAND_INVALIDATE
+	command  = cmd | PCI_COMMAND_MASTER | PCI_COMMAND_INVALIDATE
 		| PCI_COMMAND_IO | PCI_COMMAND_MEMORY;
-	bcmd = bcommand  = bcommand | PCI_BRIDGE_CTL_NO_ISA;
+	bcommand  = bcmd | PCI_BRIDGE_CTL_NO_ISA;
 
 	ab = find_acpi_bridge_by_bus(acpi_bridges_head, ctrl->seg, ctrl->bus);
 	if (ab) {

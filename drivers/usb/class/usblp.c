@@ -310,8 +310,9 @@ static int usblp_check_status(struct usblp *usblp, int err)
 
 	error = usblp_read_status (usblp, usblp->statusbuf);
 	if (error < 0) {
-		err("usblp%d: error %d reading printer status",
-			usblp->minor, error);
+		if (printk_ratelimit())
+			err("usblp%d: error %d reading printer status",
+				usblp->minor, error);
 		return 0;
 	}
 
@@ -604,7 +605,9 @@ static int usblp_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 			case LPGETSTATUS:
 				if (usblp_read_status(usblp, usblp->statusbuf)) {
-					err("usblp%d: failed reading printer status", usblp->minor);
+					if (printk_ratelimit())
+						err("usblp%d: failed reading printer status",
+							usblp->minor);
 					retval = -EIO;
 					goto done;
 				}
@@ -841,9 +844,8 @@ static struct file_operations usblp_fops = {
 };
 
 static struct usb_class_driver usblp_class = {
-	.name =		"usb/lp%d",
+	.name =		"lp%d",
 	.fops =		&usblp_fops,
-	.mode =		S_IFCHR | S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP,
 	.minor_base =	USBLP_MINOR_BASE,
 };
 

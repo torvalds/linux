@@ -1346,6 +1346,8 @@ static void snd_cs4231_suspend(cs4231_t *chip)
 	int reg;
 	unsigned long flags;
 	
+	if (chip->pcm)
+		snd_pcm_suspend_all(chip->pcm);
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	for (reg = 0; reg < 32; reg++)
 		chip->image[reg] = snd_cs4231_in(chip, reg);
@@ -1478,7 +1480,7 @@ static int snd_cs4231_new(snd_card_t * card,
 	cs4231_t *chip;
 
 	*rchip = NULL;
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 	chip->hardware = hardware;

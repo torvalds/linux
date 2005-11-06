@@ -44,146 +44,101 @@
 #ifndef __ACTABLES_H__
 #define __ACTABLES_H__
 
-
 /* Used in acpi_tb_map_acpi_table for size parameter if table header is to be used */
 
 #define SIZE_IN_HEADER          0
 
-
 /*
  * tbconvrt - Table conversion routines
  */
-acpi_status
-acpi_tb_convert_to_xsdt (
-	struct acpi_table_desc          *table_info);
+acpi_status acpi_tb_convert_to_xsdt(struct acpi_table_desc *table_info);
 
-acpi_status
-acpi_tb_convert_table_fadt (
-	void);
+acpi_status acpi_tb_convert_table_fadt(void);
 
-acpi_status
-acpi_tb_build_common_facs (
-	struct acpi_table_desc          *table_info);
+acpi_status acpi_tb_build_common_facs(struct acpi_table_desc *table_info);
 
 u32
-acpi_tb_get_table_count (
-	struct rsdp_descriptor          *RSDP,
-	struct acpi_table_header        *RSDT);
-
+acpi_tb_get_table_count(struct rsdp_descriptor *RSDP,
+			struct acpi_table_header *RSDT);
 
 /*
  * tbget - Table "get" routines
  */
 acpi_status
-acpi_tb_get_table (
-	struct acpi_pointer             *address,
-	struct acpi_table_desc          *table_info);
+acpi_tb_get_table(struct acpi_pointer *address,
+		  struct acpi_table_desc *table_info);
 
 acpi_status
-acpi_tb_get_table_header (
-	struct acpi_pointer             *address,
-	struct acpi_table_header        *return_header);
+acpi_tb_get_table_header(struct acpi_pointer *address,
+			 struct acpi_table_header *return_header);
 
 acpi_status
-acpi_tb_get_table_body (
-	struct acpi_pointer             *address,
-	struct acpi_table_header        *header,
-	struct acpi_table_desc          *table_info);
+acpi_tb_get_table_body(struct acpi_pointer *address,
+		       struct acpi_table_header *header,
+		       struct acpi_table_desc *table_info);
 
 acpi_status
-acpi_tb_get_table_ptr (
-	acpi_table_type                 table_type,
-	u32                             instance,
-	struct acpi_table_header        **table_ptr_loc);
+acpi_tb_get_table_ptr(acpi_table_type table_type,
+		      u32 instance, struct acpi_table_header **table_ptr_loc);
 
-acpi_status
-acpi_tb_verify_rsdp (
-	struct acpi_pointer             *address);
+acpi_status acpi_tb_verify_rsdp(struct acpi_pointer *address);
 
-void
-acpi_tb_get_rsdt_address (
-	struct acpi_pointer             *out_address);
+void acpi_tb_get_rsdt_address(struct acpi_pointer *out_address);
 
-acpi_status
-acpi_tb_validate_rsdt (
-	struct acpi_table_header        *table_ptr);
-
+acpi_status acpi_tb_validate_rsdt(struct acpi_table_header *table_ptr);
 
 /*
  * tbgetall - get multiple required tables
  */
-acpi_status
-acpi_tb_get_required_tables (
-	void);
-
+acpi_status acpi_tb_get_required_tables(void);
 
 /*
  * tbinstall - Table installation
  */
-acpi_status
-acpi_tb_install_table (
-	struct acpi_table_desc          *table_info);
+acpi_status acpi_tb_install_table(struct acpi_table_desc *table_info);
 
 acpi_status
-acpi_tb_recognize_table (
-	struct acpi_table_desc          *table_info,
-	u8                              search_type);
+acpi_tb_recognize_table(struct acpi_table_desc *table_info, u8 search_type);
 
 acpi_status
-acpi_tb_init_table_descriptor (
-	acpi_table_type                 table_type,
-	struct acpi_table_desc          *table_info);
-
+acpi_tb_init_table_descriptor(acpi_table_type table_type,
+			      struct acpi_table_desc *table_info);
 
 /*
  * tbremove - Table removal and deletion
  */
-void
-acpi_tb_delete_all_tables (
-	void);
+void acpi_tb_delete_all_tables(void);
 
-void
-acpi_tb_delete_tables_by_type (
-	acpi_table_type                 type);
+void acpi_tb_delete_tables_by_type(acpi_table_type type);
 
-void
-acpi_tb_delete_single_table (
-	struct acpi_table_desc          *table_desc);
+void acpi_tb_delete_single_table(struct acpi_table_desc *table_desc);
 
-struct acpi_table_desc *
-acpi_tb_uninstall_table (
-	struct acpi_table_desc          *table_desc);
-
+struct acpi_table_desc *acpi_tb_uninstall_table(struct acpi_table_desc
+						*table_desc);
 
 /*
  * tbxfroot - RSDP, RSDT utilities
  */
 acpi_status
-acpi_tb_find_table (
-	char                            *signature,
-	char                            *oem_id,
-	char                            *oem_table_id,
-	struct acpi_table_header        **table_ptr);
+acpi_tb_find_table(char *signature,
+		   char *oem_id,
+		   char *oem_table_id, struct acpi_table_header **table_ptr);
 
-acpi_status
-acpi_tb_get_table_rsdt (
-	void);
+acpi_status acpi_tb_get_table_rsdt(void);
 
+acpi_status acpi_tb_validate_rsdp(struct rsdp_descriptor *rsdp);
 
 /*
  * tbutils - common table utilities
  */
-acpi_status
-acpi_tb_verify_table_checksum (
-	struct acpi_table_header        *table_header);
-
-u8
-acpi_tb_checksum (
-	void                            *buffer,
-	u32                             length);
+acpi_status acpi_tb_is_table_installed(struct acpi_table_desc *new_table_desc);
 
 acpi_status
-acpi_tb_validate_table_header (
-	struct acpi_table_header        *table_header);
+acpi_tb_verify_table_checksum(struct acpi_table_header *table_header);
 
-#endif /* __ACTABLES_H__ */
+u8 acpi_tb_generate_checksum(void *buffer, u32 length);
+
+acpi_status
+acpi_tb_validate_table_header(struct acpi_table_header *table_header);
+
+#endif				/* __ACTABLES_H__ */

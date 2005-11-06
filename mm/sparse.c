@@ -5,7 +5,10 @@
 #include <linux/mm.h>
 #include <linux/mmzone.h>
 #include <linux/bootmem.h>
+#include <linux/highmem.h>
 #include <linux/module.h>
+#include <linux/spinlock.h>
+#include <linux/vmalloc.h>
 #include <asm/dma.h>
 
 /*
@@ -13,8 +16,88 @@
  *
  * 1) mem_section	- memory sections, mem_map's for valid memory
  */
-struct mem_section mem_section[NR_MEM_SECTIONS];
+#ifdef CONFIG_SPARSEMEM_EXTREME
+struct mem_section *mem_section[NR_SECTION_ROOTS]
+	____cacheline_maxaligned_in_smp;
+#else
+struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT]
+	____cacheline_maxaligned_in_smp;
+#endif
 EXPORT_SYMBOL(mem_section);
+
+#ifdef CONFIG_SPARSEMEM_EXTREME
+static struct mem_section *sparse_index_alloc(int nid)
+{
+	struct mem_section *section = NULL;
+	unsigned long array_size = SECTIONS_PER_ROOT *
+				   sizeof(struct mem_section);
+
+	section = alloc_bootmem_node(NODE_DATA(nid), array_size);
+
+	if (section)
+		memset(section, 0, array_size);
+
+	return section;
+}
+
+static int sparse_index_init(unsigned long section_nr, int nid)
+{
+	static spinlock_t index_init_lock = SPIN_LOCK_UNLOCKED;
+	unsigned long root = SECTION_NR_TO_ROOT(section_nr);
+	struct mem_section *section;
+	int ret = 0;
+
+	if (mem_section[root])
+		return -EEXIST;
+
+	section = sparse_index_alloc(nid);
+	/*
+	 * This lock keeps two different sections from
+	 * reallocating for the same index
+	 */
+	spin_lock(&index_init_lock);
+
+	if (mem_section[root]) {
+		ret = -EEXIST;
+		goto out;
+	}
+
+	mem_section[root] = section;
+out:
+	spin_unlock(&index_init_lock);
+	return ret;
+}
+#else /* !SPARSEMEM_EXTREME */
+static inline int sparse_index_init(unsigned long section_nr, int nid)
+{
+	return 0;
+}
+#endif
+
+/*
+ * Although written for the SPARSEMEM_EXTREME case, this happens
+ * to also work for the flat array case becase
+ * NR_SECTION_ROOTS==NR_MEM_SECTIONS.
+ */
+int __section_nr(struct mem_section* ms)
+{
+	unsigned long root_nr;
+	struct mem_section* root;
+
+	for (root_nr = 0;
+	     root_nr < NR_MEM_SECTIONS;
+	     root_nr += SECTIONS_PER_ROOT) {
+		root = __nr_to_section(root_nr);
+
+		if (!root)
+			continue;
+
+		if ((ms >= root) && (ms < (root + SECTIONS_PER_ROOT)))
+		     break;
+	}
+
+	return (root_nr * SECTIONS_PER_ROOT) + (ms - root);
+}
 
 /* Record a memory area against a node. */
 void memory_present(int nid, unsigned long start, unsigned long end)
@@ -24,8 +107,13 @@ void memory_present(int nid, unsigned long start, unsigned long end)
 	start &= PAGE_SECTION_MASK;
 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
 		unsigned long section = pfn_to_section_nr(pfn);
-		if (!mem_section[section].section_mem_map)
-			mem_section[section].section_mem_map = SECTION_MARKED_PRESENT;
+		struct mem_section *ms;
+
+		sparse_index_init(section, nid);
+
+		ms = __nr_to_section(section);
+		if (!ms->section_mem_map)
+			ms->section_mem_map = SECTION_MARKED_PRESENT;
 	}
 }
 
@@ -85,6 +173,7 @@ static struct page *sparse_early_mem_map_alloc(unsigned long pnum)
 {
 	struct page *map;
 	int nid = early_pfn_to_nid(section_nr_to_pfn(pnum));
+	struct mem_section *ms = __nr_to_section(pnum);
 
 	map = alloc_remap(nid, sizeof(struct page) * PAGES_PER_SECTION);
 	if (map)
@@ -96,8 +185,47 @@ static struct page *sparse_early_mem_map_alloc(unsigned long pnum)
 		return map;
 
 	printk(KERN_WARNING "%s: allocation failed\n", __FUNCTION__);
-	mem_section[pnum].section_mem_map = 0;
+	ms->section_mem_map = 0;
 	return NULL;
+}
+
+static struct page *__kmalloc_section_memmap(unsigned long nr_pages)
+{
+	struct page *page, *ret;
+	unsigned long memmap_size = sizeof(struct page) * nr_pages;
+
+	page = alloc_pages(GFP_KERNEL, get_order(memmap_size));
+	if (page)
+		goto got_map_page;
+
+	ret = vmalloc(memmap_size);
+	if (ret)
+		goto got_map_ptr;
+
+	return NULL;
+got_map_page:
+	ret = (struct page *)pfn_to_kaddr(page_to_pfn(page));
+got_map_ptr:
+	memset(ret, 0, memmap_size);
+
+	return ret;
+}
+
+static int vaddr_in_vmalloc_area(void *addr)
+{
+	if (addr >= (void *)VMALLOC_START &&
+	    addr < (void *)VMALLOC_END)
+		return 1;
+	return 0;
+}
+
+static void __kfree_section_memmap(struct page *memmap, unsigned long nr_pages)
+{
+	if (vaddr_in_vmalloc_area(memmap))
+		vfree(memmap);
+	else
+		free_pages((unsigned long)memmap,
+			   get_order(sizeof(struct page) * nr_pages));
 }
 
 /*
@@ -114,8 +242,9 @@ void sparse_init(void)
 			continue;
 
 		map = sparse_early_mem_map_alloc(pnum);
-		if (map)
-			sparse_init_one_section(&mem_section[pnum], pnum, map);
+		if (!map)
+			continue;
+		sparse_init_one_section(__nr_to_section(pnum), pnum, map);
 	}
 }
 
@@ -124,14 +253,37 @@ void sparse_init(void)
  * set.  If this is <=0, then that means that the passed-in
  * map was not consumed and must be freed.
  */
-int sparse_add_one_section(unsigned long start_pfn, int nr_pages, struct page *map)
+int sparse_add_one_section(struct zone *zone, unsigned long start_pfn,
+			   int nr_pages)
 {
-	struct mem_section *ms = __pfn_to_section(start_pfn);
+	unsigned long section_nr = pfn_to_section_nr(start_pfn);
+	struct pglist_data *pgdat = zone->zone_pgdat;
+	struct mem_section *ms;
+	struct page *memmap;
+	unsigned long flags;
+	int ret;
 
-	if (ms->section_mem_map & SECTION_MARKED_PRESENT)
-		return -EEXIST;
+	/*
+	 * no locking for this, because it does its own
+	 * plus, it does a kmalloc
+	 */
+	sparse_index_init(section_nr, pgdat->node_id);
+	memmap = __kmalloc_section_memmap(nr_pages);
 
+	pgdat_resize_lock(pgdat, &flags);
+
+	ms = __pfn_to_section(start_pfn);
+	if (ms->section_mem_map & SECTION_MARKED_PRESENT) {
+		ret = -EEXIST;
+		goto out;
+	}
 	ms->section_mem_map |= SECTION_MARKED_PRESENT;
 
-	return sparse_init_one_section(ms, pfn_to_section_nr(start_pfn), map);
+	ret = sparse_init_one_section(ms, section_nr, memmap);
+
+	if (ret <= 0)
+		__kfree_section_memmap(memmap, nr_pages);
+out:
+	pgdat_resize_unlock(pgdat, &flags);
+	return ret;
 }

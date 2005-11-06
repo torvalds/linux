@@ -6,7 +6,7 @@
  * uninitialized local variables in the act.
  */
 
-#include <asm/asm_offsets.h>
+#include <asm/asm-offsets.h>
 
 	.text
 	.set noat

@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 #if 0
 #define DEBUGP printk
@@ -80,8 +81,6 @@ static char *next_arg(char *args, char **param, char **val)
 	int in_quote = 0, quoted = 0;
 	char *next;
 
-	/* Chew any extra spaces */
-	while (*args == ' ') args++;
 	if (*args == '"') {
 		args++;
 		in_quote = 1;
@@ -121,6 +120,10 @@ static char *next_arg(char *args, char **param, char **val)
 		next = args + i + 1;
 	} else
 		next = args + i;
+
+	/* Chew up trailing spaces. */
+	while (*next == ' ')
+		next++;
 	return next;
 }
 
@@ -134,6 +137,10 @@ int parse_args(const char *name,
 	char *param, *val;
 
 	DEBUGP("Parsing ARGS: %s\n", args);
+
+	/* Chew leading spaces */
+	while (*args == ' ')
+		args++;
 
 	while (*args) {
 		int ret;
@@ -542,8 +549,8 @@ static void __init kernel_param_sysfs_setup(const char *name,
 {
 	struct module_kobject *mk;
 
-	mk = kmalloc(sizeof(struct module_kobject), GFP_KERNEL);
-	memset(mk, 0, sizeof(struct module_kobject));
+	mk = kzalloc(sizeof(struct module_kobject), GFP_KERNEL);
+	BUG_ON(!mk);
 
 	mk->mod = THIS_MODULE;
 	kobj_set_kset_s(mk, module_subsys);

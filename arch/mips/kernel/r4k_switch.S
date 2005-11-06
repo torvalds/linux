@@ -15,7 +15,7 @@
 #include <asm/cachectl.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
-#include <asm/offset.h>
+#include <asm/asm-offsets.h>
 #include <asm/page.h>
 #include <asm/pgtable-bits.h>
 #include <asm/regdef.h>
@@ -33,7 +33,7 @@
 /*
  * FPU context is saved iff the process has used it's FPU in the current
  * time slice as indicated by _TIF_USEDFPU.  In any case, the CU1 bit for user
- * space STATUS register should be 0, so that a process *always* starts its 
+ * space STATUS register should be 0, so that a process *always* starts its
  * userland with FPU disabled after each context switch.
  *
  * FPU will be enabled as soon as the process accesses FPU again, through
@@ -105,7 +105,7 @@
  * Save a thread's fp context.
  */
 LEAF(_save_fp)
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	mfc0	t1, CP0_STATUS
 #endif
 	fpu_save_double a0 t1 t0 t2		# clobbers t1
@@ -142,7 +142,7 @@ LEAF(_init_fpu)
 
 	li	t1, -1				# SNaN
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 	sll	t0, t0, 5
 	bgez	t0, 1f				# 16 / 32 register mode?
 
@@ -164,7 +164,7 @@ LEAF(_init_fpu)
 	dmtc1	t1, $f31
 1:
 #endif
-	
+
 #ifdef CONFIG_CPU_MIPS32
 	mtc1	t1, $f0
 	mtc1	t1, $f1

@@ -245,7 +245,7 @@ receive_chars(struct uart_sunsab_port *up,
 	return tty;
 }
 
-static void sunsab_stop_tx(struct uart_port *, unsigned int);
+static void sunsab_stop_tx(struct uart_port *);
 static void sunsab_tx_idle(struct uart_sunsab_port *);
 
 static void transmit_chars(struct uart_sunsab_port *up,
@@ -274,7 +274,6 @@ static void transmit_chars(struct uart_sunsab_port *up,
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
 		up->interrupt_mask1 |= SAB82532_IMR1_XPR;
 		writeb(up->interrupt_mask1, &up->regs->w.imr1);
-		uart_write_wakeup(&up->port);
 		return;
 	}
 
@@ -301,7 +300,7 @@ static void transmit_chars(struct uart_sunsab_port *up,
 		uart_write_wakeup(&up->port);
 
 	if (uart_circ_empty(xmit))
-		sunsab_stop_tx(&up->port, 0);
+		sunsab_stop_tx(&up->port);
 }
 
 static void check_status(struct uart_sunsab_port *up,
@@ -448,7 +447,7 @@ static unsigned int sunsab_get_mctrl(struct uart_port *port)
 }
 
 /* port->lock held by caller.  */
-static void sunsab_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void sunsab_stop_tx(struct uart_port *port)
 {
 	struct uart_sunsab_port *up = (struct uart_sunsab_port *) port;
 
@@ -476,7 +475,7 @@ static void sunsab_tx_idle(struct uart_sunsab_port *up)
 }
 
 /* port->lock held by caller.  */
-static void sunsab_start_tx(struct uart_port *port, unsigned int tty_start)
+static void sunsab_start_tx(struct uart_port *port)
 {
 	struct uart_sunsab_port *up = (struct uart_sunsab_port *) port;
 	struct circ_buf *xmit = &up->port.info->xmit;

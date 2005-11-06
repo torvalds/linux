@@ -296,7 +296,7 @@ z2_open( struct inode *inode, struct file *filp )
     return 0;
 
 err_out_kfree:
-    kfree( z2ram_map );
+    kfree(z2ram_map);
 err_out:
     return rc;
 }

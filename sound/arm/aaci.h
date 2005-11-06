@@ -200,8 +200,8 @@
 
 
 struct aaci_runtime {
-	void			*base;
-	void			*fifo;
+	void			__iomem *base;
+	void			__iomem *fifo;
 
 	struct ac97_pcm		*pcm;
 	int			pcm_open;
@@ -223,7 +223,7 @@ struct aaci_runtime {
 struct aaci {
 	struct amba_device	*dev;
 	snd_card_t		*card;
-	void			*base;
+	void			__iomem *base;
 	unsigned int		fifosize;
 
 	/* AC'97 */

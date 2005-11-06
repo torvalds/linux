@@ -113,7 +113,7 @@
  */
 #define BCM1250_M3_WAR 1
 
-/* 
+/*
  * This is a DUART workaround related to glitches around register accesses
  */
 #define SIBYTE_1956_WAR 1
@@ -122,7 +122,7 @@
 
 /*
  * Fill buffers not flushed on CACHE instructions
- * 
+ *
  * Hit_Invalidate_I cacheops invalidate an icache line but the refill
  * for that line can get stale data from the fill buffer instead of
  * accessing memory if the previous icache miss was also to that line.
@@ -177,6 +177,17 @@
 #endif
 
 /*
+ * The RM9000 has a bug (though PMC-Sierra opposes it being called that)
+ * where invalid instructions in the same I-cache line worth of instructions
+ * being fetched may case spurious exceptions.
+ */
+#if defined(CONFIG_MOMENCO_JAGUAR_ATX) || defined(CONFIG_MOMENCO_OCELOT_3) || \
+    defined(CONFIG_PMC_YOSEMITE)
+#define ICACHE_REFILLS_WORKAROUND_WAR	1
+#endif
+
+
+/*
  * ON the R10000 upto version 2.6 (not sure about 2.7) there is a bug that
  * may cause ll / sc and lld / scd sequences to execute non-atomically.
  */
@@ -187,6 +198,9 @@
 /*
  * Workarounds default to off
  */
+#ifndef ICACHE_REFILLS_WORKAROUND_WAR
+#define ICACHE_REFILLS_WORKAROUND_WAR	0
+#endif
 #ifndef R4600_V1_INDEX_ICACHEOP_WAR
 #define R4600_V1_INDEX_ICACHEOP_WAR	0
 #endif

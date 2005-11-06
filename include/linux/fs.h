@@ -9,6 +9,7 @@
 #include <linux/config.h>
 #include <linux/limits.h>
 #include <linux/ioctl.h>
+#include <linux/rcuref.h>
 
 /*
  * It's silly to have NR_OPEN bigger than NR_FILE, but you can change
@@ -69,6 +70,7 @@ extern int dir_notify_enable;
 #define READ 0
 #define WRITE 1
 #define READA 2		/* read-ahead  - don't block if no resources */
+#define SWRITE 3	/* for ll_rw_block() - wait for buffer lock */
 #define SPECIAL 4	/* For non-blockdevice requests in request queue */
 #define READ_SYNC	(READ | (1 << BIO_RW_SYNC))
 #define WRITE_SYNC	(WRITE | (1 << BIO_RW_SYNC))
@@ -281,17 +283,7 @@ struct iattr {
 	struct timespec	ia_atime;
 	struct timespec	ia_mtime;
 	struct timespec	ia_ctime;
-	unsigned int	ia_attr_flags;
 };
-
-/*
- * This is the inode attributes flag definitions
- */
-#define ATTR_FLAG_SYNCRONOUS	1 	/* Syncronous write */
-#define ATTR_FLAG_NOATIME	2 	/* Don't update atime */
-#define ATTR_FLAG_APPEND	4 	/* Append-only file */
-#define ATTR_FLAG_IMMUTABLE	8 	/* Immutable file */
-#define ATTR_FLAG_NODIRATIME	16 	/* Don't update atime for directory */
 
 /*
  * Includes for diskquotas.
@@ -328,7 +320,7 @@ struct address_space_operations {
 	/* Unfortunately this kludge is needed for FIBMAP. Don't use it */
 	sector_t (*bmap)(struct address_space *, sector_t);
 	int (*invalidatepage) (struct page *, unsigned long);
-	int (*releasepage) (struct page *, int);
+	int (*releasepage) (struct page *, gfp_t);
 	ssize_t (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs);
 	struct page* (*get_xip_page)(struct address_space *, sector_t,
@@ -582,7 +574,14 @@ struct file_ra_state {
 #define RA_FLAG_INCACHE 0x02	/* file is already in cache */
 
 struct file {
-	struct list_head	f_list;
+	/*
+	 * fu_list becomes invalid after file_free is called and queued via
+	 * fu_rcuhead for RCU freeing
+	 */
+	union {
+		struct list_head	fu_list;
+		struct rcu_head 	fu_rcuhead;
+	} f_u;
 	struct dentry		*f_dentry;
 	struct vfsmount         *f_vfsmnt;
 	struct file_operations	*f_op;
@@ -594,7 +593,6 @@ struct file {
 	unsigned int		f_uid, f_gid;
 	struct file_ra_state	f_ra;
 
-	size_t			f_maxcount;
 	unsigned long		f_version;
 	void			*f_security;
 
@@ -612,7 +610,7 @@ extern spinlock_t files_lock;
 #define file_list_lock() spin_lock(&files_lock);
 #define file_list_unlock() spin_unlock(&files_lock);
 
-#define get_file(x)	atomic_inc(&(x)->f_count)
+#define get_file(x)	rcuref_inc(&(x)->f_count)
 #define file_count(x)	atomic_read(&(x)->f_count)
 
 #define	MAX_NON_LFS	((1UL<<31) - 1)
@@ -993,8 +991,8 @@ struct inode_operations {
 	int (*rename) (struct inode *, struct dentry *,
 			struct inode *, struct dentry *);
 	int (*readlink) (struct dentry *, char __user *,int);
-	int (*follow_link) (struct dentry *, struct nameidata *);
-	void (*put_link) (struct dentry *, struct nameidata *);
+	void * (*follow_link) (struct dentry *, struct nameidata *);
+	void (*put_link) (struct dentry *, struct nameidata *, void *);
 	void (*truncate) (struct inode *);
 	int (*permission) (struct inode *, int, struct nameidata *);
 	int (*setattr) (struct dentry *, struct iattr *);
@@ -1291,6 +1289,7 @@ static inline int break_lease(struct inode *inode, unsigned int mode)
 /* fs/open.c */
 
 extern int do_truncate(struct dentry *, loff_t start);
+extern long do_sys_open(const char __user *filename, int flags, int mode);
 extern struct file *filp_open(const char *, int, int);
 extern struct file * dentry_open(struct dentry *, struct vfsmount *, int);
 extern int filp_close(struct file *, fl_owner_t id);
@@ -1516,8 +1515,6 @@ extern void do_generic_mapping_read(struct address_space *mapping,
 				    loff_t *, read_descriptor_t *, read_actor_t);
 extern void
 file_ra_state_init(struct file_ra_state *ra, struct address_space *mapping);
-extern ssize_t generic_file_direct_IO(int rw, struct kiocb *iocb,
-	const struct iovec *iov, loff_t offset, unsigned long nr_segs);
 extern ssize_t generic_file_readv(struct file *filp, const struct iovec *iov, 
 	unsigned long nr_segs, loff_t *ppos);
 ssize_t generic_file_writev(struct file *filp, const struct iovec *iov, 
@@ -1602,8 +1599,8 @@ extern struct file_operations generic_ro_fops;
 extern int vfs_readlink(struct dentry *, char __user *, int, const char *);
 extern int vfs_follow_link(struct nameidata *, const char *);
 extern int page_readlink(struct dentry *, char __user *, int);
-extern int page_follow_link_light(struct dentry *, struct nameidata *);
-extern void page_put_link(struct dentry *, struct nameidata *);
+extern void *page_follow_link_light(struct dentry *, struct nameidata *);
+extern void page_put_link(struct dentry *, struct nameidata *, void *);
 extern int page_symlink(struct inode *inode, const char *symname, int len);
 extern struct inode_operations page_symlink_inode_operations;
 extern int generic_readlink(struct dentry *, char __user *, int);

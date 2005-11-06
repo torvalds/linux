@@ -29,7 +29,7 @@
 
 #include <linux/module.h>	/* Modules 			*/
 #include <linux/init.h>		/* Initdata			*/
-#include <linux/ioport.h>	/* check_region, request_region	*/
+#include <linux/ioport.h>	/* request_region		*/
 #include <linux/delay.h>	/* udelay			*/
 #include <asm/io.h>		/* outb, outb_p			*/
 #include <asm/uaccess.h>	/* copy to/from user		*/
@@ -543,7 +543,7 @@ static int cadet_probe(void)
 
 	for(i=0;i<8;i++) {
 	        io=iovals[i];
-	        if(request_region(io,2, "cadet-probe")>=0) {
+		if (request_region(io, 2, "cadet-probe")) {
 		        cadet_setfreq(1410);
 			if(cadet_getfreq()==1410) {
 				release_region(io, 2);

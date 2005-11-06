@@ -37,10 +37,6 @@ static u8 bigsur_iomap_lo_shift[BIGSUR_IOMAP_LO_NMAP];
 static u32 bigsur_iomap_hi[BIGSUR_IOMAP_HI_NMAP];
 static u8 bigsur_iomap_hi_shift[BIGSUR_IOMAP_HI_NMAP];
 
-#ifndef MAX
-#define MAX(a,b)    ((a)>(b)?(a):(b))
-#endif
-
 void bigsur_port_map(u32 baseport, u32 nports, u32 addr, u8 shift)
 {
 	u32 port, endport = baseport + nports;
@@ -57,7 +53,7 @@ void bigsur_port_map(u32 baseport, u32 nports, u32 addr, u8 shift)
 	    	addr += (1<<(BIGSUR_IOMAP_LO_SHIFT));
 	}
 
-	for (port = MAX(baseport, BIGSUR_IOMAP_LO_THRESH) ;
+	for (port = max_t(u32, baseport, BIGSUR_IOMAP_LO_THRESH);
 	     port < endport && port < BIGSUR_IOMAP_HI_THRESH ;
 	     port += (1<<BIGSUR_IOMAP_HI_SHIFT)) {
 	    	pr_debug("    maphi[0x%x] = 0x%08x\n", port, addr);
@@ -80,7 +76,7 @@ void bigsur_port_unmap(u32 baseport, u32 nports)
 		bigsur_iomap_lo[port>>BIGSUR_IOMAP_LO_SHIFT] = 0;
 	}
 
-	for (port = MAX(baseport, BIGSUR_IOMAP_LO_THRESH) ;
+	for (port = max_t(u32, baseport, BIGSUR_IOMAP_LO_THRESH);
 	     port < endport && port < BIGSUR_IOMAP_HI_THRESH ;
 	     port += (1<<BIGSUR_IOMAP_HI_SHIFT)) {
 		bigsur_iomap_hi[port>>BIGSUR_IOMAP_HI_SHIFT] = 0;

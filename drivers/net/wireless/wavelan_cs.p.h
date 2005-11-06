@@ -472,11 +472,9 @@
 #define MULTICAST_AVOID		/* Avoid extra multicast (I'm sceptical) */
 #undef SET_MAC_ADDRESS		/* Experimental */
 
-#ifdef WIRELESS_EXT	/* If wireless extension exist in the kernel */
 /* Warning : these stuff will slow down the driver... */
 #define WIRELESS_SPY		/* Enable spying addresses */
 #undef HISTOGRAM		/* Enable histogram of sig level... */
-#endif
 
 /****************************** DEBUG ******************************/
 
@@ -624,12 +622,10 @@ struct net_local
   int   	rfp;		/* Last DMA machine receive pointer */
   int		overrunning;	/* Receiver overrun flag */
 
-#ifdef WIRELESS_EXT
   iw_stats	wstats;		/* Wireless specific stats */
 
   struct iw_spy_data	spy_data;
   struct iw_public_data	wireless_data;
-#endif
 
 #ifdef HISTOGRAM
   int		his_number;		/* Number of intervals */
@@ -646,23 +642,6 @@ struct net_local
 #endif	/* WAVELAN_ROAMING */
   void __iomem *mem;
 };
-
-/**************************** PROTOTYPES ****************************/
-
-#ifdef WAVELAN_ROAMING
-/* ---------------------- ROAMING SUBROUTINES -----------------------*/
-
-wavepoint_history *wl_roam_check(unsigned short nwid, net_local *lp);
-wavepoint_history *wl_new_wavepoint(unsigned short nwid, unsigned char seq, net_local *lp);
-void wl_del_wavepoint(wavepoint_history *wavepoint, net_local *lp);
-void wl_cell_expiry(unsigned long data);
-wavepoint_history *wl_best_sigqual(int fast_search, net_local *lp);
-void wl_update_history(wavepoint_history *wavepoint, unsigned char sigqual, unsigned char seq);
-void wv_roam_handover(wavepoint_history *wavepoint, net_local *lp);
-void wv_nwid_filter(unsigned char mode, net_local *lp);
-void wv_roam_init(struct net_device *dev);
-void wv_roam_cleanup(struct net_device *dev);
-#endif	/* WAVELAN_ROAMING */
 
 /* ----------------- MODEM MANAGEMENT SUBROUTINES ----------------- */
 static inline u_char		/* data */

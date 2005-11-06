@@ -78,6 +78,7 @@
 
 #define CYCLOMX_X25_DEBUG 1
 
+#include <linux/ctype.h>	/* isdigit() */
 #include <linux/errno.h>	/* return codes */
 #include <linux/if_arp.h>       /* ARPHRD_HWX25 */
 #include <linux/kernel.h>	/* printk(), and other useful stuff */
@@ -418,7 +419,7 @@ static int cycx_wan_new_if(struct wan_device *wandev, struct net_device *dev,
 
 		/* Set channel timeouts (default if not specified) */
 		chan->idle_tmout = conf->idle_timeout ? conf->idle_timeout : 90;
-	} else if (is_digit(conf->addr[0])) {	/* PVC */
+	} else if (isdigit(conf->addr[0])) {	/* PVC */
 		s16 lcn = dec_to_uint(conf->addr, 0);
 
 		if (lcn >= card->u.x.lo_pvc && lcn <= card->u.x.hi_pvc)
@@ -1531,7 +1532,7 @@ static unsigned dec_to_uint(u8 *str, int len)
 	if (!len)
 		len = strlen(str);
 
-	for (; len && is_digit(*str); ++str, --len)
+	for (; len && isdigit(*str); ++str, --len)
 		val = (val * 10) + (*str - (unsigned) '0');
 
 	return val;

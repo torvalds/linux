@@ -27,7 +27,7 @@
 #ifndef _Z90COMMON_H_
 #define _Z90COMMON_H_
 
-#define VERSION_Z90COMMON_H "$Revision: 1.16 $"
+#define VERSION_Z90COMMON_H "$Revision: 1.17 $"
 
 
 #define RESPBUFFSIZE 256
@@ -163,6 +163,5 @@ struct CPRBX {
 
 #define UMIN(a,b) ((a) < (b) ? (a) : (b))
 #define IS_EVEN(x) ((x) == (2 * ((x) / 2)))
-
 
 #endif

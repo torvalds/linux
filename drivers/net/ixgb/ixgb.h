@@ -119,7 +119,7 @@ struct ixgb_adapter;
  * so a DMA handle can be stored along with the buffer */
 struct ixgb_buffer {
 	struct sk_buff *skb;
-	uint64_t dma;
+	dma_addr_t dma;
 	unsigned long time_stamp;
 	uint16_t length;
 	uint16_t next_to_watch;

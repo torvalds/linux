@@ -39,7 +39,6 @@ int main(void)
 	ENTRY(kernelstack); 
 	ENTRY(oldrsp); 
 	ENTRY(pcurrent); 
-	ENTRY(irqrsp);
 	ENTRY(irqcount);
 	ENTRY(cpunumber);
 	ENTRY(irqstackptr);

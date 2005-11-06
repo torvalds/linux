@@ -33,6 +33,10 @@ endif
 
 obj-$(CONFIG_FB_STI)              += sticore.o font.o
 
+ifeq ($(CONFIG_USB_SISUSBVGA_CON),y)
+obj-$(CONFIG_USB_SISUSBVGA)           += font.o
+endif
+
 # Targets that kbuild needs to know about
 targets := promcon_tbl.c
 

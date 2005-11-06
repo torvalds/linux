@@ -9,19 +9,11 @@
  *
  */
 
-#include <linux/types.h>
-#include <linux/kdev_t.h>
-#include <linux/time.h>
-#include <linux/devfs_fs_kernel.h>
+#include <linux/init.h> 
 #include <linux/module.h>
 #include <linux/mm.h> 
-#include <linux/slab.h>
-#include <linux/init.h> 
-#include <linux/smp_lock.h>
 #include <linux/miscdevice.h>
 #include <asm/uaccess.h>
-#include <asm/irq.h>
-#include <asm/pgtable.h>
 #include "mem_user.h"
 #include "user_util.h"
  
@@ -31,35 +23,22 @@ static unsigned long p_buf = 0;
 static char *v_buf = NULL;
 
 static ssize_t
-mmapper_read(struct file *file, char *buf, size_t count, loff_t *ppos)
+mmapper_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 {
-	if(*ppos > mmapper_size)
-		return -EINVAL;
-
-	if(count + *ppos > mmapper_size)
-		count = count + *ppos - mmapper_size;
-
-	if(count < 0)
-		return -EINVAL;
- 
-	copy_to_user(buf,&v_buf[*ppos],count);
-	
-	return count;
+	return simple_read_from_buffer(buf, count, ppos, v_buf, mmapper_size);
 }
 
 static ssize_t
-mmapper_write(struct file *file, const char *buf, size_t count, loff_t *ppos)
+mmapper_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
-	if(*ppos > mmapper_size)
+	if (*ppos > mmapper_size)
 		return -EINVAL;
 
-	if(count + *ppos > mmapper_size)
-		count = count + *ppos - mmapper_size;
+	if (count > mmapper_size - *ppos)
+		count = mmapper_size - *ppos;
 
-	if(count < 0)
-		return -EINVAL;
-
-	copy_from_user(&v_buf[*ppos],buf,count);
+	if (copy_from_user(&v_buf[*ppos], buf, count))
+		return -EFAULT;
 	
 	return count;
 }
@@ -77,7 +56,6 @@ mmapper_mmap(struct file *file, struct vm_area_struct * vma)
 	int ret = -EINVAL;
 	int size;
 
-	lock_kernel();
 	if (vma->vm_pgoff != 0)
 		goto out;
 	
@@ -92,7 +70,6 @@ mmapper_mmap(struct file *file, struct vm_area_struct * vma)
 		goto out;
 	ret = 0;
 out:
-	unlock_kernel();
 	return ret;
 }
 

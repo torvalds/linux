@@ -33,7 +33,7 @@
 /* hardware definition */
 static snd_pcm_hardware_t snd_vortex_playback_hw_adb = {
 	.info =
-	    (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_RESUME |
+	    (SNDRV_PCM_INFO_MMAP | /* SNDRV_PCM_INFO_RESUME | */
 	     SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_INTERLEAVED |
 	     SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =
@@ -58,7 +58,7 @@ static snd_pcm_hardware_t snd_vortex_playback_hw_adb = {
 #ifndef CHIP_AU8820
 static snd_pcm_hardware_t snd_vortex_playback_hw_a3d = {
 	.info =
-	    (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_RESUME |
+	    (SNDRV_PCM_INFO_MMAP | /* SNDRV_PCM_INFO_RESUME | */
 	     SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_INTERLEAVED |
 	     SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =
@@ -78,7 +78,7 @@ static snd_pcm_hardware_t snd_vortex_playback_hw_a3d = {
 #endif
 static snd_pcm_hardware_t snd_vortex_playback_hw_spdif = {
 	.info =
-	    (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_RESUME |
+	    (SNDRV_PCM_INFO_MMAP | /* SNDRV_PCM_INFO_RESUME | */
 	     SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_INTERLEAVED |
 	     SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =
@@ -220,8 +220,10 @@ snd_vortex_pcm_hw_params(snd_pcm_substream_t * substream,
 		    vortex_adb_allocroute(chip, -1,
 					  params_channels(hw_params),
 					  substream->stream, type);
-		if (dma < 0)
+		if (dma < 0) {
+			spin_unlock_irq(&chip->lock);
 			return dma;
+		}
 		stream = substream->runtime->private_data = &chip->dma_adb[dma];
 		stream->substream = substream;
 		/* Setup Buffers. */

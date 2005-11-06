@@ -107,54 +107,47 @@ static int __init snd_sb8_probe(int dev)
 				    dma8[dev],
 				    -1,
 				    SB_HW_AUTO,
-				    &chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+				    &chip)) < 0)
+		goto _err;
+
 	if (chip->hardware >= SB_HW_16) {
-		snd_card_free(card);
 		if (chip->hardware == SB_HW_ALS100)
-			snd_printdd("ALS100 chip detected at 0x%lx, try snd-als100 module\n",
+			snd_printk(KERN_WARNING "ALS100 chip detected at 0x%lx, try snd-als100 module\n",
 				    port[dev]);
 		else
-			snd_printdd("SB 16 chip detected at 0x%lx, try snd-sb16 module\n",
-				    port[dev]);
-		return -ENODEV;
+			snd_printk(KERN_WARNING "SB 16 chip detected at 0x%lx, try snd-sb16 module\n",
+				   port[dev]);
+		err = -ENODEV;
+		goto _err;
 	}
 
-	if ((err = snd_sb8dsp_pcm(chip, 0, NULL)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
-	if ((err = snd_sbmixer_new(chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_sb8dsp_pcm(chip, 0, NULL)) < 0)
+		goto _err;
+
+	if ((err = snd_sbmixer_new(chip)) < 0)
+		goto _err;
+
 	if (chip->hardware == SB_HW_10 || chip->hardware == SB_HW_20) {
 		if ((err = snd_opl3_create(card, chip->port + 8, 0,
 					   OPL3_HW_AUTO, 1,
 					   &opl3)) < 0) {
-			snd_printk(KERN_ERR "sb8: no OPL device at 0x%lx\n", chip->port + 8);
+			snd_printk(KERN_WARNING "sb8: no OPL device at 0x%lx\n", chip->port + 8);
 		}
 	} else {
 		if ((err = snd_opl3_create(card, chip->port, chip->port + 2,
 					   OPL3_HW_AUTO, 1,
 					   &opl3)) < 0) {
-			snd_printk(KERN_ERR "sb8: no OPL device at 0x%lx-0x%lx\n",
+			snd_printk(KERN_WARNING "sb8: no OPL device at 0x%lx-0x%lx\n",
 				   chip->port, chip->port + 2);
 		}
 	}
 	if (err >= 0) {
-		if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
-			snd_card_free(card);
-			return err;
-		}
+		if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0)
+			goto _err;
 	}
 
-	if ((err = snd_sb8dsp_midi(chip, 0, NULL)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_sb8dsp_midi(chip, 0, NULL)) < 0)
+		goto _err;
 
 	strcpy(card->driver, chip->hardware == SB_HW_PRO ? "SB Pro" : "SB8");
 	strcpy(card->shortname, chip->name);
@@ -162,12 +155,19 @@ static int __init snd_sb8_probe(int dev)
 		chip->name,
 		chip->port,
 		irq[dev], dma8[dev]);
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto _err;
+
+	if ((err = snd_card_register(card)) < 0)
+		goto _err;
+
 	snd_sb8_cards[dev] = card;
 	return 0;
+
+ _err:
+	snd_card_free(card);
+	return err;
 }
 
 static int __init snd_card_sb8_legacy_auto_probe(unsigned long xport)

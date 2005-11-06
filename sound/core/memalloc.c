@@ -106,7 +106,7 @@ struct snd_mem_list {
 
 static void *snd_dma_hack_alloc_coherent(struct device *dev, size_t size,
 					 dma_addr_t *dma_handle,
-					 unsigned int __nocast flags)
+					 gfp_t flags)
 {
 	void *ret;
 	u64 dma_mask, coherent_dma_mask;
@@ -190,7 +190,7 @@ static void unmark_pages(struct page *page, int order)
  *
  * Returns the pointer of the buffer, or NULL if no enoguh memory.
  */
-void *snd_malloc_pages(size_t size, unsigned int gfp_flags)
+void *snd_malloc_pages(size_t size, gfp_t gfp_flags)
 {
 	int pg;
 	void *res;
@@ -235,7 +235,7 @@ static void *snd_malloc_dev_pages(struct device *dev, size_t size, dma_addr_t *d
 {
 	int pg;
 	void *res;
-	unsigned int gfp_flags;
+	gfp_t gfp_flags;
 
 	snd_assert(size > 0, return NULL);
 	snd_assert(dma != NULL, return NULL);
@@ -512,7 +512,7 @@ static void free_all_reserved_pages(void)
  * proc file interface
  */
 #define SND_MEM_PROC_FILE	"driver/snd-page-alloc"
-struct proc_dir_entry *snd_mem_proc;
+static struct proc_dir_entry *snd_mem_proc;
 
 static int snd_mem_proc_read(char *page, char **start, off_t off,
 			     int count, int *eof, void *data)
@@ -590,7 +590,7 @@ static int snd_mem_proc_write(struct file *file, const char __user *buffer,
 
 		alloced = 0;
 		pci = NULL;
-		while ((pci = pci_find_device(vendor, device, pci)) != NULL) {
+		while ((pci = pci_get_device(vendor, device, pci)) != NULL) {
 			if (mask > 0 && mask < 0xffffffff) {
 				if (pci_set_dma_mask(pci, mask) < 0 ||
 				    pci_set_consistent_dma_mask(pci, mask) < 0) {
@@ -604,6 +604,7 @@ static int snd_mem_proc_write(struct file *file, const char __user *buffer,
 				if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
 							size, &dmab) < 0) {
 					printk(KERN_ERR "snd-page-alloc: cannot allocate buffer pages (size = %d)\n", size);
+					pci_dev_put(pci);
 					return (int)count;
 				}
 				snd_dma_reserve_buf(&dmab, snd_dma_pci_buf_id(pci));
@@ -655,8 +656,7 @@ static int __init snd_mem_init(void)
 
 static void __exit snd_mem_exit(void)
 {
-	if (snd_mem_proc)
-		remove_proc_entry(SND_MEM_PROC_FILE, NULL);
+	remove_proc_entry(SND_MEM_PROC_FILE, NULL);
 	free_all_reserved_pages();
 	if (snd_allocated_pages > 0)
 		printk(KERN_ERR "snd-malloc: Memory leak?  pages not freed = %li\n", snd_allocated_pages);

@@ -17,10 +17,6 @@ ifeq ($(CONFIG_FRAME_POINTER),y)
 CFLAGS		+=-fno-omit-frame-pointer -mno-sched-prolog
 endif
 
-ifeq ($(CONFIG_DEBUG_INFO),y)
-CFLAGS		+=-g
-endif
-
 CFLAGS_BOOT	:=-mapcs-26 -mcpu=arm3 -msoft-float -Uarm
 CFLAGS		+=-mapcs-26 -mcpu=arm3 -msoft-float -Uarm
 AFLAGS		+=-mapcs-26 -mcpu=arm3 -msoft-float
@@ -52,10 +48,6 @@ libs-y				+= arch/arm26/lib/
 all: zImage
 
 boot := arch/arm26/boot
-
-prepare: include/asm-$(ARCH)/asm_offsets.h
-CLEAN_FILES += include/asm-$(ARCH)/asm_offsets.h
-
 
 .PHONY: maketools FORCE
 maketools: FORCE
@@ -97,12 +89,6 @@ zi:;	$(Q)$(MAKE) $(build)=$(boot) zinstall
 	  echo "$$CFG does not exist"; \
 	fi; \
 	)
-
-arch/$(ARCH)/kernel/asm-offsets.s: include/asm include/linux/version.h \
-				   include/config/MARKER
-
-include/asm-$(ARCH)/asm_offsets.h: arch/$(ARCH)/kernel/asm-offsets.s
-	$(call filechk,gen-asm-offsets)
 
 define archhelp
   echo  '* zImage        - Compressed kernel image (arch/$(ARCH)/boot/zImage)'

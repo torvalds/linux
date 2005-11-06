@@ -3,7 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2001-2004 Silicon Graphics, Inc. All rights reserved.
+ * Copyright (C) 2001-2005 Silicon Graphics, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
@@ -215,8 +215,8 @@ void sn_dma_flush(uint64_t addr)
 	int is_tio;
 	int wid_num;
 	int i, j;
-	int bwin;
 	uint64_t flags;
+	uint64_t itte;
 	struct hubdev_info *hubinfo;
 	volatile struct sn_flush_device_list *p;
 	struct sn_flush_nasid_entry *flush_nasid_list;
@@ -233,31 +233,36 @@ void sn_dma_flush(uint64_t addr)
 	if (!hubinfo) {
 		BUG();
 	}
-	is_tio = (nasid & 1);
-	if (is_tio) {
-		wid_num = TIO_SWIN_WIDGETNUM(addr);
-		bwin = TIO_BWIN_WINDOWNUM(addr);
-	} else {
-		wid_num = SWIN_WIDGETNUM(addr);
-		bwin = BWIN_WINDOWNUM(addr);
-	}
 
 	flush_nasid_list = &hubinfo->hdi_flush_nasid_list;
 	if (flush_nasid_list->widget_p == NULL)
 		return;
-	if (bwin > 0) {
-		uint64_t itte = flush_nasid_list->iio_itte[bwin];
 
-		if (is_tio) {
-			wid_num = (itte >> TIO_ITTE_WIDGET_SHIFT) &
-			    TIO_ITTE_WIDGET_MASK;
-		} else {
-			wid_num = (itte >> IIO_ITTE_WIDGET_SHIFT) &
-			    IIO_ITTE_WIDGET_MASK;
-		}
+	is_tio = (nasid & 1);
+	if (is_tio) {
+		int itte_index;
+
+		if (TIO_HWIN(addr))
+			itte_index = 0;
+		else if (TIO_BWIN_WINDOWNUM(addr))
+			itte_index = TIO_BWIN_WINDOWNUM(addr);
+		else
+			itte_index = -1;
+
+		if (itte_index >= 0) {
+			itte = flush_nasid_list->iio_itte[itte_index];
+			if (! TIO_ITTE_VALID(itte))
+				return;
+			wid_num = TIO_ITTE_WIDGET(itte);
+		} else
+			wid_num = TIO_SWIN_WIDGETNUM(addr);
+	} else {
+		if (BWIN_WINDOWNUM(addr)) {
+			itte = flush_nasid_list->iio_itte[BWIN_WINDOWNUM(addr)];
+			wid_num = IIO_ITTE_WIDGET(itte);
+		} else
+			wid_num = SWIN_WIDGETNUM(addr);
 	}
-	if (flush_nasid_list->widget_p == NULL)
-		return;
 	if (flush_nasid_list->widget_p[wid_num] == NULL)
 		return;
 	p = &flush_nasid_list->widget_p[wid_num][0];
@@ -283,10 +288,16 @@ void sn_dma_flush(uint64_t addr)
 	/*
 	 * For TIOCP use the Device(x) Write Request Buffer Flush Bridge
 	 * register since it ensures the data has entered the coherence
-	 * domain, unlike PIC
+	 * domain, unlike PIC.
 	 */
 	if (is_tio) {
-		uint32_t tio_id = REMOTE_HUB_L(nasid, TIO_NODE_ID);
+		/*
+	 	 * Note:  devices behind TIOCE should never be matched in the
+		 * above code, and so the following code is PIC/CP centric.
+		 * If CE ever needs the sn_dma_flush mechanism, we will have
+		 * to account for that here and in tioce_bus_fixup().
+	 	 */
+		uint32_t tio_id = HUB_L(TIO_IOSPACE_ADDR(nasid, TIO_NODE_ID));
 		uint32_t revnum = XWIDGET_PART_REV_NUM(tio_id);
 
 		/* TIOCP BRINGUP WAR (PV907516): Don't write buffer flush reg */
@@ -306,7 +317,8 @@ void sn_dma_flush(uint64_t addr)
 		*(volatile uint32_t *)(p->sfdl_force_int_addr) = 1;
 
 		/* wait for the interrupt to come back. */
-		while (*(p->sfdl_flush_addr) != 0x10f) ;
+		while (*(p->sfdl_flush_addr) != 0x10f)
+			cpu_relax();
 
 		/* okay, everything is synched up. */
 		spin_unlock_irqrestore((spinlock_t *)&p->sfdl_flush_lock, flags);

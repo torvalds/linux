@@ -1345,7 +1345,7 @@ static int __devinit snd_azf3328_create(snd_card_t * card,
 	if ((err = pci_enable_device(pci)) < 0)
 		return err;
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL) {
 		pci_disable_device(pci);
 		return -ENOMEM;
@@ -1511,6 +1511,7 @@ static void __devexit snd_azf3328_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "AZF3328",
+	.owner = THIS_MODULE,
 	.id_table = snd_azf3328_ids,
 	.probe = snd_azf3328_probe,
 	.remove = __devexit_p(snd_azf3328_remove),

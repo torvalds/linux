@@ -42,11 +42,11 @@ struct irqchip {
 	/*
 	 * Set the type of the IRQ.
 	 */
-	int (*type)(unsigned int, unsigned int);
+	int (*set_type)(unsigned int, unsigned int);
 	/*
 	 * Set wakeup-enable on the selected IRQ
 	 */
-	int (*wake)(unsigned int, unsigned int);
+	int (*set_wake)(unsigned int, unsigned int);
 
 #ifdef CONFIG_SMP
 	/*
@@ -90,6 +90,14 @@ struct irqdesc {
 };
 
 extern struct irqdesc irq_desc[];
+
+/*
+ * Helpful inline function for calling irq descriptor handlers.
+ */
+static inline void desc_handle_irq(unsigned int irq, struct irqdesc *desc, struct pt_regs *regs)
+{
+	desc->handle(irq, desc, regs);
+}
 
 /*
  * This is internal.  Do not use it.

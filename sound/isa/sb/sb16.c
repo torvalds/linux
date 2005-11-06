@@ -351,6 +351,12 @@ static void snd_sb16_free(snd_card_t *card)
 	}
 }
 
+#ifdef CONFIG_PNP
+#define is_isapnp_selected(dev)		isapnp[dev]
+#else
+#define is_isapnp_selected(dev)		0
+#endif
+
 static int __init snd_sb16_probe(int dev,
 				 struct pnp_card_link *pcard,
 				 const struct pnp_card_device_id *pid)
@@ -378,10 +384,8 @@ static int __init snd_sb16_probe(int dev,
 	card->private_free = snd_sb16_free;
 #ifdef CONFIG_PNP
 	if (isapnp[dev]) {
-		if ((err = snd_card_sb16_pnp(dev, acard, pcard, pid))) {
-			snd_card_free(card);
-			return err;
-		}
+		if ((err = snd_card_sb16_pnp(dev, acard, pcard, pid)))
+			goto _err;
 		snd_card_set_dev(card, &pcard->card->dev);
 	}
 #endif
@@ -389,41 +393,37 @@ static int __init snd_sb16_probe(int dev,
 	xirq = irq[dev];
 	xdma8 = dma8[dev];
 	xdma16 = dma16[dev];
-#ifdef CONFIG_PNP
-	if (!isapnp[dev]) {
-#endif
-	if (xirq == SNDRV_AUTO_IRQ) {
-		if ((xirq = snd_legacy_find_free_irq(possible_irqs)) < 0) {
-			snd_card_free(card);
-			snd_printk(KERN_ERR PFX "unable to find a free IRQ\n");
-			return -EBUSY;
+	if (! is_isapnp_selected(dev)) {
+		if (xirq == SNDRV_AUTO_IRQ) {
+			if ((xirq = snd_legacy_find_free_irq(possible_irqs)) < 0) {
+				snd_printk(KERN_ERR PFX "unable to find a free IRQ\n");
+				err = -EBUSY;
+				goto _err;
+			}
 		}
-	}
-	if (xdma8 == SNDRV_AUTO_DMA) {
-		if ((xdma8 = snd_legacy_find_free_dma(possible_dmas8)) < 0) {
-			snd_card_free(card);
-			snd_printk(KERN_ERR PFX "unable to find a free 8-bit DMA\n");
-			return -EBUSY;
+		if (xdma8 == SNDRV_AUTO_DMA) {
+			if ((xdma8 = snd_legacy_find_free_dma(possible_dmas8)) < 0) {
+				snd_printk(KERN_ERR PFX "unable to find a free 8-bit DMA\n");
+				err = -EBUSY;
+				goto _err;
+			}
 		}
-	}
-	if (xdma16 == SNDRV_AUTO_DMA) {
-		if ((xdma16 = snd_legacy_find_free_dma(possible_dmas16)) < 0) {
-			snd_card_free(card);
-			snd_printk(KERN_ERR PFX "unable to find a free 16-bit DMA\n");
-			return -EBUSY;
+		if (xdma16 == SNDRV_AUTO_DMA) {
+			if ((xdma16 = snd_legacy_find_free_dma(possible_dmas16)) < 0) {
+				snd_printk(KERN_ERR PFX "unable to find a free 16-bit DMA\n");
+				err = -EBUSY;
+				goto _err;
+			}
 		}
-	}
-	/* non-PnP FM port address is hardwired with base port address */
-	fm_port[dev] = port[dev];
-	/* block the 0x388 port to avoid PnP conflicts */
-	acard->fm_res = request_region(0x388, 4, "SoundBlaster FM");
+		/* non-PnP FM port address is hardwired with base port address */
+		fm_port[dev] = port[dev];
+		/* block the 0x388 port to avoid PnP conflicts */
+		acard->fm_res = request_region(0x388, 4, "SoundBlaster FM");
 #ifdef SNDRV_SBAWE_EMU8000
-	/* non-PnP AWE port address is hardwired with base port address */
-	awe_port[dev] = port[dev] + 0x400;
+		/* non-PnP AWE port address is hardwired with base port address */
+		awe_port[dev] = port[dev] + 0x400;
 #endif
-#ifdef CONFIG_PNP
 	}
-#endif
 
 	if ((err = snd_sbdsp_create(card,
 				    port[dev],
@@ -432,28 +432,20 @@ static int __init snd_sb16_probe(int dev,
 				    xdma8,
 				    xdma16,
 				    SB_HW_AUTO,
-				    &chip)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+				    &chip)) < 0)
+		goto _err;
+
 	if (chip->hardware != SB_HW_16) {
-		snd_card_free(card);
-		snd_printdd("SB 16 chip was not detected at 0x%lx\n", port[dev]);
-		return -ENODEV;
+		snd_printk(KERN_ERR PFX "SB 16 chip was not detected at 0x%lx\n", port[dev]);
+		err = -ENODEV;
+		goto _err;
 	}
 	chip->mpu_port = mpu_port[dev];
-#ifdef CONFIG_PNP
-	if (!isapnp[dev] && (err = snd_sb16dsp_configure(chip)) < 0) {
-#else
-	if ((err = snd_sb16dsp_configure(chip)) < 0) {
-#endif
-		snd_card_free(card);
-		return -ENXIO;
-	}
-	if ((err = snd_sb16dsp_pcm(chip, 0, NULL)) < 0) {
-		snd_card_free(card);
-		return -ENXIO;
-	}
+	if (! is_isapnp_selected(dev) && (err = snd_sb16dsp_configure(chip)) < 0)
+		goto _err;
+
+	if ((err = snd_sb16dsp_pcm(chip, 0, NULL)) < 0)
+		goto _err;
 
 	strcpy(card->driver,
 #ifdef SNDRV_SBAWE_EMU8000
@@ -474,10 +466,8 @@ static int __init snd_sb16_probe(int dev,
 	if (chip->mpu_port > 0 && chip->mpu_port != SNDRV_AUTO_PORT) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_SB,
 					       chip->mpu_port, 0,
-					       xirq, 0, &chip->rmidi)) < 0) {
-			snd_card_free(card);
-			return -ENXIO;
-		}
+					       xirq, 0, &chip->rmidi)) < 0)
+			goto _err;
 		chip->rmidi_callback = snd_mpu401_uart_interrupt;
 	}
 
@@ -499,17 +489,13 @@ static int __init snd_sb16_probe(int dev,
 #else
 			int seqdev = 1;
 #endif
-			if ((err = snd_opl3_hwdep_new(opl3, 0, seqdev, &synth)) < 0) {
-				snd_card_free(card);
-				return -ENXIO;
-			}
+			if ((err = snd_opl3_hwdep_new(opl3, 0, seqdev, &synth)) < 0)
+				goto _err;
 		}
 	}
 
-	if ((err = snd_sbmixer_new(chip)) < 0) {
-		snd_card_free(card);
-		return -ENXIO;
-	}
+	if ((err = snd_sbmixer_new(chip)) < 0)
+		goto _err;
 
 #ifdef CONFIG_SND_SB16_CSP
 	/* CSP chip on SB16ASP/AWE32 */
@@ -525,11 +511,11 @@ static int __init snd_sb16_probe(int dev,
 #endif
 #ifdef SNDRV_SBAWE_EMU8000
 	if (awe_port[dev] > 0) {
-		if (snd_emu8000_new(card, 1, awe_port[dev],
-				    seq_ports[dev], NULL) < 0) {
+		if ((err = snd_emu8000_new(card, 1, awe_port[dev],
+					   seq_ports[dev], NULL)) < 0) {
 			snd_printk(KERN_ERR PFX "fatal error - EMU-8000 synthesizer not detected at 0x%lx\n", awe_port[dev]);
-			snd_card_free(card);
-			return -ENXIO;
+
+			goto _err;
 		}
 	}
 #endif
@@ -541,15 +527,21 @@ static int __init snd_sb16_probe(int dev,
 		(mic_agc[dev] ? 0x00 : 0x01));
 	spin_unlock_irqrestore(&chip->mixer_lock, flags);
 
-	if ((err = snd_card_register(card)) < 0) {
-		snd_card_free(card);
-		return err;
-	}
+	if ((err = snd_card_set_generic_dev(card)) < 0)
+		goto _err;
+
+	if ((err = snd_card_register(card)) < 0)
+		goto _err;
+
 	if (pcard)
 		pnp_set_card_drvdata(pcard, card);
 	else
 		snd_sb16_legacy[dev] = card;
 	return 0;
+
+ _err:
+	snd_card_free(card);
+	return err;
 }
 
 static int __init snd_sb16_probe_legacy_port(unsigned long xport)
@@ -560,10 +552,8 @@ static int __init snd_sb16_probe_legacy_port(unsigned long xport)
 	for ( ; dev < SNDRV_CARDS; dev++) {
 		if (!enable[dev] || port[dev] != SNDRV_AUTO_PORT)
 			continue;
-#ifdef CONFIG_PNP
-		if (isapnp[dev])
+		if (is_isapnp_selected(dev))
 			continue;
-#endif
 		port[dev] = xport;
 		res = snd_sb16_probe(dev, NULL, NULL);
 		if (res < 0)
@@ -621,10 +611,8 @@ static int __init alsa_card_sb16_init(void)
 	for (dev = 0; dev < SNDRV_CARDS; dev++) {
 		if (!enable[dev] || port[dev] == SNDRV_AUTO_PORT)
 			continue;
-#ifdef CONFIG_PNP
-		if (isapnp[dev])
+		if (is_isapnp_selected(dev))
 			continue;
-#endif
 		if (!snd_sb16_probe(dev, NULL, NULL)) {
 			cards++;
 			continue;

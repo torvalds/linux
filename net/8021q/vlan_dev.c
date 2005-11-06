@@ -113,14 +113,14 @@ static inline struct sk_buff *vlan_check_reorder_header(struct sk_buff *skb)
  *
  */
 int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
-                  struct packet_type* ptype)
+                  struct packet_type* ptype, struct net_device *orig_dev)
 {
 	unsigned char *rawp = NULL;
 	struct vlan_hdr *vhdr = (struct vlan_hdr *)(skb->data);
 	unsigned short vid;
 	struct net_device_stats *stats;
 	unsigned short vlan_TCI;
-	unsigned short proto;
+	__be16 proto;
 
 	/* vlan_TCI = ntohs(get_unaligned(&vhdr->h_vlan_TCI)); */
 	vlan_TCI = ntohs(vhdr->h_vlan_TCI);

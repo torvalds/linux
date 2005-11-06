@@ -35,7 +35,6 @@
 
 #include <linux/types.h>
 #include <linux/slab.h>
-#include <linux/socket.h>
 #include <linux/module.h>
 #include <linux/sunrpc/msg_prot.h>
 #include <linux/sunrpc/gss_asn1.h>
@@ -251,13 +250,11 @@ gss_import_sec_context(const void *input_token, size_t bufsize,
 
 u32
 gss_get_mic(struct gss_ctx	*context_handle,
-	    u32			qop,
 	    struct xdr_buf	*message,
 	    struct xdr_netobj	*mic_token)
 {
 	 return context_handle->mech_type->gm_ops
 		->gss_get_mic(context_handle,
-			      qop,
 			      message,
 			      mic_token);
 }
@@ -267,15 +264,33 @@ gss_get_mic(struct gss_ctx	*context_handle,
 u32
 gss_verify_mic(struct gss_ctx		*context_handle,
 	       struct xdr_buf		*message,
-	       struct xdr_netobj	*mic_token,
-	       u32			*qstate)
+	       struct xdr_netobj	*mic_token)
 {
 	return context_handle->mech_type->gm_ops
 		->gss_verify_mic(context_handle,
 				 message,
-				 mic_token,
-				 qstate);
+				 mic_token);
 }
+
+u32
+gss_wrap(struct gss_ctx	*ctx_id,
+	 int		offset,
+	 struct xdr_buf	*buf,
+	 struct page	**inpages)
+{
+	return ctx_id->mech_type->gm_ops
+		->gss_wrap(ctx_id, offset, buf, inpages);
+}
+
+u32
+gss_unwrap(struct gss_ctx	*ctx_id,
+	   int			offset,
+	   struct xdr_buf	*buf)
+{
+	return ctx_id->mech_type->gm_ops
+		->gss_unwrap(ctx_id, offset, buf);
+}
+
 
 /* gss_delete_sec_context: free all resources associated with context_handle.
  * Note this differs from the RFC 2744-specified prototype in that we don't

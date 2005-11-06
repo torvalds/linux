@@ -878,7 +878,7 @@ DVD_READ_STRUCT			Read structure
 
 	error returns:
 	  EINVAL	physical.layer_num exceeds number of layers
-	  EIO		Recieved invalid response from drive
+	  EIO		Received invalid response from drive
 
 
 

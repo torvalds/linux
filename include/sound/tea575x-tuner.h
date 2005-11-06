@@ -34,9 +34,7 @@ struct snd_tea575x_ops {
 struct snd_tea575x {
 	snd_card_t *card;
 	struct video_device vd;		/* video device */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 5, 0)
 	struct file_operations fops;
-#endif
 	int dev_nr;			/* requested device number + 1 */
 	int vd_registered;		/* video device is registered */
 	int tea5759;			/* 5759 chip is present */

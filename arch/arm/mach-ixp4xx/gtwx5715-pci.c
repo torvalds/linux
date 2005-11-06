@@ -35,26 +35,20 @@ extern void ixp4xx_pci_preinit(void);
 extern int ixp4xx_setup(int nr, struct pci_sys_data *sys);
 extern struct pci_bus *ixp4xx_scan_bus(int nr, struct pci_sys_data *sys);
 
-        /*
-        * The exact GPIO pins and IRQs are defined in arch-ixp4xx/gtwx5715.h
-        * Slot 0 isn't actually populated with a card connector but
-        * we initialize it anyway in case a future version has the
-        * slot populated or someone with good soldering skills has
-        * some free time.
-        */
 
-
-static void gtwx5715_init_gpio(u8 pin, u32 style)
-{
-	gpio_line_config(pin, style | IXP4XX_GPIO_ACTIVE_LOW);
-
-	if (style & IXP4XX_GPIO_IN) gpio_line_isr_clear(pin);
-}
-
+/*
+ * The exact GPIO pins and IRQs are defined in arch-ixp4xx/gtwx5715.h
+ * Slot 0 isn't actually populated with a card connector but
+ * we initialize it anyway in case a future version has the
+ * slot populated or someone with good soldering skills has
+ * some free time.
+ */
 void __init gtwx5715_pci_preinit(void)
 {
-	gtwx5715_init_gpio(GTWX5715_PCI_SLOT0_INTA_GPIO,	IXP4XX_GPIO_IN);
-	gtwx5715_init_gpio(GTWX5715_PCI_SLOT1_INTA_GPIO,	IXP4XX_GPIO_IN);
+	set_irq_type(GTWX5715_PCI_SLOT0_INTA_IRQ, IRQT_LOW);
+	set_irq_type(GTWX5715_PCI_SLOT0_INTB_IRQ, IRQT_LOW);
+	set_irq_type(GTWX5715_PCI_SLOT1_INTA_IRQ, IRQT_LOW);
+	set_irq_type(GTWX5715_PCI_SLOT1_INTB_IRQ, IRQT_LOW);
 
 	ixp4xx_pci_preinit();
 }

@@ -28,6 +28,7 @@
  */
 
 #include <asm/vio.h>
+#include <asm/prom.h>
 #include <asm/iommu.h>
 #include <asm/hvcall.h>
 #include <linux/dma-mapping.h>

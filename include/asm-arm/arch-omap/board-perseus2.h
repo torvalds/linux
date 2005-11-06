@@ -36,23 +36,14 @@
 #define OMAP_SDRAM_DEVICE		D256M_1X16_4B
 #endif
 
-/*
- * These definitions define an area of FLASH set aside
- * for the use of MTD/JFFS2. This is the area of flash
- * that a JFFS2 filesystem will reside which is mounted
- * at boot with the "root=/dev/mtdblock/0 rw"
- * command line option.
- */
-
-/* Intel flash_0, partitioned as expected by rrload */
-#define OMAP_FLASH_0_BASE	0xD8000000	/* VA */
-#define OMAP_FLASH_0_START	0x00000000	/* PA */
-#define OMAP_FLASH_0_SIZE	SZ_32M
-
 #define MAXIRQNUM		IH_BOARD_BASE
 #define MAXFIQNUM		MAXIRQNUM
 #define MAXSWINUM		MAXIRQNUM
 
 #define NR_IRQS			(MAXIRQNUM + 1)
+
+/* Samsung NAND flash at CS2B or CS3(NAND Boot) */
+#define OMAP_NAND_FLASH_START1	   0x0A000000 /* CS2B */
+#define OMAP_NAND_FLASH_START2	   0x0C000000 /* CS3 */
 
 #endif

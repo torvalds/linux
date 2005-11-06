@@ -1499,22 +1499,43 @@ static int tw_scsiop_inquiry(TW_Device_Extension *tw_dev, int request_id)
 	return 0;
 } /* End tw_scsiop_inquiry() */
 
+static void tw_transfer_internal(TW_Device_Extension *tw_dev, int request_id,
+				 void *data, unsigned int len)
+{
+	struct scsi_cmnd *cmd = tw_dev->srb[request_id];
+	void *buf;
+	unsigned int transfer_len;
+
+	if (cmd->use_sg) {
+		struct scatterlist *sg =
+			(struct scatterlist *)cmd->request_buffer;
+		buf = kmap_atomic(sg->page, KM_IRQ0) + sg->offset;
+		transfer_len = min(sg->length, len);
+	} else {
+		buf = cmd->request_buffer;
+		transfer_len = min(cmd->request_bufflen, len);
+	}
+
+	memcpy(buf, data, transfer_len);
+	
+	if (cmd->use_sg) {
+		struct scatterlist *sg;
+
+		sg = (struct scatterlist *)cmd->request_buffer;
+		kunmap_atomic(buf - sg->offset, KM_IRQ0);
+	}
+}
+
 /* This function is called by the isr to complete an inquiry command */
 static int tw_scsiop_inquiry_complete(TW_Device_Extension *tw_dev, int request_id)
 {
 	unsigned char *is_unit_present;
-	unsigned char *request_buffer;
+	unsigned char request_buffer[36];
 	TW_Param *param;
 
 	dprintk(KERN_NOTICE "3w-xxxx: tw_scsiop_inquiry_complete()\n");
 
-	/* Fill request buffer */
-	if (tw_dev->srb[request_id]->request_buffer == NULL) {
-		printk(KERN_WARNING "3w-xxxx: tw_scsiop_inquiry_complete(): Request buffer NULL.\n");
-		return 1;
-	}
-	request_buffer = tw_dev->srb[request_id]->request_buffer;
-	memset(request_buffer, 0, tw_dev->srb[request_id]->request_bufflen);
+	memset(request_buffer, 0, sizeof(request_buffer));
 	request_buffer[0] = TYPE_DISK; /* Peripheral device type */
 	request_buffer[1] = 0;	       /* Device type modifier */
 	request_buffer[2] = 0;	       /* No ansi/iso compliance */
@@ -1522,6 +1543,8 @@ static int tw_scsiop_inquiry_complete(TW_Device_Extension *tw_dev, int request_i
 	memcpy(&request_buffer[8], "3ware   ", 8);	 /* Vendor ID */
 	sprintf(&request_buffer[16], "Logical Disk %-2d ", tw_dev->srb[request_id]->device->id);
 	memcpy(&request_buffer[32], TW_DRIVER_VERSION, 3);
+	tw_transfer_internal(tw_dev, request_id, request_buffer,
+			     sizeof(request_buffer));
 
 	param = (TW_Param *)tw_dev->alignment_virtual_address[request_id];
 	if (param == NULL) {
@@ -1612,7 +1635,7 @@ static int tw_scsiop_mode_sense_complete(TW_Device_Extension *tw_dev, int reques
 {
 	TW_Param *param;
 	unsigned char *flags;
-	unsigned char *request_buffer;
+	unsigned char request_buffer[8];
 
 	dprintk(KERN_NOTICE "3w-xxxx: tw_scsiop_mode_sense_complete()\n");
 
@@ -1622,8 +1645,7 @@ static int tw_scsiop_mode_sense_complete(TW_Device_Extension *tw_dev, int reques
 		return 1;
 	}
 	flags = (char *)&(param->data[0]);
-	request_buffer = tw_dev->srb[request_id]->buffer;
-	memset(request_buffer, 0, tw_dev->srb[request_id]->request_bufflen);
+	memset(request_buffer, 0, sizeof(request_buffer));
 
 	request_buffer[0] = 0xf;        /* mode data length */
 	request_buffer[1] = 0;          /* default medium type */
@@ -1635,6 +1657,8 @@ static int tw_scsiop_mode_sense_complete(TW_Device_Extension *tw_dev, int reques
 		request_buffer[6] = 0x4;        /* WCE on */
 	else
 		request_buffer[6] = 0x0;        /* WCE off */
+	tw_transfer_internal(tw_dev, request_id, request_buffer,
+			     sizeof(request_buffer));
 
 	return 0;
 } /* End tw_scsiop_mode_sense_complete() */
@@ -1701,17 +1725,12 @@ static int tw_scsiop_read_capacity_complete(TW_Device_Extension *tw_dev, int req
 {
 	unsigned char *param_data;
 	u32 capacity;
-	char *buff;
+	char buff[8];
 	TW_Param *param;
 
 	dprintk(KERN_NOTICE "3w-xxxx: tw_scsiop_read_capacity_complete()\n");
 
-	buff = tw_dev->srb[request_id]->request_buffer;
-	if (buff == NULL) {
-		printk(KERN_WARNING "3w-xxxx: tw_scsiop_read_capacity_complete(): Request buffer NULL.\n");
-		return 1;
-	}
-	memset(buff, 0, tw_dev->srb[request_id]->request_bufflen);
+	memset(buff, 0, sizeof(buff));
 	param = (TW_Param *)tw_dev->alignment_virtual_address[request_id];
 	if (param == NULL) {
 		printk(KERN_WARNING "3w-xxxx: tw_scsiop_read_capacity_complete(): Bad alignment virtual address.\n");
@@ -1738,6 +1757,8 @@ static int tw_scsiop_read_capacity_complete(TW_Device_Extension *tw_dev, int req
 	buff[5] = (TW_BLOCK_SIZE >> 16) & 0xff;
 	buff[6] = (TW_BLOCK_SIZE >> 8) & 0xff;
 	buff[7] = TW_BLOCK_SIZE & 0xff;
+
+	tw_transfer_internal(tw_dev, request_id, buff, sizeof(buff));
 
 	return 0;
 } /* End tw_scsiop_read_capacity_complete() */

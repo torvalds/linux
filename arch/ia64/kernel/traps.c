@@ -15,6 +15,7 @@
 #include <linux/vt_kern.h>		/* For unblank_screen() */
 #include <linux/module.h>       /* for EXPORT_SYMBOL */
 #include <linux/hardirq.h>
+#include <linux/kprobes.h>
 
 #include <asm/fpswa.h>
 #include <asm/ia32.h>
@@ -122,7 +123,7 @@ die_if_kernel (char *str, struct pt_regs *regs, long err)
 }
 
 void
-ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
+__kprobes ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 {
 	siginfo_t siginfo;
 	int sig, code;
@@ -444,7 +445,7 @@ ia64_illegal_op_fault (unsigned long ec, long arg1, long arg2, long arg3,
 	return rv;
 }
 
-void
+void __kprobes
 ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 	    unsigned long iim, unsigned long itir, long arg5, long arg6,
 	    long arg7, struct pt_regs regs)

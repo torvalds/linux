@@ -131,7 +131,7 @@ struct usb_hub_descriptor {
 	__u8  bDescLength;
 	__u8  bDescriptorType;
 	__u8  bNbrPorts;
-	__u16 wHubCharacteristics;
+	__le16 wHubCharacteristics;
 	__u8  bPwrOn2PwrGood;
 	__u8  bHubContrCurrent;
 	    	/* add 1 bit for hub status change; round to bytes */
@@ -157,6 +157,12 @@ enum hub_led_mode {
 
 struct usb_device;
 
+/* Transaction Translator Think Times, in bits */
+#define HUB_TTTT_8_BITS		0x00
+#define HUB_TTTT_16_BITS	0x20
+#define HUB_TTTT_24_BITS	0x40
+#define HUB_TTTT_32_BITS	0x60
+
 /*
  * As of USB 2.0, full/low speed devices are segregated into trees.
  * One type grows from USB 1.1 host controllers (OHCI, UHCI etc).
@@ -170,6 +176,7 @@ struct usb_device;
 struct usb_tt {
 	struct usb_device	*hub;	/* upstream highspeed hub */
 	int			multi;	/* true means one TT per port */
+	unsigned		think_time;	/* think time in ns */
 
 	/* for control/bulk error recovery (CLEAR_TT_BUFFER) */
 	spinlock_t		lock;

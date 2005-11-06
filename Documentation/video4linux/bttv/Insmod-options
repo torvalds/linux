@@ -44,6 +44,9 @@ bttv.o
 				push used by bttv.  bttv will disable overlay
 				by default on this hardware to avoid crashes.
 				With this insmod option you can override this.
+		no_overlay=1	Disable overlay. It should be used by broken
+				hardware that doesn't support PCI2PCI direct
+				transfers.
 		automute=0/1	Automatically mutes the sound if there is
 				no TV signal, on by default.  You might try
 				to disable this if you have bad input signal

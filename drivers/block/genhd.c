@@ -45,7 +45,7 @@ int get_blkdev_list(char *p, int used)
 	struct blk_major_name *n;
 	int i, len;
 
-	len = sprintf(p, "\nBlock devices:\n");
+	len = snprintf(p, (PAGE_SIZE-used), "\nBlock devices:\n");
 
 	down(&block_subsys_sem);
 	for (i = 0; i < ARRAY_SIZE(major_names); i++) {
@@ -337,10 +337,30 @@ static ssize_t disk_attr_show(struct kobject *kobj, struct attribute *attr,
 	return ret;
 }
 
+static ssize_t disk_attr_store(struct kobject * kobj, struct attribute * attr,
+			       const char *page, size_t count)
+{
+	struct gendisk *disk = to_disk(kobj);
+	struct disk_attribute *disk_attr =
+		container_of(attr,struct disk_attribute,attr);
+	ssize_t ret = 0;
+
+	if (disk_attr->store)
+		ret = disk_attr->store(disk, page, count);
+	return ret;
+}
+
 static struct sysfs_ops disk_sysfs_ops = {
 	.show	= &disk_attr_show,
+	.store	= &disk_attr_store,
 };
 
+static ssize_t disk_uevent_store(struct gendisk * disk,
+				 const char *buf, size_t count)
+{
+	kobject_hotplug(&disk->kobj, KOBJ_ADD);
+	return count;
+}
 static ssize_t disk_dev_read(struct gendisk * disk, char *page)
 {
 	dev_t base = MKDEV(disk->major, disk->first_minor); 
@@ -371,17 +391,20 @@ static ssize_t disk_stats_read(struct gendisk * disk, char *page)
 		"%8u %8u %8llu %8u "
 		"%8u %8u %8u"
 		"\n",
-		disk_stat_read(disk, reads), disk_stat_read(disk, read_merges),
-		(unsigned long long)disk_stat_read(disk, read_sectors),
-		jiffies_to_msecs(disk_stat_read(disk, read_ticks)),
-		disk_stat_read(disk, writes), 
-		disk_stat_read(disk, write_merges),
-		(unsigned long long)disk_stat_read(disk, write_sectors),
-		jiffies_to_msecs(disk_stat_read(disk, write_ticks)),
+		disk_stat_read(disk, ios[0]), disk_stat_read(disk, merges[0]),
+		(unsigned long long)disk_stat_read(disk, sectors[0]),
+		jiffies_to_msecs(disk_stat_read(disk, ticks[0])),
+		disk_stat_read(disk, ios[1]), disk_stat_read(disk, merges[1]),
+		(unsigned long long)disk_stat_read(disk, sectors[1]),
+		jiffies_to_msecs(disk_stat_read(disk, ticks[1])),
 		disk->in_flight,
 		jiffies_to_msecs(disk_stat_read(disk, io_ticks)),
 		jiffies_to_msecs(disk_stat_read(disk, time_in_queue)));
 }
+static struct disk_attribute disk_attr_uevent = {
+	.attr = {.name = "uevent", .mode = S_IWUSR },
+	.store	= disk_uevent_store
+};
 static struct disk_attribute disk_attr_dev = {
 	.attr = {.name = "dev", .mode = S_IRUGO },
 	.show	= disk_dev_read
@@ -404,6 +427,7 @@ static struct disk_attribute disk_attr_stat = {
 };
 
 static struct attribute * default_attrs[] = {
+	&disk_attr_uevent.attr,
 	&disk_attr_dev.attr,
 	&disk_attr_range.attr,
 	&disk_attr_removable.attr,
@@ -558,12 +582,12 @@ static int diskstats_show(struct seq_file *s, void *v)
 	preempt_enable();
 	seq_printf(s, "%4d %4d %s %u %u %llu %u %u %u %llu %u %u %u %u\n",
 		gp->major, n + gp->first_minor, disk_name(gp, n, buf),
-		disk_stat_read(gp, reads), disk_stat_read(gp, read_merges),
-		(unsigned long long)disk_stat_read(gp, read_sectors),
-		jiffies_to_msecs(disk_stat_read(gp, read_ticks)),
-		disk_stat_read(gp, writes), disk_stat_read(gp, write_merges),
-		(unsigned long long)disk_stat_read(gp, write_sectors),
-		jiffies_to_msecs(disk_stat_read(gp, write_ticks)),
+		disk_stat_read(gp, ios[0]), disk_stat_read(gp, merges[0]),
+		(unsigned long long)disk_stat_read(gp, sectors[0]),
+		jiffies_to_msecs(disk_stat_read(gp, ticks[0])),
+		disk_stat_read(gp, ios[1]), disk_stat_read(gp, merges[1]),
+		(unsigned long long)disk_stat_read(gp, sectors[1]),
+		jiffies_to_msecs(disk_stat_read(gp, ticks[1])),
 		gp->in_flight,
 		jiffies_to_msecs(disk_stat_read(gp, io_ticks)),
 		jiffies_to_msecs(disk_stat_read(gp, time_in_queue)));
@@ -576,8 +600,8 @@ static int diskstats_show(struct seq_file *s, void *v)
 			seq_printf(s, "%4d %4d %s %u %u %u %u\n",
 				gp->major, n + gp->first_minor + 1,
 				disk_name(gp, n + 1, buf),
-				hd->reads, hd->read_sectors,
-				hd->writes, hd->write_sectors);
+				hd->ios[0], hd->sectors[0],
+				hd->ios[1], hd->sectors[1]);
 	}
  
 	return 0;

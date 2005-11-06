@@ -31,7 +31,7 @@ extern struct processor {
 	/*
 	 * Special stuff for a reset
 	 */
-	volatile void (*reset)(unsigned long addr);
+	void (*reset)(unsigned long addr) __attribute__((noreturn));
 	/*
 	 * Idle the processor
 	 */

@@ -143,6 +143,7 @@ static void auth_domain_drop(struct cache_head *item, struct cache_detail *cd)
 
 
 struct cache_detail auth_domain_cache = {
+	.owner		= THIS_MODULE,
 	.hash_size	= DN_HASHMAX,
 	.hash_table	= auth_domain_table,
 	.name		= "auth.domain",

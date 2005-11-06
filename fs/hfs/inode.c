@@ -46,7 +46,7 @@ static sector_t hfs_bmap(struct address_space *mapping, sector_t block)
 	return generic_block_bmap(mapping, block, hfs_get_block);
 }
 
-static int hfs_releasepage(struct page *page, int mask)
+static int hfs_releasepage(struct page *page, gfp_t mask)
 {
 	struct inode *inode = page->mapping->host;
 	struct super_block *sb = inode->i_sb;
@@ -160,7 +160,7 @@ struct inode *hfs_new_inode(struct inode *dir, struct qstr *name, int mode)
 
 	init_MUTEX(&HFS_I(inode)->extents_lock);
 	INIT_LIST_HEAD(&HFS_I(inode)->open_dir_list);
-	hfs_cat_build_key((btree_key *)&HFS_I(inode)->cat_key, dir->i_ino, name);
+	hfs_cat_build_key(sb, (btree_key *)&HFS_I(inode)->cat_key, dir->i_ino, name);
 	inode->i_ino = HFS_SB(sb)->next_id++;
 	inode->i_mode = mode;
 	inode->i_uid = current->fsuid;

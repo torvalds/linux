@@ -117,14 +117,10 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
-#include <linux/console.h>
-#include <linux/selection.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
-#include <linux/kd.h>
-#include <linux/vt_kern.h>
 #include <linux/pagemap.h>
 #include <linux/version.h>
 
@@ -230,7 +226,7 @@ MODULE_DEVICE_TABLE(pci, intelfb_pci_table);
 
 static int accel        = 1;
 static int vram         = 4;
-static int hwcursor     = 1;
+static int hwcursor     = 0;
 static int mtrr         = 1;
 static int fixed        = 0;
 static int noinit       = 0;
@@ -242,7 +238,7 @@ static int voffset	= 48;
 static char *mode       = NULL;
 
 module_param(accel, bool, S_IRUGO);
-MODULE_PARM_DESC(accel, "Enable console acceleration");
+MODULE_PARM_DESC(accel, "Enable hardware acceleration");
 module_param(vram, int, S_IRUGO);
 MODULE_PARM_DESC(vram, "System RAM to allocate to framebuffer in MiB");
 module_param(voffset, int, S_IRUGO);
@@ -498,7 +494,7 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct fb_info *info;
 	struct intelfb_info *dinfo;
-	int i, j, err, dvo;
+	int i, err, dvo;
 	int aperture_size, stolen_size;
 	struct agp_kern_info gtt_info;
 	int agp_memtype;
@@ -579,23 +575,6 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 				INTEL_REG_SIZE,
 				INTELFB_MODULE_NAME)) {
 		ERR_MSG("Cannot reserve MMIO region.\n");
-		cleanup(dinfo);
-		return -ENODEV;
-	}
-
-	/* Map the fb and MMIO regions */
-	dinfo->aperture.virtual = (u8 __iomem *)ioremap_nocache
-		(dinfo->aperture.physical, dinfo->aperture.size);
-	if (!dinfo->aperture.virtual) {
-		ERR_MSG("Cannot remap FB region.\n");
-		cleanup(dinfo);
-		return -ENODEV;
-	}
-	dinfo->mmio_base =
-		(u8 __iomem *)ioremap_nocache(dinfo->mmio_base_phys,
-					       INTEL_REG_SIZE);
-	if (!dinfo->mmio_base) {
-		ERR_MSG("Cannot remap MMIO region.\n");
 		cleanup(dinfo);
 		return -ENODEV;
 	}
@@ -683,6 +662,26 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Allocate memories (which aren't stolen) */
+	/* Map the fb and MMIO regions */
+	/* ioremap only up to the end of used aperture */
+	dinfo->aperture.virtual = (u8 __iomem *)ioremap_nocache
+		(dinfo->aperture.physical, ((offset + dinfo->fb.offset) << 12)
+		 + dinfo->fb.size);
+	if (!dinfo->aperture.virtual) {
+		ERR_MSG("Cannot remap FB region.\n");
+		cleanup(dinfo);
+		return -ENODEV;
+	}
+
+	dinfo->mmio_base =
+		(u8 __iomem *)ioremap_nocache(dinfo->mmio_base_phys,
+					       INTEL_REG_SIZE);
+	if (!dinfo->mmio_base) {
+		ERR_MSG("Cannot remap MMIO region.\n");
+		cleanup(dinfo);
+		return -ENODEV;
+	}
+
 	if (dinfo->accel) {
 		if (!(dinfo->gtt_ring_mem =
 		      agp_allocate_memory(bridge, dinfo->ring.size >> 12,
@@ -840,13 +839,6 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (bailearly == 5)
 		bailout(dinfo);
-
-	for (i = 0; i < 16; i++) {
-		j = color_table[i];
-		dinfo->palette[i].red = default_red[j];
-		dinfo->palette[i].green = default_grn[j];
-		dinfo->palette[i].blue = default_blu[j];
-	}
 
 	if (bailearly == 6)
 		bailout(dinfo);
@@ -1358,10 +1350,6 @@ intelfb_setcolreg(unsigned regno, unsigned red, unsigned green,
 			red >>= 8;
 			green >>= 8;
 			blue >>= 8;
-
-			dinfo->palette[regno].red = red;
-			dinfo->palette[regno].green = green;
-			dinfo->palette[regno].blue = blue;
 
 			intelfbhw_setcolreg(dinfo, regno, red, green, blue,
 					    transp);

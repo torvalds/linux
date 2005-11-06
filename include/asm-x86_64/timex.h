@@ -6,7 +6,6 @@
 #ifndef _ASMx8664_TIMEX_H
 #define _ASMx8664_TIMEX_H
 
-#include <linux/config.h>
 #include <asm/8253pit.h>
 #include <asm/msr.h>
 #include <asm/vsyscall.h>

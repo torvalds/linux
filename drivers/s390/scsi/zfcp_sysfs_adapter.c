@@ -62,21 +62,18 @@ static ssize_t zfcp_sysfs_adapter_##_name##_show(struct device *dev, struct devi
 static DEVICE_ATTR(_name, S_IRUGO, zfcp_sysfs_adapter_##_name##_show, NULL);
 
 ZFCP_DEFINE_ADAPTER_ATTR(status, "0x%08x\n", atomic_read(&adapter->status));
-ZFCP_DEFINE_ADAPTER_ATTR(wwnn, "0x%016llx\n", adapter->wwnn);
-ZFCP_DEFINE_ADAPTER_ATTR(wwpn, "0x%016llx\n", adapter->wwpn);
-ZFCP_DEFINE_ADAPTER_ATTR(s_id, "0x%06x\n", adapter->s_id);
 ZFCP_DEFINE_ADAPTER_ATTR(peer_wwnn, "0x%016llx\n", adapter->peer_wwnn);
 ZFCP_DEFINE_ADAPTER_ATTR(peer_wwpn, "0x%016llx\n", adapter->peer_wwpn);
 ZFCP_DEFINE_ADAPTER_ATTR(peer_d_id, "0x%06x\n", adapter->peer_d_id);
+ZFCP_DEFINE_ADAPTER_ATTR(physical_wwpn, "0x%016llx\n", adapter->physical_wwpn);
+ZFCP_DEFINE_ADAPTER_ATTR(physical_s_id, "0x%06x\n", adapter->physical_s_id);
 ZFCP_DEFINE_ADAPTER_ATTR(card_version, "0x%04x\n", adapter->hydra_version);
 ZFCP_DEFINE_ADAPTER_ATTR(lic_version, "0x%08x\n", adapter->fsf_lic_version);
-ZFCP_DEFINE_ADAPTER_ATTR(fc_link_speed, "%d Gb/s\n", adapter->fc_link_speed);
 ZFCP_DEFINE_ADAPTER_ATTR(fc_service_class, "%d\n", adapter->fc_service_class);
 ZFCP_DEFINE_ADAPTER_ATTR(fc_topology, "%s\n",
 			 fc_topologies[adapter->fc_topology]);
 ZFCP_DEFINE_ADAPTER_ATTR(hardware_version, "0x%08x\n",
 			 adapter->hardware_version);
-ZFCP_DEFINE_ADAPTER_ATTR(serial_number, "%17s\n", adapter->serial_number);
 ZFCP_DEFINE_ADAPTER_ATTR(scsi_host_no, "0x%x\n", adapter->scsi_host_no);
 ZFCP_DEFINE_ADAPTER_ATTR(in_recovery, "%d\n", atomic_test_mask
 			 (ZFCP_STATUS_COMMON_ERP_INUSE, &adapter->status));
@@ -255,21 +252,18 @@ static struct attribute *zfcp_adapter_attrs[] = {
 	&dev_attr_in_recovery.attr,
 	&dev_attr_port_remove.attr,
 	&dev_attr_port_add.attr,
-	&dev_attr_wwnn.attr,
-	&dev_attr_wwpn.attr,
-	&dev_attr_s_id.attr,
 	&dev_attr_peer_wwnn.attr,
 	&dev_attr_peer_wwpn.attr,
 	&dev_attr_peer_d_id.attr,
+	&dev_attr_physical_wwpn.attr,
+	&dev_attr_physical_s_id.attr,
 	&dev_attr_card_version.attr,
 	&dev_attr_lic_version.attr,
-	&dev_attr_fc_link_speed.attr,
 	&dev_attr_fc_service_class.attr,
 	&dev_attr_fc_topology.attr,
 	&dev_attr_scsi_host_no.attr,
 	&dev_attr_status.attr,
 	&dev_attr_hardware_version.attr,
-	&dev_attr_serial_number.attr,
 	NULL
 };
 

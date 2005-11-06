@@ -18,8 +18,8 @@
 #include "mach_timer.h"
 #include <asm/hpet.h>
 
-static unsigned long __read_mostly hpet_usec_quotient;	/* convert hpet clks to usec */
-static unsigned long tsc_hpet_quotient;		/* convert tsc to hpet clks */
+static unsigned long hpet_usec_quotient __read_mostly;	/* convert hpet clks to usec */
+static unsigned long tsc_hpet_quotient __read_mostly;	/* convert tsc to hpet clks */
 static unsigned long hpet_last; 	/* hpet counter value at last tick*/
 static unsigned long last_tsc_low;	/* lsb 32 bits of Time Stamp Counter */
 static unsigned long last_tsc_high; 	/* msb 32 bits of Time Stamp Counter */
@@ -30,23 +30,28 @@ static seqlock_t monotonic_lock = SEQLOCK_UNLOCKED;
  *  basic equation:
  *		ns = cycles / (freq / ns_per_sec)
  *		ns = cycles * (ns_per_sec / freq)
- *		ns = cycles * (10^9 / (cpu_mhz * 10^6))
- *		ns = cycles * (10^3 / cpu_mhz)
+ *		ns = cycles * (10^9 / (cpu_khz * 10^3))
+ *		ns = cycles * (10^6 / cpu_khz)
  *
  *	Then we use scaling math (suggested by george@mvista.com) to get:
- *		ns = cycles * (10^3 * SC / cpu_mhz) / SC
+ *		ns = cycles * (10^6 * SC / cpu_khz) / SC
  *		ns = cycles * cyc2ns_scale / SC
  *
  *	And since SC is a constant power of two, we can convert the div
  *  into a shift.
+ *
+ *  We can use khz divisor instead of mhz to keep a better percision, since
+ *  cyc2ns_scale is limited to 10^6 * 2^10, which fits in 32 bits.
+ *  (mathieu.desnoyers@polymtl.ca)
+ *
  *			-johnstul@us.ibm.com "math is hard, lets go shopping!"
  */
 static unsigned long cyc2ns_scale;
 #define CYC2NS_SCALE_FACTOR 10 /* 2^10, carefully chosen */
 
-static inline void set_cyc2ns_scale(unsigned long cpu_mhz)
+static inline void set_cyc2ns_scale(unsigned long cpu_khz)
 {
-	cyc2ns_scale = (1000 << CYC2NS_SCALE_FACTOR)/cpu_mhz;
+	cyc2ns_scale = (1000000 << CYC2NS_SCALE_FACTOR)/cpu_khz;
 }
 
 static inline unsigned long long cycles_2_ns(unsigned long long cyc)
@@ -136,6 +141,8 @@ static void delay_hpet(unsigned long loops)
 	} while ((hpet_end - hpet_start) < (loops));
 }
 
+static struct timer_opts timer_hpet;
+
 static int __init init_hpet(char* override)
 {
 	unsigned long result, remain;
@@ -161,8 +168,10 @@ static int __init init_hpet(char* override)
 				printk("Detected %u.%03u MHz processor.\n",
 					cpu_khz / 1000, cpu_khz % 1000);
 			}
-			set_cyc2ns_scale(cpu_khz/1000);
+			set_cyc2ns_scale(cpu_khz);
 		}
+		/* set this only when cpu_has_tsc */
+		timer_hpet.read_timer = read_timer_tsc;
 	}
 
 	/*
@@ -177,6 +186,19 @@ static int __init init_hpet(char* override)
 	return 0;
 }
 
+static int hpet_resume(void)
+{
+	write_seqlock(&monotonic_lock);
+	/* Assume this is the last mark offset time */
+	rdtsc(last_tsc_low, last_tsc_high);
+
+	if (hpet_use_timer)
+		hpet_last = hpet_readl(HPET_T0_CMP) - hpet_tick;
+	else
+		hpet_last = hpet_readl(HPET_COUNTER);
+	write_sequnlock(&monotonic_lock);
+	return 0;
+}
 /************************************************************/
 
 /* tsc timer_opts struct */
@@ -186,7 +208,7 @@ static struct timer_opts timer_hpet __read_mostly = {
 	.get_offset =		get_offset_hpet,
 	.monotonic_clock =	monotonic_clock_hpet,
 	.delay = 		delay_hpet,
-	.read_timer = 		read_timer_tsc,
+	.resume	=		hpet_resume,
 };
 
 struct init_timer_opts __initdata timer_hpet_init = {

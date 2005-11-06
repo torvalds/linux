@@ -153,7 +153,6 @@ static int tty_release(struct inode *, struct file *);
 int tty_ioctl(struct inode * inode, struct file * file,
 	      unsigned int cmd, unsigned long arg);
 static int tty_fasync(int fd, struct file * filp, int on);
-extern void rs_360_init(void);
 static void release_mem(struct tty_struct *tty, int idx);
 
 
@@ -470,21 +469,19 @@ static void tty_ldisc_enable(struct tty_struct *tty)
  
 static int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 {
-	int	retval = 0;
-	struct	tty_ldisc o_ldisc;
+	int retval = 0;
+	struct tty_ldisc o_ldisc;
 	char buf[64];
 	int work;
 	unsigned long flags;
 	struct tty_ldisc *ld;
+	struct tty_struct *o_tty;
 
 	if ((ldisc < N_TTY) || (ldisc >= NR_LDISCS))
 		return -EINVAL;
 
 restart:
 
-	if (tty->ldisc.num == ldisc)
-		return 0;	/* We are already in the desired discipline */
-	
 	ld = tty_ldisc_get(ldisc);
 	/* Eduardo Blanco <ejbs@cs.cs.com.uy> */
 	/* Cyrus Durgin <cider@speakeasy.org> */
@@ -495,9 +492,15 @@ restart:
 	if (ld == NULL)
 		return -EINVAL;
 
-	o_ldisc = tty->ldisc;
-
 	tty_wait_until_sent(tty, 0);
+
+	if (tty->ldisc.num == ldisc) {
+		tty_ldisc_put(ldisc);
+		return 0;
+	}
+
+	o_ldisc = tty->ldisc;
+	o_tty = tty->link;
 
 	/*
 	 *	Make sure we don't change while someone holds a
@@ -505,35 +508,58 @@ restart:
 	 *	prevents anyone taking a reference once it is clear.
 	 *	We need the lock to avoid racing reference takers.
 	 */
-	 
+
 	spin_lock_irqsave(&tty_ldisc_lock, flags);
-	if(tty->ldisc.refcount)
-	{
-		/* Free the new ldisc we grabbed. Must drop the lock
-		   first. */
+	if (tty->ldisc.refcount || (o_tty && o_tty->ldisc.refcount)) {
+		if(tty->ldisc.refcount) {
+			/* Free the new ldisc we grabbed. Must drop the lock
+			   first. */
+			spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+			tty_ldisc_put(ldisc);
+			/*
+			 * There are several reasons we may be busy, including
+			 * random momentary I/O traffic. We must therefore
+			 * retry. We could distinguish between blocking ops
+			 * and retries if we made tty_ldisc_wait() smarter. That
+			 * is up for discussion.
+			 */
+			if (wait_event_interruptible(tty_ldisc_wait, tty->ldisc.refcount == 0) < 0)
+				return -ERESTARTSYS;
+			goto restart;
+		}
+		if(o_tty && o_tty->ldisc.refcount) {
+			spin_unlock_irqrestore(&tty_ldisc_lock, flags);
+			tty_ldisc_put(ldisc);
+			if (wait_event_interruptible(tty_ldisc_wait, o_tty->ldisc.refcount == 0) < 0)
+				return -ERESTARTSYS;
+			goto restart;
+		}
+	}
+
+	/* if the TTY_LDISC bit is set, then we are racing against another ldisc change */
+
+	if (!test_bit(TTY_LDISC, &tty->flags)) {
 		spin_unlock_irqrestore(&tty_ldisc_lock, flags);
 		tty_ldisc_put(ldisc);
-		/*
-		 * There are several reasons we may be busy, including
-		 * random momentary I/O traffic. We must therefore
-		 * retry. We could distinguish between blocking ops
-		 * and retries if we made tty_ldisc_wait() smarter. That
-		 * is up for discussion.
-		 */
-		if(wait_event_interruptible(tty_ldisc_wait, tty->ldisc.refcount == 0) < 0)
-			return -ERESTARTSYS;			
+		ld = tty_ldisc_ref_wait(tty);
+		tty_ldisc_deref(ld);
 		goto restart;
 	}
-	clear_bit(TTY_LDISC, &tty->flags);	
+
+	clear_bit(TTY_LDISC, &tty->flags);
 	clear_bit(TTY_DONT_FLIP, &tty->flags);
+	if (o_tty) {
+		clear_bit(TTY_LDISC, &o_tty->flags);
+		clear_bit(TTY_DONT_FLIP, &o_tty->flags);
+	}
 	spin_unlock_irqrestore(&tty_ldisc_lock, flags);
-	
+
 	/*
 	 *	From this point on we know nobody has an ldisc
 	 *	usage reference, nor can they obtain one until
 	 *	we say so later on.
 	 */
-	 
+
 	work = cancel_delayed_work(&tty->flip.work);
 	/*
 	 * Wait for ->hangup_work and ->flip.work handlers to terminate
@@ -584,10 +610,12 @@ restart:
 	 */
 	 
 	tty_ldisc_enable(tty);
+	if (o_tty)
+		tty_ldisc_enable(o_tty);
 	
 	/* Restart it in case no characters kick it off. Safe if
 	   already running */
-	if(work)
+	if (work)
 		schedule_delayed_work(&tty->flip.work, 1);
 	return retval;
 }
@@ -781,7 +809,7 @@ static void do_tty_hangup(void *data)
 	check_tty_count(tty, "do_tty_hangup");
 	file_list_lock();
 	/* This breaks for file handles being sent over AF_UNIX sockets ? */
-	list_for_each_entry(filp, &tty->tty_files, f_list) {
+	list_for_each_entry(filp, &tty->tty_files, f_u.fu_list) {
 		if (filp->f_op->write == redirected_tty_write)
 			cons_filp = filp;
 		if (filp->f_op->write != tty_write)
@@ -2426,6 +2454,7 @@ static void __do_SAK(void *arg)
 	int		i;
 	struct file	*filp;
 	struct tty_ldisc *disc;
+	struct fdtable *fdt;
 	
 	if (!tty)
 		return;
@@ -2451,8 +2480,9 @@ static void __do_SAK(void *arg)
 		}
 		task_lock(p);
 		if (p->files) {
-			spin_lock(&p->files->file_lock);
-			for (i=0; i < p->files->max_fds; i++) {
+			rcu_read_lock();
+			fdt = files_fdtable(p->files);
+			for (i=0; i < fdt->max_fds; i++) {
 				filp = fcheck_files(p->files, i);
 				if (!filp)
 					continue;
@@ -2465,7 +2495,7 @@ static void __do_SAK(void *arg)
 					break;
 				}
 			}
-			spin_unlock(&p->files->file_lock);
+			rcu_read_unlock();
 		}
 		task_unlock(p);
 	} while_each_task_pid(session, PIDTYPE_SID, p);
@@ -2698,7 +2728,7 @@ void tty_register_device(struct tty_driver *driver, unsigned index,
 		pty_line_name(driver, index, name);
 	else
 		tty_line_name(driver, index, name);
-	class_device_create(tty_class, dev, device, name);
+	class_device_create(tty_class, NULL, dev, device, "%s", name);
 }
 
 /**
@@ -2911,11 +2941,6 @@ void __init console_init(void)
 #ifdef CONFIG_EARLY_PRINTK
 	disable_early_printk();
 #endif
-#ifdef CONFIG_SERIAL_68360
- 	/* This is not a console initcall. I know not what it's doing here.
-	   So I haven't moved it. dwmw2 */
-        rs_360_init();
-#endif
 	call = __con_initcall_start;
 	while (call < __con_initcall_end) {
 		(*call)();
@@ -2958,14 +2983,14 @@ static int __init tty_init(void)
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 0), 1, "/dev/tty") < 0)
 		panic("Couldn't register /dev/tty driver\n");
 	devfs_mk_cdev(MKDEV(TTYAUX_MAJOR, 0), S_IFCHR|S_IRUGO|S_IWUGO, "tty");
-	class_device_create(tty_class, MKDEV(TTYAUX_MAJOR, 0), NULL, "tty");
+	class_device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 0), NULL, "tty");
 
 	cdev_init(&console_cdev, &console_fops);
 	if (cdev_add(&console_cdev, MKDEV(TTYAUX_MAJOR, 1), 1) ||
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 1), 1, "/dev/console") < 0)
 		panic("Couldn't register /dev/console driver\n");
 	devfs_mk_cdev(MKDEV(TTYAUX_MAJOR, 1), S_IFCHR|S_IRUSR|S_IWUSR, "console");
-	class_device_create(tty_class, MKDEV(TTYAUX_MAJOR, 1), NULL, "console");
+	class_device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 1), NULL, "console");
 
 #ifdef CONFIG_UNIX98_PTYS
 	cdev_init(&ptmx_cdev, &ptmx_fops);
@@ -2973,7 +2998,7 @@ static int __init tty_init(void)
 	    register_chrdev_region(MKDEV(TTYAUX_MAJOR, 2), 1, "/dev/ptmx") < 0)
 		panic("Couldn't register /dev/ptmx driver\n");
 	devfs_mk_cdev(MKDEV(TTYAUX_MAJOR, 2), S_IFCHR|S_IRUGO|S_IWUGO, "ptmx");
-	class_device_create(tty_class, MKDEV(TTYAUX_MAJOR, 2), NULL, "ptmx");
+	class_device_create(tty_class, NULL, MKDEV(TTYAUX_MAJOR, 2), NULL, "ptmx");
 #endif
 
 #ifdef CONFIG_VT
@@ -2982,7 +3007,7 @@ static int __init tty_init(void)
 	    register_chrdev_region(MKDEV(TTY_MAJOR, 0), 1, "/dev/vc/0") < 0)
 		panic("Couldn't register /dev/tty0 driver\n");
 	devfs_mk_cdev(MKDEV(TTY_MAJOR, 0), S_IFCHR|S_IRUSR|S_IWUSR, "vc/0");
-	class_device_create(tty_class, MKDEV(TTY_MAJOR, 0), NULL, "tty0");
+	class_device_create(tty_class, NULL, MKDEV(TTY_MAJOR, 0), NULL, "tty0");
 
 	vty_init();
 #endif

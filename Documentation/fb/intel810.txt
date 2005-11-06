@@ -5,6 +5,7 @@ Intel 810/815 Framebuffer driver
 	March 17, 2002
 
 	First Released: July 2001
+	Last Update:    September 12, 2005
 ================================================================
 
 A. Introduction
@@ -44,6 +45,8 @@ B.  Features
 
 	- Hardware Cursor Support
  
+	- Supports EDID probing either by DDC/I2C or through the BIOS
+
 C.  List of available options
 	
    a. "video=i810fb"  
@@ -52,14 +55,17 @@ C.  List of available options
 	Recommendation: required
  
    b. "xres:<value>"  
-	select horizontal resolution in pixels
+	select horizontal resolution in pixels. (This parameter will be
+	ignored if 'mode_option' is specified.  See 'o' below).
 
 	Recommendation: user preference 
 	(default = 640)
 
    c. "yres:<value>"
 	select vertical resolution in scanlines. If Discrete Video Timings
-	is enabled, this will be ignored and computed as 3*xres/4.  
+	is enabled, this will be ignored and computed as 3*xres/4.  (This
+	parameter will be ignored if 'mode_option' is specified.  See 'o'
+	below)  
 
 	Recommendation: user preference
 	(default = 480)
@@ -86,7 +92,8 @@ C.  List of available options
    g. "hsync1/hsync2:<value>" 
 	select the minimum and maximum Horizontal Sync Frequency of the 
 	monitor in KHz.  If a using a fixed frequency monitor, hsync1 must 
-	be equal to hsync2. 
+	be equal to hsync2. If EDID probing is successful, these will be
+	ignored and values will be taken from the EDID block.
 
 	Recommendation: check monitor manual for correct values
 	default (29/30)
@@ -94,7 +101,8 @@ C.  List of available options
    h. "vsync1/vsync2:<value>" 
 	select the minimum and maximum Vertical Sync Frequency of the monitor
 	in Hz. You can also use this option to lock your monitor's refresh 
-	rate.
+	rate. If EDID probing is successful, these will be ignored and values
+	will be taken from the EDID block.
 
 	Recommendation: check monitor manual for correct values
 	(default = 60/60)
@@ -154,7 +162,11 @@ C.  List of available options
 
 	Recommendation: do not set
 	(default = not set)
-			
+   o. <xres>x<yres>[-<bpp>][@<refresh>]
+	The driver will now accept specification of boot mode option.  If this
+	is specified, the options 'xres' and 'yres' will be ignored. See
+	Documentation/fb/modedb.txt for usage.
+
 D. Kernel booting
 
 Separate each option/option-pair by commas (,) and the option from its value
@@ -176,7 +188,10 @@ will be computed based on the hsync1/hsync2 and vsync1/vsync2 values.
 
 IMPORTANT:
 You must include hsync1, hsync2, vsync1 and vsync2 to enable video modes
-better than 640x480 at 60Hz.
+better than 640x480 at 60Hz. HOWEVER, if your chipset/display combination
+supports I2C and has an EDID block, you can safely exclude hsync1, hsync2,
+vsync1 and vsync2 parameters.  These parameters will be taken from the EDID
+block.
 
 E.  Module options
 	
@@ -217,32 +232,21 @@ F.  Setup
 	   This is required.  The option is under "Character Devices"
 
 	d. Under "Graphics Support", select "Intel 810/815" either statically
-	   or as a module.  Choose "use VESA GTF for video timings"  if you 
-	   need to maximize the capability of your display.  To be on the 
+	   or as a module.  Choose "use VESA Generalized Timing Formula" if
+	   you need to maximize the capability of your display.  To be on the 
 	   safe side, you can leave this unselected.  
   
-        e. If you want a framebuffer console, enable it under "Console 
+	e. If you want support for DDC/I2C probing (Plug and Play Displays),
+	   set 'Enable DDC Support' to 'y'. To make this option appear, set
+	   'use VESA Generalized Timing Formula' to 'y'.
+
+        f. If you want a framebuffer console, enable it under "Console 
 	   Drivers"
 
-	f. Compile your kernel. 
+	g. Compile your kernel. 
 	  	
-	g. Load the driver as described in section D and E.
+	h. Load the driver as described in section D and E.
 	
-	Optional:	
-	h.  If you are going to run XFree86 with its native drivers, the 
-	    standard XFree86 4.1.0 and 4.2.0 drivers should work as is.
-            However, there's a bug in the XFree86 i810 drivers.  It attempts 
-	    to use XAA even when switched to the console. This will crash
-	    your server. I have a fix at this site:  
-	    
-	    http://i810fb.sourceforge.net.  
-
-	    You can either use the patch, or just replace 
-	    
-            /usr/X11R6/lib/modules/drivers/i810_drv.o
-
-	    with the one provided at the website. 	
-
 	i.  Try the DirectFB (http://www.directfb.org) + the i810 gfxdriver
 	    patch to see the chipset in action (or inaction :-).
 

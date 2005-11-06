@@ -32,7 +32,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.04"
+#define DRIVER_VERSION "v0.05"
 #define DRIVER_DESC "Silicon Labs CP2101/CP2102 RS232 serial adaptor driver"
 
 /*
@@ -54,8 +54,11 @@ static void cp2101_shutdown(struct usb_serial*);
 static int debug;
 
 static struct usb_device_id id_table [] = {
+	{ USB_DEVICE(0x0FCF, 0x1003) }, /* Dynastream ANT development board */
 	{ USB_DEVICE(0x10C4, 0xEA60) },	/* Silicon Labs factory default */
 	{ USB_DEVICE(0x10C4, 0x80CA) },	/* Degree Controls Inc */
+	{ USB_DEVICE(0x10C4, 0x80F6) }, /* Suunto sports instrument */
+	{ USB_DEVICE(0x10A6, 0xAA26) }, /* Knock-off DCU-11 cable */
 	{ USB_DEVICE(0x10AB, 0x10C5) },	/* Siemens MC60 Cable */
 	{ } /* Terminating Entry */
 };
@@ -64,15 +67,17 @@ MODULE_DEVICE_TABLE (usb, id_table);
 
 static struct usb_driver cp2101_driver = {
 	.owner		= THIS_MODULE,
-	.name		= "CP2101",
+	.name		= "cp2101",
 	.probe		= usb_serial_probe,
 	.disconnect	= usb_serial_disconnect,
 	.id_table	= id_table,
 };
 
-static struct usb_serial_device_type cp2101_device = {
-	.owner			= THIS_MODULE,
-	.name			= "CP2101",
+static struct usb_serial_driver cp2101_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name = 	"cp2101",
+	},
 	.id_table		= id_table,
 	.num_interrupt_in	= 0,
 	.num_bulk_in		= 0,

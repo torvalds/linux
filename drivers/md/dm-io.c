@@ -32,7 +32,7 @@ struct io {
 static unsigned _num_ios;
 static mempool_t *_io_pool;
 
-static void *alloc_io(unsigned int __nocast gfp_mask, void *pool_data)
+static void *alloc_io(gfp_t gfp_mask, void *pool_data)
 {
 	return kmalloc(sizeof(struct io), gfp_mask);
 }
@@ -239,6 +239,11 @@ static void vm_dp_init(struct dpages *dp, void *data)
 	dp->context_ptr = data;
 }
 
+static void dm_bio_destructor(struct bio *bio)
+{
+	bio_free(bio, _bios);
+}
+
 /*-----------------------------------------------------------------
  * IO routines that accept a list of pages.
  *---------------------------------------------------------------*/
@@ -263,6 +268,7 @@ static void do_region(int rw, unsigned int region, struct io_region *where,
 		bio->bi_bdev = where->bdev;
 		bio->bi_end_io = endio;
 		bio->bi_private = io;
+		bio->bi_destructor = dm_bio_destructor;
 		bio_set_region(bio, region);
 
 		/*

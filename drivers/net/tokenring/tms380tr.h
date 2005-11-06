@@ -17,8 +17,7 @@
 int tms380tr_open(struct net_device *dev);
 int tms380tr_close(struct net_device *dev);
 irqreturn_t tms380tr_interrupt(int irq, void *dev_id, struct pt_regs *regs);
-int tmsdev_init(struct net_device *dev, unsigned long dmalimit,
-		struct pci_dev *pdev);
+int tmsdev_init(struct net_device *dev, struct device *pdev);
 void tmsdev_term(struct net_device *dev);
 void tms380tr_wait(unsigned long time);
 
@@ -719,7 +718,7 @@ struct s_TPL {	/* Transmit Parameter List (align on even word boundaries) */
 	struct sk_buff *Skb;
 	unsigned char TPLIndex;
 	volatile unsigned char BusyFlag;/* Flag: TPL busy? */
-	dma_addr_t DMABuff;		/* DMA IO bus address from pci_map */
+	dma_addr_t DMABuff;		/* DMA IO bus address from dma_map */
 };
 
 /* ---------------------Receive Functions-------------------------------*
@@ -1060,7 +1059,7 @@ struct s_RPL {	/* Receive Parameter List */
 	struct sk_buff *Skb;
 	SKB_STAT SkbStat;
 	int RPLIndex;
-	dma_addr_t DMABuff;		/* DMA IO bus address from pci_map */
+	dma_addr_t DMABuff;		/* DMA IO bus address from dma_map */
 };
 
 /* Information that need to be kept for each board. */
@@ -1091,7 +1090,7 @@ typedef struct net_local {
 	RPL *RplTail;
 	unsigned char LocalRxBuffers[RPL_NUM][DEFAULT_PACKET_SIZE];
 
-	struct pci_dev *pdev;
+	struct device *pdev;
 	int DataRate;
 	unsigned char ScbInUse;
 	unsigned short CMDqueue;

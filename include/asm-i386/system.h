@@ -14,8 +14,7 @@ extern struct task_struct * FASTCALL(__switch_to(struct task_struct *prev, struc
 
 #define switch_to(prev,next,last) do {					\
 	unsigned long esi,edi;						\
-	asm volatile("pushfl\n\t"					\
-		     "pushl %%ebp\n\t"					\
+	asm volatile("pushl %%ebp\n\t"					\
 		     "movl %%esp,%0\n\t"	/* save ESP */		\
 		     "movl %5,%%esp\n\t"	/* restore ESP */	\
 		     "movl $1f,%1\n\t"		/* save EIP */		\
@@ -23,7 +22,6 @@ extern struct task_struct * FASTCALL(__switch_to(struct task_struct *prev, struc
 		     "jmp __switch_to\n"				\
 		     "1:\t"						\
 		     "popl %%ebp\n\t"					\
-		     "popfl"						\
 		     :"=m" (prev->thread.esp),"=m" (prev->thread.eip),	\
 		      "=a" (last),"=S" (esi),"=D" (edi)			\
 		     :"m" (next->thread.esp),"m" (next->thread.eip),	\
@@ -93,13 +91,13 @@ static inline unsigned long _get_base(char * addr)
 		".align 4\n\t"			\
 		".long 1b,3b\n"			\
 		".previous"			\
-		: :"m" (value))
+		: :"rm" (value))
 
 /*
  * Save a segment register away
  */
 #define savesegment(seg, value) \
-	asm volatile("mov %%" #seg ",%0":"=m" (value))
+	asm volatile("mov %%" #seg ",%0":"=rm" (value))
 
 /*
  * Clear and set 'TS' bit respectively
@@ -107,13 +105,33 @@ static inline unsigned long _get_base(char * addr)
 #define clts() __asm__ __volatile__ ("clts")
 #define read_cr0() ({ \
 	unsigned int __dummy; \
-	__asm__( \
+	__asm__ __volatile__( \
 		"movl %%cr0,%0\n\t" \
 		:"=r" (__dummy)); \
 	__dummy; \
 })
 #define write_cr0(x) \
-	__asm__("movl %0,%%cr0": :"r" (x));
+	__asm__ __volatile__("movl %0,%%cr0": :"r" (x));
+
+#define read_cr2() ({ \
+	unsigned int __dummy; \
+	__asm__ __volatile__( \
+		"movl %%cr2,%0\n\t" \
+		:"=r" (__dummy)); \
+	__dummy; \
+})
+#define write_cr2(x) \
+	__asm__ __volatile__("movl %0,%%cr2": :"r" (x));
+
+#define read_cr3() ({ \
+	unsigned int __dummy; \
+	__asm__ ( \
+		"movl %%cr3,%0\n\t" \
+		:"=r" (__dummy)); \
+	__dummy; \
+})
+#define write_cr3(x) \
+	__asm__ __volatile__("movl %0,%%cr3": :"r" (x));
 
 #define read_cr4() ({ \
 	unsigned int __dummy; \
@@ -123,7 +141,7 @@ static inline unsigned long _get_base(char * addr)
 	__dummy; \
 })
 #define write_cr4(x) \
-	__asm__("movl %0,%%cr4": :"r" (x));
+	__asm__ __volatile__("movl %0,%%cr4": :"r" (x));
 #define stts() write_cr0(8 | read_cr0())
 
 #endif	/* __KERNEL__ */
@@ -148,6 +166,8 @@ static inline unsigned long get_limit(unsigned long segment)
 struct __xchg_dummy { unsigned long a[100]; };
 #define __xg(x) ((struct __xchg_dummy *)(x))
 
+
+#ifdef CONFIG_X86_CMPXCHG64
 
 /*
  * The semantics of XCHGCMP8B are a bit strange, this is why
@@ -203,6 +223,8 @@ static inline void __set_64bit_var (unsigned long long *ptr,
  __set_64bit(ptr, (unsigned int)(value), (unsigned int)((value)>>32ULL) ) : \
  __set_64bit(ptr, ll_low(value), ll_high(value)) )
 
+#endif
+
 /*
  * Note: no "lock" prefix even on SMP: xchg always implies lock anyway
  * Note 2: xchg has side effect, so that attribute volatile is necessary,
@@ -241,7 +263,6 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 
 #ifdef CONFIG_X86_CMPXCHG
 #define __HAVE_ARCH_CMPXCHG 1
-#endif
 
 static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 				      unsigned long new, int size)
@@ -257,13 +278,13 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 	case 2:
 		__asm__ __volatile__(LOCK_PREFIX "cmpxchgw %w1,%2"
 				     : "=a"(prev)
-				     : "q"(new), "m"(*__xg(ptr)), "0"(old)
+				     : "r"(new), "m"(*__xg(ptr)), "0"(old)
 				     : "memory");
 		return prev;
 	case 4:
 		__asm__ __volatile__(LOCK_PREFIX "cmpxchgl %1,%2"
 				     : "=a"(prev)
-				     : "q"(new), "m"(*__xg(ptr)), "0"(old)
+				     : "r"(new), "m"(*__xg(ptr)), "0"(old)
 				     : "memory");
 		return prev;
 	}
@@ -273,6 +294,30 @@ static inline unsigned long __cmpxchg(volatile void *ptr, unsigned long old,
 #define cmpxchg(ptr,o,n)\
 	((__typeof__(*(ptr)))__cmpxchg((ptr),(unsigned long)(o),\
 					(unsigned long)(n),sizeof(*(ptr))))
+
+#endif
+
+#ifdef CONFIG_X86_CMPXCHG64
+
+static inline unsigned long long __cmpxchg64(volatile void *ptr, unsigned long long old,
+				      unsigned long long new)
+{
+	unsigned long long prev;
+	__asm__ __volatile__(LOCK_PREFIX "cmpxchg8b %3"
+			     : "=A"(prev)
+			     : "b"((unsigned long)new),
+			       "c"((unsigned long)(new >> 32)),
+			       "m"(*__xg(ptr)),
+			       "0"(old)
+			     : "memory");
+	return prev;
+}
+
+#define cmpxchg64(ptr,o,n)\
+	((__typeof__(*(ptr)))__cmpxchg64((ptr),(unsigned long long)(o),\
+					(unsigned long long)(n)))
+
+#endif
     
 #ifdef __KERNEL__
 struct alt_instr { 
@@ -447,6 +492,8 @@ struct alt_instr {
 #define local_irq_enable()	__asm__ __volatile__("sti": : :"memory")
 /* used in the idle loop; sti takes one instruction cycle to complete */
 #define safe_halt()		__asm__ __volatile__("sti; hlt": : :"memory")
+/* used when interrupts are already enabled or to shutdown the processor */
+#define halt()			__asm__ __volatile__("hlt": : :"memory")
 
 #define irqs_disabled()			\
 ({					\

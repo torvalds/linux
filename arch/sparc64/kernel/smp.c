@@ -93,6 +93,27 @@ void __init smp_store_cpu_info(int id)
 	cpu_data(id).pte_cache[1]		= NULL;
 	cpu_data(id).pgd_cache			= NULL;
 	cpu_data(id).idle_volume		= 1;
+
+	cpu_data(id).dcache_size = prom_getintdefault(cpu_node, "dcache-size",
+						      16 * 1024);
+	cpu_data(id).dcache_line_size =
+		prom_getintdefault(cpu_node, "dcache-line-size", 32);
+	cpu_data(id).icache_size = prom_getintdefault(cpu_node, "icache-size",
+						      16 * 1024);
+	cpu_data(id).icache_line_size =
+		prom_getintdefault(cpu_node, "icache-line-size", 32);
+	cpu_data(id).ecache_size = prom_getintdefault(cpu_node, "ecache-size",
+						      4 * 1024 * 1024);
+	cpu_data(id).ecache_line_size =
+		prom_getintdefault(cpu_node, "ecache-line-size", 64);
+	printk("CPU[%d]: Caches "
+	       "D[sz(%d):line_sz(%d)] "
+	       "I[sz(%d):line_sz(%d)] "
+	       "E[sz(%d):line_sz(%d)]\n",
+	       id,
+	       cpu_data(id).dcache_size, cpu_data(id).dcache_line_size,
+	       cpu_data(id).icache_size, cpu_data(id).icache_line_size,
+	       cpu_data(id).ecache_size, cpu_data(id).ecache_line_size);
 }
 
 static void smp_setup_percpu_timer(void);
@@ -144,7 +165,7 @@ void __init smp_callin(void)
 	current->active_mm = &init_mm;
 
 	while (!cpu_isset(cpuid, smp_commenced_mask))
-		membar("#LoadLoad");
+		rmb();
 
 	cpu_set(cpuid, cpu_online_map);
 }
@@ -184,11 +205,11 @@ static inline long get_delta (long *rt, long *master)
 	for (i = 0; i < NUM_ITERS; i++) {
 		t0 = tick_ops->get_tick();
 		go[MASTER] = 1;
-		membar("#StoreLoad");
+		membar_storeload();
 		while (!(tm = go[SLAVE]))
-			membar("#LoadLoad");
+			rmb();
 		go[SLAVE] = 0;
-		membar("#StoreStore");
+		wmb();
 		t1 = tick_ops->get_tick();
 
 		if (t1 - t0 < best_t1 - best_t0)
@@ -221,7 +242,7 @@ void smp_synchronize_tick_client(void)
 	go[MASTER] = 1;
 
 	while (go[MASTER])
-		membar("#LoadLoad");
+		rmb();
 
 	local_irq_save(flags);
 	{
@@ -273,21 +294,21 @@ static void smp_synchronize_one_tick(int cpu)
 
 	/* wait for client to be ready */
 	while (!go[MASTER])
-		membar("#LoadLoad");
+		rmb();
 
 	/* now let the client proceed into his loop */
 	go[MASTER] = 0;
-	membar("#StoreLoad");
+	membar_storeload();
 
 	spin_lock_irqsave(&itc_sync_lock, flags);
 	{
 		for (i = 0; i < NUM_ROUNDS*NUM_ITERS; i++) {
 			while (!go[MASTER])
-				membar("#LoadLoad");
+				rmb();
 			go[MASTER] = 0;
-			membar("#StoreStore");
+			wmb();
 			go[SLAVE] = tick_ops->get_tick();
-			membar("#StoreLoad");
+			membar_storeload();
 		}
 	}
 	spin_unlock_irqrestore(&itc_sync_lock, flags);
@@ -927,11 +948,11 @@ void smp_capture(void)
 		       smp_processor_id());
 #endif
 		penguins_are_doing_time = 1;
-		membar("#StoreStore | #LoadStore");
+		membar_storestore_loadstore();
 		atomic_inc(&smp_capture_registry);
 		smp_cross_call(&xcall_capture, 0, 0, 0);
 		while (atomic_read(&smp_capture_registry) != ncpus)
-			membar("#LoadLoad");
+			rmb();
 #ifdef CAPTURE_DEBUG
 		printk("done\n");
 #endif
@@ -947,7 +968,7 @@ void smp_release(void)
 		       smp_processor_id());
 #endif
 		penguins_are_doing_time = 0;
-		membar("#StoreStore | #StoreLoad");
+		membar_storeload_storestore();
 		atomic_dec(&smp_capture_registry);
 	}
 }
@@ -970,21 +991,14 @@ void smp_penguin_jailcell(int irq, struct pt_regs *regs)
 	save_alternate_globals(global_save);
 	prom_world(1);
 	atomic_inc(&smp_capture_registry);
-	membar("#StoreLoad | #StoreStore");
+	membar_storeload_storestore();
 	while (penguins_are_doing_time)
-		membar("#LoadLoad");
+		rmb();
 	restore_alternate_globals(global_save);
 	atomic_dec(&smp_capture_registry);
 	prom_world(0);
 
 	preempt_enable();
-}
-
-extern unsigned long xcall_promstop;
-
-void smp_promstop_others(void)
-{
-	smp_cross_call(&xcall_promstop, 0, 0, 0);
 }
 
 #define prof_multiplier(__cpu)		cpu_data(__cpu).multiplier

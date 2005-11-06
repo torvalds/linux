@@ -16,7 +16,7 @@
  * Most of the inline functions are rather naive implementations so I just
  * didn't bother updating them for 64-bit ...
  */
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 
 #ifndef IN_STRING_C
 
@@ -130,7 +130,7 @@ strncmp(__const__ char *__cs, __const__ char *__ct, size_t __count)
 
 	return __res;
 }
-#endif /* CONFIG_MIPS32 */
+#endif /* CONFIG_32BIT */
 
 #define __HAVE_ARCH_MEMSET
 extern void *memset(void *__s, int __c, size_t __count);
@@ -141,7 +141,7 @@ extern void *memcpy(void *__to, __const__ void *__from, size_t __n);
 #define __HAVE_ARCH_MEMMOVE
 extern void *memmove(void *__dest, __const__ void *__src, size_t __n);
 
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 #define __HAVE_ARCH_MEMSCAN
 static __inline__ void *memscan(void *__addr, int __c, size_t __size)
 {
@@ -161,6 +161,6 @@ static __inline__ void *memscan(void *__addr, int __c, size_t __size)
 
 	return __addr;
 }
-#endif /* CONFIG_MIPS32 */
+#endif /* CONFIG_32BIT */
 
 #endif /* _ASM_STRING_H */

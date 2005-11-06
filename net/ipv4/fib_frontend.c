@@ -173,7 +173,7 @@ int fib_validate_source(u32 src, u32 dst, u8 tos, int oif,
 
 	no_addr = rpf = 0;
 	rcu_read_lock();
-	in_dev = __in_dev_get(dev);
+	in_dev = __in_dev_get_rcu(dev);
 	if (in_dev) {
 		no_addr = in_dev->ifa_list == NULL;
 		rpf = IN_DEV_RPFILTER(in_dev);
@@ -558,16 +558,15 @@ static void nl_fib_input(struct sock *sk, int len)
 	nl_fib_lookup(frn, tb);
 	
 	pid = nlh->nlmsg_pid;           /*pid of sending process */
-	NETLINK_CB(skb).groups = 0;     /* not in mcast group */
 	NETLINK_CB(skb).pid = 0;         /* from kernel */
 	NETLINK_CB(skb).dst_pid = pid;
-	NETLINK_CB(skb).dst_groups = 0;  /* unicast */
+	NETLINK_CB(skb).dst_group = 0;  /* unicast */
 	netlink_unicast(sk, skb, pid, MSG_DONTWAIT);
 }    
 
 static void nl_fib_lookup_init(void)
 {
-      netlink_kernel_create(NETLINK_FIB_LOOKUP, nl_fib_input);
+      netlink_kernel_create(NETLINK_FIB_LOOKUP, 0, nl_fib_input, THIS_MODULE);
 }
 
 static void fib_disable_ip(struct net_device *dev, int force)
@@ -592,7 +591,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 		break;
 	case NETDEV_DOWN:
 		fib_del_ifaddr(ifa);
-		if (ifa->ifa_dev && ifa->ifa_dev->ifa_list == NULL) {
+		if (ifa->ifa_dev->ifa_list == NULL) {
 			/* Last address was deleted from this interface.
 			   Disable IP.
 			 */
@@ -608,7 +607,7 @@ static int fib_inetaddr_event(struct notifier_block *this, unsigned long event, 
 static int fib_netdev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
 	struct net_device *dev = ptr;
-	struct in_device *in_dev = __in_dev_get(dev);
+	struct in_device *in_dev = __in_dev_get_rtnl(dev);
 
 	if (event == NETDEV_UNREGISTER) {
 		fib_disable_ip(dev, 2);
@@ -662,5 +661,4 @@ void __init ip_fib_init(void)
 }
 
 EXPORT_SYMBOL(inet_addr_type);
-EXPORT_SYMBOL(ip_dev_find);
 EXPORT_SYMBOL(ip_rt_ioctl);

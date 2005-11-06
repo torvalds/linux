@@ -34,7 +34,6 @@
 
 void skb_migrate(struct sk_buff_head *from,struct sk_buff_head *to)
 {
-	struct sk_buff *skb;
 	unsigned long flags;
 	struct sk_buff *skb_from = (struct sk_buff *) from;
 	struct sk_buff *skb_to = (struct sk_buff *) to;
@@ -47,8 +46,6 @@ void skb_migrate(struct sk_buff_head *from,struct sk_buff_head *to)
 	prev->next = skb_to;
 	to->prev->next = from->next;
 	to->prev = from->prev;
-	for (skb = from->next; skb != skb_to; skb = skb->next)
-		skb->list = to;
 	to->qlen += from->qlen;
 	spin_unlock(&to->lock);
 	from->prev = skb_from;

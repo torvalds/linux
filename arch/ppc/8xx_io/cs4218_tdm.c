@@ -318,7 +318,7 @@ struct cs_sound_settings {
 
 static struct cs_sound_settings sound;
 
-static void *CS_Alloc(unsigned int size, int flags);
+static void *CS_Alloc(unsigned int size, gfp_t flags);
 static void CS_Free(void *ptr, unsigned int size);
 static int CS_IrqInit(void);
 #ifdef MODULE
@@ -959,7 +959,7 @@ static TRANS transCSNormalRead = {
 
 /*** Low level stuff *********************************************************/
 
-static void *CS_Alloc(unsigned int size, int flags)
+static void *CS_Alloc(unsigned int size, gfp_t flags)
 {
 	int	order;
 
@@ -1380,7 +1380,7 @@ static void cs_nosound(unsigned long xx)
 	spin_unlock_irqrestore(&cs4218_lock, flags);
 }
 
-static struct timer_list beep_timer = TIMER_INITIALIZER(cs_nosound, 0, 0);
+static DEFINE_TIMER(beep_timer, cs_nosound, 0, 0);
 };
 
 static void cs_mksound(unsigned int hz, unsigned int ticks)

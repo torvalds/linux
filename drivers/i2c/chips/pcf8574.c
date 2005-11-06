@@ -39,16 +39,14 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/i2c-sensor.h>
 
 /* Addresses to scan */
 static unsigned short normal_i2c[] = { 0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
 					0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
 					I2C_CLIENT_END };
-static unsigned int normal_isa[] = { I2C_CLIENT_ISA_END };
 
 /* Insmod parameters */
-SENSORS_INSMOD_2(pcf8574, pcf8574a);
+I2C_CLIENT_INSMOD_2(pcf8574, pcf8574a);
 
 /* Initial values */
 #define PCF8574_INIT 255	/* All outputs on (input mode) */
@@ -113,11 +111,11 @@ static DEVICE_ATTR(write, S_IWUSR | S_IRUGO, show_write, set_write);
 
 static int pcf8574_attach_adapter(struct i2c_adapter *adapter)
 {
-	return i2c_detect(adapter, &addr_data, pcf8574_detect);
+	return i2c_probe(adapter, &addr_data, pcf8574_detect);
 }
 
-/* This function is called by i2c_detect */
-int pcf8574_detect(struct i2c_adapter *adapter, int address, int kind)
+/* This function is called by i2c_probe */
+static int pcf8574_detect(struct i2c_adapter *adapter, int address, int kind)
 {
 	struct i2c_client *new_client;
 	struct pcf8574_data *data;
@@ -129,11 +127,10 @@ int pcf8574_detect(struct i2c_adapter *adapter, int address, int kind)
 
 	/* OK. For now, we presume we have a valid client. We now create the
 	   client structure, even though we cannot fill it completely yet. */
-	if (!(data = kmalloc(sizeof(struct pcf8574_data), GFP_KERNEL))) {
+	if (!(data = kzalloc(sizeof(struct pcf8574_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
-	memset(data, 0, sizeof(struct pcf8574_data));
 
 	new_client = &data->client;
 	i2c_set_clientdata(new_client, data);
@@ -186,11 +183,8 @@ static int pcf8574_detach_client(struct i2c_client *client)
 {
 	int err;
 
-	if ((err = i2c_detach_client(client))) {
-		dev_err(&client->dev,
-			"Client deregistration failed, client not detached.\n");
+	if ((err = i2c_detach_client(client)))
 		return err;
-	}
 
 	kfree(i2c_get_clientdata(client));
 	return 0;

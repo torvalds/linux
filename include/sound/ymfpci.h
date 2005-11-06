@@ -28,28 +28,6 @@
 #include "timer.h"
 #include <linux/gameport.h>
 
-#ifndef PCI_VENDOR_ID_YAMAHA
-#define PCI_VENDOR_ID_YAMAHA            0x1073
-#endif
-#ifndef PCI_DEVICE_ID_YAMAHA_724
-#define PCI_DEVICE_ID_YAMAHA_724	0x0004
-#endif
-#ifndef PCI_DEVICE_ID_YAMAHA_724F
-#define PCI_DEVICE_ID_YAMAHA_724F	0x000d
-#endif
-#ifndef PCI_DEVICE_ID_YAMAHA_740
-#define PCI_DEVICE_ID_YAMAHA_740	0x000a
-#endif
-#ifndef PCI_DEVICE_ID_YAMAHA_740C
-#define PCI_DEVICE_ID_YAMAHA_740C	0x000c
-#endif
-#ifndef PCI_DEVICE_ID_YAMAHA_744
-#define PCI_DEVICE_ID_YAMAHA_744	0x0010
-#endif
-#ifndef PCI_DEVICE_ID_YAMAHA_754
-#define PCI_DEVICE_ID_YAMAHA_754	0x0012
-#endif
-
 /*
  *  Direct registers
  */
@@ -295,6 +273,7 @@ struct _snd_ymfpci_pcm {
 	unsigned int running: 1;
 	unsigned int output_front: 1;
 	unsigned int output_rear: 1;
+	unsigned int update_pcm_vol;
 	u32 period_size;		/* cached from runtime->period_size */
 	u32 buffer_size;		/* cached from runtime->buffer_size */
 	u32 period_pos;
@@ -367,6 +346,11 @@ struct _snd_ymfpci {
 	int mode_dup4ch;
 	int rear_opened;
 	int spdif_opened;
+	struct {
+		u16 left;
+		u16 right;
+		snd_kcontrol_t *ctl;
+	} pcm_mixer[32];
 
 	spinlock_t reg_lock;
 	spinlock_t voice_lock;

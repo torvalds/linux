@@ -233,7 +233,7 @@ static int emu8k_pcm_open(snd_pcm_substream_t *subs)
 	emu8k_pcm_t *rec;
 	snd_pcm_runtime_t *runtime = subs->runtime;
 
-	rec = kcalloc(1, sizeof(*rec), GFP_KERNEL);
+	rec = kzalloc(sizeof(*rec), GFP_KERNEL);
 	if (! rec)
 		return -ENOMEM;
 

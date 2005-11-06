@@ -89,6 +89,7 @@ struct listen_sock {
 	int			qlen_young;
 	int			clock_hand;
 	u32			hash_rnd;
+	u32			nr_table_entries;
 	struct request_sock	*syn_table[0];
 };
 
@@ -96,6 +97,7 @@ struct listen_sock {
  *
  * @rskq_accept_head - FIFO head of established children
  * @rskq_accept_tail - FIFO tail of established children
+ * @rskq_defer_accept - User waits for some data after accept()
  * @syn_wait_lock - serializer
  *
  * %syn_wait_lock is necessary only to avoid proc interface having to grab the main
@@ -111,6 +113,8 @@ struct request_sock_queue {
 	struct request_sock	*rskq_accept_head;
 	struct request_sock	*rskq_accept_tail;
 	rwlock_t		syn_wait_lock;
+	u8			rskq_defer_accept;
+	/* 3 bytes hole, try to pack */
 	struct listen_sock	*listen_opt;
 };
 
@@ -129,10 +133,12 @@ static inline struct listen_sock *reqsk_queue_yank_listen_sk(struct request_sock
 	return lopt;
 }
 
-static inline void reqsk_queue_destroy(struct request_sock_queue *queue)
+static inline void __reqsk_queue_destroy(struct request_sock_queue *queue)
 {
 	kfree(reqsk_queue_yank_listen_sk(queue));
 }
+
+extern void reqsk_queue_destroy(struct request_sock_queue *queue);
 
 static inline struct request_sock *
 	reqsk_queue_yank_acceptq(struct request_sock_queue *queue)
@@ -221,17 +227,17 @@ static inline int reqsk_queue_added(struct request_sock_queue *queue)
 	return prev_qlen;
 }
 
-static inline int reqsk_queue_len(struct request_sock_queue *queue)
+static inline int reqsk_queue_len(const struct request_sock_queue *queue)
 {
 	return queue->listen_opt != NULL ? queue->listen_opt->qlen : 0;
 }
 
-static inline int reqsk_queue_len_young(struct request_sock_queue *queue)
+static inline int reqsk_queue_len_young(const struct request_sock_queue *queue)
 {
 	return queue->listen_opt->qlen_young;
 }
 
-static inline int reqsk_queue_is_full(struct request_sock_queue *queue)
+static inline int reqsk_queue_is_full(const struct request_sock_queue *queue)
 {
 	return queue->listen_opt->qlen >> queue->listen_opt->max_qlen_log;
 }

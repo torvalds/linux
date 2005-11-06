@@ -413,20 +413,19 @@ config INET_TUNNEL
 	  
 	  If unsure, say Y.
 
-config IP_TCPDIAG
-	tristate "IP: TCP socket monitoring interface"
+config INET_DIAG
+	tristate "INET: socket monitoring interface"
 	default y
 	---help---
-	  Support for TCP socket monitoring interface used by native Linux
-	  tools such as ss. ss is included in iproute2, currently downloadable
-	  at <http://developer.osdl.org/dev/iproute2>. If you want IPv6 support
-	  and have selected IPv6 as a module, you need to build this as a
-	  module too.
+	  Support for INET (TCP, DCCP, etc) socket monitoring interface used by
+	  native Linux tools such as ss. ss is included in iproute2, currently
+	  downloadable at <http://developer.osdl.org/dev/iproute2>. 
 	  
 	  If unsure, say Y.
 
-config IP_TCPDIAG_IPV6
-	def_bool (IP_TCPDIAG=y && IPV6=y) || (IP_TCPDIAG=m && IPV6)
+config INET_TCP_DIAG
+	depends on INET_DIAG
+	def_tristate INET_DIAG
 
 config TCP_CONG_ADVANCED
 	bool "TCP: advanced congestion control"

@@ -22,7 +22,15 @@ static inline void mach_reboot(void)
 	for (i = 0; i < 100; i++) {
 		kb_wait();
 		udelay(50);
-		outb(0xfe, 0x64);         /* pulse reset low */
+		outb(0x60, 0x64);	/* write Controller Command Byte */
+		udelay(50);
+		kb_wait();
+		udelay(50);
+		outb(0x14, 0x60);	/* set "System flag" */
+		udelay(50);
+		kb_wait();
+		udelay(50);
+		outb(0xfe, 0x64);	/* pulse reset low */
 		udelay(50);
 	}
 }

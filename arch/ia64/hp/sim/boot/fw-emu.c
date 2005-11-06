@@ -237,17 +237,6 @@ sal_emulator (long index, unsigned long in1, unsigned long in2,
 	return ((struct sal_ret_values) {status, r9, r10, r11});
 }
 
-
-/*
- * This is here to work around a bug in egcs-1.1.1b that causes the
- * compiler to crash (seems like a bug in the new alias analysis code.
- */
-void *
-id (long addr)
-{
-	return (void *) addr;
-}
-
 struct ia64_boot_param *
 sys_fw_init (const char *args, int arglen)
 {

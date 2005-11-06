@@ -11,9 +11,11 @@
 #include <linux/module.h>
 #include <linux/config.h>
 #include <linux/init.h>
+#include <linux/jiffies.h>
+#include <linux/string.h>
 
 #include <asm/ccwdev.h>
-#include <asm/qdio.h>
+#include <asm/cio.h>
 
 #include "cio.h"
 #include "cio_debug.h"
@@ -21,7 +23,6 @@
 #include "device.h"
 #include "chsc.h"
 #include "ioasm.h"
-#include "qdio.h"
 
 int
 device_is_online(struct subchannel *sch)

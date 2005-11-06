@@ -1,5 +1,4 @@
 /*
- * $Id: video-buf-dvb.c,v 1.7 2004/12/09 12:51:35 kraxel Exp $
  *
  * some helper function for simple DVB cards which simply DMA the
  * complete transport stream and let the computer sort everything else

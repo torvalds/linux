@@ -371,16 +371,10 @@ static int floppy_release( struct inode * inode, struct file * filp );
 
 /************************* End of Prototypes **************************/
 
-static struct timer_list motor_off_timer =
-	TIMER_INITIALIZER(fd_motor_off_timer, 0, 0);
-static struct timer_list readtrack_timer =
-	TIMER_INITIALIZER(fd_readtrack_check, 0, 0);
-
-static struct timer_list timeout_timer =
-	TIMER_INITIALIZER(fd_times_out, 0, 0);
-
-static struct timer_list fd_timer =
-	TIMER_INITIALIZER(check_change, 0, 0);
+static DEFINE_TIMER(motor_off_timer, fd_motor_off_timer, 0, 0);
+static DEFINE_TIMER(readtrack_timer, fd_readtrack_check, 0, 0);
+static DEFINE_TIMER(timeout_timer, fd_times_out, 0, 0);
+static DEFINE_TIMER(fd_timer, check_change, 0, 0);
 	
 static inline void start_motor_off_timer(void)
 {

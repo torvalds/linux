@@ -140,7 +140,7 @@ static irqreturn_t ip32_rtc_int(int irq, void *dev_id, struct pt_regs *regs)
 
 	reg_c = CMOS_READ(RTC_INTR_FLAGS);
 	if (!(reg_c & RTC_IRQF)) {
-		printk(KERN_WARNING 
+		printk(KERN_WARNING
 			"%s: RTC IRQ without RTC_IRQF\n", __FUNCTION__);
 	}
 	/* Wait until interrupt goes away */

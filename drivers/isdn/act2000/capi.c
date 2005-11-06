@@ -606,7 +606,7 @@ handle_ack(act2000_card *card, act2000_chan *chan, __u8 blocknr) {
                 if ((((m->msg.data_b3_req.fakencci >> 8) & 0xff) == chan->ncci) &&
 		    (m->msg.data_b3_req.blocknr == blocknr)) {
 			/* found corresponding DATA_B3_REQ */
-                        skb_unlink(tmp);
+                        skb_unlink(tmp, &card->ackq);
 			chan->queued -= m->msg.data_b3_req.datalen;
 			if (m->msg.data_b3_req.flags)
 				ret = m->msg.data_b3_req.datalen;

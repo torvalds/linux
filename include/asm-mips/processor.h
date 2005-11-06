@@ -33,7 +33,7 @@ extern void (*cpu_wait)(void);
 
 extern unsigned int vced_count, vcei_count;
 
-#ifdef CONFIG_MIPS32
+#ifdef CONFIG_32BIT
 /*
  * User space process size: 2GB. This is hardcoded into a few places,
  * so don't change it unless you know what you are doing.
@@ -47,7 +47,7 @@ extern unsigned int vced_count, vcei_count;
 #define TASK_UNMAPPED_BASE	(PAGE_ALIGN(TASK_SIZE / 3))
 #endif
 
-#ifdef CONFIG_MIPS64
+#ifdef CONFIG_64BIT
 /*
  * User space process size: 1TB. This is hardcoded into a few places,
  * so don't change it unless you know what you are doing.  TASK_SIZE
@@ -96,11 +96,25 @@ union mips_fpu_union {
 	{{0,},} \
 }
 
+#define NUM_DSP_REGS   6
+
+typedef __u32 dspreg_t;
+
+struct mips_dsp_state {
+	dspreg_t        dspr[NUM_DSP_REGS];
+	unsigned int    dspcontrol;
+	unsigned short	used_dsp;
+};
+
+#define INIT_DSP {{0,},}
+
 typedef struct {
 	unsigned long seg;
 } mm_segment_t;
 
 #define ARCH_MIN_TASKALIGN	8
+
+struct mips_abi;
 
 /*
  * If you change thread_struct remember to change the #defines below too!
@@ -117,6 +131,9 @@ struct thread_struct {
 	/* Saved fpu/fpu emulator stuff. */
 	union mips_fpu_union fpu;
 
+	/* Saved state of the DSP ASE, if available. */
+	struct mips_dsp_state dsp;
+
 	/* Other stuff associated with the thread. */
 	unsigned long cp0_badvaddr;	/* Last user fault */
 	unsigned long cp0_baduaddr;	/* Last kernel fault accessing USEG */
@@ -129,6 +146,7 @@ struct thread_struct {
 	unsigned long mflags;
 	unsigned long irix_trampoline;  /* Wheee... */
 	unsigned long irix_oldctx;
+	struct mips_abi *abi;
 };
 
 #define MF_ABI_MASK	(MF_32BIT_REGS | MF_32BIT_ADDR)
@@ -150,6 +168,10 @@ struct thread_struct {
 	 * saved fpu/fpu emulator stuff \
 	 */ \
 	INIT_FPU, \
+	/* \
+	 * saved dsp/dsp emulator stuff \
+	 */ \
+	INIT_DSP, \
 	/* \
 	 * Other stuff associated with the process \
 	 */ \

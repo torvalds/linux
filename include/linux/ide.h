@@ -218,7 +218,7 @@ typedef enum {	ide_unknown,	ide_generic,	ide_pci,
 		ide_rz1000,	ide_trm290,
 		ide_cmd646,	ide_cy82c693,	ide_4drives,
 		ide_pmac,	ide_etrax100,	ide_acorn,
-		ide_forced
+		ide_au1xxx, ide_forced
 } hwif_chipset_t;
 
 /*
@@ -1500,5 +1500,11 @@ extern struct bus_type ide_bus_type;
 /* some Maxtor disks have bit 13 defined incorrectly so check bit 10 too */
 #define ide_id_has_flush_cache_ext(id)	\
 	(((id)->cfs_enable_2 & 0x2400) == 0x2400)
+
+static inline int hwif_to_node(ide_hwif_t *hwif)
+{
+	struct pci_dev *dev = hwif->pci_dev;
+	return dev ? pcibus_to_node(dev->bus) : -1;
+}
 
 #endif /* _IDE_H */

@@ -1,39 +1,26 @@
 /*
- * Copyright (c) 2000-2005 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_sb.h"
+#include "xfs_ag.h"
 #include "xfs_dir.h"
 #include "xfs_dir2.h"
 #include "xfs_trans.h"
@@ -311,6 +298,31 @@ linvfs_fsync(
 
 #define nextdp(dp)      ((struct xfs_dirent *)((char *)(dp) + (dp)->d_reclen))
 
+#ifdef CONFIG_XFS_DMAPI
+
+STATIC struct page *
+linvfs_filemap_nopage(
+	struct vm_area_struct	*area,
+	unsigned long		address,
+	int			*type)
+{
+	struct inode	*inode = area->vm_file->f_dentry->d_inode;
+	vnode_t		*vp = LINVFS_GET_VP(inode);
+	xfs_mount_t	*mp = XFS_VFSTOM(vp->v_vfsp);
+	int		error;
+
+	ASSERT_ALWAYS(vp->v_vfsp->vfs_flag & VFS_DMI);
+
+	error = XFS_SEND_MMAP(mp, area, 0);
+	if (error)
+		return NULL;
+
+	return filemap_nopage(area, address, type);
+}
+
+#endif /* CONFIG_XFS_DMAPI */
+
+
 STATIC int
 linvfs_readdir(
 	struct file	*filp,
@@ -390,14 +402,6 @@ done:
 	return -error;
 }
 
-#ifdef CONFIG_XFS_DMAPI
-STATIC void
-linvfs_mmap_close(
-	struct vm_area_struct	*vma)
-{
-	xfs_dm_mm_put(vma);
-}
-#endif /* CONFIG_XFS_DMAPI */
 
 STATIC int
 linvfs_file_mmap(
@@ -411,16 +415,11 @@ linvfs_file_mmap(
 
 	vma->vm_ops = &linvfs_file_vm_ops;
 
-	if (vp->v_vfsp->vfs_flag & VFS_DMI) {
-		xfs_mount_t	*mp = XFS_VFSTOM(vp->v_vfsp);
-
-		error = -XFS_SEND_MMAP(mp, vma, 0);
-		if (error)
-			return error;
 #ifdef CONFIG_XFS_DMAPI
+	if (vp->v_vfsp->vfs_flag & VFS_DMI) {
 		vma->vm_ops = &linvfs_dmapi_file_vm_ops;
-#endif
 	}
+#endif /* CONFIG_XFS_DMAPI */
 
 	VOP_SETATTR(vp, &va, XFS_AT_UPDATIME, NULL, error);
 	if (!error)
@@ -474,6 +473,7 @@ linvfs_ioctl_invis(
 	return error;
 }
 
+#ifdef CONFIG_XFS_DMAPI
 #ifdef HAVE_VMOP_MPROTECT
 STATIC int
 linvfs_mprotect(
@@ -494,6 +494,7 @@ linvfs_mprotect(
 	return error;
 }
 #endif /* HAVE_VMOP_MPROTECT */
+#endif /* CONFIG_XFS_DMAPI */
 
 #ifdef HAVE_FOP_OPEN_EXEC
 /* If the user is attempting to execute a file that is offline then
@@ -528,49 +529,10 @@ open_exec_out:
 }
 #endif /* HAVE_FOP_OPEN_EXEC */
 
-/*
- * Temporary workaround to the AIO direct IO write problem.
- * This code can go and we can revert to do_sync_write once
- * the writepage(s) rework is merged.
- */
-STATIC ssize_t
-linvfs_write(
-	struct file	*filp,
-	const char	__user *buf,
-	size_t		len,
-	loff_t		*ppos)
-{
-	struct kiocb	kiocb;
-	ssize_t		ret;
-
-	init_sync_kiocb(&kiocb, filp);
-	kiocb.ki_pos = *ppos;
-	ret = __linvfs_write(&kiocb, buf, 0, len, kiocb.ki_pos);
-	*ppos = kiocb.ki_pos;
-	return ret;
-}
-STATIC ssize_t
-linvfs_write_invis(
-	struct file	*filp,
-	const char	__user *buf,
-	size_t		len,
-	loff_t		*ppos)
-{
-	struct kiocb	kiocb;
-	ssize_t		ret;
-
-	init_sync_kiocb(&kiocb, filp);
-	kiocb.ki_pos = *ppos;
-	ret = __linvfs_write(&kiocb, buf, IO_INVIS, len, kiocb.ki_pos);
-	*ppos = kiocb.ki_pos;
-	return ret;
-}
-
-
 struct file_operations linvfs_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
-	.write		= linvfs_write,
+	.write		= do_sync_write,
 	.readv		= linvfs_readv,
 	.writev		= linvfs_writev,
 	.aio_read	= linvfs_aio_read,
@@ -592,7 +554,7 @@ struct file_operations linvfs_file_operations = {
 struct file_operations linvfs_invis_file_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= do_sync_read,
-	.write		= linvfs_write_invis,
+	.write		= do_sync_write,
 	.readv		= linvfs_readv_invis,
 	.writev		= linvfs_writev_invis,
 	.aio_read	= linvfs_aio_read_invis,
@@ -626,8 +588,7 @@ static struct vm_operations_struct linvfs_file_vm_ops = {
 
 #ifdef CONFIG_XFS_DMAPI
 static struct vm_operations_struct linvfs_dmapi_file_vm_ops = {
-	.close		= linvfs_mmap_close,
-	.nopage		= filemap_nopage,
+	.nopage		= linvfs_filemap_nopage,
 	.populate	= filemap_populate,
 #ifdef HAVE_VMOP_MPROTECT
 	.mprotect	= linvfs_mprotect,

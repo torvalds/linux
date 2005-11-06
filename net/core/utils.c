@@ -16,7 +16,9 @@
 #include <linux/module.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/inet.h>
 #include <linux/mm.h>
+#include <linux/net.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/random.h>

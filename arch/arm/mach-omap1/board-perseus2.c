@@ -13,7 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -24,6 +24,7 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
+#include <asm/arch/tc.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/mux.h>
 #include <asm/arch/fpga.h>
@@ -83,8 +84,8 @@ static struct flash_platform_data p2_flash_data = {
 };
 
 static struct resource p2_flash_resource = {
-	.start		= OMAP_FLASH_0_START,
-	.end		= OMAP_FLASH_0_START + OMAP_FLASH_0_SIZE - 1,
+	.start		= OMAP_CS0_PHYS,
+	.end		= OMAP_CS0_PHYS + SZ_32M - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
@@ -133,8 +134,12 @@ void omap_perseus2_init_irq(void)
 
 /* Only FPGA needs to be mapped here. All others are done with ioremap */
 static struct map_desc omap_perseus2_io_desc[] __initdata = {
-	{H2P2_DBG_FPGA_BASE, H2P2_DBG_FPGA_START, H2P2_DBG_FPGA_SIZE,
-	 MT_DEVICE},
+	{
+		.virtual	= H2P2_DBG_FPGA_BASE,
+		.pfn		= __phys_to_pfn(H2P2_DBG_FPGA_START),
+		.length		= H2P2_DBG_FPGA_SIZE,
+		.type		= MT_DEVICE
+	}
 };
 
 static void __init omap_perseus2_map_io(void)

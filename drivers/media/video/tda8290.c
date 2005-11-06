@@ -1,5 +1,4 @@
 /*
- * $Id: tda8290.c,v 1.15 2005/07/08 20:21:33 mchehab Exp $
  *
  * i2c tv tuner chip device driver
  * controls the philips tda8290+75 tuner chip combo.
@@ -8,6 +7,9 @@
 #include <linux/videodev.h>
 #include <linux/delay.h>
 #include <media/tuner.h>
+
+#define I2C_ADDR_TDA8290        0x4b
+#define I2C_ADDR_TDA8275        0x61
 
 /* ---------------------------------------------------------------------- */
 
@@ -75,10 +77,12 @@ static unsigned char i2c_init_tda8275[14] = 	{ 0x00, 0x00, 0x00, 0x00,
 static unsigned char i2c_set_VS[2] = 		{ 0x30, 0x6F };
 static unsigned char i2c_set_GP01_CF[2] = 	{ 0x20, 0x0B };
 static unsigned char i2c_tda8290_reset[2] =	{ 0x00, 0x00 };
+static unsigned char i2c_tda8290_standby[2] =	{ 0x00, 0x02 };
 static unsigned char i2c_gainset_off[2] =	{ 0x28, 0x14 };
 static unsigned char i2c_gainset_on[2] =	{ 0x28, 0x54 };
 static unsigned char i2c_agc3_00[2] =		{ 0x80, 0x00 };
 static unsigned char i2c_agc2_BF[2] =		{ 0x60, 0xBF };
+static unsigned char i2c_cb1_D0[2] =		{ 0x30, 0xD0 };
 static unsigned char i2c_cb1_D2[2] =		{ 0x30, 0xD2 };
 static unsigned char i2c_cb1_56[2] =		{ 0x30, 0x56 };
 static unsigned char i2c_cb1_52[2] =		{ 0x30, 0x52 };
@@ -115,6 +119,13 @@ static struct i2c_msg i2c_msg_epilog[] = {
 	{ I2C_ADDR_TDA8275, 0, ARRAY_SIZE(i2c_agc3_08), i2c_agc3_08 },
 	{ I2C_ADDR_TDA8290, 0, ARRAY_SIZE(i2c_disable_bridge), i2c_disable_bridge },
 	{ I2C_ADDR_TDA8290, 0, ARRAY_SIZE(i2c_gainset_on), i2c_gainset_on },
+};
+
+static struct i2c_msg i2c_msg_standby[] = {
+	{ I2C_ADDR_TDA8290, 0, ARRAY_SIZE(i2c_enable_bridge), i2c_enable_bridge },
+	{ I2C_ADDR_TDA8275, 0, ARRAY_SIZE(i2c_cb1_D0), i2c_cb1_D0 },
+	{ I2C_ADDR_TDA8290, 0, ARRAY_SIZE(i2c_disable_bridge), i2c_disable_bridge },
+	{ I2C_ADDR_TDA8290, 0, ARRAY_SIZE(i2c_tda8290_standby), i2c_tda8290_standby },
 };
 
 static int tda8290_tune(struct i2c_client *c)
@@ -205,6 +216,11 @@ static int has_signal(struct i2c_client *c)
 	return (afc & 0x80)? 65535:0;
 }
 
+static void standby(struct i2c_client *c)
+{
+	i2c_transfer(c->adapter, i2c_msg_standby, ARRAY_SIZE(i2c_msg_standby));
+}
+
 int tda8290_init(struct i2c_client *c)
 {
 	struct tuner *t = i2c_get_clientdata(c);
@@ -214,6 +230,7 @@ int tda8290_init(struct i2c_client *c)
 	t->tv_freq    = set_tv_freq;
 	t->radio_freq = set_radio_freq;
 	t->has_signal = has_signal;
+	t->standby = standby;
 
 	i2c_master_send(c, i2c_enable_bridge, ARRAY_SIZE(i2c_enable_bridge));
 	i2c_transfer(c->adapter, i2c_msg_init, ARRAY_SIZE(i2c_msg_init));

@@ -69,8 +69,7 @@
 
 #define tx_enabled(port)	((port)->unused[0])
 
-static void
-clps711xuart_stop_tx(struct uart_port *port, unsigned int tty_stop)
+static void clps711xuart_stop_tx(struct uart_port *port)
 {
 	if (tx_enabled(port)) {
 		disable_irq(TX_IRQ(port));
@@ -78,8 +77,7 @@ clps711xuart_stop_tx(struct uart_port *port, unsigned int tty_stop)
 	}
 }
 
-static void
-clps711xuart_start_tx(struct uart_port *port, unsigned int tty_start)
+static void clps711xuart_start_tx(struct uart_port *port)
 {
 	if (!tx_enabled(port)) {
 		enable_irq(TX_IRQ(port));
@@ -100,7 +98,7 @@ static irqreturn_t clps711xuart_int_rx(int irq, void *dev_id, struct pt_regs *re
 {
 	struct uart_port *port = dev_id;
 	struct tty_struct *tty = port->info->tty;
-	unsigned int status, ch, flg, ignored = 0;
+	unsigned int status, ch, flg;
 
 	status = clps_readl(SYSFLG(port));
 	while (!(status & SYSFLG_URXFE)) {
@@ -165,7 +163,7 @@ static irqreturn_t clps711xuart_int_tx(int irq, void *dev_id, struct pt_regs *re
 		return IRQ_HANDLED;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
-		clps711xuart_stop_tx(port, 0);
+		clps711xuart_stop_tx(port);
 		return IRQ_HANDLED;
 	}
 
@@ -182,7 +180,7 @@ static irqreturn_t clps711xuart_int_tx(int irq, void *dev_id, struct pt_regs *re
 		uart_write_wakeup(port);
 
 	if (uart_circ_empty(xmit))
-		clps711xuart_stop_tx(port, 0);
+		clps711xuart_stop_tx(port);
 
 	return IRQ_HANDLED;
 }
@@ -527,7 +525,7 @@ static int __init clps711xuart_console_setup(struct console *co, char *options)
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
-extern struct uart_driver clps711x_reg;
+static struct uart_driver clps711x_reg;
 static struct console clps711x_console = {
 	.name		= "ttyCL",
 	.write		= clps711xuart_console_write,

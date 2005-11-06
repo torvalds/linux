@@ -92,7 +92,7 @@ int snd_ak4114_create(snd_card_t *card,
 		.dev_free =     snd_ak4114_dev_free,
 	};
 
-	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (chip == NULL)
 		return -ENOMEM;
 	spin_lock_init(&chip->lock);

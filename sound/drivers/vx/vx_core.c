@@ -782,7 +782,7 @@ vx_core_t *snd_vx_create(snd_card_t *card, struct snd_vx_hardware *hw,
 
 	snd_assert(card && hw && ops, return NULL);
 
-	chip = kcalloc(1, sizeof(*chip) + extra_size, GFP_KERNEL);
+	chip = kzalloc(sizeof(*chip) + extra_size, GFP_KERNEL);
 	if (! chip) {
 		snd_printk(KERN_ERR "vx_core: no memory\n");
 		return NULL;

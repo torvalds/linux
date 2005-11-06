@@ -15,7 +15,7 @@
  *  with this program; if not, write to the Free Software Foundation, Inc.,
  *  59 Temple Place - Suite 330, Boston MA 02111-1307, USA.
  *
- * Routines for generic manipulation of the interrupts found on the 
+ * Routines for generic manipulation of the interrupts found on the
  * Lasat boards.
  */
 #include <linux/init.h>
@@ -71,14 +71,13 @@ static void end_lasat_irq(unsigned int irq)
 }
 
 static struct hw_interrupt_type lasat_irq_type = {
-	"Lasat",
-	startup_lasat_irq,
-	shutdown_lasat_irq,
-	enable_lasat_irq,
-	disable_lasat_irq,
-	mask_and_ack_lasat_irq,
-	end_lasat_irq,
-	NULL
+	.typename = "Lasat",
+	.startup = startup_lasat_irq,
+	.shutdown = shutdown_lasat_irq,
+	.enable = enable_lasat_irq,
+	.disable = disable_lasat_irq,
+	.ack = mask_and_ack_lasat_irq,
+	.end = end_lasat_irq,
 };
 
 static inline int ls1bit32(unsigned int x)
@@ -101,7 +100,7 @@ static unsigned long get_int_status_100(void)
 	return *lasat_int_status & *lasat_int_mask;
 }
 
-static unsigned long get_int_status_200(void) 
+static unsigned long get_int_status_200(void)
 {
 	unsigned long int_status;
 

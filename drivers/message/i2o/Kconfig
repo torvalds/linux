@@ -53,6 +53,9 @@ config I2O_CONFIG
 	  To compile this support as a module, choose M here: the
 	  module will be called i2o_config.
 
+	  Note: If you want to use the new API you have to download the
+	  i2o_config patch from http://i2o.shadowconnect.com/
+
 config I2O_CONFIG_OLD_IOCTL
 	bool "Enable ioctls (OBSOLETE)"
 	depends on I2O_CONFIG

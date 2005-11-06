@@ -181,7 +181,7 @@ static int snd_emu10k1_spdif_put(snd_kcontrol_t * kcontrol,
 static snd_kcontrol_new_t snd_emu10k1_spdif_mask_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ,
-	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,MASK),
 	.count =	4,
 	.info =         snd_emu10k1_spdif_info,
@@ -190,7 +190,7 @@ static snd_kcontrol_new_t snd_emu10k1_spdif_mask_control =
 
 static snd_kcontrol_new_t snd_emu10k1_spdif_control =
 {
-	.iface =	SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         SNDRV_CTL_NAME_IEC958("",PLAYBACK,DEFAULT),
 	.count =	4,
 	.info =         snd_emu10k1_spdif_info,
@@ -295,7 +295,7 @@ static int snd_emu10k1_send_routing_put(snd_kcontrol_t * kcontrol,
 static snd_kcontrol_new_t snd_emu10k1_send_routing_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_INACTIVE,
-	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         "EMU10K1 PCM Send Routing",
 	.count =	32,
 	.info =         snd_emu10k1_send_routing_info,
@@ -364,7 +364,7 @@ static int snd_emu10k1_send_volume_put(snd_kcontrol_t * kcontrol,
 static snd_kcontrol_new_t snd_emu10k1_send_volume_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_INACTIVE,
-	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         "EMU10K1 PCM Send Volume",
 	.count =	32,
 	.info =         snd_emu10k1_send_volume_info,
@@ -427,7 +427,7 @@ static int snd_emu10k1_attn_put(snd_kcontrol_t * kcontrol,
 static snd_kcontrol_new_t snd_emu10k1_attn_control =
 {
 	.access =	SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_INACTIVE,
-	.iface =        SNDRV_CTL_ELEM_IFACE_MIXER,
+	.iface =        SNDRV_CTL_ELEM_IFACE_PCM,
 	.name =         "EMU10K1 PCM Volume",
 	.count =	32,
 	.info =         snd_emu10k1_attn_info,
@@ -737,7 +737,8 @@ static int rename_ctl(snd_card_t *card, const char *src, const char *dst)
 	return -ENOENT;
 }
 
-int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
+int __devinit snd_emu10k1_mixer(emu10k1_t *emu,
+				int pcm_device, int multi_device)
 {
 	int err, pcm;
 	snd_kcontrol_t *kctl;
@@ -809,8 +810,14 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
 		ac97.private_data = emu;
 		ac97.private_free = snd_emu10k1_mixer_free_ac97;
 		ac97.scaps = AC97_SCAP_NO_SPDIF;
-		if ((err = snd_ac97_mixer(pbus, &ac97, &emu->ac97)) < 0)
-			return err;
+		if ((err = snd_ac97_mixer(pbus, &ac97, &emu->ac97)) < 0) {
+			if (emu->card_capabilities->ac97_chip == 1)
+				return err;
+			snd_printd(KERN_INFO "emu10k1: AC97 is optional on this board\n");
+			snd_printd(KERN_INFO"          Proceeding without ac97 mixers...\n");
+			snd_device_free(emu->card, pbus);
+			goto no_ac97; /* FIXME: get rid of ugly gotos.. */
+		}
 		if (emu->audigy) {
 			/* set master volume to 0 dB */
 			snd_ac97_write(emu->ac97, AC97_MASTER, 0x0000);
@@ -835,6 +842,7 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
 		for (; *c; c++)
 			remove_ctl(card, *c);
 	} else {
+	no_ac97:
 		if (emu->card_capabilities->ecard)
 			strcpy(emu->card->mixername, "EMU APS");
 		else if (emu->audigy)
@@ -852,29 +860,35 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
 
 	if ((kctl = emu->ctl_send_routing = snd_ctl_new1(&snd_emu10k1_send_routing_control, emu)) == NULL)
 		return -ENOMEM;
+	kctl->id.device = pcm_device;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
 	if ((kctl = emu->ctl_send_volume = snd_ctl_new1(&snd_emu10k1_send_volume_control, emu)) == NULL)
 		return -ENOMEM;
+	kctl->id.device = pcm_device;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
 	if ((kctl = emu->ctl_attn = snd_ctl_new1(&snd_emu10k1_attn_control, emu)) == NULL)
 		return -ENOMEM;
+	kctl->id.device = pcm_device;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
 
 	if ((kctl = emu->ctl_efx_send_routing = snd_ctl_new1(&snd_emu10k1_efx_send_routing_control, emu)) == NULL)
 		return -ENOMEM;
+	kctl->id.device = multi_device;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
 	
 	if ((kctl = emu->ctl_efx_send_volume = snd_ctl_new1(&snd_emu10k1_efx_send_volume_control, emu)) == NULL)
 		return -ENOMEM;
+	kctl->id.device = multi_device;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
 	
 	if ((kctl = emu->ctl_efx_attn = snd_ctl_new1(&snd_emu10k1_efx_attn_control, emu)) == NULL)
 		return -ENOMEM;
+	kctl->id.device = multi_device;
 	if ((err = snd_ctl_add(card, kctl)))
 		return err;
 
@@ -924,10 +938,14 @@ int __devinit snd_emu10k1_mixer(emu10k1_t *emu)
 		/* sb live! and audigy */
 		if ((kctl = snd_ctl_new1(&snd_emu10k1_spdif_mask_control, emu)) == NULL)
 			return -ENOMEM;
+		if (!emu->audigy)
+			kctl->id.device = emu->pcm_efx->device;
 		if ((err = snd_ctl_add(card, kctl)))
 			return err;
 		if ((kctl = snd_ctl_new1(&snd_emu10k1_spdif_control, emu)) == NULL)
 			return -ENOMEM;
+		if (!emu->audigy)
+			kctl->id.device = emu->pcm_efx->device;
 		if ((err = snd_ctl_add(card, kctl)))
 			return err;
 	}

@@ -1,5 +1,5 @@
 config DVB_BT8XX
-	tristate "Nebula/Pinnacle PCTV/Twinhan PCI cards"
+	tristate "BT8xx based PCI cards"
 	depends on DVB_CORE && PCI && VIDEO_BT848
 	select DVB_MT352
 	select DVB_SP887X
@@ -8,8 +8,8 @@ config DVB_BT8XX
 	select DVB_OR51211
 	help
 	  Support for PCI cards based on the Bt8xx PCI bridge. Examples are
-	  the Nebula cards, the Pinnacle PCTV cards, the Twinhan DST cards and
-	  pcHDTV HD2000 cards.
+	  the Nebula cards, the Pinnacle PCTV cards, the Twinhan DST cards,
+	  the pcHDTV HD2000 cards, and certain AVerMedia cards.
 
 	  Since these cards have no MPEG decoder onboard, they transmit
 	  only compressed MPEG data over the PCI bus, so you need

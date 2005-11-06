@@ -148,7 +148,7 @@ int rtnetlink_send(struct sk_buff *skb, u32 pid, unsigned group, int echo)
 {
 	int err = 0;
 
-	NETLINK_CB(skb).dst_groups = group;
+	NETLINK_CB(skb).dst_group = group;
 	if (echo)
 		atomic_inc(&skb->users);
 	netlink_broadcast(rtnl, skb, pid, group, GFP_KERNEL);
@@ -458,8 +458,8 @@ void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change)
 		kfree_skb(skb);
 		return;
 	}
-	NETLINK_CB(skb).dst_groups = RTMGRP_LINK;
-	netlink_broadcast(rtnl, skb, 0, RTMGRP_LINK, GFP_KERNEL);
+	NETLINK_CB(skb).dst_group = RTNLGRP_LINK;
+	netlink_broadcast(rtnl, skb, 0, RTNLGRP_LINK, GFP_KERNEL);
 }
 
 static int rtnetlink_done(struct netlink_callback *cb)
@@ -708,7 +708,8 @@ void __init rtnetlink_init(void)
 	if (!rta_buf)
 		panic("rtnetlink_init: cannot allocate rta_buf\n");
 
-	rtnl = netlink_kernel_create(NETLINK_ROUTE, rtnetlink_rcv);
+	rtnl = netlink_kernel_create(NETLINK_ROUTE, RTNLGRP_MAX, rtnetlink_rcv,
+	                             THIS_MODULE);
 	if (rtnl == NULL)
 		panic("rtnetlink_init: cannot initialize rtnetlink\n");
 	netlink_set_nonroot(NETLINK_ROUTE, NL_NONROOT_RECV);

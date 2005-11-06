@@ -113,6 +113,7 @@
 #define APIC_BASE (fix_to_virt(FIX_APIC_BASE))
 
 #define MAX_IO_APICS 128
+#define MAX_LOCAL_APIC 256
 
 /*
  * All x86-64 systems are xAPIC compatible.

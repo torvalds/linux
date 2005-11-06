@@ -12,7 +12,7 @@
 #ifndef _SGI_IP22_H
 #define _SGI_IP22_H
 
-/* 
+/*
  * These are the virtual IRQ numbers, we divide all IRQ's into
  * 'spaces', the 'space' determines where and how to enable/disable
  * that particular IRQ on an SGI machine. HPC DMA and MC DMA interrups

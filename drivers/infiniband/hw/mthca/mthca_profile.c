@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004, 2005 Topspin Communications.  All rights reserved.
+ * Copyright (c) 2005 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -34,6 +35,8 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/string.h>
+#include <linux/slab.h>
 
 #include "mthca_profile.h"
 
@@ -79,11 +82,9 @@ u64 mthca_make_profile(struct mthca_dev *dev,
 	struct mthca_resource tmp;
 	int i, j;
 
-	profile = kmalloc(MTHCA_RES_NUM * sizeof *profile, GFP_KERNEL);
+	profile = kzalloc(MTHCA_RES_NUM * sizeof *profile, GFP_KERNEL);
 	if (!profile)
 		return -ENOMEM;
-
-	memset(profile, 0, MTHCA_RES_NUM * sizeof *profile);
 
 	profile[MTHCA_RES_QP].size   = dev_lim->qpc_entry_sz;
 	profile[MTHCA_RES_EEC].size  = dev_lim->eec_entry_sz;
@@ -101,6 +102,7 @@ u64 mthca_make_profile(struct mthca_dev *dev,
 	profile[MTHCA_RES_UARC].size = request->uarc_size;
 
 	profile[MTHCA_RES_QP].num    = request->num_qp;
+	profile[MTHCA_RES_SRQ].num   = request->num_srq;
 	profile[MTHCA_RES_EQP].num   = request->num_qp;
 	profile[MTHCA_RES_RDB].num   = request->num_qp * request->rdb_per_qp;
 	profile[MTHCA_RES_CQ].num    = request->num_cq;

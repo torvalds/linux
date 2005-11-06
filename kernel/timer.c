@@ -46,6 +46,10 @@ static void time_interpolator_update(long delta_nsec);
 #define time_interpolator_update(x)
 #endif
 
+u64 jiffies_64 __cacheline_aligned_in_smp = INITIAL_JIFFIES;
+
+EXPORT_SYMBOL(jiffies_64);
+
 /*
  * per-CPU timer vector definitions:
  */
@@ -90,30 +94,6 @@ static inline void set_running_timer(tvec_base_t *base,
 	base->t_base.running_timer = timer;
 #endif
 }
-
-static void check_timer_failed(struct timer_list *timer)
-{
-	static int whine_count;
-	if (whine_count < 16) {
-		whine_count++;
-		printk("Uninitialised timer!\n");
-		printk("This is just a warning.  Your computer is OK\n");
-		printk("function=0x%p, data=0x%lx\n",
-			timer->function, timer->data);
-		dump_stack();
-	}
-	/*
-	 * Now fix it up
-	 */
-	timer->magic = TIMER_MAGIC;
-}
-
-static inline void check_timer(struct timer_list *timer)
-{
-	if (timer->magic != TIMER_MAGIC)
-		check_timer_failed(timer);
-}
-
 
 static void internal_add_timer(tvec_base_t *base, struct timer_list *timer)
 {
@@ -177,7 +157,6 @@ void fastcall init_timer(struct timer_list *timer)
 {
 	timer->entry.next = NULL;
 	timer->base = &per_cpu(tvec_bases, raw_smp_processor_id()).t_base;
-	timer->magic = TIMER_MAGIC;
 }
 EXPORT_SYMBOL(init_timer);
 
@@ -230,7 +209,6 @@ int __mod_timer(struct timer_list *timer, unsigned long expires)
 	int ret = 0;
 
 	BUG_ON(!timer->function);
-	check_timer(timer);
 
 	base = lock_timer_base(timer, &flags);
 
@@ -283,9 +261,6 @@ void add_timer_on(struct timer_list *timer, int cpu)
   	unsigned long flags;
 
   	BUG_ON(timer_pending(timer) || !timer->function);
-
-	check_timer(timer);
-
 	spin_lock_irqsave(&base->t_base.lock, flags);
 	timer->base = &base->t_base;
 	internal_add_timer(base, timer);
@@ -316,8 +291,6 @@ int mod_timer(struct timer_list *timer, unsigned long expires)
 {
 	BUG_ON(!timer->function);
 
-	check_timer(timer);
-
 	/*
 	 * This is a common optimization triggered by the
 	 * networking code - if the timer is re-modified
@@ -347,8 +320,6 @@ int del_timer(struct timer_list *timer)
 	timer_base_t *base;
 	unsigned long flags;
 	int ret = 0;
-
-	check_timer(timer);
 
 	if (timer_pending(timer)) {
 		base = lock_timer_base(timer, &flags);
@@ -412,8 +383,6 @@ out:
  */
 int del_timer_sync(struct timer_list *timer)
 {
-	check_timer(timer);
-
 	for (;;) {
 		int ret = try_to_del_timer_sync(timer);
 		if (ret >= 0)
@@ -632,134 +601,118 @@ long time_next_adjust;
  */
 static void second_overflow(void)
 {
-    long ltemp;
+	long ltemp;
 
-    /* Bump the maxerror field */
-    time_maxerror += time_tolerance >> SHIFT_USEC;
-    if ( time_maxerror > NTP_PHASE_LIMIT ) {
-	time_maxerror = NTP_PHASE_LIMIT;
-	time_status |= STA_UNSYNC;
-    }
-
-    /*
-     * Leap second processing. If in leap-insert state at
-     * the end of the day, the system clock is set back one
-     * second; if in leap-delete state, the system clock is
-     * set ahead one second. The microtime() routine or
-     * external clock driver will insure that reported time
-     * is always monotonic. The ugly divides should be
-     * replaced.
-     */
-    switch (time_state) {
-
-    case TIME_OK:
-	if (time_status & STA_INS)
-	    time_state = TIME_INS;
-	else if (time_status & STA_DEL)
-	    time_state = TIME_DEL;
-	break;
-
-    case TIME_INS:
-	if (xtime.tv_sec % 86400 == 0) {
-	    xtime.tv_sec--;
-	    wall_to_monotonic.tv_sec++;
-	    /* The timer interpolator will make time change gradually instead
-	     * of an immediate jump by one second.
-	     */
-	    time_interpolator_update(-NSEC_PER_SEC);
-	    time_state = TIME_OOP;
-	    clock_was_set();
-	    printk(KERN_NOTICE "Clock: inserting leap second 23:59:60 UTC\n");
+	/* Bump the maxerror field */
+	time_maxerror += time_tolerance >> SHIFT_USEC;
+	if (time_maxerror > NTP_PHASE_LIMIT) {
+		time_maxerror = NTP_PHASE_LIMIT;
+		time_status |= STA_UNSYNC;
 	}
-	break;
 
-    case TIME_DEL:
-	if ((xtime.tv_sec + 1) % 86400 == 0) {
-	    xtime.tv_sec++;
-	    wall_to_monotonic.tv_sec--;
-	    /* Use of time interpolator for a gradual change of time */
-	    time_interpolator_update(NSEC_PER_SEC);
-	    time_state = TIME_WAIT;
-	    clock_was_set();
-	    printk(KERN_NOTICE "Clock: deleting leap second 23:59:59 UTC\n");
+	/*
+	 * Leap second processing. If in leap-insert state at the end of the
+	 * day, the system clock is set back one second; if in leap-delete
+	 * state, the system clock is set ahead one second. The microtime()
+	 * routine or external clock driver will insure that reported time is
+	 * always monotonic. The ugly divides should be replaced.
+	 */
+	switch (time_state) {
+	case TIME_OK:
+		if (time_status & STA_INS)
+			time_state = TIME_INS;
+		else if (time_status & STA_DEL)
+			time_state = TIME_DEL;
+		break;
+	case TIME_INS:
+		if (xtime.tv_sec % 86400 == 0) {
+			xtime.tv_sec--;
+			wall_to_monotonic.tv_sec++;
+			/*
+			 * The timer interpolator will make time change
+			 * gradually instead of an immediate jump by one second
+			 */
+			time_interpolator_update(-NSEC_PER_SEC);
+			time_state = TIME_OOP;
+			clock_was_set();
+			printk(KERN_NOTICE "Clock: inserting leap second "
+					"23:59:60 UTC\n");
+		}
+		break;
+	case TIME_DEL:
+		if ((xtime.tv_sec + 1) % 86400 == 0) {
+			xtime.tv_sec++;
+			wall_to_monotonic.tv_sec--;
+			/*
+			 * Use of time interpolator for a gradual change of
+			 * time
+			 */
+			time_interpolator_update(NSEC_PER_SEC);
+			time_state = TIME_WAIT;
+			clock_was_set();
+			printk(KERN_NOTICE "Clock: deleting leap second "
+					"23:59:59 UTC\n");
+		}
+		break;
+	case TIME_OOP:
+		time_state = TIME_WAIT;
+		break;
+	case TIME_WAIT:
+		if (!(time_status & (STA_INS | STA_DEL)))
+		time_state = TIME_OK;
 	}
-	break;
 
-    case TIME_OOP:
-	time_state = TIME_WAIT;
-	break;
-
-    case TIME_WAIT:
-	if (!(time_status & (STA_INS | STA_DEL)))
-	    time_state = TIME_OK;
-    }
-
-    /*
-     * Compute the phase adjustment for the next second. In
-     * PLL mode, the offset is reduced by a fixed factor
-     * times the time constant. In FLL mode the offset is
-     * used directly. In either mode, the maximum phase
-     * adjustment for each second is clamped so as to spread
-     * the adjustment over not more than the number of
-     * seconds between updates.
-     */
-    if (time_offset < 0) {
-	ltemp = -time_offset;
-	if (!(time_status & STA_FLL))
-	    ltemp >>= SHIFT_KG + time_constant;
-	if (ltemp > (MAXPHASE / MINSEC) << SHIFT_UPDATE)
-	    ltemp = (MAXPHASE / MINSEC) << SHIFT_UPDATE;
-	time_offset += ltemp;
-	time_adj = -ltemp << (SHIFT_SCALE - SHIFT_HZ - SHIFT_UPDATE);
-    } else {
+	/*
+	 * Compute the phase adjustment for the next second. In PLL mode, the
+	 * offset is reduced by a fixed factor times the time constant. In FLL
+	 * mode the offset is used directly. In either mode, the maximum phase
+	 * adjustment for each second is clamped so as to spread the adjustment
+	 * over not more than the number of seconds between updates.
+	 */
 	ltemp = time_offset;
 	if (!(time_status & STA_FLL))
-	    ltemp >>= SHIFT_KG + time_constant;
-	if (ltemp > (MAXPHASE / MINSEC) << SHIFT_UPDATE)
-	    ltemp = (MAXPHASE / MINSEC) << SHIFT_UPDATE;
+		ltemp = shift_right(ltemp, SHIFT_KG + time_constant);
+	ltemp = min(ltemp, (MAXPHASE / MINSEC) << SHIFT_UPDATE);
+	ltemp = max(ltemp, -(MAXPHASE / MINSEC) << SHIFT_UPDATE);
 	time_offset -= ltemp;
 	time_adj = ltemp << (SHIFT_SCALE - SHIFT_HZ - SHIFT_UPDATE);
-    }
 
-    /*
-     * Compute the frequency estimate and additional phase
-     * adjustment due to frequency error for the next
-     * second. When the PPS signal is engaged, gnaw on the
-     * watchdog counter and update the frequency computed by
-     * the pll and the PPS signal.
-     */
-    pps_valid++;
-    if (pps_valid == PPS_VALID) {	/* PPS signal lost */
-	pps_jitter = MAXTIME;
-	pps_stabil = MAXFREQ;
-	time_status &= ~(STA_PPSSIGNAL | STA_PPSJITTER |
-			 STA_PPSWANDER | STA_PPSERROR);
-    }
-    ltemp = time_freq + pps_freq;
-    if (ltemp < 0)
-	time_adj -= -ltemp >>
-	    (SHIFT_USEC + SHIFT_HZ - SHIFT_SCALE);
-    else
-	time_adj += ltemp >>
-	    (SHIFT_USEC + SHIFT_HZ - SHIFT_SCALE);
+	/*
+	 * Compute the frequency estimate and additional phase adjustment due
+	 * to frequency error for the next second. When the PPS signal is
+	 * engaged, gnaw on the watchdog counter and update the frequency
+	 * computed by the pll and the PPS signal.
+	 */
+	pps_valid++;
+	if (pps_valid == PPS_VALID) {	/* PPS signal lost */
+		pps_jitter = MAXTIME;
+		pps_stabil = MAXFREQ;
+		time_status &= ~(STA_PPSSIGNAL | STA_PPSJITTER |
+				STA_PPSWANDER | STA_PPSERROR);
+	}
+	ltemp = time_freq + pps_freq;
+	time_adj += shift_right(ltemp,(SHIFT_USEC + SHIFT_HZ - SHIFT_SCALE));
 
 #if HZ == 100
-    /* Compensate for (HZ==100) != (1 << SHIFT_HZ).
-     * Add 25% and 3.125% to get 128.125; => only 0.125% error (p. 14)
-     */
-    if (time_adj < 0)
-	time_adj -= (-time_adj >> 2) + (-time_adj >> 5);
-    else
-	time_adj += (time_adj >> 2) + (time_adj >> 5);
+	/*
+	 * Compensate for (HZ==100) != (1 << SHIFT_HZ).  Add 25% and 3.125% to
+	 * get 128.125; => only 0.125% error (p. 14)
+	 */
+	time_adj += shift_right(time_adj, 2) + shift_right(time_adj, 5);
+#endif
+#if HZ == 250
+	/*
+	 * Compensate for (HZ==250) != (1 << SHIFT_HZ).  Add 1.5625% and
+	 * 0.78125% to get 255.85938; => only 0.05% error (p. 14)
+	 */
+	time_adj += shift_right(time_adj, 6) + shift_right(time_adj, 7);
 #endif
 #if HZ == 1000
-    /* Compensate for (HZ==1000) != (1 << SHIFT_HZ).
-     * Add 1.5625% and 0.78125% to get 1023.4375; => only 0.05% error (p. 14)
-     */
-    if (time_adj < 0)
-	time_adj -= (-time_adj >> 6) + (-time_adj >> 7);
-    else
-	time_adj += (time_adj >> 6) + (time_adj >> 7);
+	/*
+	 * Compensate for (HZ==1000) != (1 << SHIFT_HZ).  Add 1.5625% and
+	 * 0.78125% to get 1023.4375; => only 0.05% error (p. 14)
+	 */
+	time_adj += shift_right(time_adj, 6) + shift_right(time_adj, 7);
 #endif
 }
 
@@ -768,23 +721,20 @@ static void update_wall_time_one_tick(void)
 {
 	long time_adjust_step, delta_nsec;
 
-	if ( (time_adjust_step = time_adjust) != 0 ) {
-	    /* We are doing an adjtime thing. 
-	     *
-	     * Prepare time_adjust_step to be within bounds.
-	     * Note that a positive time_adjust means we want the clock
-	     * to run faster.
-	     *
-	     * Limit the amount of the step to be in the range
-	     * -tickadj .. +tickadj
-	     */
-	     if (time_adjust > tickadj)
-		time_adjust_step = tickadj;
-	     else if (time_adjust < -tickadj)
-		time_adjust_step = -tickadj;
+	if ((time_adjust_step = time_adjust) != 0 ) {
+		/*
+		 * We are doing an adjtime thing.  Prepare time_adjust_step to
+		 * be within bounds.  Note that a positive time_adjust means we
+		 * want the clock to run faster.
+		 *
+		 * Limit the amount of the step to be in the range
+		 * -tickadj .. +tickadj
+		 */
+		time_adjust_step = min(time_adjust_step, (long)tickadj);
+		time_adjust_step = max(time_adjust_step, (long)-tickadj);
 
-	    /* Reduce by this step the amount of time left  */
-	    time_adjust -= time_adjust_step;
+		/* Reduce by this step the amount of time left  */
+		time_adjust -= time_adjust_step;
 	}
 	delta_nsec = tick_nsec + time_adjust_step * 1000;
 	/*
@@ -792,13 +742,8 @@ static void update_wall_time_one_tick(void)
 	 * advance the tick more.
 	 */
 	time_phase += time_adj;
-	if (time_phase <= -FINENSEC) {
-		long ltemp = -time_phase >> (SHIFT_SCALE - 10);
-		time_phase += ltemp << (SHIFT_SCALE - 10);
-		delta_nsec -= ltemp;
-	}
-	else if (time_phase >= FINENSEC) {
-		long ltemp = time_phase >> (SHIFT_SCALE - 10);
+	if ((time_phase >= FINENSEC) || (time_phase <= -FINENSEC)) {
+		long ltemp = shift_right(time_phase, (SHIFT_SCALE - 10));
 		time_phase -= ltemp << (SHIFT_SCALE - 10);
 		delta_nsec += ltemp;
 	}
@@ -950,6 +895,7 @@ void do_timer(struct pt_regs *regs)
 {
 	jiffies_64++;
 	update_times();
+	softlockup_tick(regs);
 }
 
 #ifdef __ARCH_WANT_SYS_ALARM
@@ -1023,7 +969,7 @@ asmlinkage long sys_getppid(void)
 	parent = me->group_leader->real_parent;
 	for (;;) {
 		pid = parent->tgid;
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
 {
 		struct task_struct *old = parent;
 
@@ -1127,8 +1073,8 @@ fastcall signed long __sched schedule_timeout(signed long timeout)
 		if (timeout < 0)
 		{
 			printk(KERN_ERR "schedule_timeout: wrong timeout "
-			       "value %lx from %p\n", timeout,
-			       __builtin_return_address(0));
+				"value %lx from %p\n", timeout,
+				__builtin_return_address(0));
 			current->state = TASK_RUNNING;
 			goto out;
 		}
@@ -1136,12 +1082,8 @@ fastcall signed long __sched schedule_timeout(signed long timeout)
 
 	expire = timeout + jiffies;
 
-	init_timer(&timer);
-	timer.expires = expire;
-	timer.data = (unsigned long) current;
-	timer.function = process_timeout;
-
-	add_timer(&timer);
+	setup_timer(&timer, process_timeout, (unsigned long)current);
+	__mod_timer(&timer, expire);
 	schedule();
 	del_singleshot_timer_sync(&timer);
 
@@ -1150,8 +1092,25 @@ fastcall signed long __sched schedule_timeout(signed long timeout)
  out:
 	return timeout < 0 ? 0 : timeout;
 }
-
 EXPORT_SYMBOL(schedule_timeout);
+
+/*
+ * We can use __set_current_state() here because schedule_timeout() calls
+ * schedule() unconditionally.
+ */
+signed long __sched schedule_timeout_interruptible(signed long timeout)
+{
+	__set_current_state(TASK_INTERRUPTIBLE);
+	return schedule_timeout(timeout);
+}
+EXPORT_SYMBOL(schedule_timeout_interruptible);
+
+signed long __sched schedule_timeout_uninterruptible(signed long timeout)
+{
+	__set_current_state(TASK_UNINTERRUPTIBLE);
+	return schedule_timeout(timeout);
+}
+EXPORT_SYMBOL(schedule_timeout_uninterruptible);
 
 /* Thread ID - the internal kernel "pid" */
 asmlinkage long sys_gettid(void)
@@ -1169,8 +1128,7 @@ static long __sched nanosleep_restart(struct restart_block *restart)
 	if (!time_after(expire, now))
 		return 0;
 
-	current->state = TASK_INTERRUPTIBLE;
-	expire = schedule_timeout(expire - now);
+	expire = schedule_timeout_interruptible(expire - now);
 
 	ret = 0;
 	if (expire) {
@@ -1198,8 +1156,7 @@ asmlinkage long sys_nanosleep(struct timespec __user *rqtp, struct timespec __us
 		return -EINVAL;
 
 	expire = timespec_to_jiffies(&t) + (t.tv_sec || t.tv_nsec);
-	current->state = TASK_INTERRUPTIBLE;
-	expire = schedule_timeout(expire);
+	expire = schedule_timeout_interruptible(expire);
 
 	ret = 0;
 	if (expire) {
@@ -1428,7 +1385,7 @@ static inline u64 time_interpolator_get_cycles(unsigned int src)
 	}
 }
 
-static inline u64 time_interpolator_get_counter(void)
+static inline u64 time_interpolator_get_counter(int writelock)
 {
 	unsigned int src = time_interpolator->source;
 
@@ -1442,6 +1399,15 @@ static inline u64 time_interpolator_get_counter(void)
 			now = time_interpolator_get_cycles(src);
 			if (lcycle && time_after(lcycle, now))
 				return lcycle;
+
+			/* When holding the xtime write lock, there's no need
+			 * to add the overhead of the cmpxchg.  Readers are
+			 * force to retry until the write lock is released.
+			 */
+			if (writelock) {
+				time_interpolator->last_cycle = now;
+				return now;
+			}
 			/* Keep track of the last timer value returned. The use of cmpxchg here
 			 * will cause contention in an SMP environment.
 			 */
@@ -1455,7 +1421,7 @@ static inline u64 time_interpolator_get_counter(void)
 void time_interpolator_reset(void)
 {
 	time_interpolator->offset = 0;
-	time_interpolator->last_counter = time_interpolator_get_counter();
+	time_interpolator->last_counter = time_interpolator_get_counter(1);
 }
 
 #define GET_TI_NSECS(count,i) (((((count) - i->last_counter) & (i)->mask) * (i)->nsec_per_cyc) >> (i)->shift)
@@ -1467,7 +1433,7 @@ unsigned long time_interpolator_get_offset(void)
 		return 0;
 
 	return time_interpolator->offset +
-		GET_TI_NSECS(time_interpolator_get_counter(), time_interpolator);
+		GET_TI_NSECS(time_interpolator_get_counter(0), time_interpolator);
 }
 
 #define INTERPOLATOR_ADJUST 65536
@@ -1482,16 +1448,18 @@ static void time_interpolator_update(long delta_nsec)
 	if (!time_interpolator)
 		return;
 
-	/* The interpolator compensates for late ticks by accumulating
-         * the late time in time_interpolator->offset. A tick earlier than
-	 * expected will lead to a reset of the offset and a corresponding
-	 * jump of the clock forward. Again this only works if the
-	 * interpolator clock is running slightly slower than the regular clock
-	 * and the tuning logic insures that.
-         */
+	/*
+	 * The interpolator compensates for late ticks by accumulating the late
+	 * time in time_interpolator->offset. A tick earlier than expected will
+	 * lead to a reset of the offset and a corresponding jump of the clock
+	 * forward. Again this only works if the interpolator clock is running
+	 * slightly slower than the regular clock and the tuning logic insures
+	 * that.
+	 */
 
-	counter = time_interpolator_get_counter();
-	offset = time_interpolator->offset + GET_TI_NSECS(counter, time_interpolator);
+	counter = time_interpolator_get_counter(1);
+	offset = time_interpolator->offset +
+			GET_TI_NSECS(counter, time_interpolator);
 
 	if (delta_nsec < 0 || (unsigned long) delta_nsec < offset)
 		time_interpolator->offset = offset - delta_nsec;
@@ -1588,10 +1556,8 @@ void msleep(unsigned int msecs)
 {
 	unsigned long timeout = msecs_to_jiffies(msecs) + 1;
 
-	while (timeout) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		timeout = schedule_timeout(timeout);
-	}
+	while (timeout)
+		timeout = schedule_timeout_uninterruptible(timeout);
 }
 
 EXPORT_SYMBOL(msleep);
@@ -1604,10 +1570,8 @@ unsigned long msleep_interruptible(unsigned int msecs)
 {
 	unsigned long timeout = msecs_to_jiffies(msecs) + 1;
 
-	while (timeout && !signal_pending(current)) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		timeout = schedule_timeout(timeout);
-	}
+	while (timeout && !signal_pending(current))
+		timeout = schedule_timeout_interruptible(timeout);
 	return jiffies_to_msecs(timeout);
 }
 

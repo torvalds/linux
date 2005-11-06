@@ -297,6 +297,7 @@ static void vxpocket_config(dev_link_t *link)
 	CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link->handle, &link->conf));
 
 	chip->dev = &handle_to_dev(link->handle);
+	snd_card_set_dev(chip->card, chip->dev);
 
 	if (snd_vxpocket_assign_resources(chip, link->io.BasePort1, link->irq.AssignedIRQ) < 0)
 		goto failed;
@@ -376,7 +377,7 @@ static int vxpocket_event(event_t event, int priority, event_callback_args_t *ar
 
 /*
  */
-static dev_link_t *vxp_attach(void)
+static dev_link_t *vxpocket_attach(void)
 {
 	snd_card_t *card;
 	struct snd_vxpocket *vxp;
@@ -407,7 +408,7 @@ static dev_link_t *vxp_attach(void)
 		return NULL;
 	}
 
-	vxp->index = index[i];
+	vxp->index = i;
 	card_alloc |= 1 << i;
 
 	/* Chain drivers */
@@ -417,7 +418,7 @@ static dev_link_t *vxp_attach(void)
 	return &vxp->link;
 }
 
-static void vxp_detach(dev_link_t *link)
+static void vxpocket_detach(dev_link_t *link)
 {
 	struct snd_vxpocket *vxp;
 	vx_core_t *chip;
@@ -458,8 +459,9 @@ static struct pcmcia_driver vxp_cs_driver = {
 	.drv		= {
 		.name	= "snd-vxpocket",
 	},
-	.attach		= vxp_attach,
-	.detach		= vxp_detach,
+	.attach		= vxpocket_attach,
+	.detach		= vxpocket_detach,
+	.event		= vxpocket_event,
 	.id_table	= vxp_ids,
 };
 

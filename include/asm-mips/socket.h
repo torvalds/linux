@@ -67,6 +67,8 @@ To add: #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
 #define SCM_TIMESTAMP		SO_TIMESTAMP
 
 #define SO_PEERSEC		30
+#define SO_SNDBUFFORCE		31
+#define SO_RCVBUFFORCE		33
 
 #ifdef __KERNEL__
 
@@ -80,7 +82,7 @@ To add: #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
  * @SOCK_STREAM - stream (connection) socket
  * @SOCK_RAW - raw socket
  * @SOCK_RDM - reliably-delivered message
- * @SOCK_SEQPACKET - sequential packet socket 
+ * @SOCK_SEQPACKET - sequential packet socket
  * @SOCK_PACKET - linux specific way of getting packets at the dev level.
  *		  For writing rarp and other similar things on the user level.
  */
@@ -90,6 +92,7 @@ enum sock_type {
 	SOCK_RAW	= 3,
 	SOCK_RDM	= 4,
 	SOCK_SEQPACKET	= 5,
+	SOCK_DCCP	= 6,
 	SOCK_PACKET	= 10,
 };
 

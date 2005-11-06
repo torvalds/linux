@@ -56,7 +56,7 @@
 #include <asm/uaccess.h>
 
 #include <net/sock.h>
-#include <net/tcp.h>
+#include <net/tcp_states.h>
 
 #include <net/irda/af_irda.h>
 

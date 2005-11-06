@@ -12,7 +12,6 @@
 #include <linux/init.h>
 
 #include <linux/mm.h>
-#include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/smp_lock.h>
@@ -29,6 +28,8 @@
 #include <asm/proto.h>
 #include <asm/apicdef.h>
 
+#define __cpuinit __init
+
 /*
  *	Smarter SMP flushing macros. 
  *		c/o Linus Torvalds.
@@ -37,19 +38,41 @@
  *	writing to user space from interrupts. (Its not allowed anyway).
  *
  *	Optimizations Manfred Spraul <manfred@colorfullife.com>
+ *
+ * 	More scalable flush, from Andi Kleen
+ *
+ * 	To avoid global state use 8 different call vectors.
+ * 	Each CPU uses a specific vector to trigger flushes on other
+ * 	CPUs. Depending on the received vector the target CPUs look into
+ *	the right per cpu variable for the flush data.
+ *
+ * 	With more than 8 CPUs they are hashed to the 8 available
+ * 	vectors. The limited global vector space forces us to this right now.
+ *	In future when interrupts are split into per CPU domains this could be
+ *	fixed, at the cost of triggering multiple IPIs in some cases.
  */
 
-static cpumask_t flush_cpumask;
-static struct mm_struct * flush_mm;
-static unsigned long flush_va;
-static DEFINE_SPINLOCK(tlbstate_lock);
+union smp_flush_state {
+	struct {
+		cpumask_t flush_cpumask;
+		struct mm_struct *flush_mm;
+		unsigned long flush_va;
 #define FLUSH_ALL	-1ULL
+		spinlock_t tlbstate_lock;
+	};
+	char pad[SMP_CACHE_BYTES];
+} ____cacheline_aligned;
+
+/* State is put into the per CPU data section, but padded
+   to a full cache line because other CPUs can access it and we don't
+   want false sharing in the per cpu data segment. */
+static DEFINE_PER_CPU(union smp_flush_state, flush_state);
 
 /*
  * We cannot call mmdrop() because we are in interrupt context, 
  * instead update mm->cpu_vm_mask.
  */
-static inline void leave_mm (unsigned long cpu)
+static inline void leave_mm(int cpu)
 {
 	if (read_pda(mmu_state) == TLBSTATE_OK)
 		BUG();
@@ -101,15 +124,25 @@ static inline void leave_mm (unsigned long cpu)
  *
  * 1) Flush the tlb entries if the cpu uses the mm that's being flushed.
  * 2) Leave the mm if we are in the lazy tlb mode.
+ *
+ * Interrupts are disabled.
  */
 
-asmlinkage void smp_invalidate_interrupt (void)
+asmlinkage void smp_invalidate_interrupt(struct pt_regs *regs)
 {
-	unsigned long cpu;
+	int cpu;
+	int sender;
+	union smp_flush_state *f;
 
-	cpu = get_cpu();
+	cpu = smp_processor_id();
+	/*
+	 * orig_rax contains the interrupt vector - 256.
+	 * Use that to determine where the sender put the data.
+	 */
+	sender = regs->orig_rax + 256 - INVALIDATE_TLB_VECTOR_START;
+	f = &per_cpu(flush_state, sender);
 
-	if (!cpu_isset(cpu, flush_cpumask))
+	if (!cpu_isset(cpu, f->flush_cpumask))
 		goto out;
 		/* 
 		 * This was a BUG() but until someone can quote me the
@@ -120,64 +153,63 @@ asmlinkage void smp_invalidate_interrupt (void)
 		 * BUG();
 		 */
 		 
-	if (flush_mm == read_pda(active_mm)) {
+	if (f->flush_mm == read_pda(active_mm)) {
 		if (read_pda(mmu_state) == TLBSTATE_OK) {
-			if (flush_va == FLUSH_ALL)
+			if (f->flush_va == FLUSH_ALL)
 				local_flush_tlb();
 			else
-				__flush_tlb_one(flush_va);
+				__flush_tlb_one(f->flush_va);
 		} else
 			leave_mm(cpu);
 	}
 out:
 	ack_APIC_irq();
-	cpu_clear(cpu, flush_cpumask);
-	put_cpu_no_resched();
+	cpu_clear(cpu, f->flush_cpumask);
 }
 
 static void flush_tlb_others(cpumask_t cpumask, struct mm_struct *mm,
 						unsigned long va)
 {
-	cpumask_t tmp;
-	/*
-	 * A couple of (to be removed) sanity checks:
-	 *
-	 * - we do not send IPIs to not-yet booted CPUs.
-	 * - current CPU must not be in mask
-	 * - mask must exist :)
-	 */
-	BUG_ON(cpus_empty(cpumask));
-	cpus_and(tmp, cpumask, cpu_online_map);
-	BUG_ON(!cpus_equal(tmp, cpumask));
-	BUG_ON(cpu_isset(smp_processor_id(), cpumask));
-	if (!mm)
-		BUG();
+	int sender;
+	union smp_flush_state *f;
 
-	/*
-	 * I'm not happy about this global shared spinlock in the
-	 * MM hot path, but we'll see how contended it is.
-	 * Temporarily this turns IRQs off, so that lockups are
-	 * detected by the NMI watchdog.
-	 */
-	spin_lock(&tlbstate_lock);
-	
-	flush_mm = mm;
-	flush_va = va;
-	cpus_or(flush_cpumask, cpumask, flush_cpumask);
+	/* Caller has disabled preemption */
+	sender = smp_processor_id() % NUM_INVALIDATE_TLB_VECTORS;
+	f = &per_cpu(flush_state, sender);
+
+	/* Could avoid this lock when
+	   num_online_cpus() <= NUM_INVALIDATE_TLB_VECTORS, but it is
+	   probably not worth checking this for a cache-hot lock. */
+	spin_lock(&f->tlbstate_lock);
+
+	f->flush_mm = mm;
+	f->flush_va = va;
+	cpus_or(f->flush_cpumask, cpumask, f->flush_cpumask);
 
 	/*
 	 * We have to send the IPI only to
 	 * CPUs affected.
 	 */
-	send_IPI_mask(cpumask, INVALIDATE_TLB_VECTOR);
+	send_IPI_mask(cpumask, INVALIDATE_TLB_VECTOR_START + sender);
 
-	while (!cpus_empty(flush_cpumask))
-		mb();	/* nothing. lockup detection does not belong here */;
+	while (!cpus_empty(f->flush_cpumask))
+		cpu_relax();
 
-	flush_mm = NULL;
-	flush_va = 0;
-	spin_unlock(&tlbstate_lock);
+	f->flush_mm = NULL;
+	f->flush_va = 0;
+	spin_unlock(&f->tlbstate_lock);
 }
+
+int __cpuinit init_smp_flush(void)
+{
+	int i;
+	for_each_cpu_mask(i, cpu_possible_map) {
+		spin_lock_init(&per_cpu(flush_state.tlbstate_lock, i));
+	}
+	return 0;
+}
+
+core_initcall(init_smp_flush);
 	
 void flush_tlb_current_task(void)
 {
@@ -295,8 +327,11 @@ void unlock_ipi_call_lock(void)
 /*
  * this function sends a 'generic call function' IPI to one other CPU
  * in the system.
+ *
+ * cpu is a standard Linux logical CPU number.
  */
-static void __smp_call_function_single (int cpu, void (*func) (void *info), void *info,
+static void
+__smp_call_function_single(int cpu, void (*func) (void *info), void *info,
 				int nonatomic, int wait)
 {
 	struct call_data_struct data;

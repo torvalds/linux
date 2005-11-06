@@ -30,8 +30,9 @@
 void nvidia_create_i2c_busses(struct nvidia_par *par) {}
 void nvidia_delete_i2c_busses(struct nvidia_par *par) {}
 
-int nvidia_probe_i2c_connector(struct nvidia_par *par, int conn, u8 **out_edid)
+int nvidia_probe_i2c_connector(struct fb_info *info, int conn, u8 **out_edid)
 {
+	struct nvidia_par *par = info->par;
 	struct device_node *dp;
 	unsigned char *pedid = NULL;
 	unsigned char *disptype = NULL;

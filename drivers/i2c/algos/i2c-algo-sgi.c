@@ -149,7 +149,7 @@ static int sgi_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
 			err = i2c_write(adap, p->buf, p->len);
 	}
 
-	return err;
+	return (err < 0) ? err : i;
 }
 
 static u32 sgi_func(struct i2c_adapter *adap)
@@ -158,8 +158,6 @@ static u32 sgi_func(struct i2c_adapter *adap)
 }
 
 static struct i2c_algorithm sgi_algo = {
-	.name		= "SGI algorithm",
-	.id		= I2C_ALGO_SGI,
 	.master_xfer	= sgi_xfer,
 	.functionality	= sgi_func,
 };
@@ -169,7 +167,6 @@ static struct i2c_algorithm sgi_algo = {
  */
 int i2c_sgi_add_bus(struct i2c_adapter *adap)
 {
-	adap->id |= sgi_algo.id;
 	adap->algo = &sgi_algo;
 
 	return i2c_add_adapter(adap);

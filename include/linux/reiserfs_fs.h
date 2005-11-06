@@ -1972,7 +1972,7 @@ extern struct address_space_operations reiserfs_address_space_operations;
 
 /* fix_nodes.c */
 #ifdef CONFIG_REISERFS_CHECK
-void *reiserfs_kmalloc(size_t size, int flags, struct super_block *s);
+void *reiserfs_kmalloc(size_t size, gfp_t flags, struct super_block *s);
 void reiserfs_kfree(const void *vp, size_t size, struct super_block *s);
 #else
 static inline void *reiserfs_kmalloc(size_t size, int flags,
@@ -2097,7 +2097,7 @@ void reiserfs_free_block(struct reiserfs_transaction_handle *th, struct inode *,
 			 b_blocknr_t, int for_unformatted);
 int reiserfs_allocate_blocknrs(reiserfs_blocknr_hint_t *, b_blocknr_t *, int,
 			       int);
-extern inline int reiserfs_new_form_blocknrs(struct tree_balance *tb,
+static inline int reiserfs_new_form_blocknrs(struct tree_balance *tb,
 					     b_blocknr_t * new_blocknrs,
 					     int amount_needed)
 {
@@ -2113,7 +2113,7 @@ extern inline int reiserfs_new_form_blocknrs(struct tree_balance *tb,
 					  0);
 }
 
-extern inline int reiserfs_new_unf_blocknrs(struct reiserfs_transaction_handle
+static inline int reiserfs_new_unf_blocknrs(struct reiserfs_transaction_handle
 					    *th, struct inode *inode,
 					    b_blocknr_t * new_blocknrs,
 					    struct path *path, long block)
@@ -2130,7 +2130,7 @@ extern inline int reiserfs_new_unf_blocknrs(struct reiserfs_transaction_handle
 }
 
 #ifdef REISERFS_PREALLOCATE
-extern inline int reiserfs_new_unf_blocknrs2(struct reiserfs_transaction_handle
+static inline int reiserfs_new_unf_blocknrs2(struct reiserfs_transaction_handle
 					     *th, struct inode *inode,
 					     b_blocknr_t * new_blocknrs,
 					     struct path *path, long block)

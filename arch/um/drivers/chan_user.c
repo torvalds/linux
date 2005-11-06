@@ -63,7 +63,7 @@ error:
  *
  * SIGWINCH can't be received synchronously, so you have to set up to receive it
  * as a signal.  That being the case, if you are going to wait for it, it is
- * convenient to sit in a pause() and wait for the signal to bounce you out of
+ * convenient to sit in sigsuspend() and wait for the signal to bounce you out of
  * it (see below for how we make sure to exit only on SIGWINCH).
  */
 
@@ -94,18 +94,19 @@ static int winch_thread(void *arg)
 		       "byte, err = %d\n", -count);
 
 	/* We are not using SIG_IGN on purpose, so don't fix it as I thought to
-	 * do! If using SIG_IGN, the pause() call below would not stop on
+	 * do! If using SIG_IGN, the sigsuspend() call below would not stop on
 	 * SIGWINCH. */
 
 	signal(SIGWINCH, winch_handler);
 	sigfillset(&sigs);
-	sigdelset(&sigs, SIGWINCH);
-	/* Block anything else than SIGWINCH. */
+	/* Block all signals possible. */
 	if(sigprocmask(SIG_SETMASK, &sigs, NULL) < 0){
 		printk("winch_thread : sigprocmask failed, errno = %d\n", 
 		       errno);
 		exit(1);
 	}
+	/* In sigsuspend(), block anything else than SIGWINCH. */
+	sigdelset(&sigs, SIGWINCH);
 
 	if(setsid() < 0){
 		printk("winch_thread : setsid failed, errno = %d\n", errno);
@@ -130,7 +131,7 @@ static int winch_thread(void *arg)
 	while(1){
 		/* This will be interrupted by SIGWINCH only, since other signals
 		 * are blocked.*/
-		pause();
+		sigsuspend(&sigs);
 
 		count = os_write_file(pipe_fd, &c, sizeof(c));
 		if(count != sizeof(c))

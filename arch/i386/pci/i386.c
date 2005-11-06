@@ -170,43 +170,26 @@ static void __init pcibios_allocate_resources(int pass)
 static int __init pcibios_assign_resources(void)
 {
 	struct pci_dev *dev = NULL;
-	int idx;
-	struct resource *r;
+	struct resource *r, *pr;
 
-	for_each_pci_dev(dev) {
-		int class = dev->class >> 8;
-
-		/* Don't touch classless devices and host bridges */
-		if (!class || class == PCI_CLASS_BRIDGE_HOST)
-			continue;
-
-		for(idx=0; idx<6; idx++) {
-			r = &dev->resource[idx];
-
-			/*
-			 *  Don't touch IDE controllers and I/O ports of video cards!
-			 */
-			if ((class == PCI_CLASS_STORAGE_IDE && idx < 4) ||
-			    (class == PCI_CLASS_DISPLAY_VGA && (r->flags & IORESOURCE_IO)))
-				continue;
-
-			/*
-			 *  We shall assign a new address to this resource, either because
-			 *  the BIOS forgot to do so or because we have decided the old
-			 *  address was unusable for some reason.
-			 */
-			if (!r->start && r->end)
-				pci_assign_resource(dev, idx);
-		}
-
-		if (pci_probe & PCI_ASSIGN_ROMS) {
+	if (!(pci_probe & PCI_ASSIGN_ROMS)) {
+		/* Try to use BIOS settings for ROMs, otherwise let
+		   pci_assign_unassigned_resources() allocate the new
+		   addresses. */
+		for_each_pci_dev(dev) {
 			r = &dev->resource[PCI_ROM_RESOURCE];
-			r->end -= r->start;
-			r->start = 0;
-			if (r->end)
-				pci_assign_resource(dev, PCI_ROM_RESOURCE);
+			if (!r->flags || !r->start)
+				continue;
+			pr = pci_find_parent_resource(dev, r);
+			if (!pr || request_resource(pr, r) < 0) {
+				r->end -= r->start;
+				r->start = 0;
+			}
 		}
 	}
+
+	pci_assign_unassigned_resources();
+
 	return 0;
 }
 
@@ -300,9 +283,9 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 	/* Write-combine setting is ignored, it is changed via the mtrr
 	 * interfaces on this platform.
 	 */
-	if (remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
-			     vma->vm_end - vma->vm_start,
-			     vma->vm_page_prot))
+	if (io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
+			       vma->vm_end - vma->vm_start,
+			       vma->vm_page_prot))
 		return -EAGAIN;
 
 	return 0;

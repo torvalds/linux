@@ -81,8 +81,8 @@ EXPORT_SYMBOL(vrc4173_io_offset);
 static int vrc4173_initialized;
 static uint16_t vrc4173_cmuclkmsk;
 static uint16_t vrc4173_selectreg;
-static spinlock_t vrc4173_cmu_lock;
-static spinlock_t vrc4173_giu_lock;
+static DEFINE_SPINLOCK(vrc4173_cmu_lock);
+static DEFINE_SPINLOCK(vrc4173_giu_lock);
 
 static inline void set_cmusrst(uint16_t val)
 {
@@ -476,7 +476,7 @@ static inline int vrc4173_icu_init(int cascade_irq)
 
 	if (cascade_irq < GIU_IRQ(0) || cascade_irq > GIU_IRQ(15))
 		return -EINVAL;
-	
+
 	vrc4173_outw(0, VRC4173_MSYSINT1REG);
 
 	vr41xx_set_irq_trigger(GIU_IRQ_TO_PIN(cascade_irq), TRIGGER_LEVEL, SIGNAL_THROUGH);

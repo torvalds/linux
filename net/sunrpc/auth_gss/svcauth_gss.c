@@ -250,6 +250,7 @@ out:
 }
 
 static struct cache_detail rsi_cache = {
+	.owner		= THIS_MODULE,
 	.hash_size	= RSI_HASHMAX,
 	.hash_table     = rsi_table,
 	.name           = "auth.rpcsec.init",
@@ -436,6 +437,7 @@ out:
 }
 
 static struct cache_detail rsc_cache = {
+	.owner		= THIS_MODULE,
 	.hash_size	= RSC_HASHMAX,
 	.hash_table	= rsc_table,
 	.name		= "auth.rpcsec.context",
@@ -564,8 +566,7 @@ gss_verify_header(struct svc_rqst *rqstp, struct rsc *rsci,
 
 	if (rqstp->rq_deferred) /* skip verification of revisited request */
 		return SVC_OK;
-	if (gss_verify_mic(ctx_id, &rpchdr, &checksum, NULL)
-							!= GSS_S_COMPLETE) {
+	if (gss_verify_mic(ctx_id, &rpchdr, &checksum) != GSS_S_COMPLETE) {
 		*authp = rpcsec_gsserr_credproblem;
 		return SVC_DENIED;
 	}
@@ -602,7 +603,7 @@ gss_write_verf(struct svc_rqst *rqstp, struct gss_ctx *ctx_id, u32 seq)
 	xdr_buf_from_iov(&iov, &verf_data);
 	p = rqstp->rq_res.head->iov_base + rqstp->rq_res.head->iov_len;
 	mic.data = (u8 *)(p + 1);
-	maj_stat = gss_get_mic(ctx_id, 0, &verf_data, &mic);
+	maj_stat = gss_get_mic(ctx_id, &verf_data, &mic);
 	if (maj_stat != GSS_S_COMPLETE)
 		return -1;
 	*p++ = htonl(mic.len);
@@ -708,7 +709,7 @@ unwrap_integ_data(struct xdr_buf *buf, u32 seq, struct gss_ctx *ctx)
 		goto out;
 	if (read_bytes_from_xdr_buf(buf, integ_len + 4, mic.data, mic.len))
 		goto out;
-	maj_stat = gss_verify_mic(ctx, &integ_buf, &mic, NULL);
+	maj_stat = gss_verify_mic(ctx, &integ_buf, &mic);
 	if (maj_stat != GSS_S_COMPLETE)
 		goto out;
 	if (ntohl(svc_getu32(&buf->head[0])) != seq)
@@ -1010,7 +1011,7 @@ svcauth_gss_release(struct svc_rqst *rqstp)
 			resv = &resbuf->tail[0];
 		}
 		mic.data = (u8 *)resv->iov_base + resv->iov_len + 4;
-		if (gss_get_mic(gsd->rsci->mechctx, 0, &integ_buf, &mic))
+		if (gss_get_mic(gsd->rsci->mechctx, &integ_buf, &mic))
 			goto out_err;
 		svc_putu32(resv, htonl(mic.len));
 		memset(mic.data + mic.len, 0,
@@ -1074,7 +1075,9 @@ gss_svc_init(void)
 void
 gss_svc_shutdown(void)
 {
-	cache_unregister(&rsc_cache);
-	cache_unregister(&rsi_cache);
+	if (cache_unregister(&rsc_cache))
+		printk(KERN_ERR "auth_rpcgss: failed to unregister rsc cache\n");
+	if (cache_unregister(&rsi_cache))
+		printk(KERN_ERR "auth_rpcgss: failed to unregister rsi cache\n");
 	svc_auth_unregister(RPC_AUTH_GSS);
 }

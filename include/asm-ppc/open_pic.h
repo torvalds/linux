@@ -58,8 +58,7 @@ extern int openpic_get_irq(struct pt_regs *regs);
 extern void openpic_reset_processor_phys(u_int cpumask);
 extern void openpic_setup_ISU(int isu_num, unsigned long addr);
 extern void openpic_cause_IPI(u_int ipi, cpumask_t cpumask);
-extern void smp_openpic_message_pass(int target, int msg, unsigned long data,
-				     int wait);
+extern void smp_openpic_message_pass(int target, int msg);
 extern void openpic_set_k2_cascade(int irq);
 extern void openpic_set_priority(u_int pri);
 extern u_int openpic_get_priority(void);
