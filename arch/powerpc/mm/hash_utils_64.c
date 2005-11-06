@@ -32,7 +32,6 @@
 #include <linux/init.h>
 #include <linux/signal.h>
 
-#include <asm/ppcdebug.h>
 #include <asm/processor.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
@@ -193,12 +192,6 @@ void __init htab_initialize(void)
 	 */ 
 	htab_size_bytes = get_hashtable_size();
 	pteg_count = htab_size_bytes >> 7;
-
-	/* For debug, make the HTAB 1/8 as big as it normally would be. */
-	ifppcdebug(PPCDBG_HTABSIZE) {
-		pteg_count >>= 3;
-		htab_size_bytes = pteg_count << 7;
-	}
 
 	htab_hash_mask = pteg_count - 1;
 

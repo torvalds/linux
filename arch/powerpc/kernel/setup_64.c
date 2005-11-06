@@ -41,7 +41,6 @@
 #include <asm/elf.h>
 #include <asm/machdep.h>
 #include <asm/paca.h>
-#include <asm/ppcdebug.h>
 #include <asm/time.h>
 #include <asm/cputable.h>
 #include <asm/sections.h>
@@ -60,6 +59,7 @@
 #include <asm/firmware.h>
 #include <asm/systemcfg.h>
 #include <asm/xmon.h>
+#include <asm/udbg.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -242,12 +242,6 @@ void __init early_setup(unsigned long dt_ptr)
 	EARLY_DEBUG_INIT();
 
 	DBG(" -> early_setup()\n");
-
-	/*
-	 * Fill the default DBG level (do we want to keep
-	 * that old mecanism around forever ?)
-	 */
-	ppcdbg_initialize();
 
 	/*
 	 * Do early initializations using the flattened device
@@ -516,7 +510,6 @@ void __init setup_system(void)
 
 	printk("-----------------------------------------------------\n");
 	printk("ppc64_pft_size                = 0x%lx\n", ppc64_pft_size);
-	printk("ppc64_debug_switch            = 0x%lx\n", ppc64_debug_switch);
 	printk("ppc64_interrupt_controller    = 0x%ld\n", ppc64_interrupt_controller);
 	printk("systemcfg                     = 0x%p\n", systemcfg);
 	printk("systemcfg->platform           = 0x%x\n", systemcfg->platform);

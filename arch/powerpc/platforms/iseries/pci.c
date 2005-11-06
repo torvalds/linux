@@ -32,7 +32,6 @@
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
-#include <asm/ppcdebug.h>
 #include <asm/iommu.h>
 #include <asm/abs_addr.h>
 
@@ -207,10 +206,6 @@ static struct device_node *build_device_node(HvBusNumber Bus,
 	struct device_node *node;
 	struct pci_dn *pdn;
 
-	PPCDBG(PPCDBG_BUSWALK,
-			"-build_device_node 0x%02X.%02X.%02X Function: %02X\n",
-			Bus, SubBus, AgentId, Function);
-
 	node = kmalloc(sizeof(struct device_node), GFP_KERNEL);
 	if (node == NULL)
 		return NULL;
@@ -243,8 +238,6 @@ unsigned long __init find_and_init_phbs(void)
 	struct pci_controller *phb;
 	HvBusNumber bus;
 
-	PPCDBG(PPCDBG_BUSWALK, "find_and_init_phbs Entry\n");
-
 	/* Check all possible buses. */
 	for (bus = 0; bus < 256; bus++) {
 		int ret = HvCallXm_testBus(bus);
@@ -260,9 +253,6 @@ unsigned long __init find_and_init_phbs(void)
 			phb->first_busno = bus;
 			phb->last_busno = bus;
 			phb->ops = &iSeries_pci_ops;
-
-			PPCDBG(PPCDBG_BUSWALK, "PCI:Create iSeries pci_controller(%p), Bus: %04X\n",
-					phb, bus);
 
 			/* Find and connect the devices. */
 			scan_PHB_slots(phb);
@@ -285,11 +275,9 @@ unsigned long __init find_and_init_phbs(void)
  */
 void iSeries_pcibios_init(void)
 {
-	PPCDBG(PPCDBG_BUSWALK, "iSeries_pcibios_init Entry.\n");
 	iomm_table_initialize();
 	find_and_init_phbs();
 	io_page_mask = -1;
-	PPCDBG(PPCDBG_BUSWALK, "iSeries_pcibios_init Exit.\n");
 }
 
 /*
@@ -300,8 +288,6 @@ void __init iSeries_pci_final_fixup(void)
 	struct pci_dev *pdev = NULL;
 	struct device_node *node;
 	int DeviceCount = 0;
-
-	PPCDBG(PPCDBG_BUSWALK, "iSeries_pcibios_fixup Entry.\n");
 
 	/* Fix up at the device node and pci_dev relationship */
 	mf_display_src(0xC9000100);
@@ -316,9 +302,6 @@ void __init iSeries_pci_final_fixup(void)
 			++DeviceCount;
 			pdev->sysdata = (void *)node;
 			PCI_DN(node)->pcidev = pdev;
-			PPCDBG(PPCDBG_BUSWALK,
-					"pdev 0x%p <==> DevNode 0x%p\n",
-					pdev, node);
 			allocate_device_bars(pdev);
 			iSeries_Device_Information(pdev, DeviceCount);
 			iommu_devnode_init_iSeries(node);
@@ -333,13 +316,10 @@ void __init iSeries_pci_final_fixup(void)
 
 void pcibios_fixup_bus(struct pci_bus *PciBus)
 {
-	PPCDBG(PPCDBG_BUSWALK, "iSeries_pcibios_fixup_bus(0x%04X) Entry.\n",
-			PciBus->number);
 }
 
 void pcibios_fixup_resources(struct pci_dev *pdev)
 {
-	PPCDBG(PPCDBG_BUSWALK, "fixup_resources pdev %p\n", pdev);
 }
 
 /*
@@ -401,9 +381,6 @@ static void scan_EADS_bridge(HvBusNumber bus, HvSubBusNumber SubBus,
 			printk("found device at bus %d idsel %d func %d (AgentId %x)\n",
 			       bus, IdSel, Function, AgentId);
 			/*  Connect EADs: 0x18.00.12 = 0x00 */
-			PPCDBG(PPCDBG_BUSWALK,
-					"PCI:Connect EADs: 0x%02X.%02X.%02X\n",
-					bus, SubBus, AgentId);
 			HvRc = HvCallPci_getBusUnitInfo(bus, SubBus, AgentId,
 					iseries_hv_addr(BridgeInfo),
 					sizeof(struct HvCallPci_BridgeInfo));
@@ -414,14 +391,6 @@ static void scan_EADS_bridge(HvBusNumber bus, HvSubBusNumber SubBus,
 					BridgeInfo->maxAgents,
 					BridgeInfo->maxSubBusNumber,
 					BridgeInfo->logicalSlotNumber);
-				PPCDBG(PPCDBG_BUSWALK,
-					"PCI: BridgeInfo, Type:0x%02X, SubBus:0x%02X, MaxAgents:0x%02X, MaxSubBus: 0x%02X, LSlot: 0x%02X\n",
-					BridgeInfo->busUnitInfo.deviceType,
-					BridgeInfo->subBusNumber,
-					BridgeInfo->maxAgents,
-					BridgeInfo->maxSubBusNumber,
-					BridgeInfo->logicalSlotNumber);
-
 				if (BridgeInfo->busUnitInfo.deviceType ==
 						HvCallPci_BridgeDevice)  {
 					/* Scan_Bridge_Slot...: 0x18.00.12 */
@@ -454,9 +423,6 @@ static int scan_bridge_slot(HvBusNumber Bus,
 
 	/* iSeries_allocate_IRQ.: 0x18.00.12(0xA3) */
 	Irq = iSeries_allocate_IRQ(Bus, 0, EADsIdSel);
-	PPCDBG(PPCDBG_BUSWALK,
-		"PCI:- allocate and assign IRQ 0x%02X.%02X.%02X = 0x%02X\n",
-		Bus, 0, EADsIdSel, Irq);
 
 	/*
 	 * Connect all functions of any device found.
@@ -482,9 +448,6 @@ static int scan_bridge_slot(HvBusNumber Bus,
 			printk("read vendor ID: %x\n", VendorId);
 
 			/* FoundDevice: 0x18.28.10 = 0x12AE */
-			PPCDBG(PPCDBG_BUSWALK,
-			       "PCI:- FoundDevice: 0x%02X.%02X.%02X = 0x%04X, irq %d\n",
-			       Bus, SubBus, AgentId, VendorId, Irq);
 			HvRc = HvCallPci_configStore8(Bus, SubBus, AgentId,
 						      PCI_INTERRUPT_LINE, Irq);
 			if (HvRc != 0)

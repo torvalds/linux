@@ -55,10 +55,6 @@ config XMON_DEFAULT
 	  xmon is normally disabled unless booted with 'xmon=on'.
 	  Use 'xmon=off' to disable xmon init during runtime.
 
-config PPCDBG
-	bool "Include PPCDBG realtime debugging"
-	depends on DEBUG_KERNEL
-
 config IRQSTACKS
 	bool "Use separate kernel stacks when processing interrupts"
 	help

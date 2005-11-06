@@ -71,8 +71,6 @@ extern void hvlog(char *fmt, ...);
 #endif
 
 /* Function Prototypes */
-extern void ppcdbg_initialize(void);
-
 static void build_iSeries_Memory_Map(void);
 static void iseries_shared_idle(void);
 static void iseries_dedicated_idle(void);
@@ -308,8 +306,6 @@ static void __init iSeries_init_early(void)
 	DBG(" -> iSeries_init_early()\n");
 
 	ppc64_firmware_features = FW_FEATURE_ISERIES;
-
-	ppcdbg_initialize();
 
 	ppc64_interrupt_controller = IC_ISERIES;
 
