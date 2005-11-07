@@ -21,6 +21,7 @@
 #define MNT_NODEV	0x02
 #define MNT_NOEXEC	0x04
 #define MNT_SHARED	0x10	/* if the vfsmount is a shared mount */
+#define MNT_UNBINDABLE	0x20	/* if the vfsmount is a unbindable mount */
 #define MNT_PNODE_MASK	0x30	/* propogation flag mask */
 
 struct vfsmount {

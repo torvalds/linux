@@ -82,6 +82,8 @@ void change_mnt_propagation(struct vfsmount *mnt, int type)
 	if (type != MS_SLAVE) {
 		list_del_init(&mnt->mnt_slave);
 		mnt->mnt_master = NULL;
+		if (type == MS_UNBINDABLE)
+			mnt->mnt_flags |= MNT_UNBINDABLE;
 	}
 }
 

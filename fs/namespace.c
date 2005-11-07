@@ -213,6 +213,16 @@ static struct vfsmount *next_mnt(struct vfsmount *p, struct vfsmount *root)
 	return list_entry(next, struct vfsmount, mnt_child);
 }
 
+static struct vfsmount *skip_mnt_tree(struct vfsmount *p)
+{
+	struct list_head *prev = p->mnt_mounts.prev;
+	while (prev != &p->mnt_mounts) {
+		p = list_entry(prev, struct vfsmount, mnt_child);
+		prev = p->mnt_mounts.prev;
+	}
+	return p;
+}
+
 static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 					int flag)
 {
@@ -650,6 +660,9 @@ struct vfsmount *copy_tree(struct vfsmount *mnt, struct dentry *dentry,
 	struct vfsmount *res, *p, *q, *r, *s;
 	struct nameidata nd;
 
+	if (!(flag & CL_COPY_ALL) && IS_MNT_UNBINDABLE(mnt))
+		return NULL;
+
 	res = q = clone_mnt(mnt, dentry, flag);
 	if (!q)
 		goto Enomem;
@@ -661,6 +674,10 @@ struct vfsmount *copy_tree(struct vfsmount *mnt, struct dentry *dentry,
 			continue;
 
 		for (s = r; s; s = next_mnt(s, r)) {
+			if (!(flag & CL_COPY_ALL) && IS_MNT_UNBINDABLE(s)) {
+				s = skip_mnt_tree(s);
+				continue;
+			}
 			while (p != s->mnt_parent) {
 				p = p->mnt_parent;
 				q = q->mnt_parent;
@@ -698,18 +715,18 @@ Enomem:
  *
  *  NOTE: in the table below explains the semantics when a source mount
  *  of a given type is attached to a destination mount of a given type.
- * 	-------------------------------------------------------------
- * 	|         BIND MOUNT OPERATION                               |
- * 	|*************************************************************
- * 	| source-->| shared        |       private  |       slave    |
- * 	| dest     |               |                |                |
- * 	|   |      |               |                |                |
- * 	|   v      |               |                |                |
- * 	|*************************************************************
- * 	|  shared  | shared (++)   |     shared (+) |     shared(+++)|
- * 	|          |               |                |                |
- * 	|non-shared| shared (+)    |      private   |      slave (*) |
- * 	**************************************************************
+ * ---------------------------------------------------------------------------
+ * |         BIND MOUNT OPERATION                                            |
+ * |**************************************************************************
+ * | source-->| shared        |       private  |       slave    | unbindable |
+ * | dest     |               |                |                |            |
+ * |   |      |               |                |                |            |
+ * |   v      |               |                |                |            |
+ * |**************************************************************************
+ * |  shared  | shared (++)   |     shared (+) |     shared(+++)|  invalid   |
+ * |          |               |                |                |            |
+ * |non-shared| shared (+)    |      private   |      slave (*) |  invalid   |
+ * ***************************************************************************
  * A bind operation clones the source mount and mounts the clone on the
  * destination mount.
  *
@@ -726,18 +743,18 @@ Enomem:
  * (*)   the cloned mount is made a slave of the same master as that of the
  * 	 source mount.
  *
- * 	--------------------------------------------------------------
- * 	|         		MOVE MOUNT OPERATION                 |
- * 	|*************************************************************
- * 	| source-->| shared        |       private  |       slave    |
- * 	| dest     |               |                |                |
- * 	|   |      |               |                |                |
- * 	|   v      |               |                |                |
- * 	|*************************************************************
- * 	|  shared  | shared (+)    |     shared (+) |    shared(+++) |
- * 	|          |               |                |                |
- * 	|non-shared| shared (+*)   |      private   |    slave (*)   |
- * 	**************************************************************
+ * ---------------------------------------------------------------------------
+ * |         		MOVE MOUNT OPERATION                                 |
+ * |**************************************************************************
+ * | source-->| shared        |       private  |       slave    | unbindable |
+ * | dest     |               |                |                |            |
+ * |   |      |               |                |                |            |
+ * |   v      |               |                |                |            |
+ * |**************************************************************************
+ * |  shared  | shared (+)    |     shared (+) |    shared(+++) |  invalid   |
+ * |          |               |                |                |            |
+ * |non-shared| shared (+*)   |      private   |    slave (*)   | unbindable |
+ * ***************************************************************************
  *
  * (+)  the mount is moved to the destination. And is then propagated to
  * 	all the mounts in the propagation tree of the destination mount.
@@ -854,6 +871,9 @@ static int do_loopback(struct nameidata *nd, char *old_name, int recurse)
 
 	down_write(&namespace_sem);
 	err = -EINVAL;
+	if (IS_MNT_UNBINDABLE(old_nd.mnt))
+ 		goto out;
+
 	if (!check_mnt(nd->mnt) || !check_mnt(old_nd.mnt))
 		goto out;
 
@@ -911,6 +931,16 @@ static int do_remount(struct nameidata *nd, int flags, int mnt_flags,
 	return err;
 }
 
+static inline int tree_contains_unbindable(struct vfsmount *mnt)
+{
+	struct vfsmount *p;
+	for (p = mnt; p; p = next_mnt(p, mnt)) {
+		if (IS_MNT_UNBINDABLE(p))
+			return 1;
+	}
+	return 0;
+}
+
 static int do_move_mount(struct nameidata *nd, char *old_name)
 {
 	struct nameidata old_nd, parent_nd;
@@ -953,6 +983,12 @@ static int do_move_mount(struct nameidata *nd, char *old_name)
 	 * Don't move a mount residing in a shared parent.
 	 */
 	if (old_nd.mnt->mnt_parent && IS_MNT_SHARED(old_nd.mnt->mnt_parent))
+		goto out1;
+	/*
+	 * Don't move a mount tree containing unbindable mounts to a destination
+	 * mount which is shared.
+	 */
+	if (IS_MNT_SHARED(nd->mnt) && tree_contains_unbindable(old_nd.mnt))
 		goto out1;
 	err = -ELOOP;
 	for (p = nd->mnt; p->mnt_parent != p; p = p->mnt_parent)
@@ -1266,7 +1302,7 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 				    data_page);
 	else if (flags & MS_BIND)
 		retval = do_loopback(&nd, dev_name, flags & MS_REC);
-	else if (flags & (MS_SHARED | MS_PRIVATE | MS_SLAVE))
+	else if (flags & (MS_SHARED | MS_PRIVATE | MS_SLAVE | MS_UNBINDABLE))
 		retval = do_change_type(&nd, flags);
 	else if (flags & MS_MOVE)
 		retval = do_move_mount(&nd, dev_name);
@@ -1311,7 +1347,7 @@ int copy_namespace(int flags, struct task_struct *tsk)
 	down_write(&namespace_sem);
 	/* First pass: copy the tree topology */
 	new_ns->root = copy_tree(namespace->root, namespace->root->mnt_root,
-					CL_EXPIRE);
+					CL_COPY_ALL | CL_EXPIRE);
 	if (!new_ns->root) {
 		up_write(&namespace_sem);
 		kfree(new_ns);
