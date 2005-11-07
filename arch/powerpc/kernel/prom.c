@@ -1974,14 +1974,29 @@ EXPORT_SYMBOL(get_property);
 /*
  * Add a property to a node
  */
-void prom_add_property(struct device_node* np, struct property* prop)
+int prom_add_property(struct device_node* np, struct property* prop)
 {
-	struct property **next = &np->properties;
+	struct property **next;
 
 	prop->next = NULL;	
-	while (*next)
+	write_lock(&devtree_lock);
+	next = &np->properties;
+	while (*next) {
+		if (strcmp(prop->name, (*next)->name) == 0) {
+			/* duplicate ! don't insert it */
+			write_unlock(&devtree_lock);
+			return -1;
+		}
 		next = &(*next)->next;
+	}
 	*next = prop;
+	write_unlock(&devtree_lock);
+
+	/* try to add to proc as well if it was initialized */
+	if (np->pde)
+		proc_device_tree_add_prop(np->pde, prop);
+
+	return 0;
 }
 
 /* I quickly hacked that one, check against spec ! */
