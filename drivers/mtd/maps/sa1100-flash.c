@@ -1,9 +1,9 @@
 /*
  * Flash memory access on SA11x0 based devices
- * 
+ *
  * (C) 2000 Nicolas Pitre <nico@cam.org>
- * 
- * $Id: sa1100-flash.c,v 1.47 2004/11/01 13:44:36 rmk Exp $
+ *
+ * $Id: sa1100-flash.c,v 1.51 2005/11/07 11:14:28 gleixner Exp $
  */
 #include <linux/config.h>
 #include <linux/module.h>

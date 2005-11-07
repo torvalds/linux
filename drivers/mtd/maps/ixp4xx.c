@@ -1,5 +1,5 @@
 /*
- * $Id: ixp4xx.c,v 1.11 2005/11/06 11:15:51 gleixner Exp $
+ * $Id: ixp4xx.c,v 1.12 2005/11/07 11:14:27 gleixner Exp $
  *
  * drivers/mtd/maps/ixp4xx.c
  *
@@ -72,7 +72,7 @@ static void ixp4xx_copy_from(struct map_info *map, void *to,
 		dest[len - 1] = BYTE0(le16_to_cpu(readw(src + 2*i)));
 }
 
-/* 
+/*
  * Unaligned writes are ignored, causing the 8-bit
  * probe to fail and proceed to the 16-bit probe (which succeeds).
  */
@@ -82,7 +82,7 @@ static void ixp4xx_probe_write16(struct map_info *map, map_word d, unsigned long
 		writew(cpu_to_le16(d.x[0]), map->virt + adr);
 }
 
-/* 
+/*
  * Fast write16 function without the probing check above
  */
 static void ixp4xx_write16(struct map_info *map, map_word d, unsigned long adr)
@@ -151,7 +151,7 @@ static int ixp4xx_flash_probe(struct device *_dev)
 	if(!info) {
 		err = -ENOMEM;
 		goto Error;
-	}	
+	}
 	memzero(info, sizeof(struct ixp4xx_flash_info));
 
 	dev_set_drvdata(&dev->dev, info);
@@ -174,8 +174,8 @@ static int ixp4xx_flash_probe(struct device *_dev)
 	info->map.write = ixp4xx_probe_write16,
 	info->map.copy_from = ixp4xx_copy_from,
 
-	info->res = request_mem_region(dev->resource->start, 
-			dev->resource->end - dev->resource->start + 1, 
+	info->res = request_mem_region(dev->resource->start,
+			dev->resource->end - dev->resource->start + 1,
 			"IXP4XXFlash");
 	if (!info->res) {
 		printk(KERN_ERR "IXP4XXFlash: Could not reserve memory region\n");
@@ -198,7 +198,7 @@ static int ixp4xx_flash_probe(struct device *_dev)
 		goto Error;
 	}
 	info->mtd->owner = THIS_MODULE;
-	
+
 	/* Use the fast version */
 	info->map.write = ixp4xx_write16,
 

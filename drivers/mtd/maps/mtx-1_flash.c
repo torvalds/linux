@@ -1,7 +1,7 @@
 /*
  * Flash memory access on 4G Systems MTX-1 boards
  *
- * $Id: mtx-1_flash.c,v 1.1 2005/09/18 10:46:41 joern Exp $
+ * $Id: mtx-1_flash.c,v 1.2 2005/11/07 11:14:27 gleixner Exp $
  *
  * (C) 2005 Bruno Randolf <bruno.randolf@4g-systems.biz>
  * (C) 2005 Jörn Engel <joern@wohnheim.fh-wedel.de>
@@ -66,7 +66,7 @@ int __init mtx1_mtd_init(void)
 
 	mtx1_mtd->owner = THIS_MODULE;
 
-	ret = add_mtd_partitions(mtx1_mtd, mtx1_partitions, 
+	ret = add_mtd_partitions(mtx1_mtd, mtx1_partitions,
 			ARRAY_SIZE(mtx1_partitions));
 	if (ret)
 		goto err;

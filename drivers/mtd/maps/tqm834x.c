@@ -133,7 +133,7 @@ static int __init init_tqm834x_mtd(void)
 
 		pr_debug("%s: chip probing count %d\n", __FUNCTION__, idx);
 
-		map_banks[idx] = 
+		map_banks[idx] =
 			(struct map_info *)kmalloc(sizeof(struct map_info),
 						   GFP_KERNEL);
 		if (map_banks[idx] == NULL) {
@@ -193,7 +193,7 @@ static int __init init_tqm834x_mtd(void)
 	tqm834x_partitions_bank1[n - 1].size =
 		mtd_banks[0]->size -
 		tqm834x_partitions_bank1[n - 1].offset;
-	
+
 	/* check if we have second bank? */
 	if (num_banks == 2) {
 		n = ARRAY_SIZE(tqm834x_partitions_bank2);
@@ -227,11 +227,11 @@ static int __init init_tqm834x_mtd(void)
 			       "available, registering whole device\n", idx);
 			add_mtd_device(mtd_banks[idx]);
 		} else {
-			printk(KERN_NOTICE 
+			printk(KERN_NOTICE
 			       "TQM834x flash bank %d: Using %s partition "
 			       "definition\n", idx, part_banks[idx].type);
 			add_mtd_partitions(mtd_banks[idx],
-					   part_banks[idx].mtd_part, 
+					   part_banks[idx].mtd_part,
 					   part_banks[idx].nums);
 		}
 	}

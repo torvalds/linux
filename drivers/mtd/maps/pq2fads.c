@@ -23,7 +23,7 @@
 #include <linux/mtd/physmap.h>
 
 /*
-  NOTE: bank width and interleave relative to the installed flash 
+  NOTE: bank width and interleave relative to the installed flash
   should have been chosen within MTD_CFI_GEOMETRY options.
   */
 #define PQ2FADS_BANK_WIDTH 4
@@ -35,7 +35,7 @@ static struct mtd_partition pq2fads_partitions[] = {
 		.size		= 0x40000,
 		.offset 	= 0,
 		.mask_flags	= MTD_WRITEABLE,  /* force read-only */
-	}, { 
+	}, {
 		.name		= "User FS",
 		.size		= 0x5c0000,
 		.offset 	= 0x40000,
@@ -44,17 +44,17 @@ static struct mtd_partition pq2fads_partitions[] = {
 		.size		= 0x600000,
 		.offset 	= 0,
 #endif
-	}, {    
+	}, {
 		.name		= "uImage",
 		.size		= 0x100000,
 		.offset 	= 0x600000,
 		.mask_flags	= MTD_WRITEABLE,  /* force read-only */
-	}, {    
+	}, {
 		.name		= "bootloader",
 		.size		= 0x40000,
 		.offset		= 0x700000,
 		.mask_flags	= MTD_WRITEABLE,  /* force read-only */
-	}, {    
+	}, {
 		.name		= "bootloader env",
 		.size		= 0x40000,
 		.offset		= 0x740000,
@@ -80,9 +80,9 @@ static int __init init_pq2fads_mtd(void)
 static void __exit cleanup_pq2fads_mtd(void)
 {
 }
-                                                                                                                                                    
+
 module_init(init_pq2fads_mtd);
 module_exit(cleanup_pq2fads_mtd);
-                                                                                                                                                    
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MTD map and partitions for MPC8272ADS boards");

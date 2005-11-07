@@ -6,7 +6,7 @@
  *
  * Generic platfrom device based RAM map
  *
- * $Id: plat-ram.c,v 1.6 2005/11/07 00:52:24 gleixner Exp $
+ * $Id: plat-ram.c,v 1.7 2005/11/07 11:14:28 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -91,7 +91,7 @@ static int platram_remove(struct device *dev)
 
 	dev_dbg(dev, "removing device\n");
 
-	if (info == NULL) 
+	if (info == NULL)
 		return 0;
 
 	if (info->mtd) {
@@ -118,7 +118,7 @@ static int platram_remove(struct device *dev)
 
 	if (info->map.virt != NULL)
 		iounmap(info->map.virt);
-	
+
 	kfree(info);
 
 	return 0;
@@ -139,7 +139,7 @@ static int platram_probe(struct device *dev)
 	int err = 0;
 
 	dev_dbg(dev, "probe entered\n");
-	
+
 	if (dev->platform_data == NULL) {
 		dev_err(dev, "no platform data supplied\n");
 		err = -ENOENT;
@@ -240,7 +240,7 @@ static int platram_probe(struct device *dev)
 		dev_err(dev, "add_mtd_device() failed\n");
 		err = -ENOMEM;
 	}
-	
+
 	dev_info(dev, "registered mtd device\n");
 	return err;
 
