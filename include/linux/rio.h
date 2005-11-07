@@ -132,7 +132,7 @@ struct rio_dev {
  */
 struct rio_msg {
 	struct resource *res;
-	void (*mcback) (struct rio_mport * mport, int mbox, int slot);
+	void (*mcback) (struct rio_mport * mport, void *dev_id, int mbox, int slot);
 };
 
 /**
@@ -140,11 +140,13 @@ struct rio_msg {
  * @node: Node in list of doorbell events
  * @res: Doorbell resource
  * @dinb: Doorbell event callback
+ * @dev_id: Device specific pointer to pass on event
  */
 struct rio_dbell {
 	struct list_head node;
 	struct resource *res;
-	void (*dinb) (struct rio_mport * mport, u16 src, u16 dst, u16 info);
+	void (*dinb) (struct rio_mport *mport, void *dev_id, u16 src, u16 dst, u16 info);
+	void *dev_id;
 };
 
 /**
@@ -314,9 +316,9 @@ extern int rio_hw_add_outb_message(struct rio_mport *, struct rio_dev *, int,
 				   void *, size_t);
 extern int rio_hw_add_inb_buffer(struct rio_mport *, int, void *);
 extern void *rio_hw_get_inb_message(struct rio_mport *, int);
-extern int rio_open_inb_mbox(struct rio_mport *, int, int);
+extern int rio_open_inb_mbox(struct rio_mport *, void *, int, int);
 extern void rio_close_inb_mbox(struct rio_mport *, int);
-extern int rio_open_outb_mbox(struct rio_mport *, int, int);
+extern int rio_open_outb_mbox(struct rio_mport *, void *, int, int);
 extern void rio_close_outb_mbox(struct rio_mport *, int);
 
 #endif				/* __KERNEL__ */

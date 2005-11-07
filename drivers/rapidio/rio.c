@@ -48,6 +48,7 @@ u16 rio_local_get_device_id(struct rio_mport *port)
 /**
  * rio_request_inb_mbox - request inbound mailbox service
  * @mport: RIO master port from which to allocate the mailbox resource
+ * @dev_id: Device specific pointer to pass on event
  * @mbox: Mailbox number to claim
  * @entries: Number of entries in inbound mailbox queue
  * @minb: Callback to execute when inbound message is received
@@ -56,9 +57,10 @@ u16 rio_local_get_device_id(struct rio_mport *port)
  * a callback function to the resource. Returns %0 on success.
  */
 int rio_request_inb_mbox(struct rio_mport *mport,
+			 void *dev_id,
 			 int mbox,
 			 int entries,
-			 void (*minb) (struct rio_mport * mport, int mbox,
+			 void (*minb) (struct rio_mport * mport, void *dev_id, int mbox,
 				       int slot))
 {
 	int rc = 0;
@@ -81,7 +83,7 @@ int rio_request_inb_mbox(struct rio_mport *mport,
 		/* Hook the inbound message callback */
 		mport->inb_msg[mbox].mcback = minb;
 
-		rc = rio_open_inb_mbox(mport, mbox, entries);
+		rc = rio_open_inb_mbox(mport, dev_id, mbox, entries);
 	} else
 		rc = -ENOMEM;
 
@@ -108,6 +110,7 @@ int rio_release_inb_mbox(struct rio_mport *mport, int mbox)
 /**
  * rio_request_outb_mbox - request outbound mailbox service
  * @mport: RIO master port from which to allocate the mailbox resource
+ * @dev_id: Device specific pointer to pass on event
  * @mbox: Mailbox number to claim
  * @entries: Number of entries in outbound mailbox queue
  * @moutb: Callback to execute when outbound message is sent
@@ -116,10 +119,10 @@ int rio_release_inb_mbox(struct rio_mport *mport, int mbox)
  * a callback function to the resource. Returns 0 on success.
  */
 int rio_request_outb_mbox(struct rio_mport *mport,
+			  void *dev_id,
 			  int mbox,
 			  int entries,
-			  void (*moutb) (struct rio_mport * mport, int mbox,
-					 int slot))
+			  void (*moutb) (struct rio_mport * mport, void *dev_id, int mbox, int slot))
 {
 	int rc = 0;
 
@@ -141,7 +144,7 @@ int rio_request_outb_mbox(struct rio_mport *mport,
 		/* Hook the inbound message callback */
 		mport->outb_msg[mbox].mcback = moutb;
 
-		rc = rio_open_outb_mbox(mport, mbox, entries);
+		rc = rio_open_outb_mbox(mport, dev_id, mbox, entries);
 	} else
 		rc = -ENOMEM;
 
@@ -168,6 +171,7 @@ int rio_release_outb_mbox(struct rio_mport *mport, int mbox)
 /**
  * rio_setup_inb_dbell - bind inbound doorbell callback
  * @mport: RIO master port to bind the doorbell callback
+ * @dev_id: Device specific pointer to pass on event
  * @res: Doorbell message resource
  * @dinb: Callback to execute when doorbell is received
  *
@@ -176,8 +180,8 @@ int rio_release_outb_mbox(struct rio_mport *mport, int mbox)
  * satisfied.
  */
 static int
-rio_setup_inb_dbell(struct rio_mport *mport, struct resource *res,
-		    void (*dinb) (struct rio_mport * mport, u16 src, u16 dst,
+rio_setup_inb_dbell(struct rio_mport *mport, void *dev_id, struct resource *res,
+		    void (*dinb) (struct rio_mport * mport, void *dev_id, u16 src, u16 dst,
 				  u16 info))
 {
 	int rc = 0;
@@ -190,6 +194,7 @@ rio_setup_inb_dbell(struct rio_mport *mport, struct resource *res,
 
 	dbell->res = res;
 	dbell->dinb = dinb;
+	dbell->dev_id = dev_id;
 
 	list_add_tail(&dbell->node, &mport->dbells);
 
@@ -200,6 +205,7 @@ rio_setup_inb_dbell(struct rio_mport *mport, struct resource *res,
 /**
  * rio_request_inb_dbell - request inbound doorbell message service
  * @mport: RIO master port from which to allocate the doorbell resource
+ * @dev_id: Device specific pointer to pass on event
  * @start: Doorbell info range start
  * @end: Doorbell info range end
  * @dinb: Callback to execute when doorbell is received
@@ -209,9 +215,10 @@ rio_setup_inb_dbell(struct rio_mport *mport, struct resource *res,
  * has been satisfied.
  */
 int rio_request_inb_dbell(struct rio_mport *mport,
+			  void *dev_id,
 			  u16 start,
 			  u16 end,
-			  void (*dinb) (struct rio_mport * mport, u16 src,
+			  void (*dinb) (struct rio_mport * mport, void *dev_id, u16 src,
 					u16 dst, u16 info))
 {
 	int rc = 0;
@@ -230,7 +237,7 @@ int rio_request_inb_dbell(struct rio_mport *mport,
 		}
 
 		/* Hook the doorbell callback */
-		rc = rio_setup_inb_dbell(mport, res, dinb);
+		rc = rio_setup_inb_dbell(mport, dev_id, res, dinb);
 	} else
 		rc = -ENOMEM;
 

@@ -135,6 +135,7 @@ static struct rio_msg_tx_ring {
 	dma_addr_t phys_buffer[RIO_MAX_TX_RING_SIZE];
 	int tx_slot;
 	int size;
+	void *dev_id;
 } msg_tx_ring;
 
 static struct rio_msg_rx_ring {
@@ -143,6 +144,7 @@ static struct rio_msg_rx_ring {
 	void *virt_buffer[RIO_MAX_RX_RING_SIZE];
 	int rx_slot;
 	int size;
+	void *dev_id;
 } msg_rx_ring;
 
 /**
@@ -376,7 +378,7 @@ mpc85xx_rio_tx_handler(int irq, void *dev_instance, struct pt_regs *regs)
 	if (osr & RIO_MSG_OSR_EOMI) {
 		u32 dqp = in_be32((void *)&msg_regs->odqdpar);
 		int slot = (dqp - msg_tx_ring.phys) >> 5;
-		port->outb_msg[0].mcback(port, -1, slot);
+		port->outb_msg[0].mcback(port, msg_tx_ring.dev_id, -1, slot);
 
 		/* Ack the end-of-message interrupt */
 		out_be32((void *)&msg_regs->osr, RIO_MSG_OSR_EOMI);
@@ -389,6 +391,7 @@ mpc85xx_rio_tx_handler(int irq, void *dev_instance, struct pt_regs *regs)
 /**
  * rio_open_outb_mbox - Initialize MPC85xx outbound mailbox
  * @mport: Master port implementing the outbound message unit
+ * @dev_id: Device specific pointer to pass on event
  * @mbox: Mailbox to open
  * @entries: Number of entries in the outbound mailbox ring
  *
@@ -396,7 +399,7 @@ mpc85xx_rio_tx_handler(int irq, void *dev_instance, struct pt_regs *regs)
  * and enables the outbound message unit. Returns %0 on success and
  * %-EINVAL or %-ENOMEM on failure.
  */
-int rio_open_outb_mbox(struct rio_mport *mport, int mbox, int entries)
+int rio_open_outb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 {
 	int i, j, rc = 0;
 
@@ -407,6 +410,7 @@ int rio_open_outb_mbox(struct rio_mport *mport, int mbox, int entries)
 	}
 
 	/* Initialize shadow copy ring */
+	msg_tx_ring.dev_id = dev_id;
 	msg_tx_ring.size = entries;
 
 	for (i = 0; i < msg_tx_ring.size; i++) {
@@ -541,7 +545,7 @@ mpc85xx_rio_rx_handler(int irq, void *dev_instance, struct pt_regs *regs)
 		 * make the callback with an unknown/invalid mailbox number
 		 * argument.
 		 */
-		port->inb_msg[0].mcback(port, -1, -1);
+		port->inb_msg[0].mcback(port, msg_rx_ring.dev_id, -1, -1);
 
 		/* Ack the queueing interrupt */
 		out_be32((void *)&msg_regs->isr, RIO_MSG_ISR_DIQI);
@@ -554,6 +558,7 @@ mpc85xx_rio_rx_handler(int irq, void *dev_instance, struct pt_regs *regs)
 /**
  * rio_open_inb_mbox - Initialize MPC85xx inbound mailbox
  * @mport: Master port implementing the inbound message unit
+ * @dev_id: Device specific pointer to pass on event
  * @mbox: Mailbox to open
  * @entries: Number of entries in the inbound mailbox ring
  *
@@ -561,7 +566,7 @@ mpc85xx_rio_rx_handler(int irq, void *dev_instance, struct pt_regs *regs)
  * and enables the inbound message unit. Returns %0 on success
  * and %-EINVAL or %-ENOMEM on failure.
  */
-int rio_open_inb_mbox(struct rio_mport *mport, int mbox, int entries)
+int rio_open_inb_mbox(struct rio_mport *mport, void *dev_id, int mbox, int entries)
 {
 	int i, rc = 0;
 
@@ -572,6 +577,7 @@ int rio_open_inb_mbox(struct rio_mport *mport, int mbox, int entries)
 	}
 
 	/* Initialize client buffer ring */
+	msg_rx_ring.dev_id = dev_id;
 	msg_rx_ring.size = entries;
 	msg_rx_ring.rx_slot = 0;
 	for (i = 0; i < msg_rx_ring.size; i++)
@@ -777,7 +783,7 @@ mpc85xx_rio_dbell_handler(int irq, void *dev_instance, struct pt_regs *regs)
 			}
 		}
 		if (found) {
-			dbell->dinb(port, DBELL_SID(dmsg), DBELL_TID(dmsg),
+			dbell->dinb(port, dbell->dev_id, DBELL_SID(dmsg), DBELL_TID(dmsg),
 				    DBELL_INF(dmsg));
 		} else {
 			pr_debug

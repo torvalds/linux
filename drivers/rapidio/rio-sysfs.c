@@ -21,7 +21,7 @@
 /* Sysfs support */
 #define rio_config_attr(field, format_string)					\
 static ssize_t								\
-	field##_show(struct device *dev, char *buf)			\
+field##_show(struct device *dev, struct device_attribute *attr, char *buf)			\
 {									\
 	struct rio_dev *rdev = to_rio_dev(dev);				\
 									\
@@ -35,7 +35,7 @@ rio_config_attr(asm_did, "0x%04x\n");
 rio_config_attr(asm_vid, "0x%04x\n");
 rio_config_attr(asm_rev, "0x%04x\n");
 
-static ssize_t routes_show(struct device *dev, char *buf)
+static ssize_t routes_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct rio_dev *rdev = to_rio_dev(dev);
 	char *str = buf;

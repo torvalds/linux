@@ -348,8 +348,8 @@ static inline void rio_init_dbell_res(struct resource *res, u16 start, u16 end)
 	.asm_did = RIO_ANY_ID, .asm_vid = RIO_ANY_ID
 
 /* Mailbox management */
-extern int rio_request_outb_mbox(struct rio_mport *, int, int,
-				 void (*)(struct rio_mport *, int, int));
+extern int rio_request_outb_mbox(struct rio_mport *, void *, int, int,
+				 void (*)(struct rio_mport *, void *,int, int));
 extern int rio_release_outb_mbox(struct rio_mport *, int);
 
 /**
@@ -370,8 +370,8 @@ static inline int rio_add_outb_message(struct rio_mport *mport,
 	return rio_hw_add_outb_message(mport, rdev, mbox, buffer, len);
 }
 
-extern int rio_request_inb_mbox(struct rio_mport *, int, int,
-				void (*)(struct rio_mport *, int, int));
+extern int rio_request_inb_mbox(struct rio_mport *, void *, int, int,
+				void (*)(struct rio_mport *, void *, int, int));
 extern int rio_release_inb_mbox(struct rio_mport *, int);
 
 /**
@@ -403,8 +403,8 @@ static inline void *rio_get_inb_message(struct rio_mport *mport, int mbox)
 }
 
 /* Doorbell management */
-extern int rio_request_inb_dbell(struct rio_mport *, u16, u16,
-				 void (*)(struct rio_mport *, u16, u16, u16));
+extern int rio_request_inb_dbell(struct rio_mport *, void *, u16, u16,
+				 void (*)(struct rio_mport *, void *, u16, u16, u16));
 extern int rio_release_inb_dbell(struct rio_mport *, u16, u16);
 extern struct resource *rio_request_outb_dbell(struct rio_dev *, u16, u16);
 extern int rio_release_outb_dbell(struct rio_dev *, struct resource *);
