@@ -434,8 +434,8 @@ ascend:
 		if (sp >= KEYRING_SEARCH_MAX_DEPTH)
 			continue;
 
-		if (!key_task_permission(make_key_ref(key, possessed),
-					 context, KEY_SEARCH) < 0)
+		if (key_task_permission(make_key_ref(key, possessed),
+					context, KEY_SEARCH) < 0)
 			continue;
 
 		/* stack the current position */
@@ -621,8 +621,8 @@ struct key *find_keyring_by_name(const char *name, key_serial_t bound)
 			if (strcmp(keyring->description, name) != 0)
 				continue;
 
-			if (!key_permission(make_key_ref(keyring, 0),
-					    KEY_SEARCH) < 0)
+			if (key_permission(make_key_ref(keyring, 0),
+					   KEY_SEARCH) < 0)
 				continue;
 
 			/* found a potential candidate, but we still need to
