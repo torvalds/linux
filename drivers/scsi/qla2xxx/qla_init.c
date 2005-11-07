@@ -1977,8 +1977,7 @@ qla2x00_configure_local_loop(scsi_qla_host_t *ha)
 	}
 
 cleanup_allocation:
-	if (new_fcport)
-		kfree(new_fcport);
+	kfree(new_fcport);
 
 	if (rval != QLA_SUCCESS) {
 		DEBUG2(printk("scsi(%ld): Configure local loop error exit: "
@@ -2348,8 +2347,7 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 	/* Allocate temporary fcport for any new fcports discovered. */
 	new_fcport = qla2x00_alloc_fcport(ha, GFP_KERNEL);
 	if (new_fcport == NULL) {
-		if (swl)
-			kfree(swl);
+		kfree(swl);
 		return (QLA_MEMORY_ALLOC_FAILED);
 	}
 	new_fcport->flags |= (FCF_FABRIC_DEVICE | FCF_LOGIN_NEEDED);
@@ -2485,19 +2483,15 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *ha, struct list_head *new_fcports)
 		nxt_d_id.b24 = new_fcport->d_id.b24;
 		new_fcport = qla2x00_alloc_fcport(ha, GFP_KERNEL);
 		if (new_fcport == NULL) {
-			if (swl)
-				kfree(swl);
+			kfree(swl);
 			return (QLA_MEMORY_ALLOC_FAILED);
 		}
 		new_fcport->flags |= (FCF_FABRIC_DEVICE | FCF_LOGIN_NEEDED);
 		new_fcport->d_id.b24 = nxt_d_id.b24;
 	}
 
-	if (swl)
-		kfree(swl);
-
-	if (new_fcport)
-		kfree(new_fcport);
+	kfree(swl);
+	kfree(new_fcport);
 
 	if (!list_empty(new_fcports))
 		ha->device_flags |= DFLG_FABRIC_DEVICES;
