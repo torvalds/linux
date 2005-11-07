@@ -119,8 +119,8 @@ struct sbp2_query_logins_response {
 struct sbp2_reconnect_orb {
 	u32 reserved1;
 	u32 reserved2;
-        u32 reserved3;
-        u32 reserved4;
+	u32 reserved3;
+	u32 reserved4;
 	u32 login_ID_misc;
 	u32 reserved5;
 	u32 status_FIFO_hi;
@@ -130,8 +130,8 @@ struct sbp2_reconnect_orb {
 struct sbp2_logout_orb {
 	u32 reserved1;
 	u32 reserved2;
-        u32 reserved3;
-        u32 reserved4;
+	u32 reserved3;
+	u32 reserved4;
 	u32 login_ID_misc;
 	u32 reserved5;
 	u32 status_FIFO_hi;
@@ -188,7 +188,7 @@ struct sbp2_unrestricted_page_table {
 struct sbp2_status_block {
 	u32 ORB_offset_hi_misc;
 	u32 ORB_offset_lo;
-        u8 command_set_dependent[24];
+	u8 command_set_dependent[24];
 };
 
 /*
@@ -211,7 +211,7 @@ struct sbp2_status_block {
  * specified for write posting, where the ohci controller will
  * automatically send an ack_complete when the status is written by the
  * sbp2 device... saving a split transaction.   =)
- */ 
+ */
 #define SBP2_STATUS_FIFO_ADDRESS				0xfffe00000000ULL
 #define SBP2_STATUS_FIFO_ADDRESS_HI                             0xfffe
 #define SBP2_STATUS_FIFO_ADDRESS_LO                             0x0
@@ -333,9 +333,7 @@ struct sbp2_command_info {
 #define SBP2_BREAKAGE_128K_MAX_TRANSFER		0x1
 #define SBP2_BREAKAGE_INQUIRY_HACK		0x2
 
-
 struct sbp2scsi_host_info;
-
 
 /*
  * Information needed on a per scsi id basis (one for each sbp2 device)
@@ -405,7 +403,6 @@ struct scsi_id_instance_data {
 	/* Device specific workarounds/brokeness */
 	u32 workarounds;
 };
-
 
 /* Sbp2 host data structure (one per IEEE1394 host) */
 struct sbp2scsi_host_info {

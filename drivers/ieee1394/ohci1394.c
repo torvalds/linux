@@ -3201,8 +3201,6 @@ static struct hpsb_host_driver ohci1394_driver = {
 	.hw_csr_reg =		ohci_hw_csr_reg,
 };
 
-
-
 /***********************************
  * PCI Driver Interface functions  *
  ***********************************/
@@ -3606,8 +3604,6 @@ static struct pci_driver ohci1394_pci_driver = {
 	.suspend =	ohci1394_pci_suspend,
 };
 
-
-
 /***********************************
  * OHCI1394 Video Interface        *
  ***********************************/
@@ -3713,7 +3709,6 @@ EXPORT_SYMBOL(ohci1394_stop_context);
 EXPORT_SYMBOL(ohci1394_init_iso_tasklet);
 EXPORT_SYMBOL(ohci1394_register_iso_tasklet);
 EXPORT_SYMBOL(ohci1394_unregister_iso_tasklet);
-
 
 /***********************************
  * General module initialization   *
