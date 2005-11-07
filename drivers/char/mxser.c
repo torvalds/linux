@@ -917,6 +917,9 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 	struct mxser_struct *info;
 	int retval, line;
 
+	/* initialize driver_data in case something fails */
+	tty->driver_data = NULL;
+
 	line = tty->index;
 	if (line == MXSER_PORTS)
 		return 0;
@@ -979,7 +982,7 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	if (tty->index == MXSER_PORTS)
 		return;
 	if (!info)
-		BUG();
+		return;
 
 	spin_lock_irqsave(&info->slock, flags);
 
