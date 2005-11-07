@@ -4,7 +4,7 @@
  *  Anticipatory & deadline i/o scheduler.
  *
  *  Copyright (C) 2002 Jens Axboe <axboe@suse.de>
- *                     Nick Piggin <piggin@cyberone.com.au>
+ *                     Nick Piggin <nickpiggin@yahoo.com.au>
  *
  */
 #include <linux/kernel.h>
@@ -69,7 +69,7 @@
 
 /* Bits in as_io_context.state */
 enum as_io_states {
-	AS_TASK_RUNNING=0,	/* Process has not exitted */
+	AS_TASK_RUNNING=0,	/* Process has not exited */
 	AS_TASK_IOSTARTED,	/* Process has started some IO */
 	AS_TASK_IORUNNING,	/* Process has completed some IO */
 };
@@ -102,6 +102,9 @@ struct as_data {
 
 	unsigned long exit_prob;	/* probability a task will exit while
 					   being waited on */
+	unsigned long exit_no_coop;	/* probablility an exited task will
+					   not be part of a later cooperating
+					   request */
 	unsigned long new_ttime_total; 	/* mean thinktime on new proc */
 	unsigned long new_ttime_mean;
 	u64 new_seek_total;		/* mean seek on new proc */
@@ -636,37 +639,152 @@ static void as_antic_timeout(unsigned long data)
 		kblockd_schedule_work(&ad->antic_work);
 
 		if (aic->ttime_samples == 0) {
-			/* process anticipated on has exitted or timed out*/
+			/* process anticipated on has exited or timed out*/
 			ad->exit_prob = (7*ad->exit_prob + 256)/8;
+		}
+		if (!test_bit(AS_TASK_RUNNING, &aic->state)) {
+			/* process not "saved" by a cooperating request */
+			ad->exit_no_coop = (7*ad->exit_no_coop + 256)/8;
 		}
 	}
 	spin_unlock_irqrestore(q->queue_lock, flags);
+}
+
+static void as_update_thinktime(struct as_data *ad, struct as_io_context *aic,
+				unsigned long ttime)
+{
+	/* fixed point: 1.0 == 1<<8 */
+	if (aic->ttime_samples == 0) {
+		ad->new_ttime_total = (7*ad->new_ttime_total + 256*ttime) / 8;
+		ad->new_ttime_mean = ad->new_ttime_total / 256;
+
+		ad->exit_prob = (7*ad->exit_prob)/8;
+	}
+	aic->ttime_samples = (7*aic->ttime_samples + 256) / 8;
+	aic->ttime_total = (7*aic->ttime_total + 256*ttime) / 8;
+	aic->ttime_mean = (aic->ttime_total + 128) / aic->ttime_samples;
+}
+
+static void as_update_seekdist(struct as_data *ad, struct as_io_context *aic,
+				sector_t sdist)
+{
+	u64 total;
+
+	if (aic->seek_samples == 0) {
+		ad->new_seek_total = (7*ad->new_seek_total + 256*(u64)sdist)/8;
+		ad->new_seek_mean = ad->new_seek_total / 256;
+	}
+
+	/*
+	 * Don't allow the seek distance to get too large from the
+	 * odd fragment, pagein, etc
+	 */
+	if (aic->seek_samples <= 60) /* second&third seek */
+		sdist = min(sdist, (aic->seek_mean * 4) + 2*1024*1024);
+	else
+		sdist = min(sdist, (aic->seek_mean * 4)	+ 2*1024*64);
+
+	aic->seek_samples = (7*aic->seek_samples + 256) / 8;
+	aic->seek_total = (7*aic->seek_total + (u64)256*sdist) / 8;
+	total = aic->seek_total + (aic->seek_samples/2);
+	do_div(total, aic->seek_samples);
+	aic->seek_mean = (sector_t)total;
+}
+
+/*
+ * as_update_iohist keeps a decaying histogram of IO thinktimes, and
+ * updates @aic->ttime_mean based on that. It is called when a new
+ * request is queued.
+ */
+static void as_update_iohist(struct as_data *ad, struct as_io_context *aic,
+				struct request *rq)
+{
+	struct as_rq *arq = RQ_DATA(rq);
+	int data_dir = arq->is_sync;
+	unsigned long thinktime = 0;
+	sector_t seek_dist;
+
+	if (aic == NULL)
+		return;
+
+	if (data_dir == REQ_SYNC) {
+		unsigned long in_flight = atomic_read(&aic->nr_queued)
+					+ atomic_read(&aic->nr_dispatched);
+		spin_lock(&aic->lock);
+		if (test_bit(AS_TASK_IORUNNING, &aic->state) ||
+			test_bit(AS_TASK_IOSTARTED, &aic->state)) {
+			/* Calculate read -> read thinktime */
+			if (test_bit(AS_TASK_IORUNNING, &aic->state)
+							&& in_flight == 0) {
+				thinktime = jiffies - aic->last_end_request;
+				thinktime = min(thinktime, MAX_THINKTIME-1);
+			}
+			as_update_thinktime(ad, aic, thinktime);
+
+			/* Calculate read -> read seek distance */
+			if (aic->last_request_pos < rq->sector)
+				seek_dist = rq->sector - aic->last_request_pos;
+			else
+				seek_dist = aic->last_request_pos - rq->sector;
+			as_update_seekdist(ad, aic, seek_dist);
+		}
+		aic->last_request_pos = rq->sector + rq->nr_sectors;
+		set_bit(AS_TASK_IOSTARTED, &aic->state);
+		spin_unlock(&aic->lock);
+	}
 }
 
 /*
  * as_close_req decides if one request is considered "close" to the
  * previous one issued.
  */
-static int as_close_req(struct as_data *ad, struct as_rq *arq)
+static int as_close_req(struct as_data *ad, struct as_io_context *aic,
+				struct as_rq *arq)
 {
 	unsigned long delay;	/* milliseconds */
 	sector_t last = ad->last_sector[ad->batch_data_dir];
 	sector_t next = arq->request->sector;
 	sector_t delta; /* acceptable close offset (in sectors) */
+	sector_t s;
 
 	if (ad->antic_status == ANTIC_OFF || !ad->ioc_finished)
 		delay = 0;
 	else
 		delay = ((jiffies - ad->antic_start) * 1000) / HZ;
 
-	if (delay <= 1)
-		delta = 64;
+	if (delay == 0)
+		delta = 8192;
 	else if (delay <= 20 && delay <= ad->antic_expire)
-		delta = 64 << (delay-1);
+		delta = 8192 << delay;
 	else
 		return 1;
 
-	return (last - (delta>>1) <= next) && (next <= last + delta);
+	if ((last <= next + (delta>>1)) && (next <= last + delta))
+		return 1;
+
+	if (last < next)
+		s = next - last;
+	else
+		s = last - next;
+
+	if (aic->seek_samples == 0) {
+		/*
+		 * Process has just started IO. Use past statistics to
+		 * gauge success possibility
+		 */
+		if (ad->new_seek_mean > s) {
+			/* this request is better than what we're expecting */
+			return 1;
+		}
+
+	} else {
+		if (aic->seek_mean > s) {
+			/* this request is better than what we're expecting */
+			return 1;
+		}
+	}
+
+	return 0;
 }
 
 /*
@@ -678,7 +796,7 @@ static int as_close_req(struct as_data *ad, struct as_rq *arq)
  * dispatch it ASAP, because we know that application will not be submitting
  * any new reads.
  *
- * If the task which has submitted the request has exitted, break anticipation.
+ * If the task which has submitted the request has exited, break anticipation.
  *
  * If this task has queued some other IO, do not enter enticipation.
  */
@@ -686,7 +804,6 @@ static int as_can_break_anticipation(struct as_data *ad, struct as_rq *arq)
 {
 	struct io_context *ioc;
 	struct as_io_context *aic;
-	sector_t s;
 
 	ioc = ad->io_context;
 	BUG_ON(!ioc);
@@ -708,13 +825,6 @@ static int as_can_break_anticipation(struct as_data *ad, struct as_rq *arq)
 	if (!aic)
 		return 0;
 
-	if (!test_bit(AS_TASK_RUNNING, &aic->state)) {
-		/* process anticipated on has exitted */
-		if (aic->ttime_samples == 0)
-			ad->exit_prob = (7*ad->exit_prob + 256)/8;
-		return 1;
-	}
-
 	if (atomic_read(&aic->nr_queued) > 0) {
 		/* process has more requests queued */
 		return 1;
@@ -725,55 +835,43 @@ static int as_can_break_anticipation(struct as_data *ad, struct as_rq *arq)
 		return 1;
 	}
 
-	if (arq && arq->is_sync == REQ_SYNC && as_close_req(ad, arq)) {
+	if (arq && arq->is_sync == REQ_SYNC && as_close_req(ad, aic, arq)) {
 		/*
 		 * Found a close request that is not one of ours.
 		 *
-		 * This makes close requests from another process reset
-		 * our thinktime delay. Is generally useful when there are
+		 * This makes close requests from another process update
+		 * our IO history. Is generally useful when there are
 		 * two or more cooperating processes working in the same
 		 * area.
 		 */
-		spin_lock(&aic->lock);
-		aic->last_end_request = jiffies;
-		spin_unlock(&aic->lock);
+		if (!test_bit(AS_TASK_RUNNING, &aic->state)) {
+			if (aic->ttime_samples == 0)
+				ad->exit_prob = (7*ad->exit_prob + 256)/8;
+
+			ad->exit_no_coop = (7*ad->exit_no_coop)/8;
+		}
+
+		as_update_iohist(ad, aic, arq->request);
 		return 1;
 	}
 
+	if (!test_bit(AS_TASK_RUNNING, &aic->state)) {
+		/* process anticipated on has exited */
+		if (aic->ttime_samples == 0)
+			ad->exit_prob = (7*ad->exit_prob + 256)/8;
+
+		if (ad->exit_no_coop > 128)
+			return 1;
+	}
 
 	if (aic->ttime_samples == 0) {
 		if (ad->new_ttime_mean > ad->antic_expire)
 			return 1;
-		if (ad->exit_prob > 128)
+		if (ad->exit_prob * ad->exit_no_coop > 128*256)
 			return 1;
 	} else if (aic->ttime_mean > ad->antic_expire) {
 		/* the process thinks too much between requests */
 		return 1;
-	}
-
-	if (!arq)
-		return 0;
-
-	if (ad->last_sector[REQ_SYNC] < arq->request->sector)
-		s = arq->request->sector - ad->last_sector[REQ_SYNC];
-	else
-		s = ad->last_sector[REQ_SYNC] - arq->request->sector;
-
-	if (aic->seek_samples == 0) {
-		/*
-		 * Process has just started IO. Use past statistics to
-		 * guage success possibility
-		 */
-		if (ad->new_seek_mean > s) {
-			/* this request is better than what we're expecting */
-			return 1;
-		}
-
-	} else {
-		if (aic->seek_mean > s) {
-			/* this request is better than what we're expecting */
-			return 1;
-		}
 	}
 
 	return 0;
@@ -809,92 +907,9 @@ static int as_can_anticipate(struct as_data *ad, struct as_rq *arq)
 	 * Status is either ANTIC_OFF so start waiting,
 	 * ANTIC_WAIT_REQ so continue waiting for request to finish
 	 * or ANTIC_WAIT_NEXT so continue waiting for an acceptable request.
-	 *
 	 */
 
 	return 1;
-}
-
-static void as_update_thinktime(struct as_data *ad, struct as_io_context *aic, unsigned long ttime)
-{
-	/* fixed point: 1.0 == 1<<8 */
-	if (aic->ttime_samples == 0) {
-		ad->new_ttime_total = (7*ad->new_ttime_total + 256*ttime) / 8;
-		ad->new_ttime_mean = ad->new_ttime_total / 256;
-
-		ad->exit_prob = (7*ad->exit_prob)/8;
-	}
-	aic->ttime_samples = (7*aic->ttime_samples + 256) / 8;
-	aic->ttime_total = (7*aic->ttime_total + 256*ttime) / 8;
-	aic->ttime_mean = (aic->ttime_total + 128) / aic->ttime_samples;
-}
-
-static void as_update_seekdist(struct as_data *ad, struct as_io_context *aic, sector_t sdist)
-{
-	u64 total;
-
-	if (aic->seek_samples == 0) {
-		ad->new_seek_total = (7*ad->new_seek_total + 256*(u64)sdist)/8;
-		ad->new_seek_mean = ad->new_seek_total / 256;
-	}
-
-	/*
-	 * Don't allow the seek distance to get too large from the
-	 * odd fragment, pagein, etc
-	 */
-	if (aic->seek_samples <= 60) /* second&third seek */
-		sdist = min(sdist, (aic->seek_mean * 4) + 2*1024*1024);
-	else
-		sdist = min(sdist, (aic->seek_mean * 4)	+ 2*1024*64);
-
-	aic->seek_samples = (7*aic->seek_samples + 256) / 8;
-	aic->seek_total = (7*aic->seek_total + (u64)256*sdist) / 8;
-	total = aic->seek_total + (aic->seek_samples/2);
-	do_div(total, aic->seek_samples);
-	aic->seek_mean = (sector_t)total;
-}
-
-/*
- * as_update_iohist keeps a decaying histogram of IO thinktimes, and
- * updates @aic->ttime_mean based on that. It is called when a new
- * request is queued.
- */
-static void as_update_iohist(struct as_data *ad, struct as_io_context *aic, struct request *rq)
-{
-	struct as_rq *arq = RQ_DATA(rq);
-	int data_dir = arq->is_sync;
-	unsigned long thinktime;
-	sector_t seek_dist;
-
-	if (aic == NULL)
-		return;
-
-	if (data_dir == REQ_SYNC) {
-		unsigned long in_flight = atomic_read(&aic->nr_queued)
-					+ atomic_read(&aic->nr_dispatched);
-		spin_lock(&aic->lock);
-		if (test_bit(AS_TASK_IORUNNING, &aic->state) ||
-			test_bit(AS_TASK_IOSTARTED, &aic->state)) {
-			/* Calculate read -> read thinktime */
-			if (test_bit(AS_TASK_IORUNNING, &aic->state)
-							&& in_flight == 0) {
-				thinktime = jiffies - aic->last_end_request;
-				thinktime = min(thinktime, MAX_THINKTIME-1);
-			} else
-				thinktime = 0;
-			as_update_thinktime(ad, aic, thinktime);
-
-			/* Calculate read -> read seek distance */
-			if (aic->last_request_pos < rq->sector)
-				seek_dist = rq->sector - aic->last_request_pos;
-			else
-				seek_dist = aic->last_request_pos - rq->sector;
-			as_update_seekdist(ad, aic, seek_dist);
-		}
-		aic->last_request_pos = rq->sector + rq->nr_sectors;
-		set_bit(AS_TASK_IOSTARTED, &aic->state);
-		spin_unlock(&aic->lock);
-	}
 }
 
 /*
@@ -1201,7 +1216,7 @@ static int as_dispatch_request(request_queue_t *q, int force)
 		|| ad->changed_batch)
 		return 0;
 
-	if (!(reads && writes && as_batch_expired(ad)) ) {
+	if (!(reads && writes && as_batch_expired(ad))) {
 		/*
 		 * batch is still running or no reads or no writes
 		 */
@@ -1316,7 +1331,8 @@ fifo_expired:
  * Add arq to a list behind alias
  */
 static inline void
-as_add_aliased_request(struct as_data *ad, struct as_rq *arq, struct as_rq *alias)
+as_add_aliased_request(struct as_data *ad, struct as_rq *arq,
+				struct as_rq *alias)
 {
 	struct request  *req = arq->request;
 	struct list_head *insert = alias->request->queuelist.prev;
@@ -1441,8 +1457,8 @@ static int as_queue_empty(request_queue_t *q)
 		&& list_empty(&ad->fifo_list[REQ_SYNC]);
 }
 
-static struct request *
-as_former_request(request_queue_t *q, struct request *rq)
+static struct request *as_former_request(request_queue_t *q,
+					struct request *rq)
 {
 	struct as_rq *arq = RQ_DATA(rq);
 	struct rb_node *rbprev = rb_prev(&arq->rb_node);
@@ -1454,8 +1470,8 @@ as_former_request(request_queue_t *q, struct request *rq)
 	return ret;
 }
 
-static struct request *
-as_latter_request(request_queue_t *q, struct request *rq)
+static struct request *as_latter_request(request_queue_t *q,
+					struct request *rq)
 {
 	struct as_rq *arq = RQ_DATA(rq);
 	struct rb_node *rbnext = rb_next(&arq->rb_node);
@@ -1537,7 +1553,7 @@ static void as_merged_request(request_queue_t *q, struct request *req)
 		 * currently don't bother. Ditto the next function.
 		 */
 		as_del_arq_rb(ad, arq);
-		if ((alias = as_add_arq_rb(ad, arq)) ) {
+		if ((alias = as_add_arq_rb(ad, arq))) {
 			list_del_init(&arq->fifo);
 			as_add_aliased_request(ad, arq, alias);
 			if (next_arq)
@@ -1551,9 +1567,8 @@ static void as_merged_request(request_queue_t *q, struct request *req)
 	}
 }
 
-static void
-as_merged_requests(request_queue_t *q, struct request *req,
-			 struct request *next)
+static void as_merged_requests(request_queue_t *q, struct request *req,
+			 	struct request *next)
 {
 	struct as_data *ad = q->elevator->elevator_data;
 	struct as_rq *arq = RQ_DATA(req);
@@ -1576,7 +1591,7 @@ as_merged_requests(request_queue_t *q, struct request *req,
 			next_arq = as_find_next_arq(ad, arq);
 
 		as_del_arq_rb(ad, arq);
-		if ((alias = as_add_arq_rb(ad, arq)) ) {
+		if ((alias = as_add_arq_rb(ad, arq))) {
 			list_del_init(&arq->fifo);
 			as_add_aliased_request(ad, arq, alias);
 			if (next_arq)
@@ -1806,9 +1821,14 @@ static ssize_t as_est_show(struct as_data *ad, char *page)
 {
 	int pos = 0;
 
-	pos += sprintf(page+pos, "%lu %% exit probability\n", 100*ad->exit_prob/256);
+	pos += sprintf(page+pos, "%lu %% exit probability\n",
+				100*ad->exit_prob/256);
+	pos += sprintf(page+pos, "%lu %% probability of exiting without a "
+				"cooperating process submitting IO\n",
+				100*ad->exit_no_coop/256);
 	pos += sprintf(page+pos, "%lu ms new thinktime\n", ad->new_ttime_mean);
-	pos += sprintf(page+pos, "%llu sectors new seek distance\n", (unsigned long long)ad->new_seek_mean);
+	pos += sprintf(page+pos, "%llu sectors new seek distance\n",
+				(unsigned long long)ad->new_seek_mean);
 
 	return pos;
 }
