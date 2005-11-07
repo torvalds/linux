@@ -897,7 +897,7 @@ extern struct fb_videomode *fb_match_mode(struct fb_var_screeninfo *var,
 					  struct list_head *head);
 extern struct fb_videomode *fb_find_best_mode(struct fb_var_screeninfo *var,
 					      struct list_head *head);
-extern struct fb_videomode *fb_find_nearest_mode(struct fb_var_screeninfo *var,
+extern struct fb_videomode *fb_find_nearest_mode(struct fb_videomode *mode,
 						 struct list_head *head);
 extern void fb_destroy_modelist(struct list_head *head);
 extern void fb_videomode_to_modelist(struct fb_videomode *modedb, int num,

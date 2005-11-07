@@ -676,6 +676,8 @@ void fb_var_to_videomode(struct fb_videomode *mode,
 	mode->sync = var->sync;
 	mode->vmode = var->vmode & FB_VMODE_MASK;
 	mode->flag = FB_MODE_IS_FROM_VAR;
+	mode->refresh = 0;
+
 	if (!var->pixclock)
 		return;
 
@@ -785,39 +787,39 @@ struct fb_videomode *fb_find_best_mode(struct fb_var_screeninfo *var,
 }
 
 /**
- * fb_find_nearest_mode - find mode closest video mode
+ * fb_find_nearest_mode - find closest videomode
  *
- * @var: pointer to struct fb_var_screeninfo
+ * @mode: pointer to struct fb_videomode
  * @head: pointer to modelist
  *
  * Finds best matching videomode, smaller or greater in dimension.
  * If more than 1 videomode is found, will return the videomode with
- * the closest refresh rate
+ * the closest refresh rate.
  */
-struct fb_videomode *fb_find_nearest_mode(struct fb_var_screeninfo *var,
+struct fb_videomode *fb_find_nearest_mode(struct fb_videomode *mode,
 					  struct list_head *head)
 {
 	struct list_head *pos;
 	struct fb_modelist *modelist;
-	struct fb_videomode *mode, *best = NULL;
+	struct fb_videomode *cmode, *best = NULL;
 	u32 diff = -1, diff_refresh = -1;
 
 	list_for_each(pos, head) {
 		u32 d;
 
 		modelist = list_entry(pos, struct fb_modelist, list);
-		mode = &modelist->mode;
+		cmode = &modelist->mode;
 
-		d = abs(mode->xres - var->xres) +
-			abs(mode->yres - var->yres);
+		d = abs(cmode->xres - mode->xres) +
+			abs(cmode->yres - mode->yres);
 		if (diff > d) {
 			diff = d;
-			best = mode;
+			best = cmode;
 		} else if (diff == d) {
-			d = abs(mode->refresh - best->refresh);
+			d = abs(cmode->refresh - mode->refresh);
 			if (diff_refresh > d) {
 				diff_refresh = d;
-				best = mode;
+				best = cmode;
 			}
 		}
 	}
