@@ -38,15 +38,6 @@ struct sunos_ttysize {
 	int st_columns; /* Columns on the terminal */
 };
 
-/* Used for packet mode */
-#define TIOCPKT_DATA		 0
-#define TIOCPKT_FLUSHREAD	 1
-#define TIOCPKT_FLUSHWRITE	 2
-#define TIOCPKT_STOP		 4
-#define TIOCPKT_START		 8
-#define TIOCPKT_NOSTOP		16
-#define TIOCPKT_DOSTOP		32
-
 struct winsize {
 	unsigned short ws_row;
 	unsigned short ws_col;
