@@ -1129,6 +1129,8 @@ static unsigned int ata_scsi_rw_xlat(struct ata_queued_cmd *qc, const u8 *scsicm
 		 * length 0 means transfer 0 block of data.
 		 * However, for ATA R/W commands, sector count 0 means
 		 * 256 or 65536 sectors, not 0 sectors as in SCSI.
+		 *
+		 * WARNING: one or two older ATA drives treat 0 as 0...
 		 */
 		goto nothing_to_do;
 
