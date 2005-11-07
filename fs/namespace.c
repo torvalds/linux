@@ -172,7 +172,7 @@ clone_mnt(struct vfsmount *old, struct dentry *root)
 	return mnt;
 }
 
-void __mntput(struct vfsmount *mnt)
+static inline void __mntput(struct vfsmount *mnt)
 {
 	struct super_block *sb = mnt->mnt_sb;
 	dput(mnt->mnt_root);
@@ -180,7 +180,46 @@ void __mntput(struct vfsmount *mnt)
 	deactivate_super(sb);
 }
 
-EXPORT_SYMBOL(__mntput);
+void mntput_no_expire(struct vfsmount *mnt)
+{
+repeat:
+	if (atomic_dec_and_lock(&mnt->mnt_count, &vfsmount_lock)) {
+		if (likely(!mnt->mnt_pinned)) {
+			spin_unlock(&vfsmount_lock);
+			__mntput(mnt);
+			return;
+		}
+		atomic_add(mnt->mnt_pinned + 1, &mnt->mnt_count);
+		mnt->mnt_pinned = 0;
+		spin_unlock(&vfsmount_lock);
+		acct_auto_close_mnt(mnt);
+		security_sb_umount_close(mnt);
+		goto repeat;
+	}
+}
+
+EXPORT_SYMBOL(mntput_no_expire);
+
+void mnt_pin(struct vfsmount *mnt)
+{
+	spin_lock(&vfsmount_lock);
+	mnt->mnt_pinned++;
+	spin_unlock(&vfsmount_lock);
+}
+
+EXPORT_SYMBOL(mnt_pin);
+
+void mnt_unpin(struct vfsmount *mnt)
+{
+	spin_lock(&vfsmount_lock);
+	if (mnt->mnt_pinned) {
+		atomic_inc(&mnt->mnt_count);
+		mnt->mnt_pinned--;
+	}
+	spin_unlock(&vfsmount_lock);
+}
+
+EXPORT_SYMBOL(mnt_unpin);
 
 /* iterator */
 static void *m_start(struct seq_file *m, loff_t *pos)
@@ -435,16 +474,6 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	down_write(&current->namespace->sem);
 	spin_lock(&vfsmount_lock);
 
-	if (atomic_read(&sb->s_active) == 1) {
-		/* last instance - try to be smart */
-		spin_unlock(&vfsmount_lock);
-		lock_kernel();
-		DQUOT_OFF(sb);
-		acct_auto_close(sb);
-		unlock_kernel();
-		security_sb_umount_close(mnt);
-		spin_lock(&vfsmount_lock);
-	}
 	retval = -EBUSY;
 	if (atomic_read(&mnt->mnt_count) == 2 || flags & MNT_DETACH) {
 		if (!list_empty(&mnt->mnt_list))
@@ -850,17 +879,6 @@ static void expire_mount(struct vfsmount *mnt, struct list_head *mounts)
 		detach_mnt(mnt, &old_nd);
 		spin_unlock(&vfsmount_lock);
 		path_release(&old_nd);
-
-		/*
-		 * Now lay it to rest if this was the last ref on the superblock
-		 */
-		if (atomic_read(&mnt->mnt_sb->s_active) == 1) {
-			/* last instance - try to be smart */
-			lock_kernel();
-			DQUOT_OFF(mnt->mnt_sb);
-			acct_auto_close(mnt->mnt_sb);
-			unlock_kernel();
-		}
 		mntput(mnt);
 	} else {
 		/*

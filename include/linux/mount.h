@@ -37,6 +37,7 @@ struct vfsmount
 	struct list_head mnt_list;
 	struct list_head mnt_expire;	/* link in fs-specific expiry list */
 	struct namespace *mnt_namespace; /* containing namespace */
+	int mnt_pinned;
 };
 
 static inline struct vfsmount *mntget(struct vfsmount *mnt)
@@ -46,15 +47,9 @@ static inline struct vfsmount *mntget(struct vfsmount *mnt)
 	return mnt;
 }
 
-extern void __mntput(struct vfsmount *mnt);
-
-static inline void mntput_no_expire(struct vfsmount *mnt)
-{
-	if (mnt) {
-		if (atomic_dec_and_test(&mnt->mnt_count))
-			__mntput(mnt);
-	}
-}
+extern void mntput_no_expire(struct vfsmount *mnt);
+extern void mnt_pin(struct vfsmount *mnt);
+extern void mnt_unpin(struct vfsmount *mnt);
 
 static inline void mntput(struct vfsmount *mnt)
 {
