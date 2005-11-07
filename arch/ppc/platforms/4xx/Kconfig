@@ -225,7 +225,7 @@ config EMBEDDEDBOOT
 
 config IBM_OPENBIOS
 	bool
-	depends on ASH || BUBINGA || REDWOOD_5 || REDWOOD_6 || SYCAMORE || WALNUT
+	depends on ASH || REDWOOD_5 || REDWOOD_6
 	default y
 
 config PPC4xx_DMA
