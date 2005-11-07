@@ -2071,6 +2071,12 @@ P:	Matt Mackall
 M:	mpm@selenic.com
 S:	Maintained
 
+RAPIDIO SUBSYSTEM
+P:	Matt Porter
+M:	mporter@kernel.crashing.org
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 REAL TIME CLOCK DRIVER
 P:	Paul Gortmaker
 M:	p_gortmaker@yahoo.com
