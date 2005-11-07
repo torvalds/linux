@@ -20,6 +20,7 @@
 #define MNT_NOSUID	0x01
 #define MNT_NODEV	0x02
 #define MNT_NOEXEC	0x04
+#define MNT_SHARED	0x10	/* if the vfsmount is a shared mount */
 #define MNT_PNODE_MASK	0x30	/* propogation flag mask */
 
 struct vfsmount {
@@ -36,6 +37,7 @@ struct vfsmount {
 	char *mnt_devname;		/* Name of device e.g. /dev/dsk/hda1 */
 	struct list_head mnt_list;
 	struct list_head mnt_expire;	/* link in fs-specific expiry list */
+	struct list_head mnt_share;	/* circular list of shared mounts */
 	struct namespace *mnt_namespace; /* containing namespace */
 	int mnt_pinned;
 };

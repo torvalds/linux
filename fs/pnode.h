@@ -10,5 +10,9 @@
 
 #include <linux/list.h>
 #include <linux/mount.h>
+
+#define IS_MNT_SHARED(mnt) (mnt->mnt_flags & MNT_SHARED)
+#define CLEAR_MNT_SHARED(mnt) (mnt->mnt_flags &= ~MNT_SHARED)
+
 void change_mnt_propagation(struct vfsmount *, int);
 #endif /* _LINUX_PNODE_H */
