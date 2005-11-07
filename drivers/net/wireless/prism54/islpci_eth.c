@@ -244,7 +244,6 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	priv->statistics.tx_dropped++;
 	spin_unlock_irqrestore(&priv->slock, flags);
 	dev_kfree_skb(skb);
-	skb = NULL;
 	return err;
 }
 

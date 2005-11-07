@@ -42,6 +42,8 @@
 #include <asm/io.h>
 #include <asm/system.h>
 
+#include "airo.h"
+
 /*
    All the PCMCIA modules use PCMCIA_DEBUG to control debugging.  If
    you do not define PCMCIA_DEBUG at all, all the debug code will be
@@ -77,10 +79,6 @@ MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340 PCMCIA cards");
    insertion and ejection events.  They are invoked from the airo_cs
    event handler. 
 */
-
-struct net_device *init_airo_card( int, int, int, struct device * );
-void stop_airo_card( struct net_device *, int );
-int reset_airo_card( struct net_device * );
 
 static void airo_config(dev_link_t *link);
 static void airo_release(dev_link_t *link);
