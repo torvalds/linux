@@ -154,6 +154,7 @@ int prom_callback(long *args)
 			pud_t *pudp;
 			pmd_t *pmdp;
 			pte_t *ptep;
+			pte_t pte;
 
 			for_each_process(p) {
 				mm = p->mm;
@@ -178,8 +179,9 @@ int prom_callback(long *args)
 			 * being called from inside OBP.
 			 */
 			ptep = pte_offset_map(pmdp, va);
-			if (pte_present(*ptep)) {
-				tte = pte_val(*ptep);
+			pte = *ptep;
+			if (pte_present(pte)) {
+				tte = pte_val(pte);
 				res = PROM_TRUE;
 			}
 			pte_unmap(ptep);
@@ -218,6 +220,7 @@ int prom_callback(long *args)
 			pud_t *pudp;
 			pmd_t *pmdp;
 			pte_t *ptep;
+			pte_t pte;
 			int error;
 
 			if ((va >= LOW_OBP_ADDRESS) && (va < HI_OBP_ADDRESS)) {
@@ -240,8 +243,9 @@ int prom_callback(long *args)
 			 * being called from inside OBP.
 			 */
 			ptep = pte_offset_kernel(pmdp, va);
-			if (pte_present(*ptep)) {
-				tte = pte_val(*ptep);
+			pte = *ptep;
+			if (pte_present(pte)) {
+				tte = pte_val(pte);
 				res = PROM_TRUE;
 			}
 			goto done;
