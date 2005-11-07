@@ -426,14 +426,14 @@ static void uea_upload_pre_firmware(const struct firmware *fw_entry, void *conte
 
 	pfw = fw_entry->data;
 	size = fw_entry->size;
+	if (size < 4)
+		goto err_fw_corrupted;
 
 	crc = FW_GET_LONG(pfw);
 	pfw += 4;
 	size -= 4;
-	if (crc32_be(0, pfw, size) != crc) {
-		uea_err(usb, "firmware is corrupted\n");
-		goto err;
-	}
+	if (crc32_be(0, pfw, size) != crc)
+		goto err_fw_corrupted;
 
 	/*
 	 * Start to upload formware : send reset
@@ -446,9 +446,14 @@ static void uea_upload_pre_firmware(const struct firmware *fw_entry, void *conte
 		goto err;
 	}
 
-	while (size > 0) {
+	while (size > 3) {
 		u8 len = FW_GET_BYTE(pfw);
 		u16 add = FW_GET_WORD(pfw + 1);
+
+		size -= len + 3;
+		if (size < 0)
+			goto err_fw_corrupted;
+
 		ret = uea_send_modem_cmd(usb, add, len, pfw + 3);
 		if (ret < 0) {
 			uea_err(usb, "uploading firmware data failed "
@@ -456,8 +461,10 @@ static void uea_upload_pre_firmware(const struct firmware *fw_entry, void *conte
 			goto err;
 		}
 		pfw += len + 3;
-		size -= len + 3;
 	}
+
+	if (size != 0)
+		goto err_fw_corrupted;
 
 	/*
 	 * Tell the modem we finish : de-assert reset
@@ -469,6 +476,11 @@ static void uea_upload_pre_firmware(const struct firmware *fw_entry, void *conte
 	else
 		uea_info(usb, "firmware uploaded\n");
 
+	uea_leaves(usb);
+	return;
+
+err_fw_corrupted:
+	uea_err(usb, "firmware is corrupted\n");
 err:
 	uea_leaves(usb);
 }
@@ -521,10 +533,6 @@ static int check_dsp(u8 *dsp, unsigned int len)
 	u16 blocksize;
 	u32 pageoffset;
 	unsigned int i, j, p, pp;
-
-	/* enough space for pagecount? */
-	if (len < 1)
-		return 1;
 
 	pagecount = FW_GET_BYTE(dsp);
 	p = 1;
