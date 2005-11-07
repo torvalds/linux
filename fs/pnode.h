@@ -29,4 +29,6 @@ static inline void set_mnt_shared(struct vfsmount *mnt)
 void change_mnt_propagation(struct vfsmount *, int);
 int propagate_mnt(struct vfsmount *, struct dentry *, struct vfsmount *,
 		struct list_head *);
+int propagate_umount(struct list_head *);
+int propagate_mount_busy(struct vfsmount *, int);
 #endif /* _LINUX_PNODE_H */

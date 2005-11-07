@@ -86,29 +86,42 @@ void free_vfsmnt(struct vfsmount *mnt)
 }
 
 /*
- * Now, lookup_mnt increments the ref count before returning
- * the vfsmount struct.
+ * find the first or last mount at @dentry on vfsmount @mnt depending on
+ * @dir. If @dir is set return the first mount else return the last mount.
  */
-struct vfsmount *lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
+struct vfsmount *__lookup_mnt(struct vfsmount *mnt, struct dentry *dentry,
+			      int dir)
 {
 	struct list_head *head = mount_hashtable + hash(mnt, dentry);
 	struct list_head *tmp = head;
 	struct vfsmount *p, *found = NULL;
 
-	spin_lock(&vfsmount_lock);
 	for (;;) {
-		tmp = tmp->next;
+		tmp = dir ? tmp->next : tmp->prev;
 		p = NULL;
 		if (tmp == head)
 			break;
 		p = list_entry(tmp, struct vfsmount, mnt_hash);
 		if (p->mnt_parent == mnt && p->mnt_mountpoint == dentry) {
-			found = mntget(p);
+			found = p;
 			break;
 		}
 	}
-	spin_unlock(&vfsmount_lock);
 	return found;
+}
+
+/*
+ * lookup_mnt increments the ref count before returning
+ * the vfsmount struct.
+ */
+struct vfsmount *lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
+{
+	struct vfsmount *child_mnt;
+	spin_lock(&vfsmount_lock);
+	if ((child_mnt = __lookup_mnt(mnt, dentry, 1)))
+		mntget(child_mnt);
+	spin_unlock(&vfsmount_lock);
+	return child_mnt;
 }
 
 static inline int check_mnt(struct vfsmount *mnt)
@@ -404,9 +417,12 @@ EXPORT_SYMBOL(may_umount_tree);
  */
 int may_umount(struct vfsmount *mnt)
 {
-	if (atomic_read(&mnt->mnt_count) > 2)
-		return -EBUSY;
-	return 0;
+	int ret = 0;
+	spin_lock(&vfsmount_lock);
+	if (propagate_mount_busy(mnt, 2))
+		ret = -EBUSY;
+	spin_unlock(&vfsmount_lock);
+	return ret;
 }
 
 EXPORT_SYMBOL(may_umount);
@@ -433,7 +449,7 @@ void release_mounts(struct list_head *head)
 	}
 }
 
-void umount_tree(struct vfsmount *mnt, struct list_head *kill)
+void umount_tree(struct vfsmount *mnt, int propagate, struct list_head *kill)
 {
 	struct vfsmount *p;
 
@@ -441,6 +457,9 @@ void umount_tree(struct vfsmount *mnt, struct list_head *kill)
 		list_del(&p->mnt_hash);
 		list_add(&p->mnt_hash, kill);
 	}
+
+	if (propagate)
+		propagate_umount(kill);
 
 	list_for_each_entry(p, kill, mnt_hash) {
 		list_del_init(&p->mnt_expire);
@@ -450,6 +469,7 @@ void umount_tree(struct vfsmount *mnt, struct list_head *kill)
 		list_del_init(&p->mnt_child);
 		if (p->mnt_parent != p)
 			mnt->mnt_mountpoint->d_mounted--;
+		change_mnt_propagation(p, MS_PRIVATE);
 	}
 }
 
@@ -526,9 +546,9 @@ static int do_umount(struct vfsmount *mnt, int flags)
 	event++;
 
 	retval = -EBUSY;
-	if (atomic_read(&mnt->mnt_count) == 2 || flags & MNT_DETACH) {
+	if (flags & MNT_DETACH || !propagate_mount_busy(mnt, 2)) {
 		if (!list_empty(&mnt->mnt_list))
-			umount_tree(mnt, &umount_list);
+			umount_tree(mnt, 1, &umount_list);
 		retval = 0;
 	}
 	spin_unlock(&vfsmount_lock);
@@ -651,7 +671,7 @@ Enomem:
 	if (res) {
 		LIST_HEAD(umount_list);
 		spin_lock(&vfsmount_lock);
-		umount_tree(res, &umount_list);
+		umount_tree(res, 0, &umount_list);
 		spin_unlock(&vfsmount_lock);
 		release_mounts(&umount_list);
 	}
@@ -827,7 +847,7 @@ static int do_loopback(struct nameidata *nd, char *old_name, int recurse)
 	if (err) {
 		LIST_HEAD(umount_list);
 		spin_lock(&vfsmount_lock);
-		umount_tree(mnt, &umount_list);
+		umount_tree(mnt, 0, &umount_list);
 		spin_unlock(&vfsmount_lock);
 		release_mounts(&umount_list);
 	}
@@ -1023,12 +1043,12 @@ static void expire_mount(struct vfsmount *mnt, struct list_head *mounts,
 	 * Check that it is still dead: the count should now be 2 - as
 	 * contributed by the vfsmount parent and the mntget above
 	 */
-	if (atomic_read(&mnt->mnt_count) == 2) {
+	if (!propagate_mount_busy(mnt, 2)) {
 		/* delete from the namespace */
 		touch_namespace(mnt->mnt_namespace);
 		list_del_init(&mnt->mnt_list);
 		mnt->mnt_namespace = NULL;
-		umount_tree(mnt, umounts);
+		umount_tree(mnt, 1, umounts);
 		spin_unlock(&vfsmount_lock);
 	} else {
 		/*
@@ -1647,7 +1667,7 @@ void __put_namespace(struct namespace *namespace)
 	spin_unlock(&vfsmount_lock);
 	down_write(&namespace_sem);
 	spin_lock(&vfsmount_lock);
-	umount_tree(root, &umount_list);
+	umount_tree(root, 0, &umount_list);
 	spin_unlock(&vfsmount_lock);
 	up_write(&namespace_sem);
 	release_mounts(&umount_list);

@@ -99,9 +99,94 @@ out:
 	while (!list_empty(&tmp_list)) {
 		child = list_entry(tmp_list.next, struct vfsmount, mnt_hash);
 		list_del_init(&child->mnt_hash);
-		umount_tree(child, &umount_list);
+		umount_tree(child, 0, &umount_list);
 	}
 	spin_unlock(&vfsmount_lock);
 	release_mounts(&umount_list);
 	return ret;
+}
+
+/*
+ * return true if the refcount is greater than count
+ */
+static inline int do_refcount_check(struct vfsmount *mnt, int count)
+{
+	int mycount = atomic_read(&mnt->mnt_count);
+	return (mycount > count);
+}
+
+/*
+ * check if the mount 'mnt' can be unmounted successfully.
+ * @mnt: the mount to be checked for unmount
+ * NOTE: unmounting 'mnt' would naturally propagate to all
+ * other mounts its parent propagates to.
+ * Check if any of these mounts that **do not have submounts**
+ * have more references than 'refcnt'. If so return busy.
+ */
+int propagate_mount_busy(struct vfsmount *mnt, int refcnt)
+{
+	struct vfsmount *m, *child;
+	struct vfsmount *parent = mnt->mnt_parent;
+	int ret = 0;
+
+	if (mnt == parent)
+		return do_refcount_check(mnt, refcnt);
+
+	/*
+	 * quickly check if the current mount can be unmounted.
+	 * If not, we don't have to go checking for all other
+	 * mounts
+	 */
+	if (!list_empty(&mnt->mnt_mounts) || do_refcount_check(mnt, refcnt))
+		return 1;
+
+	for (m = propagation_next(parent, parent); m;
+	     		m = propagation_next(m, parent)) {
+		child = __lookup_mnt(m, mnt->mnt_mountpoint, 0);
+		if (child && list_empty(&child->mnt_mounts) &&
+		    (ret = do_refcount_check(child, 1)))
+			break;
+	}
+	return ret;
+}
+
+/*
+ * NOTE: unmounting 'mnt' naturally propagates to all other mounts its
+ * parent propagates to.
+ */
+static void __propagate_umount(struct vfsmount *mnt)
+{
+	struct vfsmount *parent = mnt->mnt_parent;
+	struct vfsmount *m;
+
+	BUG_ON(parent == mnt);
+
+	for (m = propagation_next(parent, parent); m;
+			m = propagation_next(m, parent)) {
+
+		struct vfsmount *child = __lookup_mnt(m,
+					mnt->mnt_mountpoint, 0);
+		/*
+		 * umount the child only if the child has no
+		 * other children
+		 */
+		if (child && list_empty(&child->mnt_mounts)) {
+			list_del(&child->mnt_hash);
+			list_add_tail(&child->mnt_hash, &mnt->mnt_hash);
+		}
+	}
+}
+
+/*
+ * collect all mounts that receive propagation from the mount in @list,
+ * and return these additional mounts in the same list.
+ * @list: the list of mounts to be unmounted.
+ */
+int propagate_umount(struct list_head *list)
+{
+	struct vfsmount *mnt;
+
+	list_for_each_entry(mnt, list, mnt_hash)
+		__propagate_umount(mnt);
+	return 0;
 }
