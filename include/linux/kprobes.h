@@ -34,6 +34,8 @@
 #include <linux/notifier.h>
 #include <linux/smp.h>
 #include <linux/percpu.h>
+#include <linux/spinlock.h>
+#include <linux/rcupdate.h>
 
 #include <asm/kprobes.h>
 
@@ -146,10 +148,7 @@ struct kretprobe_instance {
 };
 
 #ifdef CONFIG_KPROBES
-/* Locks kprobe: irq must be disabled */
-void lock_kprobes(void);
-void unlock_kprobes(void);
-
+extern spinlock_t kretprobe_lock;
 extern int arch_prepare_kprobe(struct kprobe *p);
 extern void arch_copy_kprobe(struct kprobe *p);
 extern void arch_arm_kprobe(struct kprobe *p);
@@ -160,7 +159,7 @@ extern void show_registers(struct pt_regs *regs);
 extern kprobe_opcode_t *get_insn_slot(void);
 extern void free_insn_slot(kprobe_opcode_t *slot);
 
-/* Get the kprobe at this addr (if any).  Must have called lock_kprobes */
+/* Get the kprobe at this addr (if any) - called under a rcu_read_lock() */
 struct kprobe *get_kprobe(void *addr);
 struct hlist_head * kretprobe_inst_table_head(struct task_struct *tsk);
 
