@@ -650,7 +650,6 @@ static int graft_tree(struct vfsmount *mnt, struct nameidata *nd)
 		attach_mnt(mnt, nd);
 		list_add_tail(&head, &mnt->mnt_list);
 		list_splice(&head, current->namespace->list.prev);
-		mntget(mnt);
 		err = 0;
 		touch_namespace(current->namespace);
 	}
@@ -702,8 +701,7 @@ static int do_loopback(struct nameidata *nd, char *old_name, int recurse)
 		spin_lock(&vfsmount_lock);
 		umount_tree(mnt);
 		spin_unlock(&vfsmount_lock);
-	} else
-		mntput(mnt);
+	}
 
 out:
 	up_write(&current->namespace->sem);
@@ -857,15 +855,17 @@ int do_add_mount(struct vfsmount *newmnt, struct nameidata *nd,
 		goto unlock;
 
 	newmnt->mnt_flags = mnt_flags;
-	newmnt->mnt_namespace = current->namespace;
-	err = graft_tree(newmnt, nd);
+	if ((err = graft_tree(newmnt, nd)))
+		goto unlock;
 
-	if (err == 0 && fslist) {
+	if (fslist) {
 		/* add to the specified expiration list */
 		spin_lock(&vfsmount_lock);
 		list_add_tail(&newmnt->mnt_expire, fslist);
 		spin_unlock(&vfsmount_lock);
 	}
+	up_write(&current->namespace->sem);
+	return 0;
 
 unlock:
 	up_write(&current->namespace->sem);
