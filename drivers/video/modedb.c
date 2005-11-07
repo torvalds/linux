@@ -944,6 +944,66 @@ void fb_videomode_to_modelist(struct fb_videomode *modedb, int num,
 	}
 }
 
+struct fb_videomode *fb_find_best_display(struct fb_monspecs *specs,
+					  struct list_head *head)
+{
+	struct list_head *pos;
+	struct fb_modelist *modelist;
+	struct fb_videomode *m, *m1 = NULL, *md = NULL, *best = NULL;
+	int first = 0;
+
+	if (!head->prev || !head->next || list_empty(head))
+		goto finished;
+
+	/* get the first detailed mode and the very first mode */
+	list_for_each(pos, head) {
+		modelist = list_entry(pos, struct fb_modelist, list);
+		m = &modelist->mode;
+
+		if (!first) {
+			m1 = m;
+			first = 1;
+		}
+
+		if (m->flag & FB_MODE_IS_FIRST) {
+ 			md = m;
+			break;
+		}
+	}
+
+	/* first detailed timing is preferred */
+	if (specs->misc & FB_MISC_1ST_DETAIL) {
+		best = md;
+		goto finished;
+	}
+
+	/* find best mode based on display width and height */
+	if (specs->max_x && specs->max_y) {
+		struct fb_var_screeninfo var;
+
+		memset(&var, 0, sizeof(struct fb_var_screeninfo));
+		var.xres = (specs->max_x * 7200)/254;
+		var.yres = (specs->max_y * 7200)/254;
+		m = fb_find_best_mode(&var, head);
+		if (m) {
+			best = m;
+			goto finished;
+		}
+	}
+
+	/* use first detailed mode */
+	if (md) {
+		best = md;
+		goto finished;
+	}
+
+	/* last resort, use the very first mode */
+	best = m1;
+finished:
+	return best;
+}
+EXPORT_SYMBOL(fb_find_best_display);
+
 EXPORT_SYMBOL(fb_videomode_to_var);
 EXPORT_SYMBOL(fb_var_to_videomode);
 EXPORT_SYMBOL(fb_mode_is_equal);

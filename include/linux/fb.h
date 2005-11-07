@@ -902,6 +902,8 @@ extern struct fb_videomode *fb_find_nearest_mode(struct fb_videomode *mode,
 extern void fb_destroy_modelist(struct list_head *head);
 extern void fb_videomode_to_modelist(struct fb_videomode *modedb, int num,
 				     struct list_head *head);
+extern struct fb_videomode *fb_find_best_display(struct fb_monspecs *specs,
+						 struct list_head *head);
 
 /* drivers/video/fbcmap.c */
 extern int fb_alloc_cmap(struct fb_cmap *cmap, int len, int transp);
