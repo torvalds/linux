@@ -496,9 +496,6 @@ COMPATIBLE_IOCTL(DRM_IOCTL_LOCK)
 COMPATIBLE_IOCTL(DRM_IOCTL_UNLOCK)
 COMPATIBLE_IOCTL(DRM_IOCTL_FINISH)
 #endif /* DRM */
-COMPATIBLE_IOCTL(WIOCSTART)
-COMPATIBLE_IOCTL(WIOCSTOP)
-COMPATIBLE_IOCTL(WIOCGSTAT)
 /* And these ioctls need translation */
 /* Note SIOCRTMSG is no longer, so this is safe and * the user would have seen just an -EINVAL anyways. */
 HANDLE_IOCTL(FBIOPUTCMAP32, fbiogetputcmap)
