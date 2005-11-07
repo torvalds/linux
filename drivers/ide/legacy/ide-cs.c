@@ -116,9 +116,8 @@ static dev_link_t *ide_attach(void)
     DEBUG(0, "ide_attach()\n");
 
     /* Create new ide device */
-    info = kmalloc(sizeof(*info), GFP_KERNEL);
+    info = kzalloc(sizeof(*info), GFP_KERNEL);
     if (!info) return NULL;
-    memset(info, 0, sizeof(*info));
     link = &info->link; link->priv = info;
 
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -221,9 +220,8 @@ static void ide_config(dev_link_t *link)
 
     DEBUG(0, "ide_config(0x%p)\n", link);
 
-    stk = kmalloc(sizeof(*stk), GFP_KERNEL);
+    stk = kzalloc(sizeof(*stk), GFP_KERNEL);
     if (!stk) goto err_mem;
-    memset(stk, 0, sizeof(*stk));
     cfg = &stk->parse.cftable_entry;
 
     tuple.TupleData = (cisdata_t *)&stk->buf;

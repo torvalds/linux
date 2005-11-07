@@ -126,7 +126,7 @@ skip:
 			seq_puts(p, "  PowerPC             Thermal Assist (cpu temp)\n");
 		}
 #endif
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_MERGE)
 		/* should this be per processor send/receive? */
 		seq_printf(p, "IPI (recv/sent): %10u/%u\n",
 				atomic_read(&ipi_recv), atomic_read(&ipi_sent));

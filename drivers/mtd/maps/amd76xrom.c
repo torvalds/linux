@@ -259,9 +259,7 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 
  out:
 	/* Free any left over map structures */
-	if (map) {
-		kfree(map);
-	}
+	kfree(map);
 	/* See if I have any map structures */
 	if (list_empty(&window->maps)) {
 		amd76xrom_cleanup(window);

@@ -960,7 +960,7 @@ static int wm_adc_mux_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t *ucont
 	if (change)
 		wm_put(ice, WM_ADC_MUX, nval);
 	snd_ice1712_restore_gpio_status(ice);
-	return 0;
+	return change;
 }
 
 /*
@@ -1672,9 +1672,9 @@ static int __devinit aureon_add_controls(ice1712_t *ice)
 		snd_ice1712_save_gpio_status(ice);
 		id = aureon_cs8415_get(ice, CS8415_ID);
 		if (id != 0x41)
-			snd_printk("No CS8415 chip. Skipping CS8415 controls.\n");
+			snd_printk(KERN_INFO "No CS8415 chip. Skipping CS8415 controls.\n");
 		else if ((id & 0x0F) != 0x01)
-			snd_printk("Detected unsupported CS8415 rev. (%c)\n", (char)((id & 0x0F) + 'A' - 1));
+			snd_printk(KERN_INFO "Detected unsupported CS8415 rev. (%c)\n", (char)((id & 0x0F) + 'A' - 1));
 		else {
 			for (i = 0; i< ARRAY_SIZE(cs8415_controls); i++) {
 				snd_kcontrol_t *kctl;

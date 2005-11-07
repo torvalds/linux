@@ -216,6 +216,7 @@ pptp_exp_gre(struct ip_conntrack_expect *expect_orig,
 	expect_orig->saved_proto.gre.key = htons(nat_pptp_info->pac_call_id);
 	expect_orig->tuple.src.u.gre.key = htons(nat_pptp_info->pns_call_id);
 	expect_orig->tuple.dst.u.gre.key = htons(ct_pptp_info->pac_call_id);
+	expect_orig->dir = IP_CT_DIR_ORIGINAL;
 	inv_t.src.ip = reply_t->src.ip;
 	inv_t.dst.ip = reply_t->dst.ip;
 	inv_t.src.u.gre.key = htons(nat_pptp_info->pac_call_id);
@@ -233,6 +234,7 @@ pptp_exp_gre(struct ip_conntrack_expect *expect_orig,
 	expect_reply->saved_proto.gre.key = htons(nat_pptp_info->pns_call_id);
 	expect_reply->tuple.src.u.gre.key = htons(nat_pptp_info->pac_call_id);
 	expect_reply->tuple.dst.u.gre.key = htons(ct_pptp_info->pns_call_id);
+	expect_reply->dir = IP_CT_DIR_REPLY;
 	inv_t.src.ip = orig_t->src.ip;
 	inv_t.dst.ip = orig_t->dst.ip;
 	inv_t.src.u.gre.key = htons(nat_pptp_info->pns_call_id);

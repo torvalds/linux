@@ -447,8 +447,7 @@ static char *	apm_event_name[] = {
 	"system standby resume",
 	"capabilities change"
 };
-#define NR_APM_EVENT_NAME	\
-		(sizeof(apm_event_name) / sizeof(apm_event_name[0]))
+#define NR_APM_EVENT_NAME ARRAY_SIZE(apm_event_name)
 
 typedef struct lookup_t {
 	int	key;
@@ -479,7 +478,7 @@ static const lookup_t error_table[] = {
 	{ APM_NO_ERROR,		"BIOS did not set a return code" },
 	{ APM_NOT_PRESENT,	"No APM present" }
 };
-#define ERROR_COUNT	(sizeof(error_table)/sizeof(lookup_t))
+#define ERROR_COUNT	ARRAY_SIZE(error_table)
 
 /**
  *	apm_error	-	display an APM error

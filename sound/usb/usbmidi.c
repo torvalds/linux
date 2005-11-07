@@ -47,7 +47,6 @@
 #include <linux/timer.h>
 #include <linux/usb.h>
 #include <sound/core.h>
-#include <sound/minors.h>
 #include <sound/rawmidi.h>
 #include "usbaudio.h"
 
@@ -246,10 +245,8 @@ static void snd_usbmidi_in_urb_complete(struct urb* urb, struct pt_regs *regs)
 		}
 	}
 
-	if (usb_pipe_needs_resubmit(urb->pipe)) {
-		urb->dev = ep->umidi->chip->dev;
-		snd_usbmidi_submit_urb(urb, GFP_ATOMIC);
-	}
+	urb->dev = ep->umidi->chip->dev;
+	snd_usbmidi_submit_urb(urb, GFP_ATOMIC);
 }
 
 static void snd_usbmidi_out_urb_complete(struct urb* urb, struct pt_regs *regs)
@@ -863,13 +860,12 @@ static int snd_usbmidi_in_endpoint_create(snd_usb_midi_t* umidi,
 		return -ENOMEM;
 	}
 	if (ep_info->in_interval)
-		usb_fill_int_urb(ep->urb, umidi->chip->dev, pipe, buffer, length,
-				 snd_usb_complete_callback(snd_usbmidi_in_urb_complete),
-				 ep, ep_info->in_interval);
+		usb_fill_int_urb(ep->urb, umidi->chip->dev, pipe, buffer,
+				 length, snd_usbmidi_in_urb_complete, ep,
+				 ep_info->in_interval);
 	else
-		usb_fill_bulk_urb(ep->urb, umidi->chip->dev, pipe, buffer, length,
-				  snd_usb_complete_callback(snd_usbmidi_in_urb_complete),
-				  ep);
+		usb_fill_bulk_urb(ep->urb, umidi->chip->dev, pipe, buffer,
+				  length, snd_usbmidi_in_urb_complete, ep);
 	ep->urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 
 	rep->in = ep;
@@ -933,8 +929,7 @@ static int snd_usbmidi_out_endpoint_create(snd_usb_midi_t* umidi,
 		return -ENOMEM;
 	}
 	usb_fill_bulk_urb(ep->urb, umidi->chip->dev, pipe, buffer,
-			  ep->max_transfer,
-			  snd_usb_complete_callback(snd_usbmidi_out_urb_complete), ep);
+			  ep->max_transfer, snd_usbmidi_out_urb_complete, ep);
 	ep->urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 
 	spin_lock_init(&ep->buffer_lock);
@@ -1550,46 +1545,45 @@ int snd_usb_create_midi_interface(snd_usb_audio_t* chip,
 
 	/* detect the endpoint(s) to use */
 	memset(endpoints, 0, sizeof(endpoints));
-	if (!quirk) {
+	switch (quirk ? quirk->type : QUIRK_MIDI_STANDARD_INTERFACE) {
+	case QUIRK_MIDI_STANDARD_INTERFACE:
 		err = snd_usbmidi_get_ms_info(umidi, endpoints);
-	} else {
-		switch (quirk->type) {
-		case QUIRK_MIDI_FIXED_ENDPOINT:
-			memcpy(&endpoints[0], quirk->data,
-			       sizeof(snd_usb_midi_endpoint_info_t));
-			err = snd_usbmidi_detect_endpoints(umidi, &endpoints[0], 1);
-			break;
-		case QUIRK_MIDI_YAMAHA:
-			err = snd_usbmidi_detect_yamaha(umidi, &endpoints[0]);
-			break;
-		case QUIRK_MIDI_MIDIMAN:
-			umidi->usb_protocol_ops = &snd_usbmidi_midiman_ops;
-			memcpy(&endpoints[0], quirk->data,
-			       sizeof(snd_usb_midi_endpoint_info_t));
-			err = 0;
-			break;
-		case QUIRK_MIDI_NOVATION:
-			umidi->usb_protocol_ops = &snd_usbmidi_novation_ops;
-			err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
-			break;
-		case QUIRK_MIDI_RAW:
-			umidi->usb_protocol_ops = &snd_usbmidi_raw_ops;
-			err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
-			break;
-		case QUIRK_MIDI_EMAGIC:
-			umidi->usb_protocol_ops = &snd_usbmidi_emagic_ops;
-			memcpy(&endpoints[0], quirk->data,
-			       sizeof(snd_usb_midi_endpoint_info_t));
-			err = snd_usbmidi_detect_endpoints(umidi, &endpoints[0], 1);
-			break;
-		case QUIRK_MIDI_MIDITECH:
-			err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
-			break;
-		default:
-			snd_printd(KERN_ERR "invalid quirk type %d\n", quirk->type);
-			err = -ENXIO;
-			break;
-		}
+		break;
+	case QUIRK_MIDI_FIXED_ENDPOINT:
+		memcpy(&endpoints[0], quirk->data,
+		       sizeof(snd_usb_midi_endpoint_info_t));
+		err = snd_usbmidi_detect_endpoints(umidi, &endpoints[0], 1);
+		break;
+	case QUIRK_MIDI_YAMAHA:
+		err = snd_usbmidi_detect_yamaha(umidi, &endpoints[0]);
+		break;
+	case QUIRK_MIDI_MIDIMAN:
+		umidi->usb_protocol_ops = &snd_usbmidi_midiman_ops;
+		memcpy(&endpoints[0], quirk->data,
+		       sizeof(snd_usb_midi_endpoint_info_t));
+		err = 0;
+		break;
+	case QUIRK_MIDI_NOVATION:
+		umidi->usb_protocol_ops = &snd_usbmidi_novation_ops;
+		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
+		break;
+	case QUIRK_MIDI_RAW:
+		umidi->usb_protocol_ops = &snd_usbmidi_raw_ops;
+		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
+		break;
+	case QUIRK_MIDI_EMAGIC:
+		umidi->usb_protocol_ops = &snd_usbmidi_emagic_ops;
+		memcpy(&endpoints[0], quirk->data,
+		       sizeof(snd_usb_midi_endpoint_info_t));
+		err = snd_usbmidi_detect_endpoints(umidi, &endpoints[0], 1);
+		break;
+	case QUIRK_MIDI_MIDITECH:
+		err = snd_usbmidi_detect_per_port_endpoints(umidi, endpoints);
+		break;
+	default:
+		snd_printd(KERN_ERR "invalid quirk type %d\n", quirk->type);
+		err = -ENXIO;
+		break;
 	}
 	if (err < 0) {
 		kfree(umidi);

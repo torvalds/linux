@@ -431,8 +431,7 @@ static void __exit ipaq_mtd_cleanup(void)
 				if (my_sub_mtd[i])
 					map_destroy(my_sub_mtd[i]);
 			}
-		if (parsed_parts)
-			kfree(parsed_parts);
+		kfree(parsed_parts);
 	}
 }
 

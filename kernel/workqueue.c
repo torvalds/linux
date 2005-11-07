@@ -524,7 +524,7 @@ static int __devinit workqueue_cpu_callback(struct notifier_block *nfb,
 		list_for_each_entry(wq, &workqueues, list) {
 			/* Unbind so it can run. */
 			kthread_bind(per_cpu_ptr(wq->cpu_wq, hotcpu)->thread,
-				     smp_processor_id());
+				     any_online_cpu(cpu_online_map));
 			cleanup_workqueue_thread(wq, hotcpu);
 		}
 		break;

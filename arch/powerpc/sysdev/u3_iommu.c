@@ -1,5 +1,5 @@
 /*
- * arch/ppc64/kernel/u3_iommu.c
+ * arch/powerpc/sysdev/u3_iommu.c
  *
  * Copyright (C) 2004 Olof Johansson <olof@austin.ibm.com>, IBM Corporation
  *
@@ -44,8 +44,9 @@
 #include <asm/abs_addr.h>
 #include <asm/cacheflush.h>
 #include <asm/lmb.h>
-#include <asm/dart.h>
 #include <asm/ppc-pci.h>
+
+#include "dart.h"
 
 extern int iommu_force_on;
 

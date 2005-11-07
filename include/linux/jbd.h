@@ -611,6 +611,9 @@ struct transaction_s
  * @j_revoke: The revoke table - maintains the list of revoked blocks in the
  *     current transaction.
  * @j_revoke_table: alternate revoke tables for j_revoke
+ * @j_wbuf: array of buffer_heads for journal_commit_transaction
+ * @j_wbufsize: maximum number of buffer_heads allowed in j_wbuf, the
+ *	number that will fit in j_blocksize
  * @j_private: An opaque pointer to fs-private information.
  */
 

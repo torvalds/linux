@@ -507,7 +507,7 @@ int nfs_readpage(struct file *file, struct page *page)
 		goto out_error;
 
 	if (file == NULL) {
-		ctx = nfs_find_open_context(inode, FMODE_READ);
+		ctx = nfs_find_open_context(inode, NULL, FMODE_READ);
 		if (ctx == NULL)
 			return -EBADF;
 	} else
@@ -576,7 +576,7 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 			nr_pages);
 
 	if (filp == NULL) {
-		desc.ctx = nfs_find_open_context(inode, FMODE_READ);
+		desc.ctx = nfs_find_open_context(inode, NULL, FMODE_READ);
 		if (desc.ctx == NULL)
 			return -EBADF;
 	} else

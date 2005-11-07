@@ -548,7 +548,6 @@ static struct fb_ops cirrusfb_ops = {
 	.fb_fillrect	= cirrusfb_fillrect,
 	.fb_copyarea	= cirrusfb_copyarea,
 	.fb_imageblit	= cirrusfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
 /*--- Hardware Specific Routines -------------------------------------------*/

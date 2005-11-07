@@ -490,7 +490,7 @@ int jffs2_do_crccheck_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *i
 		up(&f->sem);
 		jffs2_do_clear_inode(c, f);
 	}
-	kfree (f);
+	kfree(f);
 	return ret;
 }
 
@@ -742,10 +742,8 @@ void jffs2_do_clear_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f)
 
 	/* For symlink inodes we us f->dents to store the target path name */
 	if (S_ISLNK(OFNI_EDONI_2SFFJ(f)->i_mode)) {
-		if (f->dents) {
-			kfree(f->dents);
-			f->dents = NULL;
-		}
+		kfree(f->dents);
+		f->dents = NULL;
 	} else {
 		fds = f->dents;
 

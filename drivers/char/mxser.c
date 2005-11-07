@@ -470,6 +470,8 @@ static struct tty_operations mxser_ops = {
 	.stop = mxser_stop,
 	.start = mxser_start,
 	.hangup = mxser_hangup,
+	.break_ctl = mxser_rs_break,
+	.wait_until_sent = mxser_wait_until_sent,
 	.tiocmget = mxser_tiocmget,
 	.tiocmset = mxser_tiocmset,
 };
@@ -492,13 +494,17 @@ static int __init mxser_module_init(void)
 
 static void __exit mxser_module_exit(void)
 {
-	int i, err = 0;
+	int i, err;
 
 	if (verbose)
 		printk(KERN_DEBUG "Unloading module mxser ...\n");
 
-	if ((err |= tty_unregister_driver(mxvar_sdriver)))
+	err = tty_unregister_driver(mxvar_sdriver);
+	if (!err)
+		put_tty_driver(mxvar_sdriver);
+	else
 		printk(KERN_ERR "Couldn't unregister MOXA Smartio/Industio family serial driver\n");
+
 
 	for (i = 0; i < MXSER_BOARDS; i++) {
 		struct pci_dev *pdev;
@@ -688,7 +694,6 @@ static int mxser_get_PCI_conf(int busnum, int devnum, int board_type, struct mxs
 static int mxser_init(void)
 {
 	int i, m, retval, b, n;
-	int ret1;
 	struct pci_dev *pdev = NULL;
 	int index;
 	unsigned char busnum, devnum;
@@ -721,24 +726,6 @@ static int mxser_init(void)
 	mxvar_sdriver->ttys = mxvar_tty;
 	mxvar_sdriver->termios = mxvar_termios;
 	mxvar_sdriver->termios_locked = mxvar_termios_locked;
-
-	mxvar_sdriver->open = mxser_open;
-	mxvar_sdriver->close = mxser_close;
-	mxvar_sdriver->write = mxser_write;
-	mxvar_sdriver->put_char = mxser_put_char;
-	mxvar_sdriver->flush_chars = mxser_flush_chars;
-	mxvar_sdriver->write_room = mxser_write_room;
-	mxvar_sdriver->chars_in_buffer = mxser_chars_in_buffer;
-	mxvar_sdriver->flush_buffer = mxser_flush_buffer;
-	mxvar_sdriver->ioctl = mxser_ioctl;
-	mxvar_sdriver->throttle = mxser_throttle;
-	mxvar_sdriver->unthrottle = mxser_unthrottle;
-	mxvar_sdriver->set_termios = mxser_set_termios;
-	mxvar_sdriver->stop = mxser_stop;
-	mxvar_sdriver->start = mxser_start;
-	mxvar_sdriver->hangup = mxser_hangup;
-	mxvar_sdriver->break_ctl = mxser_rs_break;
-	mxvar_sdriver->wait_until_sent = mxser_wait_until_sent;
 
 	mxvar_diagflag = 0;
 	memset(mxvar_table, 0, MXSER_PORTS * sizeof(struct mxser_struct));
@@ -870,14 +857,11 @@ static int mxser_init(void)
 	}
 #endif
 
-	ret1 = 0;
-	if (!(ret1 = tty_register_driver(mxvar_sdriver))) {
-		return 0;
-	} else
+	retval = tty_register_driver(mxvar_sdriver);
+	if (retval) {
 		printk(KERN_ERR "Couldn't install MOXA Smartio/Industio family driver !\n");
+		put_tty_driver(mxvar_sdriver);
 
-
-	if (ret1) {
 		for (i = 0; i < MXSER_BOARDS; i++) {
 			if (mxsercfg[i].board_type == -1)
 				continue;
@@ -886,10 +870,10 @@ static int mxser_init(void)
 				//todo: release io, vector
 			}
 		}
-		return -1;
+		return retval;
 	}
 
-	return (0);
+	return 0;
 }
 
 static void mxser_do_softint(void *private_)
@@ -932,6 +916,9 @@ static int mxser_open(struct tty_struct *tty, struct file *filp)
 {
 	struct mxser_struct *info;
 	int retval, line;
+
+	/* initialize driver_data in case something fails */
+	tty->driver_data = NULL;
 
 	line = tty->index;
 	if (line == MXSER_PORTS)
@@ -995,7 +982,7 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	if (tty->index == MXSER_PORTS)
 		return;
 	if (!info)
-		BUG();
+		return;
 
 	spin_lock_irqsave(&info->slock, flags);
 

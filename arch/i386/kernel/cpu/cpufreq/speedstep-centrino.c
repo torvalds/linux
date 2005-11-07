@@ -67,7 +67,7 @@ static const struct cpu_id cpu_ids[] = {
 	[CPU_MP4HT_D0]	= {15,  3, 4 },
 	[CPU_MP4HT_E0]	= {15,  4, 1 },
 };
-#define N_IDS	(sizeof(cpu_ids)/sizeof(cpu_ids[0]))
+#define N_IDS	ARRAY_SIZE(cpu_ids)
 
 struct cpu_model
 {

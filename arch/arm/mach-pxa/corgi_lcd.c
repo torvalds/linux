@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
+#include <linux/string.h>
 #include <asm/arch/akita.h>
 #include <asm/arch/corgi.h>
 #include <asm/arch/hardware.h>

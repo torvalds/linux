@@ -1114,9 +1114,8 @@ struct ipr_ucode_image_header {
 #define ipr_warn(...) printk(KERN_WARNING IPR_NAME": "__VA_ARGS__)
 #define ipr_dbg(...) IPR_DBG_CMD(printk(KERN_INFO IPR_NAME ": "__VA_ARGS__))
 
-#define ipr_sdev_printk(level, sdev, fmt, ...) \
-	printk(level IPR_NAME ": %d:%d:%d:%d: " fmt, sdev->host->host_no, \
-		sdev->channel, sdev->id, sdev->lun, ##__VA_ARGS__)
+#define ipr_sdev_printk(level, sdev, fmt, args...) \
+	sdev_printk(level, sdev, fmt, ## args)
 
 #define ipr_sdev_err(sdev, fmt, ...) \
 	ipr_sdev_printk(KERN_ERR, sdev, fmt, ##__VA_ARGS__)

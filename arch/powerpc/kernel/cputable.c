@@ -240,7 +240,7 @@ struct cpu_spec	cpu_specs[] = {
 		.oprofile_model		= &op_model_power4,
 #endif
 	},
-	{	/* Power5 */
+	{	/* Power5 GR */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x003a0000,
 		.cpu_name		= "POWER5 (gr)",
@@ -255,7 +255,7 @@ struct cpu_spec	cpu_specs[] = {
 		.oprofile_model		= &op_model_power4,
 #endif
 	},
-	{	/* Power5 */
+	{	/* Power5 GS */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x003b0000,
 		.cpu_name		= "POWER5 (gs)",
@@ -925,6 +925,16 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x53000891,
 		.cpu_name		= "440SP Rev. A",
 		.cpu_features		= CPU_FTRS_44X,
+		.cpu_user_features	= PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 32,
+	},
+	{ /* 440SPe Rev. A */
+		.pvr_mask		= 0xff000fff,
+		.pvr_value		= 0x53000890,
+		.cpu_name		= "440SPe Rev. A",
+		.cpu_features		= CPU_FTR_SPLIT_ID_CACHE |
+			CPU_FTR_USE_TB,
 		.cpu_user_features	= PPC_FEATURE_32 | PPC_FEATURE_HAS_MMU,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,

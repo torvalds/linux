@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/jiffies.h>
 
 #include "dvb_frontend.h"
 #include "cx24110.h"

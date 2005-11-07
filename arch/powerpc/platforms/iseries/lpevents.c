@@ -17,10 +17,10 @@
 
 #include <asm/system.h>
 #include <asm/paca.h>
-#include <asm/iSeries/ItLpQueue.h>
-#include <asm/iSeries/HvLpEvent.h>
-#include <asm/iSeries/HvCallEvent.h>
-#include <asm/iSeries/ItLpNaca.h>
+#include <asm/iseries/it_lp_queue.h>
+#include <asm/iseries/hv_lp_event.h>
+#include <asm/iseries/hv_call_event.h>
+#include <asm/iseries/it_lp_naca.h>
 
 /*
  * The LpQueue is used to pass event data from the hypervisor to

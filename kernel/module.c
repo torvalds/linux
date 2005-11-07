@@ -37,6 +37,7 @@
 #include <linux/stop_machine.h>
 #include <linux/device.h>
 #include <linux/string.h>
+#include <linux/sched.h>
 #include <asm/uaccess.h>
 #include <asm/semaphore.h>
 #include <asm/cacheflush.h>

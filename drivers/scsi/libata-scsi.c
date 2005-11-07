@@ -355,10 +355,10 @@ struct ata_queued_cmd *ata_scsi_qc_new(struct ata_port *ap,
 		qc->scsidone = done;
 
 		if (cmd->use_sg) {
-			qc->sg = (struct scatterlist *) cmd->request_buffer;
+			qc->__sg = (struct scatterlist *) cmd->request_buffer;
 			qc->n_elem = cmd->use_sg;
 		} else {
-			qc->sg = &qc->sgent;
+			qc->__sg = &qc->sgent;
 			qc->n_elem = 1;
 		}
 	} else {
@@ -701,6 +701,16 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 			 * other drives on this host may not support LBA48
 			 */
 			blk_queue_max_sectors(sdev->request_queue, 2048);
+		}
+
+		/*
+		 * SATA DMA transfers must be multiples of 4 byte, so
+		 * we need to pad ATAPI transfers using an extra sg.
+		 * Decrement max hw segments accordingly.
+		 */
+		if (dev->class == ATA_DEV_ATAPI) {
+			request_queue_t *q = sdev->request_queue;
+			blk_queue_max_hw_segments(q, q->max_hw_segments - 1);
 		}
 	}
 

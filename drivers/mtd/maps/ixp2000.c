@@ -129,8 +129,7 @@ static int ixp2000_flash_remove(struct device *_dev)
 	if (info->map.map_priv_1)
 		iounmap((void *) info->map.map_priv_1);
 
-	if (info->partitions) {
-		kfree(info->partitions); }
+	kfree(info->partitions);
 
 	if (info->res) {
 		release_resource(info->res);

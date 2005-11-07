@@ -965,7 +965,8 @@ static void snd_emu10k1_pcm_mixer_notify1(emu10k1_t *emu, snd_kcontrol_t *kctl, 
 {
 	snd_ctl_elem_id_t id;
 
-	snd_runtime_check(kctl != NULL, return);
+	if (! kctl)
+		return;
 	if (activate)
 		kctl->vd[idx].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 	else

@@ -26,7 +26,6 @@ struct stab_entry {
 	unsigned long vsid_data;
 };
 
-/* Both the segment table and SLB code uses the following cache */
 #define NR_STAB_CACHE_ENTRIES 8
 DEFINE_PER_CPU(long, stab_cache_ptr);
 DEFINE_PER_CPU(long, stab_cache[NR_STAB_CACHE_ENTRIES]);
@@ -186,7 +185,7 @@ void switch_stab(struct task_struct *tsk, struct mm_struct *mm)
 		/* Never flush the first entry. */
 		ste += 1;
 		for (entry = 1;
-		     entry < (PAGE_SIZE / sizeof(struct stab_entry));
+		     entry < (HW_PAGE_SIZE / sizeof(struct stab_entry));
 		     entry++, ste++) {
 			unsigned long ea;
 			ea = ste->esid_data & ESID_MASK;
@@ -199,6 +198,10 @@ void switch_stab(struct task_struct *tsk, struct mm_struct *mm)
 	asm volatile("sync; slbia; sync":::"memory");
 
 	__get_cpu_var(stab_cache_ptr) = 0;
+
+#ifdef CONFIG_PPC_64K_PAGES
+	get_paca()->pgdir = mm->pgd;
+#endif /* CONFIG_PPC_64K_PAGES */
 
 	/* Now preload some entries for the new task */
 	if (test_tsk_thread_flag(tsk, TIF_32BIT))
@@ -223,8 +226,6 @@ void switch_stab(struct task_struct *tsk, struct mm_struct *mm)
 	asm volatile("sync" : : : "memory");
 }
 
-extern void slb_initialize(void);
-
 /*
  * Allocate segment tables for secondary CPUs.  These must all go in
  * the first (bolted) segment, so that do_stab_bolted won't get a
@@ -243,18 +244,21 @@ void stabs_alloc(void)
 		if (cpu == 0)
 			continue; /* stab for CPU 0 is statically allocated */
 
-		newstab = lmb_alloc_base(PAGE_SIZE, PAGE_SIZE, 1<<SID_SHIFT);
+		newstab = lmb_alloc_base(HW_PAGE_SIZE, HW_PAGE_SIZE,
+					 1<<SID_SHIFT);
 		if (! newstab)
 			panic("Unable to allocate segment table for CPU %d.\n",
 			      cpu);
 
 		newstab += KERNELBASE;
 
-		memset((void *)newstab, 0, PAGE_SIZE);
+		memset((void *)newstab, 0, HW_PAGE_SIZE);
 
 		paca[cpu].stab_addr = newstab;
 		paca[cpu].stab_real = virt_to_abs(newstab);
-		printk(KERN_DEBUG "Segment table for CPU %d at 0x%lx virtual, 0x%lx absolute\n", cpu, paca[cpu].stab_addr, paca[cpu].stab_real);
+		printk(KERN_DEBUG "Segment table for CPU %d at 0x%lx "
+		       "virtual, 0x%lx absolute\n",
+		       cpu, paca[cpu].stab_addr, paca[cpu].stab_real);
 	}
 }
 
@@ -267,13 +271,9 @@ void stab_initialize(unsigned long stab)
 {
 	unsigned long vsid = get_kernel_vsid(KERNELBASE);
 
-	if (cpu_has_feature(CPU_FTR_SLB)) {
-		slb_initialize();
-	} else {
-		asm volatile("isync; slbia; isync":::"memory");
-		make_ste(stab, GET_ESID(KERNELBASE), vsid);
+	asm volatile("isync; slbia; isync":::"memory");
+	make_ste(stab, GET_ESID(KERNELBASE), vsid);
 
-		/* Order update */
-		asm volatile("sync":::"memory");
-	}
+	/* Order update */
+	asm volatile("sync":::"memory");
 }

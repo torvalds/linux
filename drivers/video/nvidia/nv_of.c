@@ -27,34 +27,60 @@
 #include "nv_local.h"
 #include "nv_proto.h"
 
-void nvidia_create_i2c_busses(struct nvidia_par *par) {}
-void nvidia_delete_i2c_busses(struct nvidia_par *par) {}
+#include "../edid.h"
 
-int nvidia_probe_i2c_connector(struct fb_info *info, int conn, u8 **out_edid)
+int nvidia_probe_of_connector(struct fb_info *info, int conn, u8 **out_edid)
 {
 	struct nvidia_par *par = info->par;
-	struct device_node *dp;
+	struct device_node *parent, *dp;
 	unsigned char *pedid = NULL;
-	unsigned char *disptype = NULL;
 	static char *propnames[] = {
-		"DFP,EDID", "LCD,EDID", "EDID", "EDID1", "EDID,B", "EDID,A", NULL };
+		"DFP,EDID", "LCD,EDID", "EDID", "EDID1",
+		"EDID,B", "EDID,A", NULL };
 	int i;
 
-	dp = pci_device_to_OF_node(par->pci_dev);
-	for (; dp != NULL; dp = dp->child) {
-		disptype = (unsigned char *)get_property(dp, "display-type", NULL);
-		if (disptype == NULL)
-			continue;
-		if (strncmp(disptype, "LCD", 3) != 0)
-			continue;
-		for (i = 0; propnames[i] != NULL; ++i) {
-			pedid = (unsigned char *)
-				get_property(dp, propnames[i], NULL);
-			if (pedid != NULL) {
-				*out_edid = pedid;
-				return 0;
+	parent = pci_device_to_OF_node(par->pci_dev);
+	if (parent == NULL)
+		return -1;
+	if (par->twoHeads) {
+		char *pname;
+		int len;
+
+		for (dp = NULL;
+		     (dp = of_get_next_child(parent, dp)) != NULL;) {
+			pname = (char *)get_property(dp, "name", NULL);
+			if (!pname)
+				continue;
+			len = strlen(pname);
+			if ((pname[len-1] == 'A' && conn == 1) ||
+			    (pname[len-1] == 'B' && conn == 2)) {
+				for (i = 0; propnames[i] != NULL; ++i) {
+					pedid = (unsigned char *)
+						get_property(dp, propnames[i],
+							     NULL);
+					if (pedid != NULL)
+						break;
+				}
+				of_node_put(dp);
+				break;
 			}
 		}
 	}
-	return 1;
+	if (pedid == NULL) {
+		for (i = 0; propnames[i] != NULL; ++i) {
+			pedid = (unsigned char *)
+				get_property(parent, propnames[i], NULL);
+			if (pedid != NULL)
+				break;
+		}
+	}
+	if (pedid) {
+		*out_edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
+		if (*out_edid == NULL)
+			return -1;
+		memcpy(*out_edid, pedid, EDID_LENGTH);
+		printk(KERN_DEBUG "nvidiafb: Found OF EDID for head %d\n", conn);
+		return 0;
+	}
+	return -1;
 }

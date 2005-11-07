@@ -457,7 +457,7 @@ void *__vmalloc_area(struct vm_struct *area, gfp_t gfp_mask, pgprot_t prot)
  *	@size:		allocation size
  *	@gfp_mask:	flags for the page level allocator
  *	@prot:		protection mask for the allocated pages
- *	@node		node to use for allocation or -1
+ *	@node:		node to use for allocation or -1
  *
  *	Allocate enough pages to cover @size from the page level
  *	allocator with @gfp_mask flags.  Map them into contiguous
@@ -507,7 +507,7 @@ EXPORT_SYMBOL(vmalloc);
  *	vmalloc_node  -  allocate memory on a specific node
  *
  *	@size:		allocation size
- *	@node;		numa node
+ *	@node:		numa node
  *
  *	Allocate enough pages to cover @size from the page level
  *	allocator and map them into contiguous kernel virtual space.

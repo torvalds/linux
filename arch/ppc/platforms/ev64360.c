@@ -52,6 +52,8 @@ static u32		ev64360_bus_frequency;
 
 unsigned char	__res[sizeof(bd_t)];
 
+TODC_ALLOC();
+
 static int __init
 ev64360_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
 {
@@ -181,6 +183,9 @@ ev64360_setup_peripherals(void)
 	mv64x60_set_32bit_window(&bh, MV64x60_CPU2DEV_1_WIN,
 		 EV64360_RTC_WINDOW_BASE, EV64360_RTC_WINDOW_SIZE, 0);
 	bh.ci->enable_window_32bit(&bh, MV64x60_CPU2DEV_1_WIN);
+
+	TODC_INIT(TODC_TYPE_DS1501, 0, 0,
+		ioremap(EV64360_RTC_WINDOW_BASE, EV64360_RTC_WINDOW_SIZE), 8);
 
 	mv64x60_set_32bit_window(&bh, MV64x60_CPU2SRAM_WIN,
 		 EV64360_INTERNAL_SRAM_BASE, MV64360_SRAM_SIZE, 0);
@@ -496,6 +501,13 @@ platform_init(unsigned long r3, unsigned long r4, unsigned long r5,
 	ppc_md.power_off = ev64360_power_off;
 	ppc_md.halt = ev64360_halt;
 	ppc_md.find_end_of_memory = ev64360_find_end_of_memory;
+	ppc_md.init = NULL;
+
+	ppc_md.time_init = todc_time_init;
+	ppc_md.set_rtc_time = todc_set_rtc_time;
+	ppc_md.get_rtc_time = todc_get_rtc_time;
+	ppc_md.nvram_read_val = todc_direct_read_val;
+	ppc_md.nvram_write_val = todc_direct_write_val;
 	ppc_md.calibrate_decr = ev64360_calibrate_decr;
 
 #if defined(CONFIG_SERIAL_TEXT_DEBUG) && defined(CONFIG_SERIAL_MPSC_CONSOLE)

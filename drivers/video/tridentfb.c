@@ -1293,7 +1293,6 @@ static struct fb_ops tridentfb_ops = {
 	.fb_fillrect = tridentfb_fillrect,
 	.fb_copyarea= tridentfb_copyarea,
 	.fb_imageblit = cfb_imageblit,
-	.fb_cursor = soft_cursor,
 };
 
 module_init(tridentfb_init);

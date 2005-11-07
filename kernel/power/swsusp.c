@@ -85,18 +85,11 @@ unsigned int nr_copy_pages __nosavedata = 0;
 /* Suspend pagedir is allocated before final copy, therefore it
    must be freed after resume
 
-   Warning: this is evil. There are actually two pagedirs at time of
-   resume. One is "pagedir_save", which is empty frame allocated at
-   time of suspend, that must be freed. Second is "pagedir_nosave",
-   allocated at time of resume, that travels through memory not to
-   collide with anything.
-
    Warning: this is even more evil than it seems. Pagedirs this file
    talks about are completely different from page directories used by
    MMU hardware.
  */
 suspend_pagedir_t *pagedir_nosave __nosavedata = NULL;
-suspend_pagedir_t *pagedir_save;
 
 #define SWSUSP_SIG	"S1SUSPEND"
 
@@ -122,8 +115,8 @@ static struct swsusp_info swsusp_info;
 static unsigned short swapfile_used[MAX_SWAPFILES];
 static unsigned short root_swap;
 
-static int write_page(unsigned long addr, swp_entry_t * loc);
-static int bio_read_page(pgoff_t page_off, void * page);
+static int write_page(unsigned long addr, swp_entry_t *loc);
+static int bio_read_page(pgoff_t page_off, void *page);
 
 static u8 key_iv[MAXKEY+MAXIV];
 
@@ -355,7 +348,7 @@ static void lock_swapdevices(void)
  *	This is a partial improvement, since we will at least return other
  *	errors, though we need to eventually fix the damn code.
  */
-static int write_page(unsigned long addr, swp_entry_t * loc)
+static int write_page(unsigned long addr, swp_entry_t *loc)
 {
 	swp_entry_t entry;
 	int error = 0;
@@ -383,9 +376,9 @@ static int write_page(unsigned long addr, swp_entry_t * loc)
 static void data_free(void)
 {
 	swp_entry_t entry;
-	struct pbe * p;
+	struct pbe *p;
 
-	for_each_pbe(p, pagedir_nosave) {
+	for_each_pbe (p, pagedir_nosave) {
 		entry = p->swap_address;
 		if (entry.val)
 			swap_free(entry);
@@ -492,8 +485,8 @@ static void free_pagedir_entries(void)
 static int write_pagedir(void)
 {
 	int error = 0;
-	unsigned n = 0;
-	struct pbe * pbe;
+	unsigned int n = 0;
+	struct pbe *pbe;
 
 	printk( "Writing pagedir...");
 	for_each_pb_page (pbe, pagedir_nosave) {
@@ -543,7 +536,7 @@ static int write_suspend_image(void)
  *	We should only consider resume_device.
  */
 
-int enough_swap(unsigned nr_pages)
+int enough_swap(unsigned int nr_pages)
 {
 	struct sysinfo i;
 
@@ -694,7 +687,7 @@ static int check_pagedir(struct pbe *pblist)
  *	restore from the loaded pages later.  We relocate them here.
  */
 
-static struct pbe * swsusp_pagedir_relocate(struct pbe *pblist)
+static struct pbe *swsusp_pagedir_relocate(struct pbe *pblist)
 {
 	struct zone *zone;
 	unsigned long zone_pfn;
@@ -770,7 +763,7 @@ static struct pbe * swsusp_pagedir_relocate(struct pbe *pblist)
 
 static atomic_t io_done = ATOMIC_INIT(0);
 
-static int end_io(struct bio * bio, unsigned int num, int err)
+static int end_io(struct bio *bio, unsigned int num, int err)
 {
 	if (!test_bit(BIO_UPTODATE, &bio->bi_flags))
 		panic("I/O error reading memory image");
@@ -778,7 +771,7 @@ static int end_io(struct bio * bio, unsigned int num, int err)
 	return 0;
 }
 
-static struct block_device * resume_bdev;
+static struct block_device *resume_bdev;
 
 /**
  *	submit - submit BIO request.
@@ -791,10 +784,10 @@ static struct block_device * resume_bdev;
  *	Then submit it and wait.
  */
 
-static int submit(int rw, pgoff_t page_off, void * page)
+static int submit(int rw, pgoff_t page_off, void *page)
 {
 	int error = 0;
-	struct bio * bio;
+	struct bio *bio;
 
 	bio = bio_alloc(GFP_ATOMIC, 1);
 	if (!bio)
@@ -823,12 +816,12 @@ static int submit(int rw, pgoff_t page_off, void * page)
 	return error;
 }
 
-static int bio_read_page(pgoff_t page_off, void * page)
+static int bio_read_page(pgoff_t page_off, void *page)
 {
 	return submit(READ, page_off, page);
 }
 
-static int bio_write_page(pgoff_t page_off, void * page)
+static int bio_write_page(pgoff_t page_off, void *page)
 {
 	return submit(WRITE, page_off, page);
 }
@@ -838,7 +831,7 @@ static int bio_write_page(pgoff_t page_off, void * page)
  * I really don't think that it's foolproof but more than nothing..
  */
 
-static const char * sanity_check(void)
+static const char *sanity_check(void)
 {
 	dump_info();
 	if (swsusp_info.version_code != LINUX_VERSION_CODE)
@@ -864,7 +857,7 @@ static const char * sanity_check(void)
 
 static int check_header(void)
 {
-	const char * reason = NULL;
+	const char *reason = NULL;
 	int error;
 
 	if ((error = bio_read_page(swp_offset(swsusp_header.swsusp_info), &swsusp_info)))
@@ -912,7 +905,7 @@ static int check_sig(void)
 
 static int data_read(struct pbe *pblist)
 {
-	struct pbe * p;
+	struct pbe *p;
 	int error = 0;
 	int i = 0;
 	int mod = swsusp_info.image_pages / 100;
@@ -950,7 +943,7 @@ static int data_read(struct pbe *pblist)
 static int read_pagedir(struct pbe *pblist)
 {
 	struct pbe *pbpage, *p;
-	unsigned i = 0;
+	unsigned int i = 0;
 	int error;
 
 	if (!pblist)

@@ -158,8 +158,7 @@ static void __exit cleanup_lubbock(void)
 		if (lubbock_maps[i].cached)
 			iounmap(lubbock_maps[i].cached);
 
-		if (parsed_parts[i])
-			kfree(parsed_parts[i]);
+		kfree(parsed_parts[i]);
 	}
 }
 

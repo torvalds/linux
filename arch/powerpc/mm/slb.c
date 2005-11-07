@@ -14,14 +14,32 @@
  *      2 of the License, or (at your option) any later version.
  */
 
+#undef DEBUG
+
 #include <linux/config.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
 #include <asm/paca.h>
 #include <asm/cputable.h>
+#include <asm/cacheflush.h>
 
-extern void slb_allocate(unsigned long ea);
+#ifdef DEBUG
+#define DBG(fmt...) udbg_printf(fmt)
+#else
+#define DBG(fmt...)
+#endif
+
+extern void slb_allocate_realmode(unsigned long ea);
+extern void slb_allocate_user(unsigned long ea);
+
+static void slb_allocate(unsigned long ea)
+{
+	/* Currently, we do real mode for all SLBs including user, but
+	 * that will change if we bring back dynamic VSIDs
+	 */
+	slb_allocate_realmode(ea);
+}
 
 static inline unsigned long mk_esid_data(unsigned long ea, unsigned long slot)
 {
@@ -46,13 +64,15 @@ static void slb_flush_and_rebolt(void)
 {
 	/* If you change this make sure you change SLB_NUM_BOLTED
 	 * appropriately too. */
-	unsigned long ksp_flags = SLB_VSID_KERNEL;
+	unsigned long linear_llp, virtual_llp, lflags, vflags;
 	unsigned long ksp_esid_data;
 
 	WARN_ON(!irqs_disabled());
 
-	if (cpu_has_feature(CPU_FTR_16M_PAGE))
-		ksp_flags |= SLB_VSID_L;
+	linear_llp = mmu_psize_defs[mmu_linear_psize].sllp;
+	virtual_llp = mmu_psize_defs[mmu_virtual_psize].sllp;
+	lflags = SLB_VSID_KERNEL | linear_llp;
+	vflags = SLB_VSID_KERNEL | virtual_llp;
 
 	ksp_esid_data = mk_esid_data(get_paca()->kstack, 2);
 	if ((ksp_esid_data & ESID_MASK) == KERNELBASE)
@@ -67,9 +87,9 @@ static void slb_flush_and_rebolt(void)
 		     /* Slot 2 - kernel stack */
 		     "slbmte	%2,%3\n"
 		     "isync"
-		     :: "r"(mk_vsid_data(VMALLOCBASE, SLB_VSID_KERNEL)),
+		     :: "r"(mk_vsid_data(VMALLOCBASE, vflags)),
 		        "r"(mk_esid_data(VMALLOCBASE, 1)),
-		        "r"(mk_vsid_data(ksp_esid_data, ksp_flags)),
+		        "r"(mk_vsid_data(ksp_esid_data, lflags)),
 		        "r"(ksp_esid_data)
 		     : "memory");
 }
@@ -102,6 +122,9 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 
 	get_paca()->slb_cache_ptr = 0;
 	get_paca()->context = mm->context;
+#ifdef CONFIG_PPC_64K_PAGES
+	get_paca()->pgdir = mm->pgd;
+#endif /* CONFIG_PPC_64K_PAGES */
 
 	/*
 	 * preload some userspace segments into the SLB.
@@ -131,28 +154,77 @@ void switch_slb(struct task_struct *tsk, struct mm_struct *mm)
 	slb_allocate(unmapped_base);
 }
 
+static inline void patch_slb_encoding(unsigned int *insn_addr,
+				      unsigned int immed)
+{
+	/* Assume the instruction had a "0" immediate value, just
+	 * "or" in the new value
+	 */
+	*insn_addr |= immed;
+	flush_icache_range((unsigned long)insn_addr, 4+
+			   (unsigned long)insn_addr);
+}
+
 void slb_initialize(void)
 {
+	unsigned long linear_llp, virtual_llp;
+	static int slb_encoding_inited;
+	extern unsigned int *slb_miss_kernel_load_linear;
+	extern unsigned int *slb_miss_kernel_load_virtual;
+	extern unsigned int *slb_miss_user_load_normal;
+#ifdef CONFIG_HUGETLB_PAGE
+	extern unsigned int *slb_miss_user_load_huge;
+	unsigned long huge_llp;
+
+	huge_llp = mmu_psize_defs[mmu_huge_psize].sllp;
+#endif
+
+	/* Prepare our SLB miss handler based on our page size */
+	linear_llp = mmu_psize_defs[mmu_linear_psize].sllp;
+	virtual_llp = mmu_psize_defs[mmu_virtual_psize].sllp;
+	if (!slb_encoding_inited) {
+		slb_encoding_inited = 1;
+		patch_slb_encoding(slb_miss_kernel_load_linear,
+				   SLB_VSID_KERNEL | linear_llp);
+		patch_slb_encoding(slb_miss_kernel_load_virtual,
+				   SLB_VSID_KERNEL | virtual_llp);
+		patch_slb_encoding(slb_miss_user_load_normal,
+				   SLB_VSID_USER | virtual_llp);
+
+		DBG("SLB: linear  LLP = %04x\n", linear_llp);
+		DBG("SLB: virtual LLP = %04x\n", virtual_llp);
+#ifdef CONFIG_HUGETLB_PAGE
+		patch_slb_encoding(slb_miss_user_load_huge,
+				   SLB_VSID_USER | huge_llp);
+		DBG("SLB: huge    LLP = %04x\n", huge_llp);
+#endif
+	}
+
 	/* On iSeries the bolted entries have already been set up by
 	 * the hypervisor from the lparMap data in head.S */
 #ifndef CONFIG_PPC_ISERIES
-	unsigned long flags = SLB_VSID_KERNEL;
+ {
+	unsigned long lflags, vflags;
 
- 	/* Invalidate the entire SLB (even slot 0) & all the ERATS */
- 	if (cpu_has_feature(CPU_FTR_16M_PAGE))
- 		flags |= SLB_VSID_L;
+	lflags = SLB_VSID_KERNEL | linear_llp;
+	vflags = SLB_VSID_KERNEL | virtual_llp;
 
- 	asm volatile("isync":::"memory");
- 	asm volatile("slbmte  %0,%0"::"r" (0) : "memory");
+	/* Invalidate the entire SLB (even slot 0) & all the ERATS */
+	asm volatile("isync":::"memory");
+	asm volatile("slbmte  %0,%0"::"r" (0) : "memory");
 	asm volatile("isync; slbia; isync":::"memory");
-	create_slbe(KERNELBASE, flags, 0);
-	create_slbe(VMALLOCBASE, SLB_VSID_KERNEL, 1);
+	create_slbe(KERNELBASE, lflags, 0);
+
+	/* VMALLOC space has 4K pages always for now */
+	create_slbe(VMALLOCBASE, vflags, 1);
+
 	/* We don't bolt the stack for the time being - we're in boot,
 	 * so the stack is in the bolted segment.  By the time it goes
 	 * elsewhere, we'll call _switch() which will bolt in the new
 	 * one. */
 	asm volatile("isync":::"memory");
-#endif
+ }
+#endif /* CONFIG_PPC_ISERIES */
 
 	get_paca()->stab_rr = SLB_NUM_BOLTED;
 }

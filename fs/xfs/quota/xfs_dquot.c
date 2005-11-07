@@ -1,39 +1,25 @@
 /*
- * Copyright (c) 2000-2003 Silicon Graphics, Inc.  All Rights Reserved.
+ * Copyright (c) 2000-2003 Silicon Graphics, Inc.
+ * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * This program is distributed in the hope that it would be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.	 Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc., 59
- * Temple Place - Suite 330, Boston MA 02111-1307, USA.
- *
- * Contact information: Silicon Graphics, Inc., 1600 Amphitheatre Pkwy,
- * Mountain View, CA  94043, or:
- *
- * http://www.sgi.com
- *
- * For further information regarding this notice, see:
- *
- * http://oss.sgi.com/projects/GenInfo/SGIGPLNoticeExplan/
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write the Free Software Foundation,
+ * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
-
 #include "xfs.h"
 #include "xfs_fs.h"
-#include "xfs_inum.h"
+#include "xfs_bit.h"
 #include "xfs_log.h"
+#include "xfs_inum.h"
 #include "xfs_trans.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
@@ -43,18 +29,17 @@
 #include "xfs_dmapi.h"
 #include "xfs_quota.h"
 #include "xfs_mount.h"
-#include "xfs_alloc_btree.h"
 #include "xfs_bmap_btree.h"
+#include "xfs_alloc_btree.h"
 #include "xfs_ialloc_btree.h"
-#include "xfs_btree.h"
-#include "xfs_ialloc.h"
-#include "xfs_attr_sf.h"
 #include "xfs_dir_sf.h"
 #include "xfs_dir2_sf.h"
+#include "xfs_attr_sf.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
+#include "xfs_btree.h"
+#include "xfs_ialloc.h"
 #include "xfs_bmap.h"
-#include "xfs_bit.h"
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_itable.h"
@@ -66,7 +51,6 @@
 #include "xfs_buf_item.h"
 #include "xfs_trans_space.h"
 #include "xfs_trans_priv.h"
-
 #include "xfs_qm.h"
 
 
@@ -112,7 +96,7 @@ xfs_qm_dqinit(
 
 	brandnewdquot = xfs_qm_dqalloc_incore(&dqp);
 	dqp->dq_flags = type;
-	INT_SET(dqp->q_core.d_id, ARCH_CONVERT, id);
+	dqp->q_core.d_id = cpu_to_be32(id);
 	dqp->q_mount = mp;
 
 	/*
@@ -194,10 +178,10 @@ xfs_qm_dqinit_core(
 	/*
 	 * Caller has zero'd the entire dquot 'chunk' already.
 	 */
-	INT_SET(d->dd_diskdq.d_magic, ARCH_CONVERT, XFS_DQUOT_MAGIC);
-	INT_SET(d->dd_diskdq.d_version, ARCH_CONVERT, XFS_DQUOT_VERSION);
-	INT_SET(d->dd_diskdq.d_id, ARCH_CONVERT, id);
-	INT_SET(d->dd_diskdq.d_flags, ARCH_CONVERT, type);
+	d->dd_diskdq.d_magic = cpu_to_be16(XFS_DQUOT_MAGIC);
+	d->dd_diskdq.d_version = XFS_DQUOT_VERSION;
+	d->dd_diskdq.d_id = cpu_to_be32(id);
+	d->dd_diskdq.d_flags = type;
 }
 
 
@@ -227,19 +211,13 @@ __xfs_dqtrace_entry(
 		     (void *)(__psint_t)dqp->q_nrefs,
 		     (void *)(__psint_t)dqp->dq_flags,
 		     (void *)(__psint_t)dqp->q_res_bcount,
-		     (void *)(__psint_t)INT_GET(dqp->q_core.d_bcount,
-						ARCH_CONVERT),
-		     (void *)(__psint_t)INT_GET(dqp->q_core.d_icount,
-						ARCH_CONVERT),
-		     (void *)(__psint_t)INT_GET(dqp->q_core.d_blk_hardlimit,
-						ARCH_CONVERT),
-		     (void *)(__psint_t)INT_GET(dqp->q_core.d_blk_softlimit,
-						ARCH_CONVERT),
-		     (void *)(__psint_t)INT_GET(dqp->q_core.d_ino_hardlimit,
-						ARCH_CONVERT),
-		     (void *)(__psint_t)INT_GET(dqp->q_core.d_ino_softlimit,
-						ARCH_CONVERT),
-		     (void *)(__psint_t)INT_GET(dqp->q_core.d_id, ARCH_CONVERT),
+		     (void *)(__psint_t)be64_to_cpu(dqp->q_core.d_bcount),
+		     (void *)(__psint_t)be64_to_cpu(dqp->q_core.d_icount),
+		     (void *)(__psint_t)be64_to_cpu(dqp->q_core.d_blk_hardlimit),
+		     (void *)(__psint_t)be64_to_cpu(dqp->q_core.d_blk_softlimit),
+		     (void *)(__psint_t)be64_to_cpu(dqp->q_core.d_ino_hardlimit),
+		     (void *)(__psint_t)be64_to_cpu(dqp->q_core.d_ino_softlimit),
+		     (void *)(__psint_t)be32_to_cpu(dqp->q_core.d_id),
 		     (void *)(__psint_t)current_pid(),
 		     (void *)(__psint_t)ino,
 		     (void *)(__psint_t)retaddr,
@@ -264,17 +242,17 @@ xfs_qm_adjust_dqlimits(
 	ASSERT(d->d_id);
 
 	if (q->qi_bsoftlimit && !d->d_blk_softlimit)
-		INT_SET(d->d_blk_softlimit, ARCH_CONVERT, q->qi_bsoftlimit);
+		d->d_blk_softlimit = cpu_to_be64(q->qi_bsoftlimit);
 	if (q->qi_bhardlimit && !d->d_blk_hardlimit)
-		INT_SET(d->d_blk_hardlimit, ARCH_CONVERT, q->qi_bhardlimit);
+		d->d_blk_hardlimit = cpu_to_be64(q->qi_bhardlimit);
 	if (q->qi_isoftlimit && !d->d_ino_softlimit)
-		INT_SET(d->d_ino_softlimit, ARCH_CONVERT, q->qi_isoftlimit);
+		d->d_ino_softlimit = cpu_to_be64(q->qi_isoftlimit);
 	if (q->qi_ihardlimit && !d->d_ino_hardlimit)
-		INT_SET(d->d_ino_hardlimit, ARCH_CONVERT, q->qi_ihardlimit);
+		d->d_ino_hardlimit = cpu_to_be64(q->qi_ihardlimit);
 	if (q->qi_rtbsoftlimit && !d->d_rtb_softlimit)
-		INT_SET(d->d_rtb_softlimit, ARCH_CONVERT, q->qi_rtbsoftlimit);
+		d->d_rtb_softlimit = cpu_to_be64(q->qi_rtbsoftlimit);
 	if (q->qi_rtbhardlimit && !d->d_rtb_hardlimit)
-		INT_SET(d->d_rtb_hardlimit, ARCH_CONVERT, q->qi_rtbhardlimit);
+		d->d_rtb_hardlimit = cpu_to_be64(q->qi_rtbhardlimit);
 }
 
 /*
@@ -298,81 +276,81 @@ xfs_qm_adjust_dqtimers(
 	ASSERT(d->d_id);
 
 #ifdef QUOTADEBUG
-	if (INT_GET(d->d_blk_hardlimit, ARCH_CONVERT))
-		ASSERT(INT_GET(d->d_blk_softlimit, ARCH_CONVERT) <=
-			INT_GET(d->d_blk_hardlimit, ARCH_CONVERT));
-	if (INT_GET(d->d_ino_hardlimit, ARCH_CONVERT))
-		ASSERT(INT_GET(d->d_ino_softlimit, ARCH_CONVERT) <=
-			INT_GET(d->d_ino_hardlimit, ARCH_CONVERT));
-	if (INT_GET(d->d_rtb_hardlimit, ARCH_CONVERT))
-		ASSERT(INT_GET(d->d_rtb_softlimit, ARCH_CONVERT) <=
-			INT_GET(d->d_rtb_hardlimit, ARCH_CONVERT));
+	if (d->d_blk_hardlimit)
+		ASSERT(be64_to_cpu(d->d_blk_softlimit) <=
+		       be64_to_cpu(d->d_blk_hardlimit));
+	if (d->d_ino_hardlimit)
+		ASSERT(be64_to_cpu(d->d_ino_softlimit) <=
+		       be64_to_cpu(d->d_ino_hardlimit));
+	if (d->d_rtb_hardlimit)
+		ASSERT(be64_to_cpu(d->d_rtb_softlimit) <=
+		       be64_to_cpu(d->d_rtb_hardlimit));
 #endif
 	if (!d->d_btimer) {
-		if ((INT_GET(d->d_blk_softlimit, ARCH_CONVERT) &&
-		    (INT_GET(d->d_bcount, ARCH_CONVERT) >=
-				INT_GET(d->d_blk_softlimit, ARCH_CONVERT))) ||
-		    (INT_GET(d->d_blk_hardlimit, ARCH_CONVERT) &&
-		    (INT_GET(d->d_bcount, ARCH_CONVERT) >=
-				INT_GET(d->d_blk_hardlimit, ARCH_CONVERT)))) {
-			INT_SET(d->d_btimer, ARCH_CONVERT,
-				get_seconds() + XFS_QI_BTIMELIMIT(mp));
+		if ((d->d_blk_softlimit &&
+		     (be64_to_cpu(d->d_bcount) >=
+		      be64_to_cpu(d->d_blk_softlimit))) ||
+		    (d->d_blk_hardlimit &&
+		     (be64_to_cpu(d->d_bcount) >=
+		      be64_to_cpu(d->d_blk_hardlimit)))) {
+			d->d_btimer = cpu_to_be32(get_seconds() +
+					XFS_QI_BTIMELIMIT(mp));
 		} else {
 			d->d_bwarns = 0;
 		}
 	} else {
 		if ((!d->d_blk_softlimit ||
-		    (INT_GET(d->d_bcount, ARCH_CONVERT) <
-				INT_GET(d->d_blk_softlimit, ARCH_CONVERT))) &&
+		     (be64_to_cpu(d->d_bcount) <
+		      be64_to_cpu(d->d_blk_softlimit))) &&
 		    (!d->d_blk_hardlimit ||
-		    (INT_GET(d->d_bcount, ARCH_CONVERT) <
-				INT_GET(d->d_blk_hardlimit, ARCH_CONVERT)))) {
+		    (be64_to_cpu(d->d_bcount) <
+		     be64_to_cpu(d->d_blk_hardlimit)))) {
 			d->d_btimer = 0;
 		}
 	}
 
 	if (!d->d_itimer) {
-		if ((INT_GET(d->d_ino_softlimit, ARCH_CONVERT) &&
-		    (INT_GET(d->d_icount, ARCH_CONVERT) >=
-				INT_GET(d->d_ino_softlimit, ARCH_CONVERT))) ||
-		    (INT_GET(d->d_ino_hardlimit, ARCH_CONVERT) &&
-		    (INT_GET(d->d_icount, ARCH_CONVERT) >=
-				INT_GET(d->d_ino_hardlimit, ARCH_CONVERT)))) {
-			INT_SET(d->d_itimer, ARCH_CONVERT,
-				get_seconds() + XFS_QI_ITIMELIMIT(mp));
+		if ((d->d_ino_softlimit &&
+		     (be64_to_cpu(d->d_icount) >=
+		      be64_to_cpu(d->d_ino_softlimit))) ||
+		    (d->d_ino_hardlimit &&
+		     (be64_to_cpu(d->d_icount) >=
+		      be64_to_cpu(d->d_ino_hardlimit)))) {
+			d->d_itimer = cpu_to_be32(get_seconds() +
+					XFS_QI_ITIMELIMIT(mp));
 		} else {
 			d->d_iwarns = 0;
 		}
 	} else {
 		if ((!d->d_ino_softlimit ||
-		    (INT_GET(d->d_icount, ARCH_CONVERT) <
-				INT_GET(d->d_ino_softlimit, ARCH_CONVERT)))  &&
+		     (be64_to_cpu(d->d_icount) <
+		      be64_to_cpu(d->d_ino_softlimit)))  &&
 		    (!d->d_ino_hardlimit ||
-		    (INT_GET(d->d_icount, ARCH_CONVERT) <
-				INT_GET(d->d_ino_hardlimit, ARCH_CONVERT)))) {
+		     (be64_to_cpu(d->d_icount) <
+		      be64_to_cpu(d->d_ino_hardlimit)))) {
 			d->d_itimer = 0;
 		}
 	}
 
 	if (!d->d_rtbtimer) {
-		if ((INT_GET(d->d_rtb_softlimit, ARCH_CONVERT) &&
-		    (INT_GET(d->d_rtbcount, ARCH_CONVERT) >=
-				INT_GET(d->d_rtb_softlimit, ARCH_CONVERT))) ||
-		    (INT_GET(d->d_rtb_hardlimit, ARCH_CONVERT) &&
-		    (INT_GET(d->d_rtbcount, ARCH_CONVERT) >=
-				INT_GET(d->d_rtb_hardlimit, ARCH_CONVERT)))) {
-			INT_SET(d->d_rtbtimer, ARCH_CONVERT,
-				get_seconds() + XFS_QI_RTBTIMELIMIT(mp));
+		if ((d->d_rtb_softlimit &&
+		     (be64_to_cpu(d->d_rtbcount) >=
+		      be64_to_cpu(d->d_rtb_softlimit))) ||
+		    (d->d_rtb_hardlimit &&
+		     (be64_to_cpu(d->d_rtbcount) >=
+		      be64_to_cpu(d->d_rtb_hardlimit)))) {
+			d->d_rtbtimer = cpu_to_be32(get_seconds() +
+					XFS_QI_RTBTIMELIMIT(mp));
 		} else {
 			d->d_rtbwarns = 0;
 		}
 	} else {
 		if ((!d->d_rtb_softlimit ||
-		    (INT_GET(d->d_rtbcount, ARCH_CONVERT) <
-				INT_GET(d->d_rtb_softlimit, ARCH_CONVERT))) &&
+		     (be64_to_cpu(d->d_rtbcount) <
+		      be64_to_cpu(d->d_rtb_softlimit))) &&
 		    (!d->d_rtb_hardlimit ||
-		    (INT_GET(d->d_rtbcount, ARCH_CONVERT) <
-				INT_GET(d->d_rtb_hardlimit, ARCH_CONVERT)))) {
+		     (be64_to_cpu(d->d_rtbcount) <
+		      be64_to_cpu(d->d_rtb_hardlimit)))) {
 			d->d_rtbtimer = 0;
 		}
 	}
@@ -490,7 +468,7 @@ xfs_qm_dqalloc(
 	 * Make a chunk of dquots out of this buffer and log
 	 * the entire thing.
 	 */
-	xfs_qm_init_dquot_blk(tp, mp, INT_GET(dqp->q_core.d_id, ARCH_CONVERT),
+	xfs_qm_init_dquot_blk(tp, mp, be32_to_cpu(dqp->q_core.d_id),
 			      dqp->dq_flags & XFS_DQ_ALLTYPES, bp);
 
 	/*
@@ -554,7 +532,7 @@ xfs_qm_dqtobp(
 	xfs_trans_t	*tp = (tpp ? *tpp : NULL);
 
 	mp = dqp->q_mount;
-	id = INT_GET(dqp->q_core.d_id, ARCH_CONVERT);
+	id = be32_to_cpu(dqp->q_core.d_id);
 	nmaps = 1;
 	newdquot = B_FALSE;
 
@@ -563,8 +541,7 @@ xfs_qm_dqtobp(
 	 */
 	if (dqp->q_blkno == (xfs_daddr_t) 0) {
 		/* We use the id as an index */
-		dqp->q_fileoffset = (xfs_fileoff_t) ((uint)id /
-						     XFS_QM_DQPERBLK(mp));
+		dqp->q_fileoffset = (xfs_fileoff_t)id / XFS_QM_DQPERBLK(mp);
 		nmaps = 1;
 		quotip = XFS_DQ_TO_QIP(dqp);
 		xfs_ilock(quotip, XFS_ILOCK_SHARED);
@@ -694,16 +671,16 @@ xfs_qm_dqread(
 
 	/* copy everything from disk dquot to the incore dquot */
 	memcpy(&dqp->q_core, ddqp, sizeof(xfs_disk_dquot_t));
-	ASSERT(INT_GET(dqp->q_core.d_id, ARCH_CONVERT) == id);
+	ASSERT(be32_to_cpu(dqp->q_core.d_id) == id);
 	xfs_qm_dquot_logitem_init(dqp);
 
 	/*
 	 * Reservation counters are defined as reservation plus current usage
 	 * to avoid having to add everytime.
 	 */
-	dqp->q_res_bcount = INT_GET(ddqp->d_bcount, ARCH_CONVERT);
-	dqp->q_res_icount = INT_GET(ddqp->d_icount, ARCH_CONVERT);
-	dqp->q_res_rtbcount = INT_GET(ddqp->d_rtbcount, ARCH_CONVERT);
+	dqp->q_res_bcount = be64_to_cpu(ddqp->d_bcount);
+	dqp->q_res_icount = be64_to_cpu(ddqp->d_icount);
+	dqp->q_res_rtbcount = be64_to_cpu(ddqp->d_rtbcount);
 
 	/* Mark the buf so that this will stay incore a little longer */
 	XFS_BUF_SET_VTYPE_REF(bp, B_FS_DQUOT, XFS_DQUOT_REF);
@@ -829,7 +806,7 @@ xfs_qm_dqlookup(
 		 * dqlock to look at the id field of the dquot, since the
 		 * id can't be modified without the hashlock anyway.
 		 */
-		if (INT_GET(dqp->q_core.d_id, ARCH_CONVERT) == id && dqp->q_mount == mp) {
+		if (be32_to_cpu(dqp->q_core.d_id) == id && dqp->q_mount == mp) {
 			xfs_dqtrace_entry(dqp, "DQFOUND BY LOOKUP");
 			/*
 			 * All in core dquots must be on the dqlist of mp
@@ -860,7 +837,7 @@ xfs_qm_dqlookup(
 			 * id couldn't have changed; we had the hashlock all
 			 * along
 			 */
-			ASSERT(INT_GET(dqp->q_core.d_id, ARCH_CONVERT) == id);
+			ASSERT(be32_to_cpu(dqp->q_core.d_id) == id);
 
 			if (flist_locked) {
 				if (dqp->q_nrefs != 0) {
@@ -1282,7 +1259,7 @@ xfs_qm_dqflush(
 		return (error);
 	}
 
-	if (xfs_qm_dqcheck(&dqp->q_core, INT_GET(ddqp->d_id, ARCH_CONVERT),
+	if (xfs_qm_dqcheck(&dqp->q_core, be32_to_cpu(ddqp->d_id),
 			   0, XFS_QMOPT_DOWARN, "dqflush (incore copy)")) {
 		xfs_force_shutdown(dqp->q_mount, XFS_CORRUPT_INCORE);
 		return XFS_ERROR(EIO);
@@ -1435,8 +1412,8 @@ xfs_dqlock2(
 {
 	if (d1 && d2) {
 		ASSERT(d1 != d2);
-		if (INT_GET(d1->q_core.d_id, ARCH_CONVERT) >
-		    INT_GET(d2->q_core.d_id, ARCH_CONVERT)) {
+		if (be32_to_cpu(d1->q_core.d_id) >
+		    be32_to_cpu(d2->q_core.d_id)) {
 			xfs_dqlock(d2);
 			xfs_dqlock(d1);
 		} else {
@@ -1558,33 +1535,33 @@ xfs_qm_dqprint(xfs_dquot_t *dqp)
 {
 	cmn_err(CE_DEBUG, "-----------KERNEL DQUOT----------------");
 	cmn_err(CE_DEBUG, "---- dquotID =  %d",
-		(int)INT_GET(dqp->q_core.d_id, ARCH_CONVERT));
+		(int)be32_to_cpu(dqp->q_core.d_id));
 	cmn_err(CE_DEBUG, "---- type    =  %s", DQFLAGTO_TYPESTR(dqp));
 	cmn_err(CE_DEBUG, "---- fs      =  0x%p", dqp->q_mount);
 	cmn_err(CE_DEBUG, "---- blkno   =  0x%x", (int) dqp->q_blkno);
 	cmn_err(CE_DEBUG, "---- boffset =  0x%x", (int) dqp->q_bufoffset);
 	cmn_err(CE_DEBUG, "---- blkhlimit =  %Lu (0x%x)",
-		INT_GET(dqp->q_core.d_blk_hardlimit, ARCH_CONVERT),
-		(int) INT_GET(dqp->q_core.d_blk_hardlimit, ARCH_CONVERT));
+		be64_to_cpu(dqp->q_core.d_blk_hardlimit),
+		(int)be64_to_cpu(dqp->q_core.d_blk_hardlimit));
 	cmn_err(CE_DEBUG, "---- blkslimit =  %Lu (0x%x)",
-		INT_GET(dqp->q_core.d_blk_softlimit, ARCH_CONVERT),
-		(int)INT_GET(dqp->q_core.d_blk_softlimit, ARCH_CONVERT));
+		be64_to_cpu(dqp->q_core.d_blk_softlimit),
+		(int)be64_to_cpu(dqp->q_core.d_blk_softlimit));
 	cmn_err(CE_DEBUG, "---- inohlimit =  %Lu (0x%x)",
-		INT_GET(dqp->q_core.d_ino_hardlimit, ARCH_CONVERT),
-		(int)INT_GET(dqp->q_core.d_ino_hardlimit, ARCH_CONVERT));
+		be64_to_cpu(dqp->q_core.d_ino_hardlimit),
+		(int)be64_to_cpu(dqp->q_core.d_ino_hardlimit));
 	cmn_err(CE_DEBUG, "---- inoslimit =  %Lu (0x%x)",
-		INT_GET(dqp->q_core.d_ino_softlimit, ARCH_CONVERT),
-		(int)INT_GET(dqp->q_core.d_ino_softlimit, ARCH_CONVERT));
+		be64_to_cpu(dqp->q_core.d_ino_softlimit),
+		(int)be64_to_cpu(dqp->q_core.d_ino_softlimit));
 	cmn_err(CE_DEBUG, "---- bcount  =  %Lu (0x%x)",
-		INT_GET(dqp->q_core.d_bcount, ARCH_CONVERT),
-		(int)INT_GET(dqp->q_core.d_bcount, ARCH_CONVERT));
+		be64_to_cpu(dqp->q_core.d_bcount),
+		(int)be64_to_cpu(dqp->q_core.d_bcount));
 	cmn_err(CE_DEBUG, "---- icount  =  %Lu (0x%x)",
-		INT_GET(dqp->q_core.d_icount, ARCH_CONVERT),
-		(int)INT_GET(dqp->q_core.d_icount, ARCH_CONVERT));
+		be64_to_cpu(dqp->q_core.d_icount),
+		(int)be64_to_cpu(dqp->q_core.d_icount));
 	cmn_err(CE_DEBUG, "---- btimer  =  %d",
-		(int)INT_GET(dqp->q_core.d_btimer, ARCH_CONVERT));
+		(int)be32_to_cpu(dqp->q_core.d_btimer));
 	cmn_err(CE_DEBUG, "---- itimer  =  %d",
-		(int)INT_GET(dqp->q_core.d_itimer, ARCH_CONVERT));
+		(int)be32_to_cpu(dqp->q_core.d_itimer));
 	cmn_err(CE_DEBUG, "---------------------------");
 }
 #endif

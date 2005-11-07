@@ -741,8 +741,8 @@ static int msp34xx_sleep(struct msp3400c *msp, int timeout)
 			set_current_state(TASK_INTERRUPTIBLE);
 			schedule();
 		} else {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(msecs_to_jiffies(timeout));
+			schedule_timeout_interruptible
+						(msecs_to_jiffies(timeout));
 		}
 	}
 

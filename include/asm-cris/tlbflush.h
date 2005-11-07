@@ -39,14 +39,14 @@ static inline void flush_tlb_range(struct vm_area_struct * vma, unsigned long st
 	flush_tlb_mm(vma->vm_mm);
 }
 
-extern inline void flush_tlb_pgtables(struct mm_struct *mm,
+static inline void flush_tlb_pgtables(struct mm_struct *mm,
                                       unsigned long start, unsigned long end)
 {
         /* CRIS does not keep any page table caches in TLB */
 }
 
 
-extern inline void flush_tlb(void) 
+static inline void flush_tlb(void)
 {
 	flush_tlb_mm(current->mm);
 }

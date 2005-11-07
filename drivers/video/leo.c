@@ -51,7 +51,6 @@ static struct fb_ops leo_ops = {
 	.fb_imageblit		= cfb_imageblit,
 	.fb_mmap		= leo_mmap,
 	.fb_ioctl		= leo_ioctl,
-	.fb_cursor		= soft_cursor,
 };
 
 #define LEO_OFF_LC_SS0_KRN	0x00200000UL

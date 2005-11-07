@@ -40,6 +40,7 @@
 
 #include <linux/errno.h>
 #include <linux/err.h>
+#include <linux/string.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_cache.h>

@@ -33,6 +33,7 @@
 #include <linux/workqueue.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/sched.h>   /* wait_event_interruptible_timeout() needs this */
 #include <asm/param.h>		/* HZ */
 #include "core.h"
 

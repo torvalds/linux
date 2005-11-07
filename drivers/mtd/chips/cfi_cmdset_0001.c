@@ -455,8 +455,7 @@ static struct mtd_info *cfi_intelext_setup(struct mtd_info *mtd)
 
  setup_err:
 	if(mtd) {
-		if(mtd->eraseregions)
-			kfree(mtd->eraseregions);
+		kfree(mtd->eraseregions);
 		kfree(mtd);
 	}
 	kfree(cfi->cmdset_priv);

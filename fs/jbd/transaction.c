@@ -227,8 +227,7 @@ repeat_locked:
 	spin_unlock(&transaction->t_handle_lock);
 	spin_unlock(&journal->j_state_lock);
 out:
-	if (new_transaction)
-		kfree(new_transaction);
+	kfree(new_transaction);
 	return ret;
 }
 
@@ -725,8 +724,7 @@ done:
 	journal_cancel_revoke(handle, jh);
 
 out:
-	if (frozen_buffer)
-		kfree(frozen_buffer);
+	kfree(frozen_buffer);
 
 	JBUFFER_TRACE(jh, "exit");
 	return error;
@@ -905,8 +903,7 @@ repeat:
 	jbd_unlock_bh_state(bh);
 out:
 	journal_put_journal_head(jh);
-	if (committed_data)
-		kfree(committed_data);
+	kfree(committed_data);
 	return err;
 }
 

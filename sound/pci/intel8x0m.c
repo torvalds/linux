@@ -3,7 +3,7 @@
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@suse.cz>
  *
- *   This is modified (by Sasha Khapyorsky <sashak@smlink.com>) version
+ *   This is modified (by Sasha Khapyorsky <sashak@alsa-project.org>) version
  *   of ALSA ICH sound driver intel8x0.c .
  *
  *
@@ -56,19 +56,20 @@ MODULE_SUPPORTED_DEVICE("{{Intel,82801AA-ICH},"
 		"{NVidia,NForce3 Modem},"
 		"{AMD,AMD768}}");
 
-static int index[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = -2}; /* Exclude the first card */
-static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
-static int ac97_clock[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
+static int index = -2; /* Exclude the first card */
+static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
+static int ac97_clock = 0;
 
-module_param_array(index, int, NULL, 0444);
+module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel i8x0 modemcard.");
-module_param_array(id, charp, NULL, 0444);
+module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for Intel i8x0 modemcard.");
-module_param_array(enable, bool, NULL, 0444);
-MODULE_PARM_DESC(enable, "Enable Intel i8x0 modemcard.");
-module_param_array(ac97_clock, int, NULL, 0444);
+module_param(ac97_clock, int, 0444);
 MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (0 = auto-detect).");
+
+/* just for backward compatibility */
+static int enable;
+module_param(enable, bool, 0444);
 
 /*
  *  Direct registers
@@ -362,7 +363,7 @@ static int snd_intel8x0m_codec_semaphore(intel8x0_t *chip, unsigned int codec)
 	/* access to some forbidden (non existant) ac97 registers will not
 	 * reset the semaphore. So even if you don't get the semaphore, still
 	 * continue the access. We don't need the semaphore anyway. */
-	snd_printk("codec_semaphore: semaphore is not ready [0x%x][0x%x]\n",
+	snd_printk(KERN_ERR "codec_semaphore: semaphore is not ready [0x%x][0x%x]\n",
 			igetbyte(chip, ICHREG(ACC_SEMA)), igetdword(chip, ICHREG(GLOB_STA)));
 	iagetword(chip, 0);	/* clear semaphore flag */
 	/* I don't care about the semaphore */
@@ -377,7 +378,7 @@ static void snd_intel8x0_codec_write(ac97_t *ac97,
 	
 	if (snd_intel8x0m_codec_semaphore(chip, ac97->num) < 0) {
 		if (! chip->in_ac97_init)
-			snd_printk("codec_write %d: semaphore is not ready for register 0x%x\n", ac97->num, reg);
+			snd_printk(KERN_ERR "codec_write %d: semaphore is not ready for register 0x%x\n", ac97->num, reg);
 	}
 	iaputword(chip, reg + ac97->num * 0x80, val);
 }
@@ -391,7 +392,7 @@ static unsigned short snd_intel8x0_codec_read(ac97_t *ac97,
 
 	if (snd_intel8x0m_codec_semaphore(chip, ac97->num) < 0) {
 		if (! chip->in_ac97_init)
-			snd_printk("codec_read %d: semaphore is not ready for register 0x%x\n", ac97->num, reg);
+			snd_printk(KERN_ERR "codec_read %d: semaphore is not ready for register 0x%x\n", ac97->num, reg);
 		res = 0xffff;
 	} else {
 		res = iagetword(chip, reg + ac97->num * 0x80);
@@ -399,7 +400,7 @@ static unsigned short snd_intel8x0_codec_read(ac97_t *ac97,
 			/* reset RCS and preserve other R/WC bits */
 			iputdword(chip, ICHREG(GLOB_STA), tmp & ~(ICH_SRI|ICH_PRI|ICH_TRI|ICH_GSCI));
 			if (! chip->in_ac97_init)
-				snd_printk("codec_read %d: read timeout for register 0x%x\n", ac97->num, reg);
+				snd_printk(KERN_ERR "codec_read %d: read timeout for register 0x%x\n", ac97->num, reg);
 			res = 0xffff;
 		}
 	}
@@ -746,6 +747,7 @@ static int __devinit snd_intel8x0_pcm1(intel8x0_t *chip, int device, struct ich_
 
 	pcm->private_data = chip;
 	pcm->info_flags = 0;
+	pcm->dev_class = SNDRV_PCM_CLASS_MODEM;
 	if (rec->suffix)
 		sprintf(pcm->name, "%s - %s", chip->card->shortname, rec->suffix);
 	else
@@ -854,7 +856,6 @@ static int __devinit snd_intel8x0_mixer(intel8x0_t *chip, int ac97_clock)
 	if ((err = snd_ac97_bus(chip->card, 0, &ops, chip, &pbus)) < 0)
 		goto __err;
 	pbus->private_free = snd_intel8x0_mixer_free_ac97_bus;
-	pbus->shared_type = AC97_SHARED_TYPE_ICH;	/* shared with audio driver */
 	if (ac97_clock >= 8000 && ac97_clock <= 48000)
 		pbus->clock = ac97_clock;
 	chip->ac97_bus = pbus;
@@ -889,8 +890,7 @@ static int __devinit snd_intel8x0_mixer(intel8x0_t *chip, int ac97_clock)
  */
 
 #define do_delay(chip) do {\
-	set_current_state(TASK_UNINTERRUPTIBLE);\
-	schedule_timeout(1);\
+	schedule_timeout_uninterruptible(1);\
 } while (0)
 
 static int snd_intel8x0m_ich_chip_init(intel8x0_t *chip, int probing)
@@ -916,7 +916,7 @@ static int snd_intel8x0m_ich_chip_init(intel8x0_t *chip, int probing)
 			goto __ok;
 		do_delay(chip);
 	} while (time_after_eq(end_time, jiffies));
-	snd_printk("AC'97 warm reset still in progress? [0x%x]\n", igetdword(chip, ICHREG(GLOB_CNT)));
+	snd_printk(KERN_ERR "AC'97 warm reset still in progress? [0x%x]\n", igetdword(chip, ICHREG(GLOB_CNT)));
 	return -EIO;
 
       __ok:
@@ -1142,7 +1142,7 @@ static int __devinit snd_intel8x0m_create(snd_card_t * card,
 		chip->remap_addr = ioremap_nocache(chip->addr,
 						   pci_resource_len(pci, 2));
 		if (chip->remap_addr == NULL) {
-			snd_printk("AC'97 space ioremap problem\n");
+			snd_printk(KERN_ERR "AC'97 space ioremap problem\n");
 			snd_intel8x0_free(chip);
 			return -EIO;
 		}
@@ -1155,7 +1155,7 @@ static int __devinit snd_intel8x0m_create(snd_card_t * card,
 		chip->remap_bmaddr = ioremap_nocache(chip->bmaddr,
 						     pci_resource_len(pci, 3));
 		if (chip->remap_bmaddr == NULL) {
-			snd_printk("Controller space ioremap problem\n");
+			snd_printk(KERN_ERR "Controller space ioremap problem\n");
 			snd_intel8x0_free(chip);
 			return -EIO;
 		}
@@ -1165,7 +1165,7 @@ static int __devinit snd_intel8x0m_create(snd_card_t * card,
 
  port_inited:
 	if (request_irq(pci->irq, snd_intel8x0_interrupt, SA_INTERRUPT|SA_SHIRQ, card->shortname, (void *)chip)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_intel8x0_free(chip);
 		return -EBUSY;
 	}
@@ -1263,20 +1263,12 @@ static struct shortname_table {
 static int __devinit snd_intel8x0m_probe(struct pci_dev *pci,
 					const struct pci_device_id *pci_id)
 {
-	static int dev;
 	snd_card_t *card;
 	intel8x0_t *chip;
 	int err;
 	struct shortname_table *name;
 
-	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
-	if (!enable[dev]) {
-		dev++;
-		return -ENOENT;
-	}
-
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
+	card = snd_card_new(index, id, THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
 
@@ -1295,7 +1287,7 @@ static int __devinit snd_intel8x0m_probe(struct pci_dev *pci,
 		return err;
 	}
 
-	if ((err = snd_intel8x0_mixer(chip, ac97_clock[dev])) < 0) {
+	if ((err = snd_intel8x0_mixer(chip, ac97_clock)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -1314,7 +1306,6 @@ static int __devinit snd_intel8x0m_probe(struct pci_dev *pci,
 		return err;
 	}
 	pci_set_drvdata(pci, card);
-	dev++;
 	return 0;
 }
 

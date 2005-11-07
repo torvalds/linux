@@ -402,6 +402,40 @@ static void ixp2000_pci_irq_unmask(unsigned int irq)
 		ixp2000_reg_write(IXP2000_PCI_XSCALE_INT_ENABLE, (temp | (1 << 27)));
 }
 
+/*
+ * Error interrupts. These are used extensively by the microengine drivers
+ */
+static void ixp2000_err_irq_handler(unsigned int irq, struct irqdesc *desc,  struct pt_regs *regs)
+{
+	int i;
+	unsigned long status = *IXP2000_IRQ_ERR_STATUS;
+
+	for(i = 31; i >= 0; i--) {
+		if(status & (1 << i)) {
+			desc = irq_desc + IRQ_IXP2000_DRAM0_MIN_ERR + i;
+			desc->handle(IRQ_IXP2000_DRAM0_MIN_ERR + i, desc, regs);
+		}
+	}
+}
+
+static void ixp2000_err_irq_mask(unsigned int irq)
+{
+	ixp2000_reg_write(IXP2000_IRQ_ERR_ENABLE_CLR,
+			(1 << (irq - IRQ_IXP2000_DRAM0_MIN_ERR)));
+}
+
+static void ixp2000_err_irq_unmask(unsigned int irq)
+{
+	ixp2000_reg_write(IXP2000_IRQ_ERR_ENABLE_SET,
+			(1 << (irq - IRQ_IXP2000_DRAM0_MIN_ERR)));
+}
+
+static struct irqchip ixp2000_err_irq_chip = {
+	.ack	= ixp2000_err_irq_mask,
+	.mask	= ixp2000_err_irq_mask,
+	.unmask	= ixp2000_err_irq_unmask
+};
+
 static struct irqchip ixp2000_pci_irq_chip = {
 	.ack	= ixp2000_pci_irq_mask,
 	.mask	= ixp2000_pci_irq_mask,
@@ -458,6 +492,18 @@ void __init ixp2000_init_irq(void)
 			set_irq_flags(irq, IRQF_VALID);
 		} else set_irq_flags(irq, 0);
 	}
+
+	for (irq = IRQ_IXP2000_DRAM0_MIN_ERR; irq <= IRQ_IXP2000_SP_INT; irq++) {
+		if((1 << (irq - IRQ_IXP2000_DRAM0_MIN_ERR)) &
+				IXP2000_VALID_ERR_IRQ_MASK) {
+			set_irq_chip(irq, &ixp2000_err_irq_chip);
+			set_irq_handler(irq, do_level_IRQ);
+			set_irq_flags(irq, IRQF_VALID);
+		}
+		else
+			set_irq_flags(irq, 0);
+	}
+	set_irq_chained_handler(IRQ_IXP2000_ERRSUM, ixp2000_err_irq_handler);
 
 	/*
 	 * GPIO IRQs are invalid until someone sets the interrupt mode

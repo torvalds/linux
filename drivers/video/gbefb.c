@@ -1038,7 +1038,6 @@ static struct fb_ops gbefb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
 /*
@@ -1260,24 +1259,30 @@ static struct device_driver gbefb_driver = {
 	.remove = __devexit_p(gbefb_remove),
 };
 
-static struct platform_device gbefb_device = {
-	.name = "gbefb",
-};
+static struct platform_device *gbefb_device;
 
 int __init gbefb_init(void)
 {
 	int ret = driver_register(&gbefb_driver);
 	if (!ret) {
-		ret = platform_device_register(&gbefb_device);
-		if (ret)
+		gbefb_device = platform_device_alloc("gbefb", 0);
+		if (gbefb_device) {
+			ret = platform_device_add(gbefb_device);
+		} else {
+			ret = -ENOMEM;
+		}
+		if (ret) {
+			platform_device_put(gbefb_device);
 			driver_unregister(&gbefb_driver);
+		}
 	}
 	return ret;
 }
 
 void __exit gbefb_exit(void)
 {
-	 driver_unregister(&gbefb_driver);
+	platform_device_unregister(gbefb_device);
+	driver_unregister(&gbefb_driver);
 }
 
 module_init(gbefb_init);

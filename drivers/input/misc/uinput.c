@@ -271,8 +271,7 @@ static int uinput_alloc_device(struct file *file, const char __user *buffer, siz
 		goto exit;
 	}
 
-	if (dev->name)
-		kfree(dev->name);
+	kfree(dev->name);
 
 	size = strnlen(user_dev->name, UINPUT_MAX_NAME_SIZE) + 1;
 	dev->name = name = kmalloc(size, GFP_KERNEL);
@@ -372,11 +371,8 @@ static int uinput_burn_device(struct uinput_device *udev)
 	if (test_bit(UIST_CREATED, &udev->state))
 		uinput_destroy_device(udev);
 
-	if (udev->dev->name)
-		kfree(udev->dev->name);
-	if (udev->dev->phys)
-		kfree(udev->dev->phys);
-
+	kfree(udev->dev->name);
+	kfree(udev->dev->phys);
 	kfree(udev->dev);
 	kfree(udev);
 

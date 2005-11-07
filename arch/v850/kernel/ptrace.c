@@ -113,44 +113,9 @@ static int set_single_step (struct task_struct *t, int val)
 	return 1;
 }
 
-long sys_ptrace(long request, long pid, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	struct task_struct *child;
 	int rval;
-
-	lock_kernel();
-
-	if (request == PTRACE_TRACEME) {
-		/* are we already being traced? */
-		if (current->ptrace & PT_PTRACED) {
-			rval = -EPERM;
-			goto out;
-		}
-		/* set the ptrace bit in the process flags. */
-		current->ptrace |= PT_PTRACED;
-		rval = 0;
-		goto out;
-	}
-	rval = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
-	if (!child)
-		goto out;
-
-	rval = -EPERM;
-	if (pid == 1)		/* you may not mess with init */
-		goto out_tsk;
-
-	if (request == PTRACE_ATTACH) {
-		rval = ptrace_attach(child);
-		goto out_tsk;
-	}
-	rval = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (rval < 0)
-		goto out_tsk;
 
 	switch (request) {
 		unsigned long val, copied;
@@ -248,11 +213,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		rval = -EIO;
 		goto out;
 	}
-
-out_tsk:
-	put_task_struct(child);
-out:
-	unlock_kernel();
+ out:
 	return rval;
 }
 

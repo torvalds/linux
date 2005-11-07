@@ -539,11 +539,8 @@ static void free_device(struct blkmtd_dev *dev)
 {
 	DEBUG(2, "blkmtd: free_device() dev = %p\n", dev);
 	if(dev) {
-		if(dev->mtd_info.eraseregions)
-			kfree(dev->mtd_info.eraseregions);
-		if(dev->mtd_info.name)
-			kfree(dev->mtd_info.name);
-
+		kfree(dev->mtd_info.eraseregions);
+		kfree(dev->mtd_info.name);
 		if(dev->blkdev) {
 			invalidate_inode_pages(dev->blkdev->bd_inode->i_mapping);
 			close_bdev_excl(dev->blkdev);

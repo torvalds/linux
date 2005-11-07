@@ -20,7 +20,6 @@
 #include "kern_util.h"
 #include "user_util.h"
 #include "user.h"
-#include "helper.h"
 #include "os.h"
 
 #define MAX_PACKET ETH_MAX_PACKET

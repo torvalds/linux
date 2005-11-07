@@ -39,25 +39,26 @@ MODULE_DESCRIPTION("ATI IXP AC97 controller");
 MODULE_LICENSE("GPL");
 MODULE_SUPPORTED_DEVICE("{{ATI,IXP150/200/250/300/400}}");
 
-static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
-static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
-static int ac97_clock[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 48000};
-static char *ac97_quirk[SNDRV_CARDS];
-static int spdif_aclink[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 1};
+static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
+static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
+static int ac97_clock = 48000;
+static char *ac97_quirk;
+static int spdif_aclink = 1;
 
-module_param_array(index, int, NULL, 0444);
+module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for ATI IXP controller.");
-module_param_array(id, charp, NULL, 0444);
+module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for ATI IXP controller.");
-module_param_array(enable, bool, NULL, 0444);
-MODULE_PARM_DESC(enable, "Enable audio part of ATI IXP controller.");
-module_param_array(ac97_clock, int, NULL, 0444);
+module_param(ac97_clock, int, 0444);
 MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (default 48000Hz).");
-module_param_array(ac97_quirk, charp, NULL, 0444);
+module_param(ac97_quirk, charp, 0444);
 MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
-module_param_array(spdif_aclink, bool, NULL, 0444);
+module_param(spdif_aclink, bool, 0444);
 MODULE_PARM_DESC(spdif_aclink, "S/PDIF over AC-link.");
+
+/* just for backward compatibility */
+static int enable;
+module_param(enable, bool, 0444);
 
 
 /*
@@ -329,8 +330,7 @@ static int snd_atiixp_update_bits(atiixp_t *chip, unsigned int reg,
 
 /* delay for one tick */
 #define do_delay() do { \
-	set_current_state(TASK_UNINTERRUPTIBLE); \
-	schedule_timeout(1); \
+	schedule_timeout_uninterruptible(1); \
 } while (0)
 
 
@@ -1372,7 +1372,6 @@ static int __devinit snd_atiixp_mixer_new(atiixp_t *chip, int clock, const char 
 	if ((err = snd_ac97_bus(chip->card, 0, &ops, chip, &pbus)) < 0)
 		return err;
 	pbus->clock = clock;
-	pbus->shared_type = AC97_SHARED_TYPE_ATIIXP;	/* shared with modem driver */
 	chip->ac97_bus = pbus;
 
 	codec_count = 0;
@@ -1579,26 +1578,18 @@ static int __devinit snd_atiixp_create(snd_card_t *card,
 static int __devinit snd_atiixp_probe(struct pci_dev *pci,
 				     const struct pci_device_id *pci_id)
 {
-	static int dev;
 	snd_card_t *card;
 	atiixp_t *chip;
 	unsigned char revision;
 	int err;
 
-	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
-	if (!enable[dev]) {
-		dev++;
-		return -ENOENT;
-	}
-
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
+	card = snd_card_new(index, id, THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
 
 	pci_read_config_byte(pci, PCI_REVISION_ID, &revision);
 
-	strcpy(card->driver, spdif_aclink[dev] ? "ATIIXP" : "ATIIXP-SPDMA");
+	strcpy(card->driver, spdif_aclink ? "ATIIXP" : "ATIIXP-SPDMA");
 	strcpy(card->shortname, "ATI IXP");
 	if ((err = snd_atiixp_create(card, pci, &chip)) < 0)
 		goto __error;
@@ -1606,9 +1597,9 @@ static int __devinit snd_atiixp_probe(struct pci_dev *pci,
 	if ((err = snd_atiixp_aclink_reset(chip)) < 0)
 		goto __error;
 
-	chip->spdif_over_aclink = spdif_aclink[dev];
+	chip->spdif_over_aclink = spdif_aclink;
 
-	if ((err = snd_atiixp_mixer_new(chip, ac97_clock[dev], ac97_quirk[dev])) < 0)
+	if ((err = snd_atiixp_mixer_new(chip, ac97_clock, ac97_quirk)) < 0)
 		goto __error;
 
 	if ((err = snd_atiixp_pcm_new(chip)) < 0)
@@ -1629,7 +1620,6 @@ static int __devinit snd_atiixp_probe(struct pci_dev *pci,
 		goto __error;
 
 	pci_set_drvdata(pci, card);
-	dev++;
 	return 0;
 
  __error:

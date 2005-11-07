@@ -9,7 +9,7 @@
 #include <linux/module.h>
 
 #include <asm/hw_irq.h>
-#include <asm/iSeries/HvCallSc.h>
+#include <asm/iseries/hv_call_sc.h>
 
 EXPORT_SYMBOL(HvCall0);
 EXPORT_SYMBOL(HvCall1);

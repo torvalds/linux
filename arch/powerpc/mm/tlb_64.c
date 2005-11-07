@@ -21,6 +21,7 @@
  *  as published by the Free Software Foundation; either version
  *  2 of the License, or (at your option) any later version.
  */
+
 #include <linux/config.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -30,7 +31,7 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
-#include <linux/highmem.h>
+#include <asm/bug.h>
 
 DEFINE_PER_CPU(struct ppc64_tlb_batch, ppc64_tlb_batch);
 
@@ -126,13 +127,28 @@ void pgtable_free_tlb(struct mmu_gather *tlb, pgtable_free_t pgf)
  * (if we remove it we should clear the _PTE_HPTEFLAGS bits).
  */
 void hpte_update(struct mm_struct *mm, unsigned long addr,
-		 unsigned long pte, int wrprot)
+		 pte_t *ptep, unsigned long pte, int huge)
 {
 	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
 	unsigned long vsid;
+	unsigned int psize = mmu_virtual_psize;
 	int i;
 
 	i = batch->index;
+
+	/* We mask the address for the base page size. Huge pages will
+	 * have applied their own masking already
+	 */
+	addr &= PAGE_MASK;
+
+	/* Get page size (maybe move back to caller) */
+	if (huge) {
+#ifdef CONFIG_HUGETLB_PAGE
+		psize = mmu_huge_psize;
+#else
+		BUG();
+#endif
+	}
 
 	/*
 	 * This can happen when we are in the middle of a TLB batch and
@@ -140,14 +156,17 @@ void hpte_update(struct mm_struct *mm, unsigned long addr,
 	 * to allocate a new pte). If we have to reclaim memory and end
 	 * up scanning and resetting referenced bits then our batch context
 	 * will change mid stream.
+	 *
+	 * We also need to ensure only one page size is present in a given
+	 * batch
 	 */
-	if (i != 0 && (mm != batch->mm || batch->large != pte_huge(pte))) {
+	if (i != 0 && (mm != batch->mm || batch->psize != psize)) {
 		flush_tlb_pending();
 		i = 0;
 	}
 	if (i == 0) {
 		batch->mm = mm;
-		batch->large = pte_huge(pte);
+		batch->psize = psize;
 	}
 	if (addr < KERNELBASE) {
 		vsid = get_vsid(mm->context.id, addr);
@@ -155,7 +174,7 @@ void hpte_update(struct mm_struct *mm, unsigned long addr,
 	} else
 		vsid = get_kernel_vsid(addr);
 	batch->vaddr[i] = (vsid << 28 ) | (addr & 0x0fffffff);
-	batch->pte[i] = __pte(pte);
+	batch->pte[i] = __real_pte(__pte(pte), ptep);
 	batch->index = ++i;
 	if (i >= PPC64_TLB_BATCH_NR)
 		flush_tlb_pending();
@@ -177,7 +196,8 @@ void __flush_tlb_pending(struct ppc64_tlb_batch *batch)
 		local = 1;
 
 	if (i == 1)
-		flush_hash_page(batch->vaddr[0], batch->pte[0], local);
+		flush_hash_page(batch->vaddr[0], batch->pte[0],
+				batch->psize, local);
 	else
 		flush_hash_range(i, local);
 	batch->index = 0;

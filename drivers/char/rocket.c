@@ -2512,10 +2512,8 @@ static void rp_cleanup_module(void)
 		       "rocketport driver\n", -retval);
 	put_tty_driver(rocket_driver);
 
-	for (i = 0; i < MAX_RP_PORTS; i++) {
-		if (rp_table[i])
-			kfree(rp_table[i]);
-	}
+	for (i = 0; i < MAX_RP_PORTS; i++)
+		kfree(rp_table[i]);
 
 	for (i = 0; i < NUM_BOARDS; i++) {
 		if (rcktpt_io_addr[i] <= 0 || is_PCI[i])

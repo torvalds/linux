@@ -181,13 +181,14 @@ EXPORT_SYMBOL(fetch_dev_dn);
 static int pci_dn_reconfig_notifier(struct notifier_block *nb, unsigned long action, void *node)
 {
 	struct device_node *np = node;
-	struct pci_dn *pci;
+	struct pci_dn *pci = NULL;
 	int err = NOTIFY_OK;
 
 	switch (action) {
 	case PSERIES_RECONFIG_ADD:
 		pci = np->parent->data;
-		update_dn_pci_info(np, pci->phb);
+		if (pci)
+			update_dn_pci_info(np, pci->phb);
 		break;
 	default:
 		err = NOTIFY_DONE;

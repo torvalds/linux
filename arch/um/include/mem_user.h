@@ -57,7 +57,7 @@ extern int init_maps(unsigned long physmem, unsigned long iomem,
 		     unsigned long highmem);
 extern unsigned long get_vm(unsigned long len);
 extern void setup_physmem(unsigned long start, unsigned long usable,
-			  unsigned long len, unsigned long highmem);
+			  unsigned long len, unsigned long long highmem);
 extern void add_iomem(char *name, int fd, unsigned long size);
 extern unsigned long phys_offset(unsigned long phys);
 extern void unmap_physmem(void);

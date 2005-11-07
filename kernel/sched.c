@@ -1468,7 +1468,7 @@ void fastcall sched_exit(task_t *p)
 	 * the sleep_avg of the parent as well.
 	 */
 	rq = task_rq_lock(p->parent, &flags);
-	if (p->first_time_slice) {
+	if (p->first_time_slice && task_cpu(p) == task_cpu(p->parent)) {
 		p->parent->time_slice += p->time_slice;
 		if (unlikely(p->parent->time_slice > task_timeslice(p)))
 			p->parent->time_slice = task_timeslice(p);
@@ -3563,8 +3563,6 @@ int idle_cpu(int cpu)
 	return cpu_curr(cpu) == cpu_rq(cpu)->idle;
 }
 
-EXPORT_SYMBOL_GPL(idle_cpu);
-
 /**
  * idle_task - return the idle task for a given cpu.
  * @cpu: the processor in question.
@@ -4680,7 +4678,8 @@ static int migration_call(struct notifier_block *nfb, unsigned long action,
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_UP_CANCELED:
 		/* Unbind it from offline cpu so it can run.  Fall thru. */
-		kthread_bind(cpu_rq(cpu)->migration_thread,smp_processor_id());
+		kthread_bind(cpu_rq(cpu)->migration_thread,
+			     any_online_cpu(cpu_online_map));
 		kthread_stop(cpu_rq(cpu)->migration_thread);
 		cpu_rq(cpu)->migration_thread = NULL;
 		break;

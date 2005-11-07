@@ -378,8 +378,7 @@ static struct mtd_info *cfi_amdstd_setup(struct mtd_info *mtd)
 
  setup_err:
 	if(mtd) {
-		if(mtd->eraseregions)
-			kfree(mtd->eraseregions);
+		kfree(mtd->eraseregions);
 		kfree(mtd);
 	}
 	kfree(cfi->cmdset_priv);
@@ -1742,6 +1741,7 @@ static void cfi_amdstd_destroy(struct mtd_info *mtd)
 {
 	struct map_info *map = mtd->priv;
 	struct cfi_private *cfi = map->fldrv_priv;
+
 	kfree(cfi->cmdset_priv);
 	kfree(cfi->cfiq);
 	kfree(cfi);

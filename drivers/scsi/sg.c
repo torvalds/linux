@@ -476,8 +476,7 @@ sg_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 	sg_finish_rem_req(srp);
 	retval = count;
 free_old_hdr:
-	if (old_hdr)
-		kfree(old_hdr);
+	kfree(old_hdr);
 	return retval;
 }
 
@@ -1498,10 +1497,9 @@ static int sg_alloc(struct gendisk *disk, struct scsi_device *scsidp)
 
  overflow:
 	write_unlock_irqrestore(&sg_dev_arr_lock, iflags);
-	printk(KERN_WARNING
-	       "Unable to attach sg device <%d, %d, %d, %d> type=%d, minor "
-	       "number exceeds %d\n", scsidp->host->host_no, scsidp->channel,
-	       scsidp->id, scsidp->lun, scsidp->type, SG_MAX_DEVS - 1);
+	sdev_printk(KERN_WARNING, scsidp,
+		    "Unable to attach sg device type=%d, minor "
+		    "number exceeds %d\n", scsidp->type, SG_MAX_DEVS - 1);
 	error = -ENODEV;
 	goto out;
 }
@@ -1567,11 +1565,8 @@ sg_add(struct class_device *cl_dev, struct class_interface *cl_intf)
 	} else
 		printk(KERN_WARNING "sg_add: sg_sys INvalid\n");
 
-	printk(KERN_NOTICE
-	       "Attached scsi generic sg%d at scsi%d, channel"
-	       " %d, id %d, lun %d,  type %d\n", k,
-	       scsidp->host->host_no, scsidp->channel, scsidp->id,
-	       scsidp->lun, scsidp->type);
+	sdev_printk(KERN_NOTICE, scsidp,
+		    "Attached scsi generic sg%d type %d\n", k,scsidp->type);
 
 	return 0;
 
@@ -1707,10 +1702,8 @@ exit_sg(void)
 	sg_sysfs_valid = 0;
 	unregister_chrdev_region(MKDEV(SCSI_GENERIC_MAJOR, 0),
 				 SG_MAX_DEVS);
-	if (sg_dev_arr != NULL) {
-		kfree((char *) sg_dev_arr);
-		sg_dev_arr = NULL;
-	}
+	kfree((char *)sg_dev_arr);
+	sg_dev_arr = NULL;
 	sg_dev_max = 0;
 }
 

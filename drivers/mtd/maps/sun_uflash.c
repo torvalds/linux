@@ -166,9 +166,7 @@ static void __exit uflash_cleanup(void)
 			iounmap(udev->map.virt);
 			udev->map.virt = NULL;
 		}
-		if(0 != udev->name) {
-			kfree(udev->name);
-		}
+		kfree(udev->name);
 		kfree(udev);
 	}	
 }

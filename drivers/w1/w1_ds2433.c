@@ -299,10 +299,8 @@ static int w1_f23_add_slave(struct w1_slave *sl)
 static void w1_f23_remove_slave(struct w1_slave *sl)
 {
 #ifdef CONFIG_W1_F23_CRC
-	if (sl->family_data) {
-		kfree(sl->family_data);
-		sl->family_data = NULL;
-	}
+	kfree(sl->family_data);
+	sl->family_data = NULL;
 #endif	/* CONFIG_W1_F23_CRC */
 	sysfs_remove_bin_file(&sl->dev.kobj, &w1_f23_bin_attr);
 }

@@ -327,8 +327,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		c->wbuf_ofs = ofs + towrite;
 		memmove(c->wbuf, rewrite_buf + towrite, c->wbuf_len);
 		/* Don't muck about with c->wbuf_inodes. False positives are harmless. */
-		if (buf)
-			kfree(buf);
+		kfree(buf);
 	} else {
 		/* OK, now we're left with the dregs in whichever buffer we're using */
 		if (buf) {

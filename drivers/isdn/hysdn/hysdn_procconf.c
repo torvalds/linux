@@ -359,8 +359,7 @@ hysdn_conf_close(struct inode *ino, struct file *filep)
 	} else if ((filep->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ) {
 		/* read access -> output card info data */
 
-		if (filep->private_data)
-			kfree(filep->private_data);	/* release memory */
+		kfree(filep->private_data);	/* release memory */
 	}
 	unlock_kernel();
 	return (retval);

@@ -31,7 +31,7 @@ typedef struct { int counter; } atomic_t;
 #define atomic_read(v)		((v)->counter)
 #define atomic_set(v,i)		(((v)->counter) = (i))
 
-extern __inline__ int atomic_add_return (int i, volatile atomic_t *v)
+static inline int atomic_add_return (int i, volatile atomic_t *v)
 {
 	unsigned long flags;
 	int res;

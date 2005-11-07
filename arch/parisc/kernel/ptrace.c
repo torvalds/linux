@@ -78,51 +78,12 @@ void ptrace_disable(struct task_struct *child)
 	pa_psw(child)->l = 0;
 }
 
-long sys_ptrace(long request, long pid, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	struct task_struct *child;
 	long ret;
 #ifdef DEBUG_PTRACE
 	long oaddr=addr, odata=data;
 #endif
-
-	lock_kernel();
-	ret = -EPERM;
-	if (request == PTRACE_TRACEME) {
-		/* are we already being traced? */
-		if (current->ptrace & PT_PTRACED)
-			goto out;
-
-		ret = security_ptrace(current->parent, current);
-		if (ret) 
-			goto out;
-
-		/* set the ptrace bit in the process flags. */
-		current->ptrace |= PT_PTRACED;
-		ret = 0;
-		goto out;
-	}
-
-	ret = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
-	if (!child)
-		goto out;
-	ret = -EPERM;
-	if (pid == 1)		/* no messing around with init! */
-		goto out_tsk;
-
-	if (request == PTRACE_ATTACH) {
-		ret = ptrace_attach(child);
-		goto out_tsk;
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		goto out_tsk;
 
 	switch (request) {
 	case PTRACE_PEEKTEXT: /* read word at location addr. */ 
@@ -383,11 +344,11 @@ long sys_ptrace(long request, long pid, long addr, long data)
 
 	case PTRACE_GETEVENTMSG:
                 ret = put_user(child->ptrace_message, (unsigned int __user *) data);
-		goto out_tsk;
+		goto out;
 
 	default:
 		ret = ptrace_request(child, request, addr, data);
-		goto out_tsk;
+		goto out;
 	}
 
 out_wake_notrap:
@@ -396,10 +357,7 @@ out_wake:
 	wake_up_process(child);
 	ret = 0;
 out_tsk:
-	put_task_struct(child);
-out:
-	unlock_kernel();
-	DBG("sys_ptrace(%ld, %d, %lx, %lx) returning %ld\n",
+	DBG("arch_ptrace(%ld, %d, %lx, %lx) returning %ld\n",
 		request, pid, oaddr, odata, ret);
 	return ret;
 }

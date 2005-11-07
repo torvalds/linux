@@ -73,7 +73,7 @@ extern unsigned int real_irq_to_virt_slowpath(unsigned int real_irq);
 #define IC_INVALID    0
 #define IC_OPEN_PIC   1
 #define IC_PPC_XIC    2
-#define IC_BPA_IIC    3
+#define IC_CELL_PIC   3
 #define IC_ISERIES    4
 
 extern u64 ppc64_interrupt_controller;

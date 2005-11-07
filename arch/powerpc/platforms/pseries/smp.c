@@ -44,9 +44,10 @@
 #include <asm/firmware.h>
 #include <asm/system.h>
 #include <asm/rtas.h>
-#include <asm/plpar_wrappers.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/mpic.h>
+
+#include "plpar_wrappers.h"
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)

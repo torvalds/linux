@@ -11,3 +11,4 @@ obj-$(CONFIG_85xx)		+= 85xx/
 obj-$(CONFIG_PPC_PSERIES)	+= pseries/
 obj-$(CONFIG_PPC_ISERIES)	+= iseries/
 obj-$(CONFIG_PPC_MAPLE)		+= maple/
+obj-$(CONFIG_PPC_CELL)		+= cell/

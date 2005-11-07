@@ -976,11 +976,9 @@ w83781d_detect_subclients(struct i2c_adapter *adapter, int address, int kind,
 ERROR_SC_3:
 	i2c_detach_client(data->lm75[0]);
 ERROR_SC_2:
-	if (data->lm75[1])
-		kfree(data->lm75[1]);
+	kfree(data->lm75[1]);
 ERROR_SC_1:
-	if (data->lm75[0])
-		kfree(data->lm75[0]);
+	kfree(data->lm75[0]);
 ERROR_SC_0:
 	return err;
 }

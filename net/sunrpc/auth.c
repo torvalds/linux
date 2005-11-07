@@ -299,11 +299,10 @@ put_rpccred(struct rpc_cred *cred)
 void
 rpcauth_unbindcred(struct rpc_task *task)
 {
-	struct rpc_auth	*auth = task->tk_auth;
 	struct rpc_cred	*cred = task->tk_msg.rpc_cred;
 
 	dprintk("RPC: %4d releasing %s cred %p\n",
-		task->tk_pid, auth->au_ops->au_name, cred);
+		task->tk_pid, task->tk_auth->au_ops->au_name, cred);
 
 	put_rpccred(cred);
 	task->tk_msg.rpc_cred = NULL;
@@ -312,22 +311,22 @@ rpcauth_unbindcred(struct rpc_task *task)
 u32 *
 rpcauth_marshcred(struct rpc_task *task, u32 *p)
 {
-	struct rpc_auth	*auth = task->tk_auth;
 	struct rpc_cred	*cred = task->tk_msg.rpc_cred;
 
 	dprintk("RPC: %4d marshaling %s cred %p\n",
-		task->tk_pid, auth->au_ops->au_name, cred);
+		task->tk_pid, task->tk_auth->au_ops->au_name, cred);
+
 	return cred->cr_ops->crmarshal(task, p);
 }
 
 u32 *
 rpcauth_checkverf(struct rpc_task *task, u32 *p)
 {
-	struct rpc_auth	*auth = task->tk_auth;
 	struct rpc_cred	*cred = task->tk_msg.rpc_cred;
 
 	dprintk("RPC: %4d validating %s cred %p\n",
-		task->tk_pid, auth->au_ops->au_name, cred);
+		task->tk_pid, task->tk_auth->au_ops->au_name, cred);
+
 	return cred->cr_ops->crvalidate(task, p);
 }
 
@@ -363,12 +362,12 @@ rpcauth_unwrap_resp(struct rpc_task *task, kxdrproc_t decode, void *rqstp,
 int
 rpcauth_refreshcred(struct rpc_task *task)
 {
-	struct rpc_auth	*auth = task->tk_auth;
 	struct rpc_cred	*cred = task->tk_msg.rpc_cred;
 	int err;
 
 	dprintk("RPC: %4d refreshing %s cred %p\n",
-		task->tk_pid, auth->au_ops->au_name, cred);
+		task->tk_pid, task->tk_auth->au_ops->au_name, cred);
+
 	err = cred->cr_ops->crrefresh(task);
 	if (err < 0)
 		task->tk_status = err;

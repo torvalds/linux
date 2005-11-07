@@ -148,8 +148,7 @@ static int armflash_probe(struct device *_dev)
 			del_mtd_partitions(info->mtd);
 			map_destroy(info->mtd);
 		}
-		if (info->parts)
-			kfree(info->parts);
+		kfree(info->parts);
 
  no_device:
 		iounmap(base);
@@ -176,8 +175,7 @@ static int armflash_remove(struct device *_dev)
 			del_mtd_partitions(info->mtd);
 			map_destroy(info->mtd);
 		}
-		if (info->parts)
-			kfree(info->parts);
+		kfree(info->parts);
 
 		iounmap(info->map.virt);
 		release_resource(info->res);

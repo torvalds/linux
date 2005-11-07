@@ -53,7 +53,7 @@ static int __init proc_ppc64_create(void)
 	if (!root)
 		return 1;
 
-	if (!(systemcfg->platform & (PLATFORM_PSERIES | PLATFORM_BPA)))
+	if (!(systemcfg->platform & (PLATFORM_PSERIES | PLATFORM_CELL)))
 		return 0;
 
 	if (!proc_mkdir("rtas", root))

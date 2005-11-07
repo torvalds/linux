@@ -33,16 +33,6 @@ config IOMMU_DEBUG
 	 options. See Documentation/x86_64/boot-options.txt for more
 	 details.
 
-config KPROBES
-	bool "Kprobes"
-	depends on DEBUG_KERNEL
-	help
-	  Kprobes allows you to trap at almost any kernel address and
-	  execute a callback function.  register_kprobe() establishes
-	  a probepoint and specifies the callback.  Kprobes is useful
-	  for kernel debugging, non-intrusive instrumentation and testing.
-	  If in doubt, say "N".
-
 config IOMMU_LEAK
        bool "IOMMU leak tracing"
        depends on DEBUG_KERNEL
