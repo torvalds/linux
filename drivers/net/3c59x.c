@@ -1893,7 +1893,10 @@ vortex_timer(unsigned long data)
 		{
 			spin_lock_bh(&vp->lock);
 			mii_status = mdio_read(dev, vp->phys[0], MII_BMSR);
-			mii_status = mdio_read(dev, vp->phys[0], MII_BMSR);
+			if (!(mii_status & BMSR_LSTATUS)) {
+				/* Re-read to get actual link status */
+				mii_status = mdio_read(dev, vp->phys[0], MII_BMSR);
+			}
 			ok = 1;
 			if (vortex_debug > 2)
 				printk(KERN_DEBUG "%s: MII transceiver has status %4.4x.\n",
