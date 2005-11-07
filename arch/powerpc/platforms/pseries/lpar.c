@@ -38,6 +38,7 @@
 #include <asm/abs_addr.h>
 #include <asm/cputable.h>
 #include <asm/udbg.h>
+#include <asm/smp.h>
 
 #include "plpar_wrappers.h"
 

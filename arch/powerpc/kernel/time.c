@@ -61,6 +61,7 @@
 #include <asm/prom.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
+#include <asm/smp.h>
 #ifdef CONFIG_PPC64
 #include <asm/systemcfg.h>
 #include <asm/firmware.h>
@@ -117,10 +118,6 @@ static unsigned adjusting_time = 0;
 
 unsigned long ppc_proc_freq;
 unsigned long ppc_tb_freq;
-
-#ifdef CONFIG_PPC32	/* XXX for now */
-#define boot_cpuid	0
-#endif
 
 u64 tb_last_jiffy __cacheline_aligned_in_smp;
 unsigned long tb_last_stamp;

@@ -608,7 +608,6 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	return 0;
 }
 
-#ifdef CONFIG_SMP
 /* This version can't take the spinlock, because it never returns */
 
 struct rtas_args rtas_stop_self_args = {
@@ -633,7 +632,6 @@ void rtas_stop_self(void)
 
 	panic("Alas, I survived.\n");
 }
-#endif
 
 /*
  * Call early during boot, before mem init or bootmem, to retreive the RTAS

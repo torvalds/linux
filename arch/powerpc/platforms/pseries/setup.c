@@ -65,6 +65,7 @@
 #include <asm/ppc-pci.h>
 #include <asm/i8259.h>
 #include <asm/udbg.h>
+#include <asm/smp.h>
 
 #include "plpar_wrappers.h"
 

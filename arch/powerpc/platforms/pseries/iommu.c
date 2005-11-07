@@ -46,6 +46,7 @@
 #include <asm/firmware.h>
 #include <asm/tce.h>
 #include <asm/ppc-pci.h>
+#include <asm/udbg.h>
 
 #include "plpar_wrappers.h"
 
