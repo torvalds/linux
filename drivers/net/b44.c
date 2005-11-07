@@ -948,6 +948,7 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct b44 *bp = netdev_priv(dev);
 	struct sk_buff *bounce_skb;
+	int rc = NETDEV_TX_OK;
 	dma_addr_t mapping;
 	u32 len, entry, ctrl;
 
@@ -957,10 +958,9 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* This is a hard error, log it. */
 	if (unlikely(TX_BUFFS_AVAIL(bp) < 1)) {
 		netif_stop_queue(dev);
-		spin_unlock_irq(&bp->lock);
 		printk(KERN_ERR PFX "%s: BUG! Tx Ring full when queue awake!\n",
 		       dev->name);
-		return 1;
+		goto err_out;
 	}
 
 	mapping = pci_map_single(bp->pdev, skb->data, len, PCI_DMA_TODEVICE);
@@ -971,7 +971,7 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		bounce_skb = __dev_alloc_skb(TX_PKT_BUF_SZ,
 					     GFP_ATOMIC|GFP_DMA);
 		if (!bounce_skb)
-			return NETDEV_TX_BUSY;
+			goto err_out;
 
 		mapping = pci_map_single(bp->pdev, bounce_skb->data,
 					 len, PCI_DMA_TODEVICE);
@@ -979,7 +979,7 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			pci_unmap_single(bp->pdev, mapping,
 					 len, PCI_DMA_TODEVICE);
 			dev_kfree_skb_any(bounce_skb);
-			return NETDEV_TX_BUSY;
+			goto err_out;
 		}
 
 		memcpy(skb_put(bounce_skb, len), skb->data, skb->len);
@@ -1019,11 +1019,16 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (TX_BUFFS_AVAIL(bp) < 1)
 		netif_stop_queue(dev);
 
-	spin_unlock_irq(&bp->lock);
-
 	dev->trans_start = jiffies;
 
-	return 0;
+out_unlock:
+	spin_unlock_irq(&bp->lock);
+
+	return rc;
+
+err_out:
+	rc = NETDEV_TX_BUSY;
+	goto out_unlock;
 }
 
 static int b44_change_mtu(struct net_device *dev, int new_mtu)
