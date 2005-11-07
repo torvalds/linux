@@ -38,6 +38,9 @@ struct vfsmount {
 	struct list_head mnt_list;
 	struct list_head mnt_expire;	/* link in fs-specific expiry list */
 	struct list_head mnt_share;	/* circular list of shared mounts */
+	struct list_head mnt_slave_list;/* list of slave mounts */
+	struct list_head mnt_slave;	/* slave list entry */
+	struct vfsmount *mnt_master;	/* slave is on master->mnt_slave_list */
 	struct namespace *mnt_namespace; /* containing namespace */
 	int mnt_pinned;
 };

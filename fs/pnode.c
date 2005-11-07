@@ -17,13 +17,61 @@ static inline struct vfsmount *next_peer(struct vfsmount *p)
 	return list_entry(p->mnt_share.next, struct vfsmount, mnt_share);
 }
 
+static int do_make_slave(struct vfsmount *mnt)
+{
+	struct vfsmount *peer_mnt = mnt, *master = mnt->mnt_master;
+	struct vfsmount *slave_mnt;
+
+	/*
+	 * slave 'mnt' to a peer mount that has the
+	 * same root dentry. If none is available than
+	 * slave it to anything that is available.
+	 */
+	while ((peer_mnt = next_peer(peer_mnt)) != mnt &&
+	       peer_mnt->mnt_root != mnt->mnt_root) ;
+
+	if (peer_mnt == mnt) {
+		peer_mnt = next_peer(mnt);
+		if (peer_mnt == mnt)
+			peer_mnt = NULL;
+	}
+	list_del_init(&mnt->mnt_share);
+
+	if (peer_mnt)
+		master = peer_mnt;
+
+	if (master) {
+		list_for_each_entry(slave_mnt, &mnt->mnt_slave_list, mnt_slave)
+			slave_mnt->mnt_master = master;
+		list_del(&mnt->mnt_slave);
+		list_add(&mnt->mnt_slave, &master->mnt_slave_list);
+		list_splice(&mnt->mnt_slave_list, master->mnt_slave_list.prev);
+		INIT_LIST_HEAD(&mnt->mnt_slave_list);
+	} else {
+		struct list_head *p = &mnt->mnt_slave_list;
+		while (!list_empty(p)) {
+                        slave_mnt = list_entry(p->next,
+					struct vfsmount, mnt_slave);
+			list_del_init(&slave_mnt->mnt_slave);
+			slave_mnt->mnt_master = NULL;
+		}
+	}
+	mnt->mnt_master = master;
+	CLEAR_MNT_SHARED(mnt);
+	INIT_LIST_HEAD(&mnt->mnt_slave_list);
+	return 0;
+}
+
 void change_mnt_propagation(struct vfsmount *mnt, int type)
 {
 	if (type == MS_SHARED) {
 		set_mnt_shared(mnt);
-	} else {
-		list_del_init(&mnt->mnt_share);
-		mnt->mnt_flags &= ~MNT_PNODE_MASK;
+		return;
+	}
+	do_make_slave(mnt);
+	if (type != MS_SLAVE) {
+		list_del_init(&mnt->mnt_slave);
+		mnt->mnt_master = NULL;
 	}
 }
 
