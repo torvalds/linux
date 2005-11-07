@@ -163,20 +163,12 @@ config MTD_SBC_GXX
 	  More info at
 	  <http://www.arcomcontrols.com/products/icp/pc104/processors/SBC_GX1.htm>.
 
-config MTD_LUBBOCK
-	tristate "CFI Flash device mapped on Intel Lubbock XScale eval board"
-	depends on ARCH_LUBBOCK && MTD_CFI_INTELEXT && MTD_PARTITIONS
-	help
-	  This provides a driver for the on-board flash of the Intel
-	  'Lubbock' XScale evaluation board.
-
-config MTD_MAINSTONE
-	tristate "CFI Flash device mapped on Intel Mainstone XScale eval board"
-	depends on MACH_MAINSTONE && MTD_CFI_INTELEXT
+config MTD_PXA2XX
+	tristate "CFI Flash device mapped on Intel XScale PXA2xx based boards"
+	depends on (PXA25x || PXA27x) && MTD_CFI_INTELEXT
 	select MTD_PARTITIONS
 	help
-	  This provides a driver for the on-board flash of the Intel
-	  'Mainstone PXA27x evaluation board.
+	  This provides a driver for the NOR flash attached to a PXA2xx chip.
 
 config MTD_OCTAGON
 	tristate "JEDEC Flash device mapped on Octagon 5066 SBC"
