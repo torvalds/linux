@@ -62,8 +62,7 @@ qeth_eddp_free_context(struct qeth_eddp_context *ctx)
 	for (i = 0; i < ctx->num_pages; ++i)
 		free_page((unsigned long)ctx->pages[i]);
 	kfree(ctx->pages);
-	if (ctx->elements != NULL)
-		kfree(ctx->elements);
+	kfree(ctx->elements);
 	kfree(ctx);
 }
 

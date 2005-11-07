@@ -1338,16 +1338,14 @@ qdio_release_irq_memory(struct qdio_irq *irq_ptr)
 		if (!irq_ptr->input_qs[i])
 			goto next;
 
-		if (irq_ptr->input_qs[i]->slib)
-			kfree(irq_ptr->input_qs[i]->slib);
+		kfree(irq_ptr->input_qs[i]->slib);
 		kfree(irq_ptr->input_qs[i]);
 
 next:
 		if (!irq_ptr->output_qs[i])
 			continue;
 
-		if (irq_ptr->output_qs[i]->slib)
-			kfree(irq_ptr->output_qs[i]->slib);
+		kfree(irq_ptr->output_qs[i]->slib);
 		kfree(irq_ptr->output_qs[i]);
 
 	}
@@ -3315,8 +3313,7 @@ qdio_get_qdio_memory(void)
 static void
 qdio_release_qdio_memory(void)
 {
-	if (indicators)
-		kfree(indicators);
+	kfree(indicators);
 }
 
 static void

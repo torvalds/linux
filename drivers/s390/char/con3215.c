@@ -727,8 +727,7 @@ raw3215_remove (struct ccw_device *cdev)
 	raw = cdev->dev.driver_data;
 	if (raw) {
 		cdev->dev.driver_data = NULL;
-		if (raw->buffer)
-			kfree(raw->buffer);
+		kfree(raw->buffer);
 		kfree(raw);
 	}
 }
