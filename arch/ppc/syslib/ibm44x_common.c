@@ -214,9 +214,20 @@ void __init ibm44x_platform_init(unsigned long r3, unsigned long r4, unsigned lo
 /* Called from machine_check_exception */
 void platform_machine_check(struct pt_regs *regs)
 {
+#ifdef CONFIG_440SP
+	printk("PLB0: BEAR=0x%08x%08x ACR=  0x%08x BESR= 0x%08x%08x\n",
+	       mfdcr(DCRN_PLB0_BEARH), mfdcr(DCRN_PLB0_BEARL),
+	       mfdcr(DCRN_PLB0_ACR), mfdcr(DCRN_PLB0_BESRH),
+	       mfdcr(DCRN_PLB0_BESRL));
+	printk("PLB1: BEAR=0x%08x%08x ACR=  0x%08x BESR= 0x%08x%08x\n",
+	       mfdcr(DCRN_PLB1_BEARH), mfdcr(DCRN_PLB1_BEARL),
+	       mfdcr(DCRN_PLB1_ACR), mfdcr(DCRN_PLB1_BESRH),
+	       mfdcr(DCRN_PLB1_BESRL));
+#else
     	printk("PLB0: BEAR=0x%08x%08x ACR=  0x%08x BESR= 0x%08x\n",
 		mfdcr(DCRN_PLB0_BEARH), mfdcr(DCRN_PLB0_BEARL),
 		mfdcr(DCRN_PLB0_ACR),  mfdcr(DCRN_PLB0_BESR));
+#endif
 	printk("POB0: BEAR=0x%08x%08x BESR0=0x%08x BESR1=0x%08x\n",
 		mfdcr(DCRN_POB0_BEARH), mfdcr(DCRN_POB0_BEARL),
 		mfdcr(DCRN_POB0_BESR0), mfdcr(DCRN_POB0_BESR1));

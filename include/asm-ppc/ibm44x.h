@@ -302,6 +302,23 @@
 #define MALOBISR_CH0		0x80000000	/* EOB channel 1 bit */
 #define MALOBISR_CH2		0x40000000	/* EOB channel 2 bit */
 
+#if defined(CONFIG_440SP)
+/* 440SP PLB Arbiter DCRs */
+#define DCRN_PLB_REVID	       0x080		/* PLB Revision ID */
+#define DCRN_PLB_CCR	       0x088		/* PLB Crossbar Control */
+
+#define DCRN_PLB0_ACR	       0x081		/* PLB Arbiter Control */
+#define DCRN_PLB0_BESRL	       0x082		/* PLB Error Status */
+#define DCRN_PLB0_BESRH	       0x083		/* PLB Error Status */
+#define DCRN_PLB0_BEARL	       0x084		/* PLB Error Address Low */
+#define DCRN_PLB0_BEARH	       0x085		/* PLB Error Address High */
+
+#define DCRN_PLB1_ACR		0x089		/* PLB Arbiter Control */
+#define DCRN_PLB1_BESRL		0x08a		/* PLB Error Status */
+#define DCRN_PLB1_BESRH		0x08b		/* PLB Error Status */
+#define DCRN_PLB1_BEARL		0x08c		/* PLB Error Address Low */
+#define DCRN_PLB1_BEARH		0x08d		/* PLB Error Address High */
+#else
 /* 440GP/GX PLB Arbiter DCRs */
 #define DCRN_PLB0_REVID		0x082		/* PLB Arbiter Revision ID */
 #define DCRN_PLB0_ACR		0x083		/* PLB Arbiter Control */
@@ -309,6 +326,7 @@
 #define DCRN_PLB0_BEARL		0x086		/* PLB Error Address Low */
 #define DCRN_PLB0_BEAR		DCRN_PLB0_BEARL	/* 40x compatibility */
 #define DCRN_PLB0_BEARH		0x087		/* PLB Error Address High */
+#endif
 
 /* 440GP/GX PLB to OPB bridge DCRs */
 #define DCRN_POB0_BESR0		0x090
