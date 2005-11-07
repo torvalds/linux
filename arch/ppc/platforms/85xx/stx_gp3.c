@@ -37,6 +37,7 @@
 #include <linux/module.h>
 #include <linux/fsl_devices.h>
 #include <linux/interrupt.h>
+#include <linux/rio.h>
 
 #include <asm/system.h>
 #include <asm/pgtable.h>
@@ -57,6 +58,7 @@
 
 #include <syslib/cpm2_pic.h>
 #include <syslib/ppc85xx_common.h>
+#include <syslib/ppc85xx_rio.h>
 
 
 unsigned char __res[sizeof(bd_t)];
@@ -272,6 +274,18 @@ int mpc85xx_exclude_device(u_char bus, u_char devfn)
 		return PCIBIOS_SUCCESSFUL;
 }
 #endif /* CONFIG_PCI */
+
+#ifdef CONFIG_RAPIDIO
+void
+platform_rio_init(void)
+{
+	/*
+	 * The STx firmware configures the RapidIO Local Access Window
+	 * at 0xc0000000 with a size of 512MB.
+	 */
+	mpc85xx_rio_setup(0xc0000000, 0x20000000);
+}
+#endif /* CONFIG_RAPIDIO */
 
 void __init
 platform_init(unsigned long r3, unsigned long r4, unsigned long r5,

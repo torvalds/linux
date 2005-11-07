@@ -33,6 +33,7 @@ obj-$(CONFIG_PPC4xx_DMA)	+= ppc4xx_dma.o
 obj-$(CONFIG_PPC4xx_EDMA)	+= ppc4xx_sgdma.o
 ifeq ($(CONFIG_40x),y)
 obj-$(CONFIG_PCI)		+= pci_auto.o ppc405_pci.o
+obj-$(CONFIG_RAPIDIO)		+= ppc85xx_rio.o
 endif
 endif
 obj-$(CONFIG_8xx)		+= m8xx_setup.o ppc8xx_pic.o $(wdt-mpc8xx-y) \
