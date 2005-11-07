@@ -1,5 +1,5 @@
 # drivers/mtd/nand/Kconfig
-# $Id: Kconfig,v 1.34 2005/09/23 01:44:55 ppopov Exp $
+# $Id: Kconfig,v 1.35 2005/11/07 11:14:30 gleixner Exp $
 
 menu "NAND Flash Device Drivers"
 	depends on MTD!=n
@@ -27,14 +27,14 @@ config MTD_NAND_AUTCPU12
 	tristate "SmartMediaCard on autronix autcpu12 board"
 	depends on MTD_NAND && ARCH_AUTCPU12
 	help
-	  This enables the driver for the autronix autcpu12 board to 
+	  This enables the driver for the autronix autcpu12 board to
 	  access the SmartMediaCard.
 
 config MTD_NAND_EDB7312
 	tristate "Support for Cirrus Logic EBD7312 evaluation board"
 	depends on MTD_NAND && ARCH_EDB7312
 	help
-	  This enables the driver for the Cirrus Logic EBD7312 evaluation 
+	  This enables the driver for the Cirrus Logic EBD7312 evaluation
 	  board to access the onboard NAND Flash.
 
 config MTD_NAND_H1900
@@ -71,7 +71,7 @@ config MTD_NAND_RTC_FROM4
 	select REED_SOLOMON
 	select REED_SOLOMON_DEC8
 	help
-	  This enables the driver for the Renesas Technology AG-AND 
+	  This enables the driver for the Renesas Technology AG-AND
 	  flash interface board (FROM_BOARD4)
 
 config MTD_NAND_PPCHAMELEONEVB
@@ -88,7 +88,7 @@ config MTD_NAND_S3C2410
 	  SoCs
 
 	  No board specfic support is done by this driver, each board
-	  must advertise a platform_device for the driver to attach. 
+	  must advertise a platform_device for the driver to attach.
 
 config MTD_NAND_S3C2410_DEBUG
 	bool "S3C2410 NAND driver debug"

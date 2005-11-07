@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2004 Richard Purdie
  *
- *  $Id: sharpsl.c,v 1.6 2005/11/03 11:36:42 rpurdie Exp $
+ *  $Id: sharpsl.c,v 1.7 2005/11/07 11:14:31 gleixner Exp $
  *
  *  Based on Sharp's NAND driver sharp_sl.c
  *
@@ -76,14 +76,14 @@ static struct mtd_partition sharpsl_nand_default_partition_info[] = {
 	},
 };
 
-/* 
+/*
  *	hardware specific access to control-lines
  */
 static void
 sharpsl_nand_hwcontrol(struct mtd_info* mtd, int cmd)
 {
 	switch (cmd) {
-	case NAND_CTL_SETCLE: 
+	case NAND_CTL_SETCLE:
 		writeb(readb(FLASHCTL) | FLCLE, FLASHCTL);
 		break;
 	case NAND_CTL_CLRCLE:
@@ -97,10 +97,10 @@ sharpsl_nand_hwcontrol(struct mtd_info* mtd, int cmd)
 		writeb(readb(FLASHCTL) & ~FLALE, FLASHCTL);
 		break;
 
-	case NAND_CTL_SETNCE: 
+	case NAND_CTL_SETNCE:
 		writeb(readb(FLASHCTL) & ~(FLCE0|FLCE1), FLASHCTL);
 		break;
-	case NAND_CTL_CLRNCE: 
+	case NAND_CTL_CLRNCE:
 		writeb(readb(FLASHCTL) | (FLCE0|FLCE1), FLASHCTL);
 		break;
 	}
@@ -126,8 +126,8 @@ static struct nand_oobinfo akita_oobinfo = {
 	.useecc = MTD_NANDECC_AUTOPLACE,
 	.eccbytes = 24,
 	.eccpos = {
-		0x5,  0x1,  0x2,  0x3,  0x6,  0x7,  0x15, 0x11, 
-		0x12, 0x13, 0x16, 0x17, 0x25, 0x21, 0x22, 0x23, 
+		0x5,  0x1,  0x2,  0x3,  0x6,  0x7,  0x15, 0x11,
+		0x12, 0x13, 0x16, 0x17, 0x25, 0x21, 0x22, 0x23,
 		0x26, 0x27, 0x35, 0x31, 0x32, 0x33, 0x36, 0x37},
 	.oobfree = { {0x08, 0x09} }
 };
@@ -177,7 +177,7 @@ sharpsl_nand_init(void)
 		printk ("Unable to allocate SharpSL NAND MTD device structure.\n");
 		return -ENOMEM;
 	}
-	
+
 	/* map physical adress */
 	sharpsl_io_base = ioremap(sharpsl_phys_base, 0x1000);
 	if(!sharpsl_io_base){
@@ -185,7 +185,7 @@ sharpsl_nand_init(void)
 		kfree(sharpsl_mtd);
 		return -EIO;
 	}
-	
+
 	/* Get pointer to private data */
 	this = (struct nand_chip *) (&sharpsl_mtd[1]);
 
@@ -211,7 +211,7 @@ sharpsl_nand_init(void)
 	this->chip_delay = 15;
 	/* set eccmode using hardware ECC */
 	this->eccmode = NAND_ECC_HW3_256;
-	this->badblock_pattern = &sharpsl_bbt;	
+	this->badblock_pattern = &sharpsl_bbt;
 	if (machine_is_akita() || machine_is_borzoi()) {
 		this->badblock_pattern = &sharpsl_akita_bbt;
 		this->autooob = &akita_oobinfo;
@@ -232,7 +232,7 @@ sharpsl_nand_init(void)
 	sharpsl_mtd->name = "sharpsl-nand";
 	nr_partitions = parse_mtd_partitions(sharpsl_mtd, part_probes,
 						&sharpsl_partition_info, 0);
-						 
+
 	if (nr_partitions <= 0) {
 		nr_partitions = DEFAULT_NUM_PARTITIONS;
 		sharpsl_partition_info = sharpsl_nand_default_partition_info;
