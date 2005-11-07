@@ -104,9 +104,23 @@ static ssize_t nfsctl_transaction_write(struct file *file, const char __user *bu
 	return rv;
 }
 
+static ssize_t nfsctl_transaction_read(struct file *file, char __user *buf, size_t size, loff_t *pos)
+{
+	if (! file->private_data) {
+		/* An attempt to read a transaction file without writing
+		 * causes a 0-byte write so that the file can return
+		 * state information
+		 */
+		ssize_t rv = nfsctl_transaction_write(file, buf, 0, pos);
+		if (rv < 0)
+			return rv;
+	}
+	return simple_transaction_read(file, buf, size, pos);
+}
+
 static struct file_operations transaction_ops = {
 	.write		= nfsctl_transaction_write,
-	.read		= simple_transaction_read,
+	.read		= nfsctl_transaction_read,
 	.release	= simple_transaction_release,
 };
 
