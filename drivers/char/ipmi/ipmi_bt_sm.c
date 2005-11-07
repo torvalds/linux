@@ -333,8 +333,7 @@ static void error_recovery(struct si_sm_data *bt, char *reason)
 		bt->state = BT_STATE_HOSED;
 		if (!bt->nonzero_status)
 			printk(KERN_ERR "IPMI: BT stuck, try power cycle\n");
-		else if (bt->seq == FIRST_SEQ + BT_RETRY_LIMIT) {
-			/* most likely during insmod */
+		else if (bt->error_retries <= BT_RETRY_LIMIT + 1) {
 			printk(KERN_DEBUG "IPMI: BT reset (takes 5 secs)\n");
         		bt->state = BT_STATE_RESET1;
 		}
@@ -475,6 +474,7 @@ static enum si_sm_result bt_event(struct si_sm_data *bt, long time)
 		break;
 
 	case BT_STATE_RESTART:		/* don't reset retries! */
+		reset_flags(bt);
 		bt->write_data[2] = ++bt->seq;
 		bt->read_count = 0;
 		bt->nonzero_status = 0;
