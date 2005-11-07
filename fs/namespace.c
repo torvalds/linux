@@ -24,6 +24,7 @@
 #include <linux/mount.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
+#include "pnode.h"
 
 extern int __init init_rootfs(void);
 
@@ -663,6 +664,27 @@ out_unlock:
 }
 
 /*
+ * recursively change the type of the mountpoint.
+ */
+static int do_change_type(struct nameidata *nd, int flag)
+{
+	struct vfsmount *m, *mnt = nd->mnt;
+	int recurse = flag & MS_REC;
+	int type = flag & ~MS_REC;
+
+	if (nd->dentry != nd->mnt->mnt_root)
+		return -EINVAL;
+
+	down_write(&namespace_sem);
+	spin_lock(&vfsmount_lock);
+	for (m = mnt; m; m = (recurse ? next_mnt(m, mnt) : NULL))
+		change_mnt_propagation(m, type);
+	spin_unlock(&vfsmount_lock);
+	up_write(&namespace_sem);
+	return 0;
+}
+
+/*
  * do loopback mount.
  */
 static int do_loopback(struct nameidata *nd, char *old_name, int recurse)
@@ -1091,6 +1113,8 @@ long do_mount(char *dev_name, char *dir_name, char *type_page,
 				    data_page);
 	else if (flags & MS_BIND)
 		retval = do_loopback(&nd, dev_name, flags & MS_REC);
+	else if (flags & MS_PRIVATE)
+		retval = do_change_type(&nd, flags);
 	else if (flags & MS_MOVE)
 		retval = do_move_mount(&nd, dev_name);
 	else
