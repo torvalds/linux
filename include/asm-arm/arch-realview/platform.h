@@ -207,6 +207,7 @@
 #define REALVIEW_GIC_CPU_BASE         0x10040000	/* Generic interrupt controller CPU interface */
 #define REALVIEW_GIC_DIST_BASE        0x10041000	/* Generic interrupt controller distributor */
 #else
+#define REALVIEW_MPCORE_SCU_BASE	0x10100000	/*  SCU registers */
 #define REALVIEW_GIC_CPU_BASE		0x10100100	/* Generic interrupt controller CPU interface */
 #define REALVIEW_GIC_DIST_BASE		0x10101000	/* Generic interrupt controller distributor */
 #endif
