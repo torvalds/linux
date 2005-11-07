@@ -386,7 +386,7 @@ void kernel_restart_prepare(char *cmd)
 /**
  *	kernel_restart - reboot the system
  *	@cmd: pointer to buffer containing command to execute for restart
- *		or NULL
+ *		or %NULL
  *
  *	Shutdown everything and perform a clean reboot.
  *	This is not safe to call in interrupt context.
