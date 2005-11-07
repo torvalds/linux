@@ -148,7 +148,14 @@ static inline int kprobe_handler(struct pt_regs *regs)
 	struct kprobe *p;
 	int ret = 0;
 	unsigned int *addr = (unsigned int *)regs->nip;
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+	struct kprobe_ctlblk *kcb;
+
+	/*
+	 * We don't want to be preempted for the entire
+	 * duration of kprobe processing
+	 */
+	preempt_disable();
+	kcb = get_kprobe_ctlblk();
 
 	/* Check we're not actually recursing */
 	if (kprobe_running()) {
@@ -207,11 +214,6 @@ static inline int kprobe_handler(struct pt_regs *regs)
 		goto no_kprobe;
 	}
 
-	/*
-	 * This preempt_disable() matches the preempt_enable_no_resched()
-	 * in post_kprobe_handler().
-	 */
-	preempt_disable();
 	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 	set_current_kprobe(p, regs, kcb);
 	if (p->pre_handler && p->pre_handler(p, regs))
@@ -224,6 +226,7 @@ ss_probe:
 	return 1;
 
 no_kprobe:
+	preempt_enable_no_resched();
 	return ret;
 }
 
@@ -296,8 +299,8 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 
         /*
          * By returning a non-zero value, we are telling
-         * kprobe_handler() that we have handled unlocking
-         * and re-enabling preemption.
+         * kprobe_handler() that we don't want the post_handler
+         * to run (and have re-enabled preemption)
          */
         return 1;
 }
@@ -385,7 +388,6 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	struct die_args *args = (struct die_args *)data;
 	int ret = NOTIFY_DONE;
 
-	rcu_read_lock();
 	switch (val) {
 	case DIE_BPT:
 		if (kprobe_handler(args->regs))
@@ -396,14 +398,16 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 			ret = NOTIFY_STOP;
 		break;
 	case DIE_PAGE_FAULT:
+		/* kprobe_running() needs smp_processor_id() */
+		preempt_disable();
 		if (kprobe_running() &&
 		    kprobe_fault_handler(args->regs, args->trapnr))
 			ret = NOTIFY_STOP;
+		preempt_enable();
 		break;
 	default:
 		break;
 	}
-	rcu_read_unlock();
 	return ret;
 }
 
@@ -440,6 +444,7 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	 * saved regs...
 	 */
 	memcpy(regs, &kcb->jprobe_saved_regs, sizeof(struct pt_regs));
+	preempt_enable_no_resched();
 	return 1;
 }
 

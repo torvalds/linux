@@ -153,7 +153,14 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	int ret = 0;
 	kprobe_opcode_t *addr = NULL;
 	unsigned long *lp;
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+	struct kprobe_ctlblk *kcb;
+
+	/*
+	 * We don't want to be preempted for the entire
+	 * duration of kprobe processing
+	 */
+	preempt_disable();
+	kcb = get_kprobe_ctlblk();
 
 	/* Check if the application is using LDT entry for its code segment and
 	 * calculate the address by reading the base address from the LDT entry.
@@ -221,11 +228,6 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		goto no_kprobe;
 	}
 
-	/*
-	 * This preempt_disable() matches the preempt_enable_no_resched()
-	 * in post_kprobe_handler()
-	 */
-	preempt_disable();
 	set_current_kprobe(p, regs, kcb);
 	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
@@ -239,6 +241,7 @@ ss_probe:
 	return 1;
 
 no_kprobe:
+	preempt_enable_no_resched();
 	return ret;
 }
 
@@ -310,8 +313,8 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 
 	/*
 	 * By returning a non-zero value, we are telling
-	 * kprobe_handler() that we have handled unlocking
-	 * and re-enabling preemption
+	 * kprobe_handler() that we don't want the post_handler
+	 * to run (and have re-enabled preemption)
 	 */
         return 1;
 }
@@ -455,7 +458,6 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	struct die_args *args = (struct die_args *)data;
 	int ret = NOTIFY_DONE;
 
-	rcu_read_lock();
 	switch (val) {
 	case DIE_INT3:
 		if (kprobe_handler(args->regs))
@@ -467,14 +469,16 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 		break;
 	case DIE_GPF:
 	case DIE_PAGE_FAULT:
+		/* kprobe_running() needs smp_processor_id() */
+		preempt_disable();
 		if (kprobe_running() &&
 		    kprobe_fault_handler(args->regs, args->trapnr))
 			ret = NOTIFY_STOP;
+		preempt_enable();
 		break;
 	default:
 		break;
 	}
-	rcu_read_unlock();
 	return ret;
 }
 
@@ -537,6 +541,7 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 		*regs = kcb->jprobe_saved_regs;
 		memcpy((kprobe_opcode_t *) stack_addr, kcb->jprobes_stack,
 		       MIN_STACK_SIZE(stack_addr));
+		preempt_enable_no_resched();
 		return 1;
 	}
 	return 0;

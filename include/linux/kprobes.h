@@ -159,7 +159,7 @@ extern void show_registers(struct pt_regs *regs);
 extern kprobe_opcode_t *get_insn_slot(void);
 extern void free_insn_slot(kprobe_opcode_t *slot);
 
-/* Get the kprobe at this addr (if any) - called under a rcu_read_lock() */
+/* Get the kprobe at this addr (if any) - called with preemption disabled */
 struct kprobe *get_kprobe(void *addr);
 struct hlist_head * kretprobe_inst_table_head(struct task_struct *tsk);
 

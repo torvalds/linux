@@ -167,7 +167,7 @@ static inline void reset_kprobe_instance(void)
  * This routine is called either:
  * 	- under the kprobe_lock spinlock - during kprobe_[un]register()
  * 				OR
- * 	- under an rcu_read_lock() - from arch/xxx/kernel/kprobes.c
+ * 	- with preemption disabled - from arch/xxx/kernel/kprobes.c
  */
 struct kprobe __kprobes *get_kprobe(void *addr)
 {

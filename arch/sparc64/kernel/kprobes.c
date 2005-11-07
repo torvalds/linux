@@ -113,7 +113,14 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	struct kprobe *p;
 	void *addr = (void *) regs->tpc;
 	int ret = 0;
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+	struct kprobe_ctlblk *kcb;
+
+	/*
+	 * We don't want to be preempted for the entire
+	 * duration of kprobe processing
+	 */
+	preempt_disable();
+	kcb = get_kprobe_ctlblk();
 
 	if (kprobe_running()) {
 		p = get_kprobe(addr);
@@ -159,11 +166,6 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		goto no_kprobe;
 	}
 
-	/*
-	 * This preempt_disable() matches the preempt_enable_no_resched()
-	 * in post_kprobes_handler()
-	 */
-	preempt_disable();
 	set_current_kprobe(p, regs, kcb);
 	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 	if (p->pre_handler && p->pre_handler(p, regs))
@@ -175,6 +177,7 @@ ss_probe:
 	return 1;
 
 no_kprobe:
+	preempt_enable_no_resched();
 	return ret;
 }
 
@@ -321,7 +324,6 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	struct die_args *args = (struct die_args *)data;
 	int ret = NOTIFY_DONE;
 
-	rcu_read_lock();
 	switch (val) {
 	case DIE_DEBUG:
 		if (kprobe_handler(args->regs))
@@ -333,14 +335,16 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 		break;
 	case DIE_GPF:
 	case DIE_PAGE_FAULT:
+		/* kprobe_running() needs smp_processor_id() */
+		preempt_disable();
 		if (kprobe_running() &&
 		    kprobe_fault_handler(args->regs, args->trapnr))
 			ret = NOTIFY_STOP;
+		preempt_enable();
 		break;
 	default:
 		break;
 	}
-	rcu_read_unlock();
 	return ret;
 }
 
@@ -426,6 +430,7 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 		       &(kcb->jprobe_saved_stack),
 		       sizeof(kcb->jprobe_saved_stack));
 
+		preempt_enable_no_resched();
 		return 1;
 	}
 	return 0;

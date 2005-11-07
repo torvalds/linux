@@ -389,11 +389,11 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	spin_unlock_irqrestore(&kretprobe_lock, flags);
 	preempt_enable_no_resched();
 
-        /*
-         * By returning a non-zero value, we are telling
-         * kprobe_handler() that we have handled unlocking
-	 * and re-enabling preemption
-         */
+	/*
+	 * By returning a non-zero value, we are telling
+	 * kprobe_handler() that we don't want the post_handler
+	 * to run (and have re-enabled preemption)
+	 */
         return 1;
 }
 
@@ -604,7 +604,14 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 	int ret = 0;
 	struct pt_regs *regs = args->regs;
 	kprobe_opcode_t *addr = (kprobe_opcode_t *)instruction_pointer(regs);
-	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+	struct kprobe_ctlblk *kcb;
+
+	/*
+	 * We don't want to be preempted for the entire
+	 * duration of kprobe processing
+	 */
+	preempt_disable();
+	kcb = get_kprobe_ctlblk();
 
 	/* Handle recursion cases */
 	if (kprobe_running()) {
@@ -659,11 +666,6 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 		goto no_kprobe;
 	}
 
-	/*
-	 * This preempt_disable() matches the preempt_enable_no_resched()
-	 * in post_kprobes_handler()
-	 */
-	preempt_disable();
 	set_current_kprobe(p, kcb);
 	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 
@@ -681,6 +683,7 @@ ss_probe:
 	return 1;
 
 no_kprobe:
+	preempt_enable_no_resched();
 	return ret;
 }
 
@@ -716,9 +719,6 @@ static int __kprobes kprobes_fault_handler(struct pt_regs *regs, int trapnr)
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
-	if (!cur)
-		return 0;
-
 	if (cur->fault_handler && cur->fault_handler(cur, regs, trapnr))
 		return 1;
 
@@ -737,7 +737,6 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	struct die_args *args = (struct die_args *)data;
 	int ret = NOTIFY_DONE;
 
-	rcu_read_lock();
 	switch(val) {
 	case DIE_BREAK:
 		if (pre_kprobes_handler(args))
@@ -748,12 +747,15 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 			ret = NOTIFY_STOP;
 		break;
 	case DIE_PAGE_FAULT:
-		if (kprobes_fault_handler(args->regs, args->trapnr))
+		/* kprobe_running() needs smp_processor_id() */
+		preempt_disable();
+		if (kprobe_running() &&
+			kprobes_fault_handler(args->regs, args->trapnr))
 			ret = NOTIFY_STOP;
+		preempt_enable();
 	default:
 		break;
 	}
-	rcu_read_unlock();
 	return ret;
 }
 
@@ -785,6 +787,7 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
 	*regs = kcb->jprobe_saved_regs;
+	preempt_enable_no_resched();
 	return 1;
 }
 
