@@ -1721,8 +1721,7 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 		 */
 		timeout = jiffies + HZ;
 		while (!(info->lsr & UART_LSR_TEMT)) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(20);
+			schedule_timeout_interruptible(20);
 			if (time_after(jiffies,timeout))
 				break;
 		}
