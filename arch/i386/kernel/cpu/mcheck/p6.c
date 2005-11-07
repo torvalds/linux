@@ -79,7 +79,7 @@ static fastcall void intel_machine_check(struct pt_regs * regs, long error_code)
 }
 
 /* Set up machine check reporting for processors with Intel style MCE */
-void __devinit intel_p6_mcheck_init(struct cpuinfo_x86 *c)
+void intel_p6_mcheck_init(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
 	int i;
