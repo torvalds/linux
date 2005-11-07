@@ -69,7 +69,6 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 #include <linux/device.h>
-#include <linux/i2c.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
