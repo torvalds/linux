@@ -313,6 +313,11 @@ svc_process(struct svc_serv *serv, struct svc_rqst *rqstp)
 	rqstp->rq_proc = proc = ntohl(svc_getu32(argv));	/* procedure number */
 
 	progp = serv->sv_program;
+
+	for (progp = serv->sv_program; progp; progp = progp->pg_next)
+		if (prog == progp->pg_prog)
+			break;
+
 	/*
 	 * Decode auth data, and add verifier to reply buffer.
 	 * We do this before anything else in order to get a decent
@@ -320,7 +325,7 @@ svc_process(struct svc_serv *serv, struct svc_rqst *rqstp)
 	 */
 	auth_res = svc_authenticate(rqstp, &auth_stat);
 	/* Also give the program a chance to reject this call: */
-	if (auth_res == SVC_OK) {
+	if (auth_res == SVC_OK && progp) {
 		auth_stat = rpc_autherr_badcred;
 		auth_res = progp->pg_authenticate(rqstp);
 	}
@@ -340,10 +345,7 @@ svc_process(struct svc_serv *serv, struct svc_rqst *rqstp)
 	case SVC_COMPLETE:
 		goto sendit;
 	}
-		
-	for (progp = serv->sv_program; progp; progp = progp->pg_next)
-		if (prog == progp->pg_prog)
-			break;
+
 	if (progp == NULL)
 		goto err_bad_prog;
 

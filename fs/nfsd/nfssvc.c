@@ -427,6 +427,7 @@ static struct svc_program	nfsd_acl_program = {
 	.pg_name		= "nfsd",
 	.pg_class		= "nfsd",
 	.pg_stats		= &nfsd_acl_svcstats,
+	.pg_authenticate	= &svc_set_client,
 };
 
 static struct svc_stat	nfsd_acl_svcstats = {
