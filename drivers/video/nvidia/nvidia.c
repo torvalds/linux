@@ -411,6 +411,7 @@ MODULE_DEVICE_TABLE(pci, nvidiafb_pci_tbl);
 
 /* command line data, set in nvidiafb_setup() */
 static int flatpanel __devinitdata = -1;	/* Autodetect later */
+static int fpdither __devinitdata = -1;
 static int forceCRTC __devinitdata = -1;
 static int hwcur __devinitdata = 0;
 static int noaccel __devinitdata = 0;
@@ -1026,9 +1027,18 @@ static int nvidiafb_set_par(struct fb_info *info)
 	NVTRACE_ENTER();
 
 	NVLockUnlock(par, 1);
-	if (!par->FlatPanel || (info->var.bits_per_pixel != 24) ||
-	    !par->twoHeads)
+	if (!par->FlatPanel || !par->twoHeads)
 		par->FPDither = 0;
+
+	if (par->FPDither < 0) {
+		if ((par->Chipset & 0x0ff0) == 0x0110)
+			par->FPDither = !!(NV_RD32(par->PRAMDAC, 0x0528)
+					   & 0x00010000);
+		else
+			par->FPDither = !!(NV_RD32(par->PRAMDAC, 0x083C) & 1);
+		printk(KERN_INFO PFX "Flat panel dithering %s\n",
+		       par->FPDither ? "enabled" : "disabled");
+	}
 
 	info->fix.visual = (info->var.bits_per_pixel == 8) ?
 	    FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_DIRECTCOLOR;
@@ -1548,9 +1558,9 @@ static int __devinit nvidiafb_probe(struct pci_dev *pd,
 	sprintf(nvidiafb_fix.id, "NV%x", (pd->device & 0x0ff0) >> 4);
 
 	par->FlatPanel = flatpanel;
-
 	if (flatpanel == 1)
 		printk(KERN_INFO PFX "flatpanel support enabled\n");
+	par->FPDither = fpdither;
 
 	par->CRTCnumber = forceCRTC;
 	par->FpScale = (!noscale);
@@ -1729,6 +1739,8 @@ static int __devinit nvidiafb_setup(char *options)
 		} else if (!strncmp(this_opt, "nomtrr", 6)) {
 			nomtrr = 1;
 #endif
+		} else if (!strncmp(this_opt, "fpdither:", 9)) {
+			fpdither = simple_strtol(this_opt+9, NULL, 0);
 		} else
 			mode_option = this_opt;
 	}
@@ -1775,7 +1787,11 @@ module_exit(nvidiafb_exit);
 module_param(flatpanel, int, 0);
 MODULE_PARM_DESC(flatpanel,
 		 "Enables experimental flat panel support for some chipsets. "
-		 "(0 or 1=enabled) (default=0)");
+		 "(0=disabled, 1=enabled, -1=autodetect) (default=-1)");
+module_param(fpdither, int, 0);
+MODULE_PARM_DESC(fpdither,
+		 "Enables dithering of flat panel for 6 bits panels. "
+		 "(0=disabled, 1=enabled, -1=autodetect) (default=-1)");
 module_param(hwcur, int, 0);
 MODULE_PARM_DESC(hwcur,
 		 "Enables hardware cursor implementation. (0 or 1=enabled) "
