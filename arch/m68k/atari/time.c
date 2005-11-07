@@ -212,10 +212,8 @@ int atari_tt_hwclk( int op, struct rtc_time *t )
      * additionally the RTC_SET bit is set to prevent an update cycle.
      */
 
-    while( RTC_READ(RTC_FREQ_SELECT) & RTC_UIP ) {
-        current->state = TASK_INTERRUPTIBLE;
-        schedule_timeout(HWCLK_POLL_INTERVAL);
-    }
+    while( RTC_READ(RTC_FREQ_SELECT) & RTC_UIP )
+        schedule_timeout_interruptible(HWCLK_POLL_INTERVAL);
 
     local_irq_save(flags);
     RTC_WRITE( RTC_CONTROL, ctrl | RTC_SET );
