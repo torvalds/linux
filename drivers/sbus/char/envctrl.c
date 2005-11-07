@@ -654,9 +654,8 @@ envctrl_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 /* Function Description: Command what to read.  Mapped to user ioctl().
  * Return: Gives 0 for implemented commands, -EINVAL otherwise.
  */
-static int
-envctrl_ioctl(struct inode *inode, struct file *file,
-	      unsigned int cmd, unsigned long arg)
+static long
+envctrl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	char __user *infobuf;
 
@@ -715,11 +714,14 @@ envctrl_release(struct inode *inode, struct file *file)
 }
 
 static struct file_operations envctrl_fops = {
-	.owner =	THIS_MODULE,
-	.read =		envctrl_read,
-	.ioctl =	envctrl_ioctl,
-	.open =		envctrl_open,
-	.release =	envctrl_release,
+	.owner =		THIS_MODULE,
+	.read =			envctrl_read,
+	.unlocked_ioctl =	envctrl_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl =		envctrl_ioctl,
+#endif
+	.open =			envctrl_open,
+	.release =		envctrl_release,
 };	
 
 static struct miscdevice envctrl_dev = {
