@@ -265,8 +265,7 @@ static int afs_file_releasepage(struct page *page, gfp_t gfp_flags)
 		set_page_private(page, 0);
 		ClearPagePrivate(page);
 
-		if (pageio)
-			kfree(pageio);
+		kfree(pageio);
 	}
 
 	_leave(" = 0");

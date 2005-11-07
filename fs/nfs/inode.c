@@ -1688,8 +1688,7 @@ static void nfs_kill_super(struct super_block *s)
 
 	rpciod_down();		/* release rpciod */
 
-	if (server->hostname != NULL)
-		kfree(server->hostname);
+	kfree(server->hostname);
 	kfree(server);
 }
 
@@ -1908,8 +1907,7 @@ nfs_copy_user_string(char *dst, struct nfs_string *src, int maxlen)
 			return ERR_PTR(-ENOMEM);
 	}
 	if (copy_from_user(dst, src->data, maxlen)) {
-		if (p != NULL)
-			kfree(p);
+		kfree(p);
 		return ERR_PTR(-EFAULT);
 	}
 	dst[maxlen] = '\0';
@@ -2000,10 +1998,8 @@ static struct super_block *nfs4_get_sb(struct file_system_type *fs_type,
 out_err:
 	s = (struct super_block *)p;
 out_free:
-	if (server->mnt_path)
-		kfree(server->mnt_path);
-	if (server->hostname)
-		kfree(server->hostname);
+	kfree(server->mnt_path);
+	kfree(server->hostname);
 	kfree(server);
 	return s;
 }
@@ -2023,8 +2019,7 @@ static void nfs4_kill_super(struct super_block *sb)
 
 	destroy_nfsv4_state(server);
 
-	if (server->hostname != NULL)
-		kfree(server->hostname);
+	kfree(server->hostname);
 	kfree(server);
 }
 

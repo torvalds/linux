@@ -69,10 +69,8 @@ init_nfsv4_state(struct nfs_server *server)
 void
 destroy_nfsv4_state(struct nfs_server *server)
 {
-	if (server->mnt_path) {
-		kfree(server->mnt_path);
-		server->mnt_path = NULL;
-	}
+	kfree(server->mnt_path);
+	server->mnt_path = NULL;
 	if (server->nfs4_state) {
 		nfs4_put_client(server->nfs4_state);
 		server->nfs4_state = NULL;
@@ -311,8 +309,7 @@ struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server, struct 
 		new = NULL;
 	}
 	spin_unlock(&clp->cl_lock);
-	if (new)
-		kfree(new);
+	kfree(new);
 	if (sp != NULL)
 		return sp;
 	put_rpccred(cred);

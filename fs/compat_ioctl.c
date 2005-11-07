@@ -2235,7 +2235,8 @@ static int fd_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 	if (err)
 		err = -EFAULT;
 
-out:	if (karg) kfree(karg);
+out:
+	kfree(karg);
 	return err;
 }
 
