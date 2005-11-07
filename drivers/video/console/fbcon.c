@@ -630,6 +630,15 @@ static int con2fb_release_oldinfo(struct vc_data *vc, struct fb_info *oldinfo,
 		kfree(oldinfo->fbcon_par);
 		oldinfo->fbcon_par = NULL;
 		module_put(oldinfo->fbops->owner);
+		/*
+		  If oldinfo and newinfo are driving the same hardware,
+		  the fb_release() method of oldinfo may attempt to
+		  restore the hardware state.  This will leave the
+		  newinfo in an undefined state. Thus, a call to
+		  fb_set_par() may be needed for the newinfo.
+		*/
+		if (newinfo->fbops->fb_set_par)
+			newinfo->fbops->fb_set_par(newinfo);
 	}
 
 	return err;
