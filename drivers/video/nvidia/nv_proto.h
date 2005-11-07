@@ -46,7 +46,11 @@ int nvidia_probe_i2c_connector(struct fb_info *info, int conn,
 int nvidia_probe_of_connector(struct fb_info *info, int conn,
 			      u8 ** out_edid);
 #else
-#define nvidia_probe_of_connector(p, c, edid)  (-1)
+static inline int nvidia_probe_of_connector(struct fb_info *info, int conn,
+				      u8 ** out_edid)
+{
+	return -1;
+}
 #endif
 
 /* in nv_accel.c */
