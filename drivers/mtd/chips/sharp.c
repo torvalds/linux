@@ -4,7 +4,7 @@
  * Copyright 2000,2001 David A. Schleef <ds@schleef.org>
  *           2000,2001 Lineo, Inc.
  *
- * $Id: sharp.c,v 1.15 2005/08/02 20:36:05 tpoynor Exp $
+ * $Id: sharp.c,v 1.16 2005/11/07 11:14:23 gleixner Exp $
  *
  * Devices supported:
  *   LH28F016SCT Symmetrical block flash memory, 2Mx8
@@ -459,12 +459,12 @@ static int sharp_do_wait_for_ready(struct map_info *map, struct flchip *chip,
 		remove_wait_queue(&chip->wq, &wait);
 
 		//spin_lock_bh(chip->mutex);
-		
+
 		if (signal_pending(current)){
 			ret = -EINTR;
 			goto out;
 		}
-		
+
 	}
 	ret = -ETIME;
 out:
@@ -563,7 +563,7 @@ static int sharp_suspend(struct mtd_info *mtd)
 static void sharp_resume(struct mtd_info *mtd)
 {
 	printk("sharp_resume()\n");
-	
+
 }
 
 static void sharp_destroy(struct mtd_info *mtd)

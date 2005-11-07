@@ -25,7 +25,7 @@ struct fwh_xxlock_thunk {
  * so this code has not been tested with interleaved chips,
  * and will likely fail in that context.
  */
-static int fwh_xxlock_oneblock(struct map_info *map, struct flchip *chip, 
+static int fwh_xxlock_oneblock(struct map_info *map, struct flchip *chip,
 	unsigned long adr, int len, void *thunk)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -44,7 +44,7 @@ static int fwh_xxlock_oneblock(struct map_info *map, struct flchip *chip,
 	 * - on 64k boundariesand
 	 * - bit 1 set high
 	 * - block lock registers are 4MiB lower - overflow subtract (danger)
-	 * 
+	 *
 	 * The address manipulation is first done on the logical address
 	 * which is 0 at the start of the chip, and then the offset of
 	 * the individual chip is addted to it.  Any other order a weird
@@ -93,7 +93,7 @@ static int fwh_unlock_varsize(struct mtd_info *mtd, loff_t ofs, size_t len)
 
 	ret = cfi_varsize_frob(mtd, fwh_xxlock_oneblock, ofs, len,
 		(void *)&FWH_XXLOCK_ONEBLOCK_UNLOCK);
-	
+
 	return ret;
 }
 

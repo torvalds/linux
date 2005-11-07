@@ -7,7 +7,7 @@
  *
  * This code is covered by the GPL.
  *
- * $Id: cfi_util.c,v 1.9 2005/07/20 21:01:14 tpoynor Exp $
+ * $Id: cfi_util.c,v 1.10 2005/11/07 11:14:23 gleixner Exp $
  *
  */
 
@@ -56,7 +56,7 @@ __xipram cfi_read_pri(struct map_info *map, __u16 adr, __u16 size, const char* n
 
 	/* Read in the Extended Query Table */
 	for (i=0; i<size; i++) {
-		((unsigned char *)extp)[i] = 
+		((unsigned char *)extp)[i] =
 			cfi_read_query(map, base+((adr+i)*ofs_factor));
 	}
 
@@ -113,17 +113,17 @@ int cfi_varsize_frob(struct mtd_info *mtd, varsize_frob_t frob,
 
 	i = 0;
 
-	/* Skip all erase regions which are ended before the start of 
+	/* Skip all erase regions which are ended before the start of
 	   the requested erase. Actually, to save on the calculations,
 	   we skip to the first erase region which starts after the
 	   start of the requested erase, and then go back one.
 	*/
-	
+
 	while (i < mtd->numeraseregions && ofs >= regions[i].offset)
 	       i++;
 	i--;
 
-	/* OK, now i is pointing at the erase region in which this 
+	/* OK, now i is pointing at the erase region in which this
 	   erase request starts. Check the start of the requested
 	   erase range is aligned with the erase size which is in
 	   effect here.
@@ -146,7 +146,7 @@ int cfi_varsize_frob(struct mtd_info *mtd, varsize_frob_t frob,
 	   the address actually falls
 	*/
 	i--;
-	
+
 	if ((ofs + len) & (regions[i].erasesize-1))
 		return -EINVAL;
 
@@ -159,7 +159,7 @@ int cfi_varsize_frob(struct mtd_info *mtd, varsize_frob_t frob,
 		int size = regions[i].erasesize;
 
 		ret = (*frob)(map, &cfi->chips[chipnum], adr, size, thunk);
-		
+
 		if (ret)
 			return ret;
 
@@ -173,7 +173,7 @@ int cfi_varsize_frob(struct mtd_info *mtd, varsize_frob_t frob,
 		if (adr >> cfi->chipshift) {
 			adr = 0;
 			chipnum++;
-			
+
 			if (chipnum >= cfi->numchips)
 			break;
 		}
