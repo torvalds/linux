@@ -743,21 +743,20 @@ static struct node_entry *nodemgr_create_node(octlet_t guid, struct csr1212_csr 
 					      unsigned int generation)
 {
 	struct hpsb_host *host = hi->host;
-        struct node_entry *ne;
+	struct node_entry *ne;
 
-	ne = kmalloc(sizeof(struct node_entry), GFP_KERNEL);
-        if (!ne) return NULL;
-
-	memset(ne, 0, sizeof(struct node_entry));
+	ne = kzalloc(sizeof(*ne), GFP_KERNEL);
+	if (!ne)
+		return NULL;
 
 	ne->tpool = &host->tpool[nodeid & NODE_MASK];
 
-        ne->host = host;
-        ne->nodeid = nodeid;
+	ne->host = host;
+	ne->nodeid = nodeid;
 	ne->generation = generation;
 	ne->needs_probe = 1;
 
-        ne->guid = guid;
+	ne->guid = guid;
 	ne->guid_vendor_id = (guid >> 40) & 0xffffff;
 	ne->guid_vendor_oui = nodemgr_find_oui_name(ne->guid_vendor_id);
 	ne->csr = csr;
@@ -787,7 +786,7 @@ static struct node_entry *nodemgr_create_node(octlet_t guid, struct csr1212_csr 
 		   (host->node_id == nodeid) ? "Host" : "Node",
 		   NODE_BUS_ARGS(host, nodeid), (unsigned long long)guid);
 
-        return ne;
+	return ne;
 }
 
 
@@ -872,11 +871,9 @@ static struct unit_directory *nodemgr_process_unit_directory
 	struct csr1212_keyval *kv;
 	u8 last_key_id = 0;
 
-	ud = kmalloc(sizeof(struct unit_directory), GFP_KERNEL);
+	ud = kzalloc(sizeof(*ud), GFP_KERNEL);
 	if (!ud)
 		goto unit_directory_error;
-
-	memset (ud, 0, sizeof(struct unit_directory));
 
 	ud->ne = ne;
 	ud->ignore_driver = ignore_drivers;
@@ -937,10 +934,10 @@ static struct unit_directory *nodemgr_process_unit_directory
 			/* Logical Unit Number */
 			if (kv->key.type == CSR1212_KV_TYPE_IMMEDIATE) {
 				if (ud->flags & UNIT_DIRECTORY_HAS_LUN) {
-					ud_child = kmalloc(sizeof(struct unit_directory), GFP_KERNEL);
+					ud_child = kmalloc(sizeof(*ud_child), GFP_KERNEL);
 					if (!ud_child)
 						goto unit_directory_error;
-					memcpy(ud_child, ud, sizeof(struct unit_directory));
+					memcpy(ud_child, ud, sizeof(*ud_child));
 					nodemgr_register_device(ne, ud_child, &ne->device);
 					ud_child = NULL;
 					
@@ -1200,7 +1197,7 @@ static void nodemgr_node_scan_one(struct host_info *hi,
 	struct csr1212_csr *csr;
 	struct nodemgr_csr_info *ci;
 
-	ci = kmalloc(sizeof(struct nodemgr_csr_info), GFP_KERNEL);
+	ci = kmalloc(sizeof(*ci), GFP_KERNEL);
 	if (!ci)
 		return;
 

@@ -646,7 +646,7 @@ static inline struct csr1212_csr_rom_cache *csr1212_rom_cache_malloc(u_int32_t o
 {
 	struct csr1212_csr_rom_cache *cache;
 
-	cache = CSR1212_MALLOC(sizeof(struct csr1212_csr_rom_cache) + size);
+	cache = CSR1212_MALLOC(sizeof(*cache) + size);
 	if (!cache)
 		return NULL;
 

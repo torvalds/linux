@@ -411,14 +411,12 @@ static int sbp2util_create_command_orb_pool(struct scsi_id_instance_data *scsi_i
 
 	spin_lock_irqsave(&scsi_id->sbp2_command_orb_lock, flags);
 	for (i = 0; i < orbs; i++) {
-		command = (struct sbp2_command_info *)
-		    kmalloc(sizeof(struct sbp2_command_info), GFP_ATOMIC);
+		command = kzalloc(sizeof(*command), GFP_ATOMIC);
 		if (!command) {
 			spin_unlock_irqrestore(&scsi_id->sbp2_command_orb_lock,
 					       flags);
 			return -ENOMEM;
 		}
-		memset(command, '\0', sizeof(struct sbp2_command_info));
 		command->command_orb_dma =
 		    pci_map_single(hi->host->pdev, &command->command_orb,
 				   sizeof(struct sbp2_command_orb),
@@ -714,12 +712,11 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 
 	SBP2_DEBUG("sbp2_alloc_device");
 
-	scsi_id = kmalloc(sizeof(*scsi_id), GFP_KERNEL);
+	scsi_id = kzalloc(sizeof(*scsi_id), GFP_KERNEL);
 	if (!scsi_id) {
 		SBP2_ERR("failed to create scsi_id");
 		goto failed_alloc;
 	}
-	memset(scsi_id, 0, sizeof(*scsi_id));
 
 	scsi_id->ne = ud->ne;
 	scsi_id->ud = ud;

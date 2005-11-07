@@ -2218,13 +2218,11 @@ static int dv1394_init(struct ti_ohci *ohci, enum pal_or_ntsc format, enum modes
 	unsigned long flags;
 	int i;
 
-	video = kmalloc(sizeof(struct video_card), GFP_KERNEL);
+	video = kzalloc(sizeof(*video), GFP_KERNEL);
 	if (!video) {
 		printk(KERN_ERR "dv1394: cannot allocate video_card\n");
 		goto err;
 	}
-
-	memset(video, 0, sizeof(struct video_card));
 
 	video->ohci = ohci;
 	/* lower 2 bits of id indicate which of four "plugs"

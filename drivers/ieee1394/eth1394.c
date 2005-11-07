@@ -352,12 +352,12 @@ static int eth1394_probe(struct device *dev)
 	if (!hi)
 		return -ENOENT;
 
-	new_node = kmalloc(sizeof(struct eth1394_node_ref),
+	new_node = kmalloc(sizeof(*new_node),
 			   in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 	if (!new_node)
 		return -ENOMEM;
 
-	node_info = kmalloc(sizeof(struct eth1394_node_info),
+	node_info = kmalloc(sizeof(*node_info),
 			    in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 	if (!node_info) {
 		kfree(new_node);
@@ -433,12 +433,12 @@ static int eth1394_update(struct unit_directory *ud)
 	node = eth1394_find_node(&priv->ip_node_list, ud);
 
 	if (!node) {
-		node = kmalloc(sizeof(struct eth1394_node_ref),
+		node = kmalloc(sizeof(*node),
 			       in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 		if (!node)
 			return -ENOMEM;
 
-		node_info = kmalloc(sizeof(struct eth1394_node_info),
+		node_info = kmalloc(sizeof(*node_info),
 				    in_interrupt() ? GFP_ATOMIC : GFP_KERNEL);
 		if (!node_info) {
 			kfree(node);
@@ -1014,7 +1014,7 @@ static inline int new_fragment(struct list_head *frag_info, int offset, int len)
 		}
 	}
 
-	new = kmalloc(sizeof(struct fragment_info), GFP_ATOMIC);
+	new = kmalloc(sizeof(*new), GFP_ATOMIC);
 	if (!new)
 		return -ENOMEM;
 
@@ -1033,7 +1033,7 @@ static inline int new_partial_datagram(struct net_device *dev,
 {
 	struct partial_datagram *new;
 
-	new = kmalloc(sizeof(struct partial_datagram), GFP_ATOMIC);
+	new = kmalloc(sizeof(*new), GFP_ATOMIC);
 	if (!new)
 		return -ENOMEM;
 

@@ -2957,28 +2957,23 @@ alloc_dma_rcv_ctx(struct ti_ohci *ohci, struct dma_rcv_ctx *d,
 	d->ctrlClear = 0;
 	d->cmdPtr = 0;
 
-	d->buf_cpu = kmalloc(d->num_desc * sizeof(quadlet_t*), GFP_ATOMIC);
-	d->buf_bus = kmalloc(d->num_desc * sizeof(dma_addr_t), GFP_ATOMIC);
+	d->buf_cpu = kzalloc(d->num_desc * sizeof(*d->buf_cpu), GFP_ATOMIC);
+	d->buf_bus = kzalloc(d->num_desc * sizeof(*d->buf_bus), GFP_ATOMIC);
 
 	if (d->buf_cpu == NULL || d->buf_bus == NULL) {
 		PRINT(KERN_ERR, "Failed to allocate dma buffer");
 		free_dma_rcv_ctx(d);
 		return -ENOMEM;
 	}
-	memset(d->buf_cpu, 0, d->num_desc * sizeof(quadlet_t*));
-	memset(d->buf_bus, 0, d->num_desc * sizeof(dma_addr_t));
 
-	d->prg_cpu = kmalloc(d->num_desc * sizeof(struct dma_cmd*),
-				GFP_ATOMIC);
-	d->prg_bus = kmalloc(d->num_desc * sizeof(dma_addr_t), GFP_ATOMIC);
+	d->prg_cpu = kzalloc(d->num_desc * sizeof(*d->prg_cpu), GFP_ATOMIC);
+	d->prg_bus = kzalloc(d->num_desc * sizeof(*d->prg_bus), GFP_ATOMIC);
 
 	if (d->prg_cpu == NULL || d->prg_bus == NULL) {
 		PRINT(KERN_ERR, "Failed to allocate dma prg");
 		free_dma_rcv_ctx(d);
 		return -ENOMEM;
 	}
-	memset(d->prg_cpu, 0, d->num_desc * sizeof(struct dma_cmd*));
-	memset(d->prg_bus, 0, d->num_desc * sizeof(dma_addr_t));
 
 	d->spb = kmalloc(d->split_buf_size, GFP_ATOMIC);
 
@@ -3090,17 +3085,14 @@ alloc_dma_trm_ctx(struct ti_ohci *ohci, struct dma_trm_ctx *d,
 	d->ctrlClear = 0;
 	d->cmdPtr = 0;
 
-	d->prg_cpu = kmalloc(d->num_desc * sizeof(struct at_dma_prg*),
-			     GFP_KERNEL);
-	d->prg_bus = kmalloc(d->num_desc * sizeof(dma_addr_t), GFP_KERNEL);
+	d->prg_cpu = kzalloc(d->num_desc * sizeof(*d->prg_cpu), GFP_KERNEL);
+	d->prg_bus = kzalloc(d->num_desc * sizeof(*d->prg_bus), GFP_KERNEL);
 
 	if (d->prg_cpu == NULL || d->prg_bus == NULL) {
 		PRINT(KERN_ERR, "Failed to allocate at dma prg");
 		free_dma_trm_ctx(d);
 		return -ENOMEM;
 	}
-	memset(d->prg_cpu, 0, d->num_desc * sizeof(struct at_dma_prg*));
-	memset(d->prg_bus, 0, d->num_desc * sizeof(dma_addr_t));
 
 	len = sprintf(pool_name, "ohci1394_trm_prg");
 	sprintf(pool_name+len, "%d", num_allocs);

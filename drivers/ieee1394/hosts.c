@@ -114,9 +114,9 @@ struct hpsb_host *hpsb_alloc_host(struct hpsb_host_driver *drv, size_t extra,
 	int i;
 	int hostnum = 0;
 
-        h = kmalloc(sizeof(struct hpsb_host) + extra, SLAB_KERNEL);
-        if (!h) return NULL;
-        memset(h, 0, sizeof(struct hpsb_host) + extra);
+        h = kzalloc(sizeof(*h) + extra, SLAB_KERNEL);
+        if (!h)
+		return NULL;
 
 	h->csr.rom = csr1212_create_csr(&csr_bus_ops, CSR_BUS_INFO_SIZE, h);
 	if (!h->csr.rom) {
