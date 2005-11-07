@@ -1341,6 +1341,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 		printk(" ***INVALID CHECKSUM %4.4x*** ", checksum);
 	for (i = 0; i < 3; i++)
 		((u16 *)dev->dev_addr)[i] = htons(eeprom[i + 10]);
+	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 	if (print_info) {
 		for (i = 0; i < 6; i++)
 			printk("%c%2.2x", i ? ':' : ' ', dev->dev_addr[i]);
@@ -3059,6 +3060,7 @@ static struct ethtool_ops vortex_ethtool_ops = {
 	.set_settings           = vortex_set_settings,
 	.get_link               = vortex_get_link,
 	.nway_reset             = vortex_nway_reset,
+	.get_perm_addr			= ethtool_op_get_perm_addr,
 };
 
 #ifdef CONFIG_PCI
