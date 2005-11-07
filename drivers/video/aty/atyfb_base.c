@@ -292,7 +292,6 @@ static struct fb_ops atyfb_ops = {
 	.fb_fillrect	= atyfb_fillrect,
 	.fb_copyarea	= atyfb_copyarea,
 	.fb_imageblit	= atyfb_imageblit,
-	.fb_cursor	= soft_cursor,
 #ifdef __sparc__
 	.fb_mmap	= atyfb_mmap,
 #endif

@@ -1433,7 +1433,7 @@ static int __devinit nvidia_set_fbinfo(struct fb_info *info)
 	info->pixmap.flags = FB_PIXMAP_SYSTEM;
 
 	if (!hwcur)
-	    info->fbops->fb_cursor = soft_cursor;
+	    info->fbops->fb_cursor = NULL;
 
 	info->var.accel_flags = (!noaccel);
 

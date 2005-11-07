@@ -1,7 +1,7 @@
 /*
  * linux/drivers/video/softcursor.c -- Generic software cursor for frame buffer devices
  *
- *  Created 14 Nov 2002 by James Simmons 
+ *  Created 14 Nov 2002 by James Simmons
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file COPYING in the main directory of this archive
@@ -55,9 +55,9 @@ int soft_cursor(struct fb_info *info, struct fb_cursor *cursor)
 				src[i] = image->data[i] & cursor->mask[i];
 			break;
 		}
-	} else 
+	} else
 		memcpy(src, image->data, dsize);
-	
+
 	fb_pad_aligned_buffer(dst, d_pitch, src, s_pitch, image->height);
 	image->data = dst;
 	info->fbops->fb_imageblit(info, image);
@@ -66,7 +66,7 @@ int soft_cursor(struct fb_info *info, struct fb_cursor *cursor)
 }
 
 EXPORT_SYMBOL(soft_cursor);
- 
+
 MODULE_AUTHOR("James Simmons <jsimmons@users.sf.net>");
 MODULE_DESCRIPTION("Generic software cursor");
 MODULE_LICENSE("GPL");

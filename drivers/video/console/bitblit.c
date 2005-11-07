@@ -272,6 +272,7 @@ static void bit_cursor(struct vc_data *vc, struct fb_info *info,
 	int w = (vc->vc_font.width + 7) >> 3, c;
 	int y = real_y(p, vc->vc_y);
 	int attribute, use_sw = (vc->vc_cursor_type & 0x10);
+	int err = 1;
 	char *src;
 
 	cursor.set = 0;
@@ -408,7 +409,11 @@ static void bit_cursor(struct vc_data *vc, struct fb_info *info,
 	cursor.image.depth = 1;
 	cursor.rop = ROP_XOR;
 
-	info->fbops->fb_cursor(info, &cursor);
+	if (info->fbops->fb_cursor)
+		err = info->fbops->fb_cursor(info, &cursor);
+
+	if (err)
+		soft_cursor(info, &cursor);
 
 	ops->cursor_reset = 0;
 }

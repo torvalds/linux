@@ -669,7 +669,6 @@ static struct fb_ops kyrofb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
 static int __devinit kyrofb_probe(struct pci_dev *pdev,

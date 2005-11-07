@@ -1485,7 +1485,7 @@ intelfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 #endif
 
 	if (!dinfo->hwcursor)
-		return soft_cursor(info, cursor);
+		return -ENODEV;
 
 	intelfbhw_cursor_hide(dinfo);
 

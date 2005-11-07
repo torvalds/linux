@@ -1326,7 +1326,6 @@ static struct fb_ops vga16fb_ops = {
 	.fb_fillrect	= vga16fb_fillrect,
 	.fb_copyarea	= vga16fb_copyarea,
 	.fb_imageblit	= vga16fb_imageblit,
-	.fb_cursor      = soft_cursor,
 };
 
 #ifndef MODULE
