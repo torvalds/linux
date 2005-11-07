@@ -48,6 +48,7 @@
 #include <linux/syscalls.h>
 #include <linux/rmap.h>
 #include <linux/acct.h>
+#include <linux/cn_proc.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -1096,6 +1097,7 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 					fput(bprm->file);
 				bprm->file = NULL;
 				current->did_exec = 1;
+				proc_exec_connector(current);
 				return retval;
 			}
 			read_lock(&binfmt_lock);

@@ -42,6 +42,7 @@
 #include <linux/profile.h>
 #include <linux/rmap.h>
 #include <linux/acct.h>
+#include <linux/cn_proc.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -1143,6 +1144,7 @@ static task_t *copy_process(unsigned long clone_flags,
 			__get_cpu_var(process_counts)++;
 	}
 
+	proc_fork_connector(p);
 	if (!current->signal->tty && p->signal->tty)
 		p->signal->tty = NULL;
 
