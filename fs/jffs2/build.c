@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: build.c,v 1.84 2005/09/27 13:40:49 dedekind Exp $
+ * $Id: build.c,v 1.85 2005/11/07 11:14:38 gleixner Exp $
  *
  */
 
@@ -129,10 +129,10 @@ static int jffs2_build_filesystem(struct jffs2_sb_info *c)
 	for_each_inode(i, c, ic) {
 		if (ic->nlink)
 			continue;
-			
+
 		jffs2_build_remove_unlinked_inode(c, ic, &dead_fds);
 		cond_resched();
-	} 
+	}
 
 	dbg_fsbuild("pass 2a starting\n");
 
@@ -149,7 +149,7 @@ static int jffs2_build_filesystem(struct jffs2_sb_info *c)
 
 	dbg_fsbuild("pass 2a complete\n");
 	dbg_fsbuild("freeing temporary data structures\n");
-	
+
 	/* Finally, we can scan again and free the dirent structs */
 	for_each_inode(i, c, ic) {
 		while(ic->scan_dents) {
@@ -161,7 +161,7 @@ static int jffs2_build_filesystem(struct jffs2_sb_info *c)
 		cond_resched();
 	}
 	c->flags &= ~JFFS2_SB_FLAG_BUILDING;
-	
+
 	dbg_fsbuild("FS build complete\n");
 
 	/* Rotate the lists by some number to ensure wear levelling */
@@ -191,7 +191,7 @@ static void jffs2_build_remove_unlinked_inode(struct jffs2_sb_info *c,
 	struct jffs2_full_dirent *fd;
 
 	dbg_fsbuild("removing ino #%u with nlink == zero.\n", ic->ino);
-	
+
 	raw = ic->nodes;
 	while (raw != (void *)ic) {
 		struct jffs2_raw_node_ref *next = raw->next_in_ino;
@@ -220,7 +220,7 @@ static void jffs2_build_remove_unlinked_inode(struct jffs2_sb_info *c,
 				whinged = 1;
 
 			dbg_fsbuild("removing child \"%s\", ino #%u\n", fd->name, fd->ino);
-			
+
 			child_ic = jffs2_get_ino_cache(c, fd->ino);
 			if (!child_ic) {
 				dbg_fsbuild("cannot remove child \"%s\", ino #%u, because it doesn't exist\n",
@@ -229,11 +229,11 @@ static void jffs2_build_remove_unlinked_inode(struct jffs2_sb_info *c,
 				continue;
 			}
 
-			/* Reduce nlink of the child. If it's now zero, stick it on the 
+			/* Reduce nlink of the child. If it's now zero, stick it on the
 			   dead_fds list to be cleaned up later. Else just free the fd */
 
 			child_ic->nlink--;
-			
+
 			if (!child_ic->nlink) {
 				dbg_fsbuild("inode #%u (\"%s\") has now got zero nlink, adding to dead_fds list.\n",
 					  fd->ino, fd->name);
@@ -248,7 +248,7 @@ static void jffs2_build_remove_unlinked_inode(struct jffs2_sb_info *c,
 	}
 
 	/*
-	   We don't delete the inocache from the hash list and free it yet. 
+	   We don't delete the inocache from the hash list and free it yet.
 	   The erase code will do that, when all the nodes are completely gone.
 	*/
 }
@@ -262,7 +262,7 @@ static void jffs2_calc_trigger_levels(struct jffs2_sb_info *c)
 	   because there's not enough free space... */
 	c->resv_blocks_deletion = 2;
 
-	/* Be conservative about how much space we need before we allow writes. 
+	/* Be conservative about how much space we need before we allow writes.
 	   On top of that which is required for deletia, require an extra 2%
 	   of the medium to be available, for overhead caused by nodes being
 	   split across blocks, etc. */
@@ -277,7 +277,7 @@ static void jffs2_calc_trigger_levels(struct jffs2_sb_info *c)
 
 	c->resv_blocks_gctrigger = c->resv_blocks_write + 1;
 
-	/* When do we allow garbage collection to merge nodes to make 
+	/* When do we allow garbage collection to merge nodes to make
 	   long-term progress at the expense of short-term space exhaustion? */
 	c->resv_blocks_gcmerge = c->resv_blocks_deletion + 1;
 
@@ -303,7 +303,7 @@ static void jffs2_calc_trigger_levels(struct jffs2_sb_info *c)
 		  c->resv_blocks_gcbad, c->resv_blocks_gcbad*c->sector_size/1024);
 	dbg_fsbuild("Amount of dirty space required to GC: %d bytes\n",
 		  c->nospc_dirty_size);
-} 
+}
 
 int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 {
@@ -355,7 +355,7 @@ int jffs2_do_mount_fs(struct jffs2_sb_info *c)
 #ifndef __ECOS
 		if (jffs2_blocks_use_vmalloc(c))
 			vfree(c->blocks);
-		else 
+		else
 #endif
 			kfree(c->blocks);
 

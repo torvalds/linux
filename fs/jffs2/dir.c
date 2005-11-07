@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: dir.c,v 1.89 2005/09/07 08:34:54 havasi Exp $
+ * $Id: dir.c,v 1.90 2005/11/07 11:14:39 gleixner Exp $
  *
  */
 
@@ -64,7 +64,7 @@ struct inode_operations jffs2_dir_inode_operations =
 
 
 /* We keep the dirent list sorted in increasing order of name hash,
-   and we use the same hash function as the dentries. Makes this 
+   and we use the same hash function as the dentries. Makes this
    nice and simple
 */
 static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
@@ -85,7 +85,7 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 
 	/* NB: The 2.2 backport will need to explicitly check for '.' and '..' here */
 	for (fd_list = dir_f->dents; fd_list && fd_list->nhash <= target->d_name.hash; fd_list = fd_list->next) {
-		if (fd_list->nhash == target->d_name.hash && 
+		if (fd_list->nhash == target->d_name.hash &&
 		    (!fd || fd_list->version > fd->version) &&
 		    strlen(fd_list->name) == target->d_name.len &&
 		    !strncmp(fd_list->name, target->d_name.name, target->d_name.len)) {
@@ -147,7 +147,7 @@ static int jffs2_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		curofs++;
 		/* First loop: curofs = 2; offset = 2 */
 		if (curofs < offset) {
-			D2(printk(KERN_DEBUG "Skipping dirent: \"%s\", ino #%u, type %d, because curofs %ld < offset %ld\n", 
+			D2(printk(KERN_DEBUG "Skipping dirent: \"%s\", ino #%u, type %d, because curofs %ld < offset %ld\n",
 				  fd->name, fd->ino, fd->type, curofs, offset));
 			continue;
 		}
@@ -182,7 +182,7 @@ static int jffs2_create(struct inode *dir_i, struct dentry *dentry, int mode,
 	ri = jffs2_alloc_raw_inode();
 	if (!ri)
 		return -ENOMEM;
-	
+
 	c = JFFS2_SB_INFO(dir_i->i_sb);
 
 	D1(printk(KERN_DEBUG "jffs2_create()\n"));
@@ -203,7 +203,7 @@ static int jffs2_create(struct inode *dir_i, struct dentry *dentry, int mode,
 	f = JFFS2_INODE_INFO(inode);
 	dir_f = JFFS2_INODE_INFO(dir_i);
 
-	ret = jffs2_do_create(c, dir_f, f, ri, 
+	ret = jffs2_do_create(c, dir_f, f, ri,
 			      dentry->d_name.name, dentry->d_name.len);
 
 	if (ret) {
@@ -234,7 +234,7 @@ static int jffs2_unlink(struct inode *dir_i, struct dentry *dentry)
 	int ret;
 	uint32_t now = get_seconds();
 
-	ret = jffs2_do_unlink(c, dir_f, dentry->d_name.name, 
+	ret = jffs2_do_unlink(c, dir_f, dentry->d_name.name,
 			      dentry->d_name.len, dead_f, now);
 	if (dead_f->inocache)
 		dentry->d_inode->i_nlink = dead_f->inocache->nlink;
@@ -303,11 +303,11 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 
 	if (!ri)
 		return -ENOMEM;
-	
+
 	c = JFFS2_SB_INFO(dir_i->i_sb);
-	
-	/* Try to reserve enough space for both node and dirent. 
-	 * Just the node will do for now, though 
+
+	/* Try to reserve enough space for both node and dirent.
+	 * Just the node will do for now, though
 	 */
 	namelen = dentry->d_name.len;
 	ret = jffs2_reserve_space(c, sizeof(*ri) + targetlen, &phys_ofs, &alloclen,
@@ -338,7 +338,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	ri->compr = JFFS2_COMPR_NONE;
 	ri->data_crc = cpu_to_je32(crc32(0, target, targetlen));
 	ri->node_crc = cpu_to_je32(crc32(0, ri, sizeof(*ri)-8));
-	
+
 	fn = jffs2_write_dnode(c, f, ri, target, targetlen, phys_ofs, ALLOC_NORMAL);
 
 	jffs2_free_raw_inode(ri);
@@ -364,7 +364,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	memcpy(f->target, target, targetlen + 1);
 	D1(printk(KERN_DEBUG "jffs2_symlink: symlink's target '%s' cached\n", (char *)f->target));
 
-	/* No data here. Only a metadata node, which will be 
+	/* No data here. Only a metadata node, which will be
 	   obsoleted by the first data write
 	*/
 	f->metadata = fn;
@@ -407,7 +407,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	fd = jffs2_write_dirent(c, dir_f, rd, dentry->d_name.name, namelen, phys_ofs, ALLOC_NORMAL);
 
 	if (IS_ERR(fd)) {
-		/* dirent failed to write. Delete the inode normally 
+		/* dirent failed to write. Delete the inode normally
 		   as if it were the final unlink() */
 		jffs2_complete_reservation(c);
 		jffs2_free_raw_dirent(rd);
@@ -450,11 +450,11 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 	ri = jffs2_alloc_raw_inode();
 	if (!ri)
 		return -ENOMEM;
-	
+
 	c = JFFS2_SB_INFO(dir_i->i_sb);
 
-	/* Try to reserve enough space for both node and dirent. 
-	 * Just the node will do for now, though 
+	/* Try to reserve enough space for both node and dirent.
+	 * Just the node will do for now, though
 	 */
 	namelen = dentry->d_name.len;
 	ret = jffs2_reserve_space(c, sizeof(*ri), &phys_ofs, &alloclen, ALLOC_NORMAL,
@@ -482,7 +482,7 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 
 	ri->data_crc = cpu_to_je32(0);
 	ri->node_crc = cpu_to_je32(crc32(0, ri, sizeof(*ri)-8));
-	
+
 	fn = jffs2_write_dnode(c, f, ri, NULL, 0, phys_ofs, ALLOC_NORMAL);
 
 	jffs2_free_raw_inode(ri);
@@ -494,7 +494,7 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 		jffs2_clear_inode(inode);
 		return PTR_ERR(fn);
 	}
-	/* No data here. Only a metadata node, which will be 
+	/* No data here. Only a metadata node, which will be
 	   obsoleted by the first data write
 	*/
 	f->metadata = fn;
@@ -508,7 +508,7 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 		jffs2_clear_inode(inode);
 		return ret;
 	}
-	
+
 	rd = jffs2_alloc_raw_dirent();
 	if (!rd) {
 		/* Argh. Now we treat it like a normal delete */
@@ -535,9 +535,9 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 	rd->name_crc = cpu_to_je32(crc32(0, dentry->d_name.name, namelen));
 
 	fd = jffs2_write_dirent(c, dir_f, rd, dentry->d_name.name, namelen, phys_ofs, ALLOC_NORMAL);
-	
+
 	if (IS_ERR(fd)) {
-		/* dirent failed to write. Delete the inode normally 
+		/* dirent failed to write. Delete the inode normally
 		   as if it were the final unlink() */
 		jffs2_complete_reservation(c);
 		jffs2_free_raw_dirent(rd);
@@ -599,16 +599,16 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 	ri = jffs2_alloc_raw_inode();
 	if (!ri)
 		return -ENOMEM;
-	
+
 	c = JFFS2_SB_INFO(dir_i->i_sb);
-	
+
 	if (S_ISBLK(mode) || S_ISCHR(mode)) {
 		dev = cpu_to_je16(old_encode_dev(rdev));
 		devlen = sizeof(dev);
 	}
-	
-	/* Try to reserve enough space for both node and dirent. 
-	 * Just the node will do for now, though 
+
+	/* Try to reserve enough space for both node and dirent.
+	 * Just the node will do for now, though
 	 */
 	namelen = dentry->d_name.len;
 	ret = jffs2_reserve_space(c, sizeof(*ri) + devlen, &phys_ofs, &alloclen,
@@ -638,7 +638,7 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 	ri->compr = JFFS2_COMPR_NONE;
 	ri->data_crc = cpu_to_je32(crc32(0, &dev, devlen));
 	ri->node_crc = cpu_to_je32(crc32(0, ri, sizeof(*ri)-8));
-	
+
 	fn = jffs2_write_dnode(c, f, ri, (char *)&dev, devlen, phys_ofs, ALLOC_NORMAL);
 
 	jffs2_free_raw_inode(ri);
@@ -650,7 +650,7 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 		jffs2_clear_inode(inode);
 		return PTR_ERR(fn);
 	}
-	/* No data here. Only a metadata node, which will be 
+	/* No data here. Only a metadata node, which will be
 	   obsoleted by the first data write
 	*/
 	f->metadata = fn;
@@ -694,9 +694,9 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 	rd->name_crc = cpu_to_je32(crc32(0, dentry->d_name.name, namelen));
 
 	fd = jffs2_write_dirent(c, dir_f, rd, dentry->d_name.name, namelen, phys_ofs, ALLOC_NORMAL);
-	
+
 	if (IS_ERR(fd)) {
-		/* dirent failed to write. Delete the inode normally 
+		/* dirent failed to write. Delete the inode normally
 		   as if it were the final unlink() */
 		jffs2_complete_reservation(c);
 		jffs2_free_raw_dirent(rd);
@@ -730,7 +730,7 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 	uint8_t type;
 	uint32_t now;
 
-	/* The VFS will check for us and prevent trying to rename a 
+	/* The VFS will check for us and prevent trying to rename a
 	 * file over a directory and vice versa, but if it's a directory,
 	 * the VFS can't check whether the victim is empty. The filesystem
 	 * needs to do that for itself.
@@ -752,18 +752,18 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 	}
 
 	/* XXX: We probably ought to alloc enough space for
-	   both nodes at the same time. Writing the new link, 
+	   both nodes at the same time. Writing the new link,
 	   then getting -ENOSPC, is quite bad :)
 	*/
 
 	/* Make a hard link */
-	
+
 	/* XXX: This is ugly */
 	type = (old_dentry->d_inode->i_mode & S_IFMT) >> 12;
 	if (!type) type = DT_REG;
 
 	now = get_seconds();
-	ret = jffs2_do_link(c, JFFS2_INODE_INFO(new_dir_i), 
+	ret = jffs2_do_link(c, JFFS2_INODE_INFO(new_dir_i),
 			    old_dentry->d_inode->i_ino, type,
 			    new_dentry->d_name.name, new_dentry->d_name.len, now);
 
@@ -782,13 +782,13 @@ static int jffs2_rename (struct inode *old_dir_i, struct dentry *old_dentry,
 		}
 	}
 
-	/* If it was a directory we moved, and there was no victim, 
+	/* If it was a directory we moved, and there was no victim,
 	   increase i_nlink on its new parent */
 	if (S_ISDIR(old_dentry->d_inode->i_mode) && !victim_f)
 		new_dir_i->i_nlink++;
 
 	/* Unlink the original */
-	ret = jffs2_do_unlink(c, JFFS2_INODE_INFO(old_dir_i), 
+	ret = jffs2_do_unlink(c, JFFS2_INODE_INFO(old_dir_i),
 			      old_dentry->d_name.name, old_dentry->d_name.len, NULL, now);
 
 	/* We don't touch inode->i_nlink */

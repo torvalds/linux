@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: symlink.c,v 1.18 2005/11/06 11:03:27 gleixner Exp $
+ * $Id: symlink.c,v 1.19 2005/11/07 11:14:42 gleixner Exp $
  *
  */
 
@@ -21,7 +21,7 @@
 static void *jffs2_follow_link(struct dentry *dentry, struct nameidata *nd);
 
 struct inode_operations jffs2_symlink_inode_operations =
-{	
+{
 	.readlink =	generic_readlink,
 	.follow_link =	jffs2_follow_link,
 	.setattr =	jffs2_setattr
@@ -44,7 +44,7 @@ static void *jffs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 	 * stopped using our f->target string which we provide by means of
 	 * nd_set_link() call.
 	 */
-	
+
 	if (!p) {
 		printk(KERN_ERR "jffs2_follow_link(): can't find symlink taerget\n");
 		p = ERR_PTR(-EIO);
@@ -52,7 +52,7 @@ static void *jffs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 	D1(printk(KERN_DEBUG "jffs2_follow_link(): target path is '%s'\n", (char *) f->target));
 
 	nd_set_link(nd, p);
-	
+
 	/*
 	 * We will unlock the f->sem mutex but VFS will use the f->target string. This is safe
 	 * since the only way that may cause f->target to be changed is iput() operation.

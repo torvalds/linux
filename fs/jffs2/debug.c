@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: debug.c,v 1.11 2005/09/21 13:28:35 dedekind Exp $
+ * $Id: debug.c,v 1.12 2005/11/07 11:14:39 gleixner Exp $
  *
  */
 #include <linux/kernel.h>
@@ -67,7 +67,7 @@ __jffs2_dbg_fragtree_paranoia_check(struct jffs2_inode_info *f)
 	__jffs2_dbg_fragtree_paranoia_check_nolock(f);
 	up(&f->sem);
 }
-	
+
 void
 __jffs2_dbg_fragtree_paranoia_check_nolock(struct jffs2_inode_info *f)
 {
@@ -165,7 +165,7 @@ __jffs2_dbg_acct_paranoia_check(struct jffs2_sb_info *c,
 	__jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
 	spin_unlock(&c->erase_completion_lock);
 }
-	
+
 void
 __jffs2_dbg_acct_paranoia_check_nolock(struct jffs2_sb_info *c,
 				       struct jffs2_eraseblock *jeb)
@@ -237,7 +237,7 @@ error:
 	__jffs2_dbg_dump_jeb_nolock(jeb);
 	__jffs2_dbg_dump_block_lists_nolock(c);
 	BUG();
-	
+
 }
 #endif /* JFFS2_DBG_PARANOIA_CHECKS */
 
@@ -321,7 +321,7 @@ void
 __jffs2_dbg_dump_block_lists_nolock(struct jffs2_sb_info *c)
 {
 	printk(JFFS2_DBG_MSG_PREFIX " dump JFFS2 blocks lists:\n");
-	
+
 	printk(JFFS2_DBG "flash_size: %#08x\n",		c->flash_size);
 	printk(JFFS2_DBG "used_size: %#08x\n",		c->used_size);
 	printk(JFFS2_DBG "dirty_size: %#08x\n",		c->dirty_size);
@@ -577,15 +577,15 @@ __jffs2_dbg_dump_buffer(unsigned char *buf, int len, uint32_t offs)
 {
 	int skip;
 	int i;
-	
+
 	printk(JFFS2_DBG_MSG_PREFIX " dump from offset %#08x to offset %#08x (%x bytes).\n",
 		offs, offs + len, len);
 	i = skip = offs % JFFS2_BUFDUMP_BYTES_PER_LINE;
 	offs = offs & ~(JFFS2_BUFDUMP_BYTES_PER_LINE - 1);
-	
+
 	if (skip != 0)
 		printk(JFFS2_DBG "%#08x: ", offs);
-	
+
 	while (skip--)
 		printk("   ");
 
@@ -598,7 +598,7 @@ __jffs2_dbg_dump_buffer(unsigned char *buf, int len, uint32_t offs)
 		}
 
 		printk("%02x ", buf[i]);
-		
+
 		i += 1;
 	}
 
@@ -616,7 +616,7 @@ __jffs2_dbg_dump_node(struct jffs2_sb_info *c, uint32_t ofs)
 	size_t retlen;
 	uint32_t crc;
 	int ret;
-	
+
 	printk(JFFS2_DBG_MSG_PREFIX " dump node at offset %#08x.\n", ofs);
 
 	ret = jffs2_flash_read(c, ofs, len, &retlen, (unsigned char *)&node);
@@ -630,13 +630,13 @@ __jffs2_dbg_dump_node(struct jffs2_sb_info *c, uint32_t ofs)
 	printk(JFFS2_DBG "nodetype:\t%#04x\n", je16_to_cpu(node.u.nodetype));
 	printk(JFFS2_DBG "totlen:\t%#08x\n", je32_to_cpu(node.u.totlen));
 	printk(JFFS2_DBG "hdr_crc:\t%#08x\n", je32_to_cpu(node.u.hdr_crc));
-	
+
 	crc = crc32(0, &node.u, sizeof(node.u) - 4);
 	if (crc != je32_to_cpu(node.u.hdr_crc)) {
 		JFFS2_ERROR("wrong common header CRC.\n");
 		return;
 	}
-	
+
 	if (je16_to_cpu(node.u.magic) != JFFS2_MAGIC_BITMASK &&
 		je16_to_cpu(node.u.magic) != JFFS2_OLD_MAGIC_BITMASK)
 	{
@@ -668,7 +668,7 @@ __jffs2_dbg_dump_node(struct jffs2_sb_info *c, uint32_t ofs)
 		printk(JFFS2_DBG "data_crc:\t%#08x\n", je32_to_cpu(node.i.data_crc));
 		printk(JFFS2_DBG "node_crc:\t%#08x\n", je32_to_cpu(node.i.node_crc));
 
-		crc = crc32(0, &node.i, sizeof(node.i) - 8); 
+		crc = crc32(0, &node.i, sizeof(node.i) - 8);
 		if (crc != je32_to_cpu(node.i.node_crc)) {
 			JFFS2_ERROR("wrong node header CRC.\n");
 			return;
@@ -686,11 +686,11 @@ __jffs2_dbg_dump_node(struct jffs2_sb_info *c, uint32_t ofs)
 		printk(JFFS2_DBG "type:\t%#02x\n", node.d.type);
 		printk(JFFS2_DBG "node_crc:\t%#08x\n", je32_to_cpu(node.d.node_crc));
 		printk(JFFS2_DBG "name_crc:\t%#08x\n", je32_to_cpu(node.d.name_crc));
-		
+
 		node.d.name[node.d.nsize] = '\0';
 		printk(JFFS2_DBG "name:\t\"%s\"\n", node.d.name);
 
-		crc = crc32(0, &node.d, sizeof(node.d) - 8); 
+		crc = crc32(0, &node.d, sizeof(node.d) - 8);
 		if (crc != je32_to_cpu(node.d.node_crc)) {
 			JFFS2_ERROR("wrong node header CRC.\n");
 			return;

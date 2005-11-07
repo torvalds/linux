@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: nodelist.c,v 1.114 2005/09/21 13:28:35 dedekind Exp $
+ * $Id: nodelist.c,v 1.115 2005/11/07 11:14:40 gleixner Exp $
  *
  */
 
@@ -24,7 +24,7 @@
 void jffs2_add_fd_to_list(struct jffs2_sb_info *c, struct jffs2_full_dirent *new, struct jffs2_full_dirent **list)
 {
 	struct jffs2_full_dirent **prev = list;
-	
+
 	dbg_dentlist("add dirent \"%s\", ino #%u\n", new->name, new->ino);
 
 	while ((*prev) && (*prev)->nhash <= new->nhash) {
@@ -75,14 +75,14 @@ void jffs2_truncate_fragtree(struct jffs2_sb_info *c, struct rb_root *list, uint
 	if (size == 0)
 		return;
 
-	/* 
+	/*
 	 * If the last fragment starts at the RAM page boundary, it is
 	 * REF_PRISTINE irrespective of its size.
 	 */
 	frag = frag_last(list);
 	if (frag->node && (frag->ofs & (PAGE_CACHE_SIZE - 1)) == 0) {
 		dbg_fragtree2("marking the last fragment 0x%08x-0x%08x REF_PRISTINE.\n",
-			frag->ofs, frag->ofs + frag->size); 
+			frag->ofs, frag->ofs + frag->size);
 		frag->node->raw->flash_offset = ref_offset(frag->node->raw) | REF_PRISTINE;
 	}
 }
@@ -102,7 +102,7 @@ void jffs2_obsolete_node_frag(struct jffs2_sb_info *c, struct jffs2_node_frag *t
 				ref_offset(this->node->raw), this->node->ofs, this->node->ofs+this->node->size, this->node->frags);
 			mark_ref_normal(this->node->raw);
 		}
-		
+
 	}
 	jffs2_free_node_frag(this);
 }
@@ -117,7 +117,7 @@ static void jffs2_fragtree_insert(struct jffs2_node_frag *newfrag, struct jffs2_
 	while (*link) {
 		parent = *link;
 		base = rb_entry(parent, struct jffs2_node_frag, rb);
-	
+
 		if (newfrag->ofs > base->ofs)
 			link = &base->rb.rb_right;
 		else if (newfrag->ofs < base->ofs)
@@ -137,7 +137,7 @@ static void jffs2_fragtree_insert(struct jffs2_node_frag *newfrag, struct jffs2_
 static inline struct jffs2_node_frag * new_fragment(struct jffs2_full_dnode *fn, uint32_t ofs, uint32_t size)
 {
 	struct jffs2_node_frag *newfrag;
-	
+
 	newfrag = jffs2_alloc_node_frag();
 	if (likely(newfrag)) {
 		newfrag->ofs = ofs;
@@ -169,7 +169,7 @@ static int no_overlapping_node(struct jffs2_sb_info *c, struct rb_root *root,
 		}
 
 		if (this) {
-			/* By definition, the 'this' node has no right-hand child, 
+			/* By definition, the 'this' node has no right-hand child,
 			   because there are no frags with offset greater than it.
 			   So that's where we want to put the hole */
 			dbg_fragtree2("add hole frag %#04x-%#04x on the right of the new frag.\n",
@@ -183,13 +183,13 @@ static int no_overlapping_node(struct jffs2_sb_info *c, struct rb_root *root,
 		rb_insert_color(&holefrag->rb, root);
 		this = holefrag;
 	}
-	
+
 	if (this) {
-		/* By definition, the 'this' node has no right-hand child, 
+		/* By definition, the 'this' node has no right-hand child,
 		   because there are no frags with offset greater than it.
 		   So that's where we want to put new fragment */
 		dbg_fragtree2("add the new node at the right\n");
-		rb_link_node(&newfrag->rb, &this->rb, &this->rb.rb_right);			
+		rb_link_node(&newfrag->rb, &this->rb, &this->rb.rb_right);
 	} else {
 		dbg_fragtree2("insert the new node at the root of the tree\n");
 		rb_link_node(&newfrag->rb, NULL, &root->rb_node);
@@ -216,7 +216,7 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *r
 		dbg_fragtree2("lookup gave no frag\n");
 		lastend = 0;
 	}
-			  
+
 	/* See if we ran off the end of the fragtree */
 	if (lastend <= newfrag->ofs) {
 		/* We did */
@@ -243,7 +243,7 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *r
 		this->ofs, this->ofs + this->size);
 
 	/* OK. 'this' is pointing at the first frag that newfrag->ofs at least partially obsoletes,
-	 * - i.e. newfrag->ofs < this->ofs+this->size && newfrag->ofs >= this->ofs  
+	 * - i.e. newfrag->ofs < this->ofs+this->size && newfrag->ofs >= this->ofs
 	 */
 	if (newfrag->ofs > this->ofs) {
 		/* This node isn't completely obsoleted. The start of it remains valid */
@@ -261,10 +261,10 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *r
 			if (this->node)
 				dbg_fragtree2("split old frag 0x%04x-0x%04x, phys 0x%08x\n",
 					this->ofs, this->ofs+this->size, ref_offset(this->node->raw));
-			else 
+			else
 				dbg_fragtree2("split old hole frag 0x%04x-0x%04x\n",
 					this->ofs, this->ofs+this->size);
-			
+
 			/* New second frag pointing to this's node */
 			newfrag2 = new_fragment(this->node, newfrag->ofs + newfrag->size,
 						this->ofs + this->size - newfrag->ofs - newfrag->size);
@@ -284,10 +284,10 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *r
 			   from newfrag to insert newfrag2. */
 			jffs2_fragtree_insert(newfrag, this);
 			rb_insert_color(&newfrag->rb, root);
-			
+
 			jffs2_fragtree_insert(newfrag2, newfrag);
 			rb_insert_color(&newfrag2->rb, root);
-			
+
 			return 0;
 		}
 		/* New node just reduces 'this' frag in size, doesn't split it */
@@ -297,13 +297,13 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *r
 		jffs2_fragtree_insert(newfrag, this);
 		rb_insert_color(&newfrag->rb, root);
 	} else {
-		/* New frag starts at the same point as 'this' used to. Replace 
+		/* New frag starts at the same point as 'this' used to. Replace
 		   it in the tree without doing a delete and insertion */
 		dbg_fragtree2("inserting newfrag (*%p),%d-%d in before 'this' (*%p),%d-%d\n",
 			  newfrag, newfrag->ofs, newfrag->ofs+newfrag->size, this, this->ofs, this->ofs+this->size);
-	
+
 		rb_replace_node(&this->rb, &newfrag->rb, root);
-		
+
 		if (newfrag->ofs + newfrag->size >= this->ofs+this->size) {
 			dbg_fragtree2("obsoleting node frag %p (%x-%x)\n", this, this->ofs, this->ofs+this->size);
 			jffs2_obsolete_node_frag(c, this);
@@ -317,7 +317,7 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *r
 		}
 	}
 	/* OK, now we have newfrag added in the correct place in the tree, but
-	   frag_next(newfrag) may be a fragment which is overlapped by it 
+	   frag_next(newfrag) may be a fragment which is overlapped by it
 	*/
 	while ((this = frag_next(newfrag)) && newfrag->ofs + newfrag->size >= this->ofs + this->size) {
 		/* 'this' frag is obsoleted completely. */
@@ -326,7 +326,7 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *r
 		rb_erase(&this->rb, root);
 		jffs2_obsolete_node_frag(c, this);
 	}
-	/* Now we're pointing at the first frag which isn't totally obsoleted by 
+	/* Now we're pointing at the first frag which isn't totally obsoleted by
 	   the new frag */
 
 	if (!this || newfrag->ofs + newfrag->size == this->ofs)
@@ -344,7 +344,7 @@ static int jffs2_add_frag_to_fragtree(struct jffs2_sb_info *c, struct rb_root *r
 	return 0;
 }
 
-/* 
+/*
  * Given an inode, probably with existing tree of fragments, add the new node
  * to the fragment tree.
  */
@@ -363,7 +363,7 @@ int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_in
 
 	dbg_fragtree("adding node %#04x-%#04x @0x%08x on flash, newfrag *%p\n",
 		  fn->ofs, fn->ofs+fn->size, ref_offset(fn->raw), newfrag);
-	
+
 	ret = jffs2_add_frag_to_fragtree(c, &f->fragtree, newfrag);
 	if (unlikely(ret))
 		return ret;
@@ -374,14 +374,14 @@ int jffs2_add_full_dnode_to_inode(struct jffs2_sb_info *c, struct jffs2_inode_in
 		struct jffs2_node_frag *prev = frag_prev(newfrag);
 
 		mark_ref_normal(fn->raw);
-		/* If we don't start at zero there's _always_ a previous */	
+		/* If we don't start at zero there's _always_ a previous */
 		if (prev->node)
 			mark_ref_normal(prev->node->raw);
 	}
 
 	if ((newfrag->ofs+newfrag->size) & (PAGE_CACHE_SIZE-1)) {
 		struct jffs2_node_frag *next = frag_next(newfrag);
-		
+
 		if (next) {
 			mark_ref_normal(fn->raw);
 			if (next->node)
@@ -412,7 +412,7 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 
 	if (!jffs2_is_writebuffered(c))
 		goto adj_acc;
-	
+
 	/* Calculate how many bytes were already checked */
 	ofs = ref_offset(ref) + sizeof(struct jffs2_raw_inode);
 	len = ofs % c->wbuf_pagesize;
@@ -424,13 +424,13 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 			ref_offset(ref), tn->csize, ofs);
 		goto adj_acc;
 	}
-	
+
 	ofs += len;
 	len = tn->csize - len;
-	
+
 	dbg_readinode("check node at %#08x, data length %u, partial CRC %#08x, correct CRC %#08x, data starts at %#08x, start checking from %#08x - %u bytes.\n",
 		ref_offset(ref), tn->csize, tn->partial_crc, tn->data_crc, ofs - len, ofs, len);
-	
+
 #ifndef __ECOS
 	/* TODO: instead, incapsulate point() stuff to jffs2_flash_read(),
 	 * adding and jffs2_flash_read_end() interface. */
@@ -445,12 +445,12 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 			pointed = 1; /* succefully pointed to device */
 	}
 #endif
-	
+
 	if (!pointed) {
 		buffer = kmalloc(len, GFP_KERNEL);
 		if (unlikely(!buffer))
 			return -ENOMEM;
-			
+
 		/* TODO: this is very frequent pattern, make it a separate
 		 * routine */
 		err = jffs2_flash_read(c, ofs, len, &retlen, buffer);
@@ -458,7 +458,7 @@ static int check_node_data(struct jffs2_sb_info *c, struct jffs2_tmp_dnode_info 
 			JFFS2_ERROR("can not read %d bytes from 0x%08x, error code: %d.\n", len, ofs, err);
 			goto free_out;
 		}
-			
+
 		if (retlen != len) {
 			JFFS2_ERROR("short read at %#08x: %d instead of %d.\n", ofs, retlen, len);
 			err = -EIO;
@@ -485,7 +485,7 @@ adj_acc:
 	jeb = &c->blocks[ref->flash_offset / c->sector_size];
 	len = ref_totlen(c, jeb, ref);
 
-	/* 
+	/*
 	 * Mark the node as having been checked and fix the
 	 * accounting accordingly.
 	 */
@@ -516,13 +516,13 @@ free_out:
 static inline int check_node(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_tmp_dnode_info *tn)
 {
 	int ret;
-	
+
 	BUG_ON(ref_obsolete(tn->fn->raw));
 
 	/* We only check the data CRC of unchecked nodes */
 	if (ref_flags(tn->fn->raw) != REF_UNCHECKED)
 		return 0;
-	
+
 	dbg_fragtree2("check node %#04x-%#04x, phys offs %#08x.\n",
 		tn->fn->ofs, tn->fn->ofs + tn->fn->size, ref_offset(tn->fn->raw));
 
@@ -538,7 +538,7 @@ static inline int check_node(struct jffs2_sb_info *c, struct jffs2_inode_info *f
 	return ret;
 }
 
-/* 
+/*
  * Helper function for jffs2_add_older_frag_to_fragtree().
  *
  * Called when the new fragment that is being inserted
@@ -551,31 +551,31 @@ static int split_hole(struct jffs2_sb_info *c, struct rb_root *root,
 		newfrag->ofs, newfrag->ofs + newfrag->size, hole->ofs, hole->ofs + hole->size);
 
 	if (hole->ofs == newfrag->ofs) {
-		/* 
+		/*
 		 * Well, the new fragment actually starts at the same offset as
 		 * the hole.
 		 */
 		if (hole->ofs + hole->size > newfrag->ofs + newfrag->size) {
-			/* 
+			/*
 			 * We replace the overlapped left part of the hole by
 			 * the new node.
 			 */
-			
+
 			dbg_fragtree2("insert fragment %#04x-%#04x and cut the left part of the hole\n",
 				newfrag->ofs, newfrag->ofs + newfrag->size);
 			rb_replace_node(&hole->rb, &newfrag->rb, root);
-			
+
 			hole->ofs += newfrag->size;
 			hole->size -= newfrag->size;
-			
-			/* 
+
+			/*
 			 * We know that 'hole' should be the right hand
 			 * fragment.
 			 */
 			jffs2_fragtree_insert(hole, newfrag);
 			rb_insert_color(&hole->rb, root);
 		} else {
-			/* 
+			/*
 			 * Ah, the new fragment is of the same size as the hole.
 			 * Relace the hole by it.
 			 */
@@ -586,7 +586,7 @@ static int split_hole(struct jffs2_sb_info *c, struct rb_root *root,
 		}
 	} else {
 		/* The new fragment lefts some hole space at the left */
-		
+
 		struct jffs2_node_frag * newfrag2 = NULL;
 
 		if (hole->ofs + hole->size > newfrag->ofs + newfrag->size) {
@@ -606,7 +606,7 @@ static int split_hole(struct jffs2_sb_info *c, struct rb_root *root,
 
 		jffs2_fragtree_insert(newfrag, hole);
 		rb_insert_color(&newfrag->rb, root);
-		
+
 		if (newfrag2) {
 			dbg_fragtree2("left the hole %#04x-%#04x at the right\n",
 				newfrag2->ofs, newfrag2->ofs + newfrag2->size);
@@ -654,18 +654,18 @@ int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode
 		lastend = this->ofs + this->size;
 	else
 		lastend = 0;
-	
+
 	/* Detect the preliminary type of node */
 	if (fn->size >= PAGE_CACHE_SIZE)
 		ref_flag = REF_PRISTINE;
 	else
 		ref_flag = REF_NORMAL;
-	
+
 	/* See if we ran off the end of the root */
 	if (lastend <= fn_ofs) {
 		/* We did */
-		
-		/* 
+
+		/*
 		 * We are going to insert the new node into the
 		 * fragment tree, so check it.
 		 */
@@ -691,21 +691,21 @@ int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode
 	fn->frags = 0;
 
 	while (1) {
-		/* 
+		/*
 		 * Here we have:
 		 * fn_ofs < this->ofs + this->size && fn_ofs >= this->ofs.
-		 * 
+		 *
 		 * Remember, 'this' has higher version, any non-hole node
 		 * which is already in the fragtree is newer then the newly
 		 * inserted.
 		 */
 		if (!this->node) {
-			/* 
+			/*
 			 * 'this' is the hole fragment, so at least the
 			 * beginning of the new fragment is valid.
 			 */
-			
-			/* 
+
+			/*
 			 * We are going to insert the new node into the
 			 * fragment tree, so check it.
 			 */
@@ -715,7 +715,7 @@ int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode
 					return err;
 				checked = 1;
 			}
-			
+
 			if (this->ofs + this->size >= fn_ofs + fn_size) {
 				/* We split the hole on two parts */
 
@@ -730,7 +730,7 @@ int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode
 				goto out_ok;
 			}
 
-			/* 
+			/*
 			 * The beginning of the new fragment is valid since it
 			 * overlaps the hole node.
 			 */
@@ -742,9 +742,9 @@ int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode
 					this->ofs + this->size - fn_ofs);
 			if (unlikely(!newfrag))
 				return -ENOMEM;
-			
+
 			if (fn_ofs == this->ofs) {
-				/* 
+				/*
 				 * The new node starts at the same offset as
 				 * the hole and supersieds the hole.
 				 */
@@ -754,21 +754,21 @@ int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode
 				rb_replace_node(&this->rb, &newfrag->rb, root);
 				jffs2_free_node_frag(this);
 			} else {
-				/* 
+				/*
 				 * The hole becomes shorter as its right part
 				 * is supersieded by the new fragment.
 				 */
 				dbg_fragtree2("reduce size of hole %#04x-%#04x to %#04x-%#04x\n",
 					this->ofs, this->ofs + this->size, this->ofs, this->ofs + this->size - newfrag->size);
-				
+
 				dbg_fragtree2("add new fragment %#04x-%#04x, refcnt %d\n", fn_ofs,
 					fn_ofs + this->ofs + this->size - fn_ofs, fn->frags);
-	
+
 				this->size -= newfrag->size;
 				jffs2_fragtree_insert(newfrag, this);
 				rb_insert_color(&newfrag->rb, root);
 			}
-			
+
 			fn_ofs += newfrag->size;
 			fn_size -= newfrag->size;
 			this = rb_entry(rb_next(&newfrag->rb),
@@ -778,7 +778,7 @@ int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode
 				this->ofs, this->ofs + this->size, this->node ? "(data)" : "(hole)");
 		}
 
-		/* 
+		/*
 		 * 'This' node is not the hole so it obsoletes the new fragment
 		 * either fully or partially.
 		 */
@@ -791,19 +791,19 @@ int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode
 			goto out_ok;
 		} else {
 			struct jffs2_node_frag *new_this;
-			
+
 			/* 'This' node obsoletes the beginning of the new node */
 			dbg_fragtree2("the beginning %#04x-%#04x is obsolete\n", fn_ofs, this->ofs + this->size);
 
 			ref_flag = REF_NORMAL;
-			
+
 			fn_size -= this->ofs + this->size - fn_ofs;
 			fn_ofs = this->ofs + this->size;
 			dbg_fragtree2("now considering %#04x-%#04x\n", fn_ofs, fn_ofs + fn_size);
-			
+
 			new_this = rb_entry(rb_next(&this->rb), struct jffs2_node_frag, rb);
 			if (!new_this) {
-				/* 
+				/*
 				 * There is no next fragment. Add the rest of
 				 * the new node as the right-hand child.
 				 */
@@ -813,7 +813,7 @@ int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode
 						return err;
 					checked = 1;
 				}
-				
+
 				fn->frags += 1;
 				newfrag = new_fragment(fn, fn_ofs, fn_size);
 				if (unlikely(!newfrag))
@@ -821,7 +821,7 @@ int jffs2_add_older_frag_to_fragtree(struct jffs2_sb_info *c, struct jffs2_inode
 
 				dbg_fragtree2("there are no more fragments, insert %#04x-%#04x\n",
 					newfrag->ofs, newfrag->ofs + newfrag->size);
-				rb_link_node(&newfrag->rb, &this->rb, &this->rb.rb_right);			
+				rb_link_node(&newfrag->rb, &this->rb, &this->rb.rb_right);
 				rb_insert_color(&newfrag->rb, root);
 				goto out_ok;
 			} else {
@@ -862,9 +862,9 @@ void jffs2_set_inocache_state(struct jffs2_sb_info *c, struct jffs2_inode_cache 
 
 /* During mount, this needs no locking. During normal operation, its
    callers want to do other stuff while still holding the inocache_lock.
-   Rather than introducing special case get_ino_cache functions or 
+   Rather than introducing special case get_ino_cache functions or
    callbacks, we just let the caller do the locking itself. */
-   
+
 struct jffs2_inode_cache *jffs2_get_ino_cache(struct jffs2_sb_info *c, uint32_t ino)
 {
 	struct jffs2_inode_cache *ret;
@@ -873,7 +873,7 @@ struct jffs2_inode_cache *jffs2_get_ino_cache(struct jffs2_sb_info *c, uint32_t 
 	while (ret && ret->ino < ino) {
 		ret = ret->next;
 	}
-	
+
 	if (ret && ret->ino != ino)
 		ret = NULL;
 
@@ -907,9 +907,9 @@ void jffs2_del_ino_cache(struct jffs2_sb_info *c, struct jffs2_inode_cache *old)
 
 	dbg_inocache("del %p (ino #%u)\n", old, old->ino);
 	spin_lock(&c->inocache_lock);
-	
+
 	prev = &c->inocache_list[old->ino % INOCACHE_HASHSIZE];
-	
+
 	while ((*prev) && (*prev)->ino < old->ino) {
 		prev = &(*prev)->next;
 	}
@@ -919,7 +919,7 @@ void jffs2_del_ino_cache(struct jffs2_sb_info *c, struct jffs2_inode_cache *old)
 
 	/* Free it now unless it's in READING or CLEARING state, which
 	   are the transitions upon read_inode() and clear_inode(). The
-	   rest of the time we know nobody else is looking at it, and 
+	   rest of the time we know nobody else is looking at it, and
 	   if it's held by read_inode() or clear_inode() they'll free it
 	   for themselves. */
 	if (old->state != INO_STATE_READING && old->state != INO_STATE_CLEARING)
@@ -932,7 +932,7 @@ void jffs2_free_ino_caches(struct jffs2_sb_info *c)
 {
 	int i;
 	struct jffs2_inode_cache *this, *next;
-	
+
 	for (i=0; i<INOCACHE_HASHSIZE; i++) {
 		this = c->inocache_list[i];
 		while (this) {
@@ -959,10 +959,10 @@ void jffs2_free_raw_node_refs(struct jffs2_sb_info *c)
 		c->blocks[i].first_node = c->blocks[i].last_node = NULL;
 	}
 }
-	
+
 struct jffs2_node_frag *jffs2_lookup_node_frag(struct rb_root *fragtree, uint32_t offset)
 {
-	/* The common case in lookup is that there will be a node 
+	/* The common case in lookup is that there will be a node
 	   which precisely matches. So we go looking for that first */
 	struct rb_node *next;
 	struct jffs2_node_frag *prev = NULL;
@@ -993,9 +993,9 @@ struct jffs2_node_frag *jffs2_lookup_node_frag(struct rb_root *fragtree, uint32_
 	if (prev)
 		dbg_fragtree2("no match. Returning frag %#04x-%#04x, closest previous\n",
 			  prev->ofs, prev->ofs+prev->size);
-	else 
+	else
 		dbg_fragtree2("returning NULL, empty fragtree\n");
-	
+
 	return prev;
 }
 
@@ -1010,7 +1010,7 @@ void jffs2_kill_fragtree(struct rb_root *root, struct jffs2_sb_info *c)
 		return;
 
 	dbg_fragtree("killing\n");
-	
+
 	frag = (rb_entry(root->rb_node, struct jffs2_node_frag, rb));
 	while(frag) {
 		if (frag->rb.rb_left) {
@@ -1023,18 +1023,18 @@ void jffs2_kill_fragtree(struct rb_root *root, struct jffs2_sb_info *c)
 		}
 
 		if (frag->node && !(--frag->node->frags)) {
-			/* Not a hole, and it's the final remaining frag 
+			/* Not a hole, and it's the final remaining frag
 			   of this node. Free the node */
 			if (c)
 				jffs2_mark_node_obsolete(c, frag->node->raw);
-			
+
 			jffs2_free_full_dnode(frag->node);
 		}
 		parent = frag_parent(frag);
 		if (parent) {
 			if (frag_left(parent) == frag)
 				parent->rb.rb_left = NULL;
-			else 
+			else
 				parent->rb.rb_right = NULL;
 		}
 

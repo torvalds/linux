@@ -5,7 +5,7 @@
  *
  * Created by David Woodhouse <dwmw2@infradead.org>
  *
- * For licensing information, see the file 'LICENCE' in the 
+ * For licensing information, see the file 'LICENCE' in the
  * jffs2 directory.
  *
  * $Id: jffs2.h,v 1.38 2005/09/26 11:37:23 havasi Exp $
@@ -70,10 +70,10 @@
 //#define JFFS2_NODETYPE_OPTIONS (JFFS2_FEATURE_RWCOMPAT_COPY | JFFS2_NODE_ACCURATE | 4)
 
 
-#define JFFS2_INO_FLAG_PREREAD	  1	/* Do read_inode() for this one at 
-					   mount time, don't wait for it to 
+#define JFFS2_INO_FLAG_PREREAD	  1	/* Do read_inode() for this one at
+					   mount time, don't wait for it to
 					   happen later */
-#define JFFS2_INO_FLAG_USERCOMPR  2	/* User has requested a specific 
+#define JFFS2_INO_FLAG_USERCOMPR  2	/* User has requested a specific
 					   compression type */
 
 
@@ -120,7 +120,7 @@ struct jffs2_raw_dirent
 } __attribute__((packed));
 
 /* The JFFS2 raw inode structure: Used for storage on physical media.  */
-/* The uid, gid, atime, mtime and ctime members could be longer, but 
+/* The uid, gid, atime, mtime and ctime members could be longer, but
    are left like this for space efficiency. If and when people decide
    they really need them extended, it's simple enough to add support for
    a new type of raw node.
@@ -165,7 +165,7 @@ struct jffs2_raw_summary
 	jint32_t sum[0]; 	/* inode summary info */
 } __attribute__((packed));
 
-union jffs2_node_union 
+union jffs2_node_union
 {
 	struct jffs2_raw_inode i;
 	struct jffs2_raw_dirent d;

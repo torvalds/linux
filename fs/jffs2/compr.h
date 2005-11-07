@@ -4,10 +4,10 @@
  * Copyright (C) 2004 Ferenc Havasi <havasi@inf.u-szeged.hu>,
  *                    University of Szeged, Hungary
  *
- * For licensing information, see the file 'LICENCE' in the 
+ * For licensing information, see the file 'LICENCE' in the
  * jffs2 directory.
  *
- * $Id: compr.h,v 1.8 2005/07/26 13:24:40 havasi Exp $
+ * $Id: compr.h,v 1.9 2005/11/07 11:14:38 gleixner Exp $
  *
  */
 

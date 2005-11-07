@@ -191,18 +191,18 @@ void jffs2_gc_release_inode(struct jffs2_sb_info *c,
 struct jffs2_inode_info *jffs2_gc_fetch_inode(struct jffs2_sb_info *c,
 					      int inum, int nlink);
 
-unsigned char *jffs2_gc_fetch_page(struct jffs2_sb_info *c, 
-				   struct jffs2_inode_info *f, 
+unsigned char *jffs2_gc_fetch_page(struct jffs2_sb_info *c,
+				   struct jffs2_inode_info *f,
 				   unsigned long offset,
 				   unsigned long *priv);
 void jffs2_gc_release_page(struct jffs2_sb_info *c,
 			   unsigned char *pg,
 			   unsigned long *priv);
 void jffs2_flash_cleanup(struct jffs2_sb_info *c);
-     
+
 
 /* writev.c */
-int jffs2_flash_direct_writev(struct jffs2_sb_info *c, const struct kvec *vecs, 
+int jffs2_flash_direct_writev(struct jffs2_sb_info *c, const struct kvec *vecs,
 		       unsigned long count, loff_t to, size_t *retlen);
 int jffs2_flash_direct_write(struct jffs2_sb_info *c, loff_t ofs, size_t len,
 			size_t *retlen, const u_char *buf);

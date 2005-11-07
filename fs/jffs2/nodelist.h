@@ -58,7 +58,7 @@
 #define je16_to_cpu(x) (le16_to_cpu(x.v16))
 #define je32_to_cpu(x) (le32_to_cpu(x.v32))
 #define jemode_to_cpu(x) (le32_to_cpu(jffs2_to_os_mode((x).m)))
-#else 
+#else
 #error wibble
 #endif
 
@@ -68,7 +68,7 @@
 /*
   This is all we need to keep in-core for each raw node during normal
   operation. As and when we do read_inode on a particular inode, we can
-  scan the nodes which are listed for it and build up a proper map of 
+  scan the nodes which are listed for it and build up a proper map of
   which nodes are currently valid. JFFSv1 always used to keep that whole
   map in core for each inode.
 */
@@ -85,7 +85,7 @@ struct jffs2_raw_node_ref
 
         /* flash_offset & 3 always has to be zero, because nodes are
 	   always aligned at 4 bytes. So we have a couple of extra bits
-	   to play with, which indicate the node's status; see below: */ 
+	   to play with, which indicate the node's status; see below: */
 #define REF_UNCHECKED	0	/* We haven't yet checked the CRC or built its inode */
 #define REF_OBSOLETE	1	/* Obsolete, can be completely ignored */
 #define REF_PRISTINE	2	/* Completely clean. GC without looking */
@@ -98,7 +98,7 @@ struct jffs2_raw_node_ref
 /* For each inode in the filesystem, we need to keep a record of
    nlink, because it would be a PITA to scan the whole directory tree
    at read_inode() time to calculate it, and to keep sufficient information
-   in the raw_node_ref (basically both parent and child inode number for 
+   in the raw_node_ref (basically both parent and child inode number for
    dirent nodes) would take more space than this does. We also keep
    a pointer to the first physical node which is part of this inode, too.
 */
@@ -128,7 +128,7 @@ struct jffs2_inode_cache {
 #define INOCACHE_HASHSIZE 128
 
 /*
-  Larger representation of a raw node, kept in-core only when the 
+  Larger representation of a raw node, kept in-core only when the
   struct inode for this particular ino is instantiated.
 */
 
@@ -138,11 +138,11 @@ struct jffs2_full_dnode
 	uint32_t ofs; /* The offset to which the data of this node belongs */
 	uint32_t size;
 	uint32_t frags; /* Number of fragments which currently refer
-			to this node. When this reaches zero, 
+			to this node. When this reaches zero,
 			the node is obsolete.  */
 };
 
-/* 
+/*
    Even larger representation of a raw node, kept in-core only while
    we're actually building up the original map of which nodes go where,
    in read_inode()
@@ -155,7 +155,7 @@ struct jffs2_tmp_dnode_info
 	uint32_t data_crc;
 	uint32_t partial_crc;
 	uint32_t csize;
-};       
+};
 
 struct jffs2_full_dirent
 {
@@ -169,7 +169,7 @@ struct jffs2_full_dirent
 };
 
 /*
-  Fragments - used to build a map of which raw node to obtain 
+  Fragments - used to build a map of which raw node to obtain
   data from for each part of the ino
 */
 struct jffs2_node_frag
@@ -209,7 +209,7 @@ static inline uint32_t __ref_totlen(struct jffs2_sb_info *c,
 				    struct jffs2_raw_node_ref *ref)
 {
 	uint32_t ref_end;
-	
+
 	if (ref->next_phys)
 		ref_end = ref_offset(ref->next_phys);
 	else {
@@ -264,7 +264,7 @@ static inline uint32_t ref_totlen(struct jffs2_sb_info *c,
 #define VERYDIRTY(c, size) ((size) >= ((c)->sector_size / 2))
 
 /* check if dirty space is more than 255 Byte */
-#define ISDIRTY(size) ((size) >  sizeof (struct jffs2_raw_inode) + JFFS2_MIN_DATA_LEN) 
+#define ISDIRTY(size) ((size) >  sizeof (struct jffs2_raw_inode) + JFFS2_MIN_DATA_LEN)
 
 #define PAD(x) (((x)+3)&~3)
 
@@ -341,7 +341,7 @@ int jffs2_do_new_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, uint
 struct jffs2_full_dnode *jffs2_write_dnode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_raw_inode *ri, const unsigned char *data, uint32_t datalen, uint32_t flash_ofs, int alloc_mode);
 struct jffs2_full_dirent *jffs2_write_dirent(struct jffs2_sb_info *c, struct jffs2_inode_info *f, struct jffs2_raw_dirent *rd, const unsigned char *name, uint32_t namelen, uint32_t flash_ofs, int alloc_mode);
 int jffs2_write_inode_range(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
-			    struct jffs2_raw_inode *ri, unsigned char *buf, 
+			    struct jffs2_raw_inode *ri, unsigned char *buf,
 			    uint32_t offset, uint32_t writelen, uint32_t *retlen);
 int jffs2_do_create(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, struct jffs2_inode_info *f, struct jffs2_raw_inode *ri, const char *name, int namelen);
 int jffs2_do_unlink(struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, const char *name, int namelen, struct jffs2_inode_info *dead_f, uint32_t time);
@@ -349,7 +349,7 @@ int jffs2_do_link (struct jffs2_sb_info *c, struct jffs2_inode_info *dir_f, uint
 
 
 /* readinode.c */
-int jffs2_do_read_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f, 
+int jffs2_do_read_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f,
 			uint32_t ino, struct jffs2_raw_inode *latest_node);
 int jffs2_do_crccheck_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic);
 void jffs2_do_clear_inode(struct jffs2_sb_info *c, struct jffs2_inode_info *f);

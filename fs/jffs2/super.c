@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: super.c,v 1.109 2005/09/07 08:34:55 havasi Exp $
+ * $Id: super.c,v 1.110 2005/11/07 11:14:42 gleixner Exp $
  *
  */
 
@@ -62,7 +62,7 @@ static int jffs2_sync_fs(struct super_block *sb, int wait)
 
 	down(&c->alloc_sem);
 	jffs2_flush_wbuf_pad(c);
-	up(&c->alloc_sem);	
+	up(&c->alloc_sem);
 	return 0;
 }
 
@@ -112,7 +112,7 @@ static int jffs2_sb_set(struct super_block *sb, void *data)
 }
 
 static struct super_block *jffs2_get_sb_mtd(struct file_system_type *fs_type,
-					      int flags, const char *dev_name, 
+					      int flags, const char *dev_name,
 					      void *data, struct mtd_info *mtd)
 {
 	struct super_block *sb;
@@ -172,7 +172,7 @@ static struct super_block *jffs2_get_sb_mtd(struct file_system_type *fs_type,
 }
 
 static struct super_block *jffs2_get_sb_mtdnr(struct file_system_type *fs_type,
-					      int flags, const char *dev_name, 
+					      int flags, const char *dev_name,
 					      void *data, int mtdnr)
 {
 	struct mtd_info *mtd;
@@ -201,7 +201,7 @@ static struct super_block *jffs2_get_sb(struct file_system_type *fs_type,
 
 	/* The preferred way of mounting in future; especially when
 	   CONFIG_BLK_DEV is implemented - we specify the underlying
-	   MTD device by number or by name, so that we don't require 
+	   MTD device by number or by name, so that we don't require
 	   block device support to be present in the kernel. */
 
 	/* FIXME: How to do the root fs this way? */
@@ -225,7 +225,7 @@ static struct super_block *jffs2_get_sb(struct file_system_type *fs_type,
 		} else if (isdigit(dev_name[3])) {
 			/* Mount by MTD device number name */
 			char *endptr;
-			
+
 			mtdnr = simple_strtoul(dev_name+3, &endptr, 0);
 			if (!*endptr) {
 				/* It was a valid number */
@@ -235,7 +235,7 @@ static struct super_block *jffs2_get_sb(struct file_system_type *fs_type,
 		}
 	}
 
-	/* Try the old way - the hack where we allowed users to mount 
+	/* Try the old way - the hack where we allowed users to mount
 	   /dev/mtdblock$(n) but didn't actually _use_ the blkdev */
 
 	err = path_lookup(dev_name, LOOKUP_FOLLOW, &nd);
@@ -376,5 +376,5 @@ module_exit(exit_jffs2_fs);
 
 MODULE_DESCRIPTION("The Journalling Flash File System, v2");
 MODULE_AUTHOR("Red Hat, Inc.");
-MODULE_LICENSE("GPL"); // Actually dual-licensed, but it doesn't matter for 
+MODULE_LICENSE("GPL"); // Actually dual-licensed, but it doesn't matter for
 		       // the sake of this tag. It's Free Software.

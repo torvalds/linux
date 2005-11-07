@@ -24,7 +24,7 @@ struct erase_priv_struct {
 	struct jffs2_eraseblock *jeb;
 	struct jffs2_sb_info *c;
 };
-      
+
 #ifndef __ECOS
 static void jffs2_erase_callback(struct erase_info *);
 #endif
@@ -71,7 +71,7 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 	instr->callback = jffs2_erase_callback;
 	instr->priv = (unsigned long)(&instr[1]);
 	instr->fail_addr = 0xffffffff;
-	
+
 	((struct erase_priv_struct *)instr->priv)->jeb = jeb;
 	((struct erase_priv_struct *)instr->priv)->c = c;
 
@@ -96,7 +96,7 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 		return;
 	}
 
-	if (ret == -EROFS) 
+	if (ret == -EROFS)
 		printk(KERN_WARNING "Erase at 0x%08x failed immediately: -EROFS. Is the sector locked?\n", jeb->offset);
 	else
 		printk(KERN_WARNING "Erase at 0x%08x failed immediately: errno %d\n", jeb->offset, ret);
@@ -197,7 +197,7 @@ static void jffs2_erase_failed(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 	c->nr_erasing_blocks--;
 	spin_unlock(&c->erase_completion_lock);
 	wake_up(&c->erase_wait);
-}	 
+}
 
 #ifndef __ECOS
 static void jffs2_erase_callback(struct erase_info *instr)
@@ -209,7 +209,7 @@ static void jffs2_erase_callback(struct erase_info *instr)
 		jffs2_erase_failed(priv->c, priv->jeb, instr->fail_addr);
 	} else {
 		jffs2_erase_succeeded(priv->c, priv->jeb);
-	}	
+	}
 	kfree(instr);
 }
 #endif /* !__ECOS */
@@ -227,13 +227,13 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 	/* Walk the inode's list once, removing any nodes from this eraseblock */
 	while (1) {
 		if (!(*prev)->next_in_ino) {
-			/* We're looking at the jffs2_inode_cache, which is 
+			/* We're looking at the jffs2_inode_cache, which is
 			   at the end of the linked list. Stash it and continue
 			   from the beginning of the list */
 			ic = (struct jffs2_inode_cache *)(*prev);
 			prev = &ic->nodes;
 			continue;
-		} 
+		}
 
 		if (SECTOR_ADDR((*prev)->flash_offset) == jeb->offset) {
 			/* It's in the block we're erasing */
@@ -267,7 +267,7 @@ static inline void jffs2_remove_node_refs_from_ino_list(struct jffs2_sb_info *c,
 		printk(KERN_DEBUG "After remove_node_refs_from_ino_list: \n" KERN_DEBUG);
 
 		this = ic->nodes;
-	   
+
 		while(this) {
 			printk( "0x%08x(%d)->", ref_offset(this), ref_flags(this));
 			if (++i == 5) {
@@ -290,7 +290,7 @@ static void jffs2_free_all_node_refs(struct jffs2_sb_info *c, struct jffs2_erase
 	while(jeb->first_node) {
 		ref = jeb->first_node;
 		jeb->first_node = ref->next_phys;
-		
+
 		/* Remove from the inode-list */
 		if (ref->next_in_ino)
 			jffs2_remove_node_refs_from_ino_list(c, ref, jeb);
@@ -307,7 +307,7 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 	uint32_t ofs;
 	size_t retlen;
 	int ret = -EIO;
-	
+
 	ebuf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!ebuf) {
 		printk(KERN_WARNING "Failed to allocate page buffer for verifying erase at 0x%08x. Refiling\n", jeb->offset);
@@ -361,7 +361,7 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 	case -EIO:	goto filebad;
 	}
 
-	/* Write the erase complete marker */	
+	/* Write the erase complete marker */
 	D1(printk(KERN_DEBUG "Writing erased marker to block at 0x%08x\n", jeb->offset));
 	bad_offset = jeb->offset;
 
@@ -399,7 +399,7 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 		vecs[0].iov_base = (unsigned char *) &marker;
 		vecs[0].iov_len = sizeof(marker);
 		ret = jffs2_flash_direct_writev(c, vecs, 1, jeb->offset, &retlen);
-		
+
 		if (ret || retlen != sizeof(marker)) {
 			if (ret)
 				printk(KERN_WARNING "Write clean marker to block at 0x%08x failed: %d\n",
@@ -416,9 +416,9 @@ static void jffs2_mark_erased_block(struct jffs2_sb_info *c, struct jffs2_eraseb
 		marker_ref->next_phys = NULL;
 		marker_ref->flash_offset = jeb->offset | REF_NORMAL;
 		marker_ref->__totlen = c->cleanmarker_size;
-			
+
 		jeb->first_node = jeb->last_node = marker_ref;
-			
+
 		jeb->free_size = c->sector_size - c->cleanmarker_size;
 		jeb->used_size = c->cleanmarker_size;
 		jeb->dirty_size = 0;

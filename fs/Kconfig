@@ -1084,10 +1084,10 @@ config JFFS2_ZLIB
 	default y
         help
           Zlib is designed to be a free, general-purpose, legally unencumbered,
-          lossless data-compression library for use on virtually any computer 
+          lossless data-compression library for use on virtually any computer
           hardware and operating system. See <http://www.gzip.org/zlib/> for
           further information.
-          
+
           Say 'Y' if unsure.
 
 config JFFS2_RTIME
@@ -1109,7 +1109,7 @@ choice
         default JFFS2_CMODE_PRIORITY
         depends on JFFS2_FS
         help
-          You can set here the default compression mode of JFFS2 from 
+          You can set here the default compression mode of JFFS2 from
           the available compression modes. Don't touch if unsure.
 
 config JFFS2_CMODE_NONE
@@ -1120,13 +1120,13 @@ config JFFS2_CMODE_NONE
 config JFFS2_CMODE_PRIORITY
         bool "priority"
         help
-          Tries the compressors in a predefinied order and chooses the first 
+          Tries the compressors in a predefinied order and chooses the first
           successful one.
 
 config JFFS2_CMODE_SIZE
         bool "size (EXPERIMENTAL)"
         help
-          Tries all compressors and chooses the one which has the smallest 
+          Tries all compressors and chooses the one which has the smallest
           result.
 
 endchoice

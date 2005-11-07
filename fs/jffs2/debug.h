@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: debug.h,v 1.20 2005/10/24 16:22:34 dedekind Exp $
+ * $Id: debug.h,v 1.21 2005/11/07 11:14:39 gleixner Exp $
  *
  */
 #ifndef _JFFS2_DEBUG_H_
@@ -24,7 +24,7 @@
 #define JFFS2_DBG_PARANOIA_CHECKS
 #define JFFS2_DBG_DUMPS
 
-/* 
+/*
  * By defining/undefining the below macros one may select debugging messages
  * fro specific JFFS2 subsystems.
  */
@@ -45,7 +45,7 @@
 /* Sanity checks are supposed to be light-weight and enabled by default */
 #define JFFS2_DBG_SANITY_CHECKS
 
-/* 
+/*
  * Dx() are mainly used for debugging messages, they must go away and be
  * superseded by nicer dbg_xxx() macros...
  */
@@ -91,7 +91,7 @@
 			" (%d) %s: " fmt, current->pid,			\
 			__FUNCTION__, ##__VA_ARGS__);			\
 	} while(0)
-			
+
 #define JFFS2_NOTICE(fmt, ...)						\
 	do {								\
 		printk(JFFS2_NOTICE_MSG_PREFIX				\
@@ -106,7 +106,7 @@
 			__FUNCTION__, ##__VA_ARGS__);			\
 	} while(0)
 
-/* 
+/*
  * We split our debugging messages on several parts, depending on the JFFS2
  * subsystem the message belongs to.
  */

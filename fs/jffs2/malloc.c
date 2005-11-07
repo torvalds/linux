@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: malloc.c,v 1.30 2005/09/20 14:27:34 dedekind Exp $
+ * $Id: malloc.c,v 1.31 2005/11/07 11:14:40 gleixner Exp $
  *
  */
 
@@ -29,7 +29,7 @@ static kmem_cache_t *inode_cache_slab;
 
 int __init jffs2_create_slab_caches(void)
 {
-	full_dnode_slab = kmem_cache_create("jffs2_full_dnode", 
+	full_dnode_slab = kmem_cache_create("jffs2_full_dnode",
 					    sizeof(struct jffs2_full_dnode),
 					    0, 0, NULL, NULL);
 	if (!full_dnode_slab)

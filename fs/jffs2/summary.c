@@ -82,7 +82,7 @@ static int jffs2_sum_add_mem(struct jffs2_summary *s, union jffs2_sum_mem *item)
 						je32_to_cpu(item->d.ino));
 			break;
 		default:
-			JFFS2_WARNING("UNKNOWN node type %u\n", 
+			JFFS2_WARNING("UNKNOWN node type %u\n",
 					    je16_to_cpu(item->u.nodetype));
 			return 1;
 	}
@@ -174,7 +174,7 @@ void jffs2_sum_disable_collecting(struct jffs2_summary *s)
 	s->sum_size = JFFS2_SUMMARY_NOSUM_SIZE;
 }
 
-int jffs2_sum_is_disabled(struct jffs2_summary *s) 
+int jffs2_sum_is_disabled(struct jffs2_summary *s)
 {
 	return (s->sum_size == JFFS2_SUMMARY_NOSUM_SIZE);
 }
@@ -609,7 +609,7 @@ static int jffs2_sum_write_data(struct jffs2_sb_info *c, struct jffs2_eraseblock
 				sdrnt_ptr->nsize = c->summary->sum_list_head->d.nsize;
 				sdrnt_ptr->type = c->summary->sum_list_head->d.type;
 
-				memcpy(sdrnt_ptr->name, c->summary->sum_list_head->d.name, 
+				memcpy(sdrnt_ptr->name, c->summary->sum_list_head->d.name,
 							c->summary->sum_list_head->d.nsize);
 
 				wpage += JFFS2_SUMMARY_DIRENT_SIZE(c->summary->sum_list_head->d.nsize);
@@ -687,7 +687,7 @@ int jffs2_sum_write_sumnode(struct jffs2_sb_info *c)
 	datasize = c->summary->sum_size + sizeof(struct jffs2_sum_marker);
 	infosize = sizeof(struct jffs2_raw_summary) + datasize;
 	padsize = jeb->free_size - infosize;
-	infosize += padsize; 
+	infosize += padsize;
 	datasize += padsize;
 
 	/* Is there enough space for summary? */
