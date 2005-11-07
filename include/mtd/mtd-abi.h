@@ -1,7 +1,7 @@
 /*
- * $Id: mtd-abi.h,v 1.12 2005/08/06 04:40:43 nico Exp $
+ * $Id: mtd-abi.h,v 1.13 2005/11/07 11:14:56 gleixner Exp $
  *
- * Portions of MTD ABI definition which are shared by kernel and user space 
+ * Portions of MTD ABI definition which are shared by kernel and user space
  */
 
 #ifndef __MTD_ABI_H__
@@ -81,7 +81,7 @@ struct mtd_info_user {
 };
 
 struct region_info_user {
-	uint32_t offset;		/* At which this region starts, 
+	uint32_t offset;		/* At which this region starts,
 					 * from the beginning of the MTD */
 	uint32_t erasesize;		/* For this region */
 	uint32_t numblocks;		/* Number of blocks in this region */
