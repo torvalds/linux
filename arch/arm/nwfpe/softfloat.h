@@ -55,6 +55,7 @@ typedef unsigned long int float32;
 typedef unsigned long long float64;
 typedef struct {
     unsigned short high;
+    unsigned short __padding;
     unsigned long long low;
 } floatx80;
 
