@@ -1283,7 +1283,7 @@ static int matroxfb_getmemory(WPMINFO unsigned int maxSize, unsigned int *realSi
 	vaddr_t vm;
 	unsigned int offs;
 	unsigned int offs2;
-	unsigned char store, orig;
+	unsigned char orig;
 	unsigned char bytes[32];
 	unsigned char* tmp;
 
@@ -1299,16 +1299,12 @@ static int matroxfb_getmemory(WPMINFO unsigned int maxSize, unsigned int *realSi
 	orig = mga_inb(M_EXTVGA_DATA);
 	mga_outb(M_EXTVGA_DATA, orig | 0x80);
 
-	store = mga_readb(vm, 0x1234);
 	tmp = bytes;
 	for (offs = 0x100000; offs < maxSize; offs += 0x200000)
 		*tmp++ = mga_readb(vm, offs);
 	for (offs = 0x100000; offs < maxSize; offs += 0x200000)
 		mga_writeb(vm, offs, 0x02);
-	if (ACCESS_FBINFO(features.accel.has_cacheflush))
-		mga_outb(M_CACHEFLUSH, 0x00);
-	else
-		mga_writeb(vm, 0x1234, 0x99);
+	mga_outb(M_CACHEFLUSH, 0x00);
 	for (offs = 0x100000; offs < maxSize; offs += 0x200000) {
 		if (mga_readb(vm, offs) != 0x02)
 			break;
@@ -1319,7 +1315,6 @@ static int matroxfb_getmemory(WPMINFO unsigned int maxSize, unsigned int *realSi
 	tmp = bytes;
 	for (offs2 = 0x100000; offs2 < maxSize; offs2 += 0x200000)
 		mga_writeb(vm, offs2, *tmp++);
-	mga_writeb(vm, 0x1234, store);
 
 	mga_outb(M_EXTVGA_INDEX, 0x03);
 	mga_outb(M_EXTVGA_DATA, orig);
