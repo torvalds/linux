@@ -8,4 +8,13 @@ config MACH_REALVIEW_EB
 	help
 	  Include support for the ARM(R) RealView Emulation Baseboard platform.
 
+config REALVIEW_MPCORE
+	bool "Support MPcore tile"
+	depends on MACH_REALVIEW_EB
+	help
+	  Enable support for the MPCore tile on the Realview platform.
+	  Since there are device address and interrupt differences, a
+	  kernel built with this option enabled is not compatible with
+	  other tiles.
+
 endmenu
