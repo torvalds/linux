@@ -17,7 +17,7 @@
  *
  * This code is GPL
  *
- * $Id: cfi_cmdset_0002.c,v 1.120 2005/07/20 21:01:13 tpoynor Exp $
+ * $Id: cfi_cmdset_0002.c,v 1.121 2005/11/07 09:00:01 gleixner Exp $
  *
  */
 
@@ -1014,15 +1014,15 @@ static int __xipram do_write_oneword(struct map_info *map, struct flchip *chip, 
 			continue;
 		}
 
-		if (chip_ready(map, adr))
-			break;
-
-		if (time_after(jiffies, timeo)) {
+		if (time_after(jiffies, timeo) && !chip_ready(map, adr)){
 			xip_enable(map, chip, adr);
 			printk(KERN_WARNING "MTD %s(): software timeout\n", __func__);
 			xip_disable(map, chip, adr);
-                        break;
+			break;
 		}
+
+		if (chip_ready(map, adr))
+			break;
 
 		/* Latency issues. Drop the lock, wait a while and retry */
 		UDELAY(map, chip, adr, 1);
@@ -1275,13 +1275,13 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 			continue;
 		}
 
+		if (time_after(jiffies, timeo) && !chip_ready(map, adr))
+			break;
+
 		if (chip_ready(map, adr)) {
 			xip_enable(map, chip, adr);
 			goto op_done;
 		}
-		    
-		if( time_after(jiffies, timeo))
-			break;
 
 		/* Latency issues. Drop the lock, wait a while and retry */
 		UDELAY(map, chip, adr, 1);
