@@ -895,11 +895,10 @@ static irqreturn_t b44_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct net_device *dev = dev_id;
 	struct b44 *bp = netdev_priv(dev);
-	unsigned long flags;
 	u32 istat, imask;
 	int handled = 0;
 
-	spin_lock_irqsave(&bp->lock, flags);
+	spin_lock(&bp->lock);
 
 	istat = br32(bp, B44_ISTAT);
 	imask = br32(bp, B44_IMASK);
@@ -925,7 +924,7 @@ static irqreturn_t b44_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 		bw32(bp, B44_ISTAT, istat);
 		br32(bp, B44_ISTAT);
 	}
-	spin_unlock_irqrestore(&bp->lock, flags);
+	spin_unlock(&bp->lock);
 	return IRQ_RETVAL(handled);
 }
 
