@@ -49,6 +49,7 @@
 #include <linux/poll.h>
 #include <linux/string.h>
 #include <linux/ctype.h>
+#include <asm/atomic.h>
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/apic.h>
 #endif
@@ -295,6 +296,8 @@ static int ipmi_start_timer_on_heartbeat = 0;
 static unsigned char ipmi_version_major;
 static unsigned char ipmi_version_minor;
 
+/* If a pretimeout occurs, this is used to allow only one panic to happen. */
+static atomic_t preop_panic_excl = ATOMIC_INIT(-1);
 
 static int ipmi_heartbeat(void);
 static void panic_halt_ipmi_heartbeat(void);
@@ -837,9 +840,10 @@ static void ipmi_wdog_msg_handler(struct ipmi_recv_msg *msg,
 static void ipmi_wdog_pretimeout_handler(void *handler_data)
 {
 	if (preaction_val != WDOG_PRETIMEOUT_NONE) {
-		if (preop_val == WDOG_PREOP_PANIC)
-			panic("Watchdog pre-timeout");
-		else if (preop_val == WDOG_PREOP_GIVE_DATA) {
+		if (preop_val == WDOG_PREOP_PANIC) {
+			if (atomic_inc_and_test(&preop_panic_excl))
+				panic("Watchdog pre-timeout");
+		} else if (preop_val == WDOG_PREOP_GIVE_DATA) {
 			spin_lock(&ipmi_read_lock);
 			data_to_read = 1;
 			wake_up_interruptible(&read_q);
@@ -913,7 +917,8 @@ ipmi_nmi(void *dev_id, struct pt_regs *regs, int cpu, int handled)
 		   an error and not work unless we re-enable
 		   the timer.   So do so. */
 		pretimeout_since_last_heartbeat = 1;
-		panic(PFX "pre-timeout");
+		if (atomic_inc_and_test(&preop_panic_excl))
+			panic(PFX "pre-timeout");
 	}
 
 	return NOTIFY_DONE;
