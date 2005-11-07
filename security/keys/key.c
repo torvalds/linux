@@ -115,8 +115,7 @@ struct key_user *key_user_lookup(uid_t uid)
  found:
 	atomic_inc(&user->usage);
 	spin_unlock(&key_user_lock);
-	if (candidate)
-		kfree(candidate);
+	kfree(candidate);
  out:
 	return user;
 
