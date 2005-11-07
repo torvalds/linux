@@ -35,7 +35,9 @@ static unsigned long indy_rtc_get_time(void)
 {
 	unsigned int yrs, mon, day, hrs, min, sec;
 	unsigned int save_control;
+	unsigned long flags;
 
+	spin_lock_irqsave(&rtc_lock, flags);
 	save_control = hpc3c0->rtcregs[RTC_CMD] & 0xff;
 	hpc3c0->rtcregs[RTC_CMD] = save_control | RTC_TE;
 
@@ -47,6 +49,7 @@ static unsigned long indy_rtc_get_time(void)
 	yrs = BCD2BIN(hpc3c0->rtcregs[RTC_YEAR] & 0xff);
 
 	hpc3c0->rtcregs[RTC_CMD] = save_control;
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	if (yrs < 45)
 		yrs += 30;
@@ -60,6 +63,7 @@ static int indy_rtc_set_time(unsigned long tim)
 {
 	struct rtc_time tm;
 	unsigned int save_control;
+	unsigned long flags;
 
 	to_tm(tim, &tm);
 
@@ -68,6 +72,7 @@ static int indy_rtc_set_time(unsigned long tim)
 	if (tm.tm_year >= 100)
 		tm.tm_year -= 100;
 
+	spin_lock_irqsave(&rtc_lock, flags);
 	save_control = hpc3c0->rtcregs[RTC_CMD] & 0xff;
 	hpc3c0->rtcregs[RTC_CMD] = save_control | RTC_TE;
 
@@ -80,6 +85,7 @@ static int indy_rtc_set_time(unsigned long tim)
 	hpc3c0->rtcregs[RTC_HUNDREDTH_SECOND] = 0;
 
 	hpc3c0->rtcregs[RTC_CMD] = save_control;
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return 0;
 }

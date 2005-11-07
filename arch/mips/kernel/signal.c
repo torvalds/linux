@@ -384,9 +384,6 @@ give_sigsegv:
 	return 0;
 }
 
-extern void setup_rt_frame_n32(struct k_sigaction * ka,
-	struct pt_regs *regs, int signr, sigset_t *set, siginfo_t *info);
-
 static inline int handle_signal(unsigned long sig, siginfo_t *info,
 	struct k_sigaction *ka, sigset_t *oldset, struct pt_regs *regs)
 {
