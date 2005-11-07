@@ -1251,7 +1251,12 @@ extern int unregister_filesystem(struct file_system_type *);
 extern struct vfsmount *kern_mount(struct file_system_type *);
 extern int may_umount_tree(struct vfsmount *);
 extern int may_umount(struct vfsmount *);
+extern void umount_tree(struct vfsmount *, struct list_head *);
+extern void release_mounts(struct list_head *);
 extern long do_mount(char *, char *, char *, unsigned long, void *);
+extern struct vfsmount *copy_tree(struct vfsmount *, struct dentry *, int);
+extern void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
+				  struct vfsmount *);
 
 extern int vfs_statfs(struct super_block *, struct kstatfs *);
 

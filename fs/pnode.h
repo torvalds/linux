@@ -12,7 +12,21 @@
 #include <linux/mount.h>
 
 #define IS_MNT_SHARED(mnt) (mnt->mnt_flags & MNT_SHARED)
+#define IS_MNT_NEW(mnt)  (!mnt->mnt_namespace)
 #define CLEAR_MNT_SHARED(mnt) (mnt->mnt_flags &= ~MNT_SHARED)
 
+#define CL_EXPIRE    		0x01
+#define CL_COPY_ALL 		0x04
+#define CL_MAKE_SHARED 		0x08
+#define CL_PROPAGATION 		0x10
+
+static inline void set_mnt_shared(struct vfsmount *mnt)
+{
+	mnt->mnt_flags &= ~MNT_PNODE_MASK;
+	mnt->mnt_flags |= MNT_SHARED;
+}
+
 void change_mnt_propagation(struct vfsmount *, int);
+int propagate_mnt(struct vfsmount *, struct dentry *, struct vfsmount *,
+		struct list_head *);
 #endif /* _LINUX_PNODE_H */

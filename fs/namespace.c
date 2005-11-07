@@ -28,8 +28,6 @@
 
 extern int __init init_rootfs(void);
 
-#define CL_EXPIRE 	0x01
-
 #ifdef CONFIG_SYSFS
 extern int __init sysfs_init(void);
 #else
@@ -145,13 +143,43 @@ static void detach_mnt(struct vfsmount *mnt, struct nameidata *old_nd)
 	old_nd->dentry->d_mounted--;
 }
 
+void mnt_set_mountpoint(struct vfsmount *mnt, struct dentry *dentry,
+			struct vfsmount *child_mnt)
+{
+	child_mnt->mnt_parent = mntget(mnt);
+	child_mnt->mnt_mountpoint = dget(dentry);
+	dentry->d_mounted++;
+}
+
 static void attach_mnt(struct vfsmount *mnt, struct nameidata *nd)
 {
-	mnt->mnt_parent = mntget(nd->mnt);
-	mnt->mnt_mountpoint = dget(nd->dentry);
-	list_add(&mnt->mnt_hash, mount_hashtable + hash(nd->mnt, nd->dentry));
+	mnt_set_mountpoint(nd->mnt, nd->dentry, mnt);
+	list_add_tail(&mnt->mnt_hash, mount_hashtable +
+			hash(nd->mnt, nd->dentry));
 	list_add_tail(&mnt->mnt_child, &nd->mnt->mnt_mounts);
-	nd->dentry->d_mounted++;
+}
+
+/*
+ * the caller must hold vfsmount_lock
+ */
+static void commit_tree(struct vfsmount *mnt)
+{
+	struct vfsmount *parent = mnt->mnt_parent;
+	struct vfsmount *m;
+	LIST_HEAD(head);
+	struct namespace *n = parent->mnt_namespace;
+
+	BUG_ON(parent == mnt);
+
+	list_add_tail(&head, &mnt->mnt_list);
+	list_for_each_entry(m, &head, mnt_list)
+		m->mnt_namespace = n;
+	list_splice(&head, n->list.prev);
+
+	list_add_tail(&mnt->mnt_hash, mount_hashtable +
+				hash(parent, mnt->mnt_mountpoint));
+	list_add_tail(&mnt->mnt_child, &parent->mnt_mounts);
+	touch_namespace(n);
 }
 
 static struct vfsmount *next_mnt(struct vfsmount *p, struct vfsmount *root)
@@ -183,7 +211,11 @@ static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 		mnt->mnt_root = dget(root);
 		mnt->mnt_mountpoint = mnt->mnt_root;
 		mnt->mnt_parent = mnt;
-		mnt->mnt_namespace = current->namespace;
+
+		if ((flag & CL_PROPAGATION) || IS_MNT_SHARED(old))
+			list_add(&mnt->mnt_share, &old->mnt_share);
+		if (flag & CL_MAKE_SHARED)
+			set_mnt_shared(mnt);
 
 		/* stick the duplicate mount on the same expiry list
 		 * as the original if that was on one */
@@ -379,7 +411,7 @@ int may_umount(struct vfsmount *mnt)
 
 EXPORT_SYMBOL(may_umount);
 
-static void release_mounts(struct list_head *head)
+void release_mounts(struct list_head *head)
 {
 	struct vfsmount *mnt;
 	while(!list_empty(head)) {
@@ -401,7 +433,7 @@ static void release_mounts(struct list_head *head)
 	}
 }
 
-static void umount_tree(struct vfsmount *mnt, struct list_head *kill)
+void umount_tree(struct vfsmount *mnt, struct list_head *kill)
 {
 	struct vfsmount *p;
 
@@ -581,7 +613,7 @@ static int lives_below_in_same_fs(struct dentry *d, struct dentry *dentry)
 	}
 }
 
-static struct vfsmount *copy_tree(struct vfsmount *mnt, struct dentry *dentry,
+struct vfsmount *copy_tree(struct vfsmount *mnt, struct dentry *dentry,
 					int flag)
 {
 	struct vfsmount *res, *p, *q, *r, *s;
@@ -626,6 +658,67 @@ Enomem:
 	return NULL;
 }
 
+/*
+ *  @source_mnt : mount tree to be attached
+ *  @nd        : place the mount tree @source_mnt is attached
+ *
+ *  NOTE: in the table below explains the semantics when a source mount
+ *  of a given type is attached to a destination mount of a given type.
+ * 	---------------------------------------------
+ * 	|         BIND MOUNT OPERATION              |
+ * 	|********************************************
+ * 	| source-->| shared        |       private  |
+ * 	| dest     |               |                |
+ * 	|   |      |               |                |
+ * 	|   v      |               |                |
+ * 	|********************************************
+ * 	|  shared  | shared (++)   |     shared (+) |
+ * 	|          |               |                |
+ * 	|non-shared| shared (+)    |      private   |
+ * 	*********************************************
+ * A bind operation clones the source mount and mounts the clone on the
+ * destination mount.
+ *
+ * (++)  the cloned mount is propagated to all the mounts in the propagation
+ * 	 tree of the destination mount and the cloned mount is added to
+ * 	 the peer group of the source mount.
+ * (+)   the cloned mount is created under the destination mount and is marked
+ *       as shared. The cloned mount is added to the peer group of the source
+ *       mount.
+ *
+ * if the source mount is a tree, the operations explained above is
+ * applied to each mount in the tree.
+ * Must be called without spinlocks held, since this function can sleep
+ * in allocations.
+ */
+static int attach_recursive_mnt(struct vfsmount *source_mnt,
+				struct nameidata *nd)
+{
+	LIST_HEAD(tree_list);
+	struct vfsmount *dest_mnt = nd->mnt;
+	struct dentry *dest_dentry = nd->dentry;
+	struct vfsmount *child, *p;
+
+	if (propagate_mnt(dest_mnt, dest_dentry, source_mnt, &tree_list))
+		return -EINVAL;
+
+	if (IS_MNT_SHARED(dest_mnt)) {
+		for (p = source_mnt; p; p = next_mnt(p, source_mnt))
+			set_mnt_shared(p);
+	}
+
+	spin_lock(&vfsmount_lock);
+	mnt_set_mountpoint(dest_mnt, dest_dentry, source_mnt);
+	commit_tree(source_mnt);
+
+	list_for_each_entry_safe(child, p, &tree_list, mnt_hash) {
+		list_del_init(&child->mnt_hash);
+		commit_tree(child);
+	}
+	spin_unlock(&vfsmount_lock);
+	return 0;
+}
+
 static int graft_tree(struct vfsmount *mnt, struct nameidata *nd)
 {
 	int err;
@@ -646,17 +739,8 @@ static int graft_tree(struct vfsmount *mnt, struct nameidata *nd)
 		goto out_unlock;
 
 	err = -ENOENT;
-	spin_lock(&vfsmount_lock);
-	if (IS_ROOT(nd->dentry) || !d_unhashed(nd->dentry)) {
-		struct list_head head;
-
-		attach_mnt(mnt, nd);
-		list_add_tail(&head, &mnt->mnt_list);
-		list_splice(&head, current->namespace->list.prev);
-		err = 0;
-		touch_namespace(current->namespace);
-	}
-	spin_unlock(&vfsmount_lock);
+	if (IS_ROOT(nd->dentry) || !d_unhashed(nd->dentry))
+		err = attach_recursive_mnt(mnt, nd);
 out_unlock:
 	up(&nd->dentry->d_inode->i_sem);
 	if (!err)
