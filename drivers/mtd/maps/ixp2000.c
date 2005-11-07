@@ -1,5 +1,5 @@
 /*
- * $Id: ixp2000.c,v 1.6 2005/03/18 14:07:46 gleixner Exp $
+ * $Id: ixp2000.c,v 1.8 2005/11/07 08:09:02 gleixner Exp $
  *
  * drivers/mtd/maps/ixp2000.c
  *
@@ -193,7 +193,7 @@ static int ixp2000_flash_probe(struct device *_dev)
 	/*
  	 * map_priv_2 is used to store a ptr to to the bank_setup routine
  	 */
-	info->map.map_priv_2 = (void __iomem *) ixp_data->bank_setup;
+	info->map.map_priv_2 = (unsigned long) ixp_data->bank_setup;
 
 	info->map.name = dev->dev.bus_id;
 	info->map.read = ixp2000_flash_read8;
@@ -210,7 +210,7 @@ static int ixp2000_flash_probe(struct device *_dev)
 		goto Error;
 	}
 
-	info->map.map_priv_1 = ioremap(dev->resource->start, 
+	info->map.map_priv_1 = (unsigned long) ioremap(dev->resource->start, 
 			    	dev->resource->end - dev->resource->start + 1);
 	if (!info->map.map_priv_1) {
 		dev_err(_dev, "Failed to ioremap flash region\n");
