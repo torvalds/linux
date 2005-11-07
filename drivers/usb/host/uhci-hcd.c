@@ -478,8 +478,6 @@ static int uhci_start(struct usb_hcd *hcd)
 	struct dentry *dentry;
 
 	hcd->uses_new_polling = 1;
-	if (pci_find_capability(to_pci_dev(uhci_dev(uhci)), PCI_CAP_ID_PM))
-		hcd->can_wakeup = 1;		/* Assume it supports PME# */
 
 	dentry = debugfs_create_file(hcd->self.bus_name,
 			S_IFREG|S_IRUGO|S_IWUSR, uhci_debugfs_root, uhci,
