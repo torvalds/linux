@@ -1,6 +1,6 @@
 NOTE: ksymoops is useless on 2.6.  Please use the Oops in its original format
 (from dmesg, etc).  Ignore any references in this or other docs to "decoding
-the Oops" or "running it through ksymoops".  If you post an Oops fron 2.6 that
+the Oops" or "running it through ksymoops".  If you post an Oops from 2.6 that
 has been run through ksymoops, people will just tell you to repost it.
 
 Quick Summary
