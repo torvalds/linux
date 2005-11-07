@@ -6,7 +6,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
- * $Revision: 1.50 $
+ * $Revision: 1.51 $
  */
 
 #include <linux/config.h>
@@ -404,37 +404,47 @@ dasd_diag_check_device(struct dasd_device *device)
 		private->iob.bio_list = &bio;
 		private->iob.flaga = DASD_DIAG_FLAGA_DEFAULT;
 		rc = dia250(&private->iob, RW_BIO);
-		if (rc == 0 || rc == 3)
-			break;
+		if (rc == 3) {
+			DEV_MESSAGE(KERN_WARNING, device, "%s",
+				"DIAG call failed");
+			rc = -EOPNOTSUPP;
+			goto out;
+		}
 		mdsk_term_io(device);
+		if (rc == 0)
+			break;
 	}
-	if (rc == 3) {
-		DEV_MESSAGE(KERN_WARNING, device, "%s", "DIAG call failed");
-		rc = -EOPNOTSUPP;
-	} else if (rc != 0) {
+	if (bsize > PAGE_SIZE) {
 		DEV_MESSAGE(KERN_WARNING, device, "device access failed "
 			    "(rc=%d)", rc);
 		rc = -EIO;
+		goto out;
+	}
+	/* check for label block */
+	if (memcmp(label->label_id, DASD_DIAG_CMS1,
+		  sizeof(DASD_DIAG_CMS1)) == 0) {
+		/* get formatted blocksize from label block */
+		bsize = (unsigned int) label->block_size;
+		device->blocks = (unsigned long) label->block_count;
+	} else
+		device->blocks = end_block;
+	device->bp_block = bsize;
+	device->s2b_shift = 0;	/* bits to shift 512 to get a block */
+	for (sb = 512; sb < bsize; sb = sb << 1)
+		device->s2b_shift++;
+	rc = mdsk_init_io(device, device->bp_block, 0, NULL);
+	if (rc) {
+		DEV_MESSAGE(KERN_WARNING, device, "DIAG initialization "
+			"failed (rc=%d)", rc);
+		rc = -EIO;
 	} else {
-		if (memcmp(label->label_id, DASD_DIAG_CMS1,
-			  sizeof(DASD_DIAG_CMS1)) == 0) {
-			/* get formatted blocksize from label block */
-			bsize = (unsigned int) label->block_size;
-			device->blocks = (unsigned long) label->block_count;
-		} else
-			device->blocks = end_block;
-		device->bp_block = bsize;
-		device->s2b_shift = 0;	/* bits to shift 512 to get a block */
-		for (sb = 512; sb < bsize; sb = sb << 1)
-			device->s2b_shift++;
-		
 		DEV_MESSAGE(KERN_INFO, device,
 			    "(%ld B/blk): %ldkB",
 			    (unsigned long) device->bp_block,
 			    (unsigned long) (device->blocks <<
 				device->s2b_shift) >> 1);
-		rc = 0;
 	}
+out:
 	free_page((long) label);
 	return rc;
 }
