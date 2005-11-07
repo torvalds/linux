@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2002 Jeff Dike (jdike@karaya.com)
  * Licensed under the GPL
  */
@@ -13,7 +13,6 @@
 #include "user.h"
 #include "kern_util.h"
 #include "user_util.h"
-#include "helper.h"
 #include "os.h"
 
 struct helper_data {
@@ -46,7 +45,7 @@ static int helper_child(void *arg)
 	errval = errno;
 	printk("execvp of '%s' failed - errno = %d\n", argv[0], errno);
 	os_write_file(data->fd, &errval, sizeof(errval));
-	os_kill_process(os_getpid(), 0);
+	kill(os_getpid(), SIGKILL);
 	return(0);
 }
 
@@ -90,7 +89,7 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
 		goto out_close;
 	}
 
-	os_close_file(fds[1]);
+	close(fds[1]);
 	fds[1] = -1;
 
 	/*Read the errno value from the child.*/
@@ -98,7 +97,8 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
 	if(n < 0){
 		printk("run_helper : read on pipe failed, ret = %d\n", -n);
 		ret = n;
-		os_kill_process(pid, 1);
+		kill(pid, SIGKILL);
+		CATCH_EINTR(waitpid(pid, NULL, 0));
 	}
 	else if(n != 0){
 		CATCH_EINTR(n = waitpid(pid, NULL, 0));
@@ -109,8 +109,8 @@ int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
 
 out_close:
 	if (fds[1] != -1)
-		os_close_file(fds[1]);
-	os_close_file(fds[0]);
+		close(fds[1]);
+	close(fds[0]);
 out_free:
 	if(stack_out == NULL)
 		free_stack(stack, 0);
@@ -118,7 +118,7 @@ out_free:
 	return(ret);
 }
 
-int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags, 
+int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
 		      unsigned long *stack_out, int stack_order)
 {
 	unsigned long stack, sp;
@@ -131,7 +131,7 @@ int run_helper_thread(int (*proc)(void *), void *arg, unsigned int flags,
 	pid = clone(proc, (void *) sp, flags | SIGCHLD, arg);
 	if(pid < 0){
 		err = -errno;
-		printk("run_helper_thread : clone failed, errno = %d\n", 
+		printk("run_helper_thread : clone failed, errno = %d\n",
 		       errno);
 		return err;
 	}

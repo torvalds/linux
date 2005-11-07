@@ -205,6 +205,14 @@ extern unsigned long __do_user_copy(void *to, const void *from, int n,
 				    void (*op)(void *to, const void *from,
 					       int n), int *faulted_out);
 
+/* helper.c */
+extern int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
+		      unsigned long *stack_out);
+extern int run_helper_thread(int (*proc)(void *), void *arg,
+			     unsigned int flags, unsigned long *stack_out,
+			     int stack_order);
+extern int helper_wait(int pid);
+
 #endif
 
 /*

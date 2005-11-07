@@ -46,7 +46,6 @@
 #include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <asm/uaccess.h>
-#include "helper.h"
 #include "mconsole.h"
 
 MODULE_LICENSE("GPL");
