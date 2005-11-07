@@ -118,7 +118,7 @@ clean-files	:= lkc_defs.h qconf.moc .tmp_qtcheck \
 
 # Needed for systems without gettext
 KBUILD_HAVE_NLS := $(shell \
-     if echo "\#include <libint.h>" | $(HOSTCC) $(HOSTCFLAGS) -E - > /dev/null 2>&1 ; \
+     if echo "\#include <libintl.h>" | $(HOSTCC) $(HOSTCFLAGS) -E - > /dev/null 2>&1 ; \
      then echo yes ; \
      else echo no ; fi)
 ifeq ($(KBUILD_HAVE_NLS),no)
