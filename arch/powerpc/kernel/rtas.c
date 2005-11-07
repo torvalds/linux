@@ -17,6 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/delay.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -83,7 +84,7 @@ void call_rtas_display_status_delay(unsigned char c)
 		while (width-- > 0)
 			call_rtas_display_status(' ');
 		width = 16;
-		udelay(500000);
+		mdelay(500);
 		pending_newline = 1;
 	} else {
 		if (pending_newline) {

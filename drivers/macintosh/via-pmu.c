@@ -2667,10 +2667,10 @@ powerbook_sleep_3400(void)
 	asleep = 1;
 
 	/* Put the CPU into sleep mode */
-	asm volatile("mfspr %0,1008" : "=r" (hid0) :);
+	hid0 = mfspr(SPRN_HID0);
 	hid0 = (hid0 & ~(HID0_NAP | HID0_DOZE)) | HID0_SLEEP;
-	asm volatile("mtspr 1008,%0" : : "r" (hid0));
-	_nmask_and_or_msr(0, MSR_POW | MSR_EE);
+	mtspr(SPRN_HID0, hid0);
+	mtmsr(mfmsr() | MSR_POW | MSR_EE);
 	udelay(10);
 
 	/* OK, we're awake again, start restoring things */
