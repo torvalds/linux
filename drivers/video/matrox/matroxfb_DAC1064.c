@@ -978,7 +978,7 @@ static void MGAG100_reset(WPMINFO2) {
 				hw->MXoptionReg |= 0x40;	/* FIXME... */
 				pci_write_config_dword(ACCESS_FBINFO(pcidev), PCI_OPTION_REG, hw->MXoptionReg);
 			}
-			mga_setr(M_EXTVGA_INDEX, 0x06, 0x50);
+			mga_setr(M_EXTVGA_INDEX, 0x06, 0x00);
 		}
 	}
 	if (ACCESS_FBINFO(devflags.g450dac)) {
