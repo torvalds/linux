@@ -465,6 +465,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 	codec->bus->caddr_tbl[codec->addr] = NULL;
 	if (codec->patch_ops.free)
 		codec->patch_ops.free(codec);
+	kfree(codec->amp_info);
 	kfree(codec);
 }
 
@@ -586,6 +587,8 @@ static void init_amp_hash(struct hda_codec *codec)
 {
 	memset(codec->amp_hash, 0xff, sizeof(codec->amp_hash));
 	codec->num_amp_entries = 0;
+	codec->amp_info_size = 0;
+	codec->amp_info = NULL;
 }
 
 /* query the hash.  allocate an entry if not found. */
@@ -603,9 +606,22 @@ static struct hda_amp_info *get_alloc_amp_hash(struct hda_codec *codec, u32 key)
 	}
 
 	/* add a new hash entry */
-	if (codec->num_amp_entries >= ARRAY_SIZE(codec->amp_info)) {
-		snd_printk(KERN_ERR "hda_codec: Tooooo many amps!\n");
-		return NULL;
+	if (codec->num_amp_entries >= codec->amp_info_size) {
+		/* reallocate the array */
+		int new_size = codec->amp_info_size + 64;
+		struct hda_amp_info *new_info = kcalloc(new_size, sizeof(struct hda_amp_info),
+							GFP_KERNEL);
+		if (! new_info) {
+			snd_printk(KERN_ERR "hda_codec: can't malloc amp_info\n");
+			return NULL;
+		}
+		if (codec->amp_info) {
+			memcpy(new_info, codec->amp_info,
+			       codec->amp_info_size * sizeof(struct hda_amp_info));
+			kfree(codec->amp_info);
+		}
+		codec->amp_info_size = new_size;
+		codec->amp_info = new_info;
 	}
 	cur = codec->num_amp_entries++;
 	info = &codec->amp_info[cur];

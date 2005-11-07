@@ -545,7 +545,8 @@ struct hda_codec {
 	/* hash for amp access */
 	u16 amp_hash[32];
 	int num_amp_entries;
-	struct hda_amp_info amp_info[128]; /* big enough? */
+	int amp_info_size;
+	struct hda_amp_info *amp_info;
 
 	struct semaphore spdif_mutex;
 	unsigned int spdif_status;	/* IEC958 status bits */
