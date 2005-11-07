@@ -1872,7 +1872,7 @@ static void __init fixup_device_tree(void)
 	if (prom_getprop(u3, "device-rev", &u3_rev, sizeof(u3_rev))
 	    == PROM_ERROR)
 		return;
-	if (u3_rev != 0x35 && u3_rev != 0x37)
+	if (u3_rev < 0x35 || u3_rev > 0x39)
 		return;
 	/* does it need fixup ? */
 	if (prom_getproplen(i2c, "interrupts") > 0)
