@@ -281,6 +281,18 @@ static inline int get_color(struct vc_data *vc, struct fb_info *info,
 	return color;
 }
 
+static void fbcon_update_softback(struct vc_data *vc)
+{
+	int l = fbcon_softback_size / vc->vc_size_row;
+
+	if (l > 5)
+		softback_end = softback_buf + l * vc->vc_size_row;
+	else
+		/* Smaller scrollback makes no sense, and 0 would screw
+		   the operation totally */
+		softback_top = 0;
+}
+
 static void fb_flashcursor(void *private)
 {
 	struct fb_info *info = private;
@@ -1007,16 +1019,8 @@ static void fbcon_init(struct vc_data *vc, int init)
 	if (logo)
 		fbcon_prepare_logo(vc, info, cols, rows, new_cols, new_rows);
 
-	if (vc == svc && softback_buf) {
-		int l = fbcon_softback_size / vc->vc_size_row;
-		if (l > 5)
-			softback_end = softback_buf + l * vc->vc_size_row;
-		else {
-			/* Smaller scrollback makes no sense, and 0 would screw
-			   the operation totally */
-			softback_top = 0;
-		}
-	}
+	if (vc == svc && softback_buf)
+		fbcon_update_softback(vc);
 }
 
 static void fbcon_deinit(struct vc_data *vc)
@@ -1223,18 +1227,8 @@ static void fbcon_set_disp(struct fb_info *info, struct fb_var_screeninfo *var,
 	vc_resize(vc, cols, rows);
 	if (CON_IS_VISIBLE(vc)) {
 		update_screen(vc);
-		if (softback_buf) {
-			int l = fbcon_softback_size / vc->vc_size_row;
-
-			if (l > 5)
-				softback_end = softback_buf + l *
-					vc->vc_size_row;
-			else {
-				/* Smaller scrollback makes no sense, and 0
-				   would screw the operation totally */
-				softback_top = 0;
-			}
-		}
+		if (softback_buf)
+			fbcon_update_softback(vc);
 	}
 }
 
@@ -1933,19 +1927,11 @@ static int fbcon_switch(struct vc_data *vc)
 	info = registered_fb[con2fb_map[vc->vc_num]];
 
 	if (softback_top) {
-		int l = fbcon_softback_size / vc->vc_size_row;
 		if (softback_lines)
 			fbcon_set_origin(vc);
 		softback_top = softback_curr = softback_in = softback_buf;
 		softback_lines = 0;
-
-		if (l > 5)
-			softback_end = softback_buf + l * vc->vc_size_row;
-		else {
-			/* Smaller scrollback makes no sense, and 0 would screw
-			   the operation totally */
-			softback_top = 0;
-		}
+		fbcon_update_softback(vc);
 	}
 
 	if (logo_shown >= 0) {
@@ -2235,17 +2221,8 @@ static int fbcon_do_set_font(struct vc_data *vc, int w, int h,
 		/* reset wrap/pan */
 		info->var.xoffset = info->var.yoffset = p->yscroll = 0;
 		vc_resize(vc, info->var.xres / w, info->var.yres / h);
-		if (CON_IS_VISIBLE(vc) && softback_buf) {
-			int l = fbcon_softback_size / vc->vc_size_row;
-			if (l > 5)
-				softback_end =
-				    softback_buf + l * vc->vc_size_row;
-			else {
-				/* Smaller scrollback makes no sense, and 0 would screw
-				   the operation totally */
-				softback_top = 0;
-			}
-		}
+		if (CON_IS_VISIBLE(vc) && softback_buf)
+			fbcon_update_softback(vc);
 	} else if (CON_IS_VISIBLE(vc)
 		   && vc->vc_mode == KD_TEXT) {
 		fbcon_clear_margins(vc, 0);
@@ -2615,16 +2592,8 @@ static void fbcon_modechanged(struct fb_info *info)
 		update_var(vc->vc_num, info);
 		fbcon_set_palette(vc, color_table);
 		update_screen(vc);
-		if (softback_buf) {
-			int l = fbcon_softback_size / vc->vc_size_row;
-			if (l > 5)
-				softback_end = softback_buf + l * vc->vc_size_row;
-			else {
-				/* Smaller scrollback makes no sense, and 0
-				   would screw the operation totally */
-				softback_top = 0;
-			}
-		}
+		if (softback_buf)
+			fbcon_update_softback(vc);
 	}
 }
 
@@ -2659,16 +2628,8 @@ static void fbcon_set_all_vcs(struct fb_info *info)
 			update_var(vc->vc_num, info);
 			fbcon_set_palette(vc, color_table);
 			update_screen(vc);
-			if (softback_buf) {
-				int l = fbcon_softback_size / vc->vc_size_row;
-				if (l > 5)
-					softback_end = softback_buf + l * vc->vc_size_row;
-				else {
-					/* Smaller scrollback makes no sense, and 0
-					   would screw the operation totally */
-					softback_top = 0;
-				}
-			}
+			if (softback_buf)
+				fbcon_update_softback(vc);
 		}
 	}
 }
