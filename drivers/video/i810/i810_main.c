@@ -1871,27 +1871,18 @@ static void __devinit i810fb_find_init_mode(struct fb_info *info)
 	fb_videomode_to_modelist(specs->modedb, specs->modedb_len,
 				 &info->modelist);
 	if (specs->modedb != NULL) {
-		if (xres && yres) {
-			struct fb_videomode *m;
+		struct fb_videomode *m;
 
+		if (xres && yres) {
 			if ((m = fb_find_best_mode(&var, &info->modelist))) {
 				mode = *m;
 				found  = 1;
 			}
 		}
 
-		if (!found && specs->misc & FB_MISC_1ST_DETAIL) {
-			for (i = 0; i < specs->modedb_len; i++) {
-				if (specs->modedb[i].flag & FB_MODE_IS_FIRST) {
-					mode = specs->modedb[i];
-					found = 1;
-					break;
-				}
-			}
-		}
-
 		if (!found) {
-			mode = specs->modedb[0];
+			m = fb_find_best_display(&info->monspecs, &info->modelist);
+			mode = *m;
 			found = 1;
 		}
 

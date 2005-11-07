@@ -1383,22 +1383,10 @@ static int __devinit nvidia_set_fbinfo(struct fb_info *info)
 	fb_var_to_videomode(&modedb, &nvidiafb_default_var);
 
 	if (specs->modedb != NULL) {
-		/* get preferred timing */
-		if (specs->misc & FB_MISC_1ST_DETAIL) {
-			int i;
+		struct fb_videomode *modedb;
 
-			for (i = 0; i < specs->modedb_len; i++) {
-				if (specs->modedb[i].flag & FB_MODE_IS_FIRST) {
-					modedb = specs->modedb[i];
-					break;
-				}
-			}
-		} else {
-			/* otherwise, get first mode in database */
-			modedb = specs->modedb[0];
-		}
-
-		fb_videomode_to_var(&nvidiafb_default_var, &modedb);
+		modedb = fb_find_best_display(specs, &info->modelist);
+		fb_videomode_to_var(&nvidiafb_default_var, modedb);
 		nvidiafb_default_var.bits_per_pixel = 8;
 	} else if (par->fpWidth && par->fpHeight) {
 		char buf[16];

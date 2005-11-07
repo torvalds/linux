@@ -2052,24 +2052,11 @@ static int __devinit savagefb_probe (struct pci_dev* dev,
 			     info->monspecs.modedb, info->monspecs.modedb_len,
 			     NULL, 8);
 	} else if (info->monspecs.modedb != NULL) {
-		struct fb_monspecs *specs = &info->monspecs;
-		struct fb_videomode modedb;
+		struct fb_videomode *modedb;
 
-		if (info->monspecs.misc & FB_MISC_1ST_DETAIL) {
-			int i;
-
-			for (i = 0; i < specs->modedb_len; i++) {
-				if (specs->modedb[i].flag & FB_MODE_IS_FIRST) {
-					modedb = specs->modedb[i];
-					break;
-				}
-			}
-		} else {
-			/* otherwise, get first mode in database */
-			modedb = specs->modedb[0];
-		}
-
-		savage_update_var(&info->var, &modedb);
+		modedb = fb_find_best_display(&info->monspecs,
+					      &info->modelist);
+		savage_update_var(&info->var, modedb);
 	}
 
 	/* maximize virtual vertical length */
