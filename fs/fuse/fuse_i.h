@@ -266,6 +266,9 @@ struct fuse_conn {
 	/** Is removexattr not implemented by fs? */
 	unsigned no_removexattr : 1;
 
+	/** Is access not implemented by fs? */
+	unsigned no_access : 1;
+
 	/** Backing dev info */
 	struct backing_dev_info bdi;
 };

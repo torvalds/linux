@@ -461,6 +461,38 @@ static int fuse_revalidate(struct dentry *entry)
 	return fuse_do_getattr(inode);
 }
 
+static int fuse_access(struct inode *inode, int mask)
+{
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_req *req;
+	struct fuse_access_in inarg;
+	int err;
+
+	if (fc->no_access)
+		return 0;
+
+	req = fuse_get_request(fc);
+	if (!req)
+		return -EINTR;
+
+	memset(&inarg, 0, sizeof(inarg));
+	inarg.mask = mask;
+	req->in.h.opcode = FUSE_ACCESS;
+	req->in.h.nodeid = get_node_id(inode);
+	req->inode = inode;
+	req->in.numargs = 1;
+	req->in.args[0].size = sizeof(inarg);
+	req->in.args[0].value = &inarg;
+	request_send(fc, req);
+	err = req->out.h.error;
+	fuse_put_request(fc, req);
+	if (err == -ENOSYS) {
+		fc->no_access = 1;
+		err = 0;
+	}
+	return err;
+}
+
 static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
@@ -493,6 +525,9 @@ static int fuse_permission(struct inode *inode, int mask, struct nameidata *nd)
 		int mode = inode->i_mode;
 		if ((mask & MAY_EXEC) && !S_ISDIR(mode) && !(mode & S_IXUGO))
 			return -EACCES;
+
+		if (nd && (nd->flags & LOOKUP_ACCESS))
+			return fuse_access(inode, mask);
 		return 0;
 	}
 }
