@@ -30,17 +30,20 @@ fpswa_interface_t *fpswa_interface;
 EXPORT_SYMBOL(fpswa_interface);
 
 struct notifier_block *ia64die_chain;
-static DEFINE_SPINLOCK(die_notifier_lock);
 
-int register_die_notifier(struct notifier_block *nb)
+int
+register_die_notifier(struct notifier_block *nb)
 {
-	int err = 0;
-	unsigned long flags;
-	spin_lock_irqsave(&die_notifier_lock, flags);
-	err = notifier_chain_register(&ia64die_chain, nb);
-	spin_unlock_irqrestore(&die_notifier_lock, flags);
-	return err;
+	return notifier_chain_register(&ia64die_chain, nb);
 }
+EXPORT_SYMBOL_GPL(register_die_notifier);
+
+int
+unregister_die_notifier(struct notifier_block *nb)
+{
+	return notifier_chain_unregister(&ia64die_chain, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_die_notifier);
 
 void __init
 trap_init (void)
@@ -105,6 +108,7 @@ die (const char *str, struct pt_regs *regs, long err)
 	if (++die.lock_owner_depth < 3) {
 		printk("%s[%d]: %s %ld [%d]\n",
 			current->comm, current->pid, str, err, ++die_counter);
+		(void) notify_die(DIE_OOPS, (char *)str, regs, err, 255, SIGSEGV);
 		show_regs(regs);
   	} else
 		printk(KERN_ERR "Recursive die() failure, output suppressed\n");
@@ -155,9 +159,8 @@ __kprobes ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 	switch (break_num) {
 	      case 0: /* unknown error (used by GCC for __builtin_abort()) */
 		if (notify_die(DIE_BREAK, "break 0", regs, break_num, TRAP_BRKPT, SIGTRAP)
-			       	== NOTIFY_STOP) {
+			       	== NOTIFY_STOP)
 			return;
-		}
 		die_if_kernel("bugcheck!", regs, break_num);
 		sig = SIGILL; code = ILL_ILLOPC;
 		break;
@@ -210,15 +213,6 @@ __kprobes ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 		sig = SIGILL; code = __ILL_BNDMOD;
 		break;
 
-	      case 0x80200:
-	      case 0x80300:
-		if (notify_die(DIE_BREAK, "kprobe", regs, break_num, TRAP_BRKPT, SIGTRAP)
-			       	== NOTIFY_STOP) {
-			return;
-		}
-		sig = SIGTRAP; code = TRAP_BRKPT;
-		break;
-
 	      default:
 		if (break_num < 0x40000 || break_num > 0x100000)
 			die_if_kernel("Bad break", regs, break_num);
@@ -226,6 +220,9 @@ __kprobes ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 		if (break_num < 0x80000) {
 			sig = SIGILL; code = __ILL_BREAK;
 		} else {
+			if (notify_die(DIE_BREAK, "bad break", regs, break_num, TRAP_BRKPT, SIGTRAP)
+					== NOTIFY_STOP)
+				return;
 			sig = SIGTRAP; code = TRAP_BRKPT;
 		}
 	}
@@ -578,12 +575,11 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 #endif
 			break;
 		      case 35: siginfo.si_code = TRAP_BRANCH; ifa = 0; break;
-		      case 36:
-			      if (notify_die(DIE_SS, "ss", &regs, vector,
-					     vector, SIGTRAP) == NOTIFY_STOP)
-				      return;
-			      siginfo.si_code = TRAP_TRACE; ifa = 0; break;
+		      case 36: siginfo.si_code = TRAP_TRACE; ifa = 0; break;
 		}
+		if (notify_die(DIE_FAULT, "ia64_fault", &regs, vector, siginfo.si_code, SIGTRAP)
+			       	== NOTIFY_STOP)
+			return;
 		siginfo.si_signo = SIGTRAP;
 		siginfo.si_errno = 0;
 		siginfo.si_addr  = (void __user *) ifa;

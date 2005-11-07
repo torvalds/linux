@@ -4,6 +4,9 @@
  * Copyright (C) 1998-2003 Hewlett-Packard Co
  *	David Mosberger-Tang <davidm@hpl.hp.com>
  * 04/11/17 Ashok Raj	<ashok.raj@intel.com> Added CPU Hotplug Support
+ *
+ * 2005-10-07 Keith Owens <kaos@sgi.com>
+ *	      Add notify_die() hooks.
  */
 #define __KERNEL_SYSCALLS__	/* see <asm/unistd.h> */
 #include <linux/config.h>
@@ -34,6 +37,7 @@
 #include <asm/elf.h>
 #include <asm/ia32.h>
 #include <asm/irq.h>
+#include <asm/kdebug.h>
 #include <asm/pgalloc.h>
 #include <asm/processor.h>
 #include <asm/sal.h>
@@ -804,12 +808,14 @@ cpu_halt (void)
 void
 machine_restart (char *restart_cmd)
 {
+	(void) notify_die(DIE_MACHINE_RESTART, restart_cmd, NULL, 0, 0, 0);
 	(*efi.reset_system)(EFI_RESET_WARM, 0, 0, NULL);
 }
 
 void
 machine_halt (void)
 {
+	(void) notify_die(DIE_MACHINE_HALT, "", NULL, 0, 0, 0);
 	cpu_halt();
 }
 
