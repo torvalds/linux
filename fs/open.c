@@ -887,6 +887,10 @@ struct file *nameidata_to_filp(struct nameidata *nd, int flags)
 	return filp;
 }
 
+/*
+ * dentry_open() will have done dput(dentry) and mntput(mnt) if it returns an
+ * error.
+ */
 struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
 {
 	int error;
@@ -894,8 +898,11 @@ struct file *dentry_open(struct dentry *dentry, struct vfsmount *mnt, int flags)
 
 	error = -ENFILE;
 	f = get_empty_filp();
-	if (f == NULL)
+	if (f == NULL) {
+		dput(dentry);
+		mntput(mnt);
 		return ERR_PTR(error);
+	}
 
 	return __dentry_open(dentry, mnt, flags, f, NULL);
 }
