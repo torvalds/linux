@@ -1096,6 +1096,8 @@ int sync_inode(struct inode *inode, struct writeback_control *wbc);
  * @get_name:       find the name for a given inode in a given directory
  * @get_parent:     find the parent of a given directory
  * @get_dentry:     find a dentry for the inode given a file handle sub-fragment
+ * @find_exported_dentry:
+ *	set by the exporting module to a standard helper function.
  *
  * Description:
  *    The export_operations structure provides a means for nfsd to communicate
