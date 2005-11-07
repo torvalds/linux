@@ -85,18 +85,11 @@ unsigned int nr_copy_pages __nosavedata = 0;
 /* Suspend pagedir is allocated before final copy, therefore it
    must be freed after resume
 
-   Warning: this is evil. There are actually two pagedirs at time of
-   resume. One is "pagedir_save", which is empty frame allocated at
-   time of suspend, that must be freed. Second is "pagedir_nosave",
-   allocated at time of resume, that travels through memory not to
-   collide with anything.
-
    Warning: this is even more evil than it seems. Pagedirs this file
    talks about are completely different from page directories used by
    MMU hardware.
  */
 suspend_pagedir_t *pagedir_nosave __nosavedata = NULL;
-suspend_pagedir_t *pagedir_save;
 
 #define SWSUSP_SIG	"S1SUSPEND"
 
@@ -385,7 +378,7 @@ static void data_free(void)
 	swp_entry_t entry;
 	struct pbe *p;
 
-	for_each_pbe(p, pagedir_nosave) {
+	for_each_pbe (p, pagedir_nosave) {
 		entry = p->swap_address;
 		if (entry.val)
 			swap_free(entry);
