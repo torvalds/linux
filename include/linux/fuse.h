@@ -61,6 +61,7 @@ struct fuse_kstatfs {
 #define FATTR_SIZE	(1 << 3)
 #define FATTR_ATIME	(1 << 4)
 #define FATTR_MTIME	(1 << 5)
+#define FATTR_FH	(1 << 6)
 
 /**
  * Flags returned by the OPEN request
@@ -154,7 +155,20 @@ struct fuse_link_in {
 struct fuse_setattr_in {
 	__u32	valid;
 	__u32	padding;
-	struct fuse_attr attr;
+	__u64	fh;
+	__u64	size;
+	__u64	unused1;
+	__u64	atime;
+	__u64	mtime;
+	__u64	unused2;
+	__u32	atimensec;
+	__u32	mtimensec;
+	__u32	unused3;
+	__u32	mode;
+	__u32	unused4;
+	__u32	uid;
+	__u32	gid;
+	__u32	unused5;
 };
 
 struct fuse_open_in {

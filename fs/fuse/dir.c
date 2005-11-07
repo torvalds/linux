@@ -763,29 +763,29 @@ static int fuse_dir_fsync(struct file *file, struct dentry *de, int datasync)
 	return file ? fuse_fsync_common(file, de, datasync, 1) : 0;
 }
 
-static unsigned iattr_to_fattr(struct iattr *iattr, struct fuse_attr *fattr)
+static void iattr_to_fattr(struct iattr *iattr, struct fuse_setattr_in *arg)
 {
 	unsigned ivalid = iattr->ia_valid;
-	unsigned fvalid = 0;
-
-	memset(fattr, 0, sizeof(*fattr));
 
 	if (ivalid & ATTR_MODE)
-		fvalid |= FATTR_MODE,   fattr->mode = iattr->ia_mode;
+		arg->valid |= FATTR_MODE,   arg->mode = iattr->ia_mode;
 	if (ivalid & ATTR_UID)
-		fvalid |= FATTR_UID,    fattr->uid = iattr->ia_uid;
+		arg->valid |= FATTR_UID,    arg->uid = iattr->ia_uid;
 	if (ivalid & ATTR_GID)
-		fvalid |= FATTR_GID,    fattr->gid = iattr->ia_gid;
+		arg->valid |= FATTR_GID,    arg->gid = iattr->ia_gid;
 	if (ivalid & ATTR_SIZE)
-		fvalid |= FATTR_SIZE,   fattr->size = iattr->ia_size;
+		arg->valid |= FATTR_SIZE,   arg->size = iattr->ia_size;
 	/* You can only _set_ these together (they may change by themselves) */
 	if ((ivalid & (ATTR_ATIME | ATTR_MTIME)) == (ATTR_ATIME | ATTR_MTIME)) {
-		fvalid |= FATTR_ATIME | FATTR_MTIME;
-		fattr->atime = iattr->ia_atime.tv_sec;
-		fattr->mtime = iattr->ia_mtime.tv_sec;
+		arg->valid |= FATTR_ATIME | FATTR_MTIME;
+		arg->atime = iattr->ia_atime.tv_sec;
+		arg->mtime = iattr->ia_mtime.tv_sec;
 	}
-
-	return fvalid;
+	if (ivalid & ATTR_FILE) {
+		struct fuse_file *ff = iattr->ia_file->private_data;
+		arg->valid |= FATTR_FH;
+		arg->fh = ff->fh;
+	}
 }
 
 static int fuse_setattr(struct dentry *entry, struct iattr *attr)
@@ -820,7 +820,7 @@ static int fuse_setattr(struct dentry *entry, struct iattr *attr)
 		return -EINTR;
 
 	memset(&inarg, 0, sizeof(inarg));
-	inarg.valid = iattr_to_fattr(attr, &inarg.attr);
+	iattr_to_fattr(attr, &inarg);
 	req->in.h.opcode = FUSE_SETATTR;
 	req->in.h.nodeid = get_node_id(inode);
 	req->inode = inode;
