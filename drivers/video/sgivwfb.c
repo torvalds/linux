@@ -751,10 +751,6 @@ int __init sgivwfb_setup(char *options)
 /*
  *  Initialisation
  */
-static void sgivwfb_release(struct device *device)
-{
-}
-
 static int __init sgivwfb_probe(struct device *device)
 {
 	struct platform_device *dev = to_platform_device(device);
@@ -859,13 +855,7 @@ static struct device_driver sgivwfb_driver = {
 	.remove	= sgivwfb_remove,
 };
 
-static struct platform_device sgivwfb_device = {
-	.name	= "sgivwfb",
-	.id	= 0,
-	.dev	= {
-		.release = sgivwfb_release,
-	}
-};
+static struct platform_device *sgivwfb_device;
 
 int __init sgivwfb_init(void)
 {
@@ -880,9 +870,15 @@ int __init sgivwfb_init(void)
 #endif
 	ret = driver_register(&sgivwfb_driver);
 	if (!ret) {
-		ret = platform_device_register(&sgivwfb_device);
-		if (ret)
+		sgivwfb_device = platform_device_alloc("sgivwfb", 0);
+		if (sgivwfb_device) {
+			ret = platform_device_add(sgivwfb_device);
+		} else
+			ret = -ENOMEM;
+		if (ret) {
 			driver_unregister(&sgivwfb_driver);
+			platform_device_put(sgivwfb_device);
+		}
 	}
 	return ret;
 }
@@ -894,7 +890,7 @@ MODULE_LICENSE("GPL");
 
 static void __exit sgivwfb_exit(void)
 {
-	platform_device_unregister(&sgivwfb_device);
+	platform_device_unregister(sgivwfb_device);
 	driver_unregister(&sgivwfb_driver);
 }
 

@@ -603,6 +603,15 @@ config NODES_SPAN_OTHER_NODES
 	def_bool y
 	depends on NEED_MULTIPLE_NODES
 
+config PPC_64K_PAGES
+	bool "64k page size"
+	help
+	  This option changes the kernel logical page size to 64k. On machines
+          without processor support for 64k pages, the kernel will simulate
+          them by loading each individual 4k page on demand transparently,
+          while on hardware with such support, it will be used to map
+          normal application pages.
+
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
 	depends on PPC64 && SMP

@@ -39,14 +39,15 @@ static inline void iSeries_hunlock(unsigned long slot)
 	spin_unlock(&iSeries_hlocks[(slot >> 4) & 0x3f]);
 }
 
-static long iSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
-				unsigned long prpn, unsigned long vflags,
-				unsigned long rflags)
+long iSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
+			 unsigned long pa, unsigned long rflags,
+			 unsigned long vflags, int psize)
 {
-	unsigned long arpn;
 	long slot;
 	hpte_t lhpte;
 	int secondary = 0;
+
+	BUG_ON(psize != MMU_PAGE_4K);
 
 	/*
 	 * The hypervisor tries both primary and secondary.
@@ -59,8 +60,19 @@ static long iSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
 
 	iSeries_hlock(hpte_group);
 
-	slot = HvCallHpt_findValid(&lhpte, va >> PAGE_SHIFT);
-	BUG_ON(lhpte.v & HPTE_V_VALID);
+	slot = HvCallHpt_findValid(&lhpte, va >> HW_PAGE_SHIFT);
+	if (unlikely(lhpte.v & HPTE_V_VALID)) {
+		if (vflags & HPTE_V_BOLTED) {
+			HvCallHpt_setSwBits(slot, 0x10, 0);
+			HvCallHpt_setPp(slot, PP_RWXX);
+			iSeries_hunlock(hpte_group);
+			if (slot < 0)
+				return 0x8 | (slot & 7);
+			else
+				return slot & 7;
+		}
+		BUG();
+	}
 
 	if (slot == -1)	{ /* No available entry found in either group */
 		iSeries_hunlock(hpte_group);
@@ -73,10 +85,9 @@ static long iSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
 		slot &= 0x7fffffffffffffff;
 	}
 
-	arpn = phys_to_abs(prpn << PAGE_SHIFT) >> PAGE_SHIFT;
 
-	lhpte.v = (va >> 23) << HPTE_V_AVPN_SHIFT | vflags | HPTE_V_VALID;
-	lhpte.r = (arpn << HPTE_R_RPN_SHIFT) | rflags;
+ 	lhpte.v = hpte_encode_v(va, MMU_PAGE_4K) | vflags | HPTE_V_VALID;
+	lhpte.r = hpte_encode_r(phys_to_abs(pa), MMU_PAGE_4K) | rflags;
 
 	/* Now fill in the actual HPTE */
 	HvCallHpt_addValidate(slot, secondary, &lhpte);
@@ -84,25 +95,6 @@ static long iSeries_hpte_insert(unsigned long hpte_group, unsigned long va,
 	iSeries_hunlock(hpte_group);
 
 	return (secondary << 3) | (slot & 7);
-}
-
-long iSeries_hpte_bolt_or_insert(unsigned long hpte_group,
-		unsigned long va, unsigned long prpn, unsigned long vflags,
-		unsigned long rflags)
-{
-	long slot;
-	hpte_t lhpte;
-
-	slot = HvCallHpt_findValid(&lhpte, va >> PAGE_SHIFT);
-
-	if (lhpte.v & HPTE_V_VALID) {
-		/* Bolt the existing HPTE */
-		HvCallHpt_setSwBits(slot, 0x10, 0);
-		HvCallHpt_setPp(slot, PP_RWXX);
-		return 0;
-	}
-
-	return iSeries_hpte_insert(hpte_group, va, prpn, vflags, rflags);
 }
 
 static unsigned long iSeries_hpte_getword0(unsigned long slot)
@@ -150,15 +142,17 @@ static long iSeries_hpte_remove(unsigned long hpte_group)
  *	bits 61..63 : PP2,PP1,PP0
  */
 static long iSeries_hpte_updatepp(unsigned long slot, unsigned long newpp,
-				  unsigned long va, int large, int local)
+				  unsigned long va, int psize, int local)
 {
 	hpte_t hpte;
-	unsigned long avpn = va >> 23;
+	unsigned long want_v;
 
 	iSeries_hlock(slot);
 
 	HvCallHpt_get(&hpte, slot);
-	if ((HPTE_V_AVPN_VAL(hpte.v) == avpn) && (hpte.v & HPTE_V_VALID)) {
+	want_v = hpte_encode_v(va, MMU_PAGE_4K);
+
+	if (HPTE_V_COMPARE(hpte.v, want_v) && (hpte.v & HPTE_V_VALID)) {
 		/*
 		 * Hypervisor expects bits as NPPP, which is
 		 * different from how they are mapped in our PP.
@@ -210,14 +204,17 @@ static long iSeries_hpte_find(unsigned long vpn)
  *
  * No need to lock here because we should be the only user.
  */
-static void iSeries_hpte_updateboltedpp(unsigned long newpp, unsigned long ea)
+static void iSeries_hpte_updateboltedpp(unsigned long newpp, unsigned long ea,
+					int psize)
 {
 	unsigned long vsid,va,vpn;
 	long slot;
 
+	BUG_ON(psize != MMU_PAGE_4K);
+
 	vsid = get_kernel_vsid(ea);
 	va = (vsid << 28) | (ea & 0x0fffffff);
-	vpn = va >> PAGE_SHIFT;
+	vpn = va >> HW_PAGE_SHIFT;
 	slot = iSeries_hpte_find(vpn);
 	if (slot == -1)
 		panic("updateboltedpp: Could not find page to bolt\n");
@@ -225,7 +222,7 @@ static void iSeries_hpte_updateboltedpp(unsigned long newpp, unsigned long ea)
 }
 
 static void iSeries_hpte_invalidate(unsigned long slot, unsigned long va,
-				    int large, int local)
+				    int psize, int local)
 {
 	unsigned long hpte_v;
 	unsigned long avpn = va >> 23;
