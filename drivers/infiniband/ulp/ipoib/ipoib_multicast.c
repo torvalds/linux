@@ -928,19 +928,14 @@ struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev)
 		return NULL;
 
 	iter->dev = dev;
-	memset(iter->mgid.raw, 0, sizeof iter->mgid);
+	memset(iter->mgid.raw, 0, 16);
 
 	if (ipoib_mcast_iter_next(iter)) {
-		ipoib_mcast_iter_free(iter);
+		kfree(iter);
 		return NULL;
 	}
 
 	return iter;
-}
-
-void ipoib_mcast_iter_free(struct ipoib_mcast_iter *iter)
-{
-	kfree(iter);
 }
 
 int ipoib_mcast_iter_next(struct ipoib_mcast_iter *iter)
