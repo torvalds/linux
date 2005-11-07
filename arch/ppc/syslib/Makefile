@@ -54,6 +54,7 @@ obj-$(CONFIG_GT64260)		+= gt64260_pic.o
 obj-$(CONFIG_LOPEC)		+= pci_auto.o todc_time.o
 obj-$(CONFIG_HDPU)		+= pci_auto.o
 obj-$(CONFIG_LUAN)		+= pci_auto.o todc_time.o
+obj-$(CONFIG_YUCCA)		+= pci_auto.o todc_time.o
 obj-$(CONFIG_KATANA)		+= pci_auto.o
 obj-$(CONFIG_MV64360)		+= mv64360_pic.o
 obj-$(CONFIG_MV64X60)		+= mv64x60.o mv64x60_win.o

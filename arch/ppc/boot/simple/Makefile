@@ -79,6 +79,12 @@ zimageinitrd-$(CONFIG_LUAN)		:= zImage.initrd-TREE
   entrypoint-$(CONFIG_LUAN)		:= 0x01000000
      extra.o-$(CONFIG_LUAN)		:= pibs.o
 
+      zimage-$(CONFIG_YUCCA)		:= zImage-TREE
+zimageinitrd-$(CONFIG_YUCCA)		:= zImage.initrd-TREE
+         end-$(CONFIG_YUCCA)		:= yucca
+  entrypoint-$(CONFIG_YUCCA)		:= 0x01000000
+     extra.o-$(CONFIG_YUCCA)		:= pibs.o
+
       zimage-$(CONFIG_OCOTEA)		:= zImage-TREE
 zimageinitrd-$(CONFIG_OCOTEA)		:= zImage.initrd-TREE
          end-$(CONFIG_OCOTEA)		:= ocotea

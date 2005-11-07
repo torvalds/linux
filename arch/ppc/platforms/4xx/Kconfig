@@ -82,6 +82,12 @@ config LUAN
 	help
 	  This option enables support for the IBM PPC440SP evaluation board.
 
+config YUCCA
+	bool "Yucca"
+	select WANT_EARLY_SERIAL
+	help
+	  This option enables support for the AMCC PPC440SPe evaluation board.
+
 config OCOTEA
 	bool "Ocotea"
 	select WANT_EARLY_SERIAL
@@ -126,7 +132,8 @@ config 440SP
 
 config 440SPE
 	bool
-	default n
+	depends on YUCCA
+	default y
 
 config 440
 	bool
@@ -162,7 +169,7 @@ config BOOKE
 
 config IBM_OCP
 	bool
-	depends on ASH || BAMBOO || BUBINGA || CPCI405 || EBONY || EP405 || LUAN || OCOTEA || REDWOOD_5 || REDWOOD_6 || SYCAMORE || WALNUT
+	depends on ASH || BAMBOO || BUBINGA || CPCI405 || EBONY || EP405 || LUAN || YUCCA || OCOTEA || REDWOOD_5 || REDWOOD_6 || SYCAMORE || WALNUT
 	default y
 
 config XILINX_OCP
