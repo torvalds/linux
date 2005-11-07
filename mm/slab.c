@@ -368,7 +368,7 @@ static inline void kmem_list3_init(struct kmem_list3 *parent)
  * manages a cache.
  */
 	
-struct kmem_cache_s {
+struct kmem_cache {
 /* 1) per-cpu data, touched during every alloc/free */
 	struct array_cache	*array[NR_CPUS];
 	unsigned int		batchcount;

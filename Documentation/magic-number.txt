@@ -120,7 +120,7 @@ ISDN_NET_MAGIC        0x49344C02  isdn_net_local_s  drivers/isdn/i4l/isdn_net_li
 SAVEKMSG_MAGIC2       0x4B4D5347  savekmsg          arch/*/amiga/config.c
 STLI_BOARDMAGIC       0x4bc6c825  stlibrd           include/linux/istallion.h
 CS_STATE_MAGIC        0x4c4f4749  cs_state          sound/oss/cs46xx.c
-SLAB_C_MAGIC          0x4f17a36d  kmem_cache_s      mm/slab.c
+SLAB_C_MAGIC          0x4f17a36d  kmem_cache        mm/slab.c
 COW_MAGIC             0x4f4f4f4d  cow_header_v1     arch/um/drivers/ubd_user.c
 I810_CARD_MAGIC       0x5072696E  i810_card         sound/oss/i810_audio.c
 TRIDENT_CARD_MAGIC    0x5072696E  trident_card      sound/oss/trident.c
