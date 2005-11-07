@@ -106,6 +106,12 @@ static void b44_init_hw(struct b44 *);
 static int dma_desc_align_mask;
 static int dma_desc_sync_size;
 
+static const char b44_gstrings[][ETH_GSTRING_LEN] = {
+#define _B44(x...)	# x,
+B44_STAT_REG_DECLARE
+#undef _B44
+};
+
 static inline void b44_sync_dma_desc_for_device(struct pci_dev *pdev,
                                                 dma_addr_t dma_base,
                                                 unsigned long offset,
@@ -498,7 +504,10 @@ static void b44_stats_update(struct b44 *bp)
 	for (reg = B44_TX_GOOD_O; reg <= B44_TX_PAUSE; reg += 4UL) {
 		*val++ += br32(bp, reg);
 	}
-	val = &bp->hw_stats.rx_good_octets;
+
+	/* Pad */
+	reg += 8*4UL;
+
 	for (reg = B44_RX_GOOD_O; reg <= B44_RX_NPAUSE; reg += 4UL) {
 		*val++ += br32(bp, reg);
 	}
@@ -1772,6 +1781,37 @@ static int b44_set_pauseparam(struct net_device *dev,
 	return 0;
 }
 
+static void b44_get_strings(struct net_device *dev, u32 stringset, u8 *data)
+{
+	switch(stringset) {
+	case ETH_SS_STATS:
+		memcpy(data, *b44_gstrings, sizeof(b44_gstrings));
+		break;
+	}
+}
+
+static int b44_get_stats_count(struct net_device *dev)
+{
+	return ARRAY_SIZE(b44_gstrings);
+}
+
+static void b44_get_ethtool_stats(struct net_device *dev,
+				  struct ethtool_stats *stats, u64 *data)
+{
+	struct b44 *bp = netdev_priv(dev);
+	u32 *val = &bp->hw_stats.tx_good_octets;
+	u32 i;
+
+	spin_lock_irq(&bp->lock);
+
+	b44_stats_update(bp);
+
+	for (i = 0; i < ARRAY_SIZE(b44_gstrings); i++)
+		*data++ = *val++;
+
+	spin_unlock_irq(&bp->lock);
+}
+
 static struct ethtool_ops b44_ethtool_ops = {
 	.get_drvinfo		= b44_get_drvinfo,
 	.get_settings		= b44_get_settings,
@@ -1784,6 +1824,9 @@ static struct ethtool_ops b44_ethtool_ops = {
 	.set_pauseparam		= b44_set_pauseparam,
 	.get_msglevel		= b44_get_msglevel,
 	.set_msglevel		= b44_set_msglevel,
+	.get_strings		= b44_get_strings,
+	.get_stats_count	= b44_get_stats_count,
+	.get_ethtool_stats	= b44_get_ethtool_stats,
 	.get_perm_addr		= ethtool_op_get_perm_addr,
 };
 
