@@ -25,33 +25,33 @@ config MTD_NAND_VERIFY_WRITE
 
 config MTD_NAND_AUTCPU12
 	tristate "SmartMediaCard on autronix autcpu12 board"
-	depends on ARM && MTD_NAND && ARCH_AUTCPU12
+	depends on MTD_NAND && ARCH_AUTCPU12
 	help
 	  This enables the driver for the autronix autcpu12 board to 
 	  access the SmartMediaCard.
 
 config MTD_NAND_EDB7312
 	tristate "Support for Cirrus Logic EBD7312 evaluation board"
-	depends on ARM && MTD_NAND && ARCH_EDB7312
+	depends on MTD_NAND && ARCH_EDB7312
 	help
 	  This enables the driver for the Cirrus Logic EBD7312 evaluation 
 	  board to access the onboard NAND Flash.
 
 config MTD_NAND_H1900
 	tristate "iPAQ H1900 flash"
-	depends on ARM && MTD_NAND && ARCH_PXA && MTD_PARTITIONS
+	depends on MTD_NAND && ARCH_PXA && MTD_PARTITIONS
 	help
 	  This enables the driver for the iPAQ h1900 flash.
 
 config MTD_NAND_SPIA
 	tristate "NAND Flash device on SPIA board"
-	depends on ARM && ARCH_P720T && MTD_NAND
+	depends on ARCH_P720T && MTD_NAND
 	help
 	  If you had to ask, you don't have one. Say 'N'.
 
 config MTD_NAND_TOTO
 	tristate "NAND Flash device on TOTO board"
-	depends on ARM && ARCH_OMAP && MTD_NAND
+	depends on ARCH_OMAP && MTD_NAND
 	help
 	  Support for NAND flash on Texas Instruments Toto platform.
 
@@ -181,7 +181,7 @@ config MTD_NAND_DISKONCHIP_BBTWRITE
 	  
  config MTD_NAND_SHARPSL
  	bool "Support for NAND Flash on Sharp SL Series (C7xx + others)"
- 	depends on MTD_NAND	&& ARCH_PXA
+ 	depends on MTD_NAND && ARCH_PXA
  
  config MTD_NAND_NANDSIM
  	bool "Support for NAND Flash Simulator"
