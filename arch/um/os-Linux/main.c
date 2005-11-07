@@ -157,25 +157,25 @@ int main(int argc, char **argv, char **envp)
 	 */
 	change_sig(SIGPROF, 0);
 
-        /* This signal stuff used to be in the reboot case.  However,
-         * sometimes a SIGVTALRM can come in when we're halting (reproducably
-         * when writing out gcov information, presumably because that takes
-         * some time) and cause a segfault.
-         */
+	/* This signal stuff used to be in the reboot case.  However,
+	 * sometimes a SIGVTALRM can come in when we're halting (reproducably
+	 * when writing out gcov information, presumably because that takes
+	 * some time) and cause a segfault.
+	 */
 
-        /* stop timers and set SIG*ALRM to be ignored */
-        disable_timer();
+	/* stop timers and set SIG*ALRM to be ignored */
+	disable_timer();
 
-        /* disable SIGIO for the fds and set SIGIO to be ignored */
-        err = deactivate_all_fds();
-        if(err)
-                printf("deactivate_all_fds failed, errno = %d\n", -err);
+	/* disable SIGIO for the fds and set SIGIO to be ignored */
+	err = deactivate_all_fds();
+	if(err)
+		printf("deactivate_all_fds failed, errno = %d\n", -err);
 
-        /* Let any pending signals fire now.  This ensures
-         * that they won't be delivered after the exec, when
-         * they are definitely not expected.
-         */
-        unblock_signals();
+	/* Let any pending signals fire now.  This ensures
+	 * that they won't be delivered after the exec, when
+	 * they are definitely not expected.
+	 */
+	unblock_signals();
 
 	/* Reboot */
 	if(ret){
@@ -257,14 +257,3 @@ void __wrap_free(void *ptr)
 	}
 	else __real_free(ptr);
 }
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * Emacs will notice this stuff at the end of the file and automatically
- * adjust the settings for this buffer only.  This must remain at the end
- * of the file.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-file-style: "linux"
- * End:
- */
