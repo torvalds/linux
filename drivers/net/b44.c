@@ -102,10 +102,6 @@ MODULE_DEVICE_TABLE(pci, b44_pci_tbl);
 static void b44_halt(struct b44 *);
 static void b44_init_rings(struct b44 *);
 static void b44_init_hw(struct b44 *);
-static int b44_poll(struct net_device *dev, int *budget);
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void b44_poll_controller(struct net_device *dev);
-#endif
 
 static int dma_desc_align_mask;
 static int dma_desc_sync_size;
@@ -653,7 +649,7 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 
 	/* Hardware bug work-around, the chip is unable to do PCI DMA
 	   to/from anything above 1GB :-( */
-	if(mapping+RX_PKT_BUF_SZ > B44_DMA_MASK) {
+	if (mapping + RX_PKT_BUF_SZ > B44_DMA_MASK) {
 		/* Sigh... */
 		pci_unmap_single(bp->pdev, mapping, RX_PKT_BUF_SZ,PCI_DMA_FROMDEVICE);
 		dev_kfree_skb_any(skb);
@@ -663,7 +659,7 @@ static int b44_alloc_rx_skb(struct b44 *bp, int src_idx, u32 dest_idx_unmasked)
 		mapping = pci_map_single(bp->pdev, skb->data,
 					 RX_PKT_BUF_SZ,
 					 PCI_DMA_FROMDEVICE);
-		if(mapping+RX_PKT_BUF_SZ > B44_DMA_MASK) {
+		if (mapping + RX_PKT_BUF_SZ > B44_DMA_MASK) {
 			pci_unmap_single(bp->pdev, mapping, RX_PKT_BUF_SZ,PCI_DMA_FROMDEVICE);
 			dev_kfree_skb_any(skb);
 			return -ENOMEM;
@@ -964,7 +960,7 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	mapping = pci_map_single(bp->pdev, skb->data, len, PCI_DMA_TODEVICE);
-	if(mapping+len > B44_DMA_MASK) {
+	if (mapping + len > B44_DMA_MASK) {
 		/* Chip can't handle DMA to/from >1GB, use bounce buffer */
 		pci_unmap_single(bp->pdev, mapping, len, PCI_DMA_TODEVICE);
 
@@ -975,7 +971,7 @@ static int b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		mapping = pci_map_single(bp->pdev, bounce_skb->data,
 					 len, PCI_DMA_TODEVICE);
-		if(mapping+len > B44_DMA_MASK) {
+		if (mapping + len > B44_DMA_MASK) {
 			pci_unmap_single(bp->pdev, mapping,
 					 len, PCI_DMA_TODEVICE);
 			dev_kfree_skb_any(bounce_skb);
@@ -1102,8 +1098,7 @@ static void b44_free_rings(struct b44 *bp)
  *
  * The chip has been shut down and the driver detached from
  * the networking, so no interrupts or new tx packets will
- * end up in the driver.  bp->lock is not held and we are not
- * in an interrupt context and thus may sleep.
+ * end up in the driver.
  */
 static void b44_init_rings(struct b44 *bp)
 {
@@ -1175,16 +1170,14 @@ static int b44_alloc_consistent(struct b44 *bp)
 	int size;
 
 	size  = B44_RX_RING_SIZE * sizeof(struct ring_info);
-	bp->rx_buffers = kmalloc(size, GFP_KERNEL);
+	bp->rx_buffers = kzalloc(size, GFP_KERNEL);
 	if (!bp->rx_buffers)
 		goto out_err;
-	memset(bp->rx_buffers, 0, size);
 
 	size = B44_TX_RING_SIZE * sizeof(struct ring_info);
-	bp->tx_buffers = kmalloc(size, GFP_KERNEL);
+	bp->tx_buffers = kzalloc(size, GFP_KERNEL);
 	if (!bp->tx_buffers)
 		goto out_err;
-	memset(bp->tx_buffers, 0, size);
 
 	size = DMA_TABLE_BYTES;
 	bp->rx_ring = pci_alloc_consistent(bp->pdev, size, &bp->rx_ring_dma);
@@ -1195,10 +1188,10 @@ static int b44_alloc_consistent(struct b44 *bp)
 		struct dma_desc *rx_ring;
 		dma_addr_t rx_ring_dma;
 
-		if (!(rx_ring = (struct dma_desc *)kmalloc(size, GFP_KERNEL)))
+		rx_ring = kzalloc(size, GFP_KERNEL);
+		if (!rx_ring)
 			goto out_err;
 
-		memset(rx_ring, 0, size);
 		rx_ring_dma = dma_map_single(&bp->pdev->dev, rx_ring,
 		                             DMA_TABLE_BYTES,
 		                             DMA_BIDIRECTIONAL);
@@ -1221,10 +1214,10 @@ static int b44_alloc_consistent(struct b44 *bp)
 		struct dma_desc *tx_ring;
 		dma_addr_t tx_ring_dma;
 
-		if (!(tx_ring = (struct dma_desc *)kmalloc(size, GFP_KERNEL)))
+		tx_ring = kzalloc(size, GFP_KERNEL);
+		if (!tx_ring)
 			goto out_err;
 
-		memset(tx_ring, 0, size);
 		tx_ring_dma = dma_map_single(&bp->pdev->dev, tx_ring,
 		                             DMA_TABLE_BYTES,
 		                             DMA_TO_DEVICE);
@@ -1530,8 +1523,6 @@ static void __b44_set_rx_mode(struct net_device *dev)
 {
 	struct b44 *bp = netdev_priv(dev);
 	u32 val;
-	int i=0;
-	unsigned char zero[6] = {0,0,0,0,0,0};
 
 	val = br32(bp, B44_RXCONFIG);
 	val &= ~(RXCONFIG_PROMISC | RXCONFIG_ALLMULTI);
@@ -1539,14 +1530,17 @@ static void __b44_set_rx_mode(struct net_device *dev)
 		val |= RXCONFIG_PROMISC;
 		bw32(bp, B44_RXCONFIG, val);
 	} else {
+		unsigned char zero[6] = {0, 0, 0, 0, 0, 0};
+		int i = 0;
+
 		__b44_set_mac_addr(bp);
 
 		if (dev->flags & IFF_ALLMULTI)
 			val |= RXCONFIG_ALLMULTI;
 		else
-			i=__b44_load_mcast(bp, dev);
+			i = __b44_load_mcast(bp, dev);
 		
-		for(;i<64;i++) {
+		for (; i < 64; i++) {
 			__b44_cam_write(bp, zero, i);			
 		}
 		bw32(bp, B44_RXCONFIG, val);
@@ -1898,9 +1892,9 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 	
 	err = pci_set_consistent_dma_mask(pdev, (u64) B44_DMA_MASK);
 	if (err) {
-	  printk(KERN_ERR PFX "No usable DMA configuration, "
-		 "aborting.\n");
-	  goto err_out_free_res;
+		printk(KERN_ERR PFX "No usable DMA configuration, "
+		       "aborting.\n");
+		goto err_out_free_res;
 	}
 
 	b44reg_base = pci_resource_start(pdev, 0);
@@ -1922,10 +1916,8 @@ static int __devinit b44_init_one(struct pci_dev *pdev,
 	bp = netdev_priv(dev);
 	bp->pdev = pdev;
 	bp->dev = dev;
-	if (b44_debug >= 0)
-		bp->msg_enable = (1 << b44_debug) - 1;
-	else
-		bp->msg_enable = B44_DEF_MSG_ENABLE;
+
+	bp->msg_enable = netif_msg_init(b44_debug, B44_DEF_MSG_ENABLE);
 
 	spin_lock_init(&bp->lock);
 
@@ -2015,17 +2007,14 @@ err_out_disable_pdev:
 static void __devexit b44_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
+	struct b44 *bp = netdev_priv(dev);
 
-	if (dev) {
-		struct b44 *bp = netdev_priv(dev);
-
-		unregister_netdev(dev);
-		iounmap(bp->regs);
-		free_netdev(dev);
-		pci_release_regions(pdev);
-		pci_disable_device(pdev);
-		pci_set_drvdata(pdev, NULL);
-	}
+	unregister_netdev(dev);
+	iounmap(bp->regs);
+	free_netdev(dev);
+	pci_release_regions(pdev);
+	pci_disable_device(pdev);
+	pci_set_drvdata(pdev, NULL);
 }
 
 static int b44_suspend(struct pci_dev *pdev, pm_message_t state)
