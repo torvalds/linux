@@ -627,19 +627,28 @@ static void nvidia_save_vga(struct nvidia_par *par,
 	NVTRACE_LEAVE();
 }
 
+#undef DUMP_REG
+
 static void nvidia_write_regs(struct nvidia_par *par)
 {
 	struct _riva_hw_state *state = &par->ModeReg;
 	int i;
 
 	NVTRACE_ENTER();
-	NVWriteCrtc(par, 0x11, 0x00);
-
-	NVLockUnlock(par, 0);
 
 	NVLoadStateExt(par, state);
 
 	NVWriteMiscOut(par, state->misc_output);
+
+	for (i = 1; i < NUM_SEQ_REGS; i++) {
+#ifdef DUMP_REG
+		printk(" SEQ[%02x] = %08x\n", i, state->seq[i]);
+#endif
+		NVWriteSeq(par, i, state->seq[i]);
+	}
+
+	/* Ensure CRTC registers 0-7 are unlocked by clearing bit 7 of CRTC[17] */
+	NVWriteCrtc(par, 0x11, state->crtc[0x11] & ~0x80);
 
 	for (i = 0; i < NUM_CRT_REGS; i++) {
 		switch (i) {
@@ -647,20 +656,55 @@ static void nvidia_write_regs(struct nvidia_par *par)
 		case 0x20 ... 0x40:
 			break;
 		default:
+#ifdef DUMP_REG
+			printk("CRTC[%02x] = %08x\n", i, state->crtc[i]);
+#endif
 			NVWriteCrtc(par, i, state->crtc[i]);
 		}
 	}
 
-	for (i = 0; i < NUM_ATC_REGS; i++)
-		NVWriteAttr(par, i, state->attr[i]);
-
-	for (i = 0; i < NUM_GRC_REGS; i++)
+	for (i = 0; i < NUM_GRC_REGS; i++) {
+#ifdef DUMP_REG
+		printk(" GRA[%02x] = %08x\n", i, state->gra[i]);
+#endif
 		NVWriteGr(par, i, state->gra[i]);
+	}
 
-	for (i = 0; i < NUM_SEQ_REGS; i++)
-		NVWriteSeq(par, i, state->seq[i]);
+	for (i = 0; i < NUM_ATC_REGS; i++) {
+#ifdef DUMP_REG
+		printk("ATTR[%02x] = %08x\n", i, state->attr[i]);
+#endif
+		NVWriteAttr(par, i, state->attr[i]);
+	}
+
 	NVTRACE_LEAVE();
 }
+
+static void nvidia_vga_protect(struct nvidia_par *par, int on)
+{
+	unsigned char tmp;
+
+	if (on) {
+		/*
+		 * Turn off screen and disable sequencer.
+		 */
+		tmp = NVReadSeq(par, 0x01);
+
+		NVWriteSeq(par, 0x00, 0x01);		/* Synchronous Reset */
+		NVWriteSeq(par, 0x01, tmp | 0x20);	/* disable the display */
+	} else {
+		/*
+		 * Reenable sequencer, then turn on screen.
+		 */
+
+		tmp = NVReadSeq(par, 0x01);
+
+		NVWriteSeq(par, 0x01, tmp & ~0x20);	/* reenable display */
+		NVWriteSeq(par, 0x00, 0x03);		/* End Reset */
+	}
+}
+
+
 
 static int nvidia_calc_regs(struct fb_info *info)
 {
@@ -868,7 +912,7 @@ static void nvidia_init_vga(struct fb_info *info)
 	for (i = 0; i < 0x10; i++)
 		state->attr[i] = i;
 	state->attr[0x10] = 0x41;
-	state->attr[0x11] = 0x01;
+	state->attr[0x11] = 0xff;
 	state->attr[0x12] = 0x0f;
 	state->attr[0x13] = 0x00;
 	state->attr[0x14] = 0x00;
@@ -991,7 +1035,6 @@ static int nvidiafb_set_par(struct fb_info *info)
 
 	nvidia_init_vga(info);
 	nvidia_calc_regs(info);
-	nvidia_write_regs(par);
 
 	NVLockUnlock(par, 0);
 	if (par->twoHeads) {
@@ -1000,7 +1043,22 @@ static int nvidiafb_set_par(struct fb_info *info)
 		NVLockUnlock(par, 0);
 	}
 
-	NVWriteCrtc(par, 0x11, 0x00);
+	nvidia_vga_protect(par, 1);
+
+	nvidia_write_regs(par);
+
+#if defined (__BIG_ENDIAN)
+	/* turn on LFB swapping */
+	{
+		unsigned char tmp;
+
+		VGA_WR08(par->PCIO, 0x3d4, 0x46);
+		tmp = VGA_RD08(par->PCIO, 0x3d5);
+		tmp |= (1 << 7);
+		VGA_WR08(par->PCIO, 0x3d5, tmp);
+    }
+#endif
+
 	info->fix.line_length = (info->var.xres_virtual *
 				 info->var.bits_per_pixel) >> 3;
 	if (info->var.accel_flags) {
@@ -1022,7 +1080,7 @@ static int nvidiafb_set_par(struct fb_info *info)
 
 	par->cursor_reset = 1;
 
-	NVWriteCrtc(par, 0x11, 0xff);
+	nvidia_vga_protect(par, 0);
 
 	NVTRACE_LEAVE();
 	return 0;

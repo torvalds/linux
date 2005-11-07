@@ -703,7 +703,7 @@ config FB_NVIDIA
 
 config FB_NVIDIA_I2C
        bool "Enable DDC Support"
-       depends on FB_NVIDIA && !PPC_OF
+       depends on FB_NVIDIA
        help
 	  This enables I2C support for nVidia Chipsets.  This is used
 	  only for getting EDID information from the attached display
