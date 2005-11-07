@@ -2481,10 +2481,10 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 TRIVIAL PATCHES
-P:      Rusty Russell
-M:      trivial@rustcorp.com.au
+P:      Adrian Bunk
+M:      trivial@kernel.org
 L:      linux-kernel@vger.kernel.org
-W:      http://www.kernel.org/pub/linux/kernel/people/rusty/trivial/
+W:      http://www.kernel.org/pub/linux/kernel/people/bunk/trivial/
 S:      Maintained
 
 TMS380 TOKEN-RING NETWORK DRIVER
