@@ -4,3 +4,4 @@
 
 obj-y					:= core.o clock.o
 obj-$(CONFIG_MACH_REALVIEW_EB)		+= realview_eb.o
+obj-$(CONFIG_SMP)			+= platsmp.o headsmp.o

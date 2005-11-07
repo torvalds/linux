@@ -203,8 +203,14 @@
 	/* Reserved 0x1001A000 - 0x1001FFFF */
 #define REALVIEW_CLCD_BASE            0x10020000	/* CLCD */
 #define REALVIEW_DMAC_BASE            0x10030000	/* DMA controller */
+#ifndef CONFIG_REALVIEW_MPCORE
 #define REALVIEW_GIC_CPU_BASE         0x10040000	/* Generic interrupt controller CPU interface */
 #define REALVIEW_GIC_DIST_BASE        0x10041000	/* Generic interrupt controller distributor */
+#else
+#define REALVIEW_MPCORE_SCU_BASE	0x10100000	/*  SCU registers */
+#define REALVIEW_GIC_CPU_BASE		0x10100100	/* Generic interrupt controller CPU interface */
+#define REALVIEW_GIC_DIST_BASE		0x10101000	/* Generic interrupt controller distributor */
+#endif
 #define REALVIEW_SMC_BASE             0x10080000	/* SMC */
 	/* Reserved 0x10090000 - 0x100EFFFF */
 
@@ -265,6 +271,7 @@
  *  Interrupts - bit assignment (primary)
  * ------------------------------------------------------------------------
  */
+#ifndef CONFIG_REALVIEW_MPCORE
 #define INT_WDOGINT			0	/* Watchdog timer */
 #define INT_SOFTINT			1	/* Software interrupt */
 #define INT_COMMRx			2	/* Debug Comm Rx interrupt */
@@ -297,6 +304,55 @@
 #define INT_USB				29	/* USB controller */
 #define INT_TSPENINT			30	/* Touchscreen pen */
 #define INT_TSKPADINT			31	/* Touchscreen keypad */
+#else
+#define INT_LOCALTIMER			29
+#define INT_LOCALWDOG			30
+
+#define INT_AACI			0
+#define INT_TIMERINT0_1			1
+#define INT_TIMERINT2_3			2
+#define INT_USB				3
+#define INT_UARTINT0			4
+#define INT_UARTINT1			5
+#define INT_RTCINT			6
+#define INT_KMI0			7
+#define INT_KMI1			8
+#define INT_ETH				9
+#define INT_EB_IRQ1			10	/* main GIC */
+#define INT_EB_IRQ2			11	/* tile GIC */
+#define INT_EB_FIQ1			12	/* main GIC */
+#define INT_EB_FIQ2			13	/* tile GIC */
+#define INT_MMCI0A			14
+#define INT_MMCI0B			15
+
+#define INT_PMU_CPU0			17
+#define INT_PMU_CPU1			18
+#define INT_PMU_CPU2			19
+#define INT_PMU_CPU3			20
+#define INT_PMU_SCU0			21
+#define INT_PMU_SCU1			22
+#define INT_PMU_SCU2			23
+#define INT_PMU_SCU3			24
+#define INT_PMU_SCU4			25
+#define INT_PMU_SCU5			26
+#define INT_PMU_SCU6			27
+#define INT_PMU_SCU7			28
+
+#define INT_L220_EVENT			29
+#define INT_L220_SLAVE			30
+#define INT_L220_DECODE			31
+
+#define INT_UARTINT2			-1
+#define INT_UARTINT3			-1
+#define INT_CLCDINT			-1
+#define INT_DMAINT			-1
+#define INT_WDOGINT			-1
+#define INT_GPIOINT0			-1
+#define INT_GPIOINT1			-1
+#define INT_GPIOINT2			-1
+#define INT_SCIINT			-1
+#define INT_SSPINT			-1
+#endif
 
 /* 
  *  Interrupt bit positions
