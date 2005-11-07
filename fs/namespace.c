@@ -661,29 +661,32 @@ static int do_loopback(struct nameidata *nd, char *old_name, int recurse)
 
 	down_write(&current->namespace->sem);
 	err = -EINVAL;
-	if (check_mnt(nd->mnt) && (!recurse || check_mnt(old_nd.mnt))) {
-		err = -ENOMEM;
-		if (recurse)
-			mnt = copy_tree(old_nd.mnt, old_nd.dentry);
-		else
-			mnt = clone_mnt(old_nd.mnt, old_nd.dentry);
-	}
+	if (!check_mnt(nd->mnt) || !check_mnt(old_nd.mnt))
+		goto out;
 
-	if (mnt) {
-		/* stop bind mounts from expiring */
+	err = -ENOMEM;
+	if (recurse)
+		mnt = copy_tree(old_nd.mnt, old_nd.dentry);
+	else
+		mnt = clone_mnt(old_nd.mnt, old_nd.dentry);
+
+	if (!mnt)
+		goto out;
+
+	/* stop bind mounts from expiring */
+	spin_lock(&vfsmount_lock);
+	list_del_init(&mnt->mnt_expire);
+	spin_unlock(&vfsmount_lock);
+
+	err = graft_tree(mnt, nd);
+	if (err) {
 		spin_lock(&vfsmount_lock);
-		list_del_init(&mnt->mnt_expire);
+		umount_tree(mnt);
 		spin_unlock(&vfsmount_lock);
+	} else
+		mntput(mnt);
 
-		err = graft_tree(mnt, nd);
-		if (err) {
-			spin_lock(&vfsmount_lock);
-			umount_tree(mnt);
-			spin_unlock(&vfsmount_lock);
-		} else
-			mntput(mnt);
-	}
-
+out:
 	up_write(&current->namespace->sem);
 	path_release(&old_nd);
 	return err;
