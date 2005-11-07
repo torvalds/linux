@@ -1854,7 +1854,7 @@ static void __devinit i810fb_find_init_mode(struct fb_info *info)
 #ifdef CONFIG_FB_I810_I2C
 	i810_create_i2c_busses(par);
 
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 4; i++) {
 		err = i810_probe_i2c_connector(info, &par->edid, i+1);
 		if (!err)
 			break;
