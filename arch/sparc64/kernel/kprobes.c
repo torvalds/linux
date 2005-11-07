@@ -116,15 +116,11 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
 	if (kprobe_running()) {
-		/* We *are* holding lock here, so this is safe.
-		 * Disarm the probe we just hit, and ignore it.
-		 */
 		p = get_kprobe(addr);
 		if (p) {
 			if (kcb->kprobe_status == KPROBE_HIT_SS) {
 				regs->tstate = ((regs->tstate & ~TSTATE_PIL) |
 					kcb->kprobe_orig_tstate_pil);
-				unlock_kprobes();
 				goto no_kprobe;
 			}
 			/* We have reentered the kprobe_handler(), since
@@ -144,14 +140,11 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			if (p->break_handler && p->break_handler(p, regs))
 				goto ss_probe;
 		}
-		/* If it's not ours, can't be delete race, (we hold lock). */
 		goto no_kprobe;
 	}
 
-	lock_kprobes();
 	p = get_kprobe(addr);
 	if (!p) {
-		unlock_kprobes();
 		if (*(u32 *)addr != BREAKPOINT_INSTRUCTION) {
 			/*
 			 * The breakpoint instruction was removed right
@@ -296,14 +289,12 @@ static inline int post_kprobe_handler(struct pt_regs *regs)
 		goto out;
 	}
 	reset_current_kprobe();
-	unlock_kprobes();
 out:
 	preempt_enable_no_resched();
 
 	return 1;
 }
 
-/* Interrupts disabled, kprobe_lock held. */
 static inline int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
 	struct kprobe *cur = kprobe_running();
@@ -316,7 +307,6 @@ static inline int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		resume_execution(cur, regs, kcb);
 
 		reset_current_kprobe();
-		unlock_kprobes();
 		preempt_enable_no_resched();
 	}
 	return 0;
@@ -331,7 +321,7 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	struct die_args *args = (struct die_args *)data;
 	int ret = NOTIFY_DONE;
 
-	preempt_disable();
+	rcu_read_lock();
 	switch (val) {
 	case DIE_DEBUG:
 		if (kprobe_handler(args->regs))
@@ -350,7 +340,7 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	default:
 		break;
 	}
-	preempt_enable();
+	rcu_read_unlock();
 	return ret;
 }
 

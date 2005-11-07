@@ -26,7 +26,6 @@
 #include <linux/config.h>
 #include <linux/kprobes.h>
 #include <linux/ptrace.h>
-#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/preempt.h>
@@ -343,10 +342,11 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	struct kretprobe_instance *ri = NULL;
 	struct hlist_head *head;
 	struct hlist_node *node, *tmp;
-	unsigned long orig_ret_address = 0;
+	unsigned long flags, orig_ret_address = 0;
 	unsigned long trampoline_address =
 		((struct fnptr *)kretprobe_trampoline)->ip;
 
+	spin_lock_irqsave(&kretprobe_lock, flags);
         head = kretprobe_inst_table_head(current);
 
 	/*
@@ -386,7 +386,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	regs->cr_iip = orig_ret_address;
 
 	reset_current_kprobe();
-	unlock_kprobes();
+	spin_unlock_irqrestore(&kretprobe_lock, flags);
 	preempt_enable_no_resched();
 
         /*
@@ -397,6 +397,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
         return 1;
 }
 
+/* Called with kretprobe_lock held */
 void __kprobes arch_prepare_kretprobe(struct kretprobe *rp,
 				      struct pt_regs *regs)
 {
@@ -612,7 +613,6 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 			if ((kcb->kprobe_status == KPROBE_HIT_SS) &&
 	 		     (p->ainsn.inst_flag == INST_FLAG_BREAK_INST)) {
   				ia64_psr(regs)->ss = 0;
-				unlock_kprobes();
 				goto no_kprobe;
 			}
 			/* We have reentered the pre_kprobe_handler(), since
@@ -641,10 +641,8 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 		}
 	}
 
-	lock_kprobes();
 	p = get_kprobe(addr);
 	if (!p) {
-		unlock_kprobes();
 		if (!is_ia64_break_inst(regs)) {
 			/*
 			 * The breakpoint instruction was removed right
@@ -707,7 +705,6 @@ static int __kprobes post_kprobes_handler(struct pt_regs *regs)
 		goto out;
 	}
 	reset_current_kprobe();
-	unlock_kprobes();
 
 out:
 	preempt_enable_no_resched();
@@ -728,7 +725,6 @@ static int __kprobes kprobes_fault_handler(struct pt_regs *regs, int trapnr)
 	if (kcb->kprobe_status & KPROBE_HIT_SS) {
 		resume_execution(cur, regs);
 		reset_current_kprobe();
-		unlock_kprobes();
 		preempt_enable_no_resched();
 	}
 
@@ -741,7 +737,7 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	struct die_args *args = (struct die_args *)data;
 	int ret = NOTIFY_DONE;
 
-	preempt_disable();
+	rcu_read_lock();
 	switch(val) {
 	case DIE_BREAK:
 		if (pre_kprobes_handler(args))
@@ -757,7 +753,7 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 	default:
 		break;
 	}
-	preempt_enable();
+	rcu_read_unlock();
 	return ret;
 }
 
