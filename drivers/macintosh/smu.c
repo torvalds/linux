@@ -590,6 +590,8 @@ static void smu_expose_childs(void *unused)
 			sprintf(name, "smu-i2c-%02x", *reg);
 			of_platform_device_create(np, name, &smu->of_dev->dev);
 		}
+		if (device_is_compatible(np, "smu-sensors"))
+			of_platform_device_create(np, "smu-sensors", &smu->of_dev->dev);
 	}
 
 }
