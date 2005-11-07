@@ -158,8 +158,6 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	kprobe_opcode_t *addr = NULL;
 	unsigned long *lp;
 
-	/* We're in an interrupt, but this is clear and BUG()-safe. */
-	preempt_disable();
 	/* Check if the application is using LDT entry for its code segment and
 	 * calculate the address by reading the base address from the LDT entry.
 	 */
@@ -232,6 +230,11 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		goto no_kprobe;
 	}
 
+	/*
+	 * This preempt_disable() matches the preempt_enable_no_resched()
+	 * in post_kprobe_handler()
+	 */
+	preempt_disable();
 	kprobe_status = KPROBE_HIT_ACTIVE;
 	set_current_kprobe(p, regs);
 
@@ -245,7 +248,6 @@ ss_probe:
 	return 1;
 
 no_kprobe:
-	preempt_enable_no_resched();
 	return ret;
 }
 
@@ -313,11 +315,11 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	unlock_kprobes();
 	preempt_enable_no_resched();
 
-        /*
-         * By returning a non-zero value, we are telling
-         * kprobe_handler() that we have handled unlocking
-         * and re-enabling preemption.
-         */
+	/*
+	 * By returning a non-zero value, we are telling
+	 * kprobe_handler() that we have handled unlocking
+	 * and re-enabling preemption
+	 */
         return 1;
 }
 
@@ -453,29 +455,29 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 				       unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *)data;
+	int ret = NOTIFY_DONE;
+
+	preempt_disable();
 	switch (val) {
 	case DIE_INT3:
 		if (kprobe_handler(args->regs))
-			return NOTIFY_STOP;
+			ret = NOTIFY_STOP;
 		break;
 	case DIE_DEBUG:
 		if (post_kprobe_handler(args->regs))
-			return NOTIFY_STOP;
+			ret = NOTIFY_STOP;
 		break;
 	case DIE_GPF:
-		if (kprobe_running() &&
-		    kprobe_fault_handler(args->regs, args->trapnr))
-			return NOTIFY_STOP;
-		break;
 	case DIE_PAGE_FAULT:
 		if (kprobe_running() &&
 		    kprobe_fault_handler(args->regs, args->trapnr))
-			return NOTIFY_STOP;
+			ret = NOTIFY_STOP;
 		break;
 	default:
 		break;
 	}
-	return NOTIFY_DONE;
+	preempt_enable();
+	return ret;
 }
 
 int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
@@ -502,7 +504,6 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 
 void __kprobes jprobe_return(void)
 {
-	preempt_enable_no_resched();
 	asm volatile ("       xchgl   %%ebx,%%esp     \n"
 		      "       int3			\n"
 		      "       .globl jprobe_return_end	\n"

@@ -395,7 +395,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
         /*
          * By returning a non-zero value, we are telling
          * kprobe_handler() that we have handled unlocking
-         * and re-enabling preemption.
+	 * and re-enabling preemption
          */
         return 1;
 }
@@ -607,8 +607,6 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 	struct pt_regs *regs = args->regs;
 	kprobe_opcode_t *addr = (kprobe_opcode_t *)instruction_pointer(regs);
 
-	preempt_disable();
-
 	/* Handle recursion cases */
 	if (kprobe_running()) {
 		p = get_kprobe(addr);
@@ -665,6 +663,11 @@ static int __kprobes pre_kprobes_handler(struct die_args *args)
 		goto no_kprobe;
 	}
 
+	/*
+	 * This preempt_disable() matches the preempt_enable_no_resched()
+	 * in post_kprobes_handler()
+	 */
+	preempt_disable();
 	kprobe_status = KPROBE_HIT_ACTIVE;
 	set_current_kprobe(p);
 
@@ -682,7 +685,6 @@ ss_probe:
 	return 1;
 
 no_kprobe:
-	preempt_enable_no_resched();
 	return ret;
 }
 
@@ -733,22 +735,26 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 				       unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *)data;
+	int ret = NOTIFY_DONE;
+
+	preempt_disable();
 	switch(val) {
 	case DIE_BREAK:
 		if (pre_kprobes_handler(args))
-			return NOTIFY_STOP;
+			ret = NOTIFY_STOP;
 		break;
 	case DIE_SS:
 		if (post_kprobes_handler(args->regs))
-			return NOTIFY_STOP;
+			ret = NOTIFY_STOP;
 		break;
 	case DIE_PAGE_FAULT:
 		if (kprobes_fault_handler(args->regs, args->trapnr))
-			return NOTIFY_STOP;
+			ret = NOTIFY_STOP;
 	default:
 		break;
 	}
-	return NOTIFY_DONE;
+	preempt_enable();
+	return ret;
 }
 
 int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)

@@ -209,6 +209,11 @@ static inline int kprobe_handler(struct pt_regs *regs)
 		goto no_kprobe;
 	}
 
+	/*
+	 * This preempt_disable() matches the preempt_enable_no_resched()
+	 * in post_kprobe_handler().
+	 */
+	preempt_disable();
 	kprobe_status = KPROBE_HIT_ACTIVE;
 	current_kprobe = p;
 	kprobe_saved_msr = regs->msr;
@@ -219,11 +224,6 @@ static inline int kprobe_handler(struct pt_regs *regs)
 ss_probe:
 	prepare_singlestep(p, regs);
 	kprobe_status = KPROBE_HIT_SS;
-	/*
-	 * This preempt_disable() matches the preempt_enable_no_resched()
-	 * in post_kprobe_handler().
-	 */
-	preempt_disable();
 	return 1;
 
 no_kprobe:
@@ -293,6 +293,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	regs->nip = orig_ret_address;
 
 	unlock_kprobes();
+	preempt_enable_no_resched();
 
         /*
          * By returning a non-zero value, we are telling

@@ -118,8 +118,6 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	void *addr = (void *) regs->tpc;
 	int ret = 0;
 
-	preempt_disable();
-
 	if (kprobe_running()) {
 		/* We *are* holding lock here, so this is safe.
 		 * Disarm the probe we just hit, and ignore it.
@@ -171,6 +169,11 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		goto no_kprobe;
 	}
 
+	/*
+	 * This preempt_disable() matches the preempt_enable_no_resched()
+	 * in post_kprobes_handler()
+	 */
+	preempt_disable();
 	set_current_kprobe(p, regs);
 	kprobe_status = KPROBE_HIT_ACTIVE;
 	if (p->pre_handler && p->pre_handler(p, regs))
@@ -182,7 +185,6 @@ ss_probe:
 	return 1;
 
 no_kprobe:
-	preempt_enable_no_resched();
 	return ret;
 }
 
@@ -322,29 +324,29 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 				       unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *)data;
+	int ret = NOTIFY_DONE;
+
+	preempt_disable();
 	switch (val) {
 	case DIE_DEBUG:
 		if (kprobe_handler(args->regs))
-			return NOTIFY_STOP;
+			ret = NOTIFY_STOP;
 		break;
 	case DIE_DEBUG_2:
 		if (post_kprobe_handler(args->regs))
-			return NOTIFY_STOP;
+			ret = NOTIFY_STOP;
 		break;
 	case DIE_GPF:
-		if (kprobe_running() &&
-		    kprobe_fault_handler(args->regs, args->trapnr))
-			return NOTIFY_STOP;
-		break;
 	case DIE_PAGE_FAULT:
 		if (kprobe_running() &&
 		    kprobe_fault_handler(args->regs, args->trapnr))
-			return NOTIFY_STOP;
+			ret = NOTIFY_STOP;
 		break;
 	default:
 		break;
 	}
-	return NOTIFY_DONE;
+	preempt_enable();
+	return ret;
 }
 
 asmlinkage void __kprobes kprobe_trap(unsigned long trap_level,
@@ -396,7 +398,6 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 
 void __kprobes jprobe_return(void)
 {
-	preempt_enable_no_resched();
 	__asm__ __volatile__(
 		".globl	jprobe_return_trap_instruction\n"
 "jprobe_return_trap_instruction:\n\t"
