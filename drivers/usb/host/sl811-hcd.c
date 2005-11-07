@@ -1581,7 +1581,9 @@ sl811h_start(struct usb_hcd *hcd)
 	hcd->state = HC_STATE_RUNNING;
 
 	if (sl811->board) {
-		hcd->can_wakeup = sl811->board->can_wakeup;
+		if (!device_can_wakeup(hcd->self.controller))
+			device_init_wakeup(hcd->self.controller,
+				sl811->board->can_wakeup);
 		hcd->power_budget = sl811->board->power * 2;
 	}
 
@@ -1805,7 +1807,7 @@ sl811h_resume(struct platform_device *dev)
 	 * let's assume it'd only be powered to enable remote wakeup.
 	 */
 	if (dev->dev.power.power_state.event == PM_EVENT_SUSPEND
-			|| !hcd->can_wakeup) {
+			|| !device_can_wakeup(&hcd->self.root_hub->dev)) {
 		sl811->port1 = 0;
 		port_power(sl811, 1);
 		return 0;
