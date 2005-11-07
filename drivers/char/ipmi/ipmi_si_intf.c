@@ -1932,7 +1932,8 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	smi_result = smi_info->handlers->event(smi_info->si_sm, 0);
 	for (;;)
 	{
-		if (smi_result == SI_SM_CALL_WITH_DELAY) {
+		if (smi_result == SI_SM_CALL_WITH_DELAY ||
+		    smi_result == SI_SM_CALL_WITH_TICK_DELAY) {
 			schedule_timeout_uninterruptible(1);
 			smi_result = smi_info->handlers->event(
 				smi_info->si_sm, 100);

@@ -41,6 +41,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/string.h>
+#include <linux/jiffies.h>
 #include <linux/ipmi_msgdefs.h>		/* for completion codes */
 #include "ipmi_si_sm.h"
 
@@ -99,6 +100,7 @@ enum kcs_states {
 #define IBF_RETRY_TIMEOUT 1000000
 #define OBF_RETRY_TIMEOUT 1000000
 #define MAX_ERROR_RETRIES 10
+#define ERROR0_OBF_WAIT_JIFFIES (2*HZ)
 
 struct si_sm_data
 {
@@ -115,6 +117,7 @@ struct si_sm_data
 	unsigned int  error_retries;
 	long          ibf_timeout;
 	long          obf_timeout;
+	unsigned long  error0_timeout;
 };
 
 static unsigned int init_kcs_data(struct si_sm_data *kcs,
@@ -187,6 +190,7 @@ static inline void start_error_recovery(struct si_sm_data *kcs, char *reason)
 			printk(KERN_DEBUG "ipmi_kcs_sm: kcs hosed: %s\n", reason);
 		kcs->state = KCS_HOSED;
 	} else {
+		kcs->error0_timeout = jiffies + ERROR0_OBF_WAIT_JIFFIES;
 		kcs->state = KCS_ERROR0;
 	}
 }
@@ -423,6 +427,10 @@ static enum si_sm_result kcs_event(struct si_sm_data *kcs, long time)
 
 	case KCS_ERROR0:
 		clear_obf(kcs, status);
+		status = read_status(kcs);
+		if  (GET_STATUS_OBF(status)) /* controller isn't responding */
+			if (time_before(jiffies, kcs->error0_timeout))
+				return SI_SM_CALL_WITH_TICK_DELAY;
 		write_cmd(kcs, KCS_GET_STATUS_ABORT);
 		kcs->state = KCS_ERROR1;
 		break;
