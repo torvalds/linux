@@ -123,15 +123,6 @@
 
 #include "ohci1394.h"
 
-#ifndef virt_to_page
-#define virt_to_page(x) MAP_NR(x)
-#endif
-
-#ifndef vmalloc_32
-#define vmalloc_32(x) vmalloc(x)
-#endif
-
-
 /* DEBUG LEVELS:
    0 - no debugging messages
    1 - some debugging messages, but none during DMA frame transmission

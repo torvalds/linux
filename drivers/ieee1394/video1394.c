@@ -77,14 +77,6 @@
 
 #define ISO_CHANNELS 64
 
-#ifndef virt_to_page
-#define virt_to_page(x) MAP_NR(x)
-#endif
-
-#ifndef vmalloc_32
-#define vmalloc_32(x) vmalloc(x)
-#endif
-
 struct it_dma_prg {
 	struct dma_cmd begin;
 	quadlet_t data[4];
