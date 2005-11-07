@@ -10,7 +10,7 @@ obj-y = config.o exec_kern.o exitcode.o \
 	helper.o init_task.o irq.o irq_user.o ksyms.o main.o mem.o physmem.o \
 	process_kern.o ptrace.o reboot.o resource.o sigio_user.o sigio_kern.o \
 	signal_kern.o signal_user.o smp.o syscall_kern.o sysrq.o time.o \
-	time_kern.o tlb.o trap_kern.o trap_user.o uaccess_user.o um_arch.o \
+	time_kern.o tlb.o trap_kern.o trap_user.o uaccess.o um_arch.o \
 	umid.o user_util.o
 
 obj-$(CONFIG_BLK_DEV_INITRD) += initrd.o

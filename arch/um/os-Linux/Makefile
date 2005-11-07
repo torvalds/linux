@@ -4,10 +4,10 @@
 #
 
 obj-y = aio.o elf_aux.o file.o mem.o process.o signal.o start_up.o time.o \
-	tt.o tty.o user_syms.o drivers/ sys-$(SUBARCH)/
+	tt.o tty.o uaccess.o user_syms.o drivers/ sys-$(SUBARCH)/
 
 USER_OBJS := aio.o elf_aux.o file.o mem.o process.o signal.o start_up.o \
-	time.o tt.o tty.o
+	time.o tt.o tty.o uaccess.o
 
 elf_aux.o: $(ARCH_DIR)/kernel-offsets.h
 CFLAGS_elf_aux.o += -I$(objtree)/arch/um
