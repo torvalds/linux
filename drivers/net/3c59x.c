@@ -1513,9 +1513,10 @@ static int __devinit vortex_probe1(struct device *gendev,
 		dev->hard_start_xmit = boomerang_start_xmit;
 		/* Actually, it still should work with iommu. */
 		dev->features |= NETIF_F_SG;
-		if (((hw_checksums[card_idx] == -1) && (vp->drv_flags & HAS_HWCKSM)) ||
-					(hw_checksums[card_idx] == 1)) {
-				dev->features |= NETIF_F_IP_CSUM;
+		if (card_idx < MAX_UNITS &&
+		    ((hw_checksums[card_idx] == -1 && (vp->drv_flags & HAS_HWCKSM)) ||
+				hw_checksums[card_idx] == 1)) {
+			dev->features |= NETIF_F_IP_CSUM;
 		}
 	} else {
 		dev->hard_start_xmit = vortex_start_xmit;
@@ -2791,10 +2792,11 @@ vortex_close(struct net_device *dev)
 	}
 
 #if DO_ZEROCOPY
-	if (	vp->rx_csumhits &&
-			((vp->drv_flags & HAS_HWCKSM) == 0) &&
-			(hw_checksums[vp->card_idx] == -1)) {
-		printk(KERN_WARNING "%s supports hardware checksums, and we're not using them!\n", dev->name);
+	if (vp->rx_csumhits &&
+	    (vp->drv_flags & HAS_HWCKSM) == 0 &&
+	    (vp->card_idx >= MAX_UNITS || hw_checksums[vp->card_idx] == -1)) {
+			printk(KERN_WARNING "%s supports hardware checksums, and we're "
+						"not using them!\n", dev->name);
 	}
 #endif
 		
