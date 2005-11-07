@@ -1378,7 +1378,8 @@ static int isp116x_start(struct usb_hcd *hcd)
 
 	val = 0;
 	if (board->remote_wakeup_enable) {
-		hcd->can_wakeup = 1;
+		if (!device_can_wakeup(hcd->self.controller))
+			device_init_wakeup(hcd->self.controller, 1);
 		val |= RH_HS_DRWE;
 	}
 	isp116x_write_reg32(isp116x, HCRHSTATUS, val);
@@ -1428,7 +1429,7 @@ static int isp116x_bus_suspend(struct usb_hcd *hcd)
 		hcd->state = HC_STATE_QUIESCING;
 		val &= (~HCCONTROL_HCFS & ~HCCONTROL_RWE);
 		val |= HCCONTROL_USB_SUSPEND;
-		if (hcd->remote_wakeup)
+		if (device_may_wakeup(&hcd->self.root_hub->dev))
 			val |= HCCONTROL_RWE;
 		/* Wait for usb transfers to finish */
 		mdelay(2);
