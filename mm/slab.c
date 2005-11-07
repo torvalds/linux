@@ -3263,6 +3263,7 @@ static void drain_array_locked(kmem_cache_t *cachep,
 
 /**
  * cache_reap - Reclaim memory from caches.
+ * @unused: unused parameter
  *
  * Called from workqueue/eventd every few seconds.
  * Purpose:
