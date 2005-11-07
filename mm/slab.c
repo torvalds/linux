@@ -3279,7 +3279,7 @@ static void cache_reap(void *unused)
 
 	if (down_trylock(&cache_chain_sem)) {
 		/* Give up. Setup the next iteration. */
-		schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC + smp_processor_id());
+		schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC);
 		return;
 	}
 
@@ -3348,7 +3348,7 @@ next:
 	up(&cache_chain_sem);
 	drain_remote_pages();
 	/* Setup the next iteration */
-	schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC + smp_processor_id());
+	schedule_delayed_work(&__get_cpu_var(reap_work), REAPTIMEOUT_CPUC);
 }
 
 #ifdef CONFIG_PROC_FS
