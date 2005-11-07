@@ -3563,8 +3563,6 @@ int idle_cpu(int cpu)
 	return cpu_curr(cpu) == cpu_rq(cpu)->idle;
 }
 
-EXPORT_SYMBOL_GPL(idle_cpu);
-
 /**
  * idle_task - return the idle task for a given cpu.
  * @cpu: the processor in question.
