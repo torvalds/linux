@@ -514,9 +514,10 @@ static void *i460_alloc_page (struct agp_bridge_data *bridge)
 {
 	void *page;
 
-	if (I460_IO_PAGE_SHIFT <= PAGE_SHIFT)
+	if (I460_IO_PAGE_SHIFT <= PAGE_SHIFT) {
 		page = agp_generic_alloc_page(agp_bridge);
-	else
+		global_flush_tlb();
+	} else
 		/* Returning NULL would cause problems */
 		/* AK: really dubious code. */
 		page = (void *)~0UL;
@@ -525,8 +526,10 @@ static void *i460_alloc_page (struct agp_bridge_data *bridge)
 
 static void i460_destroy_page (void *page)
 {
-	if (I460_IO_PAGE_SHIFT <= PAGE_SHIFT)
+	if (I460_IO_PAGE_SHIFT <= PAGE_SHIFT) {
 		agp_generic_destroy_page(page);
+		global_flush_tlb();
+	}
 }
 
 #endif /* I460_LARGE_IO_PAGES */
