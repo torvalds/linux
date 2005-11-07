@@ -1536,11 +1536,10 @@ static int __devinit vortex_probe1(struct device *gendev,
 	if (vp->full_bus_master_tx) {
 		dev->hard_start_xmit = boomerang_start_xmit;
 		/* Actually, it still should work with iommu. */
-		dev->features |= NETIF_F_SG;
 		if (card_idx < MAX_UNITS &&
 		    ((hw_checksums[card_idx] == -1 && (vp->drv_flags & HAS_HWCKSM)) ||
 				hw_checksums[card_idx] == 1)) {
-			dev->features |= NETIF_F_IP_CSUM;
+			dev->features |= NETIF_F_IP_CSUM | NETIF_F_SG;
 		}
 	} else {
 		dev->hard_start_xmit = vortex_start_xmit;
