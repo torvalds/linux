@@ -30,7 +30,7 @@
  * ffz = Find First Zero in word. Undefined if no zero exists,
  * so code should check against ~0UL first..
  */
-extern __inline__ unsigned long ffz (unsigned long word)
+static inline unsigned long ffz (unsigned long word)
 {
 	unsigned long result = 0;
 
@@ -135,7 +135,7 @@ extern __inline__ unsigned long ffz (unsigned long word)
 			     "m" (*((const char *)(addr) + ((nr) >> 3))));    \
      __test_bit_res;							      \
   })
-extern __inline__ int __test_bit (int nr, const void *addr)
+static inline int __test_bit (int nr, const void *addr)
 {
 	int res;
 	__asm__ __volatile__ ("tst1 %1, [%2]; setf nz, %0"
@@ -157,7 +157,7 @@ extern __inline__ int __test_bit (int nr, const void *addr)
 #define find_first_zero_bit(addr, size) \
   find_next_zero_bit ((addr), (size), 0)
 
-extern __inline__ int find_next_zero_bit(const void *addr, int size, int offset)
+static inline int find_next_zero_bit(const void *addr, int size, int offset)
 {
 	unsigned long *p = ((unsigned long *) addr) + (offset >> 5);
 	unsigned long result = offset & ~31UL;
