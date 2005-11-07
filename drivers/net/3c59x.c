@@ -2608,8 +2608,8 @@ static int vortex_rx(struct net_device *dev)
 			} else if (vortex_debug > 0)
 				printk(KERN_NOTICE "%s: No memory to allocate a sk_buff of "
 					   "size %d.\n", dev->name, pkt_len);
+			vp->stats.rx_dropped++;
 		}
-		vp->stats.rx_dropped++;
 		issue_and_wait(dev, RxDiscard);
 	}
 
