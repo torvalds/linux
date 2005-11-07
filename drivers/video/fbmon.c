@@ -538,25 +538,12 @@ static struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize)
 
 	*dbsize = 0;
 
-	DPRINTK("   Supported VESA Modes\n");
-	block = edid + ESTABLISHED_TIMING_1;
-	num += get_est_timing(block, &mode[num]);
-
-	DPRINTK("   Standard Timings\n");
-	block = edid + STD_TIMING_DESCRIPTIONS_START;
-	for (i = 0; i < STD_TIMING; i++, block += STD_TIMING_DESCRIPTION_SIZE) 
-		num += get_std_timing(block, &mode[num]);
-
 	DPRINTK("   Detailed Timings\n");
 	block = edid + DETAILED_TIMING_DESCRIPTIONS_START;
 	for (i = 0; i < 4; i++, block+= DETAILED_TIMING_DESCRIPTION_SIZE) {
 	        int first = 1;
 
-		if (block[0] == 0x00 && block[1] == 0x00) {
-			if (block[3] == 0xfa) {
-				num += get_dst_timing(block + 5, &mode[num]);
-			}
-		} else  {
+		if (!(block[0] == 0x00 && block[1] == 0x00)) {
 			get_detailed_timing(block, &mode[num]);
 			if (first) {
 			        mode[num].flag |= FB_MODE_IS_FIRST;
@@ -564,6 +551,21 @@ static struct fb_videomode *fb_create_modedb(unsigned char *edid, int *dbsize)
 			}
 			num++;
 		}
+	}
+
+	DPRINTK("   Supported VESA Modes\n");
+	block = edid + ESTABLISHED_TIMING_1;
+	num += get_est_timing(block, &mode[num]);
+
+	DPRINTK("   Standard Timings\n");
+	block = edid + STD_TIMING_DESCRIPTIONS_START;
+	for (i = 0; i < STD_TIMING; i++, block += STD_TIMING_DESCRIPTION_SIZE)
+		num += get_std_timing(block, &mode[num]);
+
+	block = edid + DETAILED_TIMING_DESCRIPTIONS_START;
+	for (i = 0; i < 4; i++, block+= DETAILED_TIMING_DESCRIPTION_SIZE) {
+		if (block[0] == 0x00 && block[1] == 0x00 && block[3] == 0xfa)
+			num += get_dst_timing(block + 5, &mode[num]);
 	}
 	
 	/* Yikes, EDID data is totally useless */
