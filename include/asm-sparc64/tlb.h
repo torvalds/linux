@@ -78,11 +78,9 @@ static inline void tlb_finish_mmu(struct mmu_gather *mp, unsigned long start, un
 {
 	tlb_flush_mmu(mp);
 
-	if (mp->fullmm) {
-		if (CTX_VALID(mp->mm->context))
-			do_flush_tlb_mm(mp->mm);
+	if (mp->fullmm)
 		mp->fullmm = 0;
-	} else
+	else
 		flush_tlb_pending();
 
 	/* keep the page table cache within bounds */
