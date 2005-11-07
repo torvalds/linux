@@ -603,6 +603,30 @@ static inline void skb_queue_head_init(struct sk_buff_head *list)
  */
 
 /**
+ *	__skb_queue_after - queue a buffer at the list head
+ *	@list: list to use
+ *	@prev: place after this buffer
+ *	@newsk: buffer to queue
+ *
+ *	Queue a buffer int the middle of a list. This function takes no locks
+ *	and you must therefore hold required locks before calling it.
+ *
+ *	A buffer cannot be placed on two lists at the same time.
+ */
+static inline void __skb_queue_after(struct sk_buff_head *list,
+				     struct sk_buff *prev,
+				     struct sk_buff *newsk)
+{
+	struct sk_buff *next;
+	list->qlen++;
+
+	next = prev->next;
+	newsk->next = next;
+	newsk->prev = prev;
+	next->prev  = prev->next = newsk;
+}
+
+/**
  *	__skb_queue_head - queue a buffer at the list head
  *	@list: list to use
  *	@newsk: buffer to queue
@@ -616,14 +640,7 @@ extern void skb_queue_head(struct sk_buff_head *list, struct sk_buff *newsk);
 static inline void __skb_queue_head(struct sk_buff_head *list,
 				    struct sk_buff *newsk)
 {
-	struct sk_buff *prev, *next;
-
-	list->qlen++;
-	prev = (struct sk_buff *)list;
-	next = prev->next;
-	newsk->next = next;
-	newsk->prev = prev;
-	next->prev  = prev->next = newsk;
+	__skb_queue_after(list, (struct sk_buff *)list, newsk);
 }
 
 /**
@@ -1202,6 +1219,11 @@ static inline void kunmap_skb_frag(void *vaddr)
 		for (skb = (queue)->next;					\
 		     prefetch(skb->next), (skb != (struct sk_buff *)(queue));	\
 		     skb = skb->next)
+
+#define skb_queue_reverse_walk(queue, skb) \
+		for (skb = (queue)->prev;					\
+		     prefetch(skb->prev), (skb != (struct sk_buff *)(queue));	\
+		     skb = skb->prev)
 
 
 extern struct sk_buff *skb_recv_datagram(struct sock *sk, unsigned flags,
