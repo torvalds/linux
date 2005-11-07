@@ -46,13 +46,13 @@ choice
 	  block devices.
 
 	config DEFAULT_AS
-		bool "Anticipatory" if IOSCHED_AS
+		bool "Anticipatory" if IOSCHED_AS=y
 
 	config DEFAULT_DEADLINE
-		bool "Deadline" if IOSCHED_DEADLINE
+		bool "Deadline" if IOSCHED_DEADLINE=y
 
 	config DEFAULT_CFQ
-		bool "CFQ" if IOSCHED_CFQ
+		bool "CFQ" if IOSCHED_CFQ=y
 
 	config DEFAULT_NOOP
 		bool "No-op"

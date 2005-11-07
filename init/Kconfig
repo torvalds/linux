@@ -501,3 +501,7 @@ config STOP_MACHINE
 	help
 	  Need stop_machine() primitive.
 endmenu
+
+menu "Block layer"
+source "block/Kconfig"
+endmenu
