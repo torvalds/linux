@@ -117,7 +117,7 @@ static int pnpacpi_disable_resources(struct pnp_dev *dev)
 	return ACPI_FAILURE(status) ? -ENODEV : 0;
 }
 
-struct pnp_protocol pnpacpi_protocol = {
+static struct pnp_protocol pnpacpi_protocol = {
 	.name	= "Plug and Play ACPI",
 	.get	= pnpacpi_get_resources,
 	.set	= pnpacpi_set_resources,
@@ -234,7 +234,7 @@ static acpi_status __init pnpacpi_add_device_handler(acpi_handle handle,
 }
 
 int pnpacpi_disabled __initdata;
-int __init pnpacpi_init(void)
+static int __init pnpacpi_init(void)
 {
 	if (acpi_disabled || pnpacpi_disabled) {
 		pnp_info("PnP ACPI: disabled");
@@ -258,4 +258,6 @@ static int __init pnpacpi_setup(char *str)
 }
 __setup("pnpacpi=", pnpacpi_setup);
 
+#if 0
 EXPORT_SYMBOL(pnpacpi_protocol);
+#endif
