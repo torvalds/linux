@@ -572,8 +572,7 @@ startup:basr  %r13,0                     # get base
 .Lcr:
 	.long 0x00			# place holder for cr0
 .Lwaitsclp:
-	.long 0x020A0000
-	.long .Lsclph
+	.long 0x010a0000,0x80000000 + .Lsclph
 .Lrcp:
 	.int 0x00120001			# Read SCP forced code
 .Lrcp2:

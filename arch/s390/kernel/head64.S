@@ -530,7 +530,7 @@ startup:basr  %r13,0                     # get base
 	be    .Lfchunk-.LPG1(%r13)	# leave
 	chi   %r1,2
 	be    .Lservicecall-.LPG1(%r13)
-	lpsw  .Lwaitsclp-.LPG1(%r13)
+	lpswe .Lwaitsclp-.LPG1(%r13)
 .Lsclph:
 	lh    %r1,.Lsccbr-PARMAREA(%r4)
 	chi   %r1,0x10			# 0x0010 is the sucess code
@@ -567,8 +567,7 @@ startup:basr  %r13,0                     # get base
 .Lcr:
 	.quad 0x00  # place holder for cr0
 .Lwaitsclp:
-	.long 0x020A0000
-	.quad .Lsclph
+	.quad  0x0102000180000000,.Lsclph
 .Lrcp:
 	.int 0x00120001 # Read SCP forced code
 .Lrcp2:
