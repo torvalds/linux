@@ -470,6 +470,8 @@ static struct tty_operations mxser_ops = {
 	.stop = mxser_stop,
 	.start = mxser_start,
 	.hangup = mxser_hangup,
+	.break_ctl = mxser_rs_break,
+	.wait_until_sent = mxser_wait_until_sent,
 	.tiocmget = mxser_tiocmget,
 	.tiocmset = mxser_tiocmset,
 };
@@ -721,24 +723,6 @@ static int mxser_init(void)
 	mxvar_sdriver->ttys = mxvar_tty;
 	mxvar_sdriver->termios = mxvar_termios;
 	mxvar_sdriver->termios_locked = mxvar_termios_locked;
-
-	mxvar_sdriver->open = mxser_open;
-	mxvar_sdriver->close = mxser_close;
-	mxvar_sdriver->write = mxser_write;
-	mxvar_sdriver->put_char = mxser_put_char;
-	mxvar_sdriver->flush_chars = mxser_flush_chars;
-	mxvar_sdriver->write_room = mxser_write_room;
-	mxvar_sdriver->chars_in_buffer = mxser_chars_in_buffer;
-	mxvar_sdriver->flush_buffer = mxser_flush_buffer;
-	mxvar_sdriver->ioctl = mxser_ioctl;
-	mxvar_sdriver->throttle = mxser_throttle;
-	mxvar_sdriver->unthrottle = mxser_unthrottle;
-	mxvar_sdriver->set_termios = mxser_set_termios;
-	mxvar_sdriver->stop = mxser_stop;
-	mxvar_sdriver->start = mxser_start;
-	mxvar_sdriver->hangup = mxser_hangup;
-	mxvar_sdriver->break_ctl = mxser_rs_break;
-	mxvar_sdriver->wait_until_sent = mxser_wait_until_sent;
 
 	mxvar_diagflag = 0;
 	memset(mxvar_table, 0, MXSER_PORTS * sizeof(struct mxser_struct));
