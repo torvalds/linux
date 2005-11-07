@@ -492,6 +492,7 @@ source "fs/Kconfig.binfmt"
 config FORCE_MAX_ZONEORDER
 	int
 	depends on PPC64
+	default "9" if PPC_64K_PAGES
 	default "13"
 
 config MATH_EMULATION

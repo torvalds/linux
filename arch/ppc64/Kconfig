@@ -56,6 +56,7 @@ config PPC_STD_MMU
 # max order + 1
 config FORCE_MAX_ZONEORDER
 	int
+	default "9" if PPC_64K_PAGES
 	default "13"
 
 source "init/Kconfig"
