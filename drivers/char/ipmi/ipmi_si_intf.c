@@ -52,6 +52,7 @@
 #include <linux/pci.h>
 #include <linux/ioport.h>
 #include <linux/notifier.h>
+#include <linux/kthread.h>
 #include <asm/irq.h>
 #ifdef CONFIG_HIGH_RES_TIMERS
 #include <linux/hrtime.h>
@@ -222,8 +223,7 @@ struct smi_info
 	unsigned long watchdog_pretimeouts;
 	unsigned long incoming_messages;
 
-        struct completion exiting;
-        long              thread_pid;
+        struct task_struct *thread;
 };
 
 static struct notifier_block *xaction_notifier_list;
@@ -785,31 +785,22 @@ static void set_run_to_completion(void *send_info, int i_run_to_completion)
 static int ipmi_thread(void *data)
 {
 	struct smi_info *smi_info = data;
-	unsigned long flags, last=1;
+	unsigned long flags;
 	enum si_sm_result smi_result;
 
-	daemonize("kipmi%d", smi_info->intf_num);
-	allow_signal(SIGKILL);
 	set_user_nice(current, 19);
-	while (!atomic_read(&smi_info->stop_operation)) {
-		schedule_timeout(last);
+	while (!kthread_should_stop()) {
 		spin_lock_irqsave(&(smi_info->si_lock), flags);
 		smi_result=smi_event_handler(smi_info, 0);
 		spin_unlock_irqrestore(&(smi_info->si_lock), flags);
-		if (smi_result == SI_SM_CALL_WITHOUT_DELAY)
-			last = 0;
-		else if (smi_result == SI_SM_CALL_WITH_DELAY) {
+		if (smi_result == SI_SM_CALL_WITHOUT_DELAY) {
+			/* do nothing */
+		}
+		else if (smi_result == SI_SM_CALL_WITH_DELAY)
 			udelay(1);
-			last = 0;
-		}
-		else {
-			/* System is idle; go to sleep */
-			last = 1;
-			current->state = TASK_INTERRUPTIBLE;
-		}
+		else
+			schedule_timeout_interruptible(1);
 	}
-	smi_info->thread_pid = 0;
-	complete_and_exit(&(smi_info->exiting), 0);
 	return 0;
 }
 
@@ -2212,11 +2203,8 @@ static void setup_xaction_handlers(struct smi_info *smi_info)
 
 static inline void wait_for_timer_and_thread(struct smi_info *smi_info)
 {
-	if (smi_info->thread_pid > 0) {
-		/* wake the potentially sleeping thread */
-		kill_proc(smi_info->thread_pid, SIGKILL, 0);
-		wait_for_completion(&(smi_info->exiting));
-	}
+	if (smi_info->thread != ERR_PTR(-ENOMEM))
+		kthread_stop(smi_info->thread);
 	del_timer_sync(&smi_info->si_timer);
 }
 
@@ -2348,12 +2336,9 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 	new_smi->si_timer.expires = jiffies + SI_TIMEOUT_JIFFIES;
 
 	add_timer(&(new_smi->si_timer));
- 	if (new_smi->si_type != SI_BT) {
-		init_completion(&(new_smi->exiting));
-		new_smi->thread_pid = kernel_thread(ipmi_thread, new_smi,
-						    CLONE_FS|CLONE_FILES|
-						    CLONE_SIGHAND);
-	}
+ 	if (new_smi->si_type != SI_BT)
+		new_smi->thread = kthread_run(ipmi_thread, new_smi,
+					      "kipmi%d", new_smi->intf_num);
 
 	rv = ipmi_register_smi(&handlers,
 			       new_smi,
