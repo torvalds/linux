@@ -255,7 +255,7 @@ static int onenand_command(struct mtd_info *mtd, int cmd, loff_t addr, size_t le
 		/* Write 'BSA, BSC' of DataRAM */
 		value = onenand_buffer_address(dataram, sectors, count);
 		this->write_word(value, this->base + ONENAND_REG_START_BUFFER);
-			
+
 		if (readcmd) {
 			/* Select DataRAM for DDP */
 			value = onenand_bufferram_address(this, block);
@@ -433,7 +433,7 @@ static int onenand_write_bufferram(struct mtd_info *mtd, int area,
  * onenand_check_bufferram - [GENERIC] Check BufferRAM information
  * @param mtd		MTD data structure
  * @param addr		address to check
- * @return		1 if there are valid data, otherwise 0 
+ * @return		1 if there are valid data, otherwise 0
  *
  * Check bufferram if there is data we required
  */
@@ -442,7 +442,7 @@ static int onenand_check_bufferram(struct mtd_info *mtd, loff_t addr)
 	struct onenand_chip *this = mtd->priv;
 	int block, page;
 	int i;
-	
+
 	block = (int) (addr >> this->erase_shift);
 	page = (int) (addr >> this->page_shift);
 	page &= this->page_mask;
@@ -472,7 +472,7 @@ static int onenand_update_bufferram(struct mtd_info *mtd, loff_t addr,
 	struct onenand_chip *this = mtd->priv;
 	int block, page;
 	int i;
-	
+
 	block = (int) (addr >> this->erase_shift);
 	page = (int) (addr >> this->page_shift);
 	page &= this->page_mask;
@@ -743,7 +743,7 @@ static int onenand_verify_page(struct mtd_info *mtd, u_char *buf, loff_t addr)
 
 	if (memcmp(dataram0, dataram1, mtd->oobblock))
 		return -EBADMSG;
-	
+
 	return 0;
 }
 #else
@@ -832,7 +832,7 @@ out:
 	onenand_release_device(mtd);
 
 	*retlen = written;
-	
+
 	return ret;
 }
 
@@ -917,7 +917,7 @@ out:
 	onenand_release_device(mtd);
 
 	*retlen = written;
-	
+
 	return 0;
 }
 
@@ -969,12 +969,12 @@ static int onenand_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 	onenand_get_device(mtd, FL_WRITING);
 
 	/* TODO handling oob */
-	
+
 	/* Loop until all keve's data has been written */
 	len = 0;
 	while (count) {
 		pbuf = buffer;
-		/* 
+		/*
 		 * If the given tuple is >= pagesize then
 		 * write it out from the iov
 		 */
@@ -1316,7 +1316,7 @@ static int onenand_unlock(struct mtd_info *mtd, loff_t ofs, size_t len)
 		if (!(status & ONENAND_WP_US))
 			printk(KERN_ERR "block = %d, wp status = 0x%x\n", block, status);
 	}
-	
+
 	return 0;
 }
 
@@ -1439,7 +1439,7 @@ static int onenand_probe(struct mtd_info *mtd)
 		printk(KERN_INFO "Lock scheme is Continues Lock\n");
 		this->options |= ONENAND_CONT_LOCK;
 	}
-	
+
 	return 0;
 }
 
@@ -1533,7 +1533,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	}
 
 	memcpy(&mtd->oobinfo, this->autooob, sizeof(mtd->oobinfo));
-	
+
 	/* Fill in remaining MTD driver data */
 	mtd->type = MTD_NANDFLASH;
 	mtd->flags = MTD_CAP_NANDFLASH | MTD_ECC;
