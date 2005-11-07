@@ -903,11 +903,11 @@ static void set_8021q_mode(struct net_device *dev, int enable);
 /* This driver uses 'options' to pass the media type, full-duplex flag, etc. */
 /* Option count limit only -- unlimited interfaces are supported. */
 #define MAX_UNITS 8
-static int options[MAX_UNITS] = { -1, -1, -1, -1, -1, -1, -1, -1,};
-static int full_duplex[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
-static int hw_checksums[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
-static int flow_ctrl[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
-static int enable_wol[MAX_UNITS] = {-1, -1, -1, -1, -1, -1, -1, -1};
+static int options[MAX_UNITS] = { [0 ... MAX_UNITS-1] = -1 };
+static int full_duplex[MAX_UNITS] = {[0 ... MAX_UNITS-1] = -1 };
+static int hw_checksums[MAX_UNITS] = {[0 ... MAX_UNITS-1] = -1 };
+static int flow_ctrl[MAX_UNITS] = {[0 ... MAX_UNITS-1] = -1 };
+static int enable_wol[MAX_UNITS] = {[0 ... MAX_UNITS-1] = -1 };
 static int global_options = -1;
 static int global_full_duplex = -1;
 static int global_enable_wol = -1;
