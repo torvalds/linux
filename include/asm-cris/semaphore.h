@@ -18,8 +18,6 @@
  * CRIS semaphores, implemented in C-only so far. 
  */
 
-int printk(const char *fmt, ...);
-
 struct semaphore {
 	atomic_t count;
 	atomic_t waking;
