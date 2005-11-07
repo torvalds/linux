@@ -49,7 +49,7 @@ extern int xmon_sstep(struct pt_regs *regs);
 extern int xmon_iabr_match(struct pt_regs *regs);
 extern int xmon_dabr_match(struct pt_regs *regs);
 
-void (*debugger)(struct pt_regs *regs) = xmon;
+int (*debugger)(struct pt_regs *regs) = xmon;
 int (*debugger_bpt)(struct pt_regs *regs) = xmon_bpt;
 int (*debugger_sstep)(struct pt_regs *regs) = xmon_sstep;
 int (*debugger_iabr_match)(struct pt_regs *regs) = xmon_iabr_match;
@@ -57,7 +57,7 @@ int (*debugger_dabr_match)(struct pt_regs *regs) = xmon_dabr_match;
 void (*debugger_fault_handler)(struct pt_regs *regs);
 #else
 #ifdef CONFIG_KGDB
-void (*debugger)(struct pt_regs *regs);
+int (*debugger)(struct pt_regs *regs);
 int (*debugger_bpt)(struct pt_regs *regs);
 int (*debugger_sstep)(struct pt_regs *regs);
 int (*debugger_iabr_match)(struct pt_regs *regs);
