@@ -107,6 +107,9 @@ void (*mach_power_off)( void ) = NULL;
 #if defined(CONFIG_M5206e)
 	#define	CPU "COLDFIRE(m5206e)"
 #endif
+#if defined(CONFIG_M520x)
+	#define CPU "COLDFIRE(m520x)"
+#endif
 #if defined(CONFIG_M523x)
 	#define CPU "COLDFIRE(m523x)"
 #endif
@@ -132,7 +135,7 @@ void (*mach_power_off)( void ) = NULL;
 	#define	CPU "COLDFIRE(m5407)"
 #endif
 #ifndef CPU
-	#define	CPU "UNKOWN"
+	#define	CPU "UNKNOWN"
 #endif
 
 /* (es) */
