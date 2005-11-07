@@ -188,6 +188,14 @@ extern struct device_node *of_get_next_child(const struct device_node *node,
 extern struct device_node *of_node_get(struct device_node *node);
 extern void of_node_put(struct device_node *node);
 
+/* For scanning the flat device-tree at boot time */
+int __init of_scan_flat_dt(int (*it)(unsigned long node,
+				     const char *uname, int depth,
+				     void *data),
+			   void *data);
+void* __init of_get_flat_dt_prop(unsigned long node, const char *name,
+				 unsigned long *size);
+
 /* For updating the device tree at runtime */
 extern void of_attach_node(struct device_node *);
 extern void of_detach_node(const struct device_node *);
