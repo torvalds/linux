@@ -612,7 +612,7 @@ static inline void __inquire_remote_apic(int apicid)
 
 	printk("Inquiring remote APIC #%d...\n", apicid);
 
-	for (i = 0; i < sizeof(regs) / sizeof(*regs); i++) {
+	for (i = 0; i < ARRAY_SIZE(regs); i++) {
 		printk("... APIC #%d %s: ", apicid, names[i]);
 
 		/*
