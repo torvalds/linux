@@ -210,7 +210,16 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 	/* Serial Bus Release Number is at PCI 0x60 offset */
 	pci_read_config_byte(pdev, 0x60, &ehci->sbrn);
 
-	/* REVISIT:  per-port wake capability (PCI 0x62) currently unused */
+	/* Workaround current PCI init glitch:  wakeup bits aren't
+	 * being set from PCI PM capability.
+	 */
+	if (!device_can_wakeup(&pdev->dev)) {
+		u16	port_wake;
+
+		pci_read_config_word(pdev, 0x62, &port_wake);
+		if (port_wake & 0x0001)
+			device_init_wakeup(&pdev->dev, 1);
+	}
 
 	retval = ehci_pci_reinit(ehci, pdev);
 done:

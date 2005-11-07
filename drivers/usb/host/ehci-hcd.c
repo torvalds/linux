@@ -624,7 +624,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd, struct pt_regs *regs)
 	}
 
 	/* remote wakeup [4.3.1] */
-	if ((status & STS_PCD) && hcd->remote_wakeup) {
+	if ((status & STS_PCD) && device_may_wakeup(&hcd->self.root_hub->dev)) {
 		unsigned	i = HCS_N_PORTS (ehci->hcs_params);
 
 		/* resume root hub? */
