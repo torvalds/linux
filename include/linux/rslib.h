@@ -1,15 +1,15 @@
-/* 
+/*
  * include/linux/rslib.h
  *
  * Overview:
  *   Generic Reed Solomon encoder / decoder library
- *   
+ *
  * Copyright (C) 2004 Thomas Gleixner (tglx@linutronix.de)
  *
  * RS code lifted from reed solomon library written by Phil Karn
  * Copyright 2002 Phil Karn, KA9Q
  *
- * $Id: rslib.h,v 1.3 2004/10/05 22:08:22 gleixner Exp $
+ * $Id: rslib.h,v 1.4 2005/11/07 11:14:52 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,20 +21,20 @@
 
 #include <linux/list.h>
 
-/** 
+/**
  * struct rs_control - rs control structure
- * 
+ *
  * @mm:		Bits per symbol
  * @nn:		Symbols per block (= (1<<mm)-1)
  * @alpha_to:	log lookup table
  * @index_of:	Antilog lookup table
- * @genpoly:	Generator polynomial 
+ * @genpoly:	Generator polynomial
  * @nroots:	Number of generator roots = number of parity symbols
  * @fcr:	First consecutive root, index form
- * @prim:	Primitive element, index form 
- * @iprim:	prim-th root of 1, index form 
- * @gfpoly:	The primitive generator polynominal 
- * @users:	Users of this structure 
+ * @prim:	Primitive element, index form
+ * @iprim:	prim-th root of 1, index form
+ * @gfpoly:	The primitive generator polynominal
+ * @users:	Users of this structure
  * @list:	List entry for the rs control list
 */
 struct rs_control {
@@ -58,7 +58,7 @@ int encode_rs8(struct rs_control *rs, uint8_t *data, int len, uint16_t *par,
 	       uint16_t invmsk);
 #endif
 #ifdef CONFIG_REED_SOLOMON_DEC8
-int decode_rs8(struct rs_control *rs, uint8_t *data, uint16_t *par, int len, 
+int decode_rs8(struct rs_control *rs, uint8_t *data, uint16_t *par, int len,
 		uint16_t *s, int no_eras, int *eras_pos, uint16_t invmsk,
 	       uint16_t *corr);
 #endif
@@ -75,7 +75,7 @@ int decode_rs16(struct rs_control *rs, uint16_t *data, uint16_t *par, int len,
 #endif
 
 /* Create or get a matching rs control structure */
-struct rs_control *init_rs(int symsize, int gfpoly, int fcr, int prim, 
+struct rs_control *init_rs(int symsize, int gfpoly, int fcr, int prim,
 			   int nroots);
 
 /* Release a rs control structure */
@@ -87,9 +87,9 @@ void free_rs(struct rs_control *rs);
  *  @x:		the value to reduce
  *
  *  where
- *  rs->mm = number of bits per symbol	
+ *  rs->mm = number of bits per symbol
  *  rs->nn = (2^rs->mm) - 1
- *  
+ *
  *  Simple arithmetic modulo would return a wrong result for values
  *  >= 3 * rs->nn
 */

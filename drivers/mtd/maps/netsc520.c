@@ -3,7 +3,7 @@
  * Copyright (C) 2001 Mark Langsdorf (mark.langsdorf@amd.com)
  *	based on sc520cdp.c by Sysgo Real-Time Solutions GmbH
  *
- * $Id: netsc520.c,v 1.13 2004/11/28 09:40:40 dwmw2 Exp $
+ * $Id: netsc520.c,v 1.14 2005/11/07 11:14:27 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@
 ** The single, 16 megabyte flash bank is divided into four virtual
 ** partitions.  The first partition is 768 KiB and is intended to
 ** store the kernel image loaded by the bootstrap loader.  The second
-** partition is 256 KiB and holds the BIOS image.  The third 
+** partition is 256 KiB and holds the BIOS image.  The third
 ** partition is 14.5 MiB and is intended for the flash file system
 ** image.  The last partition is 512 KiB and contains another copy
 ** of the BIOS image and the reset vector.
@@ -51,28 +51,28 @@
 ** recoverable afterwards.
 */
 
-/* partition_info gives details on the logical partitions that the split the 
+/* partition_info gives details on the logical partitions that the split the
  * single flash device into. If the size if zero we use up to the end of the
  * device. */
 static struct mtd_partition partition_info[]={
-    { 
-	    .name = "NetSc520 boot kernel", 
-	    .offset = 0, 
+    {
+	    .name = "NetSc520 boot kernel",
+	    .offset = 0,
 	    .size = 0xc0000
     },
-    { 
-	    .name = "NetSc520 Low BIOS", 
-	    .offset = 0xc0000, 
+    {
+	    .name = "NetSc520 Low BIOS",
+	    .offset = 0xc0000,
 	    .size = 0x40000
     },
-    { 
-	    .name = "NetSc520 file system", 
-	    .offset = 0x100000, 
+    {
+	    .name = "NetSc520 file system",
+	    .offset = 0x100000,
 	    .size = 0xe80000
     },
-    { 
-	    .name = "NetSc520 High BIOS", 
-	    .offset = 0xf80000, 
+    {
+	    .name = "NetSc520 High BIOS",
+	    .offset = 0xf80000,
 	    .size = 0x80000
     },
 };
@@ -114,7 +114,7 @@ static int __init init_netsc520(void)
 		iounmap(netsc520_map.virt);
 		return -ENXIO;
 	}
-		
+
 	mymtd->owner = THIS_MODULE;
 	add_mtd_partitions( mymtd, partition_info, NUM_PARTITIONS );
 	return 0;

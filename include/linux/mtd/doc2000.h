@@ -1,12 +1,12 @@
-/* 
+/*
  * Linux driver for Disk-On-Chip devices
  *
- * Copyright (C) 1999 Machine Vision Holdings, Inc.   
+ * Copyright (C) 1999 Machine Vision Holdings, Inc.
  * Copyright (C) 2001-2003 David Woodhouse <dwmw2@infradead.org>
  * Copyright (C) 2002-2003 Greg Ungerer <gerg@snapgear.com>
  * Copyright (C) 2002-2003 SnapGear Inc
  *
- * $Id: doc2000.h,v 1.24 2005/01/05 12:40:38 dwmw2 Exp $ 
+ * $Id: doc2000.h,v 1.25 2005/11/07 11:14:54 gleixner Exp $
  *
  * Released under GPL
  */
@@ -75,10 +75,10 @@
 #define DoC_Mplus_CtrlConfirm		0x1076
 #define DoC_Mplus_Power			0x1fff
 
-/* How to access the device? 
- * On ARM, it'll be mmap'd directly with 32-bit wide accesses. 
+/* How to access the device?
+ * On ARM, it'll be mmap'd directly with 32-bit wide accesses.
  * On PPC, it's mmap'd and 16-bit wide.
- * Others use readb/writeb 
+ * Others use readb/writeb
  */
 #if defined(__arm__)
 #define ReadDOC_(adr, reg)      ((unsigned char)(*(volatile __u32 *)(((unsigned long)adr)+((reg)<<2))))
@@ -172,7 +172,7 @@ struct DiskOnChip {
 	unsigned long totlen;
 	unsigned char ChipID; /* Type of DiskOnChip */
 	int ioreg;
-	
+
 	unsigned long mfr; /* Flash IDs - only one type of flash per device */
 	unsigned long id;
 	int chipshift;
@@ -180,10 +180,10 @@ struct DiskOnChip {
 	char pageadrlen;
 	char interleave; /* Internal interleaving - Millennium Plus style */
 	unsigned long erasesize;
-	
+
 	int curfloor;
 	int curchip;
-	
+
 	int numchips;
 	struct Nand *chips;
 	struct mtd_info *nextdoc;

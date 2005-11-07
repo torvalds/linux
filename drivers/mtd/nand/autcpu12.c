@@ -5,8 +5,8 @@
  *
  *  Derived from drivers/mtd/spia.c
  * 	 Copyright (C) 2000 Steven J. Hill (sjhill@realitydiluted.com)
- * 
- * $Id: autcpu12.c,v 1.22 2004/11/04 12:53:10 gleixner Exp $
+ *
+ * $Id: autcpu12.c,v 1.23 2005/11/07 11:14:30 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -14,7 +14,7 @@
  *
  *  Overview:
  *   This is a device driver for the NAND flash device found on the
- *   autronix autcpu12 board, which is a SmartMediaCard. It supports 
+ *   autronix autcpu12 board, which is a SmartMediaCard. It supports
  *   16MiB, 32MiB and 64MiB cards.
  *
  *
@@ -93,7 +93,7 @@ static struct mtd_partition partition_info128k[] = {
 #define NUM_PARTITIONS32K 2
 #define NUM_PARTITIONS64K 2
 #define NUM_PARTITIONS128K 2
-/* 
+/*
  *	hardware specific access to control-lines
 */
 static void autcpu12_hwcontrol(struct mtd_info *mtd, int cmd)
@@ -163,7 +163,7 @@ int __init autcpu12_init (void)
 	this->hwcontrol = autcpu12_hwcontrol;
 	this->dev_ready = autcpu12_device_ready;
 	/* 20 us command delay time */
-	this->chip_delay = 20;		
+	this->chip_delay = 20;
 	this->eccmode = NAND_ECC_SOFT;
 
 	/* Enable the following for a flash based bad block table */
@@ -171,21 +171,21 @@ int __init autcpu12_init (void)
 	this->options = NAND_USE_FLASH_BBT;
 	*/
 	this->options = NAND_USE_FLASH_BBT;
-	
+
 	/* Scan to find existance of the device */
 	if (nand_scan (autcpu12_mtd, 1)) {
 		err = -ENXIO;
 		goto out_ior;
 	}
-	
+
 	/* Register the partitions */
 	switch(autcpu12_mtd->size){
 		case SZ_16M: add_mtd_partitions(autcpu12_mtd, partition_info16k, NUM_PARTITIONS16K); break;
 		case SZ_32M: add_mtd_partitions(autcpu12_mtd, partition_info32k, NUM_PARTITIONS32K); break;
-		case SZ_64M: add_mtd_partitions(autcpu12_mtd, partition_info64k, NUM_PARTITIONS64K); break; 
-		case SZ_128M: add_mtd_partitions(autcpu12_mtd, partition_info128k, NUM_PARTITIONS128K); break; 
+		case SZ_64M: add_mtd_partitions(autcpu12_mtd, partition_info64k, NUM_PARTITIONS64K); break;
+		case SZ_128M: add_mtd_partitions(autcpu12_mtd, partition_info128k, NUM_PARTITIONS128K); break;
 		default: {
-			printk ("Unsupported SmartMedia device\n"); 
+			printk ("Unsupported SmartMedia device\n");
 			err = -ENXIO;
 			goto out_ior;
 		}
@@ -213,7 +213,7 @@ static void __exit autcpu12_cleanup (void)
 
 	/* unmap physical adress */
 	iounmap((void *)autcpu12_fio_base);
-	
+
 	/* Free the MTD device structure */
 	kfree (autcpu12_mtd);
 }
