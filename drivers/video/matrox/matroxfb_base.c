@@ -498,10 +498,6 @@ static int matroxfb_pitch_adjust(CPMINFO int xres, int bpp) {
 	} else {
 		xres_new = matroxfb_test_and_set_rounding(PMINFO xres, bpp);
 	}
-	if (!xres_new) return 0;
-	if (xres != xres_new) {
-		printk(KERN_INFO "matroxfb: cannot set xres to %d, rounded up to %d\n", xres, xres_new);
-	}
 	return xres_new;
 }
 
