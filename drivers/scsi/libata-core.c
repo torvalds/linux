@@ -51,8 +51,8 @@
 #include <linux/jiffies.h>
 #include <linux/scatterlist.h>
 #include <scsi/scsi.h>
-#include "scsi.h"
 #include "scsi_priv.h"
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 #include <asm/io.h>

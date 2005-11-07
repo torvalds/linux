@@ -37,9 +37,9 @@
 #include <linux/blkdev.h>
 #include <linux/spinlock.h>
 #include <scsi/scsi.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
+#include <scsi/scsi_request.h>
 #include <linux/libata.h>
 #include <linux/hdreg.h>
 #include <asm/uaccess.h>
