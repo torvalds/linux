@@ -91,6 +91,7 @@ struct rio_mport;
  * @swpinfo: Switch port info
  * @src_ops: Source operation capabilities
  * @dst_ops: Destination operation capabilities
+ * @dma_mask: Mask of bits of RIO address this device implements
  * @rswitch: Pointer to &struct rio_switch if valid for this device
  * @driver: Driver claiming this device
  * @dev: Device model device
@@ -112,6 +113,7 @@ struct rio_dev {
 	u32 swpinfo;		/* Only used for switches */
 	u32 src_ops;
 	u32 dst_ops;
+	u64 dma_mask;
 	struct rio_switch *rswitch;	/* RIO switch info */
 	struct rio_driver *driver;	/* RIO driver claiming this device */
 	struct device dev;	/* LDM device structure */

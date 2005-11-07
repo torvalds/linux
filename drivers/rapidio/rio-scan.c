@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/rio.h>
 #include <linux/rio_drv.h>
@@ -33,7 +34,8 @@ static LIST_HEAD(rio_switches);
 
 static void rio_enum_timeout(unsigned long);
 
-spinlock_t rio_global_list_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(rio_global_list_lock);
+
 static int next_destid = 0;
 static int next_switchid = 0;
 static int next_net = 0;
@@ -54,9 +56,6 @@ static int rio_sport_phys_table[] = {
 	RIO_EFB_SER_EP_FREE_ID,
 	-1,
 };
-
-extern struct rio_route_ops __start_rio_route_ops[];
-extern struct rio_route_ops __end_rio_route_ops[];
 
 /**
  * rio_get_device_id - Get the base/extended device id for a device
@@ -85,8 +84,7 @@ static u16 rio_get_device_id(struct rio_mport *port, u16 destid, u8 hopcount)
  *
  * Writes the base/extended device id from a device.
  */
-static void
-rio_set_device_id(struct rio_mport *port, u16 destid, u8 hopcount, u16 did)
+static void rio_set_device_id(struct rio_mport *port, u16 destid, u8 hopcount, u16 did)
 {
 	rio_mport_write_config_32(port, destid, hopcount, RIO_DID_CSR,
 				  RIO_SET_DID(did));
@@ -192,23 +190,9 @@ static int rio_enum_host(struct rio_mport *port)
 static int rio_device_has_destid(struct rio_mport *port, int src_ops,
 				 int dst_ops)
 {
-	if (((src_ops & RIO_SRC_OPS_READ) ||
-	     (src_ops & RIO_SRC_OPS_WRITE) ||
-	     (src_ops & RIO_SRC_OPS_ATOMIC_TST_SWP) ||
-	     (src_ops & RIO_SRC_OPS_ATOMIC_INC) ||
-	     (src_ops & RIO_SRC_OPS_ATOMIC_DEC) ||
-	     (src_ops & RIO_SRC_OPS_ATOMIC_SET) ||
-	     (src_ops & RIO_SRC_OPS_ATOMIC_CLR)) &&
-	    ((dst_ops & RIO_DST_OPS_READ) ||
-	     (dst_ops & RIO_DST_OPS_WRITE) ||
-	     (dst_ops & RIO_DST_OPS_ATOMIC_TST_SWP) ||
-	     (dst_ops & RIO_DST_OPS_ATOMIC_INC) ||
-	     (dst_ops & RIO_DST_OPS_ATOMIC_DEC) ||
-	     (dst_ops & RIO_DST_OPS_ATOMIC_SET) ||
-	     (dst_ops & RIO_DST_OPS_ATOMIC_CLR))) {
-		return 1;
-	} else
-		return 0;
+	u32 mask = RIO_OPS_READ | RIO_OPS_WRITE | RIO_OPS_ATOMIC_TST_SWP | RIO_OPS_ATOMIC_INC | RIO_OPS_ATOMIC_DEC | RIO_OPS_ATOMIC_SET | RIO_OPS_ATOMIC_CLR;
+
+	return !!((src_ops | dst_ops) & mask);
 }
 
 /**
@@ -383,8 +367,9 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 	rdev->dev.release = rio_release_dev;
 	rio_dev_get(rdev);
 
-	rdev->dev.dma_mask = (u64 *) 0xffffffff;
-	rdev->dev.coherent_dma_mask = 0xffffffffULL;
+	rdev->dma_mask = DMA_32BIT_MASK;
+	rdev->dev.dma_mask = &rdev->dma_mask;
+	rdev->dev.coherent_dma_mask = DMA_32BIT_MASK;
 
 	if ((rdev->pef & RIO_PEF_INB_DOORBELL) &&
 	    (rdev->dst_ops & RIO_DST_OPS_DOORBELL))

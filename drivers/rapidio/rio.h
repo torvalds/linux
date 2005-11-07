@@ -26,6 +26,9 @@ extern int rio_disc_mport(struct rio_mport *mport);
 extern struct device_attribute rio_dev_attrs[];
 extern spinlock_t rio_global_list_lock;
 
+extern struct rio_route_ops __start_rio_route_ops[];
+extern struct rio_route_ops __end_rio_route_ops[];
+
 /* Helpers internal to the RIO core code */
 #define DECLARE_RIO_ROUTE_SECTION(section, vid, did, add_hook, get_hook)  \
         static struct rio_route_ops __rio_route_ops __attribute_used__   \

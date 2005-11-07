@@ -78,6 +78,19 @@
 #define  RIO_DST_OPS_ATOMIC_CLR		0x00000010	/* [I] Atomic clr op */
 #define  RIO_DST_OPS_PORT_WRITE		0x00000004	/* [I] Port-write op */
 
+#define  RIO_OPS_READ			0x00008000	/* [I] Read op */
+#define  RIO_OPS_WRITE			0x00004000	/* [I] Write op */
+#define  RIO_OPS_STREAM_WRITE		0x00002000	/* [I] Str-write op */
+#define  RIO_OPS_WRITE_RESPONSE		0x00001000	/* [I] Write/resp op */
+#define  RIO_OPS_DATA_MSG		0x00000800	/* [II] Data msg op */
+#define  RIO_OPS_DOORBELL		0x00000400	/* [II] Doorbell op */
+#define  RIO_OPS_ATOMIC_TST_SWP		0x00000100	/* [I] Atomic TAS op */
+#define  RIO_OPS_ATOMIC_INC		0x00000080	/* [I] Atomic inc op */
+#define  RIO_OPS_ATOMIC_DEC		0x00000040	/* [I] Atomic dec op */
+#define  RIO_OPS_ATOMIC_SET		0x00000020	/* [I] Atomic set op */
+#define  RIO_OPS_ATOMIC_CLR		0x00000010	/* [I] Atomic clr op */
+#define  RIO_OPS_PORT_WRITE		0x00000004	/* [I] Port-write op */
+
 					/* 0x20-0x3c *//* Reserved */
 
 #define RIO_MBOX_CSR		0x40	/* [II] Mailbox CSR */
