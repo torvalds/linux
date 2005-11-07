@@ -111,8 +111,10 @@ static int i460_fetch_size (void)
 
 	if (i460.io_page_shift != I460_IO_PAGE_SHIFT) {
 		printk(KERN_ERR PFX
-		       "I/O (GART) page-size %ZuKB doesn't match expected size %ZuKB\n",
-		       1UL << (i460.io_page_shift - 10), 1UL << (I460_IO_PAGE_SHIFT));
+			"I/O (GART) page-size %luKB doesn't match expected "
+				"size %luKB\n",
+			1UL << (i460.io_page_shift - 10),
+			1UL << (I460_IO_PAGE_SHIFT));
 		return 0;
 	}
 
@@ -539,7 +541,7 @@ static unsigned long i460_mask_memory (struct agp_bridge_data *bridge,
 {
 	/* Make sure the returned address is a valid GATT entry */
 	return bridge->driver->masks[0].mask
-		| (((addr & ~((1 << I460_IO_PAGE_SHIFT) - 1)) & 0xffffff000) >> 12);
+		| (((addr & ~((1 << I460_IO_PAGE_SHIFT) - 1)) & 0xfffff000) >> 12);
 }
 
 struct agp_bridge_driver intel_i460_driver = {
