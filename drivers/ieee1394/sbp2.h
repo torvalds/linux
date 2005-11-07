@@ -229,9 +229,6 @@ struct sbp2_status_block {
 #define SBP2_DEVICE_TYPE_AND_LUN_KEY				0x14
 #define SBP2_FIRMWARE_REVISION_KEY				0x3c
 
-#define SBP2_DEVICE_TYPE(q)					(((q) >> 16) & 0x1f)
-#define SBP2_DEVICE_LUN(q)					((q) & 0xffff)
-
 #define SBP2_AGENT_STATE_OFFSET					0x00ULL
 #define SBP2_AGENT_RESET_OFFSET					0x04ULL
 #define SBP2_ORB_POINTER_OFFSET					0x08ULL
@@ -255,8 +252,6 @@ struct sbp2_status_block {
  * Other misc defines
  */
 #define SBP2_128KB_BROKEN_FIRMWARE				0xa0b800
-
-#define SBP2_DEVICE_TYPE_LUN_UNINITIALIZED			0xffffffff
 
 /*
  * SCSI specific stuff
@@ -379,7 +374,7 @@ struct scsi_id_instance_data {
 	u32 sbp2_command_set_spec_id;
 	u32 sbp2_command_set;
 	u32 sbp2_unit_characteristics;
-	u32 sbp2_device_type_and_lun;
+	u32 sbp2_lun;
 	u32 sbp2_firmware_revision;
 
 	/*

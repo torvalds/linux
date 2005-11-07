@@ -735,7 +735,7 @@ static struct scsi_id_instance_data *sbp2_alloc_device(struct unit_directory *ud
 	INIT_LIST_HEAD(&scsi_id->sbp2_command_orb_completed);
 	INIT_LIST_HEAD(&scsi_id->scsi_list);
 	spin_lock_init(&scsi_id->sbp2_command_orb_lock);
-	scsi_id->sbp2_device_type_and_lun = SBP2_DEVICE_TYPE_LUN_UNINITIALIZED;
+	scsi_id->sbp2_lun = 0;
 
 	ud->device.driver_data = scsi_id;
 
@@ -1110,11 +1110,7 @@ static int sbp2_query_logins(struct scsi_id_instance_data *scsi_id)
 
 	scsi_id->query_logins_orb->lun_misc = ORB_SET_FUNCTION(SBP2_QUERY_LOGINS_REQUEST);
 	scsi_id->query_logins_orb->lun_misc |= ORB_SET_NOTIFY(1);
-	if (scsi_id->sbp2_device_type_and_lun != SBP2_DEVICE_TYPE_LUN_UNINITIALIZED) {
-		scsi_id->query_logins_orb->lun_misc |= ORB_SET_LUN(scsi_id->sbp2_device_type_and_lun);
-		SBP2_DEBUG("sbp2_query_logins: set lun to %d",
-			   ORB_SET_LUN(scsi_id->sbp2_device_type_and_lun));
-	}
+	scsi_id->query_logins_orb->lun_misc |= ORB_SET_LUN(scsi_id->sbp2_lun);
 	SBP2_DEBUG("sbp2_query_logins: lun_misc initialized");
 
 	scsi_id->query_logins_orb->reserved_resp_length =
@@ -1223,12 +1219,7 @@ static int sbp2_login_device(struct scsi_id_instance_data *scsi_id)
 	scsi_id->login_orb->lun_misc |= ORB_SET_RECONNECT(0);	/* One second reconnect time */
 	scsi_id->login_orb->lun_misc |= ORB_SET_EXCLUSIVE(exclusive_login);	/* Exclusive access to device */
 	scsi_id->login_orb->lun_misc |= ORB_SET_NOTIFY(1);	/* Notify us of login complete */
-	/* Set the lun if we were able to pull it from the device's unit directory */
-	if (scsi_id->sbp2_device_type_and_lun != SBP2_DEVICE_TYPE_LUN_UNINITIALIZED) {
-		scsi_id->login_orb->lun_misc |= ORB_SET_LUN(scsi_id->sbp2_device_type_and_lun);
-		SBP2_DEBUG("sbp2_query_logins: set lun to %d",
-			   ORB_SET_LUN(scsi_id->sbp2_device_type_and_lun));
-	}
+	scsi_id->login_orb->lun_misc |= ORB_SET_LUN(scsi_id->sbp2_lun);
 	SBP2_DEBUG("sbp2_login_device: lun_misc initialized");
 
 	scsi_id->login_orb->passwd_resp_lengths =
@@ -1543,7 +1534,7 @@ static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 				SBP2_DEBUG("sbp2_management_agent_addr = %x",
 					   (unsigned int) management_agent_addr);
 			} else if (kv->key.type == CSR1212_KV_TYPE_IMMEDIATE) {
-				scsi_id->sbp2_device_type_and_lun = kv->value.immediate;
+				scsi_id->sbp2_lun = ORB_SET_LUN(kv->value.immediate);
 			}
 			break;
 
@@ -1636,7 +1627,7 @@ static void sbp2_parse_unit_directory(struct scsi_id_instance_data *scsi_id,
 		scsi_id->sbp2_firmware_revision = firmware_revision;
 		scsi_id->workarounds = workarounds;
 		if (ud->flags & UNIT_DIRECTORY_HAS_LUN)
-			scsi_id->sbp2_device_type_and_lun = ud->lun;
+			scsi_id->sbp2_lun = ORB_SET_LUN(ud->lun);
 	}
 }
 
@@ -2158,16 +2149,6 @@ static void sbp2_check_sbp2_response(struct scsi_id_instance_data *scsi_id,
 	switch (SCpnt->cmnd[0]) {
 
 		case INQUIRY:
-
-			/*
-			 * If scsi_id->sbp2_device_type_and_lun is uninitialized, then fill 
-			 * this information in from the inquiry response data. Lun is set to zero.
-			 */
-			if (scsi_id->sbp2_device_type_and_lun == SBP2_DEVICE_TYPE_LUN_UNINITIALIZED) {
-				SBP2_DEBUG("Creating sbp2_device_type_and_lun from scsi inquiry data");
-				scsi_id->sbp2_device_type_and_lun = (scsi_buf[0] & 0x1f) << 16;
-			}
-
 			/*
 			 * Make sure data length is ok. Minimum length is 36 bytes
 			 */
@@ -2665,10 +2646,7 @@ static ssize_t sbp2_sysfs_ieee1394_id_show(struct device *dev, struct device_att
 	if (!(scsi_id = (struct scsi_id_instance_data *)sdev->host->hostdata[0]))
 		return 0;
 
-	if (scsi_id->sbp2_device_type_and_lun == SBP2_DEVICE_TYPE_LUN_UNINITIALIZED)
-		lun = 0;
-	else
-		lun = ORB_SET_LUN(scsi_id->sbp2_device_type_and_lun);
+	lun = ORB_SET_LUN(scsi_id->sbp2_lun);
 
 	return sprintf(buf, "%016Lx:%d:%d\n", (unsigned long long)scsi_id->ne->guid,
 		       scsi_id->ud->id, lun);
