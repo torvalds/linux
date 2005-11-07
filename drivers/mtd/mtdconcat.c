@@ -7,7 +7,7 @@
  *
  * This code is GPL
  *
- * $Id: mtdconcat.c,v 1.10 2005/11/06 10:04:37 gleixner Exp $
+ * $Id: mtdconcat.c,v 1.11 2005/11/07 11:14:20 gleixner Exp $
  */
 
 #include <linux/kernel.h>
@@ -44,7 +44,7 @@ struct mtd_concat {
  */
 #define CONCAT(x)  ((struct mtd_concat *)(x))
 
-/* 
+/*
  * MTD methods which look up the relevant subdevice, translate the
  * effective address and pass through to the subdevice.
  */
@@ -878,7 +878,7 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 	return &concat->mtd;
 }
 
-/* 
+/*
  * This function destroys an MTD object obtained from concat_mtd_devs()
  */
 

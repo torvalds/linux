@@ -1,5 +1,5 @@
 /*
- * $Id: mtd_blkdevs.c,v 1.26 2005/07/29 19:42:04 tpoynor Exp $
+ * $Id: mtd_blkdevs.c,v 1.27 2005/11/07 11:14:20 gleixner Exp $
  *
  * (C) 2003 David Woodhouse <dwmw2@infradead.org>
  *
@@ -85,7 +85,7 @@ static int mtd_blktrans_thread(void *arg)
 	daemonize("%sd", tr->name);
 
 	/* daemonize() doesn't do this for us since some kernel threads
-	   actually want to deal with signals. We can't just call 
+	   actually want to deal with signals. We can't just call
 	   exit_sighand() since that'll cause an oops when we finally
 	   do exit. */
 	spin_lock_irq(&current->sighand->siglock);
@@ -94,7 +94,7 @@ static int mtd_blktrans_thread(void *arg)
 	spin_unlock_irq(&current->sighand->siglock);
 
 	spin_lock_irq(rq->queue_lock);
-		
+
 	while (!tr->blkcore_priv->exiting) {
 		struct request *req;
 		struct mtd_blktrans_dev *dev;
@@ -157,7 +157,7 @@ static int blktrans_open(struct inode *i, struct file *f)
 	if (!try_module_get(tr->owner))
 		goto out_tr;
 
-	/* FIXME: Locking. A hot pluggable device can go away 
+	/* FIXME: Locking. A hot pluggable device can go away
 	   (del_mtd_device can be called for it) without its module
 	   being unloaded. */
 	dev->mtd->usecount++;
@@ -195,7 +195,7 @@ static int blktrans_release(struct inode *i, struct file *f)
 }
 
 
-static int blktrans_ioctl(struct inode *inode, struct file *file, 
+static int blktrans_ioctl(struct inode *inode, struct file *file,
 			      unsigned int cmd, unsigned long arg)
 {
 	struct mtd_blktrans_dev *dev = inode->i_bdev->bd_disk->private_data;
@@ -264,7 +264,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 			/* Required number was free */
 			list_add_tail(&new->list, &d->list);
 			goto added;
-		} 
+		}
 		last_devnum = d->devnum;
 	}
 	if (new->devnum == -1)
@@ -288,7 +288,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	gd->major = tr->major;
 	gd->first_minor = (new->devnum) << tr->part_bits;
 	gd->fops = &mtd_blktrans_ops;
-	
+
 	if (tr->part_bits)
 		if (new->devnum < 26)
 			snprintf(gd->disk_name, sizeof(gd->disk_name),
@@ -314,7 +314,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 		set_disk_ro(gd, 1);
 
 	add_disk(gd);
-	
+
 	return 0;
 }
 
@@ -329,7 +329,7 @@ int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 
 	del_gendisk(old->blkcore_priv);
 	put_disk(old->blkcore_priv);
-		
+
 	return 0;
 }
 
@@ -368,12 +368,12 @@ static struct mtd_notifier blktrans_notifier = {
 	.add = blktrans_notify_add,
 	.remove = blktrans_notify_remove,
 };
-      
+
 int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 {
 	int ret, i;
 
-	/* Register the notifier if/when the first device type is 
+	/* Register the notifier if/when the first device type is
 	   registered, to prevent the link/init ordering from fucking
 	   us over. */
 	if (!blktrans_notifier.list.next)
@@ -416,7 +416,7 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 		kfree(tr->blkcore_priv);
 		up(&mtd_table_mutex);
 		return ret;
-	} 
+	}
 
 	INIT_LIST_HEAD(&tr->devs);
 	list_add(&tr->list, &blktrans_majors);

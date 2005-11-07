@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2005  Sean Young <sean@mess.org>
  *
- * $Id: rfd_ftl.c,v 1.4 2005/07/31 22:49:14 sean Exp $
+ * $Id: rfd_ftl.c,v 1.5 2005/11/07 11:14:21 gleixner Exp $
  *
  * This type of flash translation layer (FTL) is used by the Embedded BIOS
  * by General Software. It is known as the Resident Flash Disk (RFD), see:
@@ -95,7 +95,7 @@ static int build_block_map(struct partition *part, int block_no)
 {
 	struct block *block = &part->blocks[block_no];
 	int i;
-	
+
 	block->offset = part->block_size * block_no;
 
 	if (le16_to_cpu(part->header_cache[0]) != RFD_MAGIC) {
@@ -109,12 +109,12 @@ static int build_block_map(struct partition *part, int block_no)
 
 	for (i=0; i<part->data_sectors_per_block; i++) {
 		u16 entry;
-		
+
 		entry = le16_to_cpu(part->header_cache[HEADER_MAP_OFFSET + i]);
 
 		if (entry == SECTOR_DELETED)
 			continue;
-	
+
 		if (entry == SECTOR_FREE) {
 			block->free_sectors++;
 			continue;
@@ -122,9 +122,9 @@ static int build_block_map(struct partition *part, int block_no)
 
 		if (entry == SECTOR_ZERO)
 			entry = 0;
-	
+
 		if (entry >= part->sector_count) {
-			printk(KERN_NOTICE PREFIX 
+			printk(KERN_NOTICE PREFIX
 				"'%s': unit #%d: entry %d corrupt, "
 				"sector %d out of range\n",
 				part->mbd.mtd->name, block_no, i, entry);
@@ -132,14 +132,14 @@ static int build_block_map(struct partition *part, int block_no)
 		}
 
 		if (part->sector_map[entry] != -1) {
-			printk(KERN_NOTICE PREFIX 
+			printk(KERN_NOTICE PREFIX
 				"'%s': more than one entry for sector %d\n",
 				part->mbd.mtd->name, entry);
 			part->errors = 1;
 			continue;
 		}
 
-		part->sector_map[entry] = block->offset + 
+		part->sector_map[entry] = block->offset +
 			(i + part->header_sectors_per_block) * SECTOR_SIZE;
 
 		block->used_sectors++;
@@ -165,14 +165,14 @@ static int scan_header(struct partition *part)
 		return -ENOENT;
 
 	/* each erase block has three bytes header, followed by the map */
-	part->header_sectors_per_block = 
-			((HEADER_MAP_OFFSET + sectors_per_block) * 
+	part->header_sectors_per_block =
+			((HEADER_MAP_OFFSET + sectors_per_block) *
 		 	sizeof(u16) + SECTOR_SIZE - 1) / SECTOR_SIZE;
 
-	part->data_sectors_per_block = sectors_per_block - 
+	part->data_sectors_per_block = sectors_per_block -
 			part->header_sectors_per_block;
 
-	part->header_size = (HEADER_MAP_OFFSET + 
+	part->header_size = (HEADER_MAP_OFFSET +
 			part->data_sectors_per_block) * sizeof(u16);
 
 	part->cylinders = (part->data_sectors_per_block *
@@ -188,7 +188,7 @@ static int scan_header(struct partition *part)
 	if (!part->header_cache)
 		goto err;
 
-	part->blocks = kcalloc(part->total_blocks, sizeof(struct block), 
+	part->blocks = kcalloc(part->total_blocks, sizeof(struct block),
 			GFP_KERNEL);
 	if (!part->blocks)
 		goto err;
@@ -200,18 +200,18 @@ static int scan_header(struct partition *part)
 		goto err;
 	}
 
-	for (i=0; i<part->sector_count; i++) 
+	for (i=0; i<part->sector_count; i++)
 		part->sector_map[i] = -1;
 
 	for (i=0, blocks_found=0; i<part->total_blocks; i++) {
-		rc = part->mbd.mtd->read(part->mbd.mtd, 
+		rc = part->mbd.mtd->read(part->mbd.mtd,
 				i * part->block_size, part->header_size,
 				&retlen, (u_char*)part->header_cache);
 
 		if (!rc && retlen != part->header_size)
 			rc = -EIO;
 
-		if (rc) 
+		if (rc)
 			goto err;
 
 		if (!build_block_map(part, i))
@@ -226,7 +226,7 @@ static int scan_header(struct partition *part)
 	}
 
 	if (part->reserved_block == -1) {
-		printk(KERN_NOTICE PREFIX "'%s': no empty erase unit found\n", 
+		printk(KERN_NOTICE PREFIX "'%s': no empty erase unit found\n",
 				part->mbd.mtd->name);
 
 		part->errors = 1;
@@ -248,7 +248,7 @@ static int rfd_ftl_readsect(struct mtd_blktrans_dev *dev, u_long sector, char *b
 	u_long addr;
 	size_t retlen;
 	int rc;
-	
+
 	if (sector >= part->sector_count)
 		return -EIO;
 
@@ -266,9 +266,9 @@ static int rfd_ftl_readsect(struct mtd_blktrans_dev *dev, u_long sector, char *b
 		}
 	} else
 		memset(buf, 0, SECTOR_SIZE);
-	
+
 	return 0;
-} 
+}
 
 static void erase_callback(struct erase_info *erase)
 {
@@ -288,7 +288,7 @@ static void erase_callback(struct erase_info *erase)
 
 	if (erase->state != MTD_ERASE_DONE) {
 		printk(KERN_WARNING PREFIX "erase failed at 0x%x on '%s', "
-				"state %d\n", erase->addr, 
+				"state %d\n", erase->addr,
 				part->mbd.mtd->name, erase->state);
 
 		part->blocks[i].state = BLOCK_FAILED;
@@ -307,17 +307,17 @@ static void erase_callback(struct erase_info *erase)
 	part->blocks[i].used_sectors = 0;
 	part->blocks[i].erases++;
 
-	rc = part->mbd.mtd->write(part->mbd.mtd, 
-		part->blocks[i].offset, sizeof(magic), &retlen, 
+	rc = part->mbd.mtd->write(part->mbd.mtd,
+		part->blocks[i].offset, sizeof(magic), &retlen,
 		(u_char*)&magic);
-	
+
 	if (!rc && retlen != sizeof(magic))
 		rc = -EIO;
 
 	if (rc) {
 		printk(KERN_NOTICE PREFIX "'%s': unable to write RFD "
 				"header at 0x%lx\n",
-				part->mbd.mtd->name, 
+				part->mbd.mtd->name,
 				part->blocks[i].offset);
 		part->blocks[i].state = BLOCK_FAILED;
 	}
@@ -374,17 +374,17 @@ static int move_block_contents(struct partition *part, int block_no, u_long *old
 	map = kmalloc(part->header_size, GFP_KERNEL);
 	if (!map)
 		goto err2;
-	
-	rc = part->mbd.mtd->read(part->mbd.mtd, 
-		part->blocks[block_no].offset, part->header_size, 
+
+	rc = part->mbd.mtd->read(part->mbd.mtd,
+		part->blocks[block_no].offset, part->header_size,
 		&retlen, (u_char*)map);
-	
+
 	if (!rc && retlen != part->header_size)
 		rc = -EIO;
 
 	if (rc) {
 		printk(KERN_NOTICE PREFIX "error reading '%s' at "
-			"0x%lx\n", part->mbd.mtd->name, 
+			"0x%lx\n", part->mbd.mtd->name,
 			part->blocks[block_no].offset);
 
 		goto err;
@@ -398,11 +398,11 @@ static int move_block_contents(struct partition *part, int block_no, u_long *old
 		if (entry == SECTOR_FREE || entry == SECTOR_DELETED)
 			continue;
 
-		if (entry == SECTOR_ZERO) 
+		if (entry == SECTOR_ZERO)
 			entry = 0;
 
 		/* already warned about and ignored in build_block_map() */
-		if (entry >= part->sector_count) 
+		if (entry >= part->sector_count)
 			continue;
 
 		addr = part->blocks[block_no].offset +
@@ -418,7 +418,7 @@ static int move_block_contents(struct partition *part, int block_no, u_long *old
 		}
 		rc = part->mbd.mtd->read(part->mbd.mtd, addr,
 			SECTOR_SIZE, &retlen, sector_data);
-	
+
 		if (!rc && retlen != SECTOR_SIZE)
 			rc = -EIO;
 
@@ -429,11 +429,11 @@ static int move_block_contents(struct partition *part, int block_no, u_long *old
 
 			goto err;
 		}
-		
+
 		rc = rfd_ftl_writesect((struct mtd_blktrans_dev*)part,
 				entry, sector_data);
-		
-		if (rc) 
+
+		if (rc)
 			goto err;
 	}
 
@@ -447,11 +447,11 @@ err3:
 	return rc;
 }
 
-static int reclaim_block(struct partition *part, u_long *old_sector) 
+static int reclaim_block(struct partition *part, u_long *old_sector)
 {
 	int block, best_block, score, old_sector_block;
 	int rc;
-	
+
 	/* we have a race if sync doesn't exist */
 	if (part->mbd.mtd->sync)
 		part->mbd.mtd->sync(part->mbd.mtd);
@@ -474,16 +474,16 @@ static int reclaim_block(struct partition *part, u_long *old_sector)
 		 * more removed sectors is more efficient (have to move
 		 * less).
 		 */
-		if (part->blocks[block].free_sectors) 
+		if (part->blocks[block].free_sectors)
 			return 0;
 
 		this_score = part->blocks[block].used_sectors;
 
-		if (block == old_sector_block) 
+		if (block == old_sector_block)
 			this_score--;
 		else {
 			/* no point in moving a full block */
-			if (part->blocks[block].used_sectors == 
+			if (part->blocks[block].used_sectors ==
 					part->data_sectors_per_block)
 				continue;
 		}
@@ -529,7 +529,7 @@ static int find_free_block(const struct partition *part)
 	stop = block;
 
 	do {
-		if (part->blocks[block].free_sectors && 
+		if (part->blocks[block].free_sectors &&
 				block != part->reserved_block)
 			return block;
 
@@ -563,7 +563,7 @@ static int find_writeable_block(struct partition *part, u_long *old_sector)
 		}
 	}
 
-	rc = part->mbd.mtd->read(part->mbd.mtd, part->blocks[block].offset, 
+	rc = part->mbd.mtd->read(part->mbd.mtd, part->blocks[block].offset,
 		part->header_size, &retlen, (u_char*)part->header_cache);
 
 	if (!rc && retlen != part->header_size)
@@ -571,7 +571,7 @@ static int find_writeable_block(struct partition *part, u_long *old_sector)
 
 	if (rc) {
 		printk(KERN_NOTICE PREFIX "'%s': unable to read header at "
-				"0x%lx\n", part->mbd.mtd->name, 
+				"0x%lx\n", part->mbd.mtd->name,
 				part->blocks[block].offset);
 		goto err;
 	}
@@ -580,7 +580,7 @@ static int find_writeable_block(struct partition *part, u_long *old_sector)
 
 err:
 	return rc;
-}	
+}
 
 static int mark_sector_deleted(struct partition *part, u_long old_addr)
 {
@@ -590,7 +590,7 @@ static int mark_sector_deleted(struct partition *part, u_long old_addr)
 	u16 del = const_cpu_to_le16(SECTOR_DELETED);
 
 	block = old_addr / part->block_size;
-	offset = (old_addr % part->block_size) / SECTOR_SIZE - 
+	offset = (old_addr % part->block_size) / SECTOR_SIZE -
 		part->header_sectors_per_block;
 
 	addr = part->blocks[block].offset +
@@ -604,7 +604,7 @@ static int mark_sector_deleted(struct partition *part, u_long old_addr)
 	if (rc) {
 		printk(KERN_WARNING PREFIX "error writing '%s' at "
 			"0x%lx\n", part->mbd.mtd->name, addr);
-		if (rc) 
+		if (rc)
 			goto err;
 	}
 	if (block == part->current_block)
@@ -627,7 +627,7 @@ static int find_free_sector(const struct partition *part, const struct block *bl
 	i = stop = part->data_sectors_per_block - block->free_sectors;
 
 	do {
-		if (le16_to_cpu(part->header_cache[HEADER_MAP_OFFSET + i]) 
+		if (le16_to_cpu(part->header_cache[HEADER_MAP_OFFSET + i])
 				== SECTOR_FREE)
 			return i;
 
@@ -653,7 +653,7 @@ static int do_writesect(struct mtd_blktrans_dev *dev, u_long sector, char *buf, 
 		!part->blocks[part->current_block].free_sectors) {
 
 		rc = find_writeable_block(part, old_addr);
-		if (rc) 
+		if (rc)
 			goto err;
 	}
 
@@ -665,10 +665,10 @@ static int do_writesect(struct mtd_blktrans_dev *dev, u_long sector, char *buf, 
 		rc = -ENOSPC;
 		goto err;
 	}
-		
-	addr = (i + part->header_sectors_per_block) * SECTOR_SIZE + 
+
+	addr = (i + part->header_sectors_per_block) * SECTOR_SIZE +
 		block->offset;
-	rc = part->mbd.mtd->write(part->mbd.mtd, 
+	rc = part->mbd.mtd->write(part->mbd.mtd,
 		addr, SECTOR_SIZE, &retlen, (u_char*)buf);
 
 	if (!rc && retlen != SECTOR_SIZE)
@@ -677,7 +677,7 @@ static int do_writesect(struct mtd_blktrans_dev *dev, u_long sector, char *buf, 
 	if (rc) {
 		printk(KERN_WARNING PREFIX "error writing '%s' at 0x%lx\n",
 				part->mbd.mtd->name, addr);
-		if (rc) 
+		if (rc)
 			goto err;
 	}
 
@@ -697,7 +697,7 @@ static int do_writesect(struct mtd_blktrans_dev *dev, u_long sector, char *buf, 
 	if (rc) {
 		printk(KERN_WARNING PREFIX "error writing '%s' at 0x%lx\n",
 				part->mbd.mtd->name, addr);
-		if (rc) 
+		if (rc)
 			goto err;
 	}
 	block->used_sectors++;
@@ -738,7 +738,7 @@ static int rfd_ftl_writesect(struct mtd_blktrans_dev *dev, u_long sector, char *
 		break;
 	}
 
-	if (i == SECTOR_SIZE) 
+	if (i == SECTOR_SIZE)
 		part->sector_map[sector] = -1;
 
 	if (old_addr != -1)
@@ -801,7 +801,7 @@ static void rfd_ftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 		if (!add_mtd_blktrans_dev((void*)part))
 			return;
-	} 
+	}
 
 	kfree(part);
 }
@@ -828,7 +828,7 @@ struct mtd_blktrans_ops rfd_ftl_tr = {
 	.major		= RFD_FTL_MAJOR,
 	.part_bits	= PART_BITS,
 	.readsect	= rfd_ftl_readsect,
-	.writesect	= rfd_ftl_writesect, 
+	.writesect	= rfd_ftl_writesect,
 	.getgeo		= rfd_ftl_getgeo,
 	.add_mtd	= rfd_ftl_add_mtd,
 	.remove_dev	= rfd_ftl_remove_dev,
