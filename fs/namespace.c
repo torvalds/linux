@@ -37,7 +37,9 @@ static inline int sysfs_init(void)
 #endif
 
 /* spinlock for vfsmount related operations, inplace of dcache_lock */
- __cacheline_aligned_in_smp DEFINE_SPINLOCK(vfsmount_lock);
+__cacheline_aligned_in_smp DEFINE_SPINLOCK(vfsmount_lock);
+
+static int event;
 
 static struct list_head *mount_hashtable;
 static int hash_mask __read_mostly, hash_bits __read_mostly;
@@ -109,6 +111,22 @@ struct vfsmount *lookup_mnt(struct vfsmount *mnt, struct dentry *dentry)
 static inline int check_mnt(struct vfsmount *mnt)
 {
 	return mnt->mnt_namespace == current->namespace;
+}
+
+static void touch_namespace(struct namespace *ns)
+{
+	if (ns) {
+		ns->event = ++event;
+		wake_up_interruptible(&ns->poll);
+	}
+}
+
+static void __touch_namespace(struct namespace *ns)
+{
+	if (ns && ns->event != event) {
+		ns->event = event;
+		wake_up_interruptible(&ns->poll);
+	}
 }
 
 static void detach_mnt(struct vfsmount *mnt, struct nameidata *old_nd)
@@ -384,6 +402,7 @@ static void umount_tree(struct vfsmount *mnt)
 	for (p = mnt; p; p = next_mnt(p, mnt)) {
 		list_del(&p->mnt_list);
 		list_add(&p->mnt_list, &kill);
+		__touch_namespace(p->mnt_namespace);
 		p->mnt_namespace = NULL;
 	}
 
@@ -473,6 +492,7 @@ static int do_umount(struct vfsmount *mnt, int flags)
 
 	down_write(&current->namespace->sem);
 	spin_lock(&vfsmount_lock);
+	event++;
 
 	retval = -EBUSY;
 	if (atomic_read(&mnt->mnt_count) == 2 || flags & MNT_DETACH) {
@@ -634,6 +654,7 @@ static int graft_tree(struct vfsmount *mnt, struct nameidata *nd)
 		list_splice(&head, current->namespace->list.prev);
 		mntget(mnt);
 		err = 0;
+		touch_namespace(current->namespace);
 	}
 	spin_unlock(&vfsmount_lock);
 out_unlock:
@@ -771,6 +792,7 @@ static int do_move_mount(struct nameidata *nd, char *old_name)
 
 	detach_mnt(old_nd.mnt, &parent_nd);
 	attach_mnt(old_nd.mnt, nd);
+	touch_namespace(current->namespace);
 
 	/* if the mount is moved, it should no longer be expire
 	 * automatically */
@@ -877,6 +899,7 @@ static void expire_mount(struct vfsmount *mnt, struct list_head *mounts)
 		struct nameidata old_nd;
 
 		/* delete from the namespace */
+		touch_namespace(mnt->mnt_namespace);
 		list_del_init(&mnt->mnt_list);
 		mnt->mnt_namespace = NULL;
 		detach_mnt(mnt, &old_nd);
@@ -1114,6 +1137,8 @@ int copy_namespace(int flags, struct task_struct *tsk)
 	atomic_set(&new_ns->count, 1);
 	init_rwsem(&new_ns->sem);
 	INIT_LIST_HEAD(&new_ns->list);
+	init_waitqueue_head(&new_ns->poll);
+	new_ns->event = 0;
 
 	down_write(&tsk->namespace->sem);
 	/* First pass: copy the tree topology */
@@ -1377,6 +1402,7 @@ asmlinkage long sys_pivot_root(const char __user *new_root, const char __user *p
 	detach_mnt(user_nd.mnt, &root_parent);
 	attach_mnt(user_nd.mnt, &old_nd);     /* mount old root on put_old */
 	attach_mnt(new_nd.mnt, &root_parent); /* mount new_root on / */
+	touch_namespace(current->namespace);
 	spin_unlock(&vfsmount_lock);
 	chroot_fs_refs(&user_nd, &new_nd);
 	security_sb_post_pivotroot(&user_nd, &new_nd);
@@ -1413,6 +1439,8 @@ static void __init init_mount_tree(void)
 	atomic_set(&namespace->count, 1);
 	INIT_LIST_HEAD(&namespace->list);
 	init_rwsem(&namespace->sem);
+	init_waitqueue_head(&namespace->poll);
+	namespace->event = 0;
 	list_add(&mnt->mnt_list, &namespace->list);
 	namespace->root = mnt;
 	mnt->mnt_namespace = namespace;

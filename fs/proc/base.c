@@ -70,6 +70,7 @@
 #include <linux/seccomp.h>
 #include <linux/cpuset.h>
 #include <linux/audit.h>
+#include <linux/poll.h>
 #include "internal.h"
 
 /*
@@ -660,26 +661,38 @@ static struct file_operations proc_smaps_operations = {
 #endif
 
 extern struct seq_operations mounts_op;
+struct proc_mounts {
+	struct seq_file m;
+	int event;
+};
+
 static int mounts_open(struct inode *inode, struct file *file)
 {
 	struct task_struct *task = proc_task(inode);
-	int ret = seq_open(file, &mounts_op);
+	struct namespace *namespace;
+	struct proc_mounts *p;
+	int ret = -EINVAL;
 
-	if (!ret) {
-		struct seq_file *m = file->private_data;
-		struct namespace *namespace;
-		task_lock(task);
-		namespace = task->namespace;
-		if (namespace)
-			get_namespace(namespace);
-		task_unlock(task);
+	task_lock(task);
+	namespace = task->namespace;
+	if (namespace)
+		get_namespace(namespace);
+	task_unlock(task);
 
-		if (namespace)
-			m->private = namespace;
-		else {
-			seq_release(inode, file);
-			ret = -EINVAL;
+	if (namespace) {
+		ret = -ENOMEM;
+		p = kmalloc(sizeof(struct proc_mounts), GFP_KERNEL);
+		if (p) {
+			file->private_data = &p->m;
+			ret = seq_open(file, &mounts_op);
+			if (!ret) {
+				p->m.private = namespace;
+				p->event = namespace->event;
+				return 0;
+			}
+			kfree(p);
 		}
+		put_namespace(namespace);
 	}
 	return ret;
 }
@@ -692,11 +705,30 @@ static int mounts_release(struct inode *inode, struct file *file)
 	return seq_release(inode, file);
 }
 
+static unsigned mounts_poll(struct file *file, poll_table *wait)
+{
+	struct proc_mounts *p = file->private_data;
+	struct namespace *ns = p->m.private;
+	unsigned res = 0;
+
+	poll_wait(file, &ns->poll, wait);
+
+	spin_lock(&vfsmount_lock);
+	if (p->event != ns->event) {
+		p->event = ns->event;
+		res = POLLERR;
+	}
+	spin_unlock(&vfsmount_lock);
+
+	return res;
+}
+
 static struct file_operations proc_mounts_operations = {
 	.open		= mounts_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= mounts_release,
+	.poll		= mounts_poll,
 };
 
 #define PROC_BLOCK_SIZE	(3*1024)		/* 4K page size but our output routines use some slack for overruns */
