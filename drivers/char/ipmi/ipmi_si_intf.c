@@ -2052,6 +2052,9 @@ static int oem_data_avail_to_receive_msg_avail(struct smi_info *smi_info)
  * IPMI Version = 0x51             IPMI 1.5
  * Manufacturer ID = A2 02 00      Dell IANA
  *
+ * Additionally, PowerEdge systems with IPMI < 1.5 may also assert
+ * OEM0_DATA_AVAIL and needs to be treated as RECEIVE_MSG_AVAIL.
+ *
  */
 #define DELL_POWEREDGE_8G_BMC_DEVICE_ID  0x20
 #define DELL_POWEREDGE_8G_BMC_DEVICE_REV 0x80
@@ -2061,13 +2064,19 @@ static void setup_dell_poweredge_oem_data_handler(struct smi_info *smi_info)
 {
 	struct ipmi_device_id *id = &smi_info->device_id;
 	const char mfr[3]=DELL_IANA_MFR_ID;
-	if (! memcmp(mfr, id->manufacturer_id, sizeof(mfr))
-	    && (id->device_id       == DELL_POWEREDGE_8G_BMC_DEVICE_ID)
-	    && (id->device_revision == DELL_POWEREDGE_8G_BMC_DEVICE_REV)
-	    && (id->ipmi_version    == DELL_POWEREDGE_8G_BMC_IPMI_VERSION))
-	{
-		smi_info->oem_data_avail_handler =
-			oem_data_avail_to_receive_msg_avail;
+	if (! memcmp(mfr, id->manufacturer_id, sizeof(mfr))) {
+		if (id->device_id       == DELL_POWEREDGE_8G_BMC_DEVICE_ID  &&
+		    id->device_revision == DELL_POWEREDGE_8G_BMC_DEVICE_REV &&
+		    id->ipmi_version    == DELL_POWEREDGE_8G_BMC_IPMI_VERSION) {
+			smi_info->oem_data_avail_handler =
+				oem_data_avail_to_receive_msg_avail;
+		}
+		else if (ipmi_version_major(id) < 1 ||
+			 (ipmi_version_major(id) == 1 &&
+			  ipmi_version_minor(id) < 5)) {
+			smi_info->oem_data_avail_handler =
+				oem_data_avail_to_receive_msg_avail;
+		}
 	}
 }
 

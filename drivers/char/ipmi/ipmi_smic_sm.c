@@ -85,6 +85,12 @@ enum smic_states {
 /* SMIC Flags Register Bits */
 #define SMIC_RX_DATA_READY	0x80
 #define SMIC_TX_DATA_READY	0x40
+/*
+ * SMIC_SMI and SMIC_EVM_DATA_AVAIL are only used by
+ * a few systems, and then only by Systems Management
+ * Interrupts, not by the OS.  Always ignore these bits.
+ *
+ */
 #define SMIC_SMI		0x10
 #define SMIC_EVM_DATA_AVAIL	0x08
 #define SMIC_SMS_DATA_AVAIL	0x04
@@ -368,8 +374,7 @@ static enum si_sm_result smic_event (struct si_sm_data *smic, long time)
 	switch (smic->state) {
 	case SMIC_IDLE:
 		/* in IDLE we check for available messages */
-		if (flags & (SMIC_SMI |
-			     SMIC_EVM_DATA_AVAIL | SMIC_SMS_DATA_AVAIL))
+		if (flags & SMIC_SMS_DATA_AVAIL)
 		{
 			return SI_SM_ATTN;
 		}
