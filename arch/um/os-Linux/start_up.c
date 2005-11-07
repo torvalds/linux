@@ -296,7 +296,7 @@ static void __init check_ptrace(void)
 	check_sysemu();
 }
 
-extern int create_tmp_file(unsigned long len);
+extern int create_tmp_file(unsigned long long len);
 
 static void check_tmpexec(void)
 {

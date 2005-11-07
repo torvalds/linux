@@ -167,7 +167,7 @@ extern int can_do_skas(void);
 #endif
 
 /* mem.c */
-extern int create_mem_file(unsigned long len);
+extern int create_mem_file(unsigned long long len);
 
 /* process.c */
 extern unsigned long os_process_pc(int pid);
