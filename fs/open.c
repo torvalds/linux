@@ -194,7 +194,7 @@ out:
 	return error;
 }
 
-int do_truncate(struct dentry *dentry, loff_t length)
+int do_truncate(struct dentry *dentry, loff_t length, struct file *filp)
 {
 	int err;
 	struct iattr newattrs;
@@ -205,6 +205,10 @@ int do_truncate(struct dentry *dentry, loff_t length)
 
 	newattrs.ia_size = length;
 	newattrs.ia_valid = ATTR_SIZE | ATTR_CTIME;
+	if (filp) {
+		newattrs.ia_file = filp;
+		newattrs.ia_valid |= ATTR_FILE;
+	}
 
 	down(&dentry->d_inode->i_sem);
 	err = notify_change(dentry, &newattrs);
@@ -262,7 +266,7 @@ static inline long do_sys_truncate(const char __user * path, loff_t length)
 	error = locks_verify_truncate(inode, NULL, length);
 	if (!error) {
 		DQUOT_INIT(inode);
-		error = do_truncate(nd.dentry, length);
+		error = do_truncate(nd.dentry, length, NULL);
 	}
 	put_write_access(inode);
 
@@ -314,7 +318,7 @@ static inline long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
 
 	error = locks_verify_truncate(inode, file, length);
 	if (!error)
-		error = do_truncate(dentry, length);
+		error = do_truncate(dentry, length, file);
 out_putf:
 	fput(file);
 out:
