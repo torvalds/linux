@@ -38,16 +38,24 @@
  */
 
 #include <linux/kernel.h> /* For printk. */
+#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/string.h>
 #include <linux/ipmi_msgdefs.h>		/* for completion codes */
 #include "ipmi_si_sm.h"
 
-/* Set this if you want a printout of why the state machine was hosed
-   when it gets hosed. */
-#define DEBUG_HOSED_REASON
+/* kcs_debug is a bit-field
+ *	KCS_DEBUG_ENABLE -	turned on for now
+ *	KCS_DEBUG_MSG    -	commands and their responses
+ *	KCS_DEBUG_STATES -	state machine
+ */
+#define KCS_DEBUG_STATES	4
+#define KCS_DEBUG_MSG		2
+#define	KCS_DEBUG_ENABLE	1
 
-/* Print the state machine state on entry every time. */
-#undef DEBUG_STATE
+static int kcs_debug;
+module_param(kcs_debug, int, 0644);
+MODULE_PARM_DESC(kcs_debug, "debug bitmask, 1=enable, 2=messages, 4=states");
 
 /* The states the KCS driver may be in. */
 enum kcs_states {
@@ -175,9 +183,8 @@ static inline void start_error_recovery(struct si_sm_data *kcs, char *reason)
 {
 	(kcs->error_retries)++;
 	if (kcs->error_retries > MAX_ERROR_RETRIES) {
-#ifdef DEBUG_HOSED_REASON
-		printk("ipmi_kcs_sm: kcs hosed: %s\n", reason);
-#endif
+		if (kcs_debug & KCS_DEBUG_ENABLE)
+			printk(KERN_DEBUG "ipmi_kcs_sm: kcs hosed: %s\n", reason);
 		kcs->state = KCS_HOSED;
 	} else {
 		kcs->state = KCS_ERROR0;
@@ -248,14 +255,21 @@ static void restart_kcs_transaction(struct si_sm_data *kcs)
 static int start_kcs_transaction(struct si_sm_data *kcs, unsigned char *data,
 				 unsigned int size)
 {
+	unsigned int i;
+
 	if ((size < 2) || (size > MAX_KCS_WRITE_SIZE)) {
 		return -1;
 	}
-
 	if ((kcs->state != KCS_IDLE) && (kcs->state != KCS_HOSED)) {
 		return -2;
 	}
-
+	if (kcs_debug & KCS_DEBUG_MSG) {
+		printk(KERN_DEBUG "start_kcs_transaction -");
+		for (i = 0; i < size; i ++) {
+			printk(" %02x", (unsigned char) (data [i]));
+		}
+		printk ("\n");
+	}
 	kcs->error_retries = 0;
 	memcpy(kcs->write_data, data, size);
 	kcs->write_count = size;
@@ -305,9 +319,9 @@ static enum si_sm_result kcs_event(struct si_sm_data *kcs, long time)
 
 	status = read_status(kcs);
 
-#ifdef DEBUG_STATE
-	printk("  State = %d, %x\n", kcs->state, status);
-#endif
+	if (kcs_debug & KCS_DEBUG_STATES)
+		printk(KERN_DEBUG "KCS: State = %d, %x\n", kcs->state, status);
+
 	/* All states wait for ibf, so just do it here. */
 	if (!check_ibf(kcs, status, time))
 		return SI_SM_CALL_WITH_DELAY;

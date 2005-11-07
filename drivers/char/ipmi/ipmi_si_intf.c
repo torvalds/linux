@@ -819,7 +819,7 @@ static void smi_timeout(unsigned long data)
 	enum si_sm_result smi_result;
 	unsigned long     flags;
 	unsigned long     jiffies_now;
-	unsigned long     time_diff;
+	long              time_diff;
 #ifdef DEBUG_TIMING
 	struct timeval    t;
 #endif
@@ -835,7 +835,7 @@ static void smi_timeout(unsigned long data)
 	printk("**Timer: %d.%9.9d\n", t.tv_sec, t.tv_usec);
 #endif
 	jiffies_now = jiffies;
-	time_diff = ((jiffies_now - smi_info->last_timeout_jiffies)
+	time_diff = (((long)jiffies_now - (long)smi_info->last_timeout_jiffies)
 		     * SI_USEC_PER_JIFFY);
 	smi_result = smi_event_handler(smi_info, time_diff);
 

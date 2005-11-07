@@ -43,6 +43,8 @@
 
 #include <linux/kernel.h> /* For printk. */
 #include <linux/string.h>
+#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/ipmi_msgdefs.h>		/* for completion codes */
 #include "ipmi_si_sm.h"
 
@@ -56,6 +58,8 @@
 #define	SMIC_DEBUG_ENABLE	1
 
 static int smic_debug = 1;
+module_param(smic_debug, int, 0644);
+MODULE_PARM_DESC(smic_debug, "debug bitmask, 1=enable, 2=messages, 4=states");
 
 enum smic_states {
 	SMIC_IDLE,
@@ -76,7 +80,7 @@ enum smic_states {
 #define SMIC_MAX_ERROR_RETRIES 3
 
 /* Timeouts in microseconds. */
-#define SMIC_RETRY_TIMEOUT 100000
+#define SMIC_RETRY_TIMEOUT 2000000
 
 /* SMIC Flags Register Bits */
 #define SMIC_RX_DATA_READY	0x80
