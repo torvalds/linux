@@ -1418,7 +1418,7 @@ int pcie_init(struct controller * ctrl, struct pcie_device *dev)
 		dbg("Bypassing BIOS check for pciehp use on %s\n",
 				pci_name(ctrl->pci_dev));
 	} else {
-		rc = get_hp_hw_control_from_firmware(ctrl->pci_dev);
+		rc = pciehp_get_hp_hw_control_from_firmware(ctrl->pci_dev);
 		if (rc)
 			goto abort_free_ctlr;
 	}

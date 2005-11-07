@@ -169,7 +169,7 @@ static int is_root_bridge(acpi_handle handle)
 	return 0;
 }
 
-int get_hp_hw_control_from_firmware(struct pci_dev *dev)
+int pciehp_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 {
 	acpi_status status;
 	acpi_handle chandle, handle = DEVICE_ACPI_HANDLE(&(dev->dev));
@@ -228,7 +228,7 @@ int get_hp_hw_control_from_firmware(struct pci_dev *dev)
 	return -1;
 }
 
-void get_hp_params_from_firmware(struct pci_dev *dev,
+void pciehp_get_hp_params_from_firmware(struct pci_dev *dev,
 		struct hotplug_params *hpp)
 {
 	acpi_status status = AE_NOT_FOUND;

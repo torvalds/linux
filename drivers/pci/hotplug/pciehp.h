@@ -191,8 +191,8 @@ extern u8	pciehp_handle_power_fault	(u8 hp_slot, void *inst_id);
 /* pci functions */
 extern int	pciehp_configure_device		(struct slot *p_slot);
 extern int	pciehp_unconfigure_device	(struct slot *p_slot);
-extern int	get_hp_hw_control_from_firmware(struct pci_dev *dev);
-extern void	get_hp_params_from_firmware(struct pci_dev *dev,
+extern int	pciehp_get_hp_hw_control_from_firmware(struct pci_dev *dev);
+extern void	pciehp_get_hp_params_from_firmware(struct pci_dev *dev,
 	       	struct hotplug_params *hpp);
 
 

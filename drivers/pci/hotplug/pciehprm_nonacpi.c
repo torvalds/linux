@@ -35,13 +35,13 @@
 #include <linux/slab.h>
 #include "pciehp.h"
 
-void get_hp_params_from_firmware(struct pci_dev *dev,
+void pciehp_get_hp_params_from_firmware(struct pci_dev *dev,
 		struct hotplug_params *hpp)
 {
 	return;
 }
 
-int get_hp_hw_control_from_firmware(struct pci_dev *dev)
+int pciehp_get_hp_hw_control_from_firmware(struct pci_dev *dev)
 {
 	return 0;
 }
