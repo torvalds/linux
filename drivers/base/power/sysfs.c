@@ -3,6 +3,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/string.h>
 #include "power.h"
 
 

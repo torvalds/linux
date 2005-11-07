@@ -284,6 +284,8 @@ typedef pte_t *pte_addr_t;
 #define GET_IOSPACE(pfn)		0
 #define GET_PFN(pfn)			(pfn)
 
+struct mm_struct;
+
 /*
  * No page table caches to initialise
  */

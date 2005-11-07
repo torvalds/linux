@@ -25,6 +25,9 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
+struct mm_struct;
+struct vm_area_struct;
+
 /*
  * ZERO_PAGE is a global shared page that is always zero: used
  * for zero-mapped memory areas etc..

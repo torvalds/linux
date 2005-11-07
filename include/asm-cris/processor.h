@@ -16,6 +16,8 @@
 #include <asm/ptrace.h>
 #include <asm/arch/processor.h>
 
+struct task_struct;
+
 /* This decides where the kernel will search for a free chunk of vm
  * space during mmap's.
  */

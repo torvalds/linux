@@ -12,6 +12,7 @@
  */
 
 #include <linux/spinlock.h>
+#include <linux/mm.h>		/* for vm_area_struct */
 #include <asm/processor.h>
 #include <asm/cache.h>
 #include <asm/bitops.h>
@@ -418,7 +419,6 @@ extern void paging_init (void);
 
 #define PG_dcache_dirty         PG_arch_1
 
-struct vm_area_struct; /* forward declaration (include/linux/mm.h) */
 extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t);
 
 /* Encode and de-code a swap entry */
@@ -464,6 +464,7 @@ static inline int ptep_test_and_clear_dirty(struct vm_area_struct *vma, unsigned
 
 extern spinlock_t pa_dbit_lock;
 
+struct mm_struct;
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pte_t old_pte;

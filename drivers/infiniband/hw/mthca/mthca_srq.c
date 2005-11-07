@@ -32,6 +32,9 @@
  * $Id: mthca_srq.c 3047 2005-08-10 03:59:35Z roland $
  */
 
+#include <linux/slab.h>
+#include <linux/string.h>
+
 #include "mthca_dev.h"
 #include "mthca_cmd.h"
 #include "mthca_memfree.h"
