@@ -124,9 +124,13 @@ config 440SP
 	depends on LUAN
 	default y
 
+config 440SPE
+	bool
+	default n
+
 config 440
 	bool
-	depends on 440GP || 440SP || 440EP
+	depends on 440GP || 440SP || 440SPE || 440EP
 	default y
 
 config 440A
@@ -168,7 +172,7 @@ config XILINX_OCP
 
 config IBM_EMAC4
 	bool
-	depends on 440GX || 440SP
+	depends on 440GX || 440SP || 440SPE
 	default y
 
 config BIOS_FIXUP

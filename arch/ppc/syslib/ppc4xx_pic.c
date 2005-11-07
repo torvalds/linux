@@ -38,6 +38,7 @@ extern unsigned char ppc4xx_uic_ext_irq_cfg[] __attribute__ ((weak));
 #define IRQ_MASK_UICx(irq)		(1 << (31 - ((irq) & 0x1f)))
 #define IRQ_MASK_UIC1(irq)		IRQ_MASK_UICx(irq)
 #define IRQ_MASK_UIC2(irq)		IRQ_MASK_UICx(irq)
+#define IRQ_MASK_UIC3(irq)		IRQ_MASK_UICx(irq)
 
 #define UIC_HANDLERS(n)							\
 static void ppc4xx_uic##n##_enable(unsigned int irq)			\
@@ -88,7 +89,38 @@ static void ppc4xx_uic##n##_end(unsigned int irq)			\
 	.end 		= ppc4xx_uic##n##_end,				\
 }									\
 
-#if NR_UICS == 3
+#if NR_UICS == 4
+#define ACK_UIC0_PARENT
+#define ACK_UIC1_PARENT	mtdcr(DCRN_UIC_SR(UIC0), UIC0_UIC1NC);
+#define ACK_UIC2_PARENT	mtdcr(DCRN_UIC_SR(UIC0), UIC0_UIC2NC);
+#define ACK_UIC3_PARENT	mtdcr(DCRN_UIC_SR(UIC0), UIC0_UIC3NC);
+UIC_HANDLERS(0);
+UIC_HANDLERS(1);
+UIC_HANDLERS(2);
+UIC_HANDLERS(3);
+
+static int ppc4xx_pic_get_irq(struct pt_regs *regs)
+{
+	u32 uic0 = mfdcr(DCRN_UIC_MSR(UIC0));
+	if (uic0 & UIC0_UIC1NC)
+		return 64 - ffs(mfdcr(DCRN_UIC_MSR(UIC1)));
+	else if (uic0 & UIC0_UIC2NC)
+		return 96 - ffs(mfdcr(DCRN_UIC_MSR(UIC2)));
+	else if (uic0 & UIC0_UIC3NC)
+		return 128 - ffs(mfdcr(DCRN_UIC_MSR(UIC3)));
+	else
+		return uic0 ? 32 - ffs(uic0) : -1;
+}
+
+static void __init ppc4xx_pic_impl_init(void)
+{
+	/* Enable cascade interrupts in UIC0 */
+	ppc_cached_irq_mask[0] |= UIC0_UIC1NC | UIC0_UIC2NC | UIC0_UIC3NC;
+	mtdcr(DCRN_UIC_SR(UIC0), UIC0_UIC1NC | UIC0_UIC2NC | UIC0_UIC3NC);
+	mtdcr(DCRN_UIC_ER(UIC0), ppc_cached_irq_mask[0]);
+}
+
+#elif NR_UICS == 3
 #define ACK_UIC0_PARENT	mtdcr(DCRN_UIC_SR(UICB), UICB_UIC0NC);
 #define ACK_UIC1_PARENT	mtdcr(DCRN_UIC_SR(UICB), UICB_UIC1NC);
 #define ACK_UIC2_PARENT	mtdcr(DCRN_UIC_SR(UICB), UICB_UIC2NC);
@@ -170,6 +202,9 @@ static struct ppc4xx_uic_impl {
 	{ .decl = DECLARE_UIC(1), .base = UIC1 },
 #if NR_UICS > 2
 	{ .decl = DECLARE_UIC(2), .base = UIC2 },
+#if NR_UICS > 3
+	{ .decl = DECLARE_UIC(3), .base = UIC3 },
+#endif
 #endif
 #endif
 };
