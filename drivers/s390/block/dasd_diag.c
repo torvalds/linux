@@ -6,7 +6,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
- * $Revision: 1.49 $
+ * $Revision: 1.50 $
  */
 
 #include <linux/config.h>
@@ -67,9 +67,9 @@ static const u8 DASD_DIAG_CMS1[] = { 0xc3, 0xd4, 0xe2, 0xf1 };/* EBCDIC CMS1 */
 static __inline__ int
 dia250(void *iob, int cmd)
 {
-	typedef struct {
-		char _[max(sizeof (struct dasd_diag_init_io),
-			   sizeof (struct dasd_diag_rw_io))];
+	typedef union {
+		struct dasd_diag_init_io init_io;
+		struct dasd_diag_rw_io rw_io;
 	} addr_type;
 	int rc;
 
@@ -190,7 +190,7 @@ dasd_start_diag(struct dasd_ccw_req * cqr)
 	private->iob.flags = DASD_DIAG_RWFLAG_ASYNC;
 	private->iob.block_count = dreq->block_count;
 	private->iob.interrupt_params = (addr_t) cqr;
-	private->iob.bio_list = __pa(dreq->bio);
+	private->iob.bio_list = dreq->bio;
 	private->iob.flaga = DASD_DIAG_FLAGA_DEFAULT;
 
 	cqr->startclk = get_clock();
@@ -394,14 +394,14 @@ dasd_diag_check_device(struct dasd_device *device)
 		memset(&bio, 0, sizeof (struct dasd_diag_bio));
 		bio.type = MDSK_READ_REQ;
 		bio.block_number = private->pt_block + 1;
-		bio.buffer = __pa(label);
+		bio.buffer = label;
 		memset(&private->iob, 0, sizeof (struct dasd_diag_rw_io));
 		private->iob.dev_nr = rdc_data->dev_nr;
 		private->iob.key = 0;
 		private->iob.flags = 0;	/* do synchronous io */
 		private->iob.block_count = 1;
 		private->iob.interrupt_params = 0;
-		private->iob.bio_list = __pa(&bio);
+		private->iob.bio_list = &bio;
 		private->iob.flaga = DASD_DIAG_FLAGA_DEFAULT;
 		rc = dia250(&private->iob, RW_BIO);
 		if (rc == 0 || rc == 3)
@@ -529,7 +529,7 @@ dasd_diag_build_cp(struct dasd_device * device, struct request *req)
 				memset(dbio, 0, sizeof (struct dasd_diag_bio));
 				dbio->type = rw_cmd;
 				dbio->block_number = recid + 1;
-				dbio->buffer = __pa(dst);
+				dbio->buffer = dst;
 				dbio++;
 				dst += blksize;
 				recid++;
