@@ -845,6 +845,18 @@ int smu_queue_i2c(struct smu_i2c_cmd *cmd)
 	return 0;
 }
 
+struct smu_sdbp_header *smu_get_sdb_partition(int id, unsigned int *size)
+{
+	char pname[32];
+
+	if (!smu)
+		return NULL;
+
+	sprintf(pname, "sdb-partition-%02x", id);
+	return (struct smu_sdbp_header *)get_property(smu->of_node,
+						      pname, size);
+}
+EXPORT_SYMBOL(smu_get_sdb_partition);
 
 
 /*

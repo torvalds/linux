@@ -144,7 +144,11 @@
  *  - lenght 8 ("VSLEWxyz") has 3 additional bytes appended, and is
  *    used to set the voltage slewing point. The SMU replies with "DONE"
  * I yet have to figure out their exact meaning of those 3 bytes in
- * both cases.
+ * both cases. They seem to be:
+ *  x = processor mask
+ *  y = op. point index
+ *  z = processor freq. step index
+ * I haven't yet decyphered result codes
  *
  */
 #define SMU_CMD_POWER_COMMAND			0xaa
@@ -332,6 +336,60 @@ extern int smu_queue_i2c(struct smu_i2c_cmd *cmd);
 
 
 #endif /* __KERNEL__ */
+
+
+/*
+ * - SMU "sdb" partitions informations -
+ */
+
+
+/*
+ * Partition header format
+ */
+struct smu_sdbp_header {
+	__u8	id;
+	__u8	len;
+	__u8	version;
+	__u8	flags;
+};
+
+/*
+ * 32 bits integers are usually encoded with 2x16 bits swapped,
+ * this demangles them
+ */
+#define SMU_U32_MIX(x)	((((x) << 16) & 0xffff0000u) | (((x) >> 16) & 0xffffu))
+
+/* This is the definition of the SMU sdb-partition-0x12 table (called
+ * CPU F/V/T operating points in Darwin). The definition for all those
+ * SMU tables should be moved to some separate file
+ */
+#define SMU_SDB_FVT_ID		0x12
+
+struct smu_sdbp_fvt {
+	__u32	sysclk;			/* Base SysClk frequency in Hz for
+					 * this operating point
+					 */
+	__u8	pad;
+	__u8	maxtemp;		/* Max temp. supported by this
+					 * operating point
+					 */
+
+	__u16	volts[3];		/* CPU core voltage for the 3
+					 * PowerTune modes, a mode with
+					 * 0V = not supported.
+					 */
+};
+
+#ifdef __KERNEL__
+/*
+ * This returns the pointer to an SMU "sdb" partition data or NULL
+ * if not found. The data format is described below
+ */
+extern struct smu_sdbp_header *smu_get_sdb_partition(int id,
+						     unsigned int *size);
+
+#endif /* __KERNEL__ */
+
 
 /*
  * - Userland interface -
