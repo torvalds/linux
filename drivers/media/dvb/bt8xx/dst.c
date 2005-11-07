@@ -1331,9 +1331,7 @@ struct dst_state *dst_attach(struct dst_state *state, struct dvb_adapter *dvb_ad
 {
 	/* check if the ASIC is there */
 	if (dst_probe(state) < 0) {
-		if (state)
-			kfree(state);
-
+		kfree(state);
 		return NULL;
 	}
 	/* determine settings based on type */
@@ -1349,9 +1347,7 @@ struct dst_state *dst_attach(struct dst_state *state, struct dvb_adapter *dvb_ad
 		break;
 	default:
 		dprintk(verbose, DST_ERROR, 1, "unknown DST type. please report to the LinuxTV.org DVB mailinglist.");
-		if (state)
-			kfree(state);
-
+		kfree(state);
 		return NULL;
 	}
 
