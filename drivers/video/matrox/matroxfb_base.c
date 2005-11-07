@@ -264,7 +264,6 @@ static void matroxfb_disable_irq(WPMINFO2) {
 }
 
 int matroxfb_wait_for_sync(WPMINFO u_int32_t crtc) {
-	wait_queue_t __wait;
 	struct matrox_vsync *vs;
 	unsigned int cnt;
 	int ret;
@@ -286,7 +285,6 @@ int matroxfb_wait_for_sync(WPMINFO u_int32_t crtc) {
 	if (ret) {
 		return ret;
 	}
-        init_waitqueue_entry(&__wait, current);
 
 	cnt = vs->cnt;
 	ret = wait_event_interruptible_timeout(vs->wait, cnt != vs->cnt, HZ/10);
