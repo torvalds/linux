@@ -98,6 +98,8 @@ config FRAMEBUFFER_CONSOLE
 	tristate "Framebuffer Console support"
 	depends on FB
 	select CRC32
+	help
+	  Low-level framebuffer-based console driver.
 
 config STI_CONSOLE
         tristate "STI text console" 

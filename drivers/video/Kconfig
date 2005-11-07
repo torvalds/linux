@@ -182,6 +182,9 @@ config FB_CLPS711X
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
 	select FB_SOFT_CURSOR
+	help
+	  Say Y to enable the Framebuffer driver for the CLPS7111 and
+	  EP7212 processors.
 
 config FB_SA1100
 	bool "SA-1100 LCD support"
@@ -405,7 +408,7 @@ config FB_CT65550
 	  65550 graphics chip in PowerBooks.
 
 config FB_ASILIANT
-	bool "Chips 69000 display support"
+	bool "Asiliant (Chips) 69000 display support"
 	depends on (FB = y) && PCI
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
@@ -421,12 +424,6 @@ config FB_IMSTT
 	help
 	  The IMS Twin Turbo is a PCI-based frame buffer card bundled with
 	  many Macintosh and compatible computers.
-
-config FB_S3TRIO
-	bool "S3 Trio display support"
-	depends on (FB = y) && PPC && BROKEN
-	help
-	  If you have a S3 Trio say Y. Say N for S3 Virge.
 
 config FB_VGA16
 	tristate "VGA 16-color graphics support"
@@ -1046,6 +1043,12 @@ config FB_ATY_GX
 	  framebuffer device.  The ATI product support page for these boards
 	  is at
 	  <http://support.ati.com/products/pc/mach64/graphics_xpression.html>.
+
+config FB_S3TRIO
+	bool "S3 Trio display support"
+	depends on (FB = y) && PPC && BROKEN
+	help
+	  If you have a S3 Trio say Y. Say N for S3 Virge.
 
 config FB_SAVAGE
 	tristate "S3 Savage support"
