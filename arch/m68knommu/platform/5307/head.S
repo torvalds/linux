@@ -113,6 +113,9 @@
 #define MEM_BASE	0x02000000
 #define VBR_BASE	0x20000000	/* vectors in SRAM */
 #endif
+#if defined(CONFIG_M5208EVB)
+#define MEM_BASE	0x40000000
+#endif
 
 #ifndef MEM_BASE
 #define	MEM_BASE	0x00000000	/* memory base at address 0 */
