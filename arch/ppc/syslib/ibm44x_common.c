@@ -20,6 +20,7 @@
 #include <linux/types.h>
 #include <linux/serial.h>
 #include <linux/module.h>
+#include <linux/initrd.h>
 
 #include <asm/ibm44x.h>
 #include <asm/mmu.h>
