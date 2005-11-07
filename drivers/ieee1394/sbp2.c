@@ -80,9 +80,6 @@
 #include "ieee1394_transactions.h"
 #include "sbp2.h"
 
-static char version[] __devinitdata =
-	"$Rev: 1306 $ Ben Collins <bcollins@debian.org>";
-
 /*
  * Module load parameter definitions
  */
@@ -2695,8 +2692,6 @@ static int sbp2_module_init(void)
 	int ret;
 
 	SBP2_DEBUG("sbp2_module_init");
-
-	printk(KERN_INFO "sbp2: %s\n", version);
 
 	/* Module load debug option to force one command at a time (serializing I/O) */
 	if (serialize_io) {

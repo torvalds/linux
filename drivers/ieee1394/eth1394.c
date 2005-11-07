@@ -88,9 +88,6 @@
 	printk(KERN_ERR "%s:%s[%d]: " fmt "\n", driver_name, __FUNCTION__, __LINE__, ## args)
 #define TRACE() printk(KERN_ERR "%s:%s[%d] ---- TRACE\n", driver_name, __FUNCTION__, __LINE__)
 
-static char version[] __devinitdata =
-	"$Rev: 1312 $ Ben Collins <bcollins@debian.org>";
-
 struct fragment_info {
 	struct list_head list;
 	int offset;
@@ -566,7 +563,6 @@ static void ether1394_add_host (struct hpsb_host *host)
 	struct eth1394_host_info *hi = NULL;
 	struct net_device *dev = NULL;
 	struct eth1394_priv *priv;
-	static int version_printed = 0;
 	u64 fifo_addr;
 
 	if (!(host->config_roms & HPSB_CONFIG_ROM_ENTRY_IP1394))
@@ -580,9 +576,6 @@ static void ether1394_add_host (struct hpsb_host *host)
 							 -1, -1);
 	if (fifo_addr == ~0ULL)
 		goto out;
-
-	if (version_printed++ == 0)
-		ETH1394_PRINT_G (KERN_INFO, "%s\n", version);
 
 	/* We should really have our own alloc_hpsbdev() function in
 	 * net_init.c instead of calling the one for ethernet then hijacking
@@ -1768,7 +1761,6 @@ fail:
 static void ether1394_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	strcpy (info->driver, driver_name);
-	strcpy (info->version, "$Rev: 1312 $");
 	/* FIXME XXX provide sane businfo */
 	strcpy (info->bus_info, "ieee1394");
 }

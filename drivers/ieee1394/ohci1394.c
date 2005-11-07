@@ -161,9 +161,6 @@ printk(level "%s: " fmt "\n" , OHCI1394_DRIVER_NAME , ## args)
 #define PRINT(level, fmt, args...) \
 printk(level "%s: fw-host%d: " fmt "\n" , OHCI1394_DRIVER_NAME, ohci->host->id , ## args)
 
-static char version[] __devinitdata =
-	"$Rev: 1313 $ Ben Collins <bcollins@debian.org>";
-
 /* Module Parameters */
 static int phys_dma = 1;
 module_param(phys_dma, int, 0644);
@@ -3215,14 +3212,9 @@ do {						\
 static int __devinit ohci1394_pci_probe(struct pci_dev *dev,
 					const struct pci_device_id *ent)
 {
-	static int version_printed = 0;
-
 	struct hpsb_host *host;
 	struct ti_ohci *ohci;	/* shortcut to currently handled device */
 	unsigned long ohci_base;
-
-	if (version_printed++ == 0)
-		PRINT_G(KERN_INFO, "%s", version);
 
         if (pci_enable_device(dev))
 		FAIL(-ENXIO, "Failed to enable OHCI hardware");
