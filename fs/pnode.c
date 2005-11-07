@@ -17,6 +17,16 @@ static inline struct vfsmount *next_peer(struct vfsmount *p)
 	return list_entry(p->mnt_share.next, struct vfsmount, mnt_share);
 }
 
+static inline struct vfsmount *first_slave(struct vfsmount *p)
+{
+	return list_entry(p->mnt_slave_list.next, struct vfsmount, mnt_slave);
+}
+
+static inline struct vfsmount *next_slave(struct vfsmount *p)
+{
+	return list_entry(p->mnt_slave.next, struct vfsmount, mnt_slave);
+}
+
 static int do_make_slave(struct vfsmount *mnt)
 {
 	struct vfsmount *peer_mnt = mnt, *master = mnt->mnt_master;
@@ -83,10 +93,64 @@ void change_mnt_propagation(struct vfsmount *mnt, int type)
 static struct vfsmount *propagation_next(struct vfsmount *m,
 					 struct vfsmount *origin)
 {
-	m = next_peer(m);
-	if (m == origin)
-		return NULL;
-	return m;
+	/* are there any slaves of this mount? */
+	if (!IS_MNT_NEW(m) && !list_empty(&m->mnt_slave_list))
+		return first_slave(m);
+
+	while (1) {
+		struct vfsmount *next;
+		struct vfsmount *master = m->mnt_master;
+
+		if ( master == origin->mnt_master ) {
+			next = next_peer(m);
+			return ((next == origin) ? NULL : next);
+		} else if (m->mnt_slave.next != &master->mnt_slave_list)
+			return next_slave(m);
+
+		/* back at master */
+		m = master;
+	}
+}
+
+/*
+ * return the source mount to be used for cloning
+ *
+ * @dest 	the current destination mount
+ * @last_dest  	the last seen destination mount
+ * @last_src  	the last seen source mount
+ * @type	return CL_SLAVE if the new mount has to be
+ * 		cloned as a slave.
+ */
+static struct vfsmount *get_source(struct vfsmount *dest,
+					struct vfsmount *last_dest,
+					struct vfsmount *last_src,
+					int *type)
+{
+	struct vfsmount *p_last_src = NULL;
+	struct vfsmount *p_last_dest = NULL;
+	*type = CL_PROPAGATION;;
+
+	if (IS_MNT_SHARED(dest))
+		*type |= CL_MAKE_SHARED;
+
+	while (last_dest != dest->mnt_master) {
+		p_last_dest = last_dest;
+		p_last_src = last_src;
+		last_dest = last_dest->mnt_master;
+		last_src = last_src->mnt_master;
+	}
+
+	if (p_last_dest) {
+		do {
+			p_last_dest = next_peer(p_last_dest);
+		} while (IS_MNT_NEW(p_last_dest));
+	}
+
+	if (dest != p_last_dest) {
+		*type |= CL_SLAVE;
+		return last_src;
+	} else
+		return p_last_src;
 }
 
 /*
@@ -114,16 +178,15 @@ int propagate_mnt(struct vfsmount *dest_mnt, struct dentry *dest_dentry,
 
 	for (m = propagation_next(dest_mnt, dest_mnt); m;
 			m = propagation_next(m, dest_mnt)) {
-		int type = CL_PROPAGATION;
+		int type;
+		struct vfsmount *source;
 
 		if (IS_MNT_NEW(m))
 			continue;
 
-		if (IS_MNT_SHARED(m))
-			type |= CL_MAKE_SHARED;
+		source =  get_source(m, prev_dest_mnt, prev_src_mnt, &type);
 
-		if (!(child = copy_tree(source_mnt, source_mnt->mnt_root,
-						type))) {
+		if (!(child = copy_tree(source, source->mnt_root, type))) {
 			ret = -ENOMEM;
 			list_splice(tree_list, tmp_list.prev);
 			goto out;

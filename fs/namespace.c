@@ -227,8 +227,17 @@ static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 		mnt->mnt_mountpoint = mnt->mnt_root;
 		mnt->mnt_parent = mnt;
 
-		if ((flag & CL_PROPAGATION) || IS_MNT_SHARED(old))
-			list_add(&mnt->mnt_share, &old->mnt_share);
+		if (flag & CL_SLAVE) {
+			list_add(&mnt->mnt_slave, &old->mnt_slave_list);
+			mnt->mnt_master = old;
+			CLEAR_MNT_SHARED(mnt);
+		} else {
+			if ((flag & CL_PROPAGATION) || IS_MNT_SHARED(old))
+				list_add(&mnt->mnt_share, &old->mnt_share);
+			if (IS_MNT_SLAVE(old))
+				list_add(&mnt->mnt_slave, &old->mnt_slave);
+			mnt->mnt_master = old->mnt_master;
+		}
 		if (flag & CL_MAKE_SHARED)
 			set_mnt_shared(mnt);
 
@@ -689,18 +698,18 @@ Enomem:
  *
  *  NOTE: in the table below explains the semantics when a source mount
  *  of a given type is attached to a destination mount of a given type.
- * 	---------------------------------------------
- * 	|         BIND MOUNT OPERATION              |
- * 	|********************************************
- * 	| source-->| shared        |       private  |
- * 	| dest     |               |                |
- * 	|   |      |               |                |
- * 	|   v      |               |                |
- * 	|********************************************
- * 	|  shared  | shared (++)   |     shared (+) |
- * 	|          |               |                |
- * 	|non-shared| shared (+)    |      private   |
- * 	*********************************************
+ * 	-------------------------------------------------------------
+ * 	|         BIND MOUNT OPERATION                               |
+ * 	|*************************************************************
+ * 	| source-->| shared        |       private  |       slave    |
+ * 	| dest     |               |                |                |
+ * 	|   |      |               |                |                |
+ * 	|   v      |               |                |                |
+ * 	|*************************************************************
+ * 	|  shared  | shared (++)   |     shared (+) |     shared(+++)|
+ * 	|          |               |                |                |
+ * 	|non-shared| shared (+)    |      private   |      slave (*) |
+ * 	**************************************************************
  * A bind operation clones the source mount and mounts the clone on the
  * destination mount.
  *
@@ -710,21 +719,33 @@ Enomem:
  * (+)   the cloned mount is created under the destination mount and is marked
  *       as shared. The cloned mount is added to the peer group of the source
  *       mount.
- * 	---------------------------------------------
- * 	|         	MOVE MOUNT OPERATION        |
- * 	|********************************************
- * 	| source-->| shared        |       private  |
- * 	| dest     |               |                |
- * 	|   |      |               |                |
- * 	|   v      |               |                |
- * 	|********************************************
- * 	|  shared  | shared (+)    |     shared (+) |
- * 	|          |               |                |
- * 	|non-shared| shared (+*)   |      private   |
- * 	*********************************************
- * (+)  the mount is moved to the destination. And is then propagated to all
- * 	the mounts in the propagation tree of the destination mount.
+ * (+++) the mount is propagated to all the mounts in the propagation tree
+ *       of the destination mount and the cloned mount is made slave
+ *       of the same master as that of the source mount. The cloned mount
+ *       is marked as 'shared and slave'.
+ * (*)   the cloned mount is made a slave of the same master as that of the
+ * 	 source mount.
+ *
+ * 	--------------------------------------------------------------
+ * 	|         		MOVE MOUNT OPERATION                 |
+ * 	|*************************************************************
+ * 	| source-->| shared        |       private  |       slave    |
+ * 	| dest     |               |                |                |
+ * 	|   |      |               |                |                |
+ * 	|   v      |               |                |                |
+ * 	|*************************************************************
+ * 	|  shared  | shared (+)    |     shared (+) |    shared(+++) |
+ * 	|          |               |                |                |
+ * 	|non-shared| shared (+*)   |      private   |    slave (*)   |
+ * 	**************************************************************
+ *
+ * (+)  the mount is moved to the destination. And is then propagated to
+ * 	all the mounts in the propagation tree of the destination mount.
  * (+*)  the mount is moved to the destination.
+ * (+++)  the mount is moved to the destination and is then propagated to
+ * 	all the mounts belonging to the destination mount's propagation tree.
+ * 	the mount is marked as 'shared and slave'.
+ * (*)	the mount continues to be a slave at the new location.
  *
  * if the source mount is a tree, the operations explained above is
  * applied to each mount in the tree.
