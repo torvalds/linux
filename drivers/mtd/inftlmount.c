@@ -574,6 +574,12 @@ int INFTL_mount(struct INFTLrecord *s)
 
 	/* Temporary buffer to store ANAC numbers. */
 	ANACtable = kmalloc(s->nb_blocks * sizeof(u8), GFP_KERNEL);
+	if (!ANACtable) {
+		printk(KERN_WARNING "INFTL: allocation of ANACtable "
+				"failed (%zd bytes)\n",
+				s->nb_blocks * sizeof(u8));
+		return -ENOMEM;
+	}
 	memset(ANACtable, 0, s->nb_blocks);
 
 	/*
