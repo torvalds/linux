@@ -1388,13 +1388,7 @@ static int b44_open(struct net_device *dev)
 
 	err = b44_alloc_consistent(bp);
 	if (err)
-		return err;
-
-	err = request_irq(dev->irq, b44_interrupt, SA_SHIRQ, dev->name, dev);
-	if (err)
-		goto err_out_free;
-
-	spin_lock_irq(&bp->lock);
+		goto out;
 
 	b44_init_rings(bp);
 	b44_init_hw(bp);
@@ -1403,7 +1397,13 @@ static int b44_open(struct net_device *dev)
 	netif_carrier_off(dev);
 	b44_check_phy(bp);
 
-	spin_unlock_irq(&bp->lock);
+	err = request_irq(dev->irq, b44_interrupt, SA_SHIRQ, dev->name, dev);
+	if (unlikely(err < 0)) {
+		b44_chip_reset(bp);
+		b44_free_rings(bp);
+		b44_free_consistent(bp);
+		goto out;
+	}
 
 	init_timer(&bp->timer);
 	bp->timer.expires = jiffies + HZ;
@@ -1412,11 +1412,7 @@ static int b44_open(struct net_device *dev)
 	add_timer(&bp->timer);
 
 	b44_enable_ints(bp);
-
-	return 0;
-
-err_out_free:
-	b44_free_consistent(bp);
+out:
 	return err;
 }
 
