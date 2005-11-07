@@ -1886,24 +1886,11 @@ static int fbcon_resize(struct vc_data *vc, unsigned int width,
 		mode = fb_find_best_mode(&var, &info->modelist);
 		if (mode == NULL)
 			return -EINVAL;
+		display_to_var(&var, p);
 		fb_videomode_to_var(&var, mode);
+
 		if (width > var.xres/fw || height > var.yres/fh)
 			return -EINVAL;
-		/*
-		 * The following can probably have any value... Do we need to
-		 * set all of them?
-		 */
-		var.bits_per_pixel = p->bits_per_pixel;
-		var.xres_virtual = p->xres_virtual;
-		var.yres_virtual = p->yres_virtual;
-		var.accel_flags = p->accel_flags;
-		var.width = p->width;
-		var.height = p->height;
-		var.red = p->red;
-		var.green = p->green;
-		var.blue = p->blue;
-		var.transp = p->transp;
-		var.nonstd = p->nonstd;
 
 		DPRINTK("resize now %ix%i\n", var.xres, var.yres);
 		if (CON_IS_VISIBLE(vc)) {
