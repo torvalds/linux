@@ -14,7 +14,6 @@
 #include <linux/ncp_fs.h>
 #include <linux/syscalls.h>
 #include <asm/fbio.h>
-#include <asm/vuid_event.h>
 #include <asm/envctrl.h>
 #include <asm/display7seg.h>
 #include <asm/openpromio.h>
@@ -472,8 +471,6 @@ COMPATIBLE_IOCTL(FBIOSCURPOS)
 COMPATIBLE_IOCTL(FBIOGCURPOS)
 COMPATIBLE_IOCTL(FBIOGCURMAX)
 /* Little k */
-COMPATIBLE_IOCTL(VUIDSFORMAT)
-COMPATIBLE_IOCTL(VUIDGFORMAT)
 /* Little v, the video4linux ioctls */
 COMPATIBLE_IOCTL(_IOR('p', 20, int[7])) /* RTCGET */
 COMPATIBLE_IOCTL(_IOW('p', 21, int[7])) /* RTCSET */
