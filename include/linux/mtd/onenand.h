@@ -77,7 +77,7 @@ struct onenand_bufferram {
  * @param wq		[INTERN] wait queue to sleep on if a OneNAND operation is in progress
  * @param state		[INTERN] the current state of the OneNAND device
  * @param autooob	[REPLACEABLE] the default (auto)placement scheme
- * @param bbm		[REPLACEABLE] pointer to Bad Block Management 
+ * @param bbm		[REPLACEABLE] pointer to Bad Block Management
  * @param priv		[OPTIONAL] pointer to private chip date
  */
 struct onenand_chip {

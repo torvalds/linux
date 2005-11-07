@@ -12,7 +12,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  *
- * $Id: xip.h,v 1.4 2005/10/17 21:03:16 nico Exp $
+ * $Id: xip.h,v 1.5 2005/11/07 11:14:55 gleixner Exp $
  */
 
 #ifndef __LINUX_MTD_XIP_H__
@@ -60,9 +60,9 @@
  * 		overflowing.
  *
  * xip_iprefetch()
- *  
+ *
  *      Macro to fill instruction prefetch
- *	e.g. a series of nops:  asm volatile (".rep 8; nop; .endr"); 
+ *	e.g. a series of nops:  asm volatile (".rep 8; nop; .endr");
  */
 
 #include <asm/mtd-xip.h>

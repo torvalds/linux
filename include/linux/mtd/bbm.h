@@ -29,7 +29,7 @@
  * @param version	version read from the bbt page during scan
  * @param len		length of the pattern, if 0 no pattern check is performed
  * @param maxblocks	maximum number of blocks to search for a bbt. This number of
- *			blocks is reserved at the end of the device 
+ *			blocks is reserved at the end of the device
  *			where the tables are written.
  * @param reserved_block_code	if non-0, this pattern denotes a reserved
  *			(rather than bad) block in the stored bbt
