@@ -1,5 +1,5 @@
 # drivers/mtd/maps/Kconfig
-# $Id: Kconfig,v 1.59 2005/09/18 10:46:41 joern Exp $
+# $Id: Kconfig,v 1.60 2005/11/07 08:33:35 gleixner Exp $
 
 menu "Mapping drivers for chip access"
 	depends on MTD!=n
@@ -346,6 +346,14 @@ config MTD_REDWOOD
 	  This enables access routines for the flash chips on the IBM
 	  Redwood board. If you have one of these boards and would like to
 	  use the flash chips on it, say 'Y'.
+
+config MTD_TQM834x
+	tristate "Flash device mapped on TQ Components TQM834x Boards"
+	depends on MTD_CFI && TQM834x
+	help
+	  This enables access routines for the flash chips on the
+	  TQ Components TQM834x boards. If you have one of these boards
+	  and would like to use the flash chips on it, say 'Y'.
 
 config MTD_CSTM_MIPS_IXX
 	tristate "Flash chip mapping on ITE QED-4N-S01B, Globespan IVR or custom board"
