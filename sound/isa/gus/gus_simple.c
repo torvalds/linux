@@ -136,7 +136,7 @@ static void do_volume_envelope(snd_gus_card_t *gus, snd_gus_voice_t *voice)
 		snd_gf1_select_voice(gus, voice->number);
 		snd_gf1_ctrl_stop(gus, SNDRV_GF1_VB_VOLUME_CONTROL);
 		snd_gf1_write16(gus, SNDRV_GF1_VW_VOLUME, voice->gf1_volume);
-		printk("gf1_volume = 0x%x\n", voice->gf1_volume);
+		/* printk("gf1_volume = 0x%x\n", voice->gf1_volume); */
 		spin_unlock_irqrestore(&gus->reg_lock, flags);
 		return;
 	}

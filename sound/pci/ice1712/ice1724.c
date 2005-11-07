@@ -675,9 +675,12 @@ static snd_pcm_hardware_t snd_vt1724_spdif =
 				 SNDRV_PCM_INFO_MMAP_VALID |
 				 SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_SYNC_START),
 	.formats =		SNDRV_PCM_FMTBIT_S32_LE,
-	.rates =	        SNDRV_PCM_RATE_32000|SNDRV_PCM_RATE_44100|SNDRV_PCM_RATE_48000,
+	.rates =	        (SNDRV_PCM_RATE_32000|SNDRV_PCM_RATE_44100|
+				 SNDRV_PCM_RATE_48000|SNDRV_PCM_RATE_88200|
+				 SNDRV_PCM_RATE_96000|SNDRV_PCM_RATE_176400|
+				 SNDRV_PCM_RATE_192000),
 	.rate_min =		32000,
-	.rate_max =		48000,
+	.rate_max =		192000,
 	.channels_min =		2,
 	.channels_max =		2,
 	.buffer_bytes_max =	(1UL << 18),	/* 16bits dword */
@@ -905,6 +908,10 @@ static void update_spdif_rate(ice1712_t *ice, unsigned int rate)
 	case 44100: break;
 	case 48000: nval |= 2 << 12; break;
 	case 32000: nval |= 3 << 12; break;
+	case 88200: nval |= 4 << 12; break;
+	case 96000: nval |= 5 << 12; break;
+	case 192000: nval |= 6 << 12; break;
+	case 176400: nval |= 7 << 12; break;
 	}
 	if (val != nval)
 		update_spdif_bits(ice, nval);
@@ -1292,22 +1299,32 @@ static int snd_vt1724_spdif_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *
 
 static unsigned int encode_spdif_bits(snd_aes_iec958_t *diga)
 {
-	unsigned int val;
+	unsigned int val, rbits;
 
 	val = diga->status[0] & 0x03; /* professional, non-audio */
 	if (val & 0x01) {
 		/* professional */
 		if ((diga->status[0] & IEC958_AES0_PRO_EMPHASIS) == IEC958_AES0_PRO_EMPHASIS_5015)
 			val |= 1U << 3;
-		switch (diga->status[0] & IEC958_AES0_PRO_FS) {
-		case IEC958_AES0_PRO_FS_44100:
-			break;
-		case IEC958_AES0_PRO_FS_32000:
-			val |= 3U << 12;
-			break;
-		default:
-			val |= 2U << 12;
-			break;
+		rbits = (diga->status[4] >> 3) & 0x0f;
+		if (rbits) {
+			switch (rbits) {
+			case 2: val |= 5 << 12; break; /* 96k */
+			case 3: val |= 6 << 12; break; /* 192k */
+			case 10: val |= 4 << 12; break; /* 88.2k */
+			case 11: val |= 7 << 12; break; /* 176.4k */
+			}
+		} else {
+			switch (diga->status[0] & IEC958_AES0_PRO_FS) {
+			case IEC958_AES0_PRO_FS_44100:
+				break;
+			case IEC958_AES0_PRO_FS_32000:
+				val |= 3U << 12;
+				break;
+			default:
+				val |= 2U << 12;
+				break;
+			}
 		}
 	} else {
 		/* consumer */
@@ -2154,7 +2171,7 @@ static int __devinit snd_vt1724_create(snd_card_t * card,
 	ice->profi_port = pci_resource_start(pci, 1);
 
 	if (request_irq(pci->irq, snd_vt1724_interrupt, SA_INTERRUPT|SA_SHIRQ, "ICE1724", (void *) ice)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_vt1724_free(ice);
 		return -EIO;
 	}

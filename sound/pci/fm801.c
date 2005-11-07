@@ -237,7 +237,7 @@ static void snd_fm801_codec_write(ac97_t *ac97,
 			goto ok1;
 		udelay(10);
 	}
-	snd_printk("AC'97 interface is busy (1)\n");
+	snd_printk(KERN_ERR "AC'97 interface is busy (1)\n");
 	return;
 
  ok1:
@@ -252,7 +252,7 @@ static void snd_fm801_codec_write(ac97_t *ac97,
 			return;
 		udelay(10);
 	}
-	snd_printk("AC'97 interface #%d is busy (2)\n", ac97->num);
+	snd_printk(KERN_ERR "AC'97 interface #%d is busy (2)\n", ac97->num);
 }
 
 static unsigned short snd_fm801_codec_read(ac97_t *ac97, unsigned short reg)
@@ -268,7 +268,7 @@ static unsigned short snd_fm801_codec_read(ac97_t *ac97, unsigned short reg)
 			goto ok1;
 		udelay(10);
 	}
-	snd_printk("AC'97 interface is busy (1)\n");
+	snd_printk(KERN_ERR "AC'97 interface is busy (1)\n");
 	return 0;
 
  ok1:
@@ -279,7 +279,7 @@ static unsigned short snd_fm801_codec_read(ac97_t *ac97, unsigned short reg)
 			goto ok2;
 		udelay(10);
 	}
-	snd_printk("AC'97 interface #%d is busy (2)\n", ac97->num);
+	snd_printk(KERN_ERR "AC'97 interface #%d is busy (2)\n", ac97->num);
 	return 0;
 
  ok2:
@@ -288,7 +288,7 @@ static unsigned short snd_fm801_codec_read(ac97_t *ac97, unsigned short reg)
 			goto ok3;
 		udelay(10);
 	}
-	snd_printk("AC'97 interface #%d is not valid (2)\n", ac97->num);
+	snd_printk(KERN_ERR "AC'97 interface #%d is not valid (2)\n", ac97->num);
 	return 0;
 
  ok3:
@@ -1279,7 +1279,7 @@ static int __devinit snd_fm801_create(snd_card_t * card,
 	}
 	chip->port = pci_resource_start(pci, 0);
 	if (request_irq(pci->irq, snd_fm801_interrupt, SA_INTERRUPT|SA_SHIRQ, "FM801", (void *)chip)) {
-		snd_printk("unable to grab IRQ %d\n", chip->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", chip->irq);
 		snd_fm801_free(chip);
 		return -EBUSY;
 	}
@@ -1303,10 +1303,9 @@ static int __devinit snd_fm801_create(snd_card_t * card,
 	do {
 		if ((inw(FM801_REG(chip, AC97_CMD)) & (3<<8)) == (1<<8))
 			goto __ac97_secondary;
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_after(timeout, jiffies));
-	snd_printk("Primary AC'97 codec not found\n");
+	snd_printk(KERN_ERR "Primary AC'97 codec not found\n");
 	snd_fm801_free(chip);
 	return -EIO;
 
@@ -1329,8 +1328,7 @@ static int __devinit snd_fm801_create(snd_card_t * card,
 					goto __ac97_ok;
 				}
 			}
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 		} while (time_after(timeout, jiffies));
 	}
 
@@ -1343,10 +1341,9 @@ static int __devinit snd_fm801_create(snd_card_t * card,
 	do {
 		if ((inw(FM801_REG(chip, AC97_CMD)) & (3<<8)) == (1<<8))
 			goto __ac97_ok;
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_after(timeout, jiffies));
-	snd_printk("Primary AC'97 codec not responding\n");
+	snd_printk(KERN_ERR "Primary AC'97 codec not responding\n");
 	snd_fm801_free(chip);
 	return -EIO;
 

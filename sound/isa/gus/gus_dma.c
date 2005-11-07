@@ -199,7 +199,7 @@ int snd_gf1_dma_transfer_block(snd_gus_card_t * gus,
 
 	block = kmalloc(sizeof(*block), atomic ? GFP_ATOMIC : GFP_KERNEL);
 	if (block == NULL) {
-		snd_printk("gf1: DMA transfer failure; not enough memory\n");
+		snd_printk(KERN_ERR "gf1: DMA transfer failure; not enough memory\n");
 		return -ENOMEM;
 	}
 	*block = *__block;
