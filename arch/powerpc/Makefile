@@ -12,9 +12,6 @@
 # Rewritten by Cort Dougan and Paul Mackerras
 #
 
-# This must match PAGE_OFFSET in include/asm-powerpc/page.h.
-KERNELLOAD	:= $(CONFIG_KERNEL_START)
-
 HAS_BIARCH	:= $(call cc-option-yn, -m32)
 
 ifeq ($(CONFIG_PPC64),y)
@@ -59,7 +56,7 @@ override LD	+= -m elf$(SZ)ppc
 override CC	+= -m$(SZ)
 endif
 
-LDFLAGS_vmlinux	:= -Ttext $(KERNELLOAD) -Bstatic -e $(KERNELLOAD)
+LDFLAGS_vmlinux	:= -Bstatic
 
 # The -Iarch/$(ARCH)/include is temporary while we are merging
 CPPFLAGS	+= -Iarch/$(ARCH) -Iarch/$(ARCH)/include

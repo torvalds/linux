@@ -1432,7 +1432,9 @@ static int tw_scsi_eh_reset(struct scsi_cmnd *SCpnt)
 
 	tw_dev->num_resets++;
 
-	printk(KERN_WARNING "3w-xxxx: scsi%d: WARNING: Unit #%d: Command (0x%x) timed out, resetting card.\n", tw_dev->host->host_no, SCpnt->device->id, SCpnt->cmnd[0]);
+	sdev_printk(KERN_WARNING, SCpnt->device,
+		"WARNING: Command (0x%x) timed out, resetting card.\n",
+		SCpnt->cmnd[0]);
 
 	/* Now reset the card and some of the device extension data */
 	if (tw_reset_device_extension(tw_dev, 0)) {

@@ -57,7 +57,7 @@ Deanna Bonds                            (non-DASD support, PAE fibs and 64 bit, 
 					(fixed 64bit and 64G memory model, changed confusing naming convention
 					 where fibs that go to the hardware are consistently called hw_fibs and
 					 not just fibs like the name of the driver tracking structure)
-Mark Salyzyn <Mark_Salyzyn@adaptec.com> Fixed panic issues and added some new product ids for upcoming hbas.
+Mark Salyzyn <Mark_Salyzyn@adaptec.com> Fixed panic issues and added some new product ids for upcoming hbas. Performance tuning, card failover and bug mitigations.
 
 Original Driver
 -------------------------

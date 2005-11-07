@@ -1860,7 +1860,10 @@ static int ibmmca_queuecommand(Scsi_Cmnd * cmd, void (*done) (Scsi_Cmnd *))
 					next_ldn(host_index) = 7;
 				if (current_ldn == next_ldn(host_index)) {	/* One circle done ? */
 					/* no non-processing ldn found */
-					printk("IBM MCA SCSI: Cannot assign SCSI-device dynamically!\n" "              On ldn 7-14 SCSI-commands everywhere in progress.\n" "              Reporting DID_NO_CONNECT for device (%d,%d).\n", target, cmd->device->lun);
+					scmd_printk(KERN_WARNING, cmd,
+	"IBM MCA SCSI: Cannot assign SCSI-device dynamically!\n"
+	"              On ldn 7-14 SCSI-commands everywhere in progress.\n"
+	"              Reporting DID_NO_CONNECT for device.\n");
 					cmd->result = DID_NO_CONNECT << 16;	/* return no connect */
 					if (done)
 						done(cmd);

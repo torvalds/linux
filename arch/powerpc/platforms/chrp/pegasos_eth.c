@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/mv643xx.h>
 #include <linux/pci.h>
 

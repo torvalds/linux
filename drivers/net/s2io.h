@@ -418,7 +418,7 @@ typedef struct list_info_hold {
 	void *list_virt_addr;
 } list_info_hold_t;
 
-/* Rx descriptor structure */
+/* Rx descriptor structure for 1 buffer mode */
 typedef struct _RxD_t {
 	u64 Host_Control;	/* reserved for host */
 	u64 Control_1;
@@ -439,49 +439,54 @@ typedef struct _RxD_t {
 #define	SET_RXD_MARKER		vBIT(THE_RXD_MARK, 0, 2)
 #define	GET_RXD_MARKER(ctrl)	((ctrl & SET_RXD_MARKER) >> 62)
 
-#ifndef CONFIG_2BUFF_MODE
-#define MASK_BUFFER0_SIZE       vBIT(0x3FFF,2,14)
-#define SET_BUFFER0_SIZE(val)   vBIT(val,2,14)
-#else
-#define MASK_BUFFER0_SIZE       vBIT(0xFF,2,14)
-#define MASK_BUFFER1_SIZE       vBIT(0xFFFF,16,16)
-#define MASK_BUFFER2_SIZE       vBIT(0xFFFF,32,16)
-#define SET_BUFFER0_SIZE(val)   vBIT(val,8,8)
-#define SET_BUFFER1_SIZE(val)   vBIT(val,16,16)
-#define SET_BUFFER2_SIZE(val)   vBIT(val,32,16)
-#endif
-
 #define MASK_VLAN_TAG           vBIT(0xFFFF,48,16)
 #define SET_VLAN_TAG(val)       vBIT(val,48,16)
 #define SET_NUM_TAG(val)       vBIT(val,16,32)
 
-#ifndef CONFIG_2BUFF_MODE
-#define RXD_GET_BUFFER0_SIZE(Control_2) (u64)((Control_2 & vBIT(0x3FFF,2,14)))
-#else
-#define RXD_GET_BUFFER0_SIZE(Control_2) (u8)((Control_2 & MASK_BUFFER0_SIZE) \
-							>> 48)
-#define RXD_GET_BUFFER1_SIZE(Control_2) (u16)((Control_2 & MASK_BUFFER1_SIZE) \
-							>> 32)
-#define RXD_GET_BUFFER2_SIZE(Control_2) (u16)((Control_2 & MASK_BUFFER2_SIZE) \
-							>> 16)
+
+} RxD_t;
+/* Rx descriptor structure for 1 buffer mode */
+typedef struct _RxD1_t {
+	struct _RxD_t h;
+
+#define MASK_BUFFER0_SIZE_1       vBIT(0x3FFF,2,14)
+#define SET_BUFFER0_SIZE_1(val)   vBIT(val,2,14)
+#define RXD_GET_BUFFER0_SIZE_1(_Control_2) \
+	(u16)((_Control_2 & MASK_BUFFER0_SIZE_1) >> 48)
+	u64 Buffer0_ptr;
+} RxD1_t;
+/* Rx descriptor structure for 3 or 2 buffer mode */
+
+typedef struct _RxD3_t {
+	struct _RxD_t h;
+
+#define MASK_BUFFER0_SIZE_3       vBIT(0xFF,2,14)
+#define MASK_BUFFER1_SIZE_3       vBIT(0xFFFF,16,16)
+#define MASK_BUFFER2_SIZE_3       vBIT(0xFFFF,32,16)
+#define SET_BUFFER0_SIZE_3(val)   vBIT(val,8,8)
+#define SET_BUFFER1_SIZE_3(val)   vBIT(val,16,16)
+#define SET_BUFFER2_SIZE_3(val)   vBIT(val,32,16)
+#define RXD_GET_BUFFER0_SIZE_3(Control_2) \
+	(u8)((Control_2 & MASK_BUFFER0_SIZE_3) >> 48)
+#define RXD_GET_BUFFER1_SIZE_3(Control_2) \
+	(u16)((Control_2 & MASK_BUFFER1_SIZE_3) >> 32)
+#define RXD_GET_BUFFER2_SIZE_3(Control_2) \
+	(u16)((Control_2 & MASK_BUFFER2_SIZE_3) >> 16)
 #define BUF0_LEN	40
 #define BUF1_LEN	1
-#endif
 
 	u64 Buffer0_ptr;
-#ifdef CONFIG_2BUFF_MODE
 	u64 Buffer1_ptr;
 	u64 Buffer2_ptr;
-#endif
-} RxD_t;
+} RxD3_t;
+
 
 /* Structure that represents the Rx descriptor block which contains
  * 128 Rx descriptors.
  */
-#ifndef CONFIG_2BUFF_MODE
 typedef struct _RxD_block {
-#define MAX_RXDS_PER_BLOCK             127
-	RxD_t rxd[MAX_RXDS_PER_BLOCK];
+#define MAX_RXDS_PER_BLOCK_1            127
+	RxD1_t rxd[MAX_RXDS_PER_BLOCK_1];
 
 	u64 reserved_0;
 #define END_OF_BLOCK    0xFEFFFFFFFFFFFFFFULL
@@ -492,17 +497,12 @@ typedef struct _RxD_block {
 					 * the upper 32 bits should
 					 * be 0 */
 } RxD_block_t;
-#else
-typedef struct _RxD_block {
-#define MAX_RXDS_PER_BLOCK             85
-	RxD_t rxd[MAX_RXDS_PER_BLOCK];
 
-#define END_OF_BLOCK    0xFEFFFFFFFFFFFFFFULL
-	u64 reserved_1;		/* 0xFEFFFFFFFFFFFFFF to mark last Rxd
-				 * in this blk */
-	u64 pNext_RxD_Blk_physical;	/* Phy ponter to next blk. */
-} RxD_block_t;
 #define SIZE_OF_BLOCK	4096
+
+#define RXD_MODE_1	0
+#define RXD_MODE_3A	1
+#define RXD_MODE_3B	2
 
 /* Structure to hold virtual addresses of Buf0 and Buf1 in
  * 2buf mode. */
@@ -512,7 +512,6 @@ typedef struct bufAdd {
 	void *ba_0;
 	void *ba_1;
 } buffAdd_t;
-#endif
 
 /* Structure which stores all the MAC control parameters */
 
@@ -539,10 +538,17 @@ typedef struct {
 
 typedef tx_curr_get_info_t tx_curr_put_info_t;
 
+
+typedef struct rxd_info {
+	void *virt_addr;
+	dma_addr_t dma_addr;
+}rxd_info_t;
+
 /* Structure that holds the Phy and virt addresses of the Blocks */
 typedef struct rx_block_info {
-	RxD_t *block_virt_addr;
+	void *block_virt_addr;
 	dma_addr_t block_dma_addr;
+	rxd_info_t *rxds;
 } rx_block_info_t;
 
 /* pre declaration of the nic structure */
@@ -578,10 +584,8 @@ typedef struct ring_info {
 	int put_pos;
 #endif
 
-#ifdef CONFIG_2BUFF_MODE
 	/* Buffer Address store. */
 	buffAdd_t **ba;
-#endif
 	nic_t *nic;
 } ring_info_t;
 
@@ -647,8 +651,6 @@ typedef struct {
 
 /* Default Tunable parameters of the NIC. */
 #define DEFAULT_FIFO_LEN 4096
-#define SMALL_RXD_CNT	30 * (MAX_RXDS_PER_BLOCK+1)
-#define LARGE_RXD_CNT	100 * (MAX_RXDS_PER_BLOCK+1)
 #define SMALL_BLK_CNT	30
 #define LARGE_BLK_CNT	100
 
@@ -678,6 +680,7 @@ struct msix_info_st {
 
 /* Structure representing one instance of the NIC */
 struct s2io_nic {
+	int rxd_mode;
 #ifdef CONFIG_S2IO_NAPI
 	/*
 	 * Count of packets to be processed in a given iteration, it will be indicated

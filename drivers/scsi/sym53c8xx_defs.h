@@ -281,19 +281,6 @@
 #endif
 
 /*
-**	These simple macros limit expression involving 
-**	kernel time values (jiffies) to some that have 
-**	chance not to be too much incorrect. :-)
-*/
-#define ktime_get(o)		(jiffies + (u_long) o)
-#define ktime_exp(b)		((long)(jiffies) - (long)(b) >= 0)
-#define ktime_dif(a, b)		((long)(a) - (long)(b))
-/* These ones are not used in this driver */
-#define ktime_add(a, o)		((a) + (u_long)(o))
-#define ktime_sub(a, o)		((a) - (u_long)(o))
-
-
-/*
  *  IO functions definition for big/little endian CPU support.
  *  For now, the NCR is only supported in little endian addressing mode, 
  */

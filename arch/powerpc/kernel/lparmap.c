@@ -8,7 +8,7 @@
  */
 #include <asm/mmu.h>
 #include <asm/page.h>
-#include <asm/iSeries/LparMap.h>
+#include <asm/iseries/lpar_map.h>
 
 const struct LparMap __attribute__((__section__(".text"))) xLparMap = {
 	.xNumberEsids = HvEsidsToMap,
@@ -25,7 +25,7 @@ const struct LparMap __attribute__((__section__(".text"))) xLparMap = {
 	.xRanges = {
 		{ .xPages = HvPagesToMap,
 		  .xOffset = 0,
-		  .xVPN = KERNEL_VSID(KERNELBASE) << (SID_SHIFT - PAGE_SHIFT),
+		  .xVPN = KERNEL_VSID(KERNELBASE) << (SID_SHIFT - HW_PAGE_SHIFT),
 		},
 	},
 };

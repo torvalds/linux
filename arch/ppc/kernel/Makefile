@@ -45,7 +45,6 @@ obj-$(CONFIG_MODULES)		+= module.o
 obj-$(CONFIG_NOT_COHERENT_CACHE)	+= dma-mapping.o
 obj-$(CONFIG_PCI)		+= pci.o
 obj-$(CONFIG_KGDB)		+= ppc-stub.o
-obj-$(CONFIG_SMP)		+= smp.o smp-tbsync.o
 obj-$(CONFIG_TAU)		+= temp.o
 ifndef CONFIG_E200
 obj-$(CONFIG_FSL_BOOKE)		+= perfmon_fsl_booke.o

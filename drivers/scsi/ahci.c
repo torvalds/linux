@@ -307,14 +307,22 @@ static int ahci_port_start(struct ata_port *ap)
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	void *mem;
 	dma_addr_t mem_dma;
+	int rc;
 
 	pp = kmalloc(sizeof(*pp), GFP_KERNEL);
 	if (!pp)
 		return -ENOMEM;
 	memset(pp, 0, sizeof(*pp));
 
+	rc = ata_pad_alloc(ap, dev);
+	if (rc) {
+		kfree(pp);
+		return rc;
+	}
+
 	mem = dma_alloc_coherent(dev, AHCI_PORT_PRIV_DMA_SZ, &mem_dma, GFP_KERNEL);
 	if (!mem) {
+		ata_pad_free(ap, dev);
 		kfree(pp);
 		return -ENOMEM;
 	}
@@ -390,6 +398,7 @@ static void ahci_port_stop(struct ata_port *ap)
 	ap->private_data = NULL;
 	dma_free_coherent(dev, AHCI_PORT_PRIV_DMA_SZ,
 			  pp->cmd_slot, pp->cmd_slot_dma);
+	ata_pad_free(ap, dev);
 	kfree(pp);
 }
 
@@ -468,23 +477,23 @@ static void ahci_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 static void ahci_fill_sg(struct ata_queued_cmd *qc)
 {
 	struct ahci_port_priv *pp = qc->ap->private_data;
-	unsigned int i;
+	struct scatterlist *sg;
+	struct ahci_sg *ahci_sg;
 
 	VPRINTK("ENTER\n");
 
 	/*
 	 * Next, the S/G list.
 	 */
-	for (i = 0; i < qc->n_elem; i++) {
-		u32 sg_len;
-		dma_addr_t addr;
+	ahci_sg = pp->cmd_tbl_sg;
+	ata_for_each_sg(sg, qc) {
+		dma_addr_t addr = sg_dma_address(sg);
+		u32 sg_len = sg_dma_len(sg);
 
-		addr = sg_dma_address(&qc->sg[i]);
-		sg_len = sg_dma_len(&qc->sg[i]);
-
-		pp->cmd_tbl_sg[i].addr = cpu_to_le32(addr & 0xffffffff);
-		pp->cmd_tbl_sg[i].addr_hi = cpu_to_le32((addr >> 16) >> 16);
-		pp->cmd_tbl_sg[i].flags_size = cpu_to_le32(sg_len - 1);
+		ahci_sg->addr = cpu_to_le32(addr & 0xffffffff);
+		ahci_sg->addr_hi = cpu_to_le32((addr >> 16) >> 16);
+		ahci_sg->flags_size = cpu_to_le32(sg_len - 1);
+		ahci_sg++;
 	}
 }
 

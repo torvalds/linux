@@ -42,12 +42,13 @@
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
 #include <asm/abs_addr.h>
-#include <asm/plpar_wrappers.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/systemcfg.h>
 #include <asm/firmware.h>
 #include <asm/tce.h>
 #include <asm/ppc-pci.h>
+
+#include "plpar_wrappers.h"
 
 #define DBG(fmt...)
 
@@ -498,7 +499,7 @@ static int iommu_reconfig_notifier(struct notifier_block *nb, unsigned long acti
 
 	switch (action) {
 	case PSERIES_RECONFIG_REMOVE:
-		if (pci->iommu_table &&
+		if (pci && pci->iommu_table &&
 		    get_property(np, "ibm,dma-window", NULL))
 			iommu_free_table(np);
 		break;

@@ -297,6 +297,11 @@ P:	Richard Purdie
 M:	rpurdie@rpsys.net
 S:	Maintained
 
+ARM/TOSA MACHINE SUPPORT
+P:	Dirk Opfer
+M:	dirk@opfer-online.de
+S:	Maintained
+
 ARM/PLEB SUPPORT
 P:	Peter Chubb
 M:	pleb@gelato.unsw.edu.au
@@ -908,6 +913,15 @@ P:	Antonino Daplas
 M:	adaplas@pol.net
 L:	linux-fbdev-devel@lists.sourceforge.net	
 W:	http://linux-fbdev.sourceforge.net/
+S:	Maintained
+
+FREESCALE SOC FS_ENET DRIVER
+P:	Pantelis Antoniou
+M:	pantelis.antoniou@gmail.com
+P:	Vitaly Bordug
+M:	vbordug@ru.mvista.com
+L:	linuxppc-embedded@ozlabs.org
+L:	netdev@vger.kernel.org
 S:	Maintained
 
 FILE LOCKING (flock() and fcntl()/lockf())

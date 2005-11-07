@@ -22,8 +22,8 @@
  *************************************************************************/
 
 #define DRV_NAME	"pcnet32"
-#define DRV_VERSION	"1.31a"
-#define DRV_RELDATE	"12.Sep.2005"
+#define DRV_VERSION	"1.31c"
+#define DRV_RELDATE	"01.Nov.2005"
 #define PFX		DRV_NAME ": "
 
 static const char *version =
@@ -260,6 +260,11 @@ static int homepna[MAX_UNITS];
  * v1.31   02 Sep 2005 Hubert WS Lin <wslin@tw.ibm.c0m> added set_ringparam().
  * v1.31a  12 Sep 2005 Hubert WS Lin <wslin@tw.ibm.c0m> set min ring size to 4
  *	   to allow loopback test to work unchanged.
+ * v1.31b  06 Oct 2005 Don Fry changed alloc_ring to show name of device
+ *	   if allocation fails
+ * v1.31c  01 Nov 2005 Don Fry Allied Telesyn 2700/2701 FX are 100Mbit only.
+ *	   Force 100Mbit FD if Auto (ASEL) is selected.
+ *	   See Bugzilla 2669 and 4551.
  */
 
 
@@ -408,7 +413,7 @@ static int pcnet32_get_regs_len(struct net_device *dev);
 static void pcnet32_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 	void *ptr);
 static void pcnet32_purge_tx_ring(struct net_device *dev);
-static int pcnet32_alloc_ring(struct net_device *dev);
+static int pcnet32_alloc_ring(struct net_device *dev, char *name);
 static void pcnet32_free_ring(struct net_device *dev);
 
 
@@ -669,15 +674,17 @@ static int pcnet32_set_ringparam(struct net_device *dev, struct ethtool_ringpara
     lp->rx_mod_mask = lp->rx_ring_size - 1;
     lp->rx_len_bits = (i << 4);
 
-    if (pcnet32_alloc_ring(dev)) {
+    if (pcnet32_alloc_ring(dev, dev->name)) {
 	pcnet32_free_ring(dev);
+	spin_unlock_irqrestore(&lp->lock, flags);
 	return -ENOMEM;
     }
 
     spin_unlock_irqrestore(&lp->lock, flags);
 
     if (pcnet32_debug & NETIF_MSG_DRV)
-	printk(KERN_INFO PFX "Ring Param Settings: RX: %d, TX: %d\n", lp->rx_ring_size, lp->tx_ring_size);
+	printk(KERN_INFO PFX "%s: Ring Param Settings: RX: %d, TX: %d\n",
+	       dev->name, lp->rx_ring_size, lp->tx_ring_size);
 
     if (netif_running(dev))
 	pcnet32_open(dev);
@@ -981,7 +988,11 @@ static void pcnet32_get_regs(struct net_device *dev, struct ethtool_regs *regs,
     *buff++ = a->read_csr(ioaddr, 114);
 
     /* read bus configuration registers */
-    for (i=0; i<36; i++) {
+    for (i=0; i<30; i++) {
+	*buff++ = a->read_bcr(ioaddr, i);
+    }
+    *buff++ = 0;	/* skip bcr30 so as not to hang 79C976 */
+    for (i=31; i<36; i++) {
 	*buff++ = a->read_bcr(ioaddr, i);
     }
 
@@ -1340,7 +1351,8 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
     }
     lp->a = *a;
 
-    if (pcnet32_alloc_ring(dev)) {
+    /* prior to register_netdev, dev->name is not yet correct */
+    if (pcnet32_alloc_ring(dev, pci_name(lp->pci_dev))) {
 	ret = -ENOMEM;
 	goto err_free_ring;
     }
@@ -1448,48 +1460,63 @@ err_release_region:
 }
 
 
-static int pcnet32_alloc_ring(struct net_device *dev)
+/* if any allocation fails, caller must also call pcnet32_free_ring */
+static int pcnet32_alloc_ring(struct net_device *dev, char *name)
 {
     struct pcnet32_private *lp = dev->priv;
 
-    if ((lp->tx_ring = pci_alloc_consistent(lp->pci_dev, sizeof(struct pcnet32_tx_head) * lp->tx_ring_size,
-	&lp->tx_ring_dma_addr)) == NULL) {
+    lp->tx_ring = pci_alloc_consistent(lp->pci_dev,
+	    sizeof(struct pcnet32_tx_head) * lp->tx_ring_size,
+	    &lp->tx_ring_dma_addr);
+    if (lp->tx_ring == NULL) {
 	if (pcnet32_debug & NETIF_MSG_DRV)
-	    printk(KERN_ERR PFX "Consistent memory allocation failed.\n");
+	    printk("\n" KERN_ERR PFX "%s: Consistent memory allocation failed.\n",
+		    name);
 	return -ENOMEM;
     }
 
-    if ((lp->rx_ring = pci_alloc_consistent(lp->pci_dev, sizeof(struct pcnet32_rx_head) * lp->rx_ring_size,
-	&lp->rx_ring_dma_addr)) == NULL) {
+    lp->rx_ring = pci_alloc_consistent(lp->pci_dev,
+	    sizeof(struct pcnet32_rx_head) * lp->rx_ring_size,
+	    &lp->rx_ring_dma_addr);
+    if (lp->rx_ring == NULL) {
 	if (pcnet32_debug & NETIF_MSG_DRV)
-	    printk(KERN_ERR PFX "Consistent memory allocation failed.\n");
+	    printk("\n" KERN_ERR PFX "%s: Consistent memory allocation failed.\n",
+		    name);
 	return -ENOMEM;
     }
 
-    if (!(lp->tx_dma_addr = kmalloc(sizeof(dma_addr_t) * lp->tx_ring_size, GFP_ATOMIC))) {
+    lp->tx_dma_addr = kmalloc(sizeof(dma_addr_t) * lp->tx_ring_size,
+	    GFP_ATOMIC);
+    if (!lp->tx_dma_addr) {
 	if (pcnet32_debug & NETIF_MSG_DRV)
-	    printk(KERN_ERR PFX "Memory allocation failed.\n");
+	    printk("\n" KERN_ERR PFX "%s: Memory allocation failed.\n", name);
 	return -ENOMEM;
     }
     memset(lp->tx_dma_addr, 0, sizeof(dma_addr_t) * lp->tx_ring_size);
 
-    if (!(lp->rx_dma_addr = kmalloc(sizeof(dma_addr_t) * lp->rx_ring_size, GFP_ATOMIC))) {
+    lp->rx_dma_addr = kmalloc(sizeof(dma_addr_t) * lp->rx_ring_size,
+	    GFP_ATOMIC);
+    if (!lp->rx_dma_addr) {
 	if (pcnet32_debug & NETIF_MSG_DRV)
-	    printk(KERN_ERR PFX "Memory allocation failed.\n");
+	    printk("\n" KERN_ERR PFX "%s: Memory allocation failed.\n", name);
 	return -ENOMEM;
     }
     memset(lp->rx_dma_addr, 0, sizeof(dma_addr_t) * lp->rx_ring_size);
 
-    if (!(lp->tx_skbuff = kmalloc(sizeof(struct sk_buff *) * lp->tx_ring_size, GFP_ATOMIC))) {
+    lp->tx_skbuff = kmalloc(sizeof(struct sk_buff *) * lp->tx_ring_size,
+	    GFP_ATOMIC);
+    if (!lp->tx_skbuff) {
 	if (pcnet32_debug & NETIF_MSG_DRV)
-	    printk(KERN_ERR PFX "Memory allocation failed.\n");
+	    printk("\n" KERN_ERR PFX "%s: Memory allocation failed.\n", name);
 	return -ENOMEM;
     }
     memset(lp->tx_skbuff, 0, sizeof(struct sk_buff *) * lp->tx_ring_size);
 
-    if (!(lp->rx_skbuff = kmalloc(sizeof(struct sk_buff *) * lp->rx_ring_size, GFP_ATOMIC))) {
+    lp->rx_skbuff = kmalloc(sizeof(struct sk_buff *) * lp->rx_ring_size,
+	    GFP_ATOMIC);
+    if (!lp->rx_skbuff) {
 	if (pcnet32_debug & NETIF_MSG_DRV)
-	    printk(KERN_ERR PFX "Memory allocation failed.\n");
+	    printk("\n" KERN_ERR PFX "%s: Memory allocation failed.\n", name);
 	return -ENOMEM;
     }
     memset(lp->rx_skbuff, 0, sizeof(struct sk_buff *) * lp->rx_ring_size);
@@ -1592,12 +1619,18 @@ pcnet32_open(struct net_device *dev)
 	val |= 0x10;
     lp->a.write_csr (ioaddr, 124, val);
 
-    /* Allied Telesyn AT 2700/2701 FX looses the link, so skip that */
+    /* Allied Telesyn AT 2700/2701 FX are 100Mbit only and do not negotiate */
     if (lp->pci_dev->subsystem_vendor == PCI_VENDOR_ID_AT &&
-        (lp->pci_dev->subsystem_device == PCI_SUBDEVICE_ID_AT_2700FX ||
-	 lp->pci_dev->subsystem_device == PCI_SUBDEVICE_ID_AT_2701FX)) {
-	printk(KERN_DEBUG "%s: Skipping PHY selection.\n", dev->name);
-    } else {
+	    (lp->pci_dev->subsystem_device == PCI_SUBDEVICE_ID_AT_2700FX ||
+	     lp->pci_dev->subsystem_device == PCI_SUBDEVICE_ID_AT_2701FX)) {
+	if (lp->options & PCNET32_PORT_ASEL) {
+	    lp->options = PCNET32_PORT_FD | PCNET32_PORT_100;
+	    if (netif_msg_link(lp))
+		printk(KERN_DEBUG "%s: Setting 100Mb-Full Duplex.\n",
+			dev->name);
+	}
+    }
+    {
 	/*
 	 * 24 Jun 2004 according AMD, in order to change the PHY,
 	 * DANAS (or DISPM for 79C976) must be set; then select the speed,

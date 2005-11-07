@@ -442,13 +442,10 @@ static void ib_uverbs_async_handler(struct ib_uverbs_file *file,
 
 void ib_uverbs_cq_event_handler(struct ib_event *event, void *context_ptr)
 {
-	struct ib_uverbs_event_file *ev_file = context_ptr;
-	struct ib_ucq_object *uobj;
+	struct ib_ucq_object *uobj = container_of(event->element.cq->uobject,
+						  struct ib_ucq_object, uobject);
 
-	uobj = container_of(event->element.cq->uobject,
-			    struct ib_ucq_object, uobject);
-
-	ib_uverbs_async_handler(ev_file->uverbs_file, uobj->uobject.user_handle,
+	ib_uverbs_async_handler(uobj->uverbs_file, uobj->uobject.user_handle,
 				event->event, &uobj->async_list,
 				&uobj->async_events_reported);
 				
@@ -728,11 +725,9 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	if (!device->alloc_ucontext)
 		return;
 
-	uverbs_dev = kmalloc(sizeof *uverbs_dev, GFP_KERNEL);
+	uverbs_dev = kzalloc(sizeof *uverbs_dev, GFP_KERNEL);
 	if (!uverbs_dev)
 		return;
-
-	memset(uverbs_dev, 0, sizeof *uverbs_dev);
 
 	kref_init(&uverbs_dev->ref);
 

@@ -1470,15 +1470,6 @@ static int __init depca_mca_probe(struct device *device)
 ** ISA bus I/O device probe
 */
 
-static void depca_platform_release (struct device *device)
-{
-	struct platform_device *pldev;
-
-	/* free device */
-	pldev = to_platform_device (device);
-	kfree (pldev);
-}
-
 static void __init depca_platform_probe (void)
 {
 	int i;
@@ -1491,19 +1482,16 @@ static void __init depca_platform_probe (void)
 		 * line, use it (if valid) */
 		if (io && io != depca_io_ports[i].iobase)
 			continue;
-		
-		if (!(pldev = kmalloc (sizeof (*pldev), GFP_KERNEL)))
+
+		pldev = platform_device_alloc(depca_string, i);
+		if (!pldev)
 			continue;
 
-		memset (pldev, 0, sizeof (*pldev));
-		pldev->name = depca_string;
-		pldev->id   = i;
 		pldev->dev.platform_data = (void *) depca_io_ports[i].iobase;
-		pldev->dev.release       = depca_platform_release;
 		depca_io_ports[i].device = pldev;
 
-		if (platform_device_register (pldev)) {
-			kfree (pldev);
+		if (platform_device_add(pldev)) {
+			platform_device_put(pldev);
 			depca_io_ports[i].device = NULL;
 			continue;
 		}
@@ -1515,6 +1503,7 @@ static void __init depca_platform_probe (void)
 		 * allocated structure */
 			
 			depca_io_ports[i].device = NULL;
+			pldev->dev.platform_data = NULL;
 			platform_device_unregister (pldev);
 		}
 	}
@@ -2112,6 +2101,7 @@ static void __exit depca_module_exit (void)
 
 	for (i = 0; depca_io_ports[i].iobase; i++) {
 		if (depca_io_ports[i].device) {
+			depca_io_ports[i].device->dev.platform_data = NULL;
 			platform_device_unregister (depca_io_ports[i].device);
 			depca_io_ports[i].device = NULL;
 		}

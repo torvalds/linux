@@ -17,7 +17,7 @@
  */
 
 #include <linux/module.h>
-#include <asm/iSeries/HvLpConfig.h>
+#include <asm/iseries/hv_lp_config.h>
 
 HvLpIndex HvLpConfig_getLpIndex_outline(void)
 {

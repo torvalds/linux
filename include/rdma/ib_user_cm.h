@@ -38,7 +38,7 @@
 
 #include <linux/types.h>
 
-#define IB_USER_CM_ABI_VERSION 3
+#define IB_USER_CM_ABI_VERSION 4
 
 enum {
 	IB_USER_CM_CMD_CREATE_ID,
@@ -84,6 +84,7 @@ struct ib_ucm_create_id_resp {
 struct ib_ucm_destroy_id {
 	__u64 response;
 	__u32 id;
+	__u32 reserved;
 };
 
 struct ib_ucm_destroy_id_resp {
@@ -93,6 +94,7 @@ struct ib_ucm_destroy_id_resp {
 struct ib_ucm_attr_id {
 	__u64 response;
 	__u32 id;
+	__u32 reserved;
 };
 
 struct ib_ucm_attr_id_resp {
@@ -164,6 +166,7 @@ struct ib_ucm_listen {
 	__be64 service_id;
 	__be64 service_mask;
 	__u32 id;
+	__u32 reserved;
 };
 
 struct ib_ucm_establish {
@@ -219,7 +222,7 @@ struct ib_ucm_req {
 	__u8  rnr_retry_count;
 	__u8  max_cm_retries;
 	__u8  srq;
-	__u8  reserved[1];
+	__u8  reserved[5];
 };
 
 struct ib_ucm_rep {
@@ -236,6 +239,7 @@ struct ib_ucm_rep {
 	__u8  flow_control;
 	__u8  rnr_retry_count;
 	__u8  srq;
+	__u8  reserved[4];
 };
 
 struct ib_ucm_info {
@@ -245,7 +249,7 @@ struct ib_ucm_info {
 	__u64 data;
 	__u8  info_len;
 	__u8  data_len;
-	__u8  reserved[2];
+	__u8  reserved[6];
 };
 
 struct ib_ucm_mra {
@@ -273,6 +277,7 @@ struct ib_ucm_sidr_req {
 	__u16 pkey;
 	__u8  len;
 	__u8  max_cm_retries;
+	__u8  reserved[4];
 };
 
 struct ib_ucm_sidr_rep {
@@ -284,7 +289,7 @@ struct ib_ucm_sidr_rep {
 	__u64 data;
 	__u8  info_len;
 	__u8  data_len;
-	__u8  reserved[2];
+	__u8  reserved[6];
 };
 /*
  * event notification ABI structures.
@@ -295,7 +300,7 @@ struct ib_ucm_event_get {
 	__u64 info;
 	__u8  data_len;
 	__u8  info_len;
-	__u8  reserved[2];
+	__u8  reserved[6];
 };
 
 struct ib_ucm_req_event_resp {
@@ -315,6 +320,7 @@ struct ib_ucm_req_event_resp {
 	__u8  rnr_retry_count;
 	__u8  srq;
 	__u8  port;
+	__u8  reserved[7];
 };
 
 struct ib_ucm_rep_event_resp {
@@ -329,7 +335,7 @@ struct ib_ucm_rep_event_resp {
 	__u8  flow_control;
 	__u8  rnr_retry_count;
 	__u8  srq;
-	__u8  reserved[1];
+	__u8  reserved[5];
 };
 
 struct ib_ucm_rej_event_resp {
@@ -374,6 +380,7 @@ struct ib_ucm_event_resp {
 	__u32 id;
 	__u32 event;
 	__u32 present;
+	__u32 reserved;
 	union {
 		struct ib_ucm_req_event_resp req_resp;
 		struct ib_ucm_rep_event_resp rep_resp;

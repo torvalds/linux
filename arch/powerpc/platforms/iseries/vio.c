@@ -17,10 +17,10 @@
 #include <asm/tce.h>
 #include <asm/abs_addr.h>
 #include <asm/page.h>
-#include <asm/iSeries/vio.h>
-#include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/HvCallXm.h>
+#include <asm/iseries/vio.h>
+#include <asm/iseries/hv_types.h>
+#include <asm/iseries/hv_lp_config.h>
+#include <asm/iseries/hv_call_xm.h>
 
 struct device *iSeries_vio_dev = &vio_bus_device.dev;
 EXPORT_SYMBOL(iSeries_vio_dev);
@@ -30,41 +30,14 @@ static struct iommu_table vio_iommu_table;
 
 static void __init iommu_vio_init(void)
 {
-	struct iommu_table *t;
-	struct iommu_table_cb cb;
-	unsigned long cbp;
-	unsigned long itc_entries;
+	iommu_table_getparms_iSeries(255, 0, 0xff, &veth_iommu_table);
+	veth_iommu_table.it_size /= 2;
+	vio_iommu_table = veth_iommu_table;
+	vio_iommu_table.it_offset += veth_iommu_table.it_size;
 
-	cb.itc_busno = 255;    /* Bus 255 is the virtual bus */
-	cb.itc_virtbus = 0xff; /* Ask for virtual bus */
-
-	cbp = virt_to_abs(&cb);
-	HvCallXm_getTceTableParms(cbp);
-
-	itc_entries = cb.itc_size * PAGE_SIZE / sizeof(union tce_entry);
-	veth_iommu_table.it_size        = itc_entries / 2;
-	veth_iommu_table.it_busno       = cb.itc_busno;
-	veth_iommu_table.it_offset      = cb.itc_offset;
-	veth_iommu_table.it_index       = cb.itc_index;
-	veth_iommu_table.it_type        = TCE_VB;
-	veth_iommu_table.it_blocksize	= 1;
-
-	t = iommu_init_table(&veth_iommu_table);
-
-	if (!t)
+	if (!iommu_init_table(&veth_iommu_table))
 		printk("Virtual Bus VETH TCE table failed.\n");
-
-	vio_iommu_table.it_size         = itc_entries - veth_iommu_table.it_size;
-	vio_iommu_table.it_busno        = cb.itc_busno;
-	vio_iommu_table.it_offset       = cb.itc_offset +
-					  veth_iommu_table.it_size;
-	vio_iommu_table.it_index        = cb.itc_index;
-	vio_iommu_table.it_type         = TCE_VB;
-	vio_iommu_table.it_blocksize	= 1;
-
-	t = iommu_init_table(&vio_iommu_table);
-
-	if (!t)
+	if (!iommu_init_table(&vio_iommu_table))
 		printk("Virtual Bus VIO TCE table failed.\n");
 }
 

@@ -359,15 +359,6 @@ int aac_get_containers(struct aac_dev *dev)
 	return status;
 }
 
-static void aac_io_done(struct scsi_cmnd * scsicmd)
-{
-	unsigned long cpu_flags;
-	struct Scsi_Host *host = scsicmd->device->host;
-	spin_lock_irqsave(host->host_lock, cpu_flags);
-	scsicmd->scsi_done(scsicmd);
-	spin_unlock_irqrestore(host->host_lock, cpu_flags);
-}
-
 static void aac_internal_transfer(struct scsi_cmnd *scsicmd, void *data, unsigned int offset, unsigned int len)
 {
 	void *buf;
@@ -424,7 +415,7 @@ static void get_container_name_callback(void *context, struct fib * fibptr)
 
 	fib_complete(fibptr);
 	fib_free(fibptr);
-	aac_io_done(scsicmd);
+	scsicmd->scsi_done(scsicmd);
 }
 
 /**
@@ -608,17 +599,43 @@ static char *container_types[] = {
  * files instead of in OS dependant driver source.
  */
 
-static void setinqstr(int devtype, void *data, int tindex)
+static void setinqstr(struct aac_dev *dev, void *data, int tindex)
 {
 	struct scsi_inq *str;
-	struct aac_driver_ident *mp;
 
-	mp = aac_get_driver_ident(devtype);
-   
 	str = (struct scsi_inq *)(data); /* cast data to scsi inq block */
+	memset(str, ' ', sizeof(*str));
 
-	inqstrcpy (mp->vname, str->vid); 
-	inqstrcpy (mp->model, str->pid); /* last six chars reserved for vol type */
+	if (dev->supplement_adapter_info.AdapterTypeText[0]) {
+		char * cp = dev->supplement_adapter_info.AdapterTypeText;
+		int c = sizeof(str->vid);
+		while (*cp && *cp != ' ' && --c)
+			++cp;
+		c = *cp;
+		*cp = '\0';
+		inqstrcpy (dev->supplement_adapter_info.AdapterTypeText,
+		  str->vid); 
+		*cp = c;
+		while (*cp && *cp != ' ')
+			++cp;
+		while (*cp == ' ')
+			++cp;
+		/* last six chars reserved for vol type */
+		c = 0;
+		if (strlen(cp) > sizeof(str->pid)) {
+			c = cp[sizeof(str->pid)];
+			cp[sizeof(str->pid)] = '\0';
+		}
+		inqstrcpy (cp, str->pid);
+		if (c)
+			cp[sizeof(str->pid)] = c;
+	} else {
+		struct aac_driver_ident *mp = aac_get_driver_ident(dev->cardtype);
+   
+		inqstrcpy (mp->vname, str->vid); 
+		/* last six chars reserved for vol type */
+		inqstrcpy (mp->model, str->pid);
+	}
 
 	if (tindex < (sizeof(container_types)/sizeof(char *))){
 		char *findit = str->pid;
@@ -627,7 +644,9 @@ static void setinqstr(int devtype, void *data, int tindex)
 		/* RAID is superfluous in the context of a RAID device */
 		if (memcmp(findit-4, "RAID", 4) == 0)
 			*(findit -= 4) = ' ';
-		inqstrcpy (container_types[tindex], findit + 1);
+		if (((findit - str->pid) + strlen(container_types[tindex]))
+		 < (sizeof(str->pid) + sizeof(str->prl)))
+			inqstrcpy (container_types[tindex], findit + 1);
 	}
 	inqstrcpy ("V1.0", str->prl);
 }
@@ -822,12 +841,12 @@ int aac_get_adapter_info(struct aac_dev* dev)
 		dev->dac_support = (dacmode!=0);
 	}
 	if(dev->dac_support != 0) {
-		if (!pci_set_dma_mask(dev->pdev, 0xFFFFFFFFFFFFFFFFULL) &&
-			!pci_set_consistent_dma_mask(dev->pdev, 0xFFFFFFFFFFFFFFFFULL)) {
+		if (!pci_set_dma_mask(dev->pdev, DMA_64BIT_MASK) &&
+			!pci_set_consistent_dma_mask(dev->pdev, DMA_64BIT_MASK)) {
 			printk(KERN_INFO"%s%d: 64 Bit DAC enabled\n",
 				dev->name, dev->id);
-		} else if (!pci_set_dma_mask(dev->pdev, 0xFFFFFFFFULL) &&
-			!pci_set_consistent_dma_mask(dev->pdev, 0xFFFFFFFFULL)) {
+		} else if (!pci_set_dma_mask(dev->pdev, DMA_32BIT_MASK) &&
+			!pci_set_consistent_dma_mask(dev->pdev, DMA_32BIT_MASK)) {
 			printk(KERN_INFO"%s%d: DMA mask set failed, 64 Bit DAC disabled\n",
 				dev->name, dev->id);
 			dev->dac_support = 0;
@@ -960,7 +979,7 @@ static void io_callback(void *context, struct fib * fibptr)
 	fib_complete(fibptr);
 	fib_free(fibptr);
 
-	aac_io_done(scsicmd);
+	scsicmd->scsi_done(scsicmd);
 }
 
 static int aac_read(struct scsi_cmnd * scsicmd, int cid)
@@ -1139,7 +1158,7 @@ static int aac_read(struct scsi_cmnd * scsicmd, int cid)
 	 *	For some reason, the Fib didn't queue, return QUEUE_FULL
 	 */
 	scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_TASK_SET_FULL;
-	aac_io_done(scsicmd);
+	scsicmd->scsi_done(scsicmd);
 	fib_complete(cmd_fibcontext);
 	fib_free(cmd_fibcontext);
 	return 0;
@@ -1211,7 +1230,7 @@ static int aac_write(struct scsi_cmnd * scsicmd, int cid)
 	 */
 	if (!(cmd_fibcontext = fib_alloc(dev))) {
 		scsicmd->result = DID_ERROR << 16;
-		aac_io_done(scsicmd);
+		scsicmd->scsi_done(scsicmd);
 		return 0;
 	}
 	fib_init(cmd_fibcontext);
@@ -1308,7 +1327,7 @@ static int aac_write(struct scsi_cmnd * scsicmd, int cid)
 	 *	For some reason, the Fib didn't queue, return QUEUE_FULL
 	 */
 	scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_TASK_SET_FULL;
-	aac_io_done(scsicmd);
+	scsicmd->scsi_done(scsicmd);
 
 	fib_complete(cmd_fibcontext);
 	fib_free(cmd_fibcontext);
@@ -1352,7 +1371,7 @@ static void synchronize_callback(void *context, struct fib *fibptr)
 
 	fib_complete(fibptr);
 	fib_free(fibptr);
-	aac_io_done(cmd);
+	cmd->scsi_done(cmd);
 }
 
 static int aac_synchronize(struct scsi_cmnd *scsicmd, int cid)
@@ -1438,7 +1457,6 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	struct Scsi_Host *host = scsicmd->device->host;
 	struct aac_dev *dev = (struct aac_dev *)host->hostdata;
 	struct fsa_dev_info *fsa_dev_ptr = dev->fsa_dev;
-	int cardtype = dev->cardtype;
 	int ret;
 	
 	/*
@@ -1446,7 +1464,7 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 	 *	Test does not apply to ID 16, the pseudo id for the controller
 	 *	itself.
 	 */
-	if (scsicmd->device->id != host->this_id) {
+	if (scmd_id(scsicmd) != host->this_id) {
 		if ((scsicmd->device->channel == 0) ){
 			if( (scsicmd->device->id >= dev->maximum_num_containers) || (scsicmd->device->lun != 0)){ 
 				scsicmd->result = DID_NO_CONNECT << 16;
@@ -1541,15 +1559,15 @@ int aac_scsi_cmd(struct scsi_cmnd * scsicmd)
 		 *	Set the Vendor, Product, and Revision Level
 		 *	see: <vendor>.c i.e. aac.c
 		 */
-		if (scsicmd->device->id == host->this_id) {
-			setinqstr(cardtype, (void *) (inq_data.inqd_vid), (sizeof(container_types)/sizeof(char *)));
+		if (scmd_id(scsicmd) == host->this_id) {
+			setinqstr(dev, (void *) (inq_data.inqd_vid), (sizeof(container_types)/sizeof(char *)));
 			inq_data.inqd_pdt = INQD_PDT_PROC;	/* Processor device */
 			aac_internal_transfer(scsicmd, &inq_data, 0, sizeof(inq_data));
 			scsicmd->result = DID_OK << 16 | COMMAND_COMPLETE << 8 | SAM_STAT_GOOD;
 			scsicmd->scsi_done(scsicmd);
 			return 0;
 		}
-		setinqstr(cardtype, (void *) (inq_data.inqd_vid), fsa_dev_ptr[cid].type);
+		setinqstr(dev, (void *) (inq_data.inqd_vid), fsa_dev_ptr[cid].type);
 		inq_data.inqd_pdt = INQD_PDT_DA;	/* Direct/random access device */
 		aac_internal_transfer(scsicmd, &inq_data, 0, sizeof(inq_data));
 		return aac_get_container_name(scsicmd, cid);
@@ -1931,7 +1949,7 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 			 * the channel is 2
 			 */
 			} else if ((dev->raid_scsi_mode) &&
-					(scsicmd->device->channel == 2)) {
+					(scmd_channel(scsicmd) == 2)) {
 				scsicmd->result = DID_OK << 16 | 
 						COMMAND_COMPLETE << 8;
 			} else {
@@ -1975,7 +1993,7 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 			 * the channel is 2
 			 */
 			} else if ((dev->raid_scsi_mode) &&
-					(scsicmd->device->channel == 2)) {
+					(scmd_channel(scsicmd) == 2)) {
 				scsicmd->result = DID_OK << 16 | 
 						COMMAND_COMPLETE << 8;
 			} else {
@@ -2070,7 +2088,7 @@ static void aac_srb_callback(void *context, struct fib * fibptr)
 
 	fib_complete(fibptr);
 	fib_free(fibptr);
-	aac_io_done(scsicmd);
+	scsicmd->scsi_done(scsicmd);
 }
 
 /**

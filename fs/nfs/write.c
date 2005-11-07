@@ -294,7 +294,7 @@ int nfs_writepage(struct page *page, struct writeback_control *wbc)
 	if (page->index >= end_index+1 || !offset)
 		goto out;
 do_it:
-	ctx = nfs_find_open_context(inode, FMODE_WRITE);
+	ctx = nfs_find_open_context(inode, NULL, FMODE_WRITE);
 	if (ctx == NULL) {
 		err = -EBADF;
 		goto out;
@@ -734,14 +734,14 @@ int nfs_updatepage(struct file *file, struct page *page,
 		unsigned int offset, unsigned int count)
 {
 	struct nfs_open_context *ctx = (struct nfs_open_context *)file->private_data;
-	struct dentry	*dentry = file->f_dentry;
 	struct inode	*inode = page->mapping->host;
 	struct nfs_page	*req;
 	int		status = 0;
 
 	dprintk("NFS:      nfs_updatepage(%s/%s %d@%Ld)\n",
-		dentry->d_parent->d_name.name, dentry->d_name.name,
-		count, (long long)(page_offset(page) +offset));
+		file->f_dentry->d_parent->d_name.name,
+		file->f_dentry->d_name.name, count,
+		(long long)(page_offset(page) +offset));
 
 	if (IS_SYNC(inode)) {
 		status = nfs_writepage_sync(ctx, inode, page, offset, count, 0);
@@ -850,7 +850,6 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 		unsigned int count, unsigned int offset,
 		int how)
 {
-	struct rpc_task		*task = &data->task;
 	struct inode		*inode;
 
 	/* Set up the RPC argument and reply structs
@@ -881,7 +880,7 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 	data->task.tk_release = nfs_writedata_release;
 
 	dprintk("NFS: %4d initiated write call (req %s/%Ld, %u bytes @ offset %Lu)\n",
-		task->tk_pid,
+		data->task.tk_pid,
 		inode->i_sb->s_id,
 		(long long)NFS_FILEID(inode),
 		count,
@@ -1217,7 +1216,6 @@ static void nfs_commit_release(struct rpc_task *task)
 static void nfs_commit_rpcsetup(struct list_head *head,
 		struct nfs_write_data *data, int how)
 {
-	struct rpc_task		*task = &data->task;
 	struct nfs_page		*first;
 	struct inode		*inode;
 
@@ -1248,7 +1246,7 @@ static void nfs_commit_rpcsetup(struct list_head *head,
 	/* Release requests */
 	data->task.tk_release = nfs_commit_release;
 	
-	dprintk("NFS: %4d initiated commit call\n", task->tk_pid);
+	dprintk("NFS: %4d initiated commit call\n", data->task.tk_pid);
 }
 
 /*

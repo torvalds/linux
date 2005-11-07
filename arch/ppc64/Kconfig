@@ -47,6 +47,10 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
+config PPC_STD_MMU
+	bool
+	default y
+
 # We optimistically allocate largepages from the VM, so make the limit
 # large enough (16MB). This badly named config option is actually
 # max order + 1
@@ -89,12 +93,14 @@ config PPC_PMAC
 	bool "  Apple G5 based machines"
 	default y
 	select U3_DART
+	select GENERIC_TBSYNC
 
 config PPC_MAPLE
 	depends on PPC_MULTIPLATFORM
 	bool "  Maple 970FX Evaluation Board"
 	select U3_DART
 	select MPIC_BROKEN_U3
+	select GENERIC_TBSYNC
 	default n
 	help
           This option enables support for the Maple 970FX Evaluation Board.
@@ -181,6 +187,9 @@ config MPIC_BROKEN_U3
 	bool
 	depends on PPC_MAPLE
 	default y
+
+config GENERIC_TBSYNC
+	def_bool n
 
 config PPC_PMAC64
 	bool
@@ -288,6 +297,15 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 config NODES_SPAN_OTHER_NODES
 	def_bool y
 	depends on NEED_MULTIPLE_NODES
+
+config PPC_64K_PAGES
+	bool "64k page size"
+	help
+	  This option changes the kernel logical page size to 64k. On machines
+          without processor support for 64k pages, the kernel will simulate
+          them by loading each individual 4k page on demand transparently,
+          while on hardware with such support, it will be used to map
+          normal application pages.
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"

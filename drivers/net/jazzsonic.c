@@ -285,18 +285,8 @@ static struct device_driver jazz_sonic_driver = {
 	.remove	= __devexit_p(jazz_sonic_device_remove),
 };
 
-static void jazz_sonic_platform_release (struct device *device)
-{
-	struct platform_device *pldev;
-
-	/* free device */
-	pldev = to_platform_device (device);
-	kfree (pldev);
-}
-
 static int __init jazz_sonic_init_module(void)
 {
-	struct platform_device *pldev;
 	int err;
 
 	if ((err = driver_register(&jazz_sonic_driver))) {
@@ -304,27 +294,19 @@ static int __init jazz_sonic_init_module(void)
 		return err;
 	}
 
-	jazz_sonic_device = NULL;
-
-	if (!(pldev = kmalloc (sizeof (*pldev), GFP_KERNEL))) {
+	jazz_sonic_device = platform_device_alloc(jazz_sonic_string, 0);
+	if (!jazz_sonnic_device)
 		goto out_unregister;
-	}
 
-	memset(pldev, 0, sizeof (*pldev));
-	pldev->name		= jazz_sonic_string;
-	pldev->id		= 0;
-	pldev->dev.release	= jazz_sonic_platform_release;
-	jazz_sonic_device	= pldev;
-
-	if (platform_device_register (pldev)) {
-		kfree(pldev);
+	if (platform_device_add(jazz_sonic_device)) {
+		platform_device_put(jazz_sonic_device);
 		jazz_sonic_device = NULL;
 	}
 
 	return 0;
 
 out_unregister:
-	platform_device_unregister(pldev);
+	driver_unregister(&jazz_sonic_driver);
 
 	return -ENOMEM;
 }

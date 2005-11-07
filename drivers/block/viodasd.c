@@ -45,10 +45,10 @@
 
 #include <asm/uaccess.h>
 #include <asm/vio.h>
-#include <asm/iSeries/HvTypes.h>
-#include <asm/iSeries/HvLpEvent.h>
-#include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/vio.h>
+#include <asm/iseries/hv_types.h>
+#include <asm/iseries/hv_lp_event.h>
+#include <asm/iseries/hv_lp_config.h>
+#include <asm/iseries/vio.h>
 
 MODULE_DESCRIPTION("iSeries Virtual DASD");
 MODULE_AUTHOR("Dave Boutcher");

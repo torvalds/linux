@@ -255,12 +255,11 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	}
 
 	/* Allocate structures */
-	mad_agent_priv = kmalloc(sizeof *mad_agent_priv, GFP_KERNEL);
+	mad_agent_priv = kzalloc(sizeof *mad_agent_priv, GFP_KERNEL);
 	if (!mad_agent_priv) {
 		ret = ERR_PTR(-ENOMEM);
 		goto error1;
 	}
-	memset(mad_agent_priv, 0, sizeof *mad_agent_priv);
 
 	mad_agent_priv->agent.mr = ib_get_dma_mr(port_priv->qp_info[qpn].qp->pd,
 						 IB_ACCESS_LOCAL_WRITE);
@@ -448,14 +447,13 @@ struct ib_mad_agent *ib_register_mad_snoop(struct ib_device *device,
 		goto error1;
 	}
 	/* Allocate structures */
-	mad_snoop_priv = kmalloc(sizeof *mad_snoop_priv, GFP_KERNEL);
+	mad_snoop_priv = kzalloc(sizeof *mad_snoop_priv, GFP_KERNEL);
 	if (!mad_snoop_priv) {
 		ret = ERR_PTR(-ENOMEM);
 		goto error1;
 	}
 
 	/* Now, fill in the various structures */
-	memset(mad_snoop_priv, 0, sizeof *mad_snoop_priv);
 	mad_snoop_priv->qp_info = &port_priv->qp_info[qpn];
 	mad_snoop_priv->agent.device = device;
 	mad_snoop_priv->agent.recv_handler = recv_handler;
@@ -794,10 +792,9 @@ struct ib_mad_send_buf * ib_create_send_mad(struct ib_mad_agent *mad_agent,
 	    (!rmpp_active && buf_size > sizeof(struct ib_mad)))
 		return ERR_PTR(-EINVAL);
 
-	buf = kmalloc(sizeof *mad_send_wr + buf_size, gfp_mask);
+	buf = kzalloc(sizeof *mad_send_wr + buf_size, gfp_mask);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
-	memset(buf, 0, sizeof *mad_send_wr + buf_size);
 
 	mad_send_wr = buf + buf_size;
 	mad_send_wr->send_buf.mad = buf;
@@ -1039,14 +1036,12 @@ static int method_in_use(struct ib_mad_mgmt_method_table **method,
 static int allocate_method_table(struct ib_mad_mgmt_method_table **method)
 {
 	/* Allocate management method table */
-	*method = kmalloc(sizeof **method, GFP_ATOMIC);
+	*method = kzalloc(sizeof **method, GFP_ATOMIC);
 	if (!*method) {
 		printk(KERN_ERR PFX "No memory for "
 		       "ib_mad_mgmt_method_table\n");
 		return -ENOMEM;
 	}
-	/* Clear management method table */
-	memset(*method, 0, sizeof **method);
 
 	return 0;
 }
@@ -1137,15 +1132,14 @@ static int add_nonoui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 	class = &port_priv->version[mad_reg_req->mgmt_class_version].class;
 	if (!*class) {
 		/* Allocate management class table for "new" class version */
-		*class = kmalloc(sizeof **class, GFP_ATOMIC);
+		*class = kzalloc(sizeof **class, GFP_ATOMIC);
 		if (!*class) {
 			printk(KERN_ERR PFX "No memory for "
 			       "ib_mad_mgmt_class_table\n");
 			ret = -ENOMEM;
 			goto error1;
 		}
-		/* Clear management class table */
-		memset(*class, 0, sizeof(**class));
+
 		/* Allocate method table for this management class */
 		method = &(*class)->method_table[mgmt_class];
 		if ((ret = allocate_method_table(method)))
@@ -1209,25 +1203,24 @@ static int add_oui_reg_req(struct ib_mad_reg_req *mad_reg_req,
 				mad_reg_req->mgmt_class_version].vendor;
 	if (!*vendor_table) {
 		/* Allocate mgmt vendor class table for "new" class version */
-		vendor = kmalloc(sizeof *vendor, GFP_ATOMIC);
+		vendor = kzalloc(sizeof *vendor, GFP_ATOMIC);
 		if (!vendor) {
 			printk(KERN_ERR PFX "No memory for "
 			       "ib_mad_mgmt_vendor_class_table\n");
 			goto error1;
 		}
-		/* Clear management vendor class table */
-		memset(vendor, 0, sizeof(*vendor));
+
 		*vendor_table = vendor;
 	}
 	if (!(*vendor_table)->vendor_class[vclass]) {
 		/* Allocate table for this management vendor class */
-		vendor_class = kmalloc(sizeof *vendor_class, GFP_ATOMIC);
+		vendor_class = kzalloc(sizeof *vendor_class, GFP_ATOMIC);
 		if (!vendor_class) {
 			printk(KERN_ERR PFX "No memory for "
 			       "ib_mad_mgmt_vendor_class\n");
 			goto error2;
 		}
-		memset(vendor_class, 0, sizeof(*vendor_class));
+
 		(*vendor_table)->vendor_class[vclass] = vendor_class;
 	}
 	for (i = 0; i < MAX_MGMT_OUI; i++) {
@@ -2524,12 +2517,12 @@ static int ib_mad_port_open(struct ib_device *device,
 	char name[sizeof "ib_mad123"];
 
 	/* Create new device info */
-	port_priv = kmalloc(sizeof *port_priv, GFP_KERNEL);
+	port_priv = kzalloc(sizeof *port_priv, GFP_KERNEL);
 	if (!port_priv) {
 		printk(KERN_ERR PFX "No memory for ib_mad_port_private\n");
 		return -ENOMEM;
 	}
-	memset(port_priv, 0, sizeof *port_priv);
+
 	port_priv->device = device;
 	port_priv->port_num = port_num;
 	spin_lock_init(&port_priv->reg_lock);

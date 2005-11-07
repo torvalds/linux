@@ -182,10 +182,6 @@ static unsigned int cs8900_irq_map[] = {IRQ_IXDP2X01_CS8900, 0, 0, 0};
 #define CIRRUS_DEFAULT_IRQ	VH_INTC_INT_NUM_CASCADED_INTERRUPT_1 /* Event inputs bank 1 - ID 35/bit 3 */
 static unsigned int netcard_portlist[] __initdata = {CIRRUS_DEFAULT_BASE, 0};
 static unsigned int cs8900_irq_map[] = {CIRRUS_DEFAULT_IRQ, 0, 0, 0};
-#elif defined(CONFIG_MACH_MP1000)
-#include <asm/arch/mp1000-seprom.h>
-static unsigned int netcard_portlist[] __initdata = {MP1000_EIO_BASE+0x300, 0};
-static unsigned int cs8900_irq_map[] = {IRQ_EINT3,0,0,0};
 #else
 static unsigned int netcard_portlist[] __initdata =
    { 0x300, 0x320, 0x340, 0x360, 0x200, 0x220, 0x240, 0x260, 0x280, 0x2a0, 0x2c0, 0x2e0, 0};
@@ -594,10 +590,6 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 			cnt -= j;
 		}
 	} else
-#elif defined(CONFIG_MACH_MP1000)
-	if (1) {
-		memcpy(dev->dev_addr, get_eeprom_mac_address(), ETH_ALEN);
-	} else
 #endif
 
         if ((readreg(dev, PP_SelfST) & (EEPROM_OK | EEPROM_PRESENT)) == 
@@ -656,10 +648,6 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 #ifdef CONFIG_SH_HICOSH4 /* no EEPROM on HiCO, don't hazzle with it here */
 	if (1) {
 		printk(KERN_NOTICE "cs89x0: No EEPROM on HiCO.SH4\n");
-	} else
-#elif defined(CONFIG_MACH_MP1000)
-	if (1) {
-		lp->force |= FORCE_RJ45;
 	} else
 #endif
 	if ((readreg(dev, PP_SelfST) & EEPROM_PRESENT) == 0)
@@ -1243,7 +1231,7 @@ net_open(struct net_device *dev)
 	else
 #endif
 	{
-#if !defined(CONFIG_ARCH_IXDP2X01) && !defined(CONFIG_ARCH_PNX0105) && !defined(CONFIG_MACH_MP1000)
+#if !defined(CONFIG_ARCH_IXDP2X01) && !defined(CONFIG_ARCH_PNX0105)
 		if (((1 << dev->irq) & lp->irq_map) == 0) {
 			printk(KERN_ERR "%s: IRQ %d is not in our map of allowable IRQs, which is %x\n",
                                dev->name, dev->irq, lp->irq_map);

@@ -283,7 +283,7 @@ int scsi_debug_queuecommand(struct scsi_cmnd * SCpnt, done_funct_t done)
 	unsigned char *cmd = (unsigned char *) SCpnt->cmnd;
 	int block, upper_blk, num, k;
 	int errsts = 0;
-	int target = SCpnt->device->id;
+	int target = scmd_id(SCpnt);
 	struct sdebug_dev_info * devip = NULL;
 	int inj_recovered = 0;
 
@@ -1008,8 +1008,7 @@ static void timer_intr_handler(unsigned long indx)
 static int scsi_debug_slave_alloc(struct scsi_device * sdp)
 {
 	if (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts)
-		printk(KERN_INFO "scsi_debug: slave_alloc <%u %u %u %u>\n",
-		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
+		sdev_printk(KERN_INFO, sdp, "scsi_debug: slave_alloc\n");
 	return 0;
 }
 
@@ -1018,8 +1017,7 @@ static int scsi_debug_slave_configure(struct scsi_device * sdp)
 	struct sdebug_dev_info * devip;
 
 	if (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts)
-		printk(KERN_INFO "scsi_debug: slave_configure <%u %u %u %u>\n",
-		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
+		sdev_printk(KERN_INFO, sdp, "scsi_debug: slave_configure\n");
 	if (sdp->host->max_cmd_len != SCSI_DEBUG_MAX_CMD_LEN)
 		sdp->host->max_cmd_len = SCSI_DEBUG_MAX_CMD_LEN;
 	devip = devInfoReg(sdp);
@@ -1036,8 +1034,7 @@ static void scsi_debug_slave_destroy(struct scsi_device * sdp)
 				(struct sdebug_dev_info *)sdp->hostdata;
 
 	if (SCSI_DEBUG_OPT_NOISE & scsi_debug_opts)
-		printk(KERN_INFO "scsi_debug: slave_destroy <%u %u %u %u>\n",
-		       sdp->host->host_no, sdp->channel, sdp->id, sdp->lun);
+		sdev_printk(KERN_INFO, sdp, "scsi_debug: slave_destroy\n");
 	if (devip) {
 		/* make this slot avaliable for re-use */
 		devip->used = 0;
@@ -1326,9 +1323,9 @@ static int schedule_resp(struct scsi_cmnd * cmnd,
 		if (scsi_result) {
 			struct scsi_device * sdp = cmnd->device;
 
-			printk(KERN_INFO "scsi_debug:    <%u %u %u %u> "
-			       "non-zero result=0x%x\n", sdp->host->host_no,
-			       sdp->channel, sdp->id, sdp->lun, scsi_result);
+			sdev_printk(KERN_INFO, sdp,
+				"non-zero result=0x%x\n",
+			       	scsi_result);
 		}
 	}
 	if (cmnd && devip) {

@@ -33,4 +33,6 @@ source "drivers/infiniband/hw/mthca/Kconfig"
 
 source "drivers/infiniband/ulp/ipoib/Kconfig"
 
+source "drivers/infiniband/ulp/srp/Kconfig"
+
 endmenu
