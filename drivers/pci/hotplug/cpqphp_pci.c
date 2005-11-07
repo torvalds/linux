@@ -259,8 +259,7 @@ static int PCI_GetBusDevHelper(struct controller *ctrl, u8 *bus_num, u8 *dev_num
 	       sizeof(struct irq_routing_table)) / sizeof(struct irq_info);
 	// Make sure I got at least one entry
 	if (len == 0) {
-		if (PCIIRQRoutingInfoLength != NULL)
-			kfree(PCIIRQRoutingInfoLength );
+		kfree(PCIIRQRoutingInfoLength );
 		return -1;
 	}
 
@@ -275,8 +274,7 @@ static int PCI_GetBusDevHelper(struct controller *ctrl, u8 *bus_num, u8 *dev_num
 			ctrl->pci_bus->number = tbus;
 			pci_bus_read_config_dword (ctrl->pci_bus, *dev_num, PCI_VENDOR_ID, &work);
 			if (!nobridge || (work == 0xffffffff)) {
-				if (PCIIRQRoutingInfoLength != NULL)
-					kfree(PCIIRQRoutingInfoLength );
+				kfree(PCIIRQRoutingInfoLength );
 				return 0;
 			}
 
@@ -289,20 +287,17 @@ static int PCI_GetBusDevHelper(struct controller *ctrl, u8 *bus_num, u8 *dev_num
 				dbg("Scan bus for Non Bridge: bus %d\n", tbus);
 				if (PCI_ScanBusForNonBridge(ctrl, tbus, dev_num) == 0) {
 					*bus_num = tbus;
-					if (PCIIRQRoutingInfoLength != NULL)
-						kfree(PCIIRQRoutingInfoLength );
+					kfree(PCIIRQRoutingInfoLength );
 					return 0;
 				}
 			} else {
-				if (PCIIRQRoutingInfoLength != NULL)
-					kfree(PCIIRQRoutingInfoLength );
+				kfree(PCIIRQRoutingInfoLength );
 				return 0;
 			}
 
 		}
 	}
-	if (PCIIRQRoutingInfoLength != NULL)
-		kfree(PCIIRQRoutingInfoLength );
+	kfree(PCIIRQRoutingInfoLength );
 	return -1;
 }
 

@@ -888,8 +888,7 @@ static int __ide_add_setting(ide_drive_t *drive, const char *name, int rw, int r
 	return 0;
 abort:
 	up(&ide_setting_sem);
-	if (setting)
-		kfree(setting);
+	kfree(setting);
 	return -1;
 }
 

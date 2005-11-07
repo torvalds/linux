@@ -2057,8 +2057,7 @@ static void i810fb_release_resource(struct fb_info *info,
 		iounmap(par->mmio_start_virtual);
 	if (par->aperture.virtual)
 		iounmap(par->aperture.virtual);
-	if (par->edid)
-		kfree(par->edid);
+	kfree(par->edid);
 	if (par->res_flags & FRAMEBUFFER_REQ)
 		release_mem_region(par->aperture.physical,
 				   par->aperture.size);

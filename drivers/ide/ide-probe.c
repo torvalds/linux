@@ -1315,10 +1315,8 @@ static void drive_release_dev (struct device *dev)
 		drive->devfs_name[0] = '\0';
 	}
 	ide_remove_drive_from_hwgroup(drive);
-	if (drive->id != NULL) {
-		kfree(drive->id);
-		drive->id = NULL;
-	}
+	kfree(drive->id);
+	drive->id = NULL;
 	drive->present = 0;
 	/* Messed up locking ... */
 	spin_unlock_irq(&ide_lock);

@@ -3292,12 +3292,9 @@ static void ide_cd_release(struct kref *kref)
 	ide_drive_t *drive = info->drive;
 	struct gendisk *g = info->disk;
 
-	if (info->buffer != NULL)
-		kfree(info->buffer);
-	if (info->toc != NULL)
-		kfree(info->toc);
-	if (info->changer_info != NULL)
-		kfree(info->changer_info);
+	kfree(info->buffer);
+	kfree(info->toc);
+	kfree(info->changer_info);
 	if (devinfo->handle == drive && unregister_cdrom(devinfo))
 		printk(KERN_ERR "%s: %s failed to unregister device from the cdrom "
 				"driver.\n", __FUNCTION__, drive->name);
@@ -3487,12 +3484,9 @@ static int ide_cd_probe(struct device *dev)
 	if (ide_cdrom_setup(drive)) {
 		struct cdrom_device_info *devinfo = &info->devinfo;
 		ide_unregister_subdriver(drive, &ide_cdrom_driver);
-		if (info->buffer != NULL)
-			kfree(info->buffer);
-		if (info->toc != NULL)
-			kfree(info->toc);
-		if (info->changer_info != NULL)
-			kfree(info->changer_info);
+		kfree(info->buffer);
+		kfree(info->toc);
+		kfree(info->changer_info);
 		if (devinfo->handle == drive && unregister_cdrom(devinfo))
 			printk (KERN_ERR "%s: ide_cdrom_cleanup failed to unregister device from the cdrom driver.\n", drive->name);
 		kfree(info);

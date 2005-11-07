@@ -646,10 +646,8 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	}
 abort:
 	kfree(req_task);
-	if (outbuf != NULL)
-		kfree(outbuf);
-	if (inbuf != NULL)
-		kfree(inbuf);
+	kfree(outbuf);
+	kfree(inbuf);
 
 //	printk("IDE Taskfile ioctl ended. rc = %i\n", err);
 

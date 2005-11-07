@@ -554,8 +554,8 @@ int fcp_initialize(fc_channel *fcchain, int count)
 	l->logi = kzalloc (count * 3 * sizeof(logi), GFP_KERNEL);
 	l->fcmds = kzalloc (count * sizeof(fcp_cmnd), GFP_KERNEL);
 	if (!l->logi || !l->fcmds) {
-		if (l->logi) kfree (l->logi);
-		if (l->fcmds) kfree (l->fcmds);
+		kfree (l->logi);
+		kfree (l->fcmds);
 		kfree (l);
 		printk ("FC: Cannot allocate DMA memory for initialization\n");
 		return -ENOMEM;
@@ -674,7 +674,6 @@ int fcp_forceoffline(fc_channel *fcchain, int count)
 	atomic_set (&l.todo, count);
 	l.fcmds = kzalloc (count * sizeof(fcp_cmnd), GFP_KERNEL);
 	if (!l.fcmds) {
-		kfree (l.fcmds);
 		printk ("FC: Cannot allocate memory for forcing offline\n");
 		return -ENOMEM;
 	}
