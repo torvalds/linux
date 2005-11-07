@@ -1587,8 +1587,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 		/* make sure we don't swamp the stripe cache if someone else
 		 * is trying to get access 
 		 */
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 	bitmap_start_sync(mddev->bitmap, sector_nr, &sync_blocks, 0);
 	spin_lock(&sh->lock);	
