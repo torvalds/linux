@@ -15,6 +15,7 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/buffer_head.h>
+#include <linux/quotaops.h>
 
 /* Check validity of generic quotactl commands */
 static int generic_quotactl_valid(struct super_block *sb, int type, int cmd, qid_t id)
