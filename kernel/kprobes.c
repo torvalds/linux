@@ -51,7 +51,7 @@ static struct hlist_head kretprobe_inst_table[KPROBE_TABLE_SIZE];
 
 unsigned int kprobe_cpu = NR_CPUS;
 static DEFINE_SPINLOCK(kprobe_lock);
-static struct kprobe *curr_kprobe;
+static DEFINE_PER_CPU(struct kprobe *, kprobe_instance) = NULL;
 
 /*
  * kprobe->ainsn.insn points to the copy of the instruction to be
@@ -188,6 +188,17 @@ void __kprobes unlock_kprobes(void)
  	local_irq_restore(flags);
 }
 
+/* We have preemption disabled.. so it is safe to use __ versions */
+static inline void set_kprobe_instance(struct kprobe *kp)
+{
+	__get_cpu_var(kprobe_instance) = kp;
+}
+
+static inline void reset_kprobe_instance(void)
+{
+	__get_cpu_var(kprobe_instance) = NULL;
+}
+
 /* You have to be holding the kprobe_lock */
 struct kprobe __kprobes *get_kprobe(void *addr)
 {
@@ -213,11 +224,11 @@ static int __kprobes aggr_pre_handler(struct kprobe *p, struct pt_regs *regs)
 
 	list_for_each_entry(kp, &p->list, list) {
 		if (kp->pre_handler) {
-			curr_kprobe = kp;
+			set_kprobe_instance(kp);
 			if (kp->pre_handler(kp, regs))
 				return 1;
 		}
-		curr_kprobe = NULL;
+		reset_kprobe_instance();
 	}
 	return 0;
 }
@@ -229,9 +240,9 @@ static void __kprobes aggr_post_handler(struct kprobe *p, struct pt_regs *regs,
 
 	list_for_each_entry(kp, &p->list, list) {
 		if (kp->post_handler) {
-			curr_kprobe = kp;
+			set_kprobe_instance(kp);
 			kp->post_handler(kp, regs, flags);
-			curr_kprobe = NULL;
+			reset_kprobe_instance();
 		}
 	}
 	return;
@@ -240,12 +251,14 @@ static void __kprobes aggr_post_handler(struct kprobe *p, struct pt_regs *regs,
 static int __kprobes aggr_fault_handler(struct kprobe *p, struct pt_regs *regs,
 					int trapnr)
 {
+	struct kprobe *cur = __get_cpu_var(kprobe_instance);
+
 	/*
 	 * if we faulted "during" the execution of a user specified
 	 * probe handler, invoke just that probe's fault handler
 	 */
-	if (curr_kprobe && curr_kprobe->fault_handler) {
-		if (curr_kprobe->fault_handler(curr_kprobe, regs, trapnr))
+	if (cur && cur->fault_handler) {
+		if (cur->fault_handler(cur, regs, trapnr))
 			return 1;
 	}
 	return 0;
@@ -253,15 +266,15 @@ static int __kprobes aggr_fault_handler(struct kprobe *p, struct pt_regs *regs,
 
 static int __kprobes aggr_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
-	struct kprobe *kp = curr_kprobe;
-	if (curr_kprobe && kp->break_handler) {
-		if (kp->break_handler(kp, regs)) {
-			curr_kprobe = NULL;
-			return 1;
-		}
+	struct kprobe *cur = __get_cpu_var(kprobe_instance);
+	int ret = 0;
+
+	if (cur && cur->break_handler) {
+		if (cur->break_handler(cur, regs))
+			ret = 1;
 	}
-	curr_kprobe = NULL;
-	return 0;
+	reset_kprobe_instance();
+	return ret;
 }
 
 struct kretprobe_instance __kprobes *get_free_rp_inst(struct kretprobe *rp)

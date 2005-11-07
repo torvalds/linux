@@ -33,6 +33,7 @@
 #include <linux/list.h>
 #include <linux/notifier.h>
 #include <linux/smp.h>
+#include <linux/percpu.h>
 
 #include <asm/kprobes.h>
 
@@ -106,6 +107,9 @@ struct jprobe {
 	kprobe_opcode_t *entry;	/* probe handling code to jump to */
 };
 
+DECLARE_PER_CPU(struct kprobe *, current_kprobe);
+DECLARE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
+
 #ifdef ARCH_SUPPORTS_KRETPROBES
 extern void arch_prepare_kretprobe(struct kretprobe *rp, struct pt_regs *regs);
 #else /* ARCH_SUPPORTS_KRETPROBES */
@@ -146,13 +150,6 @@ struct kretprobe_instance {
 void lock_kprobes(void);
 void unlock_kprobes(void);
 
-/* kprobe running now on this CPU? */
-static inline int kprobe_running(void)
-{
-	extern unsigned int kprobe_cpu;
-	return kprobe_cpu == smp_processor_id();
-}
-
 extern int arch_prepare_kprobe(struct kprobe *p);
 extern void arch_copy_kprobe(struct kprobe *p);
 extern void arch_arm_kprobe(struct kprobe *p);
@@ -166,6 +163,22 @@ extern void free_insn_slot(kprobe_opcode_t *slot);
 /* Get the kprobe at this addr (if any).  Must have called lock_kprobes */
 struct kprobe *get_kprobe(void *addr);
 struct hlist_head * kretprobe_inst_table_head(struct task_struct *tsk);
+
+/* kprobe_running() will just return the current_kprobe on this CPU */
+static inline struct kprobe *kprobe_running(void)
+{
+	return (__get_cpu_var(current_kprobe));
+}
+
+static inline void reset_current_kprobe(void)
+{
+	__get_cpu_var(current_kprobe) = NULL;
+}
+
+static inline struct kprobe_ctlblk *get_kprobe_ctlblk(void)
+{
+	return (&__get_cpu_var(kprobe_ctlblk));
+}
 
 int register_kprobe(struct kprobe *p);
 void unregister_kprobe(struct kprobe *p);
@@ -183,9 +196,9 @@ void add_rp_inst(struct kretprobe_instance *ri);
 void kprobe_flush_task(struct task_struct *tk);
 void recycle_rp_inst(struct kretprobe_instance *ri);
 #else /* CONFIG_KPROBES */
-static inline int kprobe_running(void)
+static inline struct kprobe *kprobe_running(void)
 {
-	return 0;
+	return NULL;
 }
 static inline int register_kprobe(struct kprobe *p)
 {
