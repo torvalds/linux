@@ -712,22 +712,14 @@ isdn_tty_modem_hup(modem_info * info, int local)
 #endif
 	info->emu.vpar[4] = 0;
 	info->emu.vpar[5] = 8;
-	if (info->dtmf_state) {
-		kfree(info->dtmf_state);
-		info->dtmf_state = NULL;
-	}
-	if (info->silence_state) {
-		kfree(info->silence_state);
-		info->silence_state = NULL;
-	}
-	if (info->adpcms) {
-		kfree(info->adpcms);
-		info->adpcms = NULL;
-	}
-	if (info->adpcmr) {
-		kfree(info->adpcmr);
-		info->adpcmr = NULL;
-	}
+	kfree(info->dtmf_state);
+	info->dtmf_state = NULL;
+	kfree(info->silence_state);
+	info->silence_state = NULL;
+	kfree(info->adpcms);
+	info->adpcms = NULL;
+	kfree(info->adpcmr);
+	info->adpcmr = NULL;
 #endif
 	if ((info->msr & UART_MSR_RI) &&
 		(info->emu.mdmreg[REG_RUNG] & BIT_RUNG))
