@@ -827,7 +827,7 @@ int fb_parse_edid(unsigned char *edid, struct fb_var_screeninfo *var)
 void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 {
 	unsigned char *block;
-	int i;
+	int i, found = 0;
 
 	if (edid == NULL)
 		return;
@@ -869,6 +869,22 @@ void fb_edid_to_monspecs(unsigned char *edid, struct fb_monspecs *specs)
 	get_monspecs(edid, specs);
 
 	specs->modedb = fb_create_modedb(edid, &specs->modedb_len);
+
+	/*
+	 * Workaround for buggy EDIDs that sets that the first
+	 * detailed timing is preferred but has not detailed
+	 * timing specified
+	 */
+	for (i = 0; i < specs->modedb_len; i++) {
+		if (specs->modedb[i].flag & FB_MODE_IS_DETAILED) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found)
+		specs->misc &= ~FB_MISC_1ST_DETAIL;
+
 	DPRINTK("========================================\n");
 }
 
