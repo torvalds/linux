@@ -11,13 +11,8 @@
 
 #define INCLUDES
 #include "compat_ioctl.c"
-#include <linux/ncp_fs.h>
 #include <linux/syscalls.h>
 #include <asm/fbio.h>
-#include <asm/envctrl.h>
-#include <asm/display7seg.h>
-#include <asm/openpromio.h>
-#include <asm/watchdog.h>
 
 /* Use this to get at 32-bit user passed pointers. 
  * See sys_sparc32.c for description about it.
