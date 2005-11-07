@@ -4533,9 +4533,8 @@ static int proc_status_open( struct inode *inode, struct file *file ) {
 	StatusRid status_rid;
 	int i;
 
-	if ((file->private_data = kmalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
+	if ((file->private_data = kzalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
-	memset(file->private_data, 0, sizeof(struct proc_data));
 	data = (struct proc_data *)file->private_data;
 	if ((data->rbuffer = kmalloc( 2048, GFP_KERNEL )) == NULL) {
 		kfree (file->private_data);
@@ -4613,9 +4612,8 @@ static int proc_stats_rid_open( struct inode *inode,
 	int i, j;
 	u32 *vals = stats.vals;
 
-	if ((file->private_data = kmalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
+	if ((file->private_data = kzalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
-	memset(file->private_data, 0, sizeof(struct proc_data));
 	data = (struct proc_data *)file->private_data;
 	if ((data->rbuffer = kmalloc( 4096, GFP_KERNEL )) == NULL) {
 		kfree (file->private_data);
@@ -4879,20 +4877,18 @@ static int proc_config_open( struct inode *inode, struct file *file ) {
 	struct airo_info *ai = dev->priv;
 	int i;
 
-	if ((file->private_data = kmalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
+	if ((file->private_data = kzalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
-	memset(file->private_data, 0, sizeof(struct proc_data));
 	data = (struct proc_data *)file->private_data;
 	if ((data->rbuffer = kmalloc( 2048, GFP_KERNEL )) == NULL) {
 		kfree (file->private_data);
 		return -ENOMEM;
 	}
-	if ((data->wbuffer = kmalloc( 2048, GFP_KERNEL )) == NULL) {
+	if ((data->wbuffer = kzalloc( 2048, GFP_KERNEL )) == NULL) {
 		kfree (data->rbuffer);
 		kfree (file->private_data);
 		return -ENOMEM;
 	}
-	memset( data->wbuffer, 0, 2048 );
 	data->maxwritelen = 2048;
 	data->on_close = proc_config_on_close;
 
@@ -5153,24 +5149,21 @@ static int proc_wepkey_open( struct inode *inode, struct file *file ) {
 	int j=0;
 	int rc;
 
-	if ((file->private_data = kmalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
+	if ((file->private_data = kzalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
-	memset(file->private_data, 0, sizeof(struct proc_data));
 	memset(&wkr, 0, sizeof(wkr));
 	data = (struct proc_data *)file->private_data;
-	if ((data->rbuffer = kmalloc( 180, GFP_KERNEL )) == NULL) {
+	if ((data->rbuffer = kzalloc( 180, GFP_KERNEL )) == NULL) {
 		kfree (file->private_data);
 		return -ENOMEM;
 	}
-	memset(data->rbuffer, 0, 180);
 	data->writelen = 0;
 	data->maxwritelen = 80;
-	if ((data->wbuffer = kmalloc( 80, GFP_KERNEL )) == NULL) {
+	if ((data->wbuffer = kzalloc( 80, GFP_KERNEL )) == NULL) {
 		kfree (data->rbuffer);
 		kfree (file->private_data);
 		return -ENOMEM;
 	}
-	memset( data->wbuffer, 0, 80 );
 	data->on_close = proc_wepkey_on_close;
 
 	ptr = data->rbuffer;
@@ -5201,9 +5194,8 @@ static int proc_SSID_open( struct inode *inode, struct file *file ) {
 	char *ptr;
 	SsidRid SSID_rid;
 
-	if ((file->private_data = kmalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
+	if ((file->private_data = kzalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
-	memset(file->private_data, 0, sizeof(struct proc_data));
 	data = (struct proc_data *)file->private_data;
 	if ((data->rbuffer = kmalloc( 104, GFP_KERNEL )) == NULL) {
 		kfree (file->private_data);
@@ -5211,12 +5203,11 @@ static int proc_SSID_open( struct inode *inode, struct file *file ) {
 	}
 	data->writelen = 0;
 	data->maxwritelen = 33*3;
-	if ((data->wbuffer = kmalloc( 33*3, GFP_KERNEL )) == NULL) {
+	if ((data->wbuffer = kzalloc( 33*3, GFP_KERNEL )) == NULL) {
 		kfree (data->rbuffer);
 		kfree (file->private_data);
 		return -ENOMEM;
 	}
-	memset( data->wbuffer, 0, 33*3 );
 	data->on_close = proc_SSID_on_close;
 
 	readSsidRid(ai, &SSID_rid);
@@ -5245,9 +5236,8 @@ static int proc_APList_open( struct inode *inode, struct file *file ) {
 	char *ptr;
 	APListRid APList_rid;
 
-	if ((file->private_data = kmalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
+	if ((file->private_data = kzalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
-	memset(file->private_data, 0, sizeof(struct proc_data));
 	data = (struct proc_data *)file->private_data;
 	if ((data->rbuffer = kmalloc( 104, GFP_KERNEL )) == NULL) {
 		kfree (file->private_data);
@@ -5255,12 +5245,11 @@ static int proc_APList_open( struct inode *inode, struct file *file ) {
 	}
 	data->writelen = 0;
 	data->maxwritelen = 4*6*3;
-	if ((data->wbuffer = kmalloc( data->maxwritelen, GFP_KERNEL )) == NULL) {
+	if ((data->wbuffer = kzalloc( data->maxwritelen, GFP_KERNEL )) == NULL) {
 		kfree (data->rbuffer);
 		kfree (file->private_data);
 		return -ENOMEM;
 	}
-	memset( data->wbuffer, 0, data->maxwritelen );
 	data->on_close = proc_APList_on_close;
 
 	readAPListRid(ai, &APList_rid);
@@ -5295,9 +5284,8 @@ static int proc_BSSList_open( struct inode *inode, struct file *file ) {
 	/* If doLoseSync is not 1, we won't do a Lose Sync */
 	int doLoseSync = -1;
 
-	if ((file->private_data = kmalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
+	if ((file->private_data = kzalloc(sizeof(struct proc_data ), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
-	memset(file->private_data, 0, sizeof(struct proc_data));
 	data = (struct proc_data *)file->private_data;
 	if ((data->rbuffer = kmalloc( 1024, GFP_KERNEL )) == NULL) {
 		kfree (file->private_data);
