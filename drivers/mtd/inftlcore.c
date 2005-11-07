@@ -126,10 +126,8 @@ static void inftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	}
 
 	if (add_mtd_blktrans_dev(&inftl->mbd)) {
-		if (inftl->PUtable)
-			kfree(inftl->PUtable);
-		if (inftl->VUtable)
-			kfree(inftl->VUtable);
+		kfree(inftl->PUtable);
+		kfree(inftl->VUtable);
 		kfree(inftl);
 		return;
 	}
@@ -147,10 +145,8 @@ static void inftl_remove_dev(struct mtd_blktrans_dev *dev)
 
 	del_mtd_blktrans_dev(dev);
 
-	if (inftl->PUtable)
-		kfree(inftl->PUtable);
-	if (inftl->VUtable)
-		kfree(inftl->VUtable);
+	kfree(inftl->PUtable);
+	kfree(inftl->VUtable);
 	kfree(inftl);
 }
 

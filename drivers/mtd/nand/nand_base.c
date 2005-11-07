@@ -2676,9 +2676,8 @@ void nand_release (struct mtd_info *mtd)
 	/* Deregister the device */
 	del_mtd_device (mtd);
 
-	/* Free bad block table memory, if allocated */
-	if (this->bbt)
-		kfree (this->bbt);
+	/* Free bad block table memory */
+	kfree (this->bbt);
 	/* Buffer allocated by nand_scan ? */
 	if (this->options & NAND_OOBBUF_ALLOC)
 		kfree (this->oob_buf);

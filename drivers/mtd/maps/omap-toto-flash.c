@@ -124,8 +124,7 @@ static void  __exit omap_toto_mtd_cleanup(void)
 	if (flash_mtd) {
 		del_mtd_partitions(flash_mtd);
 		map_destroy(flash_mtd);
-		if (parsed_parts)
-			kfree(parsed_parts);
+		kfree(parsed_parts);
 	}
 }
 

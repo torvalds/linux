@@ -241,8 +241,7 @@ static void sa1100_destroy(struct sa_info *info, struct flash_platform_data *pla
 #endif
 	}
 
-	if (info->parts)
-		kfree(info->parts);
+	kfree(info->parts);
 
 	for (i = info->num_subdev - 1; i >= 0; i--)
 		sa1100_destroy_subdev(&info->subdev[i]);

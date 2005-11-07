@@ -224,10 +224,8 @@ int __init init_tqm_mtd(void)
 error_mem:
 	for(idx = 0 ; idx < FLASH_BANK_MAX ; idx++) {
 		if(map_banks[idx] != NULL) {
-			if(map_banks[idx]->name != NULL) {
-				kfree(map_banks[idx]->name);
-				map_banks[idx]->name = NULL;
-			}
+			kfree(map_banks[idx]->name);
+			map_banks[idx]->name = NULL;
 			kfree(map_banks[idx]);
 			map_banks[idx] = NULL;
 		}

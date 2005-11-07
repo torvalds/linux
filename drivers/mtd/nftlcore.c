@@ -114,10 +114,8 @@ static void nftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	}
 
 	if (add_mtd_blktrans_dev(&nftl->mbd)) {
-		if (nftl->ReplUnitTable)
-			kfree(nftl->ReplUnitTable);
-		if (nftl->EUNtable)
-			kfree(nftl->EUNtable);
+		kfree(nftl->ReplUnitTable);
+		kfree(nftl->EUNtable);
 		kfree(nftl);
 		return;
 	}
@@ -133,10 +131,8 @@ static void nftl_remove_dev(struct mtd_blktrans_dev *dev)
 	DEBUG(MTD_DEBUG_LEVEL1, "NFTL: remove_dev (i=%d)\n", dev->devnum);
 
 	del_mtd_blktrans_dev(dev);
-	if (nftl->ReplUnitTable)
-		kfree(nftl->ReplUnitTable);
-	if (nftl->EUNtable)
-		kfree(nftl->EUNtable);
+	kfree(nftl->ReplUnitTable);
+	kfree(nftl->EUNtable);
 	kfree(nftl);
 }
 

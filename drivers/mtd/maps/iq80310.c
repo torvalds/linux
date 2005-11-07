@@ -103,8 +103,7 @@ static void __exit cleanup_iq80310(void)
 	if (mymtd) {
 		del_mtd_partitions(mymtd);
 		map_destroy(mymtd);
-		if (parsed_parts)
-			kfree(parsed_parts);
+		kfree(parsed_parts);
 	}
 	if (iq80310_map.virt)
 		iounmap((void *)iq80310_map.virt);

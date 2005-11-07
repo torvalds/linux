@@ -104,8 +104,7 @@ static int bast_flash_remove(struct device *dev)
 		map_destroy(info->mtd);
 	}
 
-	if (info->partitions)
-		kfree(info->partitions);
+	kfree(info->partitions);
 
 	if (info->area) {
 		release_resource(info->area);
