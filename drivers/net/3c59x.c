@@ -1457,7 +1457,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 		if (vp->drv_flags & EXTRA_PREAMBLE)
 			mii_preamble_required++;
 		mdio_sync(ioaddr, 32);
-		mdio_read(dev, 24, 1);
+		mdio_read(dev, 24, MII_BMSR);
 		for (phy = 0; phy < 32 && phy_idx < 1; phy++) {
 			int mii_status, phyx;
 
@@ -1471,7 +1471,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 				phyx = phy - 1;
 			else
 				phyx = phy;
-			mii_status = mdio_read(dev, phyx, 1);
+			mii_status = mdio_read(dev, phyx, MII_BMSR);
 			if (mii_status  &&  mii_status != 0xffff) {
 				vp->phys[phy_idx++] = phyx;
 				if (print_info) {
@@ -1487,7 +1487,7 @@ static int __devinit vortex_probe1(struct device *gendev,
 			printk(KERN_WARNING"  ***WARNING*** No MII transceivers found!\n");
 			vp->phys[0] = 24;
 		} else {
-			vp->advertising = mdio_read(dev, vp->phys[0], 4);
+			vp->advertising = mdio_read(dev, vp->phys[0], MII_ADVERTISE);
 			if (vp->full_duplex) {
 				/* Only advertise the FD media types. */
 				vp->advertising &= ~0x02A0;
@@ -1661,8 +1661,8 @@ vortex_up(struct net_device *dev)
 		int mii_reg1, mii_reg5;
 		EL3WINDOW(4);
 		/* Read BMSR (reg1) only to clear old status. */
-		mii_reg1 = mdio_read(dev, vp->phys[0], 1);
-		mii_reg5 = mdio_read(dev, vp->phys[0], 5);
+		mii_reg1 = mdio_read(dev, vp->phys[0], MII_BMSR);
+		mii_reg5 = mdio_read(dev, vp->phys[0], MII_LPA);
 		if (mii_reg5 == 0xffff  ||  mii_reg5 == 0x0000) {
 			netif_carrier_off(dev); /* No MII device or no link partner report */
 		} else {
@@ -1892,14 +1892,14 @@ vortex_timer(unsigned long data)
 	case XCVR_MII: case XCVR_NWAY:
 		{
 			spin_lock_bh(&vp->lock);
-			mii_status = mdio_read(dev, vp->phys[0], 1);
-			mii_status = mdio_read(dev, vp->phys[0], 1);
+			mii_status = mdio_read(dev, vp->phys[0], MII_BMSR);
+			mii_status = mdio_read(dev, vp->phys[0], MII_BMSR);
 			ok = 1;
 			if (vortex_debug > 2)
 				printk(KERN_DEBUG "%s: MII transceiver has status %4.4x.\n",
 					dev->name, mii_status);
 			if (mii_status & BMSR_LSTATUS) {
-				int mii_reg5 = mdio_read(dev, vp->phys[0], 5);
+				int mii_reg5 = mdio_read(dev, vp->phys[0], MII_LPA);
 				if (! vp->force_fd  &&  mii_reg5 != 0xffff) {
 					int duplex;
 
