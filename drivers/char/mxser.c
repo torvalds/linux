@@ -494,13 +494,17 @@ static int __init mxser_module_init(void)
 
 static void __exit mxser_module_exit(void)
 {
-	int i, err = 0;
+	int i, err;
 
 	if (verbose)
 		printk(KERN_DEBUG "Unloading module mxser ...\n");
 
-	if ((err |= tty_unregister_driver(mxvar_sdriver)))
+	err = tty_unregister_driver(mxvar_sdriver);
+	if (!err)
+		put_tty_driver(mxvar_sdriver);
+	else
 		printk(KERN_ERR "Couldn't unregister MOXA Smartio/Industio family serial driver\n");
+
 
 	for (i = 0; i < MXSER_BOARDS; i++) {
 		struct pci_dev *pdev;
@@ -690,7 +694,6 @@ static int mxser_get_PCI_conf(int busnum, int devnum, int board_type, struct mxs
 static int mxser_init(void)
 {
 	int i, m, retval, b, n;
-	int ret1;
 	struct pci_dev *pdev = NULL;
 	int index;
 	unsigned char busnum, devnum;
@@ -854,14 +857,11 @@ static int mxser_init(void)
 	}
 #endif
 
-	ret1 = 0;
-	if (!(ret1 = tty_register_driver(mxvar_sdriver))) {
-		return 0;
-	} else
+	retval = tty_register_driver(mxvar_sdriver);
+	if (retval) {
 		printk(KERN_ERR "Couldn't install MOXA Smartio/Industio family driver !\n");
+		put_tty_driver(mxvar_sdriver);
 
-
-	if (ret1) {
 		for (i = 0; i < MXSER_BOARDS; i++) {
 			if (mxsercfg[i].board_type == -1)
 				continue;
@@ -870,10 +870,10 @@ static int mxser_init(void)
 				//todo: release io, vector
 			}
 		}
-		return -1;
+		return retval;
 	}
 
-	return (0);
+	return 0;
 }
 
 static void mxser_do_softint(void *private_)
