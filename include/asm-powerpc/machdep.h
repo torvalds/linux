@@ -80,7 +80,6 @@ struct machdep_calls {
 	void		(*iommu_dev_setup)(struct pci_dev *dev);
 	void		(*iommu_bus_setup)(struct pci_bus *bus);
 	void		(*irq_bus_setup)(struct pci_bus *bus);
-	int		(*set_dabr)(unsigned long dabr);
 #endif
 
 	int		(*probe)(int platform);
@@ -155,6 +154,9 @@ struct machdep_calls {
 	/* Function to enable performance monitor counters for this
 	   platform, called once per cpu. */
 	void		(*enable_pmcs)(void);
+
+	/* Set DABR for this platform, leave empty for default implemenation */
+	int		(*set_dabr)(unsigned long dabr);
 
 #ifdef CONFIG_PPC32	/* XXX for now */
 	/* A general init function, called by ppc_init in init/main.c.
