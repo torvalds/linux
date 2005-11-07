@@ -505,8 +505,6 @@ found:
 		goto out;
 	}
 
-	file->agent[agent_id] = agent;
-
 	file->mr[agent_id] = ib_get_dma_mr(agent->qp->pd, IB_ACCESS_LOCAL_WRITE);
 	if (IS_ERR(file->mr[agent_id])) {
 		ret = -ENOMEM;
@@ -519,14 +517,15 @@ found:
 		goto err_mr;
 	}
 
+	file->agent[agent_id] = agent;
 	ret = 0;
+
 	goto out;
 
 err_mr:
 	ib_dereg_mr(file->mr[agent_id]);
 
 err:
-	file->agent[agent_id] = NULL;
 	ib_unregister_mad_agent(agent);
 
 out:
@@ -536,27 +535,33 @@ out:
 
 static int ib_umad_unreg_agent(struct ib_umad_file *file, unsigned long arg)
 {
+	struct ib_mad_agent *agent = NULL;
+	struct ib_mr *mr = NULL;
 	u32 id;
 	int ret = 0;
 
-	down_write(&file->port->mutex);
+	if (get_user(id, (u32 __user *) arg))
+		return -EFAULT;
 
-	if (get_user(id, (u32 __user *) arg)) {
-		ret = -EFAULT;
-		goto out;
-	}
+	down_write(&file->port->mutex);
 
 	if (id < 0 || id >= IB_UMAD_MAX_AGENTS || !file->agent[id]) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	ib_dereg_mr(file->mr[id]);
-	ib_unregister_mad_agent(file->agent[id]);
+	agent = file->agent[id];
+	mr    = file->mr[id];
 	file->agent[id] = NULL;
 
 out:
 	up_write(&file->port->mutex);
+
+	if (agent) {
+		ib_unregister_mad_agent(agent);
+		ib_dereg_mr(mr);
+	}
+
 	return ret;
 }
 
@@ -623,16 +628,16 @@ static int ib_umad_close(struct inode *inode, struct file *filp)
 	struct ib_umad_packet *packet, *tmp;
 	int i;
 
-	down_write(&file->port->mutex);
 	for (i = 0; i < IB_UMAD_MAX_AGENTS; ++i)
 		if (file->agent[i]) {
-			ib_dereg_mr(file->mr[i]);
 			ib_unregister_mad_agent(file->agent[i]);
+			ib_dereg_mr(file->mr[i]);
 		}
 
 	list_for_each_entry_safe(packet, tmp, &file->recv_list, list)
 		kfree(packet);
 
+	down_write(&file->port->mutex);
 	list_del(&file->port_list);
 	up_write(&file->port->mutex);
 
