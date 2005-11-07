@@ -34,12 +34,17 @@
 /* Lowest TLB slot consumed by the default pinned TLBs */
 #define PPC44x_LOW_SLOT		63
 
-/* LS 32-bits of UART0 physical address location for early serial text debug */
+/*
+ * Least significant 32-bits and extended real page number (ERPN) of
+ * UART0 physical address location for early serial text debug
+ */
 #if defined(CONFIG_440SP)
+#define UART0_PHYS_ERPN		1
 #define UART0_PHYS_IO_BASE	0xf0000200
 #elif defined(CONFIG_440EP)
 #define UART0_PHYS_IO_BASE	0xe0000000
 #else
+#define UART0_PHYS_ERPN		1
 #define UART0_PHYS_IO_BASE	0x40000200
 #endif
 
