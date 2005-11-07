@@ -562,7 +562,7 @@ int write_inode_now(struct inode *inode, int sync)
 	};
 
 	if (!mapping_cap_writeback_dirty(inode->i_mapping))
-		return 0;
+		wbc.nr_to_write = 0;
 
 	might_sleep();
 	spin_lock(&inode_lock);
