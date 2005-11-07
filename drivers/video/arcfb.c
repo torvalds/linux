@@ -502,10 +502,6 @@ static ssize_t arcfb_write(struct file *file, const char *buf, size_t count,
 	return err;
 }
 
-static void arcfb_platform_release(struct device *device)
-{
-}
-
 static struct fb_ops arcfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= arcfb_open,
@@ -624,13 +620,7 @@ static struct device_driver arcfb_driver = {
 	.remove = arcfb_remove,
 };
 
-static struct platform_device arcfb_device = {
-	.name	= "arcfb",
-	.id	= 0,
-	.dev	= {
-		.release = arcfb_platform_release,
-	}
-};
+static struct platform_device *arcfb_device;
 
 static int __init arcfb_init(void)
 {
@@ -641,9 +631,16 @@ static int __init arcfb_init(void)
 
 	ret = driver_register(&arcfb_driver);
 	if (!ret) {
-		ret = platform_device_register(&arcfb_device);
-		if (ret)
+		arcfb_device = platform_device_alloc("arcfb", 0);
+		if (arcfb_device) {
+			ret = platform_device_add(arcfb_device);
+		} else {
+			ret = -ENOMEM;
+		}
+		if (ret) {
+			platform_device_put(arcfb_device);
 			driver_unregister(&arcfb_driver);
+		}
 	}
 	return ret;
 
@@ -651,7 +648,7 @@ static int __init arcfb_init(void)
 
 static void __exit arcfb_exit(void)
 {
-	platform_device_unregister(&arcfb_device);
+	platform_device_unregister(arcfb_device);
 	driver_unregister(&arcfb_driver);
 }
 

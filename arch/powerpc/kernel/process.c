@@ -552,12 +552,10 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 #ifdef CONFIG_PPC64
 	if (cpu_has_feature(CPU_FTR_SLB)) {
 		unsigned long sp_vsid = get_kernel_vsid(sp);
+		unsigned long llp = mmu_psize_defs[mmu_linear_psize].sllp;
 
 		sp_vsid <<= SLB_VSID_SHIFT;
-		sp_vsid |= SLB_VSID_KERNEL;
-		if (cpu_has_feature(CPU_FTR_16M_PAGE))
-			sp_vsid |= SLB_VSID_L;
-
+		sp_vsid |= SLB_VSID_KERNEL | llp;
 		p->thread.ksp_vsid = sp_vsid;
 	}
 

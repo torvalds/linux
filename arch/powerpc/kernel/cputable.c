@@ -240,7 +240,7 @@ struct cpu_spec	cpu_specs[] = {
 		.oprofile_model		= &op_model_power4,
 #endif
 	},
-	{	/* Power5 */
+	{	/* Power5 GR */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x003a0000,
 		.cpu_name		= "POWER5 (gr)",
@@ -255,7 +255,7 @@ struct cpu_spec	cpu_specs[] = {
 		.oprofile_model		= &op_model_power4,
 #endif
 	},
-	{	/* Power5 */
+	{	/* Power5 GS */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x003b0000,
 		.cpu_name		= "POWER5 (gs)",

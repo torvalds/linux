@@ -271,16 +271,21 @@ void __init early_setup(unsigned long dt_ptr)
 	DBG("Found, Initializing memory management...\n");
 
 	/*
-	 * Initialize stab / SLB management
-	 */
-	if (!firmware_has_feature(FW_FEATURE_ISERIES))
-		stab_initialize(lpaca->stab_real);
-
-	/*
 	 * Initialize the MMU Hash table and create the linear mapping
-	 * of memory
+	 * of memory. Has to be done before stab/slb initialization as
+	 * this is currently where the page size encoding is obtained
 	 */
 	htab_initialize();
+
+	/*
+	 * Initialize stab / SLB management except on iSeries
+	 */
+	if (!firmware_has_feature(FW_FEATURE_ISERIES)) {
+		if (cpu_has_feature(CPU_FTR_SLB))
+			slb_initialize();
+		else
+			stab_initialize(lpaca->stab_real);
+	}
 
 	DBG(" <- early_setup()\n");
 }
@@ -545,10 +550,12 @@ static void __init irqstack_early_init(void)
 	 * SLB misses on them.
 	 */
 	for_each_cpu(i) {
-		softirq_ctx[i] = (struct thread_info *)__va(lmb_alloc_base(THREAD_SIZE,
-					THREAD_SIZE, 0x10000000));
-		hardirq_ctx[i] = (struct thread_info *)__va(lmb_alloc_base(THREAD_SIZE,
-					THREAD_SIZE, 0x10000000));
+		softirq_ctx[i] = (struct thread_info *)
+			__va(lmb_alloc_base(THREAD_SIZE,
+					    THREAD_SIZE, 0x10000000));
+		hardirq_ctx[i] = (struct thread_info *)
+			__va(lmb_alloc_base(THREAD_SIZE,
+					    THREAD_SIZE, 0x10000000));
 	}
 }
 #else
@@ -576,8 +583,8 @@ static void __init emergency_stack_init(void)
 	limit = min(0x10000000UL, lmb.rmo_size);
 
 	for_each_cpu(i)
-		paca[i].emergency_sp = __va(lmb_alloc_base(PAGE_SIZE, 128,
-						limit)) + PAGE_SIZE;
+		paca[i].emergency_sp =
+		__va(lmb_alloc_base(HW_PAGE_SIZE, 128, limit)) + HW_PAGE_SIZE;
 }
 
 /*

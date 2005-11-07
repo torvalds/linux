@@ -289,7 +289,7 @@ __cmpxchg_u32(volatile unsigned int *p, unsigned long old, unsigned long new)
 
 #ifdef CONFIG_PPC64
 static __inline__ unsigned long
-__cmpxchg_u64(volatile long *p, unsigned long old, unsigned long new)
+__cmpxchg_u64(volatile unsigned long *p, unsigned long old, unsigned long new)
 {
 	unsigned long prev;
 
