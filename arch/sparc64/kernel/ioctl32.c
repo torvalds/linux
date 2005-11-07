@@ -27,17 +27,6 @@
  */
 #define A(__x) compat_ptr(__x)
 
-static __inline__ void *alloc_user_space(long len)
-{
-	struct pt_regs *regs = current_thread_info()->kregs;
-	unsigned long usp = regs->u_regs[UREG_I6];
-
-	if (!(test_thread_flag(TIF_32BIT)))
-		usp += STACK_BIAS;
-
-	return (void *) (usp - len);
-}
-
 #define CODE
 #include "compat_ioctl.c"
 
