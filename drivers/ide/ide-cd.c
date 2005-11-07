@@ -3455,7 +3455,7 @@ static int ide_cd_probe(struct device *dev)
 		printk(KERN_INFO "ide-cd: passing drive %s to ide-scsi emulation.\n", drive->name);
 		goto failed;
 	}
-	info = kmalloc(sizeof(struct cdrom_info), GFP_KERNEL);
+	info = kzalloc(sizeof(struct cdrom_info), GFP_KERNEL);
 	if (info == NULL) {
 		printk(KERN_ERR "%s: Can't allocate a cdrom structure\n", drive->name);
 		goto failed;
@@ -3468,8 +3468,6 @@ static int ide_cd_probe(struct device *dev)
 	ide_init_disk(g, drive);
 
 	ide_register_subdriver(drive, &ide_cdrom_driver);
-
-	memset(info, 0, sizeof (struct cdrom_info));
 
 	kref_init(&info->kref);
 
