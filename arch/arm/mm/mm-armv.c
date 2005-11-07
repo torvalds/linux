@@ -354,7 +354,7 @@ void __init build_mem_type_table(void)
 {
 	struct cachepolicy *cp;
 	unsigned int cr = get_cr();
-	unsigned int user_pgprot;
+	unsigned int user_pgprot, kern_pgprot;
 	int cpu_arch = cpu_architecture();
 	int i;
 
@@ -381,7 +381,7 @@ void __init build_mem_type_table(void)
 	}
 
 	cp = &cache_policies[cachepolicy];
-	user_pgprot = cp->pte;
+	kern_pgprot = user_pgprot = cp->pte;
 
 	/*
 	 * ARMv6 and above have extended page tables.
@@ -393,6 +393,7 @@ void __init build_mem_type_table(void)
 		 */
 		mem_types[MT_MEMORY].prot_sect &= ~PMD_BIT4;
 		mem_types[MT_ROM].prot_sect &= ~PMD_BIT4;
+
 		/*
 		 * Mark cache clean areas and XIP ROM read only
 		 * from SVC mode and no access from userspace.
@@ -412,31 +413,46 @@ void __init build_mem_type_table(void)
 		 * (iow, non-global)
 		 */
 		user_pgprot |= L_PTE_ASID;
+
+#ifdef CONFIG_SMP
+		/*
+		 * Mark memory with the "shared" attribute for SMP systems
+		 */
+		user_pgprot |= L_PTE_SHARED;
+		kern_pgprot |= L_PTE_SHARED;
+		mem_types[MT_MEMORY].prot_sect |= PMD_SECT_S;
+#endif
 	}
 
+	for (i = 0; i < 16; i++) {
+		unsigned long v = pgprot_val(protection_map[i]);
+		v = (v & ~(L_PTE_BUFFERABLE|L_PTE_CACHEABLE)) | user_pgprot;
+		protection_map[i] = __pgprot(v);
+	}
+
+	mem_types[MT_LOW_VECTORS].prot_pte |= kern_pgprot;
+	mem_types[MT_HIGH_VECTORS].prot_pte |= kern_pgprot;
+
 	if (cpu_arch >= CPU_ARCH_ARMv5) {
-		mem_types[MT_LOW_VECTORS].prot_pte |= cp->pte & PTE_CACHEABLE;
-		mem_types[MT_HIGH_VECTORS].prot_pte |= cp->pte & PTE_CACHEABLE;
+#ifndef CONFIG_SMP
+		/*
+		 * Only use write-through for non-SMP systems
+		 */
+		mem_types[MT_LOW_VECTORS].prot_pte &= ~L_PTE_BUFFERABLE;
+		mem_types[MT_HIGH_VECTORS].prot_pte &= ~L_PTE_BUFFERABLE;
+#endif
 	} else {
-		mem_types[MT_LOW_VECTORS].prot_pte |= cp->pte;
-		mem_types[MT_HIGH_VECTORS].prot_pte |= cp->pte;
 		mem_types[MT_MINICLEAN].prot_sect &= ~PMD_SECT_TEX(1);
 	}
+
+	pgprot_kernel = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG |
+				 L_PTE_DIRTY | L_PTE_WRITE |
+				 L_PTE_EXEC | kern_pgprot);
 
 	mem_types[MT_LOW_VECTORS].prot_l1 |= ecc_mask;
 	mem_types[MT_HIGH_VECTORS].prot_l1 |= ecc_mask;
 	mem_types[MT_MEMORY].prot_sect |= ecc_mask | cp->pmd;
 	mem_types[MT_ROM].prot_sect |= cp->pmd;
-
-	for (i = 0; i < 16; i++) {
-		unsigned long v = pgprot_val(protection_map[i]);
-		v = (v & ~(PTE_BUFFERABLE|PTE_CACHEABLE)) | user_pgprot;
-		protection_map[i] = __pgprot(v);
-	}
-
-	pgprot_kernel = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG |
-				 L_PTE_DIRTY | L_PTE_WRITE |
-				 L_PTE_EXEC | cp->pte);
 
 	switch (cp->pmd) {
 	case PMD_SECT_WT:
