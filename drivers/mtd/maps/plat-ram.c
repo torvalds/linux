@@ -6,7 +6,7 @@
  *
  * Generic platfrom device based RAM map
  *
- * $Id: plat-ram.c,v 1.4 2005/10/10 00:51:26 bjd Exp $
+ * $Id: plat-ram.c,v 1.6 2005/11/07 00:52:24 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -177,7 +177,7 @@ static int platram_probe(struct device *dev)
 
 	info->map.phys = res->start;
 	info->map.size = (res->end - res->start) + 1;
-	info->map.name = pdata->mapname != NULL ? pdata->mapname : pd->name;
+	info->map.name = pdata->mapname != NULL ? pdata->mapname : (char *)pd->name;
 	info->map.bankwidth = pdata->bankwidth;
 
 	/* register our usage of the memory area */
