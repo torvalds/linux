@@ -56,7 +56,7 @@
 #include "ioasm.h"
 #include "chsc.h"
 
-#define VERSION_QDIO_C "$Revision: 1.101 $"
+#define VERSION_QDIO_C "$Revision: 1.108 $"
 
 /****************** MODULE PARAMETER VARIABLES ********************/
 MODULE_AUTHOR("Utz Bacher <utz.bacher@de.ibm.com>");
@@ -2873,10 +2873,10 @@ qdio_establish(struct qdio_initialize *init_data)
 		return result;
 	}
 	
-	wait_event_interruptible_timeout(cdev->private->wait_q,
+	/* Timeout is cared for already by using ccw_device_start_timeout(). */
+	wait_event_interruptible(cdev->private->wait_q,
 		 irq_ptr->state == QDIO_IRQ_STATE_ESTABLISHED ||
-		 irq_ptr->state == QDIO_IRQ_STATE_ERR,
-		 QDIO_ESTABLISH_TIMEOUT);
+		 irq_ptr->state == QDIO_IRQ_STATE_ERR);
 
 	if (irq_ptr->state == QDIO_IRQ_STATE_ESTABLISHED)
 		result = 0;
