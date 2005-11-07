@@ -24,7 +24,7 @@ _GLOBAL(__copy_tofrom_user)
 	std	r4,-16(r1)
 	std	r5,-8(r1)
 	dcbt	0,r4
-	beq	.Lcopy_page
+	beq	.Lcopy_page_4K
 	andi.	r6,r6,7
 	mtcrf	0x01,r5
 	blt	cr1,.Lshort_copy
@@ -366,7 +366,7 @@ _GLOBAL(__copy_tofrom_user)
  * above (following the .Ldst_aligned label) but it runs slightly
  * slower on POWER3.
  */
-.Lcopy_page:
+.Lcopy_page_4K:
 	std	r31,-32(1)
 	std	r30,-40(1)
 	std	r29,-48(1)

@@ -68,7 +68,8 @@ static DEFINE_SPINLOCK(statuslock);
  * For each kind of event we allocate a buffer that is
  * guaranteed not to cross a page boundary
  */
-static unsigned char event_buffer[VIO_MAX_SUBTYPES * 256] __page_aligned;
+static unsigned char event_buffer[VIO_MAX_SUBTYPES * 256]
+	__attribute__((__aligned__(4096)));
 static atomic_t event_buffer_available[VIO_MAX_SUBTYPES];
 static int event_buffer_initialised;
 
@@ -116,12 +117,12 @@ static int proc_viopath_show(struct seq_file *m, void *v)
 	HvLpEvent_Rc hvrc;
 	DECLARE_MUTEX_LOCKED(Semaphore);
 
-	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
+	buf = kmalloc(HW_PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
 		return 0;
-	memset(buf, 0, PAGE_SIZE);
+	memset(buf, 0, HW_PAGE_SIZE);
 
-	handle = dma_map_single(iSeries_vio_dev, buf, PAGE_SIZE,
+	handle = dma_map_single(iSeries_vio_dev, buf, HW_PAGE_SIZE,
 				DMA_FROM_DEVICE);
 
 	hvrc = HvCallEvent_signalLpEventFast(viopath_hostLp,
@@ -131,7 +132,7 @@ static int proc_viopath_show(struct seq_file *m, void *v)
 			viopath_sourceinst(viopath_hostLp),
 			viopath_targetinst(viopath_hostLp),
 			(u64)(unsigned long)&Semaphore, VIOVERSION << 16,
-			((u64)handle) << 32, PAGE_SIZE, 0, 0);
+			((u64)handle) << 32, HW_PAGE_SIZE, 0, 0);
 
 	if (hvrc != HvLpEvent_Rc_Good)
 		printk(VIOPATH_KERN_WARN "hv error on op %d\n", (int)hvrc);
@@ -140,7 +141,7 @@ static int proc_viopath_show(struct seq_file *m, void *v)
 
 	vlanMap = HvLpConfig_getVirtualLanIndexMap();
 
-	buf[PAGE_SIZE-1] = '\0';
+	buf[HW_PAGE_SIZE-1] = '\0';
 	seq_printf(m, "%s", buf);
 	seq_printf(m, "AVAILABLE_VETH=%x\n", vlanMap);
 	seq_printf(m, "SRLNBR=%c%c%c%c%c%c%c\n",
@@ -152,7 +153,8 @@ static int proc_viopath_show(struct seq_file *m, void *v)
 		   e2a(xItExtVpdPanel.systemSerial[4]),
 		   e2a(xItExtVpdPanel.systemSerial[5]));
 
-	dma_unmap_single(iSeries_vio_dev, handle, PAGE_SIZE, DMA_FROM_DEVICE);
+	dma_unmap_single(iSeries_vio_dev, handle, HW_PAGE_SIZE,
+			 DMA_FROM_DEVICE);
 	kfree(buf);
 
 	return 0;

@@ -72,10 +72,15 @@ struct paca_struct {
 	/*
 	 * Now, starting in cacheline 2, the exception save areas
 	 */
-	u64 exgen[8] __attribute__((aligned(0x80))); /* used for most interrupts/exceptions */
-	u64 exmc[8];		/* used for machine checks */
-	u64 exslb[8];		/* used for SLB/segment table misses
-				 * on the linear mapping */
+	/* used for most interrupts/exceptions */
+	u64 exgen[10] __attribute__((aligned(0x80)));
+	u64 exmc[10];		/* used for machine checks */
+	u64 exslb[10];		/* used for SLB/segment table misses
+ 				 * on the linear mapping */
+#ifdef CONFIG_PPC_64K_PAGES
+	pgd_t *pgdir;
+#endif /* CONFIG_PPC_64K_PAGES */
+
 	mm_context_t context;
 	u16 slb_cache[SLB_CACHE_ENTRIES];
 	u16 slb_cache_ptr;
