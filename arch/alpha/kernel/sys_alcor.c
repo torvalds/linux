@@ -254,7 +254,7 @@ alcor_init_pci(void)
 	 * motherboard, by looking for a 21040 TULIP in slot 6, which is
 	 * built into XLT and BRET/MAVERICK, but not available on ALCOR.
 	 */
-	dev = pci_find_device(PCI_VENDOR_ID_DEC,
+	dev = pci_get_device(PCI_VENDOR_ID_DEC,
 			      PCI_DEVICE_ID_DEC_TULIP,
 			      NULL);
 	if (dev && dev->devfn == PCI_DEVFN(6,0)) {
@@ -262,6 +262,7 @@ alcor_init_pci(void)
 		printk(KERN_INFO "%s: Detected AS500 or XLT motherboard.\n",
 		       __FUNCTION__);
 	}
+	pci_dev_put(dev);
 }
 
 
