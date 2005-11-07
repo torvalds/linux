@@ -638,6 +638,50 @@ config FB_EPSON1355
 	  framebuffer.  Product specs at
 	  <http://www.erd.epson.com/vdc/html/products.htm>.
 
+config FB_E1356
+	tristate "Epson SED1356 framebuffer support"
+	depends on FB && EXPERIMENTAL && PCI && MIPS
+
+config PB1000_CRT
+	bool "Use CRT on Pb1000 (J65)"
+	depends on MIPS_PB1000=y && FB_E1356
+
+config PB1000_NTSC
+	bool "Use Compsite NTSC on Pb1000 (J63)"
+	depends on MIPS_PB1000=y && FB_E1356
+
+config PB1000_TFT
+	bool "Use TFT Panel on Pb1000 (J64)"
+	depends on MIPS_PB1000=y && FB_E1356
+
+config PB1500_CRT
+	bool "Use CRT on Pb1500 " if MIPS_PB1500=y
+	depends on FB_E1356
+
+config PB1500_CRT
+	prompt "Use CRT on Pb1100 "
+	depends on FB_E1356 && MIPS_PB1100=y
+
+config PB1500_TFT
+	bool "Use TFT Panel on Pb1500 " if MIPS_PB1500=y
+	depends on FB_E1356
+
+config PB1500_TFT
+	prompt "Use TFT Panel on Pb1100 "
+	depends on FB_E1356 && MIPS_PB1100=y
+
+config FB_S1D13XXX
+	tristate "Epson S1D13XXX framebuffer support"
+	depends on FB
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	select FB_SOFT_CURSOR
+	help
+	  Support for S1D13XXX framebuffer device family (currently only
+	  working with S1D13806). Product specs at
+	  <http://www.erd.epson.com/vdc/html/legacy_13xxx.htm>
+
 config FB_NVIDIA
 	tristate "nVidia Framebuffer Support"
 	depends on FB && PCI
@@ -1253,38 +1297,6 @@ config FB_PM3
 	  similar boards, 3DLabs Permedia3 Create!, Appian Jeronimo 2000
 	  and maybe other boards.
 
-config FB_E1356
-	tristate "Epson SED1356 framebuffer support"
-	depends on FB && EXPERIMENTAL && PCI && MIPS
-
-config PB1000_CRT
-	bool "Use CRT on Pb1000 (J65)"
-	depends on MIPS_PB1000=y && FB_E1356
-
-config PB1000_NTSC
-	bool "Use Compsite NTSC on Pb1000 (J63)"
-	depends on MIPS_PB1000=y && FB_E1356
-
-config PB1000_TFT
-	bool "Use TFT Panel on Pb1000 (J64)"
-	depends on MIPS_PB1000=y && FB_E1356
-
-config PB1500_CRT
-	bool "Use CRT on Pb1500 " if MIPS_PB1500=y
-	depends on FB_E1356
-
-config PB1500_CRT
-	prompt "Use CRT on Pb1100 "
-	depends on FB_E1356 && MIPS_PB1100=y
-
-config PB1500_TFT
-	bool "Use TFT Panel on Pb1500 " if MIPS_PB1500=y
-	depends on FB_E1356
-
-config PB1500_TFT
-	prompt "Use TFT Panel on Pb1100 "
-	depends on FB_E1356 && MIPS_PB1100=y
-
 config FB_AU1100
 	bool "Au1100 LCD Driver"
 	depends on (FB = y) && EXPERIMENTAL && PCI && MIPS && MIPS_PB1100=y
@@ -1476,23 +1488,6 @@ config FB_PXA
 
 	  If unsure, say N.
 
-config FB_W100
-	tristate "W100 frame buffer support"
-	depends on FB && PXA_SHARPSL
- 	select FB_CFB_FILLRECT
- 	select FB_CFB_COPYAREA
- 	select FB_CFB_IMAGEBLIT
-	select FB_SOFT_CURSOR
-	---help---
-	  Frame buffer driver for the w100 as found on the Sharp SL-Cxx series.
-
-	  This driver is also available as a module ( = code which can be
-	  inserted and removed from the running kernel whenever you want). The
-	  module will be called vfb. If you want to compile it as a module,
-	  say M here and read <file:Documentation/modules.txt>.
-
-	  If unsure, say N.
-
 config FB_PXA_PARAMETERS
 	bool "PXA LCD command line parameters"
 	default n
@@ -1510,17 +1505,22 @@ config FB_PXA_PARAMETERS
 
 	  <file:Documentation/fb/pxafb.txt> describes the available parameters.
 
-config FB_S1D13XXX
-	tristate "Epson S1D13XXX framebuffer support"
-	depends on FB
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
+config FB_W100
+	tristate "W100 frame buffer support"
+	depends on FB && PXA_SHARPSL
+ 	select FB_CFB_FILLRECT
+ 	select FB_CFB_COPYAREA
+ 	select FB_CFB_IMAGEBLIT
 	select FB_SOFT_CURSOR
-	help
-	  Support for S1D13XXX framebuffer device family (currently only
-	  working with S1D13806). Product specs at
-	  <http://www.erd.epson.com/vdc/html/legacy_13xxx.htm>
+	---help---
+	  Frame buffer driver for the w100 as found on the Sharp SL-Cxx series.
+
+	  This driver is also available as a module ( = code which can be
+	  inserted and removed from the running kernel whenever you want). The
+	  module will be called vfb. If you want to compile it as a module,
+	  say M here and read <file:Documentation/modules.txt>.
+
+	  If unsure, say N.
 
 config FB_S3C2410
 	tristate "S3C2410 LCD framebuffer support"
