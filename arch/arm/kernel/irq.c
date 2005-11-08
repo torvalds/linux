@@ -995,7 +995,7 @@ void __init init_irq_proc(void)
 	struct proc_dir_entry *dir;
 	int irq;
 
-	dir = proc_mkdir("irq", 0);
+	dir = proc_mkdir("irq", NULL);
 	if (!dir)
 		return;
 

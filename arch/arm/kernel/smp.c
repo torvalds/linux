@@ -515,7 +515,7 @@ static void ipi_cpu_stop(unsigned int cpu)
  *
  *  Bit 0 - Inter-processor function call
  */
-void do_IPI(struct pt_regs *regs)
+asmlinkage void do_IPI(struct pt_regs *regs)
 {
 	unsigned int cpu = smp_processor_id();
 	struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
