@@ -809,138 +809,274 @@ out:
 #endif
 
 /*
- *	Choose an appropriate source address
- *	should do:
- *	i)	get an address with an appropriate scope
- *	ii)	see if there is a specific route for the destination and use
- *		an address of the attached interface 
- *	iii)	don't use deprecated addresses
+ *	Choose an appropriate source address (RFC3484)
  */
-static int inline ipv6_saddr_pref(const struct inet6_ifaddr *ifp, u8 invpref)
+struct ipv6_saddr_score {
+	int		addr_type;
+	unsigned int	attrs;
+	int		matchlen;
+	unsigned int	scope;
+	unsigned int	rule;
+};
+
+#define IPV6_SADDR_SCORE_LOCAL		0x0001
+#define IPV6_SADDR_SCORE_PREFERRED	0x0004
+#define IPV6_SADDR_SCORE_HOA		0x0008
+#define IPV6_SADDR_SCORE_OIF		0x0010
+#define IPV6_SADDR_SCORE_LABEL		0x0020
+#define IPV6_SADDR_SCORE_PRIVACY	0x0040
+
+static int inline ipv6_saddr_preferred(int type)
 {
-	int pref;
-	pref = ifp->flags&IFA_F_DEPRECATED ? 0 : 2;
-#ifdef CONFIG_IPV6_PRIVACY
-	pref |= (ifp->flags^invpref)&IFA_F_TEMPORARY ? 0 : 1;
-#endif
-	return pref;
+	if (type & (IPV6_ADDR_MAPPED|IPV6_ADDR_COMPATv4|
+		    IPV6_ADDR_LOOPBACK|IPV6_ADDR_RESERVED))
+		return 1;
+	return 0;
 }
 
-#ifdef CONFIG_IPV6_PRIVACY
-#define IPV6_GET_SADDR_MAXSCORE(score)	((score) == 3)
-#else
-#define IPV6_GET_SADDR_MAXSCORE(score)	(score)
-#endif
+/* static matching label */
+static int inline ipv6_saddr_label(const struct in6_addr *addr, int type)
+{
+ /*
+  * 	prefix (longest match)	label
+  * 	-----------------------------
+  * 	::1/128			0
+  * 	::/0			1
+  * 	2002::/16		2
+  * 	::/96			3
+  * 	::ffff:0:0/96		4
+  */
+	if (type & IPV6_ADDR_LOOPBACK)
+		return 0;
+	else if (type & IPV6_ADDR_COMPATv4)
+		return 3;
+	else if (type & IPV6_ADDR_MAPPED)
+		return 4;
+	else if (addr->s6_addr16[0] == htons(0x2002))
+		return 2;
+	return 1;
+}
 
-int ipv6_dev_get_saddr(struct net_device *dev,
+int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 		       struct in6_addr *daddr, struct in6_addr *saddr)
 {
-	struct inet6_ifaddr *ifp = NULL;
-	struct inet6_ifaddr *match = NULL;
-	struct inet6_dev *idev;
-	int scope;
-	int err;
-	int hiscore = -1, score;
+	struct ipv6_saddr_score hiscore;
+	struct inet6_ifaddr *ifa_result = NULL;
+	int daddr_type = __ipv6_addr_type(daddr);
+	int daddr_scope = __ipv6_addr_src_scope(daddr_type);
+	u32 daddr_label = ipv6_saddr_label(daddr, daddr_type);
+	struct net_device *dev;
 
-	scope = ipv6_addr_scope(daddr);
-
-	/*
-	 *	known dev
-	 *	search dev and walk through dev addresses
-	 */
-
-	if (dev) {
-		if (dev->flags & IFF_LOOPBACK)
-			scope = IFA_HOST;
-
-		read_lock(&addrconf_lock);
-		idev = __in6_dev_get(dev);
-		if (idev) {
-			read_lock_bh(&idev->lock);
-			for (ifp=idev->addr_list; ifp; ifp=ifp->if_next) {
-				if (ifp->scope == scope) {
-					if (ifp->flags&IFA_F_TENTATIVE)
-						continue;
-#ifdef CONFIG_IPV6_PRIVACY
-					score = ipv6_saddr_pref(ifp, idev->cnf.use_tempaddr > 1 ? IFA_F_TEMPORARY : 0);
-#else
-					score = ipv6_saddr_pref(ifp, 0);
-#endif
-					if (score <= hiscore)
-						continue;
-
-					if (match)
-						in6_ifa_put(match);
-					match = ifp;
-					hiscore = score;
-					in6_ifa_hold(ifp);
-
-					if (IPV6_GET_SADDR_MAXSCORE(score)) {
-						read_unlock_bh(&idev->lock);
-						read_unlock(&addrconf_lock);
-						goto out;
-					}
-				}
-			}
-			read_unlock_bh(&idev->lock);
-		}
-		read_unlock(&addrconf_lock);
-	}
-
-	if (scope == IFA_LINK)
-		goto out;
-
-	/*
-	 *	dev == NULL or search failed for specified dev
-	 */
+	memset(&hiscore, 0, sizeof(hiscore));
 
 	read_lock(&dev_base_lock);
 	read_lock(&addrconf_lock);
+
 	for (dev = dev_base; dev; dev=dev->next) {
+		struct inet6_dev *idev;
+		struct inet6_ifaddr *ifa;
+
+		/* Rule 0: Candidate Source Address (section 4)
+		 *  - multicast and link-local destination address,
+		 *    the set of candidate source address MUST only
+		 *    include addresses assigned to interfaces
+		 *    belonging to the same link as the outgoing
+		 *    interface.
+		 * (- For site-local destination addresses, the
+		 *    set of candidate source addresses MUST only
+		 *    include addresses assigned to interfaces
+		 *    belonging to the same site as the outgoing
+		 *    interface.)
+		 */
+		if ((daddr_type & IPV6_ADDR_MULTICAST ||
+		     daddr_scope <= IPV6_ADDR_SCOPE_LINKLOCAL) &&
+		    daddr_dev && dev != daddr_dev)
+			continue;
+
 		idev = __in6_dev_get(dev);
-		if (idev) {
-			read_lock_bh(&idev->lock);
-			for (ifp=idev->addr_list; ifp; ifp=ifp->if_next) {
-				if (ifp->scope == scope) {
-					if (ifp->flags&IFA_F_TENTATIVE)
-						continue;
-#ifdef CONFIG_IPV6_PRIVACY
-					score = ipv6_saddr_pref(ifp, idev->cnf.use_tempaddr > 1 ? IFA_F_TEMPORARY : 0);
-#else
-					score = ipv6_saddr_pref(ifp, 0);
-#endif
-					if (score <= hiscore)
-						continue;
+		if (!idev)
+			continue;
 
-					if (match)
-						in6_ifa_put(match);
-					match = ifp;
-					hiscore = score;
-					in6_ifa_hold(ifp);
+		read_lock_bh(&idev->lock);
+		for (ifa = idev->addr_list; ifa; ifa = ifa->if_next) {
+			struct ipv6_saddr_score score;
 
-					if (IPV6_GET_SADDR_MAXSCORE(score)) {
-						read_unlock_bh(&idev->lock);
-						goto out_unlock_base;
-					}
+			score.addr_type = __ipv6_addr_type(&ifa->addr);
+
+			/* Rule 0: Candidate Source Address (section 4)
+			 *  - In any case, anycast addresses, multicast
+			 *    addresses, and the unspecified address MUST
+			 *    NOT be included in a candidate set.
+			 */
+			if (unlikely(score.addr_type == IPV6_ADDR_ANY ||
+				     score.addr_type & IPV6_ADDR_MULTICAST)) {
+				LIMIT_NETDEBUG(KERN_DEBUG
+					       "ADDRCONF: unspecified / multicast address"
+					       "assigned as unicast address on %s",
+					       dev->name);
+				continue;
+			}
+
+			score.attrs = 0;
+			score.matchlen = 0;
+			score.scope = 0;
+			score.rule = 0;
+
+			if (ifa_result == NULL) {
+				/* record it if the first available entry */
+				goto record_it;
+			}
+
+			/* Rule 1: Prefer same address */
+			if (hiscore.rule < 1) {
+				if (ipv6_addr_equal(&ifa_result->addr, daddr))
+					hiscore.attrs |= IPV6_SADDR_SCORE_LOCAL;
+				hiscore.rule++;
+			}
+			if (ipv6_addr_equal(&ifa->addr, daddr)) {
+				score.attrs |= IPV6_SADDR_SCORE_LOCAL;
+				if (!(hiscore.attrs & IPV6_SADDR_SCORE_LOCAL)) {
+					score.rule = 1;
+					goto record_it;
+				}
+			} else {
+				if (hiscore.attrs & IPV6_SADDR_SCORE_LOCAL)
+					continue;
+			}
+
+			/* Rule 2: Prefer appropriate scope */
+			if (hiscore.rule < 2) {
+				hiscore.scope = __ipv6_addr_src_scope(hiscore.addr_type);
+				hiscore.rule++;
+			}
+			score.scope = __ipv6_addr_src_scope(score.addr_type);
+			if (hiscore.scope < score.scope) {
+				if (hiscore.scope < daddr_scope) {
+					score.rule = 2;
+					goto record_it;
+				} else
+					continue;
+			} else if (score.scope < hiscore.scope) {
+				if (score.scope < daddr_scope)
+					continue;
+				else {
+					score.rule = 2;
+					goto record_it;
 				}
 			}
-			read_unlock_bh(&idev->lock);
-		}
-	}
 
-out_unlock_base:
+			/* Rule 3: Avoid deprecated address */
+			if (hiscore.rule < 3) {
+				if (ipv6_saddr_preferred(hiscore.addr_type) ||
+				    !(ifa_result->flags & IFA_F_DEPRECATED))
+					hiscore.attrs |= IPV6_SADDR_SCORE_PREFERRED;
+				hiscore.rule++;
+			}
+			if (ipv6_saddr_preferred(score.addr_type) ||
+			    !(ifa->flags & IFA_F_DEPRECATED)) {
+				score.attrs |= IPV6_SADDR_SCORE_PREFERRED;
+				if (!(hiscore.attrs & IPV6_SADDR_SCORE_PREFERRED)) {
+					score.rule = 3;
+					goto record_it;
+				}
+			} else {
+				if (hiscore.attrs & IPV6_SADDR_SCORE_PREFERRED)
+					continue;
+			}
+
+			/* Rule 4: Prefer home address -- not implemented yet */
+
+			/* Rule 5: Prefer outgoing interface */
+			if (hiscore.rule < 5) {
+				if (daddr_dev == NULL ||
+				    daddr_dev == ifa_result->idev->dev)
+					hiscore.attrs |= IPV6_SADDR_SCORE_OIF;
+				hiscore.rule++;
+			}
+			if (daddr_dev == NULL ||
+			    daddr_dev == ifa->idev->dev) {
+				score.attrs |= IPV6_SADDR_SCORE_OIF;
+				if (!(hiscore.attrs & IPV6_SADDR_SCORE_OIF)) {
+					score.rule = 5;
+					goto record_it;
+				}
+			} else {
+				if (hiscore.attrs & IPV6_SADDR_SCORE_OIF)
+					continue;
+			}
+
+			/* Rule 6: Prefer matching label */
+			if (hiscore.rule < 6) {
+				if (ipv6_saddr_label(&ifa_result->addr, hiscore.addr_type) == daddr_label)
+					hiscore.attrs |= IPV6_SADDR_SCORE_LABEL;
+				hiscore.rule++;
+			}
+			if (ipv6_saddr_label(&ifa->addr, score.addr_type) == daddr_label) {
+				score.attrs |= IPV6_SADDR_SCORE_LABEL;
+				if (!(hiscore.attrs & IPV6_SADDR_SCORE_LABEL)) {
+					score.rule = 6;
+					goto record_it;
+				}
+			} else {
+				if (hiscore.attrs & IPV6_SADDR_SCORE_LABEL)
+					continue;
+			}
+
+			/* Rule 7: Prefer public address
+			 * Note: prefer temprary address if use_tempaddr >= 2
+			 */
+			if (hiscore.rule < 7) {
+				if ((!(ifa_result->flags & IFA_F_TEMPORARY)) ^
+				    (ifa_result->idev->cnf.use_tempaddr >= 2))
+					hiscore.attrs |= IPV6_SADDR_SCORE_PRIVACY;
+				hiscore.rule++;
+			}
+			if ((!(ifa->flags & IFA_F_TEMPORARY)) ^
+			    (ifa->idev->cnf.use_tempaddr >= 2)) {
+				score.attrs |= IPV6_SADDR_SCORE_PRIVACY;
+				if (!(hiscore.attrs & IPV6_SADDR_SCORE_PRIVACY)) {
+					score.rule = 7;
+					goto record_it;
+				}
+			} else {
+				if (hiscore.attrs & IPV6_SADDR_SCORE_PRIVACY)
+					continue;
+			}
+
+			/* Rule 8: Use longest matching prefix */
+			if (hiscore.rule < 8)
+				hiscore.matchlen = ipv6_addr_diff(&ifa_result->addr, daddr);
+			score.rule++;
+			score.matchlen = ipv6_addr_diff(&ifa->addr, daddr);
+			if (score.matchlen > hiscore.matchlen) {
+				score.rule = 8;
+				goto record_it;
+			}
+#if 0
+			else if (score.matchlen < hiscore.matchlen)
+				continue;
+#endif
+
+			/* Final Rule: choose first available one */
+			continue;
+record_it:
+			if (ifa_result)
+				in6_ifa_put(ifa_result);
+			in6_ifa_hold(ifa);
+			ifa_result = ifa;
+			hiscore = score;
+		}
+		read_unlock_bh(&idev->lock);
+	}
 	read_unlock(&addrconf_lock);
 	read_unlock(&dev_base_lock);
 
-out:
-	err = -EADDRNOTAVAIL;
-	if (match) {
-		ipv6_addr_copy(saddr, &match->addr);
-		err = 0;
-		in6_ifa_put(match);
-	}
-
-	return err;
+	if (!ifa_result)
+		return -EADDRNOTAVAIL;
+	
+	ipv6_addr_copy(saddr, &ifa_result->addr);
+	in6_ifa_put(ifa_result);
+	return 0;
 }
 
 
