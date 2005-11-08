@@ -43,7 +43,7 @@
 #include "skge.h"
 
 #define DRV_NAME		"skge"
-#define DRV_VERSION		"1.1"
+#define DRV_VERSION		"1.2"
 #define PFX			DRV_NAME " "
 
 #define DEFAULT_TX_RING_SIZE	128
@@ -3273,7 +3273,7 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_out_free_irq;
 
-	printk(KERN_INFO PFX "addr 0x%lx irq %d chip %s rev %d\n",
+	printk(KERN_INFO PFX DRV_VERSION " addr 0x%lx irq %d chip %s rev %d\n",
 	       pci_resource_start(pdev, 0), pdev->irq,
 	       skge_board_name(hw), hw->chip_rev);
 
