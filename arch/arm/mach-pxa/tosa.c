@@ -98,6 +98,9 @@ struct platform_device tosascoop_jc_device = {
 	.resource	= tosa_scoop_jc_resources,
 };
 
+/*
+ * PCMCIA
+ */
 static struct scoop_pcmcia_dev tosa_pcmcia_scoop[] = {
 {
 	.dev        = &tosascoop_device.dev,
@@ -109,6 +112,33 @@ static struct scoop_pcmcia_dev tosa_pcmcia_scoop[] = {
 	.irq        = TOSA_IRQ_GPIO_JC_CF_IRQ,
 	.cd_irq     = -1,
 },
+};
+
+static void tosa_pcmcia_init(void)
+{
+	/* Setup default state of GPIO outputs
+	   before we enable them as outputs. */
+	GPSR(GPIO48_nPOE) = GPIO_bit(GPIO48_nPOE) |
+		GPIO_bit(GPIO49_nPWE) | GPIO_bit(GPIO50_nPIOR) |
+		GPIO_bit(GPIO51_nPIOW) | GPIO_bit(GPIO52_nPCE_1) |
+		GPIO_bit(GPIO53_nPCE_2);
+
+	pxa_gpio_mode(GPIO48_nPOE_MD);
+	pxa_gpio_mode(GPIO49_nPWE_MD);
+	pxa_gpio_mode(GPIO50_nPIOR_MD);
+	pxa_gpio_mode(GPIO51_nPIOW_MD);
+	pxa_gpio_mode(GPIO55_nPREG_MD);
+	pxa_gpio_mode(GPIO56_nPWAIT_MD);
+	pxa_gpio_mode(GPIO57_nIOIS16_MD);
+	pxa_gpio_mode(GPIO52_nPCE_1_MD);
+	pxa_gpio_mode(GPIO53_nPCE_2_MD);
+	pxa_gpio_mode(GPIO54_pSKTSEL_MD);
+}
+
+static struct scoop_pcmcia_config tosa_pcmcia_config = {
+	.devs         = &tosa_pcmcia_scoop[0],
+	.num_devs     = 2,
+	.pcmcia_init  = tosa_pcmcia_init,
 };
 
 /*
@@ -249,10 +279,9 @@ static void __init tosa_init(void)
 	pxa_set_mci_info(&tosa_mci_platform_data);
 	pxa_set_udc_info(&udc_info);
 	pxa_set_ficp_info(&tosa_ficp_platform_data);
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	platform_scoop_config = &tosa_pcmcia_config;
 
-	scoop_num = 2;
-	scoop_devs = &tosa_pcmcia_scoop[0];
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
 static void __init fixup_tosa(struct machine_desc *desc,
