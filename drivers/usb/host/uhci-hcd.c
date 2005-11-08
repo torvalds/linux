@@ -23,11 +23,6 @@
  */
 
 #include <linux/config.h>
-#ifdef CONFIG_USB_DEBUG
-#define DEBUG
-#else
-#undef DEBUG
-#endif
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/kernel.h>
