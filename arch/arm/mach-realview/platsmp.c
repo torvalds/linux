@@ -32,7 +32,7 @@ static unsigned int __init get_core_count(void)
 {
 	unsigned int ncores;
 
-	ncores = __raw_readl(IO_ADDRESS(REALVIEW_MPCORE_SCU_BASE) + SCU_CONFIG);
+	ncores = __raw_readl(__io_address(REALVIEW_MPCORE_SCU_BASE) + SCU_CONFIG);
 
 	return (ncores & 0x03) + 1;
 }
@@ -133,12 +133,12 @@ static void __init poke_milo(void)
 #if 1
 #define REALVIEW_SYS_FLAGSS_OFFSET 0x30
 	__raw_writel(virt_to_phys(realview_secondary_startup),
-		     (IO_ADDRESS(REALVIEW_SYS_BASE) +
-		      REALVIEW_SYS_FLAGSS_OFFSET));
+		     __io_address(REALVIEW_SYS_BASE) +
+		     REALVIEW_SYS_FLAGSS_OFFSET);
 #define REALVIEW_SYS_FLAGSC_OFFSET 0x34
 	__raw_writel(3,
-		     (IO_ADDRESS(REALVIEW_SYS_BASE) +
-		      REALVIEW_SYS_FLAGSC_OFFSET));
+		     __io_address(REALVIEW_SYS_BASE) +
+		     REALVIEW_SYS_FLAGSC_OFFSET);
 #endif
 
 	mb();

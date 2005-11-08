@@ -142,7 +142,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 			ret = -EIO;
 	}
 
-	secondary_data.stack = 0;
+	secondary_data.stack = NULL;
 	secondary_data.pgdir = 0;
 
 	*pmd_offset(pgd, PHYS_OFFSET) = __pmd(0);
@@ -359,8 +359,8 @@ static void send_ipi_message(cpumask_t callmap, enum ipi_msg_type msg)
  * You must not call this function with disabled interrupts, from a
  * hardware interrupt handler, nor from a bottom half handler.
  */
-int smp_call_function_on_cpu(void (*func)(void *info), void *info, int retry,
-                             int wait, cpumask_t callmap)
+static int smp_call_function_on_cpu(void (*func)(void *info), void *info,
+				    int retry, int wait, cpumask_t callmap)
 {
 	struct smp_call_struct data;
 	unsigned long timeout;
