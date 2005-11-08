@@ -1074,6 +1074,7 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 	struct scsi_sense_hdr sshdr;
 	struct scsi_device *sdev;
 	struct Scsi_Host *shost = dev_to_shost(&starget->dev);
+	int ret = 0;
 
 	/*
 	 * Only support SCSI-3 and up devices if BLIST_NOREPORTLUN is not set.
@@ -1169,8 +1170,8 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 		/*
 		 * The device probably does not support a REPORT LUN command
 		 */
-		kfree(lun_data);
-		return 1;
+		ret = 1;
+		goto out_err;
 	}
 
 	/*
@@ -1238,6 +1239,7 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 		}
 	}
 
+ out_err:
 	kfree(lun_data);
  out:
 	scsi_device_put(sdev);
@@ -1246,7 +1248,7 @@ static int scsi_report_lun_scan(struct scsi_target *starget, int bflags,
 		 * the sdev we used didn't appear in the report luns scan
 		 */
 		scsi_destroy_sdev(sdev);
-	return 0;
+	return ret;
 }
 
 struct scsi_device *__scsi_add_device(struct Scsi_Host *shost, uint channel,
