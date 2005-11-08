@@ -25,7 +25,6 @@
 #ifndef __HCI_CORE_H
 #define __HCI_CORE_H
 
-#include <linux/proc_fs.h>
 #include <net/bluetooth/hci.h>
 
 /* HCI upper protocols */
@@ -33,8 +32,6 @@
 #define HCI_PROTO_SCO	1
 
 #define HCI_INIT_TIMEOUT (HZ * 10)
-
-extern struct proc_dir_entry *proc_bt_hci;
 
 /* HCI Core structures */
 
@@ -125,10 +122,6 @@ struct hci_dev {
 	void			*core_data;
 
 	atomic_t 		promisc;
-
-#ifdef CONFIG_PROC_FS
-	struct proc_dir_entry	*proc;
-#endif
 
 	struct class_device	class_dev;
 
