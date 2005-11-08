@@ -92,4 +92,42 @@ extern void platform_cpu_die(unsigned int cpu);
 extern int platform_cpu_kill(unsigned int cpu);
 extern void platform_cpu_enable(unsigned int cpu);
 
+#ifdef CONFIG_LOCAL_TIMERS
+/*
+ * Setup a local timer interrupt for a CPU.
+ */
+extern void local_timer_setup(unsigned int cpu);
+
+/*
+ * Stop a local timer interrupt.
+ */
+extern void local_timer_stop(unsigned int cpu);
+
+/*
+ * Platform provides this to acknowledge a local timer IRQ
+ */
+extern int local_timer_ack(void);
+
+#else
+
+static inline void local_timer_setup(unsigned int cpu)
+{
+}
+
+static inline void local_timer_stop(unsigned int cpu)
+{
+}
+
+#endif
+
+/*
+ * show local interrupt info
+ */
+extern void show_local_irqs(struct seq_file *);
+
+/*
+ * Called from assembly, this is the local timer IRQ handler
+ */
+asmlinkage void do_local_timer(struct pt_regs *);
+
 #endif /* ifndef __ASM_ARM_SMP_H */
