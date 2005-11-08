@@ -386,6 +386,15 @@ static unsigned long __init htab_get_table_size(void)
 	return pteg_count << 7;
 }
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+void create_section_mapping(unsigned long start, unsigned long end)
+{
+		BUG_ON(htab_bolt_mapping(start, end, start,
+			_PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_COHERENT | PP_RWXX,
+			mmu_linear_psize));
+}
+#endif /* CONFIG_MEMORY_HOTPLUG */
+
 void __init htab_initialize(void)
 {
 	unsigned long table, htab_size_bytes;
