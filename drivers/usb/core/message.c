@@ -631,8 +631,8 @@ int usb_get_descriptor(struct usb_device *dev, unsigned char type, unsigned char
  * Returns the number of bytes received on success, or else the status code
  * returned by the underlying usb_control_msg() call.
  */
-int usb_get_string(struct usb_device *dev, unsigned short langid,
-		unsigned char index, void *buf, int size)
+static int usb_get_string(struct usb_device *dev, unsigned short langid,
+			  unsigned char index, void *buf, int size)
 {
 	int i;
 	int result;
@@ -1488,7 +1488,6 @@ EXPORT_SYMBOL(usb_sg_wait);
 // synchronous control message convenience routines
 EXPORT_SYMBOL(usb_get_descriptor);
 EXPORT_SYMBOL(usb_get_status);
-EXPORT_SYMBOL(usb_get_string);
 EXPORT_SYMBOL(usb_string);
 
 // synchronous calls that also maintain usbcore state
