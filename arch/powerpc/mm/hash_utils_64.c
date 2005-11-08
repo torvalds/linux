@@ -507,6 +507,9 @@ unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 {
 	struct page *page;
 
+	if (!pfn_valid(pte_pfn(pte)))
+		return pp;
+
 	page = pte_page(pte);
 
 	/* page is dirty */
