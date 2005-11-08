@@ -47,6 +47,11 @@ extern void smp_store_cpu_info(unsigned int cpuid);
 extern void smp_cross_call(cpumask_t callmap);
 
 /*
+ * Broadcast a timer interrupt to the other CPUs.
+ */
+extern void smp_send_timer(void);
+
+/*
  * Boot a secondary CPU, and assign it the specified idle task.
  * This also gives us the initial stack to use for this CPU.
  */
