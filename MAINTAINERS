@@ -1310,6 +1310,24 @@ M:	john.ronciak@intel.com
 W:	http://sourceforge.net/projects/e1000/
 S:	Supported
 
+INTEL PRO/WIRELESS 2100 NETWORK CONNECTION SUPPORT
+P:	Yi Zhu
+M:	yi.zhu@intel.com
+P:	James Ketrenos
+M:	jketreno@linux.intel.com
+L:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
+W:	http://ipw2100.sourceforge.net
+S:	Supported
+
+INTEL PRO/WIRELESS 2915ABG NETWORK CONNECTION SUPPORT
+P:	Yi Zhu
+M:	yi.zhu@intel.com
+P:	James Ketrenos
+M:	jketreno@linux.intel.com
+L:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
+W:	http://ipw2200.sourceforge.net
+S:	Supported
+
 IOC3 DRIVER
 P:	Ralf Baechle
 M:	ralf@linux-mips.org
