@@ -858,26 +858,6 @@ int check_legacy_ioport(unsigned long base_port)
 }
 EXPORT_SYMBOL(check_legacy_ioport);
 
-#ifdef CONFIG_XMON
-static int __init early_xmon(char *p)
-{
-	/* ensure xmon is enabled */
-	if (p) {
-		if (strncmp(p, "on", 2) == 0)
-			xmon_init(1);
-		if (strncmp(p, "off", 3) == 0)
-			xmon_init(0);
-		if (strncmp(p, "early", 5) != 0)
-			return 0;
-	}
-	xmon_init(1);
-	debugger(NULL);
-
-	return 0;
-}
-early_param("xmon", early_xmon);
-#endif
-
 void cpu_die(void)
 {
 	if (ppc_md.cpu_die)

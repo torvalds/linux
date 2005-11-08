@@ -303,14 +303,9 @@ void __init setup_arch(char **cmdline_p)
 		pmac_feature_init();	/* New cool way */
 #endif
 
-#ifdef CONFIG_XMON
-	xmon_map_scc();
-	if (strstr(cmd_line, "xmon")) {
-		xmon_init(1);
-		debugger(NULL);
-	}
-#endif /* CONFIG_XMON */
-	if ( ppc_md.progress ) ppc_md.progress("setup_arch: enter", 0x3eab);
+#ifdef CONFIG_XMON_DEFAULT
+	xmon_init(1);
+#endif
 
 #if defined(CONFIG_KGDB)
 	if (ppc_md.kgdb_map_scc)

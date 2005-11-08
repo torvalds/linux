@@ -51,6 +51,7 @@
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm/lmb.h>
+#include <asm/xmon.h>
 
 #undef DEBUG
 
@@ -559,3 +560,23 @@ void __init smp_setup_cpu_maps(void)
 #endif /* CONFIG_PPC64 */
 }
 #endif /* CONFIG_SMP */
+
+#ifdef CONFIG_XMON
+static int __init early_xmon(char *p)
+{
+	/* ensure xmon is enabled */
+	if (p) {
+		if (strncmp(p, "on", 2) == 0)
+			xmon_init(1);
+		if (strncmp(p, "off", 3) == 0)
+			xmon_init(0);
+		if (strncmp(p, "early", 5) != 0)
+			return 0;
+	}
+	xmon_init(1);
+	debugger(NULL);
+
+	return 0;
+}
+early_param("xmon", early_xmon);
+#endif

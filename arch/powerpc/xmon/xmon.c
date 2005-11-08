@@ -1,7 +1,7 @@
 /*
  * Routines providing a simple monitor for use on the PowerMac.
  *
- * Copyright (C) 1996 Paul Mackerras.
+ * Copyright (C) 1996-2005 Paul Mackerras.
  *
  *      This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
@@ -18,6 +18,7 @@
 #include <linux/kallsyms.h>
 #include <linux/cpumask.h>
 #include <linux/module.h>
+#include <linux/sysrq.h>
 
 #include <asm/ptrace.h>
 #include <asm/string.h>
@@ -144,15 +145,10 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 static const char *getvecname(unsigned long vec);
 
 extern int print_insn_powerpc(unsigned long, unsigned long, int);
-extern void printf(const char *fmt, ...);
-extern void xmon_vfprintf(void *f, const char *fmt, va_list ap);
-extern int xmon_putc(int c, void *f);
-extern int putchar(int ch);
 
 extern void xmon_enter(void);
 extern void xmon_leave(void);
 
-extern int xmon_read_poll(void);
 extern long setjmp(long *);
 extern void longjmp(long *, long);
 extern void xmon_save_regs(struct pt_regs *);
@@ -748,7 +744,6 @@ cmds(struct pt_regs *excp)
 		printf("%x:", smp_processor_id());
 #endif /* CONFIG_SMP */
 		printf("mon> ");
-		fflush(stdout);
 		flush_input();
 		termch = 0;
 		cmd = skipbl();
@@ -2151,7 +2146,6 @@ memzcan(void)
 		ok = mread(a, &v, 1);
 		if (ok && !ook) {
 			printf("%.8x .. ", a);
-			fflush(stdout);
 		} else if (!ok && ook)
 			printf("%.8x\n", a - mskip);
 		ook = ok;
@@ -2372,7 +2366,7 @@ int
 inchar(void)
 {
 	if (lineptr == NULL || *lineptr == 0) {
-		if (fgets(line, sizeof(line), stdin) == NULL) {
+		if (xmon_gets(line, sizeof(line)) == NULL) {
 			lineptr = NULL;
 			return EOF;
 		}
@@ -2526,4 +2520,29 @@ void xmon_init(int enable)
 		__debugger_dabr_match = NULL;
 		__debugger_fault_handler = NULL;
 	}
+	xmon_map_scc();
 }
+
+#ifdef CONFIG_MAGIC_SYSRQ
+static void sysrq_handle_xmon(int key, struct pt_regs *pt_regs,
+			      struct tty_struct *tty) 
+{
+	/* ensure xmon is enabled */
+	xmon_init(1);
+	debugger(pt_regs);
+}
+
+static struct sysrq_key_op sysrq_xmon_op = 
+{
+	.handler =	sysrq_handle_xmon,
+	.help_msg =	"Xmon",
+	.action_msg =	"Entering xmon",
+};
+
+static int __init setup_xmon_sysrq(void)
+{
+	register_sysrq_key('x', &sysrq_xmon_op);
+	return 0;
+}
+__initcall(setup_xmon_sysrq);
+#endif /* CONFIG_MAGIC_SYSRQ */
