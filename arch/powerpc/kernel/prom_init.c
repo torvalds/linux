@@ -2081,8 +2081,13 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	prom_printf("copying OF device tree ...\n");
 	flatten_device_tree();
 
-	/* in case stdin is USB and still active on IBM machines... */
-	prom_close_stdin();
+	/*
+	 * in case stdin is USB and still active on IBM machines...
+	 * Unfortunately quiesce crashes on some powermacs if we have
+	 * closed stdin already (in particular the powerbook 101).
+	 */
+	if (RELOC(of_platform) != PLATFORM_POWERMAC)
+		prom_close_stdin();
 
 	/*
 	 * Call OF "quiesce" method to shut down pending DMA's from
