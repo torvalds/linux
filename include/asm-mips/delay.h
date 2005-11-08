@@ -84,4 +84,13 @@ static inline void __udelay(unsigned long usecs, unsigned long lpj)
 
 #define udelay(usecs) __udelay((usecs),__udelay_val)
 
+/* make sure "usecs *= ..." in udelay do not overflow. */
+#if HZ >= 1000
+#define MAX_UDELAY_MS	1
+#elif HZ <= 200
+#define MAX_UDELAY_MS	5
+#else
+#define MAX_UDELAY_MS	(1000 / HZ)
+#endif
+
 #endif /* _ASM_DELAY_H */

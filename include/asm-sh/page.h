@@ -93,11 +93,6 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #define __MEMORY_START		CONFIG_MEMORY_START
 #define __MEMORY_SIZE		CONFIG_MEMORY_SIZE
-#ifdef CONFIG_DISCONTIGMEM
-/* Just for HP690, for now.. */
-#define __MEMORY_START_2ND	(__MEMORY_START+0x02000000)
-#define __MEMORY_SIZE_2ND	0x001000000 /* 16MB */
-#endif
 
 #define PAGE_OFFSET		(0x80000000UL)
 #define __pa(x)			((unsigned long)(x)-PAGE_OFFSET)
@@ -105,10 +100,8 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 
 #define MAP_NR(addr)		(((unsigned long)(addr)-PAGE_OFFSET) >> PAGE_SHIFT)
 
-#ifndef CONFIG_DISCONTIGMEM
 #define phys_to_page(phys)	(mem_map + (((phys)-__MEMORY_START) >> PAGE_SHIFT))
 #define page_to_phys(page)	(((page - mem_map) << PAGE_SHIFT) + __MEMORY_START)
-#endif
 
 /* PFN start number, because of __MEMORY_START */
 #define PFN_START		(__MEMORY_START >> PAGE_SHIFT)

@@ -1953,11 +1953,11 @@ static int u14_34f_release(struct Scsi_Host *shpnt) {
 
    for (j = 0; sh[j] != NULL && sh[j] != shpnt; j++);
 
-   if (sh[j] == NULL) panic("%s: release, invalid Scsi_Host pointer.\n",
-                            driver_name);
+   if (sh[j] == NULL)
+      panic("%s: release, invalid Scsi_Host pointer.\n", driver_name);
 
    for (i = 0; i < sh[j]->can_queue; i++)
-      if ((&HD(j)->cp[i])->sglist) kfree((&HD(j)->cp[i])->sglist);
+      kfree((&HD(j)->cp[i])->sglist);
 
    for (i = 0; i < sh[j]->can_queue; i++)
       pci_unmap_single(HD(j)->pdev, HD(j)->cp[i].cp_dma_addr,
@@ -1965,7 +1965,8 @@ static int u14_34f_release(struct Scsi_Host *shpnt) {
 
    free_irq(sh[j]->irq, &sha[j]);
 
-   if (sh[j]->dma_channel != NO_DMA) free_dma(sh[j]->dma_channel);
+   if (sh[j]->dma_channel != NO_DMA)
+      free_dma(sh[j]->dma_channel);
 
    release_region(sh[j]->io_port, sh[j]->n_io_port);
    scsi_unregister(sh[j]);

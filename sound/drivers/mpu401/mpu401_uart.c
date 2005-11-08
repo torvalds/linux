@@ -423,10 +423,7 @@ static void snd_mpu401_uart_free(snd_rawmidi_t *rmidi)
 	mpu401_t *mpu = rmidi->private_data;
 	if (mpu->irq_flags && mpu->irq >= 0)
 		free_irq(mpu->irq, (void *) mpu);
-	if (mpu->res) {
-		release_resource(mpu->res);
-		kfree_nocheck(mpu->res);
-	}
+	release_and_free_resource(mpu->res);
 	kfree(mpu);
 }
 

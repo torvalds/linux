@@ -22,10 +22,8 @@
 
 static void ino_lnkfree(struct autofs_info *ino)
 {
-	if (ino->u.symlink) {
-		kfree(ino->u.symlink);
-		ino->u.symlink = NULL;
-	}
+	kfree(ino->u.symlink);
+	ino->u.symlink = NULL;
 }
 
 struct autofs_info *autofs4_init_ino(struct autofs_info *ino,

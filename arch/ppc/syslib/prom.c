@@ -1335,10 +1335,8 @@ release_OF_resource(struct device_node* node, int index)
 	if (!res)
 		return -ENODEV;
 
-	if (res->name) {
-		kfree(res->name);
-		res->name = NULL;
-	}
+	kfree(res->name);
+	res->name = NULL;
 	release_resource(res);
 	kfree(res);
 

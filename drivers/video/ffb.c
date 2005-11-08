@@ -57,9 +57,6 @@ static struct fb_ops ffb_ops = {
 	.fb_sync		= ffb_sync,
 	.fb_mmap		= ffb_mmap,
 	.fb_ioctl		= ffb_ioctl,
-
-	/* XXX Use FFB hw cursor once fb cursor API is better understood... */
-	.fb_cursor		= soft_cursor,
 };
 
 /* Register layout and definitions */

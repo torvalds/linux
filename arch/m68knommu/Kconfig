@@ -71,6 +71,11 @@ config M5206e
 	help
 	  Motorola ColdFire 5206e processor support.
 
+config M520x
+	bool "MCF520x"
+	help
+	   Freescale Coldfire 5207/5208 processor support.
+
 config M523x
 	bool "MCF523x"
 	help
@@ -120,7 +125,7 @@ config M527x
 
 config COLDFIRE
 	bool
-	depends on (M5206 || M5206e || M523x || M5249 || M527x || M5272 || M528x || M5307 || M5407)
+	depends on (M5206 || M5206e || M520x || M523x || M5249 || M527x || M5272 || M528x || M5307 || M5407)
 	default y
 
 choice
@@ -322,6 +327,12 @@ config ELITE
 	help
 	  Support for the Motorola M5206eLITE board.
 
+config M5208EVB
+	bool "Freescale M5208EVB board support"
+	depends on M520x
+	help
+	  Support for the Freescale Coldfire M5208EVB.
+
 config M5235EVB
 	bool "Freescale M5235EVB support"
 	depends on M523x
@@ -465,10 +476,10 @@ config ARNEWSH
 	default y
 	depends on (ARN5206 || ARN5307)
 
-config MOTOROLA
+config FREESCALE
 	bool
 	default y
-	depends on (M5206eC3 || M5235EVB || M5249C3 || M5271EVB || M5272C3 || M5275EVB || M5282EVB || M5307C3 || M5407C3)
+	depends on (M5206eC3 || M5208EVB || M5235EVB || M5249C3 || M5271EVB || M5272C3 || M5275EVB || M5282EVB || M5307C3 || M5407C3)
 
 config HW_FEITH
 	bool

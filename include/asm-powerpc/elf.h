@@ -1,11 +1,13 @@
 #ifndef _ASM_POWERPC_ELF_H
 #define _ASM_POWERPC_ELF_H
 
+#include <linux/sched.h>	/* for task_struct */
 #include <asm/types.h>
 #include <asm/ptrace.h>
 #include <asm/cputable.h>
 #include <asm/auxvec.h>
 #include <asm/page.h>
+#include <asm/string.h>
 
 /* PowerPC relocations defined by the ABIs */
 #define R_PPC_NONE		0

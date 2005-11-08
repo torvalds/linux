@@ -148,7 +148,7 @@ struct dvb_frontend* dvb_dummy_fe_qpsk_attach()
 	return &state->frontend;
 
 error:
-	if (state) kfree(state);
+	kfree(state);
 	return NULL;
 }
 
@@ -171,7 +171,7 @@ struct dvb_frontend* dvb_dummy_fe_qam_attach()
 	return &state->frontend;
 
 error:
-	if (state) kfree(state);
+	kfree(state);
 	return NULL;
 }
 

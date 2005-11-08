@@ -234,8 +234,8 @@ query_segment_type (struct dcss_segment *seg)
 	rc = 0;
 
  out_free:
-	if (qin) kfree(qin);
-	if (qout) kfree(qout);
+	kfree(qin);
+	kfree(qout);
 	return rc;
 }
 
@@ -394,7 +394,7 @@ __segment_load (char *name, int do_nonshared, unsigned long *addr, unsigned long
 				segtype_string[seg->vm_segtype]);
 	goto out;
  out_free:
-	kfree (seg);
+	kfree(seg);
  out:
 	return rc;
 }
@@ -505,7 +505,7 @@ segment_modify_shared (char *name, int do_nonshared)
 	list_del(&seg->list);
 	dcss_diag(DCSS_PURGESEG, seg->dcss_name,
 		  &dummy, &dummy);
-	kfree (seg);
+	kfree(seg);
  out_unlock:
 	spin_unlock(&dcss_lock);
 	return rc;

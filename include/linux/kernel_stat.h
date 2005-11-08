@@ -6,6 +6,7 @@
 #include <linux/smp.h>
 #include <linux/threads.h>
 #include <linux/percpu.h>
+#include <linux/cpumask.h>
 #include <asm/cputime.h>
 
 /*
@@ -43,11 +44,10 @@ extern unsigned long long nr_context_switches(void);
  */
 static inline int kstat_irqs(int irq)
 {
-	int i, sum=0;
+	int cpu, sum = 0;
 
-	for (i = 0; i < NR_CPUS; i++)
-		if (cpu_possible(i))
-			sum += kstat_cpu(i).irqs[irq];
+	for_each_cpu(cpu)
+		sum += kstat_cpu(cpu).irqs[irq];
 
 	return sum;
 }

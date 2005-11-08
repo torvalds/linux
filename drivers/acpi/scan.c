@@ -28,8 +28,7 @@ static int acpi_bus_trim(struct acpi_device *start, int rmdevice);
 static void acpi_device_release(struct kobject *kobj)
 {
 	struct acpi_device *dev = container_of(kobj, struct acpi_device, kobj);
-	if (dev->pnp.cid_list)
-		kfree(dev->pnp.cid_list);
+	kfree(dev->pnp.cid_list);
 	kfree(dev);
 }
 
@@ -1117,8 +1116,7 @@ acpi_add_single_object(struct acpi_device **child,
 	if (!result)
 		*child = device;
 	else {
-		if (device->pnp.cid_list)
-			kfree(device->pnp.cid_list);
+		kfree(device->pnp.cid_list);
 		kfree(device);
 	}
 

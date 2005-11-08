@@ -15,6 +15,7 @@
 #include "asm/mmu.h"
 #include "asm/pgalloc.h"
 #include "asm/pgtable.h"
+#include "asm/ldt.h"
 #include "os.h"
 #include "skas.h"
 
@@ -74,13 +75,12 @@ static int init_stub_pte(struct mm_struct *mm, unsigned long proc,
 
 int init_new_context_skas(struct task_struct *task, struct mm_struct *mm)
 {
-	struct mm_struct *cur_mm = current->mm;
-	struct mm_id *cur_mm_id = &cur_mm->context.skas.id;
-	struct mm_id *mm_id = &mm->context.skas.id;
+ 	struct mmu_context_skas *from_mm = NULL;
+	struct mmu_context_skas *to_mm = &mm->context.skas;
 	unsigned long stack = 0;
-	int from, ret = -ENOMEM;
+	int from_fd, ret = -ENOMEM;
 
-	if(!proc_mm || !ptrace_faultinfo){
+	if(skas_needs_stub){
 		stack = get_zeroed_page(GFP_KERNEL);
 		if(stack == 0)
 			goto out;
@@ -102,33 +102,43 @@ int init_new_context_skas(struct task_struct *task, struct mm_struct *mm)
 
 		mm->nr_ptes--;
 	}
-	mm_id->stack = stack;
+
+	to_mm->id.stack = stack;
+	if(current->mm != NULL && current->mm != &init_mm)
+		from_mm = &current->mm->context.skas;
 
 	if(proc_mm){
-		if((cur_mm != NULL) && (cur_mm != &init_mm))
-			from = cur_mm_id->u.mm_fd;
-		else from = -1;
+		if(from_mm)
+			from_fd = from_mm->id.u.mm_fd;
+		else from_fd = -1;
 
-		ret = new_mm(from, stack);
+		ret = new_mm(from_fd, stack);
 		if(ret < 0){
 			printk("init_new_context_skas - new_mm failed, "
 			       "errno = %d\n", ret);
 			goto out_free;
 		}
-		mm_id->u.mm_fd = ret;
+		to_mm->id.u.mm_fd = ret;
 	}
 	else {
-		if((cur_mm != NULL) && (cur_mm != &init_mm))
-			mm_id->u.pid = copy_context_skas0(stack,
-							  cur_mm_id->u.pid);
-		else mm_id->u.pid = start_userspace(stack);
+		if(from_mm)
+			to_mm->id.u.pid = copy_context_skas0(stack,
+							     from_mm->id.u.pid);
+		else to_mm->id.u.pid = start_userspace(stack);
+	}
+
+	ret = init_new_ldt(to_mm, from_mm);
+	if(ret < 0){
+		printk("init_new_context_skas - init_ldt"
+		       " failed, errno = %d\n", ret);
+		goto out_free;
 	}
 
 	return 0;
 
  out_free:
-	if(mm_id->stack != 0)
-		free_page(mm_id->stack);
+	if(to_mm->id.stack != 0)
+		free_page(to_mm->id.stack);
  out:
 	return ret;
 }

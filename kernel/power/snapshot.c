@@ -168,9 +168,8 @@ static unsigned count_data_pages(void)
 {
 	struct zone *zone;
 	unsigned long zone_pfn;
-	unsigned n;
+	unsigned int n = 0;
 
-	n = 0;
 	for_each_zone (zone) {
 		if (is_highmem(zone))
 			continue;
@@ -250,10 +249,10 @@ static inline void fill_pb_page(struct pbe *pbpage)
  *	of memory pages allocated with alloc_pagedir()
  */
 
-void create_pbe_list(struct pbe *pblist, unsigned nr_pages)
+void create_pbe_list(struct pbe *pblist, unsigned int nr_pages)
 {
 	struct pbe *pbpage, *p;
-	unsigned num = PBES_PER_PAGE;
+	unsigned int num = PBES_PER_PAGE;
 
 	for_each_pb_page (pbpage, pblist) {
 		if (num >= nr_pages)
@@ -293,9 +292,9 @@ static void *alloc_image_page(void)
  *	On each page we set up a list of struct_pbe elements.
  */
 
-struct pbe *alloc_pagedir(unsigned nr_pages)
+struct pbe *alloc_pagedir(unsigned int nr_pages)
 {
-	unsigned num;
+	unsigned int num;
 	struct pbe *pblist, *pbe;
 
 	if (!nr_pages)
@@ -329,7 +328,7 @@ void swsusp_free(void)
 	for_each_zone(zone) {
 		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
 			if (pfn_valid(zone_pfn + zone->zone_start_pfn)) {
-				struct page * page;
+				struct page *page;
 				page = pfn_to_page(zone_pfn + zone->zone_start_pfn);
 				if (PageNosave(page) && PageNosaveFree(page)) {
 					ClearPageNosave(page);
@@ -348,7 +347,7 @@ void swsusp_free(void)
  *	free pages.
  */
 
-static int enough_free_mem(unsigned nr_pages)
+static int enough_free_mem(unsigned int nr_pages)
 {
 	pr_debug("swsusp: available memory: %u pages\n", nr_free_pages());
 	return nr_free_pages() > (nr_pages + PAGES_FOR_IO +
@@ -356,7 +355,7 @@ static int enough_free_mem(unsigned nr_pages)
 }
 
 
-static struct pbe *swsusp_alloc(unsigned nr_pages)
+static struct pbe *swsusp_alloc(unsigned int nr_pages)
 {
 	struct pbe *pblist, *p;
 
@@ -380,7 +379,7 @@ static struct pbe *swsusp_alloc(unsigned nr_pages)
 
 asmlinkage int swsusp_save(void)
 {
-	unsigned nr_pages;
+	unsigned int nr_pages;
 
 	pr_debug("swsusp: critical section: \n");
 	if (save_highmem()) {

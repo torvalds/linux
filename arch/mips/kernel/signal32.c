@@ -647,8 +647,8 @@ static inline void *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 	return (void *)((sp - frame_size) & ALMASK);
 }
 
-void setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
-			       int signr, sigset_t *set)
+int setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
+	int signr, sigset_t *set)
 {
 	struct sigframe *frame;
 	int err = 0;
@@ -694,13 +694,15 @@ void setup_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, frame->sf_code);
 #endif
-        return;
+	return 1;
 
 give_sigsegv:
 	force_sigsegv(signr, current);
+	return 0;
 }
 
-void setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs, int signr,	sigset_t *set, siginfo_t *info)
+int setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs,
+	int signr, sigset_t *set, siginfo_t *info)
 {
 	struct rt_sigframe32 *frame;
 	int err = 0;
@@ -763,10 +765,11 @@ void setup_rt_frame_32(struct k_sigaction * ka, struct pt_regs *regs, int signr,
 	       current->comm, current->pid,
 	       frame, regs->cp0_epc, frame->rs_code);
 #endif
-	return;
+	return 1;
 
 give_sigsegv:
 	force_sigsegv(signr, current);
+	return 0;
 }
 
 static inline int handle_signal(unsigned long sig, siginfo_t *info,

@@ -41,7 +41,9 @@ rtc_ds1386_get_time(void)
 	u8 byte;
 	u8 temp;
 	unsigned int year, month, day, hour, minute, second;
+	unsigned long flags;
 
+	spin_lock_irqsave(&rtc_lock, flags);
 	/* let us freeze external registers */
 	byte = READ_RTC(0xB);
 	byte &= 0x3f;
@@ -60,6 +62,7 @@ rtc_ds1386_get_time(void)
 	/* enable time transfer */
 	byte |= 0x80;
 	WRITE_RTC(0xB, byte);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	/* calc hour */
 	if (temp & 0x40) {
@@ -81,7 +84,9 @@ rtc_ds1386_set_time(unsigned long t)
 	u8 byte;
 	u8 temp;
 	u8 year, month, day, hour, minute, second;
+	unsigned long flags;
 
+	spin_lock_irqsave(&rtc_lock, flags);
 	/* let us freeze external registers */
 	byte = READ_RTC(0xB);
 	byte &= 0x3f;
@@ -133,6 +138,7 @@ rtc_ds1386_set_time(unsigned long t)
 	if (second != READ_RTC(0x1)) {
 		WRITE_RTC(0x1, second);
 	}
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return 0;
 }

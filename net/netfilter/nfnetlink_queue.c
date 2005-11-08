@@ -136,11 +136,10 @@ instance_create(u_int16_t queue_num, int pid)
 		goto out_unlock;
 	}
 
-	inst = kmalloc(sizeof(*inst), GFP_ATOMIC);
+	inst = kzalloc(sizeof(*inst), GFP_ATOMIC);
 	if (!inst)
 		goto out_unlock;
 
-	memset(inst, 0, sizeof(*inst));
 	inst->queue_num = queue_num;
 	inst->peer_pid = pid;
 	inst->queue_maxlen = NFQNL_QMAX_DEFAULT;
@@ -1036,10 +1035,9 @@ static int nfqnl_open(struct inode *inode, struct file *file)
 	struct iter_state *is;
 	int ret;
 
-	is = kmalloc(sizeof(*is), GFP_KERNEL);
+	is = kzalloc(sizeof(*is), GFP_KERNEL);
 	if (!is)
 		return -ENOMEM;
-	memset(is, 0, sizeof(*is));
 	ret = seq_open(file, &nfqnl_seq_ops);
 	if (ret < 0)
 		goto out_free;

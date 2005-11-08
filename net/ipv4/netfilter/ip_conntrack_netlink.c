@@ -815,7 +815,7 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 				  IPCTNL_MSG_CT_NEW, 1, ct);
 	ip_conntrack_put(ct);
 	if (err <= 0)
-		goto out;
+		goto free;
 
 	err = netlink_unicast(ctnl, skb2, NETLINK_CB(skb).pid, MSG_DONTWAIT);
 	if (err < 0)
@@ -824,9 +824,9 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	DEBUGP("leaving\n");
 	return 0;
 
+free:
+	kfree_skb(skb2);
 out:
-	if (skb2)
-		kfree_skb(skb2);
 	return -1;
 }
 
@@ -1322,21 +1322,16 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 				      nlh->nlmsg_seq, IPCTNL_MSG_EXP_NEW,
 				      1, exp);
 	if (err <= 0)
-		goto out;
-
-	ip_conntrack_expect_put(exp);
-
-	err = netlink_unicast(ctnl, skb2, NETLINK_CB(skb).pid, MSG_DONTWAIT);
-	if (err < 0)
 		goto free;
 
-	return err;
+	ip_conntrack_expect_put(exp);
 
+	return netlink_unicast(ctnl, skb2, NETLINK_CB(skb).pid, MSG_DONTWAIT);
+
+free:
+	kfree_skb(skb2);
 out:
 	ip_conntrack_expect_put(exp);
-free:
-	if (skb2)
-		kfree_skb(skb2);
 	return err;
 }
 

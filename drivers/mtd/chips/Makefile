@@ -1,7 +1,7 @@
 #
 # linux/drivers/chips/Makefile
 #
-# $Id: Makefile.common,v 1.4 2004/07/12 16:07:30 dwmw2 Exp $
+# $Id: Makefile.common,v 1.5 2005/11/07 11:14:22 gleixner Exp $
 
 #                       *** BIG UGLY NOTE ***
 #
@@ -11,7 +11,7 @@
 # the CFI command set drivers are linked before gen_probe.o
 
 obj-$(CONFIG_MTD)		+= chipreg.o
-obj-$(CONFIG_MTD_AMDSTD)	+= amd_flash.o 
+obj-$(CONFIG_MTD_AMDSTD)	+= amd_flash.o
 obj-$(CONFIG_MTD_CFI)		+= cfi_probe.o
 obj-$(CONFIG_MTD_CFI_UTIL)	+= cfi_util.o
 obj-$(CONFIG_MTD_CFI_STAA)	+= cfi_cmdset_0020.o

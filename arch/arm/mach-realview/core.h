@@ -23,6 +23,7 @@
 #define __ASM_ARCH_REALVIEW_H
 
 #include <asm/hardware/amba.h>
+#include <asm/leds.h>
 #include <asm/io.h>
 
 #define __io_address(n)		__io(IO_ADDRESS(n))

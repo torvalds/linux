@@ -303,6 +303,15 @@ int snd_ac97_set_rate(ac97_t *ac97, int reg, unsigned int rate)
 				     AC97_EA_DRA, dbl ? AC97_EA_DRA : 0);
 	snd_ac97_update(ac97, reg, tmp & 0xffff);
 	snd_ac97_read(ac97, reg);
+	if ((ac97->ext_id & AC97_EI_DRA) && reg == AC97_PCM_FRONT_DAC_RATE) {
+		/* Intel controllers require double rate data to be put in
+		 * slots 7+8
+		 */
+		snd_ac97_update_bits(ac97, AC97_GENERAL_PURPOSE,
+				     AC97_GP_DRSS_MASK,
+				     dbl ? AC97_GP_DRSS_78 : 0);
+		snd_ac97_read(ac97, AC97_GENERAL_PURPOSE);
+	}
 	return 0;
 }
 

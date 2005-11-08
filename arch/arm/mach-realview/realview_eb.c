@@ -136,6 +136,11 @@ static struct amba_device *amba_devs[] __initdata = {
 
 static void __init gic_init_irq(void)
 {
+#ifdef CONFIG_REALVIEW_MPCORE
+	writel(0x0000a05f, __io_address(REALVIEW_SYS_LOCK));
+	writel(0x008003c0, __io_address(REALVIEW_SYS_BASE) + 0xd8);
+	writel(0x00000000, __io_address(REALVIEW_SYS_LOCK));
+#endif
 	gic_dist_init(__io_address(REALVIEW_GIC_DIST_BASE));
 	gic_cpu_init(__io_address(REALVIEW_GIC_CPU_BASE));
 }

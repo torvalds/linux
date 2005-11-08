@@ -787,8 +787,7 @@ static void ll_unload(struct IsdnCardState *cs)
 	ic.command = ISDN_STAT_UNLOAD;
 	ic.driver = cs->myid;
 	cs->iif.statcallb(&ic);
-	if (cs->status_buf)
-		kfree(cs->status_buf);
+	kfree(cs->status_buf);
 	cs->status_read = NULL;
 	cs->status_write = NULL;
 	cs->status_end = NULL;
@@ -807,10 +806,8 @@ static void closecard(int cardnr)
 
 	skb_queue_purge(&csta->rq);
 	skb_queue_purge(&csta->sq);
-	if (csta->rcvbuf) {
-		kfree(csta->rcvbuf);
-		csta->rcvbuf = NULL;
-	}
+	kfree(csta->rcvbuf);
+	csta->rcvbuf = NULL;
 	if (csta->tx_skb) {
 		dev_kfree_skb(csta->tx_skb);
 		csta->tx_skb = NULL;

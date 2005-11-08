@@ -6,7 +6,7 @@
  *  Derived from drivers/mtd/nand/edb7312.c
  *
  *
- * $Id: ppchameleonevb.c,v 1.6 2004/11/05 16:07:16 kalev Exp $
+ * $Id: ppchameleonevb.c,v 1.7 2005/11/07 11:14:31 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -338,7 +338,7 @@ nand_evb_init:
 	out_be32((volatile unsigned*)GPIO0_TSRH, in_be32((volatile unsigned*)GPIO0_TSRH) & 0xFFFFFFF0);
 	out_be32((volatile unsigned*)GPIO0_TSRL, in_be32((volatile unsigned*)GPIO0_TSRL) & 0x3FFFFFFF);
 	/* enable output driver */
-	out_be32((volatile unsigned*)GPIO0_TCR, in_be32((volatile unsigned*)GPIO0_TCR) | NAND_EVB_nCE_GPIO_PIN | 
+	out_be32((volatile unsigned*)GPIO0_TCR, in_be32((volatile unsigned*)GPIO0_TCR) | NAND_EVB_nCE_GPIO_PIN |
 		 NAND_EVB_CLE_GPIO_PIN | NAND_EVB_ALE_GPIO_PIN);
 #ifdef USE_READY_BUSY_PIN
 	/* three-state select */
@@ -402,7 +402,7 @@ static void __exit ppchameleonevb_cleanup (void)
 	/* Release resources, unregister device(s) */
 	nand_release (ppchameleon_mtd);
 	nand_release (ppchameleonevb_mtd);
-	
+
 	/* Release iomaps */
 	this = (struct nand_chip *) &ppchameleon_mtd[1];
 	iounmap((void *) this->IO_ADDR_R;

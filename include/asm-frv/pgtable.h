@@ -26,6 +26,8 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+struct mm_struct;
+struct vm_area_struct;
 #endif
 
 #ifndef __ASSEMBLY__

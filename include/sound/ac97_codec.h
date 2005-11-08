@@ -387,15 +387,6 @@
 #define AC97_RATES_MIC_ADC	4
 #define AC97_RATES_SPDIF	5
 
-/* shared controllers */
-enum {
-	AC97_SHARED_TYPE_NONE,
-	AC97_SHARED_TYPE_ICH,
-	AC97_SHARED_TYPE_ATIIXP,
-	AC97_SHARED_TYPE_VIA,
-	AC97_SHARED_TYPES
-};
-
 /*
  *
  */
@@ -468,7 +459,6 @@ struct _snd_ac97_bus {
 	unsigned short used_slots[2][4]; /* actually used PCM slots */
 	unsigned short pcms_count; /* count of PCMs */
 	struct ac97_pcm *pcms;
-	unsigned int shared_type;	/* type of shared controller betwen audio and modem */
 	ac97_t *codec[4];
 	snd_info_entry_t *proc;
 };

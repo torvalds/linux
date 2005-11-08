@@ -54,7 +54,6 @@ static struct fb_ops cg6_ops = {
 	.fb_sync		= cg6_sync,
 	.fb_mmap		= cg6_mmap,
 	.fb_ioctl		= cg6_ioctl,
-	.fb_cursor		= soft_cursor,
 };
 
 /* Offset of interesting structures in the OBIO space */
@@ -654,12 +653,6 @@ static void cg6_chip_init(struct fb_info *info)
 	sbus_writel(0, &fbc->clipminy);
 	sbus_writel(info->var.xres - 1, &fbc->clipmaxx);
 	sbus_writel(info->var.yres - 1, &fbc->clipmaxy);
-
-	/* Disable cursor in Brooktree DAC. */
-	sbus_writel(0x06 << 24, &par->bt->addr);
-	tmp = sbus_readl(&par->bt->control);
-	tmp &= ~(0x03 << 24);
-	sbus_writel(tmp, &par->bt->control);
 }
 
 struct all_info {

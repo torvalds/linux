@@ -69,6 +69,22 @@ Who:	Grant Coady <gcoady@gmail.com>
 
 ---------------------------
 
+What:	remove EXPORT_SYMBOL(panic_timeout)
+When:	April 2006
+Files:	kernel/panic.c
+Why:	No modular usage in the kernel.
+Who:	Adrian Bunk <bunk@stusta.de>
+
+---------------------------
+
+What:	remove EXPORT_SYMBOL(insert_resource)
+When:	April 2006
+Files:	kernel/resource.c
+Why:	No modular usage in the kernel.
+Who:	Adrian Bunk <bunk@stusta.de>
+
+---------------------------
+
 What:	PCMCIA control ioctl (needed for pcmcia-cs [cardmgr, cardctl])
 When:	November 2005
 Files:	drivers/pcmcia/: pcmcia_ioctl.c

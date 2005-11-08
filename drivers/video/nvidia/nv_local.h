@@ -105,7 +105,7 @@ do {                            \
 	*a = byte_rev[*a];      \
 } while(0)
 #else
-#define reverse_order(l)
+#define reverse_order(l) do { } while(0)
 #endif                          /* __LITTLE_ENDIAN */
 
 #endif				/* __NV_LOCAL_H__ */

@@ -14,11 +14,69 @@
 
 static struct file_operations fuse_direct_io_file_operations;
 
-int fuse_open_common(struct inode *inode, struct file *file, int isdir)
+static int fuse_send_open(struct inode *inode, struct file *file, int isdir,
+			  struct fuse_open_out *outargp)
 {
 	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_req *req;
 	struct fuse_open_in inarg;
+	struct fuse_req *req;
+	int err;
+
+	req = fuse_get_request(fc);
+	if (!req)
+		return -EINTR;
+
+	memset(&inarg, 0, sizeof(inarg));
+	inarg.flags = file->f_flags & ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
+	req->in.h.opcode = isdir ? FUSE_OPENDIR : FUSE_OPEN;
+	req->in.h.nodeid = get_node_id(inode);
+	req->inode = inode;
+	req->in.numargs = 1;
+	req->in.args[0].size = sizeof(inarg);
+	req->in.args[0].value = &inarg;
+	req->out.numargs = 1;
+	req->out.args[0].size = sizeof(*outargp);
+	req->out.args[0].value = outargp;
+	request_send(fc, req);
+	err = req->out.h.error;
+	fuse_put_request(fc, req);
+
+	return err;
+}
+
+struct fuse_file *fuse_file_alloc(void)
+{
+	struct fuse_file *ff;
+	ff = kmalloc(sizeof(struct fuse_file), GFP_KERNEL);
+	if (ff) {
+		ff->release_req = fuse_request_alloc();
+		if (!ff->release_req) {
+			kfree(ff);
+			ff = NULL;
+		}
+	}
+	return ff;
+}
+
+void fuse_file_free(struct fuse_file *ff)
+{
+	fuse_request_free(ff->release_req);
+	kfree(ff);
+}
+
+void fuse_finish_open(struct inode *inode, struct file *file,
+		      struct fuse_file *ff, struct fuse_open_out *outarg)
+{
+	if (outarg->open_flags & FOPEN_DIRECT_IO)
+		file->f_op = &fuse_direct_io_file_operations;
+	if (!(outarg->open_flags & FOPEN_KEEP_CACHE))
+		invalidate_inode_pages(inode->i_mapping);
+	ff->fh = outarg->fh;
+	file->private_data = ff;
+}
+
+int fuse_open_common(struct inode *inode, struct file *file, int isdir)
+{
 	struct fuse_open_out outarg;
 	struct fuse_file *ff;
 	int err;
@@ -34,73 +92,53 @@ int fuse_open_common(struct inode *inode, struct file *file, int isdir)
 	/* If opening the root node, no lookup has been performed on
 	   it, so the attributes must be refreshed */
 	if (get_node_id(inode) == FUSE_ROOT_ID) {
-		int err = fuse_do_getattr(inode);
+		err = fuse_do_getattr(inode);
 		if (err)
 		 	return err;
 	}
 
-	req = fuse_get_request(fc);
-	if (!req)
-		return -EINTR;
-
-	err = -ENOMEM;
-	ff = kmalloc(sizeof(struct fuse_file), GFP_KERNEL);
+	ff = fuse_file_alloc();
 	if (!ff)
-		goto out_put_request;
+		return -ENOMEM;
 
-	ff->release_req = fuse_request_alloc();
-	if (!ff->release_req) {
-		kfree(ff);
-		goto out_put_request;
+	err = fuse_send_open(inode, file, isdir, &outarg);
+	if (err)
+		fuse_file_free(ff);
+	else {
+		if (isdir)
+			outarg.open_flags &= ~FOPEN_DIRECT_IO;
+		fuse_finish_open(inode, file, ff, &outarg);
 	}
 
-	memset(&inarg, 0, sizeof(inarg));
-	inarg.flags = file->f_flags & ~(O_CREAT | O_EXCL | O_NOCTTY | O_TRUNC);
-	req->in.h.opcode = isdir ? FUSE_OPENDIR : FUSE_OPEN;
-	req->in.h.nodeid = get_node_id(inode);
-	req->inode = inode;
-	req->in.numargs = 1;
-	req->in.args[0].size = sizeof(inarg);
-	req->in.args[0].value = &inarg;
-	req->out.numargs = 1;
-	req->out.args[0].size = sizeof(outarg);
-	req->out.args[0].value = &outarg;
-	request_send(fc, req);
-	err = req->out.h.error;
-	if (err) {
-		fuse_request_free(ff->release_req);
-		kfree(ff);
-	} else {
-		if (!isdir && (outarg.open_flags & FOPEN_DIRECT_IO))
-			file->f_op = &fuse_direct_io_file_operations;
-		if (!(outarg.open_flags & FOPEN_KEEP_CACHE))
-			invalidate_inode_pages(inode->i_mapping);
-		ff->fh = outarg.fh;
-		file->private_data = ff;
-	}
-
- out_put_request:
-	fuse_put_request(fc, req);
 	return err;
 }
 
-int fuse_release_common(struct inode *inode, struct file *file, int isdir)
+void fuse_send_release(struct fuse_conn *fc, struct fuse_file *ff,
+		       u64 nodeid, struct inode *inode, int flags, int isdir)
 {
-	struct fuse_conn *fc = get_fuse_conn(inode);
-	struct fuse_file *ff = file->private_data;
-	struct fuse_req *req = ff->release_req;
+	struct fuse_req * req = ff->release_req;
 	struct fuse_release_in *inarg = &req->misc.release_in;
 
 	inarg->fh = ff->fh;
-	inarg->flags = file->f_flags & ~O_EXCL;
+	inarg->flags = flags;
 	req->in.h.opcode = isdir ? FUSE_RELEASEDIR : FUSE_RELEASE;
-	req->in.h.nodeid = get_node_id(inode);
+	req->in.h.nodeid = nodeid;
 	req->inode = inode;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(struct fuse_release_in);
 	req->in.args[0].value = inarg;
 	request_send_background(fc, req);
 	kfree(ff);
+}
+
+int fuse_release_common(struct inode *inode, struct file *file, int isdir)
+{
+	struct fuse_file *ff = file->private_data;
+	if (ff) {
+		struct fuse_conn *fc = get_fuse_conn(inode);
+		u64 nodeid = get_node_id(inode);
+		fuse_send_release(fc, ff, nodeid, inode, file->f_flags, isdir);
+	}
 
 	/* Return value is ignored by VFS */
 	return 0;

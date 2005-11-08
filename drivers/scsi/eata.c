@@ -2580,8 +2580,7 @@ static int eata2x_release(struct Scsi_Host *shost)
 	unsigned int i;
 
 	for (i = 0; i < shost->can_queue; i++)
-		if ((&ha->cp[i])->sglist)
-			kfree((&ha->cp[i])->sglist);
+		kfree((&ha->cp[i])->sglist);
 
 	for (i = 0; i < shost->can_queue; i++)
 		pci_unmap_single(ha->pdev, ha->cp[i].cp_dma_addr,

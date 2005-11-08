@@ -88,9 +88,6 @@ ppc405_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
 void __init
 sycamore_setup_arch(void)
 {
-#define SYCAMORE_PS2_BASE	0xF0100000
-#define SYCAMORE_FPGA_BASE	0xF0300000
-
 	void *fpga_brdc;
 	unsigned char fpga_brdc_data;
 	void *fpga_enable;
@@ -100,7 +97,7 @@ sycamore_setup_arch(void)
 
 	ppc4xx_setup_arch();
 
-	ibm_ocp_set_emac(0, 1);
+	ibm_ocp_set_emac(0, 0);
 
 	kb_data = ioremap(SYCAMORE_PS2_BASE, 8);
 	if (!kb_data) {
@@ -111,7 +108,7 @@ sycamore_setup_arch(void)
 
 	kb_cs = kb_data + 1;
 
-	fpga_status = ioremap(SYCAMORE_FPGA_BASE, 8);
+	fpga_status = ioremap(PPC40x_FPGA_BASE, 8);
 	if (!fpga_status) {
 		printk(KERN_CRIT
 		       "sycamore_setup_arch() fpga_status ioremap failed\n");

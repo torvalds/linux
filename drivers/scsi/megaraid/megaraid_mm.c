@@ -995,17 +995,13 @@ pthru_dma_pool_error:
 
 memalloc_error:
 
-	if (adapter->kioc_list)
-		kfree(adapter->kioc_list);
-
-	if (adapter->mbox_list)
-		kfree(adapter->mbox_list);
+	kfree(adapter->kioc_list);
+	kfree(adapter->mbox_list);
 
 	if (adapter->pthru_dma_pool)
 		pci_pool_destroy(adapter->pthru_dma_pool);
 
-	if (adapter)
-		kfree(adapter);
+	kfree(adapter);
 
 	return rval;
 }
@@ -1157,7 +1153,6 @@ mraid_mm_free_adp_resources(mraid_mmadp_t *adp)
 	}
 
 	kfree(adp->kioc_list);
-
 	kfree(adp->mbox_list);
 
 	pci_pool_destroy(adp->pthru_dma_pool);

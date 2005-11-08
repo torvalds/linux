@@ -183,8 +183,7 @@ raw3270_request_alloc_bootmem(size_t size)
 void
 raw3270_request_free (struct raw3270_request *rq)
 {
-	if (rq->buffer)
-		kfree(rq->buffer);
+	kfree(rq->buffer);
 	kfree(rq);
 }
 

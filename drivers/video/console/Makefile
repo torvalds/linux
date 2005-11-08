@@ -15,6 +15,7 @@ font-objs-$(CONFIG_FONT_10x18)     += font_10x18.o
 font-objs-$(CONFIG_FONT_PEARL_8x8) += font_pearl_8x8.o
 font-objs-$(CONFIG_FONT_ACORN_8x8) += font_acorn_8x8.o
 font-objs-$(CONFIG_FONT_MINI_4x6)  += font_mini_4x6.o
+font-objs-$(CONFIG_FONT_RL)  += font_rl.o
 
 font-objs += $(font-objs-y)
 
@@ -26,7 +27,7 @@ obj-$(CONFIG_PROM_CONSOLE)        += promcon.o promcon_tbl.o
 obj-$(CONFIG_STI_CONSOLE)         += sticon.o sticore.o font.o
 obj-$(CONFIG_VGA_CONSOLE)         += vgacon.o
 obj-$(CONFIG_MDA_CONSOLE)         += mdacon.o
-obj-$(CONFIG_FRAMEBUFFER_CONSOLE) += fbcon.o bitblit.o font.o
+obj-$(CONFIG_FRAMEBUFFER_CONSOLE) += fbcon.o bitblit.o font.o softcursor.o
 ifeq ($(CONFIG_FB_TILEBLITTING),y)
 obj-$(CONFIG_FRAMEBUFFER_CONSOLE)     += tileblit.o
 endif

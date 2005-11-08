@@ -875,12 +875,10 @@ static int hci_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 		goto done;
 	}
 
-	if (!(husb = kmalloc(sizeof(struct hci_usb), GFP_KERNEL))) {
+	if (!(husb = kzalloc(sizeof(struct hci_usb), GFP_KERNEL))) {
 		BT_ERR("Can't allocate: control structure");
 		goto done;
 	}
-
-	memset(husb, 0, sizeof(struct hci_usb));
 
 	husb->udev = udev;
 	husb->bulk_out_ep = bulk_out_ep;

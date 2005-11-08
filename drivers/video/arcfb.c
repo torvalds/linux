@@ -511,7 +511,6 @@ static struct fb_ops arcfb_ops = {
 	.fb_fillrect	= arcfb_fillrect,
 	.fb_copyarea	= arcfb_copyarea,
 	.fb_imageblit	= arcfb_imageblit,
-	.fb_cursor	= soft_cursor,
 	.fb_ioctl 	= arcfb_ioctl,
 };
 

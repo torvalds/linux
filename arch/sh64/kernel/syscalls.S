@@ -46,7 +46,7 @@ sys_call_table:
 	.long sys_setuid16
 	.long sys_getuid16
 	.long sys_stime			/* 25 */
-	.long sys_ptrace
+	.long sh64_ptrace
 	.long sys_alarm
 	.long sys_fstat
 	.long sys_pause

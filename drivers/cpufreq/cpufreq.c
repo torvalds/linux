@@ -593,12 +593,11 @@ static int cpufreq_add_dev (struct sys_device * sys_dev)
 		goto module_out;
 	}
 
-	policy = kmalloc(sizeof(struct cpufreq_policy), GFP_KERNEL);
+	policy = kzalloc(sizeof(struct cpufreq_policy), GFP_KERNEL);
 	if (!policy) {
 		ret = -ENOMEM;
 		goto nomem_out;
 	}
-	memset(policy, 0, sizeof(struct cpufreq_policy));
 
 	policy->cpu = cpu;
 	policy->cpus = cpumask_of_cpu(cpu);

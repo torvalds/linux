@@ -139,9 +139,14 @@ You'll probably want to upgrade.
 Ksymoops
 --------
 
-If the unthinkable happens and your kernel oopses, you'll need a 2.4
-version of ksymoops to decode the report; see REPORTING-BUGS in the
-root of the Linux source for more information.
+If the unthinkable happens and your kernel oopses, you may need the
+ksymoops tool to decode it, but in most cases you don't.
+In the 2.6 kernel it is generally preferred to build the kernel with
+CONFIG_KALLSYMS so that it produces readable dumps that can be used as-is
+(this also produces better output than ksymoops).
+If for some reason your kernel is not build with CONFIG_KALLSYMS and
+you have no way to rebuild and reproduce the Oops with that option, then
+you can still decode that Oops with ksymoops.
 
 Module-Init-Tools
 -----------------

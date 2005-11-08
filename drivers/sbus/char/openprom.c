@@ -39,6 +39,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/miscdevice.h>
+#include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <asm/oplib.h>
@@ -562,6 +563,38 @@ static int openprom_ioctl(struct inode * inode, struct file * file,
 		if (cnt++ < 10)
 			printk("openprom_ioctl: cmd 0x%X, arg 0x%lX\n", cmd, arg);
 		return -EINVAL;
+	}
+}
+
+static long openprom_compat_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg)
+{
+	long rval = -ENOTTY;
+
+	/*
+	 * SunOS/Solaris only, the NetBSD one's have embedded pointers in
+	 * the arg which we'd need to clean up...
+	 */
+	switch (cmd) {
+	case OPROMGETOPT:
+	case OPROMSETOPT:
+	case OPROMNXTOPT:
+	case OPROMSETOPT2:
+	case OPROMNEXT:
+	case OPROMCHILD:
+	case OPROMGETPROP:
+	case OPROMNXTPROP:
+	case OPROMU2P:
+	case OPROMGETCONS:
+	case OPROMGETFBNAME:
+	case OPROMGETBOOTARGS:
+	case OPROMSETCUR:
+	case OPROMPCI2NODE:
+	case OPROMPATH2NODE:
+		lock_kernel();
+		rval = openprom_ioctl(file->f_dentry->d_inode, file, cmd, arg);
+		lock_kernel();
+		break;
 	}
 }
 

@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2004 Embedded Edge, LLC
  *
- * $Id: au1550nd.c,v 1.11 2004/11/04 12:53:10 gleixner Exp $
+ * $Id: au1550nd.c,v 1.13 2005/11/07 11:14:30 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -21,20 +21,14 @@
 
 /* fixme: this is ugly */
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 0)
-#include <asm/mach-au1x00/au1000.h>
-#ifdef CONFIG_MIPS_PB1550
-#include <asm/mach-pb1x00/pb1550.h> 
-#endif
-#ifdef CONFIG_MIPS_DB1550
-#include <asm/mach-db1x00/db1x00.h> 
-#endif
+#include <asm/mach-au1x00/au1xxx.h>
 #else
 #include <asm/au1000.h>
 #ifdef CONFIG_MIPS_PB1550
-#include <asm/pb1550.h> 
+#include <asm/pb1550.h>
 #endif
 #ifdef CONFIG_MIPS_DB1550
-#include <asm/db1x00.h> 
+#include <asm/db1x00.h>
 #endif
 #endif
 
@@ -45,39 +39,22 @@ static struct mtd_info *au1550_mtd = NULL;
 static void __iomem *p_nand;
 static int nand_width = 1; /* default x8*/
 
-#define NAND_CS 1
-
 /*
  * Define partitions for flash device
  */
 const static struct mtd_partition partition_info[] = {
-#ifdef CONFIG_MIPS_PB1550
-#define NUM_PARTITIONS            2
-	{ 
-		.name = "Pb1550 NAND FS 0",
+	{
+		.name 	= "NAND FS 0",
 	  	.offset = 0,
-	  	.size = 8*1024*1024 
+	  	.size 	= 8*1024*1024
 	},
-	{ 
-		.name = "Pb1550 NAND FS 1",
+	{
+		.name 	= "NAND FS 1",
 		.offset =  MTDPART_OFS_APPEND,
- 		.size =    MTDPART_SIZ_FULL
+ 		.size 	=    MTDPART_SIZ_FULL
 	}
-#endif
-#ifdef CONFIG_MIPS_DB1550
-#define NUM_PARTITIONS            2
-	{ 
-		.name = "Db1550 NAND FS 0",
-	  	.offset = 0,
-	  	.size = 8*1024*1024 
-	},
-	{ 
-		.name = "Db1550 NAND FS 1",
-		.offset =  MTDPART_OFS_APPEND,
- 		.size =    MTDPART_SIZ_FULL
-	}
-#endif
 };
+#define NB_OF(x)  (sizeof(x)/sizeof(x[0]))
 
 
 /**
@@ -112,7 +89,7 @@ static void au_write_byte(struct mtd_info *mtd, u_char byte)
  * au_read_byte16 -  read one byte endianess aware from the chip
  * @mtd:	MTD device structure
  *
- *  read function for 16bit buswith with 
+ *  read function for 16bit buswith with
  * endianess conversion
  */
 static u_char au_read_byte16(struct mtd_info *mtd)
@@ -142,7 +119,7 @@ static void au_write_byte16(struct mtd_info *mtd, u_char byte)
  * au_read_word -  read one word from the chip
  * @mtd:	MTD device structure
  *
- *  read function for 16bit buswith without 
+ *  read function for 16bit buswith without
  * endianess conversion
  */
 static u16 au_read_word(struct mtd_info *mtd)
@@ -158,7 +135,7 @@ static u16 au_read_word(struct mtd_info *mtd)
  * @mtd:	MTD device structure
  * @word:	data word to write
  *
- *  write function for 16bit buswith without 
+ *  write function for 16bit buswith without
  * endianess conversion
  */
 static void au_write_word(struct mtd_info *mtd, u16 word)
@@ -188,7 +165,7 @@ static void au_write_buf(struct mtd_info *mtd, const u_char *buf, int len)
 }
 
 /**
- * au_read_buf -  read chip data into buffer 
+ * au_read_buf -  read chip data into buffer
  * @mtd:	MTD device structure
  * @buf:	buffer to store date
  * @len:	number of bytes to read
@@ -202,12 +179,12 @@ static void au_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 
 	for (i=0; i<len; i++) {
 		buf[i] = readb(this->IO_ADDR_R);
-		au_sync();	
+		au_sync();
 	}
 }
 
 /**
- * au_verify_buf -  Verify chip data against buffer 
+ * au_verify_buf -  Verify chip data against buffer
  * @mtd:	MTD device structure
  * @buf:	buffer containing the data to compare
  * @len:	number of bytes to compare
@@ -242,16 +219,16 @@ static void au_write_buf16(struct mtd_info *mtd, const u_char *buf, int len)
 	struct nand_chip *this = mtd->priv;
 	u16 *p = (u16 *) buf;
 	len >>= 1;
-	
+
 	for (i=0; i<len; i++) {
 		writew(p[i], this->IO_ADDR_W);
 		au_sync();
 	}
-		
+
 }
 
 /**
- * au_read_buf16 -  read chip data into buffer 
+ * au_read_buf16 -  read chip data into buffer
  * @mtd:	MTD device structure
  * @buf:	buffer to store date
  * @len:	number of bytes to read
@@ -272,7 +249,7 @@ static void au_read_buf16(struct mtd_info *mtd, u_char *buf, int len)
 }
 
 /**
- * au_verify_buf16 -  Verify chip data against buffer 
+ * au_verify_buf16 -  Verify chip data against buffer
  * @mtd:	MTD device structure
  * @buf:	buffer containing the data to compare
  * @len:	number of bytes to compare
@@ -305,26 +282,26 @@ static void au1550_hwcontrol(struct mtd_info *mtd, int cmd)
 	case NAND_CTL_CLRCLE: this->IO_ADDR_W = p_nand + MEM_STNAND_DATA; break;
 
 	case NAND_CTL_SETALE: this->IO_ADDR_W = p_nand + MEM_STNAND_ADDR; break;
-	case NAND_CTL_CLRALE: 
-		this->IO_ADDR_W = p_nand + MEM_STNAND_DATA; 
-		/* FIXME: Nobody knows why this is neccecary, 
+	case NAND_CTL_CLRALE:
+		this->IO_ADDR_W = p_nand + MEM_STNAND_DATA;
+		/* FIXME: Nobody knows why this is neccecary,
 		 * but it works only that way */
-		udelay(1); 
+		udelay(1);
 		break;
 
-	case NAND_CTL_SETNCE: 
+	case NAND_CTL_SETNCE:
 		/* assert (force assert) chip enable */
 		au_writel((1<<(4+NAND_CS)) , MEM_STNDCTL); break;
 		break;
 
-	case NAND_CTL_CLRNCE: 
+	case NAND_CTL_CLRNCE:
  		/* deassert chip enable */
 		au_writel(0, MEM_STNDCTL); break;
 		break;
 	}
 
 	this->IO_ADDR_R = this->IO_ADDR_W;
-	
+
 	/* Drain the writebuffer */
 	au_sync();
 }
@@ -339,14 +316,16 @@ int au1550_device_ready(struct mtd_info *mtd)
 /*
  * Main initialization routine
  */
-int __init au1550_init (void)
+int __init au1xxx_nand_init (void)
 {
 	struct nand_chip *this;
 	u16 boot_swapboot = 0; /* default value */
 	int retval;
+	u32 mem_staddr;
+	u32 nand_phys;
 
 	/* Allocate memory for MTD device structure and private data */
-	au1550_mtd = kmalloc (sizeof(struct mtd_info) + 
+	au1550_mtd = kmalloc (sizeof(struct mtd_info) +
 			sizeof (struct nand_chip), GFP_KERNEL);
 	if (!au1550_mtd) {
 		printk ("Unable to allocate NAND MTD dev structure.\n");
@@ -364,14 +343,17 @@ int __init au1550_init (void)
 	au1550_mtd->priv = this;
 
 
-	/* MEM_STNDCTL: disable ints, disable nand boot */
-	au_writel(0, MEM_STNDCTL);
+	/* disable interrupts */
+	au_writel(au_readl(MEM_STNDCTL) & ~(1<<8), MEM_STNDCTL);
+
+	/* disable NAND boot */
+	au_writel(au_readl(MEM_STNDCTL) & ~(1<<0), MEM_STNDCTL);
 
 #ifdef CONFIG_MIPS_PB1550
 	/* set gpio206 high */
 	au_writel(au_readl(GPIO2_DIR) & ~(1<<6), GPIO2_DIR);
 
-	boot_swapboot = (au_readl(MEM_STSTAT) & (0x7<<1)) | 
+	boot_swapboot = (au_readl(MEM_STSTAT) & (0x7<<1)) |
 		((bcsr->status >> 6)  & 0x1);
 	switch (boot_swapboot) {
 		case 0:
@@ -397,25 +379,66 @@ int __init au1550_init (void)
 	}
 #endif
 
-	/* Configure RCE1 - should be done by YAMON */
-	au_writel(0x5 | (nand_width << 22), 0xB4001010); /* MEM_STCFG1 */
-	au_writel(NAND_TIMING, 0xB4001014); /* MEM_STTIME1 */
-	au_sync();
+	/* Configure chip-select; normally done by boot code, e.g. YAMON */
+#ifdef NAND_STCFG
+	if (NAND_CS == 0) {
+		au_writel(NAND_STCFG,  MEM_STCFG0);
+		au_writel(NAND_STTIME, MEM_STTIME0);
+		au_writel(NAND_STADDR, MEM_STADDR0);
+	}
+	if (NAND_CS == 1) {
+		au_writel(NAND_STCFG,  MEM_STCFG1);
+		au_writel(NAND_STTIME, MEM_STTIME1);
+		au_writel(NAND_STADDR, MEM_STADDR1);
+	}
+	if (NAND_CS == 2) {
+		au_writel(NAND_STCFG,  MEM_STCFG2);
+		au_writel(NAND_STTIME, MEM_STTIME2);
+		au_writel(NAND_STADDR, MEM_STADDR2);
+	}
+	if (NAND_CS == 3) {
+		au_writel(NAND_STCFG,  MEM_STCFG3);
+		au_writel(NAND_STTIME, MEM_STTIME3);
+		au_writel(NAND_STADDR, MEM_STADDR3);
+	}
+#endif
 
-	/* setup and enable chip select, MEM_STADDR1 */
-	/* we really need to decode offsets only up till 0x20 */
-	au_writel((1<<28) | (NAND_PHYS_ADDR>>4) | 
-			(((NAND_PHYS_ADDR + 0x1000)-1) & (0x3fff<<18)>>18), 
-			MEM_STADDR1);
-	au_sync();
+	/* Locate NAND chip-select in order to determine NAND phys address */
+	mem_staddr = 0x00000000;
+	if (((au_readl(MEM_STCFG0) & 0x7) == 0x5) && (NAND_CS == 0))
+		mem_staddr = au_readl(MEM_STADDR0);
+	else if (((au_readl(MEM_STCFG1) & 0x7) == 0x5) && (NAND_CS == 1))
+		mem_staddr = au_readl(MEM_STADDR1);
+	else if (((au_readl(MEM_STCFG2) & 0x7) == 0x5) && (NAND_CS == 2))
+		mem_staddr = au_readl(MEM_STADDR2);
+	else if (((au_readl(MEM_STCFG3) & 0x7) == 0x5) && (NAND_CS == 3))
+		mem_staddr = au_readl(MEM_STADDR3);
 
-	p_nand = ioremap(NAND_PHYS_ADDR, 0x1000);
+	if (mem_staddr == 0x00000000) {
+		printk("Au1xxx NAND: ERROR WITH NAND CHIP-SELECT\n");
+		kfree(au1550_mtd);
+		return 1;
+	}
+	nand_phys = (mem_staddr << 4) & 0xFFFC0000;
+
+	p_nand = (void __iomem *)ioremap(nand_phys, 0x1000);
+
+	/* make controller and MTD agree */
+	if (NAND_CS == 0)
+		nand_width = au_readl(MEM_STCFG0) & (1<<22);
+	if (NAND_CS == 1)
+		nand_width = au_readl(MEM_STCFG1) & (1<<22);
+	if (NAND_CS == 2)
+		nand_width = au_readl(MEM_STCFG2) & (1<<22);
+	if (NAND_CS == 3)
+		nand_width = au_readl(MEM_STCFG3) & (1<<22);
+
 
 	/* Set address of hardware control function */
 	this->hwcontrol = au1550_hwcontrol;
 	this->dev_ready = au1550_device_ready;
 	/* 30 us command delay time */
-	this->chip_delay = 30;		
+	this->chip_delay = 30;
 	this->eccmode = NAND_ECC_SOFT;
 
 	this->options = NAND_NO_AUTOINCR;
@@ -438,19 +461,19 @@ int __init au1550_init (void)
 	}
 
 	/* Register the partitions */
-	add_mtd_partitions(au1550_mtd, partition_info, NUM_PARTITIONS);
+	add_mtd_partitions(au1550_mtd, partition_info, NB_OF(partition_info));
 
 	return 0;
 
  outio:
 	iounmap ((void *)p_nand);
-	
+
  outmem:
 	kfree (au1550_mtd);
 	return retval;
 }
 
-module_init(au1550_init);
+module_init(au1xxx_nand_init);
 
 /*
  * Clean up routine

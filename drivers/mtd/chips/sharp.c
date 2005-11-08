@@ -4,7 +4,7 @@
  * Copyright 2000,2001 David A. Schleef <ds@schleef.org>
  *           2000,2001 Lineo, Inc.
  *
- * $Id: sharp.c,v 1.14 2004/08/09 13:19:43 dwmw2 Exp $
+ * $Id: sharp.c,v 1.16 2005/11/07 11:14:23 gleixner Exp $
  *
  * Devices supported:
  *   LH28F016SCT Symmetrical block flash memory, 2Mx8
@@ -31,6 +31,7 @@
 #include <linux/mtd/cfi.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 
 #define CMD_RESET		0xffffffff
 #define CMD_READ_ID		0x90909090
@@ -214,7 +215,7 @@ static int sharp_probe_map(struct map_info *map,struct mtd_info *mtd)
 /* This function returns with the chip->mutex lock held. */
 static int sharp_wait(struct map_info *map, struct flchip *chip)
 {
-	__u16 status;
+	int status, i;
 	unsigned long timeo = jiffies + HZ;
 	DECLARE_WAITQUEUE(wait, current);
 	int adr = 0;
@@ -227,13 +228,11 @@ retry:
 		map_write32(map,CMD_READ_STATUS,adr);
 		chip->state = FL_STATUS;
 	case FL_STATUS:
-		status = map_read32(map,adr);
-//printk("status=%08x\n",status);
-
-		udelay(100);
-		if((status & SR_READY)!=SR_READY){
-//printk(".status=%08x\n",status);
-			udelay(100);
+		for(i=0;i<100;i++){
+			status = map_read32(map,adr);
+			if((status & SR_READY)==SR_READY)
+				break;
+			udelay(1);
 		}
 		break;
 	default:
@@ -460,12 +459,12 @@ static int sharp_do_wait_for_ready(struct map_info *map, struct flchip *chip,
 		remove_wait_queue(&chip->wq, &wait);
 
 		//spin_lock_bh(chip->mutex);
-		
+
 		if (signal_pending(current)){
 			ret = -EINTR;
 			goto out;
 		}
-		
+
 	}
 	ret = -ETIME;
 out:
@@ -564,7 +563,7 @@ static int sharp_suspend(struct mtd_info *mtd)
 static void sharp_resume(struct mtd_info *mtd)
 {
 	printk("sharp_resume()\n");
-	
+
 }
 
 static void sharp_destroy(struct mtd_info *mtd)

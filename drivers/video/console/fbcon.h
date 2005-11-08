@@ -167,5 +167,5 @@ extern void fbcon_set_tileops(struct vc_data *vc, struct fb_info *info,
 			      struct display *p, struct fbcon_ops *ops);
 #endif
 extern void fbcon_set_bitops(struct fbcon_ops *ops);
-
+extern int  soft_cursor(struct fb_info *info, struct fb_cursor *cursor);
 #endif /* _VIDEO_FBCON_H */

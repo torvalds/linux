@@ -30,7 +30,7 @@ superhyway_ro_attr(bot_mb, "0x%02x\n", vcr.bot_mb);
 superhyway_ro_attr(top_mb, "0x%02x\n", vcr.top_mb);
 
 /* Misc */
-superhyway_ro_attr(resource, "0x%08lx\n", resource.start);
+superhyway_ro_attr(resource, "0x%08lx\n", resource[0].start);
 
 struct device_attribute superhyway_dev_attrs[] = {
 	__ATTR_RO(perr_flags),

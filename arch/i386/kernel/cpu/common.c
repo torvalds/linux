@@ -30,8 +30,6 @@ static int disable_x86_serial_nr __devinitdata = 1;
 
 struct cpu_dev * cpu_devs[X86_VENDOR_NUM] = {};
 
-extern void mcheck_init(struct cpuinfo_x86 *c);
-
 extern int disable_pse;
 
 static void default_init(struct cpuinfo_x86 * c)
@@ -429,9 +427,8 @@ void __devinit identify_cpu(struct cpuinfo_x86 *c)
 	}
 
 	/* Init Machine Check Exception if available. */
-#ifdef CONFIG_X86_MCE
 	mcheck_init(c);
-#endif
+
 	if (c == &boot_cpu_data)
 		sysenter_setup();
 	enable_sep_cpu();

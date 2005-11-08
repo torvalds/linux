@@ -437,7 +437,7 @@ static void __devinit snd_interwave_detect_memory(snd_gus_card_t * gus)
 		for (i = 0; i < 8; ++i)
 			iwave[i] = snd_gf1_peek(gus, bank_pos + i);
 #ifdef CONFIG_SND_DEBUG_ROM
-		printk("ROM at 0x%06x = %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n", bank_pos,
+		printk(KERN_DEBUG "ROM at 0x%06x = %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n", bank_pos,
 		       iwave[0], iwave[1], iwave[2], iwave[3],
 		       iwave[4], iwave[5], iwave[6], iwave[7]);
 #endif
@@ -447,7 +447,7 @@ static void __devinit snd_interwave_detect_memory(snd_gus_card_t * gus)
 		for (i = 0; i < sizeof(struct rom_hdr); i++)
 			csum += snd_gf1_peek(gus, bank_pos + i);
 #ifdef CONFIG_SND_DEBUG_ROM
-		printk("ROM checksum = 0x%x (computed)\n", csum);
+		printk(KERN_DEBUG "ROM checksum = 0x%x (computed)\n", csum);
 #endif
 		if (csum != 0)
 			continue;	/* not valid rom */
@@ -638,10 +638,7 @@ static void snd_interwave_free(snd_card_t *card)
 	if (iwcard == NULL)
 		return;
 #ifdef SNDRV_STB
-	if (iwcard->i2c_res) {
-		release_resource(iwcard->i2c_res);
-		kfree_nocheck(iwcard->i2c_res);
-	}
+	release_and_free_resource(iwcard->i2c_res);
 #endif
 	if (iwcard->irq >= 0)
 		free_irq(iwcard->irq, (void *)iwcard);

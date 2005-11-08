@@ -89,7 +89,7 @@ bubinga_early_serial_map(void)
           * by 16.
           */
 	uart_div = (mfdcr(DCRN_CPC0_UCR_BASE) & DCRN_CPC0_UCR_U0DIV);
-	uart_clock = __res.bi_pllouta_freq / uart_div;
+	uart_clock = __res.bi_procfreq / uart_div;
 
 	/* Setup serial port access */
 	memset(&port, 0, sizeof(port));

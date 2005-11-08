@@ -1,4 +1,4 @@
-/* 
+/*
  * inftlcore.c -- Linux driver for Inverse Flash Translation Layer (INFTL)
  *
  * (C) Copyright 2002, Greg Ungerer (gerg@snapgear.com)
@@ -7,7 +7,7 @@
  * (c) 1999 Machine Vision Holdings, Inc.
  * Author: David Woodhouse <dwmw2@infradead.org>
  *
- * $Id: inftlcore.c,v 1.18 2004/11/16 18:28:59 dwmw2 Exp $
+ * $Id: inftlcore.c,v 1.19 2005/11/07 11:14:20 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -113,23 +113,21 @@ static void inftl_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 	if (inftl->mbd.size != inftl->heads * inftl->cylinders * inftl->sectors) {
 		/*
-		  Oh no we don't have 
+		  Oh no we don't have
 		   mbd.size == heads * cylinders * sectors
 		*/
 		printk(KERN_WARNING "INFTL: cannot calculate a geometry to "
 		       "match size of 0x%lx.\n", inftl->mbd.size);
 		printk(KERN_WARNING "INFTL: using C:%d H:%d S:%d "
 			"(== 0x%lx sects)\n",
-			inftl->cylinders, inftl->heads , inftl->sectors, 
+			inftl->cylinders, inftl->heads , inftl->sectors,
 			(long)inftl->cylinders * (long)inftl->heads *
 			(long)inftl->sectors );
 	}
 
 	if (add_mtd_blktrans_dev(&inftl->mbd)) {
-		if (inftl->PUtable)
-			kfree(inftl->PUtable);
-		if (inftl->VUtable)
-			kfree(inftl->VUtable);
+		kfree(inftl->PUtable);
+		kfree(inftl->VUtable);
 		kfree(inftl);
 		return;
 	}
@@ -147,10 +145,8 @@ static void inftl_remove_dev(struct mtd_blktrans_dev *dev)
 
 	del_mtd_blktrans_dev(dev);
 
-	if (inftl->PUtable)
-		kfree(inftl->PUtable);
-	if (inftl->VUtable)
-		kfree(inftl->VUtable);
+	kfree(inftl->PUtable);
+	kfree(inftl->VUtable);
 	kfree(inftl);
 }
 
@@ -223,7 +219,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 		       "Virtual Unit Chain %d!\n", thisVUC);
 		return BLOCK_NIL;
 	}
-	
+
 	/*
 	 * Scan to find the Erase Unit which holds the actual data for each
 	 * 512-byte block within the Chain.
@@ -264,7 +260,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 				"Unit Chain 0x%x\n", thisVUC);
 			return BLOCK_NIL;
 		}
-		
+
 		thisEUN = inftl->PUtable[thisEUN];
 	}
 
@@ -295,15 +291,15 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 		 */
                 if (BlockMap[block] == BLOCK_NIL)
                         continue;
-                
+
                 ret = MTD_READ(inftl->mbd.mtd, (inftl->EraseSize *
 			BlockMap[block]) + (block * SECTORSIZE), SECTORSIZE,
-			&retlen, movebuf); 
+			&retlen, movebuf);
                 if (ret < 0) {
 			ret = MTD_READ(inftl->mbd.mtd, (inftl->EraseSize *
 				BlockMap[block]) + (block * SECTORSIZE),
 				SECTORSIZE, &retlen, movebuf);
-			if (ret != -EIO) 
+			if (ret != -EIO)
                         	DEBUG(MTD_DEBUG_LEVEL1, "INFTL: error went "
 					"away on retry?\n");
                 }
@@ -355,7 +351,7 @@ static u16 INFTL_foldchain(struct INFTLrecord *inftl, unsigned thisVUC, unsigned
 static u16 INFTL_makefreeblock(struct INFTLrecord *inftl, unsigned pendingblock)
 {
 	/*
-	 * This is the part that needs some cleverness applied. 
+	 * This is the part that needs some cleverness applied.
 	 * For now, I'm doing the minimum applicable to actually
 	 * get the thing to work.
 	 * Wear-levelling and other clever stuff needs to be implemented
@@ -414,7 +410,7 @@ static int nrbits(unsigned int val, int bitcount)
 }
 
 /*
- * INFTL_findwriteunit: Return the unit number into which we can write 
+ * INFTL_findwriteunit: Return the unit number into which we can write
  *                      for this block. Make it available if it isn't already.
  */
 static inline u16 INFTL_findwriteunit(struct INFTLrecord *inftl, unsigned block)
@@ -463,10 +459,10 @@ static inline u16 INFTL_findwriteunit(struct INFTLrecord *inftl, unsigned block)
 				 * Invalid block. Don't use it any more.
 				 * Must implement.
 				 */
-				break;			
+				break;
 			}
-			
-			if (!silly--) { 
+
+			if (!silly--) {
 				printk(KERN_WARNING "INFTL: infinite loop in "
 					"Virtual Unit Chain 0x%x\n", thisVUC);
 				return 0xffff;
@@ -482,7 +478,7 @@ hitused:
 
 
 		/*
-		 * OK. We didn't find one in the existing chain, or there 
+		 * OK. We didn't find one in the existing chain, or there
 		 * is no existing chain. Allocate a new one.
 		 */
 		writeEUN = INFTL_findfreeblock(inftl, 0);
@@ -506,8 +502,8 @@ hitused:
 			if (writeEUN == BLOCK_NIL) {
 				/*
 				 * Ouch. This should never happen - we should
-				 * always be able to make some room somehow. 
-				 * If we get here, we've allocated more storage 
+				 * always be able to make some room somehow.
+				 * If we get here, we've allocated more storage
 				 * space than actual media, or our makefreeblock
 				 * routine is missing something.
 				 */
@@ -518,7 +514,7 @@ hitused:
 				INFTL_dumpVUchains(inftl);
 #endif
 				return BLOCK_NIL;
-			}			
+			}
 		}
 
 		/*
@@ -543,7 +539,7 @@ hitused:
 		parity |= (nrbits(prev_block, 16) & 0x1) ? 0x2 : 0;
 		parity |= (nrbits(anac, 8) & 0x1) ? 0x4 : 0;
 		parity |= (nrbits(nacs, 8) & 0x1) ? 0x8 : 0;
- 
+
 		oob.u.a.virtualUnitNo = cpu_to_le16(thisVUC);
 		oob.u.a.prevUnitNo = cpu_to_le16(prev_block);
 		oob.u.a.ANAC = anac;
@@ -562,7 +558,7 @@ hitused:
 		oob.u.b.parityPerField = parity;
 		oob.u.b.discarded = 0xaa;
 
-		MTD_WRITEOOB(inftl->mbd.mtd, writeEUN * inftl->EraseSize + 
+		MTD_WRITEOOB(inftl->mbd.mtd, writeEUN * inftl->EraseSize +
 			SECTORSIZE * 4 + 8, 8, &retlen, (char *)&oob.u);
 
 		inftl->PUtable[writeEUN] = inftl->VUtable[thisVUC];
@@ -602,7 +598,7 @@ static void INFTL_trydeletechain(struct INFTLrecord *inftl, unsigned thisVUC)
 		       "Virtual Unit Chain %d!\n", thisVUC);
 		return;
 	}
-	
+
 	/*
 	 * Scan through the Erase Units to determine whether any data is in
 	 * each of the 512-byte blocks within the Chain.
@@ -642,7 +638,7 @@ static void INFTL_trydeletechain(struct INFTLrecord *inftl, unsigned thisVUC)
 				"Unit Chain 0x%x\n", thisVUC);
 			return;
 		}
-		
+
 		thisEUN = inftl->PUtable[thisEUN];
 	}
 
@@ -758,7 +754,7 @@ foundit:
 	return 0;
 }
 
-static int inftl_writeblock(struct mtd_blktrans_dev *mbd, unsigned long block, 
+static int inftl_writeblock(struct mtd_blktrans_dev *mbd, unsigned long block,
 			    char *buffer)
 {
 	struct INFTLrecord *inftl = (void *)mbd;
@@ -893,7 +889,7 @@ extern char inftlmountrev[];
 
 static int __init init_inftl(void)
 {
-	printk(KERN_INFO "INFTL: inftlcore.c $Revision: 1.18 $, "
+	printk(KERN_INFO "INFTL: inftlcore.c $Revision: 1.19 $, "
 		"inftlmount.c %s\n", inftlmountrev);
 
 	return register_mtd_blktrans(&inftl_tr);

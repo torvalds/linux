@@ -599,9 +599,7 @@ int __init lparcfg_init(void)
 void __exit lparcfg_cleanup(void)
 {
 	if (proc_ppc64_lparcfg) {
-		if (proc_ppc64_lparcfg->data) {
-			kfree(proc_ppc64_lparcfg->data);
-		}
+		kfree(proc_ppc64_lparcfg->data);
 		remove_proc_entry("lparcfg", proc_ppc64_lparcfg->parent);
 	}
 }

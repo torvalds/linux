@@ -220,12 +220,6 @@ const char *snd_ac97_stereo_enhancements[] =
   /*  31 */ "Reserved 31"
 };
 
-/*
- * Shared AC97 controllers (ICH, ATIIXP...)
- */
-static DECLARE_MUTEX(shared_codec_mutex);
-static ac97_t *shared_codec[AC97_SHARED_TYPES][4];
-
 
 /*
  *  I/O routines
@@ -996,14 +990,8 @@ static int snd_ac97_free(ac97_t *ac97)
 {
 	if (ac97) {
 		snd_ac97_proc_done(ac97);
-		if (ac97->bus) {
+		if (ac97->bus)
 			ac97->bus->codec[ac97->num] = NULL;
-			if (ac97->bus->shared_type) {
-				down(&shared_codec_mutex);
-				shared_codec[ac97->bus->shared_type-1][ac97->num] = NULL;
-				up(&shared_codec_mutex);
-			}
-		}
 		if (ac97->private_free)
 			ac97->private_free(ac97);
 		kfree(ac97);
@@ -1139,7 +1127,6 @@ snd_kcontrol_t *snd_ac97_cnew(const snd_kcontrol_new_t *_template, ac97_t * ac97
 {
 	snd_kcontrol_new_t template;
 	memcpy(&template, _template, sizeof(template));
-	snd_runtime_check(!template.index, return NULL);
 	template.index = ac97->num;
 	return snd_ctl_new1(&template, ac97);
 }
@@ -1758,8 +1745,7 @@ static int ac97_reset_wait(ac97_t *ac97, int timeout, int with_modem)
 			if ((snd_ac97_read(ac97, AC97_REC_GAIN) & 0x7fff) == 0x0a05)
 				return 0;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_after_eq(end_time, jiffies));
 	return -ENODEV;
 }
@@ -1889,21 +1875,6 @@ int snd_ac97_mixer(ac97_bus_t *bus, ac97_template_t *template, ac97_t **rac97)
 	snd_assert(bus != NULL && template != NULL, return -EINVAL);
 	snd_assert(template->num < 4 && bus->codec[template->num] == NULL, return -EINVAL);
 
-	snd_assert(bus->shared_type <= AC97_SHARED_TYPES, return -EINVAL);
-	if (bus->shared_type) {
-		/* already shared? */
-		down(&shared_codec_mutex);
-		ac97 = shared_codec[bus->shared_type-1][template->num];
-		if (ac97) {
-			if ((ac97_is_audio(ac97) && (template->scaps & AC97_SCAP_SKIP_AUDIO)) ||
-			    (ac97_is_modem(ac97) && (template->scaps & AC97_SCAP_SKIP_MODEM))) {
-				up(&shared_codec_mutex);
-				return -EACCES; /* skip this */
-			}
-		}
-		up(&shared_codec_mutex);
-	}
-
 	card = bus->card;
 	ac97 = kzalloc(sizeof(*ac97), GFP_KERNEL);
 	if (ac97 == NULL)
@@ -2020,8 +1991,7 @@ int snd_ac97_mixer(ac97_bus_t *bus, ac97_template_t *template, ac97_t **rac97)
 		do {
 			if ((snd_ac97_read(ac97, AC97_POWERDOWN) & 0x0f) == 0x0f)
 				goto __ready_ok;
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 		} while (time_after_eq(end_time, jiffies));
 		snd_printk(KERN_WARNING "AC'97 %d analog subsections not ready\n", ac97->num);
 	}
@@ -2053,8 +2023,7 @@ int snd_ac97_mixer(ac97_bus_t *bus, ac97_template_t *template, ac97_t **rac97)
 		do {
 			if ((snd_ac97_read(ac97, AC97_EXTENDED_MSTATUS) & tmp) == tmp)
 				goto __ready_ok;
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 		} while (time_after_eq(end_time, jiffies));
 		snd_printk(KERN_WARNING "MC'97 %d converters and GPIO not ready (0x%x)\n", ac97->num, snd_ac97_read(ac97, AC97_EXTENDED_MSTATUS));
 	}
@@ -2077,6 +2046,8 @@ int snd_ac97_mixer(ac97_bus_t *bus, ac97_template_t *template, ac97_t **rac97)
 		snd_ac97_update_bits(ac97, AC97_GENERAL_PURPOSE, AC97_GP_DRSS_MASK, AC97_GP_DRSS_78);
 		if ((snd_ac97_read(ac97, AC97_GENERAL_PURPOSE) & AC97_GP_DRSS_MASK) == AC97_GP_DRSS_78)
 			ac97->flags |= AC97_DOUBLE_RATE;
+		/* restore to slots 10/11 to avoid the confliction with surrounds */
+		snd_ac97_update_bits(ac97, AC97_GENERAL_PURPOSE, AC97_GP_DRSS_MASK, 0);
 	}
 	if (ac97->ext_id & AC97_EI_VRA) {	/* VRA support */
 		snd_ac97_determine_rates(ac97, AC97_PCM_FRONT_DAC_RATE, 0, &ac97->rates[AC97_RATES_FRONT_DAC]);
@@ -2153,7 +2124,7 @@ int snd_ac97_mixer(ac97_bus_t *bus, ac97_template_t *template, ac97_t **rac97)
 		}
 	}
 	/* make sure the proper powerdown bits are cleared */
-	if (ac97->scaps) {
+	if (ac97->scaps && ac97_is_audio(ac97)) {
 		reg = snd_ac97_read(ac97, AC97_EXTENDED_STATUS);
 		if (ac97->scaps & AC97_SCAP_SURROUND_DAC) 
 			reg &= ~AC97_EA_PRJ;
@@ -2167,13 +2138,6 @@ int snd_ac97_mixer(ac97_bus_t *bus, ac97_template_t *template, ac97_t **rac97)
 		return err;
 	}
 	*rac97 = ac97;
-
-	if (bus->shared_type) {
-		down(&shared_codec_mutex);
-		shared_codec[bus->shared_type-1][ac97->num] = ac97;
-		up(&shared_codec_mutex);
-	}
-
 	return 0;
 }
 
@@ -2295,8 +2259,7 @@ void snd_ac97_resume(ac97_t *ac97)
 		do {
 			if (snd_ac97_read(ac97, AC97_MASTER) == 0x8101)
 				break;
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 		} while (time_after_eq(end_time, jiffies));
 		/* FIXME: extra delay */
 		ac97->bus->ops->write(ac97, AC97_MASTER, 0x8000);
@@ -2308,8 +2271,7 @@ void snd_ac97_resume(ac97_t *ac97)
 			unsigned short val = snd_ac97_read(ac97, AC97_EXTENDED_MID);
 			if (val != 0xffff && (val & 1) != 0)
 				break;
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 		} while (time_after_eq(end_time, jiffies));
 	}
 __reset_ready:

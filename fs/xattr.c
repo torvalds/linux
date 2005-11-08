@@ -74,8 +74,7 @@ setxattr(struct dentry *d, char __user *name, void __user *value,
 	}
 out:
 	up(&d->d_inode->i_sem);
-	if (kvalue)
-		kfree(kvalue);
+	kfree(kvalue);
 	return error;
 }
 
@@ -173,8 +172,7 @@ getxattr(struct dentry *d, char __user *name, void __user *value, size_t size)
 		error = -E2BIG;
 	}
 out:
-	if (kvalue)
-		kfree(kvalue);
+	kfree(kvalue);
 	return error;
 }
 
@@ -259,8 +257,7 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 		error = -E2BIG;
 	}
 out:
-	if (klist)
-		kfree(klist);
+	kfree(klist);
 	return error;
 }
 

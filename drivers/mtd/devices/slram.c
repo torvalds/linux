@@ -1,6 +1,6 @@
 /*======================================================================
 
-  $Id: slram.c,v 1.34 2005/01/06 21:16:42 jwboyer Exp $
+  $Id: slram.c,v 1.36 2005/11/07 11:14:25 gleixner Exp $
 
   This driver provides a method to access memory not used by the kernel
   itself (i.e. if the kernel commandline mem=xxx is used). To actually
@@ -18,14 +18,14 @@
   <start>: start of the memory region, decimal or hex (0xabcdef)
   <end/offset>: end of the memory region. It's possible to use +0x1234
                 to specify the offset instead of the absolute address
-    
+
   NOTE:
   With slram it's only possible to map a contigous memory region. Therfore
   if there's a device mapped somewhere in the region specified slram will
   fail to load (see kernel log if modprobe fails).
 
   -
-  
+
   Jochen Schaeuble <psionic@psionic.de>
 
 ======================================================================*/
@@ -89,10 +89,10 @@ static int slram_erase(struct mtd_info *mtd, struct erase_info *instr)
 	if (instr->addr + instr->len > mtd->size) {
 		return(-EINVAL);
 	}
-	
+
 	memset(priv->start + instr->addr, 0xff, instr->len);
 
-	/* This'll catch a few races. Free the thing before returning :) 
+	/* This'll catch a few races. Free the thing before returning :)
 	 * I don't feel at all ashamed. This kind of thing is possible anyway
 	 * with flash, but unlikely.
 	 */
@@ -170,12 +170,12 @@ static int register_device(char *name, unsigned long start, unsigned long length
 	}
 	(*curmtd)->mtdinfo = kmalloc(sizeof(struct mtd_info), GFP_KERNEL);
 	(*curmtd)->next = NULL;
-	
+
 	if ((*curmtd)->mtdinfo)	{
 		memset((char *)(*curmtd)->mtdinfo, 0, sizeof(struct mtd_info));
 		(*curmtd)->mtdinfo->priv =
 			kmalloc(sizeof(slram_priv_t), GFP_KERNEL);
-		
+
 		if (!(*curmtd)->mtdinfo->priv) {
 			kfree((*curmtd)->mtdinfo);
 			(*curmtd)->mtdinfo = NULL;
@@ -188,7 +188,7 @@ static int register_device(char *name, unsigned long start, unsigned long length
 		E("slram: Cannot allocate new MTD device.\n");
 		return(-ENOMEM);
 	}
-	
+
 	if (!(((slram_priv_t *)(*curmtd)->mtdinfo->priv)->start =
 				ioremap(start, length))) {
 		E("slram: ioremap failed\n");
@@ -223,7 +223,7 @@ static int register_device(char *name, unsigned long start, unsigned long length
 	T("slram: Mapped from 0x%p to 0x%p\n",
 			((slram_priv_t *)(*curmtd)->mtdinfo->priv)->start,
 			((slram_priv_t *)(*curmtd)->mtdinfo->priv)->end);
-	return(0);	
+	return(0);
 }
 
 static void unregister_devices(void)
@@ -256,7 +256,7 @@ static int parse_cmdline(char *devname, char *szstart, char *szlength)
 	char *buffer;
 	unsigned long devstart;
 	unsigned long devlength;
-	
+
 	if ((!devname) || (!szstart) || (!szlength)) {
 		unregister_devices();
 		return(-EINVAL);
@@ -264,7 +264,7 @@ static int parse_cmdline(char *devname, char *szstart, char *szlength)
 
 	devstart = simple_strtoul(szstart, &buffer, 0);
 	devstart = handle_unit(devstart, buffer);
-	
+
 	if (*(szlength) != '+') {
 		devlength = simple_strtoul(szlength, &buffer, 0);
 		devlength = handle_unit(devlength, buffer) - devstart;
@@ -278,7 +278,7 @@ static int parse_cmdline(char *devname, char *szstart, char *szlength)
 		E("slram: Illegal start / length parameter.\n");
 		return(-EINVAL);
 	}
-	
+
 	if ((devstart = register_device(devname, devstart, devlength))){
 		unregister_devices();
 		return((int)devstart);
@@ -335,7 +335,7 @@ static int init_slram(void)
 	}
 #else
 	int count;
-	
+
 	for (count = 0; (map[count]) && (count < SLRAM_MAX_DEVICES_PARAMS);
 			count++) {
 	}
@@ -350,10 +350,10 @@ static int init_slram(void)
 		if (parse_cmdline(devname, map[i * 3 + 1], map[i * 3 + 2])!=0) {
 			return(-EINVAL);
 		}
-		
+
 	}
 #endif /* !MODULE */
-	
+
 	return(0);
 }
 

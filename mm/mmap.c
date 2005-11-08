@@ -155,10 +155,6 @@ int __vm_enough_memory(long pages, int cap_sys_admin)
 	return -ENOMEM;
 }
 
-EXPORT_SYMBOL(sysctl_overcommit_memory);
-EXPORT_SYMBOL(sysctl_overcommit_ratio);
-EXPORT_SYMBOL(sysctl_max_map_count);
-EXPORT_SYMBOL(vm_committed_space);
 EXPORT_SYMBOL(__vm_enough_memory);
 
 /*

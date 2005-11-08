@@ -1678,10 +1678,9 @@ static int main_control_loop(void *x)
 		}
 
 		// FIXME: Deal with signals
-		set_current_state(TASK_INTERRUPTIBLE);
 		elapsed = jiffies - start;
 		if (elapsed < HZ)
-			schedule_timeout(HZ - elapsed);
+			schedule_timeout_interruptible(HZ - elapsed);
 	}
 
  out:
