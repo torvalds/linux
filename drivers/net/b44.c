@@ -909,6 +909,12 @@ static irqreturn_t b44_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 	istat &= imask;
 	if (istat) {
 		handled = 1;
+
+		if (unlikely(!netif_running(dev))) {
+			printk(KERN_INFO "%s: late interrupt.\n", dev->name);
+			goto irq_ack;
+		}
+
 		if (netif_rx_schedule_prep(dev)) {
 			/* NOTE: These writes are posted by the readback of
 			 *       the ISTAT register below.
@@ -921,6 +927,7 @@ static irqreturn_t b44_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 			       dev->name);
 		}
 
+irq_ack:
 		bw32(bp, B44_ISTAT, istat);
 		br32(bp, B44_ISTAT);
 	}
@@ -1446,6 +1453,8 @@ static int b44_close(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
+	netif_poll_disable(dev);
+
 	del_timer_sync(&bp->timer);
 
 	spin_lock_irq(&bp->lock);
@@ -1460,6 +1469,8 @@ static int b44_close(struct net_device *dev)
 	spin_unlock_irq(&bp->lock);
 
 	free_irq(dev->irq, dev);
+
+	netif_poll_enable(dev);
 
 	b44_free_consistent(bp);
 
