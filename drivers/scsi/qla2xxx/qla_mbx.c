@@ -868,10 +868,6 @@ qla2x00_abort_command(scsi_qla_host_t *ha, srb_t *sp)
 	DEBUG11(printk("qla2x00_abort_command(%ld): entered.\n", ha->host_no);)
 
 	fcport = sp->fcport;
-	if (atomic_read(&ha->loop_state) == LOOP_DOWN ||
-	    atomic_read(&fcport->state) == FCS_DEVICE_LOST) {
-		return 1;
-	}
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (handle = 1; handle < MAX_OUTSTANDING_COMMANDS; handle++) {
@@ -2181,10 +2177,6 @@ qla24xx_abort_command(scsi_qla_host_t *ha, srb_t *sp)
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, ha->host_no);)
 
 	fcport = sp->fcport;
-	if (atomic_read(&ha->loop_state) == LOOP_DOWN ||
-	    atomic_read(&fcport->state) == FCS_DEVICE_LOST) {
-		return QLA_FUNCTION_FAILED;
-	}
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	for (handle = 1; handle < MAX_OUTSTANDING_COMMANDS; handle++) {
