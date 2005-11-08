@@ -44,7 +44,7 @@ struct inquiry_data {
 	__u8		pscan_period_mode;
 	__u8		pscan_mode;
 	__u8		dev_class[3];
-	__u16		clock_offset;
+	__le16		clock_offset;
 	__s8		rssi;
 };
 
