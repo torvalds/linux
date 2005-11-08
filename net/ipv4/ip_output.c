@@ -353,7 +353,8 @@ packet_routed:
 		ip_options_build(skb, opt, inet->daddr, rt, 0);
 	}
 
-	ip_select_ident_more(iph, &rt->u.dst, sk, skb_shinfo(skb)->tso_segs);
+	ip_select_ident_more(iph, &rt->u.dst, sk,
+			     (skb_shinfo(skb)->tso_segs ?: 1) - 1);
 
 	/* Add an IP checksum. */
 	ip_send_check(iph);
