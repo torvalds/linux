@@ -1263,10 +1263,8 @@ static int dccp_v4_destroy_sock(struct sock *sk)
 	if (inet_csk(sk)->icsk_bind_hash != NULL)
 		inet_put_port(&dccp_hashinfo, sk);
 
-	if (dp->dccps_service_list != NULL) {
-		kfree(dp->dccps_service_list);
-		dp->dccps_service_list = NULL;
-	}
+	kfree(dp->dccps_service_list);
+	dp->dccps_service_list = NULL;
 
 	ccid_hc_rx_exit(dp->dccps_hc_rx_ccid, sk);
 	ccid_hc_tx_exit(dp->dccps_hc_tx_ccid, sk);

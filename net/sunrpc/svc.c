@@ -196,12 +196,9 @@ svc_exit_thread(struct svc_rqst *rqstp)
 	struct svc_serv	*serv = rqstp->rq_server;
 
 	svc_release_buffer(rqstp);
-	if (rqstp->rq_resp)
-		kfree(rqstp->rq_resp);
-	if (rqstp->rq_argp)
-		kfree(rqstp->rq_argp);
-	if (rqstp->rq_auth_data)
-		kfree(rqstp->rq_auth_data);
+	kfree(rqstp->rq_resp);
+	kfree(rqstp->rq_argp);
+	kfree(rqstp->rq_auth_data);
 	kfree(rqstp);
 
 	/* Release the server */

@@ -194,8 +194,7 @@ int dev_mc_add(struct net_device *dev, void *addr, int alen, int glbl)
 
 done:
 	spin_unlock_bh(&dev->xmit_lock);
-	if (dmi1)
-		kfree(dmi1);
+	kfree(dmi1);
 	return err;
 }
 

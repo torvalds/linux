@@ -823,8 +823,7 @@ out:
  */
 static void tcp_v4_reqsk_destructor(struct request_sock *req)
 {
-	if (inet_rsk(req)->opt)
-		kfree(inet_rsk(req)->opt);
+	kfree(inet_rsk(req)->opt);
 }
 
 static inline void syn_flood_warning(struct sk_buff *skb)
