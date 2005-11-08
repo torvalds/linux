@@ -37,6 +37,7 @@
 #include <linux/delay.h>
 #include <linux/crc32.h>
 #include <linux/dma-mapping.h>
+#include <linux/mii.h>
 #include <asm/irq.h>
 
 #include "skge.h"
@@ -88,8 +89,8 @@ MODULE_DEVICE_TABLE(pci, skge_id_table);
 static int skge_up(struct net_device *dev);
 static int skge_down(struct net_device *dev);
 static void skge_tx_clean(struct skge_port *skge);
-static void xm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val);
-static void gm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val);
+static int xm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val);
+static int gm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val);
 static void genesis_get_stats(struct skge_port *skge, u64 *data);
 static void yukon_get_stats(struct skge_port *skge, u64 *data);
 static void yukon_init(struct skge_hw *hw, int port);
@@ -883,32 +884,37 @@ static void skge_link_down(struct skge_port *skge)
 		printk(KERN_INFO PFX "%s: Link is down.\n", skge->netdev->name);
 }
 
-static u16 xm_phy_read(struct skge_hw *hw, int port, u16 reg)
+static int __xm_phy_read(struct skge_hw *hw, int port, u16 reg, u16 *val)
 {
 	int i;
-	u16 v;
 
 	xm_write16(hw, port, XM_PHY_ADDR, reg | hw->phy_addr);
-	v = xm_read16(hw, port, XM_PHY_DATA);
+	xm_read16(hw, port, XM_PHY_DATA);
 
 	/* Need to wait for external PHY */
 	for (i = 0; i < PHY_RETRIES; i++) {
 		udelay(1);
-		if (xm_read16(hw, port, XM_MMU_CMD)
-		    & XM_MMU_PHY_RDY)
+		if (xm_read16(hw, port, XM_MMU_CMD) & XM_MMU_PHY_RDY)
 			goto ready;
 	}
 
-	printk(KERN_WARNING PFX "%s: phy read timed out\n",
-	       hw->dev[port]->name);
-	return 0;
+	return -ETIMEDOUT;
  ready:
-	v = xm_read16(hw, port, XM_PHY_DATA);
+	*val = xm_read16(hw, port, XM_PHY_DATA);
 
+	return 0;
+}
+
+static u16 xm_phy_read(struct skge_hw *hw, int port, u16 reg)
+{
+	u16 v = 0;
+	if (__xm_phy_read(hw, port, reg, &v))
+		printk(KERN_WARNING PFX "%s: phy read timed out\n",
+		       hw->dev[port]->name);
 	return v;
 }
 
-static void xm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val)
+static int xm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val)
 {
 	int i;
 
@@ -918,19 +924,11 @@ static void xm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val)
 			goto ready;
 		udelay(1);
 	}
-	printk(KERN_WARNING PFX "%s: phy write failed to come ready\n",
-	       hw->dev[port]->name);
-
+	return -EIO;
 
  ready:
 	xm_write16(hw, port, XM_PHY_DATA, val);
-	for (i = 0; i < PHY_RETRIES; i++) {
-		udelay(1);
-		if (!(xm_read16(hw, port, XM_MMU_CMD) & XM_MMU_PHY_BUSY))
-			return;
-	}
-	printk(KERN_WARNING PFX "%s: phy write timed out\n",
-		       hw->dev[port]->name);
+	return 0;
 }
 
 static void genesis_init(struct skge_hw *hw)
@@ -1400,42 +1398,6 @@ static void genesis_mac_intr(struct skge_hw *hw, int port)
 	}
 }
 
-static void gm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val)
-{
-	int i;
-
-	gma_write16(hw, port, GM_SMI_DATA, val);
-	gma_write16(hw, port, GM_SMI_CTRL,
-			 GM_SMI_CT_PHY_AD(hw->phy_addr) | GM_SMI_CT_REG_AD(reg));
-	for (i = 0; i < PHY_RETRIES; i++) {
-		udelay(1);
-
-		if (!(gma_read16(hw, port, GM_SMI_CTRL) & GM_SMI_CT_BUSY))
-			break;
-	}
-}
-
-static u16 gm_phy_read(struct skge_hw *hw, int port, u16 reg)
-{
-	int i;
-
-	gma_write16(hw, port, GM_SMI_CTRL,
-			 GM_SMI_CT_PHY_AD(hw->phy_addr)
-			 | GM_SMI_CT_REG_AD(reg) | GM_SMI_CT_OP_RD);
-
-	for (i = 0; i < PHY_RETRIES; i++) {
-		udelay(1);
-		if (gma_read16(hw, port, GM_SMI_CTRL) & GM_SMI_CT_RD_VAL)
-			goto ready;
-	}
-
-	printk(KERN_WARNING PFX "%s: phy read timeout\n",
-	       hw->dev[port]->name);
-	return 0;
- ready:
-	return gma_read16(hw, port, GM_SMI_DATA);
-}
-
 static void genesis_link_up(struct skge_port *skge)
 {
 	struct skge_hw *hw = skge->hw;
@@ -1547,6 +1509,54 @@ static inline void bcom_phy_intr(struct skge_port *skge)
 	if (isrc & (PHY_B_IS_AN_PR | PHY_B_IS_LST_CHANGE))
 		bcom_check_link(hw, port);
 
+}
+
+static int gm_phy_write(struct skge_hw *hw, int port, u16 reg, u16 val)
+{
+	int i;
+
+	gma_write16(hw, port, GM_SMI_DATA, val);
+	gma_write16(hw, port, GM_SMI_CTRL,
+			 GM_SMI_CT_PHY_AD(hw->phy_addr) | GM_SMI_CT_REG_AD(reg));
+	for (i = 0; i < PHY_RETRIES; i++) {
+		udelay(1);
+
+		if (!(gma_read16(hw, port, GM_SMI_CTRL) & GM_SMI_CT_BUSY))
+			return 0;
+	}
+
+	printk(KERN_WARNING PFX "%s: phy write timeout\n",
+	       hw->dev[port]->name);
+	return -EIO;
+}
+
+static int __gm_phy_read(struct skge_hw *hw, int port, u16 reg, u16 *val)
+{
+	int i;
+
+	gma_write16(hw, port, GM_SMI_CTRL,
+			 GM_SMI_CT_PHY_AD(hw->phy_addr)
+			 | GM_SMI_CT_REG_AD(reg) | GM_SMI_CT_OP_RD);
+
+	for (i = 0; i < PHY_RETRIES; i++) {
+		udelay(1);
+		if (gma_read16(hw, port, GM_SMI_CTRL) & GM_SMI_CT_RD_VAL)
+			goto ready;
+	}
+
+	return -ETIMEDOUT;
+ ready:
+	*val = gma_read16(hw, port, GM_SMI_DATA);
+	return 0;
+}
+
+static u16 gm_phy_read(struct skge_hw *hw, int port, u16 reg)
+{
+	u16 v = 0;
+	if (__gm_phy_read(hw, port, reg, &v))
+		printk(KERN_WARNING PFX "%s: phy read timeout\n",
+	       hw->dev[port]->name);
+	return v;
 }
 
 /* Marvell Phy Initailization */
@@ -1995,6 +2005,51 @@ static void yukon_phy_intr(struct skge_port *skge)
 	       skge->netdev->name, reason);
 
 	/* XXX restart autonegotiation? */
+}
+
+/* Basic MII support */
+static int skge_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+{
+	struct mii_ioctl_data *data = if_mii(ifr);
+	struct skge_port *skge = netdev_priv(dev);
+	struct skge_hw *hw = skge->hw;
+	int err = -EOPNOTSUPP;
+
+	if (!netif_running(dev))
+		return -ENODEV;	/* Phy still in reset */
+
+	switch(cmd) {
+	case SIOCGMIIPHY:
+		data->phy_id = hw->phy_addr;
+
+		/* fallthru */
+	case SIOCGMIIREG: {
+		u16 val = 0;
+		spin_lock_bh(&hw->phy_lock);
+		if (hw->chip_id == CHIP_ID_GENESIS)
+			err = __xm_phy_read(hw, skge->port, data->reg_num & 0x1f, &val);
+		else
+			err = __gm_phy_read(hw, skge->port, data->reg_num & 0x1f, &val);
+		spin_unlock_bh(&hw->phy_lock);
+		data->val_out = val;
+		break;
+	}
+
+	case SIOCSMIIREG:
+		if (!capable(CAP_NET_ADMIN))
+			return -EPERM;
+
+		spin_lock_bh(&hw->phy_lock);
+		if (hw->chip_id == CHIP_ID_GENESIS)
+			err = xm_phy_write(hw, skge->port, data->reg_num & 0x1f,
+				   data->val_in);
+		else
+			err = gm_phy_write(hw, skge->port, data->reg_num & 0x1f,
+				   data->val_in);
+		spin_unlock_bh(&hw->phy_lock);
+		break;
+	}
+	return err;
 }
 
 static void skge_ramset(struct skge_hw *hw, u16 q, u32 start, size_t len)
@@ -3058,6 +3113,7 @@ static struct net_device *skge_devinit(struct skge_hw *hw, int port,
 	SET_NETDEV_DEV(dev, &hw->pdev->dev);
 	dev->open = skge_up;
 	dev->stop = skge_down;
+	dev->do_ioctl = skge_ioctl;
 	dev->hard_start_xmit = skge_xmit_frame;
 	dev->get_stats = skge_get_stats;
 	if (hw->chip_id == CHIP_ID_GENESIS)
