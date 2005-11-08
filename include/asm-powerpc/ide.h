@@ -1,24 +1,27 @@
 /*
- *  linux/include/asm-ppc/ide.h
+ *  Copyright (C) 1994-1996 Linus Torvalds & authors
  *
- *  Copyright (C) 1994-1996 Linus Torvalds & authors */
-
-/*
- *  This file contains the ppc architecture specific IDE code.
+ *  This file contains the powerpc architecture specific IDE code.
  */
-
-#ifndef __ASMPPC_IDE_H
-#define __ASMPPC_IDE_H
+#ifndef _ASM_POWERPC_IDE_H
+#define _ASM_POWERPC_IDE_H
 
 #ifdef __KERNEL__
 
+#ifndef __powerpc64__
 #include <linux/sched.h>
 #include <asm/mpc8xx.h>
-
-#ifndef MAX_HWIFS
-#define MAX_HWIFS	8
 #endif
 
+#ifndef MAX_HWIFS
+#ifdef __powerpc64__
+#define MAX_HWIFS	10
+#else
+#define MAX_HWIFS	8
+#endif
+#endif
+
+#ifndef  __powerpc64__
 #include <linux/config.h>
 #include <linux/hdreg.h>
 #include <linux/ioport.h>
@@ -59,9 +62,6 @@ static __inline__ unsigned long ide_default_io_base(int index)
 	return 0;
 }
 
-#define IDE_ARCH_OBSOLETE_INIT
-#define ide_default_io_ctl(base)	((base) + 0x206) /* obsolete */
-
 #ifdef CONFIG_PCI
 #define ide_init_default_irq(base)	(0)
 #else
@@ -73,6 +73,11 @@ static __inline__ unsigned long ide_default_io_base(int index)
 #define ide_ack_intr(hwif) (hwif->hw.ack_intr ? hwif->hw.ack_intr(hwif) : 1)
 #endif
 
+#endif /* __powerpc64__ */
+
+#define IDE_ARCH_OBSOLETE_INIT
+#define ide_default_io_ctl(base)	((base) + 0x206) /* obsolete */
+
 #endif /* __KERNEL__ */
 
-#endif /* __ASMPPC_IDE_H */
+#endif /* _ASM_POWERPC_IDE_H */
