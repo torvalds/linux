@@ -462,7 +462,7 @@ static int pmac_cpufreq_resume(struct cpufreq_policy *policy)
 	/* If we resume, first check if we have a get() function */
 	if (get_speed_proc)
 		cur_freq = get_speed_proc();
-	else)
+	else
 		cur_freq = 0;
 
 	/* We don't, hrm... we don't really know our speed here, best
