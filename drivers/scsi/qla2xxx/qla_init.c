@@ -567,6 +567,7 @@ qla24xx_reset_risc(scsi_qla_host_t *ha)
 	unsigned long flags = 0;
 	struct device_reg_24xx __iomem *reg = &ha->iobase->isp24;
 	uint32_t cnt, d2;
+	uint16_t wd;
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 
@@ -581,10 +582,10 @@ qla24xx_reset_risc(scsi_qla_host_t *ha)
 
 	WRT_REG_DWORD(&reg->ctrl_status,
 	    CSRX_ISP_SOFT_RESET|CSRX_DMA_SHUTDOWN|MWB_4096_BYTES);
-	RD_REG_DWORD(&reg->ctrl_status);
+	pci_read_config_word(ha->pdev, PCI_COMMAND, &wd);
 
+	udelay(100);
 	/* Wait for firmware to complete NVRAM accesses. */
-	udelay(5);
 	d2 = (uint32_t) RD_REG_WORD(&reg->mailbox0);
 	for (cnt = 10000 ; cnt && d2; cnt--) {
 		udelay(5);
@@ -592,7 +593,7 @@ qla24xx_reset_risc(scsi_qla_host_t *ha)
 		barrier();
 	}
 
-	udelay(20);
+	/* Wait for soft-reset to complete. */
 	d2 = RD_REG_DWORD(&reg->ctrl_status);
 	for (cnt = 6000000 ; cnt && (d2 & CSRX_ISP_SOFT_RESET); cnt--) {
 		udelay(5);
