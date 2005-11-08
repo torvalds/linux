@@ -20,6 +20,7 @@
 #include <linux/blkdev.h>
 #include <linux/jffs.h>
 #include "jffs_fm.h"
+#include "intrep.h"
 
 #if defined(JFFS_MARK_OBSOLETE) && JFFS_MARK_OBSOLETE
 static int jffs_mark_obsolete(struct jffs_fmcontrol *fmc, __u32 fm_offset);
