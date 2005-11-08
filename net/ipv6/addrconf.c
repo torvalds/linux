@@ -35,6 +35,9 @@
  *	YOSHIFUJI Hideaki @USAGI	:	ARCnet support
  *	YOSHIFUJI Hideaki @USAGI	:	convert /proc/net/if_inet6 to
  *						seq_file.
+ *	YOSHIFUJI Hideaki @USAGI	:	improved source address
+ *						selection; consider scope,
+ *						status etc.
  */
 
 #include <linux/config.h>
@@ -193,46 +196,51 @@ const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
 #endif
 const struct in6_addr in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
 
-int ipv6_addr_type(const struct in6_addr *addr)
+#define IPV6_ADDR_SCOPE_TYPE(scope)	((scope) << 16)
+
+static inline unsigned ipv6_addr_scope2type(unsigned scope)
 {
-	int type;
+	switch(scope) {
+	case IPV6_ADDR_SCOPE_NODELOCAL:
+		return (IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_NODELOCAL) |
+			IPV6_ADDR_LOOPBACK);
+	case IPV6_ADDR_SCOPE_LINKLOCAL:
+		return (IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_LINKLOCAL) |
+			IPV6_ADDR_LINKLOCAL);
+	case IPV6_ADDR_SCOPE_SITELOCAL:
+		return (IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_SITELOCAL) |
+			IPV6_ADDR_SITELOCAL);
+	}
+	return IPV6_ADDR_SCOPE_TYPE(scope);
+}
+
+int __ipv6_addr_type(const struct in6_addr *addr)
+{
 	u32 st;
 
 	st = addr->s6_addr32[0];
 
-	if ((st & htonl(0xFF000000)) == htonl(0xFF000000)) {
-		type = IPV6_ADDR_MULTICAST;
-
-		switch((st & htonl(0x00FF0000))) {
-			case __constant_htonl(0x00010000):
-				type |= IPV6_ADDR_LOOPBACK;
-				break;
-
-			case __constant_htonl(0x00020000):
-				type |= IPV6_ADDR_LINKLOCAL;
-				break;
-
-			case __constant_htonl(0x00050000):
-				type |= IPV6_ADDR_SITELOCAL;
-				break;
-		};
-		return type;
-	}
-
-	type = IPV6_ADDR_UNICAST;
-
 	/* Consider all addresses with the first three bits different of
-	   000 and 111 as finished.
+	   000 and 111 as unicasts.
 	 */
 	if ((st & htonl(0xE0000000)) != htonl(0x00000000) &&
 	    (st & htonl(0xE0000000)) != htonl(0xE0000000))
-		return type;
-	
-	if ((st & htonl(0xFFC00000)) == htonl(0xFE800000))
-		return (IPV6_ADDR_LINKLOCAL | type);
+		return (IPV6_ADDR_UNICAST | 
+			IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_GLOBAL));
 
+	if ((st & htonl(0xFF000000)) == htonl(0xFF000000)) {
+		/* multicast */
+		/* addr-select 3.1 */
+		return (IPV6_ADDR_MULTICAST |
+			ipv6_addr_scope2type(IPV6_ADDR_MC_SCOPE(addr)));
+	}
+
+	if ((st & htonl(0xFFC00000)) == htonl(0xFE800000))
+		return (IPV6_ADDR_LINKLOCAL | IPV6_ADDR_UNICAST | 
+			IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_LINKLOCAL));		/* addr-select 3.1 */
 	if ((st & htonl(0xFFC00000)) == htonl(0xFEC00000))
-		return (IPV6_ADDR_SITELOCAL | type);
+		return (IPV6_ADDR_SITELOCAL | IPV6_ADDR_UNICAST |
+			IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_SITELOCAL));		/* addr-select 3.1 */
 
 	if ((addr->s6_addr32[0] | addr->s6_addr32[1]) == 0) {
 		if (addr->s6_addr32[2] == 0) {
@@ -240,24 +248,20 @@ int ipv6_addr_type(const struct in6_addr *addr)
 				return IPV6_ADDR_ANY;
 
 			if (addr->s6_addr32[3] == htonl(0x00000001))
-				return (IPV6_ADDR_LOOPBACK | type);
+				return (IPV6_ADDR_LOOPBACK | IPV6_ADDR_UNICAST |
+					IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_LINKLOCAL));	/* addr-select 3.4 */
 
-			return (IPV6_ADDR_COMPATv4 | type);
+			return (IPV6_ADDR_COMPATv4 | IPV6_ADDR_UNICAST |
+				IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_GLOBAL));	/* addr-select 3.3 */
 		}
 
 		if (addr->s6_addr32[2] == htonl(0x0000ffff))
-			return IPV6_ADDR_MAPPED;
+			return (IPV6_ADDR_MAPPED | 
+				IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_GLOBAL));	/* addr-select 3.3 */
 	}
 
-	st &= htonl(0xFF000000);
-	if (st == 0)
-		return IPV6_ADDR_RESERVED;
-	st &= htonl(0xFE000000);
-	if (st == htonl(0x02000000))
-		return IPV6_ADDR_RESERVED;	/* for NSAP */
-	if (st == htonl(0x04000000))
-		return IPV6_ADDR_RESERVED;	/* for IPX */
-	return type;
+	return (IPV6_ADDR_RESERVED | 
+		IPV6_ADDR_SCOPE_TYPE(IPV6_ADDR_SCOPE_GLOBAL));	/* addr-select 3.4 */
 }
 
 static void addrconf_del_timer(struct inet6_ifaddr *ifp)
