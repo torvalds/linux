@@ -550,6 +550,11 @@ static irqreturn_t realview_timer_interrupt(int irq, void *dev_id, struct pt_reg
 
 	timer_tick(regs);
 
+#ifdef CONFIG_SMP
+	smp_send_timer();
+	update_process_times(user_mode(regs));
+#endif
+
 	write_sequnlock(&xtime_lock);
 
 	return IRQ_HANDLED;

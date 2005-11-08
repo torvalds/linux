@@ -142,7 +142,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 			ret = -EIO;
 	}
 
-	secondary_data.stack = 0;
+	secondary_data.stack = NULL;
 	secondary_data.pgdir = 0;
 
 	*pmd_offset(pgd, PHYS_OFFSET) = __pmd(0);
@@ -183,6 +183,11 @@ int __cpuexit __cpu_disable(void)
 	 * OK - migrate IRQs away from this CPU
 	 */
 	migrate_irqs();
+
+	/*
+	 * Stop the local timer for this CPU.
+	 */
+	local_timer_stop(cpu);
 
 	/*
 	 * Flush user cache and TLB mappings, and then remove this CPU
@@ -290,6 +295,11 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	cpu_set(cpu, cpu_online_map);
 
 	/*
+	 * Setup local timer for this CPU.
+	 */
+	local_timer_setup(cpu);
+
+	/*
 	 * OK, it's off to the idle thread for us
 	 */
 	cpu_idle();
@@ -359,8 +369,8 @@ static void send_ipi_message(cpumask_t callmap, enum ipi_msg_type msg)
  * You must not call this function with disabled interrupts, from a
  * hardware interrupt handler, nor from a bottom half handler.
  */
-int smp_call_function_on_cpu(void (*func)(void *info), void *info, int retry,
-                             int wait, cpumask_t callmap)
+static int smp_call_function_on_cpu(void (*func)(void *info), void *info,
+				    int retry, int wait, cpumask_t callmap)
 {
 	struct smp_call_struct data;
 	unsigned long timeout;
@@ -454,6 +464,18 @@ void show_ipi_list(struct seq_file *p)
 	seq_putc(p, '\n');
 }
 
+void show_local_irqs(struct seq_file *p)
+{
+	unsigned int cpu;
+
+	seq_printf(p, "LOC: ");
+
+	for_each_present_cpu(cpu)
+		seq_printf(p, "%10u ", irq_stat[cpu].local_timer_irqs);
+
+	seq_putc(p, '\n');
+}
+
 static void ipi_timer(struct pt_regs *regs)
 {
 	int user = user_mode(regs);
@@ -463,6 +485,18 @@ static void ipi_timer(struct pt_regs *regs)
 	update_process_times(user);
 	irq_exit();
 }
+
+#ifdef CONFIG_LOCAL_TIMERS
+asmlinkage void do_local_timer(struct pt_regs *regs)
+{
+	int cpu = smp_processor_id();
+
+	if (local_timer_ack()) {
+		irq_stat[cpu].local_timer_irqs++;
+		ipi_timer(regs);
+	}
+}
+#endif
 
 /*
  * ipi_call_function - handle IPI from smp_call_function()
@@ -515,7 +549,7 @@ static void ipi_cpu_stop(unsigned int cpu)
  *
  *  Bit 0 - Inter-processor function call
  */
-void do_IPI(struct pt_regs *regs)
+asmlinkage void do_IPI(struct pt_regs *regs)
 {
 	unsigned int cpu = smp_processor_id();
 	struct ipi_data *ipi = &per_cpu(ipi_data, cpu);
