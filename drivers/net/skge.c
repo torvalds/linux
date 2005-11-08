@@ -130,7 +130,7 @@ static void skge_get_regs(struct net_device *dev, struct ethtool_regs *regs,
 		      regs->len - B3_RI_WTO_R1);
 }
 
-/* Wake on Lan only supported on Yukon chps with rev 1 or above */
+/* Wake on Lan only supported on Yukon chips with rev 1 or above */
 static int wol_supported(const struct skge_hw *hw)
 {
 	return !((hw->chip_id == CHIP_ID_GENESIS ||
@@ -170,8 +170,8 @@ static int skge_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return 0;
 }
 
-/* Determine supported/adverised modes based on hardware.
- * Note: ethtoool ADVERTISED_xxx == SUPPORTED_xxx
+/* Determine supported/advertised modes based on hardware.
+ * Note: ethtool ADVERTISED_xxx == SUPPORTED_xxx
  */
 static u32 skge_supported_modes(const struct skge_hw *hw)
 {
@@ -532,13 +532,13 @@ static inline u32 hwkhz(const struct skge_hw *hw)
 		return 78215; /* or:  78.125 MHz */
 }
 
-/* Chip hz to microseconds */
+/* Chip HZ to microseconds */
 static inline u32 skge_clk2usec(const struct skge_hw *hw, u32 ticks)
 {
 	return (ticks * 1000) / hwkhz(hw);
 }
 
-/* Microseconds to chip hz */
+/* Microseconds to chip HZ */
 static inline u32 skge_usecs2clk(const struct skge_hw *hw, u32 usec)
 {
 	return hwkhz(hw) * usec / 1000;
@@ -1163,7 +1163,7 @@ static void bcom_phy_init(struct skge_port *skge, int jumbo)
 	xm_phy_write(hw, port, PHY_BCOM_P_EXT_CTRL, ext);
 	xm_phy_write(hw, port, PHY_BCOM_CTRL, ctl);
 
-	/* Use link status change interrrupt */
+	/* Use link status change interrupt */
 	xm_phy_write(hw, port, PHY_BCOM_INT_MASK, PHY_B_DEF_MSK);
 
 	bcom_check_link(hw, port);
@@ -1203,7 +1203,7 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 	skge_write32(hw, B2_GP_IO, r);
 	skge_read32(hw, B2_GP_IO);
 
-	/* Enable GMII interfac */
+	/* Enable GMII interface */
 	xm_write16(hw, port, XM_HW_CFG, XM_HW_GMII_MD);
 
 	bcom_phy_init(skge, jumbo);
@@ -1254,7 +1254,7 @@ static void genesis_mac_init(struct skge_hw *hw, int port)
 	 * that jumbo frames larger than 8192 bytes will be
 	 * truncated. Disabling all bad frame filtering causes
 	 * the RX FIFO to operate in streaming mode, in which
-	 * case the XMAC will start transfering frames out of the
+	 * case the XMAC will start transferring frames out of the
 	 * RX FIFO as soon as the FIFO threshold is reached.
 	 */
 	xm_write32(hw, port, XM_MODE, XM_DEF_MODE);
@@ -1321,7 +1321,7 @@ static void genesis_stop(struct skge_port *skge)
 		     port == 0 ? PA_CLR_TO_TX1 : PA_CLR_TO_TX2);
 
 	/*
-	 * If the transfer stucks at the MAC the STOP command will not
+	 * If the transfer sticks at the MAC the STOP command will not
 	 * terminate if we don't flush the XMAC's transmit FIFO !
 	 */
 	xm_write32(hw, port, XM_MODE,
@@ -1559,7 +1559,7 @@ static u16 gm_phy_read(struct skge_hw *hw, int port, u16 reg)
 	return v;
 }
 
-/* Marvell Phy Initailization */
+/* Marvell Phy Initialization */
 static void yukon_init(struct skge_hw *hw, int port)
 {
 	struct skge_port *skge = netdev_priv(hw->dev[port]);
@@ -2156,7 +2156,7 @@ static int skge_up(struct net_device *dev)
 	hw->intr_mask |= portirqmask[port];
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
 
-	/* Initialze MAC */
+	/* Initialize MAC */
 	spin_lock_bh(&hw->phy_lock);
 	if (hw->chip_id == CHIP_ID_GENESIS)
 		genesis_mac_init(hw, port);
@@ -2476,7 +2476,7 @@ static void yukon_set_multicast(struct net_device *dev)
 	reg = gma_read16(hw, port, GM_RX_CTRL);
 	reg |= GM_RXCR_UCF_ENA;
 
-	if (dev->flags & IFF_PROMISC) 		/* promiscious */
+	if (dev->flags & IFF_PROMISC) 		/* promiscuous */
 		reg &= ~(GM_RXCR_UCF_ENA | GM_RXCR_MCF_ENA);
 	else if (dev->flags & IFF_ALLMULTI)	/* all multicast */
 		memset(filter, 0xff, sizeof(filter));
@@ -2799,7 +2799,7 @@ static void skge_error_irq(struct skge_hw *hw)
 }
 
 /*
- * Interrrupt from PHY are handled in tasklet (soft irq)
+ * Interrupt from PHY are handled in tasklet (soft irq)
  * because accessing phy registers requires spin wait which might
  * cause excess interrupt latency.
  */
@@ -3233,7 +3233,7 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 	}
 
 #ifdef __BIG_ENDIAN
-	/* byte swap decriptors in hardware */
+	/* byte swap descriptors in hardware */
 	{
 		u32 reg;
 
