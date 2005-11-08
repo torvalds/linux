@@ -2893,6 +2893,7 @@ static const char *skge_board_name(const struct skge_hw *hw)
  */
 static int skge_reset(struct skge_hw *hw)
 {
+	u32 reg;
 	u16 ctst;
 	u8 t8, mac_cfg, pmd_type, phy_type;
 	int i;
@@ -2971,12 +2972,21 @@ static int skge_reset(struct skge_hw *hw)
 		/* switch power to VCC (WA for VAUX problem) */
 		skge_write8(hw, B0_POWER_CTRL,
 			    PC_VAUX_ENA | PC_VCC_ENA | PC_VAUX_OFF | PC_VCC_ON);
+
 		/* avoid boards with stuck Hardware error bits */
 		if ((skge_read32(hw, B0_ISRC) & IS_HW_ERR) &&
 		    (skge_read32(hw, B0_HWE_ISRC) & IS_IRQ_SENSOR)) {
 			printk(KERN_WARNING PFX "stuck hardware sensor bit\n");
 			hw->intr_mask &= ~IS_HW_ERR;
 		}
+
+		/* Clear PHY COMA */
+		skge_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
+		pci_read_config_dword(hw->pdev, PCI_DEV_REG1, &reg);
+		reg &= ~PCI_PHY_COMA;
+		pci_write_config_dword(hw->pdev, PCI_DEV_REG1, reg);
+		skge_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
+
 
 		for (i = 0; i < hw->ports; i++) {
 			skge_write16(hw, SK_REG(i, GMAC_LINK_CTRL), GMLC_RST_SET);
