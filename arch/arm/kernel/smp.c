@@ -185,6 +185,11 @@ int __cpuexit __cpu_disable(void)
 	migrate_irqs();
 
 	/*
+	 * Stop the local timer for this CPU.
+	 */
+	local_timer_stop(cpu);
+
+	/*
 	 * Flush user cache and TLB mappings, and then remove this CPU
 	 * from the vm mask set of all processes.
 	 */
@@ -288,6 +293,11 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	 * OK, now it's safe to let the boot CPU continue
 	 */
 	cpu_set(cpu, cpu_online_map);
+
+	/*
+	 * Setup local timer for this CPU.
+	 */
+	local_timer_setup(cpu);
 
 	/*
 	 * OK, it's off to the idle thread for us
@@ -454,6 +464,18 @@ void show_ipi_list(struct seq_file *p)
 	seq_putc(p, '\n');
 }
 
+void show_local_irqs(struct seq_file *p)
+{
+	unsigned int cpu;
+
+	seq_printf(p, "LOC: ");
+
+	for_each_present_cpu(cpu)
+		seq_printf(p, "%10u ", irq_stat[cpu].local_timer_irqs);
+
+	seq_putc(p, '\n');
+}
+
 static void ipi_timer(struct pt_regs *regs)
 {
 	int user = user_mode(regs);
@@ -463,6 +485,18 @@ static void ipi_timer(struct pt_regs *regs)
 	update_process_times(user);
 	irq_exit();
 }
+
+#ifdef CONFIG_LOCAL_TIMERS
+asmlinkage void do_local_timer(struct pt_regs *regs)
+{
+	int cpu = smp_processor_id();
+
+	if (local_timer_ack()) {
+		irq_stat[cpu].local_timer_irqs++;
+		ipi_timer(regs);
+	}
+}
+#endif
 
 /*
  * ipi_call_function - handle IPI from smp_call_function()
