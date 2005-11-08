@@ -97,7 +97,6 @@ typedef struct {
  * @param dpc_h			: tasklet handle
  * @param pdev			: pci configuration pointer for kernel
  * @param host			: pointer to host structure of mid-layer
- * @param host_lock		: pointer to appropriate lock
  * @param lock			: synchronization lock for mid-layer and driver
  * @param quiescent		: driver is quiescent for now.
  * @param outstanding_cmds	: number of commands pending in the driver
@@ -152,7 +151,6 @@ typedef struct {
 	struct tasklet_struct	dpc_h;
 	struct pci_dev		*pdev;
 	struct Scsi_Host	*host;
-	spinlock_t		*host_lock;
 	spinlock_t		lock;
 	uint8_t			quiescent;
 	int			outstanding_cmds;

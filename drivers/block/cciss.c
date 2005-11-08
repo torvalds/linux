@@ -148,6 +148,7 @@ static struct board_type products[] = {
 static ctlr_info_t *hba[MAX_CTLR];
 
 static void do_cciss_request(request_queue_t *q);
+static irqreturn_t do_cciss_intr(int irq, void *dev_id, struct pt_regs *regs);
 static int cciss_open(struct inode *inode, struct file *filep);
 static int cciss_release(struct inode *inode, struct file *filep);
 static int cciss_ioctl(struct inode *inode, struct file *filep, 
@@ -1583,6 +1584,24 @@ static int fill_cmd(CommandList_struct *c, __u8 cmd, int ctlr, void *buff,
 		}
 	} else if (cmd_type == TYPE_MSG) {
 		switch (cmd) {
+		case 0: /* ABORT message */
+			c->Request.CDBLen = 12;
+			c->Request.Type.Attribute = ATTR_SIMPLE;
+			c->Request.Type.Direction = XFER_WRITE;
+			c->Request.Timeout = 0;
+			c->Request.CDB[0] = cmd; /* abort */
+			c->Request.CDB[1] = 0;   /* abort a command */
+			/* buff contains the tag of the command to abort */
+			memcpy(&c->Request.CDB[4], buff, 8);
+			break;
+		case 1: /* RESET message */
+			c->Request.CDBLen = 12;
+			c->Request.Type.Attribute = ATTR_SIMPLE;
+			c->Request.Type.Direction = XFER_WRITE;
+			c->Request.Timeout = 0;
+			memset(&c->Request.CDB[0], 0, sizeof(c->Request.CDB));
+			c->Request.CDB[0] = cmd;  /* reset */
+			c->Request.CDB[1] = 0x04; /* reset a LUN */
 		case 3:	/* No-Op message */
 			c->Request.CDBLen = 1;
 			c->Request.Type.Attribute = ATTR_SIMPLE;
@@ -1869,6 +1888,52 @@ static unsigned long pollcomplete(int ctlr)
 	/* Invalid address to tell caller we ran out of time */
 	return 1;
 }
+
+static int add_sendcmd_reject(__u8 cmd, int ctlr, unsigned long complete)
+{
+	/* We get in here if sendcmd() is polling for completions
+	   and gets some command back that it wasn't expecting -- 
+	   something other than that which it just sent down.  
+	   Ordinarily, that shouldn't happen, but it can happen when 
+	   the scsi tape stuff gets into error handling mode, and
+	   starts using sendcmd() to try to abort commands and 
+	   reset tape drives.  In that case, sendcmd may pick up
+	   completions of commands that were sent to logical drives
+	   through the block i/o system, or cciss ioctls completing, etc. 
+	   In that case, we need to save those completions for later
+	   processing by the interrupt handler.
+	*/
+
+#ifdef CONFIG_CISS_SCSI_TAPE
+	struct sendcmd_reject_list *srl = &hba[ctlr]->scsi_rejects;	
+
+	/* If it's not the scsi tape stuff doing error handling, (abort */
+	/* or reset) then we don't expect anything weird. */
+	if (cmd != CCISS_RESET_MSG && cmd != CCISS_ABORT_MSG) {
+#endif
+		printk( KERN_WARNING "cciss cciss%d: SendCmd "
+		      "Invalid command list address returned! (%lx)\n",
+			ctlr, complete);
+		/* not much we can do. */
+#ifdef CONFIG_CISS_SCSI_TAPE
+		return 1;
+	}
+
+	/* We've sent down an abort or reset, but something else
+	   has completed */
+	if (srl->ncompletions >= (NR_CMDS + 2)) {
+		/* Uh oh.  No room to save it for later... */
+		printk(KERN_WARNING "cciss%d: Sendcmd: Invalid command addr, "
+			"reject list overflow, command lost!\n", ctlr);
+		return 1;
+	}
+	/* Save it for later */
+	srl->complete[srl->ncompletions] = complete;
+	srl->ncompletions++;
+#endif
+	return 0;
+}
+
 /*
  * Send a command to the controller, and wait for it to complete.  
  * Only used at init time. 
@@ -1891,7 +1956,7 @@ static int sendcmd(
 	unsigned long complete;
 	ctlr_info_t *info_p= hba[ctlr];
 	u64bit buff_dma_handle;
-	int status;
+	int status, done = 0;
 
 	if ((c = cmd_alloc(info_p, 1)) == NULL) {
 		printk(KERN_WARNING "cciss: unable to get memory");
@@ -1913,7 +1978,9 @@ resend_cmd1:
         info_p->access.set_intr_mask(info_p, CCISS_INTR_OFF);
 	
 	/* Make sure there is room in the command FIFO */
-        /* Actually it should be completely empty at this time. */
+        /* Actually it should be completely empty at this time */
+	/* unless we are in here doing error handling for the scsi */
+	/* tape side of the driver. */
         for (i = 200000; i > 0; i--) 
 	{
 		/* if fifo isn't full go */
@@ -1930,13 +1997,25 @@ resend_cmd1:
          * Send the cmd
          */
         info_p->access.submit_command(info_p, c);
-        complete = pollcomplete(ctlr);
+	done = 0;
+	do {
+		complete = pollcomplete(ctlr);
 
 #ifdef CCISS_DEBUG
-	printk(KERN_DEBUG "cciss: command completed\n");
+		printk(KERN_DEBUG "cciss: command completed\n");
 #endif /* CCISS_DEBUG */
 
-	if (complete != 1) {
+		if (complete == 1) {
+			printk( KERN_WARNING
+				"cciss cciss%d: SendCmd Timeout out, "
+				"No command list address returned!\n",
+				ctlr);
+			status = IO_ERROR;
+			done = 1;
+			break;
+		}
+
+		/* This will need to change for direct lookup completions */
 		if ( (complete & CISS_ERROR_BIT)
 		     && (complete & ~CISS_ERROR_BIT) == c->busaddr)
 		     {
@@ -1976,6 +2055,10 @@ resend_cmd1:
 						status = IO_ERROR;
 						goto cleanup1;
 					}
+				} else if (c->err_info->CommandStatus == CMD_UNABORTABLE) {
+					printk(KERN_WARNING "cciss%d: command could not be aborted.\n", ctlr);
+					status = IO_ERROR;
+					goto cleanup1;
 				}
 				printk(KERN_WARNING "ciss ciss%d: sendcmd"
 				" Error %x \n", ctlr, 
@@ -1990,20 +2073,15 @@ resend_cmd1:
 				goto cleanup1;
 			}
 		}
+		/* This will need changing for direct lookup completions */
                 if (complete != c->busaddr) {
-                        printk( KERN_WARNING "cciss cciss%d: SendCmd "
-                      "Invalid command list address returned! (%lx)\n",
-                                ctlr, complete);
-			status = IO_ERROR;
-			goto cleanup1;
-                }
-        } else {
-                printk( KERN_WARNING
-                        "cciss cciss%d: SendCmd Timeout out, "
-                        "No command list address returned!\n",
-                        ctlr);
-		status = IO_ERROR;
-        }
+			if (add_sendcmd_reject(cmd, ctlr, complete) != 0) {
+				BUG(); /* we are pretty much hosed if we get here. */
+			}
+			continue;
+                } else
+			done = 1;
+        } while (!done);
 		
 cleanup1:	
 	/* unlock the data buffer from DMA */
@@ -2011,6 +2089,11 @@ cleanup1:
 	buff_dma_handle.val32.upper = c->SG[0].Addr.upper;
 	pci_unmap_single(info_p->pdev, (dma_addr_t) buff_dma_handle.val,
 				c->SG[0].Len, PCI_DMA_BIDIRECTIONAL);
+#ifdef CONFIG_CISS_SCSI_TAPE
+	/* if we saved some commands for later, process them now. */
+	if (info_p->scsi_rejects.ncompletions > 0)
+		do_cciss_intr(0, info_p, NULL);
+#endif
 	cmd_free(info_p, c, 1);
 	return (status);
 } 
@@ -2335,6 +2418,48 @@ startio:
 	start_io(h);
 }
 
+static inline unsigned long get_next_completion(ctlr_info_t *h)
+{
+#ifdef CONFIG_CISS_SCSI_TAPE
+	/* Any rejects from sendcmd() lying around? Process them first */
+	if (h->scsi_rejects.ncompletions == 0)
+		return h->access.command_completed(h);
+	else {
+		struct sendcmd_reject_list *srl;
+		int n;
+		srl = &h->scsi_rejects;
+		n = --srl->ncompletions;
+		/* printk("cciss%d: processing saved reject\n", h->ctlr); */
+		printk("p");
+		return srl->complete[n];
+	}
+#else
+	return h->access.command_completed(h);
+#endif
+}
+
+static inline int interrupt_pending(ctlr_info_t *h)
+{
+#ifdef CONFIG_CISS_SCSI_TAPE
+	return ( h->access.intr_pending(h) 
+		|| (h->scsi_rejects.ncompletions > 0));
+#else
+	return h->access.intr_pending(h);
+#endif
+}
+
+static inline long interrupt_not_for_us(ctlr_info_t *h)
+{
+#ifdef CONFIG_CISS_SCSI_TAPE
+	return (((h->access.intr_pending(h) == 0) || 
+		 (h->interrupts_enabled == 0)) 
+	      && (h->scsi_rejects.ncompletions == 0));
+#else
+	return (((h->access.intr_pending(h) == 0) || 
+		 (h->interrupts_enabled == 0)));
+#endif
+}
+
 static irqreturn_t do_cciss_intr(int irq, void *dev_id, struct pt_regs *regs)
 {
 	ctlr_info_t *h = dev_id;
@@ -2344,19 +2469,15 @@ static irqreturn_t do_cciss_intr(int irq, void *dev_id, struct pt_regs *regs)
 	int j;
 	int start_queue = h->next_to_run;
 
-	/* Is this interrupt for us? */
-	if (( h->access.intr_pending(h) == 0) || (h->interrupts_enabled == 0))
+	if (interrupt_not_for_us(h))
 		return IRQ_NONE;
-
 	/*
 	 * If there are completed commands in the completion queue,
 	 * we had better do something about it.
 	 */
 	spin_lock_irqsave(CCISS_LOCK(h->ctlr), flags);
-	while( h->access.intr_pending(h))
-	{
-		while((a = h->access.command_completed(h)) != FIFO_EMPTY) 
-		{
+	while (interrupt_pending(h)) {
+		while((a = get_next_completion(h)) != FIFO_EMPTY) {
 			a1 = a;
 			if ((a & 0x04)) {
 				a2 = (a >> 3);
@@ -2963,7 +3084,15 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
                 printk( KERN_ERR "cciss: out of memory");
 		goto clean4;
 	}
-
+#ifdef CONFIG_CISS_SCSI_TAPE
+	hba[i]->scsi_rejects.complete = 
+		kmalloc(sizeof(hba[i]->scsi_rejects.complete[0]) * 
+			(NR_CMDS + 5), GFP_KERNEL);
+	if (hba[i]->scsi_rejects.complete == NULL) {
+                printk( KERN_ERR "cciss: out of memory");
+		goto clean4;
+	}
+#endif
 	spin_lock_init(&hba[i]->lock);
 
 	/* Initialize the pdev driver private data. 
@@ -3031,6 +3160,10 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	return(1);
 
 clean4:
+#ifdef CONFIG_CISS_SCSI_TAPE
+	if(hba[i]->scsi_rejects.complete)
+		kfree(hba[i]->scsi_rejects.complete);
+#endif
 	kfree(hba[i]->cmd_pool_bits);
 	if(hba[i]->cmd_pool)
 		pci_free_consistent(hba[i]->pdev,
@@ -3103,6 +3236,9 @@ static void __devexit cciss_remove_one (struct pci_dev *pdev)
 	pci_free_consistent(hba[i]->pdev, NR_CMDS * sizeof( ErrorInfo_struct),
 		hba[i]->errinfo_pool, hba[i]->errinfo_pool_dhandle);
 	kfree(hba[i]->cmd_pool_bits);
+#ifdef CONFIG_CISS_SCSI_TAPE
+	kfree(hba[i]->scsi_rejects.complete);
+#endif
  	release_io_mem(hba[i]);
 	free_hba(i);
 }	

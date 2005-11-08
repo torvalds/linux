@@ -83,11 +83,11 @@ with the command.
  The timeout handler is scsi_times_out().  When a timeout occurs, this
 function
 
- 1. invokes optional hostt->eh_timedout() callback.  Return value can
+ 1. invokes optional hostt->eh_timed_out() callback.  Return value can
     be one of
 
     - EH_HANDLED
-	This indicates that eh_timedout() dealt with the timeout.  The
+	This indicates that eh_timed_out() dealt with the timeout.  The
 	scmd is passed to __scsi_done() and thus linked into per-cpu
 	scsi_done_q.  Normal command completion described in [1-2-1]
 	follows.
@@ -105,7 +105,7 @@ function
 	command will time out again.
 
     - EH_NOT_HANDLED
-	This is the same as when eh_timedout() callback doesn't exist.
+	This is the same as when eh_timed_out() callback doesn't exist.
 	Step #2 is taken.
 
  2. scsi_eh_scmd_add(scmd, SCSI_EH_CANCEL_CMD) is invoked for the
@@ -142,7 +142,7 @@ are linked on shost->eh_cmd_q.
  Note that this does not mean lower layers are quiescent.  If a LLDD
 completed a scmd with error status, the LLDD and lower layers are
 assumed to forget about the scmd at that point.  However, if a scmd
-has timed out, unless hostt->eh_timedout() made lower layers forget
+has timed out, unless hostt->eh_timed_out() made lower layers forget
 about the scmd, which currently no LLDD does, the command is still
 active as long as lower layers are concerned and completion could
 occur at any time.  Of course, all such completions are ignored as the
