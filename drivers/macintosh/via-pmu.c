@@ -2053,6 +2053,7 @@ pmu_register_sleep_notifier(struct pmu_sleep_notifier *n)
 	__list_add(&n->list, list->prev, list);
 	return 0;
 }
+EXPORT_SYMBOL(pmu_register_sleep_notifier);
 
 int
 pmu_unregister_sleep_notifier(struct pmu_sleep_notifier* n)
@@ -2063,6 +2064,7 @@ pmu_unregister_sleep_notifier(struct pmu_sleep_notifier* n)
 	n->list.next = NULL;
 	return 0;
 }
+EXPORT_SYMBOL(pmu_unregister_sleep_notifier);
 #endif /* CONFIG_PM */
 
 #if defined(CONFIG_PM) && defined(CONFIG_PPC32)
@@ -3139,8 +3141,6 @@ EXPORT_SYMBOL(pmu_i2c_stdsub_write);
 EXPORT_SYMBOL(pmu_i2c_simple_read);
 EXPORT_SYMBOL(pmu_i2c_simple_write);
 #if defined(CONFIG_PM) && defined(CONFIG_PPC32)
-EXPORT_SYMBOL(pmu_register_sleep_notifier);
-EXPORT_SYMBOL(pmu_unregister_sleep_notifier);
 EXPORT_SYMBOL(pmu_enable_irled);
 EXPORT_SYMBOL(pmu_battery_count);
 EXPORT_SYMBOL(pmu_batteries);
