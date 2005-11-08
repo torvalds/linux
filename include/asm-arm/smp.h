@@ -37,6 +37,11 @@ struct seq_file;
 extern void show_ipi_list(struct seq_file *p);
 
 /*
+ * Called from assembly code, this handles an IPI.
+ */
+asmlinkage void do_IPI(struct pt_regs *regs);
+
+/*
  * Move global data into per-processor storage.
  */
 extern void smp_store_cpu_info(unsigned int cpuid);
@@ -56,6 +61,12 @@ extern void smp_send_timer(void);
  * This also gives us the initial stack to use for this CPU.
  */
 extern int boot_secondary(unsigned int cpu, struct task_struct *);
+
+/*
+ * Called from platform specific assembly code, this is the
+ * secondary CPU entry point.
+ */
+asmlinkage void secondary_start_kernel(void);
 
 /*
  * Perform platform specific initialisation of the specified CPU.
