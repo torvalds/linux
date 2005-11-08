@@ -596,6 +596,8 @@ static long openprom_compat_ioctl(struct file *file, unsigned int cmd,
 		lock_kernel();
 		break;
 	}
+
+	return rval;
 }
 
 static int openprom_open(struct inode * inode, struct file * file)
@@ -623,6 +625,7 @@ static struct file_operations openprom_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.ioctl =	openprom_ioctl,
+	.compat_ioctl =	openprom_compat_ioctl,
 	.open =		openprom_open,
 	.release =	openprom_release,
 };
