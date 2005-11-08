@@ -341,6 +341,54 @@ static inline int ipv6_addr_any(const struct in6_addr *a)
 }
 
 /*
+ * find the first different bit between two addresses
+ * length of address must be a multiple of 32bits
+ */
+static inline int __ipv6_addr_diff(const void *token1, const void *token2, int addrlen)
+{
+	const __u32 *a1 = token1, *a2 = token2;
+	int i;
+
+	addrlen >>= 2;
+
+	for (i = 0; i < addrlen; i++) {
+		__u32 xb = a1[i] ^ a2[i];
+		if (xb) {
+			int j = 31;
+
+			xb = ntohl(xb);
+			while ((xb & (1 << j)) == 0)
+				j--;
+
+			return (i * 32 + 31 - j);
+		}
+	}
+
+	/*
+	 *	we should *never* get to this point since that 
+	 *	would mean the addrs are equal
+	 *
+	 *	However, we do get to it 8) And exacly, when
+	 *	addresses are equal 8)
+	 *
+	 *	ip route add 1111::/128 via ...
+	 *	ip route add 1111::/64 via ...
+	 *	and we are here.
+	 *
+	 *	Ideally, this function should stop comparison
+	 *	at prefix length. It does not, but it is still OK,
+	 *	if returned value is greater than prefix length.
+	 *					--ANK (980803)
+	 */
+	return (addrlen << 5);
+}
+
+static inline int ipv6_addr_diff(const struct in6_addr *a1, const struct in6_addr *a2)
+{
+	return __ipv6_addr_diff(a1, a2, sizeof(struct in6_addr));
+}
+
+/*
  *	Prototypes exported by ipv6
  */
 
