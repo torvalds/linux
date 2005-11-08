@@ -46,10 +46,10 @@
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/prom.h>
+#include <asm/machdep.h>
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
 #include <asm/time.h>
-#include <asm/machdep.h>
 #endif
 
 extern unsigned long _get_SP(void);
@@ -203,10 +203,8 @@ int dump_spe(struct pt_regs *regs, elf_vrregset_t *evrregs)
 
 int set_dabr(unsigned long dabr)
 {
-#ifdef CONFIG_PPC64
 	if (ppc_md.set_dabr)
 		return ppc_md.set_dabr(dabr);
-#endif
 
 	mtspr(SPRN_DABR, dabr);
 	return 0;

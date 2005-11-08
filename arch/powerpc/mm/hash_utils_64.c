@@ -33,7 +33,6 @@
 #include <linux/init.h>
 #include <linux/signal.h>
 
-#include <asm/ppcdebug.h>
 #include <asm/processor.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
@@ -409,12 +408,6 @@ void __init htab_initialize(void)
 	htab_size_bytes = htab_get_table_size();
 	pteg_count = htab_size_bytes >> 7;
 
-	/* For debug, make the HTAB 1/8 as big as it normally would be. */
-	ifppcdebug(PPCDBG_HTABSIZE) {
-		pteg_count >>= 3;
-		htab_size_bytes = pteg_count << 7;
-	}
-
 	htab_hash_mask = pteg_count - 1;
 
 	if (systemcfg->platform & PLATFORM_LPAR) {
@@ -513,6 +506,9 @@ void __init htab_initialize(void)
 unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 {
 	struct page *page;
+
+	if (!pfn_valid(pte_pfn(pte)))
+		return pp;
 
 	page = pte_page(pte);
 

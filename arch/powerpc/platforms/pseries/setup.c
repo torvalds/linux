@@ -65,6 +65,7 @@
 #include <asm/ppc-pci.h>
 #include <asm/i8259.h>
 #include <asm/udbg.h>
+#include <asm/smp.h>
 
 #include "plpar_wrappers.h"
 
@@ -353,14 +354,15 @@ static void pSeries_mach_cpu_die(void)
 
 static int pseries_set_dabr(unsigned long dabr)
 {
-	if (firmware_has_feature(FW_FEATURE_XDABR)) {
-		/* We want to catch accesses from kernel and userspace */
-		return plpar_set_xdabr(dabr, H_DABRX_KERNEL | H_DABRX_USER);
-	}
-
-	return plpar_set_dabr(dabr);
+	return plpar_hcall_norets(H_SET_DABR, dabr);
 }
 
+static int pseries_set_xdabr(unsigned long dabr)
+{
+	/* We want to catch accesses from kernel and userspace */
+	return plpar_hcall_norets(H_SET_XDABR, dabr,
+			H_DABRX_KERNEL | H_DABRX_USER);
+}
 
 /*
  * Early initialization.  Relocation is on but do not reference unbolted pages
@@ -396,8 +398,10 @@ static void __init pSeries_init_early(void)
 		DBG("Hello World !\n");
 	}
 
-	if (firmware_has_feature(FW_FEATURE_XDABR | FW_FEATURE_DABR))
+	if (firmware_has_feature(FW_FEATURE_DABR))
 		ppc_md.set_dabr = pseries_set_dabr;
+	else if (firmware_has_feature(FW_FEATURE_XDABR))
+		ppc_md.set_dabr = pseries_set_xdabr;
 
 	iommu_init_early_pSeries();
 

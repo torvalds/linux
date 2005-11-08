@@ -59,7 +59,6 @@
 #include <asm/processor.h>
 #include <asm/mmzone.h>
 #include <asm/cputable.h>
-#include <asm/ppcdebug.h>
 #include <asm/sections.h>
 #include <asm/system.h>
 #include <asm/iommu.h>

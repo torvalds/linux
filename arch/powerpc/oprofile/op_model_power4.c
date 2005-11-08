@@ -17,6 +17,7 @@
 #include <asm/systemcfg.h>
 #include <asm/rtas.h>
 #include <asm/oprofile_impl.h>
+#include <asm/reg.h>
 
 #define dbg(args...)
 
@@ -81,6 +82,26 @@ static void power4_reg_setup(struct op_counter_config *ctr,
 
 extern void ppc64_enable_pmcs(void);
 
+/*
+ * Older CPUs require the MMCRA sample bit to be always set, but newer 
+ * CPUs only want it set for some groups. Eventually we will remove all
+ * knowledge of this bit in the kernel, oprofile userspace should be
+ * setting it when required.
+ *
+ * In order to keep current installations working we force the bit for
+ * those older CPUs. Once everyone has updated their oprofile userspace we
+ * can remove this hack.
+ */
+static inline int mmcra_must_set_sample(void)
+{
+	if (__is_processor(PV_POWER4) || __is_processor(PV_POWER4p) ||
+	    __is_processor(PV_970) || __is_processor(PV_970FX) ||
+	    __is_processor(PV_970MP))
+		return 1;
+
+	return 0;
+}
+
 static void power4_cpu_setup(void *unused)
 {
 	unsigned int mmcr0 = mmcr0_val;
@@ -98,7 +119,8 @@ static void power4_cpu_setup(void *unused)
 
 	mtspr(SPRN_MMCR1, mmcr1_val);
 
-	mmcra |= MMCRA_SAMPLE_ENABLE;
+	if (mmcra_must_set_sample())
+		mmcra |= MMCRA_SAMPLE_ENABLE;
 	mtspr(SPRN_MMCRA, mmcra);
 
 	dbg("setup on cpu %d, mmcr0 %lx\n", smp_processor_id(),

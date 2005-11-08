@@ -48,7 +48,7 @@
 #include <asm/ptrace.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
-#include <asm/ppcdebug.h>
+#include <asm/udbg.h>
 
 static unsigned char ras_log_buf[RTAS_ERROR_LOG_MAX];
 static DEFINE_SPINLOCK(ras_log_buf_lock);

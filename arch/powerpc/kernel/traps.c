@@ -39,7 +39,6 @@
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
-#include <asm/xmon.h>
 #include <asm/pmc.h>
 #ifdef CONFIG_PPC32
 #include <asm/reg.h>
@@ -748,22 +747,12 @@ static int check_bug_trap(struct pt_regs *regs)
 		return 0;
 	if (bug->line & BUG_WARNING_TRAP) {
 		/* this is a WARN_ON rather than BUG/BUG_ON */
-#ifdef CONFIG_XMON
-		xmon_printf(KERN_ERR "Badness in %s at %s:%ld\n",
-		       bug->function, bug->file,
-		       bug->line & ~BUG_WARNING_TRAP);
-#endif /* CONFIG_XMON */		
 		printk(KERN_ERR "Badness in %s at %s:%ld\n",
 		       bug->function, bug->file,
 		       bug->line & ~BUG_WARNING_TRAP);
 		dump_stack();
 		return 1;
 	}
-#ifdef CONFIG_XMON
-	xmon_printf(KERN_CRIT "kernel BUG in %s at %s:%ld!\n",
-	       bug->function, bug->file, bug->line);
-	xmon(regs);
-#endif /* CONFIG_XMON */
 	printk(KERN_CRIT "kernel BUG in %s at %s:%ld!\n",
 	       bug->function, bug->file, bug->line);
 

@@ -397,18 +397,16 @@ static int pmac_cpufreq_target(	struct cpufreq_policy *policy,
 					unsigned int relation)
 {
 	unsigned int    newstate = 0;
+	int		rc;
 
 	if (cpufreq_frequency_table_target(policy, pmac_cpu_freqs,
 			target_freq, relation, &newstate))
 		return -EINVAL;
 
-	return do_set_cpu_speed(newstate, 1);
-}
+	rc = do_set_cpu_speed(newstate, 1);
 
-unsigned int pmac_get_one_cpufreq(int i)
-{
-	/* Supports only one CPU for now */
-	return (i == 0) ? cur_freq : 0;
+	ppc_proc_freq = cur_freq * 1000ul;
+	return rc;
 }
 
 static int pmac_cpufreq_cpu_init(struct cpufreq_policy *policy)
@@ -473,6 +471,8 @@ static int pmac_cpufreq_resume(struct cpufreq_policy *policy)
 	 */
 	do_set_cpu_speed(sleep_freq == low_freq ?
 			 CPUFREQ_LOW : CPUFREQ_HIGH, 0);
+
+	ppc_proc_freq = cur_freq * 1000ul;
 
 	no_schedule = 0;
 	return 0;
@@ -547,7 +547,7 @@ static int pmac_cpufreq_init_MacRISC3(struct device_node *cpunode)
 		 */
 		if (low_freq < 98000000)
 			low_freq = 101000000;
-			
+
 		/* Convert those to CPU core clocks */
 		low_freq = (low_freq * (*ratio)) / 2000;
 		hi_freq = (hi_freq * (*ratio)) / 2000;
@@ -714,6 +714,7 @@ out:
 
 	pmac_cpu_freqs[CPUFREQ_LOW].frequency = low_freq;
 	pmac_cpu_freqs[CPUFREQ_HIGH].frequency = hi_freq;
+	ppc_proc_freq = cur_freq * 1000ul;
 
 	printk(KERN_INFO "Registering PowerMac CPU frequency driver\n");
 	printk(KERN_INFO "Low: %d Mhz, High: %d Mhz, Boot: %d Mhz\n",
