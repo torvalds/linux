@@ -2627,7 +2627,7 @@ static int skge_poll(struct net_device *dev, int *budget)
 	unsigned int to_do = min(dev->quota, *budget);
 	unsigned int work_done = 0;
 
-	for (e = ring->to_clean; work_done < to_do; e = e->next) {
+	for (e = ring->to_clean; prefetch(e->next), work_done < to_do; e = e->next) {
 		struct skge_rx_desc *rd = e->desc;
 		struct sk_buff *skb;
 		u32 control;
@@ -2660,11 +2660,11 @@ static int skge_poll(struct net_device *dev, int *budget)
 	if (work_done >=  to_do)
 		return 1; /* not done */
 
-	local_irq_disable();
-	__netif_rx_complete(dev);
+	netif_rx_complete(dev);
 	hw->intr_mask |= portirqmask[skge->port];
 	skge_write32(hw, B0_IMSK, hw->intr_mask);
-	local_irq_enable();
+	skge_read32(hw, B0_IMSK);
+
 	return 0;
 }
 
@@ -2676,7 +2676,7 @@ static inline void skge_tx_intr(struct net_device *dev)
 	struct skge_element *e;
 
 	spin_lock(&skge->tx_lock);
-	for (e = ring->to_clean; e != ring->to_use; e = e->next) {
+	for (e = ring->to_clean; prefetch(e->next), e != ring->to_use; e = e->next) {
 		struct skge_tx_desc *td = e->desc;
 		u32 control;
 
@@ -2829,6 +2829,14 @@ static void skge_extirq(unsigned long data)
 	local_irq_enable();
 }
 
+static inline void skge_wakeup(struct net_device *dev)
+{
+	struct skge_port *skge = netdev_priv(dev);
+
+	prefetch(skge->rx_ring.to_clean);
+	netif_rx_schedule(dev);
+}
+
 static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 {
 	struct skge_hw *hw = dev_id;
@@ -2840,12 +2848,12 @@ static irqreturn_t skge_intr(int irq, void *dev_id, struct pt_regs *regs)
 	status &= hw->intr_mask;
 	if (status & IS_R1_F) {
 		hw->intr_mask &= ~IS_R1_F;
-		netif_rx_schedule(hw->dev[0]);
+		skge_wakeup(hw->dev[0]);
 	}
 
 	if (status & IS_R2_F) {
 		hw->intr_mask &= ~IS_R2_F;
-		netif_rx_schedule(hw->dev[1]);
+		skge_wakeup(hw->dev[1]);
 	}
 
 	if (status & IS_XA1_F)
