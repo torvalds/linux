@@ -3168,14 +3168,13 @@ static int __devinit skge_probe(struct pci_dev *pdev,
 #endif
 
 	err = -ENOMEM;
-	hw = kmalloc(sizeof(*hw), GFP_KERNEL);
+	hw = kzalloc(sizeof(*hw), GFP_KERNEL);
 	if (!hw) {
 		printk(KERN_ERR PFX "%s: cannot allocate hardware struct\n",
 		       pci_name(pdev));
 		goto err_out_free_regions;
 	}
 
-	memset(hw, 0, sizeof(*hw));
 	hw->pdev = pdev;
 	spin_lock_init(&hw->phy_lock);
 	tasklet_init(&hw->ext_tasklet, skge_extirq, (unsigned long) hw);
