@@ -653,12 +653,6 @@ static void cg6_chip_init(struct fb_info *info)
 	sbus_writel(0, &fbc->clipminy);
 	sbus_writel(info->var.xres - 1, &fbc->clipmaxx);
 	sbus_writel(info->var.yres - 1, &fbc->clipmaxy);
-
-	/* Disable cursor in Brooktree DAC. */
-	sbus_writel(0x06 << 24, &par->bt->addr);
-	tmp = sbus_readl(&par->bt->control);
-	tmp &= ~(0x03 << 24);
-	sbus_writel(tmp, &par->bt->control);
 }
 
 struct all_info {

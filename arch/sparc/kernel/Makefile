@@ -21,6 +21,7 @@ obj-$(CONFIG_SUN_AUXIO) += auxio.o
 obj-$(CONFIG_PCI) += ebus.o
 obj-$(CONFIG_SUN_PM) += apc.o pmc.o
 obj-$(CONFIG_MODULES) += module.o sparc_ksyms.o
+obj-$(CONFIG_SPARC_LED) += led.o
 
 ifdef CONFIG_SUNOS_EMUL
 obj-y += sys_sunos.o sunos_ioctl.o
