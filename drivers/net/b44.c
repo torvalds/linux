@@ -1392,7 +1392,6 @@ static int b44_open(struct net_device *dev)
 
 	b44_init_rings(bp);
 	b44_init_hw(bp);
-	bp->flags |= B44_FLAG_INIT_COMPLETE;
 
 	netif_carrier_off(dev);
 	b44_check_phy(bp);
@@ -1456,7 +1455,6 @@ static int b44_close(struct net_device *dev)
 #endif
 	b44_halt(bp);
 	b44_free_rings(bp);
-	bp->flags &= ~B44_FLAG_INIT_COMPLETE;
 	netif_carrier_off(bp->dev);
 
 	spin_unlock_irq(&bp->lock);
@@ -1608,7 +1606,7 @@ static int b44_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct b44 *bp = netdev_priv(dev);
 
-	if (!(bp->flags & B44_FLAG_INIT_COMPLETE))
+	if (!netif_running(dev))
 		return -EAGAIN;
 	cmd->supported = (SUPPORTED_Autoneg);
 	cmd->supported |= (SUPPORTED_100baseT_Half |
@@ -1646,7 +1644,7 @@ static int b44_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct b44 *bp = netdev_priv(dev);
 
-	if (!(bp->flags & B44_FLAG_INIT_COMPLETE))
+	if (!netif_running(dev))
 		return -EAGAIN;
 
 	/* We do not support gigabit. */
