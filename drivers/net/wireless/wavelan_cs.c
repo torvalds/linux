@@ -4608,9 +4608,8 @@ wavelan_attach(void)
 #endif
 
   /* Initialize the dev_link_t structure */
-  link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
+  link = kzalloc(sizeof(struct dev_link_t), GFP_KERNEL);
   if (!link) return NULL;
-  memset(link, 0, sizeof(struct dev_link_t));
 
   /* The io structure describes IO port mapping */
   link->io.NumPorts1 = 8;
