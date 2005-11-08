@@ -25,7 +25,7 @@
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
 	memcpy(dst, src, len)
 
-extern inline void __flush_cache_all(void)
+static inline void __flush_cache_all(void)
 {
 #ifdef CONFIG_M5407
 	/*
@@ -64,7 +64,7 @@ extern inline void __flush_cache_all(void)
 		"nop\n\t"
 		: : : "d0" );
 #endif /* CONFIG_M5272 */
-#if CONFIG_M5249
+#ifdef CONFIG_M5249
 	__asm__ __volatile__ (
         	"movel	#0xa1000200, %%d0\n\t"
         	"movec	%%d0, %%CACR\n\t"

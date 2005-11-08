@@ -502,8 +502,7 @@ asmlinkage int irix_sigpoll_sys(unsigned long __user *set,
 	while(1) {
 		long tmp = 0;
 
-		current->state = TASK_INTERRUPTIBLE;
-		expire = schedule_timeout(expire);
+		expire = schedule_timeout_interruptible(expire);
 
 		for (i=0; i<=4; i++)
 			tmp |= (current->pending.signal.sig[i] & kset.sig[i]);

@@ -212,8 +212,16 @@ static int newseg (key_t key, int shmflg, size_t size)
 		file = hugetlb_zero_setup(size);
 		shp->mlock_user = current->user;
 	} else {
+		int acctflag = VM_ACCOUNT;
+		/*
+		 * Do not allow no accounting for OVERCOMMIT_NEVER, even
+	 	 * if it's asked for.
+		 */
+		if  ((shmflg & SHM_NORESERVE) &&
+				sysctl_overcommit_memory != OVERCOMMIT_NEVER)
+			acctflag = 0;
 		sprintf (name, "SYSV%08x", key);
-		file = shmem_file_setup(name, size, VM_ACCOUNT);
+		file = shmem_file_setup(name, size, acctflag);
 	}
 	error = PTR_ERR(file);
 	if (IS_ERR(file))

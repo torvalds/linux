@@ -1951,8 +1951,7 @@ static int setup_window(struct bttv_fh *fh, struct bttv *btv,
 	}
 
 	down(&fh->cap.lock);
-	if (fh->ov.clips)
-		kfree(fh->ov.clips);
+	kfree(fh->ov.clips);
 	fh->ov.clips    = clips;
 	fh->ov.nclips   = n;
 
@@ -2723,8 +2722,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 			fh->ov.w.height = fb->fmt.height;
 			btv->init.ov.w.width  = fb->fmt.width;
 			btv->init.ov.w.height = fb->fmt.height;
-			if (fh->ov.clips)
-				kfree(fh->ov.clips);
+			kfree(fh->ov.clips);
 			fh->ov.clips = NULL;
 			fh->ov.nclips = 0;
 

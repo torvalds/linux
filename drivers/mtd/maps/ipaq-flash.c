@@ -1,11 +1,11 @@
 /*
  * Flash memory access on iPAQ Handhelds (either SA1100 or PXA250 based)
- * 
+ *
  * (C) 2000 Nicolas Pitre <nico@cam.org>
  * (C) 2002 Hewlett-Packard Company <jamey.hicks@hp.com>
  * (C) 2003 Christian Pellegrin <chri@ascensit.com>, <chri@infis.univ.ts.it>: concatenation of multiple flashes
- * 
- * $Id: ipaq-flash.c,v 1.3 2004/11/04 13:24:15 gleixner Exp $
+ *
+ * $Id: ipaq-flash.c,v 1.5 2005/11/07 11:14:27 gleixner Exp $
  */
 
 #include <linux/config.h>
@@ -107,7 +107,7 @@ static struct mtd_partition h3xxx_partitions[] = {
 #ifndef CONFIG_LAB
 		mask_flags:	MTD_WRITEABLE,  /* force read-only */
 #endif
-	}, 
+	},
 	{
 		name:		"H3XXX root jffs2",
 #ifndef CONFIG_LAB
@@ -148,7 +148,7 @@ static DEFINE_SPINLOCK(ipaq_vpp_lock);
 static void h3xxx_set_vpp(struct map_info *map, int vpp)
 {
 	static int nest = 0;
-	
+
 	spin_lock(&ipaq_vpp_lock);
 	if (vpp)
 		nest++;
@@ -191,7 +191,7 @@ static unsigned long cs_phys[] = {
 	SA1100_CS3_PHYS,
 	SA1100_CS4_PHYS,
 	SA1100_CS5_PHYS,
-#else 
+#else
 	PXA_CS0_PHYS,
 	PXA_CS1_PHYS,
 	PXA_CS2_PHYS,
@@ -216,7 +216,7 @@ int __init ipaq_mtd_init(void)
 
 	/* Default flash bankwidth */
 	// ipaq_map.bankwidth = (MSC0 & MSC_RBW) ? 2 : 4;
-	
+
 	if (machine_is_h1900())
 	{
 		/* For our intents, the h1900 is not a real iPAQ, so we special-case it. */
@@ -229,7 +229,7 @@ int __init ipaq_mtd_init(void)
 	else
 		for(i=0; i<MAX_IPAQ_CS; i++)
 			ipaq_map[i].bankwidth = 4;
-			
+
 	/*
 	 * Static partition definition selection
 	 */
@@ -309,7 +309,7 @@ int __init ipaq_mtd_init(void)
 					return -ENXIO;
 			} else
 				printk(KERN_NOTICE "iPAQ flash: found %d bytes\n", my_sub_mtd[i]->size);
-			
+
 			/* do we really need this debugging? --joshua 20030703 */
 			// printk("my_sub_mtd[%d]=%p\n", i, my_sub_mtd[i]);
 			my_sub_mtd[i]->owner = THIS_MODULE;
@@ -333,11 +333,11 @@ int __init ipaq_mtd_init(void)
 #else
 		mymtd = my_sub_mtd[0];
 
-		/* 
+		/*
 		 *In the very near future, command line partition parsing
 		 * will use the device name as 'mtd-id' instead of a value
 		 * passed to the parse_cmdline_partitions() routine. Since
-		 * the bootldr says 'ipaq', make sure it continues to work. 
+		 * the bootldr says 'ipaq', make sure it continues to work.
 		 */
 		mymtd->name = "ipaq";
 
@@ -385,7 +385,7 @@ int __init ipaq_mtd_init(void)
 	 */
 
 	 i = parse_mtd_partitions(mymtd, part_probes, &parsed_parts, 0);
-			
+
 	 if (i > 0) {
 		 nb_parts = parsed_nr_parts = i;
 		 parts = parsed_parts;
@@ -423,16 +423,15 @@ static void __exit ipaq_mtd_cleanup(void)
 #endif
 		map_destroy(mymtd);
 #ifdef CONFIG_MTD_CONCAT
-		for(i=0; i<MAX_IPAQ_CS; i++) 
+		for(i=0; i<MAX_IPAQ_CS; i++)
 #else
-			for(i=1; i<MAX_IPAQ_CS; i++) 
-#endif		  
+			for(i=1; i<MAX_IPAQ_CS; i++)
+#endif
 			{
 				if (my_sub_mtd[i])
 					map_destroy(my_sub_mtd[i]);
 			}
-		if (parsed_parts)
-			kfree(parsed_parts);
+		kfree(parsed_parts);
 	}
 }
 
@@ -445,14 +444,14 @@ static int __init h1900_special_case(void)
 	ipaq_map[0].phys = 0x0;
 	ipaq_map[0].virt = __ioremap(0x0, 0x04000000, 0, 1);
 	ipaq_map[0].bankwidth = 2;
-	
+
 	printk(KERN_NOTICE "iPAQ flash: probing %d-bit flash bus, window=%lx with JEDEC.\n", ipaq_map[0].bankwidth*8, ipaq_map[0].virt);
 	mymtd = do_map_probe("jedec_probe", &ipaq_map[0]);
 	if (!mymtd)
 		return -ENODEV;
 	add_mtd_device(mymtd);
 	printk(KERN_NOTICE "iPAQ flash: registered h1910 flash\n");
-	
+
 	return 0;
 }
 

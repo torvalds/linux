@@ -746,6 +746,16 @@ config MPC834x
 	bool
 	default y if MPC834x_SYS
 
+config CPM1
+	bool
+	depends on 8xx
+	default y
+	help
+	  The CPM1 (Communications Processor Module) is a coprocessor on
+	  embedded CPUs made by Motorola.  Selecting this option means that
+	  you wish to build a kernel for a machine with a CPM1 coprocessor
+	  on it (8xx, 827x, 8560).
+
 config CPM2
 	bool
 	depends on 8260 || MPC8560 || MPC8555
@@ -1246,6 +1256,14 @@ config PCI_PERMEDIA
 source "drivers/pci/Kconfig"
 
 source "drivers/pcmcia/Kconfig"
+
+config RAPIDIO
+	bool "RapidIO support" if MPC8540 || MPC8560
+	help
+	  If you say Y here, the kernel will include drivers and
+	  infrastructure code to support RapidIO interconnect devices.
+
+source "drivers/rapidio/Kconfig"
 
 endmenu
 

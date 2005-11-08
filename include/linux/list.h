@@ -601,7 +601,7 @@ static inline void hlist_add_head(struct hlist_node *n, struct hlist_head *h)
  * or hlist_del_rcu(), running on this same list.
  * However, it is perfectly legal to run concurrently with
  * the _rcu list-traversal primitives, such as
- * hlist_for_each_rcu(), used to prevent memory-consistency
+ * hlist_for_each_entry_rcu(), used to prevent memory-consistency
  * problems on Alpha CPUs.  Regardless of the type of CPU, the
  * list-traversal primitive must be guarded by rcu_read_lock().
  */
@@ -650,7 +650,7 @@ static inline void hlist_add_after(struct hlist_node *n,
  * or hlist_del_rcu(), running on this same list.
  * However, it is perfectly legal to run concurrently with
  * the _rcu list-traversal primitives, such as
- * hlist_for_each_rcu(), used to prevent memory-consistency
+ * hlist_for_each_entry_rcu(), used to prevent memory-consistency
  * problems on Alpha CPUs.
  */
 static inline void hlist_add_before_rcu(struct hlist_node *n,
@@ -675,7 +675,7 @@ static inline void hlist_add_before_rcu(struct hlist_node *n,
  * or hlist_del_rcu(), running on this same list.
  * However, it is perfectly legal to run concurrently with
  * the _rcu list-traversal primitives, such as
- * hlist_for_each_rcu(), used to prevent memory-consistency
+ * hlist_for_each_entry_rcu(), used to prevent memory-consistency
  * problems on Alpha CPUs.
  */
 static inline void hlist_add_after_rcu(struct hlist_node *prev,
@@ -698,11 +698,6 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
 #define hlist_for_each_safe(pos, n, head) \
 	for (pos = (head)->first; pos && ({ n = pos->next; 1; }); \
 	     pos = n)
-
-#define hlist_for_each_rcu(pos, head) \
-	for ((pos) = (head)->first; \
-		rcu_dereference((pos)) && ({ prefetch((pos)->next); 1; }); \
-		(pos) = (pos)->next)
 
 /**
  * hlist_for_each_entry	- iterate over list of given type
@@ -756,7 +751,7 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
 
 /**
  * hlist_for_each_entry_rcu - iterate over rcu list of given type
- * @pos:	the type * to use as a loop counter.
+ * @tpos:	the type * to use as a loop counter.
  * @pos:	the &struct hlist_node to use as a loop counter.
  * @head:	the head for your list.
  * @member:	the name of the hlist_node within the struct.

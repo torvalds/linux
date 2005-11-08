@@ -99,13 +99,11 @@ out_fn_handler:
 	kfree(kbd->fn_handler);
 out_func:
 	for (i = 0; i < ARRAY_SIZE(func_table); i++)
-		if (kbd->func_table[i])
-			kfree(kbd->func_table[i]);
+		kfree(kbd->func_table[i]);
 	kfree(kbd->func_table);
 out_maps:
 	for (i = 0; i < ARRAY_SIZE(key_maps); i++)
-		if (kbd->key_maps[i])
-			kfree(kbd->key_maps[i]);
+		kfree(kbd->key_maps[i]);
 	kfree(kbd->key_maps);
 out_kbd:
 	kfree(kbd);
@@ -121,12 +119,10 @@ kbd_free(struct kbd_data *kbd)
 	kfree(kbd->accent_table);
 	kfree(kbd->fn_handler);
 	for (i = 0; i < ARRAY_SIZE(func_table); i++)
-		if (kbd->func_table[i])
-			kfree(kbd->func_table[i]);
+		kfree(kbd->func_table[i]);
 	kfree(kbd->func_table);
 	for (i = 0; i < ARRAY_SIZE(key_maps); i++)
-		if (kbd->key_maps[i])
-			kfree(kbd->key_maps[i]);
+		kfree(kbd->key_maps[i]);
 	kfree(kbd->key_maps);
 	kfree(kbd);
 }
@@ -452,8 +448,7 @@ do_kdgkb_ioctl(struct kbd_data *kbd, struct kbsentry __user *u_kbs,
 			return -EFAULT;
 		}
 		p[len] = 0;
-		if (kbd->func_table[kb_func])
-			kfree(kbd->func_table[kb_func]);
+		kfree(kbd->func_table[kb_func]);
 		kbd->func_table[kb_func] = p;
 		break;
 	}

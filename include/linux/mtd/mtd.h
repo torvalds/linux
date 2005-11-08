@@ -1,5 +1,5 @@
-/* 
- * $Id: mtd.h,v 1.59 2005/04/11 10:19:02 gleixner Exp $
+/*
+ * $Id: mtd.h,v 1.61 2005/11/07 11:14:54 gleixner Exp $
  *
  * Copyright (C) 1999-2003 David Woodhouse <dwmw2@infradead.org> et al.
  *
@@ -72,7 +72,17 @@ struct mtd_info {
 	u_int32_t oobsize;   // Amount of OOB data per block (e.g. 16)
 	u_int32_t ecctype;
 	u_int32_t eccsize;
-	
+
+	/*
+	 * Reuse some of the above unused fields in the case of NOR flash
+	 * with configurable programming regions to avoid modifying the
+	 * user visible structure layout/size.  Only valid when the
+	 * MTD_PROGRAM_REGIONS flag is set.
+	 * (Maybe we should have an union for those?)
+	 */
+#define MTD_PROGREGION_SIZE(mtd)  (mtd)->oobblock
+#define MTD_PROGREGION_CTRLMODE_VALID(mtd)  (mtd)->oobsize
+#define MTD_PROGREGION_CTRLMODE_INVALID(mtd)  (mtd)->ecctype
 
 	// Kernel-only stuff starts here.
 	char *name;
@@ -80,13 +90,13 @@ struct mtd_info {
 
 	// oobinfo is a nand_oobinfo structure, which can be set by iotcl (MEMSETOOBINFO)
 	struct nand_oobinfo oobinfo;
-	u_int32_t oobavail;  // Number of bytes in OOB area available for fs 
+	u_int32_t oobavail;  // Number of bytes in OOB area available for fs
 
 	/* Data for variable erase regions. If numeraseregions is zero,
-	 * it means that the whole device has erasesize as given above. 
+	 * it means that the whole device has erasesize as given above.
 	 */
 	int numeraseregions;
-	struct mtd_erase_region_info *eraseregions; 
+	struct mtd_erase_region_info *eraseregions;
 
 	/* This really shouldn't be here. It can go away in 2.5 */
 	u_int32_t bank_size;
@@ -109,10 +119,10 @@ struct mtd_info {
 	int (*read_oob) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
 	int (*write_oob) (struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf);
 
-	/* 
-	 * Methods to access the protection register area, present in some 
+	/*
+	 * Methods to access the protection register area, present in some
 	 * flash devices. The user data is one time programmable but the
-	 * factory data is read only. 
+	 * factory data is read only.
 	 */
 	int (*get_fact_prot_info) (struct mtd_info *mtd, struct otp_info *buf, size_t len);
 	int (*read_fact_prot_reg) (struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen, u_char *buf);
@@ -123,14 +133,14 @@ struct mtd_info {
 
 	/* kvec-based read/write methods. We need these especially for NAND flash,
 	   with its limited number of write cycles per erase.
-	   NB: The 'count' parameter is the number of _vectors_, each of 
+	   NB: The 'count' parameter is the number of _vectors_, each of
 	   which contains an (ofs, len) tuple.
 	*/
 	int (*readv) (struct mtd_info *mtd, struct kvec *vecs, unsigned long count, loff_t from, size_t *retlen);
-	int (*readv_ecc) (struct mtd_info *mtd, struct kvec *vecs, unsigned long count, loff_t from, 
+	int (*readv_ecc) (struct mtd_info *mtd, struct kvec *vecs, unsigned long count, loff_t from,
 		size_t *retlen, u_char *eccbuf, struct nand_oobinfo *oobsel);
 	int (*writev) (struct mtd_info *mtd, const struct kvec *vecs, unsigned long count, loff_t to, size_t *retlen);
-	int (*writev_ecc) (struct mtd_info *mtd, const struct kvec *vecs, unsigned long count, loff_t to, 
+	int (*writev_ecc) (struct mtd_info *mtd, const struct kvec *vecs, unsigned long count, loff_t to,
 		size_t *retlen, u_char *eccbuf, struct nand_oobinfo *oobsel);
 
 	/* Sync */
@@ -194,7 +204,7 @@ int default_mtd_readv(struct mtd_info *mtd, struct kvec *vecs,
 #define MTD_WRITEECC(mtd, args...) (*(mtd->write_ecc))(mtd, args)
 #define MTD_READOOB(mtd, args...) (*(mtd->read_oob))(mtd, args)
 #define MTD_WRITEOOB(mtd, args...) (*(mtd->write_oob))(mtd, args)
-#define MTD_SYNC(mtd) do { if (mtd->sync) (*(mtd->sync))(mtd);  } while (0) 
+#define MTD_SYNC(mtd) do { if (mtd->sync) (*(mtd->sync))(mtd);  } while (0)
 
 
 #ifdef CONFIG_MTD_PARTITIONS

@@ -22,21 +22,21 @@
 #define INDYCAM_VERSION_MINOR(x)	((x) & 0x0f)
 
 /* Register bus addresses */
-#define INDYCAM_CONTROL			0x00
-#define INDYCAM_SHUTTER			0x01
-#define INDYCAM_GAIN			0x02
-#define INDYCAM_BRIGHTNESS		0x03 /* read-only */
-#define INDYCAM_RED_BALANCE		0x04
-#define INDYCAM_BLUE_BALANCE		0x05
-#define INDYCAM_RED_SATURATION		0x06
-#define INDYCAM_BLUE_SATURATION		0x07
-#define INDYCAM_GAMMA			0x08
-#define INDYCAM_VERSION			0x0e /* read-only */
-#define INDYCAM_RESET			0x0f /* write-only */
+#define INDYCAM_REG_CONTROL		0x00
+#define INDYCAM_REG_SHUTTER		0x01
+#define INDYCAM_REG_GAIN		0x02
+#define INDYCAM_REG_BRIGHTNESS		0x03 /* read-only */
+#define INDYCAM_REG_RED_BALANCE		0x04
+#define INDYCAM_REG_BLUE_BALANCE	0x05
+#define INDYCAM_REG_RED_SATURATION	0x06
+#define INDYCAM_REG_BLUE_SATURATION	0x07
+#define INDYCAM_REG_GAMMA		0x08
+#define INDYCAM_REG_VERSION		0x0e /* read-only */
+#define INDYCAM_REG_RESET		0x0f /* write-only */
 
-#define INDYCAM_LED			0x46
-#define INDYCAM_ORIENTATION		0x47
-#define INDYCAM_BUTTON			0x48
+#define INDYCAM_REG_LED			0x46
+#define INDYCAM_REG_ORIENTATION		0x47
+#define INDYCAM_REG_BUTTON		0x48
 
 /* Field definitions of registers */
 #define INDYCAM_CONTROL_AGCENA		(1<<0) /* automatic gain control */
@@ -59,13 +59,14 @@
 #define INDYCAM_ORIENTATION_BOTTOM_TO_TOP	0x40
 #define INDYCAM_BUTTON_RELEASED			0x10
 
+/* Values for controls */
 #define INDYCAM_SHUTTER_MIN		0x00
 #define INDYCAM_SHUTTER_MAX		0xff
 #define INDYCAM_GAIN_MIN                0x00
 #define INDYCAM_GAIN_MAX                0xff
-#define INDYCAM_RED_BALANCE_MIN 	0x00 /* the effect is the opposite? */
-#define INDYCAM_RED_BALANCE_MAX 	0xff
-#define INDYCAM_BLUE_BALANCE_MIN        0x00 /* the effect is the opposite? */
+#define INDYCAM_RED_BALANCE_MIN		0x00
+#define INDYCAM_RED_BALANCE_MAX		0xff
+#define INDYCAM_BLUE_BALANCE_MIN        0x00
 #define INDYCAM_BLUE_BALANCE_MAX        0xff
 #define INDYCAM_RED_SATURATION_MIN      0x00
 #define INDYCAM_RED_SATURATION_MAX      0xff
@@ -74,39 +75,34 @@
 #define INDYCAM_GAMMA_MIN		0x00
 #define INDYCAM_GAMMA_MAX		0xff
 
-/* Driver interface definitions */
-
-#define INDYCAM_VALUE_ENABLED		1
-#define INDYCAM_VALUE_DISABLED		0
-#define INDYCAM_VALUE_UNCHANGED		-1
-
-/* When setting controls, a value of -1 leaves the control unchanged. */
-struct indycam_control {
-	int agc;	/* boolean */
-	int awb;	/* boolean */
-	int shutter;
-	int gain;
-	int red_balance;
-	int blue_balance;
-	int red_saturation;
-	int blue_saturation;
-	int gamma;
-};
-
-#define	DECODER_INDYCAM_GET_CONTROLS	_IOR('d', 193, struct indycam_control)
-#define	DECODER_INDYCAM_SET_CONTROLS	_IOW('d', 194, struct indycam_control)
-
-/* Default values for controls */
-
-#define INDYCAM_AGC_DEFAULT		INDYCAM_VALUE_ENABLED
-#define INDYCAM_AWB_DEFAULT		INDYCAM_VALUE_ENABLED
-
-#define INDYCAM_SHUTTER_DEFAULT		INDYCAM_SHUTTER_60
+#define INDYCAM_AGC_DEFAULT		1
+#define INDYCAM_AWB_DEFAULT		0
+#define INDYCAM_SHUTTER_DEFAULT		0xff
 #define INDYCAM_GAIN_DEFAULT		0x80
 #define INDYCAM_RED_BALANCE_DEFAULT	0x18
 #define INDYCAM_BLUE_BALANCE_DEFAULT	0xa4
 #define INDYCAM_RED_SATURATION_DEFAULT	0x80
 #define INDYCAM_BLUE_SATURATION_DEFAULT	0xc0
 #define INDYCAM_GAMMA_DEFAULT		0x80
+
+/* Driver interface definitions */
+
+#define INDYCAM_CONTROL_AGC			0	/* boolean */
+#define INDYCAM_CONTROL_AWB			1	/* boolean */
+#define INDYCAM_CONTROL_SHUTTER			2
+#define INDYCAM_CONTROL_GAIN			3
+#define INDYCAM_CONTROL_RED_BALANCE		4
+#define INDYCAM_CONTROL_BLUE_BALANCE		5
+#define INDYCAM_CONTROL_RED_SATURATION		6
+#define INDYCAM_CONTROL_BLUE_SATURATION		7
+#define INDYCAM_CONTROL_GAMMA			8
+
+struct indycam_control {
+	u8 type;
+	s32 value;
+};
+
+#define	DECODER_INDYCAM_GET_CONTROL	_IOR('d', 193, struct indycam_control)
+#define	DECODER_INDYCAM_SET_CONTROL	_IOW('d', 194, struct indycam_control)
 
 #endif

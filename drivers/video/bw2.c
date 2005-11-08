@@ -51,7 +51,6 @@ static struct fb_ops bw2_ops = {
 	.fb_imageblit		= cfb_imageblit,
 	.fb_mmap		= bw2_mmap,
 	.fb_ioctl		= bw2_ioctl,
-	.fb_cursor		= soft_cursor,
 };
 
 /* OBio addresses for the bwtwo registers */

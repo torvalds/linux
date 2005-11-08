@@ -4,10 +4,10 @@
  * GNU GPL License. The rest is simply to convert the disk on chip
  * syndrom into a standard syndom.
  *
- * Author: Fabrice Bellard (fabrice.bellard@netgem.com) 
+ * Author: Fabrice Bellard (fabrice.bellard@netgem.com)
  * Copyright (C) 2000 Netgem S.A.
  *
- * $Id: docecc.c,v 1.5 2003/05/21 15:15:06 dwmw2 Exp $
+ * $Id: docecc.c,v 1.7 2005/11/07 11:14:25 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -122,7 +122,7 @@ for(ci=(n)-1;ci >=0;ci--)\
         a(0) + a(1) @ + a(2) @^2 + ... + a(m-1) @^(m-1)
    we consider the integer "i" whose binary representation with a(0) being LSB
    and a(m-1) MSB is (a(0),a(1),...,a(m-1)) and locate the entry
-   "index_of[i]". Now, @^index_of[i] is that element whose polynomial 
+   "index_of[i]". Now, @^index_of[i] is that element whose polynomial
     representation is (a(0),a(1),a(2),...,a(m-1)).
    NOTE:
         The element alpha_to[2^m-1] = 0 always signifying that the
@@ -130,7 +130,7 @@ for(ci=(n)-1;ci >=0;ci--)\
         Similarily, the element index_of[0] = A0 always signifying
    that the power of alpha which has the polynomial representation
    (0,0,...,0) is "infinity".
- 
+
 */
 
 static void
@@ -176,7 +176,7 @@ generate_gf(dtype Alpha_to[NN + 1], dtype Index_of[NN + 1])
  * are written back. NOTE! This array must be at least NN-KK elements long.
  * The corrected data are written in eras_val[]. They must be xor with the data
  * to retrieve the correct data : data[erase_pos[i]] ^= erase_val[i] .
- * 
+ *
  * First "no_eras" erasures are declared by the calling program. Then, the
  * maximum # of errors correctable is t_after_eras = floor((NN-KK-no_eras)/2).
  * If the number of channel errors is not greater than "t_after_eras" the
@@ -189,7 +189,7 @@ generate_gf(dtype Alpha_to[NN + 1], dtype Index_of[NN + 1])
  * */
 static int
 eras_dec_rs(dtype Alpha_to[NN + 1], dtype Index_of[NN + 1],
-            gf bb[NN - KK + 1], gf eras_val[NN-KK], int eras_pos[NN-KK], 
+            gf bb[NN - KK + 1], gf eras_val[NN-KK], int eras_pos[NN-KK],
             int no_eras)
 {
   int deg_lambda, el, deg_omega;
@@ -212,7 +212,7 @@ eras_dec_rs(dtype Alpha_to[NN + 1], dtype Index_of[NN + 1],
     count = 0;
     goto finish;
   }
-  
+
   for(i=1;i<=NN-KK;i++){
     s[i] = bb[0];
   }
@@ -220,7 +220,7 @@ eras_dec_rs(dtype Alpha_to[NN + 1], dtype Index_of[NN + 1],
     if(bb[j] == 0)
       continue;
     tmp = Index_of[bb[j]];
-    
+
     for(i=1;i<=NN-KK;i++)
       s[i] ^= Alpha_to[modnn(tmp + (B0+i-1)*PRIM*j)];
   }
@@ -234,7 +234,7 @@ eras_dec_rs(dtype Alpha_to[NN + 1], dtype Index_of[NN + 1],
           tmp = modnn(tmp + 2 * KK * (B0+i-1)*PRIM);
       s[i] = tmp;
   }
-  
+
   CLEAR(&lambda[1],NN-KK);
   lambda[0] = 1;
 
@@ -252,7 +252,7 @@ eras_dec_rs(dtype Alpha_to[NN + 1], dtype Index_of[NN + 1],
 #if DEBUG_ECC >= 1
     /* Test code that verifies the erasure locator polynomial just constructed
        Needed only for decoder debugging. */
-    
+
     /* find roots of the erasure location polynomial */
     for(i=1;i<=no_eras;i++)
       reg[i] = Index_of[lambda[i]];
@@ -286,7 +286,7 @@ eras_dec_rs(dtype Alpha_to[NN + 1], dtype Index_of[NN + 1],
   }
   for(i=0;i<NN-KK+1;i++)
     b[i] = Index_of[lambda[i]];
-  
+
   /*
    * Begin Berlekamp-Massey algorithm to determine error+erasure
    * locator polynomial
@@ -389,7 +389,7 @@ eras_dec_rs(dtype Alpha_to[NN + 1], dtype Index_of[NN + 1],
     omega[i] = Index_of[tmp];
   }
   omega[NN-KK] = A0;
-  
+
   /*
    * Compute error values in poly-form. num1 = omega(inv(X(l))), num2 =
    * inv(X(l))**(B0-1) and den = lambda_pr(inv(X(l))) all in poly-form
@@ -402,7 +402,7 @@ eras_dec_rs(dtype Alpha_to[NN + 1], dtype Index_of[NN + 1],
     }
     num2 = Alpha_to[modnn(root[j] * (B0 - 1) + NN)];
     den = 0;
-    
+
     /* lambda[i+1] for i even is the formal derivative lambda_pr of lambda[i] */
     for (i = min(deg_lambda,NN-KK-1) & ~1; i >= 0; i -=2) {
       if(lambda[i+1] != A0)
@@ -436,11 +436,11 @@ eras_dec_rs(dtype Alpha_to[NN + 1], dtype Index_of[NN + 1],
 /* The sector bytes are packed into NB_DATA MM bits words */
 #define NB_DATA (((SECTOR_SIZE + 1) * 8 + 6) / MM)
 
-/* 
+/*
  * Correct the errors in 'sector[]' by using 'ecc1[]' which is the
  * content of the feedback shift register applyied to the sector and
  * the ECC. Return the number of errors corrected (and correct them in
- * sector), or -1 if error 
+ * sector), or -1 if error
  */
 int doc_decode_ecc(unsigned char sector[SECTOR_SIZE], unsigned char ecc1[6])
 {
@@ -454,7 +454,7 @@ int doc_decode_ecc(unsigned char sector[SECTOR_SIZE], unsigned char ecc1[6])
     Alpha_to = kmalloc((NN + 1) * sizeof(dtype), GFP_KERNEL);
     if (!Alpha_to)
         return -1;
-    
+
     Index_of = kmalloc((NN + 1) * sizeof(dtype), GFP_KERNEL);
     if (!Index_of) {
         kfree(Alpha_to);
@@ -470,7 +470,7 @@ int doc_decode_ecc(unsigned char sector[SECTOR_SIZE], unsigned char ecc1[6])
     bb[2] = ((ecc1[2] & 0xf0) >> 4) | ((ecc1[3] & 0x3f) << 4);
     bb[3] = ((ecc1[3] & 0xc0) >> 6) | ((ecc1[0] & 0xff) << 2);
 
-    nb_errors = eras_dec_rs(Alpha_to, Index_of, bb, 
+    nb_errors = eras_dec_rs(Alpha_to, Index_of, bb,
                             error_val, error_pos, 0);
     if (nb_errors <= 0)
         goto the_end;
@@ -489,7 +489,7 @@ int doc_decode_ecc(unsigned char sector[SECTOR_SIZE], unsigned char ecc1[6])
                can be modified since pos is even */
             index = (pos >> 3) ^ 1;
             bitpos = pos & 7;
-            if ((index >= 0 && index < SECTOR_SIZE) || 
+            if ((index >= 0 && index < SECTOR_SIZE) ||
                 index == (SECTOR_SIZE + 1)) {
                 val = error_val[i] >> (2 + bitpos);
                 parity ^= val;
@@ -500,7 +500,7 @@ int doc_decode_ecc(unsigned char sector[SECTOR_SIZE], unsigned char ecc1[6])
             bitpos = (bitpos + 10) & 7;
             if (bitpos == 0)
                 bitpos = 8;
-            if ((index >= 0 && index < SECTOR_SIZE) || 
+            if ((index >= 0 && index < SECTOR_SIZE) ||
                 index == (SECTOR_SIZE + 1)) {
                 val = error_val[i] << (8 - bitpos);
                 parity ^= val;
@@ -509,7 +509,7 @@ int doc_decode_ecc(unsigned char sector[SECTOR_SIZE], unsigned char ecc1[6])
             }
         }
     }
-    
+
     /* use parity to test extra errors */
     if ((parity & 0xff) != 0)
         nb_errors = -1;

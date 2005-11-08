@@ -399,10 +399,24 @@
 #define PLAYBACK_VOLUME2        0x6a            /* Playback Analog volume per channel. Does not effect AC3 output */
 						/* Similar to register 0x66, except that the destination is the I2S mixer instead of the SPDIF mixer. I.E. Outputs to the Analog outputs instead of SPDIF. */
 #define UNKNOWN6b               0x6b            /* Unknown. Readonly. Default 00400000 00400000 00400000 00400000 */
-#define UART_A_DATA		0x6c            /* Uart, used in setting sample rates, bits per sample etc. */
-#define UART_A_CMD		0x6d            /* Uart, used in setting sample rates, bits per sample etc. */
-#define UART_B_DATA		0x6e            /* Uart, Unknown. */
-#define UART_B_CMD		0x6f            /* Uart, Unknown. */
+#define MIDI_UART_A_DATA		0x6c            /* Midi Uart A Data */
+#define MIDI_UART_A_CMD		0x6d            /* Midi Uart A Command/Status */
+#define MIDI_UART_B_DATA		0x6e            /* Midi Uart B Data (currently unused) */
+#define MIDI_UART_B_CMD		0x6f            /* Midi Uart B Command/Status (currently unused) */
+
+/* unique channel identifier for midi->channel */
+
+#define CA0106_MIDI_CHAN_A		0x1
+#define CA0106_MIDI_CHAN_B		0x2
+
+/* from mpu401 */
+
+#define CA0106_MIDI_INPUT_AVAIL 	0x80
+#define CA0106_MIDI_OUTPUT_READY	0x40
+#define CA0106_MPU401_RESET		0xff
+#define CA0106_MPU401_ENTER_UART	0x3f
+#define CA0106_MPU401_ACK		0xfe
+
 #define SAMPLE_RATE_TRACKER_STATUS 0x70         /* Readonly. Default 00108000 00108000 00500000 00500000 */
 						/* Estimated sample rate [19:0] Relative to 48kHz. 0x8000 =  1.0
 						 * Rate Locked [20]
@@ -538,6 +552,8 @@
 #define CONTROL_CENTER_LFE_CHANNEL 1
 #define CONTROL_UNKNOWN_CHANNEL 2
 
+#include "ca_midi.h"
+
 typedef struct snd_ca0106_channel ca0106_channel_t;
 typedef struct snd_ca0106 ca0106_t;
 typedef struct snd_ca0106_pcm ca0106_pcm_t;
@@ -592,6 +608,9 @@ struct snd_ca0106 {
 	int capture_mic_line_in;
 
 	struct snd_dma_buffer buffer;
+
+	ca_midi_t midi;
+	ca_midi_t midi2;
 };
 
 int __devinit snd_ca0106_mixer(ca0106_t *emu);

@@ -559,14 +559,20 @@ void __devinit setup_local_APIC(void)
  * If Linux enabled the LAPIC against the BIOS default
  * disable it down before re-entering the BIOS on shutdown.
  * Otherwise the BIOS may get confused and not power-off.
+ * Additionally clear all LVT entries before disable_local_APIC
+ * for the case where Linux didn't enable the LAPIC.
  */
 void lapic_shutdown(void)
 {
-	if (!cpu_has_apic || !enabled_via_apicbase)
+	if (!cpu_has_apic)
 		return;
 
 	local_irq_disable();
-	disable_local_APIC();
+	clear_local_APIC();
+
+	if (enabled_via_apicbase)
+		disable_local_APIC();
+
 	local_irq_enable();
 }
 

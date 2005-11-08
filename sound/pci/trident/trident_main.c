@@ -153,7 +153,7 @@ static unsigned short snd_trident_codec_read(ac97_t *ac97, unsigned short reg)
 	}
 
 	if (count == 0 && !trident->ac97_detect) {
-		snd_printk("ac97 codec read TIMEOUT [0x%x/0x%x]!!!\n", reg, data);
+		snd_printk(KERN_ERR "ac97 codec read TIMEOUT [0x%x/0x%x]!!!\n", reg, data);
 		data = 0;
 	}
 
@@ -2893,7 +2893,8 @@ static void snd_trident_notify_pcm_change1(snd_card_t * card, snd_kcontrol_t *kc
 {
 	snd_ctl_elem_id_t id;
 
-	snd_runtime_check(kctl != NULL, return);
+	if (! kctl)
+		return;
 	if (activate)
 		kctl->vd[num].access &= ~SNDRV_CTL_ELEM_ACCESS_INACTIVE;
 	else
@@ -2989,13 +2990,13 @@ static int __devinit snd_trident_mixer(trident_t * trident, int pcm_spdif_device
 		_ac97.num = 1;
 		err = snd_ac97_mixer(trident->ac97_bus, &_ac97, &trident->ac97_sec);
 		if (err < 0)
-			snd_printk("SI7018: the secondary codec - invalid access\n");
+			snd_printk(KERN_ERR "SI7018: the secondary codec - invalid access\n");
 #if 0	// only for my testing purpose --jk
 		{
 			ac97_t *mc97;
 			err = snd_ac97_modem(trident->card, &_ac97, &mc97);
 			if (err < 0)
-				snd_printk("snd_ac97_modem returned error %i\n", err);
+				snd_printk(KERN_ERR "snd_ac97_modem returned error %i\n", err);
 		}
 #endif
 	}
@@ -3206,8 +3207,7 @@ static inline void snd_trident_free_gameport(trident_t *chip) { }
  */
 static inline void do_delay(trident_t *chip)
 {
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(1);
+	schedule_timeout_uninterruptible(1);
 }
 
 /*
@@ -3243,7 +3243,7 @@ static int snd_trident_sis_reset(trident_t *trident)
 			goto __si7018_ok;
 		do_delay(trident);
 	} while (time_after_eq(end_time, jiffies));
-	snd_printk("AC'97 codec ready error [0x%x]\n", inl(TRID_REG(trident, SI_SERIAL_INTF_CTRL)));
+	snd_printk(KERN_ERR "AC'97 codec ready error [0x%x]\n", inl(TRID_REG(trident, SI_SERIAL_INTF_CTRL)));
 	if (r-- > 0) {
 		end_time = jiffies + HZ;
 		do {
@@ -3541,7 +3541,7 @@ int __devinit snd_trident_create(snd_card_t * card,
 	/* check, if we can restrict PCI DMA transfers to 30 bits */
 	if (pci_set_dma_mask(pci, 0x3fffffff) < 0 ||
 	    pci_set_consistent_dma_mask(pci, 0x3fffffff) < 0) {
-		snd_printk("architecture does not support 30bit PCI busmaster DMA\n");
+		snd_printk(KERN_ERR "architecture does not support 30bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -3578,7 +3578,7 @@ int __devinit snd_trident_create(snd_card_t * card,
 	trident->port = pci_resource_start(pci, 0);
 
 	if (request_irq(pci->irq, snd_trident_interrupt, SA_INTERRUPT|SA_SHIRQ, "Trident Audio", (void *) trident)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_trident_free(trident);
 		return -EBUSY;
 	}

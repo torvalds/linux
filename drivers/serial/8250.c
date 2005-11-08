@@ -40,6 +40,7 @@
 #include <linux/serial_core.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
+#include <linux/nmi.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -2207,6 +2208,8 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 	struct uart_8250_port *up = &serial8250_ports[co->index];
 	unsigned int ier;
 	int i;
+
+	touch_nmi_watchdog();
 
 	/*
 	 *	First save the UER then disable the interrupts

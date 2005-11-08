@@ -39,6 +39,7 @@
  */
 
 #include <linux/slab.h>
+#include <asm/param.h>		/* for timeouts in units of HZ */
 
 #include "sym_glue.h"
 #include "sym_nvram.h"

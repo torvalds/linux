@@ -1125,10 +1125,9 @@ out_deregister:
 	misc_deregister(&envctrl_dev);
 out_iounmap:
 	iounmap(i2c);
-	for (i = 0; i < ENVCTRL_MAX_CPU * 2; i++) {
-		if (i2c_childlist[i].tables)
-			kfree(i2c_childlist[i].tables);
-	}
+	for (i = 0; i < ENVCTRL_MAX_CPU * 2; i++)
+		kfree(i2c_childlist[i].tables);
+
 	return err;
 }
 
@@ -1141,10 +1140,8 @@ static void __exit envctrl_cleanup(void)
 	iounmap(i2c);
 	misc_deregister(&envctrl_dev);
 
-	for (i = 0; i < ENVCTRL_MAX_CPU * 2; i++) {
-		if (i2c_childlist[i].tables)
-			kfree(i2c_childlist[i].tables);
-	}
+	for (i = 0; i < ENVCTRL_MAX_CPU * 2; i++)
+		kfree(i2c_childlist[i].tables);
 }
 
 module_init(envctrl_init);

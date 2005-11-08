@@ -1,22 +1,23 @@
 /*
- * $Id: mtdchar.c,v 1.73 2005/07/04 17:36:41 gleixner Exp $
+ * $Id: mtdchar.c,v 1.76 2005/11/07 11:14:20 gleixner Exp $
  *
  * Character-device access to raw MTD devices.
  *
  */
 
 #include <linux/config.h>
+#include <linux/device.h>
+#include <linux/fs.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
+#include <linux/sched.h>
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/compatmac.h>
-#include <linux/slab.h>
-#include <linux/init.h>
-#include <linux/fs.h>
-#include <linux/sched.h>	/* TASK_* */
-#include <asm/uaccess.h>
 
-#include <linux/device.h>
+#include <asm/uaccess.h>
 
 static struct class *mtd_class;
 
@@ -27,7 +28,7 @@ static void mtd_notify_add(struct mtd_info* mtd)
 
 	class_device_create(mtd_class, NULL, MKDEV(MTD_CHAR_MAJOR, mtd->index*2),
 			    NULL, "mtd%d", mtd->index);
-	
+
 	class_device_create(mtd_class, NULL,
 			    MKDEV(MTD_CHAR_MAJOR, mtd->index*2+1),
 			    NULL, "mtd%dro", mtd->index);
@@ -70,26 +71,23 @@ static loff_t mtd_lseek (struct file *file, loff_t offset, int orig)
 	switch (orig) {
 	case 0:
 		/* SEEK_SET */
-		file->f_pos = offset;
 		break;
 	case 1:
 		/* SEEK_CUR */
-		file->f_pos += offset;
+		offset += file->f_pos;
 		break;
 	case 2:
 		/* SEEK_END */
-		file->f_pos =mtd->size + offset;
+		offset += mtd->size;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (file->f_pos < 0)
-		file->f_pos = 0;
-	else if (file->f_pos >= mtd->size)
-		file->f_pos = mtd->size - 1;
+	if (offset >= 0 && offset < mtd->size)
+		return file->f_pos = offset;
 
-	return file->f_pos;
+	return -EINVAL;
 }
 
 
@@ -110,23 +108,23 @@ static int mtd_open(struct inode *inode, struct file *file)
 		return -EACCES;
 
 	mtd = get_mtd_device(NULL, devnum);
-	
+
 	if (!mtd)
 		return -ENODEV;
-	
+
 	if (MTD_ABSENT == mtd->type) {
 		put_mtd_device(mtd);
 		return -ENODEV;
 	}
 
 	file->private_data = mtd;
-		
+
 	/* You can't open it RW if it's not a writeable device */
 	if ((file->f_mode & 2) && !(mtd->flags & MTD_WRITEABLE)) {
 		put_mtd_device(mtd);
 		return -EACCES;
 	}
-		
+
 	return 0;
 } /* mtd_open */
 
@@ -139,10 +137,10 @@ static int mtd_close(struct inode *inode, struct file *file)
 	DEBUG(MTD_DEBUG_LEVEL0, "MTD_close\n");
 
 	mtd = TO_MTD(file);
-	
+
 	if (mtd->sync)
 		mtd->sync(mtd);
-	
+
 	put_mtd_device(mtd);
 
 	return 0;
@@ -161,7 +159,7 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 	int ret=0;
 	int len;
 	char *kbuf;
-	
+
 	DEBUG(MTD_DEBUG_LEVEL0,"MTD_read\n");
 
 	if (*ppos + count > mtd->size)
@@ -169,11 +167,11 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 
 	if (!count)
 		return 0;
-	
+
 	/* FIXME: Use kiovec in 2.5 to lock down the user's buffers
 	   and pass them directly to the MTD functions */
 	while (count) {
-		if (count > MAX_KMALLOC_SIZE) 
+		if (count > MAX_KMALLOC_SIZE)
 			len = MAX_KMALLOC_SIZE;
 		else
 			len = count;
@@ -181,7 +179,7 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 		kbuf=kmalloc(len,GFP_KERNEL);
 		if (!kbuf)
 			return -ENOMEM;
-		
+
 		switch (MTD_MODE(file)) {
 		case MTD_MODE_OTP_FACT:
 			ret = mtd->read_fact_prot_reg(mtd, *ppos, len, &retlen, kbuf);
@@ -194,7 +192,7 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 		}
 		/* Nand returns -EBADMSG on ecc errors, but it returns
 		 * the data. For our userspace tools it is important
-		 * to dump areas with ecc errors ! 
+		 * to dump areas with ecc errors !
 		 * Userspace software which accesses NAND this way
 		 * must be aware of the fact that it deals with NAND
 		 */
@@ -216,7 +214,7 @@ static ssize_t mtd_read(struct file *file, char __user *buf, size_t count,loff_t
 			kfree(kbuf);
 			return ret;
 		}
-		
+
 		kfree(kbuf);
 	}
 
@@ -233,10 +231,10 @@ static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count
 	int len;
 
 	DEBUG(MTD_DEBUG_LEVEL0,"MTD_write\n");
-	
+
 	if (*ppos == mtd->size)
 		return -ENOSPC;
-	
+
 	if (*ppos + count > mtd->size)
 		count = mtd->size - *ppos;
 
@@ -244,7 +242,7 @@ static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count
 		return 0;
 
 	while (count) {
-		if (count > MAX_KMALLOC_SIZE) 
+		if (count > MAX_KMALLOC_SIZE)
 			len = MAX_KMALLOC_SIZE;
 		else
 			len = count;
@@ -259,7 +257,7 @@ static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count
 			kfree(kbuf);
 			return -EFAULT;
 		}
-		
+
 		switch (MTD_MODE(file)) {
 		case MTD_MODE_OTP_FACT:
 			ret = -EROFS;
@@ -284,7 +282,7 @@ static ssize_t mtd_write(struct file *file, const char __user *buf, size_t count
 			kfree(kbuf);
 			return ret;
 		}
-		
+
 		kfree(kbuf);
 	}
 
@@ -308,7 +306,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 	void __user *argp = (void __user *)arg;
 	int ret = 0;
 	u_long size;
-	
+
 	DEBUG(MTD_DEBUG_LEVEL0, "MTD_ioctl\n");
 
 	size = (cmd & IOCSIZE_MASK) >> IOCSIZE_SHIFT;
@@ -320,7 +318,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		if (!access_ok(VERIFY_WRITE, argp, size))
 			return -EFAULT;
 	}
-	
+
 	switch (cmd) {
 	case MEMGETREGIONCOUNT:
 		if (copy_to_user(argp, &(mtd->numeraseregions), sizeof(int)))
@@ -372,11 +370,11 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 			erase->mtd = mtd;
 			erase->callback = mtdchar_erase_callback;
 			erase->priv = (unsigned long)&waitq;
-			
+
 			/*
 			  FIXME: Allow INTERRUPTIBLE. Which means
 			  not having the wait_queue head on the stack.
-			  
+
 			  If the wq_head is on the stack, and we
 			  leave because we got interrupted, then the
 			  wq_head is no longer there when the
@@ -404,13 +402,13 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		struct mtd_oob_buf buf;
 		void *databuf;
 		ssize_t retlen;
-		
+
 		if(!(file->f_mode & 2))
 			return -EPERM;
 
 		if (copy_from_user(&buf, argp, sizeof(struct mtd_oob_buf)))
 			return -EFAULT;
-		
+
 		if (buf.length > 0x4096)
 			return -EINVAL;
 
@@ -426,7 +424,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		databuf = kmalloc(buf.length, GFP_KERNEL);
 		if (!databuf)
 			return -ENOMEM;
-		
+
 		if (copy_from_user(databuf, buf.ptr, buf.length)) {
 			kfree(databuf);
 			return -EFAULT;
@@ -450,7 +448,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 
 		if (copy_from_user(&buf, argp, sizeof(struct mtd_oob_buf)))
 			return -EFAULT;
-		
+
 		if (buf.length > 0x4096)
 			return -EINVAL;
 
@@ -466,14 +464,14 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 		databuf = kmalloc(buf.length, GFP_KERNEL);
 		if (!databuf)
 			return -ENOMEM;
-		
+
 		ret = (mtd->read_oob)(mtd, buf.start, buf.length, &retlen, databuf);
 
 		if (put_user(retlen, (uint32_t __user *)argp))
 			ret = -EFAULT;
 		else if (retlen && copy_to_user(buf.ptr, databuf, retlen))
 			ret = -EFAULT;
-		
+
 		kfree(databuf);
 		break;
 	}
@@ -523,7 +521,7 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 	case MEMGETBADBLOCK:
 	{
 		loff_t offs;
-		
+
 		if (copy_from_user(&offs, argp, sizeof(loff_t)))
 			return -EFAULT;
 		if (!mtd->block_isbad)

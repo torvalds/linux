@@ -64,35 +64,34 @@ MODULE_SUPPORTED_DEVICE("{{Intel,82801AA-ICH},"
 		"{AMD,AMD8111},"
 	        "{ALI,M5455}}");
 
-static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
-static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;	/* Enable this card */
-static int ac97_clock[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 0};
-static char *ac97_quirk[SNDRV_CARDS];
-static int buggy_semaphore[SNDRV_CARDS];
-static int buggy_irq[SNDRV_CARDS];
-static int xbox[SNDRV_CARDS];
+static int index = SNDRV_DEFAULT_IDX1;	/* Index 0-MAX */
+static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
+static int ac97_clock = 0;
+static char *ac97_quirk;
+static int buggy_semaphore;
+static int buggy_irq = -1; /* auto-check */
+static int xbox;
 
-#ifdef SUPPORT_MIDI
-static int mpu_port[SNDRV_CARDS]; /* disabled */
-#endif
-
-module_param_array(index, int, NULL, 0444);
+module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for Intel i8x0 soundcard.");
-module_param_array(id, charp, NULL, 0444);
+module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for Intel i8x0 soundcard.");
-module_param_array(enable, bool, NULL, 0444);
-MODULE_PARM_DESC(enable, "Enable Intel i8x0 soundcard.");
-module_param_array(ac97_clock, int, NULL, 0444);
+module_param(ac97_clock, int, 0444);
 MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (0 = auto-detect).");
-module_param_array(ac97_quirk, charp, NULL, 0444);
+module_param(ac97_quirk, charp, 0444);
 MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
-module_param_array(buggy_semaphore, bool, NULL, 0444);
+module_param(buggy_semaphore, bool, 0444);
 MODULE_PARM_DESC(buggy_semaphore, "Enable workaround for hardwares with problematic codec semaphores.");
-module_param_array(buggy_irq, bool, NULL, 0444);
+module_param(buggy_irq, bool, 0444);
 MODULE_PARM_DESC(buggy_irq, "Enable workaround for buggy interrupts on some motherboards.");
-module_param_array(xbox, bool, NULL, 0444);
+module_param(xbox, bool, 0444);
 MODULE_PARM_DESC(xbox, "Set to 1 for Xbox, if you have problems with the AC'97 codec detection.");
+
+/* just for backward compatibility */
+static int enable;
+module_param(enable, bool, 0444);
+static int joystick;
+module_param(joystick, int, 0444);
 
 /*
  *  Direct registers
@@ -539,7 +538,7 @@ static int snd_intel8x0_codec_semaphore(intel8x0_t *chip, unsigned int codec)
 	/* access to some forbidden (non existant) ac97 registers will not
 	 * reset the semaphore. So even if you don't get the semaphore, still
 	 * continue the access. We don't need the semaphore anyway. */
-	snd_printk("codec_semaphore: semaphore is not ready [0x%x][0x%x]\n",
+	snd_printk(KERN_ERR "codec_semaphore: semaphore is not ready [0x%x][0x%x]\n",
 			igetbyte(chip, ICHREG(ACC_SEMA)), igetdword(chip, ICHREG(GLOB_STA)));
 	iagetword(chip, 0);	/* clear semaphore flag */
 	/* I don't care about the semaphore */
@@ -554,7 +553,7 @@ static void snd_intel8x0_codec_write(ac97_t *ac97,
 	
 	if (snd_intel8x0_codec_semaphore(chip, ac97->num) < 0) {
 		if (! chip->in_ac97_init)
-			snd_printk("codec_write %d: semaphore is not ready for register 0x%x\n", ac97->num, reg);
+			snd_printk(KERN_ERR "codec_write %d: semaphore is not ready for register 0x%x\n", ac97->num, reg);
 	}
 	iaputword(chip, reg + ac97->num * 0x80, val);
 }
@@ -568,7 +567,7 @@ static unsigned short snd_intel8x0_codec_read(ac97_t *ac97,
 
 	if (snd_intel8x0_codec_semaphore(chip, ac97->num) < 0) {
 		if (! chip->in_ac97_init)
-			snd_printk("codec_read %d: semaphore is not ready for register 0x%x\n", ac97->num, reg);
+			snd_printk(KERN_ERR "codec_read %d: semaphore is not ready for register 0x%x\n", ac97->num, reg);
 		res = 0xffff;
 	} else {
 		res = iagetword(chip, reg + ac97->num * 0x80);
@@ -576,7 +575,7 @@ static unsigned short snd_intel8x0_codec_read(ac97_t *ac97,
 			/* reset RCS and preserve other R/WC bits */
 			iputdword(chip, ICHREG(GLOB_STA), tmp & ~(ICH_SRI|ICH_PRI|ICH_TRI|ICH_GSCI));
 			if (! chip->in_ac97_init)
-				snd_printk("codec_read %d: read timeout for register 0x%x\n", ac97->num, reg);
+				snd_printk(KERN_ERR "codec_read %d: read timeout for register 0x%x\n", ac97->num, reg);
 			res = 0xffff;
 		}
 	}
@@ -607,16 +606,19 @@ static int snd_intel8x0_ali_codec_ready(intel8x0_t *chip, int mask)
 		if (val & mask)
 			return 0;
 	}
-	snd_printd(KERN_WARNING "intel8x0: AC97 codec ready timeout.\n");
+	if (! chip->in_ac97_init)
+		snd_printd(KERN_WARNING "intel8x0: AC97 codec ready timeout.\n");
 	return -EBUSY;
 }
 
 static int snd_intel8x0_ali_codec_semaphore(intel8x0_t *chip)
 {
 	int time = 100;
+	if (chip->buggy_semaphore)
+		return 0; /* just ignore ... */
 	while (time-- && (igetdword(chip, ICHREG(ALI_CAS)) & ALI_CAS_SEM_BUSY))
 		udelay(1);
-	if (! time)
+	if (! time && ! chip->in_ac97_init)
 		snd_printk(KERN_WARNING "ali_codec_semaphore timeout\n");
 	return snd_intel8x0_ali_codec_ready(chip, ALI_CSPSR_CODEC_READY);
 }
@@ -1716,6 +1718,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
+		.subvendor = 0x1025,
+		.subdevice = 0x0083,
+		.name = "Acer Aspire 3003LCi",
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
 		.subvendor = 0x1028,
 		.subdevice = 0x00d8,
 		.name = "Dell Precision 530",	/* AD1885 */
@@ -1755,6 +1763,12 @@ static struct ac97_quirk ac97_quirks[] __devinitdata = {
 		.subvendor = 0x1028,
 		.subdevice = 0x0163,
 		.name = "Dell Unknown",	/* STAC9750/51 */
+		.type = AC97_TUNE_HP_ONLY
+	},
+	{
+		.subvendor = 0x1028,
+		.subdevice = 0x0191,
+		.name = "Dell Inspiron 8600",
 		.type = AC97_TUNE_HP_ONLY
 	},
 	{
@@ -2022,7 +2036,6 @@ static int __devinit snd_intel8x0_mixer(intel8x0_t *chip, int ac97_clock, const 
 	if ((err = snd_ac97_bus(chip->card, 0, ops, chip, &pbus)) < 0)
 		goto __err;
 	pbus->private_free = snd_intel8x0_mixer_free_ac97_bus;
-	pbus->shared_type = AC97_SHARED_TYPE_ICH;	/* shared with modem driver */
 	if (ac97_clock >= 8000 && ac97_clock <= 48000)
 		pbus->clock = ac97_clock;
 	/* FIXME: my test board doesn't work well with VRA... */
@@ -2131,14 +2144,13 @@ static void do_ali_reset(intel8x0_t *chip)
 	iputdword(chip, ICHREG(ALI_FIFOCR2), 0x83838383);
 	iputdword(chip, ICHREG(ALI_FIFOCR3), 0x83838383);
 	iputdword(chip, ICHREG(ALI_INTERFACECR),
-		  ICH_ALI_IF_MC|ICH_ALI_IF_PI|ICH_ALI_IF_PO);
+		  ICH_ALI_IF_PI|ICH_ALI_IF_PO);
 	iputdword(chip, ICHREG(ALI_INTERRUPTCR), 0x00000000);
 	iputdword(chip, ICHREG(ALI_INTERRUPTSR), 0x00000000);
 }
 
 #define do_delay(chip) do {\
-	set_current_state(TASK_UNINTERRUPTIBLE);\
-	schedule_timeout(1);\
+	schedule_timeout_uninterruptible(1);\
 } while (0)
 
 static int snd_intel8x0_ich_chip_init(intel8x0_t *chip, int probing)
@@ -2166,7 +2178,7 @@ static int snd_intel8x0_ich_chip_init(intel8x0_t *chip, int probing)
 			goto __ok;
 		do_delay(chip);
 	} while (time_after_eq(end_time, jiffies));
-	snd_printk("AC'97 warm reset still in progress? [0x%x]\n", igetdword(chip, ICHREG(GLOB_CNT)));
+	snd_printk(KERN_ERR "AC'97 warm reset still in progress? [0x%x]\n", igetdword(chip, ICHREG(GLOB_CNT)));
 	return -EIO;
 
       __ok:
@@ -2441,7 +2453,7 @@ static void __devinit intel8x0_measure_ac97_clock(intel8x0_t *chip)
 
 	subs = chip->pcm[0]->streams[0].substream;
 	if (! subs || subs->dma_buffer.bytes < INTEL8X0_TESTBUF_SIZE) {
-		snd_printk("no playback buffer allocated - aborting measure ac97 clock\n");
+		snd_printk(KERN_WARNING "no playback buffer allocated - aborting measure ac97 clock\n");
 		return;
 	}
 	ichdev = &chip->ichd[ICHD_PCMOUT];
@@ -2477,7 +2489,7 @@ static void __devinit intel8x0_measure_ac97_clock(intel8x0_t *chip)
 	do_gettimeofday(&stop_time);
 	/* stop */
 	if (chip->device_type == DEVICE_ALI) {
-		iputdword(chip, ICHREG(ALI_DMACR), 1 << (ichdev->ali_slot + 8));
+		iputdword(chip, ICHREG(ALI_DMACR), 1 << (ichdev->ali_slot + 16));
 		iputbyte(chip, port + ICH_REG_OFF_CR, 0);
 		while (igetbyte(chip, port + ICH_REG_OFF_CR))
 			;
@@ -2556,7 +2568,6 @@ struct ich_reg_info {
 static int __devinit snd_intel8x0_create(snd_card_t * card,
 					 struct pci_dev *pci,
 					 unsigned long device_type,
-					 int buggy_sem,
 					 intel8x0_t ** r_intel8x0)
 {
 	intel8x0_t *chip;
@@ -2614,17 +2625,16 @@ static int __devinit snd_intel8x0_create(snd_card_t * card,
 	chip->card = card;
 	chip->pci = pci;
 	chip->irq = -1;
-	chip->buggy_semaphore = buggy_sem;
+
+	/* module parameters */
+	chip->buggy_irq = buggy_irq;
+	chip->buggy_semaphore = buggy_semaphore;
+	if (xbox)
+		chip->xbox = 1;
 
 	if (pci->vendor == PCI_VENDOR_ID_INTEL &&
 	    pci->device == PCI_DEVICE_ID_INTEL_440MX)
 		chip->fix_nocache = 1; /* enable workaround */
-
-	/* some Nforce[2] and ICH boards have problems with IRQ handling.
-	 * Needs to return IRQ_HANDLED for unknown irqs.
-	 */
-	if (device_type == DEVICE_NFORCE)
-		chip->buggy_irq = 1;
 
 	if ((err = pci_request_regions(pci, card->shortname)) < 0) {
 		kfree(chip);
@@ -2644,7 +2654,7 @@ static int __devinit snd_intel8x0_create(snd_card_t * card,
 		chip->remap_addr = ioremap_nocache(chip->addr,
 						   pci_resource_len(pci, 2));
 		if (chip->remap_addr == NULL) {
-			snd_printk("AC'97 space ioremap problem\n");
+			snd_printk(KERN_ERR "AC'97 space ioremap problem\n");
 			snd_intel8x0_free(chip);
 			return -EIO;
 		}
@@ -2657,7 +2667,7 @@ static int __devinit snd_intel8x0_create(snd_card_t * card,
 		chip->remap_bmaddr = ioremap_nocache(chip->bmaddr,
 						     pci_resource_len(pci, 3));
 		if (chip->remap_bmaddr == NULL) {
-			snd_printk("Controller space ioremap problem\n");
+			snd_printk(KERN_ERR "Controller space ioremap problem\n");
 			snd_intel8x0_free(chip);
 			return -EIO;
 		}
@@ -2666,15 +2676,6 @@ static int __devinit snd_intel8x0_create(snd_card_t * card,
 	}
 
  port_inited:
-	if (request_irq(pci->irq, snd_intel8x0_interrupt, SA_INTERRUPT|SA_SHIRQ, card->shortname, (void *)chip)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
-		snd_intel8x0_free(chip);
-		return -EBUSY;
-	}
-	chip->irq = pci->irq;
-	pci_set_master(pci);
-	synchronize_irq(chip->irq);
-
 	chip->bdbars_count = bdbars[device_type];
 
 	/* initialize offsets */
@@ -2725,12 +2726,26 @@ static int __devinit snd_intel8x0_create(snd_card_t * card,
 	int_sta_masks = 0;
 	for (i = 0; i < chip->bdbars_count; i++) {
 		ichdev = &chip->ichd[i];
-		ichdev->bdbar = ((u32 *)chip->bdbars.area) + (i * ICH_MAX_FRAGS * 2);
-		ichdev->bdbar_addr = chip->bdbars.addr + (i * sizeof(u32) * ICH_MAX_FRAGS * 2);
+		ichdev->bdbar = ((u32 *)chip->bdbars.area) +
+			(i * ICH_MAX_FRAGS * 2);
+		ichdev->bdbar_addr = chip->bdbars.addr +
+			(i * sizeof(u32) * ICH_MAX_FRAGS * 2);
 		int_sta_masks |= ichdev->int_sta_mask;
 	}
-	chip->int_sta_reg = device_type == DEVICE_ALI ? ICH_REG_ALI_INTERRUPTSR : ICH_REG_GLOB_STA;
+	chip->int_sta_reg = device_type == DEVICE_ALI ?
+		ICH_REG_ALI_INTERRUPTSR : ICH_REG_GLOB_STA;
 	chip->int_sta_mask = int_sta_masks;
+
+	/* request irq after initializaing int_sta_mask, etc */
+	if (request_irq(pci->irq, snd_intel8x0_interrupt,
+			SA_INTERRUPT|SA_SHIRQ, card->shortname, (void *)chip)) {
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
+		snd_intel8x0_free(chip);
+		return -EBUSY;
+	}
+	chip->irq = pci->irq;
+	pci_set_master(pci);
+	synchronize_irq(chip->irq);
 
 	if ((err = snd_intel8x0_chip_init(chip, 1)) < 0) {
 		snd_intel8x0_free(chip);
@@ -2782,20 +2797,12 @@ static struct shortname_table {
 static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 					const struct pci_device_id *pci_id)
 {
-	static int dev;
 	snd_card_t *card;
 	intel8x0_t *chip;
 	int err;
 	struct shortname_table *name;
 
-	if (dev >= SNDRV_CARDS)
-		return -ENODEV;
-	if (!enable[dev]) {
-		dev++;
-		return -ENOENT;
-	}
-
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
+	card = snd_card_new(index, id, THIS_MODULE, 0);
 	if (card == NULL)
 		return -ENOMEM;
 
@@ -2819,17 +2826,23 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 		}
 	}
 
+	if (buggy_irq < 0) {
+		/* some Nforce[2] and ICH boards have problems with IRQ handling.
+		 * Needs to return IRQ_HANDLED for unknown irqs.
+		 */
+		if (pci_id->driver_data == DEVICE_NFORCE)
+			buggy_irq = 1;
+		else
+			buggy_irq = 0;
+	}
+
 	if ((err = snd_intel8x0_create(card, pci, pci_id->driver_data,
-				       buggy_semaphore[dev], &chip)) < 0) {
+				       &chip)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
-	if (buggy_irq[dev])
-		chip->buggy_irq = 1;
-	if (xbox[dev])
-		chip->xbox = 1;
 
-	if ((err = snd_intel8x0_mixer(chip, ac97_clock[dev], ac97_quirk[dev])) < 0) {
+	if ((err = snd_intel8x0_mixer(chip, ac97_clock, ac97_quirk)) < 0) {
 		snd_card_free(card);
 		return err;
 	}
@@ -2844,7 +2857,7 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 		 "%s with %s at %#lx, irq %i", card->shortname,
 		 snd_ac97_get_short_name(chip->ac97[0]), chip->addr, chip->irq);
 
-	if (! ac97_clock[dev])
+	if (! ac97_clock)
 		intel8x0_measure_ac97_clock(chip);
 
 	if ((err = snd_card_register(card)) < 0) {
@@ -2852,7 +2865,6 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 		return err;
 	}
 	pci_set_drvdata(pci, card);
-	dev++;
 	return 0;
 }
 

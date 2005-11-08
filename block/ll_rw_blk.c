@@ -706,7 +706,6 @@ EXPORT_SYMBOL(blk_queue_dma_alignment);
 
 /**
  * blk_queue_find_tag - find a request by its tag and queue
- *
  * @q:	 The request queue for the device
  * @tag: The tag of the request
  *

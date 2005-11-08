@@ -1,7 +1,7 @@
 #
 # linux/drivers/maps/Makefile
 #
-# $Id: Makefile.common,v 1.30 2005/07/02 01:53:24 tpoynor Exp $
+# $Id: Makefile.common,v 1.34 2005/11/07 11:14:26 gleixner Exp $
 
 ifeq ($(CONFIG_MTD_COMPLEX_MAPPINGS),y)
 obj-$(CONFIG_MTD)		+= map_funcs.o
@@ -26,7 +26,7 @@ obj-$(CONFIG_MTD_MAINSTONE)	+= mainstone-flash.o
 obj-$(CONFIG_MTD_MBX860)	+= mbx860.o
 obj-$(CONFIG_MTD_CEIVA)		+= ceiva.o
 obj-$(CONFIG_MTD_OCTAGON)	+= octagon-5066.o
-obj-$(CONFIG_MTD_PHYSMAP)	+= physmap.o 
+obj-$(CONFIG_MTD_PHYSMAP)	+= physmap.o
 obj-$(CONFIG_MTD_PNC2000)	+= pnc2000.o
 obj-$(CONFIG_MTD_PCMCIA)	+= pcmciamtd.o
 obj-$(CONFIG_MTD_RPXLITE)	+= rpxlite.o
@@ -70,3 +70,6 @@ obj-$(CONFIG_MTD_DMV182)	+= dmv182.o
 obj-$(CONFIG_MTD_SHARP_SL)	+= sharpsl-flash.o
 obj-$(CONFIG_MTD_PLATRAM)	+= plat-ram.o
 obj-$(CONFIG_MTD_OMAP_NOR)	+= omap_nor.o
+obj-$(CONFIG_MTD_PQ2FADS)	+= pq2fads.o
+obj-$(CONFIG_MTD_MTX1)		+= mtx-1_flash.o
+obj-$(CONFIG_MTD_TQM834x)	+= tqm834x.o

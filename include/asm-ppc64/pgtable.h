@@ -13,6 +13,7 @@
 #include <asm/mmu.h>
 #include <asm/page.h>
 #include <asm/tlbflush.h>
+struct mm_struct;
 #endif /* __ASSEMBLY__ */
 
 #ifdef CONFIG_PPC_64K_PAGES

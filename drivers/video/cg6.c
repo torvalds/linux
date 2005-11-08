@@ -54,7 +54,6 @@ static struct fb_ops cg6_ops = {
 	.fb_sync		= cg6_sync,
 	.fb_mmap		= cg6_mmap,
 	.fb_ioctl		= cg6_ioctl,
-	.fb_cursor		= soft_cursor,
 };
 
 /* Offset of interesting structures in the OBIO space */

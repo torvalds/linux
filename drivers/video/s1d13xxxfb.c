@@ -388,7 +388,6 @@ static struct fb_ops s1d13xxxfb_fbops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor
 };
 
 static int s1d13xxxfb_width_tab[2][4] __devinitdata = {

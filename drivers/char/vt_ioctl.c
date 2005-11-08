@@ -80,6 +80,9 @@ do_kdsk_ioctl(int cmd, struct kbentry __user *user_kbe, int perm, struct kbd_str
 	if (copy_from_user(&tmp, user_kbe, sizeof(struct kbentry)))
 		return -EFAULT;
 
+	if (!capable(CAP_SYS_TTY_CONFIG))
+		perm = 0;
+
 	switch (cmd) {
 	case KDGKBENT:
 		key_map = key_maps[s];
@@ -193,7 +196,7 @@ do_kdgkb_ioctl(int cmd, struct kbsentry __user *user_kdgkb, int perm)
 	int ret;
 
 	if (!capable(CAP_SYS_TTY_CONFIG))
-		return -EPERM;
+		perm = 0;
 
 	kbs = kmalloc(sizeof(*kbs), GFP_KERNEL);
 	if (!kbs) {

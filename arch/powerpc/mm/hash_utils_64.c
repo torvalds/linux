@@ -328,12 +328,14 @@ static void __init htab_init_page_sizes(void)
 	 */
 	if (mmu_psize_defs[MMU_PAGE_16M].shift)
 		mmu_huge_psize = MMU_PAGE_16M;
+	/* With 4k/4level pagetables, we can't (for now) cope with a
+	 * huge page size < PMD_SIZE */
 	else if (mmu_psize_defs[MMU_PAGE_1M].shift)
 		mmu_huge_psize = MMU_PAGE_1M;
 
 	/* Calculate HPAGE_SHIFT and sanity check it */
-	if (mmu_psize_defs[mmu_huge_psize].shift > 16 &&
-	    mmu_psize_defs[mmu_huge_psize].shift < 28)
+	if (mmu_psize_defs[mmu_huge_psize].shift > MIN_HUGEPTE_SHIFT &&
+	    mmu_psize_defs[mmu_huge_psize].shift < SID_SHIFT)
 		HPAGE_SHIFT = mmu_psize_defs[mmu_huge_psize].shift;
 	else
 		HPAGE_SHIFT = 0; /* No huge pages dude ! */

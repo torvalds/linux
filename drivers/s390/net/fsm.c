@@ -78,8 +78,7 @@ kfree_fsm(fsm_instance *this)
 {
 	if (this) {
 		if (this->f) {
-			if (this->f->jumpmatrix)
-				kfree(this->f->jumpmatrix);
+			kfree(this->f->jumpmatrix);
 			kfree(this->f);
 		}
 		kfree(this);

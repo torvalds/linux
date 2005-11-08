@@ -169,14 +169,8 @@ static void snd_opl4_free(opl4_t *opl4)
 #ifdef CONFIG_PROC_FS
 	snd_opl4_free_proc(opl4);
 #endif
-	if (opl4->res_fm_port) {
-		release_resource(opl4->res_fm_port);
-		kfree_nocheck(opl4->res_fm_port);
-	}
-	if (opl4->res_pcm_port) {
-		release_resource(opl4->res_pcm_port);
-		kfree_nocheck(opl4->res_pcm_port);
-	}
+	release_and_free_resource(opl4->res_fm_port);
+	release_and_free_resource(opl4->res_pcm_port);
 	kfree(opl4);
 }
 

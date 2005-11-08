@@ -75,7 +75,7 @@ void hpfs_error(struct super_block *s, char *m,...)
 		} else if (s->s_flags & MS_RDONLY) printk("; going on - but anything won't be destroyed because it's read-only\n");
 		else printk("; corrupted filesystem mounted read/write - your computer will explode within 20 seconds ... but you wanted it so!\n");
 	} else printk("\n");
-	if (buf) kfree(buf);
+	kfree(buf);
 	hpfs_sb(s)->sb_was_error = 1;
 }
 
@@ -102,8 +102,8 @@ int hpfs_stop_cycles(struct super_block *s, int key, int *c1, int *c2,
 static void hpfs_put_super(struct super_block *s)
 {
 	struct hpfs_sb_info *sbi = hpfs_sb(s);
-	if (sbi->sb_cp_table) kfree(sbi->sb_cp_table);
-	if (sbi->sb_bmp_dir) kfree(sbi->sb_bmp_dir);
+	kfree(sbi->sb_cp_table);
+	kfree(sbi->sb_bmp_dir);
 	unmark_dirty(s);
 	s->s_fs_info = NULL;
 	kfree(sbi);
@@ -654,8 +654,8 @@ bail3:	brelse(bh1);
 bail2:	brelse(bh0);
 bail1:
 bail0:
-	if (sbi->sb_bmp_dir) kfree(sbi->sb_bmp_dir);
-	if (sbi->sb_cp_table) kfree(sbi->sb_cp_table);
+	kfree(sbi->sb_bmp_dir);
+	kfree(sbi->sb_cp_table);
 	s->s_fs_info = NULL;
 	kfree(sbi);
 	return -EINVAL;

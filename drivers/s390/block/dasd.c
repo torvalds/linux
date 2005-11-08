@@ -115,8 +115,7 @@ dasd_alloc_device(void)
 void
 dasd_free_device(struct dasd_device *device)
 {
-	if (device->private)
-		kfree(device->private);
+	kfree(device->private);
 	free_page((unsigned long) device->erp_mem);
 	free_pages((unsigned long) device->ccw_mem, 1);
 	kfree(device);
@@ -539,8 +538,7 @@ dasd_kmalloc_request(char *magic, int cplength, int datasize,
 	if (datasize > 0) {
 		cqr->data = kmalloc(datasize, GFP_ATOMIC | GFP_DMA);
 		if (cqr->data == NULL) {
-			if (cqr->cpaddr != NULL)
-				kfree(cqr->cpaddr);
+			kfree(cqr->cpaddr);
 			kfree(cqr);
 			return ERR_PTR(-ENOMEM);
 		}
@@ -615,10 +613,8 @@ dasd_kfree_request(struct dasd_ccw_req * cqr, struct dasd_device * device)
 		clear_normalized_cda(ccw);
 	} while (ccw++->flags & (CCW_FLAG_CC | CCW_FLAG_DC));
 #endif
-	if (cqr->cpaddr != NULL)
-		kfree(cqr->cpaddr);
-	if (cqr->data != NULL)
-		kfree(cqr->data);
+	kfree(cqr->cpaddr);
+	kfree(cqr->data);
 	kfree(cqr);
 	dasd_put_device(device);
 }

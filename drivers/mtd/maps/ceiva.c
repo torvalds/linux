@@ -313,8 +313,7 @@ static void __init clps_locate_partitions(struct mtd_info *mtd)
 
 static void __exit clps_destroy_partitions(void)
 {
-	if (parsed_parts)
-		kfree(parsed_parts);
+	kfree(parsed_parts);
 }
 
 static struct mtd_info *mymtd;

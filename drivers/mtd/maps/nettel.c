@@ -6,7 +6,7 @@
  *      (C) Copyright 2000-2001, Greg Ungerer (gerg@snapgear.com)
  *      (C) Copyright 2001-2002, SnapGear (www.snapgear.com)
  *
- *	$Id: nettel.c,v 1.10 2005/01/05 17:11:29 dwmw2 Exp $
+ *	$Id: nettel.c,v 1.11 2005/11/07 11:14:27 gleixner Exp $
  */
 
 /****************************************************************************/
@@ -143,7 +143,7 @@ static int nettel_reboot_notifier(struct notifier_block *nb, unsigned long val, 
 {
 	struct cfi_private *cfi = nettel_intel_map.fldrv_priv;
 	unsigned long b;
-	
+
 	/* Make sure all FLASH chips are put back into read mode */
 	for (b = 0; (b < nettel_intel_partitions[3].size); b += 0x100000) {
 		cfi_send_gen_cmd(0xff, 0x55, b, &nettel_intel_map, cfi,
@@ -199,7 +199,7 @@ int nettel_eraseconfig(void)
 
 		schedule();  /* Wait for erase to finish. */
 		remove_wait_queue(&wait_q, &wait);
-		
+
 		put_mtd_device(mtd);
 	}
 
@@ -430,7 +430,7 @@ int __init nettel_init(void)
 		nettel_intel_partitions[1].size = (intel0size + intel1size) -
 			(1024*1024 + intel_mtd->erasesize);
 		nettel_intel_partitions[3].size = intel0size + intel1size;
-		nettel_intel_partitions[4].offset = 
+		nettel_intel_partitions[4].offset =
 			(intel0size + intel1size) - intel_mtd->erasesize;
 		nettel_intel_partitions[4].size = intel_mtd->erasesize;
 		nettel_intel_partitions[5].offset =

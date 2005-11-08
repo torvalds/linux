@@ -334,9 +334,6 @@ irqreturn_t snd_sb8dsp_interrupt(sb_t *chip)
 	snd_pcm_substream_t *substream;
 	snd_pcm_runtime_t *runtime;
 
-#if 0
-	snd_printk("sb8: interrupt\n");
-#endif
 	snd_sb_ack_8bit(chip);
 	switch (chip->mode) {
 	case SB_MODE_PLAYBACK_8:	/* ok.. playback is active */

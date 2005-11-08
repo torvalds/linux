@@ -508,8 +508,7 @@ static void unregister_mad_agent(struct ib_mad_agent_private *mad_agent_priv)
 	wait_event(mad_agent_priv->wait,
 		   !atomic_read(&mad_agent_priv->refcount));
 
-	if (mad_agent_priv->reg_req)
-		kfree(mad_agent_priv->reg_req);
+	kfree(mad_agent_priv->reg_req);
 	ib_dereg_mr(mad_agent_priv->agent.mr);
 	kfree(mad_agent_priv);
 }
@@ -2500,8 +2499,7 @@ error:
 static void destroy_mad_qp(struct ib_mad_qp_info *qp_info)
 {
 	ib_destroy_qp(qp_info->qp);
-	if (qp_info->snoop_table)
-		kfree(qp_info->snoop_table);
+	kfree(qp_info->snoop_table);
 }
 
 /*

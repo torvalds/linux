@@ -188,9 +188,9 @@ void hash_preload(struct mm_struct *mm, unsigned long ea,
 
 	if (Hash == 0)
 		return;
-	pmd = pmd_offset(pgd_offset(vma->vm_mm, address), address);
+	pmd = pmd_offset(pgd_offset(mm, ea), ea);
 	if (!pmd_none(*pmd))
-		add_hash_page(vma->vm_mm->context, address, pmd_val(*pmd));
+		add_hash_page(mm->context, ea, pmd_val(*pmd));
 }
 
 /*

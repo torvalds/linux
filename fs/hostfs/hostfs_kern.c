@@ -294,8 +294,7 @@ static void hostfs_delete_inode(struct inode *inode)
 
 static void hostfs_destroy_inode(struct inode *inode)
 {
-	if(HOSTFS_I(inode)->host_filename)
-		kfree(HOSTFS_I(inode)->host_filename);
+	kfree(HOSTFS_I(inode)->host_filename);
 
 	/*XXX: This should not happen, probably. The check is here for
 	 * additional safety.*/

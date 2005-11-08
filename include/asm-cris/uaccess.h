@@ -213,7 +213,7 @@ extern unsigned long __copy_user(void *to, const void *from, unsigned long n);
 extern unsigned long __copy_user_zeroing(void *to, const void *from, unsigned long n);
 extern unsigned long __do_clear_user(void *to, unsigned long n);
 
-extern inline unsigned long
+static inline unsigned long
 __generic_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	if (access_ok(VERIFY_WRITE, to, n))
@@ -221,7 +221,7 @@ __generic_copy_to_user(void __user *to, const void *from, unsigned long n)
 	return n;
 }
 
-extern inline unsigned long
+static inline unsigned long
 __generic_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	if (access_ok(VERIFY_READ, from, n))
@@ -229,7 +229,7 @@ __generic_copy_from_user(void *to, const void __user *from, unsigned long n)
 	return n;
 }
 
-extern inline unsigned long
+static inline unsigned long
 __generic_clear_user(void __user *to, unsigned long n)
 {
 	if (access_ok(VERIFY_WRITE, to, n))
@@ -237,13 +237,13 @@ __generic_clear_user(void __user *to, unsigned long n)
 	return n;
 }
 
-extern inline long
+static inline long
 __strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	return __do_strncpy_from_user(dst, src, count);
 }
 
-extern inline long
+static inline long
 strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	long res = -EFAULT;
@@ -256,7 +256,7 @@ strncpy_from_user(char *dst, const char __user *src, long count)
 /* Note that if these expand awfully if made into switch constructs, so
    don't do that.  */
 
-extern inline unsigned long
+static inline unsigned long
 __constant_copy_from_user(void *to, const void __user *from, unsigned long n)
 {
 	unsigned long ret = 0;
@@ -306,7 +306,7 @@ __constant_copy_from_user(void *to, const void __user *from, unsigned long n)
 
 /* Ditto, don't make a switch out of this.  */
 
-extern inline unsigned long
+static inline unsigned long
 __constant_copy_to_user(void __user *to, const void *from, unsigned long n)
 {
 	unsigned long ret = 0;
@@ -356,7 +356,7 @@ __constant_copy_to_user(void __user *to, const void *from, unsigned long n)
 
 /* No switch, please.  */
 
-extern inline unsigned long
+static inline unsigned long
 __constant_clear_user(void __user *to, unsigned long n)
 {
 	unsigned long ret = 0;
@@ -406,19 +406,19 @@ __constant_clear_user(void __user *to, unsigned long n)
  * used in fast paths and have only a small space overhead.
  */
 
-extern inline unsigned long
+static inline unsigned long
 __generic_copy_from_user_nocheck(void *to, const void *from, unsigned long n)
 {
 	return __copy_user_zeroing(to,from,n);
 }
 
-extern inline unsigned long
+static inline unsigned long
 __generic_copy_to_user_nocheck(void *to, const void *from, unsigned long n)
 {
 	return __copy_user(to,from,n);
 }
 
-extern inline unsigned long
+static inline unsigned long
 __generic_clear_user_nocheck(void *to, unsigned long n)
 {
 	return __do_clear_user(to,n);

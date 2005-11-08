@@ -48,7 +48,8 @@
 
 /* FIXME? - according to the OSS driver the EMU10K1 needs a 29 bit DMA mask */
 #define EMU10K1_DMA_MASK	0x7fffffffUL	/* 31bit */
-#define AUDIGY_DMA_MASK		0xffffffffUL	/* 32bit */
+#define AUDIGY_DMA_MASK		0x7fffffffUL	/* 31bit FIXME - 32 should work? */
+						/* See ALSA bug #1276 - rlrevell */
 
 #define TMEMSIZE        256*1024
 #define TMEMSIZEREG     4

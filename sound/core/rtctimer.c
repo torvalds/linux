@@ -60,7 +60,6 @@ static struct _snd_timer_hardware rtc_hw = {
 
 static int rtctimer_freq = RTC_FREQ;		/* frequency */
 static snd_timer_t *rtctimer;
-static atomic_t rtc_inc = ATOMIC_INIT(0);
 static rtc_task_t rtc_task;
 
 
@@ -94,7 +93,6 @@ rtctimer_start(snd_timer_t *timer)
 	snd_assert(rtc != NULL, return -EINVAL);
 	rtc_control(rtc, RTC_IRQP_SET, rtctimer_freq);
 	rtc_control(rtc, RTC_PIE_ON, 0);
-	atomic_set(&rtc_inc, 0);
 	return 0;
 }
 
@@ -112,12 +110,7 @@ rtctimer_stop(snd_timer_t *timer)
  */
 static void rtctimer_interrupt(void *private_data)
 {
-	int ticks;
-
-	atomic_inc(&rtc_inc);
-	ticks = atomic_read(&rtc_inc);
-	snd_timer_interrupt((snd_timer_t*)private_data, ticks);
-	atomic_sub(ticks, &rtc_inc);
+	snd_timer_interrupt(private_data, 1);
 }
 
 
@@ -126,17 +119,13 @@ static void rtctimer_interrupt(void *private_data)
  */
 static int __init rtctimer_init(void)
 {
-	int order, err;
+	int err;
 	snd_timer_t *timer;
 
-	if (rtctimer_freq < 2 || rtctimer_freq > 8192) {
-		snd_printk(KERN_ERR "rtctimer: invalid frequency %d\n", rtctimer_freq);
-		return -EINVAL;
-	}
-	for (order = 1; rtctimer_freq > order; order <<= 1)
-		;
-	if (rtctimer_freq != order) {
-		snd_printk(KERN_ERR "rtctimer: invalid frequency %d\n", rtctimer_freq);
+	if (rtctimer_freq < 2 || rtctimer_freq > 8192 ||
+	    (rtctimer_freq & (rtctimer_freq - 1)) != 0) {
+		snd_printk(KERN_ERR "rtctimer: invalid frequency %d\n",
+			   rtctimer_freq);
 		return -EINVAL;
 	}
 
@@ -145,6 +134,7 @@ static int __init rtctimer_init(void)
 	if (err < 0)
 		return err;
 
+	timer->module = THIS_MODULE;
 	strcpy(timer->name, "RTC timer");
 	timer->hw = rtc_hw;
 	timer->hw.resolution = NANO_SEC / rtctimer_freq;

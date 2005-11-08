@@ -37,7 +37,7 @@
  */
 
 char e1000_driver_name[] = "e1000";
-char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
+static char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
 #ifndef CONFIG_E1000_NAPI
 #define DRIVERNAPI
 #else
@@ -45,7 +45,7 @@ char e1000_driver_string[] = "Intel(R) PRO/1000 Network Driver";
 #endif
 #define DRV_VERSION "6.1.16-k2"DRIVERNAPI
 char e1000_driver_version[] = DRV_VERSION;
-char e1000_copyright[] = "Copyright (c) 1999-2005 Intel Corporation.";
+static char e1000_copyright[] = "Copyright (c) 1999-2005 Intel Corporation.";
 
 /* e1000_pci_tbl - PCI Device ID Table
  *
@@ -112,14 +112,14 @@ int e1000_setup_all_tx_resources(struct e1000_adapter *adapter);
 int e1000_setup_all_rx_resources(struct e1000_adapter *adapter);
 void e1000_free_all_tx_resources(struct e1000_adapter *adapter);
 void e1000_free_all_rx_resources(struct e1000_adapter *adapter);
-int e1000_setup_tx_resources(struct e1000_adapter *adapter,
-                             struct e1000_tx_ring *txdr);
-int e1000_setup_rx_resources(struct e1000_adapter *adapter,
-                             struct e1000_rx_ring *rxdr);
-void e1000_free_tx_resources(struct e1000_adapter *adapter,
-                             struct e1000_tx_ring *tx_ring);
-void e1000_free_rx_resources(struct e1000_adapter *adapter,
-                             struct e1000_rx_ring *rx_ring);
+static int e1000_setup_tx_resources(struct e1000_adapter *adapter,
+				    struct e1000_tx_ring *txdr);
+static int e1000_setup_rx_resources(struct e1000_adapter *adapter,
+				    struct e1000_rx_ring *rxdr);
+static void e1000_free_tx_resources(struct e1000_adapter *adapter,
+				    struct e1000_tx_ring *tx_ring);
+static void e1000_free_rx_resources(struct e1000_adapter *adapter,
+				    struct e1000_rx_ring *rx_ring);
 void e1000_update_stats(struct e1000_adapter *adapter);
 
 /* Local Function Prototypes */
@@ -296,7 +296,8 @@ e1000_irq_enable(struct e1000_adapter *adapter)
 		E1000_WRITE_FLUSH(&adapter->hw);
 	}
 }
-void
+
+static void
 e1000_update_mng_vlan(struct e1000_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -1141,7 +1142,7 @@ e1000_check_64k_bound(struct e1000_adapter *adapter,
  * Return 0 on success, negative on failure
  **/
 
-int
+static int
 e1000_setup_tx_resources(struct e1000_adapter *adapter,
                          struct e1000_tx_ring *txdr)
 {
@@ -1359,7 +1360,7 @@ e1000_configure_tx(struct e1000_adapter *adapter)
  * Returns 0 on success, negative on failure
  **/
 
-int
+static int
 e1000_setup_rx_resources(struct e1000_adapter *adapter,
                          struct e1000_rx_ring *rxdr)
 {
@@ -1747,7 +1748,7 @@ e1000_configure_rx(struct e1000_adapter *adapter)
  * Free all transmit software resources
  **/
 
-void
+static void
 e1000_free_tx_resources(struct e1000_adapter *adapter,
                         struct e1000_tx_ring *tx_ring)
 {
@@ -1858,7 +1859,7 @@ e1000_clean_all_tx_rings(struct e1000_adapter *adapter)
  * Free all receive software resources
  **/
 
-void
+static void
 e1000_free_rx_resources(struct e1000_adapter *adapter,
                         struct e1000_rx_ring *rx_ring)
 {

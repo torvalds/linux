@@ -287,10 +287,6 @@ static int __init init_nsc(void)
 	int lo, hi;
 	int nscAddrBase = TPM_ADDR;
 
-	driver_register(&nsc_drv);
-
-	/* select PM channel 1 */
-	tpm_write_index(nscAddrBase,NSC_LDN_INDEX, 0x12);
 
 	/* verify that it is a National part (SID) */
 	if (tpm_read_index(TPM_ADDR, NSC_SID_INDEX) != 0xEF) {
@@ -300,6 +296,8 @@ static int __init init_nsc(void)
 			return -ENODEV;
 	}
 
+	driver_register(&nsc_drv);
+
 	hi = tpm_read_index(nscAddrBase, TPM_NSC_BASE0_HI);
 	lo = tpm_read_index(nscAddrBase, TPM_NSC_BASE0_LO);
 	tpm_nsc.base = (hi<<8) | lo;
@@ -307,11 +305,11 @@ static int __init init_nsc(void)
 	/* enable the DPM module */
 	tpm_write_index(nscAddrBase, NSC_LDC_INDEX, 0x01);
 
-	pdev = kmalloc(sizeof(struct platform_device), GFP_KERNEL);
-	if ( !pdev )
-		return -ENOMEM;
-
-	memset(pdev, 0, sizeof(struct platform_device));
+	pdev = kzalloc(sizeof(struct platform_device), GFP_KERNEL);
+	if (!pdev) {
+		rc = -ENOMEM;
+		goto err_unreg_drv;
+	}
 
 	pdev->name = "tpm_nscl0";
 	pdev->id = -1;
@@ -319,26 +317,16 @@ static int __init init_nsc(void)
 	pdev->dev.release = tpm_nsc_remove;
 	pdev->dev.driver = &nsc_drv;
 
-	if ((rc=platform_device_register(pdev)) < 0) {
-		kfree(pdev);
-		pdev = NULL;
-		return rc;
-	}
+	if ((rc = platform_device_register(pdev)) < 0)
+		goto err_free_dev;
 
 	if (request_region(tpm_nsc.base, 2, "tpm_nsc0") == NULL ) {
-		platform_device_unregister(pdev);
-		kfree(pdev);
-		pdev = NULL;
-		return -EBUSY;
+		rc = -EBUSY;
+		goto err_unreg_dev;
 	}
 
-	if ((rc = tpm_register_hardware(&pdev->dev, &tpm_nsc)) < 0) {
-		release_region(tpm_nsc.base, 2);
-		platform_device_unregister(pdev);
-		kfree(pdev);
-		pdev = NULL;
-		return rc;
-	}
+	if ((rc = tpm_register_hardware(&pdev->dev, &tpm_nsc)) < 0)
+		goto err_rel_reg;
 
 	dev_dbg(&pdev->dev, "NSC TPM detected\n");
 	dev_dbg(&pdev->dev,
@@ -374,6 +362,16 @@ static int __init init_nsc(void)
 		 tpm_read_index(nscAddrBase, 0x27) & 0x1F);
 
 	return 0;
+
+err_rel_reg:
+	release_region(tpm_nsc.base, 2);
+err_unreg_dev:
+	platform_device_unregister(pdev);
+err_free_dev:
+	kfree(pdev);
+err_unreg_drv:
+	driver_unregister(&nsc_drv);
+	return rc;
 }
 
 static void __exit cleanup_nsc(void)

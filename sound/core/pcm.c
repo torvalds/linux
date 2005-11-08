@@ -273,7 +273,8 @@ static void snd_pcm_proc_info_read(snd_pcm_substream_t *substream, snd_info_buff
 	snd_pcm_info_t *info;
 	int err;
 
-	snd_runtime_check(substream, return);
+	if (! substream)
+		return;
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (! info) {

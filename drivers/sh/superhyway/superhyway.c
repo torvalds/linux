@@ -27,19 +27,20 @@ static struct device superhyway_bus_device = {
 
 static void superhyway_device_release(struct device *dev)
 {
-	kfree(to_superhyway_device(dev));
+	struct superhyway_device *sdev = to_superhyway_device(dev);
+
+	kfree(sdev->resource);
+	kfree(sdev);
 }
 
 /**
  * superhyway_add_device - Add a SuperHyway module
- * @mod_id: Module ID (taken from MODULE.VCR.MOD_ID).
  * @base: Physical address where module is mapped.
- * @vcr: VCR value.
+ * @sdev: SuperHyway device to add, or NULL to allocate a new one.
+ * @bus: Bus where SuperHyway module resides.
  *
  * This is responsible for adding a new SuperHyway module. This sets up a new
- * struct superhyway_device for the module being added. Each one of @mod_id,
- * @base, and @vcr are registered with the new device for further use
- * elsewhere.
+ * struct superhyway_device for the module being added if @sdev == NULL.
  *
  * Devices are initially added in the order that they are scanned (from the
  * top-down of the memory map), and are assigned an ID based on the order that
@@ -49,28 +50,40 @@ static void superhyway_device_release(struct device *dev)
  * Further work can and should be done in superhyway_scan_bus(), to be sure
  * that any new modules are properly discovered and subsequently registered.
  */
-int superhyway_add_device(unsigned int mod_id, unsigned long base,
-			  unsigned long long vcr)
+int superhyway_add_device(unsigned long base, struct superhyway_device *sdev,
+			  struct superhyway_bus *bus)
 {
-	struct superhyway_device *dev;
+	struct superhyway_device *dev = sdev;
 
-	dev = kmalloc(sizeof(struct superhyway_device), GFP_KERNEL);
-	if (!dev)
-		return -ENOMEM;
+	if (!dev) {
+		dev = kmalloc(sizeof(struct superhyway_device), GFP_KERNEL);
+		if (!dev)
+			return -ENOMEM;
 
-	memset(dev, 0, sizeof(struct superhyway_device));
+		memset(dev, 0, sizeof(struct superhyway_device));
+	}
 
-	dev->id.id = mod_id;
-	sprintf(dev->name, "SuperHyway device %04x", dev->id.id);
+	dev->bus = bus;
+	superhyway_read_vcr(dev, base, &dev->vcr);
 
-	dev->vcr		= *((struct vcr_info *)(&vcr));
-	dev->resource.name	= dev->name;
-	dev->resource.start	= base;
-	dev->resource.end	= dev->resource.start + 0x01000000;
+	if (!dev->resource) {
+		dev->resource = kmalloc(sizeof(struct resource), GFP_KERNEL);
+		if (!dev->resource) {
+			kfree(dev);
+			return -ENOMEM;
+		}
+
+		dev->resource->name	= dev->name;
+		dev->resource->start	= base;
+		dev->resource->end	= dev->resource->start + 0x01000000;
+	}
+
 	dev->dev.parent		= &superhyway_bus_device;
 	dev->dev.bus		= &superhyway_bus_type;
 	dev->dev.release	= superhyway_device_release;
+	dev->id.id		= dev->vcr.mod_id;
 
+	sprintf(dev->name, "SuperHyway device %04x", dev->id.id);
 	sprintf(dev->dev.bus_id, "%02x", superhyway_devices);
 
 	superhyway_devices++;
@@ -78,10 +91,31 @@ int superhyway_add_device(unsigned int mod_id, unsigned long base,
 	return device_register(&dev->dev);
 }
 
+int superhyway_add_devices(struct superhyway_bus *bus,
+			   struct superhyway_device **devices,
+			   int nr_devices)
+{
+	int i, ret = 0;
+
+	for (i = 0; i < nr_devices; i++) {
+		struct superhyway_device *dev = devices[i];
+		ret |= superhyway_add_device(dev->resource[0].start, dev, bus);
+	}
+
+	return ret;
+}
+
 static int __init superhyway_init(void)
 {
+	struct superhyway_bus *bus;
+	int ret = 0;
+
 	device_register(&superhyway_bus_device);
-	return superhyway_scan_bus();
+
+	for (bus = superhyway_channels; bus->ops; bus++)
+		ret |= superhyway_scan_bus(bus);
+
+	return ret;
 }
 
 postcore_initcall(superhyway_init);
@@ -197,6 +231,7 @@ module_exit(superhyway_bus_exit);
 
 EXPORT_SYMBOL(superhyway_bus_type);
 EXPORT_SYMBOL(superhyway_add_device);
+EXPORT_SYMBOL(superhyway_add_devices);
 EXPORT_SYMBOL(superhyway_register_driver);
 EXPORT_SYMBOL(superhyway_unregister_driver);
 

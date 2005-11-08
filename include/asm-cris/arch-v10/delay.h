@@ -1,7 +1,7 @@
 #ifndef _CRIS_ARCH_DELAY_H
 #define _CRIS_ARCH_DELAY_H
 
-extern __inline__ void __delay(int loops)
+static inline void __delay(int loops)
 {
 	__asm__ __volatile__ (
 			      "move.d %0,$r9\n\t"

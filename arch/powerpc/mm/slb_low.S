@@ -80,12 +80,17 @@ _GLOBAL(slb_miss_kernel_load_virtual)
 BEGIN_FTR_SECTION
 	b	1f
 END_FTR_SECTION_IFCLR(CPU_FTR_16M_PAGE)
+	cmpldi	r10,16
+
+	lhz	r9,PACALOWHTLBAREAS(r13)
+	mr	r11,r10
+	blt	5f
+
 	lhz	r9,PACAHIGHHTLBAREAS(r13)
 	srdi	r11,r10,(HTLB_AREA_SHIFT-SID_SHIFT)
-	srd	r9,r9,r11
-	lhz	r11,PACALOWHTLBAREAS(r13)
-	srd	r11,r11,r10
-	or.	r9,r9,r11
+
+5:	srd	r9,r9,r11
+	andi.	r9,r9,1
 	beq	1f
 _GLOBAL(slb_miss_user_load_huge)
 	li	r11,0

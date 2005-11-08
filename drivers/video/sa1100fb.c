@@ -853,7 +853,6 @@ static struct fb_ops sa1100fb_ops = {
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 	.fb_blank	= sa1100fb_blank,
-	.fb_cursor	= soft_cursor,
 	.fb_mmap	= sa1100fb_mmap,
 };
 

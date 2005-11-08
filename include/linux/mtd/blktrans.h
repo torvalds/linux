@@ -1,5 +1,5 @@
 /*
- * $Id: blktrans.h,v 1.5 2003/06/23 12:00:08 dwmw2 Exp $
+ * $Id: blktrans.h,v 1.6 2005/11/07 11:14:54 gleixner Exp $
  *
  * (C) 2003 David Woodhouse <dwmw2@infradead.org>
  *
@@ -67,6 +67,6 @@ extern int register_mtd_blktrans(struct mtd_blktrans_ops *tr);
 extern int deregister_mtd_blktrans(struct mtd_blktrans_ops *tr);
 extern int add_mtd_blktrans_dev(struct mtd_blktrans_dev *dev);
 extern int del_mtd_blktrans_dev(struct mtd_blktrans_dev *dev);
-				 
+
 
 #endif /* __MTD_TRANS_H__ */

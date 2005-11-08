@@ -46,15 +46,6 @@ extern struct address_space_operations vxfs_immed_aops;
 
 extern struct inode_operations vxfs_immed_symlink_iops;
 
-static struct file_operations vxfs_file_operations = {
-	.open =			generic_file_open,
-	.llseek =		generic_file_llseek,
-	.read =			generic_file_read,
-	.mmap =			generic_file_mmap,
-	.sendfile =		generic_file_sendfile,
-};
-
-
 kmem_cache_t		*vxfs_inode_cachep;
 
 
@@ -318,7 +309,7 @@ vxfs_read_inode(struct inode *ip)
 		aops = &vxfs_aops;
 
 	if (S_ISREG(ip->i_mode)) {
-		ip->i_fop = &vxfs_file_operations;
+		ip->i_fop = &generic_ro_fops;
 		ip->i_mapping->a_ops = aops;
 	} else if (S_ISDIR(ip->i_mode)) {
 		ip->i_op = &vxfs_dir_inode_ops;

@@ -167,7 +167,7 @@ extern int can_do_skas(void);
 #endif
 
 /* mem.c */
-extern int create_mem_file(unsigned long len);
+extern int create_mem_file(unsigned long long len);
 
 /* process.c */
 extern unsigned long os_process_pc(int pid);
@@ -198,6 +198,20 @@ extern int protect_memory(unsigned long addr, unsigned long len,
 extern void forward_pending_sigio(int target);
 extern int start_fork_tramp(void *arg, unsigned long temp_stack,
 			    int clone_flags, int (*tramp)(void *));
+
+/* uaccess.c */
+extern unsigned long __do_user_copy(void *to, const void *from, int n,
+				    void **fault_addr, void **fault_catcher,
+				    void (*op)(void *to, const void *from,
+					       int n), int *faulted_out);
+
+/* helper.c */
+extern int run_helper(void (*pre_exec)(void *), void *pre_data, char **argv,
+		      unsigned long *stack_out);
+extern int run_helper_thread(int (*proc)(void *), void *arg,
+			     unsigned int flags, unsigned long *stack_out,
+			     int stack_order);
+extern int helper_wait(int pid);
 
 #endif
 

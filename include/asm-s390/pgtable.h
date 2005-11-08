@@ -36,6 +36,7 @@
 #include <linux/threads.h>
 
 struct vm_area_struct; /* forward declaration (include/linux/mm.h) */
+struct mm_struct;
 
 extern pgd_t swapper_pg_dir[] __attribute__ ((aligned (4096)));
 extern void paging_init(void);

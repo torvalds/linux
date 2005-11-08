@@ -78,17 +78,9 @@ int inet_csk_get_port(struct inet_hashinfo *hashinfo,
 		int low = sysctl_local_port_range[0];
 		int high = sysctl_local_port_range[1];
 		int remaining = (high - low) + 1;
-		int rover;
+		int rover = net_random() % (high - low) + low;
 
-		spin_lock(&hashinfo->portalloc_lock);
-		if (hashinfo->port_rover < low)
-			rover = low;
-		else
-			rover = hashinfo->port_rover;
 		do {
-			rover++;
-			if (rover > high)
-				rover = low;
 			head = &hashinfo->bhash[inet_bhashfn(rover, hashinfo->bhash_size)];
 			spin_lock(&head->lock);
 			inet_bind_bucket_for_each(tb, node, &head->chain)
@@ -97,9 +89,9 @@ int inet_csk_get_port(struct inet_hashinfo *hashinfo,
 			break;
 		next:
 			spin_unlock(&head->lock);
+			if (++rover > high)
+				rover = low;
 		} while (--remaining > 0);
-		hashinfo->port_rover = rover;
-		spin_unlock(&hashinfo->portalloc_lock);
 
 		/* Exhausted local port range during search?  It is not
 		 * possible for us to be holding one of the bind hash

@@ -135,7 +135,6 @@ static struct fb_ops valkyriefb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
 /* Sets the video mode according to info->var */

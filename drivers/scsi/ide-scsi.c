@@ -331,9 +331,9 @@ static int idescsi_check_condition(ide_drive_t *drive, struct request *failed_co
 	rq = kmalloc (sizeof (struct request), GFP_ATOMIC);
 	buf = kmalloc(SCSI_SENSE_BUFFERSIZE, GFP_ATOMIC);
 	if (pc == NULL || rq == NULL || buf == NULL) {
-		if (pc) kfree(pc);
-		if (rq) kfree(rq);
-		if (buf) kfree(buf);
+		kfree(buf);
+		kfree(rq);
+		kfree(pc);
 		return -ENOMEM;
 	}
 	memset (pc, 0, sizeof (idescsi_pc_t));
@@ -949,8 +949,8 @@ static int idescsi_queue (struct scsi_cmnd *cmd,
 	spin_lock_irq(host->host_lock);
 	return 0;
 abort:
-	if (pc) kfree (pc);
-	if (rq) kfree (rq);
+	kfree (pc);
+	kfree (rq);
 	cmd->result = DID_ERROR << 16;
 	done(cmd);
 	return 0;
