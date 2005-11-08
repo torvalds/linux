@@ -29,8 +29,8 @@
 
 #define DRV_MODULE_NAME		"b44"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"0.95"
-#define DRV_MODULE_RELDATE	"Aug 3, 2004"
+#define DRV_MODULE_VERSION	"0.96"
+#define DRV_MODULE_RELDATE	"Nov 8, 2005"
 
 #define B44_DEF_MSG_ENABLE	  \
 	(NETIF_MSG_DRV		| \
