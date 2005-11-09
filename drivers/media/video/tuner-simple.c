@@ -185,7 +185,7 @@ static struct tunertype tuners[] = {
         { "LG PAL (newer TAPC series)", LGINNOTEK, PAL,
           16*170.00, 16*450.00, 0x01,0x02,0x08,0x8e,623},
 	{ "Philips PAL/SECAM multi (FM1216ME MK3)", Philips, PAL,
-	  16*160.00,16*442.00,0x01,0x02,0x04,0x8e,623 },
+	  16*158.00,16*442.00,0x01,0x02,0x04,0x8e,623 },
 	{ "LG NTSC (newer TAPC series)", LGINNOTEK, NTSC,
           16*170.00, 16*450.00, 0x01,0x02,0x08,0x8e,732},
 
