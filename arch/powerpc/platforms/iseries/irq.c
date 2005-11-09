@@ -103,6 +103,9 @@ static void intReceived(struct XmPciLpEvent *eventParm,
 		struct pt_regs *regsParm)
 {
 	int irq;
+#ifdef CONFIG_IRQSTACKS
+	struct thread_info *curtp, *irqtp;
+#endif
 
 	++Pci_Interrupt_Count;
 
@@ -110,7 +113,20 @@ static void intReceived(struct XmPciLpEvent *eventParm,
 	case XmPciLpEvent_SlotInterrupt:
 		irq = eventParm->hvLpEvent.xCorrelationToken;
 		/* Dispatch the interrupt handlers for this irq */
-		ppc_irq_dispatch_handler(regsParm, irq);
+#ifdef CONFIG_IRQSTACKS
+		/* Switch to the irq stack to handle this */
+		curtp = current_thread_info();
+		irqtp = hardirq_ctx[smp_processor_id()];
+		if (curtp != irqtp) {
+			irqtp->task = curtp->task;
+			irqtp->flags = 0;
+			call_ppc_irq_dispatch_handler(regsParm, irq, irqtp);
+			irqtp->task = NULL;
+			if (irqtp->flags)
+				set_bits(irqtp->flags, &curtp->flags);
+		} else
+#endif
+			ppc_irq_dispatch_handler(regsParm, irq);
 		HvCallPci_eoi(eventParm->eventData.slotInterrupt.busNumber,
 			eventParm->eventData.slotInterrupt.subBusNumber,
 			eventParm->eventData.slotInterrupt.deviceId);
