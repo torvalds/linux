@@ -42,7 +42,7 @@
 #include "wbsd.h"
 
 #define DRIVER_NAME "wbsd"
-#define DRIVER_VERSION "1.4"
+#define DRIVER_VERSION "1.5"
 
 #ifdef CONFIG_MMC_DEBUG
 #define DBG(x...) \
