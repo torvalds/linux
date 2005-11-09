@@ -464,6 +464,8 @@ static int tda9887_set_config(struct tda9887 *t, char *buf)
 			break;
 		}
 	}
+	if ((t->config & TDA9887_INTERCARRIER_NTSC) && (t->std & V4L2_STD_NTSC))
+		buf[1] &= ~cQSS;
 	return 0;
 }
 
