@@ -573,8 +573,16 @@ static inline void em2820_isoc_video_copy(struct em2820 *dev,
 
 	if ((*f)->fieldbytesused + len > dev->field_size)
 		len =dev->field_size - (*f)->fieldbytesused;
+
+	if (buf[0] != 0x88 && buf[0] != 0x22) {
+		em2820_isocdbg("frame is not complete\n");
+		startread = buf;
+		len+=4;
+	} else
+		startread = buf + 4;
+
 	remain = len;
-	startread = buf + 4;
+
 	if ((*f)->top_field)
 		fieldstart = (*f)->bufmem;
 	else
@@ -653,7 +661,8 @@ void em2820_isocIrq(struct urb *urb, struct pt_regs *regs)
 				em2820_isocdbg("data error: [%d] len=%d, status=%d", i,
 					urb->iso_frame_desc[i].actual_length,
 					urb->iso_frame_desc[i].status);
-				continue;
+				if (urb->iso_frame_desc[i].status != -EPROTO)
+					continue;
 			}
 			if (urb->iso_frame_desc[i].actual_length <= 0) {
 				em2820_isocdbg("packet %d is empty",i);
