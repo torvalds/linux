@@ -181,18 +181,25 @@ static void set_audio(struct tuner *t)
 {
 	t->i2c_easy_mode[0] = 0x01;
 
-	if (t->std & V4L2_STD_MN)
+	if (t->std & V4L2_STD_MN) {
+		t->sgIF = 736;
 		t->i2c_easy_mode[1] = 0x01;
-	else if (t->std & V4L2_STD_B)
+	} else if (t->std & V4L2_STD_B) {
+		t->sgIF = 864;
 		t->i2c_easy_mode[1] = 0x02;
-	else if (t->std & V4L2_STD_GH)
+	} else if (t->std & V4L2_STD_GH) {
+		t->sgIF = 992;
 		t->i2c_easy_mode[1] = 0x04;
-	else if (t->std & V4L2_STD_PAL_I)
+	} else if (t->std & V4L2_STD_PAL_I) {
+		t->sgIF = 992;
 		t->i2c_easy_mode[1] = 0x08;
-	else if (t->std & V4L2_STD_DK)
+	} else if (t->std & V4L2_STD_DK) {
+		t->sgIF = 992;
 		t->i2c_easy_mode[1] = 0x10;
-	else if (t->std & V4L2_STD_SECAM_L)
+	} else if (t->std & V4L2_STD_SECAM_L) {
+		t->sgIF = 992;
 		t->i2c_easy_mode[1] = 0x20;
+	}
 }
 
 static void set_tv_freq(struct i2c_client *c, unsigned int freq)
@@ -200,7 +207,7 @@ static void set_tv_freq(struct i2c_client *c, unsigned int freq)
 	struct tuner *t = i2c_get_clientdata(c);
 
 	set_audio(t);
-	set_frequency(t, 864, freq);
+	set_frequency(t, t->sgIF, freq);
 	tda8290_tune(c);
 }
 

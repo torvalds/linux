@@ -191,6 +191,7 @@ struct tuner {
 	/* used by tda8290 */
 	unsigned char i2c_easy_mode[2];
 	unsigned char i2c_set_freq[8];
+	unsigned int  sgIF;
 
 	/* function ptrs */
 	void (*tv_freq)(struct i2c_client *c, unsigned int freq);
