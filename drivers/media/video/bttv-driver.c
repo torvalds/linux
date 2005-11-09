@@ -3736,10 +3736,22 @@ static irqreturn_t bttv_irq(int irq, void *dev_id, struct pt_regs * regs)
 
 		count++;
 		if (count > 4) {
-			btwrite(0, BT848_INT_MASK);
-			printk(KERN_ERR
-			       "bttv%d: IRQ lockup, cleared int mask [", btv->c.nr);
+
+			if (count > 8 || !(astat & BT848_INT_GPINT)) {
+	 			btwrite(0, BT848_INT_MASK);
+
+				printk(KERN_ERR
+					   "bttv%d: IRQ lockup, cleared int mask [", btv->c.nr);
+			} else {
+				printk(KERN_ERR
+					   "bttv%d: IRQ lockup, clearing GPINT from int mask [", btv->c.nr);
+
+				btwrite(btread(BT848_INT_MASK) & (-1 ^ BT848_INT_GPINT),
+						BT848_INT_MASK);
+			};
+
 			bttv_print_irqbits(stat,astat);
+
 			printk("]\n");
 		}
 	}
