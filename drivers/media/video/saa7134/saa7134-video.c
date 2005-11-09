@@ -1862,6 +1862,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 				break;
 		if (NULL != card_in(dev,n).name) {
 			strcpy(t->name, "Television");
+			t->type = V4L2_TUNER_ANALOG_TV;
 			t->capability = V4L2_TUNER_CAP_NORM |
 				V4L2_TUNER_CAP_STEREO |
 				V4L2_TUNER_CAP_LANG1 |
@@ -2165,6 +2166,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 
 		memset(t,0,sizeof(*t));
 		strcpy(t->name, "Radio");
+		t->type = V4L2_TUNER_RADIO;
 
 		saa7134_i2c_call_clients(dev, VIDIOC_G_TUNER, t);
 

@@ -1506,6 +1506,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 
 		memset(t,0,sizeof(*t));
 		strcpy(t->name, "Radio");
+		t->type = V4L2_TUNER_RADIO;
 
 		cx88_call_i2c_clients(core,VIDIOC_G_TUNER,t);
 		return 0;
