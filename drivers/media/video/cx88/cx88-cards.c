@@ -852,6 +852,18 @@ struct cx88_board cx88_boards[] = {
 			.gpio3  = 0x00000000,
 		}},
 	},
+	[CX88_BOARD_WINFAST_DTV1000] = {
+		.name           = "WinFast DTV1000-T",
+		.tuner_type     = TUNER_ABSENT,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_DVB,
+			.vmux   = 0,
+		}},
+		.dvb            = 1,
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -991,6 +1003,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = PCI_VENDOR_ID_ATI,
 		.subdevice = 0xa101,
 		.card      = CX88_BOARD_ATI_HDTVWONDER,
+        },{
+		.subvendor = 0x107d,
+		.subdevice = 0x665f,
+		.card      = CX88_BOARD_WINFAST_DTV1000,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
