@@ -2418,6 +2418,21 @@ struct tvcard bttv_tvcards[] = {
 	.tuner_type	= TUNER_YMEC_TVF66T5_B_DFF,
 	.tuner_addr	= 0xc1 >>1,
 	.has_radio	= 1,
+},{
+	/* ---- card 0x89 ---------------------------------- */
+	.name           = "Conceptronic CTVFMi v2",
+	.video_inputs   = 3,
+	.audio_inputs   = 1,
+	.tuner          = 0,
+	.svhs           = 2,
+	.gpiomask       = 0x001c0007,
+	.muxsel         = { 2, 3, 1, 1 },
+	.audiomux       = { 0, 1, 2, 2, 3 },
+	.needs_tvaudio  = 0,
+	.pll            = PLL_28,
+	.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
+	.tuner_addr	= ADDR_UNSET,
+	.has_remote     = 1,
 }};
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);

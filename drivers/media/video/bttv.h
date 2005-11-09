@@ -137,6 +137,7 @@
 #define BTTV_ADLINK_RTV24   0x86
 #define BTTV_DVICO_FUSIONHDTV_5_LITE 0x87
 #define BTTV_ACORP_Y878F   0x88
+#define BTTV_CONCEPTRONIC_CTVFMI2 0x89
 
 /* i2c address list */
 #define I2C_TSA5522        0xc2

@@ -156,6 +156,71 @@ static IR_KEYTAB_TYPE ir_codes_apac_viewcomp[IR_KEYTAB_SIZE] = {
 
 /* ---------------------------------------------------------------------- */
 
+/* Ricardo Cerqueira <v4l@cerqueira.org> */
+/* Weird matching, since the remote has "uncommon" keys */
+
+static IR_KEYTAB_TYPE ir_codes_conceptronic[IR_KEYTAB_SIZE] = {
+
+	[ 30 ] = KEY_POWER,       // power
+	[ 7  ]  = KEY_SWITCHVIDEOMODE,     // source
+	[ 28 ] = KEY_SEARCH,      // scan
+
+/* FIXME: duplicate keycodes?
+ *
+ * These four keys seem to share the same GPIO as CH+, CH-, <<< and >>>
+ * The GPIO values are
+ * 6397fb for both "Scan <" and "CH -",
+ * 639ffb for "Scan >" and "CH+",
+ * 6384fb for "Tune <" and "<<<",
+ * 638cfb for "Tune >" and ">>>", regardless of the mask.
+ *
+ *	[ 23 ] = KEY_BACK,        // fm scan <<
+ *	[ 31 ] = KEY_FORWARD,     // fm scan >>
+ *
+ *	[ 4  ] = KEY_LEFT,        // fm tuning <
+ *	[ 12 ] = KEY_RIGHT,       // fm tuning >
+ *
+ * For now, these four keys are disabled. Pressing them will generate
+ * the CH+/CH-/<<</>>> events
+ */
+
+	[ 3  ] = KEY_TUNER,       // TV/FM
+
+	[ 0  ] = KEY_RECORD,
+	[ 8  ] = KEY_STOP,
+	[ 17 ] = KEY_PLAY,
+
+	[ 26 ] = KEY_PLAYPAUSE,   // freeze
+	[ 25 ] = KEY_ZOOM,        // zoom
+	[ 15 ] = KEY_TEXT,        // min
+
+	[ 1  ] = KEY_KP1,
+	[ 11 ] = KEY_KP2,
+	[ 27 ] = KEY_KP3,
+	[ 5  ] = KEY_KP4,
+	[ 9  ] = KEY_KP5,
+	[ 21 ] = KEY_KP6,
+	[ 6  ] = KEY_KP7,
+	[ 10 ] = KEY_KP8,
+	[ 18 ] = KEY_KP9,
+	[ 2  ] = KEY_KP0,
+	[ 16 ] = KEY_LAST,        // +100
+	[ 19 ] = KEY_LIST,        // recall
+
+	[ 31 ] = KEY_CHANNELUP,   // chn down
+	[ 23 ] = KEY_CHANNELDOWN, // chn up
+	[ 22 ] = KEY_VOLUMEUP,    // vol down
+	[ 20 ] = KEY_VOLUMEDOWN,  // vol up
+
+	[ 4  ] = KEY_KPMINUS,     // <<<
+	[ 14 ] = KEY_SETUP,       // function
+	[ 12 ] = KEY_KPPLUS,      // >>>
+
+	[ 13 ] = KEY_GOTO,        // mts
+	[ 29 ] = KEY_REFRESH,     // reset
+	[ 24 ] = KEY_MUTE         // mute/unmute
+};
+
 struct IR {
 	struct bttv_sub_device  *sub;
 	struct input_dev        *input;
@@ -327,6 +392,12 @@ static int ir_probe(struct device *dev)
 		ir_codes         = ir_codes_apac_viewcomp;
 		ir->mask_keycode = 0x001f00;
 		ir->mask_keyup   = 0x008000;
+		ir->polling      = 50; // ms
+		break;
+	case BTTV_CONCEPTRONIC_CTVFMI2:
+		ir_codes         = ir_codes_conceptronic;
+		ir->mask_keycode = 0x001F00;
+		ir->mask_keyup   = 0x006000;
 		ir->polling      = 50; // ms
 		break;
 	}
