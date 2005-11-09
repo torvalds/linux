@@ -38,7 +38,6 @@ static struct cpufreq_driver   	*cpufreq_driver;
 static struct cpufreq_policy	*cpufreq_cpu_data[NR_CPUS];
 static DEFINE_SPINLOCK(cpufreq_driver_lock);
 
-
 /* internal prototypes */
 static int __cpufreq_governor(struct cpufreq_policy *policy, unsigned int event);
 static void handle_update(void *data);
@@ -1115,24 +1114,21 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 	int retval = -EINVAL;
 
 	/*
-	 * Converted the lock_cpu_hotplug to preempt_disable()
-	 * and preempt_enable(). This is a bit kludgy and relies on how cpu
-	 * hotplug works. All we need is a guarantee that cpu hotplug won't make
-	 * progress on any cpu. Once we do preempt_disable(), this would ensure
-	 * that hotplug threads don't get onto this cpu, thereby delaying
-	 * the cpu remove process.
-	 *
-	 * We removed the lock_cpu_hotplug since we need to call this function
-	 * via cpu hotplug callbacks, which result in locking the cpu hotplug
-	 * thread itself. Agree this is not very clean, cpufreq community
-	 * could improve this if required. - Ashok Raj <ashok.raj@intel.com>
+	 * If we are already in context of hotplug thread, we dont need to
+	 * acquire the hotplug lock. Otherwise acquire cpucontrol to prevent
+	 * hotplug from removing this cpu that we are working on.
 	 */
-	preempt_disable();
+	if (!current_in_cpu_hotplug())
+		lock_cpu_hotplug();
+
 	dprintk("target for CPU %u: %u kHz, relation %u\n", policy->cpu,
 		target_freq, relation);
 	if (cpu_online(policy->cpu) && cpufreq_driver->target)
 		retval = cpufreq_driver->target(policy, target_freq, relation);
-	preempt_enable();
+
+	if (!current_in_cpu_hotplug())
+		unlock_cpu_hotplug();
+
 	return retval;
 }
 EXPORT_SYMBOL_GPL(__cpufreq_driver_target);
