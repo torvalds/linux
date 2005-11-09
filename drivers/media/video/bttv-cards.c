@@ -2399,6 +2399,7 @@ struct tvcard bttv_tvcards[] = {
 	.no_msp34xx     = 1,
 	.no_tda9875     = 1,
 	.no_tda7432     = 1,
+	.has_dvb        = 1,
 },{
 	/* ---- card 0x88---------------------------------- */
 	/* Mauro Carvalho Chehab <mchehab@brturbo.com.br> */
