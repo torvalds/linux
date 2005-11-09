@@ -2824,7 +2824,7 @@ void __devinit bttv_idcard(struct bttv *btv)
 			       btv->c.nr, btv->cardid & 0xffff,
 			       (btv->cardid >> 16) & 0xffff);
 			printk(KERN_DEBUG "please mail id, board name and "
-			       "the correct card= insmod option to kraxel@bytesex.org\n");
+			       "the correct card= insmod option to video4linux-list@redhat.com\n");
 		}
 	}
 
