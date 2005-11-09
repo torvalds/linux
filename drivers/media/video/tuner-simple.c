@@ -222,7 +222,7 @@ static struct tunertype tuners[] = {
 	  16*160.00,16*454.00,0x41,0x42,0x04,0x8e,940}, /* UHF band untested */
 	{ "tda8290+75", Philips, PAL|NTSC,
 	  /* see tda8290.c for details */ },
-	{ "LG PAL (TAPE series)", LGINNOTEK, PAL,
+	{ "TCL 2002MB", TCL, PAL,
           16*170.00, 16*450.00, 0x01,0x02,0x08,0xce,623},
 	{ "Philips PAL/SECAM multi (FQ1216AME MK4)", Philips, PAL,
 	  16*160.00,16*442.00,0x01,0x02,0x04,0xce,623 },
@@ -233,7 +233,7 @@ static struct tunertype tuners[] = {
 	{ "Ymec TVision TVF-5533MF", Philips, NTSC,
 	  16*160.00,16*454.00,0x01,0x02,0x04,0x8e,732},
 
-	/* 60-66 */
+	/* 60-67 */
 	{ "Thomson DDT 7611 (ATSC/NTSC)", THOMSON, ATSC,
 	  16*157.25,16*454.00,0x39,0x3a,0x3c,0x8e,732},
 	{ "Tena TNF9533-D/IF/TNF9533-B/DF", Philips, PAL,
