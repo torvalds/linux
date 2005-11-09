@@ -684,6 +684,7 @@ extern int		netif_rx(struct sk_buff *skb);
 extern int		netif_rx_ni(struct sk_buff *skb);
 #define HAVE_NETIF_RECEIVE_SKB 1
 extern int		netif_receive_skb(struct sk_buff *skb);
+extern int		dev_valid_name(const char *name);
 extern int		dev_ioctl(unsigned int cmd, void __user *);
 extern int		dev_ethtool(struct ifreq *);
 extern unsigned		dev_get_flags(const struct net_device *);
