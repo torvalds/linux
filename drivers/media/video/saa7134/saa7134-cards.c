@@ -2251,6 +2251,74 @@ struct saa7134_board saa7134_boards[] = {
 			.amux   = LINE1,
 		}},
 	},
+ 	[SAA7134_BOARD_RTD_VFG7350] = {
+ 		.name		= "RTD Embedded Technologies VFG7350",
+ 		.audio_clock	= 0x00200000,
+ 		.tuner_type	= TUNER_ABSENT,
+ 		.radio_type	= UNSET,
+ 		.tuner_addr	= ADDR_UNSET,
+ 		.radio_addr	= ADDR_UNSET,
+ 		.inputs		= {{
+ 			.name   = "Composite 0",
+ 			.vmux   = 0,
+ 			.amux   = LINE1,
+ 		},{
+ 			.name   = "Composite 1",
+ 			.vmux   = 1,
+ 			.amux   = LINE2,
+ 		},{
+ 			.name   = "Composite 2",
+ 			.vmux   = 2,
+ 			.amux   = LINE1,
+ 		},{
+ 			.name   = "Composite 3",
+ 			.vmux   = 3,
+ 			.amux   = LINE2,
+ 		},{
+ 			.name   = "S-Video 0",
+ 			.vmux   = 8,
+ 			.amux   = LINE1,
+ 		},{
+ 			.name   = "S-Video 1",
+ 			.vmux   = 9,
+ 			.amux   = LINE2,
+ 		}},
+ 		.mpeg           = SAA7134_MPEG_EMPRESS,
+ 		.video_out      = CCIR656,
+ 	},
+ 	[SAA7134_BOARD_RTD_VFG7330] = {
+ 		.name		= "RTD Embedded Technologies VFG7330",
+ 		.audio_clock	= 0x00200000,
+ 		.tuner_type	= TUNER_ABSENT,
+ 		.radio_type	= UNSET,
+ 		.tuner_addr	= ADDR_UNSET,
+ 		.radio_addr	= ADDR_UNSET,
+ 		.inputs		= {{
+ 			.name   = "Composite 0",
+ 			.vmux   = 0,
+ 			.amux   = LINE1,
+ 		},{
+ 			.name   = "Composite 1",
+ 			.vmux   = 1,
+ 			.amux   = LINE2,
+ 		},{
+ 			.name   = "Composite 2",
+ 			.vmux   = 2,
+ 			.amux   = LINE1,
+ 		},{
+ 			.name   = "Composite 3",
+ 			.vmux   = 3,
+ 			.amux   = LINE2,
+ 		},{
+ 			.name   = "S-Video 0",
+ 			.vmux   = 8,
+ 			.amux   = LINE1,
+ 		},{
+ 			.name   = "S-Video 1",
+ 			.vmux   = 9,
+ 			.amux   = LINE2,
+ 		}},
+ 	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -2639,6 +2707,18 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0xc901,
 		.driver_data  = SAA7134_BOARD_VIDEOMATE_DVBT_200,
 	},{
+ 		.vendor       = PCI_VENDOR_ID_PHILIPS,
+ 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+ 		.subvendor    = 0x1435,
+ 		.subdevice    = 0x7350,
+ 		.driver_data  = SAA7134_BOARD_RTD_VFG7350,
+	},{
+ 		.vendor       = PCI_VENDOR_ID_PHILIPS,
+ 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+ 		.subvendor    = 0x1435,
+ 		.subdevice    = 0x7330,
+ 		.driver_data  = SAA7134_BOARD_RTD_VFG7330,
+ 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -2757,6 +2837,17 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0xffffffff, 0xffffffff);
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0xffffffff, 0xffffffff);
 		msleep(1);
+		break;
+	case SAA7134_BOARD_RTD_VFG7350:
+
+		/*
+		 * Make sure Production Test Register at offset 0x1D1 is cleared
+		 * to take chip out of test mode.  Clearing bit 4 (TST_EN_AOUT)
+		 * prevents pin 105 from remaining low; keeping pin 105 low
+		 * continually resets the SAA6752 chip.
+		 */
+
+		saa_writeb (SAA7134_PRODUCTION_TEST_MODE, 0x00);
 		break;
 	}
 	return 0;

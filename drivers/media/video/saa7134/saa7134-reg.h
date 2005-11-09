@@ -348,6 +348,7 @@
 
 /* test modes */
 #define SAA7134_SPECIAL_MODE                    0x1d0
+#define SAA7134_PRODUCTION_TEST_MODE            0x1d1
 
 /* audio -- saa7133 + saa7135 only */
 #define SAA7135_DSP_RWSTATE                     0x580

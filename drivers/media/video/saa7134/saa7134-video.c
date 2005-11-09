@@ -1666,6 +1666,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_QUERYCAP:
 	{
 		struct v4l2_capability *cap = arg;
+		unsigned int tuner_type = dev->tuner_type;
 
 		memset(cap,0,sizeof(*cap));
                 strcpy(cap->driver, "saa7134");
@@ -1677,9 +1678,13 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 			V4L2_CAP_VIDEO_CAPTURE |
 			V4L2_CAP_VIDEO_OVERLAY |
 			V4L2_CAP_VBI_CAPTURE |
-			V4L2_CAP_TUNER |
 			V4L2_CAP_READWRITE |
-			V4L2_CAP_STREAMING;
+			V4L2_CAP_STREAMING |
+			V4L2_CAP_TUNER;
+
+		if ((tuner_type == TUNER_ABSENT) || (tuner_type == UNSET))
+			cap->capabilities &= ~V4L2_CAP_TUNER;
+
 		return 0;
 	}
 
