@@ -54,6 +54,13 @@ module_param(ql2xloginretrycount, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xloginretrycount,
 		"Specify an alternate value for the NVRAM login retry count.");
 
+#if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
+int ql2xfwloadflash;
+module_param(ql2xfwloadflash, int, S_IRUGO|S_IRUSR);
+MODULE_PARM_DESC(ql2xfwloadflash,
+		"Load ISP24xx firmware image from FLASH (onboard memory).");
+#endif
+
 static void qla2x00_free_device(scsi_qla_host_t *);
 
 static void qla2x00_config_dma_addressing(scsi_qla_host_t *ha);
@@ -1367,10 +1374,10 @@ int qla2x00_probe_one(struct pci_dev *pdev, struct qla_board_info *brd_info)
 		ha->isp_ops.reset_adapter = qla24xx_reset_adapter;
 		ha->isp_ops.nvram_config = qla24xx_nvram_config;
 		ha->isp_ops.update_fw_options = qla24xx_update_fw_options;
-#if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
-		ha->isp_ops.load_risc = qla24xx_load_risc_flash;
-#else
 		ha->isp_ops.load_risc = qla24xx_load_risc;
+#if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
+		if (ql2xfwloadflash)
+			ha->isp_ops.load_risc = qla24xx_load_risc_flash;
 #endif
 		ha->isp_ops.pci_info_str = qla24xx_pci_info_str;
 		ha->isp_ops.fw_version_str = qla24xx_fw_version_str;
@@ -2488,53 +2495,8 @@ qla2x00_down_timeout(struct semaphore *sema, unsigned long timeout)
 #if defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE)
 
 #define qla2x00_release_firmware()	do { } while (0)
-
-static struct qla_board_info qla_board_tbl[] = {
-	{
-		.drv_name	= "qla2400",
-		.isp_name	= "ISP2422",
-		.fw_fname	= "ql2400_fw.bin",
-		.sht		= &qla24xx_driver_template,
-	},
-	{
-		.drv_name	= "qla2400",
-		.isp_name	= "ISP2432",
-		.fw_fname	= "ql2400_fw.bin",
-		.sht		= &qla24xx_driver_template,
-	},
-};
-
-static struct pci_device_id qla2xxx_pci_tbl[] = {
-	{
-		.vendor		= PCI_VENDOR_ID_QLOGIC,
-		.device		= PCI_DEVICE_ID_QLOGIC_ISP2422,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (unsigned long)&qla_board_tbl[0],
-	},
-	{
-		.vendor		= PCI_VENDOR_ID_QLOGIC,
-		.device		= PCI_DEVICE_ID_QLOGIC_ISP2432,
-		.subvendor	= PCI_ANY_ID,
-		.subdevice	= PCI_ANY_ID,
-		.driver_data	= (unsigned long)&qla_board_tbl[1],
-	},
-	{0, 0},
-};
-MODULE_DEVICE_TABLE(pci, qla2xxx_pci_tbl);
-
-static int __devinit
-qla2xxx_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
-{
-	return qla2x00_probe_one(pdev,
-	    (struct qla_board_info *)id->driver_data);
-}
-
-static void __devexit
-qla2xxx_remove_one(struct pci_dev *pdev)
-{
-	qla2x00_remove_one(pdev);
-}
+#define qla2x00_pci_module_init()	(0)
+#define qla2x00_pci_module_exit()	do { } while (0)
 
 #else	/* !defined(CONFIG_SCSI_QLA2XXX_EMBEDDED_FIRMWARE) */
 
@@ -2647,8 +2609,6 @@ qla2xxx_remove_one(struct pci_dev *pdev)
 	qla2x00_remove_one(pdev);
 }
 
-#endif
-
 static struct pci_driver qla2xxx_pci_driver = {
 	.name		= "qla2xxx",
 	.owner		= THIS_MODULE,
@@ -2656,6 +2616,20 @@ static struct pci_driver qla2xxx_pci_driver = {
 	.probe		= qla2xxx_probe_one,
 	.remove		= __devexit_p(qla2xxx_remove_one),
 };
+
+static inline int
+qla2x00_pci_module_init(void)
+{
+	return pci_module_init(&qla2xxx_pci_driver);
+}
+
+static inline void
+qla2x00_pci_module_exit(void)
+{
+	pci_unregister_driver(&qla2xxx_pci_driver);
+}
+
+#endif
 
 /**
  * qla2x00_module_init - Module initialization.
@@ -2688,7 +2662,7 @@ qla2x00_module_init(void)
 		return -ENODEV;
 
 	printk(KERN_INFO "QLogic Fibre Channel HBA Driver\n");
-	ret = pci_module_init(&qla2xxx_pci_driver);
+	ret = qla2x00_pci_module_init();
 	if (ret) {
 		kmem_cache_destroy(srb_cachep);
 		fc_release_transport(qla2xxx_transport_template);
@@ -2702,7 +2676,7 @@ qla2x00_module_init(void)
 static void __exit
 qla2x00_module_exit(void)
 {
-	pci_unregister_driver(&qla2xxx_pci_driver);
+	qla2x00_pci_module_exit();
 	qla2x00_release_firmware();
 	kmem_cache_destroy(srb_cachep);
 	fc_release_transport(qla2xxx_transport_template);
