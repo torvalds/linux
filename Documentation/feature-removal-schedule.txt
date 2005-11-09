@@ -25,6 +25,13 @@ Who:	Adrian Bunk <bunk@stusta.de>
 
 ---------------------------
 
+What:	drivers depending on OBSOLETE_OSS_DRIVER
+When:	January 2006
+Why:	OSS drivers with ALSA replacements
+Who:	Adrian Bunk <bunk@stusta.de>
+
+---------------------------
+
 What:	RCU API moves to EXPORT_SYMBOL_GPL
 When:	April 2006
 Files:	include/linux/rcupdate.h, kernel/rcupdate.c
