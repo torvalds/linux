@@ -1727,7 +1727,7 @@ static ssize_t
 level_show(mddev_t *mddev, char *page)
 {
 	mdk_personality_t *p = mddev->pers;
-	if (p == NULL)
+	if (p == NULL && mddev->raid_disks == 0)
 		return 0;
 	if (mddev->level >= 0)
 		return sprintf(page, "RAID-%d\n", mddev->level);
@@ -1740,6 +1740,8 @@ static struct md_sysfs_entry md_level = __ATTR_RO(level);
 static ssize_t
 raid_disks_show(mddev_t *mddev, char *page)
 {
+	if (mddev->raid_disks == 0)
+		return 0;
 	return sprintf(page, "%d\n", mddev->raid_disks);
 }
 
