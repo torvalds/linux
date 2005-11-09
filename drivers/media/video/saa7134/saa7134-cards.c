@@ -2418,6 +2418,34 @@ struct saa7134_board saa7134_boards[] = {
 			  .amux = LINE1,
 		},
 	},
+	[SAA7134_BOARD_ASUSTeK_P7131_DUAL] = {
+		.name           = "ASUSTeK P7131 Dual",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.gpiomask	= 1 << 21,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+		},{
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE2,
+		},{
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE2,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+			.gpio = 0x0200000,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -2841,6 +2869,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x11bd,
 		.subdevice    = 0x002e,
 		.driver_data  = SAA7134_BOARD_PINNACLE_PCTV_110i,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1043,
+		.subdevice    = 0x4862,
+		.driver_data  = SAA7134_BOARD_ASUSTeK_P7131_DUAL,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
