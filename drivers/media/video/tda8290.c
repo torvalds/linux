@@ -535,7 +535,7 @@ int tda8290_init(struct i2c_client *c)
 	if (tuner_addrs == 0) {
 		tuner_addrs = 0x61;
 		tuner_info ("could not clearly identify tuner address, defaulting to %x\n",
-		             tuner_addrs);
+			     tuner_addrs);
 	} else {
 		tuner_addrs = tuner_addrs & 0xff;
 		tuner_info ("setting tuner address to %x\n", tuner_addrs);
