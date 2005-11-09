@@ -497,8 +497,6 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			break;
 		}
 	case AUDC_CONFIG_PINNACLE:
-		if (check_mode(t, "AUDC_CONFIG_PINNACLE") == EINVAL)
-			return 0;
 		switch (*iarg) {
 		case 2:
 			tuner_dbg("pinnacle pal\n");
