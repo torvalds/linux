@@ -578,6 +578,11 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keyup   = 0x400000;
 		polling      = 50; // ms
 		break;
+        case SAA7134_BOARD_VIDEOMATE_DVBT_300:
+		ir_codes     = videomate_tv_pvr_codes;
+		mask_keycode = 0x003F00;
+		mask_keyup   = 0x040000;
+		break;
 	}
 	if (NULL == ir_codes) {
 		printk("%s: Oops: IR config error [card=%d]\n",
