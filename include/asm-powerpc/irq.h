@@ -429,7 +429,6 @@ extern u64 ppc64_interrupt_controller;
 #define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
 /* pedantic: these are long because they are used with set_bit --RR */
 extern unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
-extern unsigned long ppc_lost_interrupts[NR_MASK_WORDS];
 extern atomic_t ppc_n_lost_interrupts;
 
 #define virt_irq_create_mapping(x)	(x)

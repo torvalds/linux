@@ -12,7 +12,7 @@ extra-$(CONFIG_6xx)		+= idle_6xx.o
 extra-$(CONFIG_POWER4)		+= idle_power4.o
 extra-y				+= vmlinux.lds
 
-obj-y				:= entry.o traps.o irq.o idle.o time.o misc.o \
+obj-y				:= entry.o traps.o idle.o time.o misc.o \
 					process.o align.o \
 					setup.o \
 					ppc_htab.o
@@ -38,8 +38,7 @@ endif
 # These are here while we do the architecture merge
 
 else
-obj-y				:= irq.o idle.o \
-					align.o
+obj-y				:= idle.o align.o
 obj-$(CONFIG_6xx)		+= l2cr.o cpu_setup_6xx.o
 obj-$(CONFIG_SOFTWARE_SUSPEND)	+= swsusp.o
 obj-$(CONFIG_MODULES)		+= module.o
