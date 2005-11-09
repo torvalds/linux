@@ -1182,6 +1182,7 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 {
 	mdk_rdev_t *same_pdev;
 	char b[BDEVNAME_SIZE], b2[BDEVNAME_SIZE];
+	struct kobject *ko;
 
 	if (rdev->mddev) {
 		MD_BUG();
@@ -1221,7 +1222,11 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 	rdev->kobj.parent = &mddev->kobj;
 	kobject_add(&rdev->kobj);
 
-	sysfs_create_link(&rdev->kobj, &rdev->bdev->bd_disk->kobj, "block");
+	if (rdev->bdev->bd_part)
+		ko = &rdev->bdev->bd_part->kobj;
+	else
+		ko = &rdev->bdev->bd_disk->kobj;
+	sysfs_create_link(&rdev->kobj, ko, "block");
 	return 0;
 }
 
