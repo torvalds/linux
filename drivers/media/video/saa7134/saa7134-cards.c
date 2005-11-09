@@ -2453,18 +2453,33 @@ struct saa7134_board saa7134_boards[] = {
 	},
 	[SAA7134_BOARD_PCTV_CARDBUS] = {
 		/* Paul Tom Zalac <pzalac@gmail.com> */
-		/* tda8275a tuner doesnt work yet */
+		/* Pavel Mihaylov <bin@bash.info> */
 		.name           = "PCTV Cardbus TV/Radio (ITO25 Rev:2B)",
+				/* Sedna Cardbus TV Tuner */
 		.audio_clock    = 0x00187de7,
-		.tuner_type     = TUNER_ABSENT,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
 		.tuner_addr     = ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
+		.gpiomask       = 0xe880c0,
 		.inputs         = {{
+			.name = name_tv,
+			.vmux = 3,
+			.amux = TV,
+			.tv   = 1,
+		},{
 			.name = name_comp1,
 			.vmux = 1,
-			.amux = LINE2,
+			.amux = LINE1,
+		},{
+			.name = name_svideo,
+			.vmux = 6,
+			.amux = LINE1,
 		}},
+		.radio = {
+			.name = name_radio,
+			.amux = LINE2,
+		},
 	},
 	[SAA7134_BOARD_ASUSTEK_DIGIMATRIX_TV] = {
 		/* "Cyril Lacoux (Yack)" <clacoux@ifeelgood.org> */
@@ -2942,7 +2957,7 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x1043,
 		.subdevice    = 0x4862,
 		.driver_data  = SAA7134_BOARD_ASUSTeK_P7131_DUAL,
- 	},{
+	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = PCI_VENDOR_ID_PHILIPS,

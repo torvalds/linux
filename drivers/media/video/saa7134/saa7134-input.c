@@ -543,6 +543,42 @@ static IR_KEYTAB_TYPE ir_codes_pinnacle[IR_KEYTAB_SIZE] = {
 	[ 0x0a ] = KEY_BACKSPACE,
 };
 
+/* Mapping for the 28 key remote control as seen at
+   http://www.sednacomputer.com/photo/cardbus-tv.jpg
+   Pavel Mihaylov <bin@bash.info> */
+static IR_KEYTAB_TYPE pctv_cardbus_codes[IR_KEYTAB_SIZE] = {
+	[    0 ] = KEY_KP0,
+	[    1 ] = KEY_KP1,
+	[    2 ] = KEY_KP2,
+	[    3 ] = KEY_KP3,
+	[    4 ] = KEY_KP4,
+	[    5 ] = KEY_KP5,
+	[    6 ] = KEY_KP6,
+	[    7 ] = KEY_KP7,
+	[    8 ] = KEY_KP8,
+	[    9 ] = KEY_KP9,
+
+	[ 0x0a ] = KEY_AGAIN,          /* Recall */
+	[ 0x0b ] = KEY_CHANNELUP,
+	[ 0x0c ] = KEY_VOLUMEUP,
+	[ 0x0d ] = KEY_MODE,           /* Stereo */
+	[ 0x0e ] = KEY_STOP,
+	[ 0x0f ] = KEY_PREVIOUSSONG,
+	[ 0x10 ] = KEY_ZOOM,
+	[ 0x11 ] = KEY_TUNER,          /* Source */
+	[ 0x12 ] = KEY_POWER,
+	[ 0x13 ] = KEY_MUTE,
+	[ 0x15 ] = KEY_CHANNELDOWN,
+	[ 0x18 ] = KEY_VOLUMEDOWN,
+	[ 0x19 ] = KEY_SHUFFLE,        /* Snapshot */
+	[ 0x1a ] = KEY_NEXTSONG,
+	[ 0x1b ] = KEY_TEXT,           /* Time Shift */
+	[ 0x1c ] = KEY_RADIO,          /* FM Radio */
+	[ 0x1d ] = KEY_RECORD,
+	[ 0x1e ] = KEY_PAUSE,
+};
+
+
 /* -------------------- GPIO generic keycode builder -------------------- */
 
 static int build_key(struct saa7134_dev *dev)
@@ -741,6 +777,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_MANLI_MTV002:
 	case SAA7134_BOARD_BEHOLD_409FM:
 		ir_codes     = manli_codes;
+		mask_keycode = 0x001f00;
+		mask_keyup   = 0x004000;
+		polling      = 50; // ms
+		break;
+	case SAA7134_BOARD_PCTV_CARDBUS:
+		ir_codes     = pctv_cardbus_codes;
 		mask_keycode = 0x001f00;
 		mask_keyup   = 0x004000;
 		polling      = 50; // ms
