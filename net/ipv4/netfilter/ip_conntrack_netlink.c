@@ -779,7 +779,7 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	ct = tuplehash_to_ctrack(h);
 
 	err = -ENOMEM;
-	skb2 = alloc_skb(NLMSG_GOODSIZE, GFP_ATOMIC);
+	skb2 = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb2) {
 		ip_conntrack_put(ct);
 		return -ENOMEM;
