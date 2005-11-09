@@ -2185,6 +2185,72 @@ struct saa7134_board saa7134_boards[] = {
                         .gpio = 0x00200003,
                 },
         },
+	[SAA7134_BOARD_PHILIPS_EUROPA] = {
+		.name           = "Philips EUROPA V3 reference design",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TD1316,
+		.radio_type     = UNSET,
+		.tuner_addr	= 0x61,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs = {{
+			.name   = name_tv,
+			.vmux   = 3,
+			.amux   = TV,
+			.tv     = 1,
+		},{
+			.name   = name_comp1,
+			.vmux   = 0,
+			.amux   = LINE2,
+		},{
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE2,
+		}},
+	},
+	[SAA7134_BOARD_VIDEOMATE_DVBT_300] = {
+		.name           = "Compro Videomate DVB-T300",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TD1316,
+		.radio_type     = UNSET,
+		.tuner_addr	= 0x61,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs = {{
+			.name   = name_tv,
+			.vmux   = 3,
+			.amux   = TV,
+			.tv     = 1,
+		},{
+			.name   = name_comp1,
+			.vmux   = 1,
+			.amux   = LINE2,
+		},{
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE2,
+		}},
+	},
+	[SAA7134_BOARD_VIDEOMATE_DVBT_200] = {
+		.name           = "Compro Videomate DVB-T200",
+		.tuner_type	= TUNER_ABSENT,
+		.audio_clock    = 0x00187de7,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs = {{
+			.name   = name_comp1,
+			.vmux   = 0,
+			.amux   = LINE1,
+		},{
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE1,
+		}},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -2555,6 +2621,24 @@ struct pci_device_id saa7134_pci_tbl[] = {
                 .subdevice    = 0x7135,
                 .driver_data  = SAA7134_BOARD_GOTVIEW_7135,
         },{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = PCI_VENDOR_ID_PHILIPS,
+		.subdevice    = 0x2004,
+		.driver_data  = SAA7134_BOARD_PHILIPS_EUROPA,
+ 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
+		.subvendor    = 0x185b,
+		.subdevice    = 0xc900,
+		.driver_data  = SAA7134_BOARD_VIDEOMATE_DVBT_300,
+ 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
+		.subvendor    = 0x185b,
+		.subdevice    = 0xc901,
+		.driver_data  = SAA7134_BOARD_VIDEOMATE_DVBT_200,
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -2708,7 +2792,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 				saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR, &tun_setup);
 		}
 		break;
-case SAA7134_BOARD_MD7134:
+	case SAA7134_BOARD_MD7134:
 		{
 		struct tuner_setup tun_setup;
 		u8 subaddr;
@@ -2774,6 +2858,24 @@ case SAA7134_BOARD_MD7134:
 
 		saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR,&tun_setup);
 		}
+		break;
+	case SAA7134_BOARD_PHILIPS_EUROPA:
+	case SAA7134_BOARD_VIDEOMATE_DVBT_300:
+		/* The Philips EUROPA based hybrid boards have the tuner connected through
+		 * the channel decoder. We have to make it transparent to find it
+	 	 */
+		{
+		struct tuner_setup tun_setup;
+		u8 data[] = { 0x07, 0x02};
+		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
+		i2c_transfer(&dev->i2c_adap, &msg, 1);
+
+		tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
+		tun_setup.type = dev->tuner_type;
+		tun_setup.addr = dev->tuner_addr;
+
+		saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR,&tun_setup);
+ 		}
 		break;
 	}
 	return 0;
