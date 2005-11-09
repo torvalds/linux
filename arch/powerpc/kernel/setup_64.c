@@ -61,6 +61,8 @@
 #include <asm/xmon.h>
 #include <asm/udbg.h>
 
+#include "setup.h"
+
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
 #else
