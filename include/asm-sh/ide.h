@@ -16,10 +16,6 @@
 
 #include <linux/config.h>
 
-#ifndef MAX_HWIFS
-#define MAX_HWIFS	CONFIG_IDE_MAX_HWIFS
-#endif
-
 #define ide_default_io_ctl(base)	(0)
 
 #include <asm-generic/ide_iops.h>
