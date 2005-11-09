@@ -90,6 +90,7 @@ n	[A-Za-z0-9_]
 		struct kconf_id *id = kconf_id_lookup(yytext, yyleng);
 		if (id && id->flags & TF_COMMAND) {
 			BEGIN(PARAM);
+			zconflval.id = id;
 			return id->token;
 		}
 		alloc_string(yytext, yyleng);
@@ -117,8 +118,10 @@ n	[A-Za-z0-9_]
 	---	/* ignore */
 	({n}|[-/.])+	{
 		struct kconf_id *id = kconf_id_lookup(yytext, yyleng);
-		if (id && id->flags & TF_PARAM)
+		if (id && id->flags & TF_PARAM) {
+			zconflval.id = id;
 			return id->token;
+		}
 		alloc_string(yytext, yyleng);
 		zconflval.string = text;
 		return T_WORD;

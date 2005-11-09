@@ -1025,6 +1025,7 @@ YY_RULE_SETUP
 		struct kconf_id *id = kconf_id_lookup(zconftext, zconfleng);
 		if (id && id->flags & TF_COMMAND) {
 			BEGIN(PARAM);
+			zconflval.id = id;
 			return id->token;
 		}
 		alloc_string(zconftext, zconfleng);
@@ -1091,8 +1092,10 @@ case 19:
 YY_RULE_SETUP
 {
 		struct kconf_id *id = kconf_id_lookup(zconftext, zconfleng);
-		if (id && id->flags & TF_PARAM)
+		if (id && id->flags & TF_PARAM) {
+			zconflval.id = id;
 			return id->token;
+		}
 		alloc_string(zconftext, zconfleng);
 		zconflval.string = text;
 		return T_WORD;

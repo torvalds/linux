@@ -45,6 +45,7 @@ struct kconf_id {
 	int name;
 	int token;
 	unsigned int flags;
+	enum symbol_type stype;
 };
 
 int zconfparse(void);

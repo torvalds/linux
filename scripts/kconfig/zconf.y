@@ -43,43 +43,38 @@ static struct menu *current_menu, *current_entry;
 	struct symbol *symbol;
 	struct expr *expr;
 	struct menu *menu;
+	struct kconf_id *id;
 }
 
-%token T_MAINMENU
-%token T_MENU
-%token T_ENDMENU
-%token T_SOURCE
-%token T_CHOICE
-%token T_ENDCHOICE
-%token T_COMMENT
-%token T_CONFIG
-%token T_MENUCONFIG
-%token T_HELP
+%token <id>T_MAINMENU
+%token <id>T_MENU
+%token <id>T_ENDMENU
+%token <id>T_SOURCE
+%token <id>T_CHOICE
+%token <id>T_ENDCHOICE
+%token <id>T_COMMENT
+%token <id>T_CONFIG
+%token <id>T_MENUCONFIG
+%token <id>T_HELP
 %token <string> T_HELPTEXT
-%token T_IF
-%token T_ENDIF
-%token T_DEPENDS
-%token T_REQUIRES
-%token T_OPTIONAL
-%token T_PROMPT
-%token T_DEFAULT
-%token T_TRISTATE
-%token T_DEF_TRISTATE
-%token T_BOOLEAN
-%token T_DEF_BOOLEAN
-%token T_STRING
-%token T_INT
-%token T_HEX
+%token <id>T_IF
+%token <id>T_ENDIF
+%token <id>T_DEPENDS
+%token <id>T_REQUIRES
+%token <id>T_OPTIONAL
+%token <id>T_PROMPT
+%token <id>T_TYPE
+%token <id>T_DEFAULT
+%token <id>T_SELECT
+%token <id>T_RANGE
+%token <id>T_ON
 %token <string> T_WORD
 %token <string> T_WORD_QUOTE
 %token T_UNEQUAL
-%token T_EOF
-%token T_EOL
 %token T_CLOSE_PAREN
 %token T_OPEN_PAREN
-%token T_ON
-%token T_SELECT
-%token T_RANGE
+%token T_EOL
+%token T_EOF
 
 %left T_OR
 %left T_AND
@@ -160,48 +155,12 @@ config_option_list:
 	| config_option_list T_EOL
 ;
 
-config_option: T_TRISTATE prompt_stmt_opt T_EOL
+config_option: T_TYPE prompt_stmt_opt T_EOL
 {
-	menu_set_type(S_TRISTATE);
-	printd(DEBUG_PARSE, "%s:%d:tristate\n", zconf_curname(), zconf_lineno());
-};
-
-config_option: T_DEF_TRISTATE expr if_expr T_EOL
-{
-	menu_add_expr(P_DEFAULT, $2, $3);
-	menu_set_type(S_TRISTATE);
-	printd(DEBUG_PARSE, "%s:%d:def_boolean\n", zconf_curname(), zconf_lineno());
-};
-
-config_option: T_BOOLEAN prompt_stmt_opt T_EOL
-{
-	menu_set_type(S_BOOLEAN);
-	printd(DEBUG_PARSE, "%s:%d:boolean\n", zconf_curname(), zconf_lineno());
-};
-
-config_option: T_DEF_BOOLEAN expr if_expr T_EOL
-{
-	menu_add_expr(P_DEFAULT, $2, $3);
-	menu_set_type(S_BOOLEAN);
-	printd(DEBUG_PARSE, "%s:%d:def_boolean\n", zconf_curname(), zconf_lineno());
-};
-
-config_option: T_INT prompt_stmt_opt T_EOL
-{
-	menu_set_type(S_INT);
-	printd(DEBUG_PARSE, "%s:%d:int\n", zconf_curname(), zconf_lineno());
-};
-
-config_option: T_HEX prompt_stmt_opt T_EOL
-{
-	menu_set_type(S_HEX);
-	printd(DEBUG_PARSE, "%s:%d:hex\n", zconf_curname(), zconf_lineno());
-};
-
-config_option: T_STRING prompt_stmt_opt T_EOL
-{
-	menu_set_type(S_STRING);
-	printd(DEBUG_PARSE, "%s:%d:string\n", zconf_curname(), zconf_lineno());
+	menu_set_type($1->stype);
+	printd(DEBUG_PARSE, "%s:%d:type(%u)\n",
+		zconf_curname(), zconf_lineno(),
+		$1->stype);
 };
 
 config_option: T_PROMPT prompt if_expr T_EOL
@@ -213,7 +172,11 @@ config_option: T_PROMPT prompt if_expr T_EOL
 config_option: T_DEFAULT expr if_expr T_EOL
 {
 	menu_add_expr(P_DEFAULT, $2, $3);
-	printd(DEBUG_PARSE, "%s:%d:default\n", zconf_curname(), zconf_lineno());
+	if ($1->stype != S_UNKNOWN)
+		menu_set_type($1->stype);
+	printd(DEBUG_PARSE, "%s:%d:default(%u)\n",
+		zconf_curname(), zconf_lineno(),
+		$1->stype);
 };
 
 config_option: T_SELECT T_WORD if_expr T_EOL
@@ -275,16 +238,15 @@ choice_option: T_PROMPT prompt if_expr T_EOL
 	printd(DEBUG_PARSE, "%s:%d:prompt\n", zconf_curname(), zconf_lineno());
 };
 
-choice_option: T_TRISTATE prompt_stmt_opt T_EOL
+choice_option: T_TYPE prompt_stmt_opt T_EOL
 {
-	menu_set_type(S_TRISTATE);
-	printd(DEBUG_PARSE, "%s:%d:tristate\n", zconf_curname(), zconf_lineno());
-};
-
-choice_option: T_BOOLEAN prompt_stmt_opt T_EOL
-{
-	menu_set_type(S_BOOLEAN);
-	printd(DEBUG_PARSE, "%s:%d:boolean\n", zconf_curname(), zconf_lineno());
+	if ($1->stype == S_BOOLEAN || $1->stype == S_TRISTATE) {
+		menu_set_type($1->stype);
+		printd(DEBUG_PARSE, "%s:%d:type(%u)\n",
+			zconf_curname(), zconf_lineno(),
+			$1->stype);
+	} else
+		YYERROR;
 };
 
 choice_option: T_OPTIONAL T_EOL
@@ -295,8 +257,12 @@ choice_option: T_OPTIONAL T_EOL
 
 choice_option: T_DEFAULT T_WORD if_expr T_EOL
 {
-	menu_add_symbol(P_DEFAULT, sym_lookup($2, 0), $3);
-	printd(DEBUG_PARSE, "%s:%d:default\n", zconf_curname(), zconf_lineno());
+	if ($1->stype == S_UNKNOWN) {
+		menu_add_symbol(P_DEFAULT, sym_lookup($2, 0), $3);
+		printd(DEBUG_PARSE, "%s:%d:default\n",
+			zconf_curname(), zconf_lineno());
+	} else
+		YYERROR;
 };
 
 choice_block:
