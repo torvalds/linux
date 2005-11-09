@@ -797,20 +797,19 @@ int em28xx_set_alternate(struct em28xx *dev)
 	dev->alt = alt;
 	if (dev->alt == 0) {
 		int i;
-		for(i=0;i< EM28XX_MAX_ALT; i++)
+		for(i=0;i< dev->num_alt; i++)
 			if(dev->alt_max_pkt_size[i]>dev->alt_max_pkt_size[dev->alt])
 				dev->alt=i;
 	}
 
 	if (dev->alt != prev_alt) {
 		dev->max_pkt_size = dev->alt_max_pkt_size[dev->alt];
-		em28xx_coredbg("setting alternate %d with wMaxPacketSize=%u", dev->alt,
+		em28xx_coredbg("setting alternate %d with wMaxPacketSize=%u\n", dev->alt,
 		       dev->max_pkt_size);
 		errCode = usb_set_interface(dev->udev, 0, dev->alt);
 		if (errCode < 0) {
-			em28xx_errdev
-					("cannot change alternate number to %d (error=%i)\n",
-					 dev->alt, errCode);
+			em28xx_errdev ("cannot change alternate number to %d (error=%i)\n",
+							dev->alt, errCode);
 			return errCode;
 		}
 	}

@@ -63,7 +63,6 @@
 
 /* default alternate; 0 means choose the best */
 #define EM28XX_PINOUT 0
-#define EM28XX_MAX_ALT 7
 
 #define EM28XX_INTERLACED_DEFAULT 1
 
@@ -267,7 +266,8 @@ struct em28xx {
 	struct usb_device *udev;	/* the usb device */
 	int alt;		/* alternate */
 	int max_pkt_size;	/* max packet size of isoc transaction */
-	unsigned int alt_max_pkt_size[EM28XX_MAX_ALT + 1];	/* array of wMaxPacketSize */
+	int num_alt;		/* Number of alternative settings */
+	unsigned int *alt_max_pkt_size;	/* array of wMaxPacketSize */
 	struct urb *urb[EM28XX_NUM_BUFS];	/* urb for isoc transfers */
 	char *transfer_buffer[EM28XX_NUM_BUFS];	/* transfer buffers for isoc transfer */
 	/* helper funcs that call usb_control_msg */

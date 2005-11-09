@@ -53,8 +53,7 @@ MODULE_LICENSE("GPL");
 
 static LIST_HEAD(em28xx_devlist);
 
-static unsigned int card[]  = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
-
+static unsigned int card[]     = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,"card type");
 
@@ -1591,7 +1590,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	int retval = -ENOMEM;
 	int errCode, i;
 	unsigned int maxh, maxw;
-	struct usb_interface *uif;
 
 	dev->udev = udev;
 	dev->model = model;
@@ -1650,17 +1648,6 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->vpic.whiteness = 128 << 8;	/* This one isn't used */
 	dev->vpic.depth = 16;
 	dev->vpic.palette = VIDEO_PALETTE_YUV422;
-
-	/* compute alternate max packet sizes */
-	uif = dev->udev->actconfig->interface[0];
-	dev->alt_max_pkt_size[0] = 0;
-	for (i = 1; i <= EM28XX_MAX_ALT && i < uif->num_altsetting ; i++) {
-		u16 tmp =
-		    le16_to_cpu(uif->altsetting[i].endpoint[1].desc.
-				wMaxPacketSize);
-		dev->alt_max_pkt_size[i] =
-		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
-	}
 
 #ifdef CONFIG_MODULES
 	/* request some modules */
@@ -1756,6 +1743,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 {
 	const struct usb_endpoint_descriptor *endpoint;
 	struct usb_device *udev;
+	struct usb_interface *uif;
 	struct em28xx *dev = NULL;
 	int retval = -ENODEV;
 	int model,i,nr,ifnum;
@@ -1795,7 +1783,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	nr=interface->minor;
 
 	if (nr>EM28XX_MAXBOARDS) {
-		printk ("em28xx: Supports only %i em28xx boards.\n",EM28XX_MAXBOARDS);
+		printk (DRIVER_NAME ": Supports only %i em28xx boards.\n",EM28XX_MAXBOARDS);
 		return -ENOMEM;
 	}
 
@@ -1806,6 +1794,28 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		return -ENOMEM;
 	}
 	memset(dev, 0, sizeof(*dev));
+
+	/* compute alternate max packet sizes */
+	uif = udev->actconfig->interface[0];
+
+	dev->num_alt=uif->num_altsetting;
+	printk(DRIVER_NAME ": Alternate settings: %i\n",dev->num_alt);
+//	dev->alt_max_pkt_size = kmalloc(sizeof(*dev->alt_max_pkt_size)*
+	dev->alt_max_pkt_size = kmalloc(32*
+						dev->num_alt,GFP_KERNEL);
+	if (dev->alt_max_pkt_size == NULL) {
+		em28xx_err(DRIVER_NAME ": out of memory!\n");
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < dev->num_alt ; i++) {
+		u16 tmp = le16_to_cpu(uif->altsetting[i].endpoint[1].desc.
+							wMaxPacketSize);
+		dev->alt_max_pkt_size[i] =
+		    (tmp & 0x07ff) * (((tmp & 0x1800) >> 11) + 1);
+		printk(DRIVER_NAME ": Alternate setting %i, max size= %i\n",i,
+							dev->alt_max_pkt_size[i]);
+	}
 
 	snprintf(dev->name, 29, "em28xx #%d", nr);
 
@@ -1876,11 +1886,12 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 
 	up(&dev->lock);
 
-	if (!dev->users)
+	if (!dev->users) {
+		kfree(dev->alt_max_pkt_size);
 		kfree(dev);
+	}
 
 	up_write(&em28xx_disconnect);
-
 }
 
 static struct usb_driver em28xx_usb_driver = {
