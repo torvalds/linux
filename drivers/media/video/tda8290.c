@@ -90,6 +90,11 @@ static unsigned char i2c_cb1_50[2] =		{ 0x30, 0x50 };
 static unsigned char i2c_agc2_7F[2] =		{ 0x60, 0x7F };
 static unsigned char i2c_agc3_08[2] =		{ 0x80, 0x08 };
 
+/* FIXME: European PAL/SECAM should select 9MHz Lowpass Filter, while
+   NTSC/M and PAL/M should be using 7MHz filter, by selecting CB3 */
+static unsigned char i2c_cb3_9MHz[2] =          { 0xc0, 0x39 };
+static unsigned char i2c_cb3_7MHz[2] =          { 0xc0, 0x3B };
+
 static struct i2c_msg i2c_msg_init[] = {
 	{ I2C_ADDR_TDA8275, 0, ARRAY_SIZE(i2c_init_tda8275), i2c_init_tda8275 },
 	{ I2C_ADDR_TDA8290, 0, ARRAY_SIZE(i2c_disable_bridge), i2c_disable_bridge },
