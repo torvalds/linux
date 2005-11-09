@@ -196,7 +196,7 @@ static int ca_get_slot_info(struct dst_state *state, struct ca_slot_info *p_ca_s
 	int i;
 	static u8 slot_command[8] = {0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff};
 
-	u8 *slot_info = state->rxbuffer;
+	u8 *slot_info = state->messages;
 
 	put_checksum(&slot_command[0], 7);
 	if ((dst_put_ci(state, slot_command, sizeof (slot_command), slot_info, GET_REPLY)) < 0) {
