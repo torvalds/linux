@@ -151,13 +151,13 @@ icmp_error_message(struct sk_buff *skb,
 	/* Not enough header? */
 	inside = skb_header_pointer(skb, skb->nh.iph->ihl*4, sizeof(_in), &_in);
 	if (inside == NULL)
-		return NF_ACCEPT;
+		return -NF_ACCEPT;
 
 	/* Ignore ICMP's containing fragments (shouldn't happen) */
 	if (inside->ip.frag_off & htons(IP_OFFSET)) {
 		DEBUGP("icmp_error_track: fragment of proto %u\n",
 		       inside->ip.protocol);
-		return NF_ACCEPT;
+		return -NF_ACCEPT;
 	}
 
 	innerproto = ip_conntrack_proto_find_get(inside->ip.protocol);
@@ -166,7 +166,7 @@ icmp_error_message(struct sk_buff *skb,
 	if (!ip_ct_get_tuple(&inside->ip, skb, dataoff, &origtuple, innerproto)) {
 		DEBUGP("icmp_error: ! get_tuple p=%u", inside->ip.protocol);
 		ip_conntrack_proto_put(innerproto);
-		return NF_ACCEPT;
+		return -NF_ACCEPT;
 	}
 
 	/* Ordinarily, we'd expect the inverted tupleproto, but it's
@@ -174,7 +174,7 @@ icmp_error_message(struct sk_buff *skb,
 	if (!ip_ct_invert_tuple(&innertuple, &origtuple, innerproto)) {
 		DEBUGP("icmp_error_track: Can't invert tuple\n");
 		ip_conntrack_proto_put(innerproto);
-		return NF_ACCEPT;
+		return -NF_ACCEPT;
 	}
 	ip_conntrack_proto_put(innerproto);
 
@@ -190,7 +190,7 @@ icmp_error_message(struct sk_buff *skb,
 
 		if (!h) {
 			DEBUGP("icmp_error_track: no match\n");
-			return NF_ACCEPT;
+			return -NF_ACCEPT;
 		}
 		/* Reverse direction from that found */
 		if (DIRECTION(h) != IP_CT_DIR_REPLY)
