@@ -199,6 +199,14 @@ struct saa7134_format {
 #define SAA7134_MAXBOARDS 8
 #define SAA7134_INPUT_MAX 8
 
+/* ----------------------------------------------------------- */
+/* Video Output Port Register Initialization Options           */
+
+#define SET_T_CODE_POLARITY_NON_INVERTED	(1 << 0)
+#define SET_CLOCK_NOT_DELAYED			(1 << 1)
+#define SET_CLOCK_INVERTED			(1 << 2)
+#define SET_VSYNC_OFF				(1 << 3)
+
 struct saa7134_input {
 	char                    *name;
 	unsigned int            vmux;
@@ -234,6 +242,7 @@ struct saa7134_board {
 	/* peripheral I/O */
 	enum saa7134_video_out  video_out;
 	enum saa7134_mpeg_type  mpeg;
+	unsigned int            vid_port_opts;
 };
 
 #define card_has_radio(dev)   (NULL != saa7134_boards[dev->board].radio.name)

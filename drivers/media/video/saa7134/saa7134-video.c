@@ -48,6 +48,43 @@ MODULE_PARM_DESC(noninterlaced,"video input is noninterlaced");
 	printk(KERN_DEBUG "%s/video: " fmt, dev->name , ## arg)
 
 /* ------------------------------------------------------------------ */
+/* Defines for Video Output Port Register at address 0x191            */
+
+/* Bit 0: VIP code T bit polarity */
+
+#define VP_T_CODE_P_NON_INVERTED	0x00
+#define VP_T_CODE_P_INVERTED		0x01
+
+/* ------------------------------------------------------------------ */
+/* Defines for Video Output Port Register at address 0x195            */
+
+/* Bit 2: Video output clock delay control */
+
+#define VP_CLK_CTRL2_NOT_DELAYED	0x00
+#define VP_CLK_CTRL2_DELAYED		0x04
+
+/* Bit 1: Video output clock invert control */
+
+#define VP_CLK_CTRL1_NON_INVERTED	0x00
+#define VP_CLK_CTRL1_INVERTED		0x02
+
+/* ------------------------------------------------------------------ */
+/* Defines for Video Output Port Register at address 0x196            */
+
+/* Bits 2 to 0: VSYNC pin video vertical sync type */
+
+#define VP_VS_TYPE_MASK			0x07
+
+#define VP_VS_TYPE_OFF			0x00
+#define VP_VS_TYPE_V123			0x01
+#define VP_VS_TYPE_V_ITU		0x02
+#define VP_VS_TYPE_VGATE_L		0x03
+#define VP_VS_TYPE_RESERVED1		0x04
+#define VP_VS_TYPE_RESERVED2		0x05
+#define VP_VS_TYPE_F_ITU		0x06
+#define VP_VS_TYPE_SC_FID		0x07
+
+/* ------------------------------------------------------------------ */
 /* data structs for video                                             */
 
 static int video_out[][9] = {
@@ -2294,13 +2331,28 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 	if (saa7134_boards[dev->board].video_out) {
 		/* enable video output */
 		int vo = saa7134_boards[dev->board].video_out;
+		int video_reg;
+		unsigned int vid_port_opts = saa7134_boards[dev->board].vid_port_opts;
 		saa_writeb(SAA7134_VIDEO_PORT_CTRL0, video_out[vo][0]);
-		saa_writeb(SAA7134_VIDEO_PORT_CTRL1, video_out[vo][1]);
+		video_reg = video_out[vo][1];
+		if (vid_port_opts & SET_T_CODE_POLARITY_NON_INVERTED)
+			video_reg &= ~VP_T_CODE_P_INVERTED;
+		saa_writeb(SAA7134_VIDEO_PORT_CTRL1, video_reg);
 		saa_writeb(SAA7134_VIDEO_PORT_CTRL2, video_out[vo][2]);
 		saa_writeb(SAA7134_VIDEO_PORT_CTRL3, video_out[vo][3]);
 		saa_writeb(SAA7134_VIDEO_PORT_CTRL4, video_out[vo][4]);
-		saa_writeb(SAA7134_VIDEO_PORT_CTRL5, video_out[vo][5]);
-		saa_writeb(SAA7134_VIDEO_PORT_CTRL6, video_out[vo][6]);
+		video_reg = video_out[vo][5];
+		if (vid_port_opts & SET_CLOCK_NOT_DELAYED)
+			video_reg &= ~VP_CLK_CTRL2_DELAYED;
+		if (vid_port_opts & SET_CLOCK_INVERTED)
+			video_reg |= VP_CLK_CTRL1_INVERTED;
+		saa_writeb(SAA7134_VIDEO_PORT_CTRL5, video_reg);
+		video_reg = video_out[vo][6];
+		if (vid_port_opts & SET_VSYNC_OFF) {
+			video_reg &= ~VP_VS_TYPE_MASK;
+			video_reg |= VP_VS_TYPE_OFF;
+		}
+		saa_writeb(SAA7134_VIDEO_PORT_CTRL6, video_reg);
 		saa_writeb(SAA7134_VIDEO_PORT_CTRL7, video_out[vo][7]);
 		saa_writeb(SAA7134_VIDEO_PORT_CTRL8, video_out[vo][8]);
 	}

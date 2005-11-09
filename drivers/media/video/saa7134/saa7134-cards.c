@@ -2285,6 +2285,10 @@ struct saa7134_board saa7134_boards[] = {
  		}},
  		.mpeg           = SAA7134_MPEG_EMPRESS,
  		.video_out      = CCIR656,
+		.vid_port_opts  = ( SET_T_CODE_POLARITY_NON_INVERTED |
+				    SET_CLOCK_NOT_DELAYED |
+				    SET_CLOCK_INVERTED |
+				    SET_VSYNC_OFF ),
  	},
  	[SAA7134_BOARD_RTD_VFG7330] = {
  		.name		= "RTD Embedded Technologies VFG7330",
