@@ -33,7 +33,6 @@ obj-$(CONFIG_PPC4xx_DMA)	+= ppc4xx_dma.o
 obj-$(CONFIG_PPC4xx_EDMA)	+= ppc4xx_sgdma.o
 ifeq ($(CONFIG_40x),y)
 obj-$(CONFIG_PCI)		+= pci_auto.o ppc405_pci.o
-obj-$(CONFIG_RAPIDIO)		+= ppc85xx_rio.o
 endif
 endif
 obj-$(CONFIG_8xx)		+= m8xx_setup.o ppc8xx_pic.o $(wdt-mpc8xx-y) \
@@ -96,6 +95,7 @@ obj-$(CONFIG_85xx)		+= open_pic.o ppc85xx_common.o ppc85xx_setup.o \
 ifeq ($(CONFIG_85xx),y)
 obj-$(CONFIG_PCI)		+= pci_auto.o
 endif
+obj-$(CONFIG_RAPIDIO)		+= ppc85xx_rio.o
 obj-$(CONFIG_83xx)		+= ipic.o ppc83xx_setup.o ppc_sys.o \
 					mpc83xx_sys.o mpc83xx_devices.o
 ifeq ($(CONFIG_83xx),y)
