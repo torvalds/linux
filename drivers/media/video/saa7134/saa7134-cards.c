@@ -2368,6 +2368,29 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE2,
 		}},
 	},
+	[SAA7134_BOARD_MONSTERTV_MOBILE] = {
+		.name           = "SKNet MonsterTV Mobile",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+
+		.inputs         = {{
+			  .name = name_tv,
+			  .vmux = 1,
+			  .amux = TV,
+			  .tv   = 1,
+		},{
+			  .name = name_comp1,
+			  .vmux = 3,
+			  .amux = LINE1,
+		},{
+			  .name = name_svideo,
+			  .vmux = 6,
+			  .amux = LINE1,
+		}},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -2773,12 +2796,18 @@ struct pci_device_id saa7134_pci_tbl[] = {
  		.subvendor    = 0x1435,
  		.subdevice    = 0x7330,
  		.driver_data  = SAA7134_BOARD_RTD_VFG7330,
- 	},{
+	},{
  		.vendor       = PCI_VENDOR_ID_PHILIPS,
  		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
  		.subvendor    = 0x1461,
  		.subdevice    = 0x1044,
  		.driver_data  = SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180,
+ 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1131,
+		.subdevice    = 0x4ee9,
+		.driver_data  = SAA7134_BOARD_MONSTERTV_MOBILE,
  	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
@@ -2889,7 +2918,10 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		/* power-up tuner chip */
 		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x00040000, 0x00040000);
 		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x00040000, 0x00000000);
-		msleep(1);
+	case SAA7134_BOARD_MONSTERTV_MOBILE:
+		/* power-up tuner chip */
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   0x00040000, 0x00040000);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, 0x00040000, 0x00000004);
 		break;
 	case SAA7134_BOARD_FLYDVBTDUO:
 	case SAA7134_BOARD_THYPHOON_DVBT_DUO_CARDBUS:
