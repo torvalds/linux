@@ -162,7 +162,7 @@ static IR_KEYTAB_TYPE ir_codes_apac_viewcomp[IR_KEYTAB_SIZE] = {
 static IR_KEYTAB_TYPE ir_codes_conceptronic[IR_KEYTAB_SIZE] = {
 
 	[ 30 ] = KEY_POWER,       // power
-	[ 7  ]  = KEY_SWITCHVIDEOMODE,     // source
+	[ 7  ] = KEY_MEDIA,       // source
 	[ 28 ] = KEY_SEARCH,      // scan
 
 /* FIXME: duplicate keycodes?
