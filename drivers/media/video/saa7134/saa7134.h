@@ -213,6 +213,12 @@ struct saa7134_format {
 #define SAA7134_INPUT_MAX 8
 
 /* ----------------------------------------------------------- */
+/* Since we support 2 remote types, lets tell them apart       */
+
+#define SAA7134_REMOTE_GPIO  1
+#define SAA7134_REMOTE_I2C   2
+
+/* ----------------------------------------------------------- */
 /* Video Output Port Register Initialization Options           */
 
 #define SET_T_CODE_POLARITY_NON_INVERTED	(1 << 0)

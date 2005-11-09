@@ -716,7 +716,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	int polling      = 0;
 	int ir_type      = IR_TYPE_OTHER;
 
-	if (!dev->has_remote)
+	if (dev->has_remote != SAA7134_REMOTE_GPIO)
 		return -ENODEV;
 	if (disable_ir)
 		return -ENODEV;
@@ -877,6 +877,7 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir)
 {
 	if (disable_ir) {
+		dprintk("Found supported i2c remote, but IR has been disabled\n");
 		ir->get_key=NULL;
 		return;
 	}

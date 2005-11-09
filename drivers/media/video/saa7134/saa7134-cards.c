@@ -3038,7 +3038,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	switch (dev->board) {
 	case SAA7134_BOARD_FLYVIDEO2000:
 	case SAA7134_BOARD_FLYVIDEO3000:
-		dev->has_remote = 1;
+		dev->has_remote = SAA7134_REMOTE_GPIO;
 		board_flyvideo(dev);
 		break;
 	case SAA7134_BOARD_FLYTVPLATINUM_MINI2:
@@ -3068,7 +3068,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_GOTVIEW_7135:
 	case SAA7134_BOARD_KWORLD_TERMINATOR:
 	case SAA7134_BOARD_PCTV_CARDBUS:
-		dev->has_remote = 1;
+		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_MD5044:
 		printk("%s: seems there are two different versions of the MD5044\n"
@@ -3107,6 +3107,11 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		 */
 
 		saa_writeb (SAA7134_PRODUCTION_TEST_MODE, 0x00);
+		break;
+	/* i2c remotes */
+	case SAA7134_BOARD_PINNACLE_PCTV_110i:
+	case SAA7134_BOARD_UPMOST_PURPLE_TV:
+		dev->has_remote = SAA7134_REMOTE_I2C;
 		break;
 	}
 	return 0;
