@@ -2058,6 +2058,9 @@ static int do_md_run(mddev_t * mddev)
 	}
 	if (mddev->pers->sync_request)
 		sysfs_create_group(&mddev->kobj, &md_redundancy_group);
+	else if (mddev->ro == 2) /* auto-readonly not meaningful */
+		mddev->ro = 0;
+
  	atomic_set(&mddev->writes_pending,0);
 	mddev->safemode = 0;
 	mddev->safemode_timer.function = md_safemode_timeout;
