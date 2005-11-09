@@ -797,20 +797,9 @@ int em28xx_set_alternate(struct em28xx *dev)
 	dev->alt = alt;
 	if (dev->alt == 0) {
 		int i;
-		if(dev->is_em2800){ /* always use the max packet size for em2800 based devices */
-			for(i=0;i< EM28XX_MAX_ALT; i++)
-				if(dev->alt_max_pkt_size[i]>dev->alt_max_pkt_size[dev->alt])
-					dev->alt=i;
-		}else{
-		unsigned int min_pkt_size = dev->field_size / 137;	/* FIXME: empiric magic number */
-		em28xx_coredbg("minimum isoc packet size: %u", min_pkt_size);
-		dev->alt = 7;
-		for (i = 1; i < EM28XX_MAX_ALT; i += 2)	/* FIXME: skip even alternate: why do they not work? */
-			if (dev->alt_max_pkt_size[i] >= min_pkt_size) {
-			dev->alt = i;
-			break;
-			}
-		}
+		for(i=0;i< EM28XX_MAX_ALT; i++)
+			if(dev->alt_max_pkt_size[i]>dev->alt_max_pkt_size[dev->alt])
+				dev->alt=i;
 	}
 
 	if (dev->alt != prev_alt) {

@@ -128,7 +128,7 @@ struct em28xx_board em28xx_boards[] = {
 		.input          = {{
 			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = 0,
-			.amux     = 0,
+			.amux     = 6,
 		},{
 			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = 2,
@@ -261,9 +261,11 @@ void em28xx_card_setup(struct em28xx *dev)
 	/* request some modules */
 	if (dev->model == EM2820_BOARD_HAUPPAUGE_WINTV_USB_2) {
 		struct tveeprom tv;
+		struct v4l2_audioout ao;
 #ifdef CONFIG_MODULES
 		request_module("tveeprom");
 		request_module("ir-kbd-i2c");
+		request_module("msp3400");
 #endif
 		/* Call first TVeeprom */
 
@@ -273,10 +275,13 @@ void em28xx_card_setup(struct em28xx *dev)
 		dev->tuner_type= tv.tuner_type;
 		if (tv.audio_processor == AUDIO_CHIP_MSP34XX) {
 			dev->has_msp34xx=1;
-		} else dev->has_msp34xx=0;
-		em28xx_write_regs_req(dev,0x06,0x00,"\x40",1);// Serial Bus Frequency Select Register
-		em28xx_write_regs_req(dev,0x0f,0x00,"\x87",1);// XCLK Frequency Select Register
-		em28xx_write_regs_req(dev,0x88,0x0d,"\xd0",1);
+			memset (&ao,0,sizeof(ao));
+
+			ao.index=2;
+			ao.mode=V4L2_AUDMODE_32BITS;
+			em28xx_i2c_call_clients(dev, VIDIOC_S_AUDOUT, &ao);
+		} else
+			dev->has_msp34xx=0;
 	}
 }
 

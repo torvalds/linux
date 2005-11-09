@@ -90,6 +90,8 @@ struct msp3400c {
 	int stereo;
 	int nicam_on;
 	int acb;
+	int in_scart;
+	int i2s_mode;
 	int main, second;	/* sound carrier */
 	int input;
 	int source;             /* see msp34xxg_set_source */
@@ -364,12 +366,40 @@ static struct CARRIER_DETECT carrier_detect_65[] = {
 
 #define CARRIER_COUNT(x) (sizeof(x)/sizeof(struct CARRIER_DETECT))
 
-/* ----------------------------------------------------------------------- */
+/* ----------------------------------------------------------------------- *
+ * bits  9  8  5 - SCART DSP input Select:
+ *       0  0  0 - SCART 1 to DSP input (reset position)
+ *       0  1  0 - MONO to DSP input
+ *       1  0  0 - SCART 2 to DSP input
+ *       1  1  1 - Mute DSP input
+ *
+ * bits 11 10  6 - SCART 1 Output Select:
+ *       0  0  0 - undefined (reset position)
+ *       0  1  0 - SCART 2 Input to SCART 1 Output (for devices with 2 SCARTS)
+ *       1  0  0 - MONO input to SCART 1 Output
+ *       1  1  0 - SCART 1 DA to SCART 1 Output
+ *       0  0  1 - SCART 2 DA to SCART 1 Output
+ *       0  1  1 - SCART 1 Input to SCART 1 Output
+ *       1  1  1 - Mute SCART 1 Output
+ *
+ * bits 13 12  7 - SCART 2 Output Select (for devices with 2 Output SCART):
+ *       0  0  0 - SCART 1 DA to SCART 2 Output (reset position)
+ *       0  1  0 - SCART 1 Input to SCART 2 Output
+ *       1  0  0 - MONO input to SCART 2 Output
+ *       0  0  1 - SCART 2 DA to SCART 2 Output
+ *       0  1  1 - SCART 2 Input to SCART 2 Output
+ *       1  1  0 - Mute SCART 2 Output
+ *
+ * Bits 4 to 0 should be zero.
+ * ----------------------------------------------------------------------- */
 
 static int scarts[3][9] = {
 	/* MASK    IN1     IN2     IN1_DA  IN2_DA  IN3     IN4     MONO    MUTE   */
+	/* SCART DSP Input select */
 	{ 0x0320, 0x0000, 0x0200, -1,     -1,     0x0300, 0x0020, 0x0100, 0x0320 },
+	/* SCART1 Output select */
 	{ 0x0c40, 0x0440, 0x0400, 0x0c00, 0x0040, 0x0000, 0x0840, 0x0800, 0x0c40 },
+	/* SCART2 Output select */
 	{ 0x3080, 0x1000, 0x1080, 0x0000, 0x0080, 0x2080, 0x3080, 0x2000, 0x3000 },
 };
 
@@ -381,13 +411,23 @@ static void msp3400c_set_scart(struct i2c_client *client, int in, int out)
 {
 	struct msp3400c *msp = i2c_get_clientdata(client);
 
-	if (-1 == scarts[out][in])
-		return;
+	msp->in_scart=in;
 
-	dprintk("msp34xx: scart switch: %s => %d\n", scart_names[in], out);
-	msp->acb &= ~scarts[out][SCART_MASK];
-	msp->acb |=  scarts[out][in];
-	msp3400c_write(client,I2C_MSP3400C_DFP, 0x0013, msp->acb);
+	if (in<=2) {
+		if (-1 == scarts[out][in])
+			return;
+
+		msp->acb &= ~scarts[out][SCART_MASK];
+		msp->acb |=  scarts[out][in];
+	} else
+		msp->acb = 0xf60; /* Mute Input and SCART 1 Output */
+
+	dprintk("msp34xx: scart switch: %s => %d (ACB=0x%04x)\n",
+						scart_names[in], out, msp->acb);
+	msp3400c_write(client,I2C_MSP3400C_DFP, 0x13, msp->acb);
+
+	/* Sets I2S speed 0 = 1.024 Mbps, 1 = 2.048 Mbps */
+	msp3400c_write(client,I2C_MSP3400C_DEM, 0x40, msp->i2s_mode);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -1235,7 +1275,8 @@ static int msp3410d_thread(void *data)
 		msp3400c_setbass(client, msp->bass);
 		msp3400c_settreble(client, msp->treble);
 		msp3400c_setvolume(client, msp->muted, msp->left, msp->right);
-		msp3400c_write(client, I2C_MSP3400C_DFP, 0x0013, msp->acb);
+		msp3400c_write(client, I2C_MSP3400C_DFP, 0x13, msp->acb);
+		msp3400c_write(client,I2C_MSP3400C_DEM, 0x40, msp->i2s_mode);
 		msp3400c_restore_dfp(client);
 
 		/* monitor tv audio mode */
@@ -1274,6 +1315,8 @@ static int msp34xxg_reset(struct i2c_client *client)
 			   0x13, /* ACB */
 			   0x0f20 /* mute DSP input, mute SCART 1 */))
 		return -1;
+
+	msp3400c_write(client,I2C_MSP3400C_DEM, 0x40, msp->i2s_mode);
 
 	/* step-by-step initialisation, as described in the manual */
 	modus = msp34xx_modus(msp->norm);
@@ -1371,6 +1414,8 @@ static int msp34xxg_thread(void *data)
 				   0x13, /* ACB */
 				   msp->acb))
 			return -1;
+
+		msp3400c_write(client,I2C_MSP3400C_DEM, 0x40, msp->i2s_mode);
 	}
 	dprintk("msp34xxg: thread: exit\n");
 	return 0;
@@ -1539,6 +1584,7 @@ static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
 	msp->treble = 32768;
 	msp->input = -1;
 	msp->muted = 0;
+	msp->i2s_mode = 0;
 	for (i = 0; i < DFP_COUNT; i++)
 		msp->dfp_regs[i] = -1;
 
@@ -1735,6 +1781,7 @@ static void msp_any_set_audmode(struct i2c_client *client, int audmode)
 	}
 }
 
+
 static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct msp3400c *msp  = i2c_get_clientdata(client);
@@ -1745,6 +1792,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 	case AUDC_SET_INPUT:
 		dprintk("msp34xx: AUDC_SET_INPUT(%d)\n",*sarg);
+
 		if (*sarg == msp->input)
 			break;
 		msp->input = *sarg;
@@ -1923,6 +1971,16 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		break;
 	}
 
+	/* msp34xx specific */
+	case MSP_SET_MATRIX:
+	{
+		struct msp_matrix *mspm = arg;
+
+		dprintk("msp34xx: MSP_SET_MATRIX\n");
+		msp3400c_set_scart(client, mspm->input, mspm->output);
+		break;
+	}
+
 	/* --- v4l2 ioctls --- */
 	case VIDIOC_S_STD:
 	{
@@ -1938,6 +1996,33 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		}
 
 		msp_wake_thread(client);
+		return 0;
+	}
+
+	case VIDIOC_ENUMINPUT:
+	{
+		struct v4l2_input *i = arg;
+
+		if (i->index != 0)
+			return -EINVAL;
+
+		i->type = V4L2_INPUT_TYPE_TUNER;
+		switch (i->index) {
+		case AUDIO_RADIO:
+			strcpy(i->name,"Radio");
+			break;
+		case AUDIO_EXTERN_1:
+			strcpy(i->name,"Extern 1");
+			break;
+		case AUDIO_EXTERN_2:
+			strcpy(i->name,"Extern 2");
+			break;
+		case AUDIO_TUNER:
+			strcpy(i->name,"Television");
+			break;
+		default:
+			return -EINVAL;
+		}
 		return 0;
 	}
 
@@ -2032,13 +2117,44 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		break;
 	}
 
-	/* msp34xx specific */
-	case MSP_SET_MATRIX:
+	case VIDIOC_G_AUDOUT:
 	{
-		struct msp_matrix *mspm = arg;
+		struct v4l2_audioout *a=(struct v4l2_audioout *)arg;
 
-		dprintk("msp34xx: MSP_SET_MATRIX\n");
-		msp3400c_set_scart(client, mspm->input, mspm->output);
+		memset(a,0,sizeof(*a));
+
+		switch (a->index) {
+		case 0:
+			strcpy(a->name,"Scart1 Out");
+			break;
+		case 1:
+			strcpy(a->name,"Scart2 Out");
+			break;
+		case 2:
+			strcpy(a->name,"I2S Out");
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+
+	}
+	case VIDIOC_S_AUDOUT:
+	{
+		struct v4l2_audioout *a=(struct v4l2_audioout *)arg;
+
+		if (a->index<0||a->index>2)
+			return -EINVAL;
+
+		if (a->index==2) {
+			if (a->mode == V4L2_AUDMODE_32BITS)
+				msp->i2s_mode=1;
+			else
+				msp->i2s_mode=0;
+		}
+printk("Setting audio out on msp34xx to input %i, mode %i\n",a->index,msp->i2s_mode);
+		msp3400c_set_scart(client,msp->in_scart,a->index);
+
 		break;
 	}
 

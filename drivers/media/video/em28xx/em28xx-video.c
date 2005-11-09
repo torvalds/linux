@@ -277,6 +277,35 @@ static void em28xx_empty_framequeues(struct em28xx *dev)
 	}
 }
 
+static void video_mux(struct em28xx *dev, int index)
+{
+	int input, ainput;
+
+	input = INPUT(index)->vmux;
+	dev->ctl_input = index;
+	dev->ctl_ainput = INPUT(index)->amux;
+
+	em28xx_i2c_call_clients(dev, DECODER_SET_INPUT, &input);
+
+
+	em28xx_videodbg("Setting input index=%d, vmux=%d, amux=%d\n",index,input,dev->ctl_ainput);
+
+	if (dev->has_msp34xx) {
+		em28xx_i2c_call_clients(dev, VIDIOC_S_AUDIO, &dev->ctl_ainput);
+		ainput = EM28XX_AUDIO_SRC_TUNER;
+		em28xx_audio_source(dev, ainput);
+	} else {
+		switch (dev->ctl_ainput) {
+		case 0:
+			ainput = EM28XX_AUDIO_SRC_TUNER;
+			break;
+		default:
+			ainput = EM28XX_AUDIO_SRC_LINE;
+		}
+		em28xx_audio_source(dev, ainput);
+	}
+}
+
 /*
  * em28xx_v4l2_open()
  * inits the device and starts isoc transfer
@@ -298,7 +327,7 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 	filp->private_data=dev;
 
 
-	em28xx_videodbg("users=%d", dev->users);
+	em28xx_videodbg("users=%d\n", dev->users);
 
 	if (!down_read_trylock(&em28xx_disconnect))
 		return -ERESTARTSYS;
@@ -352,6 +381,8 @@ static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 
 	dev->state |= DEV_INITIALIZED;
 
+	video_mux(dev, 0);
+
       err:
 	up(&dev->lock);
 	up_read(&em28xx_disconnect);
@@ -386,7 +417,7 @@ static int em28xx_v4l2_close(struct inode *inode, struct file *filp)
 	int errCode;
 	struct em28xx *dev=filp->private_data;
 
-	em28xx_videodbg("users=%d", dev->users);
+	em28xx_videodbg("users=%d\n", dev->users);
 
 	down(&dev->lock);
 
@@ -404,7 +435,7 @@ static int em28xx_v4l2_close(struct inode *inode, struct file *filp)
 
 	/* set alternate 0 */
 	dev->alt = 0;
-	em28xx_videodbg("setting alternate 0");
+	em28xx_videodbg("setting alternate 0\n");
 	errCode = usb_set_interface(dev->udev, 0, 0);
 	if (errCode < 0) {
 		em28xx_errdev ("cannot change alternate number to 0 (error=%i)\n",
@@ -434,20 +465,20 @@ em28xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
 		return -ERESTARTSYS;
 
 	if (dev->state & DEV_DISCONNECTED) {
-		em28xx_videodbg("device not present");
+		em28xx_videodbg("device not present\n");
 		up(&dev->fileop_lock);
 		return -ENODEV;
 	}
 
 	if (dev->state & DEV_MISCONFIGURED) {
-		em28xx_videodbg("device misconfigured; close and open it again");
+		em28xx_videodbg("device misconfigured; close and open it again\n");
 		up(&dev->fileop_lock);
 		return -EIO;
 	}
 
 	if (dev->io == IO_MMAP) {
 		em28xx_videodbg ("IO method is set to mmap; close and open"
-				" the device again to choose the read method");
+				" the device again to choose the read method\n");
 		up(&dev->fileop_lock);
 		return -EINVAL;
 	}
@@ -524,9 +555,9 @@ static unsigned int em28xx_v4l2_poll(struct file *filp, poll_table * wait)
 		return POLLERR;
 
 	if (dev->state & DEV_DISCONNECTED) {
-		em28xx_videodbg("device not present");
+		em28xx_videodbg("device not present\n");
 	} else if (dev->state & DEV_MISCONFIGURED) {
-		em28xx_videodbg("device is misconfigured; close and open it again");
+		em28xx_videodbg("device is misconfigured; close and open it again\n");
 	} else {
 		if (dev->io == IO_NONE) {
 			if (!em28xx_request_buffers
@@ -595,14 +626,14 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 		return -ERESTARTSYS;
 
 	if (dev->state & DEV_DISCONNECTED) {
-		em28xx_videodbg("mmap: device not present");
+		em28xx_videodbg("mmap: device not present\n");
 		up(&dev->fileop_lock);
 		return -ENODEV;
 	}
 
 	if (dev->state & DEV_MISCONFIGURED) {
 		em28xx_videodbg ("mmap: Device is misconfigured; close and "
-						"open it again");
+						"open it again\n");
 		up(&dev->fileop_lock);
 		return -EIO;
 	}
@@ -618,7 +649,7 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 			break;
 	}
 	if (i == dev->num_frames) {
-		em28xx_videodbg("mmap: user supplied mapping address is out of range");
+		em28xx_videodbg("mmap: user supplied mapping address is out of range\n");
 		up(&dev->fileop_lock);
 		return -EINVAL;
 	}
@@ -632,7 +663,7 @@ static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 		page = vmalloc_to_pfn((void *)pos);
 		if (remap_pfn_range(vma, start, page, PAGE_SIZE,
 				    vma->vm_page_prot)) {
-			em28xx_videodbg("mmap: rename page map failed");
+			em28xx_videodbg("mmap: rename page map failed\n");
 			up(&dev->fileop_lock);
 			return -EAGAIN;
 		}
@@ -749,7 +780,7 @@ static int em28xx_stream_interrupt(struct em28xx *dev)
 	else if (ret) {
 		dev->state |= DEV_MISCONFIGURED;
 		em28xx_videodbg("device is misconfigured; close and "
-			"open /dev/video%d again", dev->vdev->minor);
+			"open /dev/video%d again\n", dev->vdev->minor);
 		return ret;
 	}
 
@@ -798,28 +829,6 @@ static int em28xx_set_norm(struct em28xx *dev, int width, int height)
 	em28xx_resolution_set(dev);
 
 	return 0;
-}
-
-static void video_mux(struct em28xx *dev, int index)
-{
-	int input, ainput;
-
-	input = INPUT(index)->vmux;
-	dev->ctl_input = index;
-
-	em28xx_i2c_call_clients(dev, DECODER_SET_INPUT, &input);
-
-	dev->ctl_ainput = INPUT(index)->amux;
-
-	switch (dev->ctl_ainput) {
-	case 0:
-		ainput = EM28XX_AUDIO_SRC_TUNER;
-		break;
-	default:
-		ainput = EM28XX_AUDIO_SRC_LINE;
-	}
-
-	em28xx_audio_source(dev, ainput);
 }
 
 /*
@@ -1062,7 +1071,7 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 			t->signal =
 			    (status & DECODER_STATUS_GOOD) != 0 ? 0xffff : 0;
 
-			em28xx_videodbg("VIDIO_G_TUNER: signal=%x, afc=%x", t->signal,
+			em28xx_videodbg("VIDIO_G_TUNER: signal=%x, afc=%x\n", t->signal,
 				 t->afc);
 			return 0;
 		}
@@ -1146,7 +1155,7 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 
 			dev->stream = STREAM_ON;	/* FIXME: Start video capture here? */
 
-			em28xx_videodbg("VIDIOC_STREAMON: starting stream");
+			em28xx_videodbg("VIDIOC_STREAMON: starting stream\n");
 
 			return 0;
 		}
@@ -1160,7 +1169,7 @@ static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
 				return -EINVAL;
 
 			if (dev->stream == STREAM_ON) {
-				em28xx_videodbg ("VIDIOC_STREAMOFF: interrupting stream");
+				em28xx_videodbg ("VIDIOC_STREAMOFF: interrupting stream\n");
 				if ((ret = em28xx_stream_interrupt(dev)))
 					return ret;
 			}
@@ -1234,7 +1243,7 @@ static int em28xx_video_do_ioctl(struct inode *inode, struct file *filp,
 		{
 			struct v4l2_format *format = arg;
 
-			em28xx_videodbg("VIDIOC_G_FMT: type=%s",
+			em28xx_videodbg("VIDIOC_G_FMT: type=%s\n",
 				 format->type ==
 				 V4L2_BUF_TYPE_VIDEO_CAPTURE ?
 				 "V4L2_BUF_TYPE_VIDEO_CAPTURE" : format->type ==
@@ -1253,7 +1262,7 @@ static int em28xx_video_do_ioctl(struct inode *inode, struct file *filp,
 			format->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 			format->fmt.pix.field = dev->interlaced ? V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;	/* FIXME: TOP? NONE? BOTTOM? ALTENATE? */
 
-			em28xx_videodbg("VIDIOC_G_FMT: %dx%d", dev->width,
+			em28xx_videodbg("VIDIOC_G_FMT: %dx%d\n", dev->width,
 				 dev->height);
 			return 0;
 		}
@@ -1274,7 +1283,7 @@ static int em28xx_video_do_ioctl(struct inode *inode, struct file *filp,
 
 /*		int both_fields; */
 
-			em28xx_videodbg("%s: type=%s",
+			em28xx_videodbg("%s: type=%s\n",
 				 cmd ==
 				 VIDIOC_TRY_FMT ? "VIDIOC_TRY_FMT" :
 				 "VIDIOC_S_FMT",
@@ -1288,7 +1297,7 @@ static int em28xx_video_do_ioctl(struct inode *inode, struct file *filp,
 			if (format->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 				return -EINVAL;
 
-			em28xx_videodbg("%s: requested %dx%d",
+			em28xx_videodbg("%s: requested %dx%d\n",
 				 cmd ==
 				 VIDIOC_TRY_FMT ? "VIDIOC_TRY_FMT" :
 				 "VIDIOC_S_FMT", format->fmt.pix.width,
@@ -1347,7 +1356,7 @@ static int em28xx_video_do_ioctl(struct inode *inode, struct file *filp,
 			format->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 			format->fmt.pix.field = V4L2_FIELD_INTERLACED;
 
-			em28xx_videodbg("%s: returned %dx%d (%d, %d)",
+			em28xx_videodbg("%s: returned %dx%d (%d, %d)\n",
 				 cmd ==
 				 VIDIOC_TRY_FMT ? "VIDIOC_TRY_FMT" :
 				 "VIDIOC_S_FMT", format->fmt.pix.width,
@@ -1359,13 +1368,13 @@ static int em28xx_video_do_ioctl(struct inode *inode, struct file *filp,
 			for (i = 0; i < dev->num_frames; i++)
 				if (dev->frame[i].vma_use_count) {
 					em28xx_videodbg("VIDIOC_S_FMT failed. "
-						"Unmap the buffers first.");
+						"Unmap the buffers first.\n");
 					return -EINVAL;
 				}
 
 			/* stop io in case it is already in progress */
 			if (dev->stream == STREAM_ON) {
-				em28xx_videodbg("VIDIOC_SET_FMT: interupting stream");
+				em28xx_videodbg("VIDIOC_SET_FMT: interupting stream\n");
 				if ((ret = em28xx_stream_interrupt(dev)))
 					return ret;
 			}
@@ -1405,18 +1414,18 @@ static int em28xx_video_do_ioctl(struct inode *inode, struct file *filp,
 			if (dev->io == IO_READ) {
 				em28xx_videodbg ("method is set to read;"
 					" close and open the device again to"
-					" choose the mmap I/O method");
+					" choose the mmap I/O method\n");
 				return -EINVAL;
 			}
 
 			for (i = 0; i < dev->num_frames; i++)
 				if (dev->frame[i].vma_use_count) {
-					em28xx_videodbg ("VIDIOC_REQBUFS failed; previous buffers are still mapped");
+					em28xx_videodbg ("VIDIOC_REQBUFS failed; previous buffers are still mapped\n");
 					return -EINVAL;
 				}
 
 			if (dev->stream == STREAM_ON) {
-				em28xx_videodbg("VIDIOC_REQBUFS: interrupting stream");
+				em28xx_videodbg("VIDIOC_REQBUFS: interrupting stream\n");
 				if ((ret = em28xx_stream_interrupt(dev)))
 					return ret;
 			}
@@ -1430,7 +1439,7 @@ static int em28xx_video_do_ioctl(struct inode *inode, struct file *filp,
 
 			dev->frame_current = NULL;
 
-			em28xx_videodbg ("VIDIOC_REQBUFS: setting io method to mmap: num bufs %i",
+			em28xx_videodbg ("VIDIOC_REQBUFS: setting io method to mmap: num bufs %i\n",
 						     rb->count);
 			dev->io = rb->count ? IO_MMAP : IO_NONE;
 			return 0;
