@@ -29,6 +29,10 @@
  * 2005/05/05 - Jason Gabler <jygabler at lbl dot gov>
  *      - added "xmit_policy" kernel parameter for alternate hashing policy
  *	  support for mode 2
+ *
+ * 2005/09/27 - Mitch Williams <mitch.a.williams at intel dot com>
+ *		Radheka Godse <radheka.godse at intel dot com>
+ *      - Added bonding sysfs interface
  */
 
 #ifndef _LINUX_BONDING_H

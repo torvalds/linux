@@ -489,6 +489,28 @@
  *	  Set version to 2.6.3.
  * 2005/09/26 - Jay Vosburgh <fubar@us.ibm.com>
  *	- Removed backwards compatibility for old ifenslaves.  Version 2.6.4.
+ * 2005/09/27 - Mitch Williams <mitch.a.williams at intel dot com>
+ *	- Radheka Godse <radheka.godse at intel dot com>
+ *	- Split out bond creation code to allow for sysfs interface.
+ *	- Removed static declaration on some functions and data items.
+ *	- Added sysfs support, including capability to add/remove/change
+ *	   any bond at runtime.
+ *
+ *	- Miscellaneous:
+ *	- Added bonding: <bondname>: prefix to sysfs log messages
+ *	- Added arp_ip_targets to /proc entry
+ *	- Allow ARP target table to have empty entries
+ *	- trivial fix: added missing modes description to modinfo
+ *	- Corrected bug in ALB init where kmalloc is called inside
+ *	  a held lock
+ *	- Corrected behavior to maintain bond link when changing
+ *	  from arp monitor to miimon and vice versa
+ *	- Added missing bonding: <bondname>: prefix to alb, ad log messages
+ *	- Fixed stack dump warnings seen if changing between miimon
+ *	  and arp monitoring when the bond interface is down.
+ *	- Fixed stack dump warnings seen when enslaving an e100
+ *	  driver
+ *	- Set version to 3.0.0
  */
 
 //#define BONDING_DEBUG 1
