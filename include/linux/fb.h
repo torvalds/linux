@@ -201,6 +201,14 @@ struct fb_bitfield {
 #define FB_VMODE_SMOOTH_XPAN	512	/* smooth xpan possible (internally used) */
 #define FB_VMODE_CONUPDATE	512	/* don't update x/yoffset	*/
 
+/*
+ * Display rotation support
+ */
+#define FB_ROTATE_UR      0
+#define FB_ROTATE_CW      1
+#define FB_ROTATE_UD      2
+#define FB_ROTATE_CCW     3
+
 #define PICOS2KHZ(a) (1000000000UL/(a))
 #define KHZ2PICOS(a) (1000000000UL/(a))
 
@@ -489,9 +497,9 @@ struct fb_cursor_user {
 #define FB_EVENT_MODE_DELETE            0x04
 /*      A driver registered itself */
 #define FB_EVENT_FB_REGISTERED          0x05
-/*      get console to framebuffer mapping */
+/*      CONSOLE-SPECIFIC: get console to framebuffer mapping */
 #define FB_EVENT_GET_CONSOLE_MAP        0x06
-/*      set console to framebuffer mapping */
+/*      CONSOLE-SPECIFIC: set console to framebuffer mapping */
 #define FB_EVENT_SET_CONSOLE_MAP        0x07
 /*      A display blank is requested       */
 #define FB_EVENT_BLANK                  0x08
