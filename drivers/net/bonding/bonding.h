@@ -152,6 +152,11 @@ struct bond_params {
 	u32 arp_targets[BOND_MAX_ARP_TARGETS];
 };
 
+struct bond_parm_tbl {
+	char *modename;
+	int mode;
+};
+
 struct vlan_entry {
 	struct list_head vlan_list;
 	u32 vlan_ip;

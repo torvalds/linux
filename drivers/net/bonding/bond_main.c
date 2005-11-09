@@ -557,6 +557,7 @@ static char *lacp_rate	= NULL;
 static char *xmit_hash_policy = NULL;
 static int arp_interval = BOND_LINK_ARP_INTERV;
 static char *arp_ip_target[BOND_MAX_ARP_TARGETS] = { NULL, };
+struct bond_params bonding_defaults;
 
 module_param(max_bonds, int, 0);
 MODULE_PARM_DESC(max_bonds, "Max number of bonded devices");
@@ -593,7 +594,7 @@ MODULE_PARM_DESC(arp_ip_target, "arp targets in n.n.n.n form");
 static const char *version =
 	DRV_DESCRIPTION ": v" DRV_VERSION " (" DRV_RELDATE ")\n";
 
-static LIST_HEAD(bond_dev_list);
+LIST_HEAD(bond_dev_list);
 
 #ifdef CONFIG_PROC_FS
 static struct proc_dir_entry *bond_proc_dir = NULL;
@@ -605,18 +606,14 @@ static int bond_mode	= BOND_MODE_ROUNDROBIN;
 static int xmit_hashtype= BOND_XMIT_POLICY_LAYER2;
 static int lacp_fast	= 0;
 
-struct bond_parm_tbl {
-	char *modename;
-	int mode;
-};
 
-static struct bond_parm_tbl bond_lacp_tbl[] = {
+struct bond_parm_tbl bond_lacp_tbl[] = {
 {	"slow",		AD_LACP_SLOW},
 {	"fast",		AD_LACP_FAST},
 {	NULL,		-1},
 };
 
-static struct bond_parm_tbl bond_mode_tbl[] = {
+struct bond_parm_tbl bond_mode_tbl[] = {
 {	"balance-rr",		BOND_MODE_ROUNDROBIN},
 {	"active-backup",	BOND_MODE_ACTIVEBACKUP},
 {	"balance-xor",		BOND_MODE_XOR},
@@ -627,7 +624,7 @@ static struct bond_parm_tbl bond_mode_tbl[] = {
 {	NULL,			-1},
 };
 
-static struct bond_parm_tbl xmit_hashtype_tbl[] = {
+struct bond_parm_tbl xmit_hashtype_tbl[] = {
 {	"layer2",		BOND_XMIT_POLICY_LAYER2},
 {	"layer3+4",		BOND_XMIT_POLICY_LAYER34},
 {	NULL,			-1},
