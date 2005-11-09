@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
+#include <linux/version.h>
 #include <linux/video_decoder.h>
 
 #include "em28xx.h"
