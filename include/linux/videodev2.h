@@ -15,12 +15,13 @@
  */
 #ifdef __KERNEL__
 #include <linux/time.h> /* need struct timeval */
+#include <linux/poll.h>
+#include <linux/device.h>
 #endif
 #include <linux/compiler.h> /* need __user */
 
-#include <linux/poll.h>
-#include <linux/device.h>
 
+#define OBSOLETE_OWNER 1 /* It will be removed for 2.6.15 */
 #define HAVE_V4L2 1
 
 /*
@@ -29,6 +30,8 @@
  */
 
 #define VIDEO_MAX_FRAME               32
+
+#ifdef __KERNEL__
 
 #define VFL_TYPE_GRABBER	0
 #define VFL_TYPE_VBI		1
@@ -50,6 +53,15 @@ struct video_device
 	void (*release)(struct video_device *vfd);
 
 
+#if OBSOLETE_OWNER /* to be removed in 2.6.15 */
+	/* obsolete -- fops->owner is used instead */
+	struct module *owner;
+	/* dev->driver_data will be used instead some day.
+	 * Use the video_{get|set}_drvdata() helper functions,
+	 * so the switch over will be transparent for you.
+	 * Or use {pci|usb}_{get|set}_drvdata() directly. */
+	void *priv;
+#endif
 
 	/* for videodev.c intenal usage -- please don't touch */
 	int users;                     /* video_exclusive_{open|close} ... */
@@ -86,6 +98,8 @@ extern int video_usercopy(struct inode *inode, struct file *file,
    later can be used for video_device->release() */
 struct video_device *video_device_alloc(void);
 void video_device_release(struct video_device *vfd);
+
+#endif
 
 /*
  *	M I S C E L L A N E O U S
