@@ -364,7 +364,8 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	}
 	/* TEA5767 autodetection code - only for addr = 0xc0 */
 	if (!no_autodetect) {
-		if (addr == 0x60) {
+		switch (addr) {
+		case 0x60:
 			if (tea5767_autodetection(&t->i2c) != EINVAL) {
 				t->type = TUNER_TEA5767;
 				t->mode_mask = T_RADIO;
@@ -376,7 +377,17 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 				set_type(&t->i2c,t->type, t->mode_mask);
 				return 0;
 			}
+		case 0x42:
+		case 0x43:
+		case 0x4a:
+		case 0x44:
+			if (tda8290_init(&t->i2c)<0) {
+				kfree(t);
+				return 0;
+			}
+
 		}
+
 	}
 
 	/* Initializes only the first adapter found */
