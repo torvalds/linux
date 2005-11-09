@@ -3259,6 +3259,8 @@ static void bond_info_show_master(struct seq_file *seq)
 {
 	struct bonding *bond = seq->private;
 	struct slave *curr;
+	int i;
+	u32 target;
 
 	read_lock(&bond->curr_slave_lock);
 	curr = bond->curr_active_slave;
@@ -3289,6 +3291,27 @@ static void bond_info_show_master(struct seq_file *seq)
 		   bond->params.updelay * bond->params.miimon);
 	seq_printf(seq, "Down Delay (ms): %d\n",
 		   bond->params.downdelay * bond->params.miimon);
+
+
+	/* ARP information */
+	if(bond->params.arp_interval > 0) {
+		int printed=0;
+		seq_printf(seq, "ARP Polling Interval (ms): %d\n",
+				bond->params.arp_interval);
+
+		seq_printf(seq, "ARP IP target/s (n.n.n.n form):");
+
+		for(i = 0; (i < BOND_MAX_ARP_TARGETS) ;i++) {
+			if (!bond->params.arp_targets[i])
+				continue;
+			if (printed)
+				seq_printf(seq, ",");
+			target = ntohl(bond->params.arp_targets[i]);
+			seq_printf(seq, " %d.%d.%d.%d", HIPQUAD(target));
+			printed = 1;
+		}
+		seq_printf(seq, "\n");
+	}
 
 	if (bond->params.mode == BOND_MODE_8023AD) {
 		struct ad_info ad_info;
