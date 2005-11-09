@@ -5,7 +5,6 @@
  * This code is placed under the terms of the GNU General Public License
  */
 
-#include <linux/videodev.h>
 #include <linux/i2c.h>
 #include <linux/videodev.h>
 #include <linux/delay.h>

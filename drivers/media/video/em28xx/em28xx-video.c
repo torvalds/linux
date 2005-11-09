@@ -27,8 +27,8 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/usb.h>
-#include <linux/videodev.h>
 #include <linux/i2c.h>
+#include <linux/videodev.h>
 #include <media/tuner.h>
 #include <linux/video_decoder.h>
 

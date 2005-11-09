@@ -29,8 +29,8 @@
 #include <linux/i2c.h>
 #include <linux/usb.h>
 #include <media/tuner.h>
-#include "audiochip.h"
-#include "tveeprom.h"
+#include <media/audiochip.h>
+#include <media/tveeprom.h>
 #include "msp3400.h"
 
 #include "em2820.h"

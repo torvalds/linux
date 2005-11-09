@@ -40,7 +40,7 @@
 
 #include <media/tuner.h>
 #include <media/tveeprom.h>
-#include "audiochip.h"
+#include <media/audiochip.h>
 
 MODULE_DESCRIPTION("i2c Hauppauge eeprom decoder driver");
 MODULE_AUTHOR("John Klar");
