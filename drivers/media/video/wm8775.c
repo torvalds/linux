@@ -112,8 +112,13 @@ static int wm8775_command(struct i2c_client *client, unsigned int cmd,
 		state->muted = 0;
 		break;
 
+	case VIDIOC_LOG_STATUS:
+		wm8775_info("Input: %s%s\n",
+			    state->input == 8 ? "radio" : "default",
+			    state->muted ? " (muted)" : "");
+		break;
 
-	case VIDIOCSFREQ:
+	case VIDIOC_S_FREQUENCY:
 		/* If I remove this, then it can happen that I have no
 		   sound the first time I tune from static to a valid channel.
 		   It's difficult to reproduce and is almost certainly related
