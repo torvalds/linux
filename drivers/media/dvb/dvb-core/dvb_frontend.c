@@ -577,6 +577,49 @@ static void dvb_frontend_stop(struct dvb_frontend *fe)
 				fepriv->thread_pid);
 }
 
+s32 timeval_usec_diff(struct timeval lasttime, struct timeval curtime)
+{
+	return ((curtime.tv_usec < lasttime.tv_usec) ?
+		1000000 - lasttime.tv_usec + curtime.tv_usec :
+		curtime.tv_usec - lasttime.tv_usec);
+}
+EXPORT_SYMBOL(timeval_usec_diff);
+
+static inline void timeval_usec_add(struct timeval *curtime, u32 add_usec)
+{
+	curtime->tv_usec += add_usec;
+	if (curtime->tv_usec >= 1000000) {
+		curtime->tv_usec -= 1000000;
+		curtime->tv_sec++;
+	}
+}
+
+/*
+ * Sleep until gettimeofday() > waketime + add_usec
+ * This needs to be as precise as possible, but as the delay is
+ * usually between 2ms and 32ms, it is done using a scheduled msleep
+ * followed by usleep (normally a busy-wait loop) for the remainder
+ */
+void dvb_frontend_sleep_until(struct timeval *waketime, u32 add_usec)
+{
+	struct timeval lasttime;
+	s32 delta, newdelta;
+
+	timeval_usec_add(waketime, add_usec);
+
+	do_gettimeofday(&lasttime);
+	delta = timeval_usec_diff(lasttime, *waketime);
+	if (delta > 2500) {
+		msleep((delta - 1500) / 1000);
+		do_gettimeofday(&lasttime);
+		newdelta = timeval_usec_diff(lasttime, *waketime);
+		delta = (newdelta > delta) ? 0 : newdelta;
+	}
+	if (delta > 0)
+		udelay(delta);
+}
+EXPORT_SYMBOL(dvb_frontend_sleep_until);
+
 static int dvb_frontend_start(struct dvb_frontend *fe)
 {
 	int ret;
@@ -726,6 +769,60 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 	case FE_DISHNETWORK_SEND_LEGACY_CMD:
 		if (fe->ops->dishnetwork_send_legacy_command) {
 			err = fe->ops->dishnetwork_send_legacy_command(fe, (unsigned int) parg);
+			fepriv->state = FESTATE_DISEQC;
+			fepriv->status = 0;
+		} else if (fe->ops->set_voltage) {
+			/*
+			 * NOTE: This is a fallback condition.  Some frontends
+			 * (stv0299 for instance) take longer than 8msec to
+			 * respond to a set_voltage command.  Those switches
+			 * need custom routines to switch properly.  For all
+			 * other frontends, the following shoule work ok.
+			 * Dish network legacy switches (as used by Dish500)
+			 * are controlled by sending 9-bit command words
+			 * spaced 8msec apart.
+			 * the actual command word is switch/port dependant
+			 * so it is up to the userspace application to send
+			 * the right command.
+			 * The command must always start with a '0' after
+			 * initialization, so parg is 8 bits and does not
+			 * include the initialization or start bit
+			 */
+			unsigned int cmd = ((unsigned int) parg) << 1;
+			struct timeval nexttime;
+			struct timeval tv[10];
+			int i;
+			u8 last = 1;
+			if (dvb_frontend_debug)
+				printk("%s switch command: 0x%04x\n", __FUNCTION__, cmd);
+			do_gettimeofday(&nexttime);
+			if (dvb_frontend_debug)
+				memcpy(&tv[0], &nexttime, sizeof(struct timeval));
+			/* before sending a command, initialize by sending
+			 * a 32ms 18V to the switch
+			 */
+			fe->ops->set_voltage(fe, SEC_VOLTAGE_18);
+			dvb_frontend_sleep_until(&nexttime, 32000);
+
+			for (i = 0; i < 9; i++) {
+				if (dvb_frontend_debug)
+					do_gettimeofday(&tv[i + 1]);
+				if ((cmd & 0x01) != last) {
+					/* set voltage to (last ? 13V : 18V) */
+					fe->ops->set_voltage(fe, (last) ? SEC_VOLTAGE_13 : SEC_VOLTAGE_18);
+					last = (last) ? 0 : 1;
+				}
+				cmd = cmd >> 1;
+				if (i != 8)
+					dvb_frontend_sleep_until(&nexttime, 8000);
+			}
+			if (dvb_frontend_debug) {
+				printk("%s(%d): switch delay (should be 32k followed by all 8k\n",
+					__FUNCTION__, fe->dvb->num);
+				for (i = 1; i < 10; i++)
+					printk("%d: %d\n", i, timeval_usec_diff(tv[i-1] , tv[i]));
+			}
+			err = 0;
 			fepriv->state = FESTATE_DISEQC;
 			fepriv->status = 0;
 		}

@@ -387,36 +387,6 @@ static int stv0299_set_voltage (struct dvb_frontend* fe, fe_sec_voltage_t voltag
 	};
 }
 
-static inline s32 stv0299_calc_usec_delay (struct timeval lasttime, struct timeval curtime)
-{
-	return ((curtime.tv_usec < lasttime.tv_usec) ?
-		1000000 - lasttime.tv_usec + curtime.tv_usec :
-		curtime.tv_usec - lasttime.tv_usec);
-}
-
-static void stv0299_sleep_until (struct timeval *waketime, u32 add_usec)
-{
-	struct timeval lasttime;
-	s32 delta, newdelta;
-
-	waketime->tv_usec += add_usec;
-	if (waketime->tv_usec >= 1000000) {
-		waketime->tv_usec -= 1000000;
-		waketime->tv_sec++;
-	}
-
-	do_gettimeofday (&lasttime);
-	delta = stv0299_calc_usec_delay (lasttime, *waketime);
-	if (delta > 2500) {
-		msleep ((delta - 1500) / 1000);
-		do_gettimeofday (&lasttime);
-		newdelta = stv0299_calc_usec_delay (lasttime, *waketime);
-		delta = (newdelta > delta) ? 0 : newdelta;
-	}
-	if (delta > 0)
-		udelay (delta);
-}
-
 static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, u32 cmd)
 {
 	struct stv0299_state* state = fe->demodulator_priv;
@@ -444,7 +414,7 @@ static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, u32 cmd)
 		memcpy (&tv[0], &nexttime, sizeof (struct timeval));
 	stv0299_writeregI (state, 0x0c, reg0x0c | 0x50); /* set LNB to 18V */
 
-	stv0299_sleep_until (&nexttime, 32000);
+	dvb_frontend_sleep_until(&nexttime, 32000);
 
 	for (i=0; i<9; i++) {
 		if (debug_legacy_dish_switch)
@@ -458,13 +428,13 @@ static int stv0299_send_legacy_dish_cmd (struct dvb_frontend* fe, u32 cmd)
 		cmd = cmd >> 1;
 
 		if (i != 8)
-			stv0299_sleep_until (&nexttime, 8000);
+			dvb_frontend_sleep_until(&nexttime, 8000);
 	}
 	if (debug_legacy_dish_switch) {
 		printk ("%s(%d): switch delay (should be 32k followed by all 8k\n",
 			__FUNCTION__, fe->dvb->num);
-		for (i=1; i < 10; i++)
-			printk ("%d: %d\n", i, stv0299_calc_usec_delay (tv[i-1] , tv[i]));
+		for (i = 1; i < 10; i++)
+			printk ("%d: %d\n", i, timeval_usec_diff(tv[i-1] , tv[i]));
 	}
 
 	return 0;
