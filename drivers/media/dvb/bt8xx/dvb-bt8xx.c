@@ -600,8 +600,8 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 	struct dst_state* state = NULL;
 
 	switch(type) {
-#ifdef BTTV_DVICO_DVBT_LITE
-	case BTTV_DVICO_DVBT_LITE:
+#ifdef BTTV_BOARD_DVICO_DVBT_LITE
+	case BTTV_BOARD_DVICO_DVBT_LITE:
 		card->fe = mt352_attach(&thomson_dtt7579_config, card->i2c_adapter);
 		if (card->fe != NULL) {
 			card->fe->ops->info.frequency_min = 174000000;
@@ -610,8 +610,8 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		break;
 #endif
 
-#ifdef BTTV_DVICO_FUSIONHDTV_5_LITE
-	case BTTV_DVICO_FUSIONHDTV_5_LITE:
+#ifdef BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE
+	case BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE:
 		lgdt330x_reset(card);
 		card->fe = lgdt330x_attach(&tdvs_tua6034_config, card->i2c_adapter);
 		if (card->fe != NULL)
@@ -619,10 +619,10 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		break;
 #endif
 
-#ifdef BTTV_TWINHAN_VP3021
-	case BTTV_TWINHAN_VP3021:
+#ifdef BTTV_BOARD_TWINHAN_VP3021
+	case BTTV_BOARD_TWINHAN_VP3021:
 #else
-	case BTTV_NEBULA_DIGITV:
+	case BTTV_BOARD_NEBULA_DIGITV:
 #endif
 		/*
 		 * It is possible to determine the correct frontend using the I2C bus (see the Nebula SDK);
@@ -645,11 +645,11 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 			dprintk ("dvb_bt8xx: an mt352 was detected on your digitv card\n");
 		break;
 
-	case BTTV_AVDVBT_761:
+	case BTTV_BOARD_AVDVBT_761:
 		card->fe = sp887x_attach(&microtune_mt7202dtf_config, card->i2c_adapter);
 		break;
 
-	case BTTV_AVDVBT_771:
+	case BTTV_BOARD_AVDVBT_771:
 		card->fe = mt352_attach(&advbt771_samsung_tdtc9251dh0_config, card->i2c_adapter);
 		if (card->fe != NULL) {
 			card->fe->ops->info.frequency_min = 174000000;
@@ -657,7 +657,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		}
 		break;
 
-	case BTTV_TWINHAN_DST:
+	case BTTV_BOARD_TWINHAN_DST:
 		/*	DST is not a frontend driver !!!		*/
 		state = (struct dst_state *) kmalloc(sizeof (struct dst_state), GFP_KERNEL);
 		/*	Setup the Card					*/
@@ -678,11 +678,11 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 			ret = dst_ca_attach(state, &card->dvb_adapter);
 		break;
 
-	case BTTV_PINNACLESAT:
+	case BTTV_BOARD_PINNACLESAT:
 		card->fe = cx24110_attach(&pctvsat_config, card->i2c_adapter);
 		break;
 
-	case BTTV_PC_HDTV:
+	case BTTV_BOARD_PC_HDTV:
 		card->fe = or51211_attach(&or51211_config, card->i2c_adapter);
 		break;
 	}
@@ -804,7 +804,7 @@ static int dvb_bt8xx_probe(struct device *dev)
 	card->i2c_adapter = &sub->core->i2c_adap;
 
 	switch(sub->core->type) {
-	case BTTV_PINNACLESAT:
+	case BTTV_BOARD_PINNACLESAT:
 		card->gpio_mode = 0x0400c060;
 		/* should be: BT878_A_GAIN=0,BT878_A_PWRDN,BT878_DA_DPM,BT878_DA_SBR,
 			      BT878_DA_IOM=1,BT878_DA_APP to enable serial highspeed mode. */
@@ -812,8 +812,8 @@ static int dvb_bt8xx_probe(struct device *dev)
 		card->irq_err_ignore = 0;
 		break;
 
-#ifdef BTTV_DVICO_DVBT_LITE
-	case BTTV_DVICO_DVBT_LITE:
+#ifdef BTTV_BOARD_DVICO_DVBT_LITE
+	case BTTV_BOARD_DVICO_DVBT_LITE:
 #endif
 		card->gpio_mode = 0x0400C060;
 		card->op_sync_orin = 0;
@@ -823,34 +823,34 @@ static int dvb_bt8xx_probe(struct device *dev)
 		 * DA_APP(parallel) */
 		break;
 
-#ifdef BTTV_DVICO_FUSIONHDTV_5_LITE
-	case BTTV_DVICO_FUSIONHDTV_5_LITE:
+#ifdef BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE
+	case BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE:
 #endif
 		card->gpio_mode = 0x0400c060;
 		card->op_sync_orin = BT878_RISC_SYNC_MASK;
 		card->irq_err_ignore = BT878_AFBUS | BT878_AFDSR;
 		break;
 
-#ifdef BTTV_TWINHAN_VP3021
-	case BTTV_TWINHAN_VP3021:
+#ifdef BTTV_BOARD_TWINHAN_VP3021
+	case BTTV_BOARD_TWINHAN_VP3021:
 #else
-	case BTTV_NEBULA_DIGITV:
+	case BTTV_BOARD_NEBULA_DIGITV:
 #endif
-	case BTTV_AVDVBT_761:
+	case BTTV_BOARD_AVDVBT_761:
 		card->gpio_mode = (1 << 26) | (1 << 14) | (1 << 5);
 		card->op_sync_orin = 0;
 		card->irq_err_ignore = 0;
 		/* A_PWRDN DA_SBR DA_APP (high speed serial) */
 		break;
 
-	case BTTV_AVDVBT_771: //case 0x07711461:
+	case BTTV_BOARD_AVDVBT_771: //case 0x07711461:
 		card->gpio_mode = 0x0400402B;
 		card->op_sync_orin = BT878_RISC_SYNC_MASK;
 		card->irq_err_ignore = 0;
 		/* A_PWRDN DA_SBR  DA_APP[0] PKTP=10 RISC_ENABLE FIFO_ENABLE*/
 		break;
 
-	case BTTV_TWINHAN_DST:
+	case BTTV_BOARD_TWINHAN_DST:
 		card->gpio_mode = 0x2204f2c;
 		card->op_sync_orin = BT878_RISC_SYNC_MASK;
 		card->irq_err_ignore = BT878_APABORT | BT878_ARIPERR |
@@ -868,7 +868,7 @@ static int dvb_bt8xx_probe(struct device *dev)
 		 * RISC+FIFO ENABLE */
 		break;
 
-	case BTTV_PC_HDTV:
+	case BTTV_BOARD_PC_HDTV:
 		card->gpio_mode = 0x0100EC7B;
 		card->op_sync_orin = 0;
 		card->irq_err_ignore = 0;
