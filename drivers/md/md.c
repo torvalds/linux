@@ -1582,6 +1582,7 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 	rdev->in_sync = 0;
 	rdev->data_offset = 0;
 	atomic_set(&rdev->nr_pending, 0);
+	atomic_set(&rdev->read_errors, 0);
 
 	size = rdev->bdev->bd_inode->i_size >> BLOCK_SIZE_BITS;
 	if (!size) {

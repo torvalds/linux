@@ -420,21 +420,29 @@ static int raid5_end_read_request(struct bio * bi, unsigned int bytes_done,
 			clear_bit(R5_ReadError, &sh->dev[i].flags);
 			clear_bit(R5_ReWrite, &sh->dev[i].flags);
 		}
+		if (atomic_read(&conf->disks[i].rdev->read_errors))
+			atomic_set(&conf->disks[i].rdev->read_errors, 0);
 	} else {
+		int retry = 0;
 		clear_bit(R5_UPTODATE, &sh->dev[i].flags);
-		if (conf->mddev->degraded) {
+		atomic_inc(&conf->disks[i].rdev->read_errors);
+		if (conf->mddev->degraded)
 			printk("R5: read error not correctable.\n");
-			clear_bit(R5_ReadError, &sh->dev[i].flags);
-			clear_bit(R5_ReWrite, &sh->dev[i].flags);
-			md_error(conf->mddev, conf->disks[i].rdev);
-		} else if (test_bit(R5_ReWrite, &sh->dev[i].flags)) {
+		else if (test_bit(R5_ReWrite, &sh->dev[i].flags))
 			/* Oh, no!!! */
 			printk("R5: read error NOT corrected!!\n");
+		else if (atomic_read(&conf->disks[i].rdev->read_errors)
+			 > conf->max_nr_stripes)
+			printk("raid5: Too many read errors, failing device.\n");
+		else
+			retry = 1;
+		if (retry)
+			set_bit(R5_ReadError, &sh->dev[i].flags);
+		else {
 			clear_bit(R5_ReadError, &sh->dev[i].flags);
 			clear_bit(R5_ReWrite, &sh->dev[i].flags);
 			md_error(conf->mddev, conf->disks[i].rdev);
-		} else
-			set_bit(R5_ReadError, &sh->dev[i].flags);
+		}
 	}
 	rdev_dec_pending(conf->disks[i].rdev, conf->mddev);
 #if 0
@@ -1328,7 +1336,8 @@ static void handle_stripe(struct stripe_head *sh)
 	/* If the failed drive is just a ReadError, then we might need to progress
 	 * the repair/check process
 	 */
-	if (failed == 1 && test_bit(R5_ReadError, &sh->dev[failed_num].flags)
+	if (failed == 1 && ! conf->mddev->ro &&
+	    test_bit(R5_ReadError, &sh->dev[failed_num].flags)
 	    && !test_bit(R5_LOCKED, &sh->dev[failed_num].flags)
 	    && test_bit(R5_UPTODATE, &sh->dev[failed_num].flags)
 		) {

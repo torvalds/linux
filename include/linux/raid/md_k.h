@@ -134,6 +134,9 @@ struct mdk_rdev_s
 					 * only maintained for arrays that
 					 * support hot removal
 					 */
+	atomic_t	read_errors;	/* number of consecutive read errors that
+					 * we have tried to ignore.
+					 */
 };
 
 typedef struct mdk_personality_s mdk_personality_t;
