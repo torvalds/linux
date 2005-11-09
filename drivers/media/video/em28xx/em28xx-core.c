@@ -53,7 +53,7 @@ MODULE_PARM_DESC(reg_debug,"enable debug messages [URB reg]");
 
 unsigned int isoc_debug = 0;
 module_param(isoc_debug,int,0644);
-MODULE_PARM_DESC(core_debug,"enable debug messages [isoc transfers]");
+MODULE_PARM_DESC(isoc_debug,"enable debug messages [isoc transfers]");
 
 #define em2820_isocdbg(fmt, arg...) do {\
         if (isoc_debug) \
