@@ -493,10 +493,20 @@ inline static int em2820_gamma_set(struct em2820 *dev, s32 val)
 }
 
 /*FIXME: maxw should be dependent of alt mode */
-#define norm_maxw(dev) 720
+inline static unsigned int norm_maxw(struct em2820 *dev)
+{
+	switch(dev->model){
+		case (EM2820_BOARD_MSI_VOX_USB_2): return(640);
+		default: return(720);
+	}
+}
+
 inline static unsigned int norm_maxh(struct em2820 *dev)
 {
-	return (dev->tvnorm->id & V4L2_STD_625_50) ? 576 : 480;
+	switch(dev->model){
+		case (EM2820_BOARD_MSI_VOX_USB_2): return(480);
+		default: return (dev->tvnorm->id & V4L2_STD_625_50) ? 576 : 480;
+	}
 }
 
 #endif

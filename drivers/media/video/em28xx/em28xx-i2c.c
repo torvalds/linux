@@ -437,6 +437,9 @@ static int attach_inform(struct i2c_client *client)
 		case 0x86:
 			em2820_i2c_call_clients(dev, TDA9887_SET_CONFIG, &dev->tda9887_conf);
 			break;
+		case 0x42:
+			dprintk1(1,"attach_inform: saa7114 detected.\n");
+			break;
 		case 0x4a:
 			dprintk1(1,"attach_inform: saa7113 detected.\n");
 			break;

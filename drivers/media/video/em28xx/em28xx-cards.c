@@ -146,7 +146,7 @@ struct em2820_board em2820_boards[] = {
 		.decoder        = EM2820_SAA7114,
 		.input          = {{
 			.type     = EM2820_VMUX_TELEVISION,
-			.vmux     = 2,
+			.vmux     = 4,
 			.amux     = 0,
 		},{
 			.type     = EM2820_VMUX_COMPOSITE1,
