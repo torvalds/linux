@@ -196,7 +196,9 @@ static int dvb_usb_allocate_stream_buffers(struct dvb_usb_device *d, int num, un
 			dvb_usb_free_stream_buffers(d);
 			return -ENOMEM;
 		}
-		deb_mem("buffer %d: %p (dma: %d)\n",d->buf_num,d->buf_list[d->buf_num],d->dma_addr[d->buf_num]);
+		deb_mem("buffer %d: %p (dma: %llu)\n",
+			d->buf_num, d->buf_list[d->buf_num],
+			(unsigned long long)d->dma_addr[d->buf_num]);
 		memset(d->buf_list[d->buf_num],0,size);
 	}
 	deb_mem("allocation successful\n");
