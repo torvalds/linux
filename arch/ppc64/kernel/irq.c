@@ -157,9 +157,6 @@ void ppc_irq_dispatch_handler(struct pt_regs *regs, int irq)
 	int cpu = smp_processor_id();
 	irq_desc_t *desc = get_irq_desc(irq);
 	irqreturn_t action_ret;
-#ifdef CONFIG_IRQSTACKS
-	struct thread_info *curtp, *irqtp;
-#endif
 
 	kstat_cpu(cpu).irqs[irq]++;
 
@@ -227,20 +224,7 @@ void ppc_irq_dispatch_handler(struct pt_regs *regs, int irq)
 	for (;;) {
 		spin_unlock(&desc->lock);
 
-#ifdef CONFIG_IRQSTACKS
-		/* Switch to the irq stack to handle this */
-		curtp = current_thread_info();
-		irqtp = hardirq_ctx[smp_processor_id()];
-		if (curtp != irqtp) {
-			irqtp->task = curtp->task;
-			irqtp->flags = 0;
-			action_ret = call_handle_IRQ_event(irq, regs, action, irqtp);
-			irqtp->task = NULL;
-			if (irqtp->flags)
-				set_bits(irqtp->flags, &curtp->flags);
-		} else
-#endif
-			action_ret = handle_IRQ_event(irq, regs, action);
+		action_ret = handle_IRQ_event(irq, regs, action);
 
 		spin_lock(&desc->lock);
 		if (!noirqdebug)
@@ -310,6 +294,9 @@ void do_IRQ(struct pt_regs *regs)
 void do_IRQ(struct pt_regs *regs)
 {
 	int irq;
+#ifdef CONFIG_IRQSTACKS
+	struct thread_info *curtp, *irqtp;
+#endif
 
 	irq_enter();
 
@@ -330,9 +317,22 @@ void do_IRQ(struct pt_regs *regs)
 
 	irq = ppc_md.get_irq(regs);
 
-	if (irq >= 0)
-		ppc_irq_dispatch_handler(regs, irq);
-	else
+	if (irq >= 0) {
+#ifdef CONFIG_IRQSTACKS
+		/* Switch to the irq stack to handle this */
+		curtp = current_thread_info();
+		irqtp = hardirq_ctx[smp_processor_id()];
+		if (curtp != irqtp) {
+			irqtp->task = curtp->task;
+			irqtp->flags = 0;
+			call_ppc_irq_dispatch_handler(regs, irq, irqtp);
+			irqtp->task = NULL;
+			if (irqtp->flags)
+				set_bits(irqtp->flags, &curtp->flags);
+		} else
+#endif
+			ppc_irq_dispatch_handler(regs, irq);
+	} else
 		/* That's not SMP safe ... but who cares ? */
 		ppc_spurious_interrupts++;
 

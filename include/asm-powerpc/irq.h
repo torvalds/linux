@@ -488,8 +488,8 @@ extern struct thread_info *softirq_ctx[NR_CPUS];
 
 extern void irq_ctx_init(void);
 extern void call_do_softirq(struct thread_info *tp);
-extern int call_handle_IRQ_event(int irq, struct pt_regs *regs,
-			struct irqaction *action, struct thread_info *tp);
+extern int call_ppc_irq_dispatch_handler(struct pt_regs *regs, int irq,
+		struct thread_info *tp);
 
 #define __ARCH_HAS_DO_SOFTIRQ
 
