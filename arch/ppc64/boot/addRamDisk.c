@@ -5,11 +5,59 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <string.h>
+#include <elf.h>
 
 #define ElfHeaderSize  (64 * 1024)
 #define ElfPages  (ElfHeaderSize / 4096)
 #define KERNELBASE (0xc000000000000000)
+#define _ALIGN_UP(addr,size)	(((addr)+((size)-1))&(~((size)-1)))
 
+struct addr_range {
+	unsigned long long addr;
+	unsigned long memsize;
+	unsigned long offset;
+};
+
+static int check_elf64(void *p, int size, struct addr_range *r)
+{
+	Elf64_Ehdr *elf64 = p;
+	Elf64_Phdr *elf64ph;
+
+	if (elf64->e_ident[EI_MAG0] != ELFMAG0 ||
+	    elf64->e_ident[EI_MAG1] != ELFMAG1 ||
+	    elf64->e_ident[EI_MAG2] != ELFMAG2 ||
+	    elf64->e_ident[EI_MAG3] != ELFMAG3 ||
+	    elf64->e_ident[EI_CLASS] != ELFCLASS64 ||
+	    elf64->e_ident[EI_DATA] != ELFDATA2MSB ||
+	    elf64->e_type != ET_EXEC || elf64->e_machine != EM_PPC64)
+		return 0;
+
+	if ((elf64->e_phoff + sizeof(Elf64_Phdr)) > size)
+		return 0;
+
+	elf64ph = (Elf64_Phdr *) ((unsigned long)elf64 +
+				  (unsigned long)elf64->e_phoff);
+
+	r->memsize = (unsigned long)elf64ph->p_memsz;
+	r->offset = (unsigned long)elf64ph->p_offset;
+	r->addr = (unsigned long long)elf64ph->p_vaddr;
+
+#ifdef DEBUG
+	printf("PPC64 ELF file, ph:\n");
+	printf("p_type   0x%08x\n", elf64ph->p_type);
+	printf("p_flags  0x%08x\n", elf64ph->p_flags);
+	printf("p_offset 0x%016llx\n", elf64ph->p_offset);
+	printf("p_vaddr  0x%016llx\n", elf64ph->p_vaddr);
+	printf("p_paddr  0x%016llx\n", elf64ph->p_paddr);
+	printf("p_filesz 0x%016llx\n", elf64ph->p_filesz);
+	printf("p_memsz  0x%016llx\n", elf64ph->p_memsz);
+	printf("p_align  0x%016llx\n", elf64ph->p_align);
+	printf("... skipping 0x%08lx bytes of ELF header\n",
+	       (unsigned long)elf64ph->p_offset);
+#endif
+
+	return 64;
+}
 void get4k(FILE *file, char *buf )
 {
 	unsigned j;
@@ -34,21 +82,17 @@ void death(const char *msg, FILE *fdesc, const char *fname)
 int main(int argc, char **argv)
 {
 	char inbuf[4096];
+	struct addr_range vmlinux;
 	FILE *ramDisk;
-	FILE *sysmap;
 	FILE *inputVmlinux;
 	FILE *outputVmlinux;
 
 	char *rd_name, *lx_name, *out_name;
-	unsigned i;
+
+	size_t i;
 	unsigned long ramFileLen;
 	unsigned long ramLen;
 	unsigned long roundR;
-
-	unsigned long sysmapFileLen;
-	unsigned long sysmapLen;
-	unsigned long sysmapPages;
-	char *ptr_end;
 	unsigned long offset_end;
 
 	unsigned long kernelLen;
@@ -70,24 +114,19 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Name of RAM disk file missing.\n");
 		exit(1);
 	}
-	rd_name = argv[1]
+	rd_name = argv[1];
 
 	if (argc < 3) {
-		fprintf(stderr, "Name of System Map input file is missing.\n");
-		exit(1);
-	}
-  
-	if (argc < 4) {
 		fprintf(stderr, "Name of vmlinux file missing.\n");
 		exit(1);
 	}
-	lx_name = argv[3];
+	lx_name = argv[2];
 
-	if (argc < 5) {
+	if (argc < 4) {
 		fprintf(stderr, "Name of vmlinux output file missing.\n");
 		exit(1);
 	}
-	out_name = argv[4];
+	out_name = argv[3];
 
 
 	ramDisk = fopen(rd_name, "r");
@@ -96,12 +135,6 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	sysmap = fopen(argv[2], "r");
-	if ( ! sysmap ) {
-		fprintf(stderr, "System Map file \"%s\" failed to open.\n", argv[2]);
-		exit(1);
-	}
-  
 	inputVmlinux = fopen(lx_name, "r");
 	if ( ! inputVmlinux ) {
 		fprintf(stderr, "vmlinux file \"%s\" failed to open.\n", lx_name);
@@ -113,18 +146,24 @@ int main(int argc, char **argv)
 		fprintf(stderr, "output vmlinux file \"%s\" failed to open.\n", out_name);
 		exit(1);
 	}
-  
-  
-  
+
+	i = fread(inbuf, 1, sizeof(inbuf), inputVmlinux);
+	if (i != sizeof(inbuf)) {
+		fprintf(stderr, "can not read vmlinux file %s: %u\n", lx_name, i);
+		exit(1);
+	}
+
+	i = check_elf64(inbuf, sizeof(inbuf), &vmlinux);
+	if (i == 0) {
+		fprintf(stderr, "You must have a linux kernel specified as argv[2]\n");
+		exit(1);
+	}
+
 	/* Input Vmlinux file */
 	fseek(inputVmlinux, 0, SEEK_END);
 	kernelLen = ftell(inputVmlinux);
 	fseek(inputVmlinux, 0, SEEK_SET);
 	printf("kernel file size = %d\n", kernelLen);
-	if ( kernelLen == 0 ) {
-		fprintf(stderr, "You must have a linux kernel specified as argv[3]\n");
-		exit(1);
-	}
 
 	actualKernelLen = kernelLen - ElfHeaderSize;
 
@@ -138,39 +177,7 @@ int main(int argc, char **argv)
 	roundedKernelPages = roundedKernelLen / 4096;
 	printf("Vmlinux pages to copy = %ld/0x%lx \n", roundedKernelPages, roundedKernelPages);
 
-
-
-	/* Input System Map file */
-	/* (needs to be processed simply to determine if we need to add pad pages due to the static variables not being included in the vmlinux) */
-	fseek(sysmap, 0, SEEK_END);
-	sysmapFileLen = ftell(sysmap);
-	fseek(sysmap, 0, SEEK_SET);
-	printf("%s file size = %ld/0x%lx \n", argv[2], sysmapFileLen, sysmapFileLen);
-
-	sysmapLen = sysmapFileLen;
-
-	roundR = 4096 - (sysmapLen % 4096);
-	if (roundR) {
-		printf("Rounding System Map file up to a multiple of 4096, adding %ld/0x%lx \n", roundR, roundR);
-		sysmapLen += roundR;
-	}
-	printf("Rounded System Map size is %ld/0x%lx \n", sysmapLen, sysmapLen);
-  
-	/* Process the Sysmap file to determine where _end is */
-	sysmapPages = sysmapLen / 4096;
-	/* read the whole file line by line, expect that it doesn't fail */
-	while ( fgets(inbuf, 4096, sysmap) )  ;
-	/* search for _end in the last page of the system map */
-	ptr_end = strstr(inbuf, " _end");
-	if (!ptr_end) {
-		fprintf(stderr, "Unable to find _end in the sysmap file \n");
-		fprintf(stderr, "inbuf: \n");
-		fprintf(stderr, "%s \n", inbuf);
-		exit(1);
-	}
-	printf("Found _end in the last page of the sysmap - backing up 10 characters it looks like %s", ptr_end-10);
-	/* convert address of _end in system map to hex offset. */
-	offset_end = (unsigned int)strtol(ptr_end-10, NULL, 16);
+	offset_end = _ALIGN_UP(vmlinux.memsize, 4096);
 	/* calc how many pages we need to insert between the vmlinux and the start of the ram disk */
 	padPages = offset_end/4096 - roundedKernelPages;
 
