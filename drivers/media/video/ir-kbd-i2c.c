@@ -163,7 +163,7 @@ static int get_key_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 
 static int get_key_pixelview(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
-        unsigned char b;
+	unsigned char b;
 
 	/* poll IR chip */
 	if (1 != i2c_master_recv(&ir->c,&b,1)) {
@@ -177,7 +177,7 @@ static int get_key_pixelview(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 
 static int get_key_pv951(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
-        unsigned char b;
+	unsigned char b;
 
 	/* poll IR chip */
 	if (1 != i2c_master_recv(&ir->c,&b,1)) {
@@ -225,7 +225,7 @@ static int get_key_knc1(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 
 static int get_key_purpletv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
-        unsigned char b;
+	unsigned char b;
 
 	/* poll IR chip */
 	if (1 != i2c_master_recv(&ir->c,&b,1)) {
@@ -287,17 +287,17 @@ static int ir_detach(struct i2c_client *client);
 static int ir_probe(struct i2c_adapter *adap);
 
 static struct i2c_driver driver = {
-        .name           = "ir remote kbd driver",
-        .id             = I2C_DRIVERID_EXP3, /* FIXME */
-        .flags          = I2C_DF_NOTIFY,
-        .attach_adapter = ir_probe,
-        .detach_client  = ir_detach,
+	.name           = "ir remote kbd driver",
+	.id             = I2C_DRIVERID_EXP3, /* FIXME */
+	.flags          = I2C_DF_NOTIFY,
+	.attach_adapter = ir_probe,
+	.detach_client  = ir_detach,
 };
 
 static struct i2c_client client_template =
 {
-        .name = "unset",
-        .driver = &driver
+	.name = "unset",
+	.driver = &driver
 };
 
 static int ir_attach(struct i2c_adapter *adap, int addr,
@@ -398,7 +398,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 
 static int ir_detach(struct i2c_client *client)
 {
-        struct IR_i2c *ir = i2c_get_clientdata(client);
+	struct IR_i2c *ir = i2c_get_clientdata(client);
 
 	/* kill outstanding polls */
 	del_timer(&ir->timer);

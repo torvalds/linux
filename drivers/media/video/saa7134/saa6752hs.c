@@ -169,31 +169,31 @@ static int saa6752hs_chip_command(struct i2c_client* client,
 
 	/* execute the command */
 	switch(command) {
-  	case SAA6752HS_COMMAND_RESET:
-  		buf[0] = 0x00;
+	case SAA6752HS_COMMAND_RESET:
+		buf[0] = 0x00;
 		break;
 
 	case SAA6752HS_COMMAND_STOP:
-	  	buf[0] = 0x03;
+		buf[0] = 0x03;
 		break;
 
 	case SAA6752HS_COMMAND_START:
-  		buf[0] = 0x02;
+		buf[0] = 0x02;
 		break;
 
 	case SAA6752HS_COMMAND_PAUSE:
-  		buf[0] = 0x04;
+		buf[0] = 0x04;
 		break;
 
 	case SAA6752HS_COMMAND_RECONFIGURE:
 		buf[0] = 0x05;
 		break;
 
-  	case SAA6752HS_COMMAND_SLEEP:
-  		buf[0] = 0x06;
+	case SAA6752HS_COMMAND_SLEEP:
+		buf[0] = 0x06;
 		break;
 
-  	case SAA6752HS_COMMAND_RECONFIGURE_FORCE:
+	case SAA6752HS_COMMAND_RECONFIGURE_FORCE:
 		buf[0] = 0x07;
 		break;
 
@@ -201,13 +201,13 @@ static int saa6752hs_chip_command(struct i2c_client* client,
 		return -EINVAL;
 	}
 
-  	/* set it and wait for it to be so */
+	/* set it and wait for it to be so */
 	i2c_master_send(client, buf, 1);
 	timeout = jiffies + HZ * 3;
 	for (;;) {
 		/* get the current status */
 		buf[0] = 0x10;
-	  	i2c_master_send(client, buf, 1);
+		i2c_master_send(client, buf, 1);
 		i2c_master_recv(client, buf, 1);
 
 		if (!(buf[0] & 0x20))
@@ -223,14 +223,14 @@ static int saa6752hs_chip_command(struct i2c_client* client,
 	/* delay a bit to let encoder settle */
 	msleep(50);
 
-  	return status;
+	return status;
 }
 
 
 static int saa6752hs_set_bitrate(struct i2c_client* client,
 				 struct v4l2_mpeg_compression* params)
 {
-  	u8 buf[3];
+	u8 buf[3];
 
 	/* set the bitrate mode */
 	buf[0] = 0x71;
@@ -242,31 +242,31 @@ static int saa6752hs_set_bitrate(struct i2c_client* client,
 		/* set the target bitrate */
 		buf[0] = 0x80;
 	    	buf[1] = params->vi_bitrate.target >> 8;
-	  	buf[2] = params->vi_bitrate.target & 0xff;
+		buf[2] = params->vi_bitrate.target & 0xff;
 		i2c_master_send(client, buf, 3);
 
 		/* set the max bitrate */
 		buf[0] = 0x81;
 	    	buf[1] = params->vi_bitrate.max >> 8;
-	  	buf[2] = params->vi_bitrate.max & 0xff;
+		buf[2] = params->vi_bitrate.max & 0xff;
 		i2c_master_send(client, buf, 3);
 	} else {
 		/* set the target bitrate (no max bitrate for CBR) */
-  		buf[0] = 0x81;
+		buf[0] = 0x81;
 	    	buf[1] = params->vi_bitrate.target >> 8;
-	  	buf[2] = params->vi_bitrate.target & 0xff;
+		buf[2] = params->vi_bitrate.target & 0xff;
 		i2c_master_send(client, buf, 3);
 	}
 
 	/* set the audio bitrate */
- 	buf[0] = 0x94;
+	buf[0] = 0x94;
 	buf[1] = (256 == params->au_bitrate.target) ? 0 : 1;
 	i2c_master_send(client, buf, 2);
 
 	/* set the total bitrate */
 	buf[0] = 0xb1;
-  	buf[1] = params->st_bitrate.target >> 8;
-  	buf[2] = params->st_bitrate.target & 0xff;
+	buf[1] = params->st_bitrate.target >> 8;
+	buf[2] = params->st_bitrate.target & 0xff;
 	i2c_master_send(client, buf, 3);
 
 	return 0;
@@ -386,8 +386,8 @@ static int saa6752hs_init(struct i2c_client* client)
 		buf[1] = 0x01;
 	i2c_master_send(client, buf, 2);
 
-        /* set bitrate */
-        saa6752hs_set_bitrate(client, &h->params);
+	/* set bitrate */
+	saa6752hs_set_bitrate(client, &h->params);
 
 	/* Set GOP structure {3, 13} */
 	buf[0] = 0x72;
@@ -426,9 +426,9 @@ static int saa6752hs_init(struct i2c_client* client)
 	localPAT[sizeof(PAT) - 1] = crc & 0xFF;
 
 	/* compute PMT */
-      	memcpy(localPMT, PMT, sizeof(PMT));
-   	localPMT[3] = 0x40 | ((h->params.ts_pid_pmt >> 8) & 0x0f);
-   	localPMT[4] = h->params.ts_pid_pmt & 0xff;
+	memcpy(localPMT, PMT, sizeof(PMT));
+	localPMT[3] = 0x40 | ((h->params.ts_pid_pmt >> 8) & 0x0f);
+	localPMT[4] = h->params.ts_pid_pmt & 0xff;
 	localPMT[15] = 0xE0 | ((h->params.ts_pid_pcr >> 8) & 0x0F);
 	localPMT[16] = h->params.ts_pid_pcr & 0xFF;
 	localPMT[20] = 0xE0 | ((h->params.ts_pid_video >> 8) & 0x0F);
@@ -453,7 +453,7 @@ static int saa6752hs_init(struct i2c_client* client)
 	buf[2] = h->params.ts_pid_video & 0xFF;
 	i2c_master_send(client,buf,3);
 
- 	/* Set PCR PID */
+	/* Set PCR PID */
 	buf[0] = 0xC4;
 	buf[1] = (h->params.ts_pid_pcr >> 8) & 0xFF;
 	buf[2] = h->params.ts_pid_pcr & 0xFF;
@@ -467,7 +467,7 @@ static int saa6752hs_init(struct i2c_client* client)
 	buf[0] = 0xa4;
 	buf[1] = 1;
 	i2c_master_send(client, buf, 2);
-  	buf[1] = 0;
+	buf[1] = 0;
 	i2c_master_send(client, buf, 2);
 
 	/* start it going */
@@ -510,10 +510,10 @@ static int saa6752hs_attach(struct i2c_adapter *adap, int addr, int kind)
 {
 	struct saa6752hs_state *h;
 
-        printk("saa6752hs: chip found @ 0x%x\n", addr<<1);
+	printk("saa6752hs: chip found @ 0x%x\n", addr<<1);
 
-        if (NULL == (h = kmalloc(sizeof(*h), GFP_KERNEL)))
-                return -ENOMEM;
+	if (NULL == (h = kmalloc(sizeof(*h), GFP_KERNEL)))
+		return -ENOMEM;
 	memset(h,0,sizeof(*h));
 	h->client = client_template;
 	h->params = param_defaults;
@@ -552,7 +552,7 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	struct v4l2_mpeg_compression *params = arg;
 	int err = 0;
 
-        switch (cmd) {
+	switch (cmd) {
 	case VIDIOC_S_MPEGCOMP:
 		if (NULL == params) {
 			/* apply settings and start encoder */
@@ -566,7 +566,7 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		break;
 	case VIDIOC_G_FMT:
 	{
-           struct v4l2_format *f = arg;
+	   struct v4l2_format *f = arg;
 
 	   if (h->video_format == SAA6752HS_VF_UNKNOWN)
 		   h->video_format = SAA6752HS_VF_D1;

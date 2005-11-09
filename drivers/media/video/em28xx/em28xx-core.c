@@ -2,8 +2,8 @@
    em2820-core.c - driver for Empia EM2800/EM2820/2840 USB video capture devices
 
    Copyright (C) 2005 Markus Rechberger <mrechberger@gmail.com>
-                      Ludovico Cavedon <cavedon@sssup.it>
-                      Mauro Carvalho Chehab <mchehab@brturbo.com.br>
+		      Ludovico Cavedon <cavedon@sssup.it>
+		      Mauro Carvalho Chehab <mchehab@brturbo.com.br>
 
    Based on the em2800 driver from Sascha Sommer <saschasommer@freenet.de>
 
@@ -33,32 +33,32 @@
 
 /* #define ENABLE_DEBUG_ISOC_FRAMES */
 
-unsigned int core_debug = 0;
+unsigned int core_debug;
 module_param(core_debug,int,0644);
 MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
 
 #define em2820_coredbg(fmt, arg...) do {\
-        if (core_debug) \
-                printk(KERN_INFO "%s %s :"fmt, \
-                         dev->name, __FUNCTION__ , ##arg); } while (0)
+	if (core_debug) \
+		printk(KERN_INFO "%s %s :"fmt, \
+			 dev->name, __FUNCTION__ , ##arg); } while (0)
 
-unsigned int reg_debug = 0;
+unsigned int reg_debug;
 module_param(reg_debug,int,0644);
 MODULE_PARM_DESC(reg_debug,"enable debug messages [URB reg]");
 
 #define em2820_regdbg(fmt, arg...) do {\
-        if (reg_debug) \
-                printk(KERN_INFO "%s %s :"fmt, \
-                         dev->name, __FUNCTION__ , ##arg); } while (0)
+	if (reg_debug) \
+		printk(KERN_INFO "%s %s :"fmt, \
+			 dev->name, __FUNCTION__ , ##arg); } while (0)
 
-unsigned int isoc_debug = 0;
+unsigned int isoc_debug;
 module_param(isoc_debug,int,0644);
 MODULE_PARM_DESC(isoc_debug,"enable debug messages [isoc transfers]");
 
 #define em2820_isocdbg(fmt, arg...) do {\
-        if (isoc_debug) \
-                printk(KERN_INFO "%s %s :"fmt, \
-                         dev->name, __FUNCTION__ , ##arg); } while (0)
+	if (isoc_debug) \
+		printk(KERN_INFO "%s %s :"fmt, \
+			 dev->name, __FUNCTION__ , ##arg); } while (0)
 
 static int alt = EM2820_PINOUT;
 module_param(alt, int, 0644);

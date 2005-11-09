@@ -310,12 +310,12 @@ static struct saa7134_tvnorm tvnorms[] = {
 
 		.h_start       = 0,
 		.h_stop        = 719,
-  		.video_v_start = 23,
-  		.video_v_stop  = 262,
-  		.vbi_v_start_0 = 10,
-  		.vbi_v_stop_0  = 21,
-  		.vbi_v_start_1 = 273,
-  		.src_timing    = 7,
+		.video_v_start = 23,
+		.video_v_stop  = 262,
+		.vbi_v_start_0 = 10,
+		.vbi_v_stop_0  = 21,
+		.vbi_v_start_1 = 273,
+		.src_timing    = 7,
 
 		.sync_control  = 0x18,
 		.luma_control  = 0x40,
@@ -659,7 +659,7 @@ static void set_size(struct saa7134_dev *dev, int task,
 		prescale = 1;
 	xscale = 1024 * dev->crop_current.width / prescale / width;
 	yscale = 512 * div * dev->crop_current.height / height;
-       	dprintk("prescale=%d xscale=%d yscale=%d\n",prescale,xscale,yscale);
+	dprintk("prescale=%d xscale=%d yscale=%d\n",prescale,xscale,yscale);
 	set_h_prescale(dev,task,prescale);
 	saa_writeb(SAA7134_H_SCALE_INC1(task),      xscale &  0xff);
 	saa_writeb(SAA7134_H_SCALE_INC2(task),      xscale >> 8);
@@ -789,20 +789,20 @@ static int verify_preview(struct saa7134_dev *dev, struct v4l2_window *win)
 	maxh  = dev->crop_current.height;
 
 	if (V4L2_FIELD_ANY == field) {
-                field = (win->w.height > maxh/2)
-                        ? V4L2_FIELD_INTERLACED
-                        : V4L2_FIELD_TOP;
-        }
-        switch (field) {
-        case V4L2_FIELD_TOP:
-        case V4L2_FIELD_BOTTOM:
-                maxh = maxh / 2;
-                break;
-        case V4L2_FIELD_INTERLACED:
-                break;
-        default:
-                return -EINVAL;
-        }
+		field = (win->w.height > maxh/2)
+			? V4L2_FIELD_INTERLACED
+			: V4L2_FIELD_TOP;
+	}
+	switch (field) {
+	case V4L2_FIELD_TOP:
+	case V4L2_FIELD_BOTTOM:
+		maxh = maxh / 2;
+		break;
+	case V4L2_FIELD_INTERLACED:
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	win->field = field;
 	if (win->w.width > maxw)
@@ -1343,13 +1343,13 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 			if (res_locked(fh->dev,RESOURCE_VIDEO)) {
 				up(&fh->cap.lock);
 				return POLLERR;
-                        }
-                        if (0 != fh->cap.ops->buf_prepare(&fh->cap,fh->cap.read_buf,fh->cap.field)) {
-                                up(&fh->cap.lock);
-                                return POLLERR;
-                        }
-                        fh->cap.ops->buf_queue(&fh->cap,fh->cap.read_buf);
-                        fh->cap.read_off = 0;
+			}
+			if (0 != fh->cap.ops->buf_prepare(&fh->cap,fh->cap.read_buf,fh->cap.field)) {
+			        up(&fh->cap.lock);
+			        return POLLERR;
+			}
+			fh->cap.ops->buf_queue(&fh->cap,fh->cap.read_buf);
+			fh->cap.read_off = 0;
 		}
 		up(&fh->cap.lock);
 		buf = fh->cap.read_buf;
@@ -1706,7 +1706,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		unsigned int tuner_type = dev->tuner_type;
 
 		memset(cap,0,sizeof(*cap));
-                strcpy(cap->driver, "saa7134");
+		strcpy(cap->driver, "saa7134");
 		strlcpy(cap->card, saa7134_boards[dev->board].name,
 			sizeof(cap->card));
 		sprintf(cap->bus_info,"PCI:%s",pci_name(dev->pci));
@@ -1934,26 +1934,26 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 	}
 	case VIDIOC_S_AUDIO:
 		return 0;
-        case VIDIOC_G_PARM:
-        {
-                struct v4l2_captureparm *parm = arg;
-                memset(parm,0,sizeof(*parm));
-                return 0;
-        }
+	case VIDIOC_G_PARM:
+	{
+		struct v4l2_captureparm *parm = arg;
+		memset(parm,0,sizeof(*parm));
+		return 0;
+	}
 
-        case VIDIOC_G_PRIORITY:
-        {
-                enum v4l2_priority *p = arg;
+	case VIDIOC_G_PRIORITY:
+	{
+		enum v4l2_priority *p = arg;
 
-                *p = v4l2_prio_max(&dev->prio);
-                return 0;
-        }
-        case VIDIOC_S_PRIORITY:
-        {
-                enum v4l2_priority *prio = arg;
+		*p = v4l2_prio_max(&dev->prio);
+		return 0;
+	}
+	case VIDIOC_S_PRIORITY:
+	{
+		enum v4l2_priority *prio = arg;
 
-                return v4l2_prio_change(&dev->prio, &fh->prio, *prio);
-        }
+		return v4l2_prio_change(&dev->prio, &fh->prio, *prio);
+	}
 
 	/* --- preview ioctls ---------------------------------------- */
 	case VIDIOC_ENUM_FMT:
@@ -2102,7 +2102,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 	{
 		int res = saa7134_resource(fh);
 
-                if (!res_get(dev,fh,res))
+		if (!res_get(dev,fh,res))
 			return -EBUSY;
 		return videobuf_streamon(saa7134_queue(fh));
 	}
@@ -2144,7 +2144,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 		struct v4l2_capability *cap = arg;
 
 		memset(cap,0,sizeof(*cap));
-                strcpy(cap->driver, "saa7134");
+		strcpy(cap->driver, "saa7134");
 		strlcpy(cap->card, saa7134_boards[dev->board].name,
 			sizeof(cap->card));
 		sprintf(cap->bus_info,"PCI:%s",pci_name(dev->pci));
@@ -2275,7 +2275,7 @@ struct video_device saa7134_video_template =
 {
 	.name          = "saa7134-video",
 	.type          = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_OVERLAY|
-	                 VID_TYPE_CLIPPING|VID_TYPE_SCALES,
+			 VID_TYPE_CLIPPING|VID_TYPE_SCALES,
 	.hardware      = 0,
 	.fops          = &video_fops,
 	.minor         = -1,
@@ -2322,7 +2322,7 @@ int saa7134_video_init1(struct saa7134_dev *dev)
 		dev->tda9887_conf |= TDA9887_AUTOMUTE;
 	dev->automute       = 0;
 
-        INIT_LIST_HEAD(&dev->video_q.queue);
+	INIT_LIST_HEAD(&dev->video_q.queue);
 	init_timer(&dev->video_q.timeout);
 	dev->video_q.timeout.function = saa7134_buffer_timeout;
 	dev->video_q.timeout.data     = (unsigned long)(&dev->video_q);

@@ -464,8 +464,8 @@ saa7113_command (struct i2c_client *client,
 
 /* standard i2c insmod options */
 static unsigned short normal_i2c[] = {
-        I2C_SAA7113>>1,         /* saa7113 */
-        I2C_CLIENT_END
+	I2C_SAA7113>>1,         /* saa7113 */
+	I2C_CLIENT_END
 };
 
 I2C_CLIENT_INSMOD;

@@ -369,14 +369,14 @@ static int ir_probe(struct device *dev)
 		ir->mask_keycode = 0x003e00;
 		ir->mask_keyup   = 0x010000;
 		ir->polling      = 50; // ms
-                break;
+		break;
 	case BTTV_BOARD_PV_BT878P_9B:
 	case BTTV_BOARD_PV_BT878P_PLUS:
 		ir_codes         = ir_codes_pixelview;
 		ir->mask_keycode = 0x001f00;
 		ir->mask_keyup   = 0x008000;
 		ir->polling      = 50; // ms
-                break;
+		break;
 
 	case BTTV_BOARD_WINFAST2000:
 		ir_codes         = ir_codes_winfast;

@@ -128,7 +128,7 @@ static int dntv_live_dvbt_demod_init(struct dvb_frontend* fe)
 	static u8 reset []         = { 0x50, 0x80 };
 	static u8 adc_ctl_1_cfg [] = { 0x8E, 0x40 };
 	static u8 agc_cfg []       = { 0x67, 0x10, 0x23, 0x00, 0xFF, 0xFF,
-	                               0x00, 0xFF, 0x00, 0x40, 0x40 };
+			               0x00, 0xFF, 0x00, 0x40, 0x40 };
 	static u8 dntv_extra[]     = { 0xB5, 0x7A };
 	static u8 capt_range_cfg[] = { 0x75, 0x32 };
 
@@ -464,7 +464,7 @@ static int __devinit dvb_probe(struct pci_dev *pci_dev,
 
 static void __devexit dvb_remove(struct pci_dev *pci_dev)
 {
-        struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
+	struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
 
 	/* dvb */
 	videobuf_dvb_unregister(&dev->dvb);
@@ -479,8 +479,8 @@ static struct pci_device_id cx8802_pci_tbl[] = {
 	{
 		.vendor       = 0x14f1,
 		.device       = 0x8802,
-                .subvendor    = PCI_ANY_ID,
-                .subdevice    = PCI_ANY_ID,
+		.subvendor    = PCI_ANY_ID,
+		.subdevice    = PCI_ANY_ID,
 	},{
 		/* --- end of list --- */
 	}
@@ -488,10 +488,10 @@ static struct pci_device_id cx8802_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, cx8802_pci_tbl);
 
 static struct pci_driver dvb_pci_driver = {
-        .name     = "cx88-dvb",
-        .id_table = cx8802_pci_tbl,
-        .probe    = dvb_probe,
-        .remove   = __devexit_p(dvb_remove),
+	.name     = "cx88-dvb",
+	.id_table = cx8802_pci_tbl,
+	.probe    = dvb_probe,
+	.remove   = __devexit_p(dvb_remove),
 	.suspend  = cx8802_suspend_common,
 	.resume   = cx8802_resume_common,
 };

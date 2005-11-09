@@ -27,7 +27,7 @@
 
 /* DMA channels, n = 0 ... 6 */
 #define SAA7134_RS_BA1(n)			((0x200 >> 2) + 4*n)
-#define SAA7134_RS_BA2(n)	       		((0x204 >> 2) + 4*n)
+#define SAA7134_RS_BA2(n)			((0x204 >> 2) + 4*n)
 #define SAA7134_RS_PITCH(n)			((0x208 >> 2) + 4*n)
 #define SAA7134_RS_CONTROL(n)			((0x20c >> 2) + 4*n)
 #define   SAA7134_RS_CONTROL_WSWAP		(0x01 << 25)
@@ -53,14 +53,14 @@
 
 /* main control */
 #define SAA7134_MAIN_CTRL                       (0x2a8 >> 2)
-#define   SAA7134_MAIN_CTRL_VPLLE	       	(1 << 15)
-#define   SAA7134_MAIN_CTRL_APLLE	       	(1 << 14)
-#define   SAA7134_MAIN_CTRL_EXOSC	       	(1 << 13)
-#define   SAA7134_MAIN_CTRL_EVFE1	       	(1 << 12)
-#define   SAA7134_MAIN_CTRL_EVFE2	       	(1 << 11)
-#define   SAA7134_MAIN_CTRL_ESFE	       	(1 << 10)
-#define   SAA7134_MAIN_CTRL_EBADC	       	(1 << 9)
-#define   SAA7134_MAIN_CTRL_EBDAC	       	(1 << 8)
+#define   SAA7134_MAIN_CTRL_VPLLE		(1 << 15)
+#define   SAA7134_MAIN_CTRL_APLLE		(1 << 14)
+#define   SAA7134_MAIN_CTRL_EXOSC		(1 << 13)
+#define   SAA7134_MAIN_CTRL_EVFE1		(1 << 12)
+#define   SAA7134_MAIN_CTRL_EVFE2		(1 << 11)
+#define   SAA7134_MAIN_CTRL_ESFE		(1 << 10)
+#define   SAA7134_MAIN_CTRL_EBADC		(1 << 9)
+#define   SAA7134_MAIN_CTRL_EBDAC		(1 << 8)
 #define   SAA7134_MAIN_CTRL_TE6			(1 << 6)
 #define   SAA7134_MAIN_CTRL_TE5			(1 << 5)
 #define   SAA7134_MAIN_CTRL_TE4			(1 << 4)

@@ -201,10 +201,10 @@ static int pending_call(struct notifier_block *self, unsigned long state,
 	if (module != THIS_MODULE || state != MODULE_STATE_LIVE)
 		return NOTIFY_DONE;
 
-        if (need_empress)
-                request_module("saa7134-empress");
-        if (need_dvb)
-                request_module("saa7134-dvb");
+	if (need_empress)
+		request_module("saa7134-empress");
+	if (need_dvb)
+		request_module("saa7134-dvb");
 	return NOTIFY_DONE;
 }
 
@@ -279,8 +279,8 @@ unsigned long saa7134_buffer_base(struct saa7134_buf *buf)
 
 int saa7134_pgtable_alloc(struct pci_dev *pci, struct saa7134_pgtable *pt)
 {
-        __le32       *cpu;
-        dma_addr_t   dma_addr;
+	__le32       *cpu;
+	dma_addr_t   dma_addr;
 
 	cpu = pci_alloc_consistent(pci, SAA7134_PGTABLE_SIZE, &dma_addr);
 	if (NULL == cpu)
@@ -440,7 +440,7 @@ int saa7134_set_dmabits(struct saa7134_dev *dev)
 		ctrl |= SAA7134_MAIN_CTRL_TE0;
 		irq  |= SAA7134_IRQ1_INTE_RA0_1 |
 			SAA7134_IRQ1_INTE_RA0_0;
-	        cap = dev->video_q.curr->vb.field;
+		cap = dev->video_q.curr->vb.field;
 	}
 
 	/* video capture -- dma 1+2 (planar modes) */
@@ -646,7 +646,7 @@ static int saa7134_hwinit1(struct saa7134_dev *dev)
 
 	saa_writel(SAA7134_IRQ1, 0);
 	saa_writel(SAA7134_IRQ2, 0);
-        init_MUTEX(&dev->lock);
+	init_MUTEX(&dev->lock);
 	spin_lock_init(&dev->slock);
 
 	saa7134_track_gpio(dev,"pre-init");
@@ -704,7 +704,7 @@ static int saa7134_hwinit2(struct saa7134_dev *dev)
 	saa7134_tvaudio_init2(dev);
 
 	/* enable IRQ's */
-   	irq2_mask =
+	irq2_mask =
 		SAA7134_IRQ2_INTE_DEC3    |
 		SAA7134_IRQ2_INTE_DEC2    |
 		SAA7134_IRQ2_INTE_DEC1    |
@@ -889,8 +889,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 
 	/* print pci info */
 	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &dev->pci_rev);
-        pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
-        printk(KERN_INFO "%s: found at %s, rev: %d, irq: %d, "
+	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
+	printk(KERN_INFO "%s: found at %s, rev: %d, irq: %d, "
 	       "latency: %d, mmio: 0x%lx\n", dev->name,
 	       pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
 	       dev->pci_lat,pci_resource_start(pci_dev,0));
@@ -914,7 +914,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	dev->tda9887_conf = saa7134_boards[dev->board].tda9887_conf;
 	if (UNSET != tuner[dev->nr])
 		dev->tuner_type = tuner[dev->nr];
-        printk(KERN_INFO "%s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
+	printk(KERN_INFO "%s: subsystem: %04x:%04x, board: %s [card=%d,%s]\n",
 	       dev->name,pci_dev->subsystem_vendor,
 	       pci_dev->subsystem_device,saa7134_boards[dev->board].name,
 	       dev->board, card[dev->nr] == dev->board ?
@@ -964,12 +964,12 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		request_module("tuner");
 	if (dev->tda9887_conf)
 		request_module("tda9887");
-  	if (card_is_empress(dev)) {
+	if (card_is_empress(dev)) {
 		request_module("saa6752hs");
 		request_module_depend("saa7134-empress",&need_empress);
 	}
 
-  	if (card_is_dvb(dev))
+	if (card_is_dvb(dev))
 		request_module_depend("saa7134-dvb",&need_dvb);
 
 	v4l2_prio_init(&dev->prio);
@@ -1078,7 +1078,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 
 static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 {
-        struct saa7134_dev *dev = pci_get_drvdata(pci_dev);
+	struct saa7134_dev *dev = pci_get_drvdata(pci_dev);
 	struct list_head *item;
 	struct saa7134_mpeg_ops *mops;
 
@@ -1173,10 +1173,10 @@ EXPORT_SYMBOL(saa7134_ts_unregister);
 /* ----------------------------------------------------------- */
 
 static struct pci_driver saa7134_pci_driver = {
-        .name     = "saa7134",
-        .id_table = saa7134_pci_tbl,
-        .probe    = saa7134_initdev,
-        .remove   = __devexit_p(saa7134_finidev),
+	.name     = "saa7134",
+	.id_table = saa7134_pci_tbl,
+	.probe    = saa7134_initdev,
+	.remove   = __devexit_p(saa7134_finidev),
 };
 
 static int saa7134_init(void)

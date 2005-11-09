@@ -202,7 +202,7 @@ struct bttv_core {
 	struct list_head     subs;     /* struct bttv_sub_device */
 
 	/* device config */
-        unsigned int         nr;       /* dev nr (for printk("bttv%d: ...");  */
+	unsigned int         nr;       /* dev nr (for printk("bttv%d: ...");  */
 	unsigned int         type;     /* card type (pointer into tvcards[])  */
 	char                 name[8];  /* dev name */
 };
@@ -211,16 +211,16 @@ struct bttv;
 
 struct tvcard
 {
-        char *name;
-        unsigned int video_inputs;
-        unsigned int audio_inputs;
-        unsigned int tuner;
-        unsigned int svhs;
+	char *name;
+	unsigned int video_inputs;
+	unsigned int audio_inputs;
+	unsigned int tuner;
+	unsigned int svhs;
 	unsigned int digital_mode; // DIGITAL_MODE_CAMERA or DIGITAL_MODE_VIDEO
-        u32 gpiomask;
-        u32 muxsel[16];
-        u32 audiomux[6]; /* Tuner, Radio, external, internal, mute, stereo */
-        u32 gpiomask2;   /* GPIO MUX mask */
+	u32 gpiomask;
+	u32 muxsel[16];
+	u32 audiomux[6]; /* Tuner, Radio, external, internal, mute, stereo */
+	u32 gpiomask2;   /* GPIO MUX mask */
 
 	/* i2c audio flags */
 	unsigned int no_msp34xx:1;

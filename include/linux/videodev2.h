@@ -24,7 +24,7 @@
 
 /*  Four-character-code (FOURCC) */
 #define v4l2_fourcc(a,b,c,d)\
-        (((__u32)(a)<<0)|((__u32)(b)<<8)|((__u32)(c)<<16)|((__u32)(d)<<24))
+	(((__u32)(a)<<0)|((__u32)(b)<<8)|((__u32)(c)<<16)|((__u32)(d)<<24))
 
 /*
  *	E N U M S
@@ -154,20 +154,20 @@ struct v4l2_capability
 };
 
 /* Values for 'capabilities' field */
-#define V4L2_CAP_VIDEO_CAPTURE	        0x00000001  /* Is a video capture device */
-#define V4L2_CAP_VIDEO_OUTPUT	        0x00000002  /* Is a video output device */
-#define V4L2_CAP_VIDEO_OVERLAY	        0x00000004  /* Can do video overlay */
-#define V4L2_CAP_VBI_CAPTURE	        0x00000010  /* Is a raw VBI capture device */
-#define V4L2_CAP_VBI_OUTPUT	        0x00000020  /* Is a raw VBI output device */
+#define V4L2_CAP_VIDEO_CAPTURE		0x00000001  /* Is a video capture device */
+#define V4L2_CAP_VIDEO_OUTPUT		0x00000002  /* Is a video output device */
+#define V4L2_CAP_VIDEO_OVERLAY		0x00000004  /* Can do video overlay */
+#define V4L2_CAP_VBI_CAPTURE		0x00000010  /* Is a raw VBI capture device */
+#define V4L2_CAP_VBI_OUTPUT		0x00000020  /* Is a raw VBI output device */
 #if 1
 #define V4L2_CAP_SLICED_VBI_CAPTURE	0x00000040  /* Is a sliced VBI capture device */
 #define V4L2_CAP_SLICED_VBI_OUTPUT	0x00000080  /* Is a sliced VBI output device */
 #endif
-#define V4L2_CAP_RDS_CAPTURE	        0x00000100  /* RDS data capture */
+#define V4L2_CAP_RDS_CAPTURE		0x00000100  /* RDS data capture */
 
-#define V4L2_CAP_TUNER		        0x00010000  /* has a tuner */
-#define V4L2_CAP_AUDIO		        0x00020000  /* has audio support */
-#define V4L2_CAP_RADIO		        0x00040000  /* is a radio device */
+#define V4L2_CAP_TUNER			0x00010000  /* has a tuner */
+#define V4L2_CAP_AUDIO			0x00020000  /* has audio support */
+#define V4L2_CAP_RADIO			0x00040000  /* is a radio device */
 
 #define V4L2_CAP_READWRITE              0x01000000  /* read/write systemcalls */
 #define V4L2_CAP_ASYNCIO                0x02000000  /* async I/O */
@@ -179,13 +179,13 @@ struct v4l2_capability
 
 struct v4l2_pix_format
 {
-	__u32         	 	width;
-	__u32	         	height;
-	__u32	         	pixelformat;
+	__u32         		width;
+	__u32			height;
+	__u32			pixelformat;
 	enum v4l2_field  	field;
 	__u32            	bytesperline;	/* for padding, zero if unused */
-	__u32          	 	sizeimage;
-        enum v4l2_colorspace	colorspace;
+	__u32          		sizeimage;
+	enum v4l2_colorspace	colorspace;
 	__u32			priv;		/* private data, depends on pixelformat */
 };
 
@@ -238,12 +238,12 @@ struct v4l2_pix_format
  */
 struct v4l2_fmtdesc
 {
-	__u32	            index;             /* Format number      */
+	__u32		    index;             /* Format number      */
 	enum v4l2_buf_type  type;              /* buffer type        */
 	__u32               flags;
-	__u8	            description[32];   /* Description string */
-	__u32	            pixelformat;       /* Format fourcc      */
-	__u32	            reserved[4];
+	__u8		    description[32];   /* Description string */
+	__u32		    pixelformat;       /* Format fourcc      */
+	__u32		    reserved[4];
 };
 
 #define V4L2_FMT_FLAG_COMPRESSED 0x0001
@@ -393,7 +393,7 @@ struct v4l2_jpegcompression
 #define V4L2_JPEG_MARKER_DRI (1<<5)    /* Define Restart Interval */
 #define V4L2_JPEG_MARKER_COM (1<<6)    /* Comment segment */
 #define V4L2_JPEG_MARKER_APP (1<<7)    /* App segment, driver will
-                                        * allways use APP0 */
+			                * allways use APP0 */
 };
 
 
@@ -402,10 +402,10 @@ struct v4l2_jpegcompression
  */
 struct v4l2_requestbuffers
 {
-	__u32	                count;
+	__u32			count;
 	enum v4l2_buf_type      type;
 	enum v4l2_memory        memory;
-	__u32	                reserved[2];
+	__u32			reserved[2];
 };
 
 struct v4l2_buffer
@@ -511,9 +511,9 @@ struct v4l2_outputparm
 
 struct v4l2_cropcap {
 	enum v4l2_buf_type      type;
-        struct v4l2_rect        bounds;
-        struct v4l2_rect        defrect;
-        struct v4l2_fract       pixelaspect;
+	struct v4l2_rect        bounds;
+	struct v4l2_rect        defrect;
+	struct v4l2_fract       pixelaspect;
 };
 
 struct v4l2_crop {
@@ -587,7 +587,7 @@ typedef __u64 v4l2_std_id;
 				 V4L2_STD_PAL_Nc	|\
 				 V4L2_STD_SECAM)
 #define V4L2_STD_ATSC           (V4L2_STD_ATSC_8_VSB    |\
-		                 V4L2_STD_ATSC_16_VSB)
+				 V4L2_STD_ATSC_16_VSB)
 
 #define V4L2_STD_UNKNOWN        0
 #define V4L2_STD_ALL            (V4L2_STD_525_60	|\
@@ -595,7 +595,7 @@ typedef __u64 v4l2_std_id;
 
 struct v4l2_standard
 {
-	__u32	       	     index;
+	__u32		     index;
 	v4l2_std_id          id;
 	__u8		     name[24];
 	struct v4l2_fract    frameperiod; /* Frames, not fields */
@@ -610,9 +610,9 @@ struct v4l2_standard
 struct v4l2_input
 {
 	__u32	     index;		/*  Which input */
-	__u8	     name[32];	        /*  Label */
+	__u8	     name[32];		/*  Label */
 	__u32	     type;		/*  Type of input */
-	__u32	     audioset;	        /*  Associated audios (bitfield) */
+	__u32	     audioset;		/*  Associated audios (bitfield) */
 	__u32        tuner;             /*  Associated tuner */
 	v4l2_std_id  std;
 	__u32	     status;
@@ -647,9 +647,9 @@ struct v4l2_input
 struct v4l2_output
 {
 	__u32	     index;		/*  Which output */
-	__u8	     name[32];	        /*  Label */
+	__u8	     name[32];		/*  Label */
 	__u32	     type;		/*  Type of output */
-	__u32	     audioset;	        /*  Associated audios (bitfield) */
+	__u32	     audioset;		/*  Associated audios (bitfield) */
 	__u32	     modulator;         /*  Associated modulator */
 	v4l2_std_id  std;
 	__u32	     reserved[4];
@@ -671,12 +671,12 @@ struct v4l2_control
 /*  Used in the VIDIOC_QUERYCTRL ioctl for querying controls */
 struct v4l2_queryctrl
 {
-	__u32	             id;
+	__u32		     id;
 	enum v4l2_ctrl_type  type;
 	__u8		     name[32];	/* Whatever */
 	__s32		     minimum;	/* Note signedness */
 	__s32		     maximum;
-	__s32	             step;
+	__s32		     step;
 	__s32		     default_value;
 	__u32                flags;
 	__u32		     reserved[2];
@@ -779,10 +779,10 @@ struct v4l2_modulator
 
 struct v4l2_frequency
 {
-	__u32	              tuner;
+	__u32		      tuner;
 	enum v4l2_tuner_type  type;
-        __u32	              frequency;
-	__u32	              reserved[8];
+	__u32		      frequency;
+	__u32		      reserved[8];
 };
 
 /*
@@ -846,14 +846,14 @@ struct v4l2_vbi_format
 
 struct v4l2_sliced_vbi_format
 {
-        __u16   service_set;
-        /* service_lines[0][...] specifies lines 0-23 (1-23 used) of the first field
-           service_lines[1][...] specifies lines 0-23 (1-23 used) of the second field
-                                 (equals frame lines 313-336 for 625 line video
-                                  standards, 263-286 for 525 line standards) */
-        __u16   service_lines[2][24];
-        __u32   io_size;
-        __u32   reserved[2];            /* must be zero */
+	__u16   service_set;
+	/* service_lines[0][...] specifies lines 0-23 (1-23 used) of the first field
+	   service_lines[1][...] specifies lines 0-23 (1-23 used) of the second field
+			         (equals frame lines 313-336 for 625 line video
+			          standards, 263-286 for 525 line standards) */
+	__u16   service_lines[2][24];
+	__u32   io_size;
+	__u32   reserved[2];            /* must be zero */
 };
 
 #define V4L2_SLICED_TELETEXT_B          (0x0001)
@@ -866,22 +866,22 @@ struct v4l2_sliced_vbi_format
 
 struct v4l2_sliced_vbi_cap
 {
-        __u16   service_set;
-        /* service_lines[0][...] specifies lines 0-23 (1-23 used) of the first field
-           service_lines[1][...] specifies lines 0-23 (1-23 used) of the second field
-                                 (equals frame lines 313-336 for 625 line video
-                                  standards, 263-286 for 525 line standards) */
-        __u16   service_lines[2][24];
-        __u32   reserved[4];    /* must be 0 */
+	__u16   service_set;
+	/* service_lines[0][...] specifies lines 0-23 (1-23 used) of the first field
+	   service_lines[1][...] specifies lines 0-23 (1-23 used) of the second field
+			         (equals frame lines 313-336 for 625 line video
+			          standards, 263-286 for 525 line standards) */
+	__u16   service_lines[2][24];
+	__u32   reserved[4];    /* must be 0 */
 };
 
 struct v4l2_sliced_vbi_data
 {
-        __u32   id;
-        __u32   field;          /* 0: first field, 1: second field */
-        __u32   line;           /* 1-23 */
-        __u32   reserved;       /* must be 0 */
-        __u8    data[48];
+	__u32   id;
+	__u32   field;          /* 0: first field, 1: second field */
+	__u32   line;           /* 1-23 */
+	__u32   reserved;       /* must be 0 */
+	__u8    data[48];
 };
 #endif
 
@@ -896,9 +896,9 @@ struct v4l2_format
 	enum v4l2_buf_type type;
 	union
 	{
-		struct v4l2_pix_format	        pix;     // V4L2_BUF_TYPE_VIDEO_CAPTURE
-		struct v4l2_window	        win;     // V4L2_BUF_TYPE_VIDEO_OVERLAY
-		struct v4l2_vbi_format	        vbi;     // V4L2_BUF_TYPE_VBI_CAPTURE
+		struct v4l2_pix_format		pix;     // V4L2_BUF_TYPE_VIDEO_CAPTURE
+		struct v4l2_window		win;     // V4L2_BUF_TYPE_VIDEO_OVERLAY
+		struct v4l2_vbi_format		vbi;     // V4L2_BUF_TYPE_VBI_CAPTURE
 #if 1
 		struct v4l2_sliced_vbi_format	sliced;  // V4L2_BUF_TYPE_SLICED_VBI_CAPTURE
 #endif

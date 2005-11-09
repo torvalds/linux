@@ -2,8 +2,8 @@
    em2820-cards.c - driver for Empia EM2800/EM2820/2840 USB video capture devices
 
    Copyright (C) 2005 Markus Rechberger <mrechberger@gmail.com>
-                      Ludovico Cavedon <cavedon@sssup.it>
-                      Mauro Carvalho Chehab <mchehab@brturbo.com.br>
+		      Ludovico Cavedon <cavedon@sssup.it>
+		      Mauro Carvalho Chehab <mchehab@brturbo.com.br>
 
    Based on the em2800 driver from Sascha Sommer <saschasommer@freenet.de>
 
@@ -390,17 +390,17 @@ extern const unsigned int em2820_bcount;
 /* printk macros */
 
 #define em2820_err(fmt, arg...) do {\
-        printk(KERN_ERR fmt , ##arg); } while (0)
+	printk(KERN_ERR fmt , ##arg); } while (0)
 
 #define em2820_errdev(fmt, arg...) do {\
-        printk(KERN_ERR "%s: "fmt,\
+	printk(KERN_ERR "%s: "fmt,\
 			dev->name , ##arg); } while (0)
 
 #define em2820_info(fmt, arg...) do {\
-        printk(KERN_INFO "%s: "fmt,\
+	printk(KERN_INFO "%s: "fmt,\
 			dev->name , ##arg); } while (0)
 #define em2820_warn(fmt, arg...) do {\
-        printk(KERN_WARNING "%s: "fmt,\
+	printk(KERN_WARNING "%s: "fmt,\
 			dev->name , ##arg); } while (0)
 
 inline static int em2820_audio_source(struct em2820 *dev, int input)

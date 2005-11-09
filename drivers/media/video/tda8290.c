@@ -48,7 +48,7 @@ static struct freq_entry div_table[] = {
 	{ 0x1C34, 3 },
 	{ 0x0D34, 2 },
 	{ 0x067B, 1 },
-        { 0x0000, 0 },
+	{ 0x0000, 0 },
 };
 
 static struct freq_entry agc_table[] = {

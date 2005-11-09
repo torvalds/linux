@@ -111,8 +111,8 @@ static int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 
 	/* dma: setup channel 5 (= TS) */
 	control = SAA7134_RS_CONTROL_BURST_16 |
-	          SAA7134_RS_CONTROL_ME |
-	          (buf->pt->dma >> 12);
+		  SAA7134_RS_CONTROL_ME |
+		  (buf->pt->dma >> 12);
 
 	saa_writeb(SAA7134_TS_DMA0, ((lines-1)&0xff));
 	saa_writeb(SAA7134_TS_DMA1, (((lines-1)>>8)&0xff));

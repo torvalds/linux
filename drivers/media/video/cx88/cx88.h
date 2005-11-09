@@ -259,8 +259,8 @@ struct cx88_core {
 	/* pci stuff */
 	int                        pci_bus;
 	int                        pci_slot;
-        u32                        __iomem *lmmio;
-        u8                         __iomem *bmmio;
+	u32                        __iomem *lmmio;
+	u8                         __iomem *bmmio;
 	u32                        shadow[SHADOW_MAX];
 	int                        pci_irqmask;
 

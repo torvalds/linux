@@ -2114,16 +2114,16 @@ struct saa7134_board saa7134_boards[] = {
 		},
 	},
 	[SAA7134_BOARD_BEHOLD_409FM] = {
-	        /* <http://tuner.beholder.ru>, Sergey <skiv@orel.ru> */
-	        .name           = "Beholder BeholdTV 409 FM",
-	        .audio_clock    = 0x00187de7,
-	        .tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
-	        .radio_type     = UNSET,
-  	        .tuner_addr     = ADDR_UNSET,
-                .radio_addr     = ADDR_UNSET,
-                .tda9887_conf   = TDA9887_PRESENT,
-	        .inputs         = {{
-	                  .name = name_tv,
+		/* <http://tuner.beholder.ru>, Sergey <skiv@orel.ru> */
+		.name           = "Beholder BeholdTV 409 FM",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.inputs         = {{
+			  .name = name_tv,
 			  .vmux = 3,
 			  .amux = TV,
 			  .tv   = 1,
@@ -2131,60 +2131,60 @@ struct saa7134_board saa7134_boards[] = {
 			  .name = name_comp1,
 			  .vmux = 1,
 			  .amux = LINE1,
-	        },{
-		          .name = name_svideo,
+		},{
+			  .name = name_svideo,
 			  .vmux = 8,
 			  .amux = LINE1,
-                }},
-                .radio = {
-		          .name = name_radio,
+		}},
+		.radio = {
+			  .name = name_radio,
 			  .amux = LINE2,
-    	        },
-        },
-        [SAA7134_BOARD_GOTVIEW_7135] = {
+    		},
+	},
+	[SAA7134_BOARD_GOTVIEW_7135] = {
 		/* Mike Baikov <mike@baikov.com> */
 		/* Andrey Cvetcov <ays14@yandex.ru> */
-                .name            = "GoTView 7135 PCI",
-                .audio_clock     = 0x00187de7,
-                .tuner_type      = TUNER_PHILIPS_FM1216ME_MK3,
-                .radio_type      = UNSET,
-                .tuner_addr      = ADDR_UNSET,
-                .radio_addr      = ADDR_UNSET,
-                .tda9887_conf    = TDA9887_PRESENT,
-                .gpiomask        = 0x00200003,
-                .inputs          = {{
-                        .name = name_tv,
-                        .vmux = 1,
-                        .amux = TV,
-                        .tv   = 1,
-                        .gpio = 0x00200003,
-                },{
-                        .name = name_tv_mono,
-                        .vmux = 1,
-                        .amux = LINE2,
-                        .gpio = 0x00200003,
-                },{
-                        .name = name_comp1,
-                        .vmux = 3,
-                        .amux = LINE1,
-                        .gpio = 0x00200003,
-                },{
-                        .name = name_svideo,
-                        .vmux = 8,
-                        .amux = LINE1,
-                        .gpio = 0x00200003,
-                }},
-                .radio = {
-                        .name = name_radio,
-                        .amux = LINE2,
-                        .gpio = 0x00200003,
-                },
-                .mute = {
-                        .name = name_mute,
-                        .amux = TV,
-                        .gpio = 0x00200003,
-                },
-        },
+		.name            = "GoTView 7135 PCI",
+		.audio_clock     = 0x00187de7,
+		.tuner_type      = TUNER_PHILIPS_FM1216ME_MK3,
+		.radio_type      = UNSET,
+		.tuner_addr      = ADDR_UNSET,
+		.radio_addr      = ADDR_UNSET,
+		.tda9887_conf    = TDA9887_PRESENT,
+		.gpiomask        = 0x00200003,
+		.inputs          = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+			.gpio = 0x00200003,
+		},{
+			.name = name_tv_mono,
+			.vmux = 1,
+			.amux = LINE2,
+			.gpio = 0x00200003,
+		},{
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE1,
+			.gpio = 0x00200003,
+		},{
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+			.gpio = 0x00200003,
+		}},
+		.radio = {
+			.name = name_radio,
+			.amux = LINE2,
+			.gpio = 0x00200003,
+		},
+		.mute = {
+			.name = name_mute,
+			.amux = TV,
+			.gpio = 0x00200003,
+		},
+	},
 	[SAA7134_BOARD_PHILIPS_EUROPA] = {
 		.name           = "Philips EUROPA V3 reference design",
 		.audio_clock    = 0x00187de7,
@@ -2251,78 +2251,78 @@ struct saa7134_board saa7134_boards[] = {
 			.amux   = LINE1,
 		}},
 	},
- 	[SAA7134_BOARD_RTD_VFG7350] = {
- 		.name		= "RTD Embedded Technologies VFG7350",
- 		.audio_clock	= 0x00200000,
- 		.tuner_type	= TUNER_ABSENT,
- 		.radio_type	= UNSET,
- 		.tuner_addr	= ADDR_UNSET,
- 		.radio_addr	= ADDR_UNSET,
- 		.inputs		= {{
- 			.name   = "Composite 0",
- 			.vmux   = 0,
- 			.amux   = LINE1,
- 		},{
- 			.name   = "Composite 1",
- 			.vmux   = 1,
- 			.amux   = LINE2,
- 		},{
- 			.name   = "Composite 2",
- 			.vmux   = 2,
- 			.amux   = LINE1,
- 		},{
- 			.name   = "Composite 3",
- 			.vmux   = 3,
- 			.amux   = LINE2,
- 		},{
- 			.name   = "S-Video 0",
- 			.vmux   = 8,
- 			.amux   = LINE1,
- 		},{
- 			.name   = "S-Video 1",
- 			.vmux   = 9,
- 			.amux   = LINE2,
- 		}},
- 		.mpeg           = SAA7134_MPEG_EMPRESS,
- 		.video_out      = CCIR656,
+	[SAA7134_BOARD_RTD_VFG7350] = {
+		.name		= "RTD Embedded Technologies VFG7350",
+		.audio_clock	= 0x00200000,
+		.tuner_type	= TUNER_ABSENT,
+		.radio_type	= UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.inputs		= {{
+			.name   = "Composite 0",
+			.vmux   = 0,
+			.amux   = LINE1,
+		},{
+			.name   = "Composite 1",
+			.vmux   = 1,
+			.amux   = LINE2,
+		},{
+			.name   = "Composite 2",
+			.vmux   = 2,
+			.amux   = LINE1,
+		},{
+			.name   = "Composite 3",
+			.vmux   = 3,
+			.amux   = LINE2,
+		},{
+			.name   = "S-Video 0",
+			.vmux   = 8,
+			.amux   = LINE1,
+		},{
+			.name   = "S-Video 1",
+			.vmux   = 9,
+			.amux   = LINE2,
+		}},
+		.mpeg           = SAA7134_MPEG_EMPRESS,
+		.video_out      = CCIR656,
 		.vid_port_opts  = ( SET_T_CODE_POLARITY_NON_INVERTED |
 				    SET_CLOCK_NOT_DELAYED |
 				    SET_CLOCK_INVERTED |
 				    SET_VSYNC_OFF ),
- 	},
- 	[SAA7134_BOARD_RTD_VFG7330] = {
- 		.name		= "RTD Embedded Technologies VFG7330",
- 		.audio_clock	= 0x00200000,
- 		.tuner_type	= TUNER_ABSENT,
- 		.radio_type	= UNSET,
- 		.tuner_addr	= ADDR_UNSET,
- 		.radio_addr	= ADDR_UNSET,
- 		.inputs		= {{
- 			.name   = "Composite 0",
- 			.vmux   = 0,
- 			.amux   = LINE1,
- 		},{
- 			.name   = "Composite 1",
- 			.vmux   = 1,
- 			.amux   = LINE2,
- 		},{
- 			.name   = "Composite 2",
- 			.vmux   = 2,
- 			.amux   = LINE1,
- 		},{
- 			.name   = "Composite 3",
- 			.vmux   = 3,
- 			.amux   = LINE2,
- 		},{
- 			.name   = "S-Video 0",
- 			.vmux   = 8,
- 			.amux   = LINE1,
- 		},{
- 			.name   = "S-Video 1",
- 			.vmux   = 9,
- 			.amux   = LINE2,
- 		}},
- 	},
+	},
+	[SAA7134_BOARD_RTD_VFG7330] = {
+		.name		= "RTD Embedded Technologies VFG7330",
+		.audio_clock	= 0x00200000,
+		.tuner_type	= TUNER_ABSENT,
+		.radio_type	= UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.inputs		= {{
+			.name   = "Composite 0",
+			.vmux   = 0,
+			.amux   = LINE1,
+		},{
+			.name   = "Composite 1",
+			.vmux   = 1,
+			.amux   = LINE2,
+		},{
+			.name   = "Composite 2",
+			.vmux   = 2,
+			.amux   = LINE1,
+		},{
+			.name   = "Composite 3",
+			.vmux   = 3,
+			.amux   = LINE2,
+		},{
+			.name   = "S-Video 0",
+			.vmux   = 8,
+			.amux   = LINE1,
+		},{
+			.name   = "S-Video 1",
+			.vmux   = 9,
+			.amux   = LINE2,
+		}},
+	},
 	[SAA7134_BOARD_FLYTVPLATINUM_MINI2] = {
 		.name           = "LifeView FlyTV Platinum Mini2",
 		.audio_clock    = 0x00200000,
@@ -2760,55 +2760,55 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x0000, /* It shouldn't break anything, since subdevice id seems unique */
 		.subdevice    = 0x4091,
 		.driver_data  = SAA7134_BOARD_BEHOLD_409FM,
-        },{
-                .vendor       = PCI_VENDOR_ID_PHILIPS,
-                .device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
-                .subvendor    = 0x5456, /* GoTView */
-                .subdevice    = 0x7135,
-                .driver_data  = SAA7134_BOARD_GOTVIEW_7135,
-        },{
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x5456, /* GoTView */
+		.subdevice    = 0x7135,
+		.driver_data  = SAA7134_BOARD_GOTVIEW_7135,
+	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
 		.subvendor    = PCI_VENDOR_ID_PHILIPS,
 		.subdevice    = 0x2004,
 		.driver_data  = SAA7134_BOARD_PHILIPS_EUROPA,
- 	},{
+	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
 		.subvendor    = 0x185b,
 		.subdevice    = 0xc900,
 		.driver_data  = SAA7134_BOARD_VIDEOMATE_DVBT_300,
- 	},{
+	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
 		.subvendor    = 0x185b,
 		.subdevice    = 0xc901,
 		.driver_data  = SAA7134_BOARD_VIDEOMATE_DVBT_200,
 	},{
- 		.vendor       = PCI_VENDOR_ID_PHILIPS,
- 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
- 		.subvendor    = 0x1435,
- 		.subdevice    = 0x7350,
- 		.driver_data  = SAA7134_BOARD_RTD_VFG7350,
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1435,
+		.subdevice    = 0x7350,
+		.driver_data  = SAA7134_BOARD_RTD_VFG7350,
 	},{
- 		.vendor       = PCI_VENDOR_ID_PHILIPS,
- 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
- 		.subvendor    = 0x1435,
- 		.subdevice    = 0x7330,
- 		.driver_data  = SAA7134_BOARD_RTD_VFG7330,
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1435,
+		.subdevice    = 0x7330,
+		.driver_data  = SAA7134_BOARD_RTD_VFG7330,
 	},{
- 		.vendor       = PCI_VENDOR_ID_PHILIPS,
- 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
- 		.subvendor    = 0x1461,
- 		.subdevice    = 0x1044,
- 		.driver_data  = SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180,
- 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1461,
+		.subdevice    = 0x1044,
+		.driver_data  = SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180,
+	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x1131,
 		.subdevice    = 0x4ee9,
 		.driver_data  = SAA7134_BOARD_MONSTERTV_MOBILE,
- 	},{
+	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -3051,7 +3051,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 	case SAA7134_BOARD_VIDEOMATE_DVBT_300:
 		/* The Philips EUROPA based hybrid boards have the tuner connected through
 		 * the channel decoder. We have to make it transparent to find it
-	 	 */
+		 */
 		{
 		struct tuner_setup tun_setup;
 		u8 data[] = { 0x07, 0x02};
@@ -3063,7 +3063,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		tun_setup.addr = dev->tuner_addr;
 
 		saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR,&tun_setup);
- 		}
+		}
 		break;
 	}
 	return 0;

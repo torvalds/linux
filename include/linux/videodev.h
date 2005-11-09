@@ -202,9 +202,9 @@ struct video_audio
 #define VIDEO_SOUND_STEREO	2
 #define VIDEO_SOUND_LANG1	4
 #define VIDEO_SOUND_LANG2	8
-        __u16   mode;
-        __u16	balance;	/* Stereo balance */
-        __u16	step;		/* Step actual volume uses */
+	__u16   mode;
+	__u16	balance;	/* Stereo balance */
+	__u16	step;		/* Step actual volume uses */
 };
 
 struct video_clip

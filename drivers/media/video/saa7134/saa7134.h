@@ -346,7 +346,7 @@ struct saa7134_fh {
 
 /* oss dsp status */
 struct saa7134_oss {
-        struct semaphore           lock;
+	struct semaphore           lock;
 	int                        minor_mixer;
 	int                        minor_dsp;
 	unsigned int               users_dsp;
@@ -384,9 +384,9 @@ struct saa7134_ir {
 	u32                        mask_keycode;
 	u32                        mask_keydown;
 	u32                        mask_keyup;
-        int                        polling;
-        u32                        last_gpio;
-        struct timer_list          timer;
+	int                        polling;
+	u32                        last_gpio;
+	struct timer_list          timer;
 };
 
 /* ts/mpeg status */
@@ -409,8 +409,8 @@ struct saa7134_mpeg_ops {
 /* global device status */
 struct saa7134_dev {
 	struct list_head           devlist;
-        struct semaphore           lock;
-       	spinlock_t                 slock;
+	struct semaphore           lock;
+	spinlock_t                 slock;
 #ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state     prio;
 #endif

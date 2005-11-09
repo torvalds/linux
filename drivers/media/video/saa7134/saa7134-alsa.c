@@ -80,11 +80,11 @@ typedef struct snd_card_saa7134 {
 	spinlock_t mixer_lock;
 	int mixer_volume[MIXER_ADDR_LAST+1][2];
 	int capture_source[MIXER_ADDR_LAST+1][2];
-        struct pci_dev *pci;
-        struct saa7134_dev *saadev;
+	struct pci_dev *pci;
+	struct saa7134_dev *saadev;
 
-        unsigned long iobase;
-        int irq;
+	unsigned long iobase;
+	int irq;
 
 	spinlock_t lock;
 } snd_card_saa7134_t;
@@ -94,7 +94,7 @@ typedef struct snd_card_saa7134 {
  */
 
 typedef struct snd_card_saa7134_pcm {
-        struct saa7134_dev *saadev;
+	struct saa7134_dev *saadev;
 
 	spinlock_t lock;
 	unsigned int pcm_size;		/* buffer size */
@@ -118,9 +118,9 @@ static snd_card_t *snd_saa7134_cards[SNDRV_CARDS] = SNDRV_DEFAULT_PTR;
 static void saa7134_dma_stop(struct saa7134_dev *dev)
 
 {
-        dev->oss.dma_blk     = -1;
-        dev->oss.dma_running = 0;
-        saa7134_set_dmabits(dev);
+	dev->oss.dma_blk     = -1;
+	dev->oss.dma_running = 0;
+	saa7134_set_dmabits(dev);
 }
 
 /*
@@ -135,9 +135,9 @@ static void saa7134_dma_stop(struct saa7134_dev *dev)
 
 static void saa7134_dma_start(struct saa7134_dev *dev)
 {
-        dev->oss.dma_blk     = 0;
-        dev->oss.dma_running = 1;
-        saa7134_set_dmabits(dev);
+	dev->oss.dma_blk     = 0;
+	dev->oss.dma_running = 1;
+	saa7134_set_dmabits(dev);
 }
 
 /*
@@ -184,28 +184,28 @@ void saa7134_irq_alsa_done(struct saa7134_dev *dev, unsigned long status)
 		goto done;
 	}
 
-        /* next block addr */
-        next_blk = (dev->oss.dma_blk + 2) % dev->oss.blocks;
-        saa_writel(reg,next_blk * dev->oss.blksize);
-        if (alsa_debug > 2)
-                dprintk("irq: ok, %s, next_blk=%d, addr=%x, blocks=%u, size=%u, read=%u\n",
-                        (status & 0x10000000) ? "even" : "odd ", next_blk,
-                        next_blk * dev->oss.blksize, dev->oss.blocks, dev->oss.blksize, dev->oss.read_count);
+	/* next block addr */
+	next_blk = (dev->oss.dma_blk + 2) % dev->oss.blocks;
+	saa_writel(reg,next_blk * dev->oss.blksize);
+	if (alsa_debug > 2)
+		dprintk("irq: ok, %s, next_blk=%d, addr=%x, blocks=%u, size=%u, read=%u\n",
+			(status & 0x10000000) ? "even" : "odd ", next_blk,
+			next_blk * dev->oss.blksize, dev->oss.blocks, dev->oss.blksize, dev->oss.read_count);
 
 
-        /* update status & wake waiting readers */
-        dev->oss.dma_blk = (dev->oss.dma_blk + 1) % dev->oss.blocks;
-        dev->oss.read_count += dev->oss.blksize;
+	/* update status & wake waiting readers */
+	dev->oss.dma_blk = (dev->oss.dma_blk + 1) % dev->oss.blocks;
+	dev->oss.read_count += dev->oss.blksize;
 
-        dev->oss.recording_on = reg;
+	dev->oss.recording_on = reg;
 
 	if (dev->oss.read_count >= snd_pcm_lib_period_bytes(dev->oss.substream)) {
-                spin_unlock(&dev->slock);
-                snd_pcm_period_elapsed(dev->oss.substream);
-                spin_lock(&dev->slock);
+		spin_unlock(&dev->slock);
+		snd_pcm_period_elapsed(dev->oss.substream);
+		spin_lock(&dev->slock);
 	}
  done:
-        spin_unlock(&dev->slock);
+	spin_unlock(&dev->slock);
 
 }
 
@@ -239,23 +239,23 @@ static int snd_card_saa7134_capture_trigger(snd_pcm_substream_t * substream,
 
 static int dsp_buffer_conf(struct saa7134_dev *dev, int blksize, int blocks)
 {
-        if (blksize < 0x100)
-                blksize = 0x100;
-        if (blksize > 0x10000)
-                blksize = 0x10000;
+	if (blksize < 0x100)
+		blksize = 0x100;
+	if (blksize > 0x10000)
+		blksize = 0x10000;
 
-        if (blocks < 2)
-                blocks = 2;
-        if ((blksize * blocks) > 1024*1024)
-                blocks = 1024*1024 / blksize;
+	if (blocks < 2)
+		blocks = 2;
+	if ((blksize * blocks) > 1024*1024)
+		blocks = 1024*1024 / blksize;
 
-        dev->oss.blocks  = blocks;
-        dev->oss.blksize = blksize;
-        dev->oss.bufsize = blksize * blocks;
+	dev->oss.blocks  = blocks;
+	dev->oss.blksize = blksize;
+	dev->oss.bufsize = blksize * blocks;
 
-        dprintk("buffer config: %d blocks / %d bytes, %d kB total\n",
-                blocks,blksize,blksize * blocks / 1024);
-        return 0;
+	dprintk("buffer config: %d blocks / %d bytes, %d kB total\n",
+		blocks,blksize,blksize * blocks / 1024);
+	return 0;
 }
 
 /*
@@ -271,16 +271,16 @@ static int dsp_buffer_conf(struct saa7134_dev *dev, int blksize, int blocks)
 
 static int dsp_buffer_init(struct saa7134_dev *dev)
 {
-        int err;
+	int err;
 
-        if (!dev->oss.bufsize)
-                BUG();
-        videobuf_dma_init(&dev->oss.dma);
-        err = videobuf_dma_init_kernel(&dev->oss.dma, PCI_DMA_FROMDEVICE,
-                                       (dev->oss.bufsize + PAGE_SIZE) >> PAGE_SHIFT);
-        if (0 != err)
-                return err;
-        return 0;
+	if (!dev->oss.bufsize)
+		BUG();
+	videobuf_dma_init(&dev->oss.dma);
+	err = videobuf_dma_init_kernel(&dev->oss.dma, PCI_DMA_FROMDEVICE,
+			               (dev->oss.bufsize + PAGE_SIZE) >> PAGE_SHIFT);
+	if (0 != err)
+		return err;
+	return 0;
 }
 
 /*
@@ -298,18 +298,18 @@ static int dsp_buffer_init(struct saa7134_dev *dev)
 static int snd_card_saa7134_capture_prepare(snd_pcm_substream_t * substream)
 {
 	snd_pcm_runtime_t *runtime = substream->runtime;
-        int err, bswap, sign;
-        u32 fmt, control;
-        unsigned long flags;
+	int err, bswap, sign;
+	u32 fmt, control;
+	unsigned long flags;
 	snd_card_saa7134_t *saa7134 = snd_pcm_substream_chip(substream);
-        struct saa7134_dev *dev;
+	struct saa7134_dev *dev;
 	snd_card_saa7134_pcm_t *saapcm = runtime->private_data;
 	unsigned int bps;
-        unsigned long size;
-        unsigned count;
+	unsigned long size;
+	unsigned count;
 
-        size = snd_pcm_lib_buffer_bytes(substream);
-        count = snd_pcm_lib_period_bytes(substream);
+	size = snd_pcm_lib_buffer_bytes(substream);
+	count = snd_pcm_lib_period_bytes(substream);
 
 	saapcm->saadev->oss.substream = substream;
 	bps = runtime->rate * runtime->channels;
@@ -324,123 +324,123 @@ static int snd_card_saa7134_capture_prepare(snd_pcm_substream_t * substream)
 
 	dev=saa7134->saadev;
 
-        dsp_buffer_conf(dev,saapcm->pcm_count,(saapcm->pcm_size/saapcm->pcm_count));
+	dsp_buffer_conf(dev,saapcm->pcm_count,(saapcm->pcm_size/saapcm->pcm_count));
 
-        err = dsp_buffer_init(dev);
-        if (0 != err)
-                goto fail2;
+	err = dsp_buffer_init(dev);
+	if (0 != err)
+		goto fail2;
 
-        /* prepare buffer */
-        if (0 != (err = videobuf_dma_pci_map(dev->pci,&dev->oss.dma)))
-                return err;
-        if (0 != (err = saa7134_pgtable_alloc(dev->pci,&dev->oss.pt)))
-                goto fail1;
-        if (0 != (err = saa7134_pgtable_build(dev->pci,&dev->oss.pt,
-                                              dev->oss.dma.sglist,
-                                              dev->oss.dma.sglen,
-                                              0)))
-                goto fail2;
+	/* prepare buffer */
+	if (0 != (err = videobuf_dma_pci_map(dev->pci,&dev->oss.dma)))
+		return err;
+	if (0 != (err = saa7134_pgtable_alloc(dev->pci,&dev->oss.pt)))
+		goto fail1;
+	if (0 != (err = saa7134_pgtable_build(dev->pci,&dev->oss.pt,
+			                      dev->oss.dma.sglist,
+			                      dev->oss.dma.sglen,
+			                      0)))
+		goto fail2;
 
 
 
-        switch (runtime->format) {
-          case SNDRV_PCM_FORMAT_U8:
-          case SNDRV_PCM_FORMAT_S8:
+	switch (runtime->format) {
+	  case SNDRV_PCM_FORMAT_U8:
+	  case SNDRV_PCM_FORMAT_S8:
 		fmt = 0x00;
 		break;
-          case SNDRV_PCM_FORMAT_U16_LE:
-          case SNDRV_PCM_FORMAT_U16_BE:
-          case SNDRV_PCM_FORMAT_S16_LE:
-          case SNDRV_PCM_FORMAT_S16_BE:
+	  case SNDRV_PCM_FORMAT_U16_LE:
+	  case SNDRV_PCM_FORMAT_U16_BE:
+	  case SNDRV_PCM_FORMAT_S16_LE:
+	  case SNDRV_PCM_FORMAT_S16_BE:
 		fmt = 0x01;
 		break;
-          default:
-                err = -EINVAL;
-                return 1;
-        }
+	  default:
+		err = -EINVAL;
+		return 1;
+	}
 
-        switch (runtime->format) {
-          case SNDRV_PCM_FORMAT_S8:
-          case SNDRV_PCM_FORMAT_S16_LE:
-          case SNDRV_PCM_FORMAT_S16_BE:
+	switch (runtime->format) {
+	  case SNDRV_PCM_FORMAT_S8:
+	  case SNDRV_PCM_FORMAT_S16_LE:
+	  case SNDRV_PCM_FORMAT_S16_BE:
 		sign = 1;
 		break;
-          default:
+	  default:
 		sign = 0;
 		break;
-        }
+	}
 
-        switch (runtime->format) {
-          case SNDRV_PCM_FORMAT_U16_BE:
-          case SNDRV_PCM_FORMAT_S16_BE:
+	switch (runtime->format) {
+	  case SNDRV_PCM_FORMAT_U16_BE:
+	  case SNDRV_PCM_FORMAT_S16_BE:
 		bswap = 1; break;
-          default:
+	  default:
 		bswap = 0; break;
-        }
+	}
 
-        switch (dev->pci->device) {
-          case PCI_DEVICE_ID_PHILIPS_SAA7134:
-                if (1 == runtime->channels)
-                        fmt |= (1 << 3);
-                if (2 == runtime->channels)
-                        fmt |= (3 << 3);
-                if (sign)
-                        fmt |= 0x04;
+	switch (dev->pci->device) {
+	  case PCI_DEVICE_ID_PHILIPS_SAA7134:
+		if (1 == runtime->channels)
+			fmt |= (1 << 3);
+		if (2 == runtime->channels)
+			fmt |= (3 << 3);
+		if (sign)
+			fmt |= 0x04;
 
-                fmt |= (MIXER_ADDR_TVTUNER == dev->oss.input) ? 0xc0 : 0x80;
-                saa_writeb(SAA7134_NUM_SAMPLES0, ((dev->oss.blksize - 1) & 0x0000ff));
-                saa_writeb(SAA7134_NUM_SAMPLES1, ((dev->oss.blksize - 1) & 0x00ff00) >>  8);
-                saa_writeb(SAA7134_NUM_SAMPLES2, ((dev->oss.blksize - 1) & 0xff0000) >> 16);
-                saa_writeb(SAA7134_AUDIO_FORMAT_CTRL, fmt);
+		fmt |= (MIXER_ADDR_TVTUNER == dev->oss.input) ? 0xc0 : 0x80;
+		saa_writeb(SAA7134_NUM_SAMPLES0, ((dev->oss.blksize - 1) & 0x0000ff));
+		saa_writeb(SAA7134_NUM_SAMPLES1, ((dev->oss.blksize - 1) & 0x00ff00) >>  8);
+		saa_writeb(SAA7134_NUM_SAMPLES2, ((dev->oss.blksize - 1) & 0xff0000) >> 16);
+		saa_writeb(SAA7134_AUDIO_FORMAT_CTRL, fmt);
 
-                break;
-          case PCI_DEVICE_ID_PHILIPS_SAA7133:
-          case PCI_DEVICE_ID_PHILIPS_SAA7135:
-                if (1 == runtime->channels)
-                        fmt |= (1 << 4);
-                if (2 == runtime->channels)
-                        fmt |= (2 << 4);
-                if (!sign)
-                        fmt |= 0x04;
-                saa_writel(SAA7133_NUM_SAMPLES, dev->oss.blksize -1);
-                saa_writel(SAA7133_AUDIO_CHANNEL, 0x543210 | (fmt << 24));
-                //saa_writel(SAA7133_AUDIO_CHANNEL, 0x543210);
-                break;
-        }
+		break;
+	  case PCI_DEVICE_ID_PHILIPS_SAA7133:
+	  case PCI_DEVICE_ID_PHILIPS_SAA7135:
+		if (1 == runtime->channels)
+			fmt |= (1 << 4);
+		if (2 == runtime->channels)
+			fmt |= (2 << 4);
+		if (!sign)
+			fmt |= 0x04;
+		saa_writel(SAA7133_NUM_SAMPLES, dev->oss.blksize -1);
+		saa_writel(SAA7133_AUDIO_CHANNEL, 0x543210 | (fmt << 24));
+		//saa_writel(SAA7133_AUDIO_CHANNEL, 0x543210);
+		break;
+	}
 
-        dprintk("rec_start: afmt=%d ch=%d  =>  fmt=0x%x swap=%c\n",
-                runtime->format, runtime->channels, fmt,
-                bswap ? 'b' : '-');
-        /* dma: setup channel 6 (= AUDIO) */
-        control = SAA7134_RS_CONTROL_BURST_16 |
-                SAA7134_RS_CONTROL_ME |
-                (dev->oss.pt.dma >> 12);
-        if (bswap)
-                control |= SAA7134_RS_CONTROL_BSWAP;
+	dprintk("rec_start: afmt=%d ch=%d  =>  fmt=0x%x swap=%c\n",
+		runtime->format, runtime->channels, fmt,
+		bswap ? 'b' : '-');
+	/* dma: setup channel 6 (= AUDIO) */
+	control = SAA7134_RS_CONTROL_BURST_16 |
+		SAA7134_RS_CONTROL_ME |
+		(dev->oss.pt.dma >> 12);
+	if (bswap)
+		control |= SAA7134_RS_CONTROL_BSWAP;
 
 	/* I should be able to use runtime->dma_addr in the control
-           byte, but it doesn't work. So I allocate the DMA using the
-           V4L functions, and force ALSA to use that as the DMA area */
+	   byte, but it doesn't work. So I allocate the DMA using the
+	   V4L functions, and force ALSA to use that as the DMA area */
 
 	runtime->dma_area = dev->oss.dma.vmalloc;
 
-        saa_writel(SAA7134_RS_BA1(6),0);
-        saa_writel(SAA7134_RS_BA2(6),dev->oss.blksize);
-        saa_writel(SAA7134_RS_PITCH(6),0);
-        saa_writel(SAA7134_RS_CONTROL(6),control);
+	saa_writel(SAA7134_RS_BA1(6),0);
+	saa_writel(SAA7134_RS_BA2(6),dev->oss.blksize);
+	saa_writel(SAA7134_RS_PITCH(6),0);
+	saa_writel(SAA7134_RS_CONTROL(6),control);
 
 	dev->oss.rate = runtime->rate;
-        /* start dma */
-        spin_lock_irqsave(&dev->slock,flags);
-        saa7134_dma_start(dev);
-        spin_unlock_irqrestore(&dev->slock,flags);
+	/* start dma */
+	spin_lock_irqsave(&dev->slock,flags);
+	saa7134_dma_start(dev);
+	spin_unlock_irqrestore(&dev->slock,flags);
 
 	return 0;
  fail2:
-        saa7134_pgtable_free(dev->pci,&dev->oss.pt);
+	saa7134_pgtable_free(dev->pci,&dev->oss.pt);
  fail1:
-        videobuf_dma_pci_unmap(dev->pci,&dev->oss.dma);
-        return err;
+	videobuf_dma_pci_unmap(dev->pci,&dev->oss.dma);
+	return err;
 
 
 }
@@ -465,10 +465,10 @@ static snd_pcm_uframes_t snd_card_saa7134_capture_pointer(snd_pcm_substream_t * 
 
 
 	if (dev->oss.read_count) {
-                dev->oss.read_count  -= snd_pcm_lib_period_bytes(substream);
-                dev->oss.read_offset += snd_pcm_lib_period_bytes(substream);
-                if (dev->oss.read_offset == dev->oss.bufsize)
-                        dev->oss.read_offset = 0;
+		dev->oss.read_count  -= snd_pcm_lib_period_bytes(substream);
+		dev->oss.read_offset += snd_pcm_lib_period_bytes(substream);
+		if (dev->oss.read_offset == dev->oss.bufsize)
+			dev->oss.read_offset = 0;
 	}
 
 	return bytes_to_frames(runtime, dev->oss.read_offset);
@@ -480,9 +480,9 @@ static snd_pcm_uframes_t snd_card_saa7134_capture_pointer(snd_pcm_substream_t * 
 
 static snd_pcm_hardware_t snd_card_saa7134_capture =
 {
-        .info =                 (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-                                 SNDRV_PCM_INFO_BLOCK_TRANSFER |
-                                 SNDRV_PCM_INFO_MMAP_VALID),
+	.info =                 (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
+			         SNDRV_PCM_INFO_BLOCK_TRANSFER |
+			         SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		USE_FORMATS,
 	.rates =		USE_RATE,
 	.rate_min =		USE_RATE_MIN,
@@ -550,16 +550,16 @@ static int snd_card_saa7134_hw_free(snd_pcm_substream_t * substream)
 
 static int dsp_buffer_free(struct saa7134_dev *dev)
 {
-        if (!dev->oss.blksize)
-                BUG();
+	if (!dev->oss.blksize)
+		BUG();
 
-        videobuf_dma_free(&dev->oss.dma);
+	videobuf_dma_free(&dev->oss.dma);
 
-        dev->oss.blocks  = 0;
-        dev->oss.blksize = 0;
-        dev->oss.bufsize = 0;
+	dev->oss.blocks  = 0;
+	dev->oss.blksize = 0;
+	dev->oss.bufsize = 0;
 
-        return 0;
+	return 0;
 }
 
 /*
@@ -574,21 +574,21 @@ static int dsp_buffer_free(struct saa7134_dev *dev)
 
 static int snd_card_saa7134_capture_close(snd_pcm_substream_t * substream)
 {
-        snd_card_saa7134_t *chip = snd_pcm_substream_chip(substream);
+	snd_card_saa7134_t *chip = snd_pcm_substream_chip(substream);
 	struct saa7134_dev *dev = chip->saadev;
-        unsigned long flags;
+	unsigned long flags;
 
-        /* stop dma */
-        spin_lock_irqsave(&dev->slock,flags);
-        saa7134_dma_stop(dev);
-        spin_unlock_irqrestore(&dev->slock,flags);
+	/* stop dma */
+	spin_lock_irqsave(&dev->slock,flags);
+	saa7134_dma_stop(dev);
+	spin_unlock_irqrestore(&dev->slock,flags);
 
-        /* unlock buffer */
-        saa7134_pgtable_free(dev->pci,&dev->oss.pt);
-        videobuf_dma_pci_unmap(dev->pci,&dev->oss.dma);
+	/* unlock buffer */
+	saa7134_pgtable_free(dev->pci,&dev->oss.pt);
+	videobuf_dma_pci_unmap(dev->pci,&dev->oss.dma);
 
-        dsp_buffer_free(dev);
-        return 0;
+	dsp_buffer_free(dev);
+	return 0;
 }
 
 /*
@@ -605,18 +605,18 @@ static int snd_card_saa7134_capture_open(snd_pcm_substream_t * substream)
 {
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	snd_card_saa7134_pcm_t *saapcm;
-        snd_card_saa7134_t *saa7134 = snd_pcm_substream_chip(substream);
-        struct saa7134_dev *dev = saa7134->saadev;
+	snd_card_saa7134_t *saa7134 = snd_pcm_substream_chip(substream);
+	struct saa7134_dev *dev = saa7134->saadev;
 	int err;
 
 	down(&dev->oss.lock);
 
-        dev->oss.afmt        = SNDRV_PCM_FORMAT_U8;
-        dev->oss.channels    = 2;
-        dev->oss.read_count  = 0;
-        dev->oss.read_offset = 0;
+	dev->oss.afmt        = SNDRV_PCM_FORMAT_U8;
+	dev->oss.channels    = 2;
+	dev->oss.read_count  = 0;
+	dev->oss.read_offset = 0;
 
-        up(&dev->oss.lock);
+	up(&dev->oss.lock);
 
 	saapcm = kcalloc(1, sizeof(*saapcm), GFP_KERNEL);
 	if (saapcm == NULL)
@@ -630,8 +630,8 @@ static int snd_card_saa7134_capture_open(snd_pcm_substream_t * substream)
 	runtime->private_free = snd_card_saa7134_runtime_free;
 	runtime->hw = snd_card_saa7134_capture;
 
-        if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
-                return err;
+	if ((err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS)) < 0)
+		return err;
 
 	return 0;
 }
@@ -723,7 +723,7 @@ static int snd_saa7134_volume_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 		right = 20;
 	spin_lock_irqsave(&chip->mixer_lock, flags);
 	change = chip->mixer_volume[addr][0] != left ||
-	         chip->mixer_volume[addr][1] != right;
+		 chip->mixer_volume[addr][1] != right;
 	chip->mixer_volume[addr][0] = left;
 	chip->mixer_volume[addr][1] = right;
 	spin_unlock_irqrestore(&chip->mixer_lock, flags);
@@ -764,7 +764,7 @@ static int snd_saa7134_capsrc_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 	unsigned long flags;
 	int change, addr = kcontrol->private_value;
 	int left, right;
-        u32 anabar, xbarin;
+	u32 anabar, xbarin;
 	int analog_io, rate;
 	struct saa7134_dev *dev;
 
@@ -775,7 +775,7 @@ static int snd_saa7134_capsrc_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 	spin_lock_irqsave(&chip->mixer_lock, flags);
 
 	change = chip->capture_source[addr][0] != left ||
-	         chip->capture_source[addr][1] != right;
+		 chip->capture_source[addr][1] != right;
 	chip->capture_source[addr][0] = left;
 	chip->capture_source[addr][1] = right;
 	dev->oss.input=addr;
@@ -783,57 +783,57 @@ static int snd_saa7134_capsrc_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 
 
 	if (change) {
-          switch (dev->pci->device) {
+	  switch (dev->pci->device) {
 
 	   case PCI_DEVICE_ID_PHILIPS_SAA7134:
-        	switch (addr) {
-        		case MIXER_ADDR_TVTUNER:
-                		saa_andorb(SAA7134_AUDIO_FORMAT_CTRL, 0xc0, 0xc0);
-                		saa_andorb(SAA7134_SIF_SAMPLE_FREQ,   0x03, 0x00);
-                		break;
-        		case MIXER_ADDR_LINE1:
-        		case MIXER_ADDR_LINE2:
-                		analog_io = (MIXER_ADDR_LINE1 == addr) ? 0x00 : 0x08;
-                		rate = (32000 == dev->oss.rate) ? 0x01 : 0x03;
-                		saa_andorb(SAA7134_ANALOG_IO_SELECT,  0x08, analog_io);
-                		saa_andorb(SAA7134_AUDIO_FORMAT_CTRL, 0xc0, 0x80);
-                		saa_andorb(SAA7134_SIF_SAMPLE_FREQ,   0x03, rate);
-                		break;
-        	}
+		switch (addr) {
+			case MIXER_ADDR_TVTUNER:
+				saa_andorb(SAA7134_AUDIO_FORMAT_CTRL, 0xc0, 0xc0);
+				saa_andorb(SAA7134_SIF_SAMPLE_FREQ,   0x03, 0x00);
+				break;
+			case MIXER_ADDR_LINE1:
+			case MIXER_ADDR_LINE2:
+				analog_io = (MIXER_ADDR_LINE1 == addr) ? 0x00 : 0x08;
+				rate = (32000 == dev->oss.rate) ? 0x01 : 0x03;
+				saa_andorb(SAA7134_ANALOG_IO_SELECT,  0x08, analog_io);
+				saa_andorb(SAA7134_AUDIO_FORMAT_CTRL, 0xc0, 0x80);
+				saa_andorb(SAA7134_SIF_SAMPLE_FREQ,   0x03, rate);
+				break;
+		}
 
-	        break;
+		break;
 	   case PCI_DEVICE_ID_PHILIPS_SAA7133:
 	   case PCI_DEVICE_ID_PHILIPS_SAA7135:
-        	xbarin = 0x03; // adc
+		xbarin = 0x03; // adc
 		anabar = 0;
- 	        switch (addr) {
-	        	case MIXER_ADDR_TVTUNER:
-	                	xbarin = 0; // Demodulator
-	        		anabar = 2; // DACs
-	                	break;
-	        	case MIXER_ADDR_LINE1:
-	                	anabar = 0;  // aux1, aux1
-	                	break;
-	        	case MIXER_ADDR_LINE2:
-	                	anabar = 9;  // aux2, aux2
-	                	break;
-	        }
+		switch (addr) {
+			case MIXER_ADDR_TVTUNER:
+				xbarin = 0; // Demodulator
+				anabar = 2; // DACs
+				break;
+			case MIXER_ADDR_LINE1:
+				anabar = 0;  // aux1, aux1
+				break;
+			case MIXER_ADDR_LINE2:
+				anabar = 9;  // aux2, aux2
+				break;
+		}
 
 	    	/* output xbar always main channel */
-	        saa_dsp_writel(dev, SAA7133_DIGITAL_OUTPUT_SEL1, 0xbbbb10);
+		saa_dsp_writel(dev, SAA7133_DIGITAL_OUTPUT_SEL1, 0xbbbb10);
 
 		if (left || right) { // We've got data, turn the input on
-	          //saa_dsp_writel(dev, SAA7133_DIGITAL_OUTPUT_SEL2, 0x101010);
-	          saa_dsp_writel(dev, SAA7133_DIGITAL_INPUT_XBAR1, xbarin);
-	          saa_writel(SAA7133_ANALOG_IO_SELECT, anabar);
+		  //saa_dsp_writel(dev, SAA7133_DIGITAL_OUTPUT_SEL2, 0x101010);
+		  saa_dsp_writel(dev, SAA7133_DIGITAL_INPUT_XBAR1, xbarin);
+		  saa_writel(SAA7133_ANALOG_IO_SELECT, anabar);
 		} else {
-	          //saa_dsp_writel(dev, SAA7133_DIGITAL_OUTPUT_SEL2, 0x101010);
-	          saa_dsp_writel(dev, SAA7133_DIGITAL_INPUT_XBAR1, 0);
-	          saa_writel(SAA7133_ANALOG_IO_SELECT, 0);
+		  //saa_dsp_writel(dev, SAA7133_DIGITAL_OUTPUT_SEL2, 0x101010);
+		  saa_dsp_writel(dev, SAA7133_DIGITAL_INPUT_XBAR1, 0);
+		  saa_writel(SAA7133_ANALOG_IO_SELECT, 0);
 		}
 		break;
 	  }
- 	}
+	}
 
 	return change;
 }
@@ -878,8 +878,8 @@ static int snd_saa7134_free(snd_card_saa7134_t *chip)
 
 static int snd_saa7134_dev_free(snd_device_t *device)
 {
-        snd_card_saa7134_t *chip = device->device_data;
-        return snd_saa7134_free(chip);
+	snd_card_saa7134_t *chip = device->device_data;
+	return snd_saa7134_free(chip);
 }
 
 /*
@@ -896,12 +896,12 @@ int alsa_card_saa7134_create(struct saa7134_dev *saadev, unsigned int devicenum)
 	snd_card_t *card;
 	snd_card_saa7134_t *chip;
 	int err;
-        static snd_device_ops_t ops = {
-                .dev_free =     snd_saa7134_dev_free,
-        };
+	static snd_device_ops_t ops = {
+		.dev_free =     snd_saa7134_dev_free,
+	};
 
-        if (dev >= SNDRV_CARDS)
-                return -ENODEV;
+	if (dev >= SNDRV_CARDS)
+		return -ENODEV;
 	if (!enable[dev])
 		return -ENODEV;
 
@@ -918,24 +918,24 @@ int alsa_card_saa7134_create(struct saa7134_dev *saadev, unsigned int devicenum)
 	/* Card "creation" */
 
 	chip = kcalloc(1, sizeof(*chip), GFP_KERNEL);
-        if (chip == NULL) {
-                return -ENOMEM;
-        }
+	if (chip == NULL) {
+		return -ENOMEM;
+	}
 
-        spin_lock_init(&chip->lock);
+	spin_lock_init(&chip->lock);
 
-        chip->saadev = saadev;
+	chip->saadev = saadev;
 
-        chip->card = card;
+	chip->card = card;
 
-        chip->pci = saadev->pci;
-        chip->irq = saadev->pci->irq;
-        chip->iobase = pci_resource_start(saadev->pci, 0);
+	chip->pci = saadev->pci;
+	chip->irq = saadev->pci->irq;
+	chip->iobase = pci_resource_start(saadev->pci, 0);
 
-        if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
-                snd_saa7134_free(chip);
-                return err;
-        }
+	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops)) < 0) {
+		snd_saa7134_free(chip);
+		return err;
+	}
 
 	if ((err = snd_card_saa7134_new_mixer(chip)) < 0)
 		goto __nodev;
@@ -943,15 +943,15 @@ int alsa_card_saa7134_create(struct saa7134_dev *saadev, unsigned int devicenum)
 	if ((err = snd_card_saa7134_pcm(chip, 0)) < 0)
 		goto __nodev;
 
-        spin_lock_init(&chip->mixer_lock);
+	spin_lock_init(&chip->mixer_lock);
 
 	snd_card_set_dev(card, &chip->pci->dev);
 
 	/* End of "creation" */
 
 	strcpy(card->shortname, "SAA7134");
-        sprintf(card->longname, "%s at 0x%lx irq %d",
-                chip->saadev->name, chip->iobase, chip->irq);
+	sprintf(card->longname, "%s at 0x%lx irq %d",
+		chip->saadev->name, chip->iobase, chip->irq);
 
 	if ((err = snd_card_register(card)) == 0) {
 		snd_saa7134_cards[dev] = card;
@@ -966,8 +966,8 @@ __nodev:
 
 void alsa_card_saa7134_exit(void)
 {
-        int idx;
-         for (idx = 0; idx < SNDRV_CARDS; idx++) {
-                snd_card_free(snd_saa7134_cards[idx]);
+	int idx;
+	 for (idx = 0; idx < SNDRV_CARDS; idx++) {
+		snd_card_free(snd_saa7134_cards[idx]);
 	}
 }

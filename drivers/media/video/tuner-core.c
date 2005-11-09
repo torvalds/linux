@@ -432,23 +432,23 @@ static int tuner_detach(struct i2c_client *client)
 
 static inline int set_mode(struct i2c_client *client, struct tuner *t, int mode, char *cmd)
 {
- 	if (mode == t->mode)
- 		return 0;
+	if (mode == t->mode)
+		return 0;
 
- 	t->mode = mode;
+	t->mode = mode;
 
- 	if (check_mode(t, cmd) == EINVAL) {
- 		t->mode = T_STANDBY;
- 		if (t->standby)
- 			t->standby (client);
- 		return EINVAL;
-  	}
-  	return 0;
+	if (check_mode(t, cmd) == EINVAL) {
+		t->mode = T_STANDBY;
+		if (t->standby)
+			t->standby (client);
+		return EINVAL;
+	}
+	return 0;
 }
 
 #define switch_v4l2()	if (!t->using_v4l2) \
-		            tuner_dbg("switching to v4l2\n"); \
-	                t->using_v4l2 = 1;
+			    tuner_dbg("switching to v4l2\n"); \
+			t->using_v4l2 = 1;
 
 static inline int check_v4l2(struct tuner *t)
 {
@@ -623,7 +623,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			switch_v4l2();
 			if (V4L2_TUNER_RADIO == f->type &&
 			    V4L2_TUNER_RADIO != t->mode) {
-			        if (set_mode (client, t, f->type, "VIDIOC_S_FREQUENCY")
+				if (set_mode (client, t, f->type, "VIDIOC_S_FREQUENCY")
 					    == EINVAL)
 					return 0;
 			}

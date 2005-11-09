@@ -6,12 +6,12 @@
  * which are:
 
     Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
-                           & Marcus Metzler (mocm@thp.uni-koeln.de)
+			   & Marcus Metzler (mocm@thp.uni-koeln.de)
     (c) 1999-2001 Gerd Knorr <kraxel@goldbach.in-berlin.de>
 
  * Adjustments to fit a more general model and all bugs:
 
- 	Copyright (C) 2003 John Klar <linpvr at projectplasma.com>
+	Copyright (C) 2003 John Klar <linpvr at projectplasma.com>
 
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -54,14 +54,14 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 
 #define tveeprom_info(fmt, arg...) do {\
 	printk(KERN_INFO "tveeprom %d-%04x: " fmt, \
-                        c->adapter->nr, c->addr , ##arg); } while (0)
+			c->adapter->nr, c->addr , ##arg); } while (0)
 #define tveeprom_warn(fmt, arg...) do {\
 	printk(KERN_WARNING "tveeprom %d-%04x: " fmt, \
-                        c->adapter->nr, c->addr , ##arg); } while (0)
+			c->adapter->nr, c->addr , ##arg); } while (0)
 #define tveeprom_dbg(fmt, arg...) do {\
 	if (debug) \
-                printk(KERN_INFO "tveeprom %d-%04x: " fmt, \
-                        c->adapter->nr, c->addr , ##arg); } while (0)
+		printk(KERN_INFO "tveeprom %d-%04x: " fmt, \
+			c->adapter->nr, c->addr , ##arg); } while (0)
 
 
 /* ----------------------------------------------------------------------- */
@@ -294,7 +294,7 @@ static const char *decoderIC[] = {
 
 static int hasRadioTuner(int tunerType)
 {
-        switch (tunerType) {
+	switch (tunerType) {
 		case 18: //PNPEnv_TUNER_FR1236_MK2:
 		case 23: //PNPEnv_TUNER_FM1236:
 		case 38: //PNPEnv_TUNER_FMR1236:
@@ -326,12 +326,12 @@ static int hasRadioTuner(int tunerType)
 		case 89: //PNPEnv_TUNER_TCL_MFPE05_2:
 		case 92: //PNPEnv_TUNER_PHILIPS_FQ1236A_MK4:
 		return 1;
-        }
-        return 0;
+	}
+	return 0;
 }
 
 void tveeprom_hauppauge_analog(struct i2c_client *c, struct tveeprom *tvee,
-                                unsigned char *eeprom_data)
+			        unsigned char *eeprom_data)
 {
 	/* ----------------------------------------------
 	** The hauppauge eeprom format is tagged

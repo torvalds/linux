@@ -246,7 +246,7 @@ static void mute_input_7134(struct saa7134_dev *dev)
 	if (PCI_DEVICE_ID_PHILIPS_SAA7134 == dev->pci->device)
 		/* 7134 mute */
 		saa_writeb(SAA7134_AUDIO_MUTE_CTRL, mute ?
-					            SAA7134_MUTE_MASK |
+						    SAA7134_MUTE_MASK |
 						    SAA7134_MUTE_ANALOG |
 						    SAA7134_MUTE_I2S :
 						    SAA7134_MUTE_MASK);
@@ -761,17 +761,17 @@ static int mute_input_7133(struct saa7134_dev *dev)
 
 
 	/* switch gpio-connected external audio mux */
-        if (0 != card(dev).gpiomask) {
-        	mask = card(dev).gpiomask;
+	if (0 != card(dev).gpiomask) {
+		mask = card(dev).gpiomask;
 
 		if (card(dev).mute.name && dev->ctl_mute)
 			in = &card(dev).mute;
 		else
 			in = dev->input;
 
-        	saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   mask, mask);
-        	saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, mask, in->gpio);
-        	saa7134_track_gpio(dev,in->name);
+		saa_andorl(SAA7134_GPIO_GPMODE0 >> 2,   mask, mask);
+		saa_andorl(SAA7134_GPIO_GPSTATUS0 >> 2, mask, in->gpio);
+		saa7134_track_gpio(dev,in->name);
 	}
 
 	return 0;

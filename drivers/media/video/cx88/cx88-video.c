@@ -100,7 +100,7 @@ static struct cx88_tvnorm tvnorms[] = {
 		.id        = V4L2_STD_PAL_I,
 		.cxiformat = VideoFormatPAL,
 		.cxoformat = 0x181f0008,
-        },{
+	},{
 		.name      = "PAL-M",
 		.id        = V4L2_STD_PAL_M,
 		.cxiformat = VideoFormatPALM,
@@ -470,7 +470,7 @@ static int restart_video_queue(struct cx8800_dev    *dev,
 	struct list_head *item;
 
 	if (!list_empty(&q->active)) {
-	        buf = list_entry(q->active.next, struct cx88_buffer, vb.queue);
+		buf = list_entry(q->active.next, struct cx88_buffer, vb.queue);
 		dprintk(2,"restart_queue [%p/%d]: restart dma\n",
 			buf, buf->vb.i);
 		start_video_dma(dev, q, buf);
@@ -486,7 +486,7 @@ static int restart_video_queue(struct cx8800_dev    *dev,
 	for (;;) {
 		if (list_empty(&q->queued))
 			return 0;
-	        buf = list_entry(q->queued.next, struct cx88_buffer, vb.queue);
+		buf = list_entry(q->queued.next, struct cx88_buffer, vb.queue);
 		if (NULL == prev) {
 			list_del(&buf->vb.queue);
 			list_add_tail(&buf->vb.queue,&q->active);
@@ -783,7 +783,7 @@ static int video_open(struct inode *inode, struct file *file)
 		cx88_call_i2c_clients(core,AUDC_SET_RADIO,NULL);
 	}
 
-        return 0;
+	return 0;
 }
 
 static ssize_t
@@ -922,7 +922,7 @@ static int set_control(struct cx88_core *core, struct v4l2_control *ctl)
 {
 	/* struct cx88_core *core = dev->core; */
 	struct cx88_ctrl *c = NULL;
-        u32 v_sat_value;
+	u32 v_sat_value;
 	u32 value;
 	int i;
 
@@ -1252,7 +1252,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 }
 
 int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
-                  struct cx88_core *core, unsigned int cmd, void *arg, v4l2_kioctl driver_ioctl)
+		  struct cx88_core *core, unsigned int cmd, void *arg, v4l2_kioctl driver_ioctl)
 {
 	int err;
 
@@ -1399,7 +1399,7 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 
 		cx88_get_stereo(core ,t);
 		reg = cx_read(MO_DEVICE_STATUS);
-                t->signal = (reg & (1<<5)) ? 0xffff : 0x0000;
+		t->signal = (reg & (1<<5)) ? 0xffff : 0x0000;
 		return 0;
 	}
 	case VIDIOC_S_TUNER:
@@ -1486,7 +1486,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 		struct v4l2_capability *cap = arg;
 
 		memset(cap,0,sizeof(*cap));
-                strcpy(cap->driver, "cx8800");
+		strcpy(cap->driver, "cx8800");
 		strlcpy(cap->card, cx88_boards[core->board].name,
 			sizeof(cap->card));
 		sprintf(cap->bus_info,"PCI:%s", pci_name(dev->pci));
@@ -1827,8 +1827,8 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* print pci info */
 	pci_read_config_byte(pci_dev, PCI_CLASS_REVISION, &dev->pci_rev);
-        pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
-        printk(KERN_INFO "%s/0: found at %s, rev: %d, irq: %d, "
+	pci_read_config_byte(pci_dev, PCI_LATENCY_TIMER,  &dev->pci_lat);
+	printk(KERN_INFO "%s/0: found at %s, rev: %d, irq: %d, "
 	       "latency: %d, mmio: 0x%lx\n", core->name,
 	       pci_name(pci_dev), dev->pci_rev, pci_dev->irq,
 	       dev->pci_lat,pci_resource_start(pci_dev,0));
@@ -1944,7 +1944,7 @@ fail_free:
 
 static void __devexit cx8800_finidev(struct pci_dev *pci_dev)
 {
-        struct cx8800_dev *dev = pci_get_drvdata(pci_dev);
+	struct cx8800_dev *dev = pci_get_drvdata(pci_dev);
 	struct cx88_core *core = dev->core;
 
 	/* stop thread */

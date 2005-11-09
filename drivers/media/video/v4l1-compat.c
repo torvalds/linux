@@ -960,7 +960,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 		fmt->start[1]         = fmt2->fmt.vbi.start[1];
 		fmt->count[1]         = fmt2->fmt.vbi.count[1];
 		fmt->flags            = fmt2->fmt.vbi.flags & 0x03;
-                break;
+		break;
 	}
 	case VIDIOCSVBIFMT:
 	{

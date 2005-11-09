@@ -114,24 +114,24 @@ static IR_KEYTAB_TYPE cinergy_codes[IR_KEYTAB_SIZE] = {
 /* Alfons Geser <a.geser@cox.net>
  * updates from Job D. R. Borges <jobdrb@ig.com.br> */
 static IR_KEYTAB_TYPE eztv_codes[IR_KEYTAB_SIZE] = {
-        [ 18 ] = KEY_POWER,
-        [  1 ] = KEY_TV,             // DVR
-        [ 21 ] = KEY_DVD,            // DVD
-        [ 23 ] = KEY_AUDIO,          // music
-                                     // DVR mode / DVD mode / music mode
+	[ 18 ] = KEY_POWER,
+	[  1 ] = KEY_TV,             // DVR
+	[ 21 ] = KEY_DVD,            // DVD
+	[ 23 ] = KEY_AUDIO,          // music
+			             // DVR mode / DVD mode / music mode
 
-        [ 27 ] = KEY_MUTE,           // mute
-        [  2 ] = KEY_LANGUAGE,       // MTS/SAP / audio / autoseek
-        [ 30 ] = KEY_SUBTITLE,       // closed captioning / subtitle / seek
-        [ 22 ] = KEY_ZOOM,           // full screen
-        [ 28 ] = KEY_VIDEO,          // video source / eject / delall
-        [ 29 ] = KEY_RESTART,        // playback / angle / del
-        [ 47 ] = KEY_SEARCH,         // scan / menu / playlist
-        [ 48 ] = KEY_CHANNEL,        // CH surfing / bookmark / memo
+	[ 27 ] = KEY_MUTE,           // mute
+	[  2 ] = KEY_LANGUAGE,       // MTS/SAP / audio / autoseek
+	[ 30 ] = KEY_SUBTITLE,       // closed captioning / subtitle / seek
+	[ 22 ] = KEY_ZOOM,           // full screen
+	[ 28 ] = KEY_VIDEO,          // video source / eject / delall
+	[ 29 ] = KEY_RESTART,        // playback / angle / del
+	[ 47 ] = KEY_SEARCH,         // scan / menu / playlist
+	[ 48 ] = KEY_CHANNEL,        // CH surfing / bookmark / memo
 
-        [ 49 ] = KEY_HELP,           // help
-        [ 50 ] = KEY_MODE,           // num/memo
-        [ 51 ] = KEY_ESC,            // cancel
+	[ 49 ] = KEY_HELP,           // help
+	[ 50 ] = KEY_MODE,           // num/memo
+	[ 51 ] = KEY_ESC,            // cancel
 
 	[ 12 ] = KEY_UP,             // up
 	[ 16 ] = KEY_DOWN,           // down
@@ -148,24 +148,24 @@ static IR_KEYTAB_TYPE eztv_codes[IR_KEYTAB_SIZE] = {
 	[ 45 ] = KEY_PLAY,           // play
 	[ 46 ] = KEY_SHUFFLE,        // snapshot / shuffle
 
-        [  0 ] = KEY_KP0,
-        [  5 ] = KEY_KP1,
-        [  6 ] = KEY_KP2,
-        [  7 ] = KEY_KP3,
-        [  9 ] = KEY_KP4,
-        [ 10 ] = KEY_KP5,
-        [ 11 ] = KEY_KP6,
-        [ 13 ] = KEY_KP7,
-        [ 14 ] = KEY_KP8,
-        [ 15 ] = KEY_KP9,
+	[  0 ] = KEY_KP0,
+	[  5 ] = KEY_KP1,
+	[  6 ] = KEY_KP2,
+	[  7 ] = KEY_KP3,
+	[  9 ] = KEY_KP4,
+	[ 10 ] = KEY_KP5,
+	[ 11 ] = KEY_KP6,
+	[ 13 ] = KEY_KP7,
+	[ 14 ] = KEY_KP8,
+	[ 15 ] = KEY_KP9,
 
-        [ 42 ] = KEY_VOLUMEUP,
-        [ 17 ] = KEY_VOLUMEDOWN,
-        [ 24 ] = KEY_CHANNELUP,      // CH.tracking up
-        [ 25 ] = KEY_CHANNELDOWN,    // CH.tracking down
+	[ 42 ] = KEY_VOLUMEUP,
+	[ 17 ] = KEY_VOLUMEDOWN,
+	[ 24 ] = KEY_CHANNELUP,      // CH.tracking up
+	[ 25 ] = KEY_CHANNELDOWN,    // CH.tracking down
 
-        [ 19 ] = KEY_KPENTER,        // enter
-        [ 33 ] = KEY_KPDOT,          // . (decimal dot)
+	[ 19 ] = KEY_KPENTER,        // enter
+	[ 33 ] = KEY_KPDOT,          // . (decimal dot)
 };
 
 static IR_KEYTAB_TYPE avacssmart_codes[IR_KEYTAB_SIZE] = {
@@ -455,13 +455,13 @@ static int build_key(struct saa7134_dev *dev)
 	saa_setb(SAA7134_GPIO_GPMODE3,SAA7134_GPIO_GPRESCAN);
 
 	gpio = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2);
-        if (ir->polling) {
-                if (ir->last_gpio == gpio)
-                        return 0;
-                ir->last_gpio = gpio;
-        }
+	if (ir->polling) {
+		if (ir->last_gpio == gpio)
+			return 0;
+		ir->last_gpio = gpio;
+	}
 
- 	data = ir_extract_bits(gpio, ir->mask_keycode);
+	data = ir_extract_bits(gpio, ir->mask_keycode);
 	dprintk("build_key gpio=0x%x mask=0x%x data=%d\n",
 		gpio, ir->mask_keycode, data);
 
@@ -478,9 +478,9 @@ static int build_key(struct saa7134_dev *dev)
 
 void saa7134_input_irq(struct saa7134_dev *dev)
 {
-        struct saa7134_ir *ir = dev->remote;
+	struct saa7134_ir *ir = dev->remote;
 
-        if (!ir->polling)
+	if (!ir->polling)
 		build_key(dev);
 }
 
@@ -515,7 +515,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	switch (dev->board) {
 	case SAA7134_BOARD_FLYVIDEO2000:
 	case SAA7134_BOARD_FLYVIDEO3000:
-        case SAA7134_BOARD_FLYTVPLATINUM_FM:
+	case SAA7134_BOARD_FLYTVPLATINUM_FM:
 	case SAA7134_BOARD_FLYTVPLATINUM_MINI2:
 		ir_codes     = flyvideo_codes;
 		mask_keycode = 0xEC00000;
@@ -557,7 +557,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		saa_setb(SAA7134_GPIO_GPMODE0, 0x4);
 		saa_setb(SAA7134_GPIO_GPSTATUS0, 0x4);
 		break;
-        case SAA7134_BOARD_KWORLD_TERMINATOR:
+	case SAA7134_BOARD_KWORLD_TERMINATOR:
 		ir_codes     = avacssmart_codes;
 		mask_keycode = 0x00001f;
 		mask_keyup   = 0x000060;
@@ -571,7 +571,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keyup   = 0x004000;
 		polling      = 50; // ms
 		break;
-        case SAA7134_BOARD_GOTVIEW_7135:
+	case SAA7134_BOARD_GOTVIEW_7135:
 		ir_codes     = gotview7135_codes;
 		mask_keycode = 0x0003EC;
 		mask_keyup   = 0x008000;
@@ -585,8 +585,8 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keyup   = 0x400000;
 		polling      = 50; // ms
 		break;
-        case SAA7134_BOARD_VIDEOMATE_DVBT_300:
-        case SAA7134_BOARD_VIDEOMATE_DVBT_200:
+	case SAA7134_BOARD_VIDEOMATE_DVBT_300:
+	case SAA7134_BOARD_VIDEOMATE_DVBT_200:
 		ir_codes     = videomate_tv_pvr_codes;
 		mask_keycode = 0x003F00;
 		mask_keyup   = 0x040000;
@@ -610,7 +610,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	ir->mask_keycode = mask_keycode;
 	ir->mask_keydown = mask_keydown;
 	ir->mask_keyup   = mask_keyup;
-        ir->polling      = polling;
+	ir->polling      = polling;
 
 	/* init input device */
 	snprintf(ir->name, sizeof(ir->name), "saa7134 IR (%s)",

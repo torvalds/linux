@@ -36,10 +36,10 @@ MODULE_LICENSE("GPL");
 
 #define wm8775_err(fmt, arg...) do { \
 	printk(KERN_ERR "%s %d-%04x: " fmt, client->driver->name, \
-               i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
+	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 #define wm8775_info(fmt, arg...) do { \
 	printk(KERN_INFO "%s %d-%04x: " fmt, client->driver->name, \
-               i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
+	       i2c_adapter_id(client->adapter), client->addr , ## arg); } while (0)
 
 
 static unsigned short normal_i2c[] = { 0x36 >> 1, I2C_CLIENT_END };

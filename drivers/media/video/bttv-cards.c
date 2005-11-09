@@ -6,7 +6,7 @@
     like the big tvcards array for the most part
 
     Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
-                           & Marcus Metzler (mocm@thp.uni-koeln.de)
+			   & Marcus Metzler (mocm@thp.uni-koeln.de)
     (c) 1999-2001 Gerd Knorr <kraxel@goldbach.in-berlin.de>
 
     This program is free software; you can redistribute it and/or modify
@@ -163,10 +163,10 @@ static struct CARD {
 	{ 0x6609107d, BTTV_BOARD_WINFAST2000,   "Leadtek TV 2000 XP" },
 	{ 0x263610b4, BTTV_BOARD_STB2,          "STB TV PCI FM, Gateway P/N 6000704" },
 	{ 0x264510b4, BTTV_BOARD_STB2,          "STB TV PCI FM, Gateway P/N 6000704" },
- 	{ 0x402010fc, BTTV_BOARD_GVBCTV3PCI,    "I-O Data Co. GV-BCTV3/PCI" },
+	{ 0x402010fc, BTTV_BOARD_GVBCTV3PCI,    "I-O Data Co. GV-BCTV3/PCI" },
 	{ 0x405010fc, BTTV_BOARD_GVBCTV4PCI,    "I-O Data Co. GV-BCTV4/PCI" },
 	{ 0x407010fc, BTTV_BOARD_GVBCTV5PCI,    "I-O Data Co. GV-BCTV5/PCI" },
- 	{ 0xd01810fc, BTTV_BOARD_GVBCTV5PCI,    "I-O Data Co. GV-BCTV5/PCI" },
+	{ 0xd01810fc, BTTV_BOARD_GVBCTV5PCI,    "I-O Data Co. GV-BCTV5/PCI" },
 
 	{ 0x001211bd, BTTV_BOARD_PINNACLE,      "Pinnacle PCTV" },
 	/* some cards ship with byteswapped IDs ... */
@@ -277,7 +277,7 @@ static struct CARD {
 	{ 0x20007063, BTTV_BOARD_PC_HDTV,       "pcHDTV HD-2000 TV"},
 	{ 0x82b2aa6a, BTTV_BOARD_SIMUS_GVC1100, "SIMUS GVC1100" },
 	{ 0x146caa0c, BTTV_BOARD_PV951,         "ituner spectra8" },
- 	{ 0x200a1295, BTTV_BOARD_PXC200,        "ImageNation PXC200A" },
+	{ 0x200a1295, BTTV_BOARD_PXC200,        "ImageNation PXC200A" },
 
 	{ 0x40111554, BTTV_BOARD_PV_BT878P_9B,  "Prolink Pixelview PV-BT" },
 	{ 0x17de0a01, BTTV_BOARD_KWORLD,        "Mecer TV/FM/Video Tuner" },
@@ -1346,17 +1346,17 @@ struct tvcard bttv_tvcards[] = {
 	},
 	[BTTV_BOARD_GMV1] = {
 		/* Adrian Cox <adrian@humboldt.co.uk */
-		.name	        = "AG Electronics GMV1",
+		.name		= "AG Electronics GMV1",
 		.video_inputs   = 2,
 		.audio_inputs   = 0,
-		.tuner	        = -1,
-		.svhs	        = 1,
+		.tuner		= -1,
+		.svhs		= 1,
 		.gpiomask       = 0xF,
-		.muxsel	        = { 2, 2},
+		.muxsel		= { 2, 2},
 		.audiomux       = { },
 		.no_msp34xx     = 1,
 		.needs_tvaudio  = 0,
-		.pll	        = PLL_28,
+		.pll		= PLL_28,
 		.tuner_type     = -1,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
@@ -2895,7 +2895,7 @@ void identify_by_eeprom(struct bttv *btv, unsigned char eeprom_data[256])
 	else if (0 == strncmp(eeprom_data+20,"Picolo",7))
 		type = BTTV_BOARD_EURESYS_PICOLO;
 	else if (eeprom_data[0] == 0x84 && eeprom_data[2]== 0)
-                type = BTTV_BOARD_HAUPPAUGE; /* old bt848 */
+		type = BTTV_BOARD_HAUPPAUGE; /* old bt848 */
 
 	if (-1 != type) {
 		btv->c.type = type;
@@ -2929,7 +2929,7 @@ static void flyvideo_gpio(struct bttv *btv)
 	switch(ttype) {
 	case 0x0: tuner=2; /* NTSC, e.g. TPI8NSR11P */
 		break;
-        case 0x2: tuner=39;/* LG NTSC (newer TAPC series) TAPC-H701P */
+	case 0x2: tuner=39;/* LG NTSC (newer TAPC series) TAPC-H701P */
 		break;
 	case 0x4: tuner=5; /* Philips PAL TPI8PSB02P, TPI8PSB12P, TPI8PSB12D or FI1216, FM1216 */
 		break;
@@ -2945,7 +2945,7 @@ static void flyvideo_gpio(struct bttv *btv)
 	has_radio	    =   gpio & 0x400000;
 	/*   unknown                   0x200000;
 	 *   unknown2                  0x100000; */
-        is_capture_only     = !(gpio & 0x008000); /* GPIO15 */
+	is_capture_only     = !(gpio & 0x008000); /* GPIO15 */
 	has_tda9820_tda9821 = !(gpio & 0x004000);
 	is_lr90             = !(gpio & 0x002000); /* else LR26/LR50 (LR38/LR51 f. capture only) */
 	/*
@@ -2982,7 +2982,7 @@ static void miro_pinnacle_gpio(struct bttv *btv)
 	char *info;
 
 	gpio_inout(0xffffff, 0);
-        gpio = gpio_read();
+	gpio = gpio_read();
 	id   = ((gpio>>10) & 63) -1;
 	msp  = bttv_I2CRead(btv, I2C_MSP3400, "MSP34xx");
 	if (id < 32) {
@@ -3093,7 +3093,7 @@ static void eagle_muxsel(struct bttv *btv, unsigned int input)
 
 static void gvc1100_muxsel(struct bttv *btv, unsigned int input)
 {
-        static const int masks[] = {0x30, 0x01, 0x12, 0x23};
+	static const int masks[] = {0x30, 0x01, 0x12, 0x23};
 	gpio_write(masks[input%4]);
 }
 
@@ -3161,10 +3161,10 @@ void __devinit bttv_init_card1(struct bttv *btv)
 	switch (btv->c.type) {
 	case BTTV_BOARD_HAUPPAUGE:
 	case BTTV_BOARD_HAUPPAUGE878:
-                boot_msp34xx(btv,5);
+		boot_msp34xx(btv,5);
 		break;
 	case BTTV_BOARD_VOODOOTV_FM:
-                boot_msp34xx(btv,20);
+		boot_msp34xx(btv,20);
 		break;
 	case BTTV_BOARD_AVERMEDIA98:
 		boot_msp34xx(btv,11);
@@ -3192,7 +3192,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	int tda9887;
 	int addr=ADDR_UNSET, radio_addr=ADDR_UNSET;
 
-        btv->tuner_type = -1;
+	btv->tuner_type = -1;
 
 	if (BTTV_BOARD_UNKNOWN == btv->c.type) {
 		bttv_readee(btv,eeprom_data,0xa0);
@@ -3225,7 +3225,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	case BTTV_BOARD_HAUPPAUGEPVR:
 		/* pick up some config infos from the eeprom */
 		bttv_readee(btv,eeprom_data,0xa0);
-                hauppauge_eeprom(btv);
+		hauppauge_eeprom(btv);
 		break;
 	case BTTV_BOARD_AVERMEDIA98:
 	case BTTV_BOARD_AVPHONE98:
@@ -3258,7 +3258,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		}
 		break;
        case BTTV_BOARD_STB2:
-                if (btv->cardid == 0x3060121a) {
+		if (btv->cardid == 0x3060121a) {
 			/* Fix up entry for 3DFX VoodooTV 100,
 			   which is an OEM STB card variant. */
 			btv->has_radio=0;
@@ -3277,7 +3277,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	case BTTV_BOARD_OSPREY540:
 	case BTTV_BOARD_OSPREY2000:
 		bttv_readee(btv,eeprom_data,0xa0);
-                osprey_eeprom(btv);
+		osprey_eeprom(btv);
 		break;
 	case BTTV_BOARD_IDS_EAGLE:
 		init_ids_eagle(btv);
@@ -3298,7 +3298,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	}
 
 	/* pll configuration */
-        if (!(btv->id==848 && btv->revision==0x11)) {
+	if (!(btv->id==848 && btv->revision==0x11)) {
 		/* defaults from card list */
 		if (PLL_28 == bttv_tvcards[btv->c.type].pll) {
 			btv->pll.pll_ifreq=28636363;
@@ -3309,26 +3309,26 @@ void __devinit bttv_init_card2(struct bttv *btv)
 			btv->pll.pll_crystal=BT848_IFORM_XT1;
 		}
 		/* insmod options can override */
-                switch (pll[btv->c.nr]) {
-                case 0: /* none */
+		switch (pll[btv->c.nr]) {
+		case 0: /* none */
 			btv->pll.pll_crystal = 0;
 			btv->pll.pll_ifreq   = 0;
 			btv->pll.pll_ofreq   = 0;
-                        break;
-                case 1: /* 28 MHz */
+			break;
+		case 1: /* 28 MHz */
 		case 28:
-                        btv->pll.pll_ifreq   = 28636363;
+			btv->pll.pll_ifreq   = 28636363;
 			btv->pll.pll_ofreq   = 0;
-                        btv->pll.pll_crystal = BT848_IFORM_XT0;
-                        break;
-                case 2: /* 35 MHz */
+			btv->pll.pll_crystal = BT848_IFORM_XT0;
+			break;
+		case 2: /* 35 MHz */
 		case 35:
-                        btv->pll.pll_ifreq   = 35468950;
+			btv->pll.pll_ifreq   = 35468950;
 			btv->pll.pll_ofreq   = 0;
-                        btv->pll.pll_crystal = BT848_IFORM_XT1;
-                        break;
-                }
-        }
+			btv->pll.pll_crystal = BT848_IFORM_XT1;
+			break;
+		}
+	}
 	btv->pll.pll_current = -1;
 
 	/* tuner configuration (from card list / autodetect / insmod option) */
@@ -3340,7 +3340,7 @@ void __devinit bttv_init_card2(struct bttv *btv)
 
 	if (UNSET != bttv_tvcards[btv->c.type].tuner_type)
 		if(UNSET == btv->tuner_type)
-        	       	btv->tuner_type = bttv_tvcards[btv->c.type].tuner_type;
+			btv->tuner_type = bttv_tvcards[btv->c.type].tuner_type;
 	if (UNSET != tuner[btv->c.nr])
 		btv->tuner_type = tuner[btv->c.nr];
 	printk("bttv%d: using tuner=%d\n",btv->c.nr,btv->tuner_type);
@@ -3348,14 +3348,14 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		bttv_call_i2c_clients(btv, AUDC_CONFIG_PINNACLE,
 				      &btv->pinnacle_id);
 	if (btv->tuner_type != UNSET) {
-	        struct tuner_setup tun_setup;
+		struct tuner_setup tun_setup;
 
-	        tun_setup.mode_mask =  T_ANALOG_TV | T_DIGITAL_TV;
+		tun_setup.mode_mask =  T_ANALOG_TV | T_DIGITAL_TV;
 		tun_setup.type = btv->tuner_type;
 		tun_setup.addr = addr;
 
 		if (addr == radio_addr)
-		        tun_setup.mode_mask =  T_RADIO;
+			tun_setup.mode_mask =  T_RADIO;
 
 		bttv_call_i2c_clients(btv, TUNER_SET_TYPE_ADDR, &tun_setup);
 	}
@@ -3433,11 +3433,11 @@ static void modtec_eeprom(struct bttv *btv)
 	} else if (strncmp(&(eeprom_data[0x1e]),"Alps TSBB5",10) ==0) {
 		btv->tuner_type=TUNER_ALPS_TSBB5_PAL_I;
 		printk("bttv%d: Modtec: Tuner autodetected by eeprom: %s\n",
-                       btv->c.nr,&eeprom_data[0x1e]);
-        } else if (strncmp(&(eeprom_data[0x1e]),"Philips FM1246",14) ==0) {
-                btv->tuner_type=TUNER_PHILIPS_NTSC;
-                printk("bttv%d: Modtec: Tuner autodetected by eeprom: %s\n",
-                       btv->c.nr,&eeprom_data[0x1e]);
+		       btv->c.nr,&eeprom_data[0x1e]);
+	} else if (strncmp(&(eeprom_data[0x1e]),"Philips FM1246",14) ==0) {
+		btv->tuner_type=TUNER_PHILIPS_NTSC;
+		printk("bttv%d: Modtec: Tuner autodetected by eeprom: %s\n",
+		       btv->c.nr,&eeprom_data[0x1e]);
 	} else {
 		printk("bttv%d: Modtec: Unknown TunerString: %s\n",
 		       btv->c.nr,&eeprom_data[0x1e]);
@@ -3502,7 +3502,7 @@ static int terratec_active_radio_upgrade(struct bttv *btv)
 static int __devinit pvr_altera_load(struct bttv *btv, u8 *micro, u32 microlen)
 {
 	u32 n;
-  	u8 bits;
+	u8 bits;
 	int i;
 
 	gpio_inout(0xffffff,BTTV_ALT_DATA|BTTV_ALT_DCLK|BTTV_ALT_NCONFIG);
@@ -3538,19 +3538,19 @@ static int __devinit pvr_altera_load(struct bttv *btv, u8 *micro, u32 microlen)
 
 static int __devinit pvr_boot(struct bttv *btv)
 {
-        const struct firmware *fw_entry;
+	const struct firmware *fw_entry;
 	int rc;
 
 	rc = request_firmware(&fw_entry, "hcwamc.rbf", &btv->c.pci->dev);
 	if (rc != 0) {
 		printk(KERN_WARNING "bttv%d: no altera firmware [via hotplug]\n",
 		       btv->c.nr);
-                return rc;
-        }
+		return rc;
+	}
 	rc = pvr_altera_load(btv, fw_entry->data, fw_entry->size);
 	printk(KERN_INFO "bttv%d: altera firmware upload %s\n",
 	       btv->c.nr, (rc < 0) ? "failed" : "ok");
-        release_firmware(fw_entry);
+	release_firmware(fw_entry);
 	return rc;
 }
 
@@ -3564,33 +3564,33 @@ static void __devinit osprey_eeprom(struct bttv *btv)
        unsigned long serial = 0;
 
        if (btv->c.type == 0) {
-               /* this might be an antique... check for MMAC label in eeprom */
-               if ((ee[0]=='M') && (ee[1]=='M') && (ee[2]=='A') && (ee[3]=='C')) {
-                       unsigned char checksum = 0;
-                       for (i =0; i<21; i++)
+	       /* this might be an antique... check for MMAC label in eeprom */
+	       if ((ee[0]=='M') && (ee[1]=='M') && (ee[2]=='A') && (ee[3]=='C')) {
+		       unsigned char checksum = 0;
+		       for (i =0; i<21; i++)
 			       checksum += ee[i];
-                       if (checksum != ee[21])
+		       if (checksum != ee[21])
 			       return;
 		       btv->c.type = BTTV_BOARD_OSPREY1x0_848;
 		       for (i = 12; i < 21; i++)
 			       serial *= 10, serial += ee[i] - '0';
-               }
+	       }
        } else {
 	       unsigned short type;
-               int offset = 4*16;
+	       int offset = 4*16;
 
-               for(; offset < 8*16; offset += 16) {
-                       unsigned short checksum = 0;
-                       /* verify the checksum */
-                       for(i = 0; i<14; i++) checksum += ee[i+offset];
-                               checksum = ~checksum;  /* no idea why */
-                               if ((((checksum>>8)&0x0FF) == ee[offset+14]) &&
-                                   ((checksum & 0x0FF) == ee[offset+15])) {
-                               break;
-                       }
-               }
+	       for(; offset < 8*16; offset += 16) {
+		       unsigned short checksum = 0;
+		       /* verify the checksum */
+		       for(i = 0; i<14; i++) checksum += ee[i+offset];
+			       checksum = ~checksum;  /* no idea why */
+			       if ((((checksum>>8)&0x0FF) == ee[offset+14]) &&
+			           ((checksum & 0x0FF) == ee[offset+15])) {
+			       break;
+		       }
+	       }
 
-               if (offset >= 8*16)
+	       if (offset >= 8*16)
 		       return;
 
 	       /* found a valid descriptor */
@@ -3606,7 +3606,7 @@ static void __devinit osprey_eeprom(struct bttv *btv)
 		       btv->c.type = BTTV_BOARD_OSPREY101_848;
 		       break;
 
-               /* 878 based */
+	       /* 878 based */
 	       case 0x0012:
 	       case 0x0013:
 		       btv->c.type = BTTV_BOARD_OSPREY1x0;
@@ -3662,27 +3662,27 @@ static void __devinit osprey_eeprom(struct bttv *btv)
 /* AVermedia specific stuff, from  bktr_card.c                             */
 
 static int tuner_0_table[] = {
-        TUNER_PHILIPS_NTSC,  TUNER_PHILIPS_PAL /* PAL-BG*/,
-        TUNER_PHILIPS_PAL,   TUNER_PHILIPS_PAL /* PAL-I*/,
-        TUNER_PHILIPS_PAL,   TUNER_PHILIPS_PAL,
-        TUNER_PHILIPS_SECAM, TUNER_PHILIPS_SECAM,
-        TUNER_PHILIPS_SECAM, TUNER_PHILIPS_PAL,
+	TUNER_PHILIPS_NTSC,  TUNER_PHILIPS_PAL /* PAL-BG*/,
+	TUNER_PHILIPS_PAL,   TUNER_PHILIPS_PAL /* PAL-I*/,
+	TUNER_PHILIPS_PAL,   TUNER_PHILIPS_PAL,
+	TUNER_PHILIPS_SECAM, TUNER_PHILIPS_SECAM,
+	TUNER_PHILIPS_SECAM, TUNER_PHILIPS_PAL,
 	TUNER_PHILIPS_FM1216ME_MK3 };
 
 static int tuner_1_table[] = {
-        TUNER_TEMIC_NTSC,  TUNER_TEMIC_PAL,
+	TUNER_TEMIC_NTSC,  TUNER_TEMIC_PAL,
 	TUNER_TEMIC_PAL,   TUNER_TEMIC_PAL,
 	TUNER_TEMIC_PAL,   TUNER_TEMIC_PAL,
-        TUNER_TEMIC_4012FY5, TUNER_TEMIC_4012FY5, /* TUNER_TEMIC_SECAM */
-        TUNER_TEMIC_4012FY5, TUNER_TEMIC_PAL};
+	TUNER_TEMIC_4012FY5, TUNER_TEMIC_4012FY5, /* TUNER_TEMIC_SECAM */
+	TUNER_TEMIC_4012FY5, TUNER_TEMIC_PAL};
 
 static void __devinit avermedia_eeprom(struct bttv *btv)
 {
-        int tuner_make,tuner_tv_fm,tuner_format,tuner=0;
+	int tuner_make,tuner_tv_fm,tuner_format,tuner=0;
 
 	tuner_make      = (eeprom_data[0x41] & 0x7);
-        tuner_tv_fm     = (eeprom_data[0x41] & 0x18) >> 3;
-        tuner_format    = (eeprom_data[0x42] & 0xf0) >> 4;
+	tuner_tv_fm     = (eeprom_data[0x41] & 0x18) >> 3;
+	tuner_format    = (eeprom_data[0x42] & 0xf0) >> 4;
 	btv->has_remote = (eeprom_data[0x42] & 0x01);
 
 	if (tuner_make == 0 || tuner_make == 2)
@@ -3718,8 +3718,8 @@ void bttv_tda9880_setnorm(struct bttv *btv, int norm)
 		dprintk("bttv_tda9880_setnorm to NTSC\n");
 	}
 	else {
-	        bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].audiomux[0]=0x947fff;
-                bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].audiomux[4]=0x947fff;
+		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].audiomux[0]=0x947fff;
+		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].audiomux[4]=0x947fff;
 		dprintk("bttv_tda9880_setnorm to PAL\n");
 	}
 	/* set GPIO according */
@@ -3741,7 +3741,7 @@ static void __devinit boot_msp34xx(struct bttv *btv, int pin)
 
 	gpio_inout(mask,mask);
 	gpio_bits(mask,0);
-        udelay(2500);
+	udelay(2500);
 	gpio_bits(mask,mask);
 
 	if (bttv_gpio)
@@ -3817,7 +3817,7 @@ static void __devinit init_PXC200(struct bttv *btv)
 	udelay(10);
 	gpio_write(1<<2);
 
-       	for (i = 0; i < ARRAY_SIZE(vals); i++) {
+	for (i = 0; i < ARRAY_SIZE(vals); i++) {
 		tmp=bttv_I2CWrite(btv,0x1E,0,vals[i],1);
 		if (tmp != -1) {
 			printk(KERN_INFO
@@ -4260,30 +4260,30 @@ avermedia_tv_stereo_audio(struct bttv *btv, struct video_audio *v, int set)
 static void
 lt9415_audio(struct bttv *btv, struct video_audio *v, int set)
 {
-        int val = 0;
+	int val = 0;
 
-        if (gpio_read() & 0x4000) {
+	if (gpio_read() & 0x4000) {
 		v->mode = VIDEO_SOUND_MONO;
 		return;
 	}
 
-        if (set) {
-                if (v->mode & VIDEO_SOUND_LANG2)  /* A2 SAP */
-                        val = 0x0080;
+	if (set) {
+		if (v->mode & VIDEO_SOUND_LANG2)  /* A2 SAP */
+			val = 0x0080;
 		if (v->mode & VIDEO_SOUND_STEREO) /* A2 stereo */
-                        val = 0x0880;
-                if ((v->mode & VIDEO_SOUND_LANG1) ||
+			val = 0x0880;
+		if ((v->mode & VIDEO_SOUND_LANG1) ||
 		    (v->mode & VIDEO_SOUND_MONO))
 			val = 0;
 		gpio_bits(0x0880, val);
-                if (bttv_gpio)
-                        bttv_gpio_tracking(btv,"lt9415");
-        } else {
+		if (bttv_gpio)
+			bttv_gpio_tracking(btv,"lt9415");
+	} else {
 		/* autodetect doesn't work with this card :-( */
-                v->mode = VIDEO_SOUND_MONO | VIDEO_SOUND_STEREO |
+		v->mode = VIDEO_SOUND_MONO | VIDEO_SOUND_STEREO |
 			VIDEO_SOUND_LANG1 | VIDEO_SOUND_LANG2;
-                return;
-        }
+		return;
+	}
 }
 
 /* TDA9821 on TerraTV+ Bt848, Bt878 */
@@ -4406,26 +4406,26 @@ fv2000s_audio(struct bttv *btv, struct video_audio *v, int set)
 static void
 windvr_audio(struct bttv *btv, struct video_audio *v, int set)
 {
-        unsigned long val = 0;
+	unsigned long val = 0;
 
-        if (set) {
-                if (v->mode & VIDEO_SOUND_MONO)
-                        val = 0x040000;
-                if (v->mode & VIDEO_SOUND_LANG1)
-                        val = 0;
-                if (v->mode & VIDEO_SOUND_LANG2)
-                        val = 0x100000;
-                if (v->mode & VIDEO_SOUND_STEREO)
-                        val = 0;
-                if (val) {
+	if (set) {
+		if (v->mode & VIDEO_SOUND_MONO)
+			val = 0x040000;
+		if (v->mode & VIDEO_SOUND_LANG1)
+			val = 0;
+		if (v->mode & VIDEO_SOUND_LANG2)
+			val = 0x100000;
+		if (v->mode & VIDEO_SOUND_STEREO)
+			val = 0;
+		if (val) {
 			gpio_bits(0x140000, val);
-                        if (bttv_gpio)
-                                bttv_gpio_tracking(btv,"windvr");
-                }
-        } else {
-                v->mode = VIDEO_SOUND_MONO | VIDEO_SOUND_STEREO |
-                          VIDEO_SOUND_LANG1 | VIDEO_SOUND_LANG2;
-        }
+			if (bttv_gpio)
+			        bttv_gpio_tracking(btv,"windvr");
+		}
+	} else {
+		v->mode = VIDEO_SOUND_MONO | VIDEO_SOUND_STEREO |
+			  VIDEO_SOUND_LANG1 | VIDEO_SOUND_LANG2;
+	}
 }
 
 /*
@@ -4668,10 +4668,10 @@ static void kodicom4400r_init(struct bttv *btv)
 static void xguard_muxsel(struct bttv *btv, unsigned int input)
 {
 	static const int masks[] = {
-                ENB0, ENB0|IN00, ENB0|IN10, ENB0|IN00|IN10,
-                ENA0, ENA0|IN00, ENA0|IN10, ENA0|IN00|IN10,
-                ENB1, ENB1|IN01, ENB1|IN11, ENB1|IN01|IN11,
-                ENA1, ENA1|IN01, ENA1|IN11, ENA1|IN01|IN11,
+		ENB0, ENB0|IN00, ENB0|IN10, ENB0|IN00|IN10,
+		ENA0, ENA0|IN00, ENA0|IN10, ENA0|IN00|IN10,
+		ENB1, ENB1|IN01, ENB1|IN11, ENB1|IN01|IN11,
+		ENA1, ENA1|IN01, ENA1|IN11, ENA1|IN01|IN11,
 	};
 	gpio_write(masks[input%16]);
 }
@@ -4776,10 +4776,10 @@ static void ivc120_muxsel(struct bttv *btv, unsigned int input)
 
 static void PXC200_muxsel(struct bttv *btv, unsigned int input)
 {
-        int rc;
+	int rc;
 	long mux;
 	int bitmask;
-        unsigned char buf[2];
+	unsigned char buf[2];
 
 	/* Read PIC config to determine if this is a PXC200F */
 	/* PX_I2C_CMD_CFG*/
@@ -4809,14 +4809,14 @@ static void PXC200_muxsel(struct bttv *btv, unsigned int input)
 	/* bitmask=0x30f; */
 	bitmask=0x302;
 	/* check whether we have a PXC200A */
- 	if (btv->cardid == PX_PXC200A_CARDID)  {
+	if (btv->cardid == PX_PXC200A_CARDID)  {
 	   bitmask ^= 0x180; /* use 7 and 9, not 8 and 9 */
 	   bitmask |= 7<<4; /* the DAC */
 	}
 	btwrite(bitmask, BT848_GPIO_OUT_EN);
 
 	bitmask = btread(BT848_GPIO_DATA);
- 	if (btv->cardid == PX_PXC200A_CARDID)
+	if (btv->cardid == PX_PXC200A_CARDID)
 	  bitmask = (bitmask & ~0x280) | ((mux & 2) << 8) | ((mux & 1) << 7);
 	else /* older device */
 	  bitmask = (bitmask & ~0x300) | ((mux & 3) << 8);
@@ -4829,7 +4829,7 @@ static void PXC200_muxsel(struct bttv *btv, unsigned int input)
 	 *
 	 * needed because bttv-driver sets mux before calling this function
 	 */
- 	if (btv->cardid == PX_PXC200A_CARDID)
+	if (btv->cardid == PX_PXC200A_CARDID)
 	  btaor(2<<5, ~BT848_IFORM_MUXSEL, BT848_IFORM);
 	else /* older device */
 	  btand(~BT848_IFORM_MUXSEL,BT848_IFORM);
@@ -4875,7 +4875,7 @@ void __devinit bttv_check_chipset(void)
 		printk(KERN_INFO "bttv: pci latency fixup [%d]\n",latency);
 	while ((dev = pci_get_device(PCI_VENDOR_ID_INTEL,
 				      PCI_DEVICE_ID_INTEL_82441, dev))) {
-                unsigned char b;
+		unsigned char b;
 		pci_read_config_byte(dev, 0x53, &b);
 		if (bttv_debug)
 			printk(KERN_INFO "bttv: Host bridge: 82441FX Natoma, "
@@ -4885,7 +4885,7 @@ void __devinit bttv_check_chipset(void)
 
 int __devinit bttv_handle_chipset(struct bttv *btv)
 {
- 	unsigned char command;
+	unsigned char command;
 
 	if (!triton1 && !vsfx && UNSET == latency)
 		return 0;
@@ -4906,13 +4906,13 @@ int __devinit bttv_handle_chipset(struct bttv *btv)
 			btv->triton1 = BT848_INT_ETBF;
 	} else {
 		/* bt878 has a bit in the pci config space for it */
-                pci_read_config_byte(btv->c.pci, BT878_DEVCTRL, &command);
+		pci_read_config_byte(btv->c.pci, BT878_DEVCTRL, &command);
 		if (triton1)
 			command |= BT878_EN_TBFX;
 		if (vsfx)
 			command |= BT878_EN_VSFX;
-                pci_write_config_byte(btv->c.pci, BT878_DEVCTRL, command);
-        }
+		pci_write_config_byte(btv->c.pci, BT878_DEVCTRL, command);
+	}
 	if (UNSET != latency)
 		pci_write_config_byte(btv->c.pci, PCI_LATENCY_TIMER, latency);
 	return 0;

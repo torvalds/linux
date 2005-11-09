@@ -46,11 +46,11 @@ MODULE_LICENSE("GPL");
 #define UNSET       (-1U)
 #define tda9887_info(fmt, arg...) do {\
 	printk(KERN_INFO "%s %d-%04x: " fmt, t->client.name, \
-                        i2c_adapter_id(t->client.adapter), t->client.addr , ##arg); } while (0)
+			i2c_adapter_id(t->client.adapter), t->client.addr , ##arg); } while (0)
 #define tda9887_dbg(fmt, arg...) do {\
 	if (debug) \
-                printk(KERN_INFO "%s %d-%04x: " fmt, t->client.name, \
-                        i2c_adapter_id(t->client.adapter), t->client.addr , ##arg); } while (0)
+		printk(KERN_INFO "%s %d-%04x: " fmt, t->client.name, \
+			i2c_adapter_id(t->client.adapter), t->client.addr , ##arg); } while (0)
 
 struct tda9887 {
 	struct i2c_client  client;
@@ -484,11 +484,11 @@ static int tda9887_set_pinnacle(struct tda9887 *t, char *buf)
 		}
 	}
 	if (t->std & V4L2_STD_525_60) {
-                if ((5 == t->pinnacle_id) || (6 == t->pinnacle_id)) {
+		if ((5 == t->pinnacle_id) || (6 == t->pinnacle_id)) {
 			bCarrierMode = cIntercarrier;
 		} else {
 			bCarrierMode = cQSS;
-                }
+		}
 	}
 
 	if (bCarrierMode != UNSET) {
@@ -568,8 +568,8 @@ static int tda9887_status(struct tda9887 *t)
 	int rc;
 
 	memset(buf,0,sizeof(buf));
-        if (1 != (rc = i2c_master_recv(&t->client,buf,1)))
-                tda9887_info("i2c i/o error: rc == %d (should be 1)\n",rc);
+	if (1 != (rc = i2c_master_recv(&t->client,buf,1)))
+		tda9887_info("i2c i/o error: rc == %d (should be 1)\n",rc);
 	dump_read_message(t, buf);
 	return 0;
 }
@@ -600,8 +600,8 @@ static int tda9887_configure(struct tda9887 *t)
 	if (debug > 1)
 		dump_write_message(t, t->data);
 
-        if (4 != (rc = i2c_master_send(&t->client,t->data,4)))
-                tda9887_info("i2c i/o error: rc == %d (should be 4)\n",rc);
+	if (4 != (rc = i2c_master_send(&t->client,t->data,4)))
+		tda9887_info("i2c i/o error: rc == %d (should be 4)\n",rc);
 
 	if (debug > 2) {
 		msleep_interruptible(1000);
@@ -616,11 +616,11 @@ static int tda9887_attach(struct i2c_adapter *adap, int addr, int kind)
 {
 	struct tda9887 *t;
 
-        client_template.adapter = adap;
-        client_template.addr    = addr;
+	client_template.adapter = adap;
+	client_template.addr    = addr;
 
-        if (NULL == (t = kmalloc(sizeof(*t), GFP_KERNEL)))
-                return -ENOMEM;
+	if (NULL == (t = kmalloc(sizeof(*t), GFP_KERNEL)))
+		return -ENOMEM;
 	memset(t,0,sizeof(*t));
 
 	t->client      = client_template;
@@ -628,7 +628,7 @@ static int tda9887_attach(struct i2c_adapter *adap, int addr, int kind)
 	t->pinnacle_id = UNSET;
 	t->radio_mode = V4L2_TUNER_MODE_STEREO;
 
-        tda9887_info("chip found @ 0x%x (%s)\n", addr<<1, adap->name);
+	tda9887_info("chip found @ 0x%x (%s)\n", addr<<1, adap->name);
 
 	i2c_set_clientdata(&t->client, t);
 	i2c_attach_client(&t->client);
@@ -663,18 +663,18 @@ static int tda9887_detach(struct i2c_client *client)
 }
 
 #define SWITCH_V4L2	if (!t->using_v4l2 && debug) \
-		          tda9887_info("switching to v4l2\n"); \
-	                  t->using_v4l2 = 1;
+			  tda9887_info("switching to v4l2\n"); \
+			  t->using_v4l2 = 1;
 #define CHECK_V4L2	if (t->using_v4l2) { if (debug) \
 			  tda9887_info("ignore v4l1 call\n"); \
-		          return 0; }
+			  return 0; }
 
 static int
 tda9887_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct tda9887 *t = i2c_get_clientdata(client);
 
-        switch (cmd) {
+	switch (cmd) {
 
 	/* --- configuration --- */
 	case AUDC_SET_RADIO:

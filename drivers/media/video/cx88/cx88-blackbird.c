@@ -436,7 +436,7 @@ static int memory_write(struct cx88_core *core, u32 address, u32 value)
 
 static int memory_read(struct cx88_core *core, u32 address, u32 *value)
 {
-        int retval;
+	int retval;
 	u32 val;
 
 	/* Warning: address is dword address (4 bytes) */
@@ -605,11 +605,11 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 	u32 *dataptr;
 
 	retval  = register_write(dev->core, IVTV_REG_VPU, 0xFFFFFFED);
-        retval |= register_write(dev->core, IVTV_REG_HW_BLOCKS, IVTV_CMD_HW_BLOCKS_RST);
-        retval |= register_write(dev->core, IVTV_REG_ENC_SDRAM_REFRESH, 0x80000640);
-        retval |= register_write(dev->core, IVTV_REG_ENC_SDRAM_PRECHARGE, 0x1A);
+	retval |= register_write(dev->core, IVTV_REG_HW_BLOCKS, IVTV_CMD_HW_BLOCKS_RST);
+	retval |= register_write(dev->core, IVTV_REG_ENC_SDRAM_REFRESH, 0x80000640);
+	retval |= register_write(dev->core, IVTV_REG_ENC_SDRAM_PRECHARGE, 0x1A);
 	msleep(1);
-        retval |= register_write(dev->core, IVTV_REG_APU, 0);
+	retval |= register_write(dev->core, IVTV_REG_APU, 0);
 
 	if (retval < 0)
 		dprintk(0, "Error with register_write\n");
@@ -657,13 +657,13 @@ static int blackbird_load_firmware(struct cx8802_dev *dev)
 	release_firmware(firmware);
 	dprintk(0, "Firmware upload successful.\n");
 
-        retval |= register_write(dev->core, IVTV_REG_HW_BLOCKS, IVTV_CMD_HW_BLOCKS_RST);
-        retval |= register_read(dev->core, IVTV_REG_SPU, &value);
-        retval |= register_write(dev->core, IVTV_REG_SPU, value & 0xFFFFFFFE);
+	retval |= register_write(dev->core, IVTV_REG_HW_BLOCKS, IVTV_CMD_HW_BLOCKS_RST);
+	retval |= register_read(dev->core, IVTV_REG_SPU, &value);
+	retval |= register_write(dev->core, IVTV_REG_SPU, value & 0xFFFFFFFE);
 	msleep(1);
 
 	retval |= register_read(dev->core, IVTV_REG_VPU, &value);
-        retval |= register_write(dev->core, IVTV_REG_VPU, value & 0xFFFFFFE8);
+	retval |= register_write(dev->core, IVTV_REG_VPU, value & 0xFFFFFFE8);
 
 	if (retval < 0)
 		dprintk(0, "Error with register_write\n");
@@ -876,7 +876,7 @@ static void blackbird_set_default_params(struct cx8802_dev *dev)
 			au_params |= 0;
 		}
 		else if( params->au_bitrate.target >=
-		         mpeg_audio_bitrates[BITRATES_SIZE-1].layer[layer].rate )
+			 mpeg_audio_bitrates[BITRATES_SIZE-1].layer[layer].rate )
 		{
 			/* clamp the bitrate to the max supported by the standard */
 			params->au_bitrate.target = mpeg_audio_bitrates[BITRATES_SIZE-1].layer[layer].rate;
@@ -942,7 +942,7 @@ static void blackbird_set_default_params(struct cx8802_dev *dev)
 	/* TODO: implement the stream ID stuff:
 		ts_pid_pmt, ts_pid_audio, ts_pid_video, ts_pid_pcr,
 		ps_size, au_pesid, vi_pesid
- 	*/
+	*/
 }
 #define CHECK_PARAM( name ) ( dev->params.name != params->name )
 #define IF_PARAM( name ) if( CHECK_PARAM( name ) )
@@ -1068,7 +1068,7 @@ void blackbird_set_params(struct cx8802_dev *dev, struct v4l2_mpeg_compression *
 			au_params |= 0;
 		}
 		else if( params->au_bitrate.target >=
-		         mpeg_audio_bitrates[BITRATES_SIZE-1].layer[layer].rate )
+			 mpeg_audio_bitrates[BITRATES_SIZE-1].layer[layer].rate )
 		{
 			/* clamp the bitrate to the max supported by the standard */
 			params->au_bitrate.target = mpeg_audio_bitrates[BITRATES_SIZE-1].layer[layer].rate;
@@ -1150,7 +1150,7 @@ void blackbird_set_params(struct cx8802_dev *dev, struct v4l2_mpeg_compression *
 	/* TODO: implement the stream ID stuff:
 		ts_pid_pmt, ts_pid_audio, ts_pid_video, ts_pid_pcr,
 		ps_size, au_pesid, vi_pesid
- 	*/
+	*/
 	UPDATE_PARAM( ts_pid_pmt );
 	UPDATE_PARAM( ts_pid_audio );
 	UPDATE_PARAM( ts_pid_video );
@@ -1712,7 +1712,7 @@ static int __devinit blackbird_probe(struct pci_dev *pci_dev,
 
 static void __devexit blackbird_remove(struct pci_dev *pci_dev)
 {
-        struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
+	struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
 
 	/* blackbird */
 	blackbird_unregister_video(dev);
@@ -1728,8 +1728,8 @@ static struct pci_device_id cx8802_pci_tbl[] = {
 	{
 		.vendor       = 0x14f1,
 		.device       = 0x8802,
-                .subvendor    = PCI_ANY_ID,
-                .subdevice    = PCI_ANY_ID,
+		.subvendor    = PCI_ANY_ID,
+		.subdevice    = PCI_ANY_ID,
 	},{
 		/* --- end of list --- */
 	}
@@ -1737,10 +1737,10 @@ static struct pci_device_id cx8802_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, cx8802_pci_tbl);
 
 static struct pci_driver blackbird_pci_driver = {
-        .name     = "cx88-blackbird",
-        .id_table = cx8802_pci_tbl,
-        .probe    = blackbird_probe,
-        .remove   = __devexit_p(blackbird_remove),
+	.name     = "cx88-blackbird",
+	.id_table = cx8802_pci_tbl,
+	.probe    = blackbird_probe,
+	.remove   = __devexit_p(blackbird_remove),
 	.suspend  = cx8802_suspend_common,
 	.resume   = cx8802_resume_common,
 };

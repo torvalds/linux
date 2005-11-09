@@ -192,7 +192,7 @@ static int msp3400c_reset(struct i2c_client *client)
 	     (2 != i2c_transfer(client->adapter,test,2)) ) {
 		printk(KERN_ERR "msp3400: chip reset failed\n");
 		return -1;
-        }
+	}
 	return 0;
 }
 
@@ -200,16 +200,16 @@ static int msp3400c_read(struct i2c_client *client, int dev, int addr)
 {
 	int err,retval;
 
-        unsigned char write[3];
-        unsigned char read[2];
-        struct i2c_msg msgs[2] = {
-                { client->addr, 0,        3, write },
-                { client->addr, I2C_M_RD, 2, read  }
-        };
+	unsigned char write[3];
+	unsigned char read[2];
+	struct i2c_msg msgs[2] = {
+		{ client->addr, 0,        3, write },
+		{ client->addr, I2C_M_RD, 2, read  }
+	};
 
-        write[0] = dev+1;
-        write[1] = addr >> 8;
-        write[2] = addr & 0xff;
+	write[0] = dev+1;
+	write[1] = addr >> 8;
+	write[2] = addr & 0xff;
 
 	for (err = 0; err < 3;) {
 		if (2 == i2c_transfer(client->adapter,msgs,2))
@@ -236,13 +236,13 @@ static int msp3400c_read(struct i2c_client *client, int dev, int addr)
 static int msp3400c_write(struct i2c_client *client, int dev, int addr, int val)
 {
 	int err;
-        unsigned char buffer[5];
+	unsigned char buffer[5];
 
-        buffer[0] = dev;
-        buffer[1] = addr >> 8;
-        buffer[2] = addr &  0xff;
-        buffer[3] = val  >> 8;
-        buffer[4] = val  &  0xff;
+	buffer[0] = dev;
+	buffer[1] = addr >> 8;
+	buffer[2] = addr &  0xff;
+	buffer[3] = val  >> 8;
+	buffer[4] = val  &  0xff;
 
 	dprintk_trace("trace: msp3400c_write(0x%x, 0x%x, 0x%x)\n", dev, addr,
 		      val);
@@ -812,7 +812,7 @@ static void watch_stereo(struct i2c_client *client)
 		else if (msp->stereo & VIDEO_SOUND_LANG1)
 			msp3400c_setstereo(client, V4L2_TUNER_MODE_LANG1);
 		else
- 			msp3400c_setstereo(client, V4L2_TUNER_MODE_MONO);
+			msp3400c_setstereo(client, V4L2_TUNER_MODE_MONO);
 	}
 
 	if (once)
@@ -1512,21 +1512,21 @@ static struct i2c_client client_template =
 static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
 {
 	struct msp3400c *msp;
-        struct i2c_client *c;
+	struct i2c_client *c;
 	int (*thread_func)(void *data) = NULL;
 	int i;
 
-        client_template.adapter = adap;
-        client_template.addr = addr;
+	client_template.adapter = adap;
+	client_template.addr = addr;
 
-        if (-1 == msp3400c_reset(&client_template)) {
-                dprintk("msp34xx: no chip found\n");
-                return -1;
-        }
+	if (-1 == msp3400c_reset(&client_template)) {
+		dprintk("msp34xx: no chip found\n");
+		return -1;
+	}
 
-        if (NULL == (c = kmalloc(sizeof(struct i2c_client),GFP_KERNEL)))
-                return -ENOMEM;
-        memcpy(c,&client_template,sizeof(struct i2c_client));
+	if (NULL == (c = kmalloc(sizeof(struct i2c_client),GFP_KERNEL)))
+		return -ENOMEM;
+	memcpy(c,&client_template,sizeof(struct i2c_client));
 	if (NULL == (msp = kmalloc(sizeof(struct msp3400c),GFP_KERNEL))) {
 		kfree(c);
 		return -ENOMEM;
@@ -1618,7 +1618,7 @@ static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
 	}
 
 	/* done */
-        i2c_attach_client(c);
+	i2c_attach_client(c);
 
 	/* update our own array */
 	for (i = 0; i < MSP3400_MAX; i++) {
@@ -1739,7 +1739,7 @@ static void msp_any_set_audmode(struct i2c_client *client, int audmode)
 static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
 	struct msp3400c *msp  = i2c_get_clientdata(client);
-        __u16           *sarg = arg;
+	__u16           *sarg = arg;
 	int scart = 0;
 
 	switch (cmd) {
@@ -1969,7 +1969,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		}
 
 		msp_any_detect_stereo(client);
- 		if (msp->audmode == V4L2_TUNER_MODE_STEREO) {
+		if (msp->audmode == V4L2_TUNER_MODE_STEREO) {
 			a->capability=V4L2_AUDCAP_STEREO;
 		}
 
@@ -2005,7 +2005,7 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			msp3400c_set_scart(client,scart,0);
 			msp3400c_write(client,I2C_MSP3400C_DFP,0x000d,0x1900);
 		}
- 		if (sarg->capability==V4L2_AUDCAP_STEREO) {
+		if (sarg->capability==V4L2_AUDCAP_STEREO) {
 			msp->audmode = V4L2_TUNER_MODE_STEREO;
 		} else {
 			msp->audmode &= ~V4L2_TUNER_MODE_STEREO;
