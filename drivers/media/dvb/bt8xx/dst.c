@@ -905,10 +905,6 @@ static int dst_get_device_id(struct dst_state *state)
 	state->dst_type = use_dst_type;
 	dst_type_flags_print(state->type_flags);
 
-	if (state->type_flags & DST_TYPE_HAS_TS204) {
-		dst_packsize(state, 204);
-	}
-
 	return 0;
 }
 
@@ -939,6 +935,9 @@ static int dst_probe(struct dst_state *state)
 	if ((state->type_flags & DST_TYPE_HAS_MULTI_FE) || (state->type_flags & DST_TYPE_HAS_FW_BUILD)) {
 		if (dst_get_tuner_info(state) < 0)
 			dprintk(verbose, DST_INFO, 1, "Tuner: Unsupported command");
+	}
+	if (state->type_flags & DST_TYPE_HAS_TS204) {
+		dst_packsize(state, 204);
 	}
 	if (state->type_flags & DST_TYPE_HAS_FW_BUILD) {
 		if (dst_fw_ver(state) < 0) {
