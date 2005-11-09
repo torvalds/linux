@@ -429,7 +429,7 @@ static int ir_probe(struct i2c_adapter *adap)
 	static const int probe_saa7134[] = { 0x7a, -1 };
 	static const int probe_em2820[] = { 0x30, 0x47, -1 };
 	const int *probe = NULL;
-	struct i2c_client c; char buf; int i,rc;
+	struct i2c_client c; unsigned char buf; int i,rc;
 
 	switch (adap->id) {
 	case I2C_HW_B_BT848:
