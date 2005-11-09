@@ -1077,7 +1077,7 @@ static int dst_get_tuna(struct dst_state *state)
 		return 0;
 	state->diseq_flags &= ~(HAS_LOCK);
 	if (!dst_wait_dst_ready(state, NO_DELAY))
-		return 0;
+		return -EIO;
 	if (state->type_flags & DST_TYPE_HAS_NEWTUNE)
 		/* how to get variable length reply ???? */
 		retval = read_dst(state, state->rx_tuna, 10);
@@ -1085,22 +1085,21 @@ static int dst_get_tuna(struct dst_state *state)
 		retval = read_dst(state, &state->rx_tuna[2], FIXED_COMM);
 	if (retval < 0) {
 		dprintk(verbose, DST_DEBUG, 1, "read not successful");
-		return 0;
+		return retval;
 	}
 	if (state->type_flags & DST_TYPE_HAS_NEWTUNE) {
 		if (state->rx_tuna[9] != dst_check_sum(&state->rx_tuna[0], 9)) {
 			dprintk(verbose, DST_INFO, 1, "checksum failure ? ");
-			return 0;
+			return -EIO;
 		}
 	} else {
 		if (state->rx_tuna[9] != dst_check_sum(&state->rx_tuna[2], 7)) {
 			dprintk(verbose, DST_INFO, 1, "checksum failure? ");
-			return 0;
+			return -EIO;
 		}
 	}
 	if (state->rx_tuna[2] == 0 && state->rx_tuna[3] == 0)
 		return 0;
-
 	if (state->dst_type == DST_TYPE_IS_SAT) {
 		state->decode_freq = ((state->rx_tuna[2] & 0x7f) << 8) + state->rx_tuna[3];
 	} else {
@@ -1129,10 +1128,10 @@ static int dst_write_tuna(struct dvb_frontend *fe)
 			dst_set_voltage(fe, SEC_VOLTAGE_13);
 	}
 	state->diseq_flags &= ~(HAS_LOCK | ATTEMPT_TUNE);
-
+	down(&state->dst_mutex);
 	if ((dst_comm_init(state)) < 0) {
 		dprintk(verbose, DST_DEBUG, 1, "DST Communication initialization failed.");
-		return -1;
+		goto error;
 	}
 	if (state->type_flags & DST_TYPE_HAS_NEWTUNE) {
 		state->tx_tuna[9] = dst_check_sum(&state->tx_tuna[0], 9);
@@ -1144,23 +1143,29 @@ static int dst_write_tuna(struct dvb_frontend *fe)
 	if (retval < 0) {
 		dst_pio_disable(state);
 		dprintk(verbose, DST_DEBUG, 1, "write not successful");
-		return retval;
+		goto werr;
 	}
 	if ((dst_pio_disable(state)) < 0) {
 		dprintk(verbose, DST_DEBUG, 1, "DST PIO disable failed !");
-		return -1;
+		goto error;
 	}
 	if ((read_dst(state, &reply, GET_ACK) < 0)) {
 		dprintk(verbose, DST_DEBUG, 1, "read verify not successful.");
-		return -1;
+		goto error;
 	}
 	if (reply != ACK) {
 		dprintk(verbose, DST_DEBUG, 1, "write not acknowledged 0x%02x ", reply);
-		return 0;
+		goto error;
 	}
 	state->diseq_flags |= ATTEMPT_TUNE;
+	retval = dst_get_tuna(state);
+werr:
+	up(&state->dst_mutex);
+	return retval;
 
-	return dst_get_tuna(state);
+error:
+	up(&state->dst_mutex);
+	return -EIO;
 }
 
 /*
