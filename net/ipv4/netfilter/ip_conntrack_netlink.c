@@ -28,11 +28,8 @@
 #include <linux/netlink.h>
 #include <linux/spinlock.h>
 #include <linux/notifier.h>
-#include <linux/rtnetlink.h>
 
 #include <linux/netfilter.h>
-#include <linux/netfilter_ipv4.h>
-#include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ip_conntrack.h>
 #include <linux/netfilter_ipv4/ip_conntrack_core.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
