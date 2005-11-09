@@ -135,7 +135,7 @@ static void tda827x_tune(struct i2c_client *c, u16 ifc, unsigned int freq)
 	i2c_transfer(c->adapter, &msg, 1);
 
 	reg2[0] = 0x60;
-	reg2[1] = 0x7f;
+	reg2[1] = 0x3f;
 	i2c_transfer(c->adapter, &msg, 1);
 
 	reg2[0] = 0x80;
@@ -534,8 +534,8 @@ int tda8290_init(struct i2c_client *c)
 		}
 	if (tuner_addrs == 0) {
 		tuner_addrs = 0x61;
-		tuner_info ("Could not clearly identify tda8290/8275 tuner address.\n");
-		return -1;
+		tuner_info ("could not clearly identify tuner address, defaulting to %x\n",
+		             tuner_addrs);
 	} else {
 		tuner_addrs = tuner_addrs & 0xff;
 		tuner_info ("setting tuner address to %x\n", tuner_addrs);
@@ -565,6 +565,30 @@ int tda8290_init(struct i2c_client *c)
 	tda8290_init_tuner(c);
 	tda8290_init_if(c);
 	return 0;
+}
+
+int tda8290_probe(struct i2c_client *c)
+{
+	unsigned char soft_reset[]  = { 0x00, 0x00 };
+	unsigned char easy_mode_b[] = { 0x01, 0x02 };
+	unsigned char easy_mode_g[] = { 0x01, 0x04 };
+	unsigned char addr_dto_lsb = 0x07;
+	unsigned char data;
+
+	i2c_master_send(c, easy_mode_b, 2);
+	i2c_master_send(c, soft_reset, 2);
+	i2c_master_send(c, &addr_dto_lsb, 1);
+	i2c_master_recv(c, &data, 1);
+	if (data == 0) {
+		i2c_master_send(c, easy_mode_g, 2);
+		i2c_master_send(c, soft_reset, 2);
+		i2c_master_send(c, &addr_dto_lsb, 1);
+		i2c_master_recv(c, &data, 1);
+		if (data == 0x7b) {
+			return 0;
+		}
+	}
+	return -1;
 }
 
 /*

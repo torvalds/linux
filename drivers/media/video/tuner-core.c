@@ -380,8 +380,8 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 		case 0x42:
 		case 0x43:
 		case 0x4a:
-		case 0x44:
-			if (tda8290_init(&t->i2c)<0) {
+		case 0x4b:
+			if (tda8290_probe(&t->i2c) != 0) {
 				kfree(t);
 				return 0;
 			}
