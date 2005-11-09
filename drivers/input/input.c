@@ -669,7 +669,7 @@ static int input_dev_hotplug(struct class_device *cdev, char **envp,
 		INPUT_ADD_HOTPLUG_VAR("NAME=\"%s\"", dev->name);
 	if (dev->phys)
 		INPUT_ADD_HOTPLUG_VAR("PHYS=\"%s\"", dev->phys);
-	if (dev->phys)
+	if (dev->uniq)
 		INPUT_ADD_HOTPLUG_VAR("UNIQ=\"%s\"", dev->uniq);
 
 	INPUT_ADD_HOTPLUG_BM_VAR("EV=", dev->evbit, EV_MAX);
