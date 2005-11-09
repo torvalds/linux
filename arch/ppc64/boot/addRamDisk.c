@@ -163,11 +163,11 @@ int main(int argc, char **argv)
 	fseek(inputVmlinux, 0, SEEK_END);
 	kernelLen = ftell(inputVmlinux);
 	fseek(inputVmlinux, 0, SEEK_SET);
-	printf("kernel file size = %d\n", kernelLen);
+	printf("kernel file size = %lu\n", kernelLen);
 
 	actualKernelLen = kernelLen - ElfHeaderSize;
 
-	printf("actual kernel length (minus ELF header) = %d\n", actualKernelLen);
+	printf("actual kernel length (minus ELF header) = %lu\n", actualKernelLen);
 
 	round = actualKernelLen % 4096;
 	roundedKernelLen = actualKernelLen;
@@ -262,7 +262,7 @@ int main(int argc, char **argv)
 		death("Could not read hvReleaseData pointer\n", outputVmlinux, out_name);
 	}
 	hvReleaseData = ntohl(hvReleaseData); /* Convert to native int */
-	printf("hvReleaseData is at %08x\n", hvReleaseData);
+	printf("hvReleaseData is at %08lx\n", hvReleaseData);
 
 	/* fseek to the hvReleaseData */
 	fseek(outputVmlinux, ElfHeaderSize + hvReleaseData, SEEK_SET);
@@ -298,7 +298,7 @@ int main(int argc, char **argv)
 	if (fwrite(inbuf, 0x18, 1, outputVmlinux) != 1) {
 		death("Could not write naca\n", outputVmlinux, out_name);
 	}
-	printf("Ram Disk of 0x%lx pages is attached to the kernel at offset 0x%08x\n",
+	printf("Ram Disk of 0x%lx pages is attached to the kernel at offset 0x%08lx\n",
 	       ramPages, ramStartOffs);
 
 	/* Done */
