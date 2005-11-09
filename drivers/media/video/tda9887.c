@@ -60,6 +60,7 @@ struct tda9887 {
 	unsigned int       pinnacle_id;
 	unsigned int       using_v4l2;
 	unsigned int 	   radio_mode;
+	unsigned char 	   data[4];
 };
 
 struct tvnorm {
@@ -575,32 +576,31 @@ static int tda9887_status(struct tda9887 *t)
 
 static int tda9887_configure(struct tda9887 *t)
 {
-	unsigned char buf[4];
 	int rc;
 
-	memset(buf,0,sizeof(buf));
-	tda9887_set_tvnorm(t,buf);
+	memset(t->data,0,sizeof(t->data));
+	tda9887_set_tvnorm(t,t->data);
 
-	buf[1] |= cOutputPort1Inactive;
-	buf[1] |= cOutputPort2Inactive;
+	t->data[1] |= cOutputPort1Inactive;
+	t->data[1] |= cOutputPort2Inactive;
 
 	if (UNSET != t->pinnacle_id) {
-		tda9887_set_pinnacle(t,buf);
+		tda9887_set_pinnacle(t,t->data);
 	}
-	tda9887_set_config(t,buf);
-	tda9887_set_insmod(t,buf);
+	tda9887_set_config(t,t->data);
+	tda9887_set_insmod(t,t->data);
 
 	if (t->mode == T_STANDBY) {
-		buf[1] |= cForcedMuteAudioON;
+		t->data[1] |= cForcedMuteAudioON;
 	}
 
 
 	tda9887_dbg("writing: b=0x%02x c=0x%02x e=0x%02x\n",
-		buf[1],buf[2],buf[3]);
+		t->data[1],t->data[2],t->data[3]);
 	if (debug > 1)
-		dump_write_message(t, buf);
+		dump_write_message(t, t->data);
 
-        if (4 != (rc = i2c_master_send(&t->client,buf,4)))
+        if (4 != (rc = i2c_master_send(&t->client,t->data,4)))
                 tda9887_info("i2c i/o error: rc == %d (should be 4)\n",rc);
 
 	if (debug > 2) {
@@ -783,6 +783,11 @@ tda9887_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			t->radio_mode = tuner->audmode;
 			tda9887_configure (t);
 		}
+		break;
+	}
+	case VIDIOC_LOG_STATUS:
+	{
+		tda9887_info("Data bytes: b=%02x c=%02x e=%02x\n", t->data[1], t->data[2], t->data[3]);
 		break;
 	}
 	default:

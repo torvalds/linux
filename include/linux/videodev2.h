@@ -981,6 +981,7 @@ struct v4l2_streamparm
 #if 1
 #define VIDIOC_G_SLICED_VBI_CAP _IOR  ('V', 69, struct v4l2_sliced_vbi_cap)
 #endif
+#define VIDIOC_LOG_STATUS       _IO   ('V', 70)
 
 /* for compatibility, will go away some day */
 #define VIDIOC_OVERLAY_OLD     	_IOWR ('V', 14, int)

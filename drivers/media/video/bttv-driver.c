@@ -1851,6 +1851,11 @@ static int bttv_common_ioctls(struct bttv *btv, unsigned int cmd, void *arg)
 		up(&btv->lock);
 		return 0;
 	}
+	case VIDIOC_LOG_STATUS:
+	{
+		bttv_call_i2c_clients(btv, VIDIOC_LOG_STATUS, 0);
+		return 0;
+	}
 
 	default:
 		return -ENOIOCTLCMD;
@@ -2856,6 +2861,7 @@ static int bttv_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_S_TUNER:
 	case VIDIOC_G_FREQUENCY:
 	case VIDIOC_S_FREQUENCY:
+	case VIDIOC_LOG_STATUS:
 		return bttv_common_ioctls(btv,cmd,arg);
 
 	default:
