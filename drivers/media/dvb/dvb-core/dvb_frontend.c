@@ -42,8 +42,6 @@
 #include "dvb_frontend.h"
 #include "dvbdev.h"
 
-// #define DEBUG_LOCKLOSS 1
-
 static int dvb_frontend_debug;
 static int dvb_shutdown_timeout = 5;
 static int dvb_force_auto_inversion;
@@ -438,25 +436,6 @@ static int dvb_frontend_thread(void *data)
 			if (s & FE_HAS_LOCK)
 				continue;
 			else { /* if we _WERE_ tuned, but now don't have a lock */
-#ifdef DEBUG_LOCKLOSS
-				/* first of all try setting the tone again if it was on - this
-				 * sometimes works around problems with noisy power supplies */
-				if (fe->ops->set_tone && (fepriv->tone == SEC_TONE_ON)) {
-					fe->ops->set_tone(fe, fepriv->tone);
-					mdelay(100);
-					s = 0;
-					fe->ops->read_status(fe, &s);
-					if (s & FE_HAS_LOCK) {
-						printk("DVB%i: Lock was lost, but regained by setting "
-						       "the tone. This may indicate your power supply "
-						       "is noisy/slightly incompatable with this DVB-S "
-						       "adapter\n", fe->dvb->num);
-						fepriv->state = FESTATE_TUNED;
-						continue;
-					}
-				}
-#endif
-				/* some other reason for losing the lock - start zigzagging */
 				fepriv->state = FESTATE_ZIGZAG_FAST;
 				fepriv->started_auto_step = fepriv->auto_step;
 				check_wrapped = 0;
