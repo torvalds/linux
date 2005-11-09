@@ -161,7 +161,7 @@ static long d7s_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		writeb(regs, d7s_regs);
 		break;
 	};
-	lock_kernel();
+	unlock_kernel();
 
 	return error;
 }
