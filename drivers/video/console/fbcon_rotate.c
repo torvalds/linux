@@ -105,6 +105,9 @@ void fbcon_set_rotate(struct fbcon_ops *ops)
 	case FB_ROTATE_UD:
 		fbcon_rotate_ud(ops);
 		break;
+	case FB_ROTATE_CCW:
+		fbcon_rotate_ccw(ops);
+		break;
 	}
 }
 EXPORT_SYMBOL(fbcon_set_rotate);
