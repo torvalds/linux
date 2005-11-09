@@ -301,7 +301,7 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 {
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
 	r1bio_t * r1_bio = (r1bio_t *)(bio->bi_private);
-	int mirror, behind;
+	int mirror, behind = test_bit(R1BIO_BehindIO, &r1_bio->state);
 	conf_t *conf = mddev_to_conf(r1_bio->mddev);
 
 	if (bio->bi_size)
@@ -311,47 +311,54 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 		if (r1_bio->bios[mirror] == bio)
 			break;
 
-	/*
-	 * this branch is our 'one mirror IO has finished' event handler:
-	 */
-	if (!uptodate) {
-		md_error(r1_bio->mddev, conf->mirrors[mirror].rdev);
-		/* an I/O failed, we can't clear the bitmap */
-		set_bit(R1BIO_Degraded, &r1_bio->state);
-	} else
+	if (error == -ENOTSUPP && test_bit(R1BIO_Barrier, &r1_bio->state)) {
+		set_bit(BarriersNotsupp, &conf->mirrors[mirror].rdev->flags);
+		set_bit(R1BIO_BarrierRetry, &r1_bio->state);
+		r1_bio->mddev->barriers_work = 0;
+	} else {
 		/*
-		 * Set R1BIO_Uptodate in our master bio, so that
-		 * we will return a good error code for to the higher
-		 * levels even if IO on some other mirrored buffer fails.
-		 *
-		 * The 'master' represents the composite IO operation to
-		 * user-side. So if something waits for IO, then it will
-		 * wait for the 'master' bio.
+		 * this branch is our 'one mirror IO has finished' event handler:
 		 */
-		set_bit(R1BIO_Uptodate, &r1_bio->state);
+		r1_bio->bios[mirror] = NULL;
+		bio_put(bio);
+		if (!uptodate) {
+			md_error(r1_bio->mddev, conf->mirrors[mirror].rdev);
+			/* an I/O failed, we can't clear the bitmap */
+			set_bit(R1BIO_Degraded, &r1_bio->state);
+		} else
+			/*
+			 * Set R1BIO_Uptodate in our master bio, so that
+			 * we will return a good error code for to the higher
+			 * levels even if IO on some other mirrored buffer fails.
+			 *
+			 * The 'master' represents the composite IO operation to
+			 * user-side. So if something waits for IO, then it will
+			 * wait for the 'master' bio.
+			 */
+			set_bit(R1BIO_Uptodate, &r1_bio->state);
 
-	update_head_pos(mirror, r1_bio);
+		update_head_pos(mirror, r1_bio);
 
-	behind = test_bit(R1BIO_BehindIO, &r1_bio->state);
-	if (behind) {
-		if (test_bit(WriteMostly, &conf->mirrors[mirror].rdev->flags))
-			atomic_dec(&r1_bio->behind_remaining);
+		if (behind) {
+			if (test_bit(WriteMostly, &conf->mirrors[mirror].rdev->flags))
+				atomic_dec(&r1_bio->behind_remaining);
 
-		/* In behind mode, we ACK the master bio once the I/O has safely
-		 * reached all non-writemostly disks. Setting the Returned bit
-		 * ensures that this gets done only once -- we don't ever want to
-		 * return -EIO here, instead we'll wait */
+			/* In behind mode, we ACK the master bio once the I/O has safely
+			 * reached all non-writemostly disks. Setting the Returned bit
+			 * ensures that this gets done only once -- we don't ever want to
+			 * return -EIO here, instead we'll wait */
 
-		if (atomic_read(&r1_bio->behind_remaining) >= (atomic_read(&r1_bio->remaining)-1) &&
-		    test_bit(R1BIO_Uptodate, &r1_bio->state)) {
-			/* Maybe we can return now */
-			if (!test_and_set_bit(R1BIO_Returned, &r1_bio->state)) {
-				struct bio *mbio = r1_bio->master_bio;
-				PRINTK(KERN_DEBUG "raid1: behind end write sectors %llu-%llu\n",
-				       (unsigned long long) mbio->bi_sector,
-				       (unsigned long long) mbio->bi_sector +
-				       (mbio->bi_size >> 9) - 1);
-				bio_endio(mbio, mbio->bi_size, 0);
+			if (atomic_read(&r1_bio->behind_remaining) >= (atomic_read(&r1_bio->remaining)-1) &&
+			    test_bit(R1BIO_Uptodate, &r1_bio->state)) {
+				/* Maybe we can return now */
+				if (!test_and_set_bit(R1BIO_Returned, &r1_bio->state)) {
+					struct bio *mbio = r1_bio->master_bio;
+					PRINTK(KERN_DEBUG "raid1: behind end write sectors %llu-%llu\n",
+					       (unsigned long long) mbio->bi_sector,
+					       (unsigned long long) mbio->bi_sector +
+					       (mbio->bi_size >> 9) - 1);
+					bio_endio(mbio, mbio->bi_size, 0);
+				}
 			}
 		}
 	}
@@ -361,8 +368,16 @@ static int raid1_end_write_request(struct bio *bio, unsigned int bytes_done, int
 	 * already.
 	 */
 	if (atomic_dec_and_test(&r1_bio->remaining)) {
+		if (test_bit(R1BIO_BarrierRetry, &r1_bio->state)) {
+			reschedule_retry(r1_bio);
+			/* Don't dec_pending yet, we want to hold
+			 * the reference over the retry
+			 */
+			return 0;
+		}
 		if (test_bit(R1BIO_BehindIO, &r1_bio->state)) {
 			/* free extra copy of the data pages */
+/* FIXME bio has been freed!!! */
 			int i = bio->bi_vcnt;
 			while (i--)
 				__free_page(bio->bi_io_vec[i].bv_page);
@@ -648,8 +663,9 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	struct bio_list bl;
 	struct page **behind_pages = NULL;
 	const int rw = bio_data_dir(bio);
+	int do_barriers;
 
-	if (unlikely(bio_barrier(bio))) {
+	if (unlikely(!mddev->barriers_work && bio_barrier(bio))) {
 		bio_endio(bio, bio->bi_size, -EOPNOTSUPP);
 		return 0;
 	}
@@ -759,6 +775,10 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	atomic_set(&r1_bio->remaining, 0);
 	atomic_set(&r1_bio->behind_remaining, 0);
 
+	do_barriers = bio->bi_rw & BIO_RW_BARRIER;
+	if (do_barriers)
+		set_bit(R1BIO_Barrier, &r1_bio->state);
+
 	bio_list_init(&bl);
 	for (i = 0; i < disks; i++) {
 		struct bio *mbio;
@@ -771,7 +791,7 @@ static int make_request(request_queue_t *q, struct bio * bio)
 		mbio->bi_sector	= r1_bio->sector + conf->mirrors[i].rdev->data_offset;
 		mbio->bi_bdev = conf->mirrors[i].rdev->bdev;
 		mbio->bi_end_io	= raid1_end_write_request;
-		mbio->bi_rw = WRITE;
+		mbio->bi_rw = WRITE | do_barriers;
 		mbio->bi_private = r1_bio;
 
 		if (behind_pages) {
@@ -1153,6 +1173,36 @@ static void raid1d(mddev_t *mddev)
 		if (test_bit(R1BIO_IsSync, &r1_bio->state)) {
 			sync_request_write(mddev, r1_bio);
 			unplug = 1;
+		} else if (test_bit(R1BIO_BarrierRetry, &r1_bio->state)) {
+			/* some requests in the r1bio were BIO_RW_BARRIER
+			 * requests which failed with -ENOTSUPP.  Hohumm..
+			 * Better resubmit without the barrier.
+			 * We know which devices to resubmit for, because
+			 * all others have had their bios[] entry cleared.
+			 */
+			int i;
+			clear_bit(R1BIO_BarrierRetry, &r1_bio->state);
+			clear_bit(R1BIO_Barrier, &r1_bio->state);
+			for (i=0; i < conf->raid_disks; i++)
+				if (r1_bio->bios[i]) {
+					struct bio_vec *bvec;
+					int j;
+
+					bio = bio_clone(r1_bio->master_bio, GFP_NOIO);
+					/* copy pages from the failed bio, as
+					 * this might be a write-behind device */
+					__bio_for_each_segment(bvec, bio, j, 0)
+						bvec->bv_page = bio_iovec_idx(r1_bio->bios[i], j)->bv_page;
+					bio_put(r1_bio->bios[i]);
+					bio->bi_sector = r1_bio->sector +
+						conf->mirrors[i].rdev->data_offset;
+					bio->bi_bdev = conf->mirrors[i].rdev->bdev;
+					bio->bi_end_io = raid1_end_write_request;
+					bio->bi_rw = WRITE;
+					bio->bi_private = r1_bio;
+					r1_bio->bios[i] = bio;
+					generic_make_request(bio);
+				}
 		} else {
 			int disk;
 			bio = r1_bio->bios[r1_bio->read_disk];

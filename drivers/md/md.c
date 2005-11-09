@@ -330,16 +330,44 @@ static void free_disk_sb(mdk_rdev_t * rdev)
 static int super_written(struct bio *bio, unsigned int bytes_done, int error)
 {
 	mdk_rdev_t *rdev = bio->bi_private;
+	mddev_t *mddev = rdev->mddev;
 	if (bio->bi_size)
 		return 1;
 
 	if (error || !test_bit(BIO_UPTODATE, &bio->bi_flags))
-		md_error(rdev->mddev, rdev);
+		md_error(mddev, rdev);
 
-	if (atomic_dec_and_test(&rdev->mddev->pending_writes))
-		wake_up(&rdev->mddev->sb_wait);
+	if (atomic_dec_and_test(&mddev->pending_writes))
+		wake_up(&mddev->sb_wait);
 	bio_put(bio);
 	return 0;
+}
+
+static int super_written_barrier(struct bio *bio, unsigned int bytes_done, int error)
+{
+	struct bio *bio2 = bio->bi_private;
+	mdk_rdev_t *rdev = bio2->bi_private;
+	mddev_t *mddev = rdev->mddev;
+	if (bio->bi_size)
+		return 1;
+
+	if (!test_bit(BIO_UPTODATE, &bio->bi_flags) &&
+	    error == -EOPNOTSUPP) {
+		unsigned long flags;
+		/* barriers don't appear to be supported :-( */
+		set_bit(BarriersNotsupp, &rdev->flags);
+		mddev->barriers_work = 0;
+		spin_lock_irqsave(&mddev->write_lock, flags);
+		bio2->bi_next = mddev->biolist;
+		mddev->biolist = bio2;
+		spin_unlock_irqrestore(&mddev->write_lock, flags);
+		wake_up(&mddev->sb_wait);
+		bio_put(bio);
+		return 0;
+	}
+	bio_put(bio2);
+	bio->bi_private = rdev;
+	return super_written(bio, bytes_done, error);
 }
 
 void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
@@ -350,16 +378,54 @@ void md_super_write(mddev_t *mddev, mdk_rdev_t *rdev,
 	 * and decrement it on completion, waking up sb_wait
 	 * if zero is reached.
 	 * If an error occurred, call md_error
+	 *
+	 * As we might need to resubmit the request if BIO_RW_BARRIER
+	 * causes ENOTSUPP, we allocate a spare bio...
 	 */
 	struct bio *bio = bio_alloc(GFP_NOIO, 1);
+	int rw = (1<<BIO_RW) | (1<<BIO_RW_SYNC);
 
 	bio->bi_bdev = rdev->bdev;
 	bio->bi_sector = sector;
 	bio_add_page(bio, page, size, 0);
 	bio->bi_private = rdev;
 	bio->bi_end_io = super_written;
+	bio->bi_rw = rw;
+
 	atomic_inc(&mddev->pending_writes);
-	submit_bio((1<<BIO_RW)|(1<<BIO_RW_SYNC), bio);
+	if (!test_bit(BarriersNotsupp, &rdev->flags)) {
+		struct bio *rbio;
+		rw |= (1<<BIO_RW_BARRIER);
+		rbio = bio_clone(bio, GFP_NOIO);
+		rbio->bi_private = bio;
+		rbio->bi_end_io = super_written_barrier;
+		submit_bio(rw, rbio);
+	} else
+		submit_bio(rw, bio);
+}
+
+void md_super_wait(mddev_t *mddev)
+{
+	/* wait for all superblock writes that were scheduled to complete.
+	 * if any had to be retried (due to BARRIER problems), retry them
+	 */
+	DEFINE_WAIT(wq);
+	for(;;) {
+		prepare_to_wait(&mddev->sb_wait, &wq, TASK_UNINTERRUPTIBLE);
+		if (atomic_read(&mddev->pending_writes)==0)
+			break;
+		while (mddev->biolist) {
+			struct bio *bio;
+			spin_lock_irq(&mddev->write_lock);
+			bio = mddev->biolist;
+			mddev->biolist = bio->bi_next ;
+			bio->bi_next = NULL;
+			spin_unlock_irq(&mddev->write_lock);
+			submit_bio(bio->bi_rw, bio);
+		}
+		schedule();
+	}
+	finish_wait(&mddev->sb_wait, &wq);
 }
 
 static int bi_complete(struct bio *bio, unsigned int bytes_done, int error)
@@ -1382,7 +1448,7 @@ static void md_update_sb(mddev_t * mddev)
 	int sync_req;
 
 repeat:
-	spin_lock(&mddev->write_lock);
+	spin_lock_irq(&mddev->write_lock);
 	sync_req = mddev->in_sync;
 	mddev->utime = get_seconds();
 	mddev->events ++;
@@ -1405,11 +1471,11 @@ repeat:
 	 */
 	if (!mddev->persistent) {
 		mddev->sb_dirty = 0;
-		spin_unlock(&mddev->write_lock);
+		spin_unlock_irq(&mddev->write_lock);
 		wake_up(&mddev->sb_wait);
 		return;
 	}
-	spin_unlock(&mddev->write_lock);
+	spin_unlock_irq(&mddev->write_lock);
 
 	dprintk(KERN_INFO 
 		"md: updating %s RAID superblock on device (in sync %d)\n",
@@ -1437,17 +1503,17 @@ repeat:
 			/* only need to write one superblock... */
 			break;
 	}
-	wait_event(mddev->sb_wait, atomic_read(&mddev->pending_writes)==0);
+	md_super_wait(mddev);
 	/* if there was a failure, sb_dirty was set to 1, and we re-write super */
 
-	spin_lock(&mddev->write_lock);
+	spin_lock_irq(&mddev->write_lock);
 	if (mddev->in_sync != sync_req|| mddev->sb_dirty == 1) {
 		/* have to write it out again */
-		spin_unlock(&mddev->write_lock);
+		spin_unlock_irq(&mddev->write_lock);
 		goto repeat;
 	}
 	mddev->sb_dirty = 0;
-	spin_unlock(&mddev->write_lock);
+	spin_unlock_irq(&mddev->write_lock);
 	wake_up(&mddev->sb_wait);
 
 }
@@ -1989,6 +2055,7 @@ static int do_md_run(mddev_t * mddev)
 
 	mddev->recovery = 0;
 	mddev->resync_max_sectors = mddev->size << 1; /* may be over-ridden by personality */
+	mddev->barriers_work = 1;
 
 	/* before we start the array running, initialise the bitmap */
 	err = bitmap_create(mddev);
@@ -2107,7 +2174,7 @@ static int do_md_stop(mddev_t * mddev, int ro)
 			mddev->ro = 1;
 		} else {
 			bitmap_flush(mddev);
-			wait_event(mddev->sb_wait, atomic_read(&mddev->pending_writes)==0);
+			md_super_wait(mddev);
 			if (mddev->ro)
 				set_disk_ro(disk, 0);
 			blk_queue_make_request(mddev->queue, md_fail_request);
@@ -3796,13 +3863,13 @@ void md_write_start(mddev_t *mddev, struct bio *bi)
 
 	atomic_inc(&mddev->writes_pending);
 	if (mddev->in_sync) {
-		spin_lock(&mddev->write_lock);
+		spin_lock_irq(&mddev->write_lock);
 		if (mddev->in_sync) {
 			mddev->in_sync = 0;
 			mddev->sb_dirty = 1;
 			md_wakeup_thread(mddev->thread);
 		}
-		spin_unlock(&mddev->write_lock);
+		spin_unlock_irq(&mddev->write_lock);
 	}
 	wait_event(mddev->sb_wait, mddev->sb_dirty==0);
 }
@@ -4112,7 +4179,7 @@ void md_check_recovery(mddev_t *mddev)
 	if (mddev_trylock(mddev)==0) {
 		int spares =0;
 
-		spin_lock(&mddev->write_lock);
+		spin_lock_irq(&mddev->write_lock);
 		if (mddev->safemode && !atomic_read(&mddev->writes_pending) &&
 		    !mddev->in_sync && mddev->recovery_cp == MaxSector) {
 			mddev->in_sync = 1;
@@ -4120,7 +4187,7 @@ void md_check_recovery(mddev_t *mddev)
 		}
 		if (mddev->safemode == 1)
 			mddev->safemode = 0;
-		spin_unlock(&mddev->write_lock);
+		spin_unlock_irq(&mddev->write_lock);
 
 		if (mddev->sb_dirty)
 			md_update_sb(mddev);

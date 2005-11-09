@@ -122,6 +122,7 @@ struct mdk_rdev_s
 #define	Faulty		1		/* device is known to have a fault */
 #define	In_sync		2		/* device is in_sync with rest of array */
 #define	WriteMostly	4		/* Avoid reading if at all possible */
+#define	BarriersNotsupp	5		/* BIO_RW_BARRIER is not supported */
 
 	int desc_nr;			/* descriptor index in the superblock */
 	int raid_disk;			/* role of device in array */
@@ -209,6 +210,13 @@ struct mddev_s
 	int				changed;	/* true if we might need to reread partition info */
 	int				degraded;	/* whether md should consider
 							 * adding a spare
+							 */
+	int				barriers_work;	/* initialised to true, cleared as soon
+							 * as a barrier request to slave
+							 * fails.  Only supported
+							 */
+	struct bio			*biolist; 	/* bios that need to be retried
+							 * because BIO_RW_BARRIER is not supported
 							 */
 
 	atomic_t			recovery_active; /* blocks scheduled, but not written */

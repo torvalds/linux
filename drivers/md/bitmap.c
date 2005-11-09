@@ -301,7 +301,7 @@ static int write_sb_page(mddev_t *mddev, long offset, struct page *page, int wai
 				       page);
 
 	if (wait)
-		wait_event(mddev->sb_wait, atomic_read(&mddev->pending_writes)==0);
+		md_super_wait(mddev);
 	return 0;
 }
 
@@ -828,8 +828,7 @@ int bitmap_unplug(struct bitmap *bitmap)
 					    wake_up_process(bitmap->writeback_daemon->tsk));
 			spin_unlock_irq(&bitmap->write_lock);
 		} else
-			wait_event(bitmap->mddev->sb_wait,
-				   atomic_read(&bitmap->mddev->pending_writes)==0);
+			md_super_wait(bitmap->mddev);
 	}
 	return 0;
 }
