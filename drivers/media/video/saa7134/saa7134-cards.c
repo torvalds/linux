@@ -2848,6 +2848,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_409FM:
 	case SAA7134_BOARD_AVACSSMARTTV:
 	case SAA7134_BOARD_GOTVIEW_7135:
+	case SAA7134_BOARD_KWORLD_TERMINATOR:
 		dev->has_remote = 1;
 		break;
 	case SAA7134_BOARD_MD5044:

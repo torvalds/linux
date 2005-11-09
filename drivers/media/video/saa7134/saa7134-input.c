@@ -557,6 +557,12 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		saa_setb(SAA7134_GPIO_GPMODE0, 0x4);
 		saa_setb(SAA7134_GPIO_GPSTATUS0, 0x4);
 		break;
+        case SAA7134_BOARD_KWORLD_TERMINATOR:
+		ir_codes     = avacssmart_codes;
+		mask_keycode = 0x00001f;
+		mask_keyup   = 0x000060;
+		polling      = 50; // ms
+		break;
 	case SAA7134_BOARD_MANLI_MTV001:
 	case SAA7134_BOARD_MANLI_MTV002:
 	case SAA7134_BOARD_BEHOLD_409FM:
