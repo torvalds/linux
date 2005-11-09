@@ -1256,6 +1256,8 @@ int bond_alb_initialize(struct bonding *bond, int rlb_enabled)
 			tlb_deinitialize(bond);
 			return res;
 		}
+	} else {
+		bond->alb_info.rlb_enabled = 0;
 	}
 
 	return 0;
