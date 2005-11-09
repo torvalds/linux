@@ -964,7 +964,7 @@ i2c_vidiocschan(struct bttv *btv)
 	c.norm    = btv->tvnorm;
 	c.channel = btv->input;
 	bttv_call_i2c_clients(btv,VIDIOCSCHAN,&c);
-	if (btv->c.type == BTTV_VOODOOTV_FM)
+	if (btv->c.type == BTTV_BOARD_VOODOOTV_FM)
 		bttv_tda9880_setnorm(btv,c.norm);
 }
 
@@ -988,7 +988,7 @@ set_tvnorm(struct bttv *btv, unsigned int norm)
 	bt848A_set_timing(btv);
 
 	switch (btv->c.type) {
-	case BTTV_VOODOOTV_FM:
+	case BTTV_BOARD_VOODOOTV_FM:
 		bttv_tda9880_setnorm(btv,norm);
 		break;
 	}

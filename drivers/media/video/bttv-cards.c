@@ -145,162 +145,162 @@ static struct CARD {
 	int cardnr;
 	char *name;
 } cards[] __devinitdata = {
-	{ 0x13eb0070, BTTV_HAUPPAUGE878,  "Hauppauge WinTV" },
-	{ 0x39000070, BTTV_HAUPPAUGE878,  "Hauppauge WinTV-D" },
-	{ 0x45000070, BTTV_HAUPPAUGEPVR,  "Hauppauge WinTV/PVR" },
-	{ 0xff000070, BTTV_OSPREY1x0,     "Osprey-100" },
-	{ 0xff010070, BTTV_OSPREY2x0_SVID,"Osprey-200" },
-	{ 0xff020070, BTTV_OSPREY500,     "Osprey-500" },
-	{ 0xff030070, BTTV_OSPREY2000,    "Osprey-2000" },
-	{ 0xff040070, BTTV_OSPREY540,     "Osprey-540" },
+	{ 0x13eb0070, BTTV_BOARD_HAUPPAUGE878,  "Hauppauge WinTV" },
+	{ 0x39000070, BTTV_BOARD_HAUPPAUGE878,  "Hauppauge WinTV-D" },
+	{ 0x45000070, BTTV_BOARD_HAUPPAUGEPVR,  "Hauppauge WinTV/PVR" },
+	{ 0xff000070, BTTV_BOARD_OSPREY1x0,     "Osprey-100" },
+	{ 0xff010070, BTTV_BOARD_OSPREY2x0_SVID,"Osprey-200" },
+	{ 0xff020070, BTTV_BOARD_OSPREY500,     "Osprey-500" },
+	{ 0xff030070, BTTV_BOARD_OSPREY2000,    "Osprey-2000" },
+	{ 0xff040070, BTTV_BOARD_OSPREY540,     "Osprey-540" },
 
-	{ 0x00011002, BTTV_ATI_TVWONDER,  "ATI TV Wonder" },
-	{ 0x00031002, BTTV_ATI_TVWONDERVE,"ATI TV Wonder/VE" },
+	{ 0x00011002, BTTV_BOARD_ATI_TVWONDER,  "ATI TV Wonder" },
+	{ 0x00031002, BTTV_BOARD_ATI_TVWONDERVE,"ATI TV Wonder/VE" },
 
-	{ 0x6606107d, BTTV_WINFAST2000,   "Leadtek WinFast TV 2000" },
-	{ 0x6607107d, BTTV_WINFASTVC100,  "Leadtek WinFast VC 100" },
-	{ 0x6609107d, BTTV_WINFAST2000,   "Leadtek TV 2000 XP" },
-	{ 0x263610b4, BTTV_STB2,          "STB TV PCI FM, Gateway P/N 6000704" },
-	{ 0x264510b4, BTTV_STB2,          "STB TV PCI FM, Gateway P/N 6000704" },
- 	{ 0x402010fc, BTTV_GVBCTV3PCI,    "I-O Data Co. GV-BCTV3/PCI" },
-	{ 0x405010fc, BTTV_GVBCTV4PCI,    "I-O Data Co. GV-BCTV4/PCI" },
-	{ 0x407010fc, BTTV_GVBCTV5PCI,    "I-O Data Co. GV-BCTV5/PCI" },
- 	{ 0xd01810fc, BTTV_GVBCTV5PCI,    "I-O Data Co. GV-BCTV5/PCI" },
+	{ 0x6606107d, BTTV_BOARD_WINFAST2000,   "Leadtek WinFast TV 2000" },
+	{ 0x6607107d, BTTV_BOARD_WINFASTVC100,  "Leadtek WinFast VC 100" },
+	{ 0x6609107d, BTTV_BOARD_WINFAST2000,   "Leadtek TV 2000 XP" },
+	{ 0x263610b4, BTTV_BOARD_STB2,          "STB TV PCI FM, Gateway P/N 6000704" },
+	{ 0x264510b4, BTTV_BOARD_STB2,          "STB TV PCI FM, Gateway P/N 6000704" },
+ 	{ 0x402010fc, BTTV_BOARD_GVBCTV3PCI,    "I-O Data Co. GV-BCTV3/PCI" },
+	{ 0x405010fc, BTTV_BOARD_GVBCTV4PCI,    "I-O Data Co. GV-BCTV4/PCI" },
+	{ 0x407010fc, BTTV_BOARD_GVBCTV5PCI,    "I-O Data Co. GV-BCTV5/PCI" },
+ 	{ 0xd01810fc, BTTV_BOARD_GVBCTV5PCI,    "I-O Data Co. GV-BCTV5/PCI" },
 
-	{ 0x001211bd, BTTV_PINNACLE,      "Pinnacle PCTV" },
+	{ 0x001211bd, BTTV_BOARD_PINNACLE,      "Pinnacle PCTV" },
 	/* some cards ship with byteswapped IDs ... */
-	{ 0x1200bd11, BTTV_PINNACLE,      "Pinnacle PCTV [bswap]" },
-	{ 0xff00bd11, BTTV_PINNACLE,      "Pinnacle PCTV [bswap]" },
+	{ 0x1200bd11, BTTV_BOARD_PINNACLE,      "Pinnacle PCTV [bswap]" },
+	{ 0xff00bd11, BTTV_BOARD_PINNACLE,      "Pinnacle PCTV [bswap]" },
 	/* this seems to happen as well ... */
-	{ 0xff1211bd, BTTV_PINNACLE,      "Pinnacle PCTV" },
+	{ 0xff1211bd, BTTV_BOARD_PINNACLE,      "Pinnacle PCTV" },
 
-	{ 0x3000121a, BTTV_VOODOOTV_FM,   "3Dfx VoodooTV FM/ VoodooTV 200" },
-	{ 0x263710b4, BTTV_VOODOOTV_FM,   "3Dfx VoodooTV FM/ VoodooTV 200" },
-	{ 0x3060121a, BTTV_STB2,	  "3Dfx VoodooTV 100/ STB OEM" },
+	{ 0x3000121a, BTTV_BOARD_VOODOOTV_FM,   "3Dfx VoodooTV FM/ VoodooTV 200" },
+	{ 0x263710b4, BTTV_BOARD_VOODOOTV_FM,   "3Dfx VoodooTV FM/ VoodooTV 200" },
+	{ 0x3060121a, BTTV_BOARD_STB2,	  "3Dfx VoodooTV 100/ STB OEM" },
 
-	{ 0x3000144f, BTTV_MAGICTVIEW063, "(Askey Magic/others) TView99 CPH06x" },
-	{ 0xa005144f, BTTV_MAGICTVIEW063, "CPH06X TView99-Card" },
-	{ 0x3002144f, BTTV_MAGICTVIEW061, "(Askey Magic/others) TView99 CPH05x" },
-	{ 0x3005144f, BTTV_MAGICTVIEW061, "(Askey Magic/others) TView99 CPH061/06L (T1/LC)" },
-	{ 0x5000144f, BTTV_MAGICTVIEW061, "Askey CPH050" },
-	{ 0x300014ff, BTTV_MAGICTVIEW061, "TView 99 (CPH061)" },
-	{ 0x300214ff, BTTV_PHOEBE_TVMAS,  "Phoebe TV Master (CPH060)" },
+	{ 0x3000144f, BTTV_BOARD_MAGICTVIEW063, "(Askey Magic/others) TView99 CPH06x" },
+	{ 0xa005144f, BTTV_BOARD_MAGICTVIEW063, "CPH06X TView99-Card" },
+	{ 0x3002144f, BTTV_BOARD_MAGICTVIEW061, "(Askey Magic/others) TView99 CPH05x" },
+	{ 0x3005144f, BTTV_BOARD_MAGICTVIEW061, "(Askey Magic/others) TView99 CPH061/06L (T1/LC)" },
+	{ 0x5000144f, BTTV_BOARD_MAGICTVIEW061, "Askey CPH050" },
+	{ 0x300014ff, BTTV_BOARD_MAGICTVIEW061, "TView 99 (CPH061)" },
+	{ 0x300214ff, BTTV_BOARD_PHOEBE_TVMAS,  "Phoebe TV Master (CPH060)" },
 
-	{ 0x00011461, BTTV_AVPHONE98,     "AVerMedia TVPhone98" },
-	{ 0x00021461, BTTV_AVERMEDIA98,   "AVermedia TVCapture 98" },
-	{ 0x00031461, BTTV_AVPHONE98,     "AVerMedia TVPhone98" },
-	{ 0x00041461, BTTV_AVERMEDIA98,   "AVerMedia TVCapture 98" },
-	{ 0x03001461, BTTV_AVERMEDIA98,   "VDOMATE TV TUNER CARD" },
+	{ 0x00011461, BTTV_BOARD_AVPHONE98,     "AVerMedia TVPhone98" },
+	{ 0x00021461, BTTV_BOARD_AVERMEDIA98,   "AVermedia TVCapture 98" },
+	{ 0x00031461, BTTV_BOARD_AVPHONE98,     "AVerMedia TVPhone98" },
+	{ 0x00041461, BTTV_BOARD_AVERMEDIA98,   "AVerMedia TVCapture 98" },
+	{ 0x03001461, BTTV_BOARD_AVERMEDIA98,   "VDOMATE TV TUNER CARD" },
 
-	{ 0x1117153b, BTTV_TERRATVALUE,   "Terratec TValue (Philips PAL B/G)" },
-	{ 0x1118153b, BTTV_TERRATVALUE,   "Terratec TValue (Temic PAL B/G)" },
-	{ 0x1119153b, BTTV_TERRATVALUE,   "Terratec TValue (Philips PAL I)" },
-	{ 0x111a153b, BTTV_TERRATVALUE,   "Terratec TValue (Temic PAL I)" },
+	{ 0x1117153b, BTTV_BOARD_TERRATVALUE,   "Terratec TValue (Philips PAL B/G)" },
+	{ 0x1118153b, BTTV_BOARD_TERRATVALUE,   "Terratec TValue (Temic PAL B/G)" },
+	{ 0x1119153b, BTTV_BOARD_TERRATVALUE,   "Terratec TValue (Philips PAL I)" },
+	{ 0x111a153b, BTTV_BOARD_TERRATVALUE,   "Terratec TValue (Temic PAL I)" },
 
-	{ 0x1123153b, BTTV_TERRATVRADIO,  "Terratec TV Radio+" },
-	{ 0x1127153b, BTTV_TERRATV,       "Terratec TV+ (V1.05)"    },
+	{ 0x1123153b, BTTV_BOARD_TERRATVRADIO,  "Terratec TV Radio+" },
+	{ 0x1127153b, BTTV_BOARD_TERRATV,       "Terratec TV+ (V1.05)"    },
 	/* clashes with FlyVideo
-	 *{ 0x18521852, BTTV_TERRATV,     "Terratec TV+ (V1.10)"    }, */
-	{ 0x1134153b, BTTV_TERRATVALUE,   "Terratec TValue (LR102)" },
-	{ 0x1135153b, BTTV_TERRATVALUER,  "Terratec TValue Radio" }, /* LR102 */
-	{ 0x5018153b, BTTV_TERRATVALUE,   "Terratec TValue" },       /* ?? */
-	{ 0xff3b153b, BTTV_TERRATVALUER,  "Terratec TValue Radio" }, /* ?? */
+	 *{ 0x18521852, BTTV_BOARD_TERRATV,     "Terratec TV+ (V1.10)"    }, */
+	{ 0x1134153b, BTTV_BOARD_TERRATVALUE,   "Terratec TValue (LR102)" },
+	{ 0x1135153b, BTTV_BOARD_TERRATVALUER,  "Terratec TValue Radio" }, /* LR102 */
+	{ 0x5018153b, BTTV_BOARD_TERRATVALUE,   "Terratec TValue" },       /* ?? */
+	{ 0xff3b153b, BTTV_BOARD_TERRATVALUER,  "Terratec TValue Radio" }, /* ?? */
 
-	{ 0x400015b0, BTTV_ZOLTRIX_GENIE, "Zoltrix Genie TV" },
-	{ 0x400a15b0, BTTV_ZOLTRIX_GENIE, "Zoltrix Genie TV" },
-	{ 0x400d15b0, BTTV_ZOLTRIX_GENIE, "Zoltrix Genie TV / Radio" },
-	{ 0x401015b0, BTTV_ZOLTRIX_GENIE, "Zoltrix Genie TV / Radio" },
-	{ 0x401615b0, BTTV_ZOLTRIX_GENIE, "Zoltrix Genie TV / Radio" },
+	{ 0x400015b0, BTTV_BOARD_ZOLTRIX_GENIE, "Zoltrix Genie TV" },
+	{ 0x400a15b0, BTTV_BOARD_ZOLTRIX_GENIE, "Zoltrix Genie TV" },
+	{ 0x400d15b0, BTTV_BOARD_ZOLTRIX_GENIE, "Zoltrix Genie TV / Radio" },
+	{ 0x401015b0, BTTV_BOARD_ZOLTRIX_GENIE, "Zoltrix Genie TV / Radio" },
+	{ 0x401615b0, BTTV_BOARD_ZOLTRIX_GENIE, "Zoltrix Genie TV / Radio" },
 
-	{ 0x1430aa00, BTTV_PV143,         "Provideo PV143A" },
-	{ 0x1431aa00, BTTV_PV143,         "Provideo PV143B" },
-	{ 0x1432aa00, BTTV_PV143,         "Provideo PV143C" },
-	{ 0x1433aa00, BTTV_PV143,         "Provideo PV143D" },
-	{ 0x1433aa03, BTTV_PV143,         "Security Eyes" },
+	{ 0x1430aa00, BTTV_BOARD_PV143,         "Provideo PV143A" },
+	{ 0x1431aa00, BTTV_BOARD_PV143,         "Provideo PV143B" },
+	{ 0x1432aa00, BTTV_BOARD_PV143,         "Provideo PV143C" },
+	{ 0x1433aa00, BTTV_BOARD_PV143,         "Provideo PV143D" },
+	{ 0x1433aa03, BTTV_BOARD_PV143,         "Security Eyes" },
 
-	{ 0x1460aa00, BTTV_PV150,         "Provideo PV150A-1" },
-	{ 0x1461aa01, BTTV_PV150,         "Provideo PV150A-2" },
-	{ 0x1462aa02, BTTV_PV150,         "Provideo PV150A-3" },
-	{ 0x1463aa03, BTTV_PV150,         "Provideo PV150A-4" },
+	{ 0x1460aa00, BTTV_BOARD_PV150,         "Provideo PV150A-1" },
+	{ 0x1461aa01, BTTV_BOARD_PV150,         "Provideo PV150A-2" },
+	{ 0x1462aa02, BTTV_BOARD_PV150,         "Provideo PV150A-3" },
+	{ 0x1463aa03, BTTV_BOARD_PV150,         "Provideo PV150A-4" },
 
-	{ 0x1464aa04, BTTV_PV150,         "Provideo PV150B-1" },
-	{ 0x1465aa05, BTTV_PV150,         "Provideo PV150B-2" },
-	{ 0x1466aa06, BTTV_PV150,         "Provideo PV150B-3" },
-	{ 0x1467aa07, BTTV_PV150,         "Provideo PV150B-4" },
+	{ 0x1464aa04, BTTV_BOARD_PV150,         "Provideo PV150B-1" },
+	{ 0x1465aa05, BTTV_BOARD_PV150,         "Provideo PV150B-2" },
+	{ 0x1466aa06, BTTV_BOARD_PV150,         "Provideo PV150B-3" },
+	{ 0x1467aa07, BTTV_BOARD_PV150,         "Provideo PV150B-4" },
 
-	{ 0xa132ff00, BTTV_IVC100,        "IVC-100"  },
-	{ 0xa1550000, BTTV_IVC200,        "IVC-200"  },
-	{ 0xa1550001, BTTV_IVC200,        "IVC-200"  },
-	{ 0xa1550002, BTTV_IVC200,        "IVC-200"  },
-	{ 0xa1550003, BTTV_IVC200,        "IVC-200"  },
-	{ 0xa1550100, BTTV_IVC200,        "IVC-200G" },
-	{ 0xa1550101, BTTV_IVC200,        "IVC-200G" },
-	{ 0xa1550102, BTTV_IVC200,        "IVC-200G" },
-	{ 0xa1550103, BTTV_IVC200,        "IVC-200G" },
-	{ 0xa182ff00, BTTV_IVC120,        "IVC-120G" },
-	{ 0xa182ff01, BTTV_IVC120,        "IVC-120G" },
-	{ 0xa182ff02, BTTV_IVC120,        "IVC-120G" },
-	{ 0xa182ff03, BTTV_IVC120,        "IVC-120G" },
-	{ 0xa182ff04, BTTV_IVC120,        "IVC-120G" },
-	{ 0xa182ff05, BTTV_IVC120,        "IVC-120G" },
-	{ 0xa182ff06, BTTV_IVC120,        "IVC-120G" },
-	{ 0xa182ff07, BTTV_IVC120,        "IVC-120G" },
-	{ 0xa182ff08, BTTV_IVC120,        "IVC-120G" },
-	{ 0xa182ff09, BTTV_IVC120,        "IVC-120G" },
-	{ 0xa182ff0a, BTTV_IVC120,        "IVC-120G" },
-	{ 0xa182ff0b, BTTV_IVC120,        "IVC-120G" },
-	{ 0xa182ff0c, BTTV_IVC120,        "IVC-120G" },
-	{ 0xa182ff0d, BTTV_IVC120,        "IVC-120G" },
-	{ 0xa182ff0e, BTTV_IVC120,        "IVC-120G" },
-	{ 0xa182ff0f, BTTV_IVC120,        "IVC-120G" },
+	{ 0xa132ff00, BTTV_BOARD_IVC100,        "IVC-100"  },
+	{ 0xa1550000, BTTV_BOARD_IVC200,        "IVC-200"  },
+	{ 0xa1550001, BTTV_BOARD_IVC200,        "IVC-200"  },
+	{ 0xa1550002, BTTV_BOARD_IVC200,        "IVC-200"  },
+	{ 0xa1550003, BTTV_BOARD_IVC200,        "IVC-200"  },
+	{ 0xa1550100, BTTV_BOARD_IVC200,        "IVC-200G" },
+	{ 0xa1550101, BTTV_BOARD_IVC200,        "IVC-200G" },
+	{ 0xa1550102, BTTV_BOARD_IVC200,        "IVC-200G" },
+	{ 0xa1550103, BTTV_BOARD_IVC200,        "IVC-200G" },
+	{ 0xa182ff00, BTTV_BOARD_IVC120,        "IVC-120G" },
+	{ 0xa182ff01, BTTV_BOARD_IVC120,        "IVC-120G" },
+	{ 0xa182ff02, BTTV_BOARD_IVC120,        "IVC-120G" },
+	{ 0xa182ff03, BTTV_BOARD_IVC120,        "IVC-120G" },
+	{ 0xa182ff04, BTTV_BOARD_IVC120,        "IVC-120G" },
+	{ 0xa182ff05, BTTV_BOARD_IVC120,        "IVC-120G" },
+	{ 0xa182ff06, BTTV_BOARD_IVC120,        "IVC-120G" },
+	{ 0xa182ff07, BTTV_BOARD_IVC120,        "IVC-120G" },
+	{ 0xa182ff08, BTTV_BOARD_IVC120,        "IVC-120G" },
+	{ 0xa182ff09, BTTV_BOARD_IVC120,        "IVC-120G" },
+	{ 0xa182ff0a, BTTV_BOARD_IVC120,        "IVC-120G" },
+	{ 0xa182ff0b, BTTV_BOARD_IVC120,        "IVC-120G" },
+	{ 0xa182ff0c, BTTV_BOARD_IVC120,        "IVC-120G" },
+	{ 0xa182ff0d, BTTV_BOARD_IVC120,        "IVC-120G" },
+	{ 0xa182ff0e, BTTV_BOARD_IVC120,        "IVC-120G" },
+	{ 0xa182ff0f, BTTV_BOARD_IVC120,        "IVC-120G" },
 
-	{ 0x41424344, BTTV_GRANDTEC,      "GrandTec Multi Capture" },
-	{ 0x01020304, BTTV_XGUARD,        "Grandtec Grand X-Guard" },
+	{ 0x41424344, BTTV_BOARD_GRANDTEC,      "GrandTec Multi Capture" },
+	{ 0x01020304, BTTV_BOARD_XGUARD,        "Grandtec Grand X-Guard" },
 
-	{ 0x18501851, BTTV_CHRONOS_VS2,   "FlyVideo 98 (LR50)/ Chronos Video Shuttle II" },
-	{ 0xa0501851, BTTV_CHRONOS_VS2,   "FlyVideo 98 (LR50)/ Chronos Video Shuttle II" },
-	{ 0x18511851, BTTV_FLYVIDEO98EZ,  "FlyVideo 98EZ (LR51)/ CyberMail AV" },
-	{ 0x18521852, BTTV_TYPHOON_TVIEW, "FlyVideo 98FM (LR50)/ Typhoon TView TV/FM Tuner" },
-	{ 0x41a0a051, BTTV_FLYVIDEO_98FM, "Lifeview FlyVideo 98 LR50 Rev Q" },
-	{ 0x18501f7f, BTTV_FLYVIDEO_98,   "Lifeview Flyvideo 98" },
+	{ 0x18501851, BTTV_BOARD_CHRONOS_VS2,   "FlyVideo 98 (LR50)/ Chronos Video Shuttle II" },
+	{ 0xa0501851, BTTV_BOARD_CHRONOS_VS2,   "FlyVideo 98 (LR50)/ Chronos Video Shuttle II" },
+	{ 0x18511851, BTTV_BOARD_FLYVIDEO98EZ,  "FlyVideo 98EZ (LR51)/ CyberMail AV" },
+	{ 0x18521852, BTTV_BOARD_TYPHOON_TVIEW, "FlyVideo 98FM (LR50)/ Typhoon TView TV/FM Tuner" },
+	{ 0x41a0a051, BTTV_BOARD_FLYVIDEO_98FM, "Lifeview FlyVideo 98 LR50 Rev Q" },
+	{ 0x18501f7f, BTTV_BOARD_FLYVIDEO_98,   "Lifeview Flyvideo 98" },
 
-    	{ 0x010115cb, BTTV_GMV1,          "AG GMV1" },
-	{ 0x010114c7, BTTV_MODTEC_205,    "Modular Technology MM201/MM202/MM205/MM210/MM215 PCTV" },
+    	{ 0x010115cb, BTTV_BOARD_GMV1,          "AG GMV1" },
+	{ 0x010114c7, BTTV_BOARD_MODTEC_205,    "Modular Technology MM201/MM202/MM205/MM210/MM215 PCTV" },
 
-	{ 0x10b42636, BTTV_HAUPPAUGE878,  "STB ???" },
-	{ 0x217d6606, BTTV_WINFAST2000,   "Leadtek WinFast TV 2000" },
-	{ 0xfff6f6ff, BTTV_WINFAST2000,   "Leadtek WinFast TV 2000" },
-	{ 0x03116000, BTTV_SENSORAY311,   "Sensoray 311" },
-	{ 0x00790e11, BTTV_WINDVR,        "Canopus WinDVR PCI" },
-	{ 0xa0fca1a0, BTTV_ZOLTRIX,       "Face to Face Tvmax" },
-	{ 0x20007063, BTTV_PC_HDTV,       "pcHDTV HD-2000 TV"},
-	{ 0x82b2aa6a, BTTV_SIMUS_GVC1100, "SIMUS GVC1100" },
-	{ 0x146caa0c, BTTV_PV951,         "ituner spectra8" },
- 	{ 0x200a1295, BTTV_PXC200,        "ImageNation PXC200A" },
+	{ 0x10b42636, BTTV_BOARD_HAUPPAUGE878,  "STB ???" },
+	{ 0x217d6606, BTTV_BOARD_WINFAST2000,   "Leadtek WinFast TV 2000" },
+	{ 0xfff6f6ff, BTTV_BOARD_WINFAST2000,   "Leadtek WinFast TV 2000" },
+	{ 0x03116000, BTTV_BOARD_SENSORAY311,   "Sensoray 311" },
+	{ 0x00790e11, BTTV_BOARD_WINDVR,        "Canopus WinDVR PCI" },
+	{ 0xa0fca1a0, BTTV_BOARD_ZOLTRIX,       "Face to Face Tvmax" },
+	{ 0x20007063, BTTV_BOARD_PC_HDTV,       "pcHDTV HD-2000 TV"},
+	{ 0x82b2aa6a, BTTV_BOARD_SIMUS_GVC1100, "SIMUS GVC1100" },
+	{ 0x146caa0c, BTTV_BOARD_PV951,         "ituner spectra8" },
+ 	{ 0x200a1295, BTTV_BOARD_PXC200,        "ImageNation PXC200A" },
 
-	{ 0x40111554, BTTV_PV_BT878P_9B,  "Prolink Pixelview PV-BT" },
-	{ 0x17de0a01, BTTV_KWORLD,        "Mecer TV/FM/Video Tuner" },
+	{ 0x40111554, BTTV_BOARD_PV_BT878P_9B,  "Prolink Pixelview PV-BT" },
+	{ 0x17de0a01, BTTV_BOARD_KWORLD,        "Mecer TV/FM/Video Tuner" },
 
-	{ 0x01051805, BTTV_PICOLO_TETRA_CHIP, "Picolo Tetra Chip #1" },
-	{ 0x01061805, BTTV_PICOLO_TETRA_CHIP, "Picolo Tetra Chip #2" },
-	{ 0x01071805, BTTV_PICOLO_TETRA_CHIP, "Picolo Tetra Chip #3" },
-	{ 0x01081805, BTTV_PICOLO_TETRA_CHIP, "Picolo Tetra Chip #4" },
+	{ 0x01051805, BTTV_BOARD_PICOLO_TETRA_CHIP, "Picolo Tetra Chip #1" },
+	{ 0x01061805, BTTV_BOARD_PICOLO_TETRA_CHIP, "Picolo Tetra Chip #2" },
+	{ 0x01071805, BTTV_BOARD_PICOLO_TETRA_CHIP, "Picolo Tetra Chip #3" },
+	{ 0x01081805, BTTV_BOARD_PICOLO_TETRA_CHIP, "Picolo Tetra Chip #4" },
 
-	{ 0x15409511, BTTV_ACORP_Y878F, "Acorp Y878F" },
+	{ 0x15409511, BTTV_BOARD_ACORP_Y878F, "Acorp Y878F" },
 
 	/* likely broken, vendor id doesn't match the other magic views ...
-	 * { 0xa0fca04f, BTTV_MAGICTVIEW063, "Guillemot Maxi TV Video 3" }, */
+	 * { 0xa0fca04f, BTTV_BOARD_MAGICTVIEW063, "Guillemot Maxi TV Video 3" }, */
 
 	/* DVB cards (using pci function .1 for mpeg data xfer) */
-	{ 0x01010071, BTTV_NEBULA_DIGITV, "Nebula Electronics DigiTV" },
-	{ 0x07611461, BTTV_AVDVBT_761,    "AverMedia AverTV DVB-T 761" },
-	{ 0x001c11bd, BTTV_PINNACLESAT,   "Pinnacle PCTV Sat" },
-	{ 0x002611bd, BTTV_TWINHAN_DST,   "Pinnacle PCTV SAT CI" },
-	{ 0x00011822, BTTV_TWINHAN_DST,   "Twinhan VisionPlus DVB" },
-	{ 0xfc00270f, BTTV_TWINHAN_DST,   "ChainTech digitop DST-1000 DVB-S" },
-	{ 0x07711461, BTTV_AVDVBT_771,    "AVermedia AverTV DVB-T 771" },
-	{ 0xdb1018ac, BTTV_DVICO_DVBT_LITE,    "DViCO FusionHDTV DVB-T Lite" },
-	{ 0xd50018ac, BTTV_DVICO_FUSIONHDTV_5_LITE,    "DViCO FusionHDTV 5 Lite" },
+	{ 0x01010071, BTTV_BOARD_NEBULA_DIGITV, "Nebula Electronics DigiTV" },
+	{ 0x07611461, BTTV_BOARD_AVDVBT_761,    "AverMedia AverTV DVB-T 761" },
+	{ 0x001c11bd, BTTV_BOARD_PINNACLESAT,   "Pinnacle PCTV Sat" },
+	{ 0x002611bd, BTTV_BOARD_TWINHAN_DST,   "Pinnacle PCTV SAT CI" },
+	{ 0x00011822, BTTV_BOARD_TWINHAN_DST,   "Twinhan VisionPlus DVB" },
+	{ 0xfc00270f, BTTV_BOARD_TWINHAN_DST,   "ChainTech digitop DST-1000 DVB-S" },
+	{ 0x07711461, BTTV_BOARD_AVDVBT_771,    "AVermedia AverTV DVB-T 771" },
+	{ 0xdb1018ac, BTTV_BOARD_DVICO_DVBT_LITE,    "DViCO FusionHDTV DVB-T Lite" },
+	{ 0xd50018ac, BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE,    "DViCO FusionHDTV 5 Lite" },
 
 	{ 0, -1, NULL }
 };
@@ -309,8 +309,8 @@ static struct CARD {
 /* array with description for bt848 / bt878 tv/grabber cards               */
 
 struct tvcard bttv_tvcards[] = {
-	[BTTV_UNKNOWN] = {
 	/* ---- card 0x00 ---------------------------------- */
+	[BTTV_BOARD_UNKNOWN] = {
 		.name		= " *** UNKNOWN/GENERIC *** ",
 		.video_inputs	= 4,
 		.audio_inputs	= 1,
@@ -320,7 +320,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_MIRO] = {
+	[BTTV_BOARD_MIRO] = {
 		.name		= "MIRO PCTV",
 		.video_inputs	= 4,
 		.audio_inputs	= 1,
@@ -333,7 +333,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_HAUPPAUGE] = {
+	[BTTV_BOARD_HAUPPAUGE] = {
 		.name		= "Hauppauge (bt848)",
 		.video_inputs	= 4,
 		.audio_inputs	= 1,
@@ -346,7 +346,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_STB] = {
+	[BTTV_BOARD_STB] = {
 		.name		= "STB, Gateway P/N 6000699 (bt848)",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -364,7 +364,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x04 ---------------------------------- */
-	[BTTV_INTEL] = {
+	[BTTV_BOARD_INTEL] = {
 		.name		= "Intel Create and Share PCI/ Smart Video Recorder III",
 		.video_inputs	= 4,
 		.audio_inputs	= 0,
@@ -377,7 +377,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= 4,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_DIAMOND] = {
+	[BTTV_BOARD_DIAMOND] = {
 		.name		= "Diamond DTV2000",
 		.video_inputs	= 4,
 		.audio_inputs	= 1,
@@ -390,7 +390,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_AVERMEDIA] = {
+	[BTTV_BOARD_AVERMEDIA] = {
 		.name		= "AVerMedia TVPhone",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -406,7 +406,7 @@ struct tvcard bttv_tvcards[] = {
 		.audio_hook	= avermedia_tvphone_audio,
 		.has_remote     = 1,
 	},
-	[BTTV_MATRIX_VISION] = {
+	[BTTV_BOARD_MATRIX_VISION] = {
 		.name		= "MATRIX-Vision MV-Delta",
 		.video_inputs	= 5,
 		.audio_inputs	= 1,
@@ -421,7 +421,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x08 ---------------------------------- */
-	[BTTV_FLYVIDEO] = {
+	[BTTV_BOARD_FLYVIDEO] = {
 		.name		= "Lifeview FlyVideo II (Bt848) LR26 / MAXI TV Video PCI2 LR26",
 		.video_inputs	= 4,
 		.audio_inputs	= 1,
@@ -435,7 +435,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_TURBOTV] = {
+	[BTTV_BOARD_TURBOTV] = {
 		.name		= "IMS/IXmicro TurboTV",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -449,7 +449,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= TUNER_TEMIC_PAL,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_HAUPPAUGE878] = {
+	[BTTV_BOARD_HAUPPAUGE878] = {
 		.name		= "Hauppauge (bt878)",
 		.video_inputs	= 4,
 		.audio_inputs	= 1,
@@ -463,7 +463,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_MIROPRO] = {
+	[BTTV_BOARD_MIROPRO] = {
 		.name		= "MIRO PCTV pro",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -478,7 +478,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x0c ---------------------------------- */
-	[BTTV_ADSTECH_TV] = {
+	[BTTV_BOARD_ADSTECH_TV] = {
 		.name		= "ADS Technologies Channel Surfer TV (bt848)",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -491,7 +491,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_AVERMEDIA98] = {
+	[BTTV_BOARD_AVERMEDIA98] = {
 		.name		= "AVerMedia TVCapture 98",
 		.video_inputs	= 3,
 		.audio_inputs	= 4,
@@ -507,7 +507,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.audio_hook     = avermedia_tv_stereo_audio,
 	},
-	[BTTV_VHX] = {
+	[BTTV_BOARD_VHX] = {
 		.name		= "Aimslab Video Highway Xtreme (VHX)",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -521,7 +521,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_ZOLTRIX] = {
+	[BTTV_BOARD_ZOLTRIX] = {
 		.name		= "Zoltrix TV-Max",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -536,7 +536,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x10 ---------------------------------- */
-	[BTTV_PIXVIEWPLAYTV] = {
+	[BTTV_BOARD_PIXVIEWPLAYTV] = {
 		.name		= "Prolink Pixelview PlayTV (bt878)",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -555,7 +555,7 @@ struct tvcard bttv_tvcards[] = {
 		.pll		= PLL_28,
 		.tuner_type	= -1,
 	},
-	[BTTV_WINVIEW_601] = {
+	[BTTV_BOARD_WINVIEW_601] = {
 		.name		= "Leadtek WinView 601",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -570,7 +570,7 @@ struct tvcard bttv_tvcards[] = {
 		.audio_hook	= winview_audio,
 		.has_radio	= 1,
 	},
-	[BTTV_AVEC_INTERCAP] = {
+	[BTTV_BOARD_AVEC_INTERCAP] = {
 		.name		= "AVEC Intercapture",
 		.video_inputs	= 3,
 		.audio_inputs	= 2,
@@ -583,7 +583,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_LIFE_FLYKIT] = {
+	[BTTV_BOARD_LIFE_FLYKIT] = {
 		.name		= "Lifeview FlyVideo II EZ /FlyKit LR38 Bt848 (capture only)",
 		.video_inputs	= 4,
 		.audio_inputs	= 1,
@@ -598,7 +598,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x14 ---------------------------------- */
-	[BTTV_CEI_RAFFLES] = {
+	[BTTV_BOARD_CEI_RAFFLES] = {
 		.name		= "CEI Raffles Card",
 		.video_inputs	= 3,
 		.audio_inputs	= 3,
@@ -608,7 +608,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_CONFERENCETV] = {
+	[BTTV_BOARD_CONFERENCETV] = {
 		.name		= "Lifeview FlyVideo 98/ Lucky Star Image World ConferenceTV LR50",
 		.video_inputs	= 4,
 		.audio_inputs	= 2,  /* tuner, line in */
@@ -621,7 +621,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= TUNER_PHILIPS_PAL_I,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_PHOEBE_TVMAS] = {
+	[BTTV_BOARD_PHOEBE_TVMAS] = {
 		.name		= "Askey CPH050/ Phoebe Tv Master + FM",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -635,7 +635,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_MODTEC_205] = {
+	[BTTV_BOARD_MODTEC_205] = {
 		.name		= "Modular Technology MM201/MM202/MM205/MM210/MM215 PCTV, bt878",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -652,7 +652,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x18 ---------------------------------- */
-	[BTTV_MAGICTVIEW061] = {
+	[BTTV_BOARD_MAGICTVIEW061] = {
 		.name		= "Askey CPH05X/06X (bt878) [many vendors]",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -667,7 +667,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.has_remote     = 1,
 	},
-	[BTTV_VOBIS_BOOSTAR] = {
+	[BTTV_BOARD_VOBIS_BOOSTAR] = {
 		.name           = "Terratec TerraTV+ Version 1.0 (Bt848)/ Terra TValue Version 1.0/ Vobis TV-Boostar",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -681,7 +681,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.audio_hook     = terratv_audio,
 	},
-	[BTTV_HAUPPAUG_WCAM] = {
+	[BTTV_BOARD_HAUPPAUG_WCAM] = {
 		.name		= "Hauppauge WinCam newer (bt878)",
 		.video_inputs	= 4,
 		.audio_inputs	= 1,
@@ -694,7 +694,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_MAXI] = {
+	[BTTV_BOARD_MAXI] = {
 		.name		= "Lifeview FlyVideo 98/ MAXI TV Video PCI2 LR50",
 		.video_inputs	= 4,
 		.audio_inputs	= 2,
@@ -709,7 +709,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x1c ---------------------------------- */
-	[BTTV_TERRATV] = {
+	[BTTV_BOARD_TERRATV] = {
 		.name           = "Terratec TerraTV+ Version 1.1 (bt878)",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -754,7 +754,7 @@ struct tvcard bttv_tvcards[] = {
 	*/
 
 	},
-	[BTTV_PXC200] = {
+	[BTTV_BOARD_PXC200] = {
 		/* Jannik Fritsch <jannik@techfak.uni-bielefeld.de> */
 		.name		= "Imagenation PXC200",
 		.video_inputs	= 5,
@@ -770,7 +770,7 @@ struct tvcard bttv_tvcards[] = {
 		.muxsel_hook    = PXC200_muxsel,
 
 	},
-	[BTTV_FLYVIDEO_98] = {
+	[BTTV_BOARD_FLYVIDEO_98] = {
 		.name		= "Lifeview FlyVideo 98 LR50",
 		.video_inputs	= 4,
 		.audio_inputs	= 1,
@@ -783,7 +783,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_IPROTV] = {
+	[BTTV_BOARD_IPROTV] = {
 		.name		= "Formac iProTV, Formac ProTV I (bt848)",
 		.video_inputs	= 4,
 		.audio_inputs	= 1,
@@ -798,7 +798,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x20 ---------------------------------- */
-	[BTTV_INTEL_C_S_PCI] = {
+	[BTTV_BOARD_INTEL_C_S_PCI] = {
 		.name		= "Intel Create and Share PCI/ Smart Video Recorder III",
 		.video_inputs	= 4,
 		.audio_inputs	= 0,
@@ -811,7 +811,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= 4,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_TERRATVALUE] = {
+	[BTTV_BOARD_TERRATVALUE] = {
 		.name           = "Terratec TerraTValue Version Bt878",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -825,7 +825,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= TUNER_PHILIPS_PAL,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_WINFAST2000] = {
+	[BTTV_BOARD_WINFAST2000] = {
 		.name		= "Leadtek WinFast 2000/ WinFast 2000 XP",
 		.video_inputs	= 4,
 		.audio_inputs	= 1,
@@ -859,7 +859,7 @@ struct tvcard bttv_tvcards[] = {
 		.audio_hook	= winfast2000_audio,
 		.has_remote     = 1,
 	},
-	[BTTV_CHRONOS_VS2] = {
+	[BTTV_BOARD_CHRONOS_VS2] = {
 		.name		= "Lifeview FlyVideo 98 LR50 / Chronos Video Shuttle II",
 		.video_inputs	= 4,
 		.audio_inputs	= 3,
@@ -874,7 +874,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x24 ---------------------------------- */
-	[BTTV_TYPHOON_TVIEW] = {
+	[BTTV_BOARD_TYPHOON_TVIEW] = {
 		.name		= "Lifeview FlyVideo 98FM LR50 / Typhoon TView TV/FM Tuner",
 		.video_inputs	= 4,
 		.audio_inputs	= 3,
@@ -888,7 +888,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.has_radio	= 1,
 	},
-	[BTTV_PXELVWPLTVPRO] = {
+	[BTTV_BOARD_PXELVWPLTVPRO] = {
 		.name		= "Prolink PixelView PlayTV pro",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -902,7 +902,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_MAGICTVIEW063] = {
+	[BTTV_BOARD_MAGICTVIEW063] = {
 		.name		= "Askey CPH06X TView99",
 		.video_inputs	= 4,
 		.audio_inputs	= 1,
@@ -917,7 +917,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.has_remote     = 1,
 	},
-	[BTTV_PINNACLE] = {
+	[BTTV_BOARD_PINNACLE] = {
 		.name		= "Pinnacle PCTV Studio/Rave",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -933,7 +933,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x28 ---------------------------------- */
-	[BTTV_STB2] = {
+	[BTTV_BOARD_STB2] = {
 		.name		= "STB TV PCI FM, Gateway P/N 6000704 (bt878), 3Dfx VoodooTV 100",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -949,7 +949,7 @@ struct tvcard bttv_tvcards[] = {
 		.pll            = PLL_28,
 		.has_radio      = 1,
 	},
-	[BTTV_AVPHONE98] = {
+	[BTTV_BOARD_AVPHONE98] = {
 		.name		= "AVerMedia TVPhone 98",
 		.video_inputs	= 3,
 		.audio_inputs	= 4,
@@ -965,7 +965,7 @@ struct tvcard bttv_tvcards[] = {
 		.has_radio	= 1,
 		.audio_hook	= avermedia_tvphone_audio,
 	},
-	[BTTV_PV951] = {
+	[BTTV_BOARD_PV951] = {
 		.name		= "ProVideo PV951", /* pic16c54 */
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -980,7 +980,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= 1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_ONAIR_TV] = {
+	[BTTV_BOARD_ONAIR_TV] = {
 		.name		= "Little OnAir TV",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -995,7 +995,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x2c ---------------------------------- */
-	[BTTV_SIGMA_TVII_FM] = {
+	[BTTV_BOARD_SIGMA_TVII_FM] = {
 		.name		= "Sigma TVII-FM",
 		.video_inputs	= 2,
 		.audio_inputs	= 1,
@@ -1009,7 +1009,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_MATRIX_VISION2] = {
+	[BTTV_BOARD_MATRIX_VISION2] = {
 		.name		= "MATRIX-Vision MV-Delta 2",
 		.video_inputs	= 5,
 		.audio_inputs	= 1,
@@ -1023,7 +1023,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_ZOLTRIX_GENIE] = {
+	[BTTV_BOARD_ZOLTRIX_GENIE] = {
 		.name		= "Zoltrix Genie TV/FM",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -1037,7 +1037,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= 21,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_TERRATVRADIO] = {
+	[BTTV_BOARD_TERRATVRADIO] = {
 		.name		= "Terratec TV/Radio+",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -1055,7 +1055,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x30 ---------------------------------- */
-	[BTTV_DYNALINK] = {
+	[BTTV_BOARD_DYNALINK] = {
 		.name		= "Askey CPH03x/ Dynalink Magic TView",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -1069,7 +1069,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_GVBCTV3PCI] = {
+	[BTTV_BOARD_GVBCTV3PCI] = {
 		.name		= "IODATA GV-BCTV3/PCI",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -1084,7 +1084,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.audio_hook	= gvbctv3pci_audio,
 	},
-	[BTTV_PXELVWPLTVPAK] = {
+	[BTTV_BOARD_PXELVWPLTVPAK] = {
 		.name		= "Prolink PV-BT878P+4E / PixelView PlayTV PAK / Lenco MXTV-9578 CP",
 		.video_inputs	= 5,
 		.audio_inputs	= 1,
@@ -1109,7 +1109,7 @@ struct tvcard bttv_tvcards[] = {
 		Note: At i2c=0x8a is a Bt832 chip, which changes to 0x88 after being reset via GPIO22
 		*/
 	},
-	[BTTV_EAGLE] = {
+	[BTTV_BOARD_EAGLE] = {
 		.name           = "Eagle Wireless Capricorn2 (bt878A)",
 		.video_inputs   = 4,
 		.audio_inputs   = 1,
@@ -1124,7 +1124,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x34 ---------------------------------- */
-	[BTTV_PINNACLEPRO] = {
+	[BTTV_BOARD_PINNACLEPRO] = {
 		/* David HÃ¤rdeman <david@2gen.com> */
 		.name           = "Pinnacle PCTV Studio Pro",
 		.video_inputs   = 4,
@@ -1148,7 +1148,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_TVIEW_RDS_FM] = {
+	[BTTV_BOARD_TVIEW_RDS_FM] = {
 		/* Claas Langbehn <claas@bigfoot.com>,
 		Sven Grothklags <sven@upb.de> */
 		.name		= "Typhoon TView RDS + FM Stereo / KNC1 TV Station RDS",
@@ -1165,7 +1165,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.has_radio	= 1,
 	},
-	[BTTV_LIFETEC_9415] = {
+	[BTTV_BOARD_LIFETEC_9415] = {
 		/* Tim Röstermundt <rosterm@uni-muenster.de>
 		in de.comp.os.unix.linux.hardware:
 			options bttv card=0 pll=1 radio=1 gpiomask=0x18e0
@@ -1187,7 +1187,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_BESTBUY_EASYTV] = {
+	[BTTV_BOARD_BESTBUY_EASYTV] = {
 		/* Miguel Angel Alvarez <maacruz@navegalia.com>
 		old Easy TV BT848 version (model CPH031) */
 		.name           = "Askey CPH031/ BESTBUY Easy TV",
@@ -1205,7 +1205,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x38 ---------------------------------- */
-	[BTTV_FLYVIDEO_98FM] = {
+	[BTTV_BOARD_FLYVIDEO_98FM] = {
 		/* Gordon Heydon <gjheydon@bigfoot.com ('98) */
 		.name           = "Lifeview FlyVideo 98FM LR50",
 		.video_inputs   = 4,
@@ -1222,7 +1222,7 @@ struct tvcard bttv_tvcards[] = {
 		/* This is the ultimate cheapo capture card
 		* just a BT848A on a small PCB!
 		* Steve Hosgood <steve@equiinet.com> */
-	[BTTV_GRANDTEC] = {
+	[BTTV_BOARD_GRANDTEC] = {
 		.name           = "GrandTec 'Grand Video Capture' (Bt848)",
 		.video_inputs   = 2,
 		.audio_inputs   = 0,
@@ -1237,7 +1237,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_ASKEY_CPH060] = {
+	[BTTV_BOARD_ASKEY_CPH060] = {
 		/* Daniel Herrington <daniel.herrington@home.com> */
 		.name           = "Askey CPH060/ Phoebe TV Master Only (No FM)",
 		.video_inputs   = 3,
@@ -1252,7 +1252,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_TEMIC_4036FY5_NTSC,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_ASKEY_CPH03X] = {
+	[BTTV_BOARD_ASKEY_CPH03X] = {
 		/* Matti Mottus <mottus@physic.ut.ee> */
 		.name		= "Askey CPH03x TV Capturer",
 		.video_inputs	= 4,
@@ -1268,7 +1268,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x3c ---------------------------------- */
-	[BTTV_MM100PCTV] = {
+	[BTTV_BOARD_MM100PCTV] = {
 		/* Philip Blundell <philb@gnu.org> */
 		.name           = "Modular Technology MM100PCTV",
 		.video_inputs   = 2,
@@ -1282,7 +1282,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = TUNER_TEMIC_PAL,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_GMV1] = {
+	[BTTV_BOARD_GMV1] = {
 		/* Adrian Cox <adrian@humboldt.co.uk */
 		.name	        = "AG Electronics GMV1",
 		.video_inputs   = 2,
@@ -1298,7 +1298,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_BESTBUY_EASYTV2] = {
+	[BTTV_BOARD_BESTBUY_EASYTV2] = {
 		/* Miguel Angel Alvarez <maacruz@navegalia.com>
 		new Easy TV BT878 version (model CPH061)
 		special thanks to Informatica Mieres for providing the card */
@@ -1315,7 +1315,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= TUNER_PHILIPS_PAL,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_ATI_TVWONDER] = {
+	[BTTV_BOARD_ATI_TVWONDER] = {
 		/* Lukas Gebauer <geby@volny.cz> */
 		.name		= "ATI TV-Wonder",
 		.video_inputs	= 3,
@@ -1331,7 +1331,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x40 ---------------------------------- */
-	[BTTV_ATI_TVWONDERVE] = {
+	[BTTV_BOARD_ATI_TVWONDERVE] = {
 		/* Lukas Gebauer <geby@volny.cz> */
 		.name		= "ATI TV-Wonder VE",
 		.video_inputs	= 2,
@@ -1346,7 +1346,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type	= TUNER_TEMIC_4006FN5_MULTI_PAL,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_FLYVIDEO2000] = {
+	[BTTV_BOARD_FLYVIDEO2000] = {
 		/* DeeJay <deejay@westel900.net (2000S) */
 		.name           = "Lifeview FlyVideo 2000S LR90",
 		.video_inputs   = 3,
@@ -1367,7 +1367,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = 5,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_TERRATVALUER] = {
+	[BTTV_BOARD_TERRATVALUER] = {
 		.name		= "Terratec TValueRadio",
 		.video_inputs	= 3,
 		.audio_inputs	= 1,
@@ -1382,7 +1382,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.has_radio	= 1,
 	},
-	[BTTV_GVBCTV4PCI] = {
+	[BTTV_BOARD_GVBCTV4PCI] = {
 		/* TANAKA Kei <peg00625@nifty.com> */
 		.name           = "IODATA GV-BCTV4/PCI",
 		.video_inputs   = 3,
@@ -1400,7 +1400,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x44 ---------------------------------- */
-	[BTTV_VOODOOTV_FM] = {
+	[BTTV_BOARD_VOODOOTV_FM] = {
 		.name           = "3Dfx VoodooTV FM (Euro), VoodooTV 200 (USA)",
 		/* try "insmod msp3400 simple=0" if you have
 		* sound problems with this card. */
@@ -1420,7 +1420,7 @@ struct tvcard bttv_tvcards[] = {
 		.pll		= PLL_28,
 		.has_radio	= 1,
 	},
-	[BTTV_AIMMS] = {
+	[BTTV_BOARD_AIMMS] = {
 		/* Philip Blundell <pb@nexus.co.uk> */
 		.name           = "Active Imaging AIMMS",
 		.video_inputs   = 1,
@@ -1432,7 +1432,7 @@ struct tvcard bttv_tvcards[] = {
 		.muxsel         = { 2 },
 		.gpiomask       = 0
 	},
-	[BTTV_PV_BT878P_PLUS] = {
+	[BTTV_BOARD_PV_BT878P_PLUS] = {
 		/* Tomasz Pyra <hellfire@sedez.iq.pl> */
 		.name           = "Prolink Pixelview PV-BT878P+ (Rev.4C,8E)",
 		.video_inputs   = 3,
@@ -1455,7 +1455,7 @@ struct tvcard bttv_tvcards[] = {
 			GPIO8-15: vrd866b ?
 		*/
 	},
-	[BTTV_FLYVIDEO98EZ] = {
+	[BTTV_BOARD_FLYVIDEO98EZ] = {
 		.name		= "Lifeview FlyVideo 98EZ (capture only) LR51",
 		.video_inputs	= 4,
 		.audio_inputs   = 0,
@@ -1469,7 +1469,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x48 ---------------------------------- */
-	[BTTV_PV_BT878P_9B] = {
+	[BTTV_BOARD_PV_BT878P_9B] = {
 		/* Dariusz Kowalewski <darekk@automex.pl> */
 		.name		= "Prolink Pixelview PV-BT878P+9B (PlayTV Pro rev.9B FM+NICAM)",
 		.video_inputs	= 4,
@@ -1496,7 +1496,7 @@ struct tvcard bttv_tvcards[] = {
 			GPIO20,22,23: R30,R29,R28
 		*/
 	},
-	[BTTV_SENSORAY311] = {
+	[BTTV_BOARD_SENSORAY311] = {
 		/* Clay Kunz <ckunz@mail.arc.nasa.gov> */
 		/* you must jumper JP5 for the card to work */
 		.name           = "Sensoray 311",
@@ -1511,7 +1511,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_RV605] = {
+	[BTTV_BOARD_RV605] = {
 		/* Miguel Freitas <miguel@cetuc.puc-rio.br> */
 		.name           = "RemoteVision MX (RV605)",
 		.video_inputs   = 16,
@@ -1528,7 +1528,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.muxsel_hook    = rv605_muxsel,
 	},
-	[BTTV_POWERCLR_MTV878] = {
+	[BTTV_BOARD_POWERCLR_MTV878] = {
 		.name           = "Powercolor MTV878/ MTV878R/ MTV878F",
 		.video_inputs   = 3,
 		.audio_inputs   = 2,
@@ -1545,7 +1545,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 	/* ---- card 0x4c ---------------------------------- */
-	[BTTV_WINDVR] = {
+	[BTTV_BOARD_WINDVR] = {
 		/* Masaki Suzuki <masaki@btree.org> */
 		.name           = "Canopus WinDVR PCI (COMPAQ Presario 3524JP, 5112JP)",
 		.video_inputs   = 3,
@@ -1559,7 +1559,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.audio_hook     = windvr_audio,
 	},
-	[BTTV_GRANDTEC_MULTI] = {
+	[BTTV_BOARD_GRANDTEC_MULTI] = {
 		.name           = "GrandTec Multi Capture Card (Bt878)",
 		.video_inputs   = 4,
 		.audio_inputs   = 0,
@@ -1574,7 +1574,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_KWORLD] = {
+	[BTTV_BOARD_KWORLD] = {
 		.name           = "Jetway TV/Capture JW-TV878-FBK, Kworld KW-TV878RF",
 		.video_inputs   = 4,
 		.audio_inputs   = 3,
@@ -1607,7 +1607,7 @@ struct tvcard bttv_tvcards[] = {
 			GPIO22,23: ??
 			??       : mtu8b56ep microcontroller for IR (GPIO wiring unknown)*/
 	},
-	[BTTV_DSP_TCVIDEO] = {
+	[BTTV_BOARD_DSP_TCVIDEO] = {
 		/* Arthur Tetzlaff-Deas, DSP Design Ltd <software@dspdesign.com> */
 		.name           = "DSP Design TCVIDEO",
 		.video_inputs   = 4,
@@ -1619,7 +1619,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 		/* ---- card 0x50 ---------------------------------- */
-	[BTTV_HAUPPAUGEPVR] = {
+	[BTTV_BOARD_HAUPPAUGEPVR] = {
 		.name           = "Hauppauge WinTV PVR",
 		.video_inputs   = 4,
 		.audio_inputs   = 1,
@@ -1634,7 +1634,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomask       = 7,
 		.audiomux       = {7},
 	},
-	[BTTV_GVBCTV5PCI] = {
+	[BTTV_BOARD_GVBCTV5PCI] = {
 		.name           = "IODATA GV-BCTV5/PCI",
 		.video_inputs   = 3,
 		.audio_inputs   = 1,
@@ -1650,7 +1650,7 @@ struct tvcard bttv_tvcards[] = {
 		.audio_hook     = gvbctv5pci_audio,
 		.has_radio      = 1,
 	},
-	[BTTV_OSPREY1x0] = {
+	[BTTV_BOARD_OSPREY1x0] = {
 		.name           = "Osprey 100/150 (878)", /* 0x1(2|3)-45C6-C1 */
 		.video_inputs   = 4,                  /* id-inputs-clock */
 		.audio_inputs   = 0,
@@ -1664,7 +1664,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
-	[BTTV_OSPREY1x0_848] = {
+	[BTTV_BOARD_OSPREY1x0_848] = {
 		.name           = "Osprey 100/150 (848)", /* 0x04-54C0-C1 & older boards */
 		.video_inputs   = 3,
 		.audio_inputs   = 0,
@@ -1680,7 +1680,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 		/* ---- card 0x54 ---------------------------------- */
-	[BTTV_OSPREY101_848] = {
+	[BTTV_BOARD_OSPREY101_848] = {
 		.name           = "Osprey 101 (848)", /* 0x05-40C0-C1 */
 		.video_inputs   = 2,
 		.audio_inputs   = 0,
@@ -1694,7 +1694,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
-	[BTTV_OSPREY1x1] = {
+	[BTTV_BOARD_OSPREY1x1] = {
 		.name           = "Osprey 101/151",       /* 0x1(4|5)-0004-C4 */
 		.video_inputs   = 1,
 		.audio_inputs   = 0,
@@ -1708,7 +1708,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
-	[BTTV_OSPREY1x1_SVID] = {
+	[BTTV_BOARD_OSPREY1x1_SVID] = {
 		.name           = "Osprey 101/151 w/ svid",  /* 0x(16|17|20)-00C4-C1 */
 		.video_inputs   = 2,
 		.audio_inputs   = 0,
@@ -1722,7 +1722,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
-	[BTTV_OSPREY2xx] = {
+	[BTTV_BOARD_OSPREY2xx] = {
 		.name           = "Osprey 200/201/250/251",  /* 0x1(8|9|E|F)-0004-C4 */
 		.video_inputs   = 1,
 		.audio_inputs   = 1,
@@ -1738,7 +1738,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 		/* ---- card 0x58 ---------------------------------- */
-	[BTTV_OSPREY2x0_SVID] = {
+	[BTTV_BOARD_OSPREY2x0_SVID] = {
 		.name           = "Osprey 200/250",   /* 0x1(A|B)-00C4-C1 */
 		.video_inputs   = 2,
 		.audio_inputs   = 1,
@@ -1752,7 +1752,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
-	[BTTV_OSPREY2x0] = {
+	[BTTV_BOARD_OSPREY2x0] = {
 		.name           = "Osprey 210/220",   /* 0x1(A|B)-04C0-C1 */
 		.video_inputs   = 2,
 		.audio_inputs   = 1,
@@ -1766,7 +1766,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
-	[BTTV_OSPREY500] = {
+	[BTTV_BOARD_OSPREY500] = {
 		.name           = "Osprey 500",   /* 500 */
 		.video_inputs   = 2,
 		.audio_inputs   = 1,
@@ -1780,7 +1780,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
-	[BTTV_OSPREY540] = {
+	[BTTV_BOARD_OSPREY540] = {
 		.name           = "Osprey 540",   /* 540 */
 		.video_inputs   = 4,
 		.audio_inputs   = 1,
@@ -1803,7 +1803,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 		/* ---- card 0x5C ---------------------------------- */
-	[BTTV_OSPREY2000] = {
+	[BTTV_BOARD_OSPREY2000] = {
 		.name           = "Osprey 2000",  /* 2000 */
 		.video_inputs   = 2,
 		.audio_inputs   = 1,
@@ -1817,7 +1817,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,      /* must avoid, conflicts with the bt860 */
 	},
-	[BTTV_IDS_EAGLE] = {
+	[BTTV_BOARD_IDS_EAGLE] = {
 		/* M G Berberich <berberic@forwiss.uni-passau.de> */
 		.name           = "IDS Eagle",
 		.video_inputs   = 4,
@@ -1833,7 +1833,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875     = 1,
 		.pll            = PLL_28,
 	},
-	[BTTV_PINNACLESAT] = {
+	[BTTV_BOARD_PINNACLESAT] = {
 		.name           = "Pinnacle PCTV Sat",
 		.video_inputs   = 2,
 		.audio_inputs   = 0,
@@ -1849,7 +1849,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_gpioirq     = 1,
 		.has_dvb        = 1,
 	},
-	[BTTV_FORMAC_PROTV] = {
+	[BTTV_BOARD_FORMAC_PROTV] = {
 		.name           = "Formac ProTV II (bt878)",
 		.video_inputs   = 4,
 		.audio_inputs   = 1,
@@ -1873,7 +1873,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 		/* ---- card 0x60 ---------------------------------- */
-	[BTTV_MACHTV] = {
+	[BTTV_BOARD_MACHTV] = {
 		.name           = "MachTV",
 		.video_inputs   = 3,
 		.audio_inputs   = 1,
@@ -1887,7 +1887,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.pll            = 1,
 	},
-	[BTTV_EURESYS_PICOLO] = {
+	[BTTV_BOARD_EURESYS_PICOLO] = {
 		.name           = "Euresys Picolo",
 		.video_inputs   = 3,
 		.audio_inputs   = 0,
@@ -1902,7 +1902,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_PV150] = {
+	[BTTV_BOARD_PV150] = {
 		/* Luc Van Hoeylandt <luc@e-magic.be> */
 		.name           = "ProVideo PV150", /* 0x4f */
 		.video_inputs   = 2,
@@ -1918,7 +1918,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = UNSET,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_AD_TVK503] = {
+	[BTTV_BOARD_AD_TVK503] = {
 		/* Hiroshi Takekawa <sian@big.or.jp> */
 		/* This card lacks subsystem ID */
 		.name           = "AD-TVK503", /* 0x63 */
@@ -1939,7 +1939,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 		/* ---- card 0x64 ---------------------------------- */
-	[BTTV_HERCULES_SM_TV] = {
+	[BTTV_BOARD_HERCULES_SM_TV] = {
 		.name           = "Hercules Smart TV Stereo",
 		.video_inputs   = 4,
 		.audio_inputs   = 1,
@@ -1962,7 +1962,7 @@ struct tvcard bttv_tvcards[] = {
 			hef4053 (instead 4052) for unknown function
 		*/
 	},
-	[BTTV_PACETV] = {
+	[BTTV_BOARD_PACETV] = {
 		.name           = "Pace TV & Radio Card",
 		.video_inputs   = 4,
 		.audio_inputs   = 1,
@@ -1983,7 +1983,7 @@ struct tvcard bttv_tvcards[] = {
 		.digital_mode   = DIGITAL_MODE_CAMERA,  todo!
 		*/
 	},
-	[BTTV_IVC200] = {
+	[BTTV_BOARD_IVC200] = {
 		/* Chris Willing <chris@vislab.usyd.edu.au> */
 		.name           = "IVC-200",
 		.video_inputs   = 1,
@@ -1996,7 +1996,7 @@ struct tvcard bttv_tvcards[] = {
 		.muxsel         = { 2 },
 		.pll            = PLL_28,
 	},
-	[BTTV_XGUARD] = {
+	[BTTV_BOARD_XGUARD] = {
 		.name           = "Grand X-Guard / Trust 814PCI",
 		.video_inputs   = 16,
 		.audio_inputs   = 0,
@@ -2014,7 +2014,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 		/* ---- card 0x68 ---------------------------------- */
-	[BTTV_NEBULA_DIGITV] = {
+	[BTTV_BOARD_NEBULA_DIGITV] = {
 		.name           = "Nebula Electronics DigiTV",
 		.video_inputs   = 1,
 		.tuner          = -1,
@@ -2029,7 +2029,7 @@ struct tvcard bttv_tvcards[] = {
 		.has_dvb        = 1,
 		.no_gpioirq     = 1,
 	},
-	[BTTV_PV143] = {
+	[BTTV_BOARD_PV143] = {
 		/* Jorge Boncompte - DTI2 <jorge@dti2.net> */
 		.name           = "ProVideo PV143",
 		.video_inputs   = 4,
@@ -2045,7 +2045,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_VD009X1_MINIDIN] = {
+	[BTTV_BOARD_VD009X1_MINIDIN] = {
 		/* M.Klahr@phytec.de */
 		.name           = "PHYTEC VD-009-X1 MiniDIN (bt878)",
 		.video_inputs   = 4,
@@ -2060,7 +2060,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_VD009X1_COMBI] = {
+	[BTTV_BOARD_VD009X1_COMBI] = {
 		.name           = "PHYTEC VD-009-X1 Combi (bt878)",
 		.video_inputs   = 4,
 		.audio_inputs   = 0,
@@ -2076,7 +2076,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 		/* ---- card 0x6c ---------------------------------- */
-	[BTTV_VD009_MINIDIN] = {
+	[BTTV_BOARD_VD009_MINIDIN] = {
 		.name           = "PHYTEC VD-009 MiniDIN (bt878)",
 		.video_inputs   = 10,
 		.audio_inputs   = 0,
@@ -2093,7 +2093,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_VD009_COMBI] = {
+	[BTTV_BOARD_VD009_COMBI] = {
 		.name           = "PHYTEC VD-009 Combi (bt878)",
 		.video_inputs   = 10,
 		.audio_inputs   = 0,
@@ -2110,7 +2110,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_IVC100] = {
+	[BTTV_BOARD_IVC100] = {
 		.name           = "IVC-100",
 		.video_inputs   = 4,
 		.audio_inputs   = 0,
@@ -2122,7 +2122,7 @@ struct tvcard bttv_tvcards[] = {
 		.muxsel         = { 2, 3, 1, 0 },
 		.pll            = PLL_28,
 	},
-	[BTTV_IVC120] = {
+	[BTTV_BOARD_IVC120] = {
 		/* IVC-120G - Alan Garfield <alan@fromorbit.com> */
 		.name           = "IVC-120G",
 		.video_inputs   = 16,
@@ -2143,7 +2143,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 		/* ---- card 0x70 ---------------------------------- */
-	[BTTV_PC_HDTV] = {
+	[BTTV_BOARD_PC_HDTV] = {
 		.name           = "pcHDTV HD-2000 TV",
 		.video_inputs   = 4,
 		.audio_inputs   = 1,
@@ -2154,7 +2154,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.has_dvb        = 1,
 	},
-	[BTTV_TWINHAN_DST] = {
+	[BTTV_BOARD_TWINHAN_DST] = {
 		.name           = "Twinhan DST + clones",
 		.no_msp34xx     = 1,
 		.no_tda9875     = 1,
@@ -2164,7 +2164,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_video       = 1,
 		.has_dvb        = 1,
 	},
-	[BTTV_WINFASTVC100] = {
+	[BTTV_BOARD_WINFASTVC100] = {
 		.name           = "Winfast VC100",
 		.video_inputs   = 3,
 		.audio_inputs   = 0,
@@ -2178,7 +2178,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.pll            = PLL_28,
 	},
-	[BTTV_TEV560] = {
+	[BTTV_BOARD_TEV560] = {
 		.name           = "Teppro TEV-560/InterVision IV-560",
 		.video_inputs   = 3,
 		.audio_inputs   = 1,
@@ -2194,7 +2194,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 		/* ---- card 0x74 ---------------------------------- */
-	[BTTV_SIMUS_GVC1100] = {
+	[BTTV_BOARD_SIMUS_GVC1100] = {
 		.name           = "SIMUS GVC1100",
 		.video_inputs   = 4,
 		.audio_inputs   = 0,
@@ -2207,7 +2207,7 @@ struct tvcard bttv_tvcards[] = {
 		.gpiomask       = 0x3F,
 		.muxsel_hook    = gvc1100_muxsel,
 	},
-	[BTTV_NGSTV_PLUS] = {
+	[BTTV_BOARD_NGSTV_PLUS] = {
 		/* Carlos Silva r3pek@r3pek.homelinux.org || card 0x75 */
 		.name           = "NGS NGSTV+",
 		.video_inputs   = 3,
@@ -2221,7 +2221,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.has_remote     = 1,
 	},
-	[BTTV_LMLBT4] = {
+	[BTTV_BOARD_LMLBT4] = {
 		/* http://linuxmedialabs.com */
 		.name           = "LMLBT4",
 		.video_inputs   = 4, /* IN1,IN2,IN3,IN4 */
@@ -2236,7 +2236,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_TEKRAM_M205] = {
+	[BTTV_BOARD_TEKRAM_M205] = {
 		/* Helmroos Harri <harri.helmroos@pp.inet.fi> */
 		.name           = "Tekram M205 PRO",
 		.video_inputs   = 3,
@@ -2253,7 +2253,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 		/* ---- card 0x78 ---------------------------------- */
-	[BTTV_CONTVFMI] = {
+	[BTTV_BOARD_CONTVFMI] = {
 		/* Javier Cendan Ares <jcendan@lycos.es> */
 		/* bt878 TV + FM without subsystem ID */
 		.name           = "Conceptronic CONTVFMi",
@@ -2271,10 +2271,10 @@ struct tvcard bttv_tvcards[] = {
 		.has_remote     = 1,
 		.has_radio      = 1,
 	},
-	[BTTV_PICOLO_TETRA_CHIP] = {
+	[BTTV_BOARD_PICOLO_TETRA_CHIP] = {
 		/*Eric DEBIEF <debief@telemsa.com>*/
 		/*EURESYS Picolo Tetra : 4 Conexant Fusion 878A, no audio, video input set with analog multiplexers GPIO controled*/
-		/* adds picolo_tetra_muxsel(), picolo_tetra_init(), the folowing declaration strucure, and #define BTTV_PICOLO_TETRA_CHIP*/
+		/* adds picolo_tetra_muxsel(), picolo_tetra_init(), the folowing declaration strucure, and #define BTTV_BOARD_PICOLO_TETRA_CHIP*/
 		/*0x79 in bttv.h*/
 		.name           = "Euresys Picolo Tetra",
 		.video_inputs   = 4,
@@ -2294,7 +2294,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_SPIRIT_TV] = {
+	[BTTV_BOARD_SPIRIT_TV] = {
 		/* Spirit TV Tuner from http://spiritmodems.com.au */
 		/* Stafford Goodsell <surge@goliath.homeunix.org> */
 		.name           = "Spirit TV Tuner",
@@ -2310,7 +2310,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_msp34xx     = 1,
 		.no_tda9875     = 1,
 	},
-	[BTTV_AVDVBT_771] = {
+	[BTTV_BOARD_AVDVBT_771] = {
 		/* Wolfram Joost <wojo@frokaschwei.de> */
 		.name           = "AVerMedia AVerTV DVB-T 771",
 		.video_inputs   = 2,
@@ -2328,9 +2328,9 @@ struct tvcard bttv_tvcards[] = {
 		.has_remote     = 1,
 	},
 		/* ---- card 0x7c ---------------------------------- */
-	[BTTV_AVDVBT_761] = {
+	[BTTV_BOARD_AVDVBT_761] = {
 		/* Matt Jesson <dvb@jesson.eclipse.co.uk> */
-		/* Based on the Nebula card data - added remote and new card number - BTTV_AVDVBT_761, see also ir-kbd-gpio.c */
+		/* Based on the Nebula card data - added remote and new card number - BTTV_BOARD_AVDVBT_761, see also ir-kbd-gpio.c */
 		.name           = "AverMedia AverTV DVB-T 761",
 		.video_inputs   = 2,
 		.tuner          = -1,
@@ -2346,7 +2346,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_gpioirq     = 1,
 		.has_remote     = 1,
 	},
-	[BTTV_MATRIX_VISIONSQ] = {
+	[BTTV_BOARD_MATRIX_VISIONSQ] = {
 		/* andre.schwarz@matrix-vision.de */
 		.name             = "MATRIX Vision Sigma-SQ",
 		.video_inputs     = 16,
@@ -2363,7 +2363,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type       = -1,
 		.tuner_addr	  = ADDR_UNSET,
 	},
-	[BTTV_MATRIX_VISIONSLC] = {
+	[BTTV_BOARD_MATRIX_VISIONSLC] = {
 		/* andre.schwarz@matrix-vision.de */
 		.name             = "MATRIX Vision Sigma-SLC",
 		.video_inputs     = 4,
@@ -2379,8 +2379,8 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type       = -1,
 		.tuner_addr	  = ADDR_UNSET,
 	},
-		/* BTTV_APAC_VIEWCOMP */
-	[BTTV_APAC_VIEWCOMP] = {
+		/* BTTV_BOARD_APAC_VIEWCOMP */
+	[BTTV_BOARD_APAC_VIEWCOMP] = {
 		/* Attila Kondoros <attila.kondoros@chello.hu> */
 		/* bt878 TV + FM 0x00000000 subsystem ID */
 		.name           = "APAC Viewcomp 878(AMAX)",
@@ -2400,7 +2400,7 @@ struct tvcard bttv_tvcards[] = {
 	},
 
 		/* ---- card 0x80 ---------------------------------- */
-	[BTTV_DVICO_DVBT_LITE] = {
+	[BTTV_BOARD_DVICO_DVBT_LITE] = {
 		/* Chris Pascoe <c.pascoe@itee.uq.edu.au> */
 		.name           = "DViCO FusionHDTV DVB-T Lite",
 		.tuner          = -1,
@@ -2413,7 +2413,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = -1,
 		.tuner_addr	= ADDR_UNSET,
 	},
-	[BTTV_VGEAR_MYVCD] = {
+	[BTTV_BOARD_VGEAR_MYVCD] = {
 		/* Steven <photon38@pchome.com.tw> */
 		.name           = "V-Gear MyVCD",
 		.video_inputs   = 3,
@@ -2432,7 +2432,7 @@ struct tvcard bttv_tvcards[] = {
 		.has_remote     = 1,
 	#endif
 	},
-	[BTTV_SUPER_TV] = {
+	[BTTV_BOARD_SUPER_TV] = {
 		/* Rick C <cryptdragoon@gmail.com> */
 		.name           = "Super TV Tuner",
 		.video_inputs   = 4,
@@ -2447,7 +2447,7 @@ struct tvcard bttv_tvcards[] = {
 		.needs_tvaudio  = 1,
 		.has_radio      = 1,
 	},
-	[BTTV_TIBET_CS16] = {
+	[BTTV_BOARD_TIBET_CS16] = {
 		/* Chris Fanning <video4linux@haydon.net> */
 		.name           = "Tibet Systems 'Progress DVR' CS16",
 		.video_inputs   = 16,
@@ -2463,7 +2463,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.muxsel_hook    = tibetCS16_muxsel,
 	},
-	{
+	[BTTV_BOARD_KODICOM_4400R] = {
 		/* Bill Brack <wbrack@mmm.com.hk> */
 		/*
 		* Note that, because of the card's wiring, the "master"
@@ -2499,7 +2499,7 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875	= 1,
 		.muxsel_hook	= kodicom4400r_muxsel,
 	},
-	{
+	[BTTV_BOARD_KODICOM_4400R_SL] = {
 		/* Bill Brack <wbrack@mmm.com.hk> */
 		/* Note that, for reasons unknown, the "master" BT878A chip (i.e. the
 		* one which controls the analog switch, and must use the card type)
@@ -2522,8 +2522,8 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875	= 1,
 		.muxsel_hook	= kodicom4400r_muxsel,
 	},
-	{
 		/* ---- card 0x86---------------------------------- */
+	[BTTV_BOARD_ADLINK_RTV24] = {
 		/* Michael Henson <mhenson@clarityvi.com> */
 		/* Adlink RTV24 with special unlock codes */
 		.name           = "Adlink RTV24",
@@ -2536,8 +2536,8 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.pll            = PLL_28,
 	},
-	{
 		/* ---- card 0x87---------------------------------- */
+	[BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE] = {
 		/* Michael Krufky <mkrufky@m1k.net> */
 		.name           = "DViCO FusionHDTV 5 Lite",
 		.tuner          = 0,
@@ -2555,7 +2555,7 @@ struct tvcard bttv_tvcards[] = {
 		.has_dvb        = 1,
 	},
 		/* ---- card 0x88---------------------------------- */
-	[BTTV_KODICOM_4400R] = {
+	[BTTV_BOARD_ACORP_Y878F] = {
 		/* Mauro Carvalho Chehab <mchehab@brturbo.com.br> */
 		.name		= "Acorp Y878F",
 		.video_inputs	= 3,
@@ -2572,7 +2572,7 @@ struct tvcard bttv_tvcards[] = {
 		.has_radio	= 1,
 	},
 		/* ---- card 0x89 ---------------------------------- */
-	[BTTV_KODICOM_4400R_SL] = {
+	[BTTV_BOARD_CONCEPTRONIC_CTVFMI2] = {
 		.name           = "Conceptronic CTVFMi v2",
 		.video_inputs   = 3,
 		.audio_inputs   = 1,
@@ -2590,7 +2590,7 @@ struct tvcard bttv_tvcards[] = {
 		.has_radio      = 1,
 	#endif
 	},
-	[BTTV_ADLINK_RTV24] = {
+	[BTTV_BOARD_PV_BT878P_2E] = {
 	         .name           = "Prolink Pixelview PV-BT878P+ (Rev.2E)",
 	         .video_inputs   = 5,
 	         .audio_inputs   = 1,
@@ -2604,8 +2604,7 @@ struct tvcard bttv_tvcards[] = {
 	         .pll            = PLL_28,
 	         .tuner_type     = TUNER_LG_PAL_FM,
 	         .has_remote     = 1,
-	}
-};
+}};
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
 
@@ -2697,11 +2696,11 @@ void identify_by_eeprom(struct bttv *btv, unsigned char eeprom_data[256])
 	int type = -1;
 
 	if (0 == strncmp(eeprom_data,"GET MM20xPCTV",13))
-		type = BTTV_MODTEC_205;
+		type = BTTV_BOARD_MODTEC_205;
 	else if (0 == strncmp(eeprom_data+20,"Picolo",7))
-		type = BTTV_EURESYS_PICOLO;
+		type = BTTV_BOARD_EURESYS_PICOLO;
 	else if (eeprom_data[0] == 0x84 && eeprom_data[2]== 0)
-                type = BTTV_HAUPPAUGE; /* old bt848 */
+                type = BTTV_BOARD_HAUPPAUGE; /* old bt848 */
 
 	if (-1 != type) {
 		btv->c.type = type;
@@ -2807,10 +2806,10 @@ static void miro_pinnacle_gpio(struct bttv *btv)
 			btv->has_radio = 0;
 		}
 		if (-1 != msp) {
-			if (btv->c.type == BTTV_MIRO)
-				btv->c.type = BTTV_MIROPRO;
-			if (btv->c.type == BTTV_PINNACLE)
-				btv->c.type = BTTV_PINNACLEPRO;
+			if (btv->c.type == BTTV_BOARD_MIRO)
+				btv->c.type = BTTV_BOARD_MIROPRO;
+			if (btv->c.type == BTTV_BOARD_PINNACLE)
+				btv->c.type = BTTV_BOARD_PINNACLEPRO;
 		}
 		printk(KERN_INFO
 		       "bttv%d: miro: id=%d tuner=%d radio=%s stereo=%s\n",
@@ -2851,7 +2850,7 @@ static void miro_pinnacle_gpio(struct bttv *btv)
 			break;
 		}
 		if (-1 != msp)
-			btv->c.type = BTTV_PINNACLEPRO;
+			btv->c.type = BTTV_BOARD_PINNACLEPRO;
 		printk(KERN_INFO
 		       "bttv%d: pinnacle/mt: id=%d info=\"%s\" radio=%s\n",
 		       btv->c.nr, id, info, btv->has_radio ? "yes" : "no");
@@ -2965,25 +2964,25 @@ static void bttv_reset_audio(struct bttv *btv)
 void __devinit bttv_init_card1(struct bttv *btv)
 {
 	switch (btv->c.type) {
-	case BTTV_HAUPPAUGE:
-	case BTTV_HAUPPAUGE878:
+	case BTTV_BOARD_HAUPPAUGE:
+	case BTTV_BOARD_HAUPPAUGE878:
                 boot_msp34xx(btv,5);
 		break;
-	case BTTV_VOODOOTV_FM:
+	case BTTV_BOARD_VOODOOTV_FM:
                 boot_msp34xx(btv,20);
 		break;
-	case BTTV_AVERMEDIA98:
+	case BTTV_BOARD_AVERMEDIA98:
 		boot_msp34xx(btv,11);
 		break;
-	case BTTV_HAUPPAUGEPVR:
+	case BTTV_BOARD_HAUPPAUGEPVR:
 		pvr_boot(btv);
 		break;
-	case BTTV_TWINHAN_DST:
-	case BTTV_AVDVBT_771:
-	case BTTV_PINNACLESAT:
+	case BTTV_BOARD_TWINHAN_DST:
+	case BTTV_BOARD_AVDVBT_771:
+	case BTTV_BOARD_PINNACLESAT:
 		btv->use_i2c_hw = 1;
 		break;
-	case BTTV_ADLINK_RTV24:
+	case BTTV_BOARD_ADLINK_RTV24:
 		init_RTV24( btv );
 		break;
 
@@ -3000,51 +2999,51 @@ void __devinit bttv_init_card2(struct bttv *btv)
 
         btv->tuner_type = -1;
 
-	if (BTTV_UNKNOWN == btv->c.type) {
+	if (BTTV_BOARD_UNKNOWN == btv->c.type) {
 		bttv_readee(btv,eeprom_data,0xa0);
 		identify_by_eeprom(btv,eeprom_data);
 	}
 
 	switch (btv->c.type) {
-	case BTTV_MIRO:
-	case BTTV_MIROPRO:
-	case BTTV_PINNACLE:
-	case BTTV_PINNACLEPRO:
+	case BTTV_BOARD_MIRO:
+	case BTTV_BOARD_MIROPRO:
+	case BTTV_BOARD_PINNACLE:
+	case BTTV_BOARD_PINNACLEPRO:
 		/* miro/pinnacle */
 		miro_pinnacle_gpio(btv);
 		break;
-	case BTTV_FLYVIDEO_98:
-	case BTTV_MAXI:
-	case BTTV_LIFE_FLYKIT:
-	case BTTV_FLYVIDEO:
-	case BTTV_TYPHOON_TVIEW:
-	case BTTV_CHRONOS_VS2:
-	case BTTV_FLYVIDEO_98FM:
-	case BTTV_FLYVIDEO2000:
-	case BTTV_FLYVIDEO98EZ:
-	case BTTV_CONFERENCETV:
-	case BTTV_LIFETEC_9415:
+	case BTTV_BOARD_FLYVIDEO_98:
+	case BTTV_BOARD_MAXI:
+	case BTTV_BOARD_LIFE_FLYKIT:
+	case BTTV_BOARD_FLYVIDEO:
+	case BTTV_BOARD_TYPHOON_TVIEW:
+	case BTTV_BOARD_CHRONOS_VS2:
+	case BTTV_BOARD_FLYVIDEO_98FM:
+	case BTTV_BOARD_FLYVIDEO2000:
+	case BTTV_BOARD_FLYVIDEO98EZ:
+	case BTTV_BOARD_CONFERENCETV:
+	case BTTV_BOARD_LIFETEC_9415:
 		flyvideo_gpio(btv);
 		break;
-	case BTTV_HAUPPAUGE:
-	case BTTV_HAUPPAUGE878:
-	case BTTV_HAUPPAUGEPVR:
+	case BTTV_BOARD_HAUPPAUGE:
+	case BTTV_BOARD_HAUPPAUGE878:
+	case BTTV_BOARD_HAUPPAUGEPVR:
 		/* pick up some config infos from the eeprom */
 		bttv_readee(btv,eeprom_data,0xa0);
                 hauppauge_eeprom(btv);
 		break;
-	case BTTV_AVERMEDIA98:
-	case BTTV_AVPHONE98:
+	case BTTV_BOARD_AVERMEDIA98:
+	case BTTV_BOARD_AVPHONE98:
 		bttv_readee(btv,eeprom_data,0xa0);
 		avermedia_eeprom(btv);
 		break;
-	case BTTV_PXC200:
+	case BTTV_BOARD_PXC200:
 		init_PXC200(btv);
 		break;
-	case BTTV_PICOLO_TETRA_CHIP:
+	case BTTV_BOARD_PICOLO_TETRA_CHIP:
 		picolo_tetra_init(btv);
 		break;
-	case BTTV_VHX:
+	case BTTV_BOARD_VHX:
 		btv->has_radio    = 1;
 		btv->has_matchbox = 1;
 		btv->mbox_we      = 0x20;
@@ -3053,17 +3052,17 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		btv->mbox_data    = 0x10;
 		btv->mbox_mask    = 0x38;
 		break;
-	case BTTV_VOBIS_BOOSTAR:
-	case BTTV_TERRATV:
+	case BTTV_BOARD_VOBIS_BOOSTAR:
+	case BTTV_BOARD_TERRATV:
 		terratec_active_radio_upgrade(btv);
 		break;
-	case BTTV_MAGICTVIEW061:
+	case BTTV_BOARD_MAGICTVIEW061:
 		if (btv->cardid == 0x3002144f) {
 			btv->has_radio=1;
 			printk("bttv%d: radio detected by subsystem id (CPH05x)\n",btv->c.nr);
 		}
 		break;
-       case BTTV_STB2:
+       case BTTV_BOARD_STB2:
                 if (btv->cardid == 0x3060121a) {
 			/* Fix up entry for 3DFX VoodooTV 100,
 			   which is an OEM STB card variant. */
@@ -3071,34 +3070,34 @@ void __devinit bttv_init_card2(struct bttv *btv)
 			btv->tuner_type=TUNER_TEMIC_NTSC;
 		}
 		break;
-	case BTTV_OSPREY1x0:
-	case BTTV_OSPREY1x0_848:
-	case BTTV_OSPREY101_848:
-	case BTTV_OSPREY1x1:
-	case BTTV_OSPREY1x1_SVID:
-	case BTTV_OSPREY2xx:
-	case BTTV_OSPREY2x0_SVID:
-	case BTTV_OSPREY2x0:
-	case BTTV_OSPREY500:
-	case BTTV_OSPREY540:
-	case BTTV_OSPREY2000:
+	case BTTV_BOARD_OSPREY1x0:
+	case BTTV_BOARD_OSPREY1x0_848:
+	case BTTV_BOARD_OSPREY101_848:
+	case BTTV_BOARD_OSPREY1x1:
+	case BTTV_BOARD_OSPREY1x1_SVID:
+	case BTTV_BOARD_OSPREY2xx:
+	case BTTV_BOARD_OSPREY2x0_SVID:
+	case BTTV_BOARD_OSPREY2x0:
+	case BTTV_BOARD_OSPREY500:
+	case BTTV_BOARD_OSPREY540:
+	case BTTV_BOARD_OSPREY2000:
 		bttv_readee(btv,eeprom_data,0xa0);
                 osprey_eeprom(btv);
 		break;
-	case BTTV_IDS_EAGLE:
+	case BTTV_BOARD_IDS_EAGLE:
 		init_ids_eagle(btv);
 		break;
-	case BTTV_MODTEC_205:
+	case BTTV_BOARD_MODTEC_205:
 		bttv_readee(btv,eeprom_data,0xa0);
 		modtec_eeprom(btv);
 		break;
-	case BTTV_LMLBT4:
+	case BTTV_BOARD_LMLBT4:
 		init_lmlbt4x(btv);
 		break;
-	case BTTV_TIBET_CS16:
+	case BTTV_BOARD_TIBET_CS16:
 		tibetCS16_init(btv);
 		break;
-	case BTTV_KODICOM_4400R:
+	case BTTV_BOARD_KODICOM_4400R:
 		kodicom4400r_init(btv);
 		break;
 	}
@@ -3371,7 +3370,7 @@ static void __devinit osprey_eeprom(struct bttv *btv)
 			       checksum += ee[i];
                        if (checksum != ee[21])
 			       return;
-		       btv->c.type = BTTV_OSPREY1x0_848;
+		       btv->c.type = BTTV_BOARD_OSPREY1x0_848;
 		       for (i = 12; i < 21; i++)
 			       serial *= 10, serial += ee[i] - '0';
                }
@@ -3400,47 +3399,47 @@ static void __devinit osprey_eeprom(struct bttv *btv)
 
 	       /* 848 based */
 	       case 0x0004:
-		       btv->c.type = BTTV_OSPREY1x0_848;
+		       btv->c.type = BTTV_BOARD_OSPREY1x0_848;
 		       break;
 	       case 0x0005:
-		       btv->c.type = BTTV_OSPREY101_848;
+		       btv->c.type = BTTV_BOARD_OSPREY101_848;
 		       break;
 
                /* 878 based */
 	       case 0x0012:
 	       case 0x0013:
-		       btv->c.type = BTTV_OSPREY1x0;
+		       btv->c.type = BTTV_BOARD_OSPREY1x0;
 		       break;
 	       case 0x0014:
 	       case 0x0015:
-		       btv->c.type = BTTV_OSPREY1x1;
+		       btv->c.type = BTTV_BOARD_OSPREY1x1;
 		       break;
 	       case 0x0016:
 	       case 0x0017:
 	       case 0x0020:
-		       btv->c.type = BTTV_OSPREY1x1_SVID;
+		       btv->c.type = BTTV_BOARD_OSPREY1x1_SVID;
 		       break;
 	       case 0x0018:
 	       case 0x0019:
 	       case 0x001E:
 	       case 0x001F:
-		       btv->c.type = BTTV_OSPREY2xx;
+		       btv->c.type = BTTV_BOARD_OSPREY2xx;
 		       break;
 	       case 0x001A:
 	       case 0x001B:
-		       btv->c.type = BTTV_OSPREY2x0_SVID;
+		       btv->c.type = BTTV_BOARD_OSPREY2x0_SVID;
 		       break;
 	       case 0x0040:
-		       btv->c.type = BTTV_OSPREY500;
+		       btv->c.type = BTTV_BOARD_OSPREY500;
 		       break;
 	       case 0x0050:
 	       case 0x0056:
-		       btv->c.type = BTTV_OSPREY540;
+		       btv->c.type = BTTV_BOARD_OSPREY540;
 		       /* bttv_osprey_540_init(btv); */
 		       break;
 	       case 0x0060:
 	       case 0x0070:
-		       btv->c.type = BTTV_OSPREY2x0;
+		       btv->c.type = BTTV_BOARD_OSPREY2x0;
 		       /* enable output on select control lines */
 		       gpio_inout(0xffffff,0x000303);
 		       break;
@@ -3513,13 +3512,13 @@ void bttv_tda9880_setnorm(struct bttv *btv, int norm)
 {
 	/* fix up our card entry */
 	if(norm==VIDEO_MODE_NTSC) {
-		bttv_tvcards[BTTV_VOODOOTV_FM].audiomux[0]=0x957fff;
-		bttv_tvcards[BTTV_VOODOOTV_FM].audiomux[4]=0x957fff;
+		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].audiomux[0]=0x957fff;
+		bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].audiomux[4]=0x957fff;
 		dprintk("bttv_tda9880_setnorm to NTSC\n");
 	}
 	else {
-	        bttv_tvcards[BTTV_VOODOOTV_FM].audiomux[0]=0x947fff;
-                bttv_tvcards[BTTV_VOODOOTV_FM].audiomux[4]=0x947fff;
+	        bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].audiomux[0]=0x947fff;
+                bttv_tvcards[BTTV_BOARD_VOODOOTV_FM].audiomux[4]=0x947fff;
 		dprintk("bttv_tda9880_setnorm to PAL\n");
 	}
 	/* set GPIO according */
