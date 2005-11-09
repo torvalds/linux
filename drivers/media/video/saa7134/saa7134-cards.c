@@ -2319,6 +2319,33 @@ struct saa7134_board saa7134_boards[] = {
  			.amux   = LINE2,
  		}},
  	},
+	[SAA7134_BOARD_FLYTVPLATINUM_MINI2] = {
+		.name           = "LifeView FlyTV Platinum Mini2",
+		.audio_clock    = 0x00200000,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+		},{
+			.name = name_comp1,     /* Composite signal on S-Video input */
+			.vmux = 0,
+			.amux = LINE2,
+		},{
+			.name = name_comp2,	/* Composite input */
+			.vmux = 3,
+			.amux = LINE2,
+		},{
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE2,
+		}},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -2399,6 +2426,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x5168,
 		.subdevice    = 0x0212, /* minipci, LR212 */
 		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_MINI,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x14c0,
+		.subdevice    = 0x1212, /* minipci, LR1212 */
+		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_MINI2,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
