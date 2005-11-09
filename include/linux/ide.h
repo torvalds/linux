@@ -230,6 +230,7 @@ typedef struct hw_regs_s {
 	int		dma;			/* our dma entry */
 	ide_ack_intr_t	*ack_intr;		/* acknowledge interrupt */
 	hwif_chipset_t  chipset;
+	struct device	*dev;
 } hw_regs_t;
 
 /*
