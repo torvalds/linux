@@ -562,7 +562,6 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		ir_codes     = manli_codes;
 		mask_keycode = 0x001f00;
 		mask_keyup   = 0x004000;
-		mask_keydown = 0x002000;
 		polling      = 50; // ms
 		break;
         case SAA7134_BOARD_GOTVIEW_7135:
