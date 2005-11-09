@@ -306,6 +306,8 @@ config VIDEO_HEXIUM_GEMINI
 
 source "drivers/media/video/cx88/Kconfig"
 
+source "drivers/media/video/em28xx/Kconfig"
+
 config VIDEO_OVCAMCHIP
 	tristate "OmniVision Camera Chip support"
 	depends on VIDEO_DEV && I2C
