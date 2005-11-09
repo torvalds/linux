@@ -413,7 +413,7 @@ static void msp3400c_set_scart(struct i2c_client *client, int in, int out)
 
 	msp->in_scart=in;
 
-	if (in<=2) {
+	if (in >= 1 && in <= 8 && out >= 0 && out <= 2) {
 		if (-1 == scarts[out][in])
 			return;
 
@@ -2120,10 +2120,11 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	case VIDIOC_G_AUDOUT:
 	{
 		struct v4l2_audioout *a=(struct v4l2_audioout *)arg;
+		int idx=a->index;
 
 		memset(a,0,sizeof(*a));
 
-		switch (a->index) {
+		switch (idx) {
 		case 0:
 			strcpy(a->name,"Scart1 Out");
 			break;
@@ -2152,8 +2153,8 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			else
 				msp->i2s_mode=0;
 		}
-printk("Setting audio out on msp34xx to input %i, mode %i\n",a->index,msp->i2s_mode);
-		msp3400c_set_scart(client,msp->in_scart,a->index);
+		dprintk("Setting audio out on msp34xx to input %i, mode %i\n",a->index,msp->i2s_mode);
+		msp3400c_set_scart(client,msp->in_scart,a->index+1);
 
 		break;
 	}
