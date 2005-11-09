@@ -1,5 +1,5 @@
-How to get the Nebula, PCTV and Twinhan DST cards working
-=========================================================
+How to get the Nebula, PCTV, FusionHDTV Lite and Twinhan DST cards working
+==========================================================================
 
 This class of cards has a bt878a as the PCI interface, and
 require the bttv driver.
@@ -26,11 +26,12 @@ Furthermore you need to enable
 
 In general you need to load the bttv driver, which will handle the gpio and
 i2c communication for us, plus the common dvb-bt8xx device driver.
-The frontends for Nebula (nxt6000), Pinnacle PCTV (cx24110) and
-TwinHan (dst) are loaded automatically by the dvb-bt8xx device driver.
+The frontends for Nebula (nxt6000), Pinnacle PCTV (cx24110), TwinHan (dst),
+FusionHDTV DVB-T Lite (mt352) and FusionHDTV5 Lite (lgdt330x) are loaded
+automatically by the dvb-bt8xx device driver.
 
-3a) Nebula / Pinnacle PCTV
---------------------------
+3a) Nebula / Pinnacle PCTV / FusionHDTV Lite
+---------------------------------------------
 
    $ modprobe bttv (normally bttv is being loaded automatically by kmod)
    $ modprobe dvb-bt8xx
@@ -67,8 +68,8 @@ verbose=0 means complete disabling of messages
 dst_addons takes values 0 and 0x20. A value of 0 means it is a FTA card.
 0x20 means it has a Conditional Access slot.
 
-The autodected values are determined bythe cards 'response
-string' which you can see in your logs e.g.
+The autodetected values are determined by the cards 'response string'
+which you can see in your logs e.g.
 
 dst_get_device_id: Recognise [DSTMCI]
 
@@ -84,25 +85,29 @@ If you happen to be running multiple cards, it would be advisable to load
 the bttv module with the card id. This would help to solve any module loading
 problems that you might face.
 
-for example, if you happen to have a Twinhan and clones alongwith a FusionHDTV5
-card
+For example, if you have a Twinhan and Clones card along with a FusionHDTV5 Lite
 
 	$ modprobe bttv card=0x71 card=0x87
 
 Here the order of the card id is important and should be the same as that of the
 physical order of the cards. Here card=0x71 represents the Twinhan and clones
-and card=0x87 represents Fusion HDTV5.
+and card=0x87 represents Fusion HDTV5 Lite. These arguments can also be
+specified in decimal, rather than hex:
+
+	$ modprobe bttv card=113 card=135
 
 Some examples of card-id's
 
-Pinnacle Sat		0x5e
-Nebula Digi TV		0x68
-PC HDTV			0x70
-Twinhan			0x71
-Fusion HDTV5		0x87
+Pinnacle Sat		0x5e  (94)
+Nebula Digi TV		0x68  (104)
+PC HDTV			0x70  (112)
+Twinhan			0x71  (113)
+FusionHDTV DVB-T Lite	0x80  (128)
+FusionHDTV5 Lite	0x87  (135)
 
-For a full list of card-id's, you can see the exported card-id's from
-bttv-cards.c in linux-2.6.x/drivers/media/video/bttv.h
+For a full list of card-id's, see the V4L Documentation within the kernel
+source:  linux/Documentation/video4linux/CARDLIST.bttv
+
 If you have problems with this please do ask on the mailing list.
 
 --
