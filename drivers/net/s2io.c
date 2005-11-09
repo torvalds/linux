@@ -55,7 +55,6 @@
 #include <linux/timex.h>
 #include <linux/sched.h>
 #include <linux/ethtool.h>
-#include <linux/version.h>
 #include <linux/workqueue.h>
 #include <linux/if_vlan.h>
 

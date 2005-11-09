@@ -18,7 +18,6 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/version.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/uaccess.h>

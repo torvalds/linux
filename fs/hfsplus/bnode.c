@@ -13,7 +13,6 @@
 #include <linux/pagemap.h>
 #include <linux/fs.h>
 #include <linux/swap.h>
-#include <linux/version.h>
 
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"

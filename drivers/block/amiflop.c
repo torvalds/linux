@@ -1816,7 +1816,6 @@ out_blkdev:
 }
 
 #ifdef MODULE
-#include <linux/version.h>
 
 int init_module(void)
 {

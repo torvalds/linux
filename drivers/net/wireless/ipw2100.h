@@ -37,7 +37,6 @@
 #include <linux/socket.h>
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
-#include <linux/version.h>
 #include <net/iw_handler.h>	// new driver API
 
 #include <net/ieee80211.h>

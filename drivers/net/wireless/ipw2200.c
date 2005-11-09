@@ -31,6 +31,7 @@
 ******************************************************************************/
 
 #include "ipw2200.h"
+#include <linux/version.h>
 
 #define IPW2200_VERSION "1.0.0"
 #define DRV_DESCRIPTION	"Intel(R) PRO/Wireless 2200/2915 Network Driver"

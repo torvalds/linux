@@ -35,7 +35,6 @@
 #include <linux/timer.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
-#include <linux/version.h>
 #include <linux/types.h>
 
 #include <pcmcia/cs_types.h>
