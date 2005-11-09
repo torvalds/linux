@@ -97,7 +97,7 @@ static void tda827x_tune(struct i2c_client *c, u16 ifc, unsigned int freq)
 	tuner_reg[3] = 0x40;
 	tuner_reg[4] = 0x52 + (t->tda827x_lpsel << 5);
 	tuner_reg[5] = (tda827x_analog[i].spd   << 6) + (tda827x_analog[i].div1p5 <<5) +
-	     	       (tda827x_analog[i].bs     <<3) +  tda827x_analog[i].bp;
+		       (tda827x_analog[i].bs     <<3) +  tda827x_analog[i].bp;
 	tuner_reg[6] = 0x8f + (tda827x_analog[i].gc3 << 4);
 	tuner_reg[7] = 0x8f;
 
@@ -220,7 +220,7 @@ static void tda827xa_tune(struct i2c_client *c, u16 ifc, unsigned int freq)
 	tuner_reg[3] = 0;
 	tuner_reg[4] = 0x16;
 	tuner_reg[5] = (tda827xa_analog[i].spd << 5) + (tda827xa_analog[i].svco << 3) +
-		        tda827xa_analog[i].sbs;
+			tda827xa_analog[i].sbs;
 	tuner_reg[6] = 0x8b + (tda827xa_analog[i].gc3 << 4);
 	tuner_reg[7] = 0x0c;
 	tuner_reg[8] = 4;
@@ -317,7 +317,7 @@ static int tda8290_tune(struct i2c_client *c, u16 ifc, unsigned int freq)
 	unsigned char addr_agc_stat = 0x1d;
 	unsigned char addr_pll_stat = 0x1b;
 	unsigned char adc_sat, agc_stat,
-	              pll_stat;
+		      pll_stat;
 
 	i2c_master_send(c, easy_mode, 2);
 	i2c_master_send(c, soft_reset, 2);
@@ -483,11 +483,11 @@ static void tda8290_init_tuner(struct i2c_client *c)
 {
 	struct tuner *t = i2c_get_clientdata(c);
 	unsigned char tda8275_init[]  = { 0x00, 0x00, 0x00, 0x40, 0xdC, 0x04, 0xAf,
-				          0x3F, 0x2A, 0x04, 0xFF, 0x00, 0x00, 0x40 };
+					  0x3F, 0x2A, 0x04, 0xFF, 0x00, 0x00, 0x40 };
 	unsigned char tda8275a_init[] = { 0x00, 0x00, 0x00, 0x00, 0xdC, 0x05, 0x8b,
-				          0x0c, 0x04, 0x20, 0xFF, 0x00, 0x00, 0x4b };
+					  0x0c, 0x04, 0x20, 0xFF, 0x00, 0x00, 0x4b };
 	struct i2c_msg msg = {.addr = t->tda827x_addr, .flags=0,
-	                      .buf=tda8275_init, .len = 14};
+		              .buf=tda8275_init, .len = 14};
 	if (t->tda827x_ver != 0)
 		msg.buf = tda8275a_init;
 
@@ -535,7 +535,7 @@ int tda8290_init(struct i2c_client *c)
 	if (tuner_addrs == 0) {
 		tuner_addrs = 0x61;
 		tuner_info ("could not clearly identify tuner address, defaulting to %x\n",
-		             tuner_addrs);
+			     tuner_addrs);
 	} else {
 		tuner_addrs = tuner_addrs & 0xff;
 		tuner_info ("setting tuner address to %x\n", tuner_addrs);
