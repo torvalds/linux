@@ -110,6 +110,7 @@
 #define TUNER_LG_TDVS_H062F		64	/* DViCO FusionHDTV 5 */
 #define TUNER_YMEC_TVF66T5_B_DFF	65	/* Acorp Y878F */
 #define TUNER_LG_NTSC_TALN_MINI		66
+#define TUNER_PHILIPS_TD1316		67
 
 #define NOTUNER 0
 #define PAL     1	/* PAL_BG */

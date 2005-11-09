@@ -189,6 +189,13 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		i2c_master_send(c, buffer, 4);
 		default_tuner_init(c);
 		break;
+	case TUNER_PHILIPS_TD1316:
+		buffer[0] = 0x0b;
+		buffer[1] = 0xdc;
+		buffer[2] = 0x86;
+		buffer[3] = 0xa4;
+		i2c_master_send(c,buffer,4);
+		default_tuner_init(c);
 	default:
 		default_tuner_init(c);
 		break;

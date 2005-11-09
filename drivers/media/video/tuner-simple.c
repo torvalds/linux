@@ -248,6 +248,8 @@ static struct tunertype tuners[] = {
           16*160.25,16*464.25,0x01,0x02,0x08,0x8e,623},
  	{ "LG NTSC (TALN mini series)", LGINNOTEK, NTSC,
 	  16*137.25,16*373.25,0x01,0x02,0x08,0x8e,732 },
+	{ "Philips TD1316 Hybrid Tuner", Philips, PAL,
+	  16*160.00,16*442.00,0xa1,0xa2,0xa4,0xc8,623 },
 };
 
 unsigned const int tuner_count = ARRAY_SIZE(tuners);
