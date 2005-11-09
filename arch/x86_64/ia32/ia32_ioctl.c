@@ -64,12 +64,6 @@ struct ioctl_trans ioctl_start[] = {
 #include <linux/compat_ioctl.h>
 #define DECLARES
 #include "compat_ioctl.c"
-COMPATIBLE_IOCTL(HDIO_SET_KEEPSETTINGS)
-COMPATIBLE_IOCTL(HDIO_SCAN_HWIF)
-COMPATIBLE_IOCTL(BLKRASET)
-COMPATIBLE_IOCTL(0x4B50)   /* KDGHWCLK - not in the kernel, but don't complain */
-COMPATIBLE_IOCTL(0x4B51)   /* KDSHWCLK - not in the kernel, but don't complain */
-COMPATIBLE_IOCTL(FIOQSIZE)
 
 /* And these ioctls need translation */
 /* realtime device */
