@@ -190,14 +190,14 @@ int elevator_init(request_queue_t *q, char *name)
 
 	eq = kmalloc(sizeof(struct elevator_queue), GFP_KERNEL);
 	if (!eq) {
-		elevator_put(e->elevator_type);
+		elevator_put(e);
 		return -ENOMEM;
 	}
 
 	ret = elevator_attach(q, e, eq);
 	if (ret) {
 		kfree(eq);
-		elevator_put(e->elevator_type);
+		elevator_put(e);
 	}
 
 	return ret;
