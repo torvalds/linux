@@ -1,11 +1,10 @@
 /*
    em2820-core.c - driver for Empia EM2800/EM2820/2840 USB video capture devices
 
-   Copyright (C) 2005 Markus Rechberger <mrechberger@gmail.com>
-		      Ludovico Cavedon <cavedon@sssup.it>
+   Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
+		      Markus Rechberger <mrechberger@gmail.com>
 		      Mauro Carvalho Chehab <mchehab@brturbo.com.br>
-
-   Based on the em2800 driver from Sascha Sommer <saschasommer@freenet.de>
+		      Sascha Sommer <saschasommer@freenet.de>
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +28,7 @@
 #include <linux/usb.h>
 #include <linux/vmalloc.h>
 
-#include "em2820.h"
+#include "em28xx.h"
 
 /* #define ENABLE_DEBUG_ISOC_FRAMES */
 

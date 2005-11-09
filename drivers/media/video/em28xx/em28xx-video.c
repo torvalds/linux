@@ -1,11 +1,10 @@
 /*
-   em2820-video.c - driver for Empia EM2800/EM2820/2840 USB video capture devices
+   em28xx-video.c - driver for Empia EM2800/EM2820/2840 USB video capture devices
 
-   Copyright (C) 2005 Markus Rechberger <mrechberger@gmail.com>
-		      Ludovico Cavedon <cavedon@sssup.it>
+   Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
+		      Markus Rechberger <mrechberger@gmail.com>
 		      Mauro Carvalho Chehab <mchehab@brturbo.com.br>
-
-   Based on the em2800 driver from Sascha Sommer <saschasommer@freenet.de>
+		      Sascha Sommer <saschasommer@freenet.de>
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,15 +29,16 @@
 #include <linux/i2c.h>
 #include <linux/video_decoder.h>
 
-#include "em2820.h"
+#include "em28xx.h"
 #include <media/tuner.h>
 
-#define DRIVER_AUTHOR "Markus Rechberger <mrechberger@gmail.com>, " \
-			"Ludovico Cavedon <cavedon@sssup.it>, " \
-			"Mauro Carvalho Chehab <mchehab@brturbo.com.br>"
+#define DRIVER_AUTHOR "Ludovico Cavedon <cavedon@sssup.it>, " \
+		      "Markus Rechberger <mrechberger@gmail.com>, " \
+		      "Mauro Carvalho Chehab <mchehab@brturbo.com.br>, " \
+		      "Sascha Sommer <saschasommer@freenet.de>"
 
-#define DRIVER_NAME         "em2820"
-#define DRIVER_DESC         "Empia em2820 based USB video device driver"
+#define DRIVER_NAME         "em28xx"
+#define DRIVER_DESC         "Empia em28xx based USB video device driver"
 #define EM2820_VERSION_CODE  KERNEL_VERSION(0, 0, 1)
 
 #define em2820_videodbg(fmt, arg...) do {\
