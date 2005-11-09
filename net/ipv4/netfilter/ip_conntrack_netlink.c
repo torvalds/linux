@@ -58,14 +58,17 @@ ctnetlink_dump_tuples_proto(struct sk_buff *skb,
 			    const struct ip_conntrack_tuple *tuple)
 {
 	struct ip_conntrack_protocol *proto;
+	int ret = 0;
 
 	NFA_PUT(skb, CTA_PROTO_NUM, sizeof(u_int8_t), &tuple->dst.protonum);
 
 	proto = ip_conntrack_proto_find_get(tuple->dst.protonum);
-	if (proto && proto->tuple_to_nfattr)
-		return proto->tuple_to_nfattr(skb, tuple);
+	if (likely(proto && proto->tuple_to_nfattr)) {
+		ret = proto->tuple_to_nfattr(skb, tuple);
+		ip_conntrack_proto_put(proto);
+	}
 
-	return 0;
+	return ret;
 
 nfattr_failure:
 	return -1;
