@@ -81,36 +81,41 @@ static int dst_ci_command(struct dst_state* state, u8 * data, u8 *ca_string, u8 
 {
 	u8 reply;
 
+	down(&state->dst_mutex);
 	dst_comm_init(state);
 	msleep(65);
 
 	if (write_dst(state, data, len)) {
 		dprintk(verbose, DST_CA_INFO, 1, " Write not successful, trying to recover");
 		dst_error_recovery(state);
-		return -1;
+		goto error;
 	}
 	if ((dst_pio_disable(state)) < 0) {
 		dprintk(verbose, DST_CA_ERROR, 1, " DST PIO disable failed.");
-		return -1;
+		goto error;
 	}
 	if (read_dst(state, &reply, GET_ACK) < 0) {
 		dprintk(verbose, DST_CA_INFO, 1, " Read not successful, trying to recover");
 		dst_error_recovery(state);
-		return -1;
+		goto error;
 	}
 	if (read) {
 		if (! dst_wait_dst_ready(state, LONG_DELAY)) {
 			dprintk(verbose, DST_CA_NOTICE, 1, " 8820 not ready");
-			return -1;
+			goto error;
 		}
 		if (read_dst(state, ca_string, 128) < 0) {	/*	Try to make this dynamic	*/
 			dprintk(verbose, DST_CA_INFO, 1, " Read not successful, trying to recover");
 			dst_error_recovery(state);
-			return -1;
+			goto error;
 		}
 	}
-
+	up(&state->dst_mutex);
 	return 0;
+
+error:
+	up(&state->dst_mutex);
+	return -EIO;
 }
 
 

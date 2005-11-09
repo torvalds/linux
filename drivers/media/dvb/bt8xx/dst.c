@@ -910,6 +910,7 @@ static int dst_get_device_id(struct dst_state *state)
 
 static int dst_probe(struct dst_state *state)
 {
+	sema_init(&state->dst_mutex, 1);
 	if ((rdc_8820_reset(state)) < 0) {
 		dprintk(verbose, DST_ERROR, 1, "RDC 8820 RESET Failed.");
 		return -1;
@@ -960,21 +961,23 @@ static int dst_probe(struct dst_state *state)
 int dst_command(struct dst_state *state, u8 *data, u8 len)
 {
 	u8 reply;
+
+	down(&state->dst_mutex);
 	if ((dst_comm_init(state)) < 0) {
 		dprintk(verbose, DST_NOTICE, 1, "DST Communication Initialization Failed.");
-		return -1;
+		goto error;
 	}
 	if (write_dst(state, data, len)) {
 		dprintk(verbose, DST_INFO, 1, "Tring to recover.. ");
 		if ((dst_error_recovery(state)) < 0) {
 			dprintk(verbose, DST_ERROR, 1, "Recovery Failed.");
-			return -1;
+			goto error;
 		}
-		return -1;
+		goto error;
 	}
 	if ((dst_pio_disable(state)) < 0) {
 		dprintk(verbose, DST_ERROR, 1, "PIO Disable Failed.");
-		return -1;
+		goto error;
 	}
 	if (state->type_flags & DST_TYPE_HAS_FW_1)
 		udelay(3000);
@@ -982,36 +985,41 @@ int dst_command(struct dst_state *state, u8 *data, u8 len)
 		dprintk(verbose, DST_DEBUG, 1, "Trying to recover.. ");
 		if ((dst_error_recovery(state)) < 0) {
 			dprintk(verbose, DST_INFO, 1, "Recovery Failed.");
-			return -1;
+			goto error;
 		}
-		return -1;
+		goto error;
 	}
 	if (reply != ACK) {
 		dprintk(verbose, DST_INFO, 1, "write not acknowledged 0x%02x ", reply);
-		return -1;
+		goto error;
 	}
 	if (len >= 2 && data[0] == 0 && (data[1] == 1 || data[1] == 3))
-		return 0;
+		goto error;
 	if (state->type_flags & DST_TYPE_HAS_FW_1)
 		udelay(3000);
 	else
 		udelay(2000);
 	if (!dst_wait_dst_ready(state, NO_DELAY))
-		return -1;
+		goto error;
 	if (read_dst(state, state->rxbuffer, FIXED_COMM)) {
 		dprintk(verbose, DST_DEBUG, 1, "Trying to recover.. ");
 		if ((dst_error_recovery(state)) < 0) {
 			dprintk(verbose, DST_INFO, 1, "Recovery failed.");
-			return -1;
+			goto error;
 		}
-		return -1;
+		goto error;
 	}
 	if (state->rxbuffer[7] != dst_check_sum(state->rxbuffer, 7)) {
 		dprintk(verbose, DST_INFO, 1, "checksum failure");
-		return -1;
+		goto error;
 	}
-
+	up(&state->dst_mutex);
 	return 0;
+
+error:
+	up(&state->dst_mutex);
+	return -EIO;
+
 }
 EXPORT_SYMBOL(dst_command);
 

@@ -22,6 +22,7 @@
 #ifndef DST_COMMON_H
 #define DST_COMMON_H
 
+#include <linux/smp_lock.h>
 #include <linux/dvb/frontend.h>
 #include <linux/device.h>
 #include "bt878.h"
@@ -119,6 +120,8 @@ struct dst_state {
 	u8 card_info[8];
 	u8 vendor[8];
 	u8 board_info[8];
+
+	struct semaphore dst_mutex;
 };
 
 struct dst_types {
