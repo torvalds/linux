@@ -2431,6 +2431,7 @@ struct saa7134_board saa7134_boards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr	= ADDR_UNSET,
 		.gpiomask	= 1 << 21,
+		.mpeg           = SAA7134_MPEG_DVB,
 		.inputs         = {{
 			.name = name_tv,
 			.vmux = 1,
@@ -2864,12 +2865,17 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x1421,
 		.subdevice    = 0x0350,		/* PCI version */
 		.driver_data  = SAA7134_BOARD_ADS_INSTANT_TV,
-
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x1421,
 		.subdevice    = 0x0370,		/* cardbus version */
+		.driver_data  = SAA7134_BOARD_ADS_INSTANT_TV,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x1421,
+		.subdevice    = 0x1370,        /* cardbus version */
 		.driver_data  = SAA7134_BOARD_ADS_INSTANT_TV,
 
 	},{     /* Typhoon DVB-T Duo Digital/Analog Cardbus */
@@ -3222,6 +3228,7 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		}
 		break;
 	case SAA7134_BOARD_PHILIPS_TIGER:
+	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
 		/* this is a hybrid board, initialize to analog mode */
 		{
 		u8 data[] = { 0x3c, 0x33, 0x68};
