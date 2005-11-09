@@ -346,7 +346,7 @@ struct _lowcore
 #define S390_lowcore (*((struct _lowcore *) 0))
 extern struct _lowcore *lowcore_ptr[];
 
-extern __inline__ void set_prefix(__u32 address)
+static inline void set_prefix(__u32 address)
 {
         __asm__ __volatile__ ("spx %0" : : "m" (address) : "memory" );
 }
