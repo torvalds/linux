@@ -88,8 +88,7 @@ static int save_highmem_zone(struct zone *zone)
 	return 0;
 }
 
-
-static int save_highmem(void)
+int save_highmem(void)
 {
 	struct zone *zone;
 	int res = 0;
@@ -120,11 +119,7 @@ int restore_highmem(void)
 	}
 	return 0;
 }
-#else
-static int save_highmem(void) { return 0; }
-int restore_highmem(void) { return 0; }
-#endif /* CONFIG_HIGHMEM */
-
+#endif
 
 static int pfn_is_nosave(unsigned long pfn)
 {
@@ -416,11 +411,6 @@ asmlinkage int swsusp_save(void)
 	unsigned int nr_pages;
 
 	pr_debug("swsusp: critical section: \n");
-	if (save_highmem()) {
-		printk(KERN_CRIT "swsusp: Not enough free pages for highmem\n");
-		restore_highmem();
-		return -ENOMEM;
-	}
 
 	drain_local_pages();
 	nr_pages = count_data_pages();
@@ -438,11 +428,6 @@ asmlinkage int swsusp_save(void)
 	if (!enough_free_mem(nr_pages)) {
 		printk(KERN_ERR "swsusp: Not enough free memory\n");
 		return -ENOMEM;
-	}
-
-	if (!enough_swap(nr_pages)) {
-		printk(KERN_ERR "swsusp: Not enough free swap\n");
-		return -ENOSPC;
 	}
 
 	pagedir_nosave = swsusp_alloc(nr_pages);
