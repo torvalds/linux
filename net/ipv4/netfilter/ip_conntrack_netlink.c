@@ -593,7 +593,7 @@ static int ctnetlink_parse_nat_proto(struct nfattr *attr,
 	nfattr_parse_nested(tb, CTA_PROTONAT_MAX, attr);
 
 	if (nfattr_bad_size(tb, CTA_PROTONAT_MAX, cta_min_protonat))
-		return -1;
+		return -EINVAL;
 
 	npt = ip_nat_proto_find_get(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum);
 	if (!npt)
