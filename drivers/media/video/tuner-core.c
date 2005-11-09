@@ -222,9 +222,9 @@ static void set_addr(struct i2c_client *c, struct tuner_setup *tun_setup)
 {
 	struct tuner *t = i2c_get_clientdata(c);
 
-	if ((tun_setup->addr == ADDR_UNSET &&
+	if ( t->type == UNSET && ((tun_setup->addr == ADDR_UNSET &&
 		(t->mode_mask & tun_setup->mode_mask)) ||
-		tun_setup->addr == c->addr) {
+		tun_setup->addr == c->addr)) {
 			set_type(c, tun_setup->type, tun_setup->mode_mask);
 	}
 }
