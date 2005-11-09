@@ -150,6 +150,7 @@ void em2820_set_ir(struct em2820 * dev,struct IR_i2c *ir)
 		break;
 	case (EM2820_BOARD_UNKNOWN):
 		break;
+	case (EM2800_BOARD_TERRATEC_CINERGY_200):
 	case (EM2820_BOARD_TERRATEC_CINERGY_250):
 		ir->ir_codes = ir_codes_em_terratec;
 		ir->get_key = get_key_terratec;
@@ -163,8 +164,6 @@ void em2820_set_ir(struct em2820 * dev,struct IR_i2c *ir)
 		snprintf(ir->c.name, sizeof(ir->c.name), "i2c IR (EM2840 Hauppauge)");
 		break;
 	case (EM2820_BOARD_MSI_VOX_USB_2):
-		break;
-	case (EM2800_BOARD_TERRATEC_CINERGY_200):
 		break;
 	case (EM2800_BOARD_LEADTEK_WINFAST_USBII):
 		break;
