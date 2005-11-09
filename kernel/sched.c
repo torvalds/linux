@@ -661,21 +661,21 @@ static int effective_prio(task_t *p)
 }
 
 #ifdef CONFIG_SMP
-static inline void inc_prio_bias(runqueue_t *rq, int static_prio)
+static inline void inc_prio_bias(runqueue_t *rq, int prio)
 {
-	rq->prio_bias += MAX_PRIO - static_prio;
+	rq->prio_bias += MAX_PRIO - prio;
 }
 
-static inline void dec_prio_bias(runqueue_t *rq, int static_prio)
+static inline void dec_prio_bias(runqueue_t *rq, int prio)
 {
-	rq->prio_bias -= MAX_PRIO - static_prio;
+	rq->prio_bias -= MAX_PRIO - prio;
 }
 #else
-static inline void inc_prio_bias(runqueue_t *rq, int static_prio)
+static inline void inc_prio_bias(runqueue_t *rq, int prio)
 {
 }
 
-static inline void dec_prio_bias(runqueue_t *rq, int static_prio)
+static inline void dec_prio_bias(runqueue_t *rq, int prio)
 {
 }
 #endif
@@ -683,13 +683,19 @@ static inline void dec_prio_bias(runqueue_t *rq, int static_prio)
 static inline void inc_nr_running(task_t *p, runqueue_t *rq)
 {
 	rq->nr_running++;
-	inc_prio_bias(rq, p->static_prio);
+	if (rt_task(p))
+		inc_prio_bias(rq, p->prio);
+	else
+		inc_prio_bias(rq, p->static_prio);
 }
 
 static inline void dec_nr_running(task_t *p, runqueue_t *rq)
 {
 	rq->nr_running--;
-	dec_prio_bias(rq, p->static_prio);
+	if (rt_task(p))
+		dec_prio_bias(rq, p->prio);
+	else
+		dec_prio_bias(rq, p->static_prio);
 }
 
 /*
