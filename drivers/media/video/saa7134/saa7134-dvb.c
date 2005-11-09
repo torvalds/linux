@@ -29,7 +29,6 @@
 #include <linux/kthread.h>
 #include <linux/suspend.h>
 
-
 #include "saa7134-reg.h"
 #include "saa7134.h"
 

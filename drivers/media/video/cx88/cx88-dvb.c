@@ -29,7 +29,6 @@
 #include <linux/file.h>
 #include <linux/suspend.h>
 
-
 #include "cx88.h"
 #include "dvb-pll.h"
 
