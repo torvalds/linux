@@ -708,7 +708,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	}
 	case VIDIOCGFREQ: /*  get frequency  */
 	{
-		int *freq = arg;
+		unsigned long *freq = arg;
 
 		freq2.tuner = 0;
 		err = drv(inode, file, VIDIOC_G_FREQUENCY, &freq2);
@@ -720,7 +720,7 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 	}
 	case VIDIOCSFREQ: /*  set frequency  */
 	{
-		int *freq = arg;
+		unsigned long *freq = arg;
 
 		freq2.tuner = 0;
 		drv(inode, file, VIDIOC_G_FREQUENCY, &freq2);
