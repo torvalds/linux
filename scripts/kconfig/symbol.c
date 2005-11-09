@@ -141,6 +141,55 @@ struct property *sym_get_range_prop(struct symbol *sym)
 	return NULL;
 }
 
+static int sym_get_range_val(struct symbol *sym, int base)
+{
+	sym_calc_value(sym);
+	switch (sym->type) {
+	case S_INT:
+		base = 10;
+		break;
+	case S_HEX:
+		base = 16;
+		break;
+	default:
+		break;
+	}
+	return strtol(sym->curr.val, NULL, base);
+}
+
+static void sym_validate_range(struct symbol *sym)
+{
+	struct property *prop;
+	int base, val, val2;
+	char str[64];
+
+	switch (sym->type) {
+	case S_INT:
+		base = 10;
+		break;
+	case S_HEX:
+		base = 16;
+		break;
+	default:
+		return;
+	}
+	prop = sym_get_range_prop(sym);
+	if (!prop)
+		return;
+	val = strtol(sym->curr.val, NULL, base);
+	val2 = sym_get_range_val(prop->expr->left.sym, base);
+	if (val >= val2) {
+		val2 = sym_get_range_val(prop->expr->right.sym, base);
+		if (val <= val2)
+			return;
+	}
+	if (sym->type == S_INT)
+		sprintf(str, "%d", val2);
+	else
+		sprintf(str, "0x%x", val2);
+	sym->curr.val = strdup(str);
+}
+
 static void sym_calc_visibility(struct symbol *sym)
 {
 	struct property *prop;
@@ -301,6 +350,7 @@ void sym_calc_value(struct symbol *sym)
 	sym->curr = newval;
 	if (sym_is_choice(sym) && newval.tri == yes)
 		sym->curr.val = sym_calc_choice(sym);
+	sym_validate_range(sym);
 
 	if (memcmp(&oldval, &sym->curr, sizeof(oldval)))
 		sym_set_changed(sym);
@@ -489,8 +539,8 @@ bool sym_string_within_range(struct symbol *sym, const char *str)
 		if (!prop)
 			return true;
 		val = strtol(str, NULL, 10);
-		return val >= strtol(prop->expr->left.sym->name, NULL, 10) &&
-		       val <= strtol(prop->expr->right.sym->name, NULL, 10);
+		return val >= sym_get_range_val(prop->expr->left.sym, 10) &&
+		       val <= sym_get_range_val(prop->expr->right.sym, 10);
 	case S_HEX:
 		if (!sym_string_valid(sym, str))
 			return false;
@@ -498,8 +548,8 @@ bool sym_string_within_range(struct symbol *sym, const char *str)
 		if (!prop)
 			return true;
 		val = strtol(str, NULL, 16);
-		return val >= strtol(prop->expr->left.sym->name, NULL, 16) &&
-		       val <= strtol(prop->expr->right.sym->name, NULL, 16);
+		return val >= sym_get_range_val(prop->expr->left.sym, 16) &&
+		       val <= sym_get_range_val(prop->expr->right.sym, 16);
 	case S_BOOLEAN:
 	case S_TRISTATE:
 		switch (str[0]) {

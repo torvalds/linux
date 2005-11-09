@@ -151,6 +151,12 @@ void menu_add_symbol(enum prop_type type, struct symbol *sym, struct expr *dep)
 	menu_add_prop(type, NULL, expr_alloc_symbol(sym), dep);
 }
 
+static int menu_range_valid_sym(struct symbol *sym, struct symbol *sym2)
+{
+	return sym2->type == S_INT || sym2->type == S_HEX ||
+	       (sym2->type == S_UNKNOWN && sym_string_valid(sym, sym2->name));
+}
+
 void sym_check_prop(struct symbol *sym)
 {
 	struct property *prop;
@@ -185,8 +191,8 @@ void sym_check_prop(struct symbol *sym)
 			if (sym->type != S_INT && sym->type != S_HEX)
 				prop_warn(prop, "range is only allowed "
 				                "for int or hex symbols");
-			if (!sym_string_valid(sym, prop->expr->left.sym->name) ||
-			    !sym_string_valid(sym, prop->expr->right.sym->name))
+			if (!menu_range_valid_sym(sym, prop->expr->left.sym) ||
+			    !menu_range_valid_sym(sym, prop->expr->right.sym))
 				prop_warn(prop, "range is invalid");
 			break;
 		default:
