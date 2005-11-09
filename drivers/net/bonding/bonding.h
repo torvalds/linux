@@ -37,6 +37,7 @@
 #include <linux/timer.h>
 #include <linux/proc_fs.h>
 #include <linux/if_bonding.h>
+#include <linux/kobject.h>
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
@@ -262,6 +263,12 @@ struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr)
 int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_device *slave_dev);
 int bond_create(char *name, struct bond_params *params, struct bonding **newbond);
 void bond_deinit(struct net_device *bond_dev);
+int bond_create_sysfs(void);
+void bond_destroy_sysfs(void);
+void bond_destroy_sysfs_entry(struct bonding *bond);
+int bond_create_sysfs_entry(struct bonding *bond);
+int bond_create_slave_symlinks(struct net_device *master, struct net_device *slave);
+void bond_destroy_slave_symlinks(struct net_device *master, struct net_device *slave);
 int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev);
 int bond_release(struct net_device *bond_dev, struct net_device *slave_dev);
 int bond_sethwaddr(struct net_device *bond_dev, struct net_device *slave_dev);

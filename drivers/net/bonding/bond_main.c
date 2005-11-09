@@ -600,6 +600,7 @@ LIST_HEAD(bond_dev_list);
 static struct proc_dir_entry *bond_proc_dir = NULL;
 #endif
 
+extern struct rw_semaphore bonding_rwsem;
 static u32 arp_target[BOND_MAX_ARP_TARGETS] = { 0, } ;
 static int arp_ip_count	= 0;
 static int bond_mode	= BOND_MODE_ROUNDROBIN;
@@ -1960,6 +1961,10 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	write_unlock_bh(&bond->lock);
 
+	res = bond_create_slave_symlinks(bond_dev, slave_dev);
+	if (res)
+		goto err_unset_master;
+
 	printk(KERN_INFO DRV_NAME
 	       ": %s: enslaving %s as a%s interface with a%s link.\n",
 	       bond_dev->name, slave_dev->name,
@@ -2133,6 +2138,9 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	write_unlock_bh(&bond->lock);
 
+	/* must do this from outside any spinlocks */
+	bond_destroy_slave_symlinks(bond_dev, slave_dev);
+
 	bond_del_vlans_from_slave(bond, slave_dev);
 
 	/* If the mode USES_PRIMARY, then we should only remove its
@@ -2224,6 +2232,7 @@ static int bond_release_all(struct net_device *bond_dev)
 		 */
 		write_unlock_bh(&bond->lock);
 
+		bond_destroy_slave_symlinks(bond_dev, slave_dev);
 		bond_del_vlans_from_slave(bond, slave_dev);
 
 		/* If the mode USES_PRIMARY, then we should only remove its
@@ -3518,7 +3527,10 @@ static int bond_event_changename(struct bonding *bond)
 	bond_remove_proc_entry(bond);
 	bond_create_proc_entry(bond);
 #endif
-
+	down_write(&(bonding_rwsem));
+        bond_destroy_sysfs_entry(bond);
+        bond_create_sysfs_entry(bond);
+	up_write(&(bonding_rwsem));
 	return NOTIFY_DONE;
 }
 
@@ -3995,6 +4007,7 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 		return -EPERM;
 	}
 
+	down_write(&(bonding_rwsem));
 	slave_dev = dev_get_by_name(ifr->ifr_slave);
 
 	dprintk("slave_dev=%p: \n", slave_dev);
@@ -4027,6 +4040,7 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 		dev_put(slave_dev);
 	}
 
+	up_write(&(bonding_rwsem));
 	return res;
 }
 
@@ -4962,6 +4976,7 @@ int bond_create(char *name, struct bond_params *params, struct bonding **newbond
 		*newbond = bond_dev->priv;
 
 	rtnl_unlock(); /* allows sysfs registration of net device */
+	res = bond_create_sysfs_entry(bond_dev->priv);
 	goto done;
 out_bond:
 	bond_deinit(bond_dev);
@@ -4996,6 +5011,10 @@ static int __init bonding_init(void)
 			goto err;
 	}
 
+	res = bond_create_sysfs();
+	if (res)
+		goto err;
+
 	register_netdevice_notifier(&bond_netdev_notifier);
 	register_inetaddr_notifier(&bond_inetaddr_notifier);
 
@@ -5003,6 +5022,7 @@ static int __init bonding_init(void)
 err:
 	rtnl_lock();
 	bond_free_all();
+	bond_destroy_sysfs();
 	rtnl_unlock();
 out:
 	return res;
@@ -5016,6 +5036,7 @@ static void __exit bonding_exit(void)
 
 	rtnl_lock();
 	bond_free_all();
+	bond_destroy_sysfs();
 	rtnl_unlock();
 }
 
