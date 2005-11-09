@@ -329,8 +329,6 @@ static int attach_inform(struct i2c_client *client)
 }
 
 static struct i2c_algorithm em2820_algo = {
-	.name          = "em2820",
-	.id            = I2C_HW_B_EM2820,
 	.master_xfer   = em2820_i2c_xfer,
 	.algo_control  = algo_control,
 	.functionality = functionality,
