@@ -885,6 +885,48 @@ int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask)
 	return err;
 }
 
+static void mthca_adjust_qp_caps(struct mthca_dev *dev,
+				 struct mthca_pd *pd,
+				 struct mthca_qp *qp)
+{
+	int max_data_size;
+
+	/*
+	 * Calculate the maximum size of WQE s/g segments, excluding
+	 * the next segment and other non-data segments.
+	 */
+	max_data_size = min(dev->limits.max_desc_sz, 1 << qp->sq.wqe_shift) -
+		sizeof (struct mthca_next_seg);
+
+	switch (qp->transport) {
+	case MLX:
+		max_data_size -= 2 * sizeof (struct mthca_data_seg);
+		break;
+
+	case UD:
+		if (mthca_is_memfree(dev))
+			max_data_size -= sizeof (struct mthca_arbel_ud_seg);
+		else
+			max_data_size -= sizeof (struct mthca_tavor_ud_seg);
+		break;
+
+	default:
+		max_data_size -= sizeof (struct mthca_raddr_seg);
+		break;
+	}
+
+	/* We don't support inline data for kernel QPs (yet). */
+	if (!pd->ibpd.uobject)
+		qp->max_inline_data = 0;
+        else
+		qp->max_inline_data = max_data_size - MTHCA_INLINE_HEADER_SIZE;
+
+	qp->sq.max_gs = max_data_size / sizeof (struct mthca_data_seg);
+	qp->rq.max_gs = (min(dev->limits.max_desc_sz, 1 << qp->rq.wqe_shift) -
+			sizeof (struct mthca_next_seg)) /
+			sizeof (struct mthca_data_seg);
+}
+
 /*
  * Allocate and register buffer for WQEs.  qp->rq.max, sq.max,
  * rq.max_gs and sq.max_gs must all be assigned.
@@ -902,26 +944,52 @@ static int mthca_alloc_wqe_buf(struct mthca_dev *dev,
 	size = sizeof (struct mthca_next_seg) +
 		qp->rq.max_gs * sizeof (struct mthca_data_seg);
 
+	if (size > dev->limits.max_desc_sz)
+		return -EINVAL;
+
 	for (qp->rq.wqe_shift = 6; 1 << qp->rq.wqe_shift < size;
 	     qp->rq.wqe_shift++)
 		; /* nothing */
 
-	size = sizeof (struct mthca_next_seg) +
-		qp->sq.max_gs * sizeof (struct mthca_data_seg);
+	size = qp->sq.max_gs * sizeof (struct mthca_data_seg);
 	switch (qp->transport) {
 	case MLX:
 		size += 2 * sizeof (struct mthca_data_seg);
 		break;
+
 	case UD:
-		if (mthca_is_memfree(dev))
-			size += sizeof (struct mthca_arbel_ud_seg);
-		else
-			size += sizeof (struct mthca_tavor_ud_seg);
+		size += mthca_is_memfree(dev) ?
+			sizeof (struct mthca_arbel_ud_seg) :
+			sizeof (struct mthca_tavor_ud_seg);
 		break;
+
+	case UC:
+		size += sizeof (struct mthca_raddr_seg);
+		break;
+
+	case RC:
+		size += sizeof (struct mthca_raddr_seg);
+		/*
+		 * An atomic op will require an atomic segment, a
+		 * remote address segment and one scatter entry.
+		 */
+		size = max_t(int, size,
+			     sizeof (struct mthca_atomic_seg) +
+			     sizeof (struct mthca_raddr_seg) +
+			     sizeof (struct mthca_data_seg));
+		break;
+
 	default:
-		/* bind seg is as big as atomic + raddr segs */
-		size += sizeof (struct mthca_bind_seg);
+		break;
 	}
+
+	/* Make sure that we have enough space for a bind request */
+	size = max_t(int, size, sizeof (struct mthca_bind_seg));
+
+	size += sizeof (struct mthca_next_seg);
+
+	if (size > dev->limits.max_desc_sz)
+		return -EINVAL;
 
 	for (qp->sq.wqe_shift = 6; 1 << qp->sq.wqe_shift < size;
 	     qp->sq.wqe_shift++)
@@ -1065,6 +1133,8 @@ static int mthca_alloc_qp_common(struct mthca_dev *dev,
 		mthca_unmap_memfree(dev, qp);
 		return ret;
 	}
+
+	mthca_adjust_qp_caps(dev, pd, qp);
 
 	/*
 	 * If this is a userspace QP, we're done now.  The doorbells

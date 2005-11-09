@@ -616,11 +616,11 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 		return ERR_PTR(err);
 	}
 
-	init_attr->cap.max_inline_data = 0;
 	init_attr->cap.max_send_wr     = qp->sq.max;
 	init_attr->cap.max_recv_wr     = qp->rq.max;
 	init_attr->cap.max_send_sge    = qp->sq.max_gs;
 	init_attr->cap.max_recv_sge    = qp->rq.max_gs;
+	init_attr->cap.max_inline_data = qp->max_inline_data;
 
 	return &qp->ibqp;
 }

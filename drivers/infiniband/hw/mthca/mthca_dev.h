@@ -131,6 +131,7 @@ struct mthca_limits {
 	int      max_sg;
 	int      num_qps;
 	int      max_wqes;
+	int	 max_desc_sz;
 	int	 max_qp_init_rdma;
 	int      reserved_qps;
 	int      num_srqs;
