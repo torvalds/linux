@@ -97,6 +97,12 @@ finished:
 void fbcon_set_rotate(struct fbcon_ops *ops)
 {
 	ops->rotate_font = fbcon_rotate_font;
+
+	switch(ops->rotate) {
+	case FB_ROTATE_CW:
+		fbcon_rotate_cw(ops);
+		break;
+	}
 }
 EXPORT_SYMBOL(fbcon_set_rotate);
 

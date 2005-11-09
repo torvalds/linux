@@ -207,12 +207,25 @@ static irqreturn_t fb_vbl_detect(int irq, void *dummy, struct pt_regs *fp)
 }
 #endif
 
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE_ROTATION
+static inline void fbcon_set_rotation(struct fb_info *info, struct display *p)
+{
+	struct fbcon_ops *ops = info->fbcon_par;
+
+	if (!(info->flags & FBINFO_MISC_TILEBLITTING) &&
+	    p->con_rotate < 4)
+		ops->rotate = p->con_rotate;
+	else
+		ops->rotate = 0;
+}
+#else
 static inline void fbcon_set_rotation(struct fb_info *info, struct display *p)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
 
 	ops->rotate = FB_ROTATE_UR;
 }
+#endif /* CONFIG_FRAMEBUFFER_CONSOLE_ROTATION */
 
 static inline int fbcon_is_inactive(struct vc_data *vc, struct fb_info *info)
 {
