@@ -373,6 +373,9 @@ static int em2820_i2c_eeprom(struct em2820 *dev, unsigned char *eedata, int len)
 		printk(KERN_INFO "200mA max power\n");
 		break;
 	}
+	printk(KERN_INFO "Table at 0x%02x, strings=0x%04x, 0x%04x, 0x%04x\n",
+				em_eeprom->string_idx_table,em_eeprom->string1,
+				em_eeprom->string2,em_eeprom->string3);
 
 	return 0;
 }

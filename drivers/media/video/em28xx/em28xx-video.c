@@ -1655,7 +1655,7 @@ static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 #ifdef CONFIG_MODULES
 	/* request some modules */
 	if (dev->decoder == EM2820_SAA7113 || dev->decoder == EM2820_SAA7114)
-		request_module("saa7113");
+		request_module("saa711x");
 	if (dev->decoder == EM2820_TVP5150)
 		request_module("tvp5150");
 	if (dev->has_tuner)
@@ -1753,14 +1753,20 @@ static int em2820_usb_probe(struct usb_interface *interface,
 	udev = usb_get_dev(interface_to_usbdev(interface));
 	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 
-	em2820_err(DRIVER_NAME " new device (%04x:%04x): interface %i, class %i\n",
+
+	/* Don't register audio interfaces */
+	if (interface->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
+		em2820_err(DRIVER_NAME " audio device (%04x:%04x): interface %i, class %i\n",
+				udev->descriptor.idVendor,udev->descriptor.idProduct,
+				ifnum,
+				interface->altsetting[0].desc.bInterfaceClass);
+		return -ENODEV;
+	}
+
+	em2820_err(DRIVER_NAME " new video device (%04x:%04x): interface %i, class %i\n",
 			udev->descriptor.idVendor,udev->descriptor.idProduct,
 			ifnum,
 			interface->altsetting[0].desc.bInterfaceClass);
-
-	/* Don't register audio interfaces */
-	if (interface->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO)
-		return -ENODEV;
 
 	endpoint = &interface->cur_altsetting->endpoint[1].desc;
 
