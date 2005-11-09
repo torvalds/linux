@@ -539,6 +539,15 @@ config BLK_DEV_CS5530
 
 	  It is safe to say Y to this question.
 
+config BLK_DEV_CS5535
+	tristate "AMD CS5535 chipset support"
+	depends on X86 && !X86_64
+	help
+	  Include support for UDMA on the NSC/AMD CS5535 companion chipset.
+	  This will automatically be detected and configured if found.
+
+	  It is safe to say Y to this question.
+
 config BLK_DEV_HPT34X
 	tristate "HPT34X chipset support"
 	help
