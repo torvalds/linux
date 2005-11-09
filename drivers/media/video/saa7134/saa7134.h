@@ -27,6 +27,8 @@
 #include <linux/videodev.h>
 #include <linux/kdev_t.h>
 #include <linux/input.h>
+#include <linux/notifier.h>
+#include <linux/delay.h>
 
 #include <asm/io.h>
 
