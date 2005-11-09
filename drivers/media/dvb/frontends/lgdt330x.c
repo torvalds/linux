@@ -27,6 +27,7 @@
  *   DViCO FusionHDTV 3 Gold-T
  *   DViCO FusionHDTV 5 Gold
  *   DViCO FusionHDTV 5 Lite
+ *   Air2PC/AirStar 2 ATSC 3rd generation (HD5000)
  *
  * TODO:
  * signal strength always returns 0.
@@ -223,6 +224,11 @@ static int lgdt330x_init(struct dvb_frontend* fe)
 		0x4c, 0x14
 	};
 
+	static u8 flip_lgdt3303_init_data[] = {
+		0x4c, 0x14,
+		0x87, 0xf3
+	};
+
 	struct lgdt330x_state* state = fe->demodulator_priv;
 	char  *chip_name;
 	int    err;
@@ -235,8 +241,13 @@ static int lgdt330x_init(struct dvb_frontend* fe)
 		break;
 	case LGDT3303:
 		chip_name = "LGDT3303";
-		err = i2c_write_demod_bytes(state, lgdt3303_init_data,
-					    sizeof(lgdt3303_init_data));
+		if (state->config->clock_polarity_flip) {
+			err = i2c_write_demod_bytes(state, flip_lgdt3303_init_data,
+						    sizeof(flip_lgdt3303_init_data));
+		} else {
+			err = i2c_write_demod_bytes(state, lgdt3303_init_data,
+						    sizeof(lgdt3303_init_data));
+		}
 		break;
 	default:
 		chip_name = "undefined";

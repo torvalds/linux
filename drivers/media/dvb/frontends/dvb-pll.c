@@ -226,7 +226,7 @@ struct dvb_pll_desc dvb_pll_tua6034 = {
 EXPORT_SYMBOL(dvb_pll_tua6034);
 
 /* Infineon TUA6034
- * used in LG Innotek TDVS-H062F
+ * used in LG TDVS H061F and LG TDVS H062F
  */
 struct dvb_pll_desc dvb_pll_tdvs_tua6034 = {
 	.name  = "LG/Infineon TUA6034",
