@@ -296,10 +296,20 @@ static int nxt200x_set_ts_param(struct dvb_frontend* fe,
 	return 0;
 }
 
+static int nxt200x_set_pll_input(u8* buf, int input)
+{
+	if (input)
+		buf[3] |= 0x08;
+	else
+		buf[3] &= ~0x08;
+	return 0;
+}
+
 static struct nxt200x_config ati_hdtvwonder = {
 	.demod_address    = 0x0a,
 	.pll_address      = 0x61,
 	.pll_desc         = &dvb_pll_tuv1236d,
+	.set_pll_input    = nxt200x_set_pll_input,
 	.set_ts_params    = nxt200x_set_ts_param,
 };
 #endif
