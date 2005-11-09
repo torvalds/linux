@@ -755,9 +755,8 @@ static struct dvb_frontend_ops lgdt3302_ops = {
 		.frequency_min= 54000000,
 		.frequency_max= 858000000,
 		.frequency_stepsize= 62500,
-		/* Symbol rate is for all VSB modes need to check QAM */
-		.symbol_rate_min    = 10762000,
-		.symbol_rate_max    = 10762000,
+		.symbol_rate_min    = 5056941,	/* QAM 64 */
+		.symbol_rate_max    = 10762000,	/* VSB 8  */
 		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
 	},
 	.init                 = lgdt330x_init,
@@ -779,9 +778,8 @@ static struct dvb_frontend_ops lgdt3303_ops = {
 		.frequency_min= 54000000,
 		.frequency_max= 858000000,
 		.frequency_stepsize= 62500,
-		/* Symbol rate is for all VSB modes need to check QAM */
-		.symbol_rate_min    = 10762000,
-		.symbol_rate_max    = 10762000,
+		.symbol_rate_min    = 5056941,	/* QAM 64 */
+		.symbol_rate_max    = 10762000,	/* VSB 8  */
 		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
 	},
 	.init                 = lgdt330x_init,
