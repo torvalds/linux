@@ -11,6 +11,11 @@
 #include <string.h>
 #include <stdbool.h>
 
+#define LKC_DIRECT_LINK
+#include "lkc.h"
+
+#include "zconf.hash.c"
+
 #define printd(mask, fmt...) if (cdebug & (mask)) printf(fmt)
 
 #define PRINTD		0x0001
@@ -88,10 +93,6 @@ static struct menu *current_menu, *current_entry;
 %type <expr> if_expr
 %type <token> end
 
-%{
-#define LKC_DIRECT_LINK
-#include "lkc.h"
-%}
 %%
 input:	  /* empty */
 	| input block

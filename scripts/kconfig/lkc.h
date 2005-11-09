@@ -37,6 +37,16 @@ extern "C" {
 #define _(text) gettext(text)
 #define N_(text) (text)
 
+
+#define TF_COMMAND	0x0001
+#define TF_PARAM	0x0002
+
+struct kconf_id {
+	int name;
+	int token;
+	unsigned int flags;
+};
+
 int zconfparse(void);
 void zconfdump(FILE *out);
 
