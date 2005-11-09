@@ -1,5 +1,5 @@
 /*
-   em2820-core.c - driver for Empia EM2820/2840 USB video capture devices
+   em2820-core.c - driver for Empia EM2800/EM2820/2840 USB video capture devices
 
    Copyright (C) 2005 Markus Rechberger <mrechberger@gmail.com>
                       Ludovico Cavedon <cavedon@sssup.it>
@@ -562,6 +562,11 @@ static inline void em2820_isoc_video_copy(struct em2820 *dev,
 	void *fieldstart, *startwrite, *startread;
 	int linesdone, currlinedone, offset, lencopy,remain;
 
+	if(dev->frame_size != (*f)->buf.length){
+		em2820_err("frame_size %i and buf.length %i are different!!!\n",dev->frame_size,(*f)->buf.length);
+		return;
+	}
+
 	if ((*f)->fieldbytesused + len > dev->field_size)
 		len =dev->field_size - (*f)->fieldbytesused;
 	remain = len;
@@ -780,6 +785,11 @@ int em2820_set_alternate(struct em2820 *dev)
 	dev->alt = alt;
 	if (dev->alt == 0) {
 		int i;
+		if(dev->is_em2800){ /* always use the max packet size for em2800 based devices */
+			for(i=0;i< EM2820_MAX_ALT; i++)
+				if(dev->alt_max_pkt_size[i]>dev->alt_max_pkt_size[dev->alt])
+					dev->alt=i;
+		}else{
 		unsigned int min_pkt_size = dev->field_size / 137;	/* FIXME: empiric magic number */
 		em2820_coredbg("minimum isoc packet size: %u", min_pkt_size);
 		dev->alt = 7;
@@ -788,6 +798,7 @@ int em2820_set_alternate(struct em2820 *dev)
 			dev->alt = i;
 			break;
 			}
+		}
 	}
 
 	if (dev->alt != prev_alt) {

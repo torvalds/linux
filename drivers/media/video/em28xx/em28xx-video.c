@@ -1,5 +1,5 @@
 /*
-   em2820-video.c - driver for Empia EM2820/2840 USB video capture devices
+   em2820-video.c - driver for Empia EM2800/EM2820/2840 USB video capture devices
 
    Copyright (C) 2005 Markus Rechberger <mrechberger@gmail.com>
                       Ludovico Cavedon <cavedon@sssup.it>
@@ -49,6 +49,11 @@
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
+
+static unsigned int card[]  = {[0 ... (EM2820_MAXBOARDS - 1)] = UNSET };
+
+module_param_array(card,  int, NULL, 0444);
+MODULE_PARM_DESC(card,"card type");
 
 static int tuner = -1;
 module_param(tuner, int, 0444);
@@ -1081,7 +1086,7 @@ static int em2820_do_ioctl(struct inode *inode, struct file *filp,
 			struct v4l2_cropcap *cc = arg;
 
 			if (cc->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-				return EINVAL;
+				return -EINVAL;
 			cc->bounds.left = 0;
 			cc->bounds.top = 0;
 			cc->bounds.width = dev->width;
@@ -1520,21 +1525,12 @@ static struct file_operations em2820_v4l_fops = {
 static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 			   int minor, int model)
 {
-	struct em2820 *dev;
+	struct em2820 *dev = *devhandle;
 	int retval = -ENOMEM;
 	int errCode, i;
 	unsigned int maxh, maxw;
 	struct usb_interface *uif;
 
-	/* allocate memory for our device state and initialize it */
-	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
-		em2820_err(DRIVER_NAME ": out of memory!\n");
-		return -ENOMEM;
-	}
-	memset(dev, 0x00, sizeof(*dev));
-
-	snprintf(dev->name, 29, "em2820 #%d", minor);
 	dev->udev = udev;
 	dev->model = model;
 	init_MUTEX(&dev->lock);
@@ -1545,6 +1541,7 @@ static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 	dev->em2820_read_reg_req_len = em2820_read_reg_req_len;
 	dev->em2820_write_regs_req = em2820_write_regs_req;
 	dev->em2820_read_reg_req = em2820_read_reg_req;
+	dev->is_em2800 = em2820_boards[model].is_em2800;
 	dev->has_tuner = em2820_boards[model].has_tuner;
 	dev->has_msp34xx = em2820_boards[model].has_msp34xx;
 	dev->tda9887_conf = em2820_boards[model].tda9887_conf;
@@ -1595,7 +1592,7 @@ static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 	/* compute alternate max packet sizes */
 	uif = dev->udev->actconfig->interface[0];
 	dev->alt_max_pkt_size[0] = 0;
-	for (i = 1; i <= EM2820_MAX_ALT; i++) {
+	for (i = 1; i <= EM2820_MAX_ALT && i < uif->num_altsetting ; i++) {
 		u16 tmp =
 		    le16_to_cpu(uif->altsetting[i].endpoint[1].desc.
 				wMaxPacketSize);
@@ -1688,7 +1685,6 @@ static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 	em2820_info("V4L2 device registered as /dev/video%d\n",
 		    dev->vdev->minor);
 
-	*devhandle = dev;
 	return 0;
 }
 
@@ -1703,27 +1699,68 @@ static int em2820_usb_probe(struct usb_interface *interface,
 	struct usb_device *udev;
 	struct em2820 *dev = NULL;
 	int retval = -ENODEV;
+	int model,i,nr;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 	endpoint = &interface->cur_altsetting->endpoint[1].desc;
 
+	/* Don't register audio interfaces */
+	if (interface->altsetting[1].desc.bInterfaceClass == USB_CLASS_AUDIO)
+		return -ENODEV;
+
 	/* check if the the device has the iso in endpoint at the correct place */
 	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) !=
 	    USB_ENDPOINT_XFER_ISOC) {
-/*		em2820_err(DRIVER_NAME " probing error: endpoint is non-ISO endpoint!\n"); */
+		em2820_err(DRIVER_NAME " probing error: endpoint is non-ISO endpoint!\n");
 		return -ENODEV;
 	}
 	if ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT) {
-/*		em2820_err(DRIVER_NAME " probing error: endpoint is ISO OUT endpoint!\n"); */
+		em2820_err(DRIVER_NAME " probing error: endpoint is ISO OUT endpoint!\n");
 		return -ENODEV;
 	}
 
+	model=id->driver_info;
+	nr=interface->minor;
+
+	if (nr>EM2820_MAXBOARDS) {
+		printk ("em2820: Supports only %i em28xx boards.\n",EM2820_MAXBOARDS);
+		return -ENOMEM;
+	}
+
+	/* allocate memory for our device state and initialize it */
+	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
+	if (dev == NULL) {
+		em2820_err(DRIVER_NAME ": out of memory!\n");
+		return -ENOMEM;
+	}
+	memset(dev, 0, sizeof(*dev));
+
+	snprintf(dev->name, 29, "em2820 #%d", nr);
+
+	if ((card[nr]>=0)&&(card[nr]<em2820_bcount))
+		model=card[nr];
+
+	if ((model==EM2800_BOARD_UNKNOWN)||(model==EM2820_BOARD_UNKNOWN)) {
+		printk( "%s: Your board has no eeprom inside it and thus can't\n"
+			"%s: be autodetected.  Please pass card=<n> insmod option to\n"
+			"%s: workaround that.  Redirect complaints to the vendor of\n"
+			"%s: the TV card.  Best regards,\n"
+			"%s:         -- tux\n",
+			dev->name,dev->name,dev->name,dev->name,dev->name);
+		printk("%s: Here is a list of valid choices for the card=<n> insmod option:\n",
+			dev->name);
+		for (i = 0; i < em2820_bcount; i++) {
+			printk("%s:    card=%d -> %s\n",
+				dev->name, i, em2820_boards[i].name);
+		}
+	}
+
 	/* allocate device struct */
-	retval = em2820_init_dev(&dev, udev, interface->minor, id->driver_info);
+	retval = em2820_init_dev(&dev, udev, nr, model);
 	if (retval)
 		return retval;
 
-	em2820_info("Found %s\n", em2820_boards[id->driver_info].name);
+	em2820_info("Found %s\n", em2820_boards[model].name);
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);

@@ -1,5 +1,5 @@
 /*
-   em2820-cards.c - driver for Empia EM2820/2840 USB video capture devices
+   em2820-cards.c - driver for Empia EM2800/EM2820/2840 USB video capture devices
 
    Copyright (C) 2005 Markus Rechberger <mrechberger@gmail.com>
                       Ludovico Cavedon <cavedon@sssup.it>
@@ -27,6 +27,23 @@
 
 #include <linux/videodev.h>
 #include <linux/i2c.h>
+
+/* Boards supported by driver */
+
+#define EM2800_BOARD_UNKNOWN			0
+#define EM2820_BOARD_UNKNOWN			1
+#define EM2820_BOARD_TERRATEC_CINERGY_250	2
+#define EM2820_BOARD_PINNACLE_USB_2		3
+#define EM2820_BOARD_HAUPPAUGE_WINTV_USB_2      4
+#define EM2820_BOARD_MSI_VOX_USB_2              5
+#define EM2800_BOARD_TERRATEC_CINERGY_200       6
+#define EM2800_BOARD_LEADTEK_WINFAST_USBII      7
+#define EM2800_BOARD_KWORLD_USB2800             8
+
+#define UNSET -1
+
+/* maximum number of em28xx boards */
+#define EM2820_MAXBOARDS 1 /*FIXME: should be bigger */
 
 /* maximum number of frames that can be queued */
 #define EM2820_NUM_FRAMES 5
@@ -78,6 +95,9 @@
 
 /* time to wait when stopping the isoc transfer */
 #define EM2820_URB_TIMEOUT       msecs_to_jiffies(EM2820_NUM_BUFS * EM2820_NUM_PACKETS)
+
+/* time in msecs to wait for i2c writes to finish */
+#define EM2800_I2C_WRITE_TIMEOUT 20
 
 /* the various frame states */
 enum em2820_frame_state {
@@ -145,12 +165,13 @@ enum em2820_decoder {
 
 struct em2820_board {
 	char *name;
-
+	unsigned char chip_id;
 	int vchannels;
 	int norm;
 	int tuner_type;
 
 	/* i2c flags */
+	unsigned int is_em2800;
 	unsigned int tda9887_conf;
 
 	unsigned int has_tuner:1;
@@ -195,6 +216,7 @@ struct em2820 {
 	/* generic device properties */
 	char name[30];		/* name (including minor) of the device */
 	int model;		/* index in the device_data struct */
+	unsigned int is_em2800;
 	int video_inputs;	/* number of video inputs */
 	unsigned int has_tuner:1;
 	unsigned int has_msp34xx:1;
@@ -304,11 +326,14 @@ void em2820_uninit_isoc(struct em2820 *dev);
 int em2820_set_alternate(struct em2820 *dev);
 
 /* Provided by em2820-cards.c */
+extern int em2800_variant_detect(struct usb_device* udev,int model);
 extern void em2820_card_setup(struct em2820 *dev);
 extern struct em2820_board em2820_boards[];
 extern struct usb_device_id em2820_id_table[];
+extern const unsigned int em2820_bcount;
 
 /* em2820 registers */
+#define CHIPID_REG	0x0a
 #define USBSUSP_REG	0x0c	/* */
 
 #define AUDIOSRC_REG	0x0e

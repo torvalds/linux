@@ -1,5 +1,5 @@
 /*
-   em2820-cards.c - driver for Empia EM2820/2840 USB video capture devices
+   em2820-cards.c - driver for Empia EM2800/EM2820/2840 USB video capture devices
 
    Copyright (C) 2005 Markus Rechberger <mrechberger@gmail.com>
                       Ludovico Cavedon <cavedon@sssup.it>
@@ -35,14 +35,43 @@
 
 #include "em2820.h"
 
-enum em2820_board_entry {
-	EM2820_BOARD_TERRATEC_CINERGY_250,
-	EM2820_BOARD_PINNACLE_USB_2,
-	EM2820_BOARD_HAUPPAUGE_WINTV_USB_2,
-	EM2820_BOARD_MSI_VOX_USB_2
-};
-
 struct em2820_board em2820_boards[] = {
+	[EM2800_BOARD_UNKNOWN] = {
+		.name         = "Unknown EM2800 video grabber",
+		.is_em2800    = 1,
+		.vchannels    = 2,
+		.norm         = VIDEO_MODE_PAL,
+		.tda9887_conf = TDA9887_PRESENT,
+		.has_tuner    = 1,
+		.decoder      = EM2820_SAA7113,
+		.input           = {{
+			.type     = EM2820_VMUX_COMPOSITE1,
+			.vmux     = 0,
+			.amux     = 1,
+		},{
+			.type     = EM2820_VMUX_SVIDEO,
+			.vmux     = 9,
+			.amux     = 1,
+		}},
+	},
+	[EM2820_BOARD_UNKNOWN] = {
+		.name         = "Unknown EM2820/2840 video grabber",
+		.is_em2800    = 0,
+		.vchannels    = 2,
+		.norm         = VIDEO_MODE_PAL,
+		.tda9887_conf = TDA9887_PRESENT,
+		.has_tuner    = 1,
+		.decoder      = EM2820_SAA7113,
+		.input           = {{
+			.type     = EM2820_VMUX_COMPOSITE1,
+			.vmux     = 0,
+			.amux     = 1,
+		},{
+			.type     = EM2820_VMUX_SVIDEO,
+			.vmux     = 9,
+			.amux     = 1,
+		}},
+	},
 	[EM2820_BOARD_TERRATEC_CINERGY_250] = {
 		.name         = "Terratec Cinergy 250 USB",
 		.vchannels    = 3,
@@ -129,17 +158,88 @@ struct em2820_board em2820_boards[] = {
 			.amux     = 1,
 		}},
 	},
-	{ }  /* Terminating entry */
+	[EM2800_BOARD_TERRATEC_CINERGY_200] = {
+		.name         = "Terratec Cinergy 200 USB",
+		.chip_id      = 0x4,
+		.is_em2800    = 1,
+		.vchannels    = 3,
+		.norm         = VIDEO_MODE_PAL,
+		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
+		.tda9887_conf = TDA9887_PRESENT,
+		.has_tuner    = 1,
+		.decoder      = EM2820_SAA7113,
+		.input          = {{
+			.type     = EM2820_VMUX_TELEVISION,
+			.vmux     = 2,
+			.amux     = 0,
+		},{
+			.type     = EM2820_VMUX_COMPOSITE1,
+			.vmux     = 0,
+			.amux     = 1,
+		},{
+			.type     = EM2820_VMUX_SVIDEO,
+			.vmux     = 9,
+			.amux     = 1,
+		}},
+	},
+	[EM2800_BOARD_LEADTEK_WINFAST_USBII] = {
+		.name         = "Leadtek Winfast USB II",
+		.chip_id      = 0x2,
+		.is_em2800    = 1,
+		.vchannels    = 3,
+		.norm         = VIDEO_MODE_PAL,
+		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
+		.tda9887_conf = TDA9887_PRESENT,
+		.has_tuner    = 1,
+		.decoder      = EM2820_SAA7113,
+		.input          = {{
+			.type     = EM2820_VMUX_TELEVISION,
+			.vmux     = 2,
+			.amux     = 0,
+		},{
+			.type     = EM2820_VMUX_COMPOSITE1,
+			.vmux     = 0,
+			.amux     = 1,
+		},{
+			.type     = EM2820_VMUX_SVIDEO,
+			.vmux     = 9,
+			.amux     = 1,
+		}},
+	},
+	[EM2800_BOARD_KWORLD_USB2800] = {
+		.name         = "Kworld USB2800",
+		.chip_id      = 0x7,
+		.is_em2800    = 1,
+		.vchannels    = 3,
+		.norm         = VIDEO_MODE_PAL,
+		.tuner_type   = TUNER_PHILIPS_ATSC,
+		.tda9887_conf = TDA9887_PRESENT,
+		.has_tuner    = 1,
+		.decoder      = EM2820_SAA7113,
+		.input          = {{
+			.type     = EM2820_VMUX_TELEVISION,
+			.vmux     = 2,
+			.amux     = 0,
+		},{
+			.type     = EM2820_VMUX_COMPOSITE1,
+			.vmux     = 0,
+			.amux     = 1,
+		},{
+			.type     = EM2820_VMUX_SVIDEO,
+			.vmux     = 9,
+			.amux     = 1,
+		}},
+	},
 };
+const unsigned int em2820_bcount = ARRAY_SIZE(em2820_boards);
 
 /* table of devices that work with this driver */
 struct usb_device_id em2820_id_table [] = {
- /* Terratec Cinerhy 200 USB: em2800 nor supported, at the moment */
- /*	{ USB_DEVICE(0xeb1a, 0x2800), .driver_info = EM2800_BOARD_TERRATEC_CINERGY_200 }, */
+	{ USB_DEVICE(0xeb1a, 0x2800), .driver_info = EM2800_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2820), .driver_info = EM2820_BOARD_UNKNOWN },
 	{ USB_DEVICE(0x0ccd, 0x0036), .driver_info = EM2820_BOARD_TERRATEC_CINERGY_250 },
 	{ USB_DEVICE(0x2304, 0x0208), .driver_info = EM2820_BOARD_PINNACLE_USB_2 },
 	{ USB_DEVICE(0x2040, 0x4200), .driver_info = EM2820_BOARD_HAUPPAUGE_WINTV_USB_2 },
-	{ USB_DEVICE(0xeb1a, 0x2820), .driver_info = EM2820_BOARD_MSI_VOX_USB_2 },
 	{ },
 };
 
@@ -163,6 +263,7 @@ void em2820_card_setup(struct em2820 *dev)
 }
 
 EXPORT_SYMBOL(em2820_boards);
+EXPORT_SYMBOL(em2820_bcount);
 EXPORT_SYMBOL(em2820_id_table);
 
 MODULE_DEVICE_TABLE (usb, em2820_id_table);
