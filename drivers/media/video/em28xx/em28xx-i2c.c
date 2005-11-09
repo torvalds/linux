@@ -279,10 +279,8 @@ static void dec_use(struct i2c_adapter *adap)
 static int em2820_set_tuner(int check_eeprom, struct i2c_client *client)
 {
 	struct em2820 *dev = client->adapter->algo_data;
-
 	struct tuner_setup tun_setup;
 
-	/* tuner */
 	if (dev->has_tuner) {
 		tun_setup.mode_mask = T_ANALOG_TV | T_RADIO;
 		tun_setup.type = dev->tuner_type;
@@ -290,6 +288,7 @@ static int em2820_set_tuner(int check_eeprom, struct i2c_client *client)
 
 		em2820_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
 	}
+
 	return (0);
 }
 
