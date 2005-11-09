@@ -23,9 +23,9 @@
  *
  * Changes:
  * Angelo Dell'Aera <buffer@antifork.org> : Conversion to the new PCI API (pci_driver).
- *                                          Conversion to spinlocks.
- *                                          Error handling fixes.
- *                                           
+ *					    Conversion to spinlocks.
+ *					    Error handling fixes.
+ *
  */
 
 #include <linux/init.h>
@@ -52,7 +52,7 @@ int lan_saa9730_debug;
 
 static struct pci_device_id saa9730_pci_tbl[] = {
 	{ PCI_VENDOR_ID_PHILIPS, PCI_DEVICE_ID_PHILIPS_SAA9370,
-          PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
+	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
 	{ 0, }
 };
 
@@ -61,7 +61,7 @@ MODULE_DEVICE_TABLE(pci, saa9730_pci_tbl);
 /* Non-zero only if the current card is a PCI with BIOS-set IRQ. */
 static unsigned int pci_irq_line;
 
-#define INL(a)     inl((unsigned long)a)
+#define INL(a)	   inl((unsigned long)a)
 #define OUTL(x,a)  outl(x,(unsigned long)a)
 
 static void evm_saa9730_enable_lan_int(struct lan_saa9730_private *lp)
@@ -221,8 +221,8 @@ static int lan_saa9730_allocate_buffers(struct lan_saa9730_private *lp)
 	unsigned int i, j, RcvBufferSize, TxmBufferSize;
 	unsigned int buffer_start;
 
-	/* 
-	 * Allocate all RX and TX packets in one chunk. 
+	/*
+	 * Allocate all RX and TX packets in one chunk.
 	 * The Rx and Tx packets must be PACKET_SIZE aligned.
 	 */
 	mem_size = ((LAN_SAA9730_RCV_Q_SIZE + LAN_SAA9730_TXM_Q_SIZE) *
@@ -234,7 +234,7 @@ static int lan_saa9730_allocate_buffers(struct lan_saa9730_private *lp)
 	if (!buffer_start)
 		return -ENOMEM;
 
-	/* 
+	/*
 	 * Set DMA buffer to kseg1 (uncached).
 	 * Make sure to flush before using it uncached.
 	 */
@@ -270,8 +270,8 @@ static int lan_saa9730_allocate_buffers(struct lan_saa9730_private *lp)
 		}
 	}
 
-	/* 
-	 * Set rx buffer A and rx buffer B to point to the first two buffer 
+	/*
+	 * Set rx buffer A and rx buffer B to point to the first two buffer
 	 * spaces.
 	 */
 	OUTL(PHYSADDR(lp->RcvBuffer[0][0]),
@@ -289,9 +289,9 @@ static int lan_saa9730_allocate_buffers(struct lan_saa9730_private *lp)
 	lp->PendingTxmPacketIndex = 0;
 	lp->PendingTxmBufferIndex = 0;
 
-	/* 
+	/*
 	 * Set txm_buf_a and txm_buf_b to point to the first two buffer
-	 * space 
+	 * space
 	 */
 	OUTL(PHYSADDR(lp->TxmBuffer[0][0]),
 	     &lp->lan_saa9730_regs->TxBuffA);
@@ -469,9 +469,9 @@ static int lan_saa9730_control_init(struct lan_saa9730_private *lp)
 	OUTL(CAM_CONTROL_COMP_EN | CAM_CONTROL_BROAD_ACC,
 	     &lp->lan_saa9730_regs->CamCtl);
 
-	/* 
+	/*
 	 * Initialize CAM enable register, only turn on first entry, should
-	 * contain own addr. 
+	 * contain own addr.
 	 */
 	OUTL(0x0001, &lp->lan_saa9730_regs->CamEnable);
 
@@ -501,7 +501,7 @@ static int lan_saa9730_stop(struct lan_saa9730_private *lp)
 	OUTL(INL(&lp->lan_saa9730_regs->MacCtl) | MAC_CONTROL_RESET,
 	     &lp->lan_saa9730_regs->MacCtl);
 
-	/* 
+	/*
 	 * Wait for MAC reset to have finished. The reset bit is auto cleared
 	 * when the reset is done.
 	 */
@@ -981,7 +981,7 @@ static void lan_saa9730_set_multicast(struct net_device *dev)
 			     CAM_CONTROL_BROAD_ACC,
 			     &lp->lan_saa9730_regs->CamCtl);
 		} else {
-			/* 
+			/*
 			 * Will handle the multicast stuff later. -carstenl
 			 */
 		}
@@ -993,16 +993,16 @@ static void lan_saa9730_set_multicast(struct net_device *dev)
 
 static void __devexit saa9730_remove_one(struct pci_dev *pdev)
 {
-        struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = pci_get_drvdata(pdev);
 
-        if (dev) {
-                unregister_netdev(dev);
+	if (dev) {
+		unregister_netdev(dev);
 		kfree(dev->priv);
-                free_netdev(dev);
-                pci_release_regions(pdev);
-                pci_disable_device(pdev);
-                pci_set_drvdata(pdev, NULL);
-        }
+		free_netdev(dev);
+		pci_release_regions(pdev);
+		pci_disable_device(pdev);
+		pci_set_drvdata(pdev, NULL);
+	}
 }
 
 
@@ -1016,14 +1016,14 @@ static int lan_saa9730_init(struct net_device *dev, int ioaddr, int irq)
 
 	if (get_ethernet_addr(ethernet_addr))
 		return -ENODEV;
-	
+
 	memcpy(dev->dev_addr, ethernet_addr, 6);
 	dev->base_addr = ioaddr;
 	dev->irq = irq;
-	
-	/* 
-	 * Make certain the data structures used by the controller are aligned 
-	 * and DMAble. 
+
+	/*
+	 * Make certain the data structures used by the controller are aligned
+	 * and DMAble.
 	 */
 	/*
 	 *  XXX: that is obviously broken - kfree() won't be happy with us.
@@ -1053,9 +1053,9 @@ static int lan_saa9730_init(struct net_device *dev, int ioaddr, int irq)
 		goto out;
 
 	/* Stop LAN controller. */
-	if ((ret = lan_saa9730_stop(lp))) 
+	if ((ret = lan_saa9730_stop(lp)))
 		goto out;
-	
+
 	/* Initialize CAM registers. */
 	if ((ret = lan_saa9730_cam_init(dev)))
 		goto out;
@@ -1065,19 +1065,19 @@ static int lan_saa9730_init(struct net_device *dev, int ioaddr, int irq)
 		goto out;
 
 	/* Initialize control registers. */
-	if ((ret = lan_saa9730_control_init(lp))) 
+	if ((ret = lan_saa9730_control_init(lp)))
 		goto out;
-        
+
 	/* Load CAM registers. */
-	if ((ret = lan_saa9730_cam_load(lp))) 
+	if ((ret = lan_saa9730_cam_load(lp)))
 		goto out;
-	
+
 	/* Initialize DMA context registers. */
 	if ((ret = lan_saa9730_dma_init(lp)))
 		goto out;
-	
+
 	spin_lock_init(&lp->lock);
-		
+
 	dev->open = lan_saa9730_open;
 	dev->hard_start_xmit = lan_saa9730_start_xmit;
 	dev->stop = lan_saa9730_close;
@@ -1086,7 +1086,7 @@ static int lan_saa9730_init(struct net_device *dev, int ioaddr, int irq)
 	dev->tx_timeout = lan_saa9730_tx_timeout;
 	dev->watchdog_timeo = (HZ >> 1);
 	dev->dma = 0;
-	
+
 	ret = register_netdev(dev);
 	if (ret)
 		goto out;
@@ -1115,10 +1115,10 @@ static int __devinit saa9730_init_one(struct pci_dev *pdev, const struct pci_dev
 	SET_MODULE_OWNER(dev);
 
 	err = pci_enable_device(pdev);
-        if (err) {
-                printk(KERN_ERR "Cannot enable PCI device, aborting.\n");
-                goto out1;
-        }
+	if (err) {
+		printk(KERN_ERR "Cannot enable PCI device, aborting.\n");
+		goto out1;
+	}
 
 	err = pci_request_regions(pdev, DRV_MODULE_NAME);
 	if (err) {
@@ -1144,7 +1144,7 @@ static int __devinit saa9730_init_one(struct pci_dev *pdev, const struct pci_dev
 	pci_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	return 0;
-	
+
 out2:
 	pci_disable_device(pdev);
 out1:
@@ -1155,21 +1155,21 @@ out:
 
 
 static struct pci_driver saa9730_driver = {
-	.name           = DRV_MODULE_NAME,
-	.id_table       = saa9730_pci_tbl,
-	.probe          = saa9730_init_one,
-	.remove         = __devexit_p(saa9730_remove_one),
+	.name		= DRV_MODULE_NAME,
+	.id_table	= saa9730_pci_tbl,
+	.probe		= saa9730_init_one,
+	.remove		= __devexit_p(saa9730_remove_one),
 };
 
 
 static int __init saa9730_init(void)
 {
-        return pci_module_init(&saa9730_driver);
+	return pci_module_init(&saa9730_driver);
 }
 
 static void __exit saa9730_cleanup(void)
 {
-        pci_unregister_driver(&saa9730_driver);
+	pci_unregister_driver(&saa9730_driver);
 }
 
 module_init(saa9730_init);
