@@ -557,14 +557,16 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 		case QAM_256:
 			/* Set punctured clock for QAM */
 			/* This is just a guess since I am unable to test it */
-			state->config->set_ts_params(fe, 1);
+			if (state->config->set_ts_params)
+				state->config->set_ts_params(fe, 1);
 
 			/* set to use cable input */
 			buf[3] |= 0x08;
 			break;
 		case VSB_8:
 			/* Set non-punctured clock for VSB */
-			state->config->set_ts_params(fe, 0);
+			if (state->config->set_ts_params)
+				state->config->set_ts_params(fe, 0);
 			break;
 		default:
 			return -EINVAL;
