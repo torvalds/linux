@@ -1982,7 +1982,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_type     = 5,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
-		.pll            = 1,
+		.pll            = PLL_28,
 	},
 	[BTTV_BOARD_EURESYS_PICOLO] = {
 		.name           = "Euresys Picolo",
@@ -2765,7 +2765,7 @@ struct tvcard bttv_tvcards[] = {
 		.has_radio      = 1,
 		.has_remote     = 1,
 	},
-    	    /* ---- card 0x8c ---------------------------------- */
+		/* ---- card 0x8c ---------------------------------- */
 	[BTTV_BOARD_OSPREY440]  = {
 		.name           = "Osprey 440",
 		.video_inputs   = 1,
