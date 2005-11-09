@@ -1,33 +1,89 @@
 
 Intel(R) PRO/Wireless 2915ABG Driver for Linux in support of:
 
-Intel(R) PRO/Wireless 2200BG Network Connection 
-Intel(R) PRO/Wireless 2915ABG Network Connection 
+Intel(R) PRO/Wireless 2200BG Network Connection
+Intel(R) PRO/Wireless 2915ABG Network Connection
 
-Note: The Intel(R) PRO/Wireless 2915ABG Driver for Linux and Intel(R) 
-PRO/Wireless 2200BG Driver for Linux is a unified driver that works on 
-both hardware adapters listed above. In this document the Intel(R) 
-PRO/Wireless 2915ABG Driver for Linux will be used to reference the 
+Note: The Intel(R) PRO/Wireless 2915ABG Driver for Linux and Intel(R)
+PRO/Wireless 2200BG Driver for Linux is a unified driver that works on
+both hardware adapters listed above. In this document the Intel(R)
+PRO/Wireless 2915ABG Driver for Linux will be used to reference the
 unified driver.
 
 Copyright (C) 2004-2005, Intel Corporation
 
 README.ipw2200
 
-Version: 1.0.0
-Date   : January 31, 2005
+Version: 1.0.8
+Date   : October 20, 2005
 
 
 Index
 -----------------------------------------------
+0.   IMPORTANT INFORMATION BEFORE USING THIS DRIVER
 1.   Introduction
 1.1. Overview of features
 1.2. Module parameters
 1.3. Wireless Extension Private Methods
 1.4. Sysfs Helper Files
-2.   About the Version Numbers
-3.   Support
-4.   License
+2.   Ad-Hoc Networking
+3.   Interacting with Wireless Tools
+3.1. iwconfig mode
+4.   About the Version Numbers
+5.   Firmware installation
+6.   Support
+7.   License
+
+
+0.   IMPORTANT INFORMATION BEFORE USING THIS DRIVER
+-----------------------------------------------
+
+Important Notice FOR ALL USERS OR DISTRIBUTORS!!!! 
+
+Intel wireless LAN adapters are engineered, manufactured, tested, and
+quality checked to ensure that they meet all necessary local and
+governmental regulatory agency requirements for the regions that they
+are designated and/or marked to ship into. Since wireless LANs are
+generally unlicensed devices that share spectrum with radars,
+satellites, and other licensed and unlicensed devices, it is sometimes
+necessary to dynamically detect, avoid, and limit usage to avoid
+interference with these devices. In many instances Intel is required to
+provide test data to prove regional and local compliance to regional and
+governmental regulations before certification or approval to use the
+product is granted. Intel's wireless LAN's EEPROM, firmware, and
+software driver are designed to carefully control parameters that affect
+radio operation and to ensure electromagnetic compliance (EMC). These
+parameters include, without limitation, RF power, spectrum usage,
+channel scanning, and human exposure. 
+
+For these reasons Intel cannot permit any manipulation by third parties
+of the software provided in binary format with the wireless WLAN
+adapters (e.g., the EEPROM and firmware). Furthermore, if you use any
+patches, utilities, or code with the Intel wireless LAN adapters that
+have been manipulated by an unauthorized party (i.e., patches,
+utilities, or code (including open source code modifications) which have
+not been validated by Intel), (i) you will be solely responsible for
+ensuring the regulatory compliance of the products, (ii) Intel will bear
+no liability, under any theory of liability for any issues associated
+with the modified products, including without limitation, claims under
+the warranty and/or issues arising from regulatory non-compliance, and
+(iii) Intel will not provide or be required to assist in providing
+support to any third parties for such modified products.  
+
+Note: Many regulatory agencies consider Wireless LAN adapters to be
+modules, and accordingly, condition system-level regulatory approval
+upon receipt and review of test data documenting that the antennas and
+system configuration do not cause the EMC and radio operation to be
+non-compliant.
+
+The drivers available for download from SourceForge are provided as a 
+part of a development project.  Conformance to local regulatory 
+requirements is the responsibility of the individual developer.  As 
+such, if you are interested in deploying or shipping a driver as part of 
+solution intended to be used for purposes other than development, please 
+obtain a tested driver from Intel Customer Support at:
+
+http://support.intel.com/support/notebook/sb/CS-006408.htm
 
 
 1.   Introduction
@@ -45,7 +101,7 @@ file.
 
 1.1. Overview of Features
 -----------------------------------------------
-The current release (1.0.0) supports the following features:
+The current release (1.0.8) supports the following features:
 
 + BSS mode (Infrastructure, Managed)
 + IBSS mode (Ad-Hoc)
@@ -56,17 +112,27 @@ The current release (1.0.0) supports the following features:
 + Full A rate support (2915 only)
 + Transmit power control
 + S state support (ACPI suspend/resume)
+
+The following features are currently enabled, but not officially
+supported:
+
++ WPA
 + long/short preamble support
++ Monitor mode (aka RFMon)
+
+The distinction between officially supported and enabled is a reflection 
+on the amount of validation and interoperability testing that has been
+performed on a given feature. 
 
 
 
 1.2. Command Line Parameters
 -----------------------------------------------
 
-Like many modules used in the Linux kernel, the Intel(R) PRO/Wireless 
-2915ABG Driver for Linux allows certain configuration options to be 
-provided as module parameters.  The most common way to specify a module 
-parameter is via the command line.  
+Like many modules used in the Linux kernel, the Intel(R) PRO/Wireless
+2915ABG Driver for Linux allows configuration options to be provided 
+as module parameters.  The most common way to specify a module parameter 
+is via the command line.  
 
 The general form is:
 
@@ -96,14 +162,18 @@ Where the supported parameter are:
 
   debug
 	If using a debug build, this is used to control the amount of debug
-	info is logged.  See the 'dval' and 'load' script for more info on
-	how to use this (the dval and load scripts are provided as part 
+	info is logged.  See the 'dvals' and 'load' script for more info on
+	how to use this (the dvals and load scripts are provided as part 
 	of the ipw2200 development snapshot releases available from the 
 	SourceForge project at http://ipw2200.sf.net)
+  
+  led
+	Can be used to turn on experimental LED code.
+	0 = Off, 1 = On.  Default is 0.
 
   mode
 	Can be used to set the default mode of the adapter.  
-	0 = Managed, 1 = Ad-Hoc
+	0 = Managed, 1 = Ad-Hoc, 2 = Monitor
 
 
 1.3. Wireless Extension Private Methods
@@ -164,8 +234,8 @@ The supported private methods are:
 -----------------------------------------------
 
 The Linux kernel provides a pseudo file system that can be used to 
-access various components of the operating system.  The Intel(R) 
-PRO/Wireless 2915ABG Driver for Linux exposes several configuration 
+access various components of the operating system.  The Intel(R)
+PRO/Wireless 2915ABG Driver for Linux exposes several configuration
 parameters through this mechanism.
 
 An entry in the sysfs can support reading and/or writing.  You can 
@@ -184,13 +254,13 @@ You can set the debug level via:
 
 Where $VALUE would be a number in the case of this sysfs entry.  The 
 input to sysfs files does not have to be a number.  For example, the 
-firmware loader used by hotplug utilizes sysfs entries for transferring 
+firmware loader used by hotplug utilizes sysfs entries for transfering 
 the firmware image from user space into the driver.
 
 The Intel(R) PRO/Wireless 2915ABG Driver for Linux exposes sysfs entries 
-at two levels -- driver level, which apply to all instances of the 
-driver (in the event that there are more than one device installed) and 
-device level, which applies only to the single specific instance.
+at two levels -- driver level, which apply to all instances of the driver 
+(in the event that there are more than one device installed) and device 
+level, which applies only to the single specific instance.
 
 
 1.4.1 Driver Level Sysfs Helper Files
@@ -203,6 +273,7 @@ For the driver level files, look in /sys/bus/pci/drivers/ipw2200/
 	This controls the same global as the 'debug' module parameter
 
 
+
 1.4.2 Device Level Sysfs Helper Files
 -----------------------------------------------
 
@@ -213,7 +284,7 @@ For the device level files, look in
 For example:
 	/sys/bus/pci/drivers/ipw2200/0000:02:01.0
 
-For the device level files, see /sys/bus/pci/[drivers/ipw2200:
+For the device level files, see /sys/bus/pci/drivers/ipw2200:
 
   rf_kill
 	read - 
@@ -231,8 +302,59 @@ For the device level files, see /sys/bus/pci/[drivers/ipw2200:
   ucode 
 	read-only access to the ucode version number
 
+  led
+	read -
+	0 = LED code disabled
+	1 = LED code enabled
+	write -
+	0 = Disable LED code
+	1 = Enable LED code
 
-2.   About the Version Numbers
+	NOTE: The LED code has been reported to hang some systems when 
+	running ifconfig and is therefore disabled by default.
+
+
+2.   Ad-Hoc Networking
+-----------------------------------------------
+
+When using a device in an Ad-Hoc network, it is useful to understand the 
+sequence and requirements for the driver to be able to create, join, or 
+merge networks.
+
+The following attempts to provide enough information so that you can 
+have a consistent experience while using the driver as a member of an 
+Ad-Hoc network.
+
+2.1. Joining an Ad-Hoc Network
+-----------------------------------------------
+
+The easiest way to get onto an Ad-Hoc network is to join one that 
+already exists.
+
+2.2. Creating an Ad-Hoc Network
+-----------------------------------------------
+
+An Ad-Hoc networks is created using the syntax of the Wireless tool.
+
+For Example:
+iwconfig eth1 mode ad-hoc essid testing channel 2
+
+2.3. Merging Ad-Hoc Networks
+-----------------------------------------------
+
+
+3.  Interaction with Wireless Tools
+-----------------------------------------------
+
+3.1 iwconfig mode
+-----------------------------------------------
+
+When configuring the mode of the adapter, all run-time configured parameters
+are reset to the value used when the module was loaded.  This includes
+channels, rates, ESSID, etc.
+
+
+4.   About the Version Numbers
 -----------------------------------------------
 
 Due to the nature of open source development projects, there are 
@@ -259,12 +381,23 @@ available as quickly as possible, unknown anomalies should be expected.
 The major version number will be incremented when significant changes
 are made to the driver.  Currently, there are no major changes planned.
 
+5.  Firmware installation
+----------------------------------------------
 
-3.  Support
+The driver requires a firmware image, download it and extract the
+files under /lib/firmware (or wherever your hotplug's firmware.agent
+will look for firmware files)
+
+The firmware can be downloaded from the following URL:
+
+    http://ipw2200.sf.net/
+
+
+6.  Support
 -----------------------------------------------
 
-For installation support of the 1.0.0 version, you can contact 
-http://supportmail.intel.com, or you can use the open source project 
+For direct support of the 1.0.0 version, you can contact 
+http://supportmail.intel.com, or you can use the open source project
 support.
 
 For general information and support, go to:
@@ -272,7 +405,7 @@ For general information and support, go to:
     http://ipw2200.sf.net/
 
 
-4.  License
+7.  License
 -----------------------------------------------
 
   Copyright(c) 2003 - 2005 Intel Corporation. All rights reserved.
@@ -296,5 +429,4 @@ For general information and support, go to:
   Contact Information:
   James P. Ketrenos <ipw2100-admin@linux.intel.com>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
 
