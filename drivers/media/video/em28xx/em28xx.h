@@ -211,6 +211,7 @@ struct em2820 {
 	int model;		/* index in the device_data struct */
 	unsigned int is_em2800;
 	int video_inputs;	/* number of video inputs */
+	struct list_head	devlist;
 	unsigned int has_tuner:1;
 	unsigned int has_msp34xx:1;
 	unsigned int has_tda9887:1;

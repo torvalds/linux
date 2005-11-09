@@ -50,6 +50,8 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
+static LIST_HEAD(em2820_devlist);
+
 static unsigned int card[]  = {[0 ... (EM2820_MAXBOARDS - 1)] = UNSET };
 
 module_param_array(card,  int, NULL, 0444);
@@ -257,10 +259,20 @@ static void em2820_empty_framequeues(struct em2820 *dev)
  */
 static int em2820_v4l2_open(struct inode *inode, struct file *filp)
 {
-	struct video_device *vdev = video_devdata(filp);
 	int minor = iminor(inode);
-	struct em2820 *dev = (struct em2820 *)video_get_drvdata(vdev);
 	int errCode = 0;
+	struct em2820 *h,*dev = NULL;
+	struct list_head *list;
+
+	list_for_each(list,&em2820_devlist) {
+		h = list_entry(list, struct em2820, devlist);
+		if (h->vdev->minor == minor) {
+			dev  = h;
+		}
+	}
+
+	filp->private_data=dev;
+
 
 	em2820_videodbg("users=%d", dev->users);
 
@@ -333,7 +345,7 @@ static void em2820_release_resources(struct em2820 *dev)
 
 	em2820_info("V4L2 device /dev/video%d deregistered\n",
 		    dev->vdev->minor);
-	video_set_drvdata(dev->vdev, NULL);
+	list_del(&dev->devlist);
 	video_unregister_device(dev->vdev);
 /*	video_unregister_device(dev->vbi_dev); */
 	em2820_i2c_unregister(dev);
@@ -347,9 +359,18 @@ static void em2820_release_resources(struct em2820 *dev)
  */
 static int em2820_v4l2_close(struct inode *inode, struct file *file)
 {
-	struct video_device *vdev = video_devdata(file);
-	struct em2820 *dev = (struct em2820 *)video_get_drvdata(vdev);
 	int errCode;
+	int minor = iminor(inode);
+	struct em2820 *h,*dev = NULL;
+	struct list_head *list;
+
+	list_for_each(list,&em2820_devlist) {
+		h = list_entry(list, struct em2820, devlist);
+		if (h->vdev->minor == minor) {
+			dev  = h;
+		}
+	}
+
 
 	em2820_videodbg("users=%d", dev->users);
 
@@ -390,10 +411,10 @@ static ssize_t
 em2820_v4l2_read(struct file *filp, char __user * buf, size_t count,
 		 loff_t * f_pos)
 {
-	struct em2820 *dev = video_get_drvdata(video_devdata(filp));
 	struct em2820_frame_t *f, *i;
 	unsigned long lock_flags;
 	int ret = 0;
+	struct em2820 *dev = filp->private_data;
 
 	if (down_interruptible(&dev->fileop_lock))
 		return -ERESTARTSYS;
@@ -482,8 +503,8 @@ em2820_v4l2_read(struct file *filp, char __user * buf, size_t count,
  */
 static unsigned int em2820_v4l2_poll(struct file *filp, poll_table * wait)
 {
-	struct em2820 *dev = video_get_drvdata(video_devdata(filp));
 	unsigned int mask = 0;
+	struct em2820 *dev = filp->private_data;
 
 	if (down_interruptible(&dev->fileop_lock))
 		return POLLERR;
@@ -550,10 +571,12 @@ static struct vm_operations_struct em2820_vm_ops = {
  */
 static int em2820_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-	struct em2820 *dev = video_get_drvdata(video_devdata(filp));
 	unsigned long size = vma->vm_end - vma->vm_start,
 	    start = vma->vm_start, pos, page;
 	u32 i;
+
+	struct em2820 *dev = filp->private_data;
+
 	if (down_interruptible(&dev->fileop_lock))
 		return -ERESTARTSYS;
 
@@ -1491,8 +1514,8 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 static int em2820_v4l2_ioctl(struct inode *inode, struct file *filp,
 			     unsigned int cmd, unsigned long arg)
 {
-	struct em2820 *dev = video_get_drvdata(video_devdata(filp));
 	int ret = 0;
+	struct em2820 *dev = filp->private_data;
 
 	if (down_interruptible(&dev->fileop_lock))
 		return -ERESTARTSYS;
@@ -1669,7 +1692,7 @@ static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 	dev->vdev->release = video_device_release;
 	snprintf(dev->vdev->name, sizeof(dev->vdev->name), "%s",
 		 "em2820 video");
-	video_set_drvdata(dev->vdev, dev);
+	list_add_tail(&dev->devlist,&em2820_devlist);
 
 	/* register v4l2 device */
 	down(&dev->lock);
@@ -1677,7 +1700,7 @@ static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 		em2820_errdev("unable to register video device (error=%i).\n",
 			      retval);
 		up(&dev->lock);
-		video_set_drvdata(dev->vdev, NULL);
+		list_del(&dev->devlist);
 		video_device_release(dev->vdev);
 		kfree(dev);
 		return -ENODEV;
