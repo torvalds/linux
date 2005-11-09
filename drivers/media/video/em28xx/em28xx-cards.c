@@ -251,6 +251,7 @@ void em2820_card_setup(struct em2820 *dev)
 #endif
 		/* Call first TVeeprom */
 
+		dev->i2c_client.addr = 0xa0 >> 1;
 		tveeprom_hauppauge_analog(&dev->i2c_client, &tv, dev->eedata);
 
 		dev->tuner_type= tv.tuner_type;
