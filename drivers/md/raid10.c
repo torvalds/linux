@@ -496,6 +496,7 @@ static int read_balance(conf_t *conf, r10bio_t *r10_bio)
 	int disk, slot, nslot;
 	const int sectors = r10_bio->sectors;
 	sector_t new_distance, current_distance;
+	mdk_rdev_t *rdev;
 
 	raid10_find_phys(conf, r10_bio);
 	rcu_read_lock();
@@ -510,8 +511,8 @@ static int read_balance(conf_t *conf, r10bio_t *r10_bio)
 		slot = 0;
 		disk = r10_bio->devs[slot].devnum;
 
-		while (!conf->mirrors[disk].rdev ||
-		       !conf->mirrors[disk].rdev->in_sync) {
+		while ((rdev = rcu_dereference(conf->mirrors[disk].rdev)) == NULL ||
+		       !rdev->in_sync) {
 			slot++;
 			if (slot == conf->copies) {
 				slot = 0;
@@ -527,8 +528,8 @@ static int read_balance(conf_t *conf, r10bio_t *r10_bio)
 	/* make sure the disk is operational */
 	slot = 0;
 	disk = r10_bio->devs[slot].devnum;
-	while (!conf->mirrors[disk].rdev ||
-	       !conf->mirrors[disk].rdev->in_sync) {
+	while ((rdev=rcu_dereference(conf->mirrors[disk].rdev)) == NULL ||
+	       !rdev->in_sync) {
 		slot ++;
 		if (slot == conf->copies) {
 			disk = -1;
@@ -547,11 +548,11 @@ static int read_balance(conf_t *conf, r10bio_t *r10_bio)
 		int ndisk = r10_bio->devs[nslot].devnum;
 
 
-		if (!conf->mirrors[ndisk].rdev ||
-		    !conf->mirrors[ndisk].rdev->in_sync)
+		if ((rdev=rcu_dereference(conf->mirrors[ndisk].rdev)) == NULL ||
+		    !rdev->in_sync)
 			continue;
 
-		if (!atomic_read(&conf->mirrors[ndisk].rdev->nr_pending)) {
+		if (!atomic_read(&rdev->nr_pending)) {
 			disk = ndisk;
 			slot = nslot;
 			break;
@@ -569,7 +570,7 @@ rb_out:
 	r10_bio->read_slot = slot;
 /*	conf->next_seq_sect = this_sector + sectors;*/
 
-	if (disk >= 0 && conf->mirrors[disk].rdev)
+	if (disk >= 0 && (rdev=rcu_dereference(conf->mirrors[disk].rdev))!= NULL)
 		atomic_inc(&conf->mirrors[disk].rdev->nr_pending);
 	rcu_read_unlock();
 
@@ -583,7 +584,7 @@ static void unplug_slaves(mddev_t *mddev)
 
 	rcu_read_lock();
 	for (i=0; i<mddev->raid_disks; i++) {
-		mdk_rdev_t *rdev = conf->mirrors[i].rdev;
+		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
 		if (rdev && !rdev->faulty && atomic_read(&rdev->nr_pending)) {
 			request_queue_t *r_queue = bdev_get_queue(rdev->bdev);
 
@@ -614,7 +615,7 @@ static int raid10_issue_flush(request_queue_t *q, struct gendisk *disk,
 
 	rcu_read_lock();
 	for (i=0; i<mddev->raid_disks && ret == 0; i++) {
-		mdk_rdev_t *rdev = conf->mirrors[i].rdev;
+		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
 		if (rdev && !rdev->faulty) {
 			struct block_device *bdev = rdev->bdev;
 			request_queue_t *r_queue = bdev_get_queue(bdev);
@@ -768,9 +769,10 @@ static int make_request(request_queue_t *q, struct bio * bio)
 	rcu_read_lock();
 	for (i = 0;  i < conf->copies; i++) {
 		int d = r10_bio->devs[i].devnum;
-		if (conf->mirrors[d].rdev &&
-		    !conf->mirrors[d].rdev->faulty) {
-			atomic_inc(&conf->mirrors[d].rdev->nr_pending);
+		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[d].rdev);
+		if (rdev &&
+		    !rdev->faulty) {
+			atomic_inc(&rdev->nr_pending);
 			r10_bio->devs[i].bio = bio;
 		} else
 			r10_bio->devs[i].bio = NULL;
@@ -980,7 +982,7 @@ static int raid10_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 			p->head_position = 0;
 			rdev->raid_disk = mirror;
 			found = 1;
-			p->rdev = rdev;
+			rcu_assign_pointer(p->rdev, rdev);
 			break;
 		}
 

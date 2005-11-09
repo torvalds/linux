@@ -63,7 +63,7 @@ static int multipath_map (multipath_conf_t *conf)
 
 	rcu_read_lock();
 	for (i = 0; i < disks; i++) {
-		mdk_rdev_t *rdev = conf->multipaths[i].rdev;
+		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);
 		if (rdev && rdev->in_sync) {
 			atomic_inc(&rdev->nr_pending);
 			rcu_read_unlock();
@@ -139,7 +139,7 @@ static void unplug_slaves(mddev_t *mddev)
 
 	rcu_read_lock();
 	for (i=0; i<mddev->raid_disks; i++) {
-		mdk_rdev_t *rdev = conf->multipaths[i].rdev;
+		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);
 		if (rdev && !rdev->faulty && atomic_read(&rdev->nr_pending)) {
 			request_queue_t *r_queue = bdev_get_queue(rdev->bdev);
 
@@ -224,7 +224,7 @@ static int multipath_issue_flush(request_queue_t *q, struct gendisk *disk,
 
 	rcu_read_lock();
 	for (i=0; i<mddev->raid_disks && ret == 0; i++) {
-		mdk_rdev_t *rdev = conf->multipaths[i].rdev;
+		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);
 		if (rdev && !rdev->faulty) {
 			struct block_device *bdev = rdev->bdev;
 			request_queue_t *r_queue = bdev_get_queue(bdev);
@@ -331,7 +331,7 @@ static int multipath_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 			conf->working_disks++;
 			rdev->raid_disk = path;
 			rdev->in_sync = 1;
-			p->rdev = rdev;
+			rcu_assign_pointer(p->rdev, rdev);
 			found = 1;
 		}
 

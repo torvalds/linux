@@ -416,10 +416,10 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 		/* Choose the first operation device, for consistancy */
 		new_disk = 0;
 
-		for (rdev = conf->mirrors[new_disk].rdev;
+		for (rdev = rcu_dereference(conf->mirrors[new_disk].rdev);
 		     !rdev || !rdev->in_sync
 			     || test_bit(WriteMostly, &rdev->flags);
-		     rdev = conf->mirrors[++new_disk].rdev) {
+		     rdev = rcu_dereference(conf->mirrors[++new_disk].rdev)) {
 
 			if (rdev && rdev->in_sync)
 				wonly_disk = new_disk;
@@ -434,10 +434,10 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 
 
 	/* make sure the disk is operational */
-	for (rdev = conf->mirrors[new_disk].rdev;
+	for (rdev = rcu_dereference(conf->mirrors[new_disk].rdev);
 	     !rdev || !rdev->in_sync ||
 		     test_bit(WriteMostly, &rdev->flags);
-	     rdev = conf->mirrors[new_disk].rdev) {
+	     rdev = rcu_dereference(conf->mirrors[new_disk].rdev)) {
 
 		if (rdev && rdev->in_sync)
 			wonly_disk = new_disk;
@@ -474,7 +474,7 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 			disk = conf->raid_disks;
 		disk--;
 
-		rdev = conf->mirrors[disk].rdev;
+		rdev = rcu_dereference(conf->mirrors[disk].rdev);
 
 		if (!rdev ||
 		    !rdev->in_sync ||
@@ -496,7 +496,7 @@ static int read_balance(conf_t *conf, r1bio_t *r1_bio)
 
 
 	if (new_disk >= 0) {
-		rdev = conf->mirrors[new_disk].rdev;
+		rdev = rcu_dereference(conf->mirrors[new_disk].rdev);
 		if (!rdev)
 			goto retry;
 		atomic_inc(&rdev->nr_pending);
@@ -522,7 +522,7 @@ static void unplug_slaves(mddev_t *mddev)
 
 	rcu_read_lock();
 	for (i=0; i<mddev->raid_disks; i++) {
-		mdk_rdev_t *rdev = conf->mirrors[i].rdev;
+		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
 		if (rdev && !rdev->faulty && atomic_read(&rdev->nr_pending)) {
 			request_queue_t *r_queue = bdev_get_queue(rdev->bdev);
 
@@ -556,7 +556,7 @@ static int raid1_issue_flush(request_queue_t *q, struct gendisk *disk,
 
 	rcu_read_lock();
 	for (i=0; i<mddev->raid_disks && ret == 0; i++) {
-		mdk_rdev_t *rdev = conf->mirrors[i].rdev;
+		mdk_rdev_t *rdev = rcu_dereference(conf->mirrors[i].rdev);
 		if (rdev && !rdev->faulty) {
 			struct block_device *bdev = rdev->bdev;
 			request_queue_t *r_queue = bdev_get_queue(bdev);
@@ -728,7 +728,7 @@ static int make_request(request_queue_t *q, struct bio * bio)
 #endif
 	rcu_read_lock();
 	for (i = 0;  i < disks; i++) {
-		if ((rdev=conf->mirrors[i].rdev) != NULL &&
+		if ((rdev=rcu_dereference(conf->mirrors[i].rdev)) != NULL &&
 		    !rdev->faulty) {
 			atomic_inc(&rdev->nr_pending);
 			if (rdev->faulty) {
@@ -954,7 +954,7 @@ static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 			found = 1;
 			if (rdev->saved_raid_disk != mirror)
 				conf->fullsync = 1;
-			p->rdev = rdev;
+			rcu_assign_pointer(p->rdev, rdev);
 			break;
 		}
 
