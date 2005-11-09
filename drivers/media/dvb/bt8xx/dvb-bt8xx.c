@@ -523,9 +523,7 @@ static void digitv_alps_tded4_reset(struct dvb_bt8xx_card *bt)
 	/*
 	 * Reset the frontend, must be called before trying
 	 * to initialise the MT352 or mt352_attach
-	 * will fail.
-	 *
-	 * Presumably not required for the NXT6000 frontend.
+	 * will fail. Same goes for the nxt6000 frontend.
 	 *
 	 */
 
@@ -632,6 +630,7 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 		 */
 
 		/* Old Nebula (marked (c)2003 on high profile pci card) has nxt6000 demod */
+		digitv_alps_tded4_reset(card);
 		card->fe = nxt6000_attach(&vp3021_alps_tded4_config, card->i2c_adapter);
 		if (card->fe != NULL) {
 			dprintk ("dvb_bt8xx: an nxt6000 was detected on your digitv card\n");
