@@ -2113,8 +2113,35 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x01,
 		},
 	},
+	[SAA7134_BOARD_BEHOLD_409FM] = {
+	        /* <http://tuner.beholder.ru>, Sergey <skiv@orel.ru> */
+	        .name           = "Beholder BeholdTV 409 FM",
+	        .audio_clock    = 0x00187de7,
+	        .tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
+	        .radio_type     = UNSET,
+  	        .tuner_addr     = ADDR_UNSET,
+                .radio_addr     = ADDR_UNSET,
+                .tda9887_conf   = TDA9887_PRESENT,
+	        .inputs         = {{
+	                  .name = name_tv,
+			  .vmux = 3,
+			  .amux = TV,
+			  .tv   = 1,
+		},{
+			  .name = name_comp1,
+			  .vmux = 1,
+			  .amux = LINE1,
+	        },{
+		          .name = name_svideo,
+			  .vmux = 8,
+			  .amux = LINE1,
+                }},
+                .radio = {
+		          .name = name_radio,
+			  .amux = LINE2,
+    	        },
+        },
 };
-
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
 
@@ -2472,6 +2499,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.driver_data  = SAA7134_BOARD_FLYTV_DIGIMATRIX,
 
 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x0000, /* It shouldn't break anything, since subdevice id seems unique */
+		.subdevice    = 0x4091,
+		.driver_data  = SAA7134_BOARD_BEHOLD_409FM,
+        },{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -2562,6 +2595,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_VIDEOMATE_TV_GOLD_PLUSII:
 	case SAA7134_BOARD_MANLI_MTV001:
 	case SAA7134_BOARD_MANLI_MTV002:
+	case SAA7134_BOARD_BEHOLD_409FM:
 	case SAA7134_BOARD_AVACSSMARTTV:
 		dev->has_remote = 1;
 		break;

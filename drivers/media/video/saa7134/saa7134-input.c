@@ -516,6 +516,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_MANLI_MTV001:
 	case SAA7134_BOARD_MANLI_MTV002:
+	case SAA7134_BOARD_BEHOLD_409FM:
 		ir_codes     = manli_codes;
 		mask_keycode = 0x001f00;
 		mask_keyup   = 0x004000;
