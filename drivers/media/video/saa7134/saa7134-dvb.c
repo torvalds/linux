@@ -39,6 +39,10 @@
 #ifdef HAVE_TDA1004X
 # include "tda1004x.h"
 #endif
+#ifdef HAVE_NXT200X
+# include "nxt200x.h"
+# include "dvb-pll.h"
+#endif
 
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
@@ -624,6 +628,14 @@ static struct tda1004x_config tda827x_lifeview_config = {
 };
 #endif
 
+#ifdef HAVE_NXT200X
+static struct nxt200x_config avertvhda180 = {
+	.demod_address    = 0x0a,
+	.pll_address      = 0x61,
+	.pll_desc         = &dvb_pll_tdhu2,
+};
+#endif
+
 /* ------------------------------------------------------------------ */
 
 static int dvb_init(struct saa7134_dev *dev)
@@ -675,6 +687,11 @@ static int dvb_init(struct saa7134_dev *dev)
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200:
 		dev->dvb.frontend = tda10046_attach(&philips_tu1216_61_config,
 						    &dev->i2c_adap);
+		break;
+#endif
+#ifdef HAVE_NXT200X
+	case SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180:
+		dev->dvb.frontend = nxt200x_attach(&avertvhda180, &dev->i2c_adap);
 		break;
 #endif
 	default:

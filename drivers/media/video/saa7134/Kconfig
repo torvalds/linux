@@ -13,7 +13,7 @@ config VIDEO_SAA7134
 	  module will be called saa7134.
 
 config VIDEO_SAA7134_DVB
-	tristate "DVB Support for saa7134 based TV cards"
+	tristate "DVB/ATSC Support for saa7134 based TV cards"
 	depends on VIDEO_SAA7134 && DVB_CORE
 	select VIDEO_BUF_DVB
 	---help---
@@ -32,6 +32,7 @@ config VIDEO_SAA7134_DVB_ALL_FRONTENDS
 	depends on VIDEO_SAA7134_DVB
 	select DVB_MT352
 	select DVB_TDA1004X
+	select DVB_NXT200X
 	---help---
 	  This builds saa7134-dvb with all currently supported frontend
 	  demodulators.  If you wish to tweak your configuration, and
@@ -56,3 +57,12 @@ config VIDEO_SAA7134_DVB_TDA1004X
 	---help---
 	  This adds DVB-T support for cards based on the
 	  Philips saa7134 chip and the TDA10045H/TDA10046H demodulator.
+
+config VIDEO_SAA7134_DVB_NXT200X
+	tristate "NXT2002/NXT2004 ATSC Support"
+	default m
+	depends on VIDEO_SAA7134_DVB && !VIDEO_SAA7134_DVB_ALL_FRONTENDS
+	select DVB_NXT200X
+	---help---
+	  This adds ATSC 8VSB and QAM64/256 support for cards based on the
+	  Philips saa7134 chip and the NXT2002/NXT2004 demodulator.
