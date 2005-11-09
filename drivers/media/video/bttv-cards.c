@@ -153,6 +153,7 @@ static struct CARD {
 	{ 0xff020070, BTTV_BOARD_OSPREY500,     "Osprey-500" },
 	{ 0xff030070, BTTV_BOARD_OSPREY2000,    "Osprey-2000" },
 	{ 0xff040070, BTTV_BOARD_OSPREY540,     "Osprey-540" },
+	{ 0xff070070, BTTV_BOARD_OSPREY440,     "Osprey-440" },
 
 	{ 0x00011002, BTTV_BOARD_ATI_TVWONDER,  "ATI TV Wonder" },
 	{ 0x00031002, BTTV_BOARD_ATI_TVWONDERVE,"ATI TV Wonder/VE" },
@@ -2763,7 +2764,23 @@ struct tvcard bttv_tvcards[] = {
 		.radio_addr     = ADDR_UNSET,
 		.has_radio      = 1,
 		.has_remote     = 1,
-	}
+	},
+    	    /* ---- card 0x8c ---------------------------------- */
+	[BTTV_BOARD_OSPREY440]  = {
+		.name           = "Osprey 440",
+		.video_inputs   = 1,
+		.audio_inputs   = 1,
+		.tuner          = -1,
+		.svhs           = 1,
+		.muxsel         = { 2 },
+		.pll            = PLL_28,
+		.tuner_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.no_msp34xx     = 1,
+		.no_tda9875     = 1,
+		.no_tda7432     = 1,
+	},
 };
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);

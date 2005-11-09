@@ -160,6 +160,7 @@
 #define BTTV_BOARD_CONCEPTRONIC_CTVFMI2 0x89
 #define BTTV_BOARD_PV_BT878P_2E   0x8a
 #define BTTV_BOARD_PV_M4900       0x8b
+#define BTTV_BOARD_OSPREY440     0x8c
 
 /* i2c address list */
 #define I2C_TSA5522        0xc2
