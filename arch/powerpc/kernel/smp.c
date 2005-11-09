@@ -510,6 +510,7 @@ int __devinit start_secondary(void *unused)
 
 	smp_store_cpu_info(cpu);
 	set_dec(tb_ticks_per_jiffy);
+	preempt_disable();
 	cpu_callin_map[cpu] = 1;
 
 	smp_ops->setup_cpu(cpu);

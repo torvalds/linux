@@ -63,7 +63,7 @@ void cpu_idle(void)
 	int cpu = smp_processor_id();
 
 	for (;;) {
-		while (need_resched()) {
+		while (!need_resched()) {
 			if (ppc_md.idle != NULL)
 				ppc_md.idle();
 			else
