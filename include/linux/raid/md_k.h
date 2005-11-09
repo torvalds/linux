@@ -182,6 +182,8 @@ struct mddev_s
 	 * ERR:      and IO error was detected - abort the resync/recovery
 	 * INTR:     someone requested a (clean) early abort.
 	 * DONE:     thread is done and is waiting to be reaped
+	 * REQUEST:  user-space has requested a sync (used with SYNC)
+	 * CHECK:    user-space request for for check-only, no repair
 	 */
 #define	MD_RECOVERY_RUNNING	0
 #define	MD_RECOVERY_SYNC	1
@@ -189,6 +191,8 @@ struct mddev_s
 #define	MD_RECOVERY_INTR	3
 #define	MD_RECOVERY_DONE	4
 #define	MD_RECOVERY_NEEDED	5
+#define	MD_RECOVERY_REQUESTED	6
+#define	MD_RECOVERY_CHECK	7
 	unsigned long			recovery;
 
 	int				in_sync;	/* know to not need resync */

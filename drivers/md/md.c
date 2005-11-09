@@ -1714,9 +1714,60 @@ static struct md_sysfs_entry md_raid_disks = {
 	.show = md_show_rdisks,
 };
 
+static ssize_t
+md_show_scan(mddev_t *mddev, char *page)
+{
+	char *type = "none";
+	if (mddev->recovery &
+	    ((1<<MD_RECOVERY_RUNNING) || (1<<MD_RECOVERY_NEEDED))) {
+		if (mddev->recovery & (1<<MD_RECOVERY_SYNC)) {
+			if (!test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
+				type = "resync";
+			else if (test_bit(MD_RECOVERY_CHECK, &mddev->recovery))
+				type = "check";
+			else
+				type = "repair";
+		} else
+			type = "recover";
+	}
+	return sprintf(page, "%s\n", type);
+}
+
+static ssize_t
+md_store_scan(mddev_t *mddev, const char *page, size_t len)
+{
+	int canscan=0;
+	if (mddev->recovery &
+	    ((1<<MD_RECOVERY_RUNNING) || (1<<MD_RECOVERY_NEEDED)))
+		return -EBUSY;
+	down(&mddev->reconfig_sem);
+	if (mddev->pers && mddev->pers->sync_request)
+		canscan=1;
+	up(&mddev->reconfig_sem);
+	if (!canscan)
+		return -EINVAL;
+
+	if (strcmp(page, "check")==0 || strcmp(page, "check\n")==0)
+		set_bit(MD_RECOVERY_CHECK, &mddev->recovery);
+	else if (strcmp(page, "repair")!=0 && strcmp(page, "repair\n")!=0)
+		return -EINVAL;
+	set_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
+	set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
+	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+	md_wakeup_thread(mddev->thread);
+	return len;
+}
+
+static struct md_sysfs_entry md_scan_mode = {
+	.attr = {.name = "scan_mode", .mode = S_IRUGO|S_IWUSR },
+	.show = md_show_scan,
+	.store = md_store_scan,
+};
+
 static struct attribute *md_default_attrs[] = {
 	&md_level.attr,
 	&md_raid_disks.attr,
+	&md_scan_mode.attr,
 	NULL,
 };
 
@@ -3855,7 +3906,8 @@ static void md_do_sync(mddev_t *mddev)
 
 	is_mddev_idle(mddev); /* this also initializes IO event counters */
 	/* we don't use the checkpoint if there's a bitmap */
-	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery) && !mddev->bitmap)
+	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery) && !mddev->bitmap
+	    && ! test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
 		j = mddev->recovery_cp;
 	else
 		j = 0;
@@ -4093,9 +4145,13 @@ void md_check_recovery(mddev_t *mddev)
 			set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 			goto unlock;
 		}
-		if (mddev->recovery)
-			/* probably just the RECOVERY_NEEDED flag */
-			mddev->recovery = 0;
+		/* Clear some bits that don't mean anything, but
+		 * might be left set
+		 */
+		clear_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+		clear_bit(MD_RECOVERY_ERR, &mddev->recovery);
+		clear_bit(MD_RECOVERY_INTR, &mddev->recovery);
+		clear_bit(MD_RECOVERY_DONE, &mddev->recovery);
 
 		/* no recovery is running.
 		 * remove any failed drives, then
@@ -4129,14 +4185,17 @@ void md_check_recovery(mddev_t *mddev)
 				}
 		}
 
-		if (!spares && (mddev->recovery_cp == MaxSector )) {
-			/* nothing we can do ... */
+		if (spares) {
+			clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
+			clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
+		} else if (mddev->recovery_cp < MaxSector) {
+			set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
+		} else if (!test_bit(MD_RECOVERY_SYNC, &mddev->recovery))
+			/* nothing to be done ... */
 			goto unlock;
-		}
+
 		if (mddev->pers->sync_request) {
 			set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
-			if (!spares)
-				set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 			if (spares && mddev->bitmap && ! mddev->bitmap->file) {
 				/* We are adding a device or devices to an array
 				 * which has the bitmap stored on all devices.
