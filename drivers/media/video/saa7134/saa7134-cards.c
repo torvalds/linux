@@ -2142,7 +2142,7 @@ struct saa7134_board saa7134_boards[] = {
     	        },
         },
         [SAA7134_BOARD_GOTVIEW_7135] = {
-		/* Mike Baikov <lists@baikov.com> */
+		/* Mike Baikov <mike@baikov.com> */
 		/* Andrey Cvetcov <ays14@yandex.ru> */
                 .name            = "GoTView 7135 PCI",
                 .audio_clock     = 0x00187de7,

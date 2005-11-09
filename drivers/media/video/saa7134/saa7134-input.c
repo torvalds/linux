@@ -403,7 +403,7 @@ static IR_KEYTAB_TYPE manli_codes[IR_KEYTAB_SIZE] = {
 };
 
 
-/* Mike Baikov Mike Baikov <lists@baikov.com> */
+/* Mike Baikov <mike@baikov.com> */
 static IR_KEYTAB_TYPE gotview7135_codes[IR_KEYTAB_SIZE] = {
 
 	[ 33 ] = KEY_POWER,
