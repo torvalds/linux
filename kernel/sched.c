@@ -972,22 +972,26 @@ void kick_process(task_t *p)
 static inline unsigned long __source_load(int cpu, int type, enum idle_type idle)
 {
 	runqueue_t *rq = cpu_rq(cpu);
-	unsigned long cpu_load = rq->cpu_load[type-1],
+	unsigned long source_load, cpu_load = rq->cpu_load[type-1],
 		load_now = rq->nr_running * SCHED_LOAD_SCALE;
 
-	if (idle == NOT_IDLE) {
-		/*
-		 * If we are balancing busy runqueues the load is biased by
-		 * priority to create 'nice' support across cpus.
-		 */
-		cpu_load *= rq->prio_bias;
-		load_now *= rq->prio_bias;
-	}
-
 	if (type == 0)
-		return load_now;
+		source_load = load_now;
+	else
+		source_load = min(cpu_load, load_now);
 
-	return min(cpu_load, load_now);
+	if (idle == NOT_IDLE || rq->nr_running > 1)
+		/*
+		 * If we are busy rebalancing the load is biased by
+		 * priority to create 'nice' support across cpus. When
+		 * idle rebalancing we should only bias the source_load if
+		 * there is more than one task running on that queue to
+		 * prevent idle rebalance from trying to pull tasks from a
+		 * queue with only one running task.
+		 */
+		source_load *= rq->prio_bias;
+
+	return source_load;
 }
 
 static inline unsigned long source_load(int cpu, int type)
@@ -1001,17 +1005,18 @@ static inline unsigned long source_load(int cpu, int type)
 static inline unsigned long __target_load(int cpu, int type, enum idle_type idle)
 {
 	runqueue_t *rq = cpu_rq(cpu);
-	unsigned long cpu_load = rq->cpu_load[type-1],
+	unsigned long target_load, cpu_load = rq->cpu_load[type-1],
 		load_now = rq->nr_running * SCHED_LOAD_SCALE;
 
 	if (type == 0)
-		return load_now;
+		target_load = load_now;
+	else
+		target_load = max(cpu_load, load_now);
 
-	if (idle == NOT_IDLE) {
-		cpu_load *= rq->prio_bias;
-		load_now *= rq->prio_bias;
-	}
-	return max(cpu_load, load_now);
+	if (idle == NOT_IDLE || rq->nr_running > 1)
+		target_load *= rq->prio_bias;
+
+	return target_load;
 }
 
 static inline unsigned long target_load(int cpu, int type)
