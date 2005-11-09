@@ -86,15 +86,15 @@ static int get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	}
 
 	/* it seems that 0xFE indicates that a button is still hold
-	   down, while 0xFF indicates that no button is hold
-	   down. 0xFE sequences are sometimes interrupted by 0xFF */
+	   down, while 0xff indicates that no button is hold
+	   down. 0xfe sequences are sometimes interrupted by 0xFF */
 
 	dprintk("key %02x\n", b);
 
-	if (b == 0xFF)
+	if (b == 0xff)
 		return 0;
 
-	if (b == 0xFE)
+	if (b == 0xfe)
 		/* keep old data */
 		return 1;
 

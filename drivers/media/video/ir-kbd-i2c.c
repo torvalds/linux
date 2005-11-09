@@ -206,15 +206,15 @@ static int get_key_knc1(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	}
 
 	/* it seems that 0xFE indicates that a button is still hold
-	   down, while 0xFF indicates that no button is hold
-	   down. 0xFE sequences are sometimes interrupted by 0xFF */
+	   down, while 0xff indicates that no button is hold
+	   down. 0xfe sequences are sometimes interrupted by 0xFF */
 
 	dprintk(2,"key %02x\n", b);
 
-	if (b == 0xFF)
+	if (b == 0xff)
 		return 0;
 
-	if (b == 0xFE)
+	if (b == 0xfe)
 		/* keep old data */
 		return 1;
 
@@ -429,7 +429,9 @@ static int ir_probe(struct i2c_adapter *adap)
 	static const int probe_saa7134[] = { 0x7a, -1 };
 	static const int probe_em2820[] = { 0x30, 0x47, -1 };
 	const int *probe = NULL;
-	struct i2c_client c; unsigned char buf; int i,rc;
+	struct i2c_client c;
+	unsigned char buf;
+	int i,rc;
 
 	switch (adap->id) {
 	case I2C_HW_B_BT848:
