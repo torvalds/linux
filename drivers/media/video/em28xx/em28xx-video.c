@@ -357,20 +357,10 @@ static void em2820_release_resources(struct em2820 *dev)
  * em2820_v4l2_close()
  * stops streaming and deallocates all resources allocated by the v4l2 calls and ioctls
  */
-static int em2820_v4l2_close(struct inode *inode, struct file *file)
+static int em2820_v4l2_close(struct inode *inode, struct file *filp)
 {
 	int errCode;
-	int minor = iminor(inode);
-	struct em2820 *h,*dev = NULL;
-	struct list_head *list;
-
-	list_for_each(list,&em2820_devlist) {
-		h = list_entry(list, struct em2820, devlist);
-		if (h->vdev->minor == minor) {
-			dev  = h;
-		}
-	}
-
+	struct em2820 *dev=filp->private_data;
 
 	em2820_videodbg("users=%d", dev->users);
 
