@@ -3508,25 +3508,24 @@ void set_user_nice(task_t *p, long nice)
 	 * not SCHED_NORMAL:
 	 */
 	if (rt_task(p)) {
-		dec_prio_bias(rq, p->static_prio);
 		p->static_prio = NICE_TO_PRIO(nice);
-		inc_prio_bias(rq, p->static_prio);
 		goto out_unlock;
 	}
 	array = p->array;
-	if (array)
+	if (array) {
 		dequeue_task(p, array);
+		dec_prio_bias(rq, p->static_prio);
+	}
 
 	old_prio = p->prio;
 	new_prio = NICE_TO_PRIO(nice);
 	delta = new_prio - old_prio;
-	dec_prio_bias(rq, p->static_prio);
 	p->static_prio = NICE_TO_PRIO(nice);
-	inc_prio_bias(rq, p->static_prio);
 	p->prio += delta;
 
 	if (array) {
 		enqueue_task(p, array);
+		inc_prio_bias(rq, p->static_prio);
 		/*
 		 * If the task increased its priority or is running and
 		 * lowered its priority, then reschedule its CPU:
