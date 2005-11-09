@@ -362,6 +362,18 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	/* TEA5767 autodetection code - only for addr = 0xc0 */
 	if (!no_autodetect) {
 		switch (addr) {
+		case 0x42:
+		case 0x43:
+		case 0x4a:
+		case 0x4b:
+			/* If chip is not tda8290, don't register.
+			   since it can be tda9887*/
+			if (tda8290_probe(&t->i2c) != 0) {
+                        	tuner_dbg("chip at addr %x is not a tda8290\n", addr);
+				kfree(t);
+				return 0;
+			}
+			break;
 		case 0x60:
 			if (tea5767_autodetection(&t->i2c) != EINVAL) {
 				t->type = TUNER_TEA5767;
@@ -372,19 +384,8 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 
 				goto register_client;
 			}
-		case 0x42:
-		case 0x43:
-		case 0x4a:
-		case 0x4b:
-			/* If chip is not tda8290, don't register.
-			   since it can be tda9887*/
-			if (tda8290_probe(&t->i2c) != 0) {
-				kfree(t);
-				return 0;
-			}
-
+			break;
 		}
-
 	}
 
 	/* Initializes only the first adapter found */
