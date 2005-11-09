@@ -574,6 +574,17 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id, struct pt_regs *regs)
 				       dev->name);
 			goto out;
 		}
+
+		/* If alsa support is active and we get a sound report, exit
+		   and let the saa7134-alsa module deal with it */
+
+		if ((report & SAA7134_IRQ_REPORT_DONE_RA3) && alsa)  {
+			if (irq_debug > 1)
+				printk(KERN_DEBUG "%s/irq: ignoring interrupt for ALSA\n",
+				       dev->name);
+			goto out;
+		}
+
 		handled = 1;
 		saa_writel(SAA7134_IRQ_REPORT,report);
 		if (irq_debug)
@@ -598,8 +609,6 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id, struct pt_regs *regs)
 		if ((report & SAA7134_IRQ_REPORT_DONE_RA3))  {
 			if (oss) {
 				saa7134_irq_oss_done(dev,status);
-			} else if (alsa) {
-				saa7134_irq_alsa_done(dev,status);
 			}
 		}
 
@@ -1029,9 +1038,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 			printk(KERN_INFO "%s: registered device mixer%d\n",
 			       dev->name,dev->oss.minor_mixer >> 4);
 		} else if (alsa) {
-			alsa_card_saa7134_create(dev,dsp_nr[dev->nr]);
-			printk(KERN_INFO "%s: registered ALSA devices\n",
-			       dev->name);
+			request_module("saa7134-alsa");
 		}
 		break;
 	}
@@ -1059,8 +1066,6 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	case PCI_DEVICE_ID_PHILIPS_SAA7135:
 		if (oss)
 			unregister_sound_dsp(dev->oss.minor_dsp);
-		else if (alsa)
-			alsa_card_saa7134_exit();
 		break;
 	}
  fail4:
@@ -1120,8 +1125,7 @@ static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 		if (oss) {
 			unregister_sound_mixer(dev->oss.minor_mixer);
 			unregister_sound_dsp(dev->oss.minor_dsp);
-		} else if (alsa)
-			alsa_card_saa7134_exit();
+		}
 		break;
 	}
 	saa7134_unregister_video(dev);
@@ -1213,6 +1217,13 @@ EXPORT_SYMBOL(saa7134_print_ioctl);
 EXPORT_SYMBOL(saa7134_i2c_call_clients);
 EXPORT_SYMBOL(saa7134_devlist);
 EXPORT_SYMBOL(saa7134_boards);
+
+/* ----------------- For ALSA -------------------------------- */
+
+EXPORT_SYMBOL(saa7134_pgtable_free);
+EXPORT_SYMBOL(saa7134_pgtable_build);
+EXPORT_SYMBOL(saa7134_pgtable_alloc);
+EXPORT_SYMBOL(saa7134_set_dmabits);
 
 /* ----------------------------------------------------------- */
 /*

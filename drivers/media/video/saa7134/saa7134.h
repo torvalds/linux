@@ -665,14 +665,6 @@ void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
 void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir);
 
-/* ----------------------------------------------------------- */
-/* saa7134-alsa.c                                              */
-
-int alsa_card_saa7134_create(struct saa7134_dev *saadev, unsigned int devnum);
-void alsa_card_saa7134_exit(void);
-void saa7134_irq_alsa_done(struct saa7134_dev *dev, unsigned long status);
-
-
 /*
  * Local variables:
  * c-basic-offset: 8
