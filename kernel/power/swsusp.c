@@ -629,74 +629,43 @@ int swsusp_resume(void)
 }
 
 /**
- *	swsusp_pagedir_relocate - It is possible, that some memory pages
- *	occupied by the list of PBEs collide with pages where we're going to
- *	restore from the loaded pages later.  We relocate them here.
+ *	mark_unsafe_pages - mark the pages that cannot be used for storing
+ *	the image during resume, because they conflict with the pages that
+ *	had been used before suspend
  */
 
-static struct pbe *swsusp_pagedir_relocate(struct pbe *pblist)
+static void mark_unsafe_pages(struct pbe *pblist)
 {
 	struct zone *zone;
 	unsigned long zone_pfn;
-	struct pbe *pbpage, *tail, *p;
-	void *m;
-	int rel = 0;
+	struct pbe *p;
 
 	if (!pblist) /* a sanity check */
-		return NULL;
-
-	pr_debug("swsusp: Relocating pagedir (%lu pages to check)\n",
-			swsusp_info.pagedir_pages);
+		return;
 
 	/* Clear page flags */
-
 	for_each_zone (zone) {
-        	for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
-        		if (pfn_valid(zone_pfn + zone->zone_start_pfn))
-                		ClearPageNosaveFree(pfn_to_page(zone_pfn +
+		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
+			if (pfn_valid(zone_pfn + zone->zone_start_pfn))
+				ClearPageNosaveFree(pfn_to_page(zone_pfn +
 					zone->zone_start_pfn));
 	}
 
 	/* Mark orig addresses */
-
 	for_each_pbe (p, pblist)
 		SetPageNosaveFree(virt_to_page(p->orig_address));
 
-	tail = pblist + PB_PAGE_SKIP;
+}
 
-	/* Relocate colliding pages */
-
-	for_each_pb_page (pbpage, pblist) {
-		if (PageNosaveFree(virt_to_page((unsigned long)pbpage))) {
-			m = (void *)get_safe_page(GFP_ATOMIC | __GFP_COLD);
-			if (!m)
-				return NULL;
-			memcpy(m, (void *)pbpage, PAGE_SIZE);
-			if (pbpage == pblist)
-				pblist = (struct pbe *)m;
-			else
-				tail->next = (struct pbe *)m;
-			pbpage = (struct pbe *)m;
-
-			/* We have to link the PBEs again */
-			for (p = pbpage; p < pbpage + PB_PAGE_SKIP; p++)
-				if (p->next) /* needed to save the end */
-					p->next = p + 1;
-
-			rel++;
-		}
-		tail = pbpage + PB_PAGE_SKIP;
+static void copy_page_backup_list(struct pbe *dst, struct pbe *src)
+{
+	/* We assume both lists contain the same number of elements */
+	while (src) {
+		dst->orig_address = src->orig_address;
+		dst->swap_address = src->swap_address;
+		dst = dst->next;
+		src = src->next;
 	}
-
-	/* This is for swsusp_free() */
-	for_each_pb_page (pbpage, pblist) {
-		SetPageNosave(virt_to_page(pbpage));
-		SetPageNosaveFree(virt_to_page(pbpage));
-	}
-
-	printk("swsusp: Relocated %d pages\n", rel);
-
-	return pblist;
 }
 
 /*
@@ -942,10 +911,15 @@ static int read_suspend_image(void)
 
 	if ((error = read_pagedir(p)))
 		return error;
-
 	create_pbe_list(p, nr_copy_pages);
-
-	if (!(pagedir_nosave = swsusp_pagedir_relocate(p)))
+	mark_unsafe_pages(p);
+	pagedir_nosave = alloc_pagedir(nr_copy_pages, GFP_ATOMIC, 1);
+	if (pagedir_nosave) {
+		create_pbe_list(pagedir_nosave, nr_copy_pages);
+		copy_page_backup_list(pagedir_nosave, p);
+	}
+	free_pagedir(p);
+	if (!pagedir_nosave)
 		return -ENOMEM;
 
 	/* Allocate memory for the image and read the data from swap */
