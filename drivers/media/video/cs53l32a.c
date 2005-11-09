@@ -25,9 +25,9 @@
 #include <linux/ioctl.h>
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
+#include <linux/i2c-id.h>
 #include <linux/videodev.h>
 #include <media/audiochip.h>
-#include <media/id.h>
 
 MODULE_DESCRIPTION("i2c device driver for cs53l32a Audio ADC");
 MODULE_AUTHOR("Martin Vaughan");
@@ -190,7 +190,13 @@ static int cs53l32a_attach(struct i2c_adapter *adapter, int address, int kind)
 
 static int cs53l32a_probe(struct i2c_adapter *adapter)
 {
-	return i2c_probe(adapter, &addr_data, cs53l32a_attach);
+#ifdef I2C_CLASS_TV_ANALOG
+	if (adapter->class & I2C_CLASS_TV_ANALOG)
+#else
+	if (adapter->id == I2C_HW_B_BT848)
+#endif
+		return i2c_probe(adapter, &addr_data, cs53l32a_attach);
+	return 0;
 }
 
 static int cs53l32a_detach(struct i2c_client *client)

@@ -26,9 +26,9 @@
 #include <linux/ioctl.h>
 #include <asm/uaccess.h>
 #include <linux/i2c.h>
+#include <linux/i2c-id.h>
 #include <linux/videodev.h>
 #include <media/audiochip.h>
-#include <media/id.h>
 
 MODULE_DESCRIPTION("wm8775 driver");
 MODULE_AUTHOR("Ulf Eklund");
@@ -204,14 +204,10 @@ static int wm8775_probe(struct i2c_adapter *adapter)
 {
 #ifdef I2C_CLASS_TV_ANALOG
 	if (adapter->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adapter, &addr_data, wm8775_attach);
 #else
-	switch (adapter->id) {
-	case I2C_HW_B_BT848:
-		return i2c_probe(adapter, &addr_data, tda9887_attach);
-	}
-#endif /* I2C_CLASS_TV_ANALOG */
-
+	if (adapter->id == I2C_HW_B_BT848)
+#endif
+		return i2c_probe(adapter, &addr_data, wm8775_attach);
 	return 0;
 }
 
