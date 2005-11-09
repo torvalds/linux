@@ -521,6 +521,7 @@ struct tvcard bttv_tvcards[] = {
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.audio_hook     = avermedia_tv_stereo_audio,
+		.no_gpioirq     = 1,
 	},
 	[BTTV_BOARD_VHX] = {
 		.name		= "Aimslab Video Highway Xtreme (VHX)",
