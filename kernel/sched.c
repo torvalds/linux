@@ -206,6 +206,7 @@ struct runqueue {
 	 */
 	unsigned long nr_running;
 #ifdef CONFIG_SMP
+	unsigned long prio_bias;
 	unsigned long cpu_load[3];
 #endif
 	unsigned long long nr_switches;
@@ -659,13 +660,45 @@ static int effective_prio(task_t *p)
 	return prio;
 }
 
+#ifdef CONFIG_SMP
+static inline void inc_prio_bias(runqueue_t *rq, int static_prio)
+{
+	rq->prio_bias += MAX_PRIO - static_prio;
+}
+
+static inline void dec_prio_bias(runqueue_t *rq, int static_prio)
+{
+	rq->prio_bias -= MAX_PRIO - static_prio;
+}
+#else
+static inline void inc_prio_bias(runqueue_t *rq, int static_prio)
+{
+}
+
+static inline void dec_prio_bias(runqueue_t *rq, int static_prio)
+{
+}
+#endif
+
+static inline void inc_nr_running(task_t *p, runqueue_t *rq)
+{
+	rq->nr_running++;
+	inc_prio_bias(rq, p->static_prio);
+}
+
+static inline void dec_nr_running(task_t *p, runqueue_t *rq)
+{
+	rq->nr_running--;
+	dec_prio_bias(rq, p->static_prio);
+}
+
 /*
  * __activate_task - move a task to the runqueue.
  */
 static inline void __activate_task(task_t *p, runqueue_t *rq)
 {
 	enqueue_task(p, rq->active);
-	rq->nr_running++;
+	inc_nr_running(p, rq);
 }
 
 /*
@@ -674,7 +707,7 @@ static inline void __activate_task(task_t *p, runqueue_t *rq)
 static inline void __activate_idle_task(task_t *p, runqueue_t *rq)
 {
 	enqueue_task_head(p, rq->active);
-	rq->nr_running++;
+	inc_nr_running(p, rq);
 }
 
 static int recalc_task_prio(task_t *p, unsigned long long now)
@@ -793,7 +826,7 @@ static void activate_task(task_t *p, runqueue_t *rq, int local)
  */
 static void deactivate_task(struct task_struct *p, runqueue_t *rq)
 {
-	rq->nr_running--;
+	dec_nr_running(p, rq);
 	dequeue_task(p, p->array);
 	p->array = NULL;
 }
@@ -930,27 +963,54 @@ void kick_process(task_t *p)
  * We want to under-estimate the load of migration sources, to
  * balance conservatively.
  */
-static inline unsigned long source_load(int cpu, int type)
+static inline unsigned long __source_load(int cpu, int type, enum idle_type idle)
 {
 	runqueue_t *rq = cpu_rq(cpu);
-	unsigned long load_now = rq->nr_running * SCHED_LOAD_SCALE;
+	unsigned long cpu_load = rq->cpu_load[type-1],
+		load_now = rq->nr_running * SCHED_LOAD_SCALE;
+
+	if (idle == NOT_IDLE) {
+		/*
+		 * If we are balancing busy runqueues the load is biased by
+		 * priority to create 'nice' support across cpus.
+		 */
+		cpu_load *= rq->prio_bias;
+		load_now *= rq->prio_bias;
+	}
+
 	if (type == 0)
 		return load_now;
 
-	return min(rq->cpu_load[type-1], load_now);
+	return min(cpu_load, load_now);
+}
+
+static inline unsigned long source_load(int cpu, int type)
+{
+	return __source_load(cpu, type, NOT_IDLE);
 }
 
 /*
  * Return a high guess at the load of a migration-target cpu
  */
-static inline unsigned long target_load(int cpu, int type)
+static inline unsigned long __target_load(int cpu, int type, enum idle_type idle)
 {
 	runqueue_t *rq = cpu_rq(cpu);
-	unsigned long load_now = rq->nr_running * SCHED_LOAD_SCALE;
+	unsigned long cpu_load = rq->cpu_load[type-1],
+		load_now = rq->nr_running * SCHED_LOAD_SCALE;
+
 	if (type == 0)
 		return load_now;
 
-	return max(rq->cpu_load[type-1], load_now);
+	if (idle == NOT_IDLE) {
+		cpu_load *= rq->prio_bias;
+		load_now *= rq->prio_bias;
+	}
+	return max(cpu_load, load_now);
+}
+
+static inline unsigned long target_load(int cpu, int type)
+{
+	return __target_load(cpu, type, NOT_IDLE);
 }
 
 /*
@@ -1411,7 +1471,7 @@ void fastcall wake_up_new_task(task_t *p, unsigned long clone_flags)
 				list_add_tail(&p->run_list, &current->run_list);
 				p->array = current->array;
 				p->array->nr_active++;
-				rq->nr_running++;
+				inc_nr_running(p, rq);
 			}
 			set_need_resched();
 		} else
@@ -1756,9 +1816,9 @@ void pull_task(runqueue_t *src_rq, prio_array_t *src_array, task_t *p,
 	       runqueue_t *this_rq, prio_array_t *this_array, int this_cpu)
 {
 	dequeue_task(p, src_array);
-	src_rq->nr_running--;
+	dec_nr_running(p, src_rq);
 	set_task_cpu(p, this_cpu);
-	this_rq->nr_running++;
+	inc_nr_running(p, this_rq);
 	enqueue_task(p, this_array);
 	p->timestamp = (p->timestamp - src_rq->timestamp_last_tick)
 				+ this_rq->timestamp_last_tick;
@@ -1937,9 +1997,9 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 
 			/* Bias balancing toward cpus of our domain */
 			if (local_group)
-				load = target_load(i, load_idx);
+				load = __target_load(i, load_idx, idle);
 			else
-				load = source_load(i, load_idx);
+				load = __source_load(i, load_idx, idle);
 
 			avg_load += load;
 		}
@@ -2044,14 +2104,15 @@ out_balanced:
 /*
  * find_busiest_queue - find the busiest runqueue among the cpus in group.
  */
-static runqueue_t *find_busiest_queue(struct sched_group *group)
+static runqueue_t *find_busiest_queue(struct sched_group *group,
+	enum idle_type idle)
 {
 	unsigned long load, max_load = 0;
 	runqueue_t *busiest = NULL;
 	int i;
 
 	for_each_cpu_mask(i, group->cpumask) {
-		load = source_load(i, 0);
+		load = __source_load(i, 0, idle);
 
 		if (load > max_load) {
 			max_load = load;
@@ -2095,7 +2156,7 @@ static int load_balance(int this_cpu, runqueue_t *this_rq,
 		goto out_balanced;
 	}
 
-	busiest = find_busiest_queue(group);
+	busiest = find_busiest_queue(group, idle);
 	if (!busiest) {
 		schedstat_inc(sd, lb_nobusyq[idle]);
 		goto out_balanced;
@@ -2218,7 +2279,7 @@ static int load_balance_newidle(int this_cpu, runqueue_t *this_rq,
 		goto out_balanced;
 	}
 
-	busiest = find_busiest_queue(group);
+	busiest = find_busiest_queue(group, NEWLY_IDLE);
 	if (!busiest) {
 		schedstat_inc(sd, lb_nobusyq[NEWLY_IDLE]);
 		goto out_balanced;
@@ -3447,7 +3508,9 @@ void set_user_nice(task_t *p, long nice)
 	 * not SCHED_NORMAL:
 	 */
 	if (rt_task(p)) {
+		dec_prio_bias(rq, p->static_prio);
 		p->static_prio = NICE_TO_PRIO(nice);
+		inc_prio_bias(rq, p->static_prio);
 		goto out_unlock;
 	}
 	array = p->array;
@@ -3457,7 +3520,9 @@ void set_user_nice(task_t *p, long nice)
 	old_prio = p->prio;
 	new_prio = NICE_TO_PRIO(nice);
 	delta = new_prio - old_prio;
+	dec_prio_bias(rq, p->static_prio);
 	p->static_prio = NICE_TO_PRIO(nice);
+	inc_prio_bias(rq, p->static_prio);
 	p->prio += delta;
 
 	if (array) {
