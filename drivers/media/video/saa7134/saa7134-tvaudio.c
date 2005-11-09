@@ -207,6 +207,10 @@ static void tvaudio_setcarrier(struct saa7134_dev *dev,
 	saa_writel(SAA7134_CARRIER2_FREQ0 >> 2, tvaudio_carr2reg(secondary));
 }
 
+#define SAA7134_MUTE_MASK 0xbb
+#define SAA7134_MUTE_ANALOG 0x04
+#define SAA7134_MUTE_I2S 0x40
+
 static void mute_input_7134(struct saa7134_dev *dev)
 {
 	unsigned int mute;
@@ -241,7 +245,11 @@ static void mute_input_7134(struct saa7134_dev *dev)
 
 	if (PCI_DEVICE_ID_PHILIPS_SAA7134 == dev->pci->device)
 		/* 7134 mute */
-		saa_writeb(SAA7134_AUDIO_MUTE_CTRL, mute ? 0xbf : 0xbb);
+		saa_writeb(SAA7134_AUDIO_MUTE_CTRL, mute ?
+					            SAA7134_MUTE_MASK |
+						    SAA7134_MUTE_ANALOG |
+						    SAA7134_MUTE_I2S :
+						    SAA7134_MUTE_MASK);
 
 	/* switch internal audio mux */
 	switch (in->amux) {
