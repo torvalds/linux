@@ -123,7 +123,9 @@ static void set_audio_start(struct cx88_core *core, u32 mode)
 	cx_write(AUD_VOL_CTL, (1 << 6));
 
 	// start programming
-	cx_write(AUD_CTL, 0x0000);
+	cx_write(MO_AUD_DMACNTRL, 0x0000);
+	msleep(100);
+	//cx_write(AUD_CTL, 0x0000);
 	cx_write(AUD_INIT, mode);
 	cx_write(AUD_INIT_LD, 0x0001);
 	cx_write(AUD_SOFT_RESET, 0x0001);
@@ -151,6 +153,7 @@ static void set_audio_finish(struct cx88_core *core, u32 ctl)
 
 	/* finish programming */
 	cx_write(AUD_SOFT_RESET, 0x0000);
+	cx_write(MO_AUD_DMACNTRL, 0x0003);
 
 	/* unmute */
 	volume = cx_sread(SHADOW_AUD_VOL_CTL);
@@ -341,6 +344,7 @@ static void set_audio_standard_NICAM(struct cx88_core *core, u32 mode)
 		{ /* end of list */ },
 	};
 
+	set_audio_start(core,SEL_NICAM);
 	switch (core->tvaudio) {
 	case WW_L:
 		dprintk("%s SECAM-L NICAM (status: devel)\n", __FUNCTION__);
@@ -740,7 +744,7 @@ void cx88_set_tvaudio(struct cx88_core *core)
 
 		/* set nicam mode - otherwise
 		   AUD_NICAM_STATUS2 contains wrong values */
-		set_audio_standard_NICAM(core, EN_NICAM_FORCE_MONO1);
+		set_audio_standard_NICAM(core, EN_NICAM_AUTO_STEREO);
 		if (0 == cx88_detect_nicam(core)) {
 			/* fall back to fm / am mono */
 			set_audio_standard_A2(core, EN_A2_FORCE_MONO1);
