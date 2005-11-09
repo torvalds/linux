@@ -102,7 +102,11 @@
 #define I2C_DRIVERID_TDA9874	66	/* TV sound decoder		*/
 #define I2C_DRIVERID_SAA6752HS	67	/* MPEG2 encoder		*/
 #define I2C_DRIVERID_TVEEPROM	68	/* TV EEPROM			*/
-
+#define I2C_DRIVERID_WM8775	69	/* wm8775 audio processor	*/
+#define I2C_DRIVERID_CS53L32A	70	/* cs53l32a audio processor	*/
+#define I2C_DRIVERID_CX25840	71	/* cx2584x video encoder	*/
+#define I2C_DRIVERID_SAA7127	72	/* saa7124 video encoder	*/
+#define I2C_DRIVERID_SAA711X	73	/* saa711x video encoders	*/
 
 #define I2C_DRIVERID_EXP0	0xF0	/* experimental use id's	*/
 #define I2C_DRIVERID_EXP1	0xF1
@@ -193,6 +197,7 @@
 #define I2C_HW_B_NVIDIA		0x01001c /* nvidia framebuffer driver */
 #define I2C_HW_B_SAVAGE		0x01001d /* savage framebuffer driver */
 #define I2C_HW_B_RADEON		0x01001e /* radeon framebuffer driver */
+#define I2C_HW_B_EM28XX		0x01001f /* em28xx video capture cards */
 
 /* --- PCF 8584 based algorithms					*/
 #define I2C_HW_P_LP		0x020000 /* Parallel port interface */
