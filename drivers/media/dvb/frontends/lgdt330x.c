@@ -26,6 +26,7 @@
  *   DViCO FusionHDTV 3 Gold-Q
  *   DViCO FusionHDTV 3 Gold-T
  *   DViCO FusionHDTV 5 Gold
+ *   DViCO FusionHDTV 5 Lite
  *
  * TODO:
  * signal strength always returns 0.

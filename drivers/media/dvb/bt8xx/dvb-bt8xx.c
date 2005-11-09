@@ -34,6 +34,7 @@
 #include "dvb_frontend.h"
 #include "dvb-bt8xx.h"
 #include "bt878.h"
+#include "dvb-pll.h"
 
 static int debug;
 
@@ -546,6 +547,55 @@ static struct mt352_config digitv_alps_tded4_config = {
 	.pll_set = digitv_alps_tded4_pll_set,
 };
 
+static int tdvs_tua6034_pll_set(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+{
+	struct dvb_bt8xx_card *card = (struct dvb_bt8xx_card *) fe->dvb->priv;
+	u8 buf[4];
+	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = buf, .len = sizeof(buf) };
+	int err;
+
+	dvb_pll_configure(&dvb_pll_tdvs_tua6034, buf, params->frequency, 0);
+	dprintk("%s: tuner at 0x%02x bytes: 0x%02x 0x%02x 0x%02x 0x%02x\n",
+		__FUNCTION__, msg.addr, buf[0],buf[1],buf[2],buf[3]);
+	if ((err = i2c_transfer(card->i2c_adapter, &msg, 1)) != 1) {
+	        printk(KERN_WARNING "dvb-bt8xx: %s error "
+		        "(addr %02x <- %02x, err = %i)\n",
+		        __FUNCTION__, buf[0], buf[1], err);
+		if (err < 0)
+			return err;
+		else
+			return -EREMOTEIO;
+	}
+
+	/* Set the Auxiliary Byte. */
+	buf[2] &= ~0x20;
+	buf[2] |= 0x18;
+	buf[3] = 0x50;
+	i2c_transfer(card->i2c_adapter, &msg, 1);
+
+	return 0;
+}
+
+static struct lgdt330x_config tdvs_tua6034_config = {
+	.demod_address    = 0x0e,
+	.demod_chip       = LGDT3303,
+	.serial_mpeg      = 0x40, /* TPSERIAL for 3303 in TOP_CONTROL */
+	.pll_set          = tdvs_tua6034_pll_set,
+};
+
+static void lgdt330x_reset(struct dvb_bt8xx_card *bt)
+{
+	/* Set pin 27 of the lgdt3303 chip high to reset the frontend */
+
+	/* Pulse the reset line */
+	bttv_write_gpio(bt->bttv_nr, 0x00e00007, 0x00000001); /* High */
+	bttv_write_gpio(bt->bttv_nr, 0x00e00007, 0x00000000); /* Low  */
+	msleep(100);
+
+	bttv_write_gpio(bt->bttv_nr, 0x00e00007, 0x00000001); /* High */
+	msleep(100);
+}
+
 static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 {
 	int ret;
@@ -559,6 +609,15 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 			card->fe->ops->info.frequency_min = 174000000;
 			card->fe->ops->info.frequency_max = 862000000;
 		}
+		break;
+#endif
+
+#ifdef BTTV_DVICO_FUSIONHDTV_5_LITE
+	case BTTV_DVICO_FUSIONHDTV_5_LITE:
+		lgdt330x_reset(card);
+		card->fe = lgdt330x_attach(&tdvs_tua6034_config, card->i2c_adapter);
+		if (card->fe != NULL)
+			dprintk ("dvb_bt8xx: lgdt330x detected\n");
 		break;
 #endif
 
@@ -763,6 +822,14 @@ static int dvb_bt8xx_probe(struct device *dev)
 		/* 26, 15, 14, 6, 5
 		 * A_PWRDN  DA_DPM DA_SBR DA_IOM_DA
 		 * DA_APP(parallel) */
+		break;
+
+#ifdef BTTV_DVICO_FUSIONHDTV_5_LITE
+	case BTTV_DVICO_FUSIONHDTV_5_LITE:
+#endif
+		card->gpio_mode = 0x0400c060;
+		card->op_sync_orin = BT878_RISC_SYNC_MASK;
+		card->irq_err_ignore = BT878_AFBUS | BT878_AFDSR;
 		break;
 
 #ifdef BTTV_TWINHAN_VP3021
