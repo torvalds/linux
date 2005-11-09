@@ -144,110 +144,6 @@ void fixup_irqs(cpumask_t map)
 }
 #endif
 
-extern int noirqdebug;
-
-/*
- * Eventually, this should take an array of interrupts and an array size
- * so it can dispatch multiple interrupts.
- */
-void ppc_irq_dispatch_handler(struct pt_regs *regs, int irq)
-{
-	int status;
-	struct irqaction *action;
-	int cpu = smp_processor_id();
-	irq_desc_t *desc = get_irq_desc(irq);
-	irqreturn_t action_ret;
-
-	kstat_cpu(cpu).irqs[irq]++;
-
-	if (desc->status & IRQ_PER_CPU) {
-		/* no locking required for CPU-local interrupts: */
-		ack_irq(irq);
-		action_ret = handle_IRQ_event(irq, regs, desc->action);
-		desc->handler->end(irq);
-		return;
-	}
-
-	spin_lock(&desc->lock);
-	ack_irq(irq);	
-	/*
-	   REPLAY is when Linux resends an IRQ that was dropped earlier
-	   WAITING is used by probe to mark irqs that are being tested
-	   */
-	status = desc->status & ~(IRQ_REPLAY | IRQ_WAITING);
-	status |= IRQ_PENDING; /* we _want_ to handle it */
-
-	/*
-	 * If the IRQ is disabled for whatever reason, we cannot
-	 * use the action we have.
-	 */
-	action = NULL;
-	if (likely(!(status & (IRQ_DISABLED | IRQ_INPROGRESS)))) {
-		action = desc->action;
-		if (!action || !action->handler) {
-			ppc_spurious_interrupts++;
-			printk(KERN_DEBUG "Unhandled interrupt %x, disabled\n", irq);
-			/* We can't call disable_irq here, it would deadlock */
-			if (!desc->depth)
-				desc->depth = 1;
-			desc->status |= IRQ_DISABLED;
-			/* This is not a real spurrious interrupt, we
-			 * have to eoi it, so we jump to out
-			 */
-			mask_irq(irq);
-			goto out;
-		}
-		status &= ~IRQ_PENDING; /* we commit to handling */
-		status |= IRQ_INPROGRESS; /* we are handling it */
-	}
-	desc->status = status;
-
-	/*
-	 * If there is no IRQ handler or it was disabled, exit early.
-	   Since we set PENDING, if another processor is handling
-	   a different instance of this same irq, the other processor
-	   will take care of it.
-	 */
-	if (unlikely(!action))
-		goto out;
-
-	/*
-	 * Edge triggered interrupts need to remember
-	 * pending events.
-	 * This applies to any hw interrupts that allow a second
-	 * instance of the same irq to arrive while we are in do_IRQ
-	 * or in the handler. But the code here only handles the _second_
-	 * instance of the irq, not the third or fourth. So it is mostly
-	 * useful for irq hardware that does not mask cleanly in an
-	 * SMP environment.
-	 */
-	for (;;) {
-		spin_unlock(&desc->lock);
-
-		action_ret = handle_IRQ_event(irq, regs, action);
-
-		spin_lock(&desc->lock);
-		if (!noirqdebug)
-			note_interrupt(irq, desc, action_ret, regs);
-		if (likely(!(desc->status & IRQ_PENDING)))
-			break;
-		desc->status &= ~IRQ_PENDING;
-	}
-out:
-	desc->status &= ~IRQ_INPROGRESS;
-	/*
-	 * The ->end() handler has to deal with interrupts which got
-	 * disabled while the handler was running.
-	 */
-	if (desc->handler) {
-		if (desc->handler->end)
-			desc->handler->end(irq);
-		else if (desc->handler->enable)
-			desc->handler->enable(irq);
-	}
-	spin_unlock(&desc->lock);
-}
-
 #ifdef CONFIG_PPC_ISERIES
 void do_IRQ(struct pt_regs *regs)
 {
@@ -325,13 +221,13 @@ void do_IRQ(struct pt_regs *regs)
 		if (curtp != irqtp) {
 			irqtp->task = curtp->task;
 			irqtp->flags = 0;
-			call_ppc_irq_dispatch_handler(regs, irq, irqtp);
+			call___do_IRQ(irq, regs, irqtp);
 			irqtp->task = NULL;
 			if (irqtp->flags)
 				set_bits(irqtp->flags, &curtp->flags);
 		} else
 #endif
-			ppc_irq_dispatch_handler(regs, irq);
+			__do_IRQ(irq, regs);
 	} else
 		/* That's not SMP safe ... but who cares ? */
 		ppc_spurious_interrupts++;
