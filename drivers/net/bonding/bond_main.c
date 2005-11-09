@@ -910,7 +910,7 @@ static void bond_vlan_rx_add_vid(struct net_device *bond_dev, uint16_t vid)
 	res = bond_add_vlan(bond, vid);
 	if (res) {
 		printk(KERN_ERR DRV_NAME
-		       ": %s: Failed to add vlan id %d\n",
+		       ": %s: Error: Failed to add vlan id %d\n",
 		       bond_dev->name, vid);
 	}
 }
@@ -944,7 +944,7 @@ static void bond_vlan_rx_kill_vid(struct net_device *bond_dev, uint16_t vid)
 	res = bond_del_vlan(bond, vid);
 	if (res) {
 		printk(KERN_ERR DRV_NAME
-		       ": %s: Failed to remove vlan id %d\n",
+		       ": %s: Error: Failed to remove vlan id %d\n",
 		       bond_dev->name, vid);
 	}
 }
@@ -1644,8 +1644,8 @@ static int bond_enslave(struct net_device *bond_dev, struct net_device *slave_de
 	if (!bond->params.use_carrier && slave_dev->ethtool_ops == NULL &&
 		slave_dev->do_ioctl == NULL) {
 		printk(KERN_WARNING DRV_NAME
-		       ": Warning : no link monitoring support for %s\n",
-		       slave_dev->name);
+		       ": %s: Warning: no link monitoring support for %s\n",
+		       bond_dev->name, slave_dev->name);
 	}
 
 	/* bond must be initialized by bond_open() before enslaving */
@@ -1666,17 +1666,17 @@ static int bond_enslave(struct net_device *bond_dev, struct net_device *slave_de
 		dprintk("%s: NETIF_F_VLAN_CHALLENGED\n", slave_dev->name);
 		if (!list_empty(&bond->vlan_list)) {
 			printk(KERN_ERR DRV_NAME
-			       ": Error: cannot enslave VLAN "
+			       ": %s: Error: cannot enslave VLAN "
 			       "challenged slave %s on VLAN enabled "
-			       "bond %s\n", slave_dev->name,
+			       "bond %s\n", bond_dev->name, slave_dev->name,
 			       bond_dev->name);
 			return -EPERM;
 		} else {
 			printk(KERN_WARNING DRV_NAME
-			       ": Warning: enslaved VLAN challenged "
+			       ": %s: Warning: enslaved VLAN challenged "
 			       "slave %s. Adding VLANs will be blocked as "
 			       "long as %s is part of bond %s\n",
-			       slave_dev->name, slave_dev->name,
+			       bond_dev->name, slave_dev->name, slave_dev->name,
 			       bond_dev->name);
 			bond_dev->features |= NETIF_F_VLAN_CHALLENGED;
 		}
@@ -1706,12 +1706,11 @@ static int bond_enslave(struct net_device *bond_dev, struct net_device *slave_de
 
 	if (slave_dev->set_mac_address == NULL) {
 		printk(KERN_ERR DRV_NAME
-		       ": Error: The slave device you specified does "
-		       "not support setting the MAC address.\n");
-		printk(KERN_ERR
-		       "Your kernel likely does not support slave devices.\n");
-
-		res = -EOPNOTSUPP;
+			": %s: Error: The slave device you specified does "
+			"not support setting the MAC address. "
+			"Your kernel likely does not support slave "
+			"devices.\n", bond_dev->name);
+  		res = -EOPNOTSUPP;
 		goto err_undo_flags;
 	}
 
@@ -1827,21 +1826,21 @@ static int bond_enslave(struct net_device *bond_dev, struct net_device *slave_de
 			 * the messages for netif_carrier.
 			 */
 			printk(KERN_WARNING DRV_NAME
-			       ": Warning: MII and ETHTOOL support not "
+			       ": %s: Warning: MII and ETHTOOL support not "
 			       "available for interface %s, and "
 			       "arp_interval/arp_ip_target module parameters "
 			       "not specified, thus bonding will not detect "
 			       "link failures! see bonding.txt for details.\n",
-			       slave_dev->name);
+			       bond_dev->name, slave_dev->name);
 		} else if (link_reporting == -1) {
 			/* unable get link status using mii/ethtool */
 			printk(KERN_WARNING DRV_NAME
-			       ": Warning: can't get link status from "
+			       ": %s: Warning: can't get link status from "
 			       "interface %s; the network driver associated "
 			       "with this interface does not support MII or "
 			       "ETHTOOL link status reporting, thus miimon "
 			       "has no effect on this interface.\n",
-			       slave_dev->name);
+			       bond_dev->name, slave_dev->name);
 		}
 	}
 
@@ -1868,15 +1867,15 @@ static int bond_enslave(struct net_device *bond_dev, struct net_device *slave_de
 	if (bond_update_speed_duplex(new_slave) &&
 	    (new_slave->link != BOND_LINK_DOWN)) {
 		printk(KERN_WARNING DRV_NAME
-		       ": Warning: failed to get speed and duplex from %s, "
+		       ": %s: Warning: failed to get speed and duplex from %s, "
 		       "assumed to be 100Mb/sec and Full.\n",
-		       new_slave->dev->name);
+		       bond_dev->name, new_slave->dev->name);
 
 		if (bond->params.mode == BOND_MODE_8023AD) {
-			printk(KERN_WARNING
-			       "Operation of 802.3ad mode requires ETHTOOL "
+			printk(KERN_WARNING DRV_NAME
+			       ": %s: Warning: Operation of 802.3ad mode requires ETHTOOL "
 			       "support in base driver for proper aggregator "
-			       "selection.\n");
+			       "selection.\n", bond_dev->name);
 		}
 	}
 
@@ -2010,7 +2009,7 @@ static int bond_release(struct net_device *bond_dev, struct net_device *slave_de
 	if (!(slave_dev->flags & IFF_SLAVE) ||
 	    (slave_dev->master != bond_dev)) {
 		printk(KERN_ERR DRV_NAME
-		       ": Error: %s: cannot release %s.\n",
+		       ": %s: Error: cannot release %s.\n",
 		       bond_dev->name, slave_dev->name);
 		return -EINVAL;
 	}
@@ -2031,11 +2030,12 @@ static int bond_release(struct net_device *bond_dev, struct net_device *slave_de
 				 ETH_ALEN);
 	if (!mac_addr_differ && (bond->slave_cnt > 1)) {
 		printk(KERN_WARNING DRV_NAME
-		       ": Warning: the permanent HWaddr of %s "
+		       ": %s: Warning: the permanent HWaddr of %s "
 		       "- %02X:%02X:%02X:%02X:%02X:%02X - is "
 		       "still in use by %s. Set the HWaddr of "
 		       "%s to a different address to avoid "
 		       "conflicts.\n",
+		       bond_dev->name,
 		       slave_dev->name,
 		       slave->perm_hwaddr[0],
 		       slave->perm_hwaddr[1],
@@ -2111,19 +2111,20 @@ static int bond_release(struct net_device *bond_dev, struct net_device *slave_de
 			bond_dev->features |= NETIF_F_VLAN_CHALLENGED;
 		} else {
 			printk(KERN_WARNING DRV_NAME
-			       ": Warning: clearing HW address of %s while it "
+			       ": %s: Warning: clearing HW address of %s while it "
 			       "still has VLANs.\n",
-			       bond_dev->name);
+			       bond_dev->name, bond_dev->name);
 			printk(KERN_WARNING DRV_NAME
-			       ": When re-adding slaves, make sure the bond's "
-			       "HW address matches its VLANs'.\n");
+			       ": %s: When re-adding slaves, make sure the bond's "
+			       "HW address matches its VLANs'.\n",
+			       bond_dev->name);
 		}
 	} else if ((bond_dev->features & NETIF_F_VLAN_CHALLENGED) &&
 		   !bond_has_challenged_slaves(bond)) {
 		printk(KERN_INFO DRV_NAME
-		       ": last VLAN challenged slave %s "
+		       ": %s: last VLAN challenged slave %s "
 		       "left bond %s. VLAN blocking is removed\n",
-		       slave_dev->name, bond_dev->name);
+		       bond_dev->name, slave_dev->name, bond_dev->name);
 		bond_dev->features &= ~NETIF_F_VLAN_CHALLENGED;
 	}
 
@@ -2274,12 +2275,13 @@ static int bond_release_all(struct net_device *bond_dev)
 		bond_dev->features |= NETIF_F_VLAN_CHALLENGED;
 	} else {
 		printk(KERN_WARNING DRV_NAME
-		       ": Warning: clearing HW address of %s while it "
+		       ": %s: Warning: clearing HW address of %s while it "
 		       "still has VLANs.\n",
-		       bond_dev->name);
+		       bond_dev->name, bond_dev->name);
 		printk(KERN_WARNING DRV_NAME
-		       ": When re-adding slaves, make sure the bond's "
-		       "HW address matches its VLANs'.\n");
+		       ": %s: When re-adding slaves, make sure the bond's "
+		       "HW address matches its VLANs'.\n",
+		       bond_dev->name);
 	}
 
 	printk(KERN_INFO DRV_NAME
@@ -2596,8 +2598,11 @@ static void bond_mii_monitor(struct net_device *bond_dev)
 			break;
 		default:
 			/* Should not happen */
-			printk(KERN_ERR "bonding: Error: %s  Illegal value (link=%d)\n",
-			       slave->dev->name, slave->link);
+			printk(KERN_ERR DRV_NAME
+			       ": %s: Error: %s Illegal value (link=%d)\n",
+			       bond_dev->name,
+			       slave->dev->name,
+			       slave->link);
 			goto out;
 		} /* end of switch (slave->link) */
 
@@ -4397,8 +4402,9 @@ static int bond_xmit_broadcast(struct sk_buff *skb, struct net_device *bond_dev)
 				struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 				if (!skb2) {
 					printk(KERN_ERR DRV_NAME
-					       ": Error: bond_xmit_broadcast(): "
-					       "skb_clone() failed\n");
+					       ": %s: Error: bond_xmit_broadcast(): "
+					       "skb_clone() failed\n",
+					       bond_dev->name);
 					continue;
 				}
 
@@ -4467,7 +4473,8 @@ static inline void bond_set_mode_ops(struct bonding *bond, int mode)
 	default:
 		/* Should never happen, mode already checked */
 		printk(KERN_ERR DRV_NAME
-		       ": Error: Unknown bonding mode %d\n",
+		       ": %s: Error: Unknown bonding mode %d\n",
+		       bond_dev->name,
 		       mode);
 		break;
 	}
@@ -4670,7 +4677,7 @@ static int bond_check_params(struct bond_params *params)
 	if (max_bonds < 1 || max_bonds > INT_MAX) {
 		printk(KERN_WARNING DRV_NAME
 		       ": Warning: max_bonds (%d) not in range %d-%d, so it "
-		       "was reset to BOND_DEFAULT_MAX_BONDS (%d)",
+		       "was reset to BOND_DEFAULT_MAX_BONDS (%d)\n",
 		       max_bonds, 1, INT_MAX, BOND_DEFAULT_MAX_BONDS);
 		max_bonds = BOND_DEFAULT_MAX_BONDS;
 	}
