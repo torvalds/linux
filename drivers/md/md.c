@@ -3424,21 +3424,17 @@ static int md_thread(void * arg)
 	 */
 
 	allow_signal(SIGKILL);
-	complete(thread->event);
 	while (!kthread_should_stop()) {
-		void (*run)(mddev_t *);
 
-		wait_event_interruptible_timeout(thread->wqueue,
-						 test_bit(THREAD_WAKEUP, &thread->flags)
-						 || kthread_should_stop(),
-						 thread->timeout);
+		wait_event_timeout(thread->wqueue,
+				   test_bit(THREAD_WAKEUP, &thread->flags)
+				   || kthread_should_stop(),
+				   thread->timeout);
 		try_to_freeze();
 
 		clear_bit(THREAD_WAKEUP, &thread->flags);
 
-		run = thread->run;
-		if (run)
-			run(thread->mddev);
+		thread->run(thread->mddev);
 	}
 
 	return 0;
@@ -3457,7 +3453,6 @@ mdk_thread_t *md_register_thread(void (*run) (mddev_t *), mddev_t *mddev,
 				 const char *name)
 {
 	mdk_thread_t *thread;
-	struct completion event;
 
 	thread = kmalloc(sizeof(mdk_thread_t), GFP_KERNEL);
 	if (!thread)
@@ -3466,18 +3461,14 @@ mdk_thread_t *md_register_thread(void (*run) (mddev_t *), mddev_t *mddev,
 	memset(thread, 0, sizeof(mdk_thread_t));
 	init_waitqueue_head(&thread->wqueue);
 
-	init_completion(&event);
-	thread->event = &event;
 	thread->run = run;
 	thread->mddev = mddev;
-	thread->name = name;
 	thread->timeout = MAX_SCHEDULE_TIMEOUT;
 	thread->tsk = kthread_run(md_thread, thread, name, mdname(thread->mddev));
 	if (IS_ERR(thread->tsk)) {
 		kfree(thread);
 		return NULL;
 	}
-	wait_for_completion(&event);
 	return thread;
 }
 
@@ -3941,9 +3932,7 @@ static void md_do_sync(mddev_t *mddev)
 		mddev->curr_resync = 2;
 
 	try_again:
-		if (signal_pending(current) ||
-		    kthread_should_stop()) {
-			flush_signals(current);
+		if (kthread_should_stop()) {
 			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 			goto skip;
 		}
@@ -3963,9 +3952,8 @@ static void md_do_sync(mddev_t *mddev)
 					 * time 'round when curr_resync == 2
 					 */
 					continue;
-				prepare_to_wait(&resync_wait, &wq, TASK_INTERRUPTIBLE);
-				if (!signal_pending(current) &&
-				    !kthread_should_stop() &&
+				prepare_to_wait(&resync_wait, &wq, TASK_UNINTERRUPTIBLE);
+				if (!kthread_should_stop() &&
 				    mddev2->curr_resync >= mddev->curr_resync) {
 					printk(KERN_INFO "md: delaying resync of %s"
 					       " until %s has finished resync (they"
@@ -4074,13 +4062,12 @@ static void md_do_sync(mddev_t *mddev)
 		}
 
 
-		if (signal_pending(current) || kthread_should_stop()) {
+		if (kthread_should_stop()) {
 			/*
 			 * got a signal, exit.
 			 */
 			printk(KERN_INFO 
 				"md: md_do_sync() got signal ... exiting\n");
-			flush_signals(current);
 			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 			goto out;
 		}
@@ -4102,7 +4089,7 @@ static void md_do_sync(mddev_t *mddev)
 		if (currspeed > sysctl_speed_limit_min) {
 			if ((currspeed > sysctl_speed_limit_max) ||
 					!is_mddev_idle(mddev)) {
-				msleep_interruptible(250);
+				msleep(250);
 				goto repeat;
 			}
 		}

@@ -334,10 +334,8 @@ typedef struct mdk_thread_s {
 	mddev_t			*mddev;
 	wait_queue_head_t	wqueue;
 	unsigned long           flags;
-	struct completion	*event;
 	struct task_struct	*tsk;
 	unsigned long		timeout;
-	const char		*name;
 } mdk_thread_t;
 
 #define THREAD_WAKEUP  0
