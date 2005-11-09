@@ -24,3 +24,6 @@ endif
 ifneq ($(CONFIG_DVB_MT352),n)
  EXTRA_CFLAGS += -DHAVE_MT352=1
 endif
+ifneq ($(CONFIG_DVB_NXT200X),n)
+ EXTRA_CFLAGS += -DHAVE_NXT200X=1
+endif

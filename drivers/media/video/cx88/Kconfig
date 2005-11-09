@@ -37,6 +37,7 @@ config VIDEO_CX88_DVB_ALL_FRONTENDS
 	select DVB_OR51132
 	select DVB_CX22702
 	select DVB_LGDT330X
+	select DVB_NXT200X
 	---help---
 	  This builds cx88-dvb with all currently supported frontend
 	  demodulators.  If you wish to tweak your configuration, and
@@ -79,3 +80,12 @@ config VIDEO_CX88_DVB_LGDT330X
 	---help---
 	  This adds ATSC 8VSB and QAM64/256 support for cards based on the
 	  Connexant 2388x chip and the LGDT3302/LGDT3303 demodulator.
+
+config VIDEO_CX88_DVB_NXT200X
+	tristate "NXT2002/NXT2004 ATSC Support"
+	default m
+	depends on VIDEO_CX88_DVB && !VIDEO_CX88_DVB_ALL_FRONTENDS
+	select DVB_NXT200X
+	---help---
+	  This adds ATSC 8VSB and QAM64/256 support for cards based on the
+	  Connexant 2388x chip and the NXT2002/NXT2004 demodulator.

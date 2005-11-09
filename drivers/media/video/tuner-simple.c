@@ -251,7 +251,7 @@ static struct tunertype tuners[] = {
 	{ "Philips TD1316 Hybrid Tuner", Philips, PAL,
 	  16*160.00,16*442.00,0xa1,0xa2,0xa4,0xc8,623 },
 	{ "Philips TUV1236D ATSC/NTSC dual in", Philips, ATSC,
-	  16*157.25,16*454.00,0x01,0x02,0x03,0xce,732 },
+	  16*157.25,16*454.00,0x01,0x02,0x04,0xce,732 },
 };
 
 unsigned const int tuner_count = ARRAY_SIZE(tuners);
@@ -383,9 +383,24 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 		/* 0x48 -> ATSC antenna input 2 */
 		/* 0x00 -> NTSC antenna input 1 */
 		/* 0x08 -> NTSC antenna input 2 */
+		buffer[0] = 0x14;
+		buffer[1] = 0x00;
+		buffer[2] = 0x17;
+		buffer[3] = 0x00;
 		config &= ~0x40;
-		if (t->std & V4L2_STD_ATSC)
+		if (t->std & V4L2_STD_ATSC) {
 			config |= 0x40;
+			buffer[1] = 0x04;
+		}
+		/* set to the correct mode (analog or digital) */
+		u8 tuneraddr;
+		tuneraddr = c->addr;
+		c->addr = 0x0a;
+		if (2 != (rc = i2c_master_send(c,&buffer[0],2)))
+			tuner_warn("i2c i/o error: rc == %d (should be 2)\n",rc);
+		if (2 != (rc = i2c_master_send(c,&buffer[2],2)))
+			tuner_warn("i2c i/o error: rc == %d (should be 2)\n",rc);
+		c->addr = tuneraddr;
 		/* FIXME: input */
 		break;
 	}

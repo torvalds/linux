@@ -851,6 +851,7 @@ struct cx88_board cx88_boards[] = {
 			.gpio2  = 0x00000001,
 			.gpio3  = 0x00000000,
 		}},
+		.dvb            = 1,
 	},
 	[CX88_BOARD_WINFAST_DTV1000] = {
 		.name           = "WinFast DTV1000-T",
@@ -1212,13 +1213,10 @@ void cx88_card_setup(struct cx88_core *core)
 		if (0 == core->i2c_rc) {
 			/* enable tuner */
 			int i;
-			u8 buffer[12];
+			u8 buffer [] = { 0x10,0x12,0x13,0x04,0x16,0x00,0x14,0x04,0x017,0x00 };
 			core->i2c_client.addr = 0x0a;
-			buffer[0] = 0x10; buffer[1] = 0x12; buffer[2] = 0x13; buffer[3] = 0x04;
-			buffer[4] = 0x16; buffer[5] = 0x00; buffer[6] = 0x14; buffer[7] = 0x04;
-			buffer[8] = 0x14; buffer[9] = 0x00; buffer[10] = 0x17; buffer[11] = 0x00;
 
-			for (i = 0; i < 6; i++)
+			for (i = 0; i < 5; i++)
 				if (2 != i2c_master_send(&core->i2c_client,&buffer[i*2],2))
 					printk(KERN_WARNING "%s: Unable to enable tuner(%i).\n",
 						core->name, i);

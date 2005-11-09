@@ -45,6 +45,9 @@
 #ifdef HAVE_LGDT330X
 # include "lgdt330x.h"
 #endif
+#ifdef HAVE_NXT200X
+# include "nxt200x.h"
+#endif
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
@@ -284,6 +287,23 @@ static struct lgdt330x_config fusionhdtv_5_gold = {
 };
 #endif
 
+#ifdef HAVE_NXT200X
+static int nxt200x_set_ts_param(struct dvb_frontend* fe,
+				int is_punctured)
+{
+	struct cx8802_dev *dev= fe->dvb->priv;
+	dev->ts_gen_cntrl = is_punctured ? 0x04 : 0x00;
+	return 0;
+}
+
+static struct nxt200x_config ati_hdtvwonder = {
+	.demod_address    = 0x0a,
+	.pll_address      = 0x61,
+	.pll_desc         = &dvb_pll_tuv1236d,
+	.set_ts_params    = nxt200x_set_ts_param,
+};
+#endif
+
 static int dvb_register(struct cx8802_dev *dev)
 {
 	/* init struct videobuf_dvb */
@@ -383,6 +403,12 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend = lgdt330x_attach(&fusionhdtv_5_gold,
 						    &dev->core->i2c_adap);
 		}
+		break;
+#endif
+#ifdef HAVE_NXT200X
+	case CX88_BOARD_ATI_HDTVWONDER:
+		dev->dvb.frontend = nxt200x_attach(&ati_hdtvwonder,
+						 &dev->core->i2c_adap);
 		break;
 #endif
 	default:
