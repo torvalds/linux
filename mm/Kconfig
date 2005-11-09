@@ -126,9 +126,11 @@ comment "Memory hotplug is currently incompatible with Software Suspend"
 # Default to 4 for wider testing, though 8 might be more appropriate.
 # ARM's adjust_pte (unused if VIPT) depends on mm-wide page_table_lock.
 # PA-RISC's debug spinlock_t is too large for the 32-bit struct page.
+# ARM26 and SPARC32 and PPC64 may use one page for multiple page tables.
 #
 config SPLIT_PTLOCK_CPUS
 	int
 	default "4096" if ARM && !CPU_CACHE_VIPT
 	default "4096" if PARISC && DEBUG_SPINLOCK && !64BIT
+	default "4096" if ARM26 || SPARC32 || PPC64
 	default "4"

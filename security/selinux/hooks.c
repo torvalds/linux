@@ -1986,6 +1986,9 @@ static int selinux_inode_init_security(struct inode *inode, struct inode *dir,
 
 	inode_security_set_sid(inode, newsid);
 
+	if (sbsec->behavior == SECURITY_FS_USE_MNTPOINT)
+		return -EOPNOTSUPP;
+
 	if (name) {
 		namep = kstrdup(XATTR_SELINUX_SUFFIX, GFP_KERNEL);
 		if (!namep)

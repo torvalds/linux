@@ -1,7 +1,7 @@
 #ifndef __SAA7146_VV__
 #define __SAA7146_VV__
 
-#include <linux/videodev2.h>
+#include <linux/videodev.h>
 
 #include <media/saa7146.h>
 #include <media/video-buf.h>

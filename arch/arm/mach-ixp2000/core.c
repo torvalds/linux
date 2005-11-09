@@ -84,63 +84,54 @@ static struct map_desc ixp2000_io_desc[] __initdata = {
 		.virtual	= IXP2000_CAP_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_CAP_PHYS_BASE),
 		.length		= IXP2000_CAP_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_IXP2000_DEVICE,
 	}, {
 		.virtual	= IXP2000_INTCTL_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_INTCTL_PHYS_BASE),
 		.length		= IXP2000_INTCTL_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_IXP2000_DEVICE,
 	}, {
 		.virtual	= IXP2000_PCI_CREG_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_PCI_CREG_PHYS_BASE),
 		.length		= IXP2000_PCI_CREG_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_IXP2000_DEVICE,
 	}, {
 		.virtual	= IXP2000_PCI_CSR_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_PCI_CSR_PHYS_BASE),
 		.length		= IXP2000_PCI_CSR_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_IXP2000_DEVICE,
 	}, {
 		.virtual	= IXP2000_MSF_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_MSF_PHYS_BASE),
 		.length		= IXP2000_MSF_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_IXP2000_DEVICE,
 	}, {
 		.virtual	= IXP2000_PCI_IO_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_PCI_IO_PHYS_BASE),
 		.length		= IXP2000_PCI_IO_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_IXP2000_DEVICE,
 	}, {
 		.virtual	= IXP2000_PCI_CFG0_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_PCI_CFG0_PHYS_BASE),
 		.length		= IXP2000_PCI_CFG0_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_IXP2000_DEVICE,
 	}, {
 		.virtual	= IXP2000_PCI_CFG1_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_PCI_CFG1_PHYS_BASE),
 		.length		= IXP2000_PCI_CFG1_SIZE,
-		.type		= MT_DEVICE
+		.type		= MT_IXP2000_DEVICE,
 	}
 };
 
 void __init ixp2000_map_io(void)
 {
-	extern unsigned int processor_id;
-
 	/*
-	 * On IXP2400 CPUs we need to use MT_IXP2000_DEVICE for
-	 * tweaking the PMDs so XCB=101. On IXP2800s we use the normal
-	 * PMD flags.
+	 * On IXP2400 CPUs we need to use MT_IXP2000_DEVICE so that
+	 * XCB=101 (to avoid triggering erratum #66), and given that
+	 * this mode speeds up I/O accesses and we have write buffer
+	 * flushes in the right places anyway, it doesn't hurt to use
+	 * XCB=101 for all IXP2000s.
 	 */
-	if ((processor_id & 0xfffffff0) == 0x69054190) {
-		int i;
-
-		printk(KERN_INFO "Enabling IXP2400 erratum #66 workaround\n");
-
-		for(i=0;i<ARRAY_SIZE(ixp2000_io_desc);i++)
-			ixp2000_io_desc[i].type = MT_IXP2000_DEVICE;
-	}
-
 	iotable_init(ixp2000_io_desc, ARRAY_SIZE(ixp2000_io_desc));
 
 	/* Set slowport to 8-bit mode.  */
@@ -402,6 +393,40 @@ static void ixp2000_pci_irq_unmask(unsigned int irq)
 		ixp2000_reg_write(IXP2000_PCI_XSCALE_INT_ENABLE, (temp | (1 << 27)));
 }
 
+/*
+ * Error interrupts. These are used extensively by the microengine drivers
+ */
+static void ixp2000_err_irq_handler(unsigned int irq, struct irqdesc *desc,  struct pt_regs *regs)
+{
+	int i;
+	unsigned long status = *IXP2000_IRQ_ERR_STATUS;
+
+	for(i = 31; i >= 0; i--) {
+		if(status & (1 << i)) {
+			desc = irq_desc + IRQ_IXP2000_DRAM0_MIN_ERR + i;
+			desc->handle(IRQ_IXP2000_DRAM0_MIN_ERR + i, desc, regs);
+		}
+	}
+}
+
+static void ixp2000_err_irq_mask(unsigned int irq)
+{
+	ixp2000_reg_write(IXP2000_IRQ_ERR_ENABLE_CLR,
+			(1 << (irq - IRQ_IXP2000_DRAM0_MIN_ERR)));
+}
+
+static void ixp2000_err_irq_unmask(unsigned int irq)
+{
+	ixp2000_reg_write(IXP2000_IRQ_ERR_ENABLE_SET,
+			(1 << (irq - IRQ_IXP2000_DRAM0_MIN_ERR)));
+}
+
+static struct irqchip ixp2000_err_irq_chip = {
+	.ack	= ixp2000_err_irq_mask,
+	.mask	= ixp2000_err_irq_mask,
+	.unmask	= ixp2000_err_irq_unmask
+};
+
 static struct irqchip ixp2000_pci_irq_chip = {
 	.ack	= ixp2000_pci_irq_mask,
 	.mask	= ixp2000_pci_irq_mask,
@@ -458,6 +483,18 @@ void __init ixp2000_init_irq(void)
 			set_irq_flags(irq, IRQF_VALID);
 		} else set_irq_flags(irq, 0);
 	}
+
+	for (irq = IRQ_IXP2000_DRAM0_MIN_ERR; irq <= IRQ_IXP2000_SP_INT; irq++) {
+		if((1 << (irq - IRQ_IXP2000_DRAM0_MIN_ERR)) &
+				IXP2000_VALID_ERR_IRQ_MASK) {
+			set_irq_chip(irq, &ixp2000_err_irq_chip);
+			set_irq_handler(irq, do_level_IRQ);
+			set_irq_flags(irq, IRQF_VALID);
+		}
+		else
+			set_irq_flags(irq, 0);
+	}
+	set_irq_chained_handler(IRQ_IXP2000_ERRSUM, ixp2000_err_irq_handler);
 
 	/*
 	 * GPIO IRQs are invalid until someone sets the interrupt mode

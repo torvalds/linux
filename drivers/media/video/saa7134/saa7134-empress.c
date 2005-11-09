@@ -55,7 +55,7 @@ static void ts_reset_encoder(struct saa7134_dev* dev)
 
 	saa_writeb(SAA7134_SPECIAL_MODE, 0x00);
 	msleep(10);
-   	saa_writeb(SAA7134_SPECIAL_MODE, 0x01);
+	saa_writeb(SAA7134_SPECIAL_MODE, 0x01);
 	msleep(100);
 	dev->empress_started = 0;
 }
@@ -65,7 +65,7 @@ static int ts_init_encoder(struct saa7134_dev* dev)
 	ts_reset_encoder(dev);
 	saa7134_i2c_call_clients(dev, VIDIOC_S_MPEGCOMP, NULL);
 	dev->empress_started = 1;
- 	return 0;
+	return 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -169,7 +169,7 @@ static int ts_do_ioctl(struct inode *inode, struct file *file,
 		struct v4l2_capability *cap = arg;
 
 		memset(cap,0,sizeof(*cap));
-                strcpy(cap->driver, "saa7134");
+		strcpy(cap->driver, "saa7134");
 		strlcpy(cap->card, saa7134_boards[dev->board].name,
 			sizeof(cap->card));
 		sprintf(cap->bus_info,"PCI:%s",pci_name(dev->pci));

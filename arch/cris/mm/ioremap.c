@@ -16,7 +16,7 @@
 #include <asm/tlbflush.h>
 #include <asm/arch/memmap.h>
 
-extern inline void remap_area_pte(pte_t * pte, unsigned long address, unsigned long size,
+static inline void remap_area_pte(pte_t * pte, unsigned long address, unsigned long size,
 	unsigned long phys_addr, pgprot_t prot)
 {
 	unsigned long end;

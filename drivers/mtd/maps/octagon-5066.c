@@ -1,12 +1,12 @@
-// $Id: octagon-5066.c,v 1.26 2004/07/12 22:38:29 dwmw2 Exp $
+// $Id: octagon-5066.c,v 1.28 2005/11/07 11:14:27 gleixner Exp $
 /* ######################################################################
 
-   Octagon 5066 MTD Driver. 
-  
+   Octagon 5066 MTD Driver.
+
    The Octagon 5066 is a SBC based on AMD's 586-WB running at 133 MHZ. It
    comes with a builtin AMD 29F016 flash chip and a socketed EEPROM that
    is replacable by flash. Both units are mapped through a multiplexer
-   into a 32k memory window at 0xe8000. The control register for the 
+   into a 32k memory window at 0xe8000. The control register for the
    multiplexing unit is located at IO 0x208 with a bit map of
      0-5 Page Selection in 32k increments
      6-7 Device selection:
@@ -14,14 +14,14 @@
         01 SSD 0 (Socket)
         10 SSD 1 (Flash chip)
         11 undefined
-  
+
    On each SSD, the first 128k is reserved for use by the bios
-   (actually it IS the bios..) This only matters if you are booting off the 
+   (actually it IS the bios..) This only matters if you are booting off the
    flash, you must not put a file system starting there.
-   
+
    The driver tries to do a detection algorithm to guess what sort of devices
    are plugged into the sockets.
-   
+
    ##################################################################### */
 
 #include <linux/module.h>
@@ -56,7 +56,7 @@ static void __oct5066_page(struct map_info *map, __u8 byte)
 static inline void oct5066_page(struct map_info *map, unsigned long ofs)
 {
 	__u8 byte = map->map_priv_1 | (ofs >> WINDOW_SHIFT);
-	
+
 	if (page_n_dev != byte)
 		__oct5066_page(map, byte);
 }
@@ -78,7 +78,7 @@ static void oct5066_copy_from(struct map_info *map, void *to, unsigned long from
 		unsigned long thislen = len;
 		if (len > (WINDOW_LENGTH - (from & WINDOW_MASK)))
 			thislen = WINDOW_LENGTH-(from & WINDOW_MASK);
-		
+
 		spin_lock(&oct5066_spin);
 		oct5066_page(map, from);
 		memcpy_fromio(to, iomapadr + from, thislen);
@@ -103,7 +103,7 @@ static void oct5066_copy_to(struct map_info *map, unsigned long to, const void *
 		unsigned long thislen = len;
 		if (len > (WINDOW_LENGTH - (to & WINDOW_MASK)))
 			thislen = WINDOW_LENGTH-(to & WINDOW_MASK);
-		
+
 		spin_lock(&oct5066_spin);
 		oct5066_page(map, to);
 		memcpy_toio(iomapadr + to, from, thislen);
@@ -144,7 +144,7 @@ static struct mtd_info *oct5066_mtd[2] = {NULL, NULL};
 // OctProbe - Sense if this is an octagon card
 // ---------------------------------------------------------------------
 /* Perform a simple validity test, we map the window select SSD0 and
-   change pages while monitoring the window. A change in the window, 
+   change pages while monitoring the window. A change in the window,
    controlled by the PAGE_IO port is a functioning 5066 board. This will
    fail if the thing in the socket is set to a uniform value. */
 static int __init OctProbe(void)
@@ -161,13 +161,13 @@ static int __init OctProbe(void)
 	 Values[I%10] = readl(iomapadr);
 	 if (I > 0 && Values[I%10] == Values[0])
 	    return -EAGAIN;
-      }      
+      }
       else
       {
 	 // Make sure we get the same values on the second pass
 	 if (Values[I%10] != readl(iomapadr))
 	    return -EAGAIN;
-      }      
+      }
    }
    return 0;
 }
@@ -207,11 +207,11 @@ int __init init_oct5066(void)
 		ret = -EAGAIN;
 		goto out_unmap;
 	}
-      	
+
 	// Print out our little header..
 	printk("Octagon 5066 SSD IO:0x%x MEM:0x%x-0x%x\n",PAGE_IO,WINDOW_START,
 	       WINDOW_START+WINDOW_LENGTH);
-	
+
 	for (i=0; i<2; i++) {
 		oct5066_mtd[i] = do_map_probe("cfi_probe", &oct5066_map[i]);
 		if (!oct5066_mtd[i])
@@ -225,11 +225,11 @@ int __init init_oct5066(void)
 			add_mtd_device(oct5066_mtd[i]);
 		}
 	}
-	
+
 	if (!oct5066_mtd[0] && !oct5066_mtd[1]) {
 		cleanup_oct5066();
 		return -ENXIO;
-	}	  
+	}
 
 	return 0;
 

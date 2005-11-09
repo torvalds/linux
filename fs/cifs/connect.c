@@ -1265,8 +1265,7 @@ connect_to_dfs_path(int xid, struct cifsSesInfo *pSesInfo,
 		the helper that resolves tcp names, mount to it, try to 
 		tcon to it unmount it if fail */
 
-	if(referrals)
-		kfree(referrals);
+	kfree(referrals);
 
 	return rc;
 }
@@ -1535,10 +1534,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	
 	memset(&volume_info,0,sizeof(struct smb_vol));
 	if (cifs_parse_mount_options(mount_data, devname, &volume_info)) {
-		if(volume_info.UNC)
-			kfree(volume_info.UNC);
-		if(volume_info.password)
-			kfree(volume_info.password);
+		kfree(volume_info.UNC);
+		kfree(volume_info.password);
 		FreeXid(xid);
 		return -EINVAL;
 	}
@@ -1551,10 +1548,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		cifserror("No username specified ");
         /* In userspace mount helper we can get user name from alternate
            locations such as env variables and files on disk */
-		if(volume_info.UNC)
-			kfree(volume_info.UNC);
-		if(volume_info.password)
-			kfree(volume_info.password);
+		kfree(volume_info.UNC);
+		kfree(volume_info.password);
 		FreeXid(xid);
 		return -EINVAL;
 	}
@@ -1573,10 +1568,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
        
 		if(rc <= 0) {
 			/* we failed translating address */
-			if(volume_info.UNC)
-				kfree(volume_info.UNC);
-			if(volume_info.password)
-				kfree(volume_info.password);
+			kfree(volume_info.UNC);
+			kfree(volume_info.password);
 			FreeXid(xid);
 			return -EINVAL;
 		}
@@ -1587,19 +1580,15 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	} else if (volume_info.UNCip){
 		/* BB using ip addr as server name connect to the DFS root below */
 		cERROR(1,("Connecting to DFS root not implemented yet"));
-		if(volume_info.UNC)
-			kfree(volume_info.UNC);
-		if(volume_info.password)
-			kfree(volume_info.password);
+		kfree(volume_info.UNC);
+		kfree(volume_info.password);
 		FreeXid(xid);
 		return -EINVAL;
 	} else /* which servers DFS root would we conect to */ {
 		cERROR(1,
 		       ("CIFS mount error: No UNC path (e.g. -o unc=//192.168.1.100/public) specified  "));
-		if(volume_info.UNC)
-			kfree(volume_info.UNC);
-		if(volume_info.password)
-			kfree(volume_info.password);
+		kfree(volume_info.UNC);
+		kfree(volume_info.password);
 		FreeXid(xid);
 		return -EINVAL;
 	}
@@ -1612,10 +1601,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		cifs_sb->local_nls = load_nls(volume_info.iocharset);
 		if(cifs_sb->local_nls == NULL) {
 			cERROR(1,("CIFS mount error: iocharset %s not found",volume_info.iocharset));
-			if(volume_info.UNC)
-				kfree(volume_info.UNC);
-			if(volume_info.password)
-				kfree(volume_info.password);
+			kfree(volume_info.UNC);
+			kfree(volume_info.password);
 			FreeXid(xid);
 			return -ELIBACC;
 		}
@@ -1630,10 +1617,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			&sin_server6.sin6_addr,
 			volume_info.username, &srvTcp);
 	else {
-		if(volume_info.UNC)
-			kfree(volume_info.UNC);
-		if(volume_info.password)
-			kfree(volume_info.password);
+		kfree(volume_info.UNC);
+		kfree(volume_info.password);
 		FreeXid(xid);
 		return -EINVAL;
 	}
@@ -1654,10 +1639,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			       ("Error connecting to IPv4 socket. Aborting operation"));
 			if(csocket != NULL)
 				sock_release(csocket);
-			if(volume_info.UNC)
-				kfree(volume_info.UNC);
-			if(volume_info.password)
-				kfree(volume_info.password);
+			kfree(volume_info.UNC);
+			kfree(volume_info.password);
 			FreeXid(xid);
 			return rc;
 		}
@@ -1666,10 +1649,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		if (srvTcp == NULL) {
 			rc = -ENOMEM;
 			sock_release(csocket);
-			if(volume_info.UNC)
-				kfree(volume_info.UNC);
-			if(volume_info.password)
-				kfree(volume_info.password);
+			kfree(volume_info.UNC);
+			kfree(volume_info.password);
 			FreeXid(xid);
 			return rc;
 		} else {
@@ -1692,10 +1673,8 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			if(rc < 0) {
 				rc = -ENOMEM;
 				sock_release(csocket);
-				if(volume_info.UNC)
-					kfree(volume_info.UNC);
-				if(volume_info.password)
-					kfree(volume_info.password);
+				kfree(volume_info.UNC);
+				kfree(volume_info.password);
 				FreeXid(xid);
 				return rc;
 			}
@@ -1710,8 +1689,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	if (existingCifsSes) {
 		pSesInfo = existingCifsSes;
 		cFYI(1, ("Existing smb sess found "));
-		if(volume_info.password)
-			kfree(volume_info.password);
+		kfree(volume_info.password);
 		/* volume_info.UNC freed at end of function */
 	} else if (!rc) {
 		cFYI(1, ("Existing smb sess not found "));
@@ -1741,8 +1719,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 			if(!rc)
 				atomic_inc(&srvTcp->socketUseCount);
 		} else
-			if(volume_info.password)
-				kfree(volume_info.password);
+			kfree(volume_info.password);
 	}
     
 	/* search for existing tcon to this server share */
@@ -1821,8 +1798,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 							"", cifs_sb->local_nls,
 							cifs_sb->mnt_cifs_flags & 
 							  CIFS_MOUNT_MAP_SPECIAL_CHR);
-					if(volume_info.UNC)
-						kfree(volume_info.UNC);
+					kfree(volume_info.UNC);
 					FreeXid(xid);
 					return -ENODEV;
 				} else {
@@ -1925,8 +1901,7 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	(in which case it is not needed anymore) but when new sesion is created
 	the password ptr is put in the new session structure (in which case the
 	password will be freed at unmount time) */
-	if(volume_info.UNC)
-		kfree(volume_info.UNC);
+	kfree(volume_info.UNC);
 	FreeXid(xid);
 	return rc;
 }
@@ -3283,8 +3258,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 			if ((bcc_ptr + (2 * length)) -
 			     pByteArea(smb_buffer_response) <=
 			    BCC(smb_buffer_response)) {
-				if(tcon->nativeFileSystem)
-					kfree(tcon->nativeFileSystem);
+				kfree(tcon->nativeFileSystem);
 				tcon->nativeFileSystem =
 				    kzalloc(length + 2, GFP_KERNEL);
 				cifs_strfromUCS_le(tcon->nativeFileSystem,
@@ -3301,8 +3275,7 @@ CIFSTCon(unsigned int xid, struct cifsSesInfo *ses,
 			if ((bcc_ptr + length) -
 			    pByteArea(smb_buffer_response) <=
 			    BCC(smb_buffer_response)) {
-				if(tcon->nativeFileSystem)
-					kfree(tcon->nativeFileSystem);
+				kfree(tcon->nativeFileSystem);
 				tcon->nativeFileSystem =
 				    kzalloc(length + 1, GFP_KERNEL);
 				strncpy(tcon->nativeFileSystem, bcc_ptr,

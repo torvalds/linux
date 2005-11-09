@@ -61,14 +61,16 @@
 #include <asm/prom.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
+#include <asm/smp.h>
 #ifdef CONFIG_PPC64
 #include <asm/systemcfg.h>
 #include <asm/firmware.h>
 #endif
 #ifdef CONFIG_PPC_ISERIES
-#include <asm/iSeries/ItLpQueue.h>
-#include <asm/iSeries/HvCallXm.h>
+#include <asm/iseries/it_lp_queue.h>
+#include <asm/iseries/hv_call_xm.h>
 #endif
+#include <asm/smp.h>
 
 /* keep track of when we need to update the rtc */
 time_t last_rtc_update;
@@ -117,10 +119,6 @@ static unsigned adjusting_time = 0;
 
 unsigned long ppc_proc_freq;
 unsigned long ppc_tb_freq;
-
-#ifdef CONFIG_PPC32	/* XXX for now */
-#define boot_cpuid	0
-#endif
 
 u64 tb_last_jiffy __cacheline_aligned_in_smp;
 unsigned long tb_last_stamp;

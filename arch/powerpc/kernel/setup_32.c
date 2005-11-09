@@ -286,7 +286,10 @@ void __init setup_arch(char **cmdline_p)
 	loops_per_jiffy = 500000000 / HZ;
 
 	unflatten_device_tree();
+	check_for_initrd();
 	finish_device_tree();
+
+	smp_setup_cpu_maps();
 
 #ifdef CONFIG_BOOTX_TEXT
 	init_boot_display();

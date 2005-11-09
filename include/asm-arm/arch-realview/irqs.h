@@ -21,6 +21,9 @@
 
 #include <asm/arch/platform.h>
 
+#define IRQ_LOCALTIMER			29
+#define IRQ_LOCALWDOG			30
+
 /* 
  *  IRQ interrupts definitions are the same the INT definitions
  *  held within platform.h

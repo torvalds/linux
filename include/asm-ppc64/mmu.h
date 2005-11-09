@@ -48,13 +48,21 @@ extern char initial_stab[];
 
 /* Bits in the SLB VSID word */
 #define SLB_VSID_SHIFT		12
+#define SLB_VSID_B		ASM_CONST(0xc000000000000000)
+#define SLB_VSID_B_256M		ASM_CONST(0x0000000000000000)
+#define SLB_VSID_B_1T		ASM_CONST(0x4000000000000000)
 #define SLB_VSID_KS		ASM_CONST(0x0000000000000800)
 #define SLB_VSID_KP		ASM_CONST(0x0000000000000400)
 #define SLB_VSID_N		ASM_CONST(0x0000000000000200) /* no-execute */
-#define SLB_VSID_L		ASM_CONST(0x0000000000000100) /* largepage */
+#define SLB_VSID_L		ASM_CONST(0x0000000000000100)
 #define SLB_VSID_C		ASM_CONST(0x0000000000000080) /* class */
-#define SLB_VSID_LS		ASM_CONST(0x0000000000000070) /* size of largepage */
- 
+#define SLB_VSID_LP		ASM_CONST(0x0000000000000030)
+#define SLB_VSID_LP_00		ASM_CONST(0x0000000000000000)
+#define SLB_VSID_LP_01		ASM_CONST(0x0000000000000010)
+#define SLB_VSID_LP_10		ASM_CONST(0x0000000000000020)
+#define SLB_VSID_LP_11		ASM_CONST(0x0000000000000030)
+#define SLB_VSID_LLP		(SLB_VSID_L|SLB_VSID_LP)
+
 #define SLB_VSID_KERNEL		(SLB_VSID_KP)
 #define SLB_VSID_USER		(SLB_VSID_KP|SLB_VSID_KS|SLB_VSID_C)
 
@@ -69,6 +77,7 @@ extern char initial_stab[];
 #define HPTE_V_AVPN_SHIFT	7
 #define HPTE_V_AVPN		ASM_CONST(0xffffffffffffff80)
 #define HPTE_V_AVPN_VAL(x)	(((x) & HPTE_V_AVPN) >> HPTE_V_AVPN_SHIFT)
+#define HPTE_V_COMPARE(x,y)	(!(((x) ^ (y)) & HPTE_V_AVPN))
 #define HPTE_V_BOLTED		ASM_CONST(0x0000000000000010)
 #define HPTE_V_LOCK		ASM_CONST(0x0000000000000008)
 #define HPTE_V_LARGE		ASM_CONST(0x0000000000000004)
@@ -81,6 +90,7 @@ extern char initial_stab[];
 #define HPTE_R_RPN		ASM_CONST(0x3ffffffffffff000)
 #define HPTE_R_FLAGS		ASM_CONST(0x00000000000003ff)
 #define HPTE_R_PP		ASM_CONST(0x0000000000000003)
+#define HPTE_R_N		ASM_CONST(0x0000000000000004)
 
 /* Values for PP (assumes Ks=0, Kp=1) */
 /* pp0 will always be 0 for linux     */
@@ -99,100 +109,120 @@ typedef struct {
 extern hpte_t *htab_address;
 extern unsigned long htab_hash_mask;
 
-static inline unsigned long hpt_hash(unsigned long vpn, int large)
+/*
+ * Page size definition
+ *
+ *    shift : is the "PAGE_SHIFT" value for that page size
+ *    sllp  : is a bit mask with the value of SLB L || LP to be or'ed
+ *            directly to a slbmte "vsid" value
+ *    penc  : is the HPTE encoding mask for the "LP" field:
+ *
+ */
+struct mmu_psize_def
 {
-	unsigned long vsid;
-	unsigned long page;
+	unsigned int	shift;	/* number of bits */
+	unsigned int	penc;	/* HPTE encoding */
+	unsigned int	tlbiel;	/* tlbiel supported for that page size */
+	unsigned long	avpnm;	/* bits to mask out in AVPN in the HPTE */
+	unsigned long	sllp;	/* SLB L||LP (exact mask to use in slbmte) */
+};
 
-	if (large) {
-		vsid = vpn >> 4;
-		page = vpn & 0xf;
-	} else {
-		vsid = vpn >> 16;
-		page = vpn & 0xffff;
-	}
+#endif /* __ASSEMBLY__ */
 
-	return (vsid & 0x7fffffffffUL) ^ page;
-}
+/*
+ * The kernel use the constants below to index in the page sizes array.
+ * The use of fixed constants for this purpose is better for performances
+ * of the low level hash refill handlers.
+ *
+ * A non supported page size has a "shift" field set to 0
+ *
+ * Any new page size being implemented can get a new entry in here. Whether
+ * the kernel will use it or not is a different matter though. The actual page
+ * size used by hugetlbfs is not defined here and may be made variable
+ */
 
-static inline void __tlbie(unsigned long va, int large)
+#define MMU_PAGE_4K		0	/* 4K */
+#define MMU_PAGE_64K		1	/* 64K */
+#define MMU_PAGE_64K_AP		2	/* 64K Admixed (in a 4K segment) */
+#define MMU_PAGE_1M		3	/* 1M */
+#define MMU_PAGE_16M		4	/* 16M */
+#define MMU_PAGE_16G		5	/* 16G */
+#define MMU_PAGE_COUNT		6
+
+#ifndef __ASSEMBLY__
+
+/*
+ * The current system page sizes
+ */
+extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
+extern int mmu_linear_psize;
+extern int mmu_virtual_psize;
+
+#ifdef CONFIG_HUGETLB_PAGE
+/*
+ * The page size index of the huge pages for use by hugetlbfs
+ */
+extern int mmu_huge_psize;
+
+#endif /* CONFIG_HUGETLB_PAGE */
+
+/*
+ * This function sets the AVPN and L fields of the HPTE  appropriately
+ * for the page size
+ */
+static inline unsigned long hpte_encode_v(unsigned long va, int psize)
 {
-	/* clear top 16 bits, non SLS segment */
-	va &= ~(0xffffULL << 48);
-
-	if (large) {
-		va &= HPAGE_MASK;
-		asm volatile("tlbie %0,1" : : "r"(va) : "memory");
-	} else {
-		va &= PAGE_MASK;
-		asm volatile("tlbie %0,0" : : "r"(va) : "memory");
-	}
-}
-
-static inline void tlbie(unsigned long va, int large)
-{
-	asm volatile("ptesync": : :"memory");
-	__tlbie(va, large);
-	asm volatile("eieio; tlbsync; ptesync": : :"memory");
-}
-
-static inline void __tlbiel(unsigned long va)
-{
-	/* clear top 16 bits, non SLS segment */
-	va &= ~(0xffffULL << 48);
-	va &= PAGE_MASK;
-
-	/* 
-	 * Thanks to Alan Modra we are now able to use machine specific 
-	 * assembly instructions (like tlbiel) by using the gas -many flag.
-	 * However we have to support older toolchains so for the moment 
-	 * we hardwire it.
-	 */
-#if 0
-	asm volatile("tlbiel %0" : : "r"(va) : "memory");
-#else
-	asm volatile(".long 0x7c000224 | (%0 << 11)" : : "r"(va) : "memory");
-#endif
-}
-
-static inline void tlbiel(unsigned long va)
-{
-	asm volatile("ptesync": : :"memory");
-	__tlbiel(va);
-	asm volatile("ptesync": : :"memory");
-}
-
-static inline unsigned long slot2va(unsigned long hpte_v, unsigned long slot)
-{
-	unsigned long avpn = HPTE_V_AVPN_VAL(hpte_v);
-	unsigned long va;
-
-	va = avpn << 23;
-
-	if (! (hpte_v & HPTE_V_LARGE)) {
-		unsigned long vpi, pteg;
-
-		pteg = slot / HPTES_PER_GROUP;
-		if (hpte_v & HPTE_V_SECONDARY)
-			pteg = ~pteg;
-
-		vpi = ((va >> 28) ^ pteg) & htab_hash_mask;
-
-		va |= vpi << PAGE_SHIFT;
-	}
-
-	return va;
+	unsigned long v =
+	v = (va >> 23) & ~(mmu_psize_defs[psize].avpnm);
+	v <<= HPTE_V_AVPN_SHIFT;
+	if (psize != MMU_PAGE_4K)
+		v |= HPTE_V_LARGE;
+	return v;
 }
 
 /*
- * Handle a fault by adding an HPTE. If the address can't be determined
- * to be valid via Linux page tables, return 1. If handled return 0
+ * This function sets the ARPN, and LP fields of the HPTE appropriately
+ * for the page size. We assume the pa is already "clean" that is properly
+ * aligned for the requested page size
  */
-extern int __hash_page(unsigned long ea, unsigned long access,
-		       unsigned long vsid, pte_t *ptep, unsigned long trap,
-		       int local);
+static inline unsigned long hpte_encode_r(unsigned long pa, int psize)
+{
+	unsigned long r;
+
+	/* A 4K page needs no special encoding */
+	if (psize == MMU_PAGE_4K)
+		return pa & HPTE_R_RPN;
+	else {
+		unsigned int penc = mmu_psize_defs[psize].penc;
+		unsigned int shift = mmu_psize_defs[psize].shift;
+		return (pa & ~((1ul << shift) - 1)) | (penc << 12);
+	}
+	return r;
+}
+
+/*
+ * This hashes a virtual address for a 256Mb segment only for now
+ */
+
+static inline unsigned long hpt_hash(unsigned long va, unsigned int shift)
+{
+	return ((va >> 28) & 0x7fffffffffUL) ^ ((va & 0x0fffffffUL) >> shift);
+}
+
+extern int __hash_page_4K(unsigned long ea, unsigned long access,
+			  unsigned long vsid, pte_t *ptep, unsigned long trap,
+			  unsigned int local);
+extern int __hash_page_64K(unsigned long ea, unsigned long access,
+			   unsigned long vsid, pte_t *ptep, unsigned long trap,
+			   unsigned int local);
+struct mm_struct;
+extern int hash_huge_page(struct mm_struct *mm, unsigned long access,
+			  unsigned long ea, unsigned long vsid, int local);
 
 extern void htab_finish_init(void);
+extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
+			     unsigned long pstart, unsigned long mode,
+			     int psize);
 
 extern void hpte_init_native(void);
 extern void hpte_init_lpar(void);
@@ -200,17 +230,21 @@ extern void hpte_init_iSeries(void);
 
 extern long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 				     unsigned long va, unsigned long prpn,
-				     unsigned long vflags,
-				     unsigned long rflags);
-extern long native_hpte_insert(unsigned long hpte_group, unsigned long va,
-			       unsigned long prpn,
-			       unsigned long vflags, unsigned long rflags);
+				     unsigned long rflags,
+				     unsigned long vflags, int psize);
 
-extern long iSeries_hpte_bolt_or_insert(unsigned long hpte_group,
-		unsigned long va, unsigned long prpn,
-		unsigned long vflags, unsigned long rflags);
+extern long native_hpte_insert(unsigned long hpte_group,
+			       unsigned long va, unsigned long prpn,
+			       unsigned long rflags,
+			       unsigned long vflags, int psize);
+
+extern long iSeries_hpte_insert(unsigned long hpte_group,
+				unsigned long va, unsigned long prpn,
+				unsigned long rflags,
+				unsigned long vflags, int psize);
 
 extern void stabs_alloc(void);
+extern void slb_initialize(void);
 
 #endif /* __ASSEMBLY__ */
 

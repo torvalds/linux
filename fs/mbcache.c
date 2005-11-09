@@ -301,8 +301,7 @@ fail:
 	if (cache) {
 		while (--m >= 0)
 			kfree(cache->c_indexes_hash[m]);
-		if (cache->c_block_hash)
-			kfree(cache->c_block_hash);
+		kfree(cache->c_block_hash);
 		kfree(cache);
 	}
 	return NULL;

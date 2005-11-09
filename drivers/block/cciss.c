@@ -1096,14 +1096,11 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 cleanup1:
 		if (buff) {
 			for(i=0; i<sg_used; i++)
-				if(buff[i] != NULL)
-					kfree(buff[i]);
+				kfree(buff[i]);
 			kfree(buff);
 		}
-		if (buff_size)
-			kfree(buff_size);
-		if (ioc)
-			kfree(ioc);
+		kfree(buff_size);
+		kfree(ioc);
 		return(status);
 	}
 	default:
@@ -3034,8 +3031,7 @@ static int __devinit cciss_init_one(struct pci_dev *pdev,
 	return(1);
 
 clean4:
-	if(hba[i]->cmd_pool_bits)
-               	kfree(hba[i]->cmd_pool_bits);
+	kfree(hba[i]->cmd_pool_bits);
 	if(hba[i]->cmd_pool)
 		pci_free_consistent(hba[i]->pdev,
 			NR_CMDS * sizeof(CommandList_struct),

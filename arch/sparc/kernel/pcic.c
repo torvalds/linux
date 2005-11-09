@@ -143,7 +143,7 @@ static struct pcic_ca2irq pcic_i_jk[] = {
  * as several PROMs may be installed on the same physical board.
  */
 #define SN2L_INIT(name, map)	\
-  { name, map, sizeof(map)/sizeof(struct pcic_ca2irq) }
+  { name, map, ARRAY_SIZE(map) }
 
 static struct pcic_sn2list pcic_known_sysnames[] = {
 	SN2L_INIT("SUNW,JavaEngine1", pcic_i_je1a),	/* JE1, PROM 2.32 */

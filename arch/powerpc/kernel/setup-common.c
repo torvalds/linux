@@ -170,11 +170,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	}
 
 #ifdef CONFIG_SMP
-#ifdef CONFIG_PPC64	/* XXX for now */
 	pvr = per_cpu(pvr, cpu_id);
-#else
-	pvr = cpu_data[cpu_id].pvr;
-#endif
 #else
 	pvr = mfspr(SPRN_PVR);
 #endif
@@ -201,11 +197,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 #ifdef CONFIG_TAU_AVERAGE
 		/* more straightforward, but potentially misleading */
 		seq_printf(m,  "temperature \t: %u C (uncalibrated)\n",
-			   cpu_temp(i));
+			   cpu_temp(cpu_id));
 #else
 		/* show the actual temp sensor range */
 		u32 temp;
-		temp = cpu_temp_both(i);
+		temp = cpu_temp_both(cpu_id);
 		seq_printf(m, "temperature \t: %u-%u C (uncalibrated)\n",
 			   temp & 0xff, temp >> 16);
 #endif
@@ -408,3 +404,158 @@ static int __init set_preferred_console(void)
 }
 console_initcall(set_preferred_console);
 #endif /* CONFIG_PPC_MULTIPLATFORM */
+
+void __init check_for_initrd(void)
+{
+#ifdef CONFIG_BLK_DEV_INITRD
+	unsigned long *prop;
+
+	DBG(" -> check_for_initrd()\n");
+
+	if (of_chosen) {
+		prop = (unsigned long *)get_property(of_chosen,
+				"linux,initrd-start", NULL);
+		if (prop != NULL) {
+			initrd_start = (unsigned long)__va(*prop);
+			prop = (unsigned long *)get_property(of_chosen,
+					"linux,initrd-end", NULL);
+			if (prop != NULL) {
+				initrd_end = (unsigned long)__va(*prop);
+				initrd_below_start_ok = 1;
+			} else
+				initrd_start = 0;
+		}
+	}
+
+	/* If we were passed an initrd, set the ROOT_DEV properly if the values
+	 * look sensible. If not, clear initrd reference.
+	 */
+	if (initrd_start >= KERNELBASE && initrd_end >= KERNELBASE &&
+	    initrd_end > initrd_start)
+		ROOT_DEV = Root_RAM0;
+	else {
+		printk("Bogus initrd %08lx %08lx\n", initrd_start, initrd_end);
+		initrd_start = initrd_end = 0;
+	}
+
+	if (initrd_start)
+		printk("Found initrd at 0x%lx:0x%lx\n", initrd_start, initrd_end);
+
+	DBG(" <- check_for_initrd()\n");
+#endif /* CONFIG_BLK_DEV_INITRD */
+}
+
+#ifdef CONFIG_SMP
+
+/**
+ * setup_cpu_maps - initialize the following cpu maps:
+ *                  cpu_possible_map
+ *                  cpu_present_map
+ *                  cpu_sibling_map
+ *
+ * Having the possible map set up early allows us to restrict allocations
+ * of things like irqstacks to num_possible_cpus() rather than NR_CPUS.
+ *
+ * We do not initialize the online map here; cpus set their own bits in
+ * cpu_online_map as they come up.
+ *
+ * This function is valid only for Open Firmware systems.  finish_device_tree
+ * must be called before using this.
+ *
+ * While we're here, we may as well set the "physical" cpu ids in the paca.
+ */
+void __init smp_setup_cpu_maps(void)
+{
+	struct device_node *dn = NULL;
+	int cpu = 0;
+	int swap_cpuid = 0;
+
+	while ((dn = of_find_node_by_type(dn, "cpu")) && cpu < NR_CPUS) {
+		int *intserv;
+		int j, len = sizeof(u32), nthreads = 1;
+
+		intserv = (int *)get_property(dn, "ibm,ppc-interrupt-server#s",
+					      &len);
+		if (intserv)
+			nthreads = len / sizeof(int);
+		else {
+			intserv = (int *) get_property(dn, "reg", NULL);
+			if (!intserv)
+				intserv = &cpu;	/* assume logical == phys */
+		}
+
+		for (j = 0; j < nthreads && cpu < NR_CPUS; j++) {
+			cpu_set(cpu, cpu_present_map);
+			set_hard_smp_processor_id(cpu, intserv[j]);
+
+			if (intserv[j] == boot_cpuid_phys)
+				swap_cpuid = cpu;
+			cpu_set(cpu, cpu_possible_map);
+			cpu++;
+		}
+	}
+
+	/* Swap CPU id 0 with boot_cpuid_phys, so we can always assume that
+	 * boot cpu is logical 0.
+	 */
+	if (boot_cpuid_phys != get_hard_smp_processor_id(0)) {
+		u32 tmp;
+		tmp = get_hard_smp_processor_id(0);
+		set_hard_smp_processor_id(0, boot_cpuid_phys);
+		set_hard_smp_processor_id(swap_cpuid, tmp);
+	}
+
+#ifdef CONFIG_PPC64
+	/*
+	 * On pSeries LPAR, we need to know how many cpus
+	 * could possibly be added to this partition.
+	 */
+	if (systemcfg->platform == PLATFORM_PSERIES_LPAR &&
+				(dn = of_find_node_by_path("/rtas"))) {
+		int num_addr_cell, num_size_cell, maxcpus;
+		unsigned int *ireg;
+
+		num_addr_cell = prom_n_addr_cells(dn);
+		num_size_cell = prom_n_size_cells(dn);
+
+		ireg = (unsigned int *)
+			get_property(dn, "ibm,lrdr-capacity", NULL);
+
+		if (!ireg)
+			goto out;
+
+		maxcpus = ireg[num_addr_cell + num_size_cell];
+
+		/* Double maxcpus for processors which have SMT capability */
+		if (cpu_has_feature(CPU_FTR_SMT))
+			maxcpus *= 2;
+
+		if (maxcpus > NR_CPUS) {
+			printk(KERN_WARNING
+			       "Partition configured for %d cpus, "
+			       "operating system maximum is %d.\n",
+			       maxcpus, NR_CPUS);
+			maxcpus = NR_CPUS;
+		} else
+			printk(KERN_INFO "Partition configured for %d cpus.\n",
+			       maxcpus);
+
+		for (cpu = 0; cpu < maxcpus; cpu++)
+			cpu_set(cpu, cpu_possible_map);
+	out:
+		of_node_put(dn);
+	}
+
+	/*
+	 * Do the sibling map; assume only two threads per processor.
+	 */
+	for_each_cpu(cpu) {
+		cpu_set(cpu, cpu_sibling_map[cpu]);
+		if (cpu_has_feature(CPU_FTR_SMT))
+			cpu_set(cpu ^ 0x1, cpu_sibling_map[cpu]);
+	}
+
+	systemcfg->processorCount = num_present_cpus();
+#endif /* CONFIG_PPC64 */
+}
+#endif /* CONFIG_SMP */

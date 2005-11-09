@@ -266,13 +266,12 @@ static void fcp_report_map_done(fc_channel *fc, int i, int status)
 			printk ("FC: Bad magic from REPORT_AL_MAP on %s - %08x\n", fc->name, p->magic);
 			fc->state = FC_STATE_OFFLINE;
 		} else {
-			fc->posmap = (fcp_posmap *)kmalloc(sizeof(fcp_posmap)+p->len, GFP_KERNEL);
+			fc->posmap = (fcp_posmap *)kzalloc(sizeof(fcp_posmap)+p->len, GFP_KERNEL);
 			if (!fc->posmap) {
 				printk("FC: Not enough memory, offlining channel\n");
 				fc->state = FC_STATE_OFFLINE;
 			} else {
 				int k;
-				memset(fc->posmap, 0, sizeof(fcp_posmap)+p->len);
 				/* FIXME: This is where SOCAL transfers our AL-PA.
 				   Keep it here till we found out what other cards do... */
 				fc->sid = (p->magic & 0xff);
@@ -351,14 +350,12 @@ void fcp_register(fc_channel *fc, u8 type, int unregister)
 			fc->dma_scsi_rsp = fc->dma_scsi_cmd + slots * sizeof (fcp_cmd);
 			fc->scsi_bitmap_end = (slots + 63) & ~63;
 			size = fc->scsi_bitmap_end / 8;
-			fc->scsi_bitmap = kmalloc (size, GFP_KERNEL);
-			memset (fc->scsi_bitmap, 0, size);
+			fc->scsi_bitmap = kzalloc (size, GFP_KERNEL);
 			set_bit (0, fc->scsi_bitmap);
 			for (i = fc->can_queue; i < fc->scsi_bitmap_end; i++)
 				set_bit (i, fc->scsi_bitmap);
 			fc->scsi_free = fc->can_queue;
-			fc->cmd_slots = (fcp_cmnd **)kmalloc(slots * sizeof(fcp_cmnd*), GFP_KERNEL);
-			memset(fc->cmd_slots, 0, slots * sizeof(fcp_cmnd*));
+			fc->cmd_slots = (fcp_cmnd **)kzalloc(slots * sizeof(fcp_cmnd*), GFP_KERNEL);
 			fc->abort_count = 0;
 		} else {
 			fc->scsi_name[0] = 0;
@@ -541,12 +538,11 @@ int fcp_initialize(fc_channel *fcchain, int count)
 	FCND(("fcp_inititialize %08lx\n", (long)fcp_init))
 	FCND(("fc_channels %08lx\n", (long)fc_channels))
 	FCND((" SID %d DID %d\n", fcchain->sid, fcchain->did))
-	l = kmalloc(sizeof (ls) + count, GFP_KERNEL);
+	l = kzalloc(sizeof (ls) + count, GFP_KERNEL);
 	if (!l) {
 		printk ("FC: Cannot allocate memory for initialization\n");
 		return -ENOMEM;
 	}
-	memset (l, 0, sizeof(ls) + count);
 	l->magic = LSMAGIC;
 	l->count = count;
 	FCND(("FCP Init for %d channels\n", count))
@@ -555,17 +551,15 @@ int fcp_initialize(fc_channel *fcchain, int count)
 	l->timer.function = fcp_login_timeout;
 	l->timer.data = (unsigned long)l;
 	atomic_set (&l->todo, count);
-	l->logi = kmalloc (count * 3 * sizeof(logi), GFP_KERNEL);
-	l->fcmds = kmalloc (count * sizeof(fcp_cmnd), GFP_KERNEL);
+	l->logi = kzalloc (count * 3 * sizeof(logi), GFP_KERNEL);
+	l->fcmds = kzalloc (count * sizeof(fcp_cmnd), GFP_KERNEL);
 	if (!l->logi || !l->fcmds) {
-		if (l->logi) kfree (l->logi);
-		if (l->fcmds) kfree (l->fcmds);
+		kfree (l->logi);
+		kfree (l->fcmds);
 		kfree (l);
 		printk ("FC: Cannot allocate DMA memory for initialization\n");
 		return -ENOMEM;
 	}
-	memset (l->logi, 0, count * 3 * sizeof(logi));
-	memset (l->fcmds, 0, count * sizeof(fcp_cmnd));
 	for (fc = fcchain, i = 0; fc && i < count; fc = fc->next, i++) {
 		fc->state = FC_STATE_UNINITED;
 		fc->rst_pkt = NULL;	/* kmalloc when first used */
@@ -678,13 +672,11 @@ int fcp_forceoffline(fc_channel *fcchain, int count)
 	l.timer.function = fcp_login_timeout;
 	l.timer.data = (unsigned long)&l;
 	atomic_set (&l.todo, count);
-	l.fcmds = kmalloc (count * sizeof(fcp_cmnd), GFP_KERNEL);
+	l.fcmds = kzalloc (count * sizeof(fcp_cmnd), GFP_KERNEL);
 	if (!l.fcmds) {
-		kfree (l.fcmds);
 		printk ("FC: Cannot allocate memory for forcing offline\n");
 		return -ENOMEM;
 	}
-	memset (l.fcmds, 0, count * sizeof(fcp_cmnd));
 	FCND(("Initializing OFFLINE packets\n"))
 	for (fc = fcchain, i = 0; fc && i < count; fc = fc->next, i++) {
 		fc->state = FC_STATE_UNINITED;
@@ -1114,9 +1106,8 @@ int fc_do_plogi(fc_channel *fc, unsigned char alpa, fc_wwn *node, fc_wwn *nport)
 	logi *l;
 	int status;
 
-	l = (logi *)kmalloc(2 * sizeof(logi), GFP_KERNEL);
+	l = (logi *)kzalloc(2 * sizeof(logi), GFP_KERNEL);
 	if (!l) return -ENOMEM;
-	memset(l, 0, 2 * sizeof(logi));
 	l->code = LS_PLOGI;
 	memcpy (&l->nport_wwn, &fc->wwn_nport, sizeof(fc_wwn));
 	memcpy (&l->node_wwn, &fc->wwn_node, sizeof(fc_wwn));
@@ -1149,9 +1140,8 @@ int fc_do_prli(fc_channel *fc, unsigned char alpa)
 	prli *p;
 	int status;
 
-	p = (prli *)kmalloc(2 * sizeof(prli), GFP_KERNEL);
+	p = (prli *)kzalloc(2 * sizeof(prli), GFP_KERNEL);
 	if (!p) return -ENOMEM;
-	memset(p, 0, 2 * sizeof(prli));
 	p->code = LS_PRLI;
 	p->params[0] = 0x08002000;
 	p->params[3] = 0x00000022;

@@ -17,13 +17,13 @@
 #include <asm/page.h>
 
 #include <asm/lppaca.h>
-#include <asm/iSeries/ItLpQueue.h>
+#include <asm/iseries/it_lp_queue.h>
 #include <asm/paca.h>
 
 static union {
 	struct systemcfg	data;
 	u8			page[PAGE_SIZE];
-} systemcfg_store __page_aligned;
+} systemcfg_store __attribute__((__section__(".data.page.aligned")));
 struct systemcfg *systemcfg = &systemcfg_store.data;
 EXPORT_SYMBOL(systemcfg);
 

@@ -9,7 +9,7 @@
  *	20-Sep-2004  BJD  Initial version
  *	17-Jan-2005  BJD  Add whole device if no partitions found
  *
- * $Id: bast-flash.c,v 1.2 2005/01/18 11:13:47 bjd Exp $
+ * $Id: bast-flash.c,v 1.5 2005/11/07 11:14:26 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ static void bast_flash_setrw(int to)
 
 	local_irq_save(flags);
 	val = __raw_readb(BAST_VA_CTRL3);
-	
+
 	if (to)
 		val |= BAST_CPLD_CTRL3_ROMWEN;
 	else
@@ -93,7 +93,7 @@ static int bast_flash_remove(struct device *dev)
 
 	dev_set_drvdata(dev, NULL);
 
-	if (info == NULL) 
+	if (info == NULL)
 		return 0;
 
 	if (info->map.virt != NULL)
@@ -104,14 +104,13 @@ static int bast_flash_remove(struct device *dev)
 		map_destroy(info->mtd);
 	}
 
-	if (info->partitions)
-		kfree(info->partitions);
+	kfree(info->partitions);
 
 	if (info->area) {
 		release_resource(info->area);
 		kfree(info->area);
 	}
-	
+
 	kfree(info);
 
 	return 0;
@@ -138,15 +137,15 @@ static int bast_flash_probe(struct device *dev)
 
 	info->map.phys = res->start;
 	info->map.size = res->end - res->start + 1;
-	info->map.name = dev->bus_id;	
+	info->map.name = dev->bus_id;
 	info->map.bankwidth = 2;
-	
+
 	if (info->map.size > AREA_MAXSIZE)
 		info->map.size = AREA_MAXSIZE;
 
 	pr_debug("%s: area %08lx, size %ld\n", __FUNCTION__,
 		 info->map.phys, info->map.size);
-	
+
 	info->area = request_mem_region(res->start, info->map.size,
 					pdev->name);
 	if (info->area == NULL) {
@@ -163,7 +162,7 @@ static int bast_flash_probe(struct device *dev)
 		err = -EIO;
 		goto exit_error;
 	}
- 
+
 	simple_map_init(&info->map);
 
 	/* enable the write to the flash area */
@@ -188,7 +187,7 @@ static int bast_flash_probe(struct device *dev)
 	err = parse_mtd_partitions(info->mtd, probes, &info->partitions, 0);
 	if (err > 0) {
 		err = add_mtd_partitions(info->mtd, info->partitions, err);
-		if (err) 
+		if (err)
 			printk(KERN_ERR PFX "cannot add/parse partitions\n");
 	} else {
 		err = add_mtd_device(info->mtd);
@@ -206,6 +205,7 @@ static int bast_flash_probe(struct device *dev)
 
 static struct device_driver bast_flash_driver = {
 	.name		= "bast-nor",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= bast_flash_probe,
 	.remove		= bast_flash_remove,

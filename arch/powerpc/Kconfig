@@ -300,6 +300,7 @@ config PPC_PMAC64
 	bool
 	depends on PPC_PMAC && POWER4
 	select U3_DART
+	select GENERIC_TBSYNC
 	default y
 
 config PPC_PREP
@@ -314,15 +315,17 @@ config PPC_MAPLE
 	bool "  Maple 970FX Evaluation Board"
 	select U3_DART
 	select MPIC_BROKEN_U3
+	select GENERIC_TBSYNC
 	default n
 	help
           This option enables support for the Maple 970FX Evaluation Board.
 	  For more informations, refer to <http://www.970eval.com>
 
-config PPC_BPA
-	bool "  Broadband Processor Architecture"
+config PPC_CELL
+	bool "  Cell Broadband Processor Architecture"
 	depends on PPC_MULTIPLATFORM && PPC64
 	select PPC_RTAS
+	select MMIO_NVRAM
 
 config PPC_OF
 	bool
@@ -353,13 +356,26 @@ config RTAS_ERROR_LOGGING
 	depends on PPC_RTAS
 	default n
 
+config RTAS_PROC
+	bool "Proc interface to RTAS"
+	depends on PPC_RTAS
+	default y
+
+config RTAS_FLASH
+	tristate "Firmware flash interface"
+	depends on PPC64 && RTAS_PROC
+
+config MMIO_NVRAM
+	bool
+	default n
+
 config MPIC_BROKEN_U3
 	bool
 	depends on PPC_MAPLE
 	default y
 
-config BPA_IIC
-	depends on PPC_BPA
+config CELL_IIC
+	depends on PPC_CELL
 	bool
 	default y
 
@@ -372,6 +388,11 @@ config PPC_MPC106
 	bool
 	default n
 
+config GENERIC_TBSYNC
+	bool
+	default y if CONFIG_PPC32 && CONFIG_SMP
+	default n
+
 source "drivers/cpufreq/Kconfig"
 
 config CPU_FREQ_PMAC
@@ -382,6 +403,14 @@ config CPU_FREQ_PMAC
 	  This adds support for frequency switching on Apple PowerBooks,
 	  this currently includes some models of iBook & Titanium
 	  PowerBook.
+
+config CPU_FREQ_PMAC64
+	bool "Support for some Apple G5s"
+	depends on CPU_FREQ && PMAC_SMU && PPC64
+	select CPU_FREQ_TABLE
+	help
+	  This adds support for frequency switching on Apple iMac G5,
+	  and some of the more recent desktop G5 machines as well.
 
 config PPC601_SYNC_FIX
 	bool "Workarounds for PPC601 bugs"
@@ -463,6 +492,7 @@ source "fs/Kconfig.binfmt"
 config FORCE_MAX_ZONEORDER
 	int
 	depends on PPC64
+	default "9" if PPC_64K_PAGES
 	default "13"
 
 config MATH_EMULATION
@@ -581,6 +611,16 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 config NODES_SPAN_OTHER_NODES
 	def_bool y
 	depends on NEED_MULTIPLE_NODES
+
+config PPC_64K_PAGES
+	bool "64k page size"
+	depends on PPC64
+	help
+	  This option changes the kernel logical page size to 64k. On machines
+          without processor support for 64k pages, the kernel will simulate
+          them by loading each individual 4k page on demand transparently,
+          while on hardware with such support, it will be used to map
+          normal application pages.
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
@@ -886,7 +926,20 @@ source "arch/powerpc/platforms/iseries/Kconfig"
 
 source "lib/Kconfig"
 
+menu "Instrumentation Support"
+        depends on EXPERIMENTAL
+
 source "arch/powerpc/oprofile/Kconfig"
+
+config KPROBES
+	bool "Kprobes (EXPERIMENTAL)"
+	help
+	  Kprobes allows you to trap at almost any kernel address and
+	  execute a callback function.  register_kprobe() establishes
+	  a probepoint and specifies the callback.  Kprobes is useful
+	  for kernel debugging, non-intrusive instrumentation and testing.
+	  If in doubt, say "N".
+endmenu
 
 source "arch/powerpc/Kconfig.debug"
 

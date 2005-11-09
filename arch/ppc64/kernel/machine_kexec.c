@@ -24,6 +24,7 @@
 #include <asm/mmu.h>
 #include <asm/sections.h>	/* _end */
 #include <asm/prom.h>
+#include <asm/smp.h>
 
 #define HASH_GROUP_SIZE 0x80	/* size of each hash group, asm/mmu.h */
 
@@ -244,7 +245,6 @@ static void kexec_prepare_cpus(void)
 
 static void kexec_prepare_cpus(void)
 {
-	extern void smp_release_cpus(void);
 	/*
 	 * move the secondarys to us so that we can copy
 	 * the new kernel 0-0x100 safely

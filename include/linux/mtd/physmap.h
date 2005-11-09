@@ -1,8 +1,8 @@
 /*
- * For boards with physically mapped flash and using 
+ * For boards with physically mapped flash and using
  * drivers/mtd/maps/physmap.c mapping driver.
  *
- * $Id: physmap.h,v 1.3 2004/07/21 00:16:15 jwboyer Exp $
+ * $Id: physmap.h,v 1.4 2005/11/07 11:14:55 gleixner Exp $
  *
  * Copyright (C) 2003 MontaVista Software Inc.
  * Author: Jun Sun, jsun@mvista.com or jsun@junsun.net
@@ -18,7 +18,7 @@
 
 #include <linux/config.h>
 
-#if defined(CONFIG_MTD_PHYSMAP) 
+#if defined(CONFIG_MTD_PHYSMAP)
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
@@ -44,12 +44,12 @@ static inline void physmap_configure(unsigned long addr, unsigned long size, int
 #if defined(CONFIG_MTD_PARTITIONS)
 
 /*
- * Machines that wish to do flash partition may want to call this function in 
- * their setup routine.  
+ * Machines that wish to do flash partition may want to call this function in
+ * their setup routine.
  *
  *	physmap_set_partitions(mypartitions, num_parts);
  *
- * Note that one can always override this hard-coded partition with 
+ * Note that one can always override this hard-coded partition with
  * command line partition (you need to enable CONFIG_MTD_CMDLINE_PARTS).
  */
 void physmap_set_partitions(struct mtd_partition *parts, int num_parts);

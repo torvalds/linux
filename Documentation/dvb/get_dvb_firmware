@@ -22,7 +22,7 @@ use File::Temp qw/ tempdir /;
 use IO::Handle;
 
 @components = ( "sp8870", "sp887x", "tda10045", "tda10046", "av7110", "dec2000t",
-		"dec2540t", "dec3000s", "vp7041", "dibusb", "nxt2002",
+		"dec2540t", "dec3000s", "vp7041", "dibusb", "nxt2002", "nxt2004",
 		"or51211", "or51132_qam", "or51132_vsb");
 
 # Check args
@@ -248,6 +248,23 @@ sub nxt2002 {
     unzip($sourcefile, $tmpdir);
     verify("$tmpdir/SkyNETU.sys", $hash);
     extract("$tmpdir/SkyNETU.sys", 375832, 5908, $outfile);
+
+    $outfile;
+}
+
+sub nxt2004 {
+    my $sourcefile = "AVerTVHD_MCE_A180_Drv_v1.2.2.16.zip";
+    my $url = "http://www.aver.com/support/Drivers/$sourcefile";
+    my $hash = "111cb885b1e009188346d72acfed024c";
+    my $outfile = "dvb-fe-nxt2004.fw";
+    my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
+
+    checkstandard();
+
+    wgetfile($sourcefile, $url);
+    unzip($sourcefile, $tmpdir);
+    verify("$tmpdir/3xHybrid.sys", $hash);
+    extract("$tmpdir/3xHybrid.sys", 465304, 9584, $outfile);
 
     $outfile;
 }

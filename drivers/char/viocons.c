@@ -26,7 +26,6 @@
  * Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/config.h>
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
 #include <linux/errno.h>
@@ -44,12 +43,12 @@
 #include <linux/tty_flip.h>
 #include <linux/sysrq.h>
 
-#include <asm/iSeries/vio.h>
+#include <asm/iseries/vio.h>
 
-#include <asm/iSeries/HvLpEvent.h>
-#include <asm/iSeries/HvCallEvent.h>
-#include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/HvCall.h>
+#include <asm/iseries/hv_lp_event.h>
+#include <asm/iseries/hv_call_event.h>
+#include <asm/iseries/hv_lp_config.h>
+#include <asm/iseries/hv_call.h>
 
 #ifdef CONFIG_VT
 #error You must turn off CONFIG_VT to use CONFIG_VIOCONS

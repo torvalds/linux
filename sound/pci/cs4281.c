@@ -523,8 +523,7 @@ static void snd_cs4281_delay(unsigned int delay)
 			delay = 1;
 		end_time = jiffies + delay;
 		do {
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 		} while (time_after_eq(end_time, jiffies));
 	} else {
 		udelay(delay);
@@ -533,8 +532,7 @@ static void snd_cs4281_delay(unsigned int delay)
 
 static inline void snd_cs4281_delay_long(void)
 {
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(1);
+	schedule_timeout_uninterruptible(1);
 }
 
 static inline void snd_cs4281_pokeBA0(cs4281_t *chip, unsigned long offset, unsigned int val)

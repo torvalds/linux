@@ -220,8 +220,7 @@ static void get_tb(unsigned *p)
 	p[1] = lo;
 }
 
-void
-xmon(struct pt_regs *excp)
+int xmon(struct pt_regs *excp)
 {
 	struct pt_regs regs;
 	int msr, cmd;
@@ -290,6 +289,8 @@ xmon(struct pt_regs *excp)
 #endif /* CONFIG_SMP */
 	set_msr(msr);		/* restore interrupt enable */
 	get_tb(start_tb[smp_processor_id()]);
+
+	return cmd != 'X';
 }
 
 irqreturn_t

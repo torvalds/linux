@@ -90,7 +90,7 @@ static int vortex_wt_allocroute(vortex_t * vortex, int wt, int nr_ch)
 	hwwrite(vortex->mmio, WT_PARM(wt, 2), 0);
 
 	temp = hwread(vortex->mmio, WT_PARM(wt, 3));
-	printk("vortex: WT PARM3: %x\n", temp);
+	printk(KERN_DEBUG "vortex: WT PARM3: %x\n", temp);
 	//hwwrite(vortex->mmio, WT_PARM(wt, 3), temp);
 
 	hwwrite(vortex->mmio, WT_DELAY(wt, 0), 0);
@@ -98,7 +98,7 @@ static int vortex_wt_allocroute(vortex_t * vortex, int wt, int nr_ch)
 	hwwrite(vortex->mmio, WT_DELAY(wt, 2), 0);
 	hwwrite(vortex->mmio, WT_DELAY(wt, 3), 0);
 
-	printk("vortex: WT GMODE: %x\n", hwread(vortex->mmio, WT_GMODE(wt)));
+	printk(KERN_DEBUG "vortex: WT GMODE: %x\n", hwread(vortex->mmio, WT_GMODE(wt)));
 
 	hwwrite(vortex->mmio, WT_PARM(wt, 2), 0xffffffff);
 	hwwrite(vortex->mmio, WT_PARM(wt, 3), 0xcff1c810);
@@ -106,7 +106,7 @@ static int vortex_wt_allocroute(vortex_t * vortex, int wt, int nr_ch)
 	voice->parm0 = voice->parm1 = 0xcfb23e2f;
 	hwwrite(vortex->mmio, WT_PARM(wt, 0), voice->parm0);
 	hwwrite(vortex->mmio, WT_PARM(wt, 1), voice->parm1);
-	printk("vortex: WT GMODE 2 : %x\n", hwread(vortex->mmio, WT_GMODE(wt)));
+	printk(KERN_DEBUG "vortex: WT GMODE 2 : %x\n", hwread(vortex->mmio, WT_GMODE(wt)));
 	return 0;
 }
 
@@ -203,7 +203,7 @@ vortex_wt_SetReg(vortex_t * vortex, unsigned char reg, int wt,
 		}
 	} else {
 		if (wt >= NR_WT) {
-			printk("vortex: WT SetReg: voice out of range\n");
+			printk(KERN_ERR "vortex: WT SetReg: voice out of range\n");
 			return 0;
 		}
 	}

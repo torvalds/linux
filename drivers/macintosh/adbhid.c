@@ -857,8 +857,7 @@ adbhid_input_register(int id, int default_id, int original_handler_id,
 static void adbhid_input_unregister(int id)
 {
 	input_unregister_device(adbhid[id]->input);
-	if (adbhid[id]->keycode)
-		kfree(adbhid[id]->keycode);
+	kfree(adbhid[id]->keycode);
 	kfree(adbhid[id]);
 	adbhid[id] = NULL;
 }

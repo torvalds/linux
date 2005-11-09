@@ -38,9 +38,8 @@
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/paca.h>
-#include <asm/iSeries/HvCall.h>
+#include <asm/iseries/hv_call.h>
 #include <asm/time.h>
-#include <asm/ppcdebug.h>
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/system.h>

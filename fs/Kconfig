@@ -898,6 +898,7 @@ config AFFS_FS
 config HFS_FS
 	tristate "Apple Macintosh file system support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
+	select NLS
 	help
 	  If you say Y here, you will be able to mount Macintosh-formatted
 	  floppy disks and hard drive partitions with full read-write access.
@@ -1050,6 +1051,19 @@ config JFFS2_FS_WRITEBUFFER
 	    - NOR flash with transparent ECC
 	    - DataFlash
 
+config JFFS2_SUMMARY
+	bool "JFFS2 summary support (EXPERIMENTAL)"
+	depends on JFFS2_FS && EXPERIMENTAL
+	default n
+	help
+	  This feature makes it possible to use summary information
+	  for faster filesystem mount.
+
+	  The summary information can be inserted into a filesystem image
+	  by the utility 'sumtool'.
+
+	  If unsure, say 'N'.
+
 config JFFS2_COMPRESSION_OPTIONS
 	bool "Advanced compression options for JFFS2"
 	depends on JFFS2_FS
@@ -1071,10 +1085,10 @@ config JFFS2_ZLIB
 	default y
         help
           Zlib is designed to be a free, general-purpose, legally unencumbered,
-          lossless data-compression library for use on virtually any computer 
+          lossless data-compression library for use on virtually any computer
           hardware and operating system. See <http://www.gzip.org/zlib/> for
           further information.
-          
+
           Say 'Y' if unsure.
 
 config JFFS2_RTIME
@@ -1096,7 +1110,7 @@ choice
         default JFFS2_CMODE_PRIORITY
         depends on JFFS2_FS
         help
-          You can set here the default compression mode of JFFS2 from 
+          You can set here the default compression mode of JFFS2 from
           the available compression modes. Don't touch if unsure.
 
 config JFFS2_CMODE_NONE
@@ -1107,13 +1121,13 @@ config JFFS2_CMODE_NONE
 config JFFS2_CMODE_PRIORITY
         bool "priority"
         help
-          Tries the compressors in a predefinied order and chooses the first 
+          Tries the compressors in a predefinied order and chooses the first
           successful one.
 
 config JFFS2_CMODE_SIZE
         bool "size (EXPERIMENTAL)"
         help
-          Tries all compressors and chooses the one which has the smallest 
+          Tries all compressors and chooses the one which has the smallest
           result.
 
 endchoice

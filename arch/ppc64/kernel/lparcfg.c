@@ -26,14 +26,14 @@
 #include <linux/init.h>
 #include <linux/seq_file.h>
 #include <asm/uaccess.h>
-#include <asm/iSeries/HvLpConfig.h>
+#include <asm/iseries/hv_lp_config.h>
 #include <asm/lppaca.h>
 #include <asm/hvcall.h>
 #include <asm/firmware.h>
 #include <asm/rtas.h>
 #include <asm/system.h>
 #include <asm/time.h>
-#include <asm/iSeries/ItExtVpdPanel.h>
+#include <asm/iseries/it_exp_vpd_panel.h>
 #include <asm/prom.h>
 
 #define MODULE_VERS "1.6"
@@ -599,9 +599,7 @@ int __init lparcfg_init(void)
 void __exit lparcfg_cleanup(void)
 {
 	if (proc_ppc64_lparcfg) {
-		if (proc_ppc64_lparcfg->data) {
-			kfree(proc_ppc64_lparcfg->data);
-		}
+		kfree(proc_ppc64_lparcfg->data);
 		remove_proc_entry("lparcfg", proc_ppc64_lparcfg->parent);
 	}
 }

@@ -74,27 +74,47 @@
 
 /* macros to modify the physical addresses for io space */
 
-#define PA_CS2(item) ((item) + S3C2410_CS2)
-#define PA_CS3(item) ((item) + S3C2410_CS3)
-#define PA_CS4(item) ((item) + S3C2410_CS4)
-#define PA_CS5(item) ((item) + S3C2410_CS5)
+#define PA_CS2(item) (__phys_to_pfn((item) + S3C2410_CS2))
+#define PA_CS3(item) (__phys_to_pfn((item) + S3C2410_CS3))
+#define PA_CS4(item) (__phys_to_pfn((item) + S3C2410_CS4))
+#define PA_CS5(item) (__phys_to_pfn((item) + S3C2410_CS5))
 
 static struct map_desc vr1000_iodesc[] __initdata = {
   /* ISA IO areas */
+  {
+	  .virtual	= (u32)S3C24XX_VA_ISA_BYTE,
+	  .pfn		= PA_CS2(BAST_PA_ISAIO),
+	  .length	= SZ_16M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)S3C24XX_VA_ISA_WORD,
+	  .pfn		= PA_CS3(BAST_PA_ISAIO),
+	  .length	= SZ_16M,
+	  .type		= MT_DEVICE,
+  },
 
-  { (u32)S3C24XX_VA_ISA_BYTE, PA_CS2(BAST_PA_ISAIO),	   SZ_16M, MT_DEVICE },
-  { (u32)S3C24XX_VA_ISA_WORD, PA_CS3(BAST_PA_ISAIO),	   SZ_16M, MT_DEVICE },
-
-  /* we could possibly compress the next set down into a set of smaller tables
-   * pagetables, but that would mean using an L2 section, and it still means
-   * we cannot actually feed the same register to an LDR due to 16K spacing
-   */
-
-  /* bast CPLD control registers, and external interrupt controls */
-  { (u32)VR1000_VA_CTRL1, VR1000_PA_CTRL1,	       SZ_1M, MT_DEVICE },
-  { (u32)VR1000_VA_CTRL2, VR1000_PA_CTRL2,	       SZ_1M, MT_DEVICE },
-  { (u32)VR1000_VA_CTRL3, VR1000_PA_CTRL3,	       SZ_1M, MT_DEVICE },
-  { (u32)VR1000_VA_CTRL4, VR1000_PA_CTRL4,	       SZ_1M, MT_DEVICE },
+  /*  CPLD control registers, and external interrupt controls */
+  {
+	  .virtual	= (u32)VR1000_VA_CTRL1,
+	  .pfn		= __phys_to_pfn(VR1000_PA_CTRL1),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)VR1000_VA_CTRL2,
+	  .pfn		= __phys_to_pfn(VR1000_PA_CTRL2),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)VR1000_VA_CTRL3,
+	  .pfn		= __phys_to_pfn(VR1000_PA_CTRL3),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  }, {
+	  .virtual	= (u32)VR1000_VA_CTRL4,
+	  .pfn		= __phys_to_pfn(VR1000_PA_CTRL4),
+	  .length	= SZ_1M,
+	  .type		= MT_DEVICE,
+  },
 
   /* peripheral space... one for each of fast/slow/byte/16bit */
   /* note, ide is only decoded in word space, even though some registers

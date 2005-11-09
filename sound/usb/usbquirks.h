@@ -294,6 +294,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* a later revision uses ID 0x0099 */
 	USB_DEVICE(0x0582, 0x0005),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "EDIROL",
@@ -384,6 +385,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* a later revision uses ID 0x009d */
 	USB_DEVICE(0x0582, 0x0009),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "EDIROL",
@@ -532,6 +534,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x0013 when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0012),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "Roland",
@@ -545,6 +548,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x0015 when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0014),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "EDIROL",
@@ -558,6 +562,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x0017 when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0016),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "EDIROL",
@@ -588,6 +593,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x001c when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x001b),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "Roland",
@@ -618,6 +624,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x001e when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x001d),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "Roland",
@@ -631,6 +638,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x0024 when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0023),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "EDIROL",
@@ -675,6 +683,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x0028 when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0027),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "EDIROL",
@@ -688,6 +697,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x002a when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0029),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "EDIROL",
@@ -732,6 +742,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x002e when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x002d),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "Roland",
@@ -745,6 +756,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x0030 when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x002f),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "Roland",
@@ -758,6 +770,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x0034 when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0033),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "EDIROL",
@@ -770,7 +783,12 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		}
 	}
 },
+	/* TODO: add Roland M-1000 support */
 {
+	/*
+	 * Has ID 0x0038 when not in "Advanced Driver" mode;
+	 * later revisions use IDs 0x0054 and 0x00a2.
+	 */
 	USB_DEVICE(0x0582, 0x0037),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "Roland",
@@ -815,6 +833,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x0041 when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0040),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "Roland",
@@ -828,6 +847,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x0043 when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0042),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "Roland",
@@ -871,6 +891,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x004a when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0048),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "EDIROL",
@@ -883,7 +904,9 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		}
 	}
 },
+	/* TODO: add Edirol M-100FX support */
 {
+	/* has ID 0x004f when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x004d),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "EDIROL",
@@ -931,7 +954,9 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		.type = QUIRK_MIDI_STANDARD_INTERFACE
 	}
 },
+	/* TODO: add Roland EXR support */
 {
+	/* has ID 0x0067 when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0065),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "EDIROL",
@@ -945,6 +970,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x006b when not in "Advanced Driver" mode */
 	USB_DEVICE_VENDOR_SPEC(0x0582, 0x006a),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "Roland",
@@ -958,6 +984,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x006e when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x006d),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "Roland",
@@ -1002,6 +1029,7 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x0076 when not in "Advanced Driver" mode */
 	USB_DEVICE(0x0582, 0x0075),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "BOSS",
@@ -1015,10 +1043,11 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 	}
 },
 {
+	/* has ID 0x007b when not in "Advanced Driver" mode */
 	USB_DEVICE_VENDOR_SPEC(0x0582, 0x007a),
 	.driver_info = (unsigned long) & (const snd_usb_audio_quirk_t) {
 		.vendor_name = "Roland",
-		/* RD-700SX, RD-300SX */
+		/* "RD" or "RD-700SX"? */
 		.ifnum = 0,
 		.type = QUIRK_MIDI_FIXED_ENDPOINT,
 		.data = & (const snd_usb_midi_endpoint_info_t) {
@@ -1048,6 +1077,15 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 		}
 	}
 },
+	/* TODO: add Edirol UA-101 support */
+	/* TODO: add Roland G-70 support */
+	/* TODO: add Roland V-SYNTH XT support */
+	/* TODO: add BOSS GT-PRO support */
+	/* TODO: add Edirol PC-50 support */
+	/* TODO: add Edirol PC-80 support */
+	/* TODO: add Edirol UA-1EX support */
+	/* TODO: add Edirol UM-3 support */
+	/* TODO: add Edirol MD-P1 support */
 
 /* Midiman/M-Audio devices */
 {

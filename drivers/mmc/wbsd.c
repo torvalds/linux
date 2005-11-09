@@ -201,7 +201,7 @@ static void wbsd_reset(struct wbsd_host* host)
 {
 	u8 setup;
 
-	printk(KERN_ERR DRIVER_NAME ": Resetting chip\n");
+	printk(KERN_ERR "%s: Resetting chip\n", mmc_hostname(host->mmc));
 
 	/*
 	 * Soft reset of chip (SD/MMC part).
@@ -880,8 +880,9 @@ static void wbsd_finish_data(struct wbsd_host* host, struct mmc_data* data)
 		 */
 		if (count)
 		{
-			printk(KERN_ERR DRIVER_NAME ": Incomplete DMA "
-				"transfer. %d bytes left.\n", count);
+			printk(KERN_ERR "%s: Incomplete DMA transfer. "
+				"%d bytes left.\n",
+				mmc_hostname(host->mmc), count);
 
 			data->error = MMC_ERR_FAILED;
 		}
@@ -1169,8 +1170,8 @@ static void wbsd_tasklet_card(unsigned long param)
 
 		if (host->mrq)
 		{
-			printk(KERN_ERR DRIVER_NAME
-				": Card removed during transfer!\n");
+			printk(KERN_ERR "%s: Card removed during transfer!\n",
+				mmc_hostname(host->mmc));
 			wbsd_reset(host);
 
 			host->mrq->cmd->error = MMC_ERR_FAILED;
@@ -1601,8 +1602,7 @@ static void __devexit wbsd_release_dma(struct wbsd_host* host)
 	if (host->dma_addr)
 		dma_unmap_single(host->mmc->dev, host->dma_addr, WBSD_DMA_SIZE,
 			DMA_BIDIRECTIONAL);
-	if (host->dma_buffer)
-		kfree(host->dma_buffer);
+	kfree(host->dma_buffer);
 	if (host->dma >= 0)
 		free_dma(host->dma);
 
@@ -1852,9 +1852,9 @@ static int __devinit wbsd_init(struct device* dev, int base, int irq, int dma,
 	/*
 	 * See if chip needs to be configured.
 	 */
-	if (pnp && (host->config != 0))
+	if (pnp)
 	{
-		if (!wbsd_chip_validate(host))
+		if ((host->config != 0) && !wbsd_chip_validate(host))
 		{
 			printk(KERN_WARNING DRIVER_NAME
 				": PnP active but chip not configured! "

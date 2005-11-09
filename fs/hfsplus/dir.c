@@ -13,7 +13,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/random.h>
-#include <linux/version.h>
 
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"

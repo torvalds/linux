@@ -45,57 +45,9 @@ void ptrace_disable(struct task_struct *child)
 	/* Nothing to do.. */
 }
 
-long sys_ptrace(long request, long pid, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	struct task_struct *child;
 	int ret = -EPERM;
-
-	lock_kernel();
-
-#if 0
-	if ((int)request != 1)
-	printk("ptrace(r=%d,pid=%d,addr=%08lx,data=%08lx)\n",
-	       (int) request, (int) pid, (unsigned long) addr,
-	       (unsigned long) data);
-#endif
-
-	if (request == PTRACE_TRACEME) {
-
-		/* Are we already being traced? */
-
-		if (current->ptrace & PT_PTRACED)
-			goto out;
-
-		if ((ret = security_ptrace(current->parent, current)))
-			goto out;
-
-		/* Set the ptrace bit in the process flags. */
-
-		current->ptrace |= PT_PTRACED;
-		ret = 0;
-		goto out;
-	}
-
-	ret = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
-	if (!child)
-		goto out;
-
-	ret = -EPERM;
-	if (pid == 1)		/* you may not mess with init */
-		goto out;
-
-	if (request == PTRACE_ATTACH) {
-		ret = ptrace_attach(child);
-		goto out_tsk;
-	}
-
-	if ((ret = ptrace_check_attach(child, request == PTRACE_KILL)) < 0)
-		goto out_tsk;
 
 	switch (request) {
 	case PTRACE_PEEKTEXT: /* read word at location addr. */
@@ -375,10 +327,7 @@ long sys_ptrace(long request, long pid, long addr, long data)
 		ret = ptrace_request(child, request, addr, data);
 		goto out;
 	}
-out_tsk:
-	put_task_struct(child);
-out:
-	unlock_kernel();
+ out:
 	return ret;
 }
 

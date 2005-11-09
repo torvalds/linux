@@ -58,7 +58,7 @@ static void snd_tea6330t_set(tea6330t_t *tea,
 			     unsigned char addr, unsigned char value)
 {
 #if 0
-	printk("set - 0x%x/0x%x\n", addr, value);
+	printk(KERN_DEBUG "set - 0x%x/0x%x\n", addr, value);
 #endif
 	snd_i2c_write(tea->bus, TEA6330T_ADDR, addr, value, 1);
 }

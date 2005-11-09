@@ -174,50 +174,9 @@ int ptrace_setfpregs (struct task_struct *child, __u32 __user *data)
 	return 0;
 }
 
-asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	struct task_struct *child;
 	int ret;
-
-#if 0
-	printk("ptrace(r=%d,pid=%d,addr=%08lx,data=%08lx)\n",
-	       (int) request, (int) pid, (unsigned long) addr,
-	       (unsigned long) data);
-#endif
-	lock_kernel();
-	ret = -EPERM;
-	if (request == PTRACE_TRACEME) {
-		/* are we already being traced? */
-		if (current->ptrace & PT_PTRACED)
-			goto out;
-		if ((ret = security_ptrace(current->parent, current)))
-			goto out;
-		/* set the ptrace bit in the process flags. */
-		current->ptrace |= PT_PTRACED;
-		ret = 0;
-		goto out;
-	}
-	ret = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	if (child)
-		get_task_struct(child);
-	read_unlock(&tasklist_lock);
-	if (!child)
-		goto out;
-
-	ret = -EPERM;
-	if (pid == 1)		/* you may not mess with init */
-		goto out_tsk;
-
-	if (request == PTRACE_ATTACH) {
-		ret = ptrace_attach(child);
-		goto out_tsk;
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		goto out_tsk;
 
 	switch (request) {
 	/* when I and D space are separate, these will need to be fixed. */
@@ -319,7 +278,7 @@ asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 			if (!cpu_has_dsp) {
 				tmp = 0;
 				ret = -EIO;
-				goto out_tsk;
+				goto out;
 			}
 			if (child->thread.dsp.used_dsp) {
 				dregs = __get_dsp_regs(child);
@@ -333,14 +292,14 @@ asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 			if (!cpu_has_dsp) {
 				tmp = 0;
 				ret = -EIO;
-				goto out_tsk;
+				goto out;
 			}
 			tmp = child->thread.dsp.dspcontrol;
 			break;
 		default:
 			tmp = 0;
 			ret = -EIO;
-			goto out_tsk;
+			goto out;
 		}
 		ret = put_user(tmp, (unsigned long __user *) data);
 		break;
@@ -495,11 +454,7 @@ asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
 		ret = ptrace_request(child, request, addr, data);
 		break;
 	}
-
-out_tsk:
-	put_task_struct(child);
-out:
-	unlock_kernel();
+ out:
 	return ret;
 }
 

@@ -8,7 +8,6 @@
 #include <errno.h>
 #include "user_util.h"
 #include "user.h"
-#include "helper.h"
 #include "mconsole.h"
 #include "os.h"
 #include "choose-mode.h"

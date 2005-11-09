@@ -27,6 +27,12 @@
 #define CN_IDX_CONNECTOR		0xffffffff
 #define CN_VAL_CONNECTOR		0xffffffff
 
+/*
+ * Process Events connector unique ids -- used for message routing
+ */
+#define CN_IDX_PROC			0x1
+#define CN_VAL_PROC			0x1
+
 #define CN_NETLINK_USERS		1
 
 /*

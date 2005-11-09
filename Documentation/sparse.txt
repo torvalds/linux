@@ -41,9 +41,9 @@ sure that bitwise types don't get mixed up (little-endian vs big-endian
 vs cpu-endian vs whatever), and there the constant "0" really _is_
 special.
 
-Modify top-level Makefile to say
+Use
 
-CHECK           = sparse -Wbitwise
+	make C=[12] CF=-Wbitwise
 
 or you don't get any checking at all.
 

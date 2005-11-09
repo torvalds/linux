@@ -103,6 +103,9 @@ static int __init hugetlb_init(void)
 	unsigned long i;
 	struct page *page;
 
+	if (HPAGE_SHIFT == 0)
+		return 0;
+
 	for (i = 0; i < MAX_NUMNODES; ++i)
 		INIT_LIST_HEAD(&hugepage_freelists[i]);
 
@@ -234,7 +237,6 @@ unsigned long hugetlb_total_pages(void)
 {
 	return nr_huge_pages * (HPAGE_SIZE / PAGE_SIZE);
 }
-EXPORT_SYMBOL(hugetlb_total_pages);
 
 /*
  * We cannot handle pagefaults against hugetlb pages at all.  They cause

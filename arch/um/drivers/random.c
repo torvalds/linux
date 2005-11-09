@@ -58,10 +58,8 @@ static ssize_t rng_dev_read (struct file *filp, char __user *buf, size_t size,
                         if (filp->f_flags & O_NONBLOCK)
                                 return ret ? : -EAGAIN;
 
-                        if(need_resched()){
-                                current->state = TASK_INTERRUPTIBLE;
-                                schedule_timeout(1);
-                        }
+                        if(need_resched())
+                                schedule_timeout_interruptible(1);
                 }
                 else return n;
 		if (signal_pending (current))

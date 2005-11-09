@@ -298,7 +298,6 @@ static struct fb_ops imxfb_ops = {
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 	.fb_blank	= imxfb_blank,
-	.fb_cursor	= soft_cursor, /* FIXME: i.MX can do hardware cursor */
 };
 
 /*

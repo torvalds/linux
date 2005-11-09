@@ -26,9 +26,6 @@
 #ifndef	PSI_EIDE_SCSIOP
 #define	PSI_EIDE_SCSIOP	1
 
-#ifndef LINUX_VERSION_CODE
-#include <linux/version.h>
-#endif 
 #define	LINUXVERSION(v,p,s)    (((v)<<16) + ((p)<<8) + (s))
 
 /************************************************/

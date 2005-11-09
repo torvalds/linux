@@ -403,19 +403,19 @@ static int __init prom_next_node(phandle *nodep)
 	}
 }
 
-static int __init prom_getprop(phandle node, const char *pname,
+static int inline prom_getprop(phandle node, const char *pname,
 			       void *value, size_t valuelen)
 {
 	return call_prom("getprop", 4, 1, node, ADDR(pname),
 			 (u32)(unsigned long) value, (u32) valuelen);
 }
 
-static int __init prom_getproplen(phandle node, const char *pname)
+static int inline prom_getproplen(phandle node, const char *pname)
 {
 	return call_prom("getproplen", 2, 1, node, ADDR(pname));
 }
 
-static int __init prom_setprop(phandle node, const char *pname,
+static int inline prom_setprop(phandle node, const char *pname,
 			       void *value, size_t valuelen)
 {
 	return call_prom("setprop", 4, 1, node, ADDR(pname),
@@ -1408,8 +1408,9 @@ static int __init prom_find_machine_type(void)
 	struct prom_t *_prom = &RELOC(prom);
 	char compat[256];
 	int len, i = 0;
+#ifdef CONFIG_PPC64
 	phandle rtas;
-
+#endif
 	len = prom_getprop(_prom->root, "compatible",
 			   compat, sizeof(compat)-1);
 	if (len > 0) {
@@ -1872,7 +1873,7 @@ static void __init fixup_device_tree(void)
 	if (prom_getprop(u3, "device-rev", &u3_rev, sizeof(u3_rev))
 	    == PROM_ERROR)
 		return;
-	if (u3_rev != 0x35 && u3_rev != 0x37)
+	if (u3_rev < 0x35 || u3_rev > 0x39)
 		return;
 	/* does it need fixup ? */
 	if (prom_getproplen(i2c, "interrupts") > 0)
@@ -2000,7 +2001,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 #endif
 
 	/*
-	 * On pSeries and BPA, copy the CPU hold code
+	 * Copy the CPU hold code
 	 */
        	if (RELOC(of_platform) != PLATFORM_POWERMAC)
        		copy_and_flush(0, KERNELBASE + offset, 0x100, 0);

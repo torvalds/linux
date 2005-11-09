@@ -11,7 +11,6 @@
 #define _LINUX_HFSPLUS_FS_H
 
 #include <linux/fs.h>
-#include <linux/version.h>
 #include <linux/buffer_head.h>
 #include "hfsplus_raw.h"
 

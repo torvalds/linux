@@ -4,7 +4,6 @@
 #include <linux/mii.h>
 #include <linux/netdevice.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/list.h>
 
 #include <linux/fs_enet_pd.h>

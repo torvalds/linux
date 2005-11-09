@@ -1013,8 +1013,7 @@ static void CS_IrqCleanup(void)
 	*/
 	cpm_free_handler(CPMVEC_SMC2);
 
-	if (beep_buf)
-		kfree(beep_buf);
+	kfree(beep_buf);
 	kd_mksound = orig_mksound;
 }
 #endif /* MODULE */

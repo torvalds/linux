@@ -21,7 +21,7 @@ SAMSUNG Tuner identification: (e.g. TCPM9091PD27)
    J= NTSC-Japan
    L= Secam LL
    M= BG+I+DK
-   N= NTSC 
+   N= NTSC
    Q= BG+I+DK+LL
  [89]: ?
  [125]:
@@ -96,7 +96,7 @@ LG Innotek Tuner:
   TADC-H002F: NTSC (L,175/410?; 2-B, C-W+11, W+12-69)
   TADC-M201D: PAL D/K+B/G+I (L,143/425)  (sound control at I2C address 0xc8)
   TADC-T003F: NTSC Taiwan  (L,175/410?; 2-B, C-W+11, W+12-69)
-  Suffix: 
+  Suffix:
     P= Standard phono female socket
     D= IEC female socket
     F= F-connector

@@ -22,6 +22,7 @@
 #ifndef DST_COMMON_H
 #define DST_COMMON_H
 
+#include <linux/smp_lock.h>
 #include <linux/dvb/frontend.h>
 #include <linux/device.h>
 #include "bt878.h"
@@ -49,6 +50,7 @@
 #define DST_TYPE_HAS_FW_BUILD	64
 #define DST_TYPE_HAS_OBS_REGS	128
 #define DST_TYPE_HAS_INC_COUNT	256
+#define DST_TYPE_HAS_MULTI_FE	512
 
 /*	Card capability list	*/
 
@@ -117,6 +119,9 @@ struct dst_state {
 	u8 fw_version[8];
 	u8 card_info[8];
 	u8 vendor[8];
+	u8 board_info[8];
+
+	struct semaphore dst_mutex;
 };
 
 struct dst_types {

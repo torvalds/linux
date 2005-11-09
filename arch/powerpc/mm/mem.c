@@ -61,6 +61,9 @@ int init_bootmem_done;
 int mem_init_done;
 unsigned long memory_limit;
 
+extern void hash_preload(struct mm_struct *mm, unsigned long ea,
+			 unsigned long access, unsigned long trap);
+
 /*
  * This is called by /dev/mem to know if a given address has to
  * be mapped non-cacheable or not
@@ -355,7 +358,7 @@ void __init mem_init(void)
 	}
 
 	codesize = (unsigned long)&_sdata - (unsigned long)&_stext;
-	datasize = (unsigned long)&__init_begin - (unsigned long)&_sdata;
+	datasize = (unsigned long)&_edata - (unsigned long)&_sdata;
 	initsize = (unsigned long)&__init_end - (unsigned long)&__init_begin;
 	bsssize = (unsigned long)&__bss_stop - (unsigned long)&__bss_start;
 
@@ -493,18 +496,10 @@ EXPORT_SYMBOL(flush_icache_user_range);
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 		      pte_t pte)
 {
-	/* handle i-cache coherency */
-	unsigned long pfn = pte_pfn(pte);
-#ifdef CONFIG_PPC32
-	pmd_t *pmd;
-#else
-	unsigned long vsid;
-	void *pgdir;
-	pte_t *ptep;
-	int local = 0;
-	cpumask_t tmp;
-	unsigned long flags;
+#ifdef CONFIG_PPC_STD_MMU
+	unsigned long access = 0, trap;
 #endif
+	unsigned long pfn = pte_pfn(pte);
 
 	/* handle i-cache coherency */
 	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE) &&
@@ -535,30 +530,21 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	/* We only want HPTEs for linux PTEs that have _PAGE_ACCESSED set */
 	if (!pte_young(pte) || address >= TASK_SIZE)
 		return;
-#ifdef CONFIG_PPC32
-	if (Hash == 0)
+
+	/* We try to figure out if we are coming from an instruction
+	 * access fault and pass that down to __hash_page so we avoid
+	 * double-faulting on execution of fresh text. We have to test
+	 * for regs NULL since init will get here first thing at boot
+	 *
+	 * We also avoid filling the hash if not coming from a fault
+	 */
+	if (current->thread.regs == NULL)
 		return;
-	pmd = pmd_offset(pgd_offset(vma->vm_mm, address), address);
-	if (!pmd_none(*pmd))
-		add_hash_page(vma->vm_mm->context, address, pmd_val(*pmd));
-#else
-	pgdir = vma->vm_mm->pgd;
-	if (pgdir == NULL)
+	trap = TRAP(current->thread.regs);
+	if (trap == 0x400)
+		access |= _PAGE_EXEC;
+	else if (trap != 0x300)
 		return;
-
-	ptep = find_linux_pte(pgdir, address);
-	if (!ptep)
-		return;
-
-	vsid = get_vsid(vma->vm_mm->context.id, address);
-
-	local_irq_save(flags);
-	tmp = cpumask_of_cpu(smp_processor_id());
-	if (cpus_equal(vma->vm_mm->cpu_vm_mask, tmp))
-		local = 1;
-
-	__hash_page(address, 0, vsid, ptep, 0x300, local);
-	local_irq_restore(flags);
-#endif
-#endif
+	hash_preload(vma->vm_mm, address, access, trap);
+#endif /* CONFIG_PPC_STD_MMU */
 }

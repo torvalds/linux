@@ -27,6 +27,7 @@
 #include <linux/kdev_t.h>
 #include <linux/major.h>
 #include <linux/root_dev.h>
+#include <linux/kernel.h>
 
 #include <asm/processor.h>
 #include <asm/machdep.h>
@@ -40,19 +41,19 @@
 #include <asm/firmware.h>
 
 #include <asm/time.h>
-#include <asm/naca.h>
 #include <asm/paca.h>
 #include <asm/cache.h>
 #include <asm/sections.h>
 #include <asm/abs_addr.h>
-#include <asm/iSeries/HvLpConfig.h>
-#include <asm/iSeries/HvCallEvent.h>
-#include <asm/iSeries/HvCallXm.h>
-#include <asm/iSeries/ItLpQueue.h>
-#include <asm/iSeries/mf.h>
-#include <asm/iSeries/HvLpEvent.h>
-#include <asm/iSeries/LparMap.h>
+#include <asm/iseries/hv_lp_config.h>
+#include <asm/iseries/hv_call_event.h>
+#include <asm/iseries/hv_call_xm.h>
+#include <asm/iseries/it_lp_queue.h>
+#include <asm/iseries/mf.h>
+#include <asm/iseries/hv_lp_event.h>
+#include <asm/iseries/lpar_map.h>
 
+#include "naca.h"
 #include "setup.h"
 #include "irq.h"
 #include "vpd_areas.h"
@@ -70,8 +71,6 @@ extern void hvlog(char *fmt, ...);
 #endif
 
 /* Function Prototypes */
-extern void ppcdbg_initialize(void);
-
 static void build_iSeries_Memory_Map(void);
 static void iseries_shared_idle(void);
 static void iseries_dedicated_idle(void);
@@ -93,6 +92,8 @@ extern unsigned long iSeries_recal_tb;
 extern unsigned long iSeries_recal_titan;
 
 static int mf_initialized;
+
+static unsigned long cmd_mem_limit;
 
 struct MemoryBlock {
 	unsigned long absStart;
@@ -306,8 +307,6 @@ static void __init iSeries_init_early(void)
 
 	ppc64_firmware_features = FW_FEATURE_ISERIES;
 
-	ppcdbg_initialize();
-
 	ppc64_interrupt_controller = IC_ISERIES;
 
 #if defined(CONFIG_BLK_DEV_INITRD)
@@ -317,11 +316,11 @@ static void __init iSeries_init_early(void)
 	 */
 	if (naca.xRamDisk) {
 		initrd_start = (unsigned long)__va(naca.xRamDisk);
-		initrd_end = initrd_start + naca.xRamDiskSize * PAGE_SIZE;
+		initrd_end = initrd_start + naca.xRamDiskSize * HW_PAGE_SIZE;
 		initrd_below_start_ok = 1;	// ramdisk in kernel space
 		ROOT_DEV = Root_RAM0;
-		if (((rd_size * 1024) / PAGE_SIZE) < naca.xRamDiskSize)
-			rd_size = (naca.xRamDiskSize * PAGE_SIZE) / 1024;
+		if (((rd_size * 1024) / HW_PAGE_SIZE) < naca.xRamDiskSize)
+			rd_size = (naca.xRamDiskSize * HW_PAGE_SIZE) / 1024;
 	} else
 #endif /* CONFIG_BLK_DEV_INITRD */
 	{
@@ -340,23 +339,6 @@ static void __init iSeries_init_early(void)
 	 * Initialize the DMA/TCE management
 	 */
 	iommu_init_early_iSeries();
-
-	iSeries_get_cmdline();
-
-	/* Save unparsed command line copy for /proc/cmdline */
-	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
-
-	/* Parse early parameters, in particular mem=x */
-	parse_early_param();
-
-	if (memory_limit) {
-		if (memory_limit < systemcfg->physicalMemorySize)
-			systemcfg->physicalMemorySize = memory_limit;
-		else {
-			printk("Ignoring mem=%lu >= ram_top.\n", memory_limit);
-			memory_limit = 0;
-		}
-	}
 
 	/* Initialize machine-dependency vectors */
 #ifdef CONFIG_SMP
@@ -484,13 +466,14 @@ static void __init build_iSeries_Memory_Map(void)
 	 */
 	hptFirstChunk = (u32)addr_to_chunk(HvCallHpt_getHptAddress());
 	hptSizePages = (u32)HvCallHpt_getHptPages();
-	hptSizeChunks = hptSizePages >> (MSCHUNKS_CHUNK_SHIFT - PAGE_SHIFT);
+	hptSizeChunks = hptSizePages >>
+		(MSCHUNKS_CHUNK_SHIFT - HW_PAGE_SHIFT);
 	hptLastChunk = hptFirstChunk + hptSizeChunks - 1;
 
 	printk("HPT absolute addr = %016lx, size = %dK\n",
 			chunk_to_addr(hptFirstChunk), hptSizeChunks * 256);
 
-	ppc64_pft_size = __ilog2(hptSizePages * PAGE_SIZE);
+	ppc64_pft_size = __ilog2(hptSizePages * HW_PAGE_SIZE);
 
 	/*
 	 * The actual hashed page table is in the hypervisor,
@@ -643,7 +626,7 @@ static void __init iSeries_fixup_klimit(void)
 	 */
 	if (naca.xRamDisk)
 		klimit = KERNELBASE + (u64)naca.xRamDisk +
-			(naca.xRamDiskSize * PAGE_SIZE);
+			(naca.xRamDiskSize * HW_PAGE_SIZE);
 	else {
 		/*
 		 * No ram disk was included - check and see if there
@@ -711,20 +694,19 @@ static void iseries_shared_idle(void)
 		if (hvlpevent_is_pending())
 			process_iSeries_events();
 
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 	}
 }
 
 static void iseries_dedicated_idle(void)
 {
 	long oldval;
+	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	while (1) {
-		oldval = test_and_clear_thread_flag(TIF_NEED_RESCHED);
-
-		if (!oldval) {
-			set_thread_flag(TIF_POLLING_NRFLAG);
-
+		if (!need_resched()) {
 			while (!need_resched()) {
 				ppc64_runlatch_off();
 				HMT_low();
@@ -737,13 +719,12 @@ static void iseries_dedicated_idle(void)
 			}
 
 			HMT_medium();
-			clear_thread_flag(TIF_POLLING_NRFLAG);
-		} else {
-			set_need_resched();
 		}
 
 		ppc64_runlatch_on();
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 	}
 }
 
@@ -971,6 +952,8 @@ void build_flat_dt(struct iseries_flat_dt *dt)
 	/* /chosen */
 	dt_start_node(dt, "chosen");
 	dt_prop_u32(dt, "linux,platform", PLATFORM_ISERIES_LPAR);
+	if (cmd_mem_limit)
+		dt_prop_u64(dt, "linux,memory-limit", cmd_mem_limit);
 	dt_end_node(dt);
 
 	dt_cpus(dt);
@@ -990,7 +973,27 @@ void * __init iSeries_early_setup(void)
 	 */
 	build_iSeries_Memory_Map();
 
+	iSeries_get_cmdline();
+
+	/* Save unparsed command line copy for /proc/cmdline */
+	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);
+
+	/* Parse early parameters, in particular mem=x */
+	parse_early_param();
+
 	build_flat_dt(&iseries_dt);
 
 	return (void *) __pa(&iseries_dt);
 }
+
+/*
+ * On iSeries we just parse the mem=X option from the command line.
+ * On pSeries it's a bit more complicated, see prom_init_mem()
+ */
+static int __init early_parsemem(char *p)
+{
+	if (p)
+		cmd_mem_limit = ALIGN(memparse(p, &p), PAGE_SIZE);
+	return 0;
+}
+early_param("mem", early_parsemem);

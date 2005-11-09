@@ -594,8 +594,7 @@ static int __devinit snd_als4000_create_gameport(snd_card_als4000_t *acard, int 
 	acard->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		printk(KERN_ERR "als4000: cannot allocate memory for gameport\n");
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 		return -ENOMEM;
 	}
 
@@ -622,8 +621,7 @@ static void snd_als4000_free_gameport(snd_card_als4000_t *acard)
 		acard->gameport = NULL;
 
 		snd_als4000_set_addr(acard->gcr, 0, 0, 0, 0); /* disable joystick */
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 	}
 }
 #else
@@ -669,7 +667,7 @@ static int __devinit snd_card_als4000_probe(struct pci_dev *pci,
 	/* check, if we can restrict PCI DMA transfers to 24 bits */
 	if (pci_set_dma_mask(pci, 0x00ffffff) < 0 ||
 	    pci_set_consistent_dma_mask(pci, 0x00ffffff) < 0) {
-		snd_printk("architecture does not support 24bit PCI busmaster DMA\n");
+		snd_printk(KERN_ERR "architecture does not support 24bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}

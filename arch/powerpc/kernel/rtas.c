@@ -17,6 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/delay.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -41,6 +42,13 @@ EXPORT_SYMBOL(rtas);
 DEFINE_SPINLOCK(rtas_data_buf_lock);
 char rtas_data_buf[RTAS_DATA_BUF_SIZE] __cacheline_aligned;
 unsigned long rtas_rmo_buf;
+
+/*
+ * If non-NULL, this gets called when the kernel terminates.
+ * This is done like this so rtas_flash can be a module.
+ */
+void (*rtas_flash_term_hook)(int);
+EXPORT_SYMBOL(rtas_flash_term_hook);
 
 /*
  * call_rtas_display_status and call_rtas_display_status_delay
@@ -76,7 +84,7 @@ void call_rtas_display_status_delay(unsigned char c)
 		while (width-- > 0)
 			call_rtas_display_status(' ');
 		width = 16;
-		udelay(500000);
+		mdelay(500);
 		pending_newline = 1;
 	} else {
 		if (pending_newline) {
@@ -206,6 +214,7 @@ void rtas_progress(char *s, unsigned short hex)
  
 	spin_unlock(&progress_lock);
 }
+EXPORT_SYMBOL(rtas_progress);		/* needed by rtas_flash module */
 
 int rtas_token(const char *service)
 {
@@ -492,6 +501,8 @@ int rtas_set_indicator(int indicator, int index, int new_value)
 
 void rtas_restart(char *cmd)
 {
+	if (rtas_flash_term_hook)
+		rtas_flash_term_hook(SYS_RESTART);
 	printk("RTAS system-reboot returned %d\n",
 	       rtas_call(rtas_token("system-reboot"), 0, 1, NULL));
 	for (;;);
@@ -499,6 +510,8 @@ void rtas_restart(char *cmd)
 
 void rtas_power_off(void)
 {
+	if (rtas_flash_term_hook)
+		rtas_flash_term_hook(SYS_POWER_OFF);
 	/* allow power on only with power button press */
 	printk("RTAS power-off returned %d\n",
 	       rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1));
@@ -507,7 +520,12 @@ void rtas_power_off(void)
 
 void rtas_halt(void)
 {
-	rtas_power_off();
+	if (rtas_flash_term_hook)
+		rtas_flash_term_hook(SYS_HALT);
+	/* allow power on only with power button press */
+	printk("RTAS power-off returned %d\n",
+	       rtas_call(rtas_token("power-off"), 2, 1, NULL, -1, -1));
+	for (;;);
 }
 
 /* Must be in the RMO region, so we place it here */
@@ -591,7 +609,6 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	return 0;
 }
 
-#ifdef CONFIG_SMP
 /* This version can't take the spinlock, because it never returns */
 
 struct rtas_args rtas_stop_self_args = {
@@ -616,7 +633,6 @@ void rtas_stop_self(void)
 
 	panic("Alas, I survived.\n");
 }
-#endif
 
 /*
  * Call early during boot, before mem init or bootmem, to retreive the RTAS

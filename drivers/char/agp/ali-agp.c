@@ -389,6 +389,7 @@ static struct pci_device_id agp_ali_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, agp_ali_pci_table);
 
 static struct pci_driver agp_ali_pci_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "agpgart-ali",
 	.id_table	= agp_ali_pci_table,
 	.probe		= agp_ali_probe,

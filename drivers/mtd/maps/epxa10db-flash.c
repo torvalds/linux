@@ -5,7 +5,7 @@
  *  Copyright (C) 2001 Altera Corporation
  *  Copyright (C) 2001 Red Hat, Inc.
  *
- * $Id: epxa10db-flash.c,v 1.13 2004/11/04 13:24:14 gleixner Exp $ 
+ * $Id: epxa10db-flash.c,v 1.15 2005/11/07 11:14:27 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -62,7 +62,7 @@ static const char *probes[] = { "RedBoot", "afs", NULL };
 static int __init epxa_mtd_init(void)
 {
 	int i;
-	
+
 	printk(KERN_NOTICE "%s flash device: 0x%x at 0x%x\n", BOARD_NAME, FLASH_SIZE, FLASH_START);
 
 	epxa_map.virt = ioremap(FLASH_START, FLASH_SIZE);
@@ -126,8 +126,8 @@ static void __exit epxa_mtd_cleanup(void)
 }
 
 
-/* 
- * This will do for now, once we decide which bootldr we're finally 
+/*
+ * This will do for now, once we decide which bootldr we're finally
  * going to use then we'll remove this function and do it properly
  *
  * Partions are currently (as offsets from base of flash):
@@ -140,7 +140,7 @@ static int __init epxa_default_partitions(struct mtd_info *master, struct mtd_pa
 	struct mtd_partition *parts;
 	int ret, i;
 	int npartitions = 0;
-	char *names; 
+	char *names;
 	const char *name = "jffs";
 
 	printk("Using default partitions for %s\n",BOARD_NAME);
@@ -152,7 +152,7 @@ static int __init epxa_default_partitions(struct mtd_info *master, struct mtd_pa
 		goto out;
 	}
 	i=0;
-	names = (char *)&parts[npartitions];	
+	names = (char *)&parts[npartitions];
 	parts[i].name = names;
 	names += strlen(name) + 1;
 	strcpy(parts[i].name, name);

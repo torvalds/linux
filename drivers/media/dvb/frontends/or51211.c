@@ -339,6 +339,7 @@ static int or51211_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 	u8 rec_buf[2];
 	u8 snd_buf[4];
 	u8 snr_equ;
+	u32 signal_strength;
 
 	/* SNR after Equalizer */
 	snd_buf[0] = 0x04;
@@ -358,8 +359,11 @@ static int or51211_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 	snr_equ = rec_buf[0] & 0xff;
 
 	/* The value reported back from the frontend will be FFFF=100% 0000=0% */
-	*strength = (((5334 - i20Log10(snr_equ))/3+5)*65535)/1000;
-
+	signal_strength = (((5334 - i20Log10(snr_equ))/3+5)*65535)/1000;
+	if (signal_strength > 0xffff)
+		*strength = 0xffff;
+	else
+		*strength = signal_strength;
 	dprintk("read_signal_strength %i\n",*strength);
 
 	return 0;

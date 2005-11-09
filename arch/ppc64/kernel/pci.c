@@ -295,8 +295,8 @@ static void pci_parse_of_addrs(struct device_node *node, struct pci_dev *dev)
 	}
 }
 
-static struct pci_dev *of_create_pci_dev(struct device_node *node,
-					 struct pci_bus *bus, int devfn)
+struct pci_dev *of_create_pci_dev(struct device_node *node,
+				 struct pci_bus *bus, int devfn)
 {
 	struct pci_dev *dev;
 	const char *type;
@@ -354,10 +354,9 @@ static struct pci_dev *of_create_pci_dev(struct device_node *node,
 
 	return dev;
 }
+EXPORT_SYMBOL(of_create_pci_dev);
 
-static void of_scan_pci_bridge(struct device_node *node, struct pci_dev *dev);
-
-static void __devinit of_scan_bus(struct device_node *node,
+void __devinit of_scan_bus(struct device_node *node,
 				  struct pci_bus *bus)
 {
 	struct device_node *child = NULL;
@@ -381,9 +380,10 @@ static void __devinit of_scan_bus(struct device_node *node,
 
 	do_bus_setup(bus);
 }
+EXPORT_SYMBOL(of_scan_bus);
 
-static void __devinit of_scan_pci_bridge(struct device_node *node,
-					 struct pci_dev *dev)
+void __devinit of_scan_pci_bridge(struct device_node *node,
+			 	struct pci_dev *dev)
 {
 	struct pci_bus *bus;
 	u32 *busrange, *ranges;
@@ -464,9 +464,10 @@ static void __devinit of_scan_pci_bridge(struct device_node *node,
 	else if (mode == PCI_PROBE_NORMAL)
 		pci_scan_child_bus(bus);
 }
+EXPORT_SYMBOL(of_scan_pci_bridge);
 #endif /* CONFIG_PPC_MULTIPLATFORM */
 
-static void __devinit scan_phb(struct pci_controller *hose)
+void __devinit scan_phb(struct pci_controller *hose)
 {
 	struct pci_bus *bus;
 	struct device_node *node = hose->arch_data;

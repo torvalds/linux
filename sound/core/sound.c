@@ -130,7 +130,7 @@ static int snd_open(struct inode *inode, struct file *file)
 	struct file_operations *old_fops;
 	int err = 0;
 
-	if (dev != SNDRV_MINOR_SEQUENCER && dev != SNDRV_MINOR_TIMER) {
+	if (dev != SNDRV_MINOR_GLOBAL) {
 		if (snd_cards[card] == NULL) {
 #ifdef CONFIG_KMOD
 			snd_request_card(card);
@@ -287,7 +287,7 @@ static void snd_minor_info_read(snd_info_entry_t *entry, snd_info_buffer_t * buf
 	for (card = 0; card < SNDRV_CARDS; card++) {
 		list_for_each(list, &snd_minors_hash[card]) {
 			mptr = list_entry(list, snd_minor_t, list);
-			if (SNDRV_MINOR_DEVICE(mptr->number) != SNDRV_MINOR_SEQUENCER) {
+			if (SNDRV_MINOR_DEVICE(mptr->number) != SNDRV_MINOR_GLOBAL) {
 				if ((device = mptr->device) >= 0)
 					snd_iprintf(buffer, "%3i: [%i-%2i]: %s\n", mptr->number, card, device, mptr->comment);
 				else
@@ -350,9 +350,7 @@ static int __init alsa_sound_init(void)
 		devfs_remove("snd");
 		return -EIO;
 	}
-	snd_memory_init();
 	if (snd_info_init() < 0) {
-		snd_memory_done();
 		unregister_chrdev(major, "alsa");
 		devfs_remove("snd");
 		return -ENOMEM;
@@ -381,7 +379,6 @@ static void __exit alsa_sound_exit(void)
 #endif
 	snd_info_minor_unregister();
 	snd_info_done();
-	snd_memory_done();
 	if (unregister_chrdev(major, "alsa") != 0)
 		snd_printk(KERN_ERR "unable to unregister major device number %d\n", major);
 	devfs_remove("snd");
@@ -403,14 +400,6 @@ EXPORT_SYMBOL(snd_register_oss_device);
 EXPORT_SYMBOL(snd_unregister_oss_device);
 #endif
   /* memory.c */
-#ifdef CONFIG_SND_DEBUG_MEMORY
-EXPORT_SYMBOL(snd_hidden_kmalloc);
-EXPORT_SYMBOL(snd_hidden_kcalloc);
-EXPORT_SYMBOL(snd_hidden_kfree);
-EXPORT_SYMBOL(snd_hidden_vmalloc);
-EXPORT_SYMBOL(snd_hidden_vfree);
-EXPORT_SYMBOL(snd_hidden_kstrdup);
-#endif
 EXPORT_SYMBOL(copy_to_user_fromio);
 EXPORT_SYMBOL(copy_from_user_toio);
   /* init.c */
@@ -487,17 +476,10 @@ EXPORT_SYMBOL(snd_ctl_unregister_ioctl_compat);
 EXPORT_SYMBOL(snd_ctl_elem_read);
 EXPORT_SYMBOL(snd_ctl_elem_write);
   /* misc.c */
-EXPORT_SYMBOL(snd_task_name);
+EXPORT_SYMBOL(release_and_free_resource);
 #ifdef CONFIG_SND_VERBOSE_PRINTK
 EXPORT_SYMBOL(snd_verbose_printk);
 #endif
 #if defined(CONFIG_SND_DEBUG) && defined(CONFIG_SND_VERBOSE_PRINTK)
 EXPORT_SYMBOL(snd_verbose_printd);
-#endif
-  /* wrappers */
-#ifdef CONFIG_SND_DEBUG_MEMORY
-EXPORT_SYMBOL(snd_wrapper_kmalloc);
-EXPORT_SYMBOL(snd_wrapper_kfree);
-EXPORT_SYMBOL(snd_wrapper_vmalloc);
-EXPORT_SYMBOL(snd_wrapper_vfree);
 #endif

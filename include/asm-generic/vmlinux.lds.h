@@ -35,6 +35,13 @@
 		VMLINUX_SYMBOL(__end_pci_fixups_enable) = .;		\
 	}								\
 									\
+	/* RapidIO route ops */						\
+	.rio_route        : AT(ADDR(.rio_route) - LOAD_OFFSET) {	\
+		VMLINUX_SYMBOL(__start_rio_route_ops) = .;		\
+		*(.rio_route_ops)					\
+		VMLINUX_SYMBOL(__end_rio_route_ops) = .;		\
+	}								\
+									\
 	/* Kernel symbol table: Normal symbols */			\
 	__ksymtab         : AT(ADDR(__ksymtab) - LOAD_OFFSET) {		\
 		VMLINUX_SYMBOL(__start___ksymtab) = .;			\

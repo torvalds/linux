@@ -9,7 +9,7 @@
 
 #if	defined(__KERNEL__)
 
-typedef struct kmem_cache_s kmem_cache_t;
+typedef struct kmem_cache kmem_cache_t;
 
 #include	<linux/config.h>	/* kmalloc_sizes.h needs CONFIG_ options */
 #include	<linux/gfp.h>

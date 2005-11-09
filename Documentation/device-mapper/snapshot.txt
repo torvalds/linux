@@ -19,7 +19,6 @@ There are two dm targets available: snapshot and snapshot-origin.
 *) snapshot-origin <origin>
 
 which will normally have one or more snapshots based on it.
-You must create the snapshot-origin device before you can create snapshots.
 Reads will be mapped directly to the backing device. For each write, the
 original data will be saved in the <COW device> of each snapshot to keep
 its visible content unchanged, at least until the <COW device> fills up.
@@ -27,7 +26,7 @@ its visible content unchanged, at least until the <COW device> fills up.
 
 *) snapshot <origin> <COW device> <persistent?> <chunksize>
 
-A snapshot is created of the <origin> block device. Changed chunks of
+A snapshot of the <origin> block device is created. Changed chunks of
 <chunksize> sectors will be stored on the <COW device>.  Writes will
 only go to the <COW device>.  Reads will come from the <COW device> or
 from <origin> for unchanged data.  <COW device> will often be
@@ -37,6 +36,8 @@ the amount of free space and expand the <COW device> before it fills up.
 
 <persistent?> is P (Persistent) or N (Not persistent - will not survive
 after reboot).
+The difference is that for transient snapshots less metadata must be
+saved on disk - they can be kept in memory by the kernel.
 
 
 How this is used by LVM2

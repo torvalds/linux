@@ -75,6 +75,7 @@
 #include <asm/smu.h>
 #include <asm/pmc.h>
 #include <asm/mpic.h>
+#include <asm/lmb.h>
 
 #include "pmac.h"
 
@@ -190,18 +191,6 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 	/* Indicate newworld/oldworld */
 	seq_printf(m, "pmac-generation\t: %s\n",
 		   pmac_newworld ? "NewWorld" : "OldWorld");
-}
-
-static void pmac_show_percpuinfo(struct seq_file *m, int i)
-{
-#ifdef CONFIG_CPU_FREQ_PMAC
-	extern unsigned int pmac_get_one_cpufreq(int i);
-	unsigned int freq = pmac_get_one_cpufreq(i);
-	if (freq != 0) {
-		seq_printf(m, "clock\t\t: %dMHz\n", freq/1000);
-		return;
-	}
-#endif /* CONFIG_CPU_FREQ_PMAC */
 }
 
 #ifndef CONFIG_ADB_CUDA
@@ -350,7 +339,7 @@ void __init pmac_setup_arch(void)
 	find_via_pmu();
 	smu_init();
 
-#ifdef CONFIG_NVRAM
+#if defined(CONFIG_NVRAM) || defined(CONFIG_PPC64)
 	pmac_nvram_init();
 #endif
 
@@ -766,7 +755,6 @@ struct machdep_calls __initdata pmac_md = {
 	.setup_arch		= pmac_setup_arch,
 	.init_early		= pmac_init_early,
 	.show_cpuinfo		= pmac_show_cpuinfo,
-	.show_percpuinfo	= pmac_show_percpuinfo,
 	.init_IRQ		= pmac_pic_init,
 	.get_irq		= mpic_get_irq,	/* changed later */
 	.pcibios_fixup		= pmac_pcibios_fixup,

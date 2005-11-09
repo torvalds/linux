@@ -12,8 +12,7 @@ obj-y               :=	misc.o prom.o
 endif
 
 obj-y               +=	irq.o idle.o dma.o \
-			signal.o \
-			align.o bitops.o pacaData.o \
+			align.o pacaData.o \
 			udbg.o ioctl32.o \
 			rtc.o \
 			cpu_setup_power4.o \
@@ -29,22 +28,16 @@ ifneq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_PPC_MULTIPLATFORM) += prom_init.o
 endif
 
-obj-$(CONFIG_PPC_PSERIES) += rtasd.o udbg_16550.o
-
-obj-$(CONFIG_PPC_BPA) += bpa_setup.o bpa_iommu.o bpa_nvram.o \
-			 bpa_iic.o spider-pic.o
+obj-$(CONFIG_PPC_PSERIES) += udbg_16550.o
 
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o
 obj-$(CONFIG_EEH)		+= eeh.o
 obj-$(CONFIG_PROC_FS)		+= proc_ppc64.o
-obj-$(CONFIG_RTAS_FLASH)	+= rtas_flash.o
-obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_MODULES)		+= module.o
 ifneq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 endif
 obj-$(CONFIG_PPC_RTAS)		+= rtas_pci.o
-obj-$(CONFIG_RTAS_PROC)		+= rtas-proc.o
 obj-$(CONFIG_SCANLOG)		+= scanlog.o
 obj-$(CONFIG_LPARCFG)		+= lparcfg.o
 obj-$(CONFIG_HVC_CONSOLE)	+= hvconsole.o
@@ -56,11 +49,6 @@ obj-$(CONFIG_HVCS)		+= hvcserver.o
 obj-$(CONFIG_PPC_PMAC)		+= udbg_scc.o
 
 obj-$(CONFIG_PPC_MAPLE)		+= udbg_16550.o
-
-ifdef CONFIG_SMP
-obj-$(CONFIG_PPC_PMAC)		+= smp-tbsync.o
-obj-$(CONFIG_PPC_MAPLE)		+= smp-tbsync.o
-endif
 
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 

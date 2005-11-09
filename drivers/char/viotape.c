@@ -29,10 +29,9 @@
  *
  * All tape operations are performed by sending messages back and forth to
  * the OS/400 partition.  The format of the messages is defined in
- * iSeries/vio.h
+ * iseries/vio.h
  */
 #include <linux/config.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -54,10 +53,10 @@
 #include <asm/ioctls.h>
 
 #include <asm/vio.h>
-#include <asm/iSeries/vio.h>
-#include <asm/iSeries/HvLpEvent.h>
-#include <asm/iSeries/HvCallEvent.h>
-#include <asm/iSeries/HvLpConfig.h>
+#include <asm/iseries/vio.h>
+#include <asm/iseries/hv_lp_event.h>
+#include <asm/iseries/hv_call_event.h>
+#include <asm/iseries/hv_lp_config.h>
 
 #define VIOTAPE_VERSION		"1.2"
 #define VIOTAPE_MAXREQ		1

@@ -30,8 +30,8 @@
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
 #include <asm/io.h>
 
@@ -270,7 +270,7 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 static void mv_eng_timeout(struct ata_port *ap);
 static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 
-static Scsi_Host_Template mv_sht = {
+static struct scsi_host_template mv_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
@@ -670,6 +670,11 @@ static void mv_host_stop(struct ata_host_set *host_set)
 	ata_host_stop(host_set);
 }
 
+static inline void mv_priv_free(struct mv_port_priv *pp, struct device *dev)
+{
+	dma_free_coherent(dev, MV_PORT_PRIV_DMA_SZ, pp->crpb, pp->crpb_dma);
+}
+
 /**
  *      mv_port_start - Port specific init/start routine.
  *      @ap: ATA channel to manipulate
@@ -687,20 +692,22 @@ static int mv_port_start(struct ata_port *ap)
 	void __iomem *port_mmio = mv_ap_base(ap);
 	void *mem;
 	dma_addr_t mem_dma;
+	int rc = -ENOMEM;
 
 	pp = kmalloc(sizeof(*pp), GFP_KERNEL);
-	if (!pp) {
-		return -ENOMEM;
-	}
+	if (!pp)
+		goto err_out;
 	memset(pp, 0, sizeof(*pp));
 
 	mem = dma_alloc_coherent(dev, MV_PORT_PRIV_DMA_SZ, &mem_dma, 
 				 GFP_KERNEL);
-	if (!mem) {
-		kfree(pp);
-		return -ENOMEM;
-	}
+	if (!mem)
+		goto err_out_pp;
 	memset(mem, 0, MV_PORT_PRIV_DMA_SZ);
+
+	rc = ata_pad_alloc(ap, dev);
+	if (rc)
+		goto err_out_priv;
 
 	/* First item in chunk of DMA memory: 
 	 * 32-slot command request table (CRQB), 32 bytes each in size
@@ -746,6 +753,13 @@ static int mv_port_start(struct ata_port *ap)
 	 */
 	ap->private_data = pp;
 	return 0;
+
+err_out_priv:
+	mv_priv_free(pp, dev);
+err_out_pp:
+	kfree(pp);
+err_out:
+	return rc;
 }
 
 /**
@@ -768,7 +782,8 @@ static void mv_port_stop(struct ata_port *ap)
 	spin_unlock_irqrestore(&ap->host_set->lock, flags);
 
 	ap->private_data = NULL;
-	dma_free_coherent(dev, MV_PORT_PRIV_DMA_SZ, pp->crpb, pp->crpb_dma);
+	ata_pad_free(ap, dev);
+	mv_priv_free(pp, dev);
 	kfree(pp);
 }
 
@@ -784,23 +799,24 @@ static void mv_port_stop(struct ata_port *ap)
 static void mv_fill_sg(struct ata_queued_cmd *qc)
 {
 	struct mv_port_priv *pp = qc->ap->private_data;
-	unsigned int i;
+	unsigned int i = 0;
+	struct scatterlist *sg;
 
-	for (i = 0; i < qc->n_elem; i++) {
+	ata_for_each_sg(sg, qc) {
 		u32 sg_len;
 		dma_addr_t addr;
 
-		addr = sg_dma_address(&qc->sg[i]);
-		sg_len = sg_dma_len(&qc->sg[i]);
+		addr = sg_dma_address(sg);
+		sg_len = sg_dma_len(sg);
 
 		pp->sg_tbl[i].addr = cpu_to_le32(addr & 0xffffffff);
 		pp->sg_tbl[i].addr_hi = cpu_to_le32((addr >> 16) >> 16);
 		assert(0 == (sg_len & ~MV_DMA_BOUNDARY));
 		pp->sg_tbl[i].flags_size = cpu_to_le32(sg_len);
-	}
-	if (0 < qc->n_elem) {
-		pp->sg_tbl[qc->n_elem - 1].flags_size |= 
-			cpu_to_le32(EPRD_FLAG_END_OF_TBL);
+		if (ata_sg_is_last(sg, qc))
+			pp->sg_tbl[i].flags_size |= cpu_to_le32(EPRD_FLAG_END_OF_TBL);
+
+		i++;
 	}
 }
 

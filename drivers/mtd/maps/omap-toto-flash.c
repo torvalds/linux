@@ -5,7 +5,7 @@
  *
  *  (C) 2002 MontVista Software, Inc.
  *
- * $Id: omap-toto-flash.c,v 1.3 2004/09/16 23:27:13 gleixner Exp $
+ * $Id: omap-toto-flash.c,v 1.5 2005/11/07 11:14:27 gleixner Exp $
  */
 
 #include <linux/config.h>
@@ -38,7 +38,7 @@ static struct map_info omap_toto_map_flash = {
 	.virt =		(void __iomem *)OMAP_TOTO_FLASH_BASE,
 };
 
- 
+
 static struct mtd_partition toto_flash_partitions[] = {
 	{
 		.name =		"BootLoader",
@@ -54,21 +54,21 @@ static struct mtd_partition toto_flash_partitions[] = {
 		.name =		"EnvArea",      /* bottom 64KiB for env vars */
 		.size =		MTDPART_SIZ_FULL,
 		.offset =	MTDPART_OFS_APPEND,
-	} 
+	}
 };
 
 static struct mtd_partition *parsed_parts;
 
 static struct mtd_info *flash_mtd;
- 
-static int __init init_flash (void)   
+
+static int __init init_flash (void)
 {
 
 	struct mtd_partition *parts;
 	int nb_parts = 0;
 	int parsed_nr_parts = 0;
 	const char *part_type;
- 
+
 	/*
 	 * Static partition definition selection
 	 */
@@ -89,7 +89,7 @@ static int __init init_flash (void)
 	flash_mtd = do_map_probe("jedec_probe", &omap_toto_map_flash);
 	if (!flash_mtd)
 		return -ENXIO;
- 
+
  	if (parsed_nr_parts > 0) {
 		parts = parsed_parts;
 		nb_parts = parsed_nr_parts;
@@ -108,8 +108,8 @@ static int __init init_flash (void)
 	}
 	return 0;
 }
- 
-int __init omap_toto_mtd_init(void)  
+
+int __init omap_toto_mtd_init(void)
 {
 	int status;
 
@@ -119,13 +119,12 @@ int __init omap_toto_mtd_init(void)
     return status;
 }
 
-static void  __exit omap_toto_mtd_cleanup(void)  
+static void  __exit omap_toto_mtd_cleanup(void)
 {
 	if (flash_mtd) {
 		del_mtd_partitions(flash_mtd);
 		map_destroy(flash_mtd);
-		if (parsed_parts)
-			kfree(parsed_parts);
+		kfree(parsed_parts);
 	}
 }
 

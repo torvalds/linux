@@ -599,18 +599,8 @@ static struct device_driver mac_sonic_driver = {
 	.remove = __devexit_p(mac_sonic_device_remove),
 };
 
-static void mac_sonic_platform_release(struct device *device)
-{
-	struct platform_device *pldev;
-
-	/* free device */
-	pldev = to_platform_device (device);
-	kfree (pldev);
-}
-
 static int __init mac_sonic_init_module(void)
 {
-	struct platform_device *pldev;
 	int err;
 
 	if ((err = driver_register(&mac_sonic_driver))) {
@@ -618,27 +608,20 @@ static int __init mac_sonic_init_module(void)
 		return err;
 	}
 
-	mac_sonic_device = NULL;
-
-	if (!(pldev = kmalloc (sizeof (*pldev), GFP_KERNEL))) {
+	mac_sonic_device = platform_device_alloc(mac_sonic_string, 0);
+	if (!mac_sonic_device) {
 		goto out_unregister;
 	}
 
-	memset(pldev, 0, sizeof (*pldev));
-	pldev->name		= mac_sonic_string;
-	pldev->id		= 0;
-	pldev->dev.release	= mac_sonic_platform_release;
-	mac_sonic_device	= pldev;
-
-	if (platform_device_register (pldev)) {
-		kfree(pldev);
+	if (platform_device_add(mac_sonic_device)) {
+		platform_device_put(mac_sonic_device);
 		mac_sonic_device = NULL;
 	}
 
 	return 0;
 
 out_unregister:
-	platform_device_unregister(pldev);
+	driver_unregister(&mac_sonic_driver);
 
 	return -ENOMEM;
 }

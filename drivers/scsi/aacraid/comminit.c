@@ -116,6 +116,10 @@ static int aac_alloc_comm(struct aac_dev *dev, void **commaddr, unsigned long co
 	}
 
 	init->InitFlags = 0;
+	if (dev->new_comm_interface) {
+		init->InitFlags = cpu_to_le32(INITFLAGS_NEW_COMM_SUPPORTED);
+		dprintk((KERN_WARNING"aacraid: New Comm Interface enabled\n"));
+	}
 	init->MaxIoCommands = cpu_to_le32(dev->scsi_host_ptr->can_queue + AAC_NUM_MGT_FIB);
 	init->MaxIoSize = cpu_to_le32(dev->scsi_host_ptr->max_sectors << 9);
 	init->MaxFibSize = cpu_to_le32(dev->max_fib_size);
@@ -315,12 +319,33 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 		- sizeof(struct aac_fibhdr)
 		- sizeof(struct aac_write) + sizeof(struct sgentry))
 			/ sizeof(struct sgentry);
+	dev->new_comm_interface = 0;
 	dev->raw_io_64 = 0;
 	if ((!aac_adapter_sync_cmd(dev, GET_ADAPTER_PROPERTIES,
 		0, 0, 0, 0, 0, 0, status+0, status+1, status+2, NULL, NULL)) &&
 	 		(status[0] == 0x00000001)) {
 		if (status[1] & AAC_OPT_NEW_COMM_64)
 			dev->raw_io_64 = 1;
+		if (status[1] & AAC_OPT_NEW_COMM)
+			dev->new_comm_interface = dev->a_ops.adapter_send != 0;
+		if (dev->new_comm_interface && (status[2] > dev->base_size)) {
+			iounmap(dev->regs.sa);
+			dev->base_size = status[2];
+			dprintk((KERN_DEBUG "ioremap(%lx,%d)\n",
+			  host->base, status[2]));
+			dev->regs.sa = ioremap(host->base, status[2]);
+			if (dev->regs.sa == NULL) {
+				/* remap failed, go back ... */
+				dev->new_comm_interface = 0;
+				dev->regs.sa = ioremap(host->base, 
+						AAC_MIN_FOOTPRINT_SIZE);
+				if (dev->regs.sa == NULL) {	
+					printk(KERN_WARNING
+					  "aacraid: unable to map adapter.\n");
+					return NULL;
+				}
+			}
+		}
 	}
 	if ((!aac_adapter_sync_cmd(dev, GET_COMM_PREFERRED_SETTINGS,
 	  0, 0, 0, 0, 0, 0,

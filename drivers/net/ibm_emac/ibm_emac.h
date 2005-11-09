@@ -26,7 +26,8 @@
 /* This is a simple check to prevent use of this driver on non-tested SoCs */
 #if !defined(CONFIG_405GP) && !defined(CONFIG_405GPR) && !defined(CONFIG_405EP) && \
     !defined(CONFIG_440GP) && !defined(CONFIG_440GX) && !defined(CONFIG_440SP) && \
-    !defined(CONFIG_440EP) && !defined(CONFIG_NP405H)
+    !defined(CONFIG_440EP) && !defined(CONFIG_NP405H) && !defined(CONFIG_440SPE) && \
+    !defined(CONFIG_440GR)
 #error	"Unknown SoC. Please, check chip user manual and make sure EMAC defines are OK"
 #endif
 
@@ -245,6 +246,25 @@ struct emac_regs {
 #define EMAC_STACR_PCDA_MASK		0x1f
 #define EMAC_STACR_PCDA_SHIFT		5
 #define EMAC_STACR_PRA_MASK		0x1f
+
+/*
+ * For the 440SPe, AMCC inexplicably changed the polarity of
+ * the "operation complete" bit in the MII control register.
+ */
+#if defined(CONFIG_440SPE)
+static inline int emac_phy_done(u32 stacr)
+{
+	return !(stacr & EMAC_STACR_OC);
+};
+#define EMAC_STACR_START 		EMAC_STACR_OC
+
+#else /* CONFIG_440SPE */
+static inline int emac_phy_done(u32 stacr)
+{
+	return stacr & EMAC_STACR_OC;
+};
+#define EMAC_STACR_START 		0
+#endif /* !CONFIG_440SPE */
 
 /* EMACx_TRTR */
 #if !defined(CONFIG_IBM_EMAC4)

@@ -43,7 +43,6 @@
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 
@@ -219,7 +218,7 @@ static irqreturn_t vsc_sata_interrupt (int irq, void *dev_instance,
 }
 
 
-static Scsi_Host_Template vsc_sata_sht = {
+static struct scsi_host_template vsc_sata_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,

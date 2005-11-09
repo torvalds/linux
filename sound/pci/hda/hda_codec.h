@@ -79,6 +79,8 @@ enum {
 #define AC_VERB_GET_GPIO_MASK			0x0f16
 #define AC_VERB_GET_GPIO_DIRECTION		0x0f17
 #define AC_VERB_GET_CONFIG_DEFAULT		0x0f1c
+/* f20: AFG/MFG */
+#define AC_VERB_GET_SUBSYSTEM_ID		0x0f20
 
 /*
  * SET verbs

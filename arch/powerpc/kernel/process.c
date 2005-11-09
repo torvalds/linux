@@ -46,9 +46,9 @@
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/prom.h>
+#include <asm/machdep.h>
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
-#include <asm/plpar_wrappers.h>
 #include <asm/time.h>
 #endif
 
@@ -201,27 +201,13 @@ int dump_spe(struct pt_regs *regs, elf_vrregset_t *evrregs)
 }
 #endif /* CONFIG_SPE */
 
-static void set_dabr_spr(unsigned long val)
-{
-	mtspr(SPRN_DABR, val);
-}
-
 int set_dabr(unsigned long dabr)
 {
-	int ret = 0;
+	if (ppc_md.set_dabr)
+		return ppc_md.set_dabr(dabr);
 
-#ifdef CONFIG_PPC64
-	if (firmware_has_feature(FW_FEATURE_XDABR)) {
-		/* We want to catch accesses from kernel and userspace */
-		unsigned long flags = H_DABRX_KERNEL|H_DABRX_USER;
-		ret = plpar_set_xdabr(dabr, flags);
-	} else if (firmware_has_feature(FW_FEATURE_DABR)) {
-		ret = plpar_set_dabr(dabr);
-	} else
-#endif
-		set_dabr_spr(dabr);
-
-	return ret;
+	mtspr(SPRN_DABR, dabr);
+	return 0;
 }
 
 #ifdef CONFIG_PPC64
@@ -566,12 +552,10 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 #ifdef CONFIG_PPC64
 	if (cpu_has_feature(CPU_FTR_SLB)) {
 		unsigned long sp_vsid = get_kernel_vsid(sp);
+		unsigned long llp = mmu_psize_defs[mmu_linear_psize].sllp;
 
 		sp_vsid <<= SLB_VSID_SHIFT;
-		sp_vsid |= SLB_VSID_KERNEL;
-		if (cpu_has_feature(CPU_FTR_16M_PAGE))
-			sp_vsid |= SLB_VSID_L;
-
+		sp_vsid |= SLB_VSID_KERNEL | llp;
 		p->thread.ksp_vsid = sp_vsid;
 	}
 

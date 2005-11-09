@@ -460,7 +460,9 @@ int mthca_init_cq(struct mthca_dev *dev, int nent,
 		  struct mthca_cq *cq);
 void mthca_free_cq(struct mthca_dev *dev,
 		   struct mthca_cq *cq);
-void mthca_cq_event(struct mthca_dev *dev, u32 cqn);
+void mthca_cq_completion(struct mthca_dev *dev, u32 cqn);
+void mthca_cq_event(struct mthca_dev *dev, u32 cqn,
+		    enum ib_event_type event_type);
 void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
 		    struct mthca_srq *srq);
 

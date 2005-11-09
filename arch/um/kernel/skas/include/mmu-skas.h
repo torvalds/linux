@@ -8,6 +8,7 @@
 
 #include "linux/config.h"
 #include "mm_id.h"
+#include "asm/ldt.h"
 
 struct mmu_context_skas {
 	struct mm_id id;
@@ -15,6 +16,7 @@ struct mmu_context_skas {
 #ifdef CONFIG_3_LEVEL_PGTABLES
         unsigned long last_pmd;
 #endif
+	uml_ldt_t ldt;
 };
 
 extern void switch_mm_skas(struct mm_id * mm_idp);

@@ -21,7 +21,7 @@
 #include <asm/processor.h>
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
-#include <asm/iSeries/HvCall.h>
+#include <asm/iseries/hv_call.h>
 #endif
 
 /* time.c */

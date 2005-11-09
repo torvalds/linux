@@ -560,7 +560,7 @@ _GLOBAL(real_readb)
 	isync
 	blr
 
-	/*
+/*
  * Do an IO access in real mode
  */
 _GLOBAL(real_writeb)
@@ -591,6 +591,76 @@ _GLOBAL(real_writeb)
 	isync
 	blr
 #endif /* defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_MAPLE) */
+
+/*
+ * SCOM access functions for 970 (FX only for now)
+ *
+ * unsigned long scom970_read(unsigned int address);
+ * void scom970_write(unsigned int address, unsigned long value);
+ *
+ * The address passed in is the 24 bits register address. This code
+ * is 970 specific and will not check the status bits, so you should
+ * know what you are doing.
+ */
+_GLOBAL(scom970_read)
+	/* interrupts off */
+	mfmsr	r4
+	ori	r0,r4,MSR_EE
+	xori	r0,r0,MSR_EE
+	mtmsrd	r0,1
+
+	/* rotate 24 bits SCOM address 8 bits left and mask out it's low 8 bits
+	 * (including parity). On current CPUs they must be 0'd,
+	 * and finally or in RW bit
+	 */
+	rlwinm	r3,r3,8,0,15
+	ori	r3,r3,0x8000
+
+	/* do the actual scom read */
+	sync
+	mtspr	SPRN_SCOMC,r3
+	isync
+	mfspr	r3,SPRN_SCOMD
+	isync
+	mfspr	r0,SPRN_SCOMC
+	isync
+
+	/* XXX:	fixup result on some buggy 970's (ouch ! we lost a bit, bah
+	 * that's the best we can do). Not implemented yet as we don't use
+	 * the scom on any of the bogus CPUs yet, but may have to be done
+	 * ultimately
+	 */
+
+	/* restore interrupts */
+	mtmsrd	r4,1
+	blr
+
+
+_GLOBAL(scom970_write)
+	/* interrupts off */
+	mfmsr	r5
+	ori	r0,r5,MSR_EE
+	xori	r0,r0,MSR_EE
+	mtmsrd	r0,1
+
+	/* rotate 24 bits SCOM address 8 bits left and mask out it's low 8 bits
+	 * (including parity). On current CPUs they must be 0'd.
+	 */
+
+	rlwinm	r3,r3,8,0,15
+
+	sync
+	mtspr	SPRN_SCOMD,r4      /* write data */
+	isync
+	mtspr	SPRN_SCOMC,r3      /* write command */
+	isync
+	mfspr	3,SPRN_SCOMC
+	isync
+
+	/* restore interrupts */
+	mtmsrd	r5,1
+	blr
+
 
 /*
  * Create a kernel thread

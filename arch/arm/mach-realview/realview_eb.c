@@ -43,14 +43,44 @@
 #include "clock.h"
 
 static struct map_desc realview_eb_io_desc[] __initdata = {
- { IO_ADDRESS(REALVIEW_SYS_BASE),	REALVIEW_SYS_BASE,	SZ_4K,	MT_DEVICE },
- { IO_ADDRESS(REALVIEW_GIC_CPU_BASE),	REALVIEW_GIC_CPU_BASE,	SZ_4K,	MT_DEVICE },
- { IO_ADDRESS(REALVIEW_GIC_DIST_BASE),	REALVIEW_GIC_DIST_BASE,	SZ_4K,	MT_DEVICE },
- { IO_ADDRESS(REALVIEW_SCTL_BASE),	REALVIEW_SCTL_BASE,	SZ_4K,	MT_DEVICE },
- { IO_ADDRESS(REALVIEW_TIMER0_1_BASE),	REALVIEW_TIMER0_1_BASE,	SZ_4K,	MT_DEVICE },
- { IO_ADDRESS(REALVIEW_TIMER2_3_BASE),	REALVIEW_TIMER2_3_BASE,	SZ_4K,	MT_DEVICE },
+	{
+		.virtual	= IO_ADDRESS(REALVIEW_SYS_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_SYS_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= IO_ADDRESS(REALVIEW_GIC_CPU_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_GIC_CPU_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= IO_ADDRESS(REALVIEW_GIC_DIST_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_GIC_DIST_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= IO_ADDRESS(REALVIEW_SCTL_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_SCTL_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= IO_ADDRESS(REALVIEW_TIMER0_1_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_TIMER0_1_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= IO_ADDRESS(REALVIEW_TIMER2_3_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_TIMER2_3_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	},
 #ifdef CONFIG_DEBUG_LL
- { IO_ADDRESS(REALVIEW_UART0_BASE),	REALVIEW_UART0_BASE,	SZ_4K,	MT_DEVICE },
+	{
+		.virtual	= IO_ADDRESS(REALVIEW_UART0_BASE),
+		.pfn		= __phys_to_pfn(REALVIEW_UART0_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}
 #endif
 };
 
@@ -106,6 +136,11 @@ static struct amba_device *amba_devs[] __initdata = {
 
 static void __init gic_init_irq(void)
 {
+#ifdef CONFIG_REALVIEW_MPCORE
+	writel(0x0000a05f, __io_address(REALVIEW_SYS_LOCK));
+	writel(0x008003c0, __io_address(REALVIEW_SYS_BASE) + 0xd8);
+	writel(0x00000000, __io_address(REALVIEW_SYS_LOCK));
+#endif
 	gic_dist_init(__io_address(REALVIEW_GIC_DIST_BASE));
 	gic_cpu_init(__io_address(REALVIEW_GIC_CPU_BASE));
 }

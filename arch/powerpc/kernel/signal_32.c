@@ -43,8 +43,7 @@
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
 #ifdef CONFIG_PPC64
-#include <asm/ppc32.h>
-#include <asm/ppcdebug.h>
+#include "ppc32.h"
 #include <asm/unistd.h>
 #include <asm/vdso.h>
 #else

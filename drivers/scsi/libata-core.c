@@ -51,8 +51,8 @@
 #include <linux/jiffies.h>
 #include <linux/scatterlist.h>
 #include <scsi/scsi.h>
-#include "scsi.h"
 #include "scsi_priv.h"
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 #include <asm/io.h>
@@ -1144,7 +1144,7 @@ retry:
 		 * ATA software reset (SRST, the default) does not appear
 		 * to have this problem.
 		 */
-		if ((using_edd) && (qc->tf.command == ATA_CMD_ID_ATA)) {
+		if ((using_edd) && (dev->class == ATA_DEV_ATA)) {
 			u8 err = qc->tf.feature;
 			if (err & ATA_ABORTED) {
 				dev->class = ATA_DEV_ATAPI;
@@ -2390,8 +2390,9 @@ static void ata_dev_init_params(struct ata_port *ap, struct ata_device *dev)
 static void ata_sg_clean(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	struct scatterlist *sg = qc->sg;
+	struct scatterlist *sg = qc->__sg;
 	int dir = qc->dma_dir;
+	void *pad_buf = NULL;
 
 	assert(qc->flags & ATA_QCFLAG_DMAMAP);
 	assert(sg != NULL);
@@ -2401,14 +2402,35 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 
 	DPRINTK("unmapping %u sg elements\n", qc->n_elem);
 
-	if (qc->flags & ATA_QCFLAG_SG)
+	/* if we padded the buffer out to 32-bit bound, and data
+	 * xfer direction is from-device, we must copy from the
+	 * pad buffer back into the supplied buffer
+	 */
+	if (qc->pad_len && !(qc->tf.flags & ATA_TFLAG_WRITE))
+		pad_buf = ap->pad + (qc->tag * ATA_DMA_PAD_SZ);
+
+	if (qc->flags & ATA_QCFLAG_SG) {
 		dma_unmap_sg(ap->host_set->dev, sg, qc->n_elem, dir);
-	else
+		/* restore last sg */
+		sg[qc->orig_n_elem - 1].length += qc->pad_len;
+		if (pad_buf) {
+			struct scatterlist *psg = &qc->pad_sgent;
+			void *addr = kmap_atomic(psg->page, KM_IRQ0);
+			memcpy(addr + psg->offset, pad_buf, qc->pad_len);
+			kunmap_atomic(psg->page, KM_IRQ0);
+		}
+	} else {
 		dma_unmap_single(ap->host_set->dev, sg_dma_address(&sg[0]),
 				 sg_dma_len(&sg[0]), dir);
+		/* restore sg */
+		sg->length += qc->pad_len;
+		if (pad_buf)
+			memcpy(qc->buf_virt + sg->length - qc->pad_len,
+			       pad_buf, qc->pad_len);
+	}
 
 	qc->flags &= ~ATA_QCFLAG_DMAMAP;
-	qc->sg = NULL;
+	qc->__sg = NULL;
 }
 
 /**
@@ -2424,15 +2446,15 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
  */
 static void ata_fill_sg(struct ata_queued_cmd *qc)
 {
-	struct scatterlist *sg = qc->sg;
 	struct ata_port *ap = qc->ap;
-	unsigned int idx, nelem;
+	struct scatterlist *sg;
+	unsigned int idx;
 
-	assert(sg != NULL);
+	assert(qc->__sg != NULL);
 	assert(qc->n_elem > 0);
 
 	idx = 0;
-	for (nelem = qc->n_elem; nelem; nelem--,sg++) {
+	ata_for_each_sg(sg, qc) {
 		u32 addr, offset;
 		u32 sg_len, len;
 
@@ -2518,12 +2540,18 @@ void ata_qc_prep(struct ata_queued_cmd *qc)
 
 void ata_sg_init_one(struct ata_queued_cmd *qc, void *buf, unsigned int buflen)
 {
+	struct scatterlist *sg;
+
 	qc->flags |= ATA_QCFLAG_SINGLE;
 
-	qc->sg = &qc->sgent;
+	memset(&qc->sgent, 0, sizeof(qc->sgent));
+	qc->__sg = &qc->sgent;
 	qc->n_elem = 1;
+	qc->orig_n_elem = 1;
 	qc->buf_virt = buf;
-	sg_init_one(qc->sg, buf, buflen);
+
+	sg = qc->__sg;
+	sg_init_one(sg, buf, buflen);
 }
 
 /**
@@ -2544,8 +2572,9 @@ void ata_sg_init(struct ata_queued_cmd *qc, struct scatterlist *sg,
 		 unsigned int n_elem)
 {
 	qc->flags |= ATA_QCFLAG_SG;
-	qc->sg = sg;
+	qc->__sg = sg;
 	qc->n_elem = n_elem;
+	qc->orig_n_elem = n_elem;
 }
 
 /**
@@ -2565,13 +2594,39 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	int dir = qc->dma_dir;
-	struct scatterlist *sg = qc->sg;
+	struct scatterlist *sg = qc->__sg;
 	dma_addr_t dma_address;
+
+	/* we must lengthen transfers to end on a 32-bit boundary */
+	qc->pad_len = sg->length & 3;
+	if (qc->pad_len) {
+		void *pad_buf = ap->pad + (qc->tag * ATA_DMA_PAD_SZ);
+		struct scatterlist *psg = &qc->pad_sgent;
+
+		assert(qc->dev->class == ATA_DEV_ATAPI);
+
+		memset(pad_buf, 0, ATA_DMA_PAD_SZ);
+
+		if (qc->tf.flags & ATA_TFLAG_WRITE)
+			memcpy(pad_buf, qc->buf_virt + sg->length - qc->pad_len,
+			       qc->pad_len);
+
+		sg_dma_address(psg) = ap->pad_dma + (qc->tag * ATA_DMA_PAD_SZ);
+		sg_dma_len(psg) = ATA_DMA_PAD_SZ;
+		/* trim sg */
+		sg->length -= qc->pad_len;
+
+		DPRINTK("padding done, sg->length=%u pad_len=%u\n",
+			sg->length, qc->pad_len);
+	}
 
 	dma_address = dma_map_single(ap->host_set->dev, qc->buf_virt,
 				     sg->length, dir);
-	if (dma_mapping_error(dma_address))
+	if (dma_mapping_error(dma_address)) {
+		/* restore sg */
+		sg->length += qc->pad_len;
 		return -1;
+	}
 
 	sg_dma_address(sg) = dma_address;
 	sg_dma_len(sg) = sg->length;
@@ -2599,16 +2654,54 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 static int ata_sg_setup(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
-	struct scatterlist *sg = qc->sg;
+	struct scatterlist *sg = qc->__sg;
+	struct scatterlist *lsg = &sg[qc->n_elem - 1];
 	int n_elem, dir;
 
 	VPRINTK("ENTER, ata%u\n", ap->id);
 	assert(qc->flags & ATA_QCFLAG_SG);
 
+	/* we must lengthen transfers to end on a 32-bit boundary */
+	qc->pad_len = lsg->length & 3;
+	if (qc->pad_len) {
+		void *pad_buf = ap->pad + (qc->tag * ATA_DMA_PAD_SZ);
+		struct scatterlist *psg = &qc->pad_sgent;
+		unsigned int offset;
+
+		assert(qc->dev->class == ATA_DEV_ATAPI);
+
+		memset(pad_buf, 0, ATA_DMA_PAD_SZ);
+
+		/*
+		 * psg->page/offset are used to copy to-be-written
+		 * data in this function or read data in ata_sg_clean.
+		 */
+		offset = lsg->offset + lsg->length - qc->pad_len;
+		psg->page = nth_page(lsg->page, offset >> PAGE_SHIFT);
+		psg->offset = offset_in_page(offset);
+
+		if (qc->tf.flags & ATA_TFLAG_WRITE) {
+			void *addr = kmap_atomic(psg->page, KM_IRQ0);
+			memcpy(pad_buf, addr + psg->offset, qc->pad_len);
+			kunmap_atomic(psg->page, KM_IRQ0);
+		}
+
+		sg_dma_address(psg) = ap->pad_dma + (qc->tag * ATA_DMA_PAD_SZ);
+		sg_dma_len(psg) = ATA_DMA_PAD_SZ;
+		/* trim last sg */
+		lsg->length -= qc->pad_len;
+
+		DPRINTK("padding done, sg[%d].length=%u pad_len=%u\n",
+			qc->n_elem - 1, lsg->length, qc->pad_len);
+	}
+
 	dir = qc->dma_dir;
 	n_elem = dma_map_sg(ap->host_set->dev, sg, qc->n_elem, dir);
-	if (n_elem < 1)
+	if (n_elem < 1) {
+		/* restore last sg */
+		lsg->length += qc->pad_len;
 		return -1;
+	}
 
 	DPRINTK("%d sg elements mapped\n", n_elem);
 
@@ -2620,7 +2713,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 /**
  *	ata_poll_qc_complete - turn irq back on and finish qc
  *	@qc: Command to complete
- *	@drv_stat: ATA status register content
+ *	@err_mask: ATA status register content
  *
  *	LOCKING:
  *	None.  (grabs host lock)
@@ -2654,7 +2747,6 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 	u8 status;
 	unsigned int poll_state = HSM_ST_UNKNOWN;
 	unsigned int reg_state = HSM_ST_UNKNOWN;
-	const unsigned int tmout_state = HSM_ST_TMOUT;
 
 	switch (ap->hsm_task_state) {
 	case HSM_ST:
@@ -2675,7 +2767,7 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 	status = ata_chk_status(ap);
 	if (status & ATA_BUSY) {
 		if (time_after(jiffies, ap->pio_task_timeout)) {
-			ap->hsm_task_state = tmout_state;
+			ap->hsm_task_state = HSM_ST_TMOUT;
 			return 0;
 		}
 		ap->hsm_task_state = poll_state;
@@ -2880,7 +2972,7 @@ static void ata_data_xfer(struct ata_port *ap, unsigned char *buf,
 static void ata_pio_sector(struct ata_queued_cmd *qc)
 {
 	int do_write = (qc->tf.flags & ATA_TFLAG_WRITE);
-	struct scatterlist *sg = qc->sg;
+	struct scatterlist *sg = qc->__sg;
 	struct ata_port *ap = qc->ap;
 	struct page *page;
 	unsigned int offset;
@@ -2930,7 +3022,7 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 static void __atapi_pio_bytes(struct ata_queued_cmd *qc, unsigned int bytes)
 {
 	int do_write = (qc->tf.flags & ATA_TFLAG_WRITE);
-	struct scatterlist *sg = qc->sg;
+	struct scatterlist *sg = qc->__sg;
 	struct ata_port *ap = qc->ap;
 	struct page *page;
 	unsigned char *buf;
@@ -2963,7 +3055,7 @@ next_sg:
 		return;
 	}
 
-	sg = &qc->sg[qc->cursg];
+	sg = &qc->__sg[qc->cursg];
 
 	page = sg->page;
 	offset = sg->offset + qc->cursg_ofs;
@@ -3320,7 +3412,7 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 
 	qc = ata_qc_new(ap);
 	if (qc) {
-		qc->sg = NULL;
+		qc->__sg = NULL;
 		qc->flags = 0;
 		qc->scsicmd = NULL;
 		qc->ap = ap;
@@ -3385,7 +3477,7 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 /**
  *	ata_qc_complete - Complete an active ATA command
  *	@qc: Command to complete
- *	@drv_stat: ATA Status register contents
+ *	@err_mask: ATA Status register contents
  *
  *	Indicate to the mid and upper layers that an ATA
  *	command has completed, with either an ok or not-ok status.
@@ -4004,10 +4096,17 @@ err_out:
 int ata_port_start (struct ata_port *ap)
 {
 	struct device *dev = ap->host_set->dev;
+	int rc;
 
 	ap->prd = dma_alloc_coherent(dev, ATA_PRD_TBL_SZ, &ap->prd_dma, GFP_KERNEL);
 	if (!ap->prd)
 		return -ENOMEM;
+
+	rc = ata_pad_alloc(ap, dev);
+	if (rc) {
+		dma_free_coherent(dev, ATA_PRD_TBL_SZ, ap->prd, ap->prd_dma);
+		return rc;
+	}
 
 	DPRINTK("prd alloc, virt %p, dma %llx\n", ap->prd, (unsigned long long) ap->prd_dma);
 
@@ -4032,6 +4131,7 @@ void ata_port_stop (struct ata_port *ap)
 	struct device *dev = ap->host_set->dev;
 
 	dma_free_coherent(dev, ATA_PRD_TBL_SZ, ap->prd, ap->prd_dma);
+	ata_pad_free(ap, dev);
 }
 
 void ata_host_stop (struct ata_host_set *host_set)

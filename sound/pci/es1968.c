@@ -1462,13 +1462,13 @@ snd_es1968_init_dmabuf(es1968_t *chip)
 						   snd_dma_pci_data(chip->pci),
 						   chip->total_bufsize, &chip->dma);
 		if (err < 0 || ! chip->dma.area) {
-			snd_printk("es1968: can't allocate dma pages for size %d\n",
+			snd_printk(KERN_ERR "es1968: can't allocate dma pages for size %d\n",
 				   chip->total_bufsize);
 			return -ENOMEM;
 		}
 		if ((chip->dma.addr + chip->dma.bytes - 1) & ~((1 << 28) - 1)) {
 			snd_dma_free_pages(&chip->dma);
-			snd_printk("es1968: DMA buffer beyond 256MB.\n");
+			snd_printk(KERN_ERR "es1968: DMA buffer beyond 256MB.\n");
 			return -ENOMEM;
 		}
 	}
@@ -1741,11 +1741,11 @@ static void __devinit es1968_measure_clock(es1968_t *chip)
 
 	/* search 2 APUs (although one apu is enough) */
 	if ((apu = snd_es1968_alloc_apu_pair(chip, ESM_APU_PCM_PLAY)) < 0) {
-		snd_printk("Hmm, cannot find empty APU pair!?\n");
+		snd_printk(KERN_ERR "Hmm, cannot find empty APU pair!?\n");
 		return;
 	}
 	if ((memory = snd_es1968_new_memory(chip, CLOCK_MEASURE_BUFSIZE)) == NULL) {
-		snd_printk("cannot allocate dma buffer - using default clock %d\n", chip->clock);
+		snd_printk(KERN_ERR "cannot allocate dma buffer - using default clock %d\n", chip->clock);
 		snd_es1968_free_apu_pair(chip, apu);
 		return;
 	}
@@ -1806,7 +1806,7 @@ static void __devinit es1968_measure_clock(es1968_t *chip)
 	else
 		t += stop_time.tv_usec - start_time.tv_usec;
 	if (t == 0) {
-		snd_printk("?? calculation error..\n");
+		snd_printk(KERN_ERR "?? calculation error..\n");
 	} else {
 		offset *= 1000;
 		offset = (offset / t) * 1000 + ((offset % t) * 1000) / t;
@@ -2090,7 +2090,7 @@ static void snd_es1968_ac97_reset(es1968_t *chip)
 	outw(inw(ioaddr + 0x3c) & 0xfffc, ioaddr + 0x3c);
 
 #if 0				/* the loop here needs to be much better if we want it.. */
-	snd_printk("trying software reset\n");
+	snd_printk(KERN_INFO "trying software reset\n");
 	/* try and do a software reset */
 	outb(0x80 | 0x7c, ioaddr + 0x30);
 	for (w = 0;; w++) {
@@ -2461,8 +2461,7 @@ static int __devinit snd_es1968_create_gameport(es1968_t *chip, int dev)
 	chip->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		printk(KERN_ERR "es1968: cannot allocate memory for gameport\n");
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 		return -ENOMEM;
 	}
 
@@ -2488,8 +2487,7 @@ static void snd_es1968_free_gameport(es1968_t *chip)
 		gameport_unregister_port(chip->gameport);
 		chip->gameport = NULL;
 
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 	}
 }
 #else
@@ -2564,7 +2562,7 @@ static int __devinit snd_es1968_create(snd_card_t * card,
 	/* check, if we can restrict PCI DMA transfers to 28 bits */
 	if (pci_set_dma_mask(pci, 0x0fffffff) < 0 ||
 	    pci_set_consistent_dma_mask(pci, 0x0fffffff) < 0) {
-		snd_printk("architecture does not support 28bit PCI busmaster DMA\n");
+		snd_printk(KERN_ERR "architecture does not support 28bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -2599,7 +2597,7 @@ static int __devinit snd_es1968_create(snd_card_t * card,
 	chip->io_port = pci_resource_start(pci, 0);
 	if (request_irq(pci->irq, snd_es1968_interrupt, SA_INTERRUPT|SA_SHIRQ,
 			"ESS Maestro", (void*)chip)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_es1968_free(chip);
 		return -EBUSY;
 	}

@@ -561,8 +561,7 @@ static int meta_var_change(struct meta_value *dst, struct rtattr *rta)
 
 static void meta_var_destroy(struct meta_value *v)
 {
-	if (v->val)
-		kfree((void *) v->val);
+	kfree((void *) v->val);
 }
 
 static void meta_var_apply_extras(struct meta_value *v,

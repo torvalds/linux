@@ -12,7 +12,6 @@
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
-#include <linux/version.h>
 
 #include "hermes.h"
 

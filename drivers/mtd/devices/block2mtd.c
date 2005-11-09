@@ -1,5 +1,5 @@
 /*
- * $Id: block2mtd.c,v 1.28 2005/03/19 22:40:44 gleixner Exp $
+ * $Id: block2mtd.c,v 1.29 2005/11/07 11:14:24 gleixner Exp $
  *
  * block2mtd.c - create an mtd from a block device
  *
@@ -19,7 +19,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/buffer_head.h>
 
-#define VERSION "$Revision: 1.28 $"
+#define VERSION "$Revision: 1.29 $"
 
 
 #define ERROR(fmt, args...) printk(KERN_ERR "block2mtd: " fmt "\n" , ## args)
@@ -111,7 +111,7 @@ static int _block2mtd_erase(struct block2mtd_dev *dev, loff_t to, size_t len)
 			return PTR_ERR(page);
 
 		max = (u_long*)page_address(page) + PAGE_SIZE;
-		for (p=(u_long*)page_address(page); p<max; p++) 
+		for (p=(u_long*)page_address(page); p<max; p++)
 			if (*p != -1UL) {
 				lock_page(page);
 				memset(page_address(page), 0xff, PAGE_SIZE);
@@ -206,7 +206,7 @@ static int _block2mtd_write(struct block2mtd_dev *dev, const u_char *buf,
 	if (retlen)
 		*retlen = 0;
 	while (len) {
-		if ((offset+len) > PAGE_SIZE) 
+		if ((offset+len) > PAGE_SIZE)
 			cpylen = PAGE_SIZE - offset;	// multiple pages
 		else
 			cpylen = len;			// this page

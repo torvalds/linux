@@ -67,6 +67,12 @@ zimageinitrd-$(CONFIG_BAMBOO)		:= zImage.initrd-TREE
   entrypoint-$(CONFIG_BAMBOO)		:= 0x01000000
      extra.o-$(CONFIG_BAMBOO)		:= pibs.o
 
+      zimage-$(CONFIG_BUBINGA)		:= zImage-TREE
+zimageinitrd-$(CONFIG_BUBINGA)		:= zImage.initrd-TREE
+         end-$(CONFIG_BUBINGA)		:= bubinga
+  entrypoint-$(CONFIG_BUBINGA)		:= 0x01000000
+     extra.o-$(CONFIG_BUBINGA)		:= openbios.o
+
       zimage-$(CONFIG_EBONY)		:= zImage-TREE
 zimageinitrd-$(CONFIG_EBONY)		:= zImage.initrd-TREE
          end-$(CONFIG_EBONY)		:= ebony
@@ -79,11 +85,29 @@ zimageinitrd-$(CONFIG_LUAN)		:= zImage.initrd-TREE
   entrypoint-$(CONFIG_LUAN)		:= 0x01000000
      extra.o-$(CONFIG_LUAN)		:= pibs.o
 
+      zimage-$(CONFIG_YUCCA)		:= zImage-TREE
+zimageinitrd-$(CONFIG_YUCCA)		:= zImage.initrd-TREE
+         end-$(CONFIG_YUCCA)		:= yucca
+  entrypoint-$(CONFIG_YUCCA)		:= 0x01000000
+     extra.o-$(CONFIG_YUCCA)		:= pibs.o
+
       zimage-$(CONFIG_OCOTEA)		:= zImage-TREE
 zimageinitrd-$(CONFIG_OCOTEA)		:= zImage.initrd-TREE
          end-$(CONFIG_OCOTEA)		:= ocotea
   entrypoint-$(CONFIG_OCOTEA)		:= 0x01000000
      extra.o-$(CONFIG_OCOTEA)		:= pibs.o
+
+      zimage-$(CONFIG_SYCAMORE)		:= zImage-TREE
+zimageinitrd-$(CONFIG_SYCAMORE)		:= zImage.initrd-TREE
+         end-$(CONFIG_SYCAMORE)		:= sycamore
+  entrypoint-$(CONFIG_SYCAMORE)		:= 0x01000000
+     extra.o-$(CONFIG_SYCAMORE)		:= openbios.o
+
+      zimage-$(CONFIG_WALNUT)		:= zImage-TREE
+zimageinitrd-$(CONFIG_WALNUT)		:= zImage.initrd-TREE
+         end-$(CONFIG_WALNUT)		:= walnut
+  entrypoint-$(CONFIG_WALNUT)		:= 0x01000000
+     extra.o-$(CONFIG_WALNUT)		:= openbios.o
 
      extra.o-$(CONFIG_EV64260)		:= misc-ev64260.o
          end-$(CONFIG_EV64260)		:= ev64260
@@ -162,7 +186,8 @@ OBJCOPY_ARGS			:= -O elf32-powerpc
 
 # head.o and relocate.o must be at the start.
 boot-y				:= head.o relocate.o $(extra.o-y) $(misc-y)
-boot-$(CONFIG_40x)		+= embed_config.o
+boot-$(CONFIG_REDWOOD_5)	+= embed_config.o
+boot-$(CONFIG_REDWOOD_6)	+= embed_config.o
 boot-$(CONFIG_8xx)		+= embed_config.o
 boot-$(CONFIG_8260)		+= embed_config.o
 boot-$(CONFIG_BSEIP)		+= iic.o

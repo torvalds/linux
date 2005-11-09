@@ -587,8 +587,7 @@ static int ip6_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 			skb->next = NULL;
 		}
 
-		if (tmp_hdr)
-			kfree(tmp_hdr);
+		kfree(tmp_hdr);
 
 		if (err == 0) {
 			IP6_INC_STATS(IPSTATS_MIB_FRAGOKS);
@@ -1186,10 +1185,8 @@ int ip6_push_pending_frames(struct sock *sk)
 
 out:
 	inet->cork.flags &= ~IPCORK_OPT;
-	if (np->cork.opt) {
-		kfree(np->cork.opt);
-		np->cork.opt = NULL;
-	}
+	kfree(np->cork.opt);
+	np->cork.opt = NULL;
 	if (np->cork.rt) {
 		dst_release(&np->cork.rt->u.dst);
 		np->cork.rt = NULL;
@@ -1214,10 +1211,8 @@ void ip6_flush_pending_frames(struct sock *sk)
 
 	inet->cork.flags &= ~IPCORK_OPT;
 
-	if (np->cork.opt) {
-		kfree(np->cork.opt);
-		np->cork.opt = NULL;
-	}
+	kfree(np->cork.opt);
+	np->cork.opt = NULL;
 	if (np->cork.rt) {
 		dst_release(&np->cork.rt->u.dst);
 		np->cork.rt = NULL;

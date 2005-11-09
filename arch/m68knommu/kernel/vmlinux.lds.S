@@ -125,6 +125,14 @@
 #endif
 
 /*
+ *	The Freescale 5208EVB board has 32MB of RAM.
+ */
+#if defined(CONFIG_M5208EVB)
+#define	RAM_START	0x40020000
+#define	RAM_LENGTH	0x01e00000
+#endif
+
+/*
  *	The senTec COBRA5272 board has nearly the same memory layout as 
  *	the M5272C3. We assume 16MiB ram.
  */
@@ -275,6 +283,7 @@ SECTIONS {
 		*(__ksymtab_strings)
 
 		/* Built-in module parameters */
+		. = ALIGN(4) ;
 		__start___param = .;
 		*(__param)
 		__stop___param = .;

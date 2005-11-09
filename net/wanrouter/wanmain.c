@@ -714,10 +714,8 @@ static int wanrouter_device_new_if(struct wan_device *wandev,
 	}
 
 	/* This code has moved from del_if() function */
-	if (dev->priv) {
-		kfree(dev->priv);
-		dev->priv = NULL;
-	}
+	kfree(dev->priv);
+	dev->priv = NULL;
 
 #ifdef CONFIG_WANPIPE_MULTPPP
 	if (cnf->config_id == WANCONFIG_MPPP)
@@ -851,10 +849,8 @@ static int wanrouter_delete_interface(struct wan_device *wandev, char *name)
 
 	/* Due to new interface linking method using dev->priv,
 	 * this code has moved from del_if() function.*/
-	if (dev->priv){
-		kfree(dev->priv);
-		dev->priv=NULL;
-	}
+	kfree(dev->priv);
+	dev->priv=NULL;
 
 	unregister_netdev(dev);
 

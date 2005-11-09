@@ -1389,10 +1389,7 @@ EXPORT_SYMBOL(scsi_print_msg);
 void scsi_print_command(struct scsi_cmnd *cmd)
 {
 	/* Assume appended output (i.e. not at start of line) */
-	printk("scsi%d : destination target %d, lun %d\n", 
-		cmd->device->host->host_no, 
-		cmd->device->id, 
-		cmd->device->lun);
+	sdev_printk("", cmd->device, "\n");
 	printk(KERN_INFO "        command: ");
 	scsi_print_cdb(cmd->cmnd, cmd->cmd_len, 0);
 }

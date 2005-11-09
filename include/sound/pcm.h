@@ -281,7 +281,7 @@ typedef struct {
 struct _snd_pcm_runtime {
 	/* -- Status -- */
 	snd_pcm_substream_t *trigger_master;
-	snd_timestamp_t trigger_tstamp;	/* trigger timestamp */
+	struct timespec trigger_tstamp;	/* trigger timestamp */
 	int overrange;
 	snd_pcm_uframes_t avail_max;
 	snd_pcm_uframes_t hw_ptr_base;	/* Position at buffer restart */
@@ -306,7 +306,6 @@ struct _snd_pcm_runtime {
 	unsigned int rate_den;
 
 	/* -- SW params -- */
-	int tstamp_timespec;		/* use timeval (0) or timespec (1) */
 	snd_pcm_tstamp_t tstamp_mode;	/* mmap timestamp is updated */
   	unsigned int period_step;
 	unsigned int sleep_min;		/* min ticks to sleep */

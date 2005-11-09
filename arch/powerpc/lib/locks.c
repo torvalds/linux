@@ -22,7 +22,8 @@
 /* waiting for a spinlock... */
 #if defined(CONFIG_PPC_SPLPAR) || defined(CONFIG_PPC_ISERIES)
 #include <asm/hvcall.h>
-#include <asm/iSeries/HvCall.h>
+#include <asm/iseries/hv_call.h>
+#include <asm/smp.h>
 
 void __spin_yield(raw_spinlock_t *lock)
 {

@@ -1013,10 +1013,8 @@ mptscsih_remove(struct pci_dev *pdev)
 	spin_lock_irqsave(&dvtaskQ_lock, flags);
 	if (dvtaskQ_active) {
 		spin_unlock_irqrestore(&dvtaskQ_lock, flags);
-		while(dvtaskQ_active && --count) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(1);
-		}
+		while(dvtaskQ_active && --count)
+			schedule_timeout_interruptible(1);
 	} else {
 		spin_unlock_irqrestore(&dvtaskQ_lock, flags);
 	}

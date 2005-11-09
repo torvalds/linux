@@ -932,13 +932,13 @@ int write_one_page(struct page *page, int wait);
 					 * turning readahead off */
 
 int do_page_cache_readahead(struct address_space *mapping, struct file *filp,
-			unsigned long offset, unsigned long nr_to_read);
+			pgoff_t offset, unsigned long nr_to_read);
 int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
-			unsigned long offset, unsigned long nr_to_read);
-unsigned long  page_cache_readahead(struct address_space *mapping,
+			pgoff_t offset, unsigned long nr_to_read);
+unsigned long page_cache_readahead(struct address_space *mapping,
 			  struct file_ra_state *ra,
 			  struct file *filp,
-			  unsigned long offset,
+			  pgoff_t offset,
 			  unsigned long size);
 void handle_ra_miss(struct address_space *mapping, 
 		    struct file_ra_state *ra, pgoff_t offset);

@@ -37,9 +37,9 @@
 #include <linux/blkdev.h>
 #include <linux/spinlock.h>
 #include <scsi/scsi.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
+#include <scsi/scsi_request.h>
 #include <linux/libata.h>
 #include <linux/hdreg.h>
 #include <asm/uaccess.h>
@@ -131,7 +131,7 @@ int ata_std_bios_param(struct scsi_device *sdev, struct block_device *bdev,
 
 /**
  *	ata_cmd_ioctl - Handler for HDIO_DRIVE_CMD ioctl
- *	@dev: Device to whom we are issuing command
+ *	@scsidev: Device to which we are issuing command
  *	@arg: User provided data for issuing command
  *
  *	LOCKING:
@@ -217,7 +217,7 @@ error:
 
 /**
  *	ata_task_ioctl - Handler for HDIO_DRIVE_TASK ioctl
- *	@dev: Device to whom we are issuing command
+ *	@scsidev: Device to which we are issuing command
  *	@arg: User provided data for issuing command
  *
  *	LOCKING:
@@ -355,10 +355,10 @@ struct ata_queued_cmd *ata_scsi_qc_new(struct ata_port *ap,
 		qc->scsidone = done;
 
 		if (cmd->use_sg) {
-			qc->sg = (struct scatterlist *) cmd->request_buffer;
+			qc->__sg = (struct scatterlist *) cmd->request_buffer;
 			qc->n_elem = cmd->use_sg;
 		} else {
-			qc->sg = &qc->sgent;
+			qc->__sg = &qc->sgent;
 			qc->n_elem = 1;
 		}
 	} else {
@@ -416,6 +416,7 @@ void ata_dump_status(unsigned id, struct ata_taskfile *tf)
 
 /**
  *	ata_to_sense_error - convert ATA error to SCSI error
+ *	@id: ATA device number
  *	@drv_stat: value contained in ATA status register
  *	@drv_err: value contained in ATA error register
  *	@sk: the sense key we'll fill out
@@ -701,6 +702,16 @@ int ata_scsi_slave_config(struct scsi_device *sdev)
 			 * other drives on this host may not support LBA48
 			 */
 			blk_queue_max_sectors(sdev->request_queue, 2048);
+		}
+
+		/*
+		 * SATA DMA transfers must be multiples of 4 byte, so
+		 * we need to pad ATAPI transfers using an extra sg.
+		 * Decrement max hw segments accordingly.
+		 */
+		if (dev->class == ATA_DEV_ATAPI) {
+			request_queue_t *q = sdev->request_queue;
+			blk_queue_max_hw_segments(q, q->max_hw_segments - 1);
 		}
 	}
 
@@ -2221,7 +2232,7 @@ ata_scsi_map_proto(u8 byte1)
 /**
  *	ata_scsi_pass_thru - convert ATA pass-thru CDB to taskfile
  *	@qc: command structure to be initialized
- *	@cmd: SCSI command to convert
+ *	@scsicmd: SCSI command to convert
  *
  *	Handles either 12 or 16-byte versions of the CDB.
  *

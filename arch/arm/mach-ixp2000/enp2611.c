@@ -69,19 +69,19 @@ static struct sys_timer enp2611_timer = {
 static struct map_desc enp2611_io_desc[] __initdata = {
 	{
 		.virtual	= ENP2611_CALEB_VIRT_BASE,
-		.physical	= ENP2611_CALEB_PHYS_BASE,
+		.pfn		= __phys_to_pfn(ENP2611_CALEB_PHYS_BASE),
 		.length		= ENP2611_CALEB_SIZE,
-		.type		= MT_IXP2000_DEVICE
+		.type		= MT_IXP2000_DEVICE,
 	}, {
 		.virtual	= ENP2611_PM3386_0_VIRT_BASE,
-		.physical	= ENP2611_PM3386_0_PHYS_BASE,
+		.pfn		= __phys_to_pfn(ENP2611_PM3386_0_PHYS_BASE),
 		.length		= ENP2611_PM3386_0_SIZE,
-		.type		= MT_IXP2000_DEVICE
+		.type		= MT_IXP2000_DEVICE,
 	}, {
 		.virtual	= ENP2611_PM3386_1_VIRT_BASE,
-		.physical	= ENP2611_PM3386_1_PHYS_BASE,
+		.pfn		= __phys_to_pfn(ENP2611_PM3386_1_PHYS_BASE),
 		.length		= ENP2611_PM3386_1_SIZE,
-		.type		= MT_IXP2000_DEVICE
+		.type		= MT_IXP2000_DEVICE,
 	}
 };
 

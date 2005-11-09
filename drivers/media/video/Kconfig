@@ -25,6 +25,16 @@ config VIDEO_BT848
 	  To compile this driver as a module, choose M here: the
 	  module will be called bttv.
 
+config VIDEO_BT848_DVB
+	tristate "DVB/ATSC Support for bt878 based TV cards"
+	depends on VIDEO_BT848 && DVB_CORE
+	select DVB_BT8XX
+	---help---
+	  This adds support for DVB/ATSC cards based on the BT878 chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dvb-bt8xx.
+
 config VIDEO_SAA6588
 	tristate "SAA6588 Radio Chip RDS decoder support on BT848 cards"
 	depends on VIDEO_DEV && I2C && VIDEO_BT848
@@ -243,29 +253,7 @@ config VIDEO_MEYE
 	  To compile this driver as a module, choose M here: the
 	  module will be called meye.
 
-config VIDEO_SAA7134
-	tristate "Philips SAA7134 support"
-	depends on VIDEO_DEV && PCI && I2C && SOUND
-	select VIDEO_BUF
-	select VIDEO_IR
-	select VIDEO_TUNER
-	select CRC32
-	---help---
-	  This is a video4linux driver for Philips SAA7130/7134 based
-	  TV cards.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called saa7134.
-
-config VIDEO_SAA7134_DVB
-	tristate "DVB Support for saa7134 based TV cards"
-	depends on VIDEO_SAA7134 && DVB_CORE
-	select VIDEO_BUF_DVB
-	select DVB_MT352
-	select DVB_TDA1004X
-	---help---
-	  This adds support for DVB cards based on the
-	  Philips saa7134 chip.
+source "drivers/media/video/saa7134/Kconfig"
 
 config VIDEO_MXB
 	tristate "Siemens-Nixdorf 'Multimedia eXtension Board'"
@@ -316,34 +304,9 @@ config VIDEO_HEXIUM_GEMINI
 	  To compile this driver as a module, choose M here: the
 	  module will be called hexium_gemini.
 
-config VIDEO_CX88
-	tristate "Conexant 2388x (bt878 successor) support"
-	depends on VIDEO_DEV && PCI && I2C && EXPERIMENTAL
-	select I2C_ALGOBIT
-	select FW_LOADER
-	select VIDEO_BTCX
-	select VIDEO_BUF
-	select VIDEO_TUNER
-	select VIDEO_TVEEPROM
-	select VIDEO_IR
-	---help---
-	  This is a video4linux driver for Conexant 2388x based
-	  TV cards.
+source "drivers/media/video/cx88/Kconfig"
 
-	  To compile this driver as a module, choose M here: the
-	  module will be called cx8800
-
-config VIDEO_CX88_DVB
-	tristate "DVB Support for cx2388x based TV cards"
-	depends on VIDEO_CX88 && DVB_CORE
-	select VIDEO_BUF_DVB
-	select DVB_MT352
-	select DVB_OR51132
-	select DVB_CX22702
-	select DVB_LGDT330X
-	---help---
-	  This adds support for DVB/ATSC cards based on the
-	  Connexant 2388x chip.
+source "drivers/media/video/em28xx/Kconfig"
 
 config VIDEO_OVCAMCHIP
 	tristate "OmniVision Camera Chip support"

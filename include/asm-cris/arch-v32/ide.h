@@ -26,7 +26,7 @@
 
 #define MAX_HWIFS	4
 
-extern __inline__ int ide_default_irq(unsigned long base)
+static inline int ide_default_irq(unsigned long base)
 {
 	/* all IDE busses share the same IRQ,
 	 * this has the side-effect that ide-probe.c will cluster our 4 interfaces
@@ -36,7 +36,7 @@ extern __inline__ int ide_default_irq(unsigned long base)
 	return ATA_INTR_VECT;
 }
 
-extern __inline__ unsigned long ide_default_io_base(int index)
+static inline unsigned long ide_default_io_base(int index)
 {
 	reg_ata_rw_ctrl2 ctrl2 = {.sel = index};
 	/* we have no real I/O base address per interface, since all go through the

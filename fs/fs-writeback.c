@@ -562,7 +562,7 @@ int write_inode_now(struct inode *inode, int sync)
 	};
 
 	if (!mapping_cap_writeback_dirty(inode->i_mapping))
-		return 0;
+		wbc.nr_to_write = 0;
 
 	might_sleep();
 	spin_lock(&inode_lock);
@@ -606,7 +606,7 @@ EXPORT_SYMBOL(sync_inode);
  * O_SYNC flag set, to flush dirty writes to disk.
  *
  * @what is a bitmask, specifying which part of the inode's data should be
- * written and waited upon:
+ * written and waited upon.
  *
  *    OSYNC_DATA:     i_mapping's dirty data
  *    OSYNC_METADATA: the buffers at i_mapping->private_list
@@ -672,8 +672,9 @@ int writeback_acquire(struct backing_dev_info *bdi)
 
 /**
  * writeback_in_progress: determine whether there is writeback in progress
- *                        against a backing device.
  * @bdi: the device's backing_dev_info structure.
+ *
+ * Determine whether there is writeback in progress against a backing device.
  */
 int writeback_in_progress(struct backing_dev_info *bdi)
 {

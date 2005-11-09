@@ -36,7 +36,6 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/device.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <asm/io.h>
 #include <linux/libata.h>
@@ -128,7 +127,7 @@ static u8 qs_bmdma_status(struct ata_port *ap);
 static void qs_irq_clear(struct ata_port *ap);
 static void qs_eng_timeout(struct ata_port *ap);
 
-static Scsi_Host_Template qs_ata_sht = {
+static struct scsi_host_template qs_ata_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
@@ -271,16 +270,17 @@ static void qs_scr_write (struct ata_port *ap, unsigned int sc_reg, u32 val)
 
 static void qs_fill_sg(struct ata_queued_cmd *qc)
 {
-	struct scatterlist *sg = qc->sg;
+	struct scatterlist *sg;
 	struct ata_port *ap = qc->ap;
 	struct qs_port_priv *pp = ap->private_data;
 	unsigned int nelem;
 	u8 *prd = pp->pkt + QS_CPB_BYTES;
 
-	assert(sg != NULL);
+	assert(qc->__sg != NULL);
 	assert(qc->n_elem > 0);
 
-	for (nelem = 0; nelem < qc->n_elem; nelem++,sg++) {
+	nelem = 0;
+	ata_for_each_sg(sg, qc) {
 		u64 addr;
 		u32 len;
 
@@ -294,6 +294,7 @@ static void qs_fill_sg(struct ata_queued_cmd *qc)
 
 		VPRINTK("PRD[%u] = (0x%llX, 0x%X)\n", nelem,
 					(unsigned long long)addr, len);
+		nelem++;
 	}
 }
 

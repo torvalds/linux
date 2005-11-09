@@ -73,12 +73,6 @@ static struct inode_operations befs_dir_inode_operations = {
 	.lookup		= befs_lookup,
 };
 
-static struct file_operations befs_file_operations = {
-	.llseek		= default_llseek,
-	.read		= generic_file_read,
-	.mmap		= generic_file_readonly_mmap,
-};
-
 static struct address_space_operations befs_aops = {
 	.readpage	= befs_readpage,
 	.sync_page	= block_sync_page,
@@ -398,7 +392,7 @@ befs_read_inode(struct inode *inode)
 	inode->i_mapping->a_ops = &befs_aops;
 
 	if (S_ISREG(inode->i_mode)) {
-		inode->i_fop = &befs_file_operations;
+		inode->i_fop = &generic_ro_fops;
 	} else if (S_ISDIR(inode->i_mode)) {
 		inode->i_op = &befs_dir_inode_operations;
 		inode->i_fop = &befs_dir_operations;
@@ -731,20 +725,16 @@ parse_options(char *options, befs_mount_options * opts)
 static void
 befs_put_super(struct super_block *sb)
 {
-	if (BEFS_SB(sb)->mount_opts.iocharset) {
-		kfree(BEFS_SB(sb)->mount_opts.iocharset);
-		BEFS_SB(sb)->mount_opts.iocharset = NULL;
-	}
+	kfree(BEFS_SB(sb)->mount_opts.iocharset);
+	BEFS_SB(sb)->mount_opts.iocharset = NULL;
 
 	if (BEFS_SB(sb)->nls) {
 		unload_nls(BEFS_SB(sb)->nls);
 		BEFS_SB(sb)->nls = NULL;
 	}
 
-	if (sb->s_fs_info) {
-		kfree(sb->s_fs_info);
-		sb->s_fs_info = NULL;
-	}
+	kfree(sb->s_fs_info);
+	sb->s_fs_info = NULL;
 	return;
 }
 

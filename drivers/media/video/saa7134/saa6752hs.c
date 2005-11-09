@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/crc32.h>
 
-#include <media/id.h>
 
 #define MPEG_VIDEO_TARGET_BITRATE_MAX  27000
 #define MPEG_VIDEO_MAX_BITRATE_MAX     27000
@@ -57,6 +56,7 @@ struct saa6752hs_state {
 	struct i2c_client             client;
 	struct v4l2_mpeg_compression  params;
 	enum saa6752hs_videoformat    video_format;
+	v4l2_std_id                   standard;
 };
 
 enum saa6752hs_command {
@@ -74,58 +74,58 @@ enum saa6752hs_command {
 /* ---------------------------------------------------------------------- */
 
 static u8 PAT[] = {
-	0xc2, // i2c register
-	0x00, // table number for encoder
+	0xc2, /* i2c register */
+	0x00, /* table number for encoder */
 
-	0x47, // sync
-	0x40, 0x00, // transport_error_indicator(0), payload_unit_start(1), transport_priority(0), pid(0)
-	0x10, // transport_scrambling_control(00), adaptation_field_control(01), continuity_counter(0)
+	0x47, /* sync */
+	0x40, 0x00, /* transport_error_indicator(0), payload_unit_start(1), transport_priority(0), pid(0) */
+	0x10, /* transport_scrambling_control(00), adaptation_field_control(01), continuity_counter(0) */
 
-	0x00, // PSI pointer to start of table
+	0x00, /* PSI pointer to start of table */
 
-	0x00, // tid(0)
-	0xb0, 0x0d, // section_syntax_indicator(1), section_length(13)
+	0x00, /* tid(0) */
+	0xb0, 0x0d, /* section_syntax_indicator(1), section_length(13) */
 
-	0x00, 0x01, // transport_stream_id(1)
+	0x00, 0x01, /* transport_stream_id(1) */
 
-	0xc1, // version_number(0), current_next_indicator(1)
+	0xc1, /* version_number(0), current_next_indicator(1) */
 
-	0x00, 0x00, // section_number(0), last_section_number(0)
+	0x00, 0x00, /* section_number(0), last_section_number(0) */
 
-	0x00, 0x01, // program_number(1)
+	0x00, 0x01, /* program_number(1) */
 
-	0xe0, 0x00, // PMT PID
+	0xe0, 0x00, /* PMT PID */
 
-	0x00, 0x00, 0x00, 0x00 // CRC32
+	0x00, 0x00, 0x00, 0x00 /* CRC32 */
 };
 
 static u8 PMT[] = {
-	0xc2, // i2c register
-	0x01, // table number for encoder
+	0xc2, /* i2c register */
+	0x01, /* table number for encoder */
 
-	0x47, // sync
-	0x40, 0x00, // transport_error_indicator(0), payload_unit_start(1), transport_priority(0), pid
-	0x10, // transport_scrambling_control(00), adaptation_field_control(01), continuity_counter(0)
+	0x47, /* sync */
+	0x40, 0x00, /* transport_error_indicator(0), payload_unit_start(1), transport_priority(0), pid */
+	0x10, /* transport_scrambling_control(00), adaptation_field_control(01), continuity_counter(0) */
 
-	0x00, // PSI pointer to start of table
+	0x00, /* PSI pointer to start of table */
 
-	0x02, // tid(2)
-	0xb0, 0x17, // section_syntax_indicator(1), section_length(23)
+	0x02, /* tid(2) */
+	0xb0, 0x17, /* section_syntax_indicator(1), section_length(23) */
 
-	0x00, 0x01, // program_number(1)
+	0x00, 0x01, /* program_number(1) */
 
-	0xc1, // version_number(0), current_next_indicator(1)
+	0xc1, /* version_number(0), current_next_indicator(1) */
 
-	0x00, 0x00, // section_number(0), last_section_number(0)
+	0x00, 0x00, /* section_number(0), last_section_number(0) */
 
-	0xe0, 0x00, // PCR_PID
+	0xe0, 0x00, /* PCR_PID */
 
-	0xf0, 0x00, // program_info_length(0)
+	0xf0, 0x00, /* program_info_length(0) */
 
-	0x02, 0xe0, 0x00, 0xf0, 0x00, // video stream type(2), pid
-	0x04, 0xe0, 0x00, 0xf0, 0x00, // audio stream type(4), pid
+	0x02, 0xe0, 0x00, 0xf0, 0x00, /* video stream type(2), pid */
+	0x04, 0xe0, 0x00, 0xf0, 0x00, /* audio stream type(4), pid */
 
-	0x00, 0x00, 0x00, 0x00 // CRC32
+	0x00, 0x00, 0x00, 0x00 /* CRC32 */
 };
 
 static struct v4l2_mpeg_compression param_defaults =
@@ -166,33 +166,33 @@ static int saa6752hs_chip_command(struct i2c_client* client,
 	unsigned long timeout;
 	int status = 0;
 
-	// execute the command
+	/* execute the command */
 	switch(command) {
-  	case SAA6752HS_COMMAND_RESET:
-  		buf[0] = 0x00;
+	case SAA6752HS_COMMAND_RESET:
+		buf[0] = 0x00;
 		break;
 
 	case SAA6752HS_COMMAND_STOP:
-	  	buf[0] = 0x03;
+		buf[0] = 0x03;
 		break;
 
 	case SAA6752HS_COMMAND_START:
-  		buf[0] = 0x02;
+		buf[0] = 0x02;
 		break;
 
 	case SAA6752HS_COMMAND_PAUSE:
-  		buf[0] = 0x04;
+		buf[0] = 0x04;
 		break;
 
 	case SAA6752HS_COMMAND_RECONFIGURE:
 		buf[0] = 0x05;
 		break;
 
-  	case SAA6752HS_COMMAND_SLEEP:
-  		buf[0] = 0x06;
+	case SAA6752HS_COMMAND_SLEEP:
+		buf[0] = 0x06;
 		break;
 
-  	case SAA6752HS_COMMAND_RECONFIGURE_FORCE:
+	case SAA6752HS_COMMAND_RECONFIGURE_FORCE:
 		buf[0] = 0x07;
 		break;
 
@@ -200,13 +200,13 @@ static int saa6752hs_chip_command(struct i2c_client* client,
 		return -EINVAL;
 	}
 
-  	// set it and wait for it to be so
+	/* set it and wait for it to be so */
 	i2c_master_send(client, buf, 1);
 	timeout = jiffies + HZ * 3;
 	for (;;) {
-		// get the current status
+		/* get the current status */
 		buf[0] = 0x10;
-	  	i2c_master_send(client, buf, 1);
+		i2c_master_send(client, buf, 1);
 		i2c_master_recv(client, buf, 1);
 
 		if (!(buf[0] & 0x20))
@@ -216,61 +216,58 @@ static int saa6752hs_chip_command(struct i2c_client* client,
 			break;
 		}
 
-		// wait a bit
 		msleep(10);
 	}
 
-	// delay a bit to let encoder settle
+	/* delay a bit to let encoder settle */
 	msleep(50);
 
-	// done
-  	return status;
+	return status;
 }
 
 
 static int saa6752hs_set_bitrate(struct i2c_client* client,
 				 struct v4l2_mpeg_compression* params)
 {
-  	u8 buf[3];
+	u8 buf[3];
 
-	// set the bitrate mode
+	/* set the bitrate mode */
 	buf[0] = 0x71;
 	buf[1] = (params->vi_bitrate.mode == V4L2_BITRATE_VBR) ? 0 : 1;
 	i2c_master_send(client, buf, 2);
 
-	// set the video bitrate
+	/* set the video bitrate */
 	if (params->vi_bitrate.mode == V4L2_BITRATE_VBR) {
-		// set the target bitrate
+		/* set the target bitrate */
 		buf[0] = 0x80;
 	    	buf[1] = params->vi_bitrate.target >> 8;
-	  	buf[2] = params->vi_bitrate.target & 0xff;
+		buf[2] = params->vi_bitrate.target & 0xff;
 		i2c_master_send(client, buf, 3);
 
-		// set the max bitrate
+		/* set the max bitrate */
 		buf[0] = 0x81;
 	    	buf[1] = params->vi_bitrate.max >> 8;
-	  	buf[2] = params->vi_bitrate.max & 0xff;
+		buf[2] = params->vi_bitrate.max & 0xff;
 		i2c_master_send(client, buf, 3);
 	} else {
-		// set the target bitrate (no max bitrate for CBR)
-  		buf[0] = 0x81;
+		/* set the target bitrate (no max bitrate for CBR) */
+		buf[0] = 0x81;
 	    	buf[1] = params->vi_bitrate.target >> 8;
-	  	buf[2] = params->vi_bitrate.target & 0xff;
+		buf[2] = params->vi_bitrate.target & 0xff;
 		i2c_master_send(client, buf, 3);
 	}
 
-	// set the audio bitrate
- 	buf[0] = 0x94;
+	/* set the audio bitrate */
+	buf[0] = 0x94;
 	buf[1] = (256 == params->au_bitrate.target) ? 0 : 1;
 	i2c_master_send(client, buf, 2);
 
-	// set the total bitrate
+	/* set the total bitrate */
 	buf[0] = 0xb1;
-  	buf[1] = params->st_bitrate.target >> 8;
-  	buf[2] = params->st_bitrate.target & 0xff;
+	buf[1] = params->st_bitrate.target >> 8;
+	buf[2] = params->st_bitrate.target & 0xff;
 	i2c_master_send(client, buf, 3);
 
-	// return success
 	return 0;
 }
 
@@ -376,36 +373,43 @@ static int saa6752hs_init(struct i2c_client* client)
 
 	h = i2c_get_clientdata(client);
 
-	// Set video format - must be done first as it resets other settings
+	/* Set video format - must be done first as it resets other settings */
 	buf[0] = 0x41;
 	buf[1] = h->video_format;
 	i2c_master_send(client, buf, 2);
 
-        // set bitrate
-        saa6752hs_set_bitrate(client, &h->params);
+	/* Set number of lines in input signal */
+	buf[0] = 0x40;
+	buf[1] = 0x00;
+	if (h->standard & V4L2_STD_525_60)
+		buf[1] = 0x01;
+	i2c_master_send(client, buf, 2);
 
-	// Set GOP structure {3, 13}
+	/* set bitrate */
+	saa6752hs_set_bitrate(client, &h->params);
+
+	/* Set GOP structure {3, 13} */
 	buf[0] = 0x72;
 	buf[1] = 0x03;
 	buf[2] = 0x0D;
 	i2c_master_send(client,buf,3);
 
-    	// Set minimum Q-scale {4}
+    	/* Set minimum Q-scale {4} */
 	buf[0] = 0x82;
 	buf[1] = 0x04;
 	i2c_master_send(client,buf,2);
 
-    	// Set maximum Q-scale {12}
+    	/* Set maximum Q-scale {12} */
 	buf[0] = 0x83;
 	buf[1] = 0x0C;
 	i2c_master_send(client,buf,2);
 
-    	// Set Output Protocol
+    	/* Set Output Protocol */
 	buf[0] = 0xD0;
 	buf[1] = 0x81;
 	i2c_master_send(client,buf,2);
 
-    	// Set video output stream format {TS}
+    	/* Set video output stream format {TS} */
 	buf[0] = 0xB0;
 	buf[1] = 0x05;
 	i2c_master_send(client,buf,2);
@@ -421,9 +425,9 @@ static int saa6752hs_init(struct i2c_client* client)
 	localPAT[sizeof(PAT) - 1] = crc & 0xFF;
 
 	/* compute PMT */
-      	memcpy(localPMT, PMT, sizeof(PMT));
-   	localPMT[3] = 0x40 | ((h->params.ts_pid_pmt >> 8) & 0x0f);
-   	localPMT[4] = h->params.ts_pid_pmt & 0xff;
+	memcpy(localPMT, PMT, sizeof(PMT));
+	localPMT[3] = 0x40 | ((h->params.ts_pid_pmt >> 8) & 0x0f);
+	localPMT[4] = h->params.ts_pid_pmt & 0xff;
 	localPMT[15] = 0xE0 | ((h->params.ts_pid_pcr >> 8) & 0x0F);
 	localPMT[16] = h->params.ts_pid_pcr & 0xFF;
 	localPMT[20] = 0xE0 | ((h->params.ts_pid_video >> 8) & 0x0F);
@@ -436,39 +440,39 @@ static int saa6752hs_init(struct i2c_client* client)
 	localPMT[sizeof(PMT) - 2] = (crc >> 8) & 0xFF;
 	localPMT[sizeof(PMT) - 1] = crc & 0xFF;
 
-    	// Set Audio PID
+    	/* Set Audio PID */
 	buf[0] = 0xC1;
 	buf[1] = (h->params.ts_pid_audio >> 8) & 0xFF;
 	buf[2] = h->params.ts_pid_audio & 0xFF;
 	i2c_master_send(client,buf,3);
 
-	// Set Video PID
+	/* Set Video PID */
 	buf[0] = 0xC0;
 	buf[1] = (h->params.ts_pid_video >> 8) & 0xFF;
 	buf[2] = h->params.ts_pid_video & 0xFF;
 	i2c_master_send(client,buf,3);
 
- 	// Set PCR PID
+	/* Set PCR PID */
 	buf[0] = 0xC4;
 	buf[1] = (h->params.ts_pid_pcr >> 8) & 0xFF;
 	buf[2] = h->params.ts_pid_pcr & 0xFF;
 	i2c_master_send(client,buf,3);
 
-	// Send SI tables
+	/* Send SI tables */
 	i2c_master_send(client,localPAT,sizeof(PAT));
 	i2c_master_send(client,localPMT,sizeof(PMT));
 
-	// mute then unmute audio. This removes buzzing artefacts
+	/* mute then unmute audio. This removes buzzing artefacts */
 	buf[0] = 0xa4;
 	buf[1] = 1;
 	i2c_master_send(client, buf, 2);
-  	buf[1] = 0;
+	buf[1] = 0;
 	i2c_master_send(client, buf, 2);
 
-	// start it going
+	/* start it going */
 	saa6752hs_chip_command(client, SAA6752HS_COMMAND_START);
 
-	// readout current state
+	/* readout current state */
 	buf[0] = 0xE1;
 	buf[1] = 0xA7;
 	buf[2] = 0xFE;
@@ -477,7 +481,7 @@ static int saa6752hs_init(struct i2c_client* client)
 	i2c_master_send(client, buf, 5);
 	i2c_master_recv(client, buf2, 4);
 
-	// change aspect ratio
+	/* change aspect ratio */
 	buf[0] = 0xE0;
 	buf[1] = 0xA7;
 	buf[2] = 0xFE;
@@ -498,7 +502,6 @@ static int saa6752hs_init(struct i2c_client* client)
 	buf[8] = buf2[3];
 	i2c_master_send(client, buf, 9);
 
-   	// return success
 	return 0;
 }
 
@@ -506,15 +509,18 @@ static int saa6752hs_attach(struct i2c_adapter *adap, int addr, int kind)
 {
 	struct saa6752hs_state *h;
 
-        printk("saa6752hs: chip found @ 0x%x\n", addr<<1);
+	printk("saa6752hs: chip found @ 0x%x\n", addr<<1);
 
-        if (NULL == (h = kmalloc(sizeof(*h), GFP_KERNEL)))
-                return -ENOMEM;
+	if (NULL == (h = kmalloc(sizeof(*h), GFP_KERNEL)))
+		return -ENOMEM;
 	memset(h,0,sizeof(*h));
 	h->client = client_template;
 	h->params = param_defaults;
 	h->client.adapter = adap;
 	h->client.addr = addr;
+
+	/* Assume 625 input lines */
+	h->standard = 0;
 
 	i2c_set_clientdata(&h->client, h);
         i2c_attach_client(&h->client);
@@ -545,7 +551,7 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	struct v4l2_mpeg_compression *params = arg;
 	int err = 0;
 
-        switch (cmd) {
+	switch (cmd) {
 	case VIDIOC_S_MPEGCOMP:
 		if (NULL == params) {
 			/* apply settings and start encoder */
@@ -559,7 +565,7 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		break;
 	case VIDIOC_G_FMT:
 	{
-           struct v4l2_format *f = arg;
+	   struct v4l2_format *f = arg;
 
 	   if (h->video_format == SAA6752HS_VF_UNKNOWN)
 		   h->video_format = SAA6752HS_VF_D1;
@@ -576,6 +582,9 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		saa6752hs_set_subsampling(client, f);
 		break;
 	}
+	case VIDIOC_S_STD:
+		h->standard = *((v4l2_std_id *) arg);
+		break;
 	default:
 		/* nothing */
 		break;

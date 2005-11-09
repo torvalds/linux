@@ -1,11 +1,13 @@
 #ifndef _ASM_POWERPC_ELF_H
 #define _ASM_POWERPC_ELF_H
 
+#include <linux/sched.h>	/* for task_struct */
 #include <asm/types.h>
 #include <asm/ptrace.h>
 #include <asm/cputable.h>
 #include <asm/auxvec.h>
 #include <asm/page.h>
+#include <asm/string.h>
 
 /* PowerPC relocations defined by the ABIs */
 #define R_PPC_NONE		0
@@ -178,18 +180,22 @@ typedef elf_vrreg_t elf_vrregset_t32[ELF_NVRREG32];
 static inline void ppc_elf_core_copy_regs(elf_gregset_t elf_regs,
 					    struct pt_regs *regs)
 {
-	int i;
-	int gprs = sizeof(struct pt_regs)/sizeof(ELF_GREG_TYPE);
+	int i, nregs;
 
-	if (gprs > ELF_NGREG)
-		gprs = ELF_NGREG;
+	memset((void *)elf_regs, 0, sizeof(elf_gregset_t));
 
-	for (i=0; i < gprs; i++)
+	/* Our registers are always unsigned longs, whether we're a 32 bit
+	 * process or 64 bit, on either a 64 bit or 32 bit kernel.
+	 * Don't use ELF_GREG_TYPE here. */
+	nregs = sizeof(struct pt_regs) / sizeof(unsigned long);
+	if (nregs > ELF_NGREG)
+		nregs = ELF_NGREG;
+
+	for (i = 0; i < nregs; i++) {
+		/* This will correctly truncate 64 bit registers to 32 bits
+		 * for a 32 bit process on a 64 bit kernel. */
 		elf_regs[i] = (elf_greg_t)((ELF_GREG_TYPE *)regs)[i];
-
-	memset((char *)(elf_regs) + sizeof(struct pt_regs), 0,  	\
-	       sizeof(elf_gregset_t) - sizeof(struct pt_regs));
-
+	}
 }
 #define ELF_CORE_COPY_REGS(gregs, regs) ppc_elf_core_copy_regs(gregs, regs);
 

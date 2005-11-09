@@ -32,6 +32,9 @@
  * $Id$
  */
 
+#include <linux/jiffies.h>
+#include <linux/timer.h>
+
 #include "mthca_dev.h"
 
 enum {

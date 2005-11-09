@@ -169,6 +169,25 @@ config THERM_PM72
 	  This driver provides thermostat and fan control for the desktop
 	  G5 machines. 
 
+config WINDFARM
+	tristate "New PowerMac thermal control infrastructure"
+
+config WINDFARM_PM81
+	tristate "Support for thermal management on iMac G5"
+	depends on WINDFARM && I2C && CPU_FREQ_PMAC64 && PMAC_SMU
+	select I2C_PMAC_SMU
+	help
+	  This driver provides thermal control for the iMacG5
+
+config WINDFARM_PM91
+	tristate "Support for thermal management on PowerMac9,1"
+	depends on WINDFARM && I2C && CPU_FREQ_PMAC64 && PMAC_SMU
+	select I2C_PMAC_SMU
+	help
+	  This driver provides thermal control for the PowerMac9,1
+          which is the recent (SMU based) single CPU desktop G5
+
+
 config ANSLCD
 	tristate "Support for ANS LCD display"
 	depends on ADB_CUDA && PPC_PMAC

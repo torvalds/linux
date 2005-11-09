@@ -40,7 +40,6 @@
  *****************************************************************************/
 #define IXJ_VERSION 3031
 
-#include <linux/version.h>
 #include <linux/types.h>
 
 #include <linux/ixjuser.h>

@@ -6,7 +6,7 @@
  *
  * Generic platfrom device based RAM map
  *
- * $Id: plat-ram.c,v 1.3 2005/03/19 22:41:27 gleixner Exp $
+ * $Id: plat-ram.c,v 1.7 2005/11/07 11:14:28 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -91,7 +91,7 @@ static int platram_remove(struct device *dev)
 
 	dev_dbg(dev, "removing device\n");
 
-	if (info == NULL) 
+	if (info == NULL)
 		return 0;
 
 	if (info->mtd) {
@@ -118,7 +118,7 @@ static int platram_remove(struct device *dev)
 
 	if (info->map.virt != NULL)
 		iounmap(info->map.virt);
-	
+
 	kfree(info);
 
 	return 0;
@@ -139,7 +139,7 @@ static int platram_probe(struct device *dev)
 	int err = 0;
 
 	dev_dbg(dev, "probe entered\n");
-	
+
 	if (dev->platform_data == NULL) {
 		dev_err(dev, "no platform data supplied\n");
 		err = -ENOENT;
@@ -177,7 +177,7 @@ static int platram_probe(struct device *dev)
 
 	info->map.phys = res->start;
 	info->map.size = (res->end - res->start) + 1;
-	info->map.name = pdata->mapname != NULL ? pdata->mapname : pd->name;
+	info->map.name = pdata->mapname != NULL ? pdata->mapname : (char *)pd->name;
 	info->map.bankwidth = pdata->bankwidth;
 
 	/* register our usage of the memory area */
@@ -240,7 +240,7 @@ static int platram_probe(struct device *dev)
 		dev_err(dev, "add_mtd_device() failed\n");
 		err = -ENOMEM;
 	}
-	
+
 	dev_info(dev, "registered mtd device\n");
 	return err;
 
@@ -254,6 +254,7 @@ static int platram_probe(struct device *dev)
 
 static struct device_driver platram_driver = {
 	.name		= "mtd-ram",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= platram_probe,
 	.remove		= platram_remove,

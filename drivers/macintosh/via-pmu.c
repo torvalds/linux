@@ -155,10 +155,10 @@ static spinlock_t pmu_lock;
 static u8 pmu_intr_mask;
 static int pmu_version;
 static int drop_interrupts;
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 static int option_lid_wakeup = 1;
 static int sleep_in_progress;
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM && CONFIG_PPC32 */
 static unsigned long async_req_locks;
 static unsigned int pmu_irq_stats[11];
 
@@ -865,7 +865,7 @@ proc_read_options(char *page, char **start, off_t off,
 {
 	char *p = page;
 
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 	if (pmu_kind == PMU_KEYLARGO_BASED &&
 	    pmac_call_feature(PMAC_FTR_SLEEP_STATE,NULL,0,-1) >= 0)
 		p += sprintf(p, "lid_wakeup=%d\n", option_lid_wakeup);
@@ -906,7 +906,7 @@ proc_write_options(struct file *file, const char __user *buffer,
 	*(val++) = 0;
 	while(*val == ' ')
 		val++;
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 	if (pmu_kind == PMU_KEYLARGO_BASED &&
 	    pmac_call_feature(PMAC_FTR_SLEEP_STATE,NULL,0,-1) >= 0)
 		if (!strcmp(label, "lid_wakeup"))
@@ -2053,6 +2053,7 @@ pmu_register_sleep_notifier(struct pmu_sleep_notifier *n)
 	__list_add(&n->list, list->prev, list);
 	return 0;
 }
+EXPORT_SYMBOL(pmu_register_sleep_notifier);
 
 int
 pmu_unregister_sleep_notifier(struct pmu_sleep_notifier* n)
@@ -2063,6 +2064,10 @@ pmu_unregister_sleep_notifier(struct pmu_sleep_notifier* n)
 	n->list.next = NULL;
 	return 0;
 }
+EXPORT_SYMBOL(pmu_unregister_sleep_notifier);
+#endif /* CONFIG_PM */
+
+#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 
 /* Sleep is broadcast last-to-first */
 static int
@@ -2664,10 +2669,10 @@ powerbook_sleep_3400(void)
 	asleep = 1;
 
 	/* Put the CPU into sleep mode */
-	asm volatile("mfspr %0,1008" : "=r" (hid0) :);
+	hid0 = mfspr(SPRN_HID0);
 	hid0 = (hid0 & ~(HID0_NAP | HID0_DOZE)) | HID0_SLEEP;
-	asm volatile("mtspr 1008,%0" : : "r" (hid0));
-	_nmask_and_or_msr(0, MSR_POW | MSR_EE);
+	mtspr(SPRN_HID0, hid0);
+	mtmsr(mfmsr() | MSR_POW | MSR_EE);
 	udelay(10);
 
 	/* OK, we're awake again, start restoring things */
@@ -2687,7 +2692,7 @@ powerbook_sleep_3400(void)
 	return 0;
 }
 
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM && CONFIG_PPC32 */
 
 /*
  * Support for /dev/pmu device
@@ -2871,7 +2876,7 @@ pmu_ioctl(struct inode * inode, struct file *filp,
 	int error = -EINVAL;
 
 	switch (cmd) {
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 	case PMU_IOC_SLEEP:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;
@@ -2899,7 +2904,7 @@ pmu_ioctl(struct inode * inode, struct file *filp,
 			return put_user(0, argp);
 		else
 			return put_user(1, argp);
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM && CONFIG_PPC32 */
 
 #ifdef CONFIG_PMAC_BACKLIGHT
 	/* Backlight should have its own device or go via
@@ -3047,7 +3052,7 @@ pmu_polled_request(struct adb_request *req)
  * to do suspend-to-disk.
  */
 
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 
 static int pmu_sys_suspended = 0;
 
@@ -3082,7 +3087,7 @@ static int pmu_sys_resume(struct sys_device *sysdev)
 	return 0;
 }
 
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM && CONFIG_PPC32 */
 
 static struct sysdev_class pmu_sysclass = {
 	set_kset_name("pmu"),
@@ -3094,10 +3099,10 @@ static struct sys_device device_pmu = {
 };
 
 static struct sysdev_driver driver_pmu = {
-#ifdef CONFIG_PM
+#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 	.suspend	= &pmu_sys_suspend,
 	.resume		= &pmu_sys_resume,
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM && CONFIG_PPC32 */
 };
 
 static int __init init_pmu_sysfs(void)
@@ -3135,12 +3140,10 @@ EXPORT_SYMBOL(pmu_i2c_combined_read);
 EXPORT_SYMBOL(pmu_i2c_stdsub_write);
 EXPORT_SYMBOL(pmu_i2c_simple_read);
 EXPORT_SYMBOL(pmu_i2c_simple_write);
-#ifdef CONFIG_PM
-EXPORT_SYMBOL(pmu_register_sleep_notifier);
-EXPORT_SYMBOL(pmu_unregister_sleep_notifier);
+#if defined(CONFIG_PM) && defined(CONFIG_PPC32)
 EXPORT_SYMBOL(pmu_enable_irled);
 EXPORT_SYMBOL(pmu_battery_count);
 EXPORT_SYMBOL(pmu_batteries);
 EXPORT_SYMBOL(pmu_power_flags);
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM && CONFIG_PPC32 */
 

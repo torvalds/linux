@@ -546,7 +546,7 @@ snd_p16v_pcm_pointer_capture(snd_pcm_substream_t *substream)
 	ptr=ptr2;
 	if (ptr >= runtime->buffer_size) {
 		ptr -= runtime->buffer_size;
-		printk("buffer capture limited!\n");
+		printk(KERN_WARNING "buffer capture limited!\n");
 	}
 	//printk("ptr1 = 0x%lx, ptr2=0x%lx, ptr=0x%lx, buffer_size = 0x%x, period_size = 0x%x, bits=%d, rate=%d\n", ptr1, ptr2, ptr, (int)runtime->buffer_size, (int)runtime->period_size, (int)runtime->frame_bits, (int)runtime->rate);
 

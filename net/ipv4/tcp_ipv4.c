@@ -93,8 +93,6 @@ struct inet_hashinfo __cacheline_aligned tcp_hashinfo = {
 	.lhash_lock	= RW_LOCK_UNLOCKED,
 	.lhash_users	= ATOMIC_INIT(0),
 	.lhash_wait	= __WAIT_QUEUE_HEAD_INITIALIZER(tcp_hashinfo.lhash_wait),
-	.portalloc_lock	= SPIN_LOCK_UNLOCKED,
-	.port_rover	= 1024 - 1,
 };
 
 static int tcp_v4_get_port(struct sock *sk, unsigned short snum)
@@ -825,8 +823,7 @@ out:
  */
 static void tcp_v4_reqsk_destructor(struct request_sock *req)
 {
-	if (inet_rsk(req)->opt)
-		kfree(inet_rsk(req)->opt);
+	kfree(inet_rsk(req)->opt);
 }
 
 static inline void syn_flood_warning(struct sk_buff *skb)

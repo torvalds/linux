@@ -1,0 +1,12 @@
+config VIDEO_EM28XX
+	tristate "Empia EM2800/2820/2840 USB video capture support"
+	depends on VIDEO_DEV && USB && I2C
+	select VIDEO_BUF
+	select VIDEO_TUNER
+	select VIDEO_TVEEPROM
+	select VIDEO_IR
+	---help---
+	  This is a video4linux driver for Empia 28xx based TV cards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called em28xx

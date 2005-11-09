@@ -779,7 +779,7 @@ static inline int rme9652_spdif_sample_rate(rme9652_t *s)
 		break;
 
 	default:
-		snd_printk("%s: unknown S/PDIF input rate (bits = 0x%x)\n",
+		snd_printk(KERN_ERR "%s: unknown S/PDIF input rate (bits = 0x%x)\n",
 			   s->card_name, rate_bits);
 		return 0;
 		break;
@@ -2496,12 +2496,12 @@ static int __devinit snd_rme9652_create(snd_card_t *card,
 	rme9652->port = pci_resource_start(pci, 0);
 	rme9652->iobase = ioremap_nocache(rme9652->port, RME9652_IO_EXTENT);
 	if (rme9652->iobase == NULL) {
-		snd_printk("unable to remap region 0x%lx-0x%lx\n", rme9652->port, rme9652->port + RME9652_IO_EXTENT - 1);
+		snd_printk(KERN_ERR "unable to remap region 0x%lx-0x%lx\n", rme9652->port, rme9652->port + RME9652_IO_EXTENT - 1);
 		return -EBUSY;
 	}
 	
 	if (request_irq(pci->irq, snd_rme9652_interrupt, SA_INTERRUPT|SA_SHIRQ, "rme9652", (void *)rme9652)) {
-		snd_printk("unable to request IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to request IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}
 	rme9652->irq = pci->irq;
