@@ -284,7 +284,7 @@ out:
 
 /* Device model stuff */
 
-static int hdaps_probe(struct device *dev)
+static int hdaps_probe(struct platform_device *dev)
 {
 	int ret;
 
@@ -296,17 +296,18 @@ static int hdaps_probe(struct device *dev)
 	return 0;
 }
 
-static int hdaps_resume(struct device *dev)
+static int hdaps_resume(struct platform_device *dev)
 {
 	return hdaps_device_init();
 }
 
-static struct device_driver hdaps_driver = {
-	.name = "hdaps",
-	.bus = &platform_bus_type,
-	.owner = THIS_MODULE,
+static struct platform_driver hdaps_driver = {
 	.probe = hdaps_probe,
-	.resume = hdaps_resume
+	.resume = hdaps_resume,
+	.driver	= {
+		.name = "hdaps",
+		.owner = THIS_MODULE,
+	},
 };
 
 /* Input class stuff */
@@ -550,7 +551,7 @@ static int __init hdaps_init(void)
 		goto out;
 	}
 
-	ret = driver_register(&hdaps_driver);
+	ret = platform_driver_register(&hdaps_driver);
 	if (ret)
 		goto out_region;
 
@@ -583,7 +584,7 @@ static int __init hdaps_init(void)
 out_device:
 	platform_device_unregister(pdev);
 out_driver:
-	driver_unregister(&hdaps_driver);
+	platform_driver_unregister(&hdaps_driver);
 out_region:
 	release_region(HDAPS_LOW_PORT, HDAPS_NR_PORTS);
 out:
@@ -597,7 +598,7 @@ static void __exit hdaps_exit(void)
 	input_unregister_device(&hdaps_idev);
 	sysfs_remove_group(&pdev->dev.kobj, &hdaps_attribute_group);
 	platform_device_unregister(pdev);
-	driver_unregister(&hdaps_driver);
+	platform_driver_unregister(&hdaps_driver);
 	release_region(HDAPS_LOW_PORT, HDAPS_NR_PORTS);
 
 	printk(KERN_INFO "hdaps: driver unloaded.\n");

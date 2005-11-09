@@ -980,17 +980,17 @@ pxafb_freq_policy(struct notifier_block *nb, unsigned long val, void *data)
  * Power management hooks.  Note that we won't be called from IRQ context,
  * unlike the blank functions above, so we may sleep.
  */
-static int pxafb_suspend(struct device *dev, pm_message_t state)
+static int pxafb_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct pxafb_info *fbi = dev_get_drvdata(dev);
+	struct pxafb_info *fbi = platform_get_drvdata(dev);
 
 	set_ctrlr_state(fbi, C_DISABLE_PM);
 	return 0;
 }
 
-static int pxafb_resume(struct device *dev)
+static int pxafb_resume(struct platform_device *dev)
 {
-	struct pxafb_info *fbi = dev_get_drvdata(dev);
+	struct pxafb_info *fbi = platform_get_drvdata(dev);
 
 	set_ctrlr_state(fbi, C_ENABLE_PM);
 	return 0;
@@ -1268,7 +1268,7 @@ static int __init pxafb_parse_options(struct device *dev, char *options)
 }
 #endif
 
-int __init pxafb_probe(struct device *dev)
+int __init pxafb_probe(struct platform_device *dev)
 {
 	struct pxafb_info *fbi;
 	struct pxafb_mach_info *inf;
@@ -1276,14 +1276,14 @@ int __init pxafb_probe(struct device *dev)
 
 	dev_dbg(dev, "pxafb_probe\n");
 
-	inf = dev->platform_data;
+	inf = dev->dev.platform_data;
 	ret = -ENOMEM;
 	fbi = NULL;
 	if (!inf)
 		goto failed;
 
 #ifdef CONFIG_FB_PXA_PARAMETERS
-	ret = pxafb_parse_options(dev, g_options);
+	ret = pxafb_parse_options(&dev->dev, g_options);
 	if (ret < 0)
 		goto failed;
 #endif
@@ -1293,36 +1293,36 @@ int __init pxafb_probe(struct device *dev)
 	 * a warning is given. */
 
         if (inf->lccr0 & LCCR0_INVALID_CONFIG_MASK)
-                dev_warn(dev, "machine LCCR0 setting contains illegal bits: %08x\n",
+                dev_warn(&dev->dev, "machine LCCR0 setting contains illegal bits: %08x\n",
                         inf->lccr0 & LCCR0_INVALID_CONFIG_MASK);
         if (inf->lccr3 & LCCR3_INVALID_CONFIG_MASK)
-                dev_warn(dev, "machine LCCR3 setting contains illegal bits: %08x\n",
+                dev_warn(&dev->dev, "machine LCCR3 setting contains illegal bits: %08x\n",
                         inf->lccr3 & LCCR3_INVALID_CONFIG_MASK);
         if (inf->lccr0 & LCCR0_DPD &&
 	    ((inf->lccr0 & LCCR0_PAS) != LCCR0_Pas ||
 	     (inf->lccr0 & LCCR0_SDS) != LCCR0_Sngl ||
 	     (inf->lccr0 & LCCR0_CMS) != LCCR0_Mono))
-                dev_warn(dev, "Double Pixel Data (DPD) mode is only valid in passive mono"
+                dev_warn(&dev->dev, "Double Pixel Data (DPD) mode is only valid in passive mono"
 			 " single panel mode\n");
         if ((inf->lccr0 & LCCR0_PAS) == LCCR0_Act &&
 	    (inf->lccr0 & LCCR0_SDS) == LCCR0_Dual)
-                dev_warn(dev, "Dual panel only valid in passive mode\n");
+                dev_warn(&dev->dev, "Dual panel only valid in passive mode\n");
         if ((inf->lccr0 & LCCR0_PAS) == LCCR0_Pas &&
              (inf->upper_margin || inf->lower_margin))
-                dev_warn(dev, "Upper and lower margins must be 0 in passive mode\n");
+                dev_warn(&dev->dev, "Upper and lower margins must be 0 in passive mode\n");
 #endif
 
-	dev_dbg(dev, "got a %dx%dx%d LCD\n",inf->xres, inf->yres, inf->bpp);
+	dev_dbg(&dev->dev, "got a %dx%dx%d LCD\n",inf->xres, inf->yres, inf->bpp);
 	if (inf->xres == 0 || inf->yres == 0 || inf->bpp == 0) {
-		dev_err(dev, "Invalid resolution or bit depth\n");
+		dev_err(&dev->dev, "Invalid resolution or bit depth\n");
 		ret = -EINVAL;
 		goto failed;
 	}
 	pxafb_backlight_power = inf->pxafb_backlight_power;
 	pxafb_lcd_power = inf->pxafb_lcd_power;
-	fbi = pxafb_init_fbinfo(dev);
+	fbi = pxafb_init_fbinfo(&dev->dev);
 	if (!fbi) {
-		dev_err(dev, "Failed to initialize framebuffer device\n");
+		dev_err(&dev->dev, "Failed to initialize framebuffer device\n");
 		ret = -ENOMEM; // only reason for pxafb_init_fbinfo to fail is kmalloc
 		goto failed;
 	}
@@ -1330,14 +1330,14 @@ int __init pxafb_probe(struct device *dev)
 	/* Initialize video memory */
 	ret = pxafb_map_video_memory(fbi);
 	if (ret) {
-		dev_err(dev, "Failed to allocate video RAM: %d\n", ret);
+		dev_err(&dev->dev, "Failed to allocate video RAM: %d\n", ret);
 		ret = -ENOMEM;
 		goto failed;
 	}
 
 	ret = request_irq(IRQ_LCD, pxafb_handle_irq, SA_INTERRUPT, "LCD", fbi);
 	if (ret) {
-		dev_err(dev, "request_irq failed: %d\n", ret);
+		dev_err(&dev->dev, "request_irq failed: %d\n", ret);
 		ret = -EBUSY;
 		goto failed;
 	}
@@ -1349,11 +1349,11 @@ int __init pxafb_probe(struct device *dev)
 	pxafb_check_var(&fbi->fb.var, &fbi->fb);
 	pxafb_set_par(&fbi->fb);
 
-	dev_set_drvdata(dev, fbi);
+	platform_set_drvdata(dev, fbi);
 
 	ret = register_framebuffer(&fbi->fb);
 	if (ret < 0) {
-		dev_err(dev, "Failed to register framebuffer device: %d\n", ret);
+		dev_err(&dev->dev, "Failed to register framebuffer device: %d\n", ret);
 		goto failed;
 	}
 
@@ -1376,19 +1376,20 @@ int __init pxafb_probe(struct device *dev)
 	return 0;
 
 failed:
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(dev, NULL);
 	kfree(fbi);
 	return ret;
 }
 
-static struct device_driver pxafb_driver = {
-	.name		= "pxa2xx-fb",
-	.bus		= &platform_bus_type,
+static struct platform_driver pxafb_driver = {
 	.probe		= pxafb_probe,
 #ifdef CONFIG_PM
 	.suspend	= pxafb_suspend,
 	.resume		= pxafb_resume,
 #endif
+	.driver		= {
+		.name	= "pxa2xx-fb",
+	},
 };
 
 #ifndef MODULE
@@ -1415,7 +1416,7 @@ int __devinit pxafb_init(void)
 		return -ENODEV;
 	pxafb_setup(option);
 #endif
-	return driver_register(&pxafb_driver);
+	return platform_driver_register(&pxafb_driver);
 }
 
 module_init(pxafb_init);

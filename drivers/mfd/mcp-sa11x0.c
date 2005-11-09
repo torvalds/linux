@@ -138,9 +138,8 @@ static struct mcp_ops mcp_sa11x0 = {
 	.disable		= mcp_sa11x0_disable,
 };
 
-static int mcp_sa11x0_probe(struct device *dev)
+static int mcp_sa11x0_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct mcp_plat_data *data = pdev->dev.platform_data;
 	struct mcp *mcp;
 	int ret;
@@ -165,7 +164,7 @@ static int mcp_sa11x0_probe(struct device *dev)
 	mcp->dma_telco_rd	= DMA_Ser4MCP1Rd;
 	mcp->dma_telco_wr	= DMA_Ser4MCP1Wr;
 
-	dev_set_drvdata(dev, mcp);
+	platform_set_drvdata(pdev, mcp);
 
 	if (machine_is_assabet()) {
 		ASSABET_BCR_set(ASSABET_BCR_CODEC_RST);
@@ -202,26 +201,26 @@ static int mcp_sa11x0_probe(struct device *dev)
 
  release:
 	release_mem_region(0x80060000, 0x60);
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
  out:
 	return ret;
 }
 
-static int mcp_sa11x0_remove(struct device *dev)
+static int mcp_sa11x0_remove(struct platform_device *dev)
 {
-	struct mcp *mcp = dev_get_drvdata(dev);
+	struct mcp *mcp = platform_get_drvdata(dev);
 
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(dev, NULL);
 	mcp_host_unregister(mcp);
 	release_mem_region(0x80060000, 0x60);
 
 	return 0;
 }
 
-static int mcp_sa11x0_suspend(struct device *dev, pm_message_t state)
+static int mcp_sa11x0_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct mcp *mcp = dev_get_drvdata(dev);
+	struct mcp *mcp = platform_get_drvdata(dev);
 
 	priv(mcp)->mccr0 = Ser4MCCR0;
 	priv(mcp)->mccr1 = Ser4MCCR1;
@@ -230,9 +229,9 @@ static int mcp_sa11x0_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int mcp_sa11x0_resume(struct device *dev)
+static int mcp_sa11x0_resume(struct platform_device *dev)
 {
-	struct mcp *mcp = dev_get_drvdata(dev);
+	struct mcp *mcp = platform_get_drvdata(dev);
 
 	Ser4MCCR1 = priv(mcp)->mccr1;
 	Ser4MCCR0 = priv(mcp)->mccr0;
@@ -243,13 +242,14 @@ static int mcp_sa11x0_resume(struct device *dev)
 /*
  * The driver for the SA11x0 MCP port.
  */
-static struct device_driver mcp_sa11x0_driver = {
-	.name		= "sa11x0-mcp",
-	.bus		= &platform_bus_type,
+static struct platform_driver mcp_sa11x0_driver = {
 	.probe		= mcp_sa11x0_probe,
 	.remove		= mcp_sa11x0_remove,
 	.suspend	= mcp_sa11x0_suspend,
 	.resume		= mcp_sa11x0_resume,
+	.driver		= {
+		.name	= "sa11x0-mcp",
+	},
 };
 
 /*
@@ -257,12 +257,12 @@ static struct device_driver mcp_sa11x0_driver = {
  */
 static int __init mcp_sa11x0_init(void)
 {
-	return driver_register(&mcp_sa11x0_driver);
+	return platform_driver_register(&mcp_sa11x0_driver);
 }
 
 static void __exit mcp_sa11x0_exit(void)
 {
-	driver_unregister(&mcp_sa11x0_driver);
+	platform_driver_unregister(&mcp_sa11x0_driver);
 }
 
 module_init(mcp_sa11x0_init);

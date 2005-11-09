@@ -674,23 +674,24 @@ struct snd_generic_device {
 	snd_card_t *card;
 };
 
-#define get_snd_generic_card(dev)	container_of(to_platform_device(dev), struct snd_generic_device, pdev)->card
+#define get_snd_generic_card(dev)	container_of(dev, struct snd_generic_device, pdev)->card
 
 #define SND_GENERIC_NAME	"snd_generic"
 
 #ifdef CONFIG_PM
-static int snd_generic_suspend(struct device *dev, pm_message_t state);
-static int snd_generic_resume(struct device *dev);
+static int snd_generic_suspend(struct platform_device *dev, pm_message_t state);
+static int snd_generic_resume(struct platform_device *dev);
 #endif
 
 /* initialized in sound.c */
-struct device_driver snd_generic_driver = {
-	.name		= SND_GENERIC_NAME,
-	.bus		= &platform_bus_type,
+struct platform_driver snd_generic_driver = {
 #ifdef CONFIG_PM
 	.suspend	= snd_generic_suspend,
 	.resume		= snd_generic_resume,
 #endif
+	.driver		= {
+		.name	= SND_GENERIC_NAME,
+	},
 };
 
 void snd_generic_device_release(struct device *dev)
@@ -821,7 +822,7 @@ int snd_card_set_pm_callback(snd_card_t *card,
 
 #ifdef CONFIG_SND_GENERIC_DRIVER
 /* suspend/resume callbacks for snd_generic platform device */
-static int snd_generic_suspend(struct device *dev, pm_message_t state)
+static int snd_generic_suspend(struct platform_device *dev, pm_message_t state)
 {
 	snd_card_t *card;
 
@@ -834,7 +835,7 @@ static int snd_generic_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int snd_generic_resume(struct device *dev)
+static int snd_generic_resume(struct platform_device *dev)
 {
 	snd_card_t *card;
 

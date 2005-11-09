@@ -2381,9 +2381,9 @@ void serial8250_resume_port(int line)
  * list is terminated with a zero flags entry, which means we expect
  * all entries to have at least UPF_BOOT_AUTOCONF set.
  */
-static int __devinit serial8250_probe(struct device *dev)
+static int __devinit serial8250_probe(struct platform_device *dev)
 {
-	struct plat_serial8250_port *p = dev->platform_data;
+	struct plat_serial8250_port *p = dev->dev.platform_data;
 	struct uart_port port;
 	int ret, i;
 
@@ -2399,12 +2399,12 @@ static int __devinit serial8250_probe(struct device *dev)
 		port.flags	= p->flags;
 		port.mapbase	= p->mapbase;
 		port.hub6	= p->hub6;
-		port.dev	= dev;
+		port.dev	= &dev->dev;
 		if (share_irqs)
 			port.flags |= UPF_SHARE_IRQ;
 		ret = serial8250_register_port(&port);
 		if (ret < 0) {
-			dev_err(dev, "unable to register port at index %d "
+			dev_err(&dev->dev, "unable to register port at index %d "
 				"(IO%lx MEM%lx IRQ%d): %d\n", i,
 				p->iobase, p->mapbase, p->irq, ret);
 		}
@@ -2415,54 +2415,55 @@ static int __devinit serial8250_probe(struct device *dev)
 /*
  * Remove serial ports registered against a platform device.
  */
-static int __devexit serial8250_remove(struct device *dev)
+static int __devexit serial8250_remove(struct platform_device *dev)
 {
 	int i;
 
 	for (i = 0; i < UART_NR; i++) {
 		struct uart_8250_port *up = &serial8250_ports[i];
 
-		if (up->port.dev == dev)
+		if (up->port.dev == &dev->dev)
 			serial8250_unregister_port(i);
 	}
 	return 0;
 }
 
-static int serial8250_suspend(struct device *dev, pm_message_t state)
+static int serial8250_suspend(struct platform_device *dev, pm_message_t state)
 {
 	int i;
 
 	for (i = 0; i < UART_NR; i++) {
 		struct uart_8250_port *up = &serial8250_ports[i];
 
-		if (up->port.type != PORT_UNKNOWN && up->port.dev == dev)
+		if (up->port.type != PORT_UNKNOWN && up->port.dev == &dev->dev)
 			uart_suspend_port(&serial8250_reg, &up->port);
 	}
 
 	return 0;
 }
 
-static int serial8250_resume(struct device *dev)
+static int serial8250_resume(struct platform_device *dev)
 {
 	int i;
 
 	for (i = 0; i < UART_NR; i++) {
 		struct uart_8250_port *up = &serial8250_ports[i];
 
-		if (up->port.type != PORT_UNKNOWN && up->port.dev == dev)
+		if (up->port.type != PORT_UNKNOWN && up->port.dev == &dev->dev)
 			uart_resume_port(&serial8250_reg, &up->port);
 	}
 
 	return 0;
 }
 
-static struct device_driver serial8250_isa_driver = {
-	.name		= "serial8250",
-	.bus		= &platform_bus_type,
+static struct platform_driver serial8250_isa_driver = {
 	.probe		= serial8250_probe,
 	.remove		= __devexit_p(serial8250_remove),
 	.suspend	= serial8250_suspend,
 	.resume		= serial8250_resume,
+	.driver		= {
+		.name	= "serial8250",
+	},
 };
 
 /*
@@ -2608,7 +2609,7 @@ static int __init serial8250_init(void)
 
 	serial8250_register_ports(&serial8250_reg, &serial8250_isa_devs->dev);
 
-	ret = driver_register(&serial8250_isa_driver);
+	ret = platform_driver_register(&serial8250_isa_driver);
 	if (ret == 0)
 		goto out;
 
@@ -2630,7 +2631,7 @@ static void __exit serial8250_exit(void)
 	 */
 	serial8250_isa_devs = NULL;
 
-	driver_unregister(&serial8250_isa_driver);
+	platform_driver_unregister(&serial8250_isa_driver);
 	platform_device_unregister(isa_dev);
 
 	uart_unregister_driver(&serial8250_reg);

@@ -750,9 +750,8 @@ int __init sgivwfb_setup(char *options)
 /*
  *  Initialisation
  */
-static int __init sgivwfb_probe(struct device *device)
+static int __init sgivwfb_probe(struct platform_device *dev)
 {
-	struct platform_device *dev = to_platform_device(device);
 	struct sgivw_par *par;
 	struct fb_info *info;
 	char *monitor;
@@ -813,7 +812,7 @@ static int __init sgivwfb_probe(struct device *device)
 		goto fail_register_framebuffer;
 	}
 
-	dev_set_drvdata(&dev->dev, info);
+	platform_set_drvdata(dev, info);
 
 	printk(KERN_INFO "fb%d: SGI DBE frame buffer device, using %ldK of video memory at %#lx\n",      
 		info->node, sgivwfb_mem_size >> 10, sgivwfb_mem_phys);
@@ -831,9 +830,9 @@ fail_ioremap_regs:
 	return -ENXIO;
 }
 
-static int sgivwfb_remove(struct device *device)
+static int sgivwfb_remove(struct platform_device *dev)
 {
-	struct fb_info *info = dev_get_drvdata(device);
+	struct fb_info *info = platform_get_drvdata(dev);
 
 	if (info) {
 		struct sgivw_par *par = info->par;
@@ -847,11 +846,12 @@ static int sgivwfb_remove(struct device *device)
 	return 0;
 }
 
-static struct device_driver sgivwfb_driver = {
-	.name	= "sgivwfb",
-	.bus	= &platform_bus_type,
+static struct platform_driver sgivwfb_driver = {
 	.probe	= sgivwfb_probe,
 	.remove	= sgivwfb_remove,
+	.driver	= {
+		.name	= "sgivwfb",
+	},
 };
 
 static struct platform_device *sgivwfb_device;
@@ -867,7 +867,7 @@ int __init sgivwfb_init(void)
 		return -ENODEV;
 	sgivwfb_setup(option);
 #endif
-	ret = driver_register(&sgivwfb_driver);
+	ret = platform_driver_register(&sgivwfb_driver);
 	if (!ret) {
 		sgivwfb_device = platform_device_alloc("sgivwfb", 0);
 		if (sgivwfb_device) {
@@ -875,7 +875,7 @@ int __init sgivwfb_init(void)
 		} else
 			ret = -ENOMEM;
 		if (ret) {
-			driver_unregister(&sgivwfb_driver);
+			platform_driver_unregister(&sgivwfb_driver);
 			platform_device_put(sgivwfb_device);
 		}
 	}
@@ -890,7 +890,7 @@ MODULE_LICENSE("GPL");
 static void __exit sgivwfb_exit(void)
 {
 	platform_device_unregister(sgivwfb_device);
-	driver_unregister(&sgivwfb_driver);
+	platform_driver_unregister(&sgivwfb_driver);
 }
 
 module_exit(sgivwfb_exit);

@@ -67,9 +67,8 @@ static void armflash_set_vpp(struct map_info *map, int on)
 
 static const char *probes[] = { "cmdlinepart", "RedBoot", "afs", NULL };
 
-static int armflash_probe(struct device *_dev)
+static int armflash_probe(struct platform_device *dev)
 {
-	struct platform_device *dev = to_platform_device(_dev);
 	struct flash_platform_data *plat = dev->dev.platform_data;
 	struct resource *res = dev->resource;
 	unsigned int size = res->end - res->start + 1;
@@ -138,7 +137,7 @@ static int armflash_probe(struct device *_dev)
 	}
 
 	if (err == 0)
-		dev_set_drvdata(&dev->dev, info);
+		platform_set_drvdata(dev, info);
 
 	/*
 	 * If we got an error, free all resources.
@@ -163,12 +162,11 @@ static int armflash_probe(struct device *_dev)
 	return err;
 }
 
-static int armflash_remove(struct device *_dev)
+static int armflash_remove(struct platform_device *dev)
 {
-	struct platform_device *dev = to_platform_device(_dev);
-	struct armflash_info *info = dev_get_drvdata(&dev->dev);
+	struct armflash_info *info = platform_get_drvdata(dev);
 
-	dev_set_drvdata(&dev->dev, NULL);
+	platform_set_drvdata(dev, NULL);
 
 	if (info) {
 		if (info->mtd) {
@@ -190,21 +188,22 @@ static int armflash_remove(struct device *_dev)
 	return 0;
 }
 
-static struct device_driver armflash_driver = {
-	.name		= "armflash",
-	.bus		= &platform_bus_type,
+static struct platform_driver armflash_driver = {
 	.probe		= armflash_probe,
 	.remove		= armflash_remove,
+	.driver		= {
+		.name	= "armflash",
+	},
 };
 
 static int __init armflash_init(void)
 {
-	return driver_register(&armflash_driver);
+	return platform_driver_register(&armflash_driver);
 }
 
 static void __exit armflash_exit(void)
 {
-	driver_unregister(&armflash_driver);
+	platform_driver_unregister(&armflash_driver);
 }
 
 module_init(armflash_init);

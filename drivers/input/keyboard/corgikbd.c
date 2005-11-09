@@ -259,17 +259,17 @@ static void corgikbd_hinge_timer(unsigned long data)
 }
 
 #ifdef CONFIG_PM
-static int corgikbd_suspend(struct device *dev, pm_message_t state)
+static int corgikbd_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct corgikbd *corgikbd = dev_get_drvdata(dev);
+	struct corgikbd *corgikbd = platform_get_drvdata(dev);
 	corgikbd->suspended = 1;
 
 	return 0;
 }
 
-static int corgikbd_resume(struct device *dev)
+static int corgikbd_resume(struct platform_device *dev)
 {
-	struct corgikbd *corgikbd = dev_get_drvdata(dev);
+	struct corgikbd *corgikbd = platform_get_drvdata(dev);
 
 	/* Upon resume, ignore the suspend key for a short while */
 	corgikbd->suspend_jiffies=jiffies;
@@ -282,7 +282,7 @@ static int corgikbd_resume(struct device *dev)
 #define corgikbd_resume		NULL
 #endif
 
-static int __init corgikbd_probe(struct device *dev)
+static int __init corgikbd_probe(struct platform_device *pdev)
 {
 	struct corgikbd *corgikbd;
 	struct input_dev *input_dev;
@@ -296,7 +296,7 @@ static int __init corgikbd_probe(struct device *dev)
 		return -ENOMEM;
 	}
 
-	dev_set_drvdata(dev, corgikbd);
+	platform_set_drvdata(pdev, corgikbd);
 
 	corgikbd->input = input_dev;
 	spin_lock_init(&corgikbd->lock);
@@ -321,7 +321,7 @@ static int __init corgikbd_probe(struct device *dev)
 	input_dev->id.vendor = 0x0001;
 	input_dev->id.product = 0x0001;
 	input_dev->id.version = 0x0100;
-	input_dev->cdev.dev = dev;
+	input_dev->cdev.dev = &pdev->dev;
 	input_dev->private = corgikbd;
 
 	input_dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP) | BIT(EV_PWR) | BIT(EV_SW);
@@ -356,10 +356,10 @@ static int __init corgikbd_probe(struct device *dev)
 	return 0;
 }
 
-static int corgikbd_remove(struct device *dev)
+static int corgikbd_remove(struct platform_device *pdev)
 {
 	int i;
-	struct corgikbd *corgikbd = dev_get_drvdata(dev);
+	struct corgikbd *corgikbd = platform_get_drvdata(pdev);
 
 	for (i = 0; i < CORGI_KEY_SENSE_NUM; i++)
 		free_irq(CORGI_IRQ_GPIO_KEY_SENSE(i), corgikbd);
@@ -374,23 +374,24 @@ static int corgikbd_remove(struct device *dev)
 	return 0;
 }
 
-static struct device_driver corgikbd_driver = {
-	.name		= "corgi-keyboard",
-	.bus		= &platform_bus_type,
+static struct platform_driver corgikbd_driver = {
 	.probe		= corgikbd_probe,
 	.remove		= corgikbd_remove,
 	.suspend	= corgikbd_suspend,
 	.resume		= corgikbd_resume,
+	.driver		= {
+		.name	= "corgi-keyboard",
+	},
 };
 
 static int __devinit corgikbd_init(void)
 {
-	return driver_register(&corgikbd_driver);
+	return platform_driver_register(&corgikbd_driver);
 }
 
 static void __exit corgikbd_exit(void)
 {
-	driver_unregister(&corgikbd_driver);
+	platform_driver_unregister(&corgikbd_driver);
 }
 
 module_init(corgikbd_init);

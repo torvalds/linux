@@ -760,24 +760,23 @@ static void s3c24xx_i2c_free(struct s3c24xx_i2c *i2c)
  * called by the bus driver when a suitable device is found
 */
 
-static int s3c24xx_i2c_probe(struct device *dev)
+static int s3c24xx_i2c_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct s3c24xx_i2c *i2c = &s3c24xx_i2c;
 	struct resource *res;
 	int ret;
 
 	/* find the clock and enable it */
 
-	i2c->dev = dev;
-	i2c->clk = clk_get(dev, "i2c");
+	i2c->dev = &pdev->dev;
+	i2c->clk = clk_get(&pdev->dev, "i2c");
 	if (IS_ERR(i2c->clk)) {
-		dev_err(dev, "cannot get clock\n");
+		dev_err(&pdev->dev, "cannot get clock\n");
 		ret = -ENOENT;
 		goto out;
 	}
 
-	dev_dbg(dev, "clock source %p\n", i2c->clk);
+	dev_dbg(&pdev->dev, "clock source %p\n", i2c->clk);
 
 	clk_use(i2c->clk);
 	clk_enable(i2c->clk);
@@ -786,7 +785,7 @@ static int s3c24xx_i2c_probe(struct device *dev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(dev, "cannot find IO resource\n");
+		dev_err(&pdev->dev, "cannot find IO resource\n");
 		ret = -ENOENT;
 		goto out;
 	}
@@ -795,7 +794,7 @@ static int s3c24xx_i2c_probe(struct device *dev)
 					 pdev->name);
 
 	if (i2c->ioarea == NULL) {
-		dev_err(dev, "cannot request IO\n");
+		dev_err(&pdev->dev, "cannot request IO\n");
 		ret = -ENXIO;
 		goto out;
 	}
@@ -803,17 +802,17 @@ static int s3c24xx_i2c_probe(struct device *dev)
 	i2c->regs = ioremap(res->start, (res->end-res->start)+1);
 
 	if (i2c->regs == NULL) {
-		dev_err(dev, "cannot map IO\n");
+		dev_err(&pdev->dev, "cannot map IO\n");
 		ret = -ENXIO;
 		goto out;
 	}
 
-	dev_dbg(dev, "registers %p (%p, %p)\n", i2c->regs, i2c->ioarea, res);
+	dev_dbg(&pdev->dev, "registers %p (%p, %p)\n", i2c->regs, i2c->ioarea, res);
 
 	/* setup info block for the i2c core */
 
 	i2c->adap.algo_data = i2c;
-	i2c->adap.dev.parent = dev;
+	i2c->adap.dev.parent = &pdev->dev;
 
 	/* initialise the i2c controller */
 
@@ -827,7 +826,7 @@ static int s3c24xx_i2c_probe(struct device *dev)
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
-		dev_err(dev, "cannot find IRQ\n");
+		dev_err(&pdev->dev, "cannot find IRQ\n");
 		ret = -ENOENT;
 		goto out;
 	}
@@ -836,23 +835,23 @@ static int s3c24xx_i2c_probe(struct device *dev)
 			  pdev->name, i2c);
 
 	if (ret != 0) {
-		dev_err(dev, "cannot claim IRQ\n");
+		dev_err(&pdev->dev, "cannot claim IRQ\n");
 		goto out;
 	}
 
 	i2c->irq = res;
 		
-	dev_dbg(dev, "irq resource %p (%ld)\n", res, res->start);
+	dev_dbg(&pdev->dev, "irq resource %p (%ld)\n", res, res->start);
 
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0) {
-		dev_err(dev, "failed to add bus to i2c core\n");
+		dev_err(&pdev->dev, "failed to add bus to i2c core\n");
 		goto out;
 	}
 
-	dev_set_drvdata(dev, i2c);
+	platform_set_drvdata(pdev, i2c);
 
-	dev_info(dev, "%s: S3C I2C adapter\n", i2c->adap.dev.bus_id);
+	dev_info(&pdev->dev, "%s: S3C I2C adapter\n", i2c->adap.dev.bus_id);
 
  out:
 	if (ret < 0)
@@ -866,22 +865,22 @@ static int s3c24xx_i2c_probe(struct device *dev)
  * called when device is removed from the bus
 */
 
-static int s3c24xx_i2c_remove(struct device *dev)
+static int s3c24xx_i2c_remove(struct platform_device *pdev)
 {
-	struct s3c24xx_i2c *i2c = dev_get_drvdata(dev);
+	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
 	
 	if (i2c != NULL) {
 		s3c24xx_i2c_free(i2c);
-		dev_set_drvdata(dev, NULL);
+		platform_set_drvdata(pdev, NULL);
 	}
 
 	return 0;
 }
 
 #ifdef CONFIG_PM
-static int s3c24xx_i2c_resume(struct device *dev)
+static int s3c24xx_i2c_resume(struct platform_device *dev)
 {
-	struct s3c24xx_i2c *i2c = dev_get_drvdata(dev);
+	struct s3c24xx_i2c *i2c = platform_get_drvdata(dev);
 
 	if (i2c != NULL)
 		s3c24xx_i2c_init(i2c);
@@ -895,33 +894,35 @@ static int s3c24xx_i2c_resume(struct device *dev)
 
 /* device driver for platform bus bits */
 
-static struct device_driver s3c2410_i2c_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "s3c2410-i2c",
-	.bus		= &platform_bus_type,
+static struct platform_driver s3c2410_i2c_driver = {
 	.probe		= s3c24xx_i2c_probe,
 	.remove		= s3c24xx_i2c_remove,
 	.resume		= s3c24xx_i2c_resume,
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= "s3c2410-i2c",
+	},
 };
 
-static struct device_driver s3c2440_i2c_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "s3c2440-i2c",
-	.bus		= &platform_bus_type,
+static struct platform_driver s3c2440_i2c_driver = {
 	.probe		= s3c24xx_i2c_probe,
 	.remove		= s3c24xx_i2c_remove,
 	.resume		= s3c24xx_i2c_resume,
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= "s3c2440-i2c",
+	},
 };
 
 static int __init i2c_adap_s3c_init(void)
 {
 	int ret;
 
-	ret = driver_register(&s3c2410_i2c_driver);
+	ret = platform_driver_register(&s3c2410_i2c_driver);
 	if (ret == 0) {
-		ret = driver_register(&s3c2440_i2c_driver);
+		ret = platform_driver_register(&s3c2440_i2c_driver);
 		if (ret)
-			driver_unregister(&s3c2410_i2c_driver);
+			platform_driver_unregister(&s3c2410_i2c_driver);
 	}
 
 	return ret;
@@ -929,8 +930,8 @@ static int __init i2c_adap_s3c_init(void)
 
 static void __exit i2c_adap_s3c_exit(void)
 {
-	driver_unregister(&s3c2410_i2c_driver);
-	driver_unregister(&s3c2440_i2c_driver);
+	platform_driver_unregister(&s3c2410_i2c_driver);
+	platform_driver_unregister(&s3c2440_i2c_driver);
 }
 
 module_init(i2c_adap_s3c_init);

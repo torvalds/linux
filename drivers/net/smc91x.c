@@ -2183,9 +2183,8 @@ static void smc_release_datacs(struct platform_device *pdev, struct net_device *
  *	0 --> there is a device
  *	anything else, error
  */
-static int smc_drv_probe(struct device *dev)
+static int smc_drv_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct net_device *ndev;
 	struct resource *res;
 	unsigned int __iomem *addr;
@@ -2212,7 +2211,7 @@ static int smc_drv_probe(struct device *dev)
 		goto out_release_io;
 	}
 	SET_MODULE_OWNER(ndev);
-	SET_NETDEV_DEV(ndev, dev);
+	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	ndev->dma = (unsigned char)-1;
 	ndev->irq = platform_get_irq(pdev, 0);
@@ -2233,7 +2232,7 @@ static int smc_drv_probe(struct device *dev)
 		goto out_release_attrib;
 	}
 
-	dev_set_drvdata(dev, ndev);
+	platform_set_drvdata(pdev, ndev);
 	ret = smc_probe(ndev, addr);
 	if (ret != 0)
 		goto out_iounmap;
@@ -2249,7 +2248,7 @@ static int smc_drv_probe(struct device *dev)
 	return 0;
 
  out_iounmap:
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 	iounmap(addr);
  out_release_attrib:
 	smc_release_attrib(pdev);
@@ -2263,14 +2262,13 @@ static int smc_drv_probe(struct device *dev)
 	return ret;
 }
 
-static int smc_drv_remove(struct device *dev)
+static int smc_drv_remove(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct net_device *ndev = dev_get_drvdata(dev);
+	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct smc_local *lp = netdev_priv(ndev);
 	struct resource *res;
 
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	unregister_netdev(ndev);
 
@@ -2295,9 +2293,9 @@ static int smc_drv_remove(struct device *dev)
 	return 0;
 }
 
-static int smc_drv_suspend(struct device *dev, pm_message_t state)
+static int smc_drv_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct net_device *ndev = dev_get_drvdata(dev);
+	struct net_device *ndev = platform_get_drvdata(dev);
 
 	if (ndev) {
 		if (netif_running(ndev)) {
@@ -2309,14 +2307,13 @@ static int smc_drv_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int smc_drv_resume(struct device *dev)
+static int smc_drv_resume(struct platform_device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct net_device *ndev = dev_get_drvdata(dev);
+	struct net_device *ndev = platform_get_drvdata(dev);
 
 	if (ndev) {
 		struct smc_local *lp = netdev_priv(ndev);
-		smc_enable_device(pdev);
+		smc_enable_device(dev);
 		if (netif_running(ndev)) {
 			smc_reset(ndev);
 			smc_enable(ndev);
@@ -2328,13 +2325,14 @@ static int smc_drv_resume(struct device *dev)
 	return 0;
 }
 
-static struct device_driver smc_driver = {
-	.name		= CARDNAME,
-	.bus		= &platform_bus_type,
+static struct platform_driver smc_driver = {
 	.probe		= smc_drv_probe,
 	.remove		= smc_drv_remove,
 	.suspend	= smc_drv_suspend,
 	.resume		= smc_drv_resume,
+	.driver		= {
+		.name	= CARDNAME,
+	},
 };
 
 static int __init smc_init(void)
@@ -2348,12 +2346,12 @@ static int __init smc_init(void)
 #endif
 #endif
 
-	return driver_register(&smc_driver);
+	return platform_driver_register(&smc_driver);
 }
 
 static void __exit smc_cleanup(void)
 {
-	driver_unregister(&smc_driver);
+	platform_driver_unregister(&smc_driver);
 }
 
 module_init(smc_init);

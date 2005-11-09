@@ -245,9 +245,8 @@ static int __init vesafb_setup(char *options)
 	return 0;
 }
 
-static int __init vesafb_probe(struct device *device)
+static int __init vesafb_probe(struct platform_device *dev)
 {
-	struct platform_device *dev = to_platform_device(device);
 	struct fb_info *info;
 	int i, err;
 	unsigned int size_vmode;
@@ -480,10 +479,11 @@ err:
 	return err;
 }
 
-static struct device_driver vesafb_driver = {
-	.name	= "vesafb",
-	.bus	= &platform_bus_type,
+static struct platform_driver vesafb_driver = {
 	.probe	= vesafb_probe,
+	.driver	= {
+		.name	= "vesafb",
+	},
 };
 
 static struct platform_device vesafb_device = {
@@ -498,12 +498,12 @@ static int __init vesafb_init(void)
 	/* ignore error return of fb_get_options */
 	fb_get_options("vesafb", &option);
 	vesafb_setup(option);
-	ret = driver_register(&vesafb_driver);
+	ret = platform_driver_register(&vesafb_driver);
 
 	if (!ret) {
 		ret = platform_device_register(&vesafb_device);
 		if (ret)
-			driver_unregister(&vesafb_driver);
+			platform_driver_unregister(&vesafb_driver);
 	}
 	return ret;
 }
