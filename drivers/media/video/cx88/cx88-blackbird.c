@@ -781,6 +781,7 @@ static const int BITRATES_SIZE = ARRAY_SIZE(mpeg_audio_bitrates);
 static void blackbird_set_default_params(struct cx8802_dev *dev)
 {
 	struct v4l2_mpeg_compression *params = &dev->params;
+	u32 au_params;
 
 	/* assign stream type */
 	if( params->st_type >= ARRAY_SIZE(mpeg_stream_types) )
@@ -827,7 +828,7 @@ static void blackbird_set_default_params(struct cx8802_dev *dev)
 
 	/* assign audio properties */
 	/* note: it's not necessary to set the samplerate, the mpeg encoder seems to autodetect/adjust */
-	u32 au_params = BLACKBIRD_AUDIO_BITS_STEREO |
+	au_params = BLACKBIRD_AUDIO_BITS_STEREO |
 			/* BLACKBIRD_AUDIO_BITS_BOUND_4 | */
 			BLACKBIRD_AUDIO_BITS_EMPHASIS_NONE |
 			BLACKBIRD_AUDIO_BITS_CRC_OFF |
@@ -861,12 +862,14 @@ static void blackbird_set_default_params(struct cx8802_dev *dev)
 	}
 	if( params->au_bitrate.mode )
 	{
+		int layer;
+
 		if( params->au_bitrate.mode == V4L2_BITRATE_CBR )
 			params->au_bitrate.max = params->vi_bitrate.target;
 		else
 			params->au_bitrate.target = params->vi_bitrate.max;
 
-		int layer = params->au_type;
+		layer = params->au_type;
 		if( params->au_bitrate.target == 0 )
 		{
 			/* TODO: use the minimum possible bitrate instead of 0 ? */
@@ -946,6 +949,8 @@ static void blackbird_set_default_params(struct cx8802_dev *dev)
 #define UPDATE_PARAM( name ) dev->params.name = params->name
 void blackbird_set_params(struct cx8802_dev *dev, struct v4l2_mpeg_compression *params)
 {
+	u32 au_params;
+
 	/* assign stream type */
 	if( params->st_type >= ARRAY_SIZE(mpeg_stream_types) )
 		params->st_type = V4L2_MPEG_PS_2;
@@ -1015,7 +1020,7 @@ void blackbird_set_params(struct cx8802_dev *dev, struct v4l2_mpeg_compression *
 
 	/* assign audio properties */
 	/* note: it's not necessary to set the samplerate, the mpeg encoder seems to autodetect/adjust */
-	u32 au_params = BLACKBIRD_AUDIO_BITS_STEREO |
+	au_params = BLACKBIRD_AUDIO_BITS_STEREO |
 			/* BLACKBIRD_AUDIO_BITS_BOUND_4 | */
 	BLACKBIRD_AUDIO_BITS_EMPHASIS_NONE |
 		BLACKBIRD_AUDIO_BITS_CRC_OFF |
@@ -1049,12 +1054,14 @@ void blackbird_set_params(struct cx8802_dev *dev, struct v4l2_mpeg_compression *
 	}
 	if( params->au_bitrate.mode )
 	{
+		int layer;
+
 		if( params->au_bitrate.mode == V4L2_BITRATE_CBR )
 			params->au_bitrate.max = params->vi_bitrate.target;
 		else
 			params->au_bitrate.target = params->vi_bitrate.max;
 
-		int layer = params->au_type;
+		layer = params->au_type;
 		if( params->au_bitrate.target == 0 )
 		{
 			/* TODO: use the minimum possible bitrate instead of 0 ? */
