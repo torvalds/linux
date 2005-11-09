@@ -243,33 +243,17 @@ static int uml_net_change_mtu(struct net_device *dev, int new_mtu)
 	return err;
 }
 
-static int uml_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
+static void uml_net_get_drvinfo(struct net_device *dev,
+				struct ethtool_drvinfo *info)
 {
-	static const struct ethtool_drvinfo info = {
-		.cmd     = ETHTOOL_GDRVINFO,
-		.driver  = DRIVER_NAME,
-		.version = "42",
-	};
-	void *useraddr;
-	u32 ethcmd;
-
-	switch (cmd) {
-	case SIOCETHTOOL:
-		useraddr = ifr->ifr_data;
-		if (copy_from_user(&ethcmd, useraddr, sizeof(ethcmd)))
-			return -EFAULT;
-		switch (ethcmd) {
-		case ETHTOOL_GDRVINFO:
-			if (copy_to_user(useraddr, &info, sizeof(info)))
-				return -EFAULT;
-			return 0;
-		default:
-			return -EOPNOTSUPP;
-		}
-	default:
-		return -EINVAL;
-	}
+	strcpy(info->driver, DRIVER_NAME);
+	strcpy(info->version, "42");
 }
+
+static struct ethtool_ops uml_net_ethtool_ops = {
+	.get_drvinfo	= uml_net_get_drvinfo,
+	.get_link	= ethtool_op_get_link,
+};
 
 void uml_net_user_timer_expire(unsigned long _conn)
 {
@@ -359,7 +343,7 @@ static int eth_configure(int n, void *init, char *mac,
 	dev->tx_timeout = uml_net_tx_timeout;
 	dev->set_mac_address = uml_net_set_mac;
 	dev->change_mtu = uml_net_change_mtu;
-	dev->do_ioctl = uml_net_ioctl;
+	dev->ethtool_ops = &uml_net_ethtool_ops;
 	dev->watchdog_timeo = (HZ >> 1);
 	dev->irq = UM_ETH_IRQ;
 
