@@ -8,6 +8,8 @@
  *      Christoph Bartelmus <lirc@bartelmus.de>
  * modified for KNC ONE TV Station/Anubis Typhoon TView Tuner by
  *      Ulrich Mueller <ulrich.mueller42@web.de>
+ * modified for em2820 based USB TV tuners by
+ *      Markus Rechberger <mrechberger@gmail.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -39,6 +41,38 @@
 #include <linux/workqueue.h>
 #include <asm/semaphore.h>
 #include <media/ir-common.h>
+
+static IR_KEYTAB_TYPE ir_codes_em2820[IR_KEYTAB_SIZE] = {
+	[  0 ] = KEY_CHANNEL,
+	[  1 ] = KEY_SELECT,
+	[  2 ] = KEY_MUTE,
+	[  3 ] = KEY_POWER,
+	[  4 ] = KEY_KP1,
+	[  5 ] = KEY_KP2,
+	[  6 ] = KEY_KP3,
+	[  7 ] = KEY_CHANNELUP,
+	[  8 ] = KEY_KP4,
+	[  9 ] = KEY_KP5,
+	[ 10 ] = KEY_KP6,
+
+	[ 11 ] = KEY_CHANNELDOWN,
+	[ 12 ] = KEY_KP7,
+	[ 13 ] = KEY_KP8,
+	[ 14 ] = KEY_KP9,
+	[ 15 ] = KEY_VOLUMEUP,
+	[ 16 ] = KEY_KP0,
+	[ 17 ] = KEY_MENU,
+	[ 18 ] = KEY_PRINT,
+
+	[ 19 ] = KEY_VOLUMEDOWN,
+	[ 21 ] = KEY_PAUSE,
+	[ 23 ] = KEY_RECORD,
+	[ 24 ] = KEY_REWIND,
+	[ 25 ] = KEY_PLAY,
+	[ 27 ] = KEY_BACKSPACE,
+	[ 29 ] = KEY_STOP,
+	[ 31 ] = KEY_ZOOM,
+};
 
 /* Mark Phalan <phalanm@o2.ie> */
 static IR_KEYTAB_TYPE ir_codes_pv951[IR_KEYTAB_SIZE] = {
@@ -352,6 +386,13 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 		ir_type     = IR_TYPE_RC5;
 		ir_codes    = ir_codes_rc5_tv;
 		break;
+	case 0x60:
+		name        = "em2820";
+		ir->get_key = get_key_knc1;
+		ir->c.addr  = addr>>1;
+		ir_type     = IR_TYPE_OTHER;
+		ir_codes    = ir_codes_em2820;
+		break;
 	case 0x30:
 		name        = "KNC One";
 		ir->get_key = get_key_knc1;
@@ -427,6 +468,7 @@ static int ir_probe(struct i2c_adapter *adap)
 
 	static const int probe_bttv[] = { 0x1a, 0x18, 0x4b, 0x64, 0x30, -1};
 	static const int probe_saa7134[] = { 0x7a, -1 };
+	static const int probe_em2820[] = { 0x60, -1 };
 	const int *probe = NULL;
 	struct i2c_client c; char buf; int i,rc;
 
@@ -436,6 +478,9 @@ static int ir_probe(struct i2c_adapter *adap)
 		break;
 	case I2C_HW_SAA7134:
 		probe = probe_saa7134;
+		break;
+	case I2C_HW_B_EM2820:
+		probe = probe_em2820;
 		break;
 	}
 	if (NULL == probe)

@@ -31,7 +31,7 @@
 
 /* To be moved to compat.h */
 #if !defined(I2C_HW_B_EM2820)
-#define I2C_HW_B_EM2820 I2C_HW_B_BT848
+#define I2C_HW_B_EM2820 0x99
 #endif
 
 #include "em2820.h"
