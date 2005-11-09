@@ -349,7 +349,7 @@ static void shrink_stripes(raid5_conf_t *conf)
 	conf->slab_cache = NULL;
 }
 
-static int raid5_end_read_request (struct bio * bi, unsigned int bytes_done,
+static int raid5_end_read_request(struct bio * bi, unsigned int bytes_done,
 				   int error)
 {
  	struct stripe_head *sh = bi->bi_private;
@@ -401,10 +401,27 @@ static int raid5_end_read_request (struct bio * bi, unsigned int bytes_done,
 		}
 #else
 		set_bit(R5_UPTODATE, &sh->dev[i].flags);
-#endif		
+#endif
+		if (test_bit(R5_ReadError, &sh->dev[i].flags)) {
+			printk("R5: read error corrected!!\n");
+			clear_bit(R5_ReadError, &sh->dev[i].flags);
+			clear_bit(R5_ReWrite, &sh->dev[i].flags);
+		}
 	} else {
-		md_error(conf->mddev, conf->disks[i].rdev);
 		clear_bit(R5_UPTODATE, &sh->dev[i].flags);
+		if (conf->mddev->degraded) {
+			printk("R5: read error not correctable.\n");
+			clear_bit(R5_ReadError, &sh->dev[i].flags);
+			clear_bit(R5_ReWrite, &sh->dev[i].flags);
+			md_error(conf->mddev, conf->disks[i].rdev);
+		} else if (test_bit(R5_ReWrite, &sh->dev[i].flags)) {
+			/* Oh, no!!! */
+			printk("R5: read error NOT corrected!!\n");
+			clear_bit(R5_ReadError, &sh->dev[i].flags);
+			clear_bit(R5_ReWrite, &sh->dev[i].flags);
+			md_error(conf->mddev, conf->disks[i].rdev);
+		} else
+			set_bit(R5_ReadError, &sh->dev[i].flags);
 	}
 	rdev_dec_pending(conf->disks[i].rdev, conf->mddev);
 #if 0
@@ -966,6 +983,12 @@ static void handle_stripe(struct stripe_head *sh)
 		if (dev->written) written++;
 		rdev = conf->disks[i].rdev; /* FIXME, should I be looking rdev */
 		if (!rdev || !rdev->in_sync) {
+			/* The ReadError flag wil just be confusing now */
+			clear_bit(R5_ReadError, &dev->flags);
+			clear_bit(R5_ReWrite, &dev->flags);
+		}
+		if (!rdev || !rdev->in_sync
+		    || test_bit(R5_ReadError, &dev->flags)) {
 			failed++;
 			failed_num = i;
 		} else
@@ -980,6 +1003,14 @@ static void handle_stripe(struct stripe_head *sh)
 	if (failed > 1 && to_read+to_write+written) {
 		for (i=disks; i--; ) {
 			int bitmap_end = 0;
+
+			if (test_bit(R5_ReadError, &sh->dev[i].flags)) {
+				mdk_rdev_t *rdev = conf->disks[i].rdev;
+				if (rdev && rdev->in_sync)
+					/* multiple read failures in one stripe */
+					md_error(conf->mddev, rdev);
+			}
+
 			spin_lock_irq(&conf->device_lock);
 			/* fail all writes first */
 			bi = sh->dev[i].towrite;
@@ -1015,7 +1046,8 @@ static void handle_stripe(struct stripe_head *sh)
 			}
 
 			/* fail any reads if this device is non-operational */
-			if (!test_bit(R5_Insync, &sh->dev[i].flags)) {
+			if (!test_bit(R5_Insync, &sh->dev[i].flags) ||
+			    test_bit(R5_ReadError, &sh->dev[i].flags)) {
 				bi = sh->dev[i].toread;
 				sh->dev[i].toread = NULL;
 				if (test_and_clear_bit(R5_Overlap, &sh->dev[i].flags))
@@ -1274,7 +1306,26 @@ static void handle_stripe(struct stripe_head *sh)
 		md_done_sync(conf->mddev, STRIPE_SECTORS,1);
 		clear_bit(STRIPE_SYNCING, &sh->state);
 	}
-	
+
+	/* If the failed drive is just a ReadError, then we might need to progress
+	 * the repair/check process
+	 */
+	if (failed == 1 && test_bit(R5_ReadError, &sh->dev[failed_num].flags)
+	    && !test_bit(R5_LOCKED, &sh->dev[failed_num].flags)
+	    && test_bit(R5_UPTODATE, &sh->dev[failed_num].flags)
+		) {
+		dev = &sh->dev[failed_num];
+		if (!test_bit(R5_ReWrite, &dev->flags)) {
+			set_bit(R5_Wantwrite, &dev->flags);
+			set_bit(R5_ReWrite, &dev->flags);
+			set_bit(R5_LOCKED, &dev->flags);
+		} else {
+			/* let's read it back */
+			set_bit(R5_Wantread, &dev->flags);
+			set_bit(R5_LOCKED, &dev->flags);
+		}
+	}
+
 	spin_unlock(&sh->lock);
 
 	while ((bi=return_bi)) {
