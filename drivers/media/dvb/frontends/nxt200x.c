@@ -556,13 +556,18 @@ static int nxt200x_setup_frontend_parameters (struct dvb_frontend* fe,
 			if (state->config->set_ts_params)
 				state->config->set_ts_params(fe, 1);
 
-			/* set to use cable input */
-			buf[3] |= 0x08;
+			/* set input */
+			if (state->config->set_pll_input)
+				state->config->set_pll_input(buf, 1);
 			break;
 		case VSB_8:
 			/* Set non-punctured clock for VSB */
 			if (state->config->set_ts_params)
 				state->config->set_ts_params(fe, 0);
+
+			/* set input */
+			if (state->config->set_pll_input)
+				state->config->set_pll_input(buf, 0);
 			break;
 		default:
 			return -EINVAL;

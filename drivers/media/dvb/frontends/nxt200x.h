@@ -42,6 +42,9 @@ struct nxt200x_config
 	u8 pll_address;
 	struct dvb_pll_desc *pll_desc;
 
+	/* used to set pll input */
+	int (*set_pll_input)(u8* buf, int input);
+
 	/* need to set device param for start_dma */
 	int (*set_ts_params)(struct dvb_frontend* fe, int is_punctured);
 };
