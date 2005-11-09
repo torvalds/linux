@@ -1566,7 +1566,7 @@ static int msp_detach(struct i2c_client *client)
 	struct msp3400c *msp  = i2c_get_clientdata(client);
 
 	/* shutdown control thread */
-	if (msp->kthread >= 0) {
+	if (msp->kthread) {
 		msp->restart = 1;
 		kthread_stop(msp->kthread);
 	}
