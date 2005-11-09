@@ -455,7 +455,7 @@ static void mt2050_set_radio_freq(struct i2c_client *c, unsigned int freq)
 	struct tuner *t = i2c_get_clientdata(c);
 	int if2 = t->radio_if2;
 
-	mt2050_set_if_freq(c, freq*62500, if2);
+	mt2050_set_if_freq(c, freq * 1000 / 16, if2);
 	mt2050_set_antenna(c, radio_antenna);
 }
 
