@@ -141,8 +141,10 @@ static int get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 /* ----------------------------------------------------------------------- */
 void em2820_set_ir(struct em2820 * dev,struct IR_i2c *ir)
 {
-	if (disable_ir)
+	if (disable_ir) {
+		ir->get_key=NULL;
 		return ;
+	}
 
 	/* detect & configure */
 	switch (dev->model) {

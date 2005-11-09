@@ -335,6 +335,20 @@ static int attach_inform(struct i2c_client *client)
 	d1printk( "%s i2c attach [addr=0x%x,client=%s]\n",
 		 client->driver->name, client->addr, client->name);
 
+	/* Am I an i2c remote control? */
+
+	switch (client->addr) {
+		case 0x7a:
+		case 0x47:
+		{
+			struct IR_i2c *ir = i2c_get_clientdata(client);
+			d1printk("%s i2c IR detected (%s).\n",
+				 client->driver->name,ir->phys);
+			saa7134_set_i2c_ir(dev,ir);
+			break;
+		}
+	}
+
 	if (!client->driver->command)
 		return 0;
 

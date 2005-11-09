@@ -36,6 +36,7 @@
 #include <media/audiochip.h>
 #include <media/id.h>
 #include <media/ir-common.h>
+#include <media/ir-kbd-i2c.h>
 #include <media/video-buf.h>
 #include <media/video-buf-dvb.h>
 
@@ -653,6 +654,10 @@ void saa7134_irq_oss_done(struct saa7134_dev *dev, unsigned long status);
 int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
+void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir);
+
+/* ----------------------------------------------------------- */
+/* saa7134-alsa.c                                              */
 
 int alsa_card_saa7134_create(struct saa7134_dev *saadev, unsigned int devnum);
 void alsa_card_saa7134_exit(void);

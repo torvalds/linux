@@ -82,104 +82,6 @@ static IR_KEYTAB_TYPE ir_codes_pv951[IR_KEYTAB_SIZE] = {
 	[ 28 ] = KEY_MEDIA,             /* PC/TV */
 };
 
-static IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE] = {
-	[ 0x3  ] = KEY_POWER,
-	[ 0x6f ] = KEY_MUTE,
-	[ 0x10 ] = KEY_BACKSPACE,	/* Recall */
-
-	[ 0x11 ] = KEY_KP0,
-	[ 0x4  ] = KEY_KP1,
-	[ 0x5  ] = KEY_KP2,
-	[ 0x6  ] = KEY_KP3,
-	[ 0x8  ] = KEY_KP4,
-	[ 0x9  ] = KEY_KP5,
-	[ 0xa  ] = KEY_KP6,
-	[ 0xc  ] = KEY_KP7,
-	[ 0xd  ] = KEY_KP8,
-	[ 0xe  ] = KEY_KP9,
-	[ 0x12 ] = KEY_KPDOT,		/* 100+ */
-
-	[ 0x7  ] = KEY_VOLUMEUP,
-	[ 0xb  ] = KEY_VOLUMEDOWN,
-	[ 0x1a ] = KEY_KPPLUS,
-	[ 0x18 ] = KEY_KPMINUS,
-	[ 0x15 ] = KEY_UP,
-	[ 0x1d ] = KEY_DOWN,
-	[ 0xf  ] = KEY_CHANNELUP,
-	[ 0x13 ] = KEY_CHANNELDOWN,
-	[ 0x48 ] = KEY_ZOOM,
-
-	[ 0x1b ] = KEY_VIDEO,		/* Video source */
-	[ 0x49 ] = KEY_LANGUAGE,	/* MTS Select */
-	[ 0x19 ] = KEY_SEARCH,		/* Auto Scan */
-
-	[ 0x4b ] = KEY_RECORD,
-	[ 0x46 ] = KEY_PLAY,
-	[ 0x45 ] = KEY_PAUSE,   	/* Pause */
-	[ 0x44 ] = KEY_STOP,
-	[ 0x40 ] = KEY_FORWARD,   	/* Forward ? */
-	[ 0x42 ] = KEY_REWIND,   	/* Backward ? */
-
-};
-
-static IR_KEYTAB_TYPE ir_codes_pinnacle[IR_KEYTAB_SIZE] = {
-	[ 0x59 ] = KEY_MUTE,
-	[ 0x4a ] = KEY_POWER,
-
-	[ 0x18 ] = KEY_TEXT,
-	[ 0x26 ] = KEY_TV,
-	[ 0x3d ] = KEY_PRINT,
-
-	[ 0x48 ] = KEY_RED,
-	[ 0x04 ] = KEY_GREEN,
-	[ 0x11 ] = KEY_YELLOW,
-	[ 0x00 ] = KEY_BLUE,
-
-	[ 0x2d ] = KEY_VOLUMEUP,
-	[ 0x1e ] = KEY_VOLUMEDOWN,
-
-	[ 0x49 ] = KEY_MENU,
-
-	[ 0x16 ] = KEY_CHANNELUP,
-	[ 0x17 ] = KEY_CHANNELDOWN,
-
-	[ 0x20 ] = KEY_UP,
-	[ 0x21 ] = KEY_DOWN,
-	[ 0x22 ] = KEY_LEFT,
-	[ 0x23 ] = KEY_RIGHT,
-	[ 0x0d ] = KEY_SELECT,
-
-
-
-	[ 0x08 ] = KEY_BACK,
-	[ 0x07 ] = KEY_REFRESH,
-
-	[ 0x2f ] = KEY_ZOOM,
-	[ 0x29 ] = KEY_RECORD,
-
-	[ 0x4b ] = KEY_PAUSE,
-	[ 0x4d ] = KEY_REWIND,
-	[ 0x2e ] = KEY_PLAY,
-	[ 0x4e ] = KEY_FORWARD,
-	[ 0x53 ] = KEY_PREVIOUS,
-	[ 0x4c ] = KEY_STOP,
-	[ 0x54 ] = KEY_NEXT,
-
-	[ 0x69 ] = KEY_KP0,
-	[ 0x6a ] = KEY_KP1,
-	[ 0x6b ] = KEY_KP2,
-	[ 0x6c ] = KEY_KP3,
-	[ 0x6d ] = KEY_KP4,
-	[ 0x6e ] = KEY_KP5,
-	[ 0x6f ] = KEY_KP6,
-	[ 0x70 ] = KEY_KP7,
-	[ 0x71 ] = KEY_KP8,
-	[ 0x72 ] = KEY_KP9,
-
-	[ 0x74 ] = KEY_CHANNEL,
-	[ 0x0a ] = KEY_BACKSPACE,
-};
-
 /* ----------------------------------------------------------------------- */
 /* insmod parameters                                                       */
 
@@ -280,80 +182,6 @@ static int get_key_knc1(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	*ir_raw = b;
 	return 1;
 }
-
-static int get_key_purpletv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
-{
-	unsigned char b;
-
-	/* poll IR chip */
-	if (1 != i2c_master_recv(&ir->c,&b,1)) {
-		dprintk(1,"read error\n");
-		return -EIO;
-	}
-
-	/* no button press */
-	if (b==0)
-		return 0;
-
-	/* repeating */
-	if (b & 0x80)
-		return 1;
-
-	*ir_key = b;
-	*ir_raw = b;
-	return 1;
-}
-
-/* The new pinnacle PCTV remote (with the colored buttons)
- *
- * Ricardo Cerqueira <v4l@cerqueira.org>
- */
-
-static int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
-{
-	unsigned char b[4];
-	unsigned int start = 0,parity = 0,code = 0;
-
-	/* poll IR chip */
-	if (4 != i2c_master_recv(&ir->c,b,4)) {
-		dprintk(1,"read error\n");
-		return -EIO;
-	}
-
-	for (start = 0; start<4; start++) {
-		if (b[start] == 0x80) {
-			code=b[(start+3)%4];
-			parity=b[(start+2)%4];
-		}
-	}
-
-	/* Empty Request */
-	if (parity==0)
-		return 0;
-
-	/* Repeating... */
-	if (ir->old == parity)
-		return 0;
-
-
-	ir->old = parity;
-
-	/* Reduce code value to fit inside IR_KEYTAB_SIZE
-	 *
-	 * this is the only value that results in 42 unique
-	 * codes < 128
-	 */
-
-	code %= 0x88;
-
-	*ir_raw = code;
-	*ir_key = code;
-
-	dprintk(1,"Pinnacle PCTV key %02x\n", code);
-
-	return 1;
-}
-
 
 /* ----------------------------------------------------------------------- */
 
@@ -460,19 +288,12 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 		ir_type     = IR_TYPE_OTHER;
 		ir_codes    = ir_codes_empty;
 		break;
-	case 0x47:
-		name        = "Pinnacle PCTV";
-		ir->get_key = get_key_pinnacle;
-		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = ir_codes_pinnacle;
-		break;
 	case 0x7a:
-		name        = "Purple TV";
-		ir->get_key = get_key_purpletv;
+	case 0x47:
+		/* Handled by saa7134-input */
+		name        = "SAA713x remote";
 		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = ir_codes_purpletv;
 		break;
-
 	default:
 		/* shouldn't happen */
 		printk(DEVNAME ": Huh? unknown i2c address (0x%02x)?\n",addr);
@@ -480,11 +301,8 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 		return -1;
 	}
 
-	/* Sets name and its physical addr */
+	/* Sets name */
 	snprintf(ir->c.name, sizeof(ir->c.name), "i2c IR (%s)", name);
-	snprintf(ir->phys, sizeof(ir->phys), "%s/%s/ir0",
-		 ir->c.adapter->dev.bus_id,
-		 ir->c.dev.bus_id);
 	ir->ir_codes=ir_codes;
 
 	/* register i2c device
@@ -492,6 +310,18 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	 * board dependent.
 	*/
 	i2c_attach_client(&ir->c);
+
+	/* If IR not supported or disabled, unregisters driver */
+	if (ir->get_key == NULL) {
+		i2c_detach_client(&ir->c);
+		kfree(ir);
+		return -1;
+	}
+
+	/* Phys addr can only be set after attaching (for ir->c.dev.bus_id) */
+	snprintf(ir->phys, sizeof(ir->phys), "%s/%s/ir0",
+		 ir->c.adapter->dev.bus_id,
+		 ir->c.dev.bus_id);
 
 	/* init + register input device */
 	ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
