@@ -323,7 +323,7 @@ void zconffree (void *  );
 
 /* Begin user sect3 */
 
-#define zconfwrap(n) 1
+#define zconfwrap() 1
 #define YY_SKIP_YYWRAP
 
 typedef unsigned char YY_CHAR;
@@ -686,10 +686,10 @@ struct yy_trans_info
 static yyconst flex_int16_t yy_accept[61] =
     {   0,
         0,    0,    0,    0,    0,    0,    0,    0,    0,    0,
-       34,    5,    4,    3,    2,    7,    8,    6,   32,   29,
+       34,    5,    4,    2,    3,    7,    8,    6,   32,   29,
        31,   24,   28,   27,   26,   22,   17,   13,   16,   20,
-       22,   11,   12,   19,   19,   14,   22,   22,    4,    3,
-        2,    2,    1,    6,   32,   29,   31,   30,   24,   23,
+       22,   11,   12,   19,   19,   14,   22,   22,    4,    2,
+        3,    3,    1,    6,   32,   29,   31,   30,   24,   23,
        26,   25,   15,   20,    9,   19,   19,   21,   10,   18
     } ;
 
@@ -753,6 +753,11 @@ char *zconftext;
 
 #define START_STRSIZE	16
 
+static struct {
+	struct file *file;
+	int lineno;
+} current_pos;
+
 static char *text;
 static int text_size, text_asize;
 
@@ -766,7 +771,7 @@ struct buffer *current_buf;
 static int last_ts, first_ts;
 
 static void zconf_endhelp(void);
-static struct buffer *zconf_endfile(void);
+static void zconf_endfile(void);
 
 void new_string(void)
 {
@@ -993,17 +998,17 @@ do_action:	/* This label is used only to access EOF actions. */
 	{ /* beginning of action switch */
 case 1:
 /* rule 1 can match eol */
-YY_RULE_SETUP
-current_file->lineno++;
-	YY_BREAK
 case 2:
+/* rule 2 can match eol */
 YY_RULE_SETUP
-
+{
+	current_file->lineno++;
+	return T_EOL;
+}
 	YY_BREAK
 case 3:
-/* rule 3 can match eol */
 YY_RULE_SETUP
-current_file->lineno++; return T_EOL;
+
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
@@ -1023,8 +1028,10 @@ case 6:
 YY_RULE_SETUP
 {
 		struct kconf_id *id = kconf_id_lookup(zconftext, zconfleng);
+		BEGIN(PARAM);
+		current_pos.file = current_file;
+		current_pos.lineno = current_file->lineno;
 		if (id && id->flags & TF_COMMAND) {
-			BEGIN(PARAM);
 			zconflval.id = id;
 			return id->token;
 		}
@@ -1040,7 +1047,11 @@ YY_RULE_SETUP
 case 8:
 /* rule 8 can match eol */
 YY_RULE_SETUP
-current_file->lineno++; BEGIN(INITIAL);
+{
+		BEGIN(INITIAL);
+		current_file->lineno++;
+		return T_EOL;
+	}
 	YY_BREAK
 
 case 9:
@@ -1246,9 +1257,9 @@ case YY_STATE_EOF(HELP):
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(COMMAND):
 {
-	if (current_buf) {
+	if (current_file) {
 		zconf_endfile();
-		return T_EOF;
+		return T_EOL;
 	}
 	fclose(zconfin);
 	yyterminate();
@@ -1958,7 +1969,7 @@ YY_BUFFER_STATE zconf_scan_buffer  (char * base, yy_size_t  size )
 
 /** Setup the input buffer state to scan a string. The next call to zconflex() will
  * scan from a @e copy of @a str.
- * @param str a NUL-terminated string to scan
+ * @param yy_str a NUL-terminated string to scan
  * 
  * @return the newly allocated buffer state object.
  * @note If you want to scan bytes that may contain NUL values, then use
@@ -2276,7 +2287,7 @@ void zconf_nextfile(const char *name)
 	current_file = file;
 }
 
-static struct buffer *zconf_endfile(void)
+static void zconf_endfile(void)
 {
 	struct buffer *parent;
 
@@ -2292,23 +2303,15 @@ static struct buffer *zconf_endfile(void)
 	}
 	free(current_buf);
 	current_buf = parent;
-
-	return parent;
 }
 
 int zconf_lineno(void)
 {
-	if (current_buf)
-		return current_file->lineno - 1;
-	else
-		return 0;
+	return current_pos.lineno;
 }
 
 char *zconf_curname(void)
 {
-	if (current_buf)
-		return current_file->name;
-	else
-		return "<none>";
+	return current_pos.file ? current_pos.file->name : "<none>";
 }
 

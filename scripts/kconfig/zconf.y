@@ -25,21 +25,25 @@ int cdebug = PRINTD;
 
 extern int zconflex(void);
 static void zconfprint(const char *err, ...);
+static void zconf_error(const char *err, ...);
 static void zconferror(const char *err);
-static bool zconf_endtoken(int token, int starttoken, int endtoken);
+static bool zconf_endtoken(struct kconf_id *id, int starttoken, int endtoken);
 
 struct symbol *symbol_hash[257];
 
 static struct menu *current_menu, *current_entry;
 
+#define YYDEBUG 0
+#if YYDEBUG
 #define YYERROR_VERBOSE
+#endif
 %}
-%expect 40
+%expect 26
 
 %union
 {
-	int token;
 	char *string;
+	struct file *file;
 	struct symbol *symbol;
 	struct expr *expr;
 	struct menu *menu;
@@ -74,7 +78,6 @@ static struct menu *current_menu, *current_entry;
 %token T_CLOSE_PAREN
 %token T_OPEN_PAREN
 %token T_EOL
-%token T_EOF
 
 %left T_OR
 %left T_AND
@@ -82,34 +85,54 @@ static struct menu *current_menu, *current_entry;
 %nonassoc T_NOT
 
 %type <string> prompt
-%type <string> source
 %type <symbol> symbol
 %type <expr> expr
 %type <expr> if_expr
-%type <token> end
+%type <id> end
+%type <id> option_name
+%type <menu> if_entry menu_entry choice_entry
+
+%destructor {
+	fprintf(stderr, "%s:%d: missing end statement for this entry\n",
+		$$->file->name, $$->lineno);
+	if (current_menu == $$)
+		menu_end_menu();
+} if_entry menu_entry choice_entry
 
 %%
-input:	  /* empty */
-	| input block
+input: stmt_list;
+
+stmt_list:
+	  /* empty */
+	| stmt_list common_stmt
+	| stmt_list choice_stmt
+	| stmt_list menu_stmt
+	| stmt_list T_MAINMENU prompt nl
+	| stmt_list end			{ zconf_error("unexpected end statement"); }
+	| stmt_list T_WORD error T_EOL	{ zconf_error("unknown statement \"%s\"", $2); }
+	| stmt_list option_name error T_EOL
+{
+	zconf_error("unexpected option \"%s\"", kconf_id_strings + $2->name);
+}
+	| stmt_list error T_EOL		{ zconf_error("invalid statement"); }
 ;
 
-block:	  common_block
-	| choice_stmt
-	| menu_stmt
-	| T_MAINMENU prompt nl_or_eof
-	| T_ENDMENU		{ zconfprint("unexpected 'endmenu' statement"); }
-	| T_ENDIF		{ zconfprint("unexpected 'endif' statement"); }
-	| T_ENDCHOICE		{ zconfprint("unexpected 'endchoice' statement"); }
-	| error nl_or_eof	{ zconfprint("syntax error"); yyerrok; }
+option_name:
+	T_DEPENDS | T_PROMPT | T_TYPE | T_SELECT | T_OPTIONAL | T_RANGE | T_DEFAULT
 ;
 
-common_block:
-	  if_stmt
+common_stmt:
+	  T_EOL
+	| if_stmt
 	| comment_stmt
 	| config_stmt
 	| menuconfig_stmt
 	| source_stmt
-	| nl_or_eof
+;
+
+option_error:
+	  T_WORD error T_EOL		{ zconf_error("unknown option \"%s\"", $1); }
+	| error T_EOL			{ zconf_error("invalid option"); }
 ;
 
 
@@ -152,6 +175,7 @@ config_option_list:
 	| config_option_list config_option
 	| config_option_list depends
 	| config_option_list help
+	| config_option_list option_error
 	| config_option_list T_EOL
 ;
 
@@ -204,8 +228,7 @@ choice: T_CHOICE T_EOL
 
 choice_entry: choice choice_option_list
 {
-	menu_end_entry();
-	menu_add_menu();
+	$$ = menu_add_menu();
 };
 
 choice_end: end
@@ -216,13 +239,8 @@ choice_end: end
 	}
 };
 
-choice_stmt:
-	  choice_entry choice_block choice_end
-	| choice_entry choice_block
-{
-	printf("%s:%d: missing 'endchoice' for this 'choice' statement\n", current_menu->file->name, current_menu->lineno);
-	zconfnerrs++;
-};
+choice_stmt: choice_entry choice_block choice_end
+;
 
 choice_option_list:
 	  /* empty */
@@ -230,6 +248,7 @@ choice_option_list:
 	| choice_option_list depends
 	| choice_option_list help
 	| choice_option_list T_EOL
+	| choice_option_list option_error
 ;
 
 choice_option: T_PROMPT prompt if_expr T_EOL
@@ -267,18 +286,17 @@ choice_option: T_DEFAULT T_WORD if_expr T_EOL
 
 choice_block:
 	  /* empty */
-	| choice_block common_block
+	| choice_block common_stmt
 ;
 
 /* if entry */
 
-if: T_IF expr T_EOL
+if_entry: T_IF expr nl
 {
 	printd(DEBUG_PARSE, "%s:%d:if\n", zconf_curname(), zconf_lineno());
 	menu_add_entry(NULL);
 	menu_add_dep($2);
-	menu_end_entry();
-	menu_add_menu();
+	$$ = menu_add_menu();
 };
 
 if_end: end
@@ -289,17 +307,12 @@ if_end: end
 	}
 };
 
-if_stmt:
-	  if if_block if_end
-	| if if_block
-{
-	printf("%s:%d: missing 'endif' for this 'if' statement\n", current_menu->file->name, current_menu->lineno);
-	zconfnerrs++;
-};
+if_stmt: if_entry if_block if_end
+;
 
 if_block:
 	  /* empty */
-	| if_block common_block
+	| if_block common_stmt
 	| if_block menu_stmt
 	| if_block choice_stmt
 ;
@@ -315,8 +328,7 @@ menu: T_MENU prompt T_EOL
 
 menu_entry: menu depends_list
 {
-	menu_end_entry();
-	menu_add_menu();
+	$$ = menu_add_menu();
 };
 
 menu_end: end
@@ -327,31 +339,20 @@ menu_end: end
 	}
 };
 
-menu_stmt:
-	  menu_entry menu_block menu_end
-	| menu_entry menu_block
-{
-	printf("%s:%d: missing 'endmenu' for this 'menu' statement\n", current_menu->file->name, current_menu->lineno);
-	zconfnerrs++;
-};
+menu_stmt: menu_entry menu_block menu_end
+;
 
 menu_block:
 	  /* empty */
-	| menu_block common_block
+	| menu_block common_stmt
 	| menu_block menu_stmt
 	| menu_block choice_stmt
-	| menu_block error T_EOL		{ zconfprint("invalid menu option"); yyerrok; }
 ;
 
-source: T_SOURCE prompt T_EOL
+source_stmt: T_SOURCE prompt T_EOL
 {
-	$$ = $2;
 	printd(DEBUG_PARSE, "%s:%d:source %s\n", zconf_curname(), zconf_lineno(), $2);
-};
-
-source_stmt: source
-{
-	zconf_nextfile($1);
+	zconf_nextfile($2);
 };
 
 /* comment entry */
@@ -383,9 +384,11 @@ help: help_start T_HELPTEXT
 
 /* depends option */
 
-depends_list:	  /* empty */
-		| depends_list depends
-		| depends_list T_EOL
+depends_list:
+	  /* empty */
+	| depends_list depends
+	| depends_list T_EOL
+	| depends_list option_error
 ;
 
 depends: T_DEPENDS T_ON expr T_EOL
@@ -417,13 +420,15 @@ prompt:	  T_WORD
 	| T_WORD_QUOTE
 ;
 
-end:	  T_ENDMENU nl_or_eof	{ $$ = T_ENDMENU; }
-	| T_ENDCHOICE nl_or_eof	{ $$ = T_ENDCHOICE; }
-	| T_ENDIF nl_or_eof	{ $$ = T_ENDIF; }
+end:	  T_ENDMENU T_EOL	{ $$ = $1; }
+	| T_ENDCHOICE T_EOL	{ $$ = $1; }
+	| T_ENDIF T_EOL		{ $$ = $1; }
 ;
 
-nl_or_eof:
-	T_EOL | T_EOF;
+nl:
+	  T_EOL
+	| nl T_EOL
+;
 
 if_expr:  /* empty */			{ $$ = NULL; }
 	| T_IF expr			{ $$ = $2; }
@@ -456,7 +461,10 @@ void conf_parse(const char *name)
 	modules_sym = sym_lookup("MODULES", 0);
 	rootmenu.prompt = menu_add_prompt(P_MENU, "Linux Kernel Configuration", NULL);
 
-	//zconfdebug = 1;
+#if YYDEBUG
+	if (getenv("ZCONF_DEBUG"))
+		zconfdebug = 1;
+#endif
 	zconfparse();
 	if (zconfnerrs)
 		exit(1);
@@ -477,20 +485,25 @@ const char *zconf_tokenname(int token)
 	case T_ENDCHOICE:	return "endchoice";
 	case T_IF:		return "if";
 	case T_ENDIF:		return "endif";
+	case T_DEPENDS:		return "depends";
 	}
 	return "<token>";
 }
 
-static bool zconf_endtoken(int token, int starttoken, int endtoken)
+static bool zconf_endtoken(struct kconf_id *id, int starttoken, int endtoken)
 {
-	if (token != endtoken) {
-		zconfprint("unexpected '%s' within %s block", zconf_tokenname(token), zconf_tokenname(starttoken));
+	if (id->token != endtoken) {
+		zconf_error("unexpected '%s' within %s block",
+			kconf_id_strings + id->name, zconf_tokenname(starttoken));
 		zconfnerrs++;
 		return false;
 	}
 	if (current_menu->file != current_file) {
-		zconfprint("'%s' in different file than '%s'", zconf_tokenname(token), zconf_tokenname(starttoken));
-		zconfprint("location of the '%s'", zconf_tokenname(starttoken));
+		zconf_error("'%s' in different file than '%s'",
+			kconf_id_strings + id->name, zconf_tokenname(starttoken));
+		fprintf(stderr, "%s:%d: location of the '%s'\n",
+			current_menu->file->name, current_menu->lineno,
+			zconf_tokenname(starttoken));
 		zconfnerrs++;
 		return false;
 	}
@@ -501,7 +514,19 @@ static void zconfprint(const char *err, ...)
 {
 	va_list ap;
 
-	fprintf(stderr, "%s:%d: ", zconf_curname(), zconf_lineno() + 1);
+	fprintf(stderr, "%s:%d: ", zconf_curname(), zconf_lineno());
+	va_start(ap, err);
+	vfprintf(stderr, err, ap);
+	va_end(ap);
+	fprintf(stderr, "\n");
+}
+
+static void zconf_error(const char *err, ...)
+{
+	va_list ap;
+
+	zconfnerrs++;
+	fprintf(stderr, "%s:%d: ", zconf_curname(), zconf_lineno());
 	va_start(ap, err);
 	vfprintf(stderr, err, ap);
 	va_end(ap);
@@ -510,7 +535,9 @@ static void zconfprint(const char *err, ...)
 
 static void zconferror(const char *err)
 {
+#if YYDEBUG
 	fprintf(stderr, "%s:%d: %s\n", zconf_curname(), zconf_lineno() + 1, err);
+#endif
 }
 
 void print_quoted_string(FILE *out, const char *str)

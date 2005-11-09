@@ -18,6 +18,11 @@
 
 #define START_STRSIZE	16
 
+static struct {
+	struct file *file;
+	int lineno;
+} current_pos;
+
 static char *text;
 static int text_size, text_asize;
 
@@ -31,7 +36,7 @@ struct buffer *current_buf;
 static int last_ts, first_ts;
 
 static void zconf_endhelp(void);
-static struct buffer *zconf_endfile(void);
+static void zconf_endfile(void);
 
 void new_string(void)
 {
@@ -70,10 +75,13 @@ n	[A-Za-z0-9_]
 	int str = 0;
 	int ts, i;
 
-[ \t]*#.*\n	current_file->lineno++;
+[ \t]*#.*\n	|
+[ \t]*\n	{
+	current_file->lineno++;
+	return T_EOL;
+}
 [ \t]*#.*
 
-[ \t]*\n	current_file->lineno++; return T_EOL;
 
 [ \t]+	{
 	BEGIN(COMMAND);
@@ -88,8 +96,10 @@ n	[A-Za-z0-9_]
 <COMMAND>{
 	{n}+	{
 		struct kconf_id *id = kconf_id_lookup(yytext, yyleng);
+		BEGIN(PARAM);
+		current_pos.file = current_file;
+		current_pos.lineno = current_file->lineno;
 		if (id && id->flags & TF_COMMAND) {
-			BEGIN(PARAM);
 			zconflval.id = id;
 			return id->token;
 		}
@@ -98,7 +108,11 @@ n	[A-Za-z0-9_]
 		return T_WORD;
 	}
 	.
-	\n	current_file->lineno++; BEGIN(INITIAL);
+	\n	{
+		BEGIN(INITIAL);
+		current_file->lineno++;
+		return T_EOL;
+	}
 }
 
 <PARAM>{
@@ -214,9 +228,9 @@ n	[A-Za-z0-9_]
 }
 
 <<EOF>>	{
-	if (current_buf) {
+	if (current_file) {
 		zconf_endfile();
-		return T_EOF;
+		return T_EOL;
 	}
 	fclose(yyin);
 	yyterminate();
@@ -307,7 +321,7 @@ void zconf_nextfile(const char *name)
 	current_file = file;
 }
 
-static struct buffer *zconf_endfile(void)
+static void zconf_endfile(void)
 {
 	struct buffer *parent;
 
@@ -323,22 +337,14 @@ static struct buffer *zconf_endfile(void)
 	}
 	free(current_buf);
 	current_buf = parent;
-
-	return parent;
 }
 
 int zconf_lineno(void)
 {
-	if (current_buf)
-		return current_file->lineno - 1;
-	else
-		return 0;
+	return current_pos.lineno;
 }
 
 char *zconf_curname(void)
 {
-	if (current_buf)
-		return current_file->name;
-	else
-		return "<none>";
+	return current_pos.file ? current_pos.file->name : "<none>";
 }

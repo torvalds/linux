@@ -61,10 +61,11 @@ void menu_end_entry(void)
 {
 }
 
-void menu_add_menu(void)
+struct menu *menu_add_menu(void)
 {
-	current_menu = current_entry;
+	menu_end_entry();
 	last_entry_ptr = &current_entry->list;
+	return current_menu = current_entry;
 }
 
 void menu_end_menu(void)

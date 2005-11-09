@@ -70,7 +70,7 @@ void kconfig_load(void);
 
 /* menu.c */
 void menu_init(void);
-void menu_add_menu(void);
+struct menu *menu_add_menu(void);
 void menu_end_menu(void);
 void menu_add_entry(struct symbol *sym);
 void menu_end_entry(void);
