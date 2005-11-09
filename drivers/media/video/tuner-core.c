@@ -695,7 +695,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			break;
 		}
 	default:
-		tuner_dbg("Unimplemented IOCTL 0x%08x(dir=%d,tp=0x%02x,nr=%d,sz=%d)\n",
+		tuner_dbg("Unimplemented IOCTL 0x%08x(dir=%d,tp='%c',nr=%d,sz=%d)\n",
 					 cmd, _IOC_DIR(cmd), _IOC_TYPE(cmd),
 					_IOC_NR(cmd), _IOC_SIZE(cmd));
 		break;
