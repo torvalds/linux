@@ -34,7 +34,7 @@
 
 #include "em28xx.h"
 
-struct em2820_board em2820_boards[] = {
+struct em28xx_board em28xx_boards[] = {
 	[EM2800_BOARD_UNKNOWN] = {
 		.name         = "Unknown EM2800 video grabber",
 		.is_em2800    = 1,
@@ -42,13 +42,13 @@ struct em2820_board em2820_boards[] = {
 		.norm         = VIDEO_MODE_PAL,
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
-		.decoder      = EM2820_SAA7113,
+		.decoder      = EM28XX_SAA7113,
 		.input           = {{
-			.type     = EM2820_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
 			.amux     = 1,
 		},{
-			.type     = EM2820_VMUX_SVIDEO,
+			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = 9,
 			.amux     = 1,
 		}},
@@ -60,13 +60,13 @@ struct em2820_board em2820_boards[] = {
 		.norm         = VIDEO_MODE_PAL,
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
-		.decoder      = EM2820_SAA7113,
+		.decoder      = EM28XX_SAA7113,
 		.input           = {{
-			.type     = EM2820_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
 			.amux     = 1,
 		},{
-			.type     = EM2820_VMUX_SVIDEO,
+			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = 9,
 			.amux     = 1,
 		}},
@@ -78,17 +78,17 @@ struct em2820_board em2820_boards[] = {
 		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
-		.decoder      = EM2820_SAA7113,
+		.decoder      = EM28XX_SAA7113,
 		.input          = {{
-			.type     = EM2820_VMUX_TELEVISION,
+			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = 2,
 			.amux     = 0,
 		},{
-			.type     = EM2820_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
 			.amux     = 1,
 		},{
-			.type     = EM2820_VMUX_SVIDEO,
+			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = 9,
 			.amux     = 1,
 		}},
@@ -100,17 +100,17 @@ struct em2820_board em2820_boards[] = {
 		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
-		.decoder      = EM2820_SAA7113,
+		.decoder      = EM28XX_SAA7113,
 		.input          = {{
-			.type     = EM2820_VMUX_TELEVISION,
+			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = 2,
 			.amux     = 0,
 		},{
-			.type     = EM2820_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
 			.amux     = 1,
 		},{
-			.type     = EM2820_VMUX_SVIDEO,
+			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = 9,
 			.amux     = 1,
 		}},
@@ -122,15 +122,15 @@ struct em2820_board em2820_boards[] = {
 		.tuner_type   = TUNER_PHILIPS_FM1236_MK3,
 		.tda9887_conf = TDA9887_PRESENT|TDA9887_PORT1_ACTIVE|TDA9887_PORT2_ACTIVE,
 		.has_tuner    = 1,
-		.decoder      = EM2820_TVP5150,
+		.decoder      = EM28XX_TVP5150,
 		.has_msp34xx  = 1,
 		/*FIXME: S-Video not tested */
 		.input          = {{
-			.type     = EM2820_VMUX_TELEVISION,
+			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = 0,
 			.amux     = 0,
 		},{
-			.type     = EM2820_VMUX_SVIDEO,
+			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = 2,
 			.amux     = 1,
 		}},
@@ -142,17 +142,17 @@ struct em2820_board em2820_boards[] = {
 		.tuner_type	= TUNER_LG_PAL_NEW_TAPC,
 		.tda9887_conf	= TDA9887_PRESENT|TDA9887_PORT1_ACTIVE|TDA9887_PORT2_ACTIVE,
 		.has_tuner	= 1,
-		.decoder        = EM2820_SAA7114,
+		.decoder        = EM28XX_SAA7114,
 		.input          = {{
-			.type     = EM2820_VMUX_TELEVISION,
+			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = 4,
 			.amux     = 0,
 		},{
-			.type     = EM2820_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
 			.amux     = 1,
 		},{
-			.type     = EM2820_VMUX_SVIDEO,
+			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = 9,
 			.amux     = 1,
 		}},
@@ -165,17 +165,17 @@ struct em2820_board em2820_boards[] = {
 		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
-		.decoder      = EM2820_SAA7113,
+		.decoder      = EM28XX_SAA7113,
 		.input          = {{
-			.type     = EM2820_VMUX_TELEVISION,
+			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = 2,
 			.amux     = 0,
 		},{
-			.type     = EM2820_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
 			.amux     = 1,
 		},{
-			.type     = EM2820_VMUX_SVIDEO,
+			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = 9,
 			.amux     = 1,
 		}},
@@ -188,17 +188,17 @@ struct em2820_board em2820_boards[] = {
 		.tuner_type   = TUNER_LG_PAL_NEW_TAPC,
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
-		.decoder      = EM2820_SAA7113,
+		.decoder      = EM28XX_SAA7113,
 		.input          = {{
-			.type     = EM2820_VMUX_TELEVISION,
+			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = 2,
 			.amux     = 0,
 		},{
-			.type     = EM2820_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
 			.amux     = 1,
 		},{
-			.type     = EM2820_VMUX_SVIDEO,
+			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = 9,
 			.amux     = 1,
 		}},
@@ -211,17 +211,17 @@ struct em2820_board em2820_boards[] = {
 		.tuner_type   = TUNER_PHILIPS_ATSC,
 		.tda9887_conf = TDA9887_PRESENT,
 		.has_tuner    = 1,
-		.decoder      = EM2820_SAA7113,
+		.decoder      = EM28XX_SAA7113,
 		.input          = {{
-			.type     = EM2820_VMUX_TELEVISION,
+			.type     = EM28XX_VMUX_TELEVISION,
 			.vmux     = 2,
 			.amux     = 0,
 		},{
-			.type     = EM2820_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
 			.amux     = 1,
 		},{
-			.type     = EM2820_VMUX_SVIDEO,
+			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = 9,
 			.amux     = 1,
 		}},
@@ -231,22 +231,22 @@ struct em2820_board em2820_boards[] = {
 		.vchannels    = 3,
 		.norm         = VIDEO_MODE_PAL,
 		.has_tuner    = 0,
-		.decoder      = EM2820_SAA7113,
+		.decoder      = EM28XX_SAA7113,
 		.input          = {{
-			.type     = EM2820_VMUX_COMPOSITE1,
+			.type     = EM28XX_VMUX_COMPOSITE1,
 			.vmux     = 0,
 			.amux     = 1,
 		},{
-			.type     = EM2820_VMUX_SVIDEO,
+			.type     = EM28XX_VMUX_SVIDEO,
 			.vmux     = 9,
 			.amux     = 1,
 		}},
 	},
 };
-const unsigned int em2820_bcount = ARRAY_SIZE(em2820_boards);
+const unsigned int em28xx_bcount = ARRAY_SIZE(em28xx_boards);
 
 /* table of devices that work with this driver */
-struct usb_device_id em2820_id_table [] = {
+struct usb_device_id em28xx_id_table [] = {
 	{ USB_DEVICE(0xeb1a, 0x2800), .driver_info = EM2800_BOARD_UNKNOWN },
 	{ USB_DEVICE(0xeb1a, 0x2820), .driver_info = EM2820_BOARD_MSI_VOX_USB_2 },
 	{ USB_DEVICE(0x0ccd, 0x0036), .driver_info = EM2820_BOARD_TERRATEC_CINERGY_250 },
@@ -256,7 +256,7 @@ struct usb_device_id em2820_id_table [] = {
 	{ },
 };
 
-void em2820_card_setup(struct em2820 *dev)
+void em28xx_card_setup(struct em28xx *dev)
 {
 	/* request some modules */
 	if (dev->model == EM2820_BOARD_HAUPPAUGE_WINTV_USB_2) {
@@ -274,14 +274,14 @@ void em2820_card_setup(struct em2820 *dev)
 		if (tv.audio_processor == AUDIO_CHIP_MSP34XX) {
 			dev->has_msp34xx=1;
 		} else dev->has_msp34xx=0;
-		em2820_write_regs_req(dev,0x06,0x00,"\x40",1);// Serial Bus Frequency Select Register
-		em2820_write_regs_req(dev,0x0f,0x00,"\x87",1);// XCLK Frequency Select Register
-		em2820_write_regs_req(dev,0x88,0x0d,"\xd0",1);
+		em28xx_write_regs_req(dev,0x06,0x00,"\x40",1);// Serial Bus Frequency Select Register
+		em28xx_write_regs_req(dev,0x0f,0x00,"\x87",1);// XCLK Frequency Select Register
+		em28xx_write_regs_req(dev,0x88,0x0d,"\xd0",1);
 	}
 }
 
-EXPORT_SYMBOL(em2820_boards);
-EXPORT_SYMBOL(em2820_bcount);
-EXPORT_SYMBOL(em2820_id_table);
+EXPORT_SYMBOL(em28xx_boards);
+EXPORT_SYMBOL(em28xx_bcount);
+EXPORT_SYMBOL(em28xx_id_table);
 
-MODULE_DEVICE_TABLE (usb, em2820_id_table);
+MODULE_DEVICE_TABLE (usb, em28xx_id_table);

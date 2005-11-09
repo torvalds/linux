@@ -28,6 +28,7 @@
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include <linux/video_decoder.h>
+#include <linux/utsname.h>
 
 #include "em28xx.h"
 #include <media/tuner.h>
@@ -39,9 +40,9 @@
 
 #define DRIVER_NAME         "em28xx"
 #define DRIVER_DESC         "Empia em28xx based USB video device driver"
-#define EM2820_VERSION_CODE  KERNEL_VERSION(0, 0, 1)
+#define EM28XX_VERSION_CODE  KERNEL_VERSION(0, 0, 1)
 
-#define em2820_videodbg(fmt, arg...) do {\
+#define em28xx_videodbg(fmt, arg...) do {\
 	if (video_debug) \
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __FUNCTION__ , ##arg); } while (0)
@@ -50,9 +51,9 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-static LIST_HEAD(em2820_devlist);
+static LIST_HEAD(em28xx_devlist);
 
-static unsigned int card[]  = {[0 ... (EM2820_MAXBOARDS - 1)] = UNSET };
+static unsigned int card[]  = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
 
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,"card type");
@@ -66,7 +67,7 @@ module_param(video_debug,int,0644);
 MODULE_PARM_DESC(video_debug,"enable debug messages [video]");
 
 /* supported tv norms */
-static struct em2820_tvnorm tvnorms[] = {
+static struct em28xx_tvnorm tvnorms[] = {
 	{
 		.name = "PAL",
 		.id = V4L2_STD_PAL,
@@ -106,7 +107,7 @@ static const unsigned char saa7114_i2c_init[] = {
 #define TVNORMS ARRAY_SIZE(tvnorms)
 
 /* supported controls */
-static struct v4l2_queryctrl em2820_qctrl[] = {
+static struct v4l2_queryctrl em28xx_qctrl[] = {
 	{
 		.id = V4L2_CID_BRIGHTNESS,
 		.type = V4L2_CTRL_TYPE_INTEGER,
@@ -182,10 +183,10 @@ static struct v4l2_queryctrl em2820_qctrl[] = {
 	 }
 };
 
-static struct usb_driver em2820_usb_driver;
+static struct usb_driver em28xx_usb_driver;
 
-static DECLARE_MUTEX(em2820_sysfs_lock);
-static DECLARE_RWSEM(em2820_disconnect);
+static DECLARE_MUTEX(em28xx_sysfs_lock);
+static DECLARE_RWSEM(em28xx_disconnect);
 
 /*********************  v4l2 interface  ******************************************/
 
@@ -200,95 +201,95 @@ static inline unsigned long kvirt_to_pa(unsigned long adr)
 }
 
 /*
- * em2820_config()
+ * em28xx_config()
  * inits registers with sane defaults
  */
-static int em2820_config(struct em2820 *dev)
+static int em28xx_config(struct em28xx *dev)
 {
 
 	/* Sets I2C speed to 100 KHz */
-	em2820_write_regs_req(dev, 0x00, 0x06, "\x40", 1);
+	em28xx_write_regs_req(dev, 0x00, 0x06, "\x40", 1);
 
 	/* enable vbi capturing */
-	em2820_audio_usb_mute(dev, 1);
+	em28xx_audio_usb_mute(dev, 1);
 	dev->mute = 1;		/* maybe not the right place... */
 	dev->volume = 0x1f;
-	em2820_audio_analog_set(dev);
-	em2820_audio_analog_setup(dev);
-	em2820_outfmt_set_yuv422(dev);
-	em2820_colorlevels_set_default(dev);
-	em2820_compression_disable(dev);
+	em28xx_audio_analog_set(dev);
+	em28xx_audio_analog_setup(dev);
+	em28xx_outfmt_set_yuv422(dev);
+	em28xx_colorlevels_set_default(dev);
+	em28xx_compression_disable(dev);
 
 	return 0;
 }
 
 /*
- * em2820_config_i2c()
+ * em28xx_config_i2c()
  * configure i2c attached devices
  */
-void em2820_config_i2c(struct em2820 *dev)
+void em28xx_config_i2c(struct em28xx *dev)
 {
 	struct v4l2_frequency f;
-	struct video_decoder_init em2820_vdi = {.data = NULL };
+	struct video_decoder_init em28xx_vdi = {.data = NULL };
 
 
 	/* configure decoder */
 	if(dev->model == EM2820_BOARD_MSI_VOX_USB_2){
-		em2820_vdi.data=saa7114_i2c_init;
-		em2820_vdi.len=sizeof(saa7114_i2c_init);
+		em28xx_vdi.data=saa7114_i2c_init;
+		em28xx_vdi.len=sizeof(saa7114_i2c_init);
 	}
 
 
-	em2820_i2c_call_clients(dev, DECODER_INIT, &em2820_vdi);
-	em2820_i2c_call_clients(dev, DECODER_SET_INPUT, &dev->ctl_input);
-/*	em2820_i2c_call_clients(dev,DECODER_SET_PICTURE, &dev->vpic); */
-/*	em2820_i2c_call_clients(dev,DECODER_SET_NORM,&dev->tvnorm->id); */
-/*	em2820_i2c_call_clients(dev,DECODER_ENABLE_OUTPUT,&output); */
-/*	em2820_i2c_call_clients(dev,DECODER_DUMP, NULL); */
+	em28xx_i2c_call_clients(dev, DECODER_INIT, &em28xx_vdi);
+	em28xx_i2c_call_clients(dev, DECODER_SET_INPUT, &dev->ctl_input);
+/*	em28xx_i2c_call_clients(dev,DECODER_SET_PICTURE, &dev->vpic); */
+/*	em28xx_i2c_call_clients(dev,DECODER_SET_NORM,&dev->tvnorm->id); */
+/*	em28xx_i2c_call_clients(dev,DECODER_ENABLE_OUTPUT,&output); */
+/*	em28xx_i2c_call_clients(dev,DECODER_DUMP, NULL); */
 
 	/* configure tuner */
 	f.tuner = 0;
 	f.type = V4L2_TUNER_ANALOG_TV;
 	f.frequency = 9076;	/* FIXME:remove magic number */
 	dev->ctl_freq = f.frequency;
-	em2820_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, &f);
+	em28xx_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, &f);
 
 	/* configure tda9887 */
 
 
-/*	em2820_i2c_call_clients(dev,VIDIOC_S_STD,&dev->tvnorm->id); */
+/*	em28xx_i2c_call_clients(dev,VIDIOC_S_STD,&dev->tvnorm->id); */
 }
 
 /*
- * em2820_empty_framequeues()
+ * em28xx_empty_framequeues()
  * prepare queues for incoming and outgoing frames
  */
-static void em2820_empty_framequeues(struct em2820 *dev)
+static void em28xx_empty_framequeues(struct em28xx *dev)
 {
 	u32 i;
 
 	INIT_LIST_HEAD(&dev->inqueue);
 	INIT_LIST_HEAD(&dev->outqueue);
 
-	for (i = 0; i < EM2820_NUM_FRAMES; i++) {
+	for (i = 0; i < EM28XX_NUM_FRAMES; i++) {
 		dev->frame[i].state = F_UNUSED;
 		dev->frame[i].buf.bytesused = 0;
 	}
 }
 
 /*
- * em2820_v4l2_open()
+ * em28xx_v4l2_open()
  * inits the device and starts isoc transfer
  */
-static int em2820_v4l2_open(struct inode *inode, struct file *filp)
+static int em28xx_v4l2_open(struct inode *inode, struct file *filp)
 {
 	int minor = iminor(inode);
 	int errCode = 0;
-	struct em2820 *h,*dev = NULL;
+	struct em28xx *h,*dev = NULL;
 	struct list_head *list;
 
-	list_for_each(list,&em2820_devlist) {
-		h = list_entry(list, struct em2820, devlist);
+	list_for_each(list,&em28xx_devlist) {
+		h = list_entry(list, struct em28xx, devlist);
 		if (h->vdev->minor == minor) {
 			dev  = h;
 		}
@@ -297,14 +298,14 @@ static int em2820_v4l2_open(struct inode *inode, struct file *filp)
 	filp->private_data=dev;
 
 
-	em2820_videodbg("users=%d", dev->users);
+	em28xx_videodbg("users=%d", dev->users);
 
-	if (!down_read_trylock(&em2820_disconnect))
+	if (!down_read_trylock(&em28xx_disconnect))
 		return -ERESTARTSYS;
 
 	if (dev->users) {
-		em2820_warn("this driver can be opened only once\n");
-		up_read(&em2820_disconnect);
+		em28xx_warn("this driver can be opened only once\n");
+		up_read(&em28xx_disconnect);
 		return -EBUSY;
 	}
 
@@ -322,7 +323,7 @@ static int em2820_v4l2_open(struct inode *inode, struct file *filp)
 
 	down(&dev->lock);
 
-	em2820_set_alternate(dev);
+	em28xx_set_alternate(dev);
 
 	dev->width = norm_maxw(dev);
 	dev->height = norm_maxh(dev);
@@ -332,11 +333,11 @@ static int em2820_v4l2_open(struct inode *inode, struct file *filp)
 	dev->hscale = 0;
 	dev->vscale = 0;
 
-	em2820_capture_start(dev, 1);
-	em2820_resolution_set(dev);
+	em28xx_capture_start(dev, 1);
+	em28xx_resolution_set(dev);
 
 	/* start the transfer */
-	errCode = em2820_init_isoc(dev);
+	errCode = em28xx_init_isoc(dev);
 	if (errCode)
 		goto err;
 
@@ -347,55 +348,55 @@ static int em2820_v4l2_open(struct inode *inode, struct file *filp)
 	dev->num_frames = 0;
 
 	/* prepare queues */
-	em2820_empty_framequeues(dev);
+	em28xx_empty_framequeues(dev);
 
 	dev->state |= DEV_INITIALIZED;
 
       err:
 	up(&dev->lock);
-	up_read(&em2820_disconnect);
+	up_read(&em28xx_disconnect);
 	return errCode;
 }
 
 /*
- * em2820_realease_resources()
+ * em28xx_realease_resources()
  * unregisters the v4l2,i2c and usb devices
  * called when the device gets disconected or at module unload
 */
-static void em2820_release_resources(struct em2820 *dev)
+static void em28xx_release_resources(struct em28xx *dev)
 {
-	down(&em2820_sysfs_lock);
+	down(&em28xx_sysfs_lock);
 
-	em2820_info("V4L2 device /dev/video%d deregistered\n",
+	em28xx_info("V4L2 device /dev/video%d deregistered\n",
 		    dev->vdev->minor);
 	list_del(&dev->devlist);
 	video_unregister_device(dev->vdev);
 /*	video_unregister_device(dev->vbi_dev); */
-	em2820_i2c_unregister(dev);
+	em28xx_i2c_unregister(dev);
 	usb_put_dev(dev->udev);
-	up(&em2820_sysfs_lock);
+	up(&em28xx_sysfs_lock);
 }
 
 /*
- * em2820_v4l2_close()
+ * em28xx_v4l2_close()
  * stops streaming and deallocates all resources allocated by the v4l2 calls and ioctls
  */
-static int em2820_v4l2_close(struct inode *inode, struct file *filp)
+static int em28xx_v4l2_close(struct inode *inode, struct file *filp)
 {
 	int errCode;
-	struct em2820 *dev=filp->private_data;
+	struct em28xx *dev=filp->private_data;
 
-	em2820_videodbg("users=%d", dev->users);
+	em28xx_videodbg("users=%d", dev->users);
 
 	down(&dev->lock);
 
-	em2820_uninit_isoc(dev);
+	em28xx_uninit_isoc(dev);
 
-	em2820_release_buffers(dev);
+	em28xx_release_buffers(dev);
 
 	/* the device is already disconnect, free the remaining resources */
 	if (dev->state & DEV_DISCONNECTED) {
-		em2820_release_resources(dev);
+		em28xx_release_resources(dev);
 		up(&dev->lock);
 		kfree(dev);
 		return 0;
@@ -403,10 +404,10 @@ static int em2820_v4l2_close(struct inode *inode, struct file *filp)
 
 	/* set alternate 0 */
 	dev->alt = 0;
-	em2820_videodbg("setting alternate 0");
+	em28xx_videodbg("setting alternate 0");
 	errCode = usb_set_interface(dev->udev, 0, 0);
 	if (errCode < 0) {
-		em2820_errdev ("cannot change alternate number to 0 (error=%i)\n",
+		em28xx_errdev ("cannot change alternate number to 0 (error=%i)\n",
 		     errCode);
 	}
 
@@ -417,49 +418,49 @@ static int em2820_v4l2_close(struct inode *inode, struct file *filp)
 }
 
 /*
- * em2820_v4l2_read()
+ * em28xx_v4l2_read()
  * will allocate buffers when called for the first time
  */
 static ssize_t
-em2820_v4l2_read(struct file *filp, char __user * buf, size_t count,
+em28xx_v4l2_read(struct file *filp, char __user * buf, size_t count,
 		 loff_t * f_pos)
 {
-	struct em2820_frame_t *f, *i;
+	struct em28xx_frame_t *f, *i;
 	unsigned long lock_flags;
 	int ret = 0;
-	struct em2820 *dev = filp->private_data;
+	struct em28xx *dev = filp->private_data;
 
 	if (down_interruptible(&dev->fileop_lock))
 		return -ERESTARTSYS;
 
 	if (dev->state & DEV_DISCONNECTED) {
-		em2820_videodbg("device not present");
+		em28xx_videodbg("device not present");
 		up(&dev->fileop_lock);
 		return -ENODEV;
 	}
 
 	if (dev->state & DEV_MISCONFIGURED) {
-		em2820_videodbg("device misconfigured; close and open it again");
+		em28xx_videodbg("device misconfigured; close and open it again");
 		up(&dev->fileop_lock);
 		return -EIO;
 	}
 
 	if (dev->io == IO_MMAP) {
-		em2820_videodbg ("IO method is set to mmap; close and open"
+		em28xx_videodbg ("IO method is set to mmap; close and open"
 				" the device again to choose the read method");
 		up(&dev->fileop_lock);
 		return -EINVAL;
 	}
 
 	if (dev->io == IO_NONE) {
-		if (!em2820_request_buffers(dev, EM2820_NUM_READ_FRAMES)) {
-			em2820_errdev("read failed, not enough memory\n");
+		if (!em28xx_request_buffers(dev, EM28XX_NUM_READ_FRAMES)) {
+			em28xx_errdev("read failed, not enough memory\n");
 			up(&dev->fileop_lock);
 			return -ENOMEM;
 		}
 		dev->io = IO_READ;
 		dev->stream = STREAM_ON;
-		em2820_queue_unusedframes(dev);
+		em28xx_queue_unusedframes(dev);
 	}
 
 	if (!count) {
@@ -486,7 +487,7 @@ em2820_v4l2_read(struct file *filp, char __user * buf, size_t count,
 		}
 	}
 
-	f = list_entry(dev->outqueue.prev, struct em2820_frame_t, frame);
+	f = list_entry(dev->outqueue.prev, struct em28xx_frame_t, frame);
 
 	spin_lock_irqsave(&dev->queue_lock, lock_flags);
 	list_for_each_entry(i, &dev->outqueue, frame)
@@ -494,7 +495,7 @@ em2820_v4l2_read(struct file *filp, char __user * buf, size_t count,
 	INIT_LIST_HEAD(&dev->outqueue);
 	spin_unlock_irqrestore(&dev->queue_lock, lock_flags);
 
-	em2820_queue_unusedframes(dev);
+	em28xx_queue_unusedframes(dev);
 
 	if (count > f->buf.length)
 		count = f->buf.length;
@@ -511,26 +512,26 @@ em2820_v4l2_read(struct file *filp, char __user * buf, size_t count,
 }
 
 /*
- * em2820_v4l2_poll()
+ * em28xx_v4l2_poll()
  * will allocate buffers when called for the first time
  */
-static unsigned int em2820_v4l2_poll(struct file *filp, poll_table * wait)
+static unsigned int em28xx_v4l2_poll(struct file *filp, poll_table * wait)
 {
 	unsigned int mask = 0;
-	struct em2820 *dev = filp->private_data;
+	struct em28xx *dev = filp->private_data;
 
 	if (down_interruptible(&dev->fileop_lock))
 		return POLLERR;
 
 	if (dev->state & DEV_DISCONNECTED) {
-		em2820_videodbg("device not present");
+		em28xx_videodbg("device not present");
 	} else if (dev->state & DEV_MISCONFIGURED) {
-		em2820_videodbg("device is misconfigured; close and open it again");
+		em28xx_videodbg("device is misconfigured; close and open it again");
 	} else {
 		if (dev->io == IO_NONE) {
-			if (!em2820_request_buffers
-			    (dev, EM2820_NUM_READ_FRAMES)) {
-				em2820_warn
+			if (!em28xx_request_buffers
+			    (dev, EM28XX_NUM_READ_FRAMES)) {
+				em28xx_warn
 				    ("poll() failed, not enough memory\n");
 			} else {
 				dev->io = IO_READ;
@@ -539,7 +540,7 @@ static unsigned int em2820_v4l2_poll(struct file *filp, poll_table * wait)
 		}
 
 		if (dev->io == IO_READ) {
-			em2820_queue_unusedframes(dev);
+			em28xx_queue_unusedframes(dev);
 			poll_wait(filp, &dev->wait_frame, wait);
 
 			if (!list_empty(&dev->outqueue))
@@ -556,51 +557,51 @@ static unsigned int em2820_v4l2_poll(struct file *filp, poll_table * wait)
 }
 
 /*
- * em2820_vm_open()
+ * em28xx_vm_open()
  */
-static void em2820_vm_open(struct vm_area_struct *vma)
+static void em28xx_vm_open(struct vm_area_struct *vma)
 {
-	struct em2820_frame_t *f = vma->vm_private_data;
+	struct em28xx_frame_t *f = vma->vm_private_data;
 	f->vma_use_count++;
 }
 
 /*
- * em2820_vm_close()
+ * em28xx_vm_close()
  */
-static void em2820_vm_close(struct vm_area_struct *vma)
+static void em28xx_vm_close(struct vm_area_struct *vma)
 {
 	/* NOTE: buffers are not freed here */
-	struct em2820_frame_t *f = vma->vm_private_data;
+	struct em28xx_frame_t *f = vma->vm_private_data;
 	f->vma_use_count--;
 }
 
-static struct vm_operations_struct em2820_vm_ops = {
-	.open = em2820_vm_open,
-	.close = em2820_vm_close,
+static struct vm_operations_struct em28xx_vm_ops = {
+	.open = em28xx_vm_open,
+	.close = em28xx_vm_close,
 };
 
 /*
- * em2820_v4l2_mmap()
+ * em28xx_v4l2_mmap()
  */
-static int em2820_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
+static int em28xx_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	unsigned long size = vma->vm_end - vma->vm_start,
 	    start = vma->vm_start, pos, page;
 	u32 i;
 
-	struct em2820 *dev = filp->private_data;
+	struct em28xx *dev = filp->private_data;
 
 	if (down_interruptible(&dev->fileop_lock))
 		return -ERESTARTSYS;
 
 	if (dev->state & DEV_DISCONNECTED) {
-		em2820_videodbg("mmap: device not present");
+		em28xx_videodbg("mmap: device not present");
 		up(&dev->fileop_lock);
 		return -ENODEV;
 	}
 
 	if (dev->state & DEV_MISCONFIGURED) {
-		em2820_videodbg ("mmap: Device is misconfigured; close and "
+		em28xx_videodbg ("mmap: Device is misconfigured; close and "
 						"open it again");
 		up(&dev->fileop_lock);
 		return -EIO;
@@ -617,7 +618,7 @@ static int em2820_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 			break;
 	}
 	if (i == dev->num_frames) {
-		em2820_videodbg("mmap: user supplied mapping address is out of range");
+		em28xx_videodbg("mmap: user supplied mapping address is out of range");
 		up(&dev->fileop_lock);
 		return -EINVAL;
 	}
@@ -631,7 +632,7 @@ static int em2820_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 		page = vmalloc_to_pfn((void *)pos);
 		if (remap_pfn_range(vma, start, page, PAGE_SIZE,
 				    vma->vm_page_prot)) {
-			em2820_videodbg("mmap: rename page map failed");
+			em28xx_videodbg("mmap: rename page map failed");
 			up(&dev->fileop_lock);
 			return -EAGAIN;
 		}
@@ -640,19 +641,19 @@ static int em2820_v4l2_mmap(struct file *filp, struct vm_area_struct *vma)
 		size -= PAGE_SIZE;
 	}
 
-	vma->vm_ops = &em2820_vm_ops;
+	vma->vm_ops = &em28xx_vm_ops;
 	vma->vm_private_data = &dev->frame[i];
 
-	em2820_vm_open(vma);
+	em28xx_vm_open(vma);
 	up(&dev->fileop_lock);
 	return 0;
 }
 
 /*
- * em2820_get_ctrl()
+ * em28xx_get_ctrl()
  * return the current saturation, brightness or contrast, mute state
  */
-static int em2820_get_ctrl(struct em2820 *dev, struct v4l2_control *ctrl)
+static int em28xx_get_ctrl(struct em28xx *dev, struct v4l2_control *ctrl)
 {
 	s32 tmp;
 	switch (ctrl->id) {
@@ -663,30 +664,30 @@ static int em2820_get_ctrl(struct em2820 *dev, struct v4l2_control *ctrl)
 		ctrl->value = dev->volume;
 		return 0;
 	case V4L2_CID_BRIGHTNESS:
-		if ((tmp = em2820_brightness_get(dev)) < 0)
+		if ((tmp = em28xx_brightness_get(dev)) < 0)
 			return -EIO;
 		ctrl->value = (s32) ((s8) tmp);	/* FIXME: clenaer way to extend sign? */
 		return 0;
 	case V4L2_CID_CONTRAST:
-		if ((ctrl->value = em2820_contrast_get(dev)) < 0)
+		if ((ctrl->value = em28xx_contrast_get(dev)) < 0)
 			return -EIO;
 		return 0;
 	case V4L2_CID_SATURATION:
-		if ((ctrl->value = em2820_saturation_get(dev)) < 0)
+		if ((ctrl->value = em28xx_saturation_get(dev)) < 0)
 			return -EIO;
 		return 0;
 	case V4L2_CID_RED_BALANCE:
-		if ((tmp = em2820_v_balance_get(dev)) < 0)
+		if ((tmp = em28xx_v_balance_get(dev)) < 0)
 			return -EIO;
 		ctrl->value = (s32) ((s8) tmp);	/* FIXME: clenaer way to extend sign? */
 		return 0;
 	case V4L2_CID_BLUE_BALANCE:
-		if ((tmp = em2820_u_balance_get(dev)) < 0)
+		if ((tmp = em28xx_u_balance_get(dev)) < 0)
 			return -EIO;
 		ctrl->value = (s32) ((s8) tmp);	/* FIXME: clenaer way to extend sign? */
 		return 0;
 	case V4L2_CID_GAMMA:
-		if ((ctrl->value = em2820_gamma_get(dev)) < 0)
+		if ((ctrl->value = em28xx_gamma_get(dev)) < 0)
 			return -EIO;
 		return 0;
 	default:
@@ -695,44 +696,44 @@ static int em2820_get_ctrl(struct em2820 *dev, struct v4l2_control *ctrl)
 }
 
 /*
- * em2820_set_ctrl()
+ * em28xx_set_ctrl()
  * mute or set new saturation, brightness or contrast
  */
-static int em2820_set_ctrl(struct em2820 *dev, const struct v4l2_control *ctrl)
+static int em28xx_set_ctrl(struct em28xx *dev, const struct v4l2_control *ctrl)
 {
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 		if (ctrl->value != dev->mute) {
 			dev->mute = ctrl->value;
-			em2820_audio_usb_mute(dev, ctrl->value);
-			return em2820_audio_analog_set(dev);
+			em28xx_audio_usb_mute(dev, ctrl->value);
+			return em28xx_audio_analog_set(dev);
 		}
 		return 0;
 	case V4L2_CID_AUDIO_VOLUME:
 		dev->volume = ctrl->value;
-		return em2820_audio_analog_set(dev);
+		return em28xx_audio_analog_set(dev);
 	case V4L2_CID_BRIGHTNESS:
-		return em2820_brightness_set(dev, ctrl->value);
+		return em28xx_brightness_set(dev, ctrl->value);
 	case V4L2_CID_CONTRAST:
-		return em2820_contrast_set(dev, ctrl->value);
+		return em28xx_contrast_set(dev, ctrl->value);
 	case V4L2_CID_SATURATION:
-		return em2820_saturation_set(dev, ctrl->value);
+		return em28xx_saturation_set(dev, ctrl->value);
 	case V4L2_CID_RED_BALANCE:
-		return em2820_v_balance_set(dev, ctrl->value);
+		return em28xx_v_balance_set(dev, ctrl->value);
 	case V4L2_CID_BLUE_BALANCE:
-		return em2820_u_balance_set(dev, ctrl->value);
+		return em28xx_u_balance_set(dev, ctrl->value);
 	case V4L2_CID_GAMMA:
-		return em2820_gamma_set(dev, ctrl->value);
+		return em28xx_gamma_set(dev, ctrl->value);
 	default:
 		return -EINVAL;
 	}
 }
 
 /*
- * em2820_stream_interrupt()
+ * em28xx_stream_interrupt()
  * stops streaming
  */
-static int em2820_stream_interrupt(struct em2820 *dev)
+static int em28xx_stream_interrupt(struct em28xx *dev)
 {
 	int ret = 0;
 
@@ -742,12 +743,12 @@ static int em2820_stream_interrupt(struct em2820 *dev)
 	ret = wait_event_timeout(dev->wait_stream,
 				 (dev->stream == STREAM_OFF) ||
 				 (dev->state & DEV_DISCONNECTED),
-				 EM2820_URB_TIMEOUT);
+				 EM28XX_URB_TIMEOUT);
 	if (dev->state & DEV_DISCONNECTED)
 		return -ENODEV;
 	else if (ret) {
 		dev->state |= DEV_MISCONFIGURED;
-		em2820_videodbg("device is misconfigured; close and "
+		em28xx_videodbg("device is misconfigured; close and "
 			"open /dev/video%d again", dev->vdev->minor);
 		return ret;
 	}
@@ -755,7 +756,7 @@ static int em2820_stream_interrupt(struct em2820 *dev)
 	return 0;
 }
 
-static int em2820_set_norm(struct em2820 *dev, int width, int height)
+static int em28xx_set_norm(struct em28xx *dev, int width, int height)
 {
 	unsigned int hscale, vscale;
 	unsigned int maxh, maxw;
@@ -794,41 +795,41 @@ static int em2820_set_norm(struct em2820 *dev, int width, int height)
 	dev->hscale = hscale;
 	dev->vscale = vscale;
 
-	em2820_resolution_set(dev);
+	em28xx_resolution_set(dev);
 
 	return 0;
 }
 
-static void video_mux(struct em2820 *dev, int index)
+static void video_mux(struct em28xx *dev, int index)
 {
 	int input, ainput;
 
 	input = INPUT(index)->vmux;
 	dev->ctl_input = index;
 
-	em2820_i2c_call_clients(dev, DECODER_SET_INPUT, &input);
+	em28xx_i2c_call_clients(dev, DECODER_SET_INPUT, &input);
 
 	dev->ctl_ainput = INPUT(index)->amux;
 
 	switch (dev->ctl_ainput) {
 	case 0:
-		ainput = EM2820_AUDIO_SRC_TUNER;
+		ainput = EM28XX_AUDIO_SRC_TUNER;
 		break;
 	default:
-		ainput = EM2820_AUDIO_SRC_LINE;
+		ainput = EM28XX_AUDIO_SRC_LINE;
 	}
 
-	em2820_audio_source(dev, ainput);
+	em28xx_audio_source(dev, ainput);
 }
 
 /*
- * em2820_v4l2_do_ioctl()
+ * em28xx_v4l2_do_ioctl()
  * This function is _not_ called directly, but from
- * em2820_v4l2_ioctl. Userspace
+ * em28xx_v4l2_ioctl. Userspace
  * copying is done already, arg is a kernel pointer.
  */
-static int em2820_do_ioctl(struct inode *inode, struct file *filp,
-			   struct em2820 *dev, unsigned int cmd, void *arg,
+static int em28xx_do_ioctl(struct inode *inode, struct file *filp,
+			   struct em28xx *dev, unsigned int cmd, void *arg,
 			   v4l2_kioctl driver_ioctl)
 {
 	int ret;
@@ -875,7 +876,7 @@ static int em2820_do_ioctl(struct inode *inode, struct file *filp,
 			down(&dev->lock);
 			dev->tvnorm = &tvnorms[i];
 
-			em2820_set_norm(dev, dev->width, dev->height);
+			em28xx_set_norm(dev, dev->width, dev->height);
 
 /*
 		dev->width=norm_maxw(dev);
@@ -886,18 +887,18 @@ static int em2820_do_ioctl(struct inode *inode, struct file *filp,
 		dev->hscale=0;
 		dev->vscale=0;
 
-		em2820_resolution_set(dev);
+		em28xx_resolution_set(dev);
 */
 /*
-		em2820_uninit_isoc(dev);
-		em2820_set_alternate(dev);
-		em2820_capture_start(dev, 1);
-		em2820_resolution_set(dev);
-		em2820_init_isoc(dev);
+		em28xx_uninit_isoc(dev);
+		em28xx_set_alternate(dev);
+		em28xx_capture_start(dev, 1);
+		em28xx_resolution_set(dev);
+		em28xx_init_isoc(dev);
 */
-			em2820_i2c_call_clients(dev, DECODER_SET_NORM,
+			em28xx_i2c_call_clients(dev, DECODER_SET_NORM,
 						&tvnorms[i].mode);
-			em2820_i2c_call_clients(dev, VIDIOC_S_STD,
+			em28xx_i2c_call_clients(dev, VIDIOC_S_STD,
 						&dev->tvnorm->id);
 
 			up(&dev->lock);
@@ -911,19 +912,19 @@ static int em2820_do_ioctl(struct inode *inode, struct file *filp,
 			struct v4l2_input *i = arg;
 			unsigned int n;
 			static const char *iname[] = {
-				[EM2820_VMUX_COMPOSITE1] = "Composite1",
-				[EM2820_VMUX_COMPOSITE2] = "Composite2",
-				[EM2820_VMUX_COMPOSITE3] = "Composite3",
-				[EM2820_VMUX_COMPOSITE4] = "Composite4",
-				[EM2820_VMUX_SVIDEO] = "S-Video",
-				[EM2820_VMUX_TELEVISION] = "Television",
-				[EM2820_VMUX_CABLE] = "Cable TV",
-				[EM2820_VMUX_DVB] = "DVB",
-				[EM2820_VMUX_DEBUG] = "for debug only",
+				[EM28XX_VMUX_COMPOSITE1] = "Composite1",
+				[EM28XX_VMUX_COMPOSITE2] = "Composite2",
+				[EM28XX_VMUX_COMPOSITE3] = "Composite3",
+				[EM28XX_VMUX_COMPOSITE4] = "Composite4",
+				[EM28XX_VMUX_SVIDEO] = "S-Video",
+				[EM28XX_VMUX_TELEVISION] = "Television",
+				[EM28XX_VMUX_CABLE] = "Cable TV",
+				[EM28XX_VMUX_DVB] = "DVB",
+				[EM28XX_VMUX_DEBUG] = "for debug only",
 			};
 
 			n = i->index;
-			if (n >= MAX_EM2820_INPUT)
+			if (n >= MAX_EM28XX_INPUT)
 				return -EINVAL;
 			if (0 == INPUT(n)->type)
 				return -EINVAL;
@@ -931,8 +932,8 @@ static int em2820_do_ioctl(struct inode *inode, struct file *filp,
 			i->index = n;
 			i->type = V4L2_INPUT_TYPE_CAMERA;
 			strcpy(i->name, iname[INPUT(n)->type]);
-			if ((EM2820_VMUX_TELEVISION == INPUT(n)->type) ||
-			    (EM2820_VMUX_CABLE == INPUT(n)->type))
+			if ((EM28XX_VMUX_TELEVISION == INPUT(n)->type) ||
+			    (EM28XX_VMUX_CABLE == INPUT(n)->type))
 				i->type = V4L2_INPUT_TYPE_TUNER;
 			for (n = 0; n < ARRAY_SIZE(tvnorms); n++)
 				i->std |= tvnorms[n].id;
@@ -951,7 +952,7 @@ static int em2820_do_ioctl(struct inode *inode, struct file *filp,
 		{
 			int *index = arg;
 
-			if (*index >= MAX_EM2820_INPUT)
+			if (*index >= MAX_EM28XX_INPUT)
 				return -EINVAL;
 			if (0 == INPUT(*index)->type)
 				return -EINVAL;
@@ -997,10 +998,10 @@ static int em2820_do_ioctl(struct inode *inode, struct file *filp,
 		{
 			struct v4l2_queryctrl *qc = arg;
 			u8 i, n;
-			n = sizeof(em2820_qctrl) / sizeof(em2820_qctrl[0]);
+			n = sizeof(em28xx_qctrl) / sizeof(em28xx_qctrl[0]);
 			for (i = 0; i < n; i++)
-				if (qc->id && qc->id == em2820_qctrl[i].id) {
-					memcpy(qc, &(em2820_qctrl[i]),
+				if (qc->id && qc->id == em28xx_qctrl[i].id) {
+					memcpy(qc, &(em28xx_qctrl[i]),
 					       sizeof(*qc));
 					return 0;
 				}
@@ -1013,7 +1014,7 @@ static int em2820_do_ioctl(struct inode *inode, struct file *filp,
 			struct v4l2_control *ctrl = arg;
 
 
-			return em2820_get_ctrl(dev, ctrl);
+			return em28xx_get_ctrl(dev, ctrl);
 		}
 
 	case VIDIOC_S_CTRL_OLD:	/* ??? */
@@ -1023,16 +1024,16 @@ static int em2820_do_ioctl(struct inode *inode, struct file *filp,
 			u8 i, n;
 
 
-			n = sizeof(em2820_qctrl) / sizeof(em2820_qctrl[0]);
+			n = sizeof(em28xx_qctrl) / sizeof(em28xx_qctrl[0]);
 			for (i = 0; i < n; i++)
-				if (ctrl->id == em2820_qctrl[i].id) {
+				if (ctrl->id == em28xx_qctrl[i].id) {
 					if (ctrl->value <
-					    em2820_qctrl[i].minimum
+					    em28xx_qctrl[i].minimum
 					    || ctrl->value >
-					    em2820_qctrl[i].maximum)
+					    em28xx_qctrl[i].maximum)
 						return -ERANGE;
 
-					return em2820_set_ctrl(dev, ctrl);
+					return em28xx_set_ctrl(dev, ctrl);
 				}
 			return -EINVAL;
 		}
@@ -1052,16 +1053,16 @@ static int em2820_do_ioctl(struct inode *inode, struct file *filp,
 			t->capability = V4L2_TUNER_CAP_NORM;
 			t->rangehigh = 0xffffffffUL;	/* FIXME: set correct range */
 /*		t->signal = 0xffff;*/
-/*		em2820_i2c_call_clients(dev,VIDIOC_G_TUNER,t);*/
+/*		em28xx_i2c_call_clients(dev,VIDIOC_G_TUNER,t);*/
 			/* No way to get signal strength? */
 			down(&dev->lock);
-			em2820_i2c_call_clients(dev, DECODER_GET_STATUS,
+			em28xx_i2c_call_clients(dev, DECODER_GET_STATUS,
 						&status);
 			up(&dev->lock);
 			t->signal =
 			    (status & DECODER_STATUS_GOOD) != 0 ? 0xffff : 0;
 
-			em2820_videodbg("VIDIO_G_TUNER: signal=%x, afc=%x", t->signal,
+			em28xx_videodbg("VIDIO_G_TUNER: signal=%x, afc=%x", t->signal,
 				 t->afc);
 			return 0;
 		}
@@ -1080,13 +1081,13 @@ static int em2820_do_ioctl(struct inode *inode, struct file *filp,
 /*		t->signal = 0xffff; */
 			/* No way to get signal strength? */
 			down(&dev->lock);
-			em2820_i2c_call_clients(dev, DECODER_GET_STATUS,
+			em28xx_i2c_call_clients(dev, DECODER_GET_STATUS,
 						&status);
 			up(&dev->lock);
 			t->signal =
 			    (status & DECODER_STATUS_GOOD) != 0 ? 0xffff : 0;
 
-			em2820_videodbg("VIDIO_S_TUNER: signal=%x, afc=%x\n",
+			em28xx_videodbg("VIDIO_S_TUNER: signal=%x, afc=%x\n",
 				 t->signal, t->afc);
 			return 0;
 		}
@@ -1112,7 +1113,7 @@ static int em2820_do_ioctl(struct inode *inode, struct file *filp,
 
 			down(&dev->lock);
 			dev->ctl_freq = f->frequency;
-			em2820_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, f);
+			em28xx_i2c_call_clients(dev, VIDIOC_S_FREQUENCY, f);
 			up(&dev->lock);
 			return 0;
 		}
@@ -1145,7 +1146,7 @@ static int em2820_do_ioctl(struct inode *inode, struct file *filp,
 
 			dev->stream = STREAM_ON;	/* FIXME: Start video capture here? */
 
-			em2820_videodbg("VIDIOC_STREAMON: starting stream");
+			em28xx_videodbg("VIDIOC_STREAMON: starting stream");
 
 			return 0;
 		}
@@ -1159,11 +1160,11 @@ static int em2820_do_ioctl(struct inode *inode, struct file *filp,
 				return -EINVAL;
 
 			if (dev->stream == STREAM_ON) {
-				em2820_videodbg ("VIDIOC_STREAMOFF: interrupting stream");
-				if ((ret = em2820_stream_interrupt(dev)))
+				em28xx_videodbg ("VIDIOC_STREAMOFF: interrupting stream");
+				if ((ret = em28xx_stream_interrupt(dev)))
 					return ret;
 			}
-			em2820_empty_framequeues(dev);
+			em28xx_empty_framequeues(dev);
 
 			return 0;
 		}
@@ -1175,21 +1176,21 @@ static int em2820_do_ioctl(struct inode *inode, struct file *filp,
 }
 
 /*
- * em2820_v4l2_do_ioctl()
+ * em28xx_v4l2_do_ioctl()
  * This function is _not_ called directly, but from
- * em2820_v4l2_ioctl. Userspace
+ * em28xx_v4l2_ioctl. Userspace
  * copying is done already, arg is a kernel pointer.
  */
-static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
+static int em28xx_video_do_ioctl(struct inode *inode, struct file *filp,
 				 unsigned int cmd, void *arg)
 {
-	struct em2820 *dev = filp->private_data;
+	struct em28xx *dev = filp->private_data;
 
 	if (!dev)
 		return -ENODEV;
 
 	if (video_debug > 1)
-		em2820_print_ioctl(dev->name,cmd);
+		em28xx_print_ioctl(dev->name,cmd);
 
 	switch (cmd) {
 
@@ -1199,12 +1200,12 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 			struct v4l2_capability *cap = arg;
 
 			memset(cap, 0, sizeof(*cap));
-			strlcpy(cap->driver, "em2820", sizeof(cap->driver));
-			strlcpy(cap->card, em2820_boards[dev->model].name,
+			strlcpy(cap->driver, "em28xx", sizeof(cap->driver));
+			strlcpy(cap->card, em28xx_boards[dev->model].name,
 				sizeof(cap->card));
 			strlcpy(cap->bus_info, dev->udev->dev.bus_id,
 				sizeof(cap->bus_info));
-			cap->version = EM2820_VERSION_CODE;
+			cap->version = EM28XX_VERSION_CODE;
 			cap->capabilities =
 			    V4L2_CAP_VIDEO_CAPTURE |
 			    V4L2_CAP_AUDIO |
@@ -1233,7 +1234,7 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 		{
 			struct v4l2_format *format = arg;
 
-			em2820_videodbg("VIDIOC_G_FMT: type=%s",
+			em28xx_videodbg("VIDIOC_G_FMT: type=%s",
 				 format->type ==
 				 V4L2_BUF_TYPE_VIDEO_CAPTURE ?
 				 "V4L2_BUF_TYPE_VIDEO_CAPTURE" : format->type ==
@@ -1252,7 +1253,7 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 			format->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 			format->fmt.pix.field = dev->interlaced ? V4L2_FIELD_INTERLACED : V4L2_FIELD_TOP;	/* FIXME: TOP? NONE? BOTTOM? ALTENATE? */
 
-			em2820_videodbg("VIDIOC_G_FMT: %dx%d", dev->width,
+			em28xx_videodbg("VIDIOC_G_FMT: %dx%d", dev->width,
 				 dev->height);
 			return 0;
 		}
@@ -1273,7 +1274,7 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 
 /*		int both_fields; */
 
-			em2820_videodbg("%s: type=%s",
+			em28xx_videodbg("%s: type=%s",
 				 cmd ==
 				 VIDIOC_TRY_FMT ? "VIDIOC_TRY_FMT" :
 				 "VIDIOC_S_FMT",
@@ -1287,7 +1288,7 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 			if (format->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 				return -EINVAL;
 
-			em2820_videodbg("%s: requested %dx%d",
+			em28xx_videodbg("%s: requested %dx%d",
 				 cmd ==
 				 VIDIOC_TRY_FMT ? "VIDIOC_TRY_FMT" :
 				 "VIDIOC_S_FMT", format->fmt.pix.width,
@@ -1346,7 +1347,7 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 			format->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 			format->fmt.pix.field = V4L2_FIELD_INTERLACED;
 
-			em2820_videodbg("%s: returned %dx%d (%d, %d)",
+			em28xx_videodbg("%s: returned %dx%d (%d, %d)",
 				 cmd ==
 				 VIDIOC_TRY_FMT ? "VIDIOC_TRY_FMT" :
 				 "VIDIOC_S_FMT", format->fmt.pix.width,
@@ -1357,19 +1358,19 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 
 			for (i = 0; i < dev->num_frames; i++)
 				if (dev->frame[i].vma_use_count) {
-					em2820_videodbg("VIDIOC_S_FMT failed. "
+					em28xx_videodbg("VIDIOC_S_FMT failed. "
 						"Unmap the buffers first.");
 					return -EINVAL;
 				}
 
 			/* stop io in case it is already in progress */
 			if (dev->stream == STREAM_ON) {
-				em2820_videodbg("VIDIOC_SET_FMT: interupting stream");
-				if ((ret = em2820_stream_interrupt(dev)))
+				em28xx_videodbg("VIDIOC_SET_FMT: interupting stream");
+				if ((ret = em28xx_stream_interrupt(dev)))
 					return ret;
 			}
 
-			em2820_release_buffers(dev);
+			em28xx_release_buffers(dev);
 			dev->io = IO_NONE;
 
 			/* set new image size */
@@ -1381,11 +1382,11 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 			dev->hscale = hscale;
 			dev->vscale = vscale;
 /*			dev->both_fileds = both_fileds; */
-			em2820_uninit_isoc(dev);
-			em2820_set_alternate(dev);
-			em2820_capture_start(dev, 1);
-			em2820_resolution_set(dev);
-			em2820_init_isoc(dev);
+			em28xx_uninit_isoc(dev);
+			em28xx_set_alternate(dev);
+			em28xx_capture_start(dev, 1);
+			em28xx_resolution_set(dev);
+			em28xx_init_isoc(dev);
 
 			return 0;
 		}
@@ -1402,7 +1403,7 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 				return -EINVAL;
 
 			if (dev->io == IO_READ) {
-				em2820_videodbg ("method is set to read;"
+				em28xx_videodbg ("method is set to read;"
 					" close and open the device again to"
 					" choose the mmap I/O method");
 				return -EINVAL;
@@ -1410,26 +1411,26 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 
 			for (i = 0; i < dev->num_frames; i++)
 				if (dev->frame[i].vma_use_count) {
-					em2820_videodbg ("VIDIOC_REQBUFS failed; previous buffers are still mapped");
+					em28xx_videodbg ("VIDIOC_REQBUFS failed; previous buffers are still mapped");
 					return -EINVAL;
 				}
 
 			if (dev->stream == STREAM_ON) {
-				em2820_videodbg("VIDIOC_REQBUFS: interrupting stream");
-				if ((ret = em2820_stream_interrupt(dev)))
+				em28xx_videodbg("VIDIOC_REQBUFS: interrupting stream");
+				if ((ret = em28xx_stream_interrupt(dev)))
 					return ret;
 			}
 
-			em2820_empty_framequeues(dev);
+			em28xx_empty_framequeues(dev);
 
-			em2820_release_buffers(dev);
+			em28xx_release_buffers(dev);
 			if (rb->count)
 				rb->count =
-				    em2820_request_buffers(dev, rb->count);
+				    em28xx_request_buffers(dev, rb->count);
 
 			dev->frame_current = NULL;
 
-			em2820_videodbg ("VIDIOC_REQBUFS: setting io method to mmap: num bufs %i",
+			em28xx_videodbg ("VIDIOC_REQBUFS: setting io method to mmap: num bufs %i",
 						     rb->count);
 			dev->io = rb->count ? IO_MMAP : IO_NONE;
 			return 0;
@@ -1480,7 +1481,7 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 	case VIDIOC_DQBUF:
 		{
 			struct v4l2_buffer *b = arg;
-			struct em2820_frame_t *f;
+			struct em28xx_frame_t *f;
 			unsigned long lock_flags;
 			int ret = 0;
 
@@ -1505,7 +1506,7 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 
 			spin_lock_irqsave(&dev->queue_lock, lock_flags);
 			f = list_entry(dev->outqueue.next,
-				       struct em2820_frame_t, frame);
+				       struct em28xx_frame_t, frame);
 			list_del(dev->outqueue.next);
 			spin_unlock_irqrestore(&dev->queue_lock, lock_flags);
 
@@ -1518,66 +1519,66 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 			return 0;
 		}
 	default:
-		return em2820_do_ioctl(inode, filp, dev, cmd, arg,
-				       em2820_video_do_ioctl);
+		return em28xx_do_ioctl(inode, filp, dev, cmd, arg,
+				       em28xx_video_do_ioctl);
 	}
 	return 0;
 }
 
 /*
- * em2820_v4l2_ioctl()
- * handle v4l2 ioctl the main action happens in em2820_v4l2_do_ioctl()
+ * em28xx_v4l2_ioctl()
+ * handle v4l2 ioctl the main action happens in em28xx_v4l2_do_ioctl()
  */
-static int em2820_v4l2_ioctl(struct inode *inode, struct file *filp,
+static int em28xx_v4l2_ioctl(struct inode *inode, struct file *filp,
 			     unsigned int cmd, unsigned long arg)
 {
 	int ret = 0;
-	struct em2820 *dev = filp->private_data;
+	struct em28xx *dev = filp->private_data;
 
 	if (down_interruptible(&dev->fileop_lock))
 		return -ERESTARTSYS;
 
 	if (dev->state & DEV_DISCONNECTED) {
-		em2820_errdev("v4l2 ioctl: device not present\n");
+		em28xx_errdev("v4l2 ioctl: device not present\n");
 		up(&dev->fileop_lock);
 		return -ENODEV;
 	}
 
 	if (dev->state & DEV_MISCONFIGURED) {
-		em2820_errdev
+		em28xx_errdev
 		    ("v4l2 ioctl: device is misconfigured; close and open it again\n");
 		up(&dev->fileop_lock);
 		return -EIO;
 	}
 
-	ret = video_usercopy(inode, filp, cmd, arg, em2820_video_do_ioctl);
+	ret = video_usercopy(inode, filp, cmd, arg, em28xx_video_do_ioctl);
 
 	up(&dev->fileop_lock);
 
 	return ret;
 }
 
-static struct file_operations em2820_v4l_fops = {
+static struct file_operations em28xx_v4l_fops = {
 	.owner = THIS_MODULE,
-	.open = em2820_v4l2_open,
-	.release = em2820_v4l2_close,
-	.ioctl = em2820_v4l2_ioctl,
-	.read = em2820_v4l2_read,
-	.poll = em2820_v4l2_poll,
-	.mmap = em2820_v4l2_mmap,
+	.open = em28xx_v4l2_open,
+	.release = em28xx_v4l2_close,
+	.ioctl = em28xx_v4l2_ioctl,
+	.read = em28xx_v4l2_read,
+	.poll = em28xx_v4l2_poll,
+	.mmap = em28xx_v4l2_mmap,
 	.llseek = no_llseek,
 };
 
 /******************************** usb interface *****************************************/
 
 /*
- * em2820_init_dev()
+ * em28xx_init_dev()
  * allocates and inits the device structs, registers i2c bus and v4l device
  */
-static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
+static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 			   int minor, int model)
 {
-	struct em2820 *dev = *devhandle;
+	struct em28xx *dev = *devhandle;
 	int retval = -ENOMEM;
 	int errCode, i;
 	unsigned int maxh, maxw;
@@ -1588,33 +1589,33 @@ static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 	init_MUTEX(&dev->lock);
 	init_waitqueue_head(&dev->open);
 
-	dev->em2820_write_regs = em2820_write_regs;
-	dev->em2820_read_reg = em2820_read_reg;
-	dev->em2820_read_reg_req_len = em2820_read_reg_req_len;
-	dev->em2820_write_regs_req = em2820_write_regs_req;
-	dev->em2820_read_reg_req = em2820_read_reg_req;
-	dev->is_em2800 = em2820_boards[model].is_em2800;
-	dev->has_tuner = em2820_boards[model].has_tuner;
-	dev->has_msp34xx = em2820_boards[model].has_msp34xx;
-	dev->tda9887_conf = em2820_boards[model].tda9887_conf;
-	dev->decoder = em2820_boards[model].decoder;
+	dev->em28xx_write_regs = em28xx_write_regs;
+	dev->em28xx_read_reg = em28xx_read_reg;
+	dev->em28xx_read_reg_req_len = em28xx_read_reg_req_len;
+	dev->em28xx_write_regs_req = em28xx_write_regs_req;
+	dev->em28xx_read_reg_req = em28xx_read_reg_req;
+	dev->is_em2800 = em28xx_boards[model].is_em2800;
+	dev->has_tuner = em28xx_boards[model].has_tuner;
+	dev->has_msp34xx = em28xx_boards[model].has_msp34xx;
+	dev->tda9887_conf = em28xx_boards[model].tda9887_conf;
+	dev->decoder = em28xx_boards[model].decoder;
 
 	if (tuner >= 0)
 		dev->tuner_type = tuner;
 	else
-		dev->tuner_type = em2820_boards[model].tuner_type;
+		dev->tuner_type = em28xx_boards[model].tuner_type;
 
-	dev->video_inputs = em2820_boards[model].vchannels;
+	dev->video_inputs = em28xx_boards[model].vchannels;
 
 	for (i = 0; i < TVNORMS; i++)
-		if (em2820_boards[model].norm == tvnorms[i].mode)
+		if (em28xx_boards[model].norm == tvnorms[i].mode)
 			break;
 	if (i == TVNORMS)
 		i = 0;
 
 	dev->tvnorm = &tvnorms[i];	/* set default norm */
 
-	em2820_videodbg("tvnorm=%s\n", dev->tvnorm->name);
+	em28xx_videodbg("tvnorm=%s\n", dev->tvnorm->name);
 
 	maxw = norm_maxw(dev);
 	maxh = norm_maxh(dev);
@@ -1622,7 +1623,7 @@ static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 	/* set default image size */
 	dev->width = maxw;
 	dev->height = maxh;
-	dev->interlaced = EM2820_INTERLACED_DEFAULT;
+	dev->interlaced = EM28XX_INTERLACED_DEFAULT;
 	dev->field_size = dev->width * dev->height;
 	dev->frame_size =
 	    dev->interlaced ? dev->field_size << 1 : dev->field_size;
@@ -1644,7 +1645,7 @@ static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 	/* compute alternate max packet sizes */
 	uif = dev->udev->actconfig->interface[0];
 	dev->alt_max_pkt_size[0] = 0;
-	for (i = 1; i <= EM2820_MAX_ALT && i < uif->num_altsetting ; i++) {
+	for (i = 1; i <= EM28XX_MAX_ALT && i < uif->num_altsetting ; i++) {
 		u16 tmp =
 		    le16_to_cpu(uif->altsetting[i].endpoint[1].desc.
 				wMaxPacketSize);
@@ -1654,35 +1655,35 @@ static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 
 #ifdef CONFIG_MODULES
 	/* request some modules */
-	if (dev->decoder == EM2820_SAA7113 || dev->decoder == EM2820_SAA7114)
+	if (dev->decoder == EM28XX_SAA7113 || dev->decoder == EM28XX_SAA7114)
 		request_module("saa711x");
-	if (dev->decoder == EM2820_TVP5150)
+	if (dev->decoder == EM28XX_TVP5150)
 		request_module("tvp5150");
 	if (dev->has_tuner)
 		request_module("tuner");
 	if (dev->tda9887_conf)
 		request_module("tda9887");
 #endif
-	errCode = em2820_config(dev);
+	errCode = em28xx_config(dev);
 	if (errCode) {
-		em2820_errdev("error configuring device\n");
+		em28xx_errdev("error configuring device\n");
 		kfree(dev);
 		return -ENOMEM;
 	}
 
 	down(&dev->lock);
 	/* register i2c bus */
-	em2820_i2c_register(dev);
+	em28xx_i2c_register(dev);
 
 	/* Do board specific init and eeprom reading */
-	em2820_card_setup(dev);
+	em28xx_card_setup(dev);
 
 	/* configure the device */
-	em2820_config_i2c(dev);
+	em28xx_config_i2c(dev);
 
 	up(&dev->lock);
 
-	errCode = em2820_config(dev);
+	errCode = em28xx_config(dev);
 
 #ifdef CONFIG_MODULES
 	if (dev->has_msp34xx)
@@ -1691,7 +1692,7 @@ static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 	/* allocate and fill v4l2 device struct */
 	dev->vdev = video_device_alloc();
 	if (NULL == dev->vdev) {
-		em2820_errdev("cannot allocate video_device.\n");
+		em28xx_errdev("cannot allocate video_device.\n");
 		kfree(dev);
 		return -ENOMEM;
 	}
@@ -1700,18 +1701,18 @@ static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 	if (dev->has_tuner)
 		dev->vdev->type |= VID_TYPE_TUNER;
 	dev->vdev->hardware = 0;
-	dev->vdev->fops = &em2820_v4l_fops;
+	dev->vdev->fops = &em28xx_v4l_fops;
 	dev->vdev->minor = -1;
 	dev->vdev->dev = &dev->udev->dev;
 	dev->vdev->release = video_device_release;
 	snprintf(dev->vdev->name, sizeof(dev->vdev->name), "%s",
-		 "em2820 video");
-	list_add_tail(&dev->devlist,&em2820_devlist);
+		 "em28xx video");
+	list_add_tail(&dev->devlist,&em28xx_devlist);
 
 	/* register v4l2 device */
 	down(&dev->lock);
 	if ((retval = video_register_device(dev->vdev, VFL_TYPE_GRABBER, -1))) {
-		em2820_errdev("unable to register video device (error=%i).\n",
+		em28xx_errdev("unable to register video device (error=%i).\n",
 			      retval);
 		up(&dev->lock);
 		list_del(&dev->devlist);
@@ -1721,9 +1722,9 @@ static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 	}
 	if (dev->has_msp34xx) {
 		/* Send a reset to other chips via gpio */
-		em2820_write_regs_req(dev, 0x00, 0x08, "\xf7", 1);
+		em28xx_write_regs_req(dev, 0x00, 0x08, "\xf7", 1);
 		udelay(2500);
-		em2820_write_regs_req(dev, 0x00, 0x08, "\xff", 1);
+		em28xx_write_regs_req(dev, 0x00, 0x08, "\xff", 1);
 		udelay(2500);
 
 	}
@@ -1731,22 +1732,22 @@ static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 
 	up(&dev->lock);
 
-	em2820_info("V4L2 device registered as /dev/video%d\n",
+	em28xx_info("V4L2 device registered as /dev/video%d\n",
 		    dev->vdev->minor);
 
 	return 0;
 }
 
 /*
- * em2820_usb_probe()
+ * em28xx_usb_probe()
  * checks for supported devices
  */
-static int em2820_usb_probe(struct usb_interface *interface,
+static int em28xx_usb_probe(struct usb_interface *interface,
 			    const struct usb_device_id *id)
 {
 	const struct usb_endpoint_descriptor *endpoint;
 	struct usb_device *udev;
-	struct em2820 *dev = NULL;
+	struct em28xx *dev = NULL;
 	int retval = -ENODEV;
 	int model,i,nr,ifnum;
 
@@ -1756,14 +1757,14 @@ static int em2820_usb_probe(struct usb_interface *interface,
 
 	/* Don't register audio interfaces */
 	if (interface->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO) {
-		em2820_err(DRIVER_NAME " audio device (%04x:%04x): interface %i, class %i\n",
+		em28xx_err(DRIVER_NAME " audio device (%04x:%04x): interface %i, class %i\n",
 				udev->descriptor.idVendor,udev->descriptor.idProduct,
 				ifnum,
 				interface->altsetting[0].desc.bInterfaceClass);
 		return -ENODEV;
 	}
 
-	em2820_err(DRIVER_NAME " new video device (%04x:%04x): interface %i, class %i\n",
+	em28xx_err(DRIVER_NAME " new video device (%04x:%04x): interface %i, class %i\n",
 			udev->descriptor.idVendor,udev->descriptor.idProduct,
 			ifnum,
 			interface->altsetting[0].desc.bInterfaceClass);
@@ -1773,33 +1774,33 @@ static int em2820_usb_probe(struct usb_interface *interface,
 	/* check if the the device has the iso in endpoint at the correct place */
 	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) !=
 	    USB_ENDPOINT_XFER_ISOC) {
-		em2820_err(DRIVER_NAME " probing error: endpoint is non-ISO endpoint!\n");
+		em28xx_err(DRIVER_NAME " probing error: endpoint is non-ISO endpoint!\n");
 		return -ENODEV;
 	}
 	if ((endpoint->bEndpointAddress & USB_ENDPOINT_DIR_MASK) == USB_DIR_OUT) {
-		em2820_err(DRIVER_NAME " probing error: endpoint is ISO OUT endpoint!\n");
+		em28xx_err(DRIVER_NAME " probing error: endpoint is ISO OUT endpoint!\n");
 		return -ENODEV;
 	}
 
 	model=id->driver_info;
 	nr=interface->minor;
 
-	if (nr>EM2820_MAXBOARDS) {
-		printk ("em2820: Supports only %i em28xx boards.\n",EM2820_MAXBOARDS);
+	if (nr>EM28XX_MAXBOARDS) {
+		printk ("em28xx: Supports only %i em28xx boards.\n",EM28XX_MAXBOARDS);
 		return -ENOMEM;
 	}
 
 	/* allocate memory for our device state and initialize it */
 	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
-		em2820_err(DRIVER_NAME ": out of memory!\n");
+		em28xx_err(DRIVER_NAME ": out of memory!\n");
 		return -ENOMEM;
 	}
 	memset(dev, 0, sizeof(*dev));
 
-	snprintf(dev->name, 29, "em2820 #%d", nr);
+	snprintf(dev->name, 29, "em28xx #%d", nr);
 
-	if ((card[nr]>=0)&&(card[nr]<em2820_bcount))
+	if ((card[nr]>=0)&&(card[nr]<em28xx_bcount))
 		model=card[nr];
 
 	if ((model==EM2800_BOARD_UNKNOWN)||(model==EM2820_BOARD_UNKNOWN)) {
@@ -1811,18 +1812,18 @@ static int em2820_usb_probe(struct usb_interface *interface,
 			dev->name,dev->name,dev->name,dev->name,dev->name);
 		printk("%s: Here is a list of valid choices for the card=<n> insmod option:\n",
 			dev->name);
-		for (i = 0; i < em2820_bcount; i++) {
+		for (i = 0; i < em28xx_bcount; i++) {
 			printk("%s:    card=%d -> %s\n",
-				dev->name, i, em2820_boards[i].name);
+				dev->name, i, em28xx_boards[i].name);
 		}
 	}
 
 	/* allocate device struct */
-	retval = em2820_init_dev(&dev, udev, nr, model);
+	retval = em28xx_init_dev(&dev, udev, nr, model);
 	if (retval)
 		return retval;
 
-	em2820_info("Found %s\n", em2820_boards[model].name);
+	em28xx_info("Found %s\n", em28xx_boards[model].name);
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
@@ -1830,38 +1831,38 @@ static int em2820_usb_probe(struct usb_interface *interface,
 }
 
 /*
- * em2820_usb_disconnect()
+ * em28xx_usb_disconnect()
  * called when the device gets diconencted
  * video device will be unregistered on v4l2_close in case it is still open
  */
-static void em2820_usb_disconnect(struct usb_interface *interface)
+static void em28xx_usb_disconnect(struct usb_interface *interface)
 {
-	struct em2820 *dev = usb_get_intfdata(interface);
+	struct em28xx *dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
 
 	if (!dev)
 		return;
 
-	down_write(&em2820_disconnect);
+	down_write(&em28xx_disconnect);
 
 	down(&dev->lock);
 
-	em2820_info("disconnecting %s\n", dev->vdev->name);
+	em28xx_info("disconnecting %s\n", dev->vdev->name);
 
 	wake_up_interruptible_all(&dev->open);
 
 	if (dev->users) {
-		em2820_warn
+		em28xx_warn
 		    ("device /dev/video%d is open! Deregistration and memory "
 		     "deallocation are deferred on close.\n", dev->vdev->minor);
 		dev->state |= DEV_MISCONFIGURED;
-		em2820_uninit_isoc(dev);
+		em28xx_uninit_isoc(dev);
 		dev->state |= DEV_DISCONNECTED;
 		wake_up_interruptible(&dev->wait_frame);
 		wake_up_interruptible(&dev->wait_stream);
 	} else {
 		dev->state |= DEV_DISCONNECTED;
-		em2820_release_resources(dev);
+		em28xx_release_resources(dev);
 	}
 
 	up(&dev->lock);
@@ -1869,44 +1870,44 @@ static void em2820_usb_disconnect(struct usb_interface *interface)
 	if (!dev->users)
 		kfree(dev);
 
-	up_write(&em2820_disconnect);
+	up_write(&em28xx_disconnect);
 
 }
 
-static struct usb_driver em2820_usb_driver = {
+static struct usb_driver em28xx_usb_driver = {
 	.owner = THIS_MODULE,
-	.name = "em2820",
-	.probe = em2820_usb_probe,
-	.disconnect = em2820_usb_disconnect,
-	.id_table = em2820_id_table,
+	.name = "em28xx",
+	.probe = em28xx_usb_probe,
+	.disconnect = em28xx_usb_disconnect,
+	.id_table = em28xx_id_table,
 };
 
-static int __init em2820_module_init(void)
+static int __init em28xx_module_init(void)
 {
 	int result;
 
 	printk(KERN_INFO DRIVER_NAME " v4l2 driver version %d.%d.%d loaded\n",
-	       (EM2820_VERSION_CODE >> 16) & 0xff,
-	       (EM2820_VERSION_CODE >> 8) & 0xff, EM2820_VERSION_CODE & 0xff);
+	       (EM28XX_VERSION_CODE >> 16) & 0xff,
+	       (EM28XX_VERSION_CODE >> 8) & 0xff, EM28XX_VERSION_CODE & 0xff);
 #ifdef SNAPSHOT
 	printk(KERN_INFO DRIVER_NAME " snapshot date %04d-%02d-%02d\n",
 	       SNAPSHOT / 10000, (SNAPSHOT / 100) % 100, SNAPSHOT % 100);
 #endif
 
 	/* register this driver with the USB subsystem */
-	result = usb_register(&em2820_usb_driver);
+	result = usb_register(&em28xx_usb_driver);
 	if (result)
-		em2820_err(DRIVER_NAME
+		em28xx_err(DRIVER_NAME
 			   " usb_register failed. Error number %d.\n", result);
 
 	return result;
 }
 
-static void __exit em2820_module_exit(void)
+static void __exit em28xx_module_exit(void)
 {
 	/* deregister this driver with the USB subsystem */
-	usb_deregister(&em2820_usb_driver);
+	usb_deregister(&em28xx_usb_driver);
 }
 
-module_init(em2820_module_init);
-module_exit(em2820_module_exit);
+module_init(em28xx_module_init);
+module_exit(em28xx_module_exit);

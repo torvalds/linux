@@ -142,7 +142,7 @@ static int get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 }
 
 /* ----------------------------------------------------------------------- */
-void em2820_set_ir(struct em2820 * dev,struct IR_i2c *ir)
+void em28xx_set_ir(struct em28xx * dev,struct IR_i2c *ir)
 {
 	if (disable_ir) {
 		ir->get_key=NULL;
@@ -159,7 +159,7 @@ void em2820_set_ir(struct em2820 * dev,struct IR_i2c *ir)
 	case (EM2820_BOARD_TERRATEC_CINERGY_250):
 		ir->ir_codes = ir_codes_em_terratec;
 		ir->get_key = get_key_terratec;
-		snprintf(ir->c.name, sizeof(ir->c.name), "i2c IR (EM2820 Terratec)");
+		snprintf(ir->c.name, sizeof(ir->c.name), "i2c IR (EM28XX Terratec)");
 		break;
 	case (EM2820_BOARD_PINNACLE_USB_2):
 		break;

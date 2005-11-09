@@ -1,5 +1,5 @@
 /*
-   em2820-core.c - driver for Empia EM2800/EM2820/2840 USB video capture devices
+   em28xx-core.c - driver for Empia EM2800/EM2820/2840 USB video capture devices
 
    Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
 		      Markus Rechberger <mrechberger@gmail.com>
@@ -36,7 +36,7 @@ unsigned int core_debug;
 module_param(core_debug,int,0644);
 MODULE_PARM_DESC(core_debug,"enable debug messages [core]");
 
-#define em2820_coredbg(fmt, arg...) do {\
+#define em28xx_coredbg(fmt, arg...) do {\
 	if (core_debug) \
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __FUNCTION__ , ##arg); } while (0)
@@ -45,7 +45,7 @@ unsigned int reg_debug;
 module_param(reg_debug,int,0644);
 MODULE_PARM_DESC(reg_debug,"enable debug messages [URB reg]");
 
-#define em2820_regdbg(fmt, arg...) do {\
+#define em28xx_regdbg(fmt, arg...) do {\
 	if (reg_debug) \
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __FUNCTION__ , ##arg); } while (0)
@@ -54,12 +54,12 @@ unsigned int isoc_debug;
 module_param(isoc_debug,int,0644);
 MODULE_PARM_DESC(isoc_debug,"enable debug messages [isoc transfers]");
 
-#define em2820_isocdbg(fmt, arg...) do {\
+#define em28xx_isocdbg(fmt, arg...) do {\
 	if (isoc_debug) \
 		printk(KERN_INFO "%s %s :"fmt, \
 			 dev->name, __FUNCTION__ , ##arg); } while (0)
 
-static int alt = EM2820_PINOUT;
+static int alt = EM28XX_PINOUT;
 module_param(alt, int, 0644);
 MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 
@@ -88,7 +88,7 @@ static const char *v4l2_ioctls[] = {
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
 
-void em2820_print_ioctl(char *name, unsigned int cmd)
+void em28xx_print_ioctl(char *name, unsigned int cmd)
 {
 	char *dir;
 
@@ -159,17 +159,17 @@ static void rvfree(void *mem, size_t size)
 }
 
 /*
- * em2820_request_buffers()
+ * em28xx_request_buffers()
  * allocate a number of buffers
  */
-u32 em2820_request_buffers(struct em2820 *dev, u32 count)
+u32 em28xx_request_buffers(struct em28xx *dev, u32 count)
 {
 	const size_t imagesize = PAGE_ALIGN(dev->frame_size);	/*needs to be page aligned cause the buffers can be mapped individually! */
 	void *buff = NULL;
 	u32 i;
-	em2820_coredbg("requested %i buffers with size %i", count, imagesize);
-	if (count > EM2820_NUM_FRAMES)
-		count = EM2820_NUM_FRAMES;
+	em28xx_coredbg("requested %i buffers with size %i", count, imagesize);
+	if (count > EM28XX_NUM_FRAMES)
+		count = EM28XX_NUM_FRAMES;
 
 	dev->num_frames = count;
 	while (dev->num_frames > 0) {
@@ -193,10 +193,10 @@ u32 em2820_request_buffers(struct em2820 *dev, u32 count)
 }
 
 /*
- * em2820_queue_unusedframes()
+ * em28xx_queue_unusedframes()
  * add all frames that are not currently in use to the inbuffer queue
  */
-void em2820_queue_unusedframes(struct em2820 *dev)
+void em28xx_queue_unusedframes(struct em28xx *dev)
 {
 	unsigned long lock_flags;
 	u32 i;
@@ -211,10 +211,10 @@ void em2820_queue_unusedframes(struct em2820 *dev)
 }
 
 /*
- * em2820_release_buffers()
+ * em28xx_release_buffers()
  * free frame buffers
  */
-void em2820_release_buffers(struct em2820 *dev)
+void em28xx_release_buffers(struct em28xx *dev)
 {
 	if (dev->num_frames) {
 		rvfree(dev->frame[0].bufmem,
@@ -224,15 +224,15 @@ void em2820_release_buffers(struct em2820 *dev)
 }
 
 /*
- * em2820_read_reg_req()
+ * em28xx_read_reg_req()
  * reads data from the usb device specifying bRequest
  */
-int em2820_read_reg_req_len(struct em2820 *dev, u8 req, u16 reg,
+int em28xx_read_reg_req_len(struct em28xx *dev, u8 req, u16 reg,
 				   char *buf, int len)
 {
 	int ret, byte;
 
-	em2820_regdbg("req=%02x, reg=%02x ", req, reg);
+	em28xx_regdbg("req=%02x, reg=%02x ", req, reg);
 
 	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0), req,
 			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
@@ -250,15 +250,15 @@ int em2820_read_reg_req_len(struct em2820 *dev, u8 req, u16 reg,
 }
 
 /*
- * em2820_read_reg_req()
+ * em28xx_read_reg_req()
  * reads data from the usb device specifying bRequest
  */
-int em2820_read_reg_req(struct em2820 *dev, u8 req, u16 reg)
+int em28xx_read_reg_req(struct em28xx *dev, u8 req, u16 reg)
 {
 	u8 val;
 	int ret;
 
-	em2820_regdbg("req=%02x, reg=%02x:", req, reg);
+	em28xx_regdbg("req=%02x, reg=%02x:", req, reg);
 
 	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0), req,
 			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
@@ -273,16 +273,16 @@ int em2820_read_reg_req(struct em2820 *dev, u8 req, u16 reg)
 	return val;
 }
 
-int em2820_read_reg(struct em2820 *dev, u16 reg)
+int em28xx_read_reg(struct em28xx *dev, u16 reg)
 {
-	return em2820_read_reg_req(dev, USB_REQ_GET_STATUS, reg);
+	return em28xx_read_reg_req(dev, USB_REQ_GET_STATUS, reg);
 }
 
 /*
- * em2820_write_regs_req()
+ * em28xx_write_regs_req()
  * sends data to the usb device, specifying bRequest
  */
-int em2820_write_regs_req(struct em2820 *dev, u8 req, u16 reg, char *buf,
+int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 				 int len)
 {
 	int ret;
@@ -290,7 +290,7 @@ int em2820_write_regs_req(struct em2820 *dev, u8 req, u16 reg, char *buf,
 	/*usb_control_msg seems to expect a kmalloced buffer */
 	unsigned char *bufs = kmalloc(len, GFP_KERNEL);
 
-	em2820_regdbg("req=%02x reg=%02x:", req, reg);
+	em28xx_regdbg("req=%02x reg=%02x:", req, reg);
 
 	if (reg_debug) {
 		int i;
@@ -310,124 +310,124 @@ int em2820_write_regs_req(struct em2820 *dev, u8 req, u16 reg, char *buf,
 	return ret;
 }
 
-int em2820_write_regs(struct em2820 *dev, u16 reg, char *buf, int len)
+int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len)
 {
-	return em2820_write_regs_req(dev, USB_REQ_GET_STATUS, reg, buf, len);
+	return em28xx_write_regs_req(dev, USB_REQ_GET_STATUS, reg, buf, len);
 }
 
 /*
- * em2820_write_reg_bits()
+ * em28xx_write_reg_bits()
  * sets only some bits (specified by bitmask) of a register, by first reading
  * the actual value
  */
-int em2820_write_reg_bits(struct em2820 *dev, u16 reg, u8 val,
+int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 				 u8 bitmask)
 {
 	int oldval;
 	u8 newval;
-	if ((oldval = em2820_read_reg(dev, reg)) < 0)
+	if ((oldval = em28xx_read_reg(dev, reg)) < 0)
 		return oldval;
 	newval = (((u8) oldval) & ~bitmask) | (val & bitmask);
-	return em2820_write_regs(dev, reg, &newval, 1);
+	return em28xx_write_regs(dev, reg, &newval, 1);
 }
 
 /*
- * em2820_write_ac97()
+ * em28xx_write_ac97()
  * write a 16 bit value to the specified AC97 address (LSB first!)
  */
-int em2820_write_ac97(struct em2820 *dev, u8 reg, u8 * val)
+int em28xx_write_ac97(struct em28xx *dev, u8 reg, u8 * val)
 {
 	int ret;
 	u8 addr = reg & 0x7f;
-	if ((ret = em2820_write_regs(dev, AC97LSB_REG, val, 2)) < 0)
+	if ((ret = em28xx_write_regs(dev, AC97LSB_REG, val, 2)) < 0)
 		return ret;
-	if ((ret = em2820_write_regs(dev, AC97ADDR_REG, &addr, 1)) < 0)
+	if ((ret = em28xx_write_regs(dev, AC97ADDR_REG, &addr, 1)) < 0)
 		return ret;
-	if ((ret = em2820_read_reg(dev, AC97BUSY_REG)) < 0)
+	if ((ret = em28xx_read_reg(dev, AC97BUSY_REG)) < 0)
 		return ret;
 	else if (((u8) ret) & 0x01) {
-		em2820_warn ("AC97 command still being exectuted: not handled properly!\n");
+		em28xx_warn ("AC97 command still being exectuted: not handled properly!\n");
 	}
 	return 0;
 }
 
-int em2820_audio_analog_set(struct em2820 *dev)
+int em28xx_audio_analog_set(struct em28xx *dev)
 {
 	char s[2] = { 0x00, 0x00 };
 	s[0] |= 0x1f - dev->volume;
 	s[1] |= 0x1f - dev->volume;
 	if (dev->mute)
 		s[1] |= 0x80;
-	return em2820_write_ac97(dev, MASTER_AC97, s);
+	return em28xx_write_ac97(dev, MASTER_AC97, s);
 }
 
 
-int em2820_colorlevels_set_default(struct em2820 *dev)
+int em28xx_colorlevels_set_default(struct em28xx *dev)
 {
-	em2820_write_regs(dev, YGAIN_REG, "\x10", 1);	/* contrast */
-	em2820_write_regs(dev, YOFFSET_REG, "\x00", 1);	/* brightness */
-	em2820_write_regs(dev, UVGAIN_REG, "\x10", 1);	/* saturation */
-	em2820_write_regs(dev, UOFFSET_REG, "\x00", 1);
-	em2820_write_regs(dev, VOFFSET_REG, "\x00", 1);
-	em2820_write_regs(dev, SHARPNESS_REG, "\x00", 1);
+	em28xx_write_regs(dev, YGAIN_REG, "\x10", 1);	/* contrast */
+	em28xx_write_regs(dev, YOFFSET_REG, "\x00", 1);	/* brightness */
+	em28xx_write_regs(dev, UVGAIN_REG, "\x10", 1);	/* saturation */
+	em28xx_write_regs(dev, UOFFSET_REG, "\x00", 1);
+	em28xx_write_regs(dev, VOFFSET_REG, "\x00", 1);
+	em28xx_write_regs(dev, SHARPNESS_REG, "\x00", 1);
 
-	em2820_write_regs(dev, GAMMA_REG, "\x20", 1);
-	em2820_write_regs(dev, RGAIN_REG, "\x20", 1);
-	em2820_write_regs(dev, GGAIN_REG, "\x20", 1);
-	em2820_write_regs(dev, BGAIN_REG, "\x20", 1);
-	em2820_write_regs(dev, ROFFSET_REG, "\x00", 1);
-	em2820_write_regs(dev, GOFFSET_REG, "\x00", 1);
-	return em2820_write_regs(dev, BOFFSET_REG, "\x00", 1);
+	em28xx_write_regs(dev, GAMMA_REG, "\x20", 1);
+	em28xx_write_regs(dev, RGAIN_REG, "\x20", 1);
+	em28xx_write_regs(dev, GGAIN_REG, "\x20", 1);
+	em28xx_write_regs(dev, BGAIN_REG, "\x20", 1);
+	em28xx_write_regs(dev, ROFFSET_REG, "\x00", 1);
+	em28xx_write_regs(dev, GOFFSET_REG, "\x00", 1);
+	return em28xx_write_regs(dev, BOFFSET_REG, "\x00", 1);
 }
 
-int em2820_capture_start(struct em2820 *dev, int start)
+int em28xx_capture_start(struct em28xx *dev, int start)
 {
 	int ret;
 	/* FIXME: which is the best order? */
 	/* video registers are sampled by VREF */
-	if ((ret = em2820_write_reg_bits(dev, USBSUSP_REG, start ? 0x10 : 0x00,
+	if ((ret = em28xx_write_reg_bits(dev, USBSUSP_REG, start ? 0x10 : 0x00,
 					  0x10)) < 0)
 		return ret;
 	/* enable video capture */
-	return em2820_write_regs(dev, VINENABLE_REG, start ? "\x67" : "\x27", 1);
+	return em28xx_write_regs(dev, VINENABLE_REG, start ? "\x67" : "\x27", 1);
 }
 
-int em2820_outfmt_set_yuv422(struct em2820 *dev)
+int em28xx_outfmt_set_yuv422(struct em28xx *dev)
 {
-	em2820_write_regs(dev, OUTFMT_REG, "\x34", 1);
-	em2820_write_regs(dev, VINMODE_REG, "\x10", 1);
-	return em2820_write_regs(dev, VINCTRL_REG, "\x11", 1);
+	em28xx_write_regs(dev, OUTFMT_REG, "\x34", 1);
+	em28xx_write_regs(dev, VINMODE_REG, "\x10", 1);
+	return em28xx_write_regs(dev, VINCTRL_REG, "\x11", 1);
 }
 
-int em2820_accumulator_set(struct em2820 *dev, u8 xmin, u8 xmax, u8 ymin,
+int em28xx_accumulator_set(struct em28xx *dev, u8 xmin, u8 xmax, u8 ymin,
 				  u8 ymax)
 {
-	em2820_coredbg("em2820 Scale: (%d,%d)-(%d,%d)\n", xmin, ymin, xmax, ymax);
+	em28xx_coredbg("em28xx Scale: (%d,%d)-(%d,%d)\n", xmin, ymin, xmax, ymax);
 
-	em2820_write_regs(dev, XMIN_REG, &xmin, 1);
-	em2820_write_regs(dev, XMAX_REG, &xmax, 1);
-	em2820_write_regs(dev, YMIN_REG, &ymin, 1);
-	return em2820_write_regs(dev, YMAX_REG, &ymax, 1);
+	em28xx_write_regs(dev, XMIN_REG, &xmin, 1);
+	em28xx_write_regs(dev, XMAX_REG, &xmax, 1);
+	em28xx_write_regs(dev, YMIN_REG, &ymin, 1);
+	return em28xx_write_regs(dev, YMAX_REG, &ymax, 1);
 }
 
-int em2820_capture_area_set(struct em2820 *dev, u8 hstart, u8 vstart,
+int em28xx_capture_area_set(struct em28xx *dev, u8 hstart, u8 vstart,
 				   u16 width, u16 height)
 {
 	u8 cwidth = width;
 	u8 cheight = height;
 	u8 overflow = (height >> 7 & 0x02) | (width >> 8 & 0x01);
 
-	em2820_coredbg("em2820 Area Set: (%d,%d)\n", (width | (overflow & 2) << 7),
+	em28xx_coredbg("em28xx Area Set: (%d,%d)\n", (width | (overflow & 2) << 7),
 			(height | (overflow & 1) << 8));
 
-	em2820_write_regs(dev, HSTART_REG, &hstart, 1);
-	em2820_write_regs(dev, VSTART_REG, &vstart, 1);
-	em2820_write_regs(dev, CWIDTH_REG, &cwidth, 1);
-	em2820_write_regs(dev, CHEIGHT_REG, &cheight, 1);
-	return em2820_write_regs(dev, OFLOW_REG, &overflow, 1);
+	em28xx_write_regs(dev, HSTART_REG, &hstart, 1);
+	em28xx_write_regs(dev, VSTART_REG, &vstart, 1);
+	em28xx_write_regs(dev, CWIDTH_REG, &cwidth, 1);
+	em28xx_write_regs(dev, CHEIGHT_REG, &cheight, 1);
+	return em28xx_write_regs(dev, OFLOW_REG, &overflow, 1);
 }
 
-int em2820_scaler_set(struct em2820 *dev, u16 h, u16 v)
+int em28xx_scaler_set(struct em28xx *dev, u16 h, u16 v)
 {
 	u8 mode;
 	/* the em2800 scaler only supports scaling down to 50% */
@@ -437,34 +437,34 @@ int em2820_scaler_set(struct em2820 *dev, u16 h, u16 v)
 		u8 buf[2];
 		buf[0] = h;
 		buf[1] = h >> 8;
-		em2820_write_regs(dev, HSCALELOW_REG, (char *)buf, 2);
+		em28xx_write_regs(dev, HSCALELOW_REG, (char *)buf, 2);
 		buf[0] = v;
 		buf[1] = v >> 8;
-		em2820_write_regs(dev, VSCALELOW_REG, (char *)buf, 2);
+		em28xx_write_regs(dev, VSCALELOW_REG, (char *)buf, 2);
 		/* it seems that both H and V scalers must be active to work correctly */
 		mode = (h || v)? 0x30: 0x00;
 	}
-	return em2820_write_reg_bits(dev, COMPR_REG, mode, 0x30);
+	return em28xx_write_reg_bits(dev, COMPR_REG, mode, 0x30);
 }
 
 /* FIXME: this only function read values from dev */
-int em2820_resolution_set(struct em2820 *dev)
+int em28xx_resolution_set(struct em28xx *dev)
 {
 	int width, height;
 	width = norm_maxw(dev);
 	height = norm_maxh(dev) >> 1;
 
-	em2820_outfmt_set_yuv422(dev);
-	em2820_accumulator_set(dev, 1, (width - 4) >> 2, 1, (height - 4) >> 2);
-	em2820_capture_area_set(dev, 0, 0, width >> 2, height >> 2);
-	return em2820_scaler_set(dev, dev->hscale, dev->vscale);
+	em28xx_outfmt_set_yuv422(dev);
+	em28xx_accumulator_set(dev, 1, (width - 4) >> 2, 1, (height - 4) >> 2);
+	em28xx_capture_area_set(dev, 0, 0, width >> 2, height >> 2);
+	return em28xx_scaler_set(dev, dev->hscale, dev->vscale);
 }
 
 
 /******************* isoc transfer handling ****************************/
 
 #ifdef ENABLE_DEBUG_ISOC_FRAMES
-static void em2820_isoc_dump(struct urb *urb, struct pt_regs *regs)
+static void em28xx_isoc_dump(struct urb *urb, struct pt_regs *regs)
 {
 	int len = 0;
 	int ntrans = 0;
@@ -503,7 +503,7 @@ static void em2820_isoc_dump(struct urb *urb, struct pt_regs *regs)
 }
 #endif
 
-static inline int em2820_isoc_video(struct em2820 *dev,struct em2820_frame_t **f,
+static inline int em28xx_isoc_video(struct em28xx *dev,struct em28xx_frame_t **f,
 				    unsigned long *lock_flags, unsigned char buf)
 {
 	if (!(buf & 0x01)) {
@@ -511,7 +511,7 @@ static inline int em2820_isoc_video(struct em2820 *dev,struct em2820_frame_t **f
 			/*previous frame is incomplete */
 			if ((*f)->fieldbytesused < dev->field_size) {
 				(*f)->state = F_ERROR;
-				em2820_isocdbg ("dropping incomplete bottom field (%i missing bytes)",
+				em28xx_isocdbg ("dropping incomplete bottom field (%i missing bytes)",
 					 dev->field_size-(*f)->fieldbytesused);
 			} else {
 				(*f)->state = F_DONE;
@@ -524,13 +524,13 @@ static inline int em2820_isoc_video(struct em2820 *dev,struct em2820_frame_t **f
 			list_move_tail(&(*f)->frame, &dev->outqueue);
 			if (!list_empty(&dev->inqueue))
 				(*f) = list_entry(dev-> inqueue.next,
-			struct em2820_frame_t,frame);
+			struct em28xx_frame_t,frame);
 			else
 				(*f) = NULL;
 			spin_unlock_irqrestore(&dev->queue_lock,*lock_flags);
 		}
 		if (!(*f)) {
-			em2820_isocdbg ("new frame but no buffer is free");
+			em28xx_isocdbg ("new frame but no buffer is free");
 			return -1;
 		}
 		do_gettimeofday(&(*f)->buf.timestamp);
@@ -545,10 +545,10 @@ static inline int em2820_isoc_video(struct em2820 *dev,struct em2820_frame_t **f
 		if ((*f)->state == F_GRABBING) {
 			if (!(*f)->top_field) {
 				(*f)->state = F_ERROR;
-				em2820_isocdbg ("unexpected begin of bottom field; discarding it");
+				em28xx_isocdbg ("unexpected begin of bottom field; discarding it");
 			} else if ((*f)-> fieldbytesused < dev->field_size - 172) {
 				(*f)->state = F_ERROR;
-				em2820_isocdbg ("dropping incomplete top field (%i missing bytes)",
+				em28xx_isocdbg ("dropping incomplete top field (%i missing bytes)",
 					 dev->field_size-(*f)->fieldbytesused);
 			} else {
 				(*f)->top_field = 0;
@@ -559,14 +559,14 @@ static inline int em2820_isoc_video(struct em2820 *dev,struct em2820_frame_t **f
 	return (0);
 }
 
-static inline void em2820_isoc_video_copy(struct em2820 *dev,
-					  struct em2820_frame_t **f, unsigned char *buf, int len)
+static inline void em28xx_isoc_video_copy(struct em28xx *dev,
+					  struct em28xx_frame_t **f, unsigned char *buf, int len)
 {
 	void *fieldstart, *startwrite, *startread;
 	int linesdone, currlinedone, offset, lencopy,remain;
 
 	if(dev->frame_size != (*f)->buf.length){
-		em2820_err("frame_size %i and buf.length %i are different!!!\n",dev->frame_size,(*f)->buf.length);
+		em28xx_err("frame_size %i and buf.length %i are different!!!\n",dev->frame_size,(*f)->buf.length);
 		return;
 	}
 
@@ -574,7 +574,7 @@ static inline void em2820_isoc_video_copy(struct em2820 *dev,
 		len =dev->field_size - (*f)->fieldbytesused;
 
 	if (buf[0] != 0x88 && buf[0] != 0x22) {
-		em2820_isocdbg("frame is not complete\n");
+		em28xx_isocdbg("frame is not complete\n");
 		startread = buf;
 		len+=4;
 	} else
@@ -613,21 +613,21 @@ static inline void em2820_isoc_video_copy(struct em2820 *dev,
 }
 
 /*
- * em2820_isoIrq()
+ * em28xx_isoIrq()
  * handles the incoming isoc urbs and fills the frames from our inqueue
  */
-void em2820_isocIrq(struct urb *urb, struct pt_regs *regs)
+void em28xx_isocIrq(struct urb *urb, struct pt_regs *regs)
 {
-	struct em2820 *dev = urb->context;
+	struct em28xx *dev = urb->context;
 	int i, status;
-	struct em2820_frame_t **f;
+	struct em28xx_frame_t **f;
 	unsigned long lock_flags;
 
 	if (!dev)
 		return;
 #ifdef ENABLE_DEBUG_ISOC_FRAMES
 	if (isoc_debug>1)
-		em2820_isoc_dump(urb, regs);
+		em28xx_isoc_dump(urb, regs);
 #endif
 
 	if (urb->status == -ENOENT)
@@ -639,7 +639,7 @@ void em2820_isocIrq(struct urb *urb, struct pt_regs *regs)
 		dev->stream = STREAM_OFF;
 		if ((*f))
 			(*f)->state = F_QUEUED;
-		em2820_isocdbg("stream interrupted");
+		em28xx_isocdbg("stream interrupted");
 		wake_up_interruptible(&dev->wait_stream);
 	}
 
@@ -649,7 +649,7 @@ void em2820_isocIrq(struct urb *urb, struct pt_regs *regs)
 	if (dev->stream == STREAM_ON && !list_empty(&dev->inqueue)) {
 		if (!(*f))
 			(*f) = list_entry(dev->inqueue.next,
-		struct em2820_frame_t, frame);
+		struct em28xx_frame_t, frame);
 
 		for (i = 0; i < urb->number_of_packets; i++) {
 			unsigned char *buf = urb->transfer_buffer +
@@ -657,34 +657,34 @@ void em2820_isocIrq(struct urb *urb, struct pt_regs *regs)
 			int len = urb->iso_frame_desc[i].actual_length - 4;
 
 			if (urb->iso_frame_desc[i].status) {
-				em2820_isocdbg("data error: [%d] len=%d, status=%d", i,
+				em28xx_isocdbg("data error: [%d] len=%d, status=%d", i,
 					urb->iso_frame_desc[i].actual_length,
 					urb->iso_frame_desc[i].status);
 				if (urb->iso_frame_desc[i].status != -EPROTO)
 					continue;
 			}
 			if (urb->iso_frame_desc[i].actual_length <= 0) {
-				em2820_isocdbg("packet %d is empty",i);
+				em28xx_isocdbg("packet %d is empty",i);
 				continue;
 			}
 			if (urb->iso_frame_desc[i].actual_length >
 						 dev->max_pkt_size) {
-				em2820_isocdbg("packet bigger than packet size");
+				em28xx_isocdbg("packet bigger than packet size");
 				continue;
 			}
 			/*new frame */
 			if (buf[0] == 0x22 && buf[1] == 0x5a) {
-				em2820_isocdbg("Video frame, length=%i!",len);
+				em28xx_isocdbg("Video frame, length=%i!",len);
 
-				if (em2820_isoc_video(dev,f,&lock_flags,buf[2]))
+				if (em28xx_isoc_video(dev,f,&lock_flags,buf[2]))
 				break;
 			} else if (buf[0]==0x33 && buf[1]==0x95 && buf[2]==0x00) {
-				em2820_isocdbg("VBI HEADER!!!");
+				em28xx_isocdbg("VBI HEADER!!!");
 			}
 
 			/* actual copying */
 			if ((*f)->state == F_GRABBING) {
-				em2820_isoc_video_copy(dev,f,buf, len);
+				em28xx_isoc_video_copy(dev,f,buf, len);
 			}
 		}
 	}
@@ -696,7 +696,7 @@ void em2820_isocIrq(struct urb *urb, struct pt_regs *regs)
 
 	urb->status = 0;
 	if ((status = usb_submit_urb(urb, GFP_ATOMIC))) {
-		em2820_errdev("resubmit of urb failed (error=%i)\n", status);
+		em28xx_errdev("resubmit of urb failed (error=%i)\n", status);
 		dev->state |= DEV_MISCONFIGURED;
 	}
 	wake_up_interruptible(&dev->wait_frame);
@@ -704,58 +704,58 @@ void em2820_isocIrq(struct urb *urb, struct pt_regs *regs)
 }
 
 /*
- * em2820_uninit_isoc()
- * deallocates the buffers and urbs allocated during em2820_init_iosc()
+ * em28xx_uninit_isoc()
+ * deallocates the buffers and urbs allocated during em28xx_init_iosc()
  */
-void em2820_uninit_isoc(struct em2820 *dev)
+void em28xx_uninit_isoc(struct em28xx *dev)
 {
 	int i;
 
-	for (i = 0; i < EM2820_NUM_BUFS; i++) {
+	for (i = 0; i < EM28XX_NUM_BUFS; i++) {
 		if (dev->urb[i]) {
 			usb_kill_urb(dev->urb[i]);
 			if (dev->transfer_buffer[i]){
-				usb_buffer_free(dev->udev,(EM2820_NUM_PACKETS*dev->max_pkt_size),dev->transfer_buffer[i],dev->urb[i]->transfer_dma);
+				usb_buffer_free(dev->udev,(EM28XX_NUM_PACKETS*dev->max_pkt_size),dev->transfer_buffer[i],dev->urb[i]->transfer_dma);
 			}
 			usb_free_urb(dev->urb[i]);
 		}
 		dev->urb[i] = NULL;
 		dev->transfer_buffer[i] = NULL;
 	}
-	em2820_capture_start(dev, 0);
+	em28xx_capture_start(dev, 0);
 }
 
 /*
- * em2820_init_isoc()
+ * em28xx_init_isoc()
  * allocates transfer buffers and submits the urbs for isoc transfer
  */
-int em2820_init_isoc(struct em2820 *dev)
+int em28xx_init_isoc(struct em28xx *dev)
 {
 	/* change interface to 3 which allowes the biggest packet sizes */
 	int i, errCode;
-	const int sb_size = EM2820_NUM_PACKETS * dev->max_pkt_size;
+	const int sb_size = EM28XX_NUM_PACKETS * dev->max_pkt_size;
 
 	/* reset streaming vars */
 	dev->frame_current = NULL;
 	dev->frame_count = 0;
 
 	/* allocate urbs */
-	for (i = 0; i < EM2820_NUM_BUFS; i++) {
+	for (i = 0; i < EM28XX_NUM_BUFS; i++) {
 		struct urb *urb;
 		int j, k;
 		/* allocate transfer buffer */
-		urb = usb_alloc_urb(EM2820_NUM_PACKETS, GFP_KERNEL);
+		urb = usb_alloc_urb(EM28XX_NUM_PACKETS, GFP_KERNEL);
 		if (!urb){
-			em2820_errdev("cannot alloc urb %i\n", i);
-			em2820_uninit_isoc(dev);
+			em28xx_errdev("cannot alloc urb %i\n", i);
+			em28xx_uninit_isoc(dev);
 			return -ENOMEM;
 		}
 		dev->transfer_buffer[i] = usb_buffer_alloc(dev->udev, sb_size, GFP_KERNEL,&urb->transfer_dma);
 		if (!dev->transfer_buffer[i]) {
-			em2820_errdev
+			em28xx_errdev
 					("unable to allocate %i bytes for transfer buffer %i\n",
 					 sb_size, i);
-			em2820_uninit_isoc(dev);
+			em28xx_uninit_isoc(dev);
 			return -ENOMEM;
 		}
 		memset(dev->transfer_buffer[i], 0, sb_size);
@@ -765,10 +765,10 @@ int em2820_init_isoc(struct em2820 *dev)
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->interval = 1;
 		urb->transfer_buffer = dev->transfer_buffer[i];
-		urb->complete = em2820_isocIrq;
-		urb->number_of_packets = EM2820_NUM_PACKETS;
+		urb->complete = em28xx_isocIrq;
+		urb->number_of_packets = EM28XX_NUM_PACKETS;
 		urb->transfer_buffer_length = sb_size;
-		for (j = k = 0; j < EM2820_NUM_PACKETS;
+		for (j = k = 0; j < EM28XX_NUM_PACKETS;
 				j++, k += dev->max_pkt_size) {
 			urb->iso_frame_desc[j].offset = k;
 			urb->iso_frame_desc[j].length =
@@ -778,12 +778,12 @@ int em2820_init_isoc(struct em2820 *dev)
 	}
 
 	/* submit urbs */
-	for (i = 0; i < EM2820_NUM_BUFS; i++) {
+	for (i = 0; i < EM28XX_NUM_BUFS; i++) {
 		errCode = usb_submit_urb(dev->urb[i], GFP_KERNEL);
 		if (errCode) {
-			em2820_errdev("submit of urb %i failed (error=%i)\n", i,
+			em28xx_errdev("submit of urb %i failed (error=%i)\n", i,
 				      errCode);
-			em2820_uninit_isoc(dev);
+			em28xx_uninit_isoc(dev);
 			return errCode;
 		}
 	}
@@ -791,21 +791,21 @@ int em2820_init_isoc(struct em2820 *dev)
 	return 0;
 }
 
-int em2820_set_alternate(struct em2820 *dev)
+int em28xx_set_alternate(struct em28xx *dev)
 {
 	int errCode, prev_alt = dev->alt;
 	dev->alt = alt;
 	if (dev->alt == 0) {
 		int i;
 		if(dev->is_em2800){ /* always use the max packet size for em2800 based devices */
-			for(i=0;i< EM2820_MAX_ALT; i++)
+			for(i=0;i< EM28XX_MAX_ALT; i++)
 				if(dev->alt_max_pkt_size[i]>dev->alt_max_pkt_size[dev->alt])
 					dev->alt=i;
 		}else{
 		unsigned int min_pkt_size = dev->field_size / 137;	/* FIXME: empiric magic number */
-		em2820_coredbg("minimum isoc packet size: %u", min_pkt_size);
+		em28xx_coredbg("minimum isoc packet size: %u", min_pkt_size);
 		dev->alt = 7;
-		for (i = 1; i < EM2820_MAX_ALT; i += 2)	/* FIXME: skip even alternate: why do they not work? */
+		for (i = 1; i < EM28XX_MAX_ALT; i += 2)	/* FIXME: skip even alternate: why do they not work? */
 			if (dev->alt_max_pkt_size[i] >= min_pkt_size) {
 			dev->alt = i;
 			break;
@@ -815,11 +815,11 @@ int em2820_set_alternate(struct em2820 *dev)
 
 	if (dev->alt != prev_alt) {
 		dev->max_pkt_size = dev->alt_max_pkt_size[dev->alt];
-		em2820_coredbg("setting alternate %d with wMaxPacketSize=%u", dev->alt,
+		em28xx_coredbg("setting alternate %d with wMaxPacketSize=%u", dev->alt,
 		       dev->max_pkt_size);
 		errCode = usb_set_interface(dev->udev, 0, dev->alt);
 		if (errCode < 0) {
-			em2820_errdev
+			em28xx_errdev
 					("cannot change alternate number to %d (error=%i)\n",
 					 dev->alt, errCode);
 			return errCode;

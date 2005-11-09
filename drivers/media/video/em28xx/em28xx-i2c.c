@@ -50,7 +50,7 @@ MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
  * em2800_i2c_send_max4()
  * send up to 4 bytes to the i2c device
  */
-static int em2800_i2c_send_max4(struct em2820 *dev, unsigned char addr,
+static int em2800_i2c_send_max4(struct em28xx *dev, unsigned char addr,
 				char *buf, int len)
 {
 	int ret;
@@ -67,19 +67,19 @@ static int em2800_i2c_send_max4(struct em2820 *dev, unsigned char addr,
 	if (len > 3)
 		b2[0] = buf[3];
 
-	ret = dev->em2820_write_regs(dev, 4 - len, &b2[4 - len], 2 + len);
+	ret = dev->em28xx_write_regs(dev, 4 - len, &b2[4 - len], 2 + len);
 	if (ret != 2 + len) {
-		em2820_warn("writting to i2c device failed (error=%i)\n", ret);
+		em28xx_warn("writting to i2c device failed (error=%i)\n", ret);
 		return -EIO;
 	}
 	for (write_timeout = EM2800_I2C_WRITE_TIMEOUT; write_timeout > 0;
 	     write_timeout -= 5) {
-		ret = dev->em2820_read_reg(dev, 0x05);
+		ret = dev->em28xx_read_reg(dev, 0x05);
 		if (ret == 0x80 + len - 1)
 			return len;
 		mdelay(5);
 	}
-	em2820_warn("i2c write timed out\n");
+	em28xx_warn("i2c write timed out\n");
 	return -EIO;
 }
 
@@ -94,7 +94,7 @@ static int em2800_i2c_send_bytes(void *data, unsigned char addr, char *buf,
 	int wrcount = 0;
 	int count;
 	int maxLen = 4;
-	struct em2820 *dev = (struct em2820 *)data;
+	struct em28xx *dev = (struct em28xx *)data;
 	while (len > 0) {
 		count = (len > maxLen) ? maxLen : len;
 		ret = em2800_i2c_send_max4(dev, addr, bufPtr, count);
@@ -112,27 +112,27 @@ static int em2800_i2c_send_bytes(void *data, unsigned char addr, char *buf,
  * em2800_i2c_check_for_device()
  * check if there is a i2c_device at the supplied address
  */
-static int em2800_i2c_check_for_device(struct em2820 *dev, unsigned char addr)
+static int em2800_i2c_check_for_device(struct em28xx *dev, unsigned char addr)
 {
 	char msg;
 	int ret;
 	int write_timeout;
 	msg = addr;
-	ret = dev->em2820_write_regs(dev, 0x04, &msg, 1);
+	ret = dev->em28xx_write_regs(dev, 0x04, &msg, 1);
 	if (ret < 0) {
-		em2820_warn("setting i2c device address failed (error=%i)\n",
+		em28xx_warn("setting i2c device address failed (error=%i)\n",
 			    ret);
 		return ret;
 	}
 	msg = 0x84;
-	ret = dev->em2820_write_regs(dev, 0x05, &msg, 1);
+	ret = dev->em28xx_write_regs(dev, 0x05, &msg, 1);
 	if (ret < 0) {
-		em2820_warn("preparing i2c read failed (error=%i)\n", ret);
+		em28xx_warn("preparing i2c read failed (error=%i)\n", ret);
 		return ret;
 	}
 	for (write_timeout = EM2800_I2C_WRITE_TIMEOUT; write_timeout > 0;
 	     write_timeout -= 5) {
-		unsigned msg = dev->em2820_read_reg(dev, 0x5);
+		unsigned msg = dev->em28xx_read_reg(dev, 0x5);
 		if (msg == 0x94)
 			return -ENODEV;
 		else if (msg == 0x84)
@@ -146,21 +146,21 @@ static int em2800_i2c_check_for_device(struct em2820 *dev, unsigned char addr)
  * em2800_i2c_recv_bytes()
  * read from the i2c device
  */
-static int em2800_i2c_recv_bytes(struct em2820 *dev, unsigned char addr,
+static int em2800_i2c_recv_bytes(struct em28xx *dev, unsigned char addr,
 				 char *buf, int len)
 {
 	int ret;
 	/* check for the device and set i2c read address */
 	ret = em2800_i2c_check_for_device(dev, addr);
 	if (ret) {
-		em2820_warn
+		em28xx_warn
 		    ("preparing read at i2c address 0x%x failed (error=%i)\n",
 		     addr, ret);
 		return ret;
 	}
-	ret = dev->em2820_read_reg_req_len(dev, 0x0, 0x3, buf, len);
+	ret = dev->em28xx_read_reg_req_len(dev, 0x0, 0x3, buf, len);
 	if (ret < 0) {
-		em2820_warn("reading from i2c device at 0x%x failed (error=%i)",
+		em28xx_warn("reading from i2c device at 0x%x failed (error=%i)",
 			    addr, ret);
 		return ret;
 	}
@@ -168,66 +168,66 @@ static int em2800_i2c_recv_bytes(struct em2820 *dev, unsigned char addr,
 }
 
 /*
- * em2820_i2c_send_bytes()
+ * em28xx_i2c_send_bytes()
  * untested for more than 4 bytes
  */
-static int em2820_i2c_send_bytes(void *data, unsigned char addr, char *buf,
+static int em28xx_i2c_send_bytes(void *data, unsigned char addr, char *buf,
 				 short len, int stop)
 {
 	int wrcount = 0;
-	struct em2820 *dev = (struct em2820 *)data;
+	struct em28xx *dev = (struct em28xx *)data;
 
-	wrcount = dev->em2820_write_regs_req(dev, stop ? 2 : 3, addr, buf, len);
+	wrcount = dev->em28xx_write_regs_req(dev, stop ? 2 : 3, addr, buf, len);
 
 	return wrcount;
 }
 
 /*
- * em2820_i2c_recv_bytes()
+ * em28xx_i2c_recv_bytes()
  * read a byte from the i2c device
  */
-static int em2820_i2c_recv_bytes(struct em2820 *dev, unsigned char addr,
+static int em28xx_i2c_recv_bytes(struct em28xx *dev, unsigned char addr,
 				 char *buf, int len)
 {
 	int ret;
-	ret = dev->em2820_read_reg_req_len(dev, 2, addr, buf, len);
+	ret = dev->em28xx_read_reg_req_len(dev, 2, addr, buf, len);
 	if (ret < 0) {
-		em2820_warn("reading i2c device failed (error=%i)\n", ret);
+		em28xx_warn("reading i2c device failed (error=%i)\n", ret);
 		return ret;
 	}
-	if (dev->em2820_read_reg(dev, 0x5) != 0)
+	if (dev->em28xx_read_reg(dev, 0x5) != 0)
 		return -ENODEV;
 	return ret;
 }
 
 /*
- * em2820_i2c_check_for_device()
+ * em28xx_i2c_check_for_device()
  * check if there is a i2c_device at the supplied address
  */
-static int em2820_i2c_check_for_device(struct em2820 *dev, unsigned char addr)
+static int em28xx_i2c_check_for_device(struct em28xx *dev, unsigned char addr)
 {
 	char msg;
 	int ret;
 	msg = addr;
 
-	ret = dev->em2820_read_reg_req(dev, 2, addr);
+	ret = dev->em28xx_read_reg_req(dev, 2, addr);
 	if (ret < 0) {
-		em2820_warn("reading from i2c device failed (error=%i)\n", ret);
+		em28xx_warn("reading from i2c device failed (error=%i)\n", ret);
 		return ret;
 	}
-	if (dev->em2820_read_reg(dev, 0x5) != 0)
+	if (dev->em28xx_read_reg(dev, 0x5) != 0)
 		return -ENODEV;
 	return 0;
 }
 
 /*
- * em2820_i2c_xfer()
+ * em28xx_i2c_xfer()
  * the main i2c transfer function
  */
-static int em2820_i2c_xfer(struct i2c_adapter *i2c_adap,
+static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 			   struct i2c_msg msgs[], int num)
 {
-	struct em2820 *dev = i2c_adap->algo_data;
+	struct em28xx *dev = i2c_adap->algo_data;
 	int addr, rc, i, byte;
 
 	if (num <= 0)
@@ -241,7 +241,7 @@ static int em2820_i2c_xfer(struct i2c_adapter *i2c_adap,
 			if (dev->is_em2800)
 				rc = em2800_i2c_check_for_device(dev, addr);
 			else
-				rc = em2820_i2c_check_for_device(dev, addr);
+				rc = em28xx_i2c_check_for_device(dev, addr);
 			if (rc < 0) {
 				dprintk2(2," no device\n");
 				return rc;
@@ -254,7 +254,7 @@ static int em2820_i2c_xfer(struct i2c_adapter *i2c_adap,
 							   msgs[i].buf,
 							   msgs[i].len);
 			else
-				rc = em2820_i2c_recv_bytes(dev, addr,
+				rc = em28xx_i2c_recv_bytes(dev, addr,
 							   msgs[i].buf,
 							   msgs[i].len);
 			if (i2c_debug>=2) {
@@ -273,7 +273,7 @@ static int em2820_i2c_xfer(struct i2c_adapter *i2c_adap,
 							   msgs[i].buf,
 							   msgs[i].len);
 			else
-				rc = em2820_i2c_send_bytes(dev, addr,
+				rc = em28xx_i2c_send_bytes(dev, addr,
 							   msgs[i].buf,
 							   msgs[i].len,
 							   i == num - 1);
@@ -290,10 +290,10 @@ static int em2820_i2c_xfer(struct i2c_adapter *i2c_adap,
 	return rc;
 }
 
-static int em2820_i2c_eeprom(struct em2820 *dev, unsigned char *eedata, int len)
+static int em28xx_i2c_eeprom(struct em28xx *dev, unsigned char *eedata, int len)
 {
 	unsigned char buf, *p = eedata;
-	struct em2820_eeprom *em_eeprom = (void *)eedata;
+	struct em28xx_eeprom *em_eeprom = (void *)eedata;
 	int i, err, size = len, block;
 
 	dev->i2c_client.addr = 0xa0 >> 1;
@@ -410,9 +410,9 @@ static void dec_use(struct i2c_adapter *adap)
 }
 #endif
 
-static int em2820_set_tuner(int check_eeprom, struct i2c_client *client)
+static int em28xx_set_tuner(int check_eeprom, struct i2c_client *client)
 {
-	struct em2820 *dev = client->adapter->algo_data;
+	struct em28xx *dev = client->adapter->algo_data;
 	struct tuner_setup tun_setup;
 
 	if (dev->has_tuner) {
@@ -420,7 +420,7 @@ static int em2820_set_tuner(int check_eeprom, struct i2c_client *client)
 		tun_setup.type = dev->tuner_type;
 		tun_setup.addr = dev->tuner_addr;
 
-		em2820_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
+		em28xx_i2c_call_clients(dev, TUNER_SET_TYPE_ADDR, &tun_setup);
 	}
 
 	return (0);
@@ -433,11 +433,11 @@ static int em2820_set_tuner(int check_eeprom, struct i2c_client *client)
  */
 static int attach_inform(struct i2c_client *client)
 {
-	struct em2820 *dev = client->adapter->algo_data;
+	struct em28xx *dev = client->adapter->algo_data;
 
 	switch (client->addr << 1) {
 		case 0x86:
-			em2820_i2c_call_clients(dev, TDA9887_SET_CONFIG, &dev->tda9887_conf);
+			em28xx_i2c_call_clients(dev, TDA9887_SET_CONFIG, &dev->tda9887_conf);
 			break;
 		case 0x42:
 			dprintk1(1,"attach_inform: saa7114 detected.\n");
@@ -453,7 +453,7 @@ static int attach_inform(struct i2c_client *client)
 		{
 			struct IR_i2c *ir = i2c_get_clientdata(client);
 			dprintk1(1,"attach_inform: IR detected (%s).\n",ir->phys);
-			em2820_set_ir(dev,ir);
+			em28xx_set_ir(dev,ir);
 			break;
 		}
 		case 0x80:
@@ -467,19 +467,19 @@ static int attach_inform(struct i2c_client *client)
 		default:
 			dprintk1(1,"attach inform: detected I2C address %x\n", client->addr << 1);
 			dev->tuner_addr = client->addr;
-			em2820_set_tuner(-1, client);
+			em28xx_set_tuner(-1, client);
 	}
 
 	return 0;
 }
 
-static struct i2c_algorithm em2820_algo = {
-	.master_xfer   = em2820_i2c_xfer,
+static struct i2c_algorithm em28xx_algo = {
+	.master_xfer   = em28xx_i2c_xfer,
 	.algo_control  = algo_control,
 	.functionality = functionality,
 };
 
-static struct i2c_adapter em2820_adap_template = {
+static struct i2c_adapter em28xx_adap_template = {
 #ifdef I2C_PEC
 	.owner = THIS_MODULE,
 #else
@@ -489,14 +489,14 @@ static struct i2c_adapter em2820_adap_template = {
 #ifdef I2C_CLASS_TV_ANALOG
 	.class = I2C_CLASS_TV_ANALOG,
 #endif
-	.name = "em2820",
-	.id = I2C_HW_B_EM2820,
-	.algo = &em2820_algo,
+	.name = "em28xx",
+	.id = I2C_HW_B_EM28XX,
+	.algo = &em28xx_algo,
 	.client_register = attach_inform,
 };
 
-static struct i2c_client em2820_client_template = {
-	.name = "em2820 internal",
+static struct i2c_client em28xx_client_template = {
+	.name = "em28xx internal",
 	.flags = I2C_CLIENT_ALLOW_USE,
 };
 
@@ -542,33 +542,33 @@ static void do_i2c_scan(char *name, struct i2c_client *c)
 }
 
 /*
- * em2820_i2c_call_clients()
+ * em28xx_i2c_call_clients()
  * send commands to all attached i2c devices
  */
-void em2820_i2c_call_clients(struct em2820 *dev, unsigned int cmd, void *arg)
+void em28xx_i2c_call_clients(struct em28xx *dev, unsigned int cmd, void *arg)
 {
 	BUG_ON(NULL == dev->i2c_adap.algo_data);
 	i2c_clients_command(&dev->i2c_adap, cmd, arg);
 }
 
 /*
- * em2820_i2c_register()
+ * em28xx_i2c_register()
  * register i2c bus
  */
-int em2820_i2c_register(struct em2820 *dev)
+int em28xx_i2c_register(struct em28xx *dev)
 {
-	BUG_ON(!dev->em2820_write_regs || !dev->em2820_read_reg);
-	BUG_ON(!dev->em2820_write_regs_req || !dev->em2820_read_reg_req);
-	dev->i2c_adap = em2820_adap_template;
+	BUG_ON(!dev->em28xx_write_regs || !dev->em28xx_read_reg);
+	BUG_ON(!dev->em28xx_write_regs_req || !dev->em28xx_read_reg_req);
+	dev->i2c_adap = em28xx_adap_template;
 	dev->i2c_adap.dev.parent = &dev->udev->dev;
 	strcpy(dev->i2c_adap.name, dev->name);
 	dev->i2c_adap.algo_data = dev;
 	i2c_add_adapter(&dev->i2c_adap);
 
-	dev->i2c_client = em2820_client_template;
+	dev->i2c_client = em28xx_client_template;
 	dev->i2c_client.adapter = &dev->i2c_adap;
 
-	em2820_i2c_eeprom(dev, dev->eedata, sizeof(dev->eedata));
+	em28xx_i2c_eeprom(dev, dev->eedata, sizeof(dev->eedata));
 
 	if (i2c_scan)
 		do_i2c_scan(dev->name, &dev->i2c_client);
@@ -576,10 +576,10 @@ int em2820_i2c_register(struct em2820 *dev)
 }
 
 /*
- * em2820_i2c_unregister()
+ * em28xx_i2c_unregister()
  * unregister i2c_bus
  */
-int em2820_i2c_unregister(struct em2820 *dev)
+int em28xx_i2c_unregister(struct em28xx *dev)
 {
 	i2c_del_adapter(&dev->i2c_adap);
 	return 0;
