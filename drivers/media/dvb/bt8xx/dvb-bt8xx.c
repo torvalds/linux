@@ -280,7 +280,7 @@ static int microtune_mt7202dtf_pll_set(struct dvb_frontend* fe, struct dvb_front
 	data[0] = (div >> 8) & 0x7f;
 	data[1] = div & 0xff;
 	data[2] = ((div >> 10) & 0x60) | cfg;
-	data[3] = cpump | band_select;
+	data[3] = (cpump << 6) | band_select;
 
 	i2c_transfer(card->i2c_adapter, &msg, 1);
 	return (div * 166666 - 36000000);
