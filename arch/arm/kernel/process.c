@@ -355,7 +355,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long stack_start,
 	struct thread_info *thread = p->thread_info;
 	struct pt_regs *childregs;
 
-	childregs = ((struct pt_regs *)((unsigned long)thread + THREAD_START_SP)) - 1;
+	childregs = (void *)thread + THREAD_START_SP - sizeof(*regs);
 	*childregs = *regs;
 	childregs->ARM_r0 = 0;
 	childregs->ARM_sp = stack_start;
