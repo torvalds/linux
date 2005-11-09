@@ -803,6 +803,26 @@ struct cx88_board cx88_boards[] = {
 			.gpio0  = 0x0000cdf3,
 		},
 	},
+	[CX88_BOARD_KWORLD_VSTREAM_EXPERT_DVD] = {
+		 /* Alexander Wold <awold@bigfoot.com> */
+	         .name           = "Kworld V-Stream Xpert DVD",
+                 .tuner_type     = UNSET,
+                 .input          = {{
+                         .type   = CX88_VMUX_COMPOSITE1,
+                         .vmux   = 1,
+                         .gpio0  = 0x03000000,
+                         .gpio1  = 0x01000000,
+                         .gpio2  = 0x02000000,
+                         .gpio3  = 0x00100000,
+                 },{
+                         .type   = CX88_VMUX_SVIDEO,
+                         .vmux   = 2,
+                         .gpio0  = 0x03000000,
+			 .gpio1  = 0x01000000,
+			 .gpio2  = 0x02000000,
+			 .gpio3  = 0x00100000,
+                 }},
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
