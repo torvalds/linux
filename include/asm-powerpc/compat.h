@@ -1,5 +1,5 @@
-#ifndef _ASM_PPC64_COMPAT_H
-#define _ASM_PPC64_COMPAT_H
+#ifndef _ASM_POWERPC_COMPAT_H
+#define _ASM_POWERPC_COMPAT_H
 /*
  * Architecture specific compatibility types
  */
@@ -49,7 +49,7 @@ struct compat_stat {
 	compat_dev_t	st_dev;
 	compat_ino_t	st_ino;
 	compat_mode_t	st_mode;
-	compat_nlink_t	st_nlink;	
+	compat_nlink_t	st_nlink;
 	__compat_uid32_t	st_uid;
 	__compat_gid32_t	st_gid;
 	compat_dev_t	st_rdev;
@@ -202,4 +202,4 @@ struct compat_shmid64_ds {
 	compat_ulong_t __unused6;
 };
 
-#endif /* _ASM_PPC64_COMPAT_H */
+#endif /* _ASM_POWERPC_COMPAT_H */

@@ -18,8 +18,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#ifndef _ASM_TCE_H
-#define _ASM_TCE_H
+#ifndef _ASM_POWERPC_TCE_H
+#define _ASM_POWERPC_TCE_H
 
 /*
  * Tces come in two formats, one for the virtual bus and a different
@@ -61,4 +61,4 @@ union tce_entry {
 };
 
 
-#endif
+#endif /* _ASM_POWERPC_TCE_H */

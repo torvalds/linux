@@ -1,6 +1,6 @@
-/* 
+/*
  * ioctl32.c: Conversion between 32bit and 64bit native ioctls.
- * 
+ *
  * Based on sparc64 ioctl32.c by:
  *
  * Copyright (C) 1997-2000  Jakub Jelinek  (jakub@redhat.com)

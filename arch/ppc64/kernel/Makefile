@@ -12,11 +12,10 @@ obj-y               :=	misc.o prom.o
 endif
 
 obj-y               +=	irq.o idle.o dma.o \
-			align.o pacaData.o \
-			udbg.o ioctl32.o \
+			align.o \
+			udbg.o \
 			rtc.o \
-			cpu_setup_power4.o \
-			iommu.o sysfs.o vdso.o firmware.o
+			iommu.o sysfs.o vdso.o
 obj-y += vdso32/ vdso64/
 
 pci-obj-$(CONFIG_PPC_MULTIPLATFORM)	+= pci_dn.o pci_direct_iommu.o
@@ -51,8 +50,6 @@ obj-$(CONFIG_PPC_PMAC)		+= udbg_scc.o
 obj-$(CONFIG_PPC_MAPLE)		+= udbg_16550.o
 
 obj-$(CONFIG_KPROBES)		+= kprobes.o
-
-CFLAGS_ioctl32.o += -Ifs/
 
 ifneq ($(CONFIG_PPC_MERGE),y)
 ifeq ($(CONFIG_PPC_ISERIES),y)

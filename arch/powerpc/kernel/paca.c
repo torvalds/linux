@@ -32,7 +32,7 @@ EXPORT_SYMBOL(systemcfg);
  * field correctly */
 extern unsigned long __toc_start;
 
-/* The Paca is an array with one entry per processor.  Each contains an 
+/* The Paca is an array with one entry per processor.  Each contains an
  * lppaca, which contains the information shared between the
  * hypervisor and Linux.  Each also contains an ItLpRegSave area which
  * is used by the hypervisor to save registers.
