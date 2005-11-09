@@ -240,15 +240,18 @@ static inline int nfnetlink_rcv_msg(struct sk_buff *skb,
 	ss = nfnetlink_get_subsys(type);
 	if (!ss) {
 #ifdef CONFIG_KMOD
-		/* don't call nfnl_shunlock, since it would reenter
-		 * with further packet processing */
-		up(&nfnl_sem);
-		request_module("nfnetlink-subsys-%d", NFNL_SUBSYS_ID(type));
-		nfnl_shlock();
-		ss = nfnetlink_get_subsys(type);
+		if (cap_raised(NETLINK_CB(skb).eff_cap, CAP_NET_ADMIN)) {
+			/* don't call nfnl_shunlock, since it would reenter
+			 * with further packet processing */
+			up(&nfnl_sem);
+			request_module("nfnetlink-subsys-%d",
+					NFNL_SUBSYS_ID(type));
+			nfnl_shlock();
+			ss = nfnetlink_get_subsys(type);
+		}
 		if (!ss)
 #endif
-		goto err_inval;
+			goto err_inval;
 	}
 
 	nc = nfnetlink_find_client(type, ss);
