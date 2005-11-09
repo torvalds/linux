@@ -1140,8 +1140,9 @@ int path_lookup_open(const char *name, unsigned int lookup_flags,
  * @open_flags: open intent flags
  * @create_mode: create intent flags
  */
-int path_lookup_create(const char *name, unsigned int lookup_flags,
-		struct nameidata *nd, int open_flags, int create_mode)
+static int path_lookup_create(const char *name, unsigned int lookup_flags,
+			      struct nameidata *nd, int open_flags,
+			      int create_mode)
 {
 	return __path_lookup_intent_open(name, lookup_flags|LOOKUP_CREATE, nd,
 			open_flags, create_mode);
