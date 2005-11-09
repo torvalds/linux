@@ -3269,6 +3269,13 @@ static void bond_info_show_master(struct seq_file *seq)
 	seq_printf(seq, "Bonding Mode: %s\n",
 		   bond_mode_name(bond->params.mode));
 
+	if (bond->params.mode == BOND_MODE_XOR ||
+		bond->params.mode == BOND_MODE_8023AD) {
+		seq_printf(seq, "Transmit Hash Policy: %s (%d)\n",
+			xmit_hashtype_tbl[bond->params.xmit_policy].modename,
+			bond->params.xmit_policy);
+	}
+
 	if (USES_PRIMARY(bond->params.mode)) {
 		seq_printf(seq, "Primary Slave: %s\n",
 			   (bond->params.primary[0]) ?
