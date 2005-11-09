@@ -92,10 +92,8 @@ static int fbiogscursor(unsigned int fd, unsigned int cmd, unsigned long arg)
 	return sys_ioctl (fd, FBIOSCURSOR, (unsigned long)p);
 }
 
-typedef int (* ioctl32_handler_t)(unsigned int, unsigned int, unsigned long, struct file *);
-
 #define COMPATIBLE_IOCTL(cmd)		HANDLE_IOCTL((cmd),sys_ioctl)
-#define HANDLE_IOCTL(cmd,handler)	{ (cmd), (ioctl32_handler_t)(handler), NULL },
+#define HANDLE_IOCTL(cmd,handler)	{ (cmd), (ioctl_trans_handler_t)(handler), NULL },
 #define IOCTL_TABLE_START \
 	struct ioctl_trans ioctl_start[] = {
 #define IOCTL_TABLE_END \
