@@ -1758,16 +1758,29 @@ md_store_scan(mddev_t *mddev, const char *page, size_t len)
 	return len;
 }
 
+static ssize_t
+md_show_mismatch(mddev_t *mddev, char *page)
+{
+	return sprintf(page, "%llu\n",
+		       (unsigned long long) mddev->resync_mismatches);
+}
+
 static struct md_sysfs_entry md_scan_mode = {
 	.attr = {.name = "scan_mode", .mode = S_IRUGO|S_IWUSR },
 	.show = md_show_scan,
 	.store = md_store_scan,
 };
 
+static struct md_sysfs_entry md_mismatches = {
+	.attr = {.name = "mismatch_cnt", .mode = S_IRUGO },
+	.show = md_show_mismatch,
+};
+
 static struct attribute *md_default_attrs[] = {
 	&md_level.attr,
 	&md_raid_disks.attr,
 	&md_scan_mode.attr,
+	&md_mismatches.attr,
 	NULL,
 };
 
@@ -3888,12 +3901,13 @@ static void md_do_sync(mddev_t *mddev)
 		}
 	} while (mddev->curr_resync < 2);
 
-	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery))
+	if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
 		/* resync follows the size requested by the personality,
 		 * which defaults to physical size, but can be virtual size
 		 */
 		max_sectors = mddev->resync_max_sectors;
-	else
+		mddev->resync_mismatches = 0;
+	} else
 		/* recovery follows the physical size of devices */
 		max_sectors = mddev->size << 1;
 

@@ -1292,6 +1292,11 @@ static void handle_stripe(struct stripe_head *sh)
 			    !memcmp(pagea, pagea+4, STRIPE_SIZE-4)) {
 				/* parity is correct (on disc, not in buffer any more) */
 				set_bit(STRIPE_INSYNC, &sh->state);
+			} else {
+				conf->mddev->resync_mismatches += STRIPE_SECTORS;
+				if (test_bit(MD_RECOVERY_CHECK, &conf->mddev->recovery))
+					/* don't try to repair!! */
+					set_bit(STRIPE_INSYNC, &sh->state);
 			}
 		}
 		if (!test_bit(STRIPE_INSYNC, &sh->state)) {

@@ -175,6 +175,10 @@ struct mddev_s
 	sector_t			resync_mark_cnt;/* blocks written at resync_mark */
 
 	sector_t			resync_max_sectors; /* may be set by personality */
+
+	sector_t			resync_mismatches; /* count of sectors where
+							    * parity/replica mismatch found
+							    */
 	/* recovery/resync flags 
 	 * NEEDED:   we might need to start a resync/recover
 	 * RUNNING:  a thread is running, or about to be started
