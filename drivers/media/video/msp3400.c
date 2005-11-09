@@ -54,7 +54,6 @@
 #include <asm/pgtable.h>
 
 #include <media/audiochip.h>
-#include <media/id.h>
 #include "msp3400.h"
 
 #define OPMODE_AUTO    -1

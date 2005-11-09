@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/crc32.h>
 
-#include <media/id.h>
 
 #define MPEG_VIDEO_TARGET_BITRATE_MAX  27000
 #define MPEG_VIDEO_MAX_BITRATE_MAX     27000

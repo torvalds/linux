@@ -31,7 +31,6 @@
 #include <linux/wait.h>
 #include <asm/uaccess.h>
 
-#include <media/id.h>
 
 #include "rds.h"
 

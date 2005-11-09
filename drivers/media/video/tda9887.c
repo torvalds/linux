@@ -11,7 +11,6 @@
 
 #include <media/audiochip.h>
 #include <media/tuner.h>
-#include <media/id.h>
 
 /* Chips:
    TDA9885 (PAL, NTSC)

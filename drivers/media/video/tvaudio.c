@@ -31,7 +31,6 @@
 #include <linux/smp_lock.h>
 
 #include <media/audiochip.h>
-#include <media/id.h>
 
 #include "tvaudio.h"
 
@@ -1438,7 +1437,7 @@ static struct CHIPDESC chiplist[] = {
 	},
 	{
 		.name       = "pic16c54 (PV951)",
-		.id         = I2C_DRIVERID_PIC16C54_PV951,
+		.id         = I2C_DRIVERID_PIC16C54_PV9,
 		.insmodopt  = &pic16c54,
 		.addr_lo    = I2C_PIC16C54 >> 1,
 		.addr_hi    = I2C_PIC16C54>> 1,

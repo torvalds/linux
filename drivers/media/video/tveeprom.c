@@ -658,10 +658,6 @@ EXPORT_SYMBOL(tveeprom_read);
 /* run, just call the exported tveeprom_* directly, there is no point in   */
 /* using the indirect way via i2c_driver->command()                        */
 
-#ifndef I2C_DRIVERID_TVEEPROM
-# define I2C_DRIVERID_TVEEPROM I2C_DRIVERID_EXP2
-#endif
-
 static unsigned short normal_i2c[] = {
 	0xa0 >> 1,
 	I2C_CLIENT_END,

@@ -32,7 +32,6 @@
 
 #include "bttv.h"
 #include <media/audiochip.h>
-#include <media/id.h>
 
 static int debug; /* insmod parameter */
 module_param(debug, int, S_IRUGO | S_IWUSR);

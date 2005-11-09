@@ -32,7 +32,6 @@
 #include <linux/slab.h>
 
 #include <media/audiochip.h>
-#include <media/id.h>
 #include "bttv.h"
 #include "bt832.h"
 
