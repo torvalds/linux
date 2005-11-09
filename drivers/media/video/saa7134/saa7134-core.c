@@ -194,6 +194,7 @@ void saa7134_track_gpio(struct saa7134_dev *dev, char *msg)
 
 static int need_empress;
 static int need_dvb;
+static int need_alsa;
 
 static int pending_call(struct notifier_block *self, unsigned long state,
 			void *module)
@@ -205,6 +206,8 @@ static int pending_call(struct notifier_block *self, unsigned long state,
 		request_module("saa7134-empress");
 	if (need_dvb)
 		request_module("saa7134-dvb");
+	if (need_alsa)
+		request_module("saa7134-alsa");
 	return NOTIFY_DONE;
 }
 
@@ -469,7 +472,7 @@ int saa7134_set_dmabits(struct saa7134_dev *dev)
 	}
 
 	/* audio capture -- dma 3 */
-	if (dev->oss.dma_running) {
+	if (dev->dmasound.dma_running) {
 		ctrl |= SAA7134_MAIN_CTRL_TE6;
 		irq  |= SAA7134_IRQ1_INTE_RA3_1 |
 			SAA7134_IRQ1_INTE_RA3_0;
@@ -983,6 +986,12 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	if (card_is_dvb(dev))
 		request_module_depend("saa7134-dvb",&need_dvb);
 
+	if (!oss && alsa) {
+		dprintk("Requesting ALSA module\n");
+		request_module_depend("saa7134-alsa",&need_alsa);
+	}
+
+
 	v4l2_prio_init(&dev->prio);
 
 	/* register v4l devices */
@@ -1021,24 +1030,22 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	case PCI_DEVICE_ID_PHILIPS_SAA7133:
 	case PCI_DEVICE_ID_PHILIPS_SAA7135:
 		if (oss) {
-			err = dev->oss.minor_dsp =
+			err = dev->dmasound.minor_dsp =
 				register_sound_dsp(&saa7134_dsp_fops,
 						   dsp_nr[dev->nr]);
 			if (err < 0) {
 				goto fail4;
 			}
 			printk(KERN_INFO "%s: registered device dsp%d\n",
-			       dev->name,dev->oss.minor_dsp >> 4);
+			       dev->name,dev->dmasound.minor_dsp >> 4);
 
-			err = dev->oss.minor_mixer =
+			err = dev->dmasound.minor_mixer =
 				register_sound_mixer(&saa7134_mixer_fops,
 						     mixer_nr[dev->nr]);
 			if (err < 0)
 				goto fail5;
 			printk(KERN_INFO "%s: registered device mixer%d\n",
-			       dev->name,dev->oss.minor_mixer >> 4);
-		} else if (alsa) {
-			request_module("saa7134-alsa");
+			       dev->name,dev->dmasound.minor_mixer >> 4);
 		}
 		break;
 	}
@@ -1065,7 +1072,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	case PCI_DEVICE_ID_PHILIPS_SAA7133:
 	case PCI_DEVICE_ID_PHILIPS_SAA7135:
 		if (oss)
-			unregister_sound_dsp(dev->oss.minor_dsp);
+			unregister_sound_dsp(dev->dmasound.minor_dsp);
 		break;
 	}
  fail4:
@@ -1123,8 +1130,8 @@ static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 	case PCI_DEVICE_ID_PHILIPS_SAA7133:
 	case PCI_DEVICE_ID_PHILIPS_SAA7135:
 		if (oss) {
-			unregister_sound_mixer(dev->oss.minor_mixer);
-			unregister_sound_dsp(dev->oss.minor_dsp);
+			unregister_sound_mixer(dev->dmasound.minor_mixer);
+			unregister_sound_dsp(dev->dmasound.minor_dsp);
 		}
 		break;
 	}

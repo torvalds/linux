@@ -355,8 +355,8 @@ struct saa7134_fh {
 	struct saa7134_pgtable     pt_vbi;
 };
 
-/* oss dsp status */
-struct saa7134_oss {
+/* dmasound dsp status */
+struct saa7134_dmasound {
 	struct semaphore           lock;
 	int                        minor_mixer;
 	int                        minor_dsp;
@@ -431,7 +431,7 @@ struct saa7134_dev {
 	struct video_device        *video_dev;
 	struct video_device        *radio_dev;
 	struct video_device        *vbi_dev;
-	struct saa7134_oss         oss;
+	struct saa7134_dmasound    dmasound;
 
 	/* infrared remote */
 	int                        has_remote;
