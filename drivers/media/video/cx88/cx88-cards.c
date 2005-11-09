@@ -776,6 +776,33 @@ struct cx88_board cx88_boards[] = {
                 }},
 		.dvb            = 1,
 	},
+	[CX88_BOARD_AVERMEDIA_ULTRATV_MC_550] = {
+		.name           = "AverMedia UltraTV Media Center PCI 550",
+		.tuner_type     = TUNER_PHILIPS_FM1236_MK3,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.blackbird      = 1,
+		.input          = {{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 0,
+			.gpio0  = 0x0000cd73,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 1,
+			.gpio0  = 0x0000cd73,
+		},{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 3,
+			.gpio0  = 0x0000cdb3,
+		}},
+		.radio = {
+			.type   = CX88_RADIO,
+			.vmux   = 2,
+			.gpio0  = 0x0000cdf3,
+		},
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -907,6 +934,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x18ac,
 		.subdevice = 0xd500,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD,
+ 	},{
+		.subvendor = 0x1461,
+		.subdevice = 0x8011,
+		.card      = CX88_BOARD_AVERMEDIA_ULTRATV_MC_550,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
