@@ -2729,7 +2729,9 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 	struct flowi fl;
 	struct rtable *rt;
 
-	for (i = 0; (i < BOND_MAX_ARP_TARGETS) && targets[i]; i++) {
+	for (i = 0; (i < BOND_MAX_ARP_TARGETS); i++) {
+		if (!targets[i])
+			continue;
 		dprintk("basa: target %x\n", targets[i]);
 		if (list_empty(&bond->vlan_list)) {
 			dprintk("basa: empty vlan: arp_send\n");
