@@ -84,6 +84,7 @@ struct saa7113 {
 };
 
 #define   I2C_SAA7113        0x4A
+#define   I2C_SAA7114        0x42
 
 /* ----------------------------------------------------------------------- */
 
@@ -465,6 +466,7 @@ saa7113_command (struct i2c_client *client,
 /* standard i2c insmod options */
 static unsigned short normal_i2c[] = {
 	I2C_SAA7113>>1,         /* saa7113 */
+	I2C_SAA7114>>1,         /* saa7114 */
 	I2C_CLIENT_END
 };
 
