@@ -1293,6 +1293,14 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	if (!exp)
 		return -ENOENT;
 
+	if (cda[CTA_EXPECT_ID-1]) {
+		u_int32_t id = *(u_int32_t *)NFA_DATA(cda[CTA_EXPECT_ID-1]);
+		if (exp->id != ntohl(id)) {
+			ip_conntrack_expect_put(exp);
+			return -ENOENT;
+		}
+	}	
+
 	err = -ENOMEM;
 	skb2 = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb2)
