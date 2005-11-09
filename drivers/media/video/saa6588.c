@@ -245,7 +245,7 @@ static void block_to_buf(struct saa6588 *s, unsigned char *blockbuf)
 		s->wr_index = 0;
 
 	if (s->wr_index == s->rd_index) {
-		s->rd_index++;
+		s->rd_index += 3;
 		if (s->rd_index >= s->buf_size)
 			s->rd_index = 0;
 	} else
