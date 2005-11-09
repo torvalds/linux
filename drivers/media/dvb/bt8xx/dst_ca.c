@@ -166,7 +166,7 @@ static int ca_get_app_info(struct dst_state *state)
 	return 0;
 }
 
-static int ca_get_slot_caps(struct dst_state *state, struct ca_caps *p_ca_caps, void *arg)
+static int ca_get_slot_caps(struct dst_state *state, struct ca_caps *p_ca_caps, void __user *arg)
 {
 	int i;
 	u8 slot_cap[256];
@@ -192,20 +192,20 @@ static int ca_get_slot_caps(struct dst_state *state, struct ca_caps *p_ca_caps, 
 	p_ca_caps->descr_num = slot_cap[7];
 	p_ca_caps->descr_type = 1;
 
-	if (copy_to_user((struct ca_caps *)arg, p_ca_caps, sizeof (struct ca_caps)))
+	if (copy_to_user(arg, p_ca_caps, sizeof (struct ca_caps)))
 		return -EFAULT;
 
 	return 0;
 }
 
 /*	Need some more work	*/
-static int ca_get_slot_descr(struct dst_state *state, struct ca_msg *p_ca_message, void *arg)
+static int ca_get_slot_descr(struct dst_state *state, struct ca_msg *p_ca_message, void __user *arg)
 {
 	return -EOPNOTSUPP;
 }
 
 
-static int ca_get_slot_info(struct dst_state *state, struct ca_slot_info *p_ca_slot_info, void *arg)
+static int ca_get_slot_info(struct dst_state *state, struct ca_slot_info *p_ca_slot_info, void __user *arg)
 {
 	int i;
 	static u8 slot_command[8] = {0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff};
@@ -238,19 +238,19 @@ static int ca_get_slot_info(struct dst_state *state, struct ca_slot_info *p_ca_s
 	} else
 		p_ca_slot_info->flags = 0;
 
-	if (copy_to_user((struct ca_slot_info *)arg, p_ca_slot_info, sizeof (struct ca_slot_info)))
+	if (copy_to_user(arg, p_ca_slot_info, sizeof (struct ca_slot_info)))
 		return -EFAULT;
 
 	return 0;
 }
 
 
-static int ca_get_message(struct dst_state *state, struct ca_msg *p_ca_message, void *arg)
+static int ca_get_message(struct dst_state *state, struct ca_msg *p_ca_message, void __user *arg)
 {
 	u8 i = 0;
 	u32 command = 0;
 
-	if (copy_from_user(p_ca_message, (void *)arg, sizeof (struct ca_msg)))
+	if (copy_from_user(p_ca_message, arg, sizeof (struct ca_msg)))
 		return -EFAULT;
 
 	if (p_ca_message->msg) {
@@ -266,7 +266,7 @@ static int ca_get_message(struct dst_state *state, struct ca_msg *p_ca_message, 
 		switch (command) {
 		case CA_APP_INFO:
 			memcpy(p_ca_message->msg, state->messages, 128);
-			if (copy_to_user((void *)arg, p_ca_message, sizeof (struct ca_msg)) )
+			if (copy_to_user(arg, p_ca_message, sizeof (struct ca_msg)) )
 				return -EFAULT;
 			break;
 		}
@@ -315,7 +315,7 @@ static int write_to_8820(struct dst_state *state, struct ca_msg *hw_buffer, u8 l
 	return 0;
 }
 
-u32 asn_1_decode(u8 *asn_1_array)
+static u32 asn_1_decode(u8 *asn_1_array)
 {
 	u8 length_field = 0, word_count = 0, count = 0;
 	u32 length = 0;
@@ -400,7 +400,7 @@ static int dst_check_ca_pmt(struct dst_state *state, struct ca_msg *p_ca_message
 	return 0;
 }
 
-static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message, void *arg)
+static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message, void __user *arg)
 {
 	int i = 0;
 	unsigned int ca_message_header_len;
@@ -414,7 +414,7 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 	}
 	dprintk(verbose, DST_CA_DEBUG, 1, " ");
 
-	if (copy_from_user(p_ca_message, (void *)arg, sizeof (struct ca_msg)))
+	if (copy_from_user(p_ca_message, arg, sizeof (struct ca_msg)))
 		return -EFAULT;
 
 	if (p_ca_message->msg) {
@@ -461,13 +461,14 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 	return 0;
 }
 
-static int dst_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *arg)
+static int dst_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long ioctl_arg)
 {
 	struct dvb_device* dvbdev = (struct dvb_device*) file->private_data;
 	struct dst_state* state = (struct dst_state*) dvbdev->priv;
 	struct ca_slot_info *p_ca_slot_info;
 	struct ca_caps *p_ca_caps;
 	struct ca_msg *p_ca_message;
+	void __user *arg = (void __user *)ioctl_arg;
 
 	if ((p_ca_message = (struct ca_msg *) kmalloc(sizeof (struct ca_msg), GFP_KERNEL)) == NULL) {
 		dprintk(verbose, DST_CA_ERROR, 1, " Memory allocation failure");
@@ -583,7 +584,7 @@ static int dst_ca_write(struct file *file, const char __user *buffer, size_t len
 
 static struct file_operations dst_ca_fops = {
 	.owner = THIS_MODULE,
-	.ioctl = (void *)dst_ca_ioctl,
+	.ioctl = dst_ca_ioctl,
 	.open = dst_ca_open,
 	.release = dst_ca_release,
 	.read = dst_ca_read,
