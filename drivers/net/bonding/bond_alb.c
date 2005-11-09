@@ -198,20 +198,21 @@ static int tlb_initialize(struct bonding *bond)
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
 	int size = TLB_HASH_TABLE_SIZE * sizeof(struct tlb_client_info);
+	struct tlb_client_info *new_hashtbl;
 	int i;
 
 	spin_lock_init(&(bond_info->tx_hashtbl_lock));
 
-	_lock_tx_hashtbl(bond);
-
-	bond_info->tx_hashtbl = kmalloc(size, GFP_KERNEL);
-	if (!bond_info->tx_hashtbl) {
+	new_hashtbl = kmalloc(size, GFP_KERNEL);
+	if (!new_hashtbl) {
 		printk(KERN_ERR DRV_NAME
 		       ": %s: Error: Failed to allocate TLB hash table\n",
 		       bond->dev->name);
-		_unlock_tx_hashtbl(bond);
 		return -1;
 	}
+	_lock_tx_hashtbl(bond);
+
+	bond_info->tx_hashtbl = new_hashtbl;
 
 	memset(bond_info->tx_hashtbl, 0, size);
 
@@ -800,21 +801,22 @@ static int rlb_initialize(struct bonding *bond)
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
 	struct packet_type *pk_type = &(BOND_ALB_INFO(bond).rlb_pkt_type);
+	struct rlb_client_info	*new_hashtbl;
 	int size = RLB_HASH_TABLE_SIZE * sizeof(struct rlb_client_info);
 	int i;
 
 	spin_lock_init(&(bond_info->rx_hashtbl_lock));
 
-	_lock_rx_hashtbl(bond);
-
-	bond_info->rx_hashtbl = kmalloc(size, GFP_KERNEL);
-	if (!bond_info->rx_hashtbl) {
+	new_hashtbl = kmalloc(size, GFP_KERNEL);
+	if (!new_hashtbl) {
 		printk(KERN_ERR DRV_NAME
 		       ": %s: Error: Failed to allocate RLB hash table\n",
 		       bond->dev->name);
-		_unlock_rx_hashtbl(bond);
 		return -1;
 	}
+	_lock_rx_hashtbl(bond);
+
+	bond_info->rx_hashtbl = new_hashtbl;
 
 	bond_info->rx_hashtbl_head = RLB_NULL_INDEX;
 
