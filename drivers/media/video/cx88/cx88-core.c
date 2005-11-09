@@ -431,7 +431,7 @@ int cx88_sram_channel_setup(struct cx88_core *core,
 /* ------------------------------------------------------------------ */
 /* debug helper code                                                  */
 
-int cx88_risc_decode(u32 risc)
+static int cx88_risc_decode(u32 risc)
 {
 	static char *instr[16] = {
 		[ RISC_SYNC    >> 28 ] = "sync",

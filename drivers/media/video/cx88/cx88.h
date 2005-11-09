@@ -204,8 +204,8 @@ struct cx88_board {
 	int                     tda9887_conf;
 	struct cx88_input       input[MAX_CX88_INPUT];
 	struct cx88_input       radio;
-	int                     blackbird:1;
-	int                     dvb:1;
+	unsigned int            blackbird:1;
+	unsigned int            dvb:1;
 };
 
 struct cx88_subid {
