@@ -825,8 +825,8 @@ extern void cfb_imageblit(struct fb_info *info, const struct fb_image *image);
 /* drivers/video/fbmem.c */
 extern int register_framebuffer(struct fb_info *fb_info);
 extern int unregister_framebuffer(struct fb_info *fb_info);
-extern int fb_prepare_logo(struct fb_info *fb_info);
-extern int fb_show_logo(struct fb_info *fb_info);
+extern int fb_prepare_logo(struct fb_info *fb_info, int rotate);
+extern int fb_show_logo(struct fb_info *fb_info, int rotate);
 extern char* fb_get_buffer_offset(struct fb_info *info, struct fb_pixmap *buf, u32 size);
 extern void fb_pad_unaligned_buffer(u8 *dst, u32 d_pitch, u8 *src, u32 idx,
 				u32 height, u32 shift_high, u32 shift_low, u32 mod);

@@ -499,6 +499,7 @@ static void fbcon_prepare_logo(struct vc_data *vc, struct fb_info *info,
 			       int cols, int rows, int new_cols, int new_rows)
 {
 	/* Need to make room for the logo */
+	struct fbcon_ops *ops = info->fbcon_par;
 	int cnt, erase = vc->vc_video_erase_char, step;
 	unsigned short *save = NULL, *r, *q;
 
@@ -508,7 +509,7 @@ static void fbcon_prepare_logo(struct vc_data *vc, struct fb_info *info,
 	 */
 	if (fb_get_color_depth(&info->var, &info->fix) == 1)
 		erase &= ~0x400;
-	logo_height = fb_prepare_logo(info);
+	logo_height = fb_prepare_logo(info, ops->rotate);
 	logo_lines = (logo_height + vc->vc_font.height - 1) /
 		vc->vc_font.height;
 	q = (unsigned short *) (vc->vc_origin +
@@ -2073,7 +2074,7 @@ static int fbcon_switch(struct vc_data *vc)
 
 		logo_shown = fg_console;
 		/* This is protected above by initmem_freed */
-		fb_show_logo(info);
+		fb_show_logo(info, ops->rotate);
 		update_region(vc,
 			      vc->vc_origin + vc->vc_size_row * vc->vc_top,
 			      vc->vc_size_row * (vc->vc_bottom -

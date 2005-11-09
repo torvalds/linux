@@ -323,9 +323,103 @@ static struct logo_data {
 	const struct linux_logo *logo;
 } fb_logo;
 
-int fb_prepare_logo(struct fb_info *info)
+static void fb_rotate_logo_ud(const u8 *in, u8 *out, u32 width, u32 height)
+{
+	u32 size = width * height, i;
+
+	out += size - 1;
+
+	for (i = size; i--; )
+		*out-- = *in++;
+}
+
+static void fb_rotate_logo_cw(const u8 *in, u8 *out, u32 width, u32 height)
+{
+	int i, j, w = width - 1;
+
+	for (i = 0; i < height; i++)
+		for (j = 0; j < width; j++)
+			out[height * j + w - i] = *in++;
+}
+
+static void fb_rotate_logo_ccw(const u8 *in, u8 *out, u32 width, u32 height)
+{
+	int i, j, w = width - 1;
+
+	for (i = 0; i < height; i++)
+		for (j = 0; j < width; j++)
+			out[height * (w - j) + i] = *in++;
+}
+
+static void fb_rotate_logo(struct fb_info *info, u8 *dst,
+			   struct fb_image *image, int rotate)
+{
+	u32 tmp;
+
+	if (rotate == FB_ROTATE_UD) {
+		image->dx = info->var.xres - image->width;
+		image->dy = info->var.yres - image->height;
+		fb_rotate_logo_ud(image->data, dst, image->width,
+				  image->height);
+	} else if (rotate == FB_ROTATE_CW) {
+		tmp = image->width;
+		image->width = image->height;
+		image->height = tmp;
+		image->dx = info->var.xres - image->height;
+		fb_rotate_logo_cw(image->data, dst, image->width,
+				  image->height);
+	} else if (rotate == FB_ROTATE_CCW) {
+		tmp = image->width;
+		image->width = image->height;
+		image->height = tmp;
+		image->dy = info->var.yres - image->width;
+		fb_rotate_logo_ccw(image->data, dst, image->width,
+				   image->height);
+	}
+
+	image->data = dst;
+}
+
+static void fb_do_show_logo(struct fb_info *info, struct fb_image *image,
+			    int rotate)
+{
+	int x;
+
+	if (rotate == FB_ROTATE_UR) {
+		for (x = 0; x < num_online_cpus() &&
+			     x * (fb_logo.logo->width + 8) <=
+			     info->var.xres - fb_logo.logo->width; x++) {
+			info->fbops->fb_imageblit(info, image);
+			image->dx += fb_logo.logo->width + 8;
+		}
+	} else if (rotate == FB_ROTATE_UD) {
+		for (x = 0; x < num_online_cpus() &&
+			     x * (fb_logo.logo->width + 8) <=
+			     info->var.xres - fb_logo.logo->width; x++) {
+			info->fbops->fb_imageblit(info, image);
+			image->dx -= fb_logo.logo->width + 8;
+		}
+	} else if (rotate == FB_ROTATE_CW) {
+		for (x = 0; x < num_online_cpus() &&
+			     x * (fb_logo.logo->width + 8) <=
+			     info->var.yres - fb_logo.logo->width; x++) {
+			info->fbops->fb_imageblit(info, image);
+			image->dy += fb_logo.logo->width + 8;
+		}
+	} else if (rotate == FB_ROTATE_CCW) {
+		for (x = 0; x < num_online_cpus() &&
+			     x * (fb_logo.logo->width + 8) <=
+			     info->var.yres - fb_logo.logo->width; x++) {
+			info->fbops->fb_imageblit(info, image);
+			image->dy -= fb_logo.logo->width + 8;
+		}
+	}
+}
+
+int fb_prepare_logo(struct fb_info *info, int rotate)
 {
 	int depth = fb_get_color_depth(&info->var, &info->fix);
+	int yres;
 
 	memset(&fb_logo, 0, sizeof(struct logo_data));
 
@@ -358,10 +452,16 @@ int fb_prepare_logo(struct fb_info *info)
 	/* Return if no suitable logo was found */
 	fb_logo.logo = fb_find_logo(depth);
 	
-	if (!fb_logo.logo || fb_logo.logo->height > info->var.yres) {
+	if (rotate == FB_ROTATE_UR || rotate == FB_ROTATE_UD)
+		yres = info->var.yres;
+	else
+		yres = info->var.xres;
+
+	if (fb_logo.logo && fb_logo.logo->height > yres) {
 		fb_logo.logo = NULL;
 		return 0;
 	}
+
 	/* What depth we asked for might be different from what we get */
 	if (fb_logo.logo->type == LINUX_LOGO_CLUT224)
 		fb_logo.depth = 8;
@@ -372,12 +472,11 @@ int fb_prepare_logo(struct fb_info *info)
 	return fb_logo.logo->height;
 }
 
-int fb_show_logo(struct fb_info *info)
+int fb_show_logo(struct fb_info *info, int rotate)
 {
 	u32 *palette = NULL, *saved_pseudo_palette = NULL;
-	unsigned char *logo_new = NULL;
+	unsigned char *logo_new = NULL, *logo_rotate = NULL;
 	struct fb_image image;
-	int x;
 
 	/* Return if the frame buffer is not mapped or suspended */
 	if (fb_logo.logo == NULL || info->state != FBINFO_STATE_RUNNING)
@@ -417,25 +516,30 @@ int fb_show_logo(struct fb_info *info)
 		fb_set_logo(info, fb_logo.logo, logo_new, fb_logo.depth);
 	}
 
+	image.dx = 0;
+	image.dy = 0;
 	image.width = fb_logo.logo->width;
 	image.height = fb_logo.logo->height;
-	image.dy = 0;
 
-	for (x = 0; x < num_online_cpus() * (fb_logo.logo->width + 8) &&
-	     x <= info->var.xres-fb_logo.logo->width; x += (fb_logo.logo->width + 8)) {
-		image.dx = x;
-		info->fbops->fb_imageblit(info, &image);
+	if (rotate) {
+		logo_rotate = kmalloc(fb_logo.logo->width *
+				      fb_logo.logo->height, GFP_KERNEL);
+		if (logo_rotate)
+			fb_rotate_logo(info, logo_rotate, &image, rotate);
 	}
-	
+
+	fb_do_show_logo(info, &image, rotate);
+
 	kfree(palette);
 	if (saved_pseudo_palette != NULL)
 		info->pseudo_palette = saved_pseudo_palette;
 	kfree(logo_new);
+	kfree(logo_rotate);
 	return fb_logo.logo->height;
 }
 #else
-int fb_prepare_logo(struct fb_info *info) { return 0; }
-int fb_show_logo(struct fb_info *info) { return 0; }
+int fb_prepare_logo(struct fb_info *info, int rotate) { return 0; }
+int fb_show_logo(struct fb_info *info, int rotate) { return 0; }
 #endif /* CONFIG_LOGO */
 
 static int fbmem_read_proc(char *buf, char **start, off_t offset,
