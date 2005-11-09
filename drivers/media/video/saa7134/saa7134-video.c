@@ -1798,9 +1798,9 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 			crop->c.height = b->top - crop->c.top + b->height;
 
 		if (crop->c.left < b->left)
-			crop->c.top = b->left;
+			crop->c.left = b->left;
 		if (crop->c.left > b->left + b->width)
-			crop->c.top = b->left + b->width;
+			crop->c.left = b->left + b->width;
 		if (crop->c.width > b->left - crop->c.left + b->width)
 			crop->c.width = b->left - crop->c.left + b->width;
 

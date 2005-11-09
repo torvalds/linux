@@ -1256,9 +1256,9 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 {
 	int err;
 
+	dprintk( 1, "CORE IOCTL: 0x%x\n", cmd );
 	if (video_debug > 1)
 		cx88_print_ioctl(core->name,cmd);
-	dprintk( 1, "CORE IOCTL: 0x%x\n", cmd );
 
 	switch (cmd) {
 	/* ---------- tv norms ---------- */
