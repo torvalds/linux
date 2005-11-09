@@ -2452,11 +2452,11 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x0200000,
 		},
 	},
-	[SAA7134_BOARD_PCTV_CARDBUS] = {
+	[SAA7134_BOARD_SEDNA_PC_TV_CARDBUS] = {
 		/* Paul Tom Zalac <pzalac@gmail.com> */
 		/* Pavel Mihaylov <bin@bash.info> */
-		.name           = "PCTV Cardbus TV/Radio (ITO25 Rev:2B)",
-				/* Sedna Cardbus TV Tuner */
+		.name           = "Sedna/MuchTV PC TV Cardbus TV/Radio (ITO25 Rev:2B)",
+				/* Sedna/MuchTV (OEM) Cardbus TV Tuner */
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_PHILIPS_TDA8290,
 		.radio_type     = UNSET,
@@ -3067,7 +3067,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVACSSMARTTV:
 	case SAA7134_BOARD_GOTVIEW_7135:
 	case SAA7134_BOARD_KWORLD_TERMINATOR:
-	case SAA7134_BOARD_PCTV_CARDBUS:
+	case SAA7134_BOARD_SEDNA_PC_TV_CARDBUS:
 		dev->has_remote = SAA7134_REMOTE_GPIO;
 		break;
 	case SAA7134_BOARD_MD5044:

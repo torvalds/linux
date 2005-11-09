@@ -546,7 +546,7 @@ static IR_KEYTAB_TYPE ir_codes_pinnacle[IR_KEYTAB_SIZE] = {
 /* Mapping for the 28 key remote control as seen at
    http://www.sednacomputer.com/photo/cardbus-tv.jpg
    Pavel Mihaylov <bin@bash.info> */
-static IR_KEYTAB_TYPE pctv_cardbus_codes[IR_KEYTAB_SIZE] = {
+static IR_KEYTAB_TYPE pctv_sedna_codes[IR_KEYTAB_SIZE] = {
 	[    0 ] = KEY_KP0,
 	[    1 ] = KEY_KP1,
 	[    2 ] = KEY_KP2,
@@ -781,8 +781,8 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keyup   = 0x004000;
 		polling      = 50; // ms
 		break;
-	case SAA7134_BOARD_PCTV_CARDBUS:
-		ir_codes     = pctv_cardbus_codes;
+	case SAA7134_BOARD_SEDNA_PC_TV_CARDBUS:
+		ir_codes     = pctv_sedna_codes;
 		mask_keycode = 0x001f00;
 		mask_keyup   = 0x004000;
 		polling      = 50; // ms
