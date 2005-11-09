@@ -28,7 +28,6 @@
 #include <linux/moduleparam.h>
 #include <linux/usb.h>
 #include <linux/vmalloc.h>
-#include <linux/videodev.h>
 
 #include "em2820.h"
 

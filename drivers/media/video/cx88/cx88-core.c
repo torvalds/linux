@@ -31,7 +31,7 @@
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 
 #include "cx88.h"
 
