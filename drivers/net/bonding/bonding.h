@@ -165,7 +165,7 @@ struct vlan_entry {
 };
 
 struct slave {
-	struct net_device *dev; /* first - usefull for panic debug */
+	struct net_device *dev; /* first - useful for panic debug */
 	struct slave *next;
 	struct slave *prev;
 	s16    delay;
@@ -191,7 +191,7 @@ struct slave {
  *    beforehand.
  */
 struct bonding {
-	struct   net_device *dev; /* first - usefull for panic debug */
+	struct   net_device *dev; /* first - useful for panic debug */
 	struct   slave *first_slave;
 	struct   slave *curr_active_slave;
 	struct   slave *current_arp_slave;

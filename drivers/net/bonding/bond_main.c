@@ -4125,6 +4125,7 @@ static int bond_change_mtu(struct net_device *bond_dev, int new_mtu)
 	bond_for_each_slave(bond, slave, i) {
 		dprintk("s %p s->p %p c_m %p\n", slave,
 			slave->prev, slave->dev->change_mtu);
+
 		res = dev_set_mtu(slave->dev, new_mtu);
 
 		if (res) {

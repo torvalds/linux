@@ -1417,7 +1417,7 @@ void bond_alb_monitor(struct bonding *bond)
 		read_lock(&bond->curr_slave_lock);
 
 		bond_for_each_slave(bond, slave, i) {
-			alb_send_learning_packets(slave,slave->dev->dev_addr);
+			alb_send_learning_packets(slave, slave->dev->dev_addr);
 		}
 
 		read_unlock(&bond->curr_slave_lock);
