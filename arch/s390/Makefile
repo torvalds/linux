@@ -76,9 +76,7 @@ AFLAGS		+= $(aflags-y)
 OBJCOPYFLAGS	:= -O binary
 LDFLAGS_vmlinux := -e start
 
-head-$(CONFIG_ARCH_S390_31)	+= arch/$(ARCH)/kernel/head.o
-head-$(CONFIG_ARCH_S390X)	+= arch/$(ARCH)/kernel/head64.o
-head-y				+= arch/$(ARCH)/kernel/init_task.o
+head-y		:= arch/$(ARCH)/kernel/head.o arch/$(ARCH)/kernel/init_task.o
 
 core-y		+= arch/$(ARCH)/mm/ arch/$(ARCH)/kernel/ arch/$(ARCH)/crypto/ \
 		   arch/$(ARCH)/appldata/

@@ -109,7 +109,7 @@ static void bad_kernel_pc(struct pt_regs *regs)
  * this. Additionally, to prevent kswapd from ripping ptes from
  * under us, raise interrupts around the time that we look at the
  * pte, kswapd will have to wait to get his smp ipi response from
- * us. This saves us having to get page_table_lock.
+ * us. vmtruncate likewise. This saves us having to get pte lock.
  */
 static unsigned int get_user_insn(unsigned long tpc)
 {

@@ -31,13 +31,14 @@
 #include <asm/machdep.h>
 #include <asm/abs_addr.h>
 #include <asm/mmu_context.h>
-#include <asm/ppcdebug.h>
 #include <asm/iommu.h>
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
 #include <asm/prom.h>
 #include <asm/abs_addr.h>
 #include <asm/cputable.h>
+#include <asm/udbg.h>
+#include <asm/smp.h>
 
 #include "plpar_wrappers.h"
 

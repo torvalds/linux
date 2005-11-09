@@ -27,6 +27,9 @@
 #include <asm/bitops.h>
 #include <asm/page.h>
 
+struct mm_struct;
+struct vm_area_struct;
+
 extern pgd_t swapper_pg_dir[1024];
 extern void paging_init(void);
 

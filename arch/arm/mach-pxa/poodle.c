@@ -65,6 +65,27 @@ struct platform_device poodle_scoop_device = {
 	.resource	= poodle_scoop_resources,
 };
 
+static void poodle_pcmcia_init(void)
+{
+	/* Setup default state of GPIO outputs
+	   before we enable them as outputs. */
+	GPSR(GPIO48_nPOE) = GPIO_bit(GPIO48_nPOE) |
+		GPIO_bit(GPIO49_nPWE) | GPIO_bit(GPIO50_nPIOR) |
+		GPIO_bit(GPIO51_nPIOW) | GPIO_bit(GPIO52_nPCE_1) |
+		GPIO_bit(GPIO53_nPCE_2);
+
+	pxa_gpio_mode(GPIO48_nPOE_MD);
+	pxa_gpio_mode(GPIO49_nPWE_MD);
+	pxa_gpio_mode(GPIO50_nPIOR_MD);
+	pxa_gpio_mode(GPIO51_nPIOW_MD);
+	pxa_gpio_mode(GPIO55_nPREG_MD);
+	pxa_gpio_mode(GPIO56_nPWAIT_MD);
+	pxa_gpio_mode(GPIO57_nIOIS16_MD);
+	pxa_gpio_mode(GPIO52_nPCE_1_MD);
+	pxa_gpio_mode(GPIO53_nPCE_2_MD);
+	pxa_gpio_mode(GPIO54_pSKTSEL_MD);
+}
+
 static struct scoop_pcmcia_dev poodle_pcmcia_scoop[] = {
 {
 	.dev        = &poodle_scoop_device.dev,
@@ -73,6 +94,14 @@ static struct scoop_pcmcia_dev poodle_pcmcia_scoop[] = {
 	.cd_irq_str = "PCMCIA0 CD",
 },
 };
+
+static struct scoop_pcmcia_config poodle_pcmcia_config = {
+	.devs         = &poodle_pcmcia_scoop[0],
+	.num_devs     = 1,
+	.pcmcia_init  = poodle_pcmcia_init,
+};
+
+EXPORT_SYMBOL(poodle_scoop_device);
 
 
 /* LoCoMo device */
@@ -268,8 +297,7 @@ static void __init poodle_init(void)
 	pxa_set_mci_info(&poodle_mci_platform_data);
 	pxa_set_ficp_info(&poodle_ficp_platform_data);
 
-	scoop_num = 1;
-	scoop_devs = &poodle_pcmcia_scoop[0];
+	platform_scoop_config = &poodle_pcmcia_config;
 
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	if (ret) {

@@ -756,8 +756,7 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	ip6_tnl_dst_store(t, dst);
 
-	if (opt)
-		kfree(opt);
+	kfree(opt);
 
 	t->recursion--;
 	return 0;
@@ -766,8 +765,7 @@ tx_err_link_failure:
 	dst_link_failure(skb);
 tx_err_dst_release:
 	dst_release(dst);
-	if (opt)
-		kfree(opt);
+	kfree(opt);
 tx_err:
 	stats->tx_errors++;
 	stats->tx_dropped++;

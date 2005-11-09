@@ -42,6 +42,7 @@
 #include <linux/profile.h>
 #include <linux/rmap.h>
 #include <linux/acct.h>
+#include <linux/cn_proc.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -469,13 +470,6 @@ static int copy_mm(unsigned long clone_flags, struct task_struct * tsk)
 	if (clone_flags & CLONE_VM) {
 		atomic_inc(&oldmm->mm_users);
 		mm = oldmm;
-		/*
-		 * There are cases where the PTL is held to ensure no
-		 * new threads start up in user mode using an mm, which
-		 * allows optimizing out ipis; the tlb_gather_mmu code
-		 * is an example.
-		 */
-		spin_unlock_wait(&oldmm->page_table_lock);
 		goto good_mm;
 	}
 
@@ -1143,6 +1137,7 @@ static task_t *copy_process(unsigned long clone_flags,
 			__get_cpu_var(process_counts)++;
 	}
 
+	proc_fork_connector(p);
 	if (!current->signal->tty && p->signal->tty)
 		p->signal->tty = NULL;
 

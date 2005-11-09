@@ -642,14 +642,13 @@ static void __devinit it821x_fixups(ide_hwif_t *hwif)
 
 static void __devinit init_hwif_it821x(ide_hwif_t *hwif)
 {
-	struct it821x_dev *idev = kmalloc(sizeof(struct it821x_dev), GFP_KERNEL);
+	struct it821x_dev *idev = kzalloc(sizeof(struct it821x_dev), GFP_KERNEL);
 	u8 conf;
 
 	if(idev == NULL) {
 		printk(KERN_ERR "it821x: out of memory, falling back to legacy behaviour.\n");
 		goto fallback;
 	}
-	memset(idev, 0, sizeof(struct it821x_dev));
 	ide_set_hwifdata(hwif, idev);
 
 	pci_read_config_byte(hwif->pci_dev, 0x50, &conf);

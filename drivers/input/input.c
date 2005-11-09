@@ -377,7 +377,7 @@ static int input_devices_read(char *buf, char **start, off_t pos, int count, int
 
 	list_for_each_entry(dev, &input_dev_list, node) {
 
-		path = dev->dynalloc ? kobject_get_path(&dev->cdev.kobj, GFP_KERNEL) : NULL;
+		path = kobject_get_path(&dev->cdev.kobj, GFP_KERNEL);
 
 		len = sprintf(buf, "I: Bus=%04x Vendor=%04x Product=%04x Version=%04x\n",
 			dev->id.bustype, dev->id.vendor, dev->id.product, dev->id.version);
@@ -741,15 +741,21 @@ static void input_register_classdevice(struct input_dev *dev)
 	sysfs_create_group(&dev->cdev.kobj, &input_dev_caps_attr_group);
 }
 
-void input_register_device(struct input_dev *dev)
+int input_register_device(struct input_dev *dev)
 {
 	struct input_handle *handle;
 	struct input_handler *handler;
 	struct input_device_id *id;
 
-	set_bit(EV_SYN, dev->evbit);
+	if (!dev->dynalloc) {
+		printk(KERN_WARNING "input: device %s is statically allocated, will not register\n"
+			"Please convert to input_allocate_device() or contact dtor_core@ameritech.net\n",
+			dev->name ? dev->name : "<Unknown>");
+		return -EINVAL;
+	}
 
 	init_MUTEX(&dev->sem);
+	set_bit(EV_SYN, dev->evbit);
 
 	/*
 	 * If delay and period are pre-set by the driver, then autorepeating
@@ -767,8 +773,7 @@ void input_register_device(struct input_dev *dev)
 	INIT_LIST_HEAD(&dev->h_list);
 	list_add_tail(&dev->node, &input_dev_list);
 
-	if (dev->dynalloc)
-		input_register_classdevice(dev);
+	input_register_classdevice(dev);
 
 	list_for_each_entry(handler, &input_handler_list, node)
 		if (!handler->blacklist || !input_match_device(handler->blacklist, dev))
@@ -776,8 +781,9 @@ void input_register_device(struct input_dev *dev)
 				if ((handle = handler->connect(handler, dev, id)))
 					input_link_handle(handle);
 
-
 	input_wakeup_procfs_readers();
+
+	return 0;
 }
 
 void input_unregister_device(struct input_dev *dev)
@@ -797,11 +803,10 @@ void input_unregister_device(struct input_dev *dev)
 
 	list_del_init(&dev->node);
 
-	if (dev->dynalloc) {
-		sysfs_remove_group(&dev->cdev.kobj, &input_dev_caps_attr_group);
-		sysfs_remove_group(&dev->cdev.kobj, &input_dev_id_attr_group);
-		class_device_unregister(&dev->cdev);
-	}
+	sysfs_remove_group(&dev->cdev.kobj, &input_dev_caps_attr_group);
+	sysfs_remove_group(&dev->cdev.kobj, &input_dev_id_attr_group);
+	sysfs_remove_group(&dev->cdev.kobj, &input_dev_group);
+	class_device_unregister(&dev->cdev);
 
 	input_wakeup_procfs_readers();
 }

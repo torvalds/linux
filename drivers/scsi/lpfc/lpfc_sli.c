@@ -2269,11 +2269,8 @@ lpfc_sli_hba_down(struct lpfc_hba * phba)
 
 		INIT_LIST_HEAD(&(pring->txq));
 
-		if (pring->fast_lookup) {
-			kfree(pring->fast_lookup);
-			pring->fast_lookup = NULL;
-		}
-
+		kfree(pring->fast_lookup);
+		pring->fast_lookup = NULL;
 	}
 
 	spin_unlock_irqrestore(phba->host->host_lock, flags);

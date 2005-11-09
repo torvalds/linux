@@ -320,8 +320,7 @@ static void ohci1394_stop_it_ctx(struct ti_ohci *ohci, int ctx, int synchronous)
 			if ((control & OHCI1394_CONTEXT_ACTIVE) == 0)
 				break;
 
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_interruptible(1);
 		}
 	}
 }

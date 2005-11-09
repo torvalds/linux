@@ -352,115 +352,6 @@ void do_dat_exception(struct pt_regs *regs, unsigned long error_code)
 	do_exception(regs, error_code & 0xff, 0);
 }
 
-#ifndef CONFIG_ARCH_S390X
-
-typedef struct _pseudo_wait_t {
-       struct _pseudo_wait_t *next;
-       wait_queue_head_t queue;
-       unsigned long address;
-       int resolved;
-} pseudo_wait_t;
-
-static pseudo_wait_t *pseudo_lock_queue = NULL;
-static spinlock_t pseudo_wait_spinlock; /* spinlock to protect lock queue */
-
-/*
- * This routine handles 'pagex' pseudo page faults.
- */
-asmlinkage void
-do_pseudo_page_fault(struct pt_regs *regs, unsigned long error_code)
-{
-        pseudo_wait_t wait_struct;
-        pseudo_wait_t *ptr, *last, *next;
-        unsigned long address;
-
-        /*
-         * get the failing address
-         * more specific the segment and page table portion of
-         * the address
-         */
-        address = S390_lowcore.trans_exc_code & 0xfffff000;
-
-        if (address & 0x80000000) {
-                /* high bit set -> a page has been swapped in by VM */
-                address &= 0x7fffffff;
-                spin_lock(&pseudo_wait_spinlock);
-                last = NULL;
-                ptr = pseudo_lock_queue;
-                while (ptr != NULL) {
-                        next = ptr->next;
-                        if (address == ptr->address) {
-				 /*
-                                 * This is one of the processes waiting
-                                 * for the page. Unchain from the queue.
-                                 * There can be more than one process
-                                 * waiting for the same page. VM presents
-                                 * an initial and a completion interrupt for
-                                 * every process that tries to access a 
-                                 * page swapped out by VM. 
-                                 */
-                                if (last == NULL)
-                                        pseudo_lock_queue = next;
-                                else
-                                        last->next = next;
-                                /* now wake up the process */
-                                ptr->resolved = 1;
-                                wake_up(&ptr->queue);
-                        } else
-                                last = ptr;
-                        ptr = next;
-                }
-                spin_unlock(&pseudo_wait_spinlock);
-        } else {
-                /* Pseudo page faults in kernel mode is a bad idea */
-                if (!(regs->psw.mask & PSW_MASK_PSTATE)) {
-                        /*
-			 * VM presents pseudo page faults if the interrupted
-			 * state was not disabled for interrupts. So we can
-			 * get pseudo page fault interrupts while running
-			 * in kernel mode. We simply access the page here
-			 * while we are running disabled. VM will then swap
-			 * in the page synchronously.
-                         */
-                         if (check_user_space(regs, error_code) == 0)
-                                 /* dereference a virtual kernel address */
-                                 __asm__ __volatile__ (
-                                         "  ic 0,0(%0)"
-                                         : : "a" (address) : "0");
-                         else
-                                 /* dereference a virtual user address */
-                                 __asm__ __volatile__ (
-                                         "  la   2,0(%0)\n"
-                                         "  sacf 512\n"
-                                         "  ic   2,0(2)\n"
-					 "0:sacf 0\n"
-					 ".section __ex_table,\"a\"\n"
-					 "  .align 4\n"
-					 "  .long  0b,0b\n"
-					 ".previous"
-                                         : : "a" (address) : "2" );
-
-                        return;
-                }
-		/* initialize and add element to pseudo_lock_queue */
-                init_waitqueue_head (&wait_struct.queue);
-                wait_struct.address = address;
-                wait_struct.resolved = 0;
-                spin_lock(&pseudo_wait_spinlock);
-                wait_struct.next = pseudo_lock_queue;
-                pseudo_lock_queue = &wait_struct;
-                spin_unlock(&pseudo_wait_spinlock);
-		/*
-		 * The instruction that caused the program check will
-		 * be repeated. Don't signal single step via SIGTRAP.
-		 */
-		clear_tsk_thread_flag(current, TIF_SINGLE_STEP);
-                /* go to sleep */
-                wait_event(wait_struct.queue, wait_struct.resolved);
-        }
-}
-#endif /* CONFIG_ARCH_S390X */
-
 #ifdef CONFIG_PFAULT 
 /*
  * 'pfault' pseudo page faults routines.
@@ -508,7 +399,7 @@ int pfault_init(void)
 		"   .quad  0b,1b\n"
 #endif /* CONFIG_ARCH_S390X */
 		".previous"
-                : "=d" (rc) : "a" (&refbk) : "cc" );
+                : "=d" (rc) : "a" (&refbk), "m" (refbk) : "cc" );
         __ctl_set_bit(0, 9);
         return rc;
 }
@@ -532,7 +423,7 @@ void pfault_fini(void)
 		"   .quad  0b,0b\n"
 #endif /* CONFIG_ARCH_S390X */
 		".previous"
-		: : "a" (&refbk) : "cc" );
+		: : "a" (&refbk), "m" (refbk) : "cc" );
 }
 
 asmlinkage void

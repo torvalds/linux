@@ -212,6 +212,12 @@ static int prepare_high_area_for_htlb(struct mm_struct *mm, unsigned long area)
 
 	BUG_ON(area >= NUM_HIGH_AREAS);
 
+	/* Hack, so that each addresses is controlled by exactly one
+	 * of the high or low area bitmaps, the first high area starts
+	 * at 4GB, not 0 */
+	if (start == 0)
+		start = 0x100000000UL;
+
 	/* Check no VMAs are in the region */
 	vma = find_vma(mm, start);
 	if (vma && (vma->vm_start < end))

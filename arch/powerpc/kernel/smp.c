@@ -40,7 +40,6 @@
 #include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/time.h>
-#include <asm/xmon.h>
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/system.h>

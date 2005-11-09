@@ -36,8 +36,6 @@ unsigned int nr_swapfiles;
 long total_swap_pages;
 static int swap_overflow;
 
-EXPORT_SYMBOL(total_swap_pages);
-
 static const char Bad_file[] = "Bad swap file entry ";
 static const char Unused_file[] = "Unused swap file entry ";
 static const char Bad_offset[] = "Bad swap offset entry ";

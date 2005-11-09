@@ -33,7 +33,6 @@
 #include <linux/init.h>
 #include <linux/signal.h>
 
-#include <asm/ppcdebug.h>
 #include <asm/processor.h>
 #include <asm/pgtable.h>
 #include <asm/mmu.h>
@@ -329,12 +328,14 @@ static void __init htab_init_page_sizes(void)
 	 */
 	if (mmu_psize_defs[MMU_PAGE_16M].shift)
 		mmu_huge_psize = MMU_PAGE_16M;
+	/* With 4k/4level pagetables, we can't (for now) cope with a
+	 * huge page size < PMD_SIZE */
 	else if (mmu_psize_defs[MMU_PAGE_1M].shift)
 		mmu_huge_psize = MMU_PAGE_1M;
 
 	/* Calculate HPAGE_SHIFT and sanity check it */
-	if (mmu_psize_defs[mmu_huge_psize].shift > 16 &&
-	    mmu_psize_defs[mmu_huge_psize].shift < 28)
+	if (mmu_psize_defs[mmu_huge_psize].shift > MIN_HUGEPTE_SHIFT &&
+	    mmu_psize_defs[mmu_huge_psize].shift < SID_SHIFT)
 		HPAGE_SHIFT = mmu_psize_defs[mmu_huge_psize].shift;
 	else
 		HPAGE_SHIFT = 0; /* No huge pages dude ! */
@@ -406,12 +407,6 @@ void __init htab_initialize(void)
 	 */ 
 	htab_size_bytes = htab_get_table_size();
 	pteg_count = htab_size_bytes >> 7;
-
-	/* For debug, make the HTAB 1/8 as big as it normally would be. */
-	ifppcdebug(PPCDBG_HTABSIZE) {
-		pteg_count >>= 3;
-		htab_size_bytes = pteg_count << 7;
-	}
 
 	htab_hash_mask = pteg_count - 1;
 
@@ -511,6 +506,9 @@ void __init htab_initialize(void)
 unsigned int hash_page_do_lazy_icache(unsigned int pp, pte_t pte, int trap)
 {
 	struct page *page;
+
+	if (!pfn_valid(pte_pfn(pte)))
+		return pp;
 
 	page = pte_page(pte);
 

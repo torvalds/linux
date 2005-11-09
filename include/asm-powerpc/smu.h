@@ -20,16 +20,52 @@
 /*
  * Partition info commands
  *
- * I do not know what those are for at this point
+ * These commands are used to retreive the sdb-partition-XX datas from
+ * the SMU. The lenght is always 2. First byte is the subcommand code
+ * and second byte is the partition ID.
+ *
+ * The reply is 6 bytes:
+ *
+ *  - 0..1 : partition address
+ *  - 2    : a byte containing the partition ID
+ *  - 3    : length (maybe other bits are rest of header ?)
+ *
+ * The data must then be obtained with calls to another command:
+ * SMU_CMD_MISC_ee_GET_DATABLOCK_REC (described below).
  */
 #define SMU_CMD_PARTITION_COMMAND		0x3e
+#define   SMU_CMD_PARTITION_LATEST		0x01
+#define   SMU_CMD_PARTITION_BASE		0x02
+#define   SMU_CMD_PARTITION_UPDATE		0x03
 
 
 /*
  * Fan control
  *
- * This is a "mux" for fan control commands, first byte is the
- * "sub" command.
+ * This is a "mux" for fan control commands. The command seem to
+ * act differently based on the number of arguments. With 1 byte
+ * of argument, this seem to be queries for fans status, setpoint,
+ * etc..., while with 0xe arguments, we will set the fans speeds.
+ *
+ * Queries (1 byte arg):
+ * ---------------------
+ *
+ * arg=0x01: read RPM fans status
+ * arg=0x02: read RPM fans setpoint
+ * arg=0x11: read PWM fans status
+ * arg=0x12: read PWM fans setpoint
+ *
+ * the "status" queries return the current speed while the "setpoint" ones
+ * return the programmed/target speed. It _seems_ that the result is a bit
+ * mask in the first byte of active/available fans, followed by 6 words (16
+ * bits) containing the requested speed.
+ *
+ * Setpoint (14 bytes arg):
+ * ------------------------
+ *
+ * first arg byte is 0 for RPM fans and 0x10 for PWM. Second arg byte is the
+ * mask of fans affected by the command. Followed by 6 words containing the
+ * setpoint value for selected fans in the mask (or 0 if mask value is 0)
  */
 #define SMU_CMD_FAN_COMMAND			0x4a
 
@@ -144,13 +180,25 @@
  *  - lenght 8 ("VSLEWxyz") has 3 additional bytes appended, and is
  *    used to set the voltage slewing point. The SMU replies with "DONE"
  * I yet have to figure out their exact meaning of those 3 bytes in
- * both cases.
+ * both cases. They seem to be:
+ *  x = processor mask
+ *  y = op. point index
+ *  z = processor freq. step index
+ * I haven't yet decyphered result codes
  *
  */
 #define SMU_CMD_POWER_COMMAND			0xaa
 #define   SMU_CMD_POWER_RESTART		       	"RESTART"
 #define   SMU_CMD_POWER_SHUTDOWN		"SHUTDOWN"
 #define   SMU_CMD_POWER_VOLTAGE_SLEW		"VSLEW"
+
+/*
+ * Read ADC sensors
+ *
+ * This command takes one byte of parameter: the sensor ID (or "reg"
+ * value in the device-tree) and returns a 16 bits value
+ */
+#define SMU_CMD_READ_ADC			0xd8
 
 /* Misc commands
  *
@@ -172,6 +220,25 @@
  * Misc commands
  *
  * This command seem to be a grab bag of various things
+ *
+ * SMU_CMD_MISC_ee_GET_DATABLOCK_REC is used, among others, to
+ * transfer blocks of data from the SMU. So far, I've decrypted it's
+ * usage to retreive partition data. In order to do that, you have to
+ * break your transfer in "chunks" since that command cannot transfer
+ * more than a chunk at a time. The chunk size used by OF is 0xe bytes,
+ * but it seems that the darwin driver will let you do 0x1e bytes if
+ * your "PMU" version is >= 0x30. You can get the "PMU" version apparently
+ * either in the last 16 bits of property "smu-version-pmu" or as the 16
+ * bytes at offset 1 of "smu-version-info"
+ *
+ * For each chunk, the command takes 7 bytes of arguments:
+ *  byte 0: subcommand code (0x02)
+ *  byte 1: 0x04 (always, I don't know what it means, maybe the address
+ *                space to use or some other nicety. It's hard coded in OF)
+ *  byte 2..5: SMU address of the chunk (big endian 32 bits)
+ *  byte 6: size to transfer (up to max chunk size)
+ *
+ * The data is returned directly
  */
 #define SMU_CMD_MISC_ee_COMMAND			0xee
 #define   SMU_CMD_MISC_ee_GET_DATABLOCK_REC	0x02
@@ -333,6 +400,128 @@ extern int smu_queue_i2c(struct smu_i2c_cmd *cmd);
 
 #endif /* __KERNEL__ */
 
+
+/*
+ * - SMU "sdb" partitions informations -
+ */
+
+
+/*
+ * Partition header format
+ */
+struct smu_sdbp_header {
+	__u8	id;
+	__u8	len;
+	__u8	version;
+	__u8	flags;
+};
+
+
+ /*
+ * demangle 16 and 32 bits integer in some SMU partitions
+ * (currently, afaik, this concerns only the FVT partition
+ * (0x12)
+ */
+#define SMU_U16_MIX(x)	le16_to_cpu(x);
+#define SMU_U32_MIX(x)  ((((x) & 0xff00ff00u) >> 8)|(((x) & 0x00ff00ffu) << 8))
+
+
+/* This is the definition of the SMU sdb-partition-0x12 table (called
+ * CPU F/V/T operating points in Darwin). The definition for all those
+ * SMU tables should be moved to some separate file
+ */
+#define SMU_SDB_FVT_ID			0x12
+
+struct smu_sdbp_fvt {
+	__u32	sysclk;			/* Base SysClk frequency in Hz for
+					 * this operating point. Value need to
+					 * be unmixed with SMU_U32_MIX()
+					 */
+	__u8	pad;
+	__u8	maxtemp;		/* Max temp. supported by this
+					 * operating point
+					 */
+
+	__u16	volts[3];		/* CPU core voltage for the 3
+					 * PowerTune modes, a mode with
+					 * 0V = not supported. Value need
+					 * to be unmixed with SMU_U16_MIX()
+					 */
+};
+
+/* This partition contains voltage & current sensor calibration
+ * informations
+ */
+#define SMU_SDB_CPUVCP_ID		0x21
+
+struct smu_sdbp_cpuvcp {
+	__u16	volt_scale;		/* u4.12 fixed point */
+	__s16	volt_offset;		/* s4.12 fixed point */
+	__u16	curr_scale;		/* u4.12 fixed point */
+	__s16	curr_offset;		/* s4.12 fixed point */
+	__s32	power_quads[3];		/* s4.28 fixed point */
+};
+
+/* This partition contains CPU thermal diode calibration
+ */
+#define SMU_SDB_CPUDIODE_ID		0x18
+
+struct smu_sdbp_cpudiode {
+	__u16	m_value;		/* u1.15 fixed point */
+	__s16	b_value;		/* s10.6 fixed point */
+
+};
+
+/* This partition contains Slots power calibration
+ */
+#define SMU_SDB_SLOTSPOW_ID		0x78
+
+struct smu_sdbp_slotspow {
+	__u16	pow_scale;		/* u4.12 fixed point */
+	__s16	pow_offset;		/* s4.12 fixed point */
+};
+
+/* This partition contains machine specific version information about
+ * the sensor/control layout
+ */
+#define SMU_SDB_SENSORTREE_ID		0x25
+
+struct smu_sdbp_sensortree {
+	u8	model_id;
+	u8	unknown[3];
+};
+
+/* This partition contains CPU thermal control PID informations. So far
+ * only single CPU machines have been seen with an SMU, so we assume this
+ * carries only informations for those
+ */
+#define SMU_SDB_CPUPIDDATA_ID		0x17
+
+struct smu_sdbp_cpupiddata {
+	u8	unknown1;
+	u8	target_temp_delta;
+	u8	unknown2;
+	u8	history_len;
+	s16	power_adj;
+	u16	max_power;
+	s32	gp,gr,gd;
+};
+
+
+/* Other partitions without known structures */
+#define SMU_SDB_DEBUG_SWITCHES_ID	0x05
+
+#ifdef __KERNEL__
+/*
+ * This returns the pointer to an SMU "sdb" partition data or NULL
+ * if not found. The data format is described below
+ */
+extern struct smu_sdbp_header *smu_get_sdb_partition(int id,
+						     unsigned int *size);
+
+#endif /* __KERNEL__ */
+
+
 /*
  * - Userland interface -
  */
@@ -365,8 +554,10 @@ struct smu_user_cmd_hdr
 	__u32		cmdtype;
 #define SMU_CMDTYPE_SMU			0	/* SMU command */
 #define SMU_CMDTYPE_WANTS_EVENTS	1	/* switch fd to events mode */
+#define SMU_CMDTYPE_GET_PARTITION	2	/* retreive an sdb partition */
 
 	__u8		cmd;			/* SMU command byte */
+	__u8		pad[3];			/* padding */
 	__u32		data_len;		/* Lenght of data following */
 };
 

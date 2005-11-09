@@ -109,6 +109,7 @@ static struct ipt_target ipt_connmark_reg = {
 
 static int __init init(void)
 {
+	need_ip_conntrack();
 	return ipt_register_target(&ipt_connmark_reg);
 }
 

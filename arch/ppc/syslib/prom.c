@@ -1165,7 +1165,7 @@ get_property(struct device_node *np, const char *name, int *lenp)
 /*
  * Add a property to a node
  */
-void
+int
 prom_add_property(struct device_node* np, struct property* prop)
 {
 	struct property **next = &np->properties;
@@ -1174,6 +1174,8 @@ prom_add_property(struct device_node* np, struct property* prop)
 	while (*next)
 		next = &(*next)->next;
 	*next = prop;
+
+	return 0;
 }
 
 /* I quickly hacked that one, check against spec ! */
@@ -1335,10 +1337,8 @@ release_OF_resource(struct device_node* node, int index)
 	if (!res)
 		return -ENODEV;
 
-	if (res->name) {
-		kfree(res->name);
-		res->name = NULL;
-	}
+	kfree(res->name);
+	res->name = NULL;
 	release_resource(res);
 	kfree(res);
 

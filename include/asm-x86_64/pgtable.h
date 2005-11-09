@@ -105,6 +105,8 @@ static inline void pgd_clear (pgd_t * pgd)
 
 #define ptep_get_and_clear(mm,addr,xp)	__pte(xchg(&(xp)->pte, 0))
 
+struct mm_struct;
+
 static inline pte_t ptep_get_and_clear_full(struct mm_struct *mm, unsigned long addr, pte_t *ptep, int full)
 {
 	pte_t pte;

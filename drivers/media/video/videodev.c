@@ -215,8 +215,7 @@ video_usercopy(struct inode *inode, struct file *file,
 	}
 
 out:
-	if (mbuf)
-		kfree(mbuf);
+	kfree(mbuf);
 	return err;
 }
 

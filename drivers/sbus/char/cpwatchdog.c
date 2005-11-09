@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/timer.h>
+#include <linux/smp_lock.h>
 #include <asm/irq.h>
 #include <asm/ebus.h>
 #include <asm/oplib.h>
@@ -394,6 +395,28 @@ static int wd_ioctl(struct inode *inode, struct file *file,
 	return(0);
 }
 
+static long wd_compat_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg)
+{
+	int rval = -ENOIOCTLCMD;
+
+	switch (cmd) {
+	/* solaris ioctls are specific to this driver */
+	case WIOCSTART:
+	case WIOCSTOP:
+	case WIOCGSTAT:
+		lock_kernel();
+		rval = wd_ioctl(file->f_dentry->d_inode, file, cmd, arg);
+		lock_kernel();
+		break;
+	/* everything else is handled by the generic compat layer */
+	default:
+		break;
+	}
+
+	return rval;
+}
+
 static ssize_t wd_write(struct file 	*file, 
 			const char	__user *buf, 
 			size_t 		count, 
@@ -441,6 +464,7 @@ static irqreturn_t wd_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static struct file_operations wd_fops = {
 	.owner =	THIS_MODULE,
 	.ioctl =	wd_ioctl,
+	.compat_ioctl =	wd_compat_ioctl,
 	.open =		wd_open,
 	.write =	wd_write,
 	.read =		wd_read,

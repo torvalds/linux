@@ -1006,10 +1006,8 @@ v4l_compat_translate_ioctl(struct inode         *inode,
 		break;
 	}
 
-	if (cap2)
-		kfree(cap2);
-	if (fmt2)
-		kfree(fmt2);
+	kfree(cap2);
+	kfree(fmt2);
 	return err;
 }
 

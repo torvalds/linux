@@ -82,6 +82,12 @@ config LUAN
 	help
 	  This option enables support for the IBM PPC440SP evaluation board.
 
+config YUCCA
+	bool "Yucca"
+	select WANT_EARLY_SERIAL
+	help
+	  This option enables support for the AMCC PPC440SPe evaluation board.
+
 config OCOTEA
 	bool "Ocotea"
 	select WANT_EARLY_SERIAL
@@ -124,9 +130,14 @@ config 440SP
 	depends on LUAN
 	default y
 
+config 440SPE
+	bool
+	depends on YUCCA
+	default y
+
 config 440
 	bool
-	depends on 440GP || 440SP || 440EP
+	depends on 440GP || 440SP || 440SPE || 440EP
 	default y
 
 config 440A
@@ -158,7 +169,7 @@ config BOOKE
 
 config IBM_OCP
 	bool
-	depends on ASH || BAMBOO || BUBINGA || CPCI405 || EBONY || EP405 || LUAN || OCOTEA || REDWOOD_5 || REDWOOD_6 || SYCAMORE || WALNUT
+	depends on ASH || BAMBOO || BUBINGA || CPCI405 || EBONY || EP405 || LUAN || YUCCA || OCOTEA || REDWOOD_5 || REDWOOD_6 || SYCAMORE || WALNUT
 	default y
 
 config XILINX_OCP
@@ -168,7 +179,7 @@ config XILINX_OCP
 
 config IBM_EMAC4
 	bool
-	depends on 440GX || 440SP
+	depends on 440GX || 440SP || 440SPE
 	default y
 
 config BIOS_FIXUP
@@ -214,7 +225,7 @@ config EMBEDDEDBOOT
 
 config IBM_OPENBIOS
 	bool
-	depends on ASH || BUBINGA || REDWOOD_5 || REDWOOD_6 || SYCAMORE || WALNUT
+	depends on ASH || REDWOOD_5 || REDWOOD_6
 	default y
 
 config PPC4xx_DMA

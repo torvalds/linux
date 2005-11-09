@@ -591,7 +591,7 @@ static irqreturn_t snd_sonicvibes_interrupt(int irq, void *dev_id, struct pt_reg
 		return IRQ_NONE;
 	if (status == 0xff) {	/* failure */
 		outb(sonic->irqmask = ~0, SV_REG(sonic, IRQMASK));
-		snd_printk("IRQ failure - interrupts disabled!!\n");
+		snd_printk(KERN_ERR "IRQ failure - interrupts disabled!!\n");
 		return IRQ_HANDLED;
 	}
 	if (sonic->pcm) {
@@ -1205,14 +1205,8 @@ static int snd_sonicvibes_free(sonicvibes_t *sonic)
 	pci_write_config_dword(sonic->pci, 0x48, sonic->dmac_port);
 	if (sonic->irq >= 0)
 		free_irq(sonic->irq, (void *)sonic);
-	if (sonic->res_dmaa) {
-		release_resource(sonic->res_dmaa);
-		kfree_nocheck(sonic->res_dmaa);
-	}
-	if (sonic->res_dmac) {
-		release_resource(sonic->res_dmac);
-		kfree_nocheck(sonic->res_dmac);
-	}
+	release_and_free_resource(sonic->res_dmaa);
+	release_and_free_resource(sonic->res_dmac);
 	pci_release_regions(sonic->pci);
 	pci_disable_device(sonic->pci);
 	kfree(sonic);
@@ -1245,7 +1239,7 @@ static int __devinit snd_sonicvibes_create(snd_card_t * card,
 	/* check, if we can restrict PCI DMA transfers to 24 bits */
         if (pci_set_dma_mask(pci, 0x00ffffff) < 0 ||
 	    pci_set_consistent_dma_mask(pci, 0x00ffffff) < 0) {
-                snd_printk("architecture does not support 24bit PCI busmaster DMA\n");
+		snd_printk(KERN_ERR "architecture does not support 24bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
                 return -ENXIO;
         }
@@ -1273,7 +1267,7 @@ static int __devinit snd_sonicvibes_create(snd_card_t * card,
 	sonic->game_port = pci_resource_start(pci, 4);
 
 	if (request_irq(pci->irq, snd_sonicvibes_interrupt, SA_INTERRUPT|SA_SHIRQ, "S3 SonicVibes", (void *)sonic)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_sonicvibes_free(sonic);
 		return -EBUSY;
 	}
@@ -1287,24 +1281,24 @@ static int __devinit snd_sonicvibes_create(snd_card_t * card,
 	if (!dmaa) {
 		dmaa = dmaio;
 		dmaio += 0x10;
-		snd_printk("BIOS did not allocate DDMA channel A i/o, allocated at 0x%x\n", dmaa);
+		snd_printk(KERN_INFO "BIOS did not allocate DDMA channel A i/o, allocated at 0x%x\n", dmaa);
 	}
 	if (!dmac) {
 		dmac = dmaio;
 		dmaio += 0x10;
-		snd_printk("BIOS did not allocate DDMA channel C i/o, allocated at 0x%x\n", dmac);
+		snd_printk(KERN_INFO "BIOS did not allocate DDMA channel C i/o, allocated at 0x%x\n", dmac);
 	}
 	pci_write_config_dword(pci, 0x40, dmaa);
 	pci_write_config_dword(pci, 0x48, dmac);
 
 	if ((sonic->res_dmaa = request_region(dmaa, 0x10, "S3 SonicVibes DDMA-A")) == NULL) {
 		snd_sonicvibes_free(sonic);
-		snd_printk("unable to grab DDMA-A port at 0x%x-0x%x\n", dmaa, dmaa + 0x10 - 1);
+		snd_printk(KERN_ERR "unable to grab DDMA-A port at 0x%x-0x%x\n", dmaa, dmaa + 0x10 - 1);
 		return -EBUSY;
 	}
 	if ((sonic->res_dmac = request_region(dmac, 0x10, "S3 SonicVibes DDMA-C")) == NULL) {
 		snd_sonicvibes_free(sonic);
-		snd_printk("unable to grab DDMA-C port at 0x%x-0x%x\n", dmac, dmac + 0x10 - 1);
+		snd_printk(KERN_ERR "unable to grab DDMA-C port at 0x%x-0x%x\n", dmac, dmac + 0x10 - 1);
 		return -EBUSY;
 	}
 

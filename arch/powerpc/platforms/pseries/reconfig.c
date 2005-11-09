@@ -286,10 +286,8 @@ static struct property *new_property(const char *name, const int length,
 	return new;
 
 cleanup:
-	if (new->name)
-		kfree(new->name);
-	if (new->value)
-		kfree(new->value);
+	kfree(new->name);
+	kfree(new->value);
 	kfree(new);
 	return NULL;
 }

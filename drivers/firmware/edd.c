@@ -715,7 +715,6 @@ edd_device_register(struct edd_device *edev, int i)
 
 	if (!edev)
 		return 1;
-	memset(edev, 0, sizeof (*edev));
 	edd_dev_set_info(edev, i);
 	kobject_set_name(&edev->kobj, "int13_dev%02x",
 			 0x80 + i);
@@ -756,7 +755,7 @@ edd_init(void)
 		return rc;
 
 	for (i = 0; i < edd_num_devices() && !rc; i++) {
-		edev = kmalloc(sizeof (*edev), GFP_KERNEL);
+		edev = kzalloc(sizeof (*edev), GFP_KERNEL);
 		if (!edev)
 			return -ENOMEM;
 

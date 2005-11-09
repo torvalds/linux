@@ -93,8 +93,7 @@ u32 i2o_msg_get_wait(struct i2o_controller *c,
 				  c->name);
 			return I2O_QUEUE_EMPTY;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 
 	return m;
@@ -485,8 +484,7 @@ static int i2o_iop_init_outbound_queue(struct i2o_controller *c)
 			osm_warn("%s: Timeout Initializing\n", c->name);
 			return -ETIMEDOUT;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 
 	m = c->out_queue.phys;
@@ -548,8 +546,7 @@ static int i2o_iop_reset(struct i2o_controller *c)
 		if (time_after(jiffies, timeout))
 			break;
 
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 
 	switch (*status) {
@@ -577,8 +574,7 @@ static int i2o_iop_reset(struct i2o_controller *c)
 				rc = -ETIMEDOUT;
 				goto exit;
 			}
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 
 			m = i2o_msg_get_wait(c, &msg, I2O_TIMEOUT_RESET);
 		}
@@ -989,8 +985,7 @@ int i2o_status_get(struct i2o_controller *c)
 			return -ETIMEDOUT;
 		}
 
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 
 #ifdef DEBUG

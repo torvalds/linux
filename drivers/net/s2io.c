@@ -2110,7 +2110,7 @@ int fill_rxd_3buf(nic_t *nic, RxD_t *rxdp, struct sk_buff *skb)
 {
 	struct net_device *dev = nic->dev;
 	struct sk_buff *frag_list;
-	u64 tmp;
+	void *tmp;
 
 	/* Buffer-1 receives L3/L4 headers */
 	((RxD3_t*)rxdp)->Buffer1_ptr = pci_map_single
@@ -2125,11 +2125,9 @@ int fill_rxd_3buf(nic_t *nic, RxD_t *rxdp, struct sk_buff *skb)
 	}
 	frag_list = skb_shinfo(skb)->frag_list;
 	frag_list->next = NULL;
-	tmp = (u64) frag_list->data;
-	tmp += ALIGN_SIZE;
-	tmp &= ~ALIGN_SIZE;
-	frag_list->data = (void *) tmp;
-	frag_list->tail = (void *) tmp;
+	tmp = (void *)ALIGN((long)frag_list->data, ALIGN_SIZE + 1);
+	frag_list->data = tmp;
+	frag_list->tail = tmp;
 
 	/* Buffer-2 receives L4 data payload */
 	((RxD3_t*)rxdp)->Buffer2_ptr = pci_map_single(nic->pdev,

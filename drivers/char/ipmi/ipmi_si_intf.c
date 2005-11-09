@@ -51,6 +51,8 @@
 #include <linux/list.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
+#include <linux/notifier.h>
+#include <linux/kthread.h>
 #include <asm/irq.h>
 #ifdef CONFIG_HIGH_RES_TIMERS
 #include <linux/hrtime.h>
@@ -125,6 +127,7 @@ struct ipmi_device_id {
 
 struct smi_info
 {
+	int                    intf_num;
 	ipmi_smi_t             intf;
 	struct si_sm_data      *si_sm;
 	struct si_sm_handlers  *handlers;
@@ -192,8 +195,7 @@ struct smi_info
 	unsigned long       last_timeout_jiffies;
 
 	/* Used to gracefully stop the timer without race conditions. */
-	volatile int        stop_operation;
-	volatile int        timer_stopped;
+	atomic_t            stop_operation;
 
 	/* The driver will disable interrupts when it gets into a
 	   situation where it cannot handle messages due to lack of
@@ -220,7 +222,15 @@ struct smi_info
 	unsigned long events;
 	unsigned long watchdog_pretimeouts;
 	unsigned long incoming_messages;
+
+        struct task_struct *thread;
 };
+
+static struct notifier_block *xaction_notifier_list;
+static int register_xaction_notifier(struct notifier_block * nb)
+{
+	return notifier_chain_register(&xaction_notifier_list, nb);
+}
 
 static void si_restart_short_timer(struct smi_info *smi_info);
 
@@ -281,6 +291,11 @@ static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 		do_gettimeofday(&t);
 		printk("**Start2: %d.%9.9d\n", t.tv_sec, t.tv_usec);
 #endif
+		err = notifier_call_chain(&xaction_notifier_list, 0, smi_info);
+		if (err & NOTIFY_STOP_MASK) {
+			rv = SI_SM_CALL_WITHOUT_DELAY;
+			goto out;
+		}
 		err = smi_info->handlers->start_transaction(
 			smi_info->si_sm,
 			smi_info->curr_msg->data,
@@ -291,6 +306,7 @@ static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 
 		rv = SI_SM_CALL_WITHOUT_DELAY;
 	}
+	out:
 	spin_unlock(&(smi_info->msg_lock));
 
 	return rv;
@@ -766,6 +782,29 @@ static void set_run_to_completion(void *send_info, int i_run_to_completion)
 	spin_unlock_irqrestore(&(smi_info->si_lock), flags);
 }
 
+static int ipmi_thread(void *data)
+{
+	struct smi_info *smi_info = data;
+	unsigned long flags;
+	enum si_sm_result smi_result;
+
+	set_user_nice(current, 19);
+	while (!kthread_should_stop()) {
+		spin_lock_irqsave(&(smi_info->si_lock), flags);
+		smi_result=smi_event_handler(smi_info, 0);
+		spin_unlock_irqrestore(&(smi_info->si_lock), flags);
+		if (smi_result == SI_SM_CALL_WITHOUT_DELAY) {
+			/* do nothing */
+		}
+		else if (smi_result == SI_SM_CALL_WITH_DELAY)
+			udelay(1);
+		else
+			schedule_timeout_interruptible(1);
+	}
+	return 0;
+}
+
+
 static void poll(void *send_info)
 {
 	struct smi_info *smi_info = send_info;
@@ -819,15 +858,13 @@ static void smi_timeout(unsigned long data)
 	enum si_sm_result smi_result;
 	unsigned long     flags;
 	unsigned long     jiffies_now;
-	unsigned long     time_diff;
+	long              time_diff;
 #ifdef DEBUG_TIMING
 	struct timeval    t;
 #endif
 
-	if (smi_info->stop_operation) {
-		smi_info->timer_stopped = 1;
+	if (atomic_read(&smi_info->stop_operation))
 		return;
-	}
 
 	spin_lock_irqsave(&(smi_info->si_lock), flags);
 #ifdef DEBUG_TIMING
@@ -835,7 +872,7 @@ static void smi_timeout(unsigned long data)
 	printk("**Timer: %d.%9.9d\n", t.tv_sec, t.tv_usec);
 #endif
 	jiffies_now = jiffies;
-	time_diff = ((jiffies_now - smi_info->last_timeout_jiffies)
+	time_diff = (((long)jiffies_now - (long)smi_info->last_timeout_jiffies)
 		     * SI_USEC_PER_JIFFY);
 	smi_result = smi_event_handler(smi_info, time_diff);
 
@@ -900,7 +937,7 @@ static irqreturn_t si_irq_handler(int irq, void *data, struct pt_regs *regs)
 	smi_info->interrupts++;
 	spin_unlock(&smi_info->count_lock);
 
-	if (smi_info->stop_operation)
+	if (atomic_read(&smi_info->stop_operation))
 		goto out;
 
 #ifdef DEBUG_TIMING
@@ -1419,7 +1456,7 @@ static u32 ipmi_acpi_gpe(void *context)
 	smi_info->interrupts++;
 	spin_unlock(&smi_info->count_lock);
 
-	if (smi_info->stop_operation)
+	if (atomic_read(&smi_info->stop_operation))
 		goto out;
 
 #ifdef DEBUG_TIMING
@@ -1919,7 +1956,8 @@ static int try_get_dev_id(struct smi_info *smi_info)
 	smi_result = smi_info->handlers->event(smi_info->si_sm, 0);
 	for (;;)
 	{
-		if (smi_result == SI_SM_CALL_WITH_DELAY) {
+		if (smi_result == SI_SM_CALL_WITH_DELAY ||
+		    smi_result == SI_SM_CALL_WITH_TICK_DELAY) {
 			schedule_timeout_uninterruptible(1);
 			smi_result = smi_info->handlers->event(
 				smi_info->si_sm, 100);
@@ -2052,6 +2090,9 @@ static int oem_data_avail_to_receive_msg_avail(struct smi_info *smi_info)
  * IPMI Version = 0x51             IPMI 1.5
  * Manufacturer ID = A2 02 00      Dell IANA
  *
+ * Additionally, PowerEdge systems with IPMI < 1.5 may also assert
+ * OEM0_DATA_AVAIL and needs to be treated as RECEIVE_MSG_AVAIL.
+ *
  */
 #define DELL_POWEREDGE_8G_BMC_DEVICE_ID  0x20
 #define DELL_POWEREDGE_8G_BMC_DEVICE_REV 0x80
@@ -2061,14 +2102,85 @@ static void setup_dell_poweredge_oem_data_handler(struct smi_info *smi_info)
 {
 	struct ipmi_device_id *id = &smi_info->device_id;
 	const char mfr[3]=DELL_IANA_MFR_ID;
-	if (! memcmp(mfr, id->manufacturer_id, sizeof(mfr))
-	    && (id->device_id       == DELL_POWEREDGE_8G_BMC_DEVICE_ID)
-	    && (id->device_revision == DELL_POWEREDGE_8G_BMC_DEVICE_REV)
-	    && (id->ipmi_version    == DELL_POWEREDGE_8G_BMC_IPMI_VERSION))
-	{
-		smi_info->oem_data_avail_handler =
-			oem_data_avail_to_receive_msg_avail;
+	if (! memcmp(mfr, id->manufacturer_id, sizeof(mfr))) {
+		if (id->device_id       == DELL_POWEREDGE_8G_BMC_DEVICE_ID  &&
+		    id->device_revision == DELL_POWEREDGE_8G_BMC_DEVICE_REV &&
+		    id->ipmi_version    == DELL_POWEREDGE_8G_BMC_IPMI_VERSION) {
+			smi_info->oem_data_avail_handler =
+				oem_data_avail_to_receive_msg_avail;
+		}
+		else if (ipmi_version_major(id) < 1 ||
+			 (ipmi_version_major(id) == 1 &&
+			  ipmi_version_minor(id) < 5)) {
+			smi_info->oem_data_avail_handler =
+				oem_data_avail_to_receive_msg_avail;
+		}
 	}
+}
+
+#define CANNOT_RETURN_REQUESTED_LENGTH 0xCA
+static void return_hosed_msg_badsize(struct smi_info *smi_info)
+{
+	struct ipmi_smi_msg *msg = smi_info->curr_msg;
+
+	/* Make it a reponse */
+	msg->rsp[0] = msg->data[0] | 4;
+	msg->rsp[1] = msg->data[1];
+	msg->rsp[2] = CANNOT_RETURN_REQUESTED_LENGTH;
+	msg->rsp_size = 3;
+	smi_info->curr_msg = NULL;
+	deliver_recv_msg(smi_info, msg);
+}
+
+/*
+ * dell_poweredge_bt_xaction_handler
+ * @info - smi_info.device_id must be populated
+ *
+ * Dell PowerEdge servers with the BT interface (x6xx and 1750) will
+ * not respond to a Get SDR command if the length of the data
+ * requested is exactly 0x3A, which leads to command timeouts and no
+ * data returned.  This intercepts such commands, and causes userspace
+ * callers to try again with a different-sized buffer, which succeeds.
+ */
+
+#define STORAGE_NETFN 0x0A
+#define STORAGE_CMD_GET_SDR 0x23
+static int dell_poweredge_bt_xaction_handler(struct notifier_block *self,
+					     unsigned long unused,
+					     void *in)
+{
+	struct smi_info *smi_info = in;
+	unsigned char *data = smi_info->curr_msg->data;
+	unsigned int size   = smi_info->curr_msg->data_size;
+	if (size >= 8 &&
+	    (data[0]>>2) == STORAGE_NETFN &&
+	    data[1] == STORAGE_CMD_GET_SDR &&
+	    data[7] == 0x3A) {
+		return_hosed_msg_badsize(smi_info);
+		return NOTIFY_STOP;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block dell_poweredge_bt_xaction_notifier = {
+	.notifier_call	= dell_poweredge_bt_xaction_handler,
+};
+
+/*
+ * setup_dell_poweredge_bt_xaction_handler
+ * @info - smi_info.device_id must be filled in already
+ *
+ * Fills in smi_info.device_id.start_transaction_pre_hook
+ * when we know what function to use there.
+ */
+static void
+setup_dell_poweredge_bt_xaction_handler(struct smi_info *smi_info)
+{
+	struct ipmi_device_id *id = &smi_info->device_id;
+	const char mfr[3]=DELL_IANA_MFR_ID;
+ 	if (! memcmp(mfr, id->manufacturer_id, sizeof(mfr)) &&
+	    smi_info->si_type == SI_BT)
+		register_xaction_notifier(&dell_poweredge_bt_xaction_notifier);
 }
 
 /*
@@ -2082,6 +2194,18 @@ static void setup_dell_poweredge_oem_data_handler(struct smi_info *smi_info)
 static void setup_oem_data_handler(struct smi_info *smi_info)
 {
 	setup_dell_poweredge_oem_data_handler(smi_info);
+}
+
+static void setup_xaction_handlers(struct smi_info *smi_info)
+{
+	setup_dell_poweredge_bt_xaction_handler(smi_info);
+}
+
+static inline void wait_for_timer_and_thread(struct smi_info *smi_info)
+{
+	if (smi_info->thread != ERR_PTR(-ENOMEM))
+		kthread_stop(smi_info->thread);
+	del_timer_sync(&smi_info->si_timer);
 }
 
 /* Returns 0 if initialized, or negative on an error. */
@@ -2179,6 +2303,7 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 		goto out_err;
 
 	setup_oem_data_handler(new_smi);
+	setup_xaction_handlers(new_smi);
 
 	/* Try to claim any interrupts. */
 	new_smi->irq_setup(new_smi);
@@ -2190,8 +2315,8 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 	new_smi->run_to_completion = 0;
 
 	new_smi->interrupt_disabled = 0;
-	new_smi->timer_stopped = 0;
-	new_smi->stop_operation = 0;
+	atomic_set(&new_smi->stop_operation, 0);
+	new_smi->intf_num = intf_num;
 
 	/* Start clearing the flags before we enable interrupts or the
 	   timer to avoid racing with the timer. */
@@ -2209,7 +2334,11 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 	new_smi->si_timer.function = smi_timeout;
 	new_smi->last_timeout_jiffies = jiffies;
 	new_smi->si_timer.expires = jiffies + SI_TIMEOUT_JIFFIES;
+
 	add_timer(&(new_smi->si_timer));
+ 	if (new_smi->si_type != SI_BT)
+		new_smi->thread = kthread_run(ipmi_thread, new_smi,
+					      "kipmi%d", new_smi->intf_num);
 
 	rv = ipmi_register_smi(&handlers,
 			       new_smi,
@@ -2251,12 +2380,8 @@ static int init_one_smi(int intf_num, struct smi_info **smi)
 	return 0;
 
  out_err_stop_timer:
-	new_smi->stop_operation = 1;
-
-	/* Wait for the timer to stop.  This avoids problems with race
-	   conditions removing the timer here. */
-	while (!new_smi->timer_stopped)
-		schedule_timeout_uninterruptible(1);
+	atomic_inc(&new_smi->stop_operation);
+	wait_for_timer_and_thread(new_smi);
 
  out_err:
 	if (new_smi->intf)
@@ -2362,8 +2487,7 @@ static void __exit cleanup_one_si(struct smi_info *to_clean)
 	spin_lock_irqsave(&(to_clean->si_lock), flags);
 	spin_lock(&(to_clean->msg_lock));
 
-	to_clean->stop_operation = 1;
-
+	atomic_inc(&to_clean->stop_operation);
 	to_clean->irq_cleanup(to_clean);
 
 	spin_unlock(&(to_clean->msg_lock));
@@ -2374,10 +2498,7 @@ static void __exit cleanup_one_si(struct smi_info *to_clean)
 	   interrupt. */
 	synchronize_sched();
 
-	/* Wait for the timer to stop.  This avoids problems with race
-	   conditions removing the timer here. */
-	while (!to_clean->timer_stopped)
-		schedule_timeout_uninterruptible(1);
+	wait_for_timer_and_thread(to_clean);
 
 	/* Interrupts and timeouts are stopped, now make sure the
 	   interface is in a clean state. */

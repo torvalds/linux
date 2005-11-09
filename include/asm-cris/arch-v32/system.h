@@ -4,7 +4,7 @@
 #include <linux/config.h>
 
 /* Read the CPU version register. */
-extern inline unsigned long rdvr(void)
+static inline unsigned long rdvr(void)
 {
 	unsigned char vr;
 
@@ -15,7 +15,7 @@ extern inline unsigned long rdvr(void)
 #define cris_machine_name "crisv32"
 
 /* Read the user-mode stack pointer. */
-extern inline unsigned long rdusp(void)
+static inline unsigned long rdusp(void)
 {
 	unsigned long usp;
 
@@ -24,7 +24,7 @@ extern inline unsigned long rdusp(void)
 }
 
 /* Read the current stack pointer. */
-extern inline unsigned long rdsp(void)
+static inline unsigned long rdsp(void)
 {
 	unsigned long sp;
 

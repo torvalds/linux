@@ -71,6 +71,22 @@ static unsigned char k8x800_eeprom[] __devinitdata = {
 	0x00,	/* - */
 };
 
+static unsigned char sn25p_eeprom[] __devinitdata = {
+	0x01,	/* SYSCONF: clock 256, 1ADC, 2DACs */
+	0x02,	/* ACLINK: ACLINK, packed */
+	0x00,	/* I2S: - */
+	0x41,	/* SPDIF: - */
+	0xff,	/* GPIO_DIR */
+	0xff,	/* GPIO_DIR1 */
+	0x00,	/* - */
+	0xff,	/* GPIO_MASK */
+	0xff,	/* GPIO_MASK1 */
+	0x00,	/* - */
+	0x00,	/* GPIO_STATE */
+	0x00,	/* GPIO_STATE1 */
+	0x00,	/* - */
+};
+
 
 /* entry point */
 struct snd_ice1712_card_info snd_vt1720_mobo_cards[] __devinitdata = {
@@ -113,11 +129,11 @@ struct snd_ice1712_card_info snd_vt1720_mobo_cards[] __devinitdata = {
 	{
 		.subvendor = VT1720_SUBDEVICE_SN25P,
 		.name = "Shuttle SN25P",
-		/* identical with k8x800 */
+		.model = "sn25p",
 		.chip_init = k8x800_init,
 		.build_controls = k8x800_add_controls,
 		.eeprom_size = sizeof(k8x800_eeprom),
-		.eeprom_data = k8x800_eeprom,
+		.eeprom_data = sn25p_eeprom,
 	},
 	{ } /* terminator */
 };

@@ -1,10 +1,10 @@
 /*
- * $Id: cstm_mips_ixx.c,v 1.12 2004/11/04 13:24:14 gleixner Exp $
+ * $Id: cstm_mips_ixx.c,v 1.14 2005/11/07 11:14:26 gleixner Exp $
  *
  * Mapping of a custom board with both AMD CFI and JEDEC flash in partitions.
  * Config with both CFI and JEDEC device support.
  *
- * Basically physmap.c with the addition of partitions and 
+ * Basically physmap.c with the addition of partitions and
  * an array of mapping info to accomodate more than one flash type per board.
  *
  * Copyright 2000 MontaVista Software Inc.
@@ -69,7 +69,7 @@ void cstm_mips_ixx_set_vpp(struct map_info *map,int vpp)
 			__u16	data;
 			__u8	data1;
 			static u8 first = 1;
-		
+
 			// Set GPIO port B pin3 to high
 			data = *(__u16 *)(CC_GPBCR);
 			data = (data & 0xff0f) | 0x0040;
@@ -85,7 +85,7 @@ void cstm_mips_ixx_set_vpp(struct map_info *map,int vpp)
 	} else {
 		if (!--vpp_count) {
 			__u16	data;
-		
+
 			// Set GPIO port B pin3 to high
 			data = *(__u16 *)(CC_GPBCR);
 			data = (data & 0xff3f) | 0x0040;
@@ -109,8 +109,8 @@ struct cstm_mips_ixx_info {
 };
 
 #if defined(CONFIG_MIPS_ITE8172) || defined(CONFIG_MIPS_IVR)
-#define PHYSMAP_NUMBER  1  // number of board desc structs needed, one per contiguous flash type 
-const struct cstm_mips_ixx_info cstm_mips_ixx_board_desc[PHYSMAP_NUMBER] = 
+#define PHYSMAP_NUMBER  1  // number of board desc structs needed, one per contiguous flash type
+const struct cstm_mips_ixx_info cstm_mips_ixx_board_desc[PHYSMAP_NUMBER] =
 {
     {   // 28F128J3A in 2x16 configuration
         "big flash",     // name
@@ -131,10 +131,10 @@ static struct mtd_partition cstm_mips_ixx_partitions[PHYSMAP_NUMBER][MAX_PHYSMAP
 },
 };
 #else /* defined(CONFIG_MIPS_ITE8172) || defined(CONFIG_MIPS_IVR) */
-#define PHYSMAP_NUMBER  1  // number of board desc structs needed, one per contiguous flash type 
-const struct cstm_mips_ixx_info cstm_mips_ixx_board_desc[PHYSMAP_NUMBER] = 
+#define PHYSMAP_NUMBER  1  // number of board desc structs needed, one per contiguous flash type
+const struct cstm_mips_ixx_info cstm_mips_ixx_board_desc[PHYSMAP_NUMBER] =
 {
-    {  
+    {
         "MTD flash",                   // name
 	CONFIG_MTD_CSTM_MIPS_IXX_START,      // window_addr
 	CONFIG_MTD_CSTM_MIPS_IXX_LEN,        // window_size
@@ -144,7 +144,7 @@ const struct cstm_mips_ixx_info cstm_mips_ixx_board_desc[PHYSMAP_NUMBER] =
 
 };
 static struct mtd_partition cstm_mips_ixx_partitions[PHYSMAP_NUMBER][MAX_PHYSMAP_PARTITIONS] = {
-{ 
+{
 	{
 		.name = "main partition",
 		.size =  CONFIG_MTD_CSTM_MIPS_IXX_LEN,
@@ -165,7 +165,7 @@ int __init init_cstm_mips_ixx(void)
 
 	/* Initialize mapping */
 	for (i=0;i<PHYSMAP_NUMBER;i++) {
-		printk(KERN_NOTICE "cstm_mips_ixx flash device: 0x%lx at 0x%lx\n", 
+		printk(KERN_NOTICE "cstm_mips_ixx flash device: 0x%lx at 0x%lx\n",
 		       cstm_mips_ixx_board_desc[i].window_size, cstm_mips_ixx_board_desc[i].window_addr);
 
 
@@ -235,7 +235,7 @@ void PCISetULongByOffset(__u32 DevNumber, __u32 FuncNumber, __u32 Offset, __u32 
 
 	offset = ( unsigned long )( 0x80000000 | ( DevNumber << 11 ) + ( FuncNumber << 8 ) + Offset) ;
 
-	*(__u32 *)CC_CONFADDR = offset;	
+	*(__u32 *)CC_CONFADDR = offset;
 	*(__u32 *)CC_CONFDATA = data;
 }
 void setup_ITE_IVR_flash()

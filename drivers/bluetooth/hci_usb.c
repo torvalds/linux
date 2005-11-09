@@ -65,6 +65,7 @@
 #endif
 
 static int ignore = 0;
+static int ignore_dga = 0;
 static int ignore_csr = 0;
 static int ignore_sniffer = 0;
 static int reset = 0;
@@ -841,6 +842,9 @@ static int hci_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 	if (ignore || id->driver_info & HCI_IGNORE)
 		return -ENODEV;
 
+	if (ignore_dga && id->driver_info & HCI_DIGIANSWER)
+		return -ENODEV;
+
 	if (ignore_csr && id->driver_info & HCI_CSR)
 		return -ENODEV;
 
@@ -875,12 +879,10 @@ static int hci_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 		goto done;
 	}
 
-	if (!(husb = kmalloc(sizeof(struct hci_usb), GFP_KERNEL))) {
+	if (!(husb = kzalloc(sizeof(struct hci_usb), GFP_KERNEL))) {
 		BT_ERR("Can't allocate: control structure");
 		goto done;
 	}
-
-	memset(husb, 0, sizeof(struct hci_usb));
 
 	husb->udev = udev;
 	husb->bulk_out_ep = bulk_out_ep;
@@ -1071,6 +1073,9 @@ module_exit(hci_usb_exit);
 
 module_param(ignore, bool, 0644);
 MODULE_PARM_DESC(ignore, "Ignore devices from the matching table");
+
+module_param(ignore_dga, bool, 0644);
+MODULE_PARM_DESC(ignore_dga, "Ignore devices with id 08fd:0001");
 
 module_param(ignore_csr, bool, 0644);
 MODULE_PARM_DESC(ignore_csr, "Ignore devices with id 0a12:0001");

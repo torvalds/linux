@@ -1077,6 +1077,26 @@ P:	Jaroslav Kysela
 M:	perex@suse.cz
 S:	Maintained
 
+HPET:	High Precision Event Timers driver (hpet.c)
+P:	Clemens Ladisch
+M:	clemens@ladisch.de
+S:	Maintained
+
+HPET:	i386
+P:	Venkatesh Pallipadi (Venki)
+M:	venkatesh.pallipadi@intel.com
+S:	Maintained
+
+HPET:	x86_64
+P:	Andi Kleen and Vojtech Pavlik
+M:	ak@muc.de and vojtech@suse.cz
+S:	Maintained
+
+HPET:	ACPI hpet.c
+P:	Bob Picco
+M:	bob.picco@hp.com
+S:	Maintained
+
 HPFS FILESYSTEM
 P:	Mikulas Patocka
 M:	mikulas@artax.karlin.mff.cuni.cz
@@ -2051,6 +2071,12 @@ P:	Matt Mackall
 M:	mpm@selenic.com
 S:	Maintained
 
+RAPIDIO SUBSYSTEM
+P:	Matt Porter
+M:	mporter@kernel.crashing.org
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+
 REAL TIME CLOCK DRIVER
 P:	Paul Gortmaker
 M:	p_gortmaker@yahoo.com
@@ -2455,10 +2481,10 @@ L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
 TRIVIAL PATCHES
-P:      Rusty Russell
-M:      trivial@rustcorp.com.au
+P:      Adrian Bunk
+M:      trivial@kernel.org
 L:      linux-kernel@vger.kernel.org
-W:      http://www.kernel.org/pub/linux/kernel/people/rusty/trivial/
+W:      http://www.kernel.org/pub/linux/kernel/people/bunk/trivial/
 S:      Maintained
 
 TMS380 TOKEN-RING NETWORK DRIVER

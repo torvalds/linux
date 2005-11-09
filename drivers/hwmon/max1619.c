@@ -193,7 +193,7 @@ static int max1619_detect(struct i2c_adapter *adapter, int address, int kind)
 	int err = 0;
 	const char *name = "";	
 	u8 reg_config=0, reg_convrate=0, reg_status=0;
-	u8 man_id, chip_id;
+
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		goto exit;
 
@@ -238,16 +238,15 @@ static int max1619_detect(struct i2c_adapter *adapter, int address, int kind)
 	}
 
 	if (kind <= 0) { /* identification */
+		u8 man_id, chip_id;
 	
 		man_id = i2c_smbus_read_byte_data(new_client,
 			 MAX1619_REG_R_MAN_ID);
 		chip_id = i2c_smbus_read_byte_data(new_client,
 			  MAX1619_REG_R_CHIP_ID);
 		
-		if ((man_id == 0x4D) && (chip_id == 0x04)){  
-				kind = max1619;
-			}
-		}
+		if ((man_id == 0x4D) && (chip_id == 0x04))
+			kind = max1619;
 
 		if (kind <= 0) { /* identification failed */
 			dev_info(&adapter->dev,
@@ -255,11 +254,10 @@ static int max1619_detect(struct i2c_adapter *adapter, int address, int kind)
 			    "chip_id=0x%02X).\n", man_id, chip_id);
 			goto exit_free;
 		}
-	
-
-	if (kind == max1619){
-		name = "max1619";
 	}
+
+	if (kind == max1619)
+		name = "max1619";
 
 	/* We can fill in the remaining client fields */
 	strlcpy(new_client->name, name, I2C_NAME_SIZE);

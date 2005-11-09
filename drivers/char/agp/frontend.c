@@ -189,13 +189,12 @@ static int agp_create_segment(struct agp_client *client, struct agp_region *regi
 	struct agp_segment *user_seg;
 	size_t i;
 
-	seg = kmalloc((sizeof(struct agp_segment_priv) * region->seg_count), GFP_KERNEL);
+	seg = kzalloc((sizeof(struct agp_segment_priv) * region->seg_count), GFP_KERNEL);
 	if (seg == NULL) {
 		kfree(region->seg_list);
 		region->seg_list = NULL;
 		return -ENOMEM;
 	}
-	memset(seg, 0, (sizeof(struct agp_segment_priv) * region->seg_count));
 	user_seg = region->seg_list;
 
 	for (i = 0; i < region->seg_count; i++) {
@@ -332,14 +331,11 @@ static struct agp_controller *agp_create_controller(pid_t id)
 {
 	struct agp_controller *controller;
 
-	controller = kmalloc(sizeof(struct agp_controller), GFP_KERNEL);
-
+	controller = kzalloc(sizeof(struct agp_controller), GFP_KERNEL);
 	if (controller == NULL)
 		return NULL;
 
-	memset(controller, 0, sizeof(struct agp_controller));
 	controller->pid = id;
-
 	return controller;
 }
 
@@ -540,12 +536,10 @@ static struct agp_client *agp_create_client(pid_t id)
 {
 	struct agp_client *new_client;
 
-	new_client = kmalloc(sizeof(struct agp_client), GFP_KERNEL);
-
+	new_client = kzalloc(sizeof(struct agp_client), GFP_KERNEL);
 	if (new_client == NULL)
 		return NULL;
 
-	memset(new_client, 0, sizeof(struct agp_client));
 	new_client->pid = id;
 	agp_insert_client(new_client);
 	return new_client;
@@ -709,11 +703,10 @@ static int agp_open(struct inode *inode, struct file *file)
 	if (minor != AGPGART_MINOR)
 		goto err_out;
 
-	priv = kmalloc(sizeof(struct agp_file_private), GFP_KERNEL);
+	priv = kzalloc(sizeof(struct agp_file_private), GFP_KERNEL);
 	if (priv == NULL)
 		goto err_out_nomem;
 
-	memset(priv, 0, sizeof(struct agp_file_private));
 	set_bit(AGP_FF_ALLOW_CLIENT, &priv->access_flags);
 	priv->my_pid = current->pid;
 

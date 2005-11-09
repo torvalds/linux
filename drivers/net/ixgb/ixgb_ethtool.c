@@ -694,7 +694,7 @@ ixgb_get_strings(struct net_device *netdev, uint32_t stringset, uint8_t *data)
 	}
 }
 
-struct ethtool_ops ixgb_ethtool_ops = {
+static struct ethtool_ops ixgb_ethtool_ops = {
 	.get_settings = ixgb_get_settings,
 	.set_settings = ixgb_set_settings,
 	.get_drvinfo = ixgb_get_drvinfo,

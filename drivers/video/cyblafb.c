@@ -968,7 +968,6 @@ static struct fb_ops cyblafb_ops __devinitdata = {
 	.fb_fillrect = cyblafb_fillrect,
 	.fb_copyarea= cyblafb_copyarea,
 	.fb_imageblit = cyblafb_imageblit,
-	.fb_cursor = soft_cursor,
 };
 
 //==========================================================================

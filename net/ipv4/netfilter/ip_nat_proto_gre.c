@@ -139,8 +139,8 @@ gre_manip_pkt(struct sk_buff **pskb,
 			break;
 		case GRE_VERSION_PPTP:
 			DEBUGP("call_id -> 0x%04x\n", 
-				ntohl(tuple->dst.u.gre.key));
-			pgreh->call_id = htons(ntohl(tuple->dst.u.gre.key));
+				ntohs(tuple->dst.u.gre.key));
+			pgreh->call_id = tuple->dst.u.gre.key;
 			break;
 		default:
 			DEBUGP("can't nat unknown GRE version\n");

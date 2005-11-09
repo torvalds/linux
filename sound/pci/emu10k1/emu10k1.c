@@ -188,7 +188,7 @@ static int __devinit snd_card_emu10k1_probe(struct pci_dev *pci,
 	if (snd_seq_device_new(card, 1, SNDRV_SEQ_DEV_ID_EMU10K1_SYNTH,
 			       sizeof(snd_emu10k1_synth_arg_t), &wave) < 0 ||
 	    wave == NULL) {
-		snd_printk("can't initialize Emu10k1 wavetable synth\n");
+		snd_printk(KERN_WARNING "can't initialize Emu10k1 wavetable synth\n");
 	} else {
 		snd_emu10k1_synth_arg_t *arg;
 		arg = SNDRV_SEQ_DEVICE_ARGPTR(wave);

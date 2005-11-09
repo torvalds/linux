@@ -118,11 +118,9 @@ static int acpi_container_remove(struct acpi_device *device, int type)
 {
 	acpi_status status = AE_OK;
 	struct acpi_container *pc = NULL;
+
 	pc = (struct acpi_container *)acpi_driver_data(device);
-
-	if (pc)
-		kfree(pc);
-
+	kfree(pc);
 	return status;
 }
 

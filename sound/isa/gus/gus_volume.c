@@ -119,7 +119,7 @@ unsigned short snd_gf1_translate_freq(snd_gus_card_t * gus, unsigned int freq16)
 		freq16 = 50;
 	if (freq16 & 0xf8000000) {
 		freq16 = ~0xf8000000;
-		snd_printk("snd_gf1_translate_freq: overflow - freq = 0x%x\n", freq16);
+		snd_printk(KERN_ERR "snd_gf1_translate_freq: overflow - freq = 0x%x\n", freq16);
 	}
 	return ((freq16 << 9) + (gus->gf1.playback_freq >> 1)) / gus->gf1.playback_freq;
 }
@@ -203,14 +203,14 @@ unsigned short snd_gf1_compute_freq(unsigned int freq,
 	fc = (freq << 10) / rate;
 	if (fc > 97391L) {
 		fc = 97391;
-		snd_printk("patch: (1) fc frequency overflow - %u\n", fc);
+		snd_printk(KERN_ERR "patch: (1) fc frequency overflow - %u\n", fc);
 	}
 	fc = (fc * 44100UL) / mix_rate;
 	while (scale--)
 		fc <<= 1;
 	if (fc > 65535L) {
 		fc = 65535;
-		snd_printk("patch: (2) fc frequency overflow - %u\n", fc);
+		snd_printk(KERN_ERR "patch: (2) fc frequency overflow - %u\n", fc);
 	}
 	return (unsigned short) fc;
 }

@@ -20,7 +20,6 @@
 #include "user_util.h"
 #include "mem_user.h"
 #include "os.h"
-#include "helper.h"
 
 EXPORT_SYMBOL(stop);
 EXPORT_SYMBOL(uml_physmem);

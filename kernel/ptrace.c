@@ -406,3 +406,85 @@ int ptrace_request(struct task_struct *child, long request,
 
 	return ret;
 }
+
+#ifndef __ARCH_SYS_PTRACE
+static int ptrace_get_task_struct(long request, long pid,
+		struct task_struct **childp)
+{
+	struct task_struct *child;
+	int ret;
+
+	/*
+	 * Callers use child == NULL as an indication to exit early even
+	 * when the return value is 0, so make sure it is non-NULL here.
+	 */
+	*childp = NULL;
+
+	if (request == PTRACE_TRACEME) {
+		/*
+		 * Are we already being traced?
+		 */
+		if (current->ptrace & PT_PTRACED)
+			return -EPERM;
+		ret = security_ptrace(current->parent, current);
+		if (ret)
+			return -EPERM;
+		/*
+		 * Set the ptrace bit in the process ptrace flags.
+		 */
+		current->ptrace |= PT_PTRACED;
+		return 0;
+	}
+
+	/*
+	 * You may not mess with init
+	 */
+	if (pid == 1)
+		return -EPERM;
+
+	ret = -ESRCH;
+	read_lock(&tasklist_lock);
+	child = find_task_by_pid(pid);
+	if (child)
+		get_task_struct(child);
+	read_unlock(&tasklist_lock);
+	if (!child)
+		return -ESRCH;
+
+	*childp = child;
+	return 0;
+}
+
+asmlinkage long sys_ptrace(long request, long pid, long addr, long data)
+{
+	struct task_struct *child;
+	long ret;
+
+	/*
+	 * This lock_kernel fixes a subtle race with suid exec
+	 */
+	lock_kernel();
+	ret = ptrace_get_task_struct(request, pid, &child);
+	if (!child)
+		goto out;
+
+	if (request == PTRACE_ATTACH) {
+		ret = ptrace_attach(child);
+		goto out;
+	}
+
+	ret = ptrace_check_attach(child, request == PTRACE_KILL);
+	if (ret < 0)
+		goto out_put_task_struct;
+
+	ret = arch_ptrace(child, request, addr, data);
+	if (ret < 0)
+		goto out_put_task_struct;
+
+ out_put_task_struct:
+	put_task_struct(child);
+ out:
+	unlock_kernel();
+	return ret;
+}
+#endif /* __ARCH_SYS_PTRACE */

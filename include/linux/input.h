@@ -1007,7 +1007,7 @@ static inline void input_put_device(struct input_dev *dev)
 	class_device_put(&dev->cdev);
 }
 
-void input_register_device(struct input_dev *);
+int input_register_device(struct input_dev *);
 void input_unregister_device(struct input_dev *);
 
 void input_register_handler(struct input_handler *);

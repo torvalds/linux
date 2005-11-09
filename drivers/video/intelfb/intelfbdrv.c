@@ -1,7 +1,7 @@
 /*
  * intelfb
  *
- * Linux framebuffer driver for Intel(R) 830M/845G/852GM/855GM/865G/915G
+ * Linux framebuffer driver for Intel(R) 830M/845G/852GM/855GM/865G/915G/915GM
  * integrated graphics chips.
  *
  * Copyright © 2002, 2003 David Dawes <dawes@xfree86.org>
@@ -186,6 +186,7 @@ static struct pci_device_id intelfb_pci_table[] __devinitdata = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_85XGM, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8, INTELFB_CLASS_MASK, INTEL_85XGM },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_865G, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8, INTELFB_CLASS_MASK, INTEL_865G },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_915G, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8, INTELFB_CLASS_MASK, INTEL_915G },
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_915GM, PCI_ANY_ID, PCI_ANY_ID, PCI_CLASS_DISPLAY_VGA << 8, INTELFB_CLASS_MASK, INTEL_915GM },
 	{ 0, }
 };
 
@@ -549,10 +550,11 @@ intelfb_pci_register(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Set base addresses. */
-	if (ent->device == PCI_DEVICE_ID_INTEL_915G) {
+	if ((ent->device == PCI_DEVICE_ID_INTEL_915G) ||
+			(ent->device == PCI_DEVICE_ID_INTEL_915GM)) {
 		aperture_bar = 2;
 		mmio_bar = 0;
-		/* Disable HW cursor on 915G (not implemented yet) */
+		/* Disable HW cursor on 915G/M (not implemented yet) */
 		hwcursor = 0;
 	}
 	dinfo->aperture.physical = pci_resource_start(pdev, aperture_bar);
@@ -1483,7 +1485,7 @@ intelfb_cursor(struct fb_info *info, struct fb_cursor *cursor)
 #endif
 
 	if (!dinfo->hwcursor)
-		return soft_cursor(info, cursor);
+		return -ENODEV;
 
 	intelfbhw_cursor_hide(dinfo);
 

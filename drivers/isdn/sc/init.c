@@ -529,8 +529,7 @@ static int identify_board(unsigned long rambase, unsigned int iobase)
 	 */
 	x = 0;
 	while((inb(iobase + FIFOSTAT_OFFSET) & RF_HAS_DATA) && x < 100) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_interruptible(1);
 		x++;
 	}
 	if(x == 100) {

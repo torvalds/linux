@@ -32,7 +32,6 @@
  *		<prasanna@in.ibm.com> added function-return probes.
  */
 #include <linux/kprobes.h>
-#include <linux/spinlock.h>
 #include <linux/hash.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -49,9 +48,9 @@
 static struct hlist_head kprobe_table[KPROBE_TABLE_SIZE];
 static struct hlist_head kretprobe_inst_table[KPROBE_TABLE_SIZE];
 
-unsigned int kprobe_cpu = NR_CPUS;
-static DEFINE_SPINLOCK(kprobe_lock);
-static struct kprobe *curr_kprobe;
+static DEFINE_SPINLOCK(kprobe_lock);	/* Protects kprobe_table */
+DEFINE_SPINLOCK(kretprobe_lock);	/* Protects kretprobe_inst_table */
+static DEFINE_PER_CPU(struct kprobe *, kprobe_instance) = NULL;
 
 /*
  * kprobe->ainsn.insn points to the copy of the instruction to be
@@ -153,50 +152,31 @@ void __kprobes free_insn_slot(kprobe_opcode_t *slot)
 	}
 }
 
-/* Locks kprobe: irqs must be disabled */
-void __kprobes lock_kprobes(void)
+/* We have preemption disabled.. so it is safe to use __ versions */
+static inline void set_kprobe_instance(struct kprobe *kp)
 {
-	unsigned long flags = 0;
-
-	/* Avoiding local interrupts to happen right after we take the kprobe_lock
-	 * and before we get a chance to update kprobe_cpu, this to prevent
-	 * deadlock when we have a kprobe on ISR routine and a kprobe on task
-	 * routine
-	 */
-	local_irq_save(flags);
-
-	spin_lock(&kprobe_lock);
-	kprobe_cpu = smp_processor_id();
-
- 	local_irq_restore(flags);
+	__get_cpu_var(kprobe_instance) = kp;
 }
 
-void __kprobes unlock_kprobes(void)
+static inline void reset_kprobe_instance(void)
 {
-	unsigned long flags = 0;
-
-	/* Avoiding local interrupts to happen right after we update
-	 * kprobe_cpu and before we get a a chance to release kprobe_lock,
-	 * this to prevent deadlock when we have a kprobe on ISR routine and
-	 * a kprobe on task routine
-	 */
-	local_irq_save(flags);
-
-	kprobe_cpu = NR_CPUS;
-	spin_unlock(&kprobe_lock);
-
- 	local_irq_restore(flags);
+	__get_cpu_var(kprobe_instance) = NULL;
 }
 
-/* You have to be holding the kprobe_lock */
+/*
+ * This routine is called either:
+ * 	- under the kprobe_lock spinlock - during kprobe_[un]register()
+ * 				OR
+ * 	- with preemption disabled - from arch/xxx/kernel/kprobes.c
+ */
 struct kprobe __kprobes *get_kprobe(void *addr)
 {
 	struct hlist_head *head;
 	struct hlist_node *node;
+	struct kprobe *p;
 
 	head = &kprobe_table[hash_ptr(addr, KPROBE_HASH_BITS)];
-	hlist_for_each(node, head) {
-		struct kprobe *p = hlist_entry(node, struct kprobe, hlist);
+	hlist_for_each_entry_rcu(p, node, head, hlist) {
 		if (p->addr == addr)
 			return p;
 	}
@@ -211,13 +191,13 @@ static int __kprobes aggr_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kprobe *kp;
 
-	list_for_each_entry(kp, &p->list, list) {
+	list_for_each_entry_rcu(kp, &p->list, list) {
 		if (kp->pre_handler) {
-			curr_kprobe = kp;
+			set_kprobe_instance(kp);
 			if (kp->pre_handler(kp, regs))
 				return 1;
 		}
-		curr_kprobe = NULL;
+		reset_kprobe_instance();
 	}
 	return 0;
 }
@@ -227,11 +207,11 @@ static void __kprobes aggr_post_handler(struct kprobe *p, struct pt_regs *regs,
 {
 	struct kprobe *kp;
 
-	list_for_each_entry(kp, &p->list, list) {
+	list_for_each_entry_rcu(kp, &p->list, list) {
 		if (kp->post_handler) {
-			curr_kprobe = kp;
+			set_kprobe_instance(kp);
 			kp->post_handler(kp, regs, flags);
-			curr_kprobe = NULL;
+			reset_kprobe_instance();
 		}
 	}
 	return;
@@ -240,12 +220,14 @@ static void __kprobes aggr_post_handler(struct kprobe *p, struct pt_regs *regs,
 static int __kprobes aggr_fault_handler(struct kprobe *p, struct pt_regs *regs,
 					int trapnr)
 {
+	struct kprobe *cur = __get_cpu_var(kprobe_instance);
+
 	/*
 	 * if we faulted "during" the execution of a user specified
 	 * probe handler, invoke just that probe's fault handler
 	 */
-	if (curr_kprobe && curr_kprobe->fault_handler) {
-		if (curr_kprobe->fault_handler(curr_kprobe, regs, trapnr))
+	if (cur && cur->fault_handler) {
+		if (cur->fault_handler(cur, regs, trapnr))
 			return 1;
 	}
 	return 0;
@@ -253,17 +235,18 @@ static int __kprobes aggr_fault_handler(struct kprobe *p, struct pt_regs *regs,
 
 static int __kprobes aggr_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
-	struct kprobe *kp = curr_kprobe;
-	if (curr_kprobe && kp->break_handler) {
-		if (kp->break_handler(kp, regs)) {
-			curr_kprobe = NULL;
-			return 1;
-		}
+	struct kprobe *cur = __get_cpu_var(kprobe_instance);
+	int ret = 0;
+
+	if (cur && cur->break_handler) {
+		if (cur->break_handler(cur, regs))
+			ret = 1;
 	}
-	curr_kprobe = NULL;
-	return 0;
+	reset_kprobe_instance();
+	return ret;
 }
 
+/* Called with kretprobe_lock held */
 struct kretprobe_instance __kprobes *get_free_rp_inst(struct kretprobe *rp)
 {
 	struct hlist_node *node;
@@ -273,6 +256,7 @@ struct kretprobe_instance __kprobes *get_free_rp_inst(struct kretprobe *rp)
 	return NULL;
 }
 
+/* Called with kretprobe_lock held */
 static struct kretprobe_instance __kprobes *get_used_rp_inst(struct kretprobe
 							      *rp)
 {
@@ -283,6 +267,7 @@ static struct kretprobe_instance __kprobes *get_used_rp_inst(struct kretprobe
 	return NULL;
 }
 
+/* Called with kretprobe_lock held */
 void __kprobes add_rp_inst(struct kretprobe_instance *ri)
 {
 	/*
@@ -301,6 +286,7 @@ void __kprobes add_rp_inst(struct kretprobe_instance *ri)
 	hlist_add_head(&ri->uflist, &ri->rp->used_instances);
 }
 
+/* Called with kretprobe_lock held */
 void __kprobes recycle_rp_inst(struct kretprobe_instance *ri)
 {
 	/* remove rp inst off the rprobe_inst_table */
@@ -334,13 +320,13 @@ void __kprobes kprobe_flush_task(struct task_struct *tk)
 	struct hlist_node *node, *tmp;
 	unsigned long flags = 0;
 
-	spin_lock_irqsave(&kprobe_lock, flags);
+	spin_lock_irqsave(&kretprobe_lock, flags);
         head = kretprobe_inst_table_head(current);
         hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
                 if (ri->task == tk)
                         recycle_rp_inst(ri);
         }
-	spin_unlock_irqrestore(&kprobe_lock, flags);
+	spin_unlock_irqrestore(&kretprobe_lock, flags);
 }
 
 /*
@@ -351,9 +337,12 @@ static int __kprobes pre_handler_kretprobe(struct kprobe *p,
 					   struct pt_regs *regs)
 {
 	struct kretprobe *rp = container_of(p, struct kretprobe, kp);
+	unsigned long flags = 0;
 
 	/*TODO: consider to only swap the RA after the last pre_handler fired */
+	spin_lock_irqsave(&kretprobe_lock, flags);
 	arch_prepare_kretprobe(rp, regs);
+	spin_unlock_irqrestore(&kretprobe_lock, flags);
 	return 0;
 }
 
@@ -384,13 +373,13 @@ static int __kprobes add_new_kprobe(struct kprobe *old_p, struct kprobe *p)
         struct kprobe *kp;
 
 	if (p->break_handler) {
-		list_for_each_entry(kp, &old_p->list, list) {
+		list_for_each_entry_rcu(kp, &old_p->list, list) {
 			if (kp->break_handler)
 				return -EEXIST;
 		}
-		list_add_tail(&p->list, &old_p->list);
+		list_add_tail_rcu(&p->list, &old_p->list);
 	} else
-		list_add(&p->list, &old_p->list);
+		list_add_rcu(&p->list, &old_p->list);
 	return 0;
 }
 
@@ -408,18 +397,18 @@ static inline void add_aggr_kprobe(struct kprobe *ap, struct kprobe *p)
 	ap->break_handler = aggr_break_handler;
 
 	INIT_LIST_HEAD(&ap->list);
-	list_add(&p->list, &ap->list);
+	list_add_rcu(&p->list, &ap->list);
 
 	INIT_HLIST_NODE(&ap->hlist);
-	hlist_del(&p->hlist);
-	hlist_add_head(&ap->hlist,
+	hlist_del_rcu(&p->hlist);
+	hlist_add_head_rcu(&ap->hlist,
 		&kprobe_table[hash_ptr(ap->addr, KPROBE_HASH_BITS)]);
 }
 
 /*
  * This is the second or subsequent kprobe at the address - handle
  * the intricacies
- * TODO: Move kcalloc outside the spinlock
+ * TODO: Move kcalloc outside the spin_lock
  */
 static int __kprobes register_aggr_kprobe(struct kprobe *old_p,
 					  struct kprobe *p)
@@ -445,7 +434,7 @@ static int __kprobes register_aggr_kprobe(struct kprobe *old_p,
 static inline void cleanup_kprobe(struct kprobe *p, unsigned long flags)
 {
 	arch_disarm_kprobe(p);
-	hlist_del(&p->hlist);
+	hlist_del_rcu(&p->hlist);
 	spin_unlock_irqrestore(&kprobe_lock, flags);
 	arch_remove_kprobe(p);
 }
@@ -453,11 +442,10 @@ static inline void cleanup_kprobe(struct kprobe *p, unsigned long flags)
 static inline void cleanup_aggr_kprobe(struct kprobe *old_p,
 		struct kprobe *p, unsigned long flags)
 {
-	list_del(&p->list);
-	if (list_empty(&old_p->list)) {
+	list_del_rcu(&p->list);
+	if (list_empty(&old_p->list))
 		cleanup_kprobe(old_p, flags);
-		kfree(old_p);
-	} else
+	else
 		spin_unlock_irqrestore(&kprobe_lock, flags);
 }
 
@@ -480,9 +468,9 @@ int __kprobes register_kprobe(struct kprobe *p)
 	if ((ret = arch_prepare_kprobe(p)) != 0)
 		goto rm_kprobe;
 
+	p->nmissed = 0;
 	spin_lock_irqsave(&kprobe_lock, flags);
 	old_p = get_kprobe(p->addr);
-	p->nmissed = 0;
 	if (old_p) {
 		ret = register_aggr_kprobe(old_p, p);
 		goto out;
@@ -490,7 +478,7 @@ int __kprobes register_kprobe(struct kprobe *p)
 
 	arch_copy_kprobe(p);
 	INIT_HLIST_NODE(&p->hlist);
-	hlist_add_head(&p->hlist,
+	hlist_add_head_rcu(&p->hlist,
 		       &kprobe_table[hash_ptr(p->addr, KPROBE_HASH_BITS)]);
 
   	arch_arm_kprobe(p);
@@ -511,10 +499,16 @@ void __kprobes unregister_kprobe(struct kprobe *p)
 	spin_lock_irqsave(&kprobe_lock, flags);
 	old_p = get_kprobe(p->addr);
 	if (old_p) {
+		/* cleanup_*_kprobe() does the spin_unlock_irqrestore */
 		if (old_p->pre_handler == aggr_pre_handler)
 			cleanup_aggr_kprobe(old_p, p, flags);
 		else
 			cleanup_kprobe(p, flags);
+
+		synchronize_sched();
+		if (old_p->pre_handler == aggr_pre_handler &&
+				list_empty(&old_p->list))
+			kfree(old_p);
 	} else
 		spin_unlock_irqrestore(&kprobe_lock, flags);
 }
@@ -591,13 +585,13 @@ void __kprobes unregister_kretprobe(struct kretprobe *rp)
 
 	unregister_kprobe(&rp->kp);
 	/* No race here */
-	spin_lock_irqsave(&kprobe_lock, flags);
+	spin_lock_irqsave(&kretprobe_lock, flags);
 	free_rp_inst(rp);
 	while ((ri = get_used_rp_inst(rp)) != NULL) {
 		ri->rp = NULL;
 		hlist_del(&ri->uflist);
 	}
-	spin_unlock_irqrestore(&kprobe_lock, flags);
+	spin_unlock_irqrestore(&kretprobe_lock, flags);
 }
 
 static int __init init_kprobes(void)

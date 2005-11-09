@@ -77,6 +77,7 @@
 #include <linux/kmod.h>
 #include <linux/namei.h>
 #include <linux/buffer_head.h>
+#include <linux/quotaops.h>
 
 #include <asm/uaccess.h>
 
@@ -1320,13 +1321,11 @@ int vfs_quota_off(struct super_block *sb, int type)
 	int cnt;
 	struct quota_info *dqopt = sb_dqopt(sb);
 	struct inode *toputinode[MAXQUOTAS];
-	struct vfsmount *toputmnt[MAXQUOTAS];
 
 	/* We need to serialize quota_off() for device */
 	down(&dqopt->dqonoff_sem);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		toputinode[cnt] = NULL;
-		toputmnt[cnt] = NULL;
 		if (type != -1 && cnt != type)
 			continue;
 		if (!sb_has_quota_enabled(sb, cnt))
@@ -1347,9 +1346,7 @@ int vfs_quota_off(struct super_block *sb, int type)
 		put_quota_format(dqopt->info[cnt].dqi_format);
 
 		toputinode[cnt] = dqopt->files[cnt];
-		toputmnt[cnt] = dqopt->mnt[cnt];
 		dqopt->files[cnt] = NULL;
-		dqopt->mnt[cnt] = NULL;
 		dqopt->info[cnt].dqi_flags = 0;
 		dqopt->info[cnt].dqi_igrace = 0;
 		dqopt->info[cnt].dqi_bgrace = 0;
@@ -1357,10 +1354,7 @@ int vfs_quota_off(struct super_block *sb, int type)
 	}
 	up(&dqopt->dqonoff_sem);
 	/* Sync the superblock so that buffers with quota data are written to
-	 * disk (and so userspace sees correct data afterwards).
-	 * The reference to vfsmnt we are still holding protects us from
-	 * umount (we don't have it only when quotas are turned on/off for
-	 * journal replay but in that case we are guarded by the fs anyway). */
+	 * disk (and so userspace sees correct data afterwards). */
 	if (sb->s_op->sync_fs)
 		sb->s_op->sync_fs(sb, 1);
 	sync_blockdev(sb->s_bdev);
@@ -1384,10 +1378,6 @@ int vfs_quota_off(struct super_block *sb, int type)
 				iput(toputinode[cnt]);
 			}
 			up(&dqopt->dqonoff_sem);
-			/* We don't hold the reference when we turned on quotas
-			 * just for the journal replay... */
-			if (toputmnt[cnt])
-				mntput(toputmnt[cnt]);
 		}
 	if (sb->s_bdev)
 		invalidate_bdev(sb->s_bdev, 0);
@@ -1502,11 +1492,8 @@ int vfs_quota_on(struct super_block *sb, int type, int format_id, char *path)
 	/* Quota file not on the same filesystem? */
 	if (nd.mnt->mnt_sb != sb)
 		error = -EXDEV;
-	else {
+	else
 		error = vfs_quota_on_inode(nd.dentry->d_inode, type, format_id);
-		if (!error)
-			sb_dqopt(sb)->mnt[type] = mntget(nd.mnt);
-	}
 out_path:
 	path_release(&nd);
 	return error;

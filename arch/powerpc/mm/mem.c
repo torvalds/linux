@@ -358,7 +358,7 @@ void __init mem_init(void)
 	}
 
 	codesize = (unsigned long)&_sdata - (unsigned long)&_stext;
-	datasize = (unsigned long)&__init_begin - (unsigned long)&_sdata;
+	datasize = (unsigned long)&_edata - (unsigned long)&_sdata;
 	initsize = (unsigned long)&__init_end - (unsigned long)&__init_begin;
 	bsssize = (unsigned long)&__bss_stop - (unsigned long)&__bss_start;
 

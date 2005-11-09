@@ -1,28 +1,28 @@
 /*======================================================================
 
     drivers/mtd/maps/integrator-flash.c: ARM Integrator flash map driver
-  
+
     Copyright (C) 2000 ARM Limited
     Copyright (C) 2003 Deep Blue Solutions Ltd.
-  
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
    (at your option) any later version.
-  
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-  
+
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
-  
-   This is access code for flashes using ARM's flash partitioning 
+
+   This is access code for flashes using ARM's flash partitioning
    standards.
 
-   $Id: integrator-flash.c,v 1.18 2004/11/01 13:26:15 rmk Exp $
+   $Id: integrator-flash.c,v 1.20 2005/11/07 11:14:27 gleixner Exp $
 
 ======================================================================*/
 
@@ -148,8 +148,7 @@ static int armflash_probe(struct device *_dev)
 			del_mtd_partitions(info->mtd);
 			map_destroy(info->mtd);
 		}
-		if (info->parts)
-			kfree(info->parts);
+		kfree(info->parts);
 
  no_device:
 		iounmap(base);
@@ -176,8 +175,7 @@ static int armflash_remove(struct device *_dev)
 			del_mtd_partitions(info->mtd);
 			map_destroy(info->mtd);
 		}
-		if (info->parts)
-			kfree(info->parts);
+		kfree(info->parts);
 
 		iounmap(info->map.virt);
 		release_resource(info->res);

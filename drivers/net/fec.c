@@ -18,8 +18,8 @@
  * Much better multiple PHY support by Magnus Damm.
  * Copyright (c) 2000 Ericsson Radio Systems AB.
  *
- * Support for FEC controller of ColdFire/5270/5271/5272/5274/5275/5280/5282.
- * Copyright (c) 2001-2004 Greg Ungerer (gerg@snapgear.com)
+ * Support for FEC controller of ColdFire processors.
+ * Copyright (c) 2001-2005 Greg Ungerer (gerg@snapgear.com)
  *
  * Bug fixes and cleanup by Philippe De Muyter (phdm@macqel.be)
  * Copyright (c) 2004-2005 Macq Electronique SA.
@@ -50,7 +50,8 @@
 #include <asm/pgtable.h>
 
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || \
-    defined(CONFIG_M5272) || defined(CONFIG_M528x)
+    defined(CONFIG_M5272) || defined(CONFIG_M528x) || \
+    defined(CONFIG_M520x)
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include "fec.h"
@@ -77,6 +78,8 @@ static unsigned int fec_hw[] = {
 	(MCF_MBAR + 0x1800),
 #elif defined(CONFIG_M523x) || defined(CONFIG_M528x)
 	(MCF_MBAR + 0x1000),
+#elif defined(CONFIG_M520x)
+	(MCF_MBAR+0x30000),
 #else
 	&(((immap_t *)IMAP_ADDR)->im_cpm.cp_fec),
 #endif
@@ -139,6 +142,10 @@ typedef struct {
 #define TX_RING_SIZE		16	/* Must be power of two */
 #define TX_RING_MOD_MASK	15	/*   for this to work */
 
+#if (((RX_RING_SIZE + TX_RING_SIZE) * 8) > PAGE_SIZE)
+#error "FEC: descriptor ring size contants too large"
+#endif
+
 /* Interrupt events/masks.
 */
 #define FEC_ENET_HBERR	((uint)0x80000000)	/* Heartbeat error */
@@ -164,7 +171,8 @@ typedef struct {
  * size bits. Other FEC hardware does not, so we need to take that into
  * account when setting it.
  */
-#if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x)
+#if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
+    defined(CONFIG_M520x)
 #define	OPT_FRAME_SIZE	(PKT_MAXBUF_SIZE << 16)
 #else
 #define	OPT_FRAME_SIZE	0
@@ -1137,6 +1145,65 @@ static phy_info_t const phy_info_ks8721bl = {
 };
 
 /* ------------------------------------------------------------------------- */
+/* register definitions for the DP83848 */
+
+#define MII_DP8384X_PHYSTST    16  /* PHY Status Register */
+
+static void mii_parse_dp8384x_sr2(uint mii_reg, struct net_device *dev)
+{
+	struct fec_enet_private *fep = dev->priv;
+	volatile uint *s = &(fep->phy_status);
+
+	*s &= ~(PHY_STAT_SPMASK | PHY_STAT_LINK | PHY_STAT_ANC);
+
+	/* Link up */
+	if (mii_reg & 0x0001) {
+		fep->link = 1;
+		*s |= PHY_STAT_LINK;
+	} else
+		fep->link = 0;
+	/* Status of link */
+	if (mii_reg & 0x0010)   /* Autonegotioation complete */
+		*s |= PHY_STAT_ANC;
+	if (mii_reg & 0x0002) {   /* 10MBps? */
+		if (mii_reg & 0x0004)   /* Full Duplex? */
+			*s |= PHY_STAT_10FDX;
+		else
+			*s |= PHY_STAT_10HDX;
+	} else {                  /* 100 Mbps? */
+		if (mii_reg & 0x0004)   /* Full Duplex? */
+			*s |= PHY_STAT_100FDX;
+		else
+			*s |= PHY_STAT_100HDX;
+	}
+	if (mii_reg & 0x0008)
+		*s |= PHY_STAT_FAULT;
+}
+
+static phy_info_t phy_info_dp83848= {
+	0x020005c9,
+	"DP83848",
+
+	(const phy_cmd_t []) {  /* config */
+		{ mk_mii_read(MII_REG_CR), mii_parse_cr },
+		{ mk_mii_read(MII_REG_ANAR), mii_parse_anar },
+		{ mk_mii_read(MII_DP8384X_PHYSTST), mii_parse_dp8384x_sr2 },
+		{ mk_mii_end, }
+	},
+	(const phy_cmd_t []) {  /* startup - enable interrupts */
+		{ mk_mii_write(MII_REG_CR, 0x1200), NULL }, /* autonegotiate */
+		{ mk_mii_read(MII_REG_SR), mii_parse_sr },
+		{ mk_mii_end, }
+	},
+	(const phy_cmd_t []) { /* ack_int - never happens, no interrupt */
+		{ mk_mii_end, }
+	},
+	(const phy_cmd_t []) {  /* shutdown */
+		{ mk_mii_end, }
+	},
+};
+
+/* ------------------------------------------------------------------------- */
 
 static phy_info_t const * const phy_info[] = {
 	&phy_info_lxt970,
@@ -1144,6 +1211,7 @@ static phy_info_t const * const phy_info[] = {
 	&phy_info_qs6612,
 	&phy_info_am79c874,
 	&phy_info_ks8721bl,
+	&phy_info_dp83848,
 	NULL
 };
 
@@ -1416,6 +1484,134 @@ static void __inline__ fec_localhw_setup(void)
 /*
  *	Do not need to make region uncached on 5272.
  */
+static void __inline__ fec_uncache(unsigned long addr)
+{
+}
+
+/* ------------------------------------------------------------------------- */
+
+#elif defined(CONFIG_M520x)
+
+/*
+ *	Code specific to Coldfire 520x
+ */
+static void __inline__ fec_request_intrs(struct net_device *dev)
+{
+	struct fec_enet_private *fep;
+	int b;
+	static const struct idesc {
+		char *name;
+		unsigned short irq;
+	} *idp, id[] = {
+		{ "fec(TXF)", 23 },
+		{ "fec(TXB)", 24 },
+		{ "fec(TXFIFO)", 25 },
+		{ "fec(TXCR)", 26 },
+		{ "fec(RXF)", 27 },
+		{ "fec(RXB)", 28 },
+		{ "fec(MII)", 29 },
+		{ "fec(LC)", 30 },
+		{ "fec(HBERR)", 31 },
+		{ "fec(GRA)", 32 },
+		{ "fec(EBERR)", 33 },
+		{ "fec(BABT)", 34 },
+		{ "fec(BABR)", 35 },
+		{ NULL },
+	};
+
+	fep = netdev_priv(dev);
+	b = 64 + 13;
+
+	/* Setup interrupt handlers. */
+	for (idp = id; idp->name; idp++) {
+		if (request_irq(b+idp->irq,fec_enet_interrupt,0,idp->name,dev)!=0)
+			printk("FEC: Could not allocate %s IRQ(%d)!\n", idp->name, b+idp->irq);
+	}
+
+	/* Unmask interrupts at ColdFire interrupt controller */
+	{
+		volatile unsigned char  *icrp;
+		volatile unsigned long  *imrp;
+
+		icrp = (volatile unsigned char *) (MCF_IPSBAR + MCFICM_INTC0 +
+			MCFINTC_ICR0);
+		for (b = 36; (b < 49); b++)
+			icrp[b] = 0x04;
+		imrp = (volatile unsigned long *) (MCF_IPSBAR + MCFICM_INTC0 +
+			MCFINTC_IMRH);
+		*imrp &= ~0x0001FFF0;
+	}
+	*(volatile unsigned char *)(MCF_IPSBAR + MCF_GPIO_PAR_FEC) |= 0xf0;
+	*(volatile unsigned char *)(MCF_IPSBAR + MCF_GPIO_PAR_FECI2C) |= 0x0f;
+}
+
+static void __inline__ fec_set_mii(struct net_device *dev, struct fec_enet_private *fep)
+{
+	volatile fec_t *fecp;
+
+	fecp = fep->hwp;
+	fecp->fec_r_cntrl = OPT_FRAME_SIZE | 0x04;
+	fecp->fec_x_cntrl = 0x00;
+
+	/*
+	 * Set MII speed to 2.5 MHz
+	 * See 5282 manual section 17.5.4.7: MSCR
+	 */
+	fep->phy_speed = ((((MCF_CLK / 2) / (2500000 / 10)) + 5) / 10) * 2;
+	fecp->fec_mii_speed = fep->phy_speed;
+
+	fec_restart(dev, 0);
+}
+
+static void __inline__ fec_get_mac(struct net_device *dev)
+{
+	struct fec_enet_private *fep = netdev_priv(dev);
+	volatile fec_t *fecp;
+	unsigned char *iap, tmpaddr[ETH_ALEN];
+
+	fecp = fep->hwp;
+
+	if (FEC_FLASHMAC) {
+		/*
+		 * Get MAC address from FLASH.
+		 * If it is all 1's or 0's, use the default.
+		 */
+		iap = FEC_FLASHMAC;
+		if ((iap[0] == 0) && (iap[1] == 0) && (iap[2] == 0) &&
+		   (iap[3] == 0) && (iap[4] == 0) && (iap[5] == 0))
+			iap = fec_mac_default;
+		if ((iap[0] == 0xff) && (iap[1] == 0xff) && (iap[2] == 0xff) &&
+		   (iap[3] == 0xff) && (iap[4] == 0xff) && (iap[5] == 0xff))
+			iap = fec_mac_default;
+	} else {
+		*((unsigned long *) &tmpaddr[0]) = fecp->fec_addr_low;
+		*((unsigned short *) &tmpaddr[4]) = (fecp->fec_addr_high >> 16);
+		iap = &tmpaddr[0];
+	}
+
+	memcpy(dev->dev_addr, iap, ETH_ALEN);
+
+	/* Adjust MAC if using default MAC address */
+	if (iap == fec_mac_default)
+		dev->dev_addr[ETH_ALEN-1] = fec_mac_default[ETH_ALEN-1] + fep->index;
+}
+
+static void __inline__ fec_enable_phy_intr(void)
+{
+}
+
+static void __inline__ fec_disable_phy_intr(void)
+{
+}
+
+static void __inline__ fec_phy_ack_intr(void)
+{
+}
+
+static void __inline__ fec_localhw_setup(void)
+{
+}
+
 static void __inline__ fec_uncache(unsigned long addr)
 {
 }
@@ -1952,6 +2148,14 @@ int __init fec_enet_init(struct net_device *dev)
 	if (index >= FEC_MAX_PORTS)
 		return -ENXIO;
 
+	/* Allocate memory for buffer descriptors.
+	*/
+	mem_addr = __get_free_page(GFP_KERNEL);
+	if (mem_addr == 0) {
+		printk("FEC: allocate descriptor memory failed?\n");
+		return -ENOMEM;
+	}
+
 	/* Create an Ethernet device instance.
 	*/
 	fecp = (volatile fec_t *) fec_hw[index];
@@ -1964,16 +2168,6 @@ int __init fec_enet_init(struct net_device *dev)
 	fecp->fec_ecntrl = 1;
 	udelay(10);
 
-	/* Clear and enable interrupts */
-	fecp->fec_ievent = 0xffc00000;
-	fecp->fec_imask = (FEC_ENET_TXF | FEC_ENET_TXB |
-		FEC_ENET_RXF | FEC_ENET_RXB | FEC_ENET_MII);
-	fecp->fec_hash_table_high = 0;
-	fecp->fec_hash_table_low = 0;
-	fecp->fec_r_buff_size = PKT_MAXBLR_SIZE;
-        fecp->fec_ecntrl = 2;
-        fecp->fec_r_des_active = 0x01000000;
-
 	/* Set the Ethernet address.  If using multiple Enets on the 8xx,
 	 * this needs some work to get unique addresses.
 	 *
@@ -1982,14 +2176,6 @@ int __init fec_enet_init(struct net_device *dev)
 	 */
 	fec_get_mac(dev);
 
-	/* Allocate memory for buffer descriptors.
-	*/
-	if (((RX_RING_SIZE + TX_RING_SIZE) * sizeof(cbd_t)) > PAGE_SIZE) {
-		printk("FEC init error.  Need more space.\n");
-		printk("FEC initialization failed.\n");
-		return 1;
-	}
-	mem_addr = __get_free_page(GFP_KERNEL);
 	cbd_base = (cbd_t *)mem_addr;
 	/* XXX: missing check for allocation failure */
 
@@ -2066,6 +2252,16 @@ int __init fec_enet_init(struct net_device *dev)
 	 * the architecture.
 	*/
 	fec_request_intrs(dev);
+
+	/* Clear and enable interrupts */
+	fecp->fec_ievent = 0xffc00000;
+	fecp->fec_imask = (FEC_ENET_TXF | FEC_ENET_TXB |
+		FEC_ENET_RXF | FEC_ENET_RXB | FEC_ENET_MII);
+	fecp->fec_hash_table_high = 0;
+	fecp->fec_hash_table_low = 0;
+	fecp->fec_r_buff_size = PKT_MAXBLR_SIZE;
+	fecp->fec_ecntrl = 2;
+	fecp->fec_r_des_active = 0x01000000;
 
 	dev->base_addr = (unsigned long)fecp;
 

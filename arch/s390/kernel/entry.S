@@ -288,7 +288,7 @@ sysc_sigpending:
 	bo	BASED(sysc_restart)
 	tm	__TI_flags+3(%r9),_TIF_SINGLE_STEP
 	bo	BASED(sysc_singlestep)
-	b	BASED(sysc_leave)      # out of here, do NOT recheck
+	b	BASED(sysc_work_loop)
 
 #
 # _TIF_RESTART_SVC is set, set up registers and restart svc
@@ -645,7 +645,7 @@ io_sigpending:
         l       %r1,BASED(.Ldo_signal)
 	basr    %r14,%r1	       # call do_signal
         stnsm   __SF_EMPTY(%r15),0xfc  # disable I/O and ext. interrupts
-	b	BASED(io_leave)        # out of here, do NOT recheck
+	b	BASED(io_work_loop)
 
 /*
  * External interrupt handler routine

@@ -16,7 +16,6 @@ fb-objs                           := $(fb-y)
 obj-$(CONFIG_FB_CFB_FILLRECT)  += cfbfillrect.o
 obj-$(CONFIG_FB_CFB_COPYAREA)  += cfbcopyarea.o
 obj-$(CONFIG_FB_CFB_IMAGEBLIT) += cfbimgblt.o
-obj-$(CONFIG_FB_SOFT_CURSOR)   += softcursor.o
 obj-$(CONFIG_FB_MACMODES)      += macmodes.o
 
 # Hardware specific drivers go first

@@ -86,7 +86,6 @@ extern void __cpu_die(unsigned int cpu);
 #else
 /* for UP */
 #define smp_setup_cpu_maps()
-#define smp_release_cpus()
 
 #endif /* CONFIG_SMP */
 
@@ -94,6 +93,9 @@ extern void __cpu_die(unsigned int cpu);
 #define get_hard_smp_processor_id(CPU) (paca[(CPU)].hw_cpu_id)
 #define set_hard_smp_processor_id(CPU, VAL) \
 	do { (paca[(CPU)].hw_cpu_id = (VAL)); } while (0)
+
+extern void smp_release_cpus(void);
+
 #else
 /* 32-bit */
 #ifndef CONFIG_SMP

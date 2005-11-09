@@ -35,7 +35,6 @@
 #include <linux/irq.h>
 #include <linux/spinlock.h>
 
-#include <asm/ppcdebug.h>
 #include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_call_xm.h>
@@ -227,8 +226,6 @@ static void iSeries_enable_IRQ(unsigned int irq)
 	/* Unmask secondary INTA */
 	mask = 0x80000000;
 	HvCallPci_unmaskInterrupts(bus, subBus, deviceId, mask);
-	PPCDBG(PPCDBG_BUSWALK, "iSeries_enable_IRQ 0x%02X.%02X.%02X 0x%04X\n",
-			bus, subBus, deviceId, irq);
 }
 
 /* This is called by iSeries_activate_IRQs */
@@ -310,8 +307,6 @@ static void iSeries_disable_IRQ(unsigned int irq)
 	/* Mask secondary INTA   */
 	mask = 0x80000000;
 	HvCallPci_maskInterrupts(bus, subBus, deviceId, mask);
-	PPCDBG(PPCDBG_BUSWALK, "iSeries_disable_IRQ 0x%02X.%02X.%02X 0x%04X\n",
-			bus, subBus, deviceId, irq);
 }
 
 /*

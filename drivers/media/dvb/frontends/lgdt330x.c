@@ -731,8 +731,7 @@ struct dvb_frontend* lgdt330x_attach(const struct lgdt330x_config* config,
 	return &state->frontend;
 
 error:
-	if (state)
-		kfree(state);
+	kfree(state);
 	dprintk("%s: ERROR\n",__FUNCTION__);
 	return NULL;
 }

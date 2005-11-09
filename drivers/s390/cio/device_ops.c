@@ -550,10 +550,8 @@ ccw_device_stlck(struct ccw_device *cdev)
 	/* Clear irb. */
 	memset(&cdev->private->irb, 0, sizeof(struct irb));
 out_unlock:
-	if (buf)
-		kfree(buf);
-	if (buf2)
-		kfree(buf2);
+	kfree(buf);
+	kfree(buf2);
 	spin_unlock_irqrestore(&sch->lock, flags);
 	return ret;
 }

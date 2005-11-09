@@ -642,8 +642,7 @@ static void
 free_cmbe (struct ccw_device *cdev)
 {
 	spin_lock_irq(cdev->ccwlock);
-	if (cdev->private->cmb)
-		kfree(cdev->private->cmb);
+	kfree(cdev->private->cmb);
 	cdev->private->cmb = NULL;
 	spin_unlock_irq(cdev->ccwlock);
 

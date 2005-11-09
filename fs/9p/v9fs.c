@@ -266,7 +266,7 @@ v9fs_session_init(struct v9fs_session_info *v9ses,
 
 	v9ses->remotename = __getname();
 	if (!v9ses->remotename) {
-		putname(v9ses->name);
+		__putname(v9ses->name);
 		return -ENOMEM;
 	}
 
@@ -411,8 +411,8 @@ void v9fs_session_close(struct v9fs_session_info *v9ses)
 	if (v9ses->transport)
 		v9ses->transport->close(v9ses->transport);
 
-	putname(v9ses->name);
-	putname(v9ses->remotename);
+	__putname(v9ses->name);
+	__putname(v9ses->remotename);
 }
 
 /**
