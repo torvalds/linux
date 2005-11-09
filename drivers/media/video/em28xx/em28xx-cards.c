@@ -143,7 +143,7 @@ struct em2820_board em2820_boards[] = {
 		.tuner_type	= TUNER_PHILIPS_PAL,
 		.tda9887_conf	= TDA9887_PRESENT|TDA9887_PORT1_ACTIVE|TDA9887_PORT2_ACTIVE,
 		.has_tuner	= 1,
-		.decoder      = EM2820_SAA7114,
+		.decoder        = EM2820_SAA7114,
 		.input          = {{
 			.type     = EM2820_VMUX_TELEVISION,
 			.vmux     = 2,
@@ -250,6 +250,7 @@ void em2820_card_setup(struct em2820 *dev)
 		struct tveeprom tv;
 #ifdef CONFIG_MODULES
 		request_module("tveeprom");
+		request_module("ir-kbd-i2c");
 #endif
 		/* Call first TVeeprom */
 

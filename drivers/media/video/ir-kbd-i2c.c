@@ -41,101 +41,71 @@
 #include <linux/workqueue.h>
 #include <asm/semaphore.h>
 #include <media/ir-common.h>
-
-static IR_KEYTAB_TYPE ir_codes_em2820[IR_KEYTAB_SIZE] = {
- 	[ 0x01 ] = KEY_CHANNEL,
- 	[ 0x02 ] = KEY_SELECT,
- 	[ 0x03 ] = KEY_MUTE,
- 	[ 0x04 ] = KEY_POWER,
- 	[ 0x05 ] = KEY_KP1,
- 	[ 0x06 ] = KEY_KP2,
- 	[ 0x07 ] = KEY_KP3,
- 	[ 0x08 ] = KEY_CHANNELUP,
- 	[ 0x09 ] = KEY_KP4,
- 	[ 0x0a ] = KEY_KP5,
- 	[ 0x0b ] = KEY_KP6,
- 	[ 0x0c ] = KEY_CHANNELDOWN,
- 	[ 0x0d ] = KEY_KP7,
- 	[ 0x0e ] = KEY_KP8,
- 	[ 0x0f ] = KEY_KP9,
- 	[ 0x10 ] = KEY_VOLUMEUP,
- 	[ 0x11 ] = KEY_KP0,
- 	[ 0x12 ] = KEY_MENU,
- 	[ 0x13 ] = KEY_PRINT,
- 	[ 0x14 ] = KEY_VOLUMEDOWN,
- 	[ 0x16 ] = KEY_PAUSE,
- 	[ 0x18 ] = KEY_RECORD,
- 	[ 0x19 ] = KEY_REWIND,
- 	[ 0x1a ] = KEY_PLAY,
-	[ 0x1b ] = KEY_FORWARD,
-	[ 0x1c ] = KEY_BACKSPACE,
- 	[ 0x1e ] = KEY_STOP,
- 	[ 0x40 ] = KEY_ZOOM,
-};
+#include <media/ir-kbd-i2c.h>
 
 /* Mark Phalan <phalanm@o2.ie> */
 static IR_KEYTAB_TYPE ir_codes_pv951[IR_KEYTAB_SIZE] = {
-	[ 0x00 ] = KEY_KP0,
-	[ 0x01 ] = KEY_KP1,
-	[ 0x02 ] = KEY_KP2,
-	[ 0x03 ] = KEY_KP3,
-	[ 0x04 ] = KEY_KP4,
-	[ 0x05 ] = KEY_KP5,
-	[ 0x06 ] = KEY_KP6,
-	[ 0x07 ] = KEY_KP7,
-	[ 0x08 ] = KEY_KP8,
-	[ 0x09 ] = KEY_KP9,
+	[  0 ] = KEY_KP0,
+	[  1 ] = KEY_KP1,
+	[  2 ] = KEY_KP2,
+	[  3 ] = KEY_KP3,
+	[  4 ] = KEY_KP4,
+	[  5 ] = KEY_KP5,
+	[  6 ] = KEY_KP6,
+	[  7 ] = KEY_KP7,
+	[  8 ] = KEY_KP8,
+	[  9 ] = KEY_KP9,
 
-	[ 0x12 ] = KEY_POWER,
-	[ 0x10 ] = KEY_MUTE,
-	[ 0x1f ] = KEY_VOLUMEDOWN,
-	[ 0x1b ] = KEY_VOLUMEUP,
-	[ 0x1a ] = KEY_CHANNELUP,
-	[ 0x1e ] = KEY_CHANNELDOWN,
-	[ 0x0e ] = KEY_PAGEUP,
-	[ 0x1d ] = KEY_PAGEDOWN,
-	[ 0x13 ] = KEY_SOUND,
+	[ 18 ] = KEY_POWER,
+	[ 16 ] = KEY_MUTE,
+	[ 31 ] = KEY_VOLUMEDOWN,
+	[ 27 ] = KEY_VOLUMEUP,
+	[ 26 ] = KEY_CHANNELUP,
+	[ 30 ] = KEY_CHANNELDOWN,
+	[ 14 ] = KEY_PAGEUP,
+	[ 29 ] = KEY_PAGEDOWN,
+	[ 19 ] = KEY_SOUND,
 
-	[ 0x18 ] = KEY_KPPLUSMINUS,	/* CH +/- */
-	[ 0x16 ] = KEY_SUBTITLE,		/* CC */
-	[ 0x0d ] = KEY_TEXT,		/* TTX */
-	[ 0x0b ] = KEY_TV,		/* AIR/CBL */
-	[ 0x11 ] = KEY_PC,		/* PC/TV */
-	[ 0x17 ] = KEY_OK,		/* CH RTN */
-	[ 0x19 ] = KEY_MODE, 		/* FUNC */
-	[ 0x0c ] = KEY_SEARCH, 		/* AUTOSCAN */
+	[ 24 ] = KEY_KPPLUSMINUS,	/* CH +/- */
+	[ 22 ] = KEY_SUBTITLE,		/* CC */
+	[ 13 ] = KEY_TEXT,		/* TTX */
+	[ 11 ] = KEY_TV,		/* AIR/CBL */
+	[ 17 ] = KEY_PC,		/* PC/TV */
+	[ 23 ] = KEY_OK,		/* CH RTN */
+	[ 25 ] = KEY_MODE, 		/* FUNC */
+	[ 12 ] = KEY_SEARCH, 		/* AUTOSCAN */
 
 	/* Not sure what to do with these ones! */
-	[ 0x0f ] = KEY_SELECT, 		/* SOURCE */
-	[ 0x0a ] = KEY_KPPLUS,		/* +100 */
-	[ 0x14 ] = KEY_KPEQUAL,		/* SYNC */
-	[ 0x1c ] = KEY_MEDIA,             /* PC/TV */
+	[ 15 ] = KEY_SELECT, 		/* SOURCE */
+	[ 10 ] = KEY_KPPLUS,		/* +100 */
+	[ 20 ] = KEY_KPEQUAL,		/* SYNC */
+	[ 28 ] = KEY_MEDIA,             /* PC/TV */
 };
 
 static IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE] = {
-	[ 0x03 ] = KEY_POWER,
+	[ 0x3  ] = KEY_POWER,
 	[ 0x6f ] = KEY_MUTE,
 	[ 0x10 ] = KEY_BACKSPACE,	/* Recall */
 
 	[ 0x11 ] = KEY_KP0,
-	[ 0x04 ] = KEY_KP1,
-	[ 0x05 ] = KEY_KP2,
-	[ 0x06 ] = KEY_KP3,
-	[ 0x08 ] = KEY_KP4,
-	[ 0x09 ] = KEY_KP5,
-	[ 0x0a ] = KEY_KP6,
-	[ 0x0c ] = KEY_KP7,
-	[ 0x0d ] = KEY_KP8,
-	[ 0x0e ] = KEY_KP9,
+	[ 0x4  ] = KEY_KP1,
+	[ 0x5  ] = KEY_KP2,
+	[ 0x6  ] = KEY_KP3,
+	[ 0x8  ] = KEY_KP4,
+	[ 0x9  ] = KEY_KP5,
+	[ 0xa  ] = KEY_KP6,
+	[ 0xc  ] = KEY_KP7,
+	[ 0xd  ] = KEY_KP8,
+	[ 0xe  ] = KEY_KP9,
 	[ 0x12 ] = KEY_KPDOT,		/* 100+ */
 
-	[ 0x07 ] = KEY_VOLUMEUP,
-	[ 0x0b ] = KEY_VOLUMEDOWN,
+	[ 0x7  ] = KEY_VOLUMEUP,
+	[ 0xb  ] = KEY_VOLUMEDOWN,
 	[ 0x1a ] = KEY_KPPLUS,
 	[ 0x18 ] = KEY_KPMINUS,
 	[ 0x15 ] = KEY_UP,
 	[ 0x1d ] = KEY_DOWN,
-	[ 0x0f ] = KEY_CHANNELUP,
+	[ 0xf  ] = KEY_CHANNELUP,
 	[ 0x13 ] = KEY_CHANNELDOWN,
 	[ 0x48 ] = KEY_ZOOM,
 
@@ -152,17 +122,6 @@ static IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE] = {
 
 };
 
-struct IR {
-	struct i2c_client      c;
-	struct input_dev       *input;
-	struct ir_input_state  ir;
-
-	struct work_struct     work;
-	struct timer_list      timer;
-	char                   phys[32];
-	int                    (*get_key)(struct IR*, u32*, u32*);
-};
-
 /* ----------------------------------------------------------------------- */
 /* insmod parameters                                                       */
 
@@ -173,12 +132,9 @@ module_param(debug, int, 0644);    /* debug level (0,1,2) */
 #define dprintk(level, fmt, arg...)	if (debug >= level) \
 	printk(KERN_DEBUG DEVNAME ": " fmt , ## arg)
 
-#define IR_PINNACLE_REMOTE 0x01
-#define IR_TERRATEC_REMOTE 0x02
-
 /* ----------------------------------------------------------------------- */
 
-static int get_key_haup(struct IR *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
 	unsigned char buf[3];
 	int start, toggle, dev, code;
@@ -205,7 +161,7 @@ static int get_key_haup(struct IR *ir, u32 *ir_key, u32 *ir_raw)
 	return 1;
 }
 
-static int get_key_pixelview(struct IR *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_pixelview(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
         unsigned char b;
 
@@ -219,7 +175,7 @@ static int get_key_pixelview(struct IR *ir, u32 *ir_key, u32 *ir_raw)
 	return 1;
 }
 
-static int get_key_pv951(struct IR *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_pv951(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
         unsigned char b;
 
@@ -239,7 +195,7 @@ static int get_key_pv951(struct IR *ir, u32 *ir_key, u32 *ir_raw)
 	return 1;
 }
 
-static int get_key_knc1(struct IR *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_knc1(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
 	unsigned char b;
 
@@ -267,7 +223,7 @@ static int get_key_knc1(struct IR *ir, u32 *ir_key, u32 *ir_raw)
 	return 1;
 }
 
-static int get_key_purpletv(struct IR *ir, u32 *ir_key, u32 *ir_raw)
+static int get_key_purpletv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
         unsigned char b;
 
@@ -289,10 +245,9 @@ static int get_key_purpletv(struct IR *ir, u32 *ir_key, u32 *ir_raw)
 	*ir_raw = b;
 	return 1;
 }
-
 /* ----------------------------------------------------------------------- */
 
-static void ir_key_poll(struct IR *ir)
+static void ir_key_poll(struct IR_i2c *ir)
 {
 	static u32 ir_key, ir_raw;
 	int rc;
@@ -313,13 +268,13 @@ static void ir_key_poll(struct IR *ir)
 
 static void ir_timer(unsigned long data)
 {
-	struct IR *ir = (struct IR*)data;
+	struct IR_i2c *ir = (struct IR_i2c*)data;
 	schedule_work(&ir->work);
 }
 
 static void ir_work(void *data)
 {
-	struct IR *ir = data;
+	struct IR_i2c *ir = data;
 	ir_key_poll(ir);
 	mod_timer(&ir->timer, jiffies+HZ/10);
 }
@@ -351,10 +306,10 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	IR_KEYTAB_TYPE *ir_codes = NULL;
 	char *name;
 	int ir_type;
-        struct IR *ir;
+        struct IR_i2c *ir;
 	struct input_dev *input_dev;
 
-	ir = kzalloc(sizeof(struct IR), GFP_KERNEL);
+	ir = kzalloc(sizeof(struct IR_i2c), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!ir || !input_dev) {
 		kfree(ir);
@@ -390,36 +345,18 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 		ir_codes    = ir_codes_rc5_tv;
 		break;
 	case 0x30:
-		switch(kind){
-		case IR_TERRATEC_REMOTE:
-			name        = "Terratec IR";
-			ir->get_key = get_key_knc1;
-			ir_type     = IR_TYPE_OTHER;
-			ir_codes    = ir_codes_em2820;
-			break;
-		default:
-			name        = "KNC One";
-			ir->get_key = get_key_knc1;
-			ir_type     = IR_TYPE_OTHER;
-			ir_codes    = ir_codes_empty;
-		}
+		name        = "KNC One";
+		ir->get_key = get_key_knc1;
+		ir_type     = IR_TYPE_OTHER;
+		ir_codes    = ir_codes_empty;
 		break;
-	case 0x47:
 	case 0x7a:
-		switch(kind){
-		case IR_PINNACLE_REMOTE:
-			name        = "Pinnacle IR Remote";
-			ir->get_key = get_key_purpletv;
-			ir_type     = IR_TYPE_OTHER;
-			ir_codes    = ir_codes_em2820;
-			break;
-		default:
-			name        = "Purple TV";
-			ir->get_key = get_key_purpletv;
-			ir_type     = IR_TYPE_OTHER;
-			ir_codes    = ir_codes_purpletv;
-		}
+		name        = "Purple TV";
+		ir->get_key = get_key_purpletv;
+		ir_type     = IR_TYPE_OTHER;
+		ir_codes    = ir_codes_purpletv;
 		break;
+
 	default:
 		/* shouldn't happen */
 		printk(DEVNAME ": Huh? unknown i2c address (0x%02x)?\n",addr);
@@ -427,12 +364,18 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 		return -1;
 	}
 
-	/* register i2c device */
-	i2c_attach_client(&ir->c);
+	/* Sets name and its physical addr */
 	snprintf(ir->c.name, sizeof(ir->c.name), "i2c IR (%s)", name);
 	snprintf(ir->phys, sizeof(ir->phys), "%s/%s/ir0",
 		 ir->c.adapter->dev.bus_id,
 		 ir->c.dev.bus_id);
+	ir->ir_codes=ir_codes;
+
+	/* register i2c device
+	 * At device register, IR codes may be changed to be
+	 * board dependent.
+	*/
+	i2c_attach_client(&ir->c);
 
 	/* init + register input device */
 	ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
@@ -440,6 +383,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 	input_dev->name		= ir->c.name;
 	input_dev->phys		= ir->phys;
 
+	/* register event device */
 	input_register_device(ir->input);
 
 	/* start polling via eventd */
@@ -454,7 +398,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 
 static int ir_detach(struct i2c_client *client)
 {
-        struct IR *ir = i2c_get_clientdata(client);
+        struct IR_i2c *ir = i2c_get_clientdata(client);
 
 	/* kill outstanding polls */
 	del_timer(&ir->timer);
@@ -483,11 +427,9 @@ static int ir_probe(struct i2c_adapter *adap)
 
 	static const int probe_bttv[] = { 0x1a, 0x18, 0x4b, 0x64, 0x30, -1};
 	static const int probe_saa7134[] = { 0x7a, -1 };
-	static const int probe_em2820[] = { 0x47, 0x30, -1 };
+	static const int probe_em2820[] = { 0x30, 0x47, -1 };
 	const int *probe = NULL;
-	int attached = 0;
-
-	struct i2c_client c; unsigned char buf; int i,rc;
+	struct i2c_client c; char buf; int i,rc;
 
 	switch (adap->id) {
 	case I2C_HW_B_BT848:
@@ -505,27 +447,15 @@ static int ir_probe(struct i2c_adapter *adap)
 
 	memset(&c,0,sizeof(c));
 	c.adapter = adap;
-	for (i = 0; -1 != probe[i] && attached != 1; i++) {
+	for (i = 0; -1 != probe[i]; i++) {
 		c.addr = probe[i];
-		rc = i2c_master_recv(&c,&buf,1);
+		rc = i2c_master_recv(&c,&buf,0);
 		dprintk(1,"probe 0x%02x @ %s: %s\n",
 			probe[i], adap->name,
-			(1 == rc) ? "yes" : "no");
-		switch(adap->id){
-			case I2C_HW_B_BT848:
-			case I2C_HW_SAA7134:
-				if (1 == rc) {
-					ir_attach(adap,probe[i],0,0);
-					attached=1;
-					break;
-				}
-			case I2C_HW_B_EM2820:
-				/* windows logs are needed for fixing the pinnacle device */
-				if (1 == rc && 0xff == buf){
-					ir_attach(adap,probe[i],0,IR_TERRATEC_REMOTE);
-					attached=1;
-				}
-				break;
+			(0 == rc) ? "yes" : "no");
+		if (0 == rc) {
+			ir_attach(adap,probe[i],0,0);
+			break;
 		}
 	}
 	return 0;

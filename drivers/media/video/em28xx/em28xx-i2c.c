@@ -26,10 +26,10 @@
 #include <linux/kernel.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
-#include <media/tuner.h>
 #include <linux/video_decoder.h>
 
 #include "em2820.h"
+#include <media/tuner.h>
 
 /* ----------------------------------------------------------- */
 
@@ -41,14 +41,11 @@ static unsigned int i2c_debug = 0;
 module_param(i2c_debug, int, 0644);
 MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 
-#define dprintk(fmt, args...) if (i2c_debug) do {\
-			printk(KERN_DEBUG "%s: %s: " fmt "\n",\
-			dev->name, __FUNCTION__ , ##args); } while (0)
-#define dprintk1(fmt, args...) if (i2c_debug) do{ \
-			printk(KERN_DEBUG "%s: %s: " fmt, \
-			dev->name, __FUNCTION__ , ##args); } while (0)
-#define dprintk2(fmt, args...) if (i2c_debug) do {\
+#define dprintk1(lvl,fmt, args...) if (i2c_debug>=lvl) do {\
 			printk(fmt , ##args); } while (0)
+#define dprintk2(lvl,fmt, args...) if (i2c_debug>=lvl) do{ \
+			printk(KERN_DEBUG "%s at %s: " fmt, \
+			dev->name, __FUNCTION__ , ##args); } while (0)
 
 /*
  * em2800_i2c_send_max4()
@@ -238,7 +235,7 @@ static int em2820_i2c_xfer(struct i2c_adapter *i2c_adap,
 		return 0;
 	for (i = 0; i < num; i++) {
 		addr = msgs[i].addr << 1;
-		dprintk1("%s %s addr=%x len=%d:",
+		dprintk2(2,"%s %s addr=%x len=%d:",
 			 (msgs[i].flags & I2C_M_RD) ? "read" : "write",
 			 i == num - 1 ? "stop" : "nonstop", addr, msgs[i].len);
 		if (!msgs[i].len) {	/* no len: check only for device presence */
@@ -247,7 +244,7 @@ static int em2820_i2c_xfer(struct i2c_adapter *i2c_adap,
 			else
 				rc = em2820_i2c_check_for_device(dev, addr);
 			if (rc < 0) {
-				dprintk2(" no device\n");
+				dprintk2(2," no device\n");
 				return rc;
 			}
 
@@ -261,14 +258,14 @@ static int em2820_i2c_xfer(struct i2c_adapter *i2c_adap,
 				rc = em2820_i2c_recv_bytes(dev, addr,
 							   msgs[i].buf,
 							   msgs[i].len);
-			if (i2c_debug) {
+			if (i2c_debug>=2) {
 				for (byte = 0; byte < msgs[i].len; byte++) {
 					printk(" %02x", msgs[i].buf[byte]);
 				}
 			}
 		} else {
 			/* write bytes */
-			if (i2c_debug) {
+			if (i2c_debug>=2) {
 				for (byte = 0; byte < msgs[i].len; byte++)
 					printk(" %02x", msgs[i].buf[byte]);
 			}
@@ -284,13 +281,13 @@ static int em2820_i2c_xfer(struct i2c_adapter *i2c_adap,
 			if (rc < 0)
 				goto err;
 		}
-		if (i2c_debug)
+		if (i2c_debug>=2)
 			printk("\n");
 	}
 
 	return num;
       err:
-	dprintk2(" ERROR: %i\n", rc);
+	dprintk2(2," ERROR: %i\n", rc);
 	return rc;
 }
 
@@ -436,26 +433,34 @@ static int attach_inform(struct i2c_client *client)
 {
 	struct em2820 *dev = client->adapter->algo_data;
 
-	dprintk("address %x", client->addr << 1);
 	switch (client->addr << 1) {
 		case 0x86:
 			em2820_i2c_call_clients(dev, TDA9887_SET_CONFIG, &dev->tda9887_conf);
 			break;
 		case 0x4a:
-			dprintk1("attach_inform: saa7113 detected.\n");
+			dprintk1(1,"attach_inform: saa7113 detected.\n");
 			break;
 		case 0xa0:
-			dprintk1("attach_inform: eeprom detected.\n");
+			dprintk1(1,"attach_inform: eeprom detected.\n");
 			break;
+		case 0x60:
+		case 0x8e:
+		{
+			struct IR_i2c *ir = i2c_get_clientdata(client);
+			dprintk1(1,"attach_inform: IR detected (%s).\n",ir->phys);
+			em2820_set_ir(dev,ir);
+			break;
+		}
 		case 0x80:
 		case 0x88:
-			dprintk1("attach_inform: msp34xx detected.\n");
+			dprintk1(1,"attach_inform: msp34xx detected.\n");
 			break;
 		case 0xb8:
 		case 0xba:
-			dprintk1("attach_inform: tvp5150 detected.\n");
+			dprintk1(1,"attach_inform: tvp5150 detected.\n");
 			break;
 		default:
+			dprintk1(1,"attach inform: detected I2C address %x\n", client->addr << 1);
 			dev->tuner_addr = client->addr;
 			em2820_set_tuner(-1, client);
 	}

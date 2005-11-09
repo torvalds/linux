@@ -27,6 +27,7 @@
 
 #include <linux/videodev.h>
 #include <linux/i2c.h>
+#include <media/ir-kbd-i2c.h>
 
 /* Boards supported by driver */
 
@@ -53,18 +54,11 @@
 /* number of buffers for isoc transfers */
 #define EM2820_NUM_BUFS 5
 
-/* number of packets for each buffer */
-// windows requests only 40 packets .. so we better do the same
-// this is what I found out for all alternate numbers there!
-
+/* number of packets for each buffer
+   windows requests only 40 packets .. so we better do the same
+   this is what I found out for all alternate numbers there!
+ */
 #define EM2820_NUM_PACKETS 40
-
-/* packet size for each packet */
-/* no longer needed: read from endpoint descriptor */
-//#define EM2820_MAX_PACKET_SIZE 3072 //7
-//#define EM2820_MAX_PACKET_SIZE 2892 //6
-//#define EM2820_MAX_PACKET_SIZE 2580 //5
-//#define EM2820_MAX_PACKET_SIZE 1448 //2
 
 /* default alternate; 0 means choose the best */
 #define EM2820_PINOUT 0
@@ -291,6 +285,10 @@ struct em2820 {
 void em2820_i2c_call_clients(struct em2820 *dev, unsigned int cmd, void *arg);
 int em2820_i2c_register(struct em2820 *dev);
 int em2820_i2c_unregister(struct em2820 *dev);
+
+/* Provided by em2820-input.c */
+
+void em2820_set_ir(struct em2820 * dev,struct IR_i2c *ir);
 
 /* Provided by em2820-core.c */
 

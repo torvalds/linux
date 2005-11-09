@@ -28,10 +28,10 @@
 #include <linux/kernel.h>
 #include <linux/usb.h>
 #include <linux/i2c.h>
-#include <media/tuner.h>
 #include <linux/video_decoder.h>
 
 #include "em2820.h"
+#include <media/tuner.h>
 
 #define DRIVER_AUTHOR "Markus Rechberger <mrechberger@gmail.com>, " \
 			"Ludovico Cavedon <cavedon@sssup.it>, " \
@@ -1699,14 +1699,21 @@ static int em2820_usb_probe(struct usb_interface *interface,
 	struct usb_device *udev;
 	struct em2820 *dev = NULL;
 	int retval = -ENODEV;
-	int model,i,nr;
+	int model,i,nr,ifnum;
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
-	endpoint = &interface->cur_altsetting->endpoint[1].desc;
+	ifnum = interface->altsetting[0].desc.bInterfaceNumber;
+
+	em2820_err(DRIVER_NAME " new device (%04x:%04x): interface %i, class %i\n",
+			udev->descriptor.idVendor,udev->descriptor.idProduct,
+			ifnum,
+			interface->altsetting[0].desc.bInterfaceClass);
 
 	/* Don't register audio interfaces */
-	if (interface->altsetting[1].desc.bInterfaceClass == USB_CLASS_AUDIO)
+	if (interface->altsetting[0].desc.bInterfaceClass == USB_CLASS_AUDIO)
 		return -ENODEV;
+
+	endpoint = &interface->cur_altsetting->endpoint[1].desc;
 
 	/* check if the the device has the iso in endpoint at the correct place */
 	if ((endpoint->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) !=
