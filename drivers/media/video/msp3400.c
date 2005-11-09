@@ -649,6 +649,30 @@ msp3400c_print_mode(struct msp3400c *msp)
 	}
 }
 
+#define MSP3400_MAX 4
+static struct i2c_client *msps[MSP3400_MAX];
+static void msp3400c_restore_dfp(struct i2c_client *client)
+{
+	struct msp3400c *msp = i2c_get_clientdata(client);
+	int i;
+
+	for (i = 0; i < DFP_COUNT; i++) {
+		if (-1 == msp->dfp_regs[i])
+			continue;
+		msp3400c_write(client, I2C_MSP3400C_DFP, i, msp->dfp_regs[i]);
+	}
+}
+
+/* if the dfp_regs is set, set what's in there. Otherwise, set the default value */
+static int msp3400c_write_dfp_with_default(struct i2c_client *client,
+					int addr, int default_value)
+{
+	struct msp3400c *msp = i2c_get_clientdata(client);
+	int value = default_value;
+	if (addr < DFP_COUNT && -1 != msp->dfp_regs[addr])
+		value = msp->dfp_regs[addr];
+	return msp3400c_write(client, I2C_MSP3400C_DFP, addr, value);
+}
 
 /* ----------------------------------------------------------------------- */
 
@@ -834,7 +858,8 @@ static int msp3400c_thread(void *data)
 			goto restart;
 
 		/* carrier detect pass #1 -- main carrier */
-		cd = carrier_detect_main; count = CARRIER_COUNT(carrier_detect_main);
+		cd = carrier_detect_main;
+		count = CARRIER_COUNT(carrier_detect_main);
 
 		if (amsound && (msp->norm == VIDEO_MODE_SECAM)) {
 			/* autodetect doesn't work well with AM ... */
@@ -868,13 +893,16 @@ static int msp3400c_thread(void *data)
 		case 0: /* 4.5 */
 		case 2: /* 6.0 */
 		default:
-			cd = NULL; count = 0;
+			cd = NULL;
+			count = 0;
 			break;
 		}
 
 		if (amsound && (msp->norm == VIDEO_MODE_SECAM)) {
 			/* autodetect doesn't work well with AM ... */
-			cd = NULL; count = 0; max2 = 0;
+			cd = NULL;
+			count = 0;
+			max2 = 0;
 		}
 		for (this = 0; this < count; this++) {
 			msp3400c_setcarrier(client, cd[this].cdo,cd[this].cdo);
@@ -962,6 +990,8 @@ static int msp3400c_thread(void *data)
 
 		/* unmute */
 		msp3400c_setvolume(client, msp->muted, msp->left, msp->right);
+		msp3400c_restore_dfp(client);
+
 		if (debug)
 			msp3400c_print_mode(msp);
 
@@ -1207,6 +1237,7 @@ static int msp3410d_thread(void *data)
 		msp3400c_settreble(client, msp->treble);
 		msp3400c_setvolume(client, msp->muted, msp->left, msp->right);
 		msp3400c_write(client, I2C_MSP3400C_DFP, 0x0013, msp->acb);
+		msp3400c_restore_dfp(client);
 
 		/* monitor tv audio mode */
 		while (msp->watch_stereo) {
@@ -1230,7 +1261,7 @@ static void msp34xxg_set_source(struct i2c_client *client, int source);
 /* (re-)initialize the msp34xxg, according to the current norm in msp->norm
  * return 0 if it worked, -1 if it failed
  */
-static int msp34xxg_init(struct i2c_client *client)
+static int msp34xxg_reset(struct i2c_client *client)
 {
 	struct msp3400c *msp = i2c_get_clientdata(client);
 	int modus,std;
@@ -1257,7 +1288,7 @@ static int msp34xxg_init(struct i2c_client *client)
 		return -1;
 	if (msp3400c_write(client,
 			   I2C_MSP3400C_DEM,
-			   0x20/*stanard*/,
+			   0x20/*standard*/,
 			   std))
 		return -1;
 
@@ -1265,21 +1296,18 @@ static int msp34xxg_init(struct i2c_client *client)
 	   standard/audio autodetection right now */
 	msp34xxg_set_source(client, msp->source);
 
-	if (msp3400c_write(client, I2C_MSP3400C_DFP,
-			   0x0e, /* AM/FM Prescale */
-			   0x3000 /* default: [15:8] 75khz deviation */))
+	if (msp3400c_write_dfp_with_default(client, 0x0e,	/* AM/FM Prescale */
+					    0x3000
+					    /* default: [15:8] 75khz deviation */
+	    ))
 		return -1;
 
-	if (msp3400c_write(client, I2C_MSP3400C_DFP,
-			   0x10, /* NICAM Prescale */
-			   0x5a00 /* default: 9db gain (as recommended) */))
+	if (msp3400c_write_dfp_with_default(client, 0x10,	/* NICAM Prescale */
+					    0x5a00
+					    /* default: 9db gain (as recommended) */
+	    ))
 		return -1;
 
-	if (msp3400c_write(client,
-			   I2C_MSP3400C_DEM,
-			   0x20, /* STANDARD SELECT  */
-			   standard /* default: 0x01 for automatic standard select*/))
-		return -1;
 	return 0;
 }
 
@@ -1303,7 +1331,7 @@ static int msp34xxg_thread(void *data)
 			break;
 
 		/* setup the chip*/
-		msp34xxg_init(client);
+		msp34xxg_reset(client);
 		std = standard;
 		if (std != 0x01)
 			goto unmute;
@@ -1486,6 +1514,7 @@ static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
 	struct msp3400c *msp;
         struct i2c_client *c;
 	int (*thread_func)(void *data) = NULL;
+	int i;
 
         client_template.adapter = adap;
         client_template.addr = addr;
@@ -1504,12 +1533,15 @@ static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
 	}
 
 	memset(msp,0,sizeof(struct msp3400c));
+	msp->norm = VIDEO_MODE_NTSC;
 	msp->left = 58880;	/* 0db gain */
 	msp->right = 58880;	/* 0db gain */
 	msp->bass = 32768;
 	msp->treble = 32768;
 	msp->input = -1;
 	msp->muted = 0;
+	for (i = 0; i < DFP_COUNT; i++)
+		msp->dfp_regs[i] = -1;
 
 	i2c_set_clientdata(c, msp);
 	init_waitqueue_head(&msp->wq);
@@ -1579,6 +1611,7 @@ static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
 	/* startup control thread if needed */
 	if (thread_func) {
 		msp->kthread = kthread_run(thread_func, c, "msp34xx");
+
 		if (NULL == msp->kthread)
 			printk(KERN_WARNING "msp34xx: kernel_thread() failed\n");
 		msp_wake_thread(c);
@@ -1587,21 +1620,39 @@ static int msp_attach(struct i2c_adapter *adap, int addr, int kind)
 	/* done */
         i2c_attach_client(c);
 
+	/* update our own array */
+	for (i = 0; i < MSP3400_MAX; i++) {
+		if (NULL == msps[i]) {
+			msps[i] = c;
+			break;
+		}
+	}
+
 	return 0;
 }
 
 static int msp_detach(struct i2c_client *client)
 {
 	struct msp3400c *msp  = i2c_get_clientdata(client);
+	int i;
 
 	/* shutdown control thread */
 	if (msp->kthread) {
 		msp->restart = 1;
 		kthread_stop(msp->kthread);
 	}
-    	msp3400c_reset(client);
+	msp3400c_reset(client);
+
+	/* update our own array */
+	for (i = 0; i < MSP3400_MAX; i++) {
+		if (client == msps[i]) {
+			msps[i] = NULL;
+			break;
+		}
+	}
 
 	i2c_detach_client(client);
+
 	kfree(msp);
 	kfree(client);
 	return 0;
@@ -1753,6 +1804,30 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			break;
 		}
 		break;
+		/* work-in-progress:  hook to control the DFP registers */
+	case MSP_SET_DFPREG:
+	{
+		struct msp_dfpreg *r = arg;
+		int i;
+
+		if (r->reg < 0 || r->reg >= DFP_COUNT)
+			return -EINVAL;
+		for (i = 0; i < sizeof(bl_dfp) / sizeof(int); i++)
+			if (r->reg == bl_dfp[i])
+				return -EINVAL;
+		msp->dfp_regs[r->reg] = r->value;
+		msp3400c_write(client, I2C_MSP3400C_DFP, r->reg, r->value);
+		return 0;
+	}
+	case MSP_GET_DFPREG:
+	{
+		struct msp_dfpreg *r = arg;
+
+		if (r->reg < 0 || r->reg >= DFP_COUNT)
+			return -EINVAL;
+		r->value = msp3400c_read(client, I2C_MSP3400C_DFP, r->reg);
+		return 0;
+	}
 
 	/* --- v4l ioctls --- */
 	/* take care: bttv does userspace copying, we'll get a
