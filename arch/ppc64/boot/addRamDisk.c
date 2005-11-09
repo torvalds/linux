@@ -34,35 +34,35 @@ void death(const char *msg, FILE *fdesc, const char *fname)
 int main(int argc, char **argv)
 {
 	char inbuf[4096];
-	FILE *ramDisk = NULL;
-	FILE *sysmap = NULL;
-	FILE *inputVmlinux = NULL;
-	FILE *outputVmlinux = NULL;
-  
-	unsigned i = 0;
-	unsigned long ramFileLen = 0;
-	unsigned long ramLen = 0;
-	unsigned long roundR = 0;
-  
-	unsigned long sysmapFileLen = 0;
-	unsigned long sysmapLen = 0;
-	unsigned long sysmapPages = 0;
-	char* ptr_end = NULL; 
-	unsigned long offset_end = 0;
+	FILE *ramDisk;
+	FILE *sysmap;
+	FILE *inputVmlinux;
+	FILE *outputVmlinux;
 
-	unsigned long kernelLen = 0;
-	unsigned long actualKernelLen = 0;
-	unsigned long round = 0;
-	unsigned long roundedKernelLen = 0;
-	unsigned long ramStartOffs = 0;
-	unsigned long ramPages = 0;
-	unsigned long roundedKernelPages = 0;
-	unsigned long hvReleaseData = 0;
+	unsigned i;
+	unsigned long ramFileLen;
+	unsigned long ramLen;
+	unsigned long roundR;
+
+	unsigned long sysmapFileLen;
+	unsigned long sysmapLen;
+	unsigned long sysmapPages;
+	char *ptr_end;
+	unsigned long offset_end;
+
+	unsigned long kernelLen;
+	unsigned long actualKernelLen;
+	unsigned long round;
+	unsigned long roundedKernelLen;
+	unsigned long ramStartOffs;
+	unsigned long ramPages;
+	unsigned long roundedKernelPages;
+	unsigned long hvReleaseData;
 	u_int32_t eyeCatcher = 0xc8a5d9c4;
-	unsigned long naca = 0;
-	unsigned long xRamDisk = 0;
-	unsigned long xRamDiskSize = 0;
-	long padPages = 0;
+	unsigned long naca;
+	unsigned long xRamDisk;
+	unsigned long xRamDiskSize;
+	long padPages;
   
   
 	if (argc < 2) {
