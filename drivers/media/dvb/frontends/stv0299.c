@@ -553,49 +553,16 @@ static int stv0299_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	if (state->config->invert) invval = (~invval) & 1;
 	stv0299_writeregI(state, 0x0c, (stv0299_readreg(state, 0x0c) & 0xfe) | invval);
 
-	if (state->config->enhanced_tuning) {
-		/* check if we should do a finetune */
-		int frequency_delta = p->frequency - state->tuner_frequency;
-		int minmax = p->u.qpsk.symbol_rate / 2000;
-		if (minmax < 5000) minmax = 5000;
+	stv0299_writeregI(state, 0x05, 0xb5);	/*  enable i2c repeater on stv0299  */
+	state->config->pll_set(fe, state->i2c, p);
+	stv0299_writeregI(state, 0x05, 0x35);	/*  disable i2c repeater on stv0299  */
 
-		if ((frequency_delta > -minmax) && (frequency_delta < minmax) && (frequency_delta != 0) &&
-		    (state->fec_inner == p->u.qpsk.fec_inner) &&
-		    (state->symbol_rate == p->u.qpsk.symbol_rate)) {
-			int Drot_freq = (frequency_delta << 16) / (state->config->mclk / 1000);
-
-			// zap the derotator registers first
-			stv0299_writeregI(state, 0x22, 0x00);
-			stv0299_writeregI(state, 0x23, 0x00);
-
-			// now set them as we want
-			stv0299_writeregI(state, 0x22, Drot_freq >> 8);
-			stv0299_writeregI(state, 0x23, Drot_freq);
-		} else {
-			/* A "normal" tune is requested */
-			stv0299_writeregI(state, 0x05, 0xb5);	/*  enable i2c repeater on stv0299  */
-			state->config->pll_set(fe, state->i2c, p);
-			stv0299_writeregI(state, 0x05, 0x35);	/*  disable i2c repeater on stv0299  */
-
-			stv0299_writeregI(state, 0x32, 0x80);
-			stv0299_writeregI(state, 0x22, 0x00);
-			stv0299_writeregI(state, 0x23, 0x00);
-			stv0299_writeregI(state, 0x32, 0x19);
-			stv0299_set_symbolrate (fe, p->u.qpsk.symbol_rate);
-			stv0299_set_FEC (state, p->u.qpsk.fec_inner);
-		}
-	} else {
-		stv0299_writeregI(state, 0x05, 0xb5);	/*  enable i2c repeater on stv0299  */
-		state->config->pll_set(fe, state->i2c, p);
-		stv0299_writeregI(state, 0x05, 0x35);	/*  disable i2c repeater on stv0299  */
-
-		stv0299_set_FEC (state, p->u.qpsk.fec_inner);
-		stv0299_set_symbolrate (fe, p->u.qpsk.symbol_rate);
-		stv0299_writeregI(state, 0x22, 0x00);
-		stv0299_writeregI(state, 0x23, 0x00);
-		stv0299_readreg (state, 0x23);
-		stv0299_writeregI(state, 0x12, 0xb9);
-	}
+	stv0299_set_FEC (state, p->u.qpsk.fec_inner);
+	stv0299_set_symbolrate (fe, p->u.qpsk.symbol_rate);
+	stv0299_writeregI(state, 0x22, 0x00);
+	stv0299_writeregI(state, 0x23, 0x00);
+	stv0299_readreg (state, 0x23);
+	stv0299_writeregI(state, 0x12, 0xb9);
 
 	state->tuner_frequency = p->frequency;
 	state->fec_inner = p->u.qpsk.fec_inner;

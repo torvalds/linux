@@ -234,7 +234,6 @@ static struct stv0299_config samsung_tbmu24112_config = {
 	.inittab = samsung_tbmu24112_inittab,
 	.mclk = 88000000UL,
 	.invert = 0,
-	.enhanced_tuning = 0,
 	.skip_reinit = 0,
 	.lock_output = STV0229_LOCKOUTPUT_LK,
 	.volt13_op0_op1 = STV0299_VOLT13_OP1,

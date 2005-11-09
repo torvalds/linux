@@ -1335,7 +1335,6 @@ static struct stv0299_config alps_stv0299_config = {
 	.inittab = alps_bsru6_inittab,
 	.mclk = 88000000UL,
 	.invert = 1,
-	.enhanced_tuning = 0,
 	.skip_reinit = 0,
 	.lock_output = STV0229_LOCKOUTPUT_1,
 	.volt13_op0_op1 = STV0299_VOLT13_OP1,
