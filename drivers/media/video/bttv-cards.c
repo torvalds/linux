@@ -2781,6 +2781,23 @@ struct tvcard bttv_tvcards[] = {
 		.no_tda9875     = 1,
 		.no_tda7432     = 1,
 	},
+		/* ---- card 0x8d ---------------------------------- */
+	[BTTV_BOARD_ASOUND_SKYEYE] = {
+		.name		= "Asound Skyeye PCTV",
+		.video_inputs	= 3,
+		.audio_inputs	= 1,
+		.tuner		= 0,
+		.svhs		= 2,
+		.gpiomask	= 15,
+		.muxsel		= { 2, 3, 1, 1},
+		.audiomux	= {2,0,0,0,1},
+		.needs_tvaudio	= 1,
+		.pll		= PLL_28,
+		.tuner_type	= 2,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+	},
+
 };
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
