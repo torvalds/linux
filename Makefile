@@ -407,7 +407,7 @@ outputmakefile:
 # of make so .config is not included in this case either (for *config).
 
 no-dot-config-targets := clean mrproper distclean \
-			 cscope TAGS tags help %docs check%
+			 cscope TAGS tags help %docs check% kernelrelease
 
 config-targets := 0
 mixed-targets  := 0
