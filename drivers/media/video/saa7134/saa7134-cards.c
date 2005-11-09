@@ -2391,6 +2391,33 @@ struct saa7134_board saa7134_boards[] = {
 			  .amux = LINE1,
 		}},
 	},
+	[SAA7134_BOARD_PINNACLE_PCTV_110i] = {
+		.name           = "Pinnacle PCTV 110i (saa7133)",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.gpiomask       = 0x080200000,
+		.inputs         = {{
+			  .name = name_tv,
+			  .vmux = 4,
+			  .amux = TV,
+			  .tv   = 1,
+		},{
+			  .name = name_comp1,
+			  .vmux = 1,
+			  .amux = LINE2,
+		},{
+			  .name = name_svideo,
+			  .vmux = 8,
+			  .amux = LINE2,
+		}},
+		.radio = {
+			  .name = name_radio,
+			  .amux = LINE1,
+		},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -2808,6 +2835,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x1131,
 		.subdevice    = 0x4ee9,
 		.driver_data  = SAA7134_BOARD_MONSTERTV_MOBILE,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x11bd,
+		.subdevice    = 0x002e,
+		.driver_data  = SAA7134_BOARD_PINNACLE_PCTV_110i,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,

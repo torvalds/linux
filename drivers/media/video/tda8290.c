@@ -487,7 +487,7 @@ static void tda8290_init_tuner(struct i2c_client *c)
 	unsigned char tda8275a_init[] = { 0x00, 0x00, 0x00, 0x00, 0xdC, 0x05, 0x8b,
 					  0x0c, 0x04, 0x20, 0xFF, 0x00, 0x00, 0x4b };
 	struct i2c_msg msg = {.addr = t->tda827x_addr, .flags=0,
-		              .buf=tda8275_init, .len = 14};
+			      .buf=tda8275_init, .len = 14};
 	if (t->tda827x_ver != 0)
 		msg.buf = tda8275a_init;
 
