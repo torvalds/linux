@@ -2141,6 +2141,50 @@ struct saa7134_board saa7134_boards[] = {
 			  .amux = LINE2,
     	        },
         },
+        [SAA7134_BOARD_GOTVIEW_7135] = {
+		/* Mike Baikov <lists@baikov.com> */
+		/* Andrey Cvetcov <ays14@yandex.ru> */
+                .name            = "GoTView 7135 PCI",
+                .audio_clock     = 0x00187de7,
+                .tuner_type      = TUNER_PHILIPS_FM1216ME_MK3,
+                .radio_type      = UNSET,
+                .tuner_addr      = ADDR_UNSET,
+                .radio_addr      = ADDR_UNSET,
+                .tda9887_conf    = TDA9887_PRESENT,
+                .gpiomask        = 0x00200003,
+                .inputs          = {{
+                        .name = name_tv,
+                        .vmux = 1,
+                        .amux = TV,
+                        .tv   = 1,
+                        .gpio = 0x00200003,
+                },{
+                        .name = name_tv_mono,
+                        .vmux = 1,
+                        .amux = LINE2,
+                        .gpio = 0x00200003,
+                },{
+                        .name = name_comp1,
+                        .vmux = 3,
+                        .amux = LINE1,
+                        .gpio = 0x00200003,
+                },{
+                        .name = name_svideo,
+                        .vmux = 8,
+                        .amux = LINE1,
+                        .gpio = 0x00200003,
+                }},
+                .radio = {
+                        .name = name_radio,
+                        .amux = LINE2,
+                        .gpio = 0x00200003,
+                },
+                .mute = {
+                        .name = name_mute,
+                        .amux = TV,
+                        .gpio = 0x00200003,
+                },
+        },
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -2505,6 +2549,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subdevice    = 0x4091,
 		.driver_data  = SAA7134_BOARD_BEHOLD_409FM,
         },{
+                .vendor       = PCI_VENDOR_ID_PHILIPS,
+                .device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+                .subvendor    = 0x5456, /* GoTView */
+                .subdevice    = 0x7135,
+                .driver_data  = SAA7134_BOARD_GOTVIEW_7135,
+        },{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
@@ -2597,6 +2647,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_MANLI_MTV002:
 	case SAA7134_BOARD_BEHOLD_409FM:
 	case SAA7134_BOARD_AVACSSMARTTV:
+	case SAA7134_BOARD_GOTVIEW_7135:
 		dev->has_remote = 1;
 		break;
 	case SAA7134_BOARD_MD5044:
@@ -2613,7 +2664,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 		break;
 	case SAA7134_BOARD_FLYDVBTDUO:
 	case SAA7134_BOARD_THYPHOON_DVBT_DUO_CARDBUS:
-	/* turn the fan on Hac: static for the time being */
+		/* turn the fan on */
 		saa_writeb(SAA7134_GPIO_GPMODE3, 0x08);
 		saa_writeb(SAA7134_GPIO_GPSTATUS3, 0x06);
 		break;
