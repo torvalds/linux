@@ -148,6 +148,8 @@ struct mddev_s
 
 	struct gendisk			*gendisk;
 
+	struct kobject			kobj;
+
 	/* Superblock information */
 	int				major_version,
 					minor_version,
