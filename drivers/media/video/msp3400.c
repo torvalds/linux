@@ -1788,10 +1788,9 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		dprintk("msp34xx: AUDC_SET_RADIO\n");
 		msp->norm = VIDEO_MODE_RADIO;
 		dprintk("msp34xx: switching to radio mode\n");
-		if (IS_MSP34XX_G(msp)) {
+		if (IS_MSP34XX_G(msp))
 			msp34xxg_reset(client);
-			break;
-		}
+
 		msp->watch_stereo = 0;
 		switch (msp->opmode) {
 		case OPMODE_MANUAL:
@@ -1906,10 +1905,9 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 
 		dprintk("msp34xx: VIDIOCSCHAN (norm=%d)\n",vc->norm);
 		msp->norm = vc->norm;
-		if (IS_MSP34XX_G(msp)) {
+		if (IS_MSP34XX_G(msp))
 			msp34xxg_reset(client);
-			break;
-		}
+
 		msp_wake_thread(client);
 		break;
 	}
@@ -1919,10 +1917,9 @@ static int msp_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	{
 		/* new channel -- kick audio carrier scan */
 		dprintk("msp34xx: VIDIOCSFREQ\n");
-		if (IS_MSP34XX_G(msp)) {
+		if (IS_MSP34XX_G(msp))
 			msp34xxg_reset(client);
-			break;
-		}
+
 		msp_wake_thread(client);
 		break;
 	}
