@@ -2490,6 +2490,29 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE1,
 		}},
 	},
+	[SAA7134_BOARD_PHILIPS_TIGER] = {
+		.name           = "Philips Tiger reference design",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_PHILIPS_TDA8290,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.inputs = {{
+			.name   = name_tv,
+			.vmux   = 1,
+			.amux   = TV,
+			.tv     = 1,
+		},{
+			.name   = name_comp1,
+			.vmux   = 3,
+			.amux   = LINE1,
+		},{
+			.name   = name_svideo,
+			.vmux   = 8,
+			.amux   = LINE1,
+		}},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -2919,6 +2942,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = 0x1043,
 		.subdevice    = 0x4862,
 		.driver_data  = SAA7134_BOARD_ASUSTeK_P7131_DUAL,
+ 	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = PCI_VENDOR_ID_PHILIPS,
+		.subdevice    = 0x2018,
+		.driver_data  = SAA7134_BOARD_PHILIPS_TIGER,
 	},{
 		/* --- boards without eeprom + subsystem ID --- */
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
@@ -3175,6 +3204,14 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		tun_setup.addr = dev->tuner_addr;
 
 		saa7134_i2c_call_clients (dev, TUNER_SET_TYPE_ADDR,&tun_setup);
+		}
+		break;
+	case SAA7134_BOARD_PHILIPS_TIGER:
+		/* this is a hybrid board, initialize to analog mode */
+		{
+		u8 data[] = { 0x3c, 0x33, 0x68};
+		struct i2c_msg msg = {.addr=0x08, .flags=0, .buf=data, .len = sizeof(data)};
+		i2c_transfer(&dev->i2c_adap, &msg, 1);
 		}
 		break;
 	}
