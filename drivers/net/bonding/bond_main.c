@@ -4508,7 +4508,7 @@ static struct ethtool_ops bond_ethtool_ops = {
  * Does not allocate but creates a /proc entry.
  * Allowed to fail.
  */
-static int __init bond_init(struct net_device *bond_dev, struct bond_params *params)
+static int bond_init(struct net_device *bond_dev, struct bond_params *params)
 {
 	struct bonding *bond = bond_dev->priv;
 
