@@ -28,7 +28,6 @@
 #include <linux/usb.h>
 #include <linux/i2c.h>
 #include <linux/video_decoder.h>
-#include <linux/utsname.h>
 
 #include "em28xx.h"
 #include <media/tuner.h>
