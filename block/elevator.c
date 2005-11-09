@@ -155,9 +155,10 @@ static void elevator_setup_default(void)
  	/*
  	 * If the given scheduler is not available, fall back to no-op.
  	 */
- 	if (!(e = elevator_find(chosen_elevator)))
+ 	if ((e = elevator_find(chosen_elevator)))
+		elevator_put(e);
+	else
  		strcpy(chosen_elevator, "noop");
-	elevator_put(e);
 }
 
 static int __init elevator_setup(char *str)
