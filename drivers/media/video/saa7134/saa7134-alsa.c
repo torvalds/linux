@@ -89,6 +89,8 @@ typedef struct snd_card_saa7134 {
 	spinlock_t lock;
 } snd_card_saa7134_t;
 
+
+
 /*
  * PCM structure
  */
