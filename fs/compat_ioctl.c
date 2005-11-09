@@ -3051,6 +3051,16 @@ HANDLE_IOCTL(TIOCSSERIAL, serial_struct_ioctl)
 COMPATIBLE_IOCTL(TIOCGLTC)
 COMPATIBLE_IOCTL(TIOCSLTC)
 #endif
+#ifdef TIOCSTART
+/*
+ * For these two we have defintions in ioctls.h and/or termios.h on
+ * some architectures but no actual implemention.  Some applications
+ * like bash call them if they are defined in the headers, so we provide
+ * entries here to avoid syslog message spew.
+ */
+COMPATIBLE_IOCTL(TIOCSTART)
+COMPATIBLE_IOCTL(TIOCSTOP)
+#endif
 /* Usbdevfs */
 HANDLE_IOCTL(USBDEVFS_CONTROL32, do_usbdevfs_control)
 HANDLE_IOCTL(USBDEVFS_BULK32, do_usbdevfs_bulk)
