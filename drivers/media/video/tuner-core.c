@@ -369,7 +369,7 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 			/* If chip is not tda8290, don't register.
 			   since it can be tda9887*/
 			if (tda8290_probe(&t->i2c) != 0) {
-		        	tuner_dbg("chip at addr %x is not a tda8290\n", addr);
+				tuner_dbg("chip at addr %x is not a tda8290\n", addr);
 				kfree(t);
 				return 0;
 			}
