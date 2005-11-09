@@ -342,50 +342,56 @@ static int nxt200x_writetuner (struct nxt200x_state* state, u8* data)
 
 	dprintk("Tuner Bytes: %02X %02X %02X %02X\n", data[0], data[1], data[2], data[3]);
 
-	/* if pll is a Philips TUV1236D then write directly to tuner */
-	if (strcmp(state->config->pll_desc->name, "Philips TUV1236D") == 0) {
-	        if (i2c_writebytes(state, state->config->pll_address, data, 4))
-        	        printk(KERN_WARNING "nxt200x: error writing to tuner\n");
-		/* wait until we have a lock */
-		while (count < 20) {
-			i2c_readbytes(state, state->config->pll_address, &buf, 1);
-			if (buf & 0x40)
-				return 0;
-			msleep(100);
-			count++;
-		}
-		printk("nxt200x: timeout waiting for tuner lock\n");
-		return 0;
-	} else {
-		/* set the i2c transfer speed to the tuner */
-		buf = 0x03;
-		nxt200x_writebytes(state, 0x20, &buf, 1);
+	/* if NXT2004, write directly to tuner. if NXT2002, write through NXT chip.
+	 * direct write is required for Philips TUV1236D and ALPS TDHU2 */
+	switch (state->demod_chip) {
+		case NXT2004:
+			if (i2c_writebytes(state, state->config->pll_address, data, 4))
+	        	        printk(KERN_WARNING "nxt200x: error writing to tuner\n");
+			/* wait until we have a lock */
+			while (count < 20) {
+				i2c_readbytes(state, state->config->pll_address, &buf, 1);
+				if (buf & 0x40)
+					return 0;
+				msleep(100);
+				count++;
+			}
+			printk("nxt2004: timeout waiting for tuner lock\n");
+			break;
+		case NXT2002:
+			/* set the i2c transfer speed to the tuner */
+			buf = 0x03;
+			nxt200x_writebytes(state, 0x20, &buf, 1);
 
-		/* setup to transfer 4 bytes via i2c */
-		buf = 0x04;
-		nxt200x_writebytes(state, 0x34, &buf, 1);
+			/* setup to transfer 4 bytes via i2c */
+			buf = 0x04;
+			nxt200x_writebytes(state, 0x34, &buf, 1);
 
-		/* write actual tuner bytes */
-		nxt200x_writebytes(state, 0x36, data, 4);
+			/* write actual tuner bytes */
+			nxt200x_writebytes(state, 0x36, data, 4);
 
-		/* set tuner i2c address */
-		buf = state->config->pll_address;
-		nxt200x_writebytes(state, 0x35, &buf, 1);
+			/* set tuner i2c address */
+			buf = state->config->pll_address;
+			nxt200x_writebytes(state, 0x35, &buf, 1);
 
-		/* write UC Opmode to begin transfer */
-		buf = 0x80;
-		nxt200x_writebytes(state, 0x21, &buf, 1);
+			/* write UC Opmode to begin transfer */
+			buf = 0x80;
+			nxt200x_writebytes(state, 0x21, &buf, 1);
 
-		while (count < 20) {
-			nxt200x_readbytes(state, 0x21, &buf, 1);
-			if ((buf & 0x80)== 0x00)
-				return 0;
-			msleep(100);
-			count++;
-		}
-		printk("nxt200x: timeout error writing tuner\n");
-		return 0;
+			while (count < 20) {
+				nxt200x_readbytes(state, 0x21, &buf, 1);
+				if ((buf & 0x80)== 0x00)
+					return 0;
+				msleep(100);
+				count++;
+			}
+			printk("nxt2002: timeout error writing tuner\n");
+			break;
+		default:
+			return -EINVAL;
+			break;
 	}
+	return 0;
 }
 
 static void nxt200x_agc_reset(struct nxt200x_state* state)
