@@ -749,7 +749,7 @@ static void philips_tda827xa_pll_sleep(u8 addr, struct dvb_frontend *fe)
 	struct saa7134_dev *dev = fe->dvb->priv;
 	static u8 tda827xa_sleep[] = { 0x30, 0x90};
 	struct i2c_msg tuner_msg = {.addr = addr,.flags = 0,.buf = tda827xa_sleep,
-			            .len = sizeof(tda827xa_sleep) };
+				    .len = sizeof(tda827xa_sleep) };
 	i2c_transfer(&dev->i2c_adap, &tuner_msg, 1);
 
 }
