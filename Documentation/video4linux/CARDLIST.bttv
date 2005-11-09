@@ -13,7 +13,7 @@
  12 -> ADS Technologies Channel Surfer TV (bt848)
  13 -> AVerMedia TVCapture 98                              [1461:0002,1461:0004,1461:0300]
  14 -> Aimslab Video Highway Xtreme (VHX)
- 15 -> Zoltrix TV-Max
+ 15 -> Zoltrix TV-Max                                      [a1a0:a0fc]
  16 -> Prolink Pixelview PlayTV (bt878)
  17 -> Leadtek WinView 601
  18 -> AVEC Intercapture
@@ -32,15 +32,15 @@
  31 -> Formac iProTV, Formac ProTV I (bt848)
  32 -> Intel Create and Share PCI/ Smart Video Recorder III
  33 -> Terratec TerraTValue Version Bt878                  [153b:1117,153b:1118,153b:1119,153b:111a,153b:1134,153b:5018]
- 34 -> Leadtek WinFast 2000/ WinFast 2000 XP               [107d:6606,107d:6609,6606:217d]
- 35 -> Lifeview FlyVideo 98 LR50 / Chronos Video Shuttle II [1851:1850]
+ 34 -> Leadtek WinFast 2000/ WinFast 2000 XP               [107d:6606,107d:6609,6606:217d,f6ff:fff6]
+ 35 -> Lifeview FlyVideo 98 LR50 / Chronos Video Shuttle II [1851:1850,1851:a050]
  36 -> Lifeview FlyVideo 98FM LR50 / Typhoon TView TV/FM Tuner [1852:1852]
  37 -> Prolink PixelView PlayTV pro
- 38 -> Askey CPH06X TView99                                [144f:3000]
- 39 -> Pinnacle PCTV Studio/Rave                           [11bd:0012]
+ 38 -> Askey CPH06X TView99                                [144f:3000,144f:a005,a04f:a0fc]
+ 39 -> Pinnacle PCTV Studio/Rave                           [11bd:0012,bd11:1200,bd11:ff00,11bd:ff12]
  40 -> STB TV PCI FM, Gateway P/N 6000704 (bt878), 3Dfx VoodooTV 100 [10b4:2636,10b4:2645,121a:3060]
  41 -> AVerMedia TVPhone 98                                [1461:0001,1461:0003]
- 42 -> ProVideo PV951
+ 42 -> ProVideo PV951                                      [aa0c:146c]
  43 -> Little OnAir TV
  44 -> Sigma TVII-FM
  45 -> MATRIX-Vision MV-Delta 2
@@ -54,7 +54,7 @@
  53 -> Typhoon TView RDS + FM Stereo / KNC1 TV Station RDS
  54 -> Lifeview FlyVideo 2000 /FlyVideo A2/ Lifetec LT 9415 TV [LR90]
  55 -> Askey CPH031/ BESTBUY Easy TV
- 56 -> Lifeview FlyVideo 98FM LR50
+ 56 -> Lifeview FlyVideo 98FM LR50                         [a051:41a0]
  57 -> GrandTec 'Grand Video Capture' (Bt848)              [4344:4142]
  58 -> Askey CPH060/ Phoebe TV Master Only (No FM)
  59 -> Askey CPH03x TV Capturer
@@ -64,7 +64,7 @@
  63 -> ATI TV-Wonder                                       [1002:0001]
  64 -> ATI TV-Wonder VE                                    [1002:0003]
  65 -> Lifeview FlyVideo 2000S LR90
- 66 -> Terratec TValueRadio                                [153b:1135]
+ 66 -> Terratec TValueRadio                                [153b:1135,153b:ff3b]
  67 -> IODATA GV-BCTV4/PCI                                 [10fc:4050]
  68 -> 3Dfx VoodooTV FM (Euro), VoodooTV 200 (USA)         [121a:3000,10b4:2637]
  69 -> Active Imaging AIMMS
@@ -79,42 +79,42 @@
  78 -> Jetway TV/Capture JW-TV878-FBK, Kworld KW-TV878RF   [0a01:17de]
  79 -> DSP Design TCVIDEO
  80 -> Hauppauge WinTV PVR                                 [0070:4500]
- 81 -> IODATA GV-BCTV5/PCI                                 [10fc:4070]
- 82 -> Osprey 100/150 (878)
+ 81 -> IODATA GV-BCTV5/PCI                                 [10fc:4070,10fc:d018]
+ 82 -> Osprey 100/150 (878)                                [0070:ff00]
  83 -> Osprey 100/150 (848)
  84 -> Osprey 101 (848)
  85 -> Osprey 101/151
  86 -> Osprey 101/151 w/ svid
  87 -> Osprey 200/201/250/251
- 88 -> Osprey 200/250
+ 88 -> Osprey 200/250                                      [0070:ff01]
  89 -> Osprey 210/220
- 90 -> Osprey 500
- 91 -> Osprey 540
- 92 -> Osprey 2000
+ 90 -> Osprey 500                                          [0070:ff02]
+ 91 -> Osprey 540                                          [0070:ff04]
+ 92 -> Osprey 2000                                         [0070:ff03]
  93 -> IDS Eagle
  94 -> Pinnacle PCTV Sat                                   [11bd:001c]
  95 -> Formac ProTV II (bt878)
  96 -> MachTV
  97 -> Euresys Picolo
- 98 -> ProVideo PV150
+ 98 -> ProVideo PV150                                      [aa00:1460,aa01:1461,aa02:1462,aa03:1463,aa04:1464,aa05:1465,aa06:1466,aa07:1467]
  99 -> AD-TVK503
 100 -> Hercules Smart TV Stereo
 101 -> Pace TV & Radio Card
-102 -> IVC-200
+102 -> IVC-200                                             [0000:a155,0001:a155,0002:a155,0003:a155,0100:a155,0101:a155,0102:a155,0103:a155]
 103 -> Grand X-Guard / Trust 814PCI                        [0304:0102]
 104 -> Nebula Electronics DigiTV                           [0071:0101]
-105 -> ProVideo PV143
+105 -> ProVideo PV143                                      [aa00:1430,aa00:1431,aa00:1432,aa00:1433,aa03:1433]
 106 -> PHYTEC VD-009-X1 MiniDIN (bt878)
 107 -> PHYTEC VD-009-X1 Combi (bt878)
 108 -> PHYTEC VD-009 MiniDIN (bt878)
 109 -> PHYTEC VD-009 Combi (bt878)
-110 -> IVC-100
-111 -> IVC-120G
+110 -> IVC-100                                             [ff00:a132]
+111 -> IVC-120G                                            [ff00:a182,ff01:a182,ff02:a182,ff03:a182,ff04:a182,ff05:a182,ff06:a182,ff07:a182,ff08:a182,ff09:a182,ff0a:a182,ff0b:a182,ff0c:a182,ff0d:a182,ff0e:a182,ff0f:a182]
 112 -> pcHDTV HD-2000 TV                                   [7063:2000]
-113 -> Twinhan DST + clones                                [11bd:0026,1822:0001]
+113 -> Twinhan DST + clones                                [11bd:0026,1822:0001,270f:fc00]
 114 -> Winfast VC100                                       [107d:6607]
 115 -> Teppro TEV-560/InterVision IV-560
-116 -> SIMUS GVC1100
+116 -> SIMUS GVC1100                                       [aa6a:82b2]
 117 -> NGS NGSTV+
 118 -> LMLBT4
 119 -> Tekram M205 PRO
@@ -126,14 +126,14 @@
 125 -> MATRIX Vision Sigma-SQ
 126 -> MATRIX Vision Sigma-SLC
 127 -> APAC Viewcomp 878(AMAX)
-128 -> DViCO FusionHDTV DVB-T Lite
+128 -> DViCO FusionHDTV DVB-T Lite                         [18ac:db10]
 129 -> V-Gear MyVCD
 130 -> Super TV Tuner
 131 -> Tibet Systems 'Progress DVR' CS16
 132 -> Kodicom 4400R (master)
 133 -> Kodicom 4400R (slave)
 134 -> Adlink RTV24
-135 -> DViCO FusionHDTV 5 Lite
+135 -> DViCO FusionHDTV 5 Lite                             [18ac:d500]
 136 -> Acorp Y878F                                         [9511:1540]
 137 -> Conceptronic CTVFMi v2
 138 -> Prolink Pixelview PV-BT878P+ (Rev.2E)
