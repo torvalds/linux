@@ -4898,81 +4898,90 @@ static int bond_check_params(struct bond_params *params)
 	return 0;
 }
 
+/* Create a new bond based on the specified name and bonding parameters.
+ * Caller must NOT hold rtnl_lock; we need to release it here before we
+ * set up our sysfs entries.
+ */
+int bond_create(char *name, struct bond_params *params, struct bonding **newbond)
+{
+	struct net_device *bond_dev;
+	int res;
+
+	rtnl_lock();
+	bond_dev = alloc_netdev(sizeof(struct bonding), name, ether_setup);
+	if (!bond_dev) {
+		printk(KERN_ERR DRV_NAME
+		       ": %s: eek! can't alloc netdev!\n",
+		       name);
+		res = -ENOMEM;
+		goto out_rtnl;
+	}
+
+	/* bond_init() must be called after dev_alloc_name() (for the
+	 * /proc files), but before register_netdevice(), because we
+	 * need to set function pointers.
+	 */
+
+	res = bond_init(bond_dev, params);
+	if (res < 0) {
+		goto out_netdev;
+	}
+
+	SET_MODULE_OWNER(bond_dev);
+
+	res = register_netdevice(bond_dev);
+	if (res < 0) {
+		goto out_bond;
+	}
+	if (newbond)
+		*newbond = bond_dev->priv;
+
+	rtnl_unlock(); /* allows sysfs registration of net device */
+	goto done;
+out_bond:
+	bond_deinit(bond_dev);
+out_netdev:
+	free_netdev(bond_dev);
+out_rtnl:
+	rtnl_unlock();
+done:
+	return res;
+}
+
 static int __init bonding_init(void)
 {
-	struct bond_params params;
 	int i;
 	int res;
+	char new_bond_name[8];  /* Enough room for 999 bonds at init. */
 
 	printk(KERN_INFO "%s", version);
 
-	res = bond_check_params(&params);
+	res = bond_check_params(&bonding_defaults);
 	if (res) {
-		return res;
+		goto out;
 	}
-
-	rtnl_lock();
 
 #ifdef CONFIG_PROC_FS
 	bond_create_proc_dir();
 #endif
-
 	for (i = 0; i < max_bonds; i++) {
-		struct net_device *bond_dev;
-
-		bond_dev = alloc_netdev(sizeof(struct bonding), "", ether_setup);
-		if (!bond_dev) {
-			res = -ENOMEM;
-			goto out_err;
-		}
-
-		res = dev_alloc_name(bond_dev, "bond%d");
-		if (res < 0) {
-			free_netdev(bond_dev);
-			goto out_err;
-		}
-
-		/* bond_init() must be called after dev_alloc_name() (for the
-		 * /proc files), but before register_netdevice(), because we
-		 * need to set function pointers.
-		 */
-		res = bond_init(bond_dev, &params);
-		if (res < 0) {
-			free_netdev(bond_dev);
-			goto out_err;
-		}
-
-		SET_MODULE_OWNER(bond_dev);
-
-		res = register_netdevice(bond_dev);
-		if (res < 0) {
-			bond_deinit(bond_dev);
-			free_netdev(bond_dev);
-			goto out_err;
-		}
+		sprintf(new_bond_name, "bond%d",i);
+		res = bond_create(new_bond_name,&bonding_defaults, NULL);
+		if (res)
+			goto err;
 	}
 
-	rtnl_unlock();
 	register_netdevice_notifier(&bond_netdev_notifier);
 	register_inetaddr_notifier(&bond_inetaddr_notifier);
 
-	return 0;
-
-out_err:
-	/*
-	 * rtnl_unlock() will run netdev_run_todo(), putting the
-	 * thus-far-registered bonding devices into a state which
-	 * unregigister_netdevice() will accept
-	 */
-	rtnl_unlock();
+	goto out;
+err:
 	rtnl_lock();
-
-	/* free and unregister all bonds that were successfully added */
 	bond_free_all();
-
 	rtnl_unlock();
-
+out:
 	return res;
+
 }
 
 static void __exit bonding_exit(void)
