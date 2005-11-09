@@ -2351,7 +2351,11 @@ struct saa7134_board saa7134_boards[] = {
 		}},
 	},
 	[SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180] = {
-		/* FIXME: uses Alps Electric TDHU2, containing ATI NXT2004 ATSC Decoder */
+		/* Michael Krufky <mkrufky@m1k.net>
+		 * Uses Alps Electric TDHU2, containing NXT2004 ATSC Decoder
+		 * AFAIK, there is no analog demod, thus,
+		 * no support for analog television.
+		 */
 		.name           = "AVerMedia AVerTVHD MCE A180",
 		.audio_clock    = 0x00187de7,
 		.tuner_type     = TUNER_ABSENT,
