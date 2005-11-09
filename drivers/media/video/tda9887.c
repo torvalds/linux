@@ -180,7 +180,8 @@ static struct tvnorm tvnorms[] = {
 		.name  = "SECAM-L",
 		.b     = ( cPositiveAmTV  |
 			   cQSS           ),
-		.e     = ( cAudioIF_6_5   |
+		.e     = ( cGaiting_36	  |
+			   cAudioIF_6_5   |
 			   cVideoIF_38_90 ),
 	},{
 		.std   = V4L2_STD_SECAM_DK,
@@ -329,7 +330,7 @@ static void dump_write_message(unsigned char *buf)
 	printk(PREFIX "write: byte E 0x%02x\n",buf[3]);
 	printk("  E0-1 sound carrier   : %s\n",
 	       carrier[(buf[3] & 0x03)]);
-	printk("  E6   l pll ganting   : %s\n",
+	printk("  E6   l pll gaiting   : %s\n",
 	       (buf[3] & 0x40) ? "36" : "13");
 
 	if (buf[1] & 0x08) {
