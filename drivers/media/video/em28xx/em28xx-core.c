@@ -714,11 +714,12 @@ void em2820_uninit_isoc(struct em2820 *dev)
 	for (i = 0; i < EM2820_NUM_BUFS; i++) {
 		if (dev->urb[i]) {
 			usb_kill_urb(dev->urb[i]);
+			if (dev->transfer_buffer[i]){
+				usb_buffer_free(dev->udev,(EM2820_NUM_PACKETS*dev->max_pkt_size),dev->transfer_buffer[i],dev->urb[i]->transfer_dma);
+			}
 			usb_free_urb(dev->urb[i]);
 		}
 		dev->urb[i] = NULL;
-		if (dev->transfer_buffer[i])
-			kfree(dev->transfer_buffer[i]);
 		dev->transfer_buffer[i] = NULL;
 	}
 	em2820_capture_start(dev, 0);
@@ -743,7 +744,13 @@ int em2820_init_isoc(struct em2820 *dev)
 		struct urb *urb;
 		int j, k;
 		/* allocate transfer buffer */
-		dev->transfer_buffer[i] = kmalloc(sb_size, GFP_KERNEL);
+		urb = usb_alloc_urb(EM2820_NUM_PACKETS, GFP_KERNEL);
+		if (!urb){
+			em2820_errdev("cannot alloc urb %i\n", i);
+			em2820_uninit_isoc(dev);
+			return -ENOMEM;
+		}
+		dev->transfer_buffer[i] = usb_buffer_alloc(dev->udev, sb_size, GFP_KERNEL,&urb->transfer_dma);
 		if (!dev->transfer_buffer[i]) {
 			em2820_errdev
 					("unable to allocate %i bytes for transfer buffer %i\n",
@@ -752,29 +759,22 @@ int em2820_init_isoc(struct em2820 *dev)
 			return -ENOMEM;
 		}
 		memset(dev->transfer_buffer[i], 0, sb_size);
-		urb = usb_alloc_urb(EM2820_NUM_PACKETS, GFP_KERNEL);
-		if (urb) {
-			urb->dev = dev->udev;
-			urb->context = dev;
-			urb->pipe = usb_rcvisocpipe(dev->udev, 0x82);
-			urb->transfer_flags = URB_ISO_ASAP;
-			urb->interval = 1;
-			urb->transfer_buffer = dev->transfer_buffer[i];
-			urb->complete = em2820_isocIrq;
-			urb->number_of_packets = EM2820_NUM_PACKETS;
-			urb->transfer_buffer_length = sb_size;
-			for (j = k = 0; j < EM2820_NUM_PACKETS;
-						  j++, k += dev->max_pkt_size) {
-							  urb->iso_frame_desc[j].offset = k;
-							  urb->iso_frame_desc[j].length =
-									  dev->max_pkt_size;
-						  }
-						  dev->urb[i] = urb;
-		} else {
-			em2820_errdev("cannot alloc urb %i\n", i);
-			em2820_uninit_isoc(dev);
-			return -ENOMEM;
+		urb->dev = dev->udev;
+		urb->context = dev;
+		urb->pipe = usb_rcvisocpipe(dev->udev, 0x82);
+		urb->transfer_flags = URB_ISO_ASAP;
+		urb->interval = 1;
+		urb->transfer_buffer = dev->transfer_buffer[i];
+		urb->complete = em2820_isocIrq;
+		urb->number_of_packets = EM2820_NUM_PACKETS;
+		urb->transfer_buffer_length = sb_size;
+		for (j = k = 0; j < EM2820_NUM_PACKETS;
+				j++, k += dev->max_pkt_size) {
+			urb->iso_frame_desc[j].offset = k;
+			urb->iso_frame_desc[j].length =
+				dev->max_pkt_size;
 		}
+		dev->urb[i] = urb;
 	}
 
 	/* submit urbs */
