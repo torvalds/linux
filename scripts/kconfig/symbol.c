@@ -380,11 +380,22 @@ bool sym_set_tristate_value(struct symbol *sym, tristate val)
 		sym->flags &= ~SYMBOL_NEW;
 		sym_set_changed(sym);
 	}
+	/*
+	 * setting a choice value also resets the new flag of the choice
+	 * symbol and all other choice values.
+	 */
 	if (sym_is_choice_value(sym) && val == yes) {
 		struct symbol *cs = prop_get_symbol(sym_get_choice_prop(sym));
+		struct property *prop;
+		struct expr *e;
 
 		cs->user.val = sym;
 		cs->flags &= ~SYMBOL_NEW;
+		prop = sym_get_choice_prop(cs);
+		for (e = prop->expr; e; e = e->left.expr) {
+			if (e->right.sym->visible != no)
+				e->right.sym->flags &= ~SYMBOL_NEW;
+		}
 	}
 
 	sym->user.tri = val;
