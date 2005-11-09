@@ -879,8 +879,8 @@ struct cx88_subid cx88_subids[] = {
 		.subdevice = 0xd820,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_3_GOLD_T,
 	},{
-		.subvendor = 0x18AC,
-		.subdevice = 0xDB00,
+		.subvendor = 0x18ac,
+		.subdevice = 0xdb00,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T1,
  	},{
 		.subvendor = 0x0070,
@@ -895,8 +895,8 @@ struct cx88_subid cx88_subids[] = {
 		.subdevice = 0x2580,
 		.card      = CX88_BOARD_PROVIDEO_PV259,
 	},{
-		.subvendor = 0x18AC,
-		.subdevice = 0xDB10,
+		.subvendor = 0x18ac,
+		.subdevice = 0xdb10,
 		.card      = CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PLUS,
 	},{
                 .subvendor = 0x1554,
@@ -907,15 +907,15 @@ struct cx88_subid cx88_subids[] = {
 		.subdevice = 0x3000, /* HD-3000 card */
 		.card      = CX88_BOARD_PCHDTV_HD3000,
 	},{
-		.subvendor = 0x17DE,
-		.subdevice = 0xA8A6,
+		.subvendor = 0x17de,
+		.subdevice = 0xa8a6,
 		.card      = CX88_BOARD_DNTV_LIVE_DVB_T,
 	},{
 		.subvendor = 0x0070,
 		.subdevice = 0x2801,
 		.card      = CX88_BOARD_HAUPPAUGE_ROSLYN,
 	},{
-		.subvendor = 0x14F1,
+		.subvendor = 0x14f1,
 		.subdevice = 0x0342,
 		.card      = CX88_BOARD_DIGITALLOGIC_MEC,
 	},{

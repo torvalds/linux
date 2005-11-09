@@ -2176,19 +2176,19 @@ struct pci_device_id saa7134_pci_tbl[] = {
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x153B,
+		.subvendor    = 0x153b,
 		.subdevice    = 0x1142,
 		.driver_data  = SAA7134_BOARD_CINERGY400,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x153B,
+		.subvendor    = 0x153b,
 		.subdevice    = 0x1143,
 		.driver_data  = SAA7134_BOARD_CINERGY600,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
-		.subvendor    = 0x153B,
+		.subvendor    = 0x153b,
 		.subdevice    = 0x1158,
 		.driver_data  = SAA7134_BOARD_CINERGY600_MK3,
 	},{
@@ -2406,7 +2406,7 @@ struct pci_device_id saa7134_pci_tbl[] = {
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7130,
-		.subvendor    = 0x153B,
+		.subvendor    = 0x153b,
 		.subdevice    = 0x1152,
 		.driver_data  = SAA7134_BOARD_CINERGY200,
 	},{
