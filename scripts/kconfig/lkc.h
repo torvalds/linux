@@ -61,7 +61,6 @@ char *zconf_curname(void);
 
 /* confdata.c */
 extern const char conf_def_filename[];
-extern char conf_filename[];
 
 char *conf_get_default_confname(void);
 
