@@ -69,15 +69,13 @@ char *conf_get_default_confname(void)
 	return name;
 }
 
-int conf_read(const char *name)
+int conf_read_simple(const char *name)
 {
 	FILE *in = NULL;
 	char line[1024];
 	char *p, *p2;
 	int lineno = 0;
 	struct symbol *sym;
-	struct property *prop;
-	struct expr *e;
 	int i;
 
 	if (name) {
@@ -232,6 +230,19 @@ int conf_read(const char *name)
 
 	if (modules_sym)
 		sym_calc_value(modules_sym);
+	return 0;
+}
+
+int conf_read(const char *name)
+{
+	struct symbol *sym;
+	struct property *prop;
+	struct expr *e;
+	int i;
+
+	if (conf_read_simple(name))
+		return 1;
+
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);
 		if (sym_has_value(sym) && !sym_is_choice_value(sym)) {

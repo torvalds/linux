@@ -2,6 +2,7 @@
 /* confdata.c */
 P(conf_parse,void,(const char *name));
 P(conf_read,int,(const char *name));
+P(conf_read_simple,int,(const char *name));
 P(conf_write,int,(const char *name));
 
 /* menu.c */

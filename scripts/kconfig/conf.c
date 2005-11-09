@@ -82,6 +82,15 @@ static void conf_askvalue(struct symbol *sym, const char *def)
 	}
 
 	switch (input_mode) {
+	case set_no:
+	case set_mod:
+	case set_yes:
+	case set_random:
+		if (sym_has_value(sym)) {
+			printf("%s\n", def);
+			return;
+		}
+		break;
 	case ask_new:
 	case ask_silent:
 		if (sym_has_value(sym)) {
@@ -557,6 +566,27 @@ int main(int ac, char **av)
 	case ask_all:
 	case ask_new:
 		conf_read(NULL);
+		break;
+	case set_no:
+	case set_mod:
+	case set_yes:
+	case set_random:
+		name = getenv("KCONFIG_ALLCONFIG");
+		if (name && !stat(name, &tmpstat)) {
+			conf_read_simple(name);
+			break;
+		}
+		switch (input_mode) {
+		case set_no:	 name = "allno.config"; break;
+		case set_mod:	 name = "allmod.config"; break;
+		case set_yes:	 name = "allyes.config"; break;
+		case set_random: name = "allrandom.config"; break;
+		default: break;
+		}
+		if (!stat(name, &tmpstat))
+			conf_read_simple(name);
+		else if (!stat("all.config", &tmpstat))
+			conf_read_simple("all.config");
 		break;
 	default:
 		break;
