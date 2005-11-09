@@ -1146,6 +1146,7 @@ struct cx88_core* cx88_core_get(struct pci_dev *pci)
 	/* init hardware */
 	cx88_reset(core);
 	cx88_i2c_init(core,pci);
+	cx88_call_i2c_clients (core, TUNER_SET_STANDBY, NULL);
 	cx88_card_setup(core);
 	cx88_ir_init(core,pci);
 
