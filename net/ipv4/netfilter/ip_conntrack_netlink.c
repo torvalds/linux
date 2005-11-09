@@ -1538,6 +1538,8 @@ static struct nfnetlink_subsystem ctnl_exp_subsys = {
 	.cb				= ctnl_exp_cb,
 };
 
+MODULE_ALIAS_NFNL_SUBSYS(NFNL_SUBSYS_CTNETLINK);
+
 static int __init ctnetlink_init(void)
 {
 	int ret;
