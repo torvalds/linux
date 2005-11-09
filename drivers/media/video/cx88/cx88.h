@@ -176,6 +176,7 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD 31
 #define CX88_BOARD_AVERMEDIA_ULTRATV_MC_550 32
 #define CX88_BOARD_KWORLD_VSTREAM_EXPERT_DVD 33
+#define CX88_BOARD_ATI_HDTVWONDER          34
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,

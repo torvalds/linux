@@ -112,6 +112,8 @@
 #define TUNER_LG_NTSC_TALN_MINI		66
 #define TUNER_PHILIPS_TD1316		67
 
+#define TUNER_PHILIPS_TUV1236D		68	/* ATI HDTV Wonder */
+
 #define NOTUNER 0
 #define PAL     1	/* PAL_BG */
 #define PAL_I   2

@@ -233,7 +233,7 @@ static struct tunertype tuners[] = {
 	{ "Ymec TVision TVF-5533MF", Philips, NTSC,
 	  16*160.00,16*454.00,0x01,0x02,0x04,0x8e,732},
 
-	/* 60-67 */
+	/* 60-68 */
 	{ "Thomson DDT 7611 (ATSC/NTSC)", THOMSON, ATSC,
 	  16*157.25,16*454.00,0x39,0x3a,0x3c,0x8e,732},
 	{ "Tena TNF9533-D/IF/TNF9533-B/DF", Philips, PAL,
@@ -250,6 +250,8 @@ static struct tunertype tuners[] = {
 	  16*137.25,16*373.25,0x01,0x02,0x08,0x8e,732 },
 	{ "Philips TD1316 Hybrid Tuner", Philips, PAL,
 	  16*160.00,16*442.00,0xa1,0xa2,0xa4,0xc8,623 },
+	{ "Philips TUV1236D ATSC/NTSC dual in", Philips, ATSC,
+	  16*157.25,16*454.00,0x01,0x02,0x03,0xce,732 },
 };
 
 unsigned const int tuner_count = ARRAY_SIZE(tuners);
@@ -374,6 +376,17 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 	case TUNER_MICROTUNE_4042FI5:
 		/* Set the charge pump for fast tuning */
 		tun->config |= TUNER_CHARGE_PUMP;
+		break;
+
+	case TUNER_PHILIPS_TUV1236D:
+		/* 0x40 -> ATSC antenna input 1 */
+		/* 0x48 -> ATSC antenna input 2 */
+		/* 0x00 -> NTSC antenna input 1 */
+		/* 0x08 -> NTSC antenna input 2 */
+		config &= ~0x40;
+		if (t->std & V4L2_STD_ATSC)
+			config |= 0x40;
+		/* FIXME: input */
 		break;
 	}
 

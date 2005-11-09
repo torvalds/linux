@@ -823,6 +823,35 @@ struct cx88_board cx88_boards[] = {
 			 .gpio3  = 0x00100000,
                  }},
 	},
+	[CX88_BOARD_ATI_HDTVWONDER] = {
+		.name           = "ATI HDTV Wonder",
+		.tuner_type     = TUNER_PHILIPS_TUV1236D,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x00000ff7,
+			.gpio1  = 0x000000ff,
+			.gpio2  = 0x00000001,
+			.gpio3  = 0x00000000,
+		},{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x00000ffe,
+			.gpio1  = 0x000000ff,
+			.gpio2  = 0x00000001,
+			.gpio3  = 0x00000000,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x00000ffe,
+			.gpio1  = 0x000000ff,
+			.gpio2  = 0x00000001,
+			.gpio3  = 0x00000000,
+		}},
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -958,6 +987,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x1461,
 		.subdevice = 0x8011,
 		.card      = CX88_BOARD_AVERMEDIA_ULTRATV_MC_550,
+ 	},{
+		.subvendor = PCI_VENDOR_ID_ATI,
+		.subdevice = 0xa101,
+		.card      = CX88_BOARD_ATI_HDTVWONDER,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
@@ -1158,6 +1191,22 @@ void cx88_card_setup(struct cx88_core *core)
 		msleep(1);
 		cx_clear(MO_GP0_IO, 0x00000007);
 		cx_set(MO_GP2_IO, 0x00000101);
+		break;
+	case CX88_BOARD_ATI_HDTVWONDER:
+		if (0 == core->i2c_rc) {
+			/* enable tuner */
+			int i;
+			u8 buffer[12];
+			core->i2c_client.addr = 0x0a;
+			buffer[0] = 0x10; buffer[1] = 0x12; buffer[2] = 0x13; buffer[3] = 0x04;
+			buffer[4] = 0x16; buffer[5] = 0x00; buffer[6] = 0x14; buffer[7] = 0x04;
+			buffer[8] = 0x14; buffer[9] = 0x00; buffer[10] = 0x17; buffer[11] = 0x00;
+
+			for (i = 0; i < 6; i++)
+				if (2 != i2c_master_send(&core->i2c_client,&buffer[i*2],2))
+					printk(KERN_WARNING "%s: Unable to enable tuner(%i).\n",
+						core->name, i);
+		}
 		break;
 	}
 	if (cx88_boards[core->board].radio.type == CX88_RADIO)
