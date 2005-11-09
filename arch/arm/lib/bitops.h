@@ -34,7 +34,7 @@
 	and	r2, r0, #7
 	mov	r3, #1
 	mov	r3, r3, lsl r2
-	save_and_disable_irqs ip, r2
+	save_and_disable_irqs ip
 	ldrb	r2, [r1, r0, lsr #3]
 	\instr	r2, r2, r3
 	strb	r2, [r1, r0, lsr #3]
@@ -54,7 +54,7 @@
 	add	r1, r1, r0, lsr #3
 	and	r3, r0, #7
 	mov	r0, #1
-	save_and_disable_irqs ip, r2
+	save_and_disable_irqs ip
 	ldrb	r2, [r1]
 	tst	r2, r0, lsl r3
 	\instr	r2, r2, r0, lsl r3

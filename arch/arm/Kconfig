@@ -358,7 +358,7 @@ config HOTPLUG_CPU
 
 config LOCAL_TIMERS
 	bool "Use local timer interrupts"
-	depends on SMP && n
+	depends on SMP && REALVIEW_MPCORE
 	default y
 	help
 	  Enable support for local timers on SMP platforms, rather then the
