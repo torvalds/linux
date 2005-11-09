@@ -1159,8 +1159,7 @@ struct dvb_frontend* nxt200x_attach(const struct nxt200x_config* config,
 	return &state->frontend;
 
 error:
-	if (state)
-		kfree(state);
+	kfree(state);
 	printk("Unknown/Unsupported NXT chip: %02X %02X %02X %02X %02X\n",
 		buf[0], buf[1], buf[2], buf[3], buf[4]);
 	return NULL;
