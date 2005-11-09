@@ -1,16 +1,10 @@
 /*
- * saa7111 - Philips SAA7113A video decoder driver version 0.0.3
+ * saa711x - Philips SAA711x video decoder driver version 0.0.1
  *
- * Copyright (C) 1998 Dave Perks <dperks@ibm.net>
+ * To do: Now, it handles only saa7113/7114. Should be improved to
+ * handle all Philips saa711x devices.
  *
- * Slight changes for video timing and attachment output by
- * Wolfgang Scherr <scherr@net4you.net>
- *
- * Changes by Ronald Bultje <rbultje@ronald.bitfreak.net>
- *    - moved over to linux>=2.4.x i2c protocol (1/1/2003)
- *
- * Changes by Michael Hunold <michael@mihu.de>
- *    - implemented DECODER_SET_GPIO, DECODER_INIT, DECODER_SET_VBI_BYPASS
+ * Based on saa7113 driver from Dave Perks <dperks@ibm.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,7 +41,7 @@
 #include <asm/uaccess.h>
 #include <linux/videodev.h>
 
-MODULE_DESCRIPTION("Philips SAA7113 video decoder driver");
+MODULE_DESCRIPTION("Philips SAA711x video decoder driver");
 MODULE_AUTHOR("Dave Perks, Jose Ignacio Gijon, Joerg Heckenbach, Mark McClelland, Dwaine Garden");
 MODULE_LICENSE("GPL");
 
@@ -71,7 +65,7 @@ MODULE_PARM_DESC(debug, " Set the default Debug level.  Default: 0 (Off) - (0-1)
 
 /* ----------------------------------------------------------------------- */
 
-struct saa7113 {
+struct saa711x {
 	unsigned char reg[32];
 
 	int norm;
@@ -89,29 +83,29 @@ struct saa7113 {
 /* ----------------------------------------------------------------------- */
 
 static inline int
-saa7113_write (struct i2c_client *client,
+saa711x_write (struct i2c_client *client,
 	       u8                 reg,
 	       u8                 value)
 {
-	struct saa7113 *decoder = i2c_get_clientdata(client);
+	struct saa711x *decoder = i2c_get_clientdata(client);
 
 	decoder->reg[reg] = value;
 	return i2c_smbus_write_byte_data(client, reg, value);
 }
 
 static int
-saa7113_write_block (struct i2c_client *client,
+saa711x_write_block (struct i2c_client *client,
 		     const u8          *data,
 		     unsigned int       len)
 {
 	int ret = -1;
 	u8 reg;
 
-	/* the saa7113 has an autoincrement function, use it if
+	/* the saa711x has an autoincrement function, use it if
 	 * the adapter understands raw I2C */
 	if (i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		/* do raw I2C, not smbus compatible */
-		struct saa7113 *decoder = i2c_get_clientdata(client);
+		struct saa711x *decoder = i2c_get_clientdata(client);
 		struct i2c_msg msg;
 		u8 block_data[32];
 
@@ -136,7 +130,7 @@ saa7113_write_block (struct i2c_client *client,
 		/* do some slow I2C emulation kind of thing */
 		while (len >= 2) {
 			reg = *data++;
-			if ((ret = saa7113_write(client, reg,
+			if ((ret = saa711x_write(client, reg,
 						 *data++)) < 0)
 				break;
 			len -= 2;
@@ -147,14 +141,14 @@ saa7113_write_block (struct i2c_client *client,
 }
 
 static int
-saa7113_init_decoder (struct i2c_client *client,
+saa711x_init_decoder (struct i2c_client *client,
 	      struct video_decoder_init *init)
 {
-	return saa7113_write_block(client, init->data, init->len);
+	return saa711x_write_block(client, init->data, init->len);
 }
 
 static inline int
-saa7113_read (struct i2c_client *client,
+saa711x_read (struct i2c_client *client,
 	      u8                 reg)
 {
 	return i2c_smbus_read_byte_data(client, reg);
@@ -162,39 +156,39 @@ saa7113_read (struct i2c_client *client,
 
 /* ----------------------------------------------------------------------- */
 
-static const unsigned char saa7113_i2c_init[] = {
-	0x00, 0x00,	/* PH7113_CHIP_VERSION 00 - ID byte */
-	0x01, 0x08,	/* PH7113_INCREMENT_DELAY - (1) (1) (1) (1) IDEL3 IDEL2 IDELL1 IDEL0 */
-	0x02, 0xc0,	/* PH7113_ANALOG_INPUT_CONTR_1 - FUSE1 FUSE0 GUDL1 GUDL0 MODE3 MODE2 MODE1 MODE0 */
-	0x03, 0x23,	/* PH7113_ANALOG_INPUT_CONTR_2 - (1) HLNRS VBSL WPOFF HOLDG GAFIX GAI28 GAI18 */
-	0x04, 0x00,	/* PH7113_ANALOG_INPUT_CONTR_3 - GAI17 GAI16 GAI15 GAI14 GAI13 GAI12 GAI11 GAI10 */
-	0x05, 0x00,	/* PH7113_ANALOG_INPUT_CONTR_4 - GAI27 GAI26 GAI25 GAI24 GAI23 GAI22 GAI21 GAI20 */
-	0x06, 0xeb,	/* PH7113_HORIZONTAL_SYNC_START - HSB7 HSB6 HSB5 HSB4 HSB3 HSB2 HSB1 HSB0 */
-	0x07, 0xe0,	/* PH7113_HORIZONTAL_SYNC_STOP - HSS7 HSS6 HSS5 HSS4 HSS3 HSS2 HSS1 HSS0 */
-	0x08, 0x88,	/* PH7113_SYNC_CONTROL - AUFD FSEL FOET HTC1 HTC0 HPLL VNOI1 VNOI0 */
-	0x09, 0x00,	/* PH7113_LUMINANCE_CONTROL - BYPS PREF BPSS1 BPSS0 VBLB UPTCV APER1 APER0 */
-	0x0a, 0x80,	/* PH7113_LUMINANCE_BRIGHTNESS - BRIG7 BRIG6 BRIG5 BRIG4 BRIG3 BRIG2 BRIG1 BRIG0 */
-	0x0b, 0x47,	/* PH7113_LUMINANCE_CONTRAST - CONT7 CONT6 CONT5 CONT4 CONT3 CONT2 CONT1 CONT0 */
-	0x0c, 0x40,	/* PH7113_CHROMA_SATURATION - SATN7 SATN6 SATN5 SATN4 SATN3 SATN2 SATN1 SATN0 */
-	0x0d, 0x00,	/* PH7113_CHROMA_HUE_CONTROL - HUEC7 HUEC6 HUEC5 HUEC4 HUEC3 HUEC2 HUEC1 HUEC0 */
-	0x0e, 0x01,	/* PH7113_CHROMA_CONTROL - CDTO CSTD2 CSTD1 CSTD0 DCCF FCTC CHBW1 CHBW0 */
-	0x0f, 0xaa,	/* PH7113_CHROMA_GAIN_CONTROL - ACGC CGAIN6 CGAIN5 CGAIN4 CGAIN3 CGAIN2 CGAIN1 CGAIN0 */
-	0x10, 0x00,	/* PH7113_FORMAT_DELAY_CONTROL - OFTS1 OFTS0 HDEL1 HDEL0 VRLN YDEL2 YDEL1 YDEL0 */
-	0x11, 0x1C,	/* PH7113_OUTPUT_CONTROL_1 - GPSW1 CM99 GPSW0 HLSEL OEYC OERT VIPB COLO */
-	0x12, 0x01,	/* PH7113_OUTPUT_CONTROL_2 - RTSE13 RTSE12 RTSE11 RTSE10 RTSE03 RTSE02 RTSE01 RTSE00 */
-	0x13, 0x00,	/* PH7113_OUTPUT_CONTROL_3 - ADLSB (1) (1) OLDSB FIDP (1) AOSL1 AOSL0 */
+static const unsigned char saa711x_i2c_init[] = {
+	0x00, 0x00,	/* PH711x_CHIP_VERSION 00 - ID byte */
+	0x01, 0x08,	/* PH711x_INCREMENT_DELAY - (1) (1) (1) (1) IDEL3 IDEL2 IDELL1 IDEL0 */
+	0x02, 0xc0,	/* PH711x_ANALOG_INPUT_CONTR_1 - FUSE1 FUSE0 GUDL1 GUDL0 MODE3 MODE2 MODE1 MODE0 */
+	0x03, 0x23,	/* PH711x_ANALOG_INPUT_CONTR_2 - (1) HLNRS VBSL WPOFF HOLDG GAFIX GAI28 GAI18 */
+	0x04, 0x00,	/* PH711x_ANALOG_INPUT_CONTR_3 - GAI17 GAI16 GAI15 GAI14 GAI13 GAI12 GAI11 GAI10 */
+	0x05, 0x00,	/* PH711x_ANALOG_INPUT_CONTR_4 - GAI27 GAI26 GAI25 GAI24 GAI23 GAI22 GAI21 GAI20 */
+	0x06, 0xeb,	/* PH711x_HORIZONTAL_SYNC_START - HSB7 HSB6 HSB5 HSB4 HSB3 HSB2 HSB1 HSB0 */
+	0x07, 0xe0,	/* PH711x_HORIZONTAL_SYNC_STOP - HSS7 HSS6 HSS5 HSS4 HSS3 HSS2 HSS1 HSS0 */
+	0x08, 0x88,	/* PH711x_SYNC_CONTROL - AUFD FSEL FOET HTC1 HTC0 HPLL VNOI1 VNOI0 */
+	0x09, 0x00,	/* PH711x_LUMINANCE_CONTROL - BYPS PREF BPSS1 BPSS0 VBLB UPTCV APER1 APER0 */
+	0x0a, 0x80,	/* PH711x_LUMINANCE_BRIGHTNESS - BRIG7 BRIG6 BRIG5 BRIG4 BRIG3 BRIG2 BRIG1 BRIG0 */
+	0x0b, 0x47,	/* PH711x_LUMINANCE_CONTRAST - CONT7 CONT6 CONT5 CONT4 CONT3 CONT2 CONT1 CONT0 */
+	0x0c, 0x40,	/* PH711x_CHROMA_SATURATION - SATN7 SATN6 SATN5 SATN4 SATN3 SATN2 SATN1 SATN0 */
+	0x0d, 0x00,	/* PH711x_CHROMA_HUE_CONTROL - HUEC7 HUEC6 HUEC5 HUEC4 HUEC3 HUEC2 HUEC1 HUEC0 */
+	0x0e, 0x01,	/* PH711x_CHROMA_CONTROL - CDTO CSTD2 CSTD1 CSTD0 DCCF FCTC CHBW1 CHBW0 */
+	0x0f, 0xaa,	/* PH711x_CHROMA_GAIN_CONTROL - ACGC CGAIN6 CGAIN5 CGAIN4 CGAIN3 CGAIN2 CGAIN1 CGAIN0 */
+	0x10, 0x00,	/* PH711x_FORMAT_DELAY_CONTROL - OFTS1 OFTS0 HDEL1 HDEL0 VRLN YDEL2 YDEL1 YDEL0 */
+	0x11, 0x1C,	/* PH711x_OUTPUT_CONTROL_1 - GPSW1 CM99 GPSW0 HLSEL OEYC OERT VIPB COLO */
+	0x12, 0x01,	/* PH711x_OUTPUT_CONTROL_2 - RTSE13 RTSE12 RTSE11 RTSE10 RTSE03 RTSE02 RTSE01 RTSE00 */
+	0x13, 0x00,	/* PH711x_OUTPUT_CONTROL_3 - ADLSB (1) (1) OLDSB FIDP (1) AOSL1 AOSL0 */
 	0x14, 0x00,	/* RESERVED 14 - (1) (1) (1) (1) (1) (1) (1) (1) */
-	0x15, 0x00,	/* PH7113_V_GATE1_START - VSTA7 VSTA6 VSTA5 VSTA4 VSTA3 VSTA2 VSTA1 VSTA0 */
-	0x16, 0x00,	/* PH7113_V_GATE1_STOP - VSTO7 VSTO6 VSTO5 VSTO4 VSTO3 VSTO2 VSTO1 VSTO0 */
-	0x17, 0x00,	/* PH7113_V_GATE1_MSB - (1) (1) (1) (1) (1) (1) VSTO8 VSTA8 */
+	0x15, 0x00,	/* PH711x_V_GATE1_START - VSTA7 VSTA6 VSTA5 VSTA4 VSTA3 VSTA2 VSTA1 VSTA0 */
+	0x16, 0x00,	/* PH711x_V_GATE1_STOP - VSTO7 VSTO6 VSTO5 VSTO4 VSTO3 VSTO2 VSTO1 VSTO0 */
+	0x17, 0x00,	/* PH711x_V_GATE1_MSB - (1) (1) (1) (1) (1) (1) VSTO8 VSTA8 */
 };
 
 static int
-saa7113_command (struct i2c_client *client,
+saa711x_command (struct i2c_client *client,
 		 unsigned int       cmd,
 		 void              *arg)
 {
-	struct saa7113 *decoder = i2c_get_clientdata(client);
+	struct saa711x *decoder = i2c_get_clientdata(client);
 
 	switch (cmd) {
 
@@ -203,12 +197,12 @@ saa7113_command (struct i2c_client *client,
 	{
 		struct video_decoder_init *init = arg;
 		if (NULL != init)
-			return saa7113_init_decoder(client, init);
+			return saa711x_init_decoder(client, init);
 		else {
 			struct video_decoder_init vdi;
-			vdi.data = saa7113_i2c_init;
-			vdi.len = sizeof(saa7113_i2c_init);
-			return saa7113_init_decoder(client, &vdi);
+			vdi.data = saa711x_i2c_init;
+			vdi.len = sizeof(saa711x_i2c_init);
+			return saa711x_init_decoder(client, &vdi);
 		}
 	}
 
@@ -222,7 +216,7 @@ saa7113_command (struct i2c_client *client,
 			printk(KERN_DEBUG "%s: %03x", I2C_NAME(client), i);
 			for (j = 0; j < 16; ++j) {
 				printk(" %02x",
-				       saa7113_read(client, i + j));
+				       saa711x_read(client, i + j));
 			}
 			printk("\n");
 		}
@@ -249,7 +243,7 @@ saa7113_command (struct i2c_client *client,
 		int status;
 		int res;
 
-		status = saa7113_read(client, 0x1f);
+		status = saa711x_read(client, 0x1f);
 		dprintk(1, KERN_DEBUG "%s status: 0x%02x\n", I2C_NAME(client),
 			status);
 		res = 0;
@@ -286,10 +280,10 @@ saa7113_command (struct i2c_client *client,
 	{
 		int *iarg = arg;
 		if (0 != *iarg) {
-			saa7113_write(client, 0x11,
+			saa711x_write(client, 0x11,
 				(decoder->reg[0x11] | 0x80));
 		} else {
-			saa7113_write(client, 0x11,
+			saa711x_write(client, 0x11,
 				(decoder->reg[0x11] & 0x7f));
 		}
 		break;
@@ -299,10 +293,10 @@ saa7113_command (struct i2c_client *client,
 	{
 		int *iarg = arg;
 		if (0 != *iarg) {
-			saa7113_write(client, 0x13,
+			saa711x_write(client, 0x13,
 				(decoder->reg[0x13] & 0xf0) | 0x0a);
 		} else {
-			saa7113_write(client, 0x13,
+			saa711x_write(client, 0x13,
 				(decoder->reg[0x13] & 0xf0));
 		}
 		break;
@@ -315,30 +309,30 @@ saa7113_command (struct i2c_client *client,
 		switch (*iarg) {
 
 		case VIDEO_MODE_NTSC:
-			saa7113_write(client, 0x08,
+			saa711x_write(client, 0x08,
 				      (decoder->reg[0x08] & 0x3f) | 0x40);
-			saa7113_write(client, 0x0e,
+			saa711x_write(client, 0x0e,
 				      (decoder->reg[0x0e] & 0x8f));
 			break;
 
 		case VIDEO_MODE_PAL:
-			saa7113_write(client, 0x08,
+			saa711x_write(client, 0x08,
 				      (decoder->reg[0x08] & 0x3f) | 0x00);
-			saa7113_write(client, 0x0e,
+			saa711x_write(client, 0x0e,
 				      (decoder->reg[0x0e] & 0x8f));
 			break;
 
 		case VIDEO_MODE_SECAM:
-			saa7113_write(client, 0x08,
+			saa711x_write(client, 0x08,
 				      (decoder->reg[0x0e] & 0x3f) | 0x00);
-			saa7113_write(client, 0x0e,
+			saa711x_write(client, 0x0e,
 				      (decoder->reg[0x0e] & 0x8f) | 0x50);
 			break;
 
 		case VIDEO_MODE_AUTO:
-			saa7113_write(client, 0x08,
+			saa711x_write(client, 0x08,
 				      (decoder->reg[0x08] & 0x3f) | 0x80);
-			saa7113_write(client, 0x0e,
+			saa711x_write(client, 0x0e,
 				      (decoder->reg[0x0e] & 0x8f));
 			break;
 
@@ -359,10 +353,10 @@ saa7113_command (struct i2c_client *client,
 		if (decoder->input != *iarg) {
 			decoder->input = *iarg;
 			/* select mode */
-			saa7113_write(client, 0x02,
+			saa711x_write(client, 0x02,
 				      (decoder->reg[0x02] & 0xf0) | decoder->input);
 			/* bypass chrominance trap for modes 4..7 */
-			saa7113_write(client, 0x09,
+			saa711x_write(client, 0x09,
 				      (decoder->reg[0x09] & 0x7f) | ((decoder->input > 3) ? 0x80 : 0));
 		}
 	}
@@ -398,22 +392,22 @@ saa7113_command (struct i2c_client *client,
 			 */
 
 			if (decoder->enable) {
-				saa7113_write(client, 0x02,
+				saa711x_write(client, 0x02,
 					      (decoder->
 					       reg[0x02] & 0xf8) |
 					      decoder->input);
-				saa7113_write(client, 0x08,
+				saa711x_write(client, 0x08,
 					      (decoder->reg[0x08] & 0xfb));
-				saa7113_write(client, 0x11,
+				saa711x_write(client, 0x11,
 					      (decoder->
 					       reg[0x11] & 0xf3) | 0x0c);
 			} else {
-				saa7113_write(client, 0x02,
+				saa711x_write(client, 0x02,
 					      (decoder->reg[0x02] & 0xf8));
-				saa7113_write(client, 0x08,
+				saa711x_write(client, 0x08,
 					      (decoder->
 					       reg[0x08] & 0xfb) | 0x04);
-				saa7113_write(client, 0x11,
+				saa711x_write(client, 0x11,
 					      (decoder->reg[0x11] & 0xf3));
 			}
 		}
@@ -427,23 +421,23 @@ saa7113_command (struct i2c_client *client,
 		if (decoder->bright != pic->brightness) {
 			/* We want 0 to 255 we get 0-65535 */
 			decoder->bright = pic->brightness;
-			saa7113_write(client, 0x0a, decoder->bright >> 8);
+			saa711x_write(client, 0x0a, decoder->bright >> 8);
 		}
 		if (decoder->contrast != pic->contrast) {
 			/* We want 0 to 127 we get 0-65535 */
 			decoder->contrast = pic->contrast;
-			saa7113_write(client, 0x0b,
+			saa711x_write(client, 0x0b,
 				      decoder->contrast >> 9);
 		}
 		if (decoder->sat != pic->colour) {
 			/* We want 0 to 127 we get 0-65535 */
 			decoder->sat = pic->colour;
-			saa7113_write(client, 0x0c, decoder->sat >> 9);
+			saa711x_write(client, 0x0c, decoder->sat >> 9);
 		}
 		if (decoder->hue != pic->hue) {
 			/* We want -128 to 127 we get 0-65535 */
 			decoder->hue = pic->hue;
-			saa7113_write(client, 0x0d,
+			saa711x_write(client, 0x0d,
 				      (decoder->hue - 32768) >> 8);
 		}
 	}
@@ -473,21 +467,21 @@ static unsigned short normal_i2c[] = {
 I2C_CLIENT_INSMOD;
 
 
-static struct i2c_driver i2c_driver_saa7113;
+static struct i2c_driver i2c_driver_saa711x;
 
 static int
-saa7113_detect_client (struct i2c_adapter *adapter,
+saa711x_detect_client (struct i2c_adapter *adapter,
 		       int                 address,
 		       int                 kind)
 {
 	int i;
 	struct i2c_client *client;
-	struct saa7113 *decoder;
+	struct saa711x *decoder;
 	struct video_decoder_init vdi;
 
 	dprintk(1,
 		KERN_INFO
-		"saa7113.c: detecting saa7113 client on address 0x%x\n",
+		"saa711x.c: detecting saa711x client on address 0x%x\n",
 		address << 1);
 
 	/* Check if the adapter supports the needed features */
@@ -500,15 +494,15 @@ saa7113_detect_client (struct i2c_adapter *adapter,
 	memset(client, 0, sizeof(struct i2c_client));
 	client->addr = address;
 	client->adapter = adapter;
-	client->driver = &i2c_driver_saa7113;
+	client->driver = &i2c_driver_saa711x;
 	client->flags = I2C_CLIENT_ALLOW_USE;
-	strlcpy(I2C_NAME(client), "saa7113", sizeof(I2C_NAME(client)));
-	decoder = kmalloc(sizeof(struct saa7113), GFP_KERNEL);
+	strlcpy(I2C_NAME(client), "saa711x", sizeof(I2C_NAME(client)));
+	decoder = kmalloc(sizeof(struct saa711x), GFP_KERNEL);
 	if (decoder == NULL) {
 		kfree(client);
 		return -ENOMEM;
 	}
-	memset(decoder, 0, sizeof(struct saa7113));
+	memset(decoder, 0, sizeof(struct saa711x));
 	decoder->norm = VIDEO_MODE_NTSC;
 	decoder->input = 0;
 	decoder->enable = 1;
@@ -525,9 +519,9 @@ saa7113_detect_client (struct i2c_adapter *adapter,
 		return i;
 	}
 
-	vdi.data = saa7113_i2c_init;
-	vdi.len = sizeof(saa7113_i2c_init);
-	i = saa7113_init_decoder(client, &vdi);
+	vdi.data = saa711x_i2c_init;
+	vdi.len = sizeof(saa711x_i2c_init);
+	i = saa711x_init_decoder(client, &vdi);
 	if (i < 0) {
 		dprintk(1, KERN_ERR "%s_attach error: init status %d\n",
 			I2C_NAME(client), i);
@@ -535,7 +529,7 @@ saa7113_detect_client (struct i2c_adapter *adapter,
 		dprintk(1,
 			KERN_INFO
 			"%s_attach: chip version %x at address 0x%x\n",
-			I2C_NAME(client), saa7113_read(client, 0x00) >> 4,
+			I2C_NAME(client), saa711x_read(client, 0x00) >> 4,
 			client->addr << 1);
 	}
 
@@ -543,19 +537,19 @@ saa7113_detect_client (struct i2c_adapter *adapter,
 }
 
 static int
-saa7113_attach_adapter (struct i2c_adapter *adapter)
+saa711x_attach_adapter (struct i2c_adapter *adapter)
 {
 	dprintk(1,
 		KERN_INFO
-		"saa7113.c: starting probe for adapter %s (0x%x)\n",
+		"saa711x.c: starting probe for adapter %s (0x%x)\n",
 		I2C_NAME(adapter), adapter->id);
-	return i2c_probe(adapter, &addr_data, &saa7113_detect_client);
+	return i2c_probe(adapter, &addr_data, &saa711x_detect_client);
 }
 
 static int
-saa7113_detach_client (struct i2c_client *client)
+saa711x_detach_client (struct i2c_client *client)
 {
-	struct saa7113 *decoder = i2c_get_clientdata(client);
+	struct saa711x *decoder = i2c_get_clientdata(client);
 	int err;
 
 	err = i2c_detach_client(client);
@@ -571,29 +565,29 @@ saa7113_detach_client (struct i2c_client *client)
 
 /* ----------------------------------------------------------------------- */
 
-static struct i2c_driver i2c_driver_saa7113 = {
+static struct i2c_driver i2c_driver_saa711x = {
 	.owner = THIS_MODULE,
-	.name = "saa7113",
+	.name = "saa711x",
 
-	.id = I2C_DRIVERID_SAA7113,
+	.id = I2C_DRIVERID_SAA711X,
 	.flags = I2C_DF_NOTIFY,
 
-	.attach_adapter = saa7113_attach_adapter,
-	.detach_client = saa7113_detach_client,
-	.command = saa7113_command,
+	.attach_adapter = saa711x_attach_adapter,
+	.detach_client = saa711x_detach_client,
+	.command = saa711x_command,
 };
 
 static int __init
-saa7113_init (void)
+saa711x_init (void)
 {
-	return i2c_add_driver(&i2c_driver_saa7113);
+	return i2c_add_driver(&i2c_driver_saa711x);
 }
 
 static void __exit
-saa7113_exit (void)
+saa711x_exit (void)
 {
-	i2c_del_driver(&i2c_driver_saa7113);
+	i2c_del_driver(&i2c_driver_saa711x);
 }
 
-module_init(saa7113_init);
-module_exit(saa7113_exit);
+module_init(saa711x_init);
+module_exit(saa711x_exit);
