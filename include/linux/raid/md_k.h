@@ -105,6 +105,8 @@ struct mdk_rdev_s
 	int		sb_size;	/* bytes in the superblock */
 	int		preferred_minor;	/* autorun support */
 
+	struct kobject	kobj;
+
 	/* A device can be in one of three states based on two flags:
 	 * Not working:   faulty==1 in_sync==0
 	 * Fully working: faulty==0 in_sync==1
