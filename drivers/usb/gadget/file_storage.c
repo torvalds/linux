@@ -224,6 +224,7 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/kref.h>
 #include <linux/kthread.h>
 #include <linux/limits.h>
 #include <linux/list.h>
@@ -631,6 +632,9 @@ struct fsg_dev {
 	/* filesem protects: backing files in use */
 	struct rw_semaphore	filesem;
 
+	/* reference counting: wait until all LUNs are released */
+	struct kref		ref;
+
 	struct usb_ep		*ep0;		// Handy copy of gadget->ep0
 	struct usb_request	*ep0req;	// For control responses
 	volatile unsigned int	ep0_req_tag;
@@ -694,7 +698,6 @@ struct fsg_dev {
 	unsigned int		nluns;
 	struct lun		*luns;
 	struct lun		*curlun;
-	struct completion	lun_released;
 };
 
 typedef void (*fsg_routine_t)(struct fsg_dev *);
@@ -3642,11 +3645,19 @@ static DEVICE_ATTR(file, 0444, show_file, NULL);
 
 /*-------------------------------------------------------------------------*/
 
+static void fsg_release(struct kref *ref)
+{
+	struct fsg_dev	*fsg = container_of(ref, struct fsg_dev, ref);
+
+	kfree(fsg->luns);
+	kfree(fsg);
+}
+
 static void lun_release(struct device *dev)
 {
 	struct fsg_dev	*fsg = (struct fsg_dev *) dev_get_drvdata(dev);
 
-	complete(&fsg->lun_released);
+	kref_put(&fsg->ref, fsg_release);
 }
 
 static void fsg_unbind(struct usb_gadget *gadget)
@@ -3660,14 +3671,12 @@ static void fsg_unbind(struct usb_gadget *gadget)
 	clear_bit(REGISTERED, &fsg->atomic_bitflags);
 
 	/* Unregister the sysfs attribute files and the LUNs */
-	init_completion(&fsg->lun_released);
 	for (i = 0; i < fsg->nluns; ++i) {
 		curlun = &fsg->luns[i];
 		if (curlun->registered) {
 			device_remove_file(&curlun->dev, &dev_attr_ro);
 			device_remove_file(&curlun->dev, &dev_attr_file);
 			device_unregister(&curlun->dev);
-			wait_for_completion(&fsg->lun_released);
 			curlun->registered = 0;
 		}
 	}
@@ -3846,6 +3855,7 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 			curlun->dev.release = lun_release;
 			device_create_file(&curlun->dev, &dev_attr_ro);
 			device_create_file(&curlun->dev, &dev_attr_file);
+			kref_get(&fsg->ref);
 		}
 
 		if (file[i] && *file[i]) {
@@ -4061,18 +4071,12 @@ static int __init fsg_alloc(void)
 		return -ENOMEM;
 	spin_lock_init(&fsg->lock);
 	init_rwsem(&fsg->filesem);
+	kref_init(&fsg->ref);
 	init_waitqueue_head(&fsg->thread_wqh);
 	init_completion(&fsg->thread_notifier);
 
 	the_fsg = fsg;
 	return 0;
-}
-
-
-static void fsg_free(struct fsg_dev *fsg)
-{
-	kfree(fsg->luns);
-	kfree(fsg);
 }
 
 
@@ -4085,7 +4089,7 @@ static int __init fsg_init(void)
 		return rc;
 	fsg = the_fsg;
 	if ((rc = usb_gadget_register_driver(&fsg_driver)) != 0)
-		fsg_free(fsg);
+		kref_put(&fsg->ref, fsg_release);
 	return rc;
 }
 module_init(fsg_init);
@@ -4103,6 +4107,6 @@ static void __exit fsg_cleanup(void)
 	wait_for_completion(&fsg->thread_notifier);
 
 	close_all_backing_files(fsg);
-	fsg_free(fsg);
+	kref_put(&fsg->ref, fsg_release);
 }
 module_exit(fsg_cleanup);
