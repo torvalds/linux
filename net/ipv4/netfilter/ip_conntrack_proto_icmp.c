@@ -305,7 +305,7 @@ static int icmp_nfattr_to_tuple(struct nfattr *tb[],
 	tuple->dst.u.icmp.code =
 			*(u_int8_t *)NFA_DATA(tb[CTA_PROTO_ICMP_CODE-1]);
 	tuple->src.u.icmp.id =
-			*(u_int8_t *)NFA_DATA(tb[CTA_PROTO_ICMP_ID-1]);
+			*(u_int16_t *)NFA_DATA(tb[CTA_PROTO_ICMP_ID-1]);
 
 	return 0;
 }
