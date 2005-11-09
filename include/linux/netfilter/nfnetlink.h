@@ -146,7 +146,7 @@ extern void nfnl_unlock(void);
 extern int nfnetlink_subsys_register(struct nfnetlink_subsystem *n);
 extern int nfnetlink_subsys_unregister(struct nfnetlink_subsystem *n);
 
-extern int nfattr_parse(struct nfattr *tb[], int maxattr, 
+extern void nfattr_parse(struct nfattr *tb[], int maxattr, 
 			struct nfattr *nfa, int len);
 
 #define nfattr_parse_nested(tb, max, nfa) \
