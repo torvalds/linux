@@ -469,7 +469,7 @@ static void __devinit init_hwif_cy82c693(ide_hwif_t *hwif)
 
 static __devinitdata ide_hwif_t *primary;
 
-void __devinit init_iops_cy82c693(ide_hwif_t *hwif)
+static void __devinit init_iops_cy82c693(ide_hwif_t *hwif)
 {
 	if (PCI_FUNC(hwif->pci_dev->devfn) == 1)
 		primary = hwif;
