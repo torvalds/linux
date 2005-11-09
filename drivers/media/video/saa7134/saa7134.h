@@ -649,7 +649,7 @@ int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
 
-int alsa_card_saa7134_create(struct saa7134_dev *saadev);
+int alsa_card_saa7134_create(struct saa7134_dev *saadev, unsigned int devnum);
 void alsa_card_saa7134_exit(void);
 void saa7134_irq_alsa_done(struct saa7134_dev *dev, unsigned long status);
 

@@ -45,9 +45,6 @@ MODULE_PARM_DESC(alsa_debug,"enable debug messages [alsa]");
  * Configuration macros
  */
 
-#define MAX_PCM_DEVICES		1
-#define MAX_PCM_SUBSTREAMS	1
-
 /* defaults */
 #define MAX_BUFFER_SIZE		(256*1024)
 #define USE_FORMATS 		SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE | SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_U16_LE | SNDRV_PCM_FMTBIT_U16_BE
@@ -804,6 +801,7 @@ static int snd_saa7134_capsrc_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
                 		break;
         	}
 
+	        break;
 	   case PCI_DEVICE_ID_PHILIPS_SAA7133:
 	   case PCI_DEVICE_ID_PHILIPS_SAA7135:
         	xbarin = 0x03; // adc
@@ -833,6 +831,7 @@ static int snd_saa7134_capsrc_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_
 	          saa_dsp_writel(dev, SAA7133_DIGITAL_INPUT_XBAR1, 0);
 	          saa_writel(SAA7133_ANALOG_IO_SELECT, 0);
 		}
+		break;
 	  }
  	}
 
@@ -891,7 +890,7 @@ static int snd_saa7134_dev_free(snd_device_t *device)
  *
  */
 
-int alsa_card_saa7134_create(struct saa7134_dev *saadev)
+int alsa_card_saa7134_create(struct saa7134_dev *saadev, unsigned int devicenum)
 {
 	static int dev;
 	snd_card_t *card;
@@ -906,8 +905,11 @@ int alsa_card_saa7134_create(struct saa7134_dev *saadev)
 	if (!enable[dev])
 		return -ENODEV;
 
-	card = snd_card_new(index[dev], id[dev], THIS_MODULE,
-			    0);
+	if (devicenum) {
+		card = snd_card_new(devicenum, id[dev], THIS_MODULE, 0);
+	} else {
+		card = snd_card_new(index[dev], id[dev], THIS_MODULE, 0);
+	}
 	if (card == NULL)
 		return -ENOMEM;
 
@@ -949,7 +951,7 @@ int alsa_card_saa7134_create(struct saa7134_dev *saadev)
 
 	strcpy(card->shortname, "SAA7134");
         sprintf(card->longname, "%s at 0x%lx irq %d",
-                card->shortname, chip->iobase, chip->irq);
+                chip->saadev->name, chip->iobase, chip->irq);
 
 	if ((err = snd_card_register(card)) == 0) {
 		snd_saa7134_cards[dev] = card;

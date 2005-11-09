@@ -1027,7 +1027,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 			printk(KERN_INFO "%s: registered device mixer%d\n",
 			       dev->name,dev->oss.minor_mixer >> 4);
 		} else if (alsa) {
-			alsa_card_saa7134_create(dev);
+			alsa_card_saa7134_create(dev,dsp_nr[dev->nr]);
 			printk(KERN_INFO "%s: registered ALSA devices\n",
 			       dev->name);
 		}
