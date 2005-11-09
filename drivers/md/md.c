@@ -3722,13 +3722,15 @@ static int md_seq_show(struct seq_file *seq, void *v)
 		if (mddev->pers) {
 			mddev->pers->status (seq, mddev);
 	 		seq_printf(seq, "\n      ");
-			if (mddev->curr_resync > 2) {
-				status_resync (seq, mddev);
-				seq_printf(seq, "\n      ");
-			} else if (mddev->curr_resync == 1 || mddev->curr_resync == 2)
-				seq_printf(seq, "\tresync=DELAYED\n      ");
-			else if (mddev->recovery_cp < MaxSector)
-				seq_printf(seq, "\tresync=PENDING\n      ");
+			if (mddev->pers->sync_request) {
+				if (mddev->curr_resync > 2) {
+					status_resync (seq, mddev);
+					seq_printf(seq, "\n      ");
+				} else if (mddev->curr_resync == 1 || mddev->curr_resync == 2)
+					seq_printf(seq, "\tresync=DELAYED\n      ");
+				else if (mddev->recovery_cp < MaxSector)
+					seq_printf(seq, "\tresync=PENDING\n      ");
+			}
 		} else
 			seq_printf(seq, "\n       ");
 
