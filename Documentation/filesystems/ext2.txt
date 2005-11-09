@@ -17,8 +17,6 @@ set using tune2fs(8). Kernel-determined defaults are indicated by (*).
 bsddf			(*)	Makes `df' act like BSD.
 minixdf				Makes `df' act like Minix.
 
-check				Check block and inode bitmaps at mount time
-				(requires CONFIG_EXT2_CHECK).
 check=none, nocheck	(*)	Don't do extra checking of bitmaps on mount
 				(check=normal and check=strict options removed)
 
