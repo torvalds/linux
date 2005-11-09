@@ -140,7 +140,7 @@ struct em2820_board em2820_boards[] = {
 		.name		= "MSI VOX USB 2.0",
 		.vchannels	= 3,
 		.norm		= VIDEO_MODE_PAL,
-		.tuner_type	= TUNER_PHILIPS_PAL,
+		.tuner_type	= TUNER_LG_PAL_NEW_TAPC,
 		.tda9887_conf	= TDA9887_PRESENT|TDA9887_PORT1_ACTIVE|TDA9887_PORT2_ACTIVE,
 		.has_tuner	= 1,
 		.decoder        = EM2820_SAA7114,
@@ -233,7 +233,7 @@ const unsigned int em2820_bcount = ARRAY_SIZE(em2820_boards);
 /* table of devices that work with this driver */
 struct usb_device_id em2820_id_table [] = {
 	{ USB_DEVICE(0xeb1a, 0x2800), .driver_info = EM2800_BOARD_UNKNOWN },
-	{ USB_DEVICE(0xeb1a, 0x2820), .driver_info = EM2820_BOARD_UNKNOWN },
+	{ USB_DEVICE(0xeb1a, 0x2820), .driver_info = EM2820_BOARD_MSI_VOX_USB_2 },
 	{ USB_DEVICE(0x0ccd, 0x0036), .driver_info = EM2820_BOARD_TERRATEC_CINERGY_250 },
 	{ USB_DEVICE(0x2304, 0x0208), .driver_info = EM2820_BOARD_PINNACLE_USB_2 },
 	{ USB_DEVICE(0x2040, 0x4200), .driver_info = EM2820_BOARD_HAUPPAUGE_WINTV_USB_2 },
