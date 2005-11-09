@@ -670,6 +670,31 @@ static inline void dec_prio_bias(runqueue_t *rq, int prio)
 {
 	rq->prio_bias -= MAX_PRIO - prio;
 }
+
+static inline void inc_nr_running(task_t *p, runqueue_t *rq)
+{
+	rq->nr_running++;
+	if (rt_task(p)) {
+		if (p != rq->migration_thread)
+			/*
+			 * The migration thread does the actual balancing. Do
+			 * not bias by its priority as the ultra high priority
+			 * will skew balancing adversely.
+			 */
+			inc_prio_bias(rq, p->prio);
+	} else
+		inc_prio_bias(rq, p->static_prio);
+}
+
+static inline void dec_nr_running(task_t *p, runqueue_t *rq)
+{
+	rq->nr_running--;
+	if (rt_task(p)) {
+		if (p != rq->migration_thread)
+			dec_prio_bias(rq, p->prio);
+	} else
+		dec_prio_bias(rq, p->static_prio);
+}
 #else
 static inline void inc_prio_bias(runqueue_t *rq, int prio)
 {
@@ -678,25 +703,17 @@ static inline void inc_prio_bias(runqueue_t *rq, int prio)
 static inline void dec_prio_bias(runqueue_t *rq, int prio)
 {
 }
-#endif
 
 static inline void inc_nr_running(task_t *p, runqueue_t *rq)
 {
 	rq->nr_running++;
-	if (rt_task(p))
-		inc_prio_bias(rq, p->prio);
-	else
-		inc_prio_bias(rq, p->static_prio);
 }
 
 static inline void dec_nr_running(task_t *p, runqueue_t *rq)
 {
 	rq->nr_running--;
-	if (rt_task(p))
-		dec_prio_bias(rq, p->prio);
-	else
-		dec_prio_bias(rq, p->static_prio);
 }
+#endif
 
 /*
  * __activate_task - move a task to the runqueue.
