@@ -282,12 +282,6 @@ enum scb_status {
 	rus_mask         = 0x3C,
 };
 
-enum ru_state  {
-	RU_SUSPENDED = 0,
-	RU_RUNNING	 = 1,
-	RU_UNINITIALIZED = -1,
-};
-
 enum scb_stat_ack {
 	stat_ack_not_ours    = 0x00,
 	stat_ack_sw_gen      = 0x04,
@@ -529,7 +523,6 @@ struct nic {
 	struct rx *rx_to_use;
 	struct rx *rx_to_clean;
 	struct rfd blank_rfd;
-	enum ru_state ru_running;
 
 	spinlock_t cb_lock			____cacheline_aligned;
 	spinlock_t cmd_lock;
@@ -951,7 +944,7 @@ static void e100_get_defaults(struct nic *nic)
 		((nic->mac >= mac_82558_D101_A4) ? cb_cid : cb_i));
 
 	/* Template for a freshly allocated RFD */
-	nic->blank_rfd.command = cpu_to_le16(cb_el);
+	nic->blank_rfd.command = cpu_to_le16(cb_el & cb_s);
 	nic->blank_rfd.rbd = 0xFFFFFFFF;
 	nic->blank_rfd.size = cpu_to_le16(VLAN_ETH_FRAME_LEN);
 
@@ -1746,19 +1739,11 @@ static int e100_alloc_cbs(struct nic *nic)
 	return 0;
 }
 
-static inline void e100_start_receiver(struct nic *nic, struct rx *rx)
+static inline void e100_start_receiver(struct nic *nic)
 {
-	if(!nic->rxs) return;
-	if(RU_SUSPENDED != nic->ru_running) return;
-
-	/* handle init time starts */
-	if(!rx) rx = nic->rxs;
-
-	/* (Re)start RU if suspended or idle and RFA is non-NULL */
-	if(rx->skb) {
-		e100_exec_cmd(nic, ruc_start, rx->dma_addr);
-		nic->ru_running = RU_RUNNING;
-	}
+	/* Start if RFA is non-NULL */
+	if(nic->rx_to_clean->skb)
+		e100_exec_cmd(nic, ruc_start, nic->rx_to_clean->dma_addr);
 }
 
 #define RFD_BUF_LEN (sizeof(struct rfd) + VLAN_ETH_FRAME_LEN)
@@ -1787,7 +1772,7 @@ static int e100_rx_alloc_skb(struct nic *nic, struct rx *rx)
 		put_unaligned(cpu_to_le32(rx->dma_addr),
 			(u32 *)&prev_rfd->link);
 		wmb();
-		prev_rfd->command &= ~cpu_to_le16(cb_el);
+		prev_rfd->command &= ~cpu_to_le16(cb_el & cb_s);
 		pci_dma_sync_single_for_device(nic->pdev, rx->prev->dma_addr,
 			sizeof(struct rfd), PCI_DMA_TODEVICE);
 	}
@@ -1825,10 +1810,6 @@ static int e100_rx_indicate(struct nic *nic, struct rx *rx,
 	pci_unmap_single(nic->pdev, rx->dma_addr,
 		RFD_BUF_LEN, PCI_DMA_FROMDEVICE);
 
-	/* this allows for a fast restart without re-enabling interrupts */
-	if(le16_to_cpu(rfd->command) & cb_el)
-		nic->ru_running = RU_SUSPENDED;
-
 	/* Pull off the RFD and put the actual data (minus eth hdr) */
 	skb_reserve(skb, sizeof(struct rfd));
 	skb_put(skb, actual_size);
@@ -1859,44 +1840,17 @@ static void e100_rx_clean(struct nic *nic, unsigned int *work_done,
 	unsigned int work_to_do)
 {
 	struct rx *rx;
-	int restart_required = 0;
-	struct rx *rx_to_start = NULL;
-
-	/* are we already rnr? then pay attention!!! this ensures that
-	 * the state machine progression never allows a start with a
-	 * partially cleaned list, avoiding a race between hardware
-	 * and rx_to_clean when in NAPI mode */
-	if(RU_SUSPENDED == nic->ru_running)
-		restart_required = 1;
 
 	/* Indicate newly arrived packets */
 	for(rx = nic->rx_to_clean; rx->skb; rx = nic->rx_to_clean = rx->next) {
-		int err = e100_rx_indicate(nic, rx, work_done, work_to_do);
-		if(-EAGAIN == err) {
-			/* hit quota so have more work to do, restart once
-			 * cleanup is complete */
-			restart_required = 0;
-			break;
-		} else if(-ENODATA == err)
+		if(e100_rx_indicate(nic, rx, work_done, work_to_do))
 			break; /* No more to clean */
 	}
-
-	/* save our starting point as the place we'll restart the receiver */
-	if(restart_required)
-		rx_to_start = nic->rx_to_clean;
 
 	/* Alloc new skbs to refill list */
 	for(rx = nic->rx_to_use; !rx->skb; rx = nic->rx_to_use = rx->next) {
 		if(unlikely(e100_rx_alloc_skb(nic, rx)))
 			break; /* Better luck next time (see watchdog) */
-	}
-
-	if(restart_required) {
-		// ack the rnr?
-		writeb(stat_ack_rnr, &nic->csr->scb.stat_ack);
-		e100_start_receiver(nic, rx_to_start);
-		if(work_done)
-			(*work_done)++;
 	}
 }
 
@@ -1904,8 +1858,6 @@ static void e100_rx_clean_list(struct nic *nic)
 {
 	struct rx *rx;
 	unsigned int i, count = nic->params.rfds.count;
-
-	nic->ru_running = RU_UNINITIALIZED;
 
 	if(nic->rxs) {
 		for(rx = nic->rxs, i = 0; i < count; rx++, i++) {
@@ -1928,7 +1880,6 @@ static int e100_rx_alloc_list(struct nic *nic)
 	unsigned int i, count = nic->params.rfds.count;
 
 	nic->rx_to_use = nic->rx_to_clean = NULL;
-	nic->ru_running = RU_UNINITIALIZED;
 
 	if(!(nic->rxs = kcalloc(count, sizeof(struct rx), GFP_ATOMIC)))
 		return -ENOMEM;
@@ -1943,7 +1894,6 @@ static int e100_rx_alloc_list(struct nic *nic)
 	}
 
 	nic->rx_to_use = nic->rx_to_clean = nic->rxs;
-	nic->ru_running = RU_SUSPENDED;
 
 	return 0;
 }
@@ -1962,10 +1912,6 @@ static irqreturn_t e100_intr(int irq, void *dev_id)
 
 	/* Ack interrupt(s) */
 	writeb(stat_ack, &nic->csr->scb.stat_ack);
-
-	/* We hit Receive No Resource (RNR); restart RU after cleaning */
-	if(stat_ack & stat_ack_rnr)
-		nic->ru_running = RU_SUSPENDED;
 
 	if(likely(netif_rx_schedule_prep(netdev))) {
 		e100_disable_irq(nic);
@@ -2058,7 +2004,7 @@ static int e100_up(struct nic *nic)
 	if((err = e100_hw_init(nic)))
 		goto err_clean_cbs;
 	e100_set_multicast_list(nic->netdev);
-	e100_start_receiver(nic, NULL);
+	e100_start_receiver(nic);
 	mod_timer(&nic->watchdog, jiffies);
 	if((err = request_irq(nic->pdev->irq, e100_intr, IRQF_SHARED,
 		nic->netdev->name, nic->netdev)))
@@ -2139,7 +2085,7 @@ static int e100_loopback_test(struct nic *nic, enum loopback loopback_mode)
 		mdio_write(nic->netdev, nic->mii.phy_id, MII_BMCR,
 			BMCR_LOOPBACK);
 
-	e100_start_receiver(nic, NULL);
+	e100_start_receiver(nic);
 
 	if(!(skb = netdev_alloc_skb(nic->netdev, ETH_DATA_LEN))) {
 		err = -ENOMEM;
