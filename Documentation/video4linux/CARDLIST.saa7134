@@ -67,3 +67,6 @@
  66 -> Yuan TUN-900 (saa7135)
  67 -> Beholder BeholdTV 409 FM                 [0000:4091]
  68 -> GoTView 7135 PCI                         [5456:7135]
+ 69 -> Philips EUROPA V3 reference design       [1131:2004]
+ 70 -> Compro Videomate DVB-T300                [185b:c900]
+ 71 -> Compro Videomate DVB-T200                [185b:c901]
