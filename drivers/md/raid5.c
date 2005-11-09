@@ -1746,7 +1746,10 @@ static ssize_t
 raid5_show_stripe_cache_size(mddev_t *mddev, char *page)
 {
 	raid5_conf_t *conf = mddev_to_conf(mddev);
-	return sprintf(page, "%d\n", conf->max_nr_stripes);
+	if (conf)
+		return sprintf(page, "%d\n", conf->max_nr_stripes);
+	else
+		return 0;
 }
 
 static ssize_t
@@ -1757,6 +1760,8 @@ raid5_store_stripe_cache_size(mddev_t *mddev, const char *page, size_t len)
 	int new;
 	if (len >= PAGE_SIZE)
 		return -EINVAL;
+	if (!conf)
+		return -ENODEV;
 
 	new = simple_strtoul(page, &end, 10);
 	if (!*page || (*end && *end != '\n') )
@@ -1777,23 +1782,23 @@ raid5_store_stripe_cache_size(mddev_t *mddev, const char *page, size_t len)
 	return len;
 }
 
-static struct md_sysfs_entry raid5_stripecache_size = {
-	.attr = {.name = "stripe_cache_size", .mode = S_IRUGO | S_IWUSR },
-	.show = raid5_show_stripe_cache_size,
-	.store = raid5_store_stripe_cache_size,
-};
+static struct md_sysfs_entry
+raid5_stripecache_size = __ATTR(stripe_cache_size, S_IRUGO | S_IWUSR,
+				raid5_show_stripe_cache_size,
+				raid5_store_stripe_cache_size);
 
 static ssize_t
-raid5_show_stripe_cache_active(mddev_t *mddev, char *page)
+stripe_cache_active_show(mddev_t *mddev, char *page)
 {
 	raid5_conf_t *conf = mddev_to_conf(mddev);
-	return sprintf(page, "%d\n", atomic_read(&conf->active_stripes));
+	if (conf)
+		return sprintf(page, "%d\n", atomic_read(&conf->active_stripes));
+	else
+		return 0;
 }
 
-static struct md_sysfs_entry raid5_stripecache_active = {
-	.attr = {.name = "stripe_cache_active", .mode = S_IRUGO},
-	.show = raid5_show_stripe_cache_active,
-};
+static struct md_sysfs_entry
+raid5_stripecache_active = __ATTR_RO(stripe_cache_active);
 
 static struct attribute *raid5_attrs[] =  {
 	&raid5_stripecache_size.attr,
@@ -1981,6 +1986,7 @@ static int stop(mddev_t *mddev)
 	free_pages((unsigned long) conf->stripe_hashtbl, HASH_PAGES_ORDER);
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	sysfs_remove_group(&mddev->kobj, &raid5_attrs_group);
+	kfree(conf);
 	mddev->private = NULL;
 	return 0;
 }

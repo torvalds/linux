@@ -1504,7 +1504,7 @@ struct rdev_sysfs_entry {
 };
 
 static ssize_t
-rdev_show_state(mdk_rdev_t *rdev, char *page)
+state_show(mdk_rdev_t *rdev, char *page)
 {
 	char *sep = "";
 	int len=0;
@@ -1525,13 +1525,11 @@ rdev_show_state(mdk_rdev_t *rdev, char *page)
 	return len+sprintf(page+len, "\n");
 }
 
-static struct rdev_sysfs_entry rdev_state = {
-	.attr = {.name = "state", .mode = S_IRUGO },
-	.show = rdev_show_state,
-};
+static struct rdev_sysfs_entry
+rdev_state = __ATTR_RO(state);
 
 static ssize_t
-rdev_show_super(mdk_rdev_t *rdev, char *page)
+super_show(mdk_rdev_t *rdev, char *page)
 {
 	if (rdev->sb_loaded && rdev->sb_size) {
 		memcpy(page, page_address(rdev->sb_page), rdev->sb_size);
@@ -1539,10 +1537,8 @@ rdev_show_super(mdk_rdev_t *rdev, char *page)
 	} else
 		return 0;
 }
-static struct rdev_sysfs_entry rdev_super = {
-	.attr = {.name = "super", .mode = S_IRUGO },
-	.show = rdev_show_super,
-};
+static struct rdev_sysfs_entry rdev_super = __ATTR_RO(super);
+
 static struct attribute *rdev_default_attrs[] = {
 	&rdev_state.attr,
 	&rdev_super.attr,
@@ -1728,7 +1724,7 @@ static void analyze_sbs(mddev_t * mddev)
 }
 
 static ssize_t
-md_show_level(mddev_t *mddev, char *page)
+level_show(mddev_t *mddev, char *page)
 {
 	mdk_personality_t *p = mddev->pers;
 	if (p == NULL)
@@ -1739,21 +1735,15 @@ md_show_level(mddev_t *mddev, char *page)
 		return sprintf(page, "%s\n", p->name);
 }
 
-static struct md_sysfs_entry md_level = {
-	.attr = {.name = "level", .mode = S_IRUGO },
-	.show = md_show_level,
-};
+static struct md_sysfs_entry md_level = __ATTR_RO(level);
 
 static ssize_t
-md_show_rdisks(mddev_t *mddev, char *page)
+raid_disks_show(mddev_t *mddev, char *page)
 {
 	return sprintf(page, "%d\n", mddev->raid_disks);
 }
 
-static struct md_sysfs_entry md_raid_disks = {
-	.attr = {.name = "raid_disks", .mode = S_IRUGO },
-	.show = md_show_rdisks,
-};
+static struct md_sysfs_entry md_raid_disks = __ATTR_RO(raid_disks);
 
 static ssize_t
 md_show_scan(mddev_t *mddev, char *page)
@@ -1782,10 +1772,10 @@ md_store_scan(mddev_t *mddev, const char *page, size_t len)
 	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) ||
 	    test_bit(MD_RECOVERY_NEEDED, &mddev->recovery))
 		return -EBUSY;
-	down(&mddev->reconfig_sem);
+
 	if (mddev->pers && mddev->pers->sync_request)
 		canscan=1;
-	up(&mddev->reconfig_sem);
+
 	if (!canscan)
 		return -EINVAL;
 
@@ -1801,22 +1791,18 @@ md_store_scan(mddev_t *mddev, const char *page, size_t len)
 }
 
 static ssize_t
-md_show_mismatch(mddev_t *mddev, char *page)
+mismatch_cnt_show(mddev_t *mddev, char *page)
 {
 	return sprintf(page, "%llu\n",
 		       (unsigned long long) mddev->resync_mismatches);
 }
 
-static struct md_sysfs_entry md_scan_mode = {
-	.attr = {.name = "scan_mode", .mode = S_IRUGO|S_IWUSR },
-	.show = md_show_scan,
-	.store = md_store_scan,
-};
+static struct md_sysfs_entry
+md_scan_mode = __ATTR(scan_mode, S_IRUGO|S_IWUSR, md_show_scan, md_store_scan);
 
-static struct md_sysfs_entry md_mismatches = {
-	.attr = {.name = "mismatch_cnt", .mode = S_IRUGO },
-	.show = md_show_mismatch,
-};
+
+static struct md_sysfs_entry
+md_mismatches = __ATTR_RO(mismatch_cnt);
 
 static struct attribute *md_default_attrs[] = {
 	&md_level.attr,
@@ -1831,10 +1817,14 @@ md_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
 {
 	struct md_sysfs_entry *entry = container_of(attr, struct md_sysfs_entry, attr);
 	mddev_t *mddev = container_of(kobj, struct mddev_s, kobj);
+	ssize_t rv;
 
 	if (!entry->show)
 		return -EIO;
-	return entry->show(mddev, page);
+	mddev_lock(mddev);
+	rv = entry->show(mddev, page);
+	mddev_unlock(mddev);
+	return rv;
 }
 
 static ssize_t
@@ -1843,10 +1833,14 @@ md_attr_store(struct kobject *kobj, struct attribute *attr,
 {
 	struct md_sysfs_entry *entry = container_of(attr, struct md_sysfs_entry, attr);
 	mddev_t *mddev = container_of(kobj, struct mddev_s, kobj);
+	ssize_t rv;
 
 	if (!entry->store)
 		return -EIO;
-	return entry->store(mddev, page, length);
+	mddev_lock(mddev);
+	rv = entry->store(mddev, page, length);
+	mddev_unlock(mddev);
+	return rv;
 }
 
 static void md_free(struct kobject *ko)
