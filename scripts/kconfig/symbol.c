@@ -731,12 +731,12 @@ struct symbol *sym_check_deps(struct symbol *sym)
 	struct symbol *sym2;
 	struct property *prop;
 
-	if (sym->flags & SYMBOL_CHECK_DONE)
-		return NULL;
 	if (sym->flags & SYMBOL_CHECK) {
 		printf("Warning! Found recursive dependency: %s", sym->name);
 		return sym;
 	}
+	if (sym->flags & SYMBOL_CHECKED)
+		return NULL;
 
 	sym->flags |= (SYMBOL_CHECK | SYMBOL_CHECKED);
 	sym2 = sym_check_expr_deps(sym->rev_dep.expr);
@@ -756,8 +756,13 @@ struct symbol *sym_check_deps(struct symbol *sym)
 			goto out;
 	}
 out:
-	if (sym2)
+	if (sym2) {
 		printf(" %s", sym->name);
+		if (sym2 == sym) {
+			printf("\n");
+			sym2 = NULL;
+		}
+	}
 	sym->flags &= ~SYMBOL_CHECK;
 	return sym2;
 }
