@@ -1308,14 +1308,18 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 			if (width > maxw)
 				width = maxw;
 
-			/* FIXME*/
 			if(dev->is_em2800){
-				/* we only know how to scale to 50% */
+				/* the em2800 can only scale down to 50% */
 				if(height % (maxh / 2))
 					height=maxh;
 				if(width % (maxw / 2))
 					width=maxw;
-				/* larger resoltion don't seem to work either */
+				/* according to empiatech support */
+				/* the MaxPacketSize is to small to support */
+				/* framesizes larger than 640x480 @ 30 fps */
+				/* or 640x576 @ 25 fps. As this would cut */
+				/* of a part of the image we prefer */
+				/* 360x576 or 360x480 for now */
 				if(width == maxw && height == maxh)
 					width /= 2;
 			}
