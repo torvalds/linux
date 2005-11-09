@@ -1671,7 +1671,6 @@ static int em2820_init_dev(struct em2820 **devhandle, struct usb_device *udev,
 		return -ENOMEM;
 	}
 
-	dev->vdev->owner = THIS_MODULE;
 	dev->vdev->type = VID_TYPE_CAPTURE;
 	if (dev->has_tuner)
 		dev->vdev->type |= VID_TYPE_TUNER;

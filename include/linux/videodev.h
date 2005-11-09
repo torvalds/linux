@@ -27,16 +27,6 @@ video_device_remove_file(struct video_device *vfd,
 	class_device_remove_file(&vfd->class_dev, attr);
 }
 
-/* helper functions to access driver private data. */
-static inline void *video_get_drvdata(struct video_device *dev)
-{
-	return dev->priv;
-}
-
-static inline void video_set_drvdata(struct video_device *dev, void *data)
-{
-	dev->priv = data;
-}
 
 extern int video_exclusive_open(struct inode *inode, struct file *file);
 extern int video_exclusive_release(struct inode *inode, struct file *file);

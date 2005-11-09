@@ -50,13 +50,6 @@ struct video_device
 	void (*release)(struct video_device *vfd);
 
 
-	/* obsolete -- fops->owner is used instead */
-	struct module *owner;
-	/* dev->driver_data will be used instead some day.
-	 * Use the video_{get|set}_drvdata() helper functions,
-	 * so the switch over will be transparent for you.
-	 * Or use {pci|usb}_{get|set}_drvdata() directly. */
-	void *priv;
 
 	/* for videodev.c intenal usage -- please don't touch */
 	int users;                     /* video_exclusive_{open|close} ... */
