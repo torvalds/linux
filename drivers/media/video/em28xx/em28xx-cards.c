@@ -160,7 +160,6 @@ struct em2820_board em2820_boards[] = {
 	},
 	[EM2800_BOARD_TERRATEC_CINERGY_200] = {
 		.name         = "Terratec Cinergy 200 USB",
-		.chip_id      = 0x4,
 		.is_em2800    = 1,
 		.vchannels    = 3,
 		.norm         = VIDEO_MODE_PAL,
@@ -184,7 +183,6 @@ struct em2820_board em2820_boards[] = {
 	},
 	[EM2800_BOARD_LEADTEK_WINFAST_USBII] = {
 		.name         = "Leadtek Winfast USB II",
-		.chip_id      = 0x2,
 		.is_em2800    = 1,
 		.vchannels    = 3,
 		.norm         = VIDEO_MODE_PAL,
@@ -208,7 +206,6 @@ struct em2820_board em2820_boards[] = {
 	},
 	[EM2800_BOARD_KWORLD_USB2800] = {
 		.name         = "Kworld USB2800",
-		.chip_id      = 0x7,
 		.is_em2800    = 1,
 		.vchannels    = 3,
 		.norm         = VIDEO_MODE_PAL,

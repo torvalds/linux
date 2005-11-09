@@ -1272,6 +1272,18 @@ static int em2820_video_do_ioctl(struct inode *inode, struct file *filp,
 			if (width > maxw)
 				width = maxw;
 
+			/* FIXME*/
+			if(dev->is_em2800){
+				/* we only know how to scale to 50% */
+				if(height % (maxh / 2))
+					height=maxh;
+				if(width % (maxw / 2))
+					width=maxw;
+				/* larger resoltion don't seem to work either */
+				if(width == maxw && height == maxh)
+					width /= 2;
+			}
+
 			if ((hscale =
 			     (((unsigned long)maxw) << 12) / width - 4096L) >=
 			    0x4000)

@@ -159,7 +159,6 @@ enum em2820_decoder {
 
 struct em2820_board {
 	char *name;
-	unsigned char chip_id;
 	int vchannels;
 	int norm;
 	int tuner_type;

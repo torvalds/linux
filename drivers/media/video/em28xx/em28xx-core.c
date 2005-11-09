@@ -437,6 +437,18 @@ int em2820_scaler_set(struct em2820 *dev, u16 h, u16 v)
 	buf[0] = v;
 	buf[1] = v >> 8;
 	em2820_write_regs(dev, VSCALELOW_REG, (char *)buf, 2);
+	if(dev->is_em2800){
+		/* FIXME */
+		/* random ratio scaling and 720x567 doesn't seem to work */
+		/* the maximum we can get is 640x480 with disabled scaler */
+		/* and norm_maxw set to 640 */
+		if(dev->width == 640 && dev->height == 480)
+			return em2820_write_regs(dev, COMPR_REG,"\x00",1);
+		if(dev->height > 288)
+			return em2820_write_regs(dev, COMPR_REG,"\x10",1);
+		if(dev->width > 360)
+			return em2820_write_regs(dev, COMPR_REG,"\x20",1);
+	}
 	/* when H and V mixershould be used? */
 	/*	return em2820_write_reg_bits(dev, COMPR_REG, (h ? 0x20 : 0x00) | (v ? 0x10 : 0x00), 0x30); */
 	/* it seems that both H and V scalers must be active to work correctly */
