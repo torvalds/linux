@@ -362,8 +362,7 @@ static int nfattr_to_tcp(struct nfattr *cda[], struct ip_conntrack *ct)
 	struct nfattr *attr = cda[CTA_PROTOINFO_TCP-1];
 	struct nfattr *tb[CTA_PROTOINFO_TCP_MAX];
 
-        if (nfattr_parse_nested(tb, CTA_PROTOINFO_TCP_MAX, attr) < 0)
-                goto nfattr_failure;
+        nfattr_parse_nested(tb, CTA_PROTOINFO_TCP_MAX, attr);
 
 	if (!tb[CTA_PROTOINFO_TCP_STATE-1])
 		return -EINVAL;
@@ -374,9 +373,6 @@ static int nfattr_to_tcp(struct nfattr *cda[], struct ip_conntrack *ct)
 	write_unlock_bh(&tcp_lock);
 
 	return 0;
-
-nfattr_failure:
-	return -1;
 }
 #endif
 

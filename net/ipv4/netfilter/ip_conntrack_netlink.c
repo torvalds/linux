@@ -482,9 +482,7 @@ ctnetlink_parse_tuple_ip(struct nfattr *attr, struct ip_conntrack_tuple *tuple)
 
 	DEBUGP("entered %s\n", __FUNCTION__);
 
-	
-	if (nfattr_parse_nested(tb, CTA_IP_MAX, attr) < 0)
-		goto nfattr_failure;
+	nfattr_parse_nested(tb, CTA_IP_MAX, attr);
 
 	if (nfattr_bad_size(tb, CTA_IP_MAX, cta_min_ip))
 		return -EINVAL;
@@ -500,9 +498,6 @@ ctnetlink_parse_tuple_ip(struct nfattr *attr, struct ip_conntrack_tuple *tuple)
 	DEBUGP("leaving\n");
 
 	return 0;
-
-nfattr_failure:
-	return -1;
 }
 
 static const int cta_min_proto[CTA_PROTO_MAX] = {
@@ -524,8 +519,7 @@ ctnetlink_parse_tuple_proto(struct nfattr *attr,
 
 	DEBUGP("entered %s\n", __FUNCTION__);
 
-	if (nfattr_parse_nested(tb, CTA_PROTO_MAX, attr) < 0)
-		goto nfattr_failure;
+	nfattr_parse_nested(tb, CTA_PROTO_MAX, attr);
 
 	if (nfattr_bad_size(tb, CTA_PROTO_MAX, cta_min_proto))
 		return -EINVAL;
@@ -542,9 +536,6 @@ ctnetlink_parse_tuple_proto(struct nfattr *attr,
 	}
 	
 	return ret;
-
-nfattr_failure:
-	return -1;
 }
 
 static inline int
@@ -558,8 +549,7 @@ ctnetlink_parse_tuple(struct nfattr *cda[], struct ip_conntrack_tuple *tuple,
 
 	memset(tuple, 0, sizeof(*tuple));
 
-	if (nfattr_parse_nested(tb, CTA_TUPLE_MAX, cda[type-1]) < 0)
-		goto nfattr_failure;
+	nfattr_parse_nested(tb, CTA_TUPLE_MAX, cda[type-1]);
 
 	if (!tb[CTA_TUPLE_IP-1])
 		return -EINVAL;
@@ -586,9 +576,6 @@ ctnetlink_parse_tuple(struct nfattr *cda[], struct ip_conntrack_tuple *tuple,
 	DEBUGP("leaving\n");
 
 	return 0;
-
-nfattr_failure:
-	return -1;
 }
 
 #ifdef CONFIG_IP_NF_NAT_NEEDED
@@ -606,11 +593,10 @@ static int ctnetlink_parse_nat_proto(struct nfattr *attr,
 
 	DEBUGP("entered %s\n", __FUNCTION__);
 
-	if (nfattr_parse_nested(tb, CTA_PROTONAT_MAX, attr) < 0)
-		goto nfattr_failure;
+	nfattr_parse_nested(tb, CTA_PROTONAT_MAX, attr);
 
 	if (nfattr_bad_size(tb, CTA_PROTONAT_MAX, cta_min_protonat))
-		goto nfattr_failure;
+		return -1;
 
 	npt = ip_nat_proto_find_get(ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum);
 	if (!npt)
@@ -629,9 +615,6 @@ static int ctnetlink_parse_nat_proto(struct nfattr *attr,
 
 	DEBUGP("leaving\n");
 	return 0;
-
-nfattr_failure:
-	return -1;
 }
 
 static inline int
@@ -645,8 +628,7 @@ ctnetlink_parse_nat(struct nfattr *cda[],
 
 	memset(range, 0, sizeof(*range));
 	
-	if (nfattr_parse_nested(tb, CTA_NAT_MAX, cda[CTA_NAT-1]) < 0)
-		goto nfattr_failure;
+	nfattr_parse_nested(tb, CTA_NAT_MAX, cda[CTA_NAT-1]);
 
 	if (tb[CTA_NAT_MINIP-1])
 		range->min_ip = *(u_int32_t *)NFA_DATA(tb[CTA_NAT_MINIP-1]);
@@ -668,9 +650,6 @@ ctnetlink_parse_nat(struct nfattr *cda[],
 
 	DEBUGP("leaving\n");
 	return 0;
-
-nfattr_failure:
-	return -1;
 }
 #endif
 
@@ -681,8 +660,7 @@ ctnetlink_parse_help(struct nfattr *attr, char **helper_name)
 
 	DEBUGP("entered %s\n", __FUNCTION__);
 
-	if (nfattr_parse_nested(tb, CTA_HELP_MAX, attr) < 0)
-		goto nfattr_failure;
+	nfattr_parse_nested(tb, CTA_HELP_MAX, attr);
 
 	if (!tb[CTA_HELP_NAME-1])
 		return -EINVAL;
@@ -690,9 +668,6 @@ ctnetlink_parse_help(struct nfattr *attr, char **helper_name)
 	*helper_name = NFA_DATA(tb[CTA_HELP_NAME-1]);
 
 	return 0;
-
-nfattr_failure:
-	return -1;
 }
 
 static int
@@ -960,8 +935,7 @@ ctnetlink_change_protoinfo(struct ip_conntrack *ct, struct nfattr *cda[])
 	u_int16_t npt = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.protonum;
 	int err = 0;
 
-	if (nfattr_parse_nested(tb, CTA_PROTOINFO_MAX, attr) < 0)
-		goto nfattr_failure;
+	nfattr_parse_nested(tb, CTA_PROTOINFO_MAX, attr);
 
 	proto = ip_conntrack_proto_find_get(npt);
 	if (!proto)
@@ -972,9 +946,6 @@ ctnetlink_change_protoinfo(struct ip_conntrack *ct, struct nfattr *cda[])
 	ip_conntrack_proto_put(proto); 
 
 	return err;
-
-nfattr_failure:
-	return -ENOMEM;
 }
 
 static int
