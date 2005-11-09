@@ -845,19 +845,19 @@ static int set_tvaudio(struct cx88_core *core)
 		return 0;
 
 	if (V4L2_STD_PAL_BG & norm->id) {
-		core->tvaudio = nicam ? WW_NICAM_BGDKL : WW_A2_BG;
+		core->tvaudio = WW_BG;
 
 	} else if (V4L2_STD_PAL_DK & norm->id) {
-		core->tvaudio = nicam ? WW_NICAM_BGDKL : WW_A2_DK;
+		core->tvaudio = WW_DK;
 
 	} else if (V4L2_STD_PAL_I & norm->id) {
-		core->tvaudio = WW_NICAM_I;
+		core->tvaudio = WW_I;
 
 	} else if (V4L2_STD_SECAM_L & norm->id) {
-		core->tvaudio = WW_SYSTEM_L_AM;
+		core->tvaudio = WW_L;
 
 	} else if (V4L2_STD_SECAM_DK & norm->id) {
-		core->tvaudio = WW_A2_DK;
+		core->tvaudio = WW_DK;
 
 	} else if ((V4L2_STD_NTSC_M & norm->id) ||
 		   (V4L2_STD_PAL_M  & norm->id)) {

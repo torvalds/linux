@@ -288,6 +288,7 @@ struct cx88_core {
 	u32                        audiomode_current;
 	u32                        input;
 	u32                        astat;
+	u32			   use_nicam;
 
 	/* IR remote control state */
 	struct cx88_IR             *ir;
@@ -527,22 +528,20 @@ extern void cx88_card_setup(struct cx88_core *core);
 
 #define WW_NONE		 1
 #define WW_BTSC		 2
-#define WW_NICAM_I	 3
-#define WW_NICAM_BGDKL	 4
-#define WW_A1		 5
-#define WW_A2_BG	 6
-#define WW_A2_DK	 7
-#define WW_A2_M		 8
-#define WW_EIAJ		 9
-#define WW_SYSTEM_L_AM	10
-#define WW_I2SPT	11
-#define WW_FM		12
+#define WW_BG		 3
+#define WW_DK		 4
+#define WW_I		 5
+#define WW_L		 6
+#define WW_EIAJ		 7
+#define WW_I2SPT	 8
+#define WW_FM		 9
 
 void cx88_set_tvaudio(struct cx88_core *core);
 void cx88_newstation(struct cx88_core *core);
 void cx88_get_stereo(struct cx88_core *core, struct v4l2_tuner *t);
 void cx88_set_stereo(struct cx88_core *core, u32 mode, int manual);
 int cx88_audio_thread(void *data);
+int cx88_detect_nicam(struct cx88_core *core);
 
 /* ----------------------------------------------------------- */
 /* cx88-input.c                                                */
