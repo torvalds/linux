@@ -129,8 +129,8 @@ tuner_type      - same as tuner= insmod option
                   module loaded to work properly.
 has_radio	- whenever this TV card has a radio tuner.
 no_msp34xx	- "1" disables loading of msp3400.o module
-no_tda9875	- "1" disables loading of tda9875.o module 
-needs_tvaudio	- set to "1" to load tvaudio.o module 
+no_tda9875	- "1" disables loading of tda9875.o module
+needs_tvaudio	- set to "1" to load tvaudio.o module
 
 If some config item is specified both from the tvcards array and as
 insmod option, the insmod option takes precedence.
@@ -144,5 +144,5 @@ Good luck,
 
 PS: If you have a new working entry, mail it to me.
 
--- 
+--
 Gerd Knorr <kraxel@bytesex.org>
