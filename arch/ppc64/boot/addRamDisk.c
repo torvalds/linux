@@ -39,6 +39,7 @@ int main(int argc, char **argv)
 	FILE *inputVmlinux;
 	FILE *outputVmlinux;
 
+	char *rd_name, *lx_name, *out_name;
 	unsigned i;
 	unsigned long ramFileLen;
 	unsigned long ramLen;
@@ -69,6 +70,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Name of RAM disk file missing.\n");
 		exit(1);
 	}
+	rd_name = argv[1]
 
 	if (argc < 3) {
 		fprintf(stderr, "Name of System Map input file is missing.\n");
@@ -79,16 +81,18 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Name of vmlinux file missing.\n");
 		exit(1);
 	}
+	lx_name = argv[3];
 
 	if (argc < 5) {
 		fprintf(stderr, "Name of vmlinux output file missing.\n");
 		exit(1);
 	}
+	out_name = argv[4];
 
 
-	ramDisk = fopen(argv[1], "r");
+	ramDisk = fopen(rd_name, "r");
 	if ( ! ramDisk ) {
-		fprintf(stderr, "RAM disk file \"%s\" failed to open.\n", argv[1]);
+		fprintf(stderr, "RAM disk file \"%s\" failed to open.\n", rd_name);
 		exit(1);
 	}
 
@@ -98,15 +102,15 @@ int main(int argc, char **argv)
 		exit(1);
 	}
   
-	inputVmlinux = fopen(argv[3], "r");
+	inputVmlinux = fopen(lx_name, "r");
 	if ( ! inputVmlinux ) {
-		fprintf(stderr, "vmlinux file \"%s\" failed to open.\n", argv[3]);
+		fprintf(stderr, "vmlinux file \"%s\" failed to open.\n", lx_name);
 		exit(1);
 	}
   
-	outputVmlinux = fopen(argv[4], "w+");
+	outputVmlinux = fopen(out_name, "w+");
 	if ( ! outputVmlinux ) {
-		fprintf(stderr, "output vmlinux file \"%s\" failed to open.\n", argv[4]);
+		fprintf(stderr, "output vmlinux file \"%s\" failed to open.\n", out_name);
 		exit(1);
 	}
   
@@ -194,7 +198,7 @@ int main(int argc, char **argv)
 	fseek(ramDisk, 0, SEEK_END);
 	ramFileLen = ftell(ramDisk);
 	fseek(ramDisk, 0, SEEK_SET);
-	printf("%s file size = %ld/0x%lx \n", argv[1], ramFileLen, ramFileLen);
+	printf("%s file size = %ld/0x%lx \n", rd_name, ramFileLen, ramFileLen);
 
 	ramLen = ramFileLen;
 
@@ -248,7 +252,7 @@ int main(int argc, char **argv)
 	/* fseek to the hvReleaseData pointer */
 	fseek(outputVmlinux, ElfHeaderSize + 0x24, SEEK_SET);
 	if (fread(&hvReleaseData, 4, 1, outputVmlinux) != 1) {
-		death("Could not read hvReleaseData pointer\n", outputVmlinux, argv[4]);
+		death("Could not read hvReleaseData pointer\n", outputVmlinux, out_name);
 	}
 	hvReleaseData = ntohl(hvReleaseData); /* Convert to native int */
 	printf("hvReleaseData is at %08x\n", hvReleaseData);
@@ -256,11 +260,11 @@ int main(int argc, char **argv)
 	/* fseek to the hvReleaseData */
 	fseek(outputVmlinux, ElfHeaderSize + hvReleaseData, SEEK_SET);
 	if (fread(inbuf, 0x40, 1, outputVmlinux) != 1) {
-		death("Could not read hvReleaseData\n", outputVmlinux, argv[4]);
+		death("Could not read hvReleaseData\n", outputVmlinux, out_name);
 	}
 	/* Check hvReleaseData sanity */
 	if (memcmp(inbuf, &eyeCatcher, 4) != 0) {
-		death("hvReleaseData is invalid\n", outputVmlinux, argv[4]);
+		death("hvReleaseData is invalid\n", outputVmlinux, out_name);
 	}
 	/* Get the naca pointer */
 	naca = ntohl(*((u_int32_t*) &inbuf[0x0C])) - KERNELBASE;
@@ -269,13 +273,13 @@ int main(int argc, char **argv)
 	/* fseek to the naca */
 	fseek(outputVmlinux, ElfHeaderSize + naca, SEEK_SET);
 	if (fread(inbuf, 0x18, 1, outputVmlinux) != 1) {
-		death("Could not read naca\n", outputVmlinux, argv[4]);
+		death("Could not read naca\n", outputVmlinux, out_name);
 	}
 	xRamDisk = ntohl(*((u_int32_t *) &inbuf[0x0c]));
 	xRamDiskSize = ntohl(*((u_int32_t *) &inbuf[0x14]));
 	/* Make sure a RAM disk isn't already present */
 	if ((xRamDisk != 0) || (xRamDiskSize != 0)) {
-		death("RAM disk is already attached to this kernel\n", outputVmlinux, argv[4]);
+		death("RAM disk is already attached to this kernel\n", outputVmlinux, out_name);
 	}
 	/* Fill in the values */
 	*((u_int32_t *) &inbuf[0x0c]) = htonl(ramStartOffs);
@@ -285,7 +289,7 @@ int main(int argc, char **argv)
 	fflush(outputVmlinux);
 	fseek(outputVmlinux, ElfHeaderSize + naca, SEEK_SET);
 	if (fwrite(inbuf, 0x18, 1, outputVmlinux) != 1) {
-		death("Could not write naca\n", outputVmlinux, argv[4]);
+		death("Could not write naca\n", outputVmlinux, out_name);
 	}
 	printf("Ram Disk of 0x%lx pages is attached to the kernel at offset 0x%08x\n",
 	       ramPages, ramStartOffs);
@@ -293,7 +297,7 @@ int main(int argc, char **argv)
 	/* Done */
 	fclose(outputVmlinux);
 	/* Set permission to executable */
-	chmod(argv[4], S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
+	chmod(out_name, S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
 
 	return 0;
 }
