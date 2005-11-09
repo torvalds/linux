@@ -148,7 +148,7 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_PIXELVIEW                3
 #define CX88_BOARD_ATI_WONDER_PRO           4
 #define CX88_BOARD_WINFAST2000XP_EXPERT     5
-#define CX88_BOARD_AVERTV_303               6
+#define CX88_BOARD_AVERTV_STUDIO_303        6
 #define CX88_BOARD_MSI_TVANYWHERE_MASTER    7
 #define CX88_BOARD_WINFAST_DV2000           8
 #define CX88_BOARD_LEADTEK_PVR2000          9
@@ -178,6 +178,7 @@ extern struct sram_channel cx88_sram_channels[];
 #define CX88_BOARD_KWORLD_VSTREAM_EXPERT_DVD 33
 #define CX88_BOARD_ATI_HDTVWONDER          34
 #define CX88_BOARD_WINFAST_DTV1000         35
+#define CX88_BOARD_AVERTV_303              36
 
 enum cx88_itype {
 	CX88_VMUX_COMPOSITE1 = 1,

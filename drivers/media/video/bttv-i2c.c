@@ -294,8 +294,8 @@ static int attach_inform(struct i2c_client *client)
 	int addr=ADDR_UNSET;
 
 
-        if (ADDR_UNSET != bttv_tvcards[btv->c.type].tuner_addr)
-        	addr = bttv_tvcards[btv->c.type].tuner_addr;
+	if (ADDR_UNSET != bttv_tvcards[btv->c.type].tuner_addr)
+		addr = bttv_tvcards[btv->c.type].tuner_addr;
 
 
 	if (bttv_debug)
@@ -311,10 +311,10 @@ static int attach_inform(struct i2c_client *client)
 		if ((addr==ADDR_UNSET) ||
 				(addr==client->addr)) {
 
-               		tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV | T_RADIO;
-               		tun_setup.type = btv->tuner_type;
+			tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV | T_RADIO;
+			tun_setup.type = btv->tuner_type;
 			tun_setup.addr = addr;
-                	bttv_call_i2c_clients(btv, TUNER_SET_TYPE_ADDR, &tun_setup);
+			bttv_call_i2c_clients(btv, TUNER_SET_TYPE_ADDR, &tun_setup);
 		}
 
 	}

@@ -174,7 +174,7 @@ struct cx88_board cx88_boards[] = {
 			.gpio3  = 0x02000000,
 		},
 	},
-	[CX88_BOARD_AVERTV_303] = {
+	[CX88_BOARD_AVERTV_STUDIO_303] = {
 		.name           = "AverTV Studio 303 (M126)",
 		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
 		.radio_type     = UNSET,
@@ -865,6 +865,36 @@ struct cx88_board cx88_boards[] = {
 		}},
 		.dvb            = 1,
 	},
+	[CX88_BOARD_AVERTV_303] = {
+		.name           = "AVerTV 303 (M126)",
+		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
+		.radio_type     = UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0x00ff,
+			.gpio1  = 0xe09f,
+			.gpio2  = 0x0010,
+			.gpio3  = 0x0000,
+		},{
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0x00ff,
+			.gpio1  = 0xe05f,
+			.gpio2  = 0x0010,
+			.gpio3  = 0x0000,
+		},{
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0x00ff,
+			.gpio1  = 0xe05f,
+			.gpio2  = 0x0010,
+			.gpio3  = 0x0000,
+		}},
+	},
 };
 const unsigned int cx88_bcount = ARRAY_SIZE(cx88_boards);
 
@@ -915,7 +945,7 @@ struct cx88_subid cx88_subids[] = {
 	},{
 		.subvendor = 0x1461,
 		.subdevice = 0x000b,
-		.card      = CX88_BOARD_AVERTV_303,
+		.card      = CX88_BOARD_AVERTV_STUDIO_303,
 	},{
 		.subvendor = 0x1462,
 		.subdevice = 0x8606,
@@ -1008,6 +1038,10 @@ struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x107d,
 		.subdevice = 0x665f,
 		.card      = CX88_BOARD_WINFAST_DTV1000,
+	},{
+		.subvendor = 0x1461,
+		.subdevice = 0x000a,
+		.card      = CX88_BOARD_AVERTV_303,
 	},
 };
 const unsigned int cx88_idcount = ARRAY_SIZE(cx88_subids);
