@@ -348,16 +348,13 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	t->audmode = V4L2_TUNER_MODE_STEREO;
 	t->mode_mask = T_UNINITIALIZED;
 
-
-	tuner_info("chip found @ 0x%x (%s)\n", addr << 1, adap->name);
-
 	if (show_i2c) {
 		unsigned char buffer[16];
 		int i,rc;
 
 		memset(buffer, 0, sizeof(buffer));
 		rc = i2c_master_recv(&t->i2c, buffer, sizeof(buffer));
-		printk("tuner-%04x I2C RECV = ",addr);
+		tuner_info("I2C RECV = ");
 		for (i=0;i<rc;i++)
 			printk("%02x ",buffer[i]);
 		printk("\n");
@@ -373,14 +370,14 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 				t->freq = 87.5 * 16; /* Sets freq to FM range */
 				default_mode_mask &= ~T_RADIO;
 
-				i2c_attach_client (&t->i2c);
-				set_type(&t->i2c,t->type, t->mode_mask);
-				return 0;
+				goto register_client;
 			}
 		case 0x42:
 		case 0x43:
 		case 0x4a:
 		case 0x4b:
+			/* If chip is not tda8290, don't register.
+			   since it can be tda9887*/
 			if (tda8290_probe(&t->i2c) != 0) {
 				kfree(t);
 				return 0;
@@ -399,6 +396,8 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	}
 
 	/* Should be just before return */
+register_client:
+	tuner_info("chip found @ 0x%x (%s)\n", addr << 1, adap->name);
 	i2c_attach_client (&t->i2c);
 	set_type (&t->i2c,t->type, t->mode_mask);
 	return 0;
