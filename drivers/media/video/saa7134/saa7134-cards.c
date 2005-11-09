@@ -2446,6 +2446,21 @@ struct saa7134_board saa7134_boards[] = {
 			.gpio = 0x0200000,
 		},
 	},
+	[SAA7134_BOARD_PCTV_CARDBUS] = {
+		/* Paul Tom Zalac <pzalac@gmail.com> */
+		/* tda8275a tuner doesnt work yet */
+		.name           = "PCTV Cardbus TV/Radio (ITO25 Rev:2B)",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_ABSENT,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.inputs         = {{
+			.name = name_comp1,
+			.vmux = 1,
+			.amux = LINE2,
+		}},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -2973,6 +2988,7 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVACSSMARTTV:
 	case SAA7134_BOARD_GOTVIEW_7135:
 	case SAA7134_BOARD_KWORLD_TERMINATOR:
+	case SAA7134_BOARD_PCTV_CARDBUS:
 		dev->has_remote = 1;
 		break;
 	case SAA7134_BOARD_MD5044:
