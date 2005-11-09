@@ -54,7 +54,7 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 {
 	struct cx88_core *core = dev->core;
 
-	dprintk(0, "cx8802_start_dma %d\n", buf->vb.width);
+	dprintk(0, "cx8802_start_dma w: %d, h: %d, f: %d\n", dev->width, dev->height, buf->vb.field);
 
 	/* setup fifo + format */
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH28],
@@ -158,7 +158,8 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 
 /* ------------------------------------------------------------------ */
 
-int cx8802_buf_prepare(struct cx8802_dev *dev, struct cx88_buffer *buf)
+int cx8802_buf_prepare(struct cx8802_dev *dev, struct cx88_buffer *buf,
+			enum v4l2_field field)
 {
 	int size = dev->ts_packet_size * dev->ts_packet_count;
 	int rc;
@@ -171,7 +172,7 @@ int cx8802_buf_prepare(struct cx8802_dev *dev, struct cx88_buffer *buf)
 		buf->vb.width  = dev->ts_packet_size;
 		buf->vb.height = dev->ts_packet_count;
 		buf->vb.size   = size;
-		buf->vb.field  = V4L2_FIELD_TOP;
+		buf->vb.field  = field /*V4L2_FIELD_TOP*/;
 
 		if (0 != (rc = videobuf_iolock(dev->pci,&buf->vb,NULL)))
 			goto fail;

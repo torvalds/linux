@@ -1258,8 +1258,6 @@ int cx88_do_ioctl(struct inode *inode, struct file *file, int radio,
 
 	if (video_debug > 1)
 		cx88_print_ioctl(core->name,cmd);
-	printk( KERN_INFO "CORE IOCTL: 0x%x\n", cmd );
-	cx88_print_ioctl(core->name,cmd);
 	dprintk( 1, "CORE IOCTL: 0x%x\n", cmd );
 
 	switch (cmd) {
