@@ -632,12 +632,11 @@ struct bond_parm_tbl xmit_hashtype_tbl[] = {
 
 /*-------------------------- Forward declarations ---------------------------*/
 
-static inline void bond_set_mode_ops(struct bonding *bond, int mode);
 static void bond_send_gratuitous_arp(struct bonding *bond);
 
 /*---------------------------- General routines -----------------------------*/
 
-static const char *bond_mode_name(int mode)
+const char *bond_mode_name(int mode)
 {
 	switch (mode) {
 	case BOND_MODE_ROUNDROBIN :
@@ -1453,7 +1452,7 @@ static struct slave *bond_find_best_slave(struct bonding *bond)
  *
  * Warning: Caller must hold curr_slave_lock for writing.
  */
-static void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
+void bond_change_active_slave(struct bonding *bond, struct slave *new_active)
 {
 	struct slave *old_active = bond->curr_active_slave;
 
@@ -1527,7 +1526,7 @@ static void bond_change_active_slave(struct bonding *bond, struct slave *new_act
  *
  * Warning: Caller must hold curr_slave_lock for writing.
  */
-static void bond_select_active_slave(struct bonding *bond)
+void bond_select_active_slave(struct bonding *bond)
 {
 	struct slave *best_slave;
 
@@ -1595,7 +1594,7 @@ static void bond_detach_slave(struct bonding *bond, struct slave *slave)
 
 /*---------------------------------- IOCTL ----------------------------------*/
 
-static int bond_sethwaddr(struct net_device *bond_dev, struct net_device *slave_dev)
+int bond_sethwaddr(struct net_device *bond_dev, struct net_device *slave_dev)
 {
 	dprintk("bond_dev=%p\n", bond_dev);
 	dprintk("slave_dev=%p\n", slave_dev);
@@ -1635,7 +1634,7 @@ static int bond_compute_features(struct bonding *bond)
 }
 
 /* enslave device <slave> to bond device <master> */
-static int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
+int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 {
 	struct bonding *bond = bond_dev->priv;
 	struct slave *new_slave = NULL;
@@ -2002,7 +2001,7 @@ err_undo_flags:
  *   for Bonded connections:
  *     The first up interface should be left on and all others downed.
  */
-static int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
+int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 {
 	struct bonding *bond = bond_dev->priv;
 	struct slave *slave, *oldcurrent;
@@ -2403,7 +2402,7 @@ static int bond_slave_info_query(struct net_device *bond_dev, struct ifslave *in
 /*-------------------------------- Monitoring -------------------------------*/
 
 /* this function is called regularly to monitor each slave's link. */
-static void bond_mii_monitor(struct net_device *bond_dev)
+void bond_mii_monitor(struct net_device *bond_dev)
 {
 	struct bonding *bond = bond_dev->priv;
 	struct slave *slave, *oldcurrent;
@@ -2834,7 +2833,7 @@ static void bond_send_gratuitous_arp(struct bonding *bond)
  * arp is transmitted to generate traffic. see activebackup_arp_monitor for
  * arp monitoring in active backup mode.
  */
-static void bond_loadbalance_arp_mon(struct net_device *bond_dev)
+void bond_loadbalance_arp_mon(struct net_device *bond_dev)
 {
 	struct bonding *bond = bond_dev->priv;
 	struct slave *slave, *oldcurrent;
@@ -2972,7 +2971,7 @@ out:
  * may have received.
  * see loadbalance_arp_monitor for arp monitoring in load balancing mode
  */
-static void bond_activebackup_arp_mon(struct net_device *bond_dev)
+void bond_activebackup_arp_mon(struct net_device *bond_dev)
 {
 	struct bonding *bond = bond_dev->priv;
 	struct slave *slave;
@@ -4448,7 +4447,7 @@ out:
 /*
  * set bond mode specific net device operations
  */
-static inline void bond_set_mode_ops(struct bonding *bond, int mode)
+void bond_set_mode_ops(struct bonding *bond, int mode)
 {
 	struct net_device *bond_dev = bond->dev;
 
@@ -4583,7 +4582,7 @@ static int __init bond_init(struct net_device *bond_dev, struct bond_params *par
 /* De-initialize device specific data.
  * Caller must hold rtnl_lock.
  */
-static inline void bond_deinit(struct net_device *bond_dev)
+void bond_deinit(struct net_device *bond_dev)
 {
 	struct bonding *bond = bond_dev->priv;
 
@@ -4619,7 +4618,7 @@ static void bond_free_all(void)
  * Convert string input module parms.  Accept either the
  * number of the mode or its string name.
  */
-static inline int bond_parse_parm(char *mode_arg, struct bond_parm_tbl *tbl)
+int bond_parse_parm(char *mode_arg, struct bond_parm_tbl *tbl)
 {
 	int i;
 

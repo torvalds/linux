@@ -260,6 +260,18 @@ extern inline void bond_set_slave_active_flags(struct slave *slave)
 
 struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr);
 int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_device *slave_dev);
+void bond_deinit(struct net_device *bond_dev);
+int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev);
+int bond_release(struct net_device *bond_dev, struct net_device *slave_dev);
+int bond_sethwaddr(struct net_device *bond_dev, struct net_device *slave_dev);
+void bond_mii_monitor(struct net_device *bond_dev);
+void bond_loadbalance_arp_mon(struct net_device *bond_dev);
+void bond_activebackup_arp_mon(struct net_device *bond_dev);
+void bond_set_mode_ops(struct bonding *bond, int mode);
+int bond_parse_parm(char *mode_arg, struct bond_parm_tbl *tbl);
+const char *bond_mode_name(int mode);
+void bond_select_active_slave(struct bonding *bond);
+void bond_change_active_slave(struct bonding *bond, struct slave *new_active);
 
 #endif /* _LINUX_BONDING_H */
 
