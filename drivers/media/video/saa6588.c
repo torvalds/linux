@@ -328,7 +328,7 @@ static void saa6588_work(void *data)
 	struct saa6588 *s = (struct saa6588 *)data;
 
 	saa6588_i2c_poll(s);
-	mod_timer(&s->timer, jiffies + HZ / 50);	/* 20 msec */
+	mod_timer(&s->timer, jiffies + msecs_to_jiffies(20));
 }
 
 static int saa6588_configure(struct saa6588 *s)
