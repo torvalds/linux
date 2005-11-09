@@ -1683,12 +1683,6 @@ static void analyze_sbs(mddev_t * mddev)
 
 }
 
-struct md_sysfs_entry {
-	struct attribute attr;
-	ssize_t (*show)(mddev_t *, char *);
-	ssize_t (*store)(mddev_t *, const char *, size_t);
-};
-
 static ssize_t
 md_show_level(mddev_t *mddev, char *page)
 {

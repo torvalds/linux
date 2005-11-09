@@ -1732,21 +1732,17 @@ static void raid5d (mddev_t *mddev)
 	PRINTK("--- raid5d inactive\n");
 }
 
-struct raid5_sysfs_entry {
-	struct attribute attr;
-	ssize_t (*show)(raid5_conf_t *, char *);
-	ssize_t (*store)(raid5_conf_t *, const char *, ssize_t);
-};
-
 static ssize_t
-raid5_show_stripe_cache_size(raid5_conf_t *conf, char *page)
+raid5_show_stripe_cache_size(mddev_t *mddev, char *page)
 {
+	raid5_conf_t *conf = mddev_to_conf(mddev);
 	return sprintf(page, "%d\n", conf->max_nr_stripes);
 }
 
 static ssize_t
-raid5_store_stripe_cache_size(raid5_conf_t *conf, const char *page, ssize_t len)
+raid5_store_stripe_cache_size(mddev_t *mddev, const char *page, size_t len)
 {
+	raid5_conf_t *conf = mddev_to_conf(mddev);
 	char *end;
 	int new;
 	if (len >= PAGE_SIZE)
@@ -1770,68 +1766,33 @@ raid5_store_stripe_cache_size(raid5_conf_t *conf, const char *page, ssize_t len)
 	}
 	return len;
 }
-static struct raid5_sysfs_entry raid5_stripecache_size = {
+
+static struct md_sysfs_entry raid5_stripecache_size = {
 	.attr = {.name = "stripe_cache_size", .mode = S_IRUGO | S_IWUSR },
 	.show = raid5_show_stripe_cache_size,
 	.store = raid5_store_stripe_cache_size,
 };
 
 static ssize_t
-raid5_show_stripe_cache_active(raid5_conf_t *conf, char *page)
+raid5_show_stripe_cache_active(mddev_t *mddev, char *page)
 {
+	raid5_conf_t *conf = mddev_to_conf(mddev);
 	return sprintf(page, "%d\n", atomic_read(&conf->active_stripes));
 }
 
-static struct raid5_sysfs_entry raid5_stripecache_active = {
+static struct md_sysfs_entry raid5_stripecache_active = {
 	.attr = {.name = "stripe_cache_active", .mode = S_IRUGO},
 	.show = raid5_show_stripe_cache_active,
 };
 
-static struct attribute *raid5_default_attrs[] = {
+static struct attribute *raid5_attrs[] =  {
 	&raid5_stripecache_size.attr,
 	&raid5_stripecache_active.attr,
 	NULL,
 };
-
-static ssize_t
-raid5_attr_show(struct kobject *kobj, struct attribute *attr, char *page)
-{
-	struct raid5_sysfs_entry *entry = container_of(attr, struct raid5_sysfs_entry, attr);
-	raid5_conf_t *conf = container_of(kobj, raid5_conf_t, kobj);
-
-	if (!entry->show)
-		return -EIO;
-	return entry->show(conf, page);
-}
-
-static ssize_t
-raid5_attr_store(struct kobject *kobj, struct attribute *attr,
-	      const char *page, size_t length)
-{
-	struct raid5_sysfs_entry *entry = container_of(attr, struct raid5_sysfs_entry, attr);
-	raid5_conf_t *conf = container_of(kobj, raid5_conf_t, kobj);
-
-	if (!entry->store)
-		return -EIO;
-	return entry->store(conf, page, length);
-}
-
-static void raid5_free(struct kobject *ko)
-{
-	raid5_conf_t *conf = container_of(ko, raid5_conf_t, kobj);
-	kfree(conf);
-}
-
-
-static struct sysfs_ops raid5_sysfs_ops = {
-	.show		= raid5_attr_show,
-	.store		= raid5_attr_store,
-};
-
-static struct kobj_type raid5_ktype = {
-	.release	= raid5_free,
-	.sysfs_ops	= &raid5_sysfs_ops,
-	.default_attrs	= raid5_default_attrs,
+static struct attribute_group raid5_attrs_group = {
+	.name = NULL,
+	.attrs = raid5_attrs,
 };
 
 static int run(mddev_t *mddev)
@@ -1975,10 +1936,7 @@ memory = conf->max_nr_stripes * (sizeof(struct stripe_head) +
 	}
 
 	/* Ok, everything is just fine now */
-	conf->kobj.parent = &mddev->kobj;
-	strcpy(conf->kobj.name, "raid5");
-	conf->kobj.ktype = &raid5_ktype;
-	kobject_register(&conf->kobj);
+	sysfs_create_group(&mddev->kobj, &raid5_attrs_group);
 
 	if (mddev->bitmap)
 		mddev->thread->timeout = mddev->bitmap->daemon_sleep * HZ;
@@ -2012,7 +1970,7 @@ static int stop(mddev_t *mddev)
 	shrink_stripes(conf);
 	free_pages((unsigned long) conf->stripe_hashtbl, HASH_PAGES_ORDER);
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
-	kobject_unregister(&conf->kobj);
+	sysfs_remove_group(&mddev->kobj, &raid5_attrs_group);
 	mddev->private = NULL;
 	return 0;
 }

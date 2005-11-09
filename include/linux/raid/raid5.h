@@ -228,7 +228,6 @@ struct raid5_private_data {
 					    * Cleared when a sync completes.
 					    */
 
-	struct kobject		kobj;
 	/*
 	 * Free stripes pool
 	 */

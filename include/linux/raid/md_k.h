@@ -282,6 +282,13 @@ struct mdk_personality_s
 };
 
 
+struct md_sysfs_entry {
+	struct attribute attr;
+	ssize_t (*show)(mddev_t *, char *);
+	ssize_t (*store)(mddev_t *, const char *, size_t);
+};
+
+
 static inline char * mdname (mddev_t * mddev)
 {
 	return mddev->gendisk ? mddev->gendisk->disk_name : "mdX";
