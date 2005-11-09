@@ -49,7 +49,6 @@ static struct fb_ops cg14_ops = {
 	.fb_imageblit		= cfb_imageblit,
 	.fb_mmap		= cg14_mmap,
 	.fb_ioctl		= cg14_ioctl,
-	.fb_cursor		= soft_cursor,
 };
 
 #define CG14_MCR_INTENABLE_SHIFT	7

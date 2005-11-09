@@ -28,6 +28,7 @@
 #include <asm/time.h>
 #include <asm/systemcfg.h>
 #include <asm/machdep.h>
+#include <asm/smp.h>
 
 extern void power4_idle(void);
 

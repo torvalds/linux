@@ -865,10 +865,8 @@ out_dev:
 
 out_irq:
 #endif
-	for (i = 0; i < MAX_AR_HEIGHT; i++) {
-		if (ar->frame[i])
-			kfree(ar->frame[i]);
-	}
+	for (i = 0; i < MAX_AR_HEIGHT; i++)
+		kfree(ar->frame[i]);
 
 out_line_buff:
 #if USE_INT
@@ -899,10 +897,8 @@ static void __exit ar_cleanup_module(void)
 #if USE_INT
 	free_irq(M32R_IRQ_INT3, ar);
 #endif
-	for (i = 0; i < MAX_AR_HEIGHT; i++) {
-		if (ar->frame[i])
-			kfree(ar->frame[i]);
-	}
+	for (i = 0; i < MAX_AR_HEIGHT; i++)
+		kfree(ar->frame[i]);
 #if USE_INT
 	kfree(ar->line_buff);
 #endif

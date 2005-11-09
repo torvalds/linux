@@ -1,5 +1,5 @@
 /*
- * $Id: pmc551.c,v 1.30 2005/01/05 18:05:13 dwmw2 Exp $
+ * $Id: pmc551.c,v 1.32 2005/11/07 11:14:25 gleixner Exp $
  *
  * PMC551 PCI Mezzanine Ram Device
  *
@@ -27,7 +27,7 @@
  *	 it as high speed swap or for a high speed disk device of some
  *	 sort.  Which becomes very useful on diskless systems in the
  *	 embedded market I might add.
- *	 
+ *
  * Notes:
  *	 Due to what I assume is more buggy SROM, the 64M PMC551 I
  *	 have available claims that all 4 of it's DRAM banks have 64M
@@ -63,10 +63,10 @@
  *       Minyard set up the card to utilize a 1M sliding apature.
  *
  *	 Corey Minyard <minyard@nortelnetworks.com>
- *       * Modified driver to utilize a sliding aperture instead of 
+ *       * Modified driver to utilize a sliding aperture instead of
  *         mapping all memory into kernel space which turned out to
  *         be very wasteful.
- *       * Located a bug in the SROM's initialization sequence that 
+ *       * Located a bug in the SROM's initialization sequence that
  *         made the memory unusable, added a fix to code to touch up
  *         the DRAM some.
  *
@@ -390,7 +390,7 @@ static u32 fixup_pmc551 (struct pci_dev *dev)
 	bcmd |= (0x40|0x20);
 	pci_write_config_byte(dev, PMC551_SYS_CTRL_REG, bcmd);
 
-        /* 
+        /*
 	 * Take care and turn off the memory on the device while we
 	 * tweak the configurations
 	 */
@@ -408,7 +408,7 @@ static u32 fixup_pmc551 (struct pci_dev *dev)
 	 * Grab old BAR0 config so that we can figure out memory size
 	 * This is another bit of kludge going on.  The reason for the
 	 * redundancy is I am hoping to retain the original configuration
-	 * previously assigned to the card by the BIOS or some previous 
+	 * previously assigned to the card by the BIOS or some previous
 	 * fixup routine in the kernel.  So we read the old config into cfg,
 	 * then write all 1's to the memory space, read back the result into
 	 * "size", and then write back all the old config.
@@ -480,7 +480,7 @@ static u32 fixup_pmc551 (struct pci_dev *dev)
         } while ( (PCI_COMMAND_IO) & cmd );
 
         /*
-	 * Turn on auto refresh 
+	 * Turn on auto refresh
 	 * The loop is taken directly from Ramix's example code.  I assume that
 	 * this must be held high for some duration of time, but I can find no
 	 * documentation refrencing the reasons why.
@@ -615,7 +615,7 @@ static u32 fixup_pmc551 (struct pci_dev *dev)
 	pci_read_config_byte(dev, PMC551_SYS_CTRL_REG, &bcmd );
 	printk( KERN_DEBUG "pmc551: EEPROM is under %s control\n"
 			   "pmc551: System Control Register is %slocked to PCI access\n"
-			   "pmc551: System Control Register is %slocked to EEPROM access\n", 
+			   "pmc551: System Control Register is %slocked to EEPROM access\n",
 		(bcmd&0x1)?"software":"hardware",
 		(bcmd&0x20)?"":"un", (bcmd&0x40)?"":"un");
 #endif
@@ -744,7 +744,7 @@ static int __init init_pmc551(void)
                 priv->start = ioremap(((PCI_Device->resource[0].start)
                                        & PCI_BASE_ADDRESS_MEM_MASK),
                                       priv->asize);
-		
+
 		if (!priv->start) {
 			printk(KERN_NOTICE "pmc551: Unable to map IO space\n");
                         kfree(mtd->priv);
@@ -765,7 +765,7 @@ static int __init init_pmc551(void)
                                          priv->curr_map0 );
 
 #ifdef CONFIG_MTD_PMC551_DEBUG
-		printk( KERN_DEBUG "pmc551: aperture set to %d\n", 
+		printk( KERN_DEBUG "pmc551: aperture set to %d\n",
 			(priv->base_map0 & 0xF0)>>4 );
 #endif
 
@@ -823,13 +823,13 @@ static void __exit cleanup_pmc551(void)
 	while((mtd=pmc551list)) {
 		priv = mtd->priv;
 		pmc551list = priv->nextpmc551;
-		
+
 		if(priv->start) {
 			printk (KERN_DEBUG "pmc551: unmapping %dM starting at 0x%p\n",
 				priv->asize>>20, priv->start);
 			iounmap (priv->start);
 		}
-		
+
 		kfree (mtd->priv);
 		del_mtd_device (mtd);
 		kfree (mtd);

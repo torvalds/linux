@@ -1,21 +1,22 @@
-/* 
+/*
  * Direct MTD block device access
  *
- * $Id: mtdblock.c,v 1.66 2004/11/25 13:52:52 joern Exp $
+ * $Id: mtdblock.c,v 1.68 2005/11/07 11:14:20 gleixner Exp $
  *
  * (C) 2000-2003 Nicolas Pitre <nico@cam.org>
  * (C) 1999-2003 David Woodhouse <dwmw2@infradead.org>
  */
 
 #include <linux/config.h>
-#include <linux/types.h>
-#include <linux/module.h>
-#include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/types.h>
 #include <linux/vmalloc.h>
-#include <linux/sched.h>	/* TASK_* */
+
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/blktrans.h>
 
@@ -31,7 +32,7 @@ static struct mtdblk_dev {
 
 /*
  * Cache stuff...
- * 
+ *
  * Since typical flash erasable sectors are much larger than what Linux's
  * buffer cache can handle, we must implement read-modify-write on flash
  * sectors for each block write requests.  To avoid over-erasing flash sectors
@@ -45,7 +46,7 @@ static void erase_callback(struct erase_info *done)
 	wake_up(wait_q);
 }
 
-static int erase_write (struct mtd_info *mtd, unsigned long pos, 
+static int erase_write (struct mtd_info *mtd, unsigned long pos,
 			int len, const char *buf)
 {
 	struct erase_info erase;
@@ -103,18 +104,18 @@ static int write_cached_data (struct mtdblk_dev *mtdblk)
 		return 0;
 
 	DEBUG(MTD_DEBUG_LEVEL2, "mtdblock: writing cached data for \"%s\" "
-			"at 0x%lx, size 0x%x\n", mtd->name, 
+			"at 0x%lx, size 0x%x\n", mtd->name,
 			mtdblk->cache_offset, mtdblk->cache_size);
-	
-	ret = erase_write (mtd, mtdblk->cache_offset, 
+
+	ret = erase_write (mtd, mtdblk->cache_offset,
 			   mtdblk->cache_size, mtdblk->cache_data);
 	if (ret)
 		return ret;
 
 	/*
 	 * Here we could argubly set the cache state to STATE_CLEAN.
-	 * However this could lead to inconsistency since we will not 
-	 * be notified if this content is altered on the flash by other 
+	 * However this could lead to inconsistency since we will not
+	 * be notified if this content is altered on the flash by other
 	 * means.  Let's declare it empty and leave buffering tasks to
 	 * the buffer cache instead.
 	 */
@@ -123,7 +124,7 @@ static int write_cached_data (struct mtdblk_dev *mtdblk)
 }
 
 
-static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos, 
+static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos,
 			    int len, const char *buf)
 {
 	struct mtd_info *mtd = mtdblk->mtd;
@@ -133,7 +134,7 @@ static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos,
 
 	DEBUG(MTD_DEBUG_LEVEL2, "mtdblock: write on \"%s\" at 0x%lx, size 0x%x\n",
 		mtd->name, pos, len);
-	
+
 	if (!sect_size)
 		return MTD_WRITE (mtd, pos, len, &retlen, buf);
 
@@ -141,11 +142,11 @@ static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos,
 		unsigned long sect_start = (pos/sect_size)*sect_size;
 		unsigned int offset = pos - sect_start;
 		unsigned int size = sect_size - offset;
-		if( size > len ) 
+		if( size > len )
 			size = len;
 
 		if (size == sect_size) {
-			/* 
+			/*
 			 * We are covering a whole sector.  Thus there is no
 			 * need to bother with the cache while it may still be
 			 * useful for other partial writes.
@@ -159,7 +160,7 @@ static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos,
 			if (mtdblk->cache_state == STATE_DIRTY &&
 			    mtdblk->cache_offset != sect_start) {
 				ret = write_cached_data(mtdblk);
-				if (ret) 
+				if (ret)
 					return ret;
 			}
 
@@ -192,7 +193,7 @@ static int do_cached_write (struct mtdblk_dev *mtdblk, unsigned long pos,
 }
 
 
-static int do_cached_read (struct mtdblk_dev *mtdblk, unsigned long pos, 
+static int do_cached_read (struct mtdblk_dev *mtdblk, unsigned long pos,
 			   int len, char *buf)
 {
 	struct mtd_info *mtd = mtdblk->mtd;
@@ -200,9 +201,9 @@ static int do_cached_read (struct mtdblk_dev *mtdblk, unsigned long pos,
 	size_t retlen;
 	int ret;
 
-	DEBUG(MTD_DEBUG_LEVEL2, "mtdblock: read on \"%s\" at 0x%lx, size 0x%x\n", 
+	DEBUG(MTD_DEBUG_LEVEL2, "mtdblock: read on \"%s\" at 0x%lx, size 0x%x\n",
 			mtd->name, pos, len);
-	
+
 	if (!sect_size)
 		return MTD_READ (mtd, pos, len, &retlen, buf);
 
@@ -210,7 +211,7 @@ static int do_cached_read (struct mtdblk_dev *mtdblk, unsigned long pos,
 		unsigned long sect_start = (pos/sect_size)*sect_size;
 		unsigned int offset = pos - sect_start;
 		unsigned int size = sect_size - offset;
-		if (size > len) 
+		if (size > len)
 			size = len;
 
 		/*
@@ -268,12 +269,12 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 	int dev = mbd->devnum;
 
 	DEBUG(MTD_DEBUG_LEVEL1,"mtdblock_open\n");
-	
+
 	if (mtdblks[dev]) {
 		mtdblks[dev]->count++;
 		return 0;
 	}
-	
+
 	/* OK, it's not open. Create cache info for it */
 	mtdblk = kmalloc(sizeof(struct mtdblk_dev), GFP_KERNEL);
 	if (!mtdblk)
@@ -292,7 +293,7 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 	}
 
 	mtdblks[dev] = mtdblk;
-	
+
 	DEBUG(MTD_DEBUG_LEVEL1, "ok\n");
 
 	return 0;
@@ -320,7 +321,7 @@ static int mtdblock_release(struct mtd_blktrans_dev *mbd)
 	DEBUG(MTD_DEBUG_LEVEL1, "ok\n");
 
 	return 0;
-}  
+}
 
 static int mtdblock_flush(struct mtd_blktrans_dev *dev)
 {

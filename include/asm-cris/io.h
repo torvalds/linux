@@ -23,12 +23,12 @@ extern struct cris_io_operations *cris_iops;
  * Change virtual addresses to physical addresses and vv.
  */
 
-extern inline unsigned long virt_to_phys(volatile void * address)
+static inline unsigned long virt_to_phys(volatile void * address)
 {
 	return __pa(address);
 }
 
-extern inline void * phys_to_virt(unsigned long address)
+static inline void * phys_to_virt(unsigned long address)
 {
 	return __va(address);
 }
@@ -36,7 +36,7 @@ extern inline void * phys_to_virt(unsigned long address)
 extern void __iomem * __ioremap(unsigned long offset, unsigned long size, unsigned long flags);
 extern void __iomem * __ioremap_prot(unsigned long phys_addr, unsigned long size, pgprot_t prot);
 
-extern inline void __iomem * ioremap (unsigned long offset, unsigned long size)
+static inline void __iomem * ioremap (unsigned long offset, unsigned long size)
 {
 	return __ioremap(offset, size, 0);
 }

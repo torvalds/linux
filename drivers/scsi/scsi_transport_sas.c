@@ -26,6 +26,8 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/err.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>

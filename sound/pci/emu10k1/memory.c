@@ -232,11 +232,11 @@ __found_pages:
 static int is_valid_page(emu10k1_t *emu, dma_addr_t addr)
 {
 	if (addr & ~emu->dma_mask) {
-		snd_printk("max memory size is 0x%lx (addr = 0x%lx)!!\n", emu->dma_mask, (unsigned long)addr);
+		snd_printk(KERN_ERR "max memory size is 0x%lx (addr = 0x%lx)!!\n", emu->dma_mask, (unsigned long)addr);
 		return 0;
 	}
 	if (addr & (EMUPAGESIZE-1)) {
-		snd_printk("page is not aligned\n");
+		snd_printk(KERN_ERR "page is not aligned\n");
 		return 0;
 	}
 	return 1;
@@ -501,7 +501,7 @@ static inline void *offset_ptr(emu10k1_t *emu, int page, int offset)
 	snd_assert(page >= 0 && page < emu->max_cache_pages, return NULL);
 	ptr = emu->page_ptr_table[page];
 	if (! ptr) {
-		printk("emu10k1: access to NULL ptr: page = %d\n", page);
+		printk(KERN_ERR "emu10k1: access to NULL ptr: page = %d\n", page);
 		return NULL;
 	}
 	ptr += offset & (PAGE_SIZE - 1);

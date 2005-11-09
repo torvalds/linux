@@ -51,7 +51,7 @@ int jffs2_start_garbage_collect_thread(struct jffs2_sb_info *c)
 		D1(printk(KERN_DEBUG "JFFS2: Garbage collect thread is pid %d\n", pid));
 		wait_for_completion(&c->gc_thread_start);
 	}
- 
+
 	return ret;
 }
 
@@ -101,7 +101,7 @@ static int jffs2_garbage_collect_thread(void *_c)
 
 		cond_resched();
 
-		/* Put_super will send a SIGKILL and then wait on the sem. 
+		/* Put_super will send a SIGKILL and then wait on the sem.
 		 */
 		while (signal_pending(current)) {
 			siginfo_t info;

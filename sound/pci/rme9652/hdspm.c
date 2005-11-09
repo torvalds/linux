@@ -3563,8 +3563,7 @@ static int snd_hdspm_free(hdspm_t * hdspm)
 		free_irq(hdspm->irq, (void *) hdspm);
 
 
-	if (hdspm->mixer)
-		kfree(hdspm->mixer);
+	kfree(hdspm->mixer);
 
 	if (hdspm->iobase)
 		iounmap(hdspm->iobase);

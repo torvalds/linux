@@ -45,7 +45,6 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 
@@ -284,7 +283,7 @@ static int k2_sata_proc_info(struct Scsi_Host *shost, char *page, char **start,
 #endif /* CONFIG_PPC_OF */
 
 
-static Scsi_Host_Template k2_sata_sht = {
+static struct scsi_host_template k2_sata_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,

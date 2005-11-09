@@ -31,6 +31,7 @@
 #include <linux/initrd.h>
 #include <linux/bitops.h>
 #include <linux/module.h>
+#include <linux/module.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -46,7 +47,6 @@
 #include <asm/pgtable.h>
 #include <asm/pci.h>
 #include <asm/iommu.h>
-#include <asm/ppcdebug.h>
 #include <asm/btext.h>
 #include <asm/sections.h>
 #include <asm/machdep.h>
@@ -635,10 +635,10 @@ static inline char *find_flat_dt_string(u32 offset)
  * used to extract the memory informations at boot before we can
  * unflatten the tree
  */
-static int __init scan_flat_dt(int (*it)(unsigned long node,
-					 const char *uname, int depth,
-					 void *data),
-			       void *data)
+int __init of_scan_flat_dt(int (*it)(unsigned long node,
+				     const char *uname, int depth,
+				     void *data),
+			   void *data)
 {
 	unsigned long p = ((unsigned long)initial_boot_params) +
 		initial_boot_params->off_dt_struct;
@@ -695,8 +695,8 @@ static int __init scan_flat_dt(int (*it)(unsigned long node,
  * This  function can be used within scan_flattened_dt callback to get
  * access to properties
  */
-static void* __init get_flat_dt_prop(unsigned long node, const char *name,
-				     unsigned long *size)
+void* __init of_get_flat_dt_prop(unsigned long node, const char *name,
+				 unsigned long *size)
 {
 	unsigned long p = node;
 
@@ -996,24 +996,13 @@ void __init unflatten_device_tree(void)
 static int __init early_init_dt_scan_cpus(unsigned long node,
 					  const char *uname, int depth, void *data)
 {
-	char *type = get_flat_dt_prop(node, "device_type", NULL);
+	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
 	u32 *prop;
 	unsigned long size;
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
 		return 0;
-
-	/* On LPAR, look for the first ibm,pft-size property for the  hash table size
-	 */
-	if (systemcfg->platform == PLATFORM_PSERIES_LPAR && ppc64_pft_size == 0) {
-		u32 *pft_size;
-		pft_size = (u32 *)get_flat_dt_prop(node, "ibm,pft-size", NULL);
-		if (pft_size != NULL) {
-			/* pft_size[0] is the NUMA CEC cookie */
-			ppc64_pft_size = pft_size[1];
-		}
-	}
 
 	if (initial_boot_params && initial_boot_params->version >= 2) {
 		/* version 2 of the kexec param format adds the phys cpuid
@@ -1023,8 +1012,9 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 		boot_cpuid = 0;
 	} else {
 		/* Check if it's the boot-cpu, set it's hw index in paca now */
-		if (get_flat_dt_prop(node, "linux,boot-cpu", NULL) != NULL) {
-			u32 *prop = get_flat_dt_prop(node, "reg", NULL);
+		if (of_get_flat_dt_prop(node, "linux,boot-cpu", NULL)
+		    != NULL) {
+			u32 *prop = of_get_flat_dt_prop(node, "reg", NULL);
 			set_hard_smp_processor_id(0, prop == NULL ? 0 : *prop);
 			boot_cpuid_phys = get_hard_smp_processor_id(0);
 		}
@@ -1032,14 +1022,14 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 
 #ifdef CONFIG_ALTIVEC
 	/* Check if we have a VMX and eventually update CPU features */
-	prop = (u32 *)get_flat_dt_prop(node, "ibm,vmx", NULL);
+	prop = (u32 *)of_get_flat_dt_prop(node, "ibm,vmx", NULL);
 	if (prop && (*prop) > 0) {
 		cur_cpu_spec->cpu_features |= CPU_FTR_ALTIVEC;
 		cur_cpu_spec->cpu_user_features |= PPC_FEATURE_HAS_ALTIVEC;
 	}
 
 	/* Same goes for Apple's "altivec" property */
-	prop = (u32 *)get_flat_dt_prop(node, "altivec", NULL);
+	prop = (u32 *)of_get_flat_dt_prop(node, "altivec", NULL);
 	if (prop) {
 		cur_cpu_spec->cpu_features |= CPU_FTR_ALTIVEC;
 		cur_cpu_spec->cpu_user_features |= PPC_FEATURE_HAS_ALTIVEC;
@@ -1051,7 +1041,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	 * this by looking at the size of the ibm,ppc-interrupt-server#s
 	 * property
 	 */
-	prop = (u32 *)get_flat_dt_prop(node, "ibm,ppc-interrupt-server#s",
+	prop = (u32 *)of_get_flat_dt_prop(node, "ibm,ppc-interrupt-server#s",
 				       &size);
 	cur_cpu_spec->cpu_features &= ~CPU_FTR_SMT;
 	if (prop && ((size / sizeof(u32)) > 1))
@@ -1072,26 +1062,26 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 		return 0;
 
 	/* get platform type */
-	prop = (u32 *)get_flat_dt_prop(node, "linux,platform", NULL);
+	prop = (u32 *)of_get_flat_dt_prop(node, "linux,platform", NULL);
 	if (prop == NULL)
 		return 0;
 	systemcfg->platform = *prop;
 
 	/* check if iommu is forced on or off */
-	if (get_flat_dt_prop(node, "linux,iommu-off", NULL) != NULL)
+	if (of_get_flat_dt_prop(node, "linux,iommu-off", NULL) != NULL)
 		iommu_is_off = 1;
-	if (get_flat_dt_prop(node, "linux,iommu-force-on", NULL) != NULL)
+	if (of_get_flat_dt_prop(node, "linux,iommu-force-on", NULL) != NULL)
 		iommu_force_on = 1;
 
- 	prop64 = (u64*)get_flat_dt_prop(node, "linux,memory-limit", NULL);
+ 	prop64 = (u64*)of_get_flat_dt_prop(node, "linux,memory-limit", NULL);
  	if (prop64)
  		memory_limit = *prop64;
 
- 	prop64 = (u64*)get_flat_dt_prop(node, "linux,tce-alloc-start", NULL);
+ 	prop64 = (u64*)of_get_flat_dt_prop(node, "linux,tce-alloc-start",NULL);
  	if (prop64)
  		tce_alloc_start = *prop64;
 
- 	prop64 = (u64*)get_flat_dt_prop(node, "linux,tce-alloc-end", NULL);
+ 	prop64 = (u64*)of_get_flat_dt_prop(node, "linux,tce-alloc-end", NULL);
  	if (prop64)
  		tce_alloc_end = *prop64;
 
@@ -1102,9 +1092,12 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 	{
 		u64 *basep, *entryp;
 
-		basep = (u64*)get_flat_dt_prop(node, "linux,rtas-base", NULL);
-		entryp = (u64*)get_flat_dt_prop(node, "linux,rtas-entry", NULL);
-		prop = (u32*)get_flat_dt_prop(node, "linux,rtas-size", NULL);
+		basep = (u64*)of_get_flat_dt_prop(node,
+						  "linux,rtas-base", NULL);
+		entryp = (u64*)of_get_flat_dt_prop(node,
+						   "linux,rtas-entry", NULL);
+		prop = (u32*)of_get_flat_dt_prop(node,
+						 "linux,rtas-size", NULL);
 		if (basep && entryp && prop) {
 			rtas.base = *basep;
 			rtas.entry = *entryp;
@@ -1125,11 +1118,11 @@ static int __init early_init_dt_scan_root(unsigned long node,
 	if (depth != 0)
 		return 0;
 
-	prop = (u32 *)get_flat_dt_prop(node, "#size-cells", NULL);
+	prop = (u32 *)of_get_flat_dt_prop(node, "#size-cells", NULL);
 	dt_root_size_cells = (prop == NULL) ? 1 : *prop;
 	DBG("dt_root_size_cells = %x\n", dt_root_size_cells);
 
-	prop = (u32 *)get_flat_dt_prop(node, "#address-cells", NULL);
+	prop = (u32 *)of_get_flat_dt_prop(node, "#address-cells", NULL);
 	dt_root_addr_cells = (prop == NULL) ? 2 : *prop;
 	DBG("dt_root_addr_cells = %x\n", dt_root_addr_cells);
 	
@@ -1161,7 +1154,7 @@ static unsigned long __init dt_mem_next_cell(int s, cell_t **cellp)
 static int __init early_init_dt_scan_memory(unsigned long node,
 					    const char *uname, int depth, void *data)
 {
-	char *type = get_flat_dt_prop(node, "device_type", NULL);
+	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
 	cell_t *reg, *endp;
 	unsigned long l;
 
@@ -1169,7 +1162,7 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 	if (type == NULL || strcmp(type, "memory") != 0)
 		return 0;
 
-	reg = (cell_t *)get_flat_dt_prop(node, "reg", &l);
+	reg = (cell_t *)of_get_flat_dt_prop(node, "reg", &l);
 	if (reg == NULL)
 		return 0;
 
@@ -1225,19 +1218,16 @@ void __init early_init_devtree(void *params)
 	/* Setup flat device-tree pointer */
 	initial_boot_params = params;
 
-	/* By default, hash size is not set */
-	ppc64_pft_size = 0;
-
 	/* Retreive various informations from the /chosen node of the
 	 * device-tree, including the platform type, initrd location and
 	 * size, TCE reserve, and more ...
 	 */
-	scan_flat_dt(early_init_dt_scan_chosen, NULL);
+	of_scan_flat_dt(early_init_dt_scan_chosen, NULL);
 
 	/* Scan memory nodes and rebuild LMBs */
 	lmb_init();
-	scan_flat_dt(early_init_dt_scan_root, NULL);
-	scan_flat_dt(early_init_dt_scan_memory, NULL);
+	of_scan_flat_dt(early_init_dt_scan_root, NULL);
+	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 	lmb_enforce_memory_limit(memory_limit);
 	lmb_analyze();
 	systemcfg->physicalMemorySize = lmb_phys_mem_size();
@@ -1253,26 +1243,8 @@ void __init early_init_devtree(void *params)
 	/* Retreive hash table size from flattened tree plus other
 	 * CPU related informations (altivec support, boot CPU ID, ...)
 	 */
-	scan_flat_dt(early_init_dt_scan_cpus, NULL);
+	of_scan_flat_dt(early_init_dt_scan_cpus, NULL);
 
-	/* If hash size wasn't obtained above, we calculate it now based on
-	 * the total RAM size
-	 */
-	if (ppc64_pft_size == 0) {
-		unsigned long rnd_mem_size, pteg_count;
-
-		/* round mem_size up to next power of 2 */
-		rnd_mem_size = 1UL << __ilog2(systemcfg->physicalMemorySize);
-		if (rnd_mem_size < systemcfg->physicalMemorySize)
-			rnd_mem_size <<= 1;
-
-		/* # pages / 2 */
-		pteg_count = max(rnd_mem_size >> (12 + 1), 1UL << 11);
-
-		ppc64_pft_size = __ilog2(pteg_count << 7);
-	}
-
-	DBG("Hash pftSize: %x\n", (int)ppc64_pft_size);
 	DBG(" <- early_init_devtree()\n");
 }
 
@@ -1894,17 +1866,32 @@ get_property(struct device_node *np, const char *name, int *lenp)
 EXPORT_SYMBOL(get_property);
 
 /*
- * Add a property to a node
+ * Add a property to a node.
  */
-void
+int
 prom_add_property(struct device_node* np, struct property* prop)
 {
-	struct property **next = &np->properties;
+	struct property **next;
 
 	prop->next = NULL;	
-	while (*next)
+	write_lock(&devtree_lock);
+	next = &np->properties;
+	while (*next) {
+		if (strcmp(prop->name, (*next)->name) == 0) {
+			/* duplicate ! don't insert it */
+			write_unlock(&devtree_lock);
+			return -1;
+		}
 		next = &(*next)->next;
+	}
 	*next = prop;
+	write_unlock(&devtree_lock);
+
+	/* try to add to proc as well if it was initialized */
+	if (np->pde)
+		proc_device_tree_add_prop(np->pde, prop);
+
+	return 0;
 }
 
 #if 0

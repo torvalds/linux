@@ -93,7 +93,7 @@
  * bytes copied		if we hit a null byte
  * (without the null byte)
  */
-extern inline long
+static inline long
 __do_strncpy_from_user(char *dst, const char *src, long count)
 {
 	long res;
@@ -695,7 +695,7 @@ __do_strncpy_from_user(char *dst, const char *src, long count)
  * or 0 for error.  Return a value greater than N if too long.
  */
 
-extern inline long
+static inline long
 strnlen_user(const char *s, long n)
 {
 	long res, tmp1;

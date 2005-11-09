@@ -420,7 +420,7 @@ int snd_card_register(snd_card_t * card)
 	int err;
 	snd_info_entry_t *entry;
 
-	snd_runtime_check(card != NULL, return -EINVAL);
+	snd_assert(card != NULL, return -EINVAL);
 	if ((err = snd_device_register_all(card)) < 0)
 		return err;
 	write_lock(&snd_card_rwlock);
@@ -524,7 +524,8 @@ int __init snd_card_info_init(void)
 	snd_info_entry_t *entry;
 
 	entry = snd_info_create_module_entry(THIS_MODULE, "cards", NULL);
-	snd_runtime_check(entry != NULL, return -ENOMEM);
+	if (! entry)
+		return -ENOMEM;
 	entry->c.text.read_size = PAGE_SIZE;
 	entry->c.text.read = snd_card_info_read;
 	if (snd_info_register(entry) < 0) {
@@ -840,7 +841,7 @@ static int snd_generic_resume(struct device *dev)
 	card = get_snd_generic_card(dev);
 	if (card->power_state == SNDRV_CTL_POWER_D0)
 		return 0;
-	if (card->pm_suspend)
+	if (card->pm_resume)
 		card->pm_resume(card);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;

@@ -42,7 +42,6 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 #include <asm/io.h>
@@ -90,7 +89,7 @@ static struct pci_driver svia_pci_driver = {
 	.remove			= ata_pci_remove_one,
 };
 
-static Scsi_Host_Template svia_sht = {
+static struct scsi_host_template svia_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,

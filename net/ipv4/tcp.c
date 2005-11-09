@@ -2112,7 +2112,6 @@ void __init tcp_init(void)
 		sysctl_tcp_max_orphans >>= (3 - order);
 		sysctl_max_syn_backlog = 128;
 	}
-	tcp_hashinfo.port_rover = sysctl_local_port_range[0] - 1;
 
 	sysctl_tcp_mem[0] =  768 << order;
 	sysctl_tcp_mem[1] = 1024 << order;

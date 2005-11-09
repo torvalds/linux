@@ -2738,10 +2738,8 @@ static int devfsd_close(struct inode *inode, struct file *file)
 	entry = fs_info->devfsd_first_event;
 	fs_info->devfsd_first_event = NULL;
 	fs_info->devfsd_last_event = NULL;
-	if (fs_info->devfsd_info) {
-		kfree(fs_info->devfsd_info);
-		fs_info->devfsd_info = NULL;
-	}
+	kfree(fs_info->devfsd_info);
+	fs_info->devfsd_info = NULL;
 	spin_unlock(&fs_info->devfsd_buffer_lock);
 	fs_info->devfsd_pgrp = 0;
 	fs_info->devfsd_task = NULL;

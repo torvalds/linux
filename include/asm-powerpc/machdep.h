@@ -47,20 +47,22 @@ struct machdep_calls {
 #ifdef CONFIG_PPC64
 	void            (*hpte_invalidate)(unsigned long slot,
 					   unsigned long va,
-					   int large,
+					   int psize,
 					   int local);
 	long		(*hpte_updatepp)(unsigned long slot, 
 					 unsigned long newpp, 
 					 unsigned long va,
-					 int large,
+					 int pize,
 					 int local);
 	void            (*hpte_updateboltedpp)(unsigned long newpp, 
-					       unsigned long ea);
+					       unsigned long ea,
+					       int psize);
 	long		(*hpte_insert)(unsigned long hpte_group,
 				       unsigned long va,
 				       unsigned long prpn,
+				       unsigned long rflags,
 				       unsigned long vflags,
-				       unsigned long rflags);
+				       int psize);
 	long		(*hpte_remove)(unsigned long hpte_group);
 	void		(*flush_hash_range)(unsigned long number, int local);
 
@@ -80,7 +82,6 @@ struct machdep_calls {
 	void		(*iommu_dev_setup)(struct pci_dev *dev);
 	void		(*iommu_bus_setup)(struct pci_bus *bus);
 	void		(*irq_bus_setup)(struct pci_bus *bus);
-	int		(*set_dabr)(unsigned long dabr);
 #endif
 
 	int		(*probe)(int platform);
@@ -155,6 +156,9 @@ struct machdep_calls {
 	/* Function to enable performance monitor counters for this
 	   platform, called once per cpu. */
 	void		(*enable_pmcs)(void);
+
+	/* Set DABR for this platform, leave empty for default implemenation */
+	int		(*set_dabr)(unsigned long dabr);
 
 #ifdef CONFIG_PPC32	/* XXX for now */
 	/* A general init function, called by ppc_init in init/main.c.

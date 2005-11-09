@@ -476,8 +476,7 @@ sg_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 	sg_finish_rem_req(srp);
 	retval = count;
 free_old_hdr:
-	if (old_hdr)
-		kfree(old_hdr);
+	kfree(old_hdr);
 	return retval;
 }
 
@@ -1703,10 +1702,8 @@ exit_sg(void)
 	sg_sysfs_valid = 0;
 	unregister_chrdev_region(MKDEV(SCSI_GENERIC_MAJOR, 0),
 				 SG_MAX_DEVS);
-	if (sg_dev_arr != NULL) {
-		kfree((char *) sg_dev_arr);
-		sg_dev_arr = NULL;
-	}
+	kfree((char *)sg_dev_arr);
+	sg_dev_arr = NULL;
 	sg_dev_max = 0;
 }
 

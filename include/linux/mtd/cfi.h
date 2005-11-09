@@ -1,7 +1,7 @@
 
-/* Common Flash Interface structures 
+/* Common Flash Interface structures
  * See http://support.intel.com/design/flash/technote/index.htm
- * $Id: cfi.h,v 1.54 2005/06/06 23:04:36 tpoynor Exp $
+ * $Id: cfi.h,v 1.56 2005/11/07 11:14:54 gleixner Exp $
  */
 
 #ifndef __MTD_CFI_H__
@@ -82,8 +82,8 @@ static inline int cfi_interleave_supported(int i)
 }
 
 
-/* NB: these values must represents the number of bytes needed to meet the 
- *     device type (x8, x16, x32).  Eg. a 32 bit device is 4 x 8 bytes. 
+/* NB: these values must represents the number of bytes needed to meet the
+ *     device type (x8, x16, x32).  Eg. a 32 bit device is 4 x 8 bytes.
  *     These numbers are used in calculations.
  */
 #define CFI_DEVICETYPE_X8  (8 / 8)
@@ -173,6 +173,15 @@ struct cfi_intelext_regioninfo {
 	struct cfi_intelext_blockinfo BlockTypes[1];
 } __attribute__((packed));
 
+struct cfi_intelext_programming_regioninfo {
+	uint8_t  ProgRegShift;
+	uint8_t  Reserved1;
+	uint8_t  ControlValid;
+	uint8_t  Reserved2;
+	uint8_t  ControlInvalid;
+	uint8_t  Reserved3;
+} __attribute__((packed));
+
 /* Vendor-Specific PRI for AMD/Fujitsu Extended Command Set (0x0002) */
 
 struct cfi_pri_amdstd {
@@ -250,7 +259,7 @@ static inline uint32_t cfi_build_cmd_addr(uint32_t cmd_ofs, int interleave, int 
 /*
  * Transforms the CFI command for the given geometry (bus width & interleave).
  * It looks too long to be inline, but in the common case it should almost all
- * get optimised away. 
+ * get optimised away.
  */
 static inline map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cfi_private *cfi)
 {
@@ -259,7 +268,7 @@ static inline map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cf
 	unsigned long onecmd;
 	int i;
 
-	/* We do it this way to give the compiler a fighting chance 
+	/* We do it this way to give the compiler a fighting chance
 	   of optimising away all the crap for 'bankwidth' larger than
 	   an unsigned long, in the common case where that support is
 	   disabled */
@@ -270,7 +279,7 @@ static inline map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cf
 		wordwidth = map_bankwidth(map);
 		words_per_bus = 1;
 	}
-	
+
 	chip_mode = map_bankwidth(map) / cfi_interleave(cfi);
 	chips_per_word = wordwidth * cfi_interleave(cfi) / map_bankwidth(map);
 
@@ -289,7 +298,7 @@ static inline map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cf
 		break;
 	}
 
-	/* Now replicate it across the size of an unsigned long, or 
+	/* Now replicate it across the size of an unsigned long, or
 	   just to the bus width as appropriate */
 	switch (chips_per_word) {
 	default: BUG();
@@ -305,7 +314,7 @@ static inline map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cf
 		;
 	}
 
-	/* And finally, for the multi-word case, replicate it 
+	/* And finally, for the multi-word case, replicate it
 	   in all words in the structure */
 	for (i=0; i < words_per_bus; i++) {
 		val.x[i] = onecmd;
@@ -316,14 +325,14 @@ static inline map_word cfi_build_cmd(u_long cmd, struct map_info *map, struct cf
 #define CMD(x)  cfi_build_cmd((x), map, cfi)
 
 
-static inline unsigned char cfi_merge_status(map_word val, struct map_info *map, 
+static inline unsigned long cfi_merge_status(map_word val, struct map_info *map,
 					   struct cfi_private *cfi)
 {
 	int wordwidth, words_per_bus, chip_mode, chips_per_word;
 	unsigned long onestat, res = 0;
 	int i;
 
-	/* We do it this way to give the compiler a fighting chance 
+	/* We do it this way to give the compiler a fighting chance
 	   of optimising away all the crap for 'bankwidth' larger than
 	   an unsigned long, in the common case where that support is
 	   disabled */
@@ -334,7 +343,7 @@ static inline unsigned char cfi_merge_status(map_word val, struct map_info *map,
 		wordwidth = map_bankwidth(map);
 		words_per_bus = 1;
 	}
-	
+
 	chip_mode = map_bankwidth(map) / cfi_interleave(cfi);
 	chips_per_word = wordwidth * cfi_interleave(cfi) / map_bankwidth(map);
 

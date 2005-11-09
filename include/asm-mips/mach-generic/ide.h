@@ -168,8 +168,12 @@ static inline void __ide_mm_outsl(void __iomem * port, void *addr, u32 count)
 /* ide_insw calls insw, not __ide_insw.  Why? */
 #undef insw
 #undef insl
+#undef outsw
+#undef outsl
 #define insw(port, addr, count) __ide_insw(port, addr, count)
 #define insl(port, addr, count) __ide_insl(port, addr, count)
+#define outsw(port, addr, count) __ide_outsw(port, addr, count)
+#define outsl(port, addr, count) __ide_outsl(port, addr, count)
 
 #endif /* __KERNEL__ */
 

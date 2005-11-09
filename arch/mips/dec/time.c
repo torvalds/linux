@@ -37,10 +37,25 @@
 #include <asm/dec/machtype.h>
 
 
+/*
+ * Returns true if a clock update is in progress
+ */
+static inline unsigned char dec_rtc_is_updating(void)
+{
+	unsigned char uip;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rtc_lock, flags);
+	uip = (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP);
+	spin_unlock_irqrestore(&rtc_lock, flags);
+	return uip;
+}
+
 static unsigned long dec_rtc_get_time(void)
 {
 	unsigned int year, mon, day, hour, min, sec, real_year;
 	int i;
+	unsigned long flags;
 
 	/* The Linux interpretation of the DS1287 clock register contents:
 	 * When the Update-In-Progress (UIP) flag goes from 1 to 0, the
@@ -49,11 +64,12 @@ static unsigned long dec_rtc_get_time(void)
 	 */
 	/* read RTC exactly on falling edge of update flag */
 	for (i = 0; i < 1000000; i++)	/* may take up to 1 second... */
-		if (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP)
+		if (dec_rtc_is_updating())
 			break;
 	for (i = 0; i < 1000000; i++)	/* must try at least 2.228 ms */
-		if (!(CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP))
+		if (!dec_rtc_is_updating())
 			break;
+	spin_lock_irqsave(&rtc_lock, flags);
 	/* Isn't this overkill?  UIP above should guarantee consistency */
 	do {
 		sec = CMOS_READ(RTC_SECONDS);
@@ -77,6 +93,7 @@ static unsigned long dec_rtc_get_time(void)
 	 * of unused BBU RAM locations.
 	 */
 	real_year = CMOS_READ(RTC_DEC_YEAR);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 	year += real_year - 72 + 2000;
 
 	return mktime(year, mon, day, hour, min, sec);
@@ -95,6 +112,8 @@ static int dec_rtc_set_mmss(unsigned long nowtime)
 	int real_seconds, real_minutes, cmos_minutes;
 	unsigned char save_control, save_freq_select;
 
+	/* irq are locally disabled here */
+	spin_lock(&rtc_lock);
 	/* tell the clock it's being set */
 	save_control = CMOS_READ(RTC_CONTROL);
 	CMOS_WRITE((save_control | RTC_SET), RTC_CONTROL);
@@ -141,6 +160,7 @@ static int dec_rtc_set_mmss(unsigned long nowtime)
 	 */
 	CMOS_WRITE(save_control, RTC_CONTROL);
 	CMOS_WRITE(save_freq_select, RTC_FREQ_SELECT);
+	spin_unlock(&rtc_lock);
 
 	return retval;
 }

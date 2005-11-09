@@ -4,6 +4,8 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/list.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/raid_class.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>

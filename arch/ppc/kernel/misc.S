@@ -25,6 +25,11 @@
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
 
+#ifdef CONFIG_8xx
+#define ISYNC_8xx isync
+#else
+#define ISYNC_8xx
+#endif
 	.text
 
 	.align	5
@@ -800,8 +805,18 @@ _GLOBAL(_insb)
 	subi	r4,r4,1
 	blelr-
 00:	lbz	r5,0(r3)
-	eieio
-	stbu	r5,1(r4)
+01:	eieio
+02:	stbu	r5,1(r4)
+	ISYNC_8xx
+	.section .fixup,"ax"
+03:	blr
+	.text
+	.section __ex_table, "a"
+		.align 2
+		.long 00b, 03b
+		.long 01b, 03b
+		.long 02b, 03b
+	.text
 	bdnz	00b
 	blr
 
@@ -811,8 +826,18 @@ _GLOBAL(_outsb)
 	subi	r4,r4,1
 	blelr-
 00:	lbzu	r5,1(r4)
-	stb	r5,0(r3)
-	eieio
+01:	stb	r5,0(r3)
+02:	eieio
+	ISYNC_8xx
+	.section .fixup,"ax"
+03:	blr
+	.text
+	.section __ex_table, "a"
+		.align 2
+		.long 00b, 03b
+		.long 01b, 03b
+		.long 02b, 03b
+	.text
 	bdnz	00b
 	blr
 
@@ -822,8 +847,18 @@ _GLOBAL(_insw)
 	subi	r4,r4,2
 	blelr-
 00:	lhbrx	r5,0,r3
-	eieio
-	sthu	r5,2(r4)
+01:	eieio
+02:	sthu	r5,2(r4)
+	ISYNC_8xx
+	.section .fixup,"ax"
+03:	blr
+	.text
+	.section __ex_table, "a"
+		.align 2
+		.long 00b, 03b
+		.long 01b, 03b
+		.long 02b, 03b
+	.text
 	bdnz	00b
 	blr
 
@@ -833,8 +868,18 @@ _GLOBAL(_outsw)
 	subi	r4,r4,2
 	blelr-
 00:	lhzu	r5,2(r4)
-	eieio
-	sthbrx	r5,0,r3
+01:	eieio
+02:	sthbrx	r5,0,r3
+	ISYNC_8xx
+	.section .fixup,"ax"
+03:	blr
+	.text
+	.section __ex_table, "a"
+		.align 2
+		.long 00b, 03b
+		.long 01b, 03b
+		.long 02b, 03b
+	.text
 	bdnz	00b
 	blr
 
@@ -844,8 +889,18 @@ _GLOBAL(_insl)
 	subi	r4,r4,4
 	blelr-
 00:	lwbrx	r5,0,r3
-	eieio
-	stwu	r5,4(r4)
+01:	eieio
+02:	stwu	r5,4(r4)
+	ISYNC_8xx
+	.section .fixup,"ax"
+03:	blr
+	.text
+	.section __ex_table, "a"
+		.align 2
+		.long 00b, 03b
+		.long 01b, 03b
+		.long 02b, 03b
+	.text
 	bdnz	00b
 	blr
 
@@ -855,8 +910,18 @@ _GLOBAL(_outsl)
 	subi	r4,r4,4
 	blelr-
 00:	lwzu	r5,4(r4)
-	stwbrx	r5,0,r3
-	eieio
+01:	stwbrx	r5,0,r3
+02:	eieio
+	ISYNC_8xx
+	.section .fixup,"ax"
+03:	blr
+	.text
+	.section __ex_table, "a"
+		.align 2
+		.long 00b, 03b
+		.long 01b, 03b
+		.long 02b, 03b
+	.text
 	bdnz	00b
 	blr
 
@@ -867,8 +932,18 @@ _GLOBAL(_insw_ns)
 	subi	r4,r4,2
 	blelr-
 00:	lhz	r5,0(r3)
-	eieio
-	sthu	r5,2(r4)
+01:	eieio
+02:	sthu	r5,2(r4)
+	ISYNC_8xx
+	.section .fixup,"ax"
+03:	blr
+	.text
+	.section __ex_table, "a"
+		.align 2
+		.long 00b, 03b
+		.long 01b, 03b
+		.long 02b, 03b
+	.text
 	bdnz	00b
 	blr
 
@@ -879,8 +954,18 @@ _GLOBAL(_outsw_ns)
 	subi	r4,r4,2
 	blelr-
 00:	lhzu	r5,2(r4)
-	sth	r5,0(r3)
-	eieio
+01:	sth	r5,0(r3)
+02:	eieio
+	ISYNC_8xx
+	.section .fixup,"ax"
+03:	blr
+	.text
+	.section __ex_table, "a"
+		.align 2
+		.long 00b, 03b
+		.long 01b, 03b
+		.long 02b, 03b
+	.text
 	bdnz	00b
 	blr
 
@@ -891,8 +976,18 @@ _GLOBAL(_insl_ns)
 	subi	r4,r4,4
 	blelr-
 00:	lwz	r5,0(r3)
-	eieio
-	stwu	r5,4(r4)
+01:	eieio
+02:	stwu	r5,4(r4)
+	ISYNC_8xx
+	.section .fixup,"ax"
+03:	blr
+	.text
+	.section __ex_table, "a"
+		.align 2
+		.long 00b, 03b
+		.long 01b, 03b
+		.long 02b, 03b
+	.text
 	bdnz	00b
 	blr
 
@@ -903,8 +998,18 @@ _GLOBAL(_outsl_ns)
 	subi	r4,r4,4
 	blelr-
 00:	lwzu	r5,4(r4)
-	stw	r5,0(r3)
-	eieio
+01:	stw	r5,0(r3)
+02:	eieio
+	ISYNC_8xx
+	.section .fixup,"ax"
+03:	blr
+	.text
+	.section __ex_table, "a"
+		.align 2
+		.long 00b, 03b
+		.long 01b, 03b
+		.long 02b, 03b
+	.text
 	bdnz	00b
 	blr
 

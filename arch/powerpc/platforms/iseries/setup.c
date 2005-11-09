@@ -71,8 +71,6 @@ extern void hvlog(char *fmt, ...);
 #endif
 
 /* Function Prototypes */
-extern void ppcdbg_initialize(void);
-
 static void build_iSeries_Memory_Map(void);
 static void iseries_shared_idle(void);
 static void iseries_dedicated_idle(void);
@@ -309,8 +307,6 @@ static void __init iSeries_init_early(void)
 
 	ppc64_firmware_features = FW_FEATURE_ISERIES;
 
-	ppcdbg_initialize();
-
 	ppc64_interrupt_controller = IC_ISERIES;
 
 #if defined(CONFIG_BLK_DEV_INITRD)
@@ -320,11 +316,11 @@ static void __init iSeries_init_early(void)
 	 */
 	if (naca.xRamDisk) {
 		initrd_start = (unsigned long)__va(naca.xRamDisk);
-		initrd_end = initrd_start + naca.xRamDiskSize * PAGE_SIZE;
+		initrd_end = initrd_start + naca.xRamDiskSize * HW_PAGE_SIZE;
 		initrd_below_start_ok = 1;	// ramdisk in kernel space
 		ROOT_DEV = Root_RAM0;
-		if (((rd_size * 1024) / PAGE_SIZE) < naca.xRamDiskSize)
-			rd_size = (naca.xRamDiskSize * PAGE_SIZE) / 1024;
+		if (((rd_size * 1024) / HW_PAGE_SIZE) < naca.xRamDiskSize)
+			rd_size = (naca.xRamDiskSize * HW_PAGE_SIZE) / 1024;
 	} else
 #endif /* CONFIG_BLK_DEV_INITRD */
 	{
@@ -470,13 +466,14 @@ static void __init build_iSeries_Memory_Map(void)
 	 */
 	hptFirstChunk = (u32)addr_to_chunk(HvCallHpt_getHptAddress());
 	hptSizePages = (u32)HvCallHpt_getHptPages();
-	hptSizeChunks = hptSizePages >> (MSCHUNKS_CHUNK_SHIFT - PAGE_SHIFT);
+	hptSizeChunks = hptSizePages >>
+		(MSCHUNKS_CHUNK_SHIFT - HW_PAGE_SHIFT);
 	hptLastChunk = hptFirstChunk + hptSizeChunks - 1;
 
 	printk("HPT absolute addr = %016lx, size = %dK\n",
 			chunk_to_addr(hptFirstChunk), hptSizeChunks * 256);
 
-	ppc64_pft_size = __ilog2(hptSizePages * PAGE_SIZE);
+	ppc64_pft_size = __ilog2(hptSizePages * HW_PAGE_SIZE);
 
 	/*
 	 * The actual hashed page table is in the hypervisor,
@@ -629,7 +626,7 @@ static void __init iSeries_fixup_klimit(void)
 	 */
 	if (naca.xRamDisk)
 		klimit = KERNELBASE + (u64)naca.xRamDisk +
-			(naca.xRamDiskSize * PAGE_SIZE);
+			(naca.xRamDiskSize * HW_PAGE_SIZE);
 	else {
 		/*
 		 * No ram disk was included - check and see if there

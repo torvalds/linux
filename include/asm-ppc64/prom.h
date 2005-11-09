@@ -188,6 +188,14 @@ extern struct device_node *of_get_next_child(const struct device_node *node,
 extern struct device_node *of_node_get(struct device_node *node);
 extern void of_node_put(struct device_node *node);
 
+/* For scanning the flat device-tree at boot time */
+int __init of_scan_flat_dt(int (*it)(unsigned long node,
+				     const char *uname, int depth,
+				     void *data),
+			   void *data);
+void* __init of_get_flat_dt_prop(unsigned long node, const char *name,
+				 unsigned long *size);
+
 /* For updating the device tree at runtime */
 extern void of_attach_node(struct device_node *);
 extern void of_detach_node(const struct device_node *);
@@ -205,6 +213,6 @@ extern int prom_n_addr_cells(struct device_node* np);
 extern int prom_n_size_cells(struct device_node* np);
 extern int prom_n_intr_cells(struct device_node* np);
 extern void prom_get_irq_senses(unsigned char *senses, int off, int max);
-extern void prom_add_property(struct device_node* np, struct property* prop);
+extern int prom_add_property(struct device_node* np, struct property* prop);
 
 #endif /* _PPC64_PROM_H */

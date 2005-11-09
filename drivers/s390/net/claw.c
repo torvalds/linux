@@ -2743,14 +2743,10 @@ probe_error( struct ccwgroup_device *cgdev)
 #endif
         privptr=(struct claw_privbk *)cgdev->dev.driver_data;
 	if (privptr!=NULL) {
-		if (privptr->p_env != NULL) {
-			kfree(privptr->p_env);
-			privptr->p_env=NULL;
-		}
-        	if (privptr->p_mtc_envelope!=NULL) {
-                	kfree(privptr->p_mtc_envelope);
-                	privptr->p_mtc_envelope=NULL;
-        	}
+		kfree(privptr->p_env);
+		privptr->p_env=NULL;
+                kfree(privptr->p_mtc_envelope);
+               	privptr->p_mtc_envelope=NULL;
                 kfree(privptr);
                 privptr=NULL;
         }
@@ -4121,22 +4117,14 @@ claw_remove_device(struct ccwgroup_device *cgdev)
 	if (cgdev->state == CCWGROUP_ONLINE)
 		claw_shutdown_device(cgdev);
 	claw_remove_files(&cgdev->dev);
-	if (priv->p_mtc_envelope!=NULL) {
-                kfree(priv->p_mtc_envelope);
-                priv->p_mtc_envelope=NULL;
-        }
-	if (priv->p_env != NULL) {
-		kfree(priv->p_env);
-		priv->p_env=NULL;
-	}
-	if (priv->channel[0].irb != NULL) {
-		kfree(priv->channel[0].irb);
-		priv->channel[0].irb=NULL;
-	}
-	if (priv->channel[1].irb != NULL) {
-		kfree(priv->channel[1].irb);
-		priv->channel[1].irb=NULL;
-	}
+	kfree(priv->p_mtc_envelope);
+	priv->p_mtc_envelope=NULL;
+	kfree(priv->p_env);
+	priv->p_env=NULL;
+	kfree(priv->channel[0].irb);
+	priv->channel[0].irb=NULL;
+	kfree(priv->channel[1].irb);
+	priv->channel[1].irb=NULL;
 	kfree(priv);
 	cgdev->dev.driver_data=NULL;
 	cgdev->cdev[READ]->dev.driver_data = NULL;

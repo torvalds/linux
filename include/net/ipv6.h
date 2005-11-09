@@ -252,12 +252,25 @@ typedef int		(*inet_getfrag_t) (const void *data,
 					   char *,
 					   unsigned int, unsigned int);
 
-
-extern int		ipv6_addr_type(const struct in6_addr *addr);
+extern int __ipv6_addr_type(const struct in6_addr *addr);
+static inline int ipv6_addr_type(const struct in6_addr *addr)
+{
+	return __ipv6_addr_type(addr) & 0xffff;
+}
 
 static inline int ipv6_addr_scope(const struct in6_addr *addr)
 {
-	return ipv6_addr_type(addr) & IPV6_ADDR_SCOPE_MASK;
+	return __ipv6_addr_type(addr) & IPV6_ADDR_SCOPE_MASK;
+}
+
+static inline int __ipv6_addr_src_scope(int type)
+{
+	return (type == IPV6_ADDR_ANY ? __IPV6_ADDR_SCOPE_INVALID : (type >> 16));
+}
+
+static inline int ipv6_addr_src_scope(const struct in6_addr *addr)
+{
+	return __ipv6_addr_src_scope(__ipv6_addr_type(addr));
 }
 
 static inline int ipv6_addr_cmp(const struct in6_addr *a1, const struct in6_addr *a2)
@@ -338,6 +351,54 @@ static inline int ipv6_addr_any(const struct in6_addr *a)
 {
 	return ((a->s6_addr32[0] | a->s6_addr32[1] | 
 		 a->s6_addr32[2] | a->s6_addr32[3] ) == 0); 
+}
+
+/*
+ * find the first different bit between two addresses
+ * length of address must be a multiple of 32bits
+ */
+static inline int __ipv6_addr_diff(const void *token1, const void *token2, int addrlen)
+{
+	const __u32 *a1 = token1, *a2 = token2;
+	int i;
+
+	addrlen >>= 2;
+
+	for (i = 0; i < addrlen; i++) {
+		__u32 xb = a1[i] ^ a2[i];
+		if (xb) {
+			int j = 31;
+
+			xb = ntohl(xb);
+			while ((xb & (1 << j)) == 0)
+				j--;
+
+			return (i * 32 + 31 - j);
+		}
+	}
+
+	/*
+	 *	we should *never* get to this point since that 
+	 *	would mean the addrs are equal
+	 *
+	 *	However, we do get to it 8) And exacly, when
+	 *	addresses are equal 8)
+	 *
+	 *	ip route add 1111::/128 via ...
+	 *	ip route add 1111::/64 via ...
+	 *	and we are here.
+	 *
+	 *	Ideally, this function should stop comparison
+	 *	at prefix length. It does not, but it is still OK,
+	 *	if returned value is greater than prefix length.
+	 *					--ANK (980803)
+	 */
+	return (addrlen << 5);
+}
+
+static inline int ipv6_addr_diff(const struct in6_addr *a1, const struct in6_addr *a2)
+{
+	return __ipv6_addr_diff(a1, a2, sizeof(struct in6_addr));
 }
 
 /*

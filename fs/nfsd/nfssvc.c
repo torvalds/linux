@@ -30,6 +30,7 @@
 #include <linux/nfsd/nfsd.h>
 #include <linux/nfsd/stats.h>
 #include <linux/nfsd/cache.h>
+#include <linux/nfsd/syscall.h>
 #include <linux/lockd/bind.h>
 #include <linux/nfsacl.h>
 
@@ -52,7 +53,7 @@
 extern struct svc_program	nfsd_program;
 static void			nfsd(struct svc_rqst *rqstp);
 struct timeval			nfssvc_boot;
-static struct svc_serv 		*nfsd_serv;
+       struct svc_serv 		*nfsd_serv;
 static atomic_t			nfsd_busy;
 static unsigned long		nfsd_last_call;
 static DEFINE_SPINLOCK(nfsd_call_lock);
@@ -62,6 +63,31 @@ struct nfsd_list {
 	struct task_struct	*task;
 };
 static struct list_head nfsd_list = LIST_HEAD_INIT(nfsd_list);
+
+static struct svc_version *	nfsd_version[] = {
+	[2] = &nfsd_version2,
+#if defined(CONFIG_NFSD_V3)
+	[3] = &nfsd_version3,
+#endif
+#if defined(CONFIG_NFSD_V4)
+	[4] = &nfsd_version4,
+#endif
+};
+
+#define NFSD_MINVERS    	2
+#define NFSD_NRVERS		(sizeof(nfsd_version)/sizeof(nfsd_version[0]))
+static struct svc_version *nfsd_versions[NFSD_NRVERS];
+
+struct svc_program		nfsd_program = {
+	.pg_prog		= NFS_PROGRAM,		/* program number */
+	.pg_nvers		= NFSD_NRVERS,		/* nr of entries in nfsd_version */
+	.pg_vers		= nfsd_versions,	/* version table */
+	.pg_name		= "nfsd",		/* program name */
+	.pg_class		= "nfsd",		/* authentication class */
+	.pg_stats		= &nfsd_svcstats,	/* version table */
+	.pg_authenticate	= &svc_set_client,	/* export authentication */
+
+};
 
 /*
  * Maximum number of nfsd processes
@@ -80,11 +106,12 @@ int
 nfsd_svc(unsigned short port, int nrservs)
 {
 	int	error;
-	int	none_left;	
+	int	none_left, found_one, i;
 	struct list_head *victim;
 	
 	lock_kernel();
-	dprintk("nfsd: creating service\n");
+	dprintk("nfsd: creating service: vers 0x%x\n",
+		nfsd_versbits);
 	error = -EINVAL;
 	if (nrservs <= 0)
 		nrservs = 0;
@@ -99,6 +126,27 @@ nfsd_svc(unsigned short port, int nrservs)
 	if (error<0)
 		goto out;
 	if (!nfsd_serv) {
+		/*
+		 * Use the nfsd_ctlbits to define which
+		 * versions that will be advertised.
+		 * If nfsd_ctlbits doesn't list any version,
+		 * export them all.
+		 */
+		found_one = 0;
+
+		for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++) {
+			if (NFSCTL_VERISSET(nfsd_versbits, i)) {
+				nfsd_program.pg_vers[i] = nfsd_version[i];
+				found_one = 1;
+			} else
+				nfsd_program.pg_vers[i] = NULL;
+		}
+
+		if (!found_one) {
+			for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++)
+				nfsd_program.pg_vers[i] = nfsd_version[i];
+		}
+
 		atomic_set(&nfsd_busy, 0);
 		error = -ENOMEM;
 		nfsd_serv = svc_create(&nfsd_program, NFSD_BUFSIZE);
@@ -379,6 +427,7 @@ static struct svc_program	nfsd_acl_program = {
 	.pg_name		= "nfsd",
 	.pg_class		= "nfsd",
 	.pg_stats		= &nfsd_acl_svcstats,
+	.pg_authenticate	= &svc_set_client,
 };
 
 static struct svc_stat	nfsd_acl_svcstats = {
@@ -389,28 +438,3 @@ static struct svc_stat	nfsd_acl_svcstats = {
 #else
 #define nfsd_acl_program_p	NULL
 #endif /* defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL) */
-
-extern struct svc_version nfsd_version2, nfsd_version3, nfsd_version4;
-
-static struct svc_version *	nfsd_version[] = {
-	[2] = &nfsd_version2,
-#if defined(CONFIG_NFSD_V3)
-	[3] = &nfsd_version3,
-#endif
-#if defined(CONFIG_NFSD_V4)
-	[4] = &nfsd_version4,
-#endif
-};
-
-#define NFSD_NRVERS		(sizeof(nfsd_version)/sizeof(nfsd_version[0]))
-struct svc_program		nfsd_program = {
-	.pg_next		= nfsd_acl_program_p,
-	.pg_prog		= NFS_PROGRAM,		/* program number */
-	.pg_nvers		= NFSD_NRVERS,		/* nr of entries in nfsd_version */
-	.pg_vers		= nfsd_version,		/* version table */
-	.pg_name		= "nfsd",		/* program name */
-	.pg_class		= "nfsd",		/* authentication class */
-	.pg_stats		= &nfsd_svcstats,	/* version table */
-	.pg_authenticate	= &svc_set_client,	/* export authentication */
-
-};

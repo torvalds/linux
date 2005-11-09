@@ -2146,7 +2146,7 @@ static int ide_floppy_probe(struct device *dev)
 		printk("ide-floppy: passing drive %s to ide-scsi emulation.\n", drive->name);
 		goto failed;
 	}
-	if ((floppy = (idefloppy_floppy_t *) kmalloc (sizeof (idefloppy_floppy_t), GFP_KERNEL)) == NULL) {
+	if ((floppy = (idefloppy_floppy_t *) kzalloc (sizeof (idefloppy_floppy_t), GFP_KERNEL)) == NULL) {
 		printk (KERN_ERR "ide-floppy: %s: Can't allocate a floppy structure\n", drive->name);
 		goto failed;
 	}
@@ -2158,8 +2158,6 @@ static int ide_floppy_probe(struct device *dev)
 	ide_init_disk(g, drive);
 
 	ide_register_subdriver(drive, &idefloppy_driver);
-
-	memset(floppy, 0, sizeof(*floppy));
 
 	kref_init(&floppy->kref);
 

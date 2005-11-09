@@ -388,10 +388,8 @@ err_out:
 			kfree(driver);
 			cpufreq_us2e_driver = NULL;
 		}
-		if (us2e_freq_table) {
-			kfree(us2e_freq_table);
-			us2e_freq_table = NULL;
-		}
+		kfree(us2e_freq_table);
+		us2e_freq_table = NULL;
 		return ret;
 	}
 
@@ -402,7 +400,6 @@ static void __exit us2e_freq_exit(void)
 {
 	if (cpufreq_us2e_driver) {
 		cpufreq_unregister_driver(cpufreq_us2e_driver);
-
 		kfree(cpufreq_us2e_driver);
 		cpufreq_us2e_driver = NULL;
 		kfree(us2e_freq_table);

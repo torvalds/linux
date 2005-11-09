@@ -51,8 +51,8 @@
 #include <linux/jiffies.h>
 #include <linux/scatterlist.h>
 #include <scsi/scsi.h>
-#include "scsi.h"
 #include "scsi_priv.h"
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 #include <asm/io.h>
@@ -2717,7 +2717,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 /**
  *	ata_poll_qc_complete - turn irq back on and finish qc
  *	@qc: Command to complete
- *	@drv_stat: ATA status register content
+ *	@err_mask: ATA status register content
  *
  *	LOCKING:
  *	None.  (grabs host lock)
@@ -3610,7 +3610,7 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 /**
  *	ata_qc_complete - Complete an active ATA command
  *	@qc: Command to complete
- *	@drv_stat: ATA Status register contents
+ *	@err_mask: ATA Status register contents
  *
  *	Indicate to the mid and upper layers that an ATA
  *	command has completed, with either an ok or not-ok status.

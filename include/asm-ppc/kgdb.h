@@ -31,7 +31,7 @@ extern void breakpoint(void);
 /* For taking exceptions
  * these are defined in traps.c
  */
-extern void (*debugger)(struct pt_regs *regs);
+extern int (*debugger)(struct pt_regs *regs);
 extern int (*debugger_bpt)(struct pt_regs *regs);
 extern int (*debugger_sstep)(struct pt_regs *regs);
 extern int (*debugger_iabr_match)(struct pt_regs *regs);

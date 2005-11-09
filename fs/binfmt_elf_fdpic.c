@@ -411,16 +411,11 @@ error:
 		allow_write_access(interpreter);
 		fput(interpreter);
 	}
-	if (interpreter_name)
-		kfree(interpreter_name);
-	if (exec_params.phdrs)
-		kfree(exec_params.phdrs);
-	if (exec_params.loadmap)
-		kfree(exec_params.loadmap);
-	if (interp_params.phdrs)
-		kfree(interp_params.phdrs);
-	if (interp_params.loadmap)
-		kfree(interp_params.loadmap);
+	kfree(interpreter_name);
+	kfree(exec_params.phdrs);
+	kfree(exec_params.loadmap);
+	kfree(interp_params.phdrs);
+	kfree(interp_params.loadmap);
 	return retval;
 
 	/* unrecoverable error - kill the process */

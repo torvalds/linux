@@ -275,7 +275,6 @@ static struct fb_ops gx1fb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
 static struct fb_info * __init gx1fb_init_fbinfo(struct device *dev)

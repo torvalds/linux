@@ -237,9 +237,9 @@ static inline void __raw_writel(__u32 b, volatile void __iomem *addr)
 #define outsl(port, buf, nl)	_outsl_ns((port)+___IO_BASE, (buf), (nl))
 
 /*
- * On powermacs, we will get a machine check exception if we
- * try to read data from a non-existent I/O port.  Because the
- * machine check is an asynchronous exception, it isn't
+ * On powermacs and 8xx we will get a machine check exception 
+ * if we try to read data from a non-existent I/O port. Because
+ * the machine check is an asynchronous exception, it isn't
  * well-defined which instruction SRR0 will point to when the
  * exception occurs.
  * With the sequence below (twi; isync; nop), we have found that
@@ -258,7 +258,7 @@ extern __inline__ unsigned int name(unsigned int port)	\
 {							\
 	unsigned int x;					\
 	__asm__ __volatile__(				\
-			op "	%0,0,%1\n"		\
+		"0:"	op "	%0,0,%1\n"		\
 		"1:	twi	0,%0,0\n"		\
 		"2:	isync\n"			\
 		"3:	nop\n"				\
@@ -269,6 +269,7 @@ extern __inline__ unsigned int name(unsigned int port)	\
 		".previous\n"				\
 		".section __ex_table,\"a\"\n"		\
 		"	.align	2\n"			\
+		"	.long	0b,5b\n"		\
 		"	.long	1b,5b\n"		\
 		"	.long	2b,5b\n"		\
 		"	.long	3b,5b\n"		\
@@ -282,11 +283,12 @@ extern __inline__ unsigned int name(unsigned int port)	\
 extern __inline__ void name(unsigned int val, unsigned int port) \
 {							\
 	__asm__ __volatile__(				\
-		op " %0,0,%1\n"				\
+		"0:" op " %0,0,%1\n"			\
 		"1:	sync\n"				\
 		"2:\n"					\
 		".section __ex_table,\"a\"\n"		\
 		"	.align	2\n"			\
+		"	.long	0b,2b\n"		\
 		"	.long	1b,2b\n"		\
 		".previous"				\
 		: : "r" (val), "r" (port + ___IO_BASE));	\

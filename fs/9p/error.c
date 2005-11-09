@@ -33,6 +33,7 @@
 
 #include <linux/list.h>
 #include <linux/jhash.h>
+#include <linux/string.h>
 
 #include "debug.h"
 #include "error.h"

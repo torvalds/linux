@@ -810,7 +810,6 @@ struct fb_info {
 extern int fb_set_var(struct fb_info *info, struct fb_var_screeninfo *var); 
 extern int fb_pan_display(struct fb_info *info, struct fb_var_screeninfo *var); 
 extern int fb_blank(struct fb_info *info, int blank);
-extern int soft_cursor(struct fb_info *info, struct fb_cursor *cursor);
 extern void cfb_fillrect(struct fb_info *info, const struct fb_fillrect *rect); 
 extern void cfb_copyarea(struct fb_info *info, const struct fb_copyarea *area); 
 extern void cfb_imageblit(struct fb_info *info, const struct fb_image *image);
@@ -898,11 +897,13 @@ extern struct fb_videomode *fb_match_mode(struct fb_var_screeninfo *var,
 					  struct list_head *head);
 extern struct fb_videomode *fb_find_best_mode(struct fb_var_screeninfo *var,
 					      struct list_head *head);
-extern struct fb_videomode *fb_find_nearest_mode(struct fb_var_screeninfo *var,
+extern struct fb_videomode *fb_find_nearest_mode(struct fb_videomode *mode,
 						 struct list_head *head);
 extern void fb_destroy_modelist(struct list_head *head);
 extern void fb_videomode_to_modelist(struct fb_videomode *modedb, int num,
 				     struct list_head *head);
+extern struct fb_videomode *fb_find_best_display(struct fb_monspecs *specs,
+						 struct list_head *head);
 
 /* drivers/video/fbcmap.c */
 extern int fb_alloc_cmap(struct fb_cmap *cmap, int len, int transp);

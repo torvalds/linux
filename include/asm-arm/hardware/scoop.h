@@ -52,8 +52,14 @@ struct scoop_pcmcia_dev {
 	unsigned char keep_rd;
 };
 
-extern int scoop_num;
-extern struct scoop_pcmcia_dev *scoop_devs;
+struct scoop_pcmcia_config {
+	struct scoop_pcmcia_dev *devs;
+	int num_devs;
+	void (*pcmcia_init)(void);
+	void (*power_ctrl)(struct device *scoop, unsigned short cpr, int nr);
+};
+
+extern struct scoop_pcmcia_config *platform_scoop_config;
 
 void reset_scoop(struct device *dev);
 unsigned short set_scoop_gpio(struct device *dev, unsigned short bit);

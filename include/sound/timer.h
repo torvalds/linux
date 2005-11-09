@@ -88,6 +88,7 @@ struct _snd_timer_hardware {
 struct _snd_timer {
 	snd_timer_class_t tmr_class;
 	snd_card_t *card;
+	struct module *module;
 	int tmr_device;
 	int tmr_subdevice;
 	char id[64];

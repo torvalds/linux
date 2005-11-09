@@ -1,5 +1,5 @@
 /*
- * $Id: redboot.c,v 1.17 2004/11/22 11:33:56 ijc Exp $
+ * $Id: redboot.c,v 1.18 2005/11/07 11:14:21 gleixner Exp $
  *
  * Parse RedBoot-style Flash Image System (FIS) tables and
  * produce a Linux partition array to match.
@@ -39,7 +39,7 @@ static inline int redboot_checksum(struct fis_image_desc *img)
 	return 1;
 }
 
-static int parse_redboot_partitions(struct mtd_info *master, 
+static int parse_redboot_partitions(struct mtd_info *master,
                              struct mtd_partition **pparts,
                              unsigned long fis_origin)
 {

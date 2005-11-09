@@ -259,8 +259,7 @@ spkm3_verify_mic_token(unsigned char **tokp, int *mic_hdrlen, unsigned char **ck
 
 	ret = GSS_S_COMPLETE;
 out:
-	if (spkm3_ctx_id.data)
-		kfree(spkm3_ctx_id.data);
+	kfree(spkm3_ctx_id.data);
 	return ret;
 }
 

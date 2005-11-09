@@ -145,6 +145,9 @@ struct pt_regs {
 #define PTRACE_O_TRACESYSGOOD	0x00000001
 
 #ifdef __KERNEL__
+
+#define __ARCH_SYS_PTRACE	1
+
 #if defined(CONFIG_ISA_M32R2) || defined(CONFIG_CHIP_VDEC2)
 #define user_mode(regs) ((M32R_PSW_BPM & (regs)->psw) != 0)
 #elif defined(CONFIG_ISA_M32R)

@@ -245,14 +245,12 @@ static void ffb_driver_release(drm_device_t * dev, struct file *filp)
 
 static void ffb_driver_pretakedown(drm_device_t * dev)
 {
-	if (dev->dev_private)
-		kfree(dev->dev_private);
+	kfree(dev->dev_private);
 }
 
 static int ffb_driver_postcleanup(drm_device_t * dev)
 {
-	if (ffb_position != NULL)
-		kfree(ffb_position);
+	kfree(ffb_position);
 	return 0;
 }
 

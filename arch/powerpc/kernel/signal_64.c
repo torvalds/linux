@@ -33,7 +33,6 @@
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
-#include <asm/ppcdebug.h>
 #include <asm/unistd.h>
 #include <asm/cacheflush.h>
 #include <asm/vdso.h>

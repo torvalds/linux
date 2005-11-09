@@ -2053,6 +2053,7 @@ pmu_register_sleep_notifier(struct pmu_sleep_notifier *n)
 	__list_add(&n->list, list->prev, list);
 	return 0;
 }
+EXPORT_SYMBOL(pmu_register_sleep_notifier);
 
 int
 pmu_unregister_sleep_notifier(struct pmu_sleep_notifier* n)
@@ -2063,6 +2064,7 @@ pmu_unregister_sleep_notifier(struct pmu_sleep_notifier* n)
 	n->list.next = NULL;
 	return 0;
 }
+EXPORT_SYMBOL(pmu_unregister_sleep_notifier);
 #endif /* CONFIG_PM */
 
 #if defined(CONFIG_PM) && defined(CONFIG_PPC32)
@@ -2667,10 +2669,10 @@ powerbook_sleep_3400(void)
 	asleep = 1;
 
 	/* Put the CPU into sleep mode */
-	asm volatile("mfspr %0,1008" : "=r" (hid0) :);
+	hid0 = mfspr(SPRN_HID0);
 	hid0 = (hid0 & ~(HID0_NAP | HID0_DOZE)) | HID0_SLEEP;
-	asm volatile("mtspr 1008,%0" : : "r" (hid0));
-	_nmask_and_or_msr(0, MSR_POW | MSR_EE);
+	mtspr(SPRN_HID0, hid0);
+	mtmsr(mfmsr() | MSR_POW | MSR_EE);
 	udelay(10);
 
 	/* OK, we're awake again, start restoring things */
@@ -3139,8 +3141,6 @@ EXPORT_SYMBOL(pmu_i2c_stdsub_write);
 EXPORT_SYMBOL(pmu_i2c_simple_read);
 EXPORT_SYMBOL(pmu_i2c_simple_write);
 #if defined(CONFIG_PM) && defined(CONFIG_PPC32)
-EXPORT_SYMBOL(pmu_register_sleep_notifier);
-EXPORT_SYMBOL(pmu_unregister_sleep_notifier);
 EXPORT_SYMBOL(pmu_enable_irled);
 EXPORT_SYMBOL(pmu_battery_count);
 EXPORT_SYMBOL(pmu_batteries);

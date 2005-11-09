@@ -16,7 +16,6 @@
 #include "user_util.h"
 #include "chan_user.h"
 #include "user.h"
-#include "helper.h"
 #include "os.h"
 #include "choose-mode.h"
 #include "mode.h"

@@ -292,7 +292,6 @@ static struct fb_ops atyfb_ops = {
 	.fb_fillrect	= atyfb_fillrect,
 	.fb_copyarea	= atyfb_copyarea,
 	.fb_imageblit	= atyfb_imageblit,
-	.fb_cursor	= soft_cursor,
 #ifdef __sparc__
 	.fb_mmap	= atyfb_mmap,
 #endif
@@ -2157,11 +2156,38 @@ static void __init aty_calc_mem_refresh(struct atyfb_par *par, int xclk)
 
 static struct fb_info *fb_list = NULL;
 
+#if defined(__i386__) && defined(CONFIG_FB_ATY_GENERIC_LCD)
+static int __devinit atyfb_get_timings_from_lcd(struct atyfb_par *par,
+						struct fb_var_screeninfo *var)
+{
+	int ret = -EINVAL;
+
+	if (par->lcd_table != 0 && (aty_ld_lcd(LCD_GEN_CNTL, par) & LCD_ON)) {
+		*var = default_var;
+		var->xres = var->xres_virtual = par->lcd_hdisp;
+		var->right_margin = par->lcd_right_margin;
+		var->left_margin = par->lcd_hblank_len -
+			(par->lcd_right_margin + par->lcd_hsync_dly +
+			 par->lcd_hsync_len);
+		var->hsync_len = par->lcd_hsync_len + par->lcd_hsync_dly;
+		var->yres = var->yres_virtual = par->lcd_vdisp;
+		var->lower_margin = par->lcd_lower_margin;
+		var->upper_margin = par->lcd_vblank_len -
+			(par->lcd_lower_margin + par->lcd_vsync_len);
+		var->vsync_len = par->lcd_vsync_len;
+		var->pixclock = par->lcd_pixclock;
+		ret = 0;
+	}
+
+	return ret;
+}
+#endif /* defined(__i386__) && defined(CONFIG_FB_ATY_GENERIC_LCD) */
+
 static int __init aty_init(struct fb_info *info, const char *name)
 {
 	struct atyfb_par *par = (struct atyfb_par *) info->par;
 	const char *ramname = NULL, *xtal;
-	int gtb_memsize;
+	int gtb_memsize, has_var = 0;
 	struct fb_var_screeninfo var;
 	u8 pll_ref_div;
 	u32 i;
@@ -2469,8 +2495,8 @@ static int __init aty_init(struct fb_info *info, const char *name)
 		 *         applies to all Mac video cards
 		 */
 		if (mode) {
-			if (!mac_find_mode(&var, info, mode, 8))
-				var = default_var;
+			if (mac_find_mode(&var, info, mode, 8))
+				has_var = 1;
 		} else {
 			if (default_vmode == VMODE_CHOOSE) {
 				if (M64_HAS(G3_PB_1024x768))
@@ -2492,20 +2518,23 @@ static int __init aty_init(struct fb_info *info, const char *name)
 				default_vmode = VMODE_640_480_60;
 			if (default_cmode < CMODE_8 || default_cmode > CMODE_32)
 				default_cmode = CMODE_8;
-			if (mac_vmode_to_var(default_vmode, default_cmode, &var))
-				var = default_var;
+			if (!mac_vmode_to_var(default_vmode, default_cmode,
+					       &var))
+				has_var = 1;
 		}
-	} else
+	}
+
 #endif /* !CONFIG_PPC */
-	if (
-#if defined(CONFIG_SPARC32) || defined(CONFIG_SPARC64)
-	   /* On Sparc, unless the user gave a specific mode
-	    * specification, use the PROM probed values in
-	    * default_var.
-	    */
-	    !mode ||
+
+#if defined(__i386__) && defined(CONFIG_FB_ATY_GENERIC_LCD)
+	if (!atyfb_get_timings_from_lcd(par, &var))
+		has_var = 1;
 #endif
-	    !fb_find_mode(&var, info, mode, NULL, 0, &defmode, 8))
+
+	if (mode && fb_find_mode(&var, info, mode, NULL, 0, &defmode, 8))
+		has_var = 1;
+
+	if (!has_var)
 		var = default_var;
 
 	if (noaccel)

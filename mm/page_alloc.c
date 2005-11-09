@@ -64,7 +64,6 @@ long nr_swap_pages;
 int sysctl_lowmem_reserve_ratio[MAX_NR_ZONES-1] = { 256, 32 };
 
 EXPORT_SYMBOL(totalram_pages);
-EXPORT_SYMBOL(nr_swap_pages);
 
 /*
  * Used by page_zone() to look up the address of the struct zone whose

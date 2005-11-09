@@ -229,6 +229,9 @@ struct switch_stack {
 };
 
 #ifdef __KERNEL__
+
+#define __ARCH_SYS_PTRACE	1
+
 /*
  * We use the ia64_psr(regs)->ri to determine which of the three
  * instructions in bundle (16 bytes) took the sample. Generate

@@ -25,6 +25,7 @@
 #include <asm/hardware.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
+#include <asm/page.h>
  
 #include <asm/mach/map.h>
 

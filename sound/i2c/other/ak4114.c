@@ -56,9 +56,9 @@ static void reg_dump(ak4114_t *ak4114)
 {
 	int i;
 
-	printk("AK4114 REG DUMP:\n");
+	printk(KERN_DEBUG "AK4114 REG DUMP:\n");
 	for (i = 0; i < 0x20; i++)
-		printk("reg[%02x] = %02x (%02x)\n", i, reg_read(ak4114, i), i < sizeof(ak4114->regmap) ? ak4114->regmap[i] : 0);
+		printk(KERN_DEBUG "reg[%02x] = %02x (%02x)\n", i, reg_read(ak4114, i), i < sizeof(ak4114->regmap) ? ak4114->regmap[i] : 0);
 }
 #endif
 
@@ -552,7 +552,7 @@ int snd_ak4114_check_rate_and_errors(ak4114_t *ak4114, unsigned int flags)
 	if (!(flags & AK4114_CHECK_NO_RATE) && runtime && runtime->rate != res) {
 		snd_pcm_stream_lock_irqsave(ak4114->capture_substream, _flags);
 		if (snd_pcm_running(ak4114->capture_substream)) {
-			// printk("rate changed (%i <- %i)\n", runtime->rate, res);
+			// printk(KERN_DEBUG "rate changed (%i <- %i)\n", runtime->rate, res);
 			snd_pcm_stop(ak4114->capture_substream, SNDRV_PCM_STATE_DRAINING);
 			res = 1;
 		}

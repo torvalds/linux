@@ -1492,7 +1492,7 @@ static int snd_m3_pcm_hw_params(snd_pcm_substream_t * substream,
 	/* set buffer address */
 	s->buffer_addr = substream->runtime->dma_addr;
 	if (s->buffer_addr & 0x3) {
-		snd_printk("oh my, not aligned\n");
+		snd_printk(KERN_ERR "oh my, not aligned\n");
 		s->buffer_addr = s->buffer_addr & ~0x3;
 	}
 	return 0;
@@ -1942,7 +1942,7 @@ static int snd_m3_ac97_wait(m3_t *chip)
 			return 0;
 	} while (i-- > 0);
 
-	snd_printk("ac97 serial bus busy\n");
+	snd_printk(KERN_ERR "ac97 serial bus busy\n");
 	return 1;
 }
 
@@ -2046,8 +2046,7 @@ static void snd_m3_ac97_reset(m3_t *chip)
 		outw(0, io + GPIO_DATA);
 		outw(dir | GPO_PRIMARY_AC97, io + GPIO_DIRECTION);
 
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout((delay1 * HZ) / 1000);
+		schedule_timeout_uninterruptible(msecs_to_jiffies(delay1));
 
 		outw(GPO_PRIMARY_AC97, io + GPIO_DATA);
 		udelay(5);
@@ -2055,8 +2054,7 @@ static void snd_m3_ac97_reset(m3_t *chip)
 		outw(IO_SRAM_ENABLE | SERIAL_AC_LINK_ENABLE, io + RING_BUS_CTRL_A);
 		outw(~0, io + GPIO_MASK);
 
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout((delay2 * HZ) / 1000);
+		schedule_timeout_uninterruptible(msecs_to_jiffies(delay2));
 
 		if (! snd_m3_try_read_vendor(chip))
 			break;
@@ -2101,8 +2099,7 @@ static int __devinit snd_m3_mixer(m3_t *chip)
 
 	/* seems ac97 PCM needs initialization.. hack hack.. */
 	snd_ac97_write(chip->ac97, AC97_PCM, 0x8000 | (15 << 8) | 15);
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	schedule_timeout(HZ / 10);
+	schedule_timeout_uninterruptible(msecs_to_jiffies(100));
 	snd_ac97_write(chip->ac97, AC97_PCM, 0);
 
 	memset(&id, 0, sizeof(id));
@@ -2367,7 +2364,7 @@ static int __devinit snd_m3_assp_client_init(m3_t *chip, m3_dma_t *s, int index)
 	address = 0x1100 + ((data_bytes/2) * index);
 
 	if ((address + (data_bytes/2)) >= 0x1c00) {
-		snd_printk("no memory for %d bytes at ind %d (addr 0x%x)\n",
+		snd_printk(KERN_ERR "no memory for %d bytes at ind %d (addr 0x%x)\n",
 			   data_bytes, index, address);
 		return -ENOMEM;
 	}
@@ -2476,6 +2473,7 @@ snd_m3_chip_init(m3_t *chip)
 	t |= ASSP_0_WS_ENABLE; 
 	outb(t, chip->iobase + ASSP_CONTROL_A);
 
+	snd_m3_assp_init(chip); /* download DSP code before starting ASSP below */
 	outb(RUN_ASSP, chip->iobase + ASSP_CONTROL_B); 
 
 	outb(0x00, io + HARDWARE_VOL_CTRL);
@@ -2655,7 +2653,7 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 	/* check, if we can restrict PCI DMA transfers to 28 bits */
 	if (pci_set_dma_mask(pci, 0x0fffffff) < 0 ||
 	    pci_set_consistent_dma_mask(pci, 0x0fffffff) < 0) {
-		snd_printk("architecture does not support 28bit PCI busmaster DMA\n");
+		snd_printk(KERN_ERR "architecture does not support 28bit PCI busmaster DMA\n");
 		pci_disable_device(pci);
 		return -ENXIO;
 	}
@@ -2734,14 +2732,13 @@ snd_m3_create(snd_card_t *card, struct pci_dev *pci,
 
 	snd_m3_ac97_reset(chip);
 
-	snd_m3_assp_init(chip);
 	snd_m3_amp_enable(chip, 1);
 
 	tasklet_init(&chip->hwvol_tq, snd_m3_update_hw_volume, (unsigned long)chip);
 
 	if (request_irq(pci->irq, snd_m3_interrupt, SA_INTERRUPT|SA_SHIRQ,
 			card->driver, (void *)chip)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_m3_free(chip);
 		return -ENOMEM;
 	}

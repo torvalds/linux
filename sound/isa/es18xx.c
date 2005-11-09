@@ -173,7 +173,7 @@ static int snd_es18xx_dsp_command(es18xx_t *chip, unsigned char val)
                         outb(val, chip->port + 0x0C);
                         return 0;
                 }
-        snd_printk("dsp_command: timeout (0x%x)\n", val);
+	snd_printk(KERN_ERR "dsp_command: timeout (0x%x)\n", val);
         return -EINVAL;
 }
 
@@ -184,7 +184,8 @@ static int snd_es18xx_dsp_get_byte(es18xx_t *chip)
         for(i = MILLISECOND/10; i; i--)
                 if (inb(chip->port + 0x0C) & 0x40)
                         return inb(chip->port + 0x0A);
-        snd_printk("dsp_get_byte failed: 0x%lx = 0x%x!!!\n", chip->port + 0x0A, inb(chip->port + 0x0A));
+	snd_printk(KERN_ERR "dsp_get_byte failed: 0x%lx = 0x%x!!!\n",
+		   chip->port + 0x0A, inb(chip->port + 0x0A));
         return -ENODEV;
 }
 
@@ -204,7 +205,7 @@ static int snd_es18xx_write(es18xx_t *chip,
  end:
         spin_unlock_irqrestore(&chip->reg_lock, flags);
 #ifdef REG_DEBUG
-	snd_printk("Reg %02x set to %02x\n", reg, data);
+	snd_printk(KERN_DEBUG "Reg %02x set to %02x\n", reg, data);
 #endif
 	return ret;
 }
@@ -223,7 +224,7 @@ static int snd_es18xx_read(es18xx_t *chip, unsigned char reg)
 	data = snd_es18xx_dsp_get_byte(chip);
 	ret = data;
 #ifdef REG_DEBUG
-	snd_printk("Reg %02x now is %02x (%d)\n", reg, data, ret);
+	snd_printk(KERN_DEBUG "Reg %02x now is %02x (%d)\n", reg, data, ret);
 #endif
  end:
         spin_unlock_irqrestore(&chip->reg_lock, flags);
@@ -259,7 +260,8 @@ static int snd_es18xx_bits(es18xx_t *chip, unsigned char reg,
 		if (ret < 0)
 			goto end;
 #ifdef REG_DEBUG
-		snd_printk("Reg %02x was %02x, set to %02x (%d)\n", reg, old, new, ret);
+		snd_printk(KERN_DEBUG "Reg %02x was %02x, set to %02x (%d)\n",
+			   reg, old, new, ret);
 #endif
 	}
 	ret = oval;
@@ -277,7 +279,7 @@ static inline void snd_es18xx_mixer_write(es18xx_t *chip,
         outb(data, chip->port + 0x05);
         spin_unlock_irqrestore(&chip->mixer_lock, flags);
 #ifdef REG_DEBUG
-	snd_printk("Mixer reg %02x set to %02x\n", reg, data);
+	snd_printk(KERN_DEBUG "Mixer reg %02x set to %02x\n", reg, data);
 #endif
 }
 
@@ -290,7 +292,7 @@ static inline int snd_es18xx_mixer_read(es18xx_t *chip, unsigned char reg)
 	data = inb(chip->port + 0x05);
         spin_unlock_irqrestore(&chip->mixer_lock, flags);
 #ifdef REG_DEBUG
-	snd_printk("Mixer reg %02x now is %02x\n", reg, data);
+	snd_printk(KERN_DEBUG "Mixer reg %02x now is %02x\n", reg, data);
 #endif
         return data;
 }
@@ -309,7 +311,8 @@ static inline int snd_es18xx_mixer_bits(es18xx_t *chip, unsigned char reg,
 		new = (old & ~mask) | (val & mask);
 		outb(new, chip->port + 0x05);
 #ifdef REG_DEBUG
-		snd_printk("Mixer reg %02x was %02x, set to %02x\n", reg, old, new);
+		snd_printk(KERN_DEBUG "Mixer reg %02x was %02x, set to %02x\n",
+			   reg, old, new);
 #endif
 	}
         spin_unlock_irqrestore(&chip->mixer_lock, flags);
@@ -329,7 +332,8 @@ static inline int snd_es18xx_mixer_writable(es18xx_t *chip, unsigned char reg,
 	new = inb(chip->port + 0x05);
         spin_unlock_irqrestore(&chip->mixer_lock, flags);
 #ifdef REG_DEBUG
-	snd_printk("Mixer reg %02x was %02x, set to %02x, now is %02x\n", reg, old, expected, new);
+	snd_printk(KERN_DEBUG "Mixer reg %02x was %02x, set to %02x, now is %02x\n",
+		   reg, old, expected, new);
 #endif
 	return expected == new;
 }
@@ -1281,7 +1285,7 @@ static void __devinit snd_es18xx_config_write(es18xx_t *chip,
 	outb(reg, chip->ctrl_port);
 	outb(data, chip->ctrl_port + 1);
 #ifdef REG_DEBUG
-	snd_printk("Config reg %02x set to %02x\n", reg, data);
+	snd_printk(KERN_DEBUG "Config reg %02x set to %02x\n", reg, data);
 #endif
 }
 
@@ -1346,7 +1350,7 @@ static int __devinit snd_es18xx_initialize(es18xx_t *chip)
 			irqmask = 3;
 			break;
 		default:
-			snd_printk("invalid irq %d\n", chip->irq);
+			snd_printk(KERN_ERR "invalid irq %d\n", chip->irq);
 			return -ENODEV;
 		}
 		switch (chip->dma1) {
@@ -1360,7 +1364,7 @@ static int __devinit snd_es18xx_initialize(es18xx_t *chip)
 			dma1mask = 3;
 			break;
 		default:
-			snd_printk("invalid dma1 %d\n", chip->dma1);
+			snd_printk(KERN_ERR "invalid dma1 %d\n", chip->dma1);
 			return -ENODEV;
 		}
 		switch (chip->dma2) {
@@ -1377,7 +1381,7 @@ static int __devinit snd_es18xx_initialize(es18xx_t *chip)
 			dma2mask = 3;
 			break;
 		default:
-			snd_printk("invalid dma2 %d\n", chip->dma2);
+			snd_printk(KERN_ERR "invalid dma2 %d\n", chip->dma2);
 			return -ENODEV;
 		}
 
@@ -1440,7 +1444,7 @@ static int __devinit snd_es18xx_identify(es18xx_t *chip)
 
 	/* reset */
 	if (snd_es18xx_reset(chip) < 0) {
-                snd_printk("reset at 0x%lx failed!!!\n", chip->port);
+		snd_printk(KERN_ERR "reset at 0x%lx failed!!!\n", chip->port);
 		return -ENODEV;
 	}
 
@@ -1527,7 +1531,7 @@ static int __devinit snd_es18xx_probe(es18xx_t *chip)
 		chip->caps = ES18XX_PCM2 | ES18XX_RECMIX | ES18XX_AUXB | ES18XX_DUPLEX_SAME | ES18XX_HWV;
 		break;
 	default:
-                snd_printk("[0x%lx] unsupported chip ES%x\n",
+		snd_printk(KERN_ERR "[0x%lx] unsupported chip ES%x\n",
                            chip->port, chip->version);
                 return -ENODEV;
         }
@@ -1640,18 +1644,9 @@ static int snd_es18xx_resume(snd_card_t *card)
 
 static int snd_es18xx_free(es18xx_t *chip)
 {
-	if (chip->res_port) {
-		release_resource(chip->res_port);
-		kfree_nocheck(chip->res_port);
-	}
-	if (chip->res_ctrl_port) {
-		release_resource(chip->res_ctrl_port);
-		kfree_nocheck(chip->res_ctrl_port);
-	}
-	if (chip->res_mpu_port) {
-		release_resource(chip->res_mpu_port);
-		kfree_nocheck(chip->res_mpu_port);
-	}
+	release_and_free_resource(chip->res_port);
+	release_and_free_resource(chip->res_ctrl_port);
+	release_and_free_resource(chip->res_mpu_port);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *) chip);
 	if (chip->dma1 >= 0) {

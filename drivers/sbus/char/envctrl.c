@@ -654,9 +654,8 @@ envctrl_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 /* Function Description: Command what to read.  Mapped to user ioctl().
  * Return: Gives 0 for implemented commands, -EINVAL otherwise.
  */
-static int
-envctrl_ioctl(struct inode *inode, struct file *file,
-	      unsigned int cmd, unsigned long arg)
+static long
+envctrl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	char __user *infobuf;
 
@@ -715,11 +714,14 @@ envctrl_release(struct inode *inode, struct file *file)
 }
 
 static struct file_operations envctrl_fops = {
-	.owner =	THIS_MODULE,
-	.read =		envctrl_read,
-	.ioctl =	envctrl_ioctl,
-	.open =		envctrl_open,
-	.release =	envctrl_release,
+	.owner =		THIS_MODULE,
+	.read =			envctrl_read,
+	.unlocked_ioctl =	envctrl_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl =		envctrl_ioctl,
+#endif
+	.open =			envctrl_open,
+	.release =		envctrl_release,
 };	
 
 static struct miscdevice envctrl_dev = {
@@ -1125,10 +1127,9 @@ out_deregister:
 	misc_deregister(&envctrl_dev);
 out_iounmap:
 	iounmap(i2c);
-	for (i = 0; i < ENVCTRL_MAX_CPU * 2; i++) {
-		if (i2c_childlist[i].tables)
-			kfree(i2c_childlist[i].tables);
-	}
+	for (i = 0; i < ENVCTRL_MAX_CPU * 2; i++)
+		kfree(i2c_childlist[i].tables);
+
 	return err;
 }
 
@@ -1141,10 +1142,8 @@ static void __exit envctrl_cleanup(void)
 	iounmap(i2c);
 	misc_deregister(&envctrl_dev);
 
-	for (i = 0; i < ENVCTRL_MAX_CPU * 2; i++) {
-		if (i2c_childlist[i].tables)
-			kfree(i2c_childlist[i].tables);
-	}
+	for (i = 0; i < ENVCTRL_MAX_CPU * 2; i++)
+		kfree(i2c_childlist[i].tables);
 }
 
 module_init(envctrl_init);

@@ -110,8 +110,7 @@ ip_vs_app_inc_new(struct ip_vs_app *app, __u16 proto, __u16 port)
 	return 0;
 
   out:
-	if (inc->timeout_table)
-		kfree(inc->timeout_table);
+	kfree(inc->timeout_table);
 	kfree(inc);
 	return ret;
 }
@@ -136,8 +135,7 @@ ip_vs_app_inc_release(struct ip_vs_app *inc)
 
 	list_del(&inc->a_list);
 
-	if (inc->timeout_table != NULL)
-		kfree(inc->timeout_table);
+	kfree(inc->timeout_table);
 	kfree(inc);
 }
 

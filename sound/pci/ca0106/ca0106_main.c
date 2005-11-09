@@ -281,7 +281,7 @@ int snd_ca0106_i2c_write(ca0106_t *emu,
 	int retry;
 	if ((reg > 0x7f) || (value > 0x1ff))
 	{
-                snd_printk("i2c_write: invalid values.\n");
+		snd_printk(KERN_ERR "i2c_write: invalid values.\n");
 		return -EINVAL;
 	}
 
@@ -319,7 +319,7 @@ int snd_ca0106_i2c_write(ca0106_t *emu,
 
 	if(retry==10)
 	{
-                snd_printk("Writing to ADC failed!\n");
+		snd_printk(KERN_ERR "Writing to ADC failed!\n");
 		return -EINVAL;
 	}
     
@@ -337,6 +337,18 @@ static void snd_ca0106_intr_enable(ca0106_t *emu, unsigned int intrenb)
 	outl(enable, emu->port + INTE);
 	spin_unlock_irqrestore(&emu->emu_lock, flags);
 }
+
+static void snd_ca0106_intr_disable(ca0106_t *emu, unsigned int intrenb)
+{
+	unsigned long flags;
+	unsigned int enable;
+  
+	spin_lock_irqsave(&emu->emu_lock, flags);
+	enable = inl(emu->port + INTE) & ~intrenb;
+	outl(enable, emu->port + INTE);
+	spin_unlock_irqrestore(&emu->emu_lock, flags);
+}
+
 
 static void snd_ca0106_pcm_free_substream(snd_pcm_runtime_t *runtime)
 {
@@ -421,7 +433,7 @@ static int snd_ca0106_pcm_open_capture_channel(snd_pcm_substream_t *substream, i
 
 	epcm = kzalloc(sizeof(*epcm), GFP_KERNEL);
 	if (epcm == NULL) {
-                snd_printk("open_capture_channel: failed epcm alloc\n");
+		snd_printk(KERN_ERR "open_capture_channel: failed epcm alloc\n");
 		return -ENOMEM;
         }
 	epcm->emu = chip;
@@ -969,10 +981,8 @@ static int snd_ca0106_free(ca0106_t *chip)
 #endif
 
 	// release the i/o port
-	if (chip->res_port) {
-		release_resource(chip->res_port);
-		kfree_nocheck(chip->res_port);
-	}
+	release_and_free_resource(chip->res_port);
+
 	// release the irq
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *)chip);
@@ -1042,6 +1052,15 @@ static irqreturn_t snd_ca0106_interrupt(int irq, void *dev_id,
 
         snd_ca0106_ptr_write(chip, EXTENDED_INT, 0, stat76);
 	spin_lock(&chip->emu_lock);
+
+	if (chip->midi.dev_id &&
+	  (status & (chip->midi.ipr_tx|chip->midi.ipr_rx))) {
+		if (chip->midi.interrupt)
+			chip->midi.interrupt(&chip->midi, status);
+		else
+			chip->midi.interrupt_disable(&chip->midi, chip->midi.tx_enable | chip->midi.rx_enable);
+	}
+
 	// acknowledge the interrupt if necessary
 	outl(status, chip->port+IPR);
 
@@ -1311,6 +1330,88 @@ static int __devinit snd_ca0106_create(snd_card_t *card,
 	return 0;
 }
 
+
+static void ca0106_midi_interrupt_enable(ca_midi_t *midi, int intr)
+{
+	snd_ca0106_intr_enable((ca0106_t *)(midi->dev_id), intr);
+}
+
+static void ca0106_midi_interrupt_disable(ca_midi_t *midi, int intr)
+{
+	snd_ca0106_intr_disable((ca0106_t *)(midi->dev_id), intr);
+}
+
+static unsigned char ca0106_midi_read(ca_midi_t *midi, int idx)
+{
+	return (unsigned char)snd_ca0106_ptr_read((ca0106_t *)(midi->dev_id), midi->port + idx, 0);
+}
+
+static void ca0106_midi_write(ca_midi_t *midi, int data, int idx)
+{
+	snd_ca0106_ptr_write((ca0106_t *)(midi->dev_id), midi->port + idx, 0, data);
+}
+
+static snd_card_t *ca0106_dev_id_card(void *dev_id)
+{
+	return ((ca0106_t *)dev_id)->card;
+}
+
+static int ca0106_dev_id_port(void *dev_id)
+{
+	return ((ca0106_t *)dev_id)->port;
+}
+
+static int __devinit snd_ca0106_midi(ca0106_t *chip, unsigned int channel)
+{
+	ca_midi_t *midi;
+	char *name;
+	int err;
+
+        if(channel==CA0106_MIDI_CHAN_B) {
+		name = "CA0106 MPU-401 (UART) B";
+		midi =  &chip->midi2;
+		midi->tx_enable = INTE_MIDI_TX_B;
+		midi->rx_enable = INTE_MIDI_RX_B;
+		midi->ipr_tx = IPR_MIDI_TX_B;
+		midi->ipr_rx = IPR_MIDI_RX_B;
+		midi->port = MIDI_UART_B_DATA;
+	} else {
+		name = "CA0106 MPU-401 (UART)";
+		midi =  &chip->midi;
+		midi->tx_enable = INTE_MIDI_TX_A;
+		midi->rx_enable = INTE_MIDI_TX_B;
+		midi->ipr_tx = IPR_MIDI_TX_A;
+		midi->ipr_rx = IPR_MIDI_RX_A;
+		midi->port = MIDI_UART_A_DATA;
+	}
+
+	midi->reset = CA0106_MPU401_RESET;
+	midi->enter_uart = CA0106_MPU401_ENTER_UART;
+	midi->ack = CA0106_MPU401_ACK;
+
+	midi->input_avail = CA0106_MIDI_INPUT_AVAIL;
+	midi->output_ready = CA0106_MIDI_OUTPUT_READY;
+
+	midi->channel = channel;
+
+	midi->interrupt_enable = ca0106_midi_interrupt_enable;
+	midi->interrupt_disable = ca0106_midi_interrupt_disable;
+
+	midi->read = ca0106_midi_read;
+	midi->write = ca0106_midi_write;
+
+	midi->get_dev_id_card = ca0106_dev_id_card;
+	midi->get_dev_id_port = ca0106_dev_id_port;
+
+	midi->dev_id = chip;
+	
+	if ((err = ca_midi_init(chip, midi, 0, name)) < 0)
+		return err;
+
+	return 0;
+}
+
+
 static int __devinit snd_ca0106_probe(struct pci_dev *pci,
 					const struct pci_device_id *pci_id)
 {
@@ -1361,6 +1462,14 @@ static int __devinit snd_ca0106_probe(struct pci_dev *pci,
 		snd_card_free(card);
 		return err;
 	}
+
+	snd_printdd("ca0106: probe for MIDI channel A ...");
+	if ((err = snd_ca0106_midi(chip,CA0106_MIDI_CHAN_A)) < 0) {
+		snd_card_free(card);
+		snd_printdd(" failed, err=0x%x\n",err);
+		return err;
+	}
+	snd_printdd(" done.\n");
 
 	snd_ca0106_proc_init(chip);
 

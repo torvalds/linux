@@ -4270,8 +4270,7 @@ static void adapter_sg_tables_free(struct AdapterCtlBlk *acb)
 	const unsigned srbs_per_page = PAGE_SIZE/SEGMENTX_LEN;
 
 	for (i = 0; i < DC395x_MAX_SRB_CNT; i += srbs_per_page)
-		if (acb->srb_array[i].segment_x)
-			kfree(acb->srb_array[i].segment_x);
+		kfree(acb->srb_array[i].segment_x);
 }
 
 

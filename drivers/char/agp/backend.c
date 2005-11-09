@@ -222,12 +222,12 @@ static void agp_backend_cleanup(struct agp_bridge_data *bridge)
 
 struct agp_bridge_data *agp_alloc_bridge(void)
 {
-	struct agp_bridge_data *bridge = kmalloc(sizeof(*bridge), GFP_KERNEL);
-
+	struct agp_bridge_data *bridge;
+	
+	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
 	if (!bridge)
 		return NULL;
 
-	memset(bridge, 0, sizeof(*bridge));
 	atomic_set(&bridge->agp_in_use, 0);
 	atomic_set(&bridge->current_memory_agp, 0);
 

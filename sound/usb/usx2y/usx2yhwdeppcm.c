@@ -73,7 +73,7 @@ static int usX2Y_usbpcm_urb_capt_retire(snd_usX2Y_substream_t *subs)
 	}
 	for (i = 0; i < nr_of_packs(); i++) {
 		if (urb->iso_frame_desc[i].status) { /* active? hmm, skip this */
-			snd_printk("activ frame status %i. Most propably some hardware problem.\n", urb->iso_frame_desc[i].status);
+			snd_printk(KERN_ERR "activ frame status %i. Most propably some hardware problem.\n", urb->iso_frame_desc[i].status);
 			return urb->iso_frame_desc[i].status;
 		}
 		lens += urb->iso_frame_desc[i].actual_length / usX2Y->stride;
@@ -126,7 +126,7 @@ static int usX2Y_hwdep_urb_play_prepare(snd_usX2Y_substream_t *subs,
 		/* calculate the size of a packet */
 		counts = shm->captured_iso[shm->playback_iso_head].length / usX2Y->stride;
 		if (counts < 43 || counts > 50) {
-			snd_printk("should not be here with counts=%i\n", counts);
+			snd_printk(KERN_ERR "should not be here with counts=%i\n", counts);
 			return -EPIPE;
 		}
 		/* set up descriptor */

@@ -30,8 +30,8 @@
 #include <linux/sched.h>
 #include <linux/dma-mapping.h>
 #include <linux/device.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
 #include <asm/io.h>
 
@@ -271,7 +271,7 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 static void mv_eng_timeout(struct ata_port *ap);
 static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 
-static Scsi_Host_Template mv_sht = {
+static struct scsi_host_template mv_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,

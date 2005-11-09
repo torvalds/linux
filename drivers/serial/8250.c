@@ -40,6 +40,7 @@
 #include <linux/serial_core.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
+#include <linux/nmi.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -251,9 +252,53 @@ static const struct serial8250_config uart_config[] = {
 	},
 };
 
+#ifdef CONFIG_SERIAL_8250_AU1X00
+
+/* Au1x00 UART hardware has a weird register layout */
+static const u8 au_io_in_map[] = {
+	[UART_RX]  = 0,
+	[UART_IER] = 2,
+	[UART_IIR] = 3,
+	[UART_LCR] = 5,
+	[UART_MCR] = 6,
+	[UART_LSR] = 7,
+	[UART_MSR] = 8,
+};
+
+static const u8 au_io_out_map[] = {
+	[UART_TX]  = 1,
+	[UART_IER] = 2,
+	[UART_FCR] = 4,
+	[UART_LCR] = 5,
+	[UART_MCR] = 6,
+};
+
+/* sane hardware needs no mapping */
+static inline int map_8250_in_reg(struct uart_8250_port *up, int offset)
+{
+	if (up->port.iotype != UPIO_AU)
+		return offset;
+	return au_io_in_map[offset];
+}
+
+static inline int map_8250_out_reg(struct uart_8250_port *up, int offset)
+{
+	if (up->port.iotype != UPIO_AU)
+		return offset;
+	return au_io_out_map[offset];
+}
+
+#else
+
+/* sane hardware needs no mapping */
+#define map_8250_in_reg(up, offset) (offset)
+#define map_8250_out_reg(up, offset) (offset)
+
+#endif
+
 static _INLINE_ unsigned int serial_in(struct uart_8250_port *up, int offset)
 {
-	offset <<= up->port.regshift;
+	offset = map_8250_in_reg(up, offset) << up->port.regshift;
 
 	switch (up->port.iotype) {
 	case UPIO_HUB6:
@@ -266,6 +311,11 @@ static _INLINE_ unsigned int serial_in(struct uart_8250_port *up, int offset)
 	case UPIO_MEM32:
 		return readl(up->port.membase + offset);
 
+#ifdef CONFIG_SERIAL_8250_AU1X00
+	case UPIO_AU:
+		return __raw_readl(up->port.membase + offset);
+#endif
+
 	default:
 		return inb(up->port.iobase + offset);
 	}
@@ -274,7 +324,7 @@ static _INLINE_ unsigned int serial_in(struct uart_8250_port *up, int offset)
 static _INLINE_ void
 serial_out(struct uart_8250_port *up, int offset, int value)
 {
-	offset <<= up->port.regshift;
+	offset = map_8250_out_reg(up, offset) << up->port.regshift;
 
 	switch (up->port.iotype) {
 	case UPIO_HUB6:
@@ -289,6 +339,12 @@ serial_out(struct uart_8250_port *up, int offset, int value)
 	case UPIO_MEM32:
 		writel(value, up->port.membase + offset);
 		break;
+
+#ifdef CONFIG_SERIAL_8250_AU1X00
+	case UPIO_AU:
+		__raw_writel(value, up->port.membase + offset);
+		break;
+#endif
 
 	default:
 		outb(value, up->port.iobase + offset);
@@ -910,6 +966,13 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 		}
 	}
 #endif
+
+#ifdef CONFIG_SERIAL_8250_AU1X00
+	/* if access method is AU, it is a 16550 with a quirk */
+	if (up->port.type == PORT_16550A && up->port.iotype == UPIO_AU)
+		up->bugs |= UART_BUG_NOMSR;
+#endif
+
 	serial_outp(up, UART_LCR, save_lcr);
 
 	if (up->capabilities != uart_config[up->port.type].flags) {
@@ -1056,6 +1119,10 @@ static void serial8250_stop_rx(struct uart_port *port)
 static void serial8250_enable_ms(struct uart_port *port)
 {
 	struct uart_8250_port *up = (struct uart_8250_port *)port;
+
+	/* no MSR capabilities */
+	if (up->bugs & UART_BUG_NOMSR)
+		return;
 
 	up->ier |= UART_IER_MSI;
 	serial_out(up, UART_IER, up->ier);
@@ -1774,7 +1841,8 @@ serial8250_set_termios(struct uart_port *port, struct termios *termios,
 	 * CTS flow control flag and modem status interrupts
 	 */
 	up->ier &= ~UART_IER_MSI;
-	if (UART_ENABLE_MS(&up->port, termios->c_cflag))
+	if (!(up->bugs & UART_BUG_NOMSR) &&
+			UART_ENABLE_MS(&up->port, termios->c_cflag))
 		up->ier |= UART_IER_MSI;
 	if (up->capabilities & UART_CAP_UUE)
 		up->ier |= UART_IER_UUE | UART_IER_RTOIE;
@@ -2140,6 +2208,8 @@ serial8250_console_write(struct console *co, const char *s, unsigned int count)
 	struct uart_8250_port *up = &serial8250_ports[co->index];
 	unsigned int ier;
 	int i;
+
+	touch_nmi_watchdog();
 
 	/*
 	 *	First save the UER then disable the interrupts

@@ -477,12 +477,14 @@ int pnp_check_dma(struct pnp_dev * dev, int idx)
 }
 
 
+#if 0
 EXPORT_SYMBOL(pnp_register_dependent_option);
 EXPORT_SYMBOL(pnp_register_independent_option);
 EXPORT_SYMBOL(pnp_register_irq_resource);
 EXPORT_SYMBOL(pnp_register_dma_resource);
 EXPORT_SYMBOL(pnp_register_port_resource);
 EXPORT_SYMBOL(pnp_register_mem_resource);
+#endif  /*  0  */
 
 
 /* format is: pnp_reserve_irq=irq1[,irq2] .... */

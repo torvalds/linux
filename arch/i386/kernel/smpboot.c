@@ -68,11 +68,9 @@ EXPORT_SYMBOL(smp_num_siblings);
 
 /* Package ID of each logical CPU */
 int phys_proc_id[NR_CPUS] __read_mostly = {[0 ... NR_CPUS-1] = BAD_APICID};
-EXPORT_SYMBOL(phys_proc_id);
 
 /* Core ID of each logical CPU */
 int cpu_core_id[NR_CPUS] __read_mostly = {[0 ... NR_CPUS-1] = BAD_APICID};
-EXPORT_SYMBOL(cpu_core_id);
 
 cpumask_t cpu_sibling_map[NR_CPUS] __read_mostly;
 EXPORT_SYMBOL(cpu_sibling_map);
@@ -612,7 +610,7 @@ static inline void __inquire_remote_apic(int apicid)
 
 	printk("Inquiring remote APIC #%d...\n", apicid);
 
-	for (i = 0; i < sizeof(regs) / sizeof(*regs); i++) {
+	for (i = 0; i < ARRAY_SIZE(regs); i++) {
 		printk("... APIC #%d %s: ", apicid, names[i]);
 
 		/*

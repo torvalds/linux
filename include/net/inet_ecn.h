@@ -2,6 +2,7 @@
 #define _INET_ECN_H_
 
 #include <linux/ip.h>
+#include <linux/skbuff.h>
 #include <net/dsfield.h>
 
 enum {
@@ -48,7 +49,7 @@ static inline __u8 INET_ECN_encapsulate(__u8 outer, __u8 inner)
 		(label) |= __constant_htons(INET_ECN_ECT_0 << 4);	\
     } while (0)
 
-static inline void IP_ECN_set_ce(struct iphdr *iph)
+static inline int IP_ECN_set_ce(struct iphdr *iph)
 {
 	u32 check = iph->check;
 	u32 ecn = (iph->tos + 1) & INET_ECN_MASK;
@@ -61,7 +62,7 @@ static inline void IP_ECN_set_ce(struct iphdr *iph)
 	 * INET_ECN_CE      => 00
 	 */
 	if (!(ecn & 2))
-		return;
+		return !ecn;
 
 	/*
 	 * The following gives us:
@@ -72,6 +73,7 @@ static inline void IP_ECN_set_ce(struct iphdr *iph)
 
 	iph->check = check + (check>=0xFFFF);
 	iph->tos |= INET_ECN_CE;
+	return 1;
 }
 
 static inline void IP_ECN_clear(struct iphdr *iph)
@@ -87,11 +89,12 @@ static inline void ipv4_copy_dscp(struct iphdr *outer, struct iphdr *inner)
 
 struct ipv6hdr;
 
-static inline void IP6_ECN_set_ce(struct ipv6hdr *iph)
+static inline int IP6_ECN_set_ce(struct ipv6hdr *iph)
 {
 	if (INET_ECN_is_not_ect(ipv6_get_dsfield(iph)))
-		return;
+		return 0;
 	*(u32*)iph |= htonl(INET_ECN_CE << 20);
+	return 1;
 }
 
 static inline void IP6_ECN_clear(struct ipv6hdr *iph)
@@ -103,6 +106,23 @@ static inline void ipv6_copy_dscp(struct ipv6hdr *outer, struct ipv6hdr *inner)
 {
 	u32 dscp = ipv6_get_dsfield(outer) & ~INET_ECN_MASK;
 	ipv6_change_dsfield(inner, INET_ECN_MASK, dscp);
+}
+
+static inline int INET_ECN_set_ce(struct sk_buff *skb)
+{
+	switch (skb->protocol) {
+	case __constant_htons(ETH_P_IP):
+		if (skb->nh.raw + sizeof(struct iphdr) <= skb->tail)
+			return IP_ECN_set_ce(skb->nh.iph);
+		break;
+
+	case __constant_htons(ETH_P_IPV6):
+		if (skb->nh.raw + sizeof(struct ipv6hdr) <= skb->tail)
+			return IP6_ECN_set_ce(skb->nh.ipv6h);
+		break;
+	}
+
+	return 0;
 }
 
 #endif

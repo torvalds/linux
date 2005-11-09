@@ -69,6 +69,17 @@ void wait_stub_done(int pid, int sig, char * fname)
 
         if((n < 0) || !WIFSTOPPED(status) ||
            (WSTOPSIG(status) != SIGUSR1 && WSTOPSIG(status) != SIGTRAP)){
+		unsigned long regs[FRAME_SIZE];
+		if(ptrace(PTRACE_GETREGS, pid, 0, regs) < 0)
+			printk("Failed to get registers from stub, "
+			       "errno = %d\n", errno);
+		else {
+			int i;
+
+			printk("Stub registers -\n");
+			for(i = 0; i < FRAME_SIZE; i++)
+				printk("\t%d - %lx\n", i, regs[i]);
+		}
                 panic("%s : failed to wait for SIGUSR1/SIGTRAP, "
                       "pid = %d, n = %d, errno = %d, status = 0x%x\n",
                       fname, pid, n, errno, status);
@@ -370,9 +381,9 @@ int copy_context_skas0(unsigned long new_stack, int pid)
 }
 
 /*
- * This is used only, if proc_mm is available, while PTRACE_FAULTINFO
- * isn't. Opening /proc/mm creates a new mm_context, which lacks the stub-pages
- * Thus, we map them using /proc/mm-fd
+ * This is used only, if stub pages are needed, while proc_mm is
+ * availabl. Opening /proc/mm creates a new mm_context, which lacks
+ * the stub-pages. Thus, we map them using /proc/mm-fd
  */
 void map_stub_pages(int fd, unsigned long code,
 		    unsigned long data, unsigned long stack)

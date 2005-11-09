@@ -39,8 +39,8 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/device.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
 #include <asm/io.h>
 #include "sata_promise.h"
@@ -177,7 +177,7 @@ static void pdc20621_irq_clear(struct ata_port *ap);
 static int pdc20621_qc_issue_prot(struct ata_queued_cmd *qc);
 
 
-static Scsi_Host_Template pdc_sata_sht = {
+static struct scsi_host_template pdc_sata_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,
