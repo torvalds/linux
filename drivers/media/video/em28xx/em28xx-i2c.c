@@ -302,26 +302,26 @@ static int attach_inform(struct i2c_client *client)
 
 	dprintk("address %x", client->addr << 1);
 	switch (client->addr << 1) {
-	case 0x68:
-		em2820_i2c_call_clients(dev, TDA9887_SET_CONFIG, &dev->tda9887_conf);
-		break;
-	case 0x4a:
-		dprintk1("attach_inform: saa7113 detected.\n");
-		break;
-	case 0xa0:
-		dprintk1("attach_inform: eeprom detected.\n");
-		break;
-	case 0x80:
-	case 0x88:
-		dprintk1("attach_inform: msp34xx detected.\n");
-		break;
-	case 0xb8:
-	case 0xba:
-		dprintk1("attach_inform: tvp5150 detected.\n");
-		break;
-	default:
-		dev->tuner_addr = client->addr;
-		em2820_set_tuner(-1, client);
+		case 0x86:
+			em2820_i2c_call_clients(dev, TDA9887_SET_CONFIG, &dev->tda9887_conf);
+			break;
+		case 0x4a:
+			dprintk1("attach_inform: saa7113 detected.\n");
+			break;
+		case 0xa0:
+			dprintk1("attach_inform: eeprom detected.\n");
+			break;
+		case 0x80:
+		case 0x88:
+			dprintk1("attach_inform: msp34xx detected.\n");
+			break;
+		case 0xb8:
+		case 0xba:
+			dprintk1("attach_inform: tvp5150 detected.\n");
+			break;
+		default:
+			dev->tuner_addr = client->addr;
+			em2820_set_tuner(-1, client);
 	}
 
 	return 0;

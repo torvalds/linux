@@ -225,7 +225,6 @@ void em2820_config_i2c(struct em2820 *dev)
 
 	/* configure tda9887 */
 
-	em2820_i2c_call_clients(dev, TDA9887_SET_CONFIG, &dev->tda9887_conf);
 
 /*	em2820_i2c_call_clients(dev,VIDIOC_S_STD,&dev->tvnorm->id); */
 }
