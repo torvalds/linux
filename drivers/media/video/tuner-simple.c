@@ -299,7 +299,7 @@ static int tuner_stereo(struct i2c_client *c)
 static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 {
 	struct tuner *t = i2c_get_clientdata(c);
-	u8 config;
+	u8 config, tuneraddr;
 	u16 div;
 	struct tunertype *tun;
 	unsigned char buffer[4];
@@ -393,7 +393,6 @@ static void default_set_tv_freq(struct i2c_client *c, unsigned int freq)
 			buffer[1] = 0x04;
 		}
 		/* set to the correct mode (analog or digital) */
-		u8 tuneraddr;
 		tuneraddr = c->addr;
 		c->addr = 0x0a;
 		if (2 != (rc = i2c_master_send(c,&buffer[0],2)))
