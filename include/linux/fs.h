@@ -874,6 +874,7 @@ static inline void unlock_super(struct super_block * sb)
 /*
  * VFS helper functions..
  */
+extern int vfs_permission(struct nameidata *, int);
 extern int vfs_create(struct inode *, struct dentry *, int, struct nameidata *);
 extern int vfs_mkdir(struct inode *, struct dentry *, int);
 extern int vfs_mknod(struct inode *, struct dentry *, int, dev_t);

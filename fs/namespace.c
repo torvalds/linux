@@ -637,7 +637,7 @@ static int mount_is_safe(struct nameidata *nd)
 		if (current->uid != nd->dentry->d_inode->i_uid)
 			return -EPERM;
 	}
-	if (permission(nd->dentry->d_inode, MAY_WRITE, nd))
+	if (vfs_permission(nd, MAY_WRITE))
 		return -EPERM;
 	return 0;
 #endif

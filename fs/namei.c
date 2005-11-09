@@ -256,6 +256,21 @@ int permission(struct inode *inode, int mask, struct nameidata *nd)
 	return security_inode_permission(inode, mask, nd);
 }
 
+/**
+ * vfs_permission  -  check for access rights to a given path
+ * @nd:		lookup result that describes the path
+ * @mask:	right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC)
+ *
+ * Used to check for read/write/execute permissions on a path.
+ * We use "fsuid" for this, letting us set arbitrary permissions
+ * for filesystem access without changing the "normal" uids which
+ * are used for other things.
+ */
+int vfs_permission(struct nameidata *nd, int mask)
+{
+	return permission(nd->dentry->d_inode, mask, nd);
+}
+
 /*
  * get_write_access() gets write permission for a file.
  * put_write_access() releases this write permission.
@@ -765,9 +780,8 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 
 		nd->flags |= LOOKUP_CONTINUE;
 		err = exec_permission_lite(inode, nd);
-		if (err == -EAGAIN) { 
-			err = permission(inode, MAY_EXEC, nd);
-		}
+		if (err == -EAGAIN)
+			err = vfs_permission(nd, MAY_EXEC);
  		if (err)
 			break;
 
@@ -1407,7 +1421,7 @@ int may_open(struct nameidata *nd, int acc_mode, int flag)
 	if (S_ISDIR(inode->i_mode) && (flag & FMODE_WRITE))
 		return -EISDIR;
 
-	error = permission(inode, acc_mode, nd);
+	error = vfs_permission(nd, acc_mode);
 	if (error)
 		return error;
 
@@ -2536,6 +2550,7 @@ EXPORT_SYMBOL(path_lookup);
 EXPORT_SYMBOL(path_release);
 EXPORT_SYMBOL(path_walk);
 EXPORT_SYMBOL(permission);
+EXPORT_SYMBOL(vfs_permission);
 EXPORT_SYMBOL(unlock_rename);
 EXPORT_SYMBOL(vfs_create);
 EXPORT_SYMBOL(vfs_follow_link);
