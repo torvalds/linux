@@ -191,8 +191,12 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = TV,
 			.tv   = 1,
 		},{
-			.name = name_comp1,
+			.name = name_comp1,     /* Composite signal on S-Video input */
 			.vmux = 0,
+			.amux = LINE2,
+		},{
+			.name = name_comp2,	/* Composite input */
+			.vmux = 3,
 			.amux = LINE2,
 		},{
 			.name = name_svideo,
@@ -2189,6 +2193,12 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
 		.subvendor    = 0x5168,
 		.subdevice    = 0x0212, /* minipci, LR212 */
+		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_MINI,
+	},{
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x4e42,
+		.subdevice    = 0x0212, /* OEM minipci, LR212 */
 		.driver_data  = SAA7134_BOARD_FLYTVPLATINUM_MINI,
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
