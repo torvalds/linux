@@ -78,7 +78,7 @@ static int dvb_buf_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 			   enum v4l2_field field)
 {
 	struct cx8802_dev *dev = q->priv_data;
-	return cx8802_buf_prepare(dev, (struct cx88_buffer*)vb);
+	return cx8802_buf_prepare(dev, (struct cx88_buffer*)vb,field);
 }
 
 static void dvb_buf_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
