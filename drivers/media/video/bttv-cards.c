@@ -2431,6 +2431,20 @@ struct tvcard bttv_tvcards[] = {
 	.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
 	.tuner_addr	= ADDR_UNSET,
 	.has_remote     = 1,
+},{
+         .name           = "Prolink Pixelview PV-BT878P+ (Rev.2E)",
+         .video_inputs   = 5,
+         .audio_inputs   = 1,
+         .tuner          = 0,
+         .svhs           = 3,
+         .gpiomask       = 0x01fe00,
+         .muxsel         = { 2,3,1,1,-1 },
+         .digital_mode   = DIGITAL_MODE_CAMERA,
+         .audiomux       = { 0x00400, 0x10400, 0x04400, 0x80000, 0x12400, 0x46000  },
+         .no_msp34xx     = 1,
+         .pll            = PLL_28,
+         .tuner_type     = TUNER_LG_PAL_FM,
+         .has_remote     = 1,
 }};
 
 static const unsigned int bttv_num_tvcards = ARRAY_SIZE(bttv_tvcards);
