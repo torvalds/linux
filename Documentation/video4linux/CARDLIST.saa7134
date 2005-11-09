@@ -62,7 +62,7 @@
  61 -> Philips TOUGH DVB-T reference design     [1131:2004]
  62 -> Compro VideoMate TV Gold+II
  63 -> Kworld Xpert TV PVR7134
- 64 -> FlyTV mini Asus Digimatrix               [1043:0210,1043:0210]
+ 64 -> FlyTV mini Asus Digimatrix               [1043:0210]
  65 -> V-Stream Studio TV Terminator
  66 -> Yuan TUN-900 (saa7135)
  67 -> Beholder BeholdTV 409 FM                 [0000:4091]
@@ -78,3 +78,4 @@
  77 -> Pinnacle PCTV 110i (saa7133)             [11bd:002e]
  78 -> ASUSTeK P7131 Dual                       [1043:4862]
  79 -> PCTV Cardbus TV/Radio (ITO25 Rev:2B)
+ 80 -> ASUS Digimatrix TV                       [1043:0210]

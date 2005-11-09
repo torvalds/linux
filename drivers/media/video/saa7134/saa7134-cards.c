@@ -2461,6 +2461,30 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE2,
 		}},
 	},
+	[SAA7134_BOARD_ASUSTEK_DIGIMATRIX_TV] = {
+		/* "Cyril Lacoux (Yack)" <clacoux@ifeelgood.org> */
+		.name           = "ASUS Digimatrix TV",
+		.audio_clock    = 0x00200000,
+		.tuner_type     = TUNER_PHILIPS_FQ1216ME,
+		.tda9887_conf   = TDA9887_PRESENT,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.inputs         = {{
+			.name = name_tv,
+			.vmux = 1,
+			.amux = TV,
+			.tv   = 1,
+		},{
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE1,
+		},{
+			.name = name_svideo,
+			.vmux = 8,
+			.amux = LINE1,
+		}},
+	},
 };
 
 const unsigned int saa7134_bcount = ARRAY_SIZE(saa7134_boards);
@@ -2822,7 +2846,7 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.device       = PCI_DEVICE_ID_PHILIPS_SAA7134,
 		.subvendor    = 0x1043,
 		.subdevice    = 0x0210,		/* mini pci PAL/SECAM version */
-		.driver_data  = SAA7134_BOARD_FLYTV_DIGIMATRIX,
+		.driver_data  = SAA7134_BOARD_ASUSTEK_DIGIMATRIX_TV,
 
 	},{
 		.vendor       = PCI_VENDOR_ID_PHILIPS,
