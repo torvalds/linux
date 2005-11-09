@@ -2127,6 +2127,7 @@ module_param(irq, uint, 0444);
 module_param(dma, int, 0444);
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Pierre Ossman <drzeus@drzeus.cx>");
 MODULE_DESCRIPTION("Winbond W83L51xD SD/MMC card interface driver");
 MODULE_VERSION(DRIVER_VERSION);
 
