@@ -18,6 +18,82 @@
 #endif
 #include <linux/compiler.h> /* need __user */
 
+#include <linux/poll.h>
+#include <linux/device.h>
+
+#define HAVE_V4L2 1
+
+/*
+ * Common stuff for both V4L1 and V4L2
+ * Moved from videodev.h
+ */
+
+#define VIDEO_MAX_FRAME               32
+
+#define VFL_TYPE_GRABBER	0
+#define VFL_TYPE_VBI		1
+#define VFL_TYPE_RADIO		2
+#define VFL_TYPE_VTX		3
+
+struct video_device
+{
+	/* device info */
+	struct device *dev;
+	char name[32];
+	int type;       /* v4l1 */
+	int type2;      /* v4l2 */
+	int hardware;
+	int minor;
+
+	/* device ops + callbacks */
+	struct file_operations *fops;
+	void (*release)(struct video_device *vfd);
+
+
+	/* obsolete -- fops->owner is used instead */
+	struct module *owner;
+	/* dev->driver_data will be used instead some day.
+	 * Use the video_{get|set}_drvdata() helper functions,
+	 * so the switch over will be transparent for you.
+	 * Or use {pci|usb}_{get|set}_drvdata() directly. */
+	void *priv;
+
+	/* for videodev.c intenal usage -- please don't touch */
+	int users;                     /* video_exclusive_{open|close} ... */
+	struct semaphore lock;         /* ... helper function uses these   */
+	char devfs_name[64];           /* devfs */
+	struct class_device class_dev; /* sysfs */
+};
+
+#define VIDEO_MAJOR	81
+
+#define VID_TYPE_CAPTURE	1	/* Can capture */
+#define VID_TYPE_TUNER		2	/* Can tune */
+#define VID_TYPE_TELETEXT	4	/* Does teletext */
+#define VID_TYPE_OVERLAY	8	/* Overlay onto frame buffer */
+#define VID_TYPE_CHROMAKEY	16	/* Overlay by chromakey */
+#define VID_TYPE_CLIPPING	32	/* Can clip */
+#define VID_TYPE_FRAMERAM	64	/* Uses the frame buffer memory */
+#define VID_TYPE_SCALES		128	/* Scalable */
+#define VID_TYPE_MONOCHROME	256	/* Monochrome only */
+#define VID_TYPE_SUBCAPTURE	512	/* Can capture subareas of the image */
+#define VID_TYPE_MPEG_DECODER	1024	/* Can decode MPEG streams */
+#define VID_TYPE_MPEG_ENCODER	2048	/* Can encode MPEG streams */
+#define VID_TYPE_MJPEG_DECODER	4096	/* Can decode MJPEG streams */
+#define VID_TYPE_MJPEG_ENCODER	8192	/* Can encode MJPEG streams */
+
+extern int video_register_device(struct video_device *, int type, int nr);
+extern void video_unregister_device(struct video_device *);
+extern int video_usercopy(struct inode *inode, struct file *file,
+			  unsigned int cmd, unsigned long arg,
+			  int (*func)(struct inode *inode, struct file *file,
+				      unsigned int cmd, void *arg));
+
+/* helper functions to alloc / release struct video_device, the
+   later can be used for video_device->release() */
+struct video_device *video_device_alloc(void);
+void video_device_release(struct video_device *vfd);
+
 /*
  *	M I S C E L L A N E O U S
  */

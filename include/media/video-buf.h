@@ -17,7 +17,7 @@
  * (at your option) any later version.
  */
 
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 
 #define UNSET (-1U)
 

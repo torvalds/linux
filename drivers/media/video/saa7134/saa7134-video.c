@@ -30,6 +30,9 @@
 #include "saa7134-reg.h"
 #include "saa7134.h"
 
+/* Include V4L1 specific functions. Should be removed soon */
+#include <linux/videodev.h>
+
 /* ------------------------------------------------------------------ */
 
 static unsigned int video_debug   = 0;
@@ -2060,7 +2063,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		struct v4l2_format *f = arg;
 		return saa7134_try_fmt(dev,fh,f);
 	}
-
+#ifdef HAVE_V4L1
 	case VIDIOCGMBUF:
 	{
 		struct video_mbuf *mbuf = arg;
@@ -2085,6 +2088,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		}
 		return 0;
 	}
+#endif
 	case VIDIOC_REQBUFS:
 		return videobuf_reqbufs(saa7134_queue(fh),arg);
 

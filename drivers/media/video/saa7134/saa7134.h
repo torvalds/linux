@@ -24,7 +24,7 @@
 
 #include <linux/pci.h>
 #include <linux/i2c.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <linux/kdev_t.h>
 #include <linux/input.h>
 #include <linux/notifier.h>

@@ -34,6 +34,9 @@
 
 #include "cx88.h"
 
+/* Include V4L1 specific functions. Should be removed soon */
+#include <linux/videodev.h>
+
 MODULE_DESCRIPTION("v4l2 driver module for cx2388x based TV cards");
 MODULE_AUTHOR("Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]");
 MODULE_LICENSE("GPL");
@@ -1187,7 +1190,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		struct v4l2_format *f = arg;
 		return cx8800_try_fmt(dev,fh,f);
 	}
-
+#ifdef HAVE_V4L1
 	/* --- streaming capture ------------------------------------- */
 	case VIDIOCGMBUF:
 	{
@@ -1213,6 +1216,7 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		}
 		return 0;
 	}
+#endif
 	case VIDIOC_REQBUFS:
 		return videobuf_reqbufs(get_queue(fh), arg);
 
@@ -1244,7 +1248,6 @@ static int video_do_ioctl(struct inode *inode, struct file *file,
 		res_free(dev,fh,res);
 		return 0;
 	}
-
 	default:
 		return cx88_do_ioctl( inode, file, fh->radio, core, cmd, arg, video_do_ioctl );
 	}
@@ -1537,6 +1540,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 		*id = 0;
 		return 0;
 	}
+#ifdef HAVE_V4L1
 	case VIDIOCSTUNER:
 	{
 		struct video_tuner *v = arg;
@@ -1547,6 +1551,7 @@ static int radio_do_ioctl(struct inode *inode, struct file *file,
 		cx88_call_i2c_clients(core,VIDIOCSTUNER,v);
 		return 0;
 	}
+#endif
 	case VIDIOC_S_TUNER:
 	{
 		struct v4l2_tuner *t = arg;
