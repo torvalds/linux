@@ -321,8 +321,8 @@ static void set_audio_standard_NICAM(struct cx88_core *core, u32 mode)
 		{AUD_DEEMPHNUMER2_R, 0x0003023e},
 		{AUD_DEEMPHDENOM1_R, 0x0000f3d0},
 		{AUD_DEEMPHDENOM2_R, 0x00000000},
+		{AUD_PDF_DDS_CNST_BYTE2, 0x06},
 		{AUD_PDF_DDS_CNST_BYTE1, 0x82},
-		{AUD_PDF_DDS_CNST_BYTE0, 0x16},
 		{AUD_QAM_MODE, 0x05},
 		{ /* end of list */ },
 	};
