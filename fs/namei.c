@@ -1204,9 +1204,9 @@ out:
 	return dentry;
 }
 
-struct dentry * lookup_hash(struct qstr *name, struct dentry * base)
+struct dentry * lookup_hash(struct nameidata *nd)
 {
-	return __lookup_hash(name, base, NULL);
+	return __lookup_hash(&nd->last, nd->dentry, nd);
 }
 
 /* SMP-safe */
@@ -1230,7 +1230,7 @@ struct dentry * lookup_one_len(const char * name, struct dentry * base, int len)
 	}
 	this.hash = end_name_hash(hash);
 
-	return lookup_hash(&this, base);
+	return __lookup_hash(&this, base, NULL);
 access:
 	return ERR_PTR(-EACCES);
 }
@@ -1563,7 +1563,7 @@ int open_namei(const char * pathname, int flag, int mode, struct nameidata *nd)
 	dir = nd->dentry;
 	nd->flags &= ~LOOKUP_PARENT;
 	down(&dir->d_inode->i_sem);
-	path.dentry = __lookup_hash(&nd->last, nd->dentry, nd);
+	path.dentry = lookup_hash(nd);
 	path.mnt = nd->mnt;
 
 do_last:
@@ -1665,7 +1665,7 @@ do_link:
 	}
 	dir = nd->dentry;
 	down(&dir->d_inode->i_sem);
-	path.dentry = __lookup_hash(&nd->last, nd->dentry, nd);
+	path.dentry = lookup_hash(nd);
 	path.mnt = nd->mnt;
 	__putname(nd->last.name);
 	goto do_last;
@@ -1697,7 +1697,7 @@ struct dentry *lookup_create(struct nameidata *nd, int is_dir)
 	/*
 	 * Do the final lookup.
 	 */
-	dentry = lookup_hash(&nd->last, nd->dentry);
+	dentry = lookup_hash(nd);
 	if (IS_ERR(dentry))
 		goto fail;
 
@@ -1932,7 +1932,7 @@ asmlinkage long sys_rmdir(const char __user * pathname)
 			goto exit1;
 	}
 	down(&nd.dentry->d_inode->i_sem);
-	dentry = lookup_hash(&nd.last, nd.dentry);
+	dentry = lookup_hash(&nd);
 	error = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
 		error = vfs_rmdir(nd.dentry->d_inode, dentry);
@@ -2001,7 +2001,7 @@ asmlinkage long sys_unlink(const char __user * pathname)
 	if (nd.last_type != LAST_NORM)
 		goto exit1;
 	down(&nd.dentry->d_inode->i_sem);
-	dentry = lookup_hash(&nd.last, nd.dentry);
+	dentry = lookup_hash(&nd);
 	error = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
 		/* Why not before? Because we want correct error value */
@@ -2344,7 +2344,7 @@ static inline int do_rename(const char * oldname, const char * newname)
 
 	trap = lock_rename(new_dir, old_dir);
 
-	old_dentry = lookup_hash(&oldnd.last, old_dir);
+	old_dentry = lookup_hash(&oldnd);
 	error = PTR_ERR(old_dentry);
 	if (IS_ERR(old_dentry))
 		goto exit3;
@@ -2364,7 +2364,7 @@ static inline int do_rename(const char * oldname, const char * newname)
 	error = -EINVAL;
 	if (old_dentry == trap)
 		goto exit4;
-	new_dentry = lookup_hash(&newnd.last, new_dir);
+	new_dentry = lookup_hash(&newnd);
 	error = PTR_ERR(new_dentry);
 	if (IS_ERR(new_dentry))
 		goto exit4;

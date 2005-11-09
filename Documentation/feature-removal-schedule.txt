@@ -118,3 +118,10 @@ Why:	This interface has been obsoleted by the new layer3-independent
 	to link against API-compatible library on top of libnfnetlink_queue 
 	instead of the current 'libipq'.
 Who:	Harald Welte <laforge@netfilter.org>
+
+---------------------------
+
+What:	EXPORT_SYMBOL(lookup_hash)
+When:	January 2006
+Why:	Too low-level interface.  Use lookup_one_len or lookup_create instead.
+Who:	Christoph Hellwig <hch@lst.de>
