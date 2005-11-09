@@ -14,6 +14,7 @@
 #include <linux/config.h>
 #include <linux/module.h>
 
+#include <linux/compat.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -933,18 +934,154 @@ fb_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 }
 
 #ifdef CONFIG_COMPAT
+struct fb_fix_screeninfo32 {
+	char			id[16];
+	compat_caddr_t		smem_start;
+	u32			smem_len;
+	u32			type;
+	u32			type_aux;
+	u32			visual;
+	u16			xpanstep;
+	u16			ypanstep;
+	u16			ywrapstep;
+	u32			line_length;
+	compat_caddr_t		mmio_start;
+	u32			mmio_len;
+	u32			accel;
+	u16			reserved[3];
+};
+
+struct fb_cmap32 {
+	u32			start;
+	u32			len;
+	compat_caddr_t	red;
+	compat_caddr_t	green;
+	compat_caddr_t	blue;
+	compat_caddr_t	transp;
+};
+
+static int fb_getput_cmap(struct inode *inode, struct file *file,
+			unsigned int cmd, unsigned long arg)
+{
+	struct fb_cmap_user __user *cmap;
+	struct fb_cmap32 __user *cmap32;
+	__u32 data;
+	int err;
+
+	cmap = compat_alloc_user_space(sizeof(*cmap));
+	cmap32 = compat_ptr(arg);
+
+	if (copy_in_user(&cmap->start, &cmap32->start, 2 * sizeof(__u32)))
+		return -EFAULT;
+
+	if (get_user(data, &cmap32->red) ||
+	    put_user(compat_ptr(data), &cmap->red) ||
+	    get_user(data, &cmap32->green) ||
+	    put_user(compat_ptr(data), &cmap->green) ||
+	    get_user(data, &cmap32->blue) ||
+	    put_user(compat_ptr(data), &cmap->blue) ||
+	    get_user(data, &cmap32->transp) ||
+	    put_user(compat_ptr(data), &cmap->transp))
+		return -EFAULT;
+
+	err = fb_ioctl(inode, file, cmd, (unsigned long) cmap);
+
+	if (!err) {
+		if (copy_in_user(&cmap32->start,
+				 &cmap->start,
+				 2 * sizeof(__u32)))
+			err = -EFAULT;
+	}
+	return err;
+}
+
+static int do_fscreeninfo_to_user(struct fb_fix_screeninfo *fix,
+				  struct fb_fix_screeninfo32 __user *fix32)
+{
+	__u32 data;
+	int err;
+
+	err = copy_to_user(&fix32->id, &fix->id, sizeof(fix32->id));
+
+	data = (__u32) (unsigned long) fix->smem_start;
+	err |= put_user(data, &fix32->smem_start);
+
+	err |= put_user(fix->smem_len, &fix32->smem_len);
+	err |= put_user(fix->type, &fix32->type);
+	err |= put_user(fix->type_aux, &fix32->type_aux);
+	err |= put_user(fix->visual, &fix32->visual);
+	err |= put_user(fix->xpanstep, &fix32->xpanstep);
+	err |= put_user(fix->ypanstep, &fix32->ypanstep);
+	err |= put_user(fix->ywrapstep, &fix32->ywrapstep);
+	err |= put_user(fix->line_length, &fix32->line_length);
+
+	data = (__u32) (unsigned long) fix->mmio_start;
+	err |= put_user(data, &fix32->mmio_start);
+
+	err |= put_user(fix->mmio_len, &fix32->mmio_len);
+	err |= put_user(fix->accel, &fix32->accel);
+	err |= copy_to_user(fix32->reserved, fix->reserved,
+			    sizeof(fix->reserved));
+
+	return err;
+}
+
+static int fb_get_fscreeninfo(struct inode *inode, struct file *file,
+				unsigned int cmd, unsigned long arg)
+{
+	mm_segment_t old_fs;
+	struct fb_fix_screeninfo fix;
+	struct fb_fix_screeninfo32 __user *fix32;
+	int err;
+
+	fix32 = compat_ptr(arg);
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+	err = fb_ioctl(inode, file, cmd, (unsigned long) &fix);
+	set_fs(old_fs);
+
+	if (!err)
+		err = do_fscreeninfo_to_user(&fix, fix32);
+
+	return err;
+}
+
 static long
 fb_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	int fbidx = iminor(file->f_dentry->d_inode);
+	struct inode *inode = file->f_dentry->d_inode;
+	int fbidx = iminor(inode);
 	struct fb_info *info = registered_fb[fbidx];
 	struct fb_ops *fb = info->fbops;
-	long ret;
+	long ret = -ENOIOCTLCMD;
 
-	if (fb->fb_compat_ioctl == NULL)
-		return -ENOIOCTLCMD;
 	lock_kernel();
-	ret = fb->fb_compat_ioctl(file, cmd, arg, info);
+	switch(cmd) {
+	case FBIOGET_VSCREENINFO:
+	case FBIOPUT_VSCREENINFO:
+	case FBIOPAN_DISPLAY:
+	case FBIOGET_CON2FBMAP:
+	case FBIOPUT_CON2FBMAP:
+		arg = (unsigned long) compat_ptr(arg);
+	case FBIOBLANK:
+		ret = fb_ioctl(inode, file, cmd, arg);
+		break;
+
+	case FBIOGET_FSCREENINFO:
+		ret = fb_get_fscreeninfo(inode, file, cmd, arg);
+		break;
+
+	case FBIOGETCMAP:
+	case FBIOPUTCMAP:
+		ret = fb_getput_cmap(inode, file, cmd, arg);
+		break;
+
+	default:
+		if (fb->fb_compat_ioctl)
+			ret = fb->fb_compat_ioctl(file, cmd, arg, info);
+		break;
+	}
 	unlock_kernel();
 	return ret;
 }
