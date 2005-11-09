@@ -698,6 +698,7 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 	struct list_head *tmp;
 	mdk_rdev_t *rdev2;
 	int next_spare = mddev->raid_disks;
+	char nm[20];
 
 	/* make rdev->sb match mddev data..
 	 *
@@ -768,7 +769,6 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 			fixdesc |= (1 << desc_nr);
 			rdev2->desc_nr = desc_nr;
 			if (rdev2->raid_disk >= 0) {
-				char nm[20];
 				sprintf(nm, "rd%d", rdev2->raid_disk);
 				sysfs_remove_link(&mddev->kobj, nm);
 			}
@@ -814,7 +814,6 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 						  &rdev2->bdev->bd_disk->kobj,
 						  "block");
 				if (rdev2->raid_disk >= 0) {
-					char nm[20];
 					sprintf(nm, "rd%d", rdev2->raid_disk);
 					sysfs_create_link(&mddev->kobj,
 							  &rdev2->kobj, nm);
@@ -1722,9 +1721,9 @@ static ssize_t
 md_show_scan(mddev_t *mddev, char *page)
 {
 	char *type = "none";
-	if (mddev->recovery &
-	    ((1<<MD_RECOVERY_RUNNING) || (1<<MD_RECOVERY_NEEDED))) {
-		if (mddev->recovery & (1<<MD_RECOVERY_SYNC)) {
+	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) ||
+	    test_bit(MD_RECOVERY_NEEDED, &mddev->recovery)) {
+		if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
 			if (!test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
 				type = "resync";
 			else if (test_bit(MD_RECOVERY_CHECK, &mddev->recovery))
@@ -1741,8 +1740,9 @@ static ssize_t
 md_store_scan(mddev_t *mddev, const char *page, size_t len)
 {
 	int canscan=0;
-	if (mddev->recovery &
-	    ((1<<MD_RECOVERY_RUNNING) || (1<<MD_RECOVERY_NEEDED)))
+
+	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) ||
+	    test_bit(MD_RECOVERY_NEEDED, &mddev->recovery))
 		return -EBUSY;
 	down(&mddev->reconfig_sem);
 	if (mddev->pers && mddev->pers->sync_request)
