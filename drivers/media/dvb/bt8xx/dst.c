@@ -1092,7 +1092,13 @@ static int dst_get_tuna(struct dst_state *state)
 	}
 	if (state->rx_tuna[2] == 0 && state->rx_tuna[3] == 0)
 		return 0;
-	state->decode_freq = ((state->rx_tuna[2] & 0x7f) << 8) + state->rx_tuna[3];
+
+	if (state->dst_type == DST_TYPE_IS_SAT) {
+		state->decode_freq = ((state->rx_tuna[2] & 0x7f) << 8) + state->rx_tuna[3];
+	} else {
+		state->decode_freq = ((state->rx_tuna[2] & 0x7f) << 16) + (state->rx_tuna[3] << 8) + state->rx_tuna[4];
+	}
+	state->decode_freq = state->decode_freq * 1000;
 	state->decode_lock = 1;
 	state->diseq_flags |= HAS_LOCK;
 
