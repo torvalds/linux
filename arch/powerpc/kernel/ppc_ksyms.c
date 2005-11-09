@@ -44,6 +44,7 @@
 #include <asm/cputable.h>
 #include <asm/btext.h>
 #include <asm/div64.h>
+#include <asm/signal.h>
 
 #ifdef  CONFIG_8xx
 #include <asm/commproc.h>
@@ -56,7 +57,6 @@ extern void machine_check_exception(struct pt_regs *regs);
 extern void alignment_exception(struct pt_regs *regs);
 extern void program_check_exception(struct pt_regs *regs);
 extern void single_step_exception(struct pt_regs *regs);
-extern int do_signal(sigset_t *, struct pt_regs *);
 extern int pmac_newworld;
 extern int sys_sigreturn(struct pt_regs *regs);
 
