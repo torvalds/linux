@@ -1310,7 +1310,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 	 * This call the bitmap_start_sync doesn't actually record anything
 	 */
 	if (!bitmap_start_sync(mddev->bitmap, sector_nr, &sync_blocks, 1) &&
-	    !conf->fullsync) {
+	    !conf->fullsync && !test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery)) {
 		/* We can skip this block, and probably several more */
 		*skipped = 1;
 		return sync_blocks;
@@ -1387,7 +1387,8 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 			still_degraded = 1;
 			continue;
 		} else if (!test_bit(In_sync, &conf->mirrors[i].rdev->flags) ||
-			   sector_nr + RESYNC_SECTORS > mddev->recovery_cp) {
+			   sector_nr + RESYNC_SECTORS > mddev->recovery_cp   ||
+			   test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery)) {
 			bio->bi_rw = WRITE;
 			bio->bi_end_io = end_sync_write;
 			write_targets ++;
@@ -1421,8 +1422,9 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 			break;
 		if (sync_blocks == 0) {
 			if (!bitmap_start_sync(mddev->bitmap, sector_nr,
-					&sync_blocks, still_degraded) &&
-					!conf->fullsync)
+					       &sync_blocks, still_degraded) &&
+			    !conf->fullsync &&
+			    !test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery))
 				break;
 			if (sync_blocks < (PAGE_SIZE>>9))
 				BUG();
