@@ -561,8 +561,6 @@ static int stv0299_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	stv0299_set_symbolrate (fe, p->u.qpsk.symbol_rate);
 	stv0299_writeregI(state, 0x22, 0x00);
 	stv0299_writeregI(state, 0x23, 0x00);
-	stv0299_readreg (state, 0x23);
-	stv0299_writeregI(state, 0x12, 0xb9);
 
 	state->tuner_frequency = p->frequency;
 	state->fec_inner = p->u.qpsk.fec_inner;
