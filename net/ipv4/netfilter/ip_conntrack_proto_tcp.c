@@ -362,6 +362,11 @@ static int nfattr_to_tcp(struct nfattr *cda[], struct ip_conntrack *ct)
 	struct nfattr *attr = cda[CTA_PROTOINFO_TCP-1];
 	struct nfattr *tb[CTA_PROTOINFO_TCP_MAX];
 
+	/* updates could not contain anything about the private
+	 * protocol info, in that case skip the parsing */
+	if (!attr)
+		return 0;
+
         nfattr_parse_nested(tb, CTA_PROTOINFO_TCP_MAX, attr);
 
 	if (!tb[CTA_PROTOINFO_TCP_STATE-1])
