@@ -3889,18 +3889,17 @@ static int __devinit bttv_probe(struct pci_dev *dev,
 	btv->timeout.function = bttv_irq_timeout;
 	btv->timeout.data     = (unsigned long)btv;
 
-        btv->i2c_rc = -1;
-        btv->tuner_type  = UNSET;
-        btv->pinnacle_id = UNSET;
+	btv->i2c_rc = -1;
+	btv->tuner_type  = UNSET;
+	btv->pinnacle_id = UNSET;
 	btv->new_input   = UNSET;
-	btv->gpioirq     = 1;
 	btv->has_radio=radio[btv->c.nr];
 
 	/* pci stuff (init, get irq/mmio, ... */
 	btv->c.pci = dev;
-        btv->id  = dev->device;
+	btv->id  = dev->device;
 	if (pci_enable_device(dev)) {
-                printk(KERN_WARNING "bttv%d: Can't enable device.\n",
+		printk(KERN_WARNING "bttv%d: Can't enable device.\n",
 		       btv->c.nr);
 		return -EIO;
 	}

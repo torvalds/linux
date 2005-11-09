@@ -1731,10 +1731,7 @@ struct tvcard bttv_tvcards[] = {
 	.no_msp34xx     = 1,
 	.no_tda9875     = 1,
 	.no_tda7432     = 1,
-	.gpiomask       = 0x01,
-	.audiomux       = { 0, 0, 0, 0, 1 },
 	.muxsel         = { 3, 0, 1, 2},
-	.needs_tvaudio  = 0,
 	.pll            = PLL_28,
 	.no_gpioirq     = 1,
 	.has_dvb        = 1,
@@ -2808,11 +2805,12 @@ void __devinit bttv_init_card1(struct bttv *btv)
 		break;
 	case BTTV_TWINHAN_DST:
 	case BTTV_AVDVBT_771:
+	case BTTV_PINNACLESAT:
 		btv->use_i2c_hw = 1;
 		break;
-        case BTTV_ADLINK_RTV24:
-                init_RTV24( btv );
-                break;
+	case BTTV_ADLINK_RTV24:
+		init_RTV24( btv );
+		break;
 
 	}
 	if (!bttv_tvcards[btv->c.type].has_dvb)
@@ -2997,8 +2995,8 @@ void __devinit bttv_init_card2(struct bttv *btv)
 		btv->has_radio=1;
 	if (bttv_tvcards[btv->c.type].has_remote)
 		btv->has_remote=1;
-	if (bttv_tvcards[btv->c.type].no_gpioirq)
-		btv->gpioirq=0;
+	if (!bttv_tvcards[btv->c.type].no_gpioirq)
+		btv->gpioirq=1;
 	if (bttv_tvcards[btv->c.type].audio_hook)
 		btv->audio_hook=bttv_tvcards[btv->c.type].audio_hook;
 
