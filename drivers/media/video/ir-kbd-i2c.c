@@ -37,9 +37,7 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
-
 #include <asm/semaphore.h>
-
 #include <media/ir-common.h>
 
 /* Mark Phalan <phalanm@o2.ie> */
