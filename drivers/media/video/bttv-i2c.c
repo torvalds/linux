@@ -308,21 +308,22 @@ static int attach_inform(struct i2c_client *client)
 
 	if (btv->tuner_type != UNSET) {
 		struct tuner_setup tun_setup;
+		struct tuner *t = i2c_get_clientdata(client);
 
 		if ((addr==ADDR_UNSET)||(addr==client->addr)) {
 			tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
 			tun_setup.type = btv->tuner_type;
 			tun_setup.addr = ADDR_UNSET;
 
-			client->driver->command (client, TUNER_SET_TYPE_ADDR, &tun_setup);
 		}
-		if ((radio_addr==ADDR_UNSET)||(radio_addr==client->addr)) {
-			tun_setup.mode_mask =  T_RADIO;
-			tun_setup.type = btv->tuner_type;
-			tun_setup.addr = ADDR_UNSET;
 
-			client->driver->command (client, TUNER_SET_TYPE_ADDR, &tun_setup);
+		if (t->type != UNSET && t->mode_mask == T_RADIO) {
+			tun_setup.type = t->type;
+			tun_setup.mode_mask =  T_RADIO;
+			tun_setup.addr = ADDR_UNSET;
 		}
+
+		client->driver->command (client, TUNER_SET_TYPE_ADDR, &tun_setup);
 	}
 
 	if (btv->pinnacle_id != UNSET)

@@ -2721,13 +2721,11 @@ struct tvcard bttv_tvcards[] = {
 		.audiomux       = { 0, 1, 2, 2, 3 },
 		.needs_tvaudio  = 0,
 		.pll            = PLL_28,
-		.tuner_type     = TUNER_PHILIPS_FM1216ME_MK3,
+		.tuner_type     = TUNER_TENA_9533_DI,
 		.tuner_addr	= ADDR_UNSET,
 		.radio_addr     = ADDR_UNSET,
 		.has_remote     = 1,
-	#if 0
 		.has_radio      = 1,
-	#endif
 	},
 		/* ---- card 0x8a ---------------------------------- */
 	[BTTV_BOARD_PV_BT878P_2E] = {
