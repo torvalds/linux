@@ -131,6 +131,8 @@ static ctl_table raid_root_table[] = {
 
 static struct block_device_operations md_fops;
 
+static int start_readonly;
+
 /*
  * Enables to iterate over all existing md arrays
  * all_mddevs_lock protects this list.
@@ -2029,6 +2031,9 @@ static int do_md_run(mddev_t * mddev)
 	mddev->resync_max_sectors = mddev->size << 1; /* may be over-ridden by personality */
 	mddev->barriers_work = 1;
 
+	if (start_readonly)
+		mddev->ro = 2; /* read-only, but switch on first write */
+
 	/* before we start the array running, initialise the bitmap */
 	err = bitmap_create(mddev);
 	if (err)
@@ -2141,7 +2146,7 @@ static int do_md_stop(mddev_t * mddev, int ro)
 
 		if (ro) {
 			err  = -ENXIO;
-			if (mddev->ro)
+			if (mddev->ro==1)
 				goto out;
 			mddev->ro = 1;
 		} else {
@@ -3258,12 +3263,22 @@ static int md_ioctl(struct inode *inode, struct file *file,
 
 	/*
 	 * The remaining ioctls are changing the state of the
-	 * superblock, so we do not allow read-only arrays
-	 * here:
+	 * superblock, so we do not allow them on read-only arrays.
+	 * However non-MD ioctls (e.g. get-size) will still come through
+	 * here and hit the 'default' below, so only disallow
+	 * 'md' ioctls, and switch to rw mode if started auto-readonly.
 	 */
-	if (mddev->ro) {
-		err = -EROFS;
-		goto abort_unlock;
+	if (_IOC_TYPE(cmd) == MD_MAJOR &&
+	    mddev->ro && mddev->pers) {
+		if (mddev->ro == 2) {
+			mddev->ro = 0;
+		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+		md_wakeup_thread(mddev->thread);
+
+		} else {
+			err = -EROFS;
+			goto abort_unlock;
+		}
 	}
 
 	switch (cmd)
@@ -3651,8 +3666,10 @@ static int md_seq_show(struct seq_file *seq, void *v)
 		seq_printf(seq, "%s : %sactive", mdname(mddev),
 						mddev->pers ? "" : "in");
 		if (mddev->pers) {
-			if (mddev->ro)
+			if (mddev->ro==1)
 				seq_printf(seq, " (read-only)");
+			if (mddev->ro==2)
+				seq_printf(seq, "(auto-read-only)");
 			seq_printf(seq, " %s", mddev->pers->name);
 		}
 
@@ -3696,7 +3713,9 @@ static int md_seq_show(struct seq_file *seq, void *v)
 				status_resync (seq, mddev);
 				seq_printf(seq, "\n      ");
 			} else if (mddev->curr_resync == 1 || mddev->curr_resync == 2)
-				seq_printf(seq, "	resync=DELAYED\n      ");
+				seq_printf(seq, "\tresync=DELAYED\n      ");
+			else if (mddev->recovery_cp < MaxSector)
+				seq_printf(seq, "\tresync=PENDING\n      ");
 		} else
 			seq_printf(seq, "\n       ");
 
@@ -3833,6 +3852,13 @@ void md_write_start(mddev_t *mddev, struct bio *bi)
 	if (bio_data_dir(bi) != WRITE)
 		return;
 
+	BUG_ON(mddev->ro == 1);
+	if (mddev->ro == 2) {
+		/* need to switch to read/write */
+		mddev->ro = 0;
+		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+		md_wakeup_thread(mddev->thread);
+	}
 	atomic_inc(&mddev->writes_pending);
 	if (mddev->in_sync) {
 		spin_lock_irq(&mddev->write_lock);
@@ -4430,6 +4456,23 @@ static __exit void md_exit(void)
 
 module_init(md_init)
 module_exit(md_exit)
+
+static int get_ro(char *buffer, struct kernel_param *kp)
+{
+	return sprintf(buffer, "%d", start_readonly);
+}
+static int set_ro(const char *val, struct kernel_param *kp)
+{
+	char *e;
+	int num = simple_strtoul(val, &e, 10);
+	if (*val && (*e == '\0' || *e == '\n')) {
+		start_readonly = num;
+		return 0;;
+	}
+	return -EINVAL;
+}
+
+module_param_call(start_ro, set_ro, get_ro, NULL, 0600);
 
 EXPORT_SYMBOL(register_md_personality);
 EXPORT_SYMBOL(unregister_md_personality);
