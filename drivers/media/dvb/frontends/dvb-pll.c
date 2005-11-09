@@ -314,7 +314,7 @@ EXPORT_SYMBOL(dvb_pll_tdhu2);
  */
 struct dvb_pll_desc dvb_pll_tuv1236d = {
 	.name  = "Philips TUV1236D",
-	.min   =  57000000,
+	.min   =  54000000,
 	.max   = 864000000,
 	.count = 3,
 	.entries = {
