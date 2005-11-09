@@ -33,20 +33,23 @@ TwinHan (dst) are loaded automatically by the dvb-bt8xx device driver.
 --------------------------
 
    $ modprobe bttv (normally bttv is being loaded automatically by kmod)
-   $ modprobe dvb-bt8xx (or just place dvb-bt8xx in /etc/modules for automatic loading)
+   $ modprobe dvb-bt8xx
+
+(or just place dvb-bt8xx in /etc/modules for automatic loading)
 
 
 3b) TwinHan and Clones
 --------------------------
 
-   $ modprobe bttv i2c_hw=1 card=0x71
+   $ modprobe bttv card=0x71
    $ modprobe dvb-bt8xx
    $ modprobe dst
 
 The value 0x71 will override the PCI type detection for dvb-bt8xx,
-which  is necessary for TwinHan cards.
+which  is necessary for TwinHan cards. Omission of this parameter might result
+in a system lockup.
 
-If you're having an older card (blue color circuit) and card=0x71 locks
+If you're having an older card (blue color PCB) and card=0x71 locks up
 your machine, try using 0x68, too. If that does not work, ask on the
 mailing list.
 
@@ -69,6 +72,38 @@ string' which you can see in your logs e.g.
 
 dst_get_device_id: Recognise [DSTMCI]
 
+If you need to sent in bug reports on the dst, please do send in a complete
+log with the verbose=4 module parameter. For general usage, the default setting
+of verbose=1 is ideal.
+
+
+4) Multiple cards
+--------------------------
+
+If you happen to be running multiple cards, it would be advisable to load
+the bttv module with the card id. This would help to solve any module loading
+problems that you might face.
+
+for example, if you happen to have a Twinhan and clones alongwith a FusionHDTV5
+card
+
+	$ modprobe bttv card=0x71 card=0x87
+
+Here the order of the card id is important and should be the same as that of the
+physical order of the cards. Here card=0x71 represents the Twinhan and clones
+and card=0x87 represents Fusion HDTV5.
+
+Some examples of card-id's
+
+Pinnacle Sat		0x5e
+Nebula Digi TV		0x68
+PC HDTV			0x70
+Twinhan			0x71
+Fusion HDTV5		0x87
+
+For a full list of card-id's, you can see the exported card-id's from
+bttv-cards.c in linux-2.6.x/drivers/media/video/bttv.h
+If you have problems with this please do ask on the mailing list.
 
 --
 Authors: Richard Walker, Jamie Honan, Michael Hunold, Manu Abraham
