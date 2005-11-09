@@ -227,6 +227,22 @@ struct em2820_board em2820_boards[] = {
 			.amux     = 1,
 		}},
 	},
+	[EM2820_BOARD_PINNACLE_DVC_90] = {
+		.name         = "Pinnacle Dazzle DVC 90",
+		.vchannels    = 3,
+		.norm         = VIDEO_MODE_PAL,
+		.has_tuner    = 0,
+		.decoder      = EM2820_SAA7113,
+		.input          = {{
+			.type     = EM2820_VMUX_COMPOSITE1,
+			.vmux     = 0,
+			.amux     = 1,
+		},{
+			.type     = EM2820_VMUX_SVIDEO,
+			.vmux     = 9,
+			.amux     = 1,
+		}},
+	},
 };
 const unsigned int em2820_bcount = ARRAY_SIZE(em2820_boards);
 
@@ -237,6 +253,7 @@ struct usb_device_id em2820_id_table [] = {
 	{ USB_DEVICE(0x0ccd, 0x0036), .driver_info = EM2820_BOARD_TERRATEC_CINERGY_250 },
 	{ USB_DEVICE(0x2304, 0x0208), .driver_info = EM2820_BOARD_PINNACLE_USB_2 },
 	{ USB_DEVICE(0x2040, 0x4200), .driver_info = EM2820_BOARD_HAUPPAUGE_WINTV_USB_2 },
+	{ USB_DEVICE(0x2304, 0x0207), .driver_info = EM2820_BOARD_PINNACLE_DVC_90 },
 	{ },
 };
 
@@ -258,6 +275,9 @@ void em2820_card_setup(struct em2820 *dev)
 		if (tv.audio_processor == AUDIO_CHIP_MSP34XX) {
 			dev->has_msp34xx=1;
 		} else dev->has_msp34xx=0;
+		em2820_write_regs_req(dev,0x06,0x00,"\x40",1);// Serial Bus Frequency Select Register
+		em2820_write_regs_req(dev,0x0f,0x00,"\x87",1);// XCLK Frequency Select Register
+		em2820_write_regs_req(dev,0x88,0x0d,"\xd0",1);
 	}
 }
 
