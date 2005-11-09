@@ -43,6 +43,14 @@
 #define SAA7134_FIFO_SIZE                       (0x2a0 >> 2)
 #define SAA7134_THRESHOULD                      (0x2a4 >> 2)
 
+#define SAA7133_NUM_SAMPLES			(0x588 >> 2)
+#define SAA7133_AUDIO_CHANNEL			(0x58c >> 2)
+#define SAA7133_AUDIO_FORMAT			(0x58f >> 2)
+#define SAA7133_DIGITAL_OUTPUT_SEL1		(0x46c >> 2)
+#define SAA7133_DIGITAL_OUTPUT_SEL2		(0x470 >> 2)
+#define SAA7133_DIGITAL_INPUT_XBAR1		(0x464 >> 2)
+#define SAA7133_ANALOG_IO_SELECT                (0x594 >> 2)
+
 /* main control */
 #define SAA7134_MAIN_CTRL                       (0x2a8 >> 2)
 #define   SAA7134_MAIN_CTRL_VPLLE	       	(1 << 15)

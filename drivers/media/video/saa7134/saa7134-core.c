@@ -57,6 +57,10 @@ static unsigned int oss = 0;
 module_param(oss, int, 0444);
 MODULE_PARM_DESC(oss,"register oss devices (default: no)");
 
+static unsigned int alsa = 0;
+module_param(alsa, int, 0444);
+MODULE_PARM_DESC(alsa,"register alsa devices (default: no)");
+
 static unsigned int latency = UNSET;
 module_param(latency, int, 0444);
 MODULE_PARM_DESC(latency,"pci latency timer");
@@ -591,13 +595,19 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id, struct pt_regs *regs)
 		    card_has_mpeg(dev))
 			saa7134_irq_ts_done(dev,status);
 
-		if ((report & SAA7134_IRQ_REPORT_DONE_RA3))
-			saa7134_irq_oss_done(dev,status);
+		if ((report & SAA7134_IRQ_REPORT_DONE_RA3))  {
+			if (oss) {
+				saa7134_irq_oss_done(dev,status);
+			} else if (alsa) {
+				saa7134_irq_alsa_done(dev,status);
+			}
+		}
 
 		if ((report & (SAA7134_IRQ_REPORT_GPIO16 |
 			       SAA7134_IRQ_REPORT_GPIO18)) &&
 		    dev->remote)
 			saa7134_input_irq(dev);
+
 	}
 
 	if (10 == loop) {
@@ -1016,6 +1026,10 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 				goto fail5;
 			printk(KERN_INFO "%s: registered device mixer%d\n",
 			       dev->name,dev->oss.minor_mixer >> 4);
+		} else if (alsa) {
+			alsa_card_saa7134_create(dev);
+			printk(KERN_INFO "%s: registered ALSA devices\n",
+			       dev->name);
 		}
 		break;
 	}
@@ -1043,6 +1057,8 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	case PCI_DEVICE_ID_PHILIPS_SAA7135:
 		if (oss)
 			unregister_sound_dsp(dev->oss.minor_dsp);
+		else if (alsa)
+			alsa_card_saa7134_exit();
 		break;
 	}
  fail4:
@@ -1102,7 +1118,8 @@ static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 		if (oss) {
 			unregister_sound_mixer(dev->oss.minor_mixer);
 			unregister_sound_dsp(dev->oss.minor_dsp);
-		}
+		} else if (alsa)
+			alsa_card_saa7134_exit();
 		break;
 	}
 	saa7134_unregister_video(dev);

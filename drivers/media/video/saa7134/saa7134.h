@@ -45,6 +45,10 @@
 #endif
 #define UNSET (-1U)
 
+#include <sound/driver.h>
+#include <sound/core.h>
+#include <sound/pcm.h>
+
 /* ----------------------------------------------------------- */
 /* enums                                                       */
 
@@ -364,6 +368,7 @@ struct saa7134_oss {
 	unsigned int               dma_blk;
 	unsigned int               read_offset;
 	unsigned int               read_count;
+	snd_pcm_substream_t 	   *substream;
 };
 
 /* IR input */
@@ -643,6 +648,11 @@ void saa7134_irq_oss_done(struct saa7134_dev *dev, unsigned long status);
 int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
+
+int alsa_card_saa7134_create(struct saa7134_dev *saadev);
+void alsa_card_saa7134_exit(void);
+void saa7134_irq_alsa_done(struct saa7134_dev *dev, unsigned long status);
+
 
 /*
  * Local variables:

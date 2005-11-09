@@ -44,6 +44,7 @@ MODULE_PARM_DESC(oss_rate,"sample rate (valid are: 32000,48000)");
 #define dprintk(fmt, arg...)	if (oss_debug) \
 	printk(KERN_DEBUG "%s/oss: " fmt, dev->name , ## arg)
 
+
 /* ------------------------------------------------------------------ */
 
 static int dsp_buffer_conf(struct saa7134_dev *dev, int blksize, int blocks)
@@ -173,8 +174,8 @@ static int dsp_rec_start(struct saa7134_dev *dev)
 			fmt |= (2 << 4);
 		if (!sign)
 			fmt |= 0x04;
-		saa_writel(0x588 >> 2, dev->oss.blksize -4);
-		saa_writel(0x58c >> 2, 0x543210 | (fmt << 24));
+		saa_writel(SAA7133_NUM_SAMPLES, dev->oss.blksize -4);
+		saa_writel(SAA7133_AUDIO_CHANNEL, 0x543210 | (fmt << 24));
 		break;
 	}
 	dprintk("rec_start: afmt=%d ch=%d  =>  fmt=0x%x swap=%c\n",
