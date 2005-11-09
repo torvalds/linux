@@ -74,7 +74,9 @@ void cpu_idle(void)
 		while (!need_resched())
 			barrier();
 
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 		check_pgt_cache();
 	}
 }
@@ -93,7 +95,9 @@ void cpu_idle(void)
 		if (need_resched()) {
 			unidle_me();
 			clear_thread_flag(TIF_POLLING_NRFLAG);
+			preempt_enable_no_resched();
 			schedule();
+			preempt_disable();
 			set_thread_flag(TIF_POLLING_NRFLAG);
 			check_pgt_cache();
 		}

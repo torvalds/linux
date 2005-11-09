@@ -292,7 +292,9 @@ cpu_idle (void)
 #ifdef CONFIG_SMP
 		normal_xtp();
 #endif
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 		check_pgt_cache();
 		if (cpu_is_offline(smp_processor_id()))
 			play_dead();

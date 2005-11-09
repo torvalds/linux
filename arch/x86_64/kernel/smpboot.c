@@ -472,6 +472,7 @@ void __cpuinit start_secondary(void)
 	 * things done here to the most necessary things.
 	 */
 	cpu_init();
+	preempt_disable();
 	smp_callin();
 
 	/* otherwise gcc will move up the smp_processor_id before the cpu_init */

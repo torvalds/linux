@@ -61,7 +61,9 @@ void default_idle(void)
 		}
 
 		ppc64_runlatch_on();
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
 			cpu_die();
 	}
@@ -77,7 +79,9 @@ void native_idle(void)
 
 		if (need_resched()) {
 			ppc64_runlatch_on();
+			preempt_enable_no_resched();
 			schedule();
+			preempt_disable();
 		}
 
 		if (cpu_is_offline(smp_processor_id()) &&

@@ -539,7 +539,9 @@ static void pseries_dedicated_idle(void)
 		lpaca->lppaca.idle = 0;
 		ppc64_runlatch_on();
 
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 
 		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
 			cpu_die();
@@ -583,7 +585,9 @@ static void pseries_shared_idle(void)
 		lpaca->lppaca.idle = 0;
 		ppc64_runlatch_on();
 
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 
 		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
 			cpu_die();

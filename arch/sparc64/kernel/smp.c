@@ -168,6 +168,9 @@ void __init smp_callin(void)
 		rmb();
 
 	cpu_set(cpuid, cpu_online_map);
+
+	/* idle thread is expected to have preempt disabled */
+	preempt_disable();
 }
 
 void cpu_panic(void)

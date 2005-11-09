@@ -64,7 +64,9 @@ void default_idle(void)
 				cpu_sleep();
 		}
 
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 	}
 }
 

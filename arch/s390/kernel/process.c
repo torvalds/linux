@@ -102,7 +102,6 @@ void default_idle(void)
 	local_irq_disable();
         if (need_resched()) {
 		local_irq_enable();
-                schedule();
                 return;
         }
 
@@ -139,8 +138,14 @@ void default_idle(void)
 
 void cpu_idle(void)
 {
-	for (;;)
-		default_idle();
+	for (;;) {
+		while (!need_resched())
+			default_idle();
+
+		preempt_enable_no_resched();
+		schedule();
+		preempt_disable();
+	}
 }
 
 void show_regs(struct pt_regs *regs)

@@ -120,7 +120,9 @@ void cpu_idle(void)
 			(*pm_idle)();
 		}
 
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 		check_pgt_cache();
 	}
 }
@@ -133,7 +135,9 @@ void cpu_idle(void)
 	/* endless idle loop with no priority at all */
 	while(1) {
 		if(need_resched()) {
+			preempt_enable_no_resched();
 			schedule();
+			preempt_disable();
 			check_pgt_cache();
 		}
 		barrier(); /* or else gcc optimizes... */

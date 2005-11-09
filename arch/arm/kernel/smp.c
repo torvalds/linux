@@ -256,7 +256,9 @@ void __cpuexit cpu_die(void)
 asmlinkage void __cpuinit secondary_start_kernel(void)
 {
 	struct mm_struct *mm = &init_mm;
-	unsigned int cpu = smp_processor_id();
+	unsigned int cpu;
+
+	cpu = smp_processor_id();
 
 	printk("CPU%u: Booted secondary processor\n", cpu);
 
@@ -273,6 +275,7 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	local_flush_tlb_all();
 
 	cpu_init();
+	preempt_disable();
 
 	/*
 	 * Give the platform a chance to do its own initialisation.

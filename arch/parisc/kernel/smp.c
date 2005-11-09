@@ -463,6 +463,7 @@ void __init smp_callin(void)
 #endif
 
 	smp_cpu_init(slave_id);
+	preempt_disable();
 
 #if 0	/* NOT WORKING YET - see entry.S */
 	istack = (void *)__get_free_pages(GFP_KERNEL,ISTACK_ORDER);
