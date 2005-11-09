@@ -802,7 +802,7 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 free:
 	kfree_skb(skb2);
 out:
-	return -1;
+	return err;
 }
 
 static inline int
