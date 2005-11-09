@@ -23,6 +23,8 @@
 #include "pci.h"
 #include "msi.h"
 
+#define MSI_TARGET_CPU		first_cpu(cpu_online_map)
+
 static DEFINE_SPINLOCK(msi_lock);
 static struct msi_desc* msi_desc[NR_IRQS] = { [0 ... NR_IRQS-1] = NULL };
 static kmem_cache_t* msi_cachep;
@@ -92,6 +94,7 @@ static void set_msi_affinity(unsigned int vector, cpumask_t cpu_mask)
 	struct msi_desc *entry;
 	struct msg_address address;
 	unsigned int irq = vector;
+	unsigned int dest_cpu = first_cpu(cpu_mask);
 
 	entry = (struct msi_desc *)msi_desc[vector];
 	if (!entry || !entry->dev)
@@ -108,9 +111,9 @@ static void set_msi_affinity(unsigned int vector, cpumask_t cpu_mask)
 		pci_read_config_dword(entry->dev, msi_lower_address_reg(pos),
 			&address.lo_address.value);
 		address.lo_address.value &= MSI_ADDRESS_DEST_ID_MASK;
-		address.lo_address.value |= (cpu_mask_to_apicid(cpu_mask) <<
-			MSI_TARGET_CPU_SHIFT);
-		entry->msi_attrib.current_cpu = cpu_mask_to_apicid(cpu_mask);
+		address.lo_address.value |= (cpu_physical_id(dest_cpu) <<
+									MSI_TARGET_CPU_SHIFT);
+		entry->msi_attrib.current_cpu = cpu_physical_id(dest_cpu);
 		pci_write_config_dword(entry->dev, msi_lower_address_reg(pos),
 			address.lo_address.value);
 		set_native_irq_info(irq, cpu_mask);
@@ -123,9 +126,9 @@ static void set_msi_affinity(unsigned int vector, cpumask_t cpu_mask)
 
 		address.lo_address.value = readl(entry->mask_base + offset);
 		address.lo_address.value &= MSI_ADDRESS_DEST_ID_MASK;
-		address.lo_address.value |= (cpu_mask_to_apicid(cpu_mask) <<
-			MSI_TARGET_CPU_SHIFT);
-		entry->msi_attrib.current_cpu = cpu_mask_to_apicid(cpu_mask);
+		address.lo_address.value |= (cpu_physical_id(dest_cpu) <<
+									MSI_TARGET_CPU_SHIFT);
+		entry->msi_attrib.current_cpu = cpu_physical_id(dest_cpu);
 		writel(address.lo_address.value, entry->mask_base + offset);
 		set_native_irq_info(irq, cpu_mask);
 		break;
@@ -259,14 +262,15 @@ static void msi_data_init(struct msg_data *msi_data,
 static void msi_address_init(struct msg_address *msi_address)
 {
 	unsigned int	dest_id;
+	unsigned long	dest_phys_id = cpu_physical_id(MSI_TARGET_CPU);
 
 	memset(msi_address, 0, sizeof(struct msg_address));
 	msi_address->hi_address = (u32)0;
 	dest_id = (MSI_ADDRESS_HEADER << MSI_ADDRESS_HEADER_SHIFT);
-	msi_address->lo_address.u.dest_mode = MSI_DEST_MODE;
+	msi_address->lo_address.u.dest_mode = MSI_PHYSICAL_MODE;
 	msi_address->lo_address.u.redirection_hint = MSI_REDIRECTION_HINT_MODE;
 	msi_address->lo_address.u.dest_id = dest_id;
-	msi_address->lo_address.value |= (MSI_TARGET_CPU << MSI_TARGET_CPU_SHIFT);
+	msi_address->lo_address.value |= (dest_phys_id << MSI_TARGET_CPU_SHIFT);
 }
 
 static int msi_free_vector(struct pci_dev* dev, int vector, int reassign);
