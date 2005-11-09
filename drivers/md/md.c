@@ -1746,9 +1746,9 @@ raid_disks_show(mddev_t *mddev, char *page)
 static struct md_sysfs_entry md_raid_disks = __ATTR_RO(raid_disks);
 
 static ssize_t
-md_show_scan(mddev_t *mddev, char *page)
+action_show(mddev_t *mddev, char *page)
 {
-	char *type = "none";
+	char *type = "idle";
 	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) ||
 	    test_bit(MD_RECOVERY_NEEDED, &mddev->recovery)) {
 		if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery)) {
@@ -1765,27 +1765,36 @@ md_show_scan(mddev_t *mddev, char *page)
 }
 
 static ssize_t
-md_store_scan(mddev_t *mddev, const char *page, size_t len)
+action_store(mddev_t *mddev, const char *page, size_t len)
 {
-	int canscan=0;
+	if (!mddev->pers || !mddev->pers->sync_request)
+		return -EINVAL;
+
+	if (strcmp(page, "idle")==0 || strcmp(page, "idle\n")==0) {
+		if (mddev->sync_thread) {
+			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
+			md_unregister_thread(mddev->sync_thread);
+			mddev->sync_thread = NULL;
+			mddev->recovery = 0;
+		}
+		return len;
+	}
 
 	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) ||
 	    test_bit(MD_RECOVERY_NEEDED, &mddev->recovery))
 		return -EBUSY;
-
-	if (mddev->pers && mddev->pers->sync_request)
-		canscan=1;
-
-	if (!canscan)
-		return -EINVAL;
-
-	if (strcmp(page, "check")==0 || strcmp(page, "check\n")==0)
-		set_bit(MD_RECOVERY_CHECK, &mddev->recovery);
-	else if (strcmp(page, "repair")!=0 && strcmp(page, "repair\n")!=0)
-		return -EINVAL;
-	set_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
-	set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
-	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+	if (strcmp(page, "resync")==0 || strcmp(page, "resync\n")==0 ||
+	    strcmp(page, "recover")==0 || strcmp(page, "recover\n")==0)
+		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+	else {
+		if (strcmp(page, "check")==0 || strcmp(page, "check\n")==0)
+			set_bit(MD_RECOVERY_CHECK, &mddev->recovery);
+		else if (strcmp(page, "repair")!=0 && strcmp(page, "repair\n")!=0)
+			return -EINVAL;
+		set_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
+		set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
+		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+	}
 	md_wakeup_thread(mddev->thread);
 	return len;
 }
@@ -1798,7 +1807,7 @@ mismatch_cnt_show(mddev_t *mddev, char *page)
 }
 
 static struct md_sysfs_entry
-md_scan_mode = __ATTR(scan_mode, S_IRUGO|S_IWUSR, md_show_scan, md_store_scan);
+md_scan_mode = __ATTR(sync_action, S_IRUGO|S_IWUSR, action_show, action_store);
 
 
 static struct md_sysfs_entry
