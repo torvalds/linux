@@ -3188,7 +3188,7 @@ void __devinit bttv_init_card1(struct bttv *btv)
 void __devinit bttv_init_card2(struct bttv *btv)
 {
 	int tda9887;
-	int addr=ADDR_UNSET, radio_addr=ADDR_UNSET;
+	int addr=ADDR_UNSET;
 
 	btv->tuner_type = -1;
 
@@ -3333,29 +3333,26 @@ void __devinit bttv_init_card2(struct bttv *btv)
 	if (ADDR_UNSET != bttv_tvcards[btv->c.type].tuner_addr)
 		addr = bttv_tvcards[btv->c.type].tuner_addr;
 
-	if (ADDR_UNSET != bttv_tvcards[btv->c.type].radio_addr)
-		radio_addr = bttv_tvcards[btv->c.type].radio_addr;
-
 	if (UNSET != bttv_tvcards[btv->c.type].tuner_type)
 		if(UNSET == btv->tuner_type)
 			btv->tuner_type = bttv_tvcards[btv->c.type].tuner_type;
 	if (UNSET != tuner[btv->c.nr])
 		btv->tuner_type = tuner[btv->c.nr];
 	printk("bttv%d: using tuner=%d\n",btv->c.nr,btv->tuner_type);
-	if (btv->pinnacle_id != UNSET)
-		bttv_call_i2c_clients(btv, AUDC_CONFIG_PINNACLE,
-				      &btv->pinnacle_id);
+
 	if (btv->tuner_type != UNSET) {
 		struct tuner_setup tun_setup;
 
-		tun_setup.mode_mask =  T_ANALOG_TV | T_DIGITAL_TV;
+		tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
 		tun_setup.type = btv->tuner_type;
 		tun_setup.addr = addr;
 
-		if (addr == radio_addr)
-			tun_setup.mode_mask =  T_RADIO;
-
 		bttv_call_i2c_clients(btv, TUNER_SET_TYPE_ADDR, &tun_setup);
+	}
+
+	if (btv->pinnacle_id != UNSET) {
+		bttv_call_i2c_clients(btv, AUDC_CONFIG_PINNACLE,
+							&btv->pinnacle_id);
 	}
 
 	btv->svhs = bttv_tvcards[btv->c.type].svhs;
