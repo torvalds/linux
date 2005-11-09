@@ -3278,8 +3278,8 @@ static void bond_info_show_master(struct seq_file *seq)
 
 	if (USES_PRIMARY(bond->params.mode)) {
 		seq_printf(seq, "Primary Slave: %s\n",
-			   (bond->params.primary[0]) ?
-			   	bond->params.primary : "None");
+			   (bond->primary_slave) ?
+			   bond->primary_slave->dev->name : "None");
 
 		seq_printf(seq, "Currently Active Slave: %s\n",
 			   (curr) ? curr->dev->name : "None");
