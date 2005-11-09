@@ -629,59 +629,6 @@ int swsusp_resume(void)
 }
 
 /**
- *	On resume, for storing the PBE list and the image,
- *	we can only use memory pages that do not conflict with the pages
- *	which had been used before suspend.
- *
- *	We don't know which pages are usable until we allocate them.
- *
- *	Allocated but unusable (ie eaten) memory pages are marked so that
- *	swsusp_free() can release them
- */
-
-unsigned long get_safe_page(gfp_t gfp_mask)
-{
-	unsigned long m;
-
-	do {
-		m = get_zeroed_page(gfp_mask);
-		if (m && PageNosaveFree(virt_to_page(m)))
-			/* This is for swsusp_free() */
-			SetPageNosave(virt_to_page(m));
-	} while (m && PageNosaveFree(virt_to_page(m)));
-	if (m) {
-		/* This is for swsusp_free() */
-		SetPageNosave(virt_to_page(m));
-		SetPageNosaveFree(virt_to_page(m));
-	}
-	return m;
-}
-
-/**
- *	check_pagedir - We ensure here that pages that the PBEs point to
- *	won't collide with pages where we're going to restore from the loaded
- *	pages later
- */
-
-static int check_pagedir(struct pbe *pblist)
-{
-	struct pbe *p;
-
-	/* This is necessary, so that we can free allocated pages
-	 * in case of failure
-	 */
-	for_each_pbe (p, pblist)
-		p->address = 0UL;
-
-	for_each_pbe (p, pblist) {
-		p->address = get_safe_page(GFP_ATOMIC);
-		if (!p->address)
-			return -ENOMEM;
-	}
-	return 0;
-}
-
-/**
  *	swsusp_pagedir_relocate - It is possible, that some memory pages
  *	occupied by the list of PBEs collide with pages where we're going to
  *	restore from the loaded pages later.  We relocate them here.
@@ -990,7 +937,7 @@ static int read_suspend_image(void)
 	int error = 0;
 	struct pbe *p;
 
-	if (!(p = alloc_pagedir(nr_copy_pages)))
+	if (!(p = alloc_pagedir(nr_copy_pages, GFP_ATOMIC, 0)))
 		return -ENOMEM;
 
 	if ((error = read_pagedir(p)))
@@ -1003,7 +950,7 @@ static int read_suspend_image(void)
 
 	/* Allocate memory for the image and read the data from swap */
 
-	error = check_pagedir(pagedir_nosave);
+	error = alloc_data_pages(pagedir_nosave, GFP_ATOMIC, 1);
 
 	if (!error)
 		error = data_read(pagedir_nosave);
