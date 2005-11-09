@@ -292,6 +292,58 @@ struct dvb_pll_desc dvb_pll_tded4 = {
 };
 EXPORT_SYMBOL(dvb_pll_tded4);
 
+/* ALPS TDHU2
+ * used in AverTVHD MCE A180
+ */
+struct dvb_pll_desc dvb_pll_tdhu2 = {
+	.name = "ALPS TDHU2",
+	.min = 54000000,
+	.max = 864000000,
+	.count = 4,
+	.entries = {
+		{ 162000000, 44000000, 62500, 0x85, 0x01 },
+		{ 426000000, 44000000, 62500, 0x85, 0x02 },
+		{ 782000000, 44000000, 62500, 0x85, 0x08 },
+		{ 999999999, 44000000, 62500, 0x85, 0x88 },
+	}
+};
+EXPORT_SYMBOL(dvb_pll_tdhu2);
+
+/* Philips TUV1236D
+ * used in ATI HDTV Wonder
+ */
+struct dvb_pll_desc dvb_pll_tuv1236d = {
+	.name  = "Philips TUV1236D",
+	.min   =  57000000,
+	.max   = 864000000,
+	.count = 3,
+	.entries = {
+		{ 157250000, 44000000, 62500, 0xc6, 0x41 },
+		{ 454000000, 44000000, 62500, 0xc6, 0x42 },
+		{ 999999999, 44000000, 62500, 0xc6, 0x44 },
+	},
+};
+EXPORT_SYMBOL(dvb_pll_tuv1236d);
+
+/* Samsung TBMV30111IN
+ * used in Air2PC ATSC - 2nd generation (nxt2002)
+ */
+struct dvb_pll_desc dvb_pll_tbmv30111in = {
+	.name = "Samsung TBMV30111IN",
+	.min = 54000000,
+	.max = 860000000,
+	.count = 4,
+	.entries = {
+		{ 172000000, 44000000, 166666, 0xb4, 0x01 },
+		{ 214000000, 44000000, 166666, 0xb4, 0x02 },
+		{ 467000000, 44000000, 166666, 0xbc, 0x02 },
+		{ 721000000, 44000000, 166666, 0xbc, 0x08 },
+		{ 841000000, 44000000, 166666, 0xf4, 0x08 },
+		{ 999999999, 44000000, 166666, 0xfc, 0x02 },
+	}
+};
+EXPORT_SYMBOL(dvb_pll_tbmv30111in);
+
 /* ----------------------------------------------------------- */
 /* code                                                        */
 
