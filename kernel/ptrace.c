@@ -155,7 +155,7 @@ int ptrace_attach(struct task_struct *task)
 	retval = -EPERM;
 	if (task->pid <= 1)
 		goto bad;
-	if (task == current)
+	if (task->tgid == current->tgid)
 		goto bad;
 	/* the same process cannot be attached many times */
 	if (task->ptrace & PT_PTRACED)
