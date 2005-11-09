@@ -397,6 +397,7 @@ enum tvp5150_input {
 static inline void tvp5150_selmux(struct i2c_client *c,
 				  enum tvp5150_input input)
 {
+	struct tvp5150 *decoder = i2c_get_clientdata(c);
 	int tvp_input;
 
 	/* FIXME: It is dependent of basic driver */
@@ -415,11 +416,16 @@ static inline void tvp5150_selmux(struct i2c_client *c,
 		tvp_input=TVP5150_BLACK_SCREEN;
 	}
 
+	if (!decoder->enable)
+		tvp_input|=TVP5150_BLACK_SCREEN;
+
 	tvp5150_write(c, TVP5150_VD_IN_SRC_SEL_1, tvp_input);
 };
 
 static inline void tvp5150_reset(struct i2c_client *c)
 {
+	struct tvp5150 *decoder = i2c_get_clientdata(c);
+
 	tvp5150_write(c, TVP5150_CONF_SHARED_PIN, 2);
 
 	/* Automatic offset and AGC enabled */
@@ -431,13 +437,13 @@ static inline void tvp5150_reset(struct i2c_client *c)
 	/* Activate YCrCb output 0x9 or 0xd ? */
 	tvp5150_write(c, TVP5150_MISC_CTL, 0x6f);
 
-	/* Activates video std autodetection for PAL/M and PAL/N */
-	tvp5150_write(c, TVP5150_AUTOSW_MSK, 0xf0);
+	/* Activates video std autodetection for all standards */
+	tvp5150_write(c, TVP5150_AUTOSW_MSK, 0x0);
 
 	/* Default format: 0x47, 4:2:2: 0x40 */
 	tvp5150_write(c, TVP5150_DATA_RATE_SEL, 0x47);
 
-	tvp5150_selmux(c, TVP5150_ANALOG_CH0);
+	tvp5150_selmux(c, decoder->input);
 
 	tvp5150_write(c, TVP5150_CHROMA_PROC_CTL_1, 0x0c);
 	tvp5150_write(c, TVP5150_CHROMA_PROC_CTL_2, 0x54);
@@ -446,7 +452,10 @@ static inline void tvp5150_reset(struct i2c_client *c)
 
 	tvp5150_write(c, TVP5150_VIDEO_STD, 0x0);	/* Auto switch */
 
-	tvp5150_write(c, TVP5150_HUE_CTL, 0x0);
+	tvp5150_write(c, TVP5150_BRIGHT_CTL, decoder->bright >> 8);
+	tvp5150_write(c, TVP5150_CONTRAST_CTL, decoder->contrast >> 8);
+	tvp5150_write(c, TVP5150_SATURATION_CTL, decoder->contrast >> 8);
+	tvp5150_write(c, TVP5150_HUE_CTL, (decoder->hue - 32768) >> 8);
 };
 
 /****************************************************************************
@@ -523,7 +532,8 @@ static int tvp5150_command(struct i2c_client *client,
 			return -EINVAL;
 		}
 
-		tvp5150_selmux(client, *iarg);
+		decoder->input=*iarg;
+		tvp5150_selmux(client, decoder->input);
 
 		break;
 	}
@@ -538,12 +548,40 @@ static int tvp5150_command(struct i2c_client *client,
 		break;
 	}
 	case DECODER_ENABLE_OUTPUT:
-//              int *iarg = arg;
-//              int enable = (*iarg != 0);
+	{
+		int *iarg = arg;
+
+		decoder->enable = (*iarg != 0);
+
+		tvp5150_selmux(client, decoder->input);
 
 		break;
-
+	}
 	case DECODER_SET_PICTURE:
+	{
+		struct video_picture *pic = arg;
+		if (decoder->bright != pic->brightness) {
+			/* We want 0 to 255 we get 0-65535 */
+			decoder->bright = pic->brightness;
+			tvp5150_write(client, TVP5150_BRIGHT_CTL, decoder->bright >> 8);
+		}
+		if (decoder->contrast != pic->contrast) {
+			/* We want 0 to 255 we get 0-65535 */
+			decoder->contrast = pic->contrast;
+			tvp5150_write(client, TVP5150_CONTRAST_CTL, decoder->contrast >> 8);
+		}
+		if (decoder->sat != pic->colour) {
+			/* We want 0 to 255 we get 0-65535 */
+			decoder->sat = pic->colour;
+			tvp5150_write(client, TVP5150_SATURATION_CTL, decoder->contrast >> 8);
+		}
+		if (decoder->hue != pic->hue) {
+			/* We want -128 to 127 we get 0-65535 */
+			decoder->hue = pic->hue;
+			tvp5150_write(client, TVP5150_HUE_CTL, (decoder->hue - 32768) >> 8);
+		}
+		break;
+	}
 	default:
 		return -EINVAL;
 	}
@@ -598,6 +636,14 @@ static int tvp5150_detect_client (struct i2c_adapter *adapter,
 	i2c_set_clientdata(client, core);
 
 	rv = i2c_attach_client(client);
+
+	core->norm = VIDEO_MODE_AUTO;
+	core->input = 2;
+	core->enable = 1;
+	core->bright = 32768;
+	core->contrast = 32768;
+	core->hue = 32768;
+	core->sat = 32768;
 
 	if (rv) {
 		kfree(client);
