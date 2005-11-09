@@ -646,14 +646,6 @@ static int saa7134_hwinit1(struct saa7134_dev *dev)
 		saa7134_ts_init1(dev);
 	saa7134_input_init1(dev);
 
-	switch (dev->pci->device) {
-	case PCI_DEVICE_ID_PHILIPS_SAA7134:
-	case PCI_DEVICE_ID_PHILIPS_SAA7133:
-	case PCI_DEVICE_ID_PHILIPS_SAA7135:
-		saa7134_oss_init1(dev);
-		break;
-	}
-
 	/* RAM FIFO config */
 	saa_writel(SAA7134_FIFO_SIZE, 0x08070503);
 	saa_writel(SAA7134_THRESHOULD,0x02020202);
@@ -667,6 +659,21 @@ static int saa7134_hwinit1(struct saa7134_dev *dev)
 		   SAA7134_MAIN_CTRL_EVFE2 |
 		   SAA7134_MAIN_CTRL_ESFE  |
 		   SAA7134_MAIN_CTRL_EBDAC);
+
+	/*
+	 * Initialize OSS _after_ enabling audio clock PLL and audio processing.
+	 * OSS initialization writes to registers via the audio DSP; these
+	 * writes will fail unless the audio clock has been started.  At worst,
+	 * audio will not work.
+	 */
+
+	switch (dev->pci->device) {
+	case PCI_DEVICE_ID_PHILIPS_SAA7134:
+	case PCI_DEVICE_ID_PHILIPS_SAA7133:
+	case PCI_DEVICE_ID_PHILIPS_SAA7135:
+		saa7134_oss_init1(dev);
+		break;
+	}
 
 	/* enable peripheral devices */
 	saa_writeb(SAA7134_SPECIAL_MODE, 0x01);
