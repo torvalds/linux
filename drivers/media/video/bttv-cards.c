@@ -1063,7 +1063,7 @@ struct tvcard bttv_tvcards[] = {
 },{
 
 /* ---- card 0x34 ---------------------------------- */
-	/* David Härdeman <david@2gen.com> */
+	/* David HÃ¤rdeman <david@2gen.com> */
 	.name           = "Pinnacle PCTV Studio Pro",
 	.video_inputs   = 4,
 	.audio_inputs   = 1,
@@ -3370,7 +3370,7 @@ void bttv_tda9880_setnorm(struct bttv *btv, int norm)
 
 /*
  * reset/enable the MSP on some Hauppauge cards
- * Thanks to Kyösti Mälkki (kmalkki@cc.hut.fi)!
+ * Thanks to KyÃ¶sti MÃ¤lkki (kmalkki@cc.hut.fi)!
  *
  * Hauppauge:  pin  5
  * Voodoo:     pin 20
