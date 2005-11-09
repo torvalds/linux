@@ -43,35 +43,34 @@
 #include <media/ir-common.h>
 
 static IR_KEYTAB_TYPE ir_codes_em2820[IR_KEYTAB_SIZE] = {
-	[ 0x00 ] = KEY_CHANNEL,
-	[ 0x01 ] = KEY_SELECT,
-	[ 0x02 ] = KEY_MUTE,
-	[ 0x03 ] = KEY_POWER,
-	[ 0x04 ] = KEY_KP1,
-	[ 0x05 ] = KEY_KP2,
-	[ 0x06 ] = KEY_KP3,
-	[ 0x07 ] = KEY_CHANNELUP,
-	[ 0x08 ] = KEY_KP4,
-	[ 0x09 ] = KEY_KP5,
-	[ 0x0a ] = KEY_KP6,
-
-	[ 0x0b ] = KEY_CHANNELDOWN,
-	[ 0x0c ] = KEY_KP7,
-	[ 0x0d ] = KEY_KP8,
-	[ 0x0e ] = KEY_KP9,
-	[ 0x0f ] = KEY_VOLUMEUP,
-	[ 0x10 ] = KEY_KP0,
-	[ 0x11 ] = KEY_MENU,
-	[ 0x12 ] = KEY_PRINT,
-
-	[ 0x13 ] = KEY_VOLUMEDOWN,
-	[ 0x15 ] = KEY_PAUSE,
-	[ 0x17 ] = KEY_RECORD,
-	[ 0x18 ] = KEY_REWIND,
-	[ 0x19 ] = KEY_PLAY,
-	[ 0x1b ] = KEY_BACKSPACE,
-	[ 0x1d ] = KEY_STOP,
-	[ 0x40 ] = KEY_ZOOM,
+ 	[ 0x01 ] = KEY_CHANNEL,
+ 	[ 0x02 ] = KEY_SELECT,
+ 	[ 0x03 ] = KEY_MUTE,
+ 	[ 0x04 ] = KEY_POWER,
+ 	[ 0x05 ] = KEY_KP1,
+ 	[ 0x06 ] = KEY_KP2,
+ 	[ 0x07 ] = KEY_KP3,
+ 	[ 0x08 ] = KEY_CHANNELUP,
+ 	[ 0x09 ] = KEY_KP4,
+ 	[ 0x0a ] = KEY_KP5,
+ 	[ 0x0b ] = KEY_KP6,
+ 	[ 0x0c ] = KEY_CHANNELDOWN,
+ 	[ 0x0d ] = KEY_KP7,
+ 	[ 0x0e ] = KEY_KP8,
+ 	[ 0x0f ] = KEY_KP9,
+ 	[ 0x10 ] = KEY_VOLUMEUP,
+ 	[ 0x11 ] = KEY_KP0,
+ 	[ 0x12 ] = KEY_MENU,
+ 	[ 0x13 ] = KEY_PRINT,
+ 	[ 0x14 ] = KEY_VOLUMEDOWN,
+ 	[ 0x16 ] = KEY_PAUSE,
+ 	[ 0x18 ] = KEY_RECORD,
+ 	[ 0x19 ] = KEY_REWIND,
+ 	[ 0x1a ] = KEY_PLAY,
+	[ 0x1b ] = KEY_FORWARD,
+	[ 0x1c ] = KEY_BACKSPACE,
+ 	[ 0x1e ] = KEY_STOP,
+ 	[ 0x40 ] = KEY_ZOOM,
 };
 
 /* Mark Phalan <phalanm@o2.ie> */
@@ -402,7 +401,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 			name        = "KNC One";
 			ir->get_key = get_key_knc1;
 			ir_type     = IR_TYPE_OTHER;
-			ir_codes    = ir_codes_em2820;
+			ir_codes    = ir_codes_empty;
 		}
 		break;
 	case 0x47:
@@ -418,7 +417,7 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 			name        = "Purple TV";
 			ir->get_key = get_key_purpletv;
 			ir_type     = IR_TYPE_OTHER;
-			ir_codes    = ir_codes_empty;
+			ir_codes    = ir_codes_purpletv;
 		}
 		break;
 	default:
