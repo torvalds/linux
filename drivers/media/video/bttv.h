@@ -159,6 +159,7 @@
 #define BTTV_BOARD_ACORP_Y878F   0x88
 #define BTTV_BOARD_CONCEPTRONIC_CTVFMI2 0x89
 #define BTTV_BOARD_PV_BT878P_2E   0x8a
+#define BTTV_BOARD_PV_M4900       0x8b
 
 /* i2c address list */
 #define I2C_TSA5522        0xc2
@@ -240,6 +241,7 @@ struct tvcard
 
 	unsigned int tuner_type;
 	unsigned int tuner_addr;
+	unsigned int radio_addr;
 
 	unsigned int has_radio;
 	void (*audio_hook)(struct bttv *btv, struct video_audio *v, int set);
