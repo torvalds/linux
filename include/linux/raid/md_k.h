@@ -117,10 +117,10 @@ struct mdk_rdev_s
 	 * It can never have faulty==1, in_sync==1
 	 * This reduces the burden of testing multiple flags in many cases
 	 */
-	int faulty;			/* if faulty do not issue IO requests */
-	int in_sync;			/* device is a full member of the array */
 
-	unsigned long	flags;		/* Should include faulty and in_sync here. */
+	unsigned long	flags;
+#define	Faulty		1		/* device is known to have a fault */
+#define	In_sync		2		/* device is in_sync with rest of array */
 #define	WriteMostly	4		/* Avoid reading if at all possible */
 
 	int desc_nr;			/* descriptor index in the superblock */
@@ -247,7 +247,7 @@ struct mddev_s
 
 static inline void rdev_dec_pending(mdk_rdev_t *rdev, mddev_t *mddev)
 {
-	int faulty = rdev->faulty;
+	int faulty = test_bit(Faulty, &rdev->flags);
 	if (atomic_dec_and_test(&rdev->nr_pending) && faulty)
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 }

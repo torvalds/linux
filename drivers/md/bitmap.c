@@ -271,7 +271,8 @@ static struct page *read_sb_page(mddev_t *mddev, long offset, unsigned long inde
 		return ERR_PTR(-ENOMEM);
 
 	ITERATE_RDEV(mddev, rdev, tmp) {
-		if (! rdev->in_sync || rdev->faulty)
+		if (! test_bit(In_sync, &rdev->flags)
+		    || test_bit(Faulty, &rdev->flags))
 			continue;
 
 		target = (rdev->sb_offset << 1) + offset + index * (PAGE_SIZE/512);
@@ -291,7 +292,8 @@ static int write_sb_page(mddev_t *mddev, long offset, struct page *page, int wai
 	struct list_head *tmp;
 
 	ITERATE_RDEV(mddev, rdev, tmp)
-		if (rdev->in_sync && !rdev->faulty)
+		if (test_bit(In_sync, &rdev->flags)
+		    && !test_bit(Faulty, &rdev->flags))
 			md_super_write(mddev, rdev,
 				       (rdev->sb_offset<<1) + offset
 				       + page->index * (PAGE_SIZE/512),

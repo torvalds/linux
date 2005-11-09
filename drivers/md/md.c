@@ -610,7 +610,7 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 	mdp_super_t *sb = (mdp_super_t *)page_address(rdev->sb_page);
 
 	rdev->raid_disk = -1;
-	rdev->in_sync = 0;
+	rdev->flags = 0;
 	if (mddev->raid_disks == 0) {
 		mddev->major_version = 0;
 		mddev->minor_version = sb->minor_version;
@@ -671,21 +671,19 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		return 0;
 
 	if (mddev->level != LEVEL_MULTIPATH) {
-		rdev->faulty = 0;
-		rdev->flags = 0;
 		desc = sb->disks + rdev->desc_nr;
 
 		if (desc->state & (1<<MD_DISK_FAULTY))
-			rdev->faulty = 1;
+			set_bit(Faulty, &rdev->flags);
 		else if (desc->state & (1<<MD_DISK_SYNC) &&
 			 desc->raid_disk < mddev->raid_disks) {
-			rdev->in_sync = 1;
+			set_bit(In_sync, &rdev->flags);
 			rdev->raid_disk = desc->raid_disk;
 		}
 		if (desc->state & (1<<MD_DISK_WRITEMOSTLY))
 			set_bit(WriteMostly, &rdev->flags);
 	} else /* MULTIPATH are always insync */
-		rdev->in_sync = 1;
+		set_bit(In_sync, &rdev->flags);
 	return 0;
 }
 
@@ -761,7 +759,8 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 	ITERATE_RDEV(mddev,rdev2,tmp) {
 		mdp_disk_t *d;
 		int desc_nr;
-		if (rdev2->raid_disk >= 0 && rdev2->in_sync && !rdev2->faulty)
+		if (rdev2->raid_disk >= 0 && test_bit(In_sync, &rdev2->flags)
+		    && !test_bit(Faulty, &rdev2->flags))
 			desc_nr = rdev2->raid_disk;
 		else
 			desc_nr = next_spare++;
@@ -780,14 +779,15 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 		d->number = rdev2->desc_nr;
 		d->major = MAJOR(rdev2->bdev->bd_dev);
 		d->minor = MINOR(rdev2->bdev->bd_dev);
-		if (rdev2->raid_disk >= 0 && rdev2->in_sync && !rdev2->faulty)
+		if (rdev2->raid_disk >= 0 && test_bit(In_sync, &rdev2->flags)
+		    && !test_bit(Faulty, &rdev2->flags))
 			d->raid_disk = rdev2->raid_disk;
 		else
 			d->raid_disk = rdev2->desc_nr; /* compatibility */
-		if (rdev2->faulty) {
+		if (test_bit(Faulty, &rdev2->flags)) {
 			d->state = (1<<MD_DISK_FAULTY);
 			failed++;
-		} else if (rdev2->in_sync) {
+		} else if (test_bit(In_sync, &rdev2->flags)) {
 			d->state = (1<<MD_DISK_ACTIVE);
 			d->state |= (1<<MD_DISK_SYNC);
 			active++;
@@ -975,7 +975,7 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 	struct mdp_superblock_1 *sb = (struct mdp_superblock_1*)page_address(rdev->sb_page);
 
 	rdev->raid_disk = -1;
-	rdev->in_sync = 0;
+	rdev->flags = 0;
 	if (mddev->raid_disks == 0) {
 		mddev->major_version = 1;
 		mddev->patch_version = 0;
@@ -1027,22 +1027,19 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		role = le16_to_cpu(sb->dev_roles[rdev->desc_nr]);
 		switch(role) {
 		case 0xffff: /* spare */
-			rdev->faulty = 0;
 			break;
 		case 0xfffe: /* faulty */
-			rdev->faulty = 1;
+			set_bit(Faulty, &rdev->flags);
 			break;
 		default:
-			rdev->in_sync = 1;
-			rdev->faulty = 0;
+			set_bit(In_sync, &rdev->flags);
 			rdev->raid_disk = role;
 			break;
 		}
-		rdev->flags = 0;
 		if (sb->devflags & WriteMostly1)
 			set_bit(WriteMostly, &rdev->flags);
 	} else /* MULTIPATH are always insync */
-		rdev->in_sync = 1;
+		set_bit(In_sync, &rdev->flags);
 
 	return 0;
 }
@@ -1086,9 +1083,9 @@ static void super_1_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 	
 	ITERATE_RDEV(mddev,rdev2,tmp) {
 		i = rdev2->desc_nr;
-		if (rdev2->faulty)
+		if (test_bit(Faulty, &rdev2->flags))
 			sb->dev_roles[i] = cpu_to_le16(0xfffe);
-		else if (rdev2->in_sync)
+		else if (test_bit(In_sync, &rdev2->flags))
 			sb->dev_roles[i] = cpu_to_le16(rdev2->raid_disk);
 		else
 			sb->dev_roles[i] = cpu_to_le16(0xffff);
@@ -1327,7 +1324,8 @@ static void print_rdev(mdk_rdev_t *rdev)
 	char b[BDEVNAME_SIZE];
 	printk(KERN_INFO "md: rdev %s, SZ:%08llu F:%d S:%d DN:%u\n",
 		bdevname(rdev->bdev,b), (unsigned long long)rdev->size,
-	       	rdev->faulty, rdev->in_sync, rdev->desc_nr);
+	        test_bit(Faulty, &rdev->flags), test_bit(In_sync, &rdev->flags),
+	        rdev->desc_nr);
 	if (rdev->sb_loaded) {
 		printk(KERN_INFO "md: rdev superblock:\n");
 		print_sb((mdp_super_t*)page_address(rdev->sb_page));
@@ -1421,11 +1419,11 @@ repeat:
 	ITERATE_RDEV(mddev,rdev,tmp) {
 		char b[BDEVNAME_SIZE];
 		dprintk(KERN_INFO "md: ");
-		if (rdev->faulty)
+		if (test_bit(Faulty, &rdev->flags))
 			dprintk("(skipping faulty ");
 
 		dprintk("%s ", bdevname(rdev->bdev,b));
-		if (!rdev->faulty) {
+		if (!test_bit(Faulty, &rdev->flags)) {
 			md_super_write(mddev,rdev,
 				       rdev->sb_offset<<1, rdev->sb_size,
 				       rdev->sb_page);
@@ -1466,15 +1464,16 @@ rdev_show_state(mdk_rdev_t *rdev, char *page)
 	char *sep = "";
 	int len=0;
 
-	if (rdev->faulty) {
+	if (test_bit(Faulty, &rdev->flags)) {
 		len+= sprintf(page+len, "%sfaulty",sep);
 		sep = ",";
 	}
-	if (rdev->in_sync) {
+	if (test_bit(In_sync, &rdev->flags)) {
 		len += sprintf(page+len, "%sin_sync",sep);
 		sep = ",";
 	}
-	if (!rdev->faulty && !rdev->in_sync) {
+	if (!test_bit(Faulty, &rdev->flags) &&
+	    !test_bit(In_sync, &rdev->flags)) {
 		len += sprintf(page+len, "%sspare", sep);
 		sep = ",";
 	}
@@ -1578,8 +1577,7 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 	kobject_init(&rdev->kobj);
 
 	rdev->desc_nr = -1;
-	rdev->faulty = 0;
-	rdev->in_sync = 0;
+	rdev->flags = 0;
 	rdev->data_offset = 0;
 	atomic_set(&rdev->nr_pending, 0);
 	atomic_set(&rdev->read_errors, 0);
@@ -1670,7 +1668,7 @@ static void analyze_sbs(mddev_t * mddev)
 		if (mddev->level == LEVEL_MULTIPATH) {
 			rdev->desc_nr = i++;
 			rdev->raid_disk = rdev->desc_nr;
-			rdev->in_sync = 1;
+			set_bit(In_sync, &rdev->flags);
 		}
 	}
 
@@ -1939,7 +1937,7 @@ static int do_md_run(mddev_t * mddev)
 
 		/* devices must have minimum size of one chunk */
 		ITERATE_RDEV(mddev,rdev,tmp) {
-			if (rdev->faulty)
+			if (test_bit(Faulty, &rdev->flags))
 				continue;
 			if (rdev->size < chunk_size / 1024) {
 				printk(KERN_WARNING
@@ -1967,7 +1965,7 @@ static int do_md_run(mddev_t * mddev)
 	 * Also find largest hardsector size
 	 */
 	ITERATE_RDEV(mddev,rdev,tmp) {
-		if (rdev->faulty)
+		if (test_bit(Faulty, &rdev->flags))
 			continue;
 		sync_blockdev(rdev->bdev);
 		invalidate_bdev(rdev->bdev, 0);
@@ -2304,7 +2302,7 @@ static int autostart_array(dev_t startdev)
 		return err;
 	}
 
-	if (start_rdev->faulty) {
+	if (test_bit(Faulty, &start_rdev->flags)) {
 		printk(KERN_WARNING 
 			"md: can not autostart based on faulty %s!\n",
 			bdevname(start_rdev->bdev,b));
@@ -2363,11 +2361,11 @@ static int get_array_info(mddev_t * mddev, void __user * arg)
 	nr=working=active=failed=spare=0;
 	ITERATE_RDEV(mddev,rdev,tmp) {
 		nr++;
-		if (rdev->faulty)
+		if (test_bit(Faulty, &rdev->flags))
 			failed++;
 		else {
 			working++;
-			if (rdev->in_sync)
+			if (test_bit(In_sync, &rdev->flags))
 				active++;	
 			else
 				spare++;
@@ -2458,9 +2456,9 @@ static int get_disk_info(mddev_t * mddev, void __user * arg)
 		info.minor = MINOR(rdev->bdev->bd_dev);
 		info.raid_disk = rdev->raid_disk;
 		info.state = 0;
-		if (rdev->faulty)
+		if (test_bit(Faulty, &rdev->flags))
 			info.state |= (1<<MD_DISK_FAULTY);
-		else if (rdev->in_sync) {
+		else if (test_bit(In_sync, &rdev->flags)) {
 			info.state |= (1<<MD_DISK_ACTIVE);
 			info.state |= (1<<MD_DISK_SYNC);
 		}
@@ -2553,7 +2551,7 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 				validate_super(mddev, rdev);
 		rdev->saved_raid_disk = rdev->raid_disk;
 
-		rdev->in_sync = 0; /* just to be sure */
+		clear_bit(In_sync, &rdev->flags); /* just to be sure */
 		if (info->state & (1<<MD_DISK_WRITEMOSTLY))
 			set_bit(WriteMostly, &rdev->flags);
 
@@ -2591,11 +2589,11 @@ static int add_new_disk(mddev_t * mddev, mdu_disk_info_t *info)
 		else
 			rdev->raid_disk = -1;
 
-		rdev->faulty = 0;
+		rdev->flags = 0;
+
 		if (rdev->raid_disk < mddev->raid_disks)
-			rdev->in_sync = (info->state & (1<<MD_DISK_SYNC));
-		else
-			rdev->in_sync = 0;
+			if (info->state & (1<<MD_DISK_SYNC))
+				set_bit(In_sync, &rdev->flags);
 
 		if (info->state & (1<<MD_DISK_WRITEMOSTLY))
 			set_bit(WriteMostly, &rdev->flags);
@@ -2694,14 +2692,14 @@ static int hot_add_disk(mddev_t * mddev, dev_t dev)
 		goto abort_export;
 	}
 
-	if (rdev->faulty) {
+	if (test_bit(Faulty, &rdev->flags)) {
 		printk(KERN_WARNING 
 			"md: can not hot-add faulty %s disk to %s!\n",
 			bdevname(rdev->bdev,b), mdname(mddev));
 		err = -EINVAL;
 		goto abort_export;
 	}
-	rdev->in_sync = 0;
+	clear_bit(In_sync, &rdev->flags);
 	rdev->desc_nr = -1;
 	bind_rdev_to_array(rdev, mddev);
 
@@ -3428,7 +3426,7 @@ void md_error(mddev_t *mddev, mdk_rdev_t *rdev)
 		return;
 	}
 
-	if (!rdev || rdev->faulty)
+	if (!rdev || test_bit(Faulty, &rdev->flags))
 		return;
 /*
 	dprintk("md_error dev:%s, rdev:(%d:%d), (caller: %p,%p,%p,%p).\n",
@@ -3626,7 +3624,7 @@ static int md_seq_show(struct seq_file *seq, void *v)
 				bdevname(rdev->bdev,b), rdev->desc_nr);
 			if (test_bit(WriteMostly, &rdev->flags))
 				seq_printf(seq, "(W)");
-			if (rdev->faulty) {
+			if (test_bit(Faulty, &rdev->flags)) {
 				seq_printf(seq, "(F)");
 				continue;
 			} else if (rdev->raid_disk < 0)
@@ -4174,7 +4172,7 @@ void md_check_recovery(mddev_t *mddev)
 		 */
 		ITERATE_RDEV(mddev,rdev,rtmp)
 			if (rdev->raid_disk >= 0 &&
-			    (rdev->faulty || ! rdev->in_sync) &&
+			    (test_bit(Faulty, &rdev->flags) || ! test_bit(In_sync, &rdev->flags)) &&
 			    atomic_read(&rdev->nr_pending)==0) {
 				if (mddev->pers->hot_remove_disk(mddev, rdev->raid_disk)==0) {
 					char nm[20];
@@ -4187,7 +4185,7 @@ void md_check_recovery(mddev_t *mddev)
 		if (mddev->degraded) {
 			ITERATE_RDEV(mddev,rdev,rtmp)
 				if (rdev->raid_disk < 0
-				    && !rdev->faulty) {
+				    && !test_bit(Faulty, &rdev->flags)) {
 					if (mddev->pers->hot_add_disk(mddev,rdev)) {
 						char nm[20];
 						sprintf(nm, "rd%d", rdev->raid_disk);
@@ -4347,7 +4345,7 @@ static void autostart_arrays(int part)
 		if (IS_ERR(rdev))
 			continue;
 
-		if (rdev->faulty) {
+		if (test_bit(Faulty, &rdev->flags)) {
 			MD_BUG();
 			continue;
 		}
