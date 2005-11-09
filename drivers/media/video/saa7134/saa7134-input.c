@@ -580,6 +580,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		polling      = 50; // ms
 		break;
         case SAA7134_BOARD_VIDEOMATE_DVBT_300:
+        case SAA7134_BOARD_VIDEOMATE_DVBT_200:
 		ir_codes     = videomate_tv_pvr_codes;
 		mask_keycode = 0x003F00;
 		mask_keyup   = 0x040000;
