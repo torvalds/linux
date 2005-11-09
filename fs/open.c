@@ -563,7 +563,7 @@ asmlinkage long sys_fchdir(unsigned int fd)
 	if (!S_ISDIR(inode->i_mode))
 		goto out_putf;
 
-	error = permission(inode, MAY_EXEC, NULL);
+	error = file_permission(file, MAY_EXEC);
 	if (!error)
 		set_fs_pwd(current->fs, mnt, dentry);
 out_putf:

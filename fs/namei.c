@@ -271,6 +271,23 @@ int vfs_permission(struct nameidata *nd, int mask)
 	return permission(nd->dentry->d_inode, mask, nd);
 }
 
+/**
+ * file_permission  -  check for additional access rights to a given file
+ * @file:	file to check access rights for
+ * @mask:	right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC)
+ *
+ * Used to check for read/write/execute permissions on an already opened
+ * file.
+ *
+ * Note:
+ *	Do not use this function in new code.  All access checks should
+ *	be done using vfs_permission().
+ */
+int file_permission(struct file *file, int mask)
+{
+	return permission(file->f_dentry->d_inode, mask, NULL);
+}
+
 /*
  * get_write_access() gets write permission for a file.
  * put_write_access() releases this write permission.
@@ -2551,6 +2568,7 @@ EXPORT_SYMBOL(path_release);
 EXPORT_SYMBOL(path_walk);
 EXPORT_SYMBOL(permission);
 EXPORT_SYMBOL(vfs_permission);
+EXPORT_SYMBOL(file_permission);
 EXPORT_SYMBOL(unlock_rename);
 EXPORT_SYMBOL(vfs_create);
 EXPORT_SYMBOL(vfs_follow_link);

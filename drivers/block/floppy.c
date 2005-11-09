@@ -3776,8 +3776,7 @@ static int floppy_open(struct inode *inode, struct file *filp)
 	/* Allow ioctls if we have write-permissions even if read-only open.
 	 * Needed so that programs such as fdrawcmd still can work on write
 	 * protected disks */
-	if (filp->f_mode & 2
-	    || permission(filp->f_dentry->d_inode, 2, NULL) == 0)
+	if ((filp->f_mode & FMODE_WRITE) || !file_permission(filp, MAY_WRITE))
 		filp->private_data = (void *)8;
 
 	if (UFDCS->rawcmd == 1)

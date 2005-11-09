@@ -890,6 +890,11 @@ extern int vfs_rename(struct inode *, struct dentry *, struct inode *, struct de
 extern void dentry_unhash(struct dentry *dentry);
 
 /*
+ * VFS file helper functions.
+ */
+extern int file_permission(struct file *, int);
+
+/*
  * File types
  *
  * NOTE! These match bits 12..15 of stat.st_mode
