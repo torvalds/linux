@@ -43,100 +43,100 @@
 #include <media/ir-common.h>
 
 static IR_KEYTAB_TYPE ir_codes_em2820[IR_KEYTAB_SIZE] = {
-	[  0 ] = KEY_CHANNEL,
-	[  1 ] = KEY_SELECT,
-	[  2 ] = KEY_MUTE,
-	[  3 ] = KEY_POWER,
-	[  4 ] = KEY_KP1,
-	[  5 ] = KEY_KP2,
-	[  6 ] = KEY_KP3,
-	[  7 ] = KEY_CHANNELUP,
-	[  8 ] = KEY_KP4,
-	[  9 ] = KEY_KP5,
-	[ 10 ] = KEY_KP6,
+	[ 0x00 ] = KEY_CHANNEL,
+	[ 0x01 ] = KEY_SELECT,
+	[ 0x02 ] = KEY_MUTE,
+	[ 0x03 ] = KEY_POWER,
+	[ 0x04 ] = KEY_KP1,
+	[ 0x05 ] = KEY_KP2,
+	[ 0x06 ] = KEY_KP3,
+	[ 0x07 ] = KEY_CHANNELUP,
+	[ 0x08 ] = KEY_KP4,
+	[ 0x09 ] = KEY_KP5,
+	[ 0x0a ] = KEY_KP6,
 
-	[ 11 ] = KEY_CHANNELDOWN,
-	[ 12 ] = KEY_KP7,
-	[ 13 ] = KEY_KP8,
-	[ 14 ] = KEY_KP9,
-	[ 15 ] = KEY_VOLUMEUP,
-	[ 16 ] = KEY_KP0,
-	[ 17 ] = KEY_MENU,
-	[ 18 ] = KEY_PRINT,
+	[ 0x0b ] = KEY_CHANNELDOWN,
+	[ 0x0c ] = KEY_KP7,
+	[ 0x0d ] = KEY_KP8,
+	[ 0x0e ] = KEY_KP9,
+	[ 0x0f ] = KEY_VOLUMEUP,
+	[ 0x10 ] = KEY_KP0,
+	[ 0x11 ] = KEY_MENU,
+	[ 0x12 ] = KEY_PRINT,
 
-	[ 19 ] = KEY_VOLUMEDOWN,
-	[ 21 ] = KEY_PAUSE,
-	[ 23 ] = KEY_RECORD,
-	[ 24 ] = KEY_REWIND,
-	[ 25 ] = KEY_PLAY,
-	[ 27 ] = KEY_BACKSPACE,
-	[ 29 ] = KEY_STOP,
-	[ 31 ] = KEY_ZOOM,
+	[ 0x13 ] = KEY_VOLUMEDOWN,
+	[ 0x15 ] = KEY_PAUSE,
+	[ 0x17 ] = KEY_RECORD,
+	[ 0x18 ] = KEY_REWIND,
+	[ 0x19 ] = KEY_PLAY,
+	[ 0x1b ] = KEY_BACKSPACE,
+	[ 0x1d ] = KEY_STOP,
+	[ 0x40 ] = KEY_ZOOM,
 };
 
 /* Mark Phalan <phalanm@o2.ie> */
 static IR_KEYTAB_TYPE ir_codes_pv951[IR_KEYTAB_SIZE] = {
-	[  0 ] = KEY_KP0,
-	[  1 ] = KEY_KP1,
-	[  2 ] = KEY_KP2,
-	[  3 ] = KEY_KP3,
-	[  4 ] = KEY_KP4,
-	[  5 ] = KEY_KP5,
-	[  6 ] = KEY_KP6,
-	[  7 ] = KEY_KP7,
-	[  8 ] = KEY_KP8,
-	[  9 ] = KEY_KP9,
+	[ 0x00 ] = KEY_KP0,
+	[ 0x01 ] = KEY_KP1,
+	[ 0x02 ] = KEY_KP2,
+	[ 0x03 ] = KEY_KP3,
+	[ 0x04 ] = KEY_KP4,
+	[ 0x05 ] = KEY_KP5,
+	[ 0x06 ] = KEY_KP6,
+	[ 0x07 ] = KEY_KP7,
+	[ 0x08 ] = KEY_KP8,
+	[ 0x09 ] = KEY_KP9,
 
-	[ 18 ] = KEY_POWER,
-	[ 16 ] = KEY_MUTE,
-	[ 31 ] = KEY_VOLUMEDOWN,
-	[ 27 ] = KEY_VOLUMEUP,
-	[ 26 ] = KEY_CHANNELUP,
-	[ 30 ] = KEY_CHANNELDOWN,
-	[ 14 ] = KEY_PAGEUP,
-	[ 29 ] = KEY_PAGEDOWN,
-	[ 19 ] = KEY_SOUND,
+	[ 0x12 ] = KEY_POWER,
+	[ 0x10 ] = KEY_MUTE,
+	[ 0x1f ] = KEY_VOLUMEDOWN,
+	[ 0x1b ] = KEY_VOLUMEUP,
+	[ 0x1a ] = KEY_CHANNELUP,
+	[ 0x1e ] = KEY_CHANNELDOWN,
+	[ 0x0e ] = KEY_PAGEUP,
+	[ 0x1d ] = KEY_PAGEDOWN,
+	[ 0x13 ] = KEY_SOUND,
 
-	[ 24 ] = KEY_KPPLUSMINUS,	/* CH +/- */
-	[ 22 ] = KEY_SUBTITLE,		/* CC */
-	[ 13 ] = KEY_TEXT,		/* TTX */
-	[ 11 ] = KEY_TV,		/* AIR/CBL */
-	[ 17 ] = KEY_PC,		/* PC/TV */
-	[ 23 ] = KEY_OK,		/* CH RTN */
-	[ 25 ] = KEY_MODE, 		/* FUNC */
-	[ 12 ] = KEY_SEARCH, 		/* AUTOSCAN */
+	[ 0x18 ] = KEY_KPPLUSMINUS,	/* CH +/- */
+	[ 0x16 ] = KEY_SUBTITLE,		/* CC */
+	[ 0x0d ] = KEY_TEXT,		/* TTX */
+	[ 0x0b ] = KEY_TV,		/* AIR/CBL */
+	[ 0x11 ] = KEY_PC,		/* PC/TV */
+	[ 0x17 ] = KEY_OK,		/* CH RTN */
+	[ 0x19 ] = KEY_MODE, 		/* FUNC */
+	[ 0x0c ] = KEY_SEARCH, 		/* AUTOSCAN */
 
 	/* Not sure what to do with these ones! */
-	[ 15 ] = KEY_SELECT, 		/* SOURCE */
-	[ 10 ] = KEY_KPPLUS,		/* +100 */
-	[ 20 ] = KEY_KPEQUAL,		/* SYNC */
-	[ 28 ] = KEY_MEDIA,             /* PC/TV */
+	[ 0x0f ] = KEY_SELECT, 		/* SOURCE */
+	[ 0x0a ] = KEY_KPPLUS,		/* +100 */
+	[ 0x14 ] = KEY_KPEQUAL,		/* SYNC */
+	[ 0x1c ] = KEY_MEDIA,             /* PC/TV */
 };
 
 static IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE] = {
-	[ 0x3  ] = KEY_POWER,
+	[ 0x03 ] = KEY_POWER,
 	[ 0x6f ] = KEY_MUTE,
 	[ 0x10 ] = KEY_BACKSPACE,	/* Recall */
 
 	[ 0x11 ] = KEY_KP0,
-	[ 0x4  ] = KEY_KP1,
-	[ 0x5  ] = KEY_KP2,
-	[ 0x6  ] = KEY_KP3,
-	[ 0x8  ] = KEY_KP4,
-	[ 0x9  ] = KEY_KP5,
-	[ 0xa  ] = KEY_KP6,
-	[ 0xc  ] = KEY_KP7,
-	[ 0xd  ] = KEY_KP8,
-	[ 0xe  ] = KEY_KP9,
+	[ 0x04 ] = KEY_KP1,
+	[ 0x05 ] = KEY_KP2,
+	[ 0x06 ] = KEY_KP3,
+	[ 0x08 ] = KEY_KP4,
+	[ 0x09 ] = KEY_KP5,
+	[ 0x0a ] = KEY_KP6,
+	[ 0x0c ] = KEY_KP7,
+	[ 0x0d ] = KEY_KP8,
+	[ 0x0e ] = KEY_KP9,
 	[ 0x12 ] = KEY_KPDOT,		/* 100+ */
 
-	[ 0x7  ] = KEY_VOLUMEUP,
-	[ 0xb  ] = KEY_VOLUMEDOWN,
+	[ 0x07 ] = KEY_VOLUMEUP,
+	[ 0x0b ] = KEY_VOLUMEDOWN,
 	[ 0x1a ] = KEY_KPPLUS,
 	[ 0x18 ] = KEY_KPMINUS,
 	[ 0x15 ] = KEY_UP,
 	[ 0x1d ] = KEY_DOWN,
-	[ 0xf  ] = KEY_CHANNELUP,
+	[ 0x0f ] = KEY_CHANNELUP,
 	[ 0x13 ] = KEY_CHANNELDOWN,
 	[ 0x48 ] = KEY_ZOOM,
 
@@ -173,6 +173,9 @@ module_param(debug, int, 0644);    /* debug level (0,1,2) */
 #define DEVNAME "ir-kbd-i2c"
 #define dprintk(level, fmt, arg...)	if (debug >= level) \
 	printk(KERN_DEBUG DEVNAME ": " fmt , ## arg)
+
+#define IR_PINNACLE_REMOTE 0x01
+#define IR_TERRATEC_REMOTE 0x02
 
 /* ----------------------------------------------------------------------- */
 
@@ -287,6 +290,7 @@ static int get_key_purpletv(struct IR *ir, u32 *ir_key, u32 *ir_raw)
 	*ir_raw = b;
 	return 1;
 }
+
 /* ----------------------------------------------------------------------- */
 
 static void ir_key_poll(struct IR *ir)
@@ -386,24 +390,36 @@ static int ir_attach(struct i2c_adapter *adap, int addr,
 		ir_type     = IR_TYPE_RC5;
 		ir_codes    = ir_codes_rc5_tv;
 		break;
-	case 0x60:
-		name        = "em2820";
-		ir->get_key = get_key_knc1;
-		ir->c.addr  = addr>>1;
-		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = ir_codes_em2820;
-		break;
 	case 0x30:
-		name        = "KNC One";
-		ir->get_key = get_key_knc1;
-		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = ir_codes_empty;
+		switch(kind){
+		case IR_TERRATEC_REMOTE:
+			name        = "Terratec IR";
+			ir->get_key = get_key_knc1;
+			ir_type     = IR_TYPE_OTHER;
+			ir_codes    = ir_codes_em2820;
+			break;
+		default:
+			name        = "KNC One";
+			ir->get_key = get_key_knc1;
+			ir_type     = IR_TYPE_OTHER;
+			ir_codes    = ir_codes_em2820;
+		}
 		break;
+	case 0x47:
 	case 0x7a:
-		name        = "Purple TV";
-		ir->get_key = get_key_purpletv;
-		ir_type     = IR_TYPE_OTHER;
-		ir_codes    = ir_codes_purpletv;
+		switch(kind){
+		case IR_PINNACLE_REMOTE:
+			name        = "Pinnacle IR Remote";
+			ir->get_key = get_key_purpletv;
+			ir_type     = IR_TYPE_OTHER;
+			ir_codes    = ir_codes_em2820;
+			break;
+		default:
+			name        = "Purple TV";
+			ir->get_key = get_key_purpletv;
+			ir_type     = IR_TYPE_OTHER;
+			ir_codes    = ir_codes_empty;
+		}
 		break;
 	default:
 		/* shouldn't happen */
@@ -468,9 +484,11 @@ static int ir_probe(struct i2c_adapter *adap)
 
 	static const int probe_bttv[] = { 0x1a, 0x18, 0x4b, 0x64, 0x30, -1};
 	static const int probe_saa7134[] = { 0x7a, -1 };
-	static const int probe_em2820[] = { 0x60, -1 };
+	static const int probe_em2820[] = { 0x47, 0x30, -1 };
 	const int *probe = NULL;
-	struct i2c_client c; char buf; int i,rc;
+	int attached = 0;
+
+	struct i2c_client c; unsigned char buf; int i,rc;
 
 	switch (adap->id) {
 	case I2C_HW_B_BT848:
@@ -488,15 +506,27 @@ static int ir_probe(struct i2c_adapter *adap)
 
 	memset(&c,0,sizeof(c));
 	c.adapter = adap;
-	for (i = 0; -1 != probe[i]; i++) {
+	for (i = 0; -1 != probe[i] && attached != 1; i++) {
 		c.addr = probe[i];
 		rc = i2c_master_recv(&c,&buf,1);
 		dprintk(1,"probe 0x%02x @ %s: %s\n",
 			probe[i], adap->name,
 			(1 == rc) ? "yes" : "no");
-		if (1 == rc) {
-			ir_attach(adap,probe[i],0,0);
-			break;
+		switch(adap->id){
+			case I2C_HW_B_BT848:
+			case I2C_HW_SAA7134:
+				if (1 == rc) {
+					ir_attach(adap,probe[i],0,0);
+					attached=1;
+					break;
+				}
+			case I2C_HW_B_EM2820:
+				/* windows logs are needed for fixing the pinnacle device */
+				if (1 == rc && 0xff == buf){
+					ir_attach(adap,probe[i],0,IR_TERRATEC_REMOTE);
+					attached=1;
+				}
+				break;
 		}
 	}
 	return 0;
