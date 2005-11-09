@@ -469,6 +469,7 @@ static inline void dedicated_idle_sleep(unsigned int cpu)
 		 * more.
 		 */
 		clear_thread_flag(TIF_POLLING_NRFLAG);
+		smp_mb__after_clear_bit();
 
 		/*
 		 * SMT dynamic mode. Cede will result in this thread going
@@ -481,6 +482,7 @@ static inline void dedicated_idle_sleep(unsigned int cpu)
 			cede_processor();
 		else
 			local_irq_enable();
+		set_thread_flag(TIF_POLLING_NRFLAG);
 	} else {
 		/*
 		 * Give the HV an opportunity at the processor, since we are
@@ -492,11 +494,11 @@ static inline void dedicated_idle_sleep(unsigned int cpu)
 
 static void pseries_dedicated_idle(void)
 { 
-	long oldval;
 	struct paca_struct *lpaca = get_paca();
 	unsigned int cpu = smp_processor_id();
 	unsigned long start_snooze;
 	unsigned long *smt_snooze_delay = &__get_cpu_var(smt_snooze_delay);
+	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	while (1) {
 		/*
@@ -505,10 +507,7 @@ static void pseries_dedicated_idle(void)
 		 */
 		lpaca->lppaca.idle = 1;
 
-		oldval = test_and_clear_thread_flag(TIF_NEED_RESCHED);
-		if (!oldval) {
-			set_thread_flag(TIF_POLLING_NRFLAG);
-
+		if (!need_resched()) {
 			start_snooze = __get_tb() +
 				*smt_snooze_delay * tb_ticks_per_usec;
 
@@ -531,9 +530,6 @@ static void pseries_dedicated_idle(void)
 			}
 
 			HMT_medium();
-			clear_thread_flag(TIF_POLLING_NRFLAG);
-		} else {
-			set_need_resched();
 		}
 
 		lpaca->lppaca.idle = 0;

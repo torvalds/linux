@@ -86,12 +86,16 @@ EXPORT_SYMBOL(pm_power_off);
  */
 void default_idle(void)
 {
-	local_irq_disable();
-	if (!need_resched() && !hlt_counter) {
-		timer_dyn_reprogram();
-		arch_idle();
+	if (hlt_counter)
+		cpu_relax();
+	else {
+		local_irq_disable();
+		if (!need_resched()) {
+			timer_dyn_reprogram();
+			arch_idle();
+		}
+		local_irq_enable();
 	}
-	local_irq_enable();
 }
 
 /*

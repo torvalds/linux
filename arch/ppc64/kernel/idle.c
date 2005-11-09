@@ -34,15 +34,11 @@ extern void power4_idle(void);
 
 void default_idle(void)
 {
-	long oldval;
 	unsigned int cpu = smp_processor_id();
+	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	while (1) {
-		oldval = test_and_clear_thread_flag(TIF_NEED_RESCHED);
-
-		if (!oldval) {
-			set_thread_flag(TIF_POLLING_NRFLAG);
-
+		if (!need_resched()) {
 			while (!need_resched() && !cpu_is_offline(cpu)) {
 				ppc64_runlatch_off();
 
@@ -55,9 +51,6 @@ void default_idle(void)
 			}
 
 			HMT_medium();
-			clear_thread_flag(TIF_POLLING_NRFLAG);
-		} else {
-			set_need_resched();
 		}
 
 		ppc64_runlatch_on();

@@ -88,6 +88,8 @@ void default_idle(void)
  */
 void cpu_idle(void)
 {
+	set_thread_flag(TIF_POLLING_NRFLAG);
+
 	/* endless idle loop with no priority at all */
 	while (1) {
 		while (!need_resched())

@@ -63,18 +63,18 @@ void cpu_idle(void)
 	int cpu = smp_processor_id();
 
 	for (;;) {
-		if (ppc_md.idle != NULL)
-			ppc_md.idle();
-		else
-			default_idle();
-		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
-			cpu_die();
-		if (need_resched()) {
-			preempt_enable_no_resched();
-			schedule();
-			preempt_disable();
+		while (need_resched()) {
+			if (ppc_md.idle != NULL)
+				ppc_md.idle();
+			else
+				default_idle();
 		}
 
+		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
+			cpu_die();
+		preempt_enable_no_resched();
+		schedule();
+		preempt_disable();
 	}
 }
 

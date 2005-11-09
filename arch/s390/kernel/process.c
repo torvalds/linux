@@ -99,14 +99,15 @@ void default_idle(void)
 {
 	int cpu, rc;
 
-	local_irq_disable();
-        if (need_resched()) {
-		local_irq_enable();
-                return;
-        }
-
 	/* CPU is going idle. */
 	cpu = smp_processor_id();
+
+	local_irq_disable();
+	if (need_resched()) {
+		local_irq_enable();
+		return;
+	}
+
 	rc = notifier_call_chain(&idle_chain, CPU_IDLE, (void *)(long) cpu);
 	if (rc != NOTIFY_OK && rc != NOTIFY_DONE)
 		BUG();
@@ -119,7 +120,7 @@ void default_idle(void)
 	__ctl_set_bit(8, 15);
 
 #ifdef CONFIG_HOTPLUG_CPU
-	if (cpu_is_offline(smp_processor_id()))
+	if (cpu_is_offline(cpu))
 		cpu_die();
 #endif
 
