@@ -66,8 +66,10 @@
  *     and major_version/minor_version accordingly
  * >=2 means that Internal bitmaps are supported by setting MD_SB_BITMAP_PRESENT
  *     in the super status byte
+ * >=3 means that bitmap superblock version 4 is supported, which uses
+ *     little-ending representation rather than host-endian
  */
-#define MD_PATCHLEVEL_VERSION           2
+#define MD_PATCHLEVEL_VERSION           3
 
 extern int register_md_personality (int p_num, mdk_personality_t *p);
 extern int unregister_md_personality (int p_num);

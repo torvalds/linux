@@ -482,7 +482,8 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 	/* verify that the bitmap-specific fields are valid */
 	if (sb->magic != cpu_to_le32(BITMAP_MAGIC))
 		reason = "bad magic";
-	else if (sb->version != cpu_to_le32(BITMAP_MAJOR))
+	else if (le32_to_cpu(sb->version) < BITMAP_MAJOR_LO ||
+		 le32_to_cpu(sb->version) > BITMAP_MAJOR_HI)
 		reason = "unrecognized superblock version";
 	else if (chunksize < 512 || chunksize > (1024 * 1024 * 4))
 		reason = "bitmap chunksize out of range (512B - 4MB)";
@@ -527,6 +528,8 @@ success:
 	bitmap->daemon_lastrun = jiffies;
 	bitmap->max_write_behind = write_behind;
 	bitmap->flags |= sb->state;
+	if (le32_to_cpu(sb->version) == BITMAP_MAJOR_HOSTENDIAN)
+		bitmap->flags |= BITMAP_HOSTENDIAN;
 	bitmap->events_cleared = le64_to_cpu(sb->events_cleared);
 	if (sb->state & BITMAP_STALE)
 		bitmap->events_cleared = bitmap->mddev->events;
@@ -764,7 +767,10 @@ static void bitmap_file_set_bit(struct bitmap *bitmap, sector_t block)
 
  	/* set the bit */
 	kaddr = kmap_atomic(page, KM_USER0);
-	set_bit(bit, kaddr);
+	if (bitmap->flags & BITMAP_HOSTENDIAN)
+		set_bit(bit, kaddr);
+	else
+		ext2_set_bit(bit, kaddr);
 	kunmap_atomic(kaddr, KM_USER0);
 	PRINTK("set file bit %lu page %lu\n", bit, page->index);
 
@@ -891,6 +897,7 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 	oldindex = ~0L;
 
 	for (i = 0; i < chunks; i++) {
+		int b;
 		index = file_page_index(i);
 		bit = file_page_offset(i);
 		if (index != oldindex) { /* this is a new page, read it in */
@@ -939,7 +946,11 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 
 			bitmap->filemap[bitmap->file_pages++] = page;
 		}
-		if (test_bit(bit, page_address(page))) {
+		if (bitmap->flags & BITMAP_HOSTENDIAN)
+			b = test_bit(bit, page_address(page));
+		else
+			b = ext2_test_bit(bit, page_address(page));
+		if (b) {
 			/* if the disk bit is set, set the memory bit */
 			bitmap_set_memory_bits(bitmap, i << CHUNK_BLOCK_SHIFT(bitmap),
 					       ((i+1) << (CHUNK_BLOCK_SHIFT(bitmap)) >= start)
@@ -1097,7 +1108,10 @@ int bitmap_daemon_work(struct bitmap *bitmap)
 						  -1);
 
 				/* clear the bit */
-				clear_bit(file_page_offset(j), page_address(page));
+				if (bitmap->flags & BITMAP_HOSTENDIAN)
+					clear_bit(file_page_offset(j), page_address(page));
+				else
+					ext2_clear_bit(file_page_offset(j), page_address(page));
 			}
 		}
 		spin_unlock_irqrestore(&bitmap->lock, flags);

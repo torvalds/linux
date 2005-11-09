@@ -4281,7 +4281,7 @@ static int __init md_init(void)
 			" MD_SB_DISKS=%d\n",
 			MD_MAJOR_VERSION, MD_MINOR_VERSION,
 			MD_PATCHLEVEL_VERSION, MAX_MD_DEVS, MD_SB_DISKS);
-	printk(KERN_INFO "md: bitmap version %d.%d\n", BITMAP_MAJOR,
+	printk(KERN_INFO "md: bitmap version %d.%d\n", BITMAP_MAJOR_HI,
 			BITMAP_MINOR);
 
 	if (register_blkdev(MAJOR_NR, "md"))
