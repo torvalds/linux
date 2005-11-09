@@ -617,8 +617,8 @@ static int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 
 	for (start = 0; start<4; start++) {
 		if (b[start] == 0x80) {
-		        code=b[(start+3)%4];
-		        parity=b[(start+2)%4];
+			code=b[(start+3)%4];
+			parity=b[(start+2)%4];
 		}
 	}
 

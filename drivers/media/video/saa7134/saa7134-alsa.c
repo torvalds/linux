@@ -512,7 +512,7 @@ static void snd_card_saa7134_runtime_free(snd_pcm_runtime_t *runtime)
  *
  *   Called on initialization, right before the PCM preparation
  *   Usually used in ALSA to allocate the DMA, but since we don't use the
- *  ALSA DMA I'm almost sure this isn't necessary.
+ *  ALSA DMA it does nothing
  *
  */
 
@@ -520,7 +520,7 @@ static int snd_card_saa7134_hw_params(snd_pcm_substream_t * substream,
 				    snd_pcm_hw_params_t * hw_params)
 {
 
-	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(hw_params));
+	return 0;
 
 
 }
@@ -538,7 +538,7 @@ static int snd_card_saa7134_hw_params(snd_pcm_substream_t * substream,
 
 static int snd_card_saa7134_hw_free(snd_pcm_substream_t * substream)
 {
-	return snd_pcm_lib_free_pages(substream);
+	return 0;
 }
 
 /*
@@ -670,9 +670,6 @@ static int snd_card_saa7134_pcm(snd_card_saa7134_t *saa7134, int device)
 	pcm->private_data = saa7134;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "SAA7134 PCM");
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
-					      snd_dma_pci_data(saa7134->pci),
-					      128*1024, 256*1024);
 	return 0;
 }
 
