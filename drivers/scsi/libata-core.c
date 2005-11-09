@@ -1145,7 +1145,7 @@ retry:
 		 * ATA software reset (SRST, the default) does not appear
 		 * to have this problem.
 		 */
-		if ((using_edd) && (qc->tf.command == ATA_CMD_ID_ATA)) {
+		if ((using_edd) && (dev->class == ATA_DEV_ATA)) {
 			u8 err = qc->tf.feature;
 			if (err & ATA_ABORTED) {
 				dev->class = ATA_DEV_ATAPI;
@@ -2756,7 +2756,6 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 	u8 status;
 	unsigned int poll_state = HSM_ST_UNKNOWN;
 	unsigned int reg_state = HSM_ST_UNKNOWN;
-	const unsigned int tmout_state = HSM_ST_TMOUT;
 
 	switch (ap->hsm_task_state) {
 	case HSM_ST:
@@ -2777,7 +2776,7 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 	status = ata_chk_status(ap);
 	if (status & ATA_BUSY) {
 		if (time_after(jiffies, ap->pio_task_timeout)) {
-			ap->hsm_task_state = tmout_state;
+			ap->hsm_task_state = HSM_ST_TMOUT;
 			return 0;
 		}
 		ap->hsm_task_state = poll_state;
