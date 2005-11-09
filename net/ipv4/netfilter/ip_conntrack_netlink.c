@@ -175,7 +175,7 @@ ctnetlink_dump_counters(struct sk_buff *skb, const struct ip_conntrack *ct,
 {
 	enum ctattr_type type = dir ? CTA_COUNTERS_REPLY: CTA_COUNTERS_ORIG;
 	struct nfattr *nest_count = NFA_NEST(skb, type);
-	u_int64_t tmp;
+	u_int32_t tmp;
 
 	tmp = htonl(ct->counters[dir].packets);
 	NFA_PUT(skb, CTA_COUNTERS32_PACKETS, sizeof(u_int32_t), &tmp);
