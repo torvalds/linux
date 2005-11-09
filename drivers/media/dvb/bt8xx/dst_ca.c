@@ -69,26 +69,12 @@ static int ca_set_pid(void)
 }
 
 
-static int put_checksum(u8 *check_string, int length)
+static void put_checksum(u8 *check_string, int length)
 {
-	u8 i = 0, checksum = 0;
-
-	dprintk(verbose, DST_CA_DEBUG, 1, " ========================= Checksum calculation ===========================");
-	dprintk(verbose, DST_CA_DEBUG, 1, " String Length=[0x%02x]", length);
-	dprintk(verbose, DST_CA_DEBUG, 1, " String=[");
-
-	while (i < length) {
-		dprintk(verbose, DST_CA_DEBUG, 0, " %02x", check_string[i]);
-		checksum += check_string[i];
-		i++;
-	}
-	dprintk(verbose, DST_CA_DEBUG, 0, " ]\n");
-	dprintk(verbose, DST_CA_DEBUG, 1, "Sum=[%02x]\n", checksum);
-	check_string[length] = ~checksum + 1;
-	dprintk(verbose, DST_CA_DEBUG, 1, " Checksum=[%02x]", check_string[length]);
-	dprintk(verbose, DST_CA_DEBUG, 1, " ==========================================================================");
-
-	return 0;
+	dprintk(verbose, DST_CA_DEBUG, 1, " Computing string checksum.");
+	dprintk(verbose, DST_CA_DEBUG, 1, "  -> string length : 0x%02x", length);
+	check_string[length] = dst_check_sum (check_string, length);
+	dprintk(verbose, DST_CA_DEBUG, 1, "  -> checksum      : 0x%02x", check_string[length]);
 }
 
 static int dst_ci_command(struct dst_state* state, u8 * data, u8 *ca_string, u8 len, int read)
