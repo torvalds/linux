@@ -1975,7 +1975,7 @@ memory = conf->max_nr_stripes * (sizeof(struct stripe_head) +
 	}
 
 	/* Ok, everything is just fine now */
-	conf->kobj.parent = kobject_get(&mddev->kobj);
+	conf->kobj.parent = &mddev->kobj;
 	strcpy(conf->kobj.name, "raid5");
 	conf->kobj.ktype = &raid5_ktype;
 	kobject_register(&conf->kobj);

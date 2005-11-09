@@ -805,7 +805,11 @@ static void super_90_sync(mddev_t *mddev, mdk_rdev_t *rdev)
 			if (fixdesc & (1<<rdev2->desc_nr)) {
 				snprintf(rdev2->kobj.name, KOBJ_NAME_LEN, "dev%d",
 					 rdev2->desc_nr);
+				/* kobject_add gets a ref on the parent, so
+				 * we have to drop the one we already have
+				 */
 				kobject_add(&rdev2->kobj);
+				kobject_put(rdev->kobj.parent);
 				sysfs_create_link(&rdev2->kobj,
 						  &rdev2->bdev->bd_disk->kobj,
 						  "block");
@@ -1178,7 +1182,7 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 
 	rdev->kobj.k_name = NULL;
 	snprintf(rdev->kobj.name, KOBJ_NAME_LEN, "dev%d", rdev->desc_nr);
-	rdev->kobj.parent = kobject_get(&mddev->kobj);
+	rdev->kobj.parent = &mddev->kobj;
 	kobject_add(&rdev->kobj);
 
 	sysfs_create_link(&rdev->kobj, &rdev->bdev->bd_disk->kobj, "block");
@@ -1864,7 +1868,7 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	add_disk(disk);
 	mddev->gendisk = disk;
 	up(&disks_sem);
-	mddev->kobj.parent = kobject_get(&disk->kobj);
+	mddev->kobj.parent = &disk->kobj;
 	mddev->kobj.k_name = NULL;
 	snprintf(mddev->kobj.name, KOBJ_NAME_LEN, "%s", "md");
 	mddev->kobj.ktype = &md_ktype;
