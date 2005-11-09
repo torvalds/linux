@@ -254,8 +254,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	aiparam.adaption_ind = htonl(sp->adaption_ind);
 	sctp_addto_chunk(retval, sizeof(aiparam), &aiparam);
 nodata:
-	if (addrs.v)
-		kfree(addrs.v);
+	kfree(addrs.v);
 	return retval;
 }
 
@@ -347,8 +346,7 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 nomem_chunk:
 	kfree(cookie);
 nomem_cookie:
-	if (addrs.v)
-		kfree(addrs.v);
+	kfree(addrs.v);
 	return retval;
 }
 

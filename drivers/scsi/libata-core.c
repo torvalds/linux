@@ -51,8 +51,8 @@
 #include <linux/jiffies.h>
 #include <linux/scatterlist.h>
 #include <scsi/scsi.h>
-#include "scsi.h"
 #include "scsi_priv.h"
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 #include <asm/io.h>
@@ -1144,7 +1144,7 @@ retry:
 		 * ATA software reset (SRST, the default) does not appear
 		 * to have this problem.
 		 */
-		if ((using_edd) && (qc->tf.command == ATA_CMD_ID_ATA)) {
+		if ((using_edd) && (dev->class == ATA_DEV_ATA)) {
 			u8 err = qc->tf.feature;
 			if (err & ATA_ABORTED) {
 				dev->class = ATA_DEV_ATAPI;
@@ -2713,7 +2713,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 /**
  *	ata_poll_qc_complete - turn irq back on and finish qc
  *	@qc: Command to complete
- *	@drv_stat: ATA status register content
+ *	@err_mask: ATA status register content
  *
  *	LOCKING:
  *	None.  (grabs host lock)
@@ -2747,7 +2747,6 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 	u8 status;
 	unsigned int poll_state = HSM_ST_UNKNOWN;
 	unsigned int reg_state = HSM_ST_UNKNOWN;
-	const unsigned int tmout_state = HSM_ST_TMOUT;
 
 	switch (ap->hsm_task_state) {
 	case HSM_ST:
@@ -2768,7 +2767,7 @@ static unsigned long ata_pio_poll(struct ata_port *ap)
 	status = ata_chk_status(ap);
 	if (status & ATA_BUSY) {
 		if (time_after(jiffies, ap->pio_task_timeout)) {
-			ap->hsm_task_state = tmout_state;
+			ap->hsm_task_state = HSM_ST_TMOUT;
 			return 0;
 		}
 		ap->hsm_task_state = poll_state;
@@ -3478,7 +3477,7 @@ void ata_qc_free(struct ata_queued_cmd *qc)
 /**
  *	ata_qc_complete - Complete an active ATA command
  *	@qc: Command to complete
- *	@drv_stat: ATA Status register contents
+ *	@err_mask: ATA Status register contents
  *
  *	Indicate to the mid and upper layers that an ATA
  *	command has completed, with either an ok or not-ok status.

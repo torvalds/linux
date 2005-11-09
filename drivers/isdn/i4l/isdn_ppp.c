@@ -364,10 +364,8 @@ isdn_ppp_release(int min, struct file *file)
 		isdn_net_hangup(&p->dev);
 	}
 	for (i = 0; i < NUM_RCV_BUFFS; i++) {
-		if (is->rq[i].buf) {
-			kfree(is->rq[i].buf);
-			is->rq[i].buf = NULL;
-		}
+		kfree(is->rq[i].buf);
+		is->rq[i].buf = NULL;
 	}
 	is->first = is->rq + NUM_RCV_BUFFS - 1;	/* receive queue */
 	is->last = is->rq;
@@ -378,14 +376,10 @@ isdn_ppp_release(int min, struct file *file)
 	is->slcomp = NULL;
 #endif
 #ifdef CONFIG_IPPP_FILTER
-	if (is->pass_filter) {
-		kfree(is->pass_filter);
-		is->pass_filter = NULL;
-	}
-	if (is->active_filter) {
-		kfree(is->active_filter);
-		is->active_filter = NULL;
-	}
+	kfree(is->pass_filter);
+	is->pass_filter = NULL;
+	kfree(is->active_filter);
+	is->active_filter = NULL;
 #endif
 
 /* TODO: if this was the previous master: link the stuff to the new master */
@@ -914,8 +908,7 @@ isdn_ppp_cleanup(void)
 		kfree(ippp_table[i]);
 
 #ifdef CONFIG_ISDN_MPP
-	if (isdn_ppp_bundle_arr)
-		kfree(isdn_ppp_bundle_arr);
+	kfree(isdn_ppp_bundle_arr);
 #endif /* CONFIG_ISDN_MPP */
 
 }

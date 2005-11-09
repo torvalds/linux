@@ -266,6 +266,12 @@ struct fuse_conn {
 	/** Is removexattr not implemented by fs? */
 	unsigned no_removexattr : 1;
 
+	/** Is access not implemented by fs? */
+	unsigned no_access : 1;
+
+	/** Is create not implemented by fs? */
+	unsigned no_create : 1;
+
 	/** Backing dev info */
 	struct backing_dev_info bdi;
 };
@@ -336,6 +342,17 @@ size_t fuse_send_read_common(struct fuse_req *req, struct file *file,
  * Send OPEN or OPENDIR request
  */
 int fuse_open_common(struct inode *inode, struct file *file, int isdir);
+
+struct fuse_file *fuse_file_alloc(void);
+void fuse_file_free(struct fuse_file *ff);
+void fuse_finish_open(struct inode *inode, struct file *file,
+		      struct fuse_file *ff, struct fuse_open_out *outarg);
+
+/**
+ * Send a RELEASE request
+ */
+void fuse_send_release(struct fuse_conn *fc, struct fuse_file *ff,
+		       u64 nodeid, struct inode *inode, int flags, int isdir);
 
 /**
  * Send RELEASE or RELEASEDIR request

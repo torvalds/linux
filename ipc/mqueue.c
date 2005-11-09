@@ -2,7 +2,7 @@
  * POSIX message queues filesystem for Linux.
  *
  * Copyright (C) 2003,2004  Krzysztof Benedyczak    (golbi@mat.uni.torun.pl)
- *                          Michal Wronski          (wrona@mat.uni.torun.pl)
+ *                          Michal Wronski          (Michal.Wronski@motorola.com)
  *
  * Spinlocks:               Mohamed Abbas           (abbas.mohamed@intel.com)
  * Lockless receive & send, fd based notify:

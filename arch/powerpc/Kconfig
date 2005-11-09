@@ -404,6 +404,14 @@ config CPU_FREQ_PMAC
 	  this currently includes some models of iBook & Titanium
 	  PowerBook.
 
+config CPU_FREQ_PMAC64
+	bool "Support for some Apple G5s"
+	depends on CPU_FREQ && PMAC_SMU && PPC64
+	select CPU_FREQ_TABLE
+	help
+	  This adds support for frequency switching on Apple iMac G5,
+	  and some of the more recent desktop G5 machines as well.
+
 config PPC601_SYNC_FIX
 	bool "Workarounds for PPC601 bugs"
 	depends on 6xx && (PPC_PREP || PPC_PMAC)
@@ -484,6 +492,7 @@ source "fs/Kconfig.binfmt"
 config FORCE_MAX_ZONEORDER
 	int
 	depends on PPC64
+	default "9" if PPC_64K_PAGES
 	default "13"
 
 config MATH_EMULATION
@@ -602,6 +611,16 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 config NODES_SPAN_OTHER_NODES
 	def_bool y
 	depends on NEED_MULTIPLE_NODES
+
+config PPC_64K_PAGES
+	bool "64k page size"
+	depends on PPC64
+	help
+	  This option changes the kernel logical page size to 64k. On machines
+          without processor support for 64k pages, the kernel will simulate
+          them by loading each individual 4k page on demand transparently,
+          while on hardware with such support, it will be used to map
+          normal application pages.
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
@@ -907,7 +926,20 @@ source "arch/powerpc/platforms/iseries/Kconfig"
 
 source "lib/Kconfig"
 
+menu "Instrumentation Support"
+        depends on EXPERIMENTAL
+
 source "arch/powerpc/oprofile/Kconfig"
+
+config KPROBES
+	bool "Kprobes (EXPERIMENTAL)"
+	help
+	  Kprobes allows you to trap at almost any kernel address and
+	  execute a callback function.  register_kprobe() establishes
+	  a probepoint and specifies the callback.  Kprobes is useful
+	  for kernel debugging, non-intrusive instrumentation and testing.
+	  If in doubt, say "N".
+endmenu
 
 source "arch/powerpc/Kconfig.debug"
 

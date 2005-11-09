@@ -27,9 +27,9 @@ information out of a register+stack dump printed by the kernel on
 protection faults (so-called "kernel oops").
 
 If you run into some kind of deadlock, you can try to dump a call trace
-for each process using sysrq-t (see Documentation/sysrq.txt).  ksymoops
-will translate these dumps into kernel symbols too.  This way it is
-possible to figure where *exactly* some process in "D" state is stuck.
+for each process using sysrq-t (see Documentation/sysrq.txt).
+This way it is possible to figure where *exactly* some process in "D"
+state is stuck.
 
 I've seen reports that bttv 0.7.x crashes whereas 0.8.x works rock solid
 for some people.  Thus probably a small buglet left somewhere in bttv

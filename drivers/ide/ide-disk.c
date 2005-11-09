@@ -1215,7 +1215,7 @@ static int ide_disk_probe(struct device *dev)
 	if (drive->media != ide_disk)
 		goto failed;
 
-	idkp = kmalloc(sizeof(*idkp), GFP_KERNEL);
+	idkp = kzalloc(sizeof(*idkp), GFP_KERNEL);
 	if (!idkp)
 		goto failed;
 
@@ -1227,8 +1227,6 @@ static int ide_disk_probe(struct device *dev)
 	ide_init_disk(g, drive);
 
 	ide_register_subdriver(drive, &idedisk_driver);
-
-	memset(idkp, 0, sizeof(*idkp));
 
 	kref_init(&idkp->kref);
 

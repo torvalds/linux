@@ -1,0 +1,38 @@
+#
+# linux/drivers/mtd/onenand/Kconfig
+#
+
+menu "OneNAND Flash Device Drivers"
+	depends on MTD != n
+
+config MTD_ONENAND
+	tristate "OneNAND Device Support"
+	depends on MTD
+	help
+	  This enables support for accessing all type of OneNAND flash
+	  devices. For further information see
+	  <http://www.samsung.com/Products/Semiconductor/Flash/OneNAND_TM/index.htm>.
+
+config MTD_ONENAND_VERIFY_WRITE
+	bool "Verify OneNAND page writes"
+	depends on MTD_ONENAND
+	help
+	  This adds an extra check when data is written to the flash. The
+	  OneNAND flash device internally checks only bits transitioning
+	  from 1 to 0. There is a rare possibility that even though the
+	  device thinks the write was successful, a bit could have been
+	  flipped accidentaly due to device wear or something else.
+
+config MTD_ONENAND_GENERIC
+	tristate "OneNAND Flash device via platform device driver"
+	depends on MTD_ONENAND && ARM
+	help
+	  Support for OneNAND flash via platform device driver.
+
+config MTD_ONENAND_SYNC_READ
+	bool "OneNAND Sync. Burst Read Support"
+	depends on ARCH_OMAP
+	help
+	  This enables support for Sync. Burst Read.
+
+endmenu

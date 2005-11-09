@@ -1017,8 +1017,7 @@ static void twa_free_device_extension(TW_Device_Extension *tw_dev)
 				    tw_dev->generic_buffer_virt[0],
 				    tw_dev->generic_buffer_phys[0]);
 
-	if (tw_dev->event_queue[0])
-		kfree(tw_dev->event_queue[0]);
+	kfree(tw_dev->event_queue[0]);
 } /* End twa_free_device_extension() */
 
 /* This function will free a request id */

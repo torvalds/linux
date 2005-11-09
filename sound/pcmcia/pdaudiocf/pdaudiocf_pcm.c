@@ -50,9 +50,9 @@ static int snd_pcm_alloc_vmalloc_buffer(snd_pcm_substream_t *subs, size_t size)
 	if (runtime->dma_area) {
 		if (runtime->dma_bytes >= size)
 			return 0; /* already enough large */
-		vfree_nocheck(runtime->dma_area);
+		vfree(runtime->dma_area);
 	}
-	runtime->dma_area = vmalloc_nocheck(size);
+	runtime->dma_area = vmalloc_32(size);
 	if (! runtime->dma_area)
 		return -ENOMEM;
 	runtime->dma_bytes = size;
@@ -67,7 +67,7 @@ static int snd_pcm_free_vmalloc_buffer(snd_pcm_substream_t *subs)
 {
 	snd_pcm_runtime_t *runtime = subs->runtime;
 	if (runtime->dma_area) {
-		vfree_nocheck(runtime->dma_area);
+		vfree(runtime->dma_area);
 		runtime->dma_area = NULL;
 	}
 	return 0;

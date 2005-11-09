@@ -281,6 +281,18 @@ static inline int get_color(struct vc_data *vc, struct fb_info *info,
 	return color;
 }
 
+static void fbcon_update_softback(struct vc_data *vc)
+{
+	int l = fbcon_softback_size / vc->vc_size_row;
+
+	if (l > 5)
+		softback_end = softback_buf + l * vc->vc_size_row;
+	else
+		/* Smaller scrollback makes no sense, and 0 would screw
+		   the operation totally */
+		softback_top = 0;
+}
+
 static void fb_flashcursor(void *private)
 {
 	struct fb_info *info = private;
@@ -618,6 +630,15 @@ static int con2fb_release_oldinfo(struct vc_data *vc, struct fb_info *oldinfo,
 		kfree(oldinfo->fbcon_par);
 		oldinfo->fbcon_par = NULL;
 		module_put(oldinfo->fbops->owner);
+		/*
+		  If oldinfo and newinfo are driving the same hardware,
+		  the fb_release() method of oldinfo may attempt to
+		  restore the hardware state.  This will leave the
+		  newinfo in an undefined state. Thus, a call to
+		  fb_set_par() may be needed for the newinfo.
+		*/
+		if (newinfo->fbops->fb_set_par)
+			newinfo->fbops->fb_set_par(newinfo);
 	}
 
 	return err;
@@ -1007,16 +1028,8 @@ static void fbcon_init(struct vc_data *vc, int init)
 	if (logo)
 		fbcon_prepare_logo(vc, info, cols, rows, new_cols, new_rows);
 
-	if (vc == svc && softback_buf) {
-		int l = fbcon_softback_size / vc->vc_size_row;
-		if (l > 5)
-			softback_end = softback_buf + l * vc->vc_size_row;
-		else {
-			/* Smaller scrollback makes no sense, and 0 would screw
-			   the operation totally */
-			softback_top = 0;
-		}
-	}
+	if (vc == svc && softback_buf)
+		fbcon_update_softback(vc);
 }
 
 static void fbcon_deinit(struct vc_data *vc)
@@ -1223,18 +1236,8 @@ static void fbcon_set_disp(struct fb_info *info, struct fb_var_screeninfo *var,
 	vc_resize(vc, cols, rows);
 	if (CON_IS_VISIBLE(vc)) {
 		update_screen(vc);
-		if (softback_buf) {
-			int l = fbcon_softback_size / vc->vc_size_row;
-
-			if (l > 5)
-				softback_end = softback_buf + l *
-					vc->vc_size_row;
-			else {
-				/* Smaller scrollback makes no sense, and 0
-				   would screw the operation totally */
-				softback_top = 0;
-			}
-		}
+		if (softback_buf)
+			fbcon_update_softback(vc);
 	}
 }
 
@@ -1892,24 +1895,11 @@ static int fbcon_resize(struct vc_data *vc, unsigned int width,
 		mode = fb_find_best_mode(&var, &info->modelist);
 		if (mode == NULL)
 			return -EINVAL;
+		display_to_var(&var, p);
 		fb_videomode_to_var(&var, mode);
+
 		if (width > var.xres/fw || height > var.yres/fh)
 			return -EINVAL;
-		/*
-		 * The following can probably have any value... Do we need to
-		 * set all of them?
-		 */
-		var.bits_per_pixel = p->bits_per_pixel;
-		var.xres_virtual = p->xres_virtual;
-		var.yres_virtual = p->yres_virtual;
-		var.accel_flags = p->accel_flags;
-		var.width = p->width;
-		var.height = p->height;
-		var.red = p->red;
-		var.green = p->green;
-		var.blue = p->blue;
-		var.transp = p->transp;
-		var.nonstd = p->nonstd;
 
 		DPRINTK("resize now %ix%i\n", var.xres, var.yres);
 		if (CON_IS_VISIBLE(vc)) {
@@ -1933,19 +1923,11 @@ static int fbcon_switch(struct vc_data *vc)
 	info = registered_fb[con2fb_map[vc->vc_num]];
 
 	if (softback_top) {
-		int l = fbcon_softback_size / vc->vc_size_row;
 		if (softback_lines)
 			fbcon_set_origin(vc);
 		softback_top = softback_curr = softback_in = softback_buf;
 		softback_lines = 0;
-
-		if (l > 5)
-			softback_end = softback_buf + l * vc->vc_size_row;
-		else {
-			/* Smaller scrollback makes no sense, and 0 would screw
-			   the operation totally */
-			softback_top = 0;
-		}
+		fbcon_update_softback(vc);
 	}
 
 	if (logo_shown >= 0) {
@@ -2235,17 +2217,8 @@ static int fbcon_do_set_font(struct vc_data *vc, int w, int h,
 		/* reset wrap/pan */
 		info->var.xoffset = info->var.yoffset = p->yscroll = 0;
 		vc_resize(vc, info->var.xres / w, info->var.yres / h);
-		if (CON_IS_VISIBLE(vc) && softback_buf) {
-			int l = fbcon_softback_size / vc->vc_size_row;
-			if (l > 5)
-				softback_end =
-				    softback_buf + l * vc->vc_size_row;
-			else {
-				/* Smaller scrollback makes no sense, and 0 would screw
-				   the operation totally */
-				softback_top = 0;
-			}
-		}
+		if (CON_IS_VISIBLE(vc) && softback_buf)
+			fbcon_update_softback(vc);
 	} else if (CON_IS_VISIBLE(vc)
 		   && vc->vc_mode == KD_TEXT) {
 		fbcon_clear_margins(vc, 0);
@@ -2615,16 +2588,8 @@ static void fbcon_modechanged(struct fb_info *info)
 		update_var(vc->vc_num, info);
 		fbcon_set_palette(vc, color_table);
 		update_screen(vc);
-		if (softback_buf) {
-			int l = fbcon_softback_size / vc->vc_size_row;
-			if (l > 5)
-				softback_end = softback_buf + l * vc->vc_size_row;
-			else {
-				/* Smaller scrollback makes no sense, and 0
-				   would screw the operation totally */
-				softback_top = 0;
-			}
-		}
+		if (softback_buf)
+			fbcon_update_softback(vc);
 	}
 }
 
@@ -2659,16 +2624,8 @@ static void fbcon_set_all_vcs(struct fb_info *info)
 			update_var(vc->vc_num, info);
 			fbcon_set_palette(vc, color_table);
 			update_screen(vc);
-			if (softback_buf) {
-				int l = fbcon_softback_size / vc->vc_size_row;
-				if (l > 5)
-					softback_end = softback_buf + l * vc->vc_size_row;
-				else {
-					/* Smaller scrollback makes no sense, and 0
-					   would screw the operation totally */
-					softback_top = 0;
-				}
-			}
+			if (softback_buf)
+				fbcon_update_softback(vc);
 		}
 	}
 }
@@ -2758,7 +2715,8 @@ static void fbcon_new_modelist(struct fb_info *info)
 			continue;
 		vc = vc_cons[i].d;
 		display_to_var(&var, &fb_display[i]);
-		mode = fb_find_nearest_mode(&var, &info->modelist);
+		mode = fb_find_nearest_mode(fb_display[i].mode,
+					    &info->modelist);
 		fb_videomode_to_var(&var, mode);
 
 		if (vc)

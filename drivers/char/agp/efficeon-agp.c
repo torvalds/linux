@@ -219,7 +219,7 @@ static int efficeon_create_gatt_table(struct agp_bridge_data *bridge)
 
 		efficeon_private.l1_table[index] = page;
 
-		value = virt_to_gart(page) | pati | present | index;
+		value = virt_to_gart((unsigned long *)page) | pati | present | index;
 
 		pci_write_config_dword(agp_bridge->dev,
 			EFFICEON_ATTPAGE, value);
@@ -429,6 +429,7 @@ static struct pci_device_id agp_efficeon_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, agp_efficeon_pci_table);
 
 static struct pci_driver agp_efficeon_pci_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "agpgart-efficeon",
 	.id_table	= agp_efficeon_pci_table,
 	.probe		= agp_efficeon_probe,

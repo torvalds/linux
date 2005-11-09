@@ -73,8 +73,8 @@ typedef struct bd_info {
 #if defined(CONFIG_HYMOD)
 	hymod_conf_t	bi_hymod_conf;	/* hymod configuration information */
 #endif
-#if defined(CONFIG_EVB64260) || defined(CONFIG_44x) || defined(CONFIG_85xx) ||\
-	defined(CONFIG_83xx)
+#if defined(CONFIG_EVB64260) || defined(CONFIG_405EP) || defined(CONFIG_44x) || \
+	defined(CONFIG_85xx) ||	defined(CONFIG_83xx)
 	/* second onboard ethernet port */
 	unsigned char	bi_enet1addr[6];
 #endif
@@ -95,6 +95,8 @@ typedef struct bd_info {
 	int		bi_phymode[4];		/* phy mode */
 #endif
 } bd_t;
+
+#define bi_tbfreq	bi_intfreq
 
 #endif /* __ASSEMBLY__ */
 #endif	/* __ASM_PPCBOOT_H__ */

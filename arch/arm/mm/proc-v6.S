@@ -12,6 +12,7 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
+#include <asm/hardware/arm_scu.h>
 #include <asm/procinfo.h>
 #include <asm/pgtable.h>
 
@@ -112,6 +113,9 @@ ENTRY(cpu_v6_dcache_clean_area)
 ENTRY(cpu_v6_switch_mm)
 	mov	r2, #0
 	ldr	r1, [r1, #MM_CONTEXT_ID]	@ get mm->context.id
+#ifdef CONFIG_SMP
+	orr	r0, r0, #2			@ set shared pgtable
+#endif
 	mcr	p15, 0, r2, c7, c5, 6		@ flush BTAC/BTB
 	mcr	p15, 0, r2, c7, c10, 4		@ drain write buffer
 	mcr	p15, 0, r0, c2, c0, 0		@ set TTB 0
@@ -140,7 +144,7 @@ ENTRY(cpu_v6_switch_mm)
 ENTRY(cpu_v6_set_pte)
 	str	r1, [r0], #-2048		@ linux version
 
-	bic	r2, r1, #0x000007f0
+	bic	r2, r1, #0x000003f0
 	bic	r2, r2, #0x00000003
 	orr	r2, r2, #PTE_EXT_AP0 | 2
 
@@ -191,6 +195,23 @@ cpu_v6_name:
  *	- cache type register is implemented
  */
 __v6_setup:
+#ifdef CONFIG_SMP
+	/* Set up the SCU on core 0 only */
+	mrc	p15, 0, r0, c0, c0, 5		@ CPU core number
+	ands	r0, r0, #15
+	moveq	r0, #0x10000000 @ SCU_BASE
+	orreq	r0, r0, #0x00100000
+	ldreq	r5, [r0, #SCU_CTRL]
+	orreq	r5, r5, #1
+	streq	r5, [r0, #SCU_CTRL]
+
+#ifndef CONFIG_CPU_DCACHE_DISABLE
+	mrc	p15, 0, r0, c1, c0, 1		@ Enable SMP/nAMP mode
+	orr	r0, r0, #0x20
+	mcr	p15, 0, r0, c1, c0, 1
+#endif
+#endif
+
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c14, 0		@ clean+invalidate D cache
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
@@ -198,6 +219,9 @@ __v6_setup:
 	mcr	p15, 0, r0, c7, c10, 4		@ drain write buffer
 	mcr	p15, 0, r0, c8, c7, 0		@ invalidate I + D TLBs
 	mcr	p15, 0, r0, c2, c0, 2		@ TTB control register
+#ifdef CONFIG_SMP
+	orr	r4, r4, #2			@ set shared pgtable
+#endif
 	mcr	p15, 0, r4, c2, c0, 1		@ load TTB1
 #ifdef CONFIG_VFP
 	mrc	p15, 0, r0, c1, c0, 2

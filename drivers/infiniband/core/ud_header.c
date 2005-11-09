@@ -34,6 +34,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/string.h>
 
 #include <rdma/ib_pack.h>
 

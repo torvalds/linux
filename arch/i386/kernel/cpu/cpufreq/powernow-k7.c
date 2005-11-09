@@ -171,10 +171,9 @@ static int get_ranges (unsigned char *pst)
 	unsigned int speed;
 	u8 fid, vid;
 
-	powernow_table = kmalloc((sizeof(struct cpufreq_frequency_table) * (number_scales + 1)), GFP_KERNEL);
+	powernow_table = kzalloc((sizeof(struct cpufreq_frequency_table) * (number_scales + 1)), GFP_KERNEL);
 	if (!powernow_table)
 		return -ENOMEM;
-	memset(powernow_table, 0, (sizeof(struct cpufreq_frequency_table) * (number_scales + 1)));
 
 	for (j=0 ; j < number_scales; j++) {
 		fid = *pst++;
@@ -305,15 +304,12 @@ static int powernow_acpi_init(void)
 		goto err0;
 	}
 
-	acpi_processor_perf = kmalloc(sizeof(struct acpi_processor_performance),
+	acpi_processor_perf = kzalloc(sizeof(struct acpi_processor_performance),
 				      GFP_KERNEL);
-
 	if (!acpi_processor_perf) {
 		retval = -ENOMEM;
 		goto err0;
 	}
-
-	memset(acpi_processor_perf, 0, sizeof(struct acpi_processor_performance));
 
 	if (acpi_processor_register_performance(acpi_processor_perf, 0)) {
 		retval = -EIO;
@@ -337,13 +333,11 @@ static int powernow_acpi_init(void)
 		goto err2;
 	}
 
-	powernow_table = kmalloc((number_scales + 1) * (sizeof(struct cpufreq_frequency_table)), GFP_KERNEL);
+	powernow_table = kzalloc((number_scales + 1) * (sizeof(struct cpufreq_frequency_table)), GFP_KERNEL);
 	if (!powernow_table) {
 		retval = -ENOMEM;
 		goto err2;
 	}
-
-	memset(powernow_table, 0, ((number_scales + 1) * sizeof(struct cpufreq_frequency_table)));
 
 	pc.val = (unsigned long) acpi_processor_perf->states[0].control;
 	for (i = 0; i < number_scales; i++) {

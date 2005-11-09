@@ -15,7 +15,7 @@
  *   This is a device driver for the NAND flash device found on the
  *   TI fido board. It supports 32MiB and 64MiB cards
  *
- * $Id: toto.c,v 1.4 2004/10/05 13:50:20 gleixner Exp $
+ * $Id: toto.c,v 1.5 2005/11/07 11:14:31 gleixner Exp $
  */
 
 #include <linux/slab.h>
@@ -57,7 +57,7 @@ static unsigned long toto_io_base = OMAP_FLASH_1_BASE;
 #endif
 #define T_NAND_CTL_SETNCE(iob)  gpiosetout(NAND_NCE, 0)
 #define T_NAND_CTL_CLRNCE(iob)  gpiosetout(NAND_NCE, NAND_NCE)
-                
+
 /*
  * Define partitions for flash devices
  */
@@ -91,7 +91,7 @@ static struct mtd_partition partition_info32M[] = {
 
 #define NUM_PARTITIONS32M 3
 #define NUM_PARTITIONS64M 4
-/* 
+/*
  *	hardware specific access to control-lines
 */
 
@@ -146,7 +146,7 @@ int __init toto_init (void)
 	this->hwcontrol = toto_hwcontrol;
 	this->dev_ready = NULL;
 	/* 25 us command delay time */
-	this->chip_delay = 30;		
+	this->chip_delay = 30;
 	this->eccmode = NAND_ECC_SOFT;
 
         /* Scan to find existance of the device */
@@ -157,10 +157,10 @@ int __init toto_init (void)
 
 	/* Register the partitions */
 	switch(toto_mtd->size){
-		case SZ_64M: add_mtd_partitions(toto_mtd, partition_info64M, NUM_PARTITIONS64M); break; 
-		case SZ_32M: add_mtd_partitions(toto_mtd, partition_info32M, NUM_PARTITIONS32M); break; 
+		case SZ_64M: add_mtd_partitions(toto_mtd, partition_info64M, NUM_PARTITIONS64M); break;
+		case SZ_32M: add_mtd_partitions(toto_mtd, partition_info32M, NUM_PARTITIONS32M); break;
 		default: {
-			printk (KERN_WARNING "Unsupported Nand device\n"); 
+			printk (KERN_WARNING "Unsupported Nand device\n");
 			err = -ENXIO;
 			goto out_buf;
 		}
@@ -170,9 +170,9 @@ int __init toto_init (void)
     	archflashwp(0,0);	 /* open up flash for writing */
 
 	goto out;
-    
+
 out_buf:
-	kfree (this->data_buf);    
+	kfree (this->data_buf);
 out_mtd:
 	kfree (toto_mtd);
 out:
@@ -194,7 +194,7 @@ static void __exit toto_cleanup (void)
 
 	/* stop flash writes */
 	 archflashwp(0,1);
-	
+
 	/* release gpios to system */
 	 gpiorelease(NAND_MASK);
 }

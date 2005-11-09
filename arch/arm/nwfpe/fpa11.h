@@ -60,7 +60,7 @@ typedef union tagFPREG {
 #ifdef CONFIG_FPE_NWFPE_XP
 	floatx80 fExtended;
 #else
-	int padding[3];
+	u32 padding[3];
 #endif
 } FPREG;
 

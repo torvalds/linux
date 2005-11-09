@@ -15,6 +15,8 @@
 #include <linux/errno.h>
 #include <linux/smp.h>
 #include <linux/device.h>
+#include <linux/slab.h>
+#include <linux/string.h>
 
 #include <asm/dma.h>
 #include <asm/system.h>

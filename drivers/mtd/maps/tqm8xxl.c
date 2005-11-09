@@ -1,15 +1,15 @@
 /*
- * Handle mapping of the flash memory access routines 
+ * Handle mapping of the flash memory access routines
  * on TQM8xxL based devices.
  *
- * $Id: tqm8xxl.c,v 1.13 2004/10/20 22:21:53 dwmw2 Exp $
+ * $Id: tqm8xxl.c,v 1.15 2005/11/07 11:14:28 gleixner Exp $
  *
  * based on rpxlite.c
  *
  * Copyright(C) 2001 Kirk Lee <kirk@hpc.ee.ntu.edu.tw>
  *
  * This code is GPLed
- * 
+ *
  */
 
 /*
@@ -19,7 +19,7 @@
  *	    2MiB	   512Kx16	  2MiB		   0
  *	    4MiB	   1Mx16	  4MiB		   0
  *	    8MiB	   1Mx16	  4MiB		   4MiB
- * Thus, we choose CONFIG_MTD_CFI_I2 & CONFIG_MTD_CFI_B4 at 
+ * Thus, we choose CONFIG_MTD_CFI_I2 & CONFIG_MTD_CFI_B4 at
  * kernel configuration.
  */
 #include <linux/config.h>
@@ -58,9 +58,9 @@ static void __iomem *start_scan_addr;
  * Here are partition information for all known TQM8xxL series devices.
  * See include/linux/mtd/partitions.h for definition of the mtd_partition
  * structure.
- * 
+ *
  * The *_max_flash_size is the maximum possible mapped flash size which
- * is not necessarily the actual flash size.  It must correspond to the 
+ * is not necessarily the actual flash size.  It must correspond to the
  * value specified in the mapping definition defined by the
  * "struct map_desc *_io_desc" for the corresponding machine.
  */
@@ -132,9 +132,9 @@ int __init init_tqm_mtd(void)
 	for (idx = 0 ; idx < FLASH_BANK_MAX ; idx++) {
 		if(mtd_size >= flash_size)
 			break;
-		
+
 		printk(KERN_INFO "%s: chip probing count %d\n", __FUNCTION__, idx);
-		
+
 		map_banks[idx] = (struct map_info *)kmalloc(sizeof(struct map_info), GFP_KERNEL);
 		if(map_banks[idx] == NULL) {
 			ret = -ENOMEM;
@@ -180,7 +180,7 @@ int __init init_tqm_mtd(void)
 			mtd_size += mtd_banks[idx]->size;
 			num_banks++;
 
-			printk(KERN_INFO "%s: bank%d, name:%s, size:%dbytes \n", __FUNCTION__, num_banks, 
+			printk(KERN_INFO "%s: bank%d, name:%s, size:%dbytes \n", __FUNCTION__, num_banks,
 			mtd_banks[idx]->name, mtd_banks[idx]->size);
 		}
 	}
@@ -211,7 +211,7 @@ int __init init_tqm_mtd(void)
 		} else {
 			printk(KERN_NOTICE "TQM flash%d: Using %s partition definition\n",
 					idx, part_banks[idx].type);
-			add_mtd_partitions(mtd_banks[idx], part_banks[idx].mtd_part, 
+			add_mtd_partitions(mtd_banks[idx], part_banks[idx].mtd_part,
 								part_banks[idx].nums);
 		}
 	}
@@ -224,10 +224,8 @@ int __init init_tqm_mtd(void)
 error_mem:
 	for(idx = 0 ; idx < FLASH_BANK_MAX ; idx++) {
 		if(map_banks[idx] != NULL) {
-			if(map_banks[idx]->name != NULL) {
-				kfree(map_banks[idx]->name);
-				map_banks[idx]->name = NULL;
-			}
+			kfree(map_banks[idx]->name);
+			map_banks[idx]->name = NULL;
 			kfree(map_banks[idx]);
 			map_banks[idx] = NULL;
 		}

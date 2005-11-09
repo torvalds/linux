@@ -894,8 +894,7 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 		    mp1->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
 						&mp1->phys);
 		if (mp1 == 0 || mp1->virt == 0) {
-			if (mp1)
-				kfree(mp1);
+			kfree(mp1);
 			spin_lock_irq(phba->host->host_lock);
 			lpfc_sli_release_iocbq(phba, iocb);
 			spin_unlock_irq(phba->host->host_lock);
@@ -911,8 +910,7 @@ lpfc_post_buffer(struct lpfc_hba * phba, struct lpfc_sli_ring * pring, int cnt,
 				mp2->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
 							    &mp2->phys);
 			if (mp2 == 0 || mp2->virt == 0) {
-				if (mp2)
-					kfree(mp2);
+				kfree(mp2);
 				lpfc_mbuf_free(phba, mp1->virt, mp1->phys);
 				kfree(mp1);
 				spin_lock_irq(phba->host->host_lock);

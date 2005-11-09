@@ -324,7 +324,7 @@ menu "Kernel Features"
 
 config SMP
 	bool "Symmetric Multi-Processing (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && BROKEN #&& n
+	depends on EXPERIMENTAL && REALVIEW_MPCORE
 	help
 	  This enables support for systems with more than one CPU. If you have
 	  a system with only one CPU, like most personal computers, say N. If
@@ -355,6 +355,16 @@ config HOTPLUG_CPU
 	help
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu.
+
+config LOCAL_TIMERS
+	bool "Use local timer interrupts"
+	depends on SMP && n
+	default y
+	help
+	  Enable support for local timers on SMP platforms, rather then the
+	  legacy IPI broadcast method.  Local timers allows the system
+	  accounting to be spread across the timer interval, preventing a
+	  "thundering herd" at every timer tick.
 
 config PREEMPT
 	bool "Preemptible Kernel (EXPERIMENTAL)"
@@ -585,7 +595,7 @@ config FPE_NWFPE
 
 config FPE_NWFPE_XP
 	bool "Support extended precision"
-	depends on FPE_NWFPE && !CPU_BIG_ENDIAN
+	depends on FPE_NWFPE
 	help
 	  Say Y to include 80-bit support in the kernel floating-point
 	  emulator.  Otherwise, only 32 and 64-bit support is compiled in.

@@ -715,10 +715,9 @@ static int bcsp_open(struct hci_uart *hu)
 
 	BT_DBG("hu %p", hu);
 
-	bcsp = kmalloc(sizeof(*bcsp), GFP_ATOMIC);
+	bcsp = kzalloc(sizeof(*bcsp), GFP_ATOMIC);
 	if (!bcsp)
 		return -ENOMEM;
-	memset(bcsp, 0, sizeof(*bcsp));
 
 	hu->priv = bcsp;
 	skb_queue_head_init(&bcsp->unack);

@@ -62,15 +62,6 @@ static struct scoop_config corgi_scoop_setup = {
 	.io_out		= CORGI_SCOOP_IO_OUT,
 };
 
-static struct scoop_pcmcia_dev corgi_pcmcia_scoop[] = {
-{
-	.dev        = &corgiscoop_device.dev,
-	.irq        = CORGI_IRQ_GPIO_CF_IRQ,
-	.cd_irq     = CORGI_IRQ_GPIO_CF_CD,
-	.cd_irq_str = "PCMCIA0 CD",
-},
-};
-
 struct platform_device corgiscoop_device = {
 	.name		= "sharp-scoop",
 	.id		= -1,
@@ -80,6 +71,44 @@ struct platform_device corgiscoop_device = {
 	.num_resources	= ARRAY_SIZE(corgi_scoop_resources),
 	.resource	= corgi_scoop_resources,
 };
+
+static void corgi_pcmcia_init(void)
+{
+	/* Setup default state of GPIO outputs
+	   before we enable them as outputs. */
+	GPSR(GPIO48_nPOE) = GPIO_bit(GPIO48_nPOE) |
+		GPIO_bit(GPIO49_nPWE) | GPIO_bit(GPIO50_nPIOR) |
+		GPIO_bit(GPIO51_nPIOW) | GPIO_bit(GPIO52_nPCE_1) |
+		GPIO_bit(GPIO53_nPCE_2);
+
+	pxa_gpio_mode(GPIO48_nPOE_MD);
+	pxa_gpio_mode(GPIO49_nPWE_MD);
+	pxa_gpio_mode(GPIO50_nPIOR_MD);
+	pxa_gpio_mode(GPIO51_nPIOW_MD);
+	pxa_gpio_mode(GPIO55_nPREG_MD);
+	pxa_gpio_mode(GPIO56_nPWAIT_MD);
+	pxa_gpio_mode(GPIO57_nIOIS16_MD);
+	pxa_gpio_mode(GPIO52_nPCE_1_MD);
+	pxa_gpio_mode(GPIO53_nPCE_2_MD);
+	pxa_gpio_mode(GPIO54_pSKTSEL_MD);
+}
+
+static struct scoop_pcmcia_dev corgi_pcmcia_scoop[] = {
+{
+	.dev        = &corgiscoop_device.dev,
+	.irq        = CORGI_IRQ_GPIO_CF_IRQ,
+	.cd_irq     = CORGI_IRQ_GPIO_CF_CD,
+	.cd_irq_str = "PCMCIA0 CD",
+},
+};
+
+static struct scoop_pcmcia_config corgi_pcmcia_config = {
+	.devs         = &corgi_pcmcia_scoop[0],
+	.num_devs     = 1,
+	.pcmcia_init  = corgi_pcmcia_init,
+};
+
+EXPORT_SYMBOL(corgiscoop_device);
 
 
 /*
@@ -294,8 +323,7 @@ static void __init corgi_init(void)
 	pxa_set_mci_info(&corgi_mci_platform_data);
 	pxa_set_ficp_info(&corgi_ficp_platform_data);
 
-	scoop_num = 1;
-	scoop_devs = &corgi_pcmcia_scoop[0];
+	platform_scoop_config = &corgi_pcmcia_config;
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }

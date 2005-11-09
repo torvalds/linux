@@ -113,9 +113,11 @@ int xicor_set_time(unsigned long t)
 {
 	struct rtc_time tm;
 	int tmp;
+	unsigned long flags;
 
 	to_tm(t, &tm);
 
+	spin_lock_irqsave(&rtc_lock, flags);
 	/* unlock writes to the CCR */
 	xicor_write(X1241REG_SR, X1241REG_SR_WEL);
 	xicor_write(X1241REG_SR, X1241REG_SR_WEL | X1241REG_SR_RWEL);
@@ -160,6 +162,7 @@ int xicor_set_time(unsigned long t)
 	xicor_write(X1241REG_HR, tmp);
 
 	xicor_write(X1241REG_SR, 0);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return 0;
 }
@@ -167,7 +170,9 @@ int xicor_set_time(unsigned long t)
 unsigned long xicor_get_time(void)
 {
 	unsigned int year, mon, day, hour, min, sec, y2k;
+	unsigned long flags;
 
+	spin_lock_irqsave(&rtc_lock, flags);
 	sec = xicor_read(X1241REG_SC);
 	min = xicor_read(X1241REG_MN);
 	hour = xicor_read(X1241REG_HR);
@@ -183,6 +188,7 @@ unsigned long xicor_get_time(void)
 	mon = xicor_read(X1241REG_MO);
 	year = xicor_read(X1241REG_YR);
 	y2k = xicor_read(X1241REG_Y2K);
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	sec = BCD2BIN(sec);
 	min = BCD2BIN(min);

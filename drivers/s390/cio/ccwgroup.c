@@ -1,7 +1,7 @@
 /*
  *  drivers/s390/cio/ccwgroup.c
  *  bus driver for ccwgroup
- *   $Revision: 1.29 $
+ *   $Revision: 1.32 $
  *
  *    Copyright (C) 2002 IBM Deutschland Entwicklung GmbH,
  *                       IBM Corporation
@@ -274,7 +274,7 @@ ccwgroup_set_online(struct ccwgroup_device *gdev)
 		goto out;
 	}
 	gdrv = to_ccwgroupdrv (gdev->dev.driver);
-	if ((ret = gdrv->set_online(gdev)))
+	if ((ret = gdrv->set_online ? gdrv->set_online(gdev) : 0))
 		goto out;
 
 	gdev->state = CCWGROUP_ONLINE;
@@ -300,7 +300,7 @@ ccwgroup_set_offline(struct ccwgroup_device *gdev)
 		goto out;
 	}
 	gdrv = to_ccwgroupdrv (gdev->dev.driver);
-	if ((ret = gdrv->set_offline(gdev)))
+	if ((ret = gdrv->set_offline ? gdrv->set_offline(gdev) : 0))
 		goto out;
 
 	gdev->state = CCWGROUP_OFFLINE;

@@ -183,6 +183,7 @@ struct kioctx {
 	struct list_head	active_reqs;	/* used for cancellation */
 	struct list_head	run_list;	/* used for kicked reqs */
 
+	/* sys_io_setup currently limits this to an unsigned int */
 	unsigned		max_reqs;
 
 	struct aio_ring_info	ring_info;
@@ -234,7 +235,7 @@ static inline struct kiocb *list_kiocb(struct list_head *h)
 }
 
 /* for sysctl: */
-extern atomic_t aio_nr;
-extern unsigned aio_max_nr;
+extern unsigned long aio_nr;
+extern unsigned long aio_max_nr;
 
 #endif /* __LINUX__AIO_H */

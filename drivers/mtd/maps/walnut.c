@@ -1,12 +1,12 @@
 /*
- * $Id: walnut.c,v 1.2 2004/12/10 12:07:42 holindho Exp $
- * 
+ * $Id: walnut.c,v 1.3 2005/11/07 11:14:29 gleixner Exp $
+ *
  * Mapping for Walnut flash
  * (used ebony.c as a "framework")
- * 
+ *
  * Heikki Lindholm <holindho@infradead.org>
- * 
- * 
+ *
+ *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
@@ -48,7 +48,7 @@ static struct mtd_partition walnut_partitions[] = {
 		.name =   "OpenBIOS",
 		.offset = 0x0,
 		.size =   WALNUT_FLASH_SIZE,
-		/*.mask_flags = MTD_WRITEABLE, */ /* force read-only */		
+		/*.mask_flags = MTD_WRITEABLE, */ /* force read-only */
 	}
 };
 
@@ -72,11 +72,11 @@ int __init init_walnut(void)
 		printk("The on-board flash is disabled (U79 sw 5)!");
 		return -EIO;
 	}
-	if (WALNUT_FLASH_SRAM_SEL(fpga_brds1)) 
+	if (WALNUT_FLASH_SRAM_SEL(fpga_brds1))
 		flash_base = WALNUT_FLASH_LOW;
 	else
 		flash_base = WALNUT_FLASH_HIGH;
-	
+
 	walnut_map.phys = flash_base;
 	walnut_map.virt =
 		(void __iomem *)ioremap(flash_base, walnut_map.size);

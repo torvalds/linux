@@ -118,6 +118,7 @@ void __restore_processor_state(struct saved_context *ctxt)
 	fix_processor_context();
 	do_fpu_end();
 	mtrr_ap_init();
+	mcheck_init(&boot_cpu_data);
 }
 
 void restore_processor_state(void)

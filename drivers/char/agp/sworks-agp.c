@@ -102,19 +102,17 @@ static int serverworks_create_gatt_pages(int nr_tables)
 	int retval = 0;
 	int i;
 
-	tables = kmalloc((nr_tables + 1) * sizeof(struct serverworks_page_map *), 
+	tables = kzalloc((nr_tables + 1) * sizeof(struct serverworks_page_map *), 
 			 GFP_KERNEL);
-	if (tables == NULL) {
+	if (tables == NULL)
 		return -ENOMEM;
-	}
-	memset(tables, 0, sizeof(struct serverworks_page_map *) * (nr_tables + 1));
+
 	for (i = 0; i < nr_tables; i++) {
-		entry = kmalloc(sizeof(struct serverworks_page_map), GFP_KERNEL);
+		entry = kzalloc(sizeof(struct serverworks_page_map), GFP_KERNEL);
 		if (entry == NULL) {
 			retval = -ENOMEM;
 			break;
 		}
-		memset(entry, 0, sizeof(struct serverworks_page_map));
 		tables[i] = entry;
 		retval = serverworks_create_page_map(entry);
 		if (retval != 0) break;
@@ -244,13 +242,27 @@ static int serverworks_fetch_size(void)
  */
 static void serverworks_tlbflush(struct agp_memory *temp)
 {
+	unsigned long timeout;
+
 	writeb(1, serverworks_private.registers+SVWRKS_POSTFLUSH);
-	while (readb(serverworks_private.registers+SVWRKS_POSTFLUSH) == 1)
+	timeout = jiffies + 3*HZ;
+	while (readb(serverworks_private.registers+SVWRKS_POSTFLUSH) == 1) {
 		cpu_relax();
+		if (time_after(jiffies, timeout)) {
+			printk(KERN_ERR PFX "TLB post flush took more than 3 seconds\n");
+			break;
+		}
+	}
 
 	writel(1, serverworks_private.registers+SVWRKS_DIRFLUSH);
-	while(readl(serverworks_private.registers+SVWRKS_DIRFLUSH) == 1)
+	timeout = jiffies + 3*HZ;
+	while (readl(serverworks_private.registers+SVWRKS_DIRFLUSH) == 1) {
 		cpu_relax();
+		if (time_after(jiffies, timeout)) {
+			printk(KERN_ERR PFX "TLB Dir flush took more than 3 seconds\n");
+			break;
+		}
+	}
 }
 
 static int serverworks_configure(void)
@@ -533,6 +545,7 @@ static struct pci_device_id agp_serverworks_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, agp_serverworks_pci_table);
 
 static struct pci_driver agp_serverworks_pci_driver = {
+	.owner		= THIS_MODULE,
 	.name		= "agpgart-serverworks",
 	.id_table	= agp_serverworks_pci_table,
 	.probe		= agp_serverworks_probe,

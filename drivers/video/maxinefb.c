@@ -113,7 +113,6 @@ static struct fb_ops maxinefb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
 int __init maxinefb_init(void)

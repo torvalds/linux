@@ -103,8 +103,10 @@ vmcp_write(struct file *file, const char __user * buff, size_t count,
 	}
 	cmd[count] = '\0';
 	session = (struct vmcp_session *)file->private_data;
-	if (down_interruptible(&session->mutex))
+	if (down_interruptible(&session->mutex)) {
+		kfree(cmd);
 		return -ERESTARTSYS;
+	}
 	if (!session->response)
 		session->response = (char *)__get_free_pages(GFP_KERNEL
 						| __GFP_REPEAT 	| GFP_DMA,

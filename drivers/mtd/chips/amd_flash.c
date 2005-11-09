@@ -3,7 +3,7 @@
  *
  * Author: Jonas Holmberg <jonas.holmberg@axis.com>
  *
- * $Id: amd_flash.c,v 1.27 2005/02/04 07:43:09 jonashg Exp $
+ * $Id: amd_flash.c,v 1.28 2005/11/07 11:14:22 gleixner Exp $
  *
  * Copyright (c) 2001 Axis Communications AB
  *
@@ -93,9 +93,9 @@
 #define D6_MASK	0x40
 
 struct amd_flash_private {
-	int device_type;	
-	int interleave;	
-	int numchips;	
+	int device_type;
+	int interleave;
+	int numchips;
 	unsigned long chipshift;
 //	const char *im_name;
 	struct flchip chips[0];
@@ -253,7 +253,7 @@ static int amd_flash_do_unlock(struct mtd_info *mtd, loff_t ofs, size_t len,
 	int i;
 	int retval = 0;
 	int lock_status;
-      
+
 	map = mtd->priv;
 
 	/* Pass the whole chip through sector by sector and check for each
@@ -273,7 +273,7 @@ static int amd_flash_do_unlock(struct mtd_info *mtd, loff_t ofs, size_t len,
 				unlock_sector(map, eraseoffset, is_unlock);
 
 				lock_status = is_sector_locked(map, eraseoffset);
-				
+
 				if (is_unlock && lock_status) {
 					printk("Cannot unlock sector at address %x length %xx\n",
 					       eraseoffset, merip->erasesize);
@@ -305,7 +305,7 @@ static int amd_flash_lock(struct mtd_info *mtd, loff_t ofs, size_t len)
 /*
  * Reads JEDEC manufacturer ID and device ID and returns the index of the first
  * matching table entry (-1 if not found or alias for already found chip).
- */ 
+ */
 static int probe_new_chip(struct mtd_info *mtd, __u32 base,
 			  struct flchip *chips,
 			  struct amd_flash_private *private,
@@ -636,7 +636,7 @@ static struct mtd_info *amd_flash_probe(struct map_info *map)
 			{ .offset = 0x000000, .erasesize = 0x10000, .numblocks = 31 },
 			{ .offset = 0x1F0000, .erasesize = 0x02000, .numblocks =  8 }
 		}
-	} 
+	}
 	};
 
 	struct mtd_info *mtd;
@@ -701,7 +701,7 @@ static struct mtd_info *amd_flash_probe(struct map_info *map)
 
 	mtd->eraseregions = kmalloc(sizeof(struct mtd_erase_region_info) *
 				    mtd->numeraseregions, GFP_KERNEL);
-	if (!mtd->eraseregions) { 
+	if (!mtd->eraseregions) {
 		printk(KERN_WARNING "%s: Failed to allocate "
 		       "memory for MTD erase region info\n", map->name);
 		kfree(mtd);
@@ -739,12 +739,12 @@ static struct mtd_info *amd_flash_probe(struct map_info *map)
 	mtd->type = MTD_NORFLASH;
 	mtd->flags = MTD_CAP_NORFLASH;
 	mtd->name = map->name;
-	mtd->erase = amd_flash_erase;	
-	mtd->read = amd_flash_read;	
-	mtd->write = amd_flash_write;	
-	mtd->sync = amd_flash_sync;	
-	mtd->suspend = amd_flash_suspend;	
-	mtd->resume = amd_flash_resume;	
+	mtd->erase = amd_flash_erase;
+	mtd->read = amd_flash_read;
+	mtd->write = amd_flash_write;
+	mtd->sync = amd_flash_sync;
+	mtd->suspend = amd_flash_suspend;
+	mtd->resume = amd_flash_resume;
 	mtd->lock = amd_flash_lock;
 	mtd->unlock = amd_flash_unlock;
 
@@ -789,7 +789,7 @@ retry:
 		       map->name, chip->state);
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		add_wait_queue(&chip->wq, &wait);
-                
+
 		spin_unlock_bh(chip->mutex);
 
 		schedule();
@@ -802,7 +802,7 @@ retry:
 		timeo = jiffies + HZ;
 
 		goto retry;
-	}	
+	}
 
 	adr += chip->start;
 
@@ -889,7 +889,7 @@ retry:
 		       map->name, chip->state);
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		add_wait_queue(&chip->wq, &wait);
-                
+
 		spin_unlock_bh(chip->mutex);
 
 		schedule();
@@ -901,7 +901,7 @@ retry:
 		timeo = jiffies + HZ;
 
 		goto retry;
-	}	
+	}
 
 	chip->state = FL_WRITING;
 
@@ -911,7 +911,7 @@ retry:
 	wide_write(map, datum, adr);
 
 	times_left = 500000;
-	while (times_left-- && flash_is_busy(map, adr, private->interleave)) { 
+	while (times_left-- && flash_is_busy(map, adr, private->interleave)) {
 		if (need_resched()) {
 			spin_unlock_bh(chip->mutex);
 			schedule();
@@ -989,7 +989,7 @@ static int amd_flash_write(struct mtd_info *mtd, loff_t to , size_t len,
 		if (ret) {
 			return ret;
 		}
-		
+
 		ofs += n;
 		buf += n;
 		(*retlen) += n;
@@ -1002,7 +1002,7 @@ static int amd_flash_write(struct mtd_info *mtd, loff_t to , size_t len,
 			}
 		}
 	}
-	
+
 	/* We are now aligned, write as much as possible. */
 	while(len >= map->buswidth) {
 		__u32 datum;
@@ -1063,7 +1063,7 @@ static int amd_flash_write(struct mtd_info *mtd, loff_t to , size_t len,
 		if (ret) {
 			return ret;
 		}
-		
+
 		(*retlen) += n;
 	}
 
@@ -1085,7 +1085,7 @@ retry:
 	if (chip->state != FL_READY){
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		add_wait_queue(&chip->wq, &wait);
-                
+
 		spin_unlock_bh(chip->mutex);
 
 		schedule();
@@ -1098,7 +1098,7 @@ retry:
 		timeo = jiffies + HZ;
 
 		goto retry;
-	}	
+	}
 
 	chip->state = FL_ERASING;
 
@@ -1106,30 +1106,30 @@ retry:
 	ENABLE_VPP(map);
 	send_cmd(map, chip->start, CMD_SECTOR_ERASE_UNLOCK_DATA);
 	send_cmd_to_addr(map, chip->start, CMD_SECTOR_ERASE_UNLOCK_DATA_2, adr);
-	
+
 	timeo = jiffies + (HZ * 20);
 
 	spin_unlock_bh(chip->mutex);
 	msleep(1000);
 	spin_lock_bh(chip->mutex);
-	
+
 	while (flash_is_busy(map, adr, private->interleave)) {
 
 		if (chip->state != FL_ERASING) {
 			/* Someone's suspended the erase. Sleep */
 			set_current_state(TASK_UNINTERRUPTIBLE);
 			add_wait_queue(&chip->wq, &wait);
-			
+
 			spin_unlock_bh(chip->mutex);
 			printk(KERN_INFO "%s: erase suspended. Sleeping\n",
 			       map->name);
 			schedule();
 			remove_wait_queue(&chip->wq, &wait);
-			
+
 			if (signal_pending(current)) {
 				return -EINTR;
 			}
-			
+
 			timeo = jiffies + (HZ*2); /* FIXME */
 			spin_lock_bh(chip->mutex);
 			continue;
@@ -1145,7 +1145,7 @@ retry:
 
 			return -EIO;
 		}
-		
+
 		/* Latency issues. Drop the lock, wait a while and retry */
 		spin_unlock_bh(chip->mutex);
 
@@ -1153,7 +1153,7 @@ retry:
 			schedule();
 		else
 			udelay(1);
-		
+
 		spin_lock_bh(chip->mutex);
 	}
 
@@ -1180,7 +1180,7 @@ retry:
 			return -EIO;
 		}
 	}
-	
+
 	DISABLE_VPP(map);
 	chip->state = FL_READY;
 	wake_up(&chip->wq);
@@ -1246,7 +1246,7 @@ static int amd_flash_erase(struct mtd_info *mtd, struct erase_info *instr)
 	 * with the erase region at that address.
 	 */
 
-	while ((i < mtd->numeraseregions) && 
+	while ((i < mtd->numeraseregions) &&
 	       ((instr->addr + instr->len) >= regions[i].offset)) {
                 i++;
 	}
@@ -1293,10 +1293,10 @@ static int amd_flash_erase(struct mtd_info *mtd, struct erase_info *instr)
 			}
 		}
 	}
-		
+
 	instr->state = MTD_ERASE_DONE;
 	mtd_erase_callback(instr);
-	
+
 	return 0;
 }
 
@@ -1324,7 +1324,7 @@ static void amd_flash_sync(struct mtd_info *mtd)
 		case FL_JEDEC_QUERY:
 			chip->oldstate = chip->state;
 			chip->state = FL_SYNCING;
-			/* No need to wake_up() on this state change - 
+			/* No need to wake_up() on this state change -
 			 * as the whole point is that nobody can do anything
 			 * with the chip now anyway.
 			 */
@@ -1335,13 +1335,13 @@ static void amd_flash_sync(struct mtd_info *mtd)
 		default:
 			/* Not an idle state */
 			add_wait_queue(&chip->wq, &wait);
-			
+
 			spin_unlock_bh(chip->mutex);
 
 			schedule();
 
 		        remove_wait_queue(&chip->wq, &wait);
-			
+
 			goto retry;
 		}
 	}
@@ -1351,7 +1351,7 @@ static void amd_flash_sync(struct mtd_info *mtd)
 		chip = &private->chips[i];
 
 		spin_lock_bh(chip->mutex);
-		
+
 		if (chip->state == FL_SYNCING) {
 			chip->state = chip->oldstate;
 			wake_up(&chip->wq);

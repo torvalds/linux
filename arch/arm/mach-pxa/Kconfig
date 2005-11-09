@@ -27,7 +27,8 @@ config PXA_SHARPSL
 	  Say Y here if you intend to run this kernel on a
 	  Sharp Zaurus SL-5600 (Poodle), SL-C700 (Corgi),
 	  SL-C750 (Shepherd), SL-C760 (Husky), SL-C1000 (Akita),
-	  SL-C3000 (Spitz) or SL-C3100 (Borzoi) handheld computer.
+	  SL-C3000 (Spitz), SL-C3100 (Borzoi) or SL-C6000x (Tosa)
+	  handheld computer.
 
 endchoice
 
@@ -37,7 +38,7 @@ choice
 	prompt "Select target Sharp Zaurus device range"
 
 config PXA_SHARPSL_25x
-	bool "Sharp PXA25x models (SL-5600 and SL-C7xx)"
+	bool "Sharp PXA25x models (SL-5600, SL-C7xx and SL-C6000x)"
 	select PXA25x
 
 config PXA_SHARPSL_27x
@@ -79,6 +80,10 @@ config MACH_BORZOI
 	bool "Enable Sharp Zaurus SL-3100 (Borzoi) Support"
 	depends PXA_SHARPSL_27x
 	select PXA_SHARP_Cxx00
+
+config MACH_TOSA
+	bool "Enable Sharp SL-6000x (Tosa) Support"
+	depends PXA_SHARPSL
 
 config PXA25x
 	bool

@@ -17,18 +17,18 @@ extern unsigned long disp_BAT[2];
 extern boot_infos_t disp_bi;
 extern int boot_text_mapped;
 
-void btext_init(boot_infos_t *bi);
-void btext_welcome(void);
-void btext_prepare_BAT(void);
-void btext_setup_display(int width, int height, int depth, int pitch,
-			 unsigned long address);
-void map_boot_text(void);
-void btext_update_display(unsigned long phys, int width, int height,
-			  int depth, int pitch);
+extern void init_boot_display(void);
+extern void btext_welcome(void);
+extern void btext_prepare_BAT(void);
+extern void btext_setup_display(int width, int height, int depth, int pitch,
+				unsigned long address);
+extern void map_boot_text(void);
+extern void btext_update_display(unsigned long phys, int width, int height,
+				 int depth, int pitch);
 
-void btext_drawchar(char c);
-void btext_drawstring(const char *str);
-void btext_drawhex(unsigned long v);
+extern void btext_drawchar(char c);
+extern void btext_drawstring(const char *str);
+extern void btext_drawhex(unsigned long v);
 
 #endif /* __KERNEL__ */
 #endif /* __PPC_BTEXT_H */

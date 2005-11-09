@@ -24,6 +24,7 @@ cpumask_t __cacheline_aligned pending_irq_cpumask[NR_IRQS];
 
 /**
  *	synchronize_irq - wait for pending IRQ handlers (on other CPUs)
+ *	@irq: interrupt number to wait for
  *
  *	This function waits for any pending IRQ handlers for this interrupt
  *	to complete before returning. If you use this function while

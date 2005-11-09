@@ -21,6 +21,7 @@
 #include <asm/machdep.h>
 #include <asm/abs_addr.h>
 #include <asm/system.h>
+#include <asm/smp.h>
 
 static int numa_enabled = 1;
 

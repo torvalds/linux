@@ -5402,10 +5402,8 @@ advansys_detect(struct scsi_host_template *tpnt)
                 release_region(shp->io_port, boardp->asc_n_io_port);
                 if (ASC_WIDE_BOARD(boardp)) {
                     iounmap(boardp->ioremap_addr);
-                    if (boardp->orig_carrp) {
-                        kfree(boardp->orig_carrp);
-                        boardp->orig_carrp = NULL;
-                    }
+                    kfree(boardp->orig_carrp);
+                    boardp->orig_carrp = NULL;
                     if (boardp->orig_reqp) {
                         kfree(boardp->orig_reqp);
                         boardp->orig_reqp = boardp->adv_reqp = NULL;
@@ -5457,10 +5455,8 @@ advansys_release(struct Scsi_Host *shp)
         adv_sgblk_t    *sgp = NULL;
 
         iounmap(boardp->ioremap_addr);
-        if (boardp->orig_carrp) {
-            kfree(boardp->orig_carrp);
-            boardp->orig_carrp = NULL;
-        }
+        kfree(boardp->orig_carrp);
+        boardp->orig_carrp = NULL;
         if (boardp->orig_reqp) {
             kfree(boardp->orig_reqp);
             boardp->orig_reqp = boardp->adv_reqp = NULL;

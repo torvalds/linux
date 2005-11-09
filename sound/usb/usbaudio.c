@@ -41,7 +41,6 @@
 #include <sound/driver.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -185,7 +184,6 @@ struct snd_usb_substream {
 	unsigned int num_formats;		/* number of supported audio formats (list) */
 	struct list_head fmt_list;	/* format list */
 	spinlock_t lock;
-	struct tasklet_struct start_period_elapsed;	/* for start trigger */
 
 	struct snd_urb_ops ops;		/* callbacks (must be filled at init) */
 };
@@ -480,6 +478,28 @@ static int retire_playback_sync_urb_hs(snd_usb_substream_t *subs,
 }
 
 /*
+ * Prepare urb for streaming before playback starts.
+ *
+ * We don't care about (or have) any data, so we just send a transfer delimiter.
+ */
+static int prepare_startup_playback_urb(snd_usb_substream_t *subs,
+					snd_pcm_runtime_t *runtime,
+					struct urb *urb)
+{
+	unsigned int i;
+	snd_urb_ctx_t *ctx = urb->context;
+
+	urb->dev = ctx->subs->dev;
+	urb->number_of_packets = subs->packs_per_ms;
+	for (i = 0; i < subs->packs_per_ms; ++i) {
+		urb->iso_frame_desc[i].offset = 0;
+		urb->iso_frame_desc[i].length = 0;
+	}
+	urb->transfer_buffer_length = 0;
+	return 0;
+}
+
+/*
  * prepare urb for playback data pipe
  *
  * Since a URB can handle only a single linear buffer, we must use double
@@ -568,12 +588,8 @@ static int prepare_playback_urb(snd_usb_substream_t *subs,
 		subs->hwptr_done -= runtime->buffer_size;
 	spin_unlock_irqrestore(&subs->lock, flags);
 	urb->transfer_buffer_length = offs * stride;
-	if (period_elapsed) {
-		if (likely(subs->running))
-			snd_pcm_period_elapsed(subs->pcm_substream);
-		else
-			tasklet_hi_schedule(&subs->start_period_elapsed);
-	}
+	if (period_elapsed)
+		snd_pcm_period_elapsed(subs->pcm_substream);
 	return 0;
 }
 
@@ -588,22 +604,12 @@ static int retire_playback_urb(snd_usb_substream_t *subs,
 	return 0;
 }
 
-/*
- * Delay the snd_pcm_period_elapsed() call until after the start trigger
- * callback so that we're not longer in the substream's lock.
- */
-static void start_period_elapsed(unsigned long data)
-{
-	snd_usb_substream_t *subs = (snd_usb_substream_t *)data;
-	snd_pcm_period_elapsed(subs->pcm_substream);
-}
-
 
 /*
  */
 static struct snd_urb_ops audio_urb_ops[2] = {
 	{
-		.prepare =	prepare_playback_urb,
+		.prepare =	prepare_startup_playback_urb,
 		.retire =	retire_playback_urb,
 		.prepare_sync =	prepare_playback_sync_urb,
 		.retire_sync =	retire_playback_sync_urb,
@@ -618,7 +624,7 @@ static struct snd_urb_ops audio_urb_ops[2] = {
 
 static struct snd_urb_ops audio_urb_ops_high_speed[2] = {
 	{
-		.prepare =	prepare_playback_urb,
+		.prepare =	prepare_startup_playback_urb,
 		.retire =	retire_playback_urb,
 		.prepare_sync =	prepare_playback_sync_urb_hs,
 		.retire_sync =	retire_playback_sync_urb_hs,
@@ -692,9 +698,9 @@ static int snd_pcm_alloc_vmalloc_buffer(snd_pcm_substream_t *subs, size_t size)
 	if (runtime->dma_area) {
 		if (runtime->dma_bytes >= size)
 			return 0; /* already large enough */
-		vfree_nocheck(runtime->dma_area);
+		vfree(runtime->dma_area);
 	}
-	runtime->dma_area = vmalloc_nocheck(size);
+	runtime->dma_area = vmalloc(size);
 	if (! runtime->dma_area)
 		return -ENOMEM;
 	runtime->dma_bytes = size;
@@ -706,7 +712,7 @@ static int snd_pcm_free_vmalloc_buffer(snd_pcm_substream_t *subs)
 {
 	snd_pcm_runtime_t *runtime = subs->runtime;
 	if (runtime->dma_area) {
-		vfree_nocheck(runtime->dma_area);
+		vfree(runtime->dma_area);
 		runtime->dma_area = NULL;
 	}
 	return 0;
@@ -838,8 +844,7 @@ static int wait_clear_urbs(snd_usb_substream_t *subs)
 		}
 		if (! alive)
 			break;
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_before(jiffies, end_time));
 	if (alive)
 		snd_printk(KERN_ERR "timeout: still %d active urbs..\n", alive);
@@ -864,25 +869,40 @@ static snd_pcm_uframes_t snd_usb_pcm_pointer(snd_pcm_substream_t *substream)
 
 
 /*
- * start/stop substream
+ * start/stop playback substream
  */
-static int snd_usb_pcm_trigger(snd_pcm_substream_t *substream, int cmd)
+static int snd_usb_pcm_playback_trigger(snd_pcm_substream_t *substream,
+					int cmd)
 {
-	snd_usb_substream_t *subs = (snd_usb_substream_t *)substream->runtime->private_data;
-	int err;
+	snd_usb_substream_t *subs = substream->runtime->private_data;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		err = start_urbs(subs, substream->runtime);
-		break;
+		subs->ops.prepare = prepare_playback_urb;
+		return 0;
 	case SNDRV_PCM_TRIGGER_STOP:
-		err = deactivate_urbs(subs, 0, 0);
-		break;
+		return deactivate_urbs(subs, 0, 0);
 	default:
-		err = -EINVAL;
-		break;
+		return -EINVAL;
 	}
-	return err < 0 ? err : 0;
+}
+
+/*
+ * start/stop capture substream
+ */
+static int snd_usb_pcm_capture_trigger(snd_pcm_substream_t *substream,
+				       int cmd)
+{
+	snd_usb_substream_t *subs = substream->runtime->private_data;
+
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+		return start_urbs(subs, substream->runtime);
+	case SNDRV_PCM_TRIGGER_STOP:
+		return deactivate_urbs(subs, 0, 0);
+	default:
+		return -EINVAL;
+	}
 }
 
 
@@ -1044,7 +1064,7 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 		u->urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
 		u->urb->interval = 1 << subs->datainterval;
 		u->urb->context = u;
-		u->urb->complete = snd_usb_complete_callback(snd_complete_urb);
+		u->urb->complete = snd_complete_urb;
 	}
 
 	if (subs->syncpipe) {
@@ -1070,7 +1090,7 @@ static int init_substream_urbs(snd_usb_substream_t *subs, unsigned int period_by
 			u->urb->number_of_packets = 1;
 			u->urb->interval = 1 << subs->syncinterval;
 			u->urb->context = u;
-			u->urb->complete = snd_usb_complete_callback(snd_complete_sync_urb);
+			u->urb->complete = snd_complete_sync_urb;
 		}
 	}
 	return 0;
@@ -1414,7 +1434,7 @@ static int snd_usb_hw_free(snd_pcm_substream_t *substream)
 static int snd_usb_pcm_prepare(snd_pcm_substream_t *substream)
 {
 	snd_pcm_runtime_t *runtime = substream->runtime;
-	snd_usb_substream_t *subs = (snd_usb_substream_t *)runtime->private_data;
+	snd_usb_substream_t *subs = runtime->private_data;
 
 	if (! subs->cur_audiofmt) {
 		snd_printk(KERN_ERR "usbaudio: no format is specified!\n");
@@ -1434,7 +1454,13 @@ static int snd_usb_pcm_prepare(snd_pcm_substream_t *substream)
 	deactivate_urbs(subs, 0, 1);
 	wait_clear_urbs(subs);
 
-	return 0;
+	/* for playback, submit the URBs now; otherwise, the first hwptr_done
+	 * updates for all URBs would happen at the same time when starting */
+	if (subs->direction == SNDRV_PCM_STREAM_PLAYBACK) {
+		subs->ops.prepare = prepare_startup_playback_urb;
+		return start_urbs(subs, runtime);
+	} else
+		return 0;
 }
 
 static snd_pcm_hardware_t snd_usb_playback =
@@ -1848,7 +1874,7 @@ static snd_pcm_ops_t snd_usb_playback_ops = {
 	.hw_params =	snd_usb_hw_params,
 	.hw_free =	snd_usb_hw_free,
 	.prepare =	snd_usb_pcm_prepare,
-	.trigger =	snd_usb_pcm_trigger,
+	.trigger =	snd_usb_pcm_playback_trigger,
 	.pointer =	snd_usb_pcm_pointer,
 	.page =		snd_pcm_get_vmalloc_page,
 };
@@ -1860,7 +1886,7 @@ static snd_pcm_ops_t snd_usb_capture_ops = {
 	.hw_params =	snd_usb_hw_params,
 	.hw_free =	snd_usb_hw_free,
 	.prepare =	snd_usb_pcm_prepare,
-	.trigger =	snd_usb_pcm_trigger,
+	.trigger =	snd_usb_pcm_capture_trigger,
 	.pointer =	snd_usb_pcm_pointer,
 	.page =		snd_pcm_get_vmalloc_page,
 };
@@ -2079,9 +2105,6 @@ static void init_substream(snd_usb_stream_t *as, int stream, struct audioformat 
 
 	INIT_LIST_HEAD(&subs->fmt_list);
 	spin_lock_init(&subs->lock);
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
-		tasklet_init(&subs->start_period_elapsed, start_period_elapsed,
-			     (unsigned long)subs);
 
 	subs->stream = as;
 	subs->direction = stream;
@@ -2755,9 +2778,9 @@ static int create_fixed_stream_quirk(snd_usb_audio_t *chip,
 /*
  * create a stream for an interface with proper descriptors
  */
-static int create_standard_interface_quirk(snd_usb_audio_t *chip,
-					   struct usb_interface *iface,
-					   const snd_usb_audio_quirk_t *quirk)
+static int create_standard_audio_quirk(snd_usb_audio_t *chip,
+				       struct usb_interface *iface,
+				       const snd_usb_audio_quirk_t *quirk)
 {
 	struct usb_host_interface *alts;
 	struct usb_interface_descriptor *altsd;
@@ -2765,24 +2788,14 @@ static int create_standard_interface_quirk(snd_usb_audio_t *chip,
 
 	alts = &iface->altsetting[0];
 	altsd = get_iface_desc(alts);
-	switch (quirk->type) {
-	case QUIRK_AUDIO_STANDARD_INTERFACE:
-		err = parse_audio_endpoints(chip, altsd->bInterfaceNumber);
-		if (!err)
-			usb_set_interface(chip->dev, altsd->bInterfaceNumber, 0); /* reset the current interface */
-		break;
-	case QUIRK_MIDI_STANDARD_INTERFACE:
-		err = snd_usb_create_midi_interface(chip, iface, NULL);
-		break;
-	default:
-		snd_printd(KERN_ERR "invalid quirk type %d\n", quirk->type);
-		return -ENXIO;
-	}
+	err = parse_audio_endpoints(chip, altsd->bInterfaceNumber);
 	if (err < 0) {
 		snd_printk(KERN_ERR "cannot setup if %d: error %d\n",
 			   altsd->bInterfaceNumber, err);
 		return err;
 	}
+	/* reset the current interface */
+	usb_set_interface(chip->dev, altsd->bInterfaceNumber, 0);
 	return 0;
 }
 
@@ -3044,7 +3057,7 @@ static int snd_usb_create_quirk(snd_usb_audio_t *chip,
 		[QUIRK_MIDI_RAW] = snd_usb_create_midi_interface,
 		[QUIRK_MIDI_EMAGIC] = snd_usb_create_midi_interface,
 		[QUIRK_MIDI_MIDITECH] = snd_usb_create_midi_interface,
-		[QUIRK_AUDIO_STANDARD_INTERFACE] = create_standard_interface_quirk,
+		[QUIRK_AUDIO_STANDARD_INTERFACE] = create_standard_audio_quirk,
 		[QUIRK_AUDIO_FIXED_ENDPOINT] = create_fixed_stream_quirk,
 		[QUIRK_AUDIO_EDIROL_UA700_UA25] = create_ua700_ua25_quirk,
 		[QUIRK_AUDIO_EDIROL_UA1000] = create_ua1000_quirk,
@@ -3222,7 +3235,6 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 				 struct usb_interface *intf,
 				 const struct usb_device_id *usb_id)
 {
-	struct usb_host_config *config = dev->actconfig;
 	const snd_usb_audio_quirk_t *quirk = (const snd_usb_audio_quirk_t *)usb_id->driver_info;
 	int i, err;
 	snd_usb_audio_t *chip;
@@ -3243,7 +3255,6 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 	if (id == USB_ID(0x041e, 0x3000)) {
 		if (snd_usb_extigy_boot_quirk(dev, intf) < 0)
 			goto __err_val;
-		config = dev->actconfig;
 	}
 	/* SB Audigy 2 NX needs its own boot-up magic, too */
 	if (id == USB_ID(0x041e, 0x3020)) {
@@ -3272,11 +3283,6 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 		/* it's a fresh one.
 		 * now look for an empty slot and create a new card instance
 		 */
-		/* first, set the current configuration for this device */
-		if (usb_reset_configuration(dev) < 0) {
-			snd_printk(KERN_ERR "cannot reset configuration (value 0x%x)\n", get_cfg_desc(config)->bConfigurationValue);
-			goto __error;
-		}
 		for (i = 0; i < SNDRV_CARDS; i++)
 			if (enable[i] && ! usb_chip[i] &&
 			    (vid[i] == -1 || vid[i] == USB_ID_VENDOR(id)) &&

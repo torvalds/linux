@@ -35,7 +35,7 @@ extern struct crisv32_iopin crisv32_led2_red;
 extern struct crisv32_iopin crisv32_led3_green;
 extern struct crisv32_iopin crisv32_led3_red;
 
-extern inline void crisv32_io_set(struct crisv32_iopin* iopin,
+static inline void crisv32_io_set(struct crisv32_iopin* iopin,
 			   int val)
 {
 	if (val)
@@ -44,7 +44,7 @@ extern inline void crisv32_io_set(struct crisv32_iopin* iopin,
 		*iopin->port->data &= ~iopin->bit;
 }
 
-extern inline void crisv32_io_set_dir(struct crisv32_iopin* iopin,
+static inline void crisv32_io_set_dir(struct crisv32_iopin* iopin,
 			       enum crisv32_io_dir dir)
 {
 	if (dir == crisv32_io_dir_in)
@@ -53,7 +53,7 @@ extern inline void crisv32_io_set_dir(struct crisv32_iopin* iopin,
 		*iopin->port->oe |= iopin->bit;
 }
 
-extern inline int crisv32_io_rd(struct crisv32_iopin* iopin)
+static inline int crisv32_io_rd(struct crisv32_iopin* iopin)
 {
 	return ((*iopin->port->data_in & iopin->bit) ? 1 : 0);
 }

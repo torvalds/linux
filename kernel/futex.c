@@ -365,6 +365,11 @@ retry:
 		if (bh1 != bh2)
 			spin_unlock(&bh2->lock);
 
+		if (unlikely(op_ret != -EFAULT)) {
+			ret = op_ret;
+			goto out;
+		}
+
 		/* futex_atomic_op_inuser needs to both read and write
 		 * *(int __user *)uaddr2, but we can't modify it
 		 * non-atomically.  Therefore, if get_user below is not

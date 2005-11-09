@@ -28,6 +28,7 @@
 #include <linux/cpuset.h>
 #include <linux/syscalls.h>
 #include <linux/signal.h>
+#include <linux/cn_proc.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
@@ -863,6 +864,7 @@ fastcall NORET_TYPE void do_exit(long code)
 		module_put(tsk->binfmt->module);
 
 	tsk->exit_code = code;
+	proc_exit_connector(tsk);
 	exit_notify(tsk);
 #ifdef CONFIG_NUMA
 	mpol_free(tsk->mempolicy);

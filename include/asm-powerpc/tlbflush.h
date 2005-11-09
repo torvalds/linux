@@ -31,9 +31,9 @@ struct mm_struct;
 struct ppc64_tlb_batch {
 	unsigned long index;
 	struct mm_struct *mm;
-	pte_t pte[PPC64_TLB_BATCH_NR];
+	real_pte_t pte[PPC64_TLB_BATCH_NR];
 	unsigned long vaddr[PPC64_TLB_BATCH_NR];
-	unsigned int large;
+	unsigned int psize;
 };
 DECLARE_PER_CPU(struct ppc64_tlb_batch, ppc64_tlb_batch);
 
@@ -48,8 +48,9 @@ static inline void flush_tlb_pending(void)
 	put_cpu_var(ppc64_tlb_batch);
 }
 
-extern void flush_hash_page(unsigned long va, pte_t pte, int local);
-void flush_hash_range(unsigned long number, int local);
+extern void flush_hash_page(unsigned long va, real_pte_t pte, int psize,
+			    int local);
+extern void flush_hash_range(unsigned long number, int local);
 
 #else /* CONFIG_PPC64 */
 

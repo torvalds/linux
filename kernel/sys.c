@@ -28,6 +28,7 @@
 #include <linux/suspend.h>
 #include <linux/tty.h>
 #include <linux/signal.h>
+#include <linux/cn_proc.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>
@@ -375,18 +376,21 @@ void emergency_restart(void)
 }
 EXPORT_SYMBOL_GPL(emergency_restart);
 
-/**
- *	kernel_restart - reboot the system
- *
- *	Shutdown everything and perform a clean reboot.
- *	This is not safe to call in interrupt context.
- */
 void kernel_restart_prepare(char *cmd)
 {
 	notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
 	system_state = SYSTEM_RESTART;
 	device_shutdown();
 }
+
+/**
+ *	kernel_restart - reboot the system
+ *	@cmd: pointer to buffer containing command to execute for restart
+ *		or %NULL
+ *
+ *	Shutdown everything and perform a clean reboot.
+ *	This is not safe to call in interrupt context.
+ */
 void kernel_restart(char *cmd)
 {
 	kernel_restart_prepare(cmd);
@@ -623,6 +627,7 @@ asmlinkage long sys_setregid(gid_t rgid, gid_t egid)
 	current->egid = new_egid;
 	current->gid = new_rgid;
 	key_fsgid_changed(current);
+	proc_id_connector(current, PROC_EVENT_GID);
 	return 0;
 }
 
@@ -662,6 +667,7 @@ asmlinkage long sys_setgid(gid_t gid)
 		return -EPERM;
 
 	key_fsgid_changed(current);
+	proc_id_connector(current, PROC_EVENT_GID);
 	return 0;
 }
   
@@ -751,6 +757,7 @@ asmlinkage long sys_setreuid(uid_t ruid, uid_t euid)
 	current->fsuid = current->euid;
 
 	key_fsuid_changed(current);
+	proc_id_connector(current, PROC_EVENT_UID);
 
 	return security_task_post_setuid(old_ruid, old_euid, old_suid, LSM_SETID_RE);
 }
@@ -798,6 +805,7 @@ asmlinkage long sys_setuid(uid_t uid)
 	current->suid = new_suid;
 
 	key_fsuid_changed(current);
+	proc_id_connector(current, PROC_EVENT_UID);
 
 	return security_task_post_setuid(old_ruid, old_euid, old_suid, LSM_SETID_ID);
 }
@@ -846,6 +854,7 @@ asmlinkage long sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
 		current->suid = suid;
 
 	key_fsuid_changed(current);
+	proc_id_connector(current, PROC_EVENT_UID);
 
 	return security_task_post_setuid(old_ruid, old_euid, old_suid, LSM_SETID_RES);
 }
@@ -898,6 +907,7 @@ asmlinkage long sys_setresgid(gid_t rgid, gid_t egid, gid_t sgid)
 		current->sgid = sgid;
 
 	key_fsgid_changed(current);
+	proc_id_connector(current, PROC_EVENT_GID);
 	return 0;
 }
 
@@ -940,6 +950,7 @@ asmlinkage long sys_setfsuid(uid_t uid)
 	}
 
 	key_fsuid_changed(current);
+	proc_id_connector(current, PROC_EVENT_UID);
 
 	security_task_post_setuid(old_fsuid, (uid_t)-1, (uid_t)-1, LSM_SETID_FS);
 
@@ -968,6 +979,7 @@ asmlinkage long sys_setfsgid(gid_t gid)
 		}
 		current->fsgid = gid;
 		key_fsgid_changed(current);
+		proc_id_connector(current, PROC_EVENT_GID);
 	}
 	return old_fsgid;
 }
@@ -1484,8 +1496,6 @@ int in_egroup_p(gid_t grp)
 EXPORT_SYMBOL(in_egroup_p);
 
 DECLARE_RWSEM(uts_sem);
-
-EXPORT_SYMBOL(uts_sem);
 
 asmlinkage long sys_newuname(struct new_utsname __user * name)
 {

@@ -246,8 +246,7 @@ int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *t
 		clear_selection();
 		return -ENOMEM;
 	}
-	if (sel_buffer)
-		kfree(sel_buffer);
+	kfree(sel_buffer);
 	sel_buffer = bp;
 
 	obp = bp;

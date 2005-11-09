@@ -94,6 +94,9 @@ struct sparc_trapf {
 #define STACKFRAME32_SZ	sizeof(struct sparc_stackf32)
 
 #ifdef __KERNEL__
+
+#define __ARCH_SYS_PTRACE	1
+
 #define force_successful_syscall_return()	    \
 do {	current_thread_info()->syscall_noerror = 1; \
 } while (0)

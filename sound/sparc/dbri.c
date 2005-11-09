@@ -343,9 +343,6 @@ typedef struct snd_dbri {
 	struct snd_dbri *next;
 } snd_dbri_t;
 
-/* Needed for the ALSA macros to work */
-#define chip_t snd_dbri_t
-
 #define DBRI_MAX_VOLUME		63	/* Output volume */
 #define DBRI_MAX_GAIN		15	/* Input gain */
 #define DBRI_RIGHT_BALANCE	255
@@ -1767,7 +1764,7 @@ play:
 	spin_unlock_irqrestore(&dbri->lock, flags);
 }
 
-DECLARE_TASKLET(xmit_descs_task, xmit_descs, 0);
+static DECLARE_TASKLET(xmit_descs_task, xmit_descs, 0);
 
 /* transmission_complete_intr()
  *

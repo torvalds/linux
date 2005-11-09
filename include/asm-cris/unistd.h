@@ -343,14 +343,14 @@
  * some others too.
  */
 #define __NR__exit __NR_exit
-extern inline _syscall0(pid_t,setsid)
-extern inline _syscall3(int,write,int,fd,const char *,buf,off_t,count)
-extern inline _syscall3(int,read,int,fd,char *,buf,off_t,count)
-extern inline _syscall3(off_t,lseek,int,fd,off_t,offset,int,count)
-extern inline _syscall1(int,dup,int,fd)
-extern inline _syscall3(int,execve,const char *,file,char **,argv,char **,envp)
-extern inline _syscall3(int,open,const char *,file,int,flag,int,mode)
-extern inline _syscall1(int,close,int,fd)
+static inline _syscall0(pid_t,setsid)
+static inline _syscall3(int,write,int,fd,const char *,buf,off_t,count)
+static inline _syscall3(int,read,int,fd,char *,buf,off_t,count)
+static inline _syscall3(off_t,lseek,int,fd,off_t,offset,int,count)
+static inline _syscall1(int,dup,int,fd)
+static inline _syscall3(int,execve,const char *,file,char **,argv,char **,envp)
+static inline _syscall3(int,open,const char *,file,int,flag,int,mode)
+static inline _syscall1(int,close,int,fd)
 
 struct pt_regs;
 asmlinkage long sys_mmap2(
@@ -382,8 +382,8 @@ asmlinkage long sys_rt_sigaction(int sig,
 #ifdef __KERNEL__
 #define _exit kernel_syscall_exit
 #endif
-extern inline _syscall1(int,_exit,int,exitcode)
-extern inline _syscall3(pid_t,waitpid,pid_t,pid,int *,wait_stat,int,options)
+static inline _syscall1(int,_exit,int,exitcode)
+static inline _syscall3(pid_t,waitpid,pid_t,pid,int *,wait_stat,int,options)
 #endif
 
 

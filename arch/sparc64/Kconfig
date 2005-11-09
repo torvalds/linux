@@ -377,7 +377,20 @@ source "drivers/fc4/Kconfig"
 
 source "fs/Kconfig"
 
+menu "Instrumentation Support"
+        depends on EXPERIMENTAL
+
 source "arch/sparc64/oprofile/Kconfig"
+
+config KPROBES
+	bool "Kprobes (EXPERIMENTAL)"
+	help
+	  Kprobes allows you to trap at almost any kernel address and
+	  execute a callback function.  register_kprobe() establishes
+	  a probepoint and specifies the callback.  Kprobes is useful
+	  for kernel debugging, non-intrusive instrumentation and testing.
+	  If in doubt, say "N".
+endmenu
 
 source "arch/sparc64/Kconfig.debug"
 

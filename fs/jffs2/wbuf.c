@@ -9,7 +9,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: wbuf.c,v 1.92 2005/04/05 12:51:54 dedekind Exp $
+ * $Id: wbuf.c,v 1.100 2005/09/30 13:59:13 dedekind Exp $
  *
  */
 
@@ -30,11 +30,11 @@
 static unsigned char *brokenbuf;
 #endif
 
+#define PAGE_DIV(x) ( ((unsigned long)(x) / (unsigned long)(c->wbuf_pagesize)) * (unsigned long)(c->wbuf_pagesize) )
+#define PAGE_MOD(x) ( (unsigned long)(x) % (unsigned long)(c->wbuf_pagesize) )
+
 /* max. erase failures before we mark a block bad */
 #define MAX_ERASE_FAILURES 	2
-
-/* two seconds timeout for timed wbuf-flushing */
-#define WBUF_FLUSH_TIMEOUT	2 * HZ
 
 struct jffs2_inodirty {
 	uint32_t ino;
@@ -139,7 +139,6 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 {
 	D1(printk("About to refile bad block at %08x\n", jeb->offset));
 
-	D2(jffs2_dump_block_lists(c));
 	/* File the existing block on the bad_used_list.... */
 	if (c->nextblock == jeb)
 		c->nextblock = NULL;
@@ -156,7 +155,6 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 		c->nr_erasing_blocks++;
 		jffs2_erase_pending_trigger(c);
 	}
-	D2(jffs2_dump_block_lists(c));
 
 	/* Adjust its size counts accordingly */
 	c->wasted_size += jeb->free_size;
@@ -164,8 +162,9 @@ static void jffs2_block_refile(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 	jeb->wasted_size += jeb->free_size;
 	jeb->free_size = 0;
 
-	ACCT_SANITY_CHECK(c,jeb);
-	D1(ACCT_PARANOIA_CHECK(jeb));
+	jffs2_dbg_dump_block_lists_nolock(c);
+	jffs2_dbg_acct_sanity_check_nolock(c,jeb);
+	jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
 }
 
 /* Recover from failure to write wbuf. Recover the nodes up to the
@@ -189,7 +188,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	/* Find the first node to be recovered, by skipping over every
 	   node which ends before the wbuf starts, or which is obsolete. */
 	first_raw = &jeb->first_node;
-	while (*first_raw && 
+	while (*first_raw &&
 	       (ref_obsolete(*first_raw) ||
 		(ref_offset(*first_raw)+ref_totlen(c, jeb, *first_raw)) < c->wbuf_ofs)) {
 		D1(printk(KERN_DEBUG "Skipping node at 0x%08x(%d)-0x%08x which is either before 0x%08x or obsolete\n",
@@ -238,7 +237,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 			ret = c->mtd->read_ecc(c->mtd, start, c->wbuf_ofs - start, &retlen, buf, NULL, c->oobinfo);
 		else
 			ret = c->mtd->read(c->mtd, start, c->wbuf_ofs - start, &retlen, buf);
-		
+
 		if (ret == -EBADMSG && retlen == c->wbuf_ofs - start) {
 			/* ECC recovered */
 			ret = 0;
@@ -266,7 +265,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 
 
 	/* ... and get an allocation of space from a shiny new block instead */
-	ret = jffs2_reserve_space_gc(c, end-start, &ofs, &len);
+	ret = jffs2_reserve_space_gc(c, end-start, &ofs, &len, JFFS2_SUMMARY_NOSUM_SIZE);
 	if (ret) {
 		printk(KERN_WARNING "Failed to allocate space for wbuf recovery. Data loss ensues.\n");
 		kfree(buf);
@@ -275,15 +274,15 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	if (end-start >= c->wbuf_pagesize) {
 		/* Need to do another write immediately, but it's possible
 		   that this is just because the wbuf itself is completely
-		   full, and there's nothing earlier read back from the 
-		   flash. Hence 'buf' isn't necessarily what we're writing 
+		   full, and there's nothing earlier read back from the
+		   flash. Hence 'buf' isn't necessarily what we're writing
 		   from. */
 		unsigned char *rewrite_buf = buf?:c->wbuf;
 		uint32_t towrite = (end-start) - ((end-start)%c->wbuf_pagesize);
 
 		D1(printk(KERN_DEBUG "Write 0x%x bytes at 0x%08x in wbuf recover\n",
 			  towrite, ofs));
-	  
+
 #ifdef BREAKMEHEADER
 		static int breakme;
 		if (breakme++ == 20) {
@@ -327,8 +326,7 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 		c->wbuf_ofs = ofs + towrite;
 		memmove(c->wbuf, rewrite_buf + towrite, c->wbuf_len);
 		/* Don't muck about with c->wbuf_inodes. False positives are harmless. */
-		if (buf)
-			kfree(buf);
+		kfree(buf);
 	} else {
 		/* OK, now we're left with the dregs in whichever buffer we're using */
 		if (buf) {
@@ -392,11 +390,11 @@ static void jffs2_wbuf_recover(struct jffs2_sb_info *c)
 	else
 		jeb->last_node = container_of(first_raw, struct jffs2_raw_node_ref, next_phys);
 
-	ACCT_SANITY_CHECK(c,jeb);
-        D1(ACCT_PARANOIA_CHECK(jeb));
+	jffs2_dbg_acct_sanity_check_nolock(c, jeb);
+        jffs2_dbg_acct_paranoia_check_nolock(c, jeb);
 
-	ACCT_SANITY_CHECK(c,new_jeb);
-        D1(ACCT_PARANOIA_CHECK(new_jeb));
+	jffs2_dbg_acct_sanity_check_nolock(c, new_jeb);
+        jffs2_dbg_acct_paranoia_check_nolock(c, new_jeb);
 
 	spin_unlock(&c->erase_completion_lock);
 
@@ -435,15 +433,15 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	   this happens, if we have a change to a new block,
 	   or if fsync forces us to flush the writebuffer.
 	   if we have a switch to next page, we will not have
-	   enough remaining space for this. 
+	   enough remaining space for this.
 	*/
-	if (pad && !jffs2_dataflash(c)) {
+	if (pad ) {
 		c->wbuf_len = PAD(c->wbuf_len);
 
 		/* Pad with JFFS2_DIRTY_BITMASK initially.  this helps out ECC'd NOR
 		   with 8 byte page size */
 		memset(c->wbuf + c->wbuf_len, 0, c->wbuf_pagesize - c->wbuf_len);
-		
+
 		if ( c->wbuf_len + sizeof(struct jffs2_unknown_node) < c->wbuf_pagesize) {
 			struct jffs2_unknown_node *padnode = (void *)(c->wbuf + c->wbuf_len);
 			padnode->magic = cpu_to_je16(JFFS2_MAGIC_BITMASK);
@@ -454,7 +452,7 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	}
 	/* else jffs2_flash_writev has actually filled in the rest of the
 	   buffer for us, and will deal with the node refs etc. later. */
-	
+
 #ifdef BREAKME
 	static int breakme;
 	if (breakme++ == 20) {
@@ -463,9 +461,9 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 		c->mtd->write_ecc(c->mtd, c->wbuf_ofs, c->wbuf_pagesize,
 					&retlen, brokenbuf, NULL, c->oobinfo);
 		ret = -EIO;
-	} else 
+	} else
 #endif
-	
+
 	if (jffs2_cleanmarker_oob(c))
 		ret = c->mtd->write_ecc(c->mtd, c->wbuf_ofs, c->wbuf_pagesize, &retlen, c->wbuf, NULL, c->oobinfo);
 	else
@@ -488,7 +486,7 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	spin_lock(&c->erase_completion_lock);
 
 	/* Adjust free size of the block if we padded. */
-	if (pad && !jffs2_dataflash(c)) {
+	if (pad) {
 		struct jffs2_eraseblock *jeb;
 
 		jeb = &c->blocks[c->wbuf_ofs / c->sector_size];
@@ -496,7 +494,7 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 		D1(printk(KERN_DEBUG "jffs2_flush_wbuf() adjusting free_size of %sblock at %08x\n",
 			  (jeb==c->nextblock)?"next":"", jeb->offset));
 
-		/* wbuf_pagesize - wbuf_len is the amount of space that's to be 
+		/* wbuf_pagesize - wbuf_len is the amount of space that's to be
 		   padded. If there is less free space in the block than that,
 		   something screwed up */
 		if (jeb->free_size < (c->wbuf_pagesize - c->wbuf_len)) {
@@ -524,9 +522,9 @@ static int __jffs2_flush_wbuf(struct jffs2_sb_info *c, int pad)
 	return 0;
 }
 
-/* Trigger garbage collection to flush the write-buffer. 
+/* Trigger garbage collection to flush the write-buffer.
    If ino arg is zero, do it if _any_ real (i.e. not GC) writes are
-   outstanding. If ino arg non-zero, do it only if a write for the 
+   outstanding. If ino arg non-zero, do it only if a write for the
    given inode is outstanding. */
 int jffs2_flush_wbuf_gc(struct jffs2_sb_info *c, uint32_t ino)
 {
@@ -605,15 +603,6 @@ int jffs2_flush_wbuf_pad(struct jffs2_sb_info *c)
 
 	return ret;
 }
-
-#ifdef CONFIG_JFFS2_FS_WRITEBUFFER
-#define PAGE_DIV(x) ( ((unsigned long)(x) / (unsigned long)(c->wbuf_pagesize)) * (unsigned long)(c->wbuf_pagesize) )
-#define PAGE_MOD(x) ( (unsigned long)(x) % (unsigned long)(c->wbuf_pagesize) )
-#else
-#define PAGE_DIV(x) ( (x) & (~(c->wbuf_pagesize - 1)) )
-#define PAGE_MOD(x) ( (x) & (c->wbuf_pagesize - 1) )
-#endif
-
 int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsigned long count, loff_t to, size_t *retlen, uint32_t ino)
 {
 	struct kvec outvecs[3];
@@ -630,13 +619,13 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 	/* If not NAND flash, don't bother */
 	if (!jffs2_is_writebuffered(c))
 		return jffs2_flash_direct_writev(c, invecs, count, to, retlen);
-	
+
 	down_write(&c->wbuf_sem);
 
 	/* If wbuf_ofs is not initialized, set it to target address */
 	if (c->wbuf_ofs == 0xFFFFFFFF) {
 		c->wbuf_ofs = PAGE_DIV(to);
-		c->wbuf_len = PAGE_MOD(to);			
+		c->wbuf_len = PAGE_MOD(to);
 		memset(c->wbuf,0xff,c->wbuf_pagesize);
 	}
 
@@ -650,10 +639,10 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 			memset(c->wbuf,0xff,c->wbuf_pagesize);
 		}
 	}
-	
-	/* Sanity checks on target address. 
-	   It's permitted to write at PAD(c->wbuf_len+c->wbuf_ofs), 
-	   and it's permitted to write at the beginning of a new 
+
+	/* Sanity checks on target address.
+	   It's permitted to write at PAD(c->wbuf_len+c->wbuf_ofs),
+	   and it's permitted to write at the beginning of a new
 	   erase block. Anything else, and you die.
 	   New block starts at xxx000c (0-b = block header)
 	*/
@@ -671,8 +660,8 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 		}
 		/* set pointer to new block */
 		c->wbuf_ofs = PAGE_DIV(to);
-		c->wbuf_len = PAGE_MOD(to);			
-	} 
+		c->wbuf_len = PAGE_MOD(to);
+	}
 
 	if (to != PAD(c->wbuf_ofs + c->wbuf_len)) {
 		/* We're not writing immediately after the writebuffer. Bad. */
@@ -692,21 +681,21 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 	invec = 0;
 	outvec = 0;
 
-	/* Fill writebuffer first, if already in use */	
+	/* Fill writebuffer first, if already in use */
 	if (c->wbuf_len) {
 		uint32_t invec_ofs = 0;
 
-		/* adjust alignment offset */ 
+		/* adjust alignment offset */
 		if (c->wbuf_len != PAGE_MOD(to)) {
 			c->wbuf_len = PAGE_MOD(to);
 			/* take care of alignment to next page */
 			if (!c->wbuf_len)
 				c->wbuf_len = c->wbuf_pagesize;
 		}
-		
+
 		while(c->wbuf_len < c->wbuf_pagesize) {
 			uint32_t thislen;
-			
+
 			if (invec == count)
 				goto alldone;
 
@@ -714,17 +703,17 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 
 			if (thislen >= invecs[invec].iov_len)
 				thislen = invecs[invec].iov_len;
-	
+
 			invec_ofs = thislen;
 
 			memcpy(c->wbuf + c->wbuf_len, invecs[invec].iov_base, thislen);
 			c->wbuf_len += thislen;
 			donelen += thislen;
 			/* Get next invec, if actual did not fill the buffer */
-			if (c->wbuf_len < c->wbuf_pagesize) 
+			if (c->wbuf_len < c->wbuf_pagesize)
 				invec++;
-		}			
-		
+		}
+
 		/* write buffer is full, flush buffer */
 		ret = __jffs2_flush_wbuf(c, NOPAD);
 		if (ret) {
@@ -783,10 +772,10 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 
 		/* We did cross a page boundary, so we write some now */
 		if (jffs2_cleanmarker_oob(c))
-			ret = c->mtd->writev_ecc(c->mtd, outvecs, splitvec+1, outvec_to, &wbuf_retlen, NULL, c->oobinfo); 
+			ret = c->mtd->writev_ecc(c->mtd, outvecs, splitvec+1, outvec_to, &wbuf_retlen, NULL, c->oobinfo);
 		else
 			ret = jffs2_flash_direct_writev(c, outvecs, splitvec+1, outvec_to, &wbuf_retlen);
-		
+
 		if (ret < 0 || wbuf_retlen != PAGE_DIV(totlen)) {
 			/* At this point we have no problem,
 			   c->wbuf is empty. However refile nextblock to avoid
@@ -803,7 +792,7 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 			spin_unlock(&c->erase_completion_lock);
 			goto exit;
 		}
-		
+
 		donelen += wbuf_retlen;
 		c->wbuf_ofs = PAGE_DIV(outvec_to) + PAGE_DIV(totlen);
 
@@ -837,11 +826,17 @@ int jffs2_flash_writev(struct jffs2_sb_info *c, const struct kvec *invecs, unsig
 alldone:
 	*retlen = donelen;
 
+	if (jffs2_sum_active()) {
+		int res = jffs2_sum_add_kvec(c, invecs, count, (uint32_t) to);
+		if (res)
+			return res;
+	}
+
 	if (c->wbuf_len && ino)
 		jffs2_wbuf_dirties_inode(c, ino);
 
 	ret = 0;
-	
+
 exit:
 	up_write(&c->wbuf_sem);
 	return ret;
@@ -856,7 +851,7 @@ int jffs2_flash_write(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *r
 	struct kvec vecs[1];
 
 	if (!jffs2_is_writebuffered(c))
-		return c->mtd->write(c->mtd, ofs, len, retlen, buf);
+		return jffs2_flash_direct_write(c, ofs, len, retlen, buf);
 
 	vecs[0].iov_base = (unsigned char *) buf;
 	vecs[0].iov_len = len;
@@ -884,18 +879,18 @@ int jffs2_flash_read(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *re
 	if ( (ret == -EBADMSG) && (*retlen == len) ) {
 		printk(KERN_WARNING "mtd->read(0x%zx bytes from 0x%llx) returned ECC error\n",
 		       len, ofs);
-		/* 
-		 * We have the raw data without ECC correction in the buffer, maybe 
+		/*
+		 * We have the raw data without ECC correction in the buffer, maybe
 		 * we are lucky and all data or parts are correct. We check the node.
 		 * If data are corrupted node check will sort it out.
 		 * We keep this block, it will fail on write or erase and the we
 		 * mark it bad. Or should we do that now? But we should give him a chance.
-		 * Maybe we had a system crash or power loss before the ecc write or  
+		 * Maybe we had a system crash or power loss before the ecc write or
 		 * a erase was completed.
 		 * So we return success. :)
 		 */
 	 	ret = 0;
-	}	
+	}
 
 	/* if no writebuffer available or write buffer empty, return */
 	if (!c->wbuf_pagesize || !c->wbuf_len)
@@ -910,16 +905,16 @@ int jffs2_flash_read(struct jffs2_sb_info *c, loff_t ofs, size_t len, size_t *re
 		if (owbf > c->wbuf_len)		/* is read beyond write buffer ? */
 			goto exit;
 		lwbf = c->wbuf_len - owbf;	/* number of bytes to copy */
-		if (lwbf > len)	
+		if (lwbf > len)
 			lwbf = len;
-	} else {	
+	} else {
 		orbf = (c->wbuf_ofs - ofs);	/* offset in read buffer */
 		if (orbf > len)			/* is write beyond write buffer ? */
 			goto exit;
 		lwbf = len - orbf; 		/* number of bytes to copy */
-		if (lwbf > c->wbuf_len)	
+		if (lwbf > c->wbuf_len)
 			lwbf = c->wbuf_len;
-	}	
+	}
 	if (lwbf > 0)
 		memcpy(buf+orbf,c->wbuf+owbf,lwbf);
 
@@ -947,7 +942,7 @@ int jffs2_check_oob_empty( struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 		printk(KERN_NOTICE "jffs2_check_oob_empty(): allocation of temporary data buffer for oob check failed\n");
 		return -ENOMEM;
 	}
-	/* 
+	/*
 	 * if mode = 0, we scan for a total empty oob area, else we have
 	 * to take care of the cleanmarker in the first page of the block
 	*/
@@ -956,41 +951,41 @@ int jffs2_check_oob_empty( struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb
 		D1(printk(KERN_WARNING "jffs2_check_oob_empty(): Read OOB failed %d for block at %08x\n", ret, jeb->offset));
 		goto out;
 	}
-	
+
 	if (retlen < len) {
 		D1(printk(KERN_WARNING "jffs2_check_oob_empty(): Read OOB return short read "
 			  "(%zd bytes not %d) for block at %08x\n", retlen, len, jeb->offset));
 		ret = -EIO;
 		goto out;
 	}
-	
+
 	/* Special check for first page */
 	for(i = 0; i < oob_size ; i++) {
 		/* Yeah, we know about the cleanmarker. */
-		if (mode && i >= c->fsdata_pos && 
+		if (mode && i >= c->fsdata_pos &&
 		    i < c->fsdata_pos + c->fsdata_len)
 			continue;
 
 		if (buf[i] != 0xFF) {
 			D2(printk(KERN_DEBUG "Found %02x at %x in OOB for %08x\n",
-				  buf[page+i], page+i, jeb->offset));
-			ret = 1; 
+				  buf[i], i, jeb->offset));
+			ret = 1;
 			goto out;
 		}
 	}
 
-	/* we know, we are aligned :) */	
+	/* we know, we are aligned :) */
 	for (page = oob_size; page < len; page += sizeof(long)) {
 		unsigned long dat = *(unsigned long *)(&buf[page]);
 		if(dat != -1) {
-			ret = 1; 
+			ret = 1;
 			goto out;
 		}
 	}
 
 out:
-	kfree(buf);	
-	
+	kfree(buf);
+
 	return ret;
 }
 
@@ -1072,7 +1067,7 @@ int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c, struct jffs2_erasebloc
 	n.totlen = cpu_to_je32(8);
 
 	ret = jffs2_flash_write_oob(c, jeb->offset + c->fsdata_pos, c->fsdata_len, &retlen, (unsigned char *)&n);
-	
+
 	if (ret) {
 		D1(printk(KERN_WARNING "jffs2_write_nand_cleanmarker(): Write failed for block at %08x: error %d\n", jeb->offset, ret));
 		return ret;
@@ -1084,7 +1079,7 @@ int jffs2_write_nand_cleanmarker(struct jffs2_sb_info *c, struct jffs2_erasebloc
 	return 0;
 }
 
-/* 
+/*
  * On NAND we try to mark this block bad. If the block was erased more
  * than MAX_ERASE_FAILURES we mark it finaly bad.
  * Don't care about failures. This block remains on the erase-pending
@@ -1105,7 +1100,7 @@ int jffs2_write_nand_badblock(struct jffs2_sb_info *c, struct jffs2_eraseblock *
 
 	D1(printk(KERN_WARNING "jffs2_write_nand_badblock(): Marking bad block at %08x\n", bad_offset));
 	ret = c->mtd->block_markbad(c->mtd, bad_offset);
-	
+
 	if (ret) {
 		D1(printk(KERN_WARNING "jffs2_write_nand_badblock(): Write failed for block at %08x: error %d\n", jeb->offset, ret));
 		return ret;
@@ -1129,7 +1124,7 @@ static int jffs2_nand_set_oobinfo(struct jffs2_sb_info *c)
 	/* Do this only, if we have an oob buffer */
 	if (!c->mtd->oobsize)
 		return 0;
-	
+
 	/* Cleanmarker is out-of-band, so inline size zero */
 	c->cleanmarker_size = 0;
 
@@ -1155,7 +1150,7 @@ static int jffs2_nand_set_oobinfo(struct jffs2_sb_info *c)
 			c->fsdata_len = NAND_JFFS2_OOB16_FSDALEN;
 			c->badblock_pos = 15;
 			break;
-	
+
 		default:
 			D1(printk(KERN_DEBUG "JFFS2 on NAND. No autoplacment info found\n"));
 			return -EINVAL;
@@ -1172,7 +1167,7 @@ int jffs2_nand_flash_setup(struct jffs2_sb_info *c)
 	init_rwsem(&c->wbuf_sem);
 	c->wbuf_pagesize = c->mtd->oobblock;
 	c->wbuf_ofs = 0xFFFFFFFF;
-	
+
 	c->wbuf = kmalloc(c->wbuf_pagesize, GFP_KERNEL);
 	if (!c->wbuf)
 		return -ENOMEM;
@@ -1198,17 +1193,41 @@ void jffs2_nand_flash_cleanup(struct jffs2_sb_info *c)
 
 int jffs2_dataflash_setup(struct jffs2_sb_info *c) {
 	c->cleanmarker_size = 0;		/* No cleanmarkers needed */
-	
+
 	/* Initialize write buffer */
 	init_rwsem(&c->wbuf_sem);
-	c->wbuf_pagesize = c->sector_size;
-	c->wbuf_ofs = 0xFFFFFFFF;
 
+
+	c->wbuf_pagesize =  c->mtd->erasesize;
+
+	/* Find a suitable c->sector_size
+	 * - Not too much sectors
+	 * - Sectors have to be at least 4 K + some bytes
+	 * - All known dataflashes have erase sizes of 528 or 1056
+	 * - we take at least 8 eraseblocks and want to have at least 8K size
+	 * - The concatenation should be a power of 2
+	*/
+
+	c->sector_size = 8 * c->mtd->erasesize;
+
+	while (c->sector_size < 8192) {
+		c->sector_size *= 2;
+	}
+
+	/* It may be necessary to adjust the flash size */
+	c->flash_size = c->mtd->size;
+
+	if ((c->flash_size % c->sector_size) != 0) {
+		c->flash_size = (c->flash_size / c->sector_size) * c->sector_size;
+		printk(KERN_WARNING "JFFS2 flash size adjusted to %dKiB\n", c->flash_size);
+	};
+
+	c->wbuf_ofs = 0xFFFFFFFF;
 	c->wbuf = kmalloc(c->wbuf_pagesize, GFP_KERNEL);
 	if (!c->wbuf)
 		return -ENOMEM;
 
-	printk(KERN_INFO "JFFS2 write-buffering enabled (%i)\n", c->wbuf_pagesize);
+	printk(KERN_INFO "JFFS2 write-buffering enabled buffer (%d) erasesize (%d)\n", c->wbuf_pagesize, c->sector_size);
 
 	return 0;
 }
@@ -1234,5 +1253,25 @@ int jffs2_nor_ecc_flash_setup(struct jffs2_sb_info *c) {
 }
 
 void jffs2_nor_ecc_flash_cleanup(struct jffs2_sb_info *c) {
+	kfree(c->wbuf);
+}
+
+int jffs2_nor_wbuf_flash_setup(struct jffs2_sb_info *c) {
+	/* Cleanmarker currently occupies a whole programming region */
+	c->cleanmarker_size = MTD_PROGREGION_SIZE(c->mtd);
+
+	/* Initialize write buffer */
+	init_rwsem(&c->wbuf_sem);
+	c->wbuf_pagesize = MTD_PROGREGION_SIZE(c->mtd);
+	c->wbuf_ofs = 0xFFFFFFFF;
+
+	c->wbuf = kmalloc(c->wbuf_pagesize, GFP_KERNEL);
+	if (!c->wbuf)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void jffs2_nor_wbuf_flash_cleanup(struct jffs2_sb_info *c) {
 	kfree(c->wbuf);
 }

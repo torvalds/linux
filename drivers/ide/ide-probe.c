@@ -596,14 +596,13 @@ static inline u8 probe_for_drive (ide_drive_t *drive)
 	 *	Also note that 0 everywhere means "can't do X"
 	 */
  
-	drive->id = kmalloc(SECTOR_WORDS *4, GFP_KERNEL);
+	drive->id = kzalloc(SECTOR_WORDS *4, GFP_KERNEL);
 	drive->id_read = 0;
 	if(drive->id == NULL)
 	{
 		printk(KERN_ERR "ide: out of memory for id data.\n");
 		return 0;
 	}
-	memset(drive->id, 0, SECTOR_WORDS * 4);
 	strcpy(drive->id->model, "UNKNOWN");
 	
 	/* skip probing? */
@@ -1316,10 +1315,8 @@ static void drive_release_dev (struct device *dev)
 		drive->devfs_name[0] = '\0';
 	}
 	ide_remove_drive_from_hwgroup(drive);
-	if (drive->id != NULL) {
-		kfree(drive->id);
-		drive->id = NULL;
-	}
+	kfree(drive->id);
+	drive->id = NULL;
 	drive->present = 0;
 	/* Messed up locking ... */
 	spin_unlock_irq(&ide_lock);

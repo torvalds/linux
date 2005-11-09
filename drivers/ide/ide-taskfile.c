@@ -528,9 +528,8 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 
 //	printk("IDE Taskfile ...\n");
 
-	req_task = kmalloc(tasksize, GFP_KERNEL);
+	req_task = kzalloc(tasksize, GFP_KERNEL);
 	if (req_task == NULL) return -ENOMEM;
-	memset(req_task, 0, tasksize);
 	if (copy_from_user(req_task, buf, tasksize)) {
 		kfree(req_task);
 		return -EFAULT;
@@ -541,12 +540,11 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 
 	if (taskout) {
 		int outtotal = tasksize;
-		outbuf = kmalloc(taskout, GFP_KERNEL);
+		outbuf = kzalloc(taskout, GFP_KERNEL);
 		if (outbuf == NULL) {
 			err = -ENOMEM;
 			goto abort;
 		}
-		memset(outbuf, 0, taskout);
 		if (copy_from_user(outbuf, buf + outtotal, taskout)) {
 			err = -EFAULT;
 			goto abort;
@@ -555,12 +553,11 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 
 	if (taskin) {
 		int intotal = tasksize + taskout;
-		inbuf = kmalloc(taskin, GFP_KERNEL);
+		inbuf = kzalloc(taskin, GFP_KERNEL);
 		if (inbuf == NULL) {
 			err = -ENOMEM;
 			goto abort;
 		}
-		memset(inbuf, 0, taskin);
 		if (copy_from_user(inbuf, buf + intotal, taskin)) {
 			err = -EFAULT;
 			goto abort;
@@ -649,10 +646,8 @@ int ide_taskfile_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 	}
 abort:
 	kfree(req_task);
-	if (outbuf != NULL)
-		kfree(outbuf);
-	if (inbuf != NULL)
-		kfree(inbuf);
+	kfree(outbuf);
+	kfree(inbuf);
 
 //	printk("IDE Taskfile ioctl ended. rc = %i\n", err);
 
@@ -709,10 +704,9 @@ int ide_cmd_ioctl (ide_drive_t *drive, unsigned int cmd, unsigned long arg)
 
 	if (args[3]) {
 		argsize = 4 + (SECTOR_WORDS * 4 * args[3]);
-		argbuf = kmalloc(argsize, GFP_KERNEL);
+		argbuf = kzalloc(argsize, GFP_KERNEL);
 		if (argbuf == NULL)
 			return -ENOMEM;
-		memcpy(argbuf, args, 4);
 	}
 	if (set_transfer(drive, &tfargs)) {
 		xfer_rate = args[1];

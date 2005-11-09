@@ -4107,8 +4107,7 @@ out_free_tape:
 	write_unlock(&st_dev_arr_lock);
 out_put_disk:
 	put_disk(disk);
-	if (tpnt)
-		kfree(tpnt);
+	kfree(tpnt);
 out_buffer_free:
 	kfree(buffer);
 out:

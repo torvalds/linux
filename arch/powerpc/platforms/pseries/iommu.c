@@ -37,7 +37,6 @@
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
-#include <asm/ppcdebug.h>
 #include <asm/iommu.h>
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
@@ -47,6 +46,7 @@
 #include <asm/firmware.h>
 #include <asm/tce.h>
 #include <asm/ppc-pci.h>
+#include <asm/udbg.h>
 
 #include "plpar_wrappers.h"
 

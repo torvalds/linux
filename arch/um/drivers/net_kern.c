@@ -96,7 +96,6 @@ irqreturn_t uml_net_interrupt(int irq, void *dev_id, struct pt_regs *regs)
 static int uml_net_open(struct net_device *dev)
 {
 	struct uml_net_private *lp = dev->priv;
-	char addr[sizeof("255.255.255.255\0")];
 	int err;
 
 	spin_lock(&lp->lock);
@@ -107,7 +106,7 @@ static int uml_net_open(struct net_device *dev)
 	}
 
 	if(!lp->have_mac){
- 		dev_ip_addr(dev, addr, &lp->mac[2]);
+ 		dev_ip_addr(dev, &lp->mac[2]);
  		set_ether_mac(dev, lp->mac);
 	}
 
@@ -664,8 +663,6 @@ static int uml_inetaddr_event(struct notifier_block *this, unsigned long event,
 			      void *ptr)
 {
 	struct in_ifaddr *ifa = ptr;
-	u32 addr = ifa->ifa_address;
-	u32 netmask = ifa->ifa_mask;
 	struct net_device *dev = ifa->ifa_dev->dev;
 	struct uml_net_private *lp;
 	void (*proc)(unsigned char *, unsigned char *, void *);
@@ -685,14 +682,8 @@ static int uml_inetaddr_event(struct notifier_block *this, unsigned long event,
 		break;
 	}
 	if(proc != NULL){
-		addr_buf[0] = addr & 0xff;
-		addr_buf[1] = (addr >> 8) & 0xff;
-		addr_buf[2] = (addr >> 16) & 0xff;
-		addr_buf[3] = addr >> 24;
-		netmask_buf[0] = netmask & 0xff;
-		netmask_buf[1] = (netmask >> 8) & 0xff;
-		netmask_buf[2] = (netmask >> 16) & 0xff;
-		netmask_buf[3] = netmask >> 24;
+		memcpy(addr_buf, &ifa->ifa_address, sizeof(addr_buf));
+		memcpy(netmask_buf, &ifa->ifa_mask, sizeof(netmask_buf));
 		(*proc)(addr_buf, netmask_buf, &lp->user);
 	}
 	return(NOTIFY_DONE);
@@ -774,27 +765,18 @@ int setup_etheraddr(char *str, unsigned char *addr)
 	return(1);
 }
 
-void dev_ip_addr(void *d, char *buf, char *bin_buf)
+void dev_ip_addr(void *d, unsigned char *bin_buf)
 {
 	struct net_device *dev = d;
 	struct in_device *ip = dev->ip_ptr;
 	struct in_ifaddr *in;
-	u32 addr;
 
 	if((ip == NULL) || ((in = ip->ifa_list) == NULL)){
 		printk(KERN_WARNING "dev_ip_addr - device not assigned an "
 		       "IP address\n");
 		return;
 	}
-	addr = in->ifa_address;
-	sprintf(buf, "%d.%d.%d.%d", addr & 0xff, (addr >> 8) & 0xff, 
-		(addr >> 16) & 0xff, addr >> 24);
-	if(bin_buf){
-		bin_buf[0] = addr & 0xff;
-		bin_buf[1] = (addr >> 8) & 0xff;
-		bin_buf[2] = (addr >> 16) & 0xff;
-		bin_buf[3] = addr >> 24;
-	}
+	memcpy(bin_buf, &in->ifa_address, sizeof(in->ifa_address));
 }
 
 void set_ether_mac(void *d, unsigned char *addr)
@@ -829,14 +811,8 @@ void iter_addresses(void *d, void (*cb)(unsigned char *, unsigned char *,
 	if(ip == NULL) return;
 	in = ip->ifa_list;
 	while(in != NULL){
-		address[0] = in->ifa_address & 0xff;
-		address[1] = (in->ifa_address >> 8) & 0xff;
-		address[2] = (in->ifa_address >> 16) & 0xff;
-		address[3] = in->ifa_address >> 24;
-		netmask[0] = in->ifa_mask & 0xff;
-		netmask[1] = (in->ifa_mask >> 8) & 0xff;
-		netmask[2] = (in->ifa_mask >> 16) & 0xff;
-		netmask[3] = in->ifa_mask >> 24;
+		memcpy(address, &in->ifa_address, sizeof(address));
+		memcpy(netmask, &in->ifa_mask, sizeof(netmask));
 		(*cb)(address, netmask, arg);
 		in = in->ifa_next;
 	}

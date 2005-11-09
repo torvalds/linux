@@ -59,7 +59,6 @@
 #include <asm/processor.h>
 #include <asm/mmzone.h>
 #include <asm/cputable.h>
-#include <asm/ppcdebug.h>
 #include <asm/sections.h>
 #include <asm/system.h>
 #include <asm/iommu.h>
@@ -101,7 +100,6 @@ static int map_io_page(unsigned long ea, unsigned long pa, int flags)
 	pud_t *pudp;
 	pmd_t *pmdp;
 	pte_t *ptep;
-	unsigned long vsid;
 
 	if (mem_init_done) {
 		pgdp = pgd_offset_k(ea);
@@ -117,28 +115,15 @@ static int map_io_page(unsigned long ea, unsigned long pa, int flags)
 		set_pte_at(&init_mm, ea, ptep, pfn_pte(pa >> PAGE_SHIFT,
 							  __pgprot(flags)));
 	} else {
-		unsigned long va, vpn, hash, hpteg;
-
 		/*
 		 * If the mm subsystem is not fully up, we cannot create a
 		 * linux page table entry for this mapping.  Simply bolt an
 		 * entry in the hardware page table.
+		 *
 		 */
-		vsid = get_kernel_vsid(ea);
-		va = (vsid << 28) | (ea & 0xFFFFFFF);
-		vpn = va >> PAGE_SHIFT;
-
-		hash = hpt_hash(vpn, 0);
-
-		hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
-
-		/* Panic if a pte grpup is full */
-		if (ppc_md.hpte_insert(hpteg, va, pa >> PAGE_SHIFT,
-				       HPTE_V_BOLTED,
-				       _PAGE_NO_CACHE|_PAGE_GUARDED|PP_RWXX)
-		    == -1) {
-			panic("map_io_page: could not insert mapping");
-		}
+		if (htab_bolt_mapping(ea, ea + PAGE_SIZE, pa, flags,
+				      mmu_virtual_psize))
+			panic("Can't map bolted IO mapping");
 	}
 	return 0;
 }

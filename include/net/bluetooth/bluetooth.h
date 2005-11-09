@@ -57,8 +57,6 @@
 #define BT_DBG(fmt, arg...)  printk(KERN_INFO "%s: " fmt "\n" , __FUNCTION__ , ## arg)
 #define BT_ERR(fmt, arg...)  printk(KERN_ERR  "%s: " fmt "\n" , __FUNCTION__ , ## arg)
 
-extern struct proc_dir_entry *proc_bt;
-
 /* Connection and socket states */
 enum {
 	BT_CONNECTED = 1, /* Equal to TCP_ESTABLISHED to make net code happy */
@@ -176,5 +174,7 @@ extern int hci_sock_cleanup(void);
 
 extern int bt_sysfs_init(void);
 extern void bt_sysfs_cleanup(void);
+
+extern struct class bt_class;
 
 #endif /* __BLUETOOTH_H */

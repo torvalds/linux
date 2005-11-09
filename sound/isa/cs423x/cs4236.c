@@ -379,12 +379,8 @@ static void snd_card_cs4236_free(snd_card_t *card)
 {
 	struct snd_card_cs4236 *acard = (struct snd_card_cs4236 *)card->private_data;
 
-	if (acard) {
-		if (acard->res_sb_port) {
-			release_resource(acard->res_sb_port);
-			kfree_nocheck(acard->res_sb_port);
-		}
-	}
+	if (acard)
+		release_and_free_resource(acard->res_sb_port);
 }
 
 #ifdef CONFIG_PNP

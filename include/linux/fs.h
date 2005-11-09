@@ -104,6 +104,10 @@ extern int dir_notify_enable;
 #define MS_MOVE		8192
 #define MS_REC		16384
 #define MS_VERBOSE	32768
+#define MS_UNBINDABLE	(1<<17)	/* change to unbindable */
+#define MS_PRIVATE	(1<<18)	/* change to private */
+#define MS_SLAVE	(1<<19)	/* change to slave */
+#define MS_SHARED	(1<<20)	/* change to shared */
 #define MS_POSIXACL	(1<<16)	/* VFS does not apply the umask */
 #define MS_ACTIVE	(1<<30)
 #define MS_NOUSER	(1<<31)
@@ -264,6 +268,7 @@ typedef void (dio_iodone_t)(struct kiocb *iocb, loff_t offset,
 #define ATTR_ATTR_FLAG	1024
 #define ATTR_KILL_SUID	2048
 #define ATTR_KILL_SGID	4096
+#define ATTR_FILE	8192
 
 /*
  * This is the Inode Attributes structure, used for notify_change().  It
@@ -283,6 +288,13 @@ struct iattr {
 	struct timespec	ia_atime;
 	struct timespec	ia_mtime;
 	struct timespec	ia_ctime;
+
+	/*
+	 * Not an attribute, but an auxilary info for filesystems wanting to
+	 * implement an ftruncate() like method.  NOTE: filesystem should
+	 * check for (ia_valid & ATTR_FILE), and not for (ia_file != NULL).
+	 */
+	struct file	*ia_file;
 };
 
 /*
@@ -1088,6 +1100,8 @@ int sync_inode(struct inode *inode, struct writeback_control *wbc);
  * @get_name:       find the name for a given inode in a given directory
  * @get_parent:     find the parent of a given directory
  * @get_dentry:     find a dentry for the inode given a file handle sub-fragment
+ * @find_exported_dentry:
+ *	set by the exporting module to a standard helper function.
  *
  * Description:
  *    The export_operations structure provides a means for nfsd to communicate
@@ -1239,7 +1253,12 @@ extern int unregister_filesystem(struct file_system_type *);
 extern struct vfsmount *kern_mount(struct file_system_type *);
 extern int may_umount_tree(struct vfsmount *);
 extern int may_umount(struct vfsmount *);
+extern void umount_tree(struct vfsmount *, int, struct list_head *);
+extern void release_mounts(struct list_head *);
 extern long do_mount(char *, char *, char *, unsigned long, void *);
+extern struct vfsmount *copy_tree(struct vfsmount *, struct dentry *, int);
+extern void mnt_set_mountpoint(struct vfsmount *, struct dentry *,
+				  struct vfsmount *);
 
 extern int vfs_statfs(struct super_block *, struct kstatfs *);
 
@@ -1288,7 +1307,7 @@ static inline int break_lease(struct inode *inode, unsigned int mode)
 
 /* fs/open.c */
 
-extern int do_truncate(struct dentry *, loff_t start);
+extern int do_truncate(struct dentry *, loff_t start, struct file *filp);
 extern long do_sys_open(const char __user *filename, int flags, int mode);
 extern struct file *filp_open(const char *, int, int);
 extern struct file * dentry_open(struct dentry *, struct vfsmount *, int);

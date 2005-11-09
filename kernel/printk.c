@@ -806,7 +806,6 @@ void console_unblank(void)
 			c->unblank();
 	release_console_sem();
 }
-EXPORT_SYMBOL(console_unblank);
 
 /*
  * Return the console tty driver structure and its associated index

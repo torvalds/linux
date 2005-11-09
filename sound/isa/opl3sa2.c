@@ -656,10 +656,7 @@ static int snd_opl3sa2_free(opl3sa2_t *chip)
 {
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *)chip);
-	if (chip->res_port) {
-		release_resource(chip->res_port);
-		kfree_nocheck(chip->res_port);
-	}
+	release_and_free_resource(chip->res_port);
 	kfree(chip);
 	return 0;
 }

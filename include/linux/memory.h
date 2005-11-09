@@ -54,6 +54,9 @@ struct memory_block {
  */
 #define	MEM_MAPPING_INVALID	(1<<3)
 
+struct notifier_block;
+struct mem_section;
+
 #ifndef CONFIG_MEMORY_HOTPLUG
 static inline int memory_dev_init(void)
 {

@@ -511,7 +511,7 @@ mpt_lan_close(struct net_device *dev)
 {
 	struct mpt_lan_priv *priv = netdev_priv(dev);
 	MPT_ADAPTER *mpt_dev = priv->mpt_dev;
-	unsigned int timeout;
+	unsigned long timeout;
 	int i;
 
 	dlprintk((KERN_INFO MYNAM ": mpt_lan_close called\n"));
@@ -526,11 +526,9 @@ mpt_lan_close(struct net_device *dev)
 
 	mpt_lan_reset(dev);
 
-	timeout = 2 * HZ;
-	while (atomic_read(&priv->buckets_out) && --timeout) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(1);
-	}
+	timeout = jiffies + 2 * HZ;
+	while (atomic_read(&priv->buckets_out) && time_before(jiffies, timeout))
+		schedule_timeout_interruptible(1);
 
 	for (i = 0; i < priv->max_buckets_out; i++) {
 		if (priv->RcvCtl[i].skb != NULL) {

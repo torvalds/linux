@@ -58,10 +58,6 @@
 
 typedef void *vpe_handle;
 
-// defined here because the kernel module loader doesn't have
-// anything to do with it.
-#define SHN_MIPS_SCOMMON 0xff03
-
 #ifndef ARCH_SHF_SMALL
 #define ARCH_SHF_SMALL 0
 #endif
@@ -69,11 +65,8 @@ typedef void *vpe_handle;
 /* If this is set, the section belongs in the init part of the module */
 #define INIT_OFFSET_MASK (1UL << (BITS_PER_LONG-1))
 
-// temp number,
-#define VPE_MAJOR 63
-
 static char module_name[] = "vpe";
-static int major = 0;
+static int major;
 
 /* grab the likely amount of memory we will need. */
 #ifdef CONFIG_MIPS_VPE_LOADER_TOM
@@ -98,22 +91,7 @@ enum tc_state {
 	TC_STATE_DYNAMIC
 };
 
-struct vpe;
-typedef struct tc {
-	enum tc_state state;
-	int index;
-
-	/* parent VPE */
-	struct vpe *pvpe;
-
-	/* The list of TC's with this VPE */
-	struct list_head tc;
-
-	/* The global list of tc's */
-	struct list_head list;
-} tc_t;
-
-typedef struct vpe {
+struct vpe {
 	enum vpe_state state;
 
 	/* (device) minor associated with this vpe */
@@ -135,7 +113,21 @@ typedef struct vpe {
 
 	/* shared symbol address */
 	void *shared_ptr;
-} vpe_t;
+};
+
+struct tc {
+	enum tc_state state;
+	int index;
+
+	/* parent VPE */
+	struct vpe *pvpe;
+
+	/* The list of TC's with this VPE */
+	struct list_head tc;
+
+	/* The global list of tc's */
+	struct list_head list;
+};
 
 struct vpecontrol_ {
 	/* Virtual processing elements */
@@ -146,7 +138,7 @@ struct vpecontrol_ {
 } vpecontrol;
 
 static void release_progmem(void *ptr);
-static void dump_vpe(vpe_t * v);
+static void dump_vpe(struct vpe * v);
 extern void save_gp_address(unsigned int secbase, unsigned int rel);
 
 /* get the vpe associated with this minor */
@@ -197,12 +189,10 @@ struct vpe *alloc_vpe(int minor)
 {
 	struct vpe *v;
 
-	if ((v = kmalloc(sizeof(struct vpe), GFP_KERNEL)) == NULL) {
+	if ((v = kzalloc(sizeof(struct vpe), GFP_KERNEL)) == NULL) {
 		printk(KERN_WARNING "VPE: alloc_vpe no mem\n");
 		return NULL;
 	}
-
-	memset(v, 0, sizeof(struct vpe));
 
 	INIT_LIST_HEAD(&v->tc);
 	list_add_tail(&v->list, &vpecontrol.vpe_list);
@@ -216,12 +206,10 @@ struct tc *alloc_tc(int index)
 {
 	struct tc *t;
 
-	if ((t = kmalloc(sizeof(struct tc), GFP_KERNEL)) == NULL) {
+	if ((t = kzalloc(sizeof(struct tc), GFP_KERNEL)) == NULL) {
 		printk(KERN_WARNING "VPE: alloc_tc no mem\n");
 		return NULL;
 	}
-
-	memset(t, 0, sizeof(struct tc));
 
 	INIT_LIST_HEAD(&t->tc);
 	list_add_tail(&t->list, &vpecontrol.tc_list);
@@ -412,16 +400,17 @@ static int apply_r_mips_26(struct module *me, uint32_t *location,
 		return -ENOEXEC;
 	}
 
-/* Not desperately convinced this is a good check of an overflow condition
-   anyway. But it gets in the way of handling undefined weak symbols which
-   we want to set to zero.
-   if ((v & 0xf0000000) != (((unsigned long)location + 4) & 0xf0000000)) {
-   printk(KERN_ERR
-   "module %s: relocation overflow\n",
-   me->name);
-   return -ENOEXEC;
-   }
-*/
+/*
+ * Not desperately convinced this is a good check of an overflow condition
+ * anyway. But it gets in the way of handling undefined weak symbols which
+ * we want to set to zero.
+ * if ((v & 0xf0000000) != (((unsigned long)location + 4) & 0xf0000000)) {
+ * printk(KERN_ERR
+ * "module %s: relocation overflow\n",
+ * me->name);
+ * return -ENOEXEC;
+ * }
+ */
 
 	*location = (*location & ~0x03ffffff) |
 		((*location + (v >> 2)) & 0x03ffffff);
@@ -681,7 +670,7 @@ static void dump_tclist(void)
 }
 
 /* We are prepared so configure and start the VPE... */
-int vpe_run(vpe_t * v)
+int vpe_run(struct vpe * v)
 {
 	unsigned long val;
 	struct tc *t;
@@ -772,7 +761,7 @@ int vpe_run(vpe_t * v)
 	return 0;
 }
 
-static unsigned long find_vpe_symbols(vpe_t * v, Elf_Shdr * sechdrs,
+static unsigned long find_vpe_symbols(struct vpe * v, Elf_Shdr * sechdrs,
 				      unsigned int symindex, const char *strtab,
 				      struct module *mod)
 {
@@ -792,10 +781,12 @@ static unsigned long find_vpe_symbols(vpe_t * v, Elf_Shdr * sechdrs,
 	return 0;
 }
 
-/* Allocates a VPE with some program code space(the load address), copies the contents
-   of the program (p)buffer performing relocatations/etc, free's it when finished.
+/*
+ * Allocates a VPE with some program code space(the load address), copies
+ * the contents of the program (p)buffer performing relocatations/etc,
+ * free's it when finished.
 */
-int vpe_elfload(vpe_t * v)
+int vpe_elfload(struct vpe * v)
 {
 	Elf_Ehdr *hdr;
 	Elf_Shdr *sechdrs;
@@ -931,7 +922,7 @@ cleanup:
 	return err;
 }
 
-static void dump_vpe(vpe_t * v)
+static void dump_vpe(struct vpe * v)
 {
 	struct tc *t;
 
@@ -947,7 +938,7 @@ static void dump_vpe(vpe_t * v)
 static int vpe_open(struct inode *inode, struct file *filp)
 {
 	int minor;
-	vpe_t *v;
+	struct vpe *v;
 
 	/* assume only 1 device at the mo. */
 	if ((minor = MINOR(inode->i_rdev)) != 1) {
@@ -1001,7 +992,7 @@ static int vpe_open(struct inode *inode, struct file *filp)
 static int vpe_release(struct inode *inode, struct file *filp)
 {
 	int minor, ret = 0;
-	vpe_t *v;
+	struct vpe *v;
 	Elf_Ehdr *hdr;
 
 	minor = MINOR(inode->i_rdev);
@@ -1035,7 +1026,7 @@ static ssize_t vpe_write(struct file *file, const char __user * buffer,
 {
 	int minor;
 	size_t ret = count;
-	vpe_t *v;
+	struct vpe *v;
 
 	minor = MINOR(file->f_dentry->d_inode->i_rdev);
 	if ((v = get_vpe(minor)) == NULL)
@@ -1180,13 +1171,10 @@ static int __init vpe_module_init(void)
 		return -ENODEV;
 	}
 
-	if ((major = register_chrdev(VPE_MAJOR, module_name, &vpe_fops) < 0)) {
+	if ((major = register_chrdev(0, module_name, &vpe_fops) < 0)) {
 		printk("VPE loader: unable to register character device\n");
-		return -EBUSY;
+		return major;
 	}
-
-	if (major == 0)
-		major = VPE_MAJOR;
 
 	dmt();
 	dvpe();

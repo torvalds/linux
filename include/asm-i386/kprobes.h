@@ -49,6 +49,23 @@ struct arch_specific_insn {
 	kprobe_opcode_t insn[MAX_INSN_SIZE];
 };
 
+struct prev_kprobe {
+	struct kprobe *kp;
+	unsigned long status;
+	unsigned long old_eflags;
+	unsigned long saved_eflags;
+};
+
+/* per-cpu kprobe control block */
+struct kprobe_ctlblk {
+	unsigned long kprobe_status;
+	unsigned long kprobe_old_eflags;
+	unsigned long kprobe_saved_eflags;
+	long *jprobe_saved_esp;
+	struct pt_regs jprobe_saved_regs;
+	kprobe_opcode_t jprobes_stack[MAX_STACK_SIZE];
+	struct prev_kprobe prev_kprobe;
+};
 
 /* trap3/1 are intr gates for kprobes.  So, restore the status of IF,
  * if necessary, before executing the original int3/1 (trap) handler.

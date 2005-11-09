@@ -14,7 +14,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/spinlock.h>
 #include <linux/rtc.h>
 #include <asm/time.h>
 
@@ -29,17 +28,13 @@
 #define RTC_24H 0x02            /* 24 hour mode - else hours bit 7 means pm */
 #define RTC_DST_EN 0x01         /* auto switch DST - works f. USA only */
 
-static DEFINE_SPINLOCK(mips_rtc_lock);
-
 static inline unsigned int get_rtc_time(struct rtc_time *time)
 {
 	unsigned long nowtime;
 
-	spin_lock(&mips_rtc_lock);
 	nowtime = rtc_get_time();
 	to_tm(nowtime, time);
 	time->tm_year -= 1900;
-	spin_unlock(&mips_rtc_lock);
 
 	return RTC_24H;
 }
@@ -49,12 +44,10 @@ static inline int set_rtc_time(struct rtc_time *time)
 	unsigned long nowtime;
 	int ret;
 
-	spin_lock(&mips_rtc_lock);
 	nowtime = mktime(time->tm_year+1900, time->tm_mon+1,
 			time->tm_mday, time->tm_hour, time->tm_min,
 			time->tm_sec);
 	ret = rtc_set_time(nowtime);
-	spin_unlock(&mips_rtc_lock);
 
 	return ret;
 }

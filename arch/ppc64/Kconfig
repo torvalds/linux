@@ -47,11 +47,16 @@ config ARCH_MAY_HAVE_PC_FDC
 	bool
 	default y
 
+config PPC_STD_MMU
+	bool
+	default y
+
 # We optimistically allocate largepages from the VM, so make the limit
 # large enough (16MB). This badly named config option is actually
 # max order + 1
 config FORCE_MAX_ZONEORDER
 	int
+	default "9" if PPC_64K_PAGES
 	default "13"
 
 source "init/Kconfig"
@@ -168,6 +173,16 @@ config KEXEC
 	  initially work for you.  It may help to enable device hotplugging
 	  support.  As of this writing the exact hardware interface is
 	  strongly in flux, so no good recommendation can be made.
+
+source "drivers/cpufreq/Kconfig"
+
+config CPU_FREQ_PMAC64
+	bool "Support for some Apple G5s"
+	depends on CPU_FREQ && PMAC_SMU && PPC64
+	select CPU_FREQ_TABLE
+	help
+	  This adds support for frequency switching on Apple iMac G5,
+	  and some of the more recent desktop G5 machines as well.
 
 config IBMVIO
 	depends on PPC_PSERIES || PPC_ISERIES
@@ -293,6 +308,15 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 config NODES_SPAN_OTHER_NODES
 	def_bool y
 	depends on NEED_MULTIPLE_NODES
+
+config PPC_64K_PAGES
+	bool "64k page size"
+	help
+	  This option changes the kernel logical page size to 64k. On machines
+          without processor support for 64k pages, the kernel will simulate
+          them by loading each individual 4k page on demand transparently,
+          while on hardware with such support, it will be used to map
+          normal application pages.
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"

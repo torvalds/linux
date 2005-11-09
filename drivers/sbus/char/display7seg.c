@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/ioport.h>		/* request_region */
+#include <linux/smp_lock.h>
 #include <asm/atomic.h>
 #include <asm/ebus.h>			/* EBus device					*/
 #include <asm/oplib.h>			/* OpenProm Library 			*/
@@ -114,22 +115,25 @@ static int d7s_release(struct inode *inode, struct file *f)
 	return 0;
 }
 
-static int d7s_ioctl(struct inode *inode, struct file *f, 
-		     unsigned int cmd, unsigned long arg)
+static long d7s_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	__u8 regs = readb(d7s_regs);
 	__u8 ireg = 0;
+	int error = 0
 
-	if (D7S_MINOR != iminor(inode))
+	if (D7S_MINOR != iminor(file->f_dentry->d_inode))
 		return -ENODEV;
 
+	lock_kernel();
 	switch (cmd) {
 	case D7SIOCWR:
 		/* assign device register values
 		 * we mask-out D7S_FLIP if in sol_compat mode
 		 */
-		if (get_user(ireg, (int __user *) arg))
-			return -EFAULT;
+		if (get_user(ireg, (int __user *) arg)) {
+			error = -EFAULT;
+			break;
+		}
 		if (0 != sol_compat) {
 			(regs & D7S_FLIP) ? 
 				(ireg |= D7S_FLIP) : (ireg &= ~D7S_FLIP);
@@ -144,8 +148,10 @@ static int d7s_ioctl(struct inode *inode, struct file *f,
 		 * This driver will not misinform you about the state
 		 * of your hardware while in sol_compat mode
 		 */
-		if (put_user(regs, (int __user *) arg))
-			return -EFAULT;
+		if (put_user(regs, (int __user *) arg)) {
+			error = -EFAULT;
+			break;
+		}
 		break;
 
 	case D7SIOCTM:
@@ -155,15 +161,17 @@ static int d7s_ioctl(struct inode *inode, struct file *f,
 		writeb(regs, d7s_regs);
 		break;
 	};
+	lock_kernel();
 
-	return 0;
+	return error;
 }
 
 static struct file_operations d7s_fops = {
-	.owner =	THIS_MODULE,
-	.ioctl =	d7s_ioctl,
-	.open =		d7s_open,
-	.release =	d7s_release,
+	.owner =		THIS_MODULE,
+	.unlocked_ioctl =	d7s_ioctl,
+	.compat_ioctl =		d7s_ioctl,
+	.open =			d7s_open,
+	.release =		d7s_release,
 };
 
 static struct miscdevice d7s_miscdev = { D7S_MINOR, D7S_DEVNAME, &d7s_fops };

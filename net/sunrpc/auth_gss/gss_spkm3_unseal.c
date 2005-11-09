@@ -120,9 +120,7 @@ spkm3_read_token(struct spkm3_ctx *ctx,
 	/* XXX: need to add expiration and sequencing */
 	ret = GSS_S_COMPLETE;
 out:
-	if (md5cksum.data) 
-		kfree(md5cksum.data);
-	if (wire_cksum.data) 
-		kfree(wire_cksum.data);
+	kfree(md5cksum.data);
+	kfree(wire_cksum.data);
 	return ret;
 }

@@ -4016,9 +4016,7 @@ static int mgsl_alloc_intermediate_rxbuffer_memory(struct mgsl_struct *info)
  */
 static void mgsl_free_intermediate_rxbuffer_memory(struct mgsl_struct *info)
 {
-	if ( info->intermediate_rxbuffer )
-		kfree(info->intermediate_rxbuffer);
-
+	kfree(info->intermediate_rxbuffer);
 	info->intermediate_rxbuffer = NULL;
 
 }	/* end of mgsl_free_intermediate_rxbuffer_memory() */
@@ -4072,10 +4070,8 @@ static void mgsl_free_intermediate_txbuffer_memory(struct mgsl_struct *info)
 	int i;
 
 	for ( i=0; i<info->num_tx_holding_buffers; ++i ) {
-		if ( info->tx_holding_buffers[i].buffer ) {
-				kfree(info->tx_holding_buffers[i].buffer);
-				info->tx_holding_buffers[i].buffer=NULL;
-		}
+		kfree(info->tx_holding_buffers[i].buffer);
+		info->tx_holding_buffers[i].buffer = NULL;
 	}
 
 	info->get_tx_holding_index = 0;

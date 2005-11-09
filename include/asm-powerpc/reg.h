@@ -396,6 +396,9 @@
 #define SPRN_VRSAVE	0x100	/* Vector Register Save Register */
 #define SPRN_XER	0x001	/* Fixed Point Exception Register */
 
+#define SPRN_SCOMC	0x114	/* SCOM Access Control */
+#define SPRN_SCOMD	0x115	/* SCOM Access DATA */
+
 /* Performance monitor SPRs */
 #ifdef CONFIG_PPC64
 #define SPRN_MMCR0	795
@@ -594,7 +597,11 @@ static inline void ppc64_runlatch_off(void)
 		mtspr(SPRN_CTRLT, ctrl);
 	}
 }
-#endif
+
+extern unsigned long scom970_read(unsigned int address);
+extern void scom970_write(unsigned int address, unsigned long value);
+
+#endif /* CONFIG_PPC64 */
 
 #define __get_SP()	({unsigned long sp; \
 			asm volatile("mr %0,1": "=r" (sp)); sp;})

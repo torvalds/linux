@@ -15,6 +15,7 @@ obj-$(CONFIG_440EP)		+= ibm440gx_common.o
 obj-$(CONFIG_440GP)		+= ibm440gp_common.o
 obj-$(CONFIG_440GX)		+= ibm440gx_common.o
 obj-$(CONFIG_440SP)		+= ibm440gx_common.o ibm440sp_common.o
+obj-$(CONFIG_440SPE)		+= ibm440gx_common.o ibm440sp_common.o ppc440spe_pcie.o
 ifeq ($(CONFIG_4xx),y)
 ifeq ($(CONFIG_VIRTEX_II_PRO),y)
 obj-$(CONFIG_40x)		+= xilinx_pic.o
@@ -32,6 +33,7 @@ obj-$(CONFIG_PPC4xx_DMA)	+= ppc4xx_dma.o
 obj-$(CONFIG_PPC4xx_EDMA)	+= ppc4xx_sgdma.o
 ifeq ($(CONFIG_40x),y)
 obj-$(CONFIG_PCI)		+= pci_auto.o ppc405_pci.o
+obj-$(CONFIG_RAPIDIO)		+= ppc85xx_rio.o
 endif
 endif
 obj-$(CONFIG_8xx)		+= m8xx_setup.o ppc8xx_pic.o $(wdt-mpc8xx-y) \
@@ -46,12 +48,14 @@ obj-$(CONFIG_BAMBOO)		+= pci_auto.o todc_time.o
 obj-$(CONFIG_CPCI690)		+= todc_time.o pci_auto.o
 obj-$(CONFIG_EBONY)		+= pci_auto.o todc_time.o
 obj-$(CONFIG_EV64260)		+= todc_time.o pci_auto.o
+obj-$(CONFIG_EV64360)		+= todc_time.o
 obj-$(CONFIG_CHESTNUT)		+= mv64360_pic.o pci_auto.o
 obj-$(CONFIG_GEMINI)		+= open_pic.o
 obj-$(CONFIG_GT64260)		+= gt64260_pic.o
 obj-$(CONFIG_LOPEC)		+= pci_auto.o todc_time.o
 obj-$(CONFIG_HDPU)		+= pci_auto.o
 obj-$(CONFIG_LUAN)		+= pci_auto.o todc_time.o
+obj-$(CONFIG_YUCCA)		+= pci_auto.o todc_time.o
 obj-$(CONFIG_KATANA)		+= pci_auto.o
 obj-$(CONFIG_MV64360)		+= mv64360_pic.o
 obj-$(CONFIG_MV64X60)		+= mv64x60.o mv64x60_win.o

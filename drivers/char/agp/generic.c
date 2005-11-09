@@ -105,12 +105,10 @@ struct agp_memory *agp_create_memory(int scratch_pages)
 {
 	struct agp_memory *new;
 
-	new = kmalloc(sizeof(struct agp_memory), GFP_KERNEL);
-
+	new = kzalloc(sizeof(struct agp_memory), GFP_KERNEL);
 	if (new == NULL)
 		return NULL;
 
-	memset(new, 0, sizeof(struct agp_memory));
 	new->key = agp_get_key();
 
 	if (new->key < 0) {
@@ -414,7 +412,8 @@ static void agp_v2_parse_one(u32 *requested_mode, u32 *bridge_agpstat, u32 *vga_
 	u32 tmp;
 
 	if (*requested_mode & AGP2_RESERVED_MASK) {
-		printk(KERN_INFO PFX "reserved bits set in mode 0x%x. Fixed.\n", *requested_mode);
+		printk(KERN_INFO PFX "reserved bits set (%x) in mode 0x%x. Fixed.\n",
+			*requested_mode & AGP2_RESERVED_MASK, *requested_mode);
 		*requested_mode &= ~AGP2_RESERVED_MASK;
 	}
 
@@ -492,7 +491,8 @@ static void agp_v3_parse_one(u32 *requested_mode, u32 *bridge_agpstat, u32 *vga_
 	u32 tmp;
 
 	if (*requested_mode & AGP3_RESERVED_MASK) {
-		printk(KERN_INFO PFX "reserved bits set in mode 0x%x. Fixed.\n", *requested_mode);
+		printk(KERN_INFO PFX "reserved bits set (%x) in mode 0x%x. Fixed.\n",
+			*requested_mode & AGP3_RESERVED_MASK, *requested_mode);
 		*requested_mode &= ~AGP3_RESERVED_MASK;
 	}
 

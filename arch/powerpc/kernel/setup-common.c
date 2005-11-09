@@ -405,6 +405,46 @@ static int __init set_preferred_console(void)
 console_initcall(set_preferred_console);
 #endif /* CONFIG_PPC_MULTIPLATFORM */
 
+void __init check_for_initrd(void)
+{
+#ifdef CONFIG_BLK_DEV_INITRD
+	unsigned long *prop;
+
+	DBG(" -> check_for_initrd()\n");
+
+	if (of_chosen) {
+		prop = (unsigned long *)get_property(of_chosen,
+				"linux,initrd-start", NULL);
+		if (prop != NULL) {
+			initrd_start = (unsigned long)__va(*prop);
+			prop = (unsigned long *)get_property(of_chosen,
+					"linux,initrd-end", NULL);
+			if (prop != NULL) {
+				initrd_end = (unsigned long)__va(*prop);
+				initrd_below_start_ok = 1;
+			} else
+				initrd_start = 0;
+		}
+	}
+
+	/* If we were passed an initrd, set the ROOT_DEV properly if the values
+	 * look sensible. If not, clear initrd reference.
+	 */
+	if (initrd_start >= KERNELBASE && initrd_end >= KERNELBASE &&
+	    initrd_end > initrd_start)
+		ROOT_DEV = Root_RAM0;
+	else {
+		printk("Bogus initrd %08lx %08lx\n", initrd_start, initrd_end);
+		initrd_start = initrd_end = 0;
+	}
+
+	if (initrd_start)
+		printk("Found initrd at 0x%lx:0x%lx\n", initrd_start, initrd_end);
+
+	DBG(" <- check_for_initrd()\n");
+#endif /* CONFIG_BLK_DEV_INITRD */
+}
+
 #ifdef CONFIG_SMP
 
 /**

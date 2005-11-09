@@ -484,7 +484,6 @@ static struct fb_ops epson1355fb_fbops = {
 	.fb_imageblit 	= cfb_imageblit,
 	.fb_read 	= epson1355fb_read,
 	.fb_write 	= epson1355fb_write,
-	.fb_cursor 	= soft_cursor,
 };
 
 /* ------------------------------------------------------------------------- */

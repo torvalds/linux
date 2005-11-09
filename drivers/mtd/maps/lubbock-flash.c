@@ -1,11 +1,11 @@
 /*
- * $Id: lubbock-flash.c,v 1.19 2004/11/04 13:24:15 gleixner Exp $
+ * $Id: lubbock-flash.c,v 1.21 2005/11/07 11:14:27 gleixner Exp $
  *
  * Map driver for the Lubbock developer platform.
  *
  * Author:	Nicolas Pitre
  * Copyright:	(C) 2001 MontaVista Software Inc.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -76,7 +76,7 @@ static int __init init_lubbock(void)
 	int flashboot = (LUB_CONF_SWITCHES & 1);
 	int ret = 0, i;
 
-	lubbock_maps[0].bankwidth = lubbock_maps[1].bankwidth = 
+	lubbock_maps[0].bankwidth = lubbock_maps[1].bankwidth =
 		(BOOT_DEF & 1) ? 2 : 4;
 
 	/* Compensate for the nROMBT switch which swaps the flash banks */
@@ -100,11 +100,11 @@ static int __init init_lubbock(void)
 		simple_map_init(&lubbock_maps[i]);
 
 		printk(KERN_NOTICE "Probing %s at physical address 0x%08lx (%d-bit bankwidth)\n",
-		       lubbock_maps[i].name, lubbock_maps[i].phys, 
+		       lubbock_maps[i].name, lubbock_maps[i].phys,
 		       lubbock_maps[i].bankwidth * 8);
 
 		mymtds[i] = do_map_probe("cfi_probe", &lubbock_maps[i]);
-		
+
 		if (!mymtds[i]) {
 			iounmap((void *)lubbock_maps[i].virt);
 			if (lubbock_maps[i].cached)
@@ -124,7 +124,7 @@ static int __init init_lubbock(void)
 
 	if (!mymtds[0] && !mymtds[1])
 		return ret;
-	
+
 	for (i = 0; i < 2; i++) {
 		if (!mymtds[i]) {
 			printk(KERN_WARNING "%s is absent. Skipping\n", lubbock_maps[i].name);
@@ -151,15 +151,14 @@ static void __exit cleanup_lubbock(void)
 		if (nr_parsed_parts[i] || !i)
 			del_mtd_partitions(mymtds[i]);
 		else
-			del_mtd_device(mymtds[i]);			
+			del_mtd_device(mymtds[i]);
 
 		map_destroy(mymtds[i]);
 		iounmap((void *)lubbock_maps[i].virt);
 		if (lubbock_maps[i].cached)
 			iounmap(lubbock_maps[i].cached);
 
-		if (parsed_parts[i])
-			kfree(parsed_parts[i]);
+		kfree(parsed_parts[i]);
 	}
 }
 

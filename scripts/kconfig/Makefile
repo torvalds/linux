@@ -118,7 +118,7 @@ clean-files	:= lkc_defs.h qconf.moc .tmp_qtcheck \
 
 # Needed for systems without gettext
 KBUILD_HAVE_NLS := $(shell \
-     if echo "\#include <libint.h>" | $(HOSTCC) $(HOSTCFLAGS) -E - > /dev/null 2>&1 ; \
+     if echo "\#include <libintl.h>" | $(HOSTCC) $(HOSTCFLAGS) -E - > /dev/null 2>&1 ; \
      then echo yes ; \
      else echo no ; fi)
 ifeq ($(KBUILD_HAVE_NLS),no)
@@ -129,7 +129,7 @@ endif
 HOSTCFLAGS_lex.zconf.o	:= -I$(src)
 HOSTCFLAGS_zconf.tab.o	:= -I$(src)
 
-HOSTLOADLIBES_qconf	= -L$(QTLIBPATH) -Wl,-rpath,$(QTLIBPATH) -l$(QTLIB) -ldl
+HOSTLOADLIBES_qconf	= -L$(QTLIBPATH) -Wl,-rpath,$(QTLIBPATH) -l$(LIBS_QT) -ldl
 HOSTCXXFLAGS_qconf.o	= -I$(QTDIR)/include -D LKC_DIRECT_LINK
 
 HOSTLOADLIBES_gconf	= `pkg-config gtk+-2.0 gmodule-2.0 libglade-2.0 --libs`
@@ -163,11 +163,16 @@ $(obj)/.tmp_qtcheck:
 	  false; \
 	fi; \
 	LIBPATH=$$DIR/lib; LIB=qt; \
-	$(HOSTCXX) -print-multi-os-directory > /dev/null 2>&1 && \
-	  LIBPATH=$$DIR/lib/$$($(HOSTCXX) -print-multi-os-directory); \
-	if [ -f $$LIBPATH/libqt-mt.so ]; then LIB=qt-mt; fi; \
+	if [ -f $$QTLIB/libqt-mt.so ] ; then \
+		LIB=qt-mt; \
+		LIBPATH=$$QTLIB; \
+	else \
+		$(HOSTCXX) -print-multi-os-directory > /dev/null 2>&1 && \
+		LIBPATH=$$DIR/lib/$$($(HOSTCXX) -print-multi-os-directory); \
+		if [ -f $$LIBPATH/libqt-mt.so ]; then LIB=qt-mt; fi; \
+	fi; \
 	echo "QTDIR=$$DIR" > $@; echo "QTLIBPATH=$$LIBPATH" >> $@; \
-	echo "QTLIB=$$LIB" >> $@; \
+	echo "LIBS_QT=$$LIB" >> $@; \
 	if [ ! -x $$DIR/bin/moc -a -x /usr/bin/moc ]; then \
 	  echo "*"; \
 	  echo "* Unable to find $$DIR/bin/moc, using /usr/bin/moc instead."; \

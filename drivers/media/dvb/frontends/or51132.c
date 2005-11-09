@@ -577,8 +577,7 @@ struct dvb_frontend* or51132_attach(const struct or51132_config* config,
 	return &state->frontend;
 
 error:
-	if (state)
-		kfree(state);
+	kfree(state);
 	return NULL;
 }
 

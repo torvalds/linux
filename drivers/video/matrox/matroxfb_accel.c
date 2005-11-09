@@ -122,7 +122,7 @@ void matrox_cfbX_init(WPMINFO2) {
 	ACCESS_FBINFO(fbops).fb_copyarea = cfb_copyarea;
 	ACCESS_FBINFO(fbops).fb_fillrect = cfb_fillrect;
 	ACCESS_FBINFO(fbops).fb_imageblit = cfb_imageblit;
-	ACCESS_FBINFO(fbops).fb_cursor = soft_cursor;
+	ACCESS_FBINFO(fbops).fb_cursor = NULL;
 
 	accel = (ACCESS_FBINFO(fbcon).var.accel_flags & FB_ACCELF_TEXT) == FB_ACCELF_TEXT;
 

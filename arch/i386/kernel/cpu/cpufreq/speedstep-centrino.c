@@ -67,7 +67,7 @@ static const struct cpu_id cpu_ids[] = {
 	[CPU_MP4HT_D0]	= {15,  3, 4 },
 	[CPU_MP4HT_E0]	= {15,  4, 1 },
 };
-#define N_IDS	(sizeof(cpu_ids)/sizeof(cpu_ids[0]))
+#define N_IDS	ARRAY_SIZE(cpu_ids)
 
 struct cpu_model
 {
@@ -423,12 +423,11 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 		}
 	}
 
-	centrino_model[cpu] = kmalloc(sizeof(struct cpu_model), GFP_KERNEL);
+	centrino_model[cpu] = kzalloc(sizeof(struct cpu_model), GFP_KERNEL);
 	if (!centrino_model[cpu]) {
 		result = -ENOMEM;
 		goto err_unreg;
 	}
-	memset(centrino_model[cpu], 0, sizeof(struct cpu_model));
 
 	centrino_model[cpu]->model_name=NULL;
 	centrino_model[cpu]->max_freq = p.states[0].core_frequency * 1000;
