@@ -88,9 +88,9 @@ bttv_risc_packed(struct bttv *btv, struct btcx_riscmem *risc,
 			offset = 0;
 			sg++;
 			while (todo > sg_dma_len(sg)) {
-			        *(rp++)=cpu_to_le32(BT848_RISC_WRITE|
+				*(rp++)=cpu_to_le32(BT848_RISC_WRITE|
 						    sg_dma_len(sg));
-			        *(rp++)=cpu_to_le32(sg_dma_address(sg));
+				*(rp++)=cpu_to_le32(sg_dma_address(sg));
 				todo -= sg_dma_len(sg);
 				sg++;
 			}

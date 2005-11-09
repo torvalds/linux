@@ -1028,7 +1028,7 @@ static int tda9874a_initialize(struct CHIPSTATE *chip)
 #define TEA6300_TR         0x03  /* treble */
 #define TEA6300_FA         0x04  /* fader control */
 #define TEA6300_S          0x05  /* switch register */
-			         /* values for those registers: */
+				 /* values for those registers: */
 #define TEA6300_S_SA       0x01  /* stereo A input */
 #define TEA6300_S_SB       0x02  /* stereo B */
 #define TEA6300_S_SC       0x04  /* stereo C */
@@ -1042,7 +1042,7 @@ static int tda9874a_initialize(struct CHIPSTATE *chip)
 #define TEA6320_BA         0x05  /* bass (0-4) */
 #define TEA6320_TR         0x06  /* treble (0-4) */
 #define TEA6320_S          0x07  /* switch register */
-			         /* values for those registers: */
+				 /* values for those registers: */
 #define TEA6320_S_SA       0x07  /* stereo A input */
 #define TEA6320_S_SB       0x06  /* stereo B */
 #define TEA6320_S_SC       0x05  /* stereo C */
@@ -1082,7 +1082,7 @@ static int tea6320_initialize(struct CHIPSTATE * chip)
 #define TDA8425_BA         0x02  /* bass */
 #define TDA8425_TR         0x03  /* treble */
 #define TDA8425_S1         0x08  /* switch functions */
-			         /* values for those registers: */
+				 /* values for those registers: */
 #define TDA8425_S1_OFF     0xEE  /* audio off (mute on) */
 #define TDA8425_S1_CH1     0xCE  /* audio channel 1 (mute off) - "linear stereo" mode */
 #define TDA8425_S1_CH2     0xCF  /* audio channel 2 (mute off) - "linear stereo" mode */
@@ -1148,7 +1148,7 @@ static void tda8425_setmode(struct CHIPSTATE *chip, int mode)
 
 /* bit definition of the RESET register, I2C data. */
 #define PIC16C54_MISC_RESET_REMOTE_CTL 0x01 /* bit 0, Reset to receive the key */
-			                    /*        code of remote controller */
+					    /*        code of remote controller */
 #define PIC16C54_MISC_MTS_MAIN         0x02 /* bit 1 */
 #define PIC16C54_MISC_MTS_SAP          0x04 /* bit 2 */
 #define PIC16C54_MISC_MTS_BOTH         0x08 /* bit 3 */

@@ -118,7 +118,7 @@ static IR_KEYTAB_TYPE eztv_codes[IR_KEYTAB_SIZE] = {
 	[  1 ] = KEY_TV,             // DVR
 	[ 21 ] = KEY_DVD,            // DVD
 	[ 23 ] = KEY_AUDIO,          // music
-			             // DVR mode / DVD mode / music mode
+				     // DVR mode / DVD mode / music mode
 
 	[ 27 ] = KEY_MUTE,           // mute
 	[  2 ] = KEY_LANGUAGE,       // MTS/SAP / audio / autoseek

@@ -166,9 +166,9 @@ static u32* cx88_risc_field(u32 *rp, struct scatterlist *sglist,
 			offset = 0;
 			sg++;
 			while (todo > sg_dma_len(sg)) {
-			        *(rp++)=cpu_to_le32(RISC_WRITE|
+				*(rp++)=cpu_to_le32(RISC_WRITE|
 						    sg_dma_len(sg));
-			        *(rp++)=cpu_to_le32(sg_dma_address(sg));
+				*(rp++)=cpu_to_le32(sg_dma_address(sg));
 				todo -= sg_dma_len(sg);
 				sg++;
 			}

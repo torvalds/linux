@@ -277,7 +277,7 @@ static int dsp_buffer_init(struct saa7134_dev *dev)
 		BUG();
 	videobuf_dma_init(&dev->oss.dma);
 	err = videobuf_dma_init_kernel(&dev->oss.dma, PCI_DMA_FROMDEVICE,
-			               (dev->oss.bufsize + PAGE_SIZE) >> PAGE_SHIFT);
+				       (dev->oss.bufsize + PAGE_SIZE) >> PAGE_SHIFT);
 	if (0 != err)
 		return err;
 	return 0;
@@ -336,9 +336,9 @@ static int snd_card_saa7134_capture_prepare(snd_pcm_substream_t * substream)
 	if (0 != (err = saa7134_pgtable_alloc(dev->pci,&dev->oss.pt)))
 		goto fail1;
 	if (0 != (err = saa7134_pgtable_build(dev->pci,&dev->oss.pt,
-			                      dev->oss.dma.sglist,
-			                      dev->oss.dma.sglen,
-			                      0)))
+					      dev->oss.dma.sglist,
+					      dev->oss.dma.sglen,
+					      0)))
 		goto fail2;
 
 
@@ -481,8 +481,8 @@ static snd_pcm_uframes_t snd_card_saa7134_capture_pointer(snd_pcm_substream_t * 
 static snd_pcm_hardware_t snd_card_saa7134_capture =
 {
 	.info =                 (SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_INTERLEAVED |
-			         SNDRV_PCM_INFO_BLOCK_TRANSFER |
-			         SNDRV_PCM_INFO_MMAP_VALID),
+				 SNDRV_PCM_INFO_BLOCK_TRANSFER |
+				 SNDRV_PCM_INFO_MMAP_VALID),
 	.formats =		USE_FORMATS,
 	.rates =		USE_RATE,
 	.rate_min =		USE_RATE_MIN,

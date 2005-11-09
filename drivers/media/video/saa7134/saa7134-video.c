@@ -1345,8 +1345,8 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 				return POLLERR;
 			}
 			if (0 != fh->cap.ops->buf_prepare(&fh->cap,fh->cap.read_buf,fh->cap.field)) {
-			        up(&fh->cap.lock);
-			        return POLLERR;
+				up(&fh->cap.lock);
+				return POLLERR;
 			}
 			fh->cap.ops->buf_queue(&fh->cap,fh->cap.read_buf);
 			fh->cap.read_off = 0;

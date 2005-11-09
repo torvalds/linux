@@ -547,7 +547,7 @@ static int philips_tda827x_pll_set(struct dvb_frontend *fe, struct dvb_frontend_
 	u8 tuner_buf[14];
 
 	struct i2c_msg tuner_msg = {.addr = 0x60,.flags = 0,.buf = tuner_buf,
-				        .len = sizeof(tuner_buf) };
+					.len = sizeof(tuner_buf) };
 	int i, tuner_freq, if_freq;
 	u32 N;
 	switch (params->u.ofdm.bandwidth) {
@@ -606,7 +606,7 @@ static void philips_tda827x_pll_sleep(struct dvb_frontend *fe)
 	struct saa7134_dev *dev = fe->dvb->priv;
 	static u8 tda827x_sleep[] = { 0x30, 0xd0};
 	struct i2c_msg tuner_msg = {.addr = 0x60,.flags = 0,.buf = tda827x_sleep,
-			            .len = sizeof(tda827x_sleep) };
+				    .len = sizeof(tda827x_sleep) };
 	i2c_transfer(&dev->i2c_adap, &tuner_msg, 1);
 }
 

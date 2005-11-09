@@ -3585,7 +3585,7 @@ static void __devinit osprey_eeprom(struct bttv *btv)
 		       for(i = 0; i<14; i++) checksum += ee[i+offset];
 			       checksum = ~checksum;  /* no idea why */
 			       if ((((checksum>>8)&0x0FF) == ee[offset+14]) &&
-			           ((checksum & 0x0FF) == ee[offset+15])) {
+				   ((checksum & 0x0FF) == ee[offset+15])) {
 			       break;
 		       }
 	       }
@@ -4420,7 +4420,7 @@ windvr_audio(struct bttv *btv, struct video_audio *v, int set)
 		if (val) {
 			gpio_bits(0x140000, val);
 			if (bttv_gpio)
-			        bttv_gpio_tracking(btv,"windvr");
+				bttv_gpio_tracking(btv,"windvr");
 		}
 	} else {
 		v->mode = VIDEO_SOUND_MONO | VIDEO_SOUND_STEREO |

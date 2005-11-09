@@ -393,7 +393,7 @@ struct v4l2_jpegcompression
 #define V4L2_JPEG_MARKER_DRI (1<<5)    /* Define Restart Interval */
 #define V4L2_JPEG_MARKER_COM (1<<6)    /* Comment segment */
 #define V4L2_JPEG_MARKER_APP (1<<7)    /* App segment, driver will
-			                * allways use APP0 */
+					* allways use APP0 */
 };
 
 
@@ -849,8 +849,8 @@ struct v4l2_sliced_vbi_format
 	__u16   service_set;
 	/* service_lines[0][...] specifies lines 0-23 (1-23 used) of the first field
 	   service_lines[1][...] specifies lines 0-23 (1-23 used) of the second field
-			         (equals frame lines 313-336 for 625 line video
-			          standards, 263-286 for 525 line standards) */
+				 (equals frame lines 313-336 for 625 line video
+				  standards, 263-286 for 525 line standards) */
 	__u16   service_lines[2][24];
 	__u32   io_size;
 	__u32   reserved[2];            /* must be zero */
@@ -869,8 +869,8 @@ struct v4l2_sliced_vbi_cap
 	__u16   service_set;
 	/* service_lines[0][...] specifies lines 0-23 (1-23 used) of the first field
 	   service_lines[1][...] specifies lines 0-23 (1-23 used) of the second field
-			         (equals frame lines 313-336 for 625 line video
-			          standards, 263-286 for 525 line standards) */
+				 (equals frame lines 313-336 for 625 line video
+				  standards, 263-286 for 525 line standards) */
 	__u16   service_lines[2][24];
 	__u32   reserved[4];    /* must be 0 */
 };

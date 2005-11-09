@@ -28,9 +28,9 @@ saa7134:
 
 		/*      GP17    Strap "GP7"=High */
 		/*      GP16    Strap "GP6"=High
-			        0=Radio 1=TV
-			        Drives SA630D ENCH1 and HEF4052 A1 pins
-			        to do FM radio through SIF input */
+				0=Radio 1=TV
+				Drives SA630D ENCH1 and HEF4052 A1 pins
+				to do FM radio through SIF input */
 		/*      GP15    nc */
 		/*      GP14    nc */
 		/*      GP13    nc */
