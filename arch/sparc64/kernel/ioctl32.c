@@ -114,8 +114,6 @@ COMPATIBLE_IOCTL(FBIOGCURPOS)
 COMPATIBLE_IOCTL(FBIOGCURMAX)
 /* Little k */
 /* Little v, the video4linux ioctls */
-COMPATIBLE_IOCTL(_IOR('p', 20, int[7])) /* RTCGET */
-COMPATIBLE_IOCTL(_IOW('p', 21, int[7])) /* RTCSET */
 /* And these ioctls need translation */
 /* Note SIOCRTMSG is no longer, so this is safe and * the user would have seen just an -EINVAL anyways. */
 HANDLE_IOCTL(FBIOPUTCMAP32, fbiogetputcmap)
