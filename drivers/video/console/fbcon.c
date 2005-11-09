@@ -193,6 +193,8 @@ static void fbcon_preset_disp(struct fb_info *info, struct fb_var_screeninfo *va
 			      int unit);
 static void fbcon_redraw_move(struct vc_data *vc, struct display *p,
 			      int line, int count, int dy);
+static void fbcon_modechanged(struct fb_info *info);
+static void fbcon_set_all_vcs(struct fb_info *info);
 
 #ifdef CONFIG_MAC
 /*
@@ -218,6 +220,51 @@ static inline void fbcon_set_rotation(struct fb_info *info, struct display *p)
 	else
 		ops->rotate = 0;
 }
+
+static void fbcon_rotate(struct fb_info *info, u32 rotate)
+{
+	struct fbcon_ops *ops= info->fbcon_par;
+	struct fb_info *fb_info;
+
+	if (!ops || ops->currcon == -1)
+		return;
+
+	fb_info = registered_fb[con2fb_map[ops->currcon]];
+
+	if (info == fb_info) {
+		struct display *p = &fb_display[ops->currcon];
+
+		if (rotate < 4)
+			p->con_rotate = rotate;
+		else
+			p->con_rotate = 0;
+
+		fbcon_modechanged(info);
+	}
+}
+
+static void fbcon_rotate_all(struct fb_info *info, u32 rotate)
+{
+	struct fbcon_ops *ops = info->fbcon_par;
+	struct vc_data *vc;
+	struct display *p;
+	int i;
+
+	if (!ops || ops->currcon < 0 || rotate > 3)
+		return;
+
+	for (i = 0; i < MAX_NR_CONSOLES; i++) {
+		vc = vc_cons[i].d;
+		if (!vc || vc->vc_mode != KD_TEXT ||
+		    registered_fb[con2fb_map[i]] != info)
+			continue;
+
+		p = &fb_display[vc->vc_num];
+		p->con_rotate = rotate;
+	}
+
+	fbcon_set_all_vcs(info);
+}
 #else
 static inline void fbcon_set_rotation(struct fb_info *info, struct display *p)
 {
@@ -225,7 +272,24 @@ static inline void fbcon_set_rotation(struct fb_info *info, struct display *p)
 
 	ops->rotate = FB_ROTATE_UR;
 }
+
+static void fbcon_rotate(struct fb_info *info, u32 rotate)
+{
+	return;
+}
+
+static void fbcon_rotate_all(struct fb_info *info, u32 rotate)
+{
+	return;
+}
 #endif /* CONFIG_FRAMEBUFFER_CONSOLE_ROTATION */
+
+static int fbcon_get_rotate(struct fb_info *info)
+{
+	struct fbcon_ops *ops = info->fbcon_par;
+
+	return (ops) ? ops->rotate : 0;
+}
 
 static inline int fbcon_is_inactive(struct vc_data *vc, struct fb_info *info)
 {
@@ -2864,6 +2928,14 @@ static int fbcon_event_notify(struct notifier_block *self,
 	case FB_EVENT_NEW_MODELIST:
 		fbcon_new_modelist(info);
 		break;
+	case FB_EVENT_SET_CON_ROTATE:
+		fbcon_rotate(info, *(int *)event->data);
+		break;
+	case FB_EVENT_GET_CON_ROTATE:
+		ret = fbcon_get_rotate(info);
+		break;
+	case FB_EVENT_SET_CON_ROTATE_ALL:
+		fbcon_rotate_all(info, *(int *)event->data);
 	}
 
 	return ret;

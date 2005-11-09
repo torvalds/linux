@@ -508,6 +508,12 @@ struct fb_cursor_user {
 /*	The resolution of the passed in fb_info about to change and
         all vc's should be changed         */
 #define FB_EVENT_MODE_CHANGE_ALL	0x0A
+/*      CONSOLE-SPECIFIC: set console rotation */
+#define FB_EVENT_SET_CON_ROTATE         0x0B
+/*      CONSOLE-SPECIFIC: get console rotation */
+#define FB_EVENT_GET_CON_ROTATE         0x0C
+/*      CONSOLE-SPECIFIC: rotate all consoles */
+#define FB_EVENT_SET_CON_ROTATE_ALL     0x0D
 
 struct fb_event {
 	struct fb_info *info;
@@ -836,6 +842,7 @@ extern int fb_get_color_depth(struct fb_var_screeninfo *var,
 			      struct fb_fix_screeninfo *fix);
 extern int fb_get_options(char *name, char **option);
 extern int fb_new_modelist(struct fb_info *info);
+extern int fb_con_duit(struct fb_info *info, int event, void *data);
 
 extern struct fb_info *registered_fb[FB_MAX];
 extern int num_registered_fb;
