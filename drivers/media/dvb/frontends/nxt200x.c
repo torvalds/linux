@@ -239,26 +239,16 @@ static int nxt200x_readreg_multibyte (struct nxt200x_state* state, u8 reg, u8* d
 			buf = 0x80;
 			nxt200x_writebytes(state, 0x21, &buf, 1);
 
-			/* read status */
-			nxt200x_readbytes(state, 0x21, &buf, 1);
-
-			if (buf == 0)
-			{
-				/* read the actual data */
-				for(i = 0; i < len; i++) {
-                    nxt200x_readbytes(state, 0x36 + i, &data[i], 1);
-				}
-				return 0;
+			/* read the actual data */
+			for(i = 0; i < len; i++) {
+				nxt200x_readbytes(state, 0x36 + i, &data[i], 1);
 			}
+			return 0;
 			break;
 		default:
 			return -EINVAL;
 			break;
 	}
-
-	printk(KERN_WARNING "nxt200x: Error reading multireg register 0x%02X\n",reg);
-
-	return 0;
 }
 
 static void nxt200x_microcontroller_stop (struct nxt200x_state* state)
