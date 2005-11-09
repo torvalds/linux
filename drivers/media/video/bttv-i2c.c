@@ -291,6 +291,10 @@ static struct i2c_adapter bttv_i2c_adap_hw_template = {
 static int attach_inform(struct i2c_client *client)
 {
 	struct bttv *btv = i2c_get_adapdata(client->adapter);
+	int radio_addr=ADDR_UNSET;
+
+	if (ADDR_UNSET != bttv_tvcards[btv->c.type].radio_addr)
+		radio_addr = bttv_tvcards[btv->c.type].radio_addr;
 
 	if (bttv_debug)
 		printk(KERN_DEBUG "bttv%d: %s i2c attach [addr=0x%x,client=%s]\n",
@@ -302,9 +306,12 @@ static int attach_inform(struct i2c_client *client)
 	if (btv->tuner_type != UNSET) {
 		struct tuner_setup tun_setup;
 
-		tun_setup.mode_mask = T_RADIO | T_ANALOG_TV | T_DIGITAL_TV;
+		tun_setup.mode_mask = T_ANALOG_TV | T_DIGITAL_TV;
 		tun_setup.type = btv->tuner_type;
 		tun_setup.addr = ADDR_UNSET;
+
+		if (client->addr == radio_addr)
+		        tun_setup.mode_mask =  T_RADIO;
 
 		client->driver->command (client, TUNER_SET_TYPE_ADDR, &tun_setup);
 	}
