@@ -242,7 +242,7 @@ config CPU_XSCALE
 # ARMv6
 config CPU_V6
 	bool "Support ARM V6 processor"
-	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB
+	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB || ARCH_OMAP2
 	select CPU_32v6
 	select CPU_ABRT_EV6
 	select CPU_CACHE_V6
