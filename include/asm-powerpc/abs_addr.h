@@ -1,5 +1,5 @@
-#ifndef _ABS_ADDR_H
-#define _ABS_ADDR_H
+#ifndef _ASM_POWERPC_ABS_ADDR_H
+#define _ASM_POWERPC_ABS_ADDR_H
 
 #include <linux/config.h>
 
@@ -70,4 +70,4 @@ static inline unsigned long phys_to_abs(unsigned long pa)
 #define iseries_hv_addr(virtaddr)	\
 	(0x8000000000000000 | virt_to_abs(virtaddr))
 
-#endif /* _ABS_ADDR_H */
+#endif /* _ASM_POWERPC_ABS_ADDR_H */

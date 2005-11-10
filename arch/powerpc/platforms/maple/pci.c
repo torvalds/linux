@@ -380,9 +380,6 @@ void __init maple_pcibios_fixup(void)
 	for_each_pci_dev(dev)
 		pci_read_irq_line(dev);
 
-	/* Do the mapping of the IO space */
-	phbs_remap_io();
-
 	DBG(" <- maple_pcibios_fixup\n");
 }
 

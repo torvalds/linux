@@ -1,6 +1,4 @@
 /*
- *  arch/ppc64/kernel/firmware.c
- *
  *  Extracted from cputable.c
  *
  *  Copyright (C) 2001 Ben. Herrenschmidt (benh@kernel.crashing.org)

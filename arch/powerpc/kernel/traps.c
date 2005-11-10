@@ -129,7 +129,7 @@ int die(const char *str, struct pt_regs *regs, long err)
 	nl = 1;
 #endif
 #ifdef CONFIG_PPC64
-	switch (systemcfg->platform) {
+	switch (_machine) {
 	case PLATFORM_PSERIES:
 		printk("PSERIES ");
 		nl = 1;

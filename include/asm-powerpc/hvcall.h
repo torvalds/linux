@@ -1,5 +1,5 @@
-#ifndef _PPC64_HVCALL_H
-#define _PPC64_HVCALL_H
+#ifndef _ASM_POWERPC_HVCALL_H
+#define _ASM_POWERPC_HVCALL_H
 
 #define HVSC			.long 0x44000022
 
@@ -138,7 +138,7 @@ long plpar_hcall(unsigned long opcode,
  */
 long plpar_hcall_norets(unsigned long opcode, ...);
 
-/* 
+/*
  * Special hcall interface for ibmveth support.
  * Takes 8 input parms. Returns a rc and stores the
  * R4 return value in *out1.
@@ -153,11 +153,11 @@ long plpar_hcall_8arg_2ret(unsigned long opcode,
 			   unsigned long arg7,
 			   unsigned long arg8,
 			   unsigned long *out1);
- 
+
 /* plpar_hcall_4out()
  *
- * same as plpar_hcall except with 4 output arguments.  
- * 
+ * same as plpar_hcall except with 4 output arguments.
+ *
  */
 long plpar_hcall_4out(unsigned long opcode,
 		      unsigned long arg1,
@@ -170,4 +170,4 @@ long plpar_hcall_4out(unsigned long opcode,
 		      unsigned long *out4);
 
 #endif /* __ASSEMBLY__ */
-#endif /* _PPC64_HVCALL_H */
+#endif /* _ASM_POWERPC_HVCALL_H */

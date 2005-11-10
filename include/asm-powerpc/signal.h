@@ -1,15 +1,11 @@
-#ifndef _ASMPPC64_SIGNAL_H
-#define _ASMPPC64_SIGNAL_H
+#ifndef _ASM_POWERPC_SIGNAL_H
+#define _ASM_POWERPC_SIGNAL_H
 
 #include <linux/types.h>
-#include <linux/compiler.h>
-#include <asm/siginfo.h>
-
-/* Avoid too many header ordering problems.  */
-struct siginfo;
+#include <linux/config.h>
 
 #define _NSIG		64
-#define _NSIG_BPW	64
+#define _NSIG_BPW	BITS_PER_LONG
 #define _NSIG_WORDS	(_NSIG / _NSIG_BPW)
 
 typedef unsigned long old_sigset_t;		/* at least 32 bits */
@@ -74,21 +70,21 @@ typedef struct {
  * SA_ONESHOT and SA_NOMASK are the historical Linux names for the Single
  * Unix names RESETHAND and NODEFER respectively.
  */
-#define SA_NOCLDSTOP	0x00000001u
-#define SA_NOCLDWAIT	0x00000002u
-#define SA_SIGINFO	0x00000004u
-#define SA_ONSTACK	0x08000000u
-#define SA_RESTART	0x10000000u
-#define SA_NODEFER	0x40000000u
-#define SA_RESETHAND	0x80000000u
+#define SA_NOCLDSTOP	0x00000001U
+#define SA_NOCLDWAIT	0x00000002U
+#define SA_SIGINFO	0x00000004U
+#define SA_ONSTACK	0x08000000U
+#define SA_RESTART	0x10000000U
+#define SA_NODEFER	0x40000000U
+#define SA_RESETHAND	0x80000000U
 
 #define SA_NOMASK	SA_NODEFER
 #define SA_ONESHOT	SA_RESETHAND
 #define SA_INTERRUPT	0x20000000u /* dummy -- ignored */
 
-#define SA_RESTORER	0x04000000u
+#define SA_RESTORER	0x04000000U
 
-/* 
+/*
  * sigaltstack controls
  */
 #define SS_ONSTACK	1
@@ -123,10 +119,32 @@ typedef struct sigaltstack {
 	size_t ss_size;
 } stack_t;
 
+#ifdef __KERNEL__
 struct pt_regs;
-struct timespec;
 extern int do_signal(sigset_t *oldset, struct pt_regs *regs);
 extern int do_signal32(sigset_t *oldset, struct pt_regs *regs);
 #define ptrace_signal_deliver(regs, cookie) do { } while (0)
+#endif /* __KERNEL__ */
 
-#endif /* _ASMPPC64_SIGNAL_H */
+#ifndef __powerpc64__
+/*
+ * These are parameters to dbg_sigreturn syscall.  They enable or
+ * disable certain debugging things that can be done from signal
+ * handlers.  The dbg_sigreturn syscall *must* be called from a
+ * SA_SIGINFO signal so the ucontext can be passed to it.  It takes an
+ * array of struct sig_dbg_op, which has the debug operations to
+ * perform before returning from the signal.
+ */
+struct sig_dbg_op {
+	int dbg_type;
+	unsigned long dbg_value;
+};
+
+/* Enable or disable single-stepping.  The value sets the state. */
+#define SIG_DBG_SINGLE_STEPPING		1
+
+/* Enable or disable branch tracing.  The value sets the state. */
+#define SIG_DBG_BRANCH_TRACING		2
+#endif /* ! __powerpc64__ */
+
+#endif /* _ASM_POWERPC_SIGNAL_H */

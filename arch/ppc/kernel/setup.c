@@ -76,6 +76,7 @@ unsigned int DMA_MODE_WRITE;
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
 int _machine = 0;
+EXPORT_SYMBOL(_machine);
 
 extern void prep_init(unsigned long r3, unsigned long r4,
 		unsigned long r5, unsigned long r6, unsigned long r7);

@@ -16,8 +16,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
-#ifndef _ASM_LPPACA_H
-#define _ASM_LPPACA_H
+#ifndef _ASM_POWERPC_LPPACA_H
+#define _ASM_POWERPC_LPPACA_H
 
 //=============================================================================
 //
@@ -28,8 +28,7 @@
 //----------------------------------------------------------------------------
 #include <asm/types.h>
 
-struct lppaca
-{
+struct lppaca {
 //=============================================================================
 // CACHE_LINE_1 0x0000 - 0x007F Contains read-only data
 // NOTE: The xDynXyz fields are fields that will be dynamically changed by
@@ -129,4 +128,4 @@ struct lppaca
 	u8	pmc_save_area[256];	// PMC interrupt Area           x00-xFF
 };
 
-#endif /* _ASM_LPPACA_H */
+#endif /* _ASM_POWERPC_LPPACA_H */

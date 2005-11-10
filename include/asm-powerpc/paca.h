@@ -1,11 +1,8 @@
-#ifndef _PPC64_PACA_H
-#define _PPC64_PACA_H
-
 /*
- * include/asm-ppc64/paca.h
+ * include/asm-powerpc/paca.h
  *
- * This control block defines the PACA which defines the processor 
- * specific data for each logical processor on the system.  
+ * This control block defines the PACA which defines the processor
+ * specific data for each logical processor on the system.
  * There are some pointers defined that are utilized by PLIC.
  *
  * C 2001 PPC 64 Team, IBM Corp
@@ -14,7 +11,9 @@
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
- */    
+ */
+#ifndef _ASM_POWERPC_PACA_H
+#define _ASM_POWERPC_PACA_H
 
 #include	<linux/config.h>
 #include	<asm/types.h>
@@ -118,4 +117,4 @@ struct paca_struct {
 
 extern struct paca_struct paca[];
 
-#endif /* _PPC64_PACA_H */
+#endif /* _ASM_POWERPC_PACA_H */

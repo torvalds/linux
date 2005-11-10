@@ -11,7 +11,7 @@
  */
 
 #include <linux/config.h>
-#include <asm/ppc_asm.h> /* for ASM_CONST */
+#include <asm/asm-compat.h>
 
 /*
  * We support either 4k or 64k software page size. When using 64k pages

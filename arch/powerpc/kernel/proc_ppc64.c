@@ -1,18 +1,16 @@
 /*
- * arch/ppc64/kernel/proc_ppc64.c
- *
  * Copyright (C) 2001 Mike Corrigan & Dave Engebretsen IBM Corporation
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
@@ -53,7 +51,7 @@ static int __init proc_ppc64_create(void)
 	if (!root)
 		return 1;
 
-	if (!(systemcfg->platform & (PLATFORM_PSERIES | PLATFORM_CELL)))
+	if (!(platform_is_pseries() || _machine == PLATFORM_CELL))
 		return 0;
 
 	if (!proc_mkdir("rtas", root))
@@ -74,7 +72,7 @@ static int __init proc_ppc64_init(void)
 	if (!pde)
 		return 1;
 	pde->nlink = 1;
-	pde->data = systemcfg;
+	pde->data = _systemcfg;
 	pde->size = PAGE_SIZE;
 	pde->proc_fops = &page_map_fops;
 

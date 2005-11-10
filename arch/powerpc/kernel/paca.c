@@ -15,7 +15,7 @@
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/page.h>
-
+#include <asm/systemcfg.h>
 #include <asm/lppaca.h>
 #include <asm/iseries/it_lp_queue.h>
 #include <asm/paca.h>
@@ -24,15 +24,14 @@ static union {
 	struct systemcfg	data;
 	u8			page[PAGE_SIZE];
 } systemcfg_store __attribute__((__section__(".data.page.aligned")));
-struct systemcfg *systemcfg = &systemcfg_store.data;
-EXPORT_SYMBOL(systemcfg);
+struct systemcfg *_systemcfg = &systemcfg_store.data;
 
 
 /* This symbol is provided by the linker - let it fill in the paca
  * field correctly */
 extern unsigned long __toc_start;
 
-/* The Paca is an array with one entry per processor.  Each contains an 
+/* The Paca is an array with one entry per processor.  Each contains an
  * lppaca, which contains the information shared between the
  * hypervisor and Linux.  Each also contains an ItLpRegSave area which
  * is used by the hypervisor to save registers.

@@ -40,6 +40,8 @@
 #include <asm/xmon.h>
 #include <asm/time.h>
 
+#include "setup.h"
+
 #define DBG(fmt...)
 
 #if defined CONFIG_KGDB
@@ -70,8 +72,6 @@ unsigned int DMA_MODE_WRITE;
 int have_of = 1;
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
-int _machine = 0;
-
 extern void prep_init(void);
 extern void pmac_init(void);
 extern void chrp_init(void);
@@ -279,7 +279,6 @@ arch_initcall(ppc_init);
 /* Warning, IO base is not yet inited */
 void __init setup_arch(char **cmdline_p)
 {
-	extern char *klimit;
 	extern void do_init_bootmem(void);
 
 	/* so udelay does something sensible, assume <= 1000 bogomips */
@@ -303,14 +302,9 @@ void __init setup_arch(char **cmdline_p)
 		pmac_feature_init();	/* New cool way */
 #endif
 
-#ifdef CONFIG_XMON
-	xmon_map_scc();
-	if (strstr(cmd_line, "xmon")) {
-		xmon_init(1);
-		debugger(NULL);
-	}
-#endif /* CONFIG_XMON */
-	if ( ppc_md.progress ) ppc_md.progress("setup_arch: enter", 0x3eab);
+#ifdef CONFIG_XMON_DEFAULT
+	xmon_init(1);
+#endif
 
 #if defined(CONFIG_KGDB)
 	if (ppc_md.kgdb_map_scc)
@@ -343,7 +337,7 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.start_code = PAGE_OFFSET;
 	init_mm.end_code = (unsigned long) _etext;
 	init_mm.end_data = (unsigned long) _edata;
-	init_mm.brk = (unsigned long) klimit;
+	init_mm.brk = klimit;
 
 	/* Save unparsed command line copy for /proc/cmdline */
 	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);

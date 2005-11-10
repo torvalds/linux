@@ -5,12 +5,12 @@
  *    Copyright (C) 1992 Linus Torvalds
  *  Adapted from arch/i386 by Gary Thomas
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
- *  Updated and modified by Cort Dougan (cort@cs.nmt.edu)
- *    Copyright (C) 1996 Cort Dougan
+ *  Updated and modified by Cort Dougan <cort@fsmlabs.com>
+ *    Copyright (C) 1996-2001 Cort Dougan
  *  Adapted for Power Macintosh by Paul Mackerras
  *    Copyright (C) 1996 Paul Mackerras (paulus@cs.anu.edu.au)
  *  Amiga/APUS changes by Jesper Skov (jskov@cygnus.co.uk).
- * 
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version
@@ -21,6 +21,14 @@
  * instead of just grabbing them. Thus setups with different IRQ numbers
  * shouldn't result in any weird surprises, and installing new handlers
  * should be easier.
+ *
+ * The MPC8xx has an interrupt mask in the SIU.  If a bit is set, the
+ * interrupt is _enabled_.  As expected, IRQ0 is bit 0 in the 32-bit
+ * mask register (of which only 16 are defined), hence the weird shifting
+ * and complement of the cached_irq_mask.  I want to be able to stuff
+ * this right into the SIU SMASK register.
+ * Many of the prep/chrp functions are conditional compiled on CONFIG_8xx
+ * to reduce code space and undefined function references.
  */
 
 #include <linux/errno.h>
@@ -29,6 +37,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
+#include <linux/ptrace.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/timex.h>
@@ -40,9 +49,13 @@
 #include <linux/irq.h>
 #include <linux/proc_fs.h>
 #include <linux/random.h>
-#include <linux/kallsyms.h>
+#include <linux/seq_file.h>
+#include <linux/cpumask.h>
 #include <linux/profile.h>
 #include <linux/bitops.h>
+#ifdef CONFIG_PPC64
+#include <linux/kallsyms.h>
+#endif
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -52,35 +65,54 @@
 #include <asm/cache.h>
 #include <asm/prom.h>
 #include <asm/ptrace.h>
-#include <asm/iseries/it_lp_queue.h>
 #include <asm/machdep.h>
+#ifdef CONFIG_PPC64
+#include <asm/iseries/it_lp_queue.h>
 #include <asm/paca.h>
-
-#ifdef CONFIG_SMP
-extern void iSeries_smp_message_recv( struct pt_regs * );
 #endif
 
-extern irq_desc_t irq_desc[NR_IRQS];
+static int ppc_spurious_interrupts;
+
+#if defined(CONFIG_PPC_ISERIES) && defined(CONFIG_SMP)
+extern void iSeries_smp_message_recv(struct pt_regs *);
+#endif
+
+#ifdef CONFIG_PPC32
+#define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
+
+unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
+atomic_t ppc_n_lost_interrupts;
+
+#ifdef CONFIG_TAU_INT
+extern int tau_initialized;
+extern int tau_interrupts(int);
+#endif
+
+#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_MERGE)
+extern atomic_t ipi_recv;
+extern atomic_t ipi_sent;
+#endif
+#endif /* CONFIG_PPC32 */
+
+#ifdef CONFIG_PPC64
 EXPORT_SYMBOL(irq_desc);
 
 int distribute_irqs = 1;
 int __irq_offset_value;
-int ppc_spurious_interrupts;
 u64 ppc64_interrupt_controller;
+#endif /* CONFIG_PPC64 */
 
 int show_interrupts(struct seq_file *p, void *v)
 {
-	int i = *(loff_t *) v, j;
-	struct irqaction * action;
+	int i = *(loff_t *)v, j;
+	struct irqaction *action;
 	irq_desc_t *desc;
 	unsigned long flags;
 
 	if (i == 0) {
-		seq_printf(p, "           ");
-		for (j=0; j<NR_CPUS; j++) {
-			if (cpu_online(j))
-				seq_printf(p, "CPU%d       ",j);
-		}
+		seq_puts(p, "           ");
+		for_each_online_cpu(j)
+			seq_printf(p, "CPU%d       ", j);
 		seq_putc(p, '\n');
 	}
 
@@ -92,26 +124,41 @@ int show_interrupts(struct seq_file *p, void *v)
 			goto skip;
 		seq_printf(p, "%3d: ", i);
 #ifdef CONFIG_SMP
-		for (j = 0; j < NR_CPUS; j++) {
-			if (cpu_online(j))
-				seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
-		}
+		for_each_online_cpu(j)
+			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
 #else
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #endif /* CONFIG_SMP */
 		if (desc->handler)
-			seq_printf(p, " %s ", desc->handler->typename );
+			seq_printf(p, " %s ", desc->handler->typename);
 		else
-			seq_printf(p, "  None      ");
+			seq_puts(p, "  None      ");
 		seq_printf(p, "%s", (desc->status & IRQ_LEVEL) ? "Level " : "Edge  ");
-		seq_printf(p, "    %s",action->name);
-		for (action=action->next; action; action = action->next)
+		seq_printf(p, "    %s", action->name);
+		for (action = action->next; action; action = action->next)
 			seq_printf(p, ", %s", action->name);
 		seq_putc(p, '\n');
 skip:
 		spin_unlock_irqrestore(&desc->lock, flags);
-	} else if (i == NR_IRQS)
+	} else if (i == NR_IRQS) {
+#ifdef CONFIG_PPC32
+#ifdef CONFIG_TAU_INT
+		if (tau_initialized){
+			seq_puts(p, "TAU: ");
+			for (j = 0; j < NR_CPUS; j++)
+				if (cpu_online(j))
+					seq_printf(p, "%10u ", tau_interrupts(j));
+			seq_puts(p, "  PowerPC             Thermal Assist (cpu temp)\n");
+		}
+#endif
+#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_MERGE)
+		/* should this be per processor send/receive? */
+		seq_printf(p, "IPI (recv/sent): %10u/%u\n",
+				atomic_read(&ipi_recv), atomic_read(&ipi_sent));
+#endif
+#endif /* CONFIG_PPC32 */
 		seq_printf(p, "BAD: %10u\n", ppc_spurious_interrupts);
+	}
 	return 0;
 }
 
@@ -143,126 +190,6 @@ void fixup_irqs(cpumask_t map)
 	local_irq_disable();
 }
 #endif
-
-extern int noirqdebug;
-
-/*
- * Eventually, this should take an array of interrupts and an array size
- * so it can dispatch multiple interrupts.
- */
-void ppc_irq_dispatch_handler(struct pt_regs *regs, int irq)
-{
-	int status;
-	struct irqaction *action;
-	int cpu = smp_processor_id();
-	irq_desc_t *desc = get_irq_desc(irq);
-	irqreturn_t action_ret;
-#ifdef CONFIG_IRQSTACKS
-	struct thread_info *curtp, *irqtp;
-#endif
-
-	kstat_cpu(cpu).irqs[irq]++;
-
-	if (desc->status & IRQ_PER_CPU) {
-		/* no locking required for CPU-local interrupts: */
-		ack_irq(irq);
-		action_ret = handle_IRQ_event(irq, regs, desc->action);
-		desc->handler->end(irq);
-		return;
-	}
-
-	spin_lock(&desc->lock);
-	ack_irq(irq);	
-	/*
-	   REPLAY is when Linux resends an IRQ that was dropped earlier
-	   WAITING is used by probe to mark irqs that are being tested
-	   */
-	status = desc->status & ~(IRQ_REPLAY | IRQ_WAITING);
-	status |= IRQ_PENDING; /* we _want_ to handle it */
-
-	/*
-	 * If the IRQ is disabled for whatever reason, we cannot
-	 * use the action we have.
-	 */
-	action = NULL;
-	if (likely(!(status & (IRQ_DISABLED | IRQ_INPROGRESS)))) {
-		action = desc->action;
-		if (!action || !action->handler) {
-			ppc_spurious_interrupts++;
-			printk(KERN_DEBUG "Unhandled interrupt %x, disabled\n", irq);
-			/* We can't call disable_irq here, it would deadlock */
-			if (!desc->depth)
-				desc->depth = 1;
-			desc->status |= IRQ_DISABLED;
-			/* This is not a real spurrious interrupt, we
-			 * have to eoi it, so we jump to out
-			 */
-			mask_irq(irq);
-			goto out;
-		}
-		status &= ~IRQ_PENDING; /* we commit to handling */
-		status |= IRQ_INPROGRESS; /* we are handling it */
-	}
-	desc->status = status;
-
-	/*
-	 * If there is no IRQ handler or it was disabled, exit early.
-	   Since we set PENDING, if another processor is handling
-	   a different instance of this same irq, the other processor
-	   will take care of it.
-	 */
-	if (unlikely(!action))
-		goto out;
-
-	/*
-	 * Edge triggered interrupts need to remember
-	 * pending events.
-	 * This applies to any hw interrupts that allow a second
-	 * instance of the same irq to arrive while we are in do_IRQ
-	 * or in the handler. But the code here only handles the _second_
-	 * instance of the irq, not the third or fourth. So it is mostly
-	 * useful for irq hardware that does not mask cleanly in an
-	 * SMP environment.
-	 */
-	for (;;) {
-		spin_unlock(&desc->lock);
-
-#ifdef CONFIG_IRQSTACKS
-		/* Switch to the irq stack to handle this */
-		curtp = current_thread_info();
-		irqtp = hardirq_ctx[smp_processor_id()];
-		if (curtp != irqtp) {
-			irqtp->task = curtp->task;
-			irqtp->flags = 0;
-			action_ret = call_handle_IRQ_event(irq, regs, action, irqtp);
-			irqtp->task = NULL;
-			if (irqtp->flags)
-				set_bits(irqtp->flags, &curtp->flags);
-		} else
-#endif
-			action_ret = handle_IRQ_event(irq, regs, action);
-
-		spin_lock(&desc->lock);
-		if (!noirqdebug)
-			note_interrupt(irq, desc, action_ret, regs);
-		if (likely(!(desc->status & IRQ_PENDING)))
-			break;
-		desc->status &= ~IRQ_PENDING;
-	}
-out:
-	desc->status &= ~IRQ_INPROGRESS;
-	/*
-	 * The ->end() handler has to deal with interrupts which got
-	 * disabled while the handler was running.
-	 */
-	if (desc->handler) {
-		if (desc->handler->end)
-			desc->handler->end(irq);
-		else if (desc->handler->enable)
-			desc->handler->enable(irq);
-	}
-	spin_unlock(&desc->lock);
-}
 
 #ifdef CONFIG_PPC_ISERIES
 void do_IRQ(struct pt_regs *regs)
@@ -310,8 +237,11 @@ void do_IRQ(struct pt_regs *regs)
 void do_IRQ(struct pt_regs *regs)
 {
 	int irq;
+#ifdef CONFIG_IRQSTACKS
+	struct thread_info *curtp, *irqtp;
+#endif
 
-	irq_enter();
+        irq_enter();
 
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	/* Debugging check for stack overflow: is there less than 2KB free? */
@@ -328,20 +258,44 @@ void do_IRQ(struct pt_regs *regs)
 	}
 #endif
 
+	/*
+	 * Every platform is required to implement ppc_md.get_irq.
+	 * This function will either return an irq number or -1 to
+	 * indicate there are no more pending.
+	 * The value -2 is for buggy hardware and means that this IRQ
+	 * has already been handled. -- Tom
+	 */
 	irq = ppc_md.get_irq(regs);
 
-	if (irq >= 0)
-		ppc_irq_dispatch_handler(regs, irq);
-	else
-		/* That's not SMP safe ... but who cares ? */
-		ppc_spurious_interrupts++;
-
-	irq_exit();
+	if (irq >= 0) {
+#ifdef CONFIG_IRQSTACKS
+		/* Switch to the irq stack to handle this */
+		curtp = current_thread_info();
+		irqtp = hardirq_ctx[smp_processor_id()];
+		if (curtp != irqtp) {
+			irqtp->task = curtp->task;
+			irqtp->flags = 0;
+			call___do_IRQ(irq, regs, irqtp);
+			irqtp->task = NULL;
+			if (irqtp->flags)
+				set_bits(irqtp->flags, &curtp->flags);
+		} else
+#endif
+			__do_IRQ(irq, regs);
+	} else
+#ifdef CONFIG_PPC32
+		if (irq != -2)
+#endif
+			/* That's not SMP safe ... but who cares ? */
+			ppc_spurious_interrupts++;
+        irq_exit();
 }
+
 #endif	/* CONFIG_PPC_ISERIES */
 
 void __init init_IRQ(void)
 {
+#ifdef CONFIG_PPC64
 	static int once = 0;
 
 	if (once)
@@ -349,10 +303,14 @@ void __init init_IRQ(void)
 
 	once++;
 
+#endif
 	ppc_md.init_IRQ();
+#ifdef CONFIG_PPC64
 	irq_ctx_init();
+#endif
 }
 
+#ifdef CONFIG_PPC64
 #ifndef CONFIG_PPC_ISERIES
 /*
  * Virtual IRQ mapping code, used on systems with XICS interrupt controllers.
@@ -517,3 +475,4 @@ static int __init setup_noirqdistrib(char *str)
 }
 
 __setup("noirqdistrib", setup_noirqdistrib);
+#endif /* CONFIG_PPC64 */

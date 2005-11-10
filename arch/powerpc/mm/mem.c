@@ -110,6 +110,7 @@ EXPORT_SYMBOL(phys_mem_access_prot);
 void online_page(struct page *page)
 {
 	ClearPageReserved(page);
+	set_page_count(page, 0);
 	free_cold_page(page);
 	totalram_pages++;
 	num_physpages++;
@@ -126,6 +127,9 @@ int __devinit add_memory(u64 start, u64 size)
 	struct zone *zone;
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
+
+	start += KERNELBASE;
+	create_section_mapping(start, start + size);
 
 	/* this should work for most non-highmem platforms */
 	zone = pgdata->node_zones;

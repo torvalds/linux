@@ -114,11 +114,11 @@ _GLOBAL(__setup_cpu_ppc970)
 
 	.data
 	.balign	L1_CACHE_BYTES,0
-cpu_state_storage:	
+cpu_state_storage:
 	.space	CS_SIZE
 	.balign	L1_CACHE_BYTES,0
 	.text
-	
+
 /* Called in normal context to backup CPU 0 state. This
  * does not include cache settings. This function is also
  * called for machine sleep. This does not include the MMU
@@ -151,7 +151,7 @@ _GLOBAL(__save_cpu_setup)
 	std	r3,CS_HID4(r5)
 	mfspr	r3,SPRN_HID5
 	std	r3,CS_HID5(r5)
-	
+
 2:
 	mtcr	r7
 	blr
@@ -213,7 +213,7 @@ _GLOBAL(__restore_cpu_setup)
 	mtspr	SPRN_HID1,r3
 	sync
 	isync
-	
+
 	/* Restore HID4 */
 	ld	r3,CS_HID4(r5)
 	sync

@@ -10,8 +10,8 @@ extern kmem_cache_t *pgtable_cache[];
 
 #ifdef CONFIG_PPC_64K_PAGES
 #define PTE_CACHE_NUM	0
-#define PMD_CACHE_NUM	0
-#define PGD_CACHE_NUM	1
+#define PMD_CACHE_NUM	1
+#define PGD_CACHE_NUM	2
 #else
 #define PTE_CACHE_NUM	0
 #define PMD_CACHE_NUM	1
