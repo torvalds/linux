@@ -16,7 +16,11 @@
 /* Pickup Book E specific registers. */
 #if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
 #include <asm/reg_booke.h>
-#endif
+#endif /* CONFIG_BOOKE || CONFIG_40x */
+
+#ifdef CONFIG_8xx
+#include <asm/reg_8xx.h>
+#endif /* CONFIG_8xx */
 
 #define MSR_SF_LG	63              /* Enable 64 bit mode */
 #define MSR_ISF_LG	61              /* Interrupt 64b mode valid on 630 */

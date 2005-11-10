@@ -175,6 +175,7 @@ EXPORT_SYMBOL(pci_bus_to_phys);
 #endif /* CONFIG_PCI */
 
 #ifdef CONFIG_NOT_COHERENT_CACHE
+extern void flush_dcache_all(void);
 EXPORT_SYMBOL(flush_dcache_all);
 #endif
 
