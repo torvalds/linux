@@ -78,13 +78,10 @@ extern unsigned char ucBoardRevMaj, ucBoardRevMin;
 /*
  * iSeries is soon to become MULTIPLATFORM hopefully ...
  */
-#define _machine CONFIG_PPC_ISERIES_LPAR
+#define _machine PLATFORM_ISERIES_LPAR
 #else
 #define _machine 0
 #endif /* CONFIG_PPC_MULTIPLATFORM */
-
-
-
 
 /*
  * Default implementation of macro that returns current
