@@ -232,7 +232,7 @@ static void register_cpu_online(unsigned int cpu)
 		sysdev_create_file(s, &attr_pmc7);
 	if (cur_cpu_spec->num_pmcs >= 8)
 		sysdev_create_file(s, &attr_pmc8);
-  
+
 	if (cpu_has_feature(CPU_FTR_SMT))
 		sysdev_create_file(s, &attr_purr);
 }

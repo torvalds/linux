@@ -16,13 +16,17 @@ obj-y				:= semaphore.o cputable.o ptrace.o syscalls.o \
 obj-$(CONFIG_PPC64)		+= setup_64.o binfmt_elf32.o sys_ppc32.o \
 				   signal_64.o ptrace32.o systbl.o \
 				   paca.o ioctl32.o cpu_setup_power4.o \
-				   firmware.o
+				   firmware.o sysfs.o
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_POWER4)		+= idle_power4.o
 obj-$(CONFIG_PPC_OF)		+= of_device.o
-obj-$(CONFIG_PPC_RTAS)		+= rtas.o
+procfs-$(CONFIG_PPC64)		:= proc_ppc64.o
+obj-$(CONFIG_PROC_FS)		+= $(procfs-y)
+rtaspci-$(CONFIG_PPC64)		:= rtas_pci.o
+obj-$(CONFIG_PPC_RTAS)		+= rtas.o $(rtaspci-y)
 obj-$(CONFIG_RTAS_FLASH)	+= rtas_flash.o
 obj-$(CONFIG_RTAS_PROC)		+= rtas-proc.o
+obj-$(CONFIG_LPARCFG)		+= lparcfg.o
 obj-$(CONFIG_IBMVIO)		+= vio.o
 obj-$(CONFIG_GENERIC_TBSYNC)	+= smp-tbsync.o
 

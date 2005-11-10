@@ -97,7 +97,7 @@ static unsigned long get_purr(void)
 
 #define lparcfg_write NULL
 
-/* 
+/*
  * Methods used to fetch LPAR data when running on an iSeries platform.
  */
 static int lparcfg_data(struct seq_file *m, void *v)
@@ -169,7 +169,7 @@ static int lparcfg_data(struct seq_file *m, void *v)
 #endif				/* CONFIG_PPC_ISERIES */
 
 #ifdef CONFIG_PPC_PSERIES
-/* 
+/*
  * Methods used to fetch LPAR data when running on a pSeries platform.
  */
 
@@ -178,7 +178,7 @@ static int lparcfg_data(struct seq_file *m, void *v)
  *  entitled_capacity,unallocated_capacity,
  *  aggregation, resource_capability).
  *
- *  R4 = Entitled Processor Capacity Percentage. 
+ *  R4 = Entitled Processor Capacity Percentage.
  *  R5 = Unallocated Processor Capacity Percentage.
  *  R6 (AABBCCDDEEFFGGHH).
  *      XXXX - reserved (0)
@@ -191,7 +191,7 @@ static int lparcfg_data(struct seq_file *m, void *v)
  *          XX - variable processor Capacity Weight
  *            XX - Unallocated Variable Processor Capacity Weight.
  *              XXXX - Active processors in Physical Processor Pool.
- *                  XXXX  - Processors active on platform. 
+ *                  XXXX  - Processors active on platform.
  */
 static unsigned int h_get_ppp(unsigned long *entitled,
 			      unsigned long *unallocated,
@@ -274,7 +274,7 @@ static void parse_system_parameter_string(struct seq_file *m)
 		if (!workbuffer) {
 			printk(KERN_ERR "%s %s kmalloc failure at line %d \n",
 			       __FILE__, __FUNCTION__, __LINE__);
-			kfree(local_buffer);			
+			kfree(local_buffer);
 			return;
 		}
 #ifdef LPARCFG_DEBUG
