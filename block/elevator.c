@@ -762,13 +762,15 @@ error:
 ssize_t elv_iosched_store(request_queue_t *q, const char *name, size_t count)
 {
 	char elevator_name[ELV_NAME_MAX];
+	size_t len;
 	struct elevator_type *e;
 
-	memset(elevator_name, 0, sizeof(elevator_name));
-	strncpy(elevator_name, name, sizeof(elevator_name));
+	elevator_name[sizeof(elevator_name) - 1] = '\0';
+	strncpy(elevator_name, name, sizeof(elevator_name) - 1);
+	len = strlen(elevator_name);
 
-	if (elevator_name[strlen(elevator_name) - 1] == '\n')
-		elevator_name[strlen(elevator_name) - 1] = '\0';
+	if (len && elevator_name[len - 1] == '\n')
+		elevator_name[len - 1] = '\0';
 
 	e = elevator_get(elevator_name);
 	if (!e) {
