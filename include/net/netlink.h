@@ -183,6 +183,12 @@ struct nla_policy {
 	u16		minlen;
 };
 
+extern void		netlink_run_queue(struct sock *sk, unsigned int *qlen,
+					  int (*cb)(struct sk_buff *,
+						    struct nlmsghdr *, int *));
+extern void		netlink_queue_skip(struct nlmsghdr *nlh,
+					   struct sk_buff *skb);
+
 extern int		nla_validate(struct nlattr *head, int len, int maxtype,
 				     struct nla_policy *policy);
 extern int		nla_parse(struct nlattr *tb[], int maxtype,
