@@ -548,8 +548,10 @@ static int __init pcibios_init(void)
 	if (ppc64_isabridge_dev != NULL)
 		printk("ISA bridge at %s\n", pci_name(ppc64_isabridge_dev));
 
+#ifdef CONFIG_PPC_MULTIPLATFORM
 	/* map in PCI I/O space */
 	phbs_remap_io();
+#endif
 
 	printk("PCI: Probing PCI hardware done\n");
 
