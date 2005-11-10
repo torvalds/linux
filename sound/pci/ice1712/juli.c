@@ -175,7 +175,14 @@ static int __devinit juli_init(ice1712_t *ice)
 	if (err < 0)
 		return err;
 
-	ice->spec.juli.analog = ice->gpio.get_data(ice) & GPIO_ANALOG_PRESENT;
+#if 0
+        /* it seems that the analog doughter board detection does not work
+           reliably, so force the analog flag; it should be very rare
+           to use Juli@ without the analog doughter board */
+	ice->spec.juli.analog = (ice->gpio.get_data(ice) & GPIO_ANALOG_PRESENT) ? 0 : 1;
+#else
+        ice->spec.juli.analog = 1;
+#endif
 
 	if (ice->spec.juli.analog) {
 		printk(KERN_INFO "juli@: analog I/O detected\n");
