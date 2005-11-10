@@ -389,6 +389,7 @@ extern u64 ppc64_interrupt_controller;
 #define	SIU_INT_TIMER4		((uint)0x0f + CPM_IRQ_OFFSET)
 #define	SIU_INT_TMCNT		((uint)0x10 + CPM_IRQ_OFFSET)
 #define	SIU_INT_PIT		((uint)0x11 + CPM_IRQ_OFFSET)
+#define	SIU_INT_PCI		((uint)0x12 + CPM_IRQ_OFFSET)
 #define	SIU_INT_IRQ1		((uint)0x13 + CPM_IRQ_OFFSET)
 #define	SIU_INT_IRQ2		((uint)0x14 + CPM_IRQ_OFFSET)
 #define	SIU_INT_IRQ3		((uint)0x15 + CPM_IRQ_OFFSET)
