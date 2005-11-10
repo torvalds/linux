@@ -3903,6 +3903,8 @@ bnx2_test_loopback(struct bnx2 *bp)
 
 	pkt_size = 1514;
 	skb = dev_alloc_skb(pkt_size);
+	if (!skb)
+		return -ENOMEM;
 	packet = skb_put(skb, pkt_size);
 	memcpy(packet, bp->mac_addr, 6);
 	memset(packet + 6, 0x0, 8);
