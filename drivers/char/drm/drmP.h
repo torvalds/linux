@@ -770,7 +770,6 @@ static inline int drm_core_has_MTRR(struct drm_device *dev)
 				/* Misc. support (drm_init.h) */
 extern int drm_flags;
 extern void drm_parse_options(char *s);
-extern int drm_cpu_valid(void);
 
 				/* Driver support (drm_drv.h) */
 extern int drm_init(struct drm_driver *driver);
