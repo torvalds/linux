@@ -255,7 +255,7 @@ static struct ata_port_info ahci_port_info[] = {
 	},
 };
 
-static struct pci_device_id ahci_pci_tbl[] = {
+static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VENDOR_ID_INTEL, 0x2652, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	  board_ahci }, /* ICH6 */
 	{ PCI_VENDOR_ID_INTEL, 0x2653, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
