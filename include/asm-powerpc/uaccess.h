@@ -120,14 +120,6 @@ struct exception_table_entry {
 
 extern long __put_user_bad(void);
 
-#ifdef __powerpc64__
-#define __EX_TABLE_ALIGN	"3"
-#define __EX_TABLE_TYPE		"llong"
-#else
-#define __EX_TABLE_ALIGN	"2"
-#define __EX_TABLE_TYPE		"long"
-#endif
-
 /*
  * We don't tell gcc that we are accessing memory, but this is OK
  * because we do not write to any memory gcc knows about, so there
@@ -142,11 +134,12 @@ extern long __put_user_bad(void);
 		"	b 2b\n"					\
 		".previous\n"					\
 		".section __ex_table,\"a\"\n"			\
-		"	.align " __EX_TABLE_ALIGN "\n"		\
-		"	."__EX_TABLE_TYPE" 1b,3b\n"		\
+		"	.balign %5\n"				\
+			PPC_LONG "1b,3b\n"			\
 		".previous"					\
 		: "=r" (err)					\
-		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err))
+		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err),\
+		  "i"(sizeof(unsigned long)))
 
 #ifdef __powerpc64__
 #define __put_user_asm2(x, ptr, retval)				\
@@ -162,12 +155,13 @@ extern long __put_user_bad(void);
 		"	b 3b\n"					\
 		".previous\n"					\
 		".section __ex_table,\"a\"\n"			\
-		"	.align " __EX_TABLE_ALIGN "\n"		\
-		"	." __EX_TABLE_TYPE " 1b,4b\n"		\
-		"	." __EX_TABLE_TYPE " 2b,4b\n"		\
+		"	.balign %5\n"				\
+			PPC_LONG "1b,4b\n"			\
+			PPC_LONG "2b,4b\n"			\
 		".previous"					\
 		: "=r" (err)					\
-		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err))
+		: "r" (x), "b" (addr), "i" (-EFAULT), "0" (err),\
+		  "i"(sizeof(unsigned long)))
 #endif /* __powerpc64__ */
 
 #define __put_user_size(x, ptr, size, retval)			\
@@ -213,11 +207,12 @@ extern long __get_user_bad(void);
 		"	b 2b\n"				\
 		".previous\n"				\
 		".section __ex_table,\"a\"\n"		\
-		"	.align "__EX_TABLE_ALIGN "\n"	\
-		"	." __EX_TABLE_TYPE " 1b,3b\n"	\
+		"	.balign %5\n"			\
+			PPC_LONG "1b,3b\n"		\
 		".previous"				\
 		: "=r" (err), "=r" (x)			\
-		: "b" (addr), "i" (-EFAULT), "0" (err))
+		: "b" (addr), "i" (-EFAULT), "0" (err),	\
+		  "i"(sizeof(unsigned long)))
 
 #ifdef __powerpc64__
 #define __get_user_asm2(x, addr, err)			\
@@ -235,12 +230,13 @@ extern long __get_user_bad(void);
 		"	b 3b\n"				\
 		".previous\n"				\
 		".section __ex_table,\"a\"\n"		\
-		"	.align " __EX_TABLE_ALIGN "\n"	\
-		"	." __EX_TABLE_TYPE " 1b,4b\n"	\
-		"	." __EX_TABLE_TYPE " 2b,4b\n"	\
+		"	.balign %5\n"			\
+			PPC_LONG "1b,4b\n"		\
+			PPC_LONG "2b,4b\n"		\
 		".previous"				\
 		: "=r" (err), "=&r" (x)			\
-		: "b" (addr), "i" (-EFAULT), "0" (err))
+		: "b" (addr), "i" (-EFAULT), "0" (err),	\
+		  "i"(sizeof(unsigned long)))
 #endif /* __powerpc64__ */
 
 #define __get_user_size(x, ptr, size, retval)			\

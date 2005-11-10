@@ -8,7 +8,6 @@
 #include <linux/kernel.h>
 
 #include <asm/hw_irq.h>
-#include <asm/ppc_asm.h>
 #include <asm/atomic.h>
 
 /*

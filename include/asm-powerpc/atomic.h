@@ -9,20 +9,12 @@ typedef struct { volatile int counter; } atomic_t;
 
 #ifdef __KERNEL__
 #include <asm/synch.h>
+#include <asm/asm-compat.h>
 
 #define ATOMIC_INIT(i)		{ (i) }
 
 #define atomic_read(v)		((v)->counter)
 #define atomic_set(v,i)		(((v)->counter) = (i))
-
-/* Erratum #77 on the 405 means we need a sync or dcbt before every stwcx.
- * The old ATOMIC_SYNC_FIX covered some but not all of this.
- */
-#ifdef CONFIG_IBM405_ERR77
-#define PPC405_ERR77(ra,rb)	"dcbt " #ra "," #rb ";"
-#else
-#define PPC405_ERR77(ra,rb)
-#endif
 
 static __inline__ void atomic_add(int a, atomic_t *v)
 {

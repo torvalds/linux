@@ -2,7 +2,7 @@
 #define __ASM_POWERPC_CPUTABLE_H
 
 #include <linux/config.h>
-#include <asm/ppc_asm.h> /* for ASM_CONST */
+#include <asm/asm-compat.h>
 
 #define PPC_FEATURE_32			0x80000000
 #define PPC_FEATURE_64			0x40000000

@@ -14,7 +14,7 @@
 #define _PPC64_MMU_H_
 
 #include <linux/config.h>
-#include <asm/ppc_asm.h> /* for ASM_CONST */
+#include <asm/asm-compat.h>
 #include <asm/page.h>
 
 /*
