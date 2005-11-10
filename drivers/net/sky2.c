@@ -38,6 +38,7 @@
 #include <linux/version.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/pci.h>
