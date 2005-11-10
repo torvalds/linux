@@ -8,6 +8,7 @@
 #include <linux/trdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/ctype.h>
 
 #include <net/ipv6.h>
 #include <linux/in6.h>
@@ -24,7 +25,7 @@
 
 #include "qeth_mpc.h"
 
-#define VERSION_QETH_H 		"$Revision: 1.142 $"
+#define VERSION_QETH_H 		"$Revision: 1.151 $"
 
 #ifdef CONFIG_QETH_IPV6
 #define QETH_VERSION_IPV6 	":IPv6"
@@ -1074,6 +1075,26 @@ qeth_get_qdio_q_format(struct qeth_card *card)
 	}
 }
 
+static inline int
+qeth_isdigit(char * buf)
+{
+	while (*buf) {
+		if (!isdigit(*buf++))
+			return 0;
+	}
+	return 1;
+}
+
+static inline int
+qeth_isxdigit(char * buf)
+{
+	while (*buf) {
+		if (!isxdigit(*buf++))
+			return 0;
+	}
+	return 1;
+}
+
 static inline void
 qeth_ipaddr4_to_string(const __u8 *addr, char *buf)
 {
@@ -1090,18 +1111,27 @@ qeth_string_to_ipaddr4(const char *buf, __u8 *addr)
 	int i;
 
 	start = buf;
-	for (i = 0; i < 3; i++) {
-		if (!(end = strchr(start, '.')))
+	for (i = 0; i < 4; i++) {
+		if (i == 3) {
+			end = strchr(start,0xa);
+			if (end)
+				len = end - start;
+			else		
+				len = strlen(start);
+		}
+		else {
+			end = strchr(start, '.');
+			len = end - start;
+		}
+		if ((len <= 0) || (len > 3))
 			return -EINVAL;
-		len = end - start;
 		memset(abuf, 0, 4);
 		strncpy(abuf, start, len);
+		if (!qeth_isdigit(abuf))
+			return -EINVAL;
 		addr[i] = simple_strtoul(abuf, &tmp, 10);
 		start = end + 1;
 	}
-	memset(abuf, 0, 4);
-	strcpy(abuf, start);
-	addr[3] = simple_strtoul(abuf, &tmp, 10);
 	return 0;
 }
 
@@ -1128,18 +1158,27 @@ qeth_string_to_ipaddr6(const char *buf, __u8 *addr)
 
 	tmp_addr = (u16 *)addr;
 	start = buf;
-	for (i = 0; i < 7; i++) {
-		if (!(end = strchr(start, ':')))
+	for (i = 0; i < 8; i++) {
+		if (i == 7) {
+			end = strchr(start,0xa);
+			if (end)
+				len = end - start;
+			else
+				len = strlen(start);
+		}
+		else {
+			end = strchr(start, ':');
+			len = end - start;
+		}
+		if ((len <= 0) || (len > 4))
 			return -EINVAL;
-		len = end - start;
 		memset(abuf, 0, 5);
 		strncpy(abuf, start, len);
+		if (!qeth_isxdigit(abuf))
+			return -EINVAL;
 		tmp_addr[i] = simple_strtoul(abuf, &tmp, 16);
 		start = end + 1;
 	}
-	memset(abuf, 0, 5);
-	strcpy(abuf, start);
-	tmp_addr[7] = simple_strtoul(abuf, &tmp, 16);
 	return 0;
 }
 
