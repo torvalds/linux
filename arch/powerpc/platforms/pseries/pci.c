@@ -123,7 +123,7 @@ static void fixup_winbond_82c105(struct pci_dev* dev)
 	int i;
 	unsigned int reg;
 
-	if (!(systemcfg->platform & PLATFORM_PSERIES))
+	if (!platform_is_pseries())
 		return;
 
 	printk("Using INTC for W82c105 IDE controller.\n");

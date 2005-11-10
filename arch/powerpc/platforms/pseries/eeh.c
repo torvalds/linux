@@ -32,7 +32,6 @@
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
 #include <asm/rtas.h>
-#include <asm/systemcfg.h>
 
 #undef DEBUG
 
@@ -1186,7 +1185,7 @@ static int __init eeh_init_proc(void)
 {
 	struct proc_dir_entry *e;
 
-	if (systemcfg->platform & PLATFORM_PSERIES) {
+	if (platform_is_pseries()) {
 		e = create_proc_entry("ppc64/eeh", 0, NULL);
 		if (e)
 			e->proc_fops = &proc_eeh_operations;

@@ -72,8 +72,6 @@ unsigned int DMA_MODE_WRITE;
 int have_of = 1;
 
 #ifdef CONFIG_PPC_MULTIPLATFORM
-int _machine = 0;
-
 extern void prep_init(void);
 extern void pmac_init(void);
 extern void chrp_init(void);

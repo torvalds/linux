@@ -39,6 +39,7 @@
 #include <asm/sections.h>
 #include <asm/iommu.h>
 #include <asm/firmware.h>
+#include <asm/systemcfg.h>
 
 #include <asm/time.h>
 #include <asm/paca.h>
@@ -71,7 +72,7 @@ extern void hvlog(char *fmt, ...);
 #endif
 
 /* Function Prototypes */
-static void build_iSeries_Memory_Map(void);
+static unsigned long build_iSeries_Memory_Map(void);
 static void iseries_shared_idle(void);
 static void iseries_dedicated_idle(void);
 #ifdef CONFIG_PCI
@@ -403,9 +404,11 @@ void mschunks_alloc(unsigned long num_chunks)
  * a table used to translate Linux's physical addresses to these
  * absolute addresses.  Absolute addresses are needed when
  * communicating with the hypervisor (e.g. to build HPT entries)
+ *
+ * Returns the physical memory size
  */
 
-static void __init build_iSeries_Memory_Map(void)
+static unsigned long __init build_iSeries_Memory_Map(void)
 {
 	u32 loadAreaFirstChunk, loadAreaLastChunk, loadAreaSize;
 	u32 nextPhysChunk;
@@ -538,7 +541,7 @@ static void __init build_iSeries_Memory_Map(void)
 	 * which should be equal to
 	 *   nextPhysChunk
 	 */
-	systemcfg->physicalMemorySize = chunk_to_addr(nextPhysChunk);
+	return chunk_to_addr(nextPhysChunk);
 }
 
 /*
@@ -564,8 +567,8 @@ static void __init iSeries_setup_arch(void)
 	printk("Max physical processors = %d\n",
 			itVpdAreas.xSlicMaxPhysicalProcs);
 
-	systemcfg->processor = xIoHriProcessorVpd[procIx].xPVR;
-	printk("Processor version = %x\n", systemcfg->processor);
+	_systemcfg->processor = xIoHriProcessorVpd[procIx].xPVR;
+	printk("Processor version = %x\n", _systemcfg->processor);
 }
 
 static void iSeries_show_cpuinfo(struct seq_file *m)
@@ -929,7 +932,7 @@ void dt_cpus(struct iseries_flat_dt *dt)
 	dt_end_node(dt);
 }
 
-void build_flat_dt(struct iseries_flat_dt *dt)
+void build_flat_dt(struct iseries_flat_dt *dt, unsigned long phys_mem_size)
 {
 	u64 tmp[2];
 
@@ -945,7 +948,7 @@ void build_flat_dt(struct iseries_flat_dt *dt)
 	dt_prop_str(dt, "name", "memory");
 	dt_prop_str(dt, "device_type", "memory");
 	tmp[0] = 0;
-	tmp[1] = systemcfg->physicalMemorySize;
+	tmp[1] = phys_mem_size;
 	dt_prop_u64_list(dt, "reg", tmp, 2);
 	dt_end_node(dt);
 
@@ -965,13 +968,15 @@ void build_flat_dt(struct iseries_flat_dt *dt)
 
 void * __init iSeries_early_setup(void)
 {
+	unsigned long phys_mem_size;
+
 	iSeries_fixup_klimit();
 
 	/*
 	 * Initialize the table which translate Linux physical addresses to
 	 * AS/400 absolute addresses
 	 */
-	build_iSeries_Memory_Map();
+	phys_mem_size = build_iSeries_Memory_Map();
 
 	iSeries_get_cmdline();
 
@@ -981,7 +986,7 @@ void * __init iSeries_early_setup(void)
 	/* Parse early parameters, in particular mem=x */
 	parse_early_param();
 
-	build_flat_dt(&iseries_dt);
+	build_flat_dt(&iseries_dt, phys_mem_size);
 
 	return (void *) __pa(&iseries_dt);
 }

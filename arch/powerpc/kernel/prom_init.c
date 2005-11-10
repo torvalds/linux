@@ -117,11 +117,6 @@ int of_workarounds;
 #define prom_debug(x...)
 #endif
 
-#ifdef CONFIG_PPC32
-#define PLATFORM_POWERMAC	_MACH_Pmac
-#define PLATFORM_CHRP		_MACH_chrp
-#endif
-
 
 typedef u32 prom_arg_t;
 
@@ -2078,7 +2073,8 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	/*
 	 * On pSeries, inform the firmware about our capabilities
 	 */
-	if (RELOC(of_platform) & PLATFORM_PSERIES)
+	if (RELOC(of_platform) == PLATFORM_PSERIES ||
+	    RELOC(of_platform) == PLATFORM_PSERIES_LPAR)
 		prom_send_capabilities();
 #endif
 

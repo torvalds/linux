@@ -48,9 +48,6 @@
 #include <asm/machdep.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/pci-bridge.h>
-#ifdef CONFIG_PPC64
-#include <asm/systemcfg.h>
-#endif
 
 #ifdef DEBUG
 #define DBG(fmt...) printk(KERN_ERR fmt)
@@ -391,7 +388,7 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 
 #ifdef CONFIG_PPC64
 		/* We offset irq numbers for the u3 MPIC by 128 in PowerMac */
-		if (systemcfg->platform == PLATFORM_POWERMAC && ic && ic->parent) {
+		if (_machine == PLATFORM_POWERMAC && ic && ic->parent) {
 			char *name = get_property(ic->parent, "name", NULL);
 			if (name && !strcmp(name, "u3"))
 				np->intrs[intrcount].line += 128;
@@ -1161,12 +1158,8 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 	prop = (u32 *)of_get_flat_dt_prop(node, "linux,platform", NULL);
 	if (prop == NULL)
 		return 0;
-#ifdef CONFIG_PPC64
-	systemcfg->platform = *prop;
-#else
 #ifdef CONFIG_PPC_MULTIPLATFORM
 	_machine = *prop;
-#endif
 #endif
 
 #ifdef CONFIG_PPC64
@@ -1346,9 +1339,6 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 	lmb_enforce_memory_limit(memory_limit);
 	lmb_analyze();
-#ifdef CONFIG_PPC64
-	systemcfg->physicalMemorySize = lmb_phys_mem_size();
-#endif
 	lmb_reserve(0, __pa(klimit));
 
 	DBG("Phys. mem: %lx\n", lmb_phys_mem_size());
@@ -1915,7 +1905,7 @@ static int of_finish_dynamic_node(struct device_node *node,
 	/* We don't support that function on PowerMac, at least
 	 * not yet
 	 */
-	if (systemcfg->platform == PLATFORM_POWERMAC)
+	if (_machine == PLATFORM_POWERMAC)
 		return -ENODEV;
 
 	/* fix up new node's linux_phandle field */
@@ -1999,9 +1989,11 @@ int prom_add_property(struct device_node* np, struct property* prop)
 	*next = prop;
 	write_unlock(&devtree_lock);
 
+#ifdef CONFIG_PROC_DEVICETREE
 	/* try to add to proc as well if it was initialized */
 	if (np->pde)
 		proc_device_tree_add_prop(np->pde, prop);
+#endif /* CONFIG_PROC_DEVICETREE */
 
 	return 0;
 }

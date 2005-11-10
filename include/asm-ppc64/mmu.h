@@ -224,6 +224,8 @@ extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 			     unsigned long pstart, unsigned long mode,
 			     int psize);
 
+extern void htab_initialize(void);
+extern void htab_initialize_secondary(void);
 extern void hpte_init_native(void);
 extern void hpte_init_lpar(void);
 extern void hpte_init_iSeries(void);
@@ -245,6 +247,7 @@ extern long iSeries_hpte_insert(unsigned long hpte_group,
 
 extern void stabs_alloc(void);
 extern void slb_initialize(void);
+extern void stab_initialize(unsigned long stab);
 
 #endif /* __ASSEMBLY__ */
 

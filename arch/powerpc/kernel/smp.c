@@ -44,6 +44,7 @@
 #include <asm/cputable.h>
 #include <asm/system.h>
 #include <asm/mpic.h>
+#include <asm/systemcfg.h>
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #endif
@@ -368,7 +369,9 @@ int generic_cpu_disable(void)
 	if (cpu == boot_cpuid)
 		return -EBUSY;
 
-	systemcfg->processorCount--;
+#ifdef CONFIG_PPC64
+	_systemcfg->processorCount--;
+#endif
 	cpu_clear(cpu, cpu_online_map);
 	fixup_irqs(cpu_online_map);
 	return 0;

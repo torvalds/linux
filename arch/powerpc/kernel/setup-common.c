@@ -33,6 +33,7 @@
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
+#include <asm/systemcfg.h>
 #include <asm/pgtable.h>
 #include <asm/smp.h>
 #include <asm/elf.h>
@@ -61,6 +62,11 @@
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
+#endif
+
+#ifdef CONFIG_PPC_MULTIPLATFORM
+int _machine = 0;
+EXPORT_SYMBOL(_machine);
 #endif
 
 /*
@@ -513,8 +519,8 @@ void __init smp_setup_cpu_maps(void)
 	 * On pSeries LPAR, we need to know how many cpus
 	 * could possibly be added to this partition.
 	 */
-	if (systemcfg->platform == PLATFORM_PSERIES_LPAR &&
-				(dn = of_find_node_by_path("/rtas"))) {
+	if (_machine == PLATFORM_PSERIES_LPAR &&
+	    (dn = of_find_node_by_path("/rtas"))) {
 		int num_addr_cell, num_size_cell, maxcpus;
 		unsigned int *ireg;
 
@@ -558,7 +564,7 @@ void __init smp_setup_cpu_maps(void)
 			cpu_set(cpu ^ 0x1, cpu_sibling_map[cpu]);
 	}
 
-	systemcfg->processorCount = num_present_cpus();
+	_systemcfg->processorCount = num_present_cpus();
 #endif /* CONFIG_PPC64 */
 }
 #endif /* CONFIG_SMP */

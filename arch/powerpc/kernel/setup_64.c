@@ -100,10 +100,9 @@ extern void udbg_init_maple_realmode(void);
 extern unsigned long klimit;
 
 extern void mm_init_ppc64(void);
-extern void stab_initialize(unsigned long stab);
-extern void htab_initialize(void);
 extern void early_init_devtree(void *flat_dt);
 extern void unflatten_device_tree(void);
+extern void check_for_initrd(void);
 
 int have_of = 1;
 int boot_cpuid = 0;
@@ -256,11 +255,10 @@ void __init early_setup(unsigned long dt_ptr)
 	 * Iterate all ppc_md structures until we find the proper
 	 * one for the current machine type
 	 */
-	DBG("Probing machine type for platform %x...\n",
-	    systemcfg->platform);
+	DBG("Probing machine type for platform %x...\n", _machine);
 
 	for (mach = machines; *mach; mach++) {
-		if ((*mach)->probe(systemcfg->platform))
+		if ((*mach)->probe(_machine))
 			break;
 	}
 	/* What can we do if we didn't find ? */
@@ -292,6 +290,28 @@ void __init early_setup(unsigned long dt_ptr)
 	DBG(" <- early_setup()\n");
 }
 
+#ifdef CONFIG_SMP
+void early_setup_secondary(void)
+{
+	struct paca_struct *lpaca = get_paca();
+
+	/* Mark enabled in PACA */
+	lpaca->proc_enabled = 0;
+
+	/* Initialize hash table for that CPU */
+	htab_initialize_secondary();
+
+	/* Initialize STAB/SLB. We use a virtual address as it works
+	 * in real mode on pSeries and we want a virutal address on
+	 * iSeries anyway
+	 */
+	if (cpu_has_feature(CPU_FTR_SLB))
+		slb_initialize();
+	else
+		stab_initialize(lpaca->stab_addr);
+}
+
+#endif /* CONFIG_SMP */
 
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
 void smp_release_cpus(void)
@@ -317,7 +337,8 @@ void smp_release_cpus(void)
 #endif /* CONFIG_SMP || CONFIG_KEXEC */
 
 /*
- * Initialize some remaining members of the ppc64_caches and systemcfg structures
+ * Initialize some remaining members of the ppc64_caches and systemcfg
+ * structures
  * (at least until we get rid of them completely). This is mostly some
  * cache informations about the CPU that will be used by cache flush
  * routines and/or provided to userland
@@ -342,7 +363,7 @@ static void __init initialize_cache_info(void)
 			const char *dc, *ic;
 
 			/* Then read cache informations */
-			if (systemcfg->platform == PLATFORM_POWERMAC) {
+			if (_machine == PLATFORM_POWERMAC) {
 				dc = "d-cache-block-size";
 				ic = "i-cache-block-size";
 			} else {
@@ -362,8 +383,8 @@ static void __init initialize_cache_info(void)
 				DBG("Argh, can't find dcache properties ! "
 				    "sizep: %p, lsizep: %p\n", sizep, lsizep);
 
-			systemcfg->dcache_size = ppc64_caches.dsize = size;
-			systemcfg->dcache_line_size =
+			_systemcfg->dcache_size = ppc64_caches.dsize = size;
+			_systemcfg->dcache_line_size =
 				ppc64_caches.dline_size = lsize;
 			ppc64_caches.log_dline_size = __ilog2(lsize);
 			ppc64_caches.dlines_per_page = PAGE_SIZE / lsize;
@@ -380,8 +401,8 @@ static void __init initialize_cache_info(void)
 				DBG("Argh, can't find icache properties ! "
 				    "sizep: %p, lsizep: %p\n", sizep, lsizep);
 
-			systemcfg->icache_size = ppc64_caches.isize = size;
-			systemcfg->icache_line_size =
+			_systemcfg->icache_size = ppc64_caches.isize = size;
+			_systemcfg->icache_line_size =
 				ppc64_caches.iline_size = lsize;
 			ppc64_caches.log_iline_size = __ilog2(lsize);
 			ppc64_caches.ilines_per_page = PAGE_SIZE / lsize;
@@ -389,10 +410,12 @@ static void __init initialize_cache_info(void)
 	}
 
 	/* Add an eye catcher and the systemcfg layout version number */
-	strcpy(systemcfg->eye_catcher, "SYSTEMCFG:PPC64");
-	systemcfg->version.major = SYSTEMCFG_MAJOR;
-	systemcfg->version.minor = SYSTEMCFG_MINOR;
-	systemcfg->processor = mfspr(SPRN_PVR);
+	strcpy(_systemcfg->eye_catcher, "SYSTEMCFG:PPC64");
+	_systemcfg->version.major = SYSTEMCFG_MAJOR;
+	_systemcfg->version.minor = SYSTEMCFG_MINOR;
+	_systemcfg->processor = mfspr(SPRN_PVR);
+	_systemcfg->platform = _machine;
+	_systemcfg->physicalMemorySize = lmb_phys_mem_size();
 
 	DBG(" <- initialize_cache_info()\n");
 }
@@ -481,10 +504,10 @@ void __init setup_system(void)
 	printk("-----------------------------------------------------\n");
 	printk("ppc64_pft_size                = 0x%lx\n", ppc64_pft_size);
 	printk("ppc64_interrupt_controller    = 0x%ld\n", ppc64_interrupt_controller);
-	printk("systemcfg                     = 0x%p\n", systemcfg);
-	printk("systemcfg->platform           = 0x%x\n", systemcfg->platform);
-	printk("systemcfg->processorCount     = 0x%lx\n", systemcfg->processorCount);
-	printk("systemcfg->physicalMemorySize = 0x%lx\n", systemcfg->physicalMemorySize);
+	printk("systemcfg                     = 0x%p\n", _systemcfg);
+	printk("systemcfg->platform           = 0x%x\n", _systemcfg->platform);
+	printk("systemcfg->processorCount     = 0x%lx\n", _systemcfg->processorCount);
+	printk("systemcfg->physicalMemorySize = 0x%lx\n", _systemcfg->physicalMemorySize);
 	printk("ppc64_caches.dcache_line_size = 0x%x\n",
 			ppc64_caches.dline_size);
 	printk("ppc64_caches.icache_line_size = 0x%x\n",
@@ -566,12 +589,12 @@ void __init setup_syscall_map(void)
 	for (i = 0; i < __NR_syscalls; i++) {
 		if (sys_call_table[i*2] != sys_ni_syscall) {
 			count64++;
-			systemcfg->syscall_map_64[i >> 5] |=
+			_systemcfg->syscall_map_64[i >> 5] |=
 				0x80000000UL >> (i & 0x1f);
 		}
 		if (sys_call_table[i*2+1] != sys_ni_syscall) {
 			count32++;
-			systemcfg->syscall_map_32[i >> 5] |=
+			_systemcfg->syscall_map_32[i >> 5] |=
 				0x80000000UL >> (i & 0x1f);
 		}
 	}

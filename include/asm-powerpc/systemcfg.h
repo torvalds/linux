@@ -1,7 +1,7 @@
 #ifndef _SYSTEMCFG_H
 #define _SYSTEMCFG_H
 
-/* 
+/*
  * Copyright (C) 2002 Peter Bergner <bergner@vnet.ibm.com>, IBM
  *
  * This program is free software; you can redistribute it and/or
@@ -12,7 +12,7 @@
 
 /* Change Activity:
  * 2002/09/30 : bergner  : Created
- * End Change Activity 
+ * End Change Activity
  */
 
 /*
@@ -56,7 +56,7 @@ struct systemcfg {
 };
 
 #ifdef __KERNEL__
-extern struct systemcfg *systemcfg;
+extern struct systemcfg *_systemcfg; /* to be renamed */
 #endif
 
 #endif /* __ASSEMBLY__ */

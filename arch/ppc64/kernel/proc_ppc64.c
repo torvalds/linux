@@ -53,7 +53,7 @@ static int __init proc_ppc64_create(void)
 	if (!root)
 		return 1;
 
-	if (!(systemcfg->platform & (PLATFORM_PSERIES | PLATFORM_CELL)))
+	if (!(platform_is_pseries() || _machine == PLATFORM_CELL))
 		return 0;
 
 	if (!proc_mkdir("rtas", root))
@@ -74,7 +74,7 @@ static int __init proc_ppc64_init(void)
 	if (!pde)
 		return 1;
 	pde->nlink = 1;
-	pde->data = systemcfg;
+	pde->data = _systemcfg;
 	pde->size = PAGE_SIZE;
 	pde->proc_fops = &page_map_fops;
 

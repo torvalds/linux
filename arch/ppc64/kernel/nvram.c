@@ -31,7 +31,6 @@
 #include <asm/rtas.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
-#include <asm/systemcfg.h>
 
 #undef DEBUG_NVRAM
 
@@ -167,7 +166,7 @@ static int dev_nvram_ioctl(struct inode *inode, struct file *file,
 	case IOC_NVRAM_GET_OFFSET: {
 		int part, offset;
 
-		if (systemcfg->platform != PLATFORM_POWERMAC)
+		if (_machine != PLATFORM_POWERMAC)
 			return -EINVAL;
 		if (copy_from_user(&part, (void __user*)arg, sizeof(part)) != 0)
 			return -EFAULT;
@@ -450,7 +449,7 @@ static int nvram_setup_partition(void)
 	 * in our nvram, as Apple defined partitions use pretty much
 	 * all of the space
 	 */
-	if (systemcfg->platform == PLATFORM_POWERMAC)
+	if (_machine == PLATFORM_POWERMAC)
 		return -ENOSPC;
 
 	/* see if we have an OS partition that meets our needs.
