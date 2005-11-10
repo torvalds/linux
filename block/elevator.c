@@ -541,33 +541,19 @@ int elv_queue_empty(request_queue_t *q)
 
 struct request *elv_latter_request(request_queue_t *q, struct request *rq)
 {
-	struct list_head *next;
-
 	elevator_t *e = q->elevator;
 
 	if (e->ops->elevator_latter_req_fn)
 		return e->ops->elevator_latter_req_fn(q, rq);
-
-	next = rq->queuelist.next;
-	if (next != &q->queue_head && next != &rq->queuelist)
-		return list_entry_rq(next);
-
 	return NULL;
 }
 
 struct request *elv_former_request(request_queue_t *q, struct request *rq)
 {
-	struct list_head *prev;
-
 	elevator_t *e = q->elevator;
 
 	if (e->ops->elevator_former_req_fn)
 		return e->ops->elevator_former_req_fn(q, rq);
-
-	prev = rq->queuelist.prev;
-	if (prev != &q->queue_head && prev != &rq->queuelist)
-		return list_entry_rq(prev);
-
 	return NULL;
 }
 
