@@ -704,7 +704,6 @@ static void iseries_shared_idle(void)
 
 static void iseries_dedicated_idle(void)
 {
-	long oldval;
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	while (1) {

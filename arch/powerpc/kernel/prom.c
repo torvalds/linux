@@ -1080,9 +1080,9 @@ void __init unflatten_device_tree(void)
 static int __init early_init_dt_scan_cpus(unsigned long node,
 					  const char *uname, int depth, void *data)
 {
-	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
 	u32 *prop;
-	unsigned long size = 0;
+	unsigned long size;
+	char *type = of_get_flat_dt_prop(node, "device_type", &size);
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
@@ -1108,7 +1108,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 
 #ifdef CONFIG_ALTIVEC
 	/* Check if we have a VMX and eventually update CPU features */
-	prop = (u32 *)of_get_flat_dt_prop(node, "ibm,vmx", &size);
+	prop = (u32 *)of_get_flat_dt_prop(node, "ibm,vmx", NULL);
 	if (prop && (*prop) > 0) {
 		cur_cpu_spec->cpu_features |= CPU_FTR_ALTIVEC;
 		cur_cpu_spec->cpu_user_features |= PPC_FEATURE_HAS_ALTIVEC;
