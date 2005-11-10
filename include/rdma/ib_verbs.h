@@ -881,7 +881,7 @@ struct ib_device {
 						struct ib_ucontext *context,
 						struct ib_udata *udata);
 	int                        (*destroy_cq)(struct ib_cq *cq);
-	int                        (*resize_cq)(struct ib_cq *cq, int *cqe);
+	int                        (*resize_cq)(struct ib_cq *cq, int cqe);
 	int                        (*poll_cq)(struct ib_cq *cq, int num_entries,
 					      struct ib_wc *wc);
 	int                        (*peek_cq)(struct ib_cq *cq, int wc_cnt);

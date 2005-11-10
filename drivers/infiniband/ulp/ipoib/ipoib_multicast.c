@@ -120,12 +120,8 @@ static void ipoib_mcast_free(struct ipoib_mcast *mcast)
 	if (mcast->ah)
 		ipoib_put_ah(mcast->ah);
 
-	while (!skb_queue_empty(&mcast->pkt_queue)) {
-		struct sk_buff *skb = skb_dequeue(&mcast->pkt_queue);
-
-		skb->dev = dev;
-		dev_kfree_skb_any(skb);
-	}
+	while (!skb_queue_empty(&mcast->pkt_queue))
+		dev_kfree_skb_any(skb_dequeue(&mcast->pkt_queue));
 
 	kfree(mcast);
 }
@@ -317,13 +313,8 @@ ipoib_mcast_sendonly_join_complete(int status,
 					IPOIB_GID_ARG(mcast->mcmember.mgid), status);
 
 		/* Flush out any queued packets */
-		while (!skb_queue_empty(&mcast->pkt_queue)) {
-			struct sk_buff *skb = skb_dequeue(&mcast->pkt_queue);
-
-			skb->dev = dev;
-
-			dev_kfree_skb_any(skb);
-		}
+		while (!skb_queue_empty(&mcast->pkt_queue))
+			dev_kfree_skb_any(skb_dequeue(&mcast->pkt_queue));
 
 		/* Clear the busy flag so we try again */
 		clear_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags);
@@ -928,19 +919,14 @@ struct ipoib_mcast_iter *ipoib_mcast_iter_init(struct net_device *dev)
 		return NULL;
 
 	iter->dev = dev;
-	memset(iter->mgid.raw, 0, sizeof iter->mgid);
+	memset(iter->mgid.raw, 0, 16);
 
 	if (ipoib_mcast_iter_next(iter)) {
-		ipoib_mcast_iter_free(iter);
+		kfree(iter);
 		return NULL;
 	}
 
 	return iter;
-}
-
-void ipoib_mcast_iter_free(struct ipoib_mcast_iter *iter)
-{
-	kfree(iter);
 }
 
 int ipoib_mcast_iter_next(struct ipoib_mcast_iter *iter)
