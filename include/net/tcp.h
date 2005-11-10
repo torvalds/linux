@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/cache.h>
 #include <linux/percpu.h>
+#include <linux/skbuff.h>
 
 #include <net/inet_connection_sock.h>
 #include <net/inet_timewait_sock.h>
@@ -852,7 +853,7 @@ static __inline__ u16 tcp_v4_check(struct tcphdr *th, int len,
 
 static __inline__ int __tcp_checksum_complete(struct sk_buff *skb)
 {
-	return (unsigned short)csum_fold(skb_checksum(skb, 0, skb->len, skb->csum));
+	return __skb_checksum_complete(skb);
 }
 
 static __inline__ int tcp_checksum_complete(struct sk_buff *skb)
