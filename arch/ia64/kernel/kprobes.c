@@ -347,7 +347,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 		((struct fnptr *)kretprobe_trampoline)->ip;
 
 	spin_lock_irqsave(&kretprobe_lock, flags);
-        head = kretprobe_inst_table_head(current);
+	head = kretprobe_inst_table_head(current);
 
 	/*
 	 * It is possible to have multiple instances associated with a given
@@ -363,9 +363,9 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	 *       kretprobe_trampoline
 	 */
 	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
-                if (ri->task != current)
+		if (ri->task != current)
 			/* another task is sharing our hash bucket */
-                        continue;
+			continue;
 
 		if (ri->rp && ri->rp->handler)
 			ri->rp->handler(ri, regs);
@@ -394,7 +394,7 @@ int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 	 * kprobe_handler() that we don't want the post_handler
 	 * to run (and have re-enabled preemption)
 	 */
-        return 1;
+	return 1;
 }
 
 /* Called with kretprobe_lock held */
@@ -739,12 +739,16 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 
 	switch(val) {
 	case DIE_BREAK:
-		if (pre_kprobes_handler(args))
-			ret = NOTIFY_STOP;
+		/* err is break number from ia64_bad_break() */
+		if (args->err == 0x80200 || args->err == 0x80300)
+			if (pre_kprobes_handler(args))
+				ret = NOTIFY_STOP;
 		break;
-	case DIE_SS:
-		if (post_kprobes_handler(args->regs))
-			ret = NOTIFY_STOP;
+	case DIE_FAULT:
+		/* err is vector number from ia64_fault() */
+		if (args->err == 36)
+			if (post_kprobes_handler(args->regs))
+				ret = NOTIFY_STOP;
 		break;
 	case DIE_PAGE_FAULT:
 		/* kprobe_running() needs smp_processor_id() */
