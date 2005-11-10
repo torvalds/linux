@@ -161,9 +161,11 @@ static inline char *ipw2100_translate_scan(struct ieee80211_device *ieee,
 			     (ieee->perfect_rssi - ieee->worst_rssi) -
 			     (ieee->perfect_rssi - network->stats.rssi) *
 			     (15 * (ieee->perfect_rssi - ieee->worst_rssi) +
-			      62 * (ieee->perfect_rssi - network->stats.rssi))) /
-			    ((ieee->perfect_rssi - ieee->worst_rssi) *
-			     (ieee->perfect_rssi - ieee->worst_rssi));
+			      62 * (ieee->perfect_rssi -
+				    network->stats.rssi))) /
+			    ((ieee->perfect_rssi -
+			      ieee->worst_rssi) * (ieee->perfect_rssi -
+						   ieee->worst_rssi));
 		if (iwe.u.qual.qual > 100)
 			iwe.u.qual.qual = 100;
 		else if (iwe.u.qual.qual < 1)
@@ -520,7 +522,8 @@ int ieee80211_wx_set_encodeext(struct ieee80211_device *ieee,
 		crypt = &ieee->crypt[idx];
 		group_key = 1;
 	} else {
-		if (idx != 0)
+		/* some Cisco APs use idx>0 for unicast in dynamic WEP */
+		if (idx != 0 && ext->alg != IW_ENCODE_ALG_WEP)
 			return -EINVAL;
 		if (ieee->iw_mode == IW_MODE_INFRA)
 			crypt = &ieee->crypt[idx];
@@ -688,7 +691,8 @@ int ieee80211_wx_get_encodeext(struct ieee80211_device *ieee,
 	} else
 		idx = ieee->tx_keyidx;
 
-	if (!ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY)
+	if (!ext->ext_flags & IW_ENCODE_EXT_GROUP_KEY &&
+	    ext->alg != IW_ENCODE_ALG_WEP)
 		if (idx != 0 || ieee->iw_mode != IW_MODE_INFRA)
 			return -EINVAL;
 

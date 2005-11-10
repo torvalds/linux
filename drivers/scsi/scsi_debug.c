@@ -48,10 +48,6 @@
 
 #include <linux/stat.h>
 
-#ifndef LINUX_VERSION_CODE
-#include <linux/version.h>
-#endif
-
 #include "scsi_logging.h"
 #include "scsi_debug.h"
 

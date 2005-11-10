@@ -33,7 +33,6 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 

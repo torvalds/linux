@@ -25,7 +25,6 @@
 #include <linux/delay.h>
 #include <linux/blkdev.h>
 #include <linux/list.h>
-#include <linux/version.h>
 #include <linux/moduleparam.h>
 #include <linux/dma-mapping.h>
 #include <asm/semaphore.h>

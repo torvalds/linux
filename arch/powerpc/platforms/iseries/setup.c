@@ -694,20 +694,19 @@ static void iseries_shared_idle(void)
 		if (hvlpevent_is_pending())
 			process_iSeries_events();
 
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 	}
 }
 
 static void iseries_dedicated_idle(void)
 {
 	long oldval;
+	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	while (1) {
-		oldval = test_and_clear_thread_flag(TIF_NEED_RESCHED);
-
-		if (!oldval) {
-			set_thread_flag(TIF_POLLING_NRFLAG);
-
+		if (!need_resched()) {
 			while (!need_resched()) {
 				ppc64_runlatch_off();
 				HMT_low();
@@ -720,13 +719,12 @@ static void iseries_dedicated_idle(void)
 			}
 
 			HMT_medium();
-			clear_thread_flag(TIF_POLLING_NRFLAG);
-		} else {
-			set_need_resched();
 		}
 
 		ppc64_runlatch_on();
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 	}
 }
 

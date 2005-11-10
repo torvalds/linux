@@ -420,7 +420,7 @@ static void tda10046_init_plls(struct dvb_frontend* fe)
 	struct tda1004x_state* state = fe->demodulator_priv;
 
 	tda1004x_write_byteI(state, TDA10046H_CONFPLL1, 0xf0);
-	tda1004x_write_byteI(state, TDA10046H_CONFPLL2, 10); // PLL M = 10
+	tda1004x_write_byteI(state, TDA10046H_CONFPLL2, 0x0a); // PLL M = 10
 	if (state->config->xtal_freq == TDA10046_XTAL_4M ) {
 		dprintk("%s: setting up PLLs for a 4 MHz Xtal\n", __FUNCTION__);
 		tda1004x_write_byteI(state, TDA10046H_CONFPLL3, 0); // PLL P = N = 0
@@ -597,7 +597,10 @@ static int tda10046_init(struct dvb_frontend* fe)
 	// Init the tuner PLL
 	if (state->config->pll_init) {
 		tda1004x_enable_tuner_i2c(state);
-		state->config->pll_init(fe);
+		if (state->config->pll_init(fe)) {
+			printk(KERN_ERR "tda1004x: pll init failed\n");
+			return 	-EIO;
+		}
 		tda1004x_disable_tuner_i2c(state);
 	}
 
@@ -667,7 +670,10 @@ static int tda1004x_set_fe(struct dvb_frontend* fe,
 
 	// set frequency
 	tda1004x_enable_tuner_i2c(state);
-	state->config->pll_set(fe, fe_params);
+	if (state->config->pll_set(fe, fe_params)) {
+		printk(KERN_ERR "tda1004x: pll set failed\n");
+		return 	-EIO;
+	}
 	tda1004x_disable_tuner_i2c(state);
 
 	// Hardcoded to use auto as much as possible on the TDA10045 as it
@@ -832,6 +838,8 @@ static int tda1004x_set_fe(struct dvb_frontend* fe,
 
 	case TDA1004X_DEMOD_TDA10046:
 		tda1004x_write_mask(state, TDA1004X_AUTO, 0x40, 0x40);
+		msleep(1);
+		tda1004x_write_mask(state, TDA10046H_AGC_CONF, 4, 1);
 		break;
 	}
 
@@ -1129,7 +1137,12 @@ static int tda1004x_sleep(struct dvb_frontend* fe)
 		if (state->config->pll_sleep != NULL) {
 			tda1004x_enable_tuner_i2c(state);
 			state->config->pll_sleep(fe);
-			tda1004x_disable_tuner_i2c(state);
+			if (state->config->if_freq != TDA10046_FREQ_052) {
+				/* special hack for Philips EUROPA Based boards:
+				 * keep the I2c bridge open for tuner access in analog mode
+				 */
+				tda1004x_disable_tuner_i2c(state);
+			}
 		}
 		tda1004x_write_mask(state, TDA1004X_CONFC4, 1, 1);
 		break;

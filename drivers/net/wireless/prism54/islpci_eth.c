@@ -17,7 +17,6 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 
 #include <linux/pci.h>
@@ -227,16 +226,16 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 		priv->data_low_tx_full = 1;
 	}
 
+	/* set the transmission time */
+	ndev->trans_start = jiffies;
+	priv->statistics.tx_packets++;
+	priv->statistics.tx_bytes += skb->len;
+
 	/* trigger the device */
 	islpci_trigger(priv);
 
 	/* unlock the driver code */
 	spin_unlock_irqrestore(&priv->slock, flags);
-
-	/* set the transmission time */
-	ndev->trans_start = jiffies;
-	priv->statistics.tx_packets++;
-	priv->statistics.tx_bytes += skb->len;
 
 	return 0;
 

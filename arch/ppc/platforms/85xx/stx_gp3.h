@@ -21,6 +21,7 @@
 
 #include <linux/config.h>
 #include <linux/init.h>
+#include <linux/seq_file.h>
 #include <asm/ppcboot.h>
 
 #define BOARD_CCSRBAR		((uint)0xe0000000)

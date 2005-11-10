@@ -36,7 +36,6 @@
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/poll.h>
-#include <linux/proc_fs.h>
 #include <net/sock.h>
 
 #if defined(CONFIG_KMOD)
@@ -50,10 +49,7 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "2.7"
-
-struct proc_dir_entry *proc_bt;
-EXPORT_SYMBOL(proc_bt);
+#define VERSION "2.8"
 
 /* Bluetooth sockets */
 #define BT_MAX_PROTO	8
@@ -312,10 +308,6 @@ static int __init bt_init(void)
 {
 	BT_INFO("Core ver %s", VERSION);
 
-	proc_bt = proc_mkdir("bluetooth", NULL);
-	if (proc_bt)
-		proc_bt->owner = THIS_MODULE;
-
 	sock_register(&bt_sock_family_ops);
 
 	BT_INFO("HCI device and connection manager initialized");
@@ -334,8 +326,6 @@ static void __exit bt_exit(void)
 	bt_sysfs_cleanup();
 
 	sock_unregister(PF_BLUETOOTH);
-
-	remove_proc_entry("bluetooth", NULL);
 }
 
 subsys_initcall(bt_init);

@@ -238,8 +238,7 @@ static int dccp_setsockopt_service(struct sock *sk, const u32 service,
 	lock_sock(sk);
 	dp->dccps_service = service;
 
-	if (dp->dccps_service_list != NULL)
-		kfree(dp->dccps_service_list);
+	kfree(dp->dccps_service_list);
 
 	dp->dccps_service_list = sl;
 	release_sock(sk);

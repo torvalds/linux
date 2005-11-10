@@ -88,7 +88,6 @@
 #include <linux/tcp.h>
 #include <linux/timer.h>
 #include <linux/types.h>
-#include <linux/version.h>
 
 #include "cu3088.h"
 #include "claw.h"

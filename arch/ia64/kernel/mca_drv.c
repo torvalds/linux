@@ -88,7 +88,7 @@ mca_page_isolate(unsigned long paddr)
 	if (!ia64_phys_addr_valid(paddr))
 		return ISOLATE_NONE;
 
-	if (!pfn_valid(paddr))
+	if (!pfn_valid(paddr >> PAGE_SHIFT))
 		return ISOLATE_NONE;
 
 	/* convert physical address to physical page number */
@@ -108,6 +108,7 @@ mca_page_isolate(unsigned long paddr)
 		return ISOLATE_NG;
 
 	/* add attribute 'Reserved' and register the page */
+	get_page(p);
 	SetPageReserved(p);
 	page_isolate[num_page_isolate++] = p;
 

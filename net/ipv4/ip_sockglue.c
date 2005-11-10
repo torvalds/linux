@@ -202,8 +202,7 @@ int ip_ra_control(struct sock *sk, unsigned char on, void (*destructor)(struct s
 		if (ra->sk == sk) {
 			if (on) {
 				write_unlock_bh(&ip_ra_lock);
-				if (new_ra)
-					kfree(new_ra);
+				kfree(new_ra);
 				return -EADDRINUSE;
 			}
 			*rap = ra->next;
@@ -446,8 +445,7 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 #endif
 			}
 			opt = xchg(&inet->opt, opt);
-			if (opt)
-				kfree(opt);
+			kfree(opt);
 			break;
 		}
 		case IP_PKTINFO:
@@ -828,10 +826,8 @@ int ip_setsockopt(struct sock *sk, int level, int optname, char __user *optval, 
 
 			err = ip_mc_msfilter(sk, msf, ifindex);
 mc_msf_out:
-			if (msf)
-				kfree(msf);
-			if (gsf)
-				kfree(gsf);
+			kfree(msf);
+			kfree(gsf);
 			break;
 		}
 		case IP_ROUTER_ALERT:	

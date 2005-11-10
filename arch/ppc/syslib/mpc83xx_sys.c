@@ -24,72 +24,72 @@ struct ppc_sys_spec ppc_sys_specs[] = {
 		.ppc_sys_name	= "8349E",
 		.mask 		= 0xFFFF0000,
 		.value 		= 0x80500000,
-		.num_devices	= 8,
+		.num_devices	= 9,
 		.device_list	= (enum ppc_sys_devices[])
 		{
 			MPC83xx_TSEC1, MPC83xx_TSEC2, MPC83xx_IIC1,
 			MPC83xx_IIC2, MPC83xx_DUART, MPC83xx_SEC2,
-			MPC83xx_USB2_DR, MPC83xx_USB2_MPH
+			MPC83xx_USB2_DR, MPC83xx_USB2_MPH, MPC83xx_MDIO
 		},
 	},
 	{
 		.ppc_sys_name	= "8349",
 		.mask 		= 0xFFFF0000,
 		.value 		= 0x80510000,
-		.num_devices	= 7,
+		.num_devices	= 8,
 		.device_list	= (enum ppc_sys_devices[])
 		{
 			MPC83xx_TSEC1, MPC83xx_TSEC2, MPC83xx_IIC1,
 			MPC83xx_IIC2, MPC83xx_DUART,
-			MPC83xx_USB2_DR, MPC83xx_USB2_MPH
+			MPC83xx_USB2_DR, MPC83xx_USB2_MPH, MPC83xx_MDIO
 		},
 	},
 	{
 		.ppc_sys_name	= "8347E",
 		.mask 		= 0xFFFF0000,
 		.value 		= 0x80520000,
-		.num_devices	= 8,
+		.num_devices	= 9,
 		.device_list	= (enum ppc_sys_devices[])
 		{
 			MPC83xx_TSEC1, MPC83xx_TSEC2, MPC83xx_IIC1,
 			MPC83xx_IIC2, MPC83xx_DUART, MPC83xx_SEC2,
-			MPC83xx_USB2_DR, MPC83xx_USB2_MPH
+			MPC83xx_USB2_DR, MPC83xx_USB2_MPH, MPC83xx_MDIO
 		},
 	},
 	{
 		.ppc_sys_name	= "8347",
 		.mask 		= 0xFFFF0000,
 		.value 		= 0x80530000,
-		.num_devices	= 7,
+		.num_devices	= 8,
 		.device_list	= (enum ppc_sys_devices[])
 		{
 			MPC83xx_TSEC1, MPC83xx_TSEC2, MPC83xx_IIC1,
 			MPC83xx_IIC2, MPC83xx_DUART,
-			MPC83xx_USB2_DR, MPC83xx_USB2_MPH
+			MPC83xx_USB2_DR, MPC83xx_USB2_MPH, MPC83xx_MDIO
 		},
 	},
 	{
 		.ppc_sys_name	= "8343E",
 		.mask 		= 0xFFFF0000,
 		.value 		= 0x80540000,
-		.num_devices	= 7,
+		.num_devices	= 8,
 		.device_list	= (enum ppc_sys_devices[])
 		{
 			MPC83xx_TSEC1, MPC83xx_TSEC2, MPC83xx_IIC1,
 			MPC83xx_IIC2, MPC83xx_DUART, MPC83xx_SEC2,
-			MPC83xx_USB2_DR,
+			MPC83xx_USB2_DR, MPC83xx_MDIO
 		},
 	},
 	{
 		.ppc_sys_name	= "8343",
 		.mask 		= 0xFFFF0000,
 		.value 		= 0x80550000,
-		.num_devices	= 6,
+		.num_devices	= 7,
 		.device_list	= (enum ppc_sys_devices[])
 		{
 			MPC83xx_TSEC1, MPC83xx_TSEC2, MPC83xx_IIC1,
 			MPC83xx_IIC2, MPC83xx_DUART,
-			MPC83xx_USB2_DR,
+			MPC83xx_USB2_DR, MPC83xx_MDIO
 		},
 	},
 	{	/* default match */

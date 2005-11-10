@@ -73,6 +73,7 @@ static void pptp_nat_expected(struct ip_conntrack *ct,
 	struct ip_conntrack_tuple t;
 	struct ip_ct_pptp_master *ct_pptp_info;
 	struct ip_nat_pptp *nat_pptp_info;
+	struct ip_nat_range range;
 
 	ct_pptp_info = &master->help.ct_pptp_info;
 	nat_pptp_info = &master->nat.help.nat_pptp_info;
@@ -110,7 +111,30 @@ static void pptp_nat_expected(struct ip_conntrack *ct,
 		DEBUGP("not found!\n");
 	}
 
-	ip_nat_follow_master(ct, exp);
+	/* This must be a fresh one. */
+	BUG_ON(ct->status & IPS_NAT_DONE_MASK);
+
+	/* Change src to where master sends to */
+	range.flags = IP_NAT_RANGE_MAP_IPS;
+	range.min_ip = range.max_ip
+		= ct->master->tuplehash[!exp->dir].tuple.dst.ip;
+	if (exp->dir == IP_CT_DIR_ORIGINAL) {
+		range.flags |= IP_NAT_RANGE_PROTO_SPECIFIED;
+		range.min = range.max = exp->saved_proto;
+	}
+	/* hook doesn't matter, but it has to do source manip */
+	ip_nat_setup_info(ct, &range, NF_IP_POST_ROUTING);
+
+	/* For DST manip, map port here to where it's expected. */
+	range.flags = IP_NAT_RANGE_MAP_IPS;
+	range.min_ip = range.max_ip
+		= ct->master->tuplehash[!exp->dir].tuple.src.ip;
+	if (exp->dir == IP_CT_DIR_REPLY) {
+		range.flags |= IP_NAT_RANGE_PROTO_SPECIFIED;
+		range.min = range.max = exp->saved_proto;
+	}
+	/* hook doesn't matter, but it has to do destination manip */
+	ip_nat_setup_info(ct, &range, NF_IP_PRE_ROUTING);
 }
 
 /* outbound packets == from PNS to PAC */
@@ -213,7 +237,7 @@ pptp_exp_gre(struct ip_conntrack_expect *expect_orig,
 
 	/* alter expectation for PNS->PAC direction */
 	invert_tuplepr(&inv_t, &expect_orig->tuple);
-	expect_orig->saved_proto.gre.key = htons(nat_pptp_info->pac_call_id);
+	expect_orig->saved_proto.gre.key = htons(ct_pptp_info->pns_call_id);
 	expect_orig->tuple.src.u.gre.key = htons(nat_pptp_info->pns_call_id);
 	expect_orig->tuple.dst.u.gre.key = htons(ct_pptp_info->pac_call_id);
 	expect_orig->dir = IP_CT_DIR_ORIGINAL;

@@ -344,9 +344,7 @@ void sctp_association_free(struct sctp_association *asoc)
 	}
 
 	/* Free peer's cached cookie. */
-	if (asoc->peer.cookie) {
-		kfree(asoc->peer.cookie);
-	}
+	kfree(asoc->peer.cookie);
 
 	/* Release the transport structures. */
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {

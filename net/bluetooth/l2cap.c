@@ -38,9 +38,8 @@
 #include <linux/interrupt.h>
 #include <linux/socket.h>
 #include <linux/skbuff.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
 #include <linux/list.h>
+#include <linux/device.h>
 #include <net/sock.h>
 
 #include <asm/system.h>
@@ -56,7 +55,7 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "2.7"
+#define VERSION "2.8"
 
 static struct proto_ops l2cap_sock_ops;
 
@@ -2137,94 +2136,29 @@ drop:
 	return 0;
 }
 
-/* ---- Proc fs support ---- */
-#ifdef CONFIG_PROC_FS
-static void *l2cap_seq_start(struct seq_file *seq, loff_t *pos)
+static ssize_t l2cap_sysfs_show(struct class *dev, char *buf)
 {
 	struct sock *sk;
 	struct hlist_node *node;
-	loff_t l = *pos;
+	char *str = buf;
 
 	read_lock_bh(&l2cap_sk_list.lock);
 
-	sk_for_each(sk, node, &l2cap_sk_list.head)
-		if (!l--)
-			goto found;
-	sk = NULL;
-found:
-	return sk;
-}
+	sk_for_each(sk, node, &l2cap_sk_list.head) {
+		struct l2cap_pinfo *pi = l2cap_pi(sk);
 
-static void *l2cap_seq_next(struct seq_file *seq, void *e, loff_t *pos)
-{
-	(*pos)++;
-	return sk_next(e);
-}
+		str += sprintf(str, "%s %s %d %d 0x%4.4x 0x%4.4x %d %d 0x%x\n",
+				batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst),
+				sk->sk_state, pi->psm, pi->scid, pi->dcid, pi->imtu,
+				pi->omtu, pi->link_mode);
+	}
 
-static void l2cap_seq_stop(struct seq_file *seq, void *e)
-{
 	read_unlock_bh(&l2cap_sk_list.lock);
+
+	return (str - buf);
 }
 
-static int  l2cap_seq_show(struct seq_file *seq, void *e)
-{
-	struct sock *sk = e;
-	struct l2cap_pinfo *pi = l2cap_pi(sk);
-
-	seq_printf(seq, "%s %s %d %d 0x%4.4x 0x%4.4x %d %d 0x%x\n",
-			batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst), 
-			sk->sk_state, pi->psm, pi->scid, pi->dcid, pi->imtu,
-			pi->omtu, pi->link_mode);
-	return 0;
-}
-
-static struct seq_operations l2cap_seq_ops = {
-	.start	= l2cap_seq_start,
-	.next	= l2cap_seq_next,
-	.stop	= l2cap_seq_stop,
-	.show	= l2cap_seq_show 
-};
-
-static int l2cap_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &l2cap_seq_ops);
-}
-
-static struct file_operations l2cap_seq_fops = {
-	.owner		= THIS_MODULE,
-	.open		= l2cap_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
-static int __init l2cap_proc_init(void)
-{
-	struct proc_dir_entry *p = create_proc_entry("l2cap", S_IRUGO, proc_bt);
-	if (!p)
-		return -ENOMEM;
-	p->owner     = THIS_MODULE;
-	p->proc_fops = &l2cap_seq_fops;
-	return 0;
-}
-
-static void __exit l2cap_proc_cleanup(void)
-{
-	remove_proc_entry("l2cap", proc_bt);
-}
-
-#else /* CONFIG_PROC_FS */
-
-static int __init l2cap_proc_init(void)
-{
-	return 0;
-}
-
-static void __exit l2cap_proc_cleanup(void)
-{
-	return;
-}
-#endif /* CONFIG_PROC_FS */
+static CLASS_ATTR(l2cap, S_IRUGO, l2cap_sysfs_show, NULL);
 
 static struct proto_ops l2cap_sock_ops = {
 	.family		= PF_BLUETOOTH,
@@ -2266,7 +2200,7 @@ static struct hci_proto l2cap_hci_proto = {
 static int __init l2cap_init(void)
 {
 	int err;
-	
+
 	err = proto_register(&l2cap_proto, 0);
 	if (err < 0)
 		return err;
@@ -2284,7 +2218,7 @@ static int __init l2cap_init(void)
 		goto error;
 	}
 
-	l2cap_proc_init();
+	class_create_file(&bt_class, &class_attr_l2cap);
 
 	BT_INFO("L2CAP ver %s", VERSION);
 	BT_INFO("L2CAP socket layer initialized");
@@ -2298,7 +2232,7 @@ error:
 
 static void __exit l2cap_exit(void)
 {
-	l2cap_proc_cleanup();
+	class_remove_file(&bt_class, &class_attr_l2cap);
 
 	if (bt_sock_unregister(BTPROTO_L2CAP) < 0)
 		BT_ERR("L2CAP socket unregistration failed");

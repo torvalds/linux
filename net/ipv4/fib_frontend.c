@@ -266,8 +266,7 @@ int ip_rt_ioctl(unsigned int cmd, void __user *arg)
 				if (tb)
 					err = tb->tb_insert(tb, &req.rtm, &rta, &req.nlh, NULL);
 			}
-			if (rta.rta_mx)
-				kfree(rta.rta_mx);
+			kfree(rta.rta_mx);
 		}
 		rtnl_unlock();
 		return err;

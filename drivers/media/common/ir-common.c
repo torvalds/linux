@@ -116,7 +116,7 @@ IR_KEYTAB_TYPE ir_codes_winfast[IR_KEYTAB_SIZE] = {
 	[ 46 ] = KEY_BLUE,
 	[ 24 ] = KEY_KPPLUS,		/* fine tune + */
 	[ 25 ] = KEY_KPMINUS,		/* fine tune - */
-        [ 33 ] = KEY_KPDOT,
+	[ 33 ] = KEY_KPDOT,
 	[ 19 ] = KEY_KPENTER,
 	[ 34 ] = KEY_BACK,
 	[ 35 ] = KEY_PLAYPAUSE,
@@ -239,7 +239,7 @@ static void ir_input_key_event(struct input_dev *dev, struct ir_input_state *ir)
 	dprintk(1,"%s: key event code=%d down=%d\n",
 		dev->name,ir->keycode,ir->keypressed);
 	input_report_key(dev,ir->keycode,ir->keypressed);
-        input_sync(dev);
+	input_sync(dev);
 }
 
 /* -------------------------------------------------------------------------- */

@@ -174,8 +174,10 @@ int ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 			struct sk_buff *clone = skb_clone(skb, GFP_ATOMIC);
 
 			/* Not releasing hash table! */
-			if (clone)
+			if (clone) {
+				nf_reset(clone);
 				rawv6_rcv(sk, clone);
+			}
 		}
 		sk = __raw_v6_lookup(sk_next(sk), nexthdr, daddr, saddr,
 				     IP6CB(skb)->iif);

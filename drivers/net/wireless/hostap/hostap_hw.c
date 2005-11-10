@@ -31,7 +31,6 @@
 
 
 #include <linux/config.h>
-#include <linux/version.h>
 
 #include <asm/delay.h>
 #include <asm/uaccess.h>

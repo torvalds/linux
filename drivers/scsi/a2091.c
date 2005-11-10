@@ -2,7 +2,6 @@
 #include <linux/mm.h>
 #include <linux/blkdev.h>
 #include <linux/sched.h>
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 

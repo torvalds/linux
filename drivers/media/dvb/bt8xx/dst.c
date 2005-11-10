@@ -690,8 +690,8 @@ struct dst_types dst_tlist[] = {
 		.device_id = "DTT-CI",
 		.offset = 1,
 		.dst_type = DST_TYPE_IS_TERR,
-		.type_flags = DST_TYPE_HAS_TS204 | DST_TYPE_HAS_FW_2,
-		.dst_feature = 0
+		.type_flags = DST_TYPE_HAS_TS204 | DST_TYPE_HAS_NEWTUNE | DST_TYPE_HAS_FW_2 | DST_TYPE_HAS_MULTI_FE,
+		.dst_feature = DST_TYPE_HAS_CA
 	},
 
 	{
@@ -796,6 +796,56 @@ static int dst_get_vendor(struct dst_state *state)
 	return 0;
 }
 
+static int dst_get_tuner_info(struct dst_state *state)
+{
+	u8 get_tuner_1[] = { 0x00, 0x13, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+	u8 get_tuner_2[] = { 0x00, 0x0b, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+	get_tuner_1[7] = dst_check_sum(get_tuner_1, 7);
+	get_tuner_2[7] = dst_check_sum(get_tuner_2, 7);
+	if (state->type_flags & DST_TYPE_HAS_MULTI_FE) {
+		if (dst_command(state, get_tuner_2, 8) < 0) {
+			dprintk(verbose, DST_INFO, 1, "Unsupported Command");
+			return -1;
+		}
+	} else {
+		if (dst_command(state, get_tuner_1, 8) < 0) {
+			dprintk(verbose, DST_INFO, 1, "Unsupported Command");
+			return -1;
+		}
+	}
+	memset(&state->board_info, '\0', 8);
+	memcpy(&state->board_info, &state->rxbuffer, 8);
+	if (state->type_flags & DST_TYPE_HAS_MULTI_FE) {
+		if (state->board_info[1] == 0x0b) {
+			if (state->type_flags & DST_TYPE_HAS_TS204)
+				state->type_flags &= ~DST_TYPE_HAS_TS204;
+			state->type_flags |= DST_TYPE_HAS_NEWTUNE;
+			dprintk(verbose, DST_INFO, 1, "DST type has TS=188");
+		} else {
+			if (state->type_flags & DST_TYPE_HAS_NEWTUNE)
+				state->type_flags &= ~DST_TYPE_HAS_NEWTUNE;
+			state->type_flags |= DST_TYPE_HAS_TS204;
+			dprintk(verbose, DST_INFO, 1, "DST type has TS=204");
+		}
+	} else {
+		if (state->board_info[0] == 0xbc) {
+			if (state->type_flags & DST_TYPE_HAS_TS204)
+				state->type_flags &= ~DST_TYPE_HAS_TS204;
+			state->type_flags |= DST_TYPE_HAS_NEWTUNE;
+			dprintk(verbose, DST_INFO, 1, "DST type has TS=188, Daughterboard=[%d]", state->board_info[1]);
+
+		} else if (state->board_info[0] == 0xcc) {
+			if (state->type_flags & DST_TYPE_HAS_NEWTUNE)
+				state->type_flags &= ~DST_TYPE_HAS_NEWTUNE;
+			state->type_flags |= DST_TYPE_HAS_TS204;
+			dprintk(verbose, DST_INFO, 1, "DST type has TS=204 Daughterboard=[%d]", state->board_info[1]);
+		}
+	}
+
+	return 0;
+}
+
 static int dst_get_device_id(struct dst_state *state)
 {
 	u8 reply;
@@ -855,15 +905,12 @@ static int dst_get_device_id(struct dst_state *state)
 	state->dst_type = use_dst_type;
 	dst_type_flags_print(state->type_flags);
 
-	if (state->type_flags & DST_TYPE_HAS_TS204) {
-		dst_packsize(state, 204);
-	}
-
 	return 0;
 }
 
 static int dst_probe(struct dst_state *state)
 {
+	sema_init(&state->dst_mutex, 1);
 	if ((rdc_8820_reset(state)) < 0) {
 		dprintk(verbose, DST_ERROR, 1, "RDC 8820 RESET Failed.");
 		return -1;
@@ -886,6 +933,13 @@ static int dst_probe(struct dst_state *state)
 		dprintk(verbose, DST_INFO, 1, "MAC: Unsupported command");
 		return 0;
 	}
+	if ((state->type_flags & DST_TYPE_HAS_MULTI_FE) || (state->type_flags & DST_TYPE_HAS_FW_BUILD)) {
+		if (dst_get_tuner_info(state) < 0)
+			dprintk(verbose, DST_INFO, 1, "Tuner: Unsupported command");
+	}
+	if (state->type_flags & DST_TYPE_HAS_TS204) {
+		dst_packsize(state, 204);
+	}
 	if (state->type_flags & DST_TYPE_HAS_FW_BUILD) {
 		if (dst_fw_ver(state) < 0) {
 			dprintk(verbose, DST_INFO, 1, "FW: Unsupported command");
@@ -907,21 +961,23 @@ static int dst_probe(struct dst_state *state)
 int dst_command(struct dst_state *state, u8 *data, u8 len)
 {
 	u8 reply;
+
+	down(&state->dst_mutex);
 	if ((dst_comm_init(state)) < 0) {
 		dprintk(verbose, DST_NOTICE, 1, "DST Communication Initialization Failed.");
-		return -1;
+		goto error;
 	}
 	if (write_dst(state, data, len)) {
 		dprintk(verbose, DST_INFO, 1, "Tring to recover.. ");
 		if ((dst_error_recovery(state)) < 0) {
 			dprintk(verbose, DST_ERROR, 1, "Recovery Failed.");
-			return -1;
+			goto error;
 		}
-		return -1;
+		goto error;
 	}
 	if ((dst_pio_disable(state)) < 0) {
 		dprintk(verbose, DST_ERROR, 1, "PIO Disable Failed.");
-		return -1;
+		goto error;
 	}
 	if (state->type_flags & DST_TYPE_HAS_FW_1)
 		udelay(3000);
@@ -929,36 +985,41 @@ int dst_command(struct dst_state *state, u8 *data, u8 len)
 		dprintk(verbose, DST_DEBUG, 1, "Trying to recover.. ");
 		if ((dst_error_recovery(state)) < 0) {
 			dprintk(verbose, DST_INFO, 1, "Recovery Failed.");
-			return -1;
+			goto error;
 		}
-		return -1;
+		goto error;
 	}
 	if (reply != ACK) {
 		dprintk(verbose, DST_INFO, 1, "write not acknowledged 0x%02x ", reply);
-		return -1;
+		goto error;
 	}
 	if (len >= 2 && data[0] == 0 && (data[1] == 1 || data[1] == 3))
-		return 0;
+		goto error;
 	if (state->type_flags & DST_TYPE_HAS_FW_1)
 		udelay(3000);
 	else
 		udelay(2000);
 	if (!dst_wait_dst_ready(state, NO_DELAY))
-		return -1;
+		goto error;
 	if (read_dst(state, state->rxbuffer, FIXED_COMM)) {
 		dprintk(verbose, DST_DEBUG, 1, "Trying to recover.. ");
 		if ((dst_error_recovery(state)) < 0) {
 			dprintk(verbose, DST_INFO, 1, "Recovery failed.");
-			return -1;
+			goto error;
 		}
-		return -1;
+		goto error;
 	}
 	if (state->rxbuffer[7] != dst_check_sum(state->rxbuffer, 7)) {
 		dprintk(verbose, DST_INFO, 1, "checksum failure");
-		return -1;
+		goto error;
 	}
-
+	up(&state->dst_mutex);
 	return 0;
+
+error:
+	up(&state->dst_mutex);
+	return -EIO;
+
 }
 EXPORT_SYMBOL(dst_command);
 
@@ -1016,7 +1077,7 @@ static int dst_get_tuna(struct dst_state *state)
 		return 0;
 	state->diseq_flags &= ~(HAS_LOCK);
 	if (!dst_wait_dst_ready(state, NO_DELAY))
-		return 0;
+		return -EIO;
 	if (state->type_flags & DST_TYPE_HAS_NEWTUNE)
 		/* how to get variable length reply ???? */
 		retval = read_dst(state, state->rx_tuna, 10);
@@ -1024,22 +1085,27 @@ static int dst_get_tuna(struct dst_state *state)
 		retval = read_dst(state, &state->rx_tuna[2], FIXED_COMM);
 	if (retval < 0) {
 		dprintk(verbose, DST_DEBUG, 1, "read not successful");
-		return 0;
+		return retval;
 	}
 	if (state->type_flags & DST_TYPE_HAS_NEWTUNE) {
 		if (state->rx_tuna[9] != dst_check_sum(&state->rx_tuna[0], 9)) {
 			dprintk(verbose, DST_INFO, 1, "checksum failure ? ");
-			return 0;
+			return -EIO;
 		}
 	} else {
 		if (state->rx_tuna[9] != dst_check_sum(&state->rx_tuna[2], 7)) {
 			dprintk(verbose, DST_INFO, 1, "checksum failure? ");
-			return 0;
+			return -EIO;
 		}
 	}
 	if (state->rx_tuna[2] == 0 && state->rx_tuna[3] == 0)
 		return 0;
-	state->decode_freq = ((state->rx_tuna[2] & 0x7f) << 8) + state->rx_tuna[3];
+	if (state->dst_type == DST_TYPE_IS_SAT) {
+		state->decode_freq = ((state->rx_tuna[2] & 0x7f) << 8) + state->rx_tuna[3];
+	} else {
+		state->decode_freq = ((state->rx_tuna[2] & 0x7f) << 16) + (state->rx_tuna[3] << 8) + state->rx_tuna[4];
+	}
+	state->decode_freq = state->decode_freq * 1000;
 	state->decode_lock = 1;
 	state->diseq_flags |= HAS_LOCK;
 
@@ -1062,10 +1128,10 @@ static int dst_write_tuna(struct dvb_frontend *fe)
 			dst_set_voltage(fe, SEC_VOLTAGE_13);
 	}
 	state->diseq_flags &= ~(HAS_LOCK | ATTEMPT_TUNE);
-
+	down(&state->dst_mutex);
 	if ((dst_comm_init(state)) < 0) {
 		dprintk(verbose, DST_DEBUG, 1, "DST Communication initialization failed.");
-		return -1;
+		goto error;
 	}
 	if (state->type_flags & DST_TYPE_HAS_NEWTUNE) {
 		state->tx_tuna[9] = dst_check_sum(&state->tx_tuna[0], 9);
@@ -1077,23 +1143,29 @@ static int dst_write_tuna(struct dvb_frontend *fe)
 	if (retval < 0) {
 		dst_pio_disable(state);
 		dprintk(verbose, DST_DEBUG, 1, "write not successful");
-		return retval;
+		goto werr;
 	}
 	if ((dst_pio_disable(state)) < 0) {
 		dprintk(verbose, DST_DEBUG, 1, "DST PIO disable failed !");
-		return -1;
+		goto error;
 	}
 	if ((read_dst(state, &reply, GET_ACK) < 0)) {
 		dprintk(verbose, DST_DEBUG, 1, "read verify not successful.");
-		return -1;
+		goto error;
 	}
 	if (reply != ACK) {
 		dprintk(verbose, DST_DEBUG, 1, "write not acknowledged 0x%02x ", reply);
-		return 0;
+		goto error;
 	}
 	state->diseq_flags |= ATTEMPT_TUNE;
+	retval = dst_get_tuna(state);
+werr:
+	up(&state->dst_mutex);
+	return retval;
 
-	return dst_get_tuna(state);
+error:
+	up(&state->dst_mutex);
+	return -EIO;
 }
 
 /*

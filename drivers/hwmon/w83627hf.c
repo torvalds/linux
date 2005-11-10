@@ -180,11 +180,10 @@ superio_exit(void)
 #define W83781D_REG_BANK 0x4E
 
 #define W83781D_REG_CONFIG 0x40
-#define W83781D_REG_ALARM1 0x41
-#define W83781D_REG_ALARM2 0x42
-#define W83781D_REG_ALARM3 0x450
+#define W83781D_REG_ALARM1 0x459
+#define W83781D_REG_ALARM2 0x45A
+#define W83781D_REG_ALARM3 0x45B
 
-#define W83781D_REG_IRQ 0x4C
 #define W83781D_REG_BEEP_CONFIG 0x4D
 #define W83781D_REG_BEEP_INTS1 0x56
 #define W83781D_REG_BEEP_INTS2 0x57
@@ -1370,13 +1369,6 @@ static void w83627hf_init_client(struct i2c_client *client)
 					W83781D_REG_TEMP3_CONFIG, tmp & 0xfe);
 			}
 		}
-
-		/* enable comparator mode for temp2 and temp3 so
-	           alarm indication will work correctly */
-		i = w83627hf_read_value(client, W83781D_REG_IRQ);
-		if (!(i & 0x40))
-			w83627hf_write_value(client, W83781D_REG_IRQ,
-					    i | 0x40);
 	}
 
 	/* Start monitoring */
@@ -1400,7 +1392,7 @@ static struct w83627hf_data *w83627hf_update_device(struct device *dev)
 			/* skip missing sensors */
 			if (((data->type == w83697hf) && (i == 1)) ||
 			    ((data->type == w83627thf || data->type == w83637hf)
-			    && (i == 4 || i == 5)))
+			    && (i == 5 || i == 6)))
 				continue;
 			data->in[i] =
 			    w83627hf_read_value(client, W83781D_REG_IN(i));

@@ -790,7 +790,7 @@ static unsigned long sysio_irq_offsets[] = {
 
 #undef bogon
 
-#define NUM_SYSIO_OFFSETS (sizeof(sysio_irq_offsets) / sizeof(sysio_irq_offsets[0]))
+#define NUM_SYSIO_OFFSETS ARRAY_SIZE(sysio_irq_offsets)
 
 /* Convert Interrupt Mapping register pointer to associated
  * Interrupt Clear register pointer, SYSIO specific version.

@@ -160,7 +160,7 @@ static void do_sigsegv(struct pt_regs *regs, unsigned long error_code,
  *   11       Page translation     ->  Not present       (nullification)
  *   3b       Region third trans.  ->  Not present       (nullification)
  */
-extern inline void
+static inline void
 do_exception(struct pt_regs *regs, unsigned long error_code, int is_protection)
 {
         struct task_struct *tsk;

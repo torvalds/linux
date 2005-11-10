@@ -43,7 +43,7 @@ struct cpu_fp_info linux_sparc_fpu[] = {
   { 0x3e, 0x22, 0, "UltraSparc IIIi+ integrated FPU"},
 };
 
-#define NSPARCFPU  (sizeof(linux_sparc_fpu)/sizeof(struct cpu_fp_info))
+#define NSPARCFPU  ARRAY_SIZE(linux_sparc_fpu)
 
 struct cpu_iu_info linux_sparc_chips[] = {
   { 0x17, 0x10, "TI UltraSparc I   (SpitFire)"},
@@ -59,7 +59,7 @@ struct cpu_iu_info linux_sparc_chips[] = {
   { 0x3e, 0x22, "TI UltraSparc IIIi+ (Serrano)"},
 };
 
-#define NSPARCCHIPS  (sizeof(linux_sparc_chips)/sizeof(struct cpu_iu_info))
+#define NSPARCCHIPS  ARRAY_SIZE(linux_sparc_chips)
 
 char *sparc_cpu_type = "cpu-oops";
 char *sparc_fpu_type = "fpu-oops";

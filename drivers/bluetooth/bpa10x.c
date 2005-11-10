@@ -84,8 +84,8 @@ struct bpa10x_data {
 
 struct hci_vendor_hdr {
 	__u8	type;
-	__u16	snum;
-	__u16	dlen;
+	__le16	snum;
+	__le16	dlen;
 } __attribute__ ((packed));
 
 static void bpa10x_recv_bulk(struct bpa10x_data *data, unsigned char *buf, int count)

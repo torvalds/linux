@@ -447,7 +447,7 @@ config NET_SB1250_MAC
 
 config SGI_IOC3_ETH
 	bool "SGI IOC3 Ethernet"
-	depends on NET_ETHERNET && PCI && SGI_IP27 && BROKEN
+	depends on NET_ETHERNET && PCI && SGI_IP27
 	select CRC32
 	select MII
 	help
@@ -2522,6 +2522,19 @@ config PPP_BSDCOMP
 	  Note that the BSD compression code will always be compiled as a
 	  module; it is called bsd_comp and will show up in the directory
 	  modules once you have said "make modules". If unsure, say N.
+
+config PPP_MPPE
+       tristate "PPP MPPE compression (encryption) (EXPERIMENTAL)"
+       depends on PPP && EXPERIMENTAL
+       select CRYPTO
+       select CRYPTO_SHA1
+       select CRYPTO_ARC4
+       ---help---
+         Support for the MPPE Encryption protocol, as employed by the
+	 Microsoft Point-to-Point Tunneling Protocol.
+
+	 See http://pptpclient.sourceforge.net/ for information on
+	 configuring PPTP clients and servers to utilize this method.
 
 config PPPOE
 	tristate "PPP over Ethernet (EXPERIMENTAL)"
