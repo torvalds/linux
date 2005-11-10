@@ -110,7 +110,6 @@
 #include <linux/init.h>
 #include <linux/ip.h>	/* for iph */
 #include <linux/in.h>	/* for IPPROTO_... */
-#include <linux/eeprom.h>
 #include <linux/compiler.h>
 #include <linux/prefetch.h>
 #include <linux/ethtool.h>
@@ -445,7 +444,6 @@ struct ns83820 {
 
 	u32			MEAR_cache;
 	u32			IMR_cache;
-	struct eeprom		ee;
 
 	unsigned		linkstate;
 
@@ -1558,15 +1556,13 @@ static void ns83820_getmac(struct ns83820 *dev, u8 *mac)
 	unsigned i;
 	for (i=0; i<3; i++) {
 		u32 data;
-#if 0	/* I've left this in as an example of how to use eeprom.h */
-		data = eeprom_readw(&dev->ee, 0xa + 2 - i);
-#else
+
 		/* Read from the perfect match memory: this is loaded by
 		 * the chip from the EEPROM via the EELOAD self test.
 		 */
 		writel(i*2, dev->base + RFCR);
 		data = readl(dev->base + RFDR);
-#endif
+
 		*mac++ = data;
 		*mac++ = data >> 8;
 	}
@@ -1851,8 +1847,6 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	spin_lock_init(&dev->misc_lock);
 	dev->pci_dev = pci_dev;
 
-	dev->ee.cache = &dev->MEAR_cache;
-	dev->ee.lock = &dev->misc_lock;
 	SET_MODULE_OWNER(ndev);
 	SET_NETDEV_DEV(ndev, &pci_dev->dev);
 
@@ -1886,9 +1880,6 @@ static int __devinit ns83820_init_one(struct pci_dev *pci_dev, const struct pci_
 	readl(dev->base + IER);
 
 	dev->IMR_cache = 0;
-
-	setup_ee_mem_bitbanger(&dev->ee, dev->base + MEAR, 3, 2, 1, 0,
-		0);
 
 	err = request_irq(pci_dev->irq, ns83820_irq, SA_SHIRQ,
 			  DRV_NAME, ndev);

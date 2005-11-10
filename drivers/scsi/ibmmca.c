@@ -18,12 +18,6 @@
  */
 
 #include <linux/config.h>
-#ifndef LINUX_VERSION_CODE
-#include <linux/version.h>
-#endif
-#if LINUX_VERSION_CODE < KERNEL_VERSION(2,5,45)
-#error "This driver works only with kernel 2.5.45 or higher!"
-#endif
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/types.h>

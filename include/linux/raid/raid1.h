@@ -110,7 +110,9 @@ struct r1bio_s {
 #define	R1BIO_Uptodate	0
 #define	R1BIO_IsSync	1
 #define	R1BIO_Degraded	2
-#define	R1BIO_BehindIO   3
+#define	R1BIO_BehindIO	3
+#define	R1BIO_Barrier	4
+#define R1BIO_BarrierRetry 5
 /* For write-behind requests, we call bi_end_io when
  * the last non-write-behind device completes, providing
  * any write was successful.  Otherwise we call when

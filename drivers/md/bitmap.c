@@ -21,7 +21,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -272,7 +271,8 @@ static struct page *read_sb_page(mddev_t *mddev, long offset, unsigned long inde
 		return ERR_PTR(-ENOMEM);
 
 	ITERATE_RDEV(mddev, rdev, tmp) {
-		if (! rdev->in_sync || rdev->faulty)
+		if (! test_bit(In_sync, &rdev->flags)
+		    || test_bit(Faulty, &rdev->flags))
 			continue;
 
 		target = (rdev->sb_offset << 1) + offset + index * (PAGE_SIZE/512);
@@ -292,7 +292,8 @@ static int write_sb_page(mddev_t *mddev, long offset, struct page *page, int wai
 	struct list_head *tmp;
 
 	ITERATE_RDEV(mddev, rdev, tmp)
-		if (rdev->in_sync && !rdev->faulty)
+		if (test_bit(In_sync, &rdev->flags)
+		    && !test_bit(Faulty, &rdev->flags))
 			md_super_write(mddev, rdev,
 				       (rdev->sb_offset<<1) + offset
 				       + page->index * (PAGE_SIZE/512),
@@ -300,7 +301,7 @@ static int write_sb_page(mddev_t *mddev, long offset, struct page *page, int wai
 				       page);
 
 	if (wait)
-		wait_event(mddev->sb_wait, atomic_read(&mddev->pending_writes)==0);
+		md_super_wait(mddev);
 	return 0;
 }
 
@@ -481,7 +482,8 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 	/* verify that the bitmap-specific fields are valid */
 	if (sb->magic != cpu_to_le32(BITMAP_MAGIC))
 		reason = "bad magic";
-	else if (sb->version != cpu_to_le32(BITMAP_MAJOR))
+	else if (le32_to_cpu(sb->version) < BITMAP_MAJOR_LO ||
+		 le32_to_cpu(sb->version) > BITMAP_MAJOR_HI)
 		reason = "unrecognized superblock version";
 	else if (chunksize < 512 || chunksize > (1024 * 1024 * 4))
 		reason = "bitmap chunksize out of range (512B - 4MB)";
@@ -526,6 +528,8 @@ success:
 	bitmap->daemon_lastrun = jiffies;
 	bitmap->max_write_behind = write_behind;
 	bitmap->flags |= sb->state;
+	if (le32_to_cpu(sb->version) == BITMAP_MAJOR_HOSTENDIAN)
+		bitmap->flags |= BITMAP_HOSTENDIAN;
 	bitmap->events_cleared = le64_to_cpu(sb->events_cleared);
 	if (sb->state & BITMAP_STALE)
 		bitmap->events_cleared = bitmap->mddev->events;
@@ -763,7 +767,10 @@ static void bitmap_file_set_bit(struct bitmap *bitmap, sector_t block)
 
  	/* set the bit */
 	kaddr = kmap_atomic(page, KM_USER0);
-	set_bit(bit, kaddr);
+	if (bitmap->flags & BITMAP_HOSTENDIAN)
+		set_bit(bit, kaddr);
+	else
+		ext2_set_bit(bit, kaddr);
 	kunmap_atomic(kaddr, KM_USER0);
 	PRINTK("set file bit %lu page %lu\n", bit, page->index);
 
@@ -821,8 +828,7 @@ int bitmap_unplug(struct bitmap *bitmap)
 					    wake_up_process(bitmap->writeback_daemon->tsk));
 			spin_unlock_irq(&bitmap->write_lock);
 		} else
-			wait_event(bitmap->mddev->sb_wait,
-				   atomic_read(&bitmap->mddev->pending_writes)==0);
+			md_super_wait(bitmap->mddev);
 	}
 	return 0;
 }
@@ -890,6 +896,7 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 	oldindex = ~0L;
 
 	for (i = 0; i < chunks; i++) {
+		int b;
 		index = file_page_index(i);
 		bit = file_page_offset(i);
 		if (index != oldindex) { /* this is a new page, read it in */
@@ -938,7 +945,11 @@ static int bitmap_init_from_disk(struct bitmap *bitmap, sector_t start)
 
 			bitmap->filemap[bitmap->file_pages++] = page;
 		}
-		if (test_bit(bit, page_address(page))) {
+		if (bitmap->flags & BITMAP_HOSTENDIAN)
+			b = test_bit(bit, page_address(page));
+		else
+			b = ext2_test_bit(bit, page_address(page));
+		if (b) {
 			/* if the disk bit is set, set the memory bit */
 			bitmap_set_memory_bits(bitmap, i << CHUNK_BLOCK_SHIFT(bitmap),
 					       ((i+1) << (CHUNK_BLOCK_SHIFT(bitmap)) >= start)
@@ -1096,7 +1107,10 @@ int bitmap_daemon_work(struct bitmap *bitmap)
 						  -1);
 
 				/* clear the bit */
-				clear_bit(file_page_offset(j), page_address(page));
+				if (bitmap->flags & BITMAP_HOSTENDIAN)
+					clear_bit(file_page_offset(j), page_address(page));
+				else
+					ext2_clear_bit(file_page_offset(j), page_address(page));
 			}
 		}
 		spin_unlock_irqrestore(&bitmap->lock, flags);

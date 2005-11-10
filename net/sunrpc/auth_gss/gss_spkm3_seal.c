@@ -122,8 +122,7 @@ spkm3_make_token(struct spkm3_ctx *ctx,
 
 	return  GSS_S_COMPLETE;
 out_err:
-	if (md5cksum.data) 
-		kfree(md5cksum.data);
+	kfree(md5cksum.data);
 	token->data = NULL;
 	token->len = 0;
 	return GSS_S_FAILURE;

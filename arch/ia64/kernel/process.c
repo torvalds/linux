@@ -197,11 +197,15 @@ void
 default_idle (void)
 {
 	local_irq_enable();
-	while (!need_resched())
-		if (can_do_pal_halt)
-			safe_halt();
-		else
+	while (!need_resched()) {
+		if (can_do_pal_halt) {
+			local_irq_disable();
+			if (!need_resched())
+				safe_halt();
+			local_irq_enable();
+		} else
 			cpu_relax();
+	}
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -263,16 +267,16 @@ void __attribute__((noreturn))
 cpu_idle (void)
 {
 	void (*mark_idle)(int) = ia64_mark_idle;
+  	int cpu = smp_processor_id();
+	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	/* endless idle loop with no priority at all */
 	while (1) {
+		if (!need_resched()) {
+			void (*idle)(void);
 #ifdef CONFIG_SMP
-		if (!need_resched())
 			min_xtp();
 #endif
-		while (!need_resched()) {
-			void (*idle)(void);
-
 			if (__get_cpu_var(cpu_idle_state))
 				__get_cpu_var(cpu_idle_state) = 0;
 
@@ -284,17 +288,17 @@ cpu_idle (void)
 			if (!idle)
 				idle = default_idle;
 			(*idle)();
-		}
-
-		if (mark_idle)
-			(*mark_idle)(0);
-
+			if (mark_idle)
+				(*mark_idle)(0);
 #ifdef CONFIG_SMP
-		normal_xtp();
+			normal_xtp();
 #endif
+		}
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 		check_pgt_cache();
-		if (cpu_is_offline(smp_processor_id()))
+		if (cpu_is_offline(cpu))
 			play_dead();
 	}
 }

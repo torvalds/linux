@@ -553,7 +553,7 @@ void cx88_ir_irq(struct cx88_core *core)
 
 		if ((ircode & 0xffff) != 0xeb04) { /* wrong address */
 			ir_dprintk("pulse distance decoded wrong address\n");
- 			break;
+			break;
 		}
 
 		if (((~ircode >> 24) & 0xff) != ((ircode >> 16) & 0xff)) { /* wrong checksum */

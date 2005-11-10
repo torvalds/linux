@@ -130,8 +130,6 @@ Code	Seq#	Include File		Comments
 					<mailto:zapman@interlan.net>
 'i'	00-3F	linux/i2o.h
 'j'	00-3F	linux/joystick.h
-'k'	all	asm-sparc/kbio.h
-		asm-sparc64/kbio.h
 'l'	00-3F	linux/tcfs_fs.h		transparent cryptographic file system
 					<http://mikonos.dia.unisa.it/tcfs>
 'l'	40-7F	linux/udf_fs_i.h	in development:

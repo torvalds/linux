@@ -140,7 +140,7 @@ fsm_record_history(fsm_instance *fi, int state, int event);
  *              1  if current state or event is out of range
  *              !0 if state and event in range, but no action defined.
  */
-extern __inline__ int
+static inline int
 fsm_event(fsm_instance *fi, int event, void *arg)
 {
 	fsm_function_t r;
@@ -188,7 +188,7 @@ fsm_event(fsm_instance *fi, int event, void *arg)
  * @param fi    Pointer to FSM
  * @param state The new state for this FSM.
  */
-extern __inline__ void
+static inline void
 fsm_newstate(fsm_instance *fi, int newstate)
 {
 	atomic_set(&fi->state,newstate);
@@ -208,7 +208,7 @@ fsm_newstate(fsm_instance *fi, int newstate)
  *
  * @return The current state of the FSM.
  */
-extern __inline__ int
+static inline int
 fsm_getstate(fsm_instance *fi)
 {
 	return atomic_read(&fi->state);

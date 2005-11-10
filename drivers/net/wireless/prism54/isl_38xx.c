@@ -18,7 +18,6 @@
  *
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/delay.h>
@@ -112,9 +111,10 @@ isl38xx_handle_wakeup(isl38xx_control_block *control_block,
 void
 isl38xx_trigger_device(int asleep, void __iomem *device_base)
 {
-	u32 reg, counter = 0;
+	u32 reg;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
+	u32 counter = 0;
 	struct timeval current_time;
 	DEBUG(SHOW_FUNCTION_CALLS, "isl38xx trigger device\n");
 #endif
@@ -131,7 +131,6 @@ isl38xx_trigger_device(int asleep, void __iomem *device_base)
 		      current_time.tv_sec, (long)current_time.tv_usec,
 		      readl(device_base + ISL38XX_CTRL_STAT_REG));
 #endif
-		udelay(ISL38XX_WRITEIO_DELAY);
 
 		reg = readl(device_base + ISL38XX_INT_IDENT_REG);
 		if (reg == 0xabadface) {
@@ -145,7 +144,9 @@ isl38xx_trigger_device(int asleep, void __iomem *device_base)
 			while (reg = readl(device_base + ISL38XX_CTRL_STAT_REG),
 			       (reg & ISL38XX_CTRL_STAT_SLEEPMODE) == 0) {
 				udelay(ISL38XX_WRITEIO_DELAY);
+#if VERBOSE > SHOW_ERROR_MESSAGES
 				counter++;
+#endif
 			}
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
@@ -153,10 +154,6 @@ isl38xx_trigger_device(int asleep, void __iomem *device_base)
 			      "%08li.%08li Device register read %08x\n",
 			      current_time.tv_sec, (long)current_time.tv_usec,
 			      readl(device_base + ISL38XX_CTRL_STAT_REG));
-#endif
-			udelay(ISL38XX_WRITEIO_DELAY);
-
-#if VERBOSE > SHOW_ERROR_MESSAGES
 			do_gettimeofday(&current_time);
 			DEBUG(SHOW_TRACING,
 			      "%08li.%08li Device asleep counter %i\n",
@@ -171,7 +168,6 @@ isl38xx_trigger_device(int asleep, void __iomem *device_base)
 
 		/* perform another read on the Device Status Register */
 		reg = readl(device_base + ISL38XX_CTRL_STAT_REG);
-		udelay(ISL38XX_WRITEIO_DELAY);
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
 		do_gettimeofday(&current_time);
@@ -187,7 +183,6 @@ isl38xx_trigger_device(int asleep, void __iomem *device_base)
 
 		isl38xx_w32_flush(device_base, ISL38XX_DEV_INT_UPDATE,
 				  ISL38XX_DEV_INT_REG);
-		udelay(ISL38XX_WRITEIO_DELAY);
 	}
 }
 

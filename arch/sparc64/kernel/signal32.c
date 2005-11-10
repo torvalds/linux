@@ -863,6 +863,7 @@ static void new_setup_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 		pud_t *pudp = pud_offset(pgdp, address);
 		pmd_t *pmdp = pmd_offset(pudp, address);
 		pte_t *ptep;
+		pte_t pte;
 
 		regs->u_regs[UREG_I7] = (unsigned long) (&(sf->insns[0]) - 2);
 	
@@ -873,9 +874,10 @@ static void new_setup_frame32(struct k_sigaction *ka, struct pt_regs *regs,
 
 		preempt_disable();
 		ptep = pte_offset_map(pmdp, address);
-		if (pte_present(*ptep)) {
+		pte = *ptep;
+		if (pte_present(pte)) {
 			unsigned long page = (unsigned long)
-				page_address(pte_page(*ptep));
+				page_address(pte_page(pte));
 
 			wmb();
 			__asm__ __volatile__("flush	%0 + %1"

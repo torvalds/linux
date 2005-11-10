@@ -17,12 +17,14 @@
 #include <linux/spinlock.h>
 #include <asm/atomic.h>
 
-#define MNT_NOSUID	1
-#define MNT_NODEV	2
-#define MNT_NOEXEC	4
+#define MNT_NOSUID	0x01
+#define MNT_NODEV	0x02
+#define MNT_NOEXEC	0x04
+#define MNT_SHARED	0x10	/* if the vfsmount is a shared mount */
+#define MNT_UNBINDABLE	0x20	/* if the vfsmount is a unbindable mount */
+#define MNT_PNODE_MASK	0x30	/* propogation flag mask */
 
-struct vfsmount
-{
+struct vfsmount {
 	struct list_head mnt_hash;
 	struct vfsmount *mnt_parent;	/* fs we are mounted on */
 	struct dentry *mnt_mountpoint;	/* dentry of mountpoint */
@@ -36,7 +38,12 @@ struct vfsmount
 	char *mnt_devname;		/* Name of device e.g. /dev/dsk/hda1 */
 	struct list_head mnt_list;
 	struct list_head mnt_expire;	/* link in fs-specific expiry list */
+	struct list_head mnt_share;	/* circular list of shared mounts */
+	struct list_head mnt_slave_list;/* list of slave mounts */
+	struct list_head mnt_slave;	/* slave list entry */
+	struct vfsmount *mnt_master;	/* slave is on master->mnt_slave_list */
 	struct namespace *mnt_namespace; /* containing namespace */
+	int mnt_pinned;
 };
 
 static inline struct vfsmount *mntget(struct vfsmount *mnt)
@@ -46,15 +53,9 @@ static inline struct vfsmount *mntget(struct vfsmount *mnt)
 	return mnt;
 }
 
-extern void __mntput(struct vfsmount *mnt);
-
-static inline void mntput_no_expire(struct vfsmount *mnt)
-{
-	if (mnt) {
-		if (atomic_dec_and_test(&mnt->mnt_count))
-			__mntput(mnt);
-	}
-}
+extern void mntput_no_expire(struct vfsmount *mnt);
+extern void mnt_pin(struct vfsmount *mnt);
+extern void mnt_unpin(struct vfsmount *mnt);
 
 static inline void mntput(struct vfsmount *mnt)
 {

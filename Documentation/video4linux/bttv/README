@@ -42,9 +42,9 @@ bttv uses the PCI Subsystem ID to autodetect the card type.  lspci lists
 the Subsystem ID in the second line, looks like this:
 
 00:0a.0 Multimedia video controller: Brooktree Corporation Bt878 (rev 02)
-        Subsystem: Hauppauge computer works Inc. WinTV/GO
-        Flags: bus master, medium devsel, latency 32, IRQ 5
-        Memory at e2000000 (32-bit, prefetchable) [size=4K]
+	Subsystem: Hauppauge computer works Inc. WinTV/GO
+	Flags: bus master, medium devsel, latency 32, IRQ 5
+	Memory at e2000000 (32-bit, prefetchable) [size=4K]
 
 only bt878-based cards can have a subsystem ID (which does not mean
 that every card really has one).  bt848 cards can't have a Subsystem

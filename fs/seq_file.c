@@ -28,13 +28,17 @@
  */
 int seq_open(struct file *file, struct seq_operations *op)
 {
-	struct seq_file *p = kmalloc(sizeof(*p), GFP_KERNEL);
-	if (!p)
-		return -ENOMEM;
+	struct seq_file *p = file->private_data;
+
+	if (!p) {
+		p = kmalloc(sizeof(*p), GFP_KERNEL);
+		if (!p)
+			return -ENOMEM;
+		file->private_data = p;
+	}
 	memset(p, 0, sizeof(*p));
 	sema_init(&p->sem, 1);
 	p->op = op;
-	file->private_data = p;
 
 	/*
 	 * Wrappers around seq_open(e.g. swaps_open) need to be

@@ -876,7 +876,6 @@ CONFIG_FB_ATY_CT=y
 # CONFIG_FB_SMIVGX is not set
 # CONFIG_FB_CYBLA is not set
 # CONFIG_FB_TRIDENT is not set
-# CONFIG_FB_E1356 is not set
 # CONFIG_FB_S1D13XXX is not set
 # CONFIG_FB_VIRTUAL is not set
 

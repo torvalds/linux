@@ -887,10 +887,6 @@ void altivec_unavailable_exception(struct pt_regs *regs)
 	die("Unrecoverable VMX/Altivec Unavailable Exception", regs, SIGABRT);
 }
 
-#ifdef CONFIG_PPC64
-extern perf_irq_t perf_irq;
-#endif
-
 #if defined(CONFIG_PPC64) || defined(CONFIG_E500)
 void performance_monitor_exception(struct pt_regs *regs)
 {

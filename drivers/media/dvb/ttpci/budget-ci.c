@@ -490,7 +490,7 @@ static u8 alps_bsru6_inittab[] = {
 	0x0e, 0x23,		/* alpha_tmg = 2, beta_tmg = 3 */
 	0x10, 0x3f,		// AGC2  0x3d
 	0x11, 0x84,
-	0x12, 0xb5,		// Lock detect: -64  Carrier freq detect:on
+	0x12, 0xb9,
 	0x15, 0xc9,		// lock detector threshold
 	0x16, 0x00,
 	0x17, 0x00,
@@ -580,7 +580,6 @@ static struct stv0299_config alps_bsru6_config = {
 	.inittab = alps_bsru6_inittab,
 	.mclk = 88000000UL,
 	.invert = 1,
-	.enhanced_tuning = 0,
 	.skip_reinit = 0,
 	.lock_output = STV0229_LOCKOUTPUT_1,
 	.volt13_op0_op1 = STV0299_VOLT13_OP1,
@@ -710,7 +709,6 @@ static struct stv0299_config philips_su1278_tt_config = {
 	.inittab = philips_su1278_tt_inittab,
 	.mclk = 64000000UL,
 	.invert = 0,
-	.enhanced_tuning = 1,
 	.skip_reinit = 1,
 	.lock_output = STV0229_LOCKOUTPUT_1,
 	.volt13_op0_op1 = STV0299_VOLT13_OP1,

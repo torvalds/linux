@@ -21,6 +21,24 @@ EXPORT_SYMBOL_GPL(cpucontrol);
 
 static struct notifier_block *cpu_chain;
 
+/*
+ * Used to check by callers if they need to acquire the cpucontrol
+ * or not to protect a cpu from being removed. Its sometimes required to
+ * call these functions both for normal operations, and in response to
+ * a cpu being added/removed. If the context of the call is in the same
+ * thread context as a CPU hotplug thread, we dont need to take the lock
+ * since its already protected
+ * check drivers/cpufreq/cpufreq.c for its usage - Ashok Raj
+ */
+
+int current_in_cpu_hotplug(void)
+{
+	return (current->flags & PF_HOTPLUG_CPU);
+}
+
+EXPORT_SYMBOL_GPL(current_in_cpu_hotplug);
+
+
 /* Need to know about CPUs going up/down? */
 int register_cpu_notifier(struct notifier_block *nb)
 {
@@ -94,6 +112,13 @@ int cpu_down(unsigned int cpu)
 		goto out;
 	}
 
+	/*
+	 * Leave a trace in current->flags indicating we are already in
+	 * process of performing CPU hotplug. Callers can check if cpucontrol
+	 * is already acquired by current thread, and if so not cause
+	 * a dead lock by not acquiring the lock
+	 */
+	current->flags |= PF_HOTPLUG_CPU;
 	err = notifier_call_chain(&cpu_chain, CPU_DOWN_PREPARE,
 						(void *)(long)cpu);
 	if (err == NOTIFY_BAD) {
@@ -146,6 +171,7 @@ out_thread:
 out_allowed:
 	set_cpus_allowed(current, old_allowed);
 out:
+	current->flags &= ~PF_HOTPLUG_CPU;
 	unlock_cpu_hotplug();
 	return err;
 }
@@ -163,6 +189,12 @@ int __devinit cpu_up(unsigned int cpu)
 		ret = -EINVAL;
 		goto out;
 	}
+
+	/*
+	 * Leave a trace in current->flags indicating we are already in
+	 * process of performing CPU hotplug.
+	 */
+	current->flags |= PF_HOTPLUG_CPU;
 	ret = notifier_call_chain(&cpu_chain, CPU_UP_PREPARE, hcpu);
 	if (ret == NOTIFY_BAD) {
 		printk("%s: attempt to bring up CPU %u failed\n",
@@ -185,6 +217,7 @@ out_notify:
 	if (ret != 0)
 		notifier_call_chain(&cpu_chain, CPU_UP_CANCELED, hcpu);
 out:
+	current->flags &= ~PF_HOTPLUG_CPU;
 	up(&cpucontrol);
 	return ret;
 }

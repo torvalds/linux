@@ -63,8 +63,8 @@ static int multipath_map (multipath_conf_t *conf)
 
 	rcu_read_lock();
 	for (i = 0; i < disks; i++) {
-		mdk_rdev_t *rdev = conf->multipaths[i].rdev;
-		if (rdev && rdev->in_sync) {
+		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);
+		if (rdev && test_bit(In_sync, &rdev->flags)) {
 			atomic_inc(&rdev->nr_pending);
 			rcu_read_unlock();
 			return i;
@@ -139,8 +139,9 @@ static void unplug_slaves(mddev_t *mddev)
 
 	rcu_read_lock();
 	for (i=0; i<mddev->raid_disks; i++) {
-		mdk_rdev_t *rdev = conf->multipaths[i].rdev;
-		if (rdev && !rdev->faulty && atomic_read(&rdev->nr_pending)) {
+		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);
+		if (rdev && !test_bit(Faulty, &rdev->flags)
+		    && atomic_read(&rdev->nr_pending)) {
 			request_queue_t *r_queue = bdev_get_queue(rdev->bdev);
 
 			atomic_inc(&rdev->nr_pending);
@@ -211,7 +212,7 @@ static void multipath_status (struct seq_file *seq, mddev_t *mddev)
 	for (i = 0; i < conf->raid_disks; i++)
 		seq_printf (seq, "%s",
 			       conf->multipaths[i].rdev && 
-			       conf->multipaths[i].rdev->in_sync ? "U" : "_");
+			       test_bit(In_sync, &conf->multipaths[i].rdev->flags) ? "U" : "_");
 	seq_printf (seq, "]");
 }
 
@@ -224,8 +225,8 @@ static int multipath_issue_flush(request_queue_t *q, struct gendisk *disk,
 
 	rcu_read_lock();
 	for (i=0; i<mddev->raid_disks && ret == 0; i++) {
-		mdk_rdev_t *rdev = conf->multipaths[i].rdev;
-		if (rdev && !rdev->faulty) {
+		mdk_rdev_t *rdev = rcu_dereference(conf->multipaths[i].rdev);
+		if (rdev && !test_bit(Faulty, &rdev->flags)) {
 			struct block_device *bdev = rdev->bdev;
 			request_queue_t *r_queue = bdev_get_queue(bdev);
 
@@ -265,10 +266,10 @@ static void multipath_error (mddev_t *mddev, mdk_rdev_t *rdev)
 		/*
 		 * Mark disk as unusable
 		 */
-		if (!rdev->faulty) {
+		if (!test_bit(Faulty, &rdev->flags)) {
 			char b[BDEVNAME_SIZE];
-			rdev->in_sync = 0;
-			rdev->faulty = 1;
+			clear_bit(In_sync, &rdev->flags);
+			set_bit(Faulty, &rdev->flags);
 			mddev->sb_dirty = 1;
 			conf->working_disks--;
 			printk(KERN_ALERT "multipath: IO failure on %s,"
@@ -298,7 +299,7 @@ static void print_multipath_conf (multipath_conf_t *conf)
 		tmp = conf->multipaths + i;
 		if (tmp->rdev)
 			printk(" disk%d, o:%d, dev:%s\n",
-				i,!tmp->rdev->faulty,
+				i,!test_bit(Faulty, &tmp->rdev->flags),
 			       bdevname(tmp->rdev->bdev,b));
 	}
 }
@@ -330,8 +331,8 @@ static int multipath_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 
 			conf->working_disks++;
 			rdev->raid_disk = path;
-			rdev->in_sync = 1;
-			p->rdev = rdev;
+			set_bit(In_sync, &rdev->flags);
+			rcu_assign_pointer(p->rdev, rdev);
 			found = 1;
 		}
 
@@ -350,7 +351,7 @@ static int multipath_remove_disk(mddev_t *mddev, int number)
 
 	rdev = p->rdev;
 	if (rdev) {
-		if (rdev->in_sync ||
+		if (test_bit(In_sync, &rdev->flags) ||
 		    atomic_read(&rdev->nr_pending)) {
 			printk(KERN_ERR "hot-remove-disk, slot %d is identified"				" but is still operational!\n", number);
 			err = -EBUSY;
@@ -482,7 +483,7 @@ static int multipath_run (mddev_t *mddev)
 		    mddev->queue->max_sectors > (PAGE_SIZE>>9))
 			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
 
-		if (!rdev->faulty) 
+		if (!test_bit(Faulty, &rdev->flags))
 			conf->working_disks++;
 	}
 

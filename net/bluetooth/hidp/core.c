@@ -660,9 +660,7 @@ unlink:
 failed:
 	up_write(&hidp_session_sem);
 
-	if (session->input)
-		kfree(session->input);
-
+	kfree(session->input);
 	kfree(session);
 	return err;
 }

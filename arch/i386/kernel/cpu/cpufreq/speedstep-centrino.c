@@ -423,12 +423,11 @@ static int centrino_cpu_init_acpi(struct cpufreq_policy *policy)
 		}
 	}
 
-	centrino_model[cpu] = kmalloc(sizeof(struct cpu_model), GFP_KERNEL);
+	centrino_model[cpu] = kzalloc(sizeof(struct cpu_model), GFP_KERNEL);
 	if (!centrino_model[cpu]) {
 		result = -ENOMEM;
 		goto err_unreg;
 	}
-	memset(centrino_model[cpu], 0, sizeof(struct cpu_model));
 
 	centrino_model[cpu]->model_name=NULL;
 	centrino_model[cpu]->max_freq = p.states[0].core_frequency * 1000;

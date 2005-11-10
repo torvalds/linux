@@ -518,7 +518,7 @@ static struct amba_driver clcd_driver = {
 	.id_table	= clcdfb_id_table,
 };
 
-int __init amba_clcdfb_init(void)
+static int __init amba_clcdfb_init(void)
 {
 	if (fb_get_options("ambafb", NULL))
 		return -ENODEV;

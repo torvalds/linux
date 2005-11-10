@@ -11,7 +11,6 @@
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
-#include <linux/version.h>
 #include <linux/mpage.h>
 
 #include "hfsplus_fs.h"

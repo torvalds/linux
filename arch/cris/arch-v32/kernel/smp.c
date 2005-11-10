@@ -161,6 +161,7 @@ void __init smp_callin(void)
 	REG_WR(intr_vect, irq_regs[cpu], rw_mask, vect_mask);
 	unmask_irq(IPI_INTR_VECT);
 	unmask_irq(TIMER_INTR_VECT);
+	preempt_disable();
 	local_irq_enable();
 
 	cpu_set(cpu, cpu_online_map);

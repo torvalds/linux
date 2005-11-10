@@ -49,7 +49,6 @@
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
-#include <linux/version.h>
 #include <linux/platform_device.h>
 #include <linux/usb.h>
 #include <linux/usb_gadget.h>

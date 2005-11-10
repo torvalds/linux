@@ -37,7 +37,6 @@
 #include <linux/kobject_uevent.h>
 #include <linux/proc_fs.h>
 #include <linux/syscalls.h>
-#include <linux/version.h>
 #include "z90crypt.h"
 #include "z90common.h"
 

@@ -201,6 +201,14 @@ struct fb_bitfield {
 #define FB_VMODE_SMOOTH_XPAN	512	/* smooth xpan possible (internally used) */
 #define FB_VMODE_CONUPDATE	512	/* don't update x/yoffset	*/
 
+/*
+ * Display rotation support
+ */
+#define FB_ROTATE_UR      0
+#define FB_ROTATE_CW      1
+#define FB_ROTATE_UD      2
+#define FB_ROTATE_CCW     3
+
 #define PICOS2KHZ(a) (1000000000UL/(a))
 #define KHZ2PICOS(a) (1000000000UL/(a))
 
@@ -489,9 +497,9 @@ struct fb_cursor_user {
 #define FB_EVENT_MODE_DELETE            0x04
 /*      A driver registered itself */
 #define FB_EVENT_FB_REGISTERED          0x05
-/*      get console to framebuffer mapping */
+/*      CONSOLE-SPECIFIC: get console to framebuffer mapping */
 #define FB_EVENT_GET_CONSOLE_MAP        0x06
-/*      set console to framebuffer mapping */
+/*      CONSOLE-SPECIFIC: set console to framebuffer mapping */
 #define FB_EVENT_SET_CONSOLE_MAP        0x07
 /*      A display blank is requested       */
 #define FB_EVENT_BLANK                  0x08
@@ -500,6 +508,12 @@ struct fb_cursor_user {
 /*	The resolution of the passed in fb_info about to change and
         all vc's should be changed         */
 #define FB_EVENT_MODE_CHANGE_ALL	0x0A
+/*      CONSOLE-SPECIFIC: set console rotation */
+#define FB_EVENT_SET_CON_ROTATE         0x0B
+/*      CONSOLE-SPECIFIC: get console rotation */
+#define FB_EVENT_GET_CON_ROTATE         0x0C
+/*      CONSOLE-SPECIFIC: rotate all consoles */
+#define FB_EVENT_SET_CON_ROTATE_ALL     0x0D
 
 struct fb_event {
 	struct fb_info *info;
@@ -817,8 +831,8 @@ extern void cfb_imageblit(struct fb_info *info, const struct fb_image *image);
 /* drivers/video/fbmem.c */
 extern int register_framebuffer(struct fb_info *fb_info);
 extern int unregister_framebuffer(struct fb_info *fb_info);
-extern int fb_prepare_logo(struct fb_info *fb_info);
-extern int fb_show_logo(struct fb_info *fb_info);
+extern int fb_prepare_logo(struct fb_info *fb_info, int rotate);
+extern int fb_show_logo(struct fb_info *fb_info, int rotate);
 extern char* fb_get_buffer_offset(struct fb_info *info, struct fb_pixmap *buf, u32 size);
 extern void fb_pad_unaligned_buffer(u8 *dst, u32 d_pitch, u8 *src, u32 idx,
 				u32 height, u32 shift_high, u32 shift_low, u32 mod);
@@ -828,6 +842,7 @@ extern int fb_get_color_depth(struct fb_var_screeninfo *var,
 			      struct fb_fix_screeninfo *fix);
 extern int fb_get_options(char *name, char **option);
 extern int fb_new_modelist(struct fb_info *info);
+extern int fb_con_duit(struct fb_info *info, int event, void *data);
 
 extern struct fb_info *registered_fb[FB_MAX];
 extern int num_registered_fb;

@@ -51,11 +51,17 @@ input or output the `floatx80' type will be defined.
 Software IEC/IEEE floating-point types.
 -------------------------------------------------------------------------------
 */
-typedef unsigned long int float32;
-typedef unsigned long long float64;
+typedef u32 float32;
+typedef u64 float64;
 typedef struct {
-    unsigned short high;
-    unsigned long long low;
+#ifdef __ARMEB__
+    u16 __padding;
+    u16 high;
+#else
+    u16 high;
+    u16 __padding;
+#endif
+    u64 low;
 } floatx80;
 
 /*

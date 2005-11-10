@@ -104,6 +104,66 @@ struct platform_device spitzscoop2_device = {
 	.resource	= spitz_scoop2_resources,
 };
 
+#define SPITZ_PWR_SD 0x01
+#define SPITZ_PWR_CF 0x02
+
+/* Power control is shared with between one of the CF slots and SD */
+static void spitz_card_pwr_ctrl(int device, unsigned short new_cpr)
+{
+	unsigned short cpr = read_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR);
+
+	if (new_cpr & 0x0007) {
+	        set_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CF_POWER);
+		if (!(cpr & 0x0002) && !(cpr & 0x0004))
+		        mdelay(5);
+		if (device == SPITZ_PWR_CF)
+		        cpr |= 0x0002;
+		if (device == SPITZ_PWR_SD)
+		        cpr |= 0x0004;
+	        write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, cpr | new_cpr);
+	} else {
+		if (device == SPITZ_PWR_CF)
+		        cpr &= ~0x0002;
+		if (device == SPITZ_PWR_SD)
+		        cpr &= ~0x0004;
+	        write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, cpr | new_cpr);
+		if (!(cpr & 0x0002) && !(cpr & 0x0004)) {
+		        mdelay(1);
+		        reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CF_POWER);
+		}
+	}
+}
+
+static void spitz_pcmcia_init(void)
+{
+	/* Setup default state of GPIO outputs
+	   before we enable them as outputs. */
+	GPSR(GPIO48_nPOE) = GPIO_bit(GPIO48_nPOE) |
+		GPIO_bit(GPIO49_nPWE) |	GPIO_bit(GPIO50_nPIOR) |
+		GPIO_bit(GPIO51_nPIOW) | GPIO_bit(GPIO54_nPCE_2);
+	GPSR(GPIO85_nPCE_1) = GPIO_bit(GPIO85_nPCE_1);
+
+	pxa_gpio_mode(GPIO48_nPOE_MD);
+	pxa_gpio_mode(GPIO49_nPWE_MD);
+	pxa_gpio_mode(GPIO50_nPIOR_MD);
+	pxa_gpio_mode(GPIO51_nPIOW_MD);
+	pxa_gpio_mode(GPIO55_nPREG_MD);
+	pxa_gpio_mode(GPIO56_nPWAIT_MD);
+	pxa_gpio_mode(GPIO57_nIOIS16_MD);
+	pxa_gpio_mode(GPIO85_nPCE_1_MD);
+	pxa_gpio_mode(GPIO54_nPCE_2_MD);
+	pxa_gpio_mode(GPIO104_pSKTSEL_MD);
+}
+
+static void spitz_pcmcia_pwr(struct device *scoop, unsigned short cpr, int nr)
+{
+	/* Only need to override behaviour for slot 0 */
+	if (nr == 0)
+		spitz_card_pwr_ctrl(SPITZ_PWR_CF, cpr);
+	else
+		write_scoop_reg(scoop, SCOOP_CPR, cpr);
+}
+
 static struct scoop_pcmcia_dev spitz_pcmcia_scoop[] = {
 {
 	.dev        = &spitzscoop_device.dev,
@@ -116,6 +176,16 @@ static struct scoop_pcmcia_dev spitz_pcmcia_scoop[] = {
 	.cd_irq     = -1,
 },
 };
+
+static struct scoop_pcmcia_config spitz_pcmcia_config = {
+	.devs         = &spitz_pcmcia_scoop[0],
+	.num_devs     = 2,
+	.pcmcia_init  = spitz_pcmcia_init,
+	.power_ctrl   = spitz_pcmcia_pwr,
+};
+
+EXPORT_SYMBOL(spitzscoop_device);
+EXPORT_SYMBOL(spitzscoop2_device);
 
 
 /*
@@ -235,27 +305,14 @@ static int spitz_mci_init(struct device *dev, irqreturn_t (*spitz_detect_int)(in
 	return 0;
 }
 
-/* Power control is shared with one of the CF slots so we have a mess */
 static void spitz_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
-	unsigned short cpr = read_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR);
-
-	if (( 1 << vdd) & p_d->ocr_mask) {
-		/* printk(KERN_DEBUG "%s: on\n", __FUNCTION__); */
-		set_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CF_POWER);
-		mdelay(2);
-		write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, cpr | 0x04);
-	} else {
-		/* printk(KERN_DEBUG "%s: off\n", __FUNCTION__); */
-		write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, cpr & ~0x04);
-
-		if (!(cpr | 0x02)) {
-			mdelay(1);
-			reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CF_POWER);
-		}
-	}
+	if (( 1 << vdd) & p_d->ocr_mask)
+		spitz_card_pwr_ctrl(SPITZ_PWR_SD, 0x0004);
+	else
+		spitz_card_pwr_ctrl(SPITZ_PWR_SD, 0x0000);
 }
 
 static int spitz_mci_get_ro(struct device *dev)
@@ -351,8 +408,8 @@ static void __init common_init(void)
 
 static void __init spitz_init(void)
 {
-	scoop_num = 2;
-	scoop_devs = &spitz_pcmcia_scoop[0];
+	platform_scoop_config = &spitz_pcmcia_config;
+
 	spitz_bl_machinfo.set_bl_intensity = spitz_bl_set_intensity;
 
 	common_init();

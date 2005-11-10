@@ -20,7 +20,6 @@
  * 	- Plugged memory leak in cfi_staa_writev().
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>

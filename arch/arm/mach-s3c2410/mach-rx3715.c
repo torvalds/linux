@@ -56,8 +56,17 @@
 static struct map_desc rx3715_iodesc[] __initdata = {
 	/* dump ISA space somewhere unused */
 
-	{ (u32)S3C24XX_VA_ISA_WORD, S3C2410_CS3, SZ_16M, MT_DEVICE },
-	{ (u32)S3C24XX_VA_ISA_BYTE, S3C2410_CS3, SZ_16M, MT_DEVICE },
+	{
+		.virtual	= (u32)S3C24XX_VA_ISA_WORD,
+		.pfn		= __phys_to_pfn(S3C2410_CS3),
+		.length		= SZ_1M,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (u32)S3C24XX_VA_ISA_BYTE,
+		.pfn		= __phys_to_pfn(S3C2410_CS3),
+		.length		= SZ_1M,
+		.type		= MT_DEVICE,
+	},
 };
 
 

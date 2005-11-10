@@ -121,6 +121,14 @@ config S3C2410_BOOT_WATCHDOG
 	  system resets depends on the value of PCLK. The timeout on an
 	  200MHz s3c2410 should be about 30 seconds.
 
+config S3C2410_BOOT_ERROR_RESET
+	bool "S3C2410 Reboot on decompression error"
+	depends on ARCH_S3C2410
+	help
+	  Say y here to use the watchdog to reset the system if the
+	  kernel decompressor detects an error during decompression.
+
+
 comment "S3C2410 Setup"
 
 config S3C2410_DMA

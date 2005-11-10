@@ -47,6 +47,13 @@
 	movne	r0, sp
 	adrne	lr, 1b
 	bne	do_IPI
+
+#ifdef CONFIG_LOCAL_TIMERS
+	test_for_ltirq r0, r6, r5, lr
+	movne	r0, sp
+	adrne	lr, 1b
+	bne	do_local_timer
+#endif
 #endif
 
 	.endm

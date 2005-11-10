@@ -6,10 +6,10 @@
   5 -> SKNet Monster TV                         [1131:4e85]
   6 -> Tevion MD 9717
   7 -> KNC One TV-Station RDS / Typhoon TV Tuner RDS [1131:fe01,1894:fe01]
-  8 -> Terratec Cinergy 400 TV                  [153B:1142]
+  8 -> Terratec Cinergy 400 TV                  [153b:1142]
   9 -> Medion 5044
  10 -> Kworld/KuroutoShikou SAA7130-TVPCI
- 11 -> Terratec Cinergy 600 TV                  [153B:1143]
+ 11 -> Terratec Cinergy 600 TV                  [153b:1143]
  12 -> Medion 7134                              [16be:0003]
  13 -> Typhoon TV+Radio 90031
  14 -> ELSA EX-VISION 300TV                     [1048:226b]
@@ -36,8 +36,8 @@
  35 -> AverMedia AverTV Studio 305              [1461:2115]
  36 -> UPMOST PURPLE TV                         [12ab:0800]
  37 -> Items MuchTV Plus / IT-005
- 38 -> Terratec Cinergy 200 TV                  [153B:1152]
- 39 -> LifeView FlyTV Platinum Mini             [5168:0212]
+ 38 -> Terratec Cinergy 200 TV                  [153b:1152]
+ 39 -> LifeView FlyTV Platinum Mini             [5168:0212,4e42:0212]
  40 -> Compro VideoMate TV PVR/FM               [185b:c100]
  41 -> Compro VideoMate TV Gold+                [185b:c100]
  42 -> Sabrent SBT-TVFM (saa7130)
@@ -46,7 +46,7 @@
  45 -> Avermedia AVerTV Studio 307              [1461:9715]
  46 -> AVerMedia Cardbus TV/Radio (E500)        [1461:d6ee]
  47 -> Terratec Cinergy 400 mobile              [153b:1162]
- 48 -> Terratec Cinergy 600 TV MK3              [153B:1158]
+ 48 -> Terratec Cinergy 600 TV MK3              [153b:1158]
  49 -> Compro VideoMate Gold+ Pal               [185b:c200]
  50 -> Pinnacle PCTV 300i DVB-T + PAL           [11bd:002d]
  51 -> ProVideo PV952                           [1540:9524]
@@ -56,12 +56,27 @@
  55 -> LifeView FlyDVB-T DUO                    [5168:0502,5168:0306]
  56 -> Avermedia AVerTV 307                     [1461:a70a]
  57 -> Avermedia AVerTV GO 007 FM               [1461:f31f]
- 58 -> ADS Tech Instant TV (saa7135)            [1421:0350,1421:0370]
+ 58 -> ADS Tech Instant TV (saa7135)            [1421:0350,1421:0370,1421:1370]
  59 -> Kworld/Tevion V-Stream Xpert TV PVR7134
  60 -> Typhoon DVB-T Duo Digital/Analog Cardbus [4e42:0502]
  61 -> Philips TOUGH DVB-T reference design     [1131:2004]
  62 -> Compro VideoMate TV Gold+II
  63 -> Kworld Xpert TV PVR7134
- 64 -> FlyTV mini Asus Digimatrix               [1043:0210,1043:0210]
+ 64 -> FlyTV mini Asus Digimatrix               [1043:0210]
  65 -> V-Stream Studio TV Terminator
  66 -> Yuan TUN-900 (saa7135)
+ 67 -> Beholder BeholdTV 409 FM                 [0000:4091]
+ 68 -> GoTView 7135 PCI                         [5456:7135]
+ 69 -> Philips EUROPA V3 reference design       [1131:2004]
+ 70 -> Compro Videomate DVB-T300                [185b:c900]
+ 71 -> Compro Videomate DVB-T200                [185b:c901]
+ 72 -> RTD Embedded Technologies VFG7350        [1435:7350]
+ 73 -> RTD Embedded Technologies VFG7330        [1435:7330]
+ 74 -> LifeView FlyTV Platinum Mini2            [14c0:1212]
+ 75 -> AVerMedia AVerTVHD MCE A180              [1461:1044]
+ 76 -> SKNet MonsterTV Mobile                   [1131:4ee9]
+ 77 -> Pinnacle PCTV 110i (saa7133)             [11bd:002e]
+ 78 -> ASUSTeK P7131 Dual                       [1043:4862]
+ 79 -> Sedna/MuchTV PC TV Cardbus TV/Radio (ITO25 Rev:2B)
+ 80 -> ASUS Digimatrix TV                       [1043:0210]
+ 81 -> Philips Tiger reference design           [1131:2018]
