@@ -38,5 +38,7 @@
 
 #define H4_CS0_BASE		     0x04000000
 
+#define H4_CS0_BASE		     0x04000000
+
 #endif /*  __ASM_ARCH_OMAP_H4_H */
 
