@@ -948,11 +948,6 @@ static struct xfrm_link {
 	[XFRM_MSG_FLUSHPOLICY - XFRM_MSG_BASE] = { .doit = xfrm_flush_policy  },
 };
 
-static int xfrm_done(struct netlink_callback *cb)
-{
-	return 0;
-}
-
 static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 {
 	struct rtattr *xfrma[XFRMA_MAX];
@@ -990,8 +985,7 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *err
 			goto err_einval;
 
 		if ((*errp = netlink_dump_start(xfrm_nl, skb, nlh,
-						link->dump,
-						xfrm_done)) != 0) {
+						link->dump, NULL)) != 0) {
 			return -1;
 		}
 		rlen = NLMSG_ALIGN(nlh->nlmsg_len);

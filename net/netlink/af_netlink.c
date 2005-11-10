@@ -427,7 +427,8 @@ static int netlink_release(struct socket *sock)
 
 	spin_lock(&nlk->cb_lock);
 	if (nlk->cb) {
-		nlk->cb->done(nlk->cb);
+		if (nlk->cb->done)
+			nlk->cb->done(nlk->cb);
 		netlink_destroy_callback(nlk->cb);
 		nlk->cb = NULL;
 	}
@@ -1322,7 +1323,8 @@ static int netlink_dump(struct sock *sk)
 	skb_queue_tail(&sk->sk_receive_queue, skb);
 	sk->sk_data_ready(sk, skb->len);
 
-	cb->done(cb);
+	if (cb->done)
+		cb->done(cb);
 	nlk->cb = NULL;
 	spin_unlock(&nlk->cb_lock);
 

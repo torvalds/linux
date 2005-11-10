@@ -462,11 +462,6 @@ void rtmsg_ifinfo(int type, struct net_device *dev, unsigned change)
 	netlink_broadcast(rtnl, skb, 0, RTNLGRP_LINK, GFP_KERNEL);
 }
 
-static int rtnetlink_done(struct netlink_callback *cb)
-{
-	return 0;
-}
-
 /* Protected by RTNL sempahore.  */
 static struct rtattr **rta_buf;
 static int rtattr_max;
@@ -533,8 +528,7 @@ rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 			goto err_inval;
 
 		if ((*errp = netlink_dump_start(rtnl, skb, nlh,
-						link->dumpit,
-						rtnetlink_done)) != 0) {
+						link->dumpit, NULL)) != 0) {
 			return -1;
 		}
 		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
