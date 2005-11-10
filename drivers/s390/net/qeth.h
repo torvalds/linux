@@ -25,7 +25,7 @@
 
 #include "qeth_mpc.h"
 
-#define VERSION_QETH_H 		"$Revision: 1.151 $"
+#define VERSION_QETH_H 		"$Revision: 1.152 $"
 
 #ifdef CONFIG_QETH_IPV6
 #define QETH_VERSION_IPV6 	":IPv6"
@@ -719,8 +719,6 @@ struct qeth_reply {
 	atomic_t refcnt;
 };
 
-#define QETH_BROADCAST_WITH_ECHO    1
-#define QETH_BROADCAST_WITHOUT_ECHO 2
 
 struct qeth_card_blkt {
 	int time_total;
@@ -728,8 +726,10 @@ struct qeth_card_blkt {
 	int inter_packet_jumbo;
 };
 
-
-
+#define QETH_BROADCAST_WITH_ECHO    0x01
+#define QETH_BROADCAST_WITHOUT_ECHO 0x02
+#define QETH_LAYER2_MAC_READ	    0x01
+#define QETH_LAYER2_MAC_REGISTERED  0x02
 struct qeth_card_info {
 	unsigned short unit_addr2;
 	unsigned short cula;
@@ -737,7 +737,7 @@ struct qeth_card_info {
 	__u16 func_level;
 	char mcl_level[QETH_MCL_LENGTH + 1];
 	int guestlan;
-	int layer2_mac_registered;
+	int mac_bits;
 	int portname_required;
 	int portno;
 	char portname[9];

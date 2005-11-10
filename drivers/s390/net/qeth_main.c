@@ -1,6 +1,6 @@
 /*
  *
- * linux/drivers/s390/net/qeth_main.c ($Revision: 1.238 $)
+ * linux/drivers/s390/net/qeth_main.c ($Revision: 1.242 $)
  *
  * Linux on zSeries OSA Express and HiperSockets support
  *
@@ -12,7 +12,7 @@
  *			  Frank Pavlic (pavlic@de.ibm.com) and
  *		 	  Thomas Spatzier <tspat@de.ibm.com>
  *
- *    $Revision: 1.238 $	 $Date: 2005/05/04 20:19:18 $
+ *    $Revision: 1.242 $	 $Date: 2005/05/04 20:19:18 $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@
 #include "qeth_eddp.h"
 #include "qeth_tso.h"
 
-#define VERSION_QETH_C "$Revision: 1.238 $"
+#define VERSION_QETH_C "$Revision: 1.242 $"
 static const char *version = "qeth S/390 OSA-Express driver";
 
 /**
@@ -3775,7 +3775,7 @@ qeth_open(struct net_device *dev)
 
 	if ( (card->info.type != QETH_CARD_TYPE_OSN) &&
 	     (card->options.layer2) &&
-	     (!card->info.layer2_mac_registered)) {
+	     (!(card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED))) {
 		QETH_DBF_TEXT(trace,4,"nomacadr");
 		return -EPERM;
 	}
@@ -5894,10 +5894,10 @@ qeth_layer2_send_setmac_cb(struct qeth_card *card,
 		PRINT_WARN("Error in registering MAC address on " \
 			   "device %s: x%x\n", CARD_BUS_ID(card),
 			   cmd->hdr.return_code);
-		card->info.layer2_mac_registered = 0;
+		card->info.mac_bits &= ~QETH_LAYER2_MAC_REGISTERED;
 		cmd->hdr.return_code = -EIO;
 	} else {
-		card->info.layer2_mac_registered = 1;
+		card->info.mac_bits |= QETH_LAYER2_MAC_REGISTERED;
 		memcpy(card->dev->dev_addr,cmd->data.setdelmac.mac,
 		       OSA_ADDR_LEN);
 		PRINT_INFO("MAC address %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x "
@@ -5935,7 +5935,7 @@ qeth_layer2_send_delmac_cb(struct qeth_card *card,
 		cmd->hdr.return_code = -EIO;
 		return 0;
 	}
-	card->info.layer2_mac_registered = 0;
+	card->info.mac_bits &= ~QETH_LAYER2_MAC_REGISTERED;
 
 	return 0;
 }
@@ -5943,7 +5943,7 @@ static int
 qeth_layer2_send_delmac(struct qeth_card *card, __u8 *mac)
 {
 	QETH_DBF_TEXT(trace, 2, "L2Delmac");
-	if (!card->info.layer2_mac_registered)
+	if (!(card->info.mac_bits & QETH_LAYER2_MAC_REGISTERED))
 		return 0;
 	return qeth_layer2_send_setdelmac(card, mac, IPA_CMD_DELVMAC,
 					  qeth_layer2_send_delmac_cb);
@@ -5965,7 +5965,7 @@ qeth_layer2_set_mac_address(struct net_device *dev, void *p)
 	card = (struct qeth_card *) dev->priv;
 
 	if (!card->options.layer2) {
-		PRINT_WARN("Setting MAC address on %s is not supported"
+		PRINT_WARN("Setting MAC address on %s is not supported "
 			   "in Layer 3 mode.\n", dev->name);
 		QETH_DBF_TEXT(trace, 3, "setmcLY3");
 		return -EOPNOTSUPP;
@@ -6550,8 +6550,13 @@ qeth_setadpparms_change_macaddr_cb(struct qeth_card *card,
 	QETH_DBF_TEXT(trace,4,"chgmaccb");
 
 	cmd = (struct qeth_ipa_cmd *) data;
-	memcpy(card->dev->dev_addr,
-	       &cmd->data.setadapterparms.data.change_addr.addr,OSA_ADDR_LEN);
+	if (!card->options.layer2 || card->info.guestlan ||
+	    !(card->info.mac_bits & QETH_LAYER2_MAC_READ)) {	
+		memcpy(card->dev->dev_addr,
+		       &cmd->data.setadapterparms.data.change_addr.addr,
+		       OSA_ADDR_LEN);
+		card->info.mac_bits |= QETH_LAYER2_MAC_READ;
+	}
 	qeth_default_setadapterparms_cb(card, reply, (unsigned long) cmd);
 	return 0;
 }
