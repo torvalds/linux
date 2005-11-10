@@ -547,9 +547,20 @@ recover_from_processor_error(int platform, slidx_table_t *slidx,
 		(pal_processor_state_info_t*)peidx_psp(peidx);
 
 	/*
-	 * We cannot recover errors with other than bus_check.
+	 * Processor recovery status must key off of the PAL recovery
+	 * status in the Processor State Parameter.
 	 */
-	if (psp->cc || psp->rc || psp->uc)
+
+	/*
+	 * The machine check is corrected.
+	 */
+	if (psp->cm == 1)
+		return 1;
+
+	/*
+	 * The error was not contained.  Software must be reset.
+	 */
+	if (psp->us || psp->ci == 0)
 		return 0;
 
 	/*
@@ -569,8 +580,6 @@ recover_from_processor_error(int platform, slidx_table_t *slidx,
 	if (pbci->ib || pbci->cc)
 		return 0;
 	if (pbci->eb && pbci->bsi > 0)
-		return 0;
-	if (psp->ci == 0)
 		return 0;
 
 	/*
