@@ -484,6 +484,8 @@ void __init smp_space_timers(unsigned int max_cpus)
 	unsigned long offset = tb_ticks_per_jiffy / max_cpus;
 	unsigned long previous_tb = per_cpu(last_jiffy, boot_cpuid);
 
+	/* make sure tb > per_cpu(last_jiffy, cpu) for all cpus always */
+	previous_tb -= tb_ticks_per_jiffy;
 	for_each_cpu(i) {
 		if (i != boot_cpuid) {
 			previous_tb += offset;
