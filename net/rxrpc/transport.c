@@ -23,6 +23,7 @@
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/icmp.h>
+#include <linux/skbuff.h>
 #include <net/sock.h>
 #include <net/ip.h>
 #if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
@@ -475,15 +476,11 @@ void rxrpc_trans_receive_packet(struct rxrpc_transport *trans)
 
 		/* we'll probably need to checksum it (didn't call
 		 * sock_recvmsg) */
-		if (pkt->ip_summed != CHECKSUM_UNNECESSARY) {
-			if ((unsigned short)
-			    csum_fold(skb_checksum(pkt, 0, pkt->len,
-						   pkt->csum))) {
-				kfree_skb(pkt);
-				rxrpc_krxiod_queue_transport(trans);
-				_leave(" CSUM failed");
-				return;
-			}
+		if (skb_checksum_complete(pkt)) {
+			kfree_skb(pkt);
+			rxrpc_krxiod_queue_transport(trans);
+			_leave(" CSUM failed");
+			return;
 		}
 
 		addr = pkt->nh.iph->saddr;

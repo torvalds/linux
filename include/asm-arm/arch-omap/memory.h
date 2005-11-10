@@ -61,7 +61,7 @@
  * Note that the is_lbus_device() test is not very efficient on 1510
  * because of the strncmp().
  */
-#ifdef CONFIG_ARCH_OMAP1510
+#ifdef CONFIG_ARCH_OMAP15XX
 
 /*
  * OMAP-1510 Local Bus address offset
@@ -84,7 +84,7 @@
 					virt_to_lbus(addr) : \
 					__virt_to_bus(addr);})
 
-#endif	/* CONFIG_ARCH_OMAP1510 */
+#endif	/* CONFIG_ARCH_OMAP15XX */
 
 #endif
 

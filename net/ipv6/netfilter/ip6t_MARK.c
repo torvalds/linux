@@ -56,9 +56,9 @@ checkentry(const char *tablename,
 	return 1;
 }
 
-static struct ip6t_target ip6t_mark_reg = {
-	.name 		= "MARK",
-	.target 	= target,
+static struct ip6t_target ip6t_mark_reg = { 
+	.name		= "MARK",
+	.target		= target,
 	.checkentry	= checkentry,
 	.me		= THIS_MODULE
 };

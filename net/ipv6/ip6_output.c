@@ -441,9 +441,15 @@ static void ip6_copy_metadata(struct sk_buff *to, struct sk_buff *from)
 #ifdef CONFIG_NETFILTER
 	to->nfmark = from->nfmark;
 	/* Connection association is same as pre-frag packet */
+	nf_conntrack_put(to->nfct);
 	to->nfct = from->nfct;
 	nf_conntrack_get(to->nfct);
 	to->nfctinfo = from->nfctinfo;
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	nf_conntrack_put_reasm(to->nfct_reasm);
+	to->nfct_reasm = from->nfct_reasm;
+	nf_conntrack_get_reasm(to->nfct_reasm);
+#endif
 #ifdef CONFIG_BRIDGE_NETFILTER
 	nf_bridge_put(to->nf_bridge);
 	to->nf_bridge = from->nf_bridge;

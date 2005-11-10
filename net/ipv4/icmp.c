@@ -934,11 +934,11 @@ int icmp_rcv(struct sk_buff *skb)
 	case CHECKSUM_HW:
 		if (!(u16)csum_fold(skb->csum))
 			break;
-		LIMIT_NETDEBUG(KERN_DEBUG "icmp v4 hw csum failure\n");
+		/* fall through */
 	case CHECKSUM_NONE:
-		if ((u16)csum_fold(skb_checksum(skb, 0, skb->len, 0)))
+		skb->csum = 0;
+		if (__skb_checksum_complete(skb))
 			goto error;
-	default:;
 	}
 
 	if (!pskb_pull(skb, sizeof(struct icmphdr)))

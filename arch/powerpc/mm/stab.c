@@ -20,6 +20,7 @@
 #include <asm/cputable.h>
 #include <asm/lmb.h>
 #include <asm/abs_addr.h>
+#include <asm/firmware.h>
 
 struct stab_entry {
 	unsigned long esid_data;
@@ -256,7 +257,7 @@ void stabs_alloc(void)
 
 		paca[cpu].stab_addr = newstab;
 		paca[cpu].stab_real = virt_to_abs(newstab);
-		printk(KERN_DEBUG "Segment table for CPU %d at 0x%lx "
+		printk(KERN_INFO "Segment table for CPU %d at 0x%lx "
 		       "virtual, 0x%lx absolute\n",
 		       cpu, paca[cpu].stab_addr, paca[cpu].stab_real);
 	}
@@ -270,10 +271,28 @@ void stabs_alloc(void)
 void stab_initialize(unsigned long stab)
 {
 	unsigned long vsid = get_kernel_vsid(KERNELBASE);
+	unsigned long stabreal;
 
 	asm volatile("isync; slbia; isync":::"memory");
 	make_ste(stab, GET_ESID(KERNELBASE), vsid);
 
 	/* Order update */
 	asm volatile("sync":::"memory");
+
+	/* Set ASR */
+	stabreal = get_paca()->stab_real | 0x1ul;
+
+#ifdef CONFIG_PPC_ISERIES
+	if (firmware_has_feature(FW_FEATURE_ISERIES)) {
+		HvCall1(HvCallBaseSetASR, stabreal);
+		return;
+	}
+#endif /* CONFIG_PPC_ISERIES */
+#ifdef CONFIG_PPC_PSERIES
+	if (platform_is_lpar()) {
+		plpar_hcall_norets(H_SET_ASR, stabreal);
+		return;
+	}
+#endif
+	mtspr(SPRN_ASR, stabreal);
 }

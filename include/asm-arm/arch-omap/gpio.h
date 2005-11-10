@@ -67,7 +67,7 @@
 
 #define OMAP_GPIO_IRQ(nr)	(OMAP_GPIO_IS_MPUIO(nr) ? \
 				 IH_MPUIO_BASE + ((nr) & 0x0f) : \
-				 IH_GPIO_BASE + ((nr) & 0x3f))
+				 IH_GPIO_BASE + (nr))
 
 extern int omap_gpio_init(void);	/* Call from board init only */
 extern int omap_request_gpio(int gpio);

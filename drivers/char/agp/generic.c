@@ -155,7 +155,7 @@ void agp_free_memory(struct agp_memory *curr)
 		for (i = 0; i < curr->page_count; i++) {
 			curr->bridge->driver->agp_destroy_page(gart_to_virt(curr->memory[i]));
 		}
-		global_flush_tlb();
+		flush_agp_mappings();
 	}
 	agp_free_key(curr->key);
 	vfree(curr->memory);
@@ -213,8 +213,6 @@ struct agp_memory *agp_allocate_memory(struct agp_bridge_data *bridge,
 		new->memory[i] = virt_to_gart(addr);
 		new->page_count++;
 	}
-	global_flush_tlb();
-
 	new->bridge = bridge;
 
 	flush_agp_mappings();

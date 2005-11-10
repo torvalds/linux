@@ -1108,6 +1108,18 @@ out:
 	return ret;
 }
 
+/* Take action when hardware reception checksum errors are detected. */
+#ifdef CONFIG_BUG
+void netdev_rx_csum_fault(struct net_device *dev)
+{
+	if (net_ratelimit()) {
+		printk(KERN_ERR "%s: hw csum failure.\n", dev->name);
+		dump_stack();
+	}
+}
+EXPORT_SYMBOL(netdev_rx_csum_fault);
+#endif
+
 #ifdef CONFIG_HIGHMEM
 /* Actually, we should eliminate this check as soon as we know, that:
  * 1. IOMMU is present and allows to map all the memory.

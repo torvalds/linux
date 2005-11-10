@@ -2,6 +2,7 @@
 #define _IP_CONNTRACK_TUPLE_H
 
 #include <linux/types.h>
+#include <linux/netfilter/nf_conntrack_tuple_common.h>
 
 /* A `tuple' is a structure containing the information to uniquely
   identify a connection.  ie. if two packets have the same tuple, they
@@ -88,13 +89,6 @@ struct ip_conntrack_tuple
 		(tuple)->dst.u.all = 0;				\
 	} while (0)
 
-enum ip_conntrack_dir
-{
-	IP_CT_DIR_ORIGINAL,
-	IP_CT_DIR_REPLY,
-	IP_CT_DIR_MAX
-};
-
 #ifdef __KERNEL__
 
 #define DUMP_TUPLE(tp)						\
@@ -102,8 +96,6 @@ DEBUGP("tuple %p: %u %u.%u.%u.%u:%hu -> %u.%u.%u.%u:%hu\n",	\
        (tp), (tp)->dst.protonum,				\
        NIPQUAD((tp)->src.ip), ntohs((tp)->src.u.all),		\
        NIPQUAD((tp)->dst.ip), ntohs((tp)->dst.u.all))
-
-#define CTINFO2DIR(ctinfo) ((ctinfo) >= IP_CT_IS_REPLY ? IP_CT_DIR_REPLY : IP_CT_DIR_ORIGINAL)
 
 /* If we're the first tuple, it's the original dir. */
 #define DIRECTION(h) ((enum ip_conntrack_dir)(h)->tuple.dst.dir)

@@ -26,7 +26,6 @@
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/time.h>
-#include <asm/systemcfg.h>
 #include <asm/machdep.h>
 #include <asm/smp.h>
 

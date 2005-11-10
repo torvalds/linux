@@ -164,9 +164,9 @@ static int ds1337_set_datetime(struct i2c_client *client, struct rtc_time *dt)
 	buf[1] = BIN2BCD(dt->tm_sec);
 	buf[2] = BIN2BCD(dt->tm_min);
 	buf[3] = BIN2BCD(dt->tm_hour);
-	buf[4] = BIN2BCD(dt->tm_wday) + 1;
+	buf[4] = BIN2BCD(dt->tm_wday + 1);
 	buf[5] = BIN2BCD(dt->tm_mday);
-	buf[6] = BIN2BCD(dt->tm_mon) + 1;
+	buf[6] = BIN2BCD(dt->tm_mon + 1);
 	val = dt->tm_year;
 	if (val >= 100) {
 		val -= 100;

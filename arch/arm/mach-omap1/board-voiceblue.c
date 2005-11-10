@@ -150,9 +150,14 @@ static struct omap_mmc_config voiceblue_mmc_config __initdata = {
 	},
 };
 
+static struct omap_uart_config voiceblue_uart_config __initdata = {
+	.enabled_uarts = ((1 << 0) | (1 << 1) | (1 << 2)),
+};
+
 static struct omap_board_config_kernel voiceblue_config[] = {
 	{ OMAP_TAG_USB, &voiceblue_usb_config },
 	{ OMAP_TAG_MMC, &voiceblue_mmc_config },
+	{ OMAP_TAG_UART,	&voiceblue_uart_config },
 };
 
 static void __init voiceblue_init_irq(void)
@@ -191,6 +196,7 @@ static void __init voiceblue_init(void)
 	platform_add_devices(voiceblue_devices, ARRAY_SIZE(voiceblue_devices));
 	omap_board_config = voiceblue_config;
 	omap_board_config_size = ARRAY_SIZE(voiceblue_config);
+	omap_serial_init();
 
 	/* There is a good chance board is going up, so enable power LED
 	 * (it is connected through invertor) */
@@ -198,12 +204,9 @@ static void __init voiceblue_init(void)
 	omap_writeb(0x00, OMAP_LPG1_PMR);	/* Disable clock */
 }
 
-static int __initdata omap_serial_ports[OMAP_MAX_NR_PORTS] = {1, 1, 1};
-
 static void __init voiceblue_map_io(void)
 {
 	omap_map_common_io();
-	omap_serial_init(omap_serial_ports);
 }
 
 #define MACHINE_PANICED		1

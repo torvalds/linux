@@ -815,7 +815,8 @@ static void activate_task(task_t *p, runqueue_t *rq, int local)
 	}
 #endif
 
-	p->prio = recalc_task_prio(p, now);
+	if (!rt_task(p))
+		p->prio = recalc_task_prio(p, now);
 
 	/*
 	 * This checks to make sure it's not an uninterruptible task

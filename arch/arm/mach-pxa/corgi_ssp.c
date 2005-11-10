@@ -203,7 +203,7 @@ static int __init corgi_ssp_probe(struct device *dev)
 	GPDR(ssp_machinfo->cs_ads7846) |= GPIO_bit(ssp_machinfo->cs_ads7846);  /* output */
 	GPSR(ssp_machinfo->cs_ads7846) = GPIO_bit(ssp_machinfo->cs_ads7846);   /* High - Disable ADS7846*/
 
-	ret = ssp_init(&corgi_ssp_dev,ssp_machinfo->port);
+	ret = ssp_init(&corgi_ssp_dev, ssp_machinfo->port, 0);
 
 	if (ret)
 		printk(KERN_ERR "Unable to register SSP handler!\n");

@@ -6,8 +6,13 @@
 
 #include <linux/stringify.h>
 #include <linux/config.h>
+#include <asm/asm-compat.h>
 
-#ifdef __ASSEMBLY__
+#ifndef __ASSEMBLY__
+#error __FILE__ should only be used in assembler files
+#else
+
+#define SZL			(BITS_PER_LONG/8)
 
 /*
  * Macros for storing registers into and loading registers from
@@ -184,12 +189,6 @@ n:
 	oris    reg,reg,(label)@h;                      \
 	ori     reg,reg,(label)@l;
 
-/* operations for longs and pointers */
-#define LDL	ld
-#define STL	std
-#define CMPI	cmpdi
-#define SZL	8
-
 /* offsets for stack frame layout */
 #define LRSAVE	16
 
@@ -202,12 +201,6 @@ n:
 	lis	rn,name@ha
 
 #define OFF(name)	name@l
-
-/* operations for longs and pointers */
-#define LDL	lwz
-#define STL	stw
-#define CMPI	cmpwi
-#define SZL	4
 
 /* offsets for stack frame layout */
 #define LRSAVE	4
@@ -263,15 +256,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 0:	tlbie	r4;				\
 	addi	r4,r4,0x1000;			\
 	bdnz	0b
-#endif
-
-
-#ifdef CONFIG_IBM405_ERR77
-#define PPC405_ERR77(ra,rb)	dcbt	ra, rb;
-#define	PPC405_ERR77_SYNC	sync;
-#else
-#define PPC405_ERR77(ra,rb)
-#define PPC405_ERR77_SYNC
 #endif
 
 
@@ -501,17 +485,6 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
 #define N_RSYM	64
 #define N_SLINE	68
 #define N_SO	100
-
-#define ASM_CONST(x) x
-#else
-  #define __ASM_CONST(x) x##UL
-  #define ASM_CONST(x) __ASM_CONST(x)
-
-#ifdef CONFIG_PPC64
-#define DATAL	".llong"
-#else
-#define DATAL	".long"
-#endif
 
 #endif /*  __ASSEMBLY__ */
 

@@ -1330,7 +1330,7 @@ void show_free_areas(void)
 		} else
 			printk("\n");
 
-		for_each_cpu(cpu) {
+		for_each_online_cpu(cpu) {
 			struct per_cpu_pageset *pageset;
 
 			pageset = zone_pcp(zone, cpu);
