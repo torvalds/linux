@@ -226,6 +226,7 @@ void elv_dispatch_sort(request_queue_t *q, struct request *rq)
 
 	if (q->last_merge == rq)
 		q->last_merge = NULL;
+	q->nr_sorted--;
 
 	boundary = q->end_sector;
 
@@ -284,6 +285,7 @@ void elv_merge_requests(request_queue_t *q, struct request *rq,
 
 	if (e->ops->elevator_merge_req_fn)
 		e->ops->elevator_merge_req_fn(q, rq, next);
+	q->nr_sorted--;
 
 	q->last_merge = rq;
 }
@@ -313,6 +315,20 @@ void elv_requeue_request(request_queue_t *q, struct request *rq)
 	}
 
 	__elv_add_request(q, rq, ELEVATOR_INSERT_FRONT, 0);
+}
+
+static void elv_drain_elevator(request_queue_t *q)
+{
+	static int printed;
+	while (q->elevator->ops->elevator_dispatch_fn(q, 1))
+		;
+	if (q->nr_sorted == 0)
+		return;
+	if (printed++ < 10) {
+		printk(KERN_ERR "%s: forced dispatching is broken "
+		       "(nr_sorted=%u), please report this\n",
+		       q->elevator->elevator_type->elevator_name, q->nr_sorted);
+	}
 }
 
 void __elv_add_request(request_queue_t *q, struct request *rq, int where,
@@ -349,9 +365,7 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 
 	case ELEVATOR_INSERT_BACK:
 		rq->flags |= REQ_SOFTBARRIER;
-
-		while (q->elevator->ops->elevator_dispatch_fn(q, 1))
-			;
+		elv_drain_elevator(q);
 		list_add_tail(&rq->queuelist, &q->queue_head);
 		/*
 		 * We kick the queue here for the following reasons.
@@ -370,6 +384,7 @@ void __elv_add_request(request_queue_t *q, struct request *rq, int where,
 	case ELEVATOR_INSERT_SORT:
 		BUG_ON(!blk_fs_request(rq));
 		rq->flags |= REQ_SORTED;
+		q->nr_sorted++;
 		if (q->last_merge == NULL && rq_mergeable(rq))
 			q->last_merge = rq;
 		/*
@@ -692,8 +707,7 @@ static void elevator_switch(request_queue_t *q, struct elevator_type *new_e)
 
 	set_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
 
-	while (q->elevator->ops->elevator_dispatch_fn(q, 1))
-		;
+	elv_drain_elevator(q);
 
 	while (q->rq.elvpriv) {
 		blk_remove_plug(q);
@@ -701,6 +715,7 @@ static void elevator_switch(request_queue_t *q, struct elevator_type *new_e)
 		spin_unlock_irq(q->queue_lock);
 		msleep(10);
 		spin_lock_irq(q->queue_lock);
+		elv_drain_elevator(q);
 	}
 
 	spin_unlock_irq(q->queue_lock);
