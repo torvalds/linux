@@ -1598,13 +1598,19 @@ static void rtl8139_thread (void *_data)
 {
 	struct net_device *dev = _data;
 	struct rtl8139_private *tp = netdev_priv(dev);
+	unsigned long thr_delay;
 
 	if (rtnl_shlock_nowait() == 0) {
 		rtl8139_thread_iter (dev, tp, tp->mmio_addr);
 		rtnl_unlock ();
+
+		thr_delay = next_tick;
+	} else {
+		/* unlikely race.  mitigate with fast poll. */
+		thr_delay = HZ / 2;
 	}
 
-	schedule_delayed_work(&tp->thread, next_tick);
+	schedule_delayed_work(&tp->thread, thr_delay);
 }
 
 static void rtl8139_start_thread(struct rtl8139_private *tp)
