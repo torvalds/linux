@@ -1,0 +1,18 @@
+#
+# RapidIO configuration
+#
+config RAPIDIO_8_BIT_TRANSPORT
+	bool "8-bit transport addressing"
+	depends on RAPIDIO
+	---help---
+	  By default, the kernel assumes a 16-bit addressed RapidIO
+	  network. By selecting this option, the kernel will support
+	  an 8-bit addressed network.
+
+config RAPIDIO_DISC_TIMEOUT
+	int "Discovery timeout duration (seconds)"
+	depends on RAPIDIO
+	default "30"
+	---help---
+	  Amount of time a discovery node waits for a host to complete
+	  enumeration beforing giving up.

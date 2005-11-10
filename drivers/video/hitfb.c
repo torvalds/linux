@@ -262,7 +262,6 @@ static struct fb_ops hitfb_ops = {
 	.fb_fillrect	= hitfb_fillrect,
 	.fb_copyarea	= hitfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
 int __init hitfb_init(void)

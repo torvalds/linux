@@ -1,0 +1,10 @@
+  0 -> Unknown EM2800 video grabber             (em2800)        [eb1a:2800]
+  1 -> Unknown EM2820/2840 video grabber        (em2820/em2840)
+  2 -> Terratec Cinergy 250 USB                 (em2820/em2840) [0ccd:0036]
+  3 -> Pinnacle PCTV USB 2                      (em2820/em2840) [2304:0208]
+  4 -> Hauppauge WinTV USB 2                    (em2820/em2840) [2040:4200]
+  5 -> MSI VOX USB 2.0                          (em2820/em2840) [eb1a:2820]
+  6 -> Terratec Cinergy 200 USB                 (em2800)
+  7 -> Leadtek Winfast USB II                   (em2800)
+  8 -> Kworld USB2800                           (em2800)
+  9 -> Pinnacle Dazzle DVC 90                   (em2820/em2840) [2304:0207]

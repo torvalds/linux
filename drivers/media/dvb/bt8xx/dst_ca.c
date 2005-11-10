@@ -69,62 +69,53 @@ static int ca_set_pid(void)
 }
 
 
-static int put_checksum(u8 *check_string, int length)
+static void put_checksum(u8 *check_string, int length)
 {
-	u8 i = 0, checksum = 0;
-
-	dprintk(verbose, DST_CA_DEBUG, 1, " ========================= Checksum calculation ===========================");
-	dprintk(verbose, DST_CA_DEBUG, 1, " String Length=[0x%02x]", length);
-	dprintk(verbose, DST_CA_DEBUG, 1, " String=[");
-
-	while (i < length) {
-		dprintk(verbose, DST_CA_DEBUG, 0, " %02x", check_string[i]);
-		checksum += check_string[i];
-		i++;
-	}
-	dprintk(verbose, DST_CA_DEBUG, 0, " ]\n");
-	dprintk(verbose, DST_CA_DEBUG, 1, "Sum=[%02x]\n", checksum);
-	check_string[length] = ~checksum + 1;
-	dprintk(verbose, DST_CA_DEBUG, 1, " Checksum=[%02x]", check_string[length]);
-	dprintk(verbose, DST_CA_DEBUG, 1, " ==========================================================================");
-
-	return 0;
+	dprintk(verbose, DST_CA_DEBUG, 1, " Computing string checksum.");
+	dprintk(verbose, DST_CA_DEBUG, 1, "  -> string length : 0x%02x", length);
+	check_string[length] = dst_check_sum (check_string, length);
+	dprintk(verbose, DST_CA_DEBUG, 1, "  -> checksum      : 0x%02x", check_string[length]);
 }
 
 static int dst_ci_command(struct dst_state* state, u8 * data, u8 *ca_string, u8 len, int read)
 {
 	u8 reply;
 
+	down(&state->dst_mutex);
 	dst_comm_init(state);
 	msleep(65);
 
 	if (write_dst(state, data, len)) {
 		dprintk(verbose, DST_CA_INFO, 1, " Write not successful, trying to recover");
 		dst_error_recovery(state);
-		return -1;
+		goto error;
 	}
 	if ((dst_pio_disable(state)) < 0) {
 		dprintk(verbose, DST_CA_ERROR, 1, " DST PIO disable failed.");
-		return -1;
+		goto error;
 	}
 	if (read_dst(state, &reply, GET_ACK) < 0) {
 		dprintk(verbose, DST_CA_INFO, 1, " Read not successful, trying to recover");
 		dst_error_recovery(state);
-		return -1;
+		goto error;
 	}
 	if (read) {
 		if (! dst_wait_dst_ready(state, LONG_DELAY)) {
 			dprintk(verbose, DST_CA_NOTICE, 1, " 8820 not ready");
-			return -1;
+			goto error;
 		}
 		if (read_dst(state, ca_string, 128) < 0) {	/*	Try to make this dynamic	*/
 			dprintk(verbose, DST_CA_INFO, 1, " Read not successful, trying to recover");
 			dst_error_recovery(state);
-			return -1;
+			goto error;
 		}
 	}
-
+	up(&state->dst_mutex);
 	return 0;
+
+error:
+	up(&state->dst_mutex);
+	return -EIO;
 }
 
 
@@ -166,7 +157,7 @@ static int ca_get_app_info(struct dst_state *state)
 	return 0;
 }
 
-static int ca_get_slot_caps(struct dst_state *state, struct ca_caps *p_ca_caps, void *arg)
+static int ca_get_slot_caps(struct dst_state *state, struct ca_caps *p_ca_caps, void __user *arg)
 {
 	int i;
 	u8 slot_cap[256];
@@ -192,25 +183,25 @@ static int ca_get_slot_caps(struct dst_state *state, struct ca_caps *p_ca_caps, 
 	p_ca_caps->descr_num = slot_cap[7];
 	p_ca_caps->descr_type = 1;
 
-	if (copy_to_user((struct ca_caps *)arg, p_ca_caps, sizeof (struct ca_caps)))
+	if (copy_to_user(arg, p_ca_caps, sizeof (struct ca_caps)))
 		return -EFAULT;
 
 	return 0;
 }
 
 /*	Need some more work	*/
-static int ca_get_slot_descr(struct dst_state *state, struct ca_msg *p_ca_message, void *arg)
+static int ca_get_slot_descr(struct dst_state *state, struct ca_msg *p_ca_message, void __user *arg)
 {
 	return -EOPNOTSUPP;
 }
 
 
-static int ca_get_slot_info(struct dst_state *state, struct ca_slot_info *p_ca_slot_info, void *arg)
+static int ca_get_slot_info(struct dst_state *state, struct ca_slot_info *p_ca_slot_info, void __user *arg)
 {
 	int i;
 	static u8 slot_command[8] = {0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff};
 
-	u8 *slot_info = state->rxbuffer;
+	u8 *slot_info = state->messages;
 
 	put_checksum(&slot_command[0], 7);
 	if ((dst_put_ci(state, slot_command, sizeof (slot_command), slot_info, GET_REPLY)) < 0) {
@@ -238,19 +229,19 @@ static int ca_get_slot_info(struct dst_state *state, struct ca_slot_info *p_ca_s
 	} else
 		p_ca_slot_info->flags = 0;
 
-	if (copy_to_user((struct ca_slot_info *)arg, p_ca_slot_info, sizeof (struct ca_slot_info)))
+	if (copy_to_user(arg, p_ca_slot_info, sizeof (struct ca_slot_info)))
 		return -EFAULT;
 
 	return 0;
 }
 
 
-static int ca_get_message(struct dst_state *state, struct ca_msg *p_ca_message, void *arg)
+static int ca_get_message(struct dst_state *state, struct ca_msg *p_ca_message, void __user *arg)
 {
 	u8 i = 0;
 	u32 command = 0;
 
-	if (copy_from_user(p_ca_message, (void *)arg, sizeof (struct ca_msg)))
+	if (copy_from_user(p_ca_message, arg, sizeof (struct ca_msg)))
 		return -EFAULT;
 
 	if (p_ca_message->msg) {
@@ -266,7 +257,7 @@ static int ca_get_message(struct dst_state *state, struct ca_msg *p_ca_message, 
 		switch (command) {
 		case CA_APP_INFO:
 			memcpy(p_ca_message->msg, state->messages, 128);
-			if (copy_to_user((void *)arg, p_ca_message, sizeof (struct ca_msg)) )
+			if (copy_to_user(arg, p_ca_message, sizeof (struct ca_msg)) )
 				return -EFAULT;
 			break;
 		}
@@ -315,7 +306,7 @@ static int write_to_8820(struct dst_state *state, struct ca_msg *hw_buffer, u8 l
 	return 0;
 }
 
-u32 asn_1_decode(u8 *asn_1_array)
+static u32 asn_1_decode(u8 *asn_1_array)
 {
 	u8 length_field = 0, word_count = 0, count = 0;
 	u32 length = 0;
@@ -328,7 +319,8 @@ u32 asn_1_decode(u8 *asn_1_array)
 	} else {
 		word_count = length_field & 0x7f;
 		for (count = 0; count < word_count; count++) {
-			length = (length | asn_1_array[count + 1]) << 8;
+			length = length  << 8;
+			length += asn_1_array[count + 1];
 			dprintk(verbose, DST_CA_DEBUG, 1, " Length=[%04x]", length);
 		}
 	}
@@ -399,13 +391,14 @@ static int dst_check_ca_pmt(struct dst_state *state, struct ca_msg *p_ca_message
 	return 0;
 }
 
-static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message, void *arg)
+static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message, void __user *arg)
 {
 	int i = 0;
 	unsigned int ca_message_header_len;
 
 	u32 command = 0;
 	struct ca_msg *hw_buffer;
+	int result = 0;
 
 	if ((hw_buffer = (struct ca_msg *) kmalloc(sizeof (struct ca_msg), GFP_KERNEL)) == NULL) {
 		dprintk(verbose, DST_CA_ERROR, 1, " Memory allocation failure");
@@ -413,8 +406,11 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 	}
 	dprintk(verbose, DST_CA_DEBUG, 1, " ");
 
-	if (copy_from_user(p_ca_message, (void *)arg, sizeof (struct ca_msg)))
-		return -EFAULT;
+	if (copy_from_user(p_ca_message, (void *)arg, sizeof (struct ca_msg))) {
+		result = -EFAULT;
+		goto free_mem_and_exit;
+	}
+
 
 	if (p_ca_message->msg) {
 		ca_message_header_len = p_ca_message->length;	/*	Restore it back when you are done	*/
@@ -433,7 +429,8 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 			dprintk(verbose, DST_CA_DEBUG, 1, "Command = SEND_CA_PMT");
 			if ((ca_set_pmt(state, p_ca_message, hw_buffer, 0, 0)) < 0) {	// code simplification started
 				dprintk(verbose, DST_CA_ERROR, 1, " -->CA_PMT Failed !");
-				return -1;
+				result = -1;
+				goto free_mem_and_exit;
 			}
 			dprintk(verbose, DST_CA_INFO, 1, " -->CA_PMT Success !");
 			break;
@@ -442,7 +439,8 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 			/*      Have to handle the 2 basic types of cards here  */
 			if ((dst_check_ca_pmt(state, p_ca_message, hw_buffer)) < 0) {
 				dprintk(verbose, DST_CA_ERROR, 1, " -->CA_PMT_REPLY Failed !");
-				return -1;
+				result = -1;
+				goto free_mem_and_exit;
 			}
 			dprintk(verbose, DST_CA_INFO, 1, " -->CA_PMT_REPLY Success !");
 			break;
@@ -451,22 +449,28 @@ static int ca_send_message(struct dst_state *state, struct ca_msg *p_ca_message,
 
 			if ((ca_get_app_info(state)) < 0) {
 				dprintk(verbose, DST_CA_ERROR, 1, " -->CA_APP_INFO_ENQUIRY Failed !");
-				return -1;
+				result = -1;
+				goto free_mem_and_exit;
 			}
 			dprintk(verbose, DST_CA_INFO, 1, " -->CA_APP_INFO_ENQUIRY Success !");
 			break;
 		}
 	}
-	return 0;
+free_mem_and_exit:
+	kfree (hw_buffer);
+
+	return result;
 }
 
-static int dst_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd, void *arg)
+static int dst_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long ioctl_arg)
 {
 	struct dvb_device* dvbdev = (struct dvb_device*) file->private_data;
 	struct dst_state* state = (struct dst_state*) dvbdev->priv;
 	struct ca_slot_info *p_ca_slot_info;
 	struct ca_caps *p_ca_caps;
 	struct ca_msg *p_ca_message;
+	void __user *arg = (void __user *)ioctl_arg;
+	int result = 0;
 
 	if ((p_ca_message = (struct ca_msg *) kmalloc(sizeof (struct ca_msg), GFP_KERNEL)) == NULL) {
 		dprintk(verbose, DST_CA_ERROR, 1, " Memory allocation failure");
@@ -486,14 +490,16 @@ static int dst_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 		dprintk(verbose, DST_CA_INFO, 1, " Sending message");
 		if ((ca_send_message(state, p_ca_message, arg)) < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_SEND_MSG Failed !");
-			return -1;
+			result = -1;
+			goto free_mem_and_exit;
 		}
 		break;
 	case CA_GET_MSG:
 		dprintk(verbose, DST_CA_INFO, 1, " Getting message");
 		if ((ca_get_message(state, p_ca_message, arg)) < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_GET_MSG Failed !");
-			return -1;
+			result = -1;
+			goto free_mem_and_exit;
 		}
 		dprintk(verbose, DST_CA_INFO, 1, " -->CA_GET_MSG Success !");
 		break;
@@ -506,7 +512,8 @@ static int dst_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 		dprintk(verbose, DST_CA_INFO, 1, " Getting Slot info");
 		if ((ca_get_slot_info(state, p_ca_slot_info, arg)) < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_GET_SLOT_INFO Failed !");
-			return -1;
+			result = -1;
+			goto free_mem_and_exit;
 		}
 		dprintk(verbose, DST_CA_INFO, 1, " -->CA_GET_SLOT_INFO Success !");
 		break;
@@ -514,7 +521,8 @@ static int dst_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 		dprintk(verbose, DST_CA_INFO, 1, " Getting Slot capabilities");
 		if ((ca_get_slot_caps(state, p_ca_caps, arg)) < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_GET_CAP Failed !");
-			return -1;
+			result = -1;
+			goto free_mem_and_exit;
 		}
 		dprintk(verbose, DST_CA_INFO, 1, " -->CA_GET_CAP Success !");
 		break;
@@ -522,7 +530,8 @@ static int dst_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 		dprintk(verbose, DST_CA_INFO, 1, " Getting descrambler description");
 		if ((ca_get_slot_descr(state, p_ca_message, arg)) < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_GET_DESCR_INFO Failed !");
-			return -1;
+			result = -1;
+			goto free_mem_and_exit;
 		}
 		dprintk(verbose, DST_CA_INFO, 1, " -->CA_GET_DESCR_INFO Success !");
 		break;
@@ -530,7 +539,8 @@ static int dst_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 		dprintk(verbose, DST_CA_INFO, 1, " Setting descrambler");
 		if ((ca_set_slot_descr()) < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_SET_DESCR Failed !");
-			return -1;
+			result = -1;
+			goto free_mem_and_exit;
 		}
 		dprintk(verbose, DST_CA_INFO, 1, " -->CA_SET_DESCR Success !");
 		break;
@@ -538,14 +548,19 @@ static int dst_ca_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 		dprintk(verbose, DST_CA_INFO, 1, " Setting PID");
 		if ((ca_set_pid()) < 0) {
 			dprintk(verbose, DST_CA_ERROR, 1, " -->CA_SET_PID Failed !");
-			return -1;
+			result = -1;
+			goto free_mem_and_exit;
 		}
 		dprintk(verbose, DST_CA_INFO, 1, " -->CA_SET_PID Success !");
 	default:
-		return -EOPNOTSUPP;
+		result = -EOPNOTSUPP;
 	};
+ free_mem_and_exit:
+	kfree (p_ca_message);
+	kfree (p_ca_slot_info);
+	kfree (p_ca_caps);
 
-	return 0;
+	return result;
 }
 
 static int dst_ca_open(struct inode *inode, struct file *file)
@@ -582,7 +597,7 @@ static int dst_ca_write(struct file *file, const char __user *buffer, size_t len
 
 static struct file_operations dst_ca_fops = {
 	.owner = THIS_MODULE,
-	.ioctl = (void *)dst_ca_ioctl,
+	.ioctl = dst_ca_ioctl,
 	.open = dst_ca_open,
 	.release = dst_ca_release,
 	.read = dst_ca_read,

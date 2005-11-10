@@ -37,9 +37,9 @@
 #include <linux/blkdev.h>
 #include <linux/spinlock.h>
 #include <scsi/scsi.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
+#include <scsi/scsi_request.h>
 #include <linux/libata.h>
 #include <linux/hdreg.h>
 #include <asm/uaccess.h>
@@ -131,7 +131,7 @@ int ata_std_bios_param(struct scsi_device *sdev, struct block_device *bdev,
 
 /**
  *	ata_cmd_ioctl - Handler for HDIO_DRIVE_CMD ioctl
- *	@dev: Device to whom we are issuing command
+ *	@scsidev: Device to which we are issuing command
  *	@arg: User provided data for issuing command
  *
  *	LOCKING:
@@ -217,7 +217,7 @@ error:
 
 /**
  *	ata_task_ioctl - Handler for HDIO_DRIVE_TASK ioctl
- *	@dev: Device to whom we are issuing command
+ *	@scsidev: Device to which we are issuing command
  *	@arg: User provided data for issuing command
  *
  *	LOCKING:
@@ -416,6 +416,7 @@ void ata_dump_status(unsigned id, struct ata_taskfile *tf)
 
 /**
  *	ata_to_sense_error - convert ATA error to SCSI error
+ *	@id: ATA device number
  *	@drv_stat: value contained in ATA status register
  *	@drv_err: value contained in ATA error register
  *	@sk: the sense key we'll fill out
@@ -2231,7 +2232,7 @@ ata_scsi_map_proto(u8 byte1)
 /**
  *	ata_scsi_pass_thru - convert ATA pass-thru CDB to taskfile
  *	@qc: command structure to be initialized
- *	@cmd: SCSI command to convert
+ *	@scsicmd: SCSI command to convert
  *
  *	Handles either 12 or 16-byte versions of the CDB.
  *

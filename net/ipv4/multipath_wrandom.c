@@ -207,16 +207,12 @@ static void wrandom_select_route(const struct flowi *flp,
 			decision = mpc->rt;
 
 		last_power = mpc->power;
-		if (last_mpc)
-			kfree(last_mpc);
-
+		kfree(last_mpc);
 		last_mpc = mpc;
 	}
 
-	if (last_mpc) {
-		/* concurrent __multipath_flush may lead to !last_mpc */
-		kfree(last_mpc);
-	}
+	/* concurrent __multipath_flush may lead to !last_mpc */
+	kfree(last_mpc);
 
 	decision->u.dst.__use++;
 	*rp = decision;

@@ -210,6 +210,27 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	}
 }
 
+static long rtc_compat_ioctl(struct file *file, unsigned int cmd,
+	unsigned long arg)
+{
+	int rval = -ENOIOCTLCMD;
+
+	switch (cmd) {
+	/*
+	 * These two are specific to this driver, the generic rtc ioctls
+	 * are hanlded elsewhere.
+	 */
+	case RTCGET:
+	case RTCSET:
+		lock_kernel();
+		rval = rtc_ioctl(file->f_dentry->d_inode, file, cmd, arg);
+		unlock_kernel();
+		break;
+	}
+
+	return rval;
+}
+
 static int rtc_open(struct inode *inode, struct file *file)
 {
 	int ret;
@@ -237,6 +258,7 @@ static struct file_operations rtc_fops = {
 	.owner =	THIS_MODULE,
 	.llseek =	no_llseek,
 	.ioctl =	rtc_ioctl,
+	.compat_ioctl =	rtc_compat_ioctl,
 	.open =		rtc_open,
 	.release =	rtc_release,
 };

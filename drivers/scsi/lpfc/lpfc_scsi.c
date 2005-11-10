@@ -825,8 +825,7 @@ __lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	while (lpfc_cmd->pCmd == cmnd)
 	{
 		spin_unlock_irq(phba->host->host_lock);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(LPFC_ABORT_WAIT*HZ);
+			schedule_timeout_uninterruptible(LPFC_ABORT_WAIT*HZ);
 		spin_lock_irq(phba->host->host_lock);
 		if (++loop_count
 		    > (2 * phba->cfg_nodev_tmo)/LPFC_ABORT_WAIT)
@@ -885,8 +884,7 @@ __lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 
 		if (pnode->nlp_state != NLP_STE_MAPPED_NODE) {
 			spin_unlock_irq(phba->host->host_lock);
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout( HZ/2);
+			schedule_timeout_uninterruptible(msecs_to_jiffies(500));
 			spin_lock_irq(phba->host->host_lock);
 		}
 		if ((pnode) && (pnode->nlp_state == NLP_STE_MAPPED_NODE))
@@ -939,8 +937,7 @@ __lpfc_reset_lun_handler(struct scsi_cmnd *cmnd)
 				       cmnd->device->id, cmnd->device->lun,
 				       LPFC_CTX_LUN))) {
 		spin_unlock_irq(phba->host->host_lock);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(LPFC_RESET_WAIT*HZ);
+		schedule_timeout_uninterruptible(LPFC_RESET_WAIT*HZ);
 		spin_lock_irq(phba->host->host_lock);
 
 		if (++loopcnt
@@ -1038,8 +1035,7 @@ __lpfc_reset_bus_handler(struct scsi_cmnd *cmnd)
 				&phba->sli.ring[phba->sli.fcp_ring],
 				0, 0, LPFC_CTX_HOST))) {
 		spin_unlock_irq(phba->host->host_lock);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(LPFC_RESET_WAIT*HZ);
+		schedule_timeout_uninterruptible(LPFC_RESET_WAIT*HZ);
 		spin_lock_irq(phba->host->host_lock);
 
 		if (++loopcnt

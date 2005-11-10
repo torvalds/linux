@@ -23,6 +23,7 @@
 #include <sound/driver.h>
 #include <linux/device.h>
 #include <linux/firmware.h>
+#include <linux/vmalloc.h>
 #include <sound/core.h>
 #include <sound/hwdep.h>
 #include <sound/vx_core.h>

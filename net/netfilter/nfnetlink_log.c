@@ -146,11 +146,10 @@ instance_create(u_int16_t group_num, int pid)
 		goto out_unlock;
 	}
 
-	inst = kmalloc(sizeof(*inst), GFP_ATOMIC);
+	inst = kzalloc(sizeof(*inst), GFP_ATOMIC);
 	if (!inst)
 		goto out_unlock;
 
-	memset(inst, 0, sizeof(*inst));
 	INIT_HLIST_NODE(&inst->hlist);
 	inst->lock = SPIN_LOCK_UNLOCKED;
 	/* needs to be two, since we _put() after creation */
@@ -962,10 +961,9 @@ static int nful_open(struct inode *inode, struct file *file)
 	struct iter_state *is;
 	int ret;
 
-	is = kmalloc(sizeof(*is), GFP_KERNEL);
+	is = kzalloc(sizeof(*is), GFP_KERNEL);
 	if (!is)
 		return -ENOMEM;
-	memset(is, 0, sizeof(*is));
 	ret = seq_open(file, &nful_seq_ops);
 	if (ret < 0)
 		goto out_free;

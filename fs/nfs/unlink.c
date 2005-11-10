@@ -52,8 +52,7 @@ nfs_put_unlinkdata(struct nfs_unlinkdata *data)
 {
 	if (--data->count == 0) {
 		nfs_detach_unlinkdata(data);
-		if (data->name.name != NULL)
-			kfree(data->name.name);
+		kfree(data->name.name);
 		kfree(data);
 	}
 }

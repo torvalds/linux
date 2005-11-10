@@ -113,14 +113,8 @@ static int snd_gus_free(snd_gus_card_t *gus)
 	snd_gf1_stop(gus);
 	snd_gus_init_dma_irq(gus, 0);
       __hw_end:
-	if (gus->gf1.res_port1) {
-		release_resource(gus->gf1.res_port1);
-		kfree_nocheck(gus->gf1.res_port1);
-	}
-	if (gus->gf1.res_port2) {
-		release_resource(gus->gf1.res_port2);
-		kfree_nocheck(gus->gf1.res_port2);
-	}
+	release_and_free_resource(gus->gf1.res_port1);
+	release_and_free_resource(gus->gf1.res_port2);
 	if (gus->gf1.irq >= 0)
 		free_irq(gus->gf1.irq, (void *) gus);
 	if (gus->gf1.dma1 >= 0) {
@@ -252,7 +246,7 @@ static int snd_gus_detect_memory(snd_gus_card_t * gus)
 	snd_gf1_poke(gus, 0L, 0xaa);
 	snd_gf1_poke(gus, 1L, 0x55);
 	if (snd_gf1_peek(gus, 0L) != 0xaa || snd_gf1_peek(gus, 1L) != 0x55) {
-		snd_printk("plain GF1 card at 0x%lx without onboard DRAM?\n", gus->gf1.port);
+		snd_printk(KERN_ERR "plain GF1 card at 0x%lx without onboard DRAM?\n", gus->gf1.port);
 		return -ENOMEM;
 	}
 	for (idx = 1, d = 0xab; idx < 4; idx++, d++) {
@@ -305,20 +299,17 @@ static int snd_gus_init_dma_irq(snd_gus_card_t * gus, int latches)
 	dma2 = gus->gf1.dma2;
 	dma2 = dma2 < 0 ? -dma2 : dma2;
 	dma2 = dmas[dma2 & 7];
-#if 0
-	printk("dma1 = %i, dma2 = %i\n", gus->gf1.dma1, gus->gf1.dma2);
-#endif
 	dma1 |= gus->equal_dma ? 0x40 : (dma2 << 3);
 
 	if ((dma1 & 7) == 0 || (dma2 & 7) == 0) {
-		snd_printk("Error! DMA isn't defined.\n");
+		snd_printk(KERN_ERR "Error! DMA isn't defined.\n");
 		return -EINVAL;
 	}
 	irq = gus->gf1.irq;
 	irq = irq < 0 ? -irq : irq;
 	irq = irqs[irq & 0x0f];
 	if (irq == 0) {
-		snd_printk("Error! IRQ isn't defined.\n");
+		snd_printk(KERN_ERR "Error! IRQ isn't defined.\n");
 		return -EINVAL;
 	}
 	irq |= 0x40;
@@ -406,8 +397,8 @@ static int snd_gus_check_version(snd_gus_card_t * gus)
 				strcpy(card->longname, "Gravis UltraSound Extreme");
 				gus->ess_flag = 1;
 			} else {
-				snd_printk("unknown GF1 revision number at 0x%lx - 0x%x (0x%x)\n", gus->gf1.port, rev, val);
-				snd_printk("  please - report to <perex@suse.cz>\n");
+				snd_printk(KERN_ERR "unknown GF1 revision number at 0x%lx - 0x%x (0x%x)\n", gus->gf1.port, rev, val);
+				snd_printk(KERN_ERR "  please - report to <perex@suse.cz>\n");
 			}
 		}
 	}
@@ -431,7 +422,7 @@ int snd_gus_initialize(snd_gus_card_t *gus)
 
 	if (!gus->interwave) {
 		if ((err = snd_gus_check_version(gus)) < 0) {
-			snd_printk("version check failed\n");
+			snd_printk(KERN_ERR "version check failed\n");
 			return err;
 		}
 		if ((err = snd_gus_detect_memory(gus)) < 0)

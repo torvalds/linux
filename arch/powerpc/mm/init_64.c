@@ -57,7 +57,6 @@
 #include <asm/processor.h>
 #include <asm/mmzone.h>
 #include <asm/cputable.h>
-#include <asm/ppcdebug.h>
 #include <asm/sections.h>
 #include <asm/system.h>
 #include <asm/iommu.h>
@@ -188,12 +187,21 @@ static void zero_ctor(void *addr, kmem_cache_t *cache, unsigned long flags)
 	memset(addr, 0, kmem_cache_size(cache));
 }
 
+#ifdef CONFIG_PPC_64K_PAGES
+static const int pgtable_cache_size[2] = {
+	PTE_TABLE_SIZE, PGD_TABLE_SIZE
+};
+static const char *pgtable_cache_name[ARRAY_SIZE(pgtable_cache_size)] = {
+	"pte_pmd_cache", "pgd_cache",
+};
+#else
 static const int pgtable_cache_size[2] = {
 	PTE_TABLE_SIZE, PMD_TABLE_SIZE
 };
 static const char *pgtable_cache_name[ARRAY_SIZE(pgtable_cache_size)] = {
 	"pgd_pte_cache", "pud_pmd_cache",
 };
+#endif /* CONFIG_PPC_64K_PAGES */
 
 kmem_cache_t *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)];
 
@@ -201,19 +209,14 @@ void pgtable_cache_init(void)
 {
 	int i;
 
-	BUILD_BUG_ON(PTE_TABLE_SIZE != pgtable_cache_size[PTE_CACHE_NUM]);
-	BUILD_BUG_ON(PMD_TABLE_SIZE != pgtable_cache_size[PMD_CACHE_NUM]);
-	BUILD_BUG_ON(PUD_TABLE_SIZE != pgtable_cache_size[PUD_CACHE_NUM]);
-	BUILD_BUG_ON(PGD_TABLE_SIZE != pgtable_cache_size[PGD_CACHE_NUM]);
-
 	for (i = 0; i < ARRAY_SIZE(pgtable_cache_size); i++) {
 		int size = pgtable_cache_size[i];
 		const char *name = pgtable_cache_name[i];
 
 		pgtable_cache[i] = kmem_cache_create(name,
 						     size, size,
-						     SLAB_HWCACHE_ALIGN
-						     | SLAB_MUST_HWCACHE_ALIGN,
+						     SLAB_HWCACHE_ALIGN |
+						     SLAB_MUST_HWCACHE_ALIGN,
 						     zero_ctor,
 						     NULL);
 		if (! pgtable_cache[i])

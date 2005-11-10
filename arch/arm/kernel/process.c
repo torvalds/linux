@@ -86,12 +86,16 @@ EXPORT_SYMBOL(pm_power_off);
  */
 void default_idle(void)
 {
-	local_irq_disable();
-	if (!need_resched() && !hlt_counter) {
-		timer_dyn_reprogram();
-		arch_idle();
+	if (hlt_counter)
+		cpu_relax();
+	else {
+		local_irq_disable();
+		if (!need_resched()) {
+			timer_dyn_reprogram();
+			arch_idle();
+		}
+		local_irq_enable();
 	}
-	local_irq_enable();
 }
 
 /*
@@ -116,13 +120,13 @@ void cpu_idle(void)
 
 		if (!idle)
 			idle = default_idle;
-		preempt_disable();
 		leds_event(led_idle_start);
 		while (!need_resched())
 			idle();
 		leds_event(led_idle_end);
-		preempt_enable();
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 	}
 }
 
@@ -355,7 +359,7 @@ copy_thread(int nr, unsigned long clone_flags, unsigned long stack_start,
 	struct thread_info *thread = p->thread_info;
 	struct pt_regs *childregs;
 
-	childregs = ((struct pt_regs *)((unsigned long)thread + THREAD_START_SP)) - 1;
+	childregs = (void *)thread + THREAD_START_SP - sizeof(*regs);
 	*childregs = *regs;
 	childregs->ARM_r0 = 0;
 	childregs->ARM_sp = stack_start;

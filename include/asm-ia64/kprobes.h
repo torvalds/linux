@@ -26,6 +26,7 @@
  */
 #include <linux/types.h>
 #include <linux/ptrace.h>
+#include <linux/percpu.h>
 #include <asm/break.h>
 
 #define MAX_INSN_SIZE   16
@@ -61,6 +62,18 @@ typedef struct _bundle {
 		unsigned long long slot2 : 41;
 	} quad1;
 } __attribute__((__aligned__(16)))  bundle_t;
+
+struct prev_kprobe {
+	struct kprobe *kp;
+	unsigned long status;
+};
+
+/* per-cpu kprobe control block */
+struct kprobe_ctlblk {
+	unsigned long kprobe_status;
+	struct pt_regs jprobe_saved_regs;
+	struct prev_kprobe prev_kprobe;
+};
 
 #define JPROBE_ENTRY(pentry)	(kprobe_opcode_t *)pentry
 

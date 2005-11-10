@@ -8,7 +8,7 @@
  * inverts all bits in the input.
  */
 
-extern inline unsigned long
+static inline unsigned long
 cris_swapnwbrlz(unsigned long w)
 {
 	unsigned long res;
@@ -20,7 +20,7 @@ cris_swapnwbrlz(unsigned long w)
 	return res;
 }
 
-extern inline unsigned long
+static inline unsigned long
 cris_swapwbrlz(unsigned long w)
 {
 	unsigned long res;
@@ -36,7 +36,7 @@ cris_swapwbrlz(unsigned long w)
  * Find First Zero in word. Undefined if no zero exist, so the caller should
  * check against ~0 first.
  */
-extern inline unsigned long
+static inline unsigned long
 ffz(unsigned long w)
 {
 	return cris_swapnwbrlz(w);
@@ -46,7 +46,7 @@ ffz(unsigned long w)
  * Find First Set bit in word. Undefined if no 1 exist, so the caller
  * should check against 0 first.
  */
-extern inline unsigned long
+static inline unsigned long
 __ffs(unsigned long w)
 {
 	return cris_swapnwbrlz(~w);
@@ -55,7 +55,7 @@ __ffs(unsigned long w)
 /*
  * Find First Bit that is set.
  */
-extern inline unsigned long
+static inline unsigned long
 kernel_ffs(unsigned long w)
 {
 	return w ? cris_swapwbrlz (w) + 1 : 0;

@@ -186,7 +186,7 @@ int udf_ioctl(struct inode *inode, struct file *filp, unsigned int cmd,
 {
 	int result = -EINVAL;
 
-	if ( permission(inode, MAY_READ, NULL) != 0 )
+	if ( file_permission(filp, MAY_READ) != 0 )
 	{
 		udf_debug("no permission to access inode %lu\n",
 						inode->i_ino);

@@ -176,6 +176,6 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 
 	ret = GSS_S_COMPLETE;
 out:
-	if (md5cksum.data) kfree(md5cksum.data);
+	kfree(md5cksum.data);
 	return ret;
 }

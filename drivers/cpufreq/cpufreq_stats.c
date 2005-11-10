@@ -193,11 +193,15 @@ cpufreq_stats_create_table (struct cpufreq_policy *policy,
 	unsigned int cpu = policy->cpu;
 	if (cpufreq_stats_table[cpu])
 		return -EBUSY;
-	if ((stat = kmalloc(sizeof(struct cpufreq_stats), GFP_KERNEL)) == NULL)
+	if ((stat = kzalloc(sizeof(struct cpufreq_stats), GFP_KERNEL)) == NULL)
 		return -ENOMEM;
-	memset(stat, 0, sizeof (struct cpufreq_stats));
 
 	data = cpufreq_cpu_get(cpu);
+	if (data == NULL) {
+		ret = -EINVAL;
+		goto error_get_fail;
+	}
+
 	if ((ret = sysfs_create_group(&data->kobj, &stats_attr_group)))
 		goto error_out;
 
@@ -217,12 +221,11 @@ cpufreq_stats_create_table (struct cpufreq_policy *policy,
 	alloc_size += count * count * sizeof(int);
 #endif
 	stat->max_state = count;
-	stat->time_in_state = kmalloc(alloc_size, GFP_KERNEL);
+	stat->time_in_state = kzalloc(alloc_size, GFP_KERNEL);
 	if (!stat->time_in_state) {
 		ret = -ENOMEM;
 		goto error_out;
 	}
-	memset(stat->time_in_state, 0, alloc_size);
 	stat->freq_table = (unsigned int *)(stat->time_in_state + count);
 
 #ifdef CONFIG_CPU_FREQ_STAT_DETAILS
@@ -245,6 +248,7 @@ cpufreq_stats_create_table (struct cpufreq_policy *policy,
 	return 0;
 error_out:
 	cpufreq_cpu_put(data);
+error_get_fail:
 	kfree(stat);
 	cpufreq_stats_table[cpu] = NULL;
 	return ret;

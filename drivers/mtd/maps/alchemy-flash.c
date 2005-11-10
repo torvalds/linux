@@ -1,10 +1,10 @@
 /*
  * Flash memory access on AMD Alchemy evaluation boards
- * 
- * $Id: alchemy-flash.c,v 1.1 2005/02/27 21:50:21 ppopov Exp $
+ *
+ * $Id: alchemy-flash.c,v 1.2 2005/11/07 11:14:26 gleixner Exp $
  *
  * (C) 2003, 2004 Pete Popov <ppopov@embeddedalley.com>
- * 
+ *
  */
 
 #include <linux/config.h>
@@ -22,7 +22,7 @@
 #ifdef 	DEBUG_RW
 #define	DBG(x...)	printk(x)
 #else
-#define	DBG(x...)	
+#define	DBG(x...)
 #endif
 
 #ifdef CONFIG_MIPS_PB1000
@@ -136,7 +136,7 @@ int __init alchemy_mtd_init(void)
 	int nb_parts = 0;
 	unsigned long window_addr;
 	unsigned long window_size;
-	
+
 	/* Default flash buswidth */
 	alchemy_map.bankwidth = BOARD_FLASH_WIDTH;
 
@@ -161,7 +161,7 @@ int __init alchemy_mtd_init(void)
 	 * Now let's probe for the actual flash.  Do it here since
 	 * specific machine settings might have been set above.
 	 */
-	printk(KERN_NOTICE BOARD_MAP_NAME ": probing %d-bit flash bus\n", 
+	printk(KERN_NOTICE BOARD_MAP_NAME ": probing %d-bit flash bus\n",
 			alchemy_map.bankwidth*8);
 	alchemy_map.virt = ioremap(window_addr, window_size);
 	mymtd = do_map_probe("cfi_probe", &alchemy_map);

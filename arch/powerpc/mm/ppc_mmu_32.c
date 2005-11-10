@@ -179,6 +179,21 @@ void __init setbat(int index, unsigned long virt, unsigned long phys,
 }
 
 /*
+ * Preload a translation in the hash table
+ */
+void hash_preload(struct mm_struct *mm, unsigned long ea,
+		  unsigned long access, unsigned long trap)
+{
+	pmd_t *pmd;
+
+	if (Hash == 0)
+		return;
+	pmd = pmd_offset(pgd_offset(mm, ea), ea);
+	if (!pmd_none(*pmd))
+		add_hash_page(mm->context, ea, pmd_val(*pmd));
+}
+
+/*
  * Initialize the hash table and patch the instructions in hashtable.S.
  */
 void __init MMU_init_hw(void)

@@ -220,7 +220,8 @@ static int snd_pmac_pcm_prepare(pmac_t *chip, pmac_stream_t *rec, snd_pcm_substr
 
 	/* set up constraints */
 	astr = snd_pmac_get_stream(chip, another_stream(rec->stream));
-	snd_runtime_check(astr, return -EINVAL);
+	if (! astr)
+		return -EINVAL;
 	astr->cur_freqs = 1 << rate_index;
 	astr->cur_formats = 1 << runtime->format;
 	chip->rate_index = rate_index;
@@ -467,7 +468,8 @@ static int snd_pmac_hw_rule_rate(snd_pcm_hw_params_t *params,
 	pmac_stream_t *rec = snd_pmac_get_stream(chip, rule->deps[0]);
 	int i, freq_table[8], num_freqs;
 
-	snd_runtime_check(rec, return -EINVAL);
+	if (! rec)
+		return -EINVAL;
 	num_freqs = 0;
 	for (i = chip->num_freqs - 1; i >= 0; i--) {
 		if (rec->cur_freqs & (1 << i))
@@ -484,7 +486,8 @@ static int snd_pmac_hw_rule_format(snd_pcm_hw_params_t *params,
 	pmac_t *chip = rule->private;
 	pmac_stream_t *rec = snd_pmac_get_stream(chip, rule->deps[0]);
 
-	snd_runtime_check(rec, return -EINVAL);
+	if (! rec)
+		return -EINVAL;
 	return snd_mask_refine_set(hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT),
 				   rec->cur_formats);
 }
@@ -569,7 +572,8 @@ static int snd_pmac_pcm_close(pmac_t *chip, pmac_stream_t *rec, snd_pcm_substrea
 	snd_pmac_dma_stop(rec);
 
 	astr = snd_pmac_get_stream(chip, another_stream(rec->stream));
-	snd_runtime_check(astr, return -EINVAL);
+	if (! astr)
+		return -EINVAL;
 
 	/* reset constraints */
 	astr->cur_freqs = chip->freqs_ok;
@@ -1158,7 +1162,6 @@ int __init snd_pmac_new(snd_card_t *card, pmac_t **chip_return)
 		.dev_free =	snd_pmac_dev_free,
 	};
 
-	snd_runtime_check(chip_return, return -EINVAL);
 	*chip_return = NULL;
 
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
@@ -1382,7 +1385,8 @@ static int snd_pmac_sleep_notify(struct pmu_sleep_notifier *self, int when)
 	pmac_t *chip;
 
 	chip = sleeping_pmac;
-	snd_runtime_check(chip, return 0);
+	if (! chip)
+		return 0;
 
 	switch (when) {
 	case PBOOK_SLEEP_NOW:

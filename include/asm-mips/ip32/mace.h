@@ -147,6 +147,29 @@ struct mace_audio {
 	} chan[3];
 };
 
+
+/* register definitions for parallel port DMA */
+struct mace_parport {
+/* 0 - do nothing, 1 - pulse terminal count to the device after buffer is drained */ 
+#define MACEPAR_CONTEXT_LASTFLAG BIT(63)
+/* Should not cross 4K page boundary */
+#define MACEPAR_CONTEXT_DATALEN_MASK 0xfff00000000
+/* Can be arbitrarily aligned on any byte boundary on output, 64 byte aligned on input */
+#define MACEPAR_CONTEXT_BASEADDR_MASK 0xffffffff
+	volatile u64 context_a;
+	volatile u64 context_b;
+#define MACEPAR_CTLSTAT_DIRECTION BIT(0) /* 0 - mem->device, 1 - device->mem */
+#define MACEPAR_CTLSTAT_ENABLE BIT(1) /* 0 - channel frozen, 1 - channel enabled */
+#define MACEPAR_CTLSTAT_RESET BIT(2) /* 0 - channel active, 1 - complete channel reset */
+#define MACEPAR_CTLSTAT_CTXB_VALID BIT(3)
+#define MACEPAR_CTLSTAT_CTXA_VALID BIT(4)
+	volatile u64 cntlstat; /* Control/Status register */
+#define MACEPAR_DIAG_CTXINUSE BIT(1)
+#define MACEPAR_DIAG_DMACTIVE BIT(2) /* 1 - Dma engine is enabled and processing something */
+#define MACEPAR_DIAG_CTRMASK 0x3ffc /* Counter of bytes left */
+	volatile u64 diagnostic; /* RO: diagnostic register */
+};
+
 /* ISA Control and DMA registers */
 struct mace_isactrl {
 	volatile unsigned long ringbase;
@@ -199,6 +222,7 @@ struct mace_isactrl {
 	volatile unsigned long _pad[0x2000/8 - 4];
 
 	volatile unsigned long dp_ram[0x400];
+	struct mace_parport parport;
 };
 
 /* Keyboard & Mouse registers
@@ -277,7 +301,7 @@ struct mace_perif {
  */
 
 /* Parallel port */
-struct mace_parallel {	/* later... */
+struct mace_parallel {
 };
 
 struct mace_ecp1284 {	/* later... */

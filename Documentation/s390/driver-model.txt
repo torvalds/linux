@@ -8,11 +8,10 @@ All devices which can be addressed by means of ccws are called 'CCW devices' -
 even if they aren't actually driven by ccws.
 
 All ccw devices are accessed via a subchannel, this is reflected in the 
-structures under root/:
+structures under devices/:
 
-root/
-     - sys
-     - legacy
+devices/
+     - system/
      - css0/
            - 0.0.0000/0.0.0815/
 	   - 0.0.0001/0.0.4711/
@@ -36,7 +35,7 @@ availability: Can be 'good' or 'boxed'; 'no path' or 'no device' for
 
 online:     An interface to set the device online and offline.
 	    In the special case of the device being disconnected (see the
-	    notify function under 1.2), piping 0 to online will focibly delete
+	    notify function under 1.2), piping 0 to online will forcibly delete
 	    the device.
 
 The device drivers can add entries to export per-device data and interfaces.
@@ -222,7 +221,7 @@ and are called 'chp0.<chpid>'. They have no driver and do not belong to any bus.
 Please note, that unlike /proc/chpids in 2.4, the channel path objects reflect
 only the logical state and not the physical state, since we cannot track the
 latter consistently due to lacking machine support (we don't need to be aware
-of anyway).
+of it anyway).
 
 status - Can be 'online' or 'offline'.
 	 Piping 'on' or 'off' sets the chpid logically online/offline.
@@ -235,12 +234,16 @@ status - Can be 'online' or 'offline'.
 3. System devices
 -----------------
 
-Note: cpus may yet be added here.
-
 3.1 xpram 
 ---------
 
-xpram shows up under sys/ as 'xpram'.
+xpram shows up under devices/system/ as 'xpram'.
+
+3.2 cpus
+--------
+
+For each cpu, a directory is created under devices/system/cpu/. Each cpu has an
+attribute 'online' which can be 0 or 1.
 
 
 4. Other devices

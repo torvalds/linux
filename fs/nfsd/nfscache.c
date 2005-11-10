@@ -93,8 +93,7 @@ nfsd_cache_shutdown(void)
 
 	cache_disabled = 1;
 
-	if (hash_list)
-		kfree (hash_list);
+	kfree (hash_list);
 	hash_list = NULL;
 }
 

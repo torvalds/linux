@@ -116,7 +116,6 @@ static struct fb_ops dn_fb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= dnfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
 struct fb_var_screeninfo dnfb_var __devinitdata = {

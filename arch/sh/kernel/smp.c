@@ -112,7 +112,9 @@ int __cpu_up(unsigned int cpu)
 
 int start_secondary(void *unused)
 {
-	unsigned int cpu = smp_processor_id();
+	unsigned int cpu;
+
+	cpu = smp_processor_id();
 
 	atomic_inc(&init_mm.mm_count);
 	current->active_mm = &init_mm;
@@ -120,6 +122,7 @@ int start_secondary(void *unused)
 	smp_store_cpu_info(cpu);
 
 	__smp_slave_init(cpu);
+	preempt_disable();
 	per_cpu_trap_init();
 	
 	atomic_inc(&cpus_booted);

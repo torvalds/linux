@@ -45,7 +45,7 @@
  */
 
 char ixgb_driver_name[] = "ixgb";
-char ixgb_driver_string[] = "Intel(R) PRO/10GbE Network Driver";
+static char ixgb_driver_string[] = "Intel(R) PRO/10GbE Network Driver";
 
 #ifndef CONFIG_IXGB_NAPI
 #define DRIVERNAPI

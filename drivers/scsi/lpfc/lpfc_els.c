@@ -127,8 +127,7 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba,
 	if (((pcmd = kmalloc(sizeof (struct lpfc_dmabuf), GFP_KERNEL)) == 0) ||
 	    ((pcmd->virt = lpfc_mbuf_alloc(phba,
 					   MEM_PRI, &(pcmd->phys))) == 0)) {
-		if (pcmd)
-			kfree(pcmd);
+		kfree(pcmd);
 
 		spin_lock_irq(phba->host->host_lock);
 		lpfc_sli_release_iocbq(phba, elsiocb);
@@ -145,8 +144,7 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba,
 			prsp->virt = lpfc_mbuf_alloc(phba, MEM_PRI,
 						     &prsp->phys);
 		if (prsp == 0 || prsp->virt == 0) {
-			if (prsp)
-				kfree(prsp);
+			kfree(prsp);
 			lpfc_mbuf_free(phba, pcmd->virt, pcmd->phys);
 			kfree(pcmd);
 			spin_lock_irq(phba->host->host_lock);
@@ -172,8 +170,7 @@ lpfc_prep_els_iocb(struct lpfc_hba * phba,
 		lpfc_mbuf_free(phba, prsp->virt, prsp->phys);
 		kfree(pcmd);
 		kfree(prsp);
-		if (pbuflist)
-			kfree(pbuflist);
+		kfree(pbuflist);
 		return NULL;
 	}
 

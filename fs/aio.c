@@ -42,8 +42,9 @@
 #endif
 
 /*------ sysctl variables----*/
-atomic_t aio_nr = ATOMIC_INIT(0);	/* current system wide number of aio requests */
-unsigned aio_max_nr = 0x10000;	/* system wide maximum number of aio requests */
+static DEFINE_SPINLOCK(aio_nr_lock);
+unsigned long aio_nr;		/* current system wide number of aio requests */
+unsigned long aio_max_nr = 0x10000; /* system wide maximum number of aio requests */
 /*----end sysctl variables---*/
 
 static kmem_cache_t	*kiocb_cachep;
@@ -208,7 +209,7 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (nr_events > aio_max_nr)
+	if ((unsigned long)nr_events > aio_max_nr)
 		return ERR_PTR(-EAGAIN);
 
 	ctx = kmem_cache_alloc(kioctx_cachep, GFP_KERNEL);
@@ -233,8 +234,14 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 		goto out_freectx;
 
 	/* limit the number of system wide aios */
-	atomic_add(ctx->max_reqs, &aio_nr);	/* undone by __put_ioctx */
-	if (unlikely(atomic_read(&aio_nr) > aio_max_nr))
+	spin_lock(&aio_nr_lock);
+	if (aio_nr + ctx->max_reqs > aio_max_nr ||
+	    aio_nr + ctx->max_reqs < aio_nr)
+		ctx->max_reqs = 0;
+	else
+		aio_nr += ctx->max_reqs;
+	spin_unlock(&aio_nr_lock);
+	if (ctx->max_reqs == 0)
 		goto out_cleanup;
 
 	/* now link into global list.  kludge.  FIXME */
@@ -248,8 +255,6 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
 	return ctx;
 
 out_cleanup:
-	atomic_sub(ctx->max_reqs, &aio_nr);
-	ctx->max_reqs = 0;	/* prevent __put_ioctx from sub'ing aio_nr */
 	__put_ioctx(ctx);
 	return ERR_PTR(-EAGAIN);
 
@@ -374,7 +379,12 @@ void fastcall __put_ioctx(struct kioctx *ctx)
 	pr_debug("__put_ioctx: freeing %p\n", ctx);
 	kmem_cache_free(kioctx_cachep, ctx);
 
-	atomic_sub(nr_events, &aio_nr);
+	if (nr_events) {
+		spin_lock(&aio_nr_lock);
+		BUG_ON(aio_nr - nr_events > aio_nr);
+		aio_nr -= nr_events;
+		spin_unlock(&aio_nr_lock);
+	}
 }
 
 /* aio_get_req
@@ -1258,8 +1268,9 @@ asmlinkage long sys_io_setup(unsigned nr_events, aio_context_t __user *ctxp)
 		goto out;
 
 	ret = -EINVAL;
-	if (unlikely(ctx || (int)nr_events <= 0)) {
-		pr_debug("EINVAL: io_setup: ctx or nr_events > max\n");
+	if (unlikely(ctx || nr_events == 0)) {
+		pr_debug("EINVAL: io_setup: ctx %lu nr_events %u\n",
+		         ctx, nr_events);
 		goto out;
 	}
 

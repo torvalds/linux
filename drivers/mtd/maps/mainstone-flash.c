@@ -5,7 +5,7 @@
  *
  * Author:	Nicolas Pitre
  * Copyright:	(C) 2001 MontaVista Software Inc.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -91,27 +91,27 @@ static int __init init_mainstone(void)
 		mainstone_maps[i].virt = ioremap(mainstone_maps[i].phys,
 						 WINDOW_SIZE);
 		if (!mainstone_maps[i].virt) {
-			printk(KERN_WARNING "Failed to ioremap %s\n", 
+			printk(KERN_WARNING "Failed to ioremap %s\n",
 			       mainstone_maps[i].name);
 			if (!ret)
 				ret = -ENOMEM;
 			continue;
 		}
-		mainstone_maps[i].cached = 
+		mainstone_maps[i].cached =
 			ioremap_cached(mainstone_maps[i].phys, WINDOW_SIZE);
 		if (!mainstone_maps[i].cached)
 			printk(KERN_WARNING "Failed to ioremap cached %s\n",
 			       mainstone_maps[i].name);
 		simple_map_init(&mainstone_maps[i]);
 
-		printk(KERN_NOTICE 
+		printk(KERN_NOTICE
 		       "Probing %s at physical address 0x%08lx"
 		       " (%d-bit bankwidth)\n",
-		       mainstone_maps[i].name, mainstone_maps[i].phys, 
+		       mainstone_maps[i].name, mainstone_maps[i].phys,
 		       mainstone_maps[i].bankwidth * 8);
 
 		mymtds[i] = do_map_probe("cfi_probe", &mainstone_maps[i]);
-		
+
 		if (!mymtds[i]) {
 			iounmap((void *)mainstone_maps[i].virt);
 			if (mainstone_maps[i].cached)
@@ -131,21 +131,21 @@ static int __init init_mainstone(void)
 
 	if (!mymtds[0] && !mymtds[1])
 		return ret;
-	
+
 	for (i = 0; i < 2; i++) {
 		if (!mymtds[i]) {
-			printk(KERN_WARNING "%s is absent. Skipping\n", 
+			printk(KERN_WARNING "%s is absent. Skipping\n",
 			       mainstone_maps[i].name);
 		} else if (nr_parsed_parts[i]) {
-			add_mtd_partitions(mymtds[i], parsed_parts[i], 
+			add_mtd_partitions(mymtds[i], parsed_parts[i],
 					   nr_parsed_parts[i]);
 		} else if (!i) {
 			printk("Using static partitions on %s\n",
 			       mainstone_maps[i].name);
-			add_mtd_partitions(mymtds[i], mainstone_partitions, 
+			add_mtd_partitions(mymtds[i], mainstone_partitions,
 					   ARRAY_SIZE(mainstone_partitions));
 		} else {
-			printk("Registering %s as whole device\n", 
+			printk("Registering %s as whole device\n",
 			       mainstone_maps[i].name);
 			add_mtd_device(mymtds[i]);
 		}

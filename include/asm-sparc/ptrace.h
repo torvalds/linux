@@ -60,6 +60,9 @@ struct sparc_stackf {
 #define STACKFRAME_SZ sizeof(struct sparc_stackf)
 
 #ifdef __KERNEL__
+
+#define __ARCH_SYS_PTRACE	1
+
 #define user_mode(regs) (!((regs)->psr & PSR_PS))
 #define instruction_pointer(regs) ((regs)->pc)
 unsigned long profile_pc(struct pt_regs *);

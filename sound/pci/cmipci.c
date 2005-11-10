@@ -446,9 +446,6 @@ struct snd_stru_cmipci {
 	snd_kcontrol_t *mixer_res_ctl[CM_SAVED_MIXERS];
 	int mixer_res_status[CM_SAVED_MIXERS];
 
-	opl3_t *opl3;
-	snd_hwdep_t *opl3hwdep;
-
 	cmipci_pcm_t channel[2];	/* ch0 - DAC, ch1 - ADC or 2nd DAC */
 
 	/* external MIDI */
@@ -2686,8 +2683,7 @@ static int __devinit snd_cmipci_create_gameport(cmipci_t *cm, int dev)
 	cm->gameport = gp = gameport_allocate_port();
 	if (!gp) {
 		printk(KERN_ERR "cmipci: cannot allocate memory for gameport\n");
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 		return -ENOMEM;
 	}
 	gameport_set_name(gp, "C-Media Gameport");
@@ -2712,8 +2708,7 @@ static void snd_cmipci_free_gameport(cmipci_t *cm)
 		cm->gameport = NULL;
 
 		snd_cmipci_clear_bit(cm, CM_REG_FUNCTRL1, CM_JYSTK_EN);
-		release_resource(r);
-		kfree_nocheck(r);
+		release_and_free_resource(r);
 	}
 }
 #else
@@ -2753,6 +2748,51 @@ static int snd_cmipci_dev_free(snd_device_t *device)
 	return snd_cmipci_free(cm);
 }
 
+static int __devinit snd_cmipci_create_fm(cmipci_t *cm, long fm_port)
+{
+	long iosynth;
+	unsigned int val;
+	opl3_t *opl3;
+	int err;
+
+	/* first try FM regs in PCI port range */
+	iosynth = cm->iobase + CM_REG_FM_PCI;
+	err = snd_opl3_create(cm->card, iosynth, iosynth + 2,
+			      OPL3_HW_OPL3, 1, &opl3);
+	if (err < 0) {
+		/* then try legacy ports */
+		val = snd_cmipci_read(cm, CM_REG_LEGACY_CTRL) & ~CM_FMSEL_MASK;
+		iosynth = fm_port;
+		switch (iosynth) {
+		case 0x3E8: val |= CM_FMSEL_3E8; break;
+		case 0x3E0: val |= CM_FMSEL_3E0; break;
+		case 0x3C8: val |= CM_FMSEL_3C8; break;
+		case 0x388: val |= CM_FMSEL_388; break;
+		default:
+			    return 0;
+		}
+		snd_cmipci_write(cm, CM_REG_LEGACY_CTRL, val);
+		/* enable FM */
+		snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_FM_EN);
+
+		if (snd_opl3_create(cm->card, iosynth, iosynth + 2,
+				    OPL3_HW_OPL3, 0, &opl3) < 0) {
+			printk(KERN_ERR "cmipci: no OPL device at %#lx, "
+			       "skipping...\n", iosynth);
+			/* disable FM */
+			snd_cmipci_write(cm, CM_REG_LEGACY_CTRL,
+					 val & ~CM_FMSEL_MASK);
+			snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_FM_EN);
+			return 0;
+		}
+	}
+	if ((err = snd_opl3_hwdep_new(opl3, 0, 1, NULL)) < 0) {
+		printk(KERN_ERR "cmipci: cannot create OPL3 hwdep\n");
+		return err;
+	}
+	return 0;
+}
+
 static int __devinit snd_cmipci_create(snd_card_t *card, struct pci_dev *pci,
 				       int dev, cmipci_t **rcmipci)
 {
@@ -2762,8 +2802,8 @@ static int __devinit snd_cmipci_create(snd_card_t *card, struct pci_dev *pci,
 		.dev_free =	snd_cmipci_dev_free,
 	};
 	unsigned int val = 0;
-	long iomidi = mpu_port[dev];
-	long iosynth = fm_port[dev];
+	long iomidi;
+	int integrated_midi;
 	int pcm_index, pcm_spdif_index;
 	static struct pci_device_id intel_82437vx[] = {
 		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82437VX) },
@@ -2799,7 +2839,7 @@ static int __devinit snd_cmipci_create(snd_card_t *card, struct pci_dev *pci,
 	cm->iobase = pci_resource_start(pci, 0);
 
 	if (request_irq(pci->irq, snd_cmipci_interrupt, SA_INTERRUPT|SA_SHIRQ, card->driver, (void *)cm)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_cmipci_free(cm);
 		return -EBUSY;
 	}
@@ -2867,52 +2907,28 @@ static int __devinit snd_cmipci_create(snd_card_t *card, struct pci_dev *pci,
 		return err;
 	}
 
-	/* set MPU address */
-	switch (iomidi) {
-	case 0x320: val = CM_VMPU_320; break;
-	case 0x310: val = CM_VMPU_310; break;
-	case 0x300: val = CM_VMPU_300; break;
-	case 0x330: val = CM_VMPU_330; break;
-	default:
-		iomidi = 0; break;
-	}
-	if (iomidi > 0) {
-		snd_cmipci_write(cm, CM_REG_LEGACY_CTRL, val);
-		/* enable UART */
-		snd_cmipci_set_bit(cm, CM_REG_FUNCTRL1, CM_UART_EN);
-	}
-
-	/* set FM address */
-	val = snd_cmipci_read(cm, CM_REG_LEGACY_CTRL) & ~CM_FMSEL_MASK;
-	switch (iosynth) {
-	case 0x3E8: val |= CM_FMSEL_3E8; break;
-	case 0x3E0: val |= CM_FMSEL_3E0; break;
-	case 0x3C8: val |= CM_FMSEL_3C8; break;
-	case 0x388: val |= CM_FMSEL_388; break;
-	default:
-		iosynth = 0; break;
-	}
-	if (iosynth > 0) {
-		snd_cmipci_write(cm, CM_REG_LEGACY_CTRL, val);
-		/* enable FM */
-		snd_cmipci_set_bit(cm, CM_REG_MISC_CTRL, CM_FM_EN);
-
-		if (snd_opl3_create(card, iosynth, iosynth + 2,
-				    OPL3_HW_OPL3, 0, &cm->opl3) < 0) {
-			printk(KERN_ERR "cmipci: no OPL device at 0x%lx, skipping...\n", iosynth);
-			iosynth = 0;
-		} else {
-			if ((err = snd_opl3_hwdep_new(cm->opl3, 0, 1, &cm->opl3hwdep)) < 0) {
-				printk(KERN_ERR "cmipci: cannot create OPL3 hwdep\n");
-				return err;
-			}
+	integrated_midi = snd_cmipci_read_b(cm, CM_REG_MPU_PCI) != 0xff;
+	if (integrated_midi)
+		iomidi = cm->iobase + CM_REG_MPU_PCI;
+	else {
+		iomidi = mpu_port[dev];
+		switch (iomidi) {
+		case 0x320: val = CM_VMPU_320; break;
+		case 0x310: val = CM_VMPU_310; break;
+		case 0x300: val = CM_VMPU_300; break;
+		case 0x330: val = CM_VMPU_330; break;
+		default:
+			    iomidi = 0; break;
+		}
+		if (iomidi > 0) {
+			snd_cmipci_write(cm, CM_REG_LEGACY_CTRL, val);
+			/* enable UART */
+			snd_cmipci_set_bit(cm, CM_REG_FUNCTRL1, CM_UART_EN);
 		}
 	}
-	if (! iosynth) {
-		/* disable FM */
-		snd_cmipci_write(cm, CM_REG_LEGACY_CTRL, val & ~CM_FMSEL_MASK);
-		snd_cmipci_clear_bit(cm, CM_REG_MISC_CTRL, CM_FM_EN);
-	}
+
+	if ((err = snd_cmipci_create_fm(cm, fm_port[dev])) < 0)
+		return err;
 
 	/* reset mixer */
 	snd_cmipci_mixer_write(cm, 0, 0);
@@ -2941,7 +2957,7 @@ static int __devinit snd_cmipci_create(snd_card_t *card, struct pci_dev *pci,
 
 	if (iomidi > 0) {
 		if ((err = snd_mpu401_uart_new(card, 0, MPU401_HW_CMIPCI,
-					       iomidi, 0,
+					       iomidi, integrated_midi,
 					       cm->irq, 0, &cm->rmidi)) < 0) {
 			printk(KERN_ERR "cmipci: no UART401 device at 0x%lx\n", iomidi);
 		}

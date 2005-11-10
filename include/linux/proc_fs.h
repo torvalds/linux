@@ -66,6 +66,7 @@ struct proc_dir_entry {
 	write_proc_t *write_proc;
 	atomic_t count;		/* use count */
 	int deleted;		/* delete flag */
+	void *set;
 };
 
 struct kcore_list {
@@ -139,15 +140,12 @@ extern void proc_tty_unregister_driver(struct tty_driver *driver);
 /*
  * proc_devtree.c
  */
-struct device_node;
-extern void proc_device_tree_init(void);
 #ifdef CONFIG_PROC_DEVICETREE
+struct device_node;
+struct property;
+extern void proc_device_tree_init(void);
 extern void proc_device_tree_add_node(struct device_node *, struct proc_dir_entry *);
-#else /* !CONFIG_PROC_DEVICETREE */
-static inline void proc_device_tree_add_node(struct device_node *np, struct proc_dir_entry *pde)
-{
-	return;
-}
+extern void proc_device_tree_add_prop(struct proc_dir_entry *pde, struct property *prop);
 #endif /* CONFIG_PROC_DEVICETREE */
 
 extern struct proc_dir_entry *proc_symlink(const char *,

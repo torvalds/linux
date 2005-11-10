@@ -60,8 +60,7 @@ gss_mech_free(struct gss_api_mech *gm)
 
 	for (i = 0; i < gm->gm_pf_num; i++) {
 		pf = &gm->gm_pfs[i];
-		if (pf->auth_domain_name)
-			kfree(pf->auth_domain_name);
+		kfree(pf->auth_domain_name);
 		pf->auth_domain_name = NULL;
 	}
 }

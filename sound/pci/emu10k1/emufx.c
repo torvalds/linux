@@ -364,12 +364,18 @@ static int snd_emu10k1_gpr_ctl_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value
 			snd_emu10k1_ptr_write(emu, emu->gpr_base + ctl->gpr[i], 0, db_table[val]);
 			break;
 		case EMU10K1_GPR_TRANSLATION_BASS:
-			snd_runtime_check((ctl->count % 5) == 0 && (ctl->count / 5) == ctl->vcount, change = -EIO; goto __error);
+			if ((ctl->count % 5) != 0 || (ctl->count / 5) != ctl->vcount) {
+				change = -EIO;
+				goto __error;
+			}
 			for (j = 0; j < 5; j++)
 				snd_emu10k1_ptr_write(emu, emu->gpr_base + ctl->gpr[j * ctl->vcount + i], 0, bass_table[val][j]);
 			break;
 		case EMU10K1_GPR_TRANSLATION_TREBLE:
-			snd_runtime_check((ctl->count % 5) == 0 && (ctl->count / 5) == ctl->vcount, change = -EIO; goto __error);
+			if ((ctl->count % 5) != 0 || (ctl->count / 5) != ctl->vcount) {
+				change = -EIO;
+				goto __error;
+			}
 			for (j = 0; j < 5; j++)
 				snd_emu10k1_ptr_write(emu, emu->gpr_base + ctl->gpr[j * ctl->vcount + i], 0, treble_table[val][j]);
 			break;
@@ -412,8 +418,6 @@ int snd_emu10k1_fx8010_register_irq_handler(emu10k1_t *emu,
 	snd_emu10k1_fx8010_irq_t *irq;
 	unsigned long flags;
 	
-	snd_runtime_check(emu, return -EINVAL);
-	snd_runtime_check(handler, return -EINVAL);
 	irq = kmalloc(sizeof(*irq), GFP_ATOMIC);
 	if (irq == NULL)
 		return -ENOMEM;
@@ -442,7 +446,6 @@ int snd_emu10k1_fx8010_unregister_irq_handler(emu10k1_t *emu,
 	snd_emu10k1_fx8010_irq_t *tmp;
 	unsigned long flags;
 	
-	snd_runtime_check(irq, return -EINVAL);
 	spin_lock_irqsave(&emu->fx8010.irq_lock, flags);
 	if ((tmp = emu->fx8010.irq_handlers) == irq) {
 		emu->fx8010.irq_handlers = tmp->next;
@@ -717,9 +720,15 @@ static int snd_emu10k1_add_controls(emu10k1_t *emu, emu10k1_fx8010_code_t *icode
 			err = -EFAULT;
 			goto __error;
 		}
-		snd_runtime_check(gctl->id.iface == SNDRV_CTL_ELEM_IFACE_MIXER ||
-		                  gctl->id.iface == SNDRV_CTL_ELEM_IFACE_PCM, err = -EINVAL; goto __error);
-		snd_runtime_check(gctl->id.name[0] != '\0', err = -EINVAL; goto __error);
+		if (gctl->id.iface != SNDRV_CTL_ELEM_IFACE_MIXER &&
+		    gctl->id.iface != SNDRV_CTL_ELEM_IFACE_PCM) {
+			err = -EINVAL;
+			goto __error;
+		}
+		if (! gctl->id.name[0]) {
+			err = -EINVAL;
+			goto __error;
+		}
 		ctl = snd_emu10k1_look_for_ctl(emu, &gctl->id);
 		memset(&knew, 0, sizeof(knew));
 		knew.iface = gctl->id.iface;
@@ -783,7 +792,8 @@ static int snd_emu10k1_del_controls(emu10k1_t *emu, emu10k1_fx8010_code_t *icode
 	
 	for (i = 0, _id = icode->gpr_del_controls;
 	     i < icode->gpr_del_control_count; i++, _id++) {
-	     	snd_runtime_check(copy_from_user(&id, _id, sizeof(id)) == 0, return -EFAULT);
+	     	if (copy_from_user(&id, _id, sizeof(id)))
+			return -EFAULT;
 		down_write(&card->controls_rwsem);
 		ctl = snd_emu10k1_look_for_ctl(emu, &id);
 		if (ctl)
@@ -964,8 +974,8 @@ static int snd_emu10k1_ipcm_peek(emu10k1_t *emu, emu10k1_fx8010_pcm_t *ipcm)
 	return err;
 }
 
-#define SND_EMU10K1_GPR_CONTROLS	41
-#define SND_EMU10K1_INPUTS		10
+#define SND_EMU10K1_GPR_CONTROLS	44
+#define SND_EMU10K1_INPUTS		12
 #define SND_EMU10K1_PLAYBACK_CHANNELS	8
 #define SND_EMU10K1_CAPTURE_CHANNELS	4
 
@@ -1382,7 +1392,7 @@ A_OP(icode, &ptr, iMAC0, A_GPR(var), A_GPR(var), A_GPR(vol), A_EXTIN(input))
 		A_SWITCH(icode, &ptr, tmp + 1, playback + SND_EMU10K1_PLAYBACK_CHANNELS + z, tmp + 1);
 		if ((z==1) && (emu->card_capabilities->spdif_bug)) {
 			/* Due to a SPDIF output bug on some Audigy cards, this code delays the Right channel by 1 sample */
-			snd_printk("Installing spdif_bug patch: %s\n", emu->card_capabilities->name);
+			snd_printk(KERN_INFO "Installing spdif_bug patch: %s\n", emu->card_capabilities->name);
 			A_OP(icode, &ptr, iACC3, A_EXTOUT(A_EXTOUT_FRONT_L + z), A_GPR(gpr - 3), A_C_00000000, A_C_00000000);
 			A_OP(icode, &ptr, iACC3, A_GPR(gpr - 3), A_GPR(tmp + 0), A_GPR(tmp + 1), A_C_00000000);
 		} else {
@@ -1527,7 +1537,7 @@ static int __devinit _snd_emu10k1_init_efx(emu10k1_t *emu)
 
 	strcpy(icode->name, "SB Live! FX8010 code for ALSA v1.2 by Jaroslav Kysela");
 	ptr = 0; i = 0;
-	/* we have 10 inputs */
+	/* we have 12 inputs */
 	playback = SND_EMU10K1_INPUTS;
 	/* we have 6 playback channels and tone control doubles */
 	capture = playback + (SND_EMU10K1_PLAYBACK_CHANNELS * 2);
@@ -1551,6 +1561,8 @@ static int __devinit _snd_emu10k1_init_efx(emu10k1_t *emu)
 	OP(icode, &ptr, iMACINT0, GPR(7), C_00000000, FXBUS(FXBUS_PCM_LFE), C_00000004);
 	OP(icode, &ptr, iMACINT0, GPR(8), C_00000000, C_00000000, C_00000000);	/* S/PDIF left */
 	OP(icode, &ptr, iMACINT0, GPR(9), C_00000000, C_00000000, C_00000000);	/* S/PDIF right */
+	OP(icode, &ptr, iMACINT0, GPR(10), C_00000000, FXBUS(FXBUS_PCM_LEFT_FRONT), C_00000004);
+	OP(icode, &ptr, iMACINT0, GPR(11), C_00000000, FXBUS(FXBUS_PCM_RIGHT_FRONT), C_00000004);
 
 	/* Raw S/PDIF PCM */
 	ipcm->substream = 0;
@@ -1696,6 +1708,21 @@ static int __devinit _snd_emu10k1_init_efx(emu10k1_t *emu)
 	/* LFE Playback Volume + Switch (renamed later without Digital) */
 	VOLUME_ADD(icode, &ptr, playback + 5, 7, gpr);
 	snd_emu10k1_init_mono_control(controls + i++, "LFE Digital Playback Volume", gpr++, 100);
+
+	/* Front Playback Volume */
+	for (z = 0; z < 2; z++)
+		VOLUME_ADD(icode, &ptr, playback + z, 10 + z, gpr + z);
+	snd_emu10k1_init_stereo_control(controls + i++, "Front Playback Volume", gpr, 100);
+	gpr += 2;
+
+	/* Front Capture Volume + Switch */
+	for (z = 0; z < 2; z++) {
+		SWITCH(icode, &ptr, tmp + 0, 10 + z, gpr + 2);
+		VOLUME_ADD(icode, &ptr, capture + z, tmp + 0, gpr + z);
+	}
+	snd_emu10k1_init_stereo_control(controls + i++, "Front Capture Volume", gpr, 0);
+	snd_emu10k1_init_mono_onoff_control(controls + i++, "Front Capture Switch", gpr + 2, 0);
+	gpr += 3;
 
 	/*
 	 *  Process inputs
@@ -2058,14 +2085,16 @@ void snd_emu10k1_free_efx(emu10k1_t *emu)
 #if 0 // FIXME: who use them?
 int snd_emu10k1_fx8010_tone_control_activate(emu10k1_t *emu, int output)
 {
-	snd_runtime_check(output >= 0 && output < 6, return -EINVAL);
+	if (output < 0 || output >= 6)
+		return -EINVAL;
 	snd_emu10k1_ptr_write(emu, emu->gpr_base + 0x94 + output, 0, 1);
 	return 0;
 }
 
 int snd_emu10k1_fx8010_tone_control_deactivate(emu10k1_t *emu, int output)
 {
-	snd_runtime_check(output >= 0 && output < 6, return -EINVAL);
+	if (output < 0 || output >= 6)
+		return -EINVAL;
 	snd_emu10k1_ptr_write(emu, emu->gpr_base + 0x94 + output, 0, 0);
 	return 0;
 }

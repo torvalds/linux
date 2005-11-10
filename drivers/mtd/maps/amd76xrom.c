@@ -2,7 +2,7 @@
  * amd76xrom.c
  *
  * Normal mappings of chips in physical memory
- * $Id: amd76xrom.c,v 1.20 2005/03/18 14:04:35 gleixner Exp $
+ * $Id: amd76xrom.c,v 1.21 2005/11/07 11:14:26 gleixner Exp $
  */
 
 #include <linux/module.h>
@@ -70,7 +70,7 @@ static void amd76xrom_cleanup(struct amd76xrom_window *window)
 		list_del(&map->list);
 		kfree(map);
 	}
-	if (window->rsrc.parent) 
+	if (window->rsrc.parent)
 		release_resource(&window->rsrc);
 
 	if (window->virt) {
@@ -107,7 +107,7 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 		window->phys = 0xffff0000; /* 64KiB */
 	}
 	window->size = 0xffffffffUL - window->phys + 1UL;
-	
+
 	/*
 	 * Try to reserve the window mem region.  If this fails then
 	 * it is likely due to a fragment of the window being
@@ -138,7 +138,7 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 	/* Enable writes through the rom window */
 	pci_read_config_byte(pdev, 0x40, &byte);
 	pci_write_config_byte(pdev, 0x40, byte | 1);
-	
+
 	/* FIXME handle registers 0x80 - 0x8C the bios region locks */
 
 	/* For write accesses caches are useless */
@@ -186,7 +186,7 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 			MOD_NAME, map->map.phys);
 
 		/* There is no generic VPP support */
-		for(map->map.bankwidth = 32; map->map.bankwidth; 
+		for(map->map.bankwidth = 32; map->map.bankwidth;
 			map->map.bankwidth >>= 1)
 		{
 			char **probe_type;
@@ -239,7 +239,7 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 		for(i = 0; i < cfi->numchips; i++) {
 			cfi->chips[i].start += offset;
 		}
-		
+
 		/* Now that the mtd devices is complete claim and export it */
 		map->mtd->owner = THIS_MODULE;
 		if (add_mtd_device(map->mtd)) {
@@ -259,9 +259,7 @@ static int __devinit amd76xrom_init_one (struct pci_dev *pdev,
 
  out:
 	/* Free any left over map structures */
-	if (map) {
-		kfree(map);
-	}
+	kfree(map);
 	/* See if I have any map structures */
 	if (list_empty(&window->maps)) {
 		amd76xrom_cleanup(window);
@@ -279,9 +277,9 @@ static void __devexit amd76xrom_remove_one (struct pci_dev *pdev)
 }
 
 static struct pci_device_id amd76xrom_pci_tbl[] = {
-	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_VIPER_7410,  
+	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_VIPER_7410,
 		PCI_ANY_ID, PCI_ANY_ID, },
-	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_VIPER_7440,  
+	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_VIPER_7440,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_AMD, 0x7468 }, /* amd8111 support */
 	{ 0, }

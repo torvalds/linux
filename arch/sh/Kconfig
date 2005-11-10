@@ -490,16 +490,6 @@ config CPU_SUBTYPE_ST40
        depends on CPU_SUBTYPE_ST40STB1 || CPU_SUBTYPE_ST40GX1
        default y
 
-config ARCH_DISCONTIGMEM_ENABLE
-	bool
-	depends on SH_HP690
-	default y
-	help
-	  Say Y to upport efficient handling of discontiguous physical memory,
-	  for architectures which are either NUMA (Non-Uniform Memory Access)
-	  or have huge holes in the physical address space for other reasons.
-	  See <file:Documentation/vm/numa> for more.
-
 source "mm/Kconfig"
 
 config ZERO_PAGE_OFFSET
@@ -767,24 +757,6 @@ endmenu
 menu "Executable file formats"
 
 source "fs/Kconfig.binfmt"
-
-endmenu
-
-menu "SH initrd options"
-	depends on BLK_DEV_INITRD
-
-config EMBEDDED_RAMDISK
-	bool "Embed root filesystem ramdisk into the kernel"
-
-config EMBEDDED_RAMDISK_IMAGE
-	string "Filename of gziped ramdisk image"
-	depends on EMBEDDED_RAMDISK
-	default "ramdisk.gz"
-	help
-	  This is the filename of the ramdisk image to be built into the
-	  kernel.  Relative pathnames are relative to arch/sh/ramdisk/.
-	  The ramdisk image is not part of the kernel distribution; you must
-	  provide one yourself.
 
 endmenu
 

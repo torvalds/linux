@@ -32,7 +32,6 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/platform_device.h>
 #include <asm/ocp.h>
 #include <linux/crc32.h>

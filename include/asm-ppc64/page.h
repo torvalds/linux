@@ -13,32 +13,59 @@
 #include <linux/config.h>
 #include <asm/ppc_asm.h> /* for ASM_CONST */
 
-/* PAGE_SHIFT determines the page size */
-#define PAGE_SHIFT	12
-#define PAGE_SIZE	(ASM_CONST(1) << PAGE_SHIFT)
-#define PAGE_MASK	(~(PAGE_SIZE-1))
+/*
+ * We support either 4k or 64k software page size. When using 64k pages
+ * however, wether we are really supporting 64k pages in HW or not is
+ * irrelevant to those definitions. We always define HW_PAGE_SHIFT to 12
+ * as use of 64k pages remains a linux kernel specific, every notion of
+ * page number shared with the firmware, TCEs, iommu, etc... still assumes
+ * a page size of 4096.
+ */
+#ifdef CONFIG_PPC_64K_PAGES
+#define PAGE_SHIFT		16
+#else
+#define PAGE_SHIFT		12
+#endif
 
-#define SID_SHIFT       28
-#define SID_MASK        0xfffffffffUL
-#define ESID_MASK	0xfffffffff0000000UL
-#define GET_ESID(x)     (((x) >> SID_SHIFT) & SID_MASK)
+#define PAGE_SIZE		(ASM_CONST(1) << PAGE_SHIFT)
+#define PAGE_MASK		(~(PAGE_SIZE-1))
 
-#define HPAGE_SHIFT	24
-#define HPAGE_SIZE	((1UL) << HPAGE_SHIFT)
-#define HPAGE_MASK	(~(HPAGE_SIZE - 1))
+/* HW_PAGE_SHIFT is always 4k pages */
+#define HW_PAGE_SHIFT		12
+#define HW_PAGE_SIZE		(ASM_CONST(1) << HW_PAGE_SHIFT)
+#define HW_PAGE_MASK		(~(HW_PAGE_SIZE-1))
+
+/* PAGE_FACTOR is the number of bits factor between PAGE_SHIFT and
+ * HW_PAGE_SHIFT, that is 4k pages
+ */
+#define PAGE_FACTOR		(PAGE_SHIFT - HW_PAGE_SHIFT)
+
+/* Segment size */
+#define SID_SHIFT       	28
+#define SID_MASK        	0xfffffffffUL
+#define ESID_MASK		0xfffffffff0000000UL
+#define GET_ESID(x)     	(((x) >> SID_SHIFT) & SID_MASK)
+
+/* Large pages size */
+
+#ifndef __ASSEMBLY__
+extern unsigned int HPAGE_SHIFT;
+#define HPAGE_SIZE		((1UL) << HPAGE_SHIFT)
+#define HPAGE_MASK		(~(HPAGE_SIZE - 1))
+#define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
+#endif /* __ASSEMBLY__ */
 
 #ifdef CONFIG_HUGETLB_PAGE
 
-#define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 
 #define HTLB_AREA_SHIFT		40
 #define HTLB_AREA_SIZE		(1UL << HTLB_AREA_SHIFT)
 #define GET_HTLB_AREA(x)	((x) >> HTLB_AREA_SHIFT)
 
-#define LOW_ESID_MASK(addr, len)	(((1U << (GET_ESID(addr+len-1)+1)) \
-	   	                	- (1U << GET_ESID(addr))) & 0xffff)
-#define HTLB_AREA_MASK(addr, len)	(((1U << (GET_HTLB_AREA(addr+len-1)+1)) \
-	   	                	- (1U << GET_HTLB_AREA(addr))) & 0xffff)
+#define LOW_ESID_MASK(addr, len)    (((1U << (GET_ESID(addr+len-1)+1)) \
+	   	                      - (1U << GET_ESID(addr))) & 0xffff)
+#define HTLB_AREA_MASK(addr, len)   (((1U << (GET_HTLB_AREA(addr+len-1)+1)) \
+	   	                      - (1U << GET_HTLB_AREA(addr))) & 0xffff)
 
 #define ARCH_HAS_HUGEPAGE_ONLY_RANGE
 #define ARCH_HAS_PREPARE_HUGEPAGE_RANGE
@@ -114,7 +141,25 @@ static __inline__ void clear_page(void *addr)
 	: "ctr", "memory");
 }
 
-extern void copy_page(void *to, void *from);
+extern void copy_4K_page(void *to, void *from);
+
+#ifdef CONFIG_PPC_64K_PAGES
+static inline void copy_page(void *to, void *from)
+{
+	unsigned int i;
+	for (i=0; i < (1 << (PAGE_SHIFT - 12)); i++) {
+		copy_4K_page(to, from);
+		to += 4096;
+		from += 4096;
+	}
+}
+#else /* CONFIG_PPC_64K_PAGES */
+static inline void copy_page(void *to, void *from)
+{
+	copy_4K_page(to, from);
+}
+#endif /* CONFIG_PPC_64K_PAGES */
+
 struct page;
 extern void clear_user_page(void *page, unsigned long vaddr, struct page *pg);
 extern void copy_user_page(void *to, void *from, unsigned long vaddr, struct page *p);
@@ -124,43 +169,75 @@ extern void copy_user_page(void *to, void *from, unsigned long vaddr, struct pag
  * These are used to make use of C type-checking.  
  * Entries in the pte table are 64b, while entries in the pgd & pmd are 32b.
  */
+
+/* PTE level */
 typedef struct { unsigned long pte; } pte_t;
-typedef struct { unsigned long pmd; } pmd_t;
-typedef struct { unsigned long pud; } pud_t;
-typedef struct { unsigned long pgd; } pgd_t;
-typedef struct { unsigned long pgprot; } pgprot_t;
-
 #define pte_val(x)	((x).pte)
-#define pmd_val(x)	((x).pmd)
-#define pud_val(x)	((x).pud)
-#define pgd_val(x)	((x).pgd)
-#define pgprot_val(x)	((x).pgprot)
-
 #define __pte(x)	((pte_t) { (x) })
+
+/* 64k pages additionally define a bigger "real PTE" type that gathers
+ * the "second half" part of the PTE for pseudo 64k pages
+ */
+#ifdef CONFIG_PPC_64K_PAGES
+typedef struct { pte_t pte; unsigned long hidx; } real_pte_t;
+#else
+typedef struct { pte_t pte; } real_pte_t;
+#endif
+
+/* PMD level */
+typedef struct { unsigned long pmd; } pmd_t;
+#define pmd_val(x)	((x).pmd)
 #define __pmd(x)	((pmd_t) { (x) })
+
+/* PUD level exusts only on 4k pages */
+#ifndef CONFIG_PPC_64K_PAGES
+typedef struct { unsigned long pud; } pud_t;
+#define pud_val(x)	((x).pud)
 #define __pud(x)	((pud_t) { (x) })
+#endif
+
+/* PGD level */
+typedef struct { unsigned long pgd; } pgd_t;
+#define pgd_val(x)	((x).pgd)
 #define __pgd(x)	((pgd_t) { (x) })
+
+/* Page protection bits */
+typedef struct { unsigned long pgprot; } pgprot_t;
+#define pgprot_val(x)	((x).pgprot)
 #define __pgprot(x)	((pgprot_t) { (x) })
 
 #else
+
 /*
  * .. while these make it easier on the compiler
  */
-typedef unsigned long pte_t;
-typedef unsigned long pmd_t;
-typedef unsigned long pud_t;
-typedef unsigned long pgd_t;
-typedef unsigned long pgprot_t;
 
+typedef unsigned long pte_t;
 #define pte_val(x)	(x)
+#define __pte(x)	(x)
+
+#ifdef CONFIG_PPC_64K_PAGES
+typedef struct { pte_t pte; unsigned long hidx; } real_pte_t;
+#else
+typedef unsigned long real_pte_t;
+#endif
+
+
+typedef unsigned long pmd_t;
 #define pmd_val(x)	(x)
+#define __pmd(x)	(x)
+
+#ifndef CONFIG_PPC_64K_PAGES
+typedef unsigned long pud_t;
 #define pud_val(x)	(x)
+#define __pud(x)	(x)
+#endif
+
+typedef unsigned long pgd_t;
 #define pgd_val(x)	(x)
 #define pgprot_val(x)	(x)
 
-#define __pte(x)	(x)
-#define __pmd(x)	(x)
-#define __pud(x)	(x)
+typedef unsigned long pgprot_t;
 #define __pgd(x)	(x)
 #define __pgprot(x)	(x)
 

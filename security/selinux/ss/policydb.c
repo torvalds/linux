@@ -632,22 +632,22 @@ void policydb_destroy(struct policydb *p)
 	cond_policydb_destroy(p);
 
 	for (tr = p->role_tr; tr; tr = tr->next) {
-		if (ltr) kfree(ltr);
+		kfree(ltr);
 		ltr = tr;
 	}
-	if (ltr) kfree(ltr);
+	kfree(ltr);
 
 	for (ra = p->role_allow; ra; ra = ra -> next) {
-		if (lra) kfree(lra);
+		kfree(lra);
 		lra = ra;
 	}
-	if (lra) kfree(lra);
+	kfree(lra);
 
 	for (rt = p->range_tr; rt; rt = rt -> next) {
-		if (lrt) kfree(lrt);
+		kfree(lrt);
 		lrt = rt;
 	}
-	if (lrt) kfree(lrt);
+	kfree(lrt);
 
 	if (p->type_attr_map) {
 		for (i = 0; i < p->p_types.nprim; i++)

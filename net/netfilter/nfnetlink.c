@@ -128,7 +128,7 @@ void __nfa_fill(struct sk_buff *skb, int attrtype, int attrlen,
 	memset(NFA_DATA(nfa) + attrlen, 0, NFA_ALIGN(size) - size);
 }
 
-int nfattr_parse(struct nfattr *tb[], int maxattr, struct nfattr *nfa, int len)
+void nfattr_parse(struct nfattr *tb[], int maxattr, struct nfattr *nfa, int len)
 {
 	memset(tb, 0, sizeof(struct nfattr *) * maxattr);
 
@@ -138,8 +138,6 @@ int nfattr_parse(struct nfattr *tb[], int maxattr, struct nfattr *nfa, int len)
 			tb[flavor-1] = nfa;
 		nfa = NFA_NEXT(nfa, len);
 	}
-
-	return 0;
 }
 
 /**
@@ -242,15 +240,18 @@ static inline int nfnetlink_rcv_msg(struct sk_buff *skb,
 	ss = nfnetlink_get_subsys(type);
 	if (!ss) {
 #ifdef CONFIG_KMOD
-		/* don't call nfnl_shunlock, since it would reenter
-		 * with further packet processing */
-		up(&nfnl_sem);
-		request_module("nfnetlink-subsys-%d", NFNL_SUBSYS_ID(type));
-		nfnl_shlock();
-		ss = nfnetlink_get_subsys(type);
+		if (cap_raised(NETLINK_CB(skb).eff_cap, CAP_NET_ADMIN)) {
+			/* don't call nfnl_shunlock, since it would reenter
+			 * with further packet processing */
+			up(&nfnl_sem);
+			request_module("nfnetlink-subsys-%d",
+					NFNL_SUBSYS_ID(type));
+			nfnl_shlock();
+			ss = nfnetlink_get_subsys(type);
+		}
 		if (!ss)
 #endif
-		goto err_inval;
+			goto err_inval;
 	}
 
 	nc = nfnetlink_find_client(type, ss);

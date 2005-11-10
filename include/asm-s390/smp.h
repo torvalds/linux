@@ -52,7 +52,7 @@ extern int smp_call_function_on(void (*func) (void *info), void *info,
 extern int smp_get_cpu(cpumask_t cpu_map);
 extern void smp_put_cpu(int cpu);
 
-extern __inline__ __u16 hard_smp_processor_id(void)
+static inline __u16 hard_smp_processor_id(void)
 {
         __u16 cpu_address;
  

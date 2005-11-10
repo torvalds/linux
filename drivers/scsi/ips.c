@@ -4517,10 +4517,8 @@ ips_free(ips_ha_t * ha)
 			ha->enq = NULL;
 		}
 
-		if (ha->conf) {
-			kfree(ha->conf);
-			ha->conf = NULL;
-		}
+		kfree(ha->conf);
+		ha->conf = NULL;
 
 		if (ha->adapt) {
 			pci_free_consistent(ha->pcidev,
@@ -4538,15 +4536,11 @@ ips_free(ips_ha_t * ha)
 			ha->logical_drive_info = NULL;
 		}
 
-		if (ha->nvram) {
-			kfree(ha->nvram);
-			ha->nvram = NULL;
-		}
+		kfree(ha->nvram);
+		ha->nvram = NULL;
 
-		if (ha->subsys) {
-			kfree(ha->subsys);
-			ha->subsys = NULL;
-		}
+		kfree(ha->subsys);
+		ha->subsys = NULL;
 
 		if (ha->ioctl_data) {
 			pci_free_consistent(ha->pcidev, ha->ioctl_len,

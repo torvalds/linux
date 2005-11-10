@@ -14,7 +14,6 @@ config FB_GEODE_GX1
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	select FB_SOFT_CURSOR
 	---help---
 	  Framebuffer driver for the display controller integrated into the
 	  AMD Geode GX1 processor.

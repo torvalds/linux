@@ -331,10 +331,8 @@ static void shutdown_socket(struct pcmcia_socket *s)
 	cb_free(s);
 #endif
 	s->functions = 0;
-	if (s->config) {
-		kfree(s->config);
-		s->config = NULL;
-	}
+	kfree(s->config);
+	s->config = NULL;
 
 	{
 		int status;

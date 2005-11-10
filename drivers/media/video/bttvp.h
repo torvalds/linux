@@ -77,14 +77,14 @@
 struct bttv_tvnorm {
 	int   v4l2_id;
 	char  *name;
-        u32   Fsc;
-        u16   swidth, sheight; /* scaled standard width, height */
+	u32   Fsc;
+	u16   swidth, sheight; /* scaled standard width, height */
 	u16   totalwidth;
 	u8    adelay, bdelay, iform;
 	u32   scaledtwidth;
 	u16   hdelayx1, hactivex1;
 	u16   vdelay;
-        u8    vbipack;
+	u8    vbipack;
 	u16   vtotal;
 	int   sram;
 };
@@ -267,8 +267,8 @@ struct bttv {
 
 	/* card configuration info */
 	unsigned int cardid;   /* pci subsystem id (bt878 based ones) */
-        unsigned int tuner_type;  /* tuner chip type */
-        unsigned int pinnacle_id;
+	unsigned int tuner_type;  /* tuner chip type */
+	unsigned int pinnacle_id;
 	unsigned int svhs;
 	struct bttv_pll_info pll;
 	int triton1;
@@ -301,9 +301,9 @@ struct bttv {
 
 	/* locking */
 	spinlock_t s_lock;
-        struct semaphore lock;
+	struct semaphore lock;
 	int resources;
-        struct semaphore reslock;
+	struct semaphore reslock;
 #ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state prio;
 #endif

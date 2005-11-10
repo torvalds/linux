@@ -44,21 +44,4 @@
 
 #include <linux/module.h>
 
-/*
- *  ==========================================================================
- */
-
-#ifdef CONFIG_SND_DEBUG_MEMORY
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
-void *snd_wrapper_kmalloc(size_t, gfp_t);
-#undef kmalloc
-void snd_wrapper_kfree(const void *);
-#undef kfree
-void *snd_wrapper_vmalloc(size_t);
-#undef vmalloc
-void snd_wrapper_vfree(void *);
-#undef vfree
-#endif
-
 #endif /* __SOUND_DRIVER_H */

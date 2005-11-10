@@ -37,7 +37,6 @@
 #include <linux/vmalloc.h>
 #include <asm/io.h>
 #include <asm/prom.h>
-#include <asm/ppcdebug.h>
 #include <asm/iommu.h>
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>

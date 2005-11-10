@@ -565,9 +565,9 @@ int snd_pcm_status(snd_pcm_substream_t *substream,
 		if (runtime->tstamp_mode & SNDRV_PCM_TSTAMP_MMAP)
 			status->tstamp = runtime->status->tstamp;
 		else
-			snd_timestamp_now(&status->tstamp, runtime->tstamp_timespec);
+			getnstimeofday(&status->tstamp);
 	} else
-		snd_timestamp_now(&status->tstamp, runtime->tstamp_timespec);
+		getnstimeofday(&status->tstamp);
 	status->appl_ptr = runtime->control->appl_ptr;
 	status->hw_ptr = runtime->status->hw_ptr;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
@@ -652,7 +652,7 @@ static void snd_pcm_trigger_tstamp(snd_pcm_substream_t *substream)
 	if (runtime->trigger_master == NULL)
 		return;
 	if (runtime->trigger_master == substream) {
-		snd_timestamp_now(&runtime->trigger_tstamp, runtime->tstamp_timespec);
+		getnstimeofday(&runtime->trigger_tstamp);
 	} else {
 		snd_pcm_trigger_tstamp(runtime->trigger_master);
 		runtime->trigger_tstamp = runtime->trigger_master->runtime->trigger_tstamp;
@@ -1522,7 +1522,6 @@ static int snd_pcm_drop(snd_pcm_substream_t *substream)
 
 
 /* WARNING: Don't forget to fput back the file */
-extern int snd_major;
 static struct file *snd_pcm_file_fd(int fd)
 {
 	struct file *file;
@@ -2053,7 +2052,8 @@ static int snd_pcm_open(struct inode *inode, struct file *file)
 	snd_pcm_file_t *pcm_file;
 	wait_queue_t wait;
 
-	snd_runtime_check(device >= SNDRV_MINOR_PCM_PLAYBACK && device < SNDRV_MINOR_DEVICES, return -ENXIO);
+	if (device < SNDRV_MINOR_PCM_PLAYBACK || device >= SNDRV_MINOR_DEVICES)
+		return -ENXIO;
 	pcm = snd_pcm_devices[(cardnum * SNDRV_PCM_DEVICES) + (device % SNDRV_MINOR_PCMS)];
 	if (pcm == NULL) {
 		err = -ENODEV;
@@ -2445,14 +2445,8 @@ static int snd_pcm_common_ioctl1(snd_pcm_substream_t *substream,
 		return put_user(SNDRV_PCM_VERSION, (int __user *)arg) ? -EFAULT : 0;
 	case SNDRV_PCM_IOCTL_INFO:
 		return snd_pcm_info_user(substream, arg);
-	case SNDRV_PCM_IOCTL_TSTAMP:
-	{
-		int xarg;
-		if (get_user(xarg, (int __user *)arg))
-			return -EFAULT;
-		substream->runtime->tstamp_timespec = xarg ? 1 : 0;
+	case SNDRV_PCM_IOCTL_TSTAMP: /* just for compatibility */
 		return 0;
-	}
 	case SNDRV_PCM_IOCTL_HW_REFINE:
 		return snd_pcm_hw_refine_user(substream, arg);
 	case SNDRV_PCM_IOCTL_HW_PARAMS:

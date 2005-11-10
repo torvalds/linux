@@ -508,7 +508,7 @@ static unsigned int snd_es1371_wait_src_ready(ensoniq_t * ensoniq)
 			return r;
 		cond_resched();
 	}
-	snd_printk("wait source ready timeout 0x%lx [0x%x]\n", ES_REG(ensoniq, 1371_SMPRATE), r);
+	snd_printk(KERN_ERR "wait source ready timeout 0x%lx [0x%x]\n", ES_REG(ensoniq, 1371_SMPRATE), r);
 	return 0;
 }
 
@@ -576,10 +576,9 @@ static void snd_es1370_codec_write(ak4531_t *ak4531,
 			outw(ES_1370_CODEC_WRITE(reg, val), ES_REG(ensoniq, 1370_CODEC));
 			return;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_after(end_time, jiffies));
-	snd_printk("codec write timeout, status = 0x%x\n", inl(ES_REG(ensoniq, STATUS)));
+	snd_printk(KERN_ERR "codec write timeout, status = 0x%x\n", inl(ES_REG(ensoniq, STATUS)));
 }
 
 #endif /* CHIP1370 */
@@ -620,7 +619,7 @@ static void snd_es1371_codec_write(ac97_t *ac97,
 		}
 	}
 	up(&ensoniq->src_mutex);
-	snd_printk("codec write timeout at 0x%lx [0x%x]\n", ES_REG(ensoniq, 1371_CODEC), inl(ES_REG(ensoniq, 1371_CODEC)));
+	snd_printk(KERN_ERR "codec write timeout at 0x%lx [0x%x]\n", ES_REG(ensoniq, 1371_CODEC), inl(ES_REG(ensoniq, 1371_CODEC)));
 }
 
 static unsigned short snd_es1371_codec_read(ac97_t *ac97,
@@ -667,14 +666,14 @@ static unsigned short snd_es1371_codec_read(ac97_t *ac97,
 			}
 			up(&ensoniq->src_mutex);
 			if (++fail > 10) {
-				snd_printk("codec read timeout (final) at 0x%lx, reg = 0x%x [0x%x]\n", ES_REG(ensoniq, 1371_CODEC), reg, inl(ES_REG(ensoniq, 1371_CODEC)));
+				snd_printk(KERN_ERR "codec read timeout (final) at 0x%lx, reg = 0x%x [0x%x]\n", ES_REG(ensoniq, 1371_CODEC), reg, inl(ES_REG(ensoniq, 1371_CODEC)));
 				return 0;
 			}
 			goto __again;
 		}
 	}
 	up(&ensoniq->src_mutex);
-	snd_printk("es1371: codec read timeout at 0x%lx [0x%x]\n", ES_REG(ensoniq, 1371_CODEC), inl(ES_REG(ensoniq, 1371_CODEC)));
+	snd_printk(KERN_ERR "es1371: codec read timeout at 0x%lx [0x%x]\n", ES_REG(ensoniq, 1371_CODEC), inl(ES_REG(ensoniq, 1371_CODEC)));
 	return 0;
 }
 
@@ -1960,7 +1959,7 @@ static int __devinit snd_ensoniq_create(snd_card_t * card,
 	}
 	ensoniq->port = pci_resource_start(pci, 0);
 	if (request_irq(pci->irq, snd_audiopci_interrupt, SA_INTERRUPT|SA_SHIRQ, "Ensoniq AudioPCI", (void *)ensoniq)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_ensoniq_free(ensoniq);
 		return -EBUSY;
 	}
@@ -1968,7 +1967,7 @@ static int __devinit snd_ensoniq_create(snd_card_t * card,
 #ifdef CHIP1370
 	if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(pci),
 				16, &ensoniq->dma_bug) < 0) {
-		snd_printk("unable to allocate space for phantom area - dma_bug\n");
+		snd_printk(KERN_ERR "unable to allocate space for phantom area - dma_bug\n");
 		snd_ensoniq_free(ensoniq);
 		return -EBUSY;
 	}

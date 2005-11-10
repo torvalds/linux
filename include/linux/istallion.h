@@ -21,8 +21,6 @@
  *	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/version.h>
-
 /*****************************************************************************/
 #ifndef	_ISTALLION_H
 #define	_ISTALLION_H

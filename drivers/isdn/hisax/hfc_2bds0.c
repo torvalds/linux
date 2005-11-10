@@ -1052,18 +1052,12 @@ init2bds0(struct IsdnCardState *cs)
 void
 release2bds0(struct IsdnCardState *cs)
 {
-	if (cs->bcs[0].hw.hfc.send) {
-		kfree(cs->bcs[0].hw.hfc.send);
-		cs->bcs[0].hw.hfc.send = NULL;
-	}
-	if (cs->bcs[1].hw.hfc.send) {
-		kfree(cs->bcs[1].hw.hfc.send);
-		cs->bcs[1].hw.hfc.send = NULL;
-	}
-	if (cs->hw.hfcD.send) {
-		kfree(cs->hw.hfcD.send);
-		cs->hw.hfcD.send = NULL;
-	}
+	kfree(cs->bcs[0].hw.hfc.send);
+	cs->bcs[0].hw.hfc.send = NULL;
+	kfree(cs->bcs[1].hw.hfc.send);
+	cs->bcs[1].hw.hfc.send = NULL;
+	kfree(cs->hw.hfcD.send);
+	cs->hw.hfcD.send = NULL;
 }
 
 void

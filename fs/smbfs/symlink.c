@@ -45,7 +45,7 @@ static void *smb_follow_link(struct dentry *dentry, struct nameidata *nd)
 		int len = smb_proc_read_link(server_from_dentry(dentry),
 						dentry, link, PATH_MAX - 1);
 		if (len < 0) {
-			putname(link);
+			__putname(link);
 			link = ERR_PTR(len);
 		} else {
 			link[len] = 0;
@@ -59,7 +59,7 @@ static void smb_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
 {
 	char *s = nd_get_link(nd);
 	if (!IS_ERR(s))
-		putname(s);
+		__putname(s);
 }
 
 struct inode_operations smb_link_inode_operations =

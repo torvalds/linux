@@ -911,7 +911,7 @@ static void build_feature_ctl(mixer_build_t *state, unsigned char *desc,
 	case USB_ID(0x0672, 0x1041):
 		if (!strcmp(kctl->id.name, "PCM Playback Volume") &&
 		    cval->min == -15616) {
-			snd_printk("using volume control quirk for the UDA1321/N101 chip\n");
+			snd_printk(KERN_INFO "using volume control quirk for the UDA1321/N101 chip\n");
 			cval->max = -256;
 		}
 	}

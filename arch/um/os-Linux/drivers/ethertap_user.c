@@ -19,7 +19,6 @@
 #include "user_util.h"
 #include "net_user.h"
 #include "etap.h"
-#include "helper.h"
 #include "os.h"
 
 #define MAX_PACKET ETH_MAX_PACKET

@@ -60,14 +60,6 @@ LIBGCC := $(shell $(CC) $(CFLAGS) -print-libgcc-file-name)
 
 core-y				+= arch/sh/kernel/ arch/sh/mm/
 
-#
-# ramdisk/initrd support
-# You need a compressed ramdisk image, named
-# CONFIG_EMBEDDED_RAMDISK_IMAGE. Relative pathnames
-# are relative to arch/sh/ramdisk/.
-#
-core-$(CONFIG_EMBEDDED_RAMDISK)	+= arch/sh/ramdisk/
-
 # Boards
 machdir-$(CONFIG_SH_SOLUTION_ENGINE)		:= se/770x
 machdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	:= se/7751

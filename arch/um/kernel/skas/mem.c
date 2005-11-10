@@ -20,7 +20,7 @@ unsigned long set_task_sizes_skas(int arg, unsigned long *host_size_out,
 	*task_size_out = CONFIG_HOST_TASK_SIZE;
 #else
 	*host_size_out = top;
-	if (proc_mm && ptrace_faultinfo)
+	if (!skas_needs_stub)
 		*task_size_out = top;
 	else *task_size_out = CONFIG_STUB_START & PGDIR_MASK;
 #endif

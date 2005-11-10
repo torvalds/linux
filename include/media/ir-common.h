@@ -20,8 +20,10 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/input.h>
+#ifndef _IR_COMMON
+#define _IR_COMMON
 
+#include <linux/input.h>
 
 #define IR_TYPE_RC5     1
 #define IR_TYPE_PD      2 /* Pulse distance encoded IR */
@@ -60,6 +62,8 @@ u32  ir_extract_bits(u32 data, u32 mask);
 int  ir_dump_samples(u32 *samples, int count);
 int  ir_decode_biphase(u32 *samples, int count, int low, int high);
 int  ir_decode_pulsedistance(u32 *samples, int count, int low, int high);
+
+#endif
 
 /*
  * Local variables:

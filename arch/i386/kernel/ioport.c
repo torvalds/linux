@@ -108,8 +108,11 @@ asmlinkage long sys_ioperm(unsigned long from, unsigned long num, int turn_on)
 	/*
 	 * Sets the lazy trigger so that the next I/O operation will
 	 * reload the correct bitmap.
+	 * Reset the owner so that a process switch will not set
+	 * tss->io_bitmap_base to IO_BITMAP_OFFSET.
 	 */
 	tss->io_bitmap_base = INVALID_IO_BITMAP_OFFSET_LAZY;
+	tss->io_bitmap_owner = NULL;
 
 	put_cpu();
 

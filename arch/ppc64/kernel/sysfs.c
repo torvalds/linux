@@ -20,6 +20,7 @@
 #include <asm/paca.h>
 #include <asm/lppaca.h>
 #include <asm/machdep.h>
+#include <asm/smp.h>
 
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
 

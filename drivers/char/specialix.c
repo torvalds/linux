@@ -90,7 +90,6 @@
 #include <linux/fcntl.h>
 #include <linux/major.h>
 #include <linux/delay.h>
-#include <linux/version.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <asm/uaccess.h>

@@ -592,12 +592,15 @@ int appldata_register_ops(struct appldata_ops *ops)
  */
 void appldata_unregister_ops(struct appldata_ops *ops)
 {
+	void *table;
 	spin_lock(&appldata_ops_lock);
-	unregister_sysctl_table(ops->sysctl_header);
 	list_del(&ops->list);
-	kfree(ops->ctl_table);
+	/* at that point any incoming access will fail */
+	table = ops->ctl_table;
 	ops->ctl_table = NULL;
 	spin_unlock(&appldata_ops_lock);
+	unregister_sysctl_table(ops->sysctl_header);
+	kfree(table);
 	P_INFO("%s-ops unregistered!\n", ops->name);
 }
 /********************** module-ops management <END> **************************/

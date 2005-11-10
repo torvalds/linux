@@ -289,7 +289,6 @@ struct quota_info {
 	struct semaphore dqonoff_sem;		/* Serialize quotaon & quotaoff */
 	struct rw_semaphore dqptr_sem;		/* serialize ops using quota_info struct, pointers from inode to dquots */
 	struct inode *files[MAXQUOTAS];		/* inodes of quotafiles */
-	struct vfsmount *mnt[MAXQUOTAS];	/* mountpoint entries of filesystems with quota files */
 	struct mem_dqinfo info[MAXQUOTAS];	/* Information for each quota type */
 	struct quota_format_ops *ops[MAXQUOTAS];	/* Operations for each type */
 };

@@ -55,6 +55,7 @@ static void	call_bind(struct rpc_task *task);
 static void	call_bind_status(struct rpc_task *task);
 static void	call_transmit(struct rpc_task *task);
 static void	call_status(struct rpc_task *task);
+static void	call_transmit_status(struct rpc_task *task);
 static void	call_refresh(struct rpc_task *task);
 static void	call_refreshresult(struct rpc_task *task);
 static void	call_timeout(struct rpc_task *task);
@@ -672,6 +673,18 @@ call_allocate(struct rpc_task *task)
 	rpc_exit(task, -ERESTARTSYS);
 }
 
+static inline int
+rpc_task_need_encode(struct rpc_task *task)
+{
+	return task->tk_rqstp->rq_snd_buf.len == 0;
+}
+
+static inline void
+rpc_task_force_reencode(struct rpc_task *task)
+{
+	task->tk_rqstp->rq_snd_buf.len = 0;
+}
+
 /*
  * 3.	Encode arguments of an RPC call
  */
@@ -867,12 +880,14 @@ call_transmit(struct rpc_task *task)
 	if (task->tk_status != 0)
 		return;
 	/* Encode here so that rpcsec_gss can use correct sequence number. */
-	if (task->tk_rqstp->rq_bytes_sent == 0) {
+	if (rpc_task_need_encode(task)) {
+		task->tk_rqstp->rq_bytes_sent = 0;
 		call_encode(task);
 		/* Did the encode result in an error condition? */
 		if (task->tk_status != 0)
 			goto out_nosend;
 	}
+	task->tk_action = call_transmit_status;
 	xprt_transmit(task);
 	if (task->tk_status < 0)
 		return;
@@ -884,6 +899,7 @@ call_transmit(struct rpc_task *task)
 out_nosend:
 	/* release socket write lock before attempting to handle error */
 	xprt_abort_transmit(task);
+	rpc_task_force_reencode(task);
 }
 
 /*
@@ -915,7 +931,6 @@ call_status(struct rpc_task *task)
 		break;
 	case -ECONNREFUSED:
 	case -ENOTCONN:
-		req->rq_bytes_sent = 0;
 		if (clnt->cl_autobind)
 			clnt->cl_port = 0;
 		task->tk_action = call_bind;
@@ -937,7 +952,18 @@ call_status(struct rpc_task *task)
 }
 
 /*
- * 6a.	Handle RPC timeout
+ * 6a.	Handle transmission errors.
+ */
+static void
+call_transmit_status(struct rpc_task *task)
+{
+	if (task->tk_status != -EAGAIN)
+		rpc_task_force_reencode(task);
+	call_status(task);
+}
+
+/*
+ * 6b.	Handle RPC timeout
  * 	We do not release the request slot, so we keep using the
  *	same XID for all retransmits.
  */

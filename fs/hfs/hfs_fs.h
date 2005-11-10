@@ -9,7 +9,6 @@
 #ifndef _LINUX_HFS_FS_H
 #define _LINUX_HFS_FS_H
 
-#include <linux/version.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/buffer_head.h>

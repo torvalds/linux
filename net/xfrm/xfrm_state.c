@@ -62,14 +62,10 @@ static void xfrm_state_gc_destroy(struct xfrm_state *x)
 {
 	if (del_timer(&x->timer))
 		BUG();
-	if (x->aalg)
-		kfree(x->aalg);
-	if (x->ealg)
-		kfree(x->ealg);
-	if (x->calg)
-		kfree(x->calg);
-	if (x->encap)
-		kfree(x->encap);
+	kfree(x->aalg);
+	kfree(x->ealg);
+	kfree(x->calg);
+	kfree(x->encap);
 	if (x->type) {
 		x->type->destructor(x);
 		xfrm_put_type(x->type);

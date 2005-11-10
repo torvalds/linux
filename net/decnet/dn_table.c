@@ -784,16 +784,14 @@ struct dn_fib_table *dn_fib_get_table(int n, int create)
 
 static void dn_fib_del_tree(int n)
 {
-        struct dn_fib_table *t;
+	struct dn_fib_table *t;
 
-        write_lock(&dn_fib_tables_lock);
-        t = dn_fib_tables[n];
-        dn_fib_tables[n] = NULL;
-        write_unlock(&dn_fib_tables_lock);
+	write_lock(&dn_fib_tables_lock);
+	t = dn_fib_tables[n];
+	dn_fib_tables[n] = NULL;
+	write_unlock(&dn_fib_tables_lock);
 
-        if (t) {
-                kfree(t);
-        }
+	kfree(t);
 }
 
 struct dn_fib_table *dn_fib_empty_table(void)

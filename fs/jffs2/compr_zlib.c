@@ -7,7 +7,7 @@
  *
  * For licensing information, see the file 'LICENCE' in this directory.
  *
- * $Id: compr_zlib.c,v 1.31 2005/05/20 19:30:06 gleixner Exp $
+ * $Id: compr_zlib.c,v 1.32 2005/11/07 11:14:38 gleixner Exp $
  *
  */
 
@@ -24,11 +24,11 @@
 #include "nodelist.h"
 #include "compr.h"
 
-	/* Plan: call deflate() with avail_in == *sourcelen, 
-		avail_out = *dstlen - 12 and flush == Z_FINISH. 
+	/* Plan: call deflate() with avail_in == *sourcelen,
+		avail_out = *dstlen - 12 and flush == Z_FINISH.
 		If it doesn't manage to finish,	call it again with
 		avail_in == 0 and avail_out set to the remaining 12
-		bytes for it to clean up. 
+		bytes for it to clean up.
 	   Q: Is 12 bytes sufficient?
 	*/
 #define STREAM_END_SPACE 12
@@ -89,7 +89,7 @@ static int jffs2_zlib_compress(unsigned char *data_in,
 
 	def_strm.next_in = data_in;
 	def_strm.total_in = 0;
-	
+
 	def_strm.next_out = cpage_out;
 	def_strm.total_out = 0;
 
@@ -99,7 +99,7 @@ static int jffs2_zlib_compress(unsigned char *data_in,
 		D1(printk(KERN_DEBUG "calling deflate with avail_in %d, avail_out %d\n",
 			  def_strm.avail_in, def_strm.avail_out));
 		ret = zlib_deflate(&def_strm, Z_PARTIAL_FLUSH);
-		D1(printk(KERN_DEBUG "deflate returned with avail_in %d, avail_out %d, total_in %ld, total_out %ld\n", 
+		D1(printk(KERN_DEBUG "deflate returned with avail_in %d, avail_out %d, total_in %ld, total_out %ld\n",
 			  def_strm.avail_in, def_strm.avail_out, def_strm.total_in, def_strm.total_out));
 		if (ret != Z_OK) {
 			D1(printk(KERN_DEBUG "deflate in loop returned %d\n", ret));
@@ -150,7 +150,7 @@ static int jffs2_zlib_decompress(unsigned char *data_in,
 	inf_strm.next_in = data_in;
 	inf_strm.avail_in = srclen;
 	inf_strm.total_in = 0;
-	
+
 	inf_strm.next_out = cpage_out;
 	inf_strm.avail_out = destlen;
 	inf_strm.total_out = 0;

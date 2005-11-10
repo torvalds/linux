@@ -193,6 +193,7 @@ static void flexcop_reset(struct flexcop_device *fc)
 	v204 = fc->read_ibi_reg(fc,misc_204);
 	v204.misc_204.Per_reset_sig = 0;
 	fc->write_ibi_reg(fc,misc_204,v204);
+	msleep(1);
 	v204.misc_204.Per_reset_sig = 1;
 	fc->write_ibi_reg(fc,misc_204,v204);
 }

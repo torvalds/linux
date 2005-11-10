@@ -129,7 +129,7 @@ void debug_set_level(debug_info_t* id, int new_level);
 
 void debug_stop_all(void);
 
-extern inline debug_entry_t* 
+static inline debug_entry_t*
 debug_event(debug_info_t* id, int level, void* data, int length)
 {
 	if ((!id) || (level > id->level) || (id->pages_per_area == 0))
@@ -137,7 +137,7 @@ debug_event(debug_info_t* id, int level, void* data, int length)
         return debug_event_common(id,level,data,length);
 }
 
-extern inline debug_entry_t* 
+static inline debug_entry_t*
 debug_int_event(debug_info_t* id, int level, unsigned int tag)
 {
         unsigned int t=tag;
@@ -146,7 +146,7 @@ debug_int_event(debug_info_t* id, int level, unsigned int tag)
         return debug_event_common(id,level,&t,sizeof(unsigned int));
 }
 
-extern inline debug_entry_t *
+static inline debug_entry_t *
 debug_long_event (debug_info_t* id, int level, unsigned long tag)
 {
         unsigned long t=tag;
@@ -155,7 +155,7 @@ debug_long_event (debug_info_t* id, int level, unsigned long tag)
         return debug_event_common(id,level,&t,sizeof(unsigned long));
 }
 
-extern inline debug_entry_t* 
+static inline debug_entry_t*
 debug_text_event(debug_info_t* id, int level, const char* txt)
 {
 	if ((!id) || (level > id->level) || (id->pages_per_area == 0))
@@ -168,7 +168,7 @@ debug_sprintf_event(debug_info_t* id,int level,char *string,...)
 	__attribute__ ((format(printf, 3, 4)));
 
 
-extern inline debug_entry_t* 
+static inline debug_entry_t*
 debug_exception(debug_info_t* id, int level, void* data, int length)
 {
 	if ((!id) || (level > id->level) || (id->pages_per_area == 0))
@@ -176,7 +176,7 @@ debug_exception(debug_info_t* id, int level, void* data, int length)
         return debug_exception_common(id,level,data,length);
 }
 
-extern inline debug_entry_t* 
+static inline debug_entry_t*
 debug_int_exception(debug_info_t* id, int level, unsigned int tag)
 {
         unsigned int t=tag;
@@ -185,7 +185,7 @@ debug_int_exception(debug_info_t* id, int level, unsigned int tag)
         return debug_exception_common(id,level,&t,sizeof(unsigned int));
 }
 
-extern inline debug_entry_t * 
+static inline debug_entry_t *
 debug_long_exception (debug_info_t* id, int level, unsigned long tag)
 {
         unsigned long t=tag;
@@ -194,7 +194,7 @@ debug_long_exception (debug_info_t* id, int level, unsigned long tag)
         return debug_exception_common(id,level,&t,sizeof(unsigned long));
 }
 
-extern inline debug_entry_t* 
+static inline debug_entry_t*
 debug_text_exception(debug_info_t* id, int level, const char* txt)
 {
 	if ((!id) || (level > id->level) || (id->pages_per_area == 0))

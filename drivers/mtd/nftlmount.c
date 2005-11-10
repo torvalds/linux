@@ -1,10 +1,10 @@
-/* 
+/*
  * NFTL mount code with extensive checks
  *
- * Author: Fabrice Bellard (fabrice.bellard@netgem.com) 
+ * Author: Fabrice Bellard (fabrice.bellard@netgem.com)
  * Copyright (C) 2000 Netgem S.A.
  *
- * $Id: nftlmount.c,v 1.40 2004/11/22 14:38:29 kalev Exp $
+ * $Id: nftlmount.c,v 1.41 2005/11/07 11:14:21 gleixner Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@
 
 #define SECTORSIZE 512
 
-char nftlmountrev[]="$Revision: 1.40 $";
+char nftlmountrev[]="$Revision: 1.41 $";
 
 /* find_boot_record: Find the NFTL Media Header and its Spare copy which contains the
  *	various device information of the NFTL partition and Bad Unit Table. Update
@@ -47,7 +47,7 @@ static int find_boot_record(struct NFTLrecord *nftl)
 	struct NFTLMediaHeader *mh = &nftl->MediaHdr;
 	unsigned int i;
 
-        /* Assume logical EraseSize == physical erasesize for starting the scan. 
+        /* Assume logical EraseSize == physical erasesize for starting the scan.
 	   We'll sort it out later if we find a MediaHeader which says otherwise */
 	/* Actually, we won't.  The new DiskOnChip driver has already scanned
 	   the MediaHeader and adjusted the virtual erasesize it presents in
@@ -83,9 +83,9 @@ static int find_boot_record(struct NFTLrecord *nftl)
 		if (retlen < 6 || memcmp(buf, "ANAND", 6)) {
 			/* ANAND\0 not found. Continue */
 #if 0
-			printk(KERN_DEBUG "ANAND header not found at 0x%x in mtd%d\n", 
+			printk(KERN_DEBUG "ANAND header not found at 0x%x in mtd%d\n",
 			       block * nftl->EraseSize, nftl->mbd.mtd->index);
-#endif			
+#endif
 			continue;
 		}
 
@@ -103,7 +103,7 @@ static int find_boot_record(struct NFTLrecord *nftl)
       */
 		if (le16_to_cpu(h1.EraseMark | h1.EraseMark1) != ERASE_MARK) {
 			printk(KERN_NOTICE "ANAND header found at 0x%x in mtd%d, but erase mark not present (0x%04x,0x%04x instead)\n",
-			       block * nftl->EraseSize, nftl->mbd.mtd->index, 
+			       block * nftl->EraseSize, nftl->mbd.mtd->index,
 			       le16_to_cpu(h1.EraseMark), le16_to_cpu(h1.EraseMark1));
 			continue;
 		}
@@ -175,7 +175,7 @@ device is already correct.
 		nftl->nb_boot_blocks = le16_to_cpu(mh->FirstPhysicalEUN);
 		if ((nftl->nb_boot_blocks + 2) >= nftl->nb_blocks) {
 			printk(KERN_NOTICE "NFTL Media Header sanity check failed:\n");
-			printk(KERN_NOTICE "nb_boot_blocks (%d) + 2 > nb_blocks (%d)\n", 
+			printk(KERN_NOTICE "nb_boot_blocks (%d) + 2 > nb_blocks (%d)\n",
 			       nftl->nb_boot_blocks, nftl->nb_blocks);
 			return -1;
 		}
@@ -187,7 +187,7 @@ device is already correct.
 			       nftl->numvunits, nftl->nb_blocks, nftl->nb_boot_blocks);
 			return -1;
 		}
-		
+
 		nftl->mbd.size  = nftl->numvunits * (nftl->EraseSize / SECTORSIZE);
 
 		/* If we're not using the last sectors in the device for some reason,
@@ -210,12 +210,12 @@ device is already correct.
 			printk(KERN_NOTICE "NFTL: allocation of ReplUnitTable failed\n");
 			return -ENOMEM;
 		}
-		
+
 		/* mark the bios blocks (blocks before NFTL MediaHeader) as reserved */
 		for (i = 0; i < nftl->nb_boot_blocks; i++)
 			nftl->ReplUnitTable[i] = BLOCK_RESERVED;
 		/* mark all remaining blocks as potentially containing data */
-		for (; i < nftl->nb_blocks; i++) { 
+		for (; i < nftl->nb_blocks; i++) {
 			nftl->ReplUnitTable[i] = BLOCK_NOTEXPLORED;
 		}
 
@@ -245,12 +245,12 @@ The new DiskOnChip driver already scanned the bad block table.  Just query it.
 			if (nftl->mbd.mtd->block_isbad(nftl->mbd.mtd, i * nftl->EraseSize))
 				nftl->ReplUnitTable[i] = BLOCK_RESERVED;
 		}
-		
+
 		nftl->MediaUnit = block;
 		boot_record_count++;
-		
+
 	} /* foreach (block) */
-		
+
 	return boot_record_count?0:-1;
 }
 
@@ -265,7 +265,7 @@ static int memcmpb(void *a, int c, int n)
 }
 
 /* check_free_sector: check if a free sector is actually FREE, i.e. All 0xff in data and oob area */
-static int check_free_sectors(struct NFTLrecord *nftl, unsigned int address, int len, 
+static int check_free_sectors(struct NFTLrecord *nftl, unsigned int address, int len,
 			      int check_oob)
 {
 	int i;
@@ -293,7 +293,7 @@ static int check_free_sectors(struct NFTLrecord *nftl, unsigned int address, int
  *
  * Return: 0 when succeed, -1 on error.
  *
- *  ToDo: 1. Is it neceressary to check_free_sector after erasing ?? 
+ *  ToDo: 1. Is it neceressary to check_free_sector after erasing ??
  */
 int NFTL_formatblock(struct NFTLrecord *nftl, int block)
 {
@@ -385,7 +385,7 @@ static void check_sectors_in_chain(struct NFTLrecord *nftl, unsigned int first_b
 				/* verify that the sector is really free. If not, mark
 				   as ignore */
 				if (memcmpb(&bci, 0xff, 8) != 0 ||
-				    check_free_sectors(nftl, block * nftl->EraseSize + i * SECTORSIZE, 
+				    check_free_sectors(nftl, block * nftl->EraseSize + i * SECTORSIZE,
 						       SECTORSIZE, 0) != 0) {
 					printk("Incorrect free sector %d in block %d: "
 					       "marking it as ignored\n",
@@ -486,7 +486,7 @@ static int check_and_mark_free_block(struct NFTLrecord *nftl, int block)
 	size_t retlen;
 
 	/* check erase mark. */
-	if (MTD_READOOB(nftl->mbd.mtd, block * nftl->EraseSize + SECTORSIZE + 8, 8, 
+	if (MTD_READOOB(nftl->mbd.mtd, block * nftl->EraseSize + SECTORSIZE + 8, 8,
 			&retlen, (char *)&h1) < 0)
 		return -1;
 
@@ -501,7 +501,7 @@ static int check_and_mark_free_block(struct NFTLrecord *nftl, int block)
 		h1.EraseMark = cpu_to_le16(ERASE_MARK);
 		h1.EraseMark1 = cpu_to_le16(ERASE_MARK);
 		h1.WearInfo = cpu_to_le32(0);
-		if (MTD_WRITEOOB(nftl->mbd.mtd, block * nftl->EraseSize + SECTORSIZE + 8, 8, 
+		if (MTD_WRITEOOB(nftl->mbd.mtd, block * nftl->EraseSize + SECTORSIZE + 8, 8,
 				 &retlen, (char *)&h1) < 0)
 			return -1;
 	} else {
@@ -582,9 +582,9 @@ int NFTL_mount(struct NFTLrecord *s)
 
 			for (;;) {
 				/* read the block header. If error, we format the chain */
-				if (MTD_READOOB(s->mbd.mtd, block * s->EraseSize + 8, 8, 
+				if (MTD_READOOB(s->mbd.mtd, block * s->EraseSize + 8, 8,
 						&retlen, (char *)&h0) < 0 ||
-				    MTD_READOOB(s->mbd.mtd, block * s->EraseSize + SECTORSIZE + 8, 8, 
+				    MTD_READOOB(s->mbd.mtd, block * s->EraseSize + SECTORSIZE + 8, 8,
 						&retlen, (char *)&h1) < 0) {
 					s->ReplUnitTable[block] = BLOCK_NIL;
 					do_format_chain = 1;
@@ -639,7 +639,7 @@ int NFTL_mount(struct NFTLrecord *s)
 					first_logical_block = logical_block;
 				} else {
 					if (logical_block != first_logical_block) {
-						printk("Block %d: incorrect logical block: %d expected: %d\n", 
+						printk("Block %d: incorrect logical block: %d expected: %d\n",
 						       block, logical_block, first_logical_block);
 						/* the chain is incorrect : we must format it,
 						   but we need to read it completly */
@@ -668,7 +668,7 @@ int NFTL_mount(struct NFTLrecord *s)
 					s->ReplUnitTable[block] = BLOCK_NIL;
 					break;
 				} else if (rep_block >= s->nb_blocks) {
-					printk("Block %d: referencing invalid block %d\n", 
+					printk("Block %d: referencing invalid block %d\n",
 					       block, rep_block);
 					do_format_chain = 1;
 					s->ReplUnitTable[block] = BLOCK_NIL;
@@ -688,7 +688,7 @@ int NFTL_mount(struct NFTLrecord *s)
 						s->ReplUnitTable[block] = rep_block;
 						s->EUNtable[first_logical_block] = BLOCK_NIL;
 					} else {
-						printk("Block %d: referencing block %d already in another chain\n", 
+						printk("Block %d: referencing block %d already in another chain\n",
 						       block, rep_block);
 						/* XXX: should handle correctly fold in progress chains */
 						do_format_chain = 1;
@@ -710,7 +710,7 @@ int NFTL_mount(struct NFTLrecord *s)
 			} else {
 				unsigned int first_block1, chain_to_format, chain_length1;
 				int fold_mark;
-				
+
 				/* valid chain : get foldmark */
 				fold_mark = get_fold_mark(s, first_block);
 				if (fold_mark == 0) {
@@ -729,9 +729,9 @@ int NFTL_mount(struct NFTLrecord *s)
 					if (first_block1 != BLOCK_NIL) {
 						/* XXX: what to do if same length ? */
 						chain_length1 = calc_chain_length(s, first_block1);
-						printk("Two chains at blocks %d (len=%d) and %d (len=%d)\n", 
+						printk("Two chains at blocks %d (len=%d) and %d (len=%d)\n",
 						       first_block1, chain_length1, first_block, chain_length);
-						
+
 						if (chain_length >= chain_length1) {
 							chain_to_format = first_block1;
 							s->EUNtable[first_logical_block] = first_block;

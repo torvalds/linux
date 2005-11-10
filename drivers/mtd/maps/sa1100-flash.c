@@ -1,9 +1,9 @@
 /*
  * Flash memory access on SA11x0 based devices
- * 
+ *
  * (C) 2000 Nicolas Pitre <nico@cam.org>
- * 
- * $Id: sa1100-flash.c,v 1.47 2004/11/01 13:44:36 rmk Exp $
+ *
+ * $Id: sa1100-flash.c,v 1.51 2005/11/07 11:14:28 gleixner Exp $
  */
 #include <linux/config.h>
 #include <linux/module.h>
@@ -241,8 +241,7 @@ static void sa1100_destroy(struct sa_info *info, struct flash_platform_data *pla
 #endif
 	}
 
-	if (info->parts)
-		kfree(info->parts);
+	kfree(info->parts);
 
 	for (i = info->num_subdev - 1; i >= 0; i--)
 		sa1100_destroy_subdev(&info->subdev[i]);

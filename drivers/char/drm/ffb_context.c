@@ -526,10 +526,8 @@ int ffb_driver_rmctx(struct inode *inode, struct file *filp, unsigned int cmd,
 	if (idx < 0 || idx >= FFB_MAX_CTXS)
 		return -EINVAL;
 
-	if (fpriv->hw_state[idx] != NULL) {
-		kfree(fpriv->hw_state[idx]);
-		fpriv->hw_state[idx] = NULL;
-	}
+	kfree(fpriv->hw_state[idx]);
+	fpriv->hw_state[idx] = NULL;
 	return 0;
 }
 

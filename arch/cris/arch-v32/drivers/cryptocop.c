@@ -277,7 +277,7 @@ struct file_operations cryptocop_fops = {
 static void free_cdesc(struct cryptocop_dma_desc *cdesc)
 {
 	DEBUG(printk("free_cdesc: cdesc 0x%p, from_pool=%d\n", cdesc, cdesc->from_pool));
-	if (cdesc->free_buf) kfree(cdesc->free_buf);
+	kfree(cdesc->free_buf);
 
 	if (cdesc->from_pool) {
 		unsigned long int flags;
@@ -2950,15 +2950,15 @@ static int cryptocop_ioctl_process(struct inode *inode, struct file *filp, unsig
 		put_page(outpages[i]);
 	}
 
-	if (digest_result) kfree(digest_result);
-	if (inpages) kfree(inpages);
-	if (outpages) kfree(outpages);
+	kfree(digest_result);
+	kfree(inpages);
+	kfree(outpages);
 	if (cop){
-		if (cop->tfrm_op.indata) kfree(cop->tfrm_op.indata);
-		if (cop->tfrm_op.outdata) kfree(cop->tfrm_op.outdata);
+		kfree(cop->tfrm_op.indata);
+		kfree(cop->tfrm_op.outdata);
 		kfree(cop);
 	}
-	if (jc) kfree(jc);
+	kfree(jc);
 
 	DEBUG(print_lock_status());
 

@@ -10,6 +10,7 @@
 
 #include <asm/delay.h>
 #include <linux/pci.h>
+#include <linux/reboot_fixups.h>
 
 static void cs5530a_warm_reset(struct pci_dev *dev)
 {
@@ -42,7 +43,7 @@ void mach_reboot_fixups(void)
 	struct pci_dev *dev;
 	int i;
 
-	for (i=0; i < (sizeof(fixups_table)/sizeof(fixups_table[0])); i++) {
+	for (i=0; i < ARRAY_SIZE(fixups_table); i++) {
 		cur = &(fixups_table[i]);
 		dev = pci_get_device(cur->vendor, cur->device, NULL);
 		if (!dev)

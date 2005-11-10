@@ -1,4 +1,4 @@
-/* $Id: sun_uflash.c,v 1.11 2004/11/04 13:24:15 gleixner Exp $
+/* $Id: sun_uflash.c,v 1.13 2005/11/07 11:14:28 gleixner Exp $
  *
  * sun_uflash - Driver implementation for user-programmable flash
  * present on many Sun Microsystems SME boardsets.
@@ -63,7 +63,7 @@ int uflash_devinit(struct linux_ebus_device* edev)
 	iTmp = prom_getproperty(
 		edev->prom_node, "reg", (void *)regs, sizeof(regs));
 	if ((iTmp % sizeof(regs[0])) != 0) {
-		printk("%s: Strange reg property size %d\n", 
+		printk("%s: Strange reg property size %d\n",
 			UFLASH_DEVNAME, iTmp);
 		return -ENODEV;
 	}
@@ -75,7 +75,7 @@ int uflash_devinit(struct linux_ebus_device* edev)
 		 * can work on supporting it.
 		 */
 		printk("%s: unsupported device at 0x%lx (%d regs): " \
-			"email ebrower@usa.net\n", 
+			"email ebrower@usa.net\n",
 			UFLASH_DEVNAME, edev->resource[0].start, nregs);
 		return -ENODEV;
 	}
@@ -84,7 +84,7 @@ int uflash_devinit(struct linux_ebus_device* edev)
 		printk("%s: unable to kmalloc new device\n", UFLASH_DEVNAME);
 		return(-ENOMEM);
 	}
-	
+
 	/* copy defaults and tweak parameters */
 	memcpy(&pdev->map, &uflash_map_templ, sizeof(uflash_map_templ));
 	pdev->map.size = regs[0].reg_size;
@@ -155,7 +155,7 @@ static void __exit uflash_cleanup(void)
 
 	list_for_each(udevlist, &device_list) {
 		udev = list_entry(udevlist, struct uflash_dev, list);
-		DEBUG(2, "%s: removing device %s\n", 
+		DEBUG(2, "%s: removing device %s\n",
 			UFLASH_DEVNAME, udev->name);
 
 		if(0 != udev->mtd) {
@@ -166,11 +166,9 @@ static void __exit uflash_cleanup(void)
 			iounmap(udev->map.virt);
 			udev->map.virt = NULL;
 		}
-		if(0 != udev->name) {
-			kfree(udev->name);
-		}
+		kfree(udev->name);
 		kfree(udev);
-	}	
+	}
 }
 
 module_init(uflash_init);
