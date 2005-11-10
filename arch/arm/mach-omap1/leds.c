@@ -33,7 +33,6 @@ omap_leds_init(void)
 
 	if (machine_is_omap_h2()
 			|| machine_is_omap_h3()
-			|| machine_is_omap_perseus2()
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
 			|| machine_is_omap_osk()
 #endif

@@ -31,7 +31,7 @@
 #include <asm/arch/mux.h>
 #include <asm/arch/fpga.h>
 
-#include "clock.h"
+#include <asm/arch/clock.h>
 
 #define NO_LENGTH_CHECK 0xffffffff
 
@@ -117,19 +117,43 @@ EXPORT_SYMBOL(omap_get_var_config);
 
 static int __init omap_add_serial_console(void)
 {
-	const struct omap_serial_console_config *info;
+	const struct omap_serial_console_config *con_info;
+	const struct omap_uart_config *uart_info;
+	static char speed[11], *opt = NULL;
+	int line, i, uart_idx;
 
-	info = omap_get_config(OMAP_TAG_SERIAL_CONSOLE,
-			       struct omap_serial_console_config);
-	if (info != NULL && info->console_uart) {
-		static char speed[11], *opt = NULL;
+	uart_info = omap_get_config(OMAP_TAG_UART, struct omap_uart_config);
+	con_info = omap_get_config(OMAP_TAG_SERIAL_CONSOLE,
+					struct omap_serial_console_config);
+	if (uart_info == NULL || con_info == NULL)
+		return 0;
 
-		if (info->console_speed) {
-			snprintf(speed, sizeof(speed), "%u", info->console_speed);
-			opt = speed;
-		}
-		return add_preferred_console("ttyS", info->console_uart - 1, opt);
+	if (con_info->console_uart == 0)
+		return 0;
+
+	if (con_info->console_speed) {
+		snprintf(speed, sizeof(speed), "%u", con_info->console_speed);
+		opt = speed;
 	}
-	return 0;
+
+	uart_idx = con_info->console_uart - 1;
+	if (uart_idx >= OMAP_MAX_NR_PORTS) {
+		printk(KERN_INFO "Console: external UART#%d. "
+			"Not adding it as console this time.\n",
+			uart_idx + 1);
+		return 0;
+	}
+	if (!(uart_info->enabled_uarts & (1 << uart_idx))) {
+		printk(KERN_ERR "Console: Selected UART#%d is "
+			"not enabled for this platform\n",
+			uart_idx + 1);
+		return -1;
+	}
+	line = 0;
+	for (i = 0; i < uart_idx; i++) {
+		if (uart_info->enabled_uarts & (1 << i))
+			line++;
+	}
+	return add_preferred_console("ttyS", line, opt);
 }
 console_initcall(omap_add_serial_console);

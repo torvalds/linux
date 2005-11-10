@@ -1,7 +1,7 @@
 /*
  * linux/arch/arm/plat-omap/sleep.S
  *
- * Low-level OMAP1510/1610 sleep/wakeUp support
+ * Low-level OMAP730/1510/1610 sleep/wakeUp support
  *
  * Initial SA1110 code:
  * Copyright (c) 2001 Cliff Brake <cbrake@accelent.com>
@@ -52,7 +52,57 @@
  *       processor specific functions here.
  */
 
-#ifdef CONFIG_ARCH_OMAP1510
+#if defined(CONFIG_ARCH_OMAP730)
+ENTRY(omap730_idle_loop_suspend)
+
+	stmfd	sp!, {r0 - r12, lr}		@ save registers on stack
+
+	@ load base address of ARM_IDLECT1 and ARM_IDLECT2
+	mov	r4, #CLKGEN_REG_ASM_BASE & 0xff000000
+	orr	r4, r4, #CLKGEN_REG_ASM_BASE & 0x00ff0000
+	orr	r4, r4, #CLKGEN_REG_ASM_BASE & 0x0000ff00
+
+	@ turn off clock domains
+	@ get ARM_IDLECT2 into r2
+	ldrh	r2, [r4, #ARM_IDLECT2_ASM_OFFSET & 0xff]
+	mov	r5, #OMAP730_IDLECT2_SLEEP_VAL & 0xff
+	orr	r5, r5, #OMAP730_IDLECT2_SLEEP_VAL & 0xff00
+	strh	r5, [r4, #ARM_IDLECT2_ASM_OFFSET & 0xff]
+
+	@ request ARM idle
+	@ get ARM_IDLECT1 into r1
+	ldrh	r1, [r4, #ARM_IDLECT1_ASM_OFFSET & 0xff]
+	orr	r3, r1, #OMAP730_IDLE_LOOP_REQUEST & 0xffff
+	strh	r3, [r4, #ARM_IDLECT1_ASM_OFFSET & 0xff]
+
+	mov	r5, #IDLE_WAIT_CYCLES & 0xff
+	orr	r5, r5, #IDLE_WAIT_CYCLES & 0xff00
+l_730:	subs	r5, r5, #1
+	bne	l_730
+/*
+ * Let's wait for the next clock tick to wake us up.
+ */
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c0, 4		@ wait for interrupt
+/*
+ * omap730_idle_loop_suspend()'s resume point.
+ *
+ * It will just start executing here, so we'll restore stuff from the
+ * stack, reset the ARM_IDLECT1 and ARM_IDLECT2.
+ */
+
+	@ restore ARM_IDLECT1 and ARM_IDLECT2 and return
+	@ r1 has ARM_IDLECT1 and r2 still has ARM_IDLECT2
+	strh	r2, [r4, #ARM_IDLECT2_ASM_OFFSET & 0xff]
+	strh	r1, [r4, #ARM_IDLECT1_ASM_OFFSET & 0xff]
+
+	ldmfd	sp!, {r0 - r12, pc}		@ restore regs and return
+
+ENTRY(omap730_idle_loop_suspend_sz)
+	.word	. - omap730_idle_loop_suspend
+#endif /* CONFIG_ARCH_OMAP730 */
+
+#ifdef CONFIG_ARCH_OMAP15XX
 ENTRY(omap1510_idle_loop_suspend)
 
 	stmfd	sp!, {r0 - r12, lr}		@ save registers on stack
@@ -100,7 +150,7 @@ l_1510:	subs	r5, r5, #1
 
 ENTRY(omap1510_idle_loop_suspend_sz)
 	.word	. - omap1510_idle_loop_suspend
-#endif /* CONFIG_ARCH_OMAP1510 */
+#endif /* CONFIG_ARCH_OMAP15XX */
 
 #if defined(CONFIG_ARCH_OMAP16XX)
 ENTRY(omap1610_idle_loop_suspend)
@@ -169,7 +219,86 @@ ENTRY(omap1610_idle_loop_suspend_sz)
  *
  */
 
-#ifdef CONFIG_ARCH_OMAP1510
+#if defined(CONFIG_ARCH_OMAP730)
+ENTRY(omap730_cpu_suspend)
+
+	@ save registers on stack
+	stmfd	sp!, {r0 - r12, lr}
+
+	@ Drain write cache
+	mov	r4, #0
+	mcr	p15, 0, r0, c7, c10, 4
+	nop
+
+	@ load base address of Traffic Controller
+	mov	r6, #TCMIF_ASM_BASE & 0xff000000
+	orr	r6, r6, #TCMIF_ASM_BASE & 0x00ff0000
+	orr	r6, r6, #TCMIF_ASM_BASE & 0x0000ff00
+
+	@ prepare to put SDRAM into self-refresh manually
+	ldr	r7, [r6, #EMIFF_SDRAM_CONFIG_ASM_OFFSET & 0xff]
+	orr	r9, r7, #SELF_REFRESH_MODE & 0xff000000
+	orr	r9, r9, #SELF_REFRESH_MODE & 0x000000ff
+	str	r9, [r6, #EMIFF_SDRAM_CONFIG_ASM_OFFSET & 0xff]
+
+	@ prepare to put EMIFS to Sleep
+	ldr	r8, [r6, #EMIFS_CONFIG_ASM_OFFSET & 0xff]
+	orr	r9, r8, #IDLE_EMIFS_REQUEST & 0xff
+	str	r9, [r6, #EMIFS_CONFIG_ASM_OFFSET & 0xff]
+
+	@ load base address of ARM_IDLECT1 and ARM_IDLECT2
+	mov	r4, #CLKGEN_REG_ASM_BASE & 0xff000000
+	orr	r4, r4, #CLKGEN_REG_ASM_BASE & 0x00ff0000
+	orr	r4, r4, #CLKGEN_REG_ASM_BASE & 0x0000ff00
+
+	@ turn off clock domains
+	@ do not disable PERCK (0x04)
+	mov	r5, #OMAP730_IDLECT2_SLEEP_VAL & 0xff
+	orr	r5, r5, #OMAP730_IDLECT2_SLEEP_VAL & 0xff00
+	strh	r5, [r4, #ARM_IDLECT2_ASM_OFFSET & 0xff]
+
+	@ request ARM idle
+	mov	r3, #OMAP730_IDLECT1_SLEEP_VAL & 0xff
+	orr	r3, r3, #OMAP730_IDLECT1_SLEEP_VAL & 0xff00
+	strh	r3, [r4, #ARM_IDLECT1_ASM_OFFSET & 0xff]
+
+	@ disable instruction cache
+	mrc	p15, 0, r9, c1, c0, 0
+	bic	r2, r9, #0x1000
+	mcr	p15, 0, r2, c1, c0, 0
+	nop
+
+/*
+ * Let's wait for the next wake up event to wake us up. r0 can't be
+ * used here because r0 holds ARM_IDLECT1
+ */
+	mov	r2, #0
+	mcr	p15, 0, r2, c7, c0, 4		@ wait for interrupt
+/*
+ * omap730_cpu_suspend()'s resume point.
+ *
+ * It will just start executing here, so we'll restore stuff from the
+ * stack.
+ */
+	@ re-enable Icache
+	mcr	p15, 0, r9, c1, c0, 0
+
+	@ reset the ARM_IDLECT1 and ARM_IDLECT2.
+	strh	r1, [r4, #ARM_IDLECT2_ASM_OFFSET & 0xff]
+	strh	r0, [r4, #ARM_IDLECT1_ASM_OFFSET & 0xff]
+
+	@ Restore EMIFF controls
+	str	r7, [r6, #EMIFF_SDRAM_CONFIG_ASM_OFFSET & 0xff]
+	str	r8, [r6, #EMIFS_CONFIG_ASM_OFFSET & 0xff]
+
+	@ restore regs and return
+	ldmfd	sp!, {r0 - r12, pc}
+
+ENTRY(omap730_cpu_suspend_sz)
+	.word	. - omap730_cpu_suspend
+#endif /* CONFIG_ARCH_OMAP730 */
+
+#ifdef CONFIG_ARCH_OMAP15XX
 ENTRY(omap1510_cpu_suspend)
 
 	@ save registers on stack
@@ -241,7 +370,7 @@ l_1510_2:
 
 ENTRY(omap1510_cpu_suspend_sz)
 	.word	. - omap1510_cpu_suspend
-#endif /* CONFIG_ARCH_OMAP1510 */
+#endif /* CONFIG_ARCH_OMAP15XX */
 
 #if defined(CONFIG_ARCH_OMAP16XX)
 ENTRY(omap1610_cpu_suspend)
