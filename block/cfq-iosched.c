@@ -861,8 +861,8 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	 * store what was left of this slice, if the queue idled out
 	 * or was preempted
 	 */
-	if (time_after(now, cfqq->slice_end))
-		cfqq->slice_left = now - cfqq->slice_end;
+	if (time_after(cfqq->slice_end, now))
+		cfqq->slice_left = cfqq->slice_end - now;
 	else
 		cfqq->slice_left = 0;
 
