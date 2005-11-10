@@ -4800,11 +4800,7 @@ bnx2_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
   	struct bnx2 *bp = dev->priv;
 	int rc;
 
-	if (eeprom->offset > bp->flash_info->total_size)
-		return -EINVAL;
-
-	if ((eeprom->offset + eeprom->len) > bp->flash_info->total_size)
-		eeprom->len = bp->flash_info->total_size - eeprom->offset;
+	/* parameters already validated in ethtool_get_eeprom */
 
 	rc = bnx2_nvram_read(bp, eeprom->offset, eebuf, eeprom->len);
 
@@ -4818,11 +4814,7 @@ bnx2_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
   	struct bnx2 *bp = dev->priv;
 	int rc;
 
-	if (eeprom->offset > bp->flash_info->total_size)
-		return -EINVAL;
-
-	if ((eeprom->offset + eeprom->len) > bp->flash_info->total_size)
-		eeprom->len = bp->flash_info->total_size - eeprom->offset;
+	/* parameters already validated in ethtool_set_eeprom */
 
 	rc = bnx2_nvram_write(bp, eeprom->offset, eebuf, eeprom->len);
 
