@@ -544,16 +544,14 @@ typedef struct ati_pcigart_info {
 struct drm_device;
 
 struct drm_driver {
-	int (*preinit) (struct drm_device *, unsigned long flags);
-	void (*prerelease) (struct drm_device *, struct file * filp);
-	void (*pretakedown) (struct drm_device *);
-	int (*postcleanup) (struct drm_device *);
-	int (*presetup) (struct drm_device *);
-	int (*postsetup) (struct drm_device *);
+	int (*load) (struct drm_device *, unsigned long flags);
+	int (*firstopen) (struct drm_device *);
+	int (*open) (struct drm_device *, drm_file_t *);
+	void (*preclose) (struct drm_device *, struct file * filp);
+	void (*postclose) (struct drm_device *, drm_file_t *);
+	void (*lastclose) (struct drm_device *);
+	int (*unload) (struct drm_device *);
 	int (*dma_ioctl) (DRM_IOCTL_ARGS);
-	int (*open_helper) (struct drm_device *, drm_file_t *);
-	void (*free_filp_priv) (struct drm_device *, drm_file_t *);
-	void (*release) (struct drm_device *, struct file * filp);
 	void (*dma_ready) (struct drm_device *);
 	int (*dma_quiescent) (struct drm_device *);
 	int (*context_ctor) (struct drm_device * dev, int context);
@@ -579,16 +577,25 @@ struct drm_driver {
 
 	/* these have to be filled in */
 
-	int (*postinit) (struct drm_device *, unsigned long flags);
-	 irqreturn_t(*irq_handler) (DRM_IRQ_ARGS);
+	irqreturn_t(*irq_handler) (DRM_IRQ_ARGS);
 	void (*irq_preinstall) (struct drm_device * dev);
 	void (*irq_postinstall) (struct drm_device * dev);
 	void (*irq_uninstall) (struct drm_device * dev);
 	void (*reclaim_buffers) (struct drm_device * dev, struct file * filp);
+	void (*reclaim_buffers_locked) (struct drm_device *drv,
+					struct file *filp);
 	unsigned long (*get_map_ofs) (drm_map_t * map);
 	unsigned long (*get_reg_ofs) (struct drm_device * dev);
 	void (*set_version) (struct drm_device * dev, drm_set_version_t * sv);
 	int (*version) (drm_version_t * version);
+
+	int major;
+	int minor;
+	int patchlevel;
+	char *name;
+	char *desc;
+	char *date;
+
 	u32 driver_features;
 	int dev_priv_size;
 	drm_ioctl_desc_t *ioctls;
@@ -772,7 +779,7 @@ extern int drm_ioctl(struct inode *inode, struct file *filp,
 		     unsigned int cmd, unsigned long arg);
 extern long drm_compat_ioctl(struct file *filp,
 			     unsigned int cmd, unsigned long arg);
-extern int drm_takedown(drm_device_t * dev);
+extern int drm_lastclose(drm_device_t *dev);
 
 				/* Device support (drm_fops.h) */
 extern int drm_open(struct inode *inode, struct file *filp);

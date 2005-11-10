@@ -1517,12 +1517,24 @@ static int i830_setparam(struct inode *inode, struct file *filp,
 	return 0;
 }
 
-void i830_driver_pretakedown(drm_device_t * dev)
+int i830_driver_load(drm_device_t *dev, unsigned long flags)
+{
+	/* i830 has 4 more counters */
+	dev->counters += 4;
+	dev->types[6] = _DRM_STAT_IRQ;
+	dev->types[7] = _DRM_STAT_PRIMARY;
+	dev->types[8] = _DRM_STAT_SECONDARY;
+	dev->types[9] = _DRM_STAT_DMA;
+
+	return 0;
+}
+
+void i830_driver_lastclose(drm_device_t * dev)
 {
 	i830_dma_cleanup(dev);
 }
 
-void i830_driver_prerelease(drm_device_t * dev, DRMFILE filp)
+void i830_driver_preclose(drm_device_t * dev, DRMFILE filp)
 {
 	if (dev->dev_private) {
 		drm_i830_private_t *dev_priv = dev->dev_private;
@@ -1532,7 +1544,7 @@ void i830_driver_prerelease(drm_device_t * dev, DRMFILE filp)
 	}
 }
 
-void i830_driver_release(drm_device_t * dev, struct file *filp)
+void i830_driver_reclaim_buffers_locked(drm_device_t * dev, struct file *filp)
 {
 	i830_reclaim_buffers(dev, filp);
 }

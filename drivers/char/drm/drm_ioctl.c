@@ -325,17 +325,13 @@ int drm_setversion(DRM_IOCTL_ARGS)
 	drm_set_version_t retv;
 	int if_version;
 	drm_set_version_t __user *argp = (void __user *)data;
-	drm_version_t version;
 
 	DRM_COPY_FROM_USER_IOCTL(sv, argp, sizeof(sv));
 
-	memset(&version, 0, sizeof(version));
-
-	dev->driver->version(&version);
 	retv.drm_di_major = DRM_IF_MAJOR;
 	retv.drm_di_minor = DRM_IF_MINOR;
-	retv.drm_dd_major = version.version_major;
-	retv.drm_dd_minor = version.version_minor;
+	retv.drm_dd_major = dev->driver->major;
+	retv.drm_dd_minor = dev->driver->minor;
 
 	DRM_COPY_TO_USER_IOCTL(argp, retv, sizeof(sv));
 
@@ -354,9 +350,9 @@ int drm_setversion(DRM_IOCTL_ARGS)
 	}
 
 	if (sv.drm_dd_major != -1) {
-		if (sv.drm_dd_major != version.version_major ||
+		if (sv.drm_dd_major != dev->driver->major ||
 		    sv.drm_dd_minor < 0
-		    || sv.drm_dd_minor > version.version_minor)
+		    || sv.drm_dd_minor > dev->driver->minor)
 			return EINVAL;
 
 		if (dev->driver->set_version)

@@ -1319,12 +1319,24 @@ static int i810_flip_bufs(struct inode *inode, struct file *filp,
 	return 0;
 }
 
-void i810_driver_pretakedown(drm_device_t * dev)
+int i810_driver_load(drm_device_t *dev, unsigned long flags)
+{
+	/* i810 has 4 more counters */
+	dev->counters += 4;
+	dev->types[6] = _DRM_STAT_IRQ;
+	dev->types[7] = _DRM_STAT_PRIMARY;
+	dev->types[8] = _DRM_STAT_SECONDARY;
+	dev->types[9] = _DRM_STAT_DMA;
+
+	return 0;
+}
+
+void i810_driver_lastclose(drm_device_t * dev)
 {
 	i810_dma_cleanup(dev);
 }
 
-void i810_driver_prerelease(drm_device_t * dev, DRMFILE filp)
+void i810_driver_preclose(drm_device_t * dev, DRMFILE filp)
 {
 	if (dev->dev_private) {
 		drm_i810_private_t *dev_priv = dev->dev_private;
@@ -1334,7 +1346,7 @@ void i810_driver_prerelease(drm_device_t * dev, DRMFILE filp)
 	}
 }
 
-void i810_driver_release(drm_device_t * dev, struct file *filp)
+void i810_driver_reclaim_buffers_locked(drm_device_t * dev, struct file *filp)
 {
 	i810_reclaim_buffers(dev, filp);
 }

@@ -1674,7 +1674,7 @@ static int r128_getparam(DRM_IOCTL_ARGS)
 	return 0;
 }
 
-void r128_driver_prerelease(drm_device_t * dev, DRMFILE filp)
+void r128_driver_preclose(drm_device_t * dev, DRMFILE filp)
 {
 	if (dev->dev_private) {
 		drm_r128_private_t *dev_priv = dev->dev_private;
@@ -1684,7 +1684,7 @@ void r128_driver_prerelease(drm_device_t * dev, DRMFILE filp)
 	}
 }
 
-void r128_driver_pretakedown(drm_device_t * dev)
+void r128_driver_lastclose(drm_device_t * dev)
 {
 	r128_do_cleanup_cce(dev);
 }

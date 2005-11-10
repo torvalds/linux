@@ -2103,7 +2103,7 @@ int radeon_cp_buffers(DRM_IOCTL_ARGS)
 	return ret;
 }
 
-int radeon_driver_preinit(struct drm_device *dev, unsigned long flags)
+int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	drm_radeon_private_t *dev_priv;
 	int ret = 0;
@@ -2140,7 +2140,10 @@ int radeon_driver_preinit(struct drm_device *dev, unsigned long flags)
 	return ret;
 }
 
-int radeon_presetup(struct drm_device *dev)
+/* Create mappings for registers and framebuffer so userland doesn't necessarily
+ * have to find them.
+ */
+int radeon_driver_firstopen(struct drm_device *dev)
 {
 	int ret;
 	drm_local_map_t *map;
@@ -2161,7 +2164,7 @@ int radeon_presetup(struct drm_device *dev)
 	return 0;
 }
 
-int radeon_driver_postcleanup(struct drm_device *dev)
+int radeon_driver_unload(struct drm_device *dev)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 

@@ -3069,7 +3069,7 @@ static int radeon_cp_setparam(DRM_IOCTL_ARGS)
  *
  * DRM infrastructure takes care of reclaiming dma buffers.
  */
-void radeon_driver_prerelease(drm_device_t * dev, DRMFILE filp)
+void radeon_driver_preclose(drm_device_t * dev, DRMFILE filp)
 {
 	if (dev->dev_private) {
 		drm_radeon_private_t *dev_priv = dev->dev_private;
@@ -3082,12 +3082,12 @@ void radeon_driver_prerelease(drm_device_t * dev, DRMFILE filp)
 	}
 }
 
-void radeon_driver_pretakedown(drm_device_t * dev)
+void radeon_driver_lastclose(drm_device_t * dev)
 {
 	radeon_do_release(dev);
 }
 
-int radeon_driver_open_helper(drm_device_t * dev, drm_file_t * filp_priv)
+int radeon_driver_open(drm_device_t * dev, drm_file_t * filp_priv)
 {
 	drm_radeon_private_t *dev_priv = dev->dev_private;
 	struct drm_radeon_driver_file_fields *radeon_priv;
@@ -3107,7 +3107,7 @@ int radeon_driver_open_helper(drm_device_t * dev, drm_file_t * filp_priv)
 	return 0;
 }
 
-void radeon_driver_free_filp_priv(drm_device_t * dev, drm_file_t * filp_priv)
+void radeon_driver_postclose(drm_device_t * dev, drm_file_t * filp_priv)
 {
 	struct drm_radeon_driver_file_fields *radeon_priv =
 	    filp_priv->driver_priv;

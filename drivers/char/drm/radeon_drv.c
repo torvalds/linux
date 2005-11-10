@@ -42,30 +42,6 @@ int radeon_no_wb;
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers\n");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
 
-static int postinit(struct drm_device *dev, unsigned long flags)
-{
-	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d: %s\n",
-		 DRIVER_NAME,
-		 DRIVER_MAJOR,
-		 DRIVER_MINOR,
-		 DRIVER_PATCHLEVEL,
-		 DRIVER_DATE, dev->primary.minor, pci_pretty_name(dev->pdev)
-	    );
-	return 0;
-}
-
-static int version(drm_version_t * version)
-{
-	int len;
-
-	version->version_major = DRIVER_MAJOR;
-	version->version_minor = DRIVER_MINOR;
-	version->version_patchlevel = DRIVER_PATCHLEVEL;
-	DRM_COPY(version->name, DRIVER_NAME);
-	DRM_COPY(version->date, DRIVER_DATE);
-	DRM_COPY(version->desc, DRIVER_DESC);
-	return 0;
-}
 
 static struct pci_device_id pciidlist[] = {
 	radeon_PCI_IDS
@@ -77,23 +53,21 @@ static struct drm_driver driver = {
 	    DRIVER_HAVE_IRQ | DRIVER_HAVE_DMA | DRIVER_IRQ_SHARED |
 	    DRIVER_IRQ_VBL,
 	.dev_priv_size = sizeof(drm_radeon_buf_priv_t),
-	.preinit = radeon_driver_preinit,
-	.presetup = radeon_presetup,
-	.postcleanup = radeon_driver_postcleanup,
-	.prerelease = radeon_driver_prerelease,
-	.pretakedown = radeon_driver_pretakedown,
-	.open_helper = radeon_driver_open_helper,
+	.load = radeon_driver_load,
+	.firstopen = radeon_driver_firstopen,
+	.open = radeon_driver_open,
+	.preclose = radeon_driver_preclose,
+	.postclose = radeon_driver_postclose,
+	.lastclose = radeon_driver_lastclose,
+	.unload = radeon_driver_unload,
 	.vblank_wait = radeon_driver_vblank_wait,
 	.irq_preinstall = radeon_driver_irq_preinstall,
 	.irq_postinstall = radeon_driver_irq_postinstall,
 	.irq_uninstall = radeon_driver_irq_uninstall,
 	.irq_handler = radeon_driver_irq_handler,
-	.free_filp_priv = radeon_driver_free_filp_priv,
 	.reclaim_buffers = drm_core_reclaim_buffers,
 	.get_map_ofs = drm_core_get_map_ofs,
 	.get_reg_ofs = drm_core_get_reg_ofs,
-	.postinit = postinit,
-	.version = version,
 	.ioctls = radeon_ioctls,
 	.dma_ioctl = radeon_cp_buffers,
 	.fops = {
@@ -107,12 +81,19 @@ static struct drm_driver driver = {
 #ifdef CONFIG_COMPAT
 		 .compat_ioctl = radeon_compat_ioctl,
 #endif
-		 }
-	,
+	},
+
 	.pci_driver = {
-		       .name = DRIVER_NAME,
-		       .id_table = pciidlist,
-		       }
+		 .name = DRIVER_NAME,
+		 .id_table = pciidlist,
+	},
+
+	.name = DRIVER_NAME,
+	.desc = DRIVER_DESC,
+	.date = DRIVER_DATE,
+	.major = DRIVER_MAJOR,
+	.minor = DRIVER_MINOR,
+	.patchlevel = DRIVER_PATCHLEVEL,
 };
 
 static int __init radeon_init(void)

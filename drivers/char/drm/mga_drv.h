@@ -152,14 +152,14 @@ extern drm_ioctl_desc_t mga_ioctls[];
 extern int mga_max_ioctl;
 
 				/* mga_dma.c */
-extern int mga_driver_preinit(drm_device_t * dev, unsigned long flags);
 extern int mga_dma_bootstrap(DRM_IOCTL_ARGS);
 extern int mga_dma_init(DRM_IOCTL_ARGS);
 extern int mga_dma_flush(DRM_IOCTL_ARGS);
 extern int mga_dma_reset(DRM_IOCTL_ARGS);
 extern int mga_dma_buffers(DRM_IOCTL_ARGS);
-extern int mga_driver_postcleanup(drm_device_t * dev);
-extern void mga_driver_pretakedown(drm_device_t * dev);
+extern int mga_driver_load(drm_device_t *dev, unsigned long flags);
+extern int mga_driver_unload(drm_device_t * dev);
+extern void mga_driver_lastclose(drm_device_t * dev);
 extern int mga_driver_dma_quiescent(drm_device_t * dev);
 
 extern int mga_do_wait_for_idle(drm_mga_private_t * dev_priv);

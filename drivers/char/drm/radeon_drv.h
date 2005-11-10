@@ -331,17 +331,14 @@ extern irqreturn_t radeon_driver_irq_handler(DRM_IRQ_ARGS);
 extern void radeon_driver_irq_preinstall(drm_device_t * dev);
 extern void radeon_driver_irq_postinstall(drm_device_t * dev);
 extern void radeon_driver_irq_uninstall(drm_device_t * dev);
-extern void radeon_driver_prerelease(drm_device_t * dev, DRMFILE filp);
-extern void radeon_driver_pretakedown(drm_device_t * dev);
-extern int radeon_driver_open_helper(drm_device_t * dev,
-				     drm_file_t * filp_priv);
-extern void radeon_driver_free_filp_priv(drm_device_t * dev,
-					 drm_file_t * filp_priv);
 
-extern int radeon_preinit(struct drm_device *dev, unsigned long flags);
-extern int radeon_postinit(struct drm_device *dev, unsigned long flags);
-extern int radeon_postcleanup(struct drm_device *dev);
-
+extern int radeon_driver_load(struct drm_device *dev, unsigned long flags);
+extern int radeon_driver_unload(struct drm_device *dev);
+extern int radeon_driver_firstopen(struct drm_device *dev);
+extern void radeon_driver_preclose(drm_device_t * dev, DRMFILE filp);
+extern void radeon_driver_postclose(drm_device_t * dev, drm_file_t * filp);
+extern void radeon_driver_lastclose(drm_device_t * dev);
+extern int radeon_driver_open(drm_device_t * dev, drm_file_t * filp_priv);
 extern long radeon_compat_ioctl(struct file *filp, unsigned int cmd,
 				unsigned long arg);
 

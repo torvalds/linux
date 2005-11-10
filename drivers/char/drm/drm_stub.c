@@ -93,8 +93,8 @@ static int drm_fill_in_dev(drm_device_t * dev, struct pci_dev *pdev,
 
 	dev->driver = driver;
 
-	if (dev->driver->preinit)
-		if ((retcode = dev->driver->preinit(dev, ent->driver_data)))
+	if (dev->driver->load)
+		if ((retcode = dev->driver->load(dev, ent->driver_data)))
 			goto error_out_unreg;
 
 	if (drm_core_has_AGP(dev)) {
@@ -124,7 +124,7 @@ static int drm_fill_in_dev(drm_device_t * dev, struct pci_dev *pdev,
 	return 0;
 
       error_out_unreg:
-	drm_takedown(dev);
+	drm_lastclose(dev);
 	return retcode;
 }
 
@@ -258,11 +258,10 @@ int drm_get_dev(struct pci_dev *pdev, const struct pci_device_id *ent,
 	}
 	if ((ret = drm_get_head(dev, &dev->primary)))
 		goto err_g1;
-
-	/* postinit is a required function to display the signon banner */
-	/* drivers add secondary heads here if needed */
-	if ((ret = dev->driver->postinit(dev, ent->driver_data)))
-		goto err_g1;
+	
+	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n",
+		 driver->name, driver->major, driver->minor, driver->patchlevel,
+		 driver->date, dev->primary.minor);
 
 	return 0;
 

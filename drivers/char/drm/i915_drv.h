@@ -104,8 +104,9 @@ extern int i915_max_ioctl;
 
 				/* i915_dma.c */
 extern void i915_kernel_lost_context(drm_device_t * dev);
-extern void i915_driver_pretakedown(drm_device_t * dev);
-extern void i915_driver_prerelease(drm_device_t * dev, DRMFILE filp);
+extern int i915_driver_load(struct drm_device *, unsigned long flags);
+extern void i915_driver_lastclose(drm_device_t * dev);
+extern void i915_driver_preclose(drm_device_t * dev, DRMFILE filp);
 extern int i915_driver_device_is_agp(drm_device_t * dev);
 
 /* i915_irq.c */
