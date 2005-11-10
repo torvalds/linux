@@ -311,7 +311,6 @@ void __init init_IRQ(void)
 }
 
 #ifdef CONFIG_PPC64
-#ifndef CONFIG_PPC_ISERIES
 /*
  * Virtual IRQ mapping code, used on systems with XICS interrupt controllers.
  */
@@ -419,8 +418,6 @@ unsigned int real_irq_to_virt_slowpath(unsigned int real_irq)
 	return NO_IRQ;
 
 }
-
-#endif /* CONFIG_PPC_ISERIES */
 
 #ifdef CONFIG_IRQSTACKS
 struct thread_info *softirq_ctx[NR_CPUS];
