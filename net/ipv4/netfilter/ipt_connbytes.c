@@ -10,7 +10,7 @@
  */
 #include <linux/module.h>
 #include <linux/skbuff.h>
-#include <linux/netfilter_ipv4/ip_conntrack.h>
+#include <net/netfilter/nf_conntrack_compat.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_connbytes.h>
 
@@ -46,60 +46,59 @@ match(const struct sk_buff *skb,
       int *hotdrop)
 {
 	const struct ipt_connbytes_info *sinfo = matchinfo;
-	enum ip_conntrack_info ctinfo;
-	struct ip_conntrack *ct;
 	u_int64_t what = 0;	/* initialize to make gcc happy */
+	const struct ip_conntrack_counter *counters;
 
-	if (!(ct = ip_conntrack_get((struct sk_buff *)skb, &ctinfo)))
+	if (!(counters = nf_ct_get_counters(skb)))
 		return 0; /* no match */
 
 	switch (sinfo->what) {
 	case IPT_CONNBYTES_PKTS:
 		switch (sinfo->direction) {
 		case IPT_CONNBYTES_DIR_ORIGINAL:
-			what = ct->counters[IP_CT_DIR_ORIGINAL].packets;
+			what = counters[IP_CT_DIR_ORIGINAL].packets;
 			break;
 		case IPT_CONNBYTES_DIR_REPLY:
-			what = ct->counters[IP_CT_DIR_REPLY].packets;
+			what = counters[IP_CT_DIR_REPLY].packets;
 			break;
 		case IPT_CONNBYTES_DIR_BOTH:
-			what = ct->counters[IP_CT_DIR_ORIGINAL].packets;
-			what += ct->counters[IP_CT_DIR_REPLY].packets;
+			what = counters[IP_CT_DIR_ORIGINAL].packets;
+			what += counters[IP_CT_DIR_REPLY].packets;
 			break;
 		}
 		break;
 	case IPT_CONNBYTES_BYTES:
 		switch (sinfo->direction) {
 		case IPT_CONNBYTES_DIR_ORIGINAL:
-			what = ct->counters[IP_CT_DIR_ORIGINAL].bytes;
+			what = counters[IP_CT_DIR_ORIGINAL].bytes;
 			break;
 		case IPT_CONNBYTES_DIR_REPLY:
-			what = ct->counters[IP_CT_DIR_REPLY].bytes;
+			what = counters[IP_CT_DIR_REPLY].bytes;
 			break;
 		case IPT_CONNBYTES_DIR_BOTH:
-			what = ct->counters[IP_CT_DIR_ORIGINAL].bytes;
-			what += ct->counters[IP_CT_DIR_REPLY].bytes;
+			what = counters[IP_CT_DIR_ORIGINAL].bytes;
+			what += counters[IP_CT_DIR_REPLY].bytes;
 			break;
 		}
 		break;
 	case IPT_CONNBYTES_AVGPKT:
 		switch (sinfo->direction) {
 		case IPT_CONNBYTES_DIR_ORIGINAL:
-			what = div64_64(ct->counters[IP_CT_DIR_ORIGINAL].bytes,
-					ct->counters[IP_CT_DIR_ORIGINAL].packets);
+			what = div64_64(counters[IP_CT_DIR_ORIGINAL].bytes,
+					counters[IP_CT_DIR_ORIGINAL].packets);
 			break;
 		case IPT_CONNBYTES_DIR_REPLY:
-			what = div64_64(ct->counters[IP_CT_DIR_REPLY].bytes,
-					ct->counters[IP_CT_DIR_REPLY].packets);
+			what = div64_64(counters[IP_CT_DIR_REPLY].bytes,
+					counters[IP_CT_DIR_REPLY].packets);
 			break;
 		case IPT_CONNBYTES_DIR_BOTH:
 			{
 				u_int64_t bytes;
 				u_int64_t pkts;
-				bytes = ct->counters[IP_CT_DIR_ORIGINAL].bytes +
-					ct->counters[IP_CT_DIR_REPLY].bytes;
-				pkts = ct->counters[IP_CT_DIR_ORIGINAL].packets+
-					ct->counters[IP_CT_DIR_REPLY].packets;
+				bytes = counters[IP_CT_DIR_ORIGINAL].bytes +
+					counters[IP_CT_DIR_REPLY].bytes;
+				pkts = counters[IP_CT_DIR_ORIGINAL].packets+
+					counters[IP_CT_DIR_REPLY].packets;
 
 				/* FIXME_THEORETICAL: what to do if sum
 				 * overflows ? */

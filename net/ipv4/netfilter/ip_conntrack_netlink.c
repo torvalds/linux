@@ -1376,7 +1376,7 @@ ctnetlink_del_expect(struct sock *ctnl, struct sk_buff *skb,
 				ip_conntrack_expect_put(exp);
 			}
 		}
-		write_unlock(&ip_conntrack_lock);
+		write_unlock_bh(&ip_conntrack_lock);
 	} else {
 		/* This basically means we have to flush everything*/
 		write_lock_bh(&ip_conntrack_lock);

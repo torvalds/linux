@@ -5,6 +5,20 @@
 menu "IP: Netfilter Configuration"
 	depends on INET && NETFILTER
 
+config NF_CONNTRACK_IPV4
+	tristate "IPv4 support for new connection tracking (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && NF_CONNTRACK
+	---help---
+	  Connection tracking keeps a record of what packets have passed
+	  through your machine, in order to figure out how they are related
+	  into connections.
+
+	  This is IPv4 support on Layer 3 independent connection tracking.
+	  Layer 3 independent connection tracking is experimental scheme
+	  which generalize ip_conntrack to support other layer 3 protocols.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 # connection tracking, helpers and protocols
 config IP_NF_CONNTRACK
 	tristate "Connection tracking (required for masq/NAT)"
@@ -209,8 +223,8 @@ config IP_NF_MATCH_PKTTYPE
 	tristate "Packet type match support"
 	depends on IP_NF_IPTABLES
 	help
-         Packet type matching allows you to match a packet by
-         its "class", eg. BROADCAST, MULTICAST, ...
+	  Packet type matching allows you to match a packet by
+	  its "class", eg. BROADCAST, MULTICAST, ...
 
 	  Typical usage:
 	  iptables -A INPUT -m pkttype --pkt-type broadcast -j LOG
@@ -317,7 +331,8 @@ config IP_NF_MATCH_TCPMSS
 
 config IP_NF_MATCH_HELPER
 	tristate "Helper match support"
-	depends on IP_NF_CONNTRACK && IP_NF_IPTABLES
+	depends on IP_NF_IPTABLES
+	depends on IP_NF_CONNTRACK || NF_CONNTRACK_IPV4
 	help
 	  Helper matching allows you to match packets in dynamic connections
 	  tracked by a conntrack-helper, ie. ip_conntrack_ftp
@@ -326,7 +341,8 @@ config IP_NF_MATCH_HELPER
 
 config IP_NF_MATCH_STATE
 	tristate "Connection state match support"
-	depends on IP_NF_CONNTRACK && IP_NF_IPTABLES
+	depends on IP_NF_IPTABLES
+	depends on IP_NF_CONNTRACK || NF_CONNTRACK_IPV4
 	help
 	  Connection state matching allows you to match packets based on their
 	  relationship to a tracked connection (ie. previous packets).  This
@@ -336,7 +352,8 @@ config IP_NF_MATCH_STATE
 
 config IP_NF_MATCH_CONNTRACK
 	tristate "Connection tracking match support"
-	depends on IP_NF_CONNTRACK && IP_NF_IPTABLES
+	depends on IP_NF_IPTABLES
+	depends on IP_NF_CONNTRACK || NF_CONNTRACK_IPV4
 	help
 	  This is a general conntrack match module, a superset of the state match.
 
@@ -422,7 +439,8 @@ config IP_NF_MATCH_COMMENT
 
 config IP_NF_MATCH_CONNMARK
 	tristate  'Connection mark match support'
-	depends on IP_NF_CONNTRACK_MARK && IP_NF_IPTABLES
+	depends on IP_NF_IPTABLES
+	depends on IP_NF_CONNTRACK_MARK || (NF_CONNTRACK_MARK && NF_CONNTRACK_IPV4)
 	help
 	  This option adds a `connmark' match, which allows you to match the
 	  connection mark value previously set for the session by `CONNMARK'. 
@@ -433,7 +451,8 @@ config IP_NF_MATCH_CONNMARK
 
 config IP_NF_MATCH_CONNBYTES
 	tristate  'Connection byte/packet counter match support'
-	depends on IP_NF_CT_ACCT && IP_NF_IPTABLES
+	depends on IP_NF_IPTABLES
+	depends on IP_NF_CT_ACCT || (NF_CT_ACCT && NF_CONNTRACK_IPV4)
 	help
 	  This option adds a `connbytes' match, which allows you to match the
 	  number of bytes and/or packets for each direction within a connection.
@@ -747,7 +766,8 @@ config IP_NF_TARGET_TTL
 
 config IP_NF_TARGET_CONNMARK
 	tristate  'CONNMARK target support'
-	depends on IP_NF_CONNTRACK_MARK && IP_NF_MANGLE
+	depends on IP_NF_MANGLE
+	depends on IP_NF_CONNTRACK_MARK || (NF_CONNTRACK_MARK && NF_CONNTRACK_IPV4)
 	help
 	  This option adds a `CONNMARK' target, which allows one to manipulate
 	  the connection mark value.  Similar to the MARK target, but
@@ -759,7 +779,8 @@ config IP_NF_TARGET_CONNMARK
 
 config IP_NF_TARGET_CLUSTERIP
 	tristate "CLUSTERIP target support (EXPERIMENTAL)"
-	depends on IP_NF_CONNTRACK_MARK && IP_NF_IPTABLES && EXPERIMENTAL
+	depends on IP_NF_IPTABLES && EXPERIMENTAL
+	depends on IP_NF_CONNTRACK_MARK || (NF_CONNTRACK_MARK && NF_CONNTRACK_IPV4)
 	help
 	  The CLUSTERIP target allows you to build load-balancing clusters of
 	  network servers without having a dedicated load-balancing
@@ -782,7 +803,7 @@ config IP_NF_RAW
 config IP_NF_TARGET_NOTRACK
 	tristate  'NOTRACK target support'
 	depends on IP_NF_RAW
-	depends on IP_NF_CONNTRACK
+	depends on IP_NF_CONNTRACK || NF_CONNTRACK_IPV4
 	help
 	  The NOTRACK target allows a select rule to specify
 	  which packets *not* to enter the conntrack/NAT
