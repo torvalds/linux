@@ -696,6 +696,8 @@ static void elevator_switch(request_queue_t *q, struct elevator_type *new_e)
 		;
 
 	while (q->rq.elvpriv) {
+		blk_remove_plug(q);
+		q->request_fn(q);
 		spin_unlock_irq(q->queue_lock);
 		msleep(10);
 		spin_lock_irq(q->queue_lock);
