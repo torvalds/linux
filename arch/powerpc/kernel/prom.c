@@ -71,10 +71,6 @@ struct isa_reg_property {
 typedef int interpret_func(struct device_node *, unsigned long *,
 			   int, int, int);
 
-extern struct rtas_t rtas;
-extern struct lmb lmb;
-extern unsigned long klimit;
-
 static int __initdata dt_root_addr_cells;
 static int __initdata dt_root_size_cells;
 

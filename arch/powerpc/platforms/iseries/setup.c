@@ -40,7 +40,7 @@
 #include <asm/iommu.h>
 #include <asm/firmware.h>
 #include <asm/systemcfg.h>
-
+#include <asm/system.h>
 #include <asm/time.h>
 #include <asm/paca.h>
 #include <asm/cache.h>
@@ -85,7 +85,6 @@ static void iSeries_pci_final_fixup(void) { }
 int piranha_simulator;
 
 extern int rd_size;		/* Defined in drivers/block/rd.c */
-extern unsigned long klimit;
 extern unsigned long embedded_sysmap_start;
 extern unsigned long embedded_sysmap_end;
 

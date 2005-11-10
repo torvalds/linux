@@ -279,7 +279,6 @@ arch_initcall(ppc_init);
 /* Warning, IO base is not yet inited */
 void __init setup_arch(char **cmdline_p)
 {
-	extern char *klimit;
 	extern void do_init_bootmem(void);
 
 	/* so udelay does something sensible, assume <= 1000 bogomips */
@@ -338,7 +337,7 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.start_code = PAGE_OFFSET;
 	init_mm.end_code = (unsigned long) _etext;
 	init_mm.end_data = (unsigned long) _edata;
-	init_mm.brk = (unsigned long) klimit;
+	init_mm.brk = klimit;
 
 	/* Save unparsed command line copy for /proc/cmdline */
 	strlcpy(saved_command_line, cmd_line, COMMAND_LINE_SIZE);

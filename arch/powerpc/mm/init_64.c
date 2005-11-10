@@ -80,8 +80,6 @@
 #warning TASK_SIZE is smaller than it needs to be.
 #endif
 
-unsigned long klimit = (unsigned long)_end;
-
 /* max amount of RAM to use */
 unsigned long __max_memory;
 

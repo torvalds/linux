@@ -96,14 +96,6 @@ extern void udbg_init_maple_realmode(void);
 	do { udbg_putc = call_rtas_display_status_delay; } while(0)
 #endif
 
-/* extern void *stab; */
-extern unsigned long klimit;
-
-extern void mm_init_ppc64(void);
-extern void early_init_devtree(void *flat_dt);
-extern void unflatten_device_tree(void);
-extern void check_for_initrd(void);
-
 int have_of = 1;
 int boot_cpuid = 0;
 int boot_cpuid_phys = 0;

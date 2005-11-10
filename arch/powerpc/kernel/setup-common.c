@@ -69,6 +69,8 @@ int _machine = 0;
 EXPORT_SYMBOL(_machine);
 #endif
 
+unsigned long klimit = (unsigned long) _end;
+
 /*
  * This still seems to be needed... -- paulus
  */ 
