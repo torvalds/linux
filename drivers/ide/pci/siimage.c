@@ -701,6 +701,7 @@ static unsigned int setup_mmio_siimage (struct pci_dev *dev, const char *name)
 	unsigned long barsize	= pci_resource_len(dev, 5);
 	u8 tmpbyte	= 0;
 	void __iomem *ioaddr;
+	u32 tmp, irq_mask;
 
 	/*
 	 *	Drop back to PIO if we can't map the mmio. Some
@@ -726,6 +727,14 @@ static unsigned int setup_mmio_siimage (struct pci_dev *dev, const char *name)
 	pci_set_drvdata(dev, (void *) ioaddr);
 
 	if (pdev_is_sata(dev)) {
+		/* make sure IDE0/1 interrupts are not masked */
+		irq_mask = (1 << 22) | (1 << 23);
+		tmp = readl(ioaddr + 0x48);
+		if (tmp & irq_mask) {
+			tmp &= ~irq_mask;
+			writel(tmp, ioaddr + 0x48);
+			readl(ioaddr + 0x48); /* flush */
+		}
 		writel(0, ioaddr + 0x148);
 		writel(0, ioaddr + 0x1C8);
 	}

@@ -803,6 +803,7 @@ found:
 	hwif->irq = hw->irq;
 	hwif->noprobe = 0;
 	hwif->chipset = hw->chipset;
+	hwif->gendev.parent = hw->dev;
 
 	if (!initializing) {
 		probe_hwif_init_with_fixup(hwif, fixup);
