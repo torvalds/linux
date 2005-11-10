@@ -13,9 +13,15 @@
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter.h>
+#if defined(CONFIG_IP_NF_CONNTRACK) || defined(CONFIG_IP_NF_CONNTRACK_MODULE)
 #include <linux/netfilter_ipv4/ip_conntrack.h>
 #include <linux/netfilter_ipv4/ip_conntrack_core.h>
 #include <linux/netfilter_ipv4/ip_conntrack_helper.h>
+#else
+#include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_core.h>
+#include <net/netfilter/nf_conntrack_helper.h>
+#endif
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_helper.h>
 
@@ -29,6 +35,7 @@ MODULE_DESCRIPTION("iptables helper match module");
 #define DEBUGP(format, args...)
 #endif
 
+#if defined(CONFIG_IP_NF_CONNTRACK) || defined(CONFIG_IP_NF_CONNTRACK_MODULE)
 static int
 match(const struct sk_buff *skb,
       const struct net_device *in,
@@ -72,6 +79,53 @@ out_unlock:
 	read_unlock_bh(&ip_conntrack_lock);
 	return ret;
 }
+
+#else /* CONFIG_IP_NF_CONNTRACK */
+
+static int
+match(const struct sk_buff *skb,
+      const struct net_device *in,
+      const struct net_device *out,
+      const void *matchinfo,
+      int offset,
+      int *hotdrop)
+{
+	const struct ipt_helper_info *info = matchinfo;
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
+	int ret = info->invert;
+	
+	ct = nf_ct_get((struct sk_buff *)skb, &ctinfo);
+	if (!ct) {
+		DEBUGP("ipt_helper: Eek! invalid conntrack?\n");
+		return ret;
+	}
+
+	if (!ct->master) {
+		DEBUGP("ipt_helper: conntrack %p has no master\n", ct);
+		return ret;
+	}
+
+	read_lock_bh(&nf_conntrack_lock);
+	if (!ct->master->helper) {
+		DEBUGP("ipt_helper: master ct %p has no helper\n", 
+			exp->expectant);
+		goto out_unlock;
+	}
+
+	DEBUGP("master's name = %s , info->name = %s\n", 
+		ct->master->helper->name, info->name);
+
+	if (info->name[0] == '\0')
+		ret ^= 1;
+	else
+		ret ^= !strncmp(ct->master->helper->name, info->name, 
+		                strlen(ct->master->helper->name));
+out_unlock:
+	read_unlock_bh(&nf_conntrack_lock);
+	return ret;
+}
+#endif
 
 static int check(const char *tablename,
 		 const struct ipt_ip *ip,

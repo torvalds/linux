@@ -1710,7 +1710,7 @@ static void fib6_dump_end(struct netlink_callback *cb)
 static int fib6_dump_done(struct netlink_callback *cb)
 {
 	fib6_dump_end(cb);
-	return cb->done(cb);
+	return cb->done ? cb->done(cb) : 0;
 }
 
 int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
