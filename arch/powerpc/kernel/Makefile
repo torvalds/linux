@@ -12,7 +12,7 @@ CFLAGS_btext.o		+= -fPIC
 endif
 
 obj-y				:= semaphore.o cputable.o ptrace.o syscalls.o \
-				   signal_32.o pmc.o
+				   irq.o signal_32.o pmc.o
 obj-$(CONFIG_PPC64)		+= setup_64.o binfmt_elf32.o sys_ppc32.o \
 				   signal_64.o ptrace32.o systbl.o \
 				   paca.o ioctl32.o cpu_setup_power4.o \

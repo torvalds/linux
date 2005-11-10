@@ -567,6 +567,7 @@ nextnode:
 
 	xics_8259_pic.enable = i8259_pic.enable;
 	xics_8259_pic.disable = i8259_pic.disable;
+	xics_8259_pic.end = i8259_pic.end;
 	for (i = 0; i < 16; ++i)
 		get_irq_desc(i)->handler = &xics_8259_pic;
 	for (; i < NR_IRQS; ++i)

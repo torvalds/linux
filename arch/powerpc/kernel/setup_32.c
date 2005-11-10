@@ -40,6 +40,8 @@
 #include <asm/xmon.h>
 #include <asm/time.h>
 
+#include "setup.h"
+
 #define DBG(fmt...)
 
 #if defined CONFIG_KGDB

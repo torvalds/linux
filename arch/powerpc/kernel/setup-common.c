@@ -53,6 +53,8 @@
 #include <asm/lmb.h>
 #include <asm/xmon.h>
 
+#include "setup.h"
+
 #undef DEBUG
 
 #ifdef DEBUG
