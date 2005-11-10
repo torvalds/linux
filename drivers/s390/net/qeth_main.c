@@ -160,6 +160,9 @@ static void
 qeth_set_multicast_list(struct net_device *);
 
 static void
+qeth_setadp_promisc_mode(struct qeth_card *);
+
+static void
 qeth_notify_processes(void)
 {
 	/*notify all  registered processes */
@@ -965,6 +968,24 @@ qeth_register_ip_addresses(void *ptr)
 	return 0;
 }
 
+/*
+ * Drive the SET_PROMISC_MODE thread
+ */
+static int
+qeth_set_promisc_mode(void *ptr)
+{
+	struct qeth_card *card = (struct qeth_card *) ptr;
+
+	daemonize("qeth_setprm");
+	QETH_DBF_TEXT(trace,4,"setprm1");
+	if (!qeth_do_run_thread(card, QETH_SET_PROMISC_MODE_THREAD))
+		return 0;
+	QETH_DBF_TEXT(trace,4,"setprm2");
+	qeth_setadp_promisc_mode(card);
+	qeth_clear_thread_running_bit(card, QETH_SET_PROMISC_MODE_THREAD);
+	return 0;
+}
+
 static int
 qeth_recover(void *ptr)
 {
@@ -1031,6 +1052,8 @@ qeth_start_kernel_thread(struct qeth_card *card)
 
 	if (qeth_do_start_thread(card, QETH_SET_IP_THREAD))
 		kernel_thread(qeth_register_ip_addresses, (void *)card,SIGCHLD);
+	if (qeth_do_start_thread(card, QETH_SET_PROMISC_MODE_THREAD))
+		kernel_thread(qeth_set_promisc_mode, (void *)card, SIGCHLD);
 	if (qeth_do_start_thread(card, QETH_RECOVER_THREAD))
 		kernel_thread(qeth_recover, (void *) card, SIGCHLD);
 }
@@ -5003,6 +5026,10 @@ qeth_default_setassparms_cb(struct qeth_card *, struct qeth_reply *,
 			    unsigned long);
 
 static int
+qeth_default_setadapterparms_cb(struct qeth_card *card,
+                                struct qeth_reply *reply,
+                                unsigned long data);
+static int
 qeth_send_setassparms(struct qeth_card *, struct qeth_cmd_buffer *,
 		      __u16, long,
 		      int (*reply_cb)
@@ -5476,6 +5503,59 @@ qeth_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	qeth_set_multicast_list(card->dev);
 }
 #endif
+/**
+ * Examine hardware response to SET_PROMISC_MODE
+ */
+static int
+qeth_setadp_promisc_mode_cb(struct qeth_card *card, 
+			    struct qeth_reply *reply,
+			    unsigned long data)
+{
+	struct qeth_ipa_cmd *cmd;
+	struct qeth_ipacmd_setadpparms *setparms;
+
+	QETH_DBF_TEXT(trace,4,"prmadpcb");
+
+	cmd = (struct qeth_ipa_cmd *) data;
+	setparms = &(cmd->data.setadapterparms);
+	
+        qeth_default_setadapterparms_cb(card, reply, (unsigned long)cmd);
+	if (cmd->hdr.return_code) { 
+		QETH_DBF_TEXT_(trace,4,"prmrc%2.2x",cmd->hdr.return_code);	
+		setparms->data.mode = SET_PROMISC_MODE_OFF;
+	}
+	card->info.promisc_mode = setparms->data.mode;
+	return 0;
+}
+/*
+ * Set promiscuous mode (on or off) (SET_PROMISC_MODE command)
+ */
+static void
+qeth_setadp_promisc_mode(struct qeth_card *card)
+{
+	enum qeth_ipa_promisc_modes mode;
+	struct net_device *dev = card->dev;
+	struct qeth_cmd_buffer *iob;
+	struct qeth_ipa_cmd *cmd;
+
+	QETH_DBF_TEXT(trace, 4, "setprom");
+
+	if (((dev->flags & IFF_PROMISC) &&
+	     (card->info.promisc_mode == SET_PROMISC_MODE_ON)) ||
+	    (!(dev->flags & IFF_PROMISC) &&
+	     (card->info.promisc_mode == SET_PROMISC_MODE_OFF)))
+		return;
+	mode = SET_PROMISC_MODE_OFF;
+	if (dev->flags & IFF_PROMISC)
+		mode = SET_PROMISC_MODE_ON;
+	QETH_DBF_TEXT_(trace, 4, "mode:%x", mode);
+
+	iob = qeth_get_adapter_cmd(card, IPA_SETADP_SET_PROMISC_MODE,
+			sizeof(struct qeth_ipacmd_setadpparms));
+	cmd = (struct qeth_ipa_cmd *)(iob->data + IPA_PDU_HEADER_SIZE);
+	cmd->data.setadapterparms.data.mode = mode;
+	qeth_send_ipa_cmd(card, iob, qeth_setadp_promisc_mode_cb, NULL);
+}
 
 /**
  * set multicast address on card
@@ -5501,6 +5581,11 @@ qeth_set_multicast_list(struct net_device *dev)
 out:
  	if (qeth_set_thread_start_bit(card, QETH_SET_IP_THREAD) == 0)
 		schedule_work(&card->kernel_thread_starter);
+	if (!qeth_adp_supported(card, IPA_SETADP_SET_PROMISC_MODE))
+		return;
+	if (qeth_set_thread_start_bit(card, QETH_SET_PROMISC_MODE_THREAD)==0)
+		schedule_work(&card->kernel_thread_starter);
+
 }
 
 static int
@@ -6510,6 +6595,8 @@ qeth_default_setadapterparms_cb(struct qeth_card *card,
 	return 0;
 }
 
+
+
 static int
 qeth_query_setadapterparms_cb(struct qeth_card *card, struct qeth_reply *reply,
 			      unsigned long data)
@@ -6675,6 +6762,12 @@ qeth_layer2_initialize(struct qeth_card *card)
 
         QETH_DBF_TEXT(setup, 2, "doL2init");
         QETH_DBF_TEXT_(setup, 2, "doL2%s", CARD_BUS_ID(card));
+
+	rc = qeth_query_setadapterparms(card);
+	if (rc) {
+		PRINT_WARN("could not query adapter parameters on device %s: "
+			   "x%x\n", CARD_BUS_ID(card), rc);
+	}
 
 	rc = qeth_setadpparms_change_macaddr(card);
 	if (rc) {

@@ -750,6 +750,7 @@ struct qeth_card_info {
 	int unique_id;
 	struct qeth_card_blkt blkt;
 	__u32 csum_mask;
+	enum qeth_ipa_promisc_modes promisc_mode;
 };
 
 struct qeth_card_options {
@@ -776,6 +777,7 @@ struct qeth_card_options {
 enum qeth_threads {
 	QETH_SET_IP_THREAD  = 1,
 	QETH_RECOVER_THREAD = 2,
+	QETH_SET_PROMISC_MODE_THREAD = 4,
 };
 
 struct qeth_osn_info {
