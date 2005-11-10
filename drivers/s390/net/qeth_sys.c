@@ -8,7 +8,7 @@
  * Copyright 2000,2003 IBM Corporation
  *
  * Author(s): Thomas Spatzier <tspat@de.ibm.com>
- * 	      Frank Pavlic <pavlic@de.ibm.com>
+ * 	      Frank Pavlic <fpavlic@de.ibm.com>
  *
  */
 #include <linux/list.h>

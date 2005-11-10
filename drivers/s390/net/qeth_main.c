@@ -9,7 +9,7 @@
  *    Author(s): Original Code written by
  *			  Utz Bacher (utz.bacher@de.ibm.com)
  *		 Rewritten by
- *			  Frank Pavlic (pavlic@de.ibm.com) and
+ *			  Frank Pavlic (fpavlic@de.ibm.com) and
  *		 	  Thomas Spatzier <tspat@de.ibm.com>
  *
  *    $Revision: 1.242 $	 $Date: 2005/05/04 20:19:18 $
@@ -8715,7 +8715,7 @@ EXPORT_SYMBOL(qeth_osn_deregister);
 EXPORT_SYMBOL(qeth_osn_assist);
 module_init(qeth_init);
 module_exit(qeth_exit);
-MODULE_AUTHOR("Frank Pavlic <pavlic@de.ibm.com>");
+MODULE_AUTHOR("Frank Pavlic <fpavlic@de.ibm.com>");
 MODULE_DESCRIPTION("Linux on zSeries OSA Express and HiperSockets support\n" \
 		                      "Copyright 2000,2003 IBM Corporation\n");
 
