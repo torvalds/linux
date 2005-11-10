@@ -1680,6 +1680,18 @@ config CIFS_EXPERIMENTAL
 
 	    If unsure, say N.
 
+config CIFS_UPCALL
+	  bool "CIFS Kerberos/SPNEGO advanced session setup (EXPERIMENTAL)"
+	  depends on CIFS_EXPERIMENTAL
+	  select CONNECTOR
+	  help
+	    Enables an upcall mechanism for CIFS which will be used to contact
+	    userspace helper utilities to provide SPNEGO packaged Kerberos
+	    tickets which are needed to mount to certain secure servers
+	    (for which more secure Kerberos authentication is required).
+	    
+	  If unsure, say N.  
+
 config NCP_FS
 	tristate "NCP file system support (to mount NetWare volumes)"
 	depends on IPX!=n || INET

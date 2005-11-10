@@ -42,6 +42,7 @@
 #include "ntlmssp.h"
 #include "nterr.h"
 #include "rfc1002pdu.h"
+#include "cn_cifs.h"
 
 #define CIFS_PORT 445
 #define RFC1001_PORT 139
