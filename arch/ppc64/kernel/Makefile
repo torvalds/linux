@@ -36,7 +36,6 @@ ifneq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 endif
 obj-$(CONFIG_PPC_RTAS)		+= rtas_pci.o
-obj-$(CONFIG_SCANLOG)		+= scanlog.o
 obj-$(CONFIG_LPARCFG)		+= lparcfg.o
 obj-$(CONFIG_HVC_CONSOLE)	+= hvconsole.o
 ifneq ($(CONFIG_PPC_MERGE),y)
