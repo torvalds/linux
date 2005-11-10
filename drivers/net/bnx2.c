@@ -2707,7 +2707,7 @@ bnx2_init_nvram(struct bnx2 *bp)
 
 	if (j == entry_count) {
 		bp->flash_info = NULL;
-		printk(KERN_ALERT "Unknown flash/EEPROM type.\n");
+		printk(KERN_ALERT PFX "Unknown flash/EEPROM type.\n");
 		rc = -ENODEV;
 	}
 
