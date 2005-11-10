@@ -478,7 +478,7 @@ static struct device_node * find_device_pe(struct device_node *dn)
  *  an interrupt context, which is bad.
  */
 
-static inline void __eeh_mark_slot (struct device_node *dn)
+static void __eeh_mark_slot (struct device_node *dn)
 {
 	while (dn) {
 		PCI_DN(dn)->eeh_mode |= EEH_MODE_ISOLATED;
@@ -489,7 +489,7 @@ static inline void __eeh_mark_slot (struct device_node *dn)
 	}
 }
 
-static inline void __eeh_clear_slot (struct device_node *dn)
+static void __eeh_clear_slot (struct device_node *dn)
 {
 	while (dn) {
 		PCI_DN(dn)->eeh_mode &= ~EEH_MODE_ISOLATED;
