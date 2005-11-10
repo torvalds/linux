@@ -1792,7 +1792,7 @@ memex(void)
 	for(;;){
 		if (!mnoread)
 			n = mread(adrs, val, size);
-		printf("%.16x%c", adrs, brev? 'r': ' ');
+		printf(REG"%c", adrs, brev? 'r': ' ');
 		if (!mnoread) {
 			if (brev)
 				byterev(val, size);
@@ -1971,17 +1971,18 @@ prdump(unsigned long adrs, long ndump)
 		nr = mread(adrs, temp, r);
 		adrs += nr;
 		for (m = 0; m < r; ++m) {
-		        if ((m & 7) == 0 && m > 0)
-			    putchar(' ');
+		        if ((m & (sizeof(long) - 1)) == 0 && m > 0)
+				putchar(' ');
 			if (m < nr)
 				printf("%.2x", temp[m]);
 			else
 				printf("%s", fault_chars[fault_type]);
 		}
-		if (m <= 8)
-			printf(" ");
-		for (; m < 16; ++m)
+		for (; m < 16; ++m) {
+		        if ((m & (sizeof(long) - 1)) == 0)
+				putchar(' ');
 			printf("  ");
+		}
 		printf("  |");
 		for (m = 0; m < r; ++m) {
 			if (m < nr) {
