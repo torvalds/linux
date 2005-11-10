@@ -107,7 +107,6 @@ static void __init pSeries_request_regions(void)
 
 void __init pSeries_final_fixup(void)
 {
-	phbs_remap_io();
 	pSeries_request_regions();
 
 	pci_addr_cache_build();
