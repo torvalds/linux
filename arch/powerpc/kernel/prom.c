@@ -1264,7 +1264,14 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 	unsigned long l;
 
 	/* We are scanning "memory" nodes only */
-	if (type == NULL || strcmp(type, "memory") != 0)
+	if (type == NULL) {
+		/*
+		 * The longtrail doesn't have a device_type on the
+		 * /memory node, so look for the node called /memory@0.
+		 */
+		if (depth != 1 || strcmp(uname, "memory@0") != 0)
+			return 0;
+	} else if (strcmp(type, "memory") != 0)
 		return 0;
 
 	reg = (cell_t *)of_get_flat_dt_prop(node, "reg", &l);
