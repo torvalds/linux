@@ -4185,7 +4185,11 @@ static void scsi_tape_release(struct kref *kref)
 
 static void st_intr(struct scsi_cmnd *SCpnt)
 {
-	scsi_io_completion(SCpnt, (SCpnt->result ? 0: SCpnt->bufflen), 1);
+	/*
+	 * The caller should be checking the request's errors
+	 * value.
+	 */
+	scsi_io_completion(SCpnt, SCpnt->bufflen, 0);
 }
 
 /*
