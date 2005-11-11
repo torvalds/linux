@@ -445,7 +445,7 @@ static void snd_emu_proc_ptr_reg_read(snd_info_entry_t *entry,
 	emu10k1_t *emu = entry->private_data;
 	unsigned long value;
 	int i,j;
-	if (offset+length > 0x80) {
+	if (offset+length > 0xa0) {
 		snd_iprintf(buffer, "Input values out of range\n");
 		return;
 	}
@@ -472,7 +472,7 @@ static void snd_emu_proc_ptr_reg_write(snd_info_entry_t *entry,
 	while (!snd_info_get_line(buffer, line, sizeof(line))) {
 		if (sscanf(line, "%x %x %x", &reg, &channel_id, &val) != 3)
 			continue;
-		if ((reg < 0x80) && (reg >=0) && (val <= 0xffffffff) && (channel_id >=0) && (channel_id <= 3) )
+		if ((reg < 0xa0) && (reg >=0) && (val <= 0xffffffff) && (channel_id >=0) && (channel_id <= 3) )
 			snd_ptr_write(emu, iobase, reg, channel_id, val);
 	}
 }
@@ -513,6 +513,12 @@ static void snd_emu_proc_ptr_reg_read20b(snd_info_entry_t *entry,
 {
 	snd_emu_proc_ptr_reg_read(entry, buffer, 0x20, 0x40, 0x40, 4);
 }
+
+static void snd_emu_proc_ptr_reg_read20c(snd_info_entry_t *entry,
+					 snd_info_buffer_t * buffer)
+{
+	snd_emu_proc_ptr_reg_read(entry, buffer, 0x20, 0x80, 0x20, 4);
+}
 #endif
 
 static struct snd_info_entry_ops snd_emu10k1_proc_ops_fx8010 = {
@@ -549,6 +555,12 @@ int __devinit snd_emu10k1_proc_init(emu10k1_t * emu)
 	}
 	if (! snd_card_proc_new(emu->card, "ptr_regs20b", &entry)) {
 		snd_info_set_text_ops(entry, emu, 65536, snd_emu_proc_ptr_reg_read20b);
+		entry->c.text.write_size = 64;
+		entry->c.text.write = snd_emu_proc_ptr_reg_write20;
+		entry->mode |= S_IWUSR;
+	}
+	if (! snd_card_proc_new(emu->card, "ptr_regs20c", &entry)) {
+		snd_info_set_text_ops(entry, emu, 65536, snd_emu_proc_ptr_reg_read20c);
 		entry->c.text.write_size = 64;
 		entry->c.text.write = snd_emu_proc_ptr_reg_write20;
 		entry->mode |= S_IWUSR;
