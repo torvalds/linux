@@ -357,7 +357,7 @@ static void __init jmr3927_board_init(void)
 		       jmr3927_io_dipsw());
 }
 
-void __init plat_setup(void)
+void __init tx3927_setup(void)
 {
 	int i;
 
