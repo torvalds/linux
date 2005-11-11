@@ -44,7 +44,7 @@
 #include <asm/cputable.h>
 #include <asm/system.h>
 #include <asm/mpic.h>
-#include <asm/systemcfg.h>
+#include <asm/vdso_datapage.h>
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
 #endif
@@ -371,7 +371,7 @@ int generic_cpu_disable(void)
 
 	cpu_clear(cpu, cpu_online_map);
 #ifdef CONFIG_PPC64
-	_systemcfg->processorCount--;
+	vdso_data->processorCount--;
 	fixup_irqs(cpu_online_map);
 #endif
 	return 0;

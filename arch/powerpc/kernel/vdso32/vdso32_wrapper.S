@@ -3,11 +3,11 @@
 
 	.section ".data.page_aligned"
 
-	.globl vdso64_start, vdso64_end
+	.globl vdso32_start, vdso32_end
 	.balign PAGE_SIZE
-vdso64_start:
-	.incbin "arch/ppc64/kernel/vdso64/vdso64.so"
+vdso32_start:
+	.incbin "arch/powerpc/kernel/vdso32/vdso32.so"
 	.balign PAGE_SIZE
-vdso64_end:
+vdso32_end:
 
 	.previous

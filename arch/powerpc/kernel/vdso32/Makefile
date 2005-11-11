@@ -5,6 +5,10 @@ obj-vdso32 = sigtramp.o gettimeofday.o datapage.o cacheflush.o note.o
 
 # Build rules
 
+ifeq ($(CONFIG_PPC32),y)
+CROSS32CC := $(CC)
+endif
+
 targets := $(obj-vdso32) vdso32.so
 obj-vdso32 := $(addprefix $(obj)/, $(obj-vdso32))
 

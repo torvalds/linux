@@ -33,7 +33,7 @@
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
-#include <asm/systemcfg.h>
+#include <asm/vdso_datapage.h>
 #include <asm/pgtable.h>
 #include <asm/smp.h>
 #include <asm/elf.h>
@@ -564,7 +564,7 @@ void __init smp_setup_cpu_maps(void)
 			cpu_set(cpu ^ 0x1, cpu_sibling_map[cpu]);
 	}
 
-	_systemcfg->processorCount = num_present_cpus();
+	vdso_data->processorCount = num_present_cpus();
 #endif /* CONFIG_PPC64 */
 }
 #endif /* CONFIG_SMP */
