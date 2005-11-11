@@ -45,7 +45,7 @@ static struct pci_device_id pciidlist[] = {
 
 static struct drm_driver driver = {
 	.driver_features =
-	    DRIVER_USE_AGP | DRIVER_REQUIRE_AGP | DRIVER_USE_MTRR |
+	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_PCI_DMA |
 	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED |
 	    DRIVER_IRQ_VBL,
 	.load = mga_driver_load,
