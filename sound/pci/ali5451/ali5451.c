@@ -387,26 +387,24 @@ static inline void snd_ali_5451_poke(	ali_t *codec,
 }
 
 static int snd_ali_codec_ready(	ali_t *codec,
-				unsigned int port,
-				int sched )
+				unsigned int port )
 {
 	unsigned long end_time;
 	unsigned int res;
 	
-	end_time = jiffies + 10 * msecs_to_jiffies(250);
+	end_time = jiffies + msecs_to_jiffies(250);
 	do {
 		res = snd_ali_5451_peek(codec,port);
 		if (! (res & 0x8000))
 			return 0;
-		if (sched)
-			schedule_timeout_uninterruptible(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_after_eq(end_time, jiffies));
 	snd_ali_5451_poke(codec, port, res & ~0x8000);
 	snd_printdd("ali_codec_ready: codec is not ready.\n ");
 	return -EIO;
 }
 
-static int snd_ali_stimer_ready(ali_t *codec, int sched)
+static int snd_ali_stimer_ready(ali_t *codec)
 {
 	unsigned long end_time;
 	unsigned long dwChk1,dwChk2;
@@ -414,13 +412,12 @@ static int snd_ali_stimer_ready(ali_t *codec, int sched)
 	dwChk1 = snd_ali_5451_peek(codec, ALI_STIMER);
 	dwChk2 = snd_ali_5451_peek(codec, ALI_STIMER);
 
-	end_time = jiffies + 10 * msecs_to_jiffies(250);
+	end_time = jiffies + msecs_to_jiffies(250);
 	do {
 		dwChk2 = snd_ali_5451_peek(codec, ALI_STIMER);
 		if (dwChk2 != dwChk1)
 			return 0;
-		if (sched)
-			schedule_timeout_uninterruptible(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_after_eq(end_time, jiffies));
 	snd_printk(KERN_ERR "ali_stimer_read: stimer is not ready.\n");
 	return -EIO;
@@ -440,9 +437,9 @@ static void snd_ali_codec_poke(ali_t *codec,int secondary,
 
 	port = codec->chregs.regs.ac97write;
 
-	if (snd_ali_codec_ready(codec, port, 0) < 0)
+	if (snd_ali_codec_ready(codec, port) < 0)
 		return;
-	if (snd_ali_stimer_ready(codec, 0) < 0)
+	if (snd_ali_stimer_ready(codec) < 0)
 		return;
 
 	dwVal  = (unsigned int) (reg & 0xff);
@@ -469,9 +466,9 @@ static unsigned short snd_ali_codec_peek( ali_t *codec,
 
 	port = codec->chregs.regs.ac97read;
 
-	if (snd_ali_codec_ready(codec, port, 0) < 0)
+	if (snd_ali_codec_ready(codec, port) < 0)
 		return ~0;
-	if (snd_ali_stimer_ready(codec, 0) < 0)
+	if (snd_ali_stimer_ready(codec) < 0)
 		return ~0;
 
 	dwVal  = (unsigned int) (reg & 0xff);
@@ -480,9 +477,9 @@ static unsigned short snd_ali_codec_peek( ali_t *codec,
 
 	snd_ali_5451_poke(codec, port, dwVal);
 
-	if (snd_ali_stimer_ready(codec, 0) < 0)
+	if (snd_ali_stimer_ready(codec) < 0)
 		return ~0;
-	if (snd_ali_codec_ready(codec, port, 0) < 0)
+	if (snd_ali_codec_ready(codec, port) < 0)
 		return ~0;
 	
 	return (snd_ali_5451_peek(codec, port) & 0xffff0000)>>16;
@@ -770,7 +767,7 @@ static void snd_ali_delay(ali_t *codec,int interval)
 	currenttimer = inl(ALI_REG(codec, ALI_STIMER));
 
 	while (currenttimer < begintimer + interval) {
-		if(snd_ali_stimer_ready(codec, 1) < 0)
+		if(snd_ali_stimer_ready(codec) < 0)
 			break;
 		currenttimer = inl(ALI_REG(codec,  ALI_STIMER));
 	}
@@ -1065,35 +1062,34 @@ static irqreturn_t snd_ali_card_interrupt(int irq,
 static snd_ali_voice_t *snd_ali_alloc_voice(ali_t * codec, int type, int rec, int channel)
 {
 	snd_ali_voice_t *pvoice = NULL;
-	unsigned long flags;
 	int idx;
 
 	snd_ali_printk("alloc_voice: type=%d rec=%d\n",type,rec);
 
-	spin_lock_irqsave(&codec->voice_alloc, flags);
+	spin_lock_irq(&codec->voice_alloc);
 	if (type == SNDRV_ALI_VOICE_TYPE_PCM) {
 		idx = channel > 0 ? snd_ali_alloc_pcm_channel(codec, channel) :
 			snd_ali_find_free_channel(codec,rec);
 		if(idx < 0) {
 			snd_printk(KERN_ERR "ali_alloc_voice: err.\n");
-			spin_unlock_irqrestore(&codec->voice_alloc, flags);
+			spin_unlock_irq(&codec->voice_alloc);
 			return NULL;
 		}
 		pvoice = &(codec->synth.voices[idx]);
+		pvoice->codec = codec;
 		pvoice->use = 1;
 		pvoice->pcm = 1;
 		pvoice->mode = rec;
-		spin_unlock_irqrestore(&codec->voice_alloc, flags);
+		spin_unlock_irq(&codec->voice_alloc);
 		return pvoice;
 	}
-	spin_unlock_irqrestore(&codec->voice_alloc, flags);
+	spin_unlock_irq(&codec->voice_alloc);
 	return NULL;
 }
 
 
 static void snd_ali_free_voice(ali_t * codec, snd_ali_voice_t *pvoice)
 {
-	unsigned long flags;
 	void (*private_free)(void *);
 	void *private_data;
 
@@ -1101,7 +1097,7 @@ static void snd_ali_free_voice(ali_t * codec, snd_ali_voice_t *pvoice)
 	if (pvoice == NULL || !pvoice->use)
 		return;
 	snd_ali_clear_voices(codec, pvoice->number, pvoice->number);
-	spin_lock_irqsave(&codec->voice_alloc, flags);
+	spin_lock_irq(&codec->voice_alloc);
 	private_free = pvoice->private_free;
 	private_data = pvoice->private_data;
 	pvoice->private_free = NULL;
@@ -1111,7 +1107,7 @@ static void snd_ali_free_voice(ali_t * codec, snd_ali_voice_t *pvoice)
 	}
 	pvoice->use = pvoice->pcm = pvoice->synth = 0;
 	pvoice->substream = NULL;
-	spin_unlock_irqrestore(&codec->voice_alloc, flags);
+	spin_unlock_irq(&codec->voice_alloc);
 	if (private_free)
 		private_free(private_data);
 }
@@ -1357,7 +1353,6 @@ static int snd_ali_playback_prepare(snd_pcm_substream_t * substream)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	snd_ali_voice_t *pvoice = (snd_ali_voice_t *) runtime->private_data;
 	snd_ali_voice_t *evoice = pvoice->extra;
-	unsigned long flags;
 
 	unsigned int LBA;
 	unsigned int Delta;
@@ -1370,7 +1365,7 @@ static int snd_ali_playback_prepare(snd_pcm_substream_t * substream)
 	
 	snd_ali_printk("playback_prepare ...\n");
 
-	spin_lock_irqsave(&codec->reg_lock, flags);	
+	spin_lock_irq(&codec->reg_lock);	
 	
 	/* set Delta (rate) value */
 	Delta = snd_ali_convert_rate(runtime->rate, 0);
@@ -1435,7 +1430,7 @@ static int snd_ali_playback_prepare(snd_pcm_substream_t * substream)
 				     CTRL,
 				     EC);
 	}
-	spin_unlock_irqrestore(&codec->reg_lock, flags);
+	spin_unlock_irq(&codec->reg_lock);
 	return 0;
 }
 
@@ -1445,7 +1440,6 @@ static int snd_ali_prepare(snd_pcm_substream_t * substream)
 	ali_t *codec = snd_pcm_substream_chip(substream);
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	snd_ali_voice_t *pvoice = (snd_ali_voice_t *) runtime->private_data;
-	unsigned long flags;
 	unsigned int LBA;
 	unsigned int Delta;
 	unsigned int ESO;
@@ -1456,7 +1450,7 @@ static int snd_ali_prepare(snd_pcm_substream_t * substream)
 	unsigned int EC;
 	u8	 bValue;
 
-	spin_lock_irqsave(&codec->reg_lock, flags);
+	spin_lock_irq(&codec->reg_lock);
 
 	snd_ali_printk("ali_prepare...\n");
 
@@ -1471,15 +1465,16 @@ static int snd_ali_prepare(snd_pcm_substream_t * substream)
 
 		unsigned int rate;
 		
-		if (codec->revision != ALI_5451_V02) {
-			spin_unlock_irqrestore(&codec->reg_lock, flags);			
+		spin_unlock_irq(&codec->reg_lock);
+		if (codec->revision != ALI_5451_V02)
 			return -1;
-		}
+
 		rate = snd_ali_get_spdif_in_rate(codec);
 		if (rate == 0) {
 			snd_printk(KERN_WARNING "ali_capture_preapre: spdif rate detect err!\n");
 			rate = 48000;
 		}
+		spin_lock_irq(&codec->reg_lock);
 		bValue = inb(ALI_REG(codec,ALI_SPDIF_CTRL));
 		if (bValue & 0x10) {
 			outb(bValue,ALI_REG(codec,ALI_SPDIF_CTRL));
@@ -1521,7 +1516,7 @@ static int snd_ali_prepare(snd_pcm_substream_t * substream)
 				     EC);
 
 
-	spin_unlock_irqrestore(&codec->reg_lock, flags);
+	spin_unlock_irq(&codec->reg_lock);
 
 	return 0;
 }
@@ -1554,16 +1549,15 @@ static snd_pcm_uframes_t snd_ali_pointer(snd_pcm_substream_t *substream)
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	snd_ali_voice_t *pvoice = (snd_ali_voice_t *) runtime->private_data;
 	unsigned int cso;
-	unsigned long flags;
 
-	spin_lock_irqsave(&codec->reg_lock, flags);
+	spin_lock(&codec->reg_lock);
 	if (!pvoice->running) {
-		spin_unlock_irqrestore(&codec->reg_lock, flags);
+		spin_unlock_irq(&codec->reg_lock);
 		return 0;
 	}
 	outb(pvoice->number, ALI_REG(codec, ALI_GC_CIR));
 	cso = inw(ALI_REG(codec, ALI_CSO_ALPHA_FMS + 2));
-	spin_unlock_irqrestore(&codec->reg_lock, flags);
+	spin_unlock(&codec->reg_lock);
 
 	return cso;
 }
@@ -1618,15 +1612,12 @@ static snd_pcm_hardware_t snd_ali_capture =
 
 static void snd_ali_pcm_free_substream(snd_pcm_runtime_t *runtime)
 {
-	unsigned long flags;
 	snd_ali_voice_t *pvoice = (snd_ali_voice_t *) runtime->private_data;
 	ali_t *codec;
 
 	if (pvoice) {
 		codec = pvoice->codec;
-		spin_lock_irqsave(&codec->reg_lock, flags);
 		snd_ali_free_voice(pvoice->codec, pvoice);
-		spin_unlock_irqrestore(&codec->reg_lock, flags);
 	}
 }
 
@@ -1636,16 +1627,10 @@ static int snd_ali_open(snd_pcm_substream_t * substream, int rec, int channel,
 	ali_t *codec = snd_pcm_substream_chip(substream);
 	snd_pcm_runtime_t *runtime = substream->runtime;
 	snd_ali_voice_t *pvoice;
-	unsigned long flags = 0;
 
-	spin_lock_irqsave(&codec->reg_lock, flags);
 	pvoice = snd_ali_alloc_voice(codec, SNDRV_ALI_VOICE_TYPE_PCM, rec, channel);
-	if (pvoice == NULL) {
-		spin_unlock_irqrestore(&codec->reg_lock, flags);
+	if (pvoice == NULL)
 		return -EAGAIN;
-	}
-	pvoice->codec = codec;
-	spin_unlock_irqrestore(&codec->reg_lock, flags);
 
 	pvoice->substream = substream;
 	runtime->private_data = pvoice;
@@ -1864,13 +1849,12 @@ static int snd_ali5451_spdif_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
 
 static int snd_ali5451_spdif_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 {
-	unsigned long flags;
 	ali_t *codec = kcontrol->private_data;
 	unsigned int enable;
 
 	enable = ucontrol->value.integer.value[0] ? 1 : 0;
 
-	spin_lock_irqsave(&codec->reg_lock, flags);
+	spin_lock_irq(&codec->reg_lock);
 	switch(kcontrol->private_value) {
 	case 0:
 		enable = (codec->spdif_mask & 0x02) ? 1 : 0;
@@ -1885,19 +1869,18 @@ static int snd_ali5451_spdif_get(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 		break;
 	}
 	ucontrol->value.integer.value[0] = enable;
-	spin_unlock_irqrestore(&codec->reg_lock, flags);
+	spin_unlock_irq(&codec->reg_lock);
 	return 0;
 }
 
 static int snd_ali5451_spdif_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
 {
-	unsigned long flags;
 	ali_t *codec = kcontrol->private_data;
 	unsigned int change = 0, enable = 0;
 
 	enable = ucontrol->value.integer.value[0] ? 1 : 0;
 
-	spin_lock_irqsave(&codec->reg_lock, flags);
+	spin_lock_irq(&codec->reg_lock);
 	switch (kcontrol->private_value) {
 	case 0:
 		change = (codec->spdif_mask & 0x02) ? 1 : 0;
@@ -1942,7 +1925,7 @@ static int snd_ali5451_spdif_put(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t
 	default:
 		break;
 	}
-	spin_unlock_irqrestore(&codec->reg_lock, flags);
+	spin_unlock_irq(&codec->reg_lock);
 	
 	return change;
 }
