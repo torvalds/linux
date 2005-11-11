@@ -23,11 +23,29 @@ static struct subsys_attribute _name##_attr = \
 	__ATTR(_name, 0644, _name##_show, _name##_store)
 
 #ifdef CONFIG_HOTPLUG
-static ssize_t hotplug_seqnum_show(struct subsystem *subsys, char *page)
+/* current uevent sequence number */
+static ssize_t uevent_seqnum_show(struct subsystem *subsys, char *page)
 {
 	return sprintf(page, "%llu\n", (unsigned long long)hotplug_seqnum);
 }
-KERNEL_ATTR_RO(hotplug_seqnum);
+KERNEL_ATTR_RO(uevent_seqnum);
+
+/* uevent helper program, used during early boo */
+static ssize_t uevent_helper_show(struct subsystem *subsys, char *page)
+{
+	return sprintf(page, "%s\n", hotplug_path);
+}
+static ssize_t uevent_helper_store(struct subsystem *subsys, const char *page, size_t count)
+{
+	if (count+1 > HOTPLUG_PATH_LEN)
+		return -ENOENT;
+	memcpy(hotplug_path, page, count);
+	hotplug_path[count] = '\0';
+	if (count && hotplug_path[count-1] == '\n')
+		hotplug_path[count-1] = '\0';
+	return count;
+}
+KERNEL_ATTR_RW(uevent_helper);
 #endif
 
 #ifdef CONFIG_KEXEC
@@ -45,7 +63,8 @@ EXPORT_SYMBOL_GPL(kernel_subsys);
 
 static struct attribute * kernel_attrs[] = {
 #ifdef CONFIG_HOTPLUG
-	&hotplug_seqnum_attr.attr,
+	&uevent_seqnum_attr.attr,
+	&uevent_helper_attr.attr,
 #endif
 #ifdef CONFIG_KEXEC
 	&crash_notes_attr.attr,
