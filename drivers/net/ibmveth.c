@@ -58,7 +58,7 @@
 
 #include "ibmveth.h"
 
-#define DEBUG 1
+#undef DEBUG
 
 #define ibmveth_printk(fmt, args...) \
   printk(KERN_INFO "%s: " fmt, __FILE__, ## args)
