@@ -259,6 +259,7 @@ int scsi_execute(struct scsi_device *sdev, const unsigned char *cmd,
 	memcpy(req->cmd, cmd, req->cmd_len);
 	req->sense = sense;
 	req->sense_len = 0;
+	req->retries = retries;
 	req->timeout = timeout;
 	req->flags |= flags | REQ_BLOCK_PC | REQ_SPECIAL | REQ_QUIET;
 
@@ -472,6 +473,7 @@ int scsi_execute_async(struct scsi_device *sdev, const unsigned char *cmd,
 	req->sense = sioc->sense;
 	req->sense_len = 0;
 	req->timeout = timeout;
+	req->retries = retries;
 	req->flags |= REQ_BLOCK_PC | REQ_QUIET;
 	req->end_io_data = sioc;
 
@@ -1393,7 +1395,7 @@ static int scsi_prep_fn(struct request_queue *q, struct request *req)
 				cmd->sc_data_direction = DMA_NONE;
 			
 			cmd->transfersize = req->data_len;
-			cmd->allowed = 3;
+			cmd->allowed = req->retries;
 			cmd->timeout_per_command = req->timeout;
 			cmd->done = scsi_generic_done;
 		}
