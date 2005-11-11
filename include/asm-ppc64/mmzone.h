@@ -66,8 +66,6 @@ static inline int pa_to_nid(unsigned long pa)
 	return nid;
 }
 
-#define node_localnr(pfn, nid)	((pfn) - NODE_DATA(nid)->node_start_pfn)
-
 /*
  * Following are macros that each numa implmentation must define.
  */
@@ -77,10 +75,7 @@ static inline int pa_to_nid(unsigned long pa)
 
 #ifdef CONFIG_DISCONTIGMEM
 
-/*
- * Given a kernel address, find the home node of the underlying memory.
- */
-#define kvaddr_to_nid(kaddr)	pa_to_nid(__pa(kaddr))
+#define node_localnr(pfn, nid)	((pfn) - NODE_DATA(nid)->node_start_pfn)
 
 #define pfn_to_nid(pfn)		pa_to_nid((unsigned long)(pfn) << PAGE_SHIFT)
 
