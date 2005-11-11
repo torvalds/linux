@@ -24,6 +24,7 @@
 #define MII_READ_COMMAND       0x00000001
 
 #define GFAR_SUPPORTED (SUPPORTED_10baseT_Half \
+		| SUPPORTED_10baseT_Full \
 		| SUPPORTED_100baseT_Half \
 		| SUPPORTED_100baseT_Full \
 		| SUPPORTED_Autoneg \
