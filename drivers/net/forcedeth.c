@@ -98,6 +98,7 @@
  *	0.43: 10 Aug 2005: Add support for tx checksum.
  *	0.44: 20 Aug 2005: Add support for scatter gather and segmentation.
  *	0.45: 18 Sep 2005: Remove nv_stop/start_rx from every link check
+ *	0.46: 20 Oct 2005: Add irq optimization modes.
  *
  * Known bugs:
  * We suspect that on some hardware no TX done interrupts are generated.
@@ -109,7 +110,7 @@
  * DEV_NEED_TIMERIRQ will not harm you on sane hardware, only generating a few
  * superfluous timer interrupts from the nic.
  */
-#define FORCEDETH_VERSION		"0.45"
+#define FORCEDETH_VERSION		"0.46"
 #define DRV_NAME			"forcedeth"
 
 #include <linux/module.h>
@@ -164,7 +165,8 @@ enum {
 #define NVREG_IRQ_LINK			0x0040
 #define NVREG_IRQ_TX_ERROR		0x0080
 #define NVREG_IRQ_TX1			0x0100
-#define NVREG_IRQMASK_WANTED		0x00df
+#define NVREG_IRQMASK_THROUGHPUT	0x00df
+#define NVREG_IRQMASK_CPU		0x0040
 
 #define NVREG_IRQ_UNKNOWN	(~(NVREG_IRQ_RX_ERROR|NVREG_IRQ_RX|NVREG_IRQ_RX_NOBUF|NVREG_IRQ_TX_ERR| \
 					NVREG_IRQ_TX_OK|NVREG_IRQ_TIMER|NVREG_IRQ_LINK|NVREG_IRQ_TX_ERROR| \
@@ -178,7 +180,8 @@ enum {
  * NVREG_POLL_DEFAULT=97 would result in an interval length of 1 ms
  */
 	NvRegPollingInterval = 0x00c,
-#define NVREG_POLL_DEFAULT	970
+#define NVREG_POLL_DEFAULT_THROUGHPUT	970
+#define NVREG_POLL_DEFAULT_CPU	13
 	NvRegMisc1 = 0x080,
 #define NVREG_MISC1_HD		0x02
 #define NVREG_MISC1_FORCE	0x3b0f3c
@@ -538,6 +541,25 @@ struct fe_priv {
  * is stuck. Overridable with module param.
  */
 static int max_interrupt_work = 5;
+
+/*
+ * Optimization can be either throuput mode or cpu mode
+ * 
+ * Throughput Mode: Every tx and rx packet will generate an interrupt.
+ * CPU Mode: Interrupts are controlled by a timer.
+ */
+#define NV_OPTIMIZATION_MODE_THROUGHPUT 0
+#define NV_OPTIMIZATION_MODE_CPU        1
+static int optimization_mode = NV_OPTIMIZATION_MODE_THROUGHPUT;
+
+/*
+ * Poll interval for timer irq
+ *
+ * This interval determines how frequent an interrupt is generated.
+ * The is value is determined by [(time_in_micro_secs * 100) / (2^10)]
+ * Min = 0, and Max = 65535
+ */
+static int poll_interval = -1;
 
 static inline struct fe_priv *get_nvpriv(struct net_device *dev)
 {
@@ -1329,67 +1351,71 @@ static void nv_rx_process(struct net_device *dev)
 			if (!(Flags & NV_RX_DESCRIPTORVALID))
 				goto next_pkt;
 
-			if (Flags & NV_RX_MISSEDFRAME) {
-				np->stats.rx_missed_errors++;
-				np->stats.rx_errors++;
-				goto next_pkt;
-			}
-			if (Flags & (NV_RX_ERROR1|NV_RX_ERROR2|NV_RX_ERROR3)) {
-				np->stats.rx_errors++;
-				goto next_pkt;
-			}
-			if (Flags & NV_RX_CRCERR) {
-				np->stats.rx_crc_errors++;
-				np->stats.rx_errors++;
-				goto next_pkt;
-			}
-			if (Flags & NV_RX_OVERFLOW) {
-				np->stats.rx_over_errors++;
-				np->stats.rx_errors++;
-				goto next_pkt;
-			}
-			if (Flags & NV_RX_ERROR4) {
-				len = nv_getlen(dev, np->rx_skbuff[i]->data, len);
-				if (len < 0) {
+			if (Flags & NV_RX_ERROR) {
+				if (Flags & NV_RX_MISSEDFRAME) {
+					np->stats.rx_missed_errors++;
 					np->stats.rx_errors++;
 					goto next_pkt;
 				}
-			}
-			/* framing errors are soft errors. */
-			if (Flags & NV_RX_FRAMINGERR) {
-				if (Flags & NV_RX_SUBSTRACT1) {
-					len--;
+				if (Flags & (NV_RX_ERROR1|NV_RX_ERROR2|NV_RX_ERROR3)) {
+					np->stats.rx_errors++;
+					goto next_pkt;
+				}
+				if (Flags & NV_RX_CRCERR) {
+					np->stats.rx_crc_errors++;
+					np->stats.rx_errors++;
+					goto next_pkt;
+				}
+				if (Flags & NV_RX_OVERFLOW) {
+					np->stats.rx_over_errors++;
+					np->stats.rx_errors++;
+					goto next_pkt;
+				}
+				if (Flags & NV_RX_ERROR4) {
+					len = nv_getlen(dev, np->rx_skbuff[i]->data, len);
+					if (len < 0) {
+						np->stats.rx_errors++;
+						goto next_pkt;
+					}
+				}
+				/* framing errors are soft errors. */
+				if (Flags & NV_RX_FRAMINGERR) {
+					if (Flags & NV_RX_SUBSTRACT1) {
+						len--;
+					}
 				}
 			}
 		} else {
 			if (!(Flags & NV_RX2_DESCRIPTORVALID))
 				goto next_pkt;
 
-			if (Flags & (NV_RX2_ERROR1|NV_RX2_ERROR2|NV_RX2_ERROR3)) {
-				np->stats.rx_errors++;
-				goto next_pkt;
-			}
-			if (Flags & NV_RX2_CRCERR) {
-				np->stats.rx_crc_errors++;
-				np->stats.rx_errors++;
-				goto next_pkt;
-			}
-			if (Flags & NV_RX2_OVERFLOW) {
-				np->stats.rx_over_errors++;
-				np->stats.rx_errors++;
-				goto next_pkt;
-			}
-			if (Flags & NV_RX2_ERROR4) {
-				len = nv_getlen(dev, np->rx_skbuff[i]->data, len);
-				if (len < 0) {
+			if (Flags & NV_RX2_ERROR) {
+				if (Flags & (NV_RX2_ERROR1|NV_RX2_ERROR2|NV_RX2_ERROR3)) {
 					np->stats.rx_errors++;
 					goto next_pkt;
 				}
-			}
-			/* framing errors are soft errors */
-			if (Flags & NV_RX2_FRAMINGERR) {
-				if (Flags & NV_RX2_SUBSTRACT1) {
-					len--;
+				if (Flags & NV_RX2_CRCERR) {
+					np->stats.rx_crc_errors++;
+					np->stats.rx_errors++;
+					goto next_pkt;
+				}
+				if (Flags & NV_RX2_OVERFLOW) {
+					np->stats.rx_over_errors++;
+					np->stats.rx_errors++;
+					goto next_pkt;
+				}
+				if (Flags & NV_RX2_ERROR4) {
+					len = nv_getlen(dev, np->rx_skbuff[i]->data, len);
+					if (len < 0) {
+						np->stats.rx_errors++;
+						goto next_pkt;
+					}
+				}
+				/* framing errors are soft errors */
+				if (Flags & NV_RX2_FRAMINGERR) {
+					if (Flags & NV_RX2_SUBSTRACT1) {
+						len--;
+					}
 				}
 			}
 			Flags &= NV_RX2_CHECKSUMMASK;
@@ -1809,22 +1835,18 @@ static irqreturn_t nv_nic_irq(int foo, void *data, struct pt_regs *regs)
 		if (!(events & np->irqmask))
 			break;
 
-		if (events & (NVREG_IRQ_TX1|NVREG_IRQ_TX_OK|NVREG_IRQ_TX_ERROR|NVREG_IRQ_TX_ERR)) {
+		spin_lock(&np->lock);
+		nv_tx_done(dev);
+		spin_unlock(&np->lock);
+		
+		nv_rx_process(dev);
+		if (nv_alloc_rx(dev)) {
 			spin_lock(&np->lock);
-			nv_tx_done(dev);
+			if (!np->in_shutdown)
+				mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
 			spin_unlock(&np->lock);
 		}
-
-		if (events & (NVREG_IRQ_RX_ERROR|NVREG_IRQ_RX|NVREG_IRQ_RX_NOBUF)) {
-			nv_rx_process(dev);
-			if (nv_alloc_rx(dev)) {
-				spin_lock(&np->lock);
-				if (!np->in_shutdown)
-					mod_timer(&np->oom_kick, jiffies + OOM_REFILL);
-				spin_unlock(&np->lock);
-			}
-		}
-
+		
 		if (events & NVREG_IRQ_LINK) {
 			spin_lock(&np->lock);
 			nv_link_irq(dev);
@@ -2226,7 +2248,14 @@ static int nv_open(struct net_device *dev)
 	writel(NVREG_RNDSEED_FORCE | (i&NVREG_RNDSEED_MASK), base + NvRegRandomSeed);
 	writel(NVREG_UNKSETUP1_VAL, base + NvRegUnknownSetupReg1);
 	writel(NVREG_UNKSETUP2_VAL, base + NvRegUnknownSetupReg2);
-	writel(NVREG_POLL_DEFAULT, base + NvRegPollingInterval);
+	if (poll_interval == -1) {
+		if (optimization_mode == NV_OPTIMIZATION_MODE_THROUGHPUT)
+			writel(NVREG_POLL_DEFAULT_THROUGHPUT, base + NvRegPollingInterval);
+		else
+			writel(NVREG_POLL_DEFAULT_CPU, base + NvRegPollingInterval);
+	}
+	else
+		writel(poll_interval & 0xFFFF, base + NvRegPollingInterval);
 	writel(NVREG_UNKSETUP6_VAL, base + NvRegUnknownSetupReg6);
 	writel((np->phyaddr << NVREG_ADAPTCTL_PHYSHIFT)|NVREG_ADAPTCTL_PHYVALID|NVREG_ADAPTCTL_RUNNING,
 			base + NvRegAdapterControl);
@@ -2511,7 +2540,11 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	} else {
 		np->tx_flags = NV_TX2_VALID;
 	}
-	np->irqmask = NVREG_IRQMASK_WANTED;
+	if (optimization_mode == NV_OPTIMIZATION_MODE_THROUGHPUT)
+		np->irqmask = NVREG_IRQMASK_THROUGHPUT;
+	else
+		np->irqmask = NVREG_IRQMASK_CPU;
+
 	if (id->driver_data & DEV_NEED_TIMERIRQ)
 		np->irqmask |= NVREG_IRQ_TIMER;
 	if (id->driver_data & DEV_NEED_LINKTIMER) {
@@ -2699,6 +2732,10 @@ static void __exit exit_nic(void)
 
 module_param(max_interrupt_work, int, 0);
 MODULE_PARM_DESC(max_interrupt_work, "forcedeth maximum events handled per interrupt");
+module_param(optimization_mode, int, 0);
+MODULE_PARM_DESC(optimization_mode, "In throughput mode (0), every tx & rx packet will generate an interrupt. In CPU mode (1), interrupts are controlled by a timer.");
+module_param(poll_interval, int, 0);
+MODULE_PARM_DESC(poll_interval, "Interval determines how frequent timer interrupt is generated by [(time_in_micro_secs * 100) / (2^10)]. Min is 0 and Max is 65535.");
 
 MODULE_AUTHOR("Manfred Spraul <manfred@colorfullife.com>");
 MODULE_DESCRIPTION("Reverse Engineered nForce ethernet driver");
