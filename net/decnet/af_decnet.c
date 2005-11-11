@@ -1664,16 +1664,14 @@ static int dn_recvmsg(struct kiocb *iocb, struct socket *sock,
 		goto out;
 	}
 
+	if (sk->sk_shutdown & RCV_SHUTDOWN) {
+		rv = 0;
+		goto out;
+	}
+
 	rv = dn_check_state(sk, NULL, 0, &timeo, flags);
 	if (rv)
 		goto out;
-
-	if (sk->sk_shutdown & RCV_SHUTDOWN) {
-		if (!(flags & MSG_NOSIGNAL))
-			send_sig(SIGPIPE, current, 0);
-		rv = -EPIPE;
-		goto out;
-	}
 
 	if (flags & ~(MSG_PEEK|MSG_OOB|MSG_WAITALL|MSG_DONTWAIT|MSG_NOSIGNAL)) {
 		rv = -EOPNOTSUPP;
@@ -1928,6 +1926,8 @@ static int dn_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	if (sk->sk_shutdown & SEND_SHUTDOWN) {
 		err = -EPIPE;
+		if (!(flags & MSG_NOSIGNAL))
+			send_sig(SIGPIPE, current, 0);
 		goto out_err;
 	}
 
