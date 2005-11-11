@@ -137,6 +137,7 @@ retry_bteop:
 			bte = bte_if_on_node(nasid_to_try[nasid_index],bte_if_index);
 
 			if (bte == NULL) {
+				nasid_index++;
 				continue;
 			}
 
