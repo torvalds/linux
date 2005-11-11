@@ -306,9 +306,7 @@ static void __init fw_feature_init(void)
 	}
 
 	of_node_put(dn);
- no_rtas:
-	printk(KERN_INFO "firmware_features = 0x%lx\n", 
-	       ppc64_firmware_features);
+no_rtas:
 
 	DBG(" <- fw_feature_init()\n");
 }
