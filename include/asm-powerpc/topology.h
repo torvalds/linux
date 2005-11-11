@@ -37,8 +37,6 @@ static inline int node_to_first_cpu(int node)
 #define pcibus_to_node(node)    (-1)
 #define pcibus_to_cpumask(bus)	(cpu_online_map)
 
-#define nr_cpus_node(node)	(nr_cpus_in_node[node])
-
 /* sched_domains SD_NODE_INIT for PPC64 machines */
 #define SD_NODE_INIT (struct sched_domain) {		\
 	.span			= CPU_MASK_NONE,	\

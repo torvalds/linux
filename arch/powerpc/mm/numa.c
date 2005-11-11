@@ -38,7 +38,6 @@ int numa_cpu_lookup_table[NR_CPUS] = { [ 0 ... (NR_CPUS - 1)] =
 	ARRAY_INITIALISER};
 char *numa_memory_lookup_table;
 cpumask_t numa_cpumask_lookup_table[MAX_NUMNODES];
-int nr_cpus_in_node[MAX_NUMNODES] = { [0 ... (MAX_NUMNODES -1)] = 0};
 
 struct pglist_data *node_data[MAX_NUMNODES];
 bootmem_data_t __initdata plat_node_bdata[MAX_NUMNODES];
@@ -58,14 +57,12 @@ EXPORT_SYMBOL(node_data);
 EXPORT_SYMBOL(numa_cpu_lookup_table);
 EXPORT_SYMBOL(numa_memory_lookup_table);
 EXPORT_SYMBOL(numa_cpumask_lookup_table);
-EXPORT_SYMBOL(nr_cpus_in_node);
 
 static inline void map_cpu_to_node(int cpu, int node)
 {
 	numa_cpu_lookup_table[cpu] = node;
 	if (!(cpu_isset(cpu, numa_cpumask_lookup_table[node]))) {
 		cpu_set(cpu, numa_cpumask_lookup_table[node]);
-		nr_cpus_in_node[node]++;
 	}
 }
 
@@ -78,7 +75,6 @@ static void unmap_cpu_from_node(unsigned long cpu)
 
 	if (cpu_isset(cpu, numa_cpumask_lookup_table[node])) {
 		cpu_clear(cpu, numa_cpumask_lookup_table[node]);
-		nr_cpus_in_node[node]--;
 	} else {
 		printk(KERN_ERR "WARNING: cpu %lu not found in node %d\n",
 		       cpu, node);

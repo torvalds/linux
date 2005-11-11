@@ -32,7 +32,6 @@ extern struct pglist_data *node_data[];
 extern int numa_cpu_lookup_table[];
 extern char *numa_memory_lookup_table;
 extern cpumask_t numa_cpumask_lookup_table[];
-extern int nr_cpus_in_node[];
 #ifdef CONFIG_MEMORY_HOTPLUG
 extern unsigned long max_pfn;
 #endif
