@@ -249,7 +249,7 @@ static void __init pSeries_setup_arch(void)
 		ppc_md.idle_loop = default_idle;
 	}
 
-	if (systemcfg->platform & PLATFORM_LPAR)
+	if (platform_is_lpar())
 		ppc_md.enable_pmcs = pseries_lpar_enable_pmcs;
 	else
 		ppc_md.enable_pmcs = power4_enable_pmcs;
@@ -378,7 +378,7 @@ static void __init pSeries_init_early(void)
 
 	fw_feature_init();
 	
-	if (systemcfg->platform & PLATFORM_LPAR)
+	if (platform_is_lpar())
 		hpte_init_lpar();
 	else {
 		hpte_init_native();
@@ -388,7 +388,7 @@ static void __init pSeries_init_early(void)
 
 	generic_find_legacy_serial_ports(&physport, &default_speed);
 
-	if (systemcfg->platform & PLATFORM_LPAR)
+	if (platform_is_lpar())
 		find_udbg_vterm();
 	else if (physport) {
 		/* Map the uart for udbg. */
@@ -592,7 +592,7 @@ static void pseries_shared_idle(void)
 
 static int pSeries_pci_probe_mode(struct pci_bus *bus)
 {
-	if (systemcfg->platform & PLATFORM_LPAR)
+	if (platform_is_lpar())
 		return PCI_PROBE_DEVTREE;
 	return PCI_PROBE_NORMAL;
 }

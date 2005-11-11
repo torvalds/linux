@@ -135,5 +135,11 @@ static __inline int logical_smp_processor_id(void)
 }
 #endif
 
+#ifdef CONFIG_SMP
+#define cpu_physical_id(cpu)		x86_cpu_to_apicid[cpu]
+#else
+#define cpu_physical_id(cpu)		boot_cpu_id
+#endif
+
 #endif
 

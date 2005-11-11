@@ -401,7 +401,6 @@ static void __devexit amd756_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver amd756_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "amd756_smbus",
 	.id_table	= amd756_ids,
 	.probe		= amd756_probe,

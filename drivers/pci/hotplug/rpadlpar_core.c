@@ -134,43 +134,6 @@ static void rpadlpar_claim_one_bus(struct pci_bus *b)
 		rpadlpar_claim_one_bus(child_bus);
 }
 
-static int pci_add_secondary_bus(struct device_node *dn,
-		struct pci_dev *bridge_dev)
-{
-	struct pci_dn *pdn = dn->data;
-	struct pci_controller *hose = pdn->phb;
-	struct pci_bus *child;
-	u8 sec_busno;
-
-	/* Get busno of downstream bus */
-	pci_read_config_byte(bridge_dev, PCI_SECONDARY_BUS, &sec_busno);
-
-	/* Allocate and add to children of bridge_dev->bus */
-	child = pci_add_new_bus(bridge_dev->bus, bridge_dev, sec_busno);
-	if (!child) {
-		printk(KERN_ERR "%s: could not add secondary bus\n", __FUNCTION__);
-		return -ENOMEM;
-	}
-
-	sprintf(child->name, "PCI Bus #%02x", child->number);
-
-	/* Fixup subordinate bridge bases and resources */
-	pcibios_fixup_bus(child);
-
-	/* Claim new bus resources */
-	rpadlpar_claim_one_bus(bridge_dev->bus);
-
-	if (hose->last_busno < child->number)
-		hose->last_busno = child->number;
-
-	pdn->bussubno = child->number;
-
-	/* ioremap() for child bus, which may or may not succeed */
-	remap_bus_range(child);
-
-	return 0;
-}
-
 static struct pci_dev *dlpar_find_new_dev(struct pci_bus *parent,
 					struct device_node *dev_dn)
 {
@@ -188,29 +151,41 @@ static struct pci_dev *dlpar_find_new_dev(struct pci_bus *parent,
 static struct pci_dev *dlpar_pci_add_bus(struct device_node *dn)
 {
 	struct pci_dn *pdn = dn->data;
-	struct pci_controller *hose = pdn->phb;
+	struct pci_controller *phb = pdn->phb;
 	struct pci_dev *dev = NULL;
 
-	/* Scan phb bus for EADS device, adding new one to bus->devices */
-	if (!pci_scan_single_device(hose->bus, pdn->devfn)) {
-		printk(KERN_ERR "%s: found no device on bus\n", __FUNCTION__);
+	rpaphp_eeh_init_nodes(dn);
+	/* Add EADS device to PHB bus, adding new entry to bus->devices */
+	dev = of_create_pci_dev(dn, phb->bus, pdn->devfn);
+	if (!dev) {
+		printk(KERN_ERR "%s: failed to create pci dev for %s\n",
+				__FUNCTION__, dn->full_name);
 		return NULL;
 	}
 
+	if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
+	    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)
+		of_scan_pci_bridge(dn, dev);
+
+	rpaphp_init_new_devs(dev->subordinate);
+
+	/* Claim new bus resources */
+	rpadlpar_claim_one_bus(dev->bus);
+
+	/* ioremap() for child bus, which may or may not succeed */
+	(void) remap_bus_range(dev->bus);
+
 	/* Add new devices to global lists.  Register in proc, sysfs. */
-	pci_bus_add_devices(hose->bus);
+	pci_bus_add_devices(phb->bus);
 
 	/* Confirm new bridge dev was created */
-	dev = dlpar_find_new_dev(hose->bus, dn);
+	dev = dlpar_find_new_dev(phb->bus, dn);
 	if (dev) {
 		if (dev->hdr_type != PCI_HEADER_TYPE_BRIDGE) {
 			printk(KERN_ERR "%s: unexpected header type %d\n",
 				__FUNCTION__, dev->hdr_type);
 			return NULL;
 		}
-
-		if (pci_add_secondary_bus(dn, dev))
-			return NULL;
 	}
 
 	return dev;
@@ -219,7 +194,6 @@ static struct pci_dev *dlpar_pci_add_bus(struct device_node *dn)
 static int dlpar_add_pci_slot(char *drc_name, struct device_node *dn)
 {
 	struct pci_dev *dev;
-	int rc;
 
 	if (rpaphp_find_pci_bus(dn))
 		return -EINVAL;
@@ -230,15 +204,6 @@ static int dlpar_add_pci_slot(char *drc_name, struct device_node *dn)
 		printk(KERN_ERR "%s: unable to add bus %s\n", __FUNCTION__,
 			drc_name);
 		return -EIO;
-	}
-
-	if (dn->child) {
-		rc = rpaphp_config_pci_adapter(dev->subordinate);
-		if (rc < 0) {
-			printk(KERN_ERR "%s: unable to enable slot %s\n",
-				__FUNCTION__, drc_name);
-			return -EIO;
-		}
 	}
 
 	/* Add hotplug slot */
@@ -306,7 +271,7 @@ static int dlpar_add_phb(char *drc_name, struct device_node *dn)
 {
 	struct pci_controller *phb;
 
-	if (PCI_DN(dn)->phb) {
+	if (PCI_DN(dn) && PCI_DN(dn)->phb) {
 		/* PHB already exists */
 		return -EINVAL;
 	}
@@ -435,6 +400,8 @@ int dlpar_remove_pci_slot(char *drc_name, struct device_node *dn)
 				__FUNCTION__, drc_name);
 			return -EIO;
 		}
+	} else {
+		rpaphp_unconfig_pci_adapter(bus);
 	}
 
 	if (unmap_bus_range(bus)) {

@@ -29,9 +29,6 @@
 #include <asm/delay.h>
 #include <asm/uaccess.h>
 #include <asm/lmb.h>
-#ifdef CONFIG_PPC64
-#include <asm/systemcfg.h>
-#endif
 
 struct rtas_t rtas = {
 	.lock = SPIN_LOCK_UNLOCKED
@@ -671,7 +668,7 @@ void __init rtas_initialize(void)
 	 * the stop-self token if any
 	 */
 #ifdef CONFIG_PPC64
-	if (systemcfg->platform == PLATFORM_PSERIES_LPAR)
+	if (_machine == PLATFORM_PSERIES_LPAR)
 		rtas_region = min(lmb.rmo_size, RTAS_INSTANTIATE_MAX);
 #endif
 	rtas_rmo_buf = lmb_alloc_base(RTAS_RMOBUF_MAX, PAGE_SIZE, rtas_region);

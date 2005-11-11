@@ -39,6 +39,7 @@ td3	.req	lr
 
 		/* we must have at least one byte. */
 		tst	buf, #1			@ odd address?
+		movne	sum, sum, ror #8
 		ldrneb	td0, [buf], #1
 		subne	len, len, #1
 		adcnes	sum, sum, td0, put_byte_1
@@ -102,6 +103,9 @@ ENTRY(csum_partial)
 		stmfd	sp!, {buf, lr}
 		cmp	len, #8			@ Ensure that we have at least
 		blo	.less8			@ 8 bytes to copy.
+
+		tst	buf, #1
+		movne	sum, sum, ror #8
 
 		adds	sum, sum, #0		@ C = 0
 		tst	buf, #3			@ Test destination alignment

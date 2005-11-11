@@ -271,13 +271,13 @@ static inline void update_gtod(u64 new_tb_stamp, u64 new_stamp_xsec,
 	 * tb_to_xs and stamp_xsec values are consistent.  If not, then it
 	 * loops back and reads them again until this criteria is met.
 	 */
-	++(systemcfg->tb_update_count);
+	++(_systemcfg->tb_update_count);
 	smp_wmb();
-	systemcfg->tb_orig_stamp = new_tb_stamp;
-	systemcfg->stamp_xsec = new_stamp_xsec;
-	systemcfg->tb_to_xs = new_tb_to_xs;
+	_systemcfg->tb_orig_stamp = new_tb_stamp;
+	_systemcfg->stamp_xsec = new_stamp_xsec;
+	_systemcfg->tb_to_xs = new_tb_to_xs;
 	smp_wmb();
-	++(systemcfg->tb_update_count);
+	++(_systemcfg->tb_update_count);
 #endif
 }
 
@@ -357,8 +357,9 @@ static void iSeries_tb_recal(void)
 				do_gtod.tb_ticks_per_sec = tb_ticks_per_sec;
 				tb_to_xs = divres.result_low;
 				do_gtod.varp->tb_to_xs = tb_to_xs;
-				systemcfg->tb_ticks_per_sec = tb_ticks_per_sec;
-				systemcfg->tb_to_xs = tb_to_xs;
+				_systemcfg->tb_ticks_per_sec =
+					tb_ticks_per_sec;
+				_systemcfg->tb_to_xs = tb_to_xs;
 			}
 			else {
 				printk( "Titan recalibrate: FAILED (difference > 4 percent)\n"
@@ -483,6 +484,8 @@ void __init smp_space_timers(unsigned int max_cpus)
 	unsigned long offset = tb_ticks_per_jiffy / max_cpus;
 	unsigned long previous_tb = per_cpu(last_jiffy, boot_cpuid);
 
+	/* make sure tb > per_cpu(last_jiffy, cpu) for all cpus always */
+	previous_tb -= tb_ticks_per_jiffy;
 	for_each_cpu(i) {
 		if (i != boot_cpuid) {
 			previous_tb += offset;
@@ -559,8 +562,8 @@ int do_settimeofday(struct timespec *tv)
 	update_gtod(tb_last_jiffy, new_xsec, do_gtod.varp->tb_to_xs);
 
 #ifdef CONFIG_PPC64
-	systemcfg->tz_minuteswest = sys_tz.tz_minuteswest;
-	systemcfg->tz_dsttime = sys_tz.tz_dsttime;
+	_systemcfg->tz_minuteswest = sys_tz.tz_minuteswest;
+	_systemcfg->tz_dsttime = sys_tz.tz_dsttime;
 #endif
 
 	write_sequnlock_irqrestore(&xtime_lock, flags);
@@ -711,11 +714,11 @@ void __init time_init(void)
 	do_gtod.varp->tb_to_xs = tb_to_xs;
 	do_gtod.tb_to_us = tb_to_us;
 #ifdef CONFIG_PPC64
-	systemcfg->tb_orig_stamp = tb_last_jiffy;
-	systemcfg->tb_update_count = 0;
-	systemcfg->tb_ticks_per_sec = tb_ticks_per_sec;
-	systemcfg->stamp_xsec = xtime.tv_sec * XSEC_PER_SEC;
-	systemcfg->tb_to_xs = tb_to_xs;
+	_systemcfg->tb_orig_stamp = tb_last_jiffy;
+	_systemcfg->tb_update_count = 0;
+	_systemcfg->tb_ticks_per_sec = tb_ticks_per_sec;
+	_systemcfg->stamp_xsec = xtime.tv_sec * XSEC_PER_SEC;
+	_systemcfg->tb_to_xs = tb_to_xs;
 #endif
 
 	time_freq = 0;

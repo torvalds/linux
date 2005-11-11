@@ -47,14 +47,15 @@
 				OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL)
 
 #ifdef CONFIG_ACPI
-extern acpi_status pci_osc_control_set(u32 flags);
+extern acpi_status pci_osc_control_set(acpi_handle handle, u32 flags);
 extern acpi_status pci_osc_support_set(u32 flags);
 #else
 #if !defined(acpi_status)
 typedef u32 		acpi_status;
 #define AE_ERROR      	(acpi_status) (0x0001)
 #endif    
-static inline acpi_status pci_osc_control_set(u32 flags) {return AE_ERROR;}
+static inline acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
+{return AE_ERROR;}
 static inline acpi_status pci_osc_support_set(u32 flags) {return AE_ERROR;} 
 #endif
 

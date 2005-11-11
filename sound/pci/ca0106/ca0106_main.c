@@ -1499,7 +1499,6 @@ MODULE_DEVICE_TABLE(pci, snd_ca0106_ids);
 // pci_driver definition
 static struct pci_driver driver = {
 	.name = "CA0106",
-	.owner = THIS_MODULE,
 	.id_table = snd_ca0106_ids,
 	.probe = snd_ca0106_probe,
 	.remove = __devexit_p(snd_ca0106_remove),

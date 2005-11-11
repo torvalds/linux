@@ -28,7 +28,6 @@
 #include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
-#include <asm/systemcfg.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/bug.h>
@@ -1697,25 +1696,14 @@ _GLOBAL(pmac_secondary_start)
  *   SPRG3 = paca virtual address
  */
 _GLOBAL(__secondary_start)
+	/* Set thread priority to MEDIUM */
+	HMT_MEDIUM
 
-	HMT_MEDIUM			/* Set thread priority to MEDIUM */
-
+	/* Load TOC */
 	ld	r2,PACATOC(r13)
-	li	r6,0
-	stb	r6,PACAPROCENABLED(r13)
 
-#ifndef CONFIG_PPC_ISERIES
-	/* Initialize the page table pointer register. */
-	LOADADDR(r6,_SDR1)
-	ld	r6,0(r6)		/* get the value of _SDR1	 */
-	mtspr	SPRN_SDR1,r6			/* set the htab location	 */
-#endif
-	/* Initialize the first segment table (or SLB) entry		 */
-	ld	r3,PACASTABVIRT(r13)	/* get addr of segment table	 */
-BEGIN_FTR_SECTION
-	bl	.stab_initialize
-END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
-	bl	.slb_initialize
+	/* Do early setup for that CPU (stab, slb, hash table pointer) */
+	bl	.early_setup_secondary
 
 	/* Initialize the kernel stack.  Just a repeat for iSeries.	 */
 	LOADADDR(r3,current_set)
@@ -1724,37 +1712,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 	addi	r1,r1,THREAD_SIZE-STACK_FRAME_OVERHEAD
 	std	r1,PACAKSAVE(r13)
 
-	ld	r3,PACASTABREAL(r13)	/* get raddr of segment table	 */
-	ori	r4,r3,1			/* turn on valid bit		 */
-
-#ifdef CONFIG_PPC_ISERIES
-	li	r0,-1			/* hypervisor call */
-	li	r3,1
-	sldi	r3,r3,63		/* 0x8000000000000000 */
-	ori	r3,r3,4			/* 0x8000000000000004 */
-	sc				/* HvCall_setASR */
-#else
-	/* set the ASR */
-	ld	r3,systemcfg@got(r2)	/* r3 = ptr to systemcfg	 */
-	ld	r3,0(r3)
-	lwz	r3,PLATFORM(r3)		/* r3 = platform flags		 */
-	andi.	r3,r3,PLATFORM_LPAR	/* Test if bit 0 is set (LPAR bit) */
-	beq	98f			/* branch if result is 0  */
-	mfspr	r3,SPRN_PVR
-	srwi	r3,r3,16
-	cmpwi	r3,0x37			/* SStar  */
-	beq	97f
-	cmpwi	r3,0x36			/* IStar  */
-	beq	97f
-	cmpwi	r3,0x34			/* Pulsar */
-	bne	98f
-97:	li	r3,H_SET_ASR		/* hcall = H_SET_ASR */
-	HVSC				/* Invoking hcall */
-	b	99f
-98:					/* !(rpa hypervisor) || !(star)  */
-	mtasr	r4			/* set the stab location	 */
-99:
-#endif
+	/* Clear backchain so we get nice backtraces */
 	li	r7,0
 	mtlr	r7
 
@@ -1777,6 +1735,7 @@ _GLOBAL(start_secondary_prolog)
 	li	r3,0
 	std	r3,0(r1)		/* Zero the stack frame pointer	*/
 	bl	.start_secondary
+	b	.
 #endif
 
 /*
@@ -1896,40 +1855,6 @@ _STATIC(start_here_multiplatform)
 	mr	r3,r31
  	bl	.early_setup
 
-	/* set the ASR */
-	ld	r3,PACASTABREAL(r13)
-	ori	r4,r3,1			/* turn on valid bit		 */
-	ld	r3,systemcfg@got(r2)	/* r3 = ptr to systemcfg */
-	ld	r3,0(r3)
-	lwz	r3,PLATFORM(r3)		/* r3 = platform flags */
-	andi.	r3,r3,PLATFORM_LPAR	/* Test if bit 0 is set (LPAR bit) */
-	beq	98f			/* branch if result is 0  */
-	mfspr	r3,SPRN_PVR
-	srwi	r3,r3,16
-	cmpwi	r3,0x37			/* SStar */
-	beq	97f
-	cmpwi	r3,0x36			/* IStar  */
-	beq	97f
-	cmpwi	r3,0x34			/* Pulsar */
-	bne	98f
-97:	li	r3,H_SET_ASR		/* hcall = H_SET_ASR */
-	HVSC				/* Invoking hcall */
-	b	99f
-98:					/* !(rpa hypervisor) || !(star) */
-	mtasr	r4			/* set the stab location	*/
-99:
-	/* Set SDR1 (hash table pointer) */
-	ld	r3,systemcfg@got(r2)	/* r3 = ptr to systemcfg */
-	ld	r3,0(r3)
-	lwz	r3,PLATFORM(r3)		/* r3 = platform flags */
-	/* Test if bit 0 is set (LPAR bit) */
-	andi.	r3,r3,PLATFORM_LPAR
-	bne	98f			/* branch if result is !0  */
-	LOADADDR(r6,_SDR1)		/* Only if NOT LPAR */
-	add	r6,r6,r26
-	ld	r6,0(r6)		/* get the value of _SDR1 */
-	mtspr	SPRN_SDR1,r6			/* set the htab location  */
-98: 
 	LOADADDR(r3,.start_here_common)
 	SET_REG_TO_CONST(r4, MSR_KERNEL)
 	mtspr	SPRN_SRR0,r3

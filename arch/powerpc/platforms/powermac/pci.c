@@ -918,9 +918,6 @@ void __init pmac_pci_init(void)
 			PCI_DN(np)->busno = 0xf0;
 	}
 
-	/* map in PCI I/O space */
-	phbs_remap_io();
-
 	/* pmac_check_ht_link(); */
 
 	/* Tell pci.c to not use the common resource allocation mechanism */

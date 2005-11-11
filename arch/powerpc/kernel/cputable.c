@@ -52,6 +52,9 @@ extern void __setup_cpu_ppc970(unsigned long offset, struct cpu_spec* spec);
 #define COMMON_USER		(PPC_FEATURE_32 | PPC_FEATURE_HAS_FPU | \
 				 PPC_FEATURE_HAS_MMU)
 #define COMMON_USER_PPC64	(COMMON_USER | PPC_FEATURE_64)
+#define COMMON_USER_POWER4	(COMMON_USER_PPC64 | PPC_FEATURE_POWER4)
+#define COMMON_USER_POWER5	(COMMON_USER_PPC64 | PPC_FEATURE_POWER5)
+#define COMMON_USER_POWER5_PLUS	(COMMON_USER_PPC64 | PPC_FEATURE_POWER5_PLUS)
 
 
 /* We only set the spe features if the kernel was compiled with
@@ -160,7 +163,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00350000,
 		.cpu_name		= "POWER4 (gp)",
 		.cpu_features		= CPU_FTRS_POWER4,
-		.cpu_user_features	= COMMON_USER_PPC64,
+		.cpu_user_features	= COMMON_USER_POWER4,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
@@ -175,7 +178,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00380000,
 		.cpu_name		= "POWER4+ (gq)",
 		.cpu_features		= CPU_FTRS_POWER4,
-		.cpu_user_features	= COMMON_USER_PPC64,
+		.cpu_user_features	= COMMON_USER_POWER4,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 8,
@@ -190,7 +193,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00390000,
 		.cpu_name		= "PPC970",
 		.cpu_features		= CPU_FTRS_PPC970,
-		.cpu_user_features	= COMMON_USER_PPC64 |
+		.cpu_user_features	= COMMON_USER_POWER4 |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -212,7 +215,7 @@ struct cpu_spec	cpu_specs[] = {
 #else
 		.cpu_features		= CPU_FTRS_PPC970,
 #endif
-		.cpu_user_features	= COMMON_USER_PPC64 |
+		.cpu_user_features	= COMMON_USER_POWER4 |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -230,7 +233,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x00440000,
 		.cpu_name		= "PPC970MP",
 		.cpu_features		= CPU_FTRS_PPC970,
-		.cpu_user_features	= COMMON_USER_PPC64 |
+		.cpu_user_features	= COMMON_USER_POWER4 |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -245,7 +248,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x003a0000,
 		.cpu_name		= "POWER5 (gr)",
 		.cpu_features		= CPU_FTRS_POWER5,
-		.cpu_user_features	= COMMON_USER_PPC64,
+		.cpu_user_features	= COMMON_USER_POWER5,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
@@ -260,7 +263,7 @@ struct cpu_spec	cpu_specs[] = {
 		.pvr_value		= 0x003b0000,
 		.cpu_name		= "POWER5 (gs)",
 		.cpu_features		= CPU_FTRS_POWER5,
-		.cpu_user_features	= COMMON_USER_PPC64,
+		.cpu_user_features	= COMMON_USER_POWER5_PLUS,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.num_pmcs		= 6,
@@ -276,7 +279,7 @@ struct cpu_spec	cpu_specs[] = {
 		.cpu_name		= "Cell Broadband Engine",
 		.cpu_features		= CPU_FTRS_CELL,
 		.cpu_user_features	= COMMON_USER_PPC64 |
-			PPC_FEATURE_HAS_ALTIVEC_COMP,
+			PPC_FEATURE_CELL | PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
 		.cpu_setup		= __setup_cpu_be,

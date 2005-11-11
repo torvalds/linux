@@ -42,7 +42,6 @@
 #include <asm/machdep.h>
 #include <asm/abs_addr.h>
 #include <asm/pSeries_reconfig.h>
-#include <asm/systemcfg.h>
 #include <asm/firmware.h>
 #include <asm/tce.h>
 #include <asm/ppc-pci.h>
@@ -582,7 +581,7 @@ void iommu_init_early_pSeries(void)
 		return;
 	}
 
-	if (systemcfg->platform & PLATFORM_LPAR) {
+	if (platform_is_lpar()) {
 		if (firmware_has_feature(FW_FEATURE_MULTITCE)) {
 			ppc_md.tce_build = tce_buildmulti_pSeriesLP;
 			ppc_md.tce_free	 = tce_freemulti_pSeriesLP;

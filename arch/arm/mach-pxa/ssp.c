@@ -19,6 +19,8 @@
  *   22nd Aug 2003 Initial version.
  *   20th Dec 2004 Added ssp_config for changing port config without
  *                 closing the port.
+ *    4th Aug 2005 Added option to disable irq handler registration and
+ *                 cleaned up irq and clock detection.
  */
 
 #include <linux/module.h>
@@ -36,6 +38,26 @@
 #include <asm/arch/pxa-regs.h>
 
 #define PXA_SSP_PORTS 	3
+
+struct ssp_info_ {
+	int irq;
+	u32 clock;
+};
+
+/*
+ * SSP port clock and IRQ settings
+ */
+static const struct ssp_info_ ssp_info[PXA_SSP_PORTS] = {
+#if defined (CONFIG_PXA27x)
+	{IRQ_SSP,	CKEN23_SSP1},
+	{IRQ_SSP2,	CKEN3_SSP2},
+	{IRQ_SSP3,	CKEN4_SSP3},
+#else
+	{IRQ_SSP,	CKEN3_SSP},
+	{IRQ_NSSP,	CKEN9_NSSP},
+	{IRQ_ASSP,	CKEN10_ASSP},
+#endif
+};
 
 static DECLARE_MUTEX(sem);
 static int use_count[PXA_SSP_PORTS] = {0, 0, 0};
@@ -210,9 +232,9 @@ int ssp_config(struct ssp_dev *dev, u32 mode, u32 flags, u32 psp_flags, u32 spee
  *   %-EBUSY	if the resources are already in use
  *   %0		on success
  */
-int ssp_init(struct ssp_dev *dev, u32 port)
+int ssp_init(struct ssp_dev *dev, u32 port, u32 init_flags)
 {
-	int ret, irq;
+	int ret;
 
 	if (port > PXA_SSP_PORTS || port == 0)
 		return -ENODEV;
@@ -229,61 +251,20 @@ int ssp_init(struct ssp_dev *dev, u32 port)
 		up(&sem);
 		return -EBUSY;
 	}
-
-	switch (port) {
-		case 1:
-			irq = IRQ_SSP;
-			break;
-#if defined (CONFIG_PXA27x)
-		case 2:
-			irq = IRQ_SSP2;
-			break;
-		case 3:
-			irq = IRQ_SSP3;
-			break;
-#else
-		case 2:
-			irq = IRQ_NSSP;
-			break;
-		case 3:
-			irq = IRQ_ASSP;
-			break;
-#endif
-		default:
-			return -ENODEV;
-	}
-
 	dev->port = port;
 
-	ret = request_irq(irq, ssp_interrupt, 0, "SSP", dev);
-	if (ret)
-		goto out_region;
+	/* do we need to get irq */
+	if (!(init_flags & SSP_NO_IRQ)) {
+		ret = request_irq(ssp_info[port-1].irq, ssp_interrupt,
+				0, "SSP", dev);
+	    	if (ret)
+			goto out_region;
+	    	dev->irq = ssp_info[port-1].irq;
+	} else
+		dev->irq = 0;
 
 	/* turn on SSP port clock */
-	switch (dev->port) {
-#if defined (CONFIG_PXA27x)
-		case 1:
-			pxa_set_cken(CKEN23_SSP1, 1);
-			break;
-		case 2:
-			pxa_set_cken(CKEN3_SSP2, 1);
-			break;
-		case 3:
-			pxa_set_cken(CKEN4_SSP3, 1);
-			break;
-#else
-		case 1:
-			pxa_set_cken(CKEN3_SSP, 1);
-			break;
-		case 2:
-			pxa_set_cken(CKEN9_NSSP, 1);
-			break;
-		case 3:
-			pxa_set_cken(CKEN10_ASSP, 1);
-			break;
-#endif
-	}
-
+	pxa_set_cken(ssp_info[port-1].clock, 1);
 	up(&sem);
 	return 0;
 
@@ -301,46 +282,17 @@ out_region:
  */
 void ssp_exit(struct ssp_dev *dev)
 {
-	int irq;
-
 	down(&sem);
 	SSCR0_P(dev->port) &= ~SSCR0_SSE;
 
-	/* find irq, save power and turn off SSP port clock */
-	switch (dev->port) {
-#if defined (CONFIG_PXA27x)
-		case 1:
-			irq = IRQ_SSP;
-			pxa_set_cken(CKEN23_SSP1, 0);
-			break;
-		case 2:
-			irq = IRQ_SSP2;
-			pxa_set_cken(CKEN3_SSP2, 0);
-			break;
-		case 3:
-			irq = IRQ_SSP3;
-			pxa_set_cken(CKEN4_SSP3, 0);
-			break;
-#else
-		case 1:
-			irq = IRQ_SSP;
-			pxa_set_cken(CKEN3_SSP, 0);
-			break;
-		case 2:
-			irq = IRQ_NSSP;
-			pxa_set_cken(CKEN9_NSSP, 0);
-			break;
-		case 3:
-			irq = IRQ_ASSP;
-			pxa_set_cken(CKEN10_ASSP, 0);
-			break;
-#endif
-		default:
-			printk(KERN_WARNING "SSP: tried to close invalid port\n");
-			return;
+    	if (dev->port > PXA_SSP_PORTS || dev->port == 0) {
+		printk(KERN_WARNING "SSP: tried to close invalid port\n");
+		return;
 	}
 
-	free_irq(irq, dev);
+	pxa_set_cken(ssp_info[dev->port-1].clock, 0);
+	if (dev->irq)
+		free_irq(dev->irq, dev);
 	release_mem_region(__PREG(SSCR0_P(dev->port)), 0x2c);
 	use_count[dev->port - 1]--;
 	up(&sem);

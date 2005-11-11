@@ -2,7 +2,7 @@
 #define __ASM_POWERPC_CPUTABLE_H
 
 #include <linux/config.h>
-#include <asm/ppc_asm.h> /* for ASM_CONST */
+#include <asm/asm-compat.h>
 
 #define PPC_FEATURE_32			0x80000000
 #define PPC_FEATURE_64			0x40000000
@@ -16,6 +16,10 @@
 #define PPC_FEATURE_HAS_EFP_SINGLE	0x00400000
 #define PPC_FEATURE_HAS_EFP_DOUBLE	0x00200000
 #define PPC_FEATURE_NO_TB		0x00100000
+#define PPC_FEATURE_POWER4		0x00080000
+#define PPC_FEATURE_POWER5		0x00040000
+#define PPC_FEATURE_POWER5_PLUS		0x00020000
+#define PPC_FEATURE_CELL		0x00010000
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__

@@ -1366,6 +1366,7 @@ static int __init init_i82365(void)
     if (sockets == 0) {
 	printk("not found.\n");
 	platform_device_unregister(&i82365_device);
+	release_region(i365_base, 2);
 	driver_unregister(&i82365_driver);
 	return -ENODEV;
     }

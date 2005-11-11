@@ -122,8 +122,11 @@ static int map_io_page(unsigned long ea, unsigned long pa, int flags)
 		 *
 		 */
 		if (htab_bolt_mapping(ea, ea + PAGE_SIZE, pa, flags,
-				      mmu_virtual_psize))
-			panic("Can't map bolted IO mapping");
+				      mmu_virtual_psize)) {
+			printk(KERN_ERR "Failed to do bolted mapping IO "
+			       "memory at %016lx !\n", pa);
+			return -ENOMEM;
+		}
 	}
 	return 0;
 }

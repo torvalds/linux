@@ -707,7 +707,7 @@ DCCP PROTOCOL
 P:	Arnaldo Carvalho de Melo
 M:	acme@mandriva.com
 L:	dccp@vger.kernel.org
-W:	http://www.wlug.org.nz/DCCP
+W:	http://linux-net.osdl.org/index.php/DCCP
 S:	Maintained
 
 DECnet NETWORK LAYER
