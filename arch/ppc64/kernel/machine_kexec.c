@@ -185,8 +185,8 @@ void kexec_copy_flush(struct kimage *image)
  */
 void kexec_smp_down(void *arg)
 {
-	if (ppc_md.cpu_irq_down)
-		ppc_md.cpu_irq_down(1);
+	if (ppc_md.kexec_cpu_down)
+		ppc_md.kexec_cpu_down(0, 1);
 
 	local_irq_disable();
 	kexec_smp_wait();
@@ -233,8 +233,8 @@ static void kexec_prepare_cpus(void)
 	}
 
 	/* after we tell the others to go down */
-	if (ppc_md.cpu_irq_down)
-		ppc_md.cpu_irq_down(0);
+	if (ppc_md.kexec_cpu_down)
+		ppc_md.kexec_cpu_down(0, 0);
 
 	put_cpu();
 
@@ -255,8 +255,8 @@ static void kexec_prepare_cpus(void)
 	 * UP to an SMP kernel.
 	 */
 	smp_release_cpus();
-	if (ppc_md.cpu_irq_down)
-		ppc_md.cpu_irq_down(0);
+	if (ppc_md.kexec_cpu_down)
+		ppc_md.kexec_cpu_down(0, 0);
 	local_irq_disable();
 }
 
