@@ -89,6 +89,7 @@ int sysctl_tcp_frto;
 int sysctl_tcp_nometrics_save;
 
 int sysctl_tcp_moderate_rcvbuf = 1;
+int sysctl_tcp_abc = 1;
 
 #define FLAG_DATA		0x01 /* Incoming frame contained data.		*/
 #define FLAG_WIN_UPDATE		0x02 /* Incoming ACK was a window update.	*/
@@ -1247,6 +1248,7 @@ void tcp_enter_loss(struct sock *sk, int how)
 	tp->snd_cwnd_cnt   = 0;
 	tp->snd_cwnd_stamp = tcp_time_stamp;
 
+	tp->bytes_acked = 0;
 	tcp_clear_retrans(tp);
 
 	/* Push undo marker, if it was plain RTO and nothing
@@ -1904,6 +1906,7 @@ tcp_fastretrans_alert(struct sock *sk, u32 prior_snd_una,
 			TCP_ECN_queue_cwr(tp);
 		}
 
+		tp->bytes_acked = 0;
 		tp->snd_cwnd_cnt = 0;
 		tcp_set_ca_state(sk, TCP_CA_Recovery);
 	}
@@ -2309,6 +2312,9 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 
 	if (before(ack, prior_snd_una))
 		goto old_ack;
+
+	if (sysctl_tcp_abc && icsk->icsk_ca_state < TCP_CA_CWR)
+		tp->bytes_acked += ack - prior_snd_una;
 
 	if (!(flag&FLAG_SLOWPATH) && after(ack, prior_snd_una)) {
 		/* Window is constant, pure forward advance.
@@ -4370,6 +4376,7 @@ discard:
 
 EXPORT_SYMBOL(sysctl_tcp_ecn);
 EXPORT_SYMBOL(sysctl_tcp_reordering);
+EXPORT_SYMBOL(sysctl_tcp_abc);
 EXPORT_SYMBOL(tcp_parse_options);
 EXPORT_SYMBOL(tcp_rcv_established);
 EXPORT_SYMBOL(tcp_rcv_state_process);

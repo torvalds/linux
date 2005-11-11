@@ -326,6 +326,7 @@ struct tcp_sock {
 	__u32	snd_up;		/* Urgent pointer		*/
 
 	__u32	total_retrans;	/* Total retransmits for entire connection */
+	__u32	bytes_acked;	/* Appropriate Byte Counting - RFC3465 */
 
 	unsigned int		keepalive_time;	  /* time before keep alive takes place */
 	unsigned int		keepalive_intvl;  /* time interval between keep alive probes */

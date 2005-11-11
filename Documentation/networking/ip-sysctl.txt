@@ -78,6 +78,11 @@ inet_peer_gc_maxtime - INTEGER
 
 TCP variables: 
 
+tcp_abc - INTEGER
+	Controls Appropriate Byte Count defined in RFC3465. If set to
+	0 then does congestion avoid once per ack. 1 is conservative
+	value, and 2 is more agressive.
+
 tcp_syn_retries - INTEGER
 	Number of times initial SYNs for an active TCP connection attempt
 	will be retransmitted. Should not be higher than 255. Default value

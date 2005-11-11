@@ -218,6 +218,7 @@ extern int sysctl_tcp_low_latency;
 extern int sysctl_tcp_nometrics_save;
 extern int sysctl_tcp_moderate_rcvbuf;
 extern int sysctl_tcp_tso_win_divisor;
+extern int sysctl_tcp_abc;
 
 extern atomic_t tcp_memory_allocated;
 extern atomic_t tcp_sockets_allocated;
@@ -770,6 +771,23 @@ static inline __u32 tcp_current_ssthresh(const struct sock *sk)
  */
 static inline void tcp_slow_start(struct tcp_sock *tp)
 {
+	if (sysctl_tcp_abc) {
+		/* RFC3465: Slow Start
+		 * TCP sender SHOULD increase cwnd by the number of
+		 * previously unacknowledged bytes ACKed by each incoming
+		 * acknowledgment, provided the increase is not more than L
+		 */
+		if (tp->bytes_acked < tp->mss_cache)
+			return;
+
+		/* We MAY increase by 2 if discovered delayed ack */
+		if (sysctl_tcp_abc > 1 && tp->bytes_acked > 2*tp->mss_cache) {
+			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
+				tp->snd_cwnd++;
+		}
+	}
+	tp->bytes_acked = 0;
+
 	if (tp->snd_cwnd < tp->snd_cwnd_clamp)
 		tp->snd_cwnd++;
 }
@@ -804,6 +822,7 @@ static inline void tcp_enter_cwr(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	tp->prior_ssthresh = 0;
+	tp->bytes_acked = 0;
 	if (inet_csk(sk)->icsk_ca_state < TCP_CA_CWR) {
 		__tcp_enter_cwr(sk);
 		tcp_set_ca_state(sk, TCP_CA_CWR);
