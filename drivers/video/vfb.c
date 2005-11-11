@@ -403,9 +403,8 @@ static void vfb_platform_release(struct device *device)
 	// This is called when the reference count goes to zero.
 }
 
-static int __init vfb_probe(struct device *device)
+static int __init vfb_probe(struct platform_device *dev)
 {
-	struct platform_device *dev = to_platform_device(device);
 	struct fb_info *info;
 	int retval = -ENOMEM;
 
@@ -447,7 +446,7 @@ static int __init vfb_probe(struct device *device)
 	retval = register_framebuffer(info);
 	if (retval < 0)
 		goto err2;
-	dev_set_drvdata(&dev->dev, info);
+	platform_set_drvdata(dev, info);
 
 	printk(KERN_INFO
 	       "fb%d: Virtual frame buffer device, using %ldK of video memory\n",
@@ -462,9 +461,9 @@ err:
 	return retval;
 }
 
-static int vfb_remove(struct device *device)
+static int vfb_remove(struct platform_device *dev)
 {
-	struct fb_info *info = dev_get_drvdata(device);
+	struct fb_info *info = platform_get_drvdata(dev);
 
 	if (info) {
 		unregister_framebuffer(info);
@@ -474,11 +473,12 @@ static int vfb_remove(struct device *device)
 	return 0;
 }
 
-static struct device_driver vfb_driver = {
-	.name	= "vfb",
-	.bus	= &platform_bus_type,
+static struct platform_driver vfb_driver = {
 	.probe	= vfb_probe,
 	.remove = vfb_remove,
+	.driver = {
+		.name	= "vfb",
+	},
 };
 
 static struct platform_device vfb_device = {
@@ -504,12 +504,12 @@ static int __init vfb_init(void)
 	if (!vfb_enable)
 		return -ENXIO;
 
-	ret = driver_register(&vfb_driver);
+	ret = platform_driver_register(&vfb_driver);
 
 	if (!ret) {
 		ret = platform_device_register(&vfb_device);
 		if (ret)
-			driver_unregister(&vfb_driver);
+			platform_driver_unregister(&vfb_driver);
 	}
 	return ret;
 }
@@ -520,7 +520,7 @@ module_init(vfb_init);
 static void __exit vfb_exit(void)
 {
 	platform_device_unregister(&vfb_device);
-	driver_unregister(&vfb_driver);
+	platform_driver_unregister(&vfb_driver);
 }
 
 module_exit(vfb_exit);

@@ -309,10 +309,10 @@ static void spitzkbd_hinge_timer(unsigned long data)
 }
 
 #ifdef CONFIG_PM
-static int spitzkbd_suspend(struct device *dev, pm_message_t state)
+static int spitzkbd_suspend(struct platform_device *dev, pm_message_t state)
 {
 	int i;
-	struct spitzkbd *spitzkbd = dev_get_drvdata(dev);
+	struct spitzkbd *spitzkbd = platform_get_drvdata(dev);
 	spitzkbd->suspended = 1;
 
 	/* Set Strobe lines as inputs - *except* strobe line 0 leave this
@@ -323,10 +323,10 @@ static int spitzkbd_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int spitzkbd_resume(struct device *dev)
+static int spitzkbd_resume(struct platform_device *dev)
 {
 	int i;
-	struct spitzkbd *spitzkbd = dev_get_drvdata(dev);
+	struct spitzkbd *spitzkbd = platform_get_drvdata(dev);
 
 	for (i = 0; i < SPITZ_KEY_STROBE_NUM; i++)
 		pxa_gpio_mode(spitz_strobes[i] | GPIO_OUT | GPIO_DFLT_HIGH);
@@ -342,7 +342,7 @@ static int spitzkbd_resume(struct device *dev)
 #define spitzkbd_resume		NULL
 #endif
 
-static int __init spitzkbd_probe(struct device *dev)
+static int __init spitzkbd_probe(struct platform_device *dev)
 {
 	struct spitzkbd *spitzkbd;
 	struct input_dev *input_dev;
@@ -358,7 +358,7 @@ static int __init spitzkbd_probe(struct device *dev)
 		return -ENOMEM;
 	}
 
-	dev_set_drvdata(dev, spitzkbd);
+	platform_set_drvdata(dev, spitzkbd);
 	strcpy(spitzkbd->phys, "spitzkbd/input0");
 
 	spin_lock_init(&spitzkbd->lock);
@@ -380,7 +380,7 @@ static int __init spitzkbd_probe(struct device *dev)
 	input_dev->private = spitzkbd;
 	input_dev->name = "Spitz Keyboard";
 	input_dev->phys = spitzkbd->phys;
-	input_dev->cdev.dev = dev;
+	input_dev->cdev.dev = &dev->dev;
 
 	input_dev->id.bustype = BUS_HOST;
 	input_dev->id.vendor = 0x0001;
@@ -437,10 +437,10 @@ static int __init spitzkbd_probe(struct device *dev)
 	return 0;
 }
 
-static int spitzkbd_remove(struct device *dev)
+static int spitzkbd_remove(struct platform_device *dev)
 {
 	int i;
-	struct spitzkbd *spitzkbd = dev_get_drvdata(dev);
+	struct spitzkbd *spitzkbd = platform_get_drvdata(dev);
 
 	for (i = 0; i < SPITZ_KEY_SENSE_NUM; i++)
 		free_irq(IRQ_GPIO(spitz_senses[i]), spitzkbd);
@@ -460,23 +460,24 @@ static int spitzkbd_remove(struct device *dev)
 	return 0;
 }
 
-static struct device_driver spitzkbd_driver = {
-	.name		= "spitz-keyboard",
-	.bus		= &platform_bus_type,
+static struct platform_driver spitzkbd_driver = {
 	.probe		= spitzkbd_probe,
 	.remove		= spitzkbd_remove,
 	.suspend	= spitzkbd_suspend,
 	.resume		= spitzkbd_resume,
+	.driver		= {
+		.name	= "spitz-keyboard",
+	},
 };
 
 static int __devinit spitzkbd_init(void)
 {
-	return driver_register(&spitzkbd_driver);
+	return platform_driver_register(&spitzkbd_driver);
 }
 
 static void __exit spitzkbd_exit(void)
 {
-	driver_unregister(&spitzkbd_driver);
+	platform_driver_unregister(&spitzkbd_driver);
 }
 
 module_init(spitzkbd_init);

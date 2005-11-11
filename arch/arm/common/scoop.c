@@ -98,9 +98,9 @@ static void check_scoop_reg(struct scoop_dev *sdev)
 }
 
 #ifdef CONFIG_PM
-static int scoop_suspend(struct device *dev, pm_message_t state)
+static int scoop_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct scoop_dev *sdev = dev_get_drvdata(dev);
+	struct scoop_dev *sdev = platform_get_drvdata(dev);
 
 	check_scoop_reg(sdev);
 	sdev->scoop_gpwr = SCOOP_REG(sdev->base, SCOOP_GPWR);
@@ -109,9 +109,9 @@ static int scoop_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int scoop_resume(struct device *dev)
+static int scoop_resume(struct platform_device *dev)
 {
-	struct scoop_dev *sdev = dev_get_drvdata(dev);
+	struct scoop_dev *sdev = platform_get_drvdata(dev);
 
 	check_scoop_reg(sdev);
 	SCOOP_REG(sdev->base,SCOOP_GPWR) = sdev->scoop_gpwr;
@@ -123,11 +123,10 @@ static int scoop_resume(struct device *dev)
 #define scoop_resume	NULL
 #endif
 
-int __init scoop_probe(struct device *dev)
+int __init scoop_probe(struct platform_device *pdev)
 {
 	struct scoop_dev *devptr;
 	struct scoop_config *inf;
-	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	if (!mem)
@@ -141,7 +140,7 @@ int __init scoop_probe(struct device *dev)
 	memset(devptr, 0, sizeof(struct scoop_dev));
 	spin_lock_init(&devptr->scoop_lock);
 
-	inf = dev->platform_data;
+	inf = pdev->dev.platform_data;
 	devptr->base = ioremap(mem->start, mem->end - mem->start + 1);
 
 	if (!devptr->base) {
@@ -149,7 +148,7 @@ int __init scoop_probe(struct device *dev)
 		return -ENOMEM;
 	}
 
-	dev_set_drvdata(dev, devptr);
+	platform_set_drvdata(pdev, devptr);
 
 	printk("Sharp Scoop Device found at 0x%08x -> 0x%08x\n",(unsigned int)mem->start,(unsigned int)devptr->base);
 
@@ -164,29 +163,30 @@ int __init scoop_probe(struct device *dev)
 	return 0;
 }
 
-static int scoop_remove(struct device *dev)
+static int scoop_remove(struct platform_device *pdev)
 {
-	struct scoop_dev *sdev = dev_get_drvdata(dev);
+	struct scoop_dev *sdev = platform_get_drvdata(pdev);
 	if (sdev) {
 		iounmap(sdev->base);
 		kfree(sdev);
-		dev_set_drvdata(dev, NULL);
+		platform_set_drvdata(pdev, NULL);
 	}
 	return 0;
 }
 
-static struct device_driver scoop_driver = {
-	.name		= "sharp-scoop",
-	.bus		= &platform_bus_type,
+static struct platform_driver scoop_driver = {
 	.probe		= scoop_probe,
 	.remove 	= scoop_remove,
 	.suspend	= scoop_suspend,
 	.resume		= scoop_resume,
+	.driver		= {
+		.name	= "sharp-scoop",
+	},
 };
 
 int __init scoop_init(void)
 {
-	return driver_register(&scoop_driver);
+	return platform_driver_register(&scoop_driver);
 }
 
 subsys_initcall(scoop_init);
