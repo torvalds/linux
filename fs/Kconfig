@@ -1688,9 +1688,8 @@ config CIFS_UPCALL
 	    Enables an upcall mechanism for CIFS which will be used to contact
 	    userspace helper utilities to provide SPNEGO packaged Kerberos
 	    tickets which are needed to mount to certain secure servers
-	    (for which more secure Kerberos authentication is required).
-	    
-	  If unsure, say N.  
+	    (for which more secure Kerberos authentication is required). If
+	    unsure, say N.
 
 config NCP_FS
 	tristate "NCP file system support (to mount NetWare volumes)"
