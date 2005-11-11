@@ -42,6 +42,9 @@
 
 #include "cciss_scsi.h"
 
+#define CCISS_ABORT_MSG 0x00
+#define CCISS_RESET_MSG 0x01
+
 /* some prototypes... */ 
 static int sendcmd(
 	__u8	cmd,
@@ -67,6 +70,8 @@ static int cciss_scsi_proc_info(
 
 static int cciss_scsi_queue_command (struct scsi_cmnd *cmd,
 		void (* done)(struct scsi_cmnd *));
+static int cciss_eh_device_reset_handler(struct scsi_cmnd *);
+static int cciss_eh_abort_handler(struct scsi_cmnd *);
 
 static struct cciss_scsi_hba_t ccissscsi[MAX_CTLR] = {
 	{ .name = "cciss0", .ndevices = 0 },
@@ -90,6 +95,9 @@ static struct scsi_host_template cciss_driver_template = {
 	.sg_tablesize		= MAXSGENTRIES,
 	.cmd_per_lun		= 1,
 	.use_clustering		= DISABLE_CLUSTERING,
+	/* Can't have eh_bus_reset_handler or eh_host_reset_handler for cciss */
+	.eh_device_reset_handler= cciss_eh_device_reset_handler,
+	.eh_abort_handler	= cciss_eh_abort_handler,
 };
 
 #pragma pack(1)
@@ -247,7 +255,7 @@ scsi_cmd_stack_free(int ctlr)
 #define DEVICETYPE(n) (n<0 || n>MAX_SCSI_DEVICE_CODE) ? \
 	"Unknown" : scsi_device_types[n]
 
-#if 0
+#if 1
 static int xmargin=8;
 static int amargin=60;
 
@@ -1446,6 +1454,78 @@ cciss_proc_tape_report(int ctlr, unsigned char *buffer, off_t *pos, off_t *len)
 			ccissscsi[ctlr].ndevices);
 	CPQ_TAPE_UNLOCK(ctlr, flags);
 	*pos += size; *len += size;
+}
+
+/* Need at least one of these error handlers to keep ../scsi/hosts.c from 
+ * complaining.  Doing a host- or bus-reset can't do anything good here. 
+ * Despite what it might say in scsi_error.c, there may well be commands
+ * on the controller, as the cciss driver registers twice, once as a block
+ * device for the logical drives, and once as a scsi device, for any tape
+ * drives.  So we know there are no commands out on the tape drives, but we
+ * don't know there are no commands on the controller, and it is likely 
+ * that there probably are, as the cciss block device is most commonly used
+ * as a boot device (embedded controller on HP/Compaq systems.)
+*/
+
+static int cciss_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
+{
+	int rc;
+	CommandList_struct *cmd_in_trouble;
+	ctlr_info_t **c;
+	int ctlr;
+
+	/* find the controller to which the command to be aborted was sent */
+	c = (ctlr_info_t **) &scsicmd->device->host->hostdata[0];	
+	if (c == NULL) /* paranoia */
+		return FAILED;
+	ctlr = (*c)->ctlr;
+	printk(KERN_WARNING "cciss%d: resetting tape drive or medium changer.\n", ctlr);
+
+	/* find the command that's giving us trouble */
+	cmd_in_trouble = (CommandList_struct *) scsicmd->host_scribble;
+	if (cmd_in_trouble == NULL) { /* paranoia */
+		return FAILED;
+	}
+	/* send a reset to the SCSI LUN which the command was sent to */
+	rc = sendcmd(CCISS_RESET_MSG, ctlr, NULL, 0, 2, 0, 0, 
+		(unsigned char *) &cmd_in_trouble->Header.LUN.LunAddrBytes[0], 
+		TYPE_MSG);
+	/* sendcmd turned off interrputs on the board, turn 'em back on. */
+	(*c)->access.set_intr_mask(*c, CCISS_INTR_ON);
+	if (rc == 0)
+		return SUCCESS;
+	printk(KERN_WARNING "cciss%d: resetting device failed.\n", ctlr);
+	return FAILED;
+}
+
+static int  cciss_eh_abort_handler(struct scsi_cmnd *scsicmd)
+{
+	int rc;
+	CommandList_struct *cmd_to_abort;
+	ctlr_info_t **c;
+	int ctlr;
+
+	/* find the controller to which the command to be aborted was sent */
+	c = (ctlr_info_t **) &scsicmd->device->host->hostdata[0];	
+	if (c == NULL) /* paranoia */
+		return FAILED;
+	ctlr = (*c)->ctlr;
+	printk(KERN_WARNING "cciss%d: aborting tardy SCSI cmd\n", ctlr);
+
+	/* find the command to be aborted */
+	cmd_to_abort = (CommandList_struct *) scsicmd->host_scribble;
+	if (cmd_to_abort == NULL) /* paranoia */
+		return FAILED;
+	rc = sendcmd(CCISS_ABORT_MSG, ctlr, &cmd_to_abort->Header.Tag, 
+		0, 2, 0, 0, 
+		(unsigned char *) &cmd_to_abort->Header.LUN.LunAddrBytes[0], 
+		TYPE_MSG);
+	/* sendcmd turned off interrputs on the board, turn 'em back on. */
+	(*c)->access.set_intr_mask(*c, CCISS_INTR_ON);
+	if (rc == 0)
+		return SUCCESS;
+	return FAILED;
+
 }
 
 #else /* no CONFIG_CISS_SCSI_TAPE */

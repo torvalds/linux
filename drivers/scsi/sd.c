@@ -769,20 +769,16 @@ static void sd_end_flush(request_queue_t *q, struct request *flush_rq)
 static int sd_prepare_flush(request_queue_t *q, struct request *rq)
 {
 	struct scsi_device *sdev = q->queuedata;
-	struct scsi_disk *sdkp = scsi_disk_get_from_dev(&sdev->sdev_gendev);
-	int ret = 0;
+	struct scsi_disk *sdkp = dev_get_drvdata(&sdev->sdev_gendev);
 
-	if (sdkp) {
-		if (sdkp->WCE) {
-			memset(rq->cmd, 0, sizeof(rq->cmd));
-			rq->flags |= REQ_BLOCK_PC | REQ_SOFTBARRIER;
-			rq->timeout = SD_TIMEOUT;
-			rq->cmd[0] = SYNCHRONIZE_CACHE;
-			ret = 1;
-		}
-		scsi_disk_put(sdkp);
-	}
-	return ret;
+	if (!sdkp || !sdkp->WCE)
+		return 0;
+
+	memset(rq->cmd, 0, sizeof(rq->cmd));
+	rq->flags |= REQ_BLOCK_PC | REQ_SOFTBARRIER;
+	rq->timeout = SD_TIMEOUT;
+	rq->cmd[0] = SYNCHRONIZE_CACHE;
+	return 1;
 }
 
 static void sd_rescan(struct device *dev)

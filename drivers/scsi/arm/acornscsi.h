@@ -292,7 +292,7 @@ typedef struct acornscsi_hostdata {
 	    unsigned char	tag;		/* reconnected tag			*/
 	} reconnected;
 
-	Scsi_Pointer	SCp;			/* current commands data pointer	*/
+	struct scsi_pointer	SCp;			/* current commands data pointer	*/
 
 	MsgQueue_t	msgs;
 

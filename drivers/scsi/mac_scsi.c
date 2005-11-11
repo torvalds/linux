@@ -222,7 +222,7 @@ static struct Scsi_Host *default_instance;
 #endif
 
 /*
- * Function : int macscsi_detect(Scsi_Host_Template * tpnt)
+ * Function : int macscsi_detect(struct scsi_host_template * tpnt)
  *
  * Purpose : initializes mac NCR5380 driver based on the
  *	command line / compile time port and irq definitions.
@@ -233,7 +233,7 @@ static struct Scsi_Host *default_instance;
  *
  */
  
-int macscsi_detect(Scsi_Host_Template * tpnt)
+int macscsi_detect(struct scsi_host_template * tpnt)
 {
     static int called = 0;
     int flags = 0;
@@ -581,7 +581,7 @@ static int macscsi_pwrite (struct Scsi_Host *instance,
 
 #include "NCR5380.c"
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name			= "Mac5380",
 	.proc_info			= macscsi_proc_info,
 	.name				= "Macintosh NCR5380 SCSI",

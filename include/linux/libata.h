@@ -399,7 +399,7 @@ struct ata_port_operations {
 };
 
 struct ata_port_info {
-	struct scsi_host_template *sht;
+	struct scsi_host_template	*sht;
 	unsigned long		host_flags;
 	unsigned long		pio_mask;
 	unsigned long		mwdma_mask;

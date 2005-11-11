@@ -48,7 +48,7 @@
 #define IOBASE_SUN3_VMESCSI 0xff200000
 
 static int sun3scsi_abort (Scsi_Cmnd *);
-static int sun3scsi_detect (Scsi_Host_Template *);
+static int sun3scsi_detect (struct scsi_host_template *);
 static const char *sun3scsi_info (struct Scsi_Host *);
 static int sun3scsi_bus_reset(Scsi_Cmnd *);
 static int sun3scsi_queue_command (Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));

@@ -133,3 +133,32 @@ hardware and it is important to prevent the kernel from attempting to directly
 access these devices too, as if the array controller were merely a SCSI 
 controller in the same way that we are allowing it to access SCSI tape drives.
 
+SCSI error handling for tape drives and medium changers
+-------------------------------------------------------
+
+The linux SCSI mid layer provides an error handling protocol which
+kicks into gear whenever a SCSI command fails to complete within a
+certain amount of time (which can vary depending on the command).
+The cciss driver participates in this protocol to some extent.  The
+normal protocol is a four step process.  First the device is told
+to abort the command.  If that doesn't work, the device is reset.
+If that doesn't work, the SCSI bus is reset.  If that doesn't work
+the host bus adapter is reset.  Because the cciss driver is a block
+driver as well as a SCSI driver and only the tape drives and medium
+changers are presented to the SCSI mid layer, and unlike more 
+straightforward SCSI drivers, disk i/o continues through the block
+side during the SCSI error recovery process, the cciss driver only
+implements the first two of these actions, aborting the command, and
+resetting the device.  Additionally, most tape drives will not oblige 
+in aborting commands, and sometimes it appears they will not even 
+obey a reset coommand, though in most circumstances they will.  In
+the case that the command cannot be aborted and the device cannot be 
+reset, the device will be set offline.
+
+In the event the error handling code is triggered and a tape drive is
+successfully reset or the tardy command is successfully aborted, the 
+tape drive may still not allow i/o to continue until some command
+is issued which positions the tape to a known position.  Typically you
+must rewind the tape (by issuing "mt -f /dev/st0 rewind" for example)
+before i/o can proceed again to a tape drive which was reset.
+
