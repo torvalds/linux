@@ -186,7 +186,7 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 rtt, u32 in_flight,
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	if (in_flight < tp->snd_cwnd)
+	if (!tcp_is_cwnd_limited(sk, in_flight))
 		return;
 
         if (tp->snd_cwnd <= tp->snd_ssthresh) {

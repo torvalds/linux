@@ -810,6 +810,27 @@ static __inline__ __u32 tcp_max_burst(const struct tcp_sock *tp)
 	return 3;
 }
 
+/* RFC2861 Check whether we are limited by application or congestion window
+ * This is the inverse of cwnd check in tcp_tso_should_defer
+ */
+static inline int tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+	u32 left;
+
+	if (in_flight >= tp->snd_cwnd)
+		return 1;
+
+	if (!(sk->sk_route_caps & NETIF_F_TSO))
+		return 0;
+
+	left = tp->snd_cwnd - in_flight;
+	if (sysctl_tcp_tso_win_divisor)
+		return left * sysctl_tcp_tso_win_divisor < tp->snd_cwnd;
+	else
+		return left <= tcp_max_burst(tp);
+}
+
 static __inline__ void tcp_minshall_update(struct tcp_sock *tp, int mss, 
 					   const struct sk_buff *skb)
 {
