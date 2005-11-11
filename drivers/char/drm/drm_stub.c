@@ -200,11 +200,7 @@ static int drm_get_head(drm_device_t * dev, drm_head_t * head)
 				goto err_g1;
 			}
 
-			head->dev_class = drm_sysfs_device_add(drm_class,
-							       MKDEV(DRM_MAJOR,
-								     minor),
-							       &dev->pdev->dev,
-							       "card%d", minor);
+			head->dev_class = drm_sysfs_device_add(drm_class, head);
 			if (IS_ERR(head->dev_class)) {
 				printk(KERN_ERR
 				       "DRM: Error sysfs_device_add.\n");
@@ -317,10 +313,9 @@ int drm_put_head(drm_head_t * head)
 	DRM_DEBUG("release secondary minor %d\n", minor);
 
 	drm_proc_cleanup(minor, drm_proc_root, head->dev_root);
-	drm_sysfs_device_remove(MKDEV(DRM_MAJOR, head->minor));
+	drm_sysfs_device_remove(head->dev_class);
 
-	*head = (drm_head_t) {
-	.dev = NULL};
+	*head = (drm_head_t) {.dev = NULL};
 
 	drm_heads[minor] = NULL;
 

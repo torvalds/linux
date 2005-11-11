@@ -547,6 +547,7 @@ struct drm_driver {
 	void (*kernel_context_switch_unlock) (struct drm_device * dev,
 					      drm_lock_t * lock);
 	int (*vblank_wait) (struct drm_device * dev, unsigned int *sequence);
+	int (*dri_library_name) (struct drm_device *dev, char *buf);
 
 	/**
 	 * Called by \c drm_device_is_agp.  Typically used to determine if a
@@ -982,10 +983,8 @@ extern struct drm_sysfs_class *drm_sysfs_create(struct module *owner,
 						char *name);
 extern void drm_sysfs_destroy(struct drm_sysfs_class *cs);
 extern struct class_device *drm_sysfs_device_add(struct drm_sysfs_class *cs,
-						 dev_t dev,
-						 struct device *device,
-						 const char *fmt, ...);
-extern void drm_sysfs_device_remove(dev_t dev);
+						 drm_head_t *head);
+extern void drm_sysfs_device_remove(struct class_device *class_dev);
 
 /* Inline replacements for DRM_IOREMAP macros */
 static __inline__ void drm_core_ioremap(struct drm_map *map,

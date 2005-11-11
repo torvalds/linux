@@ -42,6 +42,16 @@ int radeon_no_wb;
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers\n");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
 
+static int dri_library_name(struct drm_device *dev, char *buf)
+{
+	drm_radeon_private_t *dev_priv = dev->dev_private;
+	int family = dev_priv->flags & CHIP_FAMILY_MASK;
+
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+		        (family < CHIP_R200) ? "radeon" :
+		        ((family < CHIP_R300) ? "r200" :
+		        "r300"));
+}
 
 static struct pci_device_id pciidlist[] = {
 	radeon_PCI_IDS
@@ -61,6 +71,7 @@ static struct drm_driver driver = {
 	.lastclose = radeon_driver_lastclose,
 	.unload = radeon_driver_unload,
 	.vblank_wait = radeon_driver_vblank_wait,
+	.dri_library_name = dri_library_name,
 	.irq_preinstall = radeon_driver_irq_preinstall,
 	.irq_postinstall = radeon_driver_irq_postinstall,
 	.irq_uninstall = radeon_driver_irq_uninstall,
