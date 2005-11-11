@@ -1901,6 +1901,8 @@ config E1000_NAPI
 
 	  If in doubt, say N.
 
+source "drivers/net/ixp2000/Kconfig"
+
 config MYRI_SBUS
 	tristate "MyriCOM Gigabit Ethernet support"
 	depends on SBUS
