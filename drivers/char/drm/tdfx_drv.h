@@ -30,10 +30,6 @@
 #ifndef __TDFX_H__
 #define __TDFX_H__
 
-/* This remains constant for all DRM template files.
- */
-#define DRM(x) tdfx_##x
-
 /* General customization:
  */
 
