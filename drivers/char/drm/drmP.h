@@ -144,20 +144,6 @@
 /** \name Backward compatibility section */
 /*@{*/
 
-#ifndef MODULE_LICENSE
-#define MODULE_LICENSE(x)
-#endif
-
-#ifndef preempt_disable
-#define preempt_disable()
-#define preempt_enable()
-#endif
-
-#ifndef pte_offset_map
-#define pte_offset_map pte_offset
-#define pte_unmap(pte)
-#endif
-
 #define DRM_RPR_ARG(vma) vma,
 
 #define VM_OFFSET(vma) ((vma)->vm_pgoff << PAGE_SHIFT)
