@@ -39,11 +39,11 @@ extern u64 hotplug_seqnum;
 /* the actions here must match the proper string in lib/kobject_uevent.c */
 typedef int __bitwise kobject_action_t;
 enum kobject_action {
-	KOBJ_ADD	= (__force kobject_action_t) 0x01,	/* add event, for hotplug */
-	KOBJ_REMOVE	= (__force kobject_action_t) 0x02,	/* remove event, for hotplug */
-	KOBJ_CHANGE	= (__force kobject_action_t) 0x03,	/* a sysfs attribute file has changed */
-	KOBJ_OFFLINE	= (__force kobject_action_t) 0x04,	/* offline event for hotplug devices */
-	KOBJ_ONLINE	= (__force kobject_action_t) 0x05,	/* online event for hotplug devices */
+	KOBJ_ADD	= (__force kobject_action_t) 0x01,	/* exclusive to core */
+	KOBJ_REMOVE	= (__force kobject_action_t) 0x02,	/* exclusive to core */
+	KOBJ_CHANGE	= (__force kobject_action_t) 0x03,	/* device state change */
+	KOBJ_OFFLINE	= (__force kobject_action_t) 0x04,	/* device offline */
+	KOBJ_ONLINE	= (__force kobject_action_t) 0x05,	/* device online */
 };
 
 struct kobject {
@@ -262,27 +262,12 @@ int add_hotplug_env_var(char **envp, int num_envp, int *cur_index,
 			char *buffer, int buffer_size, int *cur_len,
 			const char *format, ...)
 	__attribute__((format (printf, 7, 8)));
-
-int kobject_uevent(struct kobject *kobj,
-		   enum kobject_action action,
-		   struct attribute *attr);
-int kobject_uevent_atomic(struct kobject *kobj,
-			  enum kobject_action action,
-			  struct attribute *attr);
-
 #else
 static inline void kobject_hotplug(struct kobject *kobj, enum kobject_action action) { }
+
 static inline int add_hotplug_env_var(char **envp, int num_envp, int *cur_index, 
 				      char *buffer, int buffer_size, int *cur_len, 
 				      const char *format, ...)
-{ return 0; }
-int kobject_uevent(struct kobject *kobj,
-		   enum kobject_action action,
-		   struct attribute *attr)
-{ return 0; }
-int kobject_uevent_atomic(struct kobject *kobj,
-			  enum kobject_action action,
-			  struct attribute *attr)
 { return 0; }
 #endif
 
