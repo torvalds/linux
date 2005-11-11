@@ -43,7 +43,7 @@
 /* #define LPARCFG_DEBUG */
 
 /* find a better place for this function... */
-void log_plpar_hcall_return(unsigned long rc, char *tag)
+static void log_plpar_hcall_return(unsigned long rc, char *tag)
 {
 	if (rc == 0)		/* success, return */
 		return;
@@ -213,10 +213,9 @@ static void h_pic(unsigned long *pool_idle_time, unsigned long *num_procs)
 	unsigned long dummy;
 	rc = plpar_hcall(H_PIC, 0, 0, 0, 0, pool_idle_time, num_procs, &dummy);
 
-	log_plpar_hcall_return(rc, "H_PIC");
+	if (rc != H_Authority)
+		log_plpar_hcall_return(rc, "H_PIC");
 }
-
-static unsigned long get_purr(void);
 
 /* Track sum of all purrs across all processors. This is used to further */
 /* calculate usage values by different applications                       */
@@ -318,8 +317,6 @@ static void parse_system_parameter_string(struct seq_file *m)
 	}
 	kfree(local_buffer);
 }
-
-static int lparcfg_count_active_processors(void);
 
 /* Return the number of processors in the system.
  * This function reads through the device tree and counts
@@ -548,7 +545,7 @@ static ssize_t lparcfg_write(struct file *file, const char __user * buf,
 		retval = -EIO;
 	}
 
-      out:
+out:
 	kfree(kbuf);
 	return retval;
 }
@@ -561,10 +558,10 @@ static int lparcfg_open(struct inode *inode, struct file *file)
 }
 
 struct file_operations lparcfg_fops = {
-      .owner	= THIS_MODULE,
-      .read	= seq_read,
-      .open	= lparcfg_open,
-      .release	= single_release,
+	.owner		= THIS_MODULE,
+	.read		= seq_read,
+	.open		= lparcfg_open,
+	.release	= single_release,
 };
 
 int __init lparcfg_init(void)
