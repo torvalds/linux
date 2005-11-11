@@ -1344,7 +1344,6 @@ static struct fb_ops imsttfb_ops = {
 	.fb_fillrect	= imsttfb_fillrect,
 	.fb_copyarea	= imsttfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 	.fb_ioctl 	= imsttfb_ioctl,
 };
 

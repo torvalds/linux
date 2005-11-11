@@ -6,7 +6,7 @@
  * Bugreports.to..: <Linux390@de.ibm.com>
  * (C) IBM Corporation, IBM Deutschland Entwicklung GmbH, 1999,2000
  *
- * $Revision: 1.7 $
+ * $Revision: 1.8 $
  */
 
 #define MDSK_WRITE_REQ 0x01
@@ -78,7 +78,7 @@ struct dasd_diag_bio {
 	u8 spare1[2];
 	u32 alet;
 	blocknum_t block_number;
-	u64 buffer;
+	void *buffer;
 } __attribute__ ((packed, aligned(8)));
 
 struct dasd_diag_init_io {
@@ -104,7 +104,7 @@ struct dasd_diag_rw_io {
 	u32 alet;
 	u8  spare3[4];
 	u64 interrupt_params;
-	u64 bio_list;
+	struct dasd_diag_bio *bio_list;
 	u8  spare4[8];
 } __attribute__ ((packed, aligned(8)));
 #else /* CONFIG_ARCH_S390X */
@@ -119,7 +119,7 @@ struct dasd_diag_bio {
 	u16 spare1;
 	blocknum_t block_number;
 	u32 alet;
-	u32 buffer;
+	void *buffer;
 } __attribute__ ((packed, aligned(8)));
 
 struct dasd_diag_init_io {
@@ -142,7 +142,7 @@ struct dasd_diag_rw_io {
 	u8 spare2[2];
 	u32 block_count;
 	u32 alet;
-	u32 bio_list;
+	struct dasd_diag_bio *bio_list;
 	u32 interrupt_params;
 	u8 spare3[20];
 } __attribute__ ((packed, aligned(8)));

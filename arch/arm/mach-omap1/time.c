@@ -226,8 +226,8 @@ unsigned long long sched_clock(void)
 
 #ifdef CONFIG_OMAP_32K_TIMER
 
-#ifdef CONFIG_ARCH_OMAP1510
-#error OMAP 32KHz timer does not currently work on 1510!
+#ifdef CONFIG_ARCH_OMAP15XX
+#error OMAP 32KHz timer does not currently work on 15XX!
 #endif
 
 /*

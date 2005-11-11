@@ -1602,8 +1602,7 @@ static void __devexit wbsd_release_dma(struct wbsd_host* host)
 	if (host->dma_addr)
 		dma_unmap_single(host->mmc->dev, host->dma_addr, WBSD_DMA_SIZE,
 			DMA_BIDIRECTIONAL);
-	if (host->dma_buffer)
-		kfree(host->dma_buffer);
+	kfree(host->dma_buffer);
 	if (host->dma >= 0)
 		free_dma(host->dma);
 

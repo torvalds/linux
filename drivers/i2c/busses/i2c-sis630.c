@@ -496,7 +496,6 @@ static void __devexit sis630_remove(struct pci_dev *dev)
 
 
 static struct pci_driver sis630_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "sis630_smbus",
 	.id_table	= sis630_ids,
 	.probe		= sis630_probe,

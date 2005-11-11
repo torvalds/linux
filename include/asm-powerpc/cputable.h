@@ -2,7 +2,7 @@
 #define __ASM_POWERPC_CPUTABLE_H
 
 #include <linux/config.h>
-#include <asm/ppc_asm.h> /* for ASM_CONST */
+#include <asm/asm-compat.h>
 
 #define PPC_FEATURE_32			0x80000000
 #define PPC_FEATURE_64			0x40000000
@@ -16,6 +16,10 @@
 #define PPC_FEATURE_HAS_EFP_SINGLE	0x00400000
 #define PPC_FEATURE_HAS_EFP_DOUBLE	0x00200000
 #define PPC_FEATURE_NO_TB		0x00100000
+#define PPC_FEATURE_POWER4		0x00080000
+#define PPC_FEATURE_POWER5		0x00040000
+#define PPC_FEATURE_POWER5_PLUS		0x00020000
+#define PPC_FEATURE_CELL		0x00010000
 
 #ifdef __KERNEL__
 #ifndef __ASSEMBLY__
@@ -101,6 +105,7 @@ extern void do_cpu_ftr_fixups(unsigned long offset);
 #define CPU_FTR_COHERENT_ICACHE  	ASM_CONST(0x0000020000000000)
 #define CPU_FTR_LOCKLESS_TLBIE		ASM_CONST(0x0000040000000000)
 #define CPU_FTR_MMCRA_SIHV		ASM_CONST(0x0000080000000000)
+#define CPU_FTR_CI_LARGE_PAGE		ASM_CONST(0x0000100000000000)
 #else
 /* ensure on 32b processors the flags are available for compiling but
  * don't do anything */
@@ -116,6 +121,7 @@ extern void do_cpu_ftr_fixups(unsigned long offset);
 #define CPU_FTR_COHERENT_ICACHE  	ASM_CONST(0x0)
 #define CPU_FTR_LOCKLESS_TLBIE		ASM_CONST(0x0)
 #define CPU_FTR_MMCRA_SIHV		ASM_CONST(0x0)
+#define CPU_FTR_CI_LARGE_PAGE		ASM_CONST(0x0)
 #endif
 
 #ifndef __ASSEMBLY__
@@ -339,6 +345,7 @@ enum {
 #ifdef __powerpc64__
 	    CPU_FTRS_POWER3 | CPU_FTRS_RS64 | CPU_FTRS_POWER4 |
 	    CPU_FTRS_PPC970 | CPU_FTRS_POWER5 | CPU_FTRS_CELL |
+            CPU_FTR_CI_LARGE_PAGE |
 #endif
 	    0,
 

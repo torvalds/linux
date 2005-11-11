@@ -2290,7 +2290,6 @@ spider_net_remove(struct pci_dev *pdev)
 }
 
 static struct pci_driver spider_net_driver = {
-	.owner		= THIS_MODULE,
 	.name		= spider_net_driver_name,
 	.id_table	= spider_net_pci_tbl,
 	.probe		= spider_net_probe,

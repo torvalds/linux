@@ -33,6 +33,7 @@
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
+#include <asm/systemcfg.h>
 #include <asm/pgtable.h>
 #include <asm/smp.h>
 #include <asm/elf.h>
@@ -51,6 +52,9 @@
 #include <asm/page.h>
 #include <asm/mmu.h>
 #include <asm/lmb.h>
+#include <asm/xmon.h>
+
+#include "setup.h"
 
 #undef DEBUG
 
@@ -59,6 +63,13 @@
 #else
 #define DBG(fmt...)
 #endif
+
+#ifdef CONFIG_PPC_MULTIPLATFORM
+int _machine = 0;
+EXPORT_SYMBOL(_machine);
+#endif
+
+unsigned long klimit = (unsigned long) _end;
 
 /*
  * This still seems to be needed... -- paulus
@@ -405,6 +416,46 @@ static int __init set_preferred_console(void)
 console_initcall(set_preferred_console);
 #endif /* CONFIG_PPC_MULTIPLATFORM */
 
+void __init check_for_initrd(void)
+{
+#ifdef CONFIG_BLK_DEV_INITRD
+	unsigned long *prop;
+
+	DBG(" -> check_for_initrd()\n");
+
+	if (of_chosen) {
+		prop = (unsigned long *)get_property(of_chosen,
+				"linux,initrd-start", NULL);
+		if (prop != NULL) {
+			initrd_start = (unsigned long)__va(*prop);
+			prop = (unsigned long *)get_property(of_chosen,
+					"linux,initrd-end", NULL);
+			if (prop != NULL) {
+				initrd_end = (unsigned long)__va(*prop);
+				initrd_below_start_ok = 1;
+			} else
+				initrd_start = 0;
+		}
+	}
+
+	/* If we were passed an initrd, set the ROOT_DEV properly if the values
+	 * look sensible. If not, clear initrd reference.
+	 */
+	if (initrd_start >= KERNELBASE && initrd_end >= KERNELBASE &&
+	    initrd_end > initrd_start)
+		ROOT_DEV = Root_RAM0;
+	else {
+		printk("Bogus initrd %08lx %08lx\n", initrd_start, initrd_end);
+		initrd_start = initrd_end = 0;
+	}
+
+	if (initrd_start)
+		printk("Found initrd at 0x%lx:0x%lx\n", initrd_start, initrd_end);
+
+	DBG(" <- check_for_initrd()\n");
+#endif /* CONFIG_BLK_DEV_INITRD */
+}
+
 #ifdef CONFIG_SMP
 
 /**
@@ -470,8 +521,8 @@ void __init smp_setup_cpu_maps(void)
 	 * On pSeries LPAR, we need to know how many cpus
 	 * could possibly be added to this partition.
 	 */
-	if (systemcfg->platform == PLATFORM_PSERIES_LPAR &&
-				(dn = of_find_node_by_path("/rtas"))) {
+	if (_machine == PLATFORM_PSERIES_LPAR &&
+	    (dn = of_find_node_by_path("/rtas"))) {
 		int num_addr_cell, num_size_cell, maxcpus;
 		unsigned int *ireg;
 
@@ -515,7 +566,27 @@ void __init smp_setup_cpu_maps(void)
 			cpu_set(cpu ^ 0x1, cpu_sibling_map[cpu]);
 	}
 
-	systemcfg->processorCount = num_present_cpus();
+	_systemcfg->processorCount = num_present_cpus();
 #endif /* CONFIG_PPC64 */
 }
 #endif /* CONFIG_SMP */
+
+#ifdef CONFIG_XMON
+static int __init early_xmon(char *p)
+{
+	/* ensure xmon is enabled */
+	if (p) {
+		if (strncmp(p, "on", 2) == 0)
+			xmon_init(1);
+		if (strncmp(p, "off", 3) == 0)
+			xmon_init(0);
+		if (strncmp(p, "early", 5) != 0)
+			return 0;
+	}
+	xmon_init(1);
+	debugger(NULL);
+
+	return 0;
+}
+early_param("xmon", early_xmon);
+#endif

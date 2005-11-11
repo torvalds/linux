@@ -1,12 +1,12 @@
 
-/* 
+/*
  * struct flchip definition
- * 
- * Contains information about the location and state of a given flash device 
+ *
+ * Contains information about the location and state of a given flash device
  *
  * (C) 2000 Red Hat. GPLd.
  *
- * $Id: flashchip.h,v 1.17 2005/03/14 18:27:15 bjd Exp $
+ * $Id: flashchip.h,v 1.18 2005/11/07 11:14:54 gleixner Exp $
  *
  */
 
@@ -15,11 +15,11 @@
 
 /* For spinlocks. sched.h includes spinlock.h from whichever directory it
  * happens to be in - so we don't have to care whether we're on 2.2, which
- * has asm/spinlock.h, or 2.4, which has linux/spinlock.h 
+ * has asm/spinlock.h, or 2.4, which has linux/spinlock.h
  */
 #include <linux/sched.h>
 
-typedef enum { 
+typedef enum {
 	FL_READY,
 	FL_STATUS,
 	FL_CFI_QUERY,
@@ -45,7 +45,7 @@ typedef enum {
 
 
 
-/* NOTE: confusingly, this can be used to refer to more than one chip at a time, 
+/* NOTE: confusingly, this can be used to refer to more than one chip at a time,
    if they're interleaved.  This can even refer to individual partitions on
    the same physical chip when present. */
 

@@ -95,7 +95,7 @@
 #define TUNER_THOMSON_DTT7610		52
 #define TUNER_PHILIPS_FQ1286		53
 #define TUNER_PHILIPS_TDA8290		54
-#define TUNER_LG_PAL_TAPE		55	/* Hauppauge PVR-150 PAL */
+#define TUNER_TCL_2002MB		55	/* Hauppauge PVR-150 PAL */
 
 #define TUNER_PHILIPS_FQ1216AME_MK4	56	/* Hauppauge PVR-150 PAL */
 #define TUNER_PHILIPS_FQ1236A_MK4	57	/* Hauppauge PVR-500MCE NTSC */
@@ -110,6 +110,9 @@
 #define TUNER_LG_TDVS_H062F		64	/* DViCO FusionHDTV 5 */
 #define TUNER_YMEC_TVF66T5_B_DFF	65	/* Acorp Y878F */
 #define TUNER_LG_NTSC_TALN_MINI		66
+#define TUNER_PHILIPS_TD1316		67
+
+#define TUNER_PHILIPS_TUV1236D		68	/* ATI HDTV Wonder */
 
 #define NOTUNER 0
 #define PAL     1	/* PAL_BG */
@@ -145,6 +148,7 @@
 # define TDA9887_INTERCARRIER        (1<<4)
 # define TDA9887_PORT1_ACTIVE        (1<<5)
 # define TDA9887_PORT2_ACTIVE        (1<<6)
+# define TDA9887_INTERCARRIER_NTSC   (1<<7)
 /* config options */
 # define TDA9887_DEEMPHASIS_MASK     (3<<16)
 # define TDA9887_DEEMPHASIS_NONE     (1<<16)
@@ -188,8 +192,11 @@ struct tuner {
 	unsigned int radio_if2;
 
 	/* used by tda8290 */
-	unsigned char i2c_easy_mode[2];
-	unsigned char i2c_set_freq[8];
+	unsigned char tda8290_easy_mode;
+	unsigned char tda827x_lpsel;
+	unsigned char tda827x_addr;
+	unsigned char tda827x_ver;
+	unsigned int sgIF;
 
 	/* function ptrs */
 	void (*tv_freq)(struct i2c_client *c, unsigned int freq);
@@ -204,20 +211,21 @@ extern unsigned const int tuner_count;
 
 extern int microtune_init(struct i2c_client *c);
 extern int tda8290_init(struct i2c_client *c);
+extern int tda8290_probe(struct i2c_client *c);
 extern int tea5767_tuner_init(struct i2c_client *c);
 extern int default_tuner_init(struct i2c_client *c);
 extern int tea5767_autodetection(struct i2c_client *c);
 
 #define tuner_warn(fmt, arg...) do {\
 	printk(KERN_WARNING "%s %d-%04x: " fmt, t->i2c.driver->name, \
-                        t->i2c.adapter->nr, t->i2c.addr , ##arg); } while (0)
+			t->i2c.adapter->nr, t->i2c.addr , ##arg); } while (0)
 #define tuner_info(fmt, arg...) do {\
 	printk(KERN_INFO "%s %d-%04x: " fmt, t->i2c.driver->name, \
-                        t->i2c.adapter->nr, t->i2c.addr , ##arg); } while (0)
+			t->i2c.adapter->nr, t->i2c.addr , ##arg); } while (0)
 #define tuner_dbg(fmt, arg...) do {\
 	if (tuner_debug) \
-                printk(KERN_DEBUG "%s %d-%04x: " fmt, t->i2c.driver->name, \
-                        t->i2c.adapter->nr, t->i2c.addr , ##arg); } while (0)
+		printk(KERN_DEBUG "%s %d-%04x: " fmt, t->i2c.driver->name, \
+			t->i2c.adapter->nr, t->i2c.addr , ##arg); } while (0)
 
 #endif /* __KERNEL__ */
 

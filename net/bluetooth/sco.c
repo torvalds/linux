@@ -38,8 +38,7 @@
 #include <linux/interrupt.h>
 #include <linux/socket.h>
 #include <linux/skbuff.h>
-#include <linux/proc_fs.h>
-#include <linux/seq_file.h>
+#include <linux/device.h>
 #include <linux/list.h>
 #include <net/sock.h>
 
@@ -55,7 +54,7 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "0.4"
+#define VERSION "0.5"
 
 static struct proto_ops sco_sock_ops;
 
@@ -893,91 +892,26 @@ drop:
 	return 0;
 }
 
-/* ---- Proc fs support ---- */
-#ifdef CONFIG_PROC_FS
-static void *sco_seq_start(struct seq_file *seq, loff_t *pos)
+static ssize_t sco_sysfs_show(struct class *dev, char *buf)
 {
 	struct sock *sk;
 	struct hlist_node *node;
-	loff_t l = *pos;
+	char *str = buf;
 
 	read_lock_bh(&sco_sk_list.lock);
 
-	sk_for_each(sk, node, &sco_sk_list.head)
-		if (!l--)
-			goto found;
-	sk = NULL;
-found:
-	return sk;
-}
+	sk_for_each(sk, node, &sco_sk_list.head) {
+		str += sprintf(str, "%s %s %d\n",
+				batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst),
+				sk->sk_state);
+	}
 
-static void *sco_seq_next(struct seq_file *seq, void *e, loff_t *pos)
-{
-	struct sock *sk = e;
-	(*pos)++;
-	return sk_next(sk);
-}
-
-static void sco_seq_stop(struct seq_file *seq, void *e)
-{
 	read_unlock_bh(&sco_sk_list.lock);
+
+	return (str - buf);
 }
 
-static int  sco_seq_show(struct seq_file *seq, void *e)
-{
-	struct sock *sk = e;
-	seq_printf(seq, "%s %s %d\n",
-			batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst), sk->sk_state);
-	return 0;
-}
-
-static struct seq_operations sco_seq_ops = {
-	.start	= sco_seq_start,
-	.next	= sco_seq_next,
-	.stop	= sco_seq_stop,
-	.show	= sco_seq_show 
-};
-
-static int sco_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &sco_seq_ops);
-}
-
-static struct file_operations sco_seq_fops = {
-	.owner		= THIS_MODULE,
-	.open		= sco_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
-static int __init sco_proc_init(void)
-{
-	struct proc_dir_entry *p = create_proc_entry("sco", S_IRUGO, proc_bt);
-	if (!p)
-		return -ENOMEM;
-	p->owner     = THIS_MODULE;
-	p->proc_fops = &sco_seq_fops;
-	return 0;
-}
-
-static void __exit sco_proc_cleanup(void)
-{
-	remove_proc_entry("sco", proc_bt);
-}
-
-#else /* CONFIG_PROC_FS */
-
-static int __init sco_proc_init(void)
-{
-	return 0;
-}
-
-static void __exit sco_proc_cleanup(void)
-{
-	return;
-}
-#endif /* CONFIG_PROC_FS */
+static CLASS_ATTR(sco, S_IRUGO, sco_sysfs_show, NULL);
 
 static struct proto_ops sco_sock_ops = {
 	.family		= PF_BLUETOOTH,
@@ -1035,7 +969,7 @@ static int __init sco_init(void)
 		goto error;
 	}
 
-	sco_proc_init();
+	class_create_file(&bt_class, &class_attr_sco);
 
 	BT_INFO("SCO (Voice Link) ver %s", VERSION);
 	BT_INFO("SCO socket layer initialized");
@@ -1049,7 +983,7 @@ error:
 
 static void __exit sco_exit(void)
 {
-	sco_proc_cleanup();
+	class_remove_file(&bt_class, &class_attr_sco);
 
 	if (bt_sock_unregister(BTPROTO_SCO) < 0)
 		BT_ERR("SCO socket unregistration failed");

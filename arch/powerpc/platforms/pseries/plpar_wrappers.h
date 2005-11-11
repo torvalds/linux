@@ -107,14 +107,4 @@ static inline long plpar_put_term_char(unsigned long termno, unsigned long len,
 			lbuf[1]);
 }
 
-static inline long plpar_set_xdabr(unsigned long address, unsigned long flags)
-{
-	return plpar_hcall_norets(H_SET_XDABR, address, flags);
-}
-
-static inline long plpar_set_dabr(unsigned long val)
-{
-	return plpar_hcall_norets(H_SET_DABR, val);
-}
-
 #endif /* _PSERIES_PLPAR_WRAPPERS_H */

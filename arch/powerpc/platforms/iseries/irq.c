@@ -35,7 +35,6 @@
 #include <linux/irq.h>
 #include <linux/spinlock.h>
 
-#include <asm/ppcdebug.h>
 #include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_call_xm.h>
@@ -104,6 +103,9 @@ static void intReceived(struct XmPciLpEvent *eventParm,
 		struct pt_regs *regsParm)
 {
 	int irq;
+#ifdef CONFIG_IRQSTACKS
+	struct thread_info *curtp, *irqtp;
+#endif
 
 	++Pci_Interrupt_Count;
 
@@ -111,7 +113,20 @@ static void intReceived(struct XmPciLpEvent *eventParm,
 	case XmPciLpEvent_SlotInterrupt:
 		irq = eventParm->hvLpEvent.xCorrelationToken;
 		/* Dispatch the interrupt handlers for this irq */
-		ppc_irq_dispatch_handler(regsParm, irq);
+#ifdef CONFIG_IRQSTACKS
+		/* Switch to the irq stack to handle this */
+		curtp = current_thread_info();
+		irqtp = hardirq_ctx[smp_processor_id()];
+		if (curtp != irqtp) {
+			irqtp->task = curtp->task;
+			irqtp->flags = 0;
+			call___do_IRQ(irq, regsParm, irqtp);
+			irqtp->task = NULL;
+			if (irqtp->flags)
+				set_bits(irqtp->flags, &curtp->flags);
+		} else
+#endif
+			__do_IRQ(irq, regsParm);
 		HvCallPci_eoi(eventParm->eventData.slotInterrupt.busNumber,
 			eventParm->eventData.slotInterrupt.subBusNumber,
 			eventParm->eventData.slotInterrupt.deviceId);
@@ -227,8 +242,6 @@ static void iSeries_enable_IRQ(unsigned int irq)
 	/* Unmask secondary INTA */
 	mask = 0x80000000;
 	HvCallPci_unmaskInterrupts(bus, subBus, deviceId, mask);
-	PPCDBG(PPCDBG_BUSWALK, "iSeries_enable_IRQ 0x%02X.%02X.%02X 0x%04X\n",
-			bus, subBus, deviceId, irq);
 }
 
 /* This is called by iSeries_activate_IRQs */
@@ -310,15 +323,11 @@ static void iSeries_disable_IRQ(unsigned int irq)
 	/* Mask secondary INTA   */
 	mask = 0x80000000;
 	HvCallPci_maskInterrupts(bus, subBus, deviceId, mask);
-	PPCDBG(PPCDBG_BUSWALK, "iSeries_disable_IRQ 0x%02X.%02X.%02X 0x%04X\n",
-			bus, subBus, deviceId, irq);
 }
 
 /*
- * Need to define this so ppc_irq_dispatch_handler will NOT call
- * enable_IRQ at the end of interrupt handling.  However, this does
- * nothing because there is not enough information provided to do
- * the EOI HvCall.  This is done by XmPciLpEvent.c
+ * This does nothing because there is not enough information
+ * provided to do the EOI HvCall.  This is done by XmPciLpEvent.c
  */
 static void iSeries_end_IRQ(unsigned int irq)
 {

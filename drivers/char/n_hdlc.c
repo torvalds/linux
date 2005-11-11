@@ -264,8 +264,7 @@ static void n_hdlc_release(struct n_hdlc *n_hdlc)
 		} else
 			break;
 	}
-	if (n_hdlc->tbuf)
-		kfree(n_hdlc->tbuf);
+	kfree(n_hdlc->tbuf);
 	kfree(n_hdlc);
 	
 }	/* end of n_hdlc_release() */

@@ -149,6 +149,8 @@ struct thread_struct;
 extern struct task_struct * _switch(struct thread_struct *prev,
 				    struct thread_struct *next);
 
+extern unsigned long klimit;
+
 extern int powersave_nap;	/* set if nap mode can be used in idle loop */
 
 /*
@@ -248,7 +250,7 @@ __cmpxchg_u32(volatile unsigned int *p, unsigned long old, unsigned long new)
 }
 
 static __inline__ unsigned long
-__cmpxchg_u64(volatile long *p, unsigned long old, unsigned long new)
+__cmpxchg_u64(volatile unsigned long *p, unsigned long old, unsigned long new)
 {
 	unsigned long prev;
 

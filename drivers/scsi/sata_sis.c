@@ -39,7 +39,6 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
-#include "scsi.h"
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 
@@ -83,7 +82,7 @@ static struct pci_driver sis_pci_driver = {
 	.remove			= ata_pci_remove_one,
 };
 
-static Scsi_Host_Template sis_sht = {
+static struct scsi_host_template sis_sht = {
 	.module			= THIS_MODULE,
 	.name			= DRV_NAME,
 	.ioctl			= ata_scsi_ioctl,

@@ -10,9 +10,10 @@
 #include <linux/fb.h>
 
 
+#ifdef CONFIG_FB_RADEON_I2C
 #include <linux/i2c.h>
-#include <linux/i2c-id.h>
 #include <linux/i2c-algo-bit.h>
+#endif
 
 #include <asm/io.h>
 

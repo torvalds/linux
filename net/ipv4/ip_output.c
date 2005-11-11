@@ -353,7 +353,8 @@ packet_routed:
 		ip_options_build(skb, opt, inet->daddr, rt, 0);
 	}
 
-	ip_select_ident_more(iph, &rt->u.dst, sk, skb_shinfo(skb)->tso_segs);
+	ip_select_ident_more(iph, &rt->u.dst, sk,
+			     (skb_shinfo(skb)->tso_segs ?: 1) - 1);
 
 	/* Add an IP checksum. */
 	ip_send_check(iph);
@@ -1262,10 +1263,8 @@ int ip_push_pending_frames(struct sock *sk)
 
 out:
 	inet->cork.flags &= ~IPCORK_OPT;
-	if (inet->cork.opt) {
-		kfree(inet->cork.opt);
-		inet->cork.opt = NULL;
-	}
+	kfree(inet->cork.opt);
+	inet->cork.opt = NULL;
 	if (inet->cork.rt) {
 		ip_rt_put(inet->cork.rt);
 		inet->cork.rt = NULL;
@@ -1289,10 +1288,8 @@ void ip_flush_pending_frames(struct sock *sk)
 		kfree_skb(skb);
 
 	inet->cork.flags &= ~IPCORK_OPT;
-	if (inet->cork.opt) {
-		kfree(inet->cork.opt);
-		inet->cork.opt = NULL;
-	}
+	kfree(inet->cork.opt);
+	inet->cork.opt = NULL;
 	if (inet->cork.rt) {
 		ip_rt_put(inet->cork.rt);
 		inet->cork.rt = NULL;

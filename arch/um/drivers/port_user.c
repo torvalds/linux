@@ -18,7 +18,6 @@
 #include "user.h"
 #include "chan_user.h"
 #include "port.h"
-#include "helper.h"
 #include "os.h"
 
 struct port_chan {

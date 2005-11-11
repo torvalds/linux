@@ -19,7 +19,7 @@
 #ifndef __ASM_ARCH_OMAP_FPGA_H
 #define __ASM_ARCH_OMAP_FPGA_H
 
-#if defined(CONFIG_MACH_OMAP_INNOVATOR) && defined(CONFIG_ARCH_OMAP1510)
+#if defined(CONFIG_MACH_OMAP_INNOVATOR) && defined(CONFIG_ARCH_OMAP15XX)
 extern void omap1510_fpga_init_irq(void);
 #else
 #define omap1510_fpga_init_irq()	(0)
@@ -77,6 +77,8 @@ struct h2p2_dbg_fpga {
 #define H2P2_DBG_FPGA_LOAD_METER_SIZE	11
 #define H2P2_DBG_FPGA_LOAD_METER_MASK	((1 << H2P2_DBG_FPGA_LOAD_METER_SIZE) - 1)
 
+#define H2P2_DBG_FPGA_P2_LED_TIMER		(1 << 0)
+#define H2P2_DBG_FPGA_P2_LED_IDLE		(1 << 1)
 
 /*
  * ---------------------------------------------------------------------------

@@ -111,17 +111,6 @@ void __init plat_setup(void)
     }
 #endif
 
-#ifdef CONFIG_FB_E1356
-	if ((argptr = strstr(argptr, "video=")) == NULL) {
-		argptr = prom_getcmdline();
-#ifdef CONFIG_MIPS_PB1000
-		strcat(argptr, " video=e1356fb:system:pb1000,mmunalign:1");
-#else
-		strcat(argptr, " video=e1356fb:system:pb1500");
-#endif
-	}
-#endif
-
 #ifdef CONFIG_FB_XPERT98
 	if ((argptr = strstr(argptr, "video=")) == NULL) {
 		argptr = prom_getcmdline();

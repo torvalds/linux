@@ -63,7 +63,7 @@ static void huge_pagevec_release(struct pagevec *pvec)
  *
  * Result is in bytes to be compatible with is_hugepage_mem_enough()
  */
-unsigned long
+static unsigned long
 huge_pages_needed(struct address_space *mapping, struct vm_area_struct *vma)
 {
 	int i;

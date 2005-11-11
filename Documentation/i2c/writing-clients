@@ -412,7 +412,7 @@ For now, you can ignore the `flags' parameter. It is there for future use.
         release_region(address,FOO_EXTENT);
     /* SENSORS ONLY END */
     ERROR1:
-      kfree(new_client);
+      kfree(data);
     ERROR0:
       return err;
   }
@@ -443,7 +443,7 @@ much simpler than the attachment code, fortunately!
       release_region(client->addr,LM78_EXTENT);
     /* HYBRID SENSORS CHIP ONLY END */
 
-    kfree(data);
+    kfree(i2c_get_clientdata(client));
     return 0;
   }
 

@@ -39,7 +39,8 @@
 #include <asm/sections.h>
 #include <asm/iommu.h>
 #include <asm/firmware.h>
-
+#include <asm/systemcfg.h>
+#include <asm/system.h>
 #include <asm/time.h>
 #include <asm/paca.h>
 #include <asm/cache.h>
@@ -71,9 +72,7 @@ extern void hvlog(char *fmt, ...);
 #endif
 
 /* Function Prototypes */
-extern void ppcdbg_initialize(void);
-
-static void build_iSeries_Memory_Map(void);
+static unsigned long build_iSeries_Memory_Map(void);
 static void iseries_shared_idle(void);
 static void iseries_dedicated_idle(void);
 #ifdef CONFIG_PCI
@@ -86,7 +85,6 @@ static void iSeries_pci_final_fixup(void) { }
 int piranha_simulator;
 
 extern int rd_size;		/* Defined in drivers/block/rd.c */
-extern unsigned long klimit;
 extern unsigned long embedded_sysmap_start;
 extern unsigned long embedded_sysmap_end;
 
@@ -309,8 +307,6 @@ static void __init iSeries_init_early(void)
 
 	ppc64_firmware_features = FW_FEATURE_ISERIES;
 
-	ppcdbg_initialize();
-
 	ppc64_interrupt_controller = IC_ISERIES;
 
 #if defined(CONFIG_BLK_DEV_INITRD)
@@ -320,11 +316,11 @@ static void __init iSeries_init_early(void)
 	 */
 	if (naca.xRamDisk) {
 		initrd_start = (unsigned long)__va(naca.xRamDisk);
-		initrd_end = initrd_start + naca.xRamDiskSize * PAGE_SIZE;
+		initrd_end = initrd_start + naca.xRamDiskSize * HW_PAGE_SIZE;
 		initrd_below_start_ok = 1;	// ramdisk in kernel space
 		ROOT_DEV = Root_RAM0;
-		if (((rd_size * 1024) / PAGE_SIZE) < naca.xRamDiskSize)
-			rd_size = (naca.xRamDiskSize * PAGE_SIZE) / 1024;
+		if (((rd_size * 1024) / HW_PAGE_SIZE) < naca.xRamDiskSize)
+			rd_size = (naca.xRamDiskSize * HW_PAGE_SIZE) / 1024;
 	} else
 #endif /* CONFIG_BLK_DEV_INITRD */
 	{
@@ -407,9 +403,11 @@ void mschunks_alloc(unsigned long num_chunks)
  * a table used to translate Linux's physical addresses to these
  * absolute addresses.  Absolute addresses are needed when
  * communicating with the hypervisor (e.g. to build HPT entries)
+ *
+ * Returns the physical memory size
  */
 
-static void __init build_iSeries_Memory_Map(void)
+static unsigned long __init build_iSeries_Memory_Map(void)
 {
 	u32 loadAreaFirstChunk, loadAreaLastChunk, loadAreaSize;
 	u32 nextPhysChunk;
@@ -470,13 +468,14 @@ static void __init build_iSeries_Memory_Map(void)
 	 */
 	hptFirstChunk = (u32)addr_to_chunk(HvCallHpt_getHptAddress());
 	hptSizePages = (u32)HvCallHpt_getHptPages();
-	hptSizeChunks = hptSizePages >> (MSCHUNKS_CHUNK_SHIFT - PAGE_SHIFT);
+	hptSizeChunks = hptSizePages >>
+		(MSCHUNKS_CHUNK_SHIFT - HW_PAGE_SHIFT);
 	hptLastChunk = hptFirstChunk + hptSizeChunks - 1;
 
 	printk("HPT absolute addr = %016lx, size = %dK\n",
 			chunk_to_addr(hptFirstChunk), hptSizeChunks * 256);
 
-	ppc64_pft_size = __ilog2(hptSizePages * PAGE_SIZE);
+	ppc64_pft_size = __ilog2(hptSizePages * HW_PAGE_SIZE);
 
 	/*
 	 * The actual hashed page table is in the hypervisor,
@@ -541,7 +540,7 @@ static void __init build_iSeries_Memory_Map(void)
 	 * which should be equal to
 	 *   nextPhysChunk
 	 */
-	systemcfg->physicalMemorySize = chunk_to_addr(nextPhysChunk);
+	return chunk_to_addr(nextPhysChunk);
 }
 
 /*
@@ -567,8 +566,8 @@ static void __init iSeries_setup_arch(void)
 	printk("Max physical processors = %d\n",
 			itVpdAreas.xSlicMaxPhysicalProcs);
 
-	systemcfg->processor = xIoHriProcessorVpd[procIx].xPVR;
-	printk("Processor version = %x\n", systemcfg->processor);
+	_systemcfg->processor = xIoHriProcessorVpd[procIx].xPVR;
+	printk("Processor version = %x\n", _systemcfg->processor);
 }
 
 static void iSeries_show_cpuinfo(struct seq_file *m)
@@ -629,7 +628,7 @@ static void __init iSeries_fixup_klimit(void)
 	 */
 	if (naca.xRamDisk)
 		klimit = KERNELBASE + (u64)naca.xRamDisk +
-			(naca.xRamDiskSize * PAGE_SIZE);
+			(naca.xRamDiskSize * HW_PAGE_SIZE);
 	else {
 		/*
 		 * No ram disk was included - check and see if there
@@ -697,20 +696,18 @@ static void iseries_shared_idle(void)
 		if (hvlpevent_is_pending())
 			process_iSeries_events();
 
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 	}
 }
 
 static void iseries_dedicated_idle(void)
 {
-	long oldval;
+	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	while (1) {
-		oldval = test_and_clear_thread_flag(TIF_NEED_RESCHED);
-
-		if (!oldval) {
-			set_thread_flag(TIF_POLLING_NRFLAG);
-
+		if (!need_resched()) {
 			while (!need_resched()) {
 				ppc64_runlatch_off();
 				HMT_low();
@@ -723,13 +720,12 @@ static void iseries_dedicated_idle(void)
 			}
 
 			HMT_medium();
-			clear_thread_flag(TIF_POLLING_NRFLAG);
-		} else {
-			set_need_resched();
 		}
 
 		ppc64_runlatch_on();
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 	}
 }
 
@@ -934,7 +930,7 @@ void dt_cpus(struct iseries_flat_dt *dt)
 	dt_end_node(dt);
 }
 
-void build_flat_dt(struct iseries_flat_dt *dt)
+void build_flat_dt(struct iseries_flat_dt *dt, unsigned long phys_mem_size)
 {
 	u64 tmp[2];
 
@@ -950,7 +946,7 @@ void build_flat_dt(struct iseries_flat_dt *dt)
 	dt_prop_str(dt, "name", "memory");
 	dt_prop_str(dt, "device_type", "memory");
 	tmp[0] = 0;
-	tmp[1] = systemcfg->physicalMemorySize;
+	tmp[1] = phys_mem_size;
 	dt_prop_u64_list(dt, "reg", tmp, 2);
 	dt_end_node(dt);
 
@@ -970,13 +966,15 @@ void build_flat_dt(struct iseries_flat_dt *dt)
 
 void * __init iSeries_early_setup(void)
 {
+	unsigned long phys_mem_size;
+
 	iSeries_fixup_klimit();
 
 	/*
 	 * Initialize the table which translate Linux physical addresses to
 	 * AS/400 absolute addresses
 	 */
-	build_iSeries_Memory_Map();
+	phys_mem_size = build_iSeries_Memory_Map();
 
 	iSeries_get_cmdline();
 
@@ -986,7 +984,7 @@ void * __init iSeries_early_setup(void)
 	/* Parse early parameters, in particular mem=x */
 	parse_early_param();
 
-	build_flat_dt(&iseries_dt);
+	build_flat_dt(&iseries_dt, phys_mem_size);
 
 	return (void *) __pa(&iseries_dt);
 }

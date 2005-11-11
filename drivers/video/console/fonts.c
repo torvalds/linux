@@ -64,6 +64,10 @@ static const struct font_desc *fonts[] = {
 #undef NO_FONTS
     &font_mini_4x6,
 #endif
+#ifdef CONFIG_FONT_RL
+#undef NO_FONTS
+    &font_rl,
+#endif
 };
 
 #define num_fonts (sizeof(fonts)/sizeof(*fonts))

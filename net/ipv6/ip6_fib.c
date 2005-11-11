@@ -127,56 +127,6 @@ static __inline__ int addr_bit_set(void *token, int fn_bit)
 	return htonl(1 << ((~fn_bit)&0x1F)) & addr[fn_bit>>5];
 }
 
-/*
- *	find the first different bit between two addresses
- *	length of address must be a multiple of 32bits
- */
-
-static __inline__ int addr_diff(void *token1, void *token2, int addrlen)
-{
-	__u32 *a1 = token1;
-	__u32 *a2 = token2;
-	int i;
-
-	addrlen >>= 2;
-
-	for (i = 0; i < addrlen; i++) {
-		__u32 xb;
-
-		xb = a1[i] ^ a2[i];
-
-		if (xb) {
-			int j = 31;
-
-			xb = ntohl(xb);
-
-			while ((xb & (1 << j)) == 0)
-				j--;
-
-			return (i * 32 + 31 - j);
-		}
-	}
-
-	/*
-	 *	we should *never* get to this point since that 
-	 *	would mean the addrs are equal
-	 *
-	 *	However, we do get to it 8) And exacly, when
-	 *	addresses are equal 8)
-	 *
-	 *	ip route add 1111::/128 via ...
-	 *	ip route add 1111::/64 via ...
-	 *	and we are here.
-	 *
-	 *	Ideally, this function should stop comparison
-	 *	at prefix length. It does not, but it is still OK,
-	 *	if returned value is greater than prefix length.
-	 *					--ANK (980803)
-	 */
-
-	return addrlen<<5;
-}
-
 static __inline__ struct fib6_node * node_alloc(void)
 {
 	struct fib6_node *fn;
@@ -296,11 +246,11 @@ insert_above:
 
 	/* find 1st bit in difference between the 2 addrs.
 
-	   See comment in addr_diff: bit may be an invalid value,
+	   See comment in __ipv6_addr_diff: bit may be an invalid value,
 	   but if it is >= plen, the value is ignored in any case.
 	 */
 	
-	bit = addr_diff(addr, &key->addr, addrlen);
+	bit = __ipv6_addr_diff(addr, &key->addr, addrlen);
 
 	/* 
 	 *		(intermediate)[in]	

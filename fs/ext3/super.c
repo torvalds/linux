@@ -625,7 +625,7 @@ static struct export_operations ext3_export_ops = {
 enum {
 	Opt_bsd_df, Opt_minix_df, Opt_grpid, Opt_nogrpid,
 	Opt_resgid, Opt_resuid, Opt_sb, Opt_err_cont, Opt_err_panic, Opt_err_ro,
-	Opt_nouid32, Opt_check, Opt_nocheck, Opt_debug, Opt_oldalloc, Opt_orlov,
+	Opt_nouid32, Opt_nocheck, Opt_debug, Opt_oldalloc, Opt_orlov,
 	Opt_user_xattr, Opt_nouser_xattr, Opt_acl, Opt_noacl,
 	Opt_reservation, Opt_noreservation, Opt_noload, Opt_nobh,
 	Opt_commit, Opt_journal_update, Opt_journal_inum,
@@ -652,7 +652,6 @@ static match_table_t tokens = {
 	{Opt_nouid32, "nouid32"},
 	{Opt_nocheck, "nocheck"},
 	{Opt_nocheck, "check=none"},
-	{Opt_check, "check"},
 	{Opt_debug, "debug"},
 	{Opt_oldalloc, "oldalloc"},
 	{Opt_orlov, "orlov"},
@@ -772,14 +771,6 @@ static int parse_options (char * options, struct super_block *sb,
 			break;
 		case Opt_nouid32:
 			set_opt (sbi->s_mount_opt, NO_UID32);
-			break;
-		case Opt_check:
-#ifdef CONFIG_EXT3_CHECK
-			set_opt (sbi->s_mount_opt, CHECK);
-#else
-			printk(KERN_ERR
-			       "EXT3 Check option not supported\n");
-#endif
 			break;
 		case Opt_nocheck:
 			clear_opt (sbi->s_mount_opt, CHECK);
@@ -1115,12 +1106,6 @@ static int ext3_setup_super(struct super_block *sb, struct ext3_super_block *es,
 	} else {
 		printk("internal journal\n");
 	}
-#ifdef CONFIG_EXT3_CHECK
-	if (test_opt (sb, CHECK)) {
-		ext3_check_blocks_bitmap (sb);
-		ext3_check_inodes_bitmap (sb);
-	}
-#endif
 	return res;
 }
 

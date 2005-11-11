@@ -183,7 +183,7 @@ static void hci_reset_req(struct hci_dev *hdev, unsigned long opt)
 static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 {
 	struct sk_buff *skb;
-	__u16 param;
+	__le16 param;
 
 	BT_DBG("%s %ld", hdev->name, opt);
 

@@ -1,5 +1,5 @@
 /**
- * $Id: phram.c,v 1.14 2005/03/07 21:43:38 joern Exp $
+ * $Id: phram.c,v 1.16 2005/11/07 11:14:25 gleixner Exp $
  *
  * Copyright (c) ????		Jochen Schäuble <psionic@psionic.de>
  * Copyright (c) 2003-2004	Jörn Engel <joern@wh.fh-wedel.de>
@@ -41,10 +41,10 @@ static int phram_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	if (instr->addr + instr->len > mtd->size)
 		return -EINVAL;
-	
+
 	memset(start + instr->addr, 0xff, instr->len);
 
-	/* This'll catch a few races. Free the thing before returning :) 
+	/* This'll catch a few races. Free the thing before returning :)
 	 * I don't feel at all ashamed. This kind of thing is possible anyway
 	 * with flash, but unlikely.
 	 */
@@ -63,7 +63,7 @@ static int phram_point(struct mtd_info *mtd, loff_t from, size_t len,
 
 	if (from + len > mtd->size)
 		return -EINVAL;
-	
+
 	*mtdbuf = start + from;
 	*retlen = len;
 	return 0;
@@ -84,7 +84,7 @@ static int phram_read(struct mtd_info *mtd, loff_t from, size_t len,
 
 	if (len > mtd->size - from)
 		len = mtd->size - from;
-	
+
 	memcpy(buf, start + from, len);
 
 	*retlen = len;
@@ -101,7 +101,7 @@ static int phram_write(struct mtd_info *mtd, loff_t to, size_t len,
 
 	if (len > mtd->size - to)
 		len = mtd->size - to;
-	
+
 	memcpy(start + to, buf, len);
 
 	*retlen = len;
@@ -159,7 +159,7 @@ static int register_device(char *name, unsigned long start, unsigned long len)
 	}
 
 	list_add_tail(&new->list, &phram_list);
-	return 0;	
+	return 0;
 
 out2:
 	iounmap(new->mtd.priv);

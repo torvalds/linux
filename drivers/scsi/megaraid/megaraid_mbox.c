@@ -3937,9 +3937,8 @@ megaraid_sysfs_free_resources(adapter_t *adapter)
 {
 	mraid_device_t	*raid_dev = ADAP2RAIDDEV(adapter);
 
-	if (raid_dev->sysfs_uioc) kfree(raid_dev->sysfs_uioc);
-
-	if (raid_dev->sysfs_mbox64) kfree(raid_dev->sysfs_mbox64);
+	kfree(raid_dev->sysfs_uioc);
+	kfree(raid_dev->sysfs_mbox64);
 
 	if (raid_dev->sysfs_buffer) {
 		pci_free_consistent(adapter->pdev, PAGE_SIZE,

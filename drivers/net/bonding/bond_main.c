@@ -1604,35 +1604,27 @@ static int bond_sethwaddr(struct net_device *bond_dev, struct net_device *slave_
 	(NETIF_F_SG|NETIF_F_IP_CSUM|NETIF_F_NO_CSUM|NETIF_F_HW_CSUM)
 
 /* 
- * Compute the features available to the bonding device by 
- * intersection of all of the slave devices' BOND_INTERSECT_FEATURES.
- * Call this after attaching or detaching a slave to update the 
- * bond's features.
+ * Compute the common dev->feature set available to all slaves.  Some
+ * feature bits are managed elsewhere, so preserve feature bits set on
+ * master device that are not part of the examined set.
  */
 static int bond_compute_features(struct bonding *bond)
 {
-	int i;
+	unsigned long features = BOND_INTERSECT_FEATURES;
 	struct slave *slave;
 	struct net_device *bond_dev = bond->dev;
-	int features = bond->bond_features;
+	int i;
 
-	bond_for_each_slave(bond, slave, i) {
-		struct net_device * slave_dev = slave->dev;
-		if (i == 0) {
-			features |= BOND_INTERSECT_FEATURES;
-		}
-		features &=
-			~(~slave_dev->features & BOND_INTERSECT_FEATURES);
-	}
+	bond_for_each_slave(bond, slave, i)
+		features &= (slave->dev->features & BOND_INTERSECT_FEATURES);
 
-	/* turn off NETIF_F_SG if we need a csum and h/w can't do it */
 	if ((features & NETIF_F_SG) && 
-		!(features & (NETIF_F_IP_CSUM |
-			      NETIF_F_NO_CSUM |
-			      NETIF_F_HW_CSUM))) {
+	    !(features & (NETIF_F_IP_CSUM |
+			  NETIF_F_NO_CSUM |
+			  NETIF_F_HW_CSUM)))
 		features &= ~NETIF_F_SG;
-	}
 
+	features |= (bond_dev->features & ~BOND_INTERSECT_FEATURES);
 	bond_dev->features = features;
 
 	return 0;
@@ -4560,8 +4552,6 @@ static int __init bond_init(struct net_device *bond_dev, struct bond_params *par
 	bond_dev->features |= (NETIF_F_HW_VLAN_TX |
 			       NETIF_F_HW_VLAN_RX |
 			       NETIF_F_HW_VLAN_FILTER);
-
-	bond->bond_features = bond_dev->features;
 
 #ifdef CONFIG_PROC_FS
 	bond_create_proc_entry(bond);

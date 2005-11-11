@@ -20,6 +20,8 @@
  *
  */
 
+#undef DEBUG
+
 #include <linux/config.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -57,13 +59,18 @@
 #include <asm/processor.h>
 #include <asm/mmzone.h>
 #include <asm/cputable.h>
-#include <asm/ppcdebug.h>
 #include <asm/sections.h>
 #include <asm/system.h>
 #include <asm/iommu.h>
 #include <asm/abs_addr.h>
 #include <asm/vdso.h>
 #include <asm/imalloc.h>
+
+#ifdef DEBUG
+#define DBG(fmt...) printk(fmt)
+#else
+#define DBG(fmt...)
+#endif
 
 #if PGTABLE_RANGE > USER_VSID_RANGE
 #warning Limited user VSID range means pagetable space is wasted
@@ -72,8 +79,6 @@
 #if (TASK_SIZE_USER64 < PGTABLE_RANGE) && (TASK_SIZE_USER64 < USER_VSID_RANGE)
 #warning TASK_SIZE is smaller than it needs to be.
 #endif
-
-unsigned long klimit = (unsigned long)_end;
 
 /* max amount of RAM to use */
 unsigned long __max_memory;
@@ -188,12 +193,21 @@ static void zero_ctor(void *addr, kmem_cache_t *cache, unsigned long flags)
 	memset(addr, 0, kmem_cache_size(cache));
 }
 
-static const int pgtable_cache_size[2] = {
+#ifdef CONFIG_PPC_64K_PAGES
+static const unsigned int pgtable_cache_size[3] = {
+	PTE_TABLE_SIZE, PMD_TABLE_SIZE, PGD_TABLE_SIZE
+};
+static const char *pgtable_cache_name[ARRAY_SIZE(pgtable_cache_size)] = {
+	"pte_pmd_cache", "pmd_cache", "pgd_cache",
+};
+#else
+static const unsigned int pgtable_cache_size[2] = {
 	PTE_TABLE_SIZE, PMD_TABLE_SIZE
 };
 static const char *pgtable_cache_name[ARRAY_SIZE(pgtable_cache_size)] = {
 	"pgd_pte_cache", "pud_pmd_cache",
 };
+#endif /* CONFIG_PPC_64K_PAGES */
 
 kmem_cache_t *pgtable_cache[ARRAY_SIZE(pgtable_cache_size)];
 
@@ -201,19 +215,16 @@ void pgtable_cache_init(void)
 {
 	int i;
 
-	BUILD_BUG_ON(PTE_TABLE_SIZE != pgtable_cache_size[PTE_CACHE_NUM]);
-	BUILD_BUG_ON(PMD_TABLE_SIZE != pgtable_cache_size[PMD_CACHE_NUM]);
-	BUILD_BUG_ON(PUD_TABLE_SIZE != pgtable_cache_size[PUD_CACHE_NUM]);
-	BUILD_BUG_ON(PGD_TABLE_SIZE != pgtable_cache_size[PGD_CACHE_NUM]);
-
 	for (i = 0; i < ARRAY_SIZE(pgtable_cache_size); i++) {
 		int size = pgtable_cache_size[i];
 		const char *name = pgtable_cache_name[i];
 
+		DBG("Allocating page table cache %s (#%d) "
+		    "for size: %08x...\n", name, i, size);
 		pgtable_cache[i] = kmem_cache_create(name,
 						     size, size,
-						     SLAB_HWCACHE_ALIGN
-						     | SLAB_MUST_HWCACHE_ALIGN,
+						     SLAB_HWCACHE_ALIGN |
+						     SLAB_MUST_HWCACHE_ALIGN,
 						     zero_ctor,
 						     NULL);
 		if (! pgtable_cache[i])

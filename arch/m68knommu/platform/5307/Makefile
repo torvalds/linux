@@ -19,6 +19,7 @@ endif
 obj-$(CONFIG_COLDFIRE)	+= entry.o vectors.o ints.o
 obj-$(CONFIG_M5206)	+= timers.o
 obj-$(CONFIG_M5206e)	+= timers.o
+obj-$(CONFIG_M520x)	+= pit.o
 obj-$(CONFIG_M523x)	+= pit.o
 obj-$(CONFIG_M5249)	+= timers.o
 obj-$(CONFIG_M527x)     += pit.o

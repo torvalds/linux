@@ -447,8 +447,7 @@ static char *	apm_event_name[] = {
 	"system standby resume",
 	"capabilities change"
 };
-#define NR_APM_EVENT_NAME	\
-		(sizeof(apm_event_name) / sizeof(apm_event_name[0]))
+#define NR_APM_EVENT_NAME ARRAY_SIZE(apm_event_name)
 
 typedef struct lookup_t {
 	int	key;
@@ -479,7 +478,7 @@ static const lookup_t error_table[] = {
 	{ APM_NO_ERROR,		"BIOS did not set a return code" },
 	{ APM_NOT_PRESENT,	"No APM present" }
 };
-#define ERROR_COUNT	(sizeof(error_table)/sizeof(lookup_t))
+#define ERROR_COUNT	ARRAY_SIZE(error_table)
 
 /**
  *	apm_error	-	display an APM error
@@ -770,8 +769,26 @@ static int set_system_power_state(u_short state)
 static int apm_do_idle(void)
 {
 	u32	eax;
+	u8	ret = 0;
+	int	idled = 0;
+	int	polling;
 
-	if (apm_bios_call_simple(APM_FUNC_IDLE, 0, 0, &eax)) {
+	polling = test_thread_flag(TIF_POLLING_NRFLAG);
+	if (polling) {
+		clear_thread_flag(TIF_POLLING_NRFLAG);
+		smp_mb__after_clear_bit();
+	}
+	if (!need_resched()) {
+		idled = 1;
+		ret = apm_bios_call_simple(APM_FUNC_IDLE, 0, 0, &eax);
+	}
+	if (polling)
+		set_thread_flag(TIF_POLLING_NRFLAG);
+
+	if (!idled)
+		return 0;
+
+	if (ret) {
 		static unsigned long t;
 
 		/* This always fails on some SMP boards running UP kernels.

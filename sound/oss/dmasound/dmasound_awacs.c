@@ -2805,16 +2805,7 @@ __init setup_beep(void)
 	return 0 ;
 }
 
-static struct input_dev awacs_beep_dev = {
-	.evbit		= { BIT(EV_SND) },
-	.sndbit		= { BIT(SND_BELL) | BIT(SND_TONE) },
-	.event		= awacs_beep_event,
-	.name		= "dmasound beeper",
-	.phys		= "macio/input0", /* what the heck is this?? */
-	.id		= {
-		.bustype	= BUS_HOST,
-	},
-};
+static struct input_dev *awacs_beep_dev;
 
 int __init dmasound_awacs_init(void)
 {
@@ -2906,6 +2897,22 @@ printk("dmasound_pmac: couldn't find a Codec we can handle\n");
 		printk(KERN_ERR "dmasound: can't request RX DMA resource !\n");
 		return -ENODEV;
 	}
+
+	awacs_beep_dev = input_allocate_device();
+	if (!awacs_beep_dev) {
+		release_OF_resource(io, 0);
+		release_OF_resource(io, 1);
+		release_OF_resource(io, 2);
+		printk(KERN_ERR "dmasound: can't allocate input device !\n");
+		return -ENOMEM;
+	}
+
+	awacs_beep_dev->name = "dmasound beeper";
+	awacs_beep_dev->phys = "macio/input0";
+	awacs_beep_dev->id.bustype = BUS_HOST;
+	awacs_beep_dev->event = awacs_beep_event;
+	awacs_beep_dev->sndbit[0] = BIT(SND_BELL) | BIT(SND_TONE);
+	awacs_beep_dev->evbit[0] = BIT(EV_SND);
 
 	/* all OF versions I've seen use this value */
 	if (i2s_node)
@@ -3140,14 +3147,14 @@ printk("dmasound_pmac: Awacs/Screamer Codec Mfct: %d Rev %d\n", mfg, rev);
 	 * XXX: we should handle errors here, but that would mean
 	 * rewriting the whole init code.  later..
 	 */
-	input_register_device(&awacs_beep_dev);
+	input_register_device(awacs_beep_dev);
 
 	return dmasound_init();
 }
 
 static void __exit dmasound_awacs_cleanup(void)
 {
-	input_unregister_device(&awacs_beep_dev);
+	input_unregister_device(awacs_beep_dev);
 
 	switch (awacs_revision) {
 		case AWACS_TUMBLER:

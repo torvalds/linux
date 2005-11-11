@@ -1060,6 +1060,8 @@ int mthca_QUERY_DEV_LIM(struct mthca_dev *dev,
 		dev_lim->hca.arbel.resize_srq = field & 1;
 		MTHCA_GET(field, outbox, QUERY_DEV_LIM_MAX_SG_RQ_OFFSET);
 		dev_lim->max_sg = min_t(int, field, dev_lim->max_sg);
+		MTHCA_GET(size, outbox, QUERY_DEV_LIM_MAX_DESC_SZ_RQ_OFFSET);
+		dev_lim->max_desc_sz = min_t(int, size, dev_lim->max_desc_sz);
 		MTHCA_GET(size, outbox, QUERY_DEV_LIM_MPT_ENTRY_SZ_OFFSET);
 		dev_lim->mpt_entry_sz = size;
 		MTHCA_GET(field, outbox, QUERY_DEV_LIM_PBL_SZ_OFFSET);

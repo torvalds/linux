@@ -862,8 +862,7 @@ static int osst_recover_wait_frame(struct osst_tape * STp, struct scsi_request *
 				retval = osst_write_error_recovery(STp, aSRpnt, 0);
 				break;
 			}
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout (HZ / OSST_POLL_PER_SEC);
+			schedule_timeout_interruptible(HZ / OSST_POLL_PER_SEC);
 
 			STp->buffer->b_data = mybuf; STp->buffer->buffer_size = 24;
 			memset(cmd, 0, MAX_COMMAND_SIZE);
@@ -1558,8 +1557,7 @@ static int osst_reposition_and_retry(struct osst_tape * STp, struct scsi_request
 			osst_set_frame_position(STp, aSRpnt, frame + skip, 1);
 			flag = 0;
 			attempts--;
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(HZ / 10);
+			schedule_timeout_interruptible(msecs_to_jiffies(100));
 		}
 		if (osst_get_frame_position(STp, aSRpnt) < 0) {		/* additional write error */
 #if DEBUG
@@ -1620,8 +1618,7 @@ static int osst_reposition_and_retry(struct osst_tape * STp, struct scsi_request
 			debugging = 0;
 		}
 #endif
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(HZ / 10);
+		schedule_timeout_interruptible(msecs_to_jiffies(100));
 	}
 	printk(KERN_ERR "%s:E: Failed to find valid tape media\n", name);
 #if DEBUG

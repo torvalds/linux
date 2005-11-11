@@ -1,4 +1,4 @@
-/* $Id: comprtest.c,v 1.5 2002/01/03 15:20:44 dwmw2 Exp $ */
+/* $Id: comprtest.c,v 1.6 2005/11/07 11:14:38 gleixner Exp $ */
 
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -265,9 +265,9 @@ static unsigned char testdata[TESTDATA_LEN] = {
 static unsigned char comprbuf[TESTDATA_LEN];
 static unsigned char decomprbuf[TESTDATA_LEN];
 
-int jffs2_decompress(unsigned char comprtype, unsigned char *cdata_in, 
+int jffs2_decompress(unsigned char comprtype, unsigned char *cdata_in,
 		     unsigned char *data_out, uint32_t cdatalen, uint32_t datalen);
-unsigned char jffs2_compress(unsigned char *data_in, unsigned char *cpage_out, 
+unsigned char jffs2_compress(unsigned char *data_in, unsigned char *cpage_out,
 			     uint32_t *datalen, uint32_t *cdatalen);
 
 int init_module(void ) {
@@ -276,10 +276,10 @@ int init_module(void ) {
 	int ret;
 
 	printk("Original data: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-	       testdata[0],testdata[1],testdata[2],testdata[3], 
-	       testdata[4],testdata[5],testdata[6],testdata[7], 
-	       testdata[8],testdata[9],testdata[10],testdata[11], 
-	       testdata[12],testdata[13],testdata[14],testdata[15]); 
+	       testdata[0],testdata[1],testdata[2],testdata[3],
+	       testdata[4],testdata[5],testdata[6],testdata[7],
+	       testdata[8],testdata[9],testdata[10],testdata[11],
+	       testdata[12],testdata[13],testdata[14],testdata[15]);
 	d = TESTDATA_LEN;
 	c = TESTDATA_LEN;
 	comprtype = jffs2_compress(testdata, comprbuf, &d, &c);
@@ -287,18 +287,18 @@ int init_module(void ) {
 	printk("jffs2_compress used compression type %d. Compressed size %d, uncompressed size %d\n",
 	       comprtype, c, d);
 	printk("Compressed data: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-	       comprbuf[0],comprbuf[1],comprbuf[2],comprbuf[3], 
-	       comprbuf[4],comprbuf[5],comprbuf[6],comprbuf[7], 
-	       comprbuf[8],comprbuf[9],comprbuf[10],comprbuf[11], 
-	       comprbuf[12],comprbuf[13],comprbuf[14],comprbuf[15]); 
+	       comprbuf[0],comprbuf[1],comprbuf[2],comprbuf[3],
+	       comprbuf[4],comprbuf[5],comprbuf[6],comprbuf[7],
+	       comprbuf[8],comprbuf[9],comprbuf[10],comprbuf[11],
+	       comprbuf[12],comprbuf[13],comprbuf[14],comprbuf[15]);
 
 	ret = jffs2_decompress(comprtype, comprbuf, decomprbuf, c, d);
 	printk("jffs2_decompress returned %d\n", ret);
 	printk("Decompressed data:  %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-	       decomprbuf[0],decomprbuf[1],decomprbuf[2],decomprbuf[3], 
-	       decomprbuf[4],decomprbuf[5],decomprbuf[6],decomprbuf[7], 
-	       decomprbuf[8],decomprbuf[9],decomprbuf[10],decomprbuf[11], 
-	       decomprbuf[12],decomprbuf[13],decomprbuf[14],decomprbuf[15]); 
+	       decomprbuf[0],decomprbuf[1],decomprbuf[2],decomprbuf[3],
+	       decomprbuf[4],decomprbuf[5],decomprbuf[6],decomprbuf[7],
+	       decomprbuf[8],decomprbuf[9],decomprbuf[10],decomprbuf[11],
+	       decomprbuf[12],decomprbuf[13],decomprbuf[14],decomprbuf[15]);
 	if (memcmp(decomprbuf, testdata, d))
 		printk("Compression and decompression corrupted data\n");
 	else

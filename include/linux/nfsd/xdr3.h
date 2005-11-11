@@ -42,7 +42,7 @@ struct nfsd3_writeargs {
 	__u64			offset;
 	__u32			count;
 	int			stable;
-	int			len;
+	__u32			len;
 	struct kvec		vec[RPCSVC_MAXPAGES];
 	int			vlen;
 };

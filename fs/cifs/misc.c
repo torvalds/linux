@@ -98,14 +98,10 @@ sesInfoFree(struct cifsSesInfo *buf_to_free)
 	atomic_dec(&sesInfoAllocCount);
 	list_del(&buf_to_free->cifsSessionList);
 	write_unlock(&GlobalSMBSeslock);
-	if (buf_to_free->serverOS)
-		kfree(buf_to_free->serverOS);
-	if (buf_to_free->serverDomain)
-		kfree(buf_to_free->serverDomain);
-	if (buf_to_free->serverNOS)
-		kfree(buf_to_free->serverNOS);
-	if (buf_to_free->password)
-		kfree(buf_to_free->password);
+	kfree(buf_to_free->serverOS);
+	kfree(buf_to_free->serverDomain);
+	kfree(buf_to_free->serverNOS);
+	kfree(buf_to_free->password);
 	kfree(buf_to_free);
 }
 
@@ -144,8 +140,7 @@ tconInfoFree(struct cifsTconInfo *buf_to_free)
 	atomic_dec(&tconInfoAllocCount);
 	list_del(&buf_to_free->cifsConnectionList);
 	write_unlock(&GlobalSMBSeslock);
-	if (buf_to_free->nativeFileSystem)
-		kfree(buf_to_free->nativeFileSystem);
+	kfree(buf_to_free->nativeFileSystem);
 	kfree(buf_to_free);
 }
 

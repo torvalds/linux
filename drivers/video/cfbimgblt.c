@@ -80,10 +80,12 @@ static u32 cfb_tab32[] = {
 #define LEFT_POS(bpp)          (32 - bpp)
 #define SHIFT_HIGH(val, bits)  ((val) >> (bits))
 #define SHIFT_LOW(val, bits)   ((val) << (bits))
+#define BIT_NR(b)              (7 - (b))
 #else
 #define LEFT_POS(bpp)          (0)
 #define SHIFT_HIGH(val, bits)  ((val) << (bits))
 #define SHIFT_LOW(val, bits)   ((val) >> (bits))
+#define BIT_NR(b)              (b)
 #endif
 
 static inline void color_imageblit(const struct fb_image *image, 
@@ -177,7 +179,7 @@ static inline void slow_imageblit(const struct fb_image *image, struct fb_info *
 
 		while (j--) {
 			l--;
-			color = (*s & (1 << l)) ? fgcolor : bgcolor;
+			color = (*s & 1 << (BIT_NR(l))) ? fgcolor : bgcolor;
 			color <<= LEFT_POS(bpp);
 			val |= SHIFT_HIGH(color, shift);
 			
@@ -272,32 +274,12 @@ void cfb_imageblit(struct fb_info *p, const struct fb_image *image)
 {
 	u32 fgcolor, bgcolor, start_index, bitstart, pitch_index = 0;
 	u32 bpl = sizeof(u32), bpp = p->var.bits_per_pixel;
-	u32 width = image->width, height = image->height; 
+	u32 width = image->width;
 	u32 dx = image->dx, dy = image->dy;
-	int x2, y2, vxres, vyres;
 	u8 __iomem *dst1;
 
 	if (p->state != FBINFO_STATE_RUNNING)
 		return;
-
-	vxres = p->var.xres_virtual;
-	vyres = p->var.yres_virtual;
-	/* 
-	 * We could use hardware clipping but on many cards you get around
-	 * hardware clipping by writing to framebuffer directly like we are
-	 * doing here. 
-	 */
-	if (image->dx > vxres || image->dy > vyres)
-		return;
-
-	x2 = image->dx + image->width;
-	y2 = image->dy + image->height;
-	dx = image->dx > 0 ? image->dx : 0;
-	dy = image->dy > 0 ? image->dy : 0;
-	x2 = x2 < vxres ? x2 : vxres;
-	y2 = y2 < vyres ? y2 : vyres;
-	width  = x2 - dx;
-	height = y2 - dy;
 
 	bitstart = (dy * p->fix.line_length * 8) + (dx * bpp);
 	start_index = bitstart & (32 - 1);

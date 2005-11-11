@@ -25,6 +25,8 @@
 
 #include <net/pkt_sched.h>
 
+#define VERSION "1.1"
+
 /*	Network Emulation Queuing algorithm.
 	====================================
 
@@ -185,10 +187,13 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	    || q->counter < q->gap 	/* inside last reordering gap */
 	    || q->reorder < get_crandom(&q->reorder_cor)) {
 		psched_time_t now;
+		psched_tdiff_t delay;
+
+		delay = tabledist(q->latency, q->jitter,
+				  &q->delay_cor, q->delay_dist);
+
 		PSCHED_GET_TIME(now);
-		PSCHED_TADD2(now, tabledist(q->latency, q->jitter, 
-					    &q->delay_cor, q->delay_dist),
-			     cb->time_to_send);
+		PSCHED_TADD2(now, delay, cb->time_to_send);
 		++q->counter;
 		ret = q->qdisc->enqueue(skb, q->qdisc);
 	} else {
@@ -248,24 +253,31 @@ static struct sk_buff *netem_dequeue(struct Qdisc *sch)
 		const struct netem_skb_cb *cb
 			= (const struct netem_skb_cb *)skb->cb;
 		psched_time_t now;
-		long delay;
 
 		/* if more time remaining? */
 		PSCHED_GET_TIME(now);
-		delay = PSCHED_US2JIFFIE(PSCHED_TDIFF(cb->time_to_send, now));
-		pr_debug("netem_run: skb=%p delay=%ld\n", skb, delay);
-		if (delay <= 0) {
+
+		if (PSCHED_TLESS(cb->time_to_send, now)) {
 			pr_debug("netem_dequeue: return skb=%p\n", skb);
 			sch->q.qlen--;
 			sch->flags &= ~TCQ_F_THROTTLED;
 			return skb;
+		} else {
+			psched_tdiff_t delay = PSCHED_TDIFF(cb->time_to_send, now);
+
+			if (q->qdisc->ops->requeue(skb, q->qdisc) != NET_XMIT_SUCCESS) {
+				sch->qstats.drops++;
+
+				/* After this qlen is confused */
+				printk(KERN_ERR "netem: queue discpline %s could not requeue\n",
+				       q->qdisc->ops->id);
+
+				sch->q.qlen--;
+			}
+
+			mod_timer(&q->timer, jiffies + PSCHED_US2JIFFIE(delay));
+			sch->flags |= TCQ_F_THROTTLED;
 		}
-
-		mod_timer(&q->timer, jiffies + delay);
-		sch->flags |= TCQ_F_THROTTLED;
-
-		if (q->qdisc->ops->requeue(skb, q->qdisc) != 0)
-			sch->qstats.drops++;
 	}
 
 	return NULL;
@@ -290,10 +302,15 @@ static void netem_reset(struct Qdisc *sch)
 	del_timer_sync(&q->timer);
 }
 
+/* Pass size change message down to embedded FIFO */
 static int set_fifo_limit(struct Qdisc *q, int limit)
 {
         struct rtattr *rta;
 	int ret = -ENOMEM;
+
+	/* Hack to avoid sending change message to non-FIFO */
+	if (strncmp(q->ops->id + 1, "fifo", 4) != 0)
+		return 0;
 
 	rta = kmalloc(RTA_LENGTH(sizeof(struct tc_fifo_qopt)), GFP_KERNEL);
 	if (rta) {
@@ -426,6 +443,84 @@ static int netem_change(struct Qdisc *sch, struct rtattr *opt)
 	return 0;
 }
 
+/*
+ * Special case version of FIFO queue for use by netem.
+ * It queues in order based on timestamps in skb's
+ */
+struct fifo_sched_data {
+	u32 limit;
+};
+
+static int tfifo_enqueue(struct sk_buff *nskb, struct Qdisc *sch)
+{
+	struct fifo_sched_data *q = qdisc_priv(sch);
+	struct sk_buff_head *list = &sch->q;
+	const struct netem_skb_cb *ncb
+		= (const struct netem_skb_cb *)nskb->cb;
+	struct sk_buff *skb;
+
+	if (likely(skb_queue_len(list) < q->limit)) {
+		skb_queue_reverse_walk(list, skb) {
+			const struct netem_skb_cb *cb
+				= (const struct netem_skb_cb *)skb->cb;
+
+			if (PSCHED_TLESS(cb->time_to_send, ncb->time_to_send))
+				break;
+		}
+
+		__skb_queue_after(list, skb, nskb);
+
+		sch->qstats.backlog += nskb->len;
+		sch->bstats.bytes += nskb->len;
+		sch->bstats.packets++;
+
+		return NET_XMIT_SUCCESS;
+	}
+
+	return qdisc_drop(nskb, sch);
+}
+
+static int tfifo_init(struct Qdisc *sch, struct rtattr *opt)
+{
+	struct fifo_sched_data *q = qdisc_priv(sch);
+
+	if (opt) {
+		struct tc_fifo_qopt *ctl = RTA_DATA(opt);
+		if (RTA_PAYLOAD(opt) < sizeof(*ctl))
+			return -EINVAL;
+
+		q->limit = ctl->limit;
+	} else
+		q->limit = max_t(u32, sch->dev->tx_queue_len, 1);
+
+	return 0;
+}
+
+static int tfifo_dump(struct Qdisc *sch, struct sk_buff *skb)
+{
+	struct fifo_sched_data *q = qdisc_priv(sch);
+	struct tc_fifo_qopt opt = { .limit = q->limit };
+
+	RTA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
+	return skb->len;
+
+rtattr_failure:
+	return -1;
+}
+
+static struct Qdisc_ops tfifo_qdisc_ops = {
+	.id		=	"tfifo",
+	.priv_size	=	sizeof(struct fifo_sched_data),
+	.enqueue	=	tfifo_enqueue,
+	.dequeue	=	qdisc_dequeue_head,
+	.requeue	=	qdisc_requeue,
+	.drop		=	qdisc_queue_drop,
+	.init		=	tfifo_init,
+	.reset		=	qdisc_reset_queue,
+	.change		=	tfifo_init,
+	.dump		=	tfifo_dump,
+};
+
 static int netem_init(struct Qdisc *sch, struct rtattr *opt)
 {
 	struct netem_sched_data *q = qdisc_priv(sch);
@@ -438,7 +533,7 @@ static int netem_init(struct Qdisc *sch, struct rtattr *opt)
 	q->timer.function = netem_watchdog;
 	q->timer.data = (unsigned long) sch;
 
-	q->qdisc = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops);
+	q->qdisc = qdisc_create_dflt(sch->dev, &tfifo_qdisc_ops);
 	if (!q->qdisc) {
 		pr_debug("netem: qdisc create failed\n");
 		return -ENOMEM;
@@ -601,6 +696,7 @@ static struct Qdisc_ops netem_qdisc_ops = {
 
 static int __init netem_module_init(void)
 {
+	pr_info("netem: version " VERSION "\n");
 	return register_qdisc(&netem_qdisc_ops);
 }
 static void __exit netem_module_exit(void)

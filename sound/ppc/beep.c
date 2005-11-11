@@ -171,8 +171,6 @@ static int snd_pmac_beep_event(struct input_dev *dev, unsigned int type, unsigne
  * beep volume mixer
  */
 
-#define chip_t pmac_t
-
 static int snd_pmac_info_beep(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t *uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;

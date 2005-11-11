@@ -96,7 +96,6 @@
 
 #undef HP100_MULTICAST_FILTER	/* Need to be debugged... */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>

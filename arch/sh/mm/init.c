@@ -51,11 +51,6 @@ unsigned long mmu_context_cache = NO_CONTEXT;
 #define MAX_LOW_PFN	(NODE_DATA(0)->bdata->node_low_pfn)
 #endif
 
-#ifdef CONFIG_DISCONTIGMEM
-pg_data_t discontig_page_data[MAX_NUMNODES];
-bootmem_data_t discontig_node_bdata[MAX_NUMNODES];
-#endif
-
 void (*copy_page)(void *from, void *to);
 void (*clear_page)(void *to);
 
@@ -216,15 +211,6 @@ void __init paging_init(void)
 #endif
 	NODE_DATA(0)->node_mem_map = NULL;
 	free_area_init_node(0, NODE_DATA(0), zones_size, __MEMORY_START >> PAGE_SHIFT, 0);
-
-#ifdef CONFIG_DISCONTIGMEM
-	/*
-	 * And for discontig, do some more fixups on the zone sizes..
-	 */
-	zones_size[ZONE_DMA] = __MEMORY_SIZE_2ND >> PAGE_SHIFT;
-	zones_size[ZONE_NORMAL] = 0;
-	free_area_init_node(1, NODE_DATA(1), zones_size, __MEMORY_START_2ND >> PAGE_SHIFT, 0);
-#endif
 }
 
 void __init mem_init(void)
@@ -248,7 +234,7 @@ void __init mem_init(void)
 	memset(empty_zero_page, 0, PAGE_SIZE);
 	__flush_wback_region(empty_zero_page, PAGE_SIZE);
 
-	/* 
+	/*
 	 * Setup wrappers for copy/clear_page(), these will get overridden
 	 * later in the boot process if a better method is available.
 	 */
@@ -257,9 +243,6 @@ void __init mem_init(void)
 
 	/* this will put all low memory onto the freelists */
 	totalram_pages += free_all_bootmem_node(NODE_DATA(0));
-#ifdef CONFIG_DISCONTIGMEM
-	totalram_pages += free_all_bootmem_node(NODE_DATA(1));
-#endif
 	reservedpages = 0;
 	for (tmp = 0; tmp < num_physpages; tmp++)
 		/*
@@ -286,7 +269,7 @@ void __init mem_init(void)
 void free_initmem(void)
 {
 	unsigned long addr;
-	
+
 	addr = (unsigned long)(&__init_begin);
 	for (; addr < (unsigned long)(&__init_end); addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));

@@ -18,6 +18,11 @@
 #ifndef SSP_H
 #define SSP_H
 
+/*
+ * SSP initialisation flags
+ */
+#define SSP_NO_IRQ	0x1		/* don't register an irq handler in SSP driver */
+
 struct ssp_state {
 	u32	cr0;
 	u32 cr1;
@@ -31,6 +36,7 @@ struct ssp_dev {
 	u32 flags;
 	u32 psp_flags;
 	u32 speed;
+	int irq;
 };
 
 int ssp_write_word(struct ssp_dev *dev, u32 data);
@@ -40,7 +46,7 @@ void ssp_enable(struct ssp_dev *dev);
 void ssp_disable(struct ssp_dev *dev);
 void ssp_save_state(struct ssp_dev *dev, struct ssp_state *ssp);
 void ssp_restore_state(struct ssp_dev *dev, struct ssp_state *ssp);
-int ssp_init(struct ssp_dev *dev, u32 port);
+int ssp_init(struct ssp_dev *dev, u32 port, u32 init_flags);
 int ssp_config(struct ssp_dev *dev, u32 mode, u32 flags, u32 psp_flags, u32 speed);
 void ssp_exit(struct ssp_dev *dev);
 

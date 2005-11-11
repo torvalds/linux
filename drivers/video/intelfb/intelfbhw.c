@@ -34,7 +34,6 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
-#include <linux/version.h>
 
 #include <asm/io.h>
 
@@ -98,6 +97,11 @@ intelfbhw_get_chipset(struct pci_dev *pdev, const char **name, int *chipset,
 		*name = "Intel(R) 915G";
 		*chipset = INTEL_915G;
 		*mobile = 0;
+		return 0;
+	case PCI_DEVICE_ID_INTEL_915GM:
+		*name = "Intel(R) 915GM";
+		*chipset = INTEL_915GM;
+		*mobile = 1;
 		return 0;
 	default:
 		return 1;

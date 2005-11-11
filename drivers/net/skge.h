@@ -6,6 +6,8 @@
 
 /* PCI config registers */
 #define PCI_DEV_REG1	0x40
+#define  PCI_PHY_COMA	0x8000000
+#define  PCI_VIO	0x2000000
 #define PCI_DEV_REG2	0x44
 #define  PCI_REV_DESC	 0x4
 

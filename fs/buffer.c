@@ -396,7 +396,7 @@ asmlinkage long sys_fdatasync(unsigned int fd)
  * private_lock is contended then so is mapping->tree_lock).
  */
 static struct buffer_head *
-__find_get_block_slow(struct block_device *bdev, sector_t block, int unused)
+__find_get_block_slow(struct block_device *bdev, sector_t block)
 {
 	struct inode *bd_inode = bdev->bd_inode;
 	struct address_space *bd_mapping = bd_inode->i_mapping;
@@ -1438,7 +1438,7 @@ __find_get_block(struct block_device *bdev, sector_t block, int size)
 	struct buffer_head *bh = lookup_bh_lru(bdev, block, size);
 
 	if (bh == NULL) {
-		bh = __find_get_block_slow(bdev, block, size);
+		bh = __find_get_block_slow(bdev, block);
 		if (bh)
 			bh_lru_install(bh);
 	}
@@ -1705,7 +1705,7 @@ void unmap_underlying_metadata(struct block_device *bdev, sector_t block)
 
 	might_sleep();
 
-	old_bh = __find_get_block_slow(bdev, block, 0);
+	old_bh = __find_get_block_slow(bdev, block);
 	if (old_bh) {
 		clear_buffer_dirty(old_bh);
 		wait_on_buffer(old_bh);

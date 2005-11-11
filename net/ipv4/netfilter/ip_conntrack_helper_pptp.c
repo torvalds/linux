@@ -270,13 +270,9 @@ exp_gre(struct ip_conntrack *master,
 	exp_orig->expectfn = pptp_expectfn;
 	exp_orig->flags = 0;
 
-	exp_orig->dir = IP_CT_DIR_ORIGINAL;
-
 	/* both expectations are identical apart from tuple */
 	memcpy(exp_reply, exp_orig, sizeof(*exp_reply));
 	memcpy(&exp_reply->tuple, &exp_tuples[1], sizeof(exp_reply->tuple));
-
-	exp_reply->dir = !exp_orig->dir;
 
 	if (ip_nat_pptp_hook_exp_gre)
 		ret = ip_nat_pptp_hook_exp_gre(exp_orig, exp_reply);

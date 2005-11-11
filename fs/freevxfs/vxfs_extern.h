@@ -38,7 +38,7 @@
  */
 
 
-struct kmem_cache_s;
+struct kmem_cache;
 struct super_block;
 struct vxfs_inode_info;
 struct inode;
@@ -51,7 +51,7 @@ extern daddr_t			vxfs_bmap1(struct inode *, long);
 extern int			vxfs_read_fshead(struct super_block *);
 
 /* vxfs_inode.c */
-extern struct kmem_cache_s	*vxfs_inode_cachep;
+extern struct kmem_cache	*vxfs_inode_cachep;
 extern void			vxfs_dumpi(struct vxfs_inode_info *, ino_t);
 extern struct inode *		vxfs_get_fake_inode(struct super_block *,
 					struct vxfs_inode_info *);

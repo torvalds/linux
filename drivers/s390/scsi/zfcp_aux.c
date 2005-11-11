@@ -450,8 +450,7 @@ zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
 		kfree(sg_list);
 	}
 
-	if (sense_data != NULL)
-		kfree(sense_data);
+	kfree(sense_data);
 
 	return retval;
 }

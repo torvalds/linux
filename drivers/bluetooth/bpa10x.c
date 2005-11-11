@@ -84,8 +84,8 @@ struct bpa10x_data {
 
 struct hci_vendor_hdr {
 	__u8	type;
-	__u16	snum;
-	__u16	dlen;
+	__le16	snum;
+	__le16	dlen;
 } __attribute__ ((packed));
 
 static void bpa10x_recv_bulk(struct bpa10x_data *data, unsigned char *buf, int count)
@@ -553,13 +553,11 @@ static int bpa10x_probe(struct usb_interface *intf, const struct usb_device_id *
 	if (intf->cur_altsetting->desc.bInterfaceNumber > 0)
 		return -ENODEV;
 
-	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
 		BT_ERR("Can't allocate data structure");
 		return -ENOMEM;
 	}
-
-	memset(data, 0, sizeof(*data));
 
 	data->udev = udev;
 

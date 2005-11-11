@@ -427,7 +427,7 @@ void __init ixp4xx_pci_preinit(void)
 #ifdef __ARMEB__
 	*PCI_CSR = PCI_CSR_IC | PCI_CSR_ABE | PCI_CSR_PDS | PCI_CSR_ADS;
 #else
-	*PCI_CSR = PCI_CSR_IC;
+	*PCI_CSR = PCI_CSR_IC | PCI_CSR_ABE;
 #endif
 
 	pr_debug("DONE\n");

@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/cache.h>
 #include <linux/percpu.h>
+#include <linux/skbuff.h>
 
 #include <net/inet_connection_sock.h>
 #include <net/inet_timewait_sock.h>
@@ -88,10 +89,10 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 				 */
 
 #define TCP_SYN_RETRIES	 5	/* number of times to retry active opening a
-				 * connection: ~180sec is RFC minumum	*/
+				 * connection: ~180sec is RFC minimum	*/
 
 #define TCP_SYNACK_RETRIES 5	/* number of times to retry passive opening a
-				 * connection: ~180sec is RFC minumum	*/
+				 * connection: ~180sec is RFC minimum	*/
 
 
 #define TCP_ORPHAN_RETRIES 7	/* number of times to retry on an orphaned
@@ -179,7 +180,7 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 /* Flags in tp->nonagle */
 #define TCP_NAGLE_OFF		1	/* Nagle's algo is disabled */
 #define TCP_NAGLE_CORK		2	/* Socket is corked	    */
-#define TCP_NAGLE_PUSH		4	/* Cork is overriden for already queued data */
+#define TCP_NAGLE_PUSH		4	/* Cork is overridden for already queued data */
 
 extern struct inet_timewait_death_row tcp_death_row;
 
@@ -217,6 +218,7 @@ extern int sysctl_tcp_low_latency;
 extern int sysctl_tcp_nometrics_save;
 extern int sysctl_tcp_moderate_rcvbuf;
 extern int sysctl_tcp_tso_win_divisor;
+extern int sysctl_tcp_abc;
 
 extern atomic_t tcp_memory_allocated;
 extern atomic_t tcp_sockets_allocated;
@@ -550,13 +552,13 @@ extern u32	__tcp_select_window(struct sock *sk);
 
 /* TCP timestamps are only 32-bits, this causes a slight
  * complication on 64-bit systems since we store a snapshot
- * of jiffies in the buffer control blocks below.  We decidely
+ * of jiffies in the buffer control blocks below.  We decidedly
  * only use of the low 32-bits of jiffies and hide the ugly
  * casts with the following macro.
  */
 #define tcp_time_stamp		((__u32)(jiffies))
 
-/* This is what the send packet queueing engine uses to pass
+/* This is what the send packet queuing engine uses to pass
  * TCP per-packet control information to the transmission
  * code.  We also store the host-order sequence numbers in
  * here too.  This is 36 bytes on 32-bit architectures,
@@ -596,7 +598,7 @@ struct tcp_skb_cb {
 #define TCPCB_EVER_RETRANS	0x80	/* Ever retransmitted frame	*/
 #define TCPCB_RETRANS		(TCPCB_SACKED_RETRANS|TCPCB_EVER_RETRANS)
 
-#define TCPCB_URG		0x20	/* Urgent pointer advenced here	*/
+#define TCPCB_URG		0x20	/* Urgent pointer advanced here	*/
 
 #define TCPCB_AT_TAIL		(TCPCB_URG)
 
@@ -764,6 +766,33 @@ static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 			    (tp->snd_cwnd >> 2)));
 }
 
+/*
+ * Linear increase during slow start
+ */
+static inline void tcp_slow_start(struct tcp_sock *tp)
+{
+	if (sysctl_tcp_abc) {
+		/* RFC3465: Slow Start
+		 * TCP sender SHOULD increase cwnd by the number of
+		 * previously unacknowledged bytes ACKed by each incoming
+		 * acknowledgment, provided the increase is not more than L
+		 */
+		if (tp->bytes_acked < tp->mss_cache)
+			return;
+
+		/* We MAY increase by 2 if discovered delayed ack */
+		if (sysctl_tcp_abc > 1 && tp->bytes_acked > 2*tp->mss_cache) {
+			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
+				tp->snd_cwnd++;
+		}
+	}
+	tp->bytes_acked = 0;
+
+	if (tp->snd_cwnd < tp->snd_cwnd_clamp)
+		tp->snd_cwnd++;
+}
+
+
 static inline void tcp_sync_left_out(struct tcp_sock *tp)
 {
 	if (tp->rx_opt.sack_ok &&
@@ -793,6 +822,7 @@ static inline void tcp_enter_cwr(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	tp->prior_ssthresh = 0;
+	tp->bytes_acked = 0;
 	if (inet_csk(sk)->icsk_ca_state < TCP_CA_CWR) {
 		__tcp_enter_cwr(sk);
 		tcp_set_ca_state(sk, TCP_CA_CWR);
@@ -807,6 +837,27 @@ extern __u32 tcp_init_cwnd(struct tcp_sock *tp, struct dst_entry *dst);
 static __inline__ __u32 tcp_max_burst(const struct tcp_sock *tp)
 {
 	return 3;
+}
+
+/* RFC2861 Check whether we are limited by application or congestion window
+ * This is the inverse of cwnd check in tcp_tso_should_defer
+ */
+static inline int tcp_is_cwnd_limited(const struct sock *sk, u32 in_flight)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+	u32 left;
+
+	if (in_flight >= tp->snd_cwnd)
+		return 1;
+
+	if (!(sk->sk_route_caps & NETIF_F_TSO))
+		return 0;
+
+	left = tp->snd_cwnd - in_flight;
+	if (sysctl_tcp_tso_win_divisor)
+		return left * sysctl_tcp_tso_win_divisor < tp->snd_cwnd;
+	else
+		return left <= tcp_max_burst(tp);
 }
 
 static __inline__ void tcp_minshall_update(struct tcp_sock *tp, int mss, 
@@ -852,7 +903,7 @@ static __inline__ u16 tcp_v4_check(struct tcphdr *th, int len,
 
 static __inline__ int __tcp_checksum_complete(struct sk_buff *skb)
 {
-	return (unsigned short)csum_fold(skb_checksum(skb, 0, skb->len, skb->csum));
+	return __skb_checksum_complete(skb);
 }
 
 static __inline__ int tcp_checksum_complete(struct sk_buff *skb)
@@ -1154,6 +1205,15 @@ static inline void tcp_mib_init(void)
 	TCP_ADD_STATS_USER(TCP_MIB_RTOMIN, TCP_RTO_MIN*1000/HZ);
 	TCP_ADD_STATS_USER(TCP_MIB_RTOMAX, TCP_RTO_MAX*1000/HZ);
 	TCP_ADD_STATS_USER(TCP_MIB_MAXCONN, -1);
+}
+
+/*from STCP */
+static inline void clear_all_retrans_hints(struct tcp_sock *tp){
+	tp->lost_skb_hint = NULL;
+	tp->scoreboard_skb_hint = NULL;
+	tp->retransmit_skb_hint = NULL;
+	tp->forward_skb_hint = NULL;
+	tp->fastpath_skb_hint = NULL;
 }
 
 /* /proc */

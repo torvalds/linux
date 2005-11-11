@@ -500,7 +500,6 @@ MODULE_DEVICE_TABLE(pci, synclinkmp_pci_tbl);
 MODULE_LICENSE("GPL");
 
 static struct pci_driver synclinkmp_pci_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "synclinkmp",
 	.id_table	= synclinkmp_pci_tbl,
 	.probe		= synclinkmp_init_one,
@@ -2788,10 +2787,8 @@ static void shutdown(SLMP_INFO * info)
 	del_timer(&info->tx_timer);
 	del_timer(&info->status_timer);
 
-	if (info->tx_buf) {
-		kfree(info->tx_buf);
-		info->tx_buf = NULL;
-	}
+	kfree(info->tx_buf);
+	info->tx_buf = NULL;
 
 	spin_lock_irqsave(&info->lock,flags);
 
@@ -3611,8 +3608,7 @@ int alloc_tmp_rx_buf(SLMP_INFO *info)
 
 void free_tmp_rx_buf(SLMP_INFO *info)
 {
-	if (info->tmp_rx_buf)
-		kfree(info->tmp_rx_buf);
+	kfree(info->tmp_rx_buf);
 	info->tmp_rx_buf = NULL;
 }
 

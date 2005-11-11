@@ -92,9 +92,9 @@ static int snd_ymfpci_codec_ready(ymfpci_t *chip, int secondary)
 		if ((snd_ymfpci_readw(chip, reg) & 0x8000) == 0)
 			return 0;
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (time_before(jiffies, end_time));
-	snd_printk("codec_ready: codec %i is not ready [0x%x]\n", secondary, snd_ymfpci_readw(chip, reg));
+	snd_printk(KERN_ERR "codec_ready: codec %i is not ready [0x%x]\n", secondary, snd_ymfpci_readw(chip, reg));
 	return -EBUSY;
 }
 
@@ -728,8 +728,7 @@ static void snd_ymfpci_irq_wait(ymfpci_t *chip)
 		init_waitqueue_entry(&wait, current);
 		add_wait_queue(&chip->interrupt_sleep, &wait);
 		atomic_inc(&chip->interrupt_sleep_count);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(HZ/20);
+		schedule_timeout_uninterruptible(msecs_to_jiffies(50));
 		remove_wait_queue(&chip->interrupt_sleep, &wait);
 	}
 }
@@ -1421,15 +1420,18 @@ static snd_kcontrol_new_t snd_ymfpci_drec_source __devinitdata = {
  *  Mixer controls
  */
 
-#define YMFPCI_SINGLE(xname, xindex, reg) \
+#define YMFPCI_SINGLE(xname, xindex, reg, shift) \
 { .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = xindex, \
   .info = snd_ymfpci_info_single, \
   .get = snd_ymfpci_get_single, .put = snd_ymfpci_put_single, \
-  .private_value = reg }
+  .private_value = ((reg) | ((shift) << 16)) }
 
-static int snd_ymfpci_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
+static int snd_ymfpci_info_single(snd_kcontrol_t *kcontrol,
+				  snd_ctl_elem_info_t *uinfo)
 {
-	switch (kcontrol->private_value) {
+	int reg = kcontrol->private_value & 0xffff;
+
+	switch (reg) {
 	case YDSXGR_SPDIFOUTCTRL: break;
 	case YDSXGR_SPDIFINCTRL: break;
 	default: return -EINVAL;
@@ -1441,30 +1443,35 @@ static int snd_ymfpci_info_single(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t 
 	return 0;
 }
 
-static int snd_ymfpci_get_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_ymfpci_get_single(snd_kcontrol_t *kcontrol,
+				 snd_ctl_elem_value_t *ucontrol)
 {
 	ymfpci_t *chip = snd_kcontrol_chip(kcontrol);
-	int reg = kcontrol->private_value;
-	unsigned int shift = 0, mask = 1;
+	int reg = kcontrol->private_value & 0xffff;
+	unsigned int shift = (kcontrol->private_value >> 16) & 0xff;
+	unsigned int mask = 1;
 	
-	switch (kcontrol->private_value) {
+	switch (reg) {
 	case YDSXGR_SPDIFOUTCTRL: break;
 	case YDSXGR_SPDIFINCTRL: break;
 	default: return -EINVAL;
 	}
-	ucontrol->value.integer.value[0] = (snd_ymfpci_readl(chip, reg) >> shift) & mask;
+	ucontrol->value.integer.value[0] =
+		(snd_ymfpci_readl(chip, reg) >> shift) & mask;
 	return 0;
 }
 
-static int snd_ymfpci_put_single(snd_kcontrol_t * kcontrol, snd_ctl_elem_value_t * ucontrol)
+static int snd_ymfpci_put_single(snd_kcontrol_t *kcontrol,
+				 snd_ctl_elem_value_t *ucontrol)
 {
 	ymfpci_t *chip = snd_kcontrol_chip(kcontrol);
-	int reg = kcontrol->private_value;
-	unsigned int shift = 0, mask = 1;
+	int reg = kcontrol->private_value & 0xffff;
+	unsigned int shift = (kcontrol->private_value >> 16) & 0xff;
+ 	unsigned int mask = 1;
 	int change;
 	unsigned int val, oval;
 	
-	switch (kcontrol->private_value) {
+	switch (reg) {
 	case YDSXGR_SPDIFOUTCTRL: break;
 	case YDSXGR_SPDIFINCTRL: break;
 	default: return -EINVAL;
@@ -1583,8 +1590,9 @@ YMFPCI_DOUBLE(SNDRV_CTL_NAME_IEC958("AC97 ", PLAYBACK,VOLUME), 0, YDSXGR_ZVOUTVO
 YMFPCI_DOUBLE(SNDRV_CTL_NAME_IEC958("", CAPTURE,VOLUME), 0, YDSXGR_ZVLOOPVOL),
 YMFPCI_DOUBLE(SNDRV_CTL_NAME_IEC958("AC97 ",PLAYBACK,VOLUME), 1, YDSXGR_SPDIFOUTVOL),
 YMFPCI_DOUBLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,VOLUME), 1, YDSXGR_SPDIFLOOPVOL),
-YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH), 0, YDSXGR_SPDIFOUTCTRL),
-YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), 0, YDSXGR_SPDIFINCTRL),
+YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH), 0, YDSXGR_SPDIFOUTCTRL, 0),
+YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), 0, YDSXGR_SPDIFINCTRL, 0),
+YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("Loop",NONE,NONE), 0, YDSXGR_SPDIFINCTRL, 4),
 {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "4ch Duplication",
@@ -1842,9 +1850,7 @@ static int snd_ymfpci_timer_start(snd_timer_t *timer)
 	unsigned int count;
 
 	chip = snd_timer_chip(timer);
-	count = timer->sticks - 1;
-	if (count == 0) /* minimum time is 20.8 us */
-		count = 1;
+	count = (timer->sticks << 1) - 1;
 	spin_lock_irqsave(&chip->reg_lock, flags);
 	snd_ymfpci_writew(chip, YDSXGR_TIMERCOUNT, count);
 	snd_ymfpci_writeb(chip, YDSXGR_TIMERCTRL, 0x03);
@@ -1868,14 +1874,14 @@ static int snd_ymfpci_timer_precise_resolution(snd_timer_t *timer,
 					       unsigned long *num, unsigned long *den)
 {
 	*num = 1;
-	*den = 96000;
+	*den = 48000;
 	return 0;
 }
 
 static struct _snd_timer_hardware snd_ymfpci_timer_hw = {
 	.flags = SNDRV_TIMER_HW_AUTO,
-	.resolution = 10417, /* 1/2fs = 10.41666...us */
-	.ticks = 65536,
+	.resolution = 20833, /* 1/fs = 20.8333...us */
+	.ticks = 0x8000,
 	.start = snd_ymfpci_timer_start,
 	.stop = snd_ymfpci_timer_stop,
 	.precise_resolution = snd_ymfpci_timer_precise_resolution,
@@ -2142,14 +2148,8 @@ static int snd_ymfpci_free(ymfpci_t *chip)
 #ifdef CONFIG_PM
 	vfree(chip->saved_regs);
 #endif
-	if (chip->mpu_res) {
-		release_resource(chip->mpu_res);
-		kfree_nocheck(chip->mpu_res);
-	}
-	if (chip->fm_res) {
-		release_resource(chip->fm_res);
-		kfree_nocheck(chip->fm_res);
-	}
+	release_and_free_resource(chip->mpu_res);
+	release_and_free_resource(chip->fm_res);
 	snd_ymfpci_free_gameport(chip);
 	if (chip->reg_area_virt)
 		iounmap(chip->reg_area_virt);
@@ -2158,10 +2158,7 @@ static int snd_ymfpci_free(ymfpci_t *chip)
 	
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void *)chip);
-	if (chip->res_reg_area) {
-		release_resource(chip->res_reg_area);
-		kfree_nocheck(chip->res_reg_area);
-	}
+	release_and_free_resource(chip->res_reg_area);
 
 	pci_write_config_word(chip->pci, 0x40, chip->old_legacy_ctrl);
 	
@@ -2290,12 +2287,12 @@ int __devinit snd_ymfpci_create(snd_card_t * card,
 	pci_set_master(pci);
 
 	if ((chip->res_reg_area = request_mem_region(chip->reg_area_phys, 0x8000, "YMFPCI")) == NULL) {
-		snd_printk("unable to grab memory region 0x%lx-0x%lx\n", chip->reg_area_phys, chip->reg_area_phys + 0x8000 - 1);
+		snd_printk(KERN_ERR "unable to grab memory region 0x%lx-0x%lx\n", chip->reg_area_phys, chip->reg_area_phys + 0x8000 - 1);
 		snd_ymfpci_free(chip);
 		return -EBUSY;
 	}
 	if (request_irq(pci->irq, snd_ymfpci_interrupt, SA_INTERRUPT|SA_SHIRQ, "YMFPCI", (void *) chip)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		snd_ymfpci_free(chip);
 		return -EBUSY;
 	}

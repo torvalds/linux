@@ -29,7 +29,6 @@
 #include <linux/pm.h>			/* pm_message_t */
 
 /* Typedef's */
-typedef struct timespec snd_timestamp_t;
 typedef struct sndrv_interval snd_interval_t;
 typedef enum sndrv_card_type snd_card_type;
 typedef struct sndrv_xferi snd_xferi_t;
@@ -256,6 +255,7 @@ typedef struct _snd_minor snd_minor_t;
 
 /* sound.c */
 
+extern int snd_major;
 extern int snd_ecards_limit;
 
 void snd_request_card(int card);
@@ -285,39 +285,6 @@ int snd_oss_init_module(void);
 
 /* memory.c */
 
-#ifdef CONFIG_SND_DEBUG_MEMORY
-void snd_memory_init(void);
-void snd_memory_done(void);
-int snd_memory_info_init(void);
-int snd_memory_info_done(void);
-void *snd_hidden_kmalloc(size_t size, gfp_t flags);
-void *snd_hidden_kzalloc(size_t size, gfp_t flags);
-void *snd_hidden_kcalloc(size_t n, size_t size, gfp_t flags);
-void snd_hidden_kfree(const void *obj);
-void *snd_hidden_vmalloc(unsigned long size);
-void snd_hidden_vfree(void *obj);
-char *snd_hidden_kstrdup(const char *s, gfp_t flags);
-#define kmalloc(size, flags) snd_hidden_kmalloc(size, flags)
-#define kzalloc(size, flags) snd_hidden_kzalloc(size, flags)
-#define kcalloc(n, size, flags) snd_hidden_kcalloc(n, size, flags)
-#define kfree(obj) snd_hidden_kfree(obj)
-#define vmalloc(size) snd_hidden_vmalloc(size)
-#define vfree(obj) snd_hidden_vfree(obj)
-#define kmalloc_nocheck(size, flags) snd_wrapper_kmalloc(size, flags)
-#define vmalloc_nocheck(size) snd_wrapper_vmalloc(size)
-#define kfree_nocheck(obj) snd_wrapper_kfree(obj)
-#define vfree_nocheck(obj) snd_wrapper_vfree(obj)
-#define kstrdup(s, flags)  snd_hidden_kstrdup(s, flags)
-#else
-#define snd_memory_init() /*NOP*/
-#define snd_memory_done() /*NOP*/
-#define snd_memory_info_init() /*NOP*/
-#define snd_memory_info_done() /*NOP*/
-#define kmalloc_nocheck(size, flags) kmalloc(size, flags)
-#define vmalloc_nocheck(size) vmalloc(size)
-#define kfree_nocheck(obj) kfree(obj)
-#define vfree_nocheck(obj) vfree(obj)
-#endif
 int copy_to_user_fromio(void __user *dst, const volatile void __iomem *src, size_t count);
 int copy_from_user_toio(volatile void __iomem *dst, const void __user *src, size_t count);
 
@@ -373,8 +340,9 @@ unsigned int snd_dma_pointer(unsigned long dma, unsigned int size);
 #endif
 
 /* misc.c */
+struct resource;
+void release_and_free_resource(struct resource *res);
 
-int snd_task_name(struct task_struct *task, char *name, size_t size);
 #ifdef CONFIG_SND_VERBOSE_PRINTK
 void snd_verbose_printk(const char *file, int line, const char *format, ...)
      __attribute__ ((format (printf, 3, 4)));
@@ -429,34 +397,24 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
  * When CONFIG_SND_DEBUG is not set, the expression is executed but
  * not checked.
  */
-#define snd_assert(expr, args...) do {\
-	if (unlikely(!(expr))) {				\
-		snd_printk(KERN_ERR "BUG? (%s) (called from %p)\n", __ASTRING__(expr), __builtin_return_address(0));\
-		args;\
-	}\
+#define snd_assert(expr, args...) do {					\
+	if (unlikely(!(expr))) {					\
+		snd_printk(KERN_ERR "BUG? (%s)\n", __ASTRING__(expr));	\
+		dump_stack();						\
+		args;							\
+	}								\
 } while (0)
-/**
- * snd_runtime_check - run-time assertion macro
- * @expr: expression
- * @args...: the action
- *
- * This macro checks the expression in run-time and invokes the commands
- * given in the rest arguments if the assertion is failed.
- * Unlike snd_assert(), the action commands are executed even if
- * CONFIG_SND_DEBUG is not set but without any error messages.
- */
-#define snd_runtime_check(expr, args...) do {\
-	if (unlikely(!(expr))) {				\
-		snd_printk(KERN_ERR "ERROR (%s) (called from %p)\n", __ASTRING__(expr), __builtin_return_address(0));\
-		args;\
-	}\
+
+#define snd_BUG() do {				\
+	snd_printk(KERN_ERR "BUG?\n");		\
+	dump_stack();				\
 } while (0)
 
 #else /* !CONFIG_SND_DEBUG */
 
 #define snd_printd(fmt, args...)	/* nothing */
 #define snd_assert(expr, args...)	(void)(expr)
-#define snd_runtime_check(expr, args...) do { if (!(expr)) { args; } } while (0)
+#define snd_BUG()			/* nothing */
 
 #endif /* CONFIG_SND_DEBUG */
 
@@ -473,30 +431,6 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 #define snd_printdd(format, args...) /* nothing */
 #endif
 
-#define snd_BUG() snd_assert(0, )
-
-
-static inline void snd_timestamp_now(struct timespec *tstamp, int timespec)
-{
-	struct timeval val;
-	/* FIXME: use a linear time source */
-	do_gettimeofday(&val);
-	tstamp->tv_sec = val.tv_sec;
-	tstamp->tv_nsec = val.tv_usec;
-	if (timespec)
-		tstamp->tv_nsec *= 1000L;
-}
-
-static inline void snd_timestamp_zero(struct timespec *tstamp)
-{
-	tstamp->tv_sec = 0;
-	tstamp->tv_nsec = 0;
-}
-
-static inline int snd_timestamp_null(struct timespec *tstamp)
-{
-	return tstamp->tv_sec == 0 && tstamp->tv_nsec == 0;
-}
 
 #define SNDRV_OSS_VERSION         ((3<<16)|(8<<8)|(1<<4)|(0))	/* 3.8.1a */
 

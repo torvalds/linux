@@ -74,7 +74,6 @@ int main(void)
 	DEFINE(ICACHEL1LINESIZE, offsetof(struct ppc64_caches, iline_size));
 	DEFINE(ICACHEL1LOGLINESIZE, offsetof(struct ppc64_caches, log_iline_size));
 	DEFINE(ICACHEL1LINESPERPAGE, offsetof(struct ppc64_caches, ilines_per_page));
-	DEFINE(PLATFORM, offsetof(struct systemcfg, platform));
 	DEFINE(PLATFORM_LPAR, PLATFORM_LPAR);
 
 	/* paca */
@@ -93,6 +92,9 @@ int main(void)
 	DEFINE(PACASLBCACHE, offsetof(struct paca_struct, slb_cache));
 	DEFINE(PACASLBCACHEPTR, offsetof(struct paca_struct, slb_cache_ptr));
 	DEFINE(PACACONTEXTID, offsetof(struct paca_struct, context.id));
+#ifdef CONFIG_PPC_64K_PAGES
+	DEFINE(PACAPGDIR, offsetof(struct paca_struct, pgdir));
+#endif
 #ifdef CONFIG_HUGETLB_PAGE
 	DEFINE(PACALOWHTLBAREAS, offsetof(struct paca_struct, context.low_htlb_areas));
 	DEFINE(PACAHIGHHTLBAREAS, offsetof(struct paca_struct, context.high_htlb_areas));

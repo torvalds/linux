@@ -28,7 +28,7 @@ static fastcall void pentium_machine_check(struct pt_regs * regs, long error_cod
 }
 
 /* Set up machine check reporting for processors with Intel style MCE */
-void __devinit intel_p5_mcheck_init(struct cpuinfo_x86 *c)
+void intel_p5_mcheck_init(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
 	

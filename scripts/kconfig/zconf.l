@@ -18,8 +18,12 @@
 
 #define START_STRSIZE	16
 
-char *text;
-static char *text_ptr;
+static struct {
+	struct file *file;
+	int lineno;
+} current_pos;
+
+static char *text;
 static int text_size, text_asize;
 
 struct buffer {
@@ -32,29 +36,28 @@ struct buffer *current_buf;
 static int last_ts, first_ts;
 
 static void zconf_endhelp(void);
-static struct buffer *zconf_endfile(void);
+static void zconf_endfile(void);
 
 void new_string(void)
 {
 	text = malloc(START_STRSIZE);
 	text_asize = START_STRSIZE;
-	text_ptr = text;
 	text_size = 0;
-	*text_ptr = 0;
+	*text = 0;
 }
 
 void append_string(const char *str, int size)
 {
 	int new_size = text_size + size + 1;
 	if (new_size > text_asize) {
+		new_size += START_STRSIZE - 1;
+		new_size &= -START_STRSIZE;
 		text = realloc(text, new_size);
 		text_asize = new_size;
-		text_ptr = text + text_size;
 	}
-	memcpy(text_ptr, str, size);
-	text_ptr += size;
+	memcpy(text + text_size, str, size);
 	text_size += size;
-	*text_ptr = 0;
+	text[text_size] = 0;
 }
 
 void alloc_string(const char *str, int size)
@@ -72,10 +75,13 @@ n	[A-Za-z0-9_]
 	int str = 0;
 	int ts, i;
 
-[ \t]*#.*\n	current_file->lineno++;
+[ \t]*#.*\n	|
+[ \t]*\n	{
+	current_file->lineno++;
+	return T_EOL;
+}
 [ \t]*#.*
 
-[ \t]*\n	current_file->lineno++; return T_EOL;
 
 [ \t]+	{
 	BEGIN(COMMAND);
@@ -88,42 +94,25 @@ n	[A-Za-z0-9_]
 
 
 <COMMAND>{
-	"mainmenu"		BEGIN(PARAM); return T_MAINMENU;
-	"menu"			BEGIN(PARAM); return T_MENU;
-	"endmenu"		BEGIN(PARAM); return T_ENDMENU;
-	"source"		BEGIN(PARAM); return T_SOURCE;
-	"choice"		BEGIN(PARAM); return T_CHOICE;
-	"endchoice"		BEGIN(PARAM); return T_ENDCHOICE;
-	"comment"		BEGIN(PARAM); return T_COMMENT;
-	"config"		BEGIN(PARAM); return T_CONFIG;
-	"menuconfig"		BEGIN(PARAM); return T_MENUCONFIG;
-	"help"			BEGIN(PARAM); return T_HELP;
-	"if"			BEGIN(PARAM); return T_IF;
-	"endif"			BEGIN(PARAM); return T_ENDIF;
-	"depends"		BEGIN(PARAM); return T_DEPENDS;
-	"requires"		BEGIN(PARAM); return T_REQUIRES;
-	"optional"		BEGIN(PARAM); return T_OPTIONAL;
-	"default"		BEGIN(PARAM); return T_DEFAULT;
-	"prompt"		BEGIN(PARAM); return T_PROMPT;
-	"tristate"		BEGIN(PARAM); return T_TRISTATE;
-	"def_tristate"		BEGIN(PARAM); return T_DEF_TRISTATE;
-	"bool"			BEGIN(PARAM); return T_BOOLEAN;
-	"boolean"		BEGIN(PARAM); return T_BOOLEAN;
-	"def_bool"		BEGIN(PARAM); return T_DEF_BOOLEAN;
-	"def_boolean"		BEGIN(PARAM); return T_DEF_BOOLEAN;
-	"int"			BEGIN(PARAM); return T_INT;
-	"hex"			BEGIN(PARAM); return T_HEX;
-	"string"		BEGIN(PARAM); return T_STRING;
-	"select"		BEGIN(PARAM); return T_SELECT;
-	"enable"		BEGIN(PARAM); return T_SELECT;
-	"range"			BEGIN(PARAM); return T_RANGE;
 	{n}+	{
+		struct kconf_id *id = kconf_id_lookup(yytext, yyleng);
+		BEGIN(PARAM);
+		current_pos.file = current_file;
+		current_pos.lineno = current_file->lineno;
+		if (id && id->flags & TF_COMMAND) {
+			zconflval.id = id;
+			return id->token;
+		}
 		alloc_string(yytext, yyleng);
 		zconflval.string = text;
 		return T_WORD;
 	}
 	.
-	\n	current_file->lineno++; BEGIN(INITIAL);
+	\n	{
+		BEGIN(INITIAL);
+		current_file->lineno++;
+		return T_EOL;
+	}
 }
 
 <PARAM>{
@@ -134,8 +123,6 @@ n	[A-Za-z0-9_]
 	"!"	return T_NOT;
 	"="	return T_EQUAL;
 	"!="	return T_UNEQUAL;
-	"if"	return T_IF;
-	"on"	return T_ON;
 	\"|\'	{
 		str = yytext[0];
 		new_string();
@@ -144,6 +131,11 @@ n	[A-Za-z0-9_]
 	\n	BEGIN(INITIAL); current_file->lineno++; return T_EOL;
 	---	/* ignore */
 	({n}|[-/.])+	{
+		struct kconf_id *id = kconf_id_lookup(yytext, yyleng);
+		if (id && id->flags & TF_PARAM) {
+			zconflval.id = id;
+			return id->token;
+		}
 		alloc_string(yytext, yyleng);
 		zconflval.string = text;
 		return T_WORD;
@@ -236,9 +228,9 @@ n	[A-Za-z0-9_]
 }
 
 <<EOF>>	{
-	if (current_buf) {
+	if (current_file) {
 		zconf_endfile();
-		return T_EOF;
+		return T_EOL;
 	}
 	fclose(yyin);
 	yyterminate();
@@ -329,7 +321,7 @@ void zconf_nextfile(const char *name)
 	current_file = file;
 }
 
-static struct buffer *zconf_endfile(void)
+static void zconf_endfile(void)
 {
 	struct buffer *parent;
 
@@ -345,22 +337,14 @@ static struct buffer *zconf_endfile(void)
 	}
 	free(current_buf);
 	current_buf = parent;
-
-	return parent;
 }
 
 int zconf_lineno(void)
 {
-	if (current_buf)
-		return current_file->lineno - 1;
-	else
-		return 0;
+	return current_pos.lineno;
 }
 
 char *zconf_curname(void)
 {
-	if (current_buf)
-		return current_file->name;
-	else
-		return "<none>";
+	return current_pos.file ? current_pos.file->name : "<none>";
 }

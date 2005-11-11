@@ -103,3 +103,9 @@ obj-$(CONFIG_IP_NF_ARP_MANGLE) += arpt_mangle.o
 obj-$(CONFIG_IP_NF_ARPFILTER) += arptable_filter.o
 
 obj-$(CONFIG_IP_NF_QUEUE) += ip_queue.o
+
+# objects for l3 independent conntrack
+nf_conntrack_ipv4-objs  :=  nf_conntrack_l3proto_ipv4.o nf_conntrack_proto_icmp.o
+
+# l3 independent conntrack
+obj-$(CONFIG_NF_CONNTRACK_IPV4) += nf_conntrack_ipv4.o

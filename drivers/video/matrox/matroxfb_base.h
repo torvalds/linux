@@ -272,10 +272,6 @@ struct matrox_DAC1064_features {
 	u_int8_t	xmiscctrl;
 };
 
-struct matrox_accel_features {
-	int		has_cacheflush;
-};
-
 /* current hardware status */
 struct mavenregs {
 	u_int8_t regs[256];
@@ -440,7 +436,6 @@ struct matrox_fb_info {
 	struct {
 		struct matrox_pll_features pll;
 		struct matrox_DAC1064_features DAC1064;
-		struct matrox_accel_features accel;
 			      } features;
 	struct {
 		spinlock_t	DAC;

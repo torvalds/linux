@@ -283,8 +283,14 @@ void flush_window(void)
 	putstr(".");
 }
 
+#ifndef arch_error
+#define arch_error(x)
+#endif
+
 static void error(char *x)
 {
+	arch_error(x);
+
 	putstr("\n\n");
 	putstr(x);
 	putstr("\n\n -- System halted");

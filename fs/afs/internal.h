@@ -71,7 +71,6 @@ extern struct file_operations afs_dir_file_operations;
  */
 extern struct address_space_operations afs_fs_aops;
 extern struct inode_operations afs_file_inode_operations;
-extern struct file_operations afs_file_file_operations;
 
 #ifdef AFS_CACHING_SUPPORT
 extern int afs_cache_get_page_cookie(struct page *page,

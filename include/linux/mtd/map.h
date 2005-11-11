@@ -1,6 +1,6 @@
 
 /* Overhauled routines for dealing with different mmap regions of flash */
-/* $Id: map.h,v 1.52 2005/05/25 10:29:41 gleixner Exp $ */
+/* $Id: map.h,v 1.54 2005/11/07 11:14:54 gleixner Exp $ */
 
 #ifndef __LINUX_MTD_MAP_H__
 #define __LINUX_MTD_MAP_H__
@@ -170,14 +170,14 @@ typedef union {
    to a chip probe routine -- either JEDEC or CFI probe or both -- via
    do_map_probe(). If a chip is recognised, the probe code will invoke the
    appropriate chip driver (if present) and return a struct mtd_info.
-   At which point, you fill in the mtd->module with your own module 
+   At which point, you fill in the mtd->module with your own module
    address, and register it with the MTD core code. Or you could partition
    it and register the partitions instead, or keep it for your own private
    use; whatever.
-   
+
    The mtd->priv field will point to the struct map_info, and any further
-   private data required by the chip driver is linked from the 
-   mtd->priv->fldrv_priv field. This allows the map driver to get at 
+   private data required by the chip driver is linked from the
+   mtd->priv->fldrv_priv field. This allows the map driver to get at
    the destructor function map->fldrv_destroy() when it's tired
    of living.
 */
@@ -214,7 +214,7 @@ struct map_info {
 	   If there is no cache to care about this can be set to NULL. */
 	void (*inval_cache)(struct map_info *, unsigned long, ssize_t);
 
-	/* set_vpp() must handle being reentered -- enable, enable, disable 
+	/* set_vpp() must handle being reentered -- enable, enable, disable
 	   must leave it enabled. */
 	void (*set_vpp)(struct map_info *, int);
 
@@ -353,7 +353,7 @@ static inline map_word map_word_ff(struct map_info *map)
 {
 	map_word r;
 	int i;
-	
+
 	if (map_bankwidth(map) < MAP_FF_LIMIT) {
 		int bw = 8 * map_bankwidth(map);
 		r.x[0] = (1 << bw) - 1;

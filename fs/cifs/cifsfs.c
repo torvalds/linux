@@ -405,6 +405,7 @@ static struct quotactl_ops cifs_quotactl_ops = {
 };
 #endif
 
+#ifdef CONFIG_CIFS_EXPERIMENTAL
 static void cifs_umount_begin(struct super_block * sblock)
 {
 	struct cifs_sb_info *cifs_sb;
@@ -422,16 +423,18 @@ static void cifs_umount_begin(struct super_block * sblock)
 		tcon->tidStatus = CifsExiting;
 	up(&tcon->tconSem);
 
+	/* cancel_brl_requests(tcon); */
+	/* cancel_notify_requests(tcon); */
 	if(tcon->ses && tcon->ses->server)
 	{
-		cERROR(1,("wake up tasks now - umount begin not complete"));
+		cFYI(1,("wake up tasks now - umount begin not complete"));
 		wake_up_all(&tcon->ses->server->request_q);
 	}
 /* BB FIXME - finish add checks for tidStatus BB */
 
 	return;
 }
-	
+#endif	
 
 static int cifs_remount(struct super_block *sb, int *flags, char *data)
 {
@@ -450,7 +453,9 @@ struct super_operations cifs_super_ops = {
    unless later we add lazy close of inodes or unless the kernel forgets to call
    us with the same number of releases (closes) as opens */
 	.show_options = cifs_show_options,
-/*	.umount_begin   = cifs_umount_begin, */ /* BB finish in the future */
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+	.umount_begin   = cifs_umount_begin,
+#endif
 	.remount_fs = cifs_remount,
 };
 

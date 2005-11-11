@@ -230,6 +230,7 @@ typedef struct hw_regs_s {
 	int		dma;			/* our dma entry */
 	ide_ack_intr_t	*ack_intr;		/* acknowledge interrupt */
 	hwif_chipset_t  chipset;
+	struct device	*dev;
 } hw_regs_t;
 
 /*
@@ -265,6 +266,10 @@ static inline void ide_std_init_ports(hw_regs_t *hw,
 }
 
 #include <asm/ide.h>
+
+#ifndef MAX_HWIFS
+#define MAX_HWIFS	CONFIG_IDE_MAX_HWIFS
+#endif
 
 /* needed on alpha, x86/x86_64, ia64, mips, ppc32 and sh */
 #ifndef IDE_ARCH_OBSOLETE_DEFAULTS
@@ -1324,7 +1329,8 @@ void ide_init_disk(struct gendisk *, ide_drive_t *);
 extern int ideprobe_init(void);
 
 extern void ide_scan_pcibus(int scan_direction) __init;
-extern int ide_pci_register_driver(struct pci_driver *driver);
+extern int __ide_pci_register_driver(struct pci_driver *driver, struct module *owner);
+#define ide_pci_register_driver(d) __ide_pci_register_driver(d, THIS_MODULE)
 extern void ide_pci_unregister_driver(struct pci_driver *driver);
 void ide_pci_setup_ports(struct pci_dev *, struct ide_pci_device_s *, int, ata_index_t *);
 extern void ide_setup_pci_noise (struct pci_dev *dev, struct ide_pci_device_s *d);

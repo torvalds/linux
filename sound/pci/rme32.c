@@ -1369,13 +1369,13 @@ static int __devinit snd_rme32_create(rme32_t * rme32)
 	rme32->port = pci_resource_start(rme32->pci, 0);
 
 	if (request_irq(pci->irq, snd_rme32_interrupt, SA_INTERRUPT | SA_SHIRQ, "RME32", (void *) rme32)) {
-		snd_printk("unable to grab IRQ %d\n", pci->irq);
+		snd_printk(KERN_ERR "unable to grab IRQ %d\n", pci->irq);
 		return -EBUSY;
 	}
 	rme32->irq = pci->irq;
 
 	if ((rme32->iobase = ioremap_nocache(rme32->port, RME32_IO_SIZE)) == 0) {
-		snd_printk("unable to remap memory region 0x%lx-0x%lx\n",
+		snd_printk(KERN_ERR "unable to remap memory region 0x%lx-0x%lx\n",
 			   rme32->port, rme32->port + RME32_IO_SIZE - 1);
 		return -ENOMEM;
 	}
@@ -2012,7 +2012,6 @@ static void __devexit snd_rme32_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name =		"RME Digi32",
-	.owner =	THIS_MODULE,
 	.id_table =	snd_rme32_ids,
 	.probe =	snd_rme32_probe,
 	.remove =	__devexit_p(snd_rme32_remove),

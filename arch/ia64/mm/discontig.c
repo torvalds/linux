@@ -350,14 +350,12 @@ static void __init initialize_pernode_data(void)
  *	for best.
  * @nid: node id
  * @pernodesize: size of this node's pernode data
- * @align: alignment to use for this node's pernode data
  */
-static void __init *memory_less_node_alloc(int nid, unsigned long pernodesize,
-	unsigned long align)
+static void __init *memory_less_node_alloc(int nid, unsigned long pernodesize)
 {
 	void *ptr = NULL;
 	u8 best = 0xff;
-	int bestnode = -1, node;
+	int bestnode = -1, node, anynode = 0;
 
 	for_each_online_node(node) {
 		if (node_isset(node, memory_less_mask))
@@ -366,13 +364,15 @@ static void __init *memory_less_node_alloc(int nid, unsigned long pernodesize,
 			best = node_distance(nid, node);
 			bestnode = node;
 		}
+		anynode = node;
 	}
 
-	ptr = __alloc_bootmem_node(mem_data[bestnode].pgdat,
-		pernodesize, align, __pa(MAX_DMA_ADDRESS));
+	if (bestnode == -1)
+		bestnode = anynode;
 
-	if (!ptr)
-		panic("NO memory for memory less node\n");
+	ptr = __alloc_bootmem_node(mem_data[bestnode].pgdat, pernodesize,
+		PERCPU_PAGE_SIZE, __pa(MAX_DMA_ADDRESS));
+
 	return ptr;
 }
 
@@ -413,8 +413,7 @@ static void __init memory_less_nodes(void)
 
 	for_each_node_mask(node, memory_less_mask) {
 		pernodesize = compute_pernodesize(node);
-		pernode = memory_less_node_alloc(node, pernodesize,
-			(node) ? (node * PERCPU_PAGE_SIZE) : (1024*1024));
+		pernode = memory_less_node_alloc(node, pernodesize);
 		fill_pernode(node, __pa(pernode), pernodesize);
 	}
 

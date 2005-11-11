@@ -142,19 +142,18 @@ static int vt596_transaction(u8 size)
 	/* Make sure the SMBus host is ready to start transmitting */
 	if ((temp = inb_p(SMBHSTSTS)) & 0x1F) {
 		dev_dbg(&vt596_adapter.dev, "SMBus busy (0x%02x). "
-			"Resetting... ", temp);
+			"Resetting...\n", temp);
 
 		outb_p(temp, SMBHSTSTS);
 		if ((temp = inb_p(SMBHSTSTS)) & 0x1F) {
-			printk("Failed! (0x%02x)\n", temp);
+			dev_err(&vt596_adapter.dev, "SMBus reset failed! "
+				"(0x%02x)\n", temp);
 			return -1;
-		} else {
-			printk("Successful!\n");
 		}
 	}
 
 	/* Start the transaction by setting bit 6 */
-	outb_p(0x40 | (size & 0x3C), SMBHSTCNT);
+	outb_p(0x40 | size, SMBHSTCNT);
 
 	/* We will always wait for a fraction of a second */
 	do {
@@ -171,7 +170,7 @@ static int vt596_transaction(u8 size)
 	if (temp & 0x10) {
 		result = -1;
 		dev_err(&vt596_adapter.dev, "Transaction failed (0x%02x)\n",
-			inb_p(SMBHSTCNT) & 0x3C);
+			size);
 	}
 
 	if (temp & 0x08) {
@@ -180,11 +179,13 @@ static int vt596_transaction(u8 size)
 	}
 
 	if (temp & 0x04) {
+		int read = inb_p(SMBHSTADD) & 0x01;
 		result = -1;
-		/* Quick commands are used to probe for chips, so
-		   errors are expected, and we don't want to frighten the
-		   user. */
-		if ((inb_p(SMBHSTCNT) & 0x3C) != VT596_QUICK)
+		/* The quick and receive byte commands are used to probe
+		   for chips, so errors are expected, and we don't want
+		   to frighten the user. */
+		if (!((size == VT596_QUICK && !read) ||
+		      (size == VT596_BYTE && read)))
 			dev_err(&vt596_adapter.dev, "Transaction error!\n");
 	}
 
@@ -439,7 +440,6 @@ static struct pci_device_id vt596_ids[] = {
 MODULE_DEVICE_TABLE(pci, vt596_ids);
 
 static struct pci_driver vt596_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "vt596_smbus",
 	.id_table	= vt596_ids,
 	.probe		= vt596_probe,
@@ -462,9 +462,9 @@ static void __exit i2c_vt596_exit(void)
 	}
 }
 
-MODULE_AUTHOR(
-    "Frodo Looijaard <frodol@dds.nl> and "
-    "Philip Edelbrock <phil@netroedge.com>");
+MODULE_AUTHOR("Kyosti Malkki <kmalkki@cc.hut.fi>, "
+	      "Mark D. Studebaker <mdsxyz123@yahoo.com> and "
+	      "Jean Delvare <khali@linux-fr.org>");
 MODULE_DESCRIPTION("vt82c596 SMBus driver");
 MODULE_LICENSE("GPL");
 

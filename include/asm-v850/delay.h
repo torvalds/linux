@@ -16,7 +16,7 @@
 
 #include <asm/param.h>
 
-extern __inline__ void __delay(unsigned long loops)
+static inline void __delay(unsigned long loops)
 {
 	if (loops)
 		__asm__ __volatile__ ("1: add -1, %0; bnz 1b"
@@ -33,7 +33,7 @@ extern __inline__ void __delay(unsigned long loops)
 
 extern unsigned long loops_per_jiffy;
 
-extern __inline__ void udelay(unsigned long usecs)
+static inline void udelay(unsigned long usecs)
 {
 	register unsigned long full_loops, part_loops;
 

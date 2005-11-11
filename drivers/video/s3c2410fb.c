@@ -495,7 +495,6 @@ static struct fb_ops s3c2410fb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
 
@@ -885,6 +884,7 @@ static int s3c2410fb_resume(struct device *dev)
 
 static struct device_driver s3c2410fb_driver = {
 	.name		= "s3c2410-lcd",
+	.owner		= THIS_MODULE,
 	.bus		= &platform_bus_type,
 	.probe		= s3c2410fb_probe,
 	.suspend	= s3c2410fb_suspend,

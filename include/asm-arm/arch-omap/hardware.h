@@ -267,8 +267,6 @@
 #define OMAP_LPG2_LCR			(OMAP_LPG2_BASE + 0x00)
 #define OMAP_LPG2_PMR			(OMAP_LPG2_BASE + 0x04)
 
-#ifndef __ASSEMBLER__
-
 /*
  * ---------------------------------------------------------------------------
  * Processor specific defines
@@ -277,12 +275,10 @@
 
 #include "omap730.h"
 #include "omap1510.h"
-
-#ifdef CONFIG_ARCH_OMAP24XX
 #include "omap24xx.h"
-#endif
-
 #include "omap16xx.h"
+
+#ifndef __ASSEMBLER__
 
 /*
  * ---------------------------------------------------------------------------

@@ -183,8 +183,7 @@ static int rx_sync_cmd(struct aac_dev *dev, u32 command,
 		/*
 		 *	Yield the processor in case we are slow 
 		 */
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 	if (ok != 1) {
 		/*
@@ -452,8 +451,7 @@ int aac_rx_init(struct aac_dev *dev)
 					dev->name, instance, status);
 			goto error_iounmap;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 	if (request_irq(dev->scsi_host_ptr->irq, aac_rx_intr, SA_SHIRQ|SA_INTERRUPT, "aacraid", (void *)dev)<0) 
 	{

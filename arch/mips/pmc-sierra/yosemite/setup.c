@@ -73,7 +73,9 @@ void __init bus_error_init(void)
 unsigned long m48t37y_get_time(void)
 {
 	unsigned int year, month, day, hour, min, sec;
+	unsigned long flags;
 
+	spin_lock_irqsave(&rtc_lock, flags);
 	/* Stop the update to the time */
 	m48t37_base->control = 0x40;
 
@@ -88,6 +90,7 @@ unsigned long m48t37y_get_time(void)
 
 	/* Start the update to the time again */
 	m48t37_base->control = 0x00;
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return mktime(year, month, day, hour, min, sec);
 }
@@ -95,11 +98,13 @@ unsigned long m48t37y_get_time(void)
 int m48t37y_set_time(unsigned long sec)
 {
 	struct rtc_time tm;
+	unsigned long flags;
 
 	/* convert to a more useful format -- note months count from 0 */
 	to_tm(sec, &tm);
 	tm.tm_mon += 1;
 
+	spin_lock_irqsave(&rtc_lock, flags);
 	/* enable writing */
 	m48t37_base->control = 0x80;
 
@@ -123,6 +128,7 @@ int m48t37y_set_time(unsigned long sec)
 
 	/* disable writing */
 	m48t37_base->control = 0x00;
+	spin_unlock_irqrestore(&rtc_lock, flags);
 
 	return 0;
 }

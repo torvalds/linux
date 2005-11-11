@@ -29,7 +29,6 @@
 #include <linux/file.h>
 #include <linux/suspend.h>
 
-
 #include "cx88.h"
 #include "dvb-pll.h"
 
@@ -45,6 +44,9 @@
 #endif
 #ifdef HAVE_LGDT330X
 # include "lgdt330x.h"
+#endif
+#ifdef HAVE_NXT200X
+# include "nxt200x.h"
 #endif
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
@@ -78,7 +80,7 @@ static int dvb_buf_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 			   enum v4l2_field field)
 {
 	struct cx8802_dev *dev = q->priv_data;
-	return cx8802_buf_prepare(dev, (struct cx88_buffer*)vb);
+	return cx8802_buf_prepare(dev, (struct cx88_buffer*)vb,field);
 }
 
 static void dvb_buf_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
@@ -129,7 +131,7 @@ static int dntv_live_dvbt_demod_init(struct dvb_frontend* fe)
 	static u8 reset []         = { 0x50, 0x80 };
 	static u8 adc_ctl_1_cfg [] = { 0x8E, 0x40 };
 	static u8 agc_cfg []       = { 0x67, 0x10, 0x23, 0x00, 0xFF, 0xFF,
-	                               0x00, 0xFF, 0x00, 0x40, 0x40 };
+				       0x00, 0xFF, 0x00, 0x40, 0x40 };
 	static u8 dntv_extra[]     = { 0xB5, 0x7A };
 	static u8 capt_range_cfg[] = { 0x75, 0x32 };
 
@@ -285,6 +287,33 @@ static struct lgdt330x_config fusionhdtv_5_gold = {
 };
 #endif
 
+#ifdef HAVE_NXT200X
+static int nxt200x_set_ts_param(struct dvb_frontend* fe,
+				int is_punctured)
+{
+	struct cx8802_dev *dev= fe->dvb->priv;
+	dev->ts_gen_cntrl = is_punctured ? 0x04 : 0x00;
+	return 0;
+}
+
+static int nxt200x_set_pll_input(u8* buf, int input)
+{
+	if (input)
+		buf[3] |= 0x08;
+	else
+		buf[3] &= ~0x08;
+	return 0;
+}
+
+static struct nxt200x_config ati_hdtvwonder = {
+	.demod_address    = 0x0a,
+	.pll_address      = 0x61,
+	.pll_desc         = &dvb_pll_tuv1236d,
+	.set_pll_input    = nxt200x_set_pll_input,
+	.set_ts_params    = nxt200x_set_ts_param,
+};
+#endif
+
 static int dvb_register(struct cx8802_dev *dev)
 {
 	/* init struct videobuf_dvb */
@@ -300,6 +329,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		break;
 	case CX88_BOARD_TERRATEC_CINERGY_1400_DVB_T1:
 	case CX88_BOARD_CONEXANT_DVB_T1:
+	case CX88_BOARD_WINFAST_DTV1000:
 		dev->dvb.frontend = cx22702_attach(&connexant_refboard_config,
 						   &dev->core->i2c_adap);
 		break;
@@ -385,6 +415,12 @@ static int dvb_register(struct cx8802_dev *dev)
 		}
 		break;
 #endif
+#ifdef HAVE_NXT200X
+	case CX88_BOARD_ATI_HDTVWONDER:
+		dev->dvb.frontend = nxt200x_attach(&ati_hdtvwonder,
+						 &dev->core->i2c_adap);
+		break;
+#endif
 	default:
 		printk("%s: The frontend of your DVB/ATSC card isn't supported yet\n",
 		       dev->core->name);
@@ -399,6 +435,9 @@ static int dvb_register(struct cx8802_dev *dev)
 		dev->dvb.frontend->ops->info.frequency_min = dev->core->pll_desc->min;
 		dev->dvb.frontend->ops->info.frequency_max = dev->core->pll_desc->max;
 	}
+
+	/* Put the analog decoder in standby to keep it quiet */
+	cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
 
 	/* Put the analog decoder in standby to keep it quiet */
 	cx88_call_i2c_clients (dev->core, TUNER_SET_STANDBY, NULL);
@@ -461,7 +500,7 @@ static int __devinit dvb_probe(struct pci_dev *pci_dev,
 
 static void __devexit dvb_remove(struct pci_dev *pci_dev)
 {
-        struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
+	struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
 
 	/* dvb */
 	videobuf_dvb_unregister(&dev->dvb);
@@ -476,8 +515,8 @@ static struct pci_device_id cx8802_pci_tbl[] = {
 	{
 		.vendor       = 0x14f1,
 		.device       = 0x8802,
-                .subvendor    = PCI_ANY_ID,
-                .subdevice    = PCI_ANY_ID,
+		.subvendor    = PCI_ANY_ID,
+		.subdevice    = PCI_ANY_ID,
 	},{
 		/* --- end of list --- */
 	}
@@ -485,10 +524,10 @@ static struct pci_device_id cx8802_pci_tbl[] = {
 MODULE_DEVICE_TABLE(pci, cx8802_pci_tbl);
 
 static struct pci_driver dvb_pci_driver = {
-        .name     = "cx88-dvb",
-        .id_table = cx8802_pci_tbl,
-        .probe    = dvb_probe,
-        .remove   = __devexit_p(dvb_remove),
+	.name     = "cx88-dvb",
+	.id_table = cx8802_pci_tbl,
+	.probe    = dvb_probe,
+	.remove   = __devexit_p(dvb_remove),
 	.suspend  = cx8802_suspend_common,
 	.resume   = cx8802_resume_common,
 };

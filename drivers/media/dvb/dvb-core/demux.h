@@ -48,8 +48,11 @@
  * DMX_MAX_SECFEED_SIZE: Maximum length (in bytes) of a private section feed filter.
  */
 
+#ifndef DMX_MAX_SECTION_SIZE
+#define DMX_MAX_SECTION_SIZE 4096
+#endif
 #ifndef DMX_MAX_SECFEED_SIZE
-#define DMX_MAX_SECFEED_SIZE 4096
+#define DMX_MAX_SECFEED_SIZE (DMX_MAX_SECTION_SIZE + 188)
 #endif
 
 

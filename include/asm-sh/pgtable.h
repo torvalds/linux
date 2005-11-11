@@ -196,7 +196,9 @@ static inline pte_t pte_mkexec(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _
 static inline pte_t pte_mkdirty(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_DIRTY)); return pte; }
 static inline pte_t pte_mkyoung(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_ACCESSED)); return pte; }
 static inline pte_t pte_mkwrite(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_RW)); return pte; }
+#ifdef CONFIG_HUGETLB_PAGE
 static inline pte_t pte_mkhuge(pte_t pte)	{ set_pte(&pte, __pte(pte_val(pte) | _PAGE_SZHUGE)); return pte; }
+#endif
 
 /*
  * Macro and implementation to make a page protection as uncachable.
@@ -281,6 +283,8 @@ typedef pte_t *pte_addr_t;
 #define MK_IOSPACE_PFN(space, pfn)	(pfn)
 #define GET_IOSPACE(pfn)		0
 #define GET_PFN(pfn)			(pfn)
+
+struct mm_struct;
 
 /*
  * No page table caches to initialise

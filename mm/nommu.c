@@ -44,10 +44,6 @@ int sysctl_max_map_count = DEFAULT_MAX_MAP_COUNT;
 int heap_stack_gap = 0;
 
 EXPORT_SYMBOL(mem_map);
-EXPORT_SYMBOL(sysctl_max_map_count);
-EXPORT_SYMBOL(sysctl_overcommit_memory);
-EXPORT_SYMBOL(sysctl_overcommit_ratio);
-EXPORT_SYMBOL(vm_committed_space);
 EXPORT_SYMBOL(__vm_enough_memory);
 
 /* list of shareable VMAs */

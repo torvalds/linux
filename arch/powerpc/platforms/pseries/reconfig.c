@@ -286,10 +286,8 @@ static struct property *new_property(const char *name, const int length,
 	return new;
 
 cleanup:
-	if (new->name)
-		kfree(new->name);
-	if (new->value)
-		kfree(new->value);
+	kfree(new->name);
+	kfree(new->value);
 	kfree(new);
 	return NULL;
 }
@@ -410,7 +408,7 @@ static int proc_ppc64_create_ofdt(void)
 {
 	struct proc_dir_entry *ent;
 
-	if (!(systemcfg->platform & PLATFORM_PSERIES))
+	if (!platform_is_pseries())
 		return 0;
 
 	ent = create_proc_entry("ppc64/ofdt", S_IWUSR, NULL);

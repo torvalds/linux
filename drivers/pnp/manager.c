@@ -555,7 +555,9 @@ void pnp_resource_change(struct resource *resource, unsigned long start, unsigne
 
 
 EXPORT_SYMBOL(pnp_manual_config_dev);
+#if 0
 EXPORT_SYMBOL(pnp_auto_config_dev);
+#endif
 EXPORT_SYMBOL(pnp_activate_dev);
 EXPORT_SYMBOL(pnp_disable_dev);
 EXPORT_SYMBOL(pnp_resource_change);

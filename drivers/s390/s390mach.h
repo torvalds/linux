@@ -88,7 +88,7 @@ struct crw {
 #define CRW_ERC_PERRI    0x07 /* perm. error, facility init */
 #define CRW_ERC_PMOD     0x08 /* installed parameters modified */
 
-extern __inline__ int stcrw(struct crw *pcrw )
+static inline int stcrw(struct crw *pcrw )
 {
         int ccode;
 

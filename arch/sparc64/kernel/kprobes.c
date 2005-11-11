@@ -38,6 +38,9 @@
  * - Mark that we are no longer actively in a kprobe.
  */
 
+DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
+DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
+
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
 	return 0;
@@ -66,46 +69,39 @@ void __kprobes arch_remove_kprobe(struct kprobe *p)
 {
 }
 
-static struct kprobe *current_kprobe;
-static unsigned long current_kprobe_orig_tnpc;
-static unsigned long current_kprobe_orig_tstate_pil;
-static unsigned int kprobe_status;
-static struct kprobe *kprobe_prev;
-static unsigned long kprobe_orig_tnpc_prev;
-static unsigned long kprobe_orig_tstate_pil_prev;
-static unsigned int kprobe_status_prev;
-
-static inline void save_previous_kprobe(void)
+static inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
-	kprobe_status_prev = kprobe_status;
-	kprobe_orig_tnpc_prev = current_kprobe_orig_tnpc;
-	kprobe_orig_tstate_pil_prev = current_kprobe_orig_tstate_pil;
-	kprobe_prev = current_kprobe;
+	kcb->prev_kprobe.kp = kprobe_running();
+	kcb->prev_kprobe.status = kcb->kprobe_status;
+	kcb->prev_kprobe.orig_tnpc = kcb->kprobe_orig_tnpc;
+	kcb->prev_kprobe.orig_tstate_pil = kcb->kprobe_orig_tstate_pil;
 }
 
-static inline void restore_previous_kprobe(void)
+static inline void restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
-	kprobe_status = kprobe_status_prev;
-	current_kprobe_orig_tnpc = kprobe_orig_tnpc_prev;
-	current_kprobe_orig_tstate_pil = kprobe_orig_tstate_pil_prev;
-	current_kprobe = kprobe_prev;
+	__get_cpu_var(current_kprobe) = kcb->prev_kprobe.kp;
+	kcb->kprobe_status = kcb->prev_kprobe.status;
+	kcb->kprobe_orig_tnpc = kcb->prev_kprobe.orig_tnpc;
+	kcb->kprobe_orig_tstate_pil = kcb->prev_kprobe.orig_tstate_pil;
 }
 
-static inline void set_current_kprobe(struct kprobe *p, struct pt_regs *regs)
+static inline void set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
+				struct kprobe_ctlblk *kcb)
 {
-	current_kprobe_orig_tnpc = regs->tnpc;
-	current_kprobe_orig_tstate_pil = (regs->tstate & TSTATE_PIL);
-	current_kprobe = p;
+	__get_cpu_var(current_kprobe) = p;
+	kcb->kprobe_orig_tnpc = regs->tnpc;
+	kcb->kprobe_orig_tstate_pil = (regs->tstate & TSTATE_PIL);
 }
 
-static inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
+static inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs,
+			struct kprobe_ctlblk *kcb)
 {
 	regs->tstate |= TSTATE_PIL;
 
 	/*single step inline, if it a breakpoint instruction*/
 	if (p->opcode == BREAKPOINT_INSTRUCTION) {
 		regs->tpc = (unsigned long) p->addr;
-		regs->tnpc = current_kprobe_orig_tnpc;
+		regs->tnpc = kcb->kprobe_orig_tnpc;
 	} else {
 		regs->tpc = (unsigned long) &p->ainsn.insn[0];
 		regs->tnpc = (unsigned long) &p->ainsn.insn[1];
@@ -117,19 +113,21 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	struct kprobe *p;
 	void *addr = (void *) regs->tpc;
 	int ret = 0;
+	struct kprobe_ctlblk *kcb;
 
+	/*
+	 * We don't want to be preempted for the entire
+	 * duration of kprobe processing
+	 */
 	preempt_disable();
+	kcb = get_kprobe_ctlblk();
 
 	if (kprobe_running()) {
-		/* We *are* holding lock here, so this is safe.
-		 * Disarm the probe we just hit, and ignore it.
-		 */
 		p = get_kprobe(addr);
 		if (p) {
-			if (kprobe_status == KPROBE_HIT_SS) {
+			if (kcb->kprobe_status == KPROBE_HIT_SS) {
 				regs->tstate = ((regs->tstate & ~TSTATE_PIL) |
-					current_kprobe_orig_tstate_pil);
-				unlock_kprobes();
+					kcb->kprobe_orig_tstate_pil);
 				goto no_kprobe;
 			}
 			/* We have reentered the kprobe_handler(), since
@@ -138,25 +136,22 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			 * just single step on the instruction of the new probe
 			 * without calling any user handlers.
 			 */
-			save_previous_kprobe();
-			set_current_kprobe(p, regs);
+			save_previous_kprobe(kcb);
+			set_current_kprobe(p, regs, kcb);
 			p->nmissed++;
-			kprobe_status = KPROBE_REENTER;
-			prepare_singlestep(p, regs);
+			kcb->kprobe_status = KPROBE_REENTER;
+			prepare_singlestep(p, regs, kcb);
 			return 1;
 		} else {
-			p = current_kprobe;
+			p = __get_cpu_var(current_kprobe);
 			if (p->break_handler && p->break_handler(p, regs))
 				goto ss_probe;
 		}
-		/* If it's not ours, can't be delete race, (we hold lock). */
 		goto no_kprobe;
 	}
 
-	lock_kprobes();
 	p = get_kprobe(addr);
 	if (!p) {
-		unlock_kprobes();
 		if (*(u32 *)addr != BREAKPOINT_INSTRUCTION) {
 			/*
 			 * The breakpoint instruction was removed right
@@ -171,14 +166,14 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 		goto no_kprobe;
 	}
 
-	set_current_kprobe(p, regs);
-	kprobe_status = KPROBE_HIT_ACTIVE;
+	set_current_kprobe(p, regs, kcb);
+	kcb->kprobe_status = KPROBE_HIT_ACTIVE;
 	if (p->pre_handler && p->pre_handler(p, regs))
 		return 1;
 
 ss_probe:
-	prepare_singlestep(p, regs);
-	kprobe_status = KPROBE_HIT_SS;
+	prepare_singlestep(p, regs, kcb);
+	kcb->kprobe_status = KPROBE_HIT_SS;
 	return 1;
 
 no_kprobe:
@@ -260,11 +255,12 @@ static void __kprobes retpc_fixup(struct pt_regs *regs, u32 insn,
  * This function prepares to return from the post-single-step
  * breakpoint trap.
  */
-static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
+static void __kprobes resume_execution(struct kprobe *p,
+		struct pt_regs *regs, struct kprobe_ctlblk *kcb)
 {
 	u32 insn = p->ainsn.insn[0];
 
-	regs->tpc = current_kprobe_orig_tnpc;
+	regs->tpc = kcb->kprobe_orig_tnpc;
 	regs->tnpc = relbranch_fixup(insn,
 				     (unsigned long) p->addr,
 				     (unsigned long) &p->ainsn.insn[0],
@@ -272,44 +268,48 @@ static void __kprobes resume_execution(struct kprobe *p, struct pt_regs *regs)
 	retpc_fixup(regs, insn, (unsigned long) p->addr);
 
 	regs->tstate = ((regs->tstate & ~TSTATE_PIL) |
-			current_kprobe_orig_tstate_pil);
+			kcb->kprobe_orig_tstate_pil);
 }
 
 static inline int post_kprobe_handler(struct pt_regs *regs)
 {
-	if (!kprobe_running())
+	struct kprobe *cur = kprobe_running();
+	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+
+	if (!cur)
 		return 0;
 
-	if ((kprobe_status != KPROBE_REENTER) && current_kprobe->post_handler) {
-		kprobe_status = KPROBE_HIT_SSDONE;
-		current_kprobe->post_handler(current_kprobe, regs, 0);
+	if ((kcb->kprobe_status != KPROBE_REENTER) && cur->post_handler) {
+		kcb->kprobe_status = KPROBE_HIT_SSDONE;
+		cur->post_handler(cur, regs, 0);
 	}
 
-	resume_execution(current_kprobe, regs);
+	resume_execution(cur, regs, kcb);
 
 	/*Restore back the original saved kprobes variables and continue. */
-	if (kprobe_status == KPROBE_REENTER) {
-		restore_previous_kprobe();
+	if (kcb->kprobe_status == KPROBE_REENTER) {
+		restore_previous_kprobe(kcb);
 		goto out;
 	}
-	unlock_kprobes();
+	reset_current_kprobe();
 out:
 	preempt_enable_no_resched();
 
 	return 1;
 }
 
-/* Interrupts disabled, kprobe_lock held. */
 static inline int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
-	if (current_kprobe->fault_handler
-	    && current_kprobe->fault_handler(current_kprobe, regs, trapnr))
+	struct kprobe *cur = kprobe_running();
+	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
+
+	if (cur->fault_handler && cur->fault_handler(cur, regs, trapnr))
 		return 1;
 
-	if (kprobe_status & KPROBE_HIT_SS) {
-		resume_execution(current_kprobe, regs);
+	if (kcb->kprobe_status & KPROBE_HIT_SS) {
+		resume_execution(cur, regs, kcb);
 
-		unlock_kprobes();
+		reset_current_kprobe();
 		preempt_enable_no_resched();
 	}
 	return 0;
@@ -322,29 +322,30 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 				       unsigned long val, void *data)
 {
 	struct die_args *args = (struct die_args *)data;
+	int ret = NOTIFY_DONE;
+
 	switch (val) {
 	case DIE_DEBUG:
 		if (kprobe_handler(args->regs))
-			return NOTIFY_STOP;
+			ret = NOTIFY_STOP;
 		break;
 	case DIE_DEBUG_2:
 		if (post_kprobe_handler(args->regs))
-			return NOTIFY_STOP;
+			ret = NOTIFY_STOP;
 		break;
 	case DIE_GPF:
-		if (kprobe_running() &&
-		    kprobe_fault_handler(args->regs, args->trapnr))
-			return NOTIFY_STOP;
-		break;
 	case DIE_PAGE_FAULT:
+		/* kprobe_running() needs smp_processor_id() */
+		preempt_disable();
 		if (kprobe_running() &&
 		    kprobe_fault_handler(args->regs, args->trapnr))
-			return NOTIFY_STOP;
+			ret = NOTIFY_STOP;
+		preempt_enable();
 		break;
 	default:
 		break;
 	}
-	return NOTIFY_DONE;
+	return ret;
 }
 
 asmlinkage void __kprobes kprobe_trap(unsigned long trap_level,
@@ -368,24 +369,21 @@ asmlinkage void __kprobes kprobe_trap(unsigned long trap_level,
 }
 
 /* Jprobes support.  */
-static struct pt_regs jprobe_saved_regs;
-static struct pt_regs *jprobe_saved_regs_location;
-static struct sparc_stackf jprobe_saved_stack;
-
 int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct jprobe *jp = container_of(p, struct jprobe, kp);
+	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
-	jprobe_saved_regs_location = regs;
-	memcpy(&jprobe_saved_regs, regs, sizeof(*regs));
+	kcb->jprobe_saved_regs_location = regs;
+	memcpy(&(kcb->jprobe_saved_regs), regs, sizeof(*regs));
 
 	/* Save a whole stack frame, this gets arguments
 	 * pushed onto the stack after using up all the
 	 * arg registers.
 	 */
-	memcpy(&jprobe_saved_stack,
+	memcpy(&(kcb->jprobe_saved_stack),
 	       (char *) (regs->u_regs[UREG_FP] + STACK_BIAS),
-	       sizeof(jprobe_saved_stack));
+	       sizeof(kcb->jprobe_saved_stack));
 
 	regs->tpc  = (unsigned long) jp->entry;
 	regs->tnpc = ((unsigned long) jp->entry) + 0x4UL;
@@ -396,7 +394,6 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 
 void __kprobes jprobe_return(void)
 {
-	preempt_enable_no_resched();
 	__asm__ __volatile__(
 		".globl	jprobe_return_trap_instruction\n"
 "jprobe_return_trap_instruction:\n\t"
@@ -410,14 +407,15 @@ extern void __show_regs(struct pt_regs * regs);
 int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	u32 *addr = (u32 *) regs->tpc;
+	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
 	if (addr == (u32 *) jprobe_return_trap_instruction) {
-		if (jprobe_saved_regs_location != regs) {
+		if (kcb->jprobe_saved_regs_location != regs) {
 			printk("JPROBE: Current regs (%p) does not match "
 			       "saved regs (%p).\n",
-			       regs, jprobe_saved_regs_location);
+			       regs, kcb->jprobe_saved_regs_location);
 			printk("JPROBE: Saved registers\n");
-			__show_regs(jprobe_saved_regs_location);
+			__show_regs(kcb->jprobe_saved_regs_location);
 			printk("JPROBE: Current registers\n");
 			__show_regs(regs);
 			BUG();
@@ -426,12 +424,13 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 		 * first so that UREG_FP is the original one for
 		 * the stack frame restore.
 		 */
-		memcpy(regs, &jprobe_saved_regs, sizeof(*regs));
+		memcpy(regs, &(kcb->jprobe_saved_regs), sizeof(*regs));
 
 		memcpy((char *) (regs->u_regs[UREG_FP] + STACK_BIAS),
-		       &jprobe_saved_stack,
-		       sizeof(jprobe_saved_stack));
+		       &(kcb->jprobe_saved_stack),
+		       sizeof(kcb->jprobe_saved_stack));
 
+		preempt_enable_no_resched();
 		return 1;
 	}
 	return 0;

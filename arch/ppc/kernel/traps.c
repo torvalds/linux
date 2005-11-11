@@ -49,7 +49,7 @@ extern int xmon_sstep(struct pt_regs *regs);
 extern int xmon_iabr_match(struct pt_regs *regs);
 extern int xmon_dabr_match(struct pt_regs *regs);
 
-void (*debugger)(struct pt_regs *regs) = xmon;
+int (*debugger)(struct pt_regs *regs) = xmon;
 int (*debugger_bpt)(struct pt_regs *regs) = xmon_bpt;
 int (*debugger_sstep)(struct pt_regs *regs) = xmon_sstep;
 int (*debugger_iabr_match)(struct pt_regs *regs) = xmon_iabr_match;
@@ -57,7 +57,7 @@ int (*debugger_dabr_match)(struct pt_regs *regs) = xmon_dabr_match;
 void (*debugger_fault_handler)(struct pt_regs *regs);
 #else
 #ifdef CONFIG_KGDB
-void (*debugger)(struct pt_regs *regs);
+int (*debugger)(struct pt_regs *regs);
 int (*debugger_bpt)(struct pt_regs *regs);
 int (*debugger_sstep)(struct pt_regs *regs);
 int (*debugger_iabr_match)(struct pt_regs *regs);
@@ -159,7 +159,7 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
  */
 static inline int check_io_access(struct pt_regs *regs)
 {
-#ifdef CONFIG_PPC_PMAC
+#if defined CONFIG_PPC_PMAC || defined CONFIG_8xx
 	unsigned long msr = regs->msr;
 	const struct exception_table_entry *entry;
 	unsigned int *nip = (unsigned int *)regs->nip;
@@ -178,7 +178,11 @@ static inline int check_io_access(struct pt_regs *regs)
 			nip -= 2;
 		else if (*nip == 0x4c00012c)	/* isync */
 			--nip;
-		if (*nip == 0x7c0004ac || (*nip >> 26) == 3) {
+		/* eieio from I/O string functions */
+		else if ((*nip) == 0x7c0006ac || *(nip+1) == 0x7c0006ac)
+			nip += 2;
+		if (*nip == 0x7c0004ac || (*nip >> 26) == 3 ||
+			(*(nip+1) >> 26) == 3) {
 			/* sync or twi */
 			unsigned int rb;
 

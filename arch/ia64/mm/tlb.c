@@ -8,6 +8,8 @@
  *		Modified RID allocation for SMP
  *          Goutham Rao <goutham.rao@intel.com>
  *              IPI based ptc implementation and A-step IPI implementation.
+ * Rohit Seth <rohit.seth@intel.com>
+ * Ken Chen <kenneth.w.chen@intel.com>
  */
 #include <linux/config.h>
 #include <linux/module.h>
@@ -16,26 +18,39 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
+#include <linux/bootmem.h>
 
 #include <asm/delay.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
 #include <asm/pal.h>
 #include <asm/tlbflush.h>
+#include <asm/dma.h>
 
 static struct {
 	unsigned long mask;	/* mask of supported purge page-sizes */
-	unsigned long max_bits;	/* log2() of largest supported purge page-size */
+	unsigned long max_bits;	/* log2 of largest supported purge page-size */
 } purge;
 
 struct ia64_ctx ia64_ctx = {
 	.lock =		SPIN_LOCK_UNLOCKED,
 	.next =		1,
-	.limit =	(1 << 15) - 1,		/* start out with the safe (architected) limit */
 	.max_ctx =	~0U
 };
 
 DEFINE_PER_CPU(u8, ia64_need_tlb_flush);
+
+/*
+ * Initializes the ia64_ctx.bitmap array based on max_ctx+1.
+ * Called after cpu_init() has setup ia64_ctx.max_ctx based on
+ * maximum RID that is supported by boot CPU.
+ */
+void __init
+mmu_context_init (void)
+{
+	ia64_ctx.bitmap = alloc_bootmem((ia64_ctx.max_ctx+1)>>3);
+	ia64_ctx.flushmap = alloc_bootmem((ia64_ctx.max_ctx+1)>>3);
+}
 
 /*
  * Acquire the ia64_ctx.lock before calling this function!
@@ -43,51 +58,35 @@ DEFINE_PER_CPU(u8, ia64_need_tlb_flush);
 void
 wrap_mmu_context (struct mm_struct *mm)
 {
-	unsigned long tsk_context, max_ctx = ia64_ctx.max_ctx;
-	struct task_struct *tsk;
-	int i;
+	int i, cpu;
+	unsigned long flush_bit;
 
-	if (ia64_ctx.next > max_ctx)
-		ia64_ctx.next = 300;	/* skip daemons */
-	ia64_ctx.limit = max_ctx + 1;
+	for (i=0; i <= ia64_ctx.max_ctx / BITS_PER_LONG; i++) {
+		flush_bit = xchg(&ia64_ctx.flushmap[i], 0);
+		ia64_ctx.bitmap[i] ^= flush_bit;
+	}
+ 
+	/* use offset at 300 to skip daemons */
+	ia64_ctx.next = find_next_zero_bit(ia64_ctx.bitmap,
+				ia64_ctx.max_ctx, 300);
+	ia64_ctx.limit = find_next_bit(ia64_ctx.bitmap,
+				ia64_ctx.max_ctx, ia64_ctx.next);
 
 	/*
-	 * Scan all the task's mm->context and set proper safe range
+	 * can't call flush_tlb_all() here because of race condition
+	 * with O(1) scheduler [EF]
 	 */
-
-	read_lock(&tasklist_lock);
-  repeat:
-	for_each_process(tsk) {
-		if (!tsk->mm)
-			continue;
-		tsk_context = tsk->mm->context;
-		if (tsk_context == ia64_ctx.next) {
-			if (++ia64_ctx.next >= ia64_ctx.limit) {
-				/* empty range: reset the range limit and start over */
-				if (ia64_ctx.next > max_ctx)
-					ia64_ctx.next = 300;
-				ia64_ctx.limit = max_ctx + 1;
-				goto repeat;
-			}
-		}
-		if ((tsk_context > ia64_ctx.next) && (tsk_context < ia64_ctx.limit))
-			ia64_ctx.limit = tsk_context;
-	}
-	read_unlock(&tasklist_lock);
-	/* can't call flush_tlb_all() here because of race condition with O(1) scheduler [EF] */
-	{
-		int cpu = get_cpu(); /* prevent preemption/migration */
-		for_each_online_cpu(i) {
-			if (i != cpu)
-				per_cpu(ia64_need_tlb_flush, i) = 1;
-		}
-		put_cpu();
-	}
+	cpu = get_cpu(); /* prevent preemption/migration */
+	for_each_online_cpu(i)
+		if (i != cpu)
+			per_cpu(ia64_need_tlb_flush, i) = 1;
+	put_cpu();
 	local_flush_tlb_all();
 }
 
 void
-ia64_global_tlb_purge (struct mm_struct *mm, unsigned long start, unsigned long end, unsigned long nbits)
+ia64_global_tlb_purge (struct mm_struct *mm, unsigned long start,
+		       unsigned long end, unsigned long nbits)
 {
 	static DEFINE_SPINLOCK(ptcg_lock);
 
@@ -135,7 +134,8 @@ local_flush_tlb_all (void)
 }
 
 void
-flush_tlb_range (struct vm_area_struct *vma, unsigned long start, unsigned long end)
+flush_tlb_range (struct vm_area_struct *vma, unsigned long start,
+		 unsigned long end)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long size = end - start;
@@ -149,7 +149,8 @@ flush_tlb_range (struct vm_area_struct *vma, unsigned long start, unsigned long 
 #endif
 
 	nbits = ia64_fls(size + 0xfff);
-	while (unlikely (((1UL << nbits) & purge.mask) == 0) && (nbits < purge.max_bits))
+	while (unlikely (((1UL << nbits) & purge.mask) == 0) &&
+			(nbits < purge.max_bits))
 		++nbits;
 	if (nbits > purge.max_bits)
 		nbits = purge.max_bits;
@@ -191,5 +192,5 @@ ia64_tlb_init (void)
 	local_cpu_data->ptce_stride[0] = ptce_info.stride[0];
 	local_cpu_data->ptce_stride[1] = ptce_info.stride[1];
 
-	local_flush_tlb_all();		/* nuke left overs from bootstrapping... */
+	local_flush_tlb_all();	/* nuke left overs from bootstrapping... */
 }

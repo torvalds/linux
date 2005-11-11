@@ -35,7 +35,7 @@ static DEFINE_SPINLOCK(filp_count_lock);
  * context and must be fully threaded - use a local spinlock
  * to protect files_stat.nr_files
  */
-void filp_ctor(void * objp, struct kmem_cache_s *cachep, unsigned long cflags)
+void filp_ctor(void *objp, struct kmem_cache *cachep, unsigned long cflags)
 {
 	if ((cflags & (SLAB_CTOR_VERIFY|SLAB_CTOR_CONSTRUCTOR)) ==
 	    SLAB_CTOR_CONSTRUCTOR) {
@@ -46,7 +46,7 @@ void filp_ctor(void * objp, struct kmem_cache_s *cachep, unsigned long cflags)
 	}
 }
 
-void filp_dtor(void * objp, struct kmem_cache_s *cachep, unsigned long dflags)
+void filp_dtor(void *objp, struct kmem_cache *cachep, unsigned long dflags)
 {
 	unsigned long flags;
 	spin_lock_irqsave(&filp_count_lock, flags);

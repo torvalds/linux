@@ -3,7 +3,7 @@
  *
  * Utility to set the Omap MUX and PULL_DWN registers from a table in mux.h
  *
- * Copyright (C) 2003 Nokia Corporation
+ * Copyright (C) 2003 - 2005 Nokia Corporation
  *
  * Written by Tony Lindgren <tony.lindgren@nokia.com>
  *
@@ -25,38 +25,74 @@
 #include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/kernel.h>
 #include <asm/system.h>
 #include <asm/io.h>
 #include <linux/spinlock.h>
-
-#define __MUX_C__
 #include <asm/arch/mux.h>
 
 #ifdef CONFIG_OMAP_MUX
 
+#define OMAP24XX_L4_BASE	0x48000000
+#define OMAP24XX_PULL_ENA	(1 << 3)
+#define OMAP24XX_PULL_UP	(1 << 4)
+
+static struct pin_config * pin_table;
+static unsigned long pin_table_sz;
+
+extern struct pin_config * omap730_pins;
+extern struct pin_config * omap1xxx_pins;
+extern struct pin_config * omap24xx_pins;
+
+int __init omap_mux_register(struct pin_config * pins, unsigned long size)
+{
+	pin_table = pins;
+	pin_table_sz = size;
+
+	return 0;
+}
+
 /*
  * Sets the Omap MUX and PULL_DWN registers based on the table
  */
-int __init_or_module
-omap_cfg_reg(const reg_cfg_t reg_cfg)
+int __init_or_module omap_cfg_reg(const unsigned long index)
 {
 	static DEFINE_SPINLOCK(mux_spin_lock);
 
 	unsigned long flags;
-	reg_cfg_set *cfg;
+	struct pin_config *cfg;
 	unsigned int reg_orig = 0, reg = 0, pu_pd_orig = 0, pu_pd = 0,
 		pull_orig = 0, pull = 0;
 	unsigned int mask, warn = 0;
 
-	if (cpu_is_omap7xx())
-		return 0;
+	if (!pin_table)
+		BUG();
 
-	if (reg_cfg > ARRAY_SIZE(reg_cfg_table)) {
-		printk(KERN_ERR "MUX: reg_cfg %d\n", reg_cfg);
-		return -EINVAL;
+	if (index >= pin_table_sz) {
+		printk(KERN_ERR "Invalid pin mux index: %lu (%lu)\n",
+		       index, pin_table_sz);
+		dump_stack();
+		return -ENODEV;
 	}
 
-	cfg = (reg_cfg_set *)&reg_cfg_table[reg_cfg];
+	cfg = (struct pin_config *)&pin_table[index];
+	if (cpu_is_omap24xx()) {
+		u8 reg = 0;
+
+		reg |= cfg->mask & 0x7;
+		if (cfg->pull_val)
+			reg |= OMAP24XX_PULL_ENA;
+		if(cfg->pu_pd_val)
+			reg |= OMAP24XX_PULL_UP;
+#ifdef CONFIG_OMAP_MUX_DEBUG
+		printk("Muxing %s (0x%08x): 0x%02x -> 0x%02x\n",
+		       cfg->name, OMAP24XX_L4_BASE + cfg->mux_reg,
+		       omap_readb(OMAP24XX_L4_BASE + cfg->mux_reg), reg);
+#endif
+		omap_writeb(reg, OMAP24XX_L4_BASE + cfg->mux_reg);
+
+		return 0;
+	}
 
 	/* Check the mux register in question */
 	if (cfg->mux_reg) {
@@ -157,7 +193,8 @@ omap_cfg_reg(const reg_cfg_t reg_cfg)
 	return 0;
 #endif
 }
-
 EXPORT_SYMBOL(omap_cfg_reg);
-
+#else
+#define omap_mux_init() do {} while(0)
+#define omap_cfg_reg(x)	do {} while(0)
 #endif	/* CONFIG_OMAP_MUX */

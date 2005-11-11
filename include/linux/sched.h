@@ -909,6 +909,7 @@ do { if (atomic_dec_and_test(&(tsk)->usage)) __put_task_struct(tsk); } while(0)
 #define PF_SYNCWRITE	0x00200000	/* I am doing a sync write */
 #define PF_BORROWED_MM	0x00400000	/* I am a kthread doing use_mm */
 #define PF_RANDOMIZE	0x00800000	/* randomize virtual address space */
+#define PF_HOTPLUG_CPU	0x01000000	/* Currently performing CPU hotplug */
 
 /*
  * Only the _current_ task can read/write to tsk->flags, but other

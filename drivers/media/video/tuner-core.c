@@ -28,7 +28,7 @@
 
 /* standard i2c insmod options */
 static unsigned short normal_i2c[] = {
-	0x4b,			/* tda8290 */
+	0x42, 0x43, 0x4a, 0x4b,			/* tda8290 */
 	0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
 	0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
 	I2C_CLIENT_END
@@ -189,6 +189,13 @@ static void set_type(struct i2c_client *c, unsigned int type,
 		i2c_master_send(c, buffer, 4);
 		default_tuner_init(c);
 		break;
+	case TUNER_PHILIPS_TD1316:
+		buffer[0] = 0x0b;
+		buffer[1] = 0xdc;
+		buffer[2] = 0x86;
+		buffer[3] = 0xa4;
+		i2c_master_send(c,buffer,4);
+		default_tuner_init(c);
 	default:
 		default_tuner_init(c);
 		break;
@@ -215,9 +222,9 @@ static void set_addr(struct i2c_client *c, struct tuner_setup *tun_setup)
 {
 	struct tuner *t = i2c_get_clientdata(c);
 
-	if ((tun_setup->addr == ADDR_UNSET &&
+	if ( t->type == UNSET && ((tun_setup->addr == ADDR_UNSET &&
 		(t->mode_mask & tun_setup->mode_mask)) ||
-		tun_setup->addr == c->addr) {
+		tun_setup->addr == c->addr)) {
 			set_type(c, tun_setup->type, tun_setup->mode_mask);
 	}
 }
@@ -341,23 +348,33 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	t->audmode = V4L2_TUNER_MODE_STEREO;
 	t->mode_mask = T_UNINITIALIZED;
 
-
-	tuner_info("chip found @ 0x%x (%s)\n", addr << 1, adap->name);
-
 	if (show_i2c) {
 		unsigned char buffer[16];
 		int i,rc;
 
 		memset(buffer, 0, sizeof(buffer));
 		rc = i2c_master_recv(&t->i2c, buffer, sizeof(buffer));
-		printk("tuner-%04x I2C RECV = ",addr);
+		tuner_info("I2C RECV = ");
 		for (i=0;i<rc;i++)
 			printk("%02x ",buffer[i]);
 		printk("\n");
 	}
 	/* TEA5767 autodetection code - only for addr = 0xc0 */
 	if (!no_autodetect) {
-		if (addr == 0x60) {
+		switch (addr) {
+		case 0x42:
+		case 0x43:
+		case 0x4a:
+		case 0x4b:
+			/* If chip is not tda8290, don't register.
+			   since it can be tda9887*/
+			if (tda8290_probe(&t->i2c) != 0) {
+				tuner_dbg("chip at addr %x is not a tda8290\n", addr);
+				kfree(t);
+				return 0;
+			}
+			break;
+		case 0x60:
 			if (tea5767_autodetection(&t->i2c) != EINVAL) {
 				t->type = TUNER_TEA5767;
 				t->mode_mask = T_RADIO;
@@ -365,10 +382,9 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 				t->freq = 87.5 * 16; /* Sets freq to FM range */
 				default_mode_mask &= ~T_RADIO;
 
-				i2c_attach_client (&t->i2c);
-				set_type(&t->i2c,t->type, t->mode_mask);
-				return 0;
+				goto register_client;
 			}
+			break;
 		}
 	}
 
@@ -381,6 +397,8 @@ static int tuner_attach(struct i2c_adapter *adap, int addr, int kind)
 	}
 
 	/* Should be just before return */
+register_client:
+	tuner_info("chip found @ 0x%x (%s)\n", addr << 1, adap->name);
 	i2c_attach_client (&t->i2c);
 	set_type (&t->i2c,t->type, t->mode_mask);
 	return 0;
@@ -425,23 +443,23 @@ static int tuner_detach(struct i2c_client *client)
 
 static inline int set_mode(struct i2c_client *client, struct tuner *t, int mode, char *cmd)
 {
- 	if (mode == t->mode)
- 		return 0;
+	if (mode == t->mode)
+		return 0;
 
- 	t->mode = mode;
+	t->mode = mode;
 
- 	if (check_mode(t, cmd) == EINVAL) {
- 		t->mode = T_STANDBY;
- 		if (t->standby)
- 			t->standby (client);
- 		return EINVAL;
-  	}
-  	return 0;
+	if (check_mode(t, cmd) == EINVAL) {
+		t->mode = T_STANDBY;
+		if (t->standby)
+			t->standby (client);
+		return EINVAL;
+	}
+	return 0;
 }
 
 #define switch_v4l2()	if (!t->using_v4l2) \
-		            tuner_dbg("switching to v4l2\n"); \
-	                t->using_v4l2 = 1;
+			    tuner_dbg("switching to v4l2\n"); \
+			t->using_v4l2 = 1;
 
 static inline int check_v4l2(struct tuner *t)
 {
@@ -479,8 +497,6 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			break;
 		}
 	case AUDC_CONFIG_PINNACLE:
-		if (check_mode(t, "AUDC_CONFIG_PINNACLE") == EINVAL)
-			return 0;
 		switch (*iarg) {
 		case 2:
 			tuner_dbg("pinnacle pal\n");
@@ -616,7 +632,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			switch_v4l2();
 			if (V4L2_TUNER_RADIO == f->type &&
 			    V4L2_TUNER_RADIO != t->mode) {
-			        if (set_mode (client, t, f->type, "VIDIOC_S_FREQUENCY")
+				if (set_mode (client, t, f->type, "VIDIOC_S_FREQUENCY")
 					    == EINVAL)
 					return 0;
 			}
@@ -688,7 +704,7 @@ static int tuner_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			break;
 		}
 	default:
-		tuner_dbg("Unimplemented IOCTL 0x%08x(dir=%d,tp=0x%02x,nr=%d,sz=%d)\n",
+		tuner_dbg("Unimplemented IOCTL 0x%08x(dir=%d,tp='%c',nr=%d,sz=%d)\n",
 					 cmd, _IOC_DIR(cmd), _IOC_TYPE(cmd),
 					_IOC_NR(cmd), _IOC_SIZE(cmd));
 		break;

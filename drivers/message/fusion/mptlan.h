@@ -66,7 +66,6 @@
 #include <linux/slab.h>
 #include <linux/miscdevice.h>
 #include <linux/spinlock.h>
-#include <linux/version.h>
 #include <linux/workqueue.h>
 #include <linux/delay.h>
 // #include <linux/trdevice.h>

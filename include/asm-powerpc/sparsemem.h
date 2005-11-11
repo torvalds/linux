@@ -11,6 +11,10 @@
 #define MAX_PHYSADDR_BITS       38
 #define MAX_PHYSMEM_BITS        36
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+extern void create_section_mapping(unsigned long start, unsigned long end);
+#endif /* CONFIG_MEMORY_HOTPLUG */
+
 #endif /* CONFIG_SPARSEMEM */
 
 #endif /* _ASM_POWERPC_SPARSEMEM_H */

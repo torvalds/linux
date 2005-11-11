@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2001-2002 MontaVista Software Inc.
  * Copyright (C) 2003-2004 Texas Instruments
- * Copyright (C) 2004 Nokia Corporation 
+ * Copyright (C) 2004 Nokia Corporation
  *
  *	Assembled using driver code copyright the companies above
  *	and written by David Brownell, Jian Zhang <jzhang@ti.com>,

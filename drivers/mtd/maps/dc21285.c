@@ -4,8 +4,8 @@
  * (C) 2000  Nicolas Pitre <nico@cam.org>
  *
  * This code is GPL
- * 
- * $Id: dc21285.c,v 1.22 2004/11/01 13:39:21 rmk Exp $
+ *
+ * $Id: dc21285.c,v 1.24 2005/11/07 11:14:26 gleixner Exp $
  */
 #include <linux/config.h>
 #include <linux/module.h>
@@ -27,9 +27,9 @@
 static struct mtd_info *dc21285_mtd;
 
 #ifdef CONFIG_ARCH_NETWINDER
-/* 
+/*
  * This is really ugly, but it seams to be the only
- * realiable way to do it, as the cpld state machine 
+ * realiable way to do it, as the cpld state machine
  * is unpredictible. So we have a 25us penalty per
  * write access.
  */
@@ -150,7 +150,7 @@ static struct map_info dc21285_map = {
 static struct mtd_partition *dc21285_parts;
 static const char *probes[] = { "RedBoot", "cmdlinepart", NULL };
 #endif
-  
+
 static int __init init_dc21285(void)
 {
 
@@ -160,20 +160,20 @@ static int __init init_dc21285(void)
 
 	/* Determine bankwidth */
 	switch (*CSR_SA110_CNTL & (3<<14)) {
-		case SA110_CNTL_ROMWIDTH_8: 
+		case SA110_CNTL_ROMWIDTH_8:
 			dc21285_map.bankwidth = 1;
 			dc21285_map.read = dc21285_read8;
 			dc21285_map.write = dc21285_write8;
 			dc21285_map.copy_to = dc21285_copy_to_8;
 			break;
-		case SA110_CNTL_ROMWIDTH_16: 
-			dc21285_map.bankwidth = 2; 
+		case SA110_CNTL_ROMWIDTH_16:
+			dc21285_map.bankwidth = 2;
 			dc21285_map.read = dc21285_read16;
 			dc21285_map.write = dc21285_write16;
 			dc21285_map.copy_to = dc21285_copy_to_16;
 			break;
-		case SA110_CNTL_ROMWIDTH_32: 
-			dc21285_map.bankwidth = 4; 
+		case SA110_CNTL_ROMWIDTH_32:
+			dc21285_map.bankwidth = 4;
 			dc21285_map.read = dc21285_read32;
 			dc21285_map.write = dc21285_write32;
 			dc21285_map.copy_to = dc21285_copy_to_32;
@@ -201,20 +201,20 @@ static int __init init_dc21285(void)
 	if (!dc21285_mtd) {
 		iounmap(dc21285_map.virt);
 		return -ENXIO;
-	}	
-	
+	}
+
 	dc21285_mtd->owner = THIS_MODULE;
 
 #ifdef CONFIG_MTD_PARTITIONS
 	nrparts = parse_mtd_partitions(dc21285_mtd, probes, &dc21285_parts, 0);
 	if (nrparts > 0)
 		add_mtd_partitions(dc21285_mtd, dc21285_parts, nrparts);
-	else	
-#endif	
+	else
+#endif
 		add_mtd_device(dc21285_mtd);
-			
+
 	if(machine_is_ebsa285()) {
-		/* 
+		/*
 		 * Flash timing is determined with bits 19-16 of the
 		 * CSR_SA110_CNTL.  The value is the number of wait cycles, or
 		 * 0 for 16 cycles (the default).  Cycles are 20 ns.
@@ -227,7 +227,7 @@ static int __init init_dc21285(void)
 		/* tristate time */
 		*CSR_SA110_CNTL = ((*CSR_SA110_CNTL & ~0x0f000000) | (7 << 24));
 	}
-	
+
 	return 0;
 }
 

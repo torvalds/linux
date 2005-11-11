@@ -16,7 +16,6 @@
 #include "user_util.h"
 #include "kern_util.h"
 #include "net_user.h"
-#include "helper.h"
 #include "os.h"
 
 int tap_open_common(void *dev, char *gate_addr)

@@ -107,6 +107,7 @@ enum ppc_sys_devices {
 	MPC83xx_SEC2,
 	MPC83xx_USB2_DR,
 	MPC83xx_USB2_MPH,
+	MPC83xx_MDIO,
 };
 
 #endif /* CONFIG_83xx */

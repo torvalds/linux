@@ -926,7 +926,6 @@ static struct fb_ops acornfb_ops = {
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 	.fb_mmap	= acornfb_mmap,
-	.fb_cursor	= soft_cursor,
 };
 
 /*

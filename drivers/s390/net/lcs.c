@@ -145,8 +145,7 @@ lcs_free_channel(struct lcs_channel *channel)
 
 	LCS_DBF_TEXT(2, setup, "ichfree");
 	for (cnt = 0; cnt < LCS_NUM_BUFFS; cnt++) {
-		if (channel->iob[cnt].data != NULL)
-			kfree(channel->iob[cnt].data);
+		kfree(channel->iob[cnt].data);
 		channel->iob[cnt].data = NULL;
 	}
 }

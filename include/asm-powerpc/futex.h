@@ -7,13 +7,14 @@
 #include <asm/errno.h>
 #include <asm/synch.h>
 #include <asm/uaccess.h>
-#include <asm/ppc_asm.h>
+#include <asm/asm-compat.h>
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg) \
   __asm__ __volatile ( \
 	SYNC_ON_SMP \
 "1:	lwarx	%0,0,%2\n" \
 	insn \
+	PPC405_ERR77(0, %2) \
 "2:	stwcx.	%1,0,%2\n" \
 	"bne-	1b\n" \
 	"li	%1,0\n" \
@@ -23,7 +24,7 @@
 	".previous\n" \
 	".section __ex_table,\"a\"\n" \
 	".align 3\n" \
-	DATAL " 1b,4b,2b,4b\n" \
+	PPC_LONG "1b,4b,2b,4b\n" \
 	".previous" \
 	: "=&r" (oldval), "=&r" (ret) \
 	: "b" (uaddr), "i" (-EFAULT), "1" (oparg) \
