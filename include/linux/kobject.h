@@ -42,10 +42,8 @@ enum kobject_action {
 	KOBJ_ADD	= (__force kobject_action_t) 0x01,	/* add event, for hotplug */
 	KOBJ_REMOVE	= (__force kobject_action_t) 0x02,	/* remove event, for hotplug */
 	KOBJ_CHANGE	= (__force kobject_action_t) 0x03,	/* a sysfs attribute file has changed */
-	KOBJ_MOUNT	= (__force kobject_action_t) 0x04,	/* mount event for block devices */
-	KOBJ_UMOUNT	= (__force kobject_action_t) 0x05,	/* umount event for block devices */
-	KOBJ_OFFLINE	= (__force kobject_action_t) 0x06,	/* offline event for hotplug devices */
-	KOBJ_ONLINE	= (__force kobject_action_t) 0x07,	/* online event for hotplug devices */
+	KOBJ_OFFLINE	= (__force kobject_action_t) 0x04,	/* offline event for hotplug devices */
+	KOBJ_ONLINE	= (__force kobject_action_t) 0x05,	/* online event for hotplug devices */
 };
 
 struct kobject {
