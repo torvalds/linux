@@ -897,18 +897,32 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 	int prior_fackets;
 	u32 lost_retrans = 0;
 	int flag = 0;
+	int dup_sack = 0;
 	int i;
 
 	if (!tp->sacked_out)
 		tp->fackets_out = 0;
 	prior_fackets = tp->fackets_out;
 
-	for (i=0; i<num_sacks; i++, sp++) {
-		struct sk_buff *skb;
-		__u32 start_seq = ntohl(sp->start_seq);
-		__u32 end_seq = ntohl(sp->end_seq);
-		int fack_count = 0;
-		int dup_sack = 0;
+	/* SACK fastpath:
+	 * if the only SACK change is the increase of the end_seq of
+	 * the first block then only apply that SACK block
+	 * and use retrans queue hinting otherwise slowpath */
+	flag = 1;
+	for (i = 0; i< num_sacks; i++) {
+		__u32 start_seq = ntohl(sp[i].start_seq);
+		__u32 end_seq =	 ntohl(sp[i].end_seq);
+
+		if (i == 0){
+			if (tp->recv_sack_cache[i].start_seq != start_seq)
+				flag = 0;
+		} else {
+			if ((tp->recv_sack_cache[i].start_seq != start_seq) ||
+			    (tp->recv_sack_cache[i].end_seq != end_seq))
+				flag = 0;
+		}
+		tp->recv_sack_cache[i].start_seq = start_seq;
+		tp->recv_sack_cache[i].end_seq = end_seq;
 
 		/* Check for D-SACK. */
 		if (i == 0) {
@@ -940,14 +954,57 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			if (before(ack, prior_snd_una - tp->max_window))
 				return 0;
 		}
+	}
+
+	if (flag)
+		num_sacks = 1;
+	else {
+		int j;
+		tp->fastpath_skb_hint = NULL;
+
+		/* order SACK blocks to allow in order walk of the retrans queue */
+		for (i = num_sacks-1; i > 0; i--) {
+			for (j = 0; j < i; j++){
+				if (after(ntohl(sp[j].start_seq),
+					  ntohl(sp[j+1].start_seq))){
+					sp[j].start_seq = htonl(tp->recv_sack_cache[j+1].start_seq);
+					sp[j].end_seq = htonl(tp->recv_sack_cache[j+1].end_seq);
+					sp[j+1].start_seq = htonl(tp->recv_sack_cache[j].start_seq);
+					sp[j+1].end_seq = htonl(tp->recv_sack_cache[j].end_seq);
+				}
+
+			}
+		}
+	}
+
+	/* clear flag as used for different purpose in following code */
+	flag = 0;
+
+	for (i=0; i<num_sacks; i++, sp++) {
+		struct sk_buff *skb;
+		__u32 start_seq = ntohl(sp->start_seq);
+		__u32 end_seq = ntohl(sp->end_seq);
+		int fack_count;
+
+		/* Use SACK fastpath hint if valid */
+		if (tp->fastpath_skb_hint) {
+			skb = tp->fastpath_skb_hint;
+			fack_count = tp->fastpath_cnt_hint;
+		} else {
+			skb = sk->sk_write_queue.next;
+			fack_count = 0;
+		}
 
 		/* Event "B" in the comment above. */
 		if (after(end_seq, tp->high_seq))
 			flag |= FLAG_DATA_LOST;
 
-		sk_stream_for_retrans_queue(skb, sk) {
+		sk_stream_for_retrans_queue_from(skb, sk) {
 			int in_sack, pcount;
 			u8 sacked;
+
+			tp->fastpath_skb_hint = skb;
+			tp->fastpath_cnt_hint = fack_count;
 
 			/* The retransmission queue is always in order, so
 			 * we can short-circuit the walk early.
@@ -1023,6 +1080,9 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 						TCP_SKB_CB(skb)->sacked &= ~(TCPCB_LOST|TCPCB_SACKED_RETRANS);
 						tp->lost_out -= tcp_skb_pcount(skb);
 						tp->retrans_out -= tcp_skb_pcount(skb);
+
+						/* clear lost hint */
+						tp->retransmit_skb_hint = NULL;
 					}
 				} else {
 					/* New sack for not retransmitted frame,
@@ -1035,6 +1095,9 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 					if (sacked & TCPCB_LOST) {
 						TCP_SKB_CB(skb)->sacked &= ~TCPCB_LOST;
 						tp->lost_out -= tcp_skb_pcount(skb);
+
+						/* clear lost hint */
+						tp->retransmit_skb_hint = NULL;
 					}
 				}
 
@@ -1058,6 +1121,7 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 			    (TCP_SKB_CB(skb)->sacked&TCPCB_SACKED_RETRANS)) {
 				TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
 				tp->retrans_out -= tcp_skb_pcount(skb);
+				tp->retransmit_skb_hint = NULL;
 			}
 		}
 	}
@@ -1084,6 +1148,9 @@ tcp_sacktag_write_queue(struct sock *sk, struct sk_buff *ack_skb, u32 prior_snd_
 				     tp->mss_cache))) {
 				TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
 				tp->retrans_out -= tcp_skb_pcount(skb);
+
+				/* clear lost hint */
+				tp->retransmit_skb_hint = NULL;
 
 				if (!(TCP_SKB_CB(skb)->sacked&(TCPCB_LOST|TCPCB_SACKED_ACKED))) {
 					tp->lost_out += tcp_skb_pcount(skb);
@@ -1192,6 +1259,8 @@ static void tcp_enter_frto_loss(struct sock *sk)
 	tcp_set_ca_state(sk, TCP_CA_Loss);
 	tp->high_seq = tp->frto_highmark;
 	TCP_ECN_queue_cwr(tp);
+
+	clear_all_retrans_hints(tp);
 }
 
 void tcp_clear_retrans(struct tcp_sock *tp)
@@ -1258,6 +1327,8 @@ void tcp_enter_loss(struct sock *sk, int how)
 	tcp_set_ca_state(sk, TCP_CA_Loss);
 	tp->high_seq = tp->snd_nxt;
 	TCP_ECN_queue_cwr(tp);
+
+	clear_all_retrans_hints(tp);
 }
 
 static int tcp_check_sack_reneging(struct sock *sk)
@@ -1482,17 +1553,37 @@ static void tcp_mark_head_lost(struct sock *sk, struct tcp_sock *tp,
 			       int packets, u32 high_seq)
 {
 	struct sk_buff *skb;
-	int cnt = packets;
+	int cnt;
 
-	BUG_TRAP(cnt <= tp->packets_out);
+	BUG_TRAP(packets <= tp->packets_out);
+	if (tp->lost_skb_hint) {
+		skb = tp->lost_skb_hint;
+		cnt = tp->lost_cnt_hint;
+	} else {
+		skb = sk->sk_write_queue.next;
+		cnt = 0;
+	}
 
-	sk_stream_for_retrans_queue(skb, sk) {
-		cnt -= tcp_skb_pcount(skb);
-		if (cnt < 0 || after(TCP_SKB_CB(skb)->end_seq, high_seq))
+	sk_stream_for_retrans_queue_from(skb, sk) {
+		/* TODO: do this better */
+		/* this is not the most efficient way to do this... */
+		tp->lost_skb_hint = skb;
+		tp->lost_cnt_hint = cnt;
+		cnt += tcp_skb_pcount(skb);
+		if (cnt > packets || after(TCP_SKB_CB(skb)->end_seq, high_seq))
 			break;
 		if (!(TCP_SKB_CB(skb)->sacked&TCPCB_TAGBITS)) {
 			TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
 			tp->lost_out += tcp_skb_pcount(skb);
+
+			/* clear xmit_retransmit_queue hints
+			 *  if this is beyond hint */
+			if(tp->retransmit_skb_hint != NULL &&
+			   before(TCP_SKB_CB(skb)->seq,
+				  TCP_SKB_CB(tp->retransmit_skb_hint)->seq)) {
+
+				tp->retransmit_skb_hint = NULL;
+			}
 		}
 	}
 	tcp_sync_left_out(tp);
@@ -1519,13 +1610,28 @@ static void tcp_update_scoreboard(struct sock *sk, struct tcp_sock *tp)
 	if (tcp_head_timedout(sk, tp)) {
 		struct sk_buff *skb;
 
-		sk_stream_for_retrans_queue(skb, sk) {
-			if (tcp_skb_timedout(sk, skb) &&
-			    !(TCP_SKB_CB(skb)->sacked&TCPCB_TAGBITS)) {
+		skb = tp->scoreboard_skb_hint ? tp->scoreboard_skb_hint
+			: sk->sk_write_queue.next;
+
+		sk_stream_for_retrans_queue_from(skb, sk) {
+			if (!tcp_skb_timedout(sk, skb))
+				break;
+
+			if (!(TCP_SKB_CB(skb)->sacked&TCPCB_TAGBITS)) {
 				TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
 				tp->lost_out += tcp_skb_pcount(skb);
+
+				/* clear xmit_retrans hint */
+				if (tp->retransmit_skb_hint &&
+				    before(TCP_SKB_CB(skb)->seq,
+					   TCP_SKB_CB(tp->retransmit_skb_hint)->seq))
+
+					tp->retransmit_skb_hint = NULL;
 			}
 		}
+
+		tp->scoreboard_skb_hint = skb;
+
 		tcp_sync_left_out(tp);
 	}
 }
@@ -1605,6 +1711,10 @@ static void tcp_undo_cwr(struct sock *sk, const int undo)
 	}
 	tcp_moderate_cwnd(tp);
 	tp->snd_cwnd_stamp = tcp_time_stamp;
+
+	/* There is something screwy going on with the retrans hints after
+	   an undo */
+	clear_all_retrans_hints(tp);
 }
 
 static inline int tcp_may_undo(struct tcp_sock *tp)
@@ -1688,6 +1798,9 @@ static int tcp_try_undo_loss(struct sock *sk, struct tcp_sock *tp)
 		sk_stream_for_retrans_queue(skb, sk) {
 			TCP_SKB_CB(skb)->sacked &= ~TCPCB_LOST;
 		}
+
+		clear_all_retrans_hints(tp);
+
 		DBGUNDO(sk, tp, "partial loss");
 		tp->lost_out = 0;
 		tp->left_out = tp->sacked_out;
@@ -2117,6 +2230,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 		tcp_packets_out_dec(tp, skb);
 		__skb_unlink(skb, &sk->sk_write_queue);
 		sk_stream_free_skb(sk, skb);
+		clear_all_retrans_hints(tp);
 	}
 
 	if (acked&FLAG_ACKED) {
