@@ -289,6 +289,7 @@ ia64_mca_log_sal_error_record(int sal_info_type)
 #ifdef CONFIG_ACPI
 
 int cpe_vector = -1;
+int ia64_cpe_irq = -1;
 
 static irqreturn_t
 ia64_mca_cpe_int_handler (int cpe_irq, void *arg, struct pt_regs *ptregs)
@@ -1444,11 +1445,13 @@ void __devinit
 ia64_mca_cpu_init(void *cpu_data)
 {
 	void *pal_vaddr;
+	static int first_time = 1;
 
-	if (smp_processor_id() == 0) {
+	if (first_time) {
 		void *mca_data;
 		int cpu;
 
+		first_time = 0;
 		mca_data = alloc_bootmem(sizeof(struct ia64_mca_cpu)
 					 * NR_CPUS + KERNEL_STACK_SIZE);
 		mca_data = (void *)(((unsigned long)mca_data +
@@ -1704,6 +1707,7 @@ ia64_mca_late_init(void)
 					desc = irq_descp(irq);
 					desc->status |= IRQ_PER_CPU;
 					setup_irq(irq, &mca_cpe_irqaction);
+					ia64_cpe_irq = irq;
 				}
 			ia64_mca_register_cpev(cpe_vector);
 			IA64_MCA_DEBUG("%s: CPEI/P setup and enabled.\n", __FUNCTION__);

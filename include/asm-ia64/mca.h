@@ -131,6 +131,8 @@ struct ia64_mca_cpu {
 /* Array of physical addresses of each CPU's MCA area.  */
 extern unsigned long __per_cpu_mca[NR_CPUS];
 
+extern int cpe_vector;
+extern int ia64_cpe_irq;
 extern void ia64_mca_init(void);
 extern void ia64_mca_cpu_init(void *);
 extern void ia64_os_mca_dispatch(void);

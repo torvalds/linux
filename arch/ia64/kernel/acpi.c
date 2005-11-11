@@ -287,16 +287,20 @@ acpi_parse_plat_int_src(acpi_table_entry_header * header,
 unsigned int can_cpei_retarget(void)
 {
 	extern int cpe_vector;
+	extern unsigned int force_cpei_retarget;
 
 	/*
 	 * Only if CPEI is supported and the override flag
 	 * is present, otherwise return that its re-targettable
 	 * if we are in polling mode.
 	 */
-	if (cpe_vector > 0 && !acpi_cpei_override)
-		return 0;
-	else
-		return 1;
+	if (cpe_vector > 0) {
+		if (acpi_cpei_override || force_cpei_retarget)
+			return 1;
+		else
+			return 0;
+	}
+	return 1;
 }
 
 unsigned int is_cpu_cpei_target(unsigned int cpu)
