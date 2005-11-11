@@ -205,25 +205,6 @@ config HOTPLUG
 	  modules require HOTPLUG functionality, but a module built
 	  outside the kernel tree does. Such modules require Y here.
 
-config KOBJECT_UEVENT
-	bool "Kernel Userspace Events" if EMBEDDED
-	depends on NET
-	default y
-	help
-	  This option enables the kernel userspace event layer, which is a
-	  simple mechanism for kernel-to-user communication over a netlink
-	  socket.
-	  The goal of the kernel userspace events layer is to provide a simple
-	  and efficient events system, that notifies userspace about kobject
-	  state changes. This will enable applications to just listen for
-	  events instead of polling system devices and files.
-	  Hotplug events (kobject addition and removal) are also available on
-	  the netlink socket in addition to the execution of /sbin/hotplug if
-	  CONFIG_HOTPLUG is enabled.
-
-	  Say Y, unless you are building a system requiring minimal memory
-	  consumption.
-
 config IKCONFIG
 	bool "Kernel .config support"
 	---help---

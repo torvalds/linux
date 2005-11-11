@@ -23,14 +23,30 @@
 #include <linux/spinlock.h>
 #include <linux/rwsem.h>
 #include <linux/kref.h>
-#include <linux/kobject_uevent.h>
 #include <linux/kernel.h>
 #include <asm/atomic.h>
 
 #define KOBJ_NAME_LEN	20
 
+#define HOTPLUG_PATH_LEN	256
+
+/* path to the userspace helper executed on an event */
+extern char hotplug_path[];
+
 /* counter to tag the hotplug event, read only except for the kobject core */
 extern u64 hotplug_seqnum;
+
+/* the actions here must match the proper string in lib/kobject_uevent.c */
+typedef int __bitwise kobject_action_t;
+enum kobject_action {
+	KOBJ_ADD	= (__force kobject_action_t) 0x01,	/* add event, for hotplug */
+	KOBJ_REMOVE	= (__force kobject_action_t) 0x02,	/* remove event, for hotplug */
+	KOBJ_CHANGE	= (__force kobject_action_t) 0x03,	/* a sysfs attribute file has changed */
+	KOBJ_MOUNT	= (__force kobject_action_t) 0x04,	/* mount event for block devices */
+	KOBJ_UMOUNT	= (__force kobject_action_t) 0x05,	/* umount event for block devices */
+	KOBJ_OFFLINE	= (__force kobject_action_t) 0x06,	/* offline event for hotplug devices */
+	KOBJ_ONLINE	= (__force kobject_action_t) 0x07,	/* online event for hotplug devices */
+};
 
 struct kobject {
 	const char		* k_name;
@@ -243,15 +259,32 @@ extern void subsys_remove_file(struct subsystem * , struct subsys_attribute *);
 
 #ifdef CONFIG_HOTPLUG
 void kobject_hotplug(struct kobject *kobj, enum kobject_action action);
+
 int add_hotplug_env_var(char **envp, int num_envp, int *cur_index,
 			char *buffer, int buffer_size, int *cur_len,
 			const char *format, ...)
 	__attribute__((format (printf, 7, 8)));
+
+int kobject_uevent(struct kobject *kobj,
+		   enum kobject_action action,
+		   struct attribute *attr);
+int kobject_uevent_atomic(struct kobject *kobj,
+			  enum kobject_action action,
+			  struct attribute *attr);
+
 #else
 static inline void kobject_hotplug(struct kobject *kobj, enum kobject_action action) { }
 static inline int add_hotplug_env_var(char **envp, int num_envp, int *cur_index, 
 				      char *buffer, int buffer_size, int *cur_len, 
 				      const char *format, ...)
+{ return 0; }
+int kobject_uevent(struct kobject *kobj,
+		   enum kobject_action action,
+		   struct attribute *attr)
+{ return 0; }
+int kobject_uevent_atomic(struct kobject *kobj,
+			  enum kobject_action action,
+			  struct attribute *attr)
 { return 0; }
 #endif
 

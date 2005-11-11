@@ -19,14 +19,17 @@
 #include <linux/skbuff.h>
 #include <linux/netlink.h>
 #include <linux/string.h>
-#include <linux/kobject_uevent.h>
 #include <linux/kobject.h>
 #include <net/sock.h>
 
 #define BUFFER_SIZE	1024	/* buffer for the hotplug env */
 #define NUM_ENVP	32	/* number of env pointers */
 
-#if defined(CONFIG_KOBJECT_UEVENT) || defined(CONFIG_HOTPLUG)
+#if defined(CONFIG_HOTPLUG)
+char hotplug_path[HOTPLUG_PATH_LEN] = "/sbin/hotplug";
+u64 hotplug_seqnum;
+static DEFINE_SPINLOCK(sequence_lock);
+
 static char *action_to_string(enum kobject_action action)
 {
 	switch (action) {
@@ -48,9 +51,7 @@ static char *action_to_string(enum kobject_action action)
 		return NULL;
 	}
 }
-#endif
 
-#ifdef CONFIG_KOBJECT_UEVENT
 static struct sock *uevent_sock;
 
 /**
@@ -167,21 +168,6 @@ static int __init kobject_uevent_init(void)
 }
 
 postcore_initcall(kobject_uevent_init);
-
-#else
-static inline int send_uevent(const char *signal, const char *obj,
-			      char **envp, int gfp_mask)
-{
-	return 0;
-}
-
-#endif /* CONFIG_KOBJECT_UEVENT */
-
-
-#ifdef CONFIG_HOTPLUG
-char hotplug_path[HOTPLUG_PATH_LEN] = "/sbin/hotplug";
-u64 hotplug_seqnum;
-static DEFINE_SPINLOCK(sequence_lock);
 
 /**
  * kobject_hotplug - notify userspace by executing /sbin/hotplug

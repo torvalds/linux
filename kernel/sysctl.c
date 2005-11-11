@@ -31,6 +31,7 @@
 #include <linux/smp_lock.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/kobject.h>
 #include <linux/net.h>
 #include <linux/sysrq.h>
 #include <linux/highuid.h>
@@ -82,9 +83,6 @@ static int ngroups_max = NGROUPS_MAX;
 
 #ifdef CONFIG_KMOD
 extern char modprobe_path[];
-#endif
-#ifdef CONFIG_HOTPLUG
-extern char hotplug_path[];
 #endif
 #ifdef CONFIG_CHR_DEV_SG
 extern int sg_big_buff;

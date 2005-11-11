@@ -1476,12 +1476,6 @@ W:	http://nfs.sourceforge.net/
 W:	http://www.cse.unsw.edu.au/~neilb/patches/linux-devel/
 S:	Maintained
 
-KERNEL EVENT LAYER (KOBJECT_UEVENT)
-P:	Robert Love
-M:	rml@novell.com
-L:	linux-kernel@vger.kernel.org
-S:	Maintained
-
 KEXEC
 P:	Eric Biederman
 P:	Randy Dunlap
