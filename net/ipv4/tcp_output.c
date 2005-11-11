@@ -599,7 +599,7 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
    for TCP options, but includes only bare TCP header.
 
    tp->rx_opt.mss_clamp is mss negotiated at connection setup.
-   It is minumum of user_mss and mss received with SYN.
+   It is minimum of user_mss and mss received with SYN.
    It also does not include TCP options.
 
    tp->pmtu_cookie is last pmtu, seen by this function.
@@ -1171,7 +1171,7 @@ u32 __tcp_select_window(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	/* MSS for the peer's data.  Previous verions used mss_clamp
+	/* MSS for the peer's data.  Previous versions used mss_clamp
 	 * here.  I don't know if the value based on our guesses
 	 * of peer's MSS is better for the performance.  It's more correct
 	 * but may be worse for the performance because of rcv_mss
@@ -1361,7 +1361,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	int err;
 
 	/* Do not sent more than we queued. 1/4 is reserved for possible
-	 * copying overhead: frgagmentation, tunneling, mangling etc.
+	 * copying overhead: fragmentation, tunneling, mangling etc.
 	 */
 	if (atomic_read(&sk->sk_wmem_alloc) >
 	    min(sk->sk_wmem_queued + (sk->sk_wmem_queued >> 2), sk->sk_sndbuf))

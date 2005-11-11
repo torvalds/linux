@@ -1640,7 +1640,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	} else if (tcp_need_reset(old_state) ||
 		   (tp->snd_nxt != tp->write_seq &&
 		    (1 << old_state) & (TCPF_CLOSING | TCPF_LAST_ACK))) {
-		/* The last check adjusts for discrepance of Linux wrt. RFC
+		/* The last check adjusts for discrepancy of Linux wrt. RFC
 		 * states
 		 */
 		tcp_send_active_reset(sk, gfp_any());

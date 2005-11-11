@@ -89,10 +89,10 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 				 */
 
 #define TCP_SYN_RETRIES	 5	/* number of times to retry active opening a
-				 * connection: ~180sec is RFC minumum	*/
+				 * connection: ~180sec is RFC minimum	*/
 
 #define TCP_SYNACK_RETRIES 5	/* number of times to retry passive opening a
-				 * connection: ~180sec is RFC minumum	*/
+				 * connection: ~180sec is RFC minimum	*/
 
 
 #define TCP_ORPHAN_RETRIES 7	/* number of times to retry on an orphaned
@@ -180,7 +180,7 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 /* Flags in tp->nonagle */
 #define TCP_NAGLE_OFF		1	/* Nagle's algo is disabled */
 #define TCP_NAGLE_CORK		2	/* Socket is corked	    */
-#define TCP_NAGLE_PUSH		4	/* Cork is overriden for already queued data */
+#define TCP_NAGLE_PUSH		4	/* Cork is overridden for already queued data */
 
 extern struct inet_timewait_death_row tcp_death_row;
 
@@ -552,13 +552,13 @@ extern u32	__tcp_select_window(struct sock *sk);
 
 /* TCP timestamps are only 32-bits, this causes a slight
  * complication on 64-bit systems since we store a snapshot
- * of jiffies in the buffer control blocks below.  We decidely
+ * of jiffies in the buffer control blocks below.  We decidedly
  * only use of the low 32-bits of jiffies and hide the ugly
  * casts with the following macro.
  */
 #define tcp_time_stamp		((__u32)(jiffies))
 
-/* This is what the send packet queueing engine uses to pass
+/* This is what the send packet queuing engine uses to pass
  * TCP per-packet control information to the transmission
  * code.  We also store the host-order sequence numbers in
  * here too.  This is 36 bytes on 32-bit architectures,
@@ -598,7 +598,7 @@ struct tcp_skb_cb {
 #define TCPCB_EVER_RETRANS	0x80	/* Ever retransmitted frame	*/
 #define TCPCB_RETRANS		(TCPCB_SACKED_RETRANS|TCPCB_EVER_RETRANS)
 
-#define TCPCB_URG		0x20	/* Urgent pointer advenced here	*/
+#define TCPCB_URG		0x20	/* Urgent pointer advanced here	*/
 
 #define TCPCB_AT_TAIL		(TCPCB_URG)
 

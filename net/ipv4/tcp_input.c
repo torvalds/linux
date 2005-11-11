@@ -42,7 +42,7 @@
  *		Andi Kleen	:	Moved open_request checking here
  *					and process RSTs for open_requests.
  *		Andi Kleen	:	Better prune_queue, and other fixes.
- *		Andrey Savochkin:	Fix RTT measurements in the presnce of
+ *		Andrey Savochkin:	Fix RTT measurements in the presence of
  *					timestamps.
  *		Andrey Savochkin:	Check sequence numbers correctly when
  *					removing SACKs due to in sequence incoming
@@ -224,7 +224,7 @@ static void tcp_fixup_sndbuf(struct sock *sk)
  *   of receiver window. Check #2.
  *
  * The scheme does not work when sender sends good segments opening
- * window and then starts to feed us spagetti. But it should work
+ * window and then starts to feed us spaghetti. But it should work
  * in common situations. Otherwise, we have to rely on queue collapsing.
  */
 
@@ -278,7 +278,7 @@ static void tcp_fixup_rcvbuf(struct sock *sk)
 	int rcvmem = tp->advmss + MAX_TCP_HEADER + 16 + sizeof(struct sk_buff);
 
 	/* Try to select rcvbuf so that 4 mss-sized segments
-	 * will fit to window and correspoding skbs will fit to our rcvbuf.
+	 * will fit to window and corresponding skbs will fit to our rcvbuf.
 	 * (was 3; 4 is minimum to allow fast retransmit to work.)
 	 */
 	while (tcp_win_from_space(rcvmem) < tp->advmss)
@@ -287,7 +287,7 @@ static void tcp_fixup_rcvbuf(struct sock *sk)
 		sk->sk_rcvbuf = min(4 * rcvmem, sysctl_tcp_rmem[2]);
 }
 
-/* 4. Try to fixup all. It is made iimediately after connection enters
+/* 4. Try to fixup all. It is made immediately after connection enters
  *    established state.
  */
 static void tcp_init_buffer_space(struct sock *sk)
@@ -367,8 +367,8 @@ static void tcp_rcv_rtt_update(struct tcp_sock *tp, u32 sample, int win_dep)
 		 * are stalled on filesystem I/O.
 		 *
 		 * Also, since we are only going for a minimum in the
-		 * non-timestamp case, we do not smoothe things out
-		 * else with timestamps disabled convergance takes too
+		 * non-timestamp case, we do not smoother things out
+		 * else with timestamps disabled convergence takes too
 		 * long.
 		 */
 		if (!win_dep) {
@@ -377,7 +377,7 @@ static void tcp_rcv_rtt_update(struct tcp_sock *tp, u32 sample, int win_dep)
 		} else if (m < new_sample)
 			new_sample = m << 3;
 	} else {
-		/* No previous mesaure. */
+		/* No previous measure. */
 		new_sample = m << 3;
 	}
 
@@ -506,7 +506,7 @@ static void tcp_event_data_recv(struct sock *sk, struct tcp_sock *tp, struct sk_
 			if (icsk->icsk_ack.ato > icsk->icsk_rto)
 				icsk->icsk_ack.ato = icsk->icsk_rto;
 		} else if (m > icsk->icsk_rto) {
-			/* Too long gap. Apparently sender falled to
+			/* Too long gap. Apparently sender failed to
 			 * restart window, so that we send ACKs quickly.
 			 */
 			tcp_incr_quickack(sk);
@@ -546,7 +546,7 @@ static void tcp_rtt_estimator(struct sock *sk, const __u32 mrtt)
 	 *
 	 * Funny. This algorithm seems to be very broken.
 	 * These formulae increase RTO, when it should be decreased, increase
-	 * too slowly, when it should be incresed fastly, decrease too fastly
+	 * too slowly, when it should be increased fastly, decrease too fastly
 	 * etc. I guess in BSD RTO takes ONE value, so that it is absolutely
 	 * does not matter how to _calculate_ it. Seems, it was trap
 	 * that VJ failed to avoid. 8)
@@ -607,14 +607,14 @@ static inline void tcp_set_rto(struct sock *sk)
 	 *    at least by solaris and freebsd. "Erratic ACKs" has _nothing_
 	 *    to do with delayed acks, because at cwnd>2 true delack timeout
 	 *    is invisible. Actually, Linux-2.4 also generates erratic
-	 *    ACKs in some curcumstances.
+	 *    ACKs in some circumstances.
 	 */
 	inet_csk(sk)->icsk_rto = (tp->srtt >> 3) + tp->rttvar;
 
 	/* 2. Fixups made earlier cannot be right.
 	 *    If we do not estimate RTO correctly without them,
 	 *    all the algo is pure shit and should be replaced
-	 *    with correct one. It is exaclty, which we pretend to do.
+	 *    with correct one. It is exactly, which we pretend to do.
 	 */
 }
 
@@ -772,7 +772,7 @@ static void tcp_init_metrics(struct sock *sk)
 	 * to make it more realistic.
 	 *
 	 * A bit of theory. RTT is time passed after "normal" sized packet
-	 * is sent until it is ACKed. In normal curcumstances sending small
+	 * is sent until it is ACKed. In normal circumstances sending small
 	 * packets force peer to delay ACKs and calculation is correct too.
 	 * The algorithm is adaptive and, provided we follow specs, it
 	 * NEVER underestimate RTT. BUT! If peer tries to make some clever
@@ -1899,7 +1899,7 @@ tcp_fastretrans_alert(struct sock *sk, u32 prior_snd_una,
 }
 
 /* Read draft-ietf-tcplw-high-performance before mucking
- * with this code. (Superceeds RFC1323)
+ * with this code. (Supersedes RFC1323)
  */
 static void tcp_ack_saw_tstamp(struct sock *sk, int flag)
 {
@@ -1912,7 +1912,7 @@ static void tcp_ack_saw_tstamp(struct sock *sk, int flag)
 	 * 1998/04/10 Andrey V. Savochkin <saw@msu.ru>
 	 *
 	 * Changed: reset backoff as soon as we see the first valid sample.
-	 * If we do not, we get strongly overstimated rto. With timestamps
+	 * If we do not, we get strongly overestimated rto. With timestamps
 	 * samples are accepted even from very old segments: f.e., when rtt=1
 	 * increases to 8, we retransmit 5 times and after 8 seconds delayed
 	 * answer arrives rto becomes 120 seconds! If at least one of segments
@@ -2268,7 +2268,7 @@ static void tcp_process_frto(struct sock *sk, u32 prior_snd_una)
 	}
 
 	/* F-RTO affects on two new ACKs following RTO.
-	 * At latest on third ACK the TCP behavor is back to normal.
+	 * At latest on third ACK the TCP behavior is back to normal.
 	 */
 	tp->frto_counter = (tp->frto_counter + 1) % 3;
 }
@@ -2344,7 +2344,7 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 		tcp_process_frto(sk, prior_snd_una);
 
 	if (tcp_ack_is_dubious(sk, flag)) {
-		/* Advanve CWND, if state allows this. */
+		/* Advance CWND, if state allows this. */
 		if ((flag & FLAG_DATA_ACKED) && tcp_may_raise_cwnd(sk, flag))
 			tcp_cong_avoid(sk, ack,  seq_rtt, prior_in_flight, 0);
 		tcp_fastretrans_alert(sk, prior_snd_una, prior_packets, flag);
@@ -3133,7 +3133,7 @@ tcp_collapse(struct sock *sk, struct sk_buff_head *list,
 {
 	struct sk_buff *skb;
 
-	/* First, check that queue is collapsable and find
+	/* First, check that queue is collapsible and find
 	 * the point where collapsing can be useful. */
 	for (skb = head; skb != tail; ) {
 		/* No new bits? It is possible on ofo queue. */
@@ -3441,7 +3441,7 @@ static __inline__ void tcp_ack_snd_check(struct sock *sk)
 
 /*
  *	This routine is only called when we have urgent data
- *	signalled. Its the 'slow' part of tcp_urg. It could be
+ *	signaled. Its the 'slow' part of tcp_urg. It could be
  *	moved inline now as tcp_urg is only called from one
  *	place. We handle URGent data wrong. We have to - as
  *	BSD still doesn't use the correction from RFC961.
@@ -3486,7 +3486,7 @@ static void tcp_check_urg(struct sock * sk, struct tcphdr * th)
 	 * urgent. To do this requires some care. We cannot just ignore
 	 * tp->copied_seq since we would read the last urgent byte again
 	 * as data, nor can we alter copied_seq until this data arrives
-	 * or we break the sematics of SIOCATMARK (and thus sockatmark())
+	 * or we break the semantics of SIOCATMARK (and thus sockatmark())
 	 *
 	 * NOTE. Double Dutch. Rendering to plain English: author of comment
 	 * above did something sort of 	send("A", MSG_OOB); send("B", MSG_OOB);
@@ -3631,7 +3631,7 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 	tp->rx_opt.saw_tstamp = 0;
 
 	/*	pred_flags is 0xS?10 << 16 + snd_wnd
-	 *	if header_predition is to be made
+	 *	if header_prediction is to be made
 	 *	'S' will always be tp->tcp_header_len >> 2
 	 *	'?' will be 0 for the fast path, otherwise pred_flags is 0 to
 	 *  turn it off	(when there are holes in the receive 
