@@ -27,7 +27,6 @@
 #include <asm/prom.h>
 #include <asm/nvram.h>
 #include <asm/atomic.h>
-#include <asm/systemcfg.h>
 
 #if 0
 #define DEBUG(A...)	printk(KERN_ERR A)

@@ -46,7 +46,7 @@
 #include <asm/rtas.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/mpic.h>
-#include <asm/systemcfg.h>
+#include <asm/vdso_datapage.h>
 
 #include "plpar_wrappers.h"
 
@@ -97,7 +97,7 @@ int pSeries_cpu_disable(void)
 	int cpu = smp_processor_id();
 
 	cpu_clear(cpu, cpu_online_map);
-	_systemcfg->processorCount--;
+	vdso_data->processorCount--;
 
 	/*fix boot_cpuid here*/
 	if (cpu == boot_cpuid)

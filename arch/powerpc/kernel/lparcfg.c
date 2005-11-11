@@ -35,7 +35,7 @@
 #include <asm/time.h>
 #include <asm/iseries/it_exp_vpd_panel.h>
 #include <asm/prom.h>
-#include <asm/systemcfg.h>
+#include <asm/vdso_datapage.h>
 
 #define MODULE_VERS "1.6"
 #define MODULE_NAME "lparcfg"
@@ -369,7 +369,7 @@ static int lparcfg_data(struct seq_file *m, void *v)
 	lrdrp = (int *)get_property(rtas_node, "ibm,lrdr-capacity", NULL);
 
 	if (lrdrp == NULL) {
-		partition_potential_processors = _systemcfg->processorCount;
+		partition_potential_processors = vdso_data->processorCount;
 	} else {
 		partition_potential_processors = *(lrdrp + 4);
 	}
