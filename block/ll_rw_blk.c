@@ -2306,6 +2306,8 @@ void blk_execute_rq_nowait(request_queue_t *q, struct gendisk *bd_disk,
 	generic_unplug_device(q);
 }
 
+EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);
+
 /**
  * blk_execute_rq - insert a request into queue for execution
  * @q:		queue to insert the request in
@@ -2444,7 +2446,7 @@ void disk_round_stats(struct gendisk *disk)
 /*
  * queue lock must be held
  */
-static void __blk_put_request(request_queue_t *q, struct request *req)
+void __blk_put_request(request_queue_t *q, struct request *req)
 {
 	struct request_list *rl = req->rl;
 
@@ -2472,6 +2474,8 @@ static void __blk_put_request(request_queue_t *q, struct request *req)
 		freed_request(q, rw, priv);
 	}
 }
+
+EXPORT_SYMBOL_GPL(__blk_put_request);
 
 void blk_put_request(struct request *req)
 {
