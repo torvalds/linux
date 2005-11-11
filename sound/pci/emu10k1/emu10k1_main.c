@@ -40,6 +40,7 @@
 #include <sound/core.h>
 #include <sound/emu10k1.h>
 #include "p16v.h"
+#include "tina2.h"
 
 #if 0
 MODULE_AUTHOR("Jaroslav Kysela <perex@suse.cz>, Creative Labs, Inc.");
@@ -600,6 +601,7 @@ static int __devinit snd_emu10k1_cardbus_init(emu10k1_t * emu)
 	outl(0x0090007f, special_port);
 	value = inl(special_port);
 
+	snd_emu10k1_ptr20_write(emu, TINA2_VOLUME, 0, 0xfefefefe); /* Defaults to 0x30303030 */
 	return 0;
 }
 
