@@ -306,6 +306,8 @@ struct scsi_io_context {
 	char sense[SCSI_SENSE_BUFFERSIZE];
 };
 
+static kmem_cache_t *scsi_io_context_cache;
+
 static void scsi_end_async(struct request *req)
 {
 	struct scsi_io_context *sioc = req->end_io_data;
@@ -313,7 +315,7 @@ static void scsi_end_async(struct request *req)
 	if (sioc->done)
 		sioc->done(sioc->data, sioc->sense, req->errors, req->data_len);
 
-	kfree(sioc);
+	kmem_cache_free(scsi_io_context_cache, sioc);
 	__blk_put_request(req->q, req);
 }
 
@@ -452,9 +454,10 @@ int scsi_execute_async(struct scsi_device *sdev, const unsigned char *cmd,
 	int err = 0;
 	int write = (data_direction == DMA_TO_DEVICE);
 
-	sioc = kzalloc(sizeof(*sioc), gfp);
+	sioc = kmem_cache_alloc(scsi_io_context_cache, gfp);
 	if (!sioc)
 		return DRIVER_ERROR << 24;
+	memset(sioc, 0, sizeof(*sioc));
 
 	req = blk_get_request(sdev->request_queue, write, gfp);
 	if (!req)
@@ -1765,6 +1768,14 @@ int __init scsi_init_queue(void)
 {
 	int i;
 
+	scsi_io_context_cache = kmem_cache_create("scsi_io_context",
+					sizeof(struct scsi_io_context),
+					0, 0, NULL, NULL);
+	if (!scsi_io_context_cache) {
+		printk(KERN_ERR "SCSI: can't init scsi io context cache\n");
+		return -ENOMEM;
+	}
+
 	for (i = 0; i < SG_MEMPOOL_NR; i++) {
 		struct scsi_host_sg_pool *sgp = scsi_sg_pools + i;
 		int size = sgp->size * sizeof(struct scatterlist);
@@ -1791,6 +1802,8 @@ int __init scsi_init_queue(void)
 void scsi_exit_queue(void)
 {
 	int i;
+
+	kmem_cache_destroy(scsi_io_context_cache);
 
 	for (i = 0; i < SG_MEMPOOL_NR; i++) {
 		struct scsi_host_sg_pool *sgp = scsi_sg_pools + i;
