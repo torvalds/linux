@@ -13,7 +13,6 @@ endif
 
 obj-y               +=	idle.o dma.o \
 			align.o \
-			udbg.o \
 			rtc.o \
 			iommu.o vdso.o
 obj-y += vdso32/ vdso64/
@@ -27,8 +26,6 @@ ifneq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_PPC_MULTIPLATFORM) += prom_init.o
 endif
 
-obj-$(CONFIG_PPC_PSERIES) += udbg_16550.o
-
 obj-$(CONFIG_KEXEC)		+= machine_kexec.o
 obj-$(CONFIG_MODULES)		+= module.o
 ifneq ($(CONFIG_PPC_MERGE),y)
@@ -39,10 +36,6 @@ ifneq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 endif
 obj-$(CONFIG_HVCS)		+= hvcserver.o
-
-obj-$(CONFIG_PPC_PMAC)		+= udbg_scc.o
-
-obj-$(CONFIG_PPC_MAPLE)		+= udbg_16550.o
 
 obj-$(CONFIG_KPROBES)		+= kprobes.o
 
