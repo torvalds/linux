@@ -193,8 +193,14 @@ static void fill_in_inode(struct inode *tmp_inode,
 	if (S_ISREG(tmp_inode->i_mode)) {
 		cFYI(1, ("File inode"));
 		tmp_inode->i_op = &cifs_file_inode_ops;
-		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO)
-			tmp_inode->i_fop = &cifs_file_direct_ops;
+		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO) {
+			if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+				tmp_inode->i_fop = &cifs_file_direct_nobrl_ops;
+			else
+				tmp_inode->i_fop = &cifs_file_direct_ops;
+		
+		} else if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
+			tmp_inode->i_fop = &cifs_file_nobrl_ops;
 		else
 			tmp_inode->i_fop = &cifs_file_ops;
 		if(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)

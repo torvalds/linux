@@ -635,6 +635,46 @@ struct file_operations cifs_file_direct_ops = {
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 };
+struct file_operations cifs_file_nobrl_ops = {
+        .read = cifs_read_wrapper,
+        .write = cifs_write_wrapper,
+        .open = cifs_open,
+        .release = cifs_close,
+        .fsync = cifs_fsync,
+        .flush = cifs_flush,
+        .mmap  = cifs_file_mmap,
+        .sendfile = generic_file_sendfile,
+#ifdef CONFIG_CIFS_POSIX
+        .ioctl  = cifs_ioctl,
+#endif /* CONFIG_CIFS_POSIX */
+
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+        .readv = generic_file_readv,
+        .writev = generic_file_writev,
+        .aio_read = generic_file_aio_read,
+        .aio_write = generic_file_aio_write,
+        .dir_notify = cifs_dir_notify,
+#endif /* CONFIG_CIFS_EXPERIMENTAL */
+};
+
+struct file_operations cifs_file_direct_nobrl_ops = {
+        /* no mmap, no aio, no readv -
+           BB reevaluate whether they can be done with directio, no cache */
+        .read = cifs_user_read,
+        .write = cifs_user_write,
+        .open = cifs_open,
+        .release = cifs_close,
+        .fsync = cifs_fsync,
+        .flush = cifs_flush,
+        .sendfile = generic_file_sendfile, /* BB removeme BB */
+#ifdef CONFIG_CIFS_POSIX
+        .ioctl  = cifs_ioctl,
+#endif /* CONFIG_CIFS_POSIX */
+
+#ifdef CONFIG_CIFS_EXPERIMENTAL
+        .dir_notify = cifs_dir_notify,
+#endif /* CONFIG_CIFS_EXPERIMENTAL */
+};
 
 struct file_operations cifs_dir_ops = {
 	.readdir = cifs_readdir,
