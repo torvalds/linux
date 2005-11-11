@@ -234,7 +234,7 @@ static int __tcp_grow_window(const struct sock *sk, struct tcp_sock *tp,
 {
 	/* Optimize this! */
 	int truesize = tcp_win_from_space(skb->truesize)/2;
-	int window = tcp_full_space(sk)/2;
+	int window = tcp_win_from_space(sysctl_tcp_rmem[2])/2;
 
 	while (tp->rcv_ssthresh <= window) {
 		if (truesize <= skb->len)
@@ -327,37 +327,18 @@ static void tcp_init_buffer_space(struct sock *sk)
 static void tcp_clamp_window(struct sock *sk, struct tcp_sock *tp)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
-	struct sk_buff *skb;
-	unsigned int app_win = tp->rcv_nxt - tp->copied_seq;
-	int ofo_win = 0;
 
 	icsk->icsk_ack.quick = 0;
 
-	skb_queue_walk(&tp->out_of_order_queue, skb) {
-		ofo_win += skb->len;
+	if (sk->sk_rcvbuf < sysctl_tcp_rmem[2] &&
+	    !(sk->sk_userlocks & SOCK_RCVBUF_LOCK) &&
+	    !tcp_memory_pressure &&
+	    atomic_read(&tcp_memory_allocated) < sysctl_tcp_mem[0]) {
+		sk->sk_rcvbuf = min(atomic_read(&sk->sk_rmem_alloc),
+				    sysctl_tcp_rmem[2]);
 	}
-
-	/* If overcommit is due to out of order segments,
-	 * do not clamp window. Try to expand rcvbuf instead.
-	 */
-	if (ofo_win) {
-		if (sk->sk_rcvbuf < sysctl_tcp_rmem[2] &&
-		    !(sk->sk_userlocks & SOCK_RCVBUF_LOCK) &&
-		    !tcp_memory_pressure &&
-		    atomic_read(&tcp_memory_allocated) < sysctl_tcp_mem[0])
-			sk->sk_rcvbuf = min(atomic_read(&sk->sk_rmem_alloc),
-					    sysctl_tcp_rmem[2]);
-	}
-	if (atomic_read(&sk->sk_rmem_alloc) > sk->sk_rcvbuf) {
-		app_win += ofo_win;
-		if (atomic_read(&sk->sk_rmem_alloc) >= 2 * sk->sk_rcvbuf)
-			app_win >>= 1;
-		if (app_win > icsk->icsk_ack.rcv_mss)
-			app_win -= icsk->icsk_ack.rcv_mss;
-		app_win = max(app_win, 2U*tp->advmss);
-
+	if (atomic_read(&sk->sk_rmem_alloc) > sk->sk_rcvbuf)
 		tp->rcv_ssthresh = min(tp->window_clamp, 2U*tp->advmss);
-	}
 }
 
 /* Receiver "autotuning" code.
