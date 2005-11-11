@@ -32,7 +32,6 @@
 #include <asm/rtas.h>
 #include <asm/machdep.h> /* for ppc_md */
 #include <asm/time.h>
-#include <asm/systemcfg.h>
 
 /* Token for Sensors */
 #define KEY_SWITCH		0x0001

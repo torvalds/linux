@@ -186,7 +186,8 @@ _KPROBE(__flush_icache_range)
 	bdnz	2b
 	isync
 	blr
-	.previous .text
+
+	.text
 /*
  * Like above, but only do the D-cache.
  *

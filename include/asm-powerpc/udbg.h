@@ -1,9 +1,3 @@
-#ifndef __UDBG_HDR
-#define __UDBG_HDR
-
-#include <linux/compiler.h>
-#include <linux/init.h>
-
 /*
  * c 2001 PPC 64 Team, IBM Corp
  *
@@ -12,6 +6,12 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
+
+#ifndef _ASM_POWERPC_UDBG_H
+#define _ASM_POWERPC_UDBG_H
+
+#include <linux/compiler.h>
+#include <linux/init.h>
 
 extern void (*udbg_putc)(unsigned char c);
 extern unsigned char (*udbg_getc)(void);
@@ -28,4 +28,4 @@ extern void udbg_init_uart(void __iomem *comport, unsigned int speed);
 
 struct device_node;
 extern void udbg_init_scc(struct device_node *np);
-#endif
+#endif /* _ASM_POWERPC_UDBG_H */

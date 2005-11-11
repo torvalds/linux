@@ -1467,17 +1467,23 @@ read_spr(int n)
 {
 	unsigned int instrs[2];
 	unsigned long (*code)(void);
-	unsigned long opd[3];
 	unsigned long ret = -1UL;
+#ifdef CONFIG_PPC64
+	unsigned long opd[3];
 
-	instrs[0] = 0x7c6002a6 + ((n & 0x1F) << 16) + ((n & 0x3e0) << 6);
-	instrs[1] = 0x4e800020;
 	opd[0] = (unsigned long)instrs;
 	opd[1] = 0;
 	opd[2] = 0;
+	code = (unsigned long (*)(void)) opd;
+#else
+	code = (unsigned long (*)(void)) instrs;
+#endif
+
+	/* mfspr r3,n; blr */
+	instrs[0] = 0x7c6002a6 + ((n & 0x1F) << 16) + ((n & 0x3e0) << 6);
+	instrs[1] = 0x4e800020;
 	store_inst(instrs);
 	store_inst(instrs+1);
-	code = (unsigned long (*)(void)) opd;
 
 	if (setjmp(bus_error_jmp) == 0) {
 		catch_memory_errors = 1;
@@ -1499,16 +1505,21 @@ write_spr(int n, unsigned long val)
 {
 	unsigned int instrs[2];
 	unsigned long (*code)(unsigned long);
+#ifdef CONFIG_PPC64
 	unsigned long opd[3];
 
-	instrs[0] = 0x7c6003a6 + ((n & 0x1F) << 16) + ((n & 0x3e0) << 6);
-	instrs[1] = 0x4e800020;
 	opd[0] = (unsigned long)instrs;
 	opd[1] = 0;
 	opd[2] = 0;
+	code = (unsigned long (*)(unsigned long)) opd;
+#else
+	code = (unsigned long (*)(unsigned long)) instrs;
+#endif
+
+	instrs[0] = 0x7c6003a6 + ((n & 0x1F) << 16) + ((n & 0x3e0) << 6);
+	instrs[1] = 0x4e800020;
 	store_inst(instrs);
 	store_inst(instrs+1);
-	code = (unsigned long (*)(unsigned long)) opd;
 
 	if (setjmp(bus_error_jmp) == 0) {
 		catch_memory_errors = 1;

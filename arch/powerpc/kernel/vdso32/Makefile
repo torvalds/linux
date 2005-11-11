@@ -5,6 +5,10 @@ obj-vdso32 = sigtramp.o gettimeofday.o datapage.o cacheflush.o note.o
 
 # Build rules
 
+ifeq ($(CONFIG_PPC32),y)
+CROSS32CC := $(CC)
+endif
+
 targets := $(obj-vdso32) vdso32.so
 obj-vdso32 := $(addprefix $(obj)/, $(obj-vdso32))
 
@@ -15,7 +19,7 @@ EXTRA_AFLAGS := -D__VDSO32__ -s
 
 obj-y += vdso32_wrapper.o
 extra-y += vdso32.lds
-CPPFLAGS_vdso32.lds += -P -C -U$(ARCH)
+CPPFLAGS_vdso32.lds += -P -C -Upowerpc
 
 # Force dependency (incbin is bad)
 $(obj)/vdso32_wrapper.o : $(obj)/vdso32.so

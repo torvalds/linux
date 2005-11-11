@@ -12,11 +12,13 @@ CFLAGS_btext.o		+= -fPIC
 endif
 
 obj-y				:= semaphore.o cputable.o ptrace.o syscalls.o \
-				   irq.o signal_32.o pmc.o
+				   irq.o signal_32.o pmc.o vdso.o
+obj-y				+= vdso32/
 obj-$(CONFIG_PPC64)		+= setup_64.o binfmt_elf32.o sys_ppc32.o \
 				   signal_64.o ptrace32.o systbl.o \
 				   paca.o ioctl32.o cpu_setup_power4.o \
-				   firmware.o sysfs.o
+				   firmware.o sysfs.o udbg.o
+obj-$(CONFIG_PPC64)		+= vdso64/
 obj-$(CONFIG_ALTIVEC)		+= vecemu.o vector.o
 obj-$(CONFIG_POWER4)		+= idle_power4.o
 obj-$(CONFIG_PPC_OF)		+= of_device.o
@@ -29,6 +31,10 @@ obj-$(CONFIG_RTAS_PROC)		+= rtas-proc.o
 obj-$(CONFIG_LPARCFG)		+= lparcfg.o
 obj-$(CONFIG_IBMVIO)		+= vio.o
 obj-$(CONFIG_GENERIC_TBSYNC)	+= smp-tbsync.o
+obj-$(CONFIG_PPC_PSERIES)	+= udbg_16550.o
+obj-$(CONFIG_PPC_MAPLE)		+= udbg_16550.o
+udbgscc-$(CONFIG_PPC64)		:= udbg_scc.o
+obj-$(CONFIG_PPC_PMAC)		+= $(udbgscc-y)
 
 ifeq ($(CONFIG_PPC_MERGE),y)
 
