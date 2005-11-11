@@ -5,7 +5,7 @@
  *
  * Copyright 2004 IBM Corporation
  *
- *    Author(s): Frank Pavlic <pavlic@de.ibm.com>
+ *    Author(s): Frank Pavlic <fpavlic@de.ibm.com>
  *
  *    $Revision: 1.7 $	 $Date: 2005/05/04 20:19:18 $
  *

@@ -42,7 +42,7 @@
 #include "wbsd.h"
 
 #define DRIVER_NAME "wbsd"
-#define DRIVER_VERSION "1.4"
+#define DRIVER_VERSION "1.5"
 
 #ifdef CONFIG_MMC_DEBUG
 #define DBG(x...) \
@@ -1932,14 +1932,14 @@ static void __devexit wbsd_shutdown(struct device* dev, int pnp)
  * Non-PnP
  */
 
-static int __devinit wbsd_probe(struct device* dev)
+static int __devinit wbsd_probe(struct platform_device* dev)
 {
-	return wbsd_init(dev, io, irq, dma, 0);
+	return wbsd_init(&dev->dev, io, irq, dma, 0);
 }
 
-static int __devexit wbsd_remove(struct device* dev)
+static int __devexit wbsd_remove(struct platform_device* dev)
 {
-	wbsd_shutdown(dev, 0);
+	wbsd_shutdown(&dev->dev, 0);
 
 	return 0;
 }
@@ -1983,9 +1983,9 @@ static void __devexit wbsd_pnp_remove(struct pnp_dev * dev)
 
 #ifdef CONFIG_PM
 
-static int wbsd_suspend(struct device *dev, pm_message_t state)
+static int wbsd_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct mmc_host *mmc = platform_get_drvdata(dev);
 	struct wbsd_host *host;
 	int ret;
 
@@ -2005,9 +2005,9 @@ static int wbsd_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int wbsd_resume(struct device *dev)
+static int wbsd_resume(struct platform_device *dev)
 {
-	struct mmc_host *mmc = dev_get_drvdata(dev);
+	struct mmc_host *mmc = platform_get_drvdata(dev);
 	struct wbsd_host *host;
 
 	if (!mmc)
@@ -2038,14 +2038,15 @@ static int wbsd_resume(struct device *dev)
 
 static struct platform_device *wbsd_device;
 
-static struct device_driver wbsd_driver = {
-	.name		= DRIVER_NAME,
-	.bus		= &platform_bus_type,
+static struct platform_driver wbsd_driver = {
 	.probe		= wbsd_probe,
-	.remove		= wbsd_remove,
+	.remove		= __devexit_p(wbsd_remove),
 
 	.suspend	= wbsd_suspend,
 	.resume		= wbsd_resume,
+	.driver		= {
+		.name	= DRIVER_NAME,
+	},
 };
 
 #ifdef CONFIG_PNP
@@ -2054,7 +2055,7 @@ static struct pnp_driver wbsd_pnp_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= pnp_dev_table,
 	.probe		= wbsd_pnp_probe,
-	.remove		= wbsd_pnp_remove,
+	.remove		= __devexit_p(wbsd_pnp_remove),
 };
 
 #endif /* CONFIG_PNP */
@@ -2085,7 +2086,7 @@ static int __init wbsd_drv_init(void)
 
 	if (nopnp)
 	{
-		result = driver_register(&wbsd_driver);
+		result = platform_driver_register(&wbsd_driver);
 		if (result < 0)
 			return result;
 
@@ -2111,7 +2112,7 @@ static void __exit wbsd_drv_exit(void)
 	{
 		platform_device_unregister(wbsd_device);
 
-		driver_unregister(&wbsd_driver);
+		platform_driver_unregister(&wbsd_driver);
 	}
 
 	DBG("unloaded\n");
@@ -2127,6 +2128,7 @@ module_param(irq, uint, 0444);
 module_param(dma, int, 0444);
 
 MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Pierre Ossman <drzeus@drzeus.cx>");
 MODULE_DESCRIPTION("Winbond W83L51xD SD/MMC card interface driver");
 MODULE_VERSION(DRIVER_VERSION);
 

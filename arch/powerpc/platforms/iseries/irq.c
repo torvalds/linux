@@ -103,6 +103,9 @@ static void intReceived(struct XmPciLpEvent *eventParm,
 		struct pt_regs *regsParm)
 {
 	int irq;
+#ifdef CONFIG_IRQSTACKS
+	struct thread_info *curtp, *irqtp;
+#endif
 
 	++Pci_Interrupt_Count;
 
@@ -110,7 +113,20 @@ static void intReceived(struct XmPciLpEvent *eventParm,
 	case XmPciLpEvent_SlotInterrupt:
 		irq = eventParm->hvLpEvent.xCorrelationToken;
 		/* Dispatch the interrupt handlers for this irq */
-		ppc_irq_dispatch_handler(regsParm, irq);
+#ifdef CONFIG_IRQSTACKS
+		/* Switch to the irq stack to handle this */
+		curtp = current_thread_info();
+		irqtp = hardirq_ctx[smp_processor_id()];
+		if (curtp != irqtp) {
+			irqtp->task = curtp->task;
+			irqtp->flags = 0;
+			call___do_IRQ(irq, regsParm, irqtp);
+			irqtp->task = NULL;
+			if (irqtp->flags)
+				set_bits(irqtp->flags, &curtp->flags);
+		} else
+#endif
+			__do_IRQ(irq, regsParm);
 		HvCallPci_eoi(eventParm->eventData.slotInterrupt.busNumber,
 			eventParm->eventData.slotInterrupt.subBusNumber,
 			eventParm->eventData.slotInterrupt.deviceId);
@@ -310,10 +326,8 @@ static void iSeries_disable_IRQ(unsigned int irq)
 }
 
 /*
- * Need to define this so ppc_irq_dispatch_handler will NOT call
- * enable_IRQ at the end of interrupt handling.  However, this does
- * nothing because there is not enough information provided to do
- * the EOI HvCall.  This is done by XmPciLpEvent.c
+ * This does nothing because there is not enough information
+ * provided to do the EOI HvCall.  This is done by XmPciLpEvent.c
  */
 static void iSeries_end_IRQ(unsigned int irq)
 {

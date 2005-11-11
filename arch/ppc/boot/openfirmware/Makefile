@@ -80,8 +80,7 @@ $(obj)/note: $(utils)/mknote FORCE
 	$(call if_changed,mknote)
 
 
-$(obj)/coffcrt0.o: EXTRA_AFLAGS := -traditional -DXCOFF
-$(obj)/crt0.o:     EXTRA_AFLAGS := -traditional
+$(obj)/coffcrt0.o: EXTRA_AFLAGS := -DXCOFF
 targets += coffcrt0.o crt0.o
 $(obj)/coffcrt0.o $(obj)/crt0.o: $(common)/crt0.S FORCE
 	$(call if_changed_dep,as_o_S)

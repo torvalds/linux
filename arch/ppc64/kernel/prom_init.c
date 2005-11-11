@@ -1934,7 +1934,8 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4, unsigned long
 	/*
 	 * On pSeries, inform the firmware about our capabilities
 	 */
-	if (RELOC(of_platform) & PLATFORM_PSERIES)
+	if (RELOC(of_platform) == PLATFORM_PSERIES ||
+	    RELOC(of_platform) == PLATFORM_PSERIES_LPAR)
 		prom_send_capabilities();
 
 	/*

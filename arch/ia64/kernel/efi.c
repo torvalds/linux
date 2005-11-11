@@ -987,7 +987,7 @@ efi_initialize_iomem_resources(struct resource *code_resource,
 				break;
 		}
 
-		if ((res = kcalloc(1, sizeof(struct resource), GFP_KERNEL)) == NULL) {
+		if ((res = kzalloc(sizeof(struct resource), GFP_KERNEL)) == NULL) {
 			printk(KERN_ERR "failed to alocate resource for iomem\n");
 			return;
 		}

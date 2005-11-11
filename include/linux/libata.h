@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <asm/io.h>
 #include <linux/ata.h>
 #include <linux/workqueue.h>
@@ -404,6 +405,7 @@ struct ata_port_info {
 	unsigned long		mwdma_mask;
 	unsigned long		udma_mask;
 	const struct ata_port_operations *port_ops;
+	void 			*private_data;
 };
 
 struct ata_timing {

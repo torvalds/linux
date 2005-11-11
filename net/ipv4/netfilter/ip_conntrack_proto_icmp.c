@@ -13,6 +13,7 @@
 #include <linux/in.h>
 #include <linux/icmp.h>
 #include <linux/seq_file.h>
+#include <linux/skbuff.h>
 #include <net/ip.h>
 #include <net/checksum.h>
 #include <linux/netfilter.h>
@@ -230,19 +231,15 @@ icmp_error(struct sk_buff *skb, enum ip_conntrack_info *ctinfo,
 	case CHECKSUM_HW:
 		if (!(u16)csum_fold(skb->csum)) 
 			break;
-		if (LOG_INVALID(IPPROTO_ICMP))
-			nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
-				      "ip_ct_icmp: bad HW ICMP checksum ");
-		return -NF_ACCEPT;
+		/* fall through */
 	case CHECKSUM_NONE:
-		if ((u16)csum_fold(skb_checksum(skb, 0, skb->len, 0))) {
+		skb->csum = 0;
+		if (__skb_checksum_complete(skb)) {
 			if (LOG_INVALID(IPPROTO_ICMP))
 				nf_log_packet(PF_INET, 0, skb, NULL, NULL, NULL,
 					      "ip_ct_icmp: bad ICMP checksum ");
 			return -NF_ACCEPT;
 		}
-	default:
-		break;
 	}
 
 checksum_skipped:

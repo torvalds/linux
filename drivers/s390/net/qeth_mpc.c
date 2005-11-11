@@ -4,7 +4,7 @@
  * Linux on zSeries OSA Express and HiperSockets support
  *
  * Copyright 2000,2003 IBM Corporation
- * Author(s): Frank Pavlic <pavlic@de.ibm.com>
+ * Author(s): Frank Pavlic <fpavlic@de.ibm.com>
  * 	      Thomas Spatzier <tspat@de.ibm.com>
  *
  */

@@ -239,6 +239,8 @@ source "arch/arm/plat-omap/Kconfig"
 
 source "arch/arm/mach-omap1/Kconfig"
 
+source "arch/arm/mach-omap2/Kconfig"
+
 source "arch/arm/mach-s3c2410/Kconfig"
 
 source "arch/arm/mach-lh7a40x/Kconfig"

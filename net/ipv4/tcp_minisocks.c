@@ -158,7 +158,7 @@ kill_with_rst:
 		/* I am shamed, but failed to make it more elegant.
 		 * Yes, it is direct reference to IP, which is impossible
 		 * to generalize to IPv6. Taking into account that IPv6
-		 * do not undertsnad recycling in any case, it not
+		 * do not understand recycling in any case, it not
 		 * a big problem in practice. --ANK */
 		if (tw->tw_family == AF_INET &&
 		    tcp_death_row.sysctl_tw_recycle && tcptw->tw_ts_recent_stamp &&
@@ -194,7 +194,7 @@ kill_with_rst:
 		/* In window segment, it may be only reset or bare ack. */
 
 		if (th->rst) {
-			/* This is TIME_WAIT assasination, in two flavors.
+			/* This is TIME_WAIT assassination, in two flavors.
 			 * Oh well... nobody has a sufficient solution to this
 			 * protocol bug yet.
 			 */
@@ -380,6 +380,7 @@ struct sock *tcp_create_openreq_child(struct sock *sk, struct request_sock *req,
 		 */
 		newtp->snd_cwnd = 2;
 		newtp->snd_cwnd_cnt = 0;
+		newtp->bytes_acked = 0;
 
 		newtp->frto_counter = 0;
 		newtp->frto_highmark = 0;
@@ -550,7 +551,7 @@ struct sock *tcp_check_req(struct sock *sk,struct sk_buff *skb,
 
 	/* RFC793 page 36: "If the connection is in any non-synchronized state ...
 	 *                  and the incoming segment acknowledges something not yet
-	 *                  sent (the segment carries an unaccaptable ACK) ...
+	 *                  sent (the segment carries an unacceptable ACK) ...
 	 *                  a reset is sent."
 	 *
 	 * Invalid ACK: reset will be sent by listening socket

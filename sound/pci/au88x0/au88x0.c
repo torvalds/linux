@@ -373,7 +373,6 @@ static void __devexit snd_vortex_remove(struct pci_dev *pci)
 // pci_driver definition
 static struct pci_driver driver = {
 	.name = CARD_NAME_SHORT,
-	.owner = THIS_MODULE,
 	.id_table = snd_vortex_ids,
 	.probe = snd_vortex_probe,
 	.remove = __devexit_p(snd_vortex_remove),

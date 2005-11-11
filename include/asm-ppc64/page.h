@@ -11,7 +11,7 @@
  */
 
 #include <linux/config.h>
-#include <asm/ppc_asm.h> /* for ASM_CONST */
+#include <asm/asm-compat.h>
 
 /*
  * We support either 4k or 64k software page size. When using 64k pages
@@ -279,11 +279,6 @@ extern u64 ppc64_pft_size;		/* Log 2 of page table size */
 
 #define __va(x) ((void *)((unsigned long)(x) + KERNELBASE))
 
-#ifdef CONFIG_DISCONTIGMEM
-#define page_to_pfn(page)	discontigmem_page_to_pfn(page)
-#define pfn_to_page(pfn)	discontigmem_pfn_to_page(pfn)
-#define pfn_valid(pfn)		discontigmem_pfn_valid(pfn)
-#endif
 #ifdef CONFIG_FLATMEM
 #define pfn_to_page(pfn)	(mem_map + (pfn))
 #define page_to_pfn(page)	((unsigned long)((page) - mem_map))

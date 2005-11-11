@@ -805,9 +805,9 @@ static struct uart_driver serial_pxa_reg = {
 	.cons		= PXA_CONSOLE,
 };
 
-static int serial_pxa_suspend(struct device *_dev, pm_message_t state)
+static int serial_pxa_suspend(struct platform_device *dev, pm_message_t state)
 {
-        struct uart_pxa_port *sport = dev_get_drvdata(_dev);
+        struct uart_pxa_port *sport = platform_get_drvdata(dev);
 
         if (sport)
                 uart_suspend_port(&serial_pxa_reg, &sport->port);
@@ -815,9 +815,9 @@ static int serial_pxa_suspend(struct device *_dev, pm_message_t state)
         return 0;
 }
 
-static int serial_pxa_resume(struct device *_dev)
+static int serial_pxa_resume(struct platform_device *dev)
 {
-        struct uart_pxa_port *sport = dev_get_drvdata(_dev);
+        struct uart_pxa_port *sport = platform_get_drvdata(dev);
 
         if (sport)
                 uart_resume_port(&serial_pxa_reg, &sport->port);
@@ -825,21 +825,19 @@ static int serial_pxa_resume(struct device *_dev)
         return 0;
 }
 
-static int serial_pxa_probe(struct device *_dev)
+static int serial_pxa_probe(struct platform_device *dev)
 {
-	struct platform_device *dev = to_platform_device(_dev);
-
-	serial_pxa_ports[dev->id].port.dev = _dev;
+	serial_pxa_ports[dev->id].port.dev = &dev->dev;
 	uart_add_one_port(&serial_pxa_reg, &serial_pxa_ports[dev->id].port);
-	dev_set_drvdata(_dev, &serial_pxa_ports[dev->id]);
+	platform_set_drvdata(dev, &serial_pxa_ports[dev->id]);
 	return 0;
 }
 
-static int serial_pxa_remove(struct device *_dev)
+static int serial_pxa_remove(struct platform_device *dev)
 {
-	struct uart_pxa_port *sport = dev_get_drvdata(_dev);
+	struct uart_pxa_port *sport = platform_get_drvdata(dev);
 
-	dev_set_drvdata(_dev, NULL);
+	platform_set_drvdata(dev, NULL);
 
 	if (sport)
 		uart_remove_one_port(&serial_pxa_reg, &sport->port);
@@ -847,14 +845,15 @@ static int serial_pxa_remove(struct device *_dev)
 	return 0;
 }
 
-static struct device_driver serial_pxa_driver = {
-        .name           = "pxa2xx-uart",
-        .bus            = &platform_bus_type,
+static struct platform_driver serial_pxa_driver = {
         .probe          = serial_pxa_probe,
         .remove         = serial_pxa_remove,
 
 	.suspend	= serial_pxa_suspend,
 	.resume		= serial_pxa_resume,
+	.driver		= {
+	        .name	= "pxa2xx-uart",
+	},
 };
 
 int __init serial_pxa_init(void)
@@ -865,7 +864,7 @@ int __init serial_pxa_init(void)
 	if (ret != 0)
 		return ret;
 
-	ret = driver_register(&serial_pxa_driver);
+	ret = platform_driver_register(&serial_pxa_driver);
 	if (ret != 0)
 		uart_unregister_driver(&serial_pxa_reg);
 
@@ -874,7 +873,7 @@ int __init serial_pxa_init(void)
 
 void __exit serial_pxa_exit(void)
 {
-        driver_unregister(&serial_pxa_driver);
+	platform_driver_unregister(&serial_pxa_driver);
 	uart_unregister_driver(&serial_pxa_reg);
 }
 

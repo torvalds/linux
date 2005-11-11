@@ -22,8 +22,8 @@
  *	 are different.
  */
 
-#ifndef __ASM_ARCH_OMAP1510_IRQS_H
-#define __ASM_ARCH_OMAP1510_IRQS_H
+#ifndef __ASM_ARCH_OMAP15XX_IRQS_H
+#define __ASM_ARCH_OMAP15XX_IRQS_H
 
 /*
  * IRQ numbers for interrupt handler 1
@@ -31,7 +31,6 @@
  * NOTE: See also the OMAP-1510 and 1610 specific IRQ numbers below
  *
  */
-#define INT_IH2_IRQ		0
 #define INT_CAMERA		1
 #define INT_FIQ			3
 #define INT_RTDX		6
@@ -60,6 +59,7 @@
 /*
  * OMAP-1510 specific IRQ numbers for interrupt handler 1
  */
+#define INT_1510_IH2_IRQ	0
 #define INT_1510_RES2		2
 #define INT_1510_SPI_TX		4
 #define INT_1510_SPI_RX		5
@@ -71,6 +71,7 @@
 /*
  * OMAP-1610 specific IRQ numbers for interrupt handler 1
  */
+#define INT_1610_IH2_IRQ	0
 #define INT_1610_IH2_FIQ	2
 #define INT_1610_McBSP2_TX	4
 #define INT_1610_McBSP2_RX	5
@@ -231,6 +232,12 @@
 #define INT_730_DMA_CH15	(62 + IH2_BASE)
 #define INT_730_NAND		(63 + IH2_BASE)
 
+#define INT_24XX_SYS_NIRQ	7
+#define INT_24XX_SDMA_IRQ0	12
+#define INT_24XX_SDMA_IRQ1	13
+#define INT_24XX_SDMA_IRQ2	14
+#define INT_24XX_SDMA_IRQ3	15
+#define INT_24XX_DSS_IRQ	25
 #define INT_24XX_GPIO_BANK1	29
 #define INT_24XX_GPIO_BANK2	30
 #define INT_24XX_GPIO_BANK3	31

@@ -35,9 +35,9 @@ typedef enum {
 	ATMEL_FW_TYPE_506
 } AtmelFWType;
 
-struct net_device *init_atmel_card(unsigned short, int, const AtmelFWType, struct device *, 
+struct net_device *init_atmel_card(unsigned short, unsigned long, const AtmelFWType, struct device *, 
 				    int (*present_func)(void *), void * );
-void stop_atmel_card( struct net_device *, int );
+void stop_atmel_card( struct net_device *);
 int atmel_open( struct net_device * );
 
 #endif

@@ -91,9 +91,7 @@ acpi_query_osc (
 static acpi_status  
 acpi_run_osc (
 	acpi_handle	handle,
-	u32		level,
-	void		*context,
-	void		**retval )
+	void		*context)
 {
 	acpi_status		status;
 	struct acpi_object_list	input;
@@ -184,7 +182,7 @@ EXPORT_SYMBOL(pci_osc_support_set);
  *
  * Attempt to take control from Firmware on requested control bits.
  **/
-acpi_status pci_osc_control_set(u32 flags)
+acpi_status pci_osc_control_set(acpi_handle handle, u32 flags)
 {
 	acpi_status	status;
 	u32		ctrlset;
@@ -198,10 +196,7 @@ acpi_status pci_osc_control_set(u32 flags)
 		return AE_SUPPORT;
 	}
 	ctrlset_buf[OSC_CONTROL_TYPE] |= ctrlset;
-	status = acpi_get_devices ( PCI_ROOT_HID_STRING,
-				acpi_run_osc,
-				ctrlset_buf,
-				NULL );
+	status = acpi_run_osc(handle, ctrlset_buf);
 	if (ACPI_FAILURE (status)) {
 		ctrlset_buf[OSC_CONTROL_TYPE] &= ~ctrlset;
 	}

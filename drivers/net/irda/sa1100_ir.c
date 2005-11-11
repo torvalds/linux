@@ -291,9 +291,9 @@ static void sa1100_irda_shutdown(struct sa1100_irda *si)
 /*
  * Suspend the IrDA interface.
  */
-static int sa1100_irda_suspend(struct device *_dev, pm_message_t state)
+static int sa1100_irda_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct net_device *dev = dev_get_drvdata(_dev);
+	struct net_device *dev = platform_get_drvdata(pdev);
 	struct sa1100_irda *si;
 
 	if (!dev)
@@ -316,9 +316,9 @@ static int sa1100_irda_suspend(struct device *_dev, pm_message_t state)
 /*
  * Resume the IrDA interface.
  */
-static int sa1100_irda_resume(struct device *_dev)
+static int sa1100_irda_resume(struct platform_device *pdev)
 {
-	struct net_device *dev = dev_get_drvdata(_dev);
+	struct net_device *dev = platform_get_drvdata(pdev);
 	struct sa1100_irda *si;
 
 	if (!dev)
@@ -886,9 +886,8 @@ static int sa1100_irda_init_iobuf(iobuff_t *io, int size)
 	return io->head ? 0 : -ENOMEM;
 }
 
-static int sa1100_irda_probe(struct device *_dev)
+static int sa1100_irda_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(_dev);
 	struct net_device *dev;
 	struct sa1100_irda *si;
 	unsigned int baudrate_mask;
@@ -967,7 +966,7 @@ static int sa1100_irda_probe(struct device *_dev)
 
 	err = register_netdev(dev);
 	if (err == 0)
-		dev_set_drvdata(&pdev->dev, dev);
+		platform_set_drvdata(pdev, dev);
 
 	if (err) {
  err_mem_5:
@@ -985,9 +984,9 @@ static int sa1100_irda_probe(struct device *_dev)
 	return err;
 }
 
-static int sa1100_irda_remove(struct device *_dev)
+static int sa1100_irda_remove(struct platform_device *pdev)
 {
-	struct net_device *dev = dev_get_drvdata(_dev);
+	struct net_device *dev = platform_get_drvdata(pdev);
 
 	if (dev) {
 		struct sa1100_irda *si = dev->priv;
@@ -1004,13 +1003,14 @@ static int sa1100_irda_remove(struct device *_dev)
 	return 0;
 }
 
-static struct device_driver sa1100ir_driver = {
-	.name		= "sa11x0-ir",
-	.bus		= &platform_bus_type,
+static struct platform_driver sa1100ir_driver = {
 	.probe		= sa1100_irda_probe,
 	.remove		= sa1100_irda_remove,
 	.suspend	= sa1100_irda_suspend,
 	.resume		= sa1100_irda_resume,
+	.driver		= {
+		.name	= "sa11x0-ir",
+	},
 };
 
 static int __init sa1100_irda_init(void)
@@ -1023,12 +1023,12 @@ static int __init sa1100_irda_init(void)
 	if (power_level > 3)
 		power_level = 3;
 
-	return driver_register(&sa1100ir_driver);
+	return platform_driver_register(&sa1100ir_driver);
 }
 
 static void __exit sa1100_irda_exit(void)
 {
-	driver_unregister(&sa1100ir_driver);
+	platform_driver_unregister(&sa1100ir_driver);
 }
 
 module_init(sa1100_irda_init);

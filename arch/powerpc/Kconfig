@@ -581,23 +581,22 @@ config ARCH_FLATMEM_ENABLE
        def_bool y
        depends on PPC64 && !NUMA
 
-config ARCH_DISCONTIGMEM_ENABLE
-	def_bool y
-	depends on SMP && PPC_PSERIES
-
-config ARCH_DISCONTIGMEM_DEFAULT
-	def_bool y
-	depends on ARCH_DISCONTIGMEM_ENABLE
-
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
-	depends on ARCH_DISCONTIGMEM_ENABLE
+
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool y
+	depends on SMP && PPC_PSERIES
 
 source "mm/Kconfig"
 
 config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool y
 	depends on NEED_MULTIPLE_NODES
+
+config ARCH_MEMORY_PROBE
+	def_bool y
+	depends on MEMORY_HOTPLUG
 
 # Some NUMA nodes have memory ranges that span
 # other nodes.  Even though a pfn is valid and

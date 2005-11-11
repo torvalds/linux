@@ -60,6 +60,7 @@ config MACH_CORGI
 	bool "Enable Sharp SL-C700 (Corgi) Support"
 	depends PXA_SHARPSL_25x
 	select PXA_SHARP_C7xx
+	select PXA_SSP
 
 config MACH_SHEPHERD
 	bool "Enable Sharp SL-C750 (Shepherd) Support"
@@ -102,12 +103,18 @@ config IWMMXT
 
 config PXA_SHARP_C7xx
 	bool
+	select PXA_SSP
 	help
 	  Enable support for all Sharp C7xx models
 
 config PXA_SHARP_Cxx00
 	bool
+	select PXA_SSP
 	help
 	  Enable common support for Sharp Cxx00 models
 
+config PXA_SSP
+	tristate
+	help
+	  Enable support for PXA2xx SSP ports
 endif

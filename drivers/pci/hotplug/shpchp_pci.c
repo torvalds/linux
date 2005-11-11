@@ -34,7 +34,7 @@
 #include "../pci.h"
 #include "shpchp.h"
 
-void program_fw_provided_values(struct pci_dev *dev)
+static void program_fw_provided_values(struct pci_dev *dev)
 {
 	u16 pci_cmd, pci_bctl;
 	struct pci_dev *cdev;

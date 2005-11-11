@@ -111,13 +111,12 @@ static void ixp2000_flash_copy_to(struct map_info *map, unsigned long to,
 }
 
 
-static int ixp2000_flash_remove(struct device *_dev)
+static int ixp2000_flash_remove(struct platform_device *dev)
 {
-	struct platform_device *dev = to_platform_device(_dev);
 	struct flash_platform_data *plat = dev->dev.platform_data;
-	struct ixp2000_flash_info *info = dev_get_drvdata(&dev->dev);
+	struct ixp2000_flash_info *info = platform_get_drvdata(dev);
 
-	dev_set_drvdata(&dev->dev, NULL);
+	platform_set_drvdata(dev, NULL);
 
 	if(!info)
 		return 0;
@@ -143,10 +142,9 @@ static int ixp2000_flash_remove(struct device *_dev)
 }
 
 
-static int ixp2000_flash_probe(struct device *_dev)
+static int ixp2000_flash_probe(struct platform_device *dev)
 {
 	static const char *probes[] = { "RedBoot", "cmdlinepart", NULL };
-	struct platform_device *dev = to_platform_device(_dev);
 	struct ixp2000_flash_data *ixp_data = dev->dev.platform_data;
 	struct flash_platform_data *plat;
 	struct ixp2000_flash_info *info;
@@ -177,7 +175,7 @@ static int ixp2000_flash_probe(struct device *_dev)
 	}
 	memzero(info, sizeof(struct ixp2000_flash_info));
 
-	dev_set_drvdata(&dev->dev, info);
+	platform_set_drvdata(dev, info);
 
 	/*
 	 * Tell the MTD layer we're not 1:1 mapped so that it does
@@ -248,25 +246,26 @@ static int ixp2000_flash_probe(struct device *_dev)
 	return 0;
 
 Error:
-	ixp2000_flash_remove(_dev);
+	ixp2000_flash_remove(dev);
 	return err;
 }
 
-static struct device_driver ixp2000_flash_driver = {
-	.name		= "IXP2000-Flash",
-	.bus		= &platform_bus_type,
+static struct platform_driver ixp2000_flash_driver = {
 	.probe		= &ixp2000_flash_probe,
 	.remove		= &ixp2000_flash_remove
+	.driver		= {
+		.name	= "IXP2000-Flash",
+	},
 };
 
 static int __init ixp2000_flash_init(void)
 {
-	return driver_register(&ixp2000_flash_driver);
+	return platform_driver_register(&ixp2000_flash_driver);
 }
 
 static void __exit ixp2000_flash_exit(void)
 {
-	driver_unregister(&ixp2000_flash_driver);
+	platform_driver_unregister(&ixp2000_flash_driver);
 }
 
 module_init(ixp2000_flash_init);

@@ -139,7 +139,7 @@ static int mpcore_wdt_set_heartbeat(int t)
  */
 static int mpcore_wdt_open(struct inode *inode, struct file *file)
 {
-	struct mpcore_wdt *wdt = dev_get_drvdata(&mpcore_wdt_dev->dev);
+	struct mpcore_wdt *wdt = platform_get_drvdata(mpcore_wdt_dev);
 
 	if (test_and_set_bit(0, &wdt->timer_alive))
 		return -EBUSY;
@@ -291,9 +291,9 @@ static int mpcore_wdt_ioctl(struct inode *inode, struct file *file,
  *	System shutdown handler.  Turn off the watchdog if we're
  *	restarting or halting the system.
  */
-static void mpcore_wdt_shutdown(struct device *_dev)
+static void mpcore_wdt_shutdown(struct platform_device *dev)
 {
-	struct mpcore_wdt *wdt = dev_get_drvdata(_dev);
+	struct mpcore_wdt *wdt = platform_get_drvdata(dev);
 
 	if (system_state == SYSTEM_RESTART || system_state == SYSTEM_HALT)
 		mpcore_wdt_stop(wdt);
@@ -317,9 +317,8 @@ static struct miscdevice mpcore_wdt_miscdev = {
 	.fops		= &mpcore_wdt_fops,
 };
 
-static int __devinit mpcore_wdt_probe(struct device *_dev)
+static int __devinit mpcore_wdt_probe(struct platform_device *dev)
 {
-	struct platform_device *dev = to_platform_device(_dev);
 	struct mpcore_wdt *wdt;
 	struct resource *res;
 	int ret;
@@ -364,7 +363,7 @@ static int __devinit mpcore_wdt_probe(struct device *_dev)
 	}
 
 	mpcore_wdt_stop(wdt);
-	dev_set_drvdata(&dev->dev, wdt);
+	platform_set_drvdata(&dev->dev, wdt);
 	mpcore_wdt_dev = dev;
 
 	return 0;
@@ -379,11 +378,11 @@ static int __devinit mpcore_wdt_probe(struct device *_dev)
 	return ret;
 }
 
-static int __devexit mpcore_wdt_remove(struct device *dev)
+static int __devexit mpcore_wdt_remove(struct platform_device *dev)
 {
-	struct mpcore_wdt *wdt = dev_get_drvdata(dev);
+	struct mpcore_wdt *wdt = platform_get_drvdata(dev);
 
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(dev, NULL);
 
 	misc_deregister(&mpcore_wdt_miscdev);
 
@@ -395,13 +394,14 @@ static int __devexit mpcore_wdt_remove(struct device *dev)
 	return 0;
 }
 
-static struct device_driver mpcore_wdt_driver = {
-	.owner		= THIS_MODULE,
-	.name		= "mpcore_wdt",
-	.bus		= &platform_bus_type,
+static struct platform_driver mpcore_wdt_driver = {
 	.probe		= mpcore_wdt_probe,
 	.remove		= __devexit_p(mpcore_wdt_remove),
 	.shutdown	= mpcore_wdt_shutdown,
+	.driver		= {
+		.owner	= THIS_MODULE,
+		.name	= "mpcore_wdt",
+	},
 };
 
 static char banner[] __initdata = KERN_INFO "MPcore Watchdog Timer: 0.1. mpcore_noboot=%d mpcore_margin=%d sec (nowayout= %d)\n";
@@ -420,12 +420,12 @@ static int __init mpcore_wdt_init(void)
 
 	printk(banner, mpcore_noboot, mpcore_margin, nowayout);
 
-	return driver_register(&mpcore_wdt_driver);
+	return platform_driver_register(&mpcore_wdt_driver);
 }
 
 static void __exit mpcore_wdt_exit(void)
 {
-	driver_unregister(&mpcore_wdt_driver);
+	platform_driver_unregister(&mpcore_wdt_driver);
 }
 
 module_init(mpcore_wdt_init);

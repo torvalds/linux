@@ -3639,7 +3639,6 @@ static void __devexit snd_hdspm_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "RME Hammerfall DSP MADI",
-	.owner = THIS_MODULE,
 	.id_table = snd_hdspm_ids,
 	.probe = snd_hdspm_probe,
 	.remove = __devexit_p(snd_hdspm_remove),

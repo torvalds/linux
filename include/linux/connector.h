@@ -32,6 +32,8 @@
  */
 #define CN_IDX_PROC			0x1
 #define CN_VAL_PROC			0x1
+#define CN_IDX_CIFS			0x2
+#define CN_VAL_CIFS                     0x1
 
 #define CN_NETLINK_USERS		1
 

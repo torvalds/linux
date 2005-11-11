@@ -1,7 +1,7 @@
 /*
  * Routines providing a simple monitor for use on the PowerMac.
  *
- * Copyright (C) 1996 Paul Mackerras.
+ * Copyright (C) 1996-2005 Paul Mackerras.
  *
  *      This program is free software; you can redistribute it and/or
  *      modify it under the terms of the GNU General Public License
@@ -18,6 +18,7 @@
 #include <linux/kallsyms.h>
 #include <linux/cpumask.h>
 #include <linux/module.h>
+#include <linux/sysrq.h>
 
 #include <asm/ptrace.h>
 #include <asm/string.h>
@@ -144,15 +145,10 @@ static void xmon_print_symbol(unsigned long address, const char *mid,
 static const char *getvecname(unsigned long vec);
 
 extern int print_insn_powerpc(unsigned long, unsigned long, int);
-extern void printf(const char *fmt, ...);
-extern void xmon_vfprintf(void *f, const char *fmt, va_list ap);
-extern int xmon_putc(int c, void *f);
-extern int putchar(int ch);
 
 extern void xmon_enter(void);
 extern void xmon_leave(void);
 
-extern int xmon_read_poll(void);
 extern long setjmp(long *);
 extern void longjmp(long *, long);
 extern void xmon_save_regs(struct pt_regs *);
@@ -748,7 +744,6 @@ cmds(struct pt_regs *excp)
 		printf("%x:", smp_processor_id());
 #endif /* CONFIG_SMP */
 		printf("mon> ");
-		fflush(stdout);
 		flush_input();
 		termch = 0;
 		cmd = skipbl();
@@ -1472,17 +1467,23 @@ read_spr(int n)
 {
 	unsigned int instrs[2];
 	unsigned long (*code)(void);
-	unsigned long opd[3];
 	unsigned long ret = -1UL;
+#ifdef CONFIG_PPC64
+	unsigned long opd[3];
 
-	instrs[0] = 0x7c6002a6 + ((n & 0x1F) << 16) + ((n & 0x3e0) << 6);
-	instrs[1] = 0x4e800020;
 	opd[0] = (unsigned long)instrs;
 	opd[1] = 0;
 	opd[2] = 0;
+	code = (unsigned long (*)(void)) opd;
+#else
+	code = (unsigned long (*)(void)) instrs;
+#endif
+
+	/* mfspr r3,n; blr */
+	instrs[0] = 0x7c6002a6 + ((n & 0x1F) << 16) + ((n & 0x3e0) << 6);
+	instrs[1] = 0x4e800020;
 	store_inst(instrs);
 	store_inst(instrs+1);
-	code = (unsigned long (*)(void)) opd;
 
 	if (setjmp(bus_error_jmp) == 0) {
 		catch_memory_errors = 1;
@@ -1504,16 +1505,21 @@ write_spr(int n, unsigned long val)
 {
 	unsigned int instrs[2];
 	unsigned long (*code)(unsigned long);
+#ifdef CONFIG_PPC64
 	unsigned long opd[3];
 
-	instrs[0] = 0x7c6003a6 + ((n & 0x1F) << 16) + ((n & 0x3e0) << 6);
-	instrs[1] = 0x4e800020;
 	opd[0] = (unsigned long)instrs;
 	opd[1] = 0;
 	opd[2] = 0;
+	code = (unsigned long (*)(unsigned long)) opd;
+#else
+	code = (unsigned long (*)(unsigned long)) instrs;
+#endif
+
+	instrs[0] = 0x7c6003a6 + ((n & 0x1F) << 16) + ((n & 0x3e0) << 6);
+	instrs[1] = 0x4e800020;
 	store_inst(instrs);
 	store_inst(instrs+1);
-	code = (unsigned long (*)(unsigned long)) opd;
 
 	if (setjmp(bus_error_jmp) == 0) {
 		catch_memory_errors = 1;
@@ -1797,7 +1803,7 @@ memex(void)
 	for(;;){
 		if (!mnoread)
 			n = mread(adrs, val, size);
-		printf("%.16x%c", adrs, brev? 'r': ' ');
+		printf(REG"%c", adrs, brev? 'r': ' ');
 		if (!mnoread) {
 			if (brev)
 				byterev(val, size);
@@ -1976,17 +1982,18 @@ prdump(unsigned long adrs, long ndump)
 		nr = mread(adrs, temp, r);
 		adrs += nr;
 		for (m = 0; m < r; ++m) {
-		        if ((m & 7) == 0 && m > 0)
-			    putchar(' ');
+		        if ((m & (sizeof(long) - 1)) == 0 && m > 0)
+				putchar(' ');
 			if (m < nr)
 				printf("%.2x", temp[m]);
 			else
 				printf("%s", fault_chars[fault_type]);
 		}
-		if (m <= 8)
-			printf(" ");
-		for (; m < 16; ++m)
+		for (; m < 16; ++m) {
+		        if ((m & (sizeof(long) - 1)) == 0)
+				putchar(' ');
 			printf("  ");
+		}
 		printf("  |");
 		for (m = 0; m < r; ++m) {
 			if (m < nr) {
@@ -2151,7 +2158,6 @@ memzcan(void)
 		ok = mread(a, &v, 1);
 		if (ok && !ook) {
 			printf("%.8x .. ", a);
-			fflush(stdout);
 		} else if (!ok && ook)
 			printf("%.8x\n", a - mskip);
 		ook = ok;
@@ -2372,7 +2378,7 @@ int
 inchar(void)
 {
 	if (lineptr == NULL || *lineptr == 0) {
-		if (fgets(line, sizeof(line), stdin) == NULL) {
+		if (xmon_gets(line, sizeof(line)) == NULL) {
 			lineptr = NULL;
 			return EOF;
 		}
@@ -2526,4 +2532,29 @@ void xmon_init(int enable)
 		__debugger_dabr_match = NULL;
 		__debugger_fault_handler = NULL;
 	}
+	xmon_map_scc();
 }
+
+#ifdef CONFIG_MAGIC_SYSRQ
+static void sysrq_handle_xmon(int key, struct pt_regs *pt_regs,
+			      struct tty_struct *tty) 
+{
+	/* ensure xmon is enabled */
+	xmon_init(1);
+	debugger(pt_regs);
+}
+
+static struct sysrq_key_op sysrq_xmon_op = 
+{
+	.handler =	sysrq_handle_xmon,
+	.help_msg =	"Xmon",
+	.action_msg =	"Entering xmon",
+};
+
+static int __init setup_xmon_sysrq(void)
+{
+	register_sysrq_key('x', &sysrq_xmon_op);
+	return 0;
+}
+__initcall(setup_xmon_sysrq);
+#endif /* CONFIG_MAGIC_SYSRQ */

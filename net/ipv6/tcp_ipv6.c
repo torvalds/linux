@@ -1401,20 +1401,18 @@ out:
 static int tcp_v6_checksum_init(struct sk_buff *skb)
 {
 	if (skb->ip_summed == CHECKSUM_HW) {
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		if (!tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
-				  &skb->nh.ipv6h->daddr,skb->csum))
+				  &skb->nh.ipv6h->daddr,skb->csum)) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
 			return 0;
-		LIMIT_NETDEBUG(KERN_DEBUG "hw tcp v6 csum failed\n");
+		}
 	}
+
+	skb->csum = ~tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
+				  &skb->nh.ipv6h->daddr, 0);
+
 	if (skb->len <= 76) {
-		if (tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
-				 &skb->nh.ipv6h->daddr,skb_checksum(skb, 0, skb->len, 0)))
-			return -1;
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	} else {
-		skb->csum = ~tcp_v6_check(skb->h.th,skb->len,&skb->nh.ipv6h->saddr,
-					  &skb->nh.ipv6h->daddr,0);
+		return __skb_checksum_complete(skb);
 	}
 	return 0;
 }
@@ -1575,7 +1573,7 @@ static int tcp_v6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 		goto discard_it;
 
 	if ((skb->ip_summed != CHECKSUM_UNNECESSARY &&
-	     tcp_v6_checksum_init(skb) < 0))
+	     tcp_v6_checksum_init(skb)))
 		goto bad_packet;
 
 	th = skb->h.th;
