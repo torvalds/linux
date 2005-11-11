@@ -236,7 +236,7 @@ static void tcp_vegas_cong_avoid(struct sock *sk, u32 ack,
 			/* We don't have enough RTT samples to do the Vegas
 			 * calculation, so we'll behave like Reno.
 			 */
-			tcp_reno_cong_avoid(sk, ack, seq_rtt, in_flight, cnt);
+			tcp_reno_cong_avoid(sk, ack, seq_rtt, in_flight, flag);
 		} else {
 			u32 rtt, target_cwnd, diff;
 
