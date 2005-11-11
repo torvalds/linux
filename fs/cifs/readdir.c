@@ -705,7 +705,7 @@ static int cifs_get_name_from_search_buf(struct qstr *pqst,
 					(__le16 *)filename, len/2, nlt);
 		else
 			pqst->len = cifs_strfromUCS_le((char *)pqst->name,
-					(wchar_t *)filename,len/2,nlt);
+					(__le16 *)filename,len/2,nlt);
 	} else {
 		pqst->name = filename;
 		pqst->len = len;

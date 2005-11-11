@@ -1553,7 +1553,7 @@ createSymLinkRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->FileName, fromName, PATH_MAX
+		    cifs_strtoUCS((__le16 *) pSMB->FileName, fromName, PATH_MAX
 				  /* find define for this maxpathcomponent */
 				  , nls_codepage);
 		name_len++;	/* trailing null */
@@ -1577,7 +1577,7 @@ createSymLinkRetry:
 	data_offset = (char *) (&pSMB->hdr.Protocol) + offset;
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len_target =
-		    cifs_strtoUCS((wchar_t *) data_offset, toName, PATH_MAX
+		    cifs_strtoUCS((__le16 *) data_offset, toName, PATH_MAX
 				  /* find define for this maxpathcomponent */
 				  , nls_codepage);
 		name_len_target++;	/* trailing null */
@@ -1803,7 +1803,7 @@ querySymLinkRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len =
-		    cifs_strtoUCS((wchar_t *) pSMB->FileName, searchName, PATH_MAX
+		    cifs_strtoUCS((__le16 *) pSMB->FileName, searchName, PATH_MAX
 				  /* find define for this maxpathcomponent */
 				  , nls_codepage);
 		name_len++;	/* trailing null */
@@ -1860,7 +1860,7 @@ querySymLinkRetry:
 					min_t(const int, buflen,count) / 2);
 			/* BB FIXME investigate remapping reserved chars here */
 				cifs_strfromUCS_le(symlinkinfo,
-					(wchar_t *) ((char *)&pSMBr->hdr.Protocol +
+					(__le16 *) ((char *)&pSMBr->hdr.Protocol +
 						data_offset),
 					name_len, nls_codepage);
 			} else {
@@ -1951,7 +1951,7 @@ CIFSSMBQueryReparseLinkInfo(const int xid, struct cifsTconInfo *tcon,
 							reparse_buf->TargetNameOffset),
 							min(buflen/2, reparse_buf->TargetNameLen / 2)); 
 					cifs_strfromUCS_le(symlinkinfo,
-						(wchar_t *) (reparse_buf->LinkNamesBuf + 
+						(__le16 *) (reparse_buf->LinkNamesBuf + 
 						reparse_buf->TargetNameOffset),
 						name_len, nls_codepage);
 				} else { /* ASCII names */
@@ -3203,7 +3203,7 @@ getDFSRetry:
 				temp = ((char *)referrals) + le16_to_cpu(referrals->DfsPathOffset);
 				if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE) {
 					cifs_strfromUCS_le(*targetUNCs,
-						(wchar_t *) temp, name_len, nls_codepage);
+						(__le16 *) temp, name_len, nls_codepage);
 				} else {
 					strncpy(*targetUNCs,temp,name_len);
 				}
