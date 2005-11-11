@@ -444,10 +444,8 @@ void __init check_for_initrd(void)
 	if (initrd_start >= KERNELBASE && initrd_end >= KERNELBASE &&
 	    initrd_end > initrd_start)
 		ROOT_DEV = Root_RAM0;
-	else {
-		printk("Bogus initrd %08lx %08lx\n", initrd_start, initrd_end);
+	else
 		initrd_start = initrd_end = 0;
-	}
 
 	if (initrd_start)
 		printk("Found initrd at 0x%lx:0x%lx\n", initrd_start, initrd_end);
