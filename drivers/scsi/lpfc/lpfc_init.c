@@ -1704,7 +1704,6 @@ MODULE_DEVICE_TABLE(pci, lpfc_id_table);
 
 static struct pci_driver lpfc_driver = {
 	.name		= LPFC_DRIVER_NAME,
-	.owner		= THIS_MODULE,
 	.id_table	= lpfc_id_table,
 	.probe		= lpfc_pci_probe_one,
 	.remove		= __devexit_p(lpfc_pci_remove_one),
