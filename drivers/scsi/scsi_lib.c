@@ -63,39 +63,6 @@ static struct scsi_host_sg_pool scsi_sg_pools[] = {
 }; 	
 #undef SP
 
-
-/*
- * Function:    scsi_insert_special_req()
- *
- * Purpose:     Insert pre-formed request into request queue.
- *
- * Arguments:   sreq	- request that is ready to be queued.
- *              at_head	- boolean.  True if we should insert at head
- *                        of queue, false if we should insert at tail.
- *
- * Lock status: Assumed that lock is not held upon entry.
- *
- * Returns:     Nothing
- *
- * Notes:       This function is called from character device and from
- *              ioctl types of functions where the caller knows exactly
- *              what SCSI command needs to be issued.   The idea is that
- *              we merely inject the command into the queue (at the head
- *              for now), and then call the queue request function to actually
- *              process it.
- */
-int scsi_insert_special_req(struct scsi_request *sreq, int at_head)
-{
-	/*
-	 * Because users of this function are apt to reuse requests with no
-	 * modification, we have to sanitise the request flags here
-	 */
-	sreq->sr_request->flags &= ~REQ_DONTPREP;
-	blk_insert_request(sreq->sr_device->request_queue, sreq->sr_request,
-		       	   at_head, sreq);
-	return 0;
-}
-
 static void scsi_run_queue(struct request_queue *q);
 
 /*
@@ -249,8 +216,13 @@ void scsi_do_req(struct scsi_request *sreq, const void *cmnd,
 
 	/*
 	 * head injection *required* here otherwise quiesce won't work
+	 *
+	 * Because users of this function are apt to reuse requests with no
+	 * modification, we have to sanitise the request flags here
 	 */
-	scsi_insert_special_req(sreq, 1);
+	sreq->sr_request->flags &= ~REQ_DONTPREP;
+	blk_insert_request(sreq->sr_device->request_queue, sreq->sr_request,
+		       	   1, sreq);
 }
 EXPORT_SYMBOL(scsi_do_req);
 
@@ -326,6 +298,196 @@ int scsi_execute_req(struct scsi_device *sdev, const unsigned char *cmd,
 	return result;
 }
 EXPORT_SYMBOL(scsi_execute_req);
+
+struct scsi_io_context {
+	void *data;
+	void (*done)(void *data, char *sense, int result, int resid);
+	char sense[SCSI_SENSE_BUFFERSIZE];
+};
+
+static void scsi_end_async(struct request *req)
+{
+	struct scsi_io_context *sioc = req->end_io_data;
+
+	if (sioc->done)
+		sioc->done(sioc->data, sioc->sense, req->errors, req->data_len);
+
+	kfree(sioc);
+	__blk_put_request(req->q, req);
+}
+
+static int scsi_merge_bio(struct request *rq, struct bio *bio)
+{
+	struct request_queue *q = rq->q;
+
+	bio->bi_flags &= ~(1 << BIO_SEG_VALID);
+	if (rq_data_dir(rq) == WRITE)
+		bio->bi_rw |= (1 << BIO_RW);
+	blk_queue_bounce(q, &bio);
+
+	if (!rq->bio)
+		blk_rq_bio_prep(q, rq, bio);
+	else if (!q->back_merge_fn(q, rq, bio))
+		return -EINVAL;
+	else {
+		rq->biotail->bi_next = bio;
+		rq->biotail = bio;
+		rq->hard_nr_sectors += bio_sectors(bio);
+		rq->nr_sectors = rq->hard_nr_sectors;
+	}
+
+	return 0;
+}
+
+static int scsi_bi_endio(struct bio *bio, unsigned int bytes_done, int error)
+{
+	if (bio->bi_size)
+		return 1;
+
+	bio_put(bio);
+	return 0;
+}
+
+/**
+ * scsi_req_map_sg - map a scatterlist into a request
+ * @rq:		request to fill
+ * @sg:		scatterlist
+ * @nsegs:	number of elements
+ * @bufflen:	len of buffer
+ * @gfp:	memory allocation flags
+ *
+ * scsi_req_map_sg maps a scatterlist into a request so that the
+ * request can be sent to the block layer. We do not trust the scatterlist
+ * sent to use, as some ULDs use that struct to only organize the pages.
+ */
+static int scsi_req_map_sg(struct request *rq, struct scatterlist *sgl,
+			   int nsegs, unsigned bufflen, gfp_t gfp)
+{
+	struct request_queue *q = rq->q;
+	int nr_pages = (bufflen + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	unsigned int data_len = 0, len, bytes, off;
+	struct page *page;
+	struct bio *bio = NULL;
+	int i, err, nr_vecs = 0;
+
+	for (i = 0; i < nsegs; i++) {
+		page = sgl[i].page;
+		off = sgl[i].offset;
+		len = sgl[i].length;
+		data_len += len;
+
+		while (len > 0) {
+			bytes = min_t(unsigned int, len, PAGE_SIZE - off);
+
+			if (!bio) {
+				nr_vecs = min_t(int, BIO_MAX_PAGES, nr_pages);
+				nr_pages -= nr_vecs;
+
+				bio = bio_alloc(gfp, nr_vecs);
+				if (!bio) {
+					err = -ENOMEM;
+					goto free_bios;
+				}
+				bio->bi_end_io = scsi_bi_endio;
+			}
+
+			if (bio_add_pc_page(q, bio, page, bytes, off) !=
+			    bytes) {
+				bio_put(bio);
+				err = -EINVAL;
+				goto free_bios;
+			}
+
+			if (bio->bi_vcnt >= nr_vecs) {
+				err = scsi_merge_bio(rq, bio);
+				if (err) {
+					bio_endio(bio, bio->bi_size, 0);
+					goto free_bios;
+				}
+				bio = NULL;
+			}
+
+			page++;
+			len -= bytes;
+			off = 0;
+		}
+	}
+
+	rq->buffer = rq->data = NULL;
+	rq->data_len = data_len;
+	return 0;
+
+free_bios:
+	while ((bio = rq->bio) != NULL) {
+		rq->bio = bio->bi_next;
+		/*
+		 * call endio instead of bio_put incase it was bounced
+		 */
+		bio_endio(bio, bio->bi_size, 0);
+	}
+
+	return err;
+}
+
+/**
+ * scsi_execute_async - insert request
+ * @sdev:	scsi device
+ * @cmd:	scsi command
+ * @data_direction: data direction
+ * @buffer:	data buffer (this can be a kernel buffer or scatterlist)
+ * @bufflen:	len of buffer
+ * @use_sg:	if buffer is a scatterlist this is the number of elements
+ * @timeout:	request timeout in seconds
+ * @retries:	number of times to retry request
+ * @flags:	or into request flags
+ **/
+int scsi_execute_async(struct scsi_device *sdev, const unsigned char *cmd,
+		       int data_direction, void *buffer, unsigned bufflen,
+		       int use_sg, int timeout, int retries, void *privdata,
+		       void (*done)(void *, char *, int, int), gfp_t gfp)
+{
+	struct request *req;
+	struct scsi_io_context *sioc;
+	int err = 0;
+	int write = (data_direction == DMA_TO_DEVICE);
+
+	sioc = kzalloc(sizeof(*sioc), gfp);
+	if (!sioc)
+		return DRIVER_ERROR << 24;
+
+	req = blk_get_request(sdev->request_queue, write, gfp);
+	if (!req)
+		goto free_sense;
+
+	if (use_sg)
+		err = scsi_req_map_sg(req, buffer, use_sg, bufflen, gfp);
+	else if (bufflen)
+		err = blk_rq_map_kern(req->q, req, buffer, bufflen, gfp);
+
+	if (err)
+		goto free_req;
+
+	req->cmd_len = COMMAND_SIZE(cmd[0]);
+	memcpy(req->cmd, cmd, req->cmd_len);
+	req->sense = sioc->sense;
+	req->sense_len = 0;
+	req->timeout = timeout;
+	req->flags |= REQ_BLOCK_PC | REQ_QUIET;
+	req->end_io_data = sioc;
+
+	sioc->data = privdata;
+	sioc->done = done;
+
+	blk_execute_rq_nowait(req->q, NULL, req, 1, scsi_end_async);
+	return 0;
+
+free_req:
+	blk_put_request(req);
+free_sense:
+	kfree(sioc);
+	return DRIVER_ERROR << 24;
+}
+EXPORT_SYMBOL_GPL(scsi_execute_async);
 
 /*
  * Function:    scsi_init_cmd_errh()
