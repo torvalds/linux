@@ -783,7 +783,6 @@ extern int drm_lastclose(drm_device_t *dev);
 				/* Device support (drm_fops.h) */
 extern int drm_open(struct inode *inode, struct file *filp);
 extern int drm_stub_open(struct inode *inode, struct file *filp);
-extern int drm_flush(struct file *filp);
 extern int drm_fasync(int fd, struct file *filp, int on);
 extern int drm_release(struct inode *inode, struct file *filp);
 

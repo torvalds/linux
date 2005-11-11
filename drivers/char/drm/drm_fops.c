@@ -424,20 +424,6 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 }
 
 /** No-op. */
-int drm_flush(struct file *filp)
-{
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
-
-	DRM_DEBUG("pid = %d, device = 0x%lx, open_count = %d\n",
-		  current->pid, (long)old_encode_dev(priv->head->device),
-		  dev->open_count);
-	return 0;
-}
-
-EXPORT_SYMBOL(drm_flush);
-
-/** No-op. */
 int drm_fasync(int fd, struct file *filp, int on)
 {
 	drm_file_t *priv = filp->private_data;
