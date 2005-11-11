@@ -74,7 +74,6 @@ int main(void)
 	DEFINE(ICACHEL1LINESIZE, offsetof(struct ppc64_caches, iline_size));
 	DEFINE(ICACHEL1LOGLINESIZE, offsetof(struct ppc64_caches, log_iline_size));
 	DEFINE(ICACHEL1LINESPERPAGE, offsetof(struct ppc64_caches, ilines_per_page));
-	DEFINE(PLATFORM, offsetof(struct systemcfg, platform));
 	DEFINE(PLATFORM_LPAR, PLATFORM_LPAR);
 
 	/* paca */

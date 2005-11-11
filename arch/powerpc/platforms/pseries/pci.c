@@ -107,7 +107,6 @@ static void __init pSeries_request_regions(void)
 
 void __init pSeries_final_fixup(void)
 {
-	phbs_remap_io();
 	pSeries_request_regions();
 
 	pci_addr_cache_build();
@@ -123,7 +122,7 @@ static void fixup_winbond_82c105(struct pci_dev* dev)
 	int i;
 	unsigned int reg;
 
-	if (!(systemcfg->platform & PLATFORM_PSERIES))
+	if (!platform_is_pseries())
 		return;
 
 	printk("Using INTC for W82c105 IDE controller.\n");

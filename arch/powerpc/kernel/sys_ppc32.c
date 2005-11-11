@@ -52,7 +52,6 @@
 #include <asm/semaphore.h>
 #include <asm/time.h>
 #include <asm/mmu_context.h>
-#include <asm/systemcfg.h>
 #include <asm/ppc-pci.h>
 
 /* readdir & getdents */

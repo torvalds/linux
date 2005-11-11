@@ -34,6 +34,7 @@
 #include <asm/machdep.h>
 #include <asm/cputable.h>
 #include <asm/sections.h>
+#include <asm/systemcfg.h>
 #include <asm/vdso.h>
 
 #undef DEBUG
@@ -179,7 +180,7 @@ static struct page * vdso_vma_nopage(struct vm_area_struct * vma,
 	 * Last page is systemcfg.
 	 */
 	if ((vma->vm_end - address) <= PAGE_SIZE)
-		pg = virt_to_page(systemcfg);
+		pg = virt_to_page(_systemcfg);
 	else
 		pg = virt_to_page(vbase + offset);
 
@@ -604,7 +605,7 @@ void __init vdso_init(void)
 		get_page(pg);
 	}
 
-	get_page(virt_to_page(systemcfg));
+	get_page(virt_to_page(_systemcfg));
 }
 
 int in_gate_area_no_task(unsigned long addr)

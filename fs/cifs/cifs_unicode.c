@@ -74,10 +74,11 @@ cifs_strtoUCS(wchar_t * to, const char *from, int len,
 			cERROR(1,
 			       ("cifs_strtoUCS: char2uni returned %d",
 				charlen));
-			to[i] = cpu_to_le16(0x003f);	/* a question mark */
+			/* A question mark */
+			to[i] = (wchar_t)cpu_to_le16(0x003f);
 			charlen = 1;
 		} else 
-			to[i] = cpu_to_le16(to[i]);
+			to[i] = (wchar_t)cpu_to_le16(to[i]);
 
 	}
 

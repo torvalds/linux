@@ -40,6 +40,7 @@
 
 #include <linux/compiler.h>
 #include <asm/atomic.h>
+#include <asm/asm-compat.h>
 #include <asm/synch.h>
 
 /*
@@ -52,16 +53,6 @@
 #define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
 #define BITOP_LE_SWIZZLE	((BITS_PER_LONG-1) & ~0x7)
 
-#ifdef CONFIG_PPC64
-#define LARXL		"ldarx"
-#define STCXL		"stdcx."
-#define CNTLZL		"cntlzd"
-#else
-#define LARXL		"lwarx"
-#define STCXL		"stwcx."
-#define CNTLZL		"cntlzw"
-#endif
-
 static __inline__ void set_bit(int nr, volatile unsigned long *addr)
 {
 	unsigned long old;
@@ -69,10 +60,10 @@ static __inline__ void set_bit(int nr, volatile unsigned long *addr)
 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
 
 	__asm__ __volatile__(
-"1:"	LARXL "	%0,0,%3	# set_bit\n"
+"1:"	PPC_LLARX "%0,0,%3	# set_bit\n"
 	"or	%0,%0,%2\n"
 	PPC405_ERR77(0,%3)
-	STCXL "	%0,0,%3\n"
+	PPC_STLCX "%0,0,%3\n"
 	"bne-	1b"
 	: "=&r"(old), "=m"(*p)
 	: "r"(mask), "r"(p), "m"(*p)
@@ -86,10 +77,10 @@ static __inline__ void clear_bit(int nr, volatile unsigned long *addr)
 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
 
 	__asm__ __volatile__(
-"1:"	LARXL "	%0,0,%3	# set_bit\n"
+"1:"	PPC_LLARX "%0,0,%3	# clear_bit\n"
 	"andc	%0,%0,%2\n"
 	PPC405_ERR77(0,%3)
-	STCXL "	%0,0,%3\n"
+	PPC_STLCX "%0,0,%3\n"
 	"bne-	1b"
 	: "=&r"(old), "=m"(*p)
 	: "r"(mask), "r"(p), "m"(*p)
@@ -103,10 +94,10 @@ static __inline__ void change_bit(int nr, volatile unsigned long *addr)
 	unsigned long *p = ((unsigned long *)addr) + BITOP_WORD(nr);
 
 	__asm__ __volatile__(
-"1:"	LARXL "	%0,0,%3	# set_bit\n"
+"1:"	PPC_LLARX "%0,0,%3	# change_bit\n"
 	"xor	%0,%0,%2\n"
 	PPC405_ERR77(0,%3)
-	STCXL "	%0,0,%3\n"
+	PPC_STLCX "%0,0,%3\n"
 	"bne-	1b"
 	: "=&r"(old), "=m"(*p)
 	: "r"(mask), "r"(p), "m"(*p)
@@ -122,10 +113,10 @@ static __inline__ int test_and_set_bit(unsigned long nr,
 
 	__asm__ __volatile__(
 	EIEIO_ON_SMP
-"1:"	LARXL "	%0,0,%3		# test_and_set_bit\n"
+"1:"	PPC_LLARX "%0,0,%3		# test_and_set_bit\n"
 	"or	%1,%0,%2 \n"
 	PPC405_ERR77(0,%3)
-	STCXL "	%1,0,%3 \n"
+	PPC_STLCX "%1,0,%3 \n"
 	"bne-	1b"
 	ISYNC_ON_SMP
 	: "=&r" (old), "=&r" (t)
@@ -144,10 +135,10 @@ static __inline__ int test_and_clear_bit(unsigned long nr,
 
 	__asm__ __volatile__(
 	EIEIO_ON_SMP
-"1:"	LARXL "	%0,0,%3		# test_and_clear_bit\n"
+"1:"	PPC_LLARX "%0,0,%3		# test_and_clear_bit\n"
 	"andc	%1,%0,%2 \n"
 	PPC405_ERR77(0,%3)
-	STCXL "	%1,0,%3 \n"
+	PPC_STLCX "%1,0,%3 \n"
 	"bne-	1b"
 	ISYNC_ON_SMP
 	: "=&r" (old), "=&r" (t)
@@ -166,10 +157,10 @@ static __inline__ int test_and_change_bit(unsigned long nr,
 
 	__asm__ __volatile__(
 	EIEIO_ON_SMP
-"1:"	LARXL "	%0,0,%3		# test_and_change_bit\n"
+"1:"	PPC_LLARX "%0,0,%3		# test_and_change_bit\n"
 	"xor	%1,%0,%2 \n"
 	PPC405_ERR77(0,%3)
-	STCXL "	%1,0,%3 \n"
+	PPC_STLCX "%1,0,%3 \n"
 	"bne-	1b"
 	ISYNC_ON_SMP
 	: "=&r" (old), "=&r" (t)
@@ -184,9 +175,9 @@ static __inline__ void set_bits(unsigned long mask, unsigned long *addr)
         unsigned long old;
 
 	__asm__ __volatile__(
-"1:"	LARXL "	%0,0,%3         # set_bit\n"
+"1:"	PPC_LLARX "%0,0,%3         # set_bits\n"
 	"or	%0,%0,%2\n"
-	STCXL "	%0,0,%3\n"
+	PPC_STLCX "%0,0,%3\n"
 	"bne-	1b"
 	: "=&r" (old), "=m" (*addr)
 	: "r" (mask), "r" (addr), "m" (*addr)
@@ -268,7 +259,7 @@ static __inline__ int __ilog2(unsigned long x)
 {
 	int lz;
 
-	asm (CNTLZL " %0,%1" : "=r" (lz) : "r" (x));
+	asm (PPC_CNTLZL "%0,%1" : "=r" (lz) : "r" (x));
 	return BITS_PER_LONG - 1 - lz;
 }
 

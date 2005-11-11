@@ -33,6 +33,9 @@ extern int numa_cpu_lookup_table[];
 extern char *numa_memory_lookup_table;
 extern cpumask_t numa_cpumask_lookup_table[];
 extern int nr_cpus_in_node[];
+#ifdef CONFIG_MEMORY_HOTPLUG
+extern unsigned long max_pfn;
+#endif
 
 /* 16MB regions */
 #define MEMORY_INCREMENT_SHIFT 24
@@ -45,6 +48,11 @@ static inline int pa_to_nid(unsigned long pa)
 {
 	int nid;
 
+#ifdef CONFIG_MEMORY_HOTPLUG
+	/* kludge hot added sections default to node 0 */
+	if (pa >= (max_pfn << PAGE_SHIFT))
+		return 0;
+#endif
 	nid = numa_memory_lookup_table[pa >> MEMORY_INCREMENT_SHIFT];
 
 #ifdef DEBUG_NUMA

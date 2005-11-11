@@ -548,6 +548,11 @@ static int __init pcibios_init(void)
 	if (ppc64_isabridge_dev != NULL)
 		printk("ISA bridge at %s\n", pci_name(ppc64_isabridge_dev));
 
+#ifdef CONFIG_PPC_MULTIPLATFORM
+	/* map in PCI I/O space */
+	phbs_remap_io();
+#endif
+
 	printk("PCI: Probing PCI hardware done\n");
 
 	return 0;
@@ -1277,12 +1282,9 @@ long sys_pciconfig_iobase(long which, unsigned long in_bus,
 	 * G5 machines... So when something asks for bus 0 io base
 	 * (bus 0 is HT root), we return the AGP one instead.
 	 */
-#ifdef CONFIG_PPC_PMAC
-	if (systemcfg->platform == PLATFORM_POWERMAC &&
-	    machine_is_compatible("MacRISC4"))
+	if (machine_is_compatible("MacRISC4"))
 		if (in_bus == 0)
 			in_bus = 0xf0;
-#endif /* CONFIG_PPC_PMAC */
 
 	/* That syscall isn't quite compatible with PCI domains, but it's
 	 * used on pre-domains setup. We return the first match

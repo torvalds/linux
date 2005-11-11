@@ -2858,7 +2858,6 @@ static void __devexit snd_m3_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "Maestro3",
-	.owner = THIS_MODULE,
 	.id_table = snd_m3_ids,
 	.probe = snd_m3_probe,
 	.remove = __devexit_p(snd_m3_remove),

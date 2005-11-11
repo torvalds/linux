@@ -102,8 +102,8 @@ config CPU_ARM922T
 # ARM925T
 config CPU_ARM925T
  	bool "Support ARM925T processor" if ARCH_OMAP1
- 	depends on ARCH_OMAP1510
- 	default y if ARCH_OMAP1510
+ 	depends on ARCH_OMAP15XX
+ 	default y if ARCH_OMAP15XX
 	select CPU_32v4
 	select CPU_ABRT_EV4T
 	select CPU_CACHE_V4WT
@@ -242,7 +242,7 @@ config CPU_XSCALE
 # ARMv6
 config CPU_V6
 	bool "Support ARM V6 processor"
-	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB
+	depends on ARCH_INTEGRATOR || MACH_REALVIEW_EB || ARCH_OMAP2
 	select CPU_32v6
 	select CPU_ABRT_EV6
 	select CPU_CACHE_V6

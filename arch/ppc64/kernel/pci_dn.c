@@ -43,7 +43,7 @@ static void * __devinit update_dn_pci_info(struct device_node *dn, void *data)
 	u32 *regs;
 	struct pci_dn *pdn;
 
-	if (phb->is_dynamic)
+	if (mem_init_done)
 		pdn = kmalloc(sizeof(*pdn), GFP_KERNEL);
 	else
 		pdn = alloc_bootmem(sizeof(*pdn));
@@ -120,6 +120,14 @@ void *traverse_pci_devices(struct device_node *start, traverse_func pre,
 	return NULL;
 }
 
+/** 
+ * pci_devs_phb_init_dynamic - setup pci devices under this PHB
+ * phb: pci-to-host bridge (top-level bridge connecting to cpu)
+ *
+ * This routine is called both during boot, (before the memory
+ * subsystem is set up, before kmalloc is valid) and during the 
+ * dynamic lpar operation of adding a PHB to a running system.
+ */
 void __devinit pci_devs_phb_init_dynamic(struct pci_controller *phb)
 {
 	struct device_node * dn = (struct device_node *) phb->arch_data;
@@ -201,9 +209,14 @@ static struct notifier_block pci_dn_reconfig_nb = {
 	.notifier_call = pci_dn_reconfig_notifier,
 };
 
-/*
- * Actually initialize the phbs.
- * The buswalk on this phb has not happened yet.
+/** 
+ * pci_devs_phb_init - Initialize phbs and pci devs under them.
+ * 
+ * This routine walks over all phb's (pci-host bridges) on the
+ * system, and sets up assorted pci-related structures 
+ * (including pci info in the device node structs) for each
+ * pci device found underneath.  This routine runs once,
+ * early in the boot sequence.
  */
 void __init pci_devs_phb_init(void)
 {

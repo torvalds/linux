@@ -15,9 +15,10 @@
 
 #include <asm/mach/map.h>
 #include <asm/io.h>
+#include <asm/arch/mux.h>
 #include <asm/arch/tc.h>
 
-extern int clk_init(void);
+extern int omap1_clk_init(void);
 extern void omap_check_revision(void);
 extern void omap_sram_init(void);
 
@@ -50,7 +51,7 @@ static struct map_desc omap730_io_desc[] __initdata = {
 };
 #endif
 
-#ifdef CONFIG_ARCH_OMAP1510
+#ifdef CONFIG_ARCH_OMAP15XX
 static struct map_desc omap1510_io_desc[] __initdata = {
 	{
 		.virtual	= OMAP1510_DSP_BASE,
@@ -98,7 +99,7 @@ static void __init _omap_map_io(void)
 		iotable_init(omap730_io_desc, ARRAY_SIZE(omap730_io_desc));
 	}
 #endif
-#ifdef CONFIG_ARCH_OMAP1510
+#ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
 		iotable_init(omap1510_io_desc, ARRAY_SIZE(omap1510_io_desc));
 	}
@@ -119,7 +120,7 @@ static void __init _omap_map_io(void)
 
 	/* Must init clocks early to assure that timer interrupt works
 	 */
-	clk_init();
+	omap1_clk_init();
 }
 
 /*
@@ -127,7 +128,9 @@ static void __init _omap_map_io(void)
  */
 void __init omap_map_common_io(void)
 {
-	if (!initialized)
+	if (!initialized) {
 		_omap_map_io();
+		omap1_mux_init();
+	}
 }
 

@@ -513,7 +513,6 @@ static void __devexit ali1535_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver ali1535_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "ali1535_smbus",
 	.id_table	= ali1535_ids,
 	.probe		= ali1535_probe,

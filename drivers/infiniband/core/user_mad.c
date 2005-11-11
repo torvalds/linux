@@ -31,7 +31,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * $Id: user_mad.c 2814 2005-07-06 19:14:09Z halr $
+ * $Id: user_mad.c 4010 2005-11-09 23:11:56Z roland $
  */
 
 #include <linux/module.h>
@@ -110,13 +110,13 @@ struct ib_umad_device {
 };
 
 struct ib_umad_file {
-	struct ib_umad_port *port;
-	struct list_head     recv_list;
-	struct list_head     port_list;
-	spinlock_t           recv_lock;
-	wait_queue_head_t    recv_wait;
-	struct ib_mad_agent *agent[IB_UMAD_MAX_AGENTS];
-	struct ib_mr        *mr[IB_UMAD_MAX_AGENTS];
+	struct ib_umad_port    *port;
+	struct list_head	recv_list;
+	struct list_head	port_list;
+	spinlock_t		recv_lock;
+	wait_queue_head_t	recv_wait;
+	struct ib_mad_agent    *agent[IB_UMAD_MAX_AGENTS];
+	int			agents_dead;
 };
 
 struct ib_umad_packet {
@@ -145,6 +145,12 @@ static void ib_umad_release_dev(struct kref *ref)
 	kfree(dev);
 }
 
+/* caller must hold port->mutex at least for reading */
+static struct ib_mad_agent *__get_agent(struct ib_umad_file *file, int id)
+{
+	return file->agents_dead ? NULL : file->agent[id];
+}
+
 static int queue_packet(struct ib_umad_file *file,
 			struct ib_mad_agent *agent,
 			struct ib_umad_packet *packet)
@@ -152,10 +158,11 @@ static int queue_packet(struct ib_umad_file *file,
 	int ret = 1;
 
 	down_read(&file->port->mutex);
+
 	for (packet->mad.hdr.id = 0;
 	     packet->mad.hdr.id < IB_UMAD_MAX_AGENTS;
 	     packet->mad.hdr.id++)
-		if (agent == file->agent[packet->mad.hdr.id]) {
+		if (agent == __get_agent(file, packet->mad.hdr.id)) {
 			spin_lock_irq(&file->recv_lock);
 			list_add_tail(&packet->list, &file->recv_list);
 			spin_unlock_irq(&file->recv_lock);
@@ -327,7 +334,7 @@ static ssize_t ib_umad_write(struct file *filp, const char __user *buf,
 
 	down_read(&file->port->mutex);
 
-	agent = file->agent[packet->mad.hdr.id];
+	agent = __get_agent(file, packet->mad.hdr.id);
 	if (!agent) {
 		ret = -EINVAL;
 		goto err_up;
@@ -481,7 +488,7 @@ static int ib_umad_reg_agent(struct ib_umad_file *file, unsigned long arg)
 	}
 
 	for (agent_id = 0; agent_id < IB_UMAD_MAX_AGENTS; ++agent_id)
-		if (!file->agent[agent_id])
+		if (!__get_agent(file, agent_id))
 			goto found;
 
 	ret = -ENOMEM;
@@ -505,29 +512,15 @@ found:
 		goto out;
 	}
 
-	file->agent[agent_id] = agent;
-
-	file->mr[agent_id] = ib_get_dma_mr(agent->qp->pd, IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(file->mr[agent_id])) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
 	if (put_user(agent_id,
 		     (u32 __user *) (arg + offsetof(struct ib_user_mad_reg_req, id)))) {
 		ret = -EFAULT;
-		goto err_mr;
+		ib_unregister_mad_agent(agent);
+		goto out;
 	}
 
+	file->agent[agent_id] = agent;
 	ret = 0;
-	goto out;
-
-err_mr:
-	ib_dereg_mr(file->mr[agent_id]);
-
-err:
-	file->agent[agent_id] = NULL;
-	ib_unregister_mad_agent(agent);
 
 out:
 	up_write(&file->port->mutex);
@@ -536,27 +529,29 @@ out:
 
 static int ib_umad_unreg_agent(struct ib_umad_file *file, unsigned long arg)
 {
+	struct ib_mad_agent *agent = NULL;
 	u32 id;
 	int ret = 0;
 
+	if (get_user(id, (u32 __user *) arg))
+		return -EFAULT;
+
 	down_write(&file->port->mutex);
 
-	if (get_user(id, (u32 __user *) arg)) {
-		ret = -EFAULT;
-		goto out;
-	}
-
-	if (id < 0 || id >= IB_UMAD_MAX_AGENTS || !file->agent[id]) {
+	if (id < 0 || id >= IB_UMAD_MAX_AGENTS || !__get_agent(file, id)) {
 		ret = -EINVAL;
 		goto out;
 	}
 
-	ib_dereg_mr(file->mr[id]);
-	ib_unregister_mad_agent(file->agent[id]);
+	agent = file->agent[id];
 	file->agent[id] = NULL;
 
 out:
 	up_write(&file->port->mutex);
+
+	if (agent)
+		ib_unregister_mad_agent(agent);
+
 	return ret;
 }
 
@@ -621,23 +616,29 @@ static int ib_umad_close(struct inode *inode, struct file *filp)
 	struct ib_umad_file *file = filp->private_data;
 	struct ib_umad_device *dev = file->port->umad_dev;
 	struct ib_umad_packet *packet, *tmp;
+	int already_dead;
 	int i;
 
 	down_write(&file->port->mutex);
-	for (i = 0; i < IB_UMAD_MAX_AGENTS; ++i)
-		if (file->agent[i]) {
-			ib_dereg_mr(file->mr[i]);
-			ib_unregister_mad_agent(file->agent[i]);
-		}
+
+	already_dead = file->agents_dead;
+	file->agents_dead = 1;
 
 	list_for_each_entry_safe(packet, tmp, &file->recv_list, list)
 		kfree(packet);
 
 	list_del(&file->port_list);
-	up_write(&file->port->mutex);
+
+	downgrade_write(&file->port->mutex);
+
+	if (!already_dead)
+		for (i = 0; i < IB_UMAD_MAX_AGENTS; ++i)
+			if (file->agent[i])
+				ib_unregister_mad_agent(file->agent[i]);
+
+	up_read(&file->port->mutex);
 
 	kfree(file);
-
 	kref_put(&dev->ref, ib_umad_release_dev);
 
 	return 0;
@@ -801,7 +802,7 @@ static int ib_umad_init_port(struct ib_device *device, int port_num,
 		goto err_class;
 	port->sm_dev->owner = THIS_MODULE;
 	port->sm_dev->ops   = &umad_sm_fops;
-	kobject_set_name(&port->dev->kobj, "issm%d", port->dev_num);
+	kobject_set_name(&port->sm_dev->kobj, "issm%d", port->dev_num);
 	if (cdev_add(port->sm_dev, base_dev + port->dev_num + IB_UMAD_MAX_PORTS, 1))
 		goto err_sm_cdev;
 
@@ -863,14 +864,36 @@ static void ib_umad_kill_port(struct ib_umad_port *port)
 
 	port->ib_dev = NULL;
 
-	list_for_each_entry(file, &port->file_list, port_list)
-		for (id = 0; id < IB_UMAD_MAX_AGENTS; ++id) {
-			if (!file->agent[id])
-				continue;
-			ib_dereg_mr(file->mr[id]);
-			ib_unregister_mad_agent(file->agent[id]);
-			file->agent[id] = NULL;
-		}
+	/*
+	 * Now go through the list of files attached to this port and
+	 * unregister all of their MAD agents.  We need to hold
+	 * port->mutex while doing this to avoid racing with
+	 * ib_umad_close(), but we can't hold the mutex for writing
+	 * while calling ib_unregister_mad_agent(), since that might
+	 * deadlock by calling back into queue_packet().  So we
+	 * downgrade our lock to a read lock, and then drop and
+	 * reacquire the write lock for the next iteration.
+	 *
+	 * We do list_del_init() on the file's list_head so that the
+	 * list_del in ib_umad_close() is still OK, even after the
+	 * file is removed from the list.
+	 */
+	while (!list_empty(&port->file_list)) {
+		file = list_entry(port->file_list.next, struct ib_umad_file,
+				  port_list);
+
+		file->agents_dead = 1;
+		list_del_init(&file->port_list);
+
+		downgrade_write(&port->mutex);
+
+		for (id = 0; id < IB_UMAD_MAX_AGENTS; ++id)
+			if (file->agent[id])
+				ib_unregister_mad_agent(file->agent[id]);
+
+		up_read(&port->mutex);
+		down_write(&port->mutex);
+	}
 
 	up_write(&port->mutex);
 
@@ -913,7 +936,7 @@ static void ib_umad_add_one(struct ib_device *device)
 
 err:
 	while (--i >= s)
-		ib_umad_kill_port(&umad_dev->port[i]);
+		ib_umad_kill_port(&umad_dev->port[i - s]);
 
 	kref_put(&umad_dev->ref, ib_umad_release_dev);
 }
