@@ -1838,7 +1838,6 @@ snd_azf3328_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "AZF3328",
-	.owner = THIS_MODULE,
 	.id_table = snd_azf3328_ids,
 	.probe = snd_azf3328_probe,
 	.remove = __devexit_p(snd_azf3328_remove),

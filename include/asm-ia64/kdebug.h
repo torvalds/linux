@@ -22,6 +22,9 @@
  * 2005-Apr     Rusty Lynch <rusty.lynch@intel.com> and Anil S Keshavamurthy
  *              <anil.s.keshavamurthy@intel.com> adopted from
  *              include/asm-x86_64/kdebug.h
+ *
+ * 2005-Oct	Keith Owens <kaos@sgi.com>.  Expand notify_die to cover more
+ *		events.
  */
 #include <linux/notifier.h>
 
@@ -35,13 +38,36 @@ struct die_args {
 	int signr;
 };
 
-int register_die_notifier(struct notifier_block *nb);
+extern int register_die_notifier(struct notifier_block *);
+extern int unregister_die_notifier(struct notifier_block *);
 extern struct notifier_block *ia64die_chain;
 
 enum die_val {
 	DIE_BREAK = 1,
-	DIE_SS,
+	DIE_FAULT,
+	DIE_OOPS,
 	DIE_PAGE_FAULT,
+	DIE_MACHINE_HALT,
+	DIE_MACHINE_RESTART,
+	DIE_MCA_MONARCH_ENTER,
+	DIE_MCA_MONARCH_PROCESS,
+	DIE_MCA_MONARCH_LEAVE,
+	DIE_MCA_SLAVE_ENTER,
+	DIE_MCA_SLAVE_PROCESS,
+	DIE_MCA_SLAVE_LEAVE,
+	DIE_MCA_RENDZVOUS_ENTER,
+	DIE_MCA_RENDZVOUS_PROCESS,
+	DIE_MCA_RENDZVOUS_LEAVE,
+	DIE_INIT_MONARCH_ENTER,
+	DIE_INIT_MONARCH_PROCESS,
+	DIE_INIT_MONARCH_LEAVE,
+	DIE_INIT_SLAVE_ENTER,
+	DIE_INIT_SLAVE_PROCESS,
+	DIE_INIT_SLAVE_LEAVE,
+	DIE_KDEBUG_ENTER,
+	DIE_KDEBUG_LEAVE,
+	DIE_KDUMP_ENTER,
+	DIE_KDUMP_LEAVE,
 };
 
 static inline int notify_die(enum die_val val, char *str, struct pt_regs *regs,

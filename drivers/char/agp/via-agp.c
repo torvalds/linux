@@ -518,7 +518,6 @@ MODULE_DEVICE_TABLE(pci, agp_via_pci_table);
 
 
 static struct pci_driver agp_via_pci_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "agpgart-via",
 	.id_table	= agp_via_pci_table,
 	.probe		= agp_via_probe,

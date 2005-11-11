@@ -349,7 +349,7 @@ void sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 		return;		/*bus # does not exist */
 	prom_bussoft_ptr = __va(prom_bussoft_ptr);
 
- 	controller = kcalloc(1,sizeof(struct pci_controller), GFP_KERNEL);
+ 	controller = kzalloc(sizeof(struct pci_controller), GFP_KERNEL);
 	controller->segment = segment;
  	if (!controller)
  		BUG();

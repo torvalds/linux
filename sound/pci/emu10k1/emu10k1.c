@@ -223,7 +223,6 @@ static void __devexit snd_card_emu10k1_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "EMU10K1_Audigy",
-	.owner = THIS_MODULE,
 	.id_table = snd_emu10k1_ids,
 	.probe = snd_card_emu10k1_probe,
 	.remove = __devexit_p(snd_card_emu10k1_remove),
