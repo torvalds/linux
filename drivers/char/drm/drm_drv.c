@@ -106,10 +106,10 @@ static drm_ioctl_desc_t drm_ioctls[] = {
 	[DRM_IOCTL_NR(DRM_IOCTL_AGP_RELEASE)] = {drm_agp_release_ioctl, 1, 1},
 	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ENABLE)] = {drm_agp_enable_ioctl, 1, 1},
 	[DRM_IOCTL_NR(DRM_IOCTL_AGP_INFO)] = {drm_agp_info_ioctl, 1, 0},
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ALLOC)] = {drm_agp_alloc, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_FREE)] = {drm_agp_free, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_BIND)] = {drm_agp_bind, 1, 1},
-	[DRM_IOCTL_NR(DRM_IOCTL_AGP_UNBIND)] = {drm_agp_unbind, 1, 1},
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_ALLOC)] = {drm_agp_alloc_ioctl, 1, 1},
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_FREE)] = {drm_agp_free_ioctl, 1, 1},
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_BIND)] = {drm_agp_bind_ioctl, 1, 1},
+	[DRM_IOCTL_NR(DRM_IOCTL_AGP_UNBIND)] = {drm_agp_unbind_ioctl, 1, 1},
 #endif
 
 	[DRM_IOCTL_NR(DRM_IOCTL_SG_ALLOC)] = {drm_sg_alloc, 1, 1},
