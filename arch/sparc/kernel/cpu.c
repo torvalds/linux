@@ -75,7 +75,7 @@ struct cpu_fp_info linux_sparc_fpu[] = {
   { 9, 3, "Fujitsu or Weitek on-chip FPU"},
 };
 
-#define NSPARCFPU  (sizeof(linux_sparc_fpu)/sizeof(struct cpu_fp_info))
+#define NSPARCFPU  ARRAY_SIZE(linux_sparc_fpu)
 
 struct cpu_iu_info linux_sparc_chips[] = {
   /* Sun4/100, 4/200, SLC */
@@ -120,7 +120,7 @@ struct cpu_iu_info linux_sparc_chips[] = {
   { 0xf, 0, "UNKNOWN CPU-VENDOR/TYPE"},
 };
 
-#define NSPARCCHIPS  (sizeof(linux_sparc_chips)/sizeof(struct cpu_iu_info))
+#define NSPARCCHIPS  ARRAY_SIZE(linux_sparc_chips)
 
 char *sparc_cpu_type;
 char *sparc_fpu_type;

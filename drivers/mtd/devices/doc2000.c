@@ -4,7 +4,7 @@
  * (c) 1999 Machine Vision Holdings, Inc.
  * (c) 1999, 2000 David Woodhouse <dwmw2@infradead.org>
  *
- * $Id: doc2000.c,v 1.66 2005/01/05 18:05:12 dwmw2 Exp $
+ * $Id: doc2000.c,v 1.67 2005/11/07 11:14:24 gleixner Exp $
  */
 
 #include <linux/kernel.h>
@@ -58,7 +58,7 @@ static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 			size_t *retlen, u_char *buf, u_char *eccbuf, struct nand_oobinfo *oobsel);
 static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 			 size_t *retlen, const u_char *buf, u_char *eccbuf, struct nand_oobinfo *oobsel);
-static int doc_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs, 
+static int doc_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 			  unsigned long count, loff_t to, size_t *retlen,
 			  u_char *eccbuf, struct nand_oobinfo *oobsel);
 static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
@@ -76,14 +76,14 @@ static void DoC_Delay(struct DiskOnChip *doc, unsigned short cycles)
 {
 	volatile char dummy;
 	int i;
-	
+
 	for (i = 0; i < cycles; i++) {
 		if (DoC_is_Millennium(doc))
 			dummy = ReadDOC(doc->virtadr, NOP);
 		else
 			dummy = ReadDOC(doc->virtadr, DOCStatus);
 	}
-	
+
 }
 
 /* DOC_WaitReady: Wait for RDY line to be asserted by the flash chip */
@@ -220,8 +220,8 @@ static int DoC_Address(struct DiskOnChip *doc, int numbytes, unsigned long ofs,
 		WriteDOC(ofs & 0xff, docptr, WritePipeTerm);
 
 	DoC_Delay(doc, 2);	/* Needed for some slow flash chips. mf. */
-	
-	/* FIXME: The SlowIO's for millennium could be replaced by 
+
+	/* FIXME: The SlowIO's for millennium could be replaced by
 	   a single WritePipeTerm here. mf. */
 
 	/* Lower the ALE line */
@@ -377,9 +377,9 @@ static int DoC_IdentChip(struct DiskOnChip *doc, int floor, int chip)
 	if (mfr == 0xff || mfr == 0)
 		return 0;
 
-	/* Check it's the same as the first chip we identified. 
+	/* Check it's the same as the first chip we identified.
 	 * M-Systems say that any given DiskOnChip device should only
-	 * contain _one_ type of flash part, although that's not a 
+	 * contain _one_ type of flash part, although that's not a
 	 * hardware restriction. */
 	if (doc->mfr) {
 		if (doc->mfr == mfr && doc->id == id)
@@ -397,7 +397,7 @@ static int DoC_IdentChip(struct DiskOnChip *doc, int floor, int chip)
 			for (j = 0; nand_manuf_ids[j].id != 0x0; j++) {
 				if (nand_manuf_ids[j].id == mfr)
 					break;
-			}	
+			}
 			printk(KERN_INFO
 			       "Flash chip found: Manufacturer ID: %2.2X, "
 			       "Chip ID: %2.2X (%s:%s)\n", mfr, id,
@@ -405,7 +405,7 @@ static int DoC_IdentChip(struct DiskOnChip *doc, int floor, int chip)
 			if (!doc->mfr) {
 				doc->mfr = mfr;
 				doc->id = id;
-				doc->chipshift = 
+				doc->chipshift =
 					ffs((nand_flash_ids[i].chipsize << 20)) - 1;
 				doc->page256 = (nand_flash_ids[i].pagesize == 256) ? 1 : 0;
 				doc->pageadrlen = doc->chipshift > 25 ? 3 : 2;
@@ -467,7 +467,7 @@ static void DoC_ScanChips(struct DiskOnChip *this, int maxchips)
 
 	ret = 0;
 
-	/* Fill out the chip array with {floor, chipno} for each 
+	/* Fill out the chip array with {floor, chipno} for each
 	 * detected chip in the device. */
 	for (floor = 0; floor < MAX_FLOORS; floor++) {
 		for (chip = 0; chip < numchips[floor]; chip++) {
@@ -757,12 +757,12 @@ static int doc_read_ecc(struct mtd_info *mtd, loff_t from, size_t len,
 				     (long)from, eccbuf[0], eccbuf[1], eccbuf[2],
 				     eccbuf[3], eccbuf[4], eccbuf[5]);
 #endif
-		
+
 			/* disable the ECC engine */
 			WriteDOC(DOC_ECC_DIS, docptr , ECCConf);
 		}
 
-		/* according to 11.4.1, we need to wait for the busy line 
+		/* according to 11.4.1, we need to wait for the busy line
 	         * drop if we read to the end of the page.  */
 		if(0 == ((from + len) & 0x1ff))
 		{
@@ -941,7 +941,7 @@ static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 
 		/* Let the caller know we completed it */
 		*retlen += len;
-		
+
 		if (eccbuf) {
 			unsigned char x[8];
 			size_t dummy;
@@ -950,10 +950,10 @@ static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 			/* Write the ECC data to flash */
 			for (di=0; di<6; di++)
 				x[di] = eccbuf[di];
-		
+
 			x[6]=0x55;
 			x[7]=0x55;
-		
+
 			ret = doc_write_oob_nolock(mtd, to, 8, &dummy, x);
 			if (ret) {
 				up(&this->lock);
@@ -970,7 +970,7 @@ static int doc_write_ecc(struct mtd_info *mtd, loff_t to, size_t len,
 	return 0;
 }
 
-static int doc_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs, 
+static int doc_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 			  unsigned long count, loff_t to, size_t *retlen,
 			  u_char *eccbuf, struct nand_oobinfo *oobsel)
 {
@@ -1022,7 +1022,7 @@ static int doc_writev_ecc(struct mtd_info *mtd, const struct kvec *vecs,
 			break;
 
 		to += thislen;
-	}		
+	}
 
 	up(&writev_buf_sem);
 	*retlen = totretlen;
@@ -1080,7 +1080,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
 	/* Reading the full OOB data drops us off of the end of the page,
          * causing the flash device to go into busy mode, so we need
          * to wait until ready 11.4.1 and Toshiba TC58256FT docs */
-	
+
 	ret = DoC_WaitReady(this);
 
 	up(&this->lock);
@@ -1190,7 +1190,7 @@ static int doc_write_oob_nolock(struct mtd_info *mtd, loff_t ofs, size_t len,
 	return 0;
 
 }
- 
+
 static int doc_write_oob(struct mtd_info *mtd, loff_t ofs, size_t len,
  			 size_t * retlen, const u_char * buf)
 {
@@ -1222,7 +1222,7 @@ static int doc_erase(struct mtd_info *mtd, struct erase_info *instr)
 	}
 
 	instr->state = MTD_ERASING;
-		
+
 	/* FIXME: Do this in the background. Use timers or schedule_task() */
 	while(len) {
 		mychip = &this->chips[ofs >> this->chipshift];

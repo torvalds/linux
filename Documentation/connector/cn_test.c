@@ -25,7 +25,7 @@
 #include <linux/skbuff.h>
 #include <linux/timer.h>
 
-#include "connector.h"
+#include <linux/connector.h>
 
 static struct cb_id cn_test_id = { 0x123, 0x456 };
 static char cn_test_name[] = "cn_test";
@@ -104,7 +104,7 @@ static int cn_test_want_notify(void)
 	req->first = cn_test_id.val + 20;
 	req->range = 10;
 
-	NETLINK_CB(skb).dst_groups = ctl->group;
+	NETLINK_CB(skb).dst_group = ctl->group;
 	//netlink_broadcast(nls, skb, 0, ctl->group, GFP_ATOMIC);
 	netlink_unicast(nls, skb, 0, 0);
 

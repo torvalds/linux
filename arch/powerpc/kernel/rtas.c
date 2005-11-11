@@ -17,6 +17,7 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/delay.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -28,9 +29,6 @@
 #include <asm/delay.h>
 #include <asm/uaccess.h>
 #include <asm/lmb.h>
-#ifdef CONFIG_PPC64
-#include <asm/systemcfg.h>
-#endif
 
 struct rtas_t rtas = {
 	.lock = SPIN_LOCK_UNLOCKED
@@ -83,7 +81,7 @@ void call_rtas_display_status_delay(unsigned char c)
 		while (width-- > 0)
 			call_rtas_display_status(' ');
 		width = 16;
-		udelay(500000);
+		mdelay(500);
 		pending_newline = 1;
 	} else {
 		if (pending_newline) {
@@ -608,7 +606,6 @@ asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 	return 0;
 }
 
-#ifdef CONFIG_SMP
 /* This version can't take the spinlock, because it never returns */
 
 struct rtas_args rtas_stop_self_args = {
@@ -633,7 +630,6 @@ void rtas_stop_self(void)
 
 	panic("Alas, I survived.\n");
 }
-#endif
 
 /*
  * Call early during boot, before mem init or bootmem, to retreive the RTAS
@@ -672,7 +668,7 @@ void __init rtas_initialize(void)
 	 * the stop-self token if any
 	 */
 #ifdef CONFIG_PPC64
-	if (systemcfg->platform == PLATFORM_PSERIES_LPAR)
+	if (_machine == PLATFORM_PSERIES_LPAR)
 		rtas_region = min(lmb.rmo_size, RTAS_INSTANTIATE_MAX);
 #endif
 	rtas_rmo_buf = lmb_alloc_base(RTAS_RMOBUF_MAX, PAGE_SIZE, rtas_region);

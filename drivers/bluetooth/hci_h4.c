@@ -76,11 +76,9 @@ static int h4_open(struct hci_uart *hu)
 
 	BT_DBG("hu %p", hu);
 
-	h4 = kmalloc(sizeof(*h4), GFP_ATOMIC);
+	h4 = kzalloc(sizeof(*h4), GFP_ATOMIC);
 	if (!h4)
 		return -ENOMEM;
-
-	memset(h4, 0, sizeof(*h4));
 
 	skb_queue_head_init(&h4->txq);
 

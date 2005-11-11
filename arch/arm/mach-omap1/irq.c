@@ -47,6 +47,7 @@
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/arch/gpio.h>
+#include <asm/arch/cpu.h>
 
 #include <asm/io.h>
 
@@ -147,10 +148,14 @@ static struct omap_irq_bank omap730_irq_banks[] = {
 };
 #endif
 
-#ifdef CONFIG_ARCH_OMAP1510
+#ifdef CONFIG_ARCH_OMAP15XX
 static struct omap_irq_bank omap1510_irq_banks[] = {
 	{ .base_reg = OMAP_IH1_BASE, 		.trigger_map = 0xb3febfff },
 	{ .base_reg = OMAP_IH2_BASE, 		.trigger_map = 0xffbfffed },
+};
+static struct omap_irq_bank omap310_irq_banks[] = {
+	{ .base_reg = OMAP_IH1_BASE, 		.trigger_map = 0xb3faefc3 },
+	{ .base_reg = OMAP_IH2_BASE, 		.trigger_map = 0x65b3c061 },
 };
 #endif
 
@@ -181,10 +186,14 @@ void __init omap_init_irq(void)
 		irq_bank_count = ARRAY_SIZE(omap730_irq_banks);
 	}
 #endif
-#ifdef CONFIG_ARCH_OMAP1510
+#ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
 		irq_banks = omap1510_irq_banks;
 		irq_bank_count = ARRAY_SIZE(omap1510_irq_banks);
+	}
+	if (cpu_is_omap310()) {
+		irq_banks = omap310_irq_banks;
+		irq_bank_count = ARRAY_SIZE(omap310_irq_banks);
 	}
 #endif
 #if defined(CONFIG_ARCH_OMAP16XX)
@@ -226,9 +235,11 @@ void __init omap_init_irq(void)
 	}
 
 	/* Unmask level 2 handler */
-	if (cpu_is_omap730()) {
+
+	if (cpu_is_omap730())
 		omap_unmask_irq(INT_730_IH2_IRQ);
-	} else {
-		omap_unmask_irq(INT_IH2_IRQ);
-	}
+	else if (cpu_is_omap1510())
+		omap_unmask_irq(INT_1510_IH2_IRQ);
+	else if (cpu_is_omap16xx())
+		omap_unmask_irq(INT_1610_IH2_IRQ);
 }

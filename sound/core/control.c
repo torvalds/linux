@@ -144,7 +144,7 @@ void snd_ctl_notify(snd_card_t *card, unsigned int mask, snd_ctl_elem_id_t *id)
 	snd_ctl_file_t *ctl;
 	snd_kctl_event_t *ev;
 	
-	snd_runtime_check(card != NULL && id != NULL, return);
+	snd_assert(card != NULL && id != NULL, return);
 	read_lock(&card->ctl_files_rwlock);
 #if defined(CONFIG_SND_MIXER_OSS) || defined(CONFIG_SND_MIXER_OSS_MODULE)
 	card->mixer_oss_change_count++;
@@ -193,8 +193,8 @@ snd_kcontrol_t *snd_ctl_new(snd_kcontrol_t * control, unsigned int access)
 	snd_kcontrol_t *kctl;
 	unsigned int idx;
 	
-	snd_runtime_check(control != NULL, return NULL);
-	snd_runtime_check(control->count > 0, return NULL);
+	snd_assert(control != NULL, return NULL);
+	snd_assert(control->count > 0, return NULL);
 	kctl = kzalloc(sizeof(*kctl) + sizeof(snd_kcontrol_volatile_t) * control->count, GFP_KERNEL);
 	if (kctl == NULL)
 		return NULL;
@@ -220,7 +220,7 @@ snd_kcontrol_t *snd_ctl_new1(const snd_kcontrol_new_t * ncontrol, void *private_
 	snd_kcontrol_t kctl;
 	unsigned int access;
 	
-	snd_runtime_check(ncontrol != NULL, return NULL);
+	snd_assert(ncontrol != NULL, return NULL);
 	snd_assert(ncontrol->info != NULL, return NULL);
 	memset(&kctl, 0, sizeof(kctl));
 	kctl.id.iface = ncontrol->iface;
@@ -309,7 +309,7 @@ int snd_ctl_add(snd_card_t * card, snd_kcontrol_t * kcontrol)
 	snd_ctl_elem_id_t id;
 	unsigned int idx;
 
-	snd_runtime_check(card != NULL && kcontrol != NULL, return -EINVAL);
+	snd_assert(card != NULL && kcontrol != NULL, return -EINVAL);
 	snd_assert(kcontrol->info != NULL, return -EINVAL);
 	id = kcontrol->id;
 	down_write(&card->controls_rwsem);
@@ -355,7 +355,7 @@ int snd_ctl_remove(snd_card_t * card, snd_kcontrol_t * kcontrol)
 	snd_ctl_elem_id_t id;
 	unsigned int idx;
 
-	snd_runtime_check(card != NULL && kcontrol != NULL, return -EINVAL);
+	snd_assert(card != NULL && kcontrol != NULL, return -EINVAL);
 	list_del(&kcontrol->list);
 	card->controls_count -= kcontrol->count;
 	id = kcontrol->id;
@@ -468,7 +468,7 @@ snd_kcontrol_t *snd_ctl_find_numid(snd_card_t * card, unsigned int numid)
 	struct list_head *list;
 	snd_kcontrol_t *kctl;
 
-	snd_runtime_check(card != NULL && numid != 0, return NULL);
+	snd_assert(card != NULL && numid != 0, return NULL);
 	list_for_each(list, &card->controls) {
 		kctl = snd_kcontrol(list);
 		if (kctl->id.numid <= numid && kctl->id.numid + kctl->count > numid)
@@ -494,7 +494,7 @@ snd_kcontrol_t *snd_ctl_find_id(snd_card_t * card, snd_ctl_elem_id_t *id)
 	struct list_head *list;
 	snd_kcontrol_t *kctl;
 
-	snd_runtime_check(card != NULL && id != NULL, return NULL);
+	snd_assert(card != NULL && id != NULL, return NULL);
 	if (id->numid != 0)
 		return snd_ctl_find_numid(card, id->numid);
 	list_for_each(list, &card->controls) {
@@ -1215,7 +1215,7 @@ static int _snd_ctl_unregister_ioctl(snd_kctl_ioctl_func_t fcn, struct list_head
 	struct list_head *list;
 	snd_kctl_ioctl_t *p;
 
-	snd_runtime_check(fcn != NULL, return -EINVAL);
+	snd_assert(fcn != NULL, return -EINVAL);
 	down_write(&snd_ioctl_rwsem);
 	list_for_each(list, lists) {
 		p = list_entry(list, snd_kctl_ioctl_t, list);

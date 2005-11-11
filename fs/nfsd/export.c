@@ -190,8 +190,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
  out:
 	if (dom)
 		auth_domain_put(dom);
-	if (buf)
-		kfree(buf);
+	kfree(buf);
 	return err;
 }
 
@@ -428,8 +427,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 		path_release(&nd);
 	if (dom)
 		auth_domain_put(dom);
-	if (buf)
-		kfree(buf);
+	kfree(buf);
 	return err;
 }
 

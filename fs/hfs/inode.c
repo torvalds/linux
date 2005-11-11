@@ -12,7 +12,6 @@
  */
 
 #include <linux/pagemap.h>
-#include <linux/version.h>
 #include <linux/mpage.h>
 
 #include "hfs_fs.h"

@@ -65,6 +65,7 @@
 #include <asm/ppc-pci.h>
 #include <asm/i8259.h>
 #include <asm/udbg.h>
+#include <asm/smp.h>
 
 #include "plpar_wrappers.h"
 
@@ -248,7 +249,7 @@ static void __init pSeries_setup_arch(void)
 		ppc_md.idle_loop = default_idle;
 	}
 
-	if (systemcfg->platform & PLATFORM_LPAR)
+	if (platform_is_lpar())
 		ppc_md.enable_pmcs = pseries_lpar_enable_pmcs;
 	else
 		ppc_md.enable_pmcs = power4_enable_pmcs;
@@ -353,14 +354,15 @@ static void pSeries_mach_cpu_die(void)
 
 static int pseries_set_dabr(unsigned long dabr)
 {
-	if (firmware_has_feature(FW_FEATURE_XDABR)) {
-		/* We want to catch accesses from kernel and userspace */
-		return plpar_set_xdabr(dabr, H_DABRX_KERNEL | H_DABRX_USER);
-	}
-
-	return plpar_set_dabr(dabr);
+	return plpar_hcall_norets(H_SET_DABR, dabr);
 }
 
+static int pseries_set_xdabr(unsigned long dabr)
+{
+	/* We want to catch accesses from kernel and userspace */
+	return plpar_hcall_norets(H_SET_XDABR, dabr,
+			H_DABRX_KERNEL | H_DABRX_USER);
+}
 
 /*
  * Early initialization.  Relocation is on but do not reference unbolted pages
@@ -376,7 +378,7 @@ static void __init pSeries_init_early(void)
 
 	fw_feature_init();
 	
-	if (systemcfg->platform & PLATFORM_LPAR)
+	if (platform_is_lpar())
 		hpte_init_lpar();
 	else {
 		hpte_init_native();
@@ -386,7 +388,7 @@ static void __init pSeries_init_early(void)
 
 	generic_find_legacy_serial_ports(&physport, &default_speed);
 
-	if (systemcfg->platform & PLATFORM_LPAR)
+	if (platform_is_lpar())
 		find_udbg_vterm();
 	else if (physport) {
 		/* Map the uart for udbg. */
@@ -396,8 +398,10 @@ static void __init pSeries_init_early(void)
 		DBG("Hello World !\n");
 	}
 
-	if (firmware_has_feature(FW_FEATURE_XDABR | FW_FEATURE_DABR))
+	if (firmware_has_feature(FW_FEATURE_DABR))
 		ppc_md.set_dabr = pseries_set_dabr;
+	else if (firmware_has_feature(FW_FEATURE_XDABR))
+		ppc_md.set_dabr = pseries_set_xdabr;
 
 	iommu_init_early_pSeries();
 
@@ -465,6 +469,7 @@ static inline void dedicated_idle_sleep(unsigned int cpu)
 		 * more.
 		 */
 		clear_thread_flag(TIF_POLLING_NRFLAG);
+		smp_mb__after_clear_bit();
 
 		/*
 		 * SMT dynamic mode. Cede will result in this thread going
@@ -477,6 +482,7 @@ static inline void dedicated_idle_sleep(unsigned int cpu)
 			cede_processor();
 		else
 			local_irq_enable();
+		set_thread_flag(TIF_POLLING_NRFLAG);
 	} else {
 		/*
 		 * Give the HV an opportunity at the processor, since we are
@@ -488,11 +494,11 @@ static inline void dedicated_idle_sleep(unsigned int cpu)
 
 static void pseries_dedicated_idle(void)
 { 
-	long oldval;
 	struct paca_struct *lpaca = get_paca();
 	unsigned int cpu = smp_processor_id();
 	unsigned long start_snooze;
 	unsigned long *smt_snooze_delay = &__get_cpu_var(smt_snooze_delay);
+	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	while (1) {
 		/*
@@ -501,10 +507,7 @@ static void pseries_dedicated_idle(void)
 		 */
 		lpaca->lppaca.idle = 1;
 
-		oldval = test_and_clear_thread_flag(TIF_NEED_RESCHED);
-		if (!oldval) {
-			set_thread_flag(TIF_POLLING_NRFLAG);
-
+		if (!need_resched()) {
 			start_snooze = __get_tb() +
 				*smt_snooze_delay * tb_ticks_per_usec;
 
@@ -527,15 +530,14 @@ static void pseries_dedicated_idle(void)
 			}
 
 			HMT_medium();
-			clear_thread_flag(TIF_POLLING_NRFLAG);
-		} else {
-			set_need_resched();
 		}
 
 		lpaca->lppaca.idle = 0;
 		ppc64_runlatch_on();
 
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 
 		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
 			cpu_die();
@@ -579,7 +581,9 @@ static void pseries_shared_idle(void)
 		lpaca->lppaca.idle = 0;
 		ppc64_runlatch_on();
 
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 
 		if (cpu_is_offline(cpu) && system_state == SYSTEM_RUNNING)
 			cpu_die();
@@ -588,7 +592,7 @@ static void pseries_shared_idle(void)
 
 static int pSeries_pci_probe_mode(struct pci_bus *bus)
 {
-	if (systemcfg->platform & PLATFORM_LPAR)
+	if (platform_is_lpar())
 		return PCI_PROBE_DEVTREE;
 	return PCI_PROBE_NORMAL;
 }

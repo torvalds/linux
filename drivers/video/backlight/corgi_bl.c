@@ -48,6 +48,12 @@ static void corgibl_send_intensity(int intensity)
 	corgibl_mach_set_intensity(intensity);
 
 	spin_unlock_irqrestore(&bl_lock, flags);
+
+ 	corgi_kick_batt = symbol_get(sharpsl_battery_kick);
+ 	if (corgi_kick_batt) {
+ 		corgi_kick_batt();
+ 		symbol_put(sharpsl_battery_kick);
+ 	}
 }
 
 static void corgibl_blank(int blank)

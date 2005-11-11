@@ -31,7 +31,6 @@
 #include <linux/wait.h>
 #include <asm/uaccess.h>
 
-#include <media/id.h>
 
 #include "rds.h"
 
@@ -246,7 +245,7 @@ static void block_to_buf(struct saa6588 *s, unsigned char *blockbuf)
 		s->wr_index = 0;
 
 	if (s->wr_index == s->rd_index) {
-		s->rd_index++;
+		s->rd_index += 3;
 		if (s->rd_index >= s->buf_size)
 			s->rd_index = 0;
 	} else
@@ -328,7 +327,7 @@ static void saa6588_work(void *data)
 	struct saa6588 *s = (struct saa6588 *)data;
 
 	saa6588_i2c_poll(s);
-	mod_timer(&s->timer, jiffies + HZ / 50);	/* 20 msec */
+	mod_timer(&s->timer, jiffies + msecs_to_jiffies(20));
 }
 
 static int saa6588_configure(struct saa6588 *s)
@@ -434,9 +433,9 @@ static int saa6588_probe(struct i2c_adapter *adap)
 		return i2c_probe(adap, &addr_data, saa6588_attach);
 #else
 	switch (adap->id) {
-	case I2C_ALGO_BIT | I2C_HW_B_BT848:
-	case I2C_ALGO_BIT | I2C_HW_B_RIVA:
-	case I2C_ALGO_SAA7134:
+	case I2C_HW_B_BT848:
+	case I2C_HW_B_RIVA:
+	case I2C_HW_SAA7134:
 		return i2c_probe(adap, &addr_data, saa6588_attach);
 		break;
 	}

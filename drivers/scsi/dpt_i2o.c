@@ -1037,18 +1037,10 @@ static void adpt_i2o_delete_hba(adpt_hba* pHba)
 	if(pHba->msg_addr_virt != pHba->base_addr_virt){
 		iounmap(pHba->msg_addr_virt);
 	}
-	if(pHba->hrt) {
-		kfree(pHba->hrt);
-	}
-	if(pHba->lct){
-		kfree(pHba->lct);
-	}
-	if(pHba->status_block) {
-		kfree(pHba->status_block);
-	}
-	if(pHba->reply_pool){
-		kfree(pHba->reply_pool);
-	}
+	kfree(pHba->hrt);
+	kfree(pHba->lct);
+	kfree(pHba->status_block);
+	kfree(pHba->reply_pool);
 
 	for(d = pHba->devices; d ; d = next){
 		next = d->next;
@@ -1218,8 +1210,7 @@ static s32 adpt_i2o_post_this(adpt_hba* pHba, u32* data, int len)
 			printk(KERN_WARNING"dpti%d: Timeout waiting for message frame!\n", pHba->unit);
 			return -ETIMEDOUT;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while(m == EMPTY_QUEUE);
 		
 	msg = pHba->msg_addr_virt + m;
@@ -1294,8 +1285,7 @@ static s32 adpt_i2o_reset_hba(adpt_hba* pHba)
 			printk(KERN_WARNING"Timeout waiting for message!\n");
 			return -ETIMEDOUT;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (m == EMPTY_QUEUE);
 
 	status = (u8*)kmalloc(4, GFP_KERNEL|ADDR32);
@@ -1327,8 +1317,7 @@ static s32 adpt_i2o_reset_hba(adpt_hba* pHba)
 			return -ETIMEDOUT;
 		}
 		rmb();
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 
 	if(*status == 0x01 /*I2O_EXEC_IOP_RESET_IN_PROGRESS*/) {
@@ -1345,8 +1334,7 @@ static s32 adpt_i2o_reset_hba(adpt_hba* pHba)
 				printk(KERN_ERR "%s:Timeout waiting for IOP Reset.\n",pHba->name);
 				return -ETIMEDOUT;
 			}
-			set_current_state(TASK_UNINTERRUPTIBLE);
-			schedule_timeout(1);
+			schedule_timeout_uninterruptible(1);
 		} while (m == EMPTY_QUEUE);
 		// Flush the offset
 		adpt_send_nop(pHba, m);
@@ -1917,11 +1905,8 @@ static int adpt_ioctl(struct inode *inode, struct file *file, uint cmd,
 		return -ENXIO;
 	}
 
-	while((volatile u32) pHba->state & DPTI_STATE_RESET ) {
-		set_task_state(current,TASK_UNINTERRUPTIBLE);
-		schedule_timeout(2);
-
-	}
+	while((volatile u32) pHba->state & DPTI_STATE_RESET )
+		schedule_timeout_uninterruptible(2);
 
 	switch (cmd) {
 	// TODO: handle 3 cases
@@ -2635,8 +2620,7 @@ static s32 adpt_send_nop(adpt_hba*pHba,u32 m)
 			printk(KERN_ERR "%s: Timeout waiting for message frame!\n",pHba->name);
 			return 2;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 	msg = (u32 __iomem *)(pHba->msg_addr_virt + m);
 	writel( THREE_WORD_MSG_SIZE | SGL_OFFSET_0,&msg[0]);
@@ -2670,8 +2654,7 @@ static s32 adpt_i2o_init_outbound_q(adpt_hba* pHba)
 			printk(KERN_WARNING"%s: Timeout waiting for message frame\n",pHba->name);
 			return -ETIMEDOUT;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while(m == EMPTY_QUEUE);
 
 	msg=(u32 __iomem *)(pHba->msg_addr_virt+m);
@@ -2709,21 +2692,18 @@ static s32 adpt_i2o_init_outbound_q(adpt_hba* pHba)
 			printk(KERN_WARNING"%s: Timeout Initializing\n",pHba->name);
 			return -ETIMEDOUT;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while (1);
 
 	// If the command was successful, fill the fifo with our reply
 	// message packets
 	if(*status != 0x04 /*I2O_EXEC_OUTBOUND_INIT_COMPLETE*/) {
-		kfree((void*)status);
+		kfree(status);
 		return -2;
 	}
-	kfree((void*)status);
+	kfree(status);
 
-	if(pHba->reply_pool != NULL){
-		kfree(pHba->reply_pool);
-	}
+	kfree(pHba->reply_pool);
 
 	pHba->reply_pool = (u32*)kmalloc(pHba->reply_fifo_size * REPLY_FRAME_SIZE * 4, GFP_KERNEL|ADDR32);
 	if(!pHba->reply_pool){
@@ -2788,8 +2768,7 @@ static s32 adpt_i2o_status_get(adpt_hba* pHba)
 					pHba->name);
 			return -ETIMEDOUT;
 		}
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	} while(m==EMPTY_QUEUE);
 
 	
@@ -2816,8 +2795,7 @@ static s32 adpt_i2o_status_get(adpt_hba* pHba)
 			return -ETIMEDOUT;
 		}
 		rmb();
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(1);
+		schedule_timeout_uninterruptible(1);
 	}
 
 	// Set up our number of outbound and inbound messages
@@ -2941,8 +2919,7 @@ static int adpt_i2o_build_sys_table(void)
 	sys_tbl_len = sizeof(struct i2o_sys_tbl) +	// Header + IOPs
 				(hba_count) * sizeof(struct i2o_sys_tbl_entry);
 
-	if(sys_tbl)
-		kfree(sys_tbl);
+	kfree(sys_tbl);
 
 	sys_tbl = kmalloc(sys_tbl_len, GFP_KERNEL|ADDR32);
 	if(!sys_tbl) {

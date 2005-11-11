@@ -254,7 +254,7 @@ out:
  */
 static int
 __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
-			unsigned long offset, unsigned long nr_to_read)
+			pgoff_t offset, unsigned long nr_to_read)
 {
 	struct inode *inode = mapping->host;
 	struct page *page;
@@ -274,7 +274,7 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
 	 */
 	read_lock_irq(&mapping->tree_lock);
 	for (page_idx = 0; page_idx < nr_to_read; page_idx++) {
-		unsigned long page_offset = offset + page_idx;
+		pgoff_t page_offset = offset + page_idx;
 		
 		if (page_offset > end_index)
 			break;
@@ -311,7 +311,7 @@ out:
  * memory at once.
  */
 int force_page_cache_readahead(struct address_space *mapping, struct file *filp,
-		unsigned long offset, unsigned long nr_to_read)
+		pgoff_t offset, unsigned long nr_to_read)
 {
 	int ret = 0;
 
@@ -368,7 +368,7 @@ static inline int check_ra_success(struct file_ra_state *ra,
  * request queues.
  */
 int do_page_cache_readahead(struct address_space *mapping, struct file *filp,
-			unsigned long offset, unsigned long nr_to_read)
+			pgoff_t offset, unsigned long nr_to_read)
 {
 	if (bdi_read_congested(mapping->backing_dev_info))
 		return -1;
@@ -385,7 +385,7 @@ int do_page_cache_readahead(struct address_space *mapping, struct file *filp,
  */
 static int
 blockable_page_cache_readahead(struct address_space *mapping, struct file *filp,
-			unsigned long offset, unsigned long nr_to_read,
+			pgoff_t offset, unsigned long nr_to_read,
 			struct file_ra_state *ra, int block)
 {
 	int actual;
@@ -430,14 +430,27 @@ static int make_ahead_window(struct address_space *mapping, struct file *filp,
 	return ret;
 }
 
-/*
- * page_cache_readahead is the main function.  If performs the adaptive
+/**
+ * page_cache_readahead - generic adaptive readahead
+ * @mapping: address_space which holds the pagecache and I/O vectors
+ * @ra: file_ra_state which holds the readahead state
+ * @filp: passed on to ->readpage() and ->readpages()
+ * @offset: start offset into @mapping, in PAGE_CACHE_SIZE units
+ * @req_size: hint: total size of the read which the caller is performing in
+ *            PAGE_CACHE_SIZE units
+ *
+ * page_cache_readahead() is the main function.  If performs the adaptive
  * readahead window size management and submits the readahead I/O.
+ *
+ * Note that @filp is purely used for passing on to the ->readpage[s]()
+ * handler: it may refer to a different file from @mapping (so we may not use
+ * @filp->f_mapping or @filp->f_dentry->d_inode here).
+ * Also, @ra may not be equal to &@filp->f_ra.
+ *
  */
 unsigned long
 page_cache_readahead(struct address_space *mapping, struct file_ra_state *ra,
-		     struct file *filp, unsigned long offset,
-		     unsigned long req_size)
+		     struct file *filp, pgoff_t offset, unsigned long req_size)
 {
 	unsigned long max, newsize;
 	int sequential;

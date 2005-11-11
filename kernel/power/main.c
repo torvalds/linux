@@ -167,7 +167,7 @@ static int enter_state(suspend_state_t state)
 {
 	int error;
 
-	if (pm_ops->valid && !pm_ops->valid(state))
+	if (pm_ops && pm_ops->valid && !pm_ops->valid(state))
 		return -ENODEV;
 	if (down_trylock(&pm_sem))
 		return -EBUSY;

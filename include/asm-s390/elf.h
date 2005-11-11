@@ -96,6 +96,7 @@
  * ELF register definitions..
  */
 
+#include <linux/sched.h>	/* for task_struct */
 #include <asm/ptrace.h>
 #include <asm/user.h>
 #include <asm/system.h>		/* for save_access_regs */

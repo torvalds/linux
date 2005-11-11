@@ -10,6 +10,7 @@
 #include "uml_uaccess.h"
 #include "task.h"
 #include "kern_util.h"
+#include "os.h"
 
 int __do_copy_from_user(void *to, const void *from, int n,
 			void **fault_addr, void **fault_catcher)

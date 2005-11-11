@@ -37,6 +37,11 @@ struct seq_file;
 extern void show_ipi_list(struct seq_file *p);
 
 /*
+ * Called from assembly code, this handles an IPI.
+ */
+asmlinkage void do_IPI(struct pt_regs *regs);
+
+/*
  * Move global data into per-processor storage.
  */
 extern void smp_store_cpu_info(unsigned int cpuid);
@@ -47,10 +52,21 @@ extern void smp_store_cpu_info(unsigned int cpuid);
 extern void smp_cross_call(cpumask_t callmap);
 
 /*
+ * Broadcast a timer interrupt to the other CPUs.
+ */
+extern void smp_send_timer(void);
+
+/*
  * Boot a secondary CPU, and assign it the specified idle task.
  * This also gives us the initial stack to use for this CPU.
  */
 extern int boot_secondary(unsigned int cpu, struct task_struct *);
+
+/*
+ * Called from platform specific assembly code, this is the
+ * secondary CPU entry point.
+ */
+asmlinkage void secondary_start_kernel(void);
 
 /*
  * Perform platform specific initialisation of the specified CPU.
@@ -75,5 +91,43 @@ extern void cpu_die(void);
 extern void platform_cpu_die(unsigned int cpu);
 extern int platform_cpu_kill(unsigned int cpu);
 extern void platform_cpu_enable(unsigned int cpu);
+
+#ifdef CONFIG_LOCAL_TIMERS
+/*
+ * Setup a local timer interrupt for a CPU.
+ */
+extern void local_timer_setup(unsigned int cpu);
+
+/*
+ * Stop a local timer interrupt.
+ */
+extern void local_timer_stop(unsigned int cpu);
+
+/*
+ * Platform provides this to acknowledge a local timer IRQ
+ */
+extern int local_timer_ack(void);
+
+#else
+
+static inline void local_timer_setup(unsigned int cpu)
+{
+}
+
+static inline void local_timer_stop(unsigned int cpu)
+{
+}
+
+#endif
+
+/*
+ * show local interrupt info
+ */
+extern void show_local_irqs(struct seq_file *);
+
+/*
+ * Called from assembly, this is the local timer IRQ handler
+ */
+asmlinkage void do_local_timer(struct pt_regs *);
 
 #endif /* ifndef __ASM_ARM_SMP_H */

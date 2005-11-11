@@ -44,7 +44,6 @@ TODO:
 #define RMEVERSION "0.8"
 #endif
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/sched.h>

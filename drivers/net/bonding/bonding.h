@@ -40,8 +40,8 @@
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
-#define DRV_VERSION	"2.6.4"
-#define DRV_RELDATE	"September 26, 2005"
+#define DRV_VERSION	"2.6.5"
+#define DRV_RELDATE	"November 4, 2005"
 #define DRV_NAME	"bonding"
 #define DRV_DESCRIPTION	"Ethernet Channel Bonding Driver"
 
@@ -211,9 +211,6 @@ struct bonding {
 	struct   bond_params params;
 	struct   list_head vlan_list;
 	struct   vlan_group *vlgrp;
-	/* the features the bonding device supports, independently 
-	 * of any slaves */
-	int	 bond_features; 
 };
 
 /**

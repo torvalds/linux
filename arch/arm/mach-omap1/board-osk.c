@@ -46,8 +46,6 @@
 #include <asm/arch/tc.h>
 #include <asm/arch/common.h>
 
-static int __initdata osk_serial_ports[OMAP_MAX_NR_PORTS] = {1, 0, 0};
-
 static struct mtd_partition osk_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
 	{
@@ -155,7 +153,7 @@ static void __init osk_init_smc91x(void)
 	}
 
 	/* Check EMIFS wait states to fix errors with SMC_GET_PKT_HDR */
-	EMIFS_CCS(1) |= 0x2;
+	EMIFS_CCS(1) |= 0x3;
 }
 
 static void __init osk_init_cf(void)
@@ -193,8 +191,19 @@ static struct omap_usb_config osk_usb_config __initdata = {
 	.pins[0]	= 2,
 };
 
+static struct omap_uart_config osk_uart_config __initdata = {
+	.enabled_uarts = (1 << 0),
+};
+
+static struct omap_lcd_config osk_lcd_config __initdata = {
+	.panel_name	= "osk",
+	.ctrl_name	= "internal",
+};
+
 static struct omap_board_config_kernel osk_config[] = {
 	{ OMAP_TAG_USB,           &osk_usb_config },
+	{ OMAP_TAG_UART,		&osk_uart_config },
+	{ OMAP_TAG_LCD,			&osk_lcd_config },
 };
 
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
@@ -254,13 +263,13 @@ static void __init osk_init(void)
 	omap_board_config_size = ARRAY_SIZE(osk_config);
 	USB_TRANSCEIVER_CTRL_REG |= (3 << 1);
 
+	omap_serial_init();
 	osk_mistral_init();
 }
 
 static void __init osk_map_io(void)
 {
 	omap_map_common_io();
-	omap_serial_init(osk_serial_ports);
 }
 
 MACHINE_START(OMAP_OSK, "TI-OSK")

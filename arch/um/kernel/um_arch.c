@@ -137,7 +137,7 @@ static char *argv1_end = NULL;
 
 /* Set in early boot */
 static int have_root __initdata = 0;
-long physmem_size = 32 * 1024 * 1024;
+long long physmem_size = 32 * 1024 * 1024;
 
 void set_cmdline(char *cmd)
 {
@@ -402,7 +402,7 @@ int linux_main(int argc, char **argv)
 #ifndef CONFIG_HIGHMEM
 		highmem = 0;
 		printf("CONFIG_HIGHMEM not enabled - physical memory shrunk "
-		       "to %ld bytes\n", physmem_size);
+		       "to %lu bytes\n", physmem_size);
 #endif
 	}
 
@@ -414,8 +414,8 @@ int linux_main(int argc, char **argv)
 
 	setup_physmem(uml_physmem, uml_reserved, physmem_size, highmem);
 	if(init_maps(physmem_size, iomem_size, highmem)){
-		printf("Failed to allocate mem_map for %ld bytes of physical "
-		       "memory and %ld bytes of highmem\n", physmem_size,
+		printf("Failed to allocate mem_map for %lu bytes of physical "
+		       "memory and %lu bytes of highmem\n", physmem_size,
 		       highmem);
 		exit(1);
 	}
@@ -426,7 +426,7 @@ int linux_main(int argc, char **argv)
 	end_vm = start_vm + virtmem_size;
 
 	if(virtmem_size < physmem_size)
-		printf("Kernel virtual memory size shrunk to %ld bytes\n",
+		printf("Kernel virtual memory size shrunk to %lu bytes\n",
 		       virtmem_size);
 
   	uml_postsetup();

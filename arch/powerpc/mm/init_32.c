@@ -84,9 +84,6 @@ void MMU_init(void);
 /* XXX should be in current.h  -- paulus */
 extern struct task_struct *current_set[NR_CPUS];
 
-char *klimit = _end;
-struct device_node *memory_node;
-
 extern int init_bootmem_done;
 
 /*

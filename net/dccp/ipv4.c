@@ -31,8 +31,6 @@ struct inet_hashinfo __cacheline_aligned dccp_hashinfo = {
 	.lhash_lock	= RW_LOCK_UNLOCKED,
 	.lhash_users	= ATOMIC_INIT(0),
 	.lhash_wait = __WAIT_QUEUE_HEAD_INITIALIZER(dccp_hashinfo.lhash_wait),
-	.portalloc_lock	= SPIN_LOCK_UNLOCKED,
-	.port_rover	= 1024 - 1,
 };
 
 EXPORT_SYMBOL_GPL(dccp_hashinfo);
@@ -125,36 +123,15 @@ static int dccp_v4_hash_connect(struct sock *sk)
 	int ret;
 
  	if (snum == 0) {
- 		int rover;
  		int low = sysctl_local_port_range[0];
  		int high = sysctl_local_port_range[1];
  		int remaining = (high - low) + 1;
+ 		int rover = net_random() % (high - low) + low;
 		struct hlist_node *node;
  		struct inet_timewait_sock *tw = NULL;
 
  		local_bh_disable();
-
- 		/* TODO. Actually it is not so bad idea to remove
- 		 * dccp_hashinfo.portalloc_lock before next submission to
-		 * Linus.
- 		 * As soon as we touch this place at all it is time to think.
- 		 *
- 		 * Now it protects single _advisory_ variable
-		 * dccp_hashinfo.port_rover, hence it is mostly useless.
- 		 * Code will work nicely if we just delete it, but
- 		 * I am afraid in contented case it will work not better or
- 		 * even worse: another cpu just will hit the same bucket
- 		 * and spin there.
- 		 * So some cpu salt could remove both contention and
- 		 * memory pingpong. Any ideas how to do this in a nice way?
- 		 */
- 		spin_lock(&dccp_hashinfo.portalloc_lock);
- 		rover = dccp_hashinfo.port_rover;
-
  		do {
- 			rover++;
- 			if ((rover < low) || (rover > high))
- 				rover = low;
  			head = &dccp_hashinfo.bhash[inet_bhashfn(rover,
 						    dccp_hashinfo.bhash_size)];
  			spin_lock(&head->lock);
@@ -187,9 +164,9 @@ static int dccp_v4_hash_connect(struct sock *sk)
 
  		next_port:
  			spin_unlock(&head->lock);
+ 			if (++rover > high)
+ 				rover = low;
  		} while (--remaining > 0);
- 		dccp_hashinfo.port_rover = rover;
- 		spin_unlock(&dccp_hashinfo.portalloc_lock);
 
  		local_bh_enable();
 
@@ -197,9 +174,6 @@ static int dccp_v4_hash_connect(struct sock *sk)
 
 ok:
  		/* All locks still held and bhs disabled */
- 		dccp_hashinfo.port_rover = rover;
- 		spin_unlock(&dccp_hashinfo.portalloc_lock);
-
  		inet_bind_hash(sk, tb, rover);
 		if (sk_unhashed(sk)) {
  			inet_sk(sk)->sport = htons(rover);
@@ -1289,10 +1263,8 @@ static int dccp_v4_destroy_sock(struct sock *sk)
 	if (inet_csk(sk)->icsk_bind_hash != NULL)
 		inet_put_port(&dccp_hashinfo, sk);
 
-	if (dp->dccps_service_list != NULL) {
-		kfree(dp->dccps_service_list);
-		dp->dccps_service_list = NULL;
-	}
+	kfree(dp->dccps_service_list);
+	dp->dccps_service_list = NULL;
 
 	ccid_hc_rx_exit(dp->dccps_hc_rx_ccid, sk);
 	ccid_hc_tx_exit(dp->dccps_hc_tx_ccid, sk);

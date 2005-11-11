@@ -167,7 +167,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     spdif           - Support SPDIF I/O
     		    - Default: disabled
 
-    Module supports autoprobe and multiple chips (max 8).
+    This module supports one chip and autoprobe.
 
     The power-management is supported.
 
@@ -206,7 +206,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 			  See "AC97 Quirk Option" section below.
     spdif_aclink	- S/PDIF transfer over AC-link (default = 1)
 
-    This module supports up to 8 cards and autoprobe.
+    This module supports one card and autoprobe.
 
     ATI IXP has two different methods to control SPDIF output.  One is
     over AC-link and another is over the "direct" SPDIF output.  The
@@ -218,7 +218,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     Module for ATI IXP 150/200/250 AC97 modem controllers.
 
-    Module supports up to 8 cards.
+    This module supports one card and autoprobe.
 
     Note: The default index value of this module is -2, i.e. the first
           slot is excluded.
@@ -637,7 +637,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     model	- force the model name
     position_fix - Fix DMA pointer (0 = auto, 1 = none, 2 = POSBUF, 3 = FIFO size)
 
-    Module supports up to 8 cards.
+    This module supports one card and autoprobe.
 
     Each codec may have a model table for different configurations.
     If your machine isn't listed there, the default (usually minimal)
@@ -662,6 +662,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  test		for testing/debugging purpose, almost all controls can be
 			adjusted.  Appearing only when compiled with
 			$CONFIG_SND_DEBUG=y
+
+	ALC260
+	  hp		HP machines
+	  fujitsu	Fujitsu S7020
 
 	CMI9880
 	  minimal	3-jack in back
@@ -811,7 +815,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 		    semaphores (e.g. on some ASUS laptops)
 		    (default off)
 
-    Module supports autoprobe and multiple bus-master chips (max 8).
+    This module supports one chip and autoprobe.
 
     Note: the latest driver supports auto-detection of chip clock.
     if you still encounter too fast playback, specify the clock
@@ -830,7 +834,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     ac97_clock	  - AC'97 codec clock base (0 = auto-detect)
 
-    This module supports up to 8 cards and autoprobe.
+    This module supports one card and autoprobe.
 
     Note: The default index value of this module is -2, i.e. the first
           slot is excluded.
@@ -950,8 +954,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     use_cache        - 0 or 1 (disabled by default)
     vaio_hack        - alias buffer_top=0x25a800
     reset_workaround - enable AC97 RESET workaround for some laptops
+    reset_workaround2 - enable extended AC97 RESET workaround for some
+		      other laptops
 
-    Module supports autoprobe and multiple chips (max 8).
+    This module supports one chip and autoprobe.
 
     The power-management is supported.
 
@@ -979,6 +985,11 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     known hardware like Dell Latitude LS and Sony PCG-F305, this
     workaround is enabled automatically.  For other laptops with a
     hard freeze, you can try reset_workaround=1 option.
+
+    Note: Dell Latitude CSx laptops have another problem regarding
+    AC97 RESET.  On these laptops, reset_workaround2 option is
+    turned on as default.  This option is worth to try if the
+    previous reset_workaround option doesn't help.
 
     Note: This driver is really crappy.  It's a porting from the
     OSS driver, which is a result of black-magic reverse engineering.
@@ -1310,7 +1321,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     ac97_quirk  - AC'97 workaround for strange hardware
 		  See "AC97 Quirk Option" section below.
 
-    Module supports autoprobe and multiple bus-master chips (max 8).
+    This module supports one chip and autoprobe.
 
     Note: on some SMP motherboards like MSI 694D the interrupts might
           not be generated properly.  In such a case, please try to
@@ -1352,7 +1363,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     ac97_clock	- AC'97 codec clock base (default 48000Hz)
 
-    Module supports up to 8 cards.
+    This module supports one card and autoprobe.
 
     Note: The default index value of this module is -2, i.e. the first
           slot is excluded.

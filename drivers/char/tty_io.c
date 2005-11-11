@@ -1416,14 +1416,11 @@ end_init:
 
 	/* Release locally allocated memory ... nothing placed in slots */
 free_mem_out:
-	if (o_tp)
-		kfree(o_tp);
+	kfree(o_tp);
 	if (o_tty)
 		free_tty_struct(o_tty);
-	if (ltp)
-		kfree(ltp);
-	if (tp)
-		kfree(tp);
+	kfree(ltp);
+	kfree(tp);
 	free_tty_struct(tty);
 
 fail_no_mem:

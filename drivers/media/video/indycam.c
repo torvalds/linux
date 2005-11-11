@@ -27,14 +27,14 @@
 
 #include "indycam.h"
 
-//#define INDYCAM_DEBUG
-
-#define INDYCAM_MODULE_VERSION "0.0.3"
+#define INDYCAM_MODULE_VERSION "0.0.5"
 
 MODULE_DESCRIPTION("SGI IndyCam driver");
 MODULE_VERSION(INDYCAM_MODULE_VERSION);
 MODULE_AUTHOR("Mikael Nousiainen <tmnousia@cc.hut.fi>");
 MODULE_LICENSE("GPL");
+
+// #define INDYCAM_DEBUG
 
 #ifdef INDYCAM_DEBUG
 #define dprintk(x...) printk("IndyCam: " x);
@@ -46,14 +46,14 @@ MODULE_LICENSE("GPL");
 
 struct indycam {
 	struct i2c_client *client;
-	int version;
+	u8 version;
 };
 
 static struct i2c_driver i2c_driver_indycam;
 
-static const unsigned char initseq[] = {
+static const u8 initseq[] = {
 	INDYCAM_CONTROL_AGCENA,		/* INDYCAM_CONTROL */
-	INDYCAM_SHUTTER_DEFAULT,	/* INDYCAM_SHUTTER */
+	INDYCAM_SHUTTER_60,		/* INDYCAM_SHUTTER */
 	INDYCAM_GAIN_DEFAULT,		/* INDYCAM_GAIN */
 	0x00,				/* INDYCAM_BRIGHTNESS (read-only) */
 	INDYCAM_RED_BALANCE_DEFAULT,	/* INDYCAM_RED_BALANCE */
@@ -64,12 +64,11 @@ static const unsigned char initseq[] = {
 
 /* IndyCam register handling */
 
-static int indycam_read_reg(struct i2c_client *client, unsigned char reg,
-			     unsigned char *value)
+static int indycam_read_reg(struct i2c_client *client, u8 reg, u8 *value)
 {
 	int ret;
 
-	if (reg == INDYCAM_RESET) {
+	if (reg == INDYCAM_REG_RESET) {
 		dprintk("indycam_read_reg(): "
 			"skipping write-only register %d\n", reg);
 		*value = 0;
@@ -77,24 +76,24 @@ static int indycam_read_reg(struct i2c_client *client, unsigned char reg,
 	}
 
 	ret = i2c_smbus_read_byte_data(client, reg);
+
 	if (ret < 0) {
 		printk(KERN_ERR "IndyCam: indycam_read_reg(): read failed, "
 		       "register = 0x%02x\n", reg);
 		return ret;
 	}
 
-	*value = (unsigned char)ret;
+	*value = (u8)ret;
 
 	return 0;
 }
 
-static int indycam_write_reg(struct i2c_client *client, unsigned char reg,
-			     unsigned char value)
+static int indycam_write_reg(struct i2c_client *client, u8 reg, u8 value)
 {
 	int err;
 
-	if ((reg == INDYCAM_BRIGHTNESS)
-	    || (reg == INDYCAM_VERSION)) {
+	if ((reg == INDYCAM_REG_BRIGHTNESS)
+	    || (reg == INDYCAM_REG_VERSION)) {
 		dprintk("indycam_write_reg(): "
 			"skipping read-only register %d\n", reg);
 		return 0;
@@ -102,6 +101,7 @@ static int indycam_write_reg(struct i2c_client *client, unsigned char reg,
 
 	dprintk("Writing Reg %d = 0x%02x\n", reg, value);
 	err = i2c_smbus_write_byte_data(client, reg, value);
+
 	if (err) {
 		printk(KERN_ERR "IndyCam: indycam_write_reg(): write failed, "
 		       "register = 0x%02x, value = 0x%02x\n", reg, value);
@@ -109,13 +109,12 @@ static int indycam_write_reg(struct i2c_client *client, unsigned char reg,
 	return err;
 }
 
-static int indycam_write_block(struct i2c_client *client, unsigned char reg,
-				unsigned char length, unsigned char *data)
+static int indycam_write_block(struct i2c_client *client, u8 reg,
+			       u8 length, u8 *data)
 {
-	unsigned char i;
-	int err;
+	int i, err;
 
-	for (i = reg; i < length; i++) {
+	for (i = 0; i < length; i++) {
 		err = indycam_write_reg(client, reg + i, data[i]);
 		if (err)
 			return err;
@@ -130,7 +129,7 @@ static int indycam_write_block(struct i2c_client *client, unsigned char reg,
 static void indycam_regdump_debug(struct i2c_client *client)
 {
 	int i;
-	unsigned char val;
+	u8 val;
 
 	for (i = 0; i < 9; i++) {
 		indycam_read_reg(client, i, &val);
@@ -139,76 +138,144 @@ static void indycam_regdump_debug(struct i2c_client *client)
 }
 #endif
 
-static int indycam_get_controls(struct i2c_client *client,
-				struct indycam_control *ctrl)
+static int indycam_get_control(struct i2c_client *client,
+			       struct indycam_control *ctrl)
 {
-	unsigned char ctrl_reg;
+	struct indycam *camera = i2c_get_clientdata(client);
+	u8 reg;
+	int ret = 0;
 
-	indycam_read_reg(client, INDYCAM_CONTROL, &ctrl_reg);
-	ctrl->agc = (ctrl_reg & INDYCAM_CONTROL_AGCENA)
-		? INDYCAM_VALUE_ENABLED
-		: INDYCAM_VALUE_DISABLED;
-	ctrl->awb = (ctrl_reg & INDYCAM_CONTROL_AWBCTL)
-		? INDYCAM_VALUE_ENABLED
-		: INDYCAM_VALUE_DISABLED;
-	indycam_read_reg(client, INDYCAM_SHUTTER,
-			 (unsigned char *)&ctrl->shutter);
-	indycam_read_reg(client, INDYCAM_GAIN,
-			 (unsigned char *)&ctrl->gain);
-	indycam_read_reg(client, INDYCAM_RED_BALANCE,
-			 (unsigned char *)&ctrl->red_balance);
-	indycam_read_reg(client, INDYCAM_BLUE_BALANCE,
-			 (unsigned char *)&ctrl->blue_balance);
-	indycam_read_reg(client, INDYCAM_RED_SATURATION,
-			 (unsigned char *)&ctrl->red_saturation);
-	indycam_read_reg(client, INDYCAM_BLUE_SATURATION,
-			 (unsigned char *)&ctrl->blue_saturation);
-	indycam_read_reg(client, INDYCAM_GAMMA,
-			 (unsigned char *)&ctrl->gamma);
+	switch (ctrl->type) {
+	case INDYCAM_CONTROL_AGC:
+	case INDYCAM_CONTROL_AWB:
+		ret = indycam_read_reg(client, INDYCAM_REG_CONTROL, &reg);
+		if (ret)
+			return -EIO;
+		if (ctrl->type == INDYCAM_CONTROL_AGC)
+			ctrl->value = (reg & INDYCAM_CONTROL_AGCENA)
+				? 1 : 0;
+		else
+			ctrl->value = (reg & INDYCAM_CONTROL_AWBCTL)
+				? 1 : 0;
+		break;
+	case INDYCAM_CONTROL_SHUTTER:
+		ret = indycam_read_reg(client, INDYCAM_REG_SHUTTER, &reg);
+		if (ret)
+			return -EIO;
+		ctrl->value = ((s32)reg == 0x00) ? 0xff : ((s32)reg - 1);
+		break;
+	case INDYCAM_CONTROL_GAIN:
+		ret = indycam_read_reg(client, INDYCAM_REG_GAIN, &reg);
+		if (ret)
+			return -EIO;
+		ctrl->value = (s32)reg;
+		break;
+	case INDYCAM_CONTROL_RED_BALANCE:
+		ret = indycam_read_reg(client, INDYCAM_REG_RED_BALANCE, &reg);
+		if (ret)
+			return -EIO;
+		ctrl->value = (s32)reg;
+		break;
+	case INDYCAM_CONTROL_BLUE_BALANCE:
+		ret = indycam_read_reg(client, INDYCAM_REG_BLUE_BALANCE, &reg);
+		if (ret)
+			return -EIO;
+		ctrl->value = (s32)reg;
+		break;
+	case INDYCAM_CONTROL_RED_SATURATION:
+		ret = indycam_read_reg(client,
+				       INDYCAM_REG_RED_SATURATION, &reg);
+		if (ret)
+			return -EIO;
+		ctrl->value = (s32)reg;
+		break;
+	case INDYCAM_CONTROL_BLUE_SATURATION:
+		ret = indycam_read_reg(client,
+				       INDYCAM_REG_BLUE_SATURATION, &reg);
+		if (ret)
+			return -EIO;
+		ctrl->value = (s32)reg;
+		break;
+	case INDYCAM_CONTROL_GAMMA:
+		if (camera->version == CAMERA_VERSION_MOOSE) {
+			ret = indycam_read_reg(client,
+					       INDYCAM_REG_GAMMA, &reg);
+			if (ret)
+				return -EIO;
+			ctrl->value = (s32)reg;
+		} else {
+			ctrl->value = INDYCAM_GAMMA_DEFAULT;
+		}
+		break;
+	default:
+		ret = -EINVAL;
+	}
 
-	return 0;
+	return ret;
 }
 
-static int indycam_set_controls(struct i2c_client *client,
-				struct indycam_control *ctrl)
+static int indycam_set_control(struct i2c_client *client,
+			       struct indycam_control *ctrl)
 {
-	unsigned char ctrl_reg;
+	struct indycam *camera = i2c_get_clientdata(client);
+	u8 reg;
+	int ret = 0;
 
-	indycam_read_reg(client, INDYCAM_CONTROL, &ctrl_reg);
-	if (ctrl->agc != INDYCAM_VALUE_UNCHANGED) {
-		if (ctrl->agc)
-			ctrl_reg |= INDYCAM_CONTROL_AGCENA;
-		else
-			ctrl_reg &= ~INDYCAM_CONTROL_AGCENA;
+	switch (ctrl->type) {
+	case INDYCAM_CONTROL_AGC:
+	case INDYCAM_CONTROL_AWB:
+		ret = indycam_read_reg(client, INDYCAM_REG_CONTROL, &reg);
+		if (ret)
+			break;
+
+		if (ctrl->type == INDYCAM_CONTROL_AGC) {
+			if (ctrl->value)
+				reg |= INDYCAM_CONTROL_AGCENA;
+			else
+				reg &= ~INDYCAM_CONTROL_AGCENA;
+		} else {
+			if (ctrl->value)
+				reg |= INDYCAM_CONTROL_AWBCTL;
+			else
+				reg &= ~INDYCAM_CONTROL_AWBCTL;
+		}
+
+		ret = indycam_write_reg(client, INDYCAM_REG_CONTROL, reg);
+		break;
+	case INDYCAM_CONTROL_SHUTTER:
+		reg = (ctrl->value == 0xff) ? 0x00 : (ctrl->value + 1);
+		ret = indycam_write_reg(client, INDYCAM_REG_SHUTTER, reg);
+		break;
+	case INDYCAM_CONTROL_GAIN:
+		ret = indycam_write_reg(client, INDYCAM_REG_GAIN, ctrl->value);
+		break;
+	case INDYCAM_CONTROL_RED_BALANCE:
+		ret = indycam_write_reg(client, INDYCAM_REG_RED_BALANCE,
+					ctrl->value);
+		break;
+	case INDYCAM_CONTROL_BLUE_BALANCE:
+		ret = indycam_write_reg(client, INDYCAM_REG_BLUE_BALANCE,
+					ctrl->value);
+		break;
+	case INDYCAM_CONTROL_RED_SATURATION:
+		ret = indycam_write_reg(client, INDYCAM_REG_RED_SATURATION,
+					ctrl->value);
+		break;
+	case INDYCAM_CONTROL_BLUE_SATURATION:
+		ret = indycam_write_reg(client, INDYCAM_REG_BLUE_SATURATION,
+					ctrl->value);
+		break;
+	case INDYCAM_CONTROL_GAMMA:
+		if (camera->version == CAMERA_VERSION_MOOSE) {
+			ret = indycam_write_reg(client, INDYCAM_REG_GAMMA,
+						ctrl->value);
+		}
+		break;
+	default:
+		ret = -EINVAL;
 	}
-	if (ctrl->awb != INDYCAM_VALUE_UNCHANGED) {
-		if (ctrl->awb)
-			ctrl_reg |= INDYCAM_CONTROL_AWBCTL;
-		else
-			ctrl_reg &= ~INDYCAM_CONTROL_AWBCTL;
-	}
-	indycam_write_reg(client, INDYCAM_CONTROL, ctrl_reg);
 
-	if (ctrl->shutter >= 0)
-		indycam_write_reg(client, INDYCAM_SHUTTER, ctrl->shutter);
-	if (ctrl->gain >= 0)
-		indycam_write_reg(client, INDYCAM_GAIN, ctrl->gain);
-	if (ctrl->red_balance >= 0)
-		indycam_write_reg(client, INDYCAM_RED_BALANCE,
-				  ctrl->red_balance);
-	if (ctrl->blue_balance >= 0)
-		indycam_write_reg(client, INDYCAM_BLUE_BALANCE,
-				  ctrl->blue_balance);
-	if (ctrl->red_saturation >= 0)
-		indycam_write_reg(client, INDYCAM_RED_SATURATION,
-				  ctrl->red_saturation);
-	if (ctrl->blue_saturation >= 0)
-		indycam_write_reg(client, INDYCAM_BLUE_SATURATION,
-				  ctrl->blue_saturation);
-	if (ctrl->gamma >= 0)
-		indycam_write_reg(client, INDYCAM_GAMMA, ctrl->gamma);
-
-	return 0;
+	return ret;
 }
 
 /* I2C-interface */
@@ -247,7 +314,8 @@ static int indycam_attach(struct i2c_adapter *adap, int addr, int kind)
 	if (err)
 		goto out_free_camera;
 
-	camera->version = i2c_smbus_read_byte_data(client, INDYCAM_VERSION);
+	camera->version = i2c_smbus_read_byte_data(client,
+						   INDYCAM_REG_VERSION);
 	if (camera->version != CAMERA_VERSION_INDY &&
 	    camera->version != CAMERA_VERSION_MOOSE) {
 		err = -ENODEV;
@@ -260,8 +328,7 @@ static int indycam_attach(struct i2c_adapter *adap, int addr, int kind)
 	indycam_regdump(client);
 
 	// initialize
-	err = indycam_write_block(client, 0, sizeof(initseq),
-				  (unsigned char *)&initseq);
+	err = indycam_write_block(client, 0, sizeof(initseq), (u8 *)&initseq);
 	if (err) {
 		printk(KERN_ERR "IndyCam initalization failed\n");
 		err = -EIO;
@@ -271,11 +338,10 @@ static int indycam_attach(struct i2c_adapter *adap, int addr, int kind)
 	indycam_regdump(client);
 
 	// white balance
-	err = indycam_write_reg(client, INDYCAM_CONTROL,
+	err = indycam_write_reg(client, INDYCAM_REG_CONTROL,
 			  INDYCAM_CONTROL_AGCENA | INDYCAM_CONTROL_AWBCTL);
 	if (err) {
-		printk(KERN_ERR "IndyCam white balance "
-		       "initialization failed\n");
+		printk(KERN_ERR "IndyCam: White balancing camera failed\n");
 		err = -EIO;
 		goto out_detach_client;
 	}
@@ -371,13 +437,11 @@ static int indycam_command(struct i2c_client *client, unsigned int cmd,
 		/* TODO: convert values for indycam_set_controls() */
 		break;
 	}
-	case DECODER_INDYCAM_GET_CONTROLS: {
-		struct indycam_control *ctrl = arg;
-		indycam_get_controls(client, ctrl);
+	case DECODER_INDYCAM_GET_CONTROL: {
+		return indycam_get_control(client, arg);
 	}
-	case DECODER_INDYCAM_SET_CONTROLS: {
-		struct indycam_control *ctrl = arg;
-		indycam_set_controls(client, ctrl);
+	case DECODER_INDYCAM_SET_CONTROL: {
+		return indycam_set_control(client, arg);
 	}
 	default:
 		return -EINVAL;
@@ -388,12 +452,12 @@ static int indycam_command(struct i2c_client *client, unsigned int cmd,
 
 static struct i2c_driver i2c_driver_indycam = {
 	.owner		= THIS_MODULE,
-	.name 		= "indycam",
-	.id 		= I2C_DRIVERID_INDYCAM,
-	.flags 		= I2C_DF_NOTIFY,
+	.name		= "indycam",
+	.id		= I2C_DRIVERID_INDYCAM,
+	.flags		= I2C_DF_NOTIFY,
 	.attach_adapter = indycam_probe,
-	.detach_client 	= indycam_detach,
-	.command 	= indycam_command,
+	.detach_client	= indycam_detach,
+	.command	= indycam_command,
 };
 
 static int __init indycam_init(void)

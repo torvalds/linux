@@ -73,9 +73,6 @@ void softlockup_tick(struct pt_regs *regs)
 static int watchdog(void * __bind_cpu)
 {
 	struct sched_param param = { .sched_priority = 99 };
-	int this_cpu = (long) __bind_cpu;
-
-	printk("softlockup thread %d started up.\n", this_cpu);
 
 	sched_setscheduler(current, SCHED_FIFO, &param);
 	current->flags |= PF_NOFREEZE;
@@ -123,7 +120,8 @@ cpu_callback(struct notifier_block *nfb, unsigned long action, void *hcpu)
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_UP_CANCELED:
 		/* Unbind so it can run.  Fall thru. */
-		kthread_bind(per_cpu(watchdog_task, hotcpu), smp_processor_id());
+		kthread_bind(per_cpu(watchdog_task, hotcpu),
+			     any_online_cpu(cpu_online_map));
 	case CPU_DEAD:
 		p = per_cpu(watchdog_task, hotcpu);
 		per_cpu(watchdog_task, hotcpu) = NULL;

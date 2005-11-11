@@ -1105,7 +1105,7 @@ static int v9fs_vfs_readlink(struct dentry *dentry, char __user * buffer,
 		}
 	}
 
-	putname(link);
+	__putname(link);
 	return retval;
 }
 
@@ -1129,7 +1129,7 @@ static void *v9fs_vfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 		len = v9fs_readlink(dentry, link, strlen(link));
 
 		if (len < 0) {
-			putname(link);
+			__putname(link);
 			link = ERR_PTR(len);
 		} else
 			link[len] = 0;
@@ -1152,7 +1152,7 @@ static void v9fs_vfs_put_link(struct dentry *dentry, struct nameidata *nd, void 
 
 	dprintk(DEBUG_VFS, " %s %s\n", dentry->d_name.name, s);
 	if (!IS_ERR(s))
-		putname(s);
+		__putname(s);
 }
 
 /**
@@ -1228,7 +1228,7 @@ v9fs_vfs_link(struct dentry *old_dentry, struct inode *dir,
       FreeMem:
 	kfree(mistat);
 	kfree(fcall);
-	putname(symname);
+	__putname(symname);
 	return retval;
 }
 
@@ -1319,7 +1319,7 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
       FreeMem:
 	kfree(mistat);
 	kfree(fcall);
-	putname(symname);
+	__putname(symname);
 
 	return retval;
 }

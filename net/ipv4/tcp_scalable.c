@@ -20,20 +20,20 @@ static void tcp_scalable_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
 				    u32 in_flight, int flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	if (in_flight < tp->snd_cwnd)
+
+	if (!tcp_is_cwnd_limited(sk, in_flight))
 		return;
 
-	if (tp->snd_cwnd <= tp->snd_ssthresh) {
-		tp->snd_cwnd++;
-	} else {
+	if (tp->snd_cwnd <= tp->snd_ssthresh)
+		tcp_slow_start(tp);
+	else {
 		tp->snd_cwnd_cnt++;
 		if (tp->snd_cwnd_cnt > min(tp->snd_cwnd, TCP_SCALABLE_AI_CNT)){
-			tp->snd_cwnd++;
+			if (tp->snd_cwnd < tp->snd_cwnd_clamp)
+				tp->snd_cwnd++;
 			tp->snd_cwnd_cnt = 0;
 		}
 	}
-	tp->snd_cwnd = min_t(u32, tp->snd_cwnd, tp->snd_cwnd_clamp);
-	tp->snd_cwnd_stamp = tcp_time_stamp;
 }
 
 static u32 tcp_scalable_ssthresh(struct sock *sk)

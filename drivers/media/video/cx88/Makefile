@@ -9,6 +9,9 @@ obj-$(CONFIG_VIDEO_CX88_DVB) += cx88-dvb.o
 EXTRA_CFLAGS += -I$(src)/..
 EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/dvb-core
 EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/frontends
+ifneq ($(CONFIG_VIDEO_BUF_DVB),n)
+ EXTRA_CFLAGS += -DHAVE_VIDEO_BUF_DVB=1
+endif
 ifneq ($(CONFIG_DVB_CX22702),n)
  EXTRA_CFLAGS += -DHAVE_CX22702=1
 endif
@@ -20,4 +23,7 @@ ifneq ($(CONFIG_DVB_LGDT330X),n)
 endif
 ifneq ($(CONFIG_DVB_MT352),n)
  EXTRA_CFLAGS += -DHAVE_MT352=1
+endif
+ifneq ($(CONFIG_DVB_NXT200X),n)
+ EXTRA_CFLAGS += -DHAVE_NXT200X=1
 endif

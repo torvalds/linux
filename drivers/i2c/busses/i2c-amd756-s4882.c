@@ -245,10 +245,8 @@ static void __exit amd756_s4882_exit(void)
 		kfree(s4882_adapter);
 		s4882_adapter = NULL;
 	}
-	if (s4882_algo) {
-		kfree(s4882_algo);
-		s4882_algo = NULL;
-	}
+	kfree(s4882_algo);
+	s4882_algo = NULL;
 
 	/* Restore physical bus */
 	if (i2c_add_adapter(&amd756_smbus))

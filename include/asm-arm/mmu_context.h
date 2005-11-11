@@ -13,6 +13,7 @@
 #ifndef __ASM_ARM_MMU_CONTEXT_H
 #define __ASM_ARM_MMU_CONTEXT_H
 
+#include <asm/cacheflush.h>
 #include <asm/proc-fns.h>
 
 #if __LINUX_ARM_ARCH__ >= 6

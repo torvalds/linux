@@ -14,6 +14,7 @@
  * option) any later version.
  */
 
+#include <linux/string.h>
 #include <asm/ppc_sys.h>
 
 int (*ppc_sys_device_fixup) (struct platform_device * pdev);

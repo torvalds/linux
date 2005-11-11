@@ -261,10 +261,8 @@ void journal_commit_transaction(journal_t *journal)
 			struct buffer_head *bh = jh2bh(jh);
 
 			jbd_lock_bh_state(bh);
-			if (jh->b_committed_data) {
-				kfree(jh->b_committed_data);
-				jh->b_committed_data = NULL;
-			}
+			kfree(jh->b_committed_data);
+			jh->b_committed_data = NULL;
 			jbd_unlock_bh_state(bh);
 		}
 		journal_refile_buffer(journal, jh);

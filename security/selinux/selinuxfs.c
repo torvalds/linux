@@ -271,45 +271,37 @@ static struct file_operations sel_load_ops = {
 	.write		= sel_write_load,
 };
 
-
-static ssize_t sel_write_context(struct file * file, const char __user * buf,
-				 size_t count, loff_t *ppos)
-
+static ssize_t sel_write_context(struct file * file, char *buf, size_t size)
 {
-	char *page;
-	u32 sid;
+	char *canon;
+	u32 sid, len;
 	ssize_t length;
 
 	length = task_has_security(current, SECURITY__CHECK_CONTEXT);
 	if (length)
 		return length;
 
-	if (count >= PAGE_SIZE)
-		return -ENOMEM;
-	if (*ppos != 0) {
-		/* No partial writes. */
-		return -EINVAL;
-	}
-	page = (char*)get_zeroed_page(GFP_KERNEL);
-	if (!page)
-		return -ENOMEM;
-	length = -EFAULT;
-	if (copy_from_user(page, buf, count))
-		goto out;
-
-	length = security_context_to_sid(page, count, &sid);
+	length = security_context_to_sid(buf, size, &sid);
 	if (length < 0)
-		goto out;
+		return length;
 
-	length = count;
+	length = security_sid_to_context(sid, &canon, &len);
+	if (length < 0)
+		return length;
+
+	if (len > SIMPLE_TRANSACTION_LIMIT) {
+		printk(KERN_ERR "%s:  context size (%u) exceeds payload "
+		       "max\n", __FUNCTION__, len);
+		length = -ERANGE;
+		goto out;
+	}
+
+	memcpy(buf, canon, len);
+	length = len;
 out:
-	free_page((unsigned long) page);
+	kfree(canon);
 	return length;
 }
-
-static struct file_operations sel_context_ops = {
-	.write		= sel_write_context,
-};
 
 static ssize_t sel_read_checkreqprot(struct file *filp, char __user *buf,
 				     size_t count, loff_t *ppos)
@@ -375,6 +367,7 @@ static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 	[SEL_RELABEL] = sel_write_relabel,
 	[SEL_USER] = sel_write_user,
 	[SEL_MEMBER] = sel_write_member,
+	[SEL_CONTEXT] = sel_write_context,
 };
 
 static ssize_t selinux_transaction_write(struct file *file, const char __user *buf, size_t size, loff_t *pos)
@@ -1220,7 +1213,7 @@ static int sel_fill_super(struct super_block * sb, void * data, int silent)
 	static struct tree_descr selinux_files[] = {
 		[SEL_LOAD] = {"load", &sel_load_ops, S_IRUSR|S_IWUSR},
 		[SEL_ENFORCE] = {"enforce", &sel_enforce_ops, S_IRUGO|S_IWUSR},
-		[SEL_CONTEXT] = {"context", &sel_context_ops, S_IRUGO|S_IWUGO},
+		[SEL_CONTEXT] = {"context", &transaction_ops, S_IRUGO|S_IWUGO},
 		[SEL_ACCESS] = {"access", &transaction_ops, S_IRUGO|S_IWUGO},
 		[SEL_CREATE] = {"create", &transaction_ops, S_IRUGO|S_IWUGO},
 		[SEL_RELABEL] = {"relabel", &transaction_ops, S_IRUGO|S_IWUGO},

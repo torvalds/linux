@@ -147,8 +147,7 @@ void inet_sock_destruct(struct sock *sk)
 	BUG_TRAP(!sk->sk_wmem_queued);
 	BUG_TRAP(!sk->sk_forward_alloc);
 
-	if (inet->opt)
-		kfree(inet->opt);
+	kfree(inet->opt);
 	dst_release(sk->sk_dst_cache);
 	sk_refcnt_debug_dec(sk);
 }

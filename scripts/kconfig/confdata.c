@@ -14,6 +14,12 @@
 #define LKC_DIRECT_LINK
 #include "lkc.h"
 
+static void conf_warning(const char *fmt, ...)
+	__attribute__ ((format (printf, 1, 2)));
+
+static const char *conf_filename;
+static int conf_lineno, conf_warnings, conf_unsaved;
+
 const char conf_def_filename[] = ".config";
 
 const char conf_defname[] = "arch/$ARCH/defconfig";
@@ -26,6 +32,17 @@ const char *conf_confnames[] = {
 	conf_defname,
 	NULL,
 };
+
+static void conf_warning(const char *fmt, ...)
+{
+	va_list ap;
+	va_start(ap, fmt);
+	fprintf(stderr, "%s:%d:warning: ", conf_filename, conf_lineno);
+	vfprintf(stderr, fmt, ap);
+	fprintf(stderr, "\n");
+	va_end(ap);
+	conf_warnings++;
+}
 
 static char *conf_expand_value(const char *in)
 {
@@ -69,15 +86,12 @@ char *conf_get_default_confname(void)
 	return name;
 }
 
-int conf_read(const char *name)
+int conf_read_simple(const char *name)
 {
 	FILE *in = NULL;
 	char line[1024];
 	char *p, *p2;
-	int lineno = 0;
 	struct symbol *sym;
-	struct property *prop;
-	struct expr *e;
 	int i;
 
 	if (name) {
@@ -95,12 +109,18 @@ int conf_read(const char *name)
 			}
 		}
 	}
-
 	if (!in)
 		return 1;
 
+	conf_filename = name;
+	conf_lineno = 0;
+	conf_warnings = 0;
+	conf_unsaved = 0;
+
 	for_all_symbols(i, sym) {
 		sym->flags |= SYMBOL_NEW | SYMBOL_CHANGED;
+		if (sym_is_choice(sym))
+			sym->flags &= ~SYMBOL_NEW;
 		sym->flags &= ~SYMBOL_VALID;
 		switch (sym->type) {
 		case S_INT:
@@ -115,7 +135,7 @@ int conf_read(const char *name)
 	}
 
 	while (fgets(line, sizeof(line), in)) {
-		lineno++;
+		conf_lineno++;
 		sym = NULL;
 		switch (line[0]) {
 		case '#':
@@ -129,7 +149,10 @@ int conf_read(const char *name)
 				continue;
 			sym = sym_find(line + 9);
 			if (!sym) {
-				fprintf(stderr, "%s:%d: trying to assign nonexistent symbol %s\n", name, lineno, line + 9);
+				conf_warning("trying to assign nonexistent symbol %s", line + 9);
+				break;
+			} else if (!(sym->flags & SYMBOL_NEW)) {
+				conf_warning("trying to reassign symbol %s", sym->name);
 				break;
 			}
 			switch (sym->type) {
@@ -143,8 +166,10 @@ int conf_read(const char *name)
 			}
 			break;
 		case 'C':
-			if (memcmp(line, "CONFIG_", 7))
+			if (memcmp(line, "CONFIG_", 7)) {
+				conf_warning("unexpected data");
 				continue;
+			}
 			p = strchr(line + 7, '=');
 			if (!p)
 				continue;
@@ -154,7 +179,10 @@ int conf_read(const char *name)
 				*p2 = 0;
 			sym = sym_find(line + 7);
 			if (!sym) {
-				fprintf(stderr, "%s:%d: trying to assign nonexistent symbol %s\n", name, lineno, line + 7);
+				conf_warning("trying to assign nonexistent symbol %s", line + 7);
+				break;
+			} else if (!(sym->flags & SYMBOL_NEW)) {
+				conf_warning("trying to reassign symbol %s", sym->name);
 				break;
 			}
 			switch (sym->type) {
@@ -175,6 +203,7 @@ int conf_read(const char *name)
 					sym->flags &= ~SYMBOL_NEW;
 					break;
 				}
+				conf_warning("symbol value '%s' invalid for %s", p, sym->name);
 				break;
 			case S_STRING:
 				if (*p++ != '"')
@@ -187,8 +216,8 @@ int conf_read(const char *name)
 					memmove(p2, p2 + 1, strlen(p2));
 				}
 				if (!p2) {
-					fprintf(stderr, "%s:%d: invalid string found\n", name, lineno);
-					exit(1);
+					conf_warning("invalid string found");
+					continue;
 				}
 			case S_INT:
 			case S_HEX:
@@ -196,8 +225,8 @@ int conf_read(const char *name)
 					sym->user.val = strdup(p);
 					sym->flags &= ~SYMBOL_NEW;
 				} else {
-					fprintf(stderr, "%s:%d: symbol value '%s' invalid for %s\n", name, lineno, p, sym->name);
-					exit(1);
+					conf_warning("symbol value '%s' invalid for %s", p, sym->name);
+					continue;
 				}
 				break;
 			default:
@@ -207,6 +236,7 @@ int conf_read(const char *name)
 		case '\n':
 			break;
 		default:
+			conf_warning("unexpected data");
 			continue;
 		}
 		if (sym && sym_is_choice_value(sym)) {
@@ -215,25 +245,63 @@ int conf_read(const char *name)
 			case no:
 				break;
 			case mod:
-				if (cs->user.tri == yes)
-					/* warn? */;
+				if (cs->user.tri == yes) {
+					conf_warning("%s creates inconsistent choice state", sym->name);
+					cs->flags |= SYMBOL_NEW;
+				}
 				break;
 			case yes:
-				if (cs->user.tri != no)
-					/* warn? */;
-				cs->user.val = sym;
+				if (cs->user.tri != no) {
+					conf_warning("%s creates inconsistent choice state", sym->name);
+					cs->flags |= SYMBOL_NEW;
+				} else
+					cs->user.val = sym;
 				break;
 			}
 			cs->user.tri = E_OR(cs->user.tri, sym->user.tri);
-			cs->flags &= ~SYMBOL_NEW;
 		}
 	}
 	fclose(in);
 
 	if (modules_sym)
 		sym_calc_value(modules_sym);
+	return 0;
+}
+
+int conf_read(const char *name)
+{
+	struct symbol *sym;
+	struct property *prop;
+	struct expr *e;
+	int i;
+
+	if (conf_read_simple(name))
+		return 1;
+
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);
+		if (sym_is_choice(sym) || (sym->flags & SYMBOL_AUTO))
+			goto sym_ok;
+		if (sym_has_value(sym) && (sym->flags & SYMBOL_WRITE)) {
+			/* check that calculated value agrees with saved value */
+			switch (sym->type) {
+			case S_BOOLEAN:
+			case S_TRISTATE:
+				if (sym->user.tri != sym_get_tristate_value(sym))
+					break;
+				if (!sym_is_choice(sym))
+					goto sym_ok;
+			default:
+				if (!strcmp(sym->curr.val, sym->user.val))
+					goto sym_ok;
+				break;
+			}
+		} else if (!sym_has_value(sym) && !(sym->flags & SYMBOL_WRITE))
+			/* no previous value and not saved */
+			goto sym_ok;
+		conf_unsaved++;
+		/* maybe print value in verbose mode... */
+	sym_ok:
 		if (sym_has_value(sym) && !sym_is_choice_value(sym)) {
 			if (sym->visible == no)
 				sym->flags |= SYMBOL_NEW;
@@ -241,8 +309,10 @@ int conf_read(const char *name)
 			case S_STRING:
 			case S_INT:
 			case S_HEX:
-				if (!sym_string_within_range(sym, sym->user.val))
+				if (!sym_string_within_range(sym, sym->user.val)) {
 					sym->flags |= SYMBOL_NEW;
+					sym->flags &= ~SYMBOL_VALID;
+				}
 			default:
 				break;
 			}
@@ -255,7 +325,7 @@ int conf_read(const char *name)
 				sym->flags |= e->right.sym->flags & SYMBOL_NEW;
 	}
 
-	sym_change_count = 1;
+	sym_change_count = conf_warnings && conf_unsaved;
 
 	return 0;
 }

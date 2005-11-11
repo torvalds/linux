@@ -281,13 +281,11 @@ static int __init eisa_probe (struct eisa_root_device *root)
 	/* First try to get hold of slot 0. If there is no device
 	 * here, simply fail, unless root->force_probe is set. */
 	
-	if (!(edev = kmalloc (sizeof (*edev), GFP_KERNEL))) {
+	if (!(edev = kzalloc (sizeof (*edev), GFP_KERNEL))) {
 		printk (KERN_ERR "EISA: Couldn't allocate mainboard slot\n");
 		return -ENOMEM;
 	}
 		
-	memset (edev, 0, sizeof (*edev));
-
 	if (eisa_request_resources (root, edev, 0)) {
 		printk (KERN_WARNING \
 			"EISA: Cannot allocate resource for mainboard\n");
@@ -317,13 +315,11 @@ static int __init eisa_probe (struct eisa_root_device *root)
  force_probe:
 	
         for (c = 0, i = 1; i <= root->slots; i++) {
-		if (!(edev = kmalloc (sizeof (*edev), GFP_KERNEL))) {
+		if (!(edev = kzalloc (sizeof (*edev), GFP_KERNEL))) {
 			printk (KERN_ERR "EISA: Out of memory for slot %d\n",
 				i);
 			continue;
 		}
-		
-		memset (edev, 0, sizeof (*edev));
 
 		if (eisa_request_resources (root, edev, i)) {
 			printk (KERN_WARNING \

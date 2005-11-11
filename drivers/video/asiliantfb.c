@@ -106,7 +106,6 @@ static struct fb_ops asiliantfb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 };
 
 /* Calculate the ratios for the dot clocks without using a single long long

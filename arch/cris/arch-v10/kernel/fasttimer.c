@@ -112,7 +112,6 @@
 #include <asm/rtc.h>
 
 #include <linux/config.h>
-#include <linux/version.h>
 
 #include <asm/arch/svinto.h>
 #include <asm/fasttimer.h>

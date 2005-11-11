@@ -23,9 +23,6 @@ extern int udbg_read(char *buf, int buflen);
 
 extern void register_early_udbg_console(void);
 extern void udbg_printf(const char *fmt, ...);
-extern void udbg_ppcdbg(unsigned long flags, const char *fmt, ...);
-extern unsigned long udbg_ifdebug(unsigned long flags);
-extern void __init ppcdbg_initialize(void);
 
 extern void udbg_init_uart(void __iomem *comport, unsigned int speed);
 

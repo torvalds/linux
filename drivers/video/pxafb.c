@@ -418,7 +418,6 @@ static struct fb_ops pxafb_ops = {
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
 	.fb_blank	= pxafb_blank,
-	.fb_cursor	= soft_cursor,
 	.fb_mmap	= pxafb_mmap,
 };
 

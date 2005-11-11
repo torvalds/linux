@@ -927,6 +927,13 @@ extern int		netdev_max_backlog;
 extern int		weight_p;
 extern int		netdev_set_master(struct net_device *dev, struct net_device *master);
 extern int skb_checksum_help(struct sk_buff *skb, int inward);
+#ifdef CONFIG_BUG
+extern void netdev_rx_csum_fault(struct net_device *dev);
+#else
+static inline void netdev_rx_csum_fault(struct net_device *dev)
+{
+}
+#endif
 /* rx skb timestamps */
 extern void		net_enable_timestamp(void);
 extern void		net_disable_timestamp(void);

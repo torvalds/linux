@@ -394,14 +394,16 @@ static void noinline rest_init(void)
 	kernel_thread(init, NULL, CLONE_FS | CLONE_SIGHAND);
 	numa_default_policy();
 	unlock_kernel();
-	preempt_enable_no_resched();
 
 	/*
 	 * The boot idle thread must execute schedule()
 	 * at least one to get things moving:
 	 */
+	preempt_enable_no_resched();
 	schedule();
+	preempt_disable();
 
+	/* Call into cpu_idle with preempt disabled */
 	cpu_idle();
 } 
 

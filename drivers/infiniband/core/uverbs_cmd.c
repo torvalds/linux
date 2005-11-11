@@ -708,7 +708,7 @@ ssize_t ib_uverbs_poll_cq(struct ib_uverbs_file *file,
 		resp->wc[i].opcode 	   = wc[i].opcode;
 		resp->wc[i].vendor_err 	   = wc[i].vendor_err;
 		resp->wc[i].byte_len 	   = wc[i].byte_len;
-		resp->wc[i].imm_data 	   = wc[i].imm_data;
+		resp->wc[i].imm_data 	   = (__u32 __force) wc[i].imm_data;
 		resp->wc[i].qp_num 	   = wc[i].qp_num;
 		resp->wc[i].src_qp 	   = wc[i].src_qp;
 		resp->wc[i].wc_flags 	   = wc[i].wc_flags;
@@ -908,7 +908,12 @@ retry:
 	if (ret)
 		goto err_destroy;
 
-	resp.qp_handle = uobj->uobject.id;
+	resp.qp_handle       = uobj->uobject.id;
+	resp.max_recv_sge    = attr.cap.max_recv_sge;
+	resp.max_send_sge    = attr.cap.max_send_sge;
+	resp.max_recv_wr     = attr.cap.max_recv_wr;
+	resp.max_send_wr     = attr.cap.max_send_wr;
+	resp.max_inline_data = attr.cap.max_inline_data;
 
 	if (copy_to_user((void __user *) (unsigned long) cmd.response,
 			 &resp, sizeof resp)) {
@@ -1135,7 +1140,7 @@ ssize_t ib_uverbs_post_send(struct ib_uverbs_file *file,
 		next->num_sge    = user_wr->num_sge;
 		next->opcode     = user_wr->opcode;
 		next->send_flags = user_wr->send_flags;
-		next->imm_data   = user_wr->imm_data;
+		next->imm_data   = (__be32 __force) user_wr->imm_data;
 
 		if (qp->qp_type == IB_QPT_UD) {
 			next->wr.ud.ah = idr_find(&ib_uverbs_ah_idr,
@@ -1701,7 +1706,6 @@ ssize_t ib_uverbs_modify_srq(struct ib_uverbs_file *file,
 	}
 
 	attr.max_wr    = cmd.max_wr;
-	attr.max_sge   = cmd.max_sge;
 	attr.srq_limit = cmd.srq_limit;
 
 	ret = ib_modify_srq(srq, &attr, cmd.attr_mask);

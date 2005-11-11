@@ -28,7 +28,6 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
-#include <asm/systemcfg.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/bug.h>
@@ -195,11 +194,11 @@ exception_marker:
 #define EX_R12		24
 #define EX_R13		32
 #define EX_SRR0		40
-#define EX_R3		40	/* SLB miss saves R3, but not SRR0 */
 #define EX_DAR		48
-#define EX_LR		48	/* SLB miss saves LR, but not DAR */
 #define EX_DSISR	56
 #define EX_CCR		60
+#define EX_R3		64
+#define EX_LR		72
 
 #define EXCEPTION_PROLOG_PSERIES(area, label)				\
 	mfspr	r13,SPRN_SPRG3;		/* get paca address into r13 */	\
@@ -419,17 +418,22 @@ data_access_slb_pSeries:
 	mtspr	SPRN_SPRG1,r13
 	RUNLATCH_ON(r13)
 	mfspr	r13,SPRN_SPRG3		/* get paca address into r13 */
+	std	r3,PACA_EXSLB+EX_R3(r13)
+	mfspr	r3,SPRN_DAR
 	std	r9,PACA_EXSLB+EX_R9(r13)	/* save r9 - r12 */
+	mfcr	r9
+#ifdef __DISABLED__
+	/* Keep that around for when we re-implement dynamic VSIDs */
+	cmpdi	r3,0
+	bge	slb_miss_user_pseries
+#endif /* __DISABLED__ */
 	std	r10,PACA_EXSLB+EX_R10(r13)
 	std	r11,PACA_EXSLB+EX_R11(r13)
 	std	r12,PACA_EXSLB+EX_R12(r13)
-	std	r3,PACA_EXSLB+EX_R3(r13)
-	mfspr	r9,SPRN_SPRG1
-	std	r9,PACA_EXSLB+EX_R13(r13)
-	mfcr	r9
+	mfspr	r10,SPRN_SPRG1
+	std	r10,PACA_EXSLB+EX_R13(r13)
 	mfspr	r12,SPRN_SRR1		/* and SRR1 */
-	mfspr	r3,SPRN_DAR
-	b	.do_slb_miss		/* Rel. branch works in real mode */
+	b	.slb_miss_realmode	/* Rel. branch works in real mode */
 
 	STD_EXCEPTION_PSERIES(0x400, instruction_access)
 
@@ -440,17 +444,22 @@ instruction_access_slb_pSeries:
 	mtspr	SPRN_SPRG1,r13
 	RUNLATCH_ON(r13)
 	mfspr	r13,SPRN_SPRG3		/* get paca address into r13 */
+	std	r3,PACA_EXSLB+EX_R3(r13)
+	mfspr	r3,SPRN_SRR0		/* SRR0 is faulting address */
 	std	r9,PACA_EXSLB+EX_R9(r13)	/* save r9 - r12 */
+	mfcr	r9
+#ifdef __DISABLED__
+	/* Keep that around for when we re-implement dynamic VSIDs */
+	cmpdi	r3,0
+	bge	slb_miss_user_pseries
+#endif /* __DISABLED__ */
 	std	r10,PACA_EXSLB+EX_R10(r13)
 	std	r11,PACA_EXSLB+EX_R11(r13)
 	std	r12,PACA_EXSLB+EX_R12(r13)
-	std	r3,PACA_EXSLB+EX_R3(r13)
-	mfspr	r9,SPRN_SPRG1
-	std	r9,PACA_EXSLB+EX_R13(r13)
-	mfcr	r9
+	mfspr	r10,SPRN_SPRG1
+	std	r10,PACA_EXSLB+EX_R13(r13)
 	mfspr	r12,SPRN_SRR1		/* and SRR1 */
-	mfspr	r3,SPRN_SRR0			/* SRR0 is faulting address */
-	b	.do_slb_miss		/* Rel. branch works in real mode */
+	b	.slb_miss_realmode	/* Rel. branch works in real mode */
 
 	STD_EXCEPTION_PSERIES(0x500, hardware_interrupt)
 	STD_EXCEPTION_PSERIES(0x600, alignment)
@@ -509,6 +518,38 @@ _GLOBAL(do_stab_bolted_pSeries)
 	EXCEPTION_PROLOG_PSERIES(PACA_EXSLB, .do_stab_bolted)
 
 /*
+ * We have some room here  we use that to put
+ * the peries slb miss user trampoline code so it's reasonably
+ * away from slb_miss_user_common to avoid problems with rfid
+ *
+ * This is used for when the SLB miss handler has to go virtual,
+ * which doesn't happen for now anymore but will once we re-implement
+ * dynamic VSIDs for shared page tables
+ */
+#ifdef __DISABLED__
+slb_miss_user_pseries:
+	std	r10,PACA_EXGEN+EX_R10(r13)
+	std	r11,PACA_EXGEN+EX_R11(r13)
+	std	r12,PACA_EXGEN+EX_R12(r13)
+	mfspr	r10,SPRG1
+	ld	r11,PACA_EXSLB+EX_R9(r13)
+	ld	r12,PACA_EXSLB+EX_R3(r13)
+	std	r10,PACA_EXGEN+EX_R13(r13)
+	std	r11,PACA_EXGEN+EX_R9(r13)
+	std	r12,PACA_EXGEN+EX_R3(r13)
+	clrrdi	r12,r13,32
+	mfmsr	r10
+	mfspr	r11,SRR0			/* save SRR0 */
+	ori	r12,r12,slb_miss_user_common@l	/* virt addr of handler */
+	ori	r10,r10,MSR_IR|MSR_DR|MSR_RI
+	mtspr	SRR0,r12
+	mfspr	r12,SRR1			/* and SRR1 */
+	mtspr	SRR1,r10
+	rfid
+	b	.				/* prevent spec. execution */
+#endif /* __DISABLED__ */
+
+/*
  * Vectors for the FWNMI option.  Share common code.
  */
 	.globl system_reset_fwnmi
@@ -559,22 +600,59 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SLB)
 	.globl	data_access_slb_iSeries
 data_access_slb_iSeries:
 	mtspr	SPRN_SPRG1,r13		/* save r13 */
-	EXCEPTION_PROLOG_ISERIES_1(PACA_EXSLB)
+	mfspr	r13,SPRN_SPRG3		/* get paca address into r13 */
 	std	r3,PACA_EXSLB+EX_R3(r13)
-	ld	r12,PACALPPACA+LPPACASRR1(r13)
 	mfspr	r3,SPRN_DAR
-	b	.do_slb_miss
+	std	r9,PACA_EXSLB+EX_R9(r13)
+	mfcr	r9
+#ifdef __DISABLED__
+	cmpdi	r3,0
+	bge	slb_miss_user_iseries
+#endif
+	std	r10,PACA_EXSLB+EX_R10(r13)
+	std	r11,PACA_EXSLB+EX_R11(r13)
+	std	r12,PACA_EXSLB+EX_R12(r13)
+	mfspr	r10,SPRN_SPRG1
+	std	r10,PACA_EXSLB+EX_R13(r13)
+	ld	r12,PACALPPACA+LPPACASRR1(r13);
+	b	.slb_miss_realmode
 
 	STD_EXCEPTION_ISERIES(0x400, instruction_access, PACA_EXGEN)
 
 	.globl	instruction_access_slb_iSeries
 instruction_access_slb_iSeries:
 	mtspr	SPRN_SPRG1,r13		/* save r13 */
-	EXCEPTION_PROLOG_ISERIES_1(PACA_EXSLB)
+	mfspr	r13,SPRN_SPRG3		/* get paca address into r13 */
 	std	r3,PACA_EXSLB+EX_R3(r13)
-	ld	r12,PACALPPACA+LPPACASRR1(r13)
-	ld	r3,PACALPPACA+LPPACASRR0(r13)
-	b	.do_slb_miss
+	ld	r3,PACALPPACA+LPPACASRR0(r13)	/* get SRR0 value */
+	std	r9,PACA_EXSLB+EX_R9(r13)
+	mfcr	r9
+#ifdef __DISABLED__
+	cmpdi	r3,0
+	bge	.slb_miss_user_iseries
+#endif
+	std	r10,PACA_EXSLB+EX_R10(r13)
+	std	r11,PACA_EXSLB+EX_R11(r13)
+	std	r12,PACA_EXSLB+EX_R12(r13)
+	mfspr	r10,SPRN_SPRG1
+	std	r10,PACA_EXSLB+EX_R13(r13)
+	ld	r12,PACALPPACA+LPPACASRR1(r13);
+	b	.slb_miss_realmode
+
+#ifdef __DISABLED__
+slb_miss_user_iseries:
+	std	r10,PACA_EXGEN+EX_R10(r13)
+	std	r11,PACA_EXGEN+EX_R11(r13)
+	std	r12,PACA_EXGEN+EX_R12(r13)
+	mfspr	r10,SPRG1
+	ld	r11,PACA_EXSLB+EX_R9(r13)
+	ld	r12,PACA_EXSLB+EX_R3(r13)
+	std	r10,PACA_EXGEN+EX_R13(r13)
+	std	r11,PACA_EXGEN+EX_R9(r13)
+	std	r12,PACA_EXGEN+EX_R3(r13)
+	EXCEPTION_PROLOG_ISERIES_2
+	b	slb_miss_user_common
+#endif
 
 	MASKABLE_EXCEPTION_ISERIES(0x500, hardware_interrupt)
 	STD_EXCEPTION_ISERIES(0x600, alignment, PACA_EXGEN)
@@ -808,6 +886,126 @@ instruction_access_common:
 	andis.	r4,r12,0x5820
 	li	r5,0x400
 	b	.do_hash_page		/* Try to handle as hpte fault */
+
+/*
+ * Here is the common SLB miss user that is used when going to virtual
+ * mode for SLB misses, that is currently not used
+ */
+#ifdef __DISABLED__
+	.align	7
+	.globl	slb_miss_user_common
+slb_miss_user_common:
+	mflr	r10
+	std	r3,PACA_EXGEN+EX_DAR(r13)
+	stw	r9,PACA_EXGEN+EX_CCR(r13)
+	std	r10,PACA_EXGEN+EX_LR(r13)
+	std	r11,PACA_EXGEN+EX_SRR0(r13)
+	bl	.slb_allocate_user
+
+	ld	r10,PACA_EXGEN+EX_LR(r13)
+	ld	r3,PACA_EXGEN+EX_R3(r13)
+	lwz	r9,PACA_EXGEN+EX_CCR(r13)
+	ld	r11,PACA_EXGEN+EX_SRR0(r13)
+	mtlr	r10
+	beq-	slb_miss_fault
+
+	andi.	r10,r12,MSR_RI		/* check for unrecoverable exception */
+	beq-	unrecov_user_slb
+	mfmsr	r10
+
+.machine push
+.machine "power4"
+	mtcrf	0x80,r9
+.machine pop
+
+	clrrdi	r10,r10,2		/* clear RI before setting SRR0/1 */
+	mtmsrd	r10,1
+
+	mtspr	SRR0,r11
+	mtspr	SRR1,r12
+
+	ld	r9,PACA_EXGEN+EX_R9(r13)
+	ld	r10,PACA_EXGEN+EX_R10(r13)
+	ld	r11,PACA_EXGEN+EX_R11(r13)
+	ld	r12,PACA_EXGEN+EX_R12(r13)
+	ld	r13,PACA_EXGEN+EX_R13(r13)
+	rfid
+	b	.
+
+slb_miss_fault:
+	EXCEPTION_PROLOG_COMMON(0x380, PACA_EXGEN)
+	ld	r4,PACA_EXGEN+EX_DAR(r13)
+	li	r5,0
+	std	r4,_DAR(r1)
+	std	r5,_DSISR(r1)
+	b	.handle_page_fault
+
+unrecov_user_slb:
+	EXCEPTION_PROLOG_COMMON(0x4200, PACA_EXGEN)
+	DISABLE_INTS
+	bl	.save_nvgprs
+1:	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.unrecoverable_exception
+	b	1b
+
+#endif /* __DISABLED__ */
+
+
+/*
+ * r13 points to the PACA, r9 contains the saved CR,
+ * r12 contain the saved SRR1, SRR0 is still ready for return
+ * r3 has the faulting address
+ * r9 - r13 are saved in paca->exslb.
+ * r3 is saved in paca->slb_r3
+ * We assume we aren't going to take any exceptions during this procedure.
+ */
+_GLOBAL(slb_miss_realmode)
+	mflr	r10
+
+	stw	r9,PACA_EXSLB+EX_CCR(r13)	/* save CR in exc. frame */
+	std	r10,PACA_EXSLB+EX_LR(r13)	/* save LR */
+
+	bl	.slb_allocate_realmode
+
+	/* All done -- return from exception. */
+
+	ld	r10,PACA_EXSLB+EX_LR(r13)
+	ld	r3,PACA_EXSLB+EX_R3(r13)
+	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
+#ifdef CONFIG_PPC_ISERIES
+	ld	r11,PACALPPACA+LPPACASRR0(r13)	/* get SRR0 value */
+#endif /* CONFIG_PPC_ISERIES */
+
+	mtlr	r10
+
+	andi.	r10,r12,MSR_RI	/* check for unrecoverable exception */
+	beq-	unrecov_slb
+
+.machine	push
+.machine	"power4"
+	mtcrf	0x80,r9
+	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
+.machine	pop
+
+#ifdef CONFIG_PPC_ISERIES
+	mtspr	SPRN_SRR0,r11
+	mtspr	SPRN_SRR1,r12
+#endif /* CONFIG_PPC_ISERIES */
+	ld	r9,PACA_EXSLB+EX_R9(r13)
+	ld	r10,PACA_EXSLB+EX_R10(r13)
+	ld	r11,PACA_EXSLB+EX_R11(r13)
+	ld	r12,PACA_EXSLB+EX_R12(r13)
+	ld	r13,PACA_EXSLB+EX_R13(r13)
+	rfid
+	b	.	/* prevent speculative execution */
+
+unrecov_slb:
+	EXCEPTION_PROLOG_COMMON(0x4100, PACA_EXSLB)
+	DISABLE_INTS
+	bl	.save_nvgprs
+1:	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.unrecoverable_exception
+	b	1b
 
 	.align	7
 	.globl hardware_interrupt_common
@@ -1137,62 +1335,6 @@ _GLOBAL(do_stab_bolted)
 	ld	r13,PACA_EXSLB+EX_R13(r13)
 	rfid
 	b	.	/* prevent speculative execution */
-
-/*
- * r13 points to the PACA, r9 contains the saved CR,
- * r11 and r12 contain the saved SRR0 and SRR1.
- * r3 has the faulting address
- * r9 - r13 are saved in paca->exslb.
- * r3 is saved in paca->slb_r3
- * We assume we aren't going to take any exceptions during this procedure.
- */
-_GLOBAL(do_slb_miss)
-	mflr	r10
-
-	stw	r9,PACA_EXSLB+EX_CCR(r13)	/* save CR in exc. frame */
-	std	r10,PACA_EXSLB+EX_LR(r13)	/* save LR */
-
-	bl	.slb_allocate			/* handle it */
-
-	/* All done -- return from exception. */
-
-	ld	r10,PACA_EXSLB+EX_LR(r13)
-	ld	r3,PACA_EXSLB+EX_R3(r13)
-	lwz	r9,PACA_EXSLB+EX_CCR(r13)	/* get saved CR */
-#ifdef CONFIG_PPC_ISERIES
-	ld	r11,PACALPPACA+LPPACASRR0(r13)	/* get SRR0 value */
-#endif /* CONFIG_PPC_ISERIES */
-
-	mtlr	r10
-
-	andi.	r10,r12,MSR_RI	/* check for unrecoverable exception */
-	beq-	unrecov_slb
-
-.machine	push
-.machine	"power4"
-	mtcrf	0x80,r9
-	mtcrf	0x01,r9		/* slb_allocate uses cr0 and cr7 */
-.machine	pop
-
-#ifdef CONFIG_PPC_ISERIES
-	mtspr	SPRN_SRR0,r11
-	mtspr	SPRN_SRR1,r12
-#endif /* CONFIG_PPC_ISERIES */
-	ld	r9,PACA_EXSLB+EX_R9(r13)
-	ld	r10,PACA_EXSLB+EX_R10(r13)
-	ld	r11,PACA_EXSLB+EX_R11(r13)
-	ld	r12,PACA_EXSLB+EX_R12(r13)
-	ld	r13,PACA_EXSLB+EX_R13(r13)
-	rfid
-	b	.	/* prevent speculative execution */
-
-unrecov_slb:
-	EXCEPTION_PROLOG_COMMON(0x4100, PACA_EXSLB)
-	DISABLE_INTS
-	bl	.save_nvgprs
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.unrecoverable_exception
-	b	1b
 
 /*
  * Space for CPU0's segment table.
@@ -1558,18 +1700,9 @@ _GLOBAL(__secondary_start)
 	HMT_MEDIUM			/* Set thread priority to MEDIUM */
 
 	ld	r2,PACATOC(r13)
-	li	r6,0
-	stb	r6,PACAPROCENABLED(r13)
 
-#ifndef CONFIG_PPC_ISERIES
-	/* Initialize the page table pointer register. */
-	LOADADDR(r6,_SDR1)
-	ld	r6,0(r6)		/* get the value of _SDR1	 */
-	mtspr	SPRN_SDR1,r6			/* set the htab location	 */
-#endif
-	/* Initialize the first segment table (or SLB) entry		 */
-	ld	r3,PACASTABVIRT(r13)	/* get addr of segment table	 */
-	bl	.stab_initialize
+	/* Do early setup for that CPU */
+	bl	.early_setup_secondary
 
 	/* Initialize the kernel stack.  Just a repeat for iSeries.	 */
 	LOADADDR(r3,current_set)
@@ -1578,37 +1711,6 @@ _GLOBAL(__secondary_start)
 	addi	r1,r1,THREAD_SIZE-STACK_FRAME_OVERHEAD
 	std	r1,PACAKSAVE(r13)
 
-	ld	r3,PACASTABREAL(r13)	/* get raddr of segment table	 */
-	ori	r4,r3,1			/* turn on valid bit		 */
-
-#ifdef CONFIG_PPC_ISERIES
-	li	r0,-1			/* hypervisor call */
-	li	r3,1
-	sldi	r3,r3,63		/* 0x8000000000000000 */
-	ori	r3,r3,4			/* 0x8000000000000004 */
-	sc				/* HvCall_setASR */
-#else
-	/* set the ASR */
-	ld	r3,systemcfg@got(r2)	/* r3 = ptr to systemcfg	 */
-	ld	r3,0(r3)
-	lwz	r3,PLATFORM(r3)		/* r3 = platform flags		 */
-	andi.	r3,r3,PLATFORM_LPAR	/* Test if bit 0 is set (LPAR bit) */
-	beq	98f			/* branch if result is 0  */
-	mfspr	r3,SPRN_PVR
-	srwi	r3,r3,16
-	cmpwi	r3,0x37			/* SStar  */
-	beq	97f
-	cmpwi	r3,0x36			/* IStar  */
-	beq	97f
-	cmpwi	r3,0x34			/* Pulsar */
-	bne	98f
-97:	li	r3,H_SET_ASR		/* hcall = H_SET_ASR */
-	HVSC				/* Invoking hcall */
-	b	99f
-98:					/* !(rpa hypervisor) || !(star)  */
-	mtasr	r4			/* set the stab location	 */
-99:
-#endif
 	li	r7,0
 	mtlr	r7
 
@@ -1750,40 +1852,6 @@ _STATIC(start_here_multiplatform)
 	mr	r3,r31
  	bl	.early_setup
 
-	/* set the ASR */
-	ld	r3,PACASTABREAL(r13)
-	ori	r4,r3,1			/* turn on valid bit		 */
-	ld	r3,systemcfg@got(r2)	/* r3 = ptr to systemcfg */
-	ld	r3,0(r3)
-	lwz	r3,PLATFORM(r3)		/* r3 = platform flags */
-	andi.	r3,r3,PLATFORM_LPAR	/* Test if bit 0 is set (LPAR bit) */
-	beq	98f			/* branch if result is 0  */
-	mfspr	r3,SPRN_PVR
-	srwi	r3,r3,16
-	cmpwi	r3,0x37			/* SStar */
-	beq	97f
-	cmpwi	r3,0x36			/* IStar  */
-	beq	97f
-	cmpwi	r3,0x34			/* Pulsar */
-	bne	98f
-97:	li	r3,H_SET_ASR		/* hcall = H_SET_ASR */
-	HVSC				/* Invoking hcall */
-	b	99f
-98:					/* !(rpa hypervisor) || !(star) */
-	mtasr	r4			/* set the stab location	*/
-99:
-	/* Set SDR1 (hash table pointer) */
-	ld	r3,systemcfg@got(r2)	/* r3 = ptr to systemcfg */
-	ld	r3,0(r3)
-	lwz	r3,PLATFORM(r3)		/* r3 = platform flags */
-	/* Test if bit 0 is set (LPAR bit) */
-	andi.	r3,r3,PLATFORM_LPAR
-	bne	98f			/* branch if result is !0  */
-	LOADADDR(r6,_SDR1)		/* Only if NOT LPAR */
-	sub	r6,r6,r26
-	ld	r6,0(r6)		/* get the value of _SDR1 */
-	mtspr	SPRN_SDR1,r6			/* set the htab location  */
-98: 
 	LOADADDR(r3,.start_here_common)
 	SET_REG_TO_CONST(r4, MSR_KERNEL)
 	mtspr	SPRN_SRR0,r3

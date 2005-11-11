@@ -9,7 +9,7 @@
  * checksum. Which means it would be necessary to split all those into
  * 16-bit components and then add.
  */
-extern inline unsigned int
+static inline unsigned int
 csum_tcpudp_nofold(unsigned long saddr, unsigned long daddr,
 		   unsigned short len, unsigned short proto, unsigned int sum)
 {

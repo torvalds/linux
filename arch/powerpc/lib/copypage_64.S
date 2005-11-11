@@ -11,7 +11,7 @@
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
 
-_GLOBAL(copy_page)
+_GLOBAL(copy_4K_page)
 	std	r31,-8(1)
 	std	r30,-16(1)
 	std	r29,-24(1)

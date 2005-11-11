@@ -47,10 +47,25 @@ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 		pu = pud_offset(pg, addr);
 		if (!pud_none(*pu)) {
 			pm = pmd_offset(pu, addr);
+#ifdef CONFIG_PPC_64K_PAGES
+			/* Currently, we use the normal PTE offset within full
+			 * size PTE pages, thus our huge PTEs are scattered in
+			 * the PTE page and we do waste some. We may change
+			 * that in the future, but the current mecanism keeps
+			 * things much simpler
+			 */
+			if (!pmd_none(*pm)) {
+				/* Note: pte_offset_* are all equivalent on
+				 * ppc64 as we don't have HIGHMEM
+				 */
+				pt = pte_offset_kernel(pm, addr);
+				return pt;
+			}
+#else /* CONFIG_PPC_64K_PAGES */
+			/* On 4k pages, we put huge PTEs in the PMD page */
 			pt = (pte_t *)pm;
-			BUG_ON(!pmd_none(*pm)
-			       && !(pte_present(*pt) && pte_huge(*pt)));
 			return pt;
+#endif /* CONFIG_PPC_64K_PAGES */
 		}
 	}
 
@@ -74,9 +89,16 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 	if (pu) {
 		pm = pmd_alloc(mm, pu, addr);
 		if (pm) {
+#ifdef CONFIG_PPC_64K_PAGES
+			/* See comment in huge_pte_offset. Note that if we ever
+			 * want to put the page size in the PMD, we would have
+			 * to open code our own pte_alloc* function in order
+			 * to populate and set the size atomically
+			 */
+			pt = pte_alloc_map(mm, pm, addr);
+#else /* CONFIG_PPC_64K_PAGES */
 			pt = (pte_t *)pm;
-			BUG_ON(!pmd_none(*pm)
-			       && !(pte_present(*pt) && pte_huge(*pt)));
+#endif /* CONFIG_PPC_64K_PAGES */
 			return pt;
 		}
 	}
@@ -84,35 +106,29 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr)
 	return NULL;
 }
 
-#define HUGEPTE_BATCH_SIZE	(HPAGE_SIZE / PMD_SIZE)
-
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t pte)
 {
-	int i;
-
 	if (pte_present(*ptep)) {
-		pte_clear(mm, addr, ptep);
+		/* We open-code pte_clear because we need to pass the right
+		 * argument to hpte_update (huge / !huge)
+		 */
+		unsigned long old = pte_update(ptep, ~0UL);
+		if (old & _PAGE_HASHPTE)
+			hpte_update(mm, addr & HPAGE_MASK, ptep, old, 1);
 		flush_tlb_pending();
 	}
-
-	for (i = 0; i < HUGEPTE_BATCH_SIZE; i++) {
-		*ptep = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
-		ptep++;
-	}
+	*ptep = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
 }
 
 pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep)
 {
 	unsigned long old = pte_update(ptep, ~0UL);
-	int i;
 
 	if (old & _PAGE_HASHPTE)
-		hpte_update(mm, addr, old, 0);
-
-	for (i = 1; i < HUGEPTE_BATCH_SIZE; i++)
-		ptep[i] = __pte(0);
+		hpte_update(mm, addr & HPAGE_MASK, ptep, old, 1);
+	*ptep = __pte(0);
 
 	return __pte(old);
 }
@@ -195,6 +211,12 @@ static int prepare_high_area_for_htlb(struct mm_struct *mm, unsigned long area)
 	struct vm_area_struct *vma;
 
 	BUG_ON(area >= NUM_HIGH_AREAS);
+
+	/* Hack, so that each addresses is controlled by exactly one
+	 * of the high or low area bitmaps, the first high area starts
+	 * at 4GB, not 0 */
+	if (start == 0)
+		start = 0x100000000UL;
 
 	/* Check no VMAs are in the region */
 	vma = find_vma(mm, start);
@@ -563,6 +585,8 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	int lastshift;
 	u16 areamask, curareas;
 
+	if (HPAGE_SHIFT == 0)
+		return -EINVAL;
 	if (len & ~HPAGE_MASK)
 		return -EINVAL;
 
@@ -619,19 +643,15 @@ int hash_huge_page(struct mm_struct *mm, unsigned long access,
 		   unsigned long ea, unsigned long vsid, int local)
 {
 	pte_t *ptep;
-	unsigned long va, vpn;
-	pte_t old_pte, new_pte;
-	unsigned long rflags, prpn;
+	unsigned long old_pte, new_pte;
+	unsigned long va, rflags, pa;
 	long slot;
 	int err = 1;
-
-	spin_lock(&mm->page_table_lock);
 
 	ptep = huge_pte_offset(mm, ea);
 
 	/* Search the Linux page table for a match with va */
 	va = (vsid << 28) | (ea & 0x0fffffff);
-	vpn = va >> HPAGE_SHIFT;
 
 	/*
 	 * If no pte found or not present, send the problem up to
@@ -639,8 +659,6 @@ int hash_huge_page(struct mm_struct *mm, unsigned long access,
 	 */
 	if (unlikely(!ptep || pte_none(*ptep)))
 		goto out;
-
-/* 	BUG_ON(pte_bad(*ptep)); */
 
 	/* 
 	 * Check the user's access rights to the page.  If access should be
@@ -661,58 +679,64 @@ int hash_huge_page(struct mm_struct *mm, unsigned long access,
 	 */
 
 
-	old_pte = *ptep;
-	new_pte = old_pte;
+	do {
+		old_pte = pte_val(*ptep);
+		if (old_pte & _PAGE_BUSY)
+			goto out;
+		new_pte = old_pte | _PAGE_BUSY |
+			_PAGE_ACCESSED | _PAGE_HASHPTE;
+	} while(old_pte != __cmpxchg_u64((unsigned long *)ptep,
+					 old_pte, new_pte));
 
-	rflags = 0x2 | (! (pte_val(new_pte) & _PAGE_RW));
+	rflags = 0x2 | (!(new_pte & _PAGE_RW));
  	/* _PAGE_EXEC -> HW_NO_EXEC since it's inverted */
-	rflags |= ((pte_val(new_pte) & _PAGE_EXEC) ? 0 : HW_NO_EXEC);
+	rflags |= ((new_pte & _PAGE_EXEC) ? 0 : HPTE_R_N);
 
 	/* Check if pte already has an hpte (case 2) */
-	if (unlikely(pte_val(old_pte) & _PAGE_HASHPTE)) {
+	if (unlikely(old_pte & _PAGE_HASHPTE)) {
 		/* There MIGHT be an HPTE for this pte */
 		unsigned long hash, slot;
 
-		hash = hpt_hash(vpn, 1);
-		if (pte_val(old_pte) & _PAGE_SECONDARY)
+		hash = hpt_hash(va, HPAGE_SHIFT);
+		if (old_pte & _PAGE_F_SECOND)
 			hash = ~hash;
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
-		slot += (pte_val(old_pte) & _PAGE_GROUP_IX) >> 12;
+		slot += (old_pte & _PAGE_F_GIX) >> 12;
 
 		if (ppc_md.hpte_updatepp(slot, rflags, va, 1, local) == -1)
-			pte_val(old_pte) &= ~_PAGE_HPTEFLAGS;
+			old_pte &= ~_PAGE_HPTEFLAGS;
 	}
 
-	if (likely(!(pte_val(old_pte) & _PAGE_HASHPTE))) {
-		unsigned long hash = hpt_hash(vpn, 1);
+	if (likely(!(old_pte & _PAGE_HASHPTE))) {
+		unsigned long hash = hpt_hash(va, HPAGE_SHIFT);
 		unsigned long hpte_group;
 
-		prpn = pte_pfn(old_pte);
+		pa = pte_pfn(__pte(old_pte)) << PAGE_SHIFT;
 
 repeat:
 		hpte_group = ((hash & htab_hash_mask) *
 			      HPTES_PER_GROUP) & ~0x7UL;
 
-		/* Update the linux pte with the HPTE slot */
-		pte_val(new_pte) &= ~_PAGE_HPTEFLAGS;
-		pte_val(new_pte) |= _PAGE_HASHPTE;
+		/* clear HPTE slot informations in new PTE */
+		new_pte = (new_pte & ~_PAGE_HPTEFLAGS) | _PAGE_HASHPTE;
 
 		/* Add in WIMG bits */
 		/* XXX We should store these in the pte */
+		/* --BenH: I think they are ... */
 		rflags |= _PAGE_COHERENT;
 
-		slot = ppc_md.hpte_insert(hpte_group, va, prpn,
-					  HPTE_V_LARGE, rflags);
+		/* Insert into the hash table, primary slot */
+		slot = ppc_md.hpte_insert(hpte_group, va, pa, rflags, 0,
+					  mmu_huge_psize);
 
 		/* Primary is full, try the secondary */
 		if (unlikely(slot == -1)) {
-			pte_val(new_pte) |= _PAGE_SECONDARY;
+			new_pte |= _PAGE_F_SECOND;
 			hpte_group = ((~hash & htab_hash_mask) *
 				      HPTES_PER_GROUP) & ~0x7UL; 
-			slot = ppc_md.hpte_insert(hpte_group, va, prpn,
-						  HPTE_V_LARGE |
+			slot = ppc_md.hpte_insert(hpte_group, va, pa, rflags,
 						  HPTE_V_SECONDARY,
-						  rflags);
+						  mmu_huge_psize);
 			if (slot == -1) {
 				if (mftb() & 0x1)
 					hpte_group = ((hash & htab_hash_mask) *
@@ -726,20 +750,18 @@ repeat:
 		if (unlikely(slot == -2))
 			panic("hash_huge_page: pte_insert failed\n");
 
-		pte_val(new_pte) |= (slot<<12) & _PAGE_GROUP_IX;
-
-		/* 
-		 * No need to use ldarx/stdcx here because all who
-		 * might be updating the pte will hold the
-		 * page_table_lock
-		 */
-		*ptep = new_pte;
+		new_pte |= (slot << 12) & _PAGE_F_GIX;
 	}
+
+	/*
+	 * No need to use ldarx/stdcx here because all who
+	 * might be updating the pte will hold the
+	 * page_table_lock
+	 */
+	*ptep = __pte(new_pte & ~_PAGE_BUSY);
 
 	err = 0;
 
  out:
-	spin_unlock(&mm->page_table_lock);
-
 	return err;
 }

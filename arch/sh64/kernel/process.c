@@ -307,23 +307,19 @@ __setup("hlt", hlt_setup);
 
 static inline void hlt(void)
 {
-	if (hlt_counter)
-		return;
-
 	__asm__ __volatile__ ("sleep" : : : "memory");
 }
 
 /*
  * The idle loop on a uniprocessor SH..
  */
-void default_idle(void)
+void cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */
 	while (1) {
 		if (hlt_counter) {
-			while (1)
-				if (need_resched())
-					break;
+			while (!need_resched())
+				cpu_relax();
 		} else {
 			local_irq_disable();
 			while (!need_resched()) {
@@ -334,13 +330,11 @@ void default_idle(void)
 			}
 			local_irq_enable();
 		}
+		preempt_enable_no_resched();
 		schedule();
+		preempt_disable();
 	}
-}
 
-void cpu_idle(void)
-{
-	default_idle();
 }
 
 void machine_restart(char * __unused)

@@ -203,8 +203,15 @@ void start(unsigned long a1, unsigned long a2, void *promptr, void *sp)
 		if (elf64ph->p_type == PT_LOAD && elf64ph->p_offset != 0)
 			break;
 	}
-	vmlinux.size = (unsigned long)elf64ph->p_filesz;
-	vmlinux.memsize = (unsigned long)elf64ph->p_memsz;
+	vmlinux.size = (unsigned long)elf64ph->p_filesz +
+		(unsigned long)elf64ph->p_offset;
+	/* We need to claim the memsize plus the file offset since gzip
+	 * will expand the header (file offset), then the kernel, then
+	 * possible rubbish we don't care about. But the kernel bss must
+	 * be claimed (it will be zero'd by the kernel itself)
+	 */
+	vmlinux.memsize = (unsigned long)elf64ph->p_memsz +
+		(unsigned long)elf64ph->p_offset;
 	printf("Allocating 0x%lx bytes for kernel ...\n\r", vmlinux.memsize);
 	vmlinux.addr = try_claim(vmlinux.memsize);
 	if (vmlinux.addr == 0) {

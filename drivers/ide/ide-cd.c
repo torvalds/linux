@@ -3292,12 +3292,9 @@ static void ide_cd_release(struct kref *kref)
 	ide_drive_t *drive = info->drive;
 	struct gendisk *g = info->disk;
 
-	if (info->buffer != NULL)
-		kfree(info->buffer);
-	if (info->toc != NULL)
-		kfree(info->toc);
-	if (info->changer_info != NULL)
-		kfree(info->changer_info);
+	kfree(info->buffer);
+	kfree(info->toc);
+	kfree(info->changer_info);
 	if (devinfo->handle == drive && unregister_cdrom(devinfo))
 		printk(KERN_ERR "%s: %s failed to unregister device from the cdrom "
 				"driver.\n", __FUNCTION__, drive->name);
@@ -3455,7 +3452,7 @@ static int ide_cd_probe(struct device *dev)
 		printk(KERN_INFO "ide-cd: passing drive %s to ide-scsi emulation.\n", drive->name);
 		goto failed;
 	}
-	info = kmalloc(sizeof(struct cdrom_info), GFP_KERNEL);
+	info = kzalloc(sizeof(struct cdrom_info), GFP_KERNEL);
 	if (info == NULL) {
 		printk(KERN_ERR "%s: Can't allocate a cdrom structure\n", drive->name);
 		goto failed;
@@ -3468,8 +3465,6 @@ static int ide_cd_probe(struct device *dev)
 	ide_init_disk(g, drive);
 
 	ide_register_subdriver(drive, &ide_cdrom_driver);
-
-	memset(info, 0, sizeof (struct cdrom_info));
 
 	kref_init(&info->kref);
 
@@ -3489,12 +3484,9 @@ static int ide_cd_probe(struct device *dev)
 	if (ide_cdrom_setup(drive)) {
 		struct cdrom_device_info *devinfo = &info->devinfo;
 		ide_unregister_subdriver(drive, &ide_cdrom_driver);
-		if (info->buffer != NULL)
-			kfree(info->buffer);
-		if (info->toc != NULL)
-			kfree(info->toc);
-		if (info->changer_info != NULL)
-			kfree(info->changer_info);
+		kfree(info->buffer);
+		kfree(info->toc);
+		kfree(info->changer_info);
 		if (devinfo->handle == drive && unregister_cdrom(devinfo))
 			printk (KERN_ERR "%s: ide_cdrom_cleanup failed to unregister device from the cdrom driver.\n", drive->name);
 		kfree(info);

@@ -37,7 +37,6 @@
 #include <linux/vmalloc.h>
 #include <asm/io.h>
 #include <asm/prom.h>
-#include <asm/ppcdebug.h>
 #include <asm/iommu.h>
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
@@ -227,7 +226,7 @@ static void iommu_table_u3_setup(void)
 	iommu_table_u3.it_busno = 0;
 	iommu_table_u3.it_offset = 0;
 	/* it_size is in number of entries */
-	iommu_table_u3.it_size = dart_tablesize / sizeof(u32);
+	iommu_table_u3.it_size = (dart_tablesize / sizeof(u32)) >> DART_PAGE_FACTOR;
 
 	/* Initialize the common IOMMU code */
 	iommu_table_u3.it_base = (unsigned long)dart_vbase;

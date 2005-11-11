@@ -46,10 +46,10 @@
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/prom.h>
+#include <asm/machdep.h>
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
 #include <asm/time.h>
-#include <asm/machdep.h>
 #endif
 
 extern unsigned long _get_SP(void);
@@ -203,10 +203,8 @@ int dump_spe(struct pt_regs *regs, elf_vrregset_t *evrregs)
 
 int set_dabr(unsigned long dabr)
 {
-#ifdef CONFIG_PPC64
 	if (ppc_md.set_dabr)
 		return ppc_md.set_dabr(dabr);
-#endif
 
 	mtspr(SPRN_DABR, dabr);
 	return 0;
@@ -554,12 +552,10 @@ int copy_thread(int nr, unsigned long clone_flags, unsigned long usp,
 #ifdef CONFIG_PPC64
 	if (cpu_has_feature(CPU_FTR_SLB)) {
 		unsigned long sp_vsid = get_kernel_vsid(sp);
+		unsigned long llp = mmu_psize_defs[mmu_linear_psize].sllp;
 
 		sp_vsid <<= SLB_VSID_SHIFT;
-		sp_vsid |= SLB_VSID_KERNEL;
-		if (cpu_has_feature(CPU_FTR_16M_PAGE))
-			sp_vsid |= SLB_VSID_L;
-
+		sp_vsid |= SLB_VSID_KERNEL | llp;
 		p->thread.ksp_vsid = sp_vsid;
 	}
 

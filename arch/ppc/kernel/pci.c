@@ -62,20 +62,6 @@ struct pci_controller** hose_tail = &hose_head;
 static int pci_bus_count;
 
 static void
-fixup_rev1_53c810(struct pci_dev* dev)
-{
-	/* rev 1 ncr53c810 chips don't set the class at all which means
-	 * they don't get their resources remapped. Fix that here.
-	 */
-
-	if ((dev->class == PCI_CLASS_NOT_DEFINED)) {
-		printk("NCR 53c810 rev 1 detected, setting PCI class.\n");
-		dev->class = PCI_CLASS_STORAGE_SCSI;
-	}
-}
-DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_NCR,	PCI_DEVICE_ID_NCR_53C810,	fixup_rev1_53c810);
-
-static void
 fixup_broken_pcnet32(struct pci_dev* dev)
 {
 	if ((dev->class>>8 == PCI_CLASS_NETWORK_ETHERNET)) {

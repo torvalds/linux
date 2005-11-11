@@ -179,7 +179,6 @@ static void __devexit savage4_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver savage4_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "savage4_smbus",
 	.id_table	= savage4_ids,
 	.probe		= savage4_probe,

@@ -5,7 +5,7 @@
 #include <linux/skbuff.h>
 
 #include <linux/netfilter_ipv4/ip_tables.h>
-#include <linux/netfilter_ipv4/ip_conntrack.h>
+#include <net/netfilter/nf_conntrack_compat.h>
 
 static unsigned int
 target(struct sk_buff **pskb,
@@ -23,7 +23,7 @@ target(struct sk_buff **pskb,
 	   If there is a real ct entry correspondig to this packet, 
 	   it'll hang aroun till timing out. We don't deal with it
 	   for performance reasons. JK */
-	(*pskb)->nfct = &ip_conntrack_untracked.ct_general;
+	nf_ct_untrack(*pskb);
 	(*pskb)->nfctinfo = IP_CT_NEW;
 	nf_conntrack_get((*pskb)->nfct);
 

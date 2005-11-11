@@ -25,7 +25,7 @@
 
 #define MAX_HWIFS	4
 
-extern __inline__ int ide_default_irq(unsigned long base)
+static inline int ide_default_irq(unsigned long base)
 {
 	/* all IDE busses share the same IRQ, number 4.
 	 * this has the side-effect that ide-probe.c will cluster our 4 interfaces
@@ -35,7 +35,7 @@ extern __inline__ int ide_default_irq(unsigned long base)
 	return 4;
 }
 
-extern __inline__ unsigned long ide_default_io_base(int index)
+static inline unsigned long ide_default_io_base(int index)
 {
 	/* we have no real I/O base address per interface, since all go through the
 	 * same register. but in a bitfield in that register, we have the i/f number.
@@ -54,7 +54,7 @@ extern __inline__ unsigned long ide_default_io_base(int index)
  * of the ide_default_io_base call above. ctrl_port will be 0, but that is don't care for us.
  */
 
-extern __inline__ void ide_init_hwif_ports(hw_regs_t *hw, unsigned long data_port, unsigned long ctrl_port, int *irq)
+static inline void ide_init_hwif_ports(hw_regs_t *hw, unsigned long data_port, unsigned long ctrl_port, int *irq)
 {
 	int i;
 
@@ -77,7 +77,7 @@ extern __inline__ void ide_init_hwif_ports(hw_regs_t *hw, unsigned long data_por
 	hw->io_ports[IDE_IRQ_OFFSET] = 0;
 }
 
-extern __inline__ void ide_init_default_hwifs(void)
+static inline void ide_init_default_hwifs(void)
 {
 	hw_regs_t hw;
 	int index;

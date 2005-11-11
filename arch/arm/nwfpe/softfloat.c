@@ -531,6 +531,7 @@ INLINE floatx80 packFloatx80( flag zSign, int32 zExp, bits64 zSig )
 
     z.low = zSig;
     z.high = ( ( (bits16) zSign )<<15 ) + zExp;
+    z.__padding = 0;
     return z;
 
 }
@@ -2831,6 +2832,7 @@ static floatx80 subFloatx80Sigs( struct roundingData *roundData, floatx80 a, flo
         roundData->exception |= float_flag_invalid;
         z.low = floatx80_default_nan_low;
         z.high = floatx80_default_nan_high;
+        z.__padding = 0;
         return z;
     }
     if ( aExp == 0 ) {
@@ -2950,6 +2952,7 @@ floatx80 floatx80_mul( struct roundingData *roundData, floatx80 a, floatx80 b )
             roundData->exception |= float_flag_invalid;
             z.low = floatx80_default_nan_low;
             z.high = floatx80_default_nan_high;
+            z.__padding = 0;
             return z;
         }
         return packFloatx80( zSign, 0x7FFF, LIT64( 0x8000000000000000 ) );
@@ -3015,6 +3018,7 @@ floatx80 floatx80_div( struct roundingData *roundData, floatx80 a, floatx80 b )
                 roundData->exception |= float_flag_invalid;
                 z.low = floatx80_default_nan_low;
                 z.high = floatx80_default_nan_high;
+                z.__padding = 0;
                 return z;
             }
             roundData->exception |= float_flag_divbyzero;
@@ -3093,6 +3097,7 @@ floatx80 floatx80_rem( struct roundingData *roundData, floatx80 a, floatx80 b )
             roundData->exception |= float_flag_invalid;
             z.low = floatx80_default_nan_low;
             z.high = floatx80_default_nan_high;
+            z.__padding = 0;
             return z;
         }
         normalizeFloatx80Subnormal( bSig, &bExp, &bSig );
@@ -3184,6 +3189,7 @@ floatx80 floatx80_sqrt( struct roundingData *roundData, floatx80 a )
         roundData->exception |= float_flag_invalid;
         z.low = floatx80_default_nan_low;
         z.high = floatx80_default_nan_high;
+        z.__padding = 0;
         return z;
     }
     if ( aExp == 0 ) {

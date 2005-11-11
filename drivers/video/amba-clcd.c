@@ -333,7 +333,6 @@ static struct fb_ops clcdfb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor	= soft_cursor,
 	.fb_mmap	= clcdfb_mmap,
 };
 
@@ -519,7 +518,7 @@ static struct amba_driver clcd_driver = {
 	.id_table	= clcdfb_id_table,
 };
 
-int __init amba_clcdfb_init(void)
+static int __init amba_clcdfb_init(void)
 {
 	if (fb_get_options("ambafb", NULL))
 		return -ENODEV;

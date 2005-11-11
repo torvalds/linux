@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright(c) 2003 - 2005 Intel Corporation. All rights reserved.
+  Copyright(c) 2003 - 2004 Intel Corporation. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms of version 2 of the GNU General Public License as
@@ -37,7 +37,6 @@
 #include <linux/socket.h>
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
-#include <linux/version.h>
 #include <net/iw_handler.h>	// new driver API
 
 #include <net/ieee80211.h>
@@ -92,7 +91,6 @@ struct ipw2100_rx_packet;
 
 #define IPW_DL_IOCTL         (1<<14)
 #define IPW_DL_RF_KILL       (1<<17)
-
 
 #define IPW_DL_MANAGE        (1<<15)
 #define IPW_DL_FW            (1<<16)
@@ -156,7 +154,9 @@ extern const char *band_str[];
 
 struct bd_status {
 	union {
-		struct { u8 nlf:1, txType:2, intEnabled:1, reserved:4;} fields;
+		struct {
+			u8 nlf:1, txType:2, intEnabled:1, reserved:4;
+		} fields;
 		u8 field;
 	} info;
 } __attribute__ ((packed));
@@ -165,7 +165,7 @@ struct ipw2100_bd {
 	u32 host_addr;
 	u32 buf_length;
 	struct bd_status status;
-        /* number of fragments for frame (should be set only for
+	/* number of fragments for frame (should be set only for
 	 * 1st TBD) */
 	u8 num_fragments;
 	u8 reserved[6];
@@ -293,10 +293,10 @@ struct ipw2100_cmd_header {
 struct ipw2100_data_header {
 	u32 host_command_reg;
 	u32 host_command_reg1;
-	u8 encrypted;	// BOOLEAN in win! TRUE if frame is enc by driver
+	u8 encrypted;		// BOOLEAN in win! TRUE if frame is enc by driver
 	u8 needs_encryption;	// BOOLEAN in win! TRUE if frma need to be enc in NIC
 	u8 wep_index;		// 0 no key, 1-4 key index, 0xff immediate key
-	u8 key_size;	// 0 no imm key, 0x5 64bit encr, 0xd 128bit encr, 0x10 128bit encr and 128bit IV
+	u8 key_size;		// 0 no imm key, 0x5 64bit encr, 0xd 128bit encr, 0x10 128bit encr and 128bit IV
 	u8 key[16];
 	u8 reserved[10];	// f/w reserved
 	u8 src_addr[ETH_ALEN];
@@ -306,13 +306,12 @@ struct ipw2100_data_header {
 
 /* Host command data structure */
 struct host_command {
-	u32 host_command;		// COMMAND ID
-	u32 host_command1;		// COMMAND ID
+	u32 host_command;	// COMMAND ID
+	u32 host_command1;	// COMMAND ID
 	u32 host_command_sequence;	// UNIQUE COMMAND NUMBER (ID)
 	u32 host_command_length;	// LENGTH
 	u32 host_command_parameters[HOST_COMMAND_PARAMS_REG_LEN];	// COMMAND PARAMETERS
 } __attribute__ ((packed));
-
 
 typedef enum {
 	POWER_ON_RESET,
@@ -328,17 +327,16 @@ enum {
 	RX
 };
 
-
 struct ipw2100_tx_packet {
 	int type;
 	int index;
 	union {
-		struct { /* COMMAND */
-			struct ipw2100_cmd_header* cmd;
+		struct {	/* COMMAND */
+			struct ipw2100_cmd_header *cmd;
 			dma_addr_t cmd_phys;
 		} c_struct;
-		struct { /* DATA */
-			struct ipw2100_data_header* data;
+		struct {	/* DATA */
+			struct ipw2100_data_header *data;
 			dma_addr_t data_phys;
 			struct ieee80211_txb *txb;
 		} d_struct;
@@ -347,7 +345,6 @@ struct ipw2100_tx_packet {
 
 	struct list_head list;
 };
-
 
 struct ipw2100_rx_packet {
 	struct ipw2100_rx *rxp;
@@ -432,13 +429,13 @@ enum {
 };
 
 #define STATUS_POWERED          (1<<0)
-#define STATUS_CMD_ACTIVE       (1<<1)  /**< host command in progress */
-#define STATUS_RUNNING          (1<<2)  /* Card initialized, but not enabled */
-#define STATUS_ENABLED          (1<<3)  /* Card enabled -- can scan,Tx,Rx */
-#define STATUS_STOPPING         (1<<4)  /* Card is in shutdown phase */
-#define STATUS_INITIALIZED      (1<<5)  /* Card is ready for external calls */
-#define STATUS_ASSOCIATING      (1<<9)  /* Associated, but no BSSID yet */
-#define STATUS_ASSOCIATED       (1<<10) /* Associated and BSSID valid */
+#define STATUS_CMD_ACTIVE       (1<<1)	/**< host command in progress */
+#define STATUS_RUNNING          (1<<2)	/* Card initialized, but not enabled */
+#define STATUS_ENABLED          (1<<3)	/* Card enabled -- can scan,Tx,Rx */
+#define STATUS_STOPPING         (1<<4)	/* Card is in shutdown phase */
+#define STATUS_INITIALIZED      (1<<5)	/* Card is ready for external calls */
+#define STATUS_ASSOCIATING      (1<<9)	/* Associated, but no BSSID yet */
+#define STATUS_ASSOCIATED       (1<<10)	/* Associated and BSSID valid */
 #define STATUS_INT_ENABLED      (1<<11)
 #define STATUS_RF_KILL_HW       (1<<12)
 #define STATUS_RF_KILL_SW       (1<<13)
@@ -451,9 +448,7 @@ enum {
 #define STATUS_SCAN_COMPLETE    (1<<26)
 #define STATUS_WX_EVENT_PENDING (1<<27)
 #define STATUS_RESET_PENDING    (1<<29)
-#define STATUS_SECURITY_UPDATED (1<<30) /* Security sync needed */
-
-
+#define STATUS_SECURITY_UPDATED (1<<30)	/* Security sync needed */
 
 /* Internal NIC states */
 #define IPW_STATE_INITIALIZED	(1<<0)
@@ -469,11 +464,9 @@ enum {
 #define IPW_STATE_POWER_DOWN	(1<<10)
 #define IPW_STATE_SCANNING      (1<<11)
 
-
-
-#define CFG_STATIC_CHANNEL      (1<<0) /* Restrict assoc. to single channel */
-#define CFG_STATIC_ESSID        (1<<1) /* Restrict assoc. to single SSID */
-#define CFG_STATIC_BSSID        (1<<2) /* Restrict assoc. to single BSSID */
+#define CFG_STATIC_CHANNEL      (1<<0)	/* Restrict assoc. to single channel */
+#define CFG_STATIC_ESSID        (1<<1)	/* Restrict assoc. to single SSID */
+#define CFG_STATIC_BSSID        (1<<2)	/* Restrict assoc. to single BSSID */
 #define CFG_CUSTOM_MAC          (1<<3)
 #define CFG_LONG_PREAMBLE       (1<<4)
 #define CFG_ASSOCIATE           (1<<6)
@@ -481,14 +474,17 @@ enum {
 #define CFG_ADHOC_CREATE        (1<<8)
 #define CFG_C3_DISABLED         (1<<9)
 #define CFG_PASSIVE_SCAN        (1<<10)
+#ifdef CONFIG_IPW2100_MONITOR
+#define CFG_CRC_CHECK           (1<<11)
+#endif
 
-#define CAP_SHARED_KEY          (1<<0) /* Off = OPEN */
-#define CAP_PRIVACY_ON          (1<<1) /* Off = No privacy */
+#define CAP_SHARED_KEY          (1<<0)	/* Off = OPEN */
+#define CAP_PRIVACY_ON          (1<<1)	/* Off = No privacy */
 
 struct ipw2100_priv {
 
-	int stop_hang_check; /* Set 1 when shutting down to kill hang_check */
-	int stop_rf_kill; /* Set 1 when shutting down to kill rf_kill */
+	int stop_hang_check;	/* Set 1 when shutting down to kill hang_check */
+	int stop_rf_kill;	/* Set 1 when shutting down to kill rf_kill */
 
 	struct ieee80211_device *ieee;
 	unsigned long status;
@@ -519,18 +515,15 @@ struct ipw2100_priv {
 	unsigned long hw_features;
 	int hangs;
 	u32 last_rtc;
-	int dump_raw; /* 1 to dump raw bytes in /sys/.../memory */
-	u8* snapshot[0x30];
+	int dump_raw;		/* 1 to dump raw bytes in /sys/.../memory */
+	u8 *snapshot[0x30];
 
 	u8 mandatory_bssid_mac[ETH_ALEN];
 	u8 mac_addr[ETH_ALEN];
 
 	int power_mode;
 
-	/* WEP data */
-	struct ieee80211_security sec;
 	int messages_sent;
-
 
 	int short_retry_limit;
 	int long_retry_limit;
@@ -599,7 +592,6 @@ struct ipw2100_priv {
 	wait_queue_head_t wait_command_queue;
 };
 
-
 /*********************************************************
  * Host Command -> From Driver to FW
  *********************************************************/
@@ -646,7 +638,6 @@ struct ipw2100_priv {
 #define CARD_DISABLE_PHY_OFF   61
 #define MSDU_TX_RATES          62
 
-
 /* Rogue AP Detection */
 #define SET_STATION_STAT_BITS      64
 #define CLEAR_STATIONS_STAT_BITS   65
@@ -654,8 +645,6 @@ struct ipw2100_priv {
 #define SET_SECURITY_INFORMATION   67
 #define DISASSOCIATION_BSSID	   68
 #define SET_WPA_IE                 69
-
-
 
 /* system configuration bit mask: */
 #define IPW_CFG_MONITOR               0x00004
@@ -704,7 +693,7 @@ struct ipw2100_priv {
 #define IPW2100_INTA_TX_TRANSFER               (0x00000001)	// Bit 0 (LSB)
 #define IPW2100_INTA_RX_TRANSFER               (0x00000002)	// Bit 1
 #define IPW2100_INTA_TX_COMPLETE	       (0x00000004)	// Bit 2
-#define IPW2100_INTA_EVENT_INTERRUPT           (0x00000008)     // Bit 3
+#define IPW2100_INTA_EVENT_INTERRUPT           (0x00000008)	// Bit 3
 #define IPW2100_INTA_STATUS_CHANGE             (0x00000010)	// Bit 4
 #define IPW2100_INTA_BEACON_PERIOD_EXPIRED     (0x00000020)	// Bit 5
 #define IPW2100_INTA_SLAVE_MODE_HOST_COMMAND_DONE  (0x00010000)	// Bit 16
@@ -784,9 +773,6 @@ struct ipw2100_priv {
 #define IPW_CARD_DISABLE_PHY_OFF_COMPLETE_WAIT	    100	// 100 milli
 #define IPW_PREPARE_POWER_DOWN_COMPLETE_WAIT	    100	// 100 milli
 
-
-
-
 #define IPW_HEADER_802_11_SIZE		 sizeof(struct ieee80211_hdr_3addr)
 #define IPW_MAX_80211_PAYLOAD_SIZE              2304U
 #define IPW_MAX_802_11_PAYLOAD_LENGTH		2312
@@ -843,8 +829,8 @@ struct ipw2100_rx {
 #define IPW_TX_POWER_MIN_DBM         (-12)
 #define IPW_TX_POWER_MAX_DBM         16
 
-#define FW_SCAN_DONOT_ASSOCIATE     0x0001 // Dont Attempt to Associate after Scan
-#define FW_SCAN_PASSIVE             0x0008 // Force PASSSIVE Scan
+#define FW_SCAN_DONOT_ASSOCIATE     0x0001	// Dont Attempt to Associate after Scan
+#define FW_SCAN_PASSIVE             0x0008	// Force PASSSIVE Scan
 
 #define REG_MIN_CHANNEL             0
 #define REG_MAX_CHANNEL             14
@@ -855,7 +841,6 @@ struct ipw2100_rx {
 #define DIVERSITY_EITHER            0	// Use both antennas
 #define DIVERSITY_ANTENNA_A         1	// Use antenna A
 #define DIVERSITY_ANTENNA_B         2	// Use antenna B
-
 
 #define HOST_COMMAND_WAIT 0
 #define HOST_COMMAND_NO_WAIT 1
@@ -873,10 +858,9 @@ struct ipw2100_rx {
 #define TYPE_ASSOCIATION_REQUEST	0x0013
 #define TYPE_REASSOCIATION_REQUEST	0x0014
 
-
-#define HW_FEATURE_RFKILL (0x0001)
-#define RF_KILLSWITCH_OFF (1)
-#define RF_KILLSWITCH_ON  (0)
+#define HW_FEATURE_RFKILL 0x0001
+#define RF_KILLSWITCH_OFF 1
+#define RF_KILLSWITCH_ON  0
 
 #define IPW_COMMAND_POOL_SIZE        40
 
@@ -895,7 +879,7 @@ struct ipw2100_rx {
 // Fixed size data: Ordinal Table 1
 typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 // Transmit statistics
-	IPW_ORD_STAT_TX_HOST_REQUESTS = 1,// # of requested Host Tx's (MSDU)
+	IPW_ORD_STAT_TX_HOST_REQUESTS = 1,	// # of requested Host Tx's (MSDU)
 	IPW_ORD_STAT_TX_HOST_COMPLETE,	// # of successful Host Tx's (MSDU)
 	IPW_ORD_STAT_TX_DIR_DATA,	// # of successful Directed Tx's (MSDU)
 
@@ -905,42 +889,42 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_TX_DIR_DATA11,	// # of successful Directed Tx's (MSDU) @ 11MB
 	IPW_ORD_STAT_TX_DIR_DATA22,	// # of successful Directed Tx's (MSDU) @ 22MB
 
-	IPW_ORD_STAT_TX_NODIR_DATA1 = 13,// # of successful Non_Directed Tx's (MSDU) @ 1MB
+	IPW_ORD_STAT_TX_NODIR_DATA1 = 13,	// # of successful Non_Directed Tx's (MSDU) @ 1MB
 	IPW_ORD_STAT_TX_NODIR_DATA2,	// # of successful Non_Directed Tx's (MSDU) @ 2MB
 	IPW_ORD_STAT_TX_NODIR_DATA5_5,	// # of successful Non_Directed Tx's (MSDU) @ 5.5MB
 	IPW_ORD_STAT_TX_NODIR_DATA11,	// # of successful Non_Directed Tx's (MSDU) @ 11MB
 
 	IPW_ORD_STAT_NULL_DATA = 21,	// # of successful NULL data Tx's
-	IPW_ORD_STAT_TX_RTS,	        // # of successful Tx RTS
-	IPW_ORD_STAT_TX_CTS,	        // # of successful Tx CTS
-	IPW_ORD_STAT_TX_ACK,	        // # of successful Tx ACK
-	IPW_ORD_STAT_TX_ASSN,	        // # of successful Association Tx's
+	IPW_ORD_STAT_TX_RTS,	// # of successful Tx RTS
+	IPW_ORD_STAT_TX_CTS,	// # of successful Tx CTS
+	IPW_ORD_STAT_TX_ACK,	// # of successful Tx ACK
+	IPW_ORD_STAT_TX_ASSN,	// # of successful Association Tx's
 	IPW_ORD_STAT_TX_ASSN_RESP,	// # of successful Association response Tx's
-	IPW_ORD_STAT_TX_REASSN,	        // # of successful Reassociation Tx's
+	IPW_ORD_STAT_TX_REASSN,	// # of successful Reassociation Tx's
 	IPW_ORD_STAT_TX_REASSN_RESP,	// # of successful Reassociation response Tx's
-	IPW_ORD_STAT_TX_PROBE,	        // # of probes successfully transmitted
+	IPW_ORD_STAT_TX_PROBE,	// # of probes successfully transmitted
 	IPW_ORD_STAT_TX_PROBE_RESP,	// # of probe responses successfully transmitted
-	IPW_ORD_STAT_TX_BEACON,	        // # of tx beacon
-	IPW_ORD_STAT_TX_ATIM,	        // # of Tx ATIM
+	IPW_ORD_STAT_TX_BEACON,	// # of tx beacon
+	IPW_ORD_STAT_TX_ATIM,	// # of Tx ATIM
 	IPW_ORD_STAT_TX_DISASSN,	// # of successful Disassociation TX
-	IPW_ORD_STAT_TX_AUTH,	        // # of successful Authentication Tx
-	IPW_ORD_STAT_TX_DEAUTH,	        // # of successful Deauthentication TX
+	IPW_ORD_STAT_TX_AUTH,	// # of successful Authentication Tx
+	IPW_ORD_STAT_TX_DEAUTH,	// # of successful Deauthentication TX
 
-	IPW_ORD_STAT_TX_TOTAL_BYTES = 41,// Total successful Tx data bytes
-	IPW_ORD_STAT_TX_RETRIES,         // # of Tx retries
-	IPW_ORD_STAT_TX_RETRY1,          // # of Tx retries at 1MBPS
-	IPW_ORD_STAT_TX_RETRY2,          // # of Tx retries at 2MBPS
-	IPW_ORD_STAT_TX_RETRY5_5,	 // # of Tx retries at 5.5MBPS
-	IPW_ORD_STAT_TX_RETRY11,	 // # of Tx retries at 11MBPS
+	IPW_ORD_STAT_TX_TOTAL_BYTES = 41,	// Total successful Tx data bytes
+	IPW_ORD_STAT_TX_RETRIES,	// # of Tx retries
+	IPW_ORD_STAT_TX_RETRY1,	// # of Tx retries at 1MBPS
+	IPW_ORD_STAT_TX_RETRY2,	// # of Tx retries at 2MBPS
+	IPW_ORD_STAT_TX_RETRY5_5,	// # of Tx retries at 5.5MBPS
+	IPW_ORD_STAT_TX_RETRY11,	// # of Tx retries at 11MBPS
 
 	IPW_ORD_STAT_TX_FAILURES = 51,	// # of Tx Failures
 	IPW_ORD_STAT_TX_ABORT_AT_HOP,	//NS // # of Tx's aborted at hop time
-	IPW_ORD_STAT_TX_MAX_TRIES_IN_HOP,// # of times max tries in a hop failed
+	IPW_ORD_STAT_TX_MAX_TRIES_IN_HOP,	// # of times max tries in a hop failed
 	IPW_ORD_STAT_TX_ABORT_LATE_DMA,	//NS // # of times tx aborted due to late dma setup
 	IPW_ORD_STAT_TX_ABORT_STX,	//NS // # of times backoff aborted
 	IPW_ORD_STAT_TX_DISASSN_FAIL,	// # of times disassociation failed
-	IPW_ORD_STAT_TX_ERR_CTS,         // # of missed/bad CTS frames
-	IPW_ORD_STAT_TX_BPDU,	        //NS // # of spanning tree BPDUs sent
+	IPW_ORD_STAT_TX_ERR_CTS,	// # of missed/bad CTS frames
+	IPW_ORD_STAT_TX_BPDU,	//NS // # of spanning tree BPDUs sent
 	IPW_ORD_STAT_TX_ERR_ACK,	// # of tx err due to acks
 
 	// Receive statistics
@@ -952,7 +936,7 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_RX_DIR_DATA11,	// # of directed packets at 11MB
 	IPW_ORD_STAT_RX_DIR_DATA22,	// # of directed packets at 22MB
 
-	IPW_ORD_STAT_RX_NODIR_DATA = 71,// # of nondirected packets
+	IPW_ORD_STAT_RX_NODIR_DATA = 71,	// # of nondirected packets
 	IPW_ORD_STAT_RX_NODIR_DATA1,	// # of nondirected packets at 1MB
 	IPW_ORD_STAT_RX_NODIR_DATA2,	// # of nondirected packets at 2MB
 	IPW_ORD_STAT_RX_NODIR_DATA5_5,	// # of nondirected packets at 5.5MB
@@ -977,18 +961,18 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_RX_AUTH,	// # of authentication Rx
 	IPW_ORD_STAT_RX_DEAUTH,	// # of deauthentication Rx
 
-	IPW_ORD_STAT_RX_TOTAL_BYTES = 101,// Total rx data bytes received
-	IPW_ORD_STAT_RX_ERR_CRC,	 // # of packets with Rx CRC error
-	IPW_ORD_STAT_RX_ERR_CRC1,	 // # of Rx CRC errors at 1MB
-	IPW_ORD_STAT_RX_ERR_CRC2,	 // # of Rx CRC errors at 2MB
-	IPW_ORD_STAT_RX_ERR_CRC5_5,	 // # of Rx CRC errors at 5.5MB
-	IPW_ORD_STAT_RX_ERR_CRC11,	 // # of Rx CRC errors at 11MB
+	IPW_ORD_STAT_RX_TOTAL_BYTES = 101,	// Total rx data bytes received
+	IPW_ORD_STAT_RX_ERR_CRC,	// # of packets with Rx CRC error
+	IPW_ORD_STAT_RX_ERR_CRC1,	// # of Rx CRC errors at 1MB
+	IPW_ORD_STAT_RX_ERR_CRC2,	// # of Rx CRC errors at 2MB
+	IPW_ORD_STAT_RX_ERR_CRC5_5,	// # of Rx CRC errors at 5.5MB
+	IPW_ORD_STAT_RX_ERR_CRC11,	// # of Rx CRC errors at 11MB
 
-	IPW_ORD_STAT_RX_DUPLICATE1 = 112, // # of duplicate rx packets at 1MB
-	IPW_ORD_STAT_RX_DUPLICATE2,	 // # of duplicate rx packets at 2MB
-	IPW_ORD_STAT_RX_DUPLICATE5_5,	 // # of duplicate rx packets at 5.5MB
-	IPW_ORD_STAT_RX_DUPLICATE11,	 // # of duplicate rx packets at 11MB
-	IPW_ORD_STAT_RX_DUPLICATE = 119, // # of duplicate rx packets
+	IPW_ORD_STAT_RX_DUPLICATE1 = 112,	// # of duplicate rx packets at 1MB
+	IPW_ORD_STAT_RX_DUPLICATE2,	// # of duplicate rx packets at 2MB
+	IPW_ORD_STAT_RX_DUPLICATE5_5,	// # of duplicate rx packets at 5.5MB
+	IPW_ORD_STAT_RX_DUPLICATE11,	// # of duplicate rx packets at 11MB
+	IPW_ORD_STAT_RX_DUPLICATE = 119,	// # of duplicate rx packets
 
 	IPW_ORD_PERS_DB_LOCK = 120,	// # locking fw permanent  db
 	IPW_ORD_PERS_DB_SIZE,	// # size of fw permanent  db
@@ -1006,17 +990,17 @@ typedef enum _ORDINAL_TABLE_1 {	// NS - means Not Supported by FW
 	IPW_ORD_STAT_RX_ICV_ERRORS,	// # of ICV errors during decryption
 
 // PSP Statistics
-	IPW_ORD_STAT_PSP_SUSPENSION = 137,// # of times adapter suspended
+	IPW_ORD_STAT_PSP_SUSPENSION = 137,	// # of times adapter suspended
 	IPW_ORD_STAT_PSP_BCN_TIMEOUT,	// # of beacon timeout
 	IPW_ORD_STAT_PSP_POLL_TIMEOUT,	// # of poll response timeouts
-	IPW_ORD_STAT_PSP_NONDIR_TIMEOUT,// # of timeouts waiting for last broadcast/muticast pkt
+	IPW_ORD_STAT_PSP_NONDIR_TIMEOUT,	// # of timeouts waiting for last broadcast/muticast pkt
 	IPW_ORD_STAT_PSP_RX_DTIMS,	// # of PSP DTIMs received
 	IPW_ORD_STAT_PSP_RX_TIMS,	// # of PSP TIMs received
 	IPW_ORD_STAT_PSP_STATION_ID,	// PSP Station ID
 
 // Association and roaming
 	IPW_ORD_LAST_ASSN_TIME = 147,	// RTC time of last association
-	IPW_ORD_STAT_PERCENT_MISSED_BCNS,// current calculation of % missed beacons
+	IPW_ORD_STAT_PERCENT_MISSED_BCNS,	// current calculation of % missed beacons
 	IPW_ORD_STAT_PERCENT_RETRIES,	// current calculation of % missed tx retries
 	IPW_ORD_ASSOCIATED_AP_PTR,	// If associated, this is ptr to the associated
 	// AP table entry. set to 0 if not associated
@@ -1151,7 +1135,7 @@ struct ipw2100_fw_chunk {
 };
 
 struct ipw2100_fw_chunk_set {
-   	const void *data;
+	const void *data;
 	unsigned long size;
 };
 
@@ -1164,4 +1148,4 @@ struct ipw2100_fw {
 
 #define MAX_FW_VERSION_LEN 14
 
-#endif /* _IPW2100_H */
+#endif				/* _IPW2100_H */

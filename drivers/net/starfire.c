@@ -147,7 +147,6 @@ TODO:	- fix forced speed/duplexing code (broken a long time ago, when
 #define DRV_RELDATE	"October 3, 2005"
 
 #include <linux/config.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>

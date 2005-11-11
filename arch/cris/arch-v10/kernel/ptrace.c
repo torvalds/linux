@@ -76,54 +76,10 @@ ptrace_disable(struct task_struct *child)
  * (in user space) where the result of the ptrace call is written (instead of
  * being returned).
  */
-asmlinkage int 
-sys_ptrace(long request, long pid, long addr, long data)
+long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
-	struct task_struct *child;
 	int ret;
 	unsigned long __user *datap = (unsigned long __user *)data;
-
-	lock_kernel();
-	ret = -EPERM;
-	
-	if (request == PTRACE_TRACEME) {
-		/* are we already being traced? */
-		if (current->ptrace & PT_PTRACED)
-			goto out;
-		ret = security_ptrace(current->parent, current);
-		if (ret)
-			goto out;
-		/* set the ptrace bit in the process flags. */
-		current->ptrace |= PT_PTRACED;
-		ret = 0;
-		goto out;
-	}
-	
-	ret = -ESRCH;
-	read_lock(&tasklist_lock);
-	child = find_task_by_pid(pid);
-	
-	if (child)
-		get_task_struct(child);
-	
-	read_unlock(&tasklist_lock);
-	
-	if (!child)
-		goto out;
-	
-	ret = -EPERM;
-	
-	if (pid == 1)		/* Leave the init process alone! */
-		goto out_tsk;
-	
-	if (request == PTRACE_ATTACH) {
-		ret = ptrace_attach(child);
-		goto out_tsk;
-	}
-	
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		goto out_tsk;
 
 	switch (request) {
 		/* Read word at location address. */ 
@@ -289,10 +245,7 @@ sys_ptrace(long request, long pid, long addr, long data)
 			ret = ptrace_request(child, request, addr, data);
 			break;
 	}
-out_tsk:
-	put_task_struct(child);
-out:
-	unlock_kernel();
+
 	return ret;
 }
 

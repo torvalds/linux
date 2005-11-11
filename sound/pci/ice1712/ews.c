@@ -438,7 +438,7 @@ static int __devinit snd_ice1712_ews_init(ice1712_t *ice)
 
 	/* create i2c */
 	if ((err = snd_i2c_bus_create(ice->card, "ICE1712 GPIO 1", NULL, &ice->i2c)) < 0) {
-		snd_printk("unable to create I2C bus\n");
+		snd_printk(KERN_ERR "unable to create I2C bus\n");
 		return err;
 	}
 	ice->i2c->private_data = ice;
@@ -448,7 +448,7 @@ static int __devinit snd_ice1712_ews_init(ice1712_t *ice)
 	switch (ice->eeprom.subvendor) {
 	case ICE1712_SUBDEVICE_DMX6FIRE:
 		if ((err = snd_i2c_device_create(ice->i2c, "PCF9554", ICE1712_6FIRE_PCF9554_ADDR, &ice->spec.i2cdevs[EWS_I2C_6FIRE])) < 0) {
-			snd_printk("PCF9554 initialization failed\n");
+			snd_printk(KERN_ERR "PCF9554 initialization failed\n");
 			return err;
 		}
 		snd_ice1712_6fire_write_pca(ice, PCF9554_REG_CONFIG, 0x80);
@@ -791,7 +791,7 @@ static int snd_ice1712_6fire_read_pca(ice1712_t *ice, unsigned char reg)
 	byte = 0;
 	if (snd_i2c_readbytes(ice->spec.i2cdevs[EWS_I2C_6FIRE], &byte, 1) != 1) {
 		snd_i2c_unlock(ice->i2c);
-		printk("cannot read pca\n");
+		printk(KERN_ERR "cannot read pca\n");
 		return -EIO;
 	}
 	snd_i2c_unlock(ice->i2c);

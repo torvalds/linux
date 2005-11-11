@@ -14,7 +14,7 @@
 #define VERIFY_READ	0
 #define VERIFY_WRITE	1
 
-extern inline int access_ok (int type, const void *addr, unsigned long size)
+static inline int access_ok (int type, const void *addr, unsigned long size)
 {
 	/* XXX I guess we should check against real ram bounds at least, and
 	   possibly make sure ADDR is not within the kernel.

@@ -47,13 +47,13 @@
 #include <asm/uaccess.h>
 #include <asm/of_device.h>
 
-#define VERSION "0.6"
+#define VERSION "0.7"
 #define AUTHOR  "(c) 2005 Benjamin Herrenschmidt, IBM Corp."
 
 #undef DEBUG_SMU
 
 #ifdef DEBUG_SMU
-#define DPRINTK(fmt, args...) do { printk(KERN_DEBUG fmt , ##args); } while (0)
+#define DPRINTK(fmt, args...) do { udbg_printf(KERN_DEBUG fmt , ##args); } while (0)
 #else
 #define DPRINTK(fmt, args...) do { } while (0)
 #endif
@@ -92,7 +92,7 @@ struct smu_device {
  * for now, just hard code that
  */
 static struct smu_device	*smu;
-
+static DECLARE_MUTEX(smu_part_access);
 
 /*
  * SMU driver low level stuff
@@ -113,9 +113,11 @@ static void smu_start_cmd(void)
 
 	DPRINTK("SMU: starting cmd %x, %d bytes data\n", cmd->cmd,
 		cmd->data_len);
-	DPRINTK("SMU: data buffer: %02x %02x %02x %02x ...\n",
+	DPRINTK("SMU: data buffer: %02x %02x %02x %02x %02x %02x %02x %02x\n",
 		((u8 *)cmd->data_buf)[0], ((u8 *)cmd->data_buf)[1],
-		((u8 *)cmd->data_buf)[2], ((u8 *)cmd->data_buf)[3]);
+		((u8 *)cmd->data_buf)[2], ((u8 *)cmd->data_buf)[3],
+		((u8 *)cmd->data_buf)[4], ((u8 *)cmd->data_buf)[5],
+		((u8 *)cmd->data_buf)[6], ((u8 *)cmd->data_buf)[7]);
 
 	/* Fill the SMU command buffer */
 	smu->cmd_buf->cmd = cmd->cmd;
@@ -440,7 +442,7 @@ int smu_present(void)
 EXPORT_SYMBOL(smu_present);
 
 
-int smu_init (void)
+int __init smu_init (void)
 {
 	struct device_node *np;
 	u32 *data;
@@ -588,6 +590,8 @@ static void smu_expose_childs(void *unused)
 			sprintf(name, "smu-i2c-%02x", *reg);
 			of_platform_device_create(np, name, &smu->of_dev->dev);
 		}
+		if (device_is_compatible(np, "smu-sensors"))
+			of_platform_device_create(np, "smu-sensors", &smu->of_dev->dev);
 	}
 
 }
@@ -845,6 +849,156 @@ int smu_queue_i2c(struct smu_i2c_cmd *cmd)
 	return 0;
 }
 
+/*
+ * Handling of "partitions"
+ */
+
+static int smu_read_datablock(u8 *dest, unsigned int addr, unsigned int len)
+{
+	DECLARE_COMPLETION(comp);
+	unsigned int chunk;
+	struct smu_cmd cmd;
+	int rc;
+	u8 params[8];
+
+	/* We currently use a chunk size of 0xe. We could check the
+	 * SMU firmware version and use bigger sizes though
+	 */
+	chunk = 0xe;
+
+	while (len) {
+		unsigned int clen = min(len, chunk);
+
+		cmd.cmd = SMU_CMD_MISC_ee_COMMAND;
+		cmd.data_len = 7;
+		cmd.data_buf = params;
+		cmd.reply_len = chunk;
+		cmd.reply_buf = dest;
+		cmd.done = smu_done_complete;
+		cmd.misc = &comp;
+		params[0] = SMU_CMD_MISC_ee_GET_DATABLOCK_REC;
+		params[1] = 0x4;
+		*((u32 *)&params[2]) = addr;
+		params[6] = clen;
+
+		rc = smu_queue_cmd(&cmd);
+		if (rc)
+			return rc;
+		wait_for_completion(&comp);
+		if (cmd.status != 0)
+			return rc;
+		if (cmd.reply_len != clen) {
+			printk(KERN_DEBUG "SMU: short read in "
+			       "smu_read_datablock, got: %d, want: %d\n",
+			       cmd.reply_len, clen);
+			return -EIO;
+		}
+		len -= clen;
+		addr += clen;
+		dest += clen;
+	}
+	return 0;
+}
+
+static struct smu_sdbp_header *smu_create_sdb_partition(int id)
+{
+	DECLARE_COMPLETION(comp);
+	struct smu_simple_cmd cmd;
+	unsigned int addr, len, tlen;
+	struct smu_sdbp_header *hdr;
+	struct property *prop;
+
+	/* First query the partition info */
+	smu_queue_simple(&cmd, SMU_CMD_PARTITION_COMMAND, 2,
+			 smu_done_complete, &comp,
+			 SMU_CMD_PARTITION_LATEST, id);
+	wait_for_completion(&comp);
+
+	/* Partition doesn't exist (or other error) */
+	if (cmd.cmd.status != 0 || cmd.cmd.reply_len != 6)
+		return NULL;
+
+	/* Fetch address and length from reply */
+	addr = *((u16 *)cmd.buffer);
+	len = cmd.buffer[3] << 2;
+	/* Calucluate total length to allocate, including the 17 bytes
+	 * for "sdb-partition-XX" that we append at the end of the buffer
+	 */
+	tlen = sizeof(struct property) + len + 18;
+
+	prop = kcalloc(tlen, 1, GFP_KERNEL);
+	if (prop == NULL)
+		return NULL;
+	hdr = (struct smu_sdbp_header *)(prop + 1);
+	prop->name = ((char *)prop) + tlen - 18;
+	sprintf(prop->name, "sdb-partition-%02x", id);
+	prop->length = len;
+	prop->value = (unsigned char *)hdr;
+	prop->next = NULL;
+
+	/* Read the datablock */
+	if (smu_read_datablock((u8 *)hdr, addr, len)) {
+		printk(KERN_DEBUG "SMU: datablock read failed while reading "
+		       "partition %02x !\n", id);
+		goto failure;
+	}
+
+	/* Got it, check a few things and create the property */
+	if (hdr->id != id) {
+		printk(KERN_DEBUG "SMU: Reading partition %02x and got "
+		       "%02x !\n", id, hdr->id);
+		goto failure;
+	}
+	if (prom_add_property(smu->of_node, prop)) {
+		printk(KERN_DEBUG "SMU: Failed creating sdb-partition-%02x "
+		       "property !\n", id);
+		goto failure;
+	}
+
+	return hdr;
+ failure:
+	kfree(prop);
+	return NULL;
+}
+
+/* Note: Only allowed to return error code in pointers (using ERR_PTR)
+ * when interruptible is 1
+ */
+struct smu_sdbp_header *__smu_get_sdb_partition(int id, unsigned int *size,
+						int interruptible)
+{
+	char pname[32];
+	struct smu_sdbp_header *part;
+
+	if (!smu)
+		return NULL;
+
+	sprintf(pname, "sdb-partition-%02x", id);
+
+	if (interruptible) {
+		int rc;
+		rc = down_interruptible(&smu_part_access);
+		if (rc)
+			return ERR_PTR(rc);
+	} else
+		down(&smu_part_access);
+
+	part = (struct smu_sdbp_header *)get_property(smu->of_node,
+						      pname, size);
+	if (part == NULL) {
+		part = smu_create_sdb_partition(id);
+		if (part != NULL && size)
+			*size = part->len << 2;
+	}
+	up(&smu_part_access);
+	return part;
+}
+
+struct smu_sdbp_header *smu_get_sdb_partition(int id, unsigned int *size)
+{
+	return __smu_get_sdb_partition(id, size, 0);
+}
+EXPORT_SYMBOL(smu_get_sdb_partition);
 
 
 /*
@@ -917,6 +1071,14 @@ static ssize_t smu_write(struct file *file, const char __user *buf,
 		return -EFAULT;
 	else if (hdr.cmdtype == SMU_CMDTYPE_WANTS_EVENTS) {
 		pp->mode = smu_file_events;
+		return 0;
+	} else if (hdr.cmdtype == SMU_CMDTYPE_GET_PARTITION) {
+		struct smu_sdbp_header *part;
+		part = __smu_get_sdb_partition(hdr.cmd, NULL, 1);
+		if (part == NULL)
+			return -EINVAL;
+		else if (IS_ERR(part))
+			return PTR_ERR(part);
 		return 0;
 	} else if (hdr.cmdtype != SMU_CMDTYPE_SMU)
 		return -EINVAL;

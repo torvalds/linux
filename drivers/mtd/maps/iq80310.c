@@ -1,11 +1,11 @@
 /*
- * $Id: iq80310.c,v 1.20 2004/11/04 13:24:15 gleixner Exp $
+ * $Id: iq80310.c,v 1.21 2005/11/07 11:14:27 gleixner Exp $
  *
  * Mapping for the Intel XScale IQ80310 evaluation board
  *
  * Author:	Nicolas Pitre
  * Copyright:	(C) 2001 MontaVista Software Inc.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -103,8 +103,7 @@ static void __exit cleanup_iq80310(void)
 	if (mymtd) {
 		del_mtd_partitions(mymtd);
 		map_destroy(mymtd);
-		if (parsed_parts)
-			kfree(parsed_parts);
+		kfree(parsed_parts);
 	}
 	if (iq80310_map.virt)
 		iounmap((void *)iq80310_map.virt);

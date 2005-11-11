@@ -657,7 +657,6 @@ static int MGA1064_preinit(WPMINFO2) {
 	/* ACCESS_FBINFO(capable.cfb4) = 0; ... preinitialized by 0 */
 	ACCESS_FBINFO(capable.text) = 1;
 	ACCESS_FBINFO(capable.vxres) = vxres_mystique;
-	ACCESS_FBINFO(features.accel.has_cacheflush) = 1;
 
 	ACCESS_FBINFO(outputs[0]).output = &m1064;
 	ACCESS_FBINFO(outputs[0]).src = ACCESS_FBINFO(outputs[0]).default_src;
@@ -842,7 +841,6 @@ static int MGAG100_preinit(WPMINFO2) {
 	/* ACCESS_FBINFO(capable.cfb4) = 0; ... preinitialized by 0 */
 	ACCESS_FBINFO(capable.text) = 1;
 	ACCESS_FBINFO(capable.vxres) = vxres_g100;
-	ACCESS_FBINFO(features.accel.has_cacheflush) = 1;
 	ACCESS_FBINFO(capable.plnwt) = ACCESS_FBINFO(devflags.accelerator) == FB_ACCEL_MATROX_MGAG100
 			? ACCESS_FBINFO(devflags.sgram) : 1;
 
@@ -980,7 +978,7 @@ static void MGAG100_reset(WPMINFO2) {
 				hw->MXoptionReg |= 0x40;	/* FIXME... */
 				pci_write_config_dword(ACCESS_FBINFO(pcidev), PCI_OPTION_REG, hw->MXoptionReg);
 			}
-			mga_setr(M_EXTVGA_INDEX, 0x06, 0x50);
+			mga_setr(M_EXTVGA_INDEX, 0x06, 0x00);
 		}
 	}
 	if (ACCESS_FBINFO(devflags.g450dac)) {

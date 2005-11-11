@@ -560,7 +560,6 @@ static void __devexit i801_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver i801_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "i801_smbus",
 	.id_table	= i801_ids,
 	.probe		= i801_probe,

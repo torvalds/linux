@@ -91,8 +91,8 @@ EXPORT_SYMBOL(ixp2000_uengine_csr_write);
 
 void ixp2000_uengine_reset(u32 uengine_mask)
 {
-	ixp2000_reg_write(IXP2000_RESET1, uengine_mask & ixp2000_uengine_mask);
-	ixp2000_reg_write(IXP2000_RESET1, 0);
+	ixp2000_reg_wrb(IXP2000_RESET1, uengine_mask & ixp2000_uengine_mask);
+	ixp2000_reg_wrb(IXP2000_RESET1, 0);
 }
 EXPORT_SYMBOL(ixp2000_uengine_reset);
 
@@ -452,21 +452,20 @@ static int __init ixp2000_uengine_init(void)
 	/*
 	 * Reset microengines.
 	 */
-	ixp2000_reg_write(IXP2000_RESET1, ixp2000_uengine_mask);
-	ixp2000_reg_write(IXP2000_RESET1, 0);
+	ixp2000_uengine_reset(ixp2000_uengine_mask);
 
 	/*
 	 * Synchronise timestamp counters across all microengines.
 	 */
 	value = ixp2000_reg_read(IXP2000_MISC_CONTROL);
-	ixp2000_reg_write(IXP2000_MISC_CONTROL, value & ~0x80);
+	ixp2000_reg_wrb(IXP2000_MISC_CONTROL, value & ~0x80);
 	for (uengine = 0; uengine < 32; uengine++) {
 		if (ixp2000_uengine_mask & (1 << uengine)) {
 			ixp2000_uengine_csr_write(uengine, TIMESTAMP_LOW, 0);
 			ixp2000_uengine_csr_write(uengine, TIMESTAMP_HIGH, 0);
 		}
 	}
-	ixp2000_reg_write(IXP2000_MISC_CONTROL, value | 0x80);
+	ixp2000_reg_wrb(IXP2000_MISC_CONTROL, value | 0x80);
 
 	return 0;
 }

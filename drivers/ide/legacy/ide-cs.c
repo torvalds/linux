@@ -116,9 +116,8 @@ static dev_link_t *ide_attach(void)
     DEBUG(0, "ide_attach()\n");
 
     /* Create new ide device */
-    info = kmalloc(sizeof(*info), GFP_KERNEL);
+    info = kzalloc(sizeof(*info), GFP_KERNEL);
     if (!info) return NULL;
-    memset(info, 0, sizeof(*info));
     link = &info->link; link->priv = info;
 
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -183,13 +182,14 @@ static void ide_detach(dev_link_t *link)
     
 } /* ide_detach */
 
-static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq)
+static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq, struct pcmcia_device *handle)
 {
     hw_regs_t hw;
     memset(&hw, 0, sizeof(hw));
     ide_init_hwif_ports(&hw, io, ctl, NULL);
     hw.irq = irq;
     hw.chipset = ide_pci;
+    hw.dev = &handle->dev;
     return ide_register_hw_with_fixup(&hw, NULL, ide_undecoded_slave);
 }
 
@@ -221,9 +221,8 @@ static void ide_config(dev_link_t *link)
 
     DEBUG(0, "ide_config(0x%p)\n", link);
 
-    stk = kmalloc(sizeof(*stk), GFP_KERNEL);
+    stk = kzalloc(sizeof(*stk), GFP_KERNEL);
     if (!stk) goto err_mem;
-    memset(stk, 0, sizeof(*stk));
     cfg = &stk->parse.cftable_entry;
 
     tuple.TupleData = (cisdata_t *)&stk->buf;
@@ -329,12 +328,12 @@ static void ide_config(dev_link_t *link)
 
     /* retry registration in case device is still spinning up */
     for (hd = -1, i = 0; i < 10; i++) {
-	hd = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ);
+	hd = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, handle);
 	if (hd >= 0) break;
 	if (link->io.NumPorts1 == 0x20) {
 	    outb(0x02, ctl_base + 0x10);
 	    hd = idecs_register(io_base + 0x10, ctl_base + 0x10,
-				link->irq.AssignedIRQ);
+				link->irq.AssignedIRQ, handle);
 	    if (hd >= 0) {
 		io_base += 0x10;
 		ctl_base += 0x10;

@@ -855,14 +855,10 @@ close_tigerstate(struct BCState *bcs)
 {
 	mode_tiger(bcs, 0, bcs->channel);
 	if (test_and_clear_bit(BC_FLG_INIT, &bcs->Flag)) {
-		if (bcs->hw.tiger.rcvbuf) {
-			kfree(bcs->hw.tiger.rcvbuf);
-			bcs->hw.tiger.rcvbuf = NULL;
-		}
-		if (bcs->hw.tiger.sendbuf) {
-			kfree(bcs->hw.tiger.sendbuf);
-			bcs->hw.tiger.sendbuf = NULL;
-		}
+		kfree(bcs->hw.tiger.rcvbuf);
+		bcs->hw.tiger.rcvbuf = NULL;
+		kfree(bcs->hw.tiger.sendbuf);
+		bcs->hw.tiger.sendbuf = NULL;
 		skb_queue_purge(&bcs->rqueue);
 		skb_queue_purge(&bcs->squeue);
 		if (bcs->tx_skb) {
@@ -967,20 +963,12 @@ inittiger(struct IsdnCardState *cs)
 static void
 releasetiger(struct IsdnCardState *cs)
 {
-	if (cs->bcs[0].hw.tiger.send) {
-		kfree(cs->bcs[0].hw.tiger.send);
-		cs->bcs[0].hw.tiger.send = NULL;
-	}
-	if (cs->bcs[1].hw.tiger.send) {
-		cs->bcs[1].hw.tiger.send = NULL;
-	}
-	if (cs->bcs[0].hw.tiger.rec) {
-		kfree(cs->bcs[0].hw.tiger.rec);
-		cs->bcs[0].hw.tiger.rec = NULL;
-	}
-	if (cs->bcs[1].hw.tiger.rec) {
-		cs->bcs[1].hw.tiger.rec = NULL;
-	}
+	kfree(cs->bcs[0].hw.tiger.send);
+	cs->bcs[0].hw.tiger.send = NULL;
+	cs->bcs[1].hw.tiger.send = NULL;
+	kfree(cs->bcs[0].hw.tiger.rec);
+	cs->bcs[0].hw.tiger.rec = NULL;
+	cs->bcs[1].hw.tiger.rec = NULL;
 }
 
 void

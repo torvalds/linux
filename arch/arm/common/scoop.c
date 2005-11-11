@@ -19,12 +19,6 @@
 
 #define SCOOP_REG(d,adr) (*(volatile unsigned short*)(d +(adr)))
 
-/* PCMCIA to Scoop linkage structures for pxa2xx_sharpsl.c
-   There is no easy way to link multiple scoop devices into one
-   single entity for the pxa2xx_pcmcia device */
-int scoop_num;
-struct scoop_pcmcia_dev *scoop_devs;
-
 struct  scoop_dev {
 	void  *base;
 	spinlock_t scoop_lock;

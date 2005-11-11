@@ -112,8 +112,7 @@ static struct nlm_lockowner *nlm_find_lockowner(struct nlm_host *host, fl_owner_
 		}
 	}
 	spin_unlock(&host->h_lock);
-	if (new != NULL)
-		kfree(new);
+	kfree(new);
 	return res;
 }
 

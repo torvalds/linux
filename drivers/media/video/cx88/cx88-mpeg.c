@@ -54,7 +54,7 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 {
 	struct cx88_core *core = dev->core;
 
-	dprintk(0, "cx8802_start_dma %d\n", buf->vb.width);
+	dprintk(0, "cx8802_start_dma w: %d, h: %d, f: %d\n", dev->width, dev->height, buf->vb.field);
 
 	/* setup fifo + format */
 	cx88_sram_channel_setup(core, &cx88_sram_channels[SRAM_CH28],
@@ -158,7 +158,8 @@ static int cx8802_restart_queue(struct cx8802_dev    *dev,
 
 /* ------------------------------------------------------------------ */
 
-int cx8802_buf_prepare(struct cx8802_dev *dev, struct cx88_buffer *buf)
+int cx8802_buf_prepare(struct cx8802_dev *dev, struct cx88_buffer *buf,
+			enum v4l2_field field)
 {
 	int size = dev->ts_packet_size * dev->ts_packet_count;
 	int rc;
@@ -171,7 +172,7 @@ int cx8802_buf_prepare(struct cx8802_dev *dev, struct cx88_buffer *buf)
 		buf->vb.width  = dev->ts_packet_size;
 		buf->vb.height = dev->ts_packet_count;
 		buf->vb.size   = size;
-		buf->vb.field  = V4L2_FIELD_TOP;
+		buf->vb.field  = field /*V4L2_FIELD_TOP*/;
 
 		if (0 != (rc = videobuf_iolock(dev->pci,&buf->vb,NULL)))
 			goto fail;
@@ -315,14 +316,14 @@ static void cx8802_mpeg_irq(struct cx8802_dev *dev)
 		spin_unlock(&dev->slock);
 	}
 
-        /* other general errors */
-        if (status & 0x1f0100) {
+	/* other general errors */
+	if (status & 0x1f0100) {
 		dprintk( 0, "general errors: 0x%08x\n", status & 0x1f0100 );
-                spin_lock(&dev->slock);
+		spin_lock(&dev->slock);
 		cx8802_stop_dma(dev);
-                cx8802_restart_queue(dev,&dev->mpegq);
-                spin_unlock(&dev->slock);
-        }
+		cx8802_restart_queue(dev,&dev->mpegq);
+		spin_unlock(&dev->slock);
+	}
 }
 
 #define MAX_IRQ_LOOP 10
@@ -378,8 +379,8 @@ int cx8802_init_common(struct cx8802_dev *dev)
 	}
 
 	pci_read_config_byte(dev->pci, PCI_CLASS_REVISION, &dev->pci_rev);
-        pci_read_config_byte(dev->pci, PCI_LATENCY_TIMER,  &dev->pci_lat);
-        printk(KERN_INFO "%s/2: found at %s, rev: %d, irq: %d, "
+	pci_read_config_byte(dev->pci, PCI_LATENCY_TIMER,  &dev->pci_lat);
+	printk(KERN_INFO "%s/2: found at %s, rev: %d, irq: %d, "
 	       "latency: %d, mmio: 0x%lx\n", dev->core->name,
 	       pci_name(dev->pci), dev->pci_rev, dev->pci->irq,
 	       dev->pci_lat,pci_resource_start(dev->pci,0));
@@ -429,7 +430,7 @@ void cx8802_fini_common(struct cx8802_dev *dev)
 
 int cx8802_suspend_common(struct pci_dev *pci_dev, pm_message_t state)
 {
-        struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
+	struct cx8802_dev *dev = pci_get_drvdata(pci_dev);
 	struct cx88_core *core = dev->core;
 
 	/* stop mpeg dma */

@@ -24,16 +24,18 @@
 
 #include <linux/pci.h>
 #include <linux/i2c.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <linux/kdev_t.h>
 #include <linux/input.h>
+#include <linux/notifier.h>
+#include <linux/delay.h>
 
 #include <asm/io.h>
 
 #include <media/tuner.h>
 #include <media/audiochip.h>
-#include <media/id.h>
 #include <media/ir-common.h>
+#include <media/ir-kbd-i2c.h>
 #include <media/video-buf.h>
 #include <media/video-buf-dvb.h>
 
@@ -44,6 +46,10 @@
 # define FALSE (1==0)
 #endif
 #define UNSET (-1U)
+
+#include <sound/driver.h>
+#include <sound/core.h>
+#include <sound/pcm.h>
 
 /* ----------------------------------------------------------- */
 /* enums                                                       */
@@ -187,9 +193,38 @@ struct saa7134_format {
 #define SAA7134_BOARD_FLYTV_DIGIMATRIX 64
 #define SAA7134_BOARD_KWORLD_TERMINATOR 65
 #define SAA7134_BOARD_YUAN_TUN900 66
+#define SAA7134_BOARD_BEHOLD_409FM 67
+#define SAA7134_BOARD_GOTVIEW_7135 68
+#define SAA7134_BOARD_PHILIPS_EUROPA  69
+#define SAA7134_BOARD_VIDEOMATE_DVBT_300 70
+#define SAA7134_BOARD_VIDEOMATE_DVBT_200 71
+#define SAA7134_BOARD_RTD_VFG7350 72
+#define SAA7134_BOARD_RTD_VFG7330 73
+#define SAA7134_BOARD_FLYTVPLATINUM_MINI2 74
+#define SAA7134_BOARD_AVERMEDIA_AVERTVHD_A180 75
+#define SAA7134_BOARD_MONSTERTV_MOBILE 76
+#define SAA7134_BOARD_PINNACLE_PCTV_110i 77
+#define SAA7134_BOARD_ASUSTeK_P7131_DUAL 78
+#define SAA7134_BOARD_SEDNA_PC_TV_CARDBUS     79
+#define SAA7134_BOARD_ASUSTEK_DIGIMATRIX_TV 80
+#define SAA7134_BOARD_PHILIPS_TIGER  81
 
 #define SAA7134_MAXBOARDS 8
 #define SAA7134_INPUT_MAX 8
+
+/* ----------------------------------------------------------- */
+/* Since we support 2 remote types, lets tell them apart       */
+
+#define SAA7134_REMOTE_GPIO  1
+#define SAA7134_REMOTE_I2C   2
+
+/* ----------------------------------------------------------- */
+/* Video Output Port Register Initialization Options           */
+
+#define SET_T_CODE_POLARITY_NON_INVERTED	(1 << 0)
+#define SET_CLOCK_NOT_DELAYED			(1 << 1)
+#define SET_CLOCK_INVERTED			(1 << 2)
+#define SET_VSYNC_OFF				(1 << 3)
 
 struct saa7134_input {
 	char                    *name;
@@ -226,6 +261,7 @@ struct saa7134_board {
 	/* peripheral I/O */
 	enum saa7134_video_out  video_out;
 	enum saa7134_mpeg_type  mpeg;
+	unsigned int            vid_port_opts;
 };
 
 #define card_has_radio(dev)   (NULL != saa7134_boards[dev->board].radio.name)
@@ -319,9 +355,9 @@ struct saa7134_fh {
 	struct saa7134_pgtable     pt_vbi;
 };
 
-/* oss dsp status */
-struct saa7134_oss {
-        struct semaphore           lock;
+/* dmasound dsp status */
+struct saa7134_dmasound {
+	struct semaphore           lock;
 	int                        minor_mixer;
 	int                        minor_dsp;
 	unsigned int               users_dsp;
@@ -347,6 +383,7 @@ struct saa7134_oss {
 	unsigned int               dma_blk;
 	unsigned int               read_offset;
 	unsigned int               read_count;
+	snd_pcm_substream_t 	   *substream;
 };
 
 /* IR input */
@@ -358,9 +395,9 @@ struct saa7134_ir {
 	u32                        mask_keycode;
 	u32                        mask_keydown;
 	u32                        mask_keyup;
-        int                        polling;
-        u32                        last_gpio;
-        struct timer_list          timer;
+	int                        polling;
+	u32                        last_gpio;
+	struct timer_list          timer;
 };
 
 /* ts/mpeg status */
@@ -383,8 +420,8 @@ struct saa7134_mpeg_ops {
 /* global device status */
 struct saa7134_dev {
 	struct list_head           devlist;
-        struct semaphore           lock;
-       	spinlock_t                 slock;
+	struct semaphore           lock;
+	spinlock_t                 slock;
 #ifdef VIDIOC_G_PRIORITY
 	struct v4l2_prio_state     prio;
 #endif
@@ -394,7 +431,7 @@ struct saa7134_dev {
 	struct video_device        *video_dev;
 	struct video_device        *radio_dev;
 	struct video_device        *vbi_dev;
-	struct saa7134_oss         oss;
+	struct saa7134_dmasound    dmasound;
 
 	/* infrared remote */
 	int                        has_remote;
@@ -421,7 +458,7 @@ struct saa7134_dev {
 	/* i2c i/o */
 	struct i2c_adapter         i2c_adap;
 	struct i2c_client          i2c_client;
-	unsigned char              eedata[64];
+	unsigned char              eedata[128];
 
 	/* video overlay */
 	struct v4l2_framebuffer    ovbuf;
@@ -626,6 +663,7 @@ void saa7134_irq_oss_done(struct saa7134_dev *dev, unsigned long status);
 int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
+void saa7134_set_i2c_ir(struct saa7134_dev *dev, struct IR_i2c *ir);
 
 /*
  * Local variables:

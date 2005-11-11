@@ -117,10 +117,10 @@
 #define TEA5767_RESERVED_MASK	0xff
 
 enum tea5767_xtal_freq {
-        TEA5767_LOW_LO_32768    = 0,
-        TEA5767_HIGH_LO_32768   = 1,
-        TEA5767_LOW_LO_13MHz    = 2,
-        TEA5767_HIGH_LO_13MHz   = 3,
+	TEA5767_LOW_LO_32768    = 0,
+	TEA5767_HIGH_LO_32768   = 1,
+	TEA5767_LOW_LO_13MHz    = 2,
+	TEA5767_HIGH_LO_13MHz   = 3,
 };
 
 

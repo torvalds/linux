@@ -19,7 +19,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#define DEBUG
+#undef DEBUG_LOW
 
 #include <linux/config.h>
 #include <linux/kernel.h>
@@ -31,20 +31,21 @@
 #include <asm/machdep.h>
 #include <asm/abs_addr.h>
 #include <asm/mmu_context.h>
-#include <asm/ppcdebug.h>
 #include <asm/iommu.h>
 #include <asm/tlbflush.h>
 #include <asm/tlb.h>
 #include <asm/prom.h>
 #include <asm/abs_addr.h>
 #include <asm/cputable.h>
+#include <asm/udbg.h>
+#include <asm/smp.h>
 
 #include "plpar_wrappers.h"
 
-#ifdef DEBUG
-#define DBG(fmt...) udbg_printf(fmt)
+#ifdef DEBUG_LOW
+#define DBG_LOW(fmt...) do { udbg_printf(fmt); } while(0)
 #else
-#define DBG(fmt...)
+#define DBG_LOW(fmt...) do { } while(0)
 #endif
 
 /* in pSeries_hvCall.S */
@@ -276,8 +277,9 @@ void vpa_init(int cpu)
 }
 
 long pSeries_lpar_hpte_insert(unsigned long hpte_group,
-			      unsigned long va, unsigned long prpn,
-			      unsigned long vflags, unsigned long rflags)
+ 			      unsigned long va, unsigned long pa,
+ 			      unsigned long rflags, unsigned long vflags,
+ 			      int psize)
 {
 	unsigned long lpar_rc;
 	unsigned long flags;
@@ -285,11 +287,28 @@ long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	unsigned long hpte_v, hpte_r;
 	unsigned long dummy0, dummy1;
 
-	hpte_v = ((va >> 23) << HPTE_V_AVPN_SHIFT) | vflags | HPTE_V_VALID;
-	if (vflags & HPTE_V_LARGE)
-		hpte_v &= ~(1UL << HPTE_V_AVPN_SHIFT);
+	if (!(vflags & HPTE_V_BOLTED))
+		DBG_LOW("hpte_insert(group=%lx, va=%016lx, pa=%016lx, "
+			"rflags=%lx, vflags=%lx, psize=%d)\n",
+		hpte_group, va, pa, rflags, vflags, psize);
 
-	hpte_r = (prpn << HPTE_R_RPN_SHIFT) | rflags;
+ 	hpte_v = hpte_encode_v(va, psize) | vflags | HPTE_V_VALID;
+	hpte_r = hpte_encode_r(pa, psize) | rflags;
+
+	if (!(vflags & HPTE_V_BOLTED))
+		DBG_LOW(" hpte_v=%016lx, hpte_r=%016lx\n", hpte_v, hpte_r);
+
+#if 1
+	{
+		int i;
+		for (i=0;i<8;i++) {
+			unsigned long w0, w1;
+			plpar_pte_read(0, hpte_group, &w0, &w1);
+			BUG_ON (HPTE_V_COMPARE(hpte_v, w0)
+				&& (w0 & HPTE_V_VALID));
+		}
+	}
+#endif
 
 	/* Now fill in the actual HPTE */
 	/* Set CEC cookie to 0         */
@@ -299,23 +318,30 @@ long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	/* Exact = 0                   */
 	flags = 0;
 
-	/* XXX why is this here? - Anton */
+	/* Make pHyp happy */
 	if (rflags & (_PAGE_GUARDED|_PAGE_NO_CACHE))
 		hpte_r &= ~_PAGE_COHERENT;
 
 	lpar_rc = plpar_hcall(H_ENTER, flags, hpte_group, hpte_v,
 			      hpte_r, &slot, &dummy0, &dummy1);
-
-	if (unlikely(lpar_rc == H_PTEG_Full))
+	if (unlikely(lpar_rc == H_PTEG_Full)) {
+		if (!(vflags & HPTE_V_BOLTED))
+			DBG_LOW(" full\n");
 		return -1;
+	}
 
 	/*
 	 * Since we try and ioremap PHBs we don't own, the pte insert
 	 * will fail. However we must catch the failure in hash_page
 	 * or we will loop forever, so return -2 in this case.
 	 */
-	if (unlikely(lpar_rc != H_Success))
+	if (unlikely(lpar_rc != H_Success)) {
+		if (!(vflags & HPTE_V_BOLTED))
+			DBG_LOW(" lpar err %d\n", lpar_rc);
 		return -2;
+	}
+	if (!(vflags & HPTE_V_BOLTED))
+		DBG_LOW(" -> slot: %d\n", slot & 7);
 
 	/* Because of iSeries, we have to pass down the secondary
 	 * bucket bit here as well
@@ -340,10 +366,8 @@ static long pSeries_lpar_hpte_remove(unsigned long hpte_group)
 		/* don't remove a bolted entry */
 		lpar_rc = plpar_pte_remove(H_ANDCOND, hpte_group + slot_offset,
 					   (0x1UL << 4), &dummy1, &dummy2);
-
 		if (lpar_rc == H_Success)
 			return i;
-
 		BUG_ON(lpar_rc != H_Not_Found);
 
 		slot_offset++;
@@ -371,20 +395,28 @@ static void pSeries_lpar_hptab_clear(void)
  * We can probably optimize here and assume the high bits of newpp are
  * already zero.  For now I am paranoid.
  */
-static long pSeries_lpar_hpte_updatepp(unsigned long slot, unsigned long newpp,
-				       unsigned long va, int large, int local)
+static long pSeries_lpar_hpte_updatepp(unsigned long slot,
+				       unsigned long newpp,
+				       unsigned long va,
+				       int psize, int local)
 {
 	unsigned long lpar_rc;
 	unsigned long flags = (newpp & 7) | H_AVPN;
-	unsigned long avpn = va >> 23;
+	unsigned long want_v;
 
-	if (large)
-		avpn &= ~0x1UL;
+	want_v = hpte_encode_v(va, psize);
 
-	lpar_rc = plpar_pte_protect(flags, slot, (avpn << 7));
+	DBG_LOW("    update: avpnv=%016lx, hash=%016lx, f=%x, psize: %d ... ",
+		want_v & HPTE_V_AVPN, slot, flags, psize);
 
-	if (lpar_rc == H_Not_Found)
+	lpar_rc = plpar_pte_protect(flags, slot, want_v & HPTE_V_AVPN);
+
+	if (lpar_rc == H_Not_Found) {
+		DBG_LOW("not found !\n");
 		return -1;
+	}
+
+	DBG_LOW("ok\n");
 
 	BUG_ON(lpar_rc != H_Success);
 
@@ -410,21 +442,22 @@ static unsigned long pSeries_lpar_hpte_getword0(unsigned long slot)
 	return dword0;
 }
 
-static long pSeries_lpar_hpte_find(unsigned long vpn)
+static long pSeries_lpar_hpte_find(unsigned long va, int psize)
 {
 	unsigned long hash;
 	unsigned long i, j;
 	long slot;
-	unsigned long hpte_v;
+	unsigned long want_v, hpte_v;
 
-	hash = hpt_hash(vpn, 0);
+	hash = hpt_hash(va, mmu_psize_defs[psize].shift);
+	want_v = hpte_encode_v(va, psize);
 
 	for (j = 0; j < 2; j++) {
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 		for (i = 0; i < HPTES_PER_GROUP; i++) {
 			hpte_v = pSeries_lpar_hpte_getword0(slot);
 
-			if ((HPTE_V_AVPN_VAL(hpte_v) == (vpn >> 11))
+			if (HPTE_V_COMPARE(hpte_v, want_v)
 			    && (hpte_v & HPTE_V_VALID)
 			    && (!!(hpte_v & HPTE_V_SECONDARY) == j)) {
 				/* HPTE matches */
@@ -441,17 +474,15 @@ static long pSeries_lpar_hpte_find(unsigned long vpn)
 } 
 
 static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
-					     unsigned long ea)
+					     unsigned long ea,
+					     int psize)
 {
-	unsigned long lpar_rc;
-	unsigned long vsid, va, vpn, flags;
-	long slot;
+	unsigned long lpar_rc, slot, vsid, va, flags;
 
 	vsid = get_kernel_vsid(ea);
 	va = (vsid << 28) | (ea & 0x0fffffff);
-	vpn = va >> PAGE_SHIFT;
 
-	slot = pSeries_lpar_hpte_find(vpn);
+	slot = pSeries_lpar_hpte_find(va, psize);
 	BUG_ON(slot == -1);
 
 	flags = newpp & 7;
@@ -461,18 +492,18 @@ static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
 }
 
 static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
-					 int large, int local)
+					 int psize, int local)
 {
-	unsigned long avpn = va >> 23;
+	unsigned long want_v;
 	unsigned long lpar_rc;
 	unsigned long dummy1, dummy2;
 
-	if (large)
-		avpn &= ~0x1UL;
+	DBG_LOW("    inval : slot=%lx, va=%016lx, psize: %d, local: %d",
+		slot, va, psize, local);
 
-	lpar_rc = plpar_pte_remove(H_AVPN, slot, (avpn << 7), &dummy1,
-				   &dummy2);
-
+	want_v = hpte_encode_v(va, psize);
+	lpar_rc = plpar_pte_remove(H_AVPN, slot, want_v & HPTE_V_AVPN,
+				   &dummy1, &dummy2);
 	if (lpar_rc == H_Not_Found)
 		return;
 
@@ -494,7 +525,8 @@ void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 		spin_lock_irqsave(&pSeries_lpar_tlbie_lock, flags);
 
 	for (i = 0; i < number; i++)
-		flush_hash_page(batch->vaddr[i], batch->pte[i], local);
+		flush_hash_page(batch->vaddr[i], batch->pte[i],
+				batch->psize, local);
 
 	if (lock_tlbie)
 		spin_unlock_irqrestore(&pSeries_lpar_tlbie_lock, flags);

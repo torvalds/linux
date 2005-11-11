@@ -82,7 +82,7 @@ extern ATTRIB_NORET void cpu_idle(void);
  */
 asmlinkage void start_secondary(void)
 {
-	unsigned int cpu = smp_processor_id();
+	unsigned int cpu;
 
 	cpu_probe();
 	cpu_report();
@@ -95,6 +95,8 @@ asmlinkage void start_secondary(void)
 	 */
 
 	calibrate_delay();
+	preempt_disable();
+	cpu = smp_processor_id();
 	cpu_data[cpu].udelay_val = loops_per_jiffy;
 
 	prom_smp_finish();

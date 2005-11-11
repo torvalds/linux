@@ -1,7 +1,3 @@
-
-menu "Profiling support"
-	depends on EXPERIMENTAL
-
 config PROFILING
 	bool "Profiling support (EXPERIMENTAL)"
 	help
@@ -21,6 +17,4 @@ config OPROFILE
 	  counters.
 
 	  If unsure, say N.
-
-endmenu
 

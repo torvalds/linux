@@ -12,7 +12,7 @@
 #include "base.h"
 
 LIST_HEAD(pnp_cards);
-LIST_HEAD(pnp_card_drivers);
+static LIST_HEAD(pnp_card_drivers);
 
 
 static const struct pnp_card_device_id * match_card(struct pnp_card_driver * drv, struct pnp_card * card)
@@ -374,11 +374,13 @@ void pnp_unregister_card_driver(struct pnp_card_driver * drv)
 	pnp_unregister_driver(&drv->link);
 }
 
+#if 0
 EXPORT_SYMBOL(pnp_add_card);
 EXPORT_SYMBOL(pnp_remove_card);
 EXPORT_SYMBOL(pnp_add_card_device);
 EXPORT_SYMBOL(pnp_remove_card_device);
 EXPORT_SYMBOL(pnp_add_card_id);
+#endif  /*  0  */
 EXPORT_SYMBOL(pnp_request_card_device);
 EXPORT_SYMBOL(pnp_release_card_device);
 EXPORT_SYMBOL(pnp_register_card_driver);
