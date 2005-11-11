@@ -119,10 +119,9 @@ static void hstcp_cong_avoid(struct sock *sk, u32 adk, u32 rtt,
 	if (!tcp_is_cwnd_limited(sk, in_flight))
 		return;
 
-	if (tp->snd_cwnd <= tp->snd_ssthresh) {
-		if (tp->snd_cwnd < tp->snd_cwnd_clamp)
-			tp->snd_cwnd++;
-	} else {
+	if (tp->snd_cwnd <= tp->snd_ssthresh)
+		tcp_slow_start(tp);
+	else {
 		/* Update AIMD parameters */
 		if (tp->snd_cwnd > hstcp_aimd_vals[ca->ai].cwnd) {
 			while (tp->snd_cwnd > hstcp_aimd_vals[ca->ai].cwnd &&

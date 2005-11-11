@@ -765,6 +765,16 @@ static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 			    (tp->snd_cwnd >> 2)));
 }
 
+/*
+ * Linear increase during slow start
+ */
+static inline void tcp_slow_start(struct tcp_sock *tp)
+{
+	if (tp->snd_cwnd < tp->snd_cwnd_clamp)
+		tp->snd_cwnd++;
+}
+
+
 static inline void tcp_sync_left_out(struct tcp_sock *tp)
 {
 	if (tp->rx_opt.sack_ok &&

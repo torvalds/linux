@@ -220,14 +220,12 @@ static void bictcp_cong_avoid(struct sock *sk, u32 ack,
 	if (!tcp_is_cwnd_limited(sk, in_flight))
 		return;
 
-	if (tp->snd_cwnd <= tp->snd_ssthresh) {
-		/* In "safe" area, increase. */
-		if (tp->snd_cwnd < tp->snd_cwnd_clamp)
-			tp->snd_cwnd++;
-	} else {
+	if (tp->snd_cwnd <= tp->snd_ssthresh)
+		tcp_slow_start(tp);
+	else {
 		bictcp_update(ca, tp->snd_cwnd);
 
-                /* In dangerous area, increase slowly.
+		/* In dangerous area, increase slowly.
 		 * In theory this is tp->snd_cwnd += 1 / tp->snd_cwnd
 		 */
 		if (tp->snd_cwnd_cnt >= ca->cnt) {

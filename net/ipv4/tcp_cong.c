@@ -189,12 +189,11 @@ void tcp_reno_cong_avoid(struct sock *sk, u32 ack, u32 rtt, u32 in_flight,
 	if (!tcp_is_cwnd_limited(sk, in_flight))
 		return;
 
-        if (tp->snd_cwnd <= tp->snd_ssthresh) {
-                /* In "safe" area, increase. */
-		if (tp->snd_cwnd < tp->snd_cwnd_clamp)
-			tp->snd_cwnd++;
-	} else {
-                /* In dangerous area, increase slowly.
+	/* In "safe" area, increase. */
+        if (tp->snd_cwnd <= tp->snd_ssthresh)
+		tcp_slow_start(tp);
+	else {
+		/* In dangerous area, increase slowly.
 		 * In theory this is tp->snd_cwnd += 1 / tp->snd_cwnd
 		 */
 		if (tp->snd_cwnd_cnt >= tp->snd_cwnd) {
