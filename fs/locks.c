@@ -1430,7 +1430,7 @@ int fcntl_setlease(unsigned int fd, struct file *filp, long arg)
 	lock_kernel();
 
 	error = __setlease(filp, arg, &flp);
-	if (error)
+	if (error || arg == F_UNLCK)
 		goto out_unlock;
 
 	error = fasync_helper(fd, filp, 1, &flp->fl_fasync);
