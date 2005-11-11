@@ -9,15 +9,7 @@
 
 static inline int cpu_to_node(int cpu)
 {
-	int node;
-
-	node = numa_cpu_lookup_table[cpu];
-
-#ifdef DEBUG_NUMA
-	BUG_ON(node == -1);
-#endif
-
-	return node;
+	return numa_cpu_lookup_table[cpu];
 }
 
 #define parent_node(node)	(node)
