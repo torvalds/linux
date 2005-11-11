@@ -548,10 +548,9 @@ static void tcp_event_data_recv(struct sock *sk, struct tcp_sock *tp, struct sk_
  * To save cycles in the RFC 1323 implementation it was better to break
  * it up into three procedures. -- erics
  */
-static void tcp_rtt_estimator(struct sock *sk, const __u32 mrtt, u32 *usrtt)
+static void tcp_rtt_estimator(struct sock *sk, const __u32 mrtt)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	const struct inet_connection_sock *icsk = inet_csk(sk);
 	long m = mrtt; /* RTT */
 
 	/*	The following amusing code comes from Jacobson's
@@ -610,9 +609,6 @@ static void tcp_rtt_estimator(struct sock *sk, const __u32 mrtt, u32 *usrtt)
 		tp->mdev_max = tp->rttvar = max(tp->mdev, TCP_RTO_MIN);
 		tp->rtt_seq = tp->snd_nxt;
 	}
-
-	if (icsk->icsk_ca_ops->rtt_sample)
-		icsk->icsk_ca_ops->rtt_sample(sk, *usrtt);
 }
 
 /* Calculate rto without backoff.  This is the second half of Van Jacobson's
@@ -1921,7 +1917,7 @@ tcp_fastretrans_alert(struct sock *sk, u32 prior_snd_una,
 /* Read draft-ietf-tcplw-high-performance before mucking
  * with this code. (Superceeds RFC1323)
  */
-static void tcp_ack_saw_tstamp(struct sock *sk, u32 *usrtt, int flag)
+static void tcp_ack_saw_tstamp(struct sock *sk, int flag)
 {
 	/* RTTM Rule: A TSecr value received in a segment is used to
 	 * update the averaged RTT measurement only if the segment
@@ -1940,13 +1936,13 @@ static void tcp_ack_saw_tstamp(struct sock *sk, u32 *usrtt, int flag)
 	 */
 	struct tcp_sock *tp = tcp_sk(sk);
 	const __u32 seq_rtt = tcp_time_stamp - tp->rx_opt.rcv_tsecr;
-	tcp_rtt_estimator(sk, seq_rtt, usrtt);
+	tcp_rtt_estimator(sk, seq_rtt);
 	tcp_set_rto(sk);
 	inet_csk(sk)->icsk_backoff = 0;
 	tcp_bound_rto(sk);
 }
 
-static void tcp_ack_no_tstamp(struct sock *sk, u32 seq_rtt, u32 *usrtt, int flag)
+static void tcp_ack_no_tstamp(struct sock *sk, u32 seq_rtt, int flag)
 {
 	/* We don't have a timestamp. Can only use
 	 * packets that are not retransmitted to determine
@@ -1960,21 +1956,21 @@ static void tcp_ack_no_tstamp(struct sock *sk, u32 seq_rtt, u32 *usrtt, int flag
 	if (flag & FLAG_RETRANS_DATA_ACKED)
 		return;
 
-	tcp_rtt_estimator(sk, seq_rtt, usrtt);
+	tcp_rtt_estimator(sk, seq_rtt);
 	tcp_set_rto(sk);
 	inet_csk(sk)->icsk_backoff = 0;
 	tcp_bound_rto(sk);
 }
 
 static inline void tcp_ack_update_rtt(struct sock *sk, const int flag,
-				      const s32 seq_rtt, u32 *usrtt)
+				      const s32 seq_rtt)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	/* Note that peer MAY send zero echo. In this case it is ignored. (rfc1323) */
 	if (tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr)
-		tcp_ack_saw_tstamp(sk, usrtt, flag);
+		tcp_ack_saw_tstamp(sk, flag);
 	else if (seq_rtt >= 0)
-		tcp_ack_no_tstamp(sk, seq_rtt, usrtt, flag);
+		tcp_ack_no_tstamp(sk, seq_rtt, flag);
 }
 
 static inline void tcp_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
@@ -2054,20 +2050,27 @@ static int tcp_tso_acked(struct sock *sk, struct sk_buff *skb,
 	return acked;
 }
 
+static inline u32 tcp_usrtt(const struct sk_buff *skb)
+{
+	struct timeval tv, now;
+
+	do_gettimeofday(&now);
+	skb_get_timestamp(skb, &tv);
+	return (now.tv_sec - tv.tv_sec) * 1000000 + (now.tv_usec - tv.tv_usec);
+}
 
 /* Remove acknowledged frames from the retransmission queue. */
-static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p, s32 *seq_usrtt)
+static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
+	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct sk_buff *skb;
 	__u32 now = tcp_time_stamp;
 	int acked = 0;
 	__s32 seq_rtt = -1;
-	struct timeval usnow;
 	u32 pkts_acked = 0;
-
-	if (seq_usrtt)
-		do_gettimeofday(&usnow);
+	void (*rtt_sample)(struct sock *sk, u32 usrtt)
+		= icsk->icsk_ca_ops->rtt_sample;
 
 	while ((skb = skb_peek(&sk->sk_write_queue)) &&
 	       skb != sk->sk_send_head) {
@@ -2107,16 +2110,11 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p, s32 *seq_usrtt
 					tp->retrans_out -= tcp_skb_pcount(skb);
 				acked |= FLAG_RETRANS_DATA_ACKED;
 				seq_rtt = -1;
-			} else if (seq_rtt < 0)
+			} else if (seq_rtt < 0) {
 				seq_rtt = now - scb->when;
-			if (seq_usrtt) {
-				struct timeval tv;
-			
-				skb_get_timestamp(skb, &tv);
-				*seq_usrtt = (usnow.tv_sec - tv.tv_sec) * 1000000
-					+ (usnow.tv_usec - tv.tv_usec);
+				if (rtt_sample)
+					(*rtt_sample)(sk, tcp_usrtt(skb));
 			}
-
 			if (sacked & TCPCB_SACKED_ACKED)
 				tp->sacked_out -= tcp_skb_pcount(skb);
 			if (sacked & TCPCB_LOST)
@@ -2126,8 +2124,11 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p, s32 *seq_usrtt
 				    !before(scb->end_seq, tp->snd_up))
 					tp->urg_mode = 0;
 			}
-		} else if (seq_rtt < 0)
+		} else if (seq_rtt < 0) {
 			seq_rtt = now - scb->when;
+			if (rtt_sample)
+				(*rtt_sample)(sk, tcp_usrtt(skb));
+		}
 		tcp_dec_pcount_approx(&tp->fackets_out, skb);
 		tcp_packets_out_dec(tp, skb);
 		__skb_unlink(skb, &sk->sk_write_queue);
@@ -2135,8 +2136,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, __s32 *seq_rtt_p, s32 *seq_usrtt
 	}
 
 	if (acked&FLAG_ACKED) {
-		const struct inet_connection_sock *icsk = inet_csk(sk);
-		tcp_ack_update_rtt(sk, acked, seq_rtt, seq_usrtt);
+		tcp_ack_update_rtt(sk, acked, seq_rtt);
 		tcp_ack_packets_out(sk, tp);
 
 		if (icsk->icsk_ca_ops->pkts_acked)
@@ -2299,7 +2299,6 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	u32 ack = TCP_SKB_CB(skb)->ack_seq;
 	u32 prior_in_flight;
 	s32 seq_rtt;
-	s32 seq_usrtt = 0;
 	int prior_packets;
 
 	/* If the ack is newer than sent or older than previous acks
@@ -2352,8 +2351,7 @@ static int tcp_ack(struct sock *sk, struct sk_buff *skb, int flag)
 	prior_in_flight = tcp_packets_in_flight(tp);
 
 	/* See if we can take anything off of the retransmit queue. */
-	flag |= tcp_clean_rtx_queue(sk, &seq_rtt,
-				    icsk->icsk_ca_ops->rtt_sample ? &seq_usrtt : NULL);
+	flag |= tcp_clean_rtx_queue(sk, &seq_rtt);
 
 	if (tp->frto_counter)
 		tcp_process_frto(sk, prior_snd_una);
@@ -4242,7 +4240,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 				 */
 				if (tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr &&
 				    !tp->srtt)
-					tcp_ack_saw_tstamp(sk, NULL, 0);
+					tcp_ack_saw_tstamp(sk, 0);
 
 				if (tp->rx_opt.tstamp_ok)
 					tp->advmss -= TCPOLEN_TSTAMP_ALIGNED;
