@@ -305,3 +305,54 @@ void machine_kexec(struct kimage *image)
 			ppc_md.hpte_clear_all);
 	/* NOTREACHED */
 }
+
+/* Values we need to export to the second kernel via the device tree. */
+static unsigned long htab_base, htab_size, kernel_end;
+
+static struct property htab_base_prop = {
+	.name = "linux,htab-base",
+	.length = sizeof(unsigned long),
+	.value = (unsigned char *)&htab_base,
+};
+
+static struct property htab_size_prop = {
+	.name = "linux,htab-size",
+	.length = sizeof(unsigned long),
+	.value = (unsigned char *)&htab_size,
+};
+
+static struct property kernel_end_prop = {
+	.name = "linux,kernel-end",
+	.length = sizeof(unsigned long),
+	.value = (unsigned char *)&kernel_end,
+};
+
+static void __init export_htab_values(void)
+{
+	struct device_node *node;
+
+	node = of_find_node_by_path("/chosen");
+	if (!node)
+		return;
+
+	kernel_end = __pa(_end);
+	prom_add_property(node, &kernel_end_prop);
+
+	/* On machines with no htab htab_address is NULL */
+	if (NULL == htab_address)
+		goto out;
+
+	htab_base = __pa(htab_address);
+	prom_add_property(node, &htab_base_prop);
+
+	htab_size = 1UL << ppc64_pft_size;
+	prom_add_property(node, &htab_size_prop);
+
+ out:
+	of_node_put(node);
+}
+
+void __init kexec_setup(void)
+{
+	export_htab_values();
+}
