@@ -1908,40 +1908,40 @@ static struct request *get_request(request_queue_t *q, int rw, struct bio *bio,
 {
 	struct request *rq = NULL;
 	struct request_list *rl = &q->rq;
-	struct io_context *ioc = current_io_context(GFP_ATOMIC);
-	int priv;
+	struct io_context *ioc = NULL;
+	int may_queue, priv;
 
-	if (rl->count[rw]+1 >= q->nr_requests) {
-		/*
-		 * The queue will fill after this allocation, so set it as
-		 * full, and mark this process as "batching". This process
-		 * will be allowed to complete a batch of requests, others
-		 * will be blocked.
-		 */
-		if (!blk_queue_full(q, rw)) {
-			ioc_set_batching(q, ioc);
-			blk_set_queue_full(q, rw);
+	may_queue = elv_may_queue(q, rw, bio);
+	if (may_queue == ELV_MQUEUE_NO)
+		goto rq_starved;
+
+	if (rl->count[rw]+1 >= queue_congestion_on_threshold(q)) {
+		if (rl->count[rw]+1 >= q->nr_requests) {
+			ioc = current_io_context(GFP_ATOMIC);
+			/*
+			 * The queue will fill after this allocation, so set
+			 * it as full, and mark this process as "batching".
+			 * This process will be allowed to complete a batch of
+			 * requests, others will be blocked.
+			 */
+			if (!blk_queue_full(q, rw)) {
+				ioc_set_batching(q, ioc);
+				blk_set_queue_full(q, rw);
+			} else {
+				if (may_queue != ELV_MQUEUE_MUST
+						&& !ioc_batching(q, ioc)) {
+					/*
+					 * The queue is full and the allocating
+					 * process is not a "batcher", and not
+					 * exempted by the IO scheduler
+					 */
+					goto out;
+				}
+			}
 		}
+		set_queue_congested(q, rw);
 	}
 
-	switch (elv_may_queue(q, rw, bio)) {
-		case ELV_MQUEUE_NO:
-			goto rq_starved;
-		case ELV_MQUEUE_MAY:
-			break;
-		case ELV_MQUEUE_MUST:
-			goto get_rq;
-	}
-
-	if (blk_queue_full(q, rw) && !ioc_batching(q, ioc)) {
-		/*
-		 * The queue is full and the allocating process is not a
-		 * "batcher", and not exempted by the IO scheduler
-		 */
-		goto out;
-	}
-
-get_rq:
 	/*
 	 * Only allow batching queuers to allocate up to 50% over the defined
 	 * limit of requests, otherwise we could have thousands of requests
@@ -1952,8 +1952,6 @@ get_rq:
 
 	rl->count[rw]++;
 	rl->starved[rw] = 0;
-	if (rl->count[rw] >= queue_congestion_on_threshold(q))
-		set_queue_congested(q, rw);
 
 	priv = !test_bit(QUEUE_FLAG_ELVSWITCH, &q->queue_flags);
 	if (priv)
@@ -1962,7 +1960,7 @@ get_rq:
 	spin_unlock_irq(q->queue_lock);
 
 	rq = blk_alloc_request(q, rw, bio, priv, gfp_mask);
-	if (!rq) {
+	if (unlikely(!rq)) {
 		/*
 		 * Allocation failed presumably due to memory. Undo anything
 		 * we might have messed up.
@@ -1987,6 +1985,12 @@ rq_starved:
 		goto out;
 	}
 
+	/*
+	 * ioc may be NULL here, and ioc_batching will be false. That's
+	 * OK, if the queue is under the request limit then requests need
+	 * not count toward the nr_batch_requests limit. There will always
+	 * be some limit enforced by BLK_BATCH_TIME.
+	 */
 	if (ioc_batching(q, ioc))
 		ioc->nr_batch_requests--;
 	
