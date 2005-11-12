@@ -1222,9 +1222,6 @@ struct sctp_endpoint {
 	int last_key;
 	int key_changed_at;
 
-	/* Default timeouts.  */
-	int timeouts[SCTP_NUM_TIMEOUT_TYPES];
-
 	/* sendbuf acct. policy.	*/
 	__u32 sndbuf_policy;
 };

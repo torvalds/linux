@@ -128,9 +128,29 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 */
 	asoc->max_burst = sctp_max_burst;
 
-	/* Copy things from the endpoint.  */
+	/* initialize association timers */
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_NONE] = 0;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] = asoc->rto_initial;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] = asoc->rto_initial;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T2_SHUTDOWN] = asoc->rto_initial;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T3_RTX] = 0;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_T4_RTO] = 0;
+
+	/* sctpimpguide Section 2.12.2
+	 * If the 'T5-shutdown-guard' timer is used, it SHOULD be set to the
+	 * recommended value of 5 times 'RTO.Max'.
+	 */
+        asoc->timeouts[SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD]
+		= 5 * asoc->rto_max;
+
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_HEARTBEAT] = 0;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_SACK] =
+		SCTP_DEFAULT_TIMEOUT_SACK;
+	asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] =
+		sp->autoclose * HZ;
+	
+	/* Initilizes the timers */
 	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i) {
-		asoc->timeouts[i] = ep->timeouts[i];
 		init_timer(&asoc->timers[i]);
 		asoc->timers[i].function = sctp_timer_events[i];
 		asoc->timers[i].data = (unsigned long) asoc;
