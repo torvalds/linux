@@ -871,7 +871,7 @@ by playing with the --adjust-vma parameter to objdump.
 
 
 
-extern inline void spin_lock(spinlock_t *lp)
+static inline void spin_lock(spinlock_t *lp)
 {
       a0:       18 34           lr      %r3,%r4
       a2:       a7 3a 03 bc     ahi     %r3,956

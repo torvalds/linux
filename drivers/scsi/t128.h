@@ -95,7 +95,7 @@
 static int t128_abort(Scsi_Cmnd *);
 static int t128_biosparam(struct scsi_device *, struct block_device *,
 			  sector_t, int*);
-static int t128_detect(Scsi_Host_Template *);
+static int t128_detect(struct scsi_host_template *);
 static int t128_queue_command(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));
 static int t128_bus_reset(Scsi_Cmnd *);
 

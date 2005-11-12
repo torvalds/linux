@@ -48,9 +48,6 @@
 #include <asm/machdep.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/pci-bridge.h>
-#ifdef CONFIG_PPC64
-#include <asm/systemcfg.h>
-#endif
 
 #ifdef DEBUG
 #define DBG(fmt...) printk(KERN_ERR fmt)
@@ -73,10 +70,6 @@ struct isa_reg_property {
 
 typedef int interpret_func(struct device_node *, unsigned long *,
 			   int, int, int);
-
-extern struct rtas_t rtas;
-extern struct lmb lmb;
-extern unsigned long klimit;
 
 static int __initdata dt_root_addr_cells;
 static int __initdata dt_root_size_cells;
@@ -391,7 +384,7 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 
 #ifdef CONFIG_PPC64
 		/* We offset irq numbers for the u3 MPIC by 128 in PowerMac */
-		if (systemcfg->platform == PLATFORM_POWERMAC && ic && ic->parent) {
+		if (_machine == PLATFORM_POWERMAC && ic && ic->parent) {
 			char *name = get_property(ic->parent, "name", NULL);
 			if (name && !strcmp(name, "u3"))
 				np->intrs[intrcount].line += 128;
@@ -1087,9 +1080,9 @@ void __init unflatten_device_tree(void)
 static int __init early_init_dt_scan_cpus(unsigned long node,
 					  const char *uname, int depth, void *data)
 {
-	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
 	u32 *prop;
-	unsigned long size = 0;
+	unsigned long size;
+	char *type = of_get_flat_dt_prop(node, "device_type", &size);
 
 	/* We are scanning "cpu" nodes only */
 	if (type == NULL || strcmp(type, "cpu") != 0)
@@ -1115,7 +1108,7 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 
 #ifdef CONFIG_ALTIVEC
 	/* Check if we have a VMX and eventually update CPU features */
-	prop = (u32 *)of_get_flat_dt_prop(node, "ibm,vmx", &size);
+	prop = (u32 *)of_get_flat_dt_prop(node, "ibm,vmx", NULL);
 	if (prop && (*prop) > 0) {
 		cur_cpu_spec->cpu_features |= CPU_FTR_ALTIVEC;
 		cur_cpu_spec->cpu_user_features |= PPC_FEATURE_HAS_ALTIVEC;
@@ -1161,12 +1154,8 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 	prop = (u32 *)of_get_flat_dt_prop(node, "linux,platform", NULL);
 	if (prop == NULL)
 		return 0;
-#ifdef CONFIG_PPC64
-	systemcfg->platform = *prop;
-#else
 #ifdef CONFIG_PPC_MULTIPLATFORM
 	_machine = *prop;
-#endif
 #endif
 
 #ifdef CONFIG_PPC64
@@ -1264,7 +1253,14 @@ static int __init early_init_dt_scan_memory(unsigned long node,
 	unsigned long l;
 
 	/* We are scanning "memory" nodes only */
-	if (type == NULL || strcmp(type, "memory") != 0)
+	if (type == NULL) {
+		/*
+		 * The longtrail doesn't have a device_type on the
+		 * /memory node, so look for the node called /memory@0.
+		 */
+		if (depth != 1 || strcmp(uname, "memory@0") != 0)
+			return 0;
+	} else if (strcmp(type, "memory") != 0)
 		return 0;
 
 	reg = (cell_t *)of_get_flat_dt_prop(node, "reg", &l);
@@ -1339,9 +1335,6 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 	lmb_enforce_memory_limit(memory_limit);
 	lmb_analyze();
-#ifdef CONFIG_PPC64
-	systemcfg->physicalMemorySize = lmb_phys_mem_size();
-#endif
 	lmb_reserve(0, __pa(klimit));
 
 	DBG("Phys. mem: %lx\n", lmb_phys_mem_size());
@@ -1908,7 +1901,7 @@ static int of_finish_dynamic_node(struct device_node *node,
 	/* We don't support that function on PowerMac, at least
 	 * not yet
 	 */
-	if (systemcfg->platform == PLATFORM_POWERMAC)
+	if (_machine == PLATFORM_POWERMAC)
 		return -ENODEV;
 
 	/* fix up new node's linux_phandle field */
@@ -1992,9 +1985,11 @@ int prom_add_property(struct device_node* np, struct property* prop)
 	*next = prop;
 	write_unlock(&devtree_lock);
 
+#ifdef CONFIG_PROC_DEVICETREE
 	/* try to add to proc as well if it was initialized */
 	if (np->pde)
 		proc_device_tree_add_prop(np->pde, prop);
+#endif /* CONFIG_PROC_DEVICETREE */
 
 	return 0;
 }

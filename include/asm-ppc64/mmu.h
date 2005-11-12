@@ -14,7 +14,7 @@
 #define _PPC64_MMU_H_
 
 #include <linux/config.h>
-#include <asm/ppc_asm.h> /* for ASM_CONST */
+#include <asm/asm-compat.h>
 #include <asm/page.h>
 
 /*
@@ -224,9 +224,12 @@ extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 			     unsigned long pstart, unsigned long mode,
 			     int psize);
 
+extern void htab_initialize(void);
+extern void htab_initialize_secondary(void);
 extern void hpte_init_native(void);
 extern void hpte_init_lpar(void);
 extern void hpte_init_iSeries(void);
+extern void mm_init_ppc64(void);
 
 extern long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 				     unsigned long va, unsigned long prpn,
@@ -245,6 +248,7 @@ extern long iSeries_hpte_insert(unsigned long hpte_group,
 
 extern void stabs_alloc(void);
 extern void slb_initialize(void);
+extern void stab_initialize(unsigned long stab);
 
 #endif /* __ASSEMBLY__ */
 

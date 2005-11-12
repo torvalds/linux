@@ -7,12 +7,10 @@ Supported adapters:
   * VIA Technologies, Inc. VT82C686A/B
     Datasheet: Sometimes available at the VIA website
 
-  * VIA Technologies, Inc. VT8231, VT8233, VT8233A, VT8235, VT8237
-    Datasheet: available on request from Via
+  * VIA Technologies, Inc. VT8231, VT8233, VT8233A, VT8235, VT8237R
+    Datasheet: available on request from VIA
 
 Authors:
-	Frodo Looijaard <frodol@dds.nl>,
-	Philip Edelbrock <phil@netroedge.com>,
 	Kyösti Mälkki <kmalkki@cc.hut.fi>,
 	Mark D. Studebaker <mdsxyz123@yahoo.com>,
 	Jean Delvare <khali@linux-fr.org>

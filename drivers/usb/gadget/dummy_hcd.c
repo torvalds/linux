@@ -49,7 +49,6 @@
 #include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
-#include <linux/version.h>
 #include <linux/platform_device.h>
 #include <linux/usb.h>
 #include <linux/usb_gadget.h>
@@ -897,7 +896,7 @@ dummy_gadget_release (struct device *dev)
 #endif
 }
 
-static int dummy_udc_probe (struct device *dev)
+static int dummy_udc_probe (struct platform_device *dev)
 {
 	struct dummy	*dum = the_controller;
 	int		rc;
@@ -910,7 +909,7 @@ static int dummy_udc_probe (struct device *dev)
 	dum->gadget.is_otg = (dummy_to_hcd(dum)->self.otg_port != 0);
 
 	strcpy (dum->gadget.dev.bus_id, "gadget");
-	dum->gadget.dev.parent = dev;
+	dum->gadget.dev.parent = &dev->dev;
 	dum->gadget.dev.release = dummy_gadget_release;
 	rc = device_register (&dum->gadget.dev);
 	if (rc < 0)
@@ -920,26 +919,26 @@ static int dummy_udc_probe (struct device *dev)
 	usb_bus_get (&dummy_to_hcd (dum)->self);
 #endif
 
-	dev_set_drvdata (dev, dum);
+	platform_set_drvdata (dev, dum);
 	device_create_file (&dum->gadget.dev, &dev_attr_function);
 	return rc;
 }
 
-static int dummy_udc_remove (struct device *dev)
+static int dummy_udc_remove (struct platform_device *dev)
 {
-	struct dummy	*dum = dev_get_drvdata (dev);
+	struct dummy	*dum = platform_get_drvdata (dev);
 
-	dev_set_drvdata (dev, NULL);
+	platform_set_drvdata (dev, NULL);
 	device_remove_file (&dum->gadget.dev, &dev_attr_function);
 	device_unregister (&dum->gadget.dev);
 	return 0;
 }
 
-static int dummy_udc_suspend (struct device *dev, pm_message_t state)
+static int dummy_udc_suspend (struct platform_device *dev, pm_message_t state)
 {
-	struct dummy	*dum = dev_get_drvdata(dev);
+	struct dummy	*dum = platform_get_drvdata(dev);
 
-	dev_dbg (dev, "%s\n", __FUNCTION__);
+	dev_dbg (&dev->dev, "%s\n", __FUNCTION__);
 	spin_lock_irq (&dum->lock);
 	dum->udc_suspended = 1;
 	set_link_state (dum);
@@ -950,29 +949,30 @@ static int dummy_udc_suspend (struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int dummy_udc_resume (struct device *dev)
+static int dummy_udc_resume (struct platform_device *dev)
 {
-	struct dummy	*dum = dev_get_drvdata(dev);
+	struct dummy	*dum = platform_get_drvdata(dev);
 
-	dev_dbg (dev, "%s\n", __FUNCTION__);
+	dev_dbg (&dev->dev, "%s\n", __FUNCTION__);
 	spin_lock_irq (&dum->lock);
 	dum->udc_suspended = 0;
 	set_link_state (dum);
 	spin_unlock_irq (&dum->lock);
 
-	dev->power.power_state = PMSG_ON;
+	dev->dev.power.power_state = PMSG_ON;
 	usb_hcd_poll_rh_status (dummy_to_hcd (dum));
 	return 0;
 }
 
-static struct device_driver dummy_udc_driver = {
-	.name		= (char *) gadget_name,
-	.owner		= THIS_MODULE,
-	.bus		= &platform_bus_type,
+static struct platform_driver dummy_udc_driver = {
 	.probe		= dummy_udc_probe,
 	.remove		= dummy_udc_remove,
 	.suspend	= dummy_udc_suspend,
 	.resume		= dummy_udc_resume,
+	.driver		= {
+		.name	= (char *) gadget_name,
+		.owner	= THIS_MODULE,
+	},
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1899,14 +1899,14 @@ static const struct hc_driver dummy_hcd = {
 	.bus_resume =		dummy_bus_resume,
 };
 
-static int dummy_hcd_probe (struct device *dev)
+static int dummy_hcd_probe (struct platform_device *dev)
 {
 	struct usb_hcd		*hcd;
 	int			retval;
 
 	dev_info (dev, "%s, driver " DRIVER_VERSION "\n", driver_desc);
 
-	hcd = usb_create_hcd (&dummy_hcd, dev, dev->bus_id);
+	hcd = usb_create_hcd (&dummy_hcd, &dev->dev, dev->dev.bus_id);
 	if (!hcd)
 		return -ENOMEM;
 	the_controller = hcd_to_dummy (hcd);
@@ -1919,48 +1919,49 @@ static int dummy_hcd_probe (struct device *dev)
 	return retval;
 }
 
-static int dummy_hcd_remove (struct device *dev)
+static int dummy_hcd_remove (struct platform_device *dev)
 {
 	struct usb_hcd		*hcd;
 
-	hcd = dev_get_drvdata (dev);
+	hcd = platform_get_drvdata (dev);
 	usb_remove_hcd (hcd);
 	usb_put_hcd (hcd);
 	the_controller = NULL;
 	return 0;
 }
 
-static int dummy_hcd_suspend (struct device *dev, pm_message_t state)
+static int dummy_hcd_suspend (struct platform_device *dev, pm_message_t state)
 {
 	struct usb_hcd		*hcd;
 
-	dev_dbg (dev, "%s\n", __FUNCTION__);
-	hcd = dev_get_drvdata (dev);
+	dev_dbg (&dev->dev, "%s\n", __FUNCTION__);
+	hcd = platform_get_drvdata (dev);
 
 	hcd->state = HC_STATE_SUSPENDED;
 	return 0;
 }
 
-static int dummy_hcd_resume (struct device *dev)
+static int dummy_hcd_resume (struct platform_device *dev)
 {
 	struct usb_hcd		*hcd;
 
-	dev_dbg (dev, "%s\n", __FUNCTION__);
-	hcd = dev_get_drvdata (dev);
+	dev_dbg (&dev->dev, "%s\n", __FUNCTION__);
+	hcd = platform_get_drvdata (dev);
 	hcd->state = HC_STATE_RUNNING;
 
 	usb_hcd_poll_rh_status (hcd);
 	return 0;
 }
 
-static struct device_driver dummy_hcd_driver = {
-	.name		= (char *) driver_name,
-	.owner		= THIS_MODULE,
-	.bus		= &platform_bus_type,
+static struct platform_driver dummy_hcd_driver = {
 	.probe		= dummy_hcd_probe,
 	.remove		= dummy_hcd_remove,
 	.suspend	= dummy_hcd_suspend,
 	.resume		= dummy_hcd_resume,
+	.driver		= {
+		.name	= (char *) driver_name,
+		.owner	= THIS_MODULE,
+	},
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1996,11 +1997,11 @@ static int __init init (void)
 	if (usb_disabled ())
 		return -ENODEV;
 
-	retval = driver_register (&dummy_hcd_driver);
+	retval = platform_driver_register (&dummy_hcd_driver);
 	if (retval < 0)
 		return retval;
 
-	retval = driver_register (&dummy_udc_driver);
+	retval = platform_driver_register (&dummy_udc_driver);
 	if (retval < 0)
 		goto err_register_udc_driver;
 
@@ -2016,9 +2017,9 @@ static int __init init (void)
 err_register_udc:
 	platform_device_unregister (&the_hcd_pdev);
 err_register_hcd:
-	driver_unregister (&dummy_udc_driver);
+	platform_driver_unregister (&dummy_udc_driver);
 err_register_udc_driver:
-	driver_unregister (&dummy_hcd_driver);
+	platform_driver_unregister (&dummy_hcd_driver);
 	return retval;
 }
 module_init (init);
@@ -2027,7 +2028,7 @@ static void __exit cleanup (void)
 {
 	platform_device_unregister (&the_udc_pdev);
 	platform_device_unregister (&the_hcd_pdev);
-	driver_unregister (&dummy_udc_driver);
-	driver_unregister (&dummy_hcd_driver);
+	platform_driver_unregister (&dummy_udc_driver);
+	platform_driver_unregister (&dummy_hcd_driver);
 }
 module_exit (cleanup);

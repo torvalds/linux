@@ -62,8 +62,8 @@
 #include <asm/irq.h>
 #include <asm/div64.h>
 #include <asm/smp.h>
+#include <asm/vdso_datapage.h>
 #ifdef CONFIG_PPC64
-#include <asm/systemcfg.h>
 #include <asm/firmware.h>
 #endif
 #ifdef CONFIG_PPC_ISERIES
@@ -261,7 +261,6 @@ static inline void update_gtod(u64 new_tb_stamp, u64 new_stamp_xsec,
 	do_gtod.varp = temp_varp;
 	do_gtod.var_idx = temp_idx;
 
-#ifdef CONFIG_PPC64
 	/*
 	 * tb_update_count is used to allow the userspace gettimeofday code
 	 * to assure itself that it sees a consistent view of the tb_to_xs and
@@ -271,14 +270,15 @@ static inline void update_gtod(u64 new_tb_stamp, u64 new_stamp_xsec,
 	 * tb_to_xs and stamp_xsec values are consistent.  If not, then it
 	 * loops back and reads them again until this criteria is met.
 	 */
-	++(systemcfg->tb_update_count);
+	++(vdso_data->tb_update_count);
 	smp_wmb();
-	systemcfg->tb_orig_stamp = new_tb_stamp;
-	systemcfg->stamp_xsec = new_stamp_xsec;
-	systemcfg->tb_to_xs = new_tb_to_xs;
+	vdso_data->tb_orig_stamp = new_tb_stamp;
+	vdso_data->stamp_xsec = new_stamp_xsec;
+	vdso_data->tb_to_xs = new_tb_to_xs;
+	vdso_data->wtom_clock_sec = wall_to_monotonic.tv_sec;
+	vdso_data->wtom_clock_nsec = wall_to_monotonic.tv_nsec;
 	smp_wmb();
-	++(systemcfg->tb_update_count);
-#endif
+	++(vdso_data->tb_update_count);
 }
 
 /*
@@ -357,8 +357,8 @@ static void iSeries_tb_recal(void)
 				do_gtod.tb_ticks_per_sec = tb_ticks_per_sec;
 				tb_to_xs = divres.result_low;
 				do_gtod.varp->tb_to_xs = tb_to_xs;
-				systemcfg->tb_ticks_per_sec = tb_ticks_per_sec;
-				systemcfg->tb_to_xs = tb_to_xs;
+				vdso_data->tb_ticks_per_sec = tb_ticks_per_sec;
+				vdso_data->tb_to_xs = tb_to_xs;
 			}
 			else {
 				printk( "Titan recalibrate: FAILED (difference > 4 percent)\n"
@@ -483,6 +483,8 @@ void __init smp_space_timers(unsigned int max_cpus)
 	unsigned long offset = tb_ticks_per_jiffy / max_cpus;
 	unsigned long previous_tb = per_cpu(last_jiffy, boot_cpuid);
 
+	/* make sure tb > per_cpu(last_jiffy, cpu) for all cpus always */
+	previous_tb -= tb_ticks_per_jiffy;
 	for_each_cpu(i) {
 		if (i != boot_cpuid) {
 			previous_tb += offset;
@@ -558,10 +560,8 @@ int do_settimeofday(struct timespec *tv)
 	new_xsec += (u64)new_sec * XSEC_PER_SEC - tb_delta_xs;
 	update_gtod(tb_last_jiffy, new_xsec, do_gtod.varp->tb_to_xs);
 
-#ifdef CONFIG_PPC64
-	systemcfg->tz_minuteswest = sys_tz.tz_minuteswest;
-	systemcfg->tz_dsttime = sys_tz.tz_dsttime;
-#endif
+	vdso_data->tz_minuteswest = sys_tz.tz_minuteswest;
+	vdso_data->tz_dsttime = sys_tz.tz_dsttime;
 
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 	clock_was_set();
@@ -710,13 +710,12 @@ void __init time_init(void)
 	do_gtod.tb_ticks_per_sec = tb_ticks_per_sec;
 	do_gtod.varp->tb_to_xs = tb_to_xs;
 	do_gtod.tb_to_us = tb_to_us;
-#ifdef CONFIG_PPC64
-	systemcfg->tb_orig_stamp = tb_last_jiffy;
-	systemcfg->tb_update_count = 0;
-	systemcfg->tb_ticks_per_sec = tb_ticks_per_sec;
-	systemcfg->stamp_xsec = xtime.tv_sec * XSEC_PER_SEC;
-	systemcfg->tb_to_xs = tb_to_xs;
-#endif
+
+	vdso_data->tb_orig_stamp = tb_last_jiffy;
+	vdso_data->tb_update_count = 0;
+	vdso_data->tb_ticks_per_sec = tb_ticks_per_sec;
+	vdso_data->stamp_xsec = xtime.tv_sec * XSEC_PER_SEC;
+	vdso_data->tb_to_xs = tb_to_xs;
 
 	time_freq = 0;
 

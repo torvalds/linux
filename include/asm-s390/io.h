@@ -24,7 +24,7 @@
  * Change virtual addresses to physical addresses and vv.
  * These are pretty trivial
  */
-extern inline unsigned long virt_to_phys(volatile void * address)
+static inline unsigned long virt_to_phys(volatile void * address)
 {
 	unsigned long real_address;
 	__asm__ (
@@ -42,7 +42,7 @@ extern inline unsigned long virt_to_phys(volatile void * address)
         return real_address;
 }
 
-extern inline void * phys_to_virt(unsigned long address)
+static inline void * phys_to_virt(unsigned long address)
 {
         return __io_virt(address);
 }
@@ -54,7 +54,7 @@ extern inline void * phys_to_virt(unsigned long address)
 
 extern void * __ioremap(unsigned long offset, unsigned long size, unsigned long flags);
 
-extern inline void * ioremap (unsigned long offset, unsigned long size)
+static inline void * ioremap (unsigned long offset, unsigned long size)
 {
         return __ioremap(offset, size, 0);
 }
@@ -64,7 +64,7 @@ extern inline void * ioremap (unsigned long offset, unsigned long size)
  * it's useful if some control registers are in such an area and write combining
  * or read caching is not desirable:
  */
-extern inline void * ioremap_nocache (unsigned long offset, unsigned long size)
+static inline void * ioremap_nocache (unsigned long offset, unsigned long size)
 {
         return __ioremap(offset, size, 0);
 }

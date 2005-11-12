@@ -1022,6 +1022,7 @@ int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 					continue;
 			}
 
+#ifdef CONFIG_IPV6_PRIVACY
 			/* Rule 7: Prefer public address
 			 * Note: prefer temprary address if use_tempaddr >= 2
 			 */
@@ -1042,7 +1043,7 @@ int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 				if (hiscore.attrs & IPV6_SADDR_SCORE_PRIVACY)
 					continue;
 			}
-
+#endif
 			/* Rule 8: Use longest matching prefix */
 			if (hiscore.rule < 8)
 				hiscore.matchlen = ipv6_addr_diff(&ifa_result->addr, daddr);

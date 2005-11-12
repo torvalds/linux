@@ -369,6 +369,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	/* Put this code here so that we avoid duplicating it in all
 	 * Rx paths. - Jean II */
 #ifdef IW_WIRELESS_SPY		/* defined in iw_handler.h */
+#ifdef CONFIG_NET_RADIO
 	/* If spy monitoring on */
 	if (ieee->spy_data.spy_number > 0) {
 		struct iw_quality wstats;
@@ -395,6 +396,7 @@ int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		/* Update spy records */
 		wireless_spy_update(ieee->dev, hdr->addr2, &wstats);
 	}
+#endif				/* CONFIG_NET_RADIO */
 #endif				/* IW_WIRELESS_SPY */
 
 #ifdef NOT_YET

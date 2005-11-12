@@ -511,13 +511,10 @@ static void pkt_queue_bio(struct pktcdvd_device *pd, struct bio *bio)
  */
 static void pkt_iosched_process_queue(struct pktcdvd_device *pd)
 {
-	request_queue_t *q;
 
 	if (atomic_read(&pd->iosched.attention) == 0)
 		return;
 	atomic_set(&pd->iosched.attention, 0);
-
-	q = bdev_get_queue(pd->bdev);
 
 	for (;;) {
 		struct bio *bio;

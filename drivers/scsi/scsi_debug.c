@@ -48,10 +48,6 @@
 
 #include <linux/stat.h>
 
-#ifndef LINUX_VERSION_CODE
-#include <linux/version.h>
-#endif
-
 #include "scsi_logging.h"
 #include "scsi_debug.h"
 
@@ -182,7 +178,7 @@ struct sdebug_queued_cmd {
 };
 static struct sdebug_queued_cmd queued_arr[SCSI_DEBUG_CANQUEUE];
 
-static Scsi_Host_Template sdebug_driver_template = {
+static struct scsi_host_template sdebug_driver_template = {
 	.proc_info =		scsi_debug_proc_info,
 	.name =			"SCSI DEBUG",
 	.info =			scsi_debug_info,

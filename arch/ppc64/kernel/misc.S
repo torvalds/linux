@@ -78,12 +78,12 @@ _GLOBAL(call_do_softirq)
 	mtlr	r0
 	blr
 
-_GLOBAL(call_handle_IRQ_event)
+_GLOBAL(call___do_IRQ)
 	mflr	r0
 	std	r0,16(r1)
-	stdu	r1,THREAD_SIZE-112(r6)
-	mr	r1,r6
-	bl	.handle_IRQ_event
+	stdu	r1,THREAD_SIZE-112(r5)
+	mr	r1,r5
+	bl	.__do_IRQ
 	ld	r1,0(r1)
 	ld	r0,16(r1)
 	mtlr	r0
@@ -186,7 +186,8 @@ _KPROBE(__flush_icache_range)
 	bdnz	2b
 	isync
 	blr
-	.previous .text
+
+	.text
 /*
  * Like above, but only do the D-cache.
  *

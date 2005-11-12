@@ -461,6 +461,7 @@ setup_arch (char **cmdline_p)
 #endif
 
 	cpu_init();	/* initialize the bootstrap CPU */
+	mmu_context_init();	/* initialize context_id bitmap */
 
 #ifdef CONFIG_ACPI
 	acpi_boot_init();

@@ -55,7 +55,6 @@
 #include <linux/timex.h>
 #include <linux/sched.h>
 #include <linux/ethtool.h>
-#include <linux/version.h>
 #include <linux/workqueue.h>
 #include <linux/if_vlan.h>
 
@@ -1532,7 +1531,7 @@ static int init_nic(struct s2io_nic *nic)
 #define LINK_UP_DOWN_INTERRUPT		1
 #define MAC_RMAC_ERR_TIMER		2
 
-int s2io_link_fault_indication(nic_t *nic)
+static int s2io_link_fault_indication(nic_t *nic)
 {
 	if (nic->intr_type != INTA)
 		return MAC_RMAC_ERR_TIMER;
@@ -1864,7 +1863,7 @@ static int verify_xena_quiescence(nic_t *sp, u64 val64, int flag)
  *
  */
 
-void fix_mac_address(nic_t * sp)
+static void fix_mac_address(nic_t * sp)
 {
 	XENA_dev_config_t __iomem *bar0 = sp->bar0;
 	u64 val64;
@@ -2160,7 +2159,7 @@ int fill_rxd_3buf(nic_t *nic, RxD_t *rxdp, struct sk_buff *skb)
  *  SUCCESS on success or an appropriate -ve value on failure.
  */
 
-int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
+static int fill_rx_buffers(struct s2io_nic *nic, int ring_no)
 {
 	struct net_device *dev = nic->dev;
 	struct sk_buff *skb;
@@ -2831,7 +2830,7 @@ static void alarm_intr_handler(struct s2io_nic *nic)
  *   SUCCESS on success and FAILURE on failure.
  */
 
-int wait_for_cmd_complete(nic_t * sp)
+static int wait_for_cmd_complete(nic_t * sp)
 {
 	XENA_dev_config_t __iomem *bar0 = sp->bar0;
 	int ret = FAILURE, cnt = 0;
@@ -3077,7 +3076,7 @@ int s2io_set_swapper(nic_t * sp)
 	return SUCCESS;
 }
 
-int wait_for_msix_trans(nic_t *nic, int i)
+static int wait_for_msix_trans(nic_t *nic, int i)
 {
 	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
 	u64 val64;
@@ -3116,7 +3115,7 @@ void restore_xmsi_data(nic_t *nic)
 	}
 }
 
-void store_xmsi_data(nic_t *nic)
+static void store_xmsi_data(nic_t *nic)
 {
 	XENA_dev_config_t *bar0 = (XENA_dev_config_t *) nic->bar0;
 	u64 val64, addr, data;
@@ -3288,7 +3287,7 @@ int s2io_enable_msi_x(nic_t *nic)
  *   file on failure.
  */
 
-int s2io_open(struct net_device *dev)
+static int s2io_open(struct net_device *dev)
 {
 	nic_t *sp = dev->priv;
 	int err = 0;
@@ -3418,7 +3417,7 @@ hw_init_failed:
  *  file on failure.
  */
 
-int s2io_close(struct net_device *dev)
+static int s2io_close(struct net_device *dev)
 {
 	nic_t *sp = dev->priv;
 	int i;
@@ -3467,7 +3466,7 @@ int s2io_close(struct net_device *dev)
  *  0 on success & 1 on failure.
  */
 
-int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
+static int s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	nic_t *sp = dev->priv;
 	u16 frg_cnt, frg_len, i, queue, queue_len, put_off, get_off;
@@ -3913,7 +3912,7 @@ static void s2io_updt_stats(nic_t *sp)
  *  pointer to the updated net_device_stats structure.
  */
 
-struct net_device_stats *s2io_get_stats(struct net_device *dev)
+static struct net_device_stats *s2io_get_stats(struct net_device *dev)
 {
 	nic_t *sp = dev->priv;
 	mac_info_t *mac_control;
@@ -5106,19 +5105,20 @@ static void s2io_get_ethtool_stats(struct net_device *dev,
 	tmp_stats[i++] = stat_info->sw_stat.double_ecc_errs;
 }
 
-int s2io_ethtool_get_regs_len(struct net_device *dev)
+static int s2io_ethtool_get_regs_len(struct net_device *dev)
 {
 	return (XENA_REG_SPACE);
 }
 
 
-u32 s2io_ethtool_get_rx_csum(struct net_device * dev)
+static u32 s2io_ethtool_get_rx_csum(struct net_device * dev)
 {
 	nic_t *sp = dev->priv;
 
 	return (sp->rx_csum);
 }
-int s2io_ethtool_set_rx_csum(struct net_device *dev, u32 data)
+
+static int s2io_ethtool_set_rx_csum(struct net_device *dev, u32 data)
 {
 	nic_t *sp = dev->priv;
 
@@ -5129,17 +5129,19 @@ int s2io_ethtool_set_rx_csum(struct net_device *dev, u32 data)
 
 	return 0;
 }
-int s2io_get_eeprom_len(struct net_device *dev)
+
+static int s2io_get_eeprom_len(struct net_device *dev)
 {
 	return (XENA_EEPROM_SPACE);
 }
 
-int s2io_ethtool_self_test_count(struct net_device *dev)
+static int s2io_ethtool_self_test_count(struct net_device *dev)
 {
 	return (S2IO_TEST_LEN);
 }
-void s2io_ethtool_get_strings(struct net_device *dev,
-			      u32 stringset, u8 * data)
+
+static void s2io_ethtool_get_strings(struct net_device *dev,
+				     u32 stringset, u8 * data)
 {
 	switch (stringset) {
 	case ETH_SS_TEST:
@@ -5155,7 +5157,7 @@ static int s2io_ethtool_get_stats_count(struct net_device *dev)
 	return (S2IO_STAT_LEN);
 }
 
-int s2io_ethtool_op_set_tx_csum(struct net_device *dev, u32 data)
+static int s2io_ethtool_op_set_tx_csum(struct net_device *dev, u32 data)
 {
 	if (data)
 		dev->features |= NETIF_F_IP_CSUM;
@@ -5208,7 +5210,7 @@ static struct ethtool_ops netdev_ethtool_ops = {
  *  function always return EOPNOTSUPPORTED
  */
 
-int s2io_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+static int s2io_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	return -EOPNOTSUPP;
 }
@@ -5224,7 +5226,7 @@ int s2io_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
  *   file on failure.
  */
 
-int s2io_change_mtu(struct net_device *dev, int new_mtu)
+static int s2io_change_mtu(struct net_device *dev, int new_mtu)
 {
 	nic_t *sp = dev->priv;
 

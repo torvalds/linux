@@ -43,11 +43,9 @@ static struct dvb_usb_rc_key a800_rc_keys[] = {
 	{ 0x02, 0x13, KEY_RIGHT },       /* R / CH RTN */
 	{ 0x02, 0x17, KEY_PROG2 },       /* SNAP SHOT */
 	{ 0x02, 0x10, KEY_PROG3 },       /* 16-CH PREV */
-	{ 0x02, 0x03, KEY_CHANNELUP },   /* CH UP */
 	{ 0x02, 0x1e, KEY_VOLUMEDOWN },  /* VOL DOWN */
 	{ 0x02, 0x0c, KEY_ZOOM },        /* FULL SCREEN */
 	{ 0x02, 0x1f, KEY_VOLUMEUP },    /* VOL UP */
-	{ 0x02, 0x02, KEY_CHANNELDOWN }, /* CH DOWN */
 	{ 0x02, 0x14, KEY_MUTE },        /* MUTE */
 	{ 0x02, 0x08, KEY_AUDIO },       /* AUDIO */
 	{ 0x02, 0x19, KEY_RECORD },      /* RECORD */
@@ -57,8 +55,6 @@ static struct dvb_usb_rc_key a800_rc_keys[] = {
 	{ 0x02, 0x1d, KEY_BACK },        /* << / RED */
 	{ 0x02, 0x1c, KEY_FORWARD },     /* >> / YELLOW */
 	{ 0x02, 0x03, KEY_TEXT },        /* TELETEXT */
-	{ 0x02, 0x01, KEY_FIRST },       /* |<< / GREEN */
-	{ 0x02, 0x00, KEY_LAST },        /* >>| / BLUE */
 	{ 0x02, 0x04, KEY_EPG },         /* EPG */
 	{ 0x02, 0x15, KEY_MENU },        /* MENU */
 

@@ -293,9 +293,31 @@ static struct stripe_head *get_active_stripe(raid5_conf_t *conf, sector_t sector
 	return sh;
 }
 
-static int grow_stripes(raid5_conf_t *conf, int num)
+static int grow_one_stripe(raid5_conf_t *conf)
 {
 	struct stripe_head *sh;
+	sh = kmem_cache_alloc(conf->slab_cache, GFP_KERNEL);
+	if (!sh)
+		return 0;
+	memset(sh, 0, sizeof(*sh) + (conf->raid_disks-1)*sizeof(struct r5dev));
+	sh->raid_conf = conf;
+	spin_lock_init(&sh->lock);
+
+	if (grow_buffers(sh, conf->raid_disks)) {
+		shrink_buffers(sh, conf->raid_disks);
+		kmem_cache_free(conf->slab_cache, sh);
+		return 0;
+	}
+	/* we just created an active stripe so... */
+	atomic_set(&sh->count, 1);
+	atomic_inc(&conf->active_stripes);
+	INIT_LIST_HEAD(&sh->lru);
+	release_stripe(sh);
+	return 1;
+}
+
+static int grow_stripes(raid5_conf_t *conf, int num)
+{
 	kmem_cache_t *sc;
 	int devs = conf->raid_disks;
 
@@ -308,48 +330,39 @@ static int grow_stripes(raid5_conf_t *conf, int num)
 		return 1;
 	conf->slab_cache = sc;
 	while (num--) {
-		sh = kmem_cache_alloc(sc, GFP_KERNEL);
-		if (!sh)
+		if (!grow_one_stripe(conf))
 			return 1;
-		memset(sh, 0, sizeof(*sh) + (devs-1)*sizeof(struct r5dev));
-		sh->raid_conf = conf;
-		spin_lock_init(&sh->lock);
-
-		if (grow_buffers(sh, conf->raid_disks)) {
-			shrink_buffers(sh, conf->raid_disks);
-			kmem_cache_free(sc, sh);
-			return 1;
-		}
-		/* we just created an active stripe so... */
-		atomic_set(&sh->count, 1);
-		atomic_inc(&conf->active_stripes);
-		INIT_LIST_HEAD(&sh->lru);
-		release_stripe(sh);
 	}
 	return 0;
 }
 
-static void shrink_stripes(raid5_conf_t *conf)
+static int drop_one_stripe(raid5_conf_t *conf)
 {
 	struct stripe_head *sh;
 
-	while (1) {
-		spin_lock_irq(&conf->device_lock);
-		sh = get_free_stripe(conf);
-		spin_unlock_irq(&conf->device_lock);
-		if (!sh)
-			break;
-		if (atomic_read(&sh->count))
-			BUG();
-		shrink_buffers(sh, conf->raid_disks);
-		kmem_cache_free(conf->slab_cache, sh);
-		atomic_dec(&conf->active_stripes);
-	}
+	spin_lock_irq(&conf->device_lock);
+	sh = get_free_stripe(conf);
+	spin_unlock_irq(&conf->device_lock);
+	if (!sh)
+		return 0;
+	if (atomic_read(&sh->count))
+		BUG();
+	shrink_buffers(sh, conf->raid_disks);
+	kmem_cache_free(conf->slab_cache, sh);
+	atomic_dec(&conf->active_stripes);
+	return 1;
+}
+
+static void shrink_stripes(raid5_conf_t *conf)
+{
+	while (drop_one_stripe(conf))
+		;
+
 	kmem_cache_destroy(conf->slab_cache);
 	conf->slab_cache = NULL;
 }
 
-static int raid5_end_read_request (struct bio * bi, unsigned int bytes_done,
+static int raid5_end_read_request(struct bio * bi, unsigned int bytes_done,
 				   int error)
 {
  	struct stripe_head *sh = bi->bi_private;
@@ -401,10 +414,35 @@ static int raid5_end_read_request (struct bio * bi, unsigned int bytes_done,
 		}
 #else
 		set_bit(R5_UPTODATE, &sh->dev[i].flags);
-#endif		
+#endif
+		if (test_bit(R5_ReadError, &sh->dev[i].flags)) {
+			printk("R5: read error corrected!!\n");
+			clear_bit(R5_ReadError, &sh->dev[i].flags);
+			clear_bit(R5_ReWrite, &sh->dev[i].flags);
+		}
+		if (atomic_read(&conf->disks[i].rdev->read_errors))
+			atomic_set(&conf->disks[i].rdev->read_errors, 0);
 	} else {
-		md_error(conf->mddev, conf->disks[i].rdev);
+		int retry = 0;
 		clear_bit(R5_UPTODATE, &sh->dev[i].flags);
+		atomic_inc(&conf->disks[i].rdev->read_errors);
+		if (conf->mddev->degraded)
+			printk("R5: read error not correctable.\n");
+		else if (test_bit(R5_ReWrite, &sh->dev[i].flags))
+			/* Oh, no!!! */
+			printk("R5: read error NOT corrected!!\n");
+		else if (atomic_read(&conf->disks[i].rdev->read_errors)
+			 > conf->max_nr_stripes)
+			printk("raid5: Too many read errors, failing device.\n");
+		else
+			retry = 1;
+		if (retry)
+			set_bit(R5_ReadError, &sh->dev[i].flags);
+		else {
+			clear_bit(R5_ReadError, &sh->dev[i].flags);
+			clear_bit(R5_ReWrite, &sh->dev[i].flags);
+			md_error(conf->mddev, conf->disks[i].rdev);
+		}
 	}
 	rdev_dec_pending(conf->disks[i].rdev, conf->mddev);
 #if 0
@@ -487,19 +525,19 @@ static void error(mddev_t *mddev, mdk_rdev_t *rdev)
 	raid5_conf_t *conf = (raid5_conf_t *) mddev->private;
 	PRINTK("raid5: error called\n");
 
-	if (!rdev->faulty) {
+	if (!test_bit(Faulty, &rdev->flags)) {
 		mddev->sb_dirty = 1;
-		if (rdev->in_sync) {
+		if (test_bit(In_sync, &rdev->flags)) {
 			conf->working_disks--;
 			mddev->degraded++;
 			conf->failed_disks++;
-			rdev->in_sync = 0;
+			clear_bit(In_sync, &rdev->flags);
 			/*
 			 * if recovery was running, make sure it aborts.
 			 */
 			set_bit(MD_RECOVERY_ERR, &mddev->recovery);
 		}
-		rdev->faulty = 1;
+		set_bit(Faulty, &rdev->flags);
 		printk (KERN_ALERT
 			"raid5: Disk failure on %s, disabling device."
 			" Operation continuing on %d devices\n",
@@ -965,7 +1003,13 @@ static void handle_stripe(struct stripe_head *sh)
 		}
 		if (dev->written) written++;
 		rdev = conf->disks[i].rdev; /* FIXME, should I be looking rdev */
-		if (!rdev || !rdev->in_sync) {
+		if (!rdev || !test_bit(In_sync, &rdev->flags)) {
+			/* The ReadError flag wil just be confusing now */
+			clear_bit(R5_ReadError, &dev->flags);
+			clear_bit(R5_ReWrite, &dev->flags);
+		}
+		if (!rdev || !test_bit(In_sync, &rdev->flags)
+		    || test_bit(R5_ReadError, &dev->flags)) {
 			failed++;
 			failed_num = i;
 		} else
@@ -980,6 +1024,14 @@ static void handle_stripe(struct stripe_head *sh)
 	if (failed > 1 && to_read+to_write+written) {
 		for (i=disks; i--; ) {
 			int bitmap_end = 0;
+
+			if (test_bit(R5_ReadError, &sh->dev[i].flags)) {
+				mdk_rdev_t *rdev = conf->disks[i].rdev;
+				if (rdev && test_bit(In_sync, &rdev->flags))
+					/* multiple read failures in one stripe */
+					md_error(conf->mddev, rdev);
+			}
+
 			spin_lock_irq(&conf->device_lock);
 			/* fail all writes first */
 			bi = sh->dev[i].towrite;
@@ -1015,7 +1067,8 @@ static void handle_stripe(struct stripe_head *sh)
 			}
 
 			/* fail any reads if this device is non-operational */
-			if (!test_bit(R5_Insync, &sh->dev[i].flags)) {
+			if (!test_bit(R5_Insync, &sh->dev[i].flags) ||
+			    test_bit(R5_ReadError, &sh->dev[i].flags)) {
 				bi = sh->dev[i].toread;
 				sh->dev[i].toread = NULL;
 				if (test_and_clear_bit(R5_Overlap, &sh->dev[i].flags))
@@ -1247,6 +1300,11 @@ static void handle_stripe(struct stripe_head *sh)
 			    !memcmp(pagea, pagea+4, STRIPE_SIZE-4)) {
 				/* parity is correct (on disc, not in buffer any more) */
 				set_bit(STRIPE_INSYNC, &sh->state);
+			} else {
+				conf->mddev->resync_mismatches += STRIPE_SECTORS;
+				if (test_bit(MD_RECOVERY_CHECK, &conf->mddev->recovery))
+					/* don't try to repair!! */
+					set_bit(STRIPE_INSYNC, &sh->state);
 			}
 		}
 		if (!test_bit(STRIPE_INSYNC, &sh->state)) {
@@ -1274,7 +1332,27 @@ static void handle_stripe(struct stripe_head *sh)
 		md_done_sync(conf->mddev, STRIPE_SECTORS,1);
 		clear_bit(STRIPE_SYNCING, &sh->state);
 	}
-	
+
+	/* If the failed drive is just a ReadError, then we might need to progress
+	 * the repair/check process
+	 */
+	if (failed == 1 && ! conf->mddev->ro &&
+	    test_bit(R5_ReadError, &sh->dev[failed_num].flags)
+	    && !test_bit(R5_LOCKED, &sh->dev[failed_num].flags)
+	    && test_bit(R5_UPTODATE, &sh->dev[failed_num].flags)
+		) {
+		dev = &sh->dev[failed_num];
+		if (!test_bit(R5_ReWrite, &dev->flags)) {
+			set_bit(R5_Wantwrite, &dev->flags);
+			set_bit(R5_ReWrite, &dev->flags);
+			set_bit(R5_LOCKED, &dev->flags);
+		} else {
+			/* let's read it back */
+			set_bit(R5_Wantread, &dev->flags);
+			set_bit(R5_LOCKED, &dev->flags);
+		}
+	}
+
 	spin_unlock(&sh->lock);
 
 	while ((bi=return_bi)) {
@@ -1305,8 +1383,8 @@ static void handle_stripe(struct stripe_head *sh)
 			bi->bi_end_io = raid5_end_read_request;
  
 		rcu_read_lock();
-		rdev = conf->disks[i].rdev;
-		if (rdev && rdev->faulty)
+		rdev = rcu_dereference(conf->disks[i].rdev);
+		if (rdev && test_bit(Faulty, &rdev->flags))
 			rdev = NULL;
 		if (rdev)
 			atomic_inc(&rdev->nr_pending);
@@ -1379,8 +1457,8 @@ static void unplug_slaves(mddev_t *mddev)
 
 	rcu_read_lock();
 	for (i=0; i<mddev->raid_disks; i++) {
-		mdk_rdev_t *rdev = conf->disks[i].rdev;
-		if (rdev && !rdev->faulty && atomic_read(&rdev->nr_pending)) {
+		mdk_rdev_t *rdev = rcu_dereference(conf->disks[i].rdev);
+		if (rdev && !test_bit(Faulty, &rdev->flags) && atomic_read(&rdev->nr_pending)) {
 			request_queue_t *r_queue = bdev_get_queue(rdev->bdev);
 
 			atomic_inc(&rdev->nr_pending);
@@ -1424,8 +1502,8 @@ static int raid5_issue_flush(request_queue_t *q, struct gendisk *disk,
 
 	rcu_read_lock();
 	for (i=0; i<mddev->raid_disks && ret == 0; i++) {
-		mdk_rdev_t *rdev = conf->disks[i].rdev;
-		if (rdev && !rdev->faulty) {
+		mdk_rdev_t *rdev = rcu_dereference(conf->disks[i].rdev);
+		if (rdev && !test_bit(Faulty, &rdev->flags)) {
 			struct block_device *bdev = rdev->bdev;
 			request_queue_t *r_queue = bdev_get_queue(bdev);
 
@@ -1567,6 +1645,7 @@ static sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *skipped, i
 		return rv;
 	}
 	if (!bitmap_start_sync(mddev->bitmap, sector_nr, &sync_blocks, 1) &&
+	    !test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery) &&
 	    !conf->fullsync && sync_blocks >= STRIPE_SECTORS) {
 		/* we can skip this block, and probably more */
 		sync_blocks /= STRIPE_SECTORS;
@@ -1663,6 +1742,74 @@ static void raid5d (mddev_t *mddev)
 	PRINTK("--- raid5d inactive\n");
 }
 
+static ssize_t
+raid5_show_stripe_cache_size(mddev_t *mddev, char *page)
+{
+	raid5_conf_t *conf = mddev_to_conf(mddev);
+	if (conf)
+		return sprintf(page, "%d\n", conf->max_nr_stripes);
+	else
+		return 0;
+}
+
+static ssize_t
+raid5_store_stripe_cache_size(mddev_t *mddev, const char *page, size_t len)
+{
+	raid5_conf_t *conf = mddev_to_conf(mddev);
+	char *end;
+	int new;
+	if (len >= PAGE_SIZE)
+		return -EINVAL;
+	if (!conf)
+		return -ENODEV;
+
+	new = simple_strtoul(page, &end, 10);
+	if (!*page || (*end && *end != '\n') )
+		return -EINVAL;
+	if (new <= 16 || new > 32768)
+		return -EINVAL;
+	while (new < conf->max_nr_stripes) {
+		if (drop_one_stripe(conf))
+			conf->max_nr_stripes--;
+		else
+			break;
+	}
+	while (new > conf->max_nr_stripes) {
+		if (grow_one_stripe(conf))
+			conf->max_nr_stripes++;
+		else break;
+	}
+	return len;
+}
+
+static struct md_sysfs_entry
+raid5_stripecache_size = __ATTR(stripe_cache_size, S_IRUGO | S_IWUSR,
+				raid5_show_stripe_cache_size,
+				raid5_store_stripe_cache_size);
+
+static ssize_t
+stripe_cache_active_show(mddev_t *mddev, char *page)
+{
+	raid5_conf_t *conf = mddev_to_conf(mddev);
+	if (conf)
+		return sprintf(page, "%d\n", atomic_read(&conf->active_stripes));
+	else
+		return 0;
+}
+
+static struct md_sysfs_entry
+raid5_stripecache_active = __ATTR_RO(stripe_cache_active);
+
+static struct attribute *raid5_attrs[] =  {
+	&raid5_stripecache_size.attr,
+	&raid5_stripecache_active.attr,
+	NULL,
+};
+static struct attribute_group raid5_attrs_group = {
+	.name = NULL,
+	.attrs = raid5_attrs,
+};
+
 static int run(mddev_t *mddev)
 {
 	raid5_conf_t *conf;
@@ -1709,7 +1856,7 @@ static int run(mddev_t *mddev)
 
 		disk->rdev = rdev;
 
-		if (rdev->in_sync) {
+		if (test_bit(In_sync, &rdev->flags)) {
 			char b[BDEVNAME_SIZE];
 			printk(KERN_INFO "raid5: device %s operational as raid"
 				" disk %d\n", bdevname(rdev->bdev,b),
@@ -1804,6 +1951,7 @@ memory = conf->max_nr_stripes * (sizeof(struct stripe_head) +
 	}
 
 	/* Ok, everything is just fine now */
+	sysfs_create_group(&mddev->kobj, &raid5_attrs_group);
 
 	if (mddev->bitmap)
 		mddev->thread->timeout = mddev->bitmap->daemon_sleep * HZ;
@@ -1828,7 +1976,7 @@ abort:
 
 
 
-static int stop (mddev_t *mddev)
+static int stop(mddev_t *mddev)
 {
 	raid5_conf_t *conf = (raid5_conf_t *) mddev->private;
 
@@ -1837,6 +1985,7 @@ static int stop (mddev_t *mddev)
 	shrink_stripes(conf);
 	free_pages((unsigned long) conf->stripe_hashtbl, HASH_PAGES_ORDER);
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
+	sysfs_remove_group(&mddev->kobj, &raid5_attrs_group);
 	kfree(conf);
 	mddev->private = NULL;
 	return 0;
@@ -1887,7 +2036,7 @@ static void status (struct seq_file *seq, mddev_t *mddev)
 	for (i = 0; i < conf->raid_disks; i++)
 		seq_printf (seq, "%s",
 			       conf->disks[i].rdev &&
-			       conf->disks[i].rdev->in_sync ? "U" : "_");
+			       test_bit(In_sync, &conf->disks[i].rdev->flags) ? "U" : "_");
 	seq_printf (seq, "]");
 #if RAID5_DEBUG
 #define D(x) \
@@ -1914,7 +2063,7 @@ static void print_raid5_conf (raid5_conf_t *conf)
 		tmp = conf->disks + i;
 		if (tmp->rdev)
 		printk(" disk %d, o:%d, dev:%s\n",
-			i, !tmp->rdev->faulty,
+			i, !test_bit(Faulty, &tmp->rdev->flags),
 			bdevname(tmp->rdev->bdev,b));
 	}
 }
@@ -1928,12 +2077,12 @@ static int raid5_spare_active(mddev_t *mddev)
 	for (i = 0; i < conf->raid_disks; i++) {
 		tmp = conf->disks + i;
 		if (tmp->rdev
-		    && !tmp->rdev->faulty
-		    && !tmp->rdev->in_sync) {
+		    && !test_bit(Faulty, &tmp->rdev->flags)
+		    && !test_bit(In_sync, &tmp->rdev->flags)) {
 			mddev->degraded--;
 			conf->failed_disks--;
 			conf->working_disks++;
-			tmp->rdev->in_sync = 1;
+			set_bit(In_sync, &tmp->rdev->flags);
 		}
 	}
 	print_raid5_conf(conf);
@@ -1950,7 +2099,7 @@ static int raid5_remove_disk(mddev_t *mddev, int number)
 	print_raid5_conf(conf);
 	rdev = p->rdev;
 	if (rdev) {
-		if (rdev->in_sync ||
+		if (test_bit(In_sync, &rdev->flags) ||
 		    atomic_read(&rdev->nr_pending)) {
 			err = -EBUSY;
 			goto abort;
@@ -1985,12 +2134,12 @@ static int raid5_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 	 */
 	for (disk=0; disk < mddev->raid_disks; disk++)
 		if ((p=conf->disks + disk)->rdev == NULL) {
-			rdev->in_sync = 0;
+			clear_bit(In_sync, &rdev->flags);
 			rdev->raid_disk = disk;
 			found = 1;
 			if (rdev->saved_raid_disk != disk)
 				conf->fullsync = 1;
-			p->rdev = rdev;
+			rcu_assign_pointer(p->rdev, rdev);
 			break;
 		}
 	print_raid5_conf(conf);

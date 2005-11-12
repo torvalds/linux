@@ -256,6 +256,38 @@ int permission(struct inode *inode, int mask, struct nameidata *nd)
 	return security_inode_permission(inode, mask, nd);
 }
 
+/**
+ * vfs_permission  -  check for access rights to a given path
+ * @nd:		lookup result that describes the path
+ * @mask:	right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC)
+ *
+ * Used to check for read/write/execute permissions on a path.
+ * We use "fsuid" for this, letting us set arbitrary permissions
+ * for filesystem access without changing the "normal" uids which
+ * are used for other things.
+ */
+int vfs_permission(struct nameidata *nd, int mask)
+{
+	return permission(nd->dentry->d_inode, mask, nd);
+}
+
+/**
+ * file_permission  -  check for additional access rights to a given file
+ * @file:	file to check access rights for
+ * @mask:	right to check for (%MAY_READ, %MAY_WRITE, %MAY_EXEC)
+ *
+ * Used to check for read/write/execute permissions on an already opened
+ * file.
+ *
+ * Note:
+ *	Do not use this function in new code.  All access checks should
+ *	be done using vfs_permission().
+ */
+int file_permission(struct file *file, int mask)
+{
+	return permission(file->f_dentry->d_inode, mask, NULL);
+}
+
 /*
  * get_write_access() gets write permission for a file.
  * put_write_access() releases this write permission.
@@ -765,9 +797,8 @@ static fastcall int __link_path_walk(const char * name, struct nameidata *nd)
 
 		nd->flags |= LOOKUP_CONTINUE;
 		err = exec_permission_lite(inode, nd);
-		if (err == -EAGAIN) { 
-			err = permission(inode, MAY_EXEC, nd);
-		}
+		if (err == -EAGAIN)
+			err = vfs_permission(nd, MAY_EXEC);
  		if (err)
 			break;
 
@@ -1109,8 +1140,9 @@ int path_lookup_open(const char *name, unsigned int lookup_flags,
  * @open_flags: open intent flags
  * @create_mode: create intent flags
  */
-int path_lookup_create(const char *name, unsigned int lookup_flags,
-		struct nameidata *nd, int open_flags, int create_mode)
+static int path_lookup_create(const char *name, unsigned int lookup_flags,
+			      struct nameidata *nd, int open_flags,
+			      int create_mode)
 {
 	return __path_lookup_intent_open(name, lookup_flags|LOOKUP_CREATE, nd,
 			open_flags, create_mode);
@@ -1173,9 +1205,9 @@ out:
 	return dentry;
 }
 
-struct dentry * lookup_hash(struct qstr *name, struct dentry * base)
+struct dentry * lookup_hash(struct nameidata *nd)
 {
-	return __lookup_hash(name, base, NULL);
+	return __lookup_hash(&nd->last, nd->dentry, nd);
 }
 
 /* SMP-safe */
@@ -1199,7 +1231,7 @@ struct dentry * lookup_one_len(const char * name, struct dentry * base, int len)
 	}
 	this.hash = end_name_hash(hash);
 
-	return lookup_hash(&this, base);
+	return __lookup_hash(&this, base, NULL);
 access:
 	return ERR_PTR(-EACCES);
 }
@@ -1407,7 +1439,7 @@ int may_open(struct nameidata *nd, int acc_mode, int flag)
 	if (S_ISDIR(inode->i_mode) && (flag & FMODE_WRITE))
 		return -EISDIR;
 
-	error = permission(inode, acc_mode, nd);
+	error = vfs_permission(nd, acc_mode);
 	if (error)
 		return error;
 
@@ -1532,7 +1564,7 @@ int open_namei(const char * pathname, int flag, int mode, struct nameidata *nd)
 	dir = nd->dentry;
 	nd->flags &= ~LOOKUP_PARENT;
 	down(&dir->d_inode->i_sem);
-	path.dentry = __lookup_hash(&nd->last, nd->dentry, nd);
+	path.dentry = lookup_hash(nd);
 	path.mnt = nd->mnt;
 
 do_last:
@@ -1634,7 +1666,7 @@ do_link:
 	}
 	dir = nd->dentry;
 	down(&dir->d_inode->i_sem);
-	path.dentry = __lookup_hash(&nd->last, nd->dentry, nd);
+	path.dentry = lookup_hash(nd);
 	path.mnt = nd->mnt;
 	__putname(nd->last.name);
 	goto do_last;
@@ -1666,7 +1698,7 @@ struct dentry *lookup_create(struct nameidata *nd, int is_dir)
 	/*
 	 * Do the final lookup.
 	 */
-	dentry = lookup_hash(&nd->last, nd->dentry);
+	dentry = lookup_hash(nd);
 	if (IS_ERR(dentry))
 		goto fail;
 
@@ -1901,7 +1933,7 @@ asmlinkage long sys_rmdir(const char __user * pathname)
 			goto exit1;
 	}
 	down(&nd.dentry->d_inode->i_sem);
-	dentry = lookup_hash(&nd.last, nd.dentry);
+	dentry = lookup_hash(&nd);
 	error = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
 		error = vfs_rmdir(nd.dentry->d_inode, dentry);
@@ -1970,7 +2002,7 @@ asmlinkage long sys_unlink(const char __user * pathname)
 	if (nd.last_type != LAST_NORM)
 		goto exit1;
 	down(&nd.dentry->d_inode->i_sem);
-	dentry = lookup_hash(&nd.last, nd.dentry);
+	dentry = lookup_hash(&nd);
 	error = PTR_ERR(dentry);
 	if (!IS_ERR(dentry)) {
 		/* Why not before? Because we want correct error value */
@@ -2313,7 +2345,7 @@ static inline int do_rename(const char * oldname, const char * newname)
 
 	trap = lock_rename(new_dir, old_dir);
 
-	old_dentry = lookup_hash(&oldnd.last, old_dir);
+	old_dentry = lookup_hash(&oldnd);
 	error = PTR_ERR(old_dentry);
 	if (IS_ERR(old_dentry))
 		goto exit3;
@@ -2333,7 +2365,7 @@ static inline int do_rename(const char * oldname, const char * newname)
 	error = -EINVAL;
 	if (old_dentry == trap)
 		goto exit4;
-	new_dentry = lookup_hash(&newnd.last, new_dir);
+	new_dentry = lookup_hash(&newnd);
 	error = PTR_ERR(new_dentry);
 	if (IS_ERR(new_dentry))
 		goto exit4;
@@ -2536,6 +2568,8 @@ EXPORT_SYMBOL(path_lookup);
 EXPORT_SYMBOL(path_release);
 EXPORT_SYMBOL(path_walk);
 EXPORT_SYMBOL(permission);
+EXPORT_SYMBOL(vfs_permission);
+EXPORT_SYMBOL(file_permission);
 EXPORT_SYMBOL(unlock_rename);
 EXPORT_SYMBOL(vfs_create);
 EXPORT_SYMBOL(vfs_follow_link);

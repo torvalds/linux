@@ -29,7 +29,7 @@ MODULE_LICENSE("GPL");
 
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_CONNMARK.h>
-#include <linux/netfilter_ipv4/ip_conntrack.h>
+#include <net/netfilter/nf_conntrack_compat.h>
 
 static unsigned int
 target(struct sk_buff **pskb,
@@ -43,24 +43,24 @@ target(struct sk_buff **pskb,
 	u_int32_t diff;
 	u_int32_t nfmark;
 	u_int32_t newmark;
+	u_int32_t ctinfo;
+	u_int32_t *ctmark = nf_ct_get_mark(*pskb, &ctinfo);
 
-	enum ip_conntrack_info ctinfo;
-	struct ip_conntrack *ct = ip_conntrack_get((*pskb), &ctinfo);
-	if (ct) {
+	if (ctmark) {
 	    switch(markinfo->mode) {
 	    case IPT_CONNMARK_SET:
-		newmark = (ct->mark & ~markinfo->mask) | markinfo->mark;
-		if (newmark != ct->mark)
-		    ct->mark = newmark;
+		newmark = (*ctmark & ~markinfo->mask) | markinfo->mark;
+		if (newmark != *ctmark)
+		    *ctmark = newmark;
 		break;
 	    case IPT_CONNMARK_SAVE:
-		newmark = (ct->mark & ~markinfo->mask) | ((*pskb)->nfmark & markinfo->mask);
-		if (ct->mark != newmark)
-		    ct->mark = newmark;
+		newmark = (*ctmark & ~markinfo->mask) | ((*pskb)->nfmark & markinfo->mask);
+		if (*ctmark != newmark)
+		    *ctmark = newmark;
 		break;
 	    case IPT_CONNMARK_RESTORE:
 		nfmark = (*pskb)->nfmark;
-		diff = (ct->mark ^ nfmark) & markinfo->mask;
+		diff = (*ctmark ^ nfmark) & markinfo->mask;
 		if (diff != 0)
 		    (*pskb)->nfmark = nfmark ^ diff;
 		break;

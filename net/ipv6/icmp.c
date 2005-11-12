@@ -585,17 +585,16 @@ static int icmpv6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 	daddr = &skb->nh.ipv6h->daddr;
 
 	/* Perform checksum. */
-	if (skb->ip_summed == CHECKSUM_HW) {
-		skb->ip_summed = CHECKSUM_UNNECESSARY;
-		if (csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_ICMPV6,
-				    skb->csum)) {
-			LIMIT_NETDEBUG(KERN_DEBUG "ICMPv6 hw checksum failed\n");
-			skb->ip_summed = CHECKSUM_NONE;
-		}
-	}
-	if (skb->ip_summed == CHECKSUM_NONE) {
-		if (csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_ICMPV6,
-				    skb_checksum(skb, 0, skb->len, 0))) {
+	switch (skb->ip_summed) {
+	case CHECKSUM_HW:
+		if (!csum_ipv6_magic(saddr, daddr, skb->len, IPPROTO_ICMPV6,
+				     skb->csum))
+			break;
+		/* fall through */
+	case CHECKSUM_NONE:
+		skb->csum = ~csum_ipv6_magic(saddr, daddr, skb->len,
+					     IPPROTO_ICMPV6, 0);
+		if (__skb_checksum_complete(skb)) {
 			LIMIT_NETDEBUG(KERN_DEBUG "ICMPv6 checksum failed [%04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x > %04x:%04x:%04x:%04x:%04x:%04x:%04x:%04x]\n",
 				       NIP6(*saddr), NIP6(*daddr));
 			goto discard_it;

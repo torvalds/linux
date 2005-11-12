@@ -283,7 +283,6 @@ int cifs_get_inode_info(struct inode **pinode,
 			   there Windows server or network appliances for which
 			   IndexNumber field is not guaranteed unique? */
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL		
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM){
 				int rc1 = 0;
 				__u64 inode_num;
@@ -299,7 +298,6 @@ int cifs_get_inode_info(struct inode **pinode,
 				} else /* do we need cast or hash to ino? */
 					(*pinode)->i_ino = inode_num;
 			} /* else ino incremented to unique num in new_inode*/
-#endif /* CIFS_EXPERIMENTAL */
 			insert_inode_hash(*pinode);
 		}
 		inode = *pinode;

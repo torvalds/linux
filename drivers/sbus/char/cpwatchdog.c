@@ -407,7 +407,7 @@ static long wd_compat_ioctl(struct file *file, unsigned int cmd,
 	case WIOCGSTAT:
 		lock_kernel();
 		rval = wd_ioctl(file->f_dentry->d_inode, file, cmd, arg);
-		lock_kernel();
+		unlock_kernel();
 		break;
 	/* everything else is handled by the generic compat layer */
 	default:

@@ -1899,7 +1899,7 @@ static int int_tab[] in2000__INITDATA = {
 };
 
 
-static int __init in2000_detect(Scsi_Host_Template * tpnt)
+static int __init in2000_detect(struct scsi_host_template * tpnt)
 {
 	struct Scsi_Host *instance;
 	struct IN2000_hostdata *hostdata;
@@ -2305,7 +2305,7 @@ static int in2000_proc_info(struct Scsi_Host *instance, char *buf, char **start,
 MODULE_LICENSE("GPL");
 
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name       		= "in2000",
 	.proc_info       		= in2000_proc_info,
 	.name            		= "Always IN2000",

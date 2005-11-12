@@ -46,6 +46,7 @@
 #include <asm/rtas.h>
 #include <asm/pSeries_reconfig.h>
 #include <asm/mpic.h>
+#include <asm/vdso_datapage.h>
 
 #include "plpar_wrappers.h"
 
@@ -96,7 +97,7 @@ int pSeries_cpu_disable(void)
 	int cpu = smp_processor_id();
 
 	cpu_clear(cpu, cpu_online_map);
-	systemcfg->processorCount--;
+	vdso_data->processorCount--;
 
 	/*fix boot_cpuid here*/
 	if (cpu == boot_cpuid)
@@ -441,7 +442,7 @@ void __init smp_init_pSeries(void)
 	smp_ops->cpu_die = pSeries_cpu_die;
 
 	/* Processors can be added/removed only on LPAR */
-	if (systemcfg->platform == PLATFORM_PSERIES_LPAR)
+	if (platform_is_lpar())
 		pSeries_reconfig_notifier_register(&pSeries_smp_nb);
 #endif
 

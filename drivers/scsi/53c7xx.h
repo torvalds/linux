@@ -1600,7 +1600,7 @@ struct NCR53c7x0_hostdata {
 /* Paranoid people could use panic() here. */
 #define FATAL(host) shutdown((host));
 
-extern int ncr53c7xx_init(Scsi_Host_Template *tpnt, int board, int chip,
+extern int ncr53c7xx_init(struct scsi_host_template *tpnt, int board, int chip,
 			  unsigned long base, int io_port, int irq, int dma,
 			  long long options, int clock);
 

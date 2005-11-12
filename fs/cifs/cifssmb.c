@@ -2959,7 +2959,6 @@ CIFSFindClose(const int xid, struct cifsTconInfo *tcon, const __u16 searchHandle
 	return rc;
 }
 
-#ifdef CONFIG_CIFS_EXPERIMENTAL
 int
 CIFSGetSrvInodeNumber(const int xid, struct cifsTconInfo *tcon,
                 const unsigned char *searchName,
@@ -3053,7 +3052,6 @@ GetInodeNumOut:
 		goto GetInodeNumberRetry;
 	return rc;
 }
-#endif /* CIFS_EXPERIMENTAL */
 
 int
 CIFSGetDFSRefer(const int xid, struct cifsSesInfo *ses,

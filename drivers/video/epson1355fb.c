@@ -609,9 +609,9 @@ static void epson1355fb_platform_release(struct device *device)
 {
 }
 
-static int epson1355fb_remove(struct device *device)
+static int epson1355fb_remove(struct platform_device *dev)
 {
-	struct fb_info *info = dev_get_drvdata(device);
+	struct fb_info *info = platform_get_drvdata(dev);
 	struct epson1355_par *par = info->par;
 
 	backlight_enable(0);
@@ -632,9 +632,8 @@ static int epson1355fb_remove(struct device *device)
 	return 0;
 }
 
-int __init epson1355fb_probe(struct device *device)
+int __init epson1355fb_probe(struct platform_device *dev)
 {
-	struct platform_device *dev = to_platform_device(device);
 	struct epson1355_par *default_par;
 	struct fb_info *info;
 	u8 revision;
@@ -713,7 +712,7 @@ int __init epson1355fb_probe(struct device *device)
 	/*
 	 * Our driver data.
 	 */
-	dev_set_drvdata(&dev->dev, info);
+	platform_set_drvdata(dev, info);
 
 	printk(KERN_INFO "fb%d: %s frame buffer device\n",
 	       info->node, info->fix.id);
@@ -721,15 +720,16 @@ int __init epson1355fb_probe(struct device *device)
 	return 0;
 
       bail:
-	epson1355fb_remove(device);
+	epson1355fb_remove(dev);
 	return rc;
 }
 
-static struct device_driver epson1355fb_driver = {
-	.name	= "epson1355fb",
-	.bus	= &platform_bus_type,
+static struct platform_driver epson1355fb_driver = {
 	.probe	= epson1355fb_probe,
 	.remove	= epson1355fb_remove,
+	.driver	= {
+		.name	= "epson1355fb",
+	},
 };
 
 static struct platform_device epson1355fb_device = {
@@ -747,11 +747,11 @@ int __init epson1355fb_init(void)
 	if (fb_get_options("epson1355fb", NULL))
 		return -ENODEV;
 
-	ret = driver_register(&epson1355fb_driver);
+	ret = platform_driver_register(&epson1355fb_driver);
 	if (!ret) {
 		ret = platform_device_register(&epson1355fb_device);
 		if (ret)
-			driver_unregister(&epson1355fb_driver);
+			platform_driver_unregister(&epson1355fb_driver);
 	}
 	return ret;
 }
@@ -762,7 +762,7 @@ module_init(epson1355fb_init);
 static void __exit epson1355fb_exit(void)
 {
 	platform_device_unregister(&epson1355fb_device);
-	driver_unregister(&epson1355fb_driver);
+	platform_driver_unregister(&epson1355fb_driver);
 }
 
 /* ------------------------------------------------------------------------- */

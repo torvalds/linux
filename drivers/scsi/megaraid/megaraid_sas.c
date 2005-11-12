@@ -26,7 +26,6 @@
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/list.h>
-#include <linux/version.h>
 #include <linux/moduleparam.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
@@ -767,16 +766,11 @@ static int megasas_generic_reset(struct scsi_cmnd *scmd)
 		return FAILED;
 	}
 
-	spin_unlock(scmd->device->host->host_lock);
-
 	ret_val = megasas_wait_for_outstanding(instance);
-
 	if (ret_val == SUCCESS)
 		printk(KERN_NOTICE "megasas: reset successful \n");
 	else
 		printk(KERN_ERR "megasas: failed to do reset\n");
-
-	spin_lock(scmd->device->host->host_lock);
 
 	return ret_val;
 }

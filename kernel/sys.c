@@ -1497,6 +1497,8 @@ EXPORT_SYMBOL(in_egroup_p);
 
 DECLARE_RWSEM(uts_sem);
 
+EXPORT_SYMBOL(uts_sem);
+
 asmlinkage long sys_newuname(struct new_utsname __user * name)
 {
 	int errno = 0;

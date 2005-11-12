@@ -270,6 +270,7 @@ static struct agp_memory *alloc_agpphysmem_i8xx(size_t pg_count, int type)
 
 	switch (pg_count) {
 	case 1: addr = agp_bridge->driver->agp_alloc_page(agp_bridge);
+		global_flush_tlb();
 		break;
 	case 4:
 		/* kludge to get 4 physical pages for ARGB cursor */
@@ -330,9 +331,11 @@ static void intel_i810_free_by_type(struct agp_memory *curr)
 	if(curr->type == AGP_PHYS_MEMORY) {
 		if (curr->page_count == 4)
 			i8xx_destroy_pages(gart_to_virt(curr->memory[0]));
-		else
+		else {
 			agp_bridge->driver->agp_destroy_page(
 				 gart_to_virt(curr->memory[0]));
+			global_flush_tlb();
+		}
 		vfree(curr->memory);
 	}
 	kfree(curr);
@@ -1824,7 +1827,6 @@ static struct pci_device_id agp_intel_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, agp_intel_pci_table);
 
 static struct pci_driver agp_intel_pci_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "agpgart-intel",
 	.id_table	= agp_intel_pci_table,
 	.probe		= agp_intel_probe,

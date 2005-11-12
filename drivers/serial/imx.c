@@ -921,9 +921,9 @@ static struct uart_driver imx_reg = {
 	.cons           = IMX_CONSOLE,
 };
 
-static int serial_imx_suspend(struct device *_dev, pm_message_t state)
+static int serial_imx_suspend(struct platform_device *dev, pm_message_t state)
 {
-        struct imx_port *sport = dev_get_drvdata(_dev);
+        struct imx_port *sport = platform_get_drvdata(dev);
 
         if (sport)
                 uart_suspend_port(&imx_reg, &sport->port);
@@ -931,9 +931,9 @@ static int serial_imx_suspend(struct device *_dev, pm_message_t state)
         return 0;
 }
 
-static int serial_imx_resume(struct device *_dev)
+static int serial_imx_resume(struct platform_device *dev)
 {
-        struct imx_port *sport = dev_get_drvdata(_dev);
+        struct imx_port *sport = platform_get_drvdata(dev);
 
         if (sport)
                 uart_resume_port(&imx_reg, &sport->port);
@@ -941,21 +941,19 @@ static int serial_imx_resume(struct device *_dev)
         return 0;
 }
 
-static int serial_imx_probe(struct device *_dev)
+static int serial_imx_probe(struct platform_device *dev)
 {
-	struct platform_device *dev = to_platform_device(_dev);
-
-	imx_ports[dev->id].port.dev = _dev;
+	imx_ports[dev->id].port.dev = &dev->dev;
 	uart_add_one_port(&imx_reg, &imx_ports[dev->id].port);
-	dev_set_drvdata(_dev, &imx_ports[dev->id]);
+	platform_set_drvdata(dev, &imx_ports[dev->id]);
 	return 0;
 }
 
-static int serial_imx_remove(struct device *_dev)
+static int serial_imx_remove(struct platform_device *dev)
 {
-	struct imx_port *sport = dev_get_drvdata(_dev);
+	struct imx_port *sport = platform_get_drvdata(dev);
 
-	dev_set_drvdata(_dev, NULL);
+	platform_set_drvdata(dev, NULL);
 
 	if (sport)
 		uart_remove_one_port(&imx_reg, &sport->port);
@@ -963,14 +961,15 @@ static int serial_imx_remove(struct device *_dev)
 	return 0;
 }
 
-static struct device_driver serial_imx_driver = {
-        .name           = "imx-uart",
-        .bus            = &platform_bus_type,
+static struct platform_driver serial_imx_driver = {
         .probe          = serial_imx_probe,
         .remove         = serial_imx_remove,
 
 	.suspend	= serial_imx_suspend,
 	.resume		= serial_imx_resume,
+	.driver		= {
+	        .name	= "imx-uart",
+	},
 };
 
 static int __init imx_serial_init(void)
@@ -985,7 +984,7 @@ static int __init imx_serial_init(void)
 	if (ret)
 		return ret;
 
-	ret = driver_register(&serial_imx_driver);
+	ret = platform_driver_register(&serial_imx_driver);
 	if (ret != 0)
 		uart_unregister_driver(&imx_reg);
 

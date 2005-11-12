@@ -43,6 +43,7 @@
 #define FW_FEATURE_ISERIES	(1UL<<21)
 
 enum {
+#ifdef CONFIG_PPC64
 	FW_FEATURE_PSERIES_POSSIBLE = FW_FEATURE_PFT | FW_FEATURE_TCE |
 		FW_FEATURE_SPRG0 | FW_FEATURE_DABR | FW_FEATURE_COPY |
 		FW_FEATURE_ASR | FW_FEATURE_DEBUG | FW_FEATURE_TERM |
@@ -70,6 +71,11 @@ enum {
 		FW_FEATURE_ISERIES_ALWAYS &
 #endif
 		FW_FEATURE_POSSIBLE,
+
+#else /* CONFIG_PPC64 */
+	FW_FEATURE_POSSIBLE = 0,
+	FW_FEATURE_ALWAYS = 0,
+#endif
 };
 
 /* This is used to identify firmware features which are available

@@ -1459,7 +1459,6 @@ static void __devexit snd_card_fm801_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "FM801",
-	.owner = THIS_MODULE,
 	.id_table = snd_fm801_ids,
 	.probe = snd_card_fm801_probe,
 	.remove = __devexit_p(snd_card_fm801_remove),

@@ -175,6 +175,11 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 		max_cpus = ncores;
 
 	/*
+	 * Enable the local timer for primary CPU
+	 */
+	local_timer_setup(cpu);
+
+	/*
 	 * Initialise the possible/present maps.
 	 * cpu_possible_map describes the set of CPUs which may be present
 	 * cpu_present_map describes the set of CPUs populated

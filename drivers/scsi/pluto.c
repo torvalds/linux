@@ -71,7 +71,7 @@ static void __init pluto_detect_scsi_done(Scsi_Cmnd *SCpnt)
 		up(&fc_sem);
 }
 
-int pluto_slave_configure(Scsi_Device *device)
+int pluto_slave_configure(struct scsi_device *device)
 {
 	int depth_to_use;
 
@@ -90,11 +90,11 @@ int pluto_slave_configure(Scsi_Device *device)
 
 /* Detect all SSAs attached to the machine.
    To be fast, do it on all online FC channels at the same time. */
-int __init pluto_detect(Scsi_Host_Template *tpnt)
+int __init pluto_detect(struct scsi_host_template *tpnt)
 {
 	int i, retry, nplutos;
 	fc_channel *fc;
-	Scsi_Device dev;
+	struct scsi_device dev;
 	DEFINE_TIMER(fc_timer, pluto_detect_timeout, 0, 0);
 
 	tpnt->proc_name = "pluto";
@@ -339,7 +339,7 @@ static int pluto_encode_addr(Scsi_Cmnd *SCpnt, u16 *addr, fc_channel *fc, fcp_cm
 	return 0;
 }
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.name			= "Sparc Storage Array 100/200",
 	.detect			= pluto_detect,
 	.release		= pluto_release,

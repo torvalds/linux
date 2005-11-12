@@ -240,7 +240,7 @@ static inline long do_sys_truncate(const char __user * path, loff_t length)
 	if (!S_ISREG(inode->i_mode))
 		goto dput_and_out;
 
-	error = permission(inode,MAY_WRITE,&nd);
+	error = vfs_permission(&nd, MAY_WRITE);
 	if (error)
 		goto dput_and_out;
 
@@ -394,7 +394,7 @@ asmlinkage long sys_utime(char __user * filename, struct utimbuf __user * times)
                         goto dput_and_out;
 
 		if (current->fsuid != inode->i_uid &&
-		    (error = permission(inode,MAY_WRITE,&nd)) != 0)
+		    (error = vfs_permission(&nd, MAY_WRITE)) != 0)
 			goto dput_and_out;
 	}
 	down(&inode->i_sem);
@@ -447,7 +447,7 @@ long do_utimes(char __user * filename, struct timeval * times)
                         goto dput_and_out;
 
 		if (current->fsuid != inode->i_uid &&
-		    (error = permission(inode,MAY_WRITE,&nd)) != 0)
+		    (error = vfs_permission(&nd, MAY_WRITE)) != 0)
 			goto dput_and_out;
 	}
 	down(&inode->i_sem);
@@ -506,7 +506,7 @@ asmlinkage long sys_access(const char __user * filename, int mode)
 
 	res = __user_walk(filename, LOOKUP_FOLLOW|LOOKUP_ACCESS, &nd);
 	if (!res) {
-		res = permission(nd.dentry->d_inode, mode, &nd);
+		res = vfs_permission(&nd, mode);
 		/* SuS v2 requires we report a read only fs too */
 		if(!res && (mode & S_IWOTH) && IS_RDONLY(nd.dentry->d_inode)
 		   && !special_file(nd.dentry->d_inode->i_mode))
@@ -530,7 +530,7 @@ asmlinkage long sys_chdir(const char __user * filename)
 	if (error)
 		goto out;
 
-	error = permission(nd.dentry->d_inode,MAY_EXEC,&nd);
+	error = vfs_permission(&nd, MAY_EXEC);
 	if (error)
 		goto dput_and_out;
 
@@ -563,7 +563,7 @@ asmlinkage long sys_fchdir(unsigned int fd)
 	if (!S_ISDIR(inode->i_mode))
 		goto out_putf;
 
-	error = permission(inode, MAY_EXEC, NULL);
+	error = file_permission(file, MAY_EXEC);
 	if (!error)
 		set_fs_pwd(current->fs, mnt, dentry);
 out_putf:
@@ -581,7 +581,7 @@ asmlinkage long sys_chroot(const char __user * filename)
 	if (error)
 		goto out;
 
-	error = permission(nd.dentry->d_inode,MAY_EXEC,&nd);
+	error = vfs_permission(&nd, MAY_EXEC);
 	if (error)
 		goto dput_and_out;
 

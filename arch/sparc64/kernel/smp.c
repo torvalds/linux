@@ -39,7 +39,6 @@
 #include <asm/starfire.h>
 #include <asm/tlb.h>
 
-extern int linux_num_cpus;
 extern void calibrate_delay(void);
 
 /* Please don't make this stuff initdata!!!  --DaveM */
@@ -168,6 +167,9 @@ void __init smp_callin(void)
 		rmb();
 
 	cpu_set(cpuid, cpu_online_map);
+
+	/* idle thread is expected to have preempt disabled */
+	preempt_disable();
 }
 
 void cpu_panic(void)
@@ -1149,20 +1151,9 @@ void __init smp_cpus_done(unsigned int max_cpus)
 	       (bogosum/(5000/HZ))%100);
 }
 
-/* This needn't do anything as we do not sleep the cpu
- * inside of the idler task, so an interrupt is not needed
- * to get a clean fast response.
- *
- * XXX Reverify this assumption... -DaveM
- *
- * Addendum: We do want it to do something for the signal
- *           delivery case, we detect that by just seeing
- *           if we are trying to send this to an idler or not.
- */
 void smp_send_reschedule(int cpu)
 {
-	if (cpu_data(cpu).idle_volume == 0)
-		smp_receive_signal(cpu);
+	smp_receive_signal(cpu);
 }
 
 /* This is a nop because we capture all other cpus

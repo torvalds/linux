@@ -395,6 +395,7 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 	int log = test_bit(IDESCSI_LOG_CMD, &scsi->log);
 	struct Scsi_Host *host;
 	u8 *scsi_buf;
+	int errors = rq->errors;
 	unsigned long flags;
 
 	if (!(rq->flags & (REQ_SPECIAL|REQ_SENSE))) {
@@ -421,11 +422,11 @@ static int idescsi_end_request (ide_drive_t *drive, int uptodate, int nrsecs)
 			printk (KERN_WARNING "ide-scsi: %s: timed out for %lu\n",
 					drive->name, pc->scsi_cmd->serial_number);
 		pc->scsi_cmd->result = DID_TIME_OUT << 16;
-	} else if (rq->errors >= ERROR_MAX) {
+	} else if (errors >= ERROR_MAX) {
 		pc->scsi_cmd->result = DID_ERROR << 16;
 		if (log)
 			printk ("ide-scsi: %s: I/O error for %lu\n", drive->name, pc->scsi_cmd->serial_number);
-	} else if (rq->errors) {
+	} else if (errors) {
 		if (log)
 			printk ("ide-scsi: %s: check condition for %lu\n", drive->name, pc->scsi_cmd->serial_number);
 		if (!idescsi_check_condition(drive, rq))
@@ -881,7 +882,7 @@ static inline int should_transform(ide_drive_t *drive, struct scsi_cmnd *cmd)
 	struct gendisk *disk = cmd->request->rq_disk;
 
 	if (disk) {
-		struct Scsi_Device_Template **p = disk->private_data;
+		struct struct scsi_device_Template **p = disk->private_data;
 		if (strcmp((*p)->scsi_driverfs_driver.name, "sg") == 0)
 			return test_bit(IDESCSI_SG_TRANSFORM, &scsi->transform);
 	}

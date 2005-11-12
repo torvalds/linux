@@ -2948,7 +2948,6 @@ MODULE_DEVICE_TABLE (pci, pci_ids);
 static struct pci_driver net2280_pci_driver = {
 	.name =		(char *) driver_name,
 	.id_table =	pci_ids,
-	.owner =	THIS_MODULE,
 
 	.probe =	net2280_probe,
 	.remove =	net2280_remove,

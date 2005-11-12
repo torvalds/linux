@@ -147,6 +147,7 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 			printk(KERN_ERR PFX "unable to get memory for scratch page.\n");
 			return -ENOMEM;
 		}
+		flush_agp_mappings();
 
 		bridge->scratch_page_real = virt_to_gart(addr);
 		bridge->scratch_page =
@@ -187,9 +188,11 @@ static int agp_backend_initialize(struct agp_bridge_data *bridge)
 	return 0;
 
 err_out:
-	if (bridge->driver->needs_scratch_page)
+	if (bridge->driver->needs_scratch_page) {
 		bridge->driver->agp_destroy_page(
 				gart_to_virt(bridge->scratch_page_real));
+		flush_agp_mappings();
+	}
 	if (got_gatt)
 		bridge->driver->free_gatt_table(bridge);
 	if (got_keylist) {
@@ -211,9 +214,11 @@ static void agp_backend_cleanup(struct agp_bridge_data *bridge)
 	bridge->key_list = NULL;
 
 	if (bridge->driver->agp_destroy_page &&
-	    bridge->driver->needs_scratch_page)
+	    bridge->driver->needs_scratch_page) {
 		bridge->driver->agp_destroy_page(
 				gart_to_virt(bridge->scratch_page_real));
+		flush_agp_mappings();
+	}
 }
 
 /* When we remove the global variable agp_bridge from all drivers

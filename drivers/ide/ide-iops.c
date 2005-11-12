@@ -104,8 +104,6 @@ void default_hwif_iops (ide_hwif_t *hwif)
 	hwif->INSL	= ide_insl;
 }
 
-EXPORT_SYMBOL(default_hwif_iops);
-
 /*
  *	MMIO operations, typically used for SATA controllers
  */
@@ -329,8 +327,6 @@ void default_hwif_transport(ide_hwif_t *hwif)
 	hwif->atapi_output_bytes	= atapi_output_bytes;
 }
 
-EXPORT_SYMBOL(default_hwif_transport);
-
 /*
  * Beginning of Taskfile OPCODE Library and feature sets.
  */
@@ -528,8 +524,6 @@ int wait_for_ready (ide_drive_t *drive, int timeout)
 	}
 	return 0;
 }
-
-EXPORT_SYMBOL(wait_for_ready);
 
 /*
  * This routine busy-waits for the drive status to be not "busy".

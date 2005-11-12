@@ -243,7 +243,7 @@ typedef struct {
 		unsigned int	irq;			/* interrupt				*/
 		int		dma;			/* dma channel				*/
 
-		Scsi_Pointer	SCp;			/* current commands data pointer	*/
+		struct scsi_pointer	SCp;			/* current commands data pointer	*/
 
 		MsgQueue_t	msgs;			/* message queue for connected device	*/
 
@@ -304,9 +304,9 @@ typedef struct {
 	/* dma */
 	struct {
 		fasdmatype_t	transfer_type;		/* current type of DMA transfer		*/
-		fasdmatype_t	(*setup) (struct Scsi_Host *host, Scsi_Pointer *SCp, fasdmadir_t direction, fasdmatype_t min_dma);
-		void		(*pseudo)(struct Scsi_Host *host, Scsi_Pointer *SCp, fasdmadir_t direction, int transfer);
-		void		(*stop)  (struct Scsi_Host *host, Scsi_Pointer *SCp);
+		fasdmatype_t	(*setup) (struct Scsi_Host *host, struct scsi_pointer *SCp, fasdmadir_t direction, fasdmatype_t min_dma);
+		void		(*pseudo)(struct Scsi_Host *host, struct scsi_pointer *SCp, fasdmadir_t direction, int transfer);
+		void		(*stop)  (struct Scsi_Host *host, struct scsi_pointer *SCp);
 	} dma;
 
 	/* miscellaneous */

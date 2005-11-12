@@ -525,6 +525,7 @@ ip6ip6_rcv(struct sk_buff **pskb, unsigned int *nhoffp)
 
 	if ((t = ip6ip6_tnl_lookup(&ipv6h->saddr, &ipv6h->daddr)) != NULL) {
 		if (!xfrm6_policy_check(NULL, XFRM_POLICY_IN, skb)) {
+			read_unlock(&ip6ip6_lock);
 			kfree_skb(skb);
 			return 0;
 		}

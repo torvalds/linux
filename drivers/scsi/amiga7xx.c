@@ -11,7 +11,6 @@
 #include <linux/mm.h>
 #include <linux/blkdev.h>
 #include <linux/sched.h>
-#include <linux/version.h>
 #include <linux/config.h>
 #include <linux/zorro.h>
 #include <linux/stat.h>
@@ -30,7 +29,7 @@
 #include "amiga7xx.h"
 
 
-static int amiga7xx_register_one(Scsi_Host_Template *tpnt,
+static int amiga7xx_register_one(struct scsi_host_template *tpnt,
 				 unsigned long address)
 {
     long long options;
@@ -66,7 +65,7 @@ static struct {
     { 0 }
 };
 
-static int __init amiga7xx_zorro_detect(Scsi_Host_Template *tpnt)
+static int __init amiga7xx_zorro_detect(struct scsi_host_template *tpnt)
 {
     int num = 0, i;
     struct zorro_dev *z = NULL;
@@ -90,7 +89,7 @@ static int __init amiga7xx_zorro_detect(Scsi_Host_Template *tpnt)
 #endif /* CONFIG_ZORRO */
 
 
-int __init amiga7xx_detect(Scsi_Host_Template *tpnt)
+int __init amiga7xx_detect(struct scsi_host_template *tpnt)
 {
     static unsigned char called = 0;
     int num = 0;
@@ -123,7 +122,7 @@ static int amiga7xx_release(struct Scsi_Host *shost)
 	return 0;
 }
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.name			= "Amiga NCR53c710 SCSI",
 	.detect			= amiga7xx_detect,
 	.release		= amiga7xx_release,

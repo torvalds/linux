@@ -26,6 +26,7 @@ obj-$(CONFIG_DVB_TDA80XX) += tda80xx.o
 obj-$(CONFIG_DVB_TDA10021) += tda10021.o
 obj-$(CONFIG_DVB_STV0297) += stv0297.o
 obj-$(CONFIG_DVB_NXT2002) += nxt2002.o
+obj-$(CONFIG_DVB_NXT200X) += nxt200x.o
 obj-$(CONFIG_DVB_OR51211) += or51211.o
 obj-$(CONFIG_DVB_OR51132) += or51132.o
 obj-$(CONFIG_DVB_BCM3510) += bcm3510.o

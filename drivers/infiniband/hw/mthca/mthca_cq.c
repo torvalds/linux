@@ -258,7 +258,7 @@ void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
 {
 	struct mthca_cq *cq;
 	struct mthca_cqe *cqe;
-	int prod_index;
+	u32 prod_index;
 	int nfreed = 0;
 
 	spin_lock_irq(&dev->cq_table.lock);
@@ -293,19 +293,15 @@ void mthca_cq_clean(struct mthca_dev *dev, u32 cqn, u32 qpn,
 	 * Now sweep backwards through the CQ, removing CQ entries
 	 * that match our QP by copying older entries on top of them.
 	 */
-	while (prod_index > cq->cons_index) {
-		cqe = get_cqe(cq, (prod_index - 1) & cq->ibcq.cqe);
+	while ((int) --prod_index - (int) cq->cons_index >= 0) {
+		cqe = get_cqe(cq, prod_index & cq->ibcq.cqe);
 		if (cqe->my_qpn == cpu_to_be32(qpn)) {
 			if (srq)
 				mthca_free_srq_wqe(srq, be32_to_cpu(cqe->wqe));
 			++nfreed;
-		}
-		else if (nfreed)
-			memcpy(get_cqe(cq, (prod_index - 1 + nfreed) &
-				       cq->ibcq.cqe),
-			       cqe,
-			       MTHCA_CQ_ENTRY_SIZE);
-		--prod_index;
+		} else if (nfreed)
+			memcpy(get_cqe(cq, (prod_index + nfreed) & cq->ibcq.cqe),
+			       cqe, MTHCA_CQ_ENTRY_SIZE);
 	}
 
 	if (nfreed) {

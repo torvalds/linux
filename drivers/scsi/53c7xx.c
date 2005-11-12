@@ -343,7 +343,7 @@ static void NCR53c7x0_soft_reset (struct Scsi_Host *host);
 /* Size of event list (per host adapter) */
 static int track_events = 0;
 static struct Scsi_Host *first_host = NULL;	/* Head of list of NCR boards */
-static Scsi_Host_Template *the_template = NULL;	
+static struct scsi_host_template *the_template = NULL;
 
 /* NCR53c710 script handling code */
 
@@ -1103,7 +1103,7 @@ NCR53c7x0_init (struct Scsi_Host *host) {
 }
 
 /* 
- * Function : int ncr53c7xx_init(Scsi_Host_Template *tpnt, int board, int chip,
+ * Function : int ncr53c7xx_init(struct scsi_host_template *tpnt, int board, int chip,
  *	unsigned long base, int io_port, int irq, int dma, long long options,
  *	int clock);
  *
@@ -1118,7 +1118,7 @@ NCR53c7x0_init (struct Scsi_Host *host) {
  */
 
 int 
-ncr53c7xx_init (Scsi_Host_Template *tpnt, int board, int chip,
+ncr53c7xx_init (struct scsi_host_template *tpnt, int board, int chip,
     unsigned long base, int io_port, int irq, int dma, 
     long long options, int clock)
 {

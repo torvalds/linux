@@ -42,10 +42,11 @@
 
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
+#include <asm/sigcontext.h>
+#include <asm/vdso.h>
 #ifdef CONFIG_PPC64
 #include "ppc32.h"
 #include <asm/unistd.h>
-#include <asm/vdso.h>
 #else
 #include <asm/ucontext.h>
 #include <asm/pgtable.h>
@@ -808,14 +809,11 @@ static int handle_rt_signal(unsigned long sig, struct k_sigaction *ka,
 
 	/* Save user registers on the stack */
 	frame = &rt_sf->uc.uc_mcontext;
-#ifdef CONFIG_PPC64
 	if (vdso32_rt_sigtramp && current->thread.vdso_base) {
 		if (save_user_regs(regs, frame, 0))
 			goto badframe;
 		regs->link = current->thread.vdso_base + vdso32_rt_sigtramp;
-	} else
-#endif
-	{
+	} else {
 		if (save_user_regs(regs, frame, __NR_rt_sigreturn))
 			goto badframe;
 		regs->link = (unsigned long) frame->tramp;
@@ -1089,14 +1087,11 @@ static int handle_signal(unsigned long sig, struct k_sigaction *ka,
 	    || __put_user(sig, &sc->signal))
 		goto badframe;
 
-#ifdef CONFIG_PPC64
 	if (vdso32_sigtramp && current->thread.vdso_base) {
 		if (save_user_regs(regs, &frame->mctx, 0))
 			goto badframe;
 		regs->link = current->thread.vdso_base + vdso32_sigtramp;
-	} else
-#endif
-	{
+	} else {
 		if (save_user_regs(regs, &frame->mctx, __NR_sigreturn))
 			goto badframe;
 		regs->link = (unsigned long) frame->mctx.tramp;

@@ -203,10 +203,10 @@ int drm_ati_pcigart_init(drm_device_t * dev, drm_ati_pcigart_info * gart_info)
 
 		for (j = 0; j < (PAGE_SIZE / ATI_PCIGART_PAGE_SIZE); j++) {
 			if (gart_info->is_pcie)
-				*pci_gart = (cpu_to_le32(page_base) >> 8) | 0xc;
+				*pci_gart = cpu_to_le32((page_base >> 8) | 0xc);
 			else
 				*pci_gart = cpu_to_le32(page_base);
-			*pci_gart++;
+			pci_gart++;
 			page_base += ATI_PCIGART_PAGE_SIZE;
 		}
 	}

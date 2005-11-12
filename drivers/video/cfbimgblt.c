@@ -80,10 +80,12 @@ static u32 cfb_tab32[] = {
 #define LEFT_POS(bpp)          (32 - bpp)
 #define SHIFT_HIGH(val, bits)  ((val) >> (bits))
 #define SHIFT_LOW(val, bits)   ((val) << (bits))
+#define BIT_NR(b)              (7 - (b))
 #else
 #define LEFT_POS(bpp)          (0)
 #define SHIFT_HIGH(val, bits)  ((val) << (bits))
 #define SHIFT_LOW(val, bits)   ((val) >> (bits))
+#define BIT_NR(b)              (b)
 #endif
 
 static inline void color_imageblit(const struct fb_image *image, 
@@ -177,7 +179,7 @@ static inline void slow_imageblit(const struct fb_image *image, struct fb_info *
 
 		while (j--) {
 			l--;
-			color = (*s & (1 << l)) ? fgcolor : bgcolor;
+			color = (*s & 1 << (BIT_NR(l))) ? fgcolor : bgcolor;
 			color <<= LEFT_POS(bpp);
 			val |= SHIFT_HIGH(color, shift);
 			

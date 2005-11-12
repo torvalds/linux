@@ -703,7 +703,6 @@ static struct pci_device_id agp_amd64_pci_table[] = {
 MODULE_DEVICE_TABLE(pci, agp_amd64_pci_table);
 
 static struct pci_driver agp_amd64_pci_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "agpgart-amd64",
 	.id_table	= agp_amd64_pci_table,
 	.probe		= agp_amd64_probe,

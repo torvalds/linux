@@ -1551,15 +1551,14 @@ mpsc_shared_unmap_regs(void)
 }
 
 static int
-mpsc_shared_drv_probe(struct device *dev)
+mpsc_shared_drv_probe(struct platform_device *dev)
 {
-	struct platform_device		*pd = to_platform_device(dev);
 	struct mpsc_shared_pdata	*pdata;
 	int				 rc = -ENODEV;
 
-	if (pd->id == 0) {
-		if (!(rc = mpsc_shared_map_regs(pd)))  {
-			pdata = (struct mpsc_shared_pdata *)dev->platform_data;
+	if (dev->id == 0) {
+		if (!(rc = mpsc_shared_map_regs(dev)))  {
+			pdata = (struct mpsc_shared_pdata *)dev->dev.platform_data;
 
 			mpsc_shared_regs.MPSC_MRR_m = pdata->mrr_val;
 			mpsc_shared_regs.MPSC_RCRR_m= pdata->rcrr_val;
@@ -1577,12 +1576,11 @@ mpsc_shared_drv_probe(struct device *dev)
 }
 
 static int
-mpsc_shared_drv_remove(struct device *dev)
+mpsc_shared_drv_remove(struct platform_device *dev)
 {
-	struct platform_device	*pd = to_platform_device(dev);
 	int	rc = -ENODEV;
 
-	if (pd->id == 0) {
+	if (dev->id == 0) {
 		mpsc_shared_unmap_regs();
 		mpsc_shared_regs.MPSC_MRR_m = 0;
 		mpsc_shared_regs.MPSC_RCRR_m = 0;
@@ -1595,11 +1593,12 @@ mpsc_shared_drv_remove(struct device *dev)
 	return rc;
 }
 
-static struct device_driver mpsc_shared_driver = {
-	.name	= MPSC_SHARED_NAME,
-	.bus	= &platform_bus_type,
+static struct platform_driver mpsc_shared_driver = {
 	.probe	= mpsc_shared_drv_probe,
 	.remove	= mpsc_shared_drv_remove,
+	.driver	= {
+		.name = MPSC_SHARED_NAME,
+	},
 };
 
 /*
@@ -1732,19 +1731,18 @@ mpsc_drv_get_platform_data(struct mpsc_port_info *pi,
 }
 
 static int
-mpsc_drv_probe(struct device *dev)
+mpsc_drv_probe(struct platform_device *dev)
 {
-	struct platform_device	*pd = to_platform_device(dev);
 	struct mpsc_port_info	*pi;
 	int			rc = -ENODEV;
 
-	pr_debug("mpsc_drv_probe: Adding MPSC %d\n", pd->id);
+	pr_debug("mpsc_drv_probe: Adding MPSC %d\n", dev->id);
 
-	if (pd->id < MPSC_NUM_CTLRS) {
-		pi = &mpsc_ports[pd->id];
+	if (dev->id < MPSC_NUM_CTLRS) {
+		pi = &mpsc_ports[dev->id];
 
-		if (!(rc = mpsc_drv_map_regs(pi, pd))) {
-			mpsc_drv_get_platform_data(pi, pd, pd->id);
+		if (!(rc = mpsc_drv_map_regs(pi, dev))) {
+			mpsc_drv_get_platform_data(pi, dev, dev->id);
 
 			if (!(rc = mpsc_make_ready(pi)))
 				if (!(rc = uart_add_one_port(&mpsc_reg,
@@ -1764,27 +1762,26 @@ mpsc_drv_probe(struct device *dev)
 }
 
 static int
-mpsc_drv_remove(struct device *dev)
+mpsc_drv_remove(struct platform_device *dev)
 {
-	struct platform_device	*pd = to_platform_device(dev);
+	pr_debug("mpsc_drv_exit: Removing MPSC %d\n", dev->id);
 
-	pr_debug("mpsc_drv_exit: Removing MPSC %d\n", pd->id);
-
-	if (pd->id < MPSC_NUM_CTLRS) {
-		uart_remove_one_port(&mpsc_reg, &mpsc_ports[pd->id].port);
-		mpsc_release_port((struct uart_port *)&mpsc_ports[pd->id].port);
-		mpsc_drv_unmap_regs(&mpsc_ports[pd->id]);
+	if (dev->id < MPSC_NUM_CTLRS) {
+		uart_remove_one_port(&mpsc_reg, &mpsc_ports[dev->id].port);
+		mpsc_release_port((struct uart_port *)&mpsc_ports[dev->id].port);
+		mpsc_drv_unmap_regs(&mpsc_ports[dev->id]);
 		return 0;
 	}
 	else
 		return -ENODEV;
 }
 
-static struct device_driver mpsc_driver = {
-	.name	= MPSC_CTLR_NAME,
-	.bus	= &platform_bus_type,
+static struct platform_driver mpsc_driver = {
 	.probe	= mpsc_drv_probe,
 	.remove	= mpsc_drv_remove,
+	.driver	= {
+		.name = MPSC_CTLR_NAME,
+	},
 };
 
 static int __init
@@ -1798,9 +1795,9 @@ mpsc_drv_init(void)
 	memset(&mpsc_shared_regs, 0, sizeof(mpsc_shared_regs));
 
 	if (!(rc = uart_register_driver(&mpsc_reg))) {
-		if (!(rc = driver_register(&mpsc_shared_driver))) {
-			if ((rc = driver_register(&mpsc_driver))) {
-				driver_unregister(&mpsc_shared_driver);
+		if (!(rc = platform_driver_register(&mpsc_shared_driver))) {
+			if ((rc = platform_driver_register(&mpsc_driver))) {
+				platform_driver_unregister(&mpsc_shared_driver);
 				uart_unregister_driver(&mpsc_reg);
 			}
 		}
@@ -1815,8 +1812,8 @@ mpsc_drv_init(void)
 static void __exit
 mpsc_drv_exit(void)
 {
-	driver_unregister(&mpsc_driver);
-	driver_unregister(&mpsc_shared_driver);
+	platform_driver_unregister(&mpsc_driver);
+	platform_driver_unregister(&mpsc_shared_driver);
 	uart_unregister_driver(&mpsc_reg);
 	memset(mpsc_ports, 0, sizeof(mpsc_ports));
 	memset(&mpsc_shared_regs, 0, sizeof(mpsc_shared_regs));

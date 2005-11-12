@@ -17,6 +17,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/version.h>
 #include <asm/io.h>
 
 /* fixme: this is ugly */

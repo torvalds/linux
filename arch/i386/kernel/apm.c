@@ -769,8 +769,26 @@ static int set_system_power_state(u_short state)
 static int apm_do_idle(void)
 {
 	u32	eax;
+	u8	ret = 0;
+	int	idled = 0;
+	int	polling;
 
-	if (apm_bios_call_simple(APM_FUNC_IDLE, 0, 0, &eax)) {
+	polling = test_thread_flag(TIF_POLLING_NRFLAG);
+	if (polling) {
+		clear_thread_flag(TIF_POLLING_NRFLAG);
+		smp_mb__after_clear_bit();
+	}
+	if (!need_resched()) {
+		idled = 1;
+		ret = apm_bios_call_simple(APM_FUNC_IDLE, 0, 0, &eax);
+	}
+	if (polling)
+		set_thread_flag(TIF_POLLING_NRFLAG);
+
+	if (!idled)
+		return 0;
+
+	if (ret) {
 		static unsigned long t;
 
 		/* This always fails on some SMP boards running UP kernels.

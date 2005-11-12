@@ -32,7 +32,6 @@
 #include <linux/spinlock.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/platform_device.h>
 #include <asm/ocp.h>
 #include <linux/crc32.h>
@@ -134,7 +133,7 @@ int gfar_mdio_probe(struct device *dev)
 	if (NULL == dev)
 		return -EINVAL;
 
-	new_bus = kmalloc(sizeof(struct mii_bus), GFP_KERNEL);
+	new_bus = kzalloc(sizeof(struct mii_bus), GFP_KERNEL);
 
 	if (NULL == new_bus)
 		return -ENOMEM;

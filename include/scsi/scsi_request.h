@@ -47,9 +47,6 @@ struct scsi_request {
 
 extern struct scsi_request *scsi_allocate_request(struct scsi_device *, gfp_t);
 extern void scsi_release_request(struct scsi_request *);
-extern void scsi_wait_req(struct scsi_request *, const void *cmnd,
-			  void *buffer, unsigned bufflen,
-			  int timeout, int retries);
 extern void scsi_do_req(struct scsi_request *, const void *cmnd,
 			void *buffer, unsigned bufflen,
 			void (*done) (struct scsi_cmnd *),

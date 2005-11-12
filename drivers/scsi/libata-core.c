@@ -4829,6 +4829,7 @@ ata_pci_init_native_mode(struct pci_dev *pdev, struct ata_port_info **port, int 
 
 	probe_ent->irq = pdev->irq;
 	probe_ent->irq_flags = SA_SHIRQ;
+	probe_ent->private_data = port[0]->private_data;
 
 	if (ports & ATA_PORT_PRIMARY) {
 		probe_ent->port[p].cmd_addr = pci_resource_start(pdev, 0);
@@ -4865,6 +4866,7 @@ static struct ata_probe_ent *ata_pci_init_legacy_port(struct pci_dev *pdev, stru
 	probe_ent->legacy_mode = 1;
 	probe_ent->n_ports = 1;
 	probe_ent->hard_port_no = port_num;
+	probe_ent->private_data = port->private_data;
 
 	switch(port_num)
 	{

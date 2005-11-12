@@ -13,12 +13,12 @@
 #include <linux/init.h>
 #include <linux/kernel_stat.h>
 #include <linux/sched.h>
-#include <linux/version.h>
 
 #include <asm/io.h>
 #include <asm/hardware.h>
 #include <asm/leds.h>
 #include <asm/system.h>
+#include <asm/mach-types.h>
 
 #include <asm/arch/fpga.h>
 #include <asm/arch/gpio.h>
@@ -64,14 +64,19 @@ void h2p2_dbg_leds_event(led_event_t evt)
 	case led_stop:
 	case led_halted:
 		/* all leds off during suspend or shutdown */
-		omap_set_gpio_dataout(GPIO_TIMER, 0);
-		omap_set_gpio_dataout(GPIO_IDLE, 0);
+
+		if (! machine_is_omap_perseus2()) {
+			omap_set_gpio_dataout(GPIO_TIMER, 0);
+			omap_set_gpio_dataout(GPIO_IDLE, 0);
+		}
+
 		__raw_writew(~0, &fpga->leds);
 		led_state &= ~LED_STATE_ENABLED;
 		if (evt == led_halted) {
 			iounmap(fpga);
 			fpga = NULL;
 		}
+
 		goto done;
 
 	case led_claim:
@@ -86,18 +91,37 @@ void h2p2_dbg_leds_event(led_event_t evt)
 #ifdef CONFIG_LEDS_TIMER
 	case led_timer:
 		led_state ^= LED_TIMER_ON;
-		omap_set_gpio_dataout(GPIO_TIMER, led_state & LED_TIMER_ON);
-		goto done;
+
+		if (machine_is_omap_perseus2())
+			hw_led_state ^= H2P2_DBG_FPGA_P2_LED_TIMER;
+		else {
+			omap_set_gpio_dataout(GPIO_TIMER, led_state & LED_TIMER_ON);
+			goto done;
+		}
+
+		break;
 #endif
 
 #ifdef CONFIG_LEDS_CPU
 	case led_idle_start:
-		omap_set_gpio_dataout(GPIO_IDLE, 1);
-		goto done;
+		if (machine_is_omap_perseus2())
+			hw_led_state |= H2P2_DBG_FPGA_P2_LED_IDLE;
+		else {
+			omap_set_gpio_dataout(GPIO_IDLE, 1);
+			goto done;
+		}
+
+		break;
 
 	case led_idle_end:
-		omap_set_gpio_dataout(GPIO_IDLE, 0);
-		goto done;
+		if (machine_is_omap_perseus2())
+			hw_led_state &= ~H2P2_DBG_FPGA_P2_LED_IDLE;
+		else {
+			omap_set_gpio_dataout(GPIO_IDLE, 0);
+			goto done;
+		}
+
+		break;
 #endif
 
 	case led_green_on:
@@ -136,7 +160,7 @@ void h2p2_dbg_leds_event(led_event_t evt)
 	/*
 	 *  Actually burn the LEDs
 	 */
-	if (led_state & LED_STATE_CLAIMED)
+	if (led_state & LED_STATE_ENABLED)
 		__raw_writew(~hw_led_state, &fpga->leds);
 
 done:

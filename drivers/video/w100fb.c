@@ -437,9 +437,9 @@ static void w100fb_restore_vidmem(struct w100fb_par *par)
 	}
 }
 
-static int w100fb_suspend(struct device *dev, pm_message_t state)
+static int w100fb_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct fb_info *info = dev_get_drvdata(dev);
+	struct fb_info *info = platform_get_drvdata(dev);
 	struct w100fb_par *par=info->par;
 	struct w100_tg_info *tg = par->mach->tg;
 
@@ -452,9 +452,9 @@ static int w100fb_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int w100fb_resume(struct device *dev)
+static int w100fb_resume(struct platform_device *dev)
 {
-	struct fb_info *info = dev_get_drvdata(dev);
+	struct fb_info *info = platform_get_drvdata(dev);
 	struct w100fb_par *par=info->par;
 	struct w100_tg_info *tg = par->mach->tg;
 
@@ -473,13 +473,12 @@ static int w100fb_resume(struct device *dev)
 #endif
 
 
-int __init w100fb_probe(struct device *dev)
+int __init w100fb_probe(struct platform_device *pdev)
 {
 	int err = -EIO;
 	struct w100fb_mach_info *inf;
 	struct fb_info *info = NULL;
 	struct w100fb_par *par;
-	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	unsigned int chip_id;
 
@@ -522,9 +521,9 @@ int __init w100fb_probe(struct device *dev)
 	}
 
 	par = info->par;
-	dev_set_drvdata(dev, info);
+	platform_set_drvdata(pdev, info);
 
-	inf = dev->platform_data;
+	inf = pdev->dev.platform_data;
 	par->chip_id = chip_id;
 	par->mach = inf;
 	par->fastpll_mode = 0;
@@ -600,10 +599,10 @@ int __init w100fb_probe(struct device *dev)
 		goto out;
 	}
 
-	device_create_file(dev, &dev_attr_fastpllclk);
-	device_create_file(dev, &dev_attr_reg_read);
-	device_create_file(dev, &dev_attr_reg_write);
-	device_create_file(dev, &dev_attr_flip);
+	device_create_file(&pdev->dev, &dev_attr_fastpllclk);
+	device_create_file(&pdev->dev, &dev_attr_reg_read);
+	device_create_file(&pdev->dev, &dev_attr_reg_write);
+	device_create_file(&pdev->dev, &dev_attr_flip);
 
 	printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node, info->fix.id);
 	return 0;
@@ -622,15 +621,15 @@ out:
 }
 
 
-static int w100fb_remove(struct device *dev)
+static int w100fb_remove(struct platform_device *pdev)
 {
-	struct fb_info *info = dev_get_drvdata(dev);
+	struct fb_info *info = platform_get_drvdata(pdev);
 	struct w100fb_par *par=info->par;
 
-	device_remove_file(dev, &dev_attr_fastpllclk);
-	device_remove_file(dev, &dev_attr_reg_read);
-	device_remove_file(dev, &dev_attr_reg_write);
-	device_remove_file(dev, &dev_attr_flip);
+	device_remove_file(&pdev->dev, &dev_attr_fastpllclk);
+	device_remove_file(&pdev->dev, &dev_attr_reg_read);
+	device_remove_file(&pdev->dev, &dev_attr_reg_write);
+	device_remove_file(&pdev->dev, &dev_attr_flip);
 
 	unregister_framebuffer(info);
 
@@ -1448,23 +1447,24 @@ static void w100_vsync(void)
 	writel(0x00000002, remapped_regs + mmGEN_INT_STATUS);
 }
 
-static struct device_driver w100fb_driver = {
-	.name		= "w100fb",
-	.bus		= &platform_bus_type,
+static struct platform_driver w100fb_driver = {
 	.probe		= w100fb_probe,
 	.remove		= w100fb_remove,
 	.suspend	= w100fb_suspend,
 	.resume		= w100fb_resume,
+	.driver		= {
+		.name	= "w100fb",
+	},
 };
 
 int __devinit w100fb_init(void)
 {
-	return driver_register(&w100fb_driver);
+	return platform_driver_register(&w100fb_driver);
 }
 
 void __exit w100fb_cleanup(void)
 {
- 	driver_unregister(&w100fb_driver);
+	platform_driver_unregister(&w100fb_driver);
 }
 
 module_init(w100fb_init);

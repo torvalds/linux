@@ -155,7 +155,7 @@ printk("reading %p len %d\n",addr, len);
 
 #include "../NCR5380.c"
 
-static Scsi_Host_Template ecoscsi_template =  {
+static struct scsi_host_template ecoscsi_template =  {
 	.module		= THIS_MODULE,
 	.name		= "Serial Port EcoSCSI NCR5380",
 	.proc_name	= "ecoscsi",

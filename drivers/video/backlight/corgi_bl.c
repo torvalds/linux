@@ -48,6 +48,12 @@ static void corgibl_send_intensity(int intensity)
 	corgibl_mach_set_intensity(intensity);
 
 	spin_unlock_irqrestore(&bl_lock, flags);
+
+ 	corgi_kick_batt = symbol_get(sharpsl_battery_kick);
+ 	if (corgi_kick_batt) {
+ 		corgi_kick_batt();
+ 		symbol_put(sharpsl_battery_kick);
+ 	}
 }
 
 static void corgibl_blank(int blank)
@@ -73,13 +79,13 @@ static void corgibl_blank(int blank)
 }
 
 #ifdef CONFIG_PM
-static int corgibl_suspend(struct device *dev, pm_message_t state)
+static int corgibl_suspend(struct platform_device *dev, pm_message_t state)
 {
 	corgibl_blank(FB_BLANK_POWERDOWN);
 	return 0;
 }
 
-static int corgibl_resume(struct device *dev)
+static int corgibl_resume(struct platform_device *dev)
 {
 	corgibl_blank(FB_BLANK_UNBLANK);
 	return 0;
@@ -137,9 +143,9 @@ static struct backlight_properties corgibl_data = {
 
 static struct backlight_device *corgi_backlight_device;
 
-static int __init corgibl_probe(struct device *dev)
+static int __init corgibl_probe(struct platform_device *pdev)
 {
-	struct corgibl_machinfo *machinfo = dev->platform_data;
+	struct corgibl_machinfo *machinfo = pdev->dev.platform_data;
 
 	corgibl_data.max_brightness = machinfo->max_intensity;
 	corgibl_mach_set_intensity = machinfo->set_bl_intensity;
@@ -156,7 +162,7 @@ static int __init corgibl_probe(struct device *dev)
 	return 0;
 }
 
-static int corgibl_remove(struct device *dev)
+static int corgibl_remove(struct platform_device *dev)
 {
 	backlight_device_unregister(corgi_backlight_device);
 
@@ -166,23 +172,24 @@ static int corgibl_remove(struct device *dev)
 	return 0;
 }
 
-static struct device_driver corgibl_driver = {
-	.name		= "corgi-bl",
-	.bus		= &platform_bus_type,
+static struct platform_driver corgibl_driver = {
 	.probe		= corgibl_probe,
 	.remove		= corgibl_remove,
 	.suspend	= corgibl_suspend,
 	.resume		= corgibl_resume,
+	.driver		= {
+		.name	= "corgi-bl",
+	},
 };
 
 static int __init corgibl_init(void)
 {
-	return driver_register(&corgibl_driver);
+	return platform_driver_register(&corgibl_driver);
 }
 
 static void __exit corgibl_exit(void)
 {
- 	driver_unregister(&corgibl_driver);
+	platform_driver_unregister(&corgibl_driver);
 }
 
 module_init(corgibl_init);

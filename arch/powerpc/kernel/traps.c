@@ -49,7 +49,6 @@
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
 #include <asm/processor.h>
-#include <asm/systemcfg.h>
 #endif
 
 #ifdef CONFIG_PPC64	/* XXX */
@@ -129,7 +128,7 @@ int die(const char *str, struct pt_regs *regs, long err)
 	nl = 1;
 #endif
 #ifdef CONFIG_PPC64
-	switch (systemcfg->platform) {
+	switch (_machine) {
 	case PLATFORM_PSERIES:
 		printk("PSERIES ");
 		nl = 1;
@@ -886,10 +885,6 @@ void altivec_unavailable_exception(struct pt_regs *regs)
 			"%lx at %lx\n", regs->trap, regs->nip);
 	die("Unrecoverable VMX/Altivec Unavailable Exception", regs, SIGABRT);
 }
-
-#ifdef CONFIG_PPC64
-extern perf_irq_t perf_irq;
-#endif
 
 #if defined(CONFIG_PPC64) || defined(CONFIG_E500)
 void performance_monitor_exception(struct pt_regs *regs)
