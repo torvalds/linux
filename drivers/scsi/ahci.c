@@ -474,11 +474,12 @@ static void ahci_tf_read(struct ata_port *ap, struct ata_taskfile *tf)
 	ata_tf_from_fis(d2h_fis, tf);
 }
 
-static void ahci_fill_sg(struct ata_queued_cmd *qc)
+static unsigned int ahci_fill_sg(struct ata_queued_cmd *qc)
 {
 	struct ahci_port_priv *pp = qc->ap->private_data;
 	struct scatterlist *sg;
 	struct ahci_sg *ahci_sg;
+	unsigned int n_sg = 0;
 
 	VPRINTK("ENTER\n");
 
@@ -493,8 +494,12 @@ static void ahci_fill_sg(struct ata_queued_cmd *qc)
 		ahci_sg->addr = cpu_to_le32(addr & 0xffffffff);
 		ahci_sg->addr_hi = cpu_to_le32((addr >> 16) >> 16);
 		ahci_sg->flags_size = cpu_to_le32(sg_len - 1);
+
 		ahci_sg++;
+		n_sg++;
 	}
+
+	return n_sg;
 }
 
 static void ahci_qc_prep(struct ata_queued_cmd *qc)
@@ -503,13 +508,14 @@ static void ahci_qc_prep(struct ata_queued_cmd *qc)
 	struct ahci_port_priv *pp = ap->private_data;
 	u32 opts;
 	const u32 cmd_fis_len = 5; /* five dwords */
+	unsigned int n_elem;
 
 	/*
 	 * Fill in command slot information (currently only one slot,
 	 * slot 0, is currently since we don't do queueing)
 	 */
 
-	opts = (qc->n_elem << 16) | cmd_fis_len;
+	opts = cmd_fis_len;
 	if (qc->tf.flags & ATA_TFLAG_WRITE)
 		opts |= AHCI_CMD_WRITE;
 	if (is_atapi_taskfile(&qc->tf))
@@ -533,7 +539,9 @@ static void ahci_qc_prep(struct ata_queued_cmd *qc)
 	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
 		return;
 
-	ahci_fill_sg(qc);
+	n_elem = ahci_fill_sg(qc);
+
+	pp->cmd_slot[0].opts |= cpu_to_le32(n_elem << 16);
 }
 
 static void ahci_intr_error(struct ata_port *ap, u32 irq_stat)
