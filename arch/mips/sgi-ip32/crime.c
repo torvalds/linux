@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <asm/bootinfo.h>
 #include <asm/io.h>
 #include <asm/mipsregs.h>
@@ -20,6 +21,8 @@
 
 struct sgi_crime *crime;
 struct sgi_mace *mace;
+
+EXPORT_SYMBOL_GPL(mace);
 
 void __init crime_init(void)
 {
