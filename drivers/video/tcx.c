@@ -52,6 +52,9 @@ static struct fb_ops tcx_ops = {
 	.fb_imageblit		= cfb_imageblit,
 	.fb_mmap		= tcx_mmap,
 	.fb_ioctl		= tcx_ioctl,
+#ifdef CONFIG_COMPAT
+	.fb_compat_ioctl	= sbusfb_compat_ioctl,
+#endif
 };
 
 /* THC definitions */
