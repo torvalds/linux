@@ -1,6 +1,6 @@
 /* sis900.c: A SiS 900/7016 PCI Fast Ethernet driver for Linux.
    Copyright 1999 Silicon Integrated System Corporation 
-   Revision:	1.08.08 Jan. 22 2005
+   Revision:	1.08.09 Sep. 19 2005
    
    Modified from the driver which is originally written by Donald Becker.
    
@@ -17,6 +17,7 @@
    SiS 7014 Single Chip 100BASE-TX/10BASE-T Physical Layer Solution,
    preliminary Rev. 1.0 Jan. 18, 1998
 
+   Rev 1.08.09 Sep. 19 2005 Daniele Venzano add Wake on LAN support
    Rev 1.08.08 Jan. 22 2005 Daniele Venzano use netif_msg for debugging messages
    Rev 1.08.07 Nov.  2 2003 Daniele Venzano <webvenza@libero.it> add suspend/resume support
    Rev 1.08.06 Sep. 24 2002 Mufasa Yang bug fix for Tx timeout & add SiS963 support
@@ -76,7 +77,7 @@
 #include "sis900.h"
 
 #define SIS900_MODULE_NAME "sis900"
-#define SIS900_DRV_VERSION "v1.08.08 Jan. 22 2005"
+#define SIS900_DRV_VERSION "v1.08.09 Sep. 19 2005"
 
 static char version[] __devinitdata =
 KERN_INFO "sis900.c: " SIS900_DRV_VERSION "\n";
@@ -537,6 +538,11 @@ static int __devinit sis900_probe(struct pci_dev *pci_dev,
 	for (i = 0; i < 5; i++)
 		printk("%2.2x:", (u8)net_dev->dev_addr[i]);
 	printk("%2.2x.\n", net_dev->dev_addr[i]);
+
+	/* Detect Wake on Lan support */
+	ret = inl(CFGPMC & PMESP);
+	if (netif_msg_probe(sis_priv) && (ret & PME_D3C) == 0)
+		printk(KERN_INFO "%s: Wake on LAN only available from suspend to RAM.", net_dev->name);
 
 	return 0;
 
@@ -2015,6 +2021,67 @@ static int sis900_nway_reset(struct net_device *net_dev)
 	return mii_nway_restart(&sis_priv->mii_info);
 }
 
+/**
+ *	sis900_set_wol - Set up Wake on Lan registers
+ *	@net_dev: the net device to probe
+ *	@wol: container for info passed to the driver
+ *
+ *	Process ethtool command "wol" to setup wake on lan features.
+ *	SiS900 supports sending WoL events if a correct packet is received,
+ *	but there is no simple way to filter them to only a subset (broadcast,
+ *	multicast, unicast or arp).
+ */
+ 
+static int sis900_set_wol(struct net_device *net_dev, struct ethtool_wolinfo *wol)
+{
+	struct sis900_private *sis_priv = net_dev->priv;
+	long pmctrl_addr = net_dev->base_addr + pmctrl;
+	u32 cfgpmcsr = 0, pmctrl_bits = 0;
+
+	if (wol->wolopts == 0) {
+		pci_read_config_dword(sis_priv->pci_dev, CFGPMCSR, &cfgpmcsr);
+		cfgpmcsr |= ~PME_EN;
+		pci_write_config_dword(sis_priv->pci_dev, CFGPMCSR, cfgpmcsr);
+		outl(pmctrl_bits, pmctrl_addr);
+		if (netif_msg_wol(sis_priv))
+			printk(KERN_DEBUG "%s: Wake on LAN disabled\n", net_dev->name);
+		return 0;
+	}
+
+	if (wol->wolopts & (WAKE_MAGICSECURE | WAKE_UCAST | WAKE_MCAST
+				| WAKE_BCAST | WAKE_ARP))
+		return -EINVAL;
+
+	if (wol->wolopts & WAKE_MAGIC)
+		pmctrl_bits |= MAGICPKT;
+	if (wol->wolopts & WAKE_PHY)
+		pmctrl_bits |= LINKON;
+	
+	outl(pmctrl_bits, pmctrl_addr);
+
+	pci_read_config_dword(sis_priv->pci_dev, CFGPMCSR, &cfgpmcsr);
+	cfgpmcsr |= PME_EN;
+	pci_write_config_dword(sis_priv->pci_dev, CFGPMCSR, cfgpmcsr);
+	if (netif_msg_wol(sis_priv))
+		printk(KERN_DEBUG "%s: Wake on LAN enabled\n", net_dev->name);
+
+	return 0;
+}
+
+static void sis900_get_wol(struct net_device *net_dev, struct ethtool_wolinfo *wol)
+{
+	long pmctrl_addr = net_dev->base_addr + pmctrl;
+	u32 pmctrl_bits;
+
+	pmctrl_bits = inl(pmctrl_addr);
+	if (pmctrl_bits & MAGICPKT)
+		wol->wolopts |= WAKE_MAGIC;
+	if (pmctrl_bits & LINKON)
+		wol->wolopts |= WAKE_PHY;
+
+	wol->supported = (WAKE_PHY | WAKE_MAGIC);
+}
+
 static struct ethtool_ops sis900_ethtool_ops = {
 	.get_drvinfo 	= sis900_get_drvinfo,
 	.get_msglevel	= sis900_get_msglevel,
@@ -2023,6 +2090,8 @@ static struct ethtool_ops sis900_ethtool_ops = {
 	.get_settings	= sis900_get_settings,
 	.set_settings	= sis900_set_settings,
 	.nway_reset	= sis900_nway_reset,
+	.get_wol	= sis900_get_wol,
+	.set_wol	= sis900_set_wol
 };
 
 /**
