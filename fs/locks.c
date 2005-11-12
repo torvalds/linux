@@ -1105,7 +1105,6 @@ static void time_out_leases(struct inode *inode)
 			before = &fl->fl_next;
 			continue;
 		}
-		printk(KERN_INFO "lease broken - owner pid = %d\n", fl->fl_pid);
 		lease_modify(before, fl->fl_type & ~F_INPROGRESS);
 		if (fl == *before)	/* lease_modify may have freed fl */
 			before = &fl->fl_next;
