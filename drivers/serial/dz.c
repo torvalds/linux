@@ -645,9 +645,9 @@ static void __init dz_init_ports(void)
 
 	if (mips_machtype == MACH_DS23100 ||
 	    mips_machtype == MACH_DS5100)
-		base = (unsigned long) KN01_DZ11_BASE;
+		base = CKSEG1ADDR(KN01_SLOT_BASE + KN01_DZ11);
 	else
-		base = (unsigned long) KN02_DZ11_BASE;
+		base = CKSEG1ADDR(KN02_SLOT_BASE + KN02_DZ11);
 
 	for (i = 0, dport = dz_ports; i < DZ_NB_PORT; i++, dport++) {
 		spin_lock_init(&dport->port.lock);
