@@ -530,6 +530,9 @@ static void sctp_v4_get_saddr(struct sctp_association *asoc,
 {
 	struct rtable *rt = (struct rtable *)dst;
 
+	if (!asoc)
+		return;
+
 	if (rt) {
 		saddr->v4.sin_family = AF_INET;
 		saddr->v4.sin_port = asoc->base.bind_addr.port;  
