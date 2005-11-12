@@ -164,6 +164,19 @@ config IA64_PAGE_SIZE_64KB
 
 endchoice
 
+choice
+	prompt "Page Table Levels"
+	default PGTABLE_3
+
+config PGTABLE_3
+	bool "3 Levels"
+
+config PGTABLE_4
+	depends on !IA64_PAGE_SIZE_64KB
+	bool "4 Levels"
+
+endchoice
+
 source kernel/Kconfig.hz
 
 config IA64_BRL_EMU
