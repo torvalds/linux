@@ -699,12 +699,14 @@ static int __init inet6_init(void)
 	/* Register the family here so that the init calls below will
 	 * be able to create sockets. (?? is this dangerous ??)
 	 */
-	(void) sock_register(&inet6_family_ops);
+	err = sock_register(&inet6_family_ops);
+	if (err)
+		goto out_unregister_raw_proto;
 
 	/* Initialise ipv6 mibs */
 	err = init_ipv6_mibs();
 	if (err)
-		goto out_unregister_raw_proto;
+		goto out_unregister_sock;
 	
 	/*
 	 *	ipngwg API draft makes clear that the correct semantics
@@ -796,6 +798,8 @@ icmp_fail:
 	ipv6_sysctl_unregister();
 #endif
 	cleanup_ipv6_mibs();
+out_unregister_sock:
+	sock_unregister(PF_INET6);
 out_unregister_raw_proto:
 	proto_unregister(&rawv6_prot);
 out_unregister_udp_proto:
