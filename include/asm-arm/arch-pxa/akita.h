@@ -25,6 +25,8 @@
 /* Default Values */
 #define AKITA_IOEXP_IO_OUT	(AKITA_IOEXP_IR_ON | AKITA_IOEXP_AKIN_PULLUP)
 
+extern struct platform_device akitaioexp_device;
+
 void akita_set_ioexp(struct device *dev, unsigned char bitmask);
 void akita_reset_ioexp(struct device *dev, unsigned char bitmask);
 
