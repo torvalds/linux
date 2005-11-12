@@ -224,95 +224,6 @@ static int yenta_get_status(struct pcmcia_socket *sock, unsigned int *value)
 	return 0;
 }
 
-static void yenta_get_power(struct yenta_socket *socket, socket_state_t *state)
-{
-	if (!(cb_readl(socket, CB_SOCKET_STATE) & CB_CBCARD) &&
-	    (socket->flags & YENTA_16BIT_POWER_EXCA)) {
-		u8 reg, vcc, vpp;
-
-		reg = exca_readb(socket, I365_POWER);
-		vcc = reg & I365_VCC_MASK;
-		vpp = reg & I365_VPP1_MASK;
-		state->Vcc = state->Vpp = 0;
-
-		if (socket->flags & YENTA_16BIT_POWER_DF) {
-			if (vcc == I365_VCC_3V)
-				state->Vcc = 33;
-			if (vcc == I365_VCC_5V)
-				state->Vcc = 50;
-			if (vpp == I365_VPP1_5V)
-				state->Vpp = state->Vcc;
-			if (vpp == I365_VPP1_12V)
-				state->Vpp = 120;
-		} else {
-			if (reg & I365_VCC_5V) {
-				state->Vcc = 50;
-				if (vpp == I365_VPP1_5V)
-					state->Vpp = 50;
-				if (vpp == I365_VPP1_12V)
-					state->Vpp = 120;
-			}
-		}
-	} else {
-		u32 control;
-
-		control = cb_readl(socket, CB_SOCKET_CONTROL);
-
-		switch (control & CB_SC_VCC_MASK) {
-		case CB_SC_VCC_5V: state->Vcc = 50; break;
-		case CB_SC_VCC_3V: state->Vcc = 33; break;
-		default: state->Vcc = 0;
-		}
-
-		switch (control & CB_SC_VPP_MASK) {
-		case CB_SC_VPP_12V: state->Vpp = 120; break;
-		case CB_SC_VPP_5V: state->Vpp = 50; break;
-		case CB_SC_VPP_3V: state->Vpp = 33; break;
-		default: state->Vpp = 0;
-		}
-	}
-}
-
-static int yenta_get_socket(struct pcmcia_socket *sock, socket_state_t *state)
-{
-	struct yenta_socket *socket = container_of(sock, struct yenta_socket, socket);
-	u8 reg;
-	u32 control;
-
-	control = cb_readl(socket, CB_SOCKET_CONTROL);
-
-	yenta_get_power(socket, state);
-	state->io_irq = socket->io_irq;
-
-	if (cb_readl(socket, CB_SOCKET_STATE) & CB_CBCARD) {
-		u16 bridge = config_readw(socket, CB_BRIDGE_CONTROL);
-		if (bridge & CB_BRIDGE_CRST)
-			state->flags |= SS_RESET;
-		return 0;
-	}
-
-	/* 16-bit card state.. */
-	reg = exca_readb(socket, I365_POWER);
-	state->flags = (reg & I365_PWR_AUTO) ? SS_PWR_AUTO : 0;
-	state->flags |= (reg & I365_PWR_OUT) ? SS_OUTPUT_ENA : 0;
-
-	reg = exca_readb(socket, I365_INTCTL);
-	state->flags |= (reg & I365_PC_RESET) ? 0 : SS_RESET;
-	state->flags |= (reg & I365_PC_IOCARD) ? SS_IOCARD : 0;
-
-	reg = exca_readb(socket, I365_CSCINT);
-	state->csc_mask = (reg & I365_CSC_DETECT) ? SS_DETECT : 0;
-	if (state->flags & SS_IOCARD) {
-		state->csc_mask |= (reg & I365_CSC_STSCHG) ? SS_STSCHG : 0;
-	} else {
-		state->csc_mask |= (reg & I365_CSC_BVD1) ? SS_BATDEAD : 0;
-		state->csc_mask |= (reg & I365_CSC_BVD2) ? SS_BATWARN : 0;
-		state->csc_mask |= (reg & I365_CSC_READY) ? SS_READY : 0;
-	}
-
-	return 0;
-}
-
 static void yenta_set_power(struct yenta_socket *socket, socket_state_t *state)
 {
 	/* some birdges require to use the ExCA registers to power 16bit cards */
@@ -828,7 +739,6 @@ static struct pccard_operations yenta_socket_operations = {
 	.init			= yenta_sock_init,
 	.suspend		= yenta_sock_suspend,
 	.get_status		= yenta_get_status,
-	.get_socket		= yenta_get_socket,
 	.set_socket		= yenta_set_socket,
 	.set_io_map		= yenta_set_io_map,
 	.set_mem_map		= yenta_set_mem_map,

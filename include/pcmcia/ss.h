@@ -119,7 +119,6 @@ struct pccard_operations {
 	int (*init)(struct pcmcia_socket *sock);
 	int (*suspend)(struct pcmcia_socket *sock);
 	int (*get_status)(struct pcmcia_socket *sock, u_int *value);
-	int (*get_socket)(struct pcmcia_socket *sock, socket_state_t *state);
 	int (*set_socket)(struct pcmcia_socket *sock, socket_state_t *state);
 	int (*set_io_map)(struct pcmcia_socket *sock, struct pccard_io_map *io);
 	int (*set_mem_map)(struct pcmcia_socket *sock, struct pccard_mem_map *mem);

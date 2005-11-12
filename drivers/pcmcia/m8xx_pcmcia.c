@@ -823,17 +823,6 @@ static int m8xx_get_status(struct pcmcia_socket *sock, unsigned int *value)
 	return 0;
 }
 
-static int m8xx_get_socket(struct pcmcia_socket *sock, socket_state_t *state)
-{
-	int lsock = container_of(sock, struct socket_info, socket)->slot;
-	*state = socket[lsock].state; /* copy the whole structure */
-
-	dprintk("GetSocket(%d) = flags %#3.3x, Vcc %d, Vpp %d, "
-	      "io_irq %d, csc_mask %#2.2x\n", lsock, state->flags,
-	      state->Vcc, state->Vpp, state->io_irq, state->csc_mask);
-	return 0;
-}
-
 static int m8xx_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 {
 	int lsock = container_of(sock, struct socket_info, socket)->slot;
@@ -1169,7 +1158,6 @@ static struct pccard_operations m8xx_services = {
 	.init	= m8xx_sock_init,
 	.suspend = m8xx_suspend,
 	.get_status = m8xx_get_status,
-	.get_socket = m8xx_get_socket,
 	.set_socket = m8xx_set_socket,
 	.set_io_map = m8xx_set_io_map,
 	.set_mem_map = m8xx_set_mem_map,

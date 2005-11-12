@@ -297,25 +297,6 @@ soc_common_pcmcia_get_status(struct pcmcia_socket *sock, unsigned int *status)
 
 
 /*
- * Implements the get_socket() operation for the in-kernel PCMCIA
- * service (formerly SS_GetSocket in Card Services). Not a very
- * exciting routine.
- *
- * Returns: 0
- */
-static int
-soc_common_pcmcia_get_socket(struct pcmcia_socket *sock, socket_state_t *state)
-{
-	struct soc_pcmcia_socket *skt = to_soc_pcmcia_socket(sock);
-
-	debug(skt, 2, "\n");
-
-	*state = skt->cs_state;
-
-	return 0;
-}
-
-/*
  * Implements the set_socket() operation for the in-kernel PCMCIA
  * service (formerly SS_SetSocket in Card Services). We more or
  * less punt all of this work and let the kernel handle the details
@@ -528,7 +509,6 @@ static struct pccard_operations soc_common_pcmcia_operations = {
 	.init			= soc_common_pcmcia_sock_init,
 	.suspend		= soc_common_pcmcia_suspend,
 	.get_status		= soc_common_pcmcia_get_status,
-	.get_socket		= soc_common_pcmcia_get_socket,
 	.set_socket		= soc_common_pcmcia_set_socket,
 	.set_io_map		= soc_common_pcmcia_set_io_map,
 	.set_mem_map		= soc_common_pcmcia_set_mem_map,
