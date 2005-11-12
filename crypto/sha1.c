@@ -50,22 +50,31 @@ static void sha1_update(void *ctx, const u8 *data, unsigned int len)
 {
 	struct sha1_ctx *sctx = ctx;
 	unsigned int i, j;
-	u32 temp[SHA_WORKSPACE_WORDS];
+	const u8 *src;
 
 	j = (sctx->count >> 3) & 0x3f;
 	sctx->count += len << 3;
+	i = 0;
+	src = data;
 
 	if ((j + len) > 63) {
-		memcpy(&sctx->buffer[j], data, (i = 64-j));
-		sha_transform(sctx->state, sctx->buffer, temp);
-		for ( ; i + 63 < len; i += 64) {
-			sha_transform(sctx->state, &data[i], temp);
+		u32 temp[SHA_WORKSPACE_WORDS];
+
+		if (j) {
+			memcpy(&sctx->buffer[j], data, (i = 64-j));
+			src = sctx->buffer;
 		}
+
+		do {
+			sha_transform(sctx->state, src, temp);
+			i += 64;
+			src = &data[i];
+		} while (i + 63 < len);
+
+		memset(temp, 0, sizeof(temp));
 		j = 0;
 	}
-	else i = 0;
-	memset(temp, 0, sizeof(temp));
-	memcpy(&sctx->buffer[j], &data[i], len - i);
+	memcpy(&sctx->buffer[j], src, len - i);
 }
 
 
