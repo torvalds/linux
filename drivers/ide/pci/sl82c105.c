@@ -465,6 +465,9 @@ static void __devinit init_hwif_sl82c105(ide_hwif_t *hwif)
 			hwif->autodma = 1;
 		hwif->drives[0].autodma = hwif->autodma;
 		hwif->drives[1].autodma = hwif->autodma;
+
+		if (hwif->mate)
+			hwif->serialized = hwif->mate->serialized = 1;
 #endif /* CONFIG_BLK_DEV_IDEDMA */
 	}
 	hwif->OUTB(dma_state, hwif->dma_base + 2);
