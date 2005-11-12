@@ -3,6 +3,7 @@
  * Copyright (C) 2003 David S. Miller (davem@redhat.com)
  */
 
+#include <linux/compat.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/string.h>
@@ -182,3 +183,109 @@ int sbusfb_ioctl_helper(unsigned long cmd, unsigned long arg,
 	};
 }
 EXPORT_SYMBOL(sbusfb_ioctl_helper);
+
+#ifdef CONFIG_COMPAT
+struct  fbcmap32 {
+	int             index;          /* first element (0 origin) */
+	int             count;
+	u32		red;
+	u32		green;
+	u32		blue;
+};
+
+#define FBIOPUTCMAP32	_IOW('F', 3, struct fbcmap32)
+#define FBIOGETCMAP32	_IOW('F', 4, struct fbcmap32)
+
+static int fbiogetputcmap(struct file *file, struct fb_info *info,
+		unsigned int cmd, unsigned long arg)
+{
+	struct fbcmap32 __user *argp = (void __user *)arg;
+	struct fbcmap __user *p = compat_alloc_user_space(sizeof(*p));
+	u32 addr;
+	int ret;
+
+	ret = copy_in_user(p, argp, 2 * sizeof(int));
+	ret |= get_user(addr, &argp->red);
+	ret |= put_user(compat_ptr(addr), &p->red);
+	ret |= get_user(addr, &argp->green);
+	ret |= put_user(compat_ptr(addr), &p->green);
+	ret |= get_user(addr, &argp->blue);
+	ret |= put_user(compat_ptr(addr), &p->blue);
+	if (ret)
+		return -EFAULT;
+	return info->fbops->fb_ioctl(file->f_dentry->d_inode, file,
+			(cmd == FBIOPUTCMAP32) ?
+			FBIOPUTCMAP_SPARC : FBIOGETCMAP_SPARC,
+			(unsigned long)p, info);
+}
+
+struct fbcursor32 {
+	short set;		/* what to set, choose from the list above */
+	short enable;		/* cursor on/off */
+	struct fbcurpos pos;	/* cursor position */
+	struct fbcurpos hot;	/* cursor hot spot */
+	struct fbcmap32 cmap;	/* color map info */
+	struct fbcurpos size;	/* cursor bit map size */
+	u32	image;		/* cursor image bits */
+	u32	mask;		/* cursor mask bits */
+};
+
+#define FBIOSCURSOR32	_IOW('F', 24, struct fbcursor32)
+#define FBIOGCURSOR32	_IOW('F', 25, struct fbcursor32)
+
+static int fbiogscursor(struct file *file, struct fb_info *info,
+		unsigned long arg)
+{
+	struct fbcursor __user *p = compat_alloc_user_space(sizeof(*p));
+	struct fbcursor32 __user *argp =  (void __user *)arg;
+	compat_uptr_t addr;
+	int ret;
+
+	ret = copy_in_user(p, argp,
+			      2 * sizeof (short) + 2 * sizeof(struct fbcurpos));
+	ret |= copy_in_user(&p->size, &argp->size, sizeof(struct fbcurpos));
+	ret |= copy_in_user(&p->cmap, &argp->cmap, 2 * sizeof(int));
+	ret |= get_user(addr, &argp->cmap.red);
+	ret |= put_user(compat_ptr(addr), &p->cmap.red);
+	ret |= get_user(addr, &argp->cmap.green);
+	ret |= put_user(compat_ptr(addr), &p->cmap.green);
+	ret |= get_user(addr, &argp->cmap.blue);
+	ret |= put_user(compat_ptr(addr), &p->cmap.blue);
+	ret |= get_user(addr, &argp->mask);
+	ret |= put_user(compat_ptr(addr), &p->mask);
+	ret |= get_user(addr, &argp->image);
+	ret |= put_user(compat_ptr(addr), &p->image);
+	if (ret)
+		return -EFAULT;
+	return info->fbops->fb_ioctl(file->f_dentry->d_inode, file,
+			FBIOSCURSOR, (unsigned long)p, info);
+}
+
+long sbusfb_compat_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg, struct fb_info *info)
+{
+	switch (cmd) {
+	case FBIOGTYPE:
+	case FBIOSATTR:
+	case FBIOGATTR:
+	case FBIOSVIDEO:
+	case FBIOGVIDEO:
+	case FBIOGCURSOR32:	/* This is not implemented yet.
+				   Later it should be converted... */
+	case FBIOSCURPOS:
+	case FBIOGCURPOS:
+	case FBIOGCURMAX:
+		return info->fbops->fb_ioctl(file->f_dentry->d_inode,
+				file, cmd, arg, info);
+	case FBIOPUTCMAP32:
+		return fbiogetputcmap(file, info, cmd, arg);
+	case FBIOGETCMAP32:
+		return fbiogetputcmap(file, info, cmd, arg);
+	case FBIOSCURSOR32:
+		return fbiogscursor(file, info, arg);
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+EXPORT_SYMBOL(sbusfb_compat_ioctl);
+#endif
