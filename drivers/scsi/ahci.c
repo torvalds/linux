@@ -134,6 +134,7 @@ enum {
 				  PORT_IRQ_D2H_REG_FIS,
 
 	/* PORT_CMD bits */
+	PORT_CMD_ATAPI		= (1 << 24), /* Device is ATAPI */
 	PORT_CMD_LIST_ON	= (1 << 15), /* cmd list DMA engine running */
 	PORT_CMD_FIS_ON		= (1 << 14), /* FIS DMA engine running */
 	PORT_CMD_FIS_RX		= (1 << 4), /* Enable FIS receive DMA engine */
@@ -441,7 +442,7 @@ static void ahci_phy_reset(struct ata_port *ap)
 	void __iomem *port_mmio = (void __iomem *) ap->ioaddr.cmd_addr;
 	struct ata_taskfile tf;
 	struct ata_device *dev = &ap->device[0];
-	u32 tmp;
+	u32 new_tmp, tmp;
 
 	__sata_phy_reset(ap);
 
@@ -455,8 +456,21 @@ static void ahci_phy_reset(struct ata_port *ap)
 	tf.nsect	= (tmp)		& 0xff;
 
 	dev->class = ata_dev_classify(&tf);
-	if (!ata_dev_present(dev))
+	if (!ata_dev_present(dev)) {
 		ata_port_disable(ap);
+		return;
+	}
+
+	/* Make sure port's ATAPI bit is set appropriately */
+	new_tmp = tmp = readl(port_mmio + PORT_CMD);
+	if (dev->class == ATA_DEV_ATAPI)
+		new_tmp |= PORT_CMD_ATAPI;
+	else
+		new_tmp &= ~PORT_CMD_ATAPI;
+	if (new_tmp != tmp) {
+		writel(new_tmp, port_mmio + PORT_CMD);
+		readl(port_mmio + PORT_CMD); /* flush */
+	}
 }
 
 static u8 ahci_check_status(struct ata_port *ap)
