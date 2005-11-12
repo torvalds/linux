@@ -36,6 +36,7 @@
 
 #include "vxfs.h"
 #include "vxfs_olt.h"
+#include "vxfs_extern.h"
 
 
 static inline void
