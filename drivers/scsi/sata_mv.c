@@ -1,7 +1,7 @@
 /*
  * sata_mv.c - Marvell SATA support
  *
- * Copyright 2005: EMC Corporation, all rights reserved. 
+ * Copyright 2005: EMC Corporation, all rights reserved.
  *
  * Please ALWAYS copy linux-ide@vger.kernel.org on emails.
  *
@@ -84,7 +84,7 @@ enum {
 	MV_FLAG_GLBL_SFT_RST	= (1 << 28),  /* Global Soft Reset support */
 	MV_COMMON_FLAGS		= (ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				   ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO),
-	MV_6XXX_FLAGS		= (MV_FLAG_IRQ_COALESCE | 
+	MV_6XXX_FLAGS		= (MV_FLAG_IRQ_COALESCE |
 				   MV_FLAG_GLBL_SFT_RST),
 
 	chip_504x		= 0,
@@ -129,7 +129,7 @@ enum {
 	SELF_INT		= (1 << 23),
 	TWSI_INT		= (1 << 24),
 	HC_MAIN_RSVD		= (0x7f << 25),	/* bits 31-25 */
-	HC_MAIN_MASKED_IRQS	= (TRAN_LO_DONE | TRAN_HI_DONE | 
+	HC_MAIN_MASKED_IRQS	= (TRAN_LO_DONE | TRAN_HI_DONE |
 				   PORTS_0_7_COAL_DONE | GPIO_INT | TWSI_INT |
 				   HC_MAIN_RSVD),
 
@@ -177,12 +177,12 @@ enum {
 	EDMA_ERR_LNK_CTRL_TX	= (0x1f << 21),
 	EDMA_ERR_LNK_DATA_TX	= (0x1f << 26),
 	EDMA_ERR_TRANS_PROTO	= (1 << 31),
-	EDMA_ERR_FATAL		= (EDMA_ERR_D_PAR | EDMA_ERR_PRD_PAR | 
+	EDMA_ERR_FATAL		= (EDMA_ERR_D_PAR | EDMA_ERR_PRD_PAR |
 				   EDMA_ERR_DEV_DCON | EDMA_ERR_CRBQ_PAR |
 				   EDMA_ERR_CRPB_PAR | EDMA_ERR_INTRL_PAR |
-				   EDMA_ERR_IORDY | EDMA_ERR_LNK_CTRL_RX_2 | 
+				   EDMA_ERR_IORDY | EDMA_ERR_LNK_CTRL_RX_2 |
 				   EDMA_ERR_LNK_DATA_RX |
-				   EDMA_ERR_LNK_DATA_TX | 
+				   EDMA_ERR_LNK_DATA_TX |
 				   EDMA_ERR_TRANS_PROTO),
 
 	EDMA_REQ_Q_BASE_HI_OFS	= 0x10,
@@ -345,7 +345,7 @@ static struct ata_port_info mv_port_info[] = {
 	},
 	{  /* chip_608x */
 		.sht		= &mv_sht,
-		.host_flags	= (MV_COMMON_FLAGS | MV_6XXX_FLAGS | 
+		.host_flags	= (MV_COMMON_FLAGS | MV_6XXX_FLAGS |
 				   MV_FLAG_DUAL_HC),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
@@ -393,7 +393,7 @@ static inline void __iomem *mv_hc_base(void __iomem *base, unsigned int hc)
 static inline void __iomem *mv_port_base(void __iomem *base, unsigned int port)
 {
 	return (mv_hc_base(base, port >> MV_PORT_HC_SHIFT) +
-		MV_SATAHC_ARBTR_REG_SZ + 
+		MV_SATAHC_ARBTR_REG_SZ +
 		((port & MV_PORT_MASK) * MV_PORT_REG_SZ));
 }
 
@@ -456,7 +456,7 @@ static void mv_stop_dma(struct ata_port *ap)
 	} else {
 		assert(!(EDMA_EN & readl(port_mmio + EDMA_CMD_OFS)));
   	}
-	
+
 	/* now properly wait for the eDMA to stop */
 	for (i = 1000; i > 0; i--) {
 		reg = readl(port_mmio + EDMA_CMD_OFS);
@@ -507,7 +507,7 @@ static void mv_dump_all_regs(void __iomem *mmio_base, int port,
 			     struct pci_dev *pdev)
 {
 #ifdef ATA_DEBUG
-	void __iomem *hc_base = mv_hc_base(mmio_base, 
+	void __iomem *hc_base = mv_hc_base(mmio_base,
 					   port >> MV_PORT_HC_SHIFT);
 	void __iomem *port_base;
 	int start_port, num_ports, p, start_hc, num_hcs, hc;
@@ -521,7 +521,7 @@ static void mv_dump_all_regs(void __iomem *mmio_base, int port,
 		start_port = port;
 		num_ports = num_hcs = 1;
 	}
-	DPRINTK("All registers for port(s) %u-%u:\n", start_port, 
+	DPRINTK("All registers for port(s) %u-%u:\n", start_port,
 		num_ports > 1 ? num_ports - 1 : start_port);
 
 	if (NULL != pdev) {
@@ -705,7 +705,7 @@ static int mv_port_start(struct ata_port *ap)
 		goto err_out;
 	memset(pp, 0, sizeof(*pp));
 
-	mem = dma_alloc_coherent(dev, MV_PORT_PRIV_DMA_SZ, &mem_dma, 
+	mem = dma_alloc_coherent(dev, MV_PORT_PRIV_DMA_SZ, &mem_dma,
 				 GFP_KERNEL);
 	if (!mem)
 		goto err_out_pp;
@@ -715,7 +715,7 @@ static int mv_port_start(struct ata_port *ap)
 	if (rc)
 		goto err_out_priv;
 
-	/* First item in chunk of DMA memory: 
+	/* First item in chunk of DMA memory:
 	 * 32-slot command request table (CRQB), 32 bytes each in size
 	 */
 	pp->crqb = mem;
@@ -723,7 +723,7 @@ static int mv_port_start(struct ata_port *ap)
 	mem += MV_CRQB_Q_SZ;
 	mem_dma += MV_CRQB_Q_SZ;
 
-	/* Second item: 
+	/* Second item:
 	 * 32-slot command response table (CRPB), 8 bytes each in size
 	 */
 	pp->crpb = mem;
@@ -737,18 +737,18 @@ static int mv_port_start(struct ata_port *ap)
 	pp->sg_tbl = mem;
 	pp->sg_tbl_dma = mem_dma;
 
-	writelfl(EDMA_CFG_Q_DEPTH | EDMA_CFG_RD_BRST_EXT | 
+	writelfl(EDMA_CFG_Q_DEPTH | EDMA_CFG_RD_BRST_EXT |
 		 EDMA_CFG_WR_BUFF_LEN, port_mmio + EDMA_CFG_OFS);
 
 	writel((pp->crqb_dma >> 16) >> 16, port_mmio + EDMA_REQ_Q_BASE_HI_OFS);
-	writelfl(pp->crqb_dma & EDMA_REQ_Q_BASE_LO_MASK, 
+	writelfl(pp->crqb_dma & EDMA_REQ_Q_BASE_LO_MASK,
 		 port_mmio + EDMA_REQ_Q_IN_PTR_OFS);
 
 	writelfl(0, port_mmio + EDMA_REQ_Q_OUT_PTR_OFS);
 	writelfl(0, port_mmio + EDMA_RSP_Q_IN_PTR_OFS);
 
 	writel((pp->crpb_dma >> 16) >> 16, port_mmio + EDMA_RSP_Q_BASE_HI_OFS);
-	writelfl(pp->crpb_dma & EDMA_RSP_Q_BASE_LO_MASK, 
+	writelfl(pp->crpb_dma & EDMA_RSP_Q_BASE_LO_MASK,
 		 port_mmio + EDMA_RSP_Q_OUT_PTR_OFS);
 
 	pp->req_producer = pp->rsp_consumer = 0;
@@ -863,7 +863,7 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 	}
 
 	/* the req producer index should be the same as we remember it */
-	assert(((readl(mv_ap_base(qc->ap) + EDMA_REQ_Q_IN_PTR_OFS) >> 
+	assert(((readl(mv_ap_base(qc->ap) + EDMA_REQ_Q_IN_PTR_OFS) >>
 		 EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) ==
 	       pp->req_producer);
 
@@ -875,9 +875,9 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 	assert(MV_MAX_Q_DEPTH > qc->tag);
 	flags |= qc->tag << CRQB_TAG_SHIFT;
 
-	pp->crqb[pp->req_producer].sg_addr = 
+	pp->crqb[pp->req_producer].sg_addr =
 		cpu_to_le32(pp->sg_tbl_dma & 0xffffffff);
-	pp->crqb[pp->req_producer].sg_addr_hi = 
+	pp->crqb[pp->req_producer].sg_addr_hi =
 		cpu_to_le32((pp->sg_tbl_dma >> 16) >> 16);
 	pp->crqb[pp->req_producer].ctrl_flags = cpu_to_le16(flags);
 
@@ -900,7 +900,7 @@ static void mv_qc_prep(struct ata_queued_cmd *qc)
 #ifdef LIBATA_NCQ		/* FIXME: remove this line when NCQ added */
 	case ATA_CMD_FPDMA_READ:
 	case ATA_CMD_FPDMA_WRITE:
-		mv_crqb_pack_cmd(cw++, tf->hob_feature, ATA_REG_FEATURE, 0); 
+		mv_crqb_pack_cmd(cw++, tf->hob_feature, ATA_REG_FEATURE, 0);
 		mv_crqb_pack_cmd(cw++, tf->feature, ATA_REG_FEATURE, 0);
 		break;
 #endif				/* FIXME: remove this line when NCQ added */
@@ -966,7 +966,7 @@ static int mv_qc_issue(struct ata_queued_cmd *qc)
 	       pp->req_producer);
 	/* until we do queuing, the queue should be empty at this point */
 	assert(((in_ptr >> EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) ==
-	       ((readl(port_mmio + EDMA_REQ_Q_OUT_PTR_OFS) >> 
+	       ((readl(port_mmio + EDMA_REQ_Q_OUT_PTR_OFS) >>
 		 EDMA_REQ_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK));
 
 	mv_inc_q_index(&pp->req_producer);	/* now incr producer index */
@@ -1003,15 +1003,15 @@ static u8 mv_get_crpb_status(struct ata_port *ap)
 	out_ptr = readl(port_mmio + EDMA_RSP_Q_OUT_PTR_OFS);
 
 	/* the response consumer index should be the same as we remember it */
-	assert(((out_ptr >> EDMA_RSP_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) == 
+	assert(((out_ptr >> EDMA_RSP_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) ==
 	       pp->rsp_consumer);
 
 	/* increment our consumer index... */
 	pp->rsp_consumer = mv_inc_q_index(&pp->rsp_consumer);
-	
+
 	/* and, until we do NCQ, there should only be 1 CRPB waiting */
-	assert(((readl(port_mmio + EDMA_RSP_Q_IN_PTR_OFS) >> 
-		 EDMA_RSP_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) == 
+	assert(((readl(port_mmio + EDMA_RSP_Q_IN_PTR_OFS) >>
+		 EDMA_RSP_Q_PTR_SHIFT) & MV_MAX_Q_DEPTH_MASK) ==
 	       pp->rsp_consumer);
 
 	/* write out our inc'd consumer index so EDMA knows we're caught up */
@@ -1135,7 +1135,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 			err_mask |= AC_ERR_OTHER;
 			handled++;
 		}
-		
+
 		if (handled && ap) {
 			qc = ata_qc_from_tag(ap, ap->active_tag);
 			if (NULL != qc) {
@@ -1150,7 +1150,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
 }
 
 /**
- *      mv_interrupt - 
+ *      mv_interrupt -
  *      @irq: unused
  *      @dev_instance: private data; in this case the host structure
  *      @regs: unused
@@ -1160,7 +1160,7 @@ static void mv_host_intr(struct ata_host_set *host_set, u32 relevant,
  *      routine to handle.  Also check for PCI errors which are only
  *      reported here.
  *
- *      LOCKING: 
+ *      LOCKING:
  *      This routine holds the host_set lock while processing pending
  *      interrupts.
  */
@@ -1303,12 +1303,12 @@ static void mv_eng_timeout(struct ata_port *ap)
 
 	printk(KERN_ERR "ata%u: Entering mv_eng_timeout\n",ap->id);
 	DPRINTK("All regs @ start of eng_timeout\n");
-	mv_dump_all_regs(ap->host_set->mmio_base, ap->port_no, 
+	mv_dump_all_regs(ap->host_set->mmio_base, ap->port_no,
 			 to_pci_dev(ap->host_set->dev));
 
 	qc = ata_qc_from_tag(ap, ap->active_tag);
         printk(KERN_ERR "mmio_base %p ap %p qc %p scsi_cmnd %p &cmnd %p\n",
-	       ap->host_set->mmio_base, ap, qc, qc->scsicmd, 
+	       ap->host_set->mmio_base, ap, qc, qc->scsicmd,
 	       &qc->scsicmd->cmnd);
 
 	mv_err_intr(ap);
@@ -1348,17 +1348,17 @@ static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
 	unsigned long shd_base = (unsigned long) port_mmio + SHD_BLK_OFS;
 	unsigned serr_ofs;
 
-	/* PIO related setup 
+	/* PIO related setup
 	 */
 	port->data_addr = shd_base + (sizeof(u32) * ATA_REG_DATA);
-	port->error_addr = 
+	port->error_addr =
 		port->feature_addr = shd_base + (sizeof(u32) * ATA_REG_ERR);
 	port->nsect_addr = shd_base + (sizeof(u32) * ATA_REG_NSECT);
 	port->lbal_addr = shd_base + (sizeof(u32) * ATA_REG_LBAL);
 	port->lbam_addr = shd_base + (sizeof(u32) * ATA_REG_LBAM);
 	port->lbah_addr = shd_base + (sizeof(u32) * ATA_REG_LBAH);
 	port->device_addr = shd_base + (sizeof(u32) * ATA_REG_DEVICE);
-	port->status_addr = 
+	port->status_addr =
 		port->command_addr = shd_base + (sizeof(u32) * ATA_REG_STATUS);
 	/* special case: control/altstatus doesn't have ATA_REG_ address */
 	port->altstatus_addr = port->ctl_addr = shd_base + SHD_CTL_AST_OFS;
@@ -1374,7 +1374,7 @@ static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
 	/* unmask all EDMA error interrupts */
 	writelfl(~0, port_mmio + EDMA_ERR_IRQ_MASK_OFS);
 
-	VPRINTK("EDMA cfg=0x%08x EDMA IRQ err cause/mask=0x%08x/0x%08x\n", 
+	VPRINTK("EDMA cfg=0x%08x EDMA IRQ err cause/mask=0x%08x/0x%08x\n",
 		readl(port_mmio + EDMA_CFG_OFS),
 		readl(port_mmio + EDMA_ERR_IRQ_CAUSE_OFS),
 		readl(port_mmio + EDMA_ERR_IRQ_MASK_OFS));
@@ -1396,7 +1396,7 @@ static int mv_host_init(struct ata_probe_ent *probe_ent)
 	void __iomem *mmio = probe_ent->mmio_base;
 	void __iomem *port_mmio;
 
-	if ((MV_FLAG_GLBL_SFT_RST & probe_ent->host_flags) && 
+	if ((MV_FLAG_GLBL_SFT_RST & probe_ent->host_flags) &&
 	    mv_global_soft_reset(probe_ent->mmio_base)) {
 		rc = 1;
 		goto done;
@@ -1430,7 +1430,7 @@ static int mv_host_init(struct ata_probe_ent *probe_ent)
 	writelfl(~HC_MAIN_MASKED_IRQS, mmio + HC_MAIN_IRQ_MASK_OFS);
 
 	VPRINTK("HC MAIN IRQ cause/mask=0x%08x/0x%08x "
-		"PCI int cause/mask=0x%08x/0x%08x\n", 
+		"PCI int cause/mask=0x%08x/0x%08x\n",
 		readl(mmio + HC_MAIN_IRQ_CAUSE_OFS),
 		readl(mmio + HC_MAIN_IRQ_MASK_OFS),
 		readl(mmio + PCI_IRQ_CAUSE_OFS),
@@ -1470,7 +1470,7 @@ static void mv_print_info(struct ata_probe_ent *probe_ent)
 
 	dev_printk(KERN_INFO, &pdev->dev,
 	       "%u slots %u ports %s mode IRQ via %s\n",
-	       (unsigned)MV_MAX_Q_DEPTH, probe_ent->n_ports, 
+	       (unsigned)MV_MAX_Q_DEPTH, probe_ent->n_ports,
 	       scc_s, (MV_HP_FLAG_MSI & hpriv->hp_flags) ? "MSI" : "INTx");
 }
 
