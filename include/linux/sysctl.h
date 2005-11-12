@@ -715,6 +715,7 @@ enum {
 	NET_SCTP_PRSCTP_ENABLE		 = 14,
 	NET_SCTP_SNDBUF_POLICY		 = 15,
 	NET_SCTP_SACK_TIMEOUT		 = 16,
+	NET_SCTP_RCVBUF_POLICY		 = 17,
 };
 
 /* /proc/sys/net/bridge */

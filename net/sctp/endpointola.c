@@ -104,6 +104,9 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	sk->sk_write_space = sctp_write_space;
 	sock_set_flag(sk, SOCK_USE_WRITE_QUEUE);
 
+	/* Get the receive buffer policy for this endpoint */
+	ep->rcvbuf_policy = sctp_rcvbuf_policy;
+
 	/* Initialize the secret key used with cookie. */
 	get_random_bytes(&ep->secret_key[0], SCTP_SECRET_SIZE);
 	ep->last_key = ep->current_key = 0;
