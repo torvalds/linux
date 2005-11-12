@@ -19,8 +19,8 @@
 #include <asm/ip32/crime.h>
 #include <asm/ip32/mace.h>
 
-struct sgi_crime *crime;
-struct sgi_mace *mace;
+struct sgi_crime __iomem *crime;
+struct sgi_mace __iomem *mace;
 
 EXPORT_SYMBOL_GPL(mace);
 

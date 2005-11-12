@@ -363,6 +363,6 @@ struct sgi_mace {
 	char _pad6[0x80000 - sizeof(struct mace_isa)];
 };
 
-extern struct sgi_mace *mace;
+extern struct sgi_mace __iomem *mace;
 
 #endif /* __ASM_MACE_H__ */
