@@ -50,6 +50,8 @@ enum {
 	MV_PCI_REG_BASE		= 0,
 	MV_IRQ_COAL_REG_BASE	= 0x18000,	/* 6xxx part only */
 	MV_SATAHC0_REG_BASE	= 0x20000,
+	MV_GPIO_PORT_CTL	= 0x104f0,
+	MV_RESET_CFG		= 0x180d8,
 
 	MV_PCI_REG_SZ		= MV_MAJOR_REG_AREA_SZ,
 	MV_SATAHC_REG_SZ	= MV_MAJOR_REG_AREA_SZ,
@@ -148,6 +150,11 @@ enum {
 	/* SATA registers */
 	SATA_STATUS_OFS		= 0x300,  /* ctrl, err regs follow status */
 	SATA_ACTIVE_OFS		= 0x350,
+	PHY_MODE4		= 0x314,
+	PHY_MODE2		= 0x330,
+	SATA_INTERFACE_CTL	= 0x050,
+
+	MV_M2_PREAMP_MASK	= 0x7e0,
 
 	/* Port registers */
 	EDMA_CFG_OFS		= 0,
@@ -201,13 +208,25 @@ enum {
 	EDMA_DS			= (1 << 1),
 	ATA_RST			= (1 << 2),
 
+	EDMA_ARB_CFG		= 0x38,
+	EDMA_NO_SNOOP		= (1 << 6),
+
 	/* Host private flags (hp_flags) */
 	MV_HP_FLAG_MSI		= (1 << 0),
+	MV_HP_ERRATA_60X1A1	= (1 << 1),
+	MV_HP_ERRATA_60X1B0	= (1 << 2),
+	MV_HP_ERRATA_50XXB0	= (1 << 3),
+	MV_HP_ERRATA_50XXB1	= (1 << 4),
+	MV_HP_ERRATA_50XXB2	= (1 << 5),
+	MV_HP_50XX		= (1 << 6),
 
 	/* Port private flags (pp_flags) */
 	MV_PP_FLAG_EDMA_EN	= (1 << 0),
 	MV_PP_FLAG_EDMA_DS_ACT	= (1 << 1),
 };
+
+#define IS_50XX(hpriv) ((hpriv)->hp_flags & MV_HP_50XX)
+#define IS_60XX(hpriv) (((hpriv)->hp_flags & MV_HP_50XX) == 0)
 
 enum {
 	/* Our DMA boundary is determined by an ePRD being unable to handle
@@ -256,8 +275,14 @@ struct mv_port_priv {
 	u32			pp_flags;
 };
 
+struct mv_port_signal {
+	u32			amps;
+	u32			pre;
+};
+
 struct mv_host_priv {
 	u32			hp_flags;
+	struct mv_port_signal	signal[8];
 };
 
 static void mv_irq_clear(struct ata_port *ap);
@@ -354,10 +379,12 @@ static struct ata_port_info mv_port_info[] = {
 };
 
 static const struct pci_device_id mv_pci_tbl[] = {
+#if 0 /* unusably broken right now */
 	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x5040), 0, 0, chip_504x},
 	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x5041), 0, 0, chip_504x},
 	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x5080), 0, 0, chip_508x},
 	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x5081), 0, 0, chip_508x},
+#endif
 
 	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x6040), 0, 0, chip_604x},
 	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x6041), 0, 0, chip_604x},
@@ -402,9 +429,9 @@ static inline void __iomem *mv_ap_base(struct ata_port *ap)
 	return mv_port_base(ap->host_set->mmio_base, ap->port_no);
 }
 
-static inline int mv_get_hc_count(unsigned long hp_flags)
+static inline int mv_get_hc_count(unsigned long host_flags)
 {
-	return ((hp_flags & MV_FLAG_DUAL_HC) ? 2 : 1);
+	return ((host_flags & MV_FLAG_DUAL_HC) ? 2 : 1);
 }
 
 static void mv_irq_clear(struct ata_port *ap)
@@ -694,6 +721,7 @@ static inline void mv_priv_free(struct mv_port_priv *pp, struct device *dev)
 static int mv_port_start(struct ata_port *ap)
 {
 	struct device *dev = ap->host_set->dev;
+	struct mv_host_priv *hpriv = ap->host_set->private_data;
 	struct mv_port_priv *pp;
 	void __iomem *port_mmio = mv_ap_base(ap);
 	void *mem;
@@ -750,6 +778,15 @@ static int mv_port_start(struct ata_port *ap)
 	writel((pp->crpb_dma >> 16) >> 16, port_mmio + EDMA_RSP_Q_BASE_HI_OFS);
 	writelfl(pp->crpb_dma & EDMA_RSP_Q_BASE_LO_MASK,
 		 port_mmio + EDMA_RSP_Q_OUT_PTR_OFS);
+
+	if (hpriv->hp_flags & MV_HP_ERRATA_60X1A1) {
+		u32 new_tmp, tmp;
+
+		new_tmp = tmp = readl(port_mmio + EDMA_ARB_CFG);
+		new_tmp &= ~EDMA_NO_SNOOP;
+		if (new_tmp != tmp)
+			writel(new_tmp, port_mmio + EDMA_ARB_CFG);
+	}
 
 	pp->req_producer = pp->rsp_consumer = 0;
 
@@ -1206,6 +1243,52 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 	return IRQ_RETVAL(handled);
 }
 
+static void mv_phy_errata5(struct ata_port *ap)
+{
+	/* FIXME */
+}
+
+static void mv_phy_errata6(struct ata_port *ap)
+{
+	struct mv_host_priv *hpriv = ap->host_set->private_data;
+	u32 hp_flags = hpriv->hp_flags;
+	void __iomem *port_mmio = mv_ap_base(ap);
+	int fix_phy_mode4 =
+		hp_flags & (MV_HP_ERRATA_60X1A1 | MV_HP_ERRATA_60X1B0);
+	u32 m2;
+
+	if (fix_phy_mode4) {
+		u32 tmp, m4;
+
+		m4 = readl(port_mmio + PHY_MODE4);
+		tmp = readl(port_mmio + 0x310);
+
+		m4 = (m4 & ~(1 << 1)) | (1 << 0);
+
+		writel(m4, port_mmio + PHY_MODE4);
+		writel(tmp, port_mmio + 0x310);
+	}
+
+	/* Revert values of pre-emphasis and signal amps to the saved ones */
+	m2 = readl(port_mmio + PHY_MODE2);
+
+	m2 &= ~MV_M2_PREAMP_MASK;
+	m2 |= hpriv->signal[ap->port_no].amps;
+	m2 |= hpriv->signal[ap->port_no].pre;
+
+	writel(m2, port_mmio + PHY_MODE2);
+}
+
+static void mv_phy_errata(struct ata_port *ap)
+{
+	struct mv_host_priv *hpriv = ap->host_set->private_data;
+
+	if (IS_50XX(hpriv))
+		mv_phy_errata5(ap);
+	else
+		mv_phy_errata6(ap);
+}
+
 /**
  *      mv_phy_reset - Perform eDMA reset followed by COMRESET
  *      @ap: ATA channel to manipulate
@@ -1220,6 +1303,7 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 static void mv_phy_reset(struct ata_port *ap)
 {
 	struct mv_port_priv *pp	= ap->private_data;
+	struct mv_host_priv *hpriv = ap->host_set->private_data;
 	void __iomem *port_mmio = mv_ap_base(ap);
 	struct ata_taskfile tf;
 	struct ata_device *dev = &ap->device[0];
@@ -1230,12 +1314,21 @@ static void mv_phy_reset(struct ata_port *ap)
 	mv_stop_dma(ap);
 
 	writelfl(ATA_RST, port_mmio + EDMA_CMD_OFS);
+
+	if (IS_60XX(hpriv)) {
+		u32 ifctl = readl(port_mmio + SATA_INTERFACE_CTL);
+		ifctl |= (1 << 12) | (1 << 7);
+		writelfl(ifctl, port_mmio + SATA_INTERFACE_CTL);
+	}
+
 	udelay(25);		/* allow reset propagation */
 
 	/* Spec never mentions clearing the bit.  Marvell's driver does
 	 * clear the bit, however.
 	 */
 	writelfl(0, port_mmio + EDMA_CMD_OFS);
+
+	mv_phy_errata(ap);
 
 	DPRINTK("S-regs after ATA_RST: SStat 0x%08x SErr 0x%08x "
 		"SCtrl 0x%08x\n", mv_scr_read(ap, SCR_STATUS),
@@ -1283,7 +1376,7 @@ static void mv_phy_reset(struct ata_port *ap)
 
 	pp->pp_flags &= ~MV_PP_FLAG_EDMA_EN;
 
-	printk("EXIT\n");
+	VPRINTK("EXIT\n");
 }
 
 /**
@@ -1380,8 +1473,152 @@ static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
 		readl(port_mmio + EDMA_ERR_IRQ_MASK_OFS));
 }
 
+static void mv_enable_leds5(struct mv_host_priv *hpriv, void __iomem *mmio)
+{
+	/* FIXME */
+}
+
+static void mv_enable_leds6(struct mv_host_priv *hpriv, void __iomem *mmio)
+{
+	if (hpriv->hp_flags & MV_HP_ERRATA_60X1A1)
+		writel(0x00020060, mmio + MV_GPIO_PORT_CTL);
+
+	else if (hpriv->hp_flags & MV_HP_ERRATA_60X1B0)
+		writel(0x00000060, mmio + MV_GPIO_PORT_CTL);
+}
+
+static void mv_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio)
+{
+	if (IS_50XX(hpriv))
+		mv_enable_leds5(hpriv, mmio);
+	else
+		mv_enable_leds6(hpriv, mmio);
+}
+
+static void mv_cfg_signal5(struct mv_host_priv *hpriv, int idx,
+			   void __iomem *mmio)
+{
+	/* FIXME */
+}
+
+static void mv_cfg_signal6(struct mv_host_priv *hpriv, int idx,
+			   void __iomem *mmio)
+{
+	void __iomem *port_mmio;
+	u32 tmp;
+
+	if (hpriv->hp_flags & MV_HP_ERRATA_60X1A1) {
+		hpriv->signal[idx].amps = 0x5 << 8;
+		hpriv->signal[idx].pre = 0x3 << 5;
+		return;
+	}
+
+	assert (hpriv->hp_flags & MV_HP_ERRATA_60X1B0);
+
+	tmp = readl(mmio + MV_RESET_CFG);
+	if ((tmp & (1 << 0)) == 0) {
+		hpriv->signal[idx].amps = 0x4 << 8;
+		hpriv->signal[idx].pre = 0x1 << 5;
+		return;
+	}
+
+	port_mmio = mv_port_base(mmio, idx);
+	tmp = readl(port_mmio + PHY_MODE2);
+
+	hpriv->signal[idx].amps = tmp & 0x700;	/* bits 10:8 */
+	hpriv->signal[idx].pre = tmp & 0xe0;	/* bits 7:5 */
+}
+
+static int mv_cfg_errata(struct pci_dev *pdev, struct mv_host_priv *hpriv,
+			 unsigned int board_idx)
+{
+	u8 rev_id;
+	u32 hp_flags = hpriv->hp_flags;
+
+	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
+
+	switch(board_idx) {
+	case chip_504x:
+	case chip_508x:
+		hp_flags |= MV_HP_50XX;
+
+		if (pdev->device == 0x5080) {
+			switch (rev_id) {
+			case 0x0:
+				dev_printk(KERN_WARNING, &pdev->dev,
+					   "Applying B0 workarounds to unknown rev 0\n");
+				/* fall through */
+			case 0x1:
+				hp_flags |= MV_HP_ERRATA_50XXB0;
+				break;
+			case 0x2:
+				hp_flags |= MV_HP_ERRATA_50XXB1;
+				break;
+			case 0x3:
+				hp_flags |= MV_HP_ERRATA_50XXB2;
+				break;
+			default:
+				dev_printk(KERN_WARNING, &pdev->dev,
+					   "Applying B2 workarounds to future rev\n");
+				hp_flags |= MV_HP_ERRATA_50XXB2;
+				break;
+			}
+		} else {
+			switch (rev_id) {
+			case 0x0:
+				hp_flags |= MV_HP_ERRATA_50XXB0;
+				break;
+			case 0x1:
+				dev_printk(KERN_WARNING, &pdev->dev,
+			          "Applying B1 workarounds to unknown rev 1\n");
+				/* fall through */
+			case 0x2:
+				hp_flags |= MV_HP_ERRATA_50XXB1;
+				break;
+			default:
+				dev_printk(KERN_WARNING, &pdev->dev,
+				   "Applying B2 workarounds to future rev\n");
+				/* fall through */
+			case 0x3:
+				hp_flags |= MV_HP_ERRATA_50XXB2;
+				break;
+			}
+		}
+		break;
+
+	case chip_604x:
+	case chip_608x:
+		switch (rev_id) {
+		case 0x0:
+			dev_printk(KERN_WARNING, &pdev->dev,
+			          "Applying A1 workarounds to unknown rev 0\n");
+			/* fall through */
+		case 0x1:
+			hp_flags |= MV_HP_ERRATA_60X1A1;
+			break;
+		default:
+			dev_printk(KERN_WARNING, &pdev->dev,
+				   "Applying B0 workarounds to future rev\n");
+			/* fall through */
+		case 0x2:
+			hp_flags |= MV_HP_ERRATA_60X1B0;
+			break;
+		}
+		break;
+
+	default:
+		printk(KERN_ERR DRV_NAME ": BUG: invalid board index %u\n", board_idx);
+		return 1;
+	}
+
+	hpriv->hp_flags = hp_flags;
+
+	return 0;
+}
+
 /**
  *      mv_host_init - Perform some early initialization of the host.
+ *	@pdev: host PCI device
  *      @probe_ent: early data struct representing the host
  *
  *      If possible, do an early global reset of the host.  Then do
@@ -1390,11 +1627,28 @@ static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
  *      LOCKING:
  *      Inherited from caller.
  */
-static int mv_host_init(struct ata_probe_ent *probe_ent)
+static int mv_host_init(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
+			unsigned int board_idx)
 {
 	int rc = 0, n_hc, port, hc;
 	void __iomem *mmio = probe_ent->mmio_base;
 	void __iomem *port_mmio;
+	struct mv_host_priv *hpriv = probe_ent->private_data;
+
+	rc = mv_cfg_errata(pdev, hpriv, board_idx);
+	if (rc)
+		goto done;
+
+	n_hc = mv_get_hc_count(probe_ent->host_flags);
+	probe_ent->n_ports = MV_PORTS_PER_HC * n_hc;
+
+	if (IS_50XX(hpriv)) {
+		for (port = 0; port < probe_ent->n_ports; port++)
+			mv_cfg_signal5(hpriv, port, mmio);
+	} else {
+		for (port = 0; port < probe_ent->n_ports; port++)
+			mv_cfg_signal6(hpriv, port, mmio);
+	}
 
 	if ((MV_FLAG_GLBL_SFT_RST & probe_ent->host_flags) &&
 	    mv_global_soft_reset(probe_ent->mmio_base)) {
@@ -1402,8 +1656,7 @@ static int mv_host_init(struct ata_probe_ent *probe_ent)
 		goto done;
 	}
 
-	n_hc = mv_get_hc_count(probe_ent->host_flags);
-	probe_ent->n_ports = MV_PORTS_PER_HC * n_hc;
+	mv_enable_leds(hpriv, mmio);
 
 	for (port = 0; port < probe_ent->n_ports; port++) {
 		port_mmio = mv_port_base(mmio, port);
@@ -1435,6 +1688,7 @@ static int mv_host_init(struct ata_probe_ent *probe_ent)
 		readl(mmio + HC_MAIN_IRQ_MASK_OFS),
 		readl(mmio + PCI_IRQ_CAUSE_OFS),
 		readl(mmio + PCI_IRQ_MASK_OFS));
+
 done:
 	return rc;
 }
@@ -1540,7 +1794,7 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	probe_ent->private_data = hpriv;
 
 	/* initialize adapter */
-	rc = mv_host_init(probe_ent);
+	rc = mv_host_init(pdev, probe_ent, board_idx);
 	if (rc) {
 		goto err_out_hpriv;
 	}
