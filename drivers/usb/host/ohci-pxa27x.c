@@ -312,28 +312,49 @@ static int ohci_hcd_pxa27x_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int ohci_hcd_pxa27x_drv_suspend(struct platform_device *dev, pm_message_t state)
+#ifdef	CONFIG_PM
+static int ohci_hcd_pxa27x_drv_suspend(struct platform_device *pdev, pm_message_t state)
 {
-//	struct usb_hcd *hcd = platform_get_drvdata(dev);
-	printk("%s: not implemented yet\n", __FUNCTION__);
+	struct ohci_hcd *ohci = platform_get_drvdata(pdev);
+
+	if (time_before(jiffies, ohci->next_statechange))
+		msleep(5);
+	ohci->next_statechange = jiffies;
+
+	pxa27x_stop_hc(&pdev->dev);
+	ohci_to_hcd(ohci)->state = HC_STATE_SUSPENDED;
+	pdev->dev.power.power_state = PMSG_SUSPEND;
 
 	return 0;
 }
 
-static int ohci_hcd_pxa27x_drv_resume(struct platform_device *dev)
+static int ohci_hcd_pxa27x_drv_resume(struct platform_device *pdev)
 {
-//	struct usb_hcd *hcd = platform_get_drvdata(dev);
-	printk("%s: not implemented yet\n", __FUNCTION__);
+	struct ohci_hcd	*ohci = platform_get_drvdata(pdev);
+	int status;
+
+	if (time_before(jiffies, ohci->next_statechange))
+		msleep(5);
+	ohci->next_statechange = jiffies;
+
+	if ((status = pxa27x_start_hc(&pdev->dev)) < 0)
+		return status;
+
+	pdev->dev.power.power_state = PMSG_ON;
+	usb_hcd_resume_root_hub(platform_get_drvdata(pdev));
 
 	return 0;
 }
+#endif
 
 
 static struct platform_driver ohci_hcd_pxa27x_driver = {
 	.probe		= ohci_hcd_pxa27x_drv_probe,
 	.remove		= ohci_hcd_pxa27x_drv_remove,
+#ifdef CONFIG_PM
 	.suspend	= ohci_hcd_pxa27x_drv_suspend, 
 	.resume		= ohci_hcd_pxa27x_drv_resume,
+#endif
 	.driver		= {
 		.name	= "pxa27x-ohci",
 	},
