@@ -215,12 +215,5 @@ config FONT_10x18
 	  big letters. It fits between the sun 12x22 and the normal 8x16 font.
 	  If other fonts are too big or too small for you, say Y, otherwise say N.
 
-config FONT_RL
-	bool "console Roman Large 8x16 font" if FONTS
-	depends on FRAMEBUFFER_CONSOLE
-	help
-	  This is the visually-appealing "RL" console font that is
-	  included with the kbd package.
-
 endmenu
 
