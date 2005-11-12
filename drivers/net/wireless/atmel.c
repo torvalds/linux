@@ -1511,6 +1511,7 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 				   struct device *sys_dev,
 				   int (*card_present)(void *), void *card)
 {
+	struct proc_dir_entry *ent;
 	struct net_device *dev;
 	struct atmel_private *priv;
 	int rc;
@@ -1624,7 +1625,9 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 
 	netif_carrier_off(dev);
 
-	create_proc_read_entry ("driver/atmel", 0, NULL, atmel_read_proc, priv);
+	ent = create_proc_read_entry ("driver/atmel", 0, NULL, atmel_read_proc, priv);
+	if (!ent)
+		printk(KERN_WARNING "atmel: unable to create /proc entry.\n");
 
 	printk(KERN_INFO "%s: Atmel at76c50x. Version %d.%d. MAC %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
 	       dev->name, DRIVER_MAJOR, DRIVER_MINOR,
