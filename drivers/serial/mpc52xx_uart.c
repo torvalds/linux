@@ -725,7 +725,7 @@ mpc52xx_uart_probe(struct platform_device *dev)
 	int i, idx, ret;
 
 	/* Check validity & presence */
-	idx = pdev->id;
+	idx = dev->id;
 	if (idx < 0 || idx >= MPC52xx_PSC_MAXNUM)
 		return -EINVAL;
 
@@ -748,7 +748,7 @@ mpc52xx_uart_probe(struct platform_device *dev)
 	port->ops	= &mpc52xx_uart_ops;
 
 	/* Search for IRQ and mapbase */
-	for (i=0 ; i<pdev->num_resources ; i++, res++) {
+	for (i=0 ; i<dev->num_resources ; i++, res++) {
 		if (res->flags & IORESOURCE_MEM)
 			port->mapbase = res->start;
 		else if (res->flags & IORESOURCE_IRQ)
