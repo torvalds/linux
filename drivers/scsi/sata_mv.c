@@ -72,11 +72,6 @@ enum {
 	MV_SG_TBL_SZ		= (16 * MV_MAX_SG_CT),
 	MV_PORT_PRIV_DMA_SZ	= (MV_CRQB_Q_SZ + MV_CRPB_Q_SZ + MV_SG_TBL_SZ),
 
-	/* Our DMA boundary is determined by an ePRD being unable to handle
-	 * anything larger than 64KB
-	 */
-	MV_DMA_BOUNDARY		= 0xffffU,
-
 	MV_PORTS_PER_HC		= 4,
 	/* == (port / MV_PORTS_PER_HC) to determine HC from 0-7 port */
 	MV_PORT_HC_SHIFT	= 2,
@@ -192,7 +187,6 @@ enum {
 
 	EDMA_REQ_Q_BASE_HI_OFS	= 0x10,
 	EDMA_REQ_Q_IN_PTR_OFS	= 0x14,		/* also contains BASE_LO */
-	EDMA_REQ_Q_BASE_LO_MASK	= 0xfffffc00U,
 
 	EDMA_REQ_Q_OUT_PTR_OFS	= 0x18,
 	EDMA_REQ_Q_PTR_SHIFT	= 5,
@@ -200,7 +194,6 @@ enum {
 	EDMA_RSP_Q_BASE_HI_OFS	= 0x1c,
 	EDMA_RSP_Q_IN_PTR_OFS	= 0x20,
 	EDMA_RSP_Q_OUT_PTR_OFS	= 0x24,		/* also contains BASE_LO */
-	EDMA_RSP_Q_BASE_LO_MASK	= 0xffffff00U,
 	EDMA_RSP_Q_PTR_SHIFT	= 3,
 
 	EDMA_CMD_OFS		= 0x28,
@@ -214,6 +207,17 @@ enum {
 	/* Port private flags (pp_flags) */
 	MV_PP_FLAG_EDMA_EN	= (1 << 0),
 	MV_PP_FLAG_EDMA_DS_ACT	= (1 << 1),
+};
+
+enum {
+	/* Our DMA boundary is determined by an ePRD being unable to handle
+	 * anything larger than 64KB
+	 */
+	MV_DMA_BOUNDARY		= 0xffffU,
+
+	EDMA_REQ_Q_BASE_LO_MASK	= 0xfffffc00U,
+
+	EDMA_RSP_Q_BASE_LO_MASK	= 0xffffff00U,
 };
 
 /* Command ReQuest Block: 32B */
@@ -1215,6 +1219,7 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
  */
 static void mv_phy_reset(struct ata_port *ap)
 {
+	struct mv_port_priv *pp	= ap->private_data;
 	void __iomem *port_mmio = mv_ap_base(ap);
 	struct ata_taskfile tf;
 	struct ata_device *dev = &ap->device[0];
@@ -1232,7 +1237,7 @@ static void mv_phy_reset(struct ata_port *ap)
 	 */
 	writelfl(0, port_mmio + EDMA_CMD_OFS);
 
-	VPRINTK("S-regs after ATA_RST: SStat 0x%08x SErr 0x%08x "
+	DPRINTK("S-regs after ATA_RST: SStat 0x%08x SErr 0x%08x "
 		"SCtrl 0x%08x\n", mv_scr_read(ap, SCR_STATUS),
 		mv_scr_read(ap, SCR_ERROR), mv_scr_read(ap, SCR_CONTROL));
 
@@ -1247,7 +1252,9 @@ static void mv_phy_reset(struct ata_port *ap)
 			break;
 	} while (time_before(jiffies, timeout));
 
-	VPRINTK("S-regs after PHY wake: SStat 0x%08x SErr 0x%08x "
+	mv_scr_write(ap, SCR_ERROR, mv_scr_read(ap, SCR_ERROR));
+
+	DPRINTK("S-regs after PHY wake: SStat 0x%08x SErr 0x%08x "
 		"SCtrl 0x%08x\n", mv_scr_read(ap, SCR_STATUS),
 		mv_scr_read(ap, SCR_ERROR), mv_scr_read(ap, SCR_CONTROL));
 
@@ -1271,7 +1278,12 @@ static void mv_phy_reset(struct ata_port *ap)
 		VPRINTK("Port disabled post-sig: No device present.\n");
 		ata_port_disable(ap);
 	}
-	VPRINTK("EXIT\n");
+
+	writelfl(0, port_mmio + EDMA_ERR_IRQ_CAUSE_OFS);
+
+	pp->pp_flags &= ~MV_PP_FLAG_EDMA_EN;
+
+	printk("EXIT\n");
 }
 
 /**
