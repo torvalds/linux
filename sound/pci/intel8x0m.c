@@ -1317,7 +1317,6 @@ static void __devexit snd_intel8x0m_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "Intel ICH Modem",
-	.owner = THIS_MODULE,
 	.id_table = snd_intel8x0m_ids,
 	.probe = snd_intel8x0m_probe,
 	.remove = __devexit_p(snd_intel8x0m_remove),

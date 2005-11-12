@@ -10,7 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/skbuff.h>
-#include <linux/netfilter_ipv4/ip_conntrack.h>
+#include <net/netfilter/nf_conntrack_compat.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
 #include <linux/netfilter_ipv4/ipt_state.h>
 
@@ -30,9 +30,9 @@ match(const struct sk_buff *skb,
 	enum ip_conntrack_info ctinfo;
 	unsigned int statebit;
 
-	if (skb->nfct == &ip_conntrack_untracked.ct_general)
+	if (nf_ct_is_untracked(skb))
 		statebit = IPT_STATE_UNTRACKED;
-	else if (!ip_conntrack_get(skb, &ctinfo))
+	else if (!nf_ct_get_ctinfo(skb, &ctinfo))
 		statebit = IPT_STATE_INVALID;
 	else
 		statebit = IPT_STATE_BIT(ctinfo);

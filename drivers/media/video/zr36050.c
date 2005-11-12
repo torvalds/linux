@@ -26,7 +26,6 @@
 
 #define ZR050_VERSION "v0.7.1"
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>

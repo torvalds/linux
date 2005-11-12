@@ -27,15 +27,15 @@
     */
 
 struct display {
-    /* Filled in by the frame buffer device */
-    u_short inverse;                /* != 0 text black on white as default */
     /* Filled in by the low-level console driver */
     const u_char *fontdata;
     int userfont;                   /* != 0 if fontdata kmalloc()ed */
     u_short scrollmode;             /* Scroll Method */
+    u_short inverse;                /* != 0 text black on white as default */
     short yscroll;                  /* Hardware scrolling */
     int vrows;                      /* number of virtual rows */
     int cursor_shape;
+    int con_rotate;
     u32 xres_virtual;
     u32 yres_virtual;
     u32 height;
@@ -52,6 +52,8 @@ struct display {
     struct fb_videomode *mode;
 };
 
+extern struct display fb_display[];
+
 struct fbcon_ops {
 	void (*bmove)(struct vc_data *vc, struct fb_info *info, int sy,
 		      int sx, int dy, int dx, int height, int width);
@@ -63,8 +65,12 @@ struct fbcon_ops {
 	void (*clear_margins)(struct vc_data *vc, struct fb_info *info,
 			      int bottom_only);
 	void (*cursor)(struct vc_data *vc, struct fb_info *info,
-		       struct display *p, int mode, int softback_lines, int fg, int bg);
-
+		       struct display *p, int mode, int softback_lines,
+		       int fg, int bg);
+	int  (*update_start)(struct fb_info *info);
+	int  (*rotate_font)(struct fb_info *info, struct vc_data *vc,
+			    struct display *p);
+	struct fb_var_screeninfo var;  /* copy of the current fb_var_screeninfo */
 	struct timer_list cursor_timer; /* Cursor timer */
 	struct fb_cursor cursor_state;
         int    currcon;	                /* Current VC. */
@@ -73,7 +79,12 @@ struct fbcon_ops {
 	int    blank_state;
 	int    graphics;
 	int    flags;
+	int    rotate;
+	int    cur_rotate;
 	char  *cursor_data;
+	u8    *fontbuffer;
+	u8    *fontdata;
+	u32    fd_size;
 };
     /*
      *  Attribute Decoding
@@ -168,4 +179,47 @@ extern void fbcon_set_tileops(struct vc_data *vc, struct fb_info *info,
 #endif
 extern void fbcon_set_bitops(struct fbcon_ops *ops);
 extern int  soft_cursor(struct fb_info *info, struct fb_cursor *cursor);
+
+#define FBCON_ATTRIBUTE_UNDERLINE 1
+#define FBCON_ATTRIBUTE_REVERSE   2
+#define FBCON_ATTRIBUTE_BOLD      4
+
+static inline int real_y(struct display *p, int ypos)
+{
+	int rows = p->vrows;
+
+	ypos += p->yscroll;
+	return ypos < rows ? ypos : ypos - rows;
+}
+
+
+static inline int get_attribute(struct fb_info *info, u16 c)
+{
+	int attribute = 0;
+
+	if (fb_get_color_depth(&info->var, &info->fix) == 1) {
+		if (attr_underline(c))
+			attribute |= FBCON_ATTRIBUTE_UNDERLINE;
+		if (attr_reverse(c))
+			attribute |= FBCON_ATTRIBUTE_REVERSE;
+		if (attr_bold(c))
+			attribute |= FBCON_ATTRIBUTE_BOLD;
+	}
+
+	return attribute;
+}
+
+#define FBCON_SWAP(i,r,v) ({ \
+        typeof(r) _r = (r);  \
+        typeof(v) _v = (v);  \
+        (void) (&_r == &_v); \
+        (i == FB_ROTATE_UR || i == FB_ROTATE_UD) ? _r : _v; })
+
+#ifdef CONFIG_FRAMEBUFFER_CONSOLE_ROTATION
+extern void fbcon_set_rotate(struct fbcon_ops *ops);
+#else
+#define fbcon_set_rotate(x) do {} while(0)
+#endif /* CONFIG_FRAMEBUFFER_CONSOLE_ROTATION */
+
 #endif /* _VIDEO_FBCON_H */
+

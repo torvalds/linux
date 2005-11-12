@@ -62,6 +62,7 @@
 #include <linux/poll.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
+#include <linux/version.h>
 #include <asm/io.h>
 
 #include "pwc.h"

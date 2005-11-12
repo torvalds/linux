@@ -9,15 +9,7 @@
 
 static inline int cpu_to_node(int cpu)
 {
-	int node;
-
-	node = numa_cpu_lookup_table[cpu];
-
-#ifdef DEBUG_NUMA
-	BUG_ON(node == -1);
-#endif
-
-	return node;
+	return numa_cpu_lookup_table[cpu];
 }
 
 #define parent_node(node)	(node)
@@ -36,8 +28,6 @@ static inline int node_to_first_cpu(int node)
 
 #define pcibus_to_node(node)    (-1)
 #define pcibus_to_cpumask(bus)	(cpu_online_map)
-
-#define nr_cpus_node(node)	(nr_cpus_in_node[node])
 
 /* sched_domains SD_NODE_INIT for PPC64 machines */
 #define SD_NODE_INIT (struct sched_domain) {		\

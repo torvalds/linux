@@ -22,35 +22,6 @@
 /*
  * Accelerated handlers.
  */
-#define FBCON_ATTRIBUTE_UNDERLINE 1
-#define FBCON_ATTRIBUTE_REVERSE   2
-#define FBCON_ATTRIBUTE_BOLD      4
-
-static inline int real_y(struct display *p, int ypos)
-{
-	int rows = p->vrows;
-
-	ypos += p->yscroll;
-	return ypos < rows ? ypos : ypos - rows;
-}
-
-
-static inline int get_attribute(struct fb_info *info, u16 c)
-{
-	int attribute = 0;
-
-	if (fb_get_color_depth(&info->var, &info->fix) == 1) {
-		if (attr_underline(c))
-			attribute |= FBCON_ATTRIBUTE_UNDERLINE;
-		if (attr_reverse(c))
-			attribute |= FBCON_ATTRIBUTE_REVERSE;
-		if (attr_bold(c))
-			attribute |= FBCON_ATTRIBUTE_BOLD;
-	}
-
-	return attribute;
-}
-
 static inline void update_attr(u8 *dst, u8 *src, int attribute,
 			       struct vc_data *vc)
 {
@@ -418,6 +389,18 @@ static void bit_cursor(struct vc_data *vc, struct fb_info *info,
 	ops->cursor_reset = 0;
 }
 
+static int bit_update_start(struct fb_info *info)
+{
+	struct fbcon_ops *ops = info->fbcon_par;
+	int err;
+
+	err = fb_pan_display(info, &ops->var);
+	ops->var.xoffset = info->var.xoffset;
+	ops->var.yoffset = info->var.yoffset;
+	ops->var.vmode = info->var.vmode;
+	return err;
+}
+
 void fbcon_set_bitops(struct fbcon_ops *ops)
 {
 	ops->bmove = bit_bmove;
@@ -425,6 +408,11 @@ void fbcon_set_bitops(struct fbcon_ops *ops)
 	ops->putcs = bit_putcs;
 	ops->clear_margins = bit_clear_margins;
 	ops->cursor = bit_cursor;
+	ops->update_start = bit_update_start;
+	ops->rotate_font = NULL;
+
+	if (ops->rotate)
+		fbcon_set_rotate(ops);
 }
 
 EXPORT_SYMBOL(fbcon_set_bitops);

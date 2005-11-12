@@ -14,7 +14,6 @@
 #include <linux/unistd.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
-#include <linux/version.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 

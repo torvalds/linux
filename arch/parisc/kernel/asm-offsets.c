@@ -30,7 +30,6 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/thread_info.h>
-#include <linux/version.h>
 #include <linux/ptrace.h>
 #include <linux/hardirq.h>
 

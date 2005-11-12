@@ -570,7 +570,7 @@ static int aha1740_eh_abort_handler (Scsi_Cmnd *dummy)
 	return 0;
 }
 
-static Scsi_Host_Template aha1740_template = {
+static struct scsi_host_template aha1740_template = {
 	.module           = THIS_MODULE,
 	.proc_name        = "aha1740",
 	.proc_info        = aha1740_proc_info,

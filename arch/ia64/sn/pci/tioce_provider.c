@@ -218,7 +218,7 @@ tioce_alloc_map(struct tioce_kernel *ce_kern, int type, int port,
 	if (i > last)
 		return 0;
 
-	map = kcalloc(1, sizeof(struct tioce_dmamap), GFP_ATOMIC);
+	map = kzalloc(sizeof(struct tioce_dmamap), GFP_ATOMIC);
 	if (!map)
 		return 0;
 
@@ -555,7 +555,7 @@ tioce_kern_init(struct tioce_common *tioce_common)
 	struct tioce *tioce_mmr;
 	struct tioce_kernel *tioce_kern;
 
-	tioce_kern = kcalloc(1, sizeof(struct tioce_kernel), GFP_KERNEL);
+	tioce_kern = kzalloc(sizeof(struct tioce_kernel), GFP_KERNEL);
 	if (!tioce_kern) {
 		return NULL;
 	}
@@ -727,7 +727,7 @@ tioce_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	 * Allocate kernel bus soft and copy from prom.
 	 */
 
-	tioce_common = kcalloc(1, sizeof(struct tioce_common), GFP_KERNEL);
+	tioce_common = kzalloc(sizeof(struct tioce_common), GFP_KERNEL);
 	if (!tioce_common)
 		return NULL;
 

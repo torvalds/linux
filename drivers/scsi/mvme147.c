@@ -2,7 +2,6 @@
 #include <linux/mm.h>
 #include <linux/blkdev.h>
 #include <linux/sched.h>
-#include <linux/version.h>
 #include <linux/interrupt.h>
 
 #include <asm/page.h>
@@ -64,7 +63,7 @@ static void dma_stop (struct Scsi_Host *instance, Scsi_Cmnd *SCpnt,
     m147_pcc->dma_cntrl = 0;
 }
 
-int mvme147_detect(Scsi_Host_Template *tpnt)
+int mvme147_detect(struct scsi_host_template *tpnt)
 {
     static unsigned char called = 0;
     wd33c93_regs regs;
@@ -131,7 +130,7 @@ static int mvme147_bus_reset(Scsi_Cmnd *cmd)
 
 #include "mvme147.h"
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "MVME147",
 	.name			= "MVME147 built-in SCSI",
 	.detect			= mvme147_detect,

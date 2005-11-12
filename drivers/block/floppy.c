@@ -98,6 +98,10 @@
  */
 
 /*
+ * 1998/1/21 -- Richard Gooch <rgooch@atnf.csiro.au> -- devfs support
+ */
+
+/*
  * 1998/05/07 -- Russell King -- More portability cleanups; moved definition of
  * interrupt and dma channel to asm/floppy.h. Cleaned up some formatting &
  * use of '0' for NULL.
@@ -157,10 +161,6 @@ static int print_unex = 1;
 #include <linux/workqueue.h>
 #define FDPATCHES
 #include <linux/fdreg.h>
-
-/*
- * 1998/1/21 -- Richard Gooch <rgooch@atnf.csiro.au> -- devfs support
- */
 
 #include <linux/fd.h>
 #include <linux/hdreg.h>
@@ -3714,6 +3714,12 @@ static int floppy_open(struct inode *inode, struct file *filp)
 		USETF(FD_VERIFY);
 	}
 
+	/* set underlying gendisk policy to reflect real ro/rw status */
+	if (UTESTF(FD_DISK_WRITABLE))
+		inode->i_bdev->bd_disk->policy = 0;
+	else
+		inode->i_bdev->bd_disk->policy = 1;
+
 	if (UDRS->fd_ref == -1 || (UDRS->fd_ref && (filp->f_flags & O_EXCL)))
 		goto out2;
 
@@ -3770,8 +3776,7 @@ static int floppy_open(struct inode *inode, struct file *filp)
 	/* Allow ioctls if we have write-permissions even if read-only open.
 	 * Needed so that programs such as fdrawcmd still can work on write
 	 * protected disks */
-	if (filp->f_mode & 2
-	    || permission(filp->f_dentry->d_inode, 2, NULL) == 0)
+	if ((filp->f_mode & FMODE_WRITE) || !file_permission(filp, MAY_WRITE))
 		filp->private_data = (void *)8;
 
 	if (UFDCS->rawcmd == 1)

@@ -529,7 +529,7 @@ void esp_bootup_reset(struct NCR_ESP *esp, struct ESP_regs *eregs)
 /* Allocate structure and insert basic data such as SCSI chip frequency
  * data and a pointer to the device
  */
-struct NCR_ESP* esp_allocate(Scsi_Host_Template *tpnt, void *esp_dev)
+struct NCR_ESP* esp_allocate(struct scsi_host_template *tpnt, void *esp_dev)
 {
 	struct NCR_ESP *esp, *elink;
 	struct Scsi_Host *esp_host;
@@ -1006,7 +1006,7 @@ static void esp_exec_cmd(struct NCR_ESP *esp)
 	struct ESP_regs *eregs = esp->eregs;
 	struct esp_device *esp_dev;
 	Scsi_Cmnd *SCptr;
-	Scsi_Device *SDptr;
+	struct scsi_device *SDptr;
 	volatile unchar *cmdp = esp->esp_command;
 	unsigned char the_esp_command;
 	int lun, target;
@@ -1687,7 +1687,7 @@ static inline int reconnect_lun(struct NCR_ESP *esp, struct ESP_regs *eregs)
 static inline void esp_connect(struct NCR_ESP *esp, struct ESP_regs *eregs,
 			       Scsi_Cmnd *sp)
 {
-	Scsi_Device *dp = sp->device;
+	struct scsi_device *dp = sp->device;
 	struct esp_device *esp_dev = dp->hostdata;
 
 	if(esp->prev_soff  != esp_dev->sync_max_offset ||
@@ -3605,7 +3605,7 @@ out:
 }
 #endif
 
-int esp_slave_alloc(Scsi_Device *SDptr)
+int esp_slave_alloc(struct scsi_device *SDptr)
 {
 	struct esp_device *esp_dev =
 		kmalloc(sizeof(struct esp_device), GFP_ATOMIC);
@@ -3617,7 +3617,7 @@ int esp_slave_alloc(Scsi_Device *SDptr)
 	return 0;
 }
 
-void esp_slave_destroy(Scsi_Device *SDptr)
+void esp_slave_destroy(struct scsi_device *SDptr)
 {
 	struct NCR_ESP *esp = (struct NCR_ESP *) SDptr->host->hostdata;
 

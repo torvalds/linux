@@ -9,7 +9,6 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
-#include <linux/version.h>
 #include <linux/threads.h>
 #include <linux/spinlock.h>
 #include <linux/ioport.h>

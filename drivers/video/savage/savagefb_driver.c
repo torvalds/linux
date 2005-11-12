@@ -1315,10 +1315,14 @@ static void savagefb_set_fix(struct fb_info *info)
 	info->fix.line_length = info->var.xres_virtual *
 		info->var.bits_per_pixel / 8;
 
-	if (info->var.bits_per_pixel == 8)
+	if (info->var.bits_per_pixel == 8) {
 		info->fix.visual      = FB_VISUAL_PSEUDOCOLOR;
-	else
+		info->fix.xpanstep    = 4;
+	} else {
 		info->fix.visual      = FB_VISUAL_TRUECOLOR;
+		info->fix.xpanstep    = 2;
+	}
+
 }
 
 #if defined(CONFIG_FB_SAVAGE_ACCEL)
@@ -1363,7 +1367,6 @@ static int savagefb_set_par (struct fb_info *info)
 	par->minClock = 10000;
 
 	savagefb_set_par_int (par);
-	savagefb_update_start (par, var);
 	fb_set_cmap (&info->cmap, info);
 	savagefb_set_fix(info);
 	savagefb_set_clip(info);
@@ -1873,7 +1876,6 @@ static int __devinit savage_init_fb_info (struct fb_info *info,
 
 	info->fix.type	   = FB_TYPE_PACKED_PIXELS;
 	info->fix.type_aux	   = 0;
-	info->fix.xpanstep	   = 2;
 	info->fix.ypanstep	   = 1;
 	info->fix.ywrapstep   = 0;
 	info->fix.accel       = id->driver_data;

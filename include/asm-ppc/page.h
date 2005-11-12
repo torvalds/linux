@@ -1,9 +1,12 @@
 #ifndef _PPC_PAGE_H
 #define _PPC_PAGE_H
 
+#include <linux/config.h>
+#include <asm/asm-compat.h>
+
 /* PAGE_SHIFT determines the page size */
 #define PAGE_SHIFT	12
-#define PAGE_SIZE	(1UL << PAGE_SHIFT)
+#define PAGE_SIZE	(ASM_CONST(1) << PAGE_SHIFT)
 
 /*
  * Subtle: this is an int (not an unsigned long) and so it
@@ -168,6 +171,9 @@ extern __inline__ int get_order(unsigned long size)
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | VM_EXEC | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
+
+/* We do define AT_SYSINFO_EHDR but don't use the gate mecanism */
+#define __HAVE_ARCH_GATE_AREA		1
 
 #endif /* __KERNEL__ */
 #endif /* _PPC_PAGE_H */

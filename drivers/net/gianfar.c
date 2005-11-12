@@ -90,7 +90,6 @@
 #include <asm/irq.h>
 #include <asm/uaccess.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/dma-mapping.h>
 #include <linux/crc32.h>
 #include <linux/mii.h>
@@ -127,8 +126,8 @@ static irqreturn_t gfar_interrupt(int irq, void *dev_id, struct pt_regs *regs);
 static void adjust_link(struct net_device *dev);
 static void init_registers(struct net_device *dev);
 static int init_phy(struct net_device *dev);
-static int gfar_probe(struct device *device);
-static int gfar_remove(struct device *device);
+static int gfar_probe(struct platform_device *pdev);
+static int gfar_remove(struct platform_device *pdev);
 static void free_skb_resources(struct gfar_private *priv);
 static void gfar_set_multi(struct net_device *dev);
 static void gfar_set_hash_for_addr(struct net_device *dev, u8 *addr);
@@ -157,12 +156,11 @@ int gfar_uses_fcb(struct gfar_private *priv)
 
 /* Set up the ethernet device structure, private data,
  * and anything else we need before we start */
-static int gfar_probe(struct device *device)
+static int gfar_probe(struct platform_device *pdev)
 {
 	u32 tempval;
 	struct net_device *dev = NULL;
 	struct gfar_private *priv = NULL;
-	struct platform_device *pdev = to_platform_device(device);
 	struct gianfar_platform_data *einfo;
 	struct resource *r;
 	int idx;
@@ -209,7 +207,7 @@ static int gfar_probe(struct device *device)
 
 	spin_lock_init(&priv->lock);
 
-	dev_set_drvdata(device, dev);
+	platform_set_drvdata(pdev, dev);
 
 	/* Stop the DMA engine now, in case it was running before */
 	/* (The firmware could have used it, and left it running). */
@@ -246,7 +244,7 @@ static int gfar_probe(struct device *device)
 	dev->base_addr = (unsigned long) (priv->regs);
 
 	SET_MODULE_OWNER(dev);
-	SET_NETDEV_DEV(dev, device);
+	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	/* Fill in the dev structure */
 	dev->open = gfar_enet_open;
@@ -378,12 +376,12 @@ regs_fail:
 	return err;
 }
 
-static int gfar_remove(struct device *device)
+static int gfar_remove(struct platform_device *pdev)
 {
-	struct net_device *dev = dev_get_drvdata(device);
+	struct net_device *dev = platform_get_drvdata(pdev);
 	struct gfar_private *priv = netdev_priv(dev);
 
-	dev_set_drvdata(device, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	iounmap((void *) priv->regs);
 	free_netdev(dev);
@@ -1862,11 +1860,12 @@ static irqreturn_t gfar_error(int irq, void *dev_id, struct pt_regs *regs)
 }
 
 /* Structure for a device driver */
-static struct device_driver gfar_driver = {
-	.name = "fsl-gianfar",
-	.bus = &platform_bus_type,
+static struct platform_driver gfar_driver = {
 	.probe = gfar_probe,
 	.remove = gfar_remove,
+	.driver	= {
+		.name = "fsl-gianfar",
+	},
 };
 
 static int __init gfar_init(void)
@@ -1876,7 +1875,7 @@ static int __init gfar_init(void)
 	if (err)
 		return err;
 
-	err = driver_register(&gfar_driver);
+	err = platform_driver_register(&gfar_driver);
 
 	if (err)
 		gfar_mdio_exit();
@@ -1886,7 +1885,7 @@ static int __init gfar_init(void)
 
 static void __exit gfar_exit(void)
 {
-	driver_unregister(&gfar_driver);
+	platform_driver_unregister(&gfar_driver);
 	gfar_mdio_exit();
 }
 

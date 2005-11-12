@@ -350,6 +350,20 @@ fault:
 	return -EFAULT;
 }
 
+unsigned int __skb_checksum_complete(struct sk_buff *skb)
+{
+	unsigned int sum;
+
+	sum = (u16)csum_fold(skb_checksum(skb, 0, skb->len, skb->csum));
+	if (likely(!sum)) {
+		if (unlikely(skb->ip_summed == CHECKSUM_HW))
+			netdev_rx_csum_fault(skb->dev);
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+	}
+	return sum;
+}
+EXPORT_SYMBOL(__skb_checksum_complete);
+
 /**
  *	skb_copy_and_csum_datagram_iovec - Copy and checkum skb to user iovec.
  *	@skb: skbuff
@@ -363,7 +377,7 @@ fault:
  *		 -EFAULT - fault during copy. Beware, in this case iovec
  *			   can be modified!
  */
-int skb_copy_and_csum_datagram_iovec(const struct sk_buff *skb,
+int skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 				     int hlen, struct iovec *iov)
 {
 	unsigned int csum;
@@ -376,8 +390,7 @@ int skb_copy_and_csum_datagram_iovec(const struct sk_buff *skb,
 		iov++;
 
 	if (iov->iov_len < chunk) {
-		if ((unsigned short)csum_fold(skb_checksum(skb, 0, chunk + hlen,
-							   skb->csum)))
+		if (__skb_checksum_complete(skb))
 			goto csum_error;
 		if (skb_copy_datagram_iovec(skb, hlen, iov, chunk))
 			goto fault;
@@ -388,6 +401,8 @@ int skb_copy_and_csum_datagram_iovec(const struct sk_buff *skb,
 			goto fault;
 		if ((unsigned short)csum_fold(csum))
 			goto csum_error;
+		if (unlikely(skb->ip_summed == CHECKSUM_HW))
+			netdev_rx_csum_fault(skb->dev);
 		iov->iov_len -= chunk;
 		iov->iov_base += chunk;
 	}

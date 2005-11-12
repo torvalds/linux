@@ -593,38 +593,6 @@ config FB_EPSON1355
 	  framebuffer.  Product specs at
 	  <http://www.erd.epson.com/vdc/html/products.htm>.
 
-config FB_E1356
-	tristate "Epson SED1356 framebuffer support"
-	depends on FB && EXPERIMENTAL && PCI && MIPS
-
-config PB1000_CRT
-	bool "Use CRT on Pb1000 (J65)"
-	depends on MIPS_PB1000=y && FB_E1356
-
-config PB1000_NTSC
-	bool "Use Compsite NTSC on Pb1000 (J63)"
-	depends on MIPS_PB1000=y && FB_E1356
-
-config PB1000_TFT
-	bool "Use TFT Panel on Pb1000 (J64)"
-	depends on MIPS_PB1000=y && FB_E1356
-
-config PB1500_CRT
-	bool "Use CRT on Pb1500 " if MIPS_PB1500=y
-	depends on FB_E1356
-
-config PB1500_CRT
-	prompt "Use CRT on Pb1100 "
-	depends on FB_E1356 && MIPS_PB1100=y
-
-config PB1500_TFT
-	bool "Use TFT Panel on Pb1500 " if MIPS_PB1500=y
-	depends on FB_E1356
-
-config PB1500_TFT
-	prompt "Use TFT Panel on Pb1100 "
-	depends on FB_E1356 && MIPS_PB1100=y
-
 config FB_S1D13XXX
 	tristate "Epson S1D13XXX framebuffer support"
 	depends on FB

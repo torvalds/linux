@@ -39,9 +39,6 @@
 #ifndef __INC_SKDRV1ST_H
 #define __INC_SKDRV1ST_H
 
-/* Check kernel version */
-#include <linux/version.h>
-
 typedef struct s_AC	SK_AC;
 
 /* Set card versions */

@@ -768,7 +768,6 @@ static void __devexit snd_card_als4000_remove(struct pci_dev *pci)
 
 static struct pci_driver driver = {
 	.name = "ALS4000",
-	.owner = THIS_MODULE,
 	.id_table = snd_als4000_ids,
 	.probe = snd_card_als4000_probe,
 	.remove = __devexit_p(snd_card_als4000_remove),

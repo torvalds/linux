@@ -114,7 +114,7 @@ gconf-objs	:= gconf.o kconfig_load.o zconf.tab.o
 endif
 
 clean-files	:= lkc_defs.h qconf.moc .tmp_qtcheck \
-		   .tmp_gtkcheck zconf.tab.c zconf.tab.h lex.zconf.c
+		   .tmp_gtkcheck zconf.tab.c lex.zconf.c zconf.hash.c
 
 # Needed for systems without gettext
 KBUILD_HAVE_NLS := $(shell \
@@ -135,12 +135,6 @@ HOSTCXXFLAGS_qconf.o	= -I$(QTDIR)/include -D LKC_DIRECT_LINK
 HOSTLOADLIBES_gconf	= `pkg-config gtk+-2.0 gmodule-2.0 libglade-2.0 --libs`
 HOSTCFLAGS_gconf.o	= `pkg-config gtk+-2.0 gmodule-2.0 libglade-2.0 --cflags` \
                           -D LKC_DIRECT_LINK
-
-$(obj)/conf.o $(obj)/mconf.o $(obj)/qconf.o $(obj)/gconf.o $(obj)/kxgettext: $(obj)/zconf.tab.h
-
-$(obj)/zconf.tab.h: $(src)/zconf.tab.h_shipped
-$(obj)/zconf.tab.c: $(src)/zconf.tab.c_shipped
-$(obj)/lex.zconf.c: $(src)/lex.zconf.c_shipped
 
 $(obj)/qconf.o: $(obj)/.tmp_qtcheck
 
@@ -207,7 +201,7 @@ $(obj)/.tmp_gtkcheck:
 	fi
 endif
 
-$(obj)/zconf.tab.o: $(obj)/lex.zconf.c
+$(obj)/zconf.tab.o: $(obj)/lex.zconf.c $(obj)/zconf.hash.c
 
 $(obj)/kconfig_load.o: $(obj)/lkc_defs.h
 
@@ -223,20 +217,27 @@ $(obj)/lkc_defs.h: $(src)/lkc_proto.h
 
 
 ###
-# The following requires flex/bison
+# The following requires flex/bison/gperf
 # By default we use the _shipped versions, uncomment the following line if
 # you are modifying the flex/bison src.
 # LKC_GENPARSER := 1
 
 ifdef LKC_GENPARSER
 
-$(obj)/zconf.tab.c: $(obj)/zconf.y 
-$(obj)/zconf.tab.h: $(obj)/zconf.tab.c
+$(obj)/zconf.tab.c: $(src)/zconf.y
+$(obj)/lex.zconf.c: $(src)/zconf.l
+$(obj)/zconf.hash.c: $(src)/zconf.gperf
 
 %.tab.c: %.y
-	bison -t -d -v -b $* -p $(notdir $*) $<
+	bison -l -b $* -p $(notdir $*) $<
+	cp $@ $@_shipped
 
 lex.%.c: %.l
-	flex -P$(notdir $*) -o$@ $<
+	flex -L -P$(notdir $*) -o$@ $<
+	cp $@ $@_shipped
+
+%.hash.c: %.gperf
+	gperf < $< > $@
+	cp $@ $@_shipped
 
 endif

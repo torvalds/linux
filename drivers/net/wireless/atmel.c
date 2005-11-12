@@ -72,7 +72,7 @@
 #include "atmel.h"
 
 #define DRIVER_MAJOR 0
-#define DRIVER_MINOR 96
+#define DRIVER_MINOR 98
 
 MODULE_AUTHOR("Simon Kelley");
 MODULE_DESCRIPTION("Support for Atmel at76c50x 802.11 wireless ethernet cards.");
@@ -1504,7 +1504,7 @@ static int atmel_read_proc(char *page, char **start, off_t off,
         return len;
 }
 
-struct net_device *init_atmel_card( unsigned short irq, int port, const AtmelFWType fw_type,  
+struct net_device *init_atmel_card( unsigned short irq, unsigned long port, const AtmelFWType fw_type,  
 				    struct device *sys_dev, int (*card_present)(void *), void *card)
 {
 	struct net_device *dev;
@@ -1605,8 +1605,8 @@ struct net_device *init_atmel_card( unsigned short irq, int port, const AtmelFWT
 		goto err_out_free;
 	}
 
-	if (priv->bus_type == BUS_TYPE_PCI &&
-	    !request_region( dev->base_addr, 64, dev->name )) {
+	if (!request_region(dev->base_addr, 32, 
+			    priv->bus_type == BUS_TYPE_PCCARD ?  "atmel_cs" : "atmel_pci")) {
 		goto err_out_irq;
 	}
 	
@@ -1622,15 +1622,16 @@ struct net_device *init_atmel_card( unsigned short irq, int port, const AtmelFWT
 	
 	create_proc_read_entry ("driver/atmel", 0, NULL, atmel_read_proc, priv);	
 	
-	printk(KERN_INFO "%s: Atmel at76c50x wireless. Version %d.%d simon@thekelleys.org.uk\n",
-	       dev->name, DRIVER_MAJOR, DRIVER_MINOR);
+	printk(KERN_INFO "%s: Atmel at76c50x. Version %d.%d. MAC %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+	       dev->name, DRIVER_MAJOR, DRIVER_MINOR,
+	       dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
+	       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5] );
 	
 	SET_MODULE_OWNER(dev);
 	return dev;
 	
  err_out_res:
-	if (priv->bus_type == BUS_TYPE_PCI)
-	        release_region( dev->base_addr, 64 );
+	release_region( dev->base_addr, 32);
  err_out_irq:
 	free_irq(dev->irq, dev);
  err_out_free:
@@ -1640,7 +1641,7 @@ struct net_device *init_atmel_card( unsigned short irq, int port, const AtmelFWT
 
 EXPORT_SYMBOL(init_atmel_card);
 
-void stop_atmel_card(struct net_device *dev, int freeres)
+void stop_atmel_card(struct net_device *dev)
 {
 	struct atmel_private *priv = netdev_priv(dev);
 		
@@ -1654,10 +1655,7 @@ void stop_atmel_card(struct net_device *dev, int freeres)
 	remove_proc_entry("driver/atmel", NULL);
 	free_irq(dev->irq, dev);
 	kfree(priv->firmware);
-	if (freeres) {
-		/* PCMCIA frees this stuff, so only for PCI */
-	        release_region(dev->base_addr, 64);
-        }
+	release_region(dev->base_addr, 32);
 	free_netdev(dev);
 }
 
@@ -1810,9 +1808,9 @@ static int atmel_set_encode(struct net_device *dev,
 	}
 	if(dwrq->flags & IW_ENCODE_RESTRICTED)
 		priv->exclude_unencrypted = 1;
-	if(dwrq->flags & IW_ENCODE_OPEN)
+       	if(dwrq->flags & IW_ENCODE_OPEN) 
 		priv->exclude_unencrypted = 0;
-	
+       
 	return -EINPROGRESS;		/* Call commit handler */
 }
 
@@ -1827,11 +1825,12 @@ static int atmel_get_encode(struct net_device *dev,
 	
 	if (!priv->wep_is_on)
 		dwrq->flags = IW_ENCODE_DISABLED;
-	else if (priv->exclude_unencrypted)
-		dwrq->flags = IW_ENCODE_RESTRICTED;
-	else
-		dwrq->flags = IW_ENCODE_OPEN;
-		
+	else {
+		if (priv->exclude_unencrypted)
+			dwrq->flags = IW_ENCODE_RESTRICTED;
+		else
+			dwrq->flags = IW_ENCODE_OPEN;
+	}
 		/* Which key do we want ? -1 -> tx index */
 	if (index < 0 || index >= 4)
 		index = priv->default_key;
@@ -2217,7 +2216,7 @@ static int atmel_get_range(struct net_device *dev,
 	int k,i,j;
 
 	dwrq->length = sizeof(struct iw_range);
-	memset(range, 0, sizeof(range));
+	memset(range, 0, sizeof(struct iw_range));
 	range->min_nwid = 0x0000;
 	range->max_nwid = 0x0000;
 	range->num_channels = 0;
@@ -2645,8 +2644,8 @@ static void handle_beacon_probe(struct atmel_private *priv, u16 capability, u8 c
 	} 
 }
 
- 
-static void send_authentication_request(struct atmel_private *priv, u8 *challenge, int challenge_len)
+
+static void send_authentication_request(struct atmel_private *priv, u16 system, u8 *challenge, int challenge_len)
 {
 	struct ieee80211_hdr_4addr header;
 	struct auth_body auth;
@@ -2658,14 +2657,11 @@ static void send_authentication_request(struct atmel_private *priv, u8 *challeng
 	memcpy(header.addr2, priv->dev->dev_addr, 6);
 	memcpy(header.addr3, priv->CurrentBSSID, 6);
 	
-	if (priv->wep_is_on) {
-		auth.alg = cpu_to_le16(C80211_MGMT_AAN_SHAREDKEY); 
+	if (priv->wep_is_on && priv->CurrentAuthentTransactionSeqNum != 1) 
 		/* no WEP for authentication frames with TrSeqNo 1 */
-		if (priv->CurrentAuthentTransactionSeqNum != 1)
-			header.frame_ctl |=  cpu_to_le16(IEEE80211_FCTL_PROTECTED);
-	} else {
-		auth.alg = cpu_to_le16(C80211_MGMT_AAN_OPENSYSTEM);
-	}
+                header.frame_ctl |=  cpu_to_le16(IEEE80211_FCTL_PROTECTED);
+	
+	auth.alg = cpu_to_le16(system); 
 
 	auth.status = 0;
 	auth.trans_seq = cpu_to_le16(priv->CurrentAuthentTransactionSeqNum);
@@ -2834,6 +2830,7 @@ static void authenticate(struct atmel_private *priv, u16 frame_len)
 	struct auth_body *auth = (struct auth_body *)priv->rx_buf;
 	u16 status = le16_to_cpu(auth->status);
 	u16 trans_seq_no = le16_to_cpu(auth->trans_seq);
+	u16 system = le16_to_cpu(auth->alg);
 	
 	if (status == C80211_MGMT_SC_Success && !priv->wep_is_on) { 
 		/* no WEP */
@@ -2855,7 +2852,7 @@ static void authenticate(struct atmel_private *priv, u16 frame_len)
 				
 		if (trans_seq_no == 0x0002 &&
 		    auth->el_id == C80211_MGMT_ElementID_ChallengeText) {
-			send_authentication_request(priv, auth->chall_text, auth->chall_text_len);
+			send_authentication_request(priv, system, auth->chall_text, auth->chall_text_len);
 			return;
 		}
 		
@@ -2872,14 +2869,20 @@ static void authenticate(struct atmel_private *priv, u16 frame_len)
 		}
 	}			
 	
-	if (status == C80211_MGMT_SC_AuthAlgNotSupported && priv->connect_to_any_BSS) {
-		int bss_index;
-		
-		priv->BSSinfo[(int)(priv->current_BSS)].channel |= 0x80;
-		
-		if ((bss_index  = retrieve_bss(priv)) != -1) {
-			atmel_join_bss(priv, bss_index);
-			return;
+	if (status == C80211_MGMT_SC_AuthAlgNotSupported) {
+		/* Do opensystem first, then try sharedkey */
+		if (system ==  C80211_MGMT_AAN_OPENSYSTEM) {
+			priv->CurrentAuthentTransactionSeqNum = 0x001;
+			send_authentication_request(priv, C80211_MGMT_AAN_SHAREDKEY, NULL, 0);
+		} else if (priv->connect_to_any_BSS) {
+			int bss_index;
+			
+			priv->BSSinfo[(int)(priv->current_BSS)].channel |= 0x80;
+			
+			if ((bss_index  = retrieve_bss(priv)) != -1) {
+				atmel_join_bss(priv, bss_index);
+				return;
+			}
 		}
 	}
 	
@@ -3205,7 +3208,7 @@ static void atmel_management_timer(u_long a)
 		  priv->AuthenticationRequestRetryCnt++;
 		  priv->CurrentAuthentTransactionSeqNum = 0x0001;
 		  mod_timer(&priv->management_timer, jiffies + MGMT_JIFFIES);
-		  send_authentication_request(priv, NULL, 0);
+		  send_authentication_request(priv, C80211_MGMT_AAN_OPENSYSTEM, NULL, 0);
 	  }
 	  
 	  break;
@@ -3312,7 +3315,7 @@ static void atmel_command_irq(struct atmel_private *priv)
 				
 				mod_timer(&priv->management_timer, jiffies + MGMT_JIFFIES);
 				priv->CurrentAuthentTransactionSeqNum = 0x0001;
-				send_authentication_request(priv, NULL, 0);
+				send_authentication_request(priv, C80211_MGMT_AAN_SHAREDKEY, NULL, 0);
 			}
 			return;
 		}
@@ -3482,11 +3485,6 @@ static int probe_atmel_card(struct net_device *dev)
 			printk(KERN_ALERT "%s: *** Invalid MAC address. UPGRADE Firmware ****\n", dev->name);
 			memcpy(dev->dev_addr, default_mac, 6);
 		}
-		printk(KERN_INFO "%s: MAC address %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
-		       dev->name,
-		       dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-		       dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5] );
-		
 	}
 	
 	return rc;

@@ -936,10 +936,10 @@ static struct pxa_i2c i2c_pxa = {
 	},
 };
 
-static int i2c_pxa_probe(struct device *dev)
+static int i2c_pxa_probe(struct platform_device *dev)
 {
 	struct pxa_i2c *i2c = &i2c_pxa;
-	struct i2c_pxa_platform_data *plat = dev->platform_data;
+	struct i2c_pxa_platform_data *plat = dev->dev.platform_data;
 	int ret;
 
 #ifdef CONFIG_PXA27x
@@ -968,7 +968,7 @@ static int i2c_pxa_probe(struct device *dev)
 	i2c_pxa_reset(i2c);
 
 	i2c->adap.algo_data = i2c;
-	i2c->adap.dev.parent = dev;
+	i2c->adap.dev.parent = &dev->dev;
 
 	ret = i2c_add_adapter(&i2c->adap);
 	if (ret < 0) {
@@ -976,7 +976,7 @@ static int i2c_pxa_probe(struct device *dev)
 		goto err_irq;
 	}
 
-	dev_set_drvdata(dev, i2c);
+	platform_set_drvdata(dev, i2c);
 
 #ifdef CONFIG_I2C_PXA_SLAVE
 	printk(KERN_INFO "I2C: %s: PXA I2C adapter, slave address %d\n",
@@ -993,11 +993,11 @@ static int i2c_pxa_probe(struct device *dev)
 	return ret;
 }
 
-static int i2c_pxa_remove(struct device *dev)
+static int i2c_pxa_remove(struct platform_device *dev)
 {
-	struct pxa_i2c *i2c = dev_get_drvdata(dev);
+	struct pxa_i2c *i2c = platform_get_drvdata(dev);
 
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(dev, NULL);
 
 	i2c_del_adapter(&i2c->adap);
 	free_irq(IRQ_I2C, i2c);
@@ -1006,21 +1006,22 @@ static int i2c_pxa_remove(struct device *dev)
 	return 0;
 }
 
-static struct device_driver i2c_pxa_driver = {
-	.name		= "pxa2xx-i2c",
-	.bus		= &platform_bus_type,
+static struct platform_driver i2c_pxa_driver = {
 	.probe		= i2c_pxa_probe,
 	.remove		= i2c_pxa_remove,
+	.driver		= {
+		.name	= "pxa2xx-i2c",
+	},
 };
 
 static int __init i2c_adap_pxa_init(void)
 {
-	return driver_register(&i2c_pxa_driver);
+	return platform_driver_register(&i2c_pxa_driver);
 }
 
 static void i2c_adap_pxa_exit(void)
 {
-	return driver_unregister(&i2c_pxa_driver);
+	return platform_driver_unregister(&i2c_pxa_driver);
 }
 
 module_init(i2c_adap_pxa_init);

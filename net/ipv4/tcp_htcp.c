@@ -207,14 +207,13 @@ static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct htcp *ca = inet_csk_ca(sk);
 
-	if (in_flight < tp->snd_cwnd)
+	if (!tcp_is_cwnd_limited(sk, in_flight))
 		return;
 
-        if (tp->snd_cwnd <= tp->snd_ssthresh) {
-                /* In "safe" area, increase. */
-		if (tp->snd_cwnd < tp->snd_cwnd_clamp)
-			tp->snd_cwnd++;
-	} else {
+        if (tp->snd_cwnd <= tp->snd_ssthresh)
+		tcp_slow_start(tp);
+	else {
+
 		measure_rtt(sk);
 
 		/* keep track of number of round-trip times since last backoff event */
@@ -224,7 +223,7 @@ static void htcp_cong_avoid(struct sock *sk, u32 ack, u32 rtt,
 			htcp_alpha_update(ca);
 		}
 
-                /* In dangerous area, increase slowly.
+		/* In dangerous area, increase slowly.
 		 * In theory this is tp->snd_cwnd += alpha / tp->snd_cwnd
 		 */
 		if ((tp->snd_cwnd_cnt++ * ca->alpha)>>7 >= tp->snd_cwnd) {

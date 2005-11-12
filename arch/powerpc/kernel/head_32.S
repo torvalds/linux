@@ -1100,6 +1100,7 @@ start_here:
 	mr	r3,r31
 	mr	r4,r30
 	bl	machine_init
+	bl	__save_cpu_setup
 	bl	MMU_init
 
 #ifdef CONFIG_APUS

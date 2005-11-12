@@ -109,9 +109,10 @@ static struct platform_device serial_device = {
  * By default UART2 does not work on Innovator-1510 if you have
  * USB OHCI enabled. To use UART2, you must disable USB2 first.
  */
-void __init omap_serial_init(int ports[OMAP_MAX_NR_PORTS])
+void __init omap_serial_init(void)
 {
 	int i;
+	const struct omap_uart_config *info;
 
 	if (cpu_is_omap730()) {
 		serial_platform_data[0].regshift = 0;
@@ -126,10 +127,14 @@ void __init omap_serial_init(int ports[OMAP_MAX_NR_PORTS])
 		serial_platform_data[2].uartclk = OMAP1510_BASE_BAUD * 16;
 	}
 
+	info = omap_get_config(OMAP_TAG_UART, struct omap_uart_config);
+	if (info == NULL)
+		return;
+
 	for (i = 0; i < OMAP_MAX_NR_PORTS; i++) {
 		unsigned char reg;
 
-		if (ports[i] == 0) {
+		if (!((1 << i) & info->enabled_uarts)) {
 			serial_platform_data[i].membase = NULL;
 			serial_platform_data[i].mapbase = 0;
 			continue;

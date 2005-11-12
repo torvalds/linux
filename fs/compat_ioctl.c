@@ -840,146 +840,6 @@ static int hdio_getgeo(unsigned int fd, unsigned int cmd, unsigned long arg)
 	return err ? -EFAULT : 0;
 }
 
-struct fb_fix_screeninfo32 {
-	char			id[16];
-        compat_caddr_t	smem_start;
-	u32			smem_len;
-	u32			type;
-	u32			type_aux;
-	u32			visual;
-	u16			xpanstep;
-	u16			ypanstep;
-	u16			ywrapstep;
-	u32			line_length;
-        compat_caddr_t	mmio_start;
-	u32			mmio_len;
-	u32			accel;
-	u16			reserved[3];
-};
-
-struct fb_cmap32 {
-	u32			start;
-	u32			len;
-	compat_caddr_t	red;
-	compat_caddr_t	green;
-	compat_caddr_t	blue;
-	compat_caddr_t	transp;
-};
-
-static int fb_getput_cmap(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	struct fb_cmap_user __user *cmap;
-	struct fb_cmap32 __user *cmap32;
-	__u32 data;
-	int err;
-
-	cmap = compat_alloc_user_space(sizeof(*cmap));
-	cmap32 = compat_ptr(arg);
-
-	if (copy_in_user(&cmap->start, &cmap32->start, 2 * sizeof(__u32)))
-		return -EFAULT;
-
-	if (get_user(data, &cmap32->red) ||
-	    put_user(compat_ptr(data), &cmap->red) ||
-	    get_user(data, &cmap32->green) ||
-	    put_user(compat_ptr(data), &cmap->green) ||
-	    get_user(data, &cmap32->blue) ||
-	    put_user(compat_ptr(data), &cmap->blue) ||
-	    get_user(data, &cmap32->transp) ||
-	    put_user(compat_ptr(data), &cmap->transp))
-		return -EFAULT;
-
-	err = sys_ioctl(fd, cmd, (unsigned long) cmap);
-
-	if (!err) {
-		if (copy_in_user(&cmap32->start,
-				 &cmap->start,
-				 2 * sizeof(__u32)))
-			err = -EFAULT;
-	}
-	return err;
-}
-
-static int do_fscreeninfo_to_user(struct fb_fix_screeninfo *fix,
-				  struct fb_fix_screeninfo32 __user *fix32)
-{
-	__u32 data;
-	int err;
-
-	err = copy_to_user(&fix32->id, &fix->id, sizeof(fix32->id));
-
-	data = (__u32) (unsigned long) fix->smem_start;
-	err |= put_user(data, &fix32->smem_start);
-
-	err |= put_user(fix->smem_len, &fix32->smem_len);
-	err |= put_user(fix->type, &fix32->type);
-	err |= put_user(fix->type_aux, &fix32->type_aux);
-	err |= put_user(fix->visual, &fix32->visual);
-	err |= put_user(fix->xpanstep, &fix32->xpanstep);
-	err |= put_user(fix->ypanstep, &fix32->ypanstep);
-	err |= put_user(fix->ywrapstep, &fix32->ywrapstep);
-	err |= put_user(fix->line_length, &fix32->line_length);
-
-	data = (__u32) (unsigned long) fix->mmio_start;
-	err |= put_user(data, &fix32->mmio_start);
-
-	err |= put_user(fix->mmio_len, &fix32->mmio_len);
-	err |= put_user(fix->accel, &fix32->accel);
-	err |= copy_to_user(fix32->reserved, fix->reserved,
-			    sizeof(fix->reserved));
-
-	return err;
-}
-
-static int fb_get_fscreeninfo(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	mm_segment_t old_fs;
-	struct fb_fix_screeninfo fix;
-	struct fb_fix_screeninfo32 __user *fix32;
-	int err;
-
-	fix32 = compat_ptr(arg);
-
-	old_fs = get_fs();
-	set_fs(KERNEL_DS);
-	err = sys_ioctl(fd, cmd, (unsigned long) &fix);
-	set_fs(old_fs);
-
-	if (!err)
-		err = do_fscreeninfo_to_user(&fix, fix32);
-
-	return err;
-}
-
-static int fb_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
-{
-	int err;
-
-	switch (cmd) {
-	case FBIOGET_FSCREENINFO:
-		err = fb_get_fscreeninfo(fd,cmd, arg);
-		break;
-
-  	case FBIOGETCMAP:
-	case FBIOPUTCMAP:
-		err = fb_getput_cmap(fd, cmd, arg);
-		break;
-
-	default:
-		do {
-			static int count;
-			if (++count <= 20)
-				printk("%s: Unknown fb ioctl cmd fd(%d) "
-				       "cmd(%08x) arg(%08lx)\n",
-				       __FUNCTION__, fd, cmd, arg);
-		} while(0);
-		err = -ENOSYS;
-		break;
-	};
-
-	return err;
-}
-
 static int hdio_ioctl_trans(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
 	mm_segment_t old_fs = get_fs();
@@ -2953,10 +2813,7 @@ HANDLE_IOCTL(BLKGETSIZE, w_long)
 HANDLE_IOCTL(0x1260, broken_blkgetsize)
 HANDLE_IOCTL(BLKFRAGET, w_long)
 HANDLE_IOCTL(BLKSECTGET, w_long)
-HANDLE_IOCTL(FBIOGET_FSCREENINFO, fb_ioctl_trans)
 HANDLE_IOCTL(BLKPG, blkpg_ioctl_trans)
-HANDLE_IOCTL(FBIOGETCMAP, fb_ioctl_trans)
-HANDLE_IOCTL(FBIOPUTCMAP, fb_ioctl_trans)
 HANDLE_IOCTL(HDIO_GET_KEEPSETTINGS, hdio_ioctl_trans)
 HANDLE_IOCTL(HDIO_GET_UNMASKINTR, hdio_ioctl_trans)
 HANDLE_IOCTL(HDIO_GET_DMA, hdio_ioctl_trans)
@@ -3050,6 +2907,16 @@ HANDLE_IOCTL(TIOCSSERIAL, serial_struct_ioctl)
 #ifdef TIOCGLTC
 COMPATIBLE_IOCTL(TIOCGLTC)
 COMPATIBLE_IOCTL(TIOCSLTC)
+#endif
+#ifdef TIOCSTART
+/*
+ * For these two we have defintions in ioctls.h and/or termios.h on
+ * some architectures but no actual implemention.  Some applications
+ * like bash call them if they are defined in the headers, so we provide
+ * entries here to avoid syslog message spew.
+ */
+COMPATIBLE_IOCTL(TIOCSTART)
+COMPATIBLE_IOCTL(TIOCSTOP)
 #endif
 /* Usbdevfs */
 HANDLE_IOCTL(USBDEVFS_CONTROL32, do_usbdevfs_control)

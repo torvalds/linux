@@ -382,7 +382,7 @@ static struct rtc_ops s3c2410_rtcops = {
 	.proc	        = s3c2410_rtc_proc,
 };
 
-static void s3c2410_rtc_enable(struct device *dev, int en)
+static void s3c2410_rtc_enable(struct platform_device *pdev, int en)
 {
 	unsigned int tmp;
 
@@ -399,21 +399,21 @@ static void s3c2410_rtc_enable(struct device *dev, int en)
 		/* re-enable the device, and check it is ok */
 
 		if ((readb(S3C2410_RTCCON) & S3C2410_RTCCON_RTCEN) == 0){
-			dev_info(dev, "rtc disabled, re-enabling\n");
+			dev_info(&pdev->dev, "rtc disabled, re-enabling\n");
 
 			tmp = readb(S3C2410_RTCCON);
 			writeb(tmp | S3C2410_RTCCON_RTCEN , S3C2410_RTCCON);
 		}
 
 		if ((readb(S3C2410_RTCCON) & S3C2410_RTCCON_CNTSEL)){
-			dev_info(dev, "removing S3C2410_RTCCON_CNTSEL\n");
+			dev_info(&pdev->dev, "removing S3C2410_RTCCON_CNTSEL\n");
 
 			tmp = readb(S3C2410_RTCCON);
 			writeb(tmp& ~S3C2410_RTCCON_CNTSEL , S3C2410_RTCCON);
 		}
 
 		if ((readb(S3C2410_RTCCON) & S3C2410_RTCCON_CLKRST)){
-			dev_info(dev, "removing S3C2410_RTCCON_CLKRST\n");
+			dev_info(&pdev->dev, "removing S3C2410_RTCCON_CLKRST\n");
 
 			tmp = readb(S3C2410_RTCCON);
 			writeb(tmp & ~S3C2410_RTCCON_CLKRST, S3C2410_RTCCON);
@@ -421,7 +421,7 @@ static void s3c2410_rtc_enable(struct device *dev, int en)
 	}
 }
 
-static int s3c2410_rtc_remove(struct device *dev)
+static int s3c2410_rtc_remove(struct platform_device *dev)
 {
 	unregister_rtc(&s3c2410_rtcops);
 
@@ -438,25 +438,24 @@ static int s3c2410_rtc_remove(struct device *dev)
 	return 0;
 }
 
-static int s3c2410_rtc_probe(struct device *dev)
+static int s3c2410_rtc_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *res;
 	int ret;
 
-	pr_debug("%s: probe=%p, device=%p\n", __FUNCTION__, pdev, dev);
+	pr_debug("%s: probe=%p\n", __FUNCTION__, pdev);
 
 	/* find the IRQs */
 
 	s3c2410_rtc_tickno = platform_get_irq(pdev, 1);
 	if (s3c2410_rtc_tickno <= 0) {
-		dev_err(dev, "no irq for rtc tick\n");
+		dev_err(&pdev->dev, "no irq for rtc tick\n");
 		return -ENOENT;
 	}
 
 	s3c2410_rtc_alarmno = platform_get_irq(pdev, 0);
 	if (s3c2410_rtc_alarmno <= 0) {
-		dev_err(dev, "no irq for alarm\n");
+		dev_err(&pdev->dev, "no irq for alarm\n");
 		return -ENOENT;
 	}
 
@@ -467,7 +466,7 @@ static int s3c2410_rtc_probe(struct device *dev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
-		dev_err(dev, "failed to get memory region resource\n");
+		dev_err(&pdev->dev, "failed to get memory region resource\n");
 		return -ENOENT;
 	}
 
@@ -475,14 +474,14 @@ static int s3c2410_rtc_probe(struct device *dev)
 				     pdev->name);
 
 	if (s3c2410_rtc_mem == NULL) {
-		dev_err(dev, "failed to reserve memory region\n");
+		dev_err(&pdev->dev, "failed to reserve memory region\n");
 		ret = -ENOENT;
 		goto exit_err;
 	}
 
 	s3c2410_rtc_base = ioremap(res->start, res->end - res->start + 1);
 	if (s3c2410_rtc_base == NULL) {
-		dev_err(dev, "failed ioremap()\n");
+		dev_err(&pdev->dev, "failed ioremap()\n");
 		ret = -EINVAL;
 		goto exit_err;
 	}
@@ -494,7 +493,7 @@ static int s3c2410_rtc_probe(struct device *dev)
 
 	/* check to see if everything is setup correctly */
 
-	s3c2410_rtc_enable(dev, 1);
+	s3c2410_rtc_enable(pdev, 1);
 
  	pr_debug("s3c2410_rtc: RTCCON=%02x\n", readb(S3C2410_RTCCON));
 
@@ -506,7 +505,7 @@ static int s3c2410_rtc_probe(struct device *dev)
 	return 0;
 
  exit_err:
-	dev_err(dev, "error %d during initialisation\n", ret);
+	dev_err(&pdev->dev, "error %d during initialisation\n", ret);
 
 	return ret;
 }
@@ -519,7 +518,7 @@ static struct timespec s3c2410_rtc_delta;
 
 static int ticnt_save;
 
-static int s3c2410_rtc_suspend(struct device *dev, pm_message_t state)
+static int s3c2410_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct rtc_time tm;
 	struct timespec time;
@@ -535,19 +534,19 @@ static int s3c2410_rtc_suspend(struct device *dev, pm_message_t state)
 	s3c2410_rtc_gettime(&tm);
 	rtc_tm_to_time(&tm, &time.tv_sec);
 	save_time_delta(&s3c2410_rtc_delta, &time);
-	s3c2410_rtc_enable(dev, 0);
+	s3c2410_rtc_enable(pdev, 0);
 
 	return 0;
 }
 
-static int s3c2410_rtc_resume(struct device *dev)
+static int s3c2410_rtc_resume(struct platform_device *pdev)
 {
 	struct rtc_time tm;
 	struct timespec time;
 
 	time.tv_nsec = 0;
 
-	s3c2410_rtc_enable(dev, 1);
+	s3c2410_rtc_enable(pdev, 1);
 	s3c2410_rtc_gettime(&tm);
 	rtc_tm_to_time(&tm, &time.tv_sec);
 	restore_time_delta(&s3c2410_rtc_delta, &time);
@@ -560,14 +559,15 @@ static int s3c2410_rtc_resume(struct device *dev)
 #define s3c2410_rtc_resume  NULL
 #endif
 
-static struct device_driver s3c2410_rtcdrv = {
-	.name		= "s3c2410-rtc",
-	.owner		= THIS_MODULE,
-	.bus		= &platform_bus_type,
+static struct platform_driver s3c2410_rtcdrv = {
 	.probe		= s3c2410_rtc_probe,
 	.remove		= s3c2410_rtc_remove,
 	.suspend	= s3c2410_rtc_suspend,
 	.resume		= s3c2410_rtc_resume,
+	.driver		= {
+		.name	= "s3c2410-rtc",
+		.owner	= THIS_MODULE,
+	},
 };
 
 static char __initdata banner[] = "S3C2410 RTC, (c) 2004 Simtec Electronics\n";
@@ -575,12 +575,12 @@ static char __initdata banner[] = "S3C2410 RTC, (c) 2004 Simtec Electronics\n";
 static int __init s3c2410_rtc_init(void)
 {
 	printk(banner);
-	return driver_register(&s3c2410_rtcdrv);
+	return platform_driver_register(&s3c2410_rtcdrv);
 }
 
 static void __exit s3c2410_rtc_exit(void)
 {
-	driver_unregister(&s3c2410_rtcdrv);
+	platform_driver_unregister(&s3c2410_rtcdrv);
 }
 
 module_init(s3c2410_rtc_init);

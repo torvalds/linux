@@ -70,11 +70,10 @@ static void omap_set_vpp(struct map_info *map, int enable)
 	}
 }
 
-static int __devinit omapflash_probe(struct device *dev)
+static int __devinit omapflash_probe(struct platform_device *pdev)
 {
 	int err;
 	struct omapflash_info *info;
-	struct platform_device *pdev = to_platform_device(dev);
 	struct flash_platform_data *pdata = pdev->dev.platform_data;
 	struct resource *res = pdev->resource;
 	unsigned long size = res->end - res->start + 1;
@@ -119,7 +118,7 @@ static int __devinit omapflash_probe(struct device *dev)
 #endif
 		add_mtd_device(info->mtd);
 
-	dev_set_drvdata(&pdev->dev, info);
+	platform_set_drvdata(pdev, info);
 
 	return 0;
 
@@ -133,12 +132,11 @@ out_free_info:
 	return err;
 }
 
-static int __devexit omapflash_remove(struct device *dev)
+static int __devexit omapflash_remove(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct omapflash_info *info = dev_get_drvdata(&pdev->dev);
+	struct omapflash_info *info = platform_get_drvdata(pdev);
 
-	dev_set_drvdata(&pdev->dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	if (info) {
 		if (info->parts) {
@@ -155,21 +153,22 @@ static int __devexit omapflash_remove(struct device *dev)
 	return 0;
 }
 
-static struct device_driver omapflash_driver = {
-	.name	= "omapflash",
-	.bus	= &platform_bus_type,
+static struct platform_driver omapflash_driver = {
 	.probe	= omapflash_probe,
 	.remove	= __devexit_p(omapflash_remove),
+	.driver = {
+		.name	= "omapflash",
+	},
 };
 
 static int __init omapflash_init(void)
 {
-	return driver_register(&omapflash_driver);
+	return platform_driver_register(&omapflash_driver);
 }
 
 static void __exit omapflash_exit(void)
 {
-	driver_unregister(&omapflash_driver);
+	platform_driver_unregister(&omapflash_driver);
 }
 
 module_init(omapflash_init);

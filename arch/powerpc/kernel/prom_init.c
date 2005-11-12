@@ -94,10 +94,16 @@ extern const struct linux_logo logo_linux_clut224;
 #ifdef CONFIG_PPC64
 #define RELOC(x)        (*PTRRELOC(&(x)))
 #define ADDR(x)		(u32) add_reloc_offset((unsigned long)(x))
+#define OF_WORKAROUNDS	0
 #else
 #define RELOC(x)	(x)
 #define ADDR(x)		(u32) (x)
+#define OF_WORKAROUNDS	of_workarounds
+int of_workarounds;
 #endif
+
+#define OF_WA_CLAIM	1	/* do phys/virt claim separately, then map */
+#define OF_WA_LONGTRAIL	2	/* work around longtrail bugs */
 
 #define PROM_BUG() do {						\
         prom_printf("kernel BUG at %s line 0x%x!\n",		\
@@ -109,11 +115,6 @@ extern const struct linux_logo logo_linux_clut224;
 #define prom_debug(x...)	prom_printf(x)
 #else
 #define prom_debug(x...)
-#endif
-
-#ifdef CONFIG_PPC32
-#define PLATFORM_POWERMAC	_MACH_Pmac
-#define PLATFORM_CHRP		_MACH_chrp
 #endif
 
 
@@ -128,10 +129,11 @@ struct prom_args {
 
 struct prom_t {
 	ihandle root;
-	ihandle chosen;
+	phandle chosen;
 	int cpu;
 	ihandle stdout;
 	ihandle mmumap;
+	ihandle memory;
 };
 
 struct mem_map_entry {
@@ -360,16 +362,36 @@ static void __init prom_printf(const char *format, ...)
 static unsigned int __init prom_claim(unsigned long virt, unsigned long size,
 				unsigned long align)
 {
-	int ret;
 	struct prom_t *_prom = &RELOC(prom);
 
-	ret = call_prom("claim", 3, 1, (prom_arg_t)virt, (prom_arg_t)size,
-			(prom_arg_t)align);
-	if (ret != -1 && _prom->mmumap != 0)
-		/* old pmacs need us to map as well */
+	if (align == 0 && (OF_WORKAROUNDS & OF_WA_CLAIM)) {
+		/*
+		 * Old OF requires we claim physical and virtual separately
+		 * and then map explicitly (assuming virtual mode)
+		 */
+		int ret;
+		prom_arg_t result;
+
+		ret = call_prom_ret("call-method", 5, 2, &result,
+				    ADDR("claim"), _prom->memory,
+				    align, size, virt);
+		if (ret != 0 || result == -1)
+			return -1;
+		ret = call_prom_ret("call-method", 5, 2, &result,
+				    ADDR("claim"), _prom->mmumap,
+				    align, size, virt);
+		if (ret != 0) {
+			call_prom("call-method", 4, 1, ADDR("release"),
+				  _prom->memory, size, virt);
+			return -1;
+		}
+		/* the 0x12 is M (coherence) + PP == read/write */
 		call_prom("call-method", 6, 1,
-			  ADDR("map"), _prom->mmumap, 0, size, virt, virt);
-	return ret;
+			  ADDR("map"), _prom->mmumap, 0x12, size, virt, virt);
+		return virt;
+	}
+	return call_prom("claim", 3, 1, (prom_arg_t)virt, (prom_arg_t)size,
+			 (prom_arg_t)align);
 }
 
 static void __init __attribute__((noreturn)) prom_panic(const char *reason)
@@ -415,11 +437,52 @@ static int inline prom_getproplen(phandle node, const char *pname)
 	return call_prom("getproplen", 2, 1, node, ADDR(pname));
 }
 
-static int inline prom_setprop(phandle node, const char *pname,
-			       void *value, size_t valuelen)
+static void add_string(char **str, const char *q)
 {
-	return call_prom("setprop", 4, 1, node, ADDR(pname),
-			 (u32)(unsigned long) value, (u32) valuelen);
+	char *p = *str;
+
+	while (*q)
+		*p++ = *q++;
+	*p++ = ' ';
+	*str = p;
+}
+
+static char *tohex(unsigned int x)
+{
+	static char digits[] = "0123456789abcdef";
+	static char result[9];
+	int i;
+
+	result[8] = 0;
+	i = 8;
+	do {
+		--i;
+		result[i] = digits[x & 0xf];
+		x >>= 4;
+	} while (x != 0 && i > 0);
+	return &result[i];
+}
+
+static int __init prom_setprop(phandle node, const char *nodename,
+			       const char *pname, void *value, size_t valuelen)
+{
+	char cmd[256], *p;
+
+	if (!(OF_WORKAROUNDS & OF_WA_LONGTRAIL))
+		return call_prom("setprop", 4, 1, node, ADDR(pname),
+				 (u32)(unsigned long) value, (u32) valuelen);
+
+	/* gah... setprop doesn't work on longtrail, have to use interpret */
+	p = cmd;
+	add_string(&p, "dev");
+	add_string(&p, nodename);
+	add_string(&p, tohex((u32)(unsigned long) value));
+	add_string(&p, tohex(valuelen));
+	add_string(&p, tohex(ADDR(pname)));
+	add_string(&p, tohex(strlen(RELOC(pname))));
+	add_string(&p, "property");
+	*p = 0;
+	return call_prom("interpret", 1, 1, (u32)(unsigned long) cmd);
 }
 
 /* We can't use the standard versions because of RELOC headaches. */
@@ -980,7 +1043,7 @@ static void __init prom_instantiate_rtas(void)
 
 	rtas_inst = call_prom("open", 1, 1, ADDR("/rtas"));
 	if (!IHANDLE_VALID(rtas_inst)) {
-		prom_printf("opening rtas package failed");
+		prom_printf("opening rtas package failed (%x)\n", rtas_inst);
 		return;
 	}
 
@@ -988,7 +1051,7 @@ static void __init prom_instantiate_rtas(void)
 
 	if (call_prom_ret("call-method", 3, 2, &entry,
 			  ADDR("instantiate-rtas"),
-			  rtas_inst, base) == PROM_ERROR
+			  rtas_inst, base) != 0
 	    || entry == 0) {
 		prom_printf(" failed\n");
 		return;
@@ -997,8 +1060,10 @@ static void __init prom_instantiate_rtas(void)
 
 	reserve_mem(base, size);
 
-	prom_setprop(rtas_node, "linux,rtas-base", &base, sizeof(base));
-	prom_setprop(rtas_node, "linux,rtas-entry", &entry, sizeof(entry));
+	prom_setprop(rtas_node, "/rtas", "linux,rtas-base",
+		     &base, sizeof(base));
+	prom_setprop(rtas_node, "/rtas", "linux,rtas-entry",
+		     &entry, sizeof(entry));
 
 	prom_debug("rtas base     = 0x%x\n", base);
 	prom_debug("rtas entry    = 0x%x\n", entry);
@@ -1089,10 +1154,6 @@ static void __init prom_initialize_tce_table(void)
 		if (base < local_alloc_bottom)
 			local_alloc_bottom = base;
 
-		/* Save away the TCE table attributes for later use. */
-		prom_setprop(node, "linux,tce-base", &base, sizeof(base));
-		prom_setprop(node, "linux,tce-size", &minsize, sizeof(minsize));
-
 		/* It seems OF doesn't null-terminate the path :-( */
 		memset(path, 0, sizeof(path));
 		/* Call OF to setup the TCE hardware */
@@ -1100,6 +1161,10 @@ static void __init prom_initialize_tce_table(void)
 			      path, PROM_SCRATCH_SIZE-1) == PROM_ERROR) {
 			prom_printf("package-to-path failed\n");
 		}
+
+		/* Save away the TCE table attributes for later use. */
+		prom_setprop(node, path, "linux,tce-base", &base, sizeof(base));
+		prom_setprop(node, path, "linux,tce-size", &minsize, sizeof(minsize));
 
 		prom_debug("TCE table: %s\n", path);
 		prom_debug("\tnode = 0x%x\n", node);
@@ -1342,6 +1407,7 @@ static void __init prom_init_client_services(unsigned long pp)
 /*
  * For really old powermacs, we need to map things we claim.
  * For that, we need the ihandle of the mmu.
+ * Also, on the longtrail, we need to work around other bugs.
  */
 static void __init prom_find_mmu(void)
 {
@@ -1355,12 +1421,19 @@ static void __init prom_find_mmu(void)
 	if (prom_getprop(oprom, "model", version, sizeof(version)) <= 0)
 		return;
 	version[sizeof(version) - 1] = 0;
-	prom_printf("OF version is '%s'\n", version);
 	/* XXX might need to add other versions here */
-	if (strcmp(version, "Open Firmware, 1.0.5") != 0)
+	if (strcmp(version, "Open Firmware, 1.0.5") == 0)
+		of_workarounds = OF_WA_CLAIM;
+	else if (strncmp(version, "FirmWorks,3.", 12) == 0) {
+		of_workarounds = OF_WA_CLAIM | OF_WA_LONGTRAIL;
+		call_prom("interpret", 1, 1, "dev /memory 0 to allow-reclaim");
+	} else
 		return;
+	_prom->memory = call_prom("open", 1, 1, ADDR("/memory"));
 	prom_getprop(_prom->chosen, "mmu", &_prom->mmumap,
 		     sizeof(_prom->mmumap));
+	if (!IHANDLE_VALID(_prom->memory) || !IHANDLE_VALID(_prom->mmumap))
+		of_workarounds &= ~OF_WA_CLAIM;		/* hmmm */
 }
 #else
 #define prom_find_mmu()
@@ -1382,16 +1455,17 @@ static void __init prom_init_stdout(void)
 	memset(path, 0, 256);
 	call_prom("instance-to-path", 3, 1, _prom->stdout, path, 255);
 	val = call_prom("instance-to-package", 1, 1, _prom->stdout);
-	prom_setprop(_prom->chosen, "linux,stdout-package", &val, sizeof(val));
+	prom_setprop(_prom->chosen, "/chosen", "linux,stdout-package",
+		     &val, sizeof(val));
 	prom_printf("OF stdout device is: %s\n", RELOC(of_stdout_device));
-	prom_setprop(_prom->chosen, "linux,stdout-path",
-		     RELOC(of_stdout_device), strlen(RELOC(of_stdout_device))+1);
+	prom_setprop(_prom->chosen, "/chosen", "linux,stdout-path",
+		     path, strlen(path) + 1);
 
 	/* If it's a display, note it */
 	memset(type, 0, sizeof(type));
 	prom_getprop(val, "device_type", type, sizeof(type));
 	if (strcmp(type, RELOC("display")) == 0)
-		prom_setprop(val, "linux,boot-display", NULL, 0);
+		prom_setprop(val, path, "linux,boot-display", NULL, 0);
 }
 
 static void __init prom_close_stdin(void)
@@ -1514,7 +1588,7 @@ static void __init prom_check_displays(void)
 
 		/* Success */
 		prom_printf("done\n");
-		prom_setprop(node, "linux,opened", NULL, 0);
+		prom_setprop(node, path, "linux,opened", NULL, 0);
 
 		/* Setup a usable color table when the appropriate
 		 * method is available. Should update this to set-colors */
@@ -1884,9 +1958,11 @@ static void __init fixup_device_tree(void)
 	/* interrupt on this revision of u3 is number 0 and level */
 	interrupts[0] = 0;
 	interrupts[1] = 1;
-	prom_setprop(i2c, "interrupts", &interrupts, sizeof(interrupts));
+	prom_setprop(i2c, "/u3@0,f8000000/i2c@f8001000", "interrupts",
+		     &interrupts, sizeof(interrupts));
 	parent = (u32)mpic;
-	prom_setprop(i2c, "interrupt-parent", &parent, sizeof(parent));
+	prom_setprop(i2c, "/u3@0,f8000000/i2c@f8001000", "interrupt-parent",
+		     &parent, sizeof(parent));
 #endif
 }
 
@@ -1922,11 +1998,11 @@ static void __init prom_check_initrd(unsigned long r3, unsigned long r4)
 		RELOC(prom_initrd_end) = RELOC(prom_initrd_start) + r4;
 
 		val = RELOC(prom_initrd_start);
-		prom_setprop(_prom->chosen, "linux,initrd-start", &val,
-			     sizeof(val));
+		prom_setprop(_prom->chosen, "/chosen", "linux,initrd-start",
+			     &val, sizeof(val));
 		val = RELOC(prom_initrd_end);
-		prom_setprop(_prom->chosen, "linux,initrd-end", &val,
-			     sizeof(val));
+		prom_setprop(_prom->chosen, "/chosen", "linux,initrd-end",
+			     &val, sizeof(val));
 
 		reserve_mem(RELOC(prom_initrd_start),
 			    RELOC(prom_initrd_end) - RELOC(prom_initrd_start));
@@ -1969,14 +2045,15 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	prom_init_client_services(pp);
 
 	/*
+	 * See if this OF is old enough that we need to do explicit maps
+	 * and other workarounds
+	 */
+	prom_find_mmu();
+
+	/*
 	 * Init prom stdout device
 	 */
 	prom_init_stdout();
-
-	/*
-	 * See if this OF is old enough that we need to do explicit maps
-	 */
-	prom_find_mmu();
 
 	/*
 	 * Check for an initrd
@@ -1989,14 +2066,15 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 */
 	RELOC(of_platform) = prom_find_machine_type();
 	getprop_rval = RELOC(of_platform);
-	prom_setprop(_prom->chosen, "linux,platform",
+	prom_setprop(_prom->chosen, "/chosen", "linux,platform",
 		     &getprop_rval, sizeof(getprop_rval));
 
 #ifdef CONFIG_PPC_PSERIES
 	/*
 	 * On pSeries, inform the firmware about our capabilities
 	 */
-	if (RELOC(of_platform) & PLATFORM_PSERIES)
+	if (RELOC(of_platform) == PLATFORM_PSERIES ||
+	    RELOC(of_platform) == PLATFORM_PSERIES_LPAR)
 		prom_send_capabilities();
 #endif
 
@@ -2050,21 +2128,23 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 * Fill in some infos for use by the kernel later on
 	 */
 	if (RELOC(prom_memory_limit))
-		prom_setprop(_prom->chosen, "linux,memory-limit",
+		prom_setprop(_prom->chosen, "/chosen", "linux,memory-limit",
 			     &RELOC(prom_memory_limit),
 			     sizeof(prom_memory_limit));
 #ifdef CONFIG_PPC64
 	if (RELOC(ppc64_iommu_off))
-		prom_setprop(_prom->chosen, "linux,iommu-off", NULL, 0);
+		prom_setprop(_prom->chosen, "/chosen", "linux,iommu-off",
+			     NULL, 0);
 
 	if (RELOC(iommu_force_on))
-		prom_setprop(_prom->chosen, "linux,iommu-force-on", NULL, 0);
+		prom_setprop(_prom->chosen, "/chosen", "linux,iommu-force-on",
+			     NULL, 0);
 
 	if (RELOC(prom_tce_alloc_start)) {
-		prom_setprop(_prom->chosen, "linux,tce-alloc-start",
+		prom_setprop(_prom->chosen, "/chosen", "linux,tce-alloc-start",
 			     &RELOC(prom_tce_alloc_start),
 			     sizeof(prom_tce_alloc_start));
-		prom_setprop(_prom->chosen, "linux,tce-alloc-end",
+		prom_setprop(_prom->chosen, "/chosen", "linux,tce-alloc-end",
 			     &RELOC(prom_tce_alloc_end),
 			     sizeof(prom_tce_alloc_end));
 	}
@@ -2081,8 +2161,13 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	prom_printf("copying OF device tree ...\n");
 	flatten_device_tree();
 
-	/* in case stdin is USB and still active on IBM machines... */
-	prom_close_stdin();
+	/*
+	 * in case stdin is USB and still active on IBM machines...
+	 * Unfortunately quiesce crashes on some powermacs if we have
+	 * closed stdin already (in particular the powerbook 101).
+	 */
+	if (RELOC(of_platform) != PLATFORM_POWERMAC)
+		prom_close_stdin();
 
 	/*
 	 * Call OF "quiesce" method to shut down pending DMA's from

@@ -2707,7 +2707,7 @@ bnx2_init_nvram(struct bnx2 *bp)
 
 	if (j == entry_count) {
 		bp->flash_info = NULL;
-		printk(KERN_ALERT "Unknown flash/EEPROM type.\n");
+		printk(KERN_ALERT PFX "Unknown flash/EEPROM type.\n");
 		rc = -ENODEV;
 	}
 
@@ -3903,6 +3903,8 @@ bnx2_test_loopback(struct bnx2 *bp)
 
 	pkt_size = 1514;
 	skb = dev_alloc_skb(pkt_size);
+	if (!skb)
+		return -ENOMEM;
 	packet = skb_put(skb, pkt_size);
 	memcpy(packet, bp->mac_addr, 6);
 	memset(packet + 6, 0x0, 8);
@@ -4798,11 +4800,7 @@ bnx2_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
   	struct bnx2 *bp = dev->priv;
 	int rc;
 
-	if (eeprom->offset > bp->flash_info->total_size)
-		return -EINVAL;
-
-	if ((eeprom->offset + eeprom->len) > bp->flash_info->total_size)
-		eeprom->len = bp->flash_info->total_size - eeprom->offset;
+	/* parameters already validated in ethtool_get_eeprom */
 
 	rc = bnx2_nvram_read(bp, eeprom->offset, eebuf, eeprom->len);
 
@@ -4816,11 +4814,7 @@ bnx2_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
   	struct bnx2 *bp = dev->priv;
 	int rc;
 
-	if (eeprom->offset > bp->flash_info->total_size)
-		return -EINVAL;
-
-	if ((eeprom->offset + eeprom->len) > bp->flash_info->total_size)
-		eeprom->len = bp->flash_info->total_size - eeprom->offset;
+	/* parameters already validated in ethtool_set_eeprom */
 
 	rc = bnx2_nvram_write(bp, eeprom->offset, eebuf, eeprom->len);
 

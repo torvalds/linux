@@ -60,9 +60,11 @@
 
 #define HDAPS_POLL_PERIOD	(HZ/20)	/* poll for input every 1/20s */
 #define HDAPS_INPUT_FUZZ	4	/* input event threshold */
+#define HDAPS_INPUT_FLAT	4
 
 static struct timer_list hdaps_timer;
 static struct platform_device *pdev;
+static struct input_dev *hdaps_idev;
 static unsigned int hdaps_invert;
 static u8 km_activity;
 static int rest_x;
@@ -284,7 +286,7 @@ out:
 
 /* Device model stuff */
 
-static int hdaps_probe(struct device *dev)
+static int hdaps_probe(struct platform_device *dev)
 {
 	int ret;
 
@@ -296,29 +298,18 @@ static int hdaps_probe(struct device *dev)
 	return 0;
 }
 
-static int hdaps_resume(struct device *dev)
+static int hdaps_resume(struct platform_device *dev)
 {
 	return hdaps_device_init();
 }
 
-static struct device_driver hdaps_driver = {
-	.name = "hdaps",
-	.bus = &platform_bus_type,
-	.owner = THIS_MODULE,
+static struct platform_driver hdaps_driver = {
 	.probe = hdaps_probe,
-	.resume = hdaps_resume
-};
-
-/* Input class stuff */
-
-static struct input_dev hdaps_idev = {
-	.name = "hdaps",
-	.evbit = { BIT(EV_ABS) },
-	.absbit = { BIT(ABS_X) | BIT(ABS_Y) },
-	.absmin  = { [ABS_X] = -256, [ABS_Y] = -256 },
-	.absmax  = { [ABS_X] = 256, [ABS_Y] = 256 },
-	.absfuzz = { [ABS_X] = HDAPS_INPUT_FUZZ, [ABS_Y] = HDAPS_INPUT_FUZZ },
-	.absflat = { [ABS_X] = HDAPS_INPUT_FUZZ, [ABS_Y] = HDAPS_INPUT_FUZZ },
+	.resume = hdaps_resume,
+	.driver	= {
+		.name = "hdaps",
+		.owner = THIS_MODULE,
+	},
 };
 
 /*
@@ -342,9 +333,9 @@ static void hdaps_mousedev_poll(unsigned long unused)
 	if (__hdaps_read_pair(HDAPS_PORT_XPOS, HDAPS_PORT_YPOS, &x, &y))
 		goto out;
 
-	input_report_abs(&hdaps_idev, ABS_X, x - rest_x);
-	input_report_abs(&hdaps_idev, ABS_Y, y - rest_y);
-	input_sync(&hdaps_idev);
+	input_report_abs(hdaps_idev, ABS_X, x - rest_x);
+	input_report_abs(hdaps_idev, ABS_Y, y - rest_y);
+	input_sync(hdaps_idev);
 
 	mod_timer(&hdaps_timer, jiffies + HDAPS_POLL_PERIOD);
 
@@ -550,7 +541,7 @@ static int __init hdaps_init(void)
 		goto out;
 	}
 
-	ret = driver_register(&hdaps_driver);
+	ret = platform_driver_register(&hdaps_driver);
 	if (ret)
 		goto out_region;
 
@@ -564,12 +555,25 @@ static int __init hdaps_init(void)
 	if (ret)
 		goto out_device;
 
+	hdaps_idev = input_allocate_device();
+	if (!hdaps_idev) {
+		ret = -ENOMEM;
+		goto out_group;
+	}
+
 	/* initial calibrate for the input device */
 	hdaps_calibrate();
 
 	/* initialize the input class */
-	hdaps_idev.dev = &pdev->dev;
-	input_register_device(&hdaps_idev);
+	hdaps_idev->name = "hdaps";
+	hdaps_idev->cdev.dev = &pdev->dev;
+	hdaps_idev->evbit[0] = BIT(EV_ABS);
+	input_set_abs_params(hdaps_idev, ABS_X,
+			-256, 256, HDAPS_INPUT_FUZZ, HDAPS_INPUT_FLAT);
+	input_set_abs_params(hdaps_idev, ABS_X,
+			-256, 256, HDAPS_INPUT_FUZZ, HDAPS_INPUT_FLAT);
+
+	input_register_device(hdaps_idev);
 
 	/* start up our timer for the input device */
 	init_timer(&hdaps_timer);
@@ -580,10 +584,12 @@ static int __init hdaps_init(void)
 	printk(KERN_INFO "hdaps: driver successfully loaded.\n");
 	return 0;
 
+out_group:
+	sysfs_remove_group(&pdev->dev.kobj, &hdaps_attribute_group);
 out_device:
 	platform_device_unregister(pdev);
 out_driver:
-	driver_unregister(&hdaps_driver);
+	platform_driver_unregister(&hdaps_driver);
 out_region:
 	release_region(HDAPS_LOW_PORT, HDAPS_NR_PORTS);
 out:
@@ -594,10 +600,10 @@ out:
 static void __exit hdaps_exit(void)
 {
 	del_timer_sync(&hdaps_timer);
-	input_unregister_device(&hdaps_idev);
+	input_unregister_device(hdaps_idev);
 	sysfs_remove_group(&pdev->dev.kobj, &hdaps_attribute_group);
 	platform_device_unregister(pdev);
-	driver_unregister(&hdaps_driver);
+	platform_driver_unregister(&hdaps_driver);
 	release_region(HDAPS_LOW_PORT, HDAPS_NR_PORTS);
 
 	printk(KERN_INFO "hdaps: driver unloaded.\n");

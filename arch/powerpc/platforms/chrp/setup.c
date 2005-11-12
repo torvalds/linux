@@ -361,7 +361,9 @@ static void __init chrp_find_openpic(void)
 	printk(KERN_INFO "OpenPIC at %lx\n", opaddr);
 
 	irq_count = NR_IRQS - NUM_ISA_INTERRUPTS - 4; /* leave room for IPIs */
-	prom_get_irq_senses(init_senses, NUM_8259_INTERRUPTS, NR_IRQS - 4);
+	prom_get_irq_senses(init_senses, NUM_ISA_INTERRUPTS, NR_IRQS - 4);
+	/* i8259 cascade is always positive level */
+	init_senses[0] = IRQ_SENSE_LEVEL | IRQ_POLARITY_POSITIVE;
 
 	iranges = (unsigned int *) get_property(np, "interrupt-ranges", &len);
 	if (iranges == NULL)

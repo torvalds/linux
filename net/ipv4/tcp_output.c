@@ -436,6 +436,8 @@ int tcp_fragment(struct sock *sk, struct sk_buff *skb, u32 len, unsigned int mss
 	u16 flags;
 
 	BUG_ON(len > skb->len);
+
+ 	clear_all_retrans_hints(tp);
 	nsize = skb_headlen(skb) - len;
 	if (nsize < 0)
 		nsize = 0;
@@ -599,7 +601,7 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
    for TCP options, but includes only bare TCP header.
 
    tp->rx_opt.mss_clamp is mss negotiated at connection setup.
-   It is minumum of user_mss and mss received with SYN.
+   It is minimum of user_mss and mss received with SYN.
    It also does not include TCP options.
 
    tp->pmtu_cookie is last pmtu, seen by this function.
@@ -1171,7 +1173,7 @@ u32 __tcp_select_window(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	/* MSS for the peer's data.  Previous verions used mss_clamp
+	/* MSS for the peer's data.  Previous versions used mss_clamp
 	 * here.  I don't know if the value based on our guesses
 	 * of peer's MSS is better for the performance.  It's more correct
 	 * but may be worse for the performance because of rcv_mss
@@ -1260,7 +1262,10 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *skb, int m
 		BUG_ON(tcp_skb_pcount(skb) != 1 ||
 		       tcp_skb_pcount(next_skb) != 1);
 
-		/* Ok.  We will be able to collapse the packet. */
+		/* changing transmit queue under us so clear hints */
+		clear_all_retrans_hints(tp);
+
+		/* Ok.	We will be able to collapse the packet. */
 		__skb_unlink(next_skb, &sk->sk_write_queue);
 
 		memcpy(skb_put(skb, next_skb_size), next_skb->data, next_skb_size);
@@ -1330,6 +1335,8 @@ void tcp_simple_retransmit(struct sock *sk)
 		}
 	}
 
+	clear_all_retrans_hints(tp);
+
 	if (!lost)
 		return;
 
@@ -1361,7 +1368,7 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	int err;
 
 	/* Do not sent more than we queued. 1/4 is reserved for possible
-	 * copying overhead: frgagmentation, tunneling, mangling etc.
+	 * copying overhead: fragmentation, tunneling, mangling etc.
 	 */
 	if (atomic_read(&sk->sk_wmem_alloc) >
 	    min(sk->sk_wmem_queued + (sk->sk_wmem_queued >> 2), sk->sk_sndbuf))
@@ -1468,12 +1475,24 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
-	int packet_cnt = tp->lost_out;
+	int packet_cnt;
+
+	if (tp->retransmit_skb_hint) {
+		skb = tp->retransmit_skb_hint;
+		packet_cnt = tp->retransmit_cnt_hint;
+	}else{
+		skb = sk->sk_write_queue.next;
+		packet_cnt = 0;
+	}
 
 	/* First pass: retransmit lost packets. */
-	if (packet_cnt) {
-		sk_stream_for_retrans_queue(skb, sk) {
+	if (tp->lost_out) {
+		sk_stream_for_retrans_queue_from(skb, sk) {
 			__u8 sacked = TCP_SKB_CB(skb)->sacked;
+
+			/* we could do better than to assign each time */
+			tp->retransmit_skb_hint = skb;
+			tp->retransmit_cnt_hint = packet_cnt;
 
 			/* Assume this retransmit will generate
 			 * only one packet for congestion window
@@ -1485,10 +1504,12 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 			if (tcp_packets_in_flight(tp) >= tp->snd_cwnd)
 				return;
 
-			if (sacked&TCPCB_LOST) {
+			if (sacked & TCPCB_LOST) {
 				if (!(sacked&(TCPCB_SACKED_ACKED|TCPCB_SACKED_RETRANS))) {
-					if (tcp_retransmit_skb(sk, skb))
+					if (tcp_retransmit_skb(sk, skb)) {
+						tp->retransmit_skb_hint = NULL;
 						return;
+					}
 					if (icsk->icsk_ca_state != TCP_CA_Loss)
 						NET_INC_STATS_BH(LINUX_MIB_TCPFASTRETRANS);
 					else
@@ -1501,8 +1522,8 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 									  TCP_RTO_MAX);
 				}
 
-				packet_cnt -= tcp_skb_pcount(skb);
-				if (packet_cnt <= 0)
+				packet_cnt += tcp_skb_pcount(skb);
+				if (packet_cnt >= tp->lost_out)
 					break;
 			}
 		}
@@ -1528,9 +1549,18 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	if (tcp_may_send_now(sk, tp))
 		return;
 
-	packet_cnt = 0;
+	if (tp->forward_skb_hint) {
+		skb = tp->forward_skb_hint;
+		packet_cnt = tp->forward_cnt_hint;
+	} else{
+		skb = sk->sk_write_queue.next;
+		packet_cnt = 0;
+	}
 
-	sk_stream_for_retrans_queue(skb, sk) {
+	sk_stream_for_retrans_queue_from(skb, sk) {
+		tp->forward_cnt_hint = packet_cnt;
+		tp->forward_skb_hint = skb;
+
 		/* Similar to the retransmit loop above we
 		 * can pretend that the retransmitted SKB
 		 * we send out here will be composed of one
@@ -1547,8 +1577,10 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 			continue;
 
 		/* Ok, retransmit it. */
-		if (tcp_retransmit_skb(sk, skb))
+		if (tcp_retransmit_skb(sk, skb)) {
+			tp->forward_skb_hint = NULL;
 			break;
+		}
 
 		if (skb == skb_peek(&sk->sk_write_queue))
 			inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
@@ -2058,3 +2090,4 @@ EXPORT_SYMBOL(tcp_connect);
 EXPORT_SYMBOL(tcp_make_synack);
 EXPORT_SYMBOL(tcp_simple_retransmit);
 EXPORT_SYMBOL(tcp_sync_mss);
+EXPORT_SYMBOL(sysctl_tcp_tso_win_divisor);

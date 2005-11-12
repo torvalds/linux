@@ -519,7 +519,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
  *
  * flush_icache_range(unsigned long start, unsigned long stop)
  */
-_GLOBAL(flush_icache_range)
+_GLOBAL(__flush_icache_range)
 BEGIN_FTR_SECTION
 	blr				/* for 601, do nothing */
 END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
@@ -606,27 +606,6 @@ _GLOBAL(invalidate_dcache_range)
 	bdnz	1b
 	sync				/* wait for dcbi's to get to ram */
 	blr
-
-#ifdef CONFIG_NOT_COHERENT_CACHE
-/*
- * 40x cores have 8K or 16K dcache and 32 byte line size.
- * 44x has a 32K dcache and 32 byte line size.
- * 8xx has 1, 2, 4, 8K variants.
- * For now, cover the worst case of the 44x.
- * Must be called with external interrupts disabled.
- */
-#define CACHE_NWAYS	64
-#define CACHE_NLINES	16
-
-_GLOBAL(flush_dcache_all)
-	li	r4, (2 * CACHE_NWAYS * CACHE_NLINES)
-	mtctr	r4
-	lis     r5, KERNELBASE@h
-1:	lwz	r3, 0(r5)		/* Load one word from every line */
-	addi	r5, r5, L1_CACHE_BYTES
-	bdnz    1b
-	blr
-#endif /* CONFIG_NOT_COHERENT_CACHE */
 
 /*
  * Flush a particular page from the data cache to RAM.

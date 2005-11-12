@@ -346,29 +346,63 @@ struct ring_info {
 
 #define B44_MCAST_TABLE_SIZE	32
 
+#define	B44_STAT_REG_DECLARE		\
+	_B44(tx_good_octets)		\
+	_B44(tx_good_pkts)		\
+	_B44(tx_octets)			\
+	_B44(tx_pkts)			\
+	_B44(tx_broadcast_pkts)		\
+	_B44(tx_multicast_pkts)		\
+	_B44(tx_len_64)			\
+	_B44(tx_len_65_to_127)		\
+	_B44(tx_len_128_to_255)		\
+	_B44(tx_len_256_to_511)		\
+	_B44(tx_len_512_to_1023)	\
+	_B44(tx_len_1024_to_max)	\
+	_B44(tx_jabber_pkts)		\
+	_B44(tx_oversize_pkts)		\
+	_B44(tx_fragment_pkts)		\
+	_B44(tx_underruns)		\
+	_B44(tx_total_cols)		\
+	_B44(tx_single_cols)		\
+	_B44(tx_multiple_cols)		\
+	_B44(tx_excessive_cols)		\
+	_B44(tx_late_cols)		\
+	_B44(tx_defered)		\
+	_B44(tx_carrier_lost)		\
+	_B44(tx_pause_pkts)		\
+	_B44(rx_good_octets)		\
+	_B44(rx_good_pkts)		\
+	_B44(rx_octets)			\
+	_B44(rx_pkts)			\
+	_B44(rx_broadcast_pkts)		\
+	_B44(rx_multicast_pkts)		\
+	_B44(rx_len_64)			\
+	_B44(rx_len_65_to_127)		\
+	_B44(rx_len_128_to_255)		\
+	_B44(rx_len_256_to_511)		\
+	_B44(rx_len_512_to_1023)	\
+	_B44(rx_len_1024_to_max)	\
+	_B44(rx_jabber_pkts)		\
+	_B44(rx_oversize_pkts)		\
+	_B44(rx_fragment_pkts)		\
+	_B44(rx_missed_pkts)		\
+	_B44(rx_crc_align_errs)		\
+	_B44(rx_undersize)		\
+	_B44(rx_crc_errs)		\
+	_B44(rx_align_errs)		\
+	_B44(rx_symbol_errs)		\
+	_B44(rx_pause_pkts)		\
+	_B44(rx_nonpause_pkts)
+
 /* SW copy of device statistics, kept up to date by periodic timer
- * which probes HW values.  Must have same relative layout as HW
- * register above, because b44_stats_update depends upon this.
+ * which probes HW values. Check b44_stats_update if you mess with
+ * the layout
  */
 struct b44_hw_stats {
-	u32 tx_good_octets, tx_good_pkts, tx_octets;
-	u32 tx_pkts, tx_broadcast_pkts, tx_multicast_pkts;
-	u32 tx_len_64, tx_len_65_to_127, tx_len_128_to_255;
-	u32 tx_len_256_to_511, tx_len_512_to_1023, tx_len_1024_to_max;
-	u32 tx_jabber_pkts, tx_oversize_pkts, tx_fragment_pkts;
-	u32 tx_underruns, tx_total_cols, tx_single_cols;
-	u32 tx_multiple_cols, tx_excessive_cols, tx_late_cols;
-	u32 tx_defered, tx_carrier_lost, tx_pause_pkts;
-	u32 __pad1[8];
-
-	u32 rx_good_octets, rx_good_pkts, rx_octets;
-	u32 rx_pkts, rx_broadcast_pkts, rx_multicast_pkts;
-	u32 rx_len_64, rx_len_65_to_127, rx_len_128_to_255;
-	u32 rx_len_256_to_511, rx_len_512_to_1023, rx_len_1024_to_max;
-	u32 rx_jabber_pkts, rx_oversize_pkts, rx_fragment_pkts;
-	u32 rx_missed_pkts, rx_crc_align_errs, rx_undersize;
-	u32 rx_crc_errs, rx_align_errs, rx_symbol_errs;
-	u32 rx_pause_pkts, rx_nonpause_pkts;
+#define _B44(x)	u32 x;
+B44_STAT_REG_DECLARE
+#undef _B44
 };
 
 struct b44 {
@@ -386,7 +420,6 @@ struct b44 {
 
 	u32			dma_offset;
 	u32			flags;
-#define B44_FLAG_INIT_COMPLETE	0x00000001
 #define B44_FLAG_BUGGY_TXPTR	0x00000002
 #define B44_FLAG_REORDER_BUG	0x00000004
 #define B44_FLAG_PAUSE_AUTO	0x00008000

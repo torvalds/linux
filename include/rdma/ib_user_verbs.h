@@ -43,7 +43,7 @@
  * Increment this value if any changes that break userspace ABI
  * compatibility are made.
  */
-#define IB_USER_VERBS_ABI_VERSION	3
+#define IB_USER_VERBS_ABI_VERSION	4
 
 enum {
 	IB_USER_VERBS_CMD_GET_CONTEXT,
@@ -333,6 +333,11 @@ struct ib_uverbs_create_qp {
 struct ib_uverbs_create_qp_resp {
 	__u32 qp_handle;
 	__u32 qpn;
+	__u32 max_send_wr;
+	__u32 max_recv_wr;
+	__u32 max_send_sge;
+	__u32 max_recv_sge;
+	__u32 max_inline_data;
 };
 
 /*
@@ -552,9 +557,7 @@ struct ib_uverbs_modify_srq {
 	__u32 srq_handle;
 	__u32 attr_mask;
 	__u32 max_wr;
-	__u32 max_sge;
 	__u32 srq_limit;
-	__u32 reserved;
 	__u64 driver_data[0];
 };
 

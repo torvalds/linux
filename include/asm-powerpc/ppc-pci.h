@@ -26,6 +26,10 @@ extern unsigned long find_and_init_phbs(void);
 
 extern struct pci_dev *ppc64_isabridge_dev;	/* may be NULL if no ISA bus */
 
+/** Bus Unit ID macros; get low and hi 32-bits of the 64-bit BUID */
+#define BUID_HI(buid) ((buid) >> 32)
+#define BUID_LO(buid) ((buid) & 0xffffffff)
+
 /* PCI device_node operations */
 struct device_node;
 typedef void *(*traverse_func)(struct device_node *me, void *data);
@@ -35,10 +39,6 @@ void *traverse_pci_devices(struct device_node *start, traverse_func pre,
 void pci_devs_phb_init(void);
 void pci_devs_phb_init_dynamic(struct pci_controller *phb);
 void __devinit scan_phb(struct pci_controller *hose);
-
-/* PCI address cache management routines */
-void pci_addr_cache_insert_device(struct pci_dev *dev);
-void pci_addr_cache_remove_device(struct pci_dev *dev);
 
 /* From rtas_pci.h */
 void init_pci_config_tokens (void);
@@ -51,5 +51,49 @@ extern void pSeries_irq_bus_setup(struct pci_bus *bus);
 extern unsigned long pci_probe_only;
 extern unsigned long pci_assign_all_buses;
 extern int pci_read_irq_line(struct pci_dev *pci_dev);
+
+/* ---- EEH internal-use-only related routines ---- */
+#ifdef CONFIG_EEH
+/**
+ * rtas_set_slot_reset -- unfreeze a frozen slot
+ *
+ * Clear the EEH-frozen condition on a slot.  This routine
+ * does this by asserting the PCI #RST line for 1/8th of
+ * a second; this routine will sleep while the adapter is
+ * being reset.
+ */
+void rtas_set_slot_reset (struct pci_dn *);
+
+/** 
+ * eeh_restore_bars - Restore device configuration info.
+ *
+ * A reset of a PCI device will clear out its config space.
+ * This routines will restore the config space for this
+ * device, and is children, to values previously obtained
+ * from the firmware.
+ */
+void eeh_restore_bars(struct pci_dn *);
+
+/**
+ * rtas_configure_bridge -- firmware initialization of pci bridge
+ *
+ * Ask the firmware to configure all PCI bridges devices
+ * located behind the indicated node. Required after a
+ * pci device reset. Does essentially the same hing as
+ * eeh_restore_bars, but for brdges, and lets firmware 
+ * do the work.
+ */
+void rtas_configure_bridge(struct pci_dn *);
+
+int rtas_write_config(struct pci_dn *, int where, int size, u32 val);
+
+/**
+ * mark and clear slots: find "partition endpoint" PE and set or 
+ * clear the flags for each subnode of the PE.
+ */
+void eeh_mark_slot (struct device_node *dn, int mode_flag);
+void eeh_clear_slot (struct device_node *dn, int mode_flag);
+
+#endif
 
 #endif /* _ASM_POWERPC_PPC_PCI_H */

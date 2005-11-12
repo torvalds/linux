@@ -347,7 +347,6 @@ static void __devexit nforce2_remove(struct pci_dev *dev)
 }
 
 static struct pci_driver nforce2_driver = {
-	.owner		= THIS_MODULE,
 	.name		= "nForce2_smbus",
 	.id_table	= nforce2_ids,
 	.probe		= nforce2_probe,

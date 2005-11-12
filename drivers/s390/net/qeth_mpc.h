@@ -6,7 +6,7 @@
  * Copyright 2000,2003 IBM Corporation
  * Author(s): Utz Bacher <utz.bacher@de.ibm.com>
  *            Thomas Spatzier <tspat@de.ibm.com>
- *            Frank Pavlic <pavlic@de.ibm.com>
+ *            Frank Pavlic <fpavlic@de.ibm.com>
  *
  */
 #ifndef __QETH_MPC_H__
@@ -14,7 +14,7 @@
 
 #include <asm/qeth.h>
 
-#define VERSION_QETH_MPC_H "$Revision: 1.43 $"
+#define VERSION_QETH_MPC_H "$Revision: 1.44 $"
 
 extern const char *VERSION_QETH_MPC_C;
 
@@ -217,7 +217,7 @@ enum qeth_ipa_setadp_cmd {
 	IPA_SETADP_SEND_OSA_MESSAGE 		= 0x0100,
 	IPA_SETADP_SET_SNMP_CONTROL 		= 0x0200,
 	IPA_SETADP_READ_SNMP_PARMS 		= 0x0400,
-	IPA_SETADP_WRITE_SNMP_PARMS 		= 0x0800,
+	IPA_SETADP_SET_PROMISC_MODE		= 0x0800,
 	IPA_SETADP_QUERY_CARD_INFO 		= 0x1000,
 };
 enum qeth_ipa_mac_ops {
@@ -232,9 +232,12 @@ enum qeth_ipa_addr_ops {
 	CHANGE_ADDR_ADD_ADDR 		= 1,
 	CHANGE_ADDR_DEL_ADDR 		= 2,
 	CHANGE_ADDR_FLUSH_ADDR_TABLE 	= 4,
-
-
 };
+enum qeth_ipa_promisc_modes {
+	SET_PROMISC_MODE_OFF		= 0,
+	SET_PROMISC_MODE_ON		= 1,
+};
+
 /* (SET)DELIP(M) IPA stuff ***************************************************/
 struct qeth_ipacmd_setdelip4 {
 	__u8   ip_addr[4];

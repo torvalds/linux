@@ -1,6 +1,6 @@
 /*
  *
- * linux/drivers/s390/net/qeth_sys.c ($Revision: 1.55 $)
+ * linux/drivers/s390/net/qeth_sys.c ($Revision: 1.58 $)
  *
  * Linux on zSeries OSA Express and HiperSockets support
  * This file contains code related to sysfs.
@@ -8,7 +8,7 @@
  * Copyright 2000,2003 IBM Corporation
  *
  * Author(s): Thomas Spatzier <tspat@de.ibm.com>
- * 	      Frank Pavlic <pavlic@de.ibm.com>
+ * 	      Frank Pavlic <fpavlic@de.ibm.com>
  *
  */
 #include <linux/list.h>
@@ -20,7 +20,7 @@
 #include "qeth_mpc.h"
 #include "qeth_fs.h"
 
-const char *VERSION_QETH_SYS_C = "$Revision: 1.55 $";
+const char *VERSION_QETH_SYS_C = "$Revision: 1.58 $";
 
 /*****************************************************************************/
 /*                                                                           */
@@ -1117,7 +1117,7 @@ qeth_parse_ipatoe(const char* buf, enum qeth_prot_versions proto,
 	start = buf;
 	/* get address string */
 	end = strchr(start, '/');
-	if (!end){
+	if (!end || (end-start >= 49)){
 		PRINT_WARN("Invalid format for ipato_addx/delx. "
 			   "Use <ip addr>/<mask bits>\n");
 		return -EINVAL;

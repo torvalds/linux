@@ -717,10 +717,9 @@ static struct uart_driver mpc52xx_uart_driver = {
 /* ======================================================================== */
 
 static int __devinit
-mpc52xx_uart_probe(struct device *dev)
+mpc52xx_uart_probe(struct platform_device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct resource *res = pdev->resource;
+	struct resource *res = dev->resource;
 
 	struct uart_port *port = NULL;
 	int i, idx, ret;
@@ -761,17 +760,17 @@ mpc52xx_uart_probe(struct device *dev)
 	/* Add the port to the uart sub-system */
 	ret = uart_add_one_port(&mpc52xx_uart_driver, port);
 	if (!ret)
-		dev_set_drvdata(dev, (void*)port);
+		platform_set_drvdata(dev, (void*)port);
 
 	return ret;
 }
 
 static int
-mpc52xx_uart_remove(struct device *dev)
+mpc52xx_uart_remove(struct platform_device *dev)
 {
-	struct uart_port *port = (struct uart_port *) dev_get_drvdata(dev);
+	struct uart_port *port = (struct uart_port *) platform_get_drvdata(dev);
 
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(dev, NULL);
 
 	if (port)
 		uart_remove_one_port(&mpc52xx_uart_driver, port);
@@ -781,9 +780,9 @@ mpc52xx_uart_remove(struct device *dev)
 
 #ifdef CONFIG_PM
 static int
-mpc52xx_uart_suspend(struct device *dev, pm_message_t state)
+mpc52xx_uart_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct uart_port *port = (struct uart_port *) dev_get_drvdata(dev);
+	struct uart_port *port = (struct uart_port *) platform_get_drvdata(dev);
 
 	if (sport)
 		uart_suspend_port(&mpc52xx_uart_driver, port);
@@ -792,9 +791,9 @@ mpc52xx_uart_suspend(struct device *dev, pm_message_t state)
 }
 
 static int
-mpc52xx_uart_resume(struct device *dev)
+mpc52xx_uart_resume(struct platform_device *dev)
 {
-	struct uart_port *port = (struct uart_port *) dev_get_drvdata(dev);
+	struct uart_port *port = (struct uart_port *) platform_get_drvdata(dev);
 
 	if (port)
 		uart_resume_port(&mpc52xx_uart_driver, port);
@@ -803,15 +802,16 @@ mpc52xx_uart_resume(struct device *dev)
 }
 #endif
 
-static struct device_driver mpc52xx_uart_platform_driver = {
-	.name		= "mpc52xx-psc",
-	.bus		= &platform_bus_type,
+static struct platform_driver mpc52xx_uart_platform_driver = {
 	.probe		= mpc52xx_uart_probe,
 	.remove		= mpc52xx_uart_remove,
 #ifdef CONFIG_PM
 	.suspend	= mpc52xx_uart_suspend,
 	.resume		= mpc52xx_uart_resume,
 #endif
+	.driver		= {
+		.name	= "mpc52xx-psc",
+	},
 };
 
 
@@ -828,7 +828,7 @@ mpc52xx_uart_init(void)
 
 	ret = uart_register_driver(&mpc52xx_uart_driver);
 	if (ret == 0) {
-		ret = driver_register(&mpc52xx_uart_platform_driver);
+		ret = platform_driver_register(&mpc52xx_uart_platform_driver);
 		if (ret)
 			uart_unregister_driver(&mpc52xx_uart_driver);
 	}
@@ -839,7 +839,7 @@ mpc52xx_uart_init(void)
 static void __exit
 mpc52xx_uart_exit(void)
 {
-	driver_unregister(&mpc52xx_uart_platform_driver);
+	platform_driver_unregister(&mpc52xx_uart_platform_driver);
 	uart_unregister_driver(&mpc52xx_uart_driver);
 }
 

@@ -611,46 +611,15 @@ static int iss_net_change_mtu(struct net_device *dev, int new_mtu)
 	return -EINVAL;
 }
 
-static int iss_net_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
-{
-#if 0
-	static const struct ethtool_drvinfo info = {
-		.cmd     = ETHTOOL_GDRVINFO,
-		.driver  = DRIVER_NAME,
-		.version = "42",
-	};
-	void *useraddr;
-	u32 ethcmd;
-
-	switch (cmd) {
-	case SIOCETHTOOL:
-		useraddr = ifr->ifr_data;
-		if (copy_from_user(&ethcmd, useraddr, sizeof(ethcmd)))
-			return -EFAULT;
-
-		switch (ethcmd) {
-			case ETHTOOL_GDRVINFO:
-				if (copy_to_user(useraddr, &info, sizeof(info)))
-					return -EFAULT;
-				return 0;
-			default:
-				return -EOPNOTSUPP;
-		}
-	default:
-		return -EINVAL;
-	}
-#endif
-	return -EINVAL;
-}
-
 void iss_net_user_timer_expire(unsigned long _conn)
 {
 }
 
 
-static struct device_driver iss_net_driver = {
-	.name  = DRIVER_NAME,
-	.bus   = &platform_bus_type,
+static struct platform_driver iss_net_driver = {
+	.driver = {
+		.name  = DRIVER_NAME,
+	},
 };
 
 static int driver_registered;
@@ -701,7 +670,7 @@ static int iss_net_configure(int index, char *init)
 	/* sysfs register */
 
 	if (!driver_registered) {
-		driver_register(&iss_net_driver);
+		platform_driver_register(&iss_net_driver);
 		driver_registered = 1;
 	}
 
@@ -730,7 +699,6 @@ static int iss_net_configure(int index, char *init)
 	dev->tx_timeout = iss_net_tx_timeout;
 	dev->set_mac_address = iss_net_set_mac;
 	dev->change_mtu = iss_net_change_mtu;
-	dev->do_ioctl = iss_net_ioctl;
 	dev->watchdog_timeo = (HZ >> 1);
 	dev->irq = -1;
 

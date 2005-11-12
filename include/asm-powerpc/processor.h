@@ -17,34 +17,47 @@
 #include <linux/compiler.h>
 #include <asm/ptrace.h>
 #include <asm/types.h>
-#ifdef CONFIG_PPC64
-#include <asm/systemcfg.h>
-#endif
 
-#ifdef CONFIG_PPC32
-/* 32-bit platform types */
-/* We only need to define a new _MACH_xxx for machines which are part of
- * a configuration which supports more than one type of different machine.
- * This is currently limited to CONFIG_PPC_MULTIPLATFORM and CHRP/PReP/PMac.
- * -- Tom
+/* We do _not_ want to define new machine types at all, those must die
+ * in favor of using the device-tree
+ * -- BenH.
  */
-#define _MACH_prep	0x00000001
-#define _MACH_Pmac	0x00000002	/* pmac or pmac clone (non-chrp) */
-#define _MACH_chrp	0x00000004	/* chrp machine */
 
-/* see residual.h for these */
+/* Platforms codes (to be obsoleted) */
+#define PLATFORM_PSERIES	0x0100
+#define PLATFORM_PSERIES_LPAR	0x0101
+#define PLATFORM_ISERIES_LPAR	0x0201
+#define PLATFORM_LPAR		0x0001
+#define PLATFORM_POWERMAC	0x0400
+#define PLATFORM_MAPLE		0x0500
+#define PLATFORM_PREP		0x0600
+#define PLATFORM_CHRP		0x0700
+#define PLATFORM_CELL		0x1000
+
+/* Compat platform codes for 32 bits */
+#define _MACH_prep	PLATFORM_PREP
+#define _MACH_Pmac	PLATFORM_POWERMAC
+#define _MACH_chrp	PLATFORM_CHRP
+
+/* PREP sub-platform types see residual.h for these */
 #define _PREP_Motorola	0x01	/* motorola prep */
 #define _PREP_Firm	0x02	/* firmworks prep */
 #define _PREP_IBM	0x00	/* ibm prep */
 #define _PREP_Bull	0x03	/* bull prep */
 
-/* these are arbitrary */
+/* CHRP sub-platform types. These are arbitrary */
 #define _CHRP_Motorola	0x04	/* motorola chrp, the cobra */
 #define _CHRP_IBM	0x05	/* IBM chrp, the longtrail and longtrail 2 */
 #define _CHRP_Pegasos	0x06	/* Genesi/bplan's Pegasos and Pegasos2 */
 
-#ifdef CONFIG_PPC_MULTIPLATFORM
+#define platform_is_pseries()	(_machine == PLATFORM_PSERIES || \
+				 _machine == PLATFORM_PSERIES_LPAR)
+#define platform_is_lpar()	(!!(_machine & PLATFORM_LPAR))
+
+#if defined(CONFIG_PPC_MULTIPLATFORM)
 extern int _machine;
+
+#ifdef CONFIG_PPC32
 
 /* what kind of prep workstation we are */
 extern int _prep_type;
@@ -52,30 +65,23 @@ extern int _chrp_type;
 
 /*
  * This is used to identify the board type from a given PReP board
- * vendor. Board revision is also made available.
+ * vendor. Board revision is also made available. This will be moved
+ * elsewhere soon
  */
 extern unsigned char ucSystemType;
 extern unsigned char ucBoardRev;
 extern unsigned char ucBoardRevMaj, ucBoardRevMin;
+
+#endif /* CONFIG_PPC32 */
+
+#elif defined(CONFIG_PPC_ISERIES)
+/*
+ * iSeries is soon to become MULTIPLATFORM hopefully ...
+ */
+#define _machine PLATFORM_ISERIES_LPAR
 #else
 #define _machine 0
 #endif /* CONFIG_PPC_MULTIPLATFORM */
-#endif /* CONFIG_PPC32 */
-
-#ifdef CONFIG_PPC64
-/* Platforms supported by PPC64 */
-#define PLATFORM_PSERIES      0x0100
-#define PLATFORM_PSERIES_LPAR 0x0101
-#define PLATFORM_ISERIES_LPAR 0x0201
-#define PLATFORM_LPAR         0x0001
-#define PLATFORM_POWERMAC     0x0400
-#define PLATFORM_MAPLE        0x0500
-#define PLATFORM_CELL         0x1000
-
-/* Compatibility with drivers coming from PPC32 world */
-#define _machine	(systemcfg->platform)
-#define _MACH_Pmac	PLATFORM_POWERMAC
-#endif
 
 /*
  * Default implementation of macro that returns current
@@ -171,8 +177,8 @@ struct thread_struct {
 #ifdef CONFIG_PPC64
 	unsigned long	start_tb;	/* Start purr when proc switched in */
 	unsigned long	accum_tb;	/* Total accumilated purr for process */
-	unsigned long	vdso_base;	/* base of the vDSO library */
 #endif
+	unsigned long	vdso_base;	/* base of the vDSO library */
 	unsigned long	dabr;		/* Data address breakpoint register */
 #ifdef CONFIG_ALTIVEC
 	/* Complete AltiVec register set */

@@ -122,7 +122,6 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
-#include <linux/version.h>
 
 #include <asm/io.h>
 

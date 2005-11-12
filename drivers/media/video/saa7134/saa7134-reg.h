@@ -27,7 +27,7 @@
 
 /* DMA channels, n = 0 ... 6 */
 #define SAA7134_RS_BA1(n)			((0x200 >> 2) + 4*n)
-#define SAA7134_RS_BA2(n)	       		((0x204 >> 2) + 4*n)
+#define SAA7134_RS_BA2(n)			((0x204 >> 2) + 4*n)
 #define SAA7134_RS_PITCH(n)			((0x208 >> 2) + 4*n)
 #define SAA7134_RS_CONTROL(n)			((0x20c >> 2) + 4*n)
 #define   SAA7134_RS_CONTROL_WSWAP		(0x01 << 25)
@@ -43,16 +43,24 @@
 #define SAA7134_FIFO_SIZE                       (0x2a0 >> 2)
 #define SAA7134_THRESHOULD                      (0x2a4 >> 2)
 
+#define SAA7133_NUM_SAMPLES			(0x588 >> 2)
+#define SAA7133_AUDIO_CHANNEL			(0x58c >> 2)
+#define SAA7133_AUDIO_FORMAT			(0x58f >> 2)
+#define SAA7133_DIGITAL_OUTPUT_SEL1		(0x46c >> 2)
+#define SAA7133_DIGITAL_OUTPUT_SEL2		(0x470 >> 2)
+#define SAA7133_DIGITAL_INPUT_XBAR1		(0x464 >> 2)
+#define SAA7133_ANALOG_IO_SELECT                (0x594 >> 2)
+
 /* main control */
 #define SAA7134_MAIN_CTRL                       (0x2a8 >> 2)
-#define   SAA7134_MAIN_CTRL_VPLLE	       	(1 << 15)
-#define   SAA7134_MAIN_CTRL_APLLE	       	(1 << 14)
-#define   SAA7134_MAIN_CTRL_EXOSC	       	(1 << 13)
-#define   SAA7134_MAIN_CTRL_EVFE1	       	(1 << 12)
-#define   SAA7134_MAIN_CTRL_EVFE2	       	(1 << 11)
-#define   SAA7134_MAIN_CTRL_ESFE	       	(1 << 10)
-#define   SAA7134_MAIN_CTRL_EBADC	       	(1 << 9)
-#define   SAA7134_MAIN_CTRL_EBDAC	       	(1 << 8)
+#define   SAA7134_MAIN_CTRL_VPLLE		(1 << 15)
+#define   SAA7134_MAIN_CTRL_APLLE		(1 << 14)
+#define   SAA7134_MAIN_CTRL_EXOSC		(1 << 13)
+#define   SAA7134_MAIN_CTRL_EVFE1		(1 << 12)
+#define   SAA7134_MAIN_CTRL_EVFE2		(1 << 11)
+#define   SAA7134_MAIN_CTRL_ESFE		(1 << 10)
+#define   SAA7134_MAIN_CTRL_EBADC		(1 << 9)
+#define   SAA7134_MAIN_CTRL_EBDAC		(1 << 8)
 #define   SAA7134_MAIN_CTRL_TE6			(1 << 6)
 #define   SAA7134_MAIN_CTRL_TE5			(1 << 5)
 #define   SAA7134_MAIN_CTRL_TE4			(1 << 4)
@@ -348,6 +356,7 @@
 
 /* test modes */
 #define SAA7134_SPECIAL_MODE                    0x1d0
+#define SAA7134_PRODUCTION_TEST_MODE            0x1d1
 
 /* audio -- saa7133 + saa7135 only */
 #define SAA7135_DSP_RWSTATE                     0x580

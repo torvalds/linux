@@ -545,7 +545,9 @@ nextnode:
 		of_node_put(np);
 	}
 
-	if (systemcfg->platform == PLATFORM_PSERIES) {
+	if (platform_is_lpar())
+		ops = &pSeriesLP_ops;
+	else {
 #ifdef CONFIG_SMP
 		for_each_cpu(i) {
 			int hard_id;
@@ -561,12 +563,11 @@ nextnode:
 #else
 		xics_per_cpu[0] = ioremap(intr_base, intr_size);
 #endif /* CONFIG_SMP */
-	} else if (systemcfg->platform == PLATFORM_PSERIES_LPAR) {
-		ops = &pSeriesLP_ops;
 	}
 
 	xics_8259_pic.enable = i8259_pic.enable;
 	xics_8259_pic.disable = i8259_pic.disable;
+	xics_8259_pic.end = i8259_pic.end;
 	for (i = 0; i < 16; ++i)
 		get_irq_desc(i)->handler = &xics_8259_pic;
 	for (; i < NR_IRQS; ++i)

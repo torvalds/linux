@@ -5,10 +5,8 @@
 #undef  DO_TIMINGS
 
 #include <linux/module.h>
-#include <linux/version.h>
 
 #ifdef __KERNEL__
-#include <linux/utsname.h>
 #include <linux/string.h>
 #include <linux/fs.h>
 #include <asm/dma.h>

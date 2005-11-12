@@ -385,7 +385,7 @@ sctp_timer_event_t *sctp_timer_events[SCTP_NUM_TIMEOUT_TYPES] = {
 	NULL,
 	sctp_generate_t4_rto_event,
 	sctp_generate_t5_shutdown_guard_event,
-	sctp_generate_heartbeat_event,
+	NULL,
 	sctp_generate_sack_event,
 	sctp_generate_autoclose_event,
 };
@@ -689,9 +689,9 @@ static void sctp_cmd_new_state(sctp_cmd_seq_t *cmds,
 		 * increased due to timer expirations.
 		 */
 		asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT] =
-			asoc->ep->timeouts[SCTP_EVENT_TIMEOUT_T1_INIT];
+						asoc->rto_initial;
 		asoc->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE] =
-			asoc->ep->timeouts[SCTP_EVENT_TIMEOUT_T1_COOKIE];
+						asoc->rto_initial;
 	}
 
 	if (sctp_state(asoc, ESTABLISHED) ||

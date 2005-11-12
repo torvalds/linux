@@ -25,6 +25,7 @@
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/thread_info.h>
+#include <asm/vdso_datapage.h>
 
 #define DEFINE(sym, val) \
 	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
@@ -143,5 +144,32 @@ main(void)
 
 	DEFINE(TASK_SIZE, TASK_SIZE);
 	DEFINE(NUM_USER_SEGMENTS, TASK_SIZE>>28);
+
+	/* datapage offsets for use by vdso */
+	DEFINE(CFG_TB_ORIG_STAMP, offsetof(struct vdso_data, tb_orig_stamp));
+	DEFINE(CFG_TB_TICKS_PER_SEC, offsetof(struct vdso_data, tb_ticks_per_sec));
+	DEFINE(CFG_TB_TO_XS, offsetof(struct vdso_data, tb_to_xs));
+	DEFINE(CFG_STAMP_XSEC, offsetof(struct vdso_data, stamp_xsec));
+	DEFINE(CFG_TB_UPDATE_COUNT, offsetof(struct vdso_data, tb_update_count));
+	DEFINE(CFG_TZ_MINUTEWEST, offsetof(struct vdso_data, tz_minuteswest));
+	DEFINE(CFG_TZ_DSTTIME, offsetof(struct vdso_data, tz_dsttime));
+	DEFINE(CFG_SYSCALL_MAP32, offsetof(struct vdso_data, syscall_map_32));
+	DEFINE(WTOM_CLOCK_SEC, offsetof(struct vdso_data, wtom_clock_sec));
+	DEFINE(WTOM_CLOCK_NSEC, offsetof(struct vdso_data, wtom_clock_nsec));
+	DEFINE(TVAL32_TV_SEC, offsetof(struct timeval, tv_sec));
+	DEFINE(TVAL32_TV_USEC, offsetof(struct timeval, tv_usec));
+	DEFINE(TSPEC32_TV_SEC, offsetof(struct timespec, tv_sec));
+	DEFINE(TSPEC32_TV_NSEC, offsetof(struct timespec, tv_nsec));
+
+	/* timeval/timezone offsets for use by vdso */
+	DEFINE(TZONE_TZ_MINWEST, offsetof(struct timezone, tz_minuteswest));
+	DEFINE(TZONE_TZ_DSTTIME, offsetof(struct timezone, tz_dsttime));
+
+	/* Other bits used by the vdso */
+	DEFINE(CLOCK_REALTIME, CLOCK_REALTIME);
+	DEFINE(CLOCK_MONOTONIC, CLOCK_MONOTONIC);
+	DEFINE(NSEC_PER_SEC, NSEC_PER_SEC);
+	DEFINE(CLOCK_REALTIME_RES, TICK_NSEC);
+
 	return 0;
 }

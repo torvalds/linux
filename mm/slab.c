@@ -434,7 +434,7 @@ struct kmem_cache {
 /* Optimization question: fewer reaps means less 
  * probability for unnessary cpucache drain/refill cycles.
  *
- * OTHO the cpuarrays can contain lots of objects,
+ * OTOH the cpuarrays can contain lots of objects,
  * which could lock up otherwise freeable slabs.
  */
 #define REAPTIMEOUT_CPUC	(2*HZ)

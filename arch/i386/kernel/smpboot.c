@@ -485,6 +485,7 @@ static void __devinit start_secondary(void *unused)
 	 * things done here to the most necessary things.
 	 */
 	cpu_init();
+	preempt_disable();
 	smp_callin();
 	while (!cpu_isset(smp_processor_id(), smp_commenced_mask))
 		rep_nop();

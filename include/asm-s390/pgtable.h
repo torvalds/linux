@@ -319,7 +319,7 @@ extern char empty_zero_page[PAGE_SIZE];
  * within a page table are directly modified.  Thus, the following
  * hook is made available.
  */
-extern inline void set_pte(pte_t *pteptr, pte_t pteval)
+static inline void set_pte(pte_t *pteptr, pte_t pteval)
 {
 	*pteptr = pteval;
 }
@@ -330,63 +330,63 @@ extern inline void set_pte(pte_t *pteptr, pte_t pteval)
  */
 #ifndef __s390x__
 
-extern inline int pgd_present(pgd_t pgd) { return 1; }
-extern inline int pgd_none(pgd_t pgd)    { return 0; }
-extern inline int pgd_bad(pgd_t pgd)     { return 0; }
+static inline int pgd_present(pgd_t pgd) { return 1; }
+static inline int pgd_none(pgd_t pgd)    { return 0; }
+static inline int pgd_bad(pgd_t pgd)     { return 0; }
 
-extern inline int pmd_present(pmd_t pmd) { return pmd_val(pmd) & _SEG_PRESENT; }
-extern inline int pmd_none(pmd_t pmd)    { return pmd_val(pmd) & _PAGE_TABLE_INV; }
-extern inline int pmd_bad(pmd_t pmd)
+static inline int pmd_present(pmd_t pmd) { return pmd_val(pmd) & _SEG_PRESENT; }
+static inline int pmd_none(pmd_t pmd)    { return pmd_val(pmd) & _PAGE_TABLE_INV; }
+static inline int pmd_bad(pmd_t pmd)
 {
 	return (pmd_val(pmd) & (~PAGE_MASK & ~_PAGE_TABLE_INV)) != _PAGE_TABLE;
 }
 
 #else /* __s390x__ */
 
-extern inline int pgd_present(pgd_t pgd)
+static inline int pgd_present(pgd_t pgd)
 {
 	return (pgd_val(pgd) & ~PAGE_MASK) == _PGD_ENTRY;
 }
 
-extern inline int pgd_none(pgd_t pgd)
+static inline int pgd_none(pgd_t pgd)
 {
 	return pgd_val(pgd) & _PGD_ENTRY_INV;
 }
 
-extern inline int pgd_bad(pgd_t pgd)
+static inline int pgd_bad(pgd_t pgd)
 {
 	return (pgd_val(pgd) & (~PAGE_MASK & ~_PGD_ENTRY_INV)) != _PGD_ENTRY;
 }
 
-extern inline int pmd_present(pmd_t pmd)
+static inline int pmd_present(pmd_t pmd)
 {
 	return (pmd_val(pmd) & ~PAGE_MASK) == _PMD_ENTRY;
 }
 
-extern inline int pmd_none(pmd_t pmd)
+static inline int pmd_none(pmd_t pmd)
 {
 	return pmd_val(pmd) & _PMD_ENTRY_INV;
 }
 
-extern inline int pmd_bad(pmd_t pmd)
+static inline int pmd_bad(pmd_t pmd)
 {
 	return (pmd_val(pmd) & (~PAGE_MASK & ~_PMD_ENTRY_INV)) != _PMD_ENTRY;
 }
 
 #endif /* __s390x__ */
 
-extern inline int pte_none(pte_t pte)
+static inline int pte_none(pte_t pte)
 {
 	return (pte_val(pte) & _PAGE_INVALID_MASK) == _PAGE_INVALID_EMPTY;
 }
 
-extern inline int pte_present(pte_t pte)
+static inline int pte_present(pte_t pte)
 {
 	return !(pte_val(pte) & _PAGE_INVALID) ||
 		(pte_val(pte) & _PAGE_INVALID_MASK) == _PAGE_INVALID_NONE;
 }
 
-extern inline int pte_file(pte_t pte)
+static inline int pte_file(pte_t pte)
 {
 	return (pte_val(pte) & _PAGE_INVALID_MASK) == _PAGE_INVALID_FILE;
 }
@@ -397,12 +397,12 @@ extern inline int pte_file(pte_t pte)
  * query functions pte_write/pte_dirty/pte_young only work if
  * pte_present() is true. Undefined behaviour if not..
  */
-extern inline int pte_write(pte_t pte)
+static inline int pte_write(pte_t pte)
 {
 	return (pte_val(pte) & _PAGE_RO) == 0;
 }
 
-extern inline int pte_dirty(pte_t pte)
+static inline int pte_dirty(pte_t pte)
 {
 	/* A pte is neither clean nor dirty on s/390. The dirty bit
 	 * is in the storage key. See page_test_and_clear_dirty for
@@ -411,7 +411,7 @@ extern inline int pte_dirty(pte_t pte)
 	return 0;
 }
 
-extern inline int pte_young(pte_t pte)
+static inline int pte_young(pte_t pte)
 {
 	/* A pte is neither young nor old on s/390. The young bit
 	 * is in the storage key. See page_test_and_clear_young for
@@ -420,7 +420,7 @@ extern inline int pte_young(pte_t pte)
 	return 0;
 }
 
-extern inline int pte_read(pte_t pte)
+static inline int pte_read(pte_t pte)
 {
 	/* All pages are readable since we don't use the fetch
 	 * protection bit in the storage key.
@@ -434,9 +434,9 @@ extern inline int pte_read(pte_t pte)
 
 #ifndef __s390x__
 
-extern inline void pgd_clear(pgd_t * pgdp)      { }
+static inline void pgd_clear(pgd_t * pgdp)      { }
 
-extern inline void pmd_clear(pmd_t * pmdp)
+static inline void pmd_clear(pmd_t * pmdp)
 {
 	pmd_val(pmdp[0]) = _PAGE_TABLE_INV;
 	pmd_val(pmdp[1]) = _PAGE_TABLE_INV;
@@ -446,12 +446,12 @@ extern inline void pmd_clear(pmd_t * pmdp)
 
 #else /* __s390x__ */
 
-extern inline void pgd_clear(pgd_t * pgdp)
+static inline void pgd_clear(pgd_t * pgdp)
 {
 	pgd_val(*pgdp) = _PGD_ENTRY_INV | _PGD_ENTRY;
 }
 
-extern inline void pmd_clear(pmd_t * pmdp)
+static inline void pmd_clear(pmd_t * pmdp)
 {
 	pmd_val(*pmdp) = _PMD_ENTRY_INV | _PMD_ENTRY;
 	pmd_val1(*pmdp) = _PMD_ENTRY_INV | _PMD_ENTRY;
@@ -459,7 +459,7 @@ extern inline void pmd_clear(pmd_t * pmdp)
 
 #endif /* __s390x__ */
 
-extern inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pte_val(*ptep) = _PAGE_INVALID_EMPTY;
 }
@@ -468,14 +468,14 @@ extern inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
  * The following pte modification functions only work if
  * pte_present() is true. Undefined behaviour if not..
  */
-extern inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
+static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
 	pte_val(pte) &= PAGE_MASK;
 	pte_val(pte) |= pgprot_val(newprot);
 	return pte;
 }
 
-extern inline pte_t pte_wrprotect(pte_t pte)
+static inline pte_t pte_wrprotect(pte_t pte)
 {
 	/* Do not clobber _PAGE_INVALID_NONE pages!  */
 	if (!(pte_val(pte) & _PAGE_INVALID))
@@ -483,13 +483,13 @@ extern inline pte_t pte_wrprotect(pte_t pte)
 	return pte;
 }
 
-extern inline pte_t pte_mkwrite(pte_t pte) 
+static inline pte_t pte_mkwrite(pte_t pte)
 {
 	pte_val(pte) &= ~_PAGE_RO;
 	return pte;
 }
 
-extern inline pte_t pte_mkclean(pte_t pte)
+static inline pte_t pte_mkclean(pte_t pte)
 {
 	/* The only user of pte_mkclean is the fork() code.
 	   We must *not* clear the *physical* page dirty bit
@@ -498,7 +498,7 @@ extern inline pte_t pte_mkclean(pte_t pte)
 	return pte;
 }
 
-extern inline pte_t pte_mkdirty(pte_t pte)
+static inline pte_t pte_mkdirty(pte_t pte)
 {
 	/* We do not explicitly set the dirty bit because the
 	 * sske instruction is slow. It is faster to let the
@@ -507,7 +507,7 @@ extern inline pte_t pte_mkdirty(pte_t pte)
 	return pte;
 }
 
-extern inline pte_t pte_mkold(pte_t pte)
+static inline pte_t pte_mkold(pte_t pte)
 {
 	/* S/390 doesn't keep its dirty/referenced bit in the pte.
 	 * There is no point in clearing the real referenced bit.
@@ -515,7 +515,7 @@ extern inline pte_t pte_mkold(pte_t pte)
 	return pte;
 }
 
-extern inline pte_t pte_mkyoung(pte_t pte)
+static inline pte_t pte_mkyoung(pte_t pte)
 {
 	/* S/390 doesn't keep its dirty/referenced bit in the pte.
 	 * There is no point in setting the real referenced bit.
@@ -695,7 +695,7 @@ static inline pte_t mk_pte_phys(unsigned long physpage, pgprot_t pgprot)
 #ifndef __s390x__
 
 /* Find an entry in the second-level page table.. */
-extern inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
+static inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
 {
         return (pmd_t *) dir;
 }
@@ -758,7 +758,7 @@ extern inline pmd_t * pmd_offset(pgd_t * dir, unsigned long address)
 #else
 #define __SWP_OFFSET_MASK (~0UL >> 11)
 #endif
-extern inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
+static inline pte_t mk_swap_pte(unsigned long type, unsigned long offset)
 {
 	pte_t pte;
 	offset &= __SWP_OFFSET_MASK;

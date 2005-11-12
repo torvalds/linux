@@ -11,7 +11,7 @@
 
 #include <linux/types.h>
 
-int gvp11_detect(Scsi_Host_Template *);
+int gvp11_detect(struct scsi_host_template *);
 int gvp11_release(struct Scsi_Host *);
 const char *wd33c93_info(void);
 int wd33c93_queuecommand(Scsi_Cmnd *, void (*done)(Scsi_Cmnd *));

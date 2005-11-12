@@ -318,7 +318,7 @@ static int __devinit finish_node_interrupts(struct device_node *np,
 		}
 
 		/* We offset irq numbers for the u3 MPIC by 128 in PowerMac */
-		if (systemcfg->platform == PLATFORM_POWERMAC && ic && ic->parent) {
+		if (_machine == PLATFORM_POWERMAC && ic && ic->parent) {
 			char *name = get_property(ic->parent, "name", NULL);
 			if (name && !strcmp(name, "u3"))
 				np->intrs[intrcount].line += 128;
@@ -1065,7 +1065,7 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 	prop = (u32 *)of_get_flat_dt_prop(node, "linux,platform", NULL);
 	if (prop == NULL)
 		return 0;
-	systemcfg->platform = *prop;
+	_machine = *prop;
 
 	/* check if iommu is forced on or off */
 	if (of_get_flat_dt_prop(node, "linux,iommu-off", NULL) != NULL)
@@ -1230,10 +1230,7 @@ void __init early_init_devtree(void *params)
 	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
 	lmb_enforce_memory_limit(memory_limit);
 	lmb_analyze();
-	systemcfg->physicalMemorySize = lmb_phys_mem_size();
 	lmb_reserve(0, __pa(klimit));
-
-	DBG("Phys. mem: %lx\n", systemcfg->physicalMemorySize);
 
 	/* Reserve LMB regions used by kernel, initrd, dt, etc... */
 	early_reserve_mem();
@@ -1753,7 +1750,7 @@ static int of_finish_dynamic_node(struct device_node *node,
 	/* We don't support that function on PowerMac, at least
 	 * not yet
 	 */
-	if (systemcfg->platform == PLATFORM_POWERMAC)
+	if (_machine == PLATFORM_POWERMAC)
 		return -ENODEV;
 
 	/* fix up new node's linux_phandle field */

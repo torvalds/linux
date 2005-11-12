@@ -497,9 +497,9 @@ END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)
  * and invalidate the corresponding instruction cache blocks.
  * This is a no-op on the 601.
  *
- * flush_icache_range(unsigned long start, unsigned long stop)
+ * __flush_icache_range(unsigned long start, unsigned long stop)
  */
-_GLOBAL(flush_icache_range)
+_GLOBAL(__flush_icache_range)
 BEGIN_FTR_SECTION
 	blr				/* for 601, do nothing */
 END_FTR_SECTION_IFCLR(CPU_FTR_SPLIT_ID_CACHE)

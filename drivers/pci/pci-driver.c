@@ -37,7 +37,7 @@ struct pci_dynid {
  * Adds a new dynamic pci device ID to this driver,
  * and causes the driver to probe for all devices again.
  */
-static inline ssize_t
+static ssize_t
 store_new_id(struct device_driver *driver, const char *buf, size_t count)
 {
 	struct pci_dynid *dynid;
@@ -364,15 +364,16 @@ static struct kobj_type pci_driver_kobj_type = {
 };
 
 /**
- * pci_register_driver - register a new pci driver
+ * __pci_register_driver - register a new pci driver
  * @drv: the driver structure to register
+ * @owner: owner module of drv
  * 
  * Adds the driver structure to the list of registered drivers.
  * Returns a negative value on error, otherwise 0. 
  * If no error occurred, the driver remains registered even if 
  * no device was claimed during registration.
  */
-int pci_register_driver(struct pci_driver *drv)
+int __pci_register_driver(struct pci_driver *drv, struct module *owner)
 {
 	int error;
 
@@ -389,7 +390,7 @@ int pci_register_driver(struct pci_driver *drv)
 		printk(KERN_WARNING "Warning: PCI driver %s has a struct "
 			"device_driver shutdown method, please update!\n",
 			drv->name);
-	drv->driver.owner = drv->owner;
+	drv->driver.owner = owner;
 	drv->driver.kobj.ktype = &pci_driver_kobj_type;
 
 	spin_lock_init(&drv->dynids.lock);
@@ -526,7 +527,7 @@ postcore_initcall(pci_driver_init);
 
 EXPORT_SYMBOL(pci_match_id);
 EXPORT_SYMBOL(pci_match_device);
-EXPORT_SYMBOL(pci_register_driver);
+EXPORT_SYMBOL(__pci_register_driver);
 EXPORT_SYMBOL(pci_unregister_driver);
 EXPORT_SYMBOL(pci_dev_driver);
 EXPORT_SYMBOL(pci_bus_type);

@@ -135,7 +135,7 @@ asmlinkage long sys_uselib(const char __user * library)
 	if (!S_ISREG(nd.dentry->d_inode->i_mode))
 		goto exit;
 
-	error = permission(nd.dentry->d_inode, MAY_READ | MAY_EXEC, &nd);
+	error = vfs_permission(&nd, MAY_READ | MAY_EXEC);
 	if (error)
 		goto exit;
 
@@ -495,7 +495,7 @@ struct file *open_exec(const char *name)
 		file = ERR_PTR(-EACCES);
 		if (!(nd.mnt->mnt_flags & MNT_NOEXEC) &&
 		    S_ISREG(inode->i_mode)) {
-			int err = permission(inode, MAY_EXEC, &nd);
+			int err = vfs_permission(&nd, MAY_EXEC);
 			if (!err && !(inode->i_mode & 0111))
 				err = -EACCES;
 			file = ERR_PTR(err);
@@ -896,7 +896,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 	flush_thread();
 
 	if (bprm->e_uid != current->euid || bprm->e_gid != current->egid || 
-	    permission(bprm->file->f_dentry->d_inode,MAY_READ, NULL) ||
+	    file_permission(bprm->file, MAY_READ) ||
 	    (bprm->interp_flags & BINPRM_FLAGS_ENFORCE_NONDUMP)) {
 		suid_keys(current);
 		current->mm->dumpable = suid_dumpable;

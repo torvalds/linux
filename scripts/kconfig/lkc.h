@@ -37,6 +37,17 @@ extern "C" {
 #define _(text) gettext(text)
 #define N_(text) (text)
 
+
+#define TF_COMMAND	0x0001
+#define TF_PARAM	0x0002
+
+struct kconf_id {
+	int name;
+	int token;
+	unsigned int flags;
+	enum symbol_type stype;
+};
+
 int zconfparse(void);
 void zconfdump(FILE *out);
 
@@ -50,7 +61,6 @@ char *zconf_curname(void);
 
 /* confdata.c */
 extern const char conf_def_filename[];
-extern char conf_filename[];
 
 char *conf_get_default_confname(void);
 
@@ -59,7 +69,7 @@ void kconfig_load(void);
 
 /* menu.c */
 void menu_init(void);
-void menu_add_menu(void);
+struct menu *menu_add_menu(void);
 void menu_end_menu(void);
 void menu_add_entry(struct symbol *sym);
 void menu_end_entry(void);

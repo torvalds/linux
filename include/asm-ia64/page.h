@@ -47,8 +47,6 @@
 #define PERCPU_PAGE_SHIFT	16	/* log2() of max. size of per-CPU area */
 #define PERCPU_PAGE_SIZE	(__IA64_UL_CONST(1) << PERCPU_PAGE_SHIFT)
 
-#define RGN_MAP_LIMIT	((1UL << (4*PAGE_SHIFT - 12)) - PAGE_SIZE)	/* per region addr limit */
-
 
 #ifdef CONFIG_HUGETLB_PAGE
 # define HPAGE_REGION_BASE	RGN_BASE(RGN_HPAGE)
@@ -175,11 +173,17 @@ get_order (unsigned long size)
    */
   typedef struct { unsigned long pte; } pte_t;
   typedef struct { unsigned long pmd; } pmd_t;
+#ifdef CONFIG_PGTABLE_4
+  typedef struct { unsigned long pud; } pud_t;
+#endif
   typedef struct { unsigned long pgd; } pgd_t;
   typedef struct { unsigned long pgprot; } pgprot_t;
 
 # define pte_val(x)	((x).pte)
 # define pmd_val(x)	((x).pmd)
+#ifdef CONFIG_PGTABLE_4
+# define pud_val(x)	((x).pud)
+#endif
 # define pgd_val(x)	((x).pgd)
 # define pgprot_val(x)	((x).pgprot)
 

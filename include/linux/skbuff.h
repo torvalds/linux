@@ -274,6 +274,9 @@ struct sk_buff {
 #if defined(CONFIG_IP_VS) || defined(CONFIG_IP_VS_MODULE)
 	__u8			ipvs_property:1;
 #endif
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	struct sk_buff		*nfct_reasm;
+#endif
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct nf_bridge_info	*nf_bridge;
 #endif
@@ -1233,8 +1236,7 @@ extern unsigned int    datagram_poll(struct file *file, struct socket *sock,
 extern int	       skb_copy_datagram_iovec(const struct sk_buff *from,
 					       int offset, struct iovec *to,
 					       int size);
-extern int	       skb_copy_and_csum_datagram_iovec(const
-							struct sk_buff *skb,
+extern int	       skb_copy_and_csum_datagram_iovec(struct sk_buff *skb,
 							int hlen,
 							struct iovec *iov);
 extern void	       skb_free_datagram(struct sock *sk, struct sk_buff *skb);
@@ -1302,6 +1304,30 @@ static inline void skb_set_timestamp(struct sk_buff *skb, const struct timeval *
 
 extern void __net_timestamp(struct sk_buff *skb);
 
+extern unsigned int __skb_checksum_complete(struct sk_buff *skb);
+
+/**
+ *	skb_checksum_complete - Calculate checksum of an entire packet
+ *	@skb: packet to process
+ *
+ *	This function calculates the checksum over the entire packet plus
+ *	the value of skb->csum.  The latter can be used to supply the
+ *	checksum of a pseudo header as used by TCP/UDP.  It returns the
+ *	checksum.
+ *
+ *	For protocols that contain complete checksums such as ICMP/TCP/UDP,
+ *	this function can be used to verify that checksum on received
+ *	packets.  In that case the function should return zero if the
+ *	checksum is correct.  In particular, this function will return zero
+ *	if skb->ip_summed is CHECKSUM_UNNECESSARY which indicates that the
+ *	hardware has already verified the correctness of the checksum.
+ */
+static inline unsigned int skb_checksum_complete(struct sk_buff *skb)
+{
+	return skb->ip_summed != CHECKSUM_UNNECESSARY &&
+		__skb_checksum_complete(skb);
+}
+
 #ifdef CONFIG_NETFILTER
 static inline void nf_conntrack_put(struct nf_conntrack *nfct)
 {
@@ -1313,10 +1339,26 @@ static inline void nf_conntrack_get(struct nf_conntrack *nfct)
 	if (nfct)
 		atomic_inc(&nfct->use);
 }
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+static inline void nf_conntrack_get_reasm(struct sk_buff *skb)
+{
+	if (skb)
+		atomic_inc(&skb->users);
+}
+static inline void nf_conntrack_put_reasm(struct sk_buff *skb)
+{
+	if (skb)
+		kfree_skb(skb);
+}
+#endif
 static inline void nf_reset(struct sk_buff *skb)
 {
 	nf_conntrack_put(skb->nfct);
 	skb->nfct = NULL;
+#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+	nf_conntrack_put_reasm(skb->nfct_reasm);
+	skb->nfct_reasm = NULL;
+#endif
 }
 
 #ifdef CONFIG_BRIDGE_NETFILTER

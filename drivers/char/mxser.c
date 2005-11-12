@@ -38,7 +38,6 @@
 
 #include <linux/config.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/autoconf.h>
 #include <linux/errno.h>
 #include <linux/signal.h>

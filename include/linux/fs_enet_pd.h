@@ -16,7 +16,6 @@
 #ifndef FS_ENET_PD_H
 #define FS_ENET_PD_H
 
-#include <linux/version.h>
 #include <asm/types.h>
 
 #define FS_ENET_NAME	"fs_enet"

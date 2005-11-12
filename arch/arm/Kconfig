@@ -239,6 +239,8 @@ source "arch/arm/plat-omap/Kconfig"
 
 source "arch/arm/mach-omap1/Kconfig"
 
+source "arch/arm/mach-omap2/Kconfig"
+
 source "arch/arm/mach-s3c2410/Kconfig"
 
 source "arch/arm/mach-lh7a40x/Kconfig"
@@ -358,7 +360,7 @@ config HOTPLUG_CPU
 
 config LOCAL_TIMERS
 	bool "Use local timer interrupts"
-	depends on SMP && n
+	depends on SMP && REALVIEW_MPCORE
 	default y
 	help
 	  Enable support for local timers on SMP platforms, rather then the

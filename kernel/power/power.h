@@ -65,8 +65,8 @@ extern suspend_pagedir_t *pagedir_save;
 extern asmlinkage int swsusp_arch_suspend(void);
 extern asmlinkage int swsusp_arch_resume(void);
 
-extern int restore_highmem(void);
-extern struct pbe * alloc_pagedir(unsigned nr_pages);
+extern void free_pagedir(struct pbe *pblist);
+extern struct pbe *alloc_pagedir(unsigned nr_pages, gfp_t gfp_mask, int safe_needed);
 extern void create_pbe_list(struct pbe *pblist, unsigned nr_pages);
 extern void swsusp_free(void);
-extern int enough_swap(unsigned nr_pages);
+extern int alloc_data_pages(struct pbe *pblist, gfp_t gfp_mask, int safe_needed);

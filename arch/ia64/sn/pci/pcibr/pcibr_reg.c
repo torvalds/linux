@@ -131,7 +131,7 @@ void pcireg_intr_enable_bit_clr(struct pcibus_info *pcibus_info, uint64_t bits)
 			__sn_clrq_relaxed(&ptr->tio.cp_int_enable, bits);
 			break;
 		case PCIBR_BRIDGETYPE_PIC:
-			__sn_clrq_relaxed(&ptr->pic.p_int_enable, ~bits);
+			__sn_clrq_relaxed(&ptr->pic.p_int_enable, bits);
 			break;
 		default:
 			panic

@@ -707,7 +707,7 @@ DCCP PROTOCOL
 P:	Arnaldo Carvalho de Melo
 M:	acme@mandriva.com
 L:	dccp@vger.kernel.org
-W:	http://www.wlug.org.nz/DCCP
+W:	http://linux-net.osdl.org/index.php/DCCP
 S:	Maintained
 
 DECnet NETWORK LAYER
@@ -1328,6 +1328,24 @@ M:	ganesh.venkatesan@intel.com
 P:	John Ronciak
 M:	john.ronciak@intel.com
 W:	http://sourceforge.net/projects/e1000/
+S:	Supported
+
+INTEL PRO/WIRELESS 2100 NETWORK CONNECTION SUPPORT
+P:	Yi Zhu
+M:	yi.zhu@intel.com
+P:	James Ketrenos
+M:	jketreno@linux.intel.com
+L:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
+W:	http://ipw2100.sourceforge.net
+S:	Supported
+
+INTEL PRO/WIRELESS 2915ABG NETWORK CONNECTION SUPPORT
+P:	Yi Zhu
+M:	yi.zhu@intel.com
+P:	James Ketrenos
+M:	jketreno@linux.intel.com
+L:	http://lists.sourceforge.net/mailman/listinfo/ipw2100-devel
+W:	http://ipw2200.sourceforge.net
 S:	Supported
 
 IOC3 DRIVER
@@ -1970,7 +1988,6 @@ PKTCDVD DRIVER
 P:	Peter Osterlund
 M:	petero2@telia.com
 L:	linux-kernel@vger.kernel.org
-L:	packet-writing@suse.com
 S:	Maintained
 
 POSIX CLOCKS and TIMERS

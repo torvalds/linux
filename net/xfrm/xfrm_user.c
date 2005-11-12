@@ -18,7 +18,6 @@
 #include <linux/string.h>
 #include <linux/net.h>
 #include <linux/skbuff.h>
-#include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/pfkeyv2.h>
 #include <linux/ipsec.h>
@@ -26,6 +25,7 @@
 #include <linux/security.h>
 #include <net/sock.h>
 #include <net/xfrm.h>
+#include <net/netlink.h>
 #include <asm/uaccess.h>
 
 static struct sock *xfrm_nl;
@@ -948,11 +948,6 @@ static struct xfrm_link {
 	[XFRM_MSG_FLUSHPOLICY - XFRM_MSG_BASE] = { .doit = xfrm_flush_policy  },
 };
 
-static int xfrm_done(struct netlink_callback *cb)
-{
-	return 0;
-}
-
 static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *errp)
 {
 	struct rtattr *xfrma[XFRMA_MAX];
@@ -984,20 +979,15 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh, int *err
 	if ((type == (XFRM_MSG_GETSA - XFRM_MSG_BASE) ||
 	     type == (XFRM_MSG_GETPOLICY - XFRM_MSG_BASE)) &&
 	    (nlh->nlmsg_flags & NLM_F_DUMP)) {
-		u32 rlen;
-
 		if (link->dump == NULL)
 			goto err_einval;
 
 		if ((*errp = netlink_dump_start(xfrm_nl, skb, nlh,
-						link->dump,
-						xfrm_done)) != 0) {
+						link->dump, NULL)) != 0) {
 			return -1;
 		}
-		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
-		if (rlen > skb->len)
-			rlen = skb->len;
-		skb_pull(skb, rlen);
+
+		netlink_queue_skip(nlh, skb);
 		return -1;
 	}
 
@@ -1032,60 +1022,13 @@ err_einval:
 	return -1;
 }
 
-static int xfrm_user_rcv_skb(struct sk_buff *skb)
-{
-	int err;
-	struct nlmsghdr *nlh;
-
-	while (skb->len >= NLMSG_SPACE(0)) {
-		u32 rlen;
-
-		nlh = (struct nlmsghdr *) skb->data;
-		if (nlh->nlmsg_len < sizeof(*nlh) ||
-		    skb->len < nlh->nlmsg_len)
-			return 0;
-		rlen = NLMSG_ALIGN(nlh->nlmsg_len);
-		if (rlen > skb->len)
-			rlen = skb->len;
-		if (xfrm_user_rcv_msg(skb, nlh, &err) < 0) {
-			if (err == 0)
-				return -1;
-			netlink_ack(skb, nlh, err);
-		} else if (nlh->nlmsg_flags & NLM_F_ACK)
-			netlink_ack(skb, nlh, 0);
-		skb_pull(skb, rlen);
-	}
-
-	return 0;
-}
-
 static void xfrm_netlink_rcv(struct sock *sk, int len)
 {
-	unsigned int qlen = skb_queue_len(&sk->sk_receive_queue);
+	unsigned int qlen = 0;
 
 	do {
-		struct sk_buff *skb;
-
 		down(&xfrm_cfg_sem);
-
-		if (qlen > skb_queue_len(&sk->sk_receive_queue))
-			qlen = skb_queue_len(&sk->sk_receive_queue);
-
-		for (; qlen; qlen--) {
-			skb = skb_dequeue(&sk->sk_receive_queue);
-			if (xfrm_user_rcv_skb(skb)) {
-				if (skb->len)
-					skb_queue_head(&sk->sk_receive_queue,
-						       skb);
-				else {
-					kfree_skb(skb);
-					qlen--;
-				}
-				break;
-			}
-			kfree_skb(skb);
-		}
-
+		netlink_run_queue(sk, &qlen, &xfrm_user_rcv_msg);
 		up(&xfrm_cfg_sem);
 
 	} while (qlen);

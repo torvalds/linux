@@ -170,12 +170,11 @@ static dev_link_t *airo_attach(void)
 	DEBUG(0, "airo_attach()\n");
 
 	/* Initialize the dev_link_t structure */
-	link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
+	link = kzalloc(sizeof(struct dev_link_t), GFP_KERNEL);
 	if (!link) {
 		printk(KERN_ERR "airo_cs: no memory for new device\n");
 		return NULL;
 	}
-	memset(link, 0, sizeof(struct dev_link_t));
 	
 	/* Interrupt setup */
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
@@ -194,13 +193,12 @@ static dev_link_t *airo_attach(void)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	
 	/* Allocate space for private device-specific data */
-	local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
+	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local) {
 		printk(KERN_ERR "airo_cs: no memory for new device\n");
 		kfree (link);
 		return NULL;
 	}
-	memset(local, 0, sizeof(local_info_t));
 	link->priv = local;
 	
 	/* Register with Card Services */

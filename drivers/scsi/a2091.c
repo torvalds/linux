@@ -2,7 +2,6 @@
 #include <linux/mm.h>
 #include <linux/blkdev.h>
 #include <linux/sched.h>
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 
@@ -173,7 +172,7 @@ static void dma_stop (struct Scsi_Host *instance, Scsi_Cmnd *SCpnt,
     }
 }
 
-int __init a2091_detect(Scsi_Host_Template *tpnt)
+int __init a2091_detect(struct scsi_host_template *tpnt)
 {
     static unsigned char called = 0;
     struct Scsi_Host *instance;
@@ -234,7 +233,7 @@ static int a2091_bus_reset(Scsi_Cmnd *cmd)
 
 #define HOSTS_C
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "A2901",
 	.name			= "Commodore A2091/A590 SCSI",
 	.detect			= a2091_detect,

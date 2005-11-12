@@ -154,6 +154,8 @@ struct stripe_head {
 #define	R5_Wantwrite	5
 #define	R5_Syncio	6	/* this io need to be accounted as resync io */
 #define	R5_Overlap	7	/* There is a pending overlapping request on this block */
+#define	R5_ReadError	8	/* seen a read error here recently */
+#define	R5_ReWrite	9	/* have tried to over-write the readerror */
 
 /*
  * Write method

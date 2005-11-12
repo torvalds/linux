@@ -68,10 +68,6 @@ static int sg_proc_init(void);
 static void sg_proc_cleanup(void);
 #endif
 
-#ifndef LINUX_VERSION_CODE
-#include <linux/version.h>
-#endif				/* LINUX_VERSION_CODE */
-
 #define SG_ALLOW_DIO_DEF 0
 #define SG_ALLOW_DIO_CODE /* compile out by commenting this define */
 

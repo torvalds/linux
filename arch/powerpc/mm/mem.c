@@ -46,9 +46,7 @@
 #include <asm/prom.h>
 #include <asm/lmb.h>
 #include <asm/sections.h>
-#ifdef CONFIG_PPC64
 #include <asm/vdso.h>
-#endif
 
 #include "mmu_decl.h"
 
@@ -110,6 +108,7 @@ EXPORT_SYMBOL(phys_mem_access_prot);
 void online_page(struct page *page)
 {
 	ClearPageReserved(page);
+	set_page_count(page, 0);
 	free_cold_page(page);
 	totalram_pages++;
 	num_physpages++;
@@ -126,6 +125,9 @@ int __devinit add_memory(u64 start, u64 size)
 	struct zone *zone;
 	unsigned long start_pfn = start >> PAGE_SHIFT;
 	unsigned long nr_pages = size >> PAGE_SHIFT;
+
+	start += KERNELBASE;
+	create_section_mapping(start, start + size);
 
 	/* this should work for most non-highmem platforms */
 	zone = pgdata->node_zones;
@@ -393,10 +395,8 @@ void __init mem_init(void)
 
 	mem_init_done = 1;
 
-#ifdef CONFIG_PPC64
 	/* Initialize the vDSO */
 	vdso_init();
-#endif
 }
 
 /*

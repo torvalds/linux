@@ -33,8 +33,6 @@
 #include <asm/kdebug.h>
 #include <asm/uaccess.h>
 
-#define ELEMENTS(arr) (sizeof (arr)/sizeof (arr[0]))
-
 extern int prom_node_root;
 
 /* At boot time we determine these two values necessary for setting

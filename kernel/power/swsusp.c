@@ -73,6 +73,14 @@
 
 #include "power.h"
 
+#ifdef CONFIG_HIGHMEM
+int save_highmem(void);
+int restore_highmem(void);
+#else
+static int save_highmem(void) { return 0; }
+static int restore_highmem(void) { return 0; }
+#endif
+
 #define CIPHER "aes"
 #define MAXKEY 32
 #define MAXIV  32
@@ -500,12 +508,37 @@ static int write_pagedir(void)
 }
 
 /**
+ *	enough_swap - Make sure we have enough swap to save the image.
+ *
+ *	Returns TRUE or FALSE after checking the total amount of swap
+ *	space avaiable.
+ *
+ *	FIXME: si_swapinfo(&i) returns all swap devices information.
+ *	We should only consider resume_device.
+ */
+
+static int enough_swap(unsigned int nr_pages)
+{
+	struct sysinfo i;
+
+	si_swapinfo(&i);
+	pr_debug("swsusp: available swap: %lu pages\n", i.freeswap);
+	return i.freeswap > (nr_pages + PAGES_FOR_IO +
+		(nr_pages + PBES_PER_PAGE - 1) / PBES_PER_PAGE);
+}
+
+/**
  *	write_suspend_image - Write entire image and metadata.
  *
  */
 static int write_suspend_image(void)
 {
 	int error;
+
+	if (!enough_swap(nr_copy_pages)) {
+		printk(KERN_ERR "swsusp: Not enough free swap\n");
+		return -ENOSPC;
+	}
 
 	init_header();
 	if ((error = data_write()))
@@ -526,27 +559,6 @@ static int write_suspend_image(void)
 	goto Done;
 }
 
-/**
- *	enough_swap - Make sure we have enough swap to save the image.
- *
- *	Returns TRUE or FALSE after checking the total amount of swap
- *	space avaiable.
- *
- *	FIXME: si_swapinfo(&i) returns all swap devices information.
- *	We should only consider resume_device.
- */
-
-int enough_swap(unsigned int nr_pages)
-{
-	struct sysinfo i;
-
-	si_swapinfo(&i);
-	pr_debug("swsusp: available swap: %lu pages\n", i.freeswap);
-	return i.freeswap > (nr_pages + PAGES_FOR_IO +
-		(nr_pages + PBES_PER_PAGE - 1) / PBES_PER_PAGE);
-}
-
-
 /* It is important _NOT_ to umount filesystems at this point. We want
  * them synced (in case something goes wrong) but we DO not want to mark
  * filesystem clean: it is not. (And it does not matter, if we resume
@@ -556,12 +568,15 @@ int swsusp_write(void)
 {
 	int error;
 
+	if ((error = swsusp_swap_check())) {
+		printk(KERN_ERR "swsusp: cannot find swap device, try swapon -a.\n");
+		return error;
+	}
 	lock_swapdevices();
 	error = write_suspend_image();
 	/* This will unlock ignored swap devices since writing is finished */
 	lock_swapdevices();
 	return error;
-
 }
 
 
@@ -569,6 +584,7 @@ int swsusp_write(void)
 int swsusp_suspend(void)
 {
 	int error;
+
 	if ((error = arch_prepare_suspend()))
 		return error;
 	local_irq_disable();
@@ -580,15 +596,12 @@ int swsusp_suspend(void)
 	 */
 	if ((error = device_power_down(PMSG_FREEZE))) {
 		printk(KERN_ERR "Some devices failed to power down, aborting suspend\n");
-		local_irq_enable();
-		return error;
+		goto Enable_irqs;
 	}
 
-	if ((error = swsusp_swap_check())) {
-		printk(KERN_ERR "swsusp: cannot find swap device, try swapon -a.\n");
-		device_power_up();
-		local_irq_enable();
-		return error;
+	if ((error = save_highmem())) {
+		printk(KERN_ERR "swsusp: Not enough free pages for highmem\n");
+		goto Restore_highmem;
 	}
 
 	save_processor_state();
@@ -596,8 +609,10 @@ int swsusp_suspend(void)
 		printk(KERN_ERR "Error %d suspending\n", error);
 	/* Restore control flow magically appears here */
 	restore_processor_state();
+Restore_highmem:
 	restore_highmem();
 	device_power_up();
+Enable_irqs:
 	local_irq_enable();
 	return error;
 }
@@ -629,127 +644,43 @@ int swsusp_resume(void)
 }
 
 /**
- *	On resume, for storing the PBE list and the image,
- *	we can only use memory pages that do not conflict with the pages
- *	which had been used before suspend.
- *
- *	We don't know which pages are usable until we allocate them.
- *
- *	Allocated but unusable (ie eaten) memory pages are marked so that
- *	swsusp_free() can release them
+ *	mark_unsafe_pages - mark the pages that cannot be used for storing
+ *	the image during resume, because they conflict with the pages that
+ *	had been used before suspend
  */
 
-unsigned long get_safe_page(gfp_t gfp_mask)
-{
-	unsigned long m;
-
-	do {
-		m = get_zeroed_page(gfp_mask);
-		if (m && PageNosaveFree(virt_to_page(m)))
-			/* This is for swsusp_free() */
-			SetPageNosave(virt_to_page(m));
-	} while (m && PageNosaveFree(virt_to_page(m)));
-	if (m) {
-		/* This is for swsusp_free() */
-		SetPageNosave(virt_to_page(m));
-		SetPageNosaveFree(virt_to_page(m));
-	}
-	return m;
-}
-
-/**
- *	check_pagedir - We ensure here that pages that the PBEs point to
- *	won't collide with pages where we're going to restore from the loaded
- *	pages later
- */
-
-static int check_pagedir(struct pbe *pblist)
-{
-	struct pbe *p;
-
-	/* This is necessary, so that we can free allocated pages
-	 * in case of failure
-	 */
-	for_each_pbe (p, pblist)
-		p->address = 0UL;
-
-	for_each_pbe (p, pblist) {
-		p->address = get_safe_page(GFP_ATOMIC);
-		if (!p->address)
-			return -ENOMEM;
-	}
-	return 0;
-}
-
-/**
- *	swsusp_pagedir_relocate - It is possible, that some memory pages
- *	occupied by the list of PBEs collide with pages where we're going to
- *	restore from the loaded pages later.  We relocate them here.
- */
-
-static struct pbe *swsusp_pagedir_relocate(struct pbe *pblist)
+static void mark_unsafe_pages(struct pbe *pblist)
 {
 	struct zone *zone;
 	unsigned long zone_pfn;
-	struct pbe *pbpage, *tail, *p;
-	void *m;
-	int rel = 0;
+	struct pbe *p;
 
 	if (!pblist) /* a sanity check */
-		return NULL;
-
-	pr_debug("swsusp: Relocating pagedir (%lu pages to check)\n",
-			swsusp_info.pagedir_pages);
+		return;
 
 	/* Clear page flags */
-
 	for_each_zone (zone) {
-        	for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
-        		if (pfn_valid(zone_pfn + zone->zone_start_pfn))
-                		ClearPageNosaveFree(pfn_to_page(zone_pfn +
+		for (zone_pfn = 0; zone_pfn < zone->spanned_pages; ++zone_pfn)
+			if (pfn_valid(zone_pfn + zone->zone_start_pfn))
+				ClearPageNosaveFree(pfn_to_page(zone_pfn +
 					zone->zone_start_pfn));
 	}
 
 	/* Mark orig addresses */
-
 	for_each_pbe (p, pblist)
 		SetPageNosaveFree(virt_to_page(p->orig_address));
 
-	tail = pblist + PB_PAGE_SKIP;
+}
 
-	/* Relocate colliding pages */
-
-	for_each_pb_page (pbpage, pblist) {
-		if (PageNosaveFree(virt_to_page((unsigned long)pbpage))) {
-			m = (void *)get_safe_page(GFP_ATOMIC | __GFP_COLD);
-			if (!m)
-				return NULL;
-			memcpy(m, (void *)pbpage, PAGE_SIZE);
-			if (pbpage == pblist)
-				pblist = (struct pbe *)m;
-			else
-				tail->next = (struct pbe *)m;
-			pbpage = (struct pbe *)m;
-
-			/* We have to link the PBEs again */
-			for (p = pbpage; p < pbpage + PB_PAGE_SKIP; p++)
-				if (p->next) /* needed to save the end */
-					p->next = p + 1;
-
-			rel++;
-		}
-		tail = pbpage + PB_PAGE_SKIP;
+static void copy_page_backup_list(struct pbe *dst, struct pbe *src)
+{
+	/* We assume both lists contain the same number of elements */
+	while (src) {
+		dst->orig_address = src->orig_address;
+		dst->swap_address = src->swap_address;
+		dst = dst->next;
+		src = src->next;
 	}
-
-	/* This is for swsusp_free() */
-	for_each_pb_page (pbpage, pblist) {
-		SetPageNosave(virt_to_page(pbpage));
-		SetPageNosaveFree(virt_to_page(pbpage));
-	}
-
-	printk("swsusp: Relocated %d pages\n", rel);
-
-	return pblist;
 }
 
 /*
@@ -888,7 +819,7 @@ static int check_sig(void)
 		 * Reset swap signature now.
 		 */
 		error = bio_write_page(0, &swsusp_header);
-	} else { 
+	} else {
 		return -EINVAL;
 	}
 	if (!error)
@@ -990,20 +921,25 @@ static int read_suspend_image(void)
 	int error = 0;
 	struct pbe *p;
 
-	if (!(p = alloc_pagedir(nr_copy_pages)))
+	if (!(p = alloc_pagedir(nr_copy_pages, GFP_ATOMIC, 0)))
 		return -ENOMEM;
 
 	if ((error = read_pagedir(p)))
 		return error;
-
 	create_pbe_list(p, nr_copy_pages);
-
-	if (!(pagedir_nosave = swsusp_pagedir_relocate(p)))
+	mark_unsafe_pages(p);
+	pagedir_nosave = alloc_pagedir(nr_copy_pages, GFP_ATOMIC, 1);
+	if (pagedir_nosave) {
+		create_pbe_list(pagedir_nosave, nr_copy_pages);
+		copy_page_backup_list(pagedir_nosave, p);
+	}
+	free_pagedir(p);
+	if (!pagedir_nosave)
 		return -ENOMEM;
 
 	/* Allocate memory for the image and read the data from swap */
 
-	error = check_pagedir(pagedir_nosave);
+	error = alloc_data_pages(pagedir_nosave, GFP_ATOMIC, 1);
 
 	if (!error)
 		error = data_read(pagedir_nosave);

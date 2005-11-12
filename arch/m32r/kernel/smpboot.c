@@ -426,6 +426,7 @@ void __init smp_cpus_done(unsigned int max_cpus)
 int __init start_secondary(void *unused)
 {
 	cpu_init();
+	preempt_disable();
 	smp_callin();
 	while (!cpu_isset(smp_processor_id(), smp_commenced_mask))
 		cpu_relax();

@@ -56,8 +56,16 @@
 static struct map_desc anubis_iodesc[] __initdata = {
   /* ISA IO areas */
 
-  { (u32)S3C24XX_VA_ISA_BYTE, 0x0,	   SZ_16M, MT_DEVICE },
-  { (u32)S3C24XX_VA_ISA_WORD, 0x0,	   SZ_16M, MT_DEVICE },
+  {
+	.virtual	= (u32)S3C24XX_VA_ISA_BYTE,
+	.pfn		= __phys_to_pfn(0x0),
+	.length		= SZ_4M,
+	.type		= MT_DEVICE
+  }, {
+	.virtual	= (u32)S3C24XX_VA_ISA_WORD,
+	.pfn		= __phys_to_pfn(0x0),
+	.length 	= SZ_4M, MT_DEVICE
+  },
 
   /* we could possibly compress the next set down into a set of smaller tables
    * pagetables, but that would mean using an L2 section, and it still means
@@ -66,16 +74,41 @@ static struct map_desc anubis_iodesc[] __initdata = {
 
   /* CPLD control registers */
 
-  { (u32)ANUBIS_VA_CTRL1,	ANUBIS_PA_CTRL1,	SZ_4K, MT_DEVICE },
-  { (u32)ANUBIS_VA_CTRL2,	ANUBIS_PA_CTRL2,	SZ_4K, MT_DEVICE },
+  {
+	.virtual	= (u32)ANUBIS_VA_CTRL1,
+	.pfn		= __phys_to_pfn(ANUBIS_PA_CTRL1),
+	.length		= SZ_4K,
+	.type		= MT_DEVICE
+  }, {
+	.virtual	= (u32)ANUBIS_VA_CTRL2,
+	.pfn		= __phys_to_pfn(ANUBIS_PA_CTRL2),
+	.length		= SZ_4K,
+	.type		=MT_DEVICE
+  },
 
   /* IDE drives */
 
-  { (u32)ANUBIS_IDEPRI,		S3C2410_CS3,		SZ_1M, MT_DEVICE },
-  { (u32)ANUBIS_IDEPRIAUX,	S3C2410_CS3+(1<<26),	SZ_1M, MT_DEVICE },
-
-  { (u32)ANUBIS_IDESEC,		S3C2410_CS4,		SZ_1M, MT_DEVICE },
-  { (u32)ANUBIS_IDESECAUX,	S3C2410_CS4+(1<<26),	SZ_1M, MT_DEVICE },
+  {
+	.virtual	= (u32)ANUBIS_IDEPRI,
+	.pfn		= __phys_to_pfn(S3C2410_CS3),
+	.length		= SZ_1M,
+	.type		= MT_DEVICE
+  }, {
+	.virtual	= (u32)ANUBIS_IDEPRIAUX,
+	.pfn		= __phys_to_pfn(S3C2410_CS3+(1<<26)),
+	.length		= SZ_1M,
+	.type		= MT_DEVICE
+  }, {
+	.virtual	= (u32)ANUBIS_IDESEC,
+	.pfn		= __phys_to_pfn(S3C2410_CS4),
+	.length		= SZ_1M,
+	.type		= MT_DEVICE
+  }, {
+	.virtual	= (u32)ANUBIS_IDESECAUX,
+	.pfn		= __phys_to_pfn(S3C2410_CS4+(1<<26)),
+	.length		= SZ_1M,
+	.type		= MT_DEVICE
+  },
 };
 
 #define UCON S3C2410_UCON_DEFAULT | S3C2410_UCON_UCLK

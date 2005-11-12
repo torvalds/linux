@@ -305,9 +305,19 @@ static int __init smp_psurge_probe(void)
 	psurge_start = ioremap(PSURGE_START, 4);
 	psurge_pri_intr = ioremap(PSURGE_PRI_INTR, 4);
 
-	/* this is not actually strictly necessary -- paulus. */
-	for (i = 1; i < ncpus; ++i)
-		smp_hw_index[i] = i;
+	/*
+	 * This is necessary because OF doesn't know about the
+	 * secondary cpu(s), and thus there aren't nodes in the
+	 * device tree for them, and smp_setup_cpu_maps hasn't
+	 * set their bits in cpu_possible_map and cpu_present_map.
+	 */
+	if (ncpus > NR_CPUS)
+		ncpus = NR_CPUS;
+	for (i = 1; i < ncpus ; ++i) {
+		cpu_set(i, cpu_present_map);
+		cpu_set(i, cpu_possible_map);
+		set_hard_smp_processor_id(i, i);
+	}
 
 	if (ppc_md.progress) ppc_md.progress("smp_psurge_probe - done", 0x352);
 
@@ -348,6 +358,7 @@ static void __init psurge_dual_sync_tb(int cpu_nr)
 	int t;
 
 	set_dec(tb_ticks_per_jiffy);
+	/* XXX fixme */
 	set_tb(0, 0);
 	last_jiffy_stamp(cpu_nr) = 0;
 
@@ -363,8 +374,6 @@ static void __init psurge_dual_sync_tb(int cpu_nr)
 
 	/* now interrupt the secondary, starting both TBs */
 	psurge_set_ipi(1);
-
-	smp_tb_synchronized = 1;
 }
 
 static struct irqaction psurge_irqaction = {
@@ -625,9 +634,8 @@ void smp_core99_give_timebase(void)
 	for (t = 100000; t > 0 && sec_tb_reset; --t)
 		udelay(10);
 	if (sec_tb_reset)
+		/* XXX BUG_ON here? */
 		printk(KERN_WARNING "Timeout waiting sync(2) on second CPU\n");
-	else
-		smp_tb_synchronized = 1;
 
 	/* Now, restart the timebase by leaving the GPIO to an open collector */
        	pmac_call_feature(PMAC_FTR_WRITE_GPIO, NULL, core99_tb_gpio, 0);
@@ -810,19 +818,9 @@ static void __devinit smp_core99_setup_cpu(int cpu_nr)
 }
 
 
-/* Core99 Macs (dual G4s and G5s) */
-struct smp_ops_t core99_smp_ops = {
-	.message_pass	= smp_mpic_message_pass,
-	.probe		= smp_core99_probe,
-	.kick_cpu	= smp_core99_kick_cpu,
-	.setup_cpu	= smp_core99_setup_cpu,
-	.give_timebase	= smp_core99_give_timebase,
-	.take_timebase	= smp_core99_take_timebase,
-};
-
 #if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PPC32)
 
-int __cpu_disable(void)
+int smp_core99_cpu_disable(void)
 {
 	cpu_clear(smp_processor_id(), cpu_online_map);
 
@@ -846,7 +844,7 @@ void cpu_die(void)
 	low_cpu_die();
 }
 
-void __cpu_die(unsigned int cpu)
+void smp_core99_cpu_die(unsigned int cpu)
 {
 	int timeout;
 
@@ -858,8 +856,21 @@ void __cpu_die(unsigned int cpu)
 		}
 		msleep(1);
 	}
-	cpu_callin_map[cpu] = 0;
 	cpu_dead[cpu] = 0;
 }
 
 #endif
+
+/* Core99 Macs (dual G4s and G5s) */
+struct smp_ops_t core99_smp_ops = {
+	.message_pass	= smp_mpic_message_pass,
+	.probe		= smp_core99_probe,
+	.kick_cpu	= smp_core99_kick_cpu,
+	.setup_cpu	= smp_core99_setup_cpu,
+	.give_timebase	= smp_core99_give_timebase,
+	.take_timebase	= smp_core99_take_timebase,
+#if defined(CONFIG_HOTPLUG_CPU) && defined(CONFIG_PPC32)
+	.cpu_disable	= smp_core99_cpu_disable,
+	.cpu_die	= smp_core99_cpu_die,
+#endif
+};

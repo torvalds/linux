@@ -372,7 +372,7 @@ static int find_inode(const char __user *dirname, struct nameidata *nd)
 	if (error)
 		return error;
 	/* you can only watch an inode if you have read permissions on it */
-	error = permission(nd->dentry->d_inode, MAY_READ, NULL);
+	error = vfs_permission(nd, MAY_READ);
 	if (error) 
 		path_release(nd);
 	return error;

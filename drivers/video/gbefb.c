@@ -1105,12 +1105,11 @@ int __init gbefb_setup(char *options)
 	return 0;
 }
 
-static int __init gbefb_probe(struct device *dev)
+static int __init gbefb_probe(struct platform_device *p_dev)
 {
 	int i, ret = 0;
 	struct fb_info *info;
 	struct gbefb_par *par;
-	struct platform_device *p_dev = to_platform_device(dev);
 #ifndef MODULE
 	char *options = NULL;
 #endif
@@ -1204,8 +1203,8 @@ static int __init gbefb_probe(struct device *dev)
 		goto out_gbe_unmap;
 	}
 
-	dev_set_drvdata(&p_dev->dev, info);
-	gbefb_create_sysfs(dev);
+	platform_set_drvdata(p_dev, info);
+	gbefb_create_sysfs(&p_dev->dev);
 
 	printk(KERN_INFO "fb%d: %s rev %d @ 0x%08x using %dkB memory\n",
 	       info->node, info->fix.id, gbe_revision, (unsigned) GBE_BASE,
@@ -1231,10 +1230,9 @@ out_release_framebuffer:
 	return ret;
 }
 
-static int __devexit gbefb_remove(struct device* dev)
+static int __devexit gbefb_remove(struct platform_device* p_dev)
 {
-	struct platform_device *p_dev = to_platform_device(dev);
-	struct fb_info *info = dev_get_drvdata(&p_dev->dev);
+	struct fb_info *info = platform_get_drvdata(p_dev);
 
 	unregister_framebuffer(info);
 	gbe_turn_off();
@@ -1252,18 +1250,19 @@ static int __devexit gbefb_remove(struct device* dev)
 	return 0;
 }
 
-static struct device_driver gbefb_driver = {
-	.name = "gbefb",
-	.bus = &platform_bus_type,
+static struct platform_driver gbefb_driver = {
 	.probe = gbefb_probe,
 	.remove = __devexit_p(gbefb_remove),
+	.driver	= {
+		.name = "gbefb",
+	},
 };
 
 static struct platform_device *gbefb_device;
 
 int __init gbefb_init(void)
 {
-	int ret = driver_register(&gbefb_driver);
+	int ret = platform_driver_register(&gbefb_driver);
 	if (!ret) {
 		gbefb_device = platform_device_alloc("gbefb", 0);
 		if (gbefb_device) {
@@ -1273,7 +1272,7 @@ int __init gbefb_init(void)
 		}
 		if (ret) {
 			platform_device_put(gbefb_device);
-			driver_unregister(&gbefb_driver);
+			platform_driver_unregister(&gbefb_driver);
 		}
 	}
 	return ret;
@@ -1282,7 +1281,7 @@ int __init gbefb_init(void)
 void __exit gbefb_exit(void)
 {
 	platform_device_unregister(gbefb_device);
-	driver_unregister(&gbefb_driver);
+	platform_driver_unregister(&gbefb_driver);
 }
 
 module_init(gbefb_init);
