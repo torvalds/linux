@@ -49,32 +49,33 @@ static void sha1_init(void *ctx)
 static void sha1_update(void *ctx, const u8 *data, unsigned int len)
 {
 	struct sha1_ctx *sctx = ctx;
-	unsigned int i, j;
+	unsigned int partial, done;
 	const u8 *src;
 
-	j = (sctx->count >> 3) & 0x3f;
+	partial = (sctx->count >> 3) & 0x3f;
 	sctx->count += len << 3;
-	i = 0;
+	done = 0;
 	src = data;
 
-	if ((j + len) > 63) {
+	if ((partial + len) > 63) {
 		u32 temp[SHA_WORKSPACE_WORDS];
 
-		if (j) {
-			memcpy(&sctx->buffer[j], data, (i = 64-j));
+		if (partial) {
+			done = 64 - partial;
+			memcpy(sctx->buffer + partial, data, done);
 			src = sctx->buffer;
 		}
 
 		do {
 			sha_transform(sctx->state, src, temp);
-			i += 64;
-			src = &data[i];
-		} while (i + 63 < len);
+			done += 64;
+			src = data + done;
+		} while (done + 63 < len);
 
 		memset(temp, 0, sizeof(temp));
-		j = 0;
+		partial = 0;
 	}
-	memcpy(&sctx->buffer[j], src, len - i);
+	memcpy(sctx->buffer + partial, src, len - done);
 }
 
 
