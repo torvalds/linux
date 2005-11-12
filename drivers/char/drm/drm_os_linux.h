@@ -13,6 +13,7 @@
 #define DRM_ERR(d)			-(d)
 /** Current process ID */
 #define DRM_CURRENTPID			current->pid
+#define DRM_SUSER(p)			capable(CAP_SYS_ADMIN)
 #define DRM_UDELAY(d)			udelay(d)
 /** Read a byte from a MMIO region */
 #define DRM_READ8(map, offset)		readb(((void __iomem *)(map)->handle) + (offset))

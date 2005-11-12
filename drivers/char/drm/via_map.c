@@ -27,15 +27,9 @@
 
 static int via_do_init_map(drm_device_t * dev, drm_via_init_t * init)
 {
-	drm_via_private_t *dev_priv;
+	drm_via_private_t *dev_priv = dev->dev_private;
 
 	DRM_DEBUG("%s\n", __FUNCTION__);
-
-	dev_priv = drm_alloc(sizeof(drm_via_private_t), DRM_MEM_DRIVER);
-	if (dev_priv == NULL)
-		return -ENOMEM;
-
-	memset(dev_priv, 0, sizeof(drm_via_private_t));
 
 	DRM_GETSAREA();
 	if (!dev_priv->sarea) {
@@ -67,7 +61,8 @@ static int via_do_init_map(drm_device_t * dev, drm_via_init_t * init)
 	dev_priv->agpAddr = init->agpAddr;
 
 	via_init_futex(dev_priv);
-	dev_priv->pro_group_a = (dev->pdev->device == 0x3118);
+
+	via_init_dmablit(dev);
 
 	dev->dev_private = (void *)dev_priv;
 	return 0;
@@ -75,15 +70,7 @@ static int via_do_init_map(drm_device_t * dev, drm_via_init_t * init)
 
 int via_do_cleanup_map(drm_device_t * dev)
 {
-	if (dev->dev_private) {
-
-		drm_via_private_t *dev_priv = dev->dev_private;
-
-		via_dma_cleanup(dev);
-
-		drm_free(dev_priv, sizeof(drm_via_private_t), DRM_MEM_DRIVER);
-		dev->dev_private = NULL;
-	}
+	via_dma_cleanup(dev);
 
 	return 0;
 }
@@ -107,3 +94,29 @@ int via_map_init(DRM_IOCTL_ARGS)
 
 	return -EINVAL;
 }
+
+int via_driver_load(drm_device_t *dev, unsigned long chipset)
+{
+	drm_via_private_t *dev_priv;
+
+	dev_priv = drm_calloc(1, sizeof(drm_via_private_t), DRM_MEM_DRIVER);
+	if (dev_priv == NULL)
+		return DRM_ERR(ENOMEM);
+
+	dev->dev_private = (void *)dev_priv;
+
+	if (chipset == VIA_PRO_GROUP_A)
+		dev_priv->pro_group_a = 1;
+
+	return 0;
+}
+
+int via_driver_unload(drm_device_t *dev)
+{
+	drm_via_private_t *dev_priv = dev->dev_private;
+
+	drm_free(dev_priv, sizeof(drm_via_private_t), DRM_MEM_DRIVER);
+
+	return 0;
+}
+

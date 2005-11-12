@@ -50,6 +50,15 @@
 #define VIA_IRQ_HQV1_ENABLE     (1 << 25)
 #define VIA_IRQ_HQV0_PENDING    (1 << 9)
 #define VIA_IRQ_HQV1_PENDING    (1 << 10)
+#define VIA_IRQ_DMA0_DD_ENABLE  (1 << 20)
+#define VIA_IRQ_DMA0_TD_ENABLE  (1 << 21)
+#define VIA_IRQ_DMA1_DD_ENABLE  (1 << 22)
+#define VIA_IRQ_DMA1_TD_ENABLE  (1 << 23)
+#define VIA_IRQ_DMA0_DD_PENDING (1 << 4)
+#define VIA_IRQ_DMA0_TD_PENDING (1 << 5)
+#define VIA_IRQ_DMA1_DD_PENDING (1 << 6)
+#define VIA_IRQ_DMA1_TD_PENDING (1 << 7)
+
 
 /*
  * Device-specific IRQs go here. This type might need to be extended with
@@ -61,13 +70,24 @@ static maskarray_t via_pro_group_a_irqs[] = {
 	{VIA_IRQ_HQV0_ENABLE, VIA_IRQ_HQV0_PENDING, 0x000003D0, 0x00008010,
 	 0x00000000},
 	{VIA_IRQ_HQV1_ENABLE, VIA_IRQ_HQV1_PENDING, 0x000013D0, 0x00008010,
-	 0x00000000}
+	 0x00000000},
+	{VIA_IRQ_DMA0_TD_ENABLE, VIA_IRQ_DMA0_TD_PENDING, VIA_PCI_DMA_CSR0,
+	 VIA_DMA_CSR_TA | VIA_DMA_CSR_TD, 0x00000008},
+	{VIA_IRQ_DMA1_TD_ENABLE, VIA_IRQ_DMA1_TD_PENDING, VIA_PCI_DMA_CSR1,
+	 VIA_DMA_CSR_TA | VIA_DMA_CSR_TD, 0x00000008},
 };
 static int via_num_pro_group_a =
     sizeof(via_pro_group_a_irqs) / sizeof(maskarray_t);
+static int via_irqmap_pro_group_a[] = {0, 1, -1, 2, -1, 3};
 
-static maskarray_t via_unichrome_irqs[] = { };
+static maskarray_t via_unichrome_irqs[] = {
+	{VIA_IRQ_DMA0_TD_ENABLE, VIA_IRQ_DMA0_TD_PENDING, VIA_PCI_DMA_CSR0,
+	 VIA_DMA_CSR_TA | VIA_DMA_CSR_TD, 0x00000008},
+	{VIA_IRQ_DMA1_TD_ENABLE, VIA_IRQ_DMA1_TD_PENDING, VIA_PCI_DMA_CSR1,
+	 VIA_DMA_CSR_TA | VIA_DMA_CSR_TD, 0x00000008}
+};
 static int via_num_unichrome = sizeof(via_unichrome_irqs) / sizeof(maskarray_t);
+static int via_irqmap_unichrome[] = {-1, -1, -1, 0, -1, 1};
 
 static unsigned time_diff(struct timeval *now, struct timeval *then)
 {
@@ -113,6 +133,11 @@ irqreturn_t via_driver_irq_handler(DRM_IRQ_ARGS)
 			atomic_inc(&cur_irq->irq_received);
 			DRM_WAKEUP(&cur_irq->irq_queue);
 			handled = 1;
+			if (dev_priv->irq_map[drm_via_irq_dma0_td] == i) {
+				via_dmablit_handler(dev, 0, 1);
+			} else if (dev_priv->irq_map[drm_via_irq_dma1_td] == i) {
+				via_dmablit_handler(dev, 1, 1);
+			}
 		}
 		cur_irq++;
 	}
@@ -165,7 +190,7 @@ int via_driver_vblank_wait(drm_device_t * dev, unsigned int *sequence)
 	return ret;
 }
 
-static int
+int
 via_driver_irq_wait(drm_device_t * dev, unsigned int irq, int force_sequence,
 		    unsigned int *sequence)
 {
@@ -174,6 +199,7 @@ via_driver_irq_wait(drm_device_t * dev, unsigned int irq, int force_sequence,
 	drm_via_irq_t *cur_irq = dev_priv->via_irqs;
 	int ret = 0;
 	maskarray_t *masks = dev_priv->irq_masks;
+	int real_irq;
 
 	DRM_DEBUG("%s\n", __FUNCTION__);
 
@@ -182,15 +208,23 @@ via_driver_irq_wait(drm_device_t * dev, unsigned int irq, int force_sequence,
 		return DRM_ERR(EINVAL);
 	}
 
-	if (irq >= dev_priv->num_irqs) {
+	if (irq >= drm_via_irq_num) {
 		DRM_ERROR("%s Trying to wait on unknown irq %d\n", __FUNCTION__,
 			  irq);
 		return DRM_ERR(EINVAL);
 	}
 
-	cur_irq += irq;
+	real_irq = dev_priv->irq_map[irq];
 
-	if (masks[irq][2] && !force_sequence) {
+	if (real_irq < 0) {
+		DRM_ERROR("%s Video IRQ %d not available on this hardware.\n",
+			  __FUNCTION__, irq);
+		return DRM_ERR(EINVAL);
+	}
+	
+	cur_irq += real_irq;
+
+	if (masks[real_irq][2] && !force_sequence) {
 		DRM_WAIT_ON(ret, cur_irq->irq_queue, 3 * DRM_HZ,
 			    ((VIA_READ(masks[irq][2]) & masks[irq][3]) ==
 			     masks[irq][4]));
@@ -226,6 +260,8 @@ void via_driver_irq_preinstall(drm_device_t * dev)
 		    via_pro_group_a_irqs : via_unichrome_irqs;
 		dev_priv->num_irqs = (dev_priv->pro_group_a) ?
 		    via_num_pro_group_a : via_num_unichrome;
+		dev_priv->irq_map = (dev_priv->pro_group_a) ?
+			via_irqmap_pro_group_a : via_irqmap_unichrome;
 
 		for (i = 0; i < dev_priv->num_irqs; ++i) {
 			atomic_set(&cur_irq->irq_received, 0);
@@ -241,7 +277,7 @@ void via_driver_irq_preinstall(drm_device_t * dev)
 
 		dev_priv->last_vblank_valid = 0;
 
-		// Clear VSync interrupt regs
+		/* Clear VSync interrupt regs */
 		status = VIA_READ(VIA_REG_INTERRUPT);
 		VIA_WRITE(VIA_REG_INTERRUPT, status &
 			  ~(dev_priv->irq_enable_mask));
@@ -291,8 +327,7 @@ void via_driver_irq_uninstall(drm_device_t * dev)
 
 int via_wait_irq(DRM_IOCTL_ARGS)
 {
-	drm_file_t *priv = filp->private_data;
-	drm_device_t *dev = priv->head->dev;
+	DRM_DEVICE;
 	drm_via_irqwait_t __user *argp = (void __user *)data;
 	drm_via_irqwait_t irqwait;
 	struct timeval now;

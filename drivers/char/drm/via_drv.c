@@ -38,25 +38,12 @@ static struct pci_device_id pciidlist[] = {
 	viadrv_PCI_IDS
 };
 
-static drm_ioctl_desc_t ioctls[] = {
-	[DRM_IOCTL_NR(DRM_VIA_ALLOCMEM)] = {via_mem_alloc, 1, 0},
-	[DRM_IOCTL_NR(DRM_VIA_FREEMEM)] = {via_mem_free, 1, 0},
-	[DRM_IOCTL_NR(DRM_VIA_AGP_INIT)] = {via_agp_init, 1, 0},
-	[DRM_IOCTL_NR(DRM_VIA_FB_INIT)] = {via_fb_init, 1, 0},
-	[DRM_IOCTL_NR(DRM_VIA_MAP_INIT)] = {via_map_init, 1, 0},
-	[DRM_IOCTL_NR(DRM_VIA_DEC_FUTEX)] = {via_decoder_futex, 1, 0},
-	[DRM_IOCTL_NR(DRM_VIA_DMA_INIT)] = {via_dma_init, 1, 0},
-	[DRM_IOCTL_NR(DRM_VIA_CMDBUFFER)] = {via_cmdbuffer, 1, 0},
-	[DRM_IOCTL_NR(DRM_VIA_FLUSH)] = {via_flush_ioctl, 1, 0},
-	[DRM_IOCTL_NR(DRM_VIA_PCICMD)] = {via_pci_cmdbuffer, 1, 0},
-	[DRM_IOCTL_NR(DRM_VIA_CMDBUF_SIZE)] = {via_cmdbuf_size, 1, 0},
-	[DRM_IOCTL_NR(DRM_VIA_WAIT_IRQ)] = {via_wait_irq, 1, 0}
-};
-
 static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_USE_AGP | DRIVER_USE_MTRR | DRIVER_HAVE_IRQ |
 	    DRIVER_IRQ_SHARED | DRIVER_IRQ_VBL,
+	.load = via_driver_load,
+	.unload = via_driver_unload,
 	.context_ctor = via_init_context,
 	.context_dtor = via_final_context,
 	.vblank_wait = via_driver_vblank_wait,
@@ -69,8 +56,7 @@ static struct drm_driver driver = {
 	.reclaim_buffers = drm_core_reclaim_buffers,
 	.get_map_ofs = drm_core_get_map_ofs,
 	.get_reg_ofs = drm_core_get_reg_ofs,
-	.ioctls = ioctls,
-	.num_ioctls = DRM_ARRAY_SIZE(ioctls),
+	.ioctls = via_ioctls,
 	.fops = {
 		 .owner = THIS_MODULE,
 		 .open = drm_open,
@@ -95,6 +81,7 @@ static struct drm_driver driver = {
 
 static int __init via_init(void)
 {
+	driver.num_ioctls = via_max_ioctl;
 	via_init_command_verifier();
 	return drm_init(&driver);
 }
