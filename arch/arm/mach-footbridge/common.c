@@ -132,7 +132,7 @@ void __init footbridge_init_irq(void)
 static struct map_desc fb_common_io_desc[] __initdata = {
 	{
 		.virtual	= ARMCSR_BASE,
-		.pfn		= __phy_to_pfn(DC21285_ARMCSR_BASE),
+		.pfn		= __phys_to_pfn(DC21285_ARMCSR_BASE),
 		.length		= ARMCSR_SIZE,
 		.type		= MT_DEVICE,
 	}, {
