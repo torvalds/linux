@@ -511,9 +511,11 @@ st_do_scsi(struct st_request * SRpnt, struct scsi_tape * STp, unsigned char *cmd
 
 	if (scsi_execute_async(STp->device, cmd, direction,
 			&((STp->buffer)->sg[0]), bytes, (STp->buffer)->sg_segs,
-			timeout, retries, SRpnt, st_sleep_done, GFP_KERNEL))
+			       timeout, retries, SRpnt, st_sleep_done, GFP_KERNEL)) {
 		/* could not allocate the buffer or request was too large */
 		(STp->buffer)->syscall_result = (-EBUSY);
+		(STp->buffer)->last_SRpnt = NULL;
+	}
 	else if (do_wait) {
 		wait_for_completion(waiting);
 		SRpnt->waiting = NULL;
@@ -1449,14 +1451,15 @@ static int setup_buffering(struct scsi_tape *STp, const char __user *buf,
 
 
 /* Can be called more than once after each setup_buffer() */
-static void release_buffering(struct scsi_tape *STp)
+static void release_buffering(struct scsi_tape *STp, int is_read)
 {
 	struct st_buffer *STbp;
 
 	STbp = STp->buffer;
 	if (STbp->do_dio) {
-		sgl_unmap_user_pages(&(STbp->sg[0]), STbp->do_dio, 0);
+		sgl_unmap_user_pages(&(STbp->sg[0]), STbp->do_dio, is_read);
 		STbp->do_dio = 0;
+		STbp->sg_segs = 0;
 	}
 }
 
@@ -1729,7 +1732,7 @@ st_write(struct file *filp, const char __user *buf, size_t count, loff_t * ppos)
  out:
 	if (SRpnt != NULL)
 		st_release_request(SRpnt);
-	release_buffering(STp);
+	release_buffering(STp, 0);
 	up(&STp->lock);
 
 	return retval;
@@ -1787,7 +1790,7 @@ static long read_tape(struct scsi_tape *STp, long count,
 	SRpnt = *aSRpnt;
 	SRpnt = st_do_scsi(SRpnt, STp, cmd, bytes, DMA_FROM_DEVICE,
 			   STp->device->timeout, MAX_RETRIES, 1);
-	release_buffering(STp);
+	release_buffering(STp, 1);
 	*aSRpnt = SRpnt;
 	if (!SRpnt)
 		return STbp->syscall_result;
@@ -2058,7 +2061,7 @@ st_read(struct file *filp, char __user *buf, size_t count, loff_t * ppos)
 		SRpnt = NULL;
 	}
 	if (do_dio) {
-		release_buffering(STp);
+		release_buffering(STp, 1);
 		STbp->buffer_bytes = 0;
 	}
 	up(&STp->lock);
