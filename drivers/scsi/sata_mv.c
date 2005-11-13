@@ -1243,9 +1243,57 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 	return IRQ_RETVAL(handled);
 }
 
+static void mv_cfg_signal5(struct mv_host_priv *hpriv, int idx,
+			   void __iomem *mmio)
+{
+	/* FIXME */
+}
+
+static void mv_enable_leds5(struct mv_host_priv *hpriv, void __iomem *mmio)
+{
+	/* FIXME */
+}
+
 static void mv_phy_errata5(struct ata_port *ap)
 {
 	/* FIXME */
+}
+
+static void mv_cfg_signal6(struct mv_host_priv *hpriv, int idx,
+			   void __iomem *mmio)
+{
+	void __iomem *port_mmio;
+	u32 tmp;
+
+	if (hpriv->hp_flags & MV_HP_ERRATA_60X1A1) {
+		hpriv->signal[idx].amps = 0x5 << 8;
+		hpriv->signal[idx].pre = 0x3 << 5;
+		return;
+	}
+
+	assert (hpriv->hp_flags & MV_HP_ERRATA_60X1B0);
+
+	tmp = readl(mmio + MV_RESET_CFG);
+	if ((tmp & (1 << 0)) == 0) {
+		hpriv->signal[idx].amps = 0x4 << 8;
+		hpriv->signal[idx].pre = 0x1 << 5;
+		return;
+	}
+
+	port_mmio = mv_port_base(mmio, idx);
+	tmp = readl(port_mmio + PHY_MODE2);
+
+	hpriv->signal[idx].amps = tmp & 0x700;	/* bits 10:8 */
+	hpriv->signal[idx].pre = tmp & 0xe0;	/* bits 7:5 */
+}
+
+static void mv_enable_leds6(struct mv_host_priv *hpriv, void __iomem *mmio)
+{
+	if (hpriv->hp_flags & MV_HP_ERRATA_60X1A1)
+		writel(0x00020060, mmio + MV_GPIO_PORT_CTL);
+
+	else if (hpriv->hp_flags & MV_HP_ERRATA_60X1B0)
+		writel(0x00000060, mmio + MV_GPIO_PORT_CTL);
 }
 
 static void mv_phy_errata6(struct ata_port *ap)
@@ -1473,60 +1521,12 @@ static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
 		readl(port_mmio + EDMA_ERR_IRQ_MASK_OFS));
 }
 
-static void mv_enable_leds5(struct mv_host_priv *hpriv, void __iomem *mmio)
-{
-	/* FIXME */
-}
-
-static void mv_enable_leds6(struct mv_host_priv *hpriv, void __iomem *mmio)
-{
-	if (hpriv->hp_flags & MV_HP_ERRATA_60X1A1)
-		writel(0x00020060, mmio + MV_GPIO_PORT_CTL);
-
-	else if (hpriv->hp_flags & MV_HP_ERRATA_60X1B0)
-		writel(0x00000060, mmio + MV_GPIO_PORT_CTL);
-}
-
 static void mv_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio)
 {
 	if (IS_50XX(hpriv))
 		mv_enable_leds5(hpriv, mmio);
 	else
 		mv_enable_leds6(hpriv, mmio);
-}
-
-static void mv_cfg_signal5(struct mv_host_priv *hpriv, int idx,
-			   void __iomem *mmio)
-{
-	/* FIXME */
-}
-
-static void mv_cfg_signal6(struct mv_host_priv *hpriv, int idx,
-			   void __iomem *mmio)
-{
-	void __iomem *port_mmio;
-	u32 tmp;
-
-	if (hpriv->hp_flags & MV_HP_ERRATA_60X1A1) {
-		hpriv->signal[idx].amps = 0x5 << 8;
-		hpriv->signal[idx].pre = 0x3 << 5;
-		return;
-	}
-
-	assert (hpriv->hp_flags & MV_HP_ERRATA_60X1B0);
-
-	tmp = readl(mmio + MV_RESET_CFG);
-	if ((tmp & (1 << 0)) == 0) {
-		hpriv->signal[idx].amps = 0x4 << 8;
-		hpriv->signal[idx].pre = 0x1 << 5;
-		return;
-	}
-
-	port_mmio = mv_port_base(mmio, idx);
-	tmp = readl(port_mmio + PHY_MODE2);
-
-	hpriv->signal[idx].amps = tmp & 0x700;	/* bits 10:8 */
-	hpriv->signal[idx].pre = tmp & 0xe0;	/* bits 7:5 */
 }
 
 static int mv_cfg_errata(struct pci_dev *pdev, struct mv_host_priv *hpriv,
