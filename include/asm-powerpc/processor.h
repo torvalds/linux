@@ -68,7 +68,6 @@ extern int _chrp_type;
  * vendor. Board revision is also made available. This will be moved
  * elsewhere soon
  */
-extern unsigned char ucSystemType;
 extern unsigned char ucBoardRev;
 extern unsigned char ucBoardRevMaj, ucBoardRevMin;
 

@@ -72,7 +72,6 @@
 
 TODC_ALLOC();
 
-unsigned char ucSystemType;
 unsigned char ucBoardRev;
 unsigned char ucBoardRevMaj, ucBoardRevMin;
 
