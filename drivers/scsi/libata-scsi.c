@@ -2276,6 +2276,12 @@ ata_scsi_pass_thru(struct ata_queued_cmd *qc, const u8 *scsicmd)
 		tf->device = scsicmd[8];
 		tf->command = scsicmd[9];
 	}
+	/*
+	 * If slave is possible, enforce correct master/slave bit
+	*/
+	if (qc->ap->flags & ATA_FLAG_SLAVE_POSS)
+		tf->device = qc->dev->devno ?
+			tf->device | ATA_DEV1 : tf->device & ~ATA_DEV1;
 
 	/*
 	 * Filter SET_FEATURES - XFER MODE command -- otherwise,
