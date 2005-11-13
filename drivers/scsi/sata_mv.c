@@ -50,6 +50,7 @@ enum {
 	MV_PCI_REG_BASE		= 0,
 	MV_IRQ_COAL_REG_BASE	= 0x18000,	/* 6xxx part only */
 	MV_SATAHC0_REG_BASE	= 0x20000,
+	MV_FLASH_CTL		= 0x1046c,
 	MV_GPIO_PORT_CTL	= 0x104f0,
 	MV_RESET_CFG		= 0x180d8,
 
@@ -87,12 +88,6 @@ enum {
 				   ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO),
 	MV_6XXX_FLAGS		= MV_FLAG_IRQ_COALESCE,
 
-	chip_504x		= 0,
-	chip_508x		= 1,
-	chip_5080		= 2,
-	chip_604x		= 3,
-	chip_608x		= 4,
-
 	CRQB_FLAG_READ		= (1 << 0),
 	CRQB_TAG_SHIFT		= 1,
 	CRQB_CMD_ADDR_SHIFT	= 8,
@@ -112,8 +107,19 @@ enum {
 	PCI_MASTER_EMPTY	= (1 << 3),
 	GLOB_SFT_RST		= (1 << 4),
 
-	PCI_IRQ_CAUSE_OFS	= 0x1d58,
-	PCI_IRQ_MASK_OFS	= 0x1d5c,
+	MV_PCI_MODE		= 0xd00,
+	MV_PCI_EXP_ROM_BAR_CTL	= 0xd2c,
+	MV_PCI_DISC_TIMER	= 0xd04,
+	MV_PCI_MSI_TRIGGER	= 0xc38,
+	MV_PCI_SERR_MASK	= 0xc28,
+	MV_PCI_XBAR_TMOUT	= 0x1d04,
+	MV_PCI_ERR_LOW_ADDRESS	= 0x1d40,
+	MV_PCI_ERR_HIGH_ADDRESS	= 0x1d44,
+	MV_PCI_ERR_ATTRIBUTE	= 0x1d48,
+	MV_PCI_ERR_COMMAND	= 0x1d50,
+
+	PCI_IRQ_CAUSE_OFS		= 0x1d58,
+	PCI_IRQ_MASK_OFS		= 0x1d5c,
 	PCI_UNMASK_ALL_IRQS	= 0x7fffff,	/* bits 22-0 */
 
 	HC_MAIN_IRQ_CAUSE_OFS	= 0x1d60,
@@ -236,6 +242,14 @@ enum {
 	EDMA_RSP_Q_BASE_LO_MASK	= 0xffffff00U,
 };
 
+enum chip_type {
+	chip_504x,
+	chip_508x,
+	chip_5080,
+	chip_604x,
+	chip_608x,
+};
+
 /* Command ReQuest Block: 32B */
 struct mv_crqb {
 	u32			sg_addr;
@@ -284,6 +298,8 @@ struct mv_hw_ops {
 	void (*read_preamp)(struct mv_host_priv *hpriv, int idx,
 			   void __iomem *mmio);
 	int (*reset_hc)(struct mv_host_priv *hpriv, void __iomem *mmio);
+	void (*reset_flash)(struct mv_host_priv *hpriv, void __iomem *mmio);
+	void (*reset_bus)(struct pci_dev *pdev, void __iomem *mmio);
 };
 
 struct mv_host_priv {
@@ -311,12 +327,16 @@ static void mv5_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio);
 static void mv5_read_preamp(struct mv_host_priv *hpriv, int idx,
 			   void __iomem *mmio);
 static int mv5_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio);
+static void mv5_reset_flash(struct mv_host_priv *hpriv, void __iomem *mmio);
+static void mv5_reset_bus(struct pci_dev *pdev, void __iomem *mmio);
 
 static void mv6_phy_errata(struct ata_port *ap);
 static void mv6_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio);
 static void mv6_read_preamp(struct mv_host_priv *hpriv, int idx,
 			   void __iomem *mmio);
 static int mv6_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio);
+static void mv6_reset_flash(struct mv_host_priv *hpriv, void __iomem *mmio);
+static void mv_reset_pci_bus(struct pci_dev *pdev, void __iomem *mmio);
 
 static struct scsi_host_template mv_sht = {
 	.module			= THIS_MODULE,
@@ -433,6 +453,8 @@ static const struct mv_hw_ops mv5xxx_ops = {
 	.enable_leds		= mv5_enable_leds,
 	.read_preamp		= mv5_read_preamp,
 	.reset_hc		= mv5_reset_hc,
+	.reset_flash		= mv5_reset_flash,
+	.reset_bus		= mv5_reset_bus,
 };
 
 static const struct mv_hw_ops mv6xxx_ops = {
@@ -440,6 +462,8 @@ static const struct mv_hw_ops mv6xxx_ops = {
 	.enable_leds		= mv6_enable_leds,
 	.read_preamp		= mv6_read_preamp,
 	.reset_hc		= mv6_reset_hc,
+	.reset_flash		= mv6_reset_flash,
+	.reset_bus		= mv_reset_pci_bus,
 };
 
 /*
@@ -655,9 +679,45 @@ static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
 	}
 }
 
+#undef ZERO
+#define ZERO(reg) writel(0, mmio + (reg))
+static void mv_reset_pci_bus(struct pci_dev *pdev, void __iomem *mmio)
+{
+	u32 tmp;
+
+	tmp = readl(mmio + MV_PCI_MODE);
+	tmp &= 0xff00ffff;
+	writel(tmp, mmio + MV_PCI_MODE);
+
+	ZERO(MV_PCI_DISC_TIMER);
+	ZERO(MV_PCI_MSI_TRIGGER);
+	writel(0x000100ff, mmio + MV_PCI_XBAR_TMOUT);
+	ZERO(HC_MAIN_IRQ_MASK_OFS);
+	ZERO(MV_PCI_SERR_MASK);
+	ZERO(PCI_IRQ_CAUSE_OFS);
+	ZERO(PCI_IRQ_MASK_OFS);
+	ZERO(MV_PCI_ERR_LOW_ADDRESS);
+	ZERO(MV_PCI_ERR_HIGH_ADDRESS);
+	ZERO(MV_PCI_ERR_ATTRIBUTE);
+	ZERO(MV_PCI_ERR_COMMAND);
+}
+#undef ZERO
+
+static void mv6_reset_flash(struct mv_host_priv *hpriv, void __iomem *mmio)
+{
+	u32 tmp;
+
+	mv5_reset_flash(hpriv, mmio);
+
+	tmp = readl(mmio + MV_GPIO_PORT_CTL);
+	tmp &= 0x3;
+	tmp |= (1 << 5) | (1 << 6);
+	writel(tmp, mmio + MV_GPIO_PORT_CTL);
+}
+
 /**
- *      mv_global_soft_reset - Perform the 6xxx global soft reset
- *      @mmio_base: base address of the HBA
+ *      mv6_reset_hc - Perform the 6xxx global soft reset
+ *      @mmio: base address of the HBA
  *
  *      This routine only applies to 6xxx parts.
  *
@@ -1273,6 +1333,29 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 	return IRQ_RETVAL(handled);
 }
 
+static void mv5_reset_bus(struct pci_dev *pdev, void __iomem *mmio)
+{
+	u8 rev_id;
+	int early_5080;
+
+	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
+
+	early_5080 = (pdev->device == 0x5080) && (rev_id == 0);
+
+	if (!early_5080) {
+		u32 tmp = readl(mmio + MV_PCI_EXP_ROM_BAR_CTL);
+		tmp |= (1 << 0);
+		writel(tmp, mmio + MV_PCI_EXP_ROM_BAR_CTL);
+	}
+
+	mv_reset_pci_bus(pdev, mmio);
+}
+
+static void mv5_reset_flash(struct mv_host_priv *hpriv, void __iomem *mmio)
+{
+	writel(0x0fcfffff, mmio + MV_FLASH_CTL);
+}
+
 static void mv5_read_preamp(struct mv_host_priv *hpriv, int idx,
 			   void __iomem *mmio)
 {
@@ -1281,7 +1364,15 @@ static void mv5_read_preamp(struct mv_host_priv *hpriv, int idx,
 
 static void mv5_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio)
 {
-	/* FIXME */
+	u32 tmp;
+
+	writel(0, mmio + MV_GPIO_PORT_CTL);
+
+	/* FIXME: handle MV_HP_ERRATA_50XXB2 errata */
+
+	tmp = readl(mmio + MV_PCI_EXP_ROM_BAR_CTL);
+	tmp |= ~(1 << 0);
+	writel(tmp, mmio + MV_PCI_EXP_ROM_BAR_CTL);
 }
 
 static void mv5_phy_errata(struct ata_port *ap)
@@ -1564,7 +1655,7 @@ static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
 }
 
 static int mv_chip_id(struct pci_dev *pdev, struct mv_host_priv *hpriv,
-			 unsigned int board_idx)
+		      unsigned int board_idx)
 {
 	u8 rev_id;
 	u32 hp_flags = hpriv->hp_flags;
@@ -1676,6 +1767,8 @@ static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 	if (rc)
 		goto done;
 
+	hpriv->ops->reset_flash(hpriv, mmio);
+	hpriv->ops->reset_bus(pdev, mmio);
 	hpriv->ops->enable_leds(hpriv, mmio);
 
 	for (port = 0; port < probe_ent->n_ports; port++) {
