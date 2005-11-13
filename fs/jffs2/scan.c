@@ -284,9 +284,6 @@ int jffs2_fill_scan_buf (struct jffs2_sb_info *c, void *buf,
 		D1(printk(KERN_WARNING "Read at 0x%x gave only 0x%zx bytes\n", ofs, retlen));
 		return -EIO;
 	}
-	D2(printk(KERN_DEBUG "Read 0x%x bytes from 0x%08x into buf\n", len, ofs));
-	D2(printk(KERN_DEBUG "000: %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x\n",
-		  buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7], buf[8], buf[9], buf[10], buf[11], buf[12], buf[13], buf[14], buf[15]));
 	return 0;
 }
 
