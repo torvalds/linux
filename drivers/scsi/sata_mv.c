@@ -158,6 +158,9 @@ enum {
 	PHY_MODE3		= 0x310,
 	PHY_MODE4		= 0x314,
 	PHY_MODE2		= 0x330,
+	MV5_PHY_MODE		= 0x74,
+	MV5_LT_MODE		= 0x30,
+	MV5_PHY_CTL		= 0x0C,
 	SATA_INTERFACE_CTL	= 0x050,
 
 	MV_M2_PREAMP_MASK	= 0x7e0,
@@ -214,6 +217,7 @@ enum {
 	EDMA_DS			= (1 << 1),
 	ATA_RST			= (1 << 2),
 
+	EDMA_IORDY_TMOUT	= 0x34,
 	EDMA_ARB_CFG		= 0x38,
 
 	/* Host private flags (hp_flags) */
@@ -229,6 +233,7 @@ enum {
 	MV_PP_FLAG_EDMA_DS_ACT	= (1 << 1),
 };
 
+#define IS_50XX(hpriv) ((hpriv)->hp_flags & MV_HP_50XX)
 #define IS_60XX(hpriv) (((hpriv)->hp_flags & MV_HP_50XX) == 0)
 
 enum {
@@ -298,7 +303,8 @@ struct mv_hw_ops {
 	void (*enable_leds)(struct mv_host_priv *hpriv, void __iomem *mmio);
 	void (*read_preamp)(struct mv_host_priv *hpriv, int idx,
 			   void __iomem *mmio);
-	int (*reset_hc)(struct mv_host_priv *hpriv, void __iomem *mmio);
+	int (*reset_hc)(struct mv_host_priv *hpriv, void __iomem *mmio,
+			unsigned int n_hc);
 	void (*reset_flash)(struct mv_host_priv *hpriv, void __iomem *mmio);
 	void (*reset_bus)(struct pci_dev *pdev, void __iomem *mmio);
 };
@@ -312,6 +318,8 @@ struct mv_host_priv {
 static void mv_irq_clear(struct ata_port *ap);
 static u32 mv_scr_read(struct ata_port *ap, unsigned int sc_reg_in);
 static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
+static u32 mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in);
+static void mv5_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val);
 static void mv_phy_reset(struct ata_port *ap);
 static void mv_host_stop(struct ata_host_set *host_set);
 static int mv_port_start(struct ata_port *ap);
@@ -328,7 +336,8 @@ static void mv5_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 static void mv5_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio);
 static void mv5_read_preamp(struct mv_host_priv *hpriv, int idx,
 			   void __iomem *mmio);
-static int mv5_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio);
+static int mv5_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio,
+			unsigned int n_hc);
 static void mv5_reset_flash(struct mv_host_priv *hpriv, void __iomem *mmio);
 static void mv5_reset_bus(struct pci_dev *pdev, void __iomem *mmio);
 
@@ -337,9 +346,13 @@ static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 static void mv6_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio);
 static void mv6_read_preamp(struct mv_host_priv *hpriv, int idx,
 			   void __iomem *mmio);
-static int mv6_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio);
+static int mv6_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio,
+			unsigned int n_hc);
 static void mv6_reset_flash(struct mv_host_priv *hpriv, void __iomem *mmio);
 static void mv_reset_pci_bus(struct pci_dev *pdev, void __iomem *mmio);
+static void mv_channel_reset(struct mv_host_priv *hpriv, void __iomem *mmio,
+			     unsigned int port_no);
+static void mv_stop_and_reset(struct ata_port *ap);
 
 static struct scsi_host_template mv_sht = {
 	.module			= THIS_MODULE,
@@ -361,7 +374,34 @@ static struct scsi_host_template mv_sht = {
 	.ordered_flush		= 1,
 };
 
-static const struct ata_port_operations mv_ops = {
+static const struct ata_port_operations mv5_ops = {
+	.port_disable		= ata_port_disable,
+
+	.tf_load		= ata_tf_load,
+	.tf_read		= ata_tf_read,
+	.check_status		= ata_check_status,
+	.exec_command		= ata_exec_command,
+	.dev_select		= ata_std_dev_select,
+
+	.phy_reset		= mv_phy_reset,
+
+	.qc_prep		= mv_qc_prep,
+	.qc_issue		= mv_qc_issue,
+
+	.eng_timeout		= mv_eng_timeout,
+
+	.irq_handler		= mv_interrupt,
+	.irq_clear		= mv_irq_clear,
+
+	.scr_read		= mv5_scr_read,
+	.scr_write		= mv5_scr_write,
+
+	.port_start		= mv_port_start,
+	.port_stop		= mv_port_stop,
+	.host_stop		= mv_host_stop,
+};
+
+static const struct ata_port_operations mv6_ops = {
 	.port_disable		= ata_port_disable,
 
 	.tf_load		= ata_tf_load,
@@ -393,29 +433,29 @@ static struct ata_port_info mv_port_info[] = {
 		.sht		= &mv_sht,
 		.host_flags	= MV_COMMON_FLAGS,
 		.pio_mask	= 0x1f,	/* pio0-4 */
-		.udma_mask	= 0,	/* 0x7f (udma0-6 disabled for now) */
-		.port_ops	= &mv_ops,
+		.udma_mask	= 0x7f,	/* udma0-6 */
+		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_508x */
 		.sht		= &mv_sht,
 		.host_flags	= (MV_COMMON_FLAGS | MV_FLAG_DUAL_HC),
 		.pio_mask	= 0x1f,	/* pio0-4 */
-		.udma_mask	= 0,	/* 0x7f (udma0-6 disabled for now) */
-		.port_ops	= &mv_ops,
+		.udma_mask	= 0x7f,	/* udma0-6 */
+		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_5080 */
 		.sht		= &mv_sht,
 		.host_flags	= (MV_COMMON_FLAGS | MV_FLAG_DUAL_HC),
 		.pio_mask	= 0x1f,	/* pio0-4 */
-		.udma_mask	= 0,	/* 0x7f (udma0-6 disabled for now) */
-		.port_ops	= &mv_ops,
+		.udma_mask	= 0x7f,	/* udma0-6 */
+		.port_ops	= &mv5_ops,
 	},
 	{  /* chip_604x */
 		.sht		= &mv_sht,
 		.host_flags	= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
-		.port_ops	= &mv_ops,
+		.port_ops	= &mv6_ops,
 	},
 	{  /* chip_608x */
 		.sht		= &mv_sht,
@@ -423,17 +463,15 @@ static struct ata_port_info mv_port_info[] = {
 				   MV_FLAG_DUAL_HC),
 		.pio_mask	= 0x1f,	/* pio0-4 */
 		.udma_mask	= 0x7f,	/* udma0-6 */
-		.port_ops	= &mv_ops,
+		.port_ops	= &mv6_ops,
 	},
 };
 
 static const struct pci_device_id mv_pci_tbl[] = {
-#if 0 /* unusably broken right now */
 	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x5040), 0, 0, chip_504x},
 	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x5041), 0, 0, chip_504x},
 	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x5080), 0, 0, chip_5080},
 	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x5081), 0, 0, chip_508x},
-#endif
 
 	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x6040), 0, 0, chip_604x},
 	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x6041), 0, 0, chip_604x},
@@ -484,11 +522,27 @@ static inline void __iomem *mv_hc_base(void __iomem *base, unsigned int hc)
 	return (base + MV_SATAHC0_REG_BASE + (hc * MV_SATAHC_REG_SZ));
 }
 
+static inline unsigned int mv_hc_from_port(unsigned int port)
+{
+	return port >> MV_PORT_HC_SHIFT;
+}
+
+static inline unsigned int mv_hardport_from_port(unsigned int port)
+{
+	return port & MV_PORT_MASK;
+}
+
+static inline void __iomem *mv_hc_base_from_port(void __iomem *base,
+						 unsigned int port)
+{
+	return mv_hc_base(base, mv_hc_from_port(port));
+}
+
 static inline void __iomem *mv_port_base(void __iomem *base, unsigned int port)
 {
-	return (mv_hc_base(base, port >> MV_PORT_HC_SHIFT) +
+	return  mv_hc_base_from_port(base, port) +
 		MV_SATAHC_ARBTR_REG_SZ +
-		((port & MV_PORT_MASK) * MV_PORT_REG_SZ));
+		(mv_hardport_from_port(port) * MV_PORT_REG_SZ);
 }
 
 static inline void __iomem *mv_ap_base(struct ata_port *ap)
@@ -1089,7 +1143,7 @@ static void mv_err_intr(struct ata_port *ap)
 
 	/* check for fatal here and recover if needed */
 	if (EDMA_ERR_FATAL & edma_err_cause) {
-		mv_phy_reset(ap);
+		mv_stop_and_reset(ap);
 	}
 }
 
@@ -1236,6 +1290,51 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 	return IRQ_RETVAL(handled);
 }
 
+static void __iomem *mv5_phy_base(void __iomem *mmio, unsigned int port)
+{
+	void __iomem *hc_mmio = mv_hc_base_from_port(mmio, port);
+	unsigned long ofs = (mv_hardport_from_port(port) + 1) * 0x100UL;
+
+	return hc_mmio + ofs;
+}
+
+static unsigned int mv5_scr_offset(unsigned int sc_reg_in)
+{
+	unsigned int ofs;
+
+	switch (sc_reg_in) {
+	case SCR_STATUS:
+	case SCR_ERROR:
+	case SCR_CONTROL:
+		ofs = sc_reg_in * sizeof(u32);
+		break;
+	default:
+		ofs = 0xffffffffU;
+		break;
+	}
+	return ofs;
+}
+
+static u32 mv5_scr_read(struct ata_port *ap, unsigned int sc_reg_in)
+{
+	void __iomem *mmio = mv5_phy_base(ap->host_set->mmio_base, ap->port_no);
+	unsigned int ofs = mv5_scr_offset(sc_reg_in);
+
+	if (ofs != 0xffffffffU)
+		return readl(mmio + ofs);
+	else
+		return (u32) ofs;
+}
+
+static void mv5_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
+{
+	void __iomem *mmio = mv5_phy_base(ap->host_set->mmio_base, ap->port_no);
+	unsigned int ofs = mv5_scr_offset(sc_reg_in);
+
+	if (ofs != 0xffffffffU)
+		writelfl(val, mmio + ofs);
+}
+
 static void mv5_reset_bus(struct pci_dev *pdev, void __iomem *mmio)
 {
 	u8 rev_id;
@@ -1262,7 +1361,13 @@ static void mv5_reset_flash(struct mv_host_priv *hpriv, void __iomem *mmio)
 static void mv5_read_preamp(struct mv_host_priv *hpriv, int idx,
 			   void __iomem *mmio)
 {
-	/* FIXME */
+	void __iomem *phy_mmio = mv5_phy_base(mmio, idx);
+	u32 tmp;
+
+	tmp = readl(phy_mmio + MV5_PHY_MODE);
+
+	hpriv->signal[idx].pre = tmp & 0x1800;	/* bits 12:11 */
+	hpriv->signal[idx].amps = tmp & 0xe0;	/* bits 7:5 */
 }
 
 static void mv5_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio)
@@ -1281,13 +1386,90 @@ static void mv5_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio)
 static void mv5_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 			   unsigned int port)
 {
-	/* FIXME */
+	void __iomem *phy_mmio = mv5_phy_base(mmio, port);
+	const u32 mask = (1<<12) | (1<<11) | (1<<7) | (1<<6) | (1<<5);
+	u32 tmp;
+	int fix_apm_sq = (hpriv->hp_flags & MV_HP_ERRATA_50XXB0);
+
+	if (fix_apm_sq) {
+		tmp = readl(phy_mmio + MV5_LT_MODE);
+		tmp |= (1 << 19);
+		writel(tmp, phy_mmio + MV5_LT_MODE);
+
+		tmp = readl(phy_mmio + MV5_PHY_CTL);
+		tmp &= ~0x3;
+		tmp |= 0x1;
+		writel(tmp, phy_mmio + MV5_PHY_CTL);
+	}
+
+	tmp = readl(phy_mmio + MV5_PHY_MODE);
+	tmp &= ~mask;
+	tmp |= hpriv->signal[port].pre;
+	tmp |= hpriv->signal[port].amps;
+	writel(tmp, phy_mmio + MV5_PHY_MODE);
 }
 
-static int mv5_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio)
+
+#undef ZERO
+#define ZERO(reg) writel(0, port_mmio + (reg))
+static void mv5_reset_hc_port(struct mv_host_priv *hpriv, void __iomem *mmio,
+			     unsigned int port)
 {
-	/* FIXME */
-	return 1;
+	void __iomem *port_mmio = mv_port_base(mmio, port);
+
+	writelfl(EDMA_DS, port_mmio + EDMA_CMD_OFS);
+
+	mv_channel_reset(hpriv, mmio, port);
+
+	ZERO(0x028);	/* command */
+	writel(0x11f, port_mmio + EDMA_CFG_OFS);
+	ZERO(0x004);	/* timer */
+	ZERO(0x008);	/* irq err cause */
+	ZERO(0x00c);	/* irq err mask */
+	ZERO(0x010);	/* rq bah */
+	ZERO(0x014);	/* rq inp */
+	ZERO(0x018);	/* rq outp */
+	ZERO(0x01c);	/* respq bah */
+	ZERO(0x024);	/* respq outp */
+	ZERO(0x020);	/* respq inp */
+	ZERO(0x02c);	/* test control */
+	writel(0xbc, port_mmio + EDMA_IORDY_TMOUT);
+}
+#undef ZERO
+
+#define ZERO(reg) writel(0, hc_mmio + (reg))
+static void mv5_reset_one_hc(struct mv_host_priv *hpriv, void __iomem *mmio,
+			unsigned int hc)
+{
+	void __iomem *hc_mmio = mv_hc_base(mmio, hc);
+	u32 tmp;
+
+	ZERO(0x00c);
+	ZERO(0x010);
+	ZERO(0x014);
+	ZERO(0x018);
+
+	tmp = readl(hc_mmio + 0x20);
+	tmp &= 0x1c1c1c1c;
+	tmp |= 0x03030303;
+	writel(tmp, hc_mmio + 0x20);
+}
+#undef ZERO
+
+static int mv5_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio,
+			unsigned int n_hc)
+{
+	unsigned int hc, port;
+
+	for (hc = 0; hc < n_hc; hc++) {
+		for (port = 0; port < MV_PORTS_PER_HC; port++)
+			mv5_reset_hc_port(hpriv, mmio,
+					  (hc * MV_PORTS_PER_HC) + port);
+
+		mv5_reset_one_hc(hpriv, mmio, hc);
+	}
+
+	return 0;
 }
 
 #undef ZERO
@@ -1335,7 +1517,8 @@ static void mv6_reset_flash(struct mv_host_priv *hpriv, void __iomem *mmio)
  *      LOCKING:
  *      Inherited from caller.
  */
-static int mv6_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio)
+static int mv6_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio,
+			unsigned int n_hc)
 {
 	void __iomem *reg = mmio + PCI_MAIN_CMD_STS_OFS;
 	int i, rc = 0;
@@ -1415,9 +1598,11 @@ static void mv6_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio)
 	writel(0x00000060, mmio + MV_GPIO_PORT_CTL);
 }
 
-static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *port_mmio,
+static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
 			   unsigned int port)
 {
+	void __iomem *port_mmio = mv_port_base(mmio, port);
+
 	u32 hp_flags = hpriv->hp_flags;
 	int fix_phy_mode2 =
 		hp_flags & (MV_HP_ERRATA_60X1B2 | MV_HP_ERRATA_60X1C0);
@@ -1473,29 +1658,10 @@ static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *port_mmio,
 	writel(m2, port_mmio + PHY_MODE2);
 }
 
-/**
- *      mv_phy_reset - Perform eDMA reset followed by COMRESET
- *      @ap: ATA channel to manipulate
- *
- *      Part of this is taken from __sata_phy_reset and modified to
- *      not sleep since this routine gets called from interrupt level.
- *
- *      LOCKING:
- *      Inherited from caller.  This is coded to safe to call at
- *      interrupt level, i.e. it does not sleep.
- */
-static void mv_phy_reset(struct ata_port *ap)
+static void mv_channel_reset(struct mv_host_priv *hpriv, void __iomem *mmio,
+			     unsigned int port_no)
 {
-	struct mv_port_priv *pp	= ap->private_data;
-	struct mv_host_priv *hpriv = ap->host_set->private_data;
-	void __iomem *port_mmio = mv_ap_base(ap);
-	struct ata_taskfile tf;
-	struct ata_device *dev = &ap->device[0];
-	unsigned long timeout;
-
-	VPRINTK("ENTER, port %u, mmio 0x%p\n", ap->port_no, port_mmio);
-
-	mv_stop_dma(ap);
+	void __iomem *port_mmio = mv_port_base(mmio, port_no);
 
 	writelfl(ATA_RST, port_mmio + EDMA_CMD_OFS);
 
@@ -1512,7 +1678,44 @@ static void mv_phy_reset(struct ata_port *ap)
 	 */
 	writelfl(0, port_mmio + EDMA_CMD_OFS);
 
-	hpriv->ops->phy_errata(hpriv, port_mmio, ap->port_no);
+	hpriv->ops->phy_errata(hpriv, mmio, port_no);
+
+	if (IS_50XX(hpriv))
+		mdelay(1);
+}
+
+static void mv_stop_and_reset(struct ata_port *ap)
+{
+	struct mv_host_priv *hpriv = ap->host_set->private_data;
+	void __iomem *mmio = ap->host_set->mmio_base;
+
+	mv_stop_dma(ap);
+
+	mv_channel_reset(hpriv, mmio, ap->port_no);
+
+	mv_phy_reset(ap);
+}
+
+/**
+ *      mv_phy_reset - Perform eDMA reset followed by COMRESET
+ *      @ap: ATA channel to manipulate
+ *
+ *      Part of this is taken from __sata_phy_reset and modified to
+ *      not sleep since this routine gets called from interrupt level.
+ *
+ *      LOCKING:
+ *      Inherited from caller.  This is coded to safe to call at
+ *      interrupt level, i.e. it does not sleep.
+ */
+static void mv_phy_reset(struct ata_port *ap)
+{
+	struct mv_port_priv *pp	= ap->private_data;
+	void __iomem *port_mmio = mv_ap_base(ap);
+	struct ata_taskfile tf;
+	struct ata_device *dev = &ap->device[0];
+	unsigned long timeout;
+
+	VPRINTK("ENTER, port %u, mmio 0x%p\n", ap->port_no, port_mmio);
 
 	DPRINTK("S-regs after ATA_RST: SStat 0x%08x SErr 0x%08x "
 		"SCtrl 0x%08x\n", mv_scr_read(ap, SCR_STATUS),
@@ -1589,7 +1792,7 @@ static void mv_eng_timeout(struct ata_port *ap)
 	       &qc->scsicmd->cmnd);
 
 	mv_err_intr(ap);
-	mv_phy_reset(ap);
+	mv_stop_and_reset(ap);
 
 	if (!qc) {
 		printk(KERN_ERR "ata%u: BUG: timeout without command\n",
@@ -1765,7 +1968,7 @@ static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 	for (port = 0; port < probe_ent->n_ports; port++)
 		hpriv->ops->read_preamp(hpriv, port, mmio);
 
-	rc = hpriv->ops->reset_hc(hpriv, mmio);
+	rc = hpriv->ops->reset_hc(hpriv, mmio, n_hc);
 	if (rc)
 		goto done;
 
@@ -1774,15 +1977,15 @@ static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 	hpriv->ops->enable_leds(hpriv, mmio);
 
 	for (port = 0; port < probe_ent->n_ports; port++) {
-		void __iomem *port_mmio = mv_port_base(mmio, port);
-
 		if (IS_60XX(hpriv)) {
+			void __iomem *port_mmio = mv_port_base(mmio, port);
+
 			u32 ifctl = readl(port_mmio + SATA_INTERFACE_CTL);
 			ifctl |= (1 << 12);
 			writelfl(ifctl, port_mmio + SATA_INTERFACE_CTL);
 		}
 
-		hpriv->ops->phy_errata(hpriv, port_mmio, port);
+		hpriv->ops->phy_errata(hpriv, mmio, port);
 	}
 
 	for (port = 0; port < probe_ent->n_ports; port++) {
