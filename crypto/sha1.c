@@ -52,8 +52,8 @@ static void sha1_update(void *ctx, const u8 *data, unsigned int len)
 	unsigned int partial, done;
 	const u8 *src;
 
-	partial = (sctx->count >> 3) & 0x3f;
-	sctx->count += len << 3;
+	partial = sctx->count & 0x3f;
+	sctx->count += len;
 	done = 0;
 	src = data;
 
@@ -88,10 +88,10 @@ static void sha1_final(void* ctx, u8 *out)
 	__be64 bits;
 	static const u8 padding[64] = { 0x80, };
 
-	bits = cpu_to_be64(sctx->count);
+	bits = cpu_to_be64(sctx->count << 3);
 
 	/* Pad out to 56 mod 64 */
-	index = (sctx->count >> 3) & 0x3f;
+	index = sctx->count & 0x3f;
 	padlen = (index < 56) ? (56 - index) : ((64+56) - index);
 	sha1_update(sctx, padding, padlen);
 
