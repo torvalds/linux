@@ -679,106 +679,6 @@ static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
 	}
 }
 
-#undef ZERO
-#define ZERO(reg) writel(0, mmio + (reg))
-static void mv_reset_pci_bus(struct pci_dev *pdev, void __iomem *mmio)
-{
-	u32 tmp;
-
-	tmp = readl(mmio + MV_PCI_MODE);
-	tmp &= 0xff00ffff;
-	writel(tmp, mmio + MV_PCI_MODE);
-
-	ZERO(MV_PCI_DISC_TIMER);
-	ZERO(MV_PCI_MSI_TRIGGER);
-	writel(0x000100ff, mmio + MV_PCI_XBAR_TMOUT);
-	ZERO(HC_MAIN_IRQ_MASK_OFS);
-	ZERO(MV_PCI_SERR_MASK);
-	ZERO(PCI_IRQ_CAUSE_OFS);
-	ZERO(PCI_IRQ_MASK_OFS);
-	ZERO(MV_PCI_ERR_LOW_ADDRESS);
-	ZERO(MV_PCI_ERR_HIGH_ADDRESS);
-	ZERO(MV_PCI_ERR_ATTRIBUTE);
-	ZERO(MV_PCI_ERR_COMMAND);
-}
-#undef ZERO
-
-static void mv6_reset_flash(struct mv_host_priv *hpriv, void __iomem *mmio)
-{
-	u32 tmp;
-
-	mv5_reset_flash(hpriv, mmio);
-
-	tmp = readl(mmio + MV_GPIO_PORT_CTL);
-	tmp &= 0x3;
-	tmp |= (1 << 5) | (1 << 6);
-	writel(tmp, mmio + MV_GPIO_PORT_CTL);
-}
-
-/**
- *      mv6_reset_hc - Perform the 6xxx global soft reset
- *      @mmio: base address of the HBA
- *
- *      This routine only applies to 6xxx parts.
- *
- *      LOCKING:
- *      Inherited from caller.
- */
-static int mv6_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio)
-{
-	void __iomem *reg = mmio + PCI_MAIN_CMD_STS_OFS;
-	int i, rc = 0;
-	u32 t;
-
-	/* Following procedure defined in PCI "main command and status
-	 * register" table.
-	 */
-	t = readl(reg);
-	writel(t | STOP_PCI_MASTER, reg);
-
-	for (i = 0; i < 1000; i++) {
-		udelay(1);
-		t = readl(reg);
-		if (PCI_MASTER_EMPTY & t) {
-			break;
-		}
-	}
-	if (!(PCI_MASTER_EMPTY & t)) {
-		printk(KERN_ERR DRV_NAME ": PCI master won't flush\n");
-		rc = 1;
-		goto done;
-	}
-
-	/* set reset */
-	i = 5;
-	do {
-		writel(t | GLOB_SFT_RST, reg);
-		t = readl(reg);
-		udelay(1);
-	} while (!(GLOB_SFT_RST & t) && (i-- > 0));
-
-	if (!(GLOB_SFT_RST & t)) {
-		printk(KERN_ERR DRV_NAME ": can't set global reset\n");
-		rc = 1;
-		goto done;
-	}
-
-	/* clear reset and *reenable the PCI master* (not mentioned in spec) */
-	i = 5;
-	do {
-		writel(t & ~(GLOB_SFT_RST | STOP_PCI_MASTER), reg);
-		t = readl(reg);
-		udelay(1);
-	} while ((GLOB_SFT_RST & t) && (i-- > 0));
-
-	if (GLOB_SFT_RST & t) {
-		printk(KERN_ERR DRV_NAME ": can't clear global reset\n");
-		rc = 1;
-	}
-done:
-	return rc;
-}
-
 /**
  *      mv_host_stop - Host specific cleanup/stop routine.
  *      @host_set: host data structure
@@ -1384,6 +1284,106 @@ static int mv5_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio)
 {
 	/* FIXME */
 	return 1;
+}
+
+#undef ZERO
+#define ZERO(reg) writel(0, mmio + (reg))
+static void mv_reset_pci_bus(struct pci_dev *pdev, void __iomem *mmio)
+{
+	u32 tmp;
+
+	tmp = readl(mmio + MV_PCI_MODE);
+	tmp &= 0xff00ffff;
+	writel(tmp, mmio + MV_PCI_MODE);
+
+	ZERO(MV_PCI_DISC_TIMER);
+	ZERO(MV_PCI_MSI_TRIGGER);
+	writel(0x000100ff, mmio + MV_PCI_XBAR_TMOUT);
+	ZERO(HC_MAIN_IRQ_MASK_OFS);
+	ZERO(MV_PCI_SERR_MASK);
+	ZERO(PCI_IRQ_CAUSE_OFS);
+	ZERO(PCI_IRQ_MASK_OFS);
+	ZERO(MV_PCI_ERR_LOW_ADDRESS);
+	ZERO(MV_PCI_ERR_HIGH_ADDRESS);
+	ZERO(MV_PCI_ERR_ATTRIBUTE);
+	ZERO(MV_PCI_ERR_COMMAND);
+}
+#undef ZERO
+
+static void mv6_reset_flash(struct mv_host_priv *hpriv, void __iomem *mmio)
+{
+	u32 tmp;
+
+	mv5_reset_flash(hpriv, mmio);
+
+	tmp = readl(mmio + MV_GPIO_PORT_CTL);
+	tmp &= 0x3;
+	tmp |= (1 << 5) | (1 << 6);
+	writel(tmp, mmio + MV_GPIO_PORT_CTL);
+}
+
+/**
+ *      mv6_reset_hc - Perform the 6xxx global soft reset
+ *      @mmio: base address of the HBA
+ *
+ *      This routine only applies to 6xxx parts.
+ *
+ *      LOCKING:
+ *      Inherited from caller.
+ */
+static int mv6_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio)
+{
+	void __iomem *reg = mmio + PCI_MAIN_CMD_STS_OFS;
+	int i, rc = 0;
+	u32 t;
+
+	/* Following procedure defined in PCI "main command and status
+	 * register" table.
+	 */
+	t = readl(reg);
+	writel(t | STOP_PCI_MASTER, reg);
+
+	for (i = 0; i < 1000; i++) {
+		udelay(1);
+		t = readl(reg);
+		if (PCI_MASTER_EMPTY & t) {
+			break;
+		}
+	}
+	if (!(PCI_MASTER_EMPTY & t)) {
+		printk(KERN_ERR DRV_NAME ": PCI master won't flush\n");
+		rc = 1;
+		goto done;
+	}
+
+	/* set reset */
+	i = 5;
+	do {
+		writel(t | GLOB_SFT_RST, reg);
+		t = readl(reg);
+		udelay(1);
+	} while (!(GLOB_SFT_RST & t) && (i-- > 0));
+
+	if (!(GLOB_SFT_RST & t)) {
+		printk(KERN_ERR DRV_NAME ": can't set global reset\n");
+		rc = 1;
+		goto done;
+	}
+
+	/* clear reset and *reenable the PCI master* (not mentioned in spec) */
+	i = 5;
+	do {
+		writel(t & ~(GLOB_SFT_RST | STOP_PCI_MASTER), reg);
+		t = readl(reg);
+		udelay(1);
+	} while ((GLOB_SFT_RST & t) && (i-- > 0));
+
+	if (GLOB_SFT_RST & t) {
+		printk(KERN_ERR DRV_NAME ": can't clear global reset\n");
+		rc = 1;
+	}
+done:
+	return rc;
 }
 
 static void mv6_read_preamp(struct mv_host_priv *hpriv, int idx,
