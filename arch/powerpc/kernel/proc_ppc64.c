@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 
-#include <asm/systemcfg.h>
+#include <asm/vdso_datapage.h>
 #include <asm/rtas.h>
 #include <asm/uaccess.h>
 #include <asm/prom.h>
@@ -72,7 +72,7 @@ static int __init proc_ppc64_init(void)
 	if (!pde)
 		return 1;
 	pde->nlink = 1;
-	pde->data = _systemcfg;
+	pde->data = vdso_data;
 	pde->size = PAGE_SIZE;
 	pde->proc_fops = &page_map_fops;
 

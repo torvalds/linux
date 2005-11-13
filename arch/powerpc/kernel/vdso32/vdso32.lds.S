@@ -102,9 +102,12 @@ VERSION
 {
   VDSO_VERSION_STRING {
     global:
-	__kernel_datapage_offset; /* Has to be there for the kernel to find it */
+	__kernel_datapage_offset; /* Has to be there for the kernel to find */
 	__kernel_get_syscall_map;
 	__kernel_gettimeofday;
+	__kernel_clock_gettime;
+	__kernel_clock_getres;
+	__kernel_get_tbfreq;
 	__kernel_sync_dicache;
 	__kernel_sync_dicache_p5;
 	__kernel_sigtramp32;

@@ -288,11 +288,10 @@ static struct i2c_adapter mpc_ops = {
 	.retries = 1
 };
 
-static int fsl_i2c_probe(struct device *device)
+static int fsl_i2c_probe(struct platform_device *pdev)
 {
 	int result = 0;
 	struct mpc_i2c *i2c;
-	struct platform_device *pdev = to_platform_device(device);
 	struct fsl_i2c_platform_data *pdata;
 	struct resource *r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -323,7 +322,7 @@ static int fsl_i2c_probe(struct device *device)
 		}
 
 	mpc_i2c_setclock(i2c);
-	dev_set_drvdata(device, i2c);
+	platform_set_drvdata(pdev, i2c);
 
 	i2c->adap = mpc_ops;
 	i2c_set_adapdata(&i2c->adap, i2c);
@@ -345,12 +344,12 @@ static int fsl_i2c_probe(struct device *device)
 	return result;
 };
 
-static int fsl_i2c_remove(struct device *device)
+static int fsl_i2c_remove(struct platform_device *pdev)
 {
-	struct mpc_i2c *i2c = dev_get_drvdata(device);
+	struct mpc_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c->adap);
-	dev_set_drvdata(device, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	if (i2c->irq != 0)
 		free_irq(i2c->irq, i2c);
@@ -361,22 +360,23 @@ static int fsl_i2c_remove(struct device *device)
 };
 
 /* Structure for a device driver */
-static struct device_driver fsl_i2c_driver = {
-	.owner = THIS_MODULE,
-	.name = "fsl-i2c",
-	.bus = &platform_bus_type,
+static struct platform_driver fsl_i2c_driver = {
 	.probe = fsl_i2c_probe,
 	.remove = fsl_i2c_remove,
+	.driver	= {
+		.owner = THIS_MODULE,
+		.name = "fsl-i2c",
+	},
 };
 
 static int __init fsl_i2c_init(void)
 {
-	return driver_register(&fsl_i2c_driver);
+	return platform_driver_register(&fsl_i2c_driver);
 }
 
 static void __exit fsl_i2c_exit(void)
 {
-	driver_unregister(&fsl_i2c_driver);
+	platform_driver_unregister(&fsl_i2c_driver);
 }
 
 module_init(fsl_i2c_init);

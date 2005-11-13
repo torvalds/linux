@@ -633,7 +633,7 @@ static void sym53c416_probe(void)
 	}
 }
 
-int __init sym53c416_detect(Scsi_Host_Template *tpnt)
+int __init sym53c416_detect(struct scsi_host_template *tpnt)
 {
 	unsigned long flags;
 	struct Scsi_Host * shpnt = NULL;
@@ -849,7 +849,7 @@ module_param_array(sym53c416_3, uint, NULL, 0);
 
 #endif
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name =		"sym53c416",
 	.name =			"Symbios Logic 53c416",
 	.detect =		sym53c416_detect,

@@ -46,9 +46,7 @@
 #include <asm/prom.h>
 #include <asm/lmb.h>
 #include <asm/sections.h>
-#ifdef CONFIG_PPC64
 #include <asm/vdso.h>
-#endif
 
 #include "mmu_decl.h"
 
@@ -397,10 +395,8 @@ void __init mem_init(void)
 
 	mem_init_done = 1;
 
-#ifdef CONFIG_PPC64
 	/* Initialize the vDSO */
 	vdso_init();
-#endif
 }
 
 /*

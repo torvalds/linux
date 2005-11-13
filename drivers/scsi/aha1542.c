@@ -1021,7 +1021,7 @@ __setup("aha1542=",do_setup);
 #endif
 
 /* return non-zero on detection */
-static int __init aha1542_detect(Scsi_Host_Template * tpnt)
+static int __init aha1542_detect(struct scsi_host_template * tpnt)
 {
 	unsigned char dma_chan;
 	unsigned char irq_level;
@@ -1789,7 +1789,7 @@ static int aha1542_biosparam(struct scsi_device *sdev,
 MODULE_LICENSE("GPL");
 
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "aha1542",
 	.name			= "Adaptec 1542",
 	.detect			= aha1542_detect,

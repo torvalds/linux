@@ -49,7 +49,6 @@
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
 #include <asm/processor.h>
-#include <asm/systemcfg.h>
 #endif
 
 #ifdef CONFIG_PPC64	/* XXX */

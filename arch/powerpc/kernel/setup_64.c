@@ -57,7 +57,6 @@
 #include <asm/lmb.h>
 #include <asm/iseries/it_lp_naca.h>
 #include <asm/firmware.h>
-#include <asm/systemcfg.h>
 #include <asm/xmon.h>
 #include <asm/udbg.h>
 
@@ -375,9 +374,8 @@ static void __init initialize_cache_info(void)
 				DBG("Argh, can't find dcache properties ! "
 				    "sizep: %p, lsizep: %p\n", sizep, lsizep);
 
-			_systemcfg->dcache_size = ppc64_caches.dsize = size;
-			_systemcfg->dcache_line_size =
-				ppc64_caches.dline_size = lsize;
+			ppc64_caches.dsize = size;
+			ppc64_caches.dline_size = lsize;
 			ppc64_caches.log_dline_size = __ilog2(lsize);
 			ppc64_caches.dlines_per_page = PAGE_SIZE / lsize;
 
@@ -393,21 +391,12 @@ static void __init initialize_cache_info(void)
 				DBG("Argh, can't find icache properties ! "
 				    "sizep: %p, lsizep: %p\n", sizep, lsizep);
 
-			_systemcfg->icache_size = ppc64_caches.isize = size;
-			_systemcfg->icache_line_size =
-				ppc64_caches.iline_size = lsize;
+			ppc64_caches.isize = size;
+			ppc64_caches.iline_size = lsize;
 			ppc64_caches.log_iline_size = __ilog2(lsize);
 			ppc64_caches.ilines_per_page = PAGE_SIZE / lsize;
 		}
 	}
-
-	/* Add an eye catcher and the systemcfg layout version number */
-	strcpy(_systemcfg->eye_catcher, "SYSTEMCFG:PPC64");
-	_systemcfg->version.major = SYSTEMCFG_MAJOR;
-	_systemcfg->version.minor = SYSTEMCFG_MINOR;
-	_systemcfg->processor = mfspr(SPRN_PVR);
-	_systemcfg->platform = _machine;
-	_systemcfg->physicalMemorySize = lmb_phys_mem_size();
 
 	DBG(" <- initialize_cache_info()\n");
 }
@@ -495,15 +484,14 @@ void __init setup_system(void)
 
 	printk("-----------------------------------------------------\n");
 	printk("ppc64_pft_size                = 0x%lx\n", ppc64_pft_size);
-	printk("ppc64_interrupt_controller    = 0x%ld\n", ppc64_interrupt_controller);
-	printk("systemcfg                     = 0x%p\n", _systemcfg);
-	printk("systemcfg->platform           = 0x%x\n", _systemcfg->platform);
-	printk("systemcfg->processorCount     = 0x%lx\n", _systemcfg->processorCount);
-	printk("systemcfg->physicalMemorySize = 0x%lx\n", _systemcfg->physicalMemorySize);
+	printk("ppc64_interrupt_controller    = 0x%ld\n",
+	       ppc64_interrupt_controller);
+	printk("platform                      = 0x%x\n", _machine);
+	printk("physicalMemorySize            = 0x%lx\n", lmb_phys_mem_size());
 	printk("ppc64_caches.dcache_line_size = 0x%x\n",
-			ppc64_caches.dline_size);
+	       ppc64_caches.dline_size);
 	printk("ppc64_caches.icache_line_size = 0x%x\n",
-			ppc64_caches.iline_size);
+	       ppc64_caches.iline_size);
 	printk("htab_address                  = 0x%p\n", htab_address);
 	printk("htab_hash_mask                = 0x%lx\n", htab_hash_mask);
 	printk("-----------------------------------------------------\n");
@@ -568,33 +556,6 @@ static void __init emergency_stack_init(void)
 }
 
 /*
- * Called from setup_arch to initialize the bitmap of available
- * syscalls in the systemcfg page
- */
-void __init setup_syscall_map(void)
-{
-	unsigned int i, count64 = 0, count32 = 0;
-	extern unsigned long *sys_call_table;
-	extern unsigned long sys_ni_syscall;
-
-
-	for (i = 0; i < __NR_syscalls; i++) {
-		if (sys_call_table[i*2] != sys_ni_syscall) {
-			count64++;
-			_systemcfg->syscall_map_64[i >> 5] |=
-				0x80000000UL >> (i & 0x1f);
-		}
-		if (sys_call_table[i*2+1] != sys_ni_syscall) {
-			count32++;
-			_systemcfg->syscall_map_32[i >> 5] |=
-				0x80000000UL >> (i & 0x1f);
-		}
-	}
-	printk(KERN_INFO "Syscall map setup, %d 32-bit and %d 64-bit syscalls\n",
-	       count32, count64);
-}
-
-/*
  * Called into from start_kernel, after lock_kernel has been called.
  * Initializes bootmem, which is unsed to manage page allocation until
  * mem_init is called.
@@ -634,9 +595,6 @@ void __init setup_arch(char **cmdline_p)
 	/* set up the bootmem stuff with available memory */
 	do_init_bootmem();
 	sparse_init();
-
-	/* initialize the syscall map in systemcfg */
-	setup_syscall_map();
 
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;

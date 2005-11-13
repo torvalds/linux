@@ -33,7 +33,7 @@
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
-#include <asm/systemcfg.h>
+#include <asm/vdso_datapage.h>
 #include <asm/pgtable.h>
 #include <asm/smp.h>
 #include <asm/elf.h>
@@ -444,10 +444,8 @@ void __init check_for_initrd(void)
 	if (initrd_start >= KERNELBASE && initrd_end >= KERNELBASE &&
 	    initrd_end > initrd_start)
 		ROOT_DEV = Root_RAM0;
-	else {
-		printk("Bogus initrd %08lx %08lx\n", initrd_start, initrd_end);
+	else
 		initrd_start = initrd_end = 0;
-	}
 
 	if (initrd_start)
 		printk("Found initrd at 0x%lx:0x%lx\n", initrd_start, initrd_end);
@@ -566,7 +564,7 @@ void __init smp_setup_cpu_maps(void)
 			cpu_set(cpu ^ 0x1, cpu_sibling_map[cpu]);
 	}
 
-	_systemcfg->processorCount = num_present_cpus();
+	vdso_data->processorCount = num_present_cpus();
 #endif /* CONFIG_PPC64 */
 }
 #endif /* CONFIG_SMP */

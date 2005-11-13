@@ -525,7 +525,7 @@ int __init mac_nubus_sonic_probe(struct net_device* dev)
 	return macsonic_init(dev);
 }
 
-static int __init mac_sonic_probe(struct device *device)
+static int __init mac_sonic_probe(struct platform_device *device)
 {
 	struct net_device *dev;
 	struct sonic_local *lp;
@@ -537,8 +537,8 @@ static int __init mac_sonic_probe(struct device *device)
 		return -ENOMEM;
 
 	lp = netdev_priv(dev);
-	lp->device = device;
-	SET_NETDEV_DEV(dev, device);
+	lp->device = &device->dev;
+	SET_NETDEV_DEV(dev, &device->dev);
  	SET_MODULE_OWNER(dev);
 
 	/* This will catch fatal stuff like -ENOMEM as well as success */
@@ -579,9 +579,9 @@ MODULE_PARM_DESC(sonic_debug, "macsonic debug level (1-4)");
 
 #include "sonic.c"
 
-static int __devexit mac_sonic_device_remove (struct device *device)
+static int __devexit mac_sonic_device_remove (struct platform_device *device)
 {
-	struct net_device *dev = device->driver_data;
+	struct net_device *dev = platform_get_drvdata(device);
 	struct sonic_local* lp = netdev_priv(dev);
 
 	unregister_netdev (dev);
@@ -592,18 +592,19 @@ static int __devexit mac_sonic_device_remove (struct device *device)
 	return 0;
 }
 
-static struct device_driver mac_sonic_driver = {
-	.name   = mac_sonic_string,
-	.bus    = &platform_bus_type,
+static struct platform_driver mac_sonic_driver = {
 	.probe  = mac_sonic_probe,
 	.remove = __devexit_p(mac_sonic_device_remove),
+	.driver	= {
+		.name = mac_sonic_string,
+	},
 };
 
 static int __init mac_sonic_init_module(void)
 {
 	int err;
 
-	if ((err = driver_register(&mac_sonic_driver))) {
+	if ((err = platform_driver_register(&mac_sonic_driver))) {
 		printk(KERN_ERR "Driver registration failed\n");
 		return err;
 	}
@@ -628,7 +629,7 @@ out_unregister:
 
 static void __exit mac_sonic_cleanup_module(void)
 {
-	driver_unregister(&mac_sonic_driver);
+	platform_driver_unregister(&mac_sonic_driver);
 
 	if (mac_sonic_device) {
 		platform_device_unregister(mac_sonic_device);

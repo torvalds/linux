@@ -23,7 +23,7 @@
 #include<linux/stat.h>
 
 
-int bvme6000_scsi_detect(Scsi_Host_Template *tpnt)
+int bvme6000_scsi_detect(struct scsi_host_template *tpnt)
 {
     static unsigned char called = 0;
     int clock;
@@ -59,7 +59,7 @@ static int bvme6000_scsi_release(struct Scsi_Host *shost)
 	return 0;
 }
 
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.name			= "BVME6000 NCR53c710 SCSI",
 	.detect			= bvme6000_scsi_detect,
 	.release		= bvme6000_scsi_release,

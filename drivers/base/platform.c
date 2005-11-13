@@ -20,6 +20,8 @@
 
 #include "base.h"
 
+#define to_platform_driver(drv)	(container_of((drv), struct platform_driver, driver))
+
 struct device platform_bus = {
 	.bus_id		= "platform",
 };
@@ -353,6 +355,77 @@ error:
 	platform_device_put(pdev);
 	return ERR_PTR(retval);
 }
+
+static int platform_drv_probe(struct device *_dev)
+{
+	struct platform_driver *drv = to_platform_driver(_dev->driver);
+	struct platform_device *dev = to_platform_device(_dev);
+
+	return drv->probe(dev);
+}
+
+static int platform_drv_remove(struct device *_dev)
+{
+	struct platform_driver *drv = to_platform_driver(_dev->driver);
+	struct platform_device *dev = to_platform_device(_dev);
+
+	return drv->remove(dev);
+}
+
+static void platform_drv_shutdown(struct device *_dev)
+{
+	struct platform_driver *drv = to_platform_driver(_dev->driver);
+	struct platform_device *dev = to_platform_device(_dev);
+
+	drv->shutdown(dev);
+}
+
+static int platform_drv_suspend(struct device *_dev, pm_message_t state)
+{
+	struct platform_driver *drv = to_platform_driver(_dev->driver);
+	struct platform_device *dev = to_platform_device(_dev);
+
+	return drv->suspend(dev, state);
+}
+
+static int platform_drv_resume(struct device *_dev)
+{
+	struct platform_driver *drv = to_platform_driver(_dev->driver);
+	struct platform_device *dev = to_platform_device(_dev);
+
+	return drv->resume(dev);
+}
+
+/**
+ *	platform_driver_register
+ *	@drv: platform driver structure
+ */
+int platform_driver_register(struct platform_driver *drv)
+{
+	drv->driver.bus = &platform_bus_type;
+	if (drv->probe)
+		drv->driver.probe = platform_drv_probe;
+	if (drv->remove)
+		drv->driver.remove = platform_drv_remove;
+	if (drv->shutdown)
+		drv->driver.shutdown = platform_drv_shutdown;
+	if (drv->suspend)
+		drv->driver.suspend = platform_drv_suspend;
+	if (drv->resume)
+		drv->driver.resume = platform_drv_resume;
+	return driver_register(&drv->driver);
+}
+EXPORT_SYMBOL_GPL(platform_driver_register);
+
+/**
+ *	platform_driver_unregister
+ *	@drv: platform driver structure
+ */
+void platform_driver_unregister(struct platform_driver *drv)
+{
+	driver_unregister(&drv->driver);
+}
+EXPORT_SYMBOL_GPL(platform_driver_unregister);
 
 
 /**

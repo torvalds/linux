@@ -17,9 +17,8 @@
 #include <linux/nodemask.h>
 #include <linux/cpu.h>
 #include <linux/notifier.h>
+#include <asm/sparsemem.h>
 #include <asm/lmb.h>
-#include <asm/machdep.h>
-#include <asm/abs_addr.h>
 #include <asm/system.h>
 #include <asm/smp.h>
 
@@ -28,45 +27,113 @@ static int numa_enabled = 1;
 static int numa_debug;
 #define dbg(args...) if (numa_debug) { printk(KERN_INFO args); }
 
-#ifdef DEBUG_NUMA
-#define ARRAY_INITIALISER -1
-#else
-#define ARRAY_INITIALISER 0
-#endif
-
-int numa_cpu_lookup_table[NR_CPUS] = { [ 0 ... (NR_CPUS - 1)] =
-	ARRAY_INITIALISER};
-char *numa_memory_lookup_table;
+int numa_cpu_lookup_table[NR_CPUS];
 cpumask_t numa_cpumask_lookup_table[MAX_NUMNODES];
-int nr_cpus_in_node[MAX_NUMNODES] = { [0 ... (MAX_NUMNODES -1)] = 0};
-
 struct pglist_data *node_data[MAX_NUMNODES];
-bootmem_data_t __initdata plat_node_bdata[MAX_NUMNODES];
+
+EXPORT_SYMBOL(numa_cpu_lookup_table);
+EXPORT_SYMBOL(numa_cpumask_lookup_table);
+EXPORT_SYMBOL(node_data);
+
+static bootmem_data_t __initdata plat_node_bdata[MAX_NUMNODES];
 static int min_common_depth;
 
 /*
- * We need somewhere to store start/span for each node until we have
+ * We need somewhere to store start/end/node for each region until we have
  * allocated the real node_data structures.
  */
+#define MAX_REGIONS	(MAX_LMB_REGIONS*2)
 static struct {
-	unsigned long node_start_pfn;
-	unsigned long node_end_pfn;
-	unsigned long node_present_pages;
-} init_node_data[MAX_NUMNODES] __initdata;
+	unsigned long start_pfn;
+	unsigned long end_pfn;
+	int nid;
+} init_node_data[MAX_REGIONS] __initdata;
 
-EXPORT_SYMBOL(node_data);
-EXPORT_SYMBOL(numa_cpu_lookup_table);
-EXPORT_SYMBOL(numa_memory_lookup_table);
-EXPORT_SYMBOL(numa_cpumask_lookup_table);
-EXPORT_SYMBOL(nr_cpus_in_node);
+int __init early_pfn_to_nid(unsigned long pfn)
+{
+	unsigned int i;
+
+	for (i = 0; init_node_data[i].end_pfn; i++) {
+		unsigned long start_pfn = init_node_data[i].start_pfn;
+		unsigned long end_pfn = init_node_data[i].end_pfn;
+
+		if ((start_pfn <= pfn) && (pfn < end_pfn))
+			return init_node_data[i].nid;
+	}
+
+	return -1;
+}
+
+void __init add_region(unsigned int nid, unsigned long start_pfn,
+		       unsigned long pages)
+{
+	unsigned int i;
+
+	dbg("add_region nid %d start_pfn 0x%lx pages 0x%lx\n",
+		nid, start_pfn, pages);
+
+	for (i = 0; init_node_data[i].end_pfn; i++) {
+		if (init_node_data[i].nid != nid)
+			continue;
+		if (init_node_data[i].end_pfn == start_pfn) {
+			init_node_data[i].end_pfn += pages;
+			return;
+		}
+		if (init_node_data[i].start_pfn == (start_pfn + pages)) {
+			init_node_data[i].start_pfn -= pages;
+			return;
+		}
+	}
+
+	/*
+	 * Leave last entry NULL so we dont iterate off the end (we use
+	 * entry.end_pfn to terminate the walk).
+	 */
+	if (i >= (MAX_REGIONS - 1)) {
+		printk(KERN_ERR "WARNING: too many memory regions in "
+				"numa code, truncating\n");
+		return;
+	}
+
+	init_node_data[i].start_pfn = start_pfn;
+	init_node_data[i].end_pfn = start_pfn + pages;
+	init_node_data[i].nid = nid;
+}
+
+/* We assume init_node_data has no overlapping regions */
+void __init get_region(unsigned int nid, unsigned long *start_pfn,
+		       unsigned long *end_pfn, unsigned long *pages_present)
+{
+	unsigned int i;
+
+	*start_pfn = -1UL;
+	*end_pfn = *pages_present = 0;
+
+	for (i = 0; init_node_data[i].end_pfn; i++) {
+		if (init_node_data[i].nid != nid)
+			continue;
+
+		*pages_present += init_node_data[i].end_pfn -
+			init_node_data[i].start_pfn;
+
+		if (init_node_data[i].start_pfn < *start_pfn)
+			*start_pfn = init_node_data[i].start_pfn;
+
+		if (init_node_data[i].end_pfn > *end_pfn)
+			*end_pfn = init_node_data[i].end_pfn;
+	}
+
+	/* We didnt find a matching region, return start/end as 0 */
+	if (*start_pfn == -1UL)
+		start_pfn = 0;
+}
 
 static inline void map_cpu_to_node(int cpu, int node)
 {
 	numa_cpu_lookup_table[cpu] = node;
-	if (!(cpu_isset(cpu, numa_cpumask_lookup_table[node]))) {
+
+	if (!(cpu_isset(cpu, numa_cpumask_lookup_table[node])))
 		cpu_set(cpu, numa_cpumask_lookup_table[node]);
-		nr_cpus_in_node[node]++;
-	}
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -78,7 +145,6 @@ static void unmap_cpu_from_node(unsigned long cpu)
 
 	if (cpu_isset(cpu, numa_cpumask_lookup_table[node])) {
 		cpu_clear(cpu, numa_cpumask_lookup_table[node]);
-		nr_cpus_in_node[node]--;
 	} else {
 		printk(KERN_ERR "WARNING: cpu %lu not found in node %d\n",
 		       cpu, node);
@@ -86,7 +152,7 @@ static void unmap_cpu_from_node(unsigned long cpu)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static struct device_node * __devinit find_cpu_node(unsigned int cpu)
+static struct device_node *find_cpu_node(unsigned int cpu)
 {
 	unsigned int hw_cpuid = get_hard_smp_processor_id(cpu);
 	struct device_node *cpu_node = NULL;
@@ -213,7 +279,7 @@ static int __init get_mem_size_cells(void)
 	return rc;
 }
 
-static unsigned long read_n_cells(int n, unsigned int **buf)
+static unsigned long __init read_n_cells(int n, unsigned int **buf)
 {
 	unsigned long result = 0;
 
@@ -295,7 +361,8 @@ static int cpu_numa_callback(struct notifier_block *nfb,
  * or zero. If the returned value of size is 0 the region should be
  * discarded as it lies wholy above the memory limit.
  */
-static unsigned long __init numa_enforce_memory_limit(unsigned long start, unsigned long size)
+static unsigned long __init numa_enforce_memory_limit(unsigned long start,
+						      unsigned long size)
 {
 	/*
 	 * We use lmb_end_of_DRAM() in here instead of memory_limit because
@@ -320,21 +387,13 @@ static int __init parse_numa_properties(void)
 	struct device_node *cpu = NULL;
 	struct device_node *memory = NULL;
 	int addr_cells, size_cells;
-	int max_domain = 0;
-	long entries = lmb_end_of_DRAM() >> MEMORY_INCREMENT_SHIFT;
+	int max_domain;
 	unsigned long i;
 
 	if (numa_enabled == 0) {
 		printk(KERN_WARNING "NUMA disabled by user\n");
 		return -1;
 	}
-
-	numa_memory_lookup_table =
-		(char *)abs_to_virt(lmb_alloc(entries * sizeof(char), 1));
-	memset(numa_memory_lookup_table, 0, entries * sizeof(char));
-
-	for (i = 0; i < entries ; i++)
-		numa_memory_lookup_table[i] = ARRAY_INITIALISER;
 
 	min_common_depth = find_min_common_depth();
 
@@ -387,9 +446,6 @@ new_range:
 		start = read_n_cells(addr_cells, &memcell_buf);
 		size = read_n_cells(size_cells, &memcell_buf);
 
-		start = _ALIGN_DOWN(start, MEMORY_INCREMENT);
-		size = _ALIGN_UP(size, MEMORY_INCREMENT);
-
 		numa_domain = of_node_numa_domain(memory);
 
 		if (numa_domain >= MAX_NUMNODES) {
@@ -403,44 +459,15 @@ new_range:
 		if (max_domain < numa_domain)
 			max_domain = numa_domain;
 
-		if (! (size = numa_enforce_memory_limit(start, size))) {
+		if (!(size = numa_enforce_memory_limit(start, size))) {
 			if (--ranges)
 				goto new_range;
 			else
 				continue;
 		}
 
-		/*
-		 * Initialize new node struct, or add to an existing one.
-		 */
-		if (init_node_data[numa_domain].node_end_pfn) {
-			if ((start / PAGE_SIZE) <
-			    init_node_data[numa_domain].node_start_pfn)
-				init_node_data[numa_domain].node_start_pfn =
-					start / PAGE_SIZE;
-			if (((start / PAGE_SIZE) + (size / PAGE_SIZE)) >
-			    init_node_data[numa_domain].node_end_pfn)
-				init_node_data[numa_domain].node_end_pfn =
-					(start / PAGE_SIZE) +
-					(size / PAGE_SIZE);
-
-			init_node_data[numa_domain].node_present_pages +=
-				size / PAGE_SIZE;
-		} else {
-			node_set_online(numa_domain);
-
-			init_node_data[numa_domain].node_start_pfn =
-				start / PAGE_SIZE;
-			init_node_data[numa_domain].node_end_pfn =
-				init_node_data[numa_domain].node_start_pfn +
-				size / PAGE_SIZE;
-			init_node_data[numa_domain].node_present_pages =
-				size / PAGE_SIZE;
-		}
-
-		for (i = start ; i < (start+size); i += MEMORY_INCREMENT)
-			numa_memory_lookup_table[i >> MEMORY_INCREMENT_SHIFT] =
-				numa_domain;
+		add_region(numa_domain, start >> PAGE_SHIFT,
+			   size >> PAGE_SHIFT);
 
 		if (--ranges)
 			goto new_range;
@@ -456,32 +483,15 @@ static void __init setup_nonnuma(void)
 {
 	unsigned long top_of_ram = lmb_end_of_DRAM();
 	unsigned long total_ram = lmb_phys_mem_size();
-	unsigned long i;
 
 	printk(KERN_INFO "Top of RAM: 0x%lx, Total RAM: 0x%lx\n",
 	       top_of_ram, total_ram);
 	printk(KERN_INFO "Memory hole size: %ldMB\n",
 	       (top_of_ram - total_ram) >> 20);
 
-	if (!numa_memory_lookup_table) {
-		long entries = top_of_ram >> MEMORY_INCREMENT_SHIFT;
-		numa_memory_lookup_table =
-			(char *)abs_to_virt(lmb_alloc(entries * sizeof(char), 1));
-		memset(numa_memory_lookup_table, 0, entries * sizeof(char));
-		for (i = 0; i < entries ; i++)
-			numa_memory_lookup_table[i] = ARRAY_INITIALISER;
-	}
-
 	map_cpu_to_node(boot_cpuid, 0);
-
+	add_region(0, 0, lmb_end_of_DRAM() >> PAGE_SHIFT);
 	node_set_online(0);
-
-	init_node_data[0].node_start_pfn = 0;
-	init_node_data[0].node_end_pfn = lmb_end_of_DRAM() / PAGE_SIZE;
-	init_node_data[0].node_present_pages = total_ram / PAGE_SIZE;
-
-	for (i = 0 ; i < top_of_ram; i += MEMORY_INCREMENT)
-		numa_memory_lookup_table[i >> MEMORY_INCREMENT_SHIFT] = 0;
 }
 
 static void __init dump_numa_topology(void)
@@ -499,8 +509,9 @@ static void __init dump_numa_topology(void)
 
 		count = 0;
 
-		for (i = 0; i < lmb_end_of_DRAM(); i += MEMORY_INCREMENT) {
-			if (numa_memory_lookup_table[i >> MEMORY_INCREMENT_SHIFT] == node) {
+		for (i = 0; i < lmb_end_of_DRAM();
+		     i += (1 << SECTION_SIZE_BITS)) {
+			if (early_pfn_to_nid(i >> PAGE_SHIFT) == node) {
 				if (count == 0)
 					printk(" 0x%lx", i);
 				++count;
@@ -525,10 +536,12 @@ static void __init dump_numa_topology(void)
  *
  * Returns the physical address of the memory.
  */
-static unsigned long careful_allocation(int nid, unsigned long size,
-					unsigned long align, unsigned long end)
+static void __init *careful_allocation(int nid, unsigned long size,
+				       unsigned long align,
+				       unsigned long end_pfn)
 {
-	unsigned long ret = lmb_alloc_base(size, align, end);
+	int new_nid;
+	unsigned long ret = lmb_alloc_base(size, align, end_pfn << PAGE_SHIFT);
 
 	/* retry over all memory */
 	if (!ret)
@@ -542,28 +555,27 @@ static unsigned long careful_allocation(int nid, unsigned long size,
 	 * If the memory came from a previously allocated node, we must
 	 * retry with the bootmem allocator.
 	 */
-	if (pa_to_nid(ret) < nid) {
-		nid = pa_to_nid(ret);
-		ret = (unsigned long)__alloc_bootmem_node(NODE_DATA(nid),
+	new_nid = early_pfn_to_nid(ret >> PAGE_SHIFT);
+	if (new_nid < nid) {
+		ret = (unsigned long)__alloc_bootmem_node(NODE_DATA(new_nid),
 				size, align, 0);
 
 		if (!ret)
 			panic("numa.c: cannot allocate %lu bytes on node %d",
-			      size, nid);
+			      size, new_nid);
 
-		ret = virt_to_abs(ret);
+		ret = __pa(ret);
 
 		dbg("alloc_bootmem %lx %lx\n", ret, size);
 	}
 
-	return ret;
+	return (void *)ret;
 }
 
 void __init do_init_bootmem(void)
 {
 	int nid;
-	int addr_cells, size_cells;
-	struct device_node *memory = NULL;
+	unsigned int i;
 	static struct notifier_block ppc64_numa_nb = {
 		.notifier_call = cpu_numa_callback,
 		.priority = 1 /* Must run before sched domains notifier. */
@@ -581,99 +593,66 @@ void __init do_init_bootmem(void)
 	register_cpu_notifier(&ppc64_numa_nb);
 
 	for_each_online_node(nid) {
-		unsigned long start_paddr, end_paddr;
-		int i;
+		unsigned long start_pfn, end_pfn, pages_present;
 		unsigned long bootmem_paddr;
 		unsigned long bootmap_pages;
 
-		start_paddr = init_node_data[nid].node_start_pfn * PAGE_SIZE;
-		end_paddr = init_node_data[nid].node_end_pfn * PAGE_SIZE;
+		get_region(nid, &start_pfn, &end_pfn, &pages_present);
 
 		/* Allocate the node structure node local if possible */
-		NODE_DATA(nid) = (struct pglist_data *)careful_allocation(nid,
+		NODE_DATA(nid) = careful_allocation(nid,
 					sizeof(struct pglist_data),
-					SMP_CACHE_BYTES, end_paddr);
-		NODE_DATA(nid) = abs_to_virt(NODE_DATA(nid));
+					SMP_CACHE_BYTES, end_pfn);
+		NODE_DATA(nid) = __va(NODE_DATA(nid));
 		memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
 
   		dbg("node %d\n", nid);
 		dbg("NODE_DATA() = %p\n", NODE_DATA(nid));
 
 		NODE_DATA(nid)->bdata = &plat_node_bdata[nid];
-		NODE_DATA(nid)->node_start_pfn =
-			init_node_data[nid].node_start_pfn;
-		NODE_DATA(nid)->node_spanned_pages =
-			end_paddr - start_paddr;
+		NODE_DATA(nid)->node_start_pfn = start_pfn;
+		NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
 
 		if (NODE_DATA(nid)->node_spanned_pages == 0)
   			continue;
 
-  		dbg("start_paddr = %lx\n", start_paddr);
-  		dbg("end_paddr = %lx\n", end_paddr);
+  		dbg("start_paddr = %lx\n", start_pfn << PAGE_SHIFT);
+  		dbg("end_paddr = %lx\n", end_pfn << PAGE_SHIFT);
 
-		bootmap_pages = bootmem_bootmap_pages((end_paddr - start_paddr) >> PAGE_SHIFT);
+		bootmap_pages = bootmem_bootmap_pages(end_pfn - start_pfn);
+		bootmem_paddr = (unsigned long)careful_allocation(nid,
+					bootmap_pages << PAGE_SHIFT,
+					PAGE_SIZE, end_pfn);
+		memset(__va(bootmem_paddr), 0, bootmap_pages << PAGE_SHIFT);
 
-		bootmem_paddr = careful_allocation(nid,
-				bootmap_pages << PAGE_SHIFT,
-				PAGE_SIZE, end_paddr);
-		memset(abs_to_virt(bootmem_paddr), 0,
-		       bootmap_pages << PAGE_SHIFT);
 		dbg("bootmap_paddr = %lx\n", bootmem_paddr);
 
 		init_bootmem_node(NODE_DATA(nid), bootmem_paddr >> PAGE_SHIFT,
-				  start_paddr >> PAGE_SHIFT,
-				  end_paddr >> PAGE_SHIFT);
+				  start_pfn, end_pfn);
 
-		/*
-		 * We need to do another scan of all memory sections to
-		 * associate memory with the correct node.
-		 */
-		addr_cells = get_mem_addr_cells();
-		size_cells = get_mem_size_cells();
-		memory = NULL;
-		while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
-			unsigned long mem_start, mem_size;
-			int numa_domain, ranges;
-			unsigned int *memcell_buf;
-			unsigned int len;
+		/* Add free regions on this node */
+		for (i = 0; init_node_data[i].end_pfn; i++) {
+			unsigned long start, end;
 
-			memcell_buf = (unsigned int *)get_property(memory, "reg", &len);
-			if (!memcell_buf || len <= 0)
+			if (init_node_data[i].nid != nid)
 				continue;
 
-			ranges = memory->n_addrs;	/* ranges in cell */
-new_range:
-			mem_start = read_n_cells(addr_cells, &memcell_buf);
-			mem_size = read_n_cells(size_cells, &memcell_buf);
-			if (numa_enabled) {
-				numa_domain = of_node_numa_domain(memory);
-				if (numa_domain  >= MAX_NUMNODES)
-					numa_domain = 0;
-			} else
-				numa_domain =  0;
+			start = init_node_data[i].start_pfn << PAGE_SHIFT;
+			end = init_node_data[i].end_pfn << PAGE_SHIFT;
 
-			if (numa_domain != nid)
-				continue;
-
-			mem_size = numa_enforce_memory_limit(mem_start, mem_size);
-  			if (mem_size) {
-  				dbg("free_bootmem %lx %lx\n", mem_start, mem_size);
-  				free_bootmem_node(NODE_DATA(nid), mem_start, mem_size);
-			}
-
-			if (--ranges)		/* process all ranges in cell */
-				goto new_range;
+			dbg("free_bootmem %lx %lx\n", start, end - start);
+  			free_bootmem_node(NODE_DATA(nid), start, end - start);
 		}
 
-		/*
-		 * Mark reserved regions on this node
-		 */
+		/* Mark reserved regions on this node */
 		for (i = 0; i < lmb.reserved.cnt; i++) {
 			unsigned long physbase = lmb.reserved.region[i].base;
 			unsigned long size = lmb.reserved.region[i].size;
+			unsigned long start_paddr = start_pfn << PAGE_SHIFT;
+			unsigned long end_paddr = end_pfn << PAGE_SHIFT;
 
-			if (pa_to_nid(physbase) != nid &&
-			    pa_to_nid(physbase+size-1) != nid)
+			if (early_pfn_to_nid(physbase >> PAGE_SHIFT) != nid &&
+			    early_pfn_to_nid((physbase+size-1) >> PAGE_SHIFT) != nid)
 				continue;
 
 			if (physbase < end_paddr &&
@@ -693,46 +672,19 @@ new_range:
 						     size);
 			}
 		}
-		/*
-		 * This loop may look famaliar, but we have to do it again
-		 * after marking our reserved memory to mark memory present
-		 * for sparsemem.
-		 */
-		addr_cells = get_mem_addr_cells();
-		size_cells = get_mem_size_cells();
-		memory = NULL;
-		while ((memory = of_find_node_by_type(memory, "memory")) != NULL) {
-			unsigned long mem_start, mem_size;
-			int numa_domain, ranges;
-			unsigned int *memcell_buf;
-			unsigned int len;
 
-			memcell_buf = (unsigned int *)get_property(memory, "reg", &len);
-			if (!memcell_buf || len <= 0)
+		/* Add regions into sparsemem */
+		for (i = 0; init_node_data[i].end_pfn; i++) {
+			unsigned long start, end;
+
+			if (init_node_data[i].nid != nid)
 				continue;
 
-			ranges = memory->n_addrs;	/* ranges in cell */
-new_range2:
-			mem_start = read_n_cells(addr_cells, &memcell_buf);
-			mem_size = read_n_cells(size_cells, &memcell_buf);
-			if (numa_enabled) {
-				numa_domain = of_node_numa_domain(memory);
-				if (numa_domain  >= MAX_NUMNODES)
-					numa_domain = 0;
-			} else
-				numa_domain =  0;
+			start = init_node_data[i].start_pfn;
+			end = init_node_data[i].end_pfn;
 
-			if (numa_domain != nid)
-				continue;
-
-			mem_size = numa_enforce_memory_limit(mem_start, mem_size);
-			memory_present(numa_domain, mem_start >> PAGE_SHIFT,
-				       (mem_start + mem_size) >> PAGE_SHIFT);
-
-			if (--ranges)		/* process all ranges in cell */
-				goto new_range2;
+			memory_present(nid, start, end);
 		}
-
 	}
 }
 
@@ -746,21 +698,18 @@ void __init paging_init(void)
 	memset(zholes_size, 0, sizeof(zholes_size));
 
 	for_each_online_node(nid) {
-		unsigned long start_pfn;
-		unsigned long end_pfn;
+		unsigned long start_pfn, end_pfn, pages_present;
 
-		start_pfn = init_node_data[nid].node_start_pfn;
-		end_pfn = init_node_data[nid].node_end_pfn;
+		get_region(nid, &start_pfn, &end_pfn, &pages_present);
 
 		zones_size[ZONE_DMA] = end_pfn - start_pfn;
-		zholes_size[ZONE_DMA] = zones_size[ZONE_DMA] -
-			init_node_data[nid].node_present_pages;
+		zholes_size[ZONE_DMA] = zones_size[ZONE_DMA] - pages_present;
 
 		dbg("free_area_init node %d %lx %lx (hole: %lx)\n", nid,
 		    zones_size[ZONE_DMA], start_pfn, zholes_size[ZONE_DMA]);
 
-		free_area_init_node(nid, NODE_DATA(nid), zones_size,
-							start_pfn, zholes_size);
+		free_area_init_node(nid, NODE_DATA(nid), zones_size, start_pfn,
+				    zholes_size);
 	}
 }
 

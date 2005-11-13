@@ -18,7 +18,7 @@
 /* (I_HAVE_OVERRUNS stuff removed) */
 
 #ifndef ASM
-int atari_scsi_detect (Scsi_Host_Template *);
+int atari_scsi_detect (struct scsi_host_template *);
 const char *atari_scsi_info (struct Scsi_Host *);
 int atari_scsi_reset (Scsi_Cmnd *, unsigned int);
 #ifdef MODULE

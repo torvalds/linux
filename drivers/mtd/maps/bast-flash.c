@@ -63,11 +63,6 @@ struct bast_flash_info {
 
 static const char *probes[] = { "RedBoot", "cmdlinepart", NULL };
 
-static struct bast_flash_info *to_bast_info(struct device *dev)
-{
-	return (struct bast_flash_info *)dev_get_drvdata(dev);
-}
-
 static void bast_flash_setrw(int to)
 {
 	unsigned int val;
@@ -87,11 +82,11 @@ static void bast_flash_setrw(int to)
 	local_irq_restore(flags);
 }
 
-static int bast_flash_remove(struct device *dev)
+static int bast_flash_remove(struct platform_device *pdev)
 {
-	struct bast_flash_info *info = to_bast_info(dev);
+	struct bast_flash_info *info = platform_get_drvdata(pdev);
 
-	dev_set_drvdata(dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	if (info == NULL)
 		return 0;
@@ -116,9 +111,8 @@ static int bast_flash_remove(struct device *dev)
 	return 0;
 }
 
-static int bast_flash_probe(struct device *dev)
+static int bast_flash_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct bast_flash_info *info;
 	struct resource *res;
 	int err = 0;
@@ -131,13 +125,13 @@ static int bast_flash_probe(struct device *dev)
 	}
 
 	memzero(info, sizeof(*info));
-	dev_set_drvdata(dev, info);
+	platform_set_drvdata(pdev, info);
 
 	res = pdev->resource;  /* assume that the flash has one resource */
 
 	info->map.phys = res->start;
 	info->map.size = res->end - res->start + 1;
-	info->map.name = dev->bus_id;
+	info->map.name = pdev->dev.bus_id;	
 	info->map.bankwidth = 2;
 
 	if (info->map.size > AREA_MAXSIZE)
@@ -199,27 +193,28 @@ static int bast_flash_probe(struct device *dev)
 	/* fall through to exit error */
 
  exit_error:
-	bast_flash_remove(dev);
+	bast_flash_remove(pdev);
 	return err;
 }
 
-static struct device_driver bast_flash_driver = {
-	.name		= "bast-nor",
-	.owner		= THIS_MODULE,
-	.bus		= &platform_bus_type,
+static struct platform_driver bast_flash_driver = {
 	.probe		= bast_flash_probe,
 	.remove		= bast_flash_remove,
+	.driver		= {
+		.name	= "bast-nor",
+		.owner	= THIS_MODULE,
+	},
 };
 
 static int __init bast_flash_init(void)
 {
 	printk("BAST NOR-Flash Driver, (c) 2004 Simtec Electronics\n");
-	return driver_register(&bast_flash_driver);
+	return platform_driver_register(&bast_flash_driver);
 }
 
 static void __exit bast_flash_exit(void)
 {
-	driver_unregister(&bast_flash_driver);
+	platform_driver_unregister(&bast_flash_driver);
 }
 
 module_init(bast_flash_init);

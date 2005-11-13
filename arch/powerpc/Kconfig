@@ -581,17 +581,12 @@ config ARCH_FLATMEM_ENABLE
        def_bool y
        depends on PPC64 && !NUMA
 
-config ARCH_DISCONTIGMEM_ENABLE
-	def_bool y
-	depends on SMP && PPC_PSERIES
-
-config ARCH_DISCONTIGMEM_DEFAULT
-	def_bool y
-	depends on ARCH_DISCONTIGMEM_ENABLE
-
 config ARCH_SPARSEMEM_ENABLE
 	def_bool y
-	depends on ARCH_DISCONTIGMEM_ENABLE
+
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool y
+	depends on SMP && PPC_PSERIES
 
 source "mm/Kconfig"
 

@@ -217,7 +217,7 @@ static inline void init_hpc_chain(struct hpc_data *hd)
 }
 
 static struct Scsi_Host * __init sgiwd93_setup_scsi(
-	Scsi_Host_Template *SGIblows, int unit, int irq,
+	struct scsi_host_template *SGIblows, int unit, int irq,
 	struct hpc3_scsiregs *hregs, unsigned char *wdregs)
 {
 	struct ip22_hostdata *hdata;
@@ -265,7 +265,7 @@ out_unregister:
 	return NULL;
 }
 
-int __init sgiwd93_detect(Scsi_Host_Template *SGIblows)
+int __init sgiwd93_detect(struct scsi_host_template *SGIblows)
 {
 	int found = 0;
 
@@ -324,7 +324,7 @@ static int sgiwd93_bus_reset(Scsi_Cmnd *cmd)
  * arguments not with pointers.  So this is going to blow up beautyfully
  * on 64-bit systems with memory outside the compat address spaces.
  */
-static Scsi_Host_Template driver_template = {
+static struct scsi_host_template driver_template = {
 	.proc_name		= "SGIWD93",
 	.name			= "SGI WD93",
 	.detect			= sgiwd93_detect,

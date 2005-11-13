@@ -613,7 +613,7 @@ static struct file_operations gpio_fops = {
 	.release	= gpio_release,
 };
 
-static int giu_probe(struct device *dev)
+static int giu_probe(struct platform_device *dev)
 {
 	unsigned long start, size, flags = 0;
 	unsigned int nr_pins = 0;
@@ -697,7 +697,7 @@ static int giu_probe(struct device *dev)
 	return cascade_irq(GIUINT_IRQ, giu_get_irq);
 }
 
-static int giu_remove(struct device *dev)
+static int giu_remove(struct platform_device *dev)
 {
 	iounmap(giu_base);
 
@@ -710,11 +710,12 @@ static int giu_remove(struct device *dev)
 
 static struct platform_device *giu_platform_device;
 
-static struct device_driver giu_device_driver = {
-	.name		= "GIU",
-	.bus		= &platform_bus_type,
+static struct platform_driver giu_device_driver = {
 	.probe		= giu_probe,
 	.remove		= giu_remove,
+	.driver		= {
+		.name	= "GIU",
+	},
 };
 
 static int __devinit vr41xx_giu_init(void)
@@ -725,7 +726,7 @@ static int __devinit vr41xx_giu_init(void)
 	if (IS_ERR(giu_platform_device))
 		return PTR_ERR(giu_platform_device);
 
-	retval = driver_register(&giu_device_driver);
+	retval = platform_driver_register(&giu_device_driver);
 	if (retval < 0)
 		platform_device_unregister(giu_platform_device);
 
@@ -734,7 +735,7 @@ static int __devinit vr41xx_giu_init(void)
 
 static void __devexit vr41xx_giu_exit(void)
 {
-	driver_unregister(&giu_device_driver);
+	platform_driver_unregister(&giu_device_driver);
 
 	platform_device_unregister(giu_platform_device);
 }

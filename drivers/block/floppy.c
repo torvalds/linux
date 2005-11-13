@@ -98,6 +98,10 @@
  */
 
 /*
+ * 1998/1/21 -- Richard Gooch <rgooch@atnf.csiro.au> -- devfs support
+ */
+
+/*
  * 1998/05/07 -- Russell King -- More portability cleanups; moved definition of
  * interrupt and dma channel to asm/floppy.h. Cleaned up some formatting &
  * use of '0' for NULL.
@@ -157,10 +161,6 @@ static int print_unex = 1;
 #include <linux/workqueue.h>
 #define FDPATCHES
 #include <linux/fdreg.h>
-
-/*
- * 1998/1/21 -- Richard Gooch <rgooch@atnf.csiro.au> -- devfs support
- */
 
 #include <linux/fd.h>
 #include <linux/hdreg.h>

@@ -14,7 +14,6 @@
 #include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
-#include <asm/systemcfg.h>
 #include <asm/rtas.h>
 #include <asm/oprofile_impl.h>
 #include <asm/reg.h>

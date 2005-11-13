@@ -126,6 +126,7 @@ qla2x00_write_nvram_word(scsi_qla_host_t *ha, uint32_t addr, uint16_t data)
 
 	/* Wait for NVRAM to become ready */
 	WRT_REG_WORD(&reg->nvram, NVR_SELECT);
+	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
 	do {
 		NVRAM_DELAY();
 		word = RD_REG_WORD(&reg->nvram);
@@ -178,6 +179,7 @@ qla2x00_write_nvram_word_tmo(scsi_qla_host_t *ha, uint32_t addr, uint16_t data,
 
 	/* Wait for NVRAM to become ready */
 	WRT_REG_WORD(&reg->nvram, NVR_SELECT);
+	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
 	do {
 		NVRAM_DELAY();
 		word = RD_REG_WORD(&reg->nvram);
@@ -235,6 +237,7 @@ qla2x00_nvram_request(scsi_qla_host_t *ha, uint32_t nv_cmd)
 	/* Read data from NVRAM. */
 	for (cnt = 0; cnt < 16; cnt++) {
 		WRT_REG_WORD(&reg->nvram, NVR_SELECT | NVR_CLOCK);
+		RD_REG_WORD(&reg->nvram);	/* PCI Posting. */
 		NVRAM_DELAY();
 		data <<= 1;
 		reg_data = RD_REG_WORD(&reg->nvram);
@@ -337,6 +340,7 @@ qla2x00_clear_nvram_protection(scsi_qla_host_t *ha)
 
 		/* Wait for NVRAM to become ready. */
 		WRT_REG_WORD(&reg->nvram, NVR_SELECT);
+		RD_REG_WORD(&reg->nvram);	/* PCI Posting. */
 		do {
 			NVRAM_DELAY();
 			word = RD_REG_WORD(&reg->nvram);
@@ -388,6 +392,7 @@ qla2x00_set_nvram_protection(scsi_qla_host_t *ha, int stat)
 
 	/* Wait for NVRAM to become ready. */
 	WRT_REG_WORD(&reg->nvram, NVR_SELECT);
+	RD_REG_WORD(&reg->nvram);		/* PCI Posting. */
 	do {
 		NVRAM_DELAY();
 		word = RD_REG_WORD(&reg->nvram);

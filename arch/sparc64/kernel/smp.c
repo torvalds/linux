@@ -39,7 +39,6 @@
 #include <asm/starfire.h>
 #include <asm/tlb.h>
 
-extern int linux_num_cpus;
 extern void calibrate_delay(void);
 
 /* Please don't make this stuff initdata!!!  --DaveM */

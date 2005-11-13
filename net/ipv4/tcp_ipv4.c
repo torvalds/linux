@@ -39,7 +39,7 @@
  *					request_sock handling and moved
  *					most of it into the af independent code.
  *					Added tail drop and some other bugfixes.
- *					Added new listen sematics.
+ *					Added new listen semantics.
  *		Mike McLagan	:	Routing by source
  *	Juan Jose Ciarlante:		ip_dynaddr bits
  *		Andi Kleen:		various fixes.
@@ -1210,7 +1210,7 @@ int tcp_v4_rcv(struct sk_buff *skb)
 
 	/* An explanation is required here, I think.
 	 * Packet length and doff are validated by header prediction,
-	 * provided case of th->doff==0 is elimineted.
+	 * provided case of th->doff==0 is eliminated.
 	 * So, we defer the checks. */
 	if ((skb->ip_summed != CHECKSUM_UNNECESSARY &&
 	     tcp_v4_checksum_init(skb)))

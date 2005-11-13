@@ -2648,7 +2648,7 @@ void ipmi_smi_msg_received(ipmi_smi_t          intf,
 	spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
 	if (!list_empty(&intf->waiting_msgs)) {
 		list_add_tail(&msg->link, &intf->waiting_msgs);
-		spin_unlock(&intf->waiting_msgs_lock);
+		spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
 		goto out;
 	}
 	spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
@@ -2657,9 +2657,9 @@ void ipmi_smi_msg_received(ipmi_smi_t          intf,
 	if (rv > 0) {
 		/* Could not handle the message now, just add it to a
                    list to handle later. */
-		spin_lock(&intf->waiting_msgs_lock);
+		spin_lock_irqsave(&intf->waiting_msgs_lock, flags);
 		list_add_tail(&msg->link, &intf->waiting_msgs);
-		spin_unlock(&intf->waiting_msgs_lock);
+		spin_unlock_irqrestore(&intf->waiting_msgs_lock, flags);
 	} else if (rv == 0) {
 		ipmi_free_smi_msg(msg);
 	}

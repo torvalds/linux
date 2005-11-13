@@ -8,7 +8,7 @@
  *    Author(s): Original Code written by
  *			  DJ Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com)
  *		 Rewritten by
- *			  Frank Pavlic (pavlic@de.ibm.com) and
+ *			  Frank Pavlic (fpavlic@de.ibm.com) and
  *		 	  Martin Schwidefsky <schwidefsky@de.ibm.com>
  *
  *    $Revision: 1.99 $	 $Date: 2005/05/11 08:10:17 $
@@ -2342,6 +2342,6 @@ __exit lcs_cleanup_module(void)
 module_init(lcs_init_module);
 module_exit(lcs_cleanup_module);
 
-MODULE_AUTHOR("Frank Pavlic <pavlic@de.ibm.com>");
+MODULE_AUTHOR("Frank Pavlic <fpavlic@de.ibm.com>");
 MODULE_LICENSE("GPL");
 

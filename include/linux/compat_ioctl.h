@@ -259,6 +259,14 @@ COMPATIBLE_IOCTL(RTC_RD_TIME)
 COMPATIBLE_IOCTL(RTC_SET_TIME)
 COMPATIBLE_IOCTL(RTC_WKALM_SET)
 COMPATIBLE_IOCTL(RTC_WKALM_RD)
+/*
+ * These two are only for the sbus rtc driver, but
+ * hwclock tries them on every rtc device first when
+ * running on sparc.  On other architectures the entries
+ * are useless but harmless.
+ */
+COMPATIBLE_IOCTL(_IOR('p', 20, int[7])) /* RTCGET */
+COMPATIBLE_IOCTL(_IOW('p', 21, int[7])) /* RTCSET */
 /* Little m */
 COMPATIBLE_IOCTL(MTIOCTOP)
 /* Socket level stuff */

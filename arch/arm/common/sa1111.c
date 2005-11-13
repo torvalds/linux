@@ -801,9 +801,9 @@ struct sa1111_save_data {
 
 #ifdef CONFIG_PM
 
-static int sa1111_suspend(struct device *dev, pm_message_t state)
+static int sa1111_suspend(struct platform_device *dev, pm_message_t state)
 {
-	struct sa1111 *sachip = dev_get_drvdata(dev);
+	struct sa1111 *sachip = platform_get_drvdata(dev);
 	struct sa1111_save_data *save;
 	unsigned long flags;
 	unsigned int val;
@@ -812,7 +812,7 @@ static int sa1111_suspend(struct device *dev, pm_message_t state)
 	save = kmalloc(sizeof(struct sa1111_save_data), GFP_KERNEL);
 	if (!save)
 		return -ENOMEM;
-	dev->power.saved_state = save;
+	dev->dev.power.saved_state = save;
 
 	spin_lock_irqsave(&sachip->lock, flags);
 
@@ -859,14 +859,14 @@ static int sa1111_suspend(struct device *dev, pm_message_t state)
  *	restored by their respective drivers, and must be called
  *	via LDM after this function.
  */
-static int sa1111_resume(struct device *dev)
+static int sa1111_resume(struct platform_device *dev)
 {
-	struct sa1111 *sachip = dev_get_drvdata(dev);
+	struct sa1111 *sachip = platform_get_drvdata(dev);
 	struct sa1111_save_data *save;
 	unsigned long flags, id;
 	void __iomem *base;
 
-	save = (struct sa1111_save_data *)dev->power.saved_state;
+	save = (struct sa1111_save_data *)dev->dev.power.saved_state;
 	if (!save)
 		return 0;
 
@@ -879,7 +879,7 @@ static int sa1111_resume(struct device *dev)
 	id = sa1111_readl(sachip->base + SA1111_SKID);
 	if ((id & SKID_ID_MASK) != SKID_SA1111_ID) {
 		__sa1111_remove(sachip);
-		dev_set_drvdata(dev, NULL);
+		platform_set_drvdata(dev, NULL);
 		kfree(save);
 		return 0;
 	}
@@ -911,7 +911,7 @@ static int sa1111_resume(struct device *dev)
 
 	spin_unlock_irqrestore(&sachip->lock, flags);
 
-	dev->power.saved_state = NULL;
+	dev->dev.power.saved_state = NULL;
 	kfree(save);
 
 	return 0;
@@ -922,9 +922,8 @@ static int sa1111_resume(struct device *dev)
 #define sa1111_resume  NULL
 #endif
 
-static int sa1111_probe(struct device *dev)
+static int sa1111_probe(struct platform_device *pdev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *mem;
 	int irq;
 
@@ -933,20 +932,20 @@ static int sa1111_probe(struct device *dev)
 		return -EINVAL;
 	irq = platform_get_irq(pdev, 0);
 
-	return __sa1111_probe(dev, mem, irq);
+	return __sa1111_probe(&pdev->dev, mem, irq);
 }
 
-static int sa1111_remove(struct device *dev)
+static int sa1111_remove(struct platform_device *pdev)
 {
-	struct sa1111 *sachip = dev_get_drvdata(dev);
+	struct sa1111 *sachip = platform_get_drvdata(pdev);
 
 	if (sachip) {
 		__sa1111_remove(sachip);
-		dev_set_drvdata(dev, NULL);
+		platform_set_drvdata(pdev, NULL);
 
 #ifdef CONFIG_PM
-		kfree(dev->power.saved_state);
-		dev->power.saved_state = NULL;
+		kfree(pdev->dev.power.saved_state);
+		pdev->dev.power.saved_state = NULL;
 #endif
 	}
 
@@ -962,13 +961,14 @@ static int sa1111_remove(struct device *dev)
  *	We also need to handle the SDRAM configuration for
  *	PXA250/SA1110 machine classes.
  */
-static struct device_driver sa1111_device_driver = {
-	.name		= "sa1111",
-	.bus		= &platform_bus_type,
+static struct platform_driver sa1111_device_driver = {
 	.probe		= sa1111_probe,
 	.remove		= sa1111_remove,
 	.suspend	= sa1111_suspend,
 	.resume		= sa1111_resume,
+	.driver		= {
+		.name	= "sa1111",
+	},
 };
 
 /*
@@ -1256,13 +1256,13 @@ static int __init sa1111_init(void)
 {
 	int ret = bus_register(&sa1111_bus_type);
 	if (ret == 0)
-		driver_register(&sa1111_device_driver);
+		platform_driver_register(&sa1111_device_driver);
 	return ret;
 }
 
 static void __exit sa1111_exit(void)
 {
-	driver_unregister(&sa1111_device_driver);
+	platform_driver_unregister(&sa1111_device_driver);
 	bus_unregister(&sa1111_bus_type);
 }
 

@@ -114,7 +114,7 @@
           #include "advansys.h"
           #endif
 
-        and after "static Scsi_Host_Template builtin_scsi_hosts[] =":
+        and after "static struct scsi_host_template builtin_scsi_hosts[] =":
 
           #ifdef CONFIG_SCSI_ADVANSYS
           ADVANSYS,
@@ -160,7 +160,7 @@
            --- Driver Structures
            --- Driver Data
            --- Driver Function Prototypes
-           --- Linux 'Scsi_Host_Template' and advansys_setup() Functions
+           --- Linux 'struct scsi_host_template' and advansys_setup() Functions
            --- Loadable Driver Support
            --- Miscellaneous Driver Functions
            --- Functions Required by the Asc Library
@@ -4068,7 +4068,7 @@ STATIC void         asc_prt_hex(char *f, uchar *, int);
 
 
 /*
- * --- Linux 'Scsi_Host_Template' and advansys_setup() Functions
+ * --- Linux 'struct scsi_host_template' and advansys_setup() Functions
  */
 
 #ifdef CONFIG_PROC_FS

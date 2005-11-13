@@ -16,7 +16,6 @@
 #include <asm/firmware.h>
 #include <asm/hvcall.h>
 #include <asm/prom.h>
-#include <asm/systemcfg.h>
 #include <asm/paca.h>
 #include <asm/lppaca.h>
 #include <asm/machdep.h>
