@@ -83,16 +83,15 @@ enum {
 	/* Host Flags */
 	MV_FLAG_DUAL_HC		= (1 << 30),  /* two SATA Host Controllers */
 	MV_FLAG_IRQ_COALESCE	= (1 << 29),  /* IRQ coalescing capability */
-	MV_FLAG_GLBL_SFT_RST	= (1 << 28),  /* Global Soft Reset support */
 	MV_COMMON_FLAGS		= (ATA_FLAG_SATA | ATA_FLAG_NO_LEGACY |
 				   ATA_FLAG_SATA_RESET | ATA_FLAG_MMIO),
-	MV_6XXX_FLAGS		= (MV_FLAG_IRQ_COALESCE |
-				   MV_FLAG_GLBL_SFT_RST),
+	MV_6XXX_FLAGS		= MV_FLAG_IRQ_COALESCE,
 
 	chip_504x		= 0,
 	chip_508x		= 1,
-	chip_604x		= 2,
-	chip_608x		= 3,
+	chip_5080		= 2,
+	chip_604x		= 3,
+	chip_608x		= 4,
 
 	CRQB_FLAG_READ		= (1 << 0),
 	CRQB_TAG_SHIFT		= 1,
@@ -150,6 +149,7 @@ enum {
 	/* SATA registers */
 	SATA_STATUS_OFS		= 0x300,  /* ctrl, err regs follow status */
 	SATA_ACTIVE_OFS		= 0x350,
+	PHY_MODE3		= 0x310,
 	PHY_MODE4		= 0x314,
 	PHY_MODE2		= 0x330,
 	SATA_INTERFACE_CTL	= 0x050,
@@ -209,23 +209,20 @@ enum {
 	ATA_RST			= (1 << 2),
 
 	EDMA_ARB_CFG		= 0x38,
-	EDMA_NO_SNOOP		= (1 << 6),
 
 	/* Host private flags (hp_flags) */
 	MV_HP_FLAG_MSI		= (1 << 0),
-	MV_HP_ERRATA_60X1A1	= (1 << 1),
-	MV_HP_ERRATA_60X1B0	= (1 << 2),
-	MV_HP_ERRATA_50XXB0	= (1 << 3),
-	MV_HP_ERRATA_50XXB1	= (1 << 4),
-	MV_HP_ERRATA_50XXB2	= (1 << 5),
-	MV_HP_50XX		= (1 << 6),
+	MV_HP_ERRATA_50XXB0	= (1 << 1),
+	MV_HP_ERRATA_50XXB2	= (1 << 2),
+	MV_HP_ERRATA_60X1B2	= (1 << 3),
+	MV_HP_ERRATA_60X1C0	= (1 << 4),
+	MV_HP_50XX		= (1 << 5),
 
 	/* Port private flags (pp_flags) */
 	MV_PP_FLAG_EDMA_EN	= (1 << 0),
 	MV_PP_FLAG_EDMA_DS_ACT	= (1 << 1),
 };
 
-#define IS_50XX(hpriv) ((hpriv)->hp_flags & MV_HP_50XX)
 #define IS_60XX(hpriv) (((hpriv)->hp_flags & MV_HP_50XX) == 0)
 
 enum {
@@ -280,9 +277,19 @@ struct mv_port_signal {
 	u32			pre;
 };
 
+struct mv_host_priv;
+struct mv_hw_ops {
+	void (*phy_errata)(struct ata_port *ap);
+	void (*enable_leds)(struct mv_host_priv *hpriv, void __iomem *mmio);
+	void (*read_preamp)(struct mv_host_priv *hpriv, int idx,
+			   void __iomem *mmio);
+	int (*reset_hc)(struct mv_host_priv *hpriv, void __iomem *mmio);
+};
+
 struct mv_host_priv {
 	u32			hp_flags;
 	struct mv_port_signal	signal[8];
+	const struct mv_hw_ops	*ops;
 };
 
 static void mv_irq_clear(struct ata_port *ap);
@@ -298,6 +305,18 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 				struct pt_regs *regs);
 static void mv_eng_timeout(struct ata_port *ap);
 static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
+
+static void mv5_phy_errata(struct ata_port *ap);
+static void mv5_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio);
+static void mv5_read_preamp(struct mv_host_priv *hpriv, int idx,
+			   void __iomem *mmio);
+static int mv5_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio);
+
+static void mv6_phy_errata(struct ata_port *ap);
+static void mv6_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio);
+static void mv6_read_preamp(struct mv_host_priv *hpriv, int idx,
+			   void __iomem *mmio);
+static int mv6_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio);
 
 static struct scsi_host_template mv_sht = {
 	.module			= THIS_MODULE,
@@ -361,6 +380,13 @@ static struct ata_port_info mv_port_info[] = {
 		.udma_mask	= 0,	/* 0x7f (udma0-6 disabled for now) */
 		.port_ops	= &mv_ops,
 	},
+	{  /* chip_5080 */
+		.sht		= &mv_sht,
+		.host_flags	= (MV_COMMON_FLAGS | MV_FLAG_DUAL_HC),
+		.pio_mask	= 0x1f,	/* pio0-4 */
+		.udma_mask	= 0,	/* 0x7f (udma0-6 disabled for now) */
+		.port_ops	= &mv_ops,
+	},
 	{  /* chip_604x */
 		.sht		= &mv_sht,
 		.host_flags	= (MV_COMMON_FLAGS | MV_6XXX_FLAGS),
@@ -382,7 +408,7 @@ static const struct pci_device_id mv_pci_tbl[] = {
 #if 0 /* unusably broken right now */
 	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x5040), 0, 0, chip_504x},
 	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x5041), 0, 0, chip_504x},
-	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x5080), 0, 0, chip_508x},
+	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x5080), 0, 0, chip_5080},
 	{PCI_DEVICE(PCI_VENDOR_ID_MARVELL, 0x5081), 0, 0, chip_508x},
 #endif
 
@@ -400,6 +426,20 @@ static struct pci_driver mv_pci_driver = {
 	.id_table		= mv_pci_tbl,
 	.probe			= mv_init_one,
 	.remove			= ata_pci_remove_one,
+};
+
+static const struct mv_hw_ops mv5xxx_ops = {
+	.phy_errata		= mv5_phy_errata,
+	.enable_leds		= mv5_enable_leds,
+	.read_preamp		= mv5_read_preamp,
+	.reset_hc		= mv5_reset_hc,
+};
+
+static const struct mv_hw_ops mv6xxx_ops = {
+	.phy_errata		= mv6_phy_errata,
+	.enable_leds		= mv6_enable_leds,
+	.read_preamp		= mv6_read_preamp,
+	.reset_hc		= mv6_reset_hc,
 };
 
 /*
@@ -624,9 +664,9 @@ static void mv_scr_write(struct ata_port *ap, unsigned int sc_reg_in, u32 val)
  *      LOCKING:
  *      Inherited from caller.
  */
-static int mv_global_soft_reset(void __iomem *mmio_base)
+static int mv6_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio)
 {
-	void __iomem *reg = mmio_base + PCI_MAIN_CMD_STS_OFS;
+	void __iomem *reg = mmio + PCI_MAIN_CMD_STS_OFS;
 	int i, rc = 0;
 	u32 t;
 
@@ -721,7 +761,6 @@ static inline void mv_priv_free(struct mv_port_priv *pp, struct device *dev)
 static int mv_port_start(struct ata_port *ap)
 {
 	struct device *dev = ap->host_set->dev;
-	struct mv_host_priv *hpriv = ap->host_set->private_data;
 	struct mv_port_priv *pp;
 	void __iomem *port_mmio = mv_ap_base(ap);
 	void *mem;
@@ -778,15 +817,6 @@ static int mv_port_start(struct ata_port *ap)
 	writel((pp->crpb_dma >> 16) >> 16, port_mmio + EDMA_RSP_Q_BASE_HI_OFS);
 	writelfl(pp->crpb_dma & EDMA_RSP_Q_BASE_LO_MASK,
 		 port_mmio + EDMA_RSP_Q_OUT_PTR_OFS);
-
-	if (hpriv->hp_flags & MV_HP_ERRATA_60X1A1) {
-		u32 new_tmp, tmp;
-
-		new_tmp = tmp = readl(port_mmio + EDMA_ARB_CFG);
-		new_tmp &= ~EDMA_NO_SNOOP;
-		if (new_tmp != tmp)
-			writel(new_tmp, port_mmio + EDMA_ARB_CFG);
-	}
 
 	pp->req_producer = pp->rsp_consumer = 0;
 
@@ -1243,39 +1273,37 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 	return IRQ_RETVAL(handled);
 }
 
-static void mv_cfg_signal5(struct mv_host_priv *hpriv, int idx,
+static void mv5_read_preamp(struct mv_host_priv *hpriv, int idx,
 			   void __iomem *mmio)
 {
 	/* FIXME */
 }
 
-static void mv_enable_leds5(struct mv_host_priv *hpriv, void __iomem *mmio)
+static void mv5_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio)
 {
 	/* FIXME */
 }
 
-static void mv_phy_errata5(struct ata_port *ap)
+static void mv5_phy_errata(struct ata_port *ap)
 {
 	/* FIXME */
 }
 
-static void mv_cfg_signal6(struct mv_host_priv *hpriv, int idx,
+static int mv5_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio)
+{
+	/* FIXME */
+	return 1;
+}
+
+static void mv6_read_preamp(struct mv_host_priv *hpriv, int idx,
 			   void __iomem *mmio)
 {
 	void __iomem *port_mmio;
 	u32 tmp;
 
-	if (hpriv->hp_flags & MV_HP_ERRATA_60X1A1) {
-		hpriv->signal[idx].amps = 0x5 << 8;
-		hpriv->signal[idx].pre = 0x3 << 5;
-		return;
-	}
-
-	assert (hpriv->hp_flags & MV_HP_ERRATA_60X1B0);
-
 	tmp = readl(mmio + MV_RESET_CFG);
 	if ((tmp & (1 << 0)) == 0) {
-		hpriv->signal[idx].amps = 0x4 << 8;
+		hpriv->signal[idx].amps = 0x7 << 8;
 		hpriv->signal[idx].pre = 0x1 << 5;
 		return;
 	}
@@ -1287,34 +1315,57 @@ static void mv_cfg_signal6(struct mv_host_priv *hpriv, int idx,
 	hpriv->signal[idx].pre = tmp & 0xe0;	/* bits 7:5 */
 }
 
-static void mv_enable_leds6(struct mv_host_priv *hpriv, void __iomem *mmio)
+static void mv6_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio)
 {
-	if (hpriv->hp_flags & MV_HP_ERRATA_60X1A1)
-		writel(0x00020060, mmio + MV_GPIO_PORT_CTL);
-
-	else if (hpriv->hp_flags & MV_HP_ERRATA_60X1B0)
-		writel(0x00000060, mmio + MV_GPIO_PORT_CTL);
+	writel(0x00000060, mmio + MV_GPIO_PORT_CTL);
 }
 
-static void mv_phy_errata6(struct ata_port *ap)
+static void mv6_phy_errata(struct ata_port *ap)
 {
 	struct mv_host_priv *hpriv = ap->host_set->private_data;
 	u32 hp_flags = hpriv->hp_flags;
 	void __iomem *port_mmio = mv_ap_base(ap);
+	int fix_phy_mode2 =
+		hp_flags & (MV_HP_ERRATA_60X1B2 | MV_HP_ERRATA_60X1C0);
 	int fix_phy_mode4 =
-		hp_flags & (MV_HP_ERRATA_60X1A1 | MV_HP_ERRATA_60X1B0);
-	u32 m2;
+		hp_flags & (MV_HP_ERRATA_60X1B2 | MV_HP_ERRATA_60X1C0);
+	u32 m2, tmp;
+
+	if (fix_phy_mode2) {
+		m2 = readl(port_mmio + PHY_MODE2);
+		m2 &= ~(1 << 16);
+		m2 |= (1 << 31);
+		writel(m2, port_mmio + PHY_MODE2);
+
+		udelay(200);
+
+		m2 = readl(port_mmio + PHY_MODE2);
+		m2 &= ~((1 << 16) | (1 << 31));
+		writel(m2, port_mmio + PHY_MODE2);
+
+		udelay(200);
+	}
+
+	/* who knows what this magic does */
+	tmp = readl(port_mmio + PHY_MODE3);
+	tmp &= ~0x7F800000;
+	tmp |= 0x2A800000;
+	writel(tmp, port_mmio + PHY_MODE3);
 
 	if (fix_phy_mode4) {
-		u32 tmp, m4;
+		u32 m4;
 
 		m4 = readl(port_mmio + PHY_MODE4);
-		tmp = readl(port_mmio + 0x310);
+
+		if (hp_flags & MV_HP_ERRATA_60X1B2)
+			tmp = readl(port_mmio + 0x310);
 
 		m4 = (m4 & ~(1 << 1)) | (1 << 0);
 
 		writel(m4, port_mmio + PHY_MODE4);
-		writel(tmp, port_mmio + 0x310);
+
+		if (hp_flags & MV_HP_ERRATA_60X1B2)
+			writel(tmp, port_mmio + 0x310);
 	}
 
 	/* Revert values of pre-emphasis and signal amps to the saved ones */
@@ -1323,18 +1374,9 @@ static void mv_phy_errata6(struct ata_port *ap)
 	m2 &= ~MV_M2_PREAMP_MASK;
 	m2 |= hpriv->signal[ap->port_no].amps;
 	m2 |= hpriv->signal[ap->port_no].pre;
+	m2 &= ~(1 << 16);
 
 	writel(m2, port_mmio + PHY_MODE2);
-}
-
-static void mv_phy_errata(struct ata_port *ap)
-{
-	struct mv_host_priv *hpriv = ap->host_set->private_data;
-
-	if (IS_50XX(hpriv))
-		mv_phy_errata5(ap);
-	else
-		mv_phy_errata6(ap);
 }
 
 /**
@@ -1376,7 +1418,7 @@ static void mv_phy_reset(struct ata_port *ap)
 	 */
 	writelfl(0, port_mmio + EDMA_CMD_OFS);
 
-	mv_phy_errata(ap);
+	hpriv->ops->phy_errata(ap);
 
 	DPRINTK("S-regs after ATA_RST: SStat 0x%08x SErr 0x%08x "
 		"SCtrl 0x%08x\n", mv_scr_read(ap, SCR_STATUS),
@@ -1521,15 +1563,7 @@ static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
 		readl(port_mmio + EDMA_ERR_IRQ_MASK_OFS));
 }
 
-static void mv_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio)
-{
-	if (IS_50XX(hpriv))
-		mv_enable_leds5(hpriv, mmio);
-	else
-		mv_enable_leds6(hpriv, mmio);
-}
-
-static int mv_cfg_errata(struct pci_dev *pdev, struct mv_host_priv *hpriv,
+static int mv_chip_id(struct pci_dev *pdev, struct mv_host_priv *hpriv,
 			 unsigned int board_idx)
 {
 	u8 rev_id;
@@ -1538,70 +1572,60 @@ static int mv_cfg_errata(struct pci_dev *pdev, struct mv_host_priv *hpriv,
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &rev_id);
 
 	switch(board_idx) {
-	case chip_504x:
-	case chip_508x:
+	case chip_5080:
+		hpriv->ops = &mv5xxx_ops;
 		hp_flags |= MV_HP_50XX;
 
-		if (pdev->device == 0x5080) {
-			switch (rev_id) {
-			case 0x0:
-				dev_printk(KERN_WARNING, &pdev->dev,
-					   "Applying B0 workarounds to unknown rev 0\n");
-				/* fall through */
-			case 0x1:
-				hp_flags |= MV_HP_ERRATA_50XXB0;
-				break;
-			case 0x2:
-				hp_flags |= MV_HP_ERRATA_50XXB1;
-				break;
-			case 0x3:
-				hp_flags |= MV_HP_ERRATA_50XXB2;
-				break;
-			default:
-				dev_printk(KERN_WARNING, &pdev->dev,
-					   "Applying B2 workarounds to future rev\n");
-				hp_flags |= MV_HP_ERRATA_50XXB2;
-				break;
-			}
-		} else {
-			switch (rev_id) {
-			case 0x0:
-				hp_flags |= MV_HP_ERRATA_50XXB0;
-				break;
-			case 0x1:
-				dev_printk(KERN_WARNING, &pdev->dev,
-			          "Applying B1 workarounds to unknown rev 1\n");
-				/* fall through */
-			case 0x2:
-				hp_flags |= MV_HP_ERRATA_50XXB1;
-				break;
-			default:
-				dev_printk(KERN_WARNING, &pdev->dev,
-				   "Applying B2 workarounds to future rev\n");
-				/* fall through */
-			case 0x3:
-				hp_flags |= MV_HP_ERRATA_50XXB2;
-				break;
-			}
+		switch (rev_id) {
+		case 0x1:
+			hp_flags |= MV_HP_ERRATA_50XXB0;
+			break;
+		case 0x3:
+			hp_flags |= MV_HP_ERRATA_50XXB2;
+			break;
+		default:
+			dev_printk(KERN_WARNING, &pdev->dev,
+			   "Applying 50XXB2 workarounds to unknown rev\n");
+			hp_flags |= MV_HP_ERRATA_50XXB2;
+			break;
+		}
+		break;
+
+	case chip_504x:
+	case chip_508x:
+		hpriv->ops = &mv5xxx_ops;
+		hp_flags |= MV_HP_50XX;
+
+		switch (rev_id) {
+		case 0x0:
+			hp_flags |= MV_HP_ERRATA_50XXB0;
+			break;
+		case 0x3:
+			hp_flags |= MV_HP_ERRATA_50XXB2;
+			break;
+		default:
+			dev_printk(KERN_WARNING, &pdev->dev,
+			   "Applying B2 workarounds to unknown rev\n");
+			hp_flags |= MV_HP_ERRATA_50XXB2;
+			break;
 		}
 		break;
 
 	case chip_604x:
 	case chip_608x:
+		hpriv->ops = &mv6xxx_ops;
+
 		switch (rev_id) {
-		case 0x0:
-			dev_printk(KERN_WARNING, &pdev->dev,
-			          "Applying A1 workarounds to unknown rev 0\n");
-			/* fall through */
-		case 0x1:
-			hp_flags |= MV_HP_ERRATA_60X1A1;
+		case 0x7:
+			hp_flags |= MV_HP_ERRATA_60X1B2;
+			break;
+		case 0x9:
+			hp_flags |= MV_HP_ERRATA_60X1C0;
 			break;
 		default:
 			dev_printk(KERN_WARNING, &pdev->dev,
-				   "Applying B0 workarounds to future rev\n");
-			/* fall through */
-		case 0x2:
-			hp_flags |= MV_HP_ERRATA_60X1B0;
+				   "Applying B2 workarounds to unknown rev\n");
+			hp_flags |= MV_HP_ERRATA_60X1B2;
 			break;
 		}
 		break;
@@ -1617,7 +1641,7 @@ static int mv_cfg_errata(struct pci_dev *pdev, struct mv_host_priv *hpriv,
 }
 
 /**
- *      mv_host_init - Perform some early initialization of the host.
+ *      mv_init_host - Perform some early initialization of the host.
  *	@pdev: host PCI device
  *      @probe_ent: early data struct representing the host
  *
@@ -1627,7 +1651,7 @@ static int mv_cfg_errata(struct pci_dev *pdev, struct mv_host_priv *hpriv,
  *      LOCKING:
  *      Inherited from caller.
  */
-static int mv_host_init(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
+static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 			unsigned int board_idx)
 {
 	int rc = 0, n_hc, port, hc;
@@ -1635,28 +1659,24 @@ static int mv_host_init(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 	void __iomem *port_mmio;
 	struct mv_host_priv *hpriv = probe_ent->private_data;
 
-	rc = mv_cfg_errata(pdev, hpriv, board_idx);
+	/* global interrupt mask */
+	writel(0, mmio + HC_MAIN_IRQ_MASK_OFS);
+
+	rc = mv_chip_id(pdev, hpriv, board_idx);
 	if (rc)
 		goto done;
 
 	n_hc = mv_get_hc_count(probe_ent->host_flags);
 	probe_ent->n_ports = MV_PORTS_PER_HC * n_hc;
 
-	if (IS_50XX(hpriv)) {
-		for (port = 0; port < probe_ent->n_ports; port++)
-			mv_cfg_signal5(hpriv, port, mmio);
-	} else {
-		for (port = 0; port < probe_ent->n_ports; port++)
-			mv_cfg_signal6(hpriv, port, mmio);
-	}
+	for (port = 0; port < probe_ent->n_ports; port++)
+		hpriv->ops->read_preamp(hpriv, port, mmio);
 
-	if ((MV_FLAG_GLBL_SFT_RST & probe_ent->host_flags) &&
-	    mv_global_soft_reset(probe_ent->mmio_base)) {
-		rc = 1;
+	rc = hpriv->ops->reset_hc(hpriv, mmio);
+	if (rc)
 		goto done;
-	}
 
-	mv_enable_leds(hpriv, mmio);
+	hpriv->ops->enable_leds(hpriv, mmio);
 
 	for (port = 0; port < probe_ent->n_ports; port++) {
 		port_mmio = mv_port_base(mmio, port);
@@ -1794,7 +1814,7 @@ static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	probe_ent->private_data = hpriv;
 
 	/* initialize adapter */
-	rc = mv_host_init(pdev, probe_ent, board_idx);
+	rc = mv_init_host(pdev, probe_ent, board_idx);
 	if (rc) {
 		goto err_out_hpriv;
 	}
