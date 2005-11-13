@@ -293,7 +293,8 @@ struct mv_port_signal {
 
 struct mv_host_priv;
 struct mv_hw_ops {
-	void (*phy_errata)(struct ata_port *ap);
+	void (*phy_errata)(struct mv_host_priv *hpriv, void __iomem *mmio,
+			   unsigned int port);
 	void (*enable_leds)(struct mv_host_priv *hpriv, void __iomem *mmio);
 	void (*read_preamp)(struct mv_host_priv *hpriv, int idx,
 			   void __iomem *mmio);
@@ -322,7 +323,8 @@ static irqreturn_t mv_interrupt(int irq, void *dev_instance,
 static void mv_eng_timeout(struct ata_port *ap);
 static int mv_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 
-static void mv5_phy_errata(struct ata_port *ap);
+static void mv5_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
+			   unsigned int port);
 static void mv5_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio);
 static void mv5_read_preamp(struct mv_host_priv *hpriv, int idx,
 			   void __iomem *mmio);
@@ -330,7 +332,8 @@ static int mv5_reset_hc(struct mv_host_priv *hpriv, void __iomem *mmio);
 static void mv5_reset_flash(struct mv_host_priv *hpriv, void __iomem *mmio);
 static void mv5_reset_bus(struct pci_dev *pdev, void __iomem *mmio);
 
-static void mv6_phy_errata(struct ata_port *ap);
+static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
+			   unsigned int port);
 static void mv6_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio);
 static void mv6_read_preamp(struct mv_host_priv *hpriv, int idx,
 			   void __iomem *mmio);
@@ -1275,7 +1278,8 @@ static void mv5_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio)
 	writel(tmp, mmio + MV_PCI_EXP_ROM_BAR_CTL);
 }
 
-static void mv5_phy_errata(struct ata_port *ap)
+static void mv5_phy_errata(struct mv_host_priv *hpriv, void __iomem *mmio,
+			   unsigned int port)
 {
 	/* FIXME */
 }
@@ -1411,11 +1415,10 @@ static void mv6_enable_leds(struct mv_host_priv *hpriv, void __iomem *mmio)
 	writel(0x00000060, mmio + MV_GPIO_PORT_CTL);
 }
 
-static void mv6_phy_errata(struct ata_port *ap)
+static void mv6_phy_errata(struct mv_host_priv *hpriv, void __iomem *port_mmio,
+			   unsigned int port)
 {
-	struct mv_host_priv *hpriv = ap->host_set->private_data;
 	u32 hp_flags = hpriv->hp_flags;
-	void __iomem *port_mmio = mv_ap_base(ap);
 	int fix_phy_mode2 =
 		hp_flags & (MV_HP_ERRATA_60X1B2 | MV_HP_ERRATA_60X1C0);
 	int fix_phy_mode4 =
@@ -1463,8 +1466,8 @@ static void mv6_phy_errata(struct ata_port *ap)
 	m2 = readl(port_mmio + PHY_MODE2);
 
 	m2 &= ~MV_M2_PREAMP_MASK;
-	m2 |= hpriv->signal[ap->port_no].amps;
-	m2 |= hpriv->signal[ap->port_no].pre;
+	m2 |= hpriv->signal[port].amps;
+	m2 |= hpriv->signal[port].pre;
 	m2 &= ~(1 << 16);
 
 	writel(m2, port_mmio + PHY_MODE2);
@@ -1509,7 +1512,7 @@ static void mv_phy_reset(struct ata_port *ap)
 	 */
 	writelfl(0, port_mmio + EDMA_CMD_OFS);
 
-	hpriv->ops->phy_errata(ap);
+	hpriv->ops->phy_errata(hpriv, port_mmio, ap->port_no);
 
 	DPRINTK("S-regs after ATA_RST: SStat 0x%08x SErr 0x%08x "
 		"SCtrl 0x%08x\n", mv_scr_read(ap, SCR_STATUS),
@@ -1747,7 +1750,6 @@ static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 {
 	int rc = 0, n_hc, port, hc;
 	void __iomem *mmio = probe_ent->mmio_base;
-	void __iomem *port_mmio;
 	struct mv_host_priv *hpriv = probe_ent->private_data;
 
 	/* global interrupt mask */
@@ -1772,7 +1774,19 @@ static int mv_init_host(struct pci_dev *pdev, struct ata_probe_ent *probe_ent,
 	hpriv->ops->enable_leds(hpriv, mmio);
 
 	for (port = 0; port < probe_ent->n_ports; port++) {
-		port_mmio = mv_port_base(mmio, port);
+		void __iomem *port_mmio = mv_port_base(mmio, port);
+
+		if (IS_60XX(hpriv)) {
+			u32 ifctl = readl(port_mmio + SATA_INTERFACE_CTL);
+			ifctl |= (1 << 12);
+			writelfl(ifctl, port_mmio + SATA_INTERFACE_CTL);
+		}
+
+		hpriv->ops->phy_errata(hpriv, port_mmio, port);
+	}
+
+	for (port = 0; port < probe_ent->n_ports; port++) {
+		void __iomem *port_mmio = mv_port_base(mmio, port);
 		mv_port_init(&probe_ent->port[port], port_mmio);
 	}
 
