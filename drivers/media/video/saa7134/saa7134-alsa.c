@@ -31,6 +31,7 @@
 #include <sound/control.h>
 #include <sound/pcm.h>
 #include <sound/initval.h>
+#include <linux/interrupt.h>
 
 #include "saa7134.h"
 #include "saa7134-reg.h"
