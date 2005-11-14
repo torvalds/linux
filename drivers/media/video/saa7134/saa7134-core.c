@@ -53,13 +53,13 @@ static unsigned int gpio_tracking = 0;
 module_param(gpio_tracking, int, 0644);
 MODULE_PARM_DESC(gpio_tracking,"enable debug messages [gpio]");
 
-static unsigned int oss = 0;
-module_param(oss, int, 0444);
-MODULE_PARM_DESC(oss,"register oss devices (default: no)");
-
 static unsigned int alsa = 0;
-module_param(alsa, int, 0444);
-MODULE_PARM_DESC(alsa,"register alsa devices (default: no)");
+module_param(alsa, int, 0644);
+MODULE_PARM_DESC(alsa,"enable ALSA DMA sound [dmasound]");
+
+static unsigned int oss = 0;
+module_param(oss, int, 0644);
+MODULE_PARM_DESC(oss,"enable OSS DMA sound [dmasound]");
 
 static unsigned int latency = UNSET;
 module_param(latency, int, 0444);
@@ -68,24 +68,18 @@ MODULE_PARM_DESC(latency,"pci latency timer");
 static unsigned int video_nr[] = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
 static unsigned int vbi_nr[]   = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
 static unsigned int radio_nr[] = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
-static unsigned int dsp_nr[]   = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
-static unsigned int mixer_nr[] = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
 static unsigned int tuner[]    = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
 static unsigned int card[]     = {[0 ... (SAA7134_MAXBOARDS - 1)] = UNSET };
 
 module_param_array(video_nr, int, NULL, 0444);
 module_param_array(vbi_nr,   int, NULL, 0444);
 module_param_array(radio_nr, int, NULL, 0444);
-module_param_array(dsp_nr,   int, NULL, 0444);
-module_param_array(mixer_nr, int, NULL, 0444);
 module_param_array(tuner,    int, NULL, 0444);
 module_param_array(card,     int, NULL, 0444);
 
 MODULE_PARM_DESC(video_nr, "video device number");
 MODULE_PARM_DESC(vbi_nr,   "vbi device number");
 MODULE_PARM_DESC(radio_nr, "radio device number");
-MODULE_PARM_DESC(dsp_nr,   "oss dsp device number");
-MODULE_PARM_DESC(mixer_nr, "oss mixer device number");
 MODULE_PARM_DESC(tuner,    "tuner type");
 MODULE_PARM_DESC(card,     "card type");
 
@@ -195,6 +189,7 @@ void saa7134_track_gpio(struct saa7134_dev *dev, char *msg)
 static int need_empress;
 static int need_dvb;
 static int need_alsa;
+static int need_oss;
 
 static int pending_call(struct notifier_block *self, unsigned long state,
 			void *module)
@@ -208,6 +203,8 @@ static int pending_call(struct notifier_block *self, unsigned long state,
 		request_module("saa7134-dvb");
 	if (need_alsa)
 		request_module("saa7134-alsa");
+	if (need_oss)
+		request_module("saa7134-oss");
 	return NOTIFY_DONE;
 }
 
@@ -218,10 +215,11 @@ static struct notifier_block pending_notifier = {
 
 static void request_module_depend(char *name, int *flag)
 {
+	int err;
 	switch (THIS_MODULE->state) {
 	case MODULE_STATE_COMING:
 		if (!pending_registered) {
-			register_module_notifier(&pending_notifier);
+			err = register_module_notifier(&pending_notifier);
 			pending_registered = 1;
 		}
 		*flag = 1;
@@ -578,12 +576,14 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id, struct pt_regs *regs)
 			goto out;
 		}
 
-		/* If alsa support is active and we get a sound report, exit
-		   and let the saa7134-alsa module deal with it */
+		/* If dmasound support is active and we get a sound report, exit
+		   and let the saa7134-alsa/oss module deal with it */
 
-		if ((report & SAA7134_IRQ_REPORT_DONE_RA3) && alsa)  {
+		if ((report & SAA7134_IRQ_REPORT_DONE_RA3) &&
+			(dev->dmasound.priv_data != NULL) )
+		{
 			if (irq_debug > 1)
-				printk(KERN_DEBUG "%s/irq: ignoring interrupt for ALSA\n",
+				printk(KERN_DEBUG "%s/irq: ignoring interrupt for DMA sound\n",
 				       dev->name);
 			goto out;
 		}
@@ -608,12 +608,6 @@ static irqreturn_t saa7134_irq(int irq, void *dev_id, struct pt_regs *regs)
 		if ((report & SAA7134_IRQ_REPORT_DONE_RA2) &&
 		    card_has_mpeg(dev))
 			saa7134_irq_ts_done(dev,status);
-
-		if ((report & SAA7134_IRQ_REPORT_DONE_RA3))  {
-			if (oss) {
-				saa7134_irq_oss_done(dev,status);
-			}
-		}
 
 		if ((report & (SAA7134_IRQ_REPORT_GPIO16 |
 			       SAA7134_IRQ_REPORT_GPIO18)) &&
@@ -689,14 +683,6 @@ static int saa7134_hwinit1(struct saa7134_dev *dev)
 	 * audio will not work.
 	 */
 
-	switch (dev->pci->device) {
-	case PCI_DEVICE_ID_PHILIPS_SAA7134:
-	case PCI_DEVICE_ID_PHILIPS_SAA7133:
-	case PCI_DEVICE_ID_PHILIPS_SAA7135:
-		saa7134_oss_init1(dev);
-		break;
-	}
-
 	/* enable peripheral devices */
 	saa_writeb(SAA7134_SPECIAL_MODE, 0x01);
 
@@ -728,8 +714,6 @@ static int saa7134_hwinit2(struct saa7134_dev *dev)
 		irq2_mask |= (SAA7134_IRQ2_INTE_GPIO18  |
 			      SAA7134_IRQ2_INTE_GPIO18A |
 			      SAA7134_IRQ2_INTE_GPIO16  );
-	else if (dev->has_remote == SAA7134_REMOTE_I2C)
-		request_module("ir-kbd-i2c");
 
 	saa_writel(SAA7134_IRQ1, 0);
 	saa_writel(SAA7134_IRQ2, irq2_mask);
@@ -742,13 +726,6 @@ static int saa7134_hwfini(struct saa7134_dev *dev)
 {
 	dprintk("hwfini\n");
 
-	switch (dev->pci->device) {
-	case PCI_DEVICE_ID_PHILIPS_SAA7134:
-	case PCI_DEVICE_ID_PHILIPS_SAA7133:
-	case PCI_DEVICE_ID_PHILIPS_SAA7135:
-		saa7134_oss_fini(dev);
-		break;
-	}
 	if (card_has_mpeg(dev))
 		saa7134_ts_fini(dev);
 	saa7134_input_fini(dev);
@@ -986,11 +963,12 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 	if (card_is_dvb(dev))
 		request_module_depend("saa7134-dvb",&need_dvb);
 
-	if (!oss && alsa) {
-		dprintk("Requesting ALSA module\n");
-		request_module_depend("saa7134-alsa",&need_alsa);
-	}
 
+	if (alsa)
+		request_module_depend("saa7134-alsa",&need_alsa);
+
+	if (oss)
+		request_module_depend("saa7134-oss",&need_oss);
 
 	v4l2_prio_init(&dev->prio);
 
@@ -1024,32 +1002,6 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 		       dev->name,dev->radio_dev->minor & 0x1f);
 	}
 
-	/* register oss devices */
-	switch (dev->pci->device) {
-	case PCI_DEVICE_ID_PHILIPS_SAA7134:
-	case PCI_DEVICE_ID_PHILIPS_SAA7133:
-	case PCI_DEVICE_ID_PHILIPS_SAA7135:
-		if (oss) {
-			err = dev->dmasound.minor_dsp =
-				register_sound_dsp(&saa7134_dsp_fops,
-						   dsp_nr[dev->nr]);
-			if (err < 0) {
-				goto fail4;
-			}
-			printk(KERN_INFO "%s: registered device dsp%d\n",
-			       dev->name,dev->dmasound.minor_dsp >> 4);
-
-			err = dev->dmasound.minor_mixer =
-				register_sound_mixer(&saa7134_mixer_fops,
-						     mixer_nr[dev->nr]);
-			if (err < 0)
-				goto fail5;
-			printk(KERN_INFO "%s: registered device mixer%d\n",
-			       dev->name,dev->dmasound.minor_mixer >> 4);
-		}
-		break;
-	}
-
 	/* everything worked */
 	pci_set_drvdata(pci_dev,dev);
 	saa7134_devcount++;
@@ -1064,17 +1016,9 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 
 	/* check for signal */
 	saa7134_irq_video_intl(dev);
+
 	return 0;
 
- fail5:
-	switch (dev->pci->device) {
-	case PCI_DEVICE_ID_PHILIPS_SAA7134:
-	case PCI_DEVICE_ID_PHILIPS_SAA7133:
-	case PCI_DEVICE_ID_PHILIPS_SAA7135:
-		if (oss)
-			unregister_sound_dsp(dev->dmasound.minor_dsp);
-		break;
-	}
  fail4:
 	saa7134_unregister_video(dev);
 	saa7134_i2c_unregister(dev);
@@ -1125,19 +1069,16 @@ static void __devexit saa7134_finidev(struct pci_dev *pci_dev)
 	saa7134_devcount--;
 
 	saa7134_i2c_unregister(dev);
-	switch (dev->pci->device) {
-	case PCI_DEVICE_ID_PHILIPS_SAA7134:
-	case PCI_DEVICE_ID_PHILIPS_SAA7133:
-	case PCI_DEVICE_ID_PHILIPS_SAA7135:
-		if (oss) {
-			unregister_sound_mixer(dev->dmasound.minor_mixer);
-			unregister_sound_dsp(dev->dmasound.minor_dsp);
-		}
-		break;
-	}
 	saa7134_unregister_video(dev);
 
-	/* release ressources */
+	/* the DMA sound modules should be unloaded before reaching
+	   this, but just in case they are still present... */
+	if (dev->dmasound.priv_data != NULL) {
+		free_irq(pci_dev->irq, &dev->dmasound);
+		dev->dmasound.priv_data = NULL;
+	}
+
+	/* release resources */
 	free_irq(pci_dev->irq, dev);
 	iounmap(dev->lmmio);
 	release_mem_region(pci_resource_start(pci_dev,0),
@@ -1225,7 +1166,7 @@ EXPORT_SYMBOL(saa7134_i2c_call_clients);
 EXPORT_SYMBOL(saa7134_devlist);
 EXPORT_SYMBOL(saa7134_boards);
 
-/* ----------------- For ALSA -------------------------------- */
+/* ----------------- for the DMA sound modules --------------- */
 
 EXPORT_SYMBOL(saa7134_pgtable_free);
 EXPORT_SYMBOL(saa7134_pgtable_build);

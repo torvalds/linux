@@ -100,13 +100,6 @@ static void port_close(int fd, void *d)
 	os_close_file(fd);
 }
 
-static int port_console_write(int fd, const char *buf, int n, void *d)
-{
-	struct port_chan *data = d;
-
-	return(generic_console_write(fd, buf, n, &data->tt));
-}
-
 struct chan_ops port_ops = {
 	.type		= "port",
 	.init		= port_init,
@@ -114,7 +107,7 @@ struct chan_ops port_ops = {
 	.close		= port_close,
 	.read	        = generic_read,
 	.write		= generic_write,
-	.console_write	= port_console_write,
+	.console_write	= generic_console_write,
 	.window_size	= generic_window_size,
 	.free		= port_free,
 	.winch		= 1,

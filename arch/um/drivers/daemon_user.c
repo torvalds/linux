@@ -98,7 +98,7 @@ static int connect_to_switch(struct daemon_data *pri)
 		printk("daemon_open : control setup request failed, err = %d\n",
 		       -n);
 		err = -ENOTCONN;
-		goto out;		
+		goto out_free;
 	}
 
 	n = os_read_file(pri->control, sun, sizeof(*sun));
@@ -106,12 +106,14 @@ static int connect_to_switch(struct daemon_data *pri)
 		printk("daemon_open : read of data socket failed, err = %d\n",
 		       -n);
 		err = -ENOTCONN;
-		goto out_close;		
+		goto out_free;
 	}
 
 	pri->data_addr = sun;
 	return(fd);
 
+ out_free:
+	kfree(sun);
  out_close:
 	os_close_file(fd);
  out:

@@ -532,8 +532,7 @@ void ata_tf_to_fis(const struct ata_taskfile *tf, u8 *fis, u8 pmp)
  *	@fis: Buffer from which data will be input
  *	@tf: Taskfile to output
  *
- *	Converts a standard ATA taskfile to a Serial ATA
- *	FIS structure (Register - Host to Device).
+ *	Converts a serial ATA FIS structure to a standard ATA taskfile.
  *
  *	LOCKING:
  *	Inherited from caller.

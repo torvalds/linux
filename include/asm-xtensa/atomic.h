@@ -223,6 +223,26 @@ static inline int atomic_sub_return(int i, atomic_t * v)
  */
 #define atomic_add_negative(i,v) (atomic_add_return((i),(v)) < 0)
 
+#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+
+/**
+ * atomic_add_unless - add unless the number is a given value
+ * @v: pointer of type atomic_t
+ * @a: the amount to add to v...
+ * @u: ...unless v is equal to u.
+ *
+ * Atomically adds @a to @v, so long as it was not @u.
+ * Returns non-zero if @v was not @u, and zero otherwise.
+ */
+#define atomic_add_unless(v, a, u)				\
+({								\
+	int c, old;						\
+	c = atomic_read(v);					\
+	while (c != (u) && (old = atomic_cmpxchg((v), c, c + (a))) != c) \
+		c = old;					\
+	c != (u);						\
+})
+#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
 {

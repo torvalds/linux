@@ -549,10 +549,10 @@ int copy_page_range(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	return 0;
 }
 
-static void zap_pte_range(struct mmu_gather *tlb,
+static unsigned long zap_pte_range(struct mmu_gather *tlb,
 				struct vm_area_struct *vma, pmd_t *pmd,
 				unsigned long addr, unsigned long end,
-				struct zap_details *details)
+				long *zap_work, struct zap_details *details)
 {
 	struct mm_struct *mm = tlb->mm;
 	pte_t *pte;
@@ -563,10 +563,15 @@ static void zap_pte_range(struct mmu_gather *tlb,
 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
 	do {
 		pte_t ptent = *pte;
-		if (pte_none(ptent))
+		if (pte_none(ptent)) {
+			(*zap_work)--;
 			continue;
+		}
 		if (pte_present(ptent)) {
 			struct page *page = NULL;
+
+			(*zap_work) -= PAGE_SIZE;
+
 			if (!(vma->vm_flags & VM_RESERVED)) {
 				unsigned long pfn = pte_pfn(ptent);
 				if (unlikely(!pfn_valid(pfn)))
@@ -624,16 +629,18 @@ static void zap_pte_range(struct mmu_gather *tlb,
 		if (!pte_file(ptent))
 			free_swap_and_cache(pte_to_swp_entry(ptent));
 		pte_clear_full(mm, addr, pte, tlb->fullmm);
-	} while (pte++, addr += PAGE_SIZE, addr != end);
+	} while (pte++, addr += PAGE_SIZE, (addr != end && *zap_work > 0));
 
 	add_mm_rss(mm, file_rss, anon_rss);
 	pte_unmap_unlock(pte - 1, ptl);
+
+	return addr;
 }
 
-static inline void zap_pmd_range(struct mmu_gather *tlb,
+static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
 				struct vm_area_struct *vma, pud_t *pud,
 				unsigned long addr, unsigned long end,
-				struct zap_details *details)
+				long *zap_work, struct zap_details *details)
 {
 	pmd_t *pmd;
 	unsigned long next;
@@ -641,16 +648,21 @@ static inline void zap_pmd_range(struct mmu_gather *tlb,
 	pmd = pmd_offset(pud, addr);
 	do {
 		next = pmd_addr_end(addr, end);
-		if (pmd_none_or_clear_bad(pmd))
+		if (pmd_none_or_clear_bad(pmd)) {
+			(*zap_work)--;
 			continue;
-		zap_pte_range(tlb, vma, pmd, addr, next, details);
-	} while (pmd++, addr = next, addr != end);
+		}
+		next = zap_pte_range(tlb, vma, pmd, addr, next,
+						zap_work, details);
+	} while (pmd++, addr = next, (addr != end && *zap_work > 0));
+
+	return addr;
 }
 
-static inline void zap_pud_range(struct mmu_gather *tlb,
+static inline unsigned long zap_pud_range(struct mmu_gather *tlb,
 				struct vm_area_struct *vma, pgd_t *pgd,
 				unsigned long addr, unsigned long end,
-				struct zap_details *details)
+				long *zap_work, struct zap_details *details)
 {
 	pud_t *pud;
 	unsigned long next;
@@ -658,15 +670,21 @@ static inline void zap_pud_range(struct mmu_gather *tlb,
 	pud = pud_offset(pgd, addr);
 	do {
 		next = pud_addr_end(addr, end);
-		if (pud_none_or_clear_bad(pud))
+		if (pud_none_or_clear_bad(pud)) {
+			(*zap_work)--;
 			continue;
-		zap_pmd_range(tlb, vma, pud, addr, next, details);
-	} while (pud++, addr = next, addr != end);
+		}
+		next = zap_pmd_range(tlb, vma, pud, addr, next,
+						zap_work, details);
+	} while (pud++, addr = next, (addr != end && *zap_work > 0));
+
+	return addr;
 }
 
-static void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+static unsigned long unmap_page_range(struct mmu_gather *tlb,
+				struct vm_area_struct *vma,
 				unsigned long addr, unsigned long end,
-				struct zap_details *details)
+				long *zap_work, struct zap_details *details)
 {
 	pgd_t *pgd;
 	unsigned long next;
@@ -679,11 +697,16 @@ static void unmap_page_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 	pgd = pgd_offset(vma->vm_mm, addr);
 	do {
 		next = pgd_addr_end(addr, end);
-		if (pgd_none_or_clear_bad(pgd))
+		if (pgd_none_or_clear_bad(pgd)) {
+			(*zap_work)--;
 			continue;
-		zap_pud_range(tlb, vma, pgd, addr, next, details);
-	} while (pgd++, addr = next, addr != end);
+		}
+		next = zap_pud_range(tlb, vma, pgd, addr, next,
+						zap_work, details);
+	} while (pgd++, addr = next, (addr != end && *zap_work > 0));
 	tlb_end_vma(tlb, vma);
+
+	return addr;
 }
 
 #ifdef CONFIG_PREEMPT
@@ -724,7 +747,7 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp,
 		unsigned long end_addr, unsigned long *nr_accounted,
 		struct zap_details *details)
 {
-	unsigned long zap_bytes = ZAP_BLOCK_SIZE;
+	long zap_work = ZAP_BLOCK_SIZE;
 	unsigned long tlb_start = 0;	/* For tlb_finish_mmu */
 	int tlb_start_valid = 0;
 	unsigned long start = start_addr;
@@ -745,26 +768,24 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp,
 			*nr_accounted += (end - start) >> PAGE_SHIFT;
 
 		while (start != end) {
-			unsigned long block;
-
 			if (!tlb_start_valid) {
 				tlb_start = start;
 				tlb_start_valid = 1;
 			}
 
-			if (is_vm_hugetlb_page(vma)) {
-				block = end - start;
+			if (unlikely(is_vm_hugetlb_page(vma))) {
 				unmap_hugepage_range(vma, start, end);
-			} else {
-				block = min(zap_bytes, end - start);
-				unmap_page_range(*tlbp, vma, start,
-						start + block, details);
-			}
+				zap_work -= (end - start) /
+						(HPAGE_SIZE / PAGE_SIZE);
+				start = end;
+			} else
+				start = unmap_page_range(*tlbp, vma,
+						start, end, &zap_work, details);
 
-			start += block;
-			zap_bytes -= block;
-			if ((long)zap_bytes > 0)
-				continue;
+			if (zap_work > 0) {
+				BUG_ON(start != end);
+				break;
+			}
 
 			tlb_finish_mmu(*tlbp, tlb_start, start);
 
@@ -779,7 +800,7 @@ unsigned long unmap_vmas(struct mmu_gather **tlbp,
 
 			*tlbp = tlb_gather_mmu(vma->vm_mm, fullmm);
 			tlb_start_valid = 0;
-			zap_bytes = ZAP_BLOCK_SIZE;
+			zap_work = ZAP_BLOCK_SIZE;
 		}
 	}
 out:

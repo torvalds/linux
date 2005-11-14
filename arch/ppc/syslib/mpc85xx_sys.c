@@ -3,7 +3,7 @@
  *
  * MPC85xx System descriptions
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2005 Freescale Semiconductor Inc.
  *

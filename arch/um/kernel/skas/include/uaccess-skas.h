@@ -9,14 +9,8 @@
 #include "asm/errno.h"
 #include "asm/fixmap.h"
 
-#define access_ok_skas(type, addr, size) \
-	((segment_eq(get_fs(), KERNEL_DS)) || \
-	 (((unsigned long) (addr) < TASK_SIZE) && \
-	  ((unsigned long) (addr) + (size) <= TASK_SIZE)) || \
-	 ((type == VERIFY_READ ) && \
-	  ((unsigned long) (addr) >= FIXADDR_USER_START) && \
-	  ((unsigned long) (addr) + (size) <= FIXADDR_USER_END) && \
-	  ((unsigned long) (addr) + (size) >= (unsigned long)(addr))))
+/* No SKAS-specific checking. */
+#define access_ok_skas(type, addr, size) 0
 
 extern int copy_from_user_skas(void *to, const void __user *from, int n);
 extern int copy_to_user_skas(void __user *to, const void *from, int n);

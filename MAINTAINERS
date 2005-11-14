@@ -1565,7 +1565,7 @@ S:	Maintained
 
 LINUX FOR POWERPC EMBEDDED PPC83XX AND PPC85XX
 P:     Kumar Gala
-M:     kumar.gala@freescale.com
+M:     galak@kernel.crashing.org
 W:     http://www.penguinppc.org/
 L:     linuxppc-embedded@ozlabs.org
 S:     Maintained
@@ -1871,6 +1871,16 @@ M:	mikep@linuxtr.net
 L:	netdev@vger.kernel.org
 L:	linux-tr@linuxtr.net
 W:	http://www.linuxtr.net
+S:	Maintained
+
+OMNIKEY CARDMAN 4000 DRIVER
+P:	Harald Welte
+M:	laforge@gnumonks.org
+S:	Maintained
+
+OMNIKEY CARDMAN 4040 DRIVER
+P:	Harald Welte
+M:	laforge@gnumonks.org
 S:	Maintained
 
 ONSTREAM SCSI TAPE DRIVER

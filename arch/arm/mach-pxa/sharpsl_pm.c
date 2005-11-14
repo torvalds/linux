@@ -21,7 +21,7 @@
 #include <linux/apm_bios.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 
 #include <asm/hardware.h>
 #include <asm/hardware/scoop.h>
@@ -45,15 +45,15 @@
 #define SHARPSL_WAIT_DISCHARGE_ON              100 /* 100 msec */
 #define SHARPSL_CHECK_BATTERY_WAIT_TIME_TEMP   10  /* 10 msec */
 #define SHARPSL_CHECK_BATTERY_WAIT_TIME_VOLT   10  /* 10 msec */
-#define SHARPSL_CHECK_BATTERY_WAIT_TIME_JKVAD  10  /* 10 msec */
+#define SHARPSL_CHECK_BATTERY_WAIT_TIME_ACIN   10  /* 10 msec */
 #define SHARPSL_CHARGE_WAIT_TIME               15  /* 15 msec */
 #define SHARPSL_CHARGE_CO_CHECK_TIME           5   /* 5 msec */
 #define SHARPSL_CHARGE_RETRY_CNT               1   /* eqv. 10 min */
 
 #define SHARPSL_CHARGE_ON_VOLT         0x99  /* 2.9V */
 #define SHARPSL_CHARGE_ON_TEMP         0xe0  /* 2.9V */
-#define SHARPSL_CHARGE_ON_JKVAD_HIGH   0x9b  /* 6V */
-#define SHARPSL_CHARGE_ON_JKVAD_LOW    0x34  /* 2V */
+#define SHARPSL_CHARGE_ON_ACIN_HIGH    0x9b  /* 6V */
+#define SHARPSL_CHARGE_ON_ACIN_LOW     0x34  /* 2V */
 #define SHARPSL_FATAL_ACIN_VOLT        182   /* 3.45V */
 #define SHARPSL_FATAL_NOACIN_VOLT      170   /* 3.40V */
 
@@ -160,9 +160,10 @@ struct battery_thresh  spitz_battery_levels_noac[] = {
 /*
  * Prototypes
  */
-static int sharpsl_read_MainBattery(void);
+static int sharpsl_read_main_battery(void);
 static int sharpsl_off_charge_battery(void);
-static int sharpsl_check_battery(int mode);
+static int sharpsl_check_battery_temp(void);
+static int sharpsl_check_battery_voltage(void);
 static int sharpsl_ac_check(void);
 static int sharpsl_fatal_check(void);
 static int sharpsl_average_value(int ad);
@@ -228,7 +229,7 @@ static void sharpsl_battery_thread(void *private_)
 	if (!sharpsl_pm.machinfo)
 		return;
 
-	sharpsl_pm.battstat.ac_status = (!(STATUS_AC_IN) ? APM_AC_OFFLINE : APM_AC_ONLINE);
+	sharpsl_pm.battstat.ac_status = (STATUS_AC_IN() ? APM_AC_ONLINE : APM_AC_OFFLINE);
 
 	/* Corgi cannot confirm when battery fully charged so periodically kick! */
 	if (machine_is_corgi() && (sharpsl_pm.charge_mode == CHRG_ON)
@@ -236,7 +237,7 @@ static void sharpsl_battery_thread(void *private_)
 		schedule_work(&toggle_charger);
 
 	while(1) {
-		voltage = sharpsl_read_MainBattery();
+		voltage = sharpsl_read_main_battery();
 		if (voltage > 0) break;
 		if (i++ > 5) {
 			voltage = sharpsl_pm.machinfo->bat_levels_noac[0].voltage;
@@ -317,10 +318,10 @@ static void sharpsl_charge_toggle(void *private_)
 {
 	dev_dbg(sharpsl_pm.dev, "Toogling Charger at time: %lx\n", jiffies);
 
-	if (STATUS_AC_IN == 0) {
+	if (STATUS_AC_IN() == 0) {
 		sharpsl_charge_off();
 		return;
-	} else if ((sharpsl_check_battery(1) < 0) || (sharpsl_ac_check() < 0)) {
+	} else if ((sharpsl_check_battery_temp() < 0) || (sharpsl_ac_check() < 0)) {
 		sharpsl_charge_error();
 		return;
 	}
@@ -335,7 +336,7 @@ static void sharpsl_charge_toggle(void *private_)
 
 static void sharpsl_ac_timer(unsigned long data)
 {
-	int acin = STATUS_AC_IN;
+	int acin = STATUS_AC_IN();
 
 	dev_dbg(sharpsl_pm.dev, "AC Status: %d\n",acin);
 
@@ -364,7 +365,7 @@ static void sharpsl_chrg_full_timer(unsigned long data)
 
 	sharpsl_pm.full_count++;
 
-	if (STATUS_AC_IN == 0) {
+	if (STATUS_AC_IN() == 0) {
 		dev_dbg(sharpsl_pm.dev, "Charge Full: AC removed - stop charging!\n");
 		if (sharpsl_pm.charge_mode == CHRG_ON)
 			sharpsl_charge_off();
@@ -399,12 +400,12 @@ static irqreturn_t sharpsl_fatal_isr(int irq, void *dev_id, struct pt_regs *fp)
 {
 	int is_fatal = 0;
 
-	if (STATUS_BATT_LOCKED == 0) {
+	if (STATUS_BATT_LOCKED() == 0) {
 		dev_err(sharpsl_pm.dev, "Battery now Unlocked! Suspending.\n");
 		is_fatal = 1;
 	}
 
-	if (sharpsl_pm.machinfo->gpio_fatal && (STATUS_FATAL == 0)) {
+	if (sharpsl_pm.machinfo->gpio_fatal && (STATUS_FATAL() == 0)) {
 		dev_err(sharpsl_pm.dev, "Fatal Batt Error! Suspending.\n");
 		is_fatal = 1;
 	}
@@ -461,12 +462,12 @@ static int read_max1111(int channel)
 			| MAXCTRL_SGL | MAXCTRL_UNI | MAXCTRL_STR);
 }
 
-static int sharpsl_read_MainBattery(void)
+static int sharpsl_read_main_battery(void)
 {
 	return read_max1111(BATT_AD);
 }
 
-static int sharpsl_read_Temp(void)
+static int sharpsl_read_temp(void)
 {
 	int temp;
 
@@ -480,7 +481,7 @@ static int sharpsl_read_Temp(void)
 	return temp;
 }
 
-static int sharpsl_read_jkvad(void)
+static int sharpsl_read_acin(void)
 {
 	return read_max1111(JK_VAD);
 }
@@ -522,16 +523,14 @@ static int get_select_val(int *val)
 	return (sum/3);
 }
 
-/*  mode 0 - Check temperature and voltage
- *       1 - Check temperature only */
-static int sharpsl_check_battery(int mode)
+static int sharpsl_check_battery_temp(void)
 {
 	int val, i, buff[5];
 
 	/* Check battery temperature */
 	for (i=0; i<5; i++) {
 		mdelay(SHARPSL_CHECK_BATTERY_WAIT_TIME_TEMP);
-		buff[i] = sharpsl_read_Temp();
+		buff[i] = sharpsl_read_temp();
 	}
 
 	val = get_select_val(buff);
@@ -539,8 +538,13 @@ static int sharpsl_check_battery(int mode)
 	dev_dbg(sharpsl_pm.dev, "Temperature: %d\n", val);
 	if (val > SHARPSL_CHARGE_ON_TEMP)
 		return -1;
-	if (mode == 1)
-		return 0;
+
+	return 0;
+}
+
+static int sharpsl_check_battery_voltage(void)
+{
+	int val, i, buff[5];
 
 	/* disable charge, enable discharge */
 	CHARGE_OFF();
@@ -552,7 +556,7 @@ static int sharpsl_check_battery(int mode)
 
 	/* Check battery voltage */
 	for (i=0; i<5; i++) {
-		buff[i] = sharpsl_read_MainBattery();
+		buff[i] = sharpsl_read_main_battery();
 		mdelay(SHARPSL_CHECK_BATTERY_WAIT_TIME_VOLT);
 	}
 
@@ -575,14 +579,14 @@ static int sharpsl_ac_check(void)
 	int temp, i, buff[5];
 
 	for (i=0; i<5; i++) {
-		buff[i] = sharpsl_read_jkvad();
-		mdelay(SHARPSL_CHECK_BATTERY_WAIT_TIME_JKVAD);
+		buff[i] = sharpsl_read_acin();
+		mdelay(SHARPSL_CHECK_BATTERY_WAIT_TIME_ACIN);
 	}
 
 	temp = get_select_val(buff);
 	dev_dbg(sharpsl_pm.dev, "AC Voltage: %d\n",temp);
 
-	if ((temp > SHARPSL_CHARGE_ON_JKVAD_HIGH) || (temp < SHARPSL_CHARGE_ON_JKVAD_LOW)) {
+	if ((temp > SHARPSL_CHARGE_ON_ACIN_HIGH) || (temp < SHARPSL_CHARGE_ON_ACIN_LOW)) {
 		dev_err(sharpsl_pm.dev, "Error: AC check failed.\n");
 		return -1;
 	}
@@ -591,7 +595,7 @@ static int sharpsl_ac_check(void)
 }
 
 #ifdef CONFIG_PM
-static int sharpsl_pm_suspend(struct device *dev, pm_message_t state)
+static int sharpsl_pm_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	sharpsl_pm.flags |= SHARPSL_SUSPENDED;
 	flush_scheduled_work();
@@ -604,7 +608,7 @@ static int sharpsl_pm_suspend(struct device *dev, pm_message_t state)
 	return 0;
 }
 
-static int sharpsl_pm_resume(struct device *dev)
+static int sharpsl_pm_resume(struct platform_device *pdev)
 {
 	/* Clear the reset source indicators as they break the bootloader upon reboot */
 	RCSR = 0x0f;
@@ -622,7 +626,7 @@ static void corgi_goto_sleep(unsigned long alarm_time, unsigned int alarm_enable
 	dev_dbg(sharpsl_pm.dev, "Offline Charge Activate = %d\n",sharpsl_pm.flags & SHARPSL_DO_OFFLINE_CHRG);
 	/* not charging and AC-IN! */
 
-	if ((sharpsl_pm.flags & SHARPSL_DO_OFFLINE_CHRG) && (STATUS_AC_IN != 0)) {
+	if ((sharpsl_pm.flags & SHARPSL_DO_OFFLINE_CHRG) && (STATUS_AC_IN() != 0)) {
 		dev_dbg(sharpsl_pm.dev, "Activating Offline Charger...\n");
 		sharpsl_pm.charge_mode = CHRG_OFF;
 		sharpsl_pm.flags &= ~SHARPSL_DO_OFFLINE_CHRG;
@@ -671,7 +675,7 @@ static int corgi_enter_suspend(unsigned long alarm_time, unsigned int alarm_enab
 		dev_dbg(sharpsl_pm.dev, "User triggered wakeup in offline charger.\n");
 	}
 
-	if ((STATUS_BATT_LOCKED == 0) || (sharpsl_fatal_check() < 0) )
+	if ((STATUS_BATT_LOCKED() == 0) || (sharpsl_fatal_check() < 0) )
 	{
 		dev_err(sharpsl_pm.dev, "Fatal condition. Suspend.\n");
 		corgi_goto_sleep(alarm_time, alarm_enable, state);
@@ -711,7 +715,7 @@ static int sharpsl_fatal_check(void)
 	dev_dbg(sharpsl_pm.dev, "sharpsl_fatal_check entered\n");
 
 	/* Check AC-Adapter */
-	acin = STATUS_AC_IN;
+	acin = STATUS_AC_IN();
 
 	if (acin && (sharpsl_pm.charge_mode == CHRG_ON)) {
 		CHARGE_OFF();
@@ -725,7 +729,7 @@ static int sharpsl_fatal_check(void)
 
 	/* Check battery : check inserting battery ? */
 	for (i=0; i<5; i++) {
-		buff[i] = sharpsl_read_MainBattery();
+		buff[i] = sharpsl_read_main_battery();
 		mdelay(SHARPSL_CHECK_BATTERY_WAIT_TIME_VOLT);
 	}
 
@@ -739,7 +743,7 @@ static int sharpsl_fatal_check(void)
 	}
 
 	temp = get_select_val(buff);
-	dev_dbg(sharpsl_pm.dev, "sharpsl_fatal_check: acin: %d, discharge voltage: %d, no discharge: %d\n", acin, temp, sharpsl_read_MainBattery());
+	dev_dbg(sharpsl_pm.dev, "sharpsl_fatal_check: acin: %d, discharge voltage: %d, no discharge: %d\n", acin, temp, sharpsl_read_main_battery());
 
 	if ((acin && (temp < SHARPSL_FATAL_ACIN_VOLT)) ||
 			(!acin && (temp < SHARPSL_FATAL_NOACIN_VOLT)))
@@ -771,7 +775,7 @@ static int sharpsl_off_charge_battery(void)
 		dev_dbg(sharpsl_pm.dev, "Offline Charger: Step 1\n");
 
 		/* AC Check */
-		if ((sharpsl_ac_check() < 0) || (sharpsl_check_battery(1) < 0))
+		if ((sharpsl_ac_check() < 0) || (sharpsl_check_battery_temp() < 0))
 			return sharpsl_off_charge_error();
 
 		/* Start Charging */
@@ -793,7 +797,7 @@ static int sharpsl_off_charge_battery(void)
 
 		dev_dbg(sharpsl_pm.dev, "Offline Charger: Step 2\n");
 
-		if (sharpsl_check_battery(0) < 0)
+		if ((sharpsl_check_battery_temp() < 0) || (sharpsl_check_battery_voltage() < 0))
 			return sharpsl_off_charge_error();
 
 		CHARGE_OFF();
@@ -811,7 +815,7 @@ static int sharpsl_off_charge_battery(void)
 			/* Check for timeout */
 			if ((RCNR - time) > SHARPSL_WAIT_CO_TIME)
 				return 1;
-			if (STATUS_CHRG_FULL) {
+			if (STATUS_CHRG_FULL()) {
 				dev_dbg(sharpsl_pm.dev, "Offline Charger: Charge full occured. Retrying to check\n");
 	   			sharpsl_pm.full_count++;
 				CHARGE_OFF();
@@ -840,7 +844,7 @@ static int sharpsl_off_charge_battery(void)
 			sharpsl_pm.full_count++;
 			return 1;
 		}
-		if (STATUS_CHRG_FULL) {
+		if (STATUS_CHRG_FULL()) {
 			dev_dbg(sharpsl_pm.dev, "Offline Charger: Charging complete.\n");
 			CHARGE_LED_OFF();
 			CHARGE_OFF();
@@ -886,13 +890,13 @@ static struct pm_ops sharpsl_pm_ops = {
 	.finish		= pxa_pm_finish,
 };
 
-static int __init sharpsl_pm_probe(struct device *dev)
+static int __init sharpsl_pm_probe(struct platform_device *pdev)
 {
-	if (!dev->platform_data)
+	if (!pdev->dev.platform_data)
 		return -EINVAL;
 
-	sharpsl_pm.dev = dev;
-	sharpsl_pm.machinfo = dev->platform_data;
+	sharpsl_pm.dev = &pdev->dev;
+	sharpsl_pm.machinfo = pdev->dev.platform_data;
 	sharpsl_pm.charge_mode = CHRG_OFF;
 	sharpsl_pm.flags = 0;
 
@@ -935,8 +939,8 @@ static int __init sharpsl_pm_probe(struct device *dev)
 		else set_irq_type(IRQ_GPIO(sharpsl_pm.machinfo->gpio_batfull),IRQT_RISING);
 	}
 
-	device_create_file(dev, &dev_attr_battery_percentage);
-	device_create_file(dev, &dev_attr_battery_voltage);
+	device_create_file(&pdev->dev, &dev_attr_battery_percentage);
+	device_create_file(&pdev->dev, &dev_attr_battery_voltage);
 
 	apm_get_power_status = sharpsl_apm_get_power_status;
 
@@ -947,12 +951,12 @@ static int __init sharpsl_pm_probe(struct device *dev)
 	return 0;
 }
 
-static int sharpsl_pm_remove(struct device *dev)
+static int sharpsl_pm_remove(struct platform_device *pdev)
 {
 	pm_set_ops(NULL);
 
-	device_remove_file(dev, &dev_attr_battery_percentage);
-	device_remove_file(dev, &dev_attr_battery_voltage);
+	device_remove_file(&pdev->dev, &dev_attr_battery_percentage);
+	device_remove_file(&pdev->dev, &dev_attr_battery_voltage);
 
 	free_irq(IRQ_GPIO(sharpsl_pm.machinfo->gpio_acin), sharpsl_ac_isr);
 	free_irq(IRQ_GPIO(sharpsl_pm.machinfo->gpio_batlock), sharpsl_fatal_isr);
@@ -969,23 +973,24 @@ static int sharpsl_pm_remove(struct device *dev)
 	return 0;
 }
 
-static struct device_driver sharpsl_pm_driver = {
-	.name		= "sharpsl-pm",
-	.bus		= &platform_bus_type,
+static struct platform_driver sharpsl_pm_driver = {
 	.probe		= sharpsl_pm_probe,
 	.remove		= sharpsl_pm_remove,
 	.suspend	= sharpsl_pm_suspend,
 	.resume		= sharpsl_pm_resume,
+	.driver		= {
+		.name		= "sharpsl-pm",
+	},
 };
 
 static int __devinit sharpsl_pm_init(void)
 {
-	return driver_register(&sharpsl_pm_driver);
+	return platform_driver_register(&sharpsl_pm_driver);
 }
 
 static void sharpsl_pm_exit(void)
 {
- 	driver_unregister(&sharpsl_pm_driver);
+ 	platform_driver_unregister(&sharpsl_pm_driver);
 }
 
 late_initcall(sharpsl_pm_init);

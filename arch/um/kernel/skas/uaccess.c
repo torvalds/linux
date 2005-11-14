@@ -143,7 +143,7 @@ int copy_from_user_skas(void *to, const void __user *from, int n)
 		return(0);
 	}
 
-	return(access_ok_skas(VERIFY_READ, from, n) ?
+	return(access_ok(VERIFY_READ, from, n) ?
 	       buffer_op((unsigned long) from, n, 0, copy_chunk_from_user, &to):
 	       n);
 }
@@ -164,7 +164,7 @@ int copy_to_user_skas(void __user *to, const void *from, int n)
 		return(0);
 	}
 
-	return(access_ok_skas(VERIFY_WRITE, to, n) ?
+	return(access_ok(VERIFY_WRITE, to, n) ?
 	       buffer_op((unsigned long) to, n, 1, copy_chunk_to_user, &from) :
 	       n);
 }
@@ -193,7 +193,7 @@ int strncpy_from_user_skas(char *dst, const char __user *src, int count)
 		return(strnlen(dst, count));
 	}
 
-	if(!access_ok_skas(VERIFY_READ, src, 1))
+	if(!access_ok(VERIFY_READ, src, 1))
 		return(-EFAULT);
 
 	n = buffer_op((unsigned long) src, count, 0, strncpy_chunk_from_user,
@@ -221,7 +221,7 @@ int clear_user_skas(void __user *mem, int len)
 		return(0);
 	}
 
-	return(access_ok_skas(VERIFY_WRITE, mem, len) ?
+	return(access_ok(VERIFY_WRITE, mem, len) ?
 	       buffer_op((unsigned long) mem, len, 1, clear_chunk, NULL) : len);
 }
 

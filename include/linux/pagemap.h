@@ -53,12 +53,12 @@ void release_pages(struct page **pages, int nr, int cold);
 
 static inline struct page *page_cache_alloc(struct address_space *x)
 {
-	return alloc_pages(mapping_gfp_mask(x)|__GFP_NORECLAIM, 0);
+	return alloc_pages(mapping_gfp_mask(x), 0);
 }
 
 static inline struct page *page_cache_alloc_cold(struct address_space *x)
 {
-	return alloc_pages(mapping_gfp_mask(x)|__GFP_COLD|__GFP_NORECLAIM, 0);
+	return alloc_pages(mapping_gfp_mask(x)|__GFP_COLD, 0);
 }
 
 typedef int filler_t(void *, struct page *);

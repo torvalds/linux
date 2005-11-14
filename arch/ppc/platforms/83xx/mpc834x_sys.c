@@ -3,7 +3,7 @@
  *
  * MPC834x SYS board specific routines
  *
- * Maintainer: Kumar Gala <kumar.gala@freescale.com>
+ * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2005 Freescale Semiconductor Inc.
  *
@@ -73,12 +73,19 @@ mpc83xx_map_irq(struct pci_dev *dev, unsigned char idsel, unsigned char pin)
 	     *       A      B      C      D
 	     */
 	{
-		{PIRQA, PIRQB,  PIRQC,  PIRQD}, /* idsel 0x11 */
-		{PIRQC, PIRQD,  PIRQA,  PIRQB}, /* idsel 0x12 */
-		{PIRQD, PIRQA,  PIRQB,  PIRQC}  /* idsel 0x13 */
+		{PIRQA, PIRQB, PIRQC, PIRQD},	/* idsel 0x11 */
+		{PIRQC, PIRQD, PIRQA, PIRQB},	/* idsel 0x12 */
+		{PIRQD, PIRQA, PIRQB, PIRQC},	/* idsel 0x13 */
+		{0, 0, 0, 0},
+		{PIRQA, PIRQB, PIRQC, PIRQD},	/* idsel 0x15 */
+		{PIRQD, PIRQA, PIRQB, PIRQC},	/* idsel 0x16 */
+		{PIRQC, PIRQD, PIRQA, PIRQB},	/* idsel 0x17 */
+		{PIRQB, PIRQC, PIRQD, PIRQA},	/* idsel 0x18 */
+		{0, 0, 0, 0},			/* idsel 0x19 */
+		{0, 0, 0, 0},			/* idsel 0x20 */
 	};
 
-	const long min_idsel = 0x11, max_idsel = 0x13, irqs_per_slot = 4;
+	const long min_idsel = 0x11, max_idsel = 0x20, irqs_per_slot = 4;
 	return PCI_IRQ_TABLE_LOOKUP;
 }
 
