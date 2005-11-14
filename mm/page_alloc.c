@@ -2397,13 +2397,18 @@ void setup_per_zone_pages_min(void)
 	}
 
 	for_each_zone(zone) {
+		unsigned long tmp;
 		spin_lock_irqsave(&zone->lru_lock, flags);
+		tmp = (pages_min * zone->present_pages) / lowmem_pages;
 		if (is_highmem(zone)) {
 			/*
-			 * Often, highmem doesn't need to reserve any pages.
-			 * But the pages_min/low/high values are also used for
-			 * batching up page reclaim activity so we need a
-			 * decent value here.
+			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
+			 * need highmem pages, so cap pages_min to a small
+			 * value here.
+			 *
+			 * The (pages_high-pages_low) and (pages_low-pages_min)
+			 * deltas controls asynch page reclaim, and so should
+			 * not be capped for highmem.
 			 */
 			int min_pages;
 
@@ -2414,19 +2419,15 @@ void setup_per_zone_pages_min(void)
 				min_pages = 128;
 			zone->pages_min = min_pages;
 		} else {
-			/* if it's a lowmem zone, reserve a number of pages
+			/*
+			 * If it's a lowmem zone, reserve a number of pages
 			 * proportionate to the zone's size.
 			 */
-			zone->pages_min = (pages_min * zone->present_pages) /
-			                   lowmem_pages;
+			zone->pages_min = tmp;
 		}
 
-		/*
-		 * When interpreting these watermarks, just keep in mind that:
-		 * zone->pages_min == (zone->pages_min * 4) / 4;
-		 */
-		zone->pages_low   = (zone->pages_min * 5) / 4;
-		zone->pages_high  = (zone->pages_min * 6) / 4;
+		zone->pages_low   = zone->pages_min + tmp / 4;
+		zone->pages_high  = zone->pages_min + tmp / 2;
 		spin_unlock_irqrestore(&zone->lru_lock, flags);
 	}
 }
