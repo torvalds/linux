@@ -896,7 +896,7 @@ dummy_gadget_release (struct device *dev)
 #endif
 }
 
-static int dummy_udc_probe (struct platform_device *dev)
+static int dummy_udc_probe (struct platform_device *pdev)
 {
 	struct dummy	*dum = the_controller;
 	int		rc;
@@ -909,7 +909,7 @@ static int dummy_udc_probe (struct platform_device *dev)
 	dum->gadget.is_otg = (dummy_to_hcd(dum)->self.otg_port != 0);
 
 	strcpy (dum->gadget.dev.bus_id, "gadget");
-	dum->gadget.dev.parent = &dev->dev;
+	dum->gadget.dev.parent = &pdev->dev;
 	dum->gadget.dev.release = dummy_gadget_release;
 	rc = device_register (&dum->gadget.dev);
 	if (rc < 0)
@@ -919,47 +919,47 @@ static int dummy_udc_probe (struct platform_device *dev)
 	usb_bus_get (&dummy_to_hcd (dum)->self);
 #endif
 
-	platform_set_drvdata (dev, dum);
+	platform_set_drvdata (pdev, dum);
 	device_create_file (&dum->gadget.dev, &dev_attr_function);
 	return rc;
 }
 
-static int dummy_udc_remove (struct platform_device *dev)
+static int dummy_udc_remove (struct platform_device *pdev)
 {
-	struct dummy	*dum = platform_get_drvdata (dev);
+	struct dummy	*dum = platform_get_drvdata (pdev);
 
-	platform_set_drvdata (dev, NULL);
+	platform_set_drvdata (pdev, NULL);
 	device_remove_file (&dum->gadget.dev, &dev_attr_function);
 	device_unregister (&dum->gadget.dev);
 	return 0;
 }
 
-static int dummy_udc_suspend (struct platform_device *dev, pm_message_t state)
+static int dummy_udc_suspend (struct platform_device *pdev, pm_message_t state)
 {
-	struct dummy	*dum = platform_get_drvdata(dev);
+	struct dummy	*dum = platform_get_drvdata(pdev);
 
-	dev_dbg (&dev->dev, "%s\n", __FUNCTION__);
+	dev_dbg (&pdev->dev, "%s\n", __FUNCTION__);
 	spin_lock_irq (&dum->lock);
 	dum->udc_suspended = 1;
 	set_link_state (dum);
 	spin_unlock_irq (&dum->lock);
 
-	dev->dev.power.power_state = state;
+	pdev->dev.power.power_state = state;
 	usb_hcd_poll_rh_status (dummy_to_hcd (dum));
 	return 0;
 }
 
-static int dummy_udc_resume (struct platform_device *dev)
+static int dummy_udc_resume (struct platform_device *pdev)
 {
-	struct dummy	*dum = platform_get_drvdata(dev);
+	struct dummy	*dum = platform_get_drvdata(pdev);
 
-	dev_dbg (&dev->dev, "%s\n", __FUNCTION__);
+	dev_dbg (&pdev->dev, "%s\n", __FUNCTION__);
 	spin_lock_irq (&dum->lock);
 	dum->udc_suspended = 0;
 	set_link_state (dum);
 	spin_unlock_irq (&dum->lock);
 
-	dev->dev.power.power_state = PMSG_ON;
+	pdev->dev.power.power_state = PMSG_ON;
 	usb_hcd_poll_rh_status (dummy_to_hcd (dum));
 	return 0;
 }
@@ -1899,14 +1899,14 @@ static const struct hc_driver dummy_hcd = {
 	.bus_resume =		dummy_bus_resume,
 };
 
-static int dummy_hcd_probe (struct platform_device *dev)
+static int dummy_hcd_probe(struct platform_device *pdev)
 {
 	struct usb_hcd		*hcd;
 	int			retval;
 
-	dev_info(&dev->dev, "%s, driver " DRIVER_VERSION "\n", driver_desc);
+	dev_info(&pdev->dev, "%s, driver " DRIVER_VERSION "\n", driver_desc);
 
-	hcd = usb_create_hcd (&dummy_hcd, &dev->dev, dev->dev.bus_id);
+	hcd = usb_create_hcd(&dummy_hcd, &pdev->dev, pdev->dev.bus_id);
 	if (!hcd)
 		return -ENOMEM;
 	the_controller = hcd_to_dummy (hcd);
@@ -1919,34 +1919,34 @@ static int dummy_hcd_probe (struct platform_device *dev)
 	return retval;
 }
 
-static int dummy_hcd_remove (struct platform_device *dev)
+static int dummy_hcd_remove (struct platform_device *pdev)
 {
 	struct usb_hcd		*hcd;
 
-	hcd = platform_get_drvdata (dev);
+	hcd = platform_get_drvdata (pdev);
 	usb_remove_hcd (hcd);
 	usb_put_hcd (hcd);
 	the_controller = NULL;
 	return 0;
 }
 
-static int dummy_hcd_suspend (struct platform_device *dev, pm_message_t state)
+static int dummy_hcd_suspend (struct platform_device *pdev, pm_message_t state)
 {
 	struct usb_hcd		*hcd;
 
-	dev_dbg (&dev->dev, "%s\n", __FUNCTION__);
-	hcd = platform_get_drvdata (dev);
+	dev_dbg (&pdev->dev, "%s\n", __FUNCTION__);
+	hcd = platform_get_drvdata (pdev);
 
 	hcd->state = HC_STATE_SUSPENDED;
 	return 0;
 }
 
-static int dummy_hcd_resume (struct platform_device *dev)
+static int dummy_hcd_resume (struct platform_device *pdev)
 {
 	struct usb_hcd		*hcd;
 
-	dev_dbg (&dev->dev, "%s\n", __FUNCTION__);
-	hcd = platform_get_drvdata (dev);
+	dev_dbg (&pdev->dev, "%s\n", __FUNCTION__);
+	hcd = platform_get_drvdata (pdev);
 	hcd->state = HC_STATE_RUNNING;
 
 	usb_hcd_poll_rh_status (hcd);
