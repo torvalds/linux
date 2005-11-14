@@ -357,7 +357,7 @@ static int saa7127_write_inittab(struct i2c_client *client,
 
 static int saa7127_set_vps(struct i2c_client *client, struct v4l2_sliced_vbi_data *data)
 {
-	struct saa7127_state *state = (struct saa7127_state *)i2c_get_clientdata(client);
+	struct saa7127_state *state = i2c_get_clientdata(client);
 	int enable = (data->line != 0);
 
 	if (enable && (data->field != 0 || data->line != 16))
@@ -391,7 +391,7 @@ static int saa7127_set_vps(struct i2c_client *client, struct v4l2_sliced_vbi_dat
 
 static int saa7127_set_cc(struct i2c_client *client, struct v4l2_sliced_vbi_data *data)
 {
-	struct saa7127_state *state = (struct saa7127_state *)i2c_get_clientdata(client);
+	struct saa7127_state *state = i2c_get_clientdata(client);
 	u16 cc = data->data[0] << 8 | data->data[1];
 	int enable = (data->line != 0);
 
@@ -417,7 +417,7 @@ static int saa7127_set_cc(struct i2c_client *client, struct v4l2_sliced_vbi_data
 
 static int saa7127_set_xds(struct i2c_client *client, struct v4l2_sliced_vbi_data *data)
 {
-	struct saa7127_state *state = (struct saa7127_state *)i2c_get_clientdata(client);
+	struct saa7127_state *state = i2c_get_clientdata(client);
 	u16 xds = data->data[1] << 8 | data->data[0];
 	int enable = (data->line != 0);
 
@@ -443,7 +443,7 @@ static int saa7127_set_xds(struct i2c_client *client, struct v4l2_sliced_vbi_dat
 
 static int saa7127_set_wss(struct i2c_client *client, struct v4l2_sliced_vbi_data *data)
 {
-	struct saa7127_state *state = (struct saa7127_state *)i2c_get_clientdata(client);
+	struct saa7127_state *state = i2c_get_clientdata(client);
 	int enable = (data->line != 0);
 
 	if (enable && (data->field != 0 || data->line != 23))
@@ -467,7 +467,7 @@ static int saa7127_set_wss(struct i2c_client *client, struct v4l2_sliced_vbi_dat
 
 static int saa7127_set_video_enable(struct i2c_client *client, int enable)
 {
-	struct saa7127_state *state = (struct saa7127_state *)i2c_get_clientdata(client);
+	struct saa7127_state *state = i2c_get_clientdata(client);
 
 	if (enable) {
 		saa7127_dbg("Enable Video Output\n");
@@ -486,7 +486,7 @@ static int saa7127_set_video_enable(struct i2c_client *client, int enable)
 
 static int saa7127_set_std(struct i2c_client *client, v4l2_std_id std)
 {
-	struct saa7127_state *state = (struct saa7127_state *)i2c_get_clientdata(client);
+	struct saa7127_state *state = i2c_get_clientdata(client);
 	const struct i2c_reg_value *inittab;
 
 	if (std & V4L2_STD_525_60) {
@@ -509,7 +509,7 @@ static int saa7127_set_std(struct i2c_client *client, v4l2_std_id std)
 
 static int saa7127_set_output_type(struct i2c_client *client, int output)
 {
-	struct saa7127_state *state = (struct saa7127_state *)i2c_get_clientdata(client);
+	struct saa7127_state *state = i2c_get_clientdata(client);
 
 	switch (output) {
 	case SAA7127_OUTPUT_TYPE_RGB:
@@ -558,7 +558,7 @@ static int saa7127_set_output_type(struct i2c_client *client, int output)
 
 static int saa7127_set_input_type(struct i2c_client *client, int input)
 {
-	struct saa7127_state *state = (struct saa7127_state *)i2c_get_clientdata(client);
+	struct saa7127_state *state = i2c_get_clientdata(client);
 
 	switch (input) {
 	case SAA7127_INPUT_TYPE_NORMAL:	/* avia */
