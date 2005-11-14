@@ -124,7 +124,7 @@ struct kiocb {
 		(x)->ki_users = 1;			\
 		(x)->ki_key = KIOCB_SYNC_KEY;		\
 		(x)->ki_filp = (filp);			\
-		(x)->ki_ctx = &tsk->active_mm->default_kioctx;	\
+		(x)->ki_ctx = NULL;			\
 		(x)->ki_cancel = NULL;			\
 		(x)->ki_dtor = NULL;			\
 		(x)->ki_obj.tsk = tsk;			\

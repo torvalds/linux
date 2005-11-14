@@ -937,28 +937,19 @@ int fastcall aio_complete(struct kiocb *iocb, long res, long res2)
 	unsigned long	tail;
 	int		ret;
 
-	/* Special case handling for sync iocbs: events go directly
-	 * into the iocb for fast handling.  Note that this will not 
-	 * work if we allow sync kiocbs to be cancelled. in which
-	 * case the usage count checks will have to move under ctx_lock
-	 * for all cases.
+	/*
+	 * Special case handling for sync iocbs:
+	 *  - events go directly into the iocb for fast handling
+	 *  - the sync task with the iocb in its stack holds the single iocb
+	 *    ref, no other paths have a way to get another ref
+	 *  - the sync task helpfully left a reference to itself in the iocb
 	 */
 	if (is_sync_kiocb(iocb)) {
-		int ret;
-
+		BUG_ON(iocb->ki_users != 1);
 		iocb->ki_user_data = res;
-		if (iocb->ki_users == 1) {
-			iocb->ki_users = 0;
-			ret = 1;
-		} else {
-			spin_lock_irq(&ctx->ctx_lock);
-			iocb->ki_users--;
-			ret = (0 == iocb->ki_users);
-			spin_unlock_irq(&ctx->ctx_lock);
-		}
-		/* sync iocbs put the task here for us */
+		iocb->ki_users = 0;
 		wake_up_process(iocb->ki_obj.tsk);
-		return ret;
+		return 1;
 	}
 
 	info = &ctx->ring_info;

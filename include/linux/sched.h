@@ -357,7 +357,6 @@ struct mm_struct {
 	/* aio bits */
 	rwlock_t		ioctx_list_lock;
 	struct kioctx		*ioctx_list;
-	struct kioctx		default_kioctx;
 };
 
 struct sighand_struct {
