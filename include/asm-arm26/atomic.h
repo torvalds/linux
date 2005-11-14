@@ -62,6 +62,20 @@ static inline int atomic_sub_return(int i, atomic_t *v)
         return val;
 }
 
+static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
+{
+	int ret;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	ret = v->counter;
+	if (likely(ret == old))
+		v->counter = new;
+	local_irq_restore(flags);
+
+	return ret;
+}
+
 static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 {
         unsigned long flags;

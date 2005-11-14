@@ -414,4 +414,6 @@ extern uint32_t __cmpxchg_32(uint32_t *v, uint32_t test, uint32_t new);
 
 #endif
 
+#define atomic_cmpxchg(v, old, new) ((int)cmpxchg(&((v)->counter), old, new))
+
 #endif /* _ASM_ATOMIC_H */

@@ -223,6 +223,7 @@ static inline int atomic_sub_return(int i, atomic_t * v)
  */
 #define atomic_add_negative(i,v) (atomic_add_return((i),(v)) < 0)
 
+#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
 
 static inline void atomic_clear_mask(unsigned int mask, atomic_t *v)
 {

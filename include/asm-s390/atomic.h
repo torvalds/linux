@@ -198,6 +198,8 @@ atomic_compare_and_swap(int expected_oldval,int new_val,atomic_t *v)
         return retval;
 }
 
+#define atomic_cmpxchg(v, o, n) (atomic_compare_and_swap((o), (n), &((v)->counter)))
+
 #define smp_mb__before_atomic_dec()	smp_mb()
 #define smp_mb__after_atomic_dec()	smp_mb()
 #define smp_mb__before_atomic_inc()	smp_mb()

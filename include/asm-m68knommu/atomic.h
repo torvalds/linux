@@ -128,6 +128,8 @@ static inline int atomic_sub_return(int i, atomic_t * v)
 	return temp;
 }
 
+#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+
 #define atomic_dec_return(v) atomic_sub_return(1,(v))
 #define atomic_inc_return(v) atomic_add_return(1,(v))
 

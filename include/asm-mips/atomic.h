@@ -287,6 +287,8 @@ static __inline__ int atomic_sub_if_positive(int i, atomic_t * v)
 	return result;
 }
 
+#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+
 #define atomic_dec_return(v) atomic_sub_return(1,(v))
 #define atomic_inc_return(v) atomic_add_return(1,(v))
 

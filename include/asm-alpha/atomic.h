@@ -177,6 +177,8 @@ static __inline__ long atomic64_sub_return(long i, atomic64_t * v)
 	return result;
 }
 
+#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+
 #define atomic_dec_return(v) atomic_sub_return(1,(v))
 #define atomic64_dec_return(v) atomic64_sub_return(1,(v))
 

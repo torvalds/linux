@@ -123,6 +123,19 @@ static inline int atomic_inc_and_test(volatile atomic_t *v)
 	return retval;
 }
 
+static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
+{
+	int ret;
+	unsigned long flags;
+
+	cris_atomic_save(v, flags);
+	ret = v->counter;
+	if (likely(ret == old))
+		v->counter = new;
+	cris_atomic_restore(v, flags);
+	return ret;
+}
+
 /* Atomic operations are already serializing */
 #define smp_mb__before_atomic_dec()    barrier()
 #define smp_mb__after_atomic_dec()     barrier()

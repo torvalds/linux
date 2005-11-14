@@ -115,6 +115,21 @@ boolean is return which indicates whether the resulting counter value
 is negative.  It requires explicit memory barrier semantics around the
 operation.
 
+Finally:
+
+	int atomic_cmpxchg(atomic_t *v, int old, int new);
+
+This performs an atomic compare exchange operation on the atomic value v,
+with the given old and new values. Like all atomic_xxx operations,
+atomic_cmpxchg will only satisfy its atomicity semantics as long as all
+other accesses of *v are performed through atomic_xxx operations.
+
+atomic_cmpxchg requires explicit memory barriers around the operation.
+
+The semantics for atomic_cmpxchg are the same as those defined for 'cas'
+below.
+
+
 If a caller requires memory barrier semantics around an atomic_t
 operation which does not return a value, a set of interfaces are
 defined which accomplish this:
