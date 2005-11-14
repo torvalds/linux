@@ -30,7 +30,9 @@ the disk is not available then you have three options :-
 
 (1) Hand copy the text from the screen and type it in after the machine
     has restarted.  Messy but it is the only option if you have not
-    planned for a crash.
+    planned for a crash. Alternatively, you can take a picture of
+    the screen with a digital camera - not nice, but better than
+    nothing.
 
 (2) Boot with a serial console (see Documentation/serial-console.txt),
     run a null modem to a second machine and capture the output there
