@@ -298,6 +298,7 @@ struct cs4281_state {
 	struct cs4281_pipeline pl[CS4281_NUMBER_OF_PIPELINES];
 };
 
+#include <linux/pm_legacy.h>
 #include "cs4281pm-24.c"
 
 #if CSDEBUG
