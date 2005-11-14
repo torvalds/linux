@@ -2409,7 +2409,8 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 		pad_buf = ap->pad + (qc->tag * ATA_DMA_PAD_SZ);
 
 	if (qc->flags & ATA_QCFLAG_SG) {
-		dma_unmap_sg(ap->host_set->dev, sg, qc->n_elem, dir);
+		if (qc->n_elem)
+			dma_unmap_sg(ap->host_set->dev, sg, qc->n_elem, dir);
 		/* restore last sg */
 		sg[qc->orig_n_elem - 1].length += qc->pad_len;
 		if (pad_buf) {
@@ -2419,8 +2420,10 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 			kunmap_atomic(psg->page, KM_IRQ0);
 		}
 	} else {
-		dma_unmap_single(ap->host_set->dev, sg_dma_address(&sg[0]),
-				 sg_dma_len(&sg[0]), dir);
+		if (sg_dma_len(&sg[0]) > 0)
+			dma_unmap_single(ap->host_set->dev,
+				sg_dma_address(&sg[0]), sg_dma_len(&sg[0]),
+				dir);
 		/* restore sg */
 		sg->length += qc->pad_len;
 		if (pad_buf)
@@ -2619,6 +2622,11 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 			sg->length, qc->pad_len);
 	}
 
+	if (!sg->length) {
+		sg_dma_address(sg) = 0;
+		goto skip_map;
+	}
+
 	dma_address = dma_map_single(ap->host_set->dev, qc->buf_virt,
 				     sg->length, dir);
 	if (dma_mapping_error(dma_address)) {
@@ -2628,6 +2636,7 @@ static int ata_sg_setup_one(struct ata_queued_cmd *qc)
 	}
 
 	sg_dma_address(sg) = dma_address;
+skip_map:
 	sg_dma_len(sg) = sg->length;
 
 	DPRINTK("mapped buffer of %d bytes for %s\n", sg_dma_len(sg),
@@ -2655,7 +2664,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct scatterlist *sg = qc->__sg;
 	struct scatterlist *lsg = &sg[qc->n_elem - 1];
-	int n_elem, dir;
+	int n_elem, pre_n_elem, dir, trim_sg = 0;
 
 	VPRINTK("ENTER, ata%u\n", ap->id);
 	assert(qc->flags & ATA_QCFLAG_SG);
@@ -2689,13 +2698,24 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 		sg_dma_len(psg) = ATA_DMA_PAD_SZ;
 		/* trim last sg */
 		lsg->length -= qc->pad_len;
+		if (lsg->length == 0)
+			trim_sg = 1;
 
 		DPRINTK("padding done, sg[%d].length=%u pad_len=%u\n",
 			qc->n_elem - 1, lsg->length, qc->pad_len);
 	}
 
+	pre_n_elem = qc->n_elem;
+	if (trim_sg && pre_n_elem)
+		pre_n_elem--;
+
+	if (!pre_n_elem) {
+		n_elem = 0;
+		goto skip_map;
+	}
+
 	dir = qc->dma_dir;
-	n_elem = dma_map_sg(ap->host_set->dev, sg, qc->n_elem, dir);
+	n_elem = dma_map_sg(ap->host_set->dev, sg, pre_n_elem, dir);
 	if (n_elem < 1) {
 		/* restore last sg */
 		lsg->length += qc->pad_len;
@@ -2704,6 +2724,7 @@ static int ata_sg_setup(struct ata_queued_cmd *qc)
 
 	DPRINTK("%d sg elements mapped\n", n_elem);
 
+skip_map:
 	qc->n_elem = n_elem;
 
 	return 0;
