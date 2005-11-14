@@ -57,10 +57,6 @@ extern void power4_idle(void);
 boot_infos_t *boot_infos;
 struct ide_machdep_calls ppc_ide_md;
 
-/* XXX should go elsewhere */
-int __irq_offset_value;
-EXPORT_SYMBOL(__irq_offset_value);
-
 int boot_cpuid;
 EXPORT_SYMBOL_GPL(boot_cpuid);
 int boot_cpuid_phys;

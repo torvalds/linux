@@ -71,6 +71,11 @@
 #include <asm/paca.h>
 #endif
 
+int __irq_offset_value;
+#ifdef CONFIG_PPC32
+EXPORT_SYMBOL(__irq_offset_value);
+#endif
+
 static int ppc_spurious_interrupts;
 
 #if defined(CONFIG_PPC_ISERIES) && defined(CONFIG_SMP)
@@ -98,7 +103,6 @@ extern atomic_t ipi_sent;
 EXPORT_SYMBOL(irq_desc);
 
 int distribute_irqs = 1;
-int __irq_offset_value;
 u64 ppc64_interrupt_controller;
 #endif /* CONFIG_PPC64 */
 
@@ -311,7 +315,6 @@ void __init init_IRQ(void)
 }
 
 #ifdef CONFIG_PPC64
-#ifndef CONFIG_PPC_ISERIES
 /*
  * Virtual IRQ mapping code, used on systems with XICS interrupt controllers.
  */
@@ -419,8 +422,6 @@ unsigned int real_irq_to_virt_slowpath(unsigned int real_irq)
 	return NO_IRQ;
 
 }
-
-#endif /* CONFIG_PPC_ISERIES */
 
 #ifdef CONFIG_IRQSTACKS
 struct thread_info *softirq_ctx[NR_CPUS];
