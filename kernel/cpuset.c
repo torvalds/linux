@@ -1809,11 +1809,12 @@ int cpuset_zone_allowed(struct zone *z, gfp_t gfp_mask)
 	if (gfp_mask & __GFP_HARDWALL)	/* If hardwall request, stop here */
 		return 0;
 
+	if (current->flags & PF_EXITING) /* Let dying task have memory */
+		return 1;
+
 	/* Not hardwall and node outside mems_allowed: scan up cpusets */
 	down(&callback_sem);
 
-	if (current->flags & PF_EXITING) /* Let dying task have memory */
-		return 1;
 	task_lock(current);
 	cs = nearest_exclusive_ancestor(current->cpuset);
 	task_unlock(current);
