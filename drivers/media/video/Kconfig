@@ -340,4 +340,11 @@ config VIDEO_AUDIO_DECODER
 	  Say Y here to compile drivers for WM8775 and CS53L32A audio
 	  decoders.
 
+config VIDEO_DECODER
+	tristate "Add support for additional video chipsets"
+	depends on VIDEO_DEV && I2C && EXPERIMENTAL
+	---help---
+	  Say Y here to compile drivers for SAA7115, SAA7127 and CX25840
+	  video  decoders.
+
 endmenu

@@ -56,4 +56,6 @@ obj-$(CONFIG_VIDEO_TVEEPROM) += tveeprom.o
 
 obj-$(CONFIG_VIDEO_M32R_AR_M64278) += arv.o
 
+obj-$(CONFIG_VIDEO_DECODER)     += saa7115.o cx25840/ saa7127.o
+
 EXTRA_CFLAGS += -I$(srctree)/drivers/media/dvb/dvb-core
