@@ -136,7 +136,6 @@ struct pcmcia_driver {
 	dev_link_t		*(*attach)(void);
 	int (*event)		(event_t event, int priority,
 				 event_callback_args_t *);
-	void			(*detach)(dev_link_t *);
 
 	void (*remove)		(struct pcmcia_device *dev);
 

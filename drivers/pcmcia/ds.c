@@ -402,43 +402,29 @@ static int pcmcia_device_remove(struct device * dev)
 	/* detach the "instance" */
 	p_dev = to_pcmcia_dev(dev);
 	p_drv = to_pcmcia_drv(dev->driver);
+	if (!p_drv)
+		return 0;
 
-	/* the likely, new path */
-	if (p_drv && p_drv->remove) {
+	if (p_drv->remove)
 	       	p_drv->remove(p_dev);
 
-		/* check for proper unloading */
-		if (p_dev->state & (CLIENT_IRQ_REQ|CLIENT_IO_REQ|CLIENT_CONFIG_LOCKED))
-			printk(KERN_INFO "pcmcia: driver %s did not release config properly\n",
+	/* check for proper unloading */
+	if (p_dev->state & (CLIENT_IRQ_REQ|CLIENT_IO_REQ|CLIENT_CONFIG_LOCKED))
+		printk(KERN_INFO "pcmcia: driver %s did not release config properly\n",
+		       p_drv->drv.name);
+
+	for (i = 0; i < MAX_WIN; i++)
+		if (p_dev->state & CLIENT_WIN_REQ(i))
+			printk(KERN_INFO "pcmcia: driver %s did not release windows properly\n",
 			       p_drv->drv.name);
 
-		for (i = 0; i < MAX_WIN; i++)
-			if (p_dev->state & CLIENT_WIN_REQ(i))
-				printk(KERN_INFO "pcmcia: driver %s did not release windows properly\n",
-				       p_drv->drv.name);
+	/* undo pcmcia_register_client */
+	p_dev->state = CLIENT_UNBOUND;
+	pcmcia_put_dev(p_dev);
 
-		/* undo pcmcia_register_client */
-		p_dev->state = CLIENT_UNBOUND;
-		pcmcia_put_dev(p_dev);
-
-		/* references from pcmcia_probe_device */
-		pcmcia_put_dev(p_dev);
-		module_put(p_drv->owner);
-
-		return 0;
-	}
-
-	/* old path */
-	if (p_drv) {
-		if ((p_drv->detach) && (p_dev->instance)) {
-			printk(KERN_INFO "pcmcia: using deprecated detach mechanism. Fix the driver!\n");
-
-			p_drv->detach(p_dev->instance);
-			/* from pcmcia_probe_device */
-			put_device(&p_dev->dev);
-		}
-		module_put(p_drv->owner);
-	}
+	/* references from pcmcia_probe_device */
+	pcmcia_put_dev(p_dev);
+	module_put(p_drv->owner);
 
 	return 0;
 }
@@ -1232,35 +1218,6 @@ int pcmcia_register_client(struct pcmcia_device **handle, client_reg_t *req)
 	return CS_OUT_OF_RESOURCE;
 } /* register_client */
 EXPORT_SYMBOL(pcmcia_register_client);
-
-
-int pcmcia_deregister_client(struct pcmcia_device *p_dev)
-{
-	struct pcmcia_socket *s;
-	int i;
-
-	s = p_dev->socket;
-	ds_dbg(1, "deregister_client(%p)\n", p_dev);
-
-	if (p_dev->state & (CLIENT_IRQ_REQ|CLIENT_IO_REQ|CLIENT_CONFIG_LOCKED))
-		goto warn_out;
-	for (i = 0; i < MAX_WIN; i++)
-		if (p_dev->state & CLIENT_WIN_REQ(i))
-			goto warn_out;
-
-	if (p_dev->state & CLIENT_STALE) {
-		p_dev->state &= ~CLIENT_STALE;
-		pcmcia_put_dev(p_dev);
-	} else {
-		p_dev->state = CLIENT_UNBOUND;
-	}
-
-	return CS_SUCCESS;
- warn_out:
-	printk(KERN_WARNING "ds: deregister_client was called too early.\n");
-	return CS_IN_USE;
-} /* deregister_client */
-EXPORT_SYMBOL(pcmcia_deregister_client);
 
 
 static struct pcmcia_callback pcmcia_bus_callback = {
