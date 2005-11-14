@@ -38,10 +38,7 @@
 #include "cx25840.h"
 
 MODULE_DESCRIPTION("Conexant CX25840 audio/video decoder driver");
-MODULE_AUTHOR("Ulf Eklund <ivtv@eklund.to>");
-MODULE_AUTHOR("Chris Kennedy <c@groovy.org>");
-MODULE_AUTHOR("Hans Verkuil <hverkuil@xs4all.nl>");
-MODULE_AUTHOR("Tyler Trafford <tatrafford@comcast.net>");
+MODULE_AUTHOR("Ulf Eklund, Chris Kennedy, Hans Verkuil, Tyler Trafford");
 MODULE_LICENSE("GPL");
 
 static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };

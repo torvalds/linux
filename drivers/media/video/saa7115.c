@@ -42,10 +42,7 @@
 #include <media/v4l2-common.h>
 
 MODULE_DESCRIPTION("Philips SAA7114/SAA7115 video decoder driver");
-MODULE_AUTHOR("Maxim Yevtyushkin <max@linuxmedialabs.com>");
-MODULE_AUTHOR("Kevin Thayer <nufan_wfk@yahoo.com>");
-MODULE_AUTHOR("Chris Kennedy <c@groovy.org>");
-MODULE_AUTHOR("Hans Verkuil <hverkuil@xs4all.nl>");
+MODULE_AUTHOR("Maxim Yevtyushkin, Kevin Thayer, Chris Kennedy, Hans Verkuil");
 MODULE_LICENSE("GPL");
 
 static int debug = 0;

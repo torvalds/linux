@@ -60,9 +60,7 @@ static int debug = 0;
 static int test_image = 0;
 
 MODULE_DESCRIPTION("Philips SAA7127/9 video encoder driver");
-MODULE_AUTHOR("Kevin Thayer <nufan_wfk@yahoo.com>");
-MODULE_AUTHOR("Chris Kennedy <c@groovy.org>");
-MODULE_AUTHOR("Hans Verkuil <hverkuil@xs4all.nl>");
+MODULE_AUTHOR("Kevin Thayer, Chris Kennedy, Hans Verkuil");
 MODULE_LICENSE("GPL");
 module_param(debug, int, 0644);
 module_param(test_image, int, 0644);
