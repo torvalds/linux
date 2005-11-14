@@ -282,6 +282,7 @@ static void nf_ct_frag6_evictor(void)
 			return;
 		}
 		tmp = nf_ct_frag6_lru_list.next;
+		BUG_ON(tmp == NULL);
 		fq = list_entry(tmp, struct nf_ct_frag6_queue, lru_list);
 		atomic_inc(&fq->refcnt);
 		read_unlock(&nf_ct_frag6_lock);
@@ -891,5 +892,6 @@ int nf_ct_frag6_init(void)
 void nf_ct_frag6_cleanup(void)
 {
 	del_timer(&nf_ct_frag6_secret_timer);
+	nf_ct_frag6_low_thresh = 0;
 	nf_ct_frag6_evictor();
 }
