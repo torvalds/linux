@@ -1233,6 +1233,8 @@ static inline void task_unlock(struct task_struct *p)
 	spin_unlock(&p->alloc_lock);
 }
 
+#ifndef __HAVE_THREAD_FUNCTIONS
+
 #define task_thread_info(task) (task)->thread_info
 
 static inline void setup_thread_stack(struct task_struct *p, struct task_struct *org)
@@ -1245,6 +1247,8 @@ static inline unsigned long *end_of_stack(struct task_struct *p)
 {
 	return (unsigned long *)(p->thread_info + 1);
 }
+
+#endif
 
 /* set thread flags in other task's structures
  * - see asm/thread_info.h for TIF_xxxx flags available
