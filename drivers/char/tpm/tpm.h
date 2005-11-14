@@ -50,7 +50,11 @@ struct tpm_vendor_specific {
 	u8 req_complete_mask;
 	u8 req_complete_val;
 	u8 req_canceled;
-	u16 base;		/* TPM base address */
+	void __iomem *iobase;		/* ioremapped address */
+	unsigned long base;		/* TPM base address */
+
+	int region_size;
+	int have_region;
 
 	int (*recv) (struct tpm_chip *, u8 *, size_t);
 	int (*send) (struct tpm_chip *, u8 *, size_t);
