@@ -96,7 +96,8 @@ static dev_info_t dev_info = "ide-cs";
 static dev_link_t *ide_attach(void);
 static void ide_detach(struct pcmcia_device *p_dev);
 
-static dev_link_t *dev_list = NULL;
+
+
 
 /*======================================================================
 
@@ -130,8 +131,7 @@ static dev_link_t *ide_attach(void)
     link->conf.IntType = INT_MEMORY_AND_IO;
     
     /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
+    link->next = NULL;
     client_reg.dev_info = &dev_info;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
@@ -157,23 +157,13 @@ static dev_link_t *ide_attach(void)
 static void ide_detach(struct pcmcia_device *p_dev)
 {
     dev_link_t *link = dev_to_instance(p_dev);
-    dev_link_t **linkp;
 
     DEBUG(0, "ide_detach(0x%p)\n", link);
-    
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
 
     if (link->state & DEV_CONFIG)
 	ide_release(link);
-    
-    /* Unlink, free device structure */
-    *linkp = link->next;
+
     kfree(link->priv);
-    
 } /* ide_detach */
 
 static int idecs_register(unsigned long io, unsigned long ctl, unsigned long irq, struct pcmcia_device *handle)
@@ -507,7 +497,6 @@ static int __init init_ide_cs(void)
 static void __exit exit_ide_cs(void)
 {
 	pcmcia_unregister_driver(&ide_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 late_initcall(init_ide_cs);

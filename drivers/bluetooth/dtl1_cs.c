@@ -96,8 +96,6 @@ static dev_info_t dev_info = "dtl1_cs";
 static dev_link_t *dtl1_attach(void);
 static void dtl1_detach(struct pcmcia_device *p_dev);
 
-static dev_link_t *dev_list = NULL;
-
 
 /* Transmit states  */
 #define XMIT_SENDING  1
@@ -589,8 +587,7 @@ static dev_link_t *dtl1_attach(void)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	/* Register with Card Services */
-	link->next = dev_list;
-	dev_list = link;
+	link->next = NULL;
 	client_reg.dev_info = &dev_info;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
@@ -610,21 +607,9 @@ static void dtl1_detach(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
 	dtl1_info_t *info = link->priv;
-	dev_link_t **linkp;
-
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link)
-			break;
-
-	if (*linkp == NULL)
-		return;
 
 	if (link->state & DEV_CONFIG)
 		dtl1_release(link);
-
-	/* Unlink device structure, free bits */
-	*linkp = link->next;
 
 	kfree(info);
 }
@@ -822,7 +807,6 @@ static int __init init_dtl1_cs(void)
 static void __exit exit_dtl1_cs(void)
 {
 	pcmcia_unregister_driver(&dtl1_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_dtl1_cs);

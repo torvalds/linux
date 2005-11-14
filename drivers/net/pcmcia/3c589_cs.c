@@ -166,8 +166,6 @@ static dev_info_t dev_info = "3c589_cs";
 static dev_link_t *tc589_attach(void);
 static void tc589_detach(struct pcmcia_device *p_dev);
 
-static dev_link_t *dev_list;
-
 /*======================================================================
 
     tc589_attach() creates an "instance" of the driver, allocating
@@ -222,8 +220,7 @@ static dev_link_t *tc589_attach(void)
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
     /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
+    link->next = NULL;
     client_reg.dev_info = &dev_info;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
@@ -250,15 +247,8 @@ static void tc589_detach(struct pcmcia_device *p_dev)
 {
     dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
-    dev_link_t **linkp;
-    
+
     DEBUG(0, "3c589_detach(0x%p)\n", link);
-    
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
 
     if (link->dev)
 	unregister_netdev(dev);
@@ -266,8 +256,6 @@ static void tc589_detach(struct pcmcia_device *p_dev)
     if (link->state & DEV_CONFIG)
 	tc589_release(link);
 
-    /* Unlink device structure, free bits */
-    *linkp = link->next;
     free_netdev(dev);
 } /* tc589_detach */
 
@@ -1085,7 +1073,6 @@ static int __init init_tc589(void)
 static void __exit exit_tc589(void)
 {
 	pcmcia_unregister_driver(&tc589_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_tc589);

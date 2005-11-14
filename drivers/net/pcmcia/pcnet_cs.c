@@ -124,7 +124,6 @@ static dev_link_t *pcnet_attach(void);
 static void pcnet_detach(struct pcmcia_device *p_dev);
 
 static dev_info_t dev_info = "pcnet_cs";
-static dev_link_t *dev_list;
 
 /*====================================================================*/
 
@@ -272,8 +271,7 @@ static dev_link_t *pcnet_attach(void)
     dev->set_config = &set_config;
 
     /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
+    link->next = NULL;
     client_reg.dev_info = &dev_info;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
@@ -300,15 +298,8 @@ static void pcnet_detach(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
-	dev_link_t **linkp;
 
 	DEBUG(0, "pcnet_detach(0x%p)\n", link);
-
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link) break;
-	if (*linkp == NULL)
-		return;
 
 	if (link->dev)
 		unregister_netdev(dev);
@@ -316,8 +307,6 @@ static void pcnet_detach(struct pcmcia_device *p_dev)
 	if (link->state & DEV_CONFIG)
 		pcnet_release(link);
 
-	/* Unlink device structure, free bits */
-	*linkp = link->next;
 	free_netdev(dev);
 } /* pcnet_detach */
 
@@ -1864,7 +1853,6 @@ static void __exit exit_pcnet_cs(void)
 {
     DEBUG(0, "pcnet_cs: unloading\n");
     pcmcia_unregister_driver(&pcnet_driver);
-    BUG_ON(dev_list != NULL);
 }
 
 module_init(init_pcnet_cs);

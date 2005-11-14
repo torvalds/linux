@@ -232,7 +232,6 @@ enum Phase {
 *  Global (within this module) variables other than
 *  sym53c500_driver_template (the scsi_host_template).
 */
-static dev_link_t *dev_list;
 static dev_info_t dev_info = "sym53c500_cs";
 
 /* ================================================================== */
@@ -930,22 +929,12 @@ static void
 SYM53C500_detach(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
-	dev_link_t **linkp;
 
 	DEBUG(0, "SYM53C500_detach(0x%p)\n", link);
-
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link)
-			break;
-	if (*linkp == NULL)
-		return;
 
 	if (link->state & DEV_CONFIG)
 		SYM53C500_release(link);
 
-	/* Unlink device structure, free bits. */
-	*linkp = link->next;
 	kfree(link->priv);
 	link->priv = NULL;
 } /* SYM53C500_detach */
@@ -978,8 +967,7 @@ SYM53C500_attach(void)
 	link->conf.Present = PRESENT_OPTION;
 
 	/* Register with Card Services */
-	link->next = dev_list;
-	dev_list = link;
+	link->next = NULL;
 	client_reg.dev_info = &dev_info;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;

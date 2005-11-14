@@ -228,17 +228,6 @@ static struct iw_statistics* netwave_get_wireless_stats(struct net_device *dev);
 static void set_multicast_list(struct net_device *dev);
 
 /*
-   A linked list of "instances" of the skeleton device.  Each actual
-   PCMCIA card corresponds to one device instance, and is described
-   by one dev_link_t structure (defined in ds.h).
-
-   You may not want to use a linked list for this -- for example, the
-   memory card driver uses an array of dev_link_t pointers, where minor
-   device numbers are used to derive the corresponding array index.
-*/
-static dev_link_t *dev_list;
-
-/*
    A dev_link_t structure has fields for most things that are needed
    to keep track of a socket, but there will usually be some device
    specific information that also needs to be kept track of.  The
@@ -451,8 +440,7 @@ static dev_link_t *netwave_attach(void)
     link->irq.Instance = dev;
     
     /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
+    link->next = NULL;
     client_reg.dev_info = &dev_info;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
@@ -476,37 +464,18 @@ static dev_link_t *netwave_attach(void)
  */
 static void netwave_detach(struct pcmcia_device *p_dev)
 {
-    dev_link_t *link = dev_to_instance(p_dev);
-    struct net_device *dev = link->priv;
-    dev_link_t **linkp;
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
 
-    DEBUG(0, "netwave_detach(0x%p)\n", link);
-  
-    /*
-	  If the device is currently configured and active, we won't
-	  actually delete it yet.  Instead, it is marked so that when
-	  the release() function is called, that will trigger a proper
-	  detach().
-	*/
-    if (link->state & DEV_CONFIG)
-	netwave_release(link);
+	DEBUG(0, "netwave_detach(0x%p)\n", link);
 
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-      {
-	DEBUG(1, "netwave_cs: detach fail, '%s' not in list\n",
-	      link->dev->dev_name);
-	return;
-      }
+	if (link->state & DEV_CONFIG)
+		netwave_release(link);
 
-    /* Unlink device structure, free pieces */
-    *linkp = link->next;
-    if (link->dev) 
-	unregister_netdev(dev);
-    free_netdev(dev);
-    
+	if (link->dev)
+		unregister_netdev(dev);
+
+	free_netdev(dev);
 } /* netwave_detach */
 
 /*
@@ -1503,7 +1472,6 @@ static int __init init_netwave_cs(void)
 static void __exit exit_netwave_cs(void)
 {
 	pcmcia_unregister_driver(&netwave_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_netwave_cs);

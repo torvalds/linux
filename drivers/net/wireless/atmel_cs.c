@@ -130,15 +130,7 @@ static dev_info_t dev_info = "atmel_cs";
    device numbers are used to derive the corresponding array index.
 */
 
-static dev_link_t *dev_list = NULL;
-
 /*
-   A dev_link_t structure has fields for most things that are needed
-   to keep track of a socket, but there will usually be some device
-   specific information that also needs to be kept track of.  The
-   'priv' pointer in a dev_link_t structure can be used to point to
-   a device-specific private data structure, like this.
-
    A driver needs to provide a dev_node_t structure for each device
    on a card.  In some cases, there is only one device per card (for
    example, ethernet cards, modems).  In other cases, there may be
@@ -213,8 +205,7 @@ static dev_link_t *atmel_attach(void)
 	link->priv = local;
 	
 	/* Register with Card Services */
-	link->next = dev_list;
-	dev_list = link;
+	link->next = NULL;
 	client_reg.dev_info = &dev_info;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
@@ -240,21 +231,12 @@ static dev_link_t *atmel_attach(void)
 static void atmel_detach(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
-	dev_link_t **linkp;
-	
+
 	DEBUG(0, "atmel_detach(0x%p)\n", link);
-	
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link) break;
-	if (*linkp == NULL)
-		return;
 
 	if (link->state & DEV_CONFIG)
 		atmel_release(link);
-		
-	/* Unlink device structure, free pieces */
-	*linkp = link->next;
+
 	kfree(link->priv);
 	kfree(link);
 }
@@ -596,7 +578,6 @@ static int atmel_cs_init(void)
 static void atmel_cs_cleanup(void)
 {
         pcmcia_unregister_driver(&atmel_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 /*

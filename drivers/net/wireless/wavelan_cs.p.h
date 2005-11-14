@@ -766,7 +766,6 @@ static int
 /**************************** VARIABLES ****************************/
 
 static dev_info_t dev_info = "wavelan_cs";
-static dev_link_t *dev_list = NULL;	/* Linked list of devices */
 
 /*
  * Parameters that can be set with 'insmod'

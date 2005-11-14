@@ -107,18 +107,7 @@ static dev_info_t dev_info = "teles_cs";
    device numbers are used to derive the corresponding array index.
 */
 
-static dev_link_t *dev_list = NULL;
-
 /*
-   A dev_link_t structure has fields for most things that are needed
-   to keep track of a socket, but there will usually be some device
-   specific information that also needs to be kept track of.  The
-   'priv' pointer in a dev_link_t structure can be used to point to
-   a device-specific private data structure, like this.
-
-   To simplify the data structure handling, we actually include the
-   dev_link_t structure in the device's private data structure.
-
    A driver needs to provide a dev_node_t structure for each device
    on a card.  In some cases, there is only one device per card (for
    example, ethernet cards, modems).  In other cases, there may be
@@ -189,8 +178,7 @@ static dev_link_t *teles_attach(void)
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
+    link->next = NULL;
     client_reg.dev_info = &dev_info;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
@@ -216,24 +204,15 @@ static dev_link_t *teles_attach(void)
 static void teles_detach(struct pcmcia_device *p_dev)
 {
     dev_link_t *link = dev_to_instance(p_dev);
-    dev_link_t **linkp;
     local_info_t *info = link->priv;
 
     DEBUG(0, "teles_detach(0x%p)\n", link);
 
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-        if (*linkp == link) break;
-    if (*linkp == NULL)
-        return;
-
     if (link->state & DEV_CONFIG) {
-        info->busy = 1;
-        teles_cs_release(link);
+	    info->busy = 1;
+	    teles_cs_release(link);
     }
 
-    /* Unlink device structure and free it */
-    *linkp = link->next;
     kfree(info);
 
 } /* teles_detach */
@@ -506,7 +485,6 @@ static int __init init_teles_cs(void)
 static void __exit exit_teles_cs(void)
 {
 	pcmcia_unregister_driver(&teles_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_teles_cs);

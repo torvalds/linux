@@ -111,7 +111,6 @@ static dev_link_t *axnet_attach(void);
 static void axnet_detach(struct pcmcia_device *p_dev);
 
 static dev_info_t dev_info = "axnet_cs";
-static dev_link_t *dev_list;
 
 static void axdev_setup(struct net_device *dev);
 static void AX88190_init(struct net_device *dev, int startp);
@@ -177,8 +176,7 @@ static dev_link_t *axnet_attach(void)
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
     /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
+    link->next = NULL;
     client_reg.dev_info = &dev_info;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
@@ -205,15 +203,8 @@ static void axnet_detach(struct pcmcia_device *p_dev)
 {
     dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
-    dev_link_t **linkp;
 
     DEBUG(0, "axnet_detach(0x%p)\n", link);
-
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
 
     if (link->dev)
 	unregister_netdev(dev);
@@ -221,8 +212,6 @@ static void axnet_detach(struct pcmcia_device *p_dev)
     if (link->state & DEV_CONFIG)
 	axnet_release(link);
 
-    /* Unlink device structure, free bits */
-    *linkp = link->next;
     free_netdev(dev);
 } /* axnet_detach */
 
@@ -896,7 +885,6 @@ static int __init init_axnet_cs(void)
 static void __exit exit_axnet_cs(void)
 {
 	pcmcia_unregister_driver(&axnet_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_axnet_cs);

@@ -104,8 +104,6 @@ static const char *version =
 
 static dev_info_t dev_info = "smc91c92_cs";
 
-static dev_link_t *dev_list;
-
 struct smc_private {
     dev_link_t			link;
     spinlock_t			lock;
@@ -367,8 +365,7 @@ static dev_link_t *smc91c92_attach(void)
     smc->mii_if.reg_num_mask = 0x1f;
 
     /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
+    link->next = NULL;
     client_reg.dev_info = &dev_info;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
@@ -395,15 +392,8 @@ static void smc91c92_detach(struct pcmcia_device *p_dev)
 {
     dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
-    dev_link_t **linkp;
 
     DEBUG(0, "smc91c92_detach(0x%p)\n", link);
-
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
 
     if (link->dev)
 	unregister_netdev(dev);
@@ -411,8 +401,6 @@ static void smc91c92_detach(struct pcmcia_device *p_dev)
     if (link->state & DEV_CONFIG)
 	smc91c92_release(link);
 
-    /* Unlink device structure, free bits */
-    *linkp = link->next;
     free_netdev(dev);
 } /* smc91c92_detach */
 
@@ -2377,7 +2365,6 @@ static int __init init_smc91c92_cs(void)
 static void __exit exit_smc91c92_cs(void)
 {
 	pcmcia_unregister_driver(&smc91c92_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_smc91c92_cs);

@@ -4627,8 +4627,7 @@ wavelan_attach(void)
   link->conf.IntType = INT_MEMORY_AND_IO;
 
   /* Chain drivers */
-  link->next = dev_list;
-  dev_list = link;
+  link->next = NULL;
 
   /* Allocate the generic data structure */
   dev = alloc_etherdev(sizeof(net_local));
@@ -4729,27 +4728,6 @@ wavelan_detach(struct pcmcia_device *p_dev)
     {
       /* Some others haven't done their job : give them another chance */
       wv_pcmcia_release(link);
-    }
-
-  /* Remove the interface data from the linked list */
-  if(dev_list == link)
-    dev_list = link->next;
-  else
-    {
-      dev_link_t *	prev = dev_list;
-
-      while((prev != (dev_link_t *) NULL) && (prev->next != link))
-	prev = prev->next;
-
-      if(prev == (dev_link_t *) NULL)
-	{
-#ifdef DEBUG_CONFIG_ERRORS
-	  printk(KERN_WARNING "wavelan_detach : Attempting to remove a nonexistent device.\n");
-#endif
-	  return;
-	}
-
-      prev->next = link->next;
     }
 
   /* Free pieces */

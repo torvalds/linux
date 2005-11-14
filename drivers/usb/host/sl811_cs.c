@@ -66,8 +66,6 @@ module_param(pc_debug, int, 0644);
 
 static const char driver_name[DEV_NAME_LEN]  = "sl811_cs";
 
-static dev_link_t *dev_list = NULL;
-
 typedef struct local_info_t {
 	dev_link_t		link;
 	dev_node_t		node;
@@ -143,24 +141,13 @@ static int sl811_hc_init(struct device *parent, ioaddr_t base_addr, int irq)
 static void sl811_cs_detach(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
-	dev_link_t **linkp;
 
 	DBG(0, "sl811_cs_detach(0x%p)\n", link);
-
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next) {
-		if (*linkp == link)
-			break;
-	}
-	if (*linkp == NULL)
-		return;
 
 	link->state &= ~DEV_PRESENT;
 	if (link->state & DEV_CONFIG)
 		sl811_cs_release(link);
 
-	/* Unlink device structure, and free it */
-	*linkp = link->next;
 	/* This points to the parent local_info_t struct */
 	kfree(link->priv);
 }
@@ -378,8 +365,7 @@ static dev_link_t *sl811_cs_attach(void)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	/* Register with Card Services */
-	link->next = dev_list;
-	dev_list = link;
+	link->next = NULL;
 	client_reg.dev_info = (dev_info_t *) &driver_name;
 	client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
 	client_reg.Version = 0x0210;

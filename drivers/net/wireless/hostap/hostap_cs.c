@@ -25,7 +25,6 @@
 
 static char *version = PRISM2_VERSION " (Jouni Malinen <jkmaline@cc.hut.fi>)";
 static dev_info_t dev_info = "hostap_cs";
-static dev_link_t *dev_list = NULL;
 
 MODULE_AUTHOR("Jouni Malinen");
 MODULE_DESCRIPTION("Support for Intersil Prism2-based 802.11 wireless LAN "
@@ -520,8 +519,7 @@ static dev_link_t *prism2_attach(void)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	/* register with CardServices */
-	link->next = dev_list;
-	dev_list = link;
+	link->next = NULL;
 	client_reg.dev_info = &dev_info;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
@@ -538,24 +536,13 @@ static dev_link_t *prism2_attach(void)
 static void prism2_detach(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
-	dev_link_t **linkp;
 
 	PDEBUG(DEBUG_FLOW, "prism2_detach\n");
-
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link)
-			break;
-	if (*linkp == NULL) {
-		printk(KERN_WARNING "%s: Attempt to detach non-existing "
-		       "PCMCIA client\n", dev_info);
-		return;
-	}
 
 	if (link->state & DEV_CONFIG) {
 		prism2_release((u_long)link);
 	}
 
-	*linkp = link->next;
 	/* release net devices */
 	if (link->priv) {
 		struct hostap_cs_priv *hw_priv;

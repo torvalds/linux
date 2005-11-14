@@ -93,8 +93,6 @@ static dev_info_t dev_info = "btuart_cs";
 static dev_link_t *btuart_attach(void);
 static void btuart_detach(struct pcmcia_device *p_dev);
 
-static dev_link_t *dev_list = NULL;
-
 
 /* Maximum baud rate */
 #define SPEED_MAX  115200
@@ -610,8 +608,7 @@ static dev_link_t *btuart_attach(void)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	/* Register with Card Services */
-	link->next = dev_list;
-	dev_list = link;
+	link->next = NULL;
 	client_reg.dev_info = &dev_info;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
@@ -631,21 +628,9 @@ static void btuart_detach(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
 	btuart_info_t *info = link->priv;
-	dev_link_t **linkp;
-
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link)
-			break;
-
-	if (*linkp == NULL)
-		return;
 
 	if (link->state & DEV_CONFIG)
 		btuart_release(link);
-
-	/* Unlink device structure, free bits */
-	*linkp = link->next;
 
 	kfree(info);
 }
@@ -870,7 +855,6 @@ static int __init init_btuart_cs(void)
 static void __exit exit_btuart_cs(void)
 {
 	pcmcia_unregister_driver(&btuart_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_btuart_cs);

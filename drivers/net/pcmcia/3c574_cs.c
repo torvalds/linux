@@ -255,8 +255,6 @@ static dev_info_t dev_info = "3c574_cs";
 static dev_link_t *tc574_attach(void);
 static void tc574_detach(struct pcmcia_device *p_dev);
 
-static dev_link_t *dev_list;
-
 /*
 	tc574_attach() creates an "instance" of the driver, allocating
 	local data structures for one device.  The device is registered
@@ -308,8 +306,7 @@ static dev_link_t *tc574_attach(void)
 #endif
 
 	/* Register with Card Services */
-	link->next = dev_list;
-	dev_list = link;
+	link->next = NULL;
 	client_reg.dev_info = &dev_info;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
@@ -336,15 +333,8 @@ static void tc574_detach(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
-	dev_link_t **linkp;
 
 	DEBUG(0, "3c574_detach(0x%p)\n", link);
-
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link) break;
-	if (*linkp == NULL)
-		return;
 
 	if (link->dev)
 		unregister_netdev(dev);
@@ -352,8 +342,6 @@ static void tc574_detach(struct pcmcia_device *p_dev)
 	if (link->state & DEV_CONFIG)
 		tc574_release(link);
 
-	/* Unlink device structure, free bits */
-	*linkp = link->next;
 	free_netdev(dev);
 } /* tc574_detach */
 
@@ -1310,7 +1298,6 @@ static int __init init_tc574(void)
 static void __exit exit_tc574(void)
 {
 	pcmcia_unregister_driver(&tc574_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_tc574);

@@ -40,7 +40,6 @@ static void ixj_config(dev_link_t * link);
 static void ixj_cs_release(dev_link_t * link);
 static int ixj_event(event_t event, int priority, event_callback_args_t * args);
 static dev_info_t dev_info = "ixj_cs";
-static dev_link_t *dev_list = NULL;
 
 static dev_link_t *ixj_attach(void)
 {
@@ -65,8 +64,7 @@ static dev_link_t *ixj_attach(void)
 	}
 	memset(link->priv, 0, sizeof(struct ixj_info_t));
 	/* Register with Card Services */
-	link->next = dev_list;
-	dev_list = link;
+	link->next = NULL;
 	client_reg.dev_info = &dev_info;
 	client_reg.Version = 0x0210;
 	client_reg.event_callback_args.client_data = link;
@@ -82,20 +80,13 @@ static dev_link_t *ixj_attach(void)
 static void ixj_detach(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
-	dev_link_t **linkp;
 
 	DEBUG(0, "ixj_detach(0x%p)\n", link);
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link)
-			break;
-	if (*linkp == NULL)
-		return;
+
 	link->state &= ~DEV_RELEASE_PENDING;
 	if (link->state & DEV_CONFIG)
 		ixj_cs_release(link);
 
-	/* Unlink device structure, free bits */
-	*linkp = link->next;
         kfree(link->priv);
         kfree(link);
 }
@@ -314,7 +305,6 @@ static int __init ixj_pcmcia_init(void)
 static void ixj_pcmcia_exit(void)
 {
 	pcmcia_unregister_driver(&ixj_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(ixj_pcmcia_init);

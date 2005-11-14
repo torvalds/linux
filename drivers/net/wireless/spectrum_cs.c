@@ -78,13 +78,6 @@ struct orinoco_pccard {
 	dev_node_t node;
 };
 
-/*
- * A linked list of "instances" of the device.  Each actual PCMCIA
- * card corresponds to one device instance, and is described by one
- * dev_link_t structure (defined in ds.h).
- */
-static dev_link_t *dev_list; /* = NULL */
-
 /********************************************************************/
 /* Function prototypes						    */
 /********************************************************************/
@@ -637,8 +630,7 @@ spectrum_cs_attach(void)
 
 	/* Register with Card Services */
 	/* FIXME: need a lock? */
-	link->next = dev_list;
-	dev_list = link;
+	link->next = NULL; /* not needed */
 
 	client_reg.dev_info = &dev_info;
 	client_reg.Version = 0x0210; /* FIXME: what does this mean? */
@@ -1049,7 +1041,6 @@ static void __exit
 exit_spectrum_cs(void)
 {
 	pcmcia_unregister_driver(&orinoco_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_spectrum_cs);

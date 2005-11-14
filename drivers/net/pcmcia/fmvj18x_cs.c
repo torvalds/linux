@@ -109,7 +109,6 @@ static void fjn_tx_timeout(struct net_device *dev);
 static struct ethtool_ops netdev_ethtool_ops;
 
 static dev_info_t dev_info = "fmvj18x_cs";
-static dev_link_t *dev_list;
 
 /*
     card type
@@ -283,8 +282,7 @@ static dev_link_t *fmvj18x_attach(void)
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
     
     /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
+    link->next = NULL;
     client_reg.dev_info = &dev_info;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
@@ -304,15 +302,8 @@ static void fmvj18x_detach(struct pcmcia_device *p_dev)
 {
     dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
-    dev_link_t **linkp;
-    
+
     DEBUG(0, "fmvj18x_detach(0x%p)\n", link);
-    
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
 
     if (link->dev)
 	unregister_netdev(dev);
@@ -320,8 +311,6 @@ static void fmvj18x_detach(struct pcmcia_device *p_dev)
     if (link->state & DEV_CONFIG)
 	fmvj18x_release(link);
 
-    /* Unlink device structure, free pieces */
-    *linkp = link->next;
     free_netdev(dev);
 } /* fmvj18x_detach */
 
@@ -807,7 +796,6 @@ static int __init init_fmvj18x_cs(void)
 static void __exit exit_fmvj18x_cs(void)
 {
 	pcmcia_unregister_driver(&fmvj18x_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_fmvj18x_cs);

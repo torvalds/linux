@@ -104,7 +104,6 @@ static struct scsi_host_template nsp_driver_template = {
 #endif
 };
 
-static dev_link_t *dev_list = NULL;
 static dev_info_t dev_info  = {"nsp_cs"};
 
 static nsp_hw_data nsp_data_base; /* attach <-> detect glue */
@@ -1638,8 +1637,7 @@ static dev_link_t *nsp_cs_attach(void)
 
 
 	/* Register with Card Services */
-	link->next               = dev_list;
-	dev_list                 = link;
+	link->next               = NULL;
 	client_reg.dev_info	 = &dev_info;
 	client_reg.Version	 = 0x0210;
 	client_reg.event_callback_args.client_data = link;
@@ -1665,30 +1663,16 @@ static dev_link_t *nsp_cs_attach(void)
 static void nsp_cs_detach(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
-	dev_link_t **linkp;
 
 	nsp_dbg(NSP_DEBUG_INIT, "in, link=0x%p", link);
-
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next) {
-		if (*linkp == link) {
-			break;
-		}
-	}
-	if (*linkp == NULL) {
-		return;
-	}
 
 	if (link->state & DEV_CONFIG) {
 		((scsi_info_t *)link->priv)->stop = 1;
 		nsp_cs_release(link);
 	}
 
-	/* Unlink device structure, free bits */
-	*linkp = link->next;
 	kfree(link->priv);
 	link->priv = NULL;
-
 } /* nsp_cs_detach */
 
 
@@ -2168,7 +2152,6 @@ static void __exit nsp_cs_exit(void)
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,68))
 	pcmcia_unregister_driver(&nsp_driver);
-	BUG_ON(dev_list != NULL);
 #else
 	unregister_pcmcia_driver(&dev_info);
 	/* XXX: this really needs to move into generic code.. */

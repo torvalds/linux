@@ -492,7 +492,6 @@ static dev_link_t *mgslpc_attach(void);
 static void mgslpc_detach(struct pcmcia_device *p_dev);
 
 static dev_info_t dev_info = "synclink_cs";
-static dev_link_t *dev_list = NULL;
 
 /*
  * 1st function defined in .text section. Calling this function in
@@ -588,8 +587,7 @@ static dev_link_t *mgslpc_attach(void)
     link->conf.IntType = INT_MEMORY_AND_IO;
 
     /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
+    link->next = NULL;
 
     client_reg.dev_info = &dev_info;
     client_reg.Version = 0x0210;
@@ -741,24 +739,15 @@ static void mgslpc_release(u_long arg)
 static void mgslpc_detach(struct pcmcia_device *p_dev)
 {
     dev_link_t *link = dev_to_instance(p_dev);
-    dev_link_t **linkp;
 
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_detach(0x%p)\n", link);
-
-    /* find device */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	    if (*linkp == link) break;
-    if (*linkp == NULL)
-	    return;
 
     if (link->state & DEV_CONFIG) {
 	    ((MGSLPC_INFO *)link->priv)->stop = 1;
 	    mgslpc_release((u_long)link);
     }
 
-    /* Unlink device structure, and free it */
-    *linkp = link->next;
     mgslpc_remove_device((MGSLPC_INFO *)link->priv);
 }
 
@@ -3131,7 +3120,6 @@ static void synclink_cs_cleanup(void)
 	}
 
 	pcmcia_unregister_driver(&mgslpc_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 static int __init synclink_cs_init(void)

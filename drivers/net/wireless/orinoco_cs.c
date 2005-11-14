@@ -69,12 +69,6 @@ struct orinoco_pccard {
 	unsigned long hard_reset_in_progress; 
 };
 
-/*
- * A linked list of "instances" of the device.  Each actual PCMCIA
- * card corresponds to one device instance, and is described by one
- * dev_link_t structure (defined in ds.h).
- */
-static dev_link_t *dev_list; /* = NULL */
 
 /********************************************************************/
 /* Function prototypes						    */
@@ -154,9 +148,7 @@ orinoco_cs_attach(void)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
 	/* Register with Card Services */
-	/* FIXME: need a lock? */
-	link->next = dev_list;
-	dev_list = link;
+	link->next = NULL;
 
 	client_reg.dev_info = &dev_info;
 	client_reg.Version = 0x0210; /* FIXME: what does this mean? */
@@ -181,21 +173,11 @@ orinoco_cs_attach(void)
 static void orinoco_cs_detach(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
-	dev_link_t **linkp;
 	struct net_device *dev = link->priv;
-
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link)
-			break;
-
-	BUG_ON(*linkp == NULL);
 
 	if (link->state & DEV_CONFIG)
 		orinoco_cs_release(link);
 
-	/* Unlink device structure, and free it */
-	*linkp = link->next;
 	DEBUG(0, PFX "detach: link=%p link->dev=%p\n", link, link->dev);
 	if (link->dev) {
 		DEBUG(0, PFX "About to unregister net device %p\n",
@@ -678,7 +660,6 @@ static void __exit
 exit_orinoco_cs(void)
 {
 	pcmcia_unregister_driver(&orinoco_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_orinoco_cs);

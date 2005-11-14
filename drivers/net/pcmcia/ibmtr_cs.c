@@ -116,8 +116,6 @@ static dev_info_t dev_info = "ibmtr_cs";
 static dev_link_t *ibmtr_attach(void);
 static void ibmtr_detach(struct pcmcia_device *p_dev);
 
-static dev_link_t *dev_list;
-
 /*====================================================================*/
 
 typedef struct ibmtr_dev_t {
@@ -186,8 +184,7 @@ static dev_link_t *ibmtr_attach(void)
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
     /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
+    link->next = NULL;
     client_reg.dev_info = &dev_info;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
@@ -219,18 +216,9 @@ static void ibmtr_detach(struct pcmcia_device *p_dev)
 {
     dev_link_t *link = dev_to_instance(p_dev);
     struct ibmtr_dev_t *info = link->priv;
-    dev_link_t **linkp;
-    struct net_device *dev;
+    struct net_device *dev = info->dev;
 
     DEBUG(0, "ibmtr_detach(0x%p)\n", link);
-
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-        if (*linkp == link) break;
-    if (*linkp == NULL)
-        return;
-
-    dev = info->dev;
 
     if (link->dev)
 	unregister_netdev(dev);
@@ -242,10 +230,8 @@ static void ibmtr_detach(struct pcmcia_device *p_dev)
     if (link->state & DEV_CONFIG)
         ibmtr_release(link);
 
-    /* Unlink device structure, free bits */
-    *linkp = link->next;
     free_netdev(dev);
-    kfree(info); 
+    kfree(info);
 } /* ibmtr_detach */
 
 /*======================================================================
@@ -530,7 +516,6 @@ static int __init init_ibmtr_cs(void)
 static void __exit exit_ibmtr_cs(void)
 {
 	pcmcia_unregister_driver(&ibmtr_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_ibmtr_cs);

@@ -128,8 +128,6 @@ static dev_info_t dev_info = "com20020_cs";
 static dev_link_t *com20020_attach(void);
 static void com20020_detach(struct pcmcia_device *p_dev);
 
-static dev_link_t *dev_list;
-
 /*====================================================================*/
 
 typedef struct com20020_dev_t {
@@ -196,8 +194,7 @@ static dev_link_t *com20020_attach(void)
     link->priv = info;
 
     /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
+    link->next = NULL;
     client_reg.dev_info = &dev_info;
     client_reg.Version = 0x0210;
     client_reg.event_callback_args.client_data = link;
@@ -230,26 +227,17 @@ static void com20020_detach(struct pcmcia_device *p_dev)
 {
     dev_link_t *link = dev_to_instance(p_dev);
     struct com20020_dev_t *info = link->priv;
-    dev_link_t **linkp;
-    struct net_device *dev; 
-    
+    struct net_device *dev = info->dev;
+
     DEBUG(1,"detach...\n");
 
     DEBUG(0, "com20020_detach(0x%p)\n", link);
-
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-        if (*linkp == link) break;
-    if (*linkp == NULL)
-        return;
-
-    dev = info->dev;
 
     if (link->dev) {
 	DEBUG(1,"unregister...\n");
 
 	unregister_netdev(dev);
-	    
+
 	/*
 	 * this is necessary because we register our IRQ separately
 	 * from card services.
@@ -263,7 +251,6 @@ static void com20020_detach(struct pcmcia_device *p_dev)
 
     /* Unlink device structure, free bits */
     DEBUG(1,"unlinking...\n");
-    *linkp = link->next;
     if (link->priv)
     {
 	dev = info->dev;
@@ -507,7 +494,6 @@ static int __init init_com20020_cs(void)
 static void __exit exit_com20020_cs(void)
 {
 	pcmcia_unregister_driver(&com20020_cs_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_com20020_cs);

@@ -67,7 +67,6 @@ struct pcmciamtd_dev {
 
 
 static dev_info_t dev_info = "pcmciamtd";
-static dev_link_t *dev_list;
 
 /* Module parameters */
 
@@ -782,8 +781,7 @@ static dev_link_t *pcmciamtd_attach(void)
 	link->conf.Attributes = 0;
 	link->conf.IntType = INT_MEMORY;
 
-	link->next = dev_list;
-	dev_list = link;
+	link->next = NULL;
 
 	/* Register with Card Services */
 	client_reg.dev_info = &dev_info;
@@ -865,7 +863,6 @@ static void __exit exit_pcmciamtd(void)
 {
 	DEBUG(1, DRIVER_DESC " unloading");
 	pcmcia_unregister_driver(&pcmciamtd_driver);
-	BUG_ON(dev_list != NULL);
 }
 
 module_init(init_pcmciamtd);
