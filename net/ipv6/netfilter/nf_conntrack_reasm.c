@@ -190,8 +190,10 @@ static void nf_ct_frag6_secret_rebuild(unsigned long dummy)
 atomic_t nf_ct_frag6_mem = ATOMIC_INIT(0);
 
 /* Memory Tracking Functions. */
-static inline void frag_kfree_skb(struct sk_buff *skb)
+static inline void frag_kfree_skb(struct sk_buff *skb, unsigned int *work)
 {
+	if (work)
+		*work -= skb->truesize;
 	atomic_sub(skb->truesize, &nf_ct_frag6_mem);
 	if (NFCT_FRAG6_CB(skb)->orig)
 		kfree_skb(NFCT_FRAG6_CB(skb)->orig);
@@ -199,8 +201,11 @@ static inline void frag_kfree_skb(struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
-static inline void frag_free_queue(struct nf_ct_frag6_queue *fq)
+static inline void frag_free_queue(struct nf_ct_frag6_queue *fq,
+				   unsigned int *work)
 {
+	if (work)
+		*work -= sizeof(struct nf_ct_frag6_queue);
 	atomic_sub(sizeof(struct nf_ct_frag6_queue), &nf_ct_frag6_mem);
 	kfree(fq);
 }
@@ -218,7 +223,8 @@ static inline struct nf_ct_frag6_queue *frag_alloc_queue(void)
 /* Destruction primitives. */
 
 /* Complete destruction of fq. */
-static void nf_ct_frag6_destroy(struct nf_ct_frag6_queue *fq)
+static void nf_ct_frag6_destroy(struct nf_ct_frag6_queue *fq,
+				unsigned int *work)
 {
 	struct sk_buff *fp;
 
@@ -230,17 +236,17 @@ static void nf_ct_frag6_destroy(struct nf_ct_frag6_queue *fq)
 	while (fp) {
 		struct sk_buff *xp = fp->next;
 
-		frag_kfree_skb(fp);
+		frag_kfree_skb(fp, work);
 		fp = xp;
 	}
 
-	frag_free_queue(fq);
+	frag_free_queue(fq, work);
 }
 
-static __inline__ void fq_put(struct nf_ct_frag6_queue *fq)
+static __inline__ void fq_put(struct nf_ct_frag6_queue *fq, unsigned int *work)
 {
 	if (atomic_dec_and_test(&fq->refcnt))
-		nf_ct_frag6_destroy(fq);
+		nf_ct_frag6_destroy(fq, work);
 }
 
 /* Kill fq entry. It is not destroyed immediately,
@@ -262,10 +268,14 @@ static void nf_ct_frag6_evictor(void)
 {
 	struct nf_ct_frag6_queue *fq;
 	struct list_head *tmp;
+	unsigned int work;
 
-	for (;;) {
-		if (atomic_read(&nf_ct_frag6_mem) <= nf_ct_frag6_low_thresh)
-			return;
+	work = atomic_read(&nf_ct_frag6_mem);
+	if (work <= nf_ct_frag6_low_thresh)
+		return;
+
+	work -= nf_ct_frag6_low_thresh;
+	while (work > 0) {
 		read_lock(&nf_ct_frag6_lock);
 		if (list_empty(&nf_ct_frag6_lru_list)) {
 			read_unlock(&nf_ct_frag6_lock);
@@ -281,7 +291,7 @@ static void nf_ct_frag6_evictor(void)
 			fq_kill(fq);
 		spin_unlock(&fq->lock);
 
-		fq_put(fq);
+		fq_put(fq, &work);
 	}
 }
 
@@ -298,7 +308,7 @@ static void nf_ct_frag6_expire(unsigned long data)
 
 out:
 	spin_unlock(&fq->lock);
-	fq_put(fq);
+	fq_put(fq, NULL);
 }
 
 /* Creation primitives. */
@@ -318,7 +328,7 @@ static struct nf_ct_frag6_queue *nf_ct_frag6_intern(unsigned int hash,
 			atomic_inc(&fq->refcnt);
 			write_unlock(&nf_ct_frag6_lock);
 			fq_in->last_in |= COMPLETE;
-			fq_put(fq_in);
+			fq_put(fq_in, NULL);
 			return fq;
 		}
 	}
@@ -535,7 +545,7 @@ static int nf_ct_frag6_queue(struct nf_ct_frag6_queue *fq, struct sk_buff *skb,
 				fq->fragments = next;
 
 			fq->meat -= free_it->len;
-			frag_kfree_skb(free_it);
+			frag_kfree_skb(free_it, NULL);
 		}
 	}
 
@@ -811,7 +821,7 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 	if (nf_ct_frag6_queue(fq, clone, fhdr, nhoff) < 0) {
 		spin_unlock(&fq->lock);
 		DEBUGP("Can't insert skb to queue\n");
-		fq_put(fq);
+		fq_put(fq, NULL);
 		goto ret_orig;
 	}
 
@@ -822,7 +832,7 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb)
 	}
 	spin_unlock(&fq->lock);
 
-	fq_put(fq);
+	fq_put(fq, NULL);
 	return ret_skb;
 
 ret_orig:
