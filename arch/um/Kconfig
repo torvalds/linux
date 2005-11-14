@@ -7,7 +7,6 @@ config UML
 	bool
 	default y
 
-# XXX: does UM have a mmu/swap?
 config MMU
 	bool
 	default y
@@ -209,7 +208,8 @@ config MAGIC_SYSRQ
 config SMP
 	bool "Symmetric multi-processing support (EXPERIMENTAL)"
 	default n
-	depends on (MODE_TT && EXPERIMENTAL && !SMP_BROKEN) || (BROKEN && SMP_BROKEN)
+	#SMP_BROKEN is for x86_64.
+	depends on MODE_TT && EXPERIMENTAL && (!SMP_BROKEN || (BROKEN && SMP_BROKEN))
 	help
 	This option enables UML SMP support.
 	It is NOT related to having a real SMP box. Not directly, at least.
