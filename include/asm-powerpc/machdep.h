@@ -27,6 +27,9 @@ struct device_node;
 struct iommu_table;
 struct rtc_time;
 struct file;
+#ifdef CONFIG_KEXEC
+struct kimage;
+#endif
 
 #ifdef CONFIG_SMP
 struct smp_ops_t {
@@ -207,14 +210,14 @@ struct machdep_calls {
 
 	/* this is for modules, since _machine can be a define -- Cort */
 	int ppc_machine;
+#endif /* CONFIG_PPC32 */
 
-#ifdef CONFIG_KEXEC
 	/* Called to shutdown machine specific hardware not already controlled
 	 * by other drivers.
-	 * XXX Should we move this one out of kexec scope?
 	 */
 	void (*machine_shutdown)(void);
 
+#ifdef CONFIG_KEXEC
 	/* Called to do the minimal shutdown needed to run a kexec'd kernel
 	 * to run successfully.
 	 * XXX Should we move this one out of kexec scope?
@@ -237,7 +240,6 @@ struct machdep_calls {
 	 */
 	void (*machine_kexec)(struct kimage *image);
 #endif /* CONFIG_KEXEC */
-#endif /* CONFIG_PPC32 */
 };
 
 extern void default_idle(void);

@@ -33,6 +33,7 @@
 #include <asm/mmu.h>
 #include <asm/processor.h>
 #include <asm/io.h>
+#include <asm/kexec.h>
 #include <asm/pgtable.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
@@ -138,4 +139,8 @@ struct machdep_calls __initdata cell_md = {
 	.set_rtc_time		= rtas_set_rtc_time,
 	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= cell_progress,
+#ifdef CONFIG_KEXEC
+	.machine_kexec		= default_machine_kexec,
+	.machine_kexec_prepare	= default_machine_kexec_prepare,
+#endif
 };

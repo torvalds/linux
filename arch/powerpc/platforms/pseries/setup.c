@@ -56,6 +56,7 @@
 #include <asm/dma.h>
 #include <asm/machdep.h>
 #include <asm/irq.h>
+#include <asm/kexec.h>
 #include <asm/time.h>
 #include <asm/nvram.h>
 #include "xics.h"
@@ -638,5 +639,7 @@ struct machdep_calls __initdata pSeries_md = {
 	.machine_check_exception = pSeries_machine_check_exception,
 #ifdef CONFIG_KEXEC
 	.kexec_cpu_down		= pseries_kexec_cpu_down,
+	.machine_kexec		= default_machine_kexec,
+	.machine_kexec_prepare	= default_machine_kexec_prepare,
 #endif
 };

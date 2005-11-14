@@ -41,10 +41,11 @@ extern note_buf_t crash_notes[];
 extern void kexec_smp_wait(void);	/* get and clear naca physid, wait for
 					  master to copy new code to 0 */
 extern void __init kexec_setup(void);
-#else
-struct kimage;
-extern void machine_kexec_simple(struct kimage *image);
 #endif
+
+struct kimage;
+extern void default_machine_kexec(struct kimage *image);
+extern int default_machine_kexec_prepare(struct kimage *image);
 
 #endif /* ! __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_KEXEC_H */

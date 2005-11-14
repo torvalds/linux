@@ -65,8 +65,9 @@ pci64-$(CONFIG_PPC64)		+= pci_64.o pci_dn.o pci_iommu.o \
 				   pci_direct_iommu.o iomap.o
 obj-$(CONFIG_PCI)		+= $(pci64-y)
 
-kexec64-$(CONFIG_PPC64)		+= machine_kexec_64.o
-obj-$(CONFIG_KEXEC)		+= $(kexec64-y)
+kexec-$(CONFIG_PPC64)		:= machine_kexec_64.o
+kexec-$(CONFIG_PPC32)		:= machine_kexec_32.o
+obj-$(CONFIG_KEXEC)		+= machine_kexec.o $(kexec-y)
 
 ifeq ($(CONFIG_PPC_ISERIES),y)
 $(obj)/head_64.o: $(obj)/lparmap.s

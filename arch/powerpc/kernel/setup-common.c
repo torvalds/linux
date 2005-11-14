@@ -93,8 +93,8 @@ EXPORT_SYMBOL(ppc_do_canonicalize_irqs);
 /* also used by kexec */
 void machine_shutdown(void)
 {
-	if (ppc_md.nvram_sync)
-		ppc_md.nvram_sync();
+	if (ppc_md.machine_shutdown)
+		ppc_md.machine_shutdown();
 }
 
 void machine_restart(char *cmd)

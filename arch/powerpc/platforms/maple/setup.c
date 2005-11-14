@@ -51,6 +51,7 @@
 #include <asm/pgtable.h>
 #include <asm/bitops.h>
 #include <asm/io.h>
+#include <asm/kexec.h>
 #include <asm/pci-bridge.h>
 #include <asm/iommu.h>
 #include <asm/machdep.h>
@@ -292,4 +293,8 @@ struct machdep_calls __initdata maple_md = {
       	.calibrate_decr		= generic_calibrate_decr,
 	.progress		= maple_progress,
 	.idle_loop		= native_idle,
+#ifdef CONFIG_KEXEC
+	.machine_kexec		= default_machine_kexec,
+	.machine_kexec_prepare	= default_machine_kexec_prepare,
+#endif
 };

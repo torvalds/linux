@@ -549,6 +549,7 @@ static int __init core99_nvram_setup(struct device_node *dp)
 	ppc_md.nvram_write	= core99_nvram_write;
 	ppc_md.nvram_size	= core99_nvram_size;
 	ppc_md.nvram_sync	= core99_nvram_sync;
+	ppc_md.machine_shutdown	= core99_nvram_sync;
 	/* 
 	 * Maybe we could be smarter here though making an exclusive list
 	 * of known flash chips is a bit nasty as older OF didn't provide us

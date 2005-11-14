@@ -60,6 +60,7 @@
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
+#include <asm/kexec.h>
 #include <asm/pci-bridge.h>
 #include <asm/ohare.h>
 #include <asm/mediabay.h>
@@ -773,7 +774,11 @@ struct machdep_calls __initdata pmac_md = {
 	.pci_probe_mode		= pmac_probe_mode,
 	.idle_loop		= native_idle,
 	.enable_pmcs		= power4_enable_pmcs,
+#ifdef CONFIG_KEXEC
+	.machine_kexec		= default_machine_kexec,
+	.machine_kexec_prepare	= default_machine_kexec_prepare,
 #endif
+#endif /* CONFIG_PPC64 */
 #ifdef CONFIG_PPC32
 	.pcibios_enable_device_hook = pmac_pci_enable_device_hook,
 	.pcibios_after_init	= pmac_pcibios_after_init,

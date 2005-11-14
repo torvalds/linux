@@ -1,5 +1,5 @@
 /*
- * machine_kexec.c - handle transition of Linux booting another kernel
+ * PPC64 code to handle Linux booting another kernel.
  *
  * Copyright (C) 2004-2005, IBM Corp.
  *
@@ -28,21 +28,7 @@
 
 #define HASH_GROUP_SIZE 0x80	/* size of each hash group, asm/mmu.h */
 
-/* Have this around till we move it into crash specific file */
-note_buf_t crash_notes[NR_CPUS];
-
-/* Dummy for now. Not sure if we need to have a crash shutdown in here
- * and if what it will achieve. Letting it be now to compile the code
- * in generic kexec environment
- */
-void machine_crash_shutdown(struct pt_regs *regs)
-{
-	/* do nothing right now */
-	/* smp_relase_cpus() if we want smp on panic kernel */
-	/* cpu_irq_down to isolate us until we are ready */
-}
-
-int machine_kexec_prepare(struct kimage *image)
+int default_machine_kexec_prepare(struct kimage *image)
 {
 	int i;
 	unsigned long begin, end;	/* limits of segment */
@@ -109,11 +95,6 @@ int machine_kexec_prepare(struct kimage *image)
 	}
 
 	return 0;
-}
-
-void machine_kexec_cleanup(struct kimage *image)
-{
-	/* we do nothing in prepare that needs to be undone */
 }
 
 #define IND_FLAGS (IND_DESTINATION | IND_INDIRECTION | IND_DONE | IND_SOURCE)
@@ -283,7 +264,7 @@ extern NORET_TYPE void kexec_sequence(void *newstack, unsigned long start,
 					void (*clear_all)(void)) ATTRIB_NORET;
 
 /* too late to fail here */
-void machine_kexec(struct kimage *image)
+void default_machine_kexec(struct kimage *image)
 {
 
 	/* prepare control code if any */
