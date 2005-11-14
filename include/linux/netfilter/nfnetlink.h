@@ -154,11 +154,14 @@ extern void nfattr_parse(struct nfattr *tb[], int maxattr,
 
 #define nfattr_bad_size(tb, max, cta_min)				\
 ({	int __i, __res = 0;						\
- 	for (__i=0; __i<max; __i++) 					\
+ 	for (__i=0; __i<max; __i++) {					\
+ 		if (!cta_min[__i])					\
+ 			continue;					\
  		if (tb[__i] && NFA_PAYLOAD(tb[__i]) < cta_min[__i]){	\
  			__res = 1;					\
  			break;						\
  		}							\
+ 	}								\
  	__res;								\
 })
 
