@@ -3284,31 +3284,10 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct ata_host_set *host_set = ap->host_set;
-	struct ata_device *dev = qc->dev;
 	u8 host_stat = 0, drv_stat;
 	unsigned long flags;
 
 	DPRINTK("ENTER\n");
-
-	/* FIXME: doesn't this conflict with timeout handling? */
-	if (qc->dev->class == ATA_DEV_ATAPI && qc->scsicmd) {
-		struct scsi_cmnd *cmd = qc->scsicmd;
-
-		if (!(cmd->eh_eflags & SCSI_EH_CANCEL_CMD)) {
-
-			/* finish completing original command */
-			spin_lock_irqsave(&host_set->lock, flags);
-			__ata_qc_complete(qc);
-			spin_unlock_irqrestore(&host_set->lock, flags);
-
-			atapi_request_sense(ap, dev, cmd);
-
-			cmd->result = (CHECK_CONDITION << 1) | (DID_OK << 16);
-			scsi_finish_command(cmd);
-
-			goto out;
-		}
-	}
 
 	spin_lock_irqsave(&host_set->lock, flags);
 
@@ -3348,7 +3327,6 @@ static void ata_qc_timeout(struct ata_queued_cmd *qc)
 
 	spin_unlock_irqrestore(&host_set->lock, flags);
 
-out:
 	DPRINTK("EXIT\n");
 }
 
