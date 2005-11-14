@@ -515,7 +515,7 @@ void i8254_timer_resume(void)
 }
 
 static struct sysdev_class timer_sysclass = {
-	set_kset_name("timer"),
+	set_kset_name("timer_pit"),
 	.resume		= timer_resume,
 };
 
