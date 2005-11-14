@@ -1235,6 +1235,17 @@ static inline void task_unlock(struct task_struct *p)
 
 #define task_thread_info(task) (task)->thread_info
 
+static inline void setup_thread_stack(struct task_struct *p, struct task_struct *org)
+{
+	*task_thread_info(p) = *task_thread_info(org);
+	task_thread_info(p)->task = p;
+}
+
+static inline unsigned long *end_of_stack(struct task_struct *p)
+{
+	return (unsigned long *)(p->thread_info + 1);
+}
+
 /* set thread flags in other task's structures
  * - see asm/thread_info.h for TIF_xxxx flags available
  */

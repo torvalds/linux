@@ -4327,10 +4327,10 @@ static void show_task(task_t *p)
 #endif
 #ifdef CONFIG_DEBUG_STACK_USAGE
 	{
-		unsigned long *n = (unsigned long *) (p->thread_info+1);
+		unsigned long *n = end_of_stack(p);
 		while (!*n)
 			n++;
-		free = (unsigned long) n - (unsigned long)(p->thread_info+1);
+		free = (unsigned long)n - (unsigned long)end_of_stack(p);
 	}
 #endif
 	printk("%5lu %5d %6d ", free, p->pid, p->parent->pid);

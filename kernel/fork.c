@@ -171,10 +171,9 @@ static struct task_struct *dup_task_struct(struct task_struct *orig)
 		return NULL;
 	}
 
-	*ti = *orig->thread_info;
 	*tsk = *orig;
 	tsk->thread_info = ti;
-	ti->task = tsk;
+	setup_thread_stack(tsk, orig);
 
 	/* One for us, one for whoever does the "release_task()" (usually parent) */
 	atomic_set(&tsk->usage,2);
