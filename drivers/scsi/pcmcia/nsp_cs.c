@@ -1646,7 +1646,7 @@ static dev_link_t *nsp_cs_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
 		cs_error(link->handle, RegisterClient, ret);
-		nsp_cs_detach(link);
+		nsp_cs_detach(link->handle);
 		return NULL;
 	}
 
@@ -1662,8 +1662,9 @@ static dev_link_t *nsp_cs_attach(void)
     structures are freed.  Otherwise, the structures will be freed
     when the device is released.
 ======================================================================*/
-static void nsp_cs_detach(dev_link_t *link)
+static void nsp_cs_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	dev_link_t **linkp;
 
 	nsp_dbg(NSP_DEBUG_INIT, "in, link=0x%p", link);
@@ -1678,12 +1679,9 @@ static void nsp_cs_detach(dev_link_t *link)
 		return;
 	}
 
-	if (link->state & DEV_CONFIG)
+	if (link->state & DEV_CONFIG) {
+		((scsi_info_t *)link->priv)->stop = 1;
 		nsp_cs_release(link);
-
-	/* Break the link with Card Services */
-	if (link->handle) {
-		pcmcia_deregister_client(link->handle);
 	}
 
 	/* Unlink device structure, free bits */
@@ -2096,15 +2094,6 @@ static int nsp_cs_event(event_t		       event,
 	nsp_dbg(NSP_DEBUG_INIT, "in, event=0x%08x", event);
 
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		nsp_dbg(NSP_DEBUG_INIT, "event: remove");
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			((scsi_info_t *)link->priv)->stop = 1;
-			nsp_cs_release(link);
-		}
-		break;
-
 	case CS_EVENT_CARD_INSERTION:
 		nsp_dbg(NSP_DEBUG_INIT, "event: insert");
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
@@ -2144,7 +2133,7 @@ static struct pcmcia_driver nsp_driver = {
 	},
 	.attach		= nsp_cs_attach,
 	.event		= nsp_cs_event,
-	.detach		= nsp_cs_detach,
+	.remove		= nsp_cs_detach,
 	.id_table	= nsp_cs_ids,
 	.suspend	= nsp_cs_suspend,
 	.resume		= nsp_cs_resume,

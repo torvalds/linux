@@ -95,7 +95,7 @@ static int bt3c_event(event_t event, int priority, event_callback_args_t *args);
 static dev_info_t dev_info = "bt3c_cs";
 
 static dev_link_t *bt3c_attach(void);
-static void bt3c_detach(dev_link_t *);
+static void bt3c_detach(struct pcmcia_device *p_dev);
 
 static dev_link_t *dev_list = NULL;
 
@@ -700,7 +700,7 @@ static dev_link_t *bt3c_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
 		cs_error(link->handle, RegisterClient, ret);
-		bt3c_detach(link);
+		bt3c_detach(link->handle);
 		return NULL;
 	}
 
@@ -708,11 +708,11 @@ static dev_link_t *bt3c_attach(void)
 }
 
 
-static void bt3c_detach(dev_link_t *link)
+static void bt3c_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	bt3c_info_t *info = link->priv;
 	dev_link_t **linkp;
-	int ret;
 
 	/* Locate device structure */
 	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
@@ -724,12 +724,6 @@ static void bt3c_detach(dev_link_t *link)
 
 	if (link->state & DEV_CONFIG)
 		bt3c_release(link);
-
-	if (link->handle) {
-		ret = pcmcia_deregister_client(link->handle);
-		if (ret != CS_SUCCESS)
-			cs_error(link->handle, DeregisterClient, ret);
-	}
 
 	/* Unlink device structure, free bits */
 	*linkp = link->next;
@@ -916,16 +910,8 @@ static int bt3c_resume(struct pcmcia_device *dev)
 static int bt3c_event(event_t event, int priority, event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
-	bt3c_info_t *info = link->priv;
 
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			bt3c_close(info);
-			bt3c_release(link);
-		}
-		break;
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		bt3c_config(link);
@@ -948,7 +934,7 @@ static struct pcmcia_driver bt3c_driver = {
 	},
 	.attach		= bt3c_attach,
 	.event		= bt3c_event,
-	.detach		= bt3c_detach,
+	.remove		= bt3c_detach,
 	.id_table	= bt3c_ids,
 	.suspend	= bt3c_suspend,
 	.resume		= bt3c_resume,

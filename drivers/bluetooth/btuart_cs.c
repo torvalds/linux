@@ -91,7 +91,7 @@ static int btuart_event(event_t event, int priority, event_callback_args_t *args
 static dev_info_t dev_info = "btuart_cs";
 
 static dev_link_t *btuart_attach(void);
-static void btuart_detach(dev_link_t *);
+static void btuart_detach(struct pcmcia_device *p_dev);
 
 static dev_link_t *dev_list = NULL;
 
@@ -619,7 +619,7 @@ static dev_link_t *btuart_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
 		cs_error(link->handle, RegisterClient, ret);
-		btuart_detach(link);
+		btuart_detach(link->handle);
 		return NULL;
 	}
 
@@ -627,11 +627,11 @@ static dev_link_t *btuart_attach(void)
 }
 
 
-static void btuart_detach(dev_link_t *link)
+static void btuart_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	btuart_info_t *info = link->priv;
 	dev_link_t **linkp;
-	int ret;
 
 	/* Locate device structure */
 	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
@@ -643,12 +643,6 @@ static void btuart_detach(dev_link_t *link)
 
 	if (link->state & DEV_CONFIG)
 		btuart_release(link);
-
-	if (link->handle) {
-		ret = pcmcia_deregister_client(link->handle);
-		if (ret != CS_SUCCESS)
-			cs_error(link->handle, DeregisterClient, ret);
-	}
 
 	/* Unlink device structure, free bits */
 	*linkp = link->next;
@@ -837,16 +831,8 @@ static int btuart_resume(struct pcmcia_device *dev)
 static int btuart_event(event_t event, int priority, event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
-	btuart_info_t *info = link->priv;
 
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			btuart_close(info);
-			btuart_release(link);
-		}
-		break;
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		btuart_config(link);
@@ -869,7 +855,7 @@ static struct pcmcia_driver btuart_driver = {
 	},
 	.attach		= btuart_attach,
 	.event		= btuart_event,
-	.detach		= btuart_detach,
+	.remove		= btuart_detach,
 	.id_table	= btuart_ids,
 	.suspend	= btuart_suspend,
 	.resume		= btuart_resume,

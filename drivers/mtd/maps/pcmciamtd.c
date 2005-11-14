@@ -722,18 +722,6 @@ static int pcmciamtd_event(event_t event, int priority,
 
 	DEBUG(1, "event=0x%06x", event);
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		DEBUG(2, "EVENT_CARD_REMOVAL");
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			struct pcmciamtd_dev *dev = link->priv;
-			if(dev->mtd_info) {
-				del_mtd_device(dev->mtd_info);
-				info("mtd%d: Removed", dev->mtd_info->index);
-			}
-			pcmciamtd_release(link);
-		}
-		break;
 	case CS_EVENT_CARD_INSERTION:
 		DEBUG(2, "EVENT_CARD_INSERTION");
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
@@ -752,23 +740,21 @@ static int pcmciamtd_event(event_t event, int priority,
  * when the device is released.
  */
 
-static void pcmciamtd_detach(dev_link_t *link)
+static void pcmciamtd_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
+
 	DEBUG(3, "link=0x%p", link);
 
 	if(link->state & DEV_CONFIG) {
+		struct pcmciamtd_dev *dev = link->priv;
+		if(dev->mtd_info) {
+			del_mtd_device(dev->mtd_info);
+			info("mtd%d: Removed", dev->mtd_info->index);
+		}
+
 		pcmciamtd_release(link);
 	}
-
-	if (link->handle) {
-		int ret;
-		DEBUG(2, "Deregistering with card services");
-		ret = pcmcia_deregister_client(link->handle);
-		if (ret != CS_SUCCESS)
-			cs_error(link->handle, DeregisterClient, ret);
-	}
-
-	link->state |= DEV_STALE_LINK;
 }
 
 
@@ -807,7 +793,7 @@ static dev_link_t *pcmciamtd_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != 0) {
 		cs_error(link->handle, RegisterClient, ret);
-		pcmciamtd_detach(link);
+		pcmciamtd_detach(link->handle);
 		return NULL;
 	}
 	DEBUG(2, "link = %p", link);
@@ -847,7 +833,7 @@ static struct pcmcia_driver pcmciamtd_driver = {
 	},
 	.attach		= pcmciamtd_attach,
 	.event		= pcmciamtd_event,
-	.detach		= pcmciamtd_detach,
+	.remove		= pcmciamtd_detach,
 	.owner		= THIS_MODULE,
 	.id_table	= pcmciamtd_ids,
 	.suspend	= pcmciamtd_suspend,

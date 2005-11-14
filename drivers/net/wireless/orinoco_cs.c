@@ -81,7 +81,7 @@ static dev_link_t *dev_list; /* = NULL */
 /********************************************************************/
 
 static void orinoco_cs_release(dev_link_t *link);
-static void orinoco_cs_detach(dev_link_t *link);
+static void orinoco_cs_detach(struct pcmcia_device *p_dev);
 
 /********************************************************************/
 /* Device methods     						    */
@@ -165,7 +165,7 @@ orinoco_cs_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
 		cs_error(link->handle, RegisterClient, ret);
-		orinoco_cs_detach(link);
+		orinoco_cs_detach(link->handle);
 		return NULL;
 	}
 
@@ -178,8 +178,9 @@ orinoco_cs_attach(void)
  * are freed.  Otherwise, the structures will be freed when the device
  * is released.
  */
-static void orinoco_cs_detach(dev_link_t *link)
+static void orinoco_cs_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	dev_link_t **linkp;
 	struct net_device *dev = link->priv;
 
@@ -192,10 +193,6 @@ static void orinoco_cs_detach(dev_link_t *link)
 
 	if (link->state & DEV_CONFIG)
 		orinoco_cs_release(link);
-
-	/* Break the link with Card Services */
-	if (link->handle)
-		pcmcia_deregister_client(link->handle);
 
 	/* Unlink device structure, and free it */
 	*linkp = link->next;
@@ -551,30 +548,15 @@ orinoco_cs_event(event_t event, int priority,
 		       event_callback_args_t * args)
 {
 	dev_link_t *link = args->client_data;
-	struct net_device *dev = link->priv;
-	struct orinoco_private *priv = netdev_priv(dev);
-	int err = 0;
 
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			unsigned long flags;
-
-			spin_lock_irqsave(&priv->lock, flags);
-			netif_device_detach(dev);
-			priv->hw_unavailable++;
-			spin_unlock_irqrestore(&priv->lock, flags);
-		}
-		break;
-
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		orinoco_cs_config(link);
 		break;
 	}
 
-	return err;
+	return 0;
 }				/* orinoco_cs_event */
 
 /********************************************************************/
@@ -677,7 +659,7 @@ static struct pcmcia_driver orinoco_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.attach		= orinoco_cs_attach,
-	.detach		= orinoco_cs_detach,
+	.remove		= orinoco_cs_detach,
 	.event		= orinoco_cs_event,
 	.id_table       = orinoco_cs_ids,
 	.suspend	= orinoco_cs_suspend,

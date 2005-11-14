@@ -73,6 +73,8 @@ typedef struct local_info_t {
 	dev_node_t		node;
 } local_info_t;
 
+static void sl811_cs_release(dev_link_t * link);
+
 /*====================================================================*/
 
 static void release_platform_dev(struct device * dev)
@@ -138,8 +140,9 @@ static int sl811_hc_init(struct device *parent, ioaddr_t base_addr, int irq)
 
 /*====================================================================*/
 
-static void sl811_cs_detach(dev_link_t *link)
+static void sl811_cs_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	dev_link_t **linkp;
 
 	DBG(0, "sl811_cs_detach(0x%p)\n", link);
@@ -152,9 +155,9 @@ static void sl811_cs_detach(dev_link_t *link)
 	if (*linkp == NULL)
 		return;
 
-	/* Break the link with Card Services */
-	if (link->handle)
-		pcmcia_deregister_client(link->handle);
+	link->state &= ~DEV_PRESENT;
+	if (link->state & DEV_CONFIG)
+		sl811_cs_release(link);
 
 	/* Unlink device structure, and free it */
 	*linkp = link->next;
@@ -167,13 +170,6 @@ static void sl811_cs_release(dev_link_t * link)
 
 	DBG(0, "sl811_cs_release(0x%p)\n", link);
 
-	if (link->open) {
-		DBG(1, "sl811_cs: release postponed, '%s' still open\n",
-		    link->dev->dev_name);
-		link->state |= DEV_STALE_CONFIG;
-		return;
-	}
-
 	/* Unlink the device chain */
 	link->dev = NULL;
 
@@ -184,9 +180,6 @@ static void sl811_cs_release(dev_link_t * link)
 	if (link->irq.AssignedIRQ)
 		pcmcia_release_irq(link->handle, &link->irq);
 	link->state &= ~DEV_CONFIG;
-
-	if (link->state & DEV_STALE_LINK)
-		sl811_cs_detach(link);
 }
 
 static void sl811_cs_config(dev_link_t *link)
@@ -353,12 +346,6 @@ sl811_cs_event(event_t event, int priority, event_callback_args_t *args)
 	DBG(1, "sl811_cs_event(0x%06x)\n", event);
 
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG)
-			sl811_cs_release(link);
-		break;
-
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		sl811_cs_config(link);
@@ -400,7 +387,7 @@ static dev_link_t *sl811_cs_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
 		cs_error(link->handle, RegisterClient, ret);
-		sl811_cs_detach(link);
+		sl811_cs_detach(link->handle);
 		return NULL;
 	}
 
@@ -420,7 +407,7 @@ static struct pcmcia_driver sl811_cs_driver = {
 	},
 	.attach		= sl811_cs_attach,
 	.event		= sl811_cs_event,
-	.detach		= sl811_cs_detach,
+	.remove		= sl811_cs_detach,
 	.id_table	= sl811_ids,
 	.suspend	= sl811_suspend,
 	.resume		= sl811_resume,

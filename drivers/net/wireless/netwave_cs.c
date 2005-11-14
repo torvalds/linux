@@ -200,7 +200,7 @@ static int  netwave_event(event_t event, int priority,
 static void netwave_pcmcia_config(dev_link_t *arg); /* Runs after card 
 													   insertion */
 static dev_link_t *netwave_attach(void);     /* Create instance */
-static void netwave_detach(dev_link_t *);    /* Destroy instance */
+static void netwave_detach(struct pcmcia_device *p_dev);    /* Destroy instance */
 
 /* Hardware configuration */
 static void netwave_doreset(kio_addr_t iobase, u_char __iomem *ramBase);
@@ -459,7 +459,7 @@ static dev_link_t *netwave_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != 0) {
 	cs_error(link->handle, RegisterClient, ret);
-	netwave_detach(link);
+	netwave_detach(link->handle);
 	return NULL;
     }
 
@@ -474,8 +474,9 @@ static dev_link_t *netwave_attach(void)
  *    structures are freed.  Otherwise, the structures will be freed
  *    when the device is released.
  */
-static void netwave_detach(dev_link_t *link)
+static void netwave_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
     dev_link_t **linkp;
 
@@ -489,11 +490,7 @@ static void netwave_detach(dev_link_t *link)
 	*/
     if (link->state & DEV_CONFIG)
 	netwave_release(link);
-	
-    /* Break the link with Card Services */
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
-    
+
     /* Locate device structure */
     for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
 	if (*linkp == link) break;
@@ -986,22 +983,10 @@ static int netwave_event(event_t event, int priority,
 			 event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-    struct net_device *dev = link->priv;
-	
-    DEBUG(1, "netwave_event(0x%06x)\n", event);
-  
-    switch (event) {
-    case CS_EVENT_REGISTRATION_COMPLETE:
-	DEBUG(0, "netwave_cs: registration complete\n");
-	break;
 
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG) {
-	    netif_device_detach(dev);
-	    netwave_release(link);
-	}
-	break;
+    DEBUG(1, "netwave_event(0x%06x)\n", event);
+
+    switch (event) {
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	netwave_pcmcia_config( link);
@@ -1504,7 +1489,7 @@ static struct pcmcia_driver netwave_driver = {
 	},
 	.attach		= netwave_attach,
 	.event		= netwave_event,
-	.detach		= netwave_detach,
+	.remove		= netwave_detach,
 	.id_table       = netwave_ids,
 	.suspend	= netwave_suspend,
 	.resume		= netwave_resume,

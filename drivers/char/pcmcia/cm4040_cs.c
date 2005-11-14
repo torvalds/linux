@@ -65,7 +65,7 @@ static char *version =
 #define POLL_PERIOD 				msecs_to_jiffies(10)
 
 static void reader_release(dev_link_t *link);
-static void reader_detach(dev_link_t *link);
+static void reader_detach(struct pcmcia_device *p_dev);
 
 static int major;
 
@@ -652,10 +652,6 @@ static int reader_event(event_t event, int priority,
 			link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 			reader_config(link, devno);
 			break;
-		case CS_EVENT_CARD_REMOVAL:
-			DEBUGP(5, dev, "CS_EVENT_CARD_REMOVAL\n");
-			link->state &= ~DEV_PRESENT;
-			break;
 
 		default:
 			DEBUGP(5, dev, "reader_event: unknown event %.2x\n",
@@ -734,7 +730,7 @@ static dev_link_t *reader_attach(void)
 	i = pcmcia_register_client(&link->handle, &client_reg);
 	if (i) {
 		cs_error(link->handle, RegisterClient, i);
-		reader_detach(link);
+		reader_detach(link->handle);
 		return NULL;
 	}
 	init_waitqueue_head(&dev->devq);
@@ -747,36 +743,28 @@ static dev_link_t *reader_attach(void)
 	return link;
 }
 
-static void reader_detach_by_devno(int devno, dev_link_t *link)
+static void reader_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	struct reader_dev *dev = link->priv;
-
-	if (link->state & DEV_CONFIG) {
-		DEBUGP(5, dev, "device still configured (try to release it)\n");
-		reader_release(link);
-	}
-
-	pcmcia_deregister_client(link->handle);
-	dev_table[devno] = NULL;
-	DEBUGP(5, dev, "freeing dev=%p\n", dev);
-	cm4040_stop_poll(dev);
-	kfree(dev);
-	return;
-}
-
-static void reader_detach(dev_link_t *link)
-{
-	int i;
+	int devno;
 
 	/* find device */
-	for (i = 0; i < CM_MAX_DEV; i++) {
-		if (dev_table[i] == link)
+	for (devno = 0; devno < CM_MAX_DEV; devno++) {
+		if (dev_table[devno] == link)
 			break;
 	}
-	if (i == CM_MAX_DEV)
+	if (devno == CM_MAX_DEV)
 		return;
 
-	reader_detach_by_devno(i, link);
+	link->state &= ~DEV_PRESENT;
+
+	if (link->state & DEV_CONFIG)
+		reader_release(link);
+
+	dev_table[devno] = NULL;
+	kfree(dev);
+
 	return;
 }
 
@@ -803,7 +791,7 @@ static struct pcmcia_driver reader_driver = {
 		.name	= "cm4040_cs",
 	},
 	.attach		= reader_attach,
-	.detach		= reader_detach,
+	.remove		= reader_detach,
 	.suspend	= reader_suspend,
 	.resume		= reader_resume,
 	.event		= reader_event,
@@ -825,14 +813,8 @@ static int __init cm4040_init(void)
 
 static void __exit cm4040_exit(void)
 {
-	int i;
-
 	printk(KERN_INFO MODULE_NAME ": unloading\n");
 	pcmcia_unregister_driver(&reader_driver);
-	for (i = 0; i < CM_MAX_DEV; i++) {
-		if (dev_table[i])
-			reader_detach_by_devno(i, dev_table[i]);
-	}
 	unregister_chrdev(major, DEVICE_NAME);
 }
 

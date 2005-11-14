@@ -88,7 +88,7 @@ typedef struct parport_info_t {
 } parport_info_t;
 
 static dev_link_t *parport_attach(void);
-static void parport_detach(dev_link_t *);
+static void parport_detach(struct pcmcia_device *p_dev);
 static void parport_config(dev_link_t *link);
 static void parport_cs_release(dev_link_t *);
 static int parport_event(event_t event, int priority,
@@ -137,7 +137,7 @@ static dev_link_t *parport_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
 	cs_error(link->handle, RegisterClient, ret);
-	parport_detach(link);
+	parport_detach(link->handle);
 	return NULL;
     }
     
@@ -153,13 +153,13 @@ static dev_link_t *parport_attach(void)
 
 ======================================================================*/
 
-static void parport_detach(dev_link_t *link)
+static void parport_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     dev_link_t **linkp;
-    int ret;
 
     DEBUG(0, "parport_detach(0x%p)\n", link);
-    
+
     /* Locate device structure */
     for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
 	if (*linkp == link) break;
@@ -168,17 +168,10 @@ static void parport_detach(dev_link_t *link)
 
     if (link->state & DEV_CONFIG)
 	parport_cs_release(link);
-    
-    if (link->handle) {
-	ret = pcmcia_deregister_client(link->handle);
-	if (ret != CS_SUCCESS)
-	    cs_error(link->handle, DeregisterClient, ret);
-    }
-    
+
     /* Unlink, free device structure */
     *linkp = link->next;
     kfree(link->priv);
-    
 } /* parport_detach */
 
 /*======================================================================
@@ -362,11 +355,6 @@ int parport_event(event_t event, int priority,
     DEBUG(1, "parport_event(0x%06x)\n", event);
     
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-		parport_cs_release(link);
-	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	parport_config(link);
@@ -389,7 +377,7 @@ static struct pcmcia_driver parport_cs_driver = {
 	},
 	.attach		= parport_attach,
 	.event		= parport_event,
-	.detach		= parport_detach,
+	.remove		= parport_detach,
 	.id_table	= parport_ids,
 	.suspend	= parport_suspend,
 	.resume		= parport_resume,

@@ -92,7 +92,7 @@ static int bluecard_event(event_t event, int priority, event_callback_args_t *ar
 static dev_info_t dev_info = "bluecard_cs";
 
 static dev_link_t *bluecard_attach(void);
-static void bluecard_detach(dev_link_t *);
+static void bluecard_detach(struct pcmcia_device *p_dev);
 
 static dev_link_t *dev_list = NULL;
 
@@ -899,7 +899,7 @@ static dev_link_t *bluecard_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
 		cs_error(link->handle, RegisterClient, ret);
-		bluecard_detach(link);
+		bluecard_detach(link->handle);
 		return NULL;
 	}
 
@@ -907,11 +907,11 @@ static dev_link_t *bluecard_attach(void)
 }
 
 
-static void bluecard_detach(dev_link_t *link)
+static void bluecard_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	bluecard_info_t *info = link->priv;
 	dev_link_t **linkp;
-	int ret;
 
 	/* Locate device structure */
 	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
@@ -923,12 +923,6 @@ static void bluecard_detach(dev_link_t *link)
 
 	if (link->state & DEV_CONFIG)
 		bluecard_release(link);
-
-	if (link->handle) {
-		ret = pcmcia_deregister_client(link->handle);
-		if (ret != CS_SUCCESS)
-			cs_error(link->handle, DeregisterClient, ret);
-	}
 
 	/* Unlink device structure, free bits */
 	*linkp = link->next;
@@ -1070,16 +1064,8 @@ static int bluecard_resume(struct pcmcia_device *dev)
 static int bluecard_event(event_t event, int priority, event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
-	bluecard_info_t *info = link->priv;
 
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			bluecard_close(info);
-			bluecard_release(link);
-		}
-		break;
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		bluecard_config(link);
@@ -1104,7 +1090,7 @@ static struct pcmcia_driver bluecard_driver = {
 	},
 	.attach		= bluecard_attach,
 	.event		= bluecard_event,
-	.detach		= bluecard_detach,
+	.remove		= bluecard_detach,
 	.id_table	= bluecard_ids,
 	.suspend	= bluecard_suspend,
 	.resume		= bluecard_resume,

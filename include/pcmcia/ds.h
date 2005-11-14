@@ -138,6 +138,8 @@ struct pcmcia_driver {
 				 event_callback_args_t *);
 	void			(*detach)(dev_link_t *);
 
+	void (*remove)		(struct pcmcia_device *dev);
+
 	int (*suspend)		(struct pcmcia_device *dev);
 	int (*resume)		(struct pcmcia_device *dev);
 

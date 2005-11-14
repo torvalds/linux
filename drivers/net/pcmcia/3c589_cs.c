@@ -164,7 +164,7 @@ static struct ethtool_ops netdev_ethtool_ops;
 static dev_info_t dev_info = "3c589_cs";
 
 static dev_link_t *tc589_attach(void);
-static void tc589_detach(dev_link_t *);
+static void tc589_detach(struct pcmcia_device *p_dev);
 
 static dev_link_t *dev_list;
 
@@ -230,7 +230,7 @@ static dev_link_t *tc589_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != 0) {
 	cs_error(link->handle, RegisterClient, ret);
-	tc589_detach(link);
+	tc589_detach(link->handle);
 	return NULL;
     }
     
@@ -246,8 +246,9 @@ static dev_link_t *tc589_attach(void)
 
 ======================================================================*/
 
-static void tc589_detach(dev_link_t *link)
+static void tc589_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
     dev_link_t **linkp;
     
@@ -264,10 +265,7 @@ static void tc589_detach(dev_link_t *link)
 
     if (link->state & DEV_CONFIG)
 	tc589_release(link);
-    
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
-    
+
     /* Unlink device structure, free bits */
     *linkp = link->next;
     free_netdev(dev);
@@ -466,16 +464,10 @@ static int tc589_event(event_t event, int priority,
 		       event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-    struct net_device *dev = link->priv;
     
     DEBUG(1, "3c589_event(0x%06x)\n", event);
     
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-	    netif_device_detach(dev);
-	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	tc589_config(link);
@@ -1079,7 +1071,7 @@ static struct pcmcia_driver tc589_driver = {
 	},
 	.attach		= tc589_attach,
 	.event		= tc589_event,
-	.detach		= tc589_detach,
+	.remove		= tc589_detach,
         .id_table       = tc589_ids,
 	.suspend	= tc589_suspend,
 	.resume		= tc589_resume,

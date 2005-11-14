@@ -126,7 +126,7 @@ static int com20020_event(event_t event, int priority,
 static dev_info_t dev_info = "com20020_cs";
 
 static dev_link_t *com20020_attach(void);
-static void com20020_detach(dev_link_t *);
+static void com20020_detach(struct pcmcia_device *p_dev);
 
 static dev_link_t *dev_list;
 
@@ -204,7 +204,7 @@ static dev_link_t *com20020_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != 0) {
         cs_error(link->handle, RegisterClient, ret);
-        com20020_detach(link);
+        com20020_detach(link->handle);
         return NULL;
     }
 
@@ -226,8 +226,9 @@ fail_alloc_info:
 
 ======================================================================*/
 
-static void com20020_detach(dev_link_t *link)
+static void com20020_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct com20020_dev_t *info = link->priv;
     dev_link_t **linkp;
     struct net_device *dev; 
@@ -259,9 +260,6 @@ static void com20020_detach(dev_link_t *link)
 
     if (link->state & DEV_CONFIG)
         com20020_release(link);
-
-    if (link->handle)
-        pcmcia_deregister_client(link->handle);
 
     /* Unlink device structure, free bits */
     DEBUG(1,"unlinking...\n");
@@ -470,17 +468,10 @@ static int com20020_event(event_t event, int priority,
 			  event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-    com20020_dev_t *info = link->priv;
-    struct net_device *dev = info->dev;
 
     DEBUG(1, "com20020_event(0x%06x)\n", event);
     
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-        link->state &= ~DEV_PRESENT;
-        if (link->state & DEV_CONFIG)
-            netif_device_detach(dev);
-        break;
     case CS_EVENT_CARD_INSERTION:
         link->state |= DEV_PRESENT;
 	com20020_config(link); 
@@ -502,7 +493,7 @@ static struct pcmcia_driver com20020_cs_driver = {
 	},
 	.attach		= com20020_attach,
 	.event		= com20020_event,
-	.detach		= com20020_detach,
+	.remove		= com20020_detach,
 	.id_table	= com20020_ids,
 	.suspend	= com20020_suspend,
 	.resume		= com20020_resume,

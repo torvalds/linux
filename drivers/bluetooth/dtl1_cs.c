@@ -94,7 +94,7 @@ static int dtl1_event(event_t event, int priority, event_callback_args_t *args);
 static dev_info_t dev_info = "dtl1_cs";
 
 static dev_link_t *dtl1_attach(void);
-static void dtl1_detach(dev_link_t *);
+static void dtl1_detach(struct pcmcia_device *p_dev);
 
 static dev_link_t *dev_list = NULL;
 
@@ -598,7 +598,7 @@ static dev_link_t *dtl1_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
 		cs_error(link->handle, RegisterClient, ret);
-		dtl1_detach(link);
+		dtl1_detach(link->handle);
 		return NULL;
 	}
 
@@ -606,11 +606,11 @@ static dev_link_t *dtl1_attach(void)
 }
 
 
-static void dtl1_detach(dev_link_t *link)
+static void dtl1_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	dtl1_info_t *info = link->priv;
 	dev_link_t **linkp;
-	int ret;
 
 	/* Locate device structure */
 	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
@@ -622,12 +622,6 @@ static void dtl1_detach(dev_link_t *link)
 
 	if (link->state & DEV_CONFIG)
 		dtl1_release(link);
-
-	if (link->handle) {
-		ret = pcmcia_deregister_client(link->handle);
-		if (ret != CS_SUCCESS)
-			cs_error(link->handle, DeregisterClient, ret);
-	}
 
 	/* Unlink device structure, free bits */
 	*linkp = link->next;
@@ -788,16 +782,8 @@ static int dtl1_resume(struct pcmcia_device *dev)
 static int dtl1_event(event_t event, int priority, event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
-	dtl1_info_t *info = link->priv;
 
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			dtl1_close(info);
-			dtl1_release(link);
-		}
-		break;
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		dtl1_config(link);
@@ -821,7 +807,7 @@ static struct pcmcia_driver dtl1_driver = {
 	},
 	.attach		= dtl1_attach,
 	.event		= dtl1_event,
-	.detach		= dtl1_detach,
+	.remove		= dtl1_detach,
 	.id_table	= dtl1_ids,
 	.suspend	= dtl1_suspend,
 	.resume		= dtl1_resume,

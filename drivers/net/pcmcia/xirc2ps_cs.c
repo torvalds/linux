@@ -302,7 +302,7 @@ static int xirc2ps_event(event_t event, int priority,
  */
 
 static dev_link_t *xirc2ps_attach(void);
-static void xirc2ps_detach(dev_link_t *);
+static void xirc2ps_detach(struct pcmcia_device *p_dev);
 
 /****************
  * You'll also need to prototype all the functions that will actually
@@ -622,7 +622,7 @@ xirc2ps_attach(void)
     client_reg.event_callback_args.client_data = link;
     if ((err = pcmcia_register_client(&link->handle, &client_reg))) {
 	cs_error(link->handle, RegisterClient, err);
-	xirc2ps_detach(link);
+	xirc2ps_detach(link->handle);
 	return NULL;
     }
 
@@ -637,8 +637,9 @@ xirc2ps_attach(void)
  */
 
 static void
-xirc2ps_detach(dev_link_t * link)
+xirc2ps_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
     dev_link_t **linkp;
 
@@ -656,18 +657,8 @@ xirc2ps_detach(dev_link_t * link)
     if (link->dev)
 	unregister_netdev(dev);
 
-    /*
-     * If the device is currently configured and active, we won't
-     * actually delete it yet.	Instead, it is marked so that when
-     * the release() function is called, that will trigger a proper
-     * detach().
-     */
     if (link->state & DEV_CONFIG)
 	xirc2ps_release(link);
-
-    /* Break the link with Card Services */
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
 
     /* Unlink device structure, free it */
     *linkp = link->next;
@@ -1209,19 +1200,10 @@ xirc2ps_event(event_t event, int priority,
 	      event_callback_args_t * args)
 {
     dev_link_t *link = args->client_data;
-    struct net_device *dev = link->priv;
 
     DEBUG(0, "event(%d)\n", (int)event);
 
     switch (event) {
-    case CS_EVENT_REGISTRATION_COMPLETE:
-	DEBUG(0, "registration complete\n");
-	break;
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-	    netif_device_detach(dev);
-	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	xirc2ps_config(link);
@@ -2022,7 +2004,7 @@ static struct pcmcia_driver xirc2ps_cs_driver = {
 	},
 	.attach		= xirc2ps_attach,
 	.event		= xirc2ps_event,
-	.detach		= xirc2ps_detach,
+	.remove		= xirc2ps_detach,
 	.id_table       = xirc2ps_ids,
 	.suspend	= xirc2ps_suspend,
 	.resume		= xirc2ps_resume,

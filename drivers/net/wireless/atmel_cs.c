@@ -103,7 +103,7 @@ static int atmel_event(event_t event, int priority,
 */
 
 static dev_link_t *atmel_attach(void);
-static void atmel_detach(dev_link_t *);
+static void atmel_detach(struct pcmcia_device *p_dev);
 
 /*
    You'll also need to prototype all the functions that will actually
@@ -221,7 +221,7 @@ static dev_link_t *atmel_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != 0) {
 		cs_error(link->handle, RegisterClient, ret);
-		atmel_detach(link);
+		atmel_detach(link->handle);
 		return NULL;
 	}
 	
@@ -237,8 +237,9 @@ static dev_link_t *atmel_attach(void)
   
   ======================================================================*/
 
-static void atmel_detach(dev_link_t *link)
+static void atmel_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	dev_link_t **linkp;
 	
 	DEBUG(0, "atmel_detach(0x%p)\n", link);
@@ -252,10 +253,6 @@ static void atmel_detach(dev_link_t *link)
 	if (link->state & DEV_CONFIG)
 		atmel_release(link);
 		
-	/* Break the link with Card Services */
-	if (link->handle)
-		pcmcia_deregister_client(link->handle);
-
 	/* Unlink device structure, free pieces */
 	*linkp = link->next;
 	kfree(link->priv);
@@ -522,18 +519,10 @@ static int atmel_event(event_t event, int priority,
 		      event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
-	local_info_t *local = link->priv;
-	
+
 	DEBUG(1, "atmel_event(0x%06x)\n", event);
-	
+
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			netif_device_detach(local->eth_dev);
-			atmel_release(link);
-		}
-		break;
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		atmel_config(link);
@@ -593,7 +582,7 @@ static struct pcmcia_driver atmel_driver = {
         },
 	.attach         = atmel_attach,
 	.event		= atmel_event,
-	.detach		= atmel_detach,
+	.remove		= atmel_detach,
 	.id_table	= atmel_ids,
 	.suspend	= atmel_suspend,
 	.resume		= atmel_resume,

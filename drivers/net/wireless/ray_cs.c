@@ -94,7 +94,7 @@ static void ray_config(dev_link_t *link);
 static void ray_release(dev_link_t *link);
 static int ray_event(event_t event, int priority, event_callback_args_t *args);
 static dev_link_t *ray_attach(void);
-static void ray_detach(dev_link_t *);
+static void ray_detach(struct pcmcia_device *p_dev);
 
 /***** Prototypes indicated by device structure ******************************/
 static int ray_dev_close(struct net_device *dev);
@@ -402,7 +402,7 @@ static dev_link_t *ray_attach(void)
     if (ret != 0) {
         printk("ray_cs ray_attach RegisterClient unhappy - detaching\n");
         cs_error(link->handle, RegisterClient, ret);
-        ray_detach(link);
+        ray_detach(link->handle);
         return NULL;
     }
     DEBUG(2,"ray_cs ray_attach ending\n");
@@ -418,9 +418,12 @@ fail_alloc_dev:
     structures are freed.  Otherwise, the structures will be freed
     when the device is released.
 =============================================================================*/
-static void ray_detach(dev_link_t *link)
+static void ray_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     dev_link_t **linkp;
+    struct net_device *dev;
+    ray_dev_t *local;
 
     DEBUG(1, "ray_detach(0x%p)\n", link);
     
@@ -430,22 +433,18 @@ static void ray_detach(dev_link_t *link)
     if (*linkp == NULL)
         return;
 
-    /* If the device is currently configured and active, we won't
-      actually delete it yet.  Instead, it is marked so that when
-      the release() function is called, that will trigger a proper
-      detach().
-    */
-    if (link->state & DEV_CONFIG)
-        ray_release(link);
+    dev = link->priv;
 
-    /* Break the link with Card Services */
-    if (link->handle)
-        pcmcia_deregister_client(link->handle);
-    
+    if (link->state & DEV_CONFIG) {
+	    ray_release(link);
+
+	    local = (ray_dev_t *)dev->priv;
+            del_timer(&local->timer);
+    }
+
     /* Unlink device structure, free pieces */
     *linkp = link->next;
     if (link->priv) {
-        struct net_device *dev = link->priv;
 	if (link->dev) unregister_netdev(dev);
         free_netdev(dev);
     }
@@ -940,19 +939,9 @@ static int ray_event(event_t event, int priority,
                      event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-    struct net_device *dev = link->priv;
-    ray_dev_t *local = (ray_dev_t *)dev->priv;
     DEBUG(1, "ray_event(0x%06x)\n", event);
-    
+
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-        link->state &= ~DEV_PRESENT;
-        netif_device_detach(dev);
-        if (link->state & DEV_CONFIG) {
-	    ray_release(link);
-            del_timer(&local->timer);
-        }
-        break;
     case CS_EVENT_CARD_INSERTION:
         link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
         ray_config(link);
@@ -2958,7 +2947,7 @@ static struct pcmcia_driver ray_driver = {
 	},
 	.attach		= ray_attach,
 	.event		= ray_event,
-	.detach		= ray_detach,
+	.remove		= ray_detach,
 	.id_table       = ray_ids,
 	.suspend	= ray_suspend,
 	.resume		= ray_resume,

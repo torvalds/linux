@@ -91,7 +91,7 @@ static void fmvj18x_release(dev_link_t *link);
 static int fmvj18x_event(event_t event, int priority,
 			  event_callback_args_t *args);
 static dev_link_t *fmvj18x_attach(void);
-static void fmvj18x_detach(dev_link_t *);
+static void fmvj18x_detach(struct pcmcia_device *p_dev);
 
 /*
     LAN controller(MBH86960A) specific routines
@@ -291,7 +291,7 @@ static dev_link_t *fmvj18x_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != 0) {
 	cs_error(link->handle, RegisterClient, ret);
-	fmvj18x_detach(link);
+	fmvj18x_detach(link->handle);
 	return NULL;
     }
 
@@ -300,8 +300,9 @@ static dev_link_t *fmvj18x_attach(void)
 
 /*====================================================================*/
 
-static void fmvj18x_detach(dev_link_t *link)
+static void fmvj18x_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
     dev_link_t **linkp;
     
@@ -319,10 +320,6 @@ static void fmvj18x_detach(dev_link_t *link)
     if (link->state & DEV_CONFIG)
 	fmvj18x_release(link);
 
-    /* Break the link with Card Services */
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
-    
     /* Unlink device structure, free pieces */
     *linkp = link->next;
     free_netdev(dev);
@@ -752,16 +749,10 @@ static int fmvj18x_event(event_t event, int priority,
 			  event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-    struct net_device *dev = link->priv;
 
     DEBUG(1, "fmvj18x_event(0x%06x)\n", event);
     
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-	    netif_device_detach(dev);
-	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	fmvj18x_config(link);
@@ -802,7 +793,7 @@ static struct pcmcia_driver fmvj18x_cs_driver = {
 	},
 	.attach		= fmvj18x_attach,
 	.event		= fmvj18x_event,
-	.detach		= fmvj18x_detach,
+	.remove		= fmvj18x_detach,
 	.id_table       = fmvj18x_ids,
 	.suspend	= fmvj18x_suspend,
 	.resume		= fmvj18x_resume,

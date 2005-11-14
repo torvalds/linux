@@ -757,7 +757,7 @@ static int
 static dev_link_t *
 	wavelan_attach(void);		/* Create a new device */
 static void
-	wavelan_detach(dev_link_t *);	/* Destroy a removed device */
+	wavelan_detach(struct pcmcia_device *p_dev);	/* Destroy a removed device */
 static int
 	wavelan_event(event_t,		/* Manage pcmcia events */
 		      int,

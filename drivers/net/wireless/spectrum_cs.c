@@ -90,7 +90,7 @@ static dev_link_t *dev_list; /* = NULL */
 /********************************************************************/
 
 static void spectrum_cs_release(dev_link_t *link);
-static void spectrum_cs_detach(dev_link_t *link);
+static void spectrum_cs_detach(struct pcmcia_device *p_dev);
 
 /********************************************************************/
 /* Firmware downloader						    */
@@ -647,7 +647,7 @@ spectrum_cs_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
 		cs_error(link->handle, RegisterClient, ret);
-		spectrum_cs_detach(link);
+		spectrum_cs_detach(link->handle);
 		return NULL;
 	}
 
@@ -660,27 +660,14 @@ spectrum_cs_attach(void)
  * are freed.  Otherwise, the structures will be freed when the device
  * is released.
  */
-static void spectrum_cs_detach(dev_link_t *link)
+static void spectrum_cs_detach(struct pcmcia_device *p_dev)
 {
-	dev_link_t **linkp;
+	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
-
-	/* Locate device structure */
-	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-		if (*linkp == link)
-			break;
-
-	BUG_ON(*linkp == NULL);
 
 	if (link->state & DEV_CONFIG)
 		spectrum_cs_release(link);
 
-	/* Break the link with Card Services */
-	if (link->handle)
-		pcmcia_deregister_client(link->handle);
-
-	/* Unlink device structure, and free it */
-	*linkp = link->next;
 	DEBUG(0, PFX "detach: link=%p link->dev=%p\n", link, link->dev);
 	if (link->dev) {
 		DEBUG(0, PFX "About to unregister net device %p\n",
@@ -1007,22 +994,8 @@ spectrum_cs_event(event_t event, int priority,
 		       event_callback_args_t * args)
 {
 	dev_link_t *link = args->client_data;
-	struct net_device *dev = link->priv;
-	struct orinoco_private *priv = netdev_priv(dev);
 
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			unsigned long flags;
-
-			spin_lock_irqsave(&priv->lock, flags);
-			netif_device_detach(dev);
-			priv->hw_unavailable++;
-			spin_unlock_irqrestore(&priv->lock, flags);
-		}
-		break;
-
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		spectrum_cs_config(link);
@@ -1057,7 +1030,7 @@ static struct pcmcia_driver orinoco_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.attach		= spectrum_cs_attach,
-	.detach		= spectrum_cs_detach,
+	.remove		= spectrum_cs_detach,
 	.suspend	= spectrum_cs_suspend,
 	.resume		= spectrum_cs_resume,
 	.event		= spectrum_cs_event,

@@ -107,7 +107,7 @@ static int sedlbauer_event(event_t event, int priority,
 */
 
 static dev_link_t *sedlbauer_attach(void);
-static void sedlbauer_detach(dev_link_t *);
+static void sedlbauer_detach(struct pcmcia_device *p_dev);
 
 /*
    You'll also need to prototype all the functions that will actually
@@ -230,7 +230,7 @@ static dev_link_t *sedlbauer_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
 	cs_error(link->handle, RegisterClient, ret);
-	sedlbauer_detach(link);
+	sedlbauer_detach(link->handle);
 	return NULL;
     }
 
@@ -246,8 +246,9 @@ static dev_link_t *sedlbauer_attach(void)
 
 ======================================================================*/
 
-static void sedlbauer_detach(dev_link_t *link)
+static void sedlbauer_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     dev_link_t **linkp;
 
     DEBUG(0, "sedlbauer_detach(0x%p)\n", link);
@@ -258,25 +259,11 @@ static void sedlbauer_detach(dev_link_t *link)
     if (*linkp == NULL)
 	return;
 
-    /*
-       If the device is currently configured and active, we won't
-       actually delete it yet.  Instead, it is marked so that when
-       the release() function is called, that will trigger a proper
-       detach().
-    */
     if (link->state & DEV_CONFIG) {
-#ifdef PCMCIA_DEBUG
-	printk(KERN_DEBUG "sedlbauer_cs: detach postponed, '%s' "
-	       "still locked\n", link->dev->dev_name);
-#endif
-	link->state |= DEV_STALE_LINK;
-	return;
+	((local_info_t *)link->priv)->stop = 1;
+	sedlbauer_release(link);
     }
 
-    /* Break the link with Card Services */
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
-    
     /* Unlink device structure, and free it */
     *linkp = link->next;
     /* This points to the parent local_info_t struct */
@@ -547,10 +534,6 @@ static void sedlbauer_release(dev_link_t *link)
     if (link->irq.AssignedIRQ)
 	pcmcia_release_irq(link->handle, &link->irq);
     link->state &= ~DEV_CONFIG;
-    
-    if (link->state & DEV_STALE_LINK)
-	sedlbauer_detach(link);
-    
 } /* sedlbauer_release */
 
 static int sedlbauer_suspend(struct pcmcia_device *p_dev)
@@ -599,13 +582,6 @@ static int sedlbauer_event(event_t event, int priority,
     DEBUG(1, "sedlbauer_event(0x%06x)\n", event);
     
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG) {
-	    ((local_info_t *)link->priv)->stop = 1;
-	    sedlbauer_release(link);
-	}
-	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	sedlbauer_config(link);
@@ -633,7 +609,7 @@ static struct pcmcia_driver sedlbauer_driver = {
 	},
 	.attach		= sedlbauer_attach,
 	.event		= sedlbauer_event,
-	.detach		= sedlbauer_detach,
+	.remove		= sedlbauer_detach,
 	.id_table	= sedlbauer_ids,
 	.suspend	= sedlbauer_suspend,
 	.resume		= sedlbauer_resume,

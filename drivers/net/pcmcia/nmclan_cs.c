@@ -440,7 +440,7 @@ static struct ethtool_ops netdev_ethtool_ops;
 
 
 static dev_link_t *nmclan_attach(void);
-static void nmclan_detach(dev_link_t *);
+static void nmclan_detach(struct pcmcia_device *p_dev);
 
 /* ----------------------------------------------------------------------------
 nmclan_attach
@@ -506,7 +506,7 @@ static dev_link_t *nmclan_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != 0) {
 	cs_error(link->handle, RegisterClient, ret);
-	nmclan_detach(link);
+	nmclan_detach(link->handle);
 	return NULL;
     }
 
@@ -521,8 +521,9 @@ nmclan_detach
 	when the device is released.
 ---------------------------------------------------------------------------- */
 
-static void nmclan_detach(dev_link_t *link)
+static void nmclan_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
     dev_link_t **linkp;
 
@@ -539,9 +540,6 @@ static void nmclan_detach(dev_link_t *link)
 
     if (link->state & DEV_CONFIG)
 	nmclan_release(link);
-
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
 
     /* Unlink device structure, free bits */
     *linkp = link->next;
@@ -845,16 +843,10 @@ static int nmclan_event(event_t event, int priority,
 		       event_callback_args_t *args)
 {
   dev_link_t *link = args->client_data;
-  struct net_device *dev = link->priv;
 
   DEBUG(1, "nmclan_event(0x%06x)\n", event);
 
   switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-      link->state &= ~DEV_PRESENT;
-      if (link->state & DEV_CONFIG)
-	netif_device_detach(dev);
-      break;
     case CS_EVENT_CARD_INSERTION:
       link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
       nmclan_config(link);
@@ -1694,7 +1686,7 @@ static struct pcmcia_driver nmclan_cs_driver = {
 	},
 	.attach		= nmclan_attach,
 	.event		= nmclan_event,
-	.detach		= nmclan_detach,
+	.remove		= nmclan_detach,
 	.id_table       = nmclan_ids,
 	.suspend	= nmclan_suspend,
 	.resume		= nmclan_resume,

@@ -918,11 +918,6 @@ SYM53C500_event(event_t event, int priority, event_callback_args_t *args)
 	DEBUG(1, "SYM53C500_event(0x%06x)\n", event);
 
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG)
-			SYM53C500_release(link);
-		break;
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		SYM53C500_config(link);
@@ -932,8 +927,9 @@ SYM53C500_event(event_t event, int priority, event_callback_args_t *args)
 } /* SYM53C500_event */
 
 static void
-SYM53C500_detach(dev_link_t *link)
+SYM53C500_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	dev_link_t **linkp;
 
 	DEBUG(0, "SYM53C500_detach(0x%p)\n", link);
@@ -947,9 +943,6 @@ SYM53C500_detach(dev_link_t *link)
 
 	if (link->state & DEV_CONFIG)
 		SYM53C500_release(link);
-
-	if (link->handle)
-		pcmcia_deregister_client(link->handle);
 
 	/* Unlink device structure, free bits. */
 	*linkp = link->next;
@@ -993,7 +986,7 @@ SYM53C500_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != 0) {
 		cs_error(link->handle, RegisterClient, ret);
-		SYM53C500_detach(link);
+		SYM53C500_detach(link->handle);
 		return NULL;
 	}
 
@@ -1019,7 +1012,7 @@ static struct pcmcia_driver sym53c500_cs_driver = {
 	},
 	.attach		= SYM53C500_attach,
 	.event		= SYM53C500_event,
-	.detach		= SYM53C500_detach,
+	.remove		= SYM53C500_detach,
 	.id_table       = sym53c500_ids,
 	.suspend	= sym53c500_suspend,
 	.resume		= sym53c500_resume,

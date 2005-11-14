@@ -87,7 +87,7 @@ static int teles_cs_event(event_t event, int priority,
 */
 
 static dev_link_t *teles_attach(void);
-static void teles_detach(dev_link_t *);
+static void teles_detach(struct pcmcia_device *p_dev);
 
 /*
    The dev_info variable is the "key" that is used to match up this
@@ -197,7 +197,7 @@ static dev_link_t *teles_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
         cs_error(link->handle, RegisterClient, ret);
-        teles_detach(link);
+        teles_detach(link->handle);
         return NULL;
     }
 
@@ -213,11 +213,11 @@ static dev_link_t *teles_attach(void)
 
 ======================================================================*/
 
-static void teles_detach(dev_link_t *link)
+static void teles_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     dev_link_t **linkp;
     local_info_t *info = link->priv;
-    int ret;
 
     DEBUG(0, "teles_detach(0x%p)\n", link);
 
@@ -227,14 +227,9 @@ static void teles_detach(dev_link_t *link)
     if (*linkp == NULL)
         return;
 
-    if (link->state & DEV_CONFIG)
+    if (link->state & DEV_CONFIG) {
+        info->busy = 1;
         teles_cs_release(link);
-
-    /* Break the link with Card Services */
-    if (link->handle) {
-        ret = pcmcia_deregister_client(link->handle);
-	if (ret != CS_SUCCESS)
-	    cs_error(link->handle, DeregisterClient, ret);
     }
 
     /* Unlink device structure and free it */
@@ -476,13 +471,6 @@ static int teles_cs_event(event_t event, int priority,
     DEBUG(1, "teles_cs_event(%d)\n", event);
 
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-        link->state &= ~DEV_PRESENT;
-        if (link->state & DEV_CONFIG) {
-            ((local_info_t*)link->priv)->busy = 1;
-	    teles_cs_release(link);
-        }
-        break;
     case CS_EVENT_CARD_INSERTION:
         link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
         teles_cs_config(link);
@@ -504,7 +492,7 @@ static struct pcmcia_driver teles_cs_driver = {
 	},
 	.attach		= teles_attach,
 	.event		= teles_cs_event,
-	.detach		= teles_detach,
+	.remove		= teles_detach,
 	.id_table       = teles_ids,
 	.suspend	= teles_suspend,
 	.resume		= teles_resume,

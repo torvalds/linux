@@ -99,7 +99,7 @@ static int aha152x_event(event_t event, int priority,
 			 event_callback_args_t *args);
 
 static dev_link_t *aha152x_attach(void);
-static void aha152x_detach(dev_link_t *);
+static void aha152x_detach(struct pcmcia_device *p_dev);
 
 static dev_link_t *dev_list;
 static dev_info_t dev_info = "aha152x_cs";
@@ -138,7 +138,7 @@ static dev_link_t *aha152x_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != 0) {
 	cs_error(link->handle, RegisterClient, ret);
-	aha152x_detach(link);
+	aha152x_detach(link->handle);
 	return NULL;
     }
     
@@ -147,8 +147,9 @@ static dev_link_t *aha152x_attach(void)
 
 /*====================================================================*/
 
-static void aha152x_detach(dev_link_t *link)
+static void aha152x_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     dev_link_t **linkp;
 
     DEBUG(0, "aha152x_detach(0x%p)\n", link);
@@ -162,9 +163,6 @@ static void aha152x_detach(dev_link_t *link)
     if (link->state & DEV_CONFIG)
 	aha152x_release_cs(link);
 
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
-    
     /* Unlink device structure, free bits */
     *linkp = link->next;
     kfree(link->priv);
@@ -307,11 +305,6 @@ static int aha152x_event(event_t event, int priority,
     DEBUG(0, "aha152x_event(0x%06x)\n", event);
     
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-	    aha152x_release_cs(link);
-	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	aha152x_config_cs(link);
@@ -337,7 +330,7 @@ static struct pcmcia_driver aha152x_cs_driver = {
 	},
 	.attach		= aha152x_attach,
 	.event		= aha152x_event,
-	.detach		= aha152x_detach,
+	.remove		= aha152x_detach,
 	.id_table       = aha152x_ids,
 	.suspend	= aha152x_suspend,
 	.resume		= aha152x_resume,

@@ -92,7 +92,7 @@ static int airo_event(event_t event, int priority,
 */
 
 static dev_link_t *airo_attach(void);
-static void airo_detach(dev_link_t *);
+static void airo_detach(struct pcmcia_device *p_dev);
 
 /*
    You'll also need to prototype all the functions that will actually
@@ -210,7 +210,7 @@ static dev_link_t *airo_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != 0) {
 		cs_error(link->handle, RegisterClient, ret);
-		airo_detach(link);
+		airo_detach(link->handle);
 		return NULL;
 	}
 	
@@ -226,8 +226,9 @@ static dev_link_t *airo_attach(void)
   
   ======================================================================*/
 
-static void airo_detach(dev_link_t *link)
+static void airo_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	dev_link_t **linkp;
 	
 	DEBUG(0, "airo_detach(0x%p)\n", link);
@@ -244,14 +245,8 @@ static void airo_detach(dev_link_t *link)
 	if ( ((local_info_t*)link->priv)->eth_dev ) {
 		stop_airo_card( ((local_info_t*)link->priv)->eth_dev, 0 );
 	}
-	((local_info_t*)link->priv)->eth_dev = NULL;   
-	
-	/* Break the link with Card Services */
-	if (link->handle)
-		pcmcia_deregister_client(link->handle);
-	
-	
-	
+	((local_info_t*)link->priv)->eth_dev = NULL;
+
 	/* Unlink device structure, free pieces */
 	*linkp = link->next;
 	kfree(link->priv);
@@ -537,18 +532,10 @@ static int airo_event(event_t event, int priority,
 		      event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
-	local_info_t *local = link->priv;
-	
+
 	DEBUG(1, "airo_event(0x%06x)\n", event);
-	
+
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			netif_device_detach(local->eth_dev);
-			airo_release(link);
-		}
-		break;
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		airo_config(link);
@@ -573,7 +560,7 @@ static struct pcmcia_driver airo_driver = {
 	},
 	.attach		= airo_attach,
 	.event		= airo_event,
-	.detach		= airo_detach,
+	.remove		= airo_detach,
 	.id_table       = airo_ids,
 	.suspend	= airo_suspend,
 	.resume		= airo_resume,

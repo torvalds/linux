@@ -282,7 +282,7 @@ enum RxCfg { RxAllMulti = 0x0004, RxPromisc = 0x0002,
 /*====================================================================*/
 
 static dev_link_t *smc91c92_attach(void);
-static void smc91c92_detach(dev_link_t *);
+static void smc91c92_detach(struct pcmcia_device *p_dev);
 static void smc91c92_config(dev_link_t *link);
 static void smc91c92_release(dev_link_t *link);
 static int smc91c92_event(event_t event, int priority,
@@ -375,7 +375,7 @@ static dev_link_t *smc91c92_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != 0) {
 	cs_error(link->handle, RegisterClient, ret);
-	smc91c92_detach(link);
+	smc91c92_detach(link->handle);
 	return NULL;
     }
 
@@ -391,8 +391,9 @@ static dev_link_t *smc91c92_attach(void)
 
 ======================================================================*/
 
-static void smc91c92_detach(dev_link_t *link)
+static void smc91c92_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
     dev_link_t **linkp;
 
@@ -409,9 +410,6 @@ static void smc91c92_detach(dev_link_t *link)
 
     if (link->state & DEV_CONFIG)
 	smc91c92_release(link);
-
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
 
     /* Unlink device structure, free bits */
     *linkp = link->next;
@@ -1237,16 +1235,10 @@ static int smc91c92_event(event_t event, int priority,
 			  event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-    struct net_device *dev = link->priv;
 
     DEBUG(1, "smc91c92_event(0x%06x)\n", event);
 
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-	    netif_device_detach(dev);
-	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	smc91c92_config(link);
@@ -2371,7 +2363,7 @@ static struct pcmcia_driver smc91c92_cs_driver = {
 	},
 	.attach		= smc91c92_attach,
 	.event		= smc91c92_event,
-	.detach		= smc91c92_detach,
+	.remove		= smc91c92_detach,
 	.id_table       = smc91c92_ids,
 	.suspend	= smc91c92_suspend,
 	.resume		= smc91c92_resume,

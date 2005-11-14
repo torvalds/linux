@@ -253,7 +253,7 @@ static void set_rx_mode(struct net_device *dev);
 static dev_info_t dev_info = "3c574_cs";
 
 static dev_link_t *tc574_attach(void);
-static void tc574_detach(dev_link_t *);
+static void tc574_detach(struct pcmcia_device *p_dev);
 
 static dev_link_t *dev_list;
 
@@ -316,7 +316,7 @@ static dev_link_t *tc574_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != 0) {
 		cs_error(link->handle, RegisterClient, ret);
-		tc574_detach(link);
+		tc574_detach(link->handle);
 		return NULL;
 	}
 
@@ -332,8 +332,9 @@ static dev_link_t *tc574_attach(void)
 
 */
 
-static void tc574_detach(dev_link_t *link)
+static void tc574_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	struct net_device *dev = link->priv;
 	dev_link_t **linkp;
 
@@ -350,9 +351,6 @@ static void tc574_detach(dev_link_t *link)
 
 	if (link->state & DEV_CONFIG)
 		tc574_release(link);
-
-	if (link->handle)
-		pcmcia_deregister_client(link->handle);
 
 	/* Unlink device structure, free bits */
 	*linkp = link->next;
@@ -590,16 +588,10 @@ static int tc574_event(event_t event, int priority,
 					   event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
-	struct net_device *dev = link->priv;
 
 	DEBUG(1, "3c574_event(0x%06x)\n", event);
 
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG)
-			netif_device_detach(dev);
-		break;
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		tc574_config(link);
@@ -1304,7 +1296,7 @@ static struct pcmcia_driver tc574_driver = {
 	},
 	.attach		= tc574_attach,
 	.event		= tc574_event,
-	.detach		= tc574_detach,
+	.remove		= tc574_detach,
 	.id_table       = tc574_ids,
 	.suspend	= tc574_suspend,
 	.resume		= tc574_resume,

@@ -94,7 +94,7 @@ static int ide_event(event_t event, int priority,
 static dev_info_t dev_info = "ide-cs";
 
 static dev_link_t *ide_attach(void);
-static void ide_detach(dev_link_t *);
+static void ide_detach(struct pcmcia_device *p_dev);
 
 static dev_link_t *dev_list = NULL;
 
@@ -138,7 +138,7 @@ static dev_link_t *ide_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
 	cs_error(link->handle, RegisterClient, ret);
-	ide_detach(link);
+	ide_detach(link->handle);
 	return NULL;
     }
     
@@ -154,10 +154,10 @@ static dev_link_t *ide_attach(void)
 
 ======================================================================*/
 
-static void ide_detach(dev_link_t *link)
+static void ide_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     dev_link_t **linkp;
-    int ret;
 
     DEBUG(0, "ide_detach(0x%p)\n", link);
     
@@ -169,12 +169,6 @@ static void ide_detach(dev_link_t *link)
 
     if (link->state & DEV_CONFIG)
 	ide_release(link);
-    
-    if (link->handle) {
-	ret = pcmcia_deregister_client(link->handle);
-	if (ret != CS_SUCCESS)
-	    cs_error(link->handle, DeregisterClient, ret);
-    }
     
     /* Unlink, free device structure */
     *linkp = link->next;
@@ -445,11 +439,6 @@ int ide_event(event_t event, int priority,
     DEBUG(1, "ide_event(0x%06x)\n", event);
     
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-		ide_release(link);
-	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	ide_config(link);
@@ -504,7 +493,7 @@ static struct pcmcia_driver ide_cs_driver = {
 	},
 	.attach		= ide_attach,
 	.event		= ide_event,
-	.detach		= ide_detach,
+	.remove		= ide_detach,
 	.id_table       = ide_ids,
 	.suspend	= ide_suspend,
 	.resume		= ide_resume,

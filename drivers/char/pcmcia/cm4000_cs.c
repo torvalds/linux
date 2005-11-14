@@ -66,7 +66,7 @@ static char *version = "cm4000_cs.c v2.4.0gm5 - All bugs added by Harald Welte";
 #define	T_100MSEC	msecs_to_jiffies(100)
 #define	T_500MSEC	msecs_to_jiffies(500)
 
-static void cm4000_detach(dev_link_t *link);
+static void cm4000_detach(struct pcmcia_device *p_dev);
 static void cm4000_release(dev_link_t *link);
 
 static int major;		/* major number we get from the kernel */
@@ -1888,11 +1888,6 @@ static int cm4000_event(event_t event, int priority,
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		cm4000_config(link, devno);
 		break;
-	case CS_EVENT_CARD_REMOVAL:
-		DEBUGP(5, dev, "CS_EVENT_CARD_REMOVAL\n");
-		link->state &= ~DEV_PRESENT;
-		stop_monitor(dev);
-		break;
 	default:
 		DEBUGP(5, dev, "unknown event %.2x\n", event);
 		break;
@@ -1978,7 +1973,7 @@ static dev_link_t *cm4000_attach(void)
 	i = pcmcia_register_client(&link->handle, &client_reg);
 	if (i) {
 		cs_error(link->handle, RegisterClient, i);
-		cm4000_detach(link);
+		cm4000_detach(link->handle);
 		return NULL;
 	}
 
@@ -1990,39 +1985,28 @@ static dev_link_t *cm4000_attach(void)
 	return link;
 }
 
-static void cm4000_detach_by_devno(int devno, dev_link_t * link)
+static void cm4000_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	struct cm4000_dev *dev = link->priv;
-
-	DEBUGP(3, dev, "-> detach_by_devno(devno=%d)\n", devno);
-
-	if (link->state & DEV_CONFIG) {
-		DEBUGP(5, dev, "device still configured (try to release it)\n");
-		cm4000_release(link);
-	}
-
-	if (link->handle) {
-		pcmcia_deregister_client(link->handle);
-	}
-
-	dev_table[devno] = NULL;
-	kfree(dev);
-	return;
-}
-
-static void cm4000_detach(dev_link_t * link)
-{
-	int i;
+	int devno;
 
 	/* find device */
-	for (i = 0; i < CM4000_MAX_DEV; i++)
-		if (dev_table[i] == link)
+	for (devno = 0; devno < CM4000_MAX_DEV; devno++)
+		if (dev_table[devno] == link)
 			break;
-
-	if (i == CM4000_MAX_DEV)
+	if (devno == CM4000_MAX_DEV)
 		return;
 
-	cm4000_detach_by_devno(i, link);
+	link->state &= ~DEV_PRESENT;
+	stop_monitor(dev);
+
+	if (link->state & DEV_CONFIG)
+ 		cm4000_release(link);
+
+	dev_table[devno] = NULL;
+ 	kfree(dev);
+
 	return;
 }
 
@@ -2048,7 +2032,7 @@ static struct pcmcia_driver cm4000_driver = {
 		.name = "cm4000_cs",
 		},
 	.attach   = cm4000_attach,
-	.detach   = cm4000_detach,
+	.remove   = cm4000_detach,
 	.suspend  = cm4000_suspend,
 	.resume   = cm4000_resume,
 	.event	  = cm4000_event,
@@ -2071,13 +2055,8 @@ static int __init cmm_init(void)
 
 static void __exit cmm_exit(void)
 {
-	int i;
-
 	printk(KERN_INFO MODULE_NAME ": unloading\n");
 	pcmcia_unregister_driver(&cm4000_driver);
-	for (i = 0; i < CM4000_MAX_DEV; i++)
-		if (dev_table[i])
-			cm4000_detach_by_devno(i, dev_table[i]);
 	unregister_chrdev(major, DEVICE_NAME);
 };
 

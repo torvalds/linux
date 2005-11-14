@@ -79,7 +79,7 @@ static int avma1cs_event(event_t event, int priority,
 */
 
 static dev_link_t *avma1cs_attach(void);
-static void avma1cs_detach(dev_link_t *);
+static void avma1cs_detach(struct pcmcia_device *p_dev);
 
 /*
    The dev_info variable is the "key" that is used to match up this
@@ -187,7 +187,7 @@ static dev_link_t *avma1cs_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != 0) {
 	cs_error(link->handle, RegisterClient, ret);
-	avma1cs_detach(link);
+	avma1cs_detach(link->handle);
 	return NULL;
     }
 
@@ -203,42 +203,26 @@ static dev_link_t *avma1cs_attach(void)
 
 ======================================================================*/
 
-static void avma1cs_detach(dev_link_t *link)
+static void avma1cs_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     dev_link_t **linkp;
 
     DEBUG(0, "avma1cs_detach(0x%p)\n", link);
-    
+
     /* Locate device structure */
     for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
 	if (*linkp == link) break;
     if (*linkp == NULL)
 	return;
 
-    /*
-       If the device is currently configured and active, we won't
-       actually delete it yet.  Instead, it is marked so that when
-       the release() function is called, that will trigger a proper
-       detach().
-    */
-    if (link->state & DEV_CONFIG) {
-#ifdef PCMCIA_DEBUG
-	printk(KERN_DEBUG "avma1_cs: detach postponed, '%s' "
-	       "still locked\n", link->dev->dev_name);
-#endif
-	link->state |= DEV_STALE_LINK;
-	return;
-    }
+    if (link->state & DEV_CONFIG)
+	    avma1cs_release(link);
 
-    /* Break the link with Card Services */
-    if (link->handle)
-    	pcmcia_deregister_client(link->handle);
-    
     /* Unlink device structure, free pieces */
     *linkp = link->next;
     kfree(link->priv);
     kfree(link);
-    
 } /* avma1cs_detach */
 
 /*======================================================================
@@ -440,9 +424,6 @@ static void avma1cs_release(dev_link_t *link)
     pcmcia_release_io(link->handle, &link->io);
     pcmcia_release_irq(link->handle, &link->irq);
     link->state &= ~DEV_CONFIG;
-    
-    if (link->state & DEV_STALE_LINK)
-	avma1cs_detach(link);
 } /* avma1cs_release */
 
 static int avma1cs_suspend(struct pcmcia_device *dev)
@@ -489,10 +470,6 @@ static int avma1cs_event(event_t event, int priority,
     DEBUG(1, "avma1cs_event(0x%06x)\n", event);
     
     switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-	    if (link->state & DEV_CONFIG)
-		avma1cs_release(link);
-	    break;
 	case CS_EVENT_CARD_INSERTION:
 	    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	    avma1cs_config(link);
@@ -515,7 +492,7 @@ static struct pcmcia_driver avma1cs_driver = {
 	},
 	.attach		= avma1cs_attach,
 	.event		= avma1cs_event,
-	.detach		= avma1cs_detach,
+	.remove		= avma1cs_detach,
 	.id_table	= avma1cs_ids,
 	.suspend	= avma1cs_suspend,
 	.resume		= avma1cs_resume,

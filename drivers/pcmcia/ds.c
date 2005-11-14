@@ -57,8 +57,6 @@ module_param_named(pc_debug, ds_pc_debug, int, 0644);
 
 spinlock_t pcmcia_dev_list_lock;
 
-static int unbind_request(struct pcmcia_socket *s);
-
 /*====================================================================*/
 
 /* code which was in cs.c before */
@@ -205,7 +203,7 @@ static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
 	unsigned int i;
 	u32 hash;
 
-	if (!p_drv->attach || !p_drv->event || !p_drv->detach)
+	if (!p_drv->attach || !p_drv->event || !p_drv->remove)
 		printk(KERN_DEBUG "pcmcia: %s lacks a requisite callback "
 		       "function\n", p_drv->drv.name);
 
@@ -399,13 +397,42 @@ static int pcmcia_device_remove(struct device * dev)
 {
 	struct pcmcia_device *p_dev;
 	struct pcmcia_driver *p_drv;
+	int i;
 
 	/* detach the "instance" */
 	p_dev = to_pcmcia_dev(dev);
 	p_drv = to_pcmcia_drv(dev->driver);
 
+	/* the likely, new path */
+	if (p_drv && p_drv->remove) {
+	       	p_drv->remove(p_dev);
+
+		/* check for proper unloading */
+		if (p_dev->state & (CLIENT_IRQ_REQ|CLIENT_IO_REQ|CLIENT_CONFIG_LOCKED))
+			printk(KERN_INFO "pcmcia: driver %s did not release config properly\n",
+			       p_drv->drv.name);
+
+		for (i = 0; i < MAX_WIN; i++)
+			if (p_dev->state & CLIENT_WIN_REQ(i))
+				printk(KERN_INFO "pcmcia: driver %s did not release windows properly\n",
+				       p_drv->drv.name);
+
+		/* undo pcmcia_register_client */
+		p_dev->state = CLIENT_UNBOUND;
+		pcmcia_put_dev(p_dev);
+
+		/* references from pcmcia_probe_device */
+		pcmcia_put_dev(p_dev);
+		module_put(p_drv->owner);
+
+		return 0;
+	}
+
+	/* old path */
 	if (p_drv) {
 		if ((p_drv->detach) && (p_dev->instance)) {
+			printk(KERN_INFO "pcmcia: using deprecated detach mechanism. Fix the driver!\n");
+
 			p_drv->detach(p_dev->instance);
 			/* from pcmcia_probe_device */
 			put_device(&p_dev->dev);
@@ -416,6 +443,36 @@ static int pcmcia_device_remove(struct device * dev)
 	return 0;
 }
 
+
+/*
+ * Removes a PCMCIA card from the device tree and socket list.
+ */
+static void pcmcia_card_remove(struct pcmcia_socket *s)
+{
+	struct pcmcia_device	*p_dev;
+	unsigned long		flags;
+
+	ds_dbg(2, "unbind_request(%d)\n", s->sock);
+
+	s->device_count = 0;
+
+	for (;;) {
+		/* unregister all pcmcia_devices registered with this socket*/
+		spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
+		if (list_empty(&s->devices_list)) {
+			spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+ 			return;
+		}
+		p_dev = list_entry((&s->devices_list)->next, struct pcmcia_device, socket_device_list);
+		list_del(&p_dev->socket_device_list);
+		p_dev->state |= CLIENT_STALE;
+		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
+
+		device_unregister(&p_dev->dev);
+	}
+
+	return;
+} /* unbind_request */
 
 
 /*
@@ -1059,8 +1116,8 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 
 	case CS_EVENT_CARD_REMOVAL:
 		s->pcmcia_state.present = 0;
-	    	send_event(skt, event, priority);
-		unbind_request(skt);
+		send_event(skt, event, priority);
+		pcmcia_card_remove(skt);
 		handle_event(skt, event);
 		break;
 	
@@ -1176,36 +1233,6 @@ int pcmcia_register_client(struct pcmcia_device **handle, client_reg_t *req)
 } /* register_client */
 EXPORT_SYMBOL(pcmcia_register_client);
 
-
-/* unbind _all_ devices attached to a given pcmcia_bus_socket. The
- * drivers have been called with EVENT_CARD_REMOVAL before.
- */
-static int unbind_request(struct pcmcia_socket *s)
-{
-	struct pcmcia_device	*p_dev;
-	unsigned long		flags;
-
-	ds_dbg(2, "unbind_request(%d)\n", s->sock);
-
-	s->device_count = 0;
-
-	for (;;) {
-		/* unregister all pcmcia_devices registered with this socket*/
-		spin_lock_irqsave(&pcmcia_dev_list_lock, flags);
-		if (list_empty(&s->devices_list)) {
-			spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
- 			return 0;
-		}
-		p_dev = list_entry((&s->devices_list)->next, struct pcmcia_device, socket_device_list);
-		list_del(&p_dev->socket_device_list);
-		p_dev->state |= CLIENT_STALE;
-		spin_unlock_irqrestore(&pcmcia_dev_list_lock, flags);
-
-		device_unregister(&p_dev->dev);
-	}
-
-	return 0;
-} /* unbind_request */
 
 int pcmcia_deregister_client(struct pcmcia_device *p_dev)
 {

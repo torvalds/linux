@@ -84,7 +84,7 @@ static int fdomain_event(event_t event, int priority,
 			event_callback_args_t *args);
 
 static dev_link_t *fdomain_attach(void);
-static void fdomain_detach(dev_link_t *);
+static void fdomain_detach(struct pcmcia_device *p_dev);
 
 
 static dev_link_t *dev_list = NULL;
@@ -124,7 +124,7 @@ static dev_link_t *fdomain_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != 0) {
 	cs_error(link->handle, RegisterClient, ret);
-	fdomain_detach(link);
+	fdomain_detach(link->handle);
 	return NULL;
     }
     
@@ -133,8 +133,9 @@ static dev_link_t *fdomain_attach(void)
 
 /*====================================================================*/
 
-static void fdomain_detach(dev_link_t *link)
+static void fdomain_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     dev_link_t **linkp;
 
     DEBUG(0, "fdomain_detach(0x%p)\n", link);
@@ -148,9 +149,6 @@ static void fdomain_detach(dev_link_t *link)
     if (link->state & DEV_CONFIG)
 	fdomain_release(link);
 
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
-    
     /* Unlink device structure, free bits */
     *linkp = link->next;
     kfree(link->priv);
@@ -288,11 +286,6 @@ static int fdomain_event(event_t event, int priority,
     DEBUG(1, "fdomain_event(0x%06x)\n", event);
     
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-	    fdomain_release(link);
-	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	fdomain_config(link);
@@ -317,7 +310,7 @@ static struct pcmcia_driver fdomain_cs_driver = {
 	},
 	.attach		= fdomain_attach,
 	.event		= fdomain_event,
-	.detach		= fdomain_detach,
+	.remove		= fdomain_detach,
 	.id_table       = fdomain_ids,
 	.suspend	= fdomain_suspend,
 	.resume		= fdomain_resume,

@@ -106,7 +106,7 @@ static int elsa_cs_event(event_t event, int priority,
 */
 
 static dev_link_t *elsa_cs_attach(void);
-static void elsa_cs_detach(dev_link_t *);
+static void elsa_cs_detach(struct pcmcia_device *p_dev);
 
 /*
    The dev_info variable is the "key" that is used to match up this
@@ -216,7 +216,7 @@ static dev_link_t *elsa_cs_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
         cs_error(link->handle, RegisterClient, ret);
-        elsa_cs_detach(link);
+        elsa_cs_detach(link->handle);
         return NULL;
     }
 
@@ -232,11 +232,11 @@ static dev_link_t *elsa_cs_attach(void)
 
 ======================================================================*/
 
-static void elsa_cs_detach(dev_link_t *link)
+static void elsa_cs_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     dev_link_t **linkp;
     local_info_t *info = link->priv;
-    int ret;
 
     DEBUG(0, "elsa_cs_detach(0x%p)\n", link);
 
@@ -246,14 +246,9 @@ static void elsa_cs_detach(dev_link_t *link)
     if (*linkp == NULL)
         return;
 
-    if (link->state & DEV_CONFIG)
+    if (link->state & DEV_CONFIG) {
+        ((local_info_t*)link->priv)->busy = 1;
         elsa_cs_release(link);
-
-    /* Break the link with Card Services */
-    if (link->handle) {
-        ret = pcmcia_deregister_client(link->handle);
-	if (ret != CS_SUCCESS)
-	    cs_error(link->handle, DeregisterClient, ret);
     }
 
     /* Unlink device structure and free it */
@@ -495,13 +490,6 @@ static int elsa_cs_event(event_t event, int priority,
     DEBUG(1, "elsa_cs_event(%d)\n", event);
 
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-        link->state &= ~DEV_PRESENT;
-        if (link->state & DEV_CONFIG) {
-            ((local_info_t*)link->priv)->busy = 1;
-	    elsa_cs_release(link);
-        }
-        break;
     case CS_EVENT_CARD_INSERTION:
         link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
         elsa_cs_config(link);
@@ -524,7 +512,7 @@ static struct pcmcia_driver elsa_cs_driver = {
 	},
 	.attach		= elsa_cs_attach,
 	.event		= elsa_cs_event,
-	.detach		= elsa_cs_detach,
+	.remove		= elsa_cs_detach,
 	.id_table	= elsa_ids,
 	.suspend	= elsa_suspend,
 	.resume		= elsa_resume,

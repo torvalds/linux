@@ -4692,7 +4692,7 @@ wavelan_attach(void)
   if(ret != 0)
     {
       cs_error(link->handle, RegisterClient, ret);
-      wavelan_detach(link);
+      wavelan_detach(link->handle);
       return NULL;
     }
 
@@ -4711,8 +4711,10 @@ wavelan_attach(void)
  * is released.
  */
 static void
-wavelan_detach(dev_link_t *	link)
+wavelan_detach(struct pcmcia_device *p_dev)
 {
+   dev_link_t *link = dev_to_instance(p_dev);
+
 #ifdef DEBUG_CALLBACK_TRACE
   printk(KERN_DEBUG "-> wavelan_detach(0x%p)\n", link);
 #endif
@@ -4729,10 +4731,6 @@ wavelan_detach(dev_link_t *	link)
       wv_pcmcia_release(link);
     }
 
-  /* Break the link with Card Services */
-  if(link->handle)
-    pcmcia_deregister_client(link->handle);
-    
   /* Remove the interface data from the linked list */
   if(dev_list == link)
     dev_list = link->next;
@@ -4854,25 +4852,6 @@ wavelan_event(event_t		event,		/* The event received */
 
     switch(event)
       {
-      case CS_EVENT_REGISTRATION_COMPLETE:
-#ifdef DEBUG_CONFIG_INFO
-	printk(KERN_DEBUG "wavelan_cs: registration complete\n");
-#endif
-	break;
-
-      case CS_EVENT_CARD_REMOVAL:
-	/* Oups ! The card is no more there */
-	link->state &= ~DEV_PRESENT;
-	if(link->state & DEV_CONFIG)
-	  {
-	    /* Accept no more transmissions */
-	    netif_device_detach(dev);
-
-	    /* Release the card */
-	    wv_pcmcia_release(link);
-	  }
-	break;
-
       case CS_EVENT_CARD_INSERTION:
 	/* Reset and configure the card */
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
@@ -4906,7 +4885,7 @@ static struct pcmcia_driver wavelan_driver = {
 	},
 	.attach		= wavelan_attach,
 	.event		= wavelan_event,
-	.detach		= wavelan_detach,
+	.remove		= wavelan_detach,
 	.id_table       = wavelan_ids,
 	.suspend	= wavelan_suspend,
 	.resume		= wavelan_resume,

@@ -101,7 +101,7 @@ static void qlogic_release(dev_link_t *link);
 static int qlogic_event(event_t event, int priority, event_callback_args_t * args);
 
 static dev_link_t *qlogic_attach(void);
-static void qlogic_detach(dev_link_t *);
+static void qlogic_detach(struct pcmcia_device *p_dev);
 
 
 static dev_link_t *dev_list = NULL;
@@ -198,7 +198,7 @@ static dev_link_t *qlogic_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != 0) {
 		cs_error(link->handle, RegisterClient, ret);
-		qlogic_detach(link);
+		qlogic_detach(link->handle);
 		return NULL;
 	}
 
@@ -207,8 +207,9 @@ static dev_link_t *qlogic_attach(void)
 
 /*====================================================================*/
 
-static void qlogic_detach(dev_link_t * link)
+static void qlogic_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	dev_link_t **linkp;
 
 	DEBUG(0, "qlogic_detach(0x%p)\n", link);
@@ -222,9 +223,6 @@ static void qlogic_detach(dev_link_t * link)
 
 	if (link->state & DEV_CONFIG)
 		qlogic_release(link);
-
-	if (link->handle)
-		pcmcia_deregister_client(link->handle);
 
 	/* Unlink device structure, free bits */
 	*linkp = link->next;
@@ -390,11 +388,6 @@ static int qlogic_event(event_t event, int priority, event_callback_args_t * arg
 	DEBUG(1, "qlogic_event(0x%06x)\n", event);
 
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG)
-			qlogic_release(link);
-		break;
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		qlogic_config(link);
@@ -432,7 +425,7 @@ static struct pcmcia_driver qlogic_cs_driver = {
 	},
 	.attach		= qlogic_attach,
 	.event		= qlogic_event,
-	.detach		= qlogic_detach,
+	.remove		= qlogic_detach,
 	.id_table       = qlogic_ids,
 	.suspend	= qlogic_suspend,
 	.resume		= qlogic_resume,

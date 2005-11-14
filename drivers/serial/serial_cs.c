@@ -120,7 +120,7 @@ static int serial_event(event_t event, int priority,
 static dev_info_t dev_info = "serial_cs";
 
 static dev_link_t *serial_attach(void);
-static void serial_detach(dev_link_t *);
+static void serial_detach(struct pcmcia_device *p_dev);
 
 static dev_link_t *dev_list = NULL;
 
@@ -242,7 +242,7 @@ static dev_link_t *serial_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
 		cs_error(link->handle, RegisterClient, ret);
-		serial_detach(link);
+		serial_detach(link->handle);
 		return NULL;
 	}
 
@@ -258,11 +258,11 @@ static dev_link_t *serial_attach(void)
 
 ======================================================================*/
 
-static void serial_detach(dev_link_t * link)
+static void serial_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	struct serial_info *info = link->priv;
 	dev_link_t **linkp;
-	int ret;
 
 	DEBUG(0, "serial_detach(0x%p)\n", link);
 
@@ -282,12 +282,6 @@ static void serial_detach(dev_link_t * link)
 	 * Ensure that the ports have been released.
 	 */
 	serial_remove(link);
-
-	if (link->handle) {
-		ret = pcmcia_deregister_client(link->handle);
-		if (ret != CS_SUCCESS)
-			cs_error(link->handle, DeregisterClient, ret);
-	}
 
 	/* Unlink device structure, free bits */
 	*linkp = link->next;
@@ -741,9 +735,6 @@ serial_event(event_t event, int priority, event_callback_args_t * args)
 	DEBUG(1, "serial_event(0x%06x)\n", event);
 
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		serial_remove(link);
-		break;
 
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
@@ -866,7 +857,7 @@ static struct pcmcia_driver serial_cs_driver = {
 	},
 	.attach		= serial_attach,
 	.event		= serial_event,
-	.detach		= serial_detach,
+	.remove		= serial_detach,
 	.id_table	= serial_ids,
 	.suspend	= serial_suspend,
 	.resume		= serial_resume,

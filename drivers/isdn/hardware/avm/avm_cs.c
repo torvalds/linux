@@ -63,7 +63,7 @@ static int avmcs_event(event_t event, int priority,
 */
 
 static dev_link_t *avmcs_attach(void);
-static void avmcs_detach(dev_link_t *);
+static void avmcs_detach(struct pcmcia_device *p_dev);
 
 /*
    The dev_info variable is the "key" that is used to match up this
@@ -165,7 +165,7 @@ static dev_link_t *avmcs_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != 0) {
 	cs_error(link->handle, RegisterClient, ret);
-	avmcs_detach(link);
+	avmcs_detach(link->handle);
 	goto err;
     }
     return link;
@@ -185,8 +185,9 @@ static dev_link_t *avmcs_attach(void)
 
 ======================================================================*/
 
-static void avmcs_detach(dev_link_t *link)
+static void avmcs_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     dev_link_t **linkp;
 
     /* Locate device structure */
@@ -195,21 +196,9 @@ static void avmcs_detach(dev_link_t *link)
     if (*linkp == NULL)
 	return;
 
-    /*
-       If the device is currently configured and active, we won't
-       actually delete it yet.  Instead, it is marked so that when
-       the release() function is called, that will trigger a proper
-       detach().
-    */
-    if (link->state & DEV_CONFIG) {
-	link->state |= DEV_STALE_LINK;
-	return;
-    }
+    if (link->state & DEV_CONFIG)
+	avmcs_release(link);
 
-    /* Break the link with Card Services */
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
-    
     /* Unlink device structure, free pieces */
     *linkp = link->next;
     kfree(link->priv);
@@ -424,10 +413,6 @@ static void avmcs_release(dev_link_t *link)
     pcmcia_release_io(link->handle, &link->io);
     pcmcia_release_irq(link->handle, &link->irq);
     link->state &= ~DEV_CONFIG;
-    
-    if (link->state & DEV_STALE_LINK)
-	avmcs_detach(link);
-    
 } /* avmcs_release */
 
 static int avmcs_suspend(struct pcmcia_device *dev)
@@ -472,11 +457,6 @@ static int avmcs_event(event_t event, int priority,
     dev_link_t *link = args->client_data;
 
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-		avmcs_release(link);
-	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	avmcs_config(link);
@@ -500,7 +480,7 @@ static struct pcmcia_driver avmcs_driver = {
 	},
 	.attach	= avmcs_attach,
 	.event	= avmcs_event,
-	.detach	= avmcs_detach,
+	.remove	= avmcs_detach,
 	.id_table = avmcs_ids,
 	.suspend= avmcs_suspend,
 	.resume = avmcs_resume,

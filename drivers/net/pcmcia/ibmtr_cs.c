@@ -114,7 +114,7 @@ static int ibmtr_event(event_t event, int priority,
 static dev_info_t dev_info = "ibmtr_cs";
 
 static dev_link_t *ibmtr_attach(void);
-static void ibmtr_detach(dev_link_t *);
+static void ibmtr_detach(struct pcmcia_device *p_dev);
 
 static dev_link_t *dev_list;
 
@@ -201,7 +201,7 @@ out:
     return link;
 
 out_detach:
-    ibmtr_detach(link);
+    ibmtr_detach(link->handle);
     link = NULL;
     goto out;
 } /* ibmtr_attach */
@@ -215,8 +215,9 @@ out_detach:
 
 ======================================================================*/
 
-static void ibmtr_detach(dev_link_t *link)
+static void ibmtr_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct ibmtr_dev_t *info = link->priv;
     dev_link_t **linkp;
     struct net_device *dev;
@@ -240,9 +241,6 @@ static void ibmtr_detach(dev_link_t *link)
     }
     if (link->state & DEV_CONFIG)
         ibmtr_release(link);
-
-    if (link->handle)
-        pcmcia_deregister_client(link->handle);
 
     /* Unlink device structure, free bits */
     *linkp = link->next;
@@ -449,21 +447,10 @@ static int ibmtr_event(event_t event, int priority,
                        event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-    ibmtr_dev_t *info = link->priv;
-    struct net_device *dev = info->dev;
 
     DEBUG(1, "ibmtr_event(0x%06x)\n", event);
 
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-        link->state &= ~DEV_PRESENT;
-        if (link->state & DEV_CONFIG) {
-	    /* set flag to bypass normal interrupt code */
-	    struct tok_info *priv = netdev_priv(dev);
-	    priv->sram_phys |= 1;
-	    netif_device_detach(dev);
-        }
-        break;
     case CS_EVENT_CARD_INSERTION:
         link->state |= DEV_PRESENT;
 	ibmtr_config(link);
@@ -529,7 +516,7 @@ static struct pcmcia_driver ibmtr_cs_driver = {
 	},
 	.attach		= ibmtr_attach,
 	.event		= ibmtr_event,
-	.detach		= ibmtr_detach,
+	.remove		= ibmtr_detach,
 	.id_table       = ibmtr_ids,
 	.suspend	= ibmtr_suspend,
 	.resume		= ibmtr_resume,

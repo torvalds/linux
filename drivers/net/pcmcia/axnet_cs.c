@@ -108,7 +108,7 @@ static void block_output(struct net_device *dev, int count,
 			 const u_char *buf, const int start_page);
 
 static dev_link_t *axnet_attach(void);
-static void axnet_detach(dev_link_t *);
+static void axnet_detach(struct pcmcia_device *p_dev);
 
 static dev_info_t dev_info = "axnet_cs";
 static dev_link_t *dev_list;
@@ -185,7 +185,7 @@ static dev_link_t *axnet_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
 	cs_error(link->handle, RegisterClient, ret);
-	axnet_detach(link);
+	axnet_detach(link->handle);
 	return NULL;
     }
 
@@ -201,8 +201,9 @@ static dev_link_t *axnet_attach(void)
 
 ======================================================================*/
 
-static void axnet_detach(dev_link_t *link)
+static void axnet_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     struct net_device *dev = link->priv;
     dev_link_t **linkp;
 
@@ -219,9 +220,6 @@ static void axnet_detach(dev_link_t *link)
 
     if (link->state & DEV_CONFIG)
 	axnet_release(link);
-
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
 
     /* Unlink device structure, free bits */
     *linkp = link->next;
@@ -537,16 +535,10 @@ static int axnet_event(event_t event, int priority,
 		       event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-    struct net_device *dev = link->priv;
 
     DEBUG(2, "axnet_event(0x%06x)\n", event);
 
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-	    netif_device_detach(dev);
-	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	axnet_config(link);
@@ -890,7 +882,7 @@ static struct pcmcia_driver axnet_cs_driver = {
 	},
 	.attach		= axnet_attach,
 	.event		= axnet_event,
-	.detach		= axnet_detach,
+	.remove		= axnet_detach,
 	.id_table       = axnet_ids,
 	.suspend	= axnet_suspend,
 	.resume		= axnet_resume,

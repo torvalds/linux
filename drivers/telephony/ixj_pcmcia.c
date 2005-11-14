@@ -35,7 +35,7 @@ typedef struct ixj_info_t {
 } ixj_info_t;
 
 static dev_link_t *ixj_attach(void);
-static void ixj_detach(dev_link_t *);
+static void ixj_detach(struct pcmcia_device *p_dev);
 static void ixj_config(dev_link_t * link);
 static void ixj_cs_release(dev_link_t * link);
 static int ixj_event(event_t event, int priority, event_callback_args_t * args);
@@ -73,16 +73,17 @@ static dev_link_t *ixj_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
 		cs_error(link->handle, RegisterClient, ret);
-		ixj_detach(link);
+		ixj_detach(link->handle);
 		return NULL;
 	}
 	return link;
 }
 
-static void ixj_detach(dev_link_t * link)
+static void ixj_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	dev_link_t **linkp;
-	int ret;
+
 	DEBUG(0, "ixj_detach(0x%p)\n", link);
 	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
 		if (*linkp == link)
@@ -92,11 +93,7 @@ static void ixj_detach(dev_link_t * link)
 	link->state &= ~DEV_RELEASE_PENDING;
 	if (link->state & DEV_CONFIG)
 		ixj_cs_release(link);
-	if (link->handle) {
-		ret = pcmcia_deregister_client(link->handle);
-		if (ret != CS_SUCCESS)
-			cs_error(link->handle, DeregisterClient, ret);
-	}
+
 	/* Unlink device structure, free bits */
 	*linkp = link->next;
         kfree(link->priv);
@@ -282,13 +279,6 @@ static int ixj_event(event_t event, int priority, event_callback_args_t * args)
 	dev_link_t *link = args->client_data;
 	DEBUG(1, "ixj_event(0x%06x)\n", event);
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			link->state |= DEV_RELEASE_PENDING;
-			ixj_cs_release(link);
-		}
-		break;
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		ixj_config(link);
@@ -310,7 +300,7 @@ static struct pcmcia_driver ixj_driver = {
 	},
 	.attach		= ixj_attach,
 	.event		= ixj_event,
-	.detach		= ixj_detach,
+	.remove		= ixj_detach,
 	.id_table	= ixj_ids,
 	.suspend	= ixj_suspend,
 	.resume		= ixj_resume,

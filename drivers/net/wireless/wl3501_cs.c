@@ -1498,9 +1498,11 @@ static struct ethtool_ops ops = {
  * Services. If it has been released, all local data structures are freed.
  * Otherwise, the structures will be freed when the device is released.
  */
-static void wl3501_detach(dev_link_t *link)
+static void wl3501_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	dev_link_t **linkp;
+	struct net_device *dev = link->priv;
 
 	/* Locate device structure */
 	for (linkp = &wl3501_dev_list; *linkp; linkp = &(*linkp)->next)
@@ -1514,16 +1516,12 @@ static void wl3501_detach(dev_link_t *link)
 	 * function is called, that will trigger a proper detach(). */
 
 	if (link->state & DEV_CONFIG) {
-#ifdef PCMCIA_DEBUG
-		printk(KERN_DEBUG "wl3501_cs: detach postponed, '%s' "
-		       "still locked\n", link->dev->dev_name);
-#endif
-		goto out;
-	}
+		while (link->open > 0)
+			wl3501_close(dev);
 
-	/* Break the link with Card Services */
-	if (link->handle)
-		pcmcia_deregister_client(link->handle);
+		netif_device_detach(dev);
+		wl3501_release(link);
+	}
 
 	/* Unlink device structure, free pieces */
 	*linkp = link->next;
@@ -2012,7 +2010,7 @@ static dev_link_t *wl3501_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret) {
 		cs_error(link->handle, RegisterClient, ret);
-		wl3501_detach(link);
+		wl3501_detach(link->handle);
 		link = NULL;
 	}
 out:
@@ -2225,18 +2223,8 @@ static int wl3501_resume(struct pcmcia_device *p_dev)
 static int wl3501_event(event_t event, int pri, event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
-	struct net_device *dev = link->priv;
 
 	switch (event) {
-	case CS_EVENT_CARD_REMOVAL:
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			while (link->open > 0)
-				wl3501_close(dev);
-			netif_device_detach(dev);
-			wl3501_release(link);
-		}
-		break;
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		wl3501_config(link);
@@ -2258,7 +2246,7 @@ static struct pcmcia_driver wl3501_driver = {
 	},
 	.attach		= wl3501_attach,
 	.event		= wl3501_event,
-	.detach		= wl3501_detach,
+	.remove		= wl3501_detach,
 	.id_table	= wl3501_ids,
 	.suspend	= wl3501_suspend,
 	.resume		= wl3501_resume,

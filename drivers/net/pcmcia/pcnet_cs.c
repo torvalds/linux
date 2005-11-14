@@ -121,7 +121,7 @@ static int setup_dma_config(dev_link_t *link, int start_pg,
 			    int stop_pg);
 
 static dev_link_t *pcnet_attach(void);
-static void pcnet_detach(dev_link_t *);
+static void pcnet_detach(struct pcmcia_device *p_dev);
 
 static dev_info_t dev_info = "pcnet_cs";
 static dev_link_t *dev_list;
@@ -280,7 +280,7 @@ static dev_link_t *pcnet_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
 	cs_error(link->handle, RegisterClient, ret);
-	pcnet_detach(link);
+	pcnet_detach(link->handle);
 	return NULL;
     }
 
@@ -296,31 +296,29 @@ static dev_link_t *pcnet_attach(void)
 
 ======================================================================*/
 
-static void pcnet_detach(dev_link_t *link)
+static void pcnet_detach(struct pcmcia_device *p_dev)
 {
-    struct net_device *dev = link->priv;
-    dev_link_t **linkp;
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+	dev_link_t **linkp;
 
-    DEBUG(0, "pcnet_detach(0x%p)\n", link);
+	DEBUG(0, "pcnet_detach(0x%p)\n", link);
 
-    /* Locate device structure */
-    for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
-	if (*linkp == link) break;
-    if (*linkp == NULL)
-	return;
+	/* Locate device structure */
+	for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
+		if (*linkp == link) break;
+	if (*linkp == NULL)
+		return;
 
-    if (link->dev)
-	unregister_netdev(dev);
+	if (link->dev)
+		unregister_netdev(dev);
 
-    if (link->state & DEV_CONFIG)
-	pcnet_release(link);
+	if (link->state & DEV_CONFIG)
+		pcnet_release(link);
 
-    if (link->handle)
-	pcmcia_deregister_client(link->handle);
-
-    /* Unlink device structure, free bits */
-    *linkp = link->next;
-    free_netdev(dev);
+	/* Unlink device structure, free bits */
+	*linkp = link->next;
+	free_netdev(dev);
 } /* pcnet_detach */
 
 /*======================================================================
@@ -817,16 +815,10 @@ static int pcnet_event(event_t event, int priority,
 		       event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-    struct net_device *dev = link->priv;
 
     DEBUG(2, "pcnet_event(0x%06x)\n", event);
 
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	link->state &= ~DEV_PRESENT;
-	if (link->state & DEV_CONFIG)
-	    netif_device_detach(dev);
-	break;
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	pcnet_config(link);
@@ -1856,7 +1848,7 @@ static struct pcmcia_driver pcnet_driver = {
 	},
 	.attach		= pcnet_attach,
 	.event		= pcnet_event,
-	.detach		= pcnet_detach,
+	.remove		= pcnet_detach,
 	.owner		= THIS_MODULE,
 	.id_table	= pcnet_ids,
 	.suspend	= pcnet_suspend,

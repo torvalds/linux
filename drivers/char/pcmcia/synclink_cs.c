@@ -489,7 +489,7 @@ static void mgslpc_release(u_long arg);
 static int  mgslpc_event(event_t event, int priority,
 			 event_callback_args_t *args);
 static dev_link_t *mgslpc_attach(void);
-static void mgslpc_detach(dev_link_t *);
+static void mgslpc_detach(struct pcmcia_device *p_dev);
 
 static dev_info_t dev_info = "synclink_cs";
 static dev_link_t *dev_list = NULL;
@@ -598,7 +598,7 @@ static dev_link_t *mgslpc_attach(void)
     ret = pcmcia_register_client(&link->handle, &client_reg);
     if (ret != CS_SUCCESS) {
 	    cs_error(link->handle, RegisterClient, ret);
-	    mgslpc_detach(link);
+	    mgslpc_detach(link->handle);
 	    return NULL;
     }
 
@@ -736,17 +736,16 @@ static void mgslpc_release(u_long arg)
 	    pcmcia_release_io(link->handle, &link->io);
     if (link->irq.AssignedIRQ)
 	    pcmcia_release_irq(link->handle, &link->irq);
-    if (link->state & DEV_STALE_LINK)
-	    mgslpc_detach(link);
 }
 
-static void mgslpc_detach(dev_link_t *link)
+static void mgslpc_detach(struct pcmcia_device *p_dev)
 {
+    dev_link_t *link = dev_to_instance(p_dev);
     dev_link_t **linkp;
 
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_detach(0x%p)\n", link);
-    
+
     /* find device */
     for (linkp = &dev_list; *linkp; linkp = &(*linkp)->next)
 	    if (*linkp == link) break;
@@ -754,20 +753,10 @@ static void mgslpc_detach(dev_link_t *link)
 	    return;
 
     if (link->state & DEV_CONFIG) {
-	    /* device is configured/active, mark it so when
-	     * release() is called a proper detach() occurs.
-	     */
-	    if (debug_level >= DEBUG_LEVEL_INFO)
-		    printk(KERN_DEBUG "synclinkpc: detach postponed, '%s' "
-			   "still locked\n", link->dev->dev_name);
-	    link->state |= DEV_STALE_LINK;
-	    return;
+	    ((MGSLPC_INFO *)link->priv)->stop = 1;
+	    mgslpc_release((u_long)link);
     }
 
-    /* Break the link with Card Services */
-    if (link->handle)
-	    pcmcia_deregister_client(link->handle);
-    
     /* Unlink device structure, and free it */
     *linkp = link->next;
     mgslpc_remove_device((MGSLPC_INFO *)link->priv);
@@ -809,13 +798,6 @@ static int mgslpc_event(event_t event, int priority,
 	    printk("mgslpc_event(0x%06x)\n", event);
     
     switch (event) {
-    case CS_EVENT_CARD_REMOVAL:
-	    link->state &= ~DEV_PRESENT;
-	    if (link->state & DEV_CONFIG) {
-		    ((MGSLPC_INFO *)link->priv)->stop = 1;
-		    mgslpc_release((u_long)link);
-	    }
-	    break;
     case CS_EVENT_CARD_INSERTION:
 	    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	    mgslpc_config(link);
@@ -3102,7 +3084,7 @@ static struct pcmcia_driver mgslpc_driver = {
 	},
 	.attach		= mgslpc_attach,
 	.event		= mgslpc_event,
-	.detach		= mgslpc_detach,
+	.remove		= mgslpc_detach,
 	.id_table	= mgslpc_ids,
 	.suspend	= mgslpc_suspend,
 	.resume		= mgslpc_resume,

@@ -203,7 +203,7 @@ static int hfa384x_to_bap(struct net_device *dev, u16 bap, void *buf, int len)
 
 
 
-static void prism2_detach(dev_link_t *link);
+static void prism2_detach(struct pcmcia_device *p_dev);
 static void prism2_release(u_long arg);
 static int prism2_event(event_t event, int priority,
 			event_callback_args_t *args);
@@ -528,15 +528,16 @@ static dev_link_t *prism2_attach(void)
 	ret = pcmcia_register_client(&link->handle, &client_reg);
 	if (ret != CS_SUCCESS) {
 		cs_error(link->handle, RegisterClient, ret);
-		prism2_detach(link);
+		prism2_detach(link->handle);
 		return NULL;
 	}
 	return link;
 }
 
 
-static void prism2_detach(dev_link_t *link)
+static void prism2_detach(struct pcmcia_device *p_dev)
 {
+	dev_link_t *link = dev_to_instance(p_dev);
 	dev_link_t **linkp;
 
 	PDEBUG(DEBUG_FLOW, "prism2_detach\n");
@@ -552,14 +553,6 @@ static void prism2_detach(dev_link_t *link)
 
 	if (link->state & DEV_CONFIG) {
 		prism2_release((u_long)link);
-	}
-
-	if (link->handle) {
-		int res = pcmcia_deregister_client(link->handle);
-		if (res) {
-			printk("CardService(DeregisterClient) => %d\n", res);
-			cs_error(link->handle, DeregisterClient, res);
-		}
 	}
 
 	*linkp = link->next;
@@ -902,7 +895,6 @@ static int prism2_event(event_t event, int priority,
 			event_callback_args_t *args)
 {
 	dev_link_t *link = args->client_data;
-	struct net_device *dev = (struct net_device *) link->priv;
 
 	switch (event) {
 	case CS_EVENT_CARD_INSERTION:
@@ -910,16 +902,6 @@ static int prism2_event(event_t event, int priority,
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		if (prism2_config(link)) {
 			PDEBUG(DEBUG_EXTRA, "prism2_config() failed\n");
-		}
-		break;
-
-	case CS_EVENT_CARD_REMOVAL:
-		PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_CARD_REMOVAL\n", dev_info);
-		link->state &= ~DEV_PRESENT;
-		if (link->state & DEV_CONFIG) {
-			netif_stop_queue(dev);
-			netif_device_detach(dev);
-			prism2_release((u_long) link);
 		}
 		break;
 
@@ -991,7 +973,7 @@ static struct pcmcia_driver hostap_driver = {
 		.name	= "hostap_cs",
 	},
 	.attach		= prism2_attach,
-	.detach		= prism2_detach,
+	.remove		= prism2_detach,
 	.owner		= THIS_MODULE,
 	.event		= prism2_event,
 	.id_table	= hostap_cs_ids,
