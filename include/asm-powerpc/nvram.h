@@ -1,6 +1,5 @@
 /*
- * PreP compliant NVRAM access
- * This needs to be updated for PPC64
+ * NVRAM definitions and access functions.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -8,8 +7,8 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#ifndef _PPC64_NVRAM_H
-#define _PPC64_NVRAM_H
+#ifndef _ASM_POWERPC_NVRAM_H
+#define _ASM_POWERPC_NVRAM_H
 
 #define NVRW_CNT 0x20
 #define NVRAM_HEADER_LEN 16 /* sizeof(struct nvram_header) */
@@ -88,7 +87,11 @@ extern u8	pmac_xpram_read(int xpaddr);
 extern void	pmac_xpram_write(int xpaddr, u8 data);
 
 /* Synchronize NVRAM */
-extern int	nvram_sync(void);
+extern void	nvram_sync(void);
+
+/* Normal access to NVRAM */
+extern unsigned char nvram_read_byte(int i);
+extern void nvram_write_byte(unsigned char c, int i);
 
 /* Some offsets in XPRAM */
 #define PMAC_XPRAM_MACHINE_LOC	0xe4
@@ -112,5 +115,6 @@ struct pmac_machine_location {
 				_IOWR('p', 0x40, int)
 
 #define IOC_NVRAM_GET_OFFSET	_IOWR('p', 0x42, int)	/* Get NVRAM partition offset */
+#define IOC_NVRAM_SYNC		_IO('p', 0x43)		/* Sync NVRAM image */
 
-#endif /* _PPC64_NVRAM_H */
+#endif /* _ASM_POWERPC_NVRAM_H */

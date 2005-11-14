@@ -7,22 +7,22 @@
  *
  * Copyright (C) 1995
  */
-#ifndef __ASM_PPC64_FLOPPY_H
-#define __ASM_PPC64_FLOPPY_H
+#ifndef __ASM_POWERPC_FLOPPY_H
+#define __ASM_POWERPC_FLOPPY_H
 
 #include <linux/config.h>
 #include <asm/machdep.h>
 
-#define fd_inb(port)			inb_p(port)
-#define fd_outb(value,port)		outb_p(value,port)
+#define fd_inb(port)		inb_p(port)
+#define fd_outb(value,port)	outb_p(value,port)
 
 #define fd_enable_dma()         enable_dma(FLOPPY_DMA)
 #define fd_disable_dma()        disable_dma(FLOPPY_DMA)
-#define fd_request_dma()        request_dma(FLOPPY_DMA,"floppy")
+#define fd_request_dma()        request_dma(FLOPPY_DMA, "floppy")
 #define fd_free_dma()           free_dma(FLOPPY_DMA)
 #define fd_clear_dma_ff()       clear_dma_ff(FLOPPY_DMA)
-#define fd_set_dma_mode(mode)   set_dma_mode(FLOPPY_DMA,mode)
-#define fd_set_dma_count(count) set_dma_count(FLOPPY_DMA,count)
+#define fd_set_dma_mode(mode)   set_dma_mode(FLOPPY_DMA, mode)
+#define fd_set_dma_count(count) set_dma_count(FLOPPY_DMA, count)
 #define fd_enable_irq()         enable_irq(FLOPPY_IRQ)
 #define fd_disable_irq()        disable_irq(FLOPPY_IRQ)
 #define fd_cacheflush(addr,size) /* nothing */
@@ -35,10 +35,10 @@
 
 #include <linux/pci.h>
 
-#define fd_dma_setup(addr,size,mode,io) ppc64_fd_dma_setup(addr,size,mode,io)
+#define fd_dma_setup(addr,size,mode,io) powerpc_fd_dma_setup(addr,size,mode,io)
 
-static __inline__ int 
-ppc64_fd_dma_setup(char *addr, unsigned long size, int mode, int io)
+static __inline__ int powerpc_fd_dma_setup(char *addr, unsigned long size,
+					   int mode, int io)
 {
 	static unsigned long prev_size;
 	static dma_addr_t bus_addr = 0;
@@ -55,9 +55,8 @@ ppc64_fd_dma_setup(char *addr, unsigned long size, int mode, int io)
 		bus_addr = 0;
 	}
 
-	if (!bus_addr)	/* need to map it */ {
+	if (!bus_addr)	/* need to map it */
 		bus_addr = pci_map_single(NULL, addr, size, dir);
-	}
 
 	/* remember this one as prev */
 	prev_addr = addr;
@@ -103,4 +102,4 @@ static int FDC2 = -1;
 
 #define EXTRA_FLOPPY_PARAMS
 
-#endif /* __ASM_PPC64_FLOPPY_H */
+#endif /* __ASM_POWERPC_FLOPPY_H */
