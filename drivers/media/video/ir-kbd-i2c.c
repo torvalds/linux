@@ -183,6 +183,58 @@ static int get_key_knc1(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	return 1;
 }
 
+/* The new pinnacle PCTV remote (with the colored buttons)
+ *
+ * Ricardo Cerqueira <v4l@cerqueira.org>
+ */
+
+int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+{
+	unsigned char b[4];
+	unsigned int start = 0,parity = 0,code = 0;
+
+	/* poll IR chip */
+	if (4 != i2c_master_recv(&ir->c,b,4)) {
+		dprintk(2,"read error\n");
+		return -EIO;
+	}
+
+	for (start = 0; start<4; start++) {
+		if (b[start] == 0x80) {
+			code=b[(start+3)%4];
+			parity=b[(start+2)%4];
+		}
+	}
+
+	/* Empty Request */
+	if (parity==0)
+		return 0;
+
+	/* Repeating... */
+	if (ir->old == parity)
+		return 0;
+
+
+	ir->old = parity;
+
+	/* Reduce code value to fit inside IR_KEYTAB_SIZE
+	 *
+	 * this is the only value that results in 42 unique
+	 * codes < 128
+	 */
+
+	code %= 0x88;
+
+	*ir_raw = code;
+	*ir_key = code;
+
+	dprintk(1,"Pinnacle PCTV key %02x\n", code);
+
+	return 1;
+}
+
+EXPORT_SYMBOL_GPL(get_key_pinnacle);
+
 /* ----------------------------------------------------------------------- */
 
 static void ir_key_poll(struct IR_i2c *ir)
