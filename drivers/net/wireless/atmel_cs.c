@@ -477,6 +477,35 @@ static void atmel_release(dev_link_t *link)
 	link->state &= ~DEV_CONFIG;
 }
 
+static int atmel_suspend(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+	local_info_t *local = link->priv;
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		netif_device_detach(local->eth_dev);
+		pcmcia_release_configuration(link->handle);
+	}
+
+	return 0;
+}
+
+static int atmel_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+	local_info_t *local = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		atmel_open(local->eth_dev);
+		netif_device_attach(local->eth_dev);
+	}
+
+	return 0;
+}
+
 /*======================================================================
   
   The card status event handler.  Mostly, this schedules other
@@ -508,25 +537,6 @@ static int atmel_event(event_t event, int priority,
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		atmel_config(link);
-		break;
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		if (link->state & DEV_CONFIG) {
-			netif_device_detach(local->eth_dev);
-			pcmcia_release_configuration(link->handle);
-		}
-		break;
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (link->state & DEV_CONFIG) {
-			pcmcia_request_configuration(link->handle, &link->conf);
-			atmel_open(local->eth_dev);
-			netif_device_attach(local->eth_dev);
-		}
 		break;
 	}
 	return 0;
@@ -585,6 +595,8 @@ static struct pcmcia_driver atmel_driver = {
 	.event		= atmel_event,
 	.detach		= atmel_detach,
 	.id_table	= atmel_ids,
+	.suspend	= atmel_suspend,
+	.resume		= atmel_resume,
 };
 
 static int atmel_cs_init(void)

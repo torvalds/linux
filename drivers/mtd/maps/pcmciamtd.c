@@ -691,6 +691,24 @@ static void pcmciamtd_config(dev_link_t *link)
 }
 
 
+static int pcmciamtd_suspend(struct pcmcia_device *dev)
+{
+	DEBUG(2, "EVENT_PM_RESUME");
+
+	/* get_lock(link); */
+
+	return 0;
+}
+
+static int pcmciamtd_resume(struct pcmcia_device *dev)
+{
+	DEBUG(2, "EVENT_PM_SUSPEND");
+
+	/* free_lock(link); */
+
+	return 0;
+}
+
 /* The card status event handler.  Mostly, this schedules other
  * stuff to run after an event is received.  A CARD_REMOVAL event
  * also sets some flags to discourage the driver from trying
@@ -720,22 +738,6 @@ static int pcmciamtd_event(event_t event, int priority,
 		DEBUG(2, "EVENT_CARD_INSERTION");
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		pcmciamtd_config(link);
-		break;
-	case CS_EVENT_PM_SUSPEND:
-		DEBUG(2, "EVENT_PM_SUSPEND");
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		DEBUG(2, "EVENT_RESET_PHYSICAL");
-		/* get_lock(link); */
-		break;
-	case CS_EVENT_PM_RESUME:
-		DEBUG(2, "EVENT_PM_RESUME");
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		DEBUG(2, "EVENT_CARD_RESET");
-		/* free_lock(link); */
 		break;
 	default:
 		DEBUG(2, "Unknown event %d", event);
@@ -848,6 +850,8 @@ static struct pcmcia_driver pcmciamtd_driver = {
 	.detach		= pcmciamtd_detach,
 	.owner		= THIS_MODULE,
 	.id_table	= pcmciamtd_ids,
+	.suspend	= pcmciamtd_suspend,
+	.resume		= pcmciamtd_resume,
 };
 
 

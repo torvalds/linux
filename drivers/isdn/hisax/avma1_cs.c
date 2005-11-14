@@ -445,6 +445,28 @@ static void avma1cs_release(dev_link_t *link)
 	avma1cs_detach(link);
 } /* avma1cs_release */
 
+static int avma1cs_suspend(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int avma1cs_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	return 0;
+}
+
 /*======================================================================
 
     The card status event handler.  Mostly, this schedules other
@@ -475,20 +497,6 @@ static int avma1cs_event(event_t event, int priority,
 	    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	    avma1cs_config(link);
 	    break;
-	case CS_EVENT_PM_SUSPEND:
-	    link->state |= DEV_SUSPEND;
-	    /* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-	    if (link->state & DEV_CONFIG)
-		pcmcia_release_configuration(link->handle);
-	    break;
-	case CS_EVENT_PM_RESUME:
-	    link->state &= ~DEV_SUSPEND;
-	    /* Fall through... */
-	case CS_EVENT_CARD_RESET:
- 	    if (link->state & DEV_CONFIG)
-		pcmcia_request_configuration(link->handle, &link->conf);
-	    break;
     }
     return 0;
 } /* avma1cs_event */
@@ -509,6 +517,8 @@ static struct pcmcia_driver avma1cs_driver = {
 	.event		= avma1cs_event,
 	.detach		= avma1cs_detach,
 	.id_table	= avma1cs_ids,
+	.suspend	= avma1cs_suspend,
+	.resume		= avma1cs_resume,
 };
  
 /*====================================================================*/

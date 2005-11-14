@@ -951,6 +951,16 @@ static int send_event_callback(struct device *dev, void * _data)
 	if (p_dev->state & (CLIENT_UNBOUND|CLIENT_STALE))
 		return 0;
 
+	if ((data->event == CS_EVENT_PM_SUSPEND) ||
+	    (data->event == CS_EVENT_RESET_PHYSICAL)) {
+		if (p_drv->suspend)
+			return p_drv->suspend(p_dev);
+	} else if ((data->event == CS_EVENT_PM_RESUME) ||
+		   (data->event == CS_EVENT_CARD_RESET)) {
+		if (p_drv->resume)
+			return p_drv->resume(p_dev);
+	}
+
 	if (p_drv->event)
 		return p_drv->event(data->event, data->priority,
 				    &p_dev->event_callback_args);

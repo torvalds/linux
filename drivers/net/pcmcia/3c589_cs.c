@@ -421,6 +421,38 @@ static void tc589_release(dev_link_t *link)
     link->state &= ~DEV_CONFIG;
 }
 
+static int tc589_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		if (link->open)
+			netif_device_detach(dev);
+		pcmcia_release_configuration(link->handle);
+	}
+
+	return 0;
+}
+
+static int tc589_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			tc589_reset(dev);
+			netif_device_attach(dev);
+		}
+	}
+
+	return 0;
+}
+
 /*======================================================================
 
     The card status event handler.  Mostly, this schedules other
@@ -447,28 +479,6 @@ static int tc589_event(event_t event, int priority,
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	tc589_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
-	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	if (link->state & DEV_CONFIG) {
-	    if (link->open)
-		netif_device_detach(dev);
-	    pcmcia_release_configuration(link->handle);
-	}
-	break;
-    case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	if (link->state & DEV_CONFIG) {
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	    if (link->open) {
-		tc589_reset(dev);
-		netif_device_attach(dev);
-	    }
-	}
 	break;
     }
     return 0;
@@ -1071,6 +1081,8 @@ static struct pcmcia_driver tc589_driver = {
 	.event		= tc589_event,
 	.detach		= tc589_detach,
         .id_table       = tc589_ids,
+	.suspend	= tc589_suspend,
+	.resume		= tc589_resume,
 };
 
 static int __init init_tc589(void)

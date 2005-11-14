@@ -137,6 +137,10 @@ struct pcmcia_driver {
 	int (*event)		(event_t event, int priority,
 				 event_callback_args_t *);
 	void			(*detach)(dev_link_t *);
+
+	int (*suspend)		(struct pcmcia_device *dev);
+	int (*resume)		(struct pcmcia_device *dev);
+
 	struct module		*owner;
 	struct pcmcia_device_id	*id_table;
 	struct device_driver	drv;
@@ -192,6 +196,8 @@ struct pcmcia_device {
 
 #define handle_to_pdev(handle) (handle)
 #define handle_to_dev(handle) (handle->dev)
+
+#define dev_to_instance(dev) (dev->instance)
 
 /* error reporting */
 void cs_error(client_handle_t handle, int func, int ret);

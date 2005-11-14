@@ -713,6 +713,39 @@ static void fmvj18x_release(dev_link_t *link)
     link->state &= ~DEV_CONFIG;
 }
 
+static int fmvj18x_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		if (link->open)
+			netif_device_detach(dev);
+		pcmcia_release_configuration(link->handle);
+	}
+
+
+	return 0;
+}
+
+static int fmvj18x_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			fjn_reset(dev);
+			netif_device_attach(dev);
+		}
+	}
+
+	return 0;
+}
+
 /*====================================================================*/
 
 static int fmvj18x_event(event_t event, int priority,
@@ -732,28 +765,6 @@ static int fmvj18x_event(event_t event, int priority,
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	fmvj18x_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
-	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	if (link->state & DEV_CONFIG) {
-	    if (link->open)
-		netif_device_detach(dev);
-	    pcmcia_release_configuration(link->handle);
-	}
-	break;
-    case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	if (link->state & DEV_CONFIG) {
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	    if (link->open) {
-		fjn_reset(dev);
-		netif_device_attach(dev);
-	    }
-	}
 	break;
     }
     return 0;
@@ -793,6 +804,8 @@ static struct pcmcia_driver fmvj18x_cs_driver = {
 	.event		= fmvj18x_event,
 	.detach		= fmvj18x_detach,
 	.id_table       = fmvj18x_ids,
+	.suspend	= fmvj18x_suspend,
+	.resume		= fmvj18x_resume,
 };
 
 static int __init init_fmvj18x_cs(void)

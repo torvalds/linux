@@ -948,6 +948,56 @@ spectrum_cs_release(dev_link_t *link)
 		ioport_unmap(priv->hw.iobase);
 }				/* spectrum_cs_release */
 
+
+static int
+spectrum_cs_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+	struct orinoco_private *priv = netdev_priv(dev);
+	unsigned long flags;
+	int err = 0;
+
+	link->state |= DEV_SUSPEND;
+	/* Mark the device as stopped, to block IO until later */
+	if (link->state & DEV_CONFIG) {
+		spin_lock_irqsave(&priv->lock, flags);
+
+		err = __orinoco_down(dev);
+		if (err)
+			printk(KERN_WARNING "%s: Error %d downing interface\n",
+			       dev->name, err);
+
+		netif_device_detach(dev);
+		priv->hw_unavailable++;
+
+		spin_unlock_irqrestore(&priv->lock, flags);
+
+		pcmcia_release_configuration(link->handle);
+	}
+
+	return 0;
+}
+
+static int
+spectrum_cs_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+	struct orinoco_private *priv = netdev_priv(dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		/* FIXME: should we double check that this is
+		 * the same card as we had before */
+		pcmcia_request_configuration(link->handle, &link->conf);
+		netif_device_attach(dev);
+		priv->hw_unavailable--;
+		schedule_work(&priv->reset_work);
+	}
+	return 0;
+}
+
 /*
  * The card status event handler.  Mostly, this schedules other stuff
  * to run after an event is received.
@@ -959,8 +1009,6 @@ spectrum_cs_event(event_t event, int priority,
 	dev_link_t *link = args->client_data;
 	struct net_device *dev = link->priv;
 	struct orinoco_private *priv = netdev_priv(dev);
-	int err = 0;
-	unsigned long flags;
 
 	switch (event) {
 	case CS_EVENT_CARD_REMOVAL:
@@ -980,49 +1028,9 @@ spectrum_cs_event(event_t event, int priority,
 		spectrum_cs_config(link);
 		break;
 
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		/* Mark the device as stopped, to block IO until later */
-		if (link->state & DEV_CONFIG) {
-			/* This is probably racy, but I can't think of
-                           a better way, short of rewriting the PCMCIA
-                           layer to not suck :-( */
-			spin_lock_irqsave(&priv->lock, flags);
-
-			err = __orinoco_down(dev);
-			if (err)
-				printk(KERN_WARNING "%s: %s: Error %d downing interface\n",
-				       dev->name,
-				       event == CS_EVENT_PM_SUSPEND ? "SUSPEND" : "RESET_PHYSICAL",
-				       err);
-
-			netif_device_detach(dev);
-			priv->hw_unavailable++;
-
-			spin_unlock_irqrestore(&priv->lock, flags);
-
-			pcmcia_release_configuration(link->handle);
-		}
-		break;
-
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (link->state & DEV_CONFIG) {
-			/* FIXME: should we double check that this is
-			 * the same card as we had before */
-			pcmcia_request_configuration(link->handle, &link->conf);
-			netif_device_attach(dev);
-			priv->hw_unavailable--;
-			schedule_work(&priv->reset_work);
-		}
-		break;
 	}
 
-	return err;
+	return 0;
 }				/* spectrum_cs_event */
 
 /********************************************************************/
@@ -1050,6 +1058,8 @@ static struct pcmcia_driver orinoco_driver = {
 	},
 	.attach		= spectrum_cs_attach,
 	.detach		= spectrum_cs_detach,
+	.suspend	= spectrum_cs_suspend,
+	.resume		= spectrum_cs_resume,
 	.event		= spectrum_cs_event,
 	.id_table       = spectrum_cs_ids,
 };

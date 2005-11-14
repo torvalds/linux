@@ -406,6 +406,28 @@ void ide_release(dev_link_t *link)
 
 } /* ide_release */
 
+static int ide_suspend(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int ide_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (DEV_OK(link))
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	return 0;
+}
+
 /*======================================================================
 
     The card status event handler.  Mostly, this schedules other
@@ -431,20 +453,6 @@ int ide_event(event_t event, int priority,
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	ide_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
-	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	if (link->state & DEV_CONFIG)
-	    pcmcia_release_configuration(link->handle);
-	break;
-    case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	if (DEV_OK(link))
-	    pcmcia_request_configuration(link->handle, &link->conf);
 	break;
     }
     return 0;
@@ -498,6 +506,8 @@ static struct pcmcia_driver ide_cs_driver = {
 	.event		= ide_event,
 	.detach		= ide_detach,
 	.id_table       = ide_ids,
+	.suspend	= ide_suspend,
+	.resume		= ide_resume,
 };
 
 static int __init init_ide_cs(void)

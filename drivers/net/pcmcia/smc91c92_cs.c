@@ -895,6 +895,62 @@ free_cfg_mem:
    return rc;
 }
 
+static int smc91c92_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		if (link->open)
+			netif_device_detach(dev);
+		pcmcia_release_configuration(link->handle);
+	}
+
+	return 0;
+}
+
+static int smc91c92_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+	struct smc_private *smc = netdev_priv(dev);
+	int i;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		if ((smc->manfid == MANFID_MEGAHERTZ) &&
+		    (smc->cardid == PRODID_MEGAHERTZ_EM3288))
+			mhz_3288_power(link);
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (smc->manfid == MANFID_MOTOROLA)
+			mot_config(link);
+		if ((smc->manfid == MANFID_OSITECH) &&
+		    (smc->cardid != PRODID_OSITECH_SEVEN)) {
+			/* Power up the card and enable interrupts */
+			set_bits(0x0300, dev->base_addr-0x10+OSITECH_AUI_PWR);
+			set_bits(0x0300, dev->base_addr-0x10+OSITECH_RESET_ISR);
+		}
+		if (((smc->manfid == MANFID_OSITECH) &&
+		     (smc->cardid == PRODID_OSITECH_SEVEN)) ||
+		    ((smc->manfid == MANFID_PSION) &&
+		     (smc->cardid == PRODID_PSION_NET100))) {
+			/* Download the Seven of Diamonds firmware */
+			for (i = 0; i < sizeof(__Xilinx7OD); i++) {
+				outb(__Xilinx7OD[i], link->io.BasePort1+2);
+				udelay(50);
+			}
+		}
+		if (link->open) {
+			smc_reset(dev);
+			netif_device_attach(dev);
+		}
+	}
+
+	return 0;
+}
+
+
 /*======================================================================
 
     This verifies that the chip is some SMC91cXX variant, and returns
@@ -935,14 +991,12 @@ static int check_sig(dev_link_t *link)
     }
 
     if (width) {
-	event_callback_args_t args;
 	printk(KERN_INFO "smc91c92_cs: using 8-bit IO window.\n");
-	args.client_data = link;
-	smc91c92_event(CS_EVENT_RESET_PHYSICAL, 0, &args);
+	smc91c92_suspend(link->handle);
 	pcmcia_release_io(link->handle, &link->io);
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	pcmcia_request_io(link->handle, &link->io);
-	smc91c92_event(CS_EVENT_CARD_RESET, 0, &args);
+	smc91c92_resume(link->handle);
 	return check_sig(link);
     }
     return -ENODEV;
@@ -1184,8 +1238,6 @@ static int smc91c92_event(event_t event, int priority,
 {
     dev_link_t *link = args->client_data;
     struct net_device *dev = link->priv;
-    struct smc_private *smc = netdev_priv(dev);
-    int i;
 
     DEBUG(1, "smc91c92_event(0x%06x)\n", event);
 
@@ -1198,49 +1250,6 @@ static int smc91c92_event(event_t event, int priority,
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	smc91c92_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
-	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	if (link->state & DEV_CONFIG) {
-	    if (link->open)
-		netif_device_detach(dev);
-	    pcmcia_release_configuration(link->handle);
-	}
-	break;
-    case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	if (link->state & DEV_CONFIG) {
-	    if ((smc->manfid == MANFID_MEGAHERTZ) &&
-		(smc->cardid == PRODID_MEGAHERTZ_EM3288))
-		mhz_3288_power(link);
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	    if (smc->manfid == MANFID_MOTOROLA)
-		mot_config(link);
-	    if ((smc->manfid == MANFID_OSITECH) &&
-		(smc->cardid != PRODID_OSITECH_SEVEN)) {
-		/* Power up the card and enable interrupts */
-		set_bits(0x0300, dev->base_addr-0x10+OSITECH_AUI_PWR);
-		set_bits(0x0300, dev->base_addr-0x10+OSITECH_RESET_ISR);
-	    }
-	    if (((smc->manfid == MANFID_OSITECH) &&
-	 	(smc->cardid == PRODID_OSITECH_SEVEN)) ||
-		((smc->manfid == MANFID_PSION) &&
-	 	(smc->cardid == PRODID_PSION_NET100))) {
-		/* Download the Seven of Diamonds firmware */
-		for (i = 0; i < sizeof(__Xilinx7OD); i++) {
-	    	    outb(__Xilinx7OD[i], link->io.BasePort1+2);
-	   	    udelay(50);
-		}
-	    }
-	    if (link->open) {
-		smc_reset(dev);
-		netif_device_attach(dev);
-	    }
-	}
 	break;
     }
     return 0;
@@ -2364,6 +2373,8 @@ static struct pcmcia_driver smc91c92_cs_driver = {
 	.event		= smc91c92_event,
 	.detach		= smc91c92_detach,
 	.id_table       = smc91c92_ids,
+	.suspend	= smc91c92_suspend,
+	.resume		= smc91c92_resume,
 };
 
 static int __init init_smc91c92_cs(void)

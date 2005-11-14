@@ -159,8 +159,9 @@ static void serial_remove(dev_link_t *link)
 	}
 }
 
-static void serial_suspend(dev_link_t *link)
+static int serial_suspend(struct pcmcia_device *dev)
 {
+	dev_link_t *link = dev_to_instance(dev);
 	link->state |= DEV_SUSPEND;
 
 	if (link->state & DEV_CONFIG) {
@@ -173,10 +174,13 @@ static void serial_suspend(dev_link_t *link)
 		if (!info->slave)
 			pcmcia_release_configuration(link->handle);
 	}
+
+	return 0;
 }
 
-static void serial_resume(dev_link_t *link)
+static int serial_resume(struct pcmcia_device *dev)
 {
+	dev_link_t *link = dev_to_instance(dev);
 	link->state &= ~DEV_SUSPEND;
 
 	if (DEV_OK(link)) {
@@ -189,6 +193,8 @@ static void serial_resume(dev_link_t *link)
 		for (i = 0; i < info->ndev; i++)
 			serial8250_resume_port(info->line[i]);
 	}
+
+	return 0;
 }
 
 /*======================================================================
@@ -731,7 +737,6 @@ static int
 serial_event(event_t event, int priority, event_callback_args_t * args)
 {
 	dev_link_t *link = args->client_data;
-	struct serial_info *info = link->priv;
 
 	DEBUG(1, "serial_event(0x%06x)\n", event);
 
@@ -743,24 +748,6 @@ serial_event(event_t event, int priority, event_callback_args_t * args)
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		serial_config(link);
-		break;
-
-	case CS_EVENT_PM_SUSPEND:
-		serial_suspend(link);
-		break;
-
-	case CS_EVENT_RESET_PHYSICAL:
-		if ((link->state & DEV_CONFIG) && !info->slave)
-			pcmcia_release_configuration(link->handle);
-		break;
-
-	case CS_EVENT_PM_RESUME:
-		serial_resume(link);
-		break;
-
-	case CS_EVENT_CARD_RESET:
-		if (DEV_OK(link) && !info->slave)
-			pcmcia_request_configuration(link->handle, &link->conf);
 		break;
 	}
 	return 0;
@@ -881,6 +868,8 @@ static struct pcmcia_driver serial_cs_driver = {
 	.event		= serial_event,
 	.detach		= serial_detach,
 	.id_table	= serial_ids,
+	.suspend	= serial_suspend,
+	.resume		= serial_resume,
 };
 
 static int __init init_serial_cs(void)

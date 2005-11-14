@@ -1893,39 +1893,44 @@ static int cm4000_event(event_t event, int priority,
 		link->state &= ~DEV_PRESENT;
 		stop_monitor(dev);
 		break;
-	case CS_EVENT_PM_SUSPEND:
-		DEBUGP(5, dev, "CS_EVENT_PM_SUSPEND "
-		      "(fall-through to CS_EVENT_RESET_PHYSICAL)\n");
-		link->state |= DEV_SUSPEND;
-		/* fall-through */
-	case CS_EVENT_RESET_PHYSICAL:
-		DEBUGP(5, dev, "CS_EVENT_RESET_PHYSICAL\n");
-		if (link->state & DEV_CONFIG) {
-			DEBUGP(5, dev, "ReleaseConfiguration\n");
-			pcmcia_release_configuration(link->handle);
-		}
-		stop_monitor(dev);
-		break;
-	case CS_EVENT_PM_RESUME:
-		DEBUGP(5, dev, "CS_EVENT_PM_RESUME "
-		      "(fall-through to CS_EVENT_CARD_RESET)\n");
-		link->state &= ~DEV_SUSPEND;
-		/* fall-through */
-	case CS_EVENT_CARD_RESET:
-		DEBUGP(5, dev, "CS_EVENT_CARD_RESET\n");
-		if ((link->state & DEV_CONFIG)) {
-			DEBUGP(5, dev, "RequestConfiguration\n");
-			pcmcia_request_configuration(link->handle, &link->conf);
-		}
-		if (link->open)
-			start_monitor(dev);
-		break;
 	default:
 		DEBUGP(5, dev, "unknown event %.2x\n", event);
 		break;
 	}
 	DEBUGP(3, dev, "<- cm4000_event\n");
 	return CS_SUCCESS;
+}
+
+static int cm4000_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct cm4000_dev *dev;
+
+	dev = link->priv;
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+	stop_monitor(dev);
+
+	return 0;
+}
+
+static int cm4000_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct cm4000_dev *dev;
+
+	dev = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	if (link->open)
+		start_monitor(dev);
+
+	return 0;
 }
 
 static void cm4000_release(dev_link_t *link)
@@ -2044,6 +2049,8 @@ static struct pcmcia_driver cm4000_driver = {
 		},
 	.attach   = cm4000_attach,
 	.detach   = cm4000_detach,
+	.suspend  = cm4000_suspend,
+	.resume   = cm4000_resume,
 	.event	  = cm4000_event,
 	.id_table = cm4000_ids,
 };

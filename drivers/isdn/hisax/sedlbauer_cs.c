@@ -553,6 +553,32 @@ static void sedlbauer_release(dev_link_t *link)
     
 } /* sedlbauer_release */
 
+static int sedlbauer_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	local_info_t *dev = link->priv;
+
+	link->state |= DEV_SUSPEND;
+	dev->stop = 1;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int sedlbauer_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	local_info_t *dev = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_request_configuration(link->handle, &link->conf);
+	dev->stop = 0;
+
+	return 0;
+}
+
 /*======================================================================
 
     The card status event handler.  Mostly, this schedules other
@@ -569,7 +595,6 @@ static int sedlbauer_event(event_t event, int priority,
 		       event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-    local_info_t *dev = link->priv;
     
     DEBUG(1, "sedlbauer_event(0x%06x)\n", event);
     
@@ -584,27 +609,6 @@ static int sedlbauer_event(event_t event, int priority,
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	sedlbauer_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
-	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	/* Mark the device as stopped, to block IO until later */
-	dev->stop = 1;
-	if (link->state & DEV_CONFIG)
-	    pcmcia_release_configuration(link->handle);
-	break;
-    case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	if (link->state & DEV_CONFIG)
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	dev->stop = 0;
-	/*
-	  In a normal driver, additional code may go here to restore
-	  the device state and restart IO. 
-	*/
 	break;
     }
     return 0;
@@ -631,6 +635,8 @@ static struct pcmcia_driver sedlbauer_driver = {
 	.event		= sedlbauer_event,
 	.detach		= sedlbauer_detach,
 	.id_table	= sedlbauer_ids,
+	.suspend	= sedlbauer_suspend,
+	.resume		= sedlbauer_resume,
 };
 
 static int __init init_sedlbauer_cs(void)

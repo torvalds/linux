@@ -801,6 +801,39 @@ static void nmclan_release(dev_link_t *link)
   link->state &= ~DEV_CONFIG;
 }
 
+static int nmclan_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		if (link->open)
+			netif_device_detach(dev);
+		pcmcia_release_configuration(link->handle);
+	}
+
+
+	return 0;
+}
+
+static int nmclan_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			nmclan_reset(dev);
+			netif_device_attach(dev);
+		}
+	}
+
+	return 0;
+}
+
 /* ----------------------------------------------------------------------------
 nmclan_event
 	The card status event handler.  Mostly, this schedules other
@@ -825,28 +858,6 @@ static int nmclan_event(event_t event, int priority,
     case CS_EVENT_CARD_INSERTION:
       link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
       nmclan_config(link);
-      break;
-    case CS_EVENT_PM_SUSPEND:
-      link->state |= DEV_SUSPEND;
-      /* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-      if (link->state & DEV_CONFIG) {
-	if (link->open)
-	  netif_device_detach(dev);
-	pcmcia_release_configuration(link->handle);
-      }
-      break;
-    case CS_EVENT_PM_RESUME:
-      link->state &= ~DEV_SUSPEND;
-      /* Fall through... */
-    case CS_EVENT_CARD_RESET:
-      if (link->state & DEV_CONFIG) {
-	pcmcia_request_configuration(link->handle, &link->conf);
-	if (link->open) {
-	  nmclan_reset(dev);
-	  netif_device_attach(dev);
-	}
-      }
       break;
     case CS_EVENT_RESET_REQUEST:
       return 1;
@@ -1685,6 +1696,8 @@ static struct pcmcia_driver nmclan_cs_driver = {
 	.event		= nmclan_event,
 	.detach		= nmclan_detach,
 	.id_table       = nmclan_ids,
+	.suspend	= nmclan_suspend,
+	.resume		= nmclan_resume,
 };
 
 static int __init init_nmclan_cs(void)

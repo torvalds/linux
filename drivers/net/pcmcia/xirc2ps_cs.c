@@ -1157,6 +1157,41 @@ xirc2ps_release(dev_link_t *link)
 
 /*====================================================================*/
 
+
+static int xirc2ps_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		if (link->open) {
+			netif_device_detach(dev);
+			do_powerdown(dev);
+		}
+		pcmcia_release_configuration(link->handle);
+	}
+
+	return 0;
+}
+
+static int xirc2ps_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			do_reset(dev,1);
+			netif_device_attach(dev);
+		}
+	}
+
+	return 0;
+}
+
 /****************
  * The card status event handler.  Mostly, this schedules other
  * stuff to run after an event is received.  A CARD_REMOVAL event
@@ -1190,30 +1225,6 @@ xirc2ps_event(event_t event, int priority,
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	xirc2ps_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
-	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	if (link->state & DEV_CONFIG) {
-	    if (link->open) {
-		netif_device_detach(dev);
-		do_powerdown(dev);
-	    }
-	    pcmcia_release_configuration(link->handle);
-	}
-	break;
-    case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	if (link->state & DEV_CONFIG) {
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	    if (link->open) {
-		do_reset(dev,1);
-		netif_device_attach(dev);
-	    }
-	}
 	break;
     }
     return 0;
@@ -2013,6 +2024,8 @@ static struct pcmcia_driver xirc2ps_cs_driver = {
 	.event		= xirc2ps_event,
 	.detach		= xirc2ps_detach,
 	.id_table       = xirc2ps_ids,
+	.suspend	= xirc2ps_suspend,
+	.resume		= xirc2ps_resume,
 };
 
 static int __init

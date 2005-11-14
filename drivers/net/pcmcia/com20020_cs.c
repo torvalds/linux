@@ -421,6 +421,42 @@ static void com20020_release(dev_link_t *link)
     link->state &= ~(DEV_CONFIG | DEV_RELEASE_PENDING);
 }
 
+static int com20020_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	com20020_dev_t *info = link->priv;
+	struct net_device *dev = info->dev;
+
+	link->state |= DEV_SUSPEND;
+        if (link->state & DEV_CONFIG) {
+		if (link->open) {
+			netif_device_detach(dev);
+		}
+		pcmcia_release_configuration(link->handle);
+        }
+
+	return 0;
+}
+
+static int com20020_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	com20020_dev_t *info = link->priv;
+	struct net_device *dev = info->dev;
+
+	link->state &= ~DEV_SUSPEND;
+        if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			int ioaddr = dev->base_addr;
+			struct arcnet_local *lp = dev->priv;
+			ARCRESET;
+		}
+        }
+
+	return 0;
+}
+
 /*======================================================================
 
     The card status event handler.  Mostly, this schedules other
@@ -449,30 +485,6 @@ static int com20020_event(event_t event, int priority,
         link->state |= DEV_PRESENT;
 	com20020_config(link); 
 	break;
-    case CS_EVENT_PM_SUSPEND:
-        link->state |= DEV_SUSPEND;
-        /* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-        if (link->state & DEV_CONFIG) {
-            if (link->open) {
-                netif_device_detach(dev);
-            }
-            pcmcia_release_configuration(link->handle);
-        }
-        break;
-    case CS_EVENT_PM_RESUME:
-        link->state &= ~DEV_SUSPEND;
-        /* Fall through... */
-    case CS_EVENT_CARD_RESET:
-        if (link->state & DEV_CONFIG) {
-            pcmcia_request_configuration(link->handle, &link->conf);
-            if (link->open) {
-		int ioaddr = dev->base_addr;
-		struct arcnet_local *lp = dev->priv;
-		ARCRESET;
-            }
-        }
-        break;
     }
     return 0;
 } /* com20020_event */
@@ -492,6 +504,8 @@ static struct pcmcia_driver com20020_cs_driver = {
 	.event		= com20020_event,
 	.detach		= com20020_detach,
 	.id_table	= com20020_ids,
+	.suspend	= com20020_suspend,
+	.resume		= com20020_resume,
 };
 
 static int __init init_com20020_cs(void)

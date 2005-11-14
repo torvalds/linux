@@ -255,6 +255,28 @@ static void ixj_cs_release(dev_link_t *link)
 	link->state &= ~DEV_CONFIG;
 }
 
+static int ixj_suspend(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int ixj_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (DEV_OK(link))
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	return 0;
+}
+
 static int ixj_event(event_t event, int priority, event_callback_args_t * args)
 {
 	dev_link_t *link = args->client_data;
@@ -270,20 +292,6 @@ static int ixj_event(event_t event, int priority, event_callback_args_t * args)
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		ixj_config(link);
-		break;
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		if (link->state & DEV_CONFIG)
-			pcmcia_release_configuration(link->handle);
-		break;
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (DEV_OK(link))
-			pcmcia_request_configuration(link->handle, &link->conf);
 		break;
 	}
 	return 0;
@@ -304,6 +312,8 @@ static struct pcmcia_driver ixj_driver = {
 	.event		= ixj_event,
 	.detach		= ixj_detach,
 	.id_table	= ixj_ids,
+	.suspend	= ixj_suspend,
+	.resume		= ixj_resume,
 };
 
 static int __init ixj_pcmcia_init(void)

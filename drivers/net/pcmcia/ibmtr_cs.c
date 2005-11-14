@@ -401,6 +401,41 @@ static void ibmtr_release(dev_link_t *link)
     link->state &= ~DEV_CONFIG;
 }
 
+static int ibmtr_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	ibmtr_dev_t *info = link->priv;
+	struct net_device *dev = info->dev;
+
+	link->state |= DEV_SUSPEND;
+        if (link->state & DEV_CONFIG) {
+		if (link->open)
+			netif_device_detach(dev);
+		pcmcia_release_configuration(link->handle);
+        }
+
+	return 0;
+}
+
+static int ibmtr_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	ibmtr_dev_t *info = link->priv;
+	struct net_device *dev = info->dev;
+
+	link->state &= ~DEV_SUSPEND;
+        if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			ibmtr_probe(dev);	/* really? */
+			netif_device_attach(dev);
+		}
+        }
+
+	return 0;
+}
+
+
 /*======================================================================
 
     The card status event handler.  Mostly, this schedules other
@@ -433,28 +468,6 @@ static int ibmtr_event(event_t event, int priority,
         link->state |= DEV_PRESENT;
 	ibmtr_config(link);
 	break;
-    case CS_EVENT_PM_SUSPEND:
-        link->state |= DEV_SUSPEND;
-        /* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-        if (link->state & DEV_CONFIG) {
-            if (link->open)
-		netif_device_detach(dev);
-            pcmcia_release_configuration(link->handle);
-        }
-        break;
-    case CS_EVENT_PM_RESUME:
-        link->state &= ~DEV_SUSPEND;
-        /* Fall through... */
-    case CS_EVENT_CARD_RESET:
-        if (link->state & DEV_CONFIG) {
-            pcmcia_request_configuration(link->handle, &link->conf);
-            if (link->open) {
-		ibmtr_probe(dev);	/* really? */
-		netif_device_attach(dev);
-            }
-        }
-        break;
     }
     return 0;
 } /* ibmtr_event */
@@ -518,6 +531,8 @@ static struct pcmcia_driver ibmtr_cs_driver = {
 	.event		= ibmtr_event,
 	.detach		= ibmtr_detach,
 	.id_table       = ibmtr_ids,
+	.suspend	= ibmtr_suspend,
+	.resume		= ibmtr_resume,
 };
 
 static int __init init_ibmtr_cs(void)

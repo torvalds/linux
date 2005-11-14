@@ -325,6 +325,28 @@ void parport_cs_release(dev_link_t *link)
 
 } /* parport_cs_release */
 
+static int parport_suspend(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int parport_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (DEV_OK(link))
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	return 0;
+}
+
 /*======================================================================
 
     The card status event handler.  Mostly, this schedules other
@@ -349,20 +371,6 @@ int parport_event(event_t event, int priority,
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	parport_config(link);
 	break;
-    case CS_EVENT_PM_SUSPEND:
-	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	if (link->state & DEV_CONFIG)
-	    pcmcia_release_configuration(link->handle);
-	break;
-    case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	if (DEV_OK(link))
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	break;
     }
     return 0;
 } /* parport_event */
@@ -383,7 +391,8 @@ static struct pcmcia_driver parport_cs_driver = {
 	.event		= parport_event,
 	.detach		= parport_detach,
 	.id_table	= parport_ids,
-
+	.suspend	= parport_suspend,
+	.resume		= parport_resume,
 };
 
 static int __init init_parport_cs(void)

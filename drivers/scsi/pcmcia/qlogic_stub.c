@@ -349,6 +349,40 @@ static void qlogic_release(dev_link_t *link)
 
 /*====================================================================*/
 
+static int qlogic_suspend(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int qlogic_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		scsi_info_t *info = link->priv;
+
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if ((info->manf_id == MANFID_MACNICA) ||
+		    (info->manf_id == MANFID_PIONEER) ||
+		    (info->manf_id == 0x0098)) {
+			outb(0x80, link->io.BasePort1 + 0xd);
+			outb(0x24, link->io.BasePort1 + 0x9);
+			outb(0x04, link->io.BasePort1 + 0xd);
+		}
+		/* Ugggglllyyyy!!! */
+		qlogicfas408_bus_reset(NULL);
+	}
+
+	return 0;
+}
+
 static int qlogic_event(event_t event, int priority, event_callback_args_t * args)
 {
 	dev_link_t *link = args->client_data;
@@ -364,29 +398,6 @@ static int qlogic_event(event_t event, int priority, event_callback_args_t * arg
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		qlogic_config(link);
-		break;
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		if (link->state & DEV_CONFIG)
-			pcmcia_release_configuration(link->handle);
-		break;
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (link->state & DEV_CONFIG) {
-			scsi_info_t *info = link->priv;
-			pcmcia_request_configuration(link->handle, &link->conf);
-			if ((info->manf_id == MANFID_MACNICA) || (info->manf_id == MANFID_PIONEER) || (info->manf_id == 0x0098)) {
-				outb(0x80, link->io.BasePort1 + 0xd);
-				outb(0x24, link->io.BasePort1 + 0x9);
-				outb(0x04, link->io.BasePort1 + 0xd);
-			}
-			/* Ugggglllyyyy!!! */
-			qlogicfas408_bus_reset(NULL);
-		}
 		break;
 	}
 	return 0;
@@ -423,6 +434,8 @@ static struct pcmcia_driver qlogic_cs_driver = {
 	.event		= qlogic_event,
 	.detach		= qlogic_detach,
 	.id_table       = qlogic_ids,
+	.suspend	= qlogic_suspend,
+	.resume		= qlogic_resume,
 };
 
 static int __init init_qlogic_cs(void)

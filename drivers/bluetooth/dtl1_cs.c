@@ -763,6 +763,27 @@ static void dtl1_release(dev_link_t *link)
 	link->state &= ~DEV_CONFIG;
 }
 
+static int dtl1_suspend(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int dtl1_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (DEV_OK(link))
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	return 0;
+}
 
 static int dtl1_event(event_t event, int priority, event_callback_args_t *args)
 {
@@ -780,20 +801,6 @@ static int dtl1_event(event_t event, int priority, event_callback_args_t *args)
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		dtl1_config(link);
-		break;
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		if (link->state & DEV_CONFIG)
-			pcmcia_release_configuration(link->handle);
-		break;
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (DEV_OK(link))
-			pcmcia_request_configuration(link->handle, &link->conf);
 		break;
 	}
 
@@ -816,6 +823,8 @@ static struct pcmcia_driver dtl1_driver = {
 	.event		= dtl1_event,
 	.detach		= dtl1_detach,
 	.id_table	= dtl1_ids,
+	.suspend	= dtl1_suspend,
+	.resume		= dtl1_resume,
 };
 
 static int __init init_dtl1_cs(void)

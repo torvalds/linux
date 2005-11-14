@@ -656,31 +656,7 @@ static int reader_event(event_t event, int priority,
 			DEBUGP(5, dev, "CS_EVENT_CARD_REMOVAL\n");
 			link->state &= ~DEV_PRESENT;
 			break;
-		case CS_EVENT_PM_SUSPEND:
-			DEBUGP(5, dev, "CS_EVENT_PM_SUSPEND "
-			      "(fall-through to CS_EVENT_RESET_PHYSICAL)\n");
-			link->state |= DEV_SUSPEND;
 
-		case CS_EVENT_RESET_PHYSICAL:
-			DEBUGP(5, dev, "CS_EVENT_RESET_PHYSICAL\n");
-			if (link->state & DEV_CONFIG) {
-		  		DEBUGP(5, dev, "ReleaseConfiguration\n");
-		  		pcmcia_release_configuration(link->handle);
-			}
-			break;
-		case CS_EVENT_PM_RESUME:
-			DEBUGP(5, dev, "CS_EVENT_PM_RESUME "
-			      "(fall-through to CS_EVENT_CARD_RESET)\n");
-			link->state &= ~DEV_SUSPEND;
-
-		case CS_EVENT_CARD_RESET:
-			DEBUGP(5, dev, "CS_EVENT_CARD_RESET\n");
-			if ((link->state & DEV_CONFIG)) {
-				DEBUGP(5, dev, "RequestConfiguration\n");
-		  		pcmcia_request_configuration(link->handle,
-							     &link->conf);
-			}
-			break;
 		default:
 			DEBUGP(5, dev, "reader_event: unknown event %.2x\n",
 			       event);
@@ -688,6 +664,28 @@ static int reader_event(event_t event, int priority,
 	}
 	DEBUGP(3, dev, "<- reader_event\n");
 	return CS_SUCCESS;
+}
+
+static int reader_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int reader_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	return 0;
 }
 
 static void reader_release(dev_link_t *link)
@@ -806,6 +804,8 @@ static struct pcmcia_driver reader_driver = {
 	},
 	.attach		= reader_attach,
 	.detach		= reader_detach,
+	.suspend	= reader_suspend,
+	.resume		= reader_resume,
 	.event		= reader_event,
 	.id_table	= cm4040_ids,
 };

@@ -323,6 +323,28 @@ cs_failed:
 	}
 }
 
+static int sl811_suspend(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int sl811_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_request_configuration(link->handle, &link->conf);
+
+	return 0;
+}
+
 static int
 sl811_cs_event(event_t event, int priority, event_callback_args_t *args)
 {
@@ -340,23 +362,6 @@ sl811_cs_event(event_t event, int priority, event_callback_args_t *args)
 	case CS_EVENT_CARD_INSERTION:
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		sl811_cs_config(link);
-		break;
-
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		if (link->state & DEV_CONFIG)
-			pcmcia_release_configuration(link->handle);
-		break;
-
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (link->state & DEV_CONFIG)
-			pcmcia_request_configuration(link->handle, &link->conf);
-		DBG(0, "reset sl811-hcd here?\n");
 		break;
 	}
 	return 0;
@@ -417,6 +422,8 @@ static struct pcmcia_driver sl811_cs_driver = {
 	.event		= sl811_cs_event,
 	.detach		= sl811_cs_detach,
 	.id_table	= sl811_ids,
+	.suspend	= sl811_suspend,
+	.resume		= sl811_resume,
 };
 
 /*====================================================================*/

@@ -272,11 +272,37 @@ static void aha152x_release_cs(dev_link_t *link)
 	link->state &= ~DEV_CONFIG;
 }
 
+static int aha152x_suspend(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int aha152x_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+	scsi_info_t *info = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		Scsi_Cmnd tmp;
+		pcmcia_request_configuration(link->handle, &link->conf);
+		tmp.device->host = info->host;
+		aha152x_host_reset(&tmp);
+	}
+
+	return 0;
+}
+
 static int aha152x_event(event_t event, int priority,
 			 event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-    scsi_info_t *info = link->priv;
     
     DEBUG(0, "aha152x_event(0x%06x)\n", event);
     
@@ -289,24 +315,6 @@ static int aha152x_event(event_t event, int priority,
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	aha152x_config_cs(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
-	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	if (link->state & DEV_CONFIG)
-	    pcmcia_release_configuration(link->handle);
-	break;
-    case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	if (link->state & DEV_CONFIG) {
-	    Scsi_Cmnd tmp;
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	    tmp.device->host = info->host;
-	    aha152x_host_reset(&tmp);
-	}
 	break;
     }
     return 0;
@@ -331,6 +339,8 @@ static struct pcmcia_driver aha152x_cs_driver = {
 	.event		= aha152x_event,
 	.detach		= aha152x_detach,
 	.id_table       = aha152x_ids,
+	.suspend	= aha152x_suspend,
+	.resume		= aha152x_resume,
 };
 
 static int __init init_aha152x_cs(void)

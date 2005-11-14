@@ -780,6 +780,39 @@ static void pcnet_release(dev_link_t *link)
 
 ======================================================================*/
 
+static int pcnet_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		if (link->open)
+			netif_device_detach(dev);
+		pcmcia_release_configuration(link->handle);
+	}
+
+	return 0;
+}
+
+static int pcnet_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			pcnet_reset_8390(dev);
+			NS8390_init(dev, 1);
+			netif_device_attach(dev);
+		}
+	}
+
+	return 0;
+}
+
 static int pcnet_event(event_t event, int priority,
 		       event_callback_args_t *args)
 {
@@ -797,29 +830,6 @@ static int pcnet_event(event_t event, int priority,
     case CS_EVENT_CARD_INSERTION:
 	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	pcnet_config(link);
-	break;
-    case CS_EVENT_PM_SUSPEND:
-	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	if (link->state & DEV_CONFIG) {
-	    if (link->open)
-		netif_device_detach(dev);
-	    pcmcia_release_configuration(link->handle);
-	}
-	break;
-    case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	if (link->state & DEV_CONFIG) {
-	    pcmcia_request_configuration(link->handle, &link->conf);
-	    if (link->open) {
-		pcnet_reset_8390(dev);
-		NS8390_init(dev, 1);
-		netif_device_attach(dev);
-	    }
-	}
 	break;
     }
     return 0;
@@ -1849,6 +1859,8 @@ static struct pcmcia_driver pcnet_driver = {
 	.detach		= pcnet_detach,
 	.owner		= THIS_MODULE,
 	.id_table	= pcnet_ids,
+	.suspend	= pcnet_suspend,
+	.resume		= pcnet_resume,
 };
 
 static int __init init_pcnet_cs(void)

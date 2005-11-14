@@ -4775,6 +4775,56 @@ wavelan_detach(dev_link_t *	link)
 #endif
 }
 
+static int wavelan_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *	dev = (struct net_device *) link->priv;
+
+	/* NB: wavelan_close will be called, but too late, so we are
+	 * obliged to close nicely the wavelan here. David, could you
+	 * close the device before suspending them ? And, by the way,
+	 * could you, on resume, add a "route add -net ..." after the
+	 * ifconfig up ? Thanks... */
+
+	/* Stop receiving new messages and wait end of transmission */
+	wv_ru_stop(dev);
+
+	/* Power down the module */
+	hacr_write(dev->base_addr, HACR_DEFAULT & (~HACR_PWR_STAT));
+
+	/* The card is now suspended */
+	link->state |= DEV_SUSPEND;
+
+    	if(link->state & DEV_CONFIG)
+	{
+		if(link->open)
+			netif_device_detach(dev);
+		pcmcia_release_configuration(link->handle);
+	}
+
+	return 0;
+}
+
+static int wavelan_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *	dev = (struct net_device *) link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if(link->state & DEV_CONFIG)
+	{
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if(link->open)	/* If RESET -> True, If RESUME -> False ? */
+		{
+			wv_hw_reset(dev);
+			netif_device_attach(dev);
+		}
+	}
+
+	return 0;
+}
+
+
 /*------------------------------------------------------------------*/
 /*
  * The card status event handler. Mostly, this schedules other stuff
@@ -4832,46 +4882,6 @@ wavelan_event(event_t		event,		/* The event received */
 	else
 	  dev->irq = 0;
 	break;
-
-      case CS_EVENT_PM_SUSPEND:
-	/* NB: wavelan_close will be called, but too late, so we are
-	 * obliged to close nicely the wavelan here. David, could you
-	 * close the device before suspending them ? And, by the way,
-	 * could you, on resume, add a "route add -net ..." after the
-	 * ifconfig up ? Thanks... */
-
-	/* Stop receiving new messages and wait end of transmission */
-	wv_ru_stop(dev);
-
-	/* Power down the module */
-	hacr_write(dev->base_addr, HACR_DEFAULT & (~HACR_PWR_STAT));
-
-	/* The card is now suspended */
-	link->state |= DEV_SUSPEND;
-	/* Fall through... */
-      case CS_EVENT_RESET_PHYSICAL:
-    	if(link->state & DEV_CONFIG)
-	  {
-      	    if(link->open)
-	      netif_device_detach(dev);
-      	    pcmcia_release_configuration(link->handle);
-	  }
-	break;
-
-      case CS_EVENT_PM_RESUME:
-	link->state &= ~DEV_SUSPEND;
-	/* Fall through... */
-      case CS_EVENT_CARD_RESET:
-	if(link->state & DEV_CONFIG)
-	  {
-      	    pcmcia_request_configuration(link->handle, &link->conf);
-      	    if(link->open)	/* If RESET -> True, If RESUME -> False ? */
-	      {
-		wv_hw_reset(dev);
-		netif_device_attach(dev);
-	      }
-	  }
-	break;
     }
 
 #ifdef DEBUG_CALLBACK_TRACE
@@ -4898,6 +4908,8 @@ static struct pcmcia_driver wavelan_driver = {
 	.event		= wavelan_event,
 	.detach		= wavelan_detach,
 	.id_table       = wavelan_ids,
+	.suspend	= wavelan_suspend,
+	.resume		= wavelan_resume,
 };
 
 static int __init

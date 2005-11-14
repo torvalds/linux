@@ -891,6 +891,40 @@ static void ray_release(dev_link_t *link)
     DEBUG(2,"ray_release ending\n");
 }
 
+static int ray_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state |= DEV_SUSPEND;
+        if (link->state & DEV_CONFIG) {
+		if (link->open)
+			netif_device_detach(dev);
+
+		pcmcia_release_configuration(link->handle);
+        }
+
+
+	return 0;
+}
+
+static int ray_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+        if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			ray_reset(dev);
+			netif_device_attach(dev);
+		}
+        }
+
+	return 0;
+}
+
 /*=============================================================================
     The card status event handler.  Mostly, this schedules other
     stuff to run after an event is received.  A CARD_REMOVAL event
@@ -922,29 +956,6 @@ static int ray_event(event_t event, int priority,
     case CS_EVENT_CARD_INSERTION:
         link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
         ray_config(link);
-        break;
-    case CS_EVENT_PM_SUSPEND:
-        link->state |= DEV_SUSPEND;
-        /* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-        if (link->state & DEV_CONFIG) {
-            if (link->open)
-            	netif_device_detach(dev);
-
-            pcmcia_release_configuration(link->handle);
-        }
-        break;
-    case CS_EVENT_PM_RESUME:
-        link->state &= ~DEV_SUSPEND;
-        /* Fall through... */
-    case CS_EVENT_CARD_RESET:
-        if (link->state & DEV_CONFIG) {
-            pcmcia_request_configuration(link->handle, &link->conf);
-            if (link->open) {
-                ray_reset(dev);
-		netif_device_attach(dev);
-            }
-        }
         break;
     }
     return 0;
@@ -2949,6 +2960,8 @@ static struct pcmcia_driver ray_driver = {
 	.event		= ray_event,
 	.detach		= ray_detach,
 	.id_table       = ray_ids,
+	.suspend	= ray_suspend,
+	.resume		= ray_resume,
 };
 
 static int __init init_ray_cs(void)

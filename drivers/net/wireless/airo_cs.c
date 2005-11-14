@@ -492,6 +492,35 @@ static void airo_release(dev_link_t *link)
 	link->state &= ~DEV_CONFIG;
 }
 
+static int airo_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	local_info_t *local = link->priv;
+
+	link->state |= DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		netif_device_detach(local->eth_dev);
+		pcmcia_release_configuration(link->handle);
+	}
+
+	return 0;
+}
+
+static int airo_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	local_info_t *local = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		reset_airo_card(local->eth_dev);
+		netif_device_attach(local->eth_dev);
+	}
+
+	return 0;
+}
+
 /*======================================================================
   
   The card status event handler.  Mostly, this schedules other
@@ -524,25 +553,6 @@ static int airo_event(event_t event, int priority,
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		airo_config(link);
 		break;
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		if (link->state & DEV_CONFIG) {
-			netif_device_detach(local->eth_dev);
-			pcmcia_release_configuration(link->handle);
-		}
-		break;
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (link->state & DEV_CONFIG) {
-			pcmcia_request_configuration(link->handle, &link->conf);
-			reset_airo_card(local->eth_dev);
-			netif_device_attach(local->eth_dev);
-		}
-		break;
 	}
 	return 0;
 } /* airo_event */
@@ -565,6 +575,8 @@ static struct pcmcia_driver airo_driver = {
 	.event		= airo_event,
 	.detach		= airo_detach,
 	.id_table       = airo_ids,
+	.suspend	= airo_suspend,
+	.resume		= airo_resume,
 };
 
 static int airo_cs_init(void)

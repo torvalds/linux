@@ -773,11 +773,37 @@ static void mgslpc_detach(dev_link_t *link)
     mgslpc_remove_device((MGSLPC_INFO *)link->priv);
 }
 
+static int mgslpc_suspend(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+	MGSLPC_INFO *info = link->priv;
+
+	link->state |= DEV_SUSPEND;
+	info->stop = 1;
+	if (link->state & DEV_CONFIG)
+		pcmcia_release_configuration(link->handle);
+
+	return 0;
+}
+
+static int mgslpc_resume(struct pcmcia_device *dev)
+{
+	dev_link_t *link = dev_to_instance(dev);
+	MGSLPC_INFO *info = link->priv;
+
+	link->state &= ~DEV_SUSPEND;
+	if (link->state & DEV_CONFIG)
+		pcmcia_request_configuration(link->handle, &link->conf);
+	info->stop = 0;
+
+	return 0;
+}
+
+
 static int mgslpc_event(event_t event, int priority,
 			event_callback_args_t *args)
 {
     dev_link_t *link = args->client_data;
-    MGSLPC_INFO *info = link->priv;
     
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_event(0x%06x)\n", event);
@@ -793,23 +819,6 @@ static int mgslpc_event(event_t event, int priority,
     case CS_EVENT_CARD_INSERTION:
 	    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 	    mgslpc_config(link);
-	    break;
-    case CS_EVENT_PM_SUSPEND:
-	    link->state |= DEV_SUSPEND;
-	    /* Fall through... */
-    case CS_EVENT_RESET_PHYSICAL:
-	    /* Mark the device as stopped, to block IO until later */
-	    info->stop = 1;
-	    if (link->state & DEV_CONFIG)
-		    pcmcia_release_configuration(link->handle);
-	    break;
-    case CS_EVENT_PM_RESUME:
-	    link->state &= ~DEV_SUSPEND;
-	    /* Fall through... */
-    case CS_EVENT_CARD_RESET:
-	    if (link->state & DEV_CONFIG)
-		    pcmcia_request_configuration(link->handle, &link->conf);
-	    info->stop = 0;
 	    break;
     }
     return 0;
@@ -3095,6 +3104,8 @@ static struct pcmcia_driver mgslpc_driver = {
 	.event		= mgslpc_event,
 	.detach		= mgslpc_detach,
 	.id_table	= mgslpc_ids,
+	.suspend	= mgslpc_suspend,
+	.resume		= mgslpc_resume,
 };
 
 static struct tty_operations mgslpc_ops = {

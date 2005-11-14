@@ -2173,6 +2173,41 @@ static void wl3501_release(dev_link_t *link)
 	link->state &= ~DEV_CONFIG;
 }
 
+static int wl3501_suspend(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	link->state |= DEV_SUSPEND;
+
+	wl3501_pwr_mgmt(dev->priv, WL3501_SUSPEND);
+	if (link->state & DEV_CONFIG) {
+		if (link->open)
+			netif_device_detach(dev);
+		pcmcia_release_configuration(link->handle);
+	}
+
+	return 0;
+}
+
+static int wl3501_resume(struct pcmcia_device *p_dev)
+{
+	dev_link_t *link = dev_to_instance(p_dev);
+	struct net_device *dev = link->priv;
+
+	wl3501_pwr_mgmt(dev->priv, WL3501_RESUME);
+	if (link->state & DEV_CONFIG) {
+		pcmcia_request_configuration(link->handle, &link->conf);
+		if (link->open) {
+			wl3501_reset(dev);
+			netif_device_attach(dev);
+		}
+	}
+
+	return 0;
+}
+
+
 /**
  * wl3501_event - The card status event handler
  * @event - event
@@ -2206,30 +2241,6 @@ static int wl3501_event(event_t event, int pri, event_callback_args_t *args)
 		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
 		wl3501_config(link);
 		break;
-	case CS_EVENT_PM_SUSPEND:
-		link->state |= DEV_SUSPEND;
-		wl3501_pwr_mgmt(dev->priv, WL3501_SUSPEND);
-		/* Fall through... */
-	case CS_EVENT_RESET_PHYSICAL:
-		if (link->state & DEV_CONFIG) {
-			if (link->open)
-				netif_device_detach(dev);
-			pcmcia_release_configuration(link->handle);
-		}
-		break;
-	case CS_EVENT_PM_RESUME:
-		link->state &= ~DEV_SUSPEND;
-		wl3501_pwr_mgmt(dev->priv, WL3501_RESUME);
-		/* Fall through... */
-	case CS_EVENT_CARD_RESET:
-		if (link->state & DEV_CONFIG) {
-			pcmcia_request_configuration(link->handle, &link->conf);
-			if (link->open) {
-				wl3501_reset(dev);
-				netif_device_attach(dev);
-			}
-		}
-		break;
 	}
 	return 0;
 }
@@ -2249,6 +2260,8 @@ static struct pcmcia_driver wl3501_driver = {
 	.event		= wl3501_event,
 	.detach		= wl3501_detach,
 	.id_table	= wl3501_ids,
+	.suspend	= wl3501_suspend,
+	.resume		= wl3501_resume,
 };
 
 static int __init wl3501_init_module(void)
