@@ -106,8 +106,7 @@ enum {
 	FBCON_LOGO_DONTSHOW	= -3	/* do not show the logo */
 };
 
-struct display fb_display[MAX_NR_CONSOLES];
-EXPORT_SYMBOL(fb_display);
+static struct display fb_display[MAX_NR_CONSOLES];
 
 static signed char con2fb_map[MAX_NR_CONSOLES];
 static signed char con2fb_map_boot[MAX_NR_CONSOLES];
@@ -653,13 +652,12 @@ static void set_blitting_type(struct vc_data *vc, struct fb_info *info,
 {
 	struct fbcon_ops *ops = info->fbcon_par;
 
+	ops->p = (p) ? p : &fb_display[vc->vc_num];
+
 	if ((info->flags & FBINFO_MISC_TILEBLITTING))
 		fbcon_set_tileops(vc, info, p, ops);
 	else {
-		struct display *disp;
-
-		disp = (p) ? p : &fb_display[vc->vc_num];
-		fbcon_set_rotation(info, disp);
+		fbcon_set_rotation(info, ops->p);
 		fbcon_set_bitops(ops);
 	}
 }
@@ -668,11 +666,10 @@ static void set_blitting_type(struct vc_data *vc, struct fb_info *info,
 			      struct display *p)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
-	struct display *disp;
 
 	info->flags &= ~FBINFO_MISC_TILEBLITTING;
-	disp = (p) ? p : &fb_display[vc->vc_num];
-	fbcon_set_rotation(info, disp);
+	ops->p = (p) ? p : &fb_display[vc->vc_num];
+	fbcon_set_rotation(info, ops->p);
 	fbcon_set_bitops(ops);
 }
 #endif /* CONFIG_MISC_TILEBLITTING */
