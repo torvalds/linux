@@ -24,7 +24,7 @@
 
 #include "cx25840.h"
 
-#define FWFILE "cx25840.fw"
+#define FWFILE "v4l-cx25840.fw"
 #define FWSEND 1024
 
 #define FWDEV(x) &((x)->adapter->dev)
