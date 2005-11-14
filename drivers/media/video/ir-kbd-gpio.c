@@ -221,24 +221,99 @@ static IR_KEYTAB_TYPE ir_codes_conceptronic[IR_KEYTAB_SIZE] = {
 	[ 24 ] = KEY_MUTE         // mute/unmute
 };
 
+static IR_KEYTAB_TYPE ir_codes_nebula[IR_KEYTAB_SIZE] = {
+	[0x00] = KEY_KP0,
+	[0x01] = KEY_KP1,
+	[0x02] = KEY_KP2,
+	[0x03] = KEY_KP3,
+	[0x04] = KEY_KP4,
+	[0x05] = KEY_KP5,
+	[0x06] = KEY_KP6,
+	[0x07] = KEY_KP7,
+	[0x08] = KEY_KP8,
+	[0x09] = KEY_KP9,
+	[0x0a] = KEY_TV,
+	[0x0b] = KEY_AUX,
+	[0x0c] = KEY_DVD,
+	[0x0d] = KEY_POWER,
+	[0x0e] = KEY_MHP,	/* labelled 'Picture' */
+	[0x0f] = KEY_AUDIO,
+	[0x10] = KEY_INFO,
+	[0x11] = KEY_F13,	/* 16:9 */
+	[0x12] = KEY_F14,	/* 14:9 */
+	[0x13] = KEY_EPG,
+	[0x14] = KEY_EXIT,
+	[0x15] = KEY_MENU,
+	[0x16] = KEY_UP,
+	[0x17] = KEY_DOWN,
+	[0x18] = KEY_LEFT,
+	[0x19] = KEY_RIGHT,
+	[0x1a] = KEY_ENTER,
+	[0x1b] = KEY_CHANNELUP,
+	[0x1c] = KEY_CHANNELDOWN,
+	[0x1d] = KEY_VOLUMEUP,
+	[0x1e] = KEY_VOLUMEDOWN,
+	[0x1f] = KEY_RED,
+	[0x20] = KEY_GREEN,
+	[0x21] = KEY_YELLOW,
+	[0x22] = KEY_BLUE,
+	[0x23] = KEY_SUBTITLE,
+	[0x24] = KEY_F15,	/* AD */
+	[0x25] = KEY_TEXT,
+	[0x26] = KEY_MUTE,
+	[0x27] = KEY_REWIND,
+	[0x28] = KEY_STOP,
+	[0x29] = KEY_PLAY,
+	[0x2a] = KEY_FASTFORWARD,
+	[0x2b] = KEY_F16,	/* chapter */
+	[0x2c] = KEY_PAUSE,
+	[0x2d] = KEY_PLAY,
+	[0x2e] = KEY_RECORD,
+	[0x2f] = KEY_F17,	/* picture in picture */
+	[0x30] = KEY_KPPLUS,	/* zoom in */
+	[0x31] = KEY_KPMINUS,	/* zoom out */
+	[0x32] = KEY_F18,	/* capture */
+	[0x33] = KEY_F19,	/* web */
+	[0x34] = KEY_EMAIL,
+	[0x35] = KEY_PHONE,
+	[0x36] = KEY_PC
+};
+
 struct IR {
 	struct bttv_sub_device  *sub;
 	struct input_dev        *input;
 	struct ir_input_state   ir;
 	char                    name[32];
 	char                    phys[32];
+
+	/* Usual gpio signalling */
+
 	u32                     mask_keycode;
 	u32                     mask_keydown;
 	u32                     mask_keyup;
-
-	int                     polling;
+	u32			polling;
 	u32                     last_gpio;
 	struct work_struct      work;
 	struct timer_list       timer;
+
+	/* RC5 gpio */
+
+	u32 rc5_gpio;
+	struct timer_list timer_end;	/* timer_end for code completion */
+	struct timer_list timer_keyup;	/* timer_end for key release */
+	u32 last_rc5;			/* last good rc5 code */
+	u32 last_bit;			/* last raw bit seen */
+	u32 code;			/* raw code under construction */
+	struct timeval base_time;	/* time of last seen code */
+	int active;			/* building raw code */
 };
 
 static int debug;
 module_param(debug, int, 0644);    /* debug level (0,1,2) */
+static int repeat_delay = 500;
+module_param(repeat_delay, int, 0644);
+static int repeat_period = 33;
+module_param(repeat_period, int, 0644);
 
 #define DEVNAME "ir-kbd-gpio"
 #define dprintk(fmt, arg...)	if (debug) \
@@ -254,7 +329,7 @@ static struct bttv_sub_driver driver = {
 		.probe	= ir_probe,
 		.remove	= ir_remove,
 	},
-	.gpio_irq       = ir_irq,
+	.gpio_irq 	= ir_irq,
 };
 
 /* ---------------------------------------------------------------------- */
@@ -325,6 +400,173 @@ static void ir_work(void *data)
 	ir_handle_key(ir);
 	timeout = jiffies + (ir->polling * HZ / 1000);
 	mod_timer(&ir->timer, timeout);
+}
+
+/* ---------------------------------------------------------------*/
+
+static int rc5_remote_gap = 885;
+module_param(rc5_remote_gap, int, 0644);
+static int rc5_key_timeout = 200;
+module_param(rc5_key_timeout, int, 0644);
+
+#define RC5_START(x)	(((x)>>12)&3)
+#define RC5_TOGGLE(x)	(((x)>>11)&1)
+#define RC5_ADDR(x)	(((x)>>6)&31)
+#define RC5_INSTR(x)	((x)&63)
+
+/* decode raw bit pattern to RC5 code */
+static u32 rc5_decode(unsigned int code)
+{
+	unsigned int org_code = code;
+	unsigned int pair;
+	unsigned int rc5 = 0;
+	int i;
+
+	code = (code << 1) | 1;
+	for (i = 0; i < 14; ++i) {
+		pair = code & 0x3;
+		code >>= 2;
+
+		rc5 <<= 1;
+		switch (pair) {
+		case 0:
+		case 2:
+			break;
+		case 1:
+			rc5 |= 1;
+			break;
+		case 3:
+			dprintk("bad code: %x\n", org_code);
+			return 0;
+		}
+	}
+	dprintk("code=%x, rc5=%x, start=%x, toggle=%x, address=%x, "
+		"instr=%x\n", rc5, org_code, RC5_START(rc5),
+		RC5_TOGGLE(rc5), RC5_ADDR(rc5), RC5_INSTR(rc5));
+	return rc5;
+}
+
+static int ir_rc5_irq(struct bttv_sub_device *sub)
+{
+	struct IR *ir = dev_get_drvdata(&sub->dev);
+	struct timeval tv;
+	u32 gpio;
+	u32 gap;
+	unsigned long current_jiffies, timeout;
+
+	/* read gpio port */
+	gpio = bttv_gpio_read(ir->sub->core);
+
+	/* remote IRQ? */
+	if (!(gpio & 0x20))
+		return 0;
+
+	/* get time of bit */
+	current_jiffies = jiffies;
+	do_gettimeofday(&tv);
+
+	/* avoid overflow with gap >1s */
+	if (tv.tv_sec - ir->base_time.tv_sec > 1) {
+		gap = 200000;
+	} else {
+		gap = 1000000 * (tv.tv_sec - ir->base_time.tv_sec) +
+		    tv.tv_usec - ir->base_time.tv_usec;
+	}
+
+	/* active code => add bit */
+	if (ir->active) {
+		/* only if in the code (otherwise spurious IRQ or timer
+		   late) */
+		if (ir->last_bit < 28) {
+			ir->last_bit = (gap - rc5_remote_gap / 2) /
+			    rc5_remote_gap;
+			ir->code |= 1 << ir->last_bit;
+		}
+		/* starting new code */
+	} else {
+		ir->active = 1;
+		ir->code = 0;
+		ir->base_time = tv;
+		ir->last_bit = 0;
+
+		timeout = current_jiffies + (500 + 30 * HZ) / 1000;
+		mod_timer(&ir->timer_end, timeout);
+	}
+
+	/* toggle GPIO pin 4 to reset the irq */
+	bttv_gpio_write(ir->sub->core, gpio & ~(1 << 4));
+	bttv_gpio_write(ir->sub->core, gpio | (1 << 4));
+	return 1;
+}
+
+static void ir_rc5_timer_end(unsigned long data)
+{
+	struct IR *ir = (struct IR *)data;
+	struct timeval tv;
+	unsigned long current_jiffies, timeout;
+	u32 gap;
+
+	/* get time */
+	current_jiffies = jiffies;
+	do_gettimeofday(&tv);
+
+	/* avoid overflow with gap >1s */
+	if (tv.tv_sec - ir->base_time.tv_sec > 1) {
+		gap = 200000;
+	} else {
+		gap = 1000000 * (tv.tv_sec - ir->base_time.tv_sec) +
+		    tv.tv_usec - ir->base_time.tv_usec;
+	}
+
+	/* Allow some timmer jitter (RC5 is ~24ms anyway so this is ok) */
+	if (gap < 28000) {
+		dprintk("spurious timer_end\n");
+		return;
+	}
+
+	ir->active = 0;
+	if (ir->last_bit < 20) {
+		/* ignore spurious codes (caused by light/other remotes) */
+		dprintk("short code: %x\n", ir->code);
+	} else {
+		u32 rc5 = rc5_decode(ir->code);
+
+		/* two start bits? */
+		if (RC5_START(rc5) != 3) {
+			dprintk("rc5 start bits invalid: %u\n", RC5_START(rc5));
+
+			/* right address? */
+		} else if (RC5_ADDR(rc5) == 0x0) {
+			u32 toggle = RC5_TOGGLE(rc5);
+			u32 instr = RC5_INSTR(rc5);
+
+			/* Good code, decide if repeat/repress */
+			if (toggle != RC5_TOGGLE(ir->last_rc5) ||
+			    instr != RC5_INSTR(ir->last_rc5)) {
+				dprintk("instruction %x, toggle %x\n", instr,
+					toggle);
+				ir_input_nokey(ir->input, &ir->ir);
+				ir_input_keydown(ir->input, &ir->ir, instr,
+						 instr);
+			}
+
+			/* Set/reset key-up timer */
+			timeout = current_jiffies + (500 + rc5_key_timeout
+						     * HZ) / 1000;
+			mod_timer(&ir->timer_keyup, timeout);
+
+			/* Save code for repeat test */
+			ir->last_rc5 = rc5;
+		}
+	}
+}
+
+static void ir_rc5_timer_keyup(unsigned long data)
+{
+	struct IR *ir = (struct IR *)data;
+
+	dprintk("key released\n");
+	ir_input_nokey(ir->input, &ir->ir);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -400,6 +642,12 @@ static int ir_probe(struct device *dev)
 		ir->mask_keyup   = 0x006000;
 		ir->polling      = 50; // ms
 		break;
+	case BTTV_BOARD_NEBULA_DIGITV:
+		ir_codes = ir_codes_nebula;
+		driver.any_irq = ir_rc5_irq;
+		driver.gpio_irq = NULL;
+		ir->rc5_gpio = 1;
+		 break;
 	}
 	if (NULL == ir_codes) {
 		kfree(ir);
@@ -407,9 +655,17 @@ static int ir_probe(struct device *dev)
 		return -ENODEV;
 	}
 
-	/* init hardware-specific stuff */
-	bttv_gpio_inout(sub->core, ir->mask_keycode | ir->mask_keydown, 0);
-	ir->sub = sub;
+	if (ir->rc5_gpio) {
+		u32 gpio;
+		/* enable remote irq */
+		bttv_gpio_inout(sub->core, (1 << 4), 1 << 4);
+		gpio = bttv_gpio_read(sub->core);
+		bttv_gpio_write(sub->core, gpio & ~(1 << 4));
+		bttv_gpio_write(sub->core, gpio | (1 << 4));
+	} else {
+		/* init hardware-specific stuff */
+		bttv_gpio_inout(sub->core, ir->mask_keycode | ir->mask_keydown, 0);
+	}
 
 	/* init input device */
 	snprintf(ir->name, sizeof(ir->name), "bttv IR (card=%d)",
@@ -417,6 +673,7 @@ static int ir_probe(struct device *dev)
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(sub->core->pci));
 
+	ir->sub = sub;
 	ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
 	input_dev->name = ir->name;
 	input_dev->phys = ir->phys;
@@ -437,11 +694,25 @@ static int ir_probe(struct device *dev)
 		ir->timer.function = ir_timer;
 		ir->timer.data     = (unsigned long)ir;
 		schedule_work(&ir->work);
+	} else if (ir->rc5_gpio) {
+		/* set timer_end for code completion */
+		init_timer(&ir->timer_end);
+		ir->timer_end.function = ir_rc5_timer_end;
+		ir->timer_end.data = (unsigned long)ir;
+
+		init_timer(&ir->timer_keyup);
+		ir->timer_keyup.function = ir_rc5_timer_keyup;
+		ir->timer_keyup.data = (unsigned long)ir;
 	}
 
 	/* all done */
 	dev_set_drvdata(dev, ir);
 	input_register_device(ir->input);
+	printk(DEVNAME ": %s detected at %s\n",ir->name,ir->phys);
+
+	/* the remote isn't as bouncy as a keyboard */
+	ir->input->rep[REP_DELAY] = repeat_delay;
+	ir->input->rep[REP_PERIOD] = repeat_period;
 
 	return 0;
 }
@@ -453,6 +724,15 @@ static int ir_remove(struct device *dev)
 	if (ir->polling) {
 		del_timer(&ir->timer);
 		flush_scheduled_work();
+	}
+	if (ir->rc5_gpio) {
+		u32 gpio;
+
+		del_timer(&ir->timer_end);
+		flush_scheduled_work();
+
+		gpio = bttv_gpio_read(ir->sub->core);
+		bttv_gpio_write(ir->sub->core, gpio & ~(1 << 4));
 	}
 
 	input_unregister_device(ir->input);

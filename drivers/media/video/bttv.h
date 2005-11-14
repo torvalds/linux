@@ -235,6 +235,7 @@ struct tvcard
 	unsigned int has_dvb:1;
 	unsigned int has_remote:1;
 	unsigned int no_gpioirq:1;
+	unsigned int any_irq:1;
 
 	/* other settings */
 	unsigned int pll;
@@ -334,6 +335,7 @@ struct bttv_sub_driver {
 	struct device_driver   drv;
 	char                   wanted[BUS_ID_SIZE];
 	void                   (*gpio_irq)(struct bttv_sub_device *sub);
+	int                    (*any_irq)(struct bttv_sub_device *sub);
 };
 #define to_bttv_sub_drv(x) container_of((x), struct bttv_sub_driver, drv)
 
