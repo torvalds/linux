@@ -1097,7 +1097,7 @@ S: 80050-430 - Curitiba - Paraná
 S: Brazil
 
 N: Kumar Gala
-E: kumar.gala@freescale.com
+E: galak@kernel.crashing.org
 D: Embedded PowerPC 6xx/7xx/74xx/82xx/83xx/85xx support
 S: Austin, Texas 78729
 S: USA
