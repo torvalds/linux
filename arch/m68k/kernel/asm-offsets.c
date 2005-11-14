@@ -25,11 +25,6 @@ int main(void)
 	DEFINE(TASK_STATE, offsetof(struct task_struct, state));
 	DEFINE(TASK_FLAGS, offsetof(struct task_struct, flags));
 	DEFINE(TASK_PTRACE, offsetof(struct task_struct, ptrace));
-	DEFINE(TASK_WORK, offsetof(struct task_struct, thread.work));
-	DEFINE(TASK_NEEDRESCHED, offsetof(struct task_struct, thread.work.need_resched));
-	DEFINE(TASK_SYSCALL_TRACE, offsetof(struct task_struct, thread.work.syscall_trace));
-	DEFINE(TASK_SIGPENDING, offsetof(struct task_struct, thread.work.sigpending));
-	DEFINE(TASK_NOTIFY_RESUME, offsetof(struct task_struct, thread.work.notify_resume));
 	DEFINE(TASK_THREAD, offsetof(struct task_struct, thread));
 	DEFINE(TASK_INFO, offsetof(struct task_struct, thread.info));
 	DEFINE(TASK_MM, offsetof(struct task_struct, mm));

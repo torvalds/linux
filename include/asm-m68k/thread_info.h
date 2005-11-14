@@ -6,12 +6,11 @@
 
 struct thread_info {
 	struct task_struct	*task;		/* main task structure */
+	unsigned long		flags;
 	struct exec_domain	*exec_domain;	/* execution domain */
 	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
 	__u32 cpu; /* should always be 0 on m68k */
 	struct restart_block    restart_block;
-
-	__u8			supervisor_stack[0];
 };
 
 #define PREEMPT_ACTIVE		0x4000000
@@ -49,76 +48,14 @@ struct thread_info {
 
 #define end_of_stack(p) ((unsigned long *)(p)->thread_info + 1)
 
-#define TIF_SYSCALL_TRACE	0	/* syscall trace active */
-#define TIF_DELAYED_TRACE	1	/* single step a syscall */
-#define TIF_NOTIFY_RESUME	2	/* resumption notification requested */
-#define TIF_SIGPENDING		3	/* signal pending */
-#define TIF_NEED_RESCHED	4	/* rescheduling necessary */
-#define TIF_MEMDIE		5
-
-extern int thread_flag_fixme(void);
-
-/*
- * flag set/clear/test wrappers
- * - pass TIF_xxxx constants to these functions
+/* entry.S relies on these definitions!
+ * bits 0-7 are tested at every exception exit
+ * bits 8-15 are also tested at syscall exit
  */
-
-#define __set_tsk_thread_flag(tsk, flag, val) ({	\
-	switch (flag) {					\
-	case TIF_SIGPENDING:				\
-		tsk->thread.work.sigpending = val;	\
-		break;					\
-	case TIF_NEED_RESCHED:				\
-		tsk->thread.work.need_resched = val;	\
-		break;					\
-	case TIF_SYSCALL_TRACE:				\
-		tsk->thread.work.syscall_trace = val;	\
-		break;					\
-	case TIF_MEMDIE:				\
-		tsk->thread.work.memdie = val;		\
-		break;					\
-	default:					\
-		thread_flag_fixme();			\
-	}						\
-})
-
-#define __get_tsk_thread_flag(tsk, flag) ({		\
-	int ___res;					\
-	switch (flag) {					\
-	case TIF_SIGPENDING:				\
-		___res = tsk->thread.work.sigpending;	\
-		break;					\
-	case TIF_NEED_RESCHED:				\
-		___res = tsk->thread.work.need_resched;	\
-		break;					\
-	case TIF_SYSCALL_TRACE:				\
-		___res = tsk->thread.work.syscall_trace;\
-		break;					\
-	case TIF_MEMDIE:				\
-		___res = tsk->thread.work.memdie;\
-		break;					\
-	default:					\
-		___res = thread_flag_fixme();		\
-	}						\
-	___res;						\
-})
-
-#define __get_set_tsk_thread_flag(tsk, flag, val) ({	\
-	int __res = __get_tsk_thread_flag(tsk, flag);	\
-	__set_tsk_thread_flag(tsk, flag, val);		\
-	__res;						\
-})
-
-#define set_tsk_thread_flag(tsk, flag) __set_tsk_thread_flag(tsk, flag, ~0)
-#define clear_tsk_thread_flag(tsk, flag) __set_tsk_thread_flag(tsk, flag, 0)
-#define test_and_set_tsk_thread_flag(tsk, flag) __get_set_tsk_thread_flag(tsk, flag, ~0)
-#define test_tsk_thread_flag(tsk, flag) __get_tsk_thread_flag(tsk, flag)
-
-#define set_thread_flag(flag) set_tsk_thread_flag(current, flag)
-#define clear_thread_flag(flag) clear_tsk_thread_flag(current, flag)
-#define test_thread_flag(flag) test_tsk_thread_flag(current, flag)
-
-#define set_need_resched() set_thread_flag(TIF_NEED_RESCHED)
-#define clear_need_resched() clear_thread_flag(TIF_NEED_RESCHED)
+#define TIF_SIGPENDING		6	/* signal pending */
+#define TIF_NEED_RESCHED	7	/* rescheduling necessary */
+#define TIF_DELAYED_TRACE	14	/* single step a syscall */
+#define TIF_SYSCALL_TRACE	15	/* syscall trace active */
+#define TIF_MEMDIE		16
 
 #endif	/* _ASM_M68K_THREAD_INFO_H */
