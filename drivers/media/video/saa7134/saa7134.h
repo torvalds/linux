@@ -383,6 +383,7 @@ struct saa7134_dmasound {
 	unsigned int               dma_blk;
 	unsigned int               read_offset;
 	unsigned int               read_count;
+	void *			   priv_data;
 	snd_pcm_substream_t 	   *substream;
 };
 
