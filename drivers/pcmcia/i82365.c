@@ -1339,10 +1339,7 @@ static struct device_driver i82365_driver = {
 	.resume = pcmcia_socket_dev_resume,
 };
 
-static struct platform_device i82365_device = {
-	.name = "i82365",
-	.id = 0,
-};
+static struct platform_device *i82365_device;
 
 static int __init init_i82365(void)
 {
@@ -1352,7 +1349,14 @@ static int __init init_i82365(void)
     if (ret)
 	return ret;
 
-    ret = platform_device_register(&i82365_device);
+    i82365_device = platform_device_alloc("i82365", 0);
+    if (i82365_device) {
+	    ret = platform_device_add(i82365_device);
+	    if (ret)
+		    platform_device_put(i82365_device);
+    } else
+	    ret = -ENOMEM;
+
     if (ret) {
 	driver_unregister(&i82365_driver);
 	return ret;
@@ -1365,7 +1369,7 @@ static int __init init_i82365(void)
 
     if (sockets == 0) {
 	printk("not found.\n");
-	platform_device_unregister(&i82365_device);
+	platform_device_unregister(i82365_device);
 	release_region(i365_base, 2);
 	driver_unregister(&i82365_driver);
 	return -ENODEV;
@@ -1377,7 +1381,7 @@ static int __init init_i82365(void)
     
     /* register sockets with the pcmcia core */
     for (i = 0; i < sockets; i++) {
-	    socket[i].socket.dev.dev = &i82365_device.dev;
+	    socket[i].socket.dev.dev = &i82365_device->dev;
 	    socket[i].socket.ops = &pcic_operations;
 	    socket[i].socket.resource_ops = &pccard_nonstatic_ops;
 	    socket[i].socket.owner = THIS_MODULE;
@@ -1415,7 +1419,7 @@ static void __exit exit_i82365(void)
 	    if (socket[i].flags & IS_REGISTERED)
 		    pcmcia_unregister_socket(&socket[i].socket);
     }
-    platform_device_unregister(&i82365_device);
+    platform_device_unregister(i82365_device);
     if (poll_interval != 0)
 	del_timer_sync(&poll_timer);
     if (grab_irq != 0)
