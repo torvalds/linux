@@ -53,7 +53,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
-#include <media/i2c-compat.h>
 #include <media/v4l2-common.h>
 
 static int debug = 0;

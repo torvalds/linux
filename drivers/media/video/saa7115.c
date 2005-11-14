@@ -38,7 +38,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
-#include <media/i2c-compat.h>
 #include <media/v4l2-common.h>
 
 MODULE_DESCRIPTION("Philips SAA7114/SAA7115 video decoder driver");
