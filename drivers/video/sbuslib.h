@@ -20,5 +20,7 @@ extern int sbusfb_mmap_helper(struct sbus_mmap_map *map,
 int sbusfb_ioctl_helper(unsigned long cmd, unsigned long arg,
 			struct fb_info *info,
 			int type, int fb_depth, unsigned long fb_size);
+long sbusfb_compat_ioctl(struct file *file, unsigned int cmd,
+		unsigned long arg, struct fb_info *info);
 
 #endif /* _SBUSLIB_H */
