@@ -104,6 +104,22 @@ static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 	return ret;
 }
 
+static inline int atomic_add_unless(atomic_t *v, int a, int u)
+{
+	int ret;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	ret = v->counter;
+	if (ret != u)
+		v->counter += a;
+	local_irq_restore(flags);
+
+	return ret != u;
+}
+
+#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
+
 /* Atomic operations are already serializing on ARM */
 #define smp_mb__before_atomic_dec()	barrier()
 #define smp_mb__after_atomic_dec()	barrier()

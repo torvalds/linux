@@ -173,6 +173,17 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 
 #endif /* __LINUX_ARM_ARCH__ */
 
+static inline int atomic_add_unless(atomic_t *v, int a, int u)
+{
+	int c, old;
+
+	c = atomic_read(v);
+	while (c != u && (old = atomic_cmpxchg((v), c, c + a)) != c)
+		c = old;
+	return c != u;
+}
+#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
+
 #define atomic_add(i, v)	(void) atomic_add_return(i, v)
 #define atomic_inc(v)		(void) atomic_add_return(1, v)
 #define atomic_sub(i, v)	(void) atomic_sub_return(i, v)
