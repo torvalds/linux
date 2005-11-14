@@ -1064,6 +1064,7 @@ static int __devinit saa7134_initdev(struct pci_dev *pci_dev,
 
 	/* check for signal */
 	saa7134_irq_video_intl(dev);
+
 	return 0;
 
  fail5:
