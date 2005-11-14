@@ -1205,11 +1205,7 @@ static void *kmem_getpages(kmem_cache_t *cachep, gfp_t flags, int nodeid)
 	int i;
 
 	flags |= cachep->gfpflags;
-	if (likely(nodeid == -1)) {
-		page = alloc_pages(flags, cachep->gfporder);
-	} else {
-		page = alloc_pages_node(nodeid, flags, cachep->gfporder);
-	}
+	page = alloc_pages_node(nodeid, flags, cachep->gfporder);
 	if (!page)
 		return NULL;
 	addr = page_address(page);
