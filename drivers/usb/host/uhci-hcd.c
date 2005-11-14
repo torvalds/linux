@@ -748,8 +748,12 @@ static int uhci_resume(struct usb_hcd *hcd)
 	check_and_reset_hc(uhci);
 	configure_hc(uhci);
 
-	if (uhci->rh_state == UHCI_RH_RESET)
+	if (uhci->rh_state == UHCI_RH_RESET) {
+
+		/* The controller had to be reset */
+		usb_root_hub_lost_power(hcd->self.root_hub);
 		suspend_rh(uhci, UHCI_RH_SUSPENDED);
+	}
 
 	spin_unlock_irq(&uhci->lock);
 

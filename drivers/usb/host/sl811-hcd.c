@@ -1803,6 +1803,7 @@ sl811h_resume(struct platform_device *dev)
 			|| !device_can_wakeup(&hcd->self.root_hub->dev)) {
 		sl811->port1 = 0;
 		port_power(sl811, 1);
+		usb_root_hub_lost_power(hcd->self.root_hub);
 		return 0;
 	}
 

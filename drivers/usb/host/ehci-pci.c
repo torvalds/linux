@@ -278,7 +278,6 @@ static int ehci_pci_resume(struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	unsigned		port;
-	struct usb_device	*root = hcd->self.root_hub;
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
 	int			retval = -EINVAL;
 
@@ -312,13 +311,7 @@ static int ehci_pci_resume(struct usb_hcd *hcd)
 
 restart:
 	ehci_dbg(ehci, "lost power, restarting\n");
-	for (port = HCS_N_PORTS(ehci->hcs_params); port > 0; ) {
-		port--;
-		if (!root->children [port])
-			continue;
-		usb_set_device_state(root->children[port],
-					USB_STATE_NOTATTACHED);
-	}
+	usb_root_hub_lost_power(hcd->self.root_hub);
 
 	/* Else reset, to cope with power loss or flush-to-storage
 	 * style "resume" having let BIOS kick in during reboot.

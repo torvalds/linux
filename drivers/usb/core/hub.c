@@ -1039,6 +1039,39 @@ void usb_set_device_state(struct usb_device *udev,
 EXPORT_SYMBOL(usb_set_device_state);
 
 
+#ifdef CONFIG_PM
+
+/**
+ * usb_root_hub_lost_power - called by HCD if the root hub lost Vbus power
+ * @rhdev: struct usb_device for the root hub
+ *
+ * The USB host controller driver calls this function when its root hub
+ * is resumed and Vbus power has been interrupted or the controller
+ * has been reset.  The routine marks all the children of the root hub
+ * as NOTATTACHED and marks logical connect-change events on their ports.
+ */
+void usb_root_hub_lost_power(struct usb_device *rhdev)
+{
+	struct usb_hub *hub;
+	int port1;
+	unsigned long flags;
+
+	dev_warn(&rhdev->dev, "root hub lost power or was reset\n");
+	spin_lock_irqsave(&device_state_lock, flags);
+	hub = hdev_to_hub(rhdev);
+	for (port1 = 1; port1 <= rhdev->maxchild; ++port1) {
+		if (rhdev->children[port1 - 1]) {
+			recursively_mark_NOTATTACHED(
+					rhdev->children[port1 - 1]);
+			set_bit(port1, hub->change_bits);
+		}
+	}
+	spin_unlock_irqrestore(&device_state_lock, flags);
+}
+EXPORT_SYMBOL_GPL(usb_root_hub_lost_power);
+
+#endif
+
 static void choose_address(struct usb_device *udev)
 {
 	int		devnum;
