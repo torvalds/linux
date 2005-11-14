@@ -261,7 +261,7 @@ config PPC_ISERIES
 
 config EMBEDDED6xx
 	bool "Embedded 6xx/7xx/7xxx-based board"
-	depends on PPC32
+	depends on PPC32 && BROKEN
 
 config APUS
 	bool "Amiga-APUS"
@@ -305,7 +305,7 @@ config PPC_PMAC64
 
 config PPC_PREP
 	bool "  PowerPC Reference Platform (PReP) based machines"
-	depends on PPC_MULTIPLATFORM && PPC32
+	depends on PPC_MULTIPLATFORM && PPC32 && BROKEN
 	select PPC_I8259
 	select PPC_INDIRECT_PCI
 	default y
