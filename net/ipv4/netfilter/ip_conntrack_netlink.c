@@ -467,7 +467,7 @@ out:
 }
 #endif
 
-static const int cta_min_ip[CTA_IP_MAX] = {
+static const size_t cta_min_ip[CTA_IP_MAX] = {
 	[CTA_IP_V4_SRC-1]	= sizeof(u_int32_t),
 	[CTA_IP_V4_DST-1]	= sizeof(u_int32_t),
 };
@@ -497,7 +497,7 @@ ctnetlink_parse_tuple_ip(struct nfattr *attr, struct ip_conntrack_tuple *tuple)
 	return 0;
 }
 
-static const int cta_min_proto[CTA_PROTO_MAX] = {
+static const size_t cta_min_proto[CTA_PROTO_MAX] = {
 	[CTA_PROTO_NUM-1]	= sizeof(u_int16_t),
 	[CTA_PROTO_SRC_PORT-1]	= sizeof(u_int16_t),
 	[CTA_PROTO_DST_PORT-1]	= sizeof(u_int16_t),
@@ -576,7 +576,7 @@ ctnetlink_parse_tuple(struct nfattr *cda[], struct ip_conntrack_tuple *tuple,
 }
 
 #ifdef CONFIG_IP_NF_NAT_NEEDED
-static const int cta_min_protonat[CTA_PROTONAT_MAX] = {
+static const size_t cta_min_protonat[CTA_PROTONAT_MAX] = {
 	[CTA_PROTONAT_PORT_MIN-1]	= sizeof(u_int16_t),
 	[CTA_PROTONAT_PORT_MAX-1]	= sizeof(u_int16_t),
 };
