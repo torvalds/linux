@@ -6,3 +6,4 @@ obj-$(CONFIG_BOOKE)		+= dcr.o
 obj-$(CONFIG_40x)		+= dcr.o
 obj-$(CONFIG_U3_DART)		+= u3_iommu.o
 obj-$(CONFIG_MMIO_NVRAM)	+= mmio_nvram.o
+obj-$(CONFIG_83xx)		+= ipic.o
