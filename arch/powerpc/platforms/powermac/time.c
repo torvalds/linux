@@ -199,7 +199,8 @@ static unsigned long smu_get_time(void)
 #define smu_set_rtc_time(tm, spin)	0
 #endif
 
-unsigned long __init pmac_get_boot_time(void)
+/* Can't be __init, it's called when suspending and resuming */
+unsigned long pmac_get_boot_time(void)
 {
 	/* Get the time from the RTC, used only at boot time */
 	switch (sys_ctrler) {
