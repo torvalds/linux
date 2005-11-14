@@ -129,9 +129,16 @@ static inline void set_tssldt_descriptor(void *ptr, unsigned long tss, unsigned 
 
 static inline void set_tss_desc(unsigned cpu, void *addr)
 { 
-	set_tssldt_descriptor(&cpu_gdt_table[cpu][GDT_ENTRY_TSS], (unsigned long)addr, 
-			      DESC_TSS,
-			      sizeof(struct tss_struct) - 1);
+	/*
+	 * sizeof(unsigned long) coming from an extra "long" at the end
+	 * of the iobitmap. See tss_struct definition in processor.h
+	 *
+	 * -1? seg base+limit should be pointing to the address of the
+	 * last valid byte
+	 */
+	set_tssldt_descriptor(&cpu_gdt_table[cpu][GDT_ENTRY_TSS],
+		(unsigned long)addr, DESC_TSS,
+		IO_BITMAP_OFFSET + IO_BITMAP_BYTES + sizeof(unsigned long) - 1);
 } 
 
 static inline void set_ldt_desc(unsigned cpu, void *addr, int size)
