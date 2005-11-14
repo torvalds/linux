@@ -14,6 +14,7 @@
 #define current_text_addr() ({ __label__ _l; _l: &&_l;})
 
 #include <linux/config.h>
+#include <linux/thread_info.h>
 #include <asm/segment.h>
 #include <asm/fpu.h>
 #include <asm/ptrace.h>
@@ -79,6 +80,7 @@ struct thread_struct {
 	unsigned long  fpcntl[3];	/* fp control regs */
 	unsigned char  fpstate[FPSTATESIZE];  /* floating point state */
 	struct task_work work;
+	struct thread_info info;
 };
 
 #define INIT_THREAD  {							\

@@ -31,6 +31,7 @@ int main(void)
 	DEFINE(TASK_SIGPENDING, offsetof(struct task_struct, thread.work.sigpending));
 	DEFINE(TASK_NOTIFY_RESUME, offsetof(struct task_struct, thread.work.notify_resume));
 	DEFINE(TASK_THREAD, offsetof(struct task_struct, thread));
+	DEFINE(TASK_INFO, offsetof(struct task_struct, thread.info));
 	DEFINE(TASK_MM, offsetof(struct task_struct, mm));
 	DEFINE(TASK_ACTIVE_MM, offsetof(struct task_struct, active_mm));
 
@@ -44,6 +45,10 @@ int main(void)
 	DEFINE(THREAD_FPREG, offsetof(struct thread_struct, fp));
 	DEFINE(THREAD_FPCNTL, offsetof(struct thread_struct, fpcntl));
 	DEFINE(THREAD_FPSTATE, offsetof(struct thread_struct, fpstate));
+
+	/* offsets into the thread_info struct */
+	DEFINE(TINFO_PREEMPT, offsetof(struct thread_info, preempt_count));
+	DEFINE(TINFO_FLAGS, offsetof(struct thread_info, flags));
 
 	/* offsets into the pt_regs */
 	DEFINE(PT_D0, offsetof(struct pt_regs, d0));

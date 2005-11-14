@@ -2,7 +2,6 @@
 #define _ASM_M68K_THREAD_INFO_H
 
 #include <asm/types.h>
-#include <asm/processor.h>
 #include <asm/page.h>
 
 struct thread_info {
@@ -35,13 +34,20 @@ struct thread_info {
 #define free_thread_info(ti)  free_pages((unsigned long)(ti),1)
 #endif /* PAGE_SHIFT == 13 */
 
-//#define init_thread_info	(init_task.thread.info)
+#define init_thread_info	(init_task.thread.info)
 #define init_stack		(init_thread_union.stack)
 
-#define current_thread_info()	(current->thread_info)
-
+#define task_thread_info(tsk)	(&(tsk)->thread.info)
+#define current_thread_info()	task_thread_info(current)
 
 #define __HAVE_THREAD_FUNCTIONS
+
+#define setup_thread_stack(p, org) ({			\
+	*(struct task_struct **)(p)->thread_info = (p);	\
+	task_thread_info(p)->task = (p);		\
+})
+
+#define end_of_stack(p) ((unsigned long *)(p)->thread_info + 1)
 
 #define TIF_SYSCALL_TRACE	0	/* syscall trace active */
 #define TIF_DELAYED_TRACE	1	/* single step a syscall */
