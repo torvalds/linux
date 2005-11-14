@@ -1543,29 +1543,22 @@ static struct notifier_block ctnl_notifier_exp = {
 
 static struct nfnl_callback ctnl_cb[IPCTNL_MSG_MAX] = {
 	[IPCTNL_MSG_CT_NEW]		= { .call = ctnetlink_new_conntrack,
-					    .attr_count = CTA_MAX,
-					    .cap_required = CAP_NET_ADMIN },
+					    .attr_count = CTA_MAX, },
 	[IPCTNL_MSG_CT_GET] 		= { .call = ctnetlink_get_conntrack,
-					    .attr_count = CTA_MAX,
-					    .cap_required = CAP_NET_ADMIN },
+					    .attr_count = CTA_MAX, },
 	[IPCTNL_MSG_CT_DELETE]  	= { .call = ctnetlink_del_conntrack,
-					    .attr_count = CTA_MAX,
-					    .cap_required = CAP_NET_ADMIN },
+					    .attr_count = CTA_MAX, },
 	[IPCTNL_MSG_CT_GET_CTRZERO] 	= { .call = ctnetlink_get_conntrack,
-					    .attr_count = CTA_MAX,
-					    .cap_required = CAP_NET_ADMIN },
+					    .attr_count = CTA_MAX, },
 };
 
 static struct nfnl_callback ctnl_exp_cb[IPCTNL_MSG_EXP_MAX] = {
 	[IPCTNL_MSG_EXP_GET]		= { .call = ctnetlink_get_expect,
-					    .attr_count = CTA_EXPECT_MAX,
-					    .cap_required = CAP_NET_ADMIN },
+					    .attr_count = CTA_EXPECT_MAX, },
 	[IPCTNL_MSG_EXP_NEW]		= { .call = ctnetlink_new_expect,
-					    .attr_count = CTA_EXPECT_MAX,
-					    .cap_required = CAP_NET_ADMIN },
+					    .attr_count = CTA_EXPECT_MAX, },
 	[IPCTNL_MSG_EXP_DELETE]		= { .call = ctnetlink_del_expect,
-					    .attr_count = CTA_EXPECT_MAX,
-					    .cap_required = CAP_NET_ADMIN },
+					    .attr_count = CTA_EXPECT_MAX, },
 };
 
 static struct nfnetlink_subsystem ctnl_subsys = {

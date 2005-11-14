@@ -112,7 +112,6 @@ struct nfnl_callback
 {
 	int (*call)(struct sock *nl, struct sk_buff *skb, 
 		struct nlmsghdr *nlh, struct nfattr *cda[], int *errp);
-	kernel_cap_t cap_required; /* capabilities required for this msg */
 	u_int16_t attr_count;	/* number of nfattr's */
 };
 
