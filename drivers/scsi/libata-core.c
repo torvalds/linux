@@ -1263,7 +1263,7 @@ retry:
 	}
 
 	/* ATAPI-specific feature tests */
-	else {
+	else if (dev->class == ATA_DEV_ATAPI) {
 		if (ata_id_is_ata(dev->id))		/* sanity check */
 			goto err_out_nosup;
 
@@ -2399,7 +2399,7 @@ static void ata_sg_clean(struct ata_queued_cmd *qc)
 	if (qc->flags & ATA_QCFLAG_SINGLE)
 		assert(qc->n_elem == 1);
 
-	DPRINTK("unmapping %u sg elements\n", qc->n_elem);
+	VPRINTK("unmapping %u sg elements\n", qc->n_elem);
 
 	/* if we padded the buffer out to 32-bit bound, and data
 	 * xfer direction is from-device, we must copy from the
@@ -3432,16 +3432,11 @@ struct ata_queued_cmd *ata_qc_new_init(struct ata_port *ap,
 
 	qc = ata_qc_new(ap);
 	if (qc) {
-		qc->__sg = NULL;
-		qc->flags = 0;
 		qc->scsicmd = NULL;
 		qc->ap = ap;
 		qc->dev = dev;
-		qc->cursect = qc->cursg = qc->cursg_ofs = 0;
-		qc->nsect = 0;
-		qc->nbytes = qc->curbytes = 0;
 
-		ata_tf_init(ap, &qc->tf, dev->devno);
+		ata_qc_reinit(qc);
 	}
 
 	return qc;
