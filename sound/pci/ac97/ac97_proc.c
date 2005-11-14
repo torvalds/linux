@@ -79,8 +79,15 @@ static void snd_ac97_proc_read_main(ac97_t *ac97, snd_info_buffer_t * buffer, in
 
 	snd_ac97_get_name(NULL, ac97->id, name, 0);
 	snd_iprintf(buffer, "%d-%d/%d: %s\n\n", ac97->addr, ac97->num, subidx, name);
+
+
 	if ((ac97->scaps & AC97_SCAP_AUDIO) == 0)
 		goto __modem;
+
+        snd_iprintf(buffer, "PCI Subsys Vendor: 0x%04x\n",
+	            ac97->subsystem_vendor);
+        snd_iprintf(buffer, "PCI Subsys Device: 0x%04x\n\n",
+                    ac97->subsystem_device);
 
 	if ((ac97->ext_id & AC97_EI_REV_MASK) >= AC97_EI_REV_23) {
 		val = snd_ac97_read(ac97, AC97_INT_PAGING);
