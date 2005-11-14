@@ -603,7 +603,12 @@ static void ahci_intr_error(struct ata_port *ap, u32 irq_stat)
 	writel(tmp, port_mmio + PORT_CMD);
 	readl(port_mmio + PORT_CMD); /* flush */
 
-	printk(KERN_WARNING "ata%u: error occurred, port reset\n", ap->id);
+	printk(KERN_WARNING "ata%u: error occurred, port reset (%s%s%s%s)\n",
+	       ap->id,
+	       irq_stat & PORT_IRQ_TF_ERR ? "taskf " : "",
+	       irq_stat & PORT_IRQ_HBUS_ERR ? "hbus " : "",
+	       irq_stat & PORT_IRQ_HBUS_DATA_ERR ? "hbus_data " : "",
+	       irq_stat & PORT_IRQ_IF_ERR ? "if " : "");
 }
 
 static void ahci_eng_timeout(struct ata_port *ap)
@@ -618,13 +623,13 @@ static void ahci_eng_timeout(struct ata_port *ap)
 
 	spin_lock_irqsave(&host_set->lock, flags);
 
-	ahci_intr_error(ap, readl(port_mmio + PORT_IRQ_STAT));
-
 	qc = ata_qc_from_tag(ap, ap->active_tag);
 	if (!qc) {
 		printk(KERN_ERR "ata%u: BUG: timeout without command\n",
 		       ap->id);
 	} else {
+		ahci_intr_error(ap, readl(port_mmio + PORT_IRQ_STAT));
+
 		/* hack alert!  We cannot use the supplied completion
 	 	 * function from inside the ->eh_strategy_handler() thread.
 	 	 * libata is the only user of ->eh_strategy_handler() in
@@ -659,9 +664,18 @@ static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 	}
 
 	if (status & PORT_IRQ_FATAL) {
-		ahci_intr_error(ap, status);
+		unsigned int err_mask;
+		if (status & PORT_IRQ_TF_ERR)
+			err_mask = AC_ERR_DEV;
+		else if (status & PORT_IRQ_IF_ERR)
+			err_mask = AC_ERR_ATA_BUS;
+		else
+			err_mask = AC_ERR_HOST_BUS;
+
+		if (err_mask != AC_ERR_DEV)
+			ahci_intr_error(ap, status);
 		if (qc)
-			ata_qc_complete(qc, AC_ERR_OTHER);
+			ata_qc_complete(qc, err_mask);
 	}
 
 	return 1;
