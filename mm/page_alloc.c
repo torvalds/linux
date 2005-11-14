@@ -895,6 +895,7 @@ zone_reclaim_retry:
 	if (((p->flags & PF_MEMALLOC) || unlikely(test_thread_flag(TIF_MEMDIE)))
 			&& !in_interrupt()) {
 		if (!(gfp_mask & __GFP_NOMEMALLOC)) {
+nofail_alloc:
 			/* go through the zonelist yet again, ignoring mins */
 			for (i = 0; (z = zones[i]) != NULL; i++) {
 				if (!cpuset_zone_allowed(z, gfp_mask))
@@ -902,6 +903,10 @@ zone_reclaim_retry:
 				page = buffered_rmqueue(z, order, gfp_mask);
 				if (page)
 					goto got_pg;
+			}
+			if (gfp_mask & __GFP_NOFAIL) {
+				blk_congestion_wait(WRITE, HZ/50);
+				goto nofail_alloc;
 			}
 		}
 		goto nopage;
