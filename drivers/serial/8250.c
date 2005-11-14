@@ -999,7 +999,10 @@ static void autoconfig(struct uart_8250_port *up, unsigned int probeflags)
 	serial_outp(up, UART_MCR, save_mcr);
 	serial8250_clear_fifos(up);
 	(void)serial_in(up, UART_RX);
-	serial_outp(up, UART_IER, 0);
+	if (up->capabilities & UART_CAP_UUE)
+		serial_outp(up, UART_IER, UART_IER_UUE);
+	else
+		serial_outp(up, UART_IER, 0);
 
  out:	
 	spin_unlock_irqrestore(&up->port.lock, flags);
