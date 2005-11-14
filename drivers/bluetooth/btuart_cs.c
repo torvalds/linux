@@ -86,11 +86,7 @@ typedef struct btuart_info_t {
 
 static void btuart_config(dev_link_t *link);
 static void btuart_release(dev_link_t *link);
-static int btuart_event(event_t event, int priority, event_callback_args_t *args);
 
-static dev_info_t dev_info = "btuart_cs";
-
-static dev_link_t *btuart_attach(void);
 static void btuart_detach(struct pcmcia_device *p_dev);
 
 
@@ -580,17 +576,15 @@ static int btuart_close(btuart_info_t *info)
 	return 0;
 }
 
-static dev_link_t *btuart_attach(void)
+static int btuart_attach(struct pcmcia_device *p_dev)
 {
 	btuart_info_t *info;
-	client_reg_t client_reg;
 	dev_link_t *link;
-	int ret;
 
 	/* Create new info device */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return NULL;
+		return -ENOMEM;
 
 	link = &info->link;
 	link->priv = info;
@@ -607,20 +601,13 @@ static dev_link_t *btuart_attach(void)
 	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	/* Register with Card Services */
-	link->next = NULL;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		btuart_detach(link->handle);
-		return NULL;
-	}
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	btuart_config(link);
 
-	return link;
+	return 0;
 }
 
 
@@ -813,20 +800,6 @@ static int btuart_resume(struct pcmcia_device *dev)
 }
 
 
-static int btuart_event(event_t event, int priority, event_callback_args_t *args)
-{
-	dev_link_t *link = args->client_data;
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		btuart_config(link);
-		break;
-	}
-
-	return 0;
-}
-
 static struct pcmcia_device_id btuart_ids[] = {
 	/* don't use this driver. Use serial_cs + hci_uart instead */
 	PCMCIA_DEVICE_NULL
@@ -838,8 +811,7 @@ static struct pcmcia_driver btuart_driver = {
 	.drv		= {
 		.name	= "btuart_cs",
 	},
-	.attach		= btuart_attach,
-	.event		= btuart_event,
+	.probe		= btuart_attach,
 	.remove		= btuart_detach,
 	.id_table	= btuart_ids,
 	.suspend	= btuart_suspend,

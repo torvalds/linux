@@ -228,14 +228,6 @@ enum Phase {
 
 /* ================================================================== */
 
-/*
-*  Global (within this module) variables other than
-*  sym53c500_driver_template (the scsi_host_template).
-*/
-static dev_info_t dev_info = "sym53c500_cs";
-
-/* ================================================================== */
-
 static void
 chip_init(int io_port)
 {
@@ -909,22 +901,6 @@ static int sym53c500_resume(struct pcmcia_device *dev)
 	return 0;
 }
 
-static int
-SYM53C500_event(event_t event, int priority, event_callback_args_t *args)
-{
-	dev_link_t *link = args->client_data;
-
-	DEBUG(1, "SYM53C500_event(0x%06x)\n", event);
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		SYM53C500_config(link);
-		break;
-	}
-	return 0;
-} /* SYM53C500_event */
-
 static void
 SYM53C500_detach(struct pcmcia_device *p_dev)
 {
@@ -939,20 +915,18 @@ SYM53C500_detach(struct pcmcia_device *p_dev)
 	link->priv = NULL;
 } /* SYM53C500_detach */
 
-static dev_link_t *
-SYM53C500_attach(void)
+static int
+SYM53C500_attach(struct pcmcia_device *p_dev)
 {
 	struct scsi_info_t *info;
-	client_reg_t client_reg;
 	dev_link_t *link;
-	int ret;
 
 	DEBUG(0, "SYM53C500_attach()\n");
 
 	/* Create new SCSI device */
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return NULL;
+		return -ENOMEM;
 	memset(info, 0, sizeof(*info));
 	link = &info->link;
 	link->priv = info;
@@ -966,19 +940,13 @@ SYM53C500_attach(void)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.Present = PRESENT_OPTION;
 
-	/* Register with Card Services */
-	link->next = NULL;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != 0) {
-		cs_error(link->handle, RegisterClient, ret);
-		SYM53C500_detach(link->handle);
-		return NULL;
-	}
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	return link;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	SYM53C500_config(link);
+
+	return 0;
 } /* SYM53C500_attach */
 
 MODULE_AUTHOR("Bob Tracy <rct@frus.com>");
@@ -998,8 +966,7 @@ static struct pcmcia_driver sym53c500_cs_driver = {
 	.drv		= {
 		.name	= "sym53c500_cs",
 	},
-	.attach		= SYM53C500_attach,
-	.event		= SYM53C500_event,
+	.probe		= SYM53C500_attach,
 	.remove		= SYM53C500_detach,
 	.id_table       = sym53c500_ids,
 	.suspend	= sym53c500_suspend,

@@ -57,17 +57,6 @@ module_param(ignore_cis_vcc, int, 0);
 MODULE_PARM_DESC(ignore_cis_vcc, "Allow voltage mismatch between card and socket");
 
 /********************************************************************/
-/* Magic constants						    */
-/********************************************************************/
-
-/*
- * The dev_info variable is the "key" that is used to match up this
- * device driver with appropriate cards, through the card
- * configuration database.
- */
-static dev_info_t dev_info = DRIVER_NAME;
-
-/********************************************************************/
 /* Data structures						    */
 /********************************************************************/
 
@@ -82,8 +71,8 @@ struct orinoco_pccard {
 /* Function prototypes						    */
 /********************************************************************/
 
+static void spectrum_cs_config(dev_link_t *link);
 static void spectrum_cs_release(dev_link_t *link);
-static void spectrum_cs_detach(struct pcmcia_device *p_dev);
 
 /********************************************************************/
 /* Firmware downloader						    */
@@ -594,19 +583,17 @@ spectrum_cs_hard_reset(struct orinoco_private *priv)
  * The dev_link structure is initialized, but we don't actually
  * configure the card at this point -- we wait until we receive a card
  * insertion event.  */
-static dev_link_t *
-spectrum_cs_attach(void)
+static int
+spectrum_cs_attach(struct pcmcia_device *p_dev)
 {
 	struct net_device *dev;
 	struct orinoco_private *priv;
 	struct orinoco_pccard *card;
 	dev_link_t *link;
-	client_reg_t client_reg;
-	int ret;
 
 	dev = alloc_orinocodev(sizeof(*card), spectrum_cs_hard_reset);
 	if (! dev)
-		return NULL;
+		return -ENOMEM;
 	priv = netdev_priv(dev);
 	card = priv->card;
 
@@ -628,22 +615,13 @@ spectrum_cs_attach(void)
 	link->conf.Attributes = 0;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	/* Register with Card Services */
-	/* FIXME: need a lock? */
-	link->next = NULL; /* not needed */
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210; /* FIXME: what does this mean? */
-	client_reg.event_callback_args.client_data = link;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	spectrum_cs_config(link);
 
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		spectrum_cs_detach(link->handle);
-		return NULL;
-	}
-
-	return link;
+	return 0;
 }				/* spectrum_cs_attach */
 
 /*
@@ -977,26 +955,6 @@ spectrum_cs_resume(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-/*
- * The card status event handler.  Mostly, this schedules other stuff
- * to run after an event is received.
- */
-static int
-spectrum_cs_event(event_t event, int priority,
-		       event_callback_args_t * args)
-{
-	dev_link_t *link = args->client_data;
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		spectrum_cs_config(link);
-		break;
-
-	}
-
-	return 0;
-}				/* spectrum_cs_event */
 
 /********************************************************************/
 /* Module initialization					    */
@@ -1021,11 +979,10 @@ static struct pcmcia_driver orinoco_driver = {
 	.drv		= {
 		.name	= DRIVER_NAME,
 	},
-	.attach		= spectrum_cs_attach,
+	.probe		= spectrum_cs_attach,
 	.remove		= spectrum_cs_detach,
 	.suspend	= spectrum_cs_suspend,
 	.resume		= spectrum_cs_resume,
-	.event		= spectrum_cs_event,
 	.id_table       = spectrum_cs_ids,
 };
 

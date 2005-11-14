@@ -97,8 +97,6 @@ module_param(protocol, int, 0);
 
 static void sedlbauer_config(dev_link_t *link);
 static void sedlbauer_release(dev_link_t *link);
-static int sedlbauer_event(event_t event, int priority,
-		       event_callback_args_t *args);
 
 /*
    The attach() and detach() entry points are used to create and destroy
@@ -106,7 +104,6 @@ static int sedlbauer_event(event_t event, int priority,
    needed to manage one actual PCMCIA card.
 */
 
-static dev_link_t *sedlbauer_attach(void);
 static void sedlbauer_detach(struct pcmcia_device *p_dev);
 
 /*
@@ -114,24 +111,6 @@ static void sedlbauer_detach(struct pcmcia_device *p_dev);
    be used to talk to your device.  See 'memory_cs' for a good example
    of a fully self-sufficient driver; the other drivers rely more or
    less on other parts of the kernel.
-*/
-
-/*
-   The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-
-static dev_info_t dev_info = "sedlbauer_cs";
-
-/*
-   A linked list of "instances" of the sedlbauer device.  Each actual
-   PCMCIA card corresponds to one device instance, and is described
-   by one dev_link_t structure (defined in ds.h).
-
-   You may not want to use a linked list for this -- for example, the
-   memory card driver uses an array of dev_link_t pointers, where minor
-   device numbers are used to derive the corresponding array index.
 */
 
 /*
@@ -169,18 +148,16 @@ typedef struct local_info_t {
     
 ======================================================================*/
 
-static dev_link_t *sedlbauer_attach(void)
+static int sedlbauer_attach(struct pcmcia_device *p_dev)
 {
     local_info_t *local;
     dev_link_t *link;
-    client_reg_t client_reg;
-    int ret;
     
     DEBUG(0, "sedlbauer_attach()\n");
 
     /* Allocate space for private device-specific data */
     local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
-    if (!local) return NULL;
+    if (!local) return -ENOMEM;
     memset(local, 0, sizeof(local_info_t));
     local->cardnr = -1;
     link = &local->link; link->priv = local;
@@ -210,19 +187,13 @@ static dev_link_t *sedlbauer_attach(void)
     link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    /* Register with Card Services */
-    link->next = NULL;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != CS_SUCCESS) {
-	cs_error(link->handle, RegisterClient, ret);
-	sedlbauer_detach(link->handle);
-	return NULL;
-    }
+    link->handle = p_dev;
+    p_dev->instance = link;
 
-    return link;
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    sedlbauer_config(link);
+
+    return 0;
 } /* sedlbauer_attach */
 
 /*======================================================================
@@ -541,33 +512,6 @@ static int sedlbauer_resume(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.
-
-    When a CARD_REMOVAL event is received, we immediately set a
-    private flag to block future accesses to this device.  All the
-    functions that actually access the device should check this flag
-    to make sure the card is still present.
-    
-======================================================================*/
-
-static int sedlbauer_event(event_t event, int priority,
-		       event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-    
-    DEBUG(1, "sedlbauer_event(0x%06x)\n", event);
-    
-    switch (event) {
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	sedlbauer_config(link);
-	break;
-    }
-    return 0;
-} /* sedlbauer_event */
 
 static struct pcmcia_device_id sedlbauer_ids[] = {
 	PCMCIA_DEVICE_PROD_ID123("SEDLBAUER", "speed star II", "V 3.1", 0x81fb79f5, 0xf3612e1d, 0x6b95c78a),
@@ -586,8 +530,7 @@ static struct pcmcia_driver sedlbauer_driver = {
 	.drv		= {
 		.name	= "sedlbauer_cs",
 	},
-	.attach		= sedlbauer_attach,
-	.event		= sedlbauer_event,
+	.probe		= sedlbauer_attach,
 	.remove		= sedlbauer_detach,
 	.id_table	= sedlbauer_ids,
 	.suspend	= sedlbauer_suspend,

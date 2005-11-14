@@ -88,12 +88,8 @@ typedef struct ide_info_t {
 } ide_info_t;
 
 static void ide_release(dev_link_t *);
-static int ide_event(event_t event, int priority,
-		     event_callback_args_t *args);
+static void ide_config(dev_link_t *);
 
-static dev_info_t dev_info = "ide-cs";
-
-static dev_link_t *ide_attach(void);
 static void ide_detach(struct pcmcia_device *p_dev);
 
 
@@ -107,18 +103,17 @@ static void ide_detach(struct pcmcia_device *p_dev);
 
 ======================================================================*/
 
-static dev_link_t *ide_attach(void)
+static int ide_attach(struct pcmcia_device *p_dev)
 {
     ide_info_t *info;
     dev_link_t *link;
-    client_reg_t client_reg;
-    int ret;
-    
+
     DEBUG(0, "ide_attach()\n");
 
     /* Create new ide device */
     info = kzalloc(sizeof(*info), GFP_KERNEL);
-    if (!info) return NULL;
+    if (!info)
+	return -ENOMEM;
     link = &info->link; link->priv = info;
 
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -129,20 +124,14 @@ static dev_link_t *ide_attach(void)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
-    
-    /* Register with Card Services */
-    link->next = NULL;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != CS_SUCCESS) {
-	cs_error(link->handle, RegisterClient, ret);
-	ide_detach(link->handle);
-	return NULL;
-    }
-    
-    return link;
+
+    link->handle = p_dev;
+    p_dev->instance = link;
+
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    ide_config(link);
+
+    return 0;
 } /* ide_attach */
 
 /*======================================================================
@@ -421,22 +410,6 @@ static int ide_resume(struct pcmcia_device *dev)
     
 ======================================================================*/
 
-int ide_event(event_t event, int priority,
-	      event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-
-    DEBUG(1, "ide_event(0x%06x)\n", event);
-    
-    switch (event) {
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	ide_config(link);
-	break;
-    }
-    return 0;
-} /* ide_event */
-
 static struct pcmcia_device_id ide_ids[] = {
 	PCMCIA_DEVICE_FUNC_ID(4),
 	PCMCIA_DEVICE_MANF_CARD(0x0032, 0x0704),
@@ -481,8 +454,7 @@ static struct pcmcia_driver ide_cs_driver = {
 	.drv		= {
 		.name	= "ide-cs",
 	},
-	.attach		= ide_attach,
-	.event		= ide_event,
+	.probe		= ide_attach,
 	.remove		= ide_detach,
 	.id_table       = ide_ids,
 	.suspend	= ide_suspend,

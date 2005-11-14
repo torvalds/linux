@@ -53,8 +53,6 @@ MODULE_LICENSE("GPL");
 
 static void avmcs_config(dev_link_t *link);
 static void avmcs_release(dev_link_t *link);
-static int avmcs_event(event_t event, int priority,
-			  event_callback_args_t *args);
 
 /*
    The attach() and detach() entry points are used to create and destroy
@@ -62,16 +60,7 @@ static int avmcs_event(event_t event, int priority,
    needed to manage one actual PCMCIA card.
 */
 
-static dev_link_t *avmcs_attach(void);
 static void avmcs_detach(struct pcmcia_device *p_dev);
-
-/*
-   The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-
-static dev_info_t dev_info = "avm_cs";
 
 /*
    A linked list of "instances" of the skeleton device.  Each actual
@@ -110,13 +99,11 @@ typedef struct local_info_t {
     
 ======================================================================*/
 
-static dev_link_t *avmcs_attach(void)
+static int avmcs_attach(struct pcmcia_device *p_dev)
 {
-    client_reg_t client_reg;
     dev_link_t *link;
     local_info_t *local;
-    int ret;
-    
+
     /* Initialize the dev_link_t structure */
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
     if (!link)
@@ -147,24 +134,19 @@ static dev_link_t *avmcs_attach(void)
         goto err_kfree;
     memset(local, 0, sizeof(local_info_t));
     link->priv = local;
-    
-    /* Register with Card Services */
-    link->next = NULL;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-	cs_error(link->handle, RegisterClient, ret);
-	avmcs_detach(link->handle);
-	goto err;
-    }
-    return link;
+
+    link->handle = p_dev;
+    p_dev->instance = link;
+
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    avmcs_config(link);
+
+    return 0;
 
  err_kfree:
     kfree(link);
  err:
-    return NULL;
+    return -EINVAL;
 } /* avmcs_attach */
 
 /*======================================================================
@@ -433,19 +415,6 @@ static int avmcs_resume(struct pcmcia_device *dev)
     
 ======================================================================*/
 
-static int avmcs_event(event_t event, int priority,
-			  event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-
-    switch (event) {
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	avmcs_config(link);
-	break;
-    }
-    return 0;
-} /* avmcs_event */
 
 static struct pcmcia_device_id avmcs_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("AVM", "ISDN-Controller B1", 0x95d42008, 0x845dc335),
@@ -460,8 +429,7 @@ static struct pcmcia_driver avmcs_driver = {
 	.drv	= {
 		.name	= "avm_cs",
 	},
-	.attach	= avmcs_attach,
-	.event	= avmcs_event,
+	.probe = avmcs_attach,
 	.remove	= avmcs_detach,
 	.id_table = avmcs_ids,
 	.suspend= avmcs_suspend,

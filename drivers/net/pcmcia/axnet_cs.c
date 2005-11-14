@@ -87,8 +87,6 @@ static char *version =
 
 static void axnet_config(dev_link_t *link);
 static void axnet_release(dev_link_t *link);
-static int axnet_event(event_t event, int priority,
-		       event_callback_args_t *args);
 static int axnet_open(struct net_device *dev);
 static int axnet_close(struct net_device *dev);
 static int axnet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -107,10 +105,7 @@ static void block_input(struct net_device *dev, int count,
 static void block_output(struct net_device *dev, int count,
 			 const u_char *buf, const int start_page);
 
-static dev_link_t *axnet_attach(void);
 static void axnet_detach(struct pcmcia_device *p_dev);
-
-static dev_info_t dev_info = "axnet_cs";
 
 static void axdev_setup(struct net_device *dev);
 static void AX88190_init(struct net_device *dev, int startp);
@@ -146,13 +141,11 @@ static inline axnet_dev_t *PRIV(struct net_device *dev)
 
 ======================================================================*/
 
-static dev_link_t *axnet_attach(void)
+static int axnet_attach(struct pcmcia_device *p_dev)
 {
     axnet_dev_t *info;
     dev_link_t *link;
     struct net_device *dev;
-    client_reg_t client_reg;
-    int ret;
 
     DEBUG(0, "axnet_attach()\n");
 
@@ -160,7 +153,7 @@ static dev_link_t *axnet_attach(void)
 			"eth%d", axdev_setup);
 
     if (!dev)
-	return NULL;
+	return -ENOMEM;
 
     info = PRIV(dev);
     link = &info->link;
@@ -175,19 +168,13 @@ static dev_link_t *axnet_attach(void)
     dev->do_ioctl = &axnet_ioctl;
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
-    /* Register with Card Services */
-    link->next = NULL;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != CS_SUCCESS) {
-	cs_error(link->handle, RegisterClient, ret);
-	axnet_detach(link->handle);
-	return NULL;
-    }
+    link->handle = p_dev;
+    p_dev->instance = link;
 
-    return link;
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    axnet_config(link);
+
+    return 0;
 } /* axnet_attach */
 
 /*======================================================================
@@ -513,31 +500,6 @@ static int axnet_resume(struct pcmcia_device *p_dev)
 
 /*======================================================================
 
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-======================================================================*/
-
-static int axnet_event(event_t event, int priority,
-		       event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-
-    DEBUG(2, "axnet_event(0x%06x)\n", event);
-
-    switch (event) {
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	axnet_config(link);
-	break;
-    }
-    return 0;
-} /* axnet_event */
-
-/*======================================================================
-
     MII interface support
 
 ======================================================================*/
@@ -608,7 +570,7 @@ static int axnet_open(struct net_device *dev)
 
     link->open++;
 
-    request_irq(dev->irq, ei_irq_wrapper, SA_SHIRQ, dev_info, dev);
+    request_irq(dev->irq, ei_irq_wrapper, SA_SHIRQ, "axnet_cs", dev);
 
     info->link_status = 0x00;
     init_timer(&info->watchdog);
@@ -869,8 +831,7 @@ static struct pcmcia_driver axnet_cs_driver = {
 	.drv		= {
 		.name	= "axnet_cs",
 	},
-	.attach		= axnet_attach,
-	.event		= axnet_event,
+	.probe		= axnet_attach,
 	.remove		= axnet_detach,
 	.id_table       = axnet_ids,
 	.suspend	= axnet_suspend,

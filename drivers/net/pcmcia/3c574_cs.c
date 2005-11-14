@@ -227,8 +227,6 @@ static char mii_preamble_required = 0;
 
 static void tc574_config(dev_link_t *link);
 static void tc574_release(dev_link_t *link);
-static int tc574_event(event_t event, int priority,
-					   event_callback_args_t *args);
 
 static void mdio_sync(kio_addr_t ioaddr, int bits);
 static int mdio_read(kio_addr_t ioaddr, int phy_id, int location);
@@ -250,9 +248,6 @@ static int el3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static struct ethtool_ops netdev_ethtool_ops;
 static void set_rx_mode(struct net_device *dev);
 
-static dev_info_t dev_info = "3c574_cs";
-
-static dev_link_t *tc574_attach(void);
 static void tc574_detach(struct pcmcia_device *p_dev);
 
 /*
@@ -261,20 +256,18 @@ static void tc574_detach(struct pcmcia_device *p_dev);
 	with Card Services.
 */
 
-static dev_link_t *tc574_attach(void)
+static int tc574_attach(struct pcmcia_device *p_dev)
 {
 	struct el3_private *lp;
-	client_reg_t client_reg;
 	dev_link_t *link;
 	struct net_device *dev;
-	int ret;
 
 	DEBUG(0, "3c574_attach()\n");
 
 	/* Create the PC card device object. */
 	dev = alloc_etherdev(sizeof(struct el3_private));
 	if (!dev)
-		return NULL;
+		return -ENOMEM;
 	lp = netdev_priv(dev);
 	link = &lp->link;
 	link->priv = dev;
@@ -305,19 +298,13 @@ static dev_link_t *tc574_attach(void)
 	dev->watchdog_timeo = TX_TIMEOUT;
 #endif
 
-	/* Register with Card Services */
-	link->next = NULL;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != 0) {
-		cs_error(link->handle, RegisterClient, ret);
-		tc574_detach(link->handle);
-		return NULL;
-	}
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	return link;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	tc574_config(link);
+
+	return 0;
 } /* tc574_attach */
 
 /*
@@ -564,29 +551,6 @@ static int tc574_resume(struct pcmcia_device *p_dev)
 
 	return 0;
 }
-
-/*
-	The card status event handler.  Mostly, this schedules other
-	stuff to run after an event is received.  A CARD_REMOVAL event
-	also sets some flags to discourage the net drivers from trying
-	to talk to the card any more.
-*/
-
-static int tc574_event(event_t event, int priority,
-					   event_callback_args_t *args)
-{
-	dev_link_t *link = args->client_data;
-
-	DEBUG(1, "3c574_event(0x%06x)\n", event);
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		tc574_config(link);
-		break;
-	}
-	return 0;
-} /* tc574_event */
 
 static void dump_status(struct net_device *dev)
 {
@@ -1282,8 +1246,7 @@ static struct pcmcia_driver tc574_driver = {
 	.drv		= {
 		.name	= "3c574_cs",
 	},
-	.attach		= tc574_attach,
-	.event		= tc574_event,
+	.probe		= tc574_attach,
 	.remove		= tc574_detach,
 	.id_table       = tc574_ids,
 	.suspend	= tc574_suspend,

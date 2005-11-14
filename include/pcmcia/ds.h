@@ -133,10 +133,7 @@ typedef struct dev_link_t {
 struct pcmcia_socket;
 
 struct pcmcia_driver {
-	dev_link_t		*(*attach)(void);
-	int (*event)		(event_t event, int priority,
-				 event_callback_args_t *);
-
+	int (*probe)		(struct pcmcia_device *dev);
 	void (*remove)		(struct pcmcia_device *dev);
 
 	int (*suspend)		(struct pcmcia_device *dev);
@@ -169,7 +166,6 @@ struct pcmcia_device {
 	/* deprecated, a cleaned up version will be moved into this
 	   struct soon */
 	dev_link_t		*instance;
-	event_callback_args_t 	event_callback_args;
 	u_int			state;
 
 	/* information about this device */

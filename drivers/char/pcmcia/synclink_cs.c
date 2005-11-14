@@ -486,12 +486,7 @@ static void mgslpc_wait_until_sent(struct tty_struct *tty, int timeout);
 
 static void mgslpc_config(dev_link_t *link);
 static void mgslpc_release(u_long arg);
-static int  mgslpc_event(event_t event, int priority,
-			 event_callback_args_t *args);
-static dev_link_t *mgslpc_attach(void);
 static void mgslpc_detach(struct pcmcia_device *p_dev);
-
-static dev_info_t dev_info = "synclink_cs";
 
 /*
  * 1st function defined in .text section. Calling this function in
@@ -538,12 +533,10 @@ static void ldisc_receive_buf(struct tty_struct *tty,
 	}
 }
 
-static dev_link_t *mgslpc_attach(void)
+static int mgslpc_attach(struct pcmcia_device *p_dev)
 {
     MGSLPC_INFO *info;
     dev_link_t *link;
-    client_reg_t client_reg;
-    int ret;
     
     if (debug_level >= DEBUG_LEVEL_INFO)
 	    printk("mgslpc_attach\n");
@@ -551,7 +544,7 @@ static dev_link_t *mgslpc_attach(void)
     info = (MGSLPC_INFO *)kmalloc(sizeof(MGSLPC_INFO), GFP_KERNEL);
     if (!info) {
 	    printk("Error can't allocate device instance data\n");
-	    return NULL;
+	    return -ENOMEM;
     }
 
     memset(info, 0, sizeof(MGSLPC_INFO));
@@ -586,23 +579,15 @@ static dev_link_t *mgslpc_attach(void)
     link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    /* Register with Card Services */
-    link->next = NULL;
+    link->handle = p_dev;
+    p_dev->instance = link;
 
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != CS_SUCCESS) {
-	    cs_error(link->handle, RegisterClient, ret);
-	    mgslpc_detach(link->handle);
-	    return NULL;
-    }
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    mgslpc_config(link);
 
     mgslpc_add_device(info);
 
-    return link;
+    return 0;
 }
 
 /* Card has been inserted.
@@ -777,23 +762,6 @@ static int mgslpc_resume(struct pcmcia_device *dev)
 	return 0;
 }
 
-
-static int mgslpc_event(event_t event, int priority,
-			event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-    
-    if (debug_level >= DEBUG_LEVEL_INFO)
-	    printk("mgslpc_event(0x%06x)\n", event);
-    
-    switch (event) {
-    case CS_EVENT_CARD_INSERTION:
-	    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	    mgslpc_config(link);
-	    break;
-    }
-    return 0;
-}
 
 static inline int mgslpc_paranoia_check(MGSLPC_INFO *info,
 					char *name, const char *routine)
@@ -3071,8 +3039,7 @@ static struct pcmcia_driver mgslpc_driver = {
 	.drv		= {
 		.name	= "synclink_cs",
 	},
-	.attach		= mgslpc_attach,
-	.event		= mgslpc_event,
+	.probe		= mgslpc_attach,
 	.remove		= mgslpc_detach,
 	.id_table	= mgslpc_ids,
 	.suspend	= mgslpc_suspend,

@@ -1,7 +1,9 @@
 This file details changes in 2.6 which affect PCMCIA card driver authors:
 
-* Unify detach and REMOVAL event code (as of 2.6.16)
-        void (*remove)          (struct pcmcia_device *dev);
+* Unify detach and REMOVAL event code, as well as attach and INSERTION
+  code (as of 2.6.16)
+       void (*remove)          (struct pcmcia_device *dev);
+       int (*probe)            (struct pcmcia_device *dev);
 
 * Move suspend, resume and reset out of event handler (as of 2.6.16)
        int (*suspend)          (struct pcmcia_device *dev);

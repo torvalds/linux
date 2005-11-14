@@ -66,8 +66,6 @@ struct pcmciamtd_dev {
 };
 
 
-static dev_info_t dev_info = "pcmciamtd";
-
 /* Module parameters */
 
 /* 2 = do 16-bit transfers, 1 = do 8-bit transfers */
@@ -708,30 +706,6 @@ static int pcmciamtd_resume(struct pcmcia_device *dev)
 	return 0;
 }
 
-/* The card status event handler.  Mostly, this schedules other
- * stuff to run after an event is received.  A CARD_REMOVAL event
- * also sets some flags to discourage the driver from trying
- * to talk to the card any more.
- */
-
-static int pcmciamtd_event(event_t event, int priority,
-			event_callback_args_t *args)
-{
-	dev_link_t *link = args->client_data;
-
-	DEBUG(1, "event=0x%06x", event);
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		DEBUG(2, "EVENT_CARD_INSERTION");
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		pcmciamtd_config(link);
-		break;
-	default:
-		DEBUG(2, "Unknown event %d", event);
-	}
-	return 0;
-}
-
 
 /* This deletes a driver "instance".  The device is de-registered
  * with Card Services.  If it has been released, all local data
@@ -762,16 +736,14 @@ static void pcmciamtd_detach(struct pcmcia_device *p_dev)
  * with Card Services.
  */
 
-static dev_link_t *pcmciamtd_attach(void)
+static int pcmciamtd_attach(struct pcmcia_device *p_dev)
 {
 	struct pcmciamtd_dev *dev;
 	dev_link_t *link;
-	client_reg_t client_reg;
-	int ret;
 
 	/* Create new memory card device */
 	dev = kmalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) return NULL;
+	if (!dev) return -ENOMEM;
 	DEBUG(1, "dev=0x%p", dev);
 
 	memset(dev, 0, sizeof(*dev));
@@ -782,20 +754,13 @@ static dev_link_t *pcmciamtd_attach(void)
 	link->conf.IntType = INT_MEMORY;
 
 	link->next = NULL;
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	/* Register with Card Services */
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	DEBUG(2, "Calling RegisterClient");
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != 0) {
-		cs_error(link->handle, RegisterClient, ret);
-		pcmciamtd_detach(link->handle);
-		return NULL;
-	}
-	DEBUG(2, "link = %p", link);
-	return link;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	pcmciamtd_config(link);
+
+	return 0;
 }
 
 static struct pcmcia_device_id pcmciamtd_ids[] = {
@@ -829,8 +794,7 @@ static struct pcmcia_driver pcmciamtd_driver = {
 	.drv		= {
 		.name	= "pcmciamtd"
 	},
-	.attach		= pcmciamtd_attach,
-	.event		= pcmciamtd_event,
+	.probe		= pcmciamtd_attach,
 	.remove		= pcmciamtd_detach,
 	.owner		= THIS_MODULE,
 	.id_table	= pcmciamtd_ids,

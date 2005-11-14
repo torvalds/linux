@@ -43,17 +43,6 @@ module_param(ignore_cis_vcc, int, 0);
 MODULE_PARM_DESC(ignore_cis_vcc, "Allow voltage mismatch between card and socket");
 
 /********************************************************************/
-/* Magic constants						    */
-/********************************************************************/
-
-/*
- * The dev_info variable is the "key" that is used to match up this
- * device driver with appropriate cards, through the card
- * configuration database.
- */
-static dev_info_t dev_info = DRIVER_NAME;
-
-/********************************************************************/
 /* Data structures						    */
 /********************************************************************/
 
@@ -74,6 +63,7 @@ struct orinoco_pccard {
 /* Function prototypes						    */
 /********************************************************************/
 
+static void orinoco_cs_config(dev_link_t *link);
 static void orinoco_cs_release(dev_link_t *link);
 static void orinoco_cs_detach(struct pcmcia_device *p_dev);
 
@@ -113,19 +103,17 @@ orinoco_cs_hard_reset(struct orinoco_private *priv)
  * The dev_link structure is initialized, but we don't actually
  * configure the card at this point -- we wait until we receive a card
  * insertion event.  */
-static dev_link_t *
-orinoco_cs_attach(void)
+static int
+orinoco_cs_attach(struct pcmcia_device *p_dev)
 {
 	struct net_device *dev;
 	struct orinoco_private *priv;
 	struct orinoco_pccard *card;
 	dev_link_t *link;
-	client_reg_t client_reg;
-	int ret;
 
 	dev = alloc_orinocodev(sizeof(*card), orinoco_cs_hard_reset);
 	if (! dev)
-		return NULL;
+		return -ENOMEM;
 	priv = netdev_priv(dev);
 	card = priv->card;
 
@@ -150,18 +138,13 @@ orinoco_cs_attach(void)
 	/* Register with Card Services */
 	link->next = NULL;
 
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210; /* FIXME: what does this mean? */
-	client_reg.event_callback_args.client_data = link;
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		orinoco_cs_detach(link->handle);
-		return NULL;
-	}
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	orinoco_cs_config(link);
 
-	return link;
+	return 0;
 }				/* orinoco_cs_attach */
 
 /*
@@ -521,26 +504,6 @@ static int orinoco_cs_resume(struct pcmcia_device *p_dev)
 }
 
 
-/*
- * The card status event handler.  Mostly, this schedules other stuff
- * to run after an event is received.
- */
-static int
-orinoco_cs_event(event_t event, int priority,
-		       event_callback_args_t * args)
-{
-	dev_link_t *link = args->client_data;
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		orinoco_cs_config(link);
-		break;
-	}
-
-	return 0;
-}				/* orinoco_cs_event */
-
 /********************************************************************/
 /* Module initialization					    */
 /********************************************************************/
@@ -640,9 +603,8 @@ static struct pcmcia_driver orinoco_driver = {
 	.drv		= {
 		.name	= DRIVER_NAME,
 	},
-	.attach		= orinoco_cs_attach,
+	.probe		= orinoco_cs_attach,
 	.remove		= orinoco_cs_detach,
-	.event		= orinoco_cs_event,
 	.id_table       = orinoco_cs_ids,
 	.suspend	= orinoco_cs_suspend,
 	.resume		= orinoco_cs_resume,

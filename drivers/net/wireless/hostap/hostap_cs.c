@@ -204,8 +204,7 @@ static int hfa384x_to_bap(struct net_device *dev, u16 bap, void *buf, int len)
 
 static void prism2_detach(struct pcmcia_device *p_dev);
 static void prism2_release(u_long arg);
-static int prism2_event(event_t event, int priority,
-			event_callback_args_t *args);
+static int prism2_config(dev_link_t *link);
 
 
 static int prism2_pccard_card_present(local_info_t *local)
@@ -502,15 +501,13 @@ static struct prism2_helper_functions prism2_pccard_funcs =
 
 /* allocate local data and register with CardServices
  * initialize dev_link structure, but do not configure the card yet */
-static dev_link_t *prism2_attach(void)
+static int prism2_attach(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link;
-	client_reg_t client_reg;
-	int ret;
 
 	link = kmalloc(sizeof(dev_link_t), GFP_KERNEL);
 	if (link == NULL)
-		return NULL;
+		return -ENOMEM;
 
 	memset(link, 0, sizeof(dev_link_t));
 
@@ -518,18 +515,14 @@ static dev_link_t *prism2_attach(void)
 	link->conf.Vcc = 33;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	/* register with CardServices */
-	link->next = NULL;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		prism2_detach(link->handle);
-		return NULL;
-	}
-	return link;
+	link->handle = p_dev;
+	p_dev->instance = link;
+
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	if (prism2_config(link))
+		PDEBUG(DEBUG_EXTRA, "prism2_config() failed\n");
+
+	return 0;
 }
 
 
@@ -878,29 +871,6 @@ static int hostap_cs_resume(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static int prism2_event(event_t event, int priority,
-			event_callback_args_t *args)
-{
-	dev_link_t *link = args->client_data;
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		PDEBUG(DEBUG_EXTRA, "%s: CS_EVENT_CARD_INSERTION\n", dev_info);
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		if (prism2_config(link)) {
-			PDEBUG(DEBUG_EXTRA, "prism2_config() failed\n");
-		}
-		break;
-
-	default:
-		PDEBUG(DEBUG_EXTRA, "%s: prism2_event() - unknown event %d\n",
-		       dev_info, event);
-		break;
-	}
-	return 0;
-}
-
-
 static struct pcmcia_device_id hostap_cs_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x000b, 0x7100),
 	PCMCIA_DEVICE_MANF_CARD(0x000b, 0x7300),
@@ -959,10 +929,9 @@ static struct pcmcia_driver hostap_driver = {
 	.drv		= {
 		.name	= "hostap_cs",
 	},
-	.attach		= prism2_attach,
+	.probe		= prism2_attach,
 	.remove		= prism2_detach,
 	.owner		= THIS_MODULE,
-	.event		= prism2_event,
 	.id_table	= hostap_cs_ids,
 	.suspend	= hostap_cs_suspend,
 	.resume		= hostap_cs_resume,

@@ -98,13 +98,8 @@ typedef struct scsi_info_t {
 } scsi_info_t;
 
 static void qlogic_release(dev_link_t *link);
-static int qlogic_event(event_t event, int priority, event_callback_args_t * args);
-
-static dev_link_t *qlogic_attach(void);
 static void qlogic_detach(struct pcmcia_device *p_dev);
-
-
-static dev_info_t dev_info = "qlogic_cs";
+static void qlogic_config(dev_link_t * link);
 
 static struct Scsi_Host *qlogic_detect(struct scsi_host_template *host,
 				dev_link_t *link, int qbase, int qlirq)
@@ -161,19 +156,17 @@ free_scsi_host:
 err:
 	return NULL;
 }
-static dev_link_t *qlogic_attach(void)
+static int qlogic_attach(struct pcmcia_device *p_dev)
 {
 	scsi_info_t *info;
-	client_reg_t client_reg;
 	dev_link_t *link;
-	int ret;
 
 	DEBUG(0, "qlogic_attach()\n");
 
 	/* Create new SCSI device */
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return NULL;
+		return -ENOMEM;
 	memset(info, 0, sizeof(*info));
 	link = &info->link;
 	link->priv = info;
@@ -187,19 +180,13 @@ static dev_link_t *qlogic_attach(void)
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.Present = PRESENT_OPTION;
 
-	/* Register with Card Services */
-	link->next = NULL;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != 0) {
-		cs_error(link->handle, RegisterClient, ret);
-		qlogic_detach(link->handle);
-		return NULL;
-	}
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	return link;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	qlogic_config(link);
+
+	return 0;
 }				/* qlogic_attach */
 
 /*====================================================================*/
@@ -368,21 +355,6 @@ static int qlogic_resume(struct pcmcia_device *dev)
 	return 0;
 }
 
-static int qlogic_event(event_t event, int priority, event_callback_args_t * args)
-{
-	dev_link_t *link = args->client_data;
-
-	DEBUG(1, "qlogic_event(0x%06x)\n", event);
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		qlogic_config(link);
-		break;
-	}
-	return 0;
-}				/* qlogic_event */
-
 static struct pcmcia_device_id qlogic_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("EIger Labs", "PCMCIA-to-SCSI Adapter", 0x88395fa7, 0x33b7a5e6),
 	PCMCIA_DEVICE_PROD_ID12("EPSON", "SCSI-2 PC Card SC200", 0xd361772f, 0x299d1751),
@@ -410,8 +382,7 @@ static struct pcmcia_driver qlogic_cs_driver = {
 	.drv		= {
 	.name		= "qlogic_cs",
 	},
-	.attach		= qlogic_attach,
-	.event		= qlogic_event,
+	.probe		= qlogic_attach,
 	.remove		= qlogic_detach,
 	.id_table       = qlogic_ids,
 	.suspend	= qlogic_suspend,

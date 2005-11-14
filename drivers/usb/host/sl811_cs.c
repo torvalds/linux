@@ -325,32 +325,14 @@ static int sl811_resume(struct pcmcia_device *dev)
 	return 0;
 }
 
-static int
-sl811_cs_event(event_t event, int priority, event_callback_args_t *args)
-{
-	dev_link_t *link = args->client_data;
-
-	DBG(1, "sl811_cs_event(0x%06x)\n", event);
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		sl811_cs_config(link);
-		break;
-	}
-	return 0;
-}
-
-static dev_link_t *sl811_cs_attach(void)
+static int sl811_cs_attach(struct pcmcia_device *p_dev)
 {
 	local_info_t *local;
 	dev_link_t *link;
-	client_reg_t client_reg;
-	int ret;
 
 	local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local)
-		return NULL;
+		return -ENOMEM;
 	memset(local, 0, sizeof(local_info_t));
 	link = &local->link;
 	link->priv = local;
@@ -364,20 +346,13 @@ static dev_link_t *sl811_cs_attach(void)
 	link->conf.Vcc = 33;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	/* Register with Card Services */
-	link->next = NULL;
-	client_reg.dev_info = (dev_info_t *) &driver_name;
-	client_reg.Attributes = INFO_IO_CLIENT | INFO_CARD_SHARE;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		sl811_cs_detach(link->handle);
-		return NULL;
-	}
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	return link;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	sl811_cs_config(link);
+
+	return 0;
 }
 
 static struct pcmcia_device_id sl811_ids[] = {
@@ -391,8 +366,7 @@ static struct pcmcia_driver sl811_cs_driver = {
 	.drv		= {
 		.name	= (char *)driver_name,
 	},
-	.attach		= sl811_cs_attach,
-	.event		= sl811_cs_event,
+	.probe		= sl811_cs_attach,
 	.remove		= sl811_cs_detach,
 	.id_table	= sl811_ids,
 	.suspend	= sl811_suspend,

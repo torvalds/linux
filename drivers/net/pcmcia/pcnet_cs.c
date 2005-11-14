@@ -105,8 +105,6 @@ module_param_array(hw_addr, int, NULL, 0);
 static void mii_phy_probe(struct net_device *dev);
 static void pcnet_config(dev_link_t *link);
 static void pcnet_release(dev_link_t *link);
-static int pcnet_event(event_t event, int priority,
-		       event_callback_args_t *args);
 static int pcnet_open(struct net_device *dev);
 static int pcnet_close(struct net_device *dev);
 static int ei_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
@@ -120,7 +118,6 @@ static int setup_shmem_window(dev_link_t *link, int start_pg,
 static int setup_dma_config(dev_link_t *link, int start_pg,
 			    int stop_pg);
 
-static dev_link_t *pcnet_attach(void);
 static void pcnet_detach(struct pcmcia_device *p_dev);
 
 static dev_info_t dev_info = "pcnet_cs";
@@ -243,19 +240,17 @@ static inline pcnet_dev_t *PRIV(struct net_device *dev)
 
 ======================================================================*/
 
-static dev_link_t *pcnet_attach(void)
+static int pcnet_probe(struct pcmcia_device *p_dev)
 {
     pcnet_dev_t *info;
     dev_link_t *link;
     struct net_device *dev;
-    client_reg_t client_reg;
-    int ret;
 
     DEBUG(0, "pcnet_attach()\n");
 
     /* Create new ethernet device */
     dev = __alloc_ei_netdev(sizeof(pcnet_dev_t));
-    if (!dev) return NULL;
+    if (!dev) return -ENOMEM;
     info = PRIV(dev);
     link = &info->link;
     link->priv = dev;
@@ -270,19 +265,13 @@ static dev_link_t *pcnet_attach(void)
     dev->stop = &pcnet_close;
     dev->set_config = &set_config;
 
-    /* Register with Card Services */
-    link->next = NULL;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != CS_SUCCESS) {
-	cs_error(link->handle, RegisterClient, ret);
-	pcnet_detach(link->handle);
-	return NULL;
-    }
+    link->handle = p_dev;
+    p_dev->instance = link;
 
-    return link;
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    pcnet_config(link);
+
+    return 0;
 } /* pcnet_attach */
 
 /*======================================================================
@@ -800,21 +789,6 @@ static int pcnet_resume(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-static int pcnet_event(event_t event, int priority,
-		       event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-
-    DEBUG(2, "pcnet_event(0x%06x)\n", event);
-
-    switch (event) {
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	pcnet_config(link);
-	break;
-    }
-    return 0;
-} /* pcnet_event */
 
 /*======================================================================
 
@@ -1835,8 +1809,7 @@ static struct pcmcia_driver pcnet_driver = {
 	.drv		= {
 		.name	= "pcnet_cs",
 	},
-	.attach		= pcnet_attach,
-	.event		= pcnet_event,
+	.probe		= pcnet_probe,
 	.remove		= pcnet_detach,
 	.owner		= THIS_MODULE,
 	.id_table	= pcnet_ids,

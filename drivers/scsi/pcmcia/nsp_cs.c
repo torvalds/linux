@@ -104,8 +104,6 @@ static struct scsi_host_template nsp_driver_template = {
 #endif
 };
 
-static dev_info_t dev_info  = {"nsp_cs"};
-
 static nsp_hw_data nsp_data_base; /* attach <-> detect glue */
 
 
@@ -1595,19 +1593,17 @@ static int nsp_eh_host_reset(Scsi_Cmnd *SCpnt)
     configure the card at this point -- we wait until we receive a
     card insertion event.
 ======================================================================*/
-static dev_link_t *nsp_cs_attach(void)
+static int nsp_cs_attach(struct pcmcia_device *p_dev)
 {
 	scsi_info_t  *info;
-	client_reg_t  client_reg;
 	dev_link_t   *link;
-	int	      ret;
 	nsp_hw_data  *data = &nsp_data_base;
 
 	nsp_dbg(NSP_DEBUG_INIT, "in");
 
 	/* Create new SCSI device */
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
-	if (info == NULL) { return NULL; }
+	if (info == NULL) { return -ENOMEM; }
 	memset(info, 0, sizeof(*info));
 	link = &info->link;
 	link->priv = info;
@@ -1635,22 +1631,14 @@ static dev_link_t *nsp_cs_attach(void)
 	link->conf.IntType	 = INT_MEMORY_AND_IO;
 	link->conf.Present	 = PRESENT_OPTION;
 
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	/* Register with Card Services */
-	link->next               = NULL;
-	client_reg.dev_info	 = &dev_info;
-	client_reg.Version	 = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		nsp_cs_detach(link->handle);
-		return NULL;
-	}
-
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	nsp_cs_config(link);
 
 	nsp_dbg(NSP_DEBUG_INIT, "link=0x%p", link);
-	return link;
+	return 0;
 } /* nsp_cs_attach */
 
 
@@ -2056,44 +2044,6 @@ static int nsp_cs_resume(struct pcmcia_device *dev)
 	return 0;
 }
 
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-    When a CARD_REMOVAL event is received, we immediately set a flag
-    to block future accesses to this device.  All the functions that
-    actually access the device should check this flag to make sure
-    the card is still present.
-
-======================================================================*/
-static int nsp_cs_event(event_t		       event,
-			int		       priority,
-			event_callback_args_t *args)
-{
-	dev_link_t  *link = args->client_data;
-
-	nsp_dbg(NSP_DEBUG_INIT, "in, event=0x%08x", event);
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		nsp_dbg(NSP_DEBUG_INIT, "event: insert");
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(2,5,68))
-		info->bus    =  args->bus;
-#endif
-		nsp_cs_config(link);
-		break;
-	default:
-		nsp_dbg(NSP_DEBUG_INIT, "event: unknown");
-		break;
-	}
-	nsp_dbg(NSP_DEBUG_INIT, "end");
-	return 0;
-} /* nsp_cs_event */
-
 /*======================================================================*
  *	module entry point
  *====================================================================*/
@@ -2115,8 +2065,7 @@ static struct pcmcia_driver nsp_driver = {
 	.drv		= {
 		.name	= "nsp_cs",
 	},
-	.attach		= nsp_cs_attach,
-	.event		= nsp_cs_event,
+	.probe		= nsp_cs_attach,
 	.remove		= nsp_cs_detach,
 	.id_table	= nsp_cs_ids,
 	.suspend	= nsp_cs_suspend,

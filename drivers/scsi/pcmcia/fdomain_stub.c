@@ -80,27 +80,19 @@ typedef struct scsi_info_t {
 
 
 static void fdomain_release(dev_link_t *link);
-static int fdomain_event(event_t event, int priority,
-			event_callback_args_t *args);
-
-static dev_link_t *fdomain_attach(void);
 static void fdomain_detach(struct pcmcia_device *p_dev);
+static void fdomain_config(dev_link_t *link);
 
-
-static dev_info_t dev_info = "fdomain_cs";
-
-static dev_link_t *fdomain_attach(void)
+static int fdomain_attach(struct pcmcia_device *p_dev)
 {
     scsi_info_t *info;
-    client_reg_t client_reg;
     dev_link_t *link;
-    int ret;
-    
+
     DEBUG(0, "fdomain_attach()\n");
 
     /* Create new SCSI device */
     info = kmalloc(sizeof(*info), GFP_KERNEL);
-    if (!info) return NULL;
+    if (!info) return -ENOMEM;
     memset(info, 0, sizeof(*info));
     link = &info->link; link->priv = info;
     link->io.NumPorts1 = 0x10;
@@ -113,19 +105,13 @@ static dev_link_t *fdomain_attach(void)
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
 
-    /* Register with Card Services */
-    link->next = NULL;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-	cs_error(link->handle, RegisterClient, ret);
-	fdomain_detach(link->handle);
-	return NULL;
-    }
-    
-    return link;
+    link->handle = p_dev;
+    p_dev->instance = link;
+
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    fdomain_config(link);
+
+    return 0;
 } /* fdomain_attach */
 
 /*====================================================================*/
@@ -265,23 +251,6 @@ static int fdomain_resume(struct pcmcia_device *dev)
 	return 0;
 }
 
-static int fdomain_event(event_t event, int priority,
-			event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-
-    DEBUG(1, "fdomain_event(0x%06x)\n", event);
-    
-    switch (event) {
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	fdomain_config(link);
-	break;
-    }
-    return 0;
-} /* fdomain_event */
-
-
 static struct pcmcia_device_id fdomain_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("IBM Corp.", "SCSI PCMCIA Card", 0xe3736c88, 0x859cad20),
 	PCMCIA_DEVICE_PROD_ID1("SCSI PCMCIA Adapter Card", 0x8dacb57e),
@@ -295,8 +264,7 @@ static struct pcmcia_driver fdomain_cs_driver = {
 	.drv		= {
 		.name	= "fdomain_cs",
 	},
-	.attach		= fdomain_attach,
-	.event		= fdomain_event,
+	.probe		= fdomain_attach,
 	.remove		= fdomain_detach,
 	.id_table       = fdomain_ids,
 	.suspend	= fdomain_suspend,

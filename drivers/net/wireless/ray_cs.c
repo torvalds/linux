@@ -92,8 +92,6 @@ module_param(pc_debug, int, 0);
 /** Prototypes based on PCMCIA skeleton driver *******************************/
 static void ray_config(dev_link_t *link);
 static void ray_release(dev_link_t *link);
-static int ray_event(event_t event, int priority, event_callback_args_t *args);
-static dev_link_t *ray_attach(void);
 static void ray_detach(struct pcmcia_device *p_dev);
 
 /***** Prototypes indicated by device structure ******************************/
@@ -191,12 +189,6 @@ static int bc;
  */
 static char *phy_addr = NULL;
 
-
-/* The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-static dev_info_t dev_info = "ray_cs";
 
 /* A linked list of "instances" of the ray device.  Each actual
    PCMCIA card corresponds to one device instance, and is described
@@ -314,12 +306,10 @@ static char rcsid[] = "Raylink/WebGear wireless LAN - Corey <Thomas corey@world.
     configure the card at this point -- we wait until we receive a
     card insertion event.
 =============================================================================*/
-static dev_link_t *ray_attach(void)
+static int ray_attach(struct pcmcia_device *p_dev)
 {
-    client_reg_t client_reg;
     dev_link_t *link;
     ray_dev_t *local;
-    int ret;
     struct net_device *dev;
     
     DEBUG(1, "ray_attach()\n");
@@ -328,7 +318,7 @@ static dev_link_t *ray_attach(void)
     link = kmalloc(sizeof(struct dev_link_t), GFP_KERNEL);
 
     if (!link)
-	    return NULL;
+	    return -ENOMEM;
 
     /* Allocate space for private device-specific data */
     dev = alloc_etherdev(sizeof(ray_dev_t));
@@ -387,30 +377,19 @@ static dev_link_t *ray_attach(void)
     dev->stop = &ray_dev_close;
     netif_stop_queue(dev);
 
-    /* Register with Card Services */
-    link->next = dev_list;
-    dev_list = link;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-
-    DEBUG(2,"ray_cs ray_attach calling pcmcia_register_client(...)\n");
-
     init_timer(&local->timer);
 
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-        printk("ray_cs ray_attach RegisterClient unhappy - detaching\n");
-        cs_error(link->handle, RegisterClient, ret);
-        ray_detach(link->handle);
-        return NULL;
-    }
-    DEBUG(2,"ray_cs ray_attach ending\n");
-    return link;
+    link->handle = p_dev;
+    p_dev->instance = link;
+
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    ray_config(link);
+
+    return 0;
 
 fail_alloc_dev:
     kfree(link);
-    return NULL;
+    return -ENOMEM;
 } /* ray_attach */
 /*=============================================================================
     This deletes a driver "instance".  The device is de-registered
@@ -924,32 +903,6 @@ static int ray_resume(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-/*=============================================================================
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-    When a CARD_REMOVAL event is received, we immediately set a flag
-    to block future accesses to this device.  All the functions that
-    actually access the device should check this flag to make sure
-    the card is still present.
-=============================================================================*/
-static int ray_event(event_t event, int priority,
-                     event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-    DEBUG(1, "ray_event(0x%06x)\n", event);
-
-    switch (event) {
-    case CS_EVENT_CARD_INSERTION:
-        link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-        ray_config(link);
-        break;
-    }
-    return 0;
-    DEBUG(2,"ray_event ending\n");
-} /* ray_event */
 /*===========================================================================*/
 int ray_dev_init(struct net_device *dev)
 {
@@ -2945,8 +2898,7 @@ static struct pcmcia_driver ray_driver = {
 	.drv		= {
 		.name	= "ray_cs",
 	},
-	.attach		= ray_attach,
-	.event		= ray_event,
+	.probe		= ray_attach,
 	.remove		= ray_detach,
 	.id_table       = ray_ids,
 	.suspend	= ray_suspend,

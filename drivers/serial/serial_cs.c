@@ -114,13 +114,7 @@ struct serial_cfg_mem {
 
 
 static void serial_config(dev_link_t * link);
-static int serial_event(event_t event, int priority,
-			event_callback_args_t * args);
 
-static dev_info_t dev_info = "serial_cs";
-
-static dev_link_t *serial_attach(void);
-static void serial_detach(struct pcmcia_device *p_dev);
 
 /*======================================================================
 
@@ -203,19 +197,17 @@ static int serial_resume(struct pcmcia_device *dev)
 
 ======================================================================*/
 
-static dev_link_t *serial_attach(void)
+static int serial_probe(struct pcmcia_device *p_dev)
 {
 	struct serial_info *info;
-	client_reg_t client_reg;
 	dev_link_t *link;
-	int ret;
 
 	DEBUG(0, "serial_attach()\n");
 
 	/* Create new serial device */
 	info = kmalloc(sizeof (*info), GFP_KERNEL);
 	if (!info)
-		return NULL;
+		return -ENOMEM;
 	memset(info, 0, sizeof (*info));
 	link = &info->link;
 	link->priv = info;
@@ -231,19 +223,12 @@ static dev_link_t *serial_attach(void)
 	}
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	/* Register with Card Services */
-	link->next = NULL; /* not needed */
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		serial_detach(link->handle);
-		return NULL;
-	}
+	link->handle = p_dev;
+	p_dev->instance = link;
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	serial_config(link);
 
-	return link;
+	return 0;
 }
 
 /*======================================================================
@@ -706,32 +691,6 @@ void serial_config(dev_link_t * link)
 	kfree(cfg_mem);
 }
 
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the serial drivers from
-    talking to the ports.
-    
-======================================================================*/
-
-static int
-serial_event(event_t event, int priority, event_callback_args_t * args)
-{
-	dev_link_t *link = args->client_data;
-
-	DEBUG(1, "serial_event(0x%06x)\n", event);
-
-	switch (event) {
-
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		serial_config(link);
-		break;
-	}
-	return 0;
-}
-
 static struct pcmcia_device_id serial_ids[] = {
 	PCMCIA_PFC_DEVICE_MANF_CARD(1, 0x0057, 0x0021),
 	PCMCIA_PFC_DEVICE_MANF_CARD(1, 0x0089, 0x110a),
@@ -843,8 +802,7 @@ static struct pcmcia_driver serial_cs_driver = {
 	.drv		= {
 		.name	= "serial_cs",
 	},
-	.attach		= serial_attach,
-	.event		= serial_event,
+	.probe		= serial_probe,
 	.remove		= serial_detach,
 	.id_table	= serial_ids,
 	.suspend	= serial_suspend,

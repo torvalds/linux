@@ -93,8 +93,6 @@ MODULE_SUPPORTED_DEVICE("Atmel at76c50x PCMCIA cards");
 
 static void atmel_config(dev_link_t *link);
 static void atmel_release(dev_link_t *link);
-static int atmel_event(event_t event, int priority,
-		       event_callback_args_t *args);
 
 /*
    The attach() and detach() entry points are used to create and destroy
@@ -102,7 +100,6 @@ static int atmel_event(event_t event, int priority,
    needed to manage one actual PCMCIA card.
 */
 
-static dev_link_t *atmel_attach(void);
 static void atmel_detach(struct pcmcia_device *p_dev);
 
 /*
@@ -111,14 +108,6 @@ static void atmel_detach(struct pcmcia_device *p_dev);
    of a fully self-sufficient driver; the other drivers rely more or
    less on other parts of the kernel.
 */
-
-/*
-   The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-
-static dev_info_t dev_info = "atmel_cs";
 
 /*
    A linked list of "instances" of the  atmelnet device.  Each actual
@@ -163,27 +152,25 @@ typedef struct local_info_t {
   
   ======================================================================*/
 
-static dev_link_t *atmel_attach(void)
+static int atmel_attach(struct pcmcia_device *p_dev)
 {
-	client_reg_t client_reg;
 	dev_link_t *link;
 	local_info_t *local;
-	int ret;
-	
+
 	DEBUG(0, "atmel_attach()\n");
 
 	/* Initialize the dev_link_t structure */
 	link = kzalloc(sizeof(struct dev_link_t), GFP_KERNEL);
 	if (!link) {
 		printk(KERN_ERR "atmel_cs: no memory for new device\n");
-		return NULL;
+		return -ENOMEM;
 	}
-	
+
 	/* Interrupt setup */
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
 	link->irq.IRQInfo1 = IRQ_LEVEL_ID;
 	link->irq.Handler = NULL;
-	
+
 	/*
 	  General socket configuration defaults can go here.  In this
 	  client, we assume very little, and rely on the CIS for almost
@@ -194,29 +181,23 @@ static dev_link_t *atmel_attach(void)
 	link->conf.Attributes = 0;
 	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
-	
+
 	/* Allocate space for private device-specific data */
 	local = kzalloc(sizeof(local_info_t), GFP_KERNEL);
 	if (!local) {
 		printk(KERN_ERR "atmel_cs: no memory for new device\n");
 		kfree (link);
-		return NULL;
+		return -ENOMEM;
 	}
 	link->priv = local;
-	
-	/* Register with Card Services */
-	link->next = NULL;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != 0) {
-		cs_error(link->handle, RegisterClient, ret);
-		atmel_detach(link->handle);
-		return NULL;
-	}
-	
-	return link;
+
+	link->handle = p_dev;
+	p_dev->instance = link;
+
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	atmel_config(link);
+
+	return 0;
 } /* atmel_attach */
 
 /*======================================================================
@@ -485,34 +466,6 @@ static int atmel_resume(struct pcmcia_device *dev)
 	return 0;
 }
 
-/*======================================================================
-  
-  The card status event handler.  Mostly, this schedules other
-  stuff to run after an event is received.
-
-  When a CARD_REMOVAL event is received, we immediately set a
-  private flag to block future accesses to this device.  All the
-  functions that actually access the device should check this flag
-  to make sure the card is still present.
-  
-  ======================================================================*/
-
-static int atmel_event(event_t event, int priority,
-		      event_callback_args_t *args)
-{
-	dev_link_t *link = args->client_data;
-
-	DEBUG(1, "atmel_event(0x%06x)\n", event);
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		atmel_config(link);
-		break;
-	}
-	return 0;
-} /* atmel_event */
-
 /*====================================================================*/
 /* We use the driver_info field to store the correct firmware type for a card. */
 
@@ -562,8 +515,7 @@ static struct pcmcia_driver atmel_driver = {
 	.drv		= {
 		.name	= "atmel_cs",
         },
-	.attach         = atmel_attach,
-	.event		= atmel_event,
+	.probe          = atmel_attach,
 	.remove		= atmel_detach,
 	.id_table	= atmel_ids,
 	.suspend	= atmel_suspend,

@@ -96,8 +96,6 @@ module_param(protocol, int, 0);
 
 static void elsa_cs_config(dev_link_t *link);
 static void elsa_cs_release(dev_link_t *link);
-static int elsa_cs_event(event_t event, int priority,
-                          event_callback_args_t *args);
 
 /*
    The attach() and detach() entry points are used to create and destroy
@@ -105,26 +103,7 @@ static int elsa_cs_event(event_t event, int priority,
    needed to manage one actual PCMCIA card.
 */
 
-static dev_link_t *elsa_cs_attach(void);
 static void elsa_cs_detach(struct pcmcia_device *p_dev);
-
-/*
-   The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-
-static dev_info_t dev_info = "elsa_cs";
-
-/*
-   A linked list of "instances" of the elsa_cs device.  Each actual
-   PCMCIA card corresponds to one device instance, and is described
-   by one dev_link_t structure (defined in ds.h).
-
-   You may not want to use a linked list for this -- for example, the
-   memory card driver uses an array of dev_link_t pointers, where minor
-   device numbers are used to derive the corresponding array index.
-*/
 
 /*
    A driver needs to provide a dev_node_t structure for each device
@@ -160,18 +139,16 @@ typedef struct local_info_t {
 
 ======================================================================*/
 
-static dev_link_t *elsa_cs_attach(void)
+static int elsa_cs_attach(struct pcmcia_device *p_dev)
 {
-    client_reg_t client_reg;
     dev_link_t *link;
     local_info_t *local;
-    int ret;
 
     DEBUG(0, "elsa_cs_attach()\n");
 
     /* Allocate space for private device-specific data */
     local = kmalloc(sizeof(local_info_t), GFP_KERNEL);
-    if (!local) return NULL;
+    if (!local) return -ENOMEM;
     memset(local, 0, sizeof(local_info_t));
     local->cardnr = -1;
     link = &local->link; link->priv = local;
@@ -196,19 +173,13 @@ static dev_link_t *elsa_cs_attach(void)
     link->conf.Vcc = 50;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
-    /* Register with Card Services */
-    link->next = NULL;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != CS_SUCCESS) {
-        cs_error(link->handle, RegisterClient, ret);
-        elsa_cs_detach(link->handle);
-        return NULL;
-    }
+    link->handle = p_dev;
+    p_dev->instance = link;
 
-    return link;
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    elsa_cs_config(link);
+
+    return 0;
 } /* elsa_cs_attach */
 
 /*======================================================================
@@ -447,36 +418,6 @@ static int elsa_resume(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-    When a CARD_REMOVAL event is received, we immediately set a flag
-    to block future accesses to this device.  All the functions that
-    actually access the device should check this flag to make sure
-    the card is still present.
-
-======================================================================*/
-
-static int elsa_cs_event(event_t event, int priority,
-                          event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-
-    DEBUG(1, "elsa_cs_event(%d)\n", event);
-
-    switch (event) {
-    case CS_EVENT_CARD_INSERTION:
-        link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-        elsa_cs_config(link);
-        break;
-    }
-    return 0;
-} /* elsa_cs_event */
-
 static struct pcmcia_device_id elsa_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("ELSA AG (Aachen, Germany)", "MicroLink ISDN/MC ", 0x983de2c4, 0x333ba257),
 	PCMCIA_DEVICE_PROD_ID12("ELSA GmbH, Aachen", "MicroLink ISDN/MC ", 0x639e5718, 0x333ba257),
@@ -489,8 +430,7 @@ static struct pcmcia_driver elsa_cs_driver = {
 	.drv		= {
 		.name	= "elsa_cs",
 	},
-	.attach		= elsa_cs_attach,
-	.event		= elsa_cs_event,
+	.probe		= elsa_cs_attach,
 	.remove		= elsa_cs_detach,
 	.id_table	= elsa_ids,
 	.suspend	= elsa_suspend,

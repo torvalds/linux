@@ -389,7 +389,6 @@ int pcmcia_get_status(struct pcmcia_device *p_dev, cs_status_t *status);
 int pcmcia_get_mem_page(window_handle_t win, memreq_t *req);
 int pcmcia_map_mem_page(window_handle_t win, memreq_t *req);
 int pcmcia_modify_configuration(struct pcmcia_device *p_dev, modconf_t *mod);
-int pcmcia_register_client(client_handle_t *handle, client_reg_t *req);
 int pcmcia_release_configuration(struct pcmcia_device *p_dev);
 int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req);
 int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req);

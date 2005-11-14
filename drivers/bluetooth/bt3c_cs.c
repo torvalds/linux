@@ -90,11 +90,7 @@ typedef struct bt3c_info_t {
 
 static void bt3c_config(dev_link_t *link);
 static void bt3c_release(dev_link_t *link);
-static int bt3c_event(event_t event, int priority, event_callback_args_t *args);
 
-static dev_info_t dev_info = "bt3c_cs";
-
-static dev_link_t *bt3c_attach(void);
 static void bt3c_detach(struct pcmcia_device *p_dev);
 
 
@@ -661,17 +657,15 @@ static int bt3c_close(bt3c_info_t *info)
 	return 0;
 }
 
-static dev_link_t *bt3c_attach(void)
+static int bt3c_attach(struct pcmcia_device *p_dev)
 {
 	bt3c_info_t *info;
-	client_reg_t client_reg;
 	dev_link_t *link;
-	int ret;
 
 	/* Create new info device */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return NULL;
+		return -ENOMEM;
 
 	link = &info->link;
 	link->priv = info;
@@ -688,20 +682,13 @@ static dev_link_t *bt3c_attach(void)
 	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	/* Register with Card Services */
-	link->next = NULL;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		bt3c_detach(link->handle);
-		return NULL;
-	}
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	bt3c_config(link);
 
-	return link;
+	return 0;
 }
 
 
@@ -892,19 +879,6 @@ static int bt3c_resume(struct pcmcia_device *dev)
 	return 0;
 }
 
-static int bt3c_event(event_t event, int priority, event_callback_args_t *args)
-{
-	dev_link_t *link = args->client_data;
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		bt3c_config(link);
-		break;
-	}
-
-	return 0;
-}
 
 static struct pcmcia_device_id bt3c_ids[] = {
 	PCMCIA_DEVICE_PROD_ID13("3COM", "Bluetooth PC Card", 0xefce0a31, 0xd4ce9b02),
@@ -917,8 +891,7 @@ static struct pcmcia_driver bt3c_driver = {
 	.drv		= {
 		.name	= "bt3c_cs",
 	},
-	.attach		= bt3c_attach,
-	.event		= bt3c_event,
+	.probe		= bt3c_attach,
 	.remove		= bt3c_detach,
 	.id_table	= bt3c_ids,
 	.suspend	= bt3c_suspend,

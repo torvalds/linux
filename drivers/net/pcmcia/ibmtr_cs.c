@@ -108,12 +108,6 @@ MODULE_LICENSE("GPL");
 static void ibmtr_config(dev_link_t *link);
 static void ibmtr_hw_setup(struct net_device *dev, u_int mmiobase);
 static void ibmtr_release(dev_link_t *link);
-static int ibmtr_event(event_t event, int priority,
-                       event_callback_args_t *args);
-
-static dev_info_t dev_info = "ibmtr_cs";
-
-static dev_link_t *ibmtr_attach(void);
 static void ibmtr_detach(struct pcmcia_device *p_dev);
 
 /*====================================================================*/
@@ -144,25 +138,23 @@ static struct ethtool_ops netdev_ethtool_ops = {
 
 ======================================================================*/
 
-static dev_link_t *ibmtr_attach(void)
+static int ibmtr_attach(struct pcmcia_device *p_dev)
 {
     ibmtr_dev_t *info;
     dev_link_t *link;
     struct net_device *dev;
-    client_reg_t client_reg;
-    int ret;
     
     DEBUG(0, "ibmtr_attach()\n");
 
     /* Create new token-ring device */
     info = kmalloc(sizeof(*info), GFP_KERNEL); 
-    if (!info) return NULL;
+    if (!info) return -ENOMEM;
     memset(info,0,sizeof(*info));
     dev = alloc_trdev(sizeof(struct tok_info));
-    if (!dev) { 
-	kfree(info); 
-	return NULL;
-    } 
+    if (!dev) {
+	kfree(info);
+	return -ENOMEM;
+    }
 
     link = &info->link;
     link->priv = info;
@@ -183,24 +175,13 @@ static dev_link_t *ibmtr_attach(void)
     
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
 
-    /* Register with Card Services */
-    link->next = NULL;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-        cs_error(link->handle, RegisterClient, ret);
-	goto out_detach;
-    }
+    link->handle = p_dev;
+    p_dev->instance = link;
 
-out:
-    return link;
+    link->state |= DEV_PRESENT;
+    ibmtr_config(link);
 
-out_detach:
-    ibmtr_detach(link->handle);
-    link = NULL;
-    goto out;
+    return 0;
 } /* ibmtr_attach */
 
 /*======================================================================
@@ -420,31 +401,6 @@ static int ibmtr_resume(struct pcmcia_device *p_dev)
 }
 
 
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-======================================================================*/
-
-static int ibmtr_event(event_t event, int priority,
-                       event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-
-    DEBUG(1, "ibmtr_event(0x%06x)\n", event);
-
-    switch (event) {
-    case CS_EVENT_CARD_INSERTION:
-        link->state |= DEV_PRESENT;
-	ibmtr_config(link);
-	break;
-    }
-    return 0;
-} /* ibmtr_event */
-
 /*====================================================================*/
 
 static void ibmtr_hw_setup(struct net_device *dev, u_int mmiobase)
@@ -500,8 +456,7 @@ static struct pcmcia_driver ibmtr_cs_driver = {
 	.drv		= {
 		.name	= "ibmtr_cs",
 	},
-	.attach		= ibmtr_attach,
-	.event		= ibmtr_event,
+	.probe		= ibmtr_attach,
 	.remove		= ibmtr_detach,
 	.id_table       = ibmtr_ids,
 	.suspend	= ibmtr_suspend,

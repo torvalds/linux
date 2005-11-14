@@ -82,8 +82,6 @@ MODULE_SUPPORTED_DEVICE("Aironet 4500, 4800 and Cisco 340 PCMCIA cards");
 
 static void airo_config(dev_link_t *link);
 static void airo_release(dev_link_t *link);
-static int airo_event(event_t event, int priority,
-		       event_callback_args_t *args);
 
 /*
    The attach() and detach() entry points are used to create and destroy
@@ -91,7 +89,6 @@ static int airo_event(event_t event, int priority,
    needed to manage one actual PCMCIA card.
 */
 
-static dev_link_t *airo_attach(void);
 static void airo_detach(struct pcmcia_device *p_dev);
 
 /*
@@ -100,14 +97,6 @@ static void airo_detach(struct pcmcia_device *p_dev);
    of a fully self-sufficient driver; the other drivers rely more or
    less on other parts of the kernel.
 */
-
-/*
-   The dev_info variable is the "key" that is used to match up this
-   device driver with appropriate cards, through the card configuration
-   database.
-*/
-
-static dev_info_t dev_info = "airo_cs";
 
 /*
    A linked list of "instances" of the  aironet device.  Each actual
@@ -152,20 +141,18 @@ typedef struct local_info_t {
   
   ======================================================================*/
 
-static dev_link_t *airo_attach(void)
+static int airo_attach(struct pcmcia_device *p_dev)
 {
-	client_reg_t client_reg;
 	dev_link_t *link;
 	local_info_t *local;
-	int ret;
-	
+
 	DEBUG(0, "airo_attach()\n");
 
 	/* Initialize the dev_link_t structure */
 	link = kzalloc(sizeof(struct dev_link_t), GFP_KERNEL);
 	if (!link) {
 		printk(KERN_ERR "airo_cs: no memory for new device\n");
-		return NULL;
+		return -ENOMEM;
 	}
 	
 	/* Interrupt setup */
@@ -189,23 +176,17 @@ static dev_link_t *airo_attach(void)
 	if (!local) {
 		printk(KERN_ERR "airo_cs: no memory for new device\n");
 		kfree (link);
-		return NULL;
+		return -ENOMEM;
 	}
 	link->priv = local;
-	
-	/* Register with Card Services */
-	link->next = NULL;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != 0) {
-		cs_error(link->handle, RegisterClient, ret);
-		airo_detach(link->handle);
-		return NULL;
-	}
-	
-	return link;
+
+	link->handle = p_dev;
+	p_dev->instance = link;
+
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	airo_config(link);
+
+	return 0;
 } /* airo_attach */
 
 /*======================================================================
@@ -497,34 +478,6 @@ static int airo_resume(struct pcmcia_device *p_dev)
 	return 0;
 }
 
-/*======================================================================
-  
-  The card status event handler.  Mostly, this schedules other
-  stuff to run after an event is received.
-
-  When a CARD_REMOVAL event is received, we immediately set a
-  private flag to block future accesses to this device.  All the
-  functions that actually access the device should check this flag
-  to make sure the card is still present.
-  
-  ======================================================================*/
-
-static int airo_event(event_t event, int priority,
-		      event_callback_args_t *args)
-{
-	dev_link_t *link = args->client_data;
-
-	DEBUG(1, "airo_event(0x%06x)\n", event);
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		airo_config(link);
-		break;
-	}
-	return 0;
-} /* airo_event */
-
 static struct pcmcia_device_id airo_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x015f, 0x000a),
 	PCMCIA_DEVICE_MANF_CARD(0x015f, 0x0005),
@@ -539,8 +492,7 @@ static struct pcmcia_driver airo_driver = {
 	.drv		= {
 		.name	= "airo_cs",
 	},
-	.attach		= airo_attach,
-	.event		= airo_event,
+	.probe		= airo_attach,
 	.remove		= airo_detach,
 	.id_table       = airo_ids,
 	.suspend	= airo_suspend,

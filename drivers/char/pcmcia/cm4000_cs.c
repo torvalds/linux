@@ -66,7 +66,6 @@ static char *version = "cm4000_cs.c v2.4.0gm5 - All bugs added by Harald Welte";
 #define	T_100MSEC	msecs_to_jiffies(100)
 #define	T_500MSEC	msecs_to_jiffies(500)
 
-static void cm4000_detach(struct pcmcia_device *p_dev);
 static void cm4000_release(dev_link_t *link);
 
 static int major;		/* major number we get from the kernel */
@@ -156,7 +155,6 @@ struct cm4000_dev {
 		/*sbuf*/ 512*sizeof(char) - 			\
 		/*queue*/ 4*sizeof(wait_queue_head_t))
 
-static dev_info_t dev_info = MODULE_NAME;
 static dev_link_t *dev_table[CM4000_MAX_DEV];
 
 /* This table doesn't use spaces after the comma between fields and thus
@@ -1864,38 +1862,6 @@ cs_release:
 	link->state &= ~DEV_CONFIG_PENDING;
 }
 
-static int cm4000_event(event_t event, int priority,
-			event_callback_args_t *args)
-{
-	dev_link_t *link;
-	struct cm4000_dev *dev;
-	int devno;
-
-	link = args->client_data;
-	dev = link->priv;
-
-	DEBUGP(3, dev, "-> cm4000_event\n");
-	for (devno = 0; devno < CM4000_MAX_DEV; devno++)
-		if (dev_table[devno] == link)
-			break;
-
-	if (devno == CM4000_MAX_DEV)
-		return CS_BAD_ADAPTER;
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		DEBUGP(5, dev, "CS_EVENT_CARD_INSERTION\n");
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		cm4000_config(link, devno);
-		break;
-	default:
-		DEBUGP(5, dev, "unknown event %.2x\n", event);
-		break;
-	}
-	DEBUGP(3, dev, "<- cm4000_event\n");
-	return CS_SUCCESS;
-}
-
 static int cm4000_suspend(struct pcmcia_device *p_dev)
 {
 	dev_link_t *link = dev_to_instance(p_dev);
@@ -1935,11 +1901,10 @@ static void cm4000_release(dev_link_t *link)
 	pcmcia_release_io(link->handle, &link->io);
 }
 
-static dev_link_t *cm4000_attach(void)
+static int cm4000_attach(struct pcmcia_device *p_dev)
 {
 	struct cm4000_dev *dev;
 	dev_link_t *link;
-	client_reg_t client_reg;
 	int i;
 
 	for (i = 0; i < CM4000_MAX_DEV; i++)
@@ -1948,41 +1913,31 @@ static dev_link_t *cm4000_attach(void)
 
 	if (i == CM4000_MAX_DEV) {
 		printk(KERN_NOTICE MODULE_NAME ": all devices in use\n");
-		return NULL;
+		return -ENODEV;
 	}
 
 	/* create a new cm4000_cs device */
 	dev = kzalloc(sizeof(struct cm4000_dev), GFP_KERNEL);
 	if (dev == NULL)
-		return NULL;
+		return -ENOMEM;
 
 	link = &dev->link;
 	link->priv = dev;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	dev_table[i] = link;
 
-	/* register with card services */
-	client_reg.dev_info = &dev_info;
-	client_reg.EventMask =
-	    CS_EVENT_CARD_INSERTION | CS_EVENT_CARD_REMOVAL |
-	    CS_EVENT_RESET_PHYSICAL | CS_EVENT_CARD_RESET |
-	    CS_EVENT_PM_SUSPEND | CS_EVENT_PM_RESUME;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
-
-	i = pcmcia_register_client(&link->handle, &client_reg);
-	if (i) {
-		cs_error(link->handle, RegisterClient, i);
-		cm4000_detach(link->handle);
-		return NULL;
-	}
-
 	init_waitqueue_head(&dev->devq);
 	init_waitqueue_head(&dev->ioq);
 	init_waitqueue_head(&dev->atrq);
 	init_waitqueue_head(&dev->readq);
 
-	return link;
+	link->handle = p_dev;
+	p_dev->instance = link;
+
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	cm4000_config(link, i);
+
+	return 0;
 }
 
 static void cm4000_detach(struct pcmcia_device *p_dev)
@@ -2031,11 +1986,10 @@ static struct pcmcia_driver cm4000_driver = {
 	.drv	  = {
 		.name = "cm4000_cs",
 		},
-	.attach   = cm4000_attach,
+	.probe    = cm4000_attach,
 	.remove   = cm4000_detach,
 	.suspend  = cm4000_suspend,
 	.resume   = cm4000_resume,
-	.event	  = cm4000_event,
 	.id_table = cm4000_ids,
 };
 

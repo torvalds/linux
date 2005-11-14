@@ -88,9 +88,6 @@ static void fmvj18x_config(dev_link_t *link);
 static int fmvj18x_get_hwinfo(dev_link_t *link, u_char *node_id);
 static int fmvj18x_setup_mfc(dev_link_t *link);
 static void fmvj18x_release(dev_link_t *link);
-static int fmvj18x_event(event_t event, int priority,
-			  event_callback_args_t *args);
-static dev_link_t *fmvj18x_attach(void);
 static void fmvj18x_detach(struct pcmcia_device *p_dev);
 
 /*
@@ -107,8 +104,6 @@ static struct net_device_stats *fjn_get_stats(struct net_device *dev);
 static void set_rx_mode(struct net_device *dev);
 static void fjn_tx_timeout(struct net_device *dev);
 static struct ethtool_ops netdev_ethtool_ops;
-
-static dev_info_t dev_info = "fmvj18x_cs";
 
 /*
     card type
@@ -233,20 +228,18 @@ typedef struct local_info_t {
 #define BANK_1U              0x24 /* bank 1 (CONFIG_1) */
 #define BANK_2U              0x28 /* bank 2 (CONFIG_1) */
 
-static dev_link_t *fmvj18x_attach(void)
+static int fmvj18x_attach(struct pcmcia_device *p_dev)
 {
     local_info_t *lp;
     dev_link_t *link;
     struct net_device *dev;
-    client_reg_t client_reg;
-    int ret;
-    
+
     DEBUG(0, "fmvj18x_attach()\n");
 
     /* Make up a FMVJ18x specific data structure */
     dev = alloc_etherdev(sizeof(local_info_t));
     if (!dev)
-	return NULL;
+	return -ENOMEM;
     lp = netdev_priv(dev);
     link = &lp->link;
     link->priv = dev;
@@ -261,7 +254,7 @@ static dev_link_t *fmvj18x_attach(void)
     link->irq.IRQInfo1 = IRQ_LEVEL_ID;
     link->irq.Handler = &fjn_interrupt;
     link->irq.Instance = dev;
-    
+
     /* General socket configuration */
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.Vcc = 50;
@@ -280,20 +273,14 @@ static dev_link_t *fmvj18x_attach(void)
     dev->watchdog_timeo = TX_TIMEOUT;
 #endif
     SET_ETHTOOL_OPS(dev, &netdev_ethtool_ops);
-    
-    /* Register with Card Services */
-    link->next = NULL;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-	cs_error(link->handle, RegisterClient, ret);
-	fmvj18x_detach(link->handle);
-	return NULL;
-    }
 
-    return link;
+    link->handle = p_dev;
+    p_dev->instance = link;
+
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    fmvj18x_config(link);
+
+    return 0;
 } /* fmvj18x_attach */
 
 /*====================================================================*/
@@ -734,22 +721,6 @@ static int fmvj18x_resume(struct pcmcia_device *p_dev)
 
 /*====================================================================*/
 
-static int fmvj18x_event(event_t event, int priority,
-			  event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-
-    DEBUG(1, "fmvj18x_event(0x%06x)\n", event);
-    
-    switch (event) {
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	fmvj18x_config(link);
-	break;
-    }
-    return 0;
-} /* fmvj18x_event */
-
 static struct pcmcia_device_id fmvj18x_ids[] = {
 	PCMCIA_DEVICE_MANF_CARD(0x0004, 0x0004),
 	PCMCIA_DEVICE_PROD_ID12("EAGLE Technology", "NE200 ETHERNET LAN MBH10302 04", 0x528c88c4, 0x74f91e59),
@@ -780,8 +751,7 @@ static struct pcmcia_driver fmvj18x_cs_driver = {
 	.drv		= {
 		.name	= "fmvj18x_cs",
 	},
-	.attach		= fmvj18x_attach,
-	.event		= fmvj18x_event,
+	.probe		= fmvj18x_attach,
 	.remove		= fmvj18x_detach,
 	.id_table       = fmvj18x_ids,
 	.suspend	= fmvj18x_suspend,

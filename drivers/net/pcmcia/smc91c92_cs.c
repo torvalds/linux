@@ -102,8 +102,6 @@ static const char *version =
    currently have room for another Tx packet. */
 #define MEMORY_WAIT_TIME       	8
 
-static dev_info_t dev_info = "smc91c92_cs";
-
 struct smc_private {
     dev_link_t			link;
     spinlock_t			lock;
@@ -279,12 +277,9 @@ enum RxCfg { RxAllMulti = 0x0004, RxPromisc = 0x0002,
 
 /*====================================================================*/
 
-static dev_link_t *smc91c92_attach(void);
 static void smc91c92_detach(struct pcmcia_device *p_dev);
 static void smc91c92_config(dev_link_t *link);
 static void smc91c92_release(dev_link_t *link);
-static int smc91c92_event(event_t event, int priority,
-			  event_callback_args_t *args);
 
 static int smc_open(struct net_device *dev);
 static int smc_close(struct net_device *dev);
@@ -313,20 +308,18 @@ static struct ethtool_ops ethtool_ops;
 
 ======================================================================*/
 
-static dev_link_t *smc91c92_attach(void)
+static int smc91c92_attach(struct pcmcia_device *p_dev)
 {
-    client_reg_t client_reg;
     struct smc_private *smc;
     dev_link_t *link;
     struct net_device *dev;
-    int ret;
 
     DEBUG(0, "smc91c92_attach()\n");
 
     /* Create new ethernet device */
     dev = alloc_etherdev(sizeof(struct smc_private));
     if (!dev)
-	return NULL;
+	return -ENOMEM;
     smc = netdev_priv(dev);
     link = &smc->link;
     link->priv = dev;
@@ -364,19 +357,13 @@ static dev_link_t *smc91c92_attach(void)
     smc->mii_if.phy_id_mask = 0x1f;
     smc->mii_if.reg_num_mask = 0x1f;
 
-    /* Register with Card Services */
-    link->next = NULL;
-    client_reg.dev_info = &dev_info;
-    client_reg.Version = 0x0210;
-    client_reg.event_callback_args.client_data = link;
-    ret = pcmcia_register_client(&link->handle, &client_reg);
-    if (ret != 0) {
-	cs_error(link->handle, RegisterClient, ret);
-	smc91c92_detach(link->handle);
-	return NULL;
-    }
+    link->handle = p_dev;
+    p_dev->instance = link;
 
-    return link;
+    link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+    smc91c92_config(link);
+
+    return 0;
 } /* smc91c92_attach */
 
 /*======================================================================
@@ -1209,31 +1196,6 @@ static void smc91c92_release(dev_link_t *link)
 
     link->state &= ~DEV_CONFIG;
 }
-
-/*======================================================================
-
-    The card status event handler.  Mostly, this schedules other
-    stuff to run after an event is received.  A CARD_REMOVAL event
-    also sets some flags to discourage the net drivers from trying
-    to talk to the card any more.
-
-======================================================================*/
-
-static int smc91c92_event(event_t event, int priority,
-			  event_callback_args_t *args)
-{
-    dev_link_t *link = args->client_data;
-
-    DEBUG(1, "smc91c92_event(0x%06x)\n", event);
-
-    switch (event) {
-    case CS_EVENT_CARD_INSERTION:
-	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-	smc91c92_config(link);
-	break;
-    }
-    return 0;
-} /* smc91c92_event */
 
 /*======================================================================
 
@@ -2349,8 +2311,7 @@ static struct pcmcia_driver smc91c92_cs_driver = {
 	.drv		= {
 		.name	= "smc91c92_cs",
 	},
-	.attach		= smc91c92_attach,
-	.event		= smc91c92_event,
+	.probe		= smc91c92_attach,
 	.remove		= smc91c92_detach,
 	.id_table       = smc91c92_ids,
 	.suspend	= smc91c92_suspend,

@@ -87,11 +87,7 @@ typedef struct bluecard_info_t {
 
 static void bluecard_config(dev_link_t *link);
 static void bluecard_release(dev_link_t *link);
-static int bluecard_event(event_t event, int priority, event_callback_args_t *args);
 
-static dev_info_t dev_info = "bluecard_cs";
-
-static dev_link_t *bluecard_attach(void);
 static void bluecard_detach(struct pcmcia_device *p_dev);
 
 
@@ -860,17 +856,15 @@ static int bluecard_close(bluecard_info_t *info)
 	return 0;
 }
 
-static dev_link_t *bluecard_attach(void)
+static int bluecard_attach(struct pcmcia_device *p_dev)
 {
 	bluecard_info_t *info;
-	client_reg_t client_reg;
 	dev_link_t *link;
-	int ret;
 
 	/* Create new info device */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return NULL;
+		return -ENOMEM;
 
 	link = &info->link;
 	link->priv = info;
@@ -887,20 +881,13 @@ static dev_link_t *bluecard_attach(void)
 	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	/* Register with Card Services */
-	link->next = NULL;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		bluecard_detach(link->handle);
-		return NULL;
-	}
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	bluecard_config(link);
 
-	return link;
+	return 0;
 }
 
 
@@ -1046,20 +1033,6 @@ static int bluecard_resume(struct pcmcia_device *dev)
 	return 0;
 }
 
-static int bluecard_event(event_t event, int priority, event_callback_args_t *args)
-{
-	dev_link_t *link = args->client_data;
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		bluecard_config(link);
-		break;
-	}
-
-	return 0;
-}
-
 static struct pcmcia_device_id bluecard_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("BlueCard", "LSE041", 0xbaf16fbf, 0x657cc15e),
 	PCMCIA_DEVICE_PROD_ID12("BTCFCARD", "LSE139", 0xe3987764, 0x2524b59c),
@@ -1073,8 +1046,7 @@ static struct pcmcia_driver bluecard_driver = {
 	.drv		= {
 		.name	= "bluecard_cs",
 	},
-	.attach		= bluecard_attach,
-	.event		= bluecard_event,
+	.probe		= bluecard_attach,
 	.remove		= bluecard_detach,
 	.id_table	= bluecard_ids,
 	.suspend	= bluecard_suspend,

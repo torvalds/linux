@@ -89,11 +89,7 @@ typedef struct dtl1_info_t {
 
 static void dtl1_config(dev_link_t *link);
 static void dtl1_release(dev_link_t *link);
-static int dtl1_event(event_t event, int priority, event_callback_args_t *args);
 
-static dev_info_t dev_info = "dtl1_cs";
-
-static dev_link_t *dtl1_attach(void);
 static void dtl1_detach(struct pcmcia_device *p_dev);
 
 
@@ -559,17 +555,15 @@ static int dtl1_close(dtl1_info_t *info)
 	return 0;
 }
 
-static dev_link_t *dtl1_attach(void)
+static int dtl1_attach(struct pcmcia_device *p_dev)
 {
 	dtl1_info_t *info;
-	client_reg_t client_reg;
 	dev_link_t *link;
-	int ret;
 
 	/* Create new info device */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
-		return NULL;
+		return -ENOMEM;
 
 	link = &info->link;
 	link->priv = info;
@@ -586,20 +580,13 @@ static dev_link_t *dtl1_attach(void)
 	link->conf.Vcc = 50;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	/* Register with Card Services */
-	link->next = NULL;
-	client_reg.dev_info = &dev_info;
-	client_reg.Version = 0x0210;
-	client_reg.event_callback_args.client_data = link;
+	link->handle = p_dev;
+	p_dev->instance = link;
 
-	ret = pcmcia_register_client(&link->handle, &client_reg);
-	if (ret != CS_SUCCESS) {
-		cs_error(link->handle, RegisterClient, ret);
-		dtl1_detach(link->handle);
-		return NULL;
-	}
+	link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
+	dtl1_config(link);
 
-	return link;
+	return 0;
 }
 
 
@@ -764,19 +751,6 @@ static int dtl1_resume(struct pcmcia_device *dev)
 	return 0;
 }
 
-static int dtl1_event(event_t event, int priority, event_callback_args_t *args)
-{
-	dev_link_t *link = args->client_data;
-
-	switch (event) {
-	case CS_EVENT_CARD_INSERTION:
-		link->state |= DEV_PRESENT | DEV_CONFIG_PENDING;
-		dtl1_config(link);
-		break;
-	}
-
-	return 0;
-}
 
 static struct pcmcia_device_id dtl1_ids[] = {
 	PCMCIA_DEVICE_PROD_ID12("Nokia Mobile Phones", "DTL-1", 0xe1bfdd64, 0xe168480d),
@@ -790,8 +764,7 @@ static struct pcmcia_driver dtl1_driver = {
 	.drv		= {
 		.name	= "dtl1_cs",
 	},
-	.attach		= dtl1_attach,
-	.event		= dtl1_event,
+	.probe		= dtl1_attach,
 	.remove		= dtl1_detach,
 	.id_table	= dtl1_ids,
 	.suspend	= dtl1_suspend,
