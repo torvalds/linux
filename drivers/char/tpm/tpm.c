@@ -428,8 +428,7 @@ ssize_t tpm_read(struct file * file, char __user *buf,
 			ret_size = size;
 
 		down(&chip->buffer_mutex);
-		if (copy_to_user
-		    ((void __user *) buf, chip->data_buffer, ret_size))
+		if (copy_to_user(buf, chip->data_buffer, ret_size))
 			ret_size = -EFAULT;
 		up(&chip->buffer_mutex);
 	}
@@ -460,7 +459,7 @@ void tpm_remove_hardware(struct device *dev)
 	sysfs_remove_group(&dev->kobj, chip->vendor->attr_group);
 
 	dev_mask[chip->dev_num / TPM_NUM_MASK_ENTRIES ] &=
-		!(1 << (chip->dev_num % TPM_NUM_MASK_ENTRIES));
+		~(1 << (chip->dev_num % TPM_NUM_MASK_ENTRIES));
 
 	kfree(chip);
 
