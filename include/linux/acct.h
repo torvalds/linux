@@ -16,6 +16,8 @@
 #define _LINUX_ACCT_H
 
 #include <linux/types.h>
+#include <linux/jiffies.h>
+
 #include <asm/param.h>
 #include <asm/byteorder.h>
 
