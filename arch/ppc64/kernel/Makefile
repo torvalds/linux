@@ -13,7 +13,6 @@ endif
 
 obj-y               +=	idle.o dma.o \
 			align.o \
-			rtc.o \
 			iommu.o
 
 pci-obj-$(CONFIG_PPC_MULTIPLATFORM)	+= pci_dn.o pci_direct_iommu.o
