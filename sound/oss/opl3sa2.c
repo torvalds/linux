@@ -70,6 +70,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
+#include <linux/pm_legacy.h>
 #include "sound_config.h"
 
 #include "ad1848.h"
@@ -138,7 +139,7 @@ typedef struct {
 	struct pnp_dev* pdev;
 	int activated;			/* Whether said devices have been activated */
 #endif
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_LEGACY
 	unsigned int	in_suspend;
 	struct pm_dev	*pmdev;
 #endif
@@ -341,7 +342,7 @@ static void opl3sa2_mixer_reset(opl3sa2_state_t* devc)
 }
 
 /* Currently only used for power management */
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_LEGACY
 static void opl3sa2_mixer_restore(opl3sa2_state_t* devc)
 {
 	if (devc) {
@@ -354,7 +355,7 @@ static void opl3sa2_mixer_restore(opl3sa2_state_t* devc)
 		}
 	}
 }
-#endif
+#endif /* CONFIG_PM_LEGACY */
 
 static inline void arg_to_vol_mono(unsigned int vol, int* value)
 {
@@ -831,7 +832,8 @@ static struct pnp_driver opl3sa2_driver = {
 
 /* End of component functions */
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_LEGACY
+
 static DEFINE_SPINLOCK(opl3sa2_lock);
 
 /* Power Management support functions */
@@ -906,7 +908,7 @@ static int opl3sa2_pm_callback(struct pm_dev *pdev, pm_request_t rqst, void *dat
 	}
 	return 0;
 }
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_LEGACY */
 
 /*
  * Install OPL3-SA2 based card(s).
@@ -1019,12 +1021,12 @@ static int __init init_opl3sa2(void)
 
 		/* ewww =) */
 		opl3sa2_state[card].card = card;
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_LEGACY
 		/* register our power management capabilities */
 		opl3sa2_state[card].pmdev = pm_register(PM_ISA_DEV, card, opl3sa2_pm_callback);
 		if (opl3sa2_state[card].pmdev)
 			opl3sa2_state[card].pmdev->data = &opl3sa2_state[card];
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_LEGACY */
 
 		/*
 		 * Set the Yamaha 3D enhancement mode (aka Ymersion) if asked to and
@@ -1081,7 +1083,7 @@ static void __exit cleanup_opl3sa2(void)
 	int card;
 
 	for(card = 0; card < opl3sa2_cards_num; card++) {
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_LEGACY
 		if (opl3sa2_state[card].pmdev)
 			pm_unregister(opl3sa2_state[card].pmdev);
 #endif

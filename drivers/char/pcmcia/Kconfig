@@ -18,5 +18,29 @@ config SYNCLINK_CS
 	  The module will be called synclinkmp.  If you want to do that, say M
 	  here.
 
+config CARDMAN_4000
+	tristate "Omnikey Cardman 4000 support"
+	depends on PCMCIA
+	help
+	  Enable support for the Omnikey Cardman 4000 PCMCIA Smartcard
+	  reader.
+
+	  This kernel driver requires additional userspace support, either
+	  by the vendor-provided PC/SC ifd_handler (http://www.omnikey.com/),
+	  or via the cm4000 backend of OpenCT (http://www.opensc.com/).
+
+config CARDMAN_4040
+	tristate "Omnikey CardMan 4040 support"
+	depends on PCMCIA
+	help
+	  Enable support for the Omnikey CardMan 4040 PCMCIA Smartcard
+	  reader.
+
+	  This card is basically a USB CCID device connected to a FIFO
+	  in I/O space.  To use the kernel driver, you will need either the
+	  PC/SC ifdhandler provided from the Omnikey homepage
+	  (http://www.omnikey.com/), or a current development version of OpenCT
+	  (http://www.opensc.org/).
+
 endmenu
 

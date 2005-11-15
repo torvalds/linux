@@ -702,6 +702,8 @@ menu "Device Drivers"
 
 source "drivers/base/Kconfig"
 
+source "drivers/connector/Kconfig"
+
 if ALIGNMENT_TRAP
 source "drivers/mtd/Kconfig"
 endif

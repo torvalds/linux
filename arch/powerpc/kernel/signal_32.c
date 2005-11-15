@@ -403,8 +403,6 @@ static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 		    ELF_NFPREG * sizeof(double)))
 		return 1;
 
-	current->thread.fpscr.val = 0;	/* turn off all fp exceptions */
-
 #ifdef CONFIG_ALTIVEC
 	/* save altivec registers */
 	if (current->thread.used_vr) {
@@ -818,6 +816,9 @@ static int handle_rt_signal(unsigned long sig, struct k_sigaction *ka,
 			goto badframe;
 		regs->link = (unsigned long) frame->tramp;
 	}
+
+	current->thread.fpscr.val = 0;	/* turn off all fp exceptions */
+
 	if (put_user(regs->gpr[1], (u32 __user *)newsp))
 		goto badframe;
 	regs->gpr[1] = newsp;
@@ -1096,6 +1097,8 @@ static int handle_signal(unsigned long sig, struct k_sigaction *ka,
 			goto badframe;
 		regs->link = (unsigned long) frame->mctx.tramp;
 	}
+
+	current->thread.fpscr.val = 0;	/* turn off all fp exceptions */
 
 	if (put_user(regs->gpr[1], (u32 __user *)newsp))
 		goto badframe;

@@ -19,6 +19,7 @@
 #include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/sysrq.h>
+#include <linux/interrupt.h>
 
 #include <asm/ptrace.h>
 #include <asm/string.h>

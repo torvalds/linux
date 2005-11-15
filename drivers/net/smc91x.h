@@ -100,14 +100,14 @@
 #define SMC_IO_SHIFT		0
 #define SMC_NOWAIT		1
 
-#define SMC_inb(a, r)		inb((a) + (r))
-#define SMC_insb(a, r, p, l)	insb((a) + (r), p, (l))
-#define SMC_inw(a, r)		inw((a) + (r))
-#define SMC_insw(a, r, p, l)	insw((a) + (r), p, l)
-#define SMC_outb(v, a, r)	outb(v, (a) + (r))
-#define SMC_outsb(a, r, p, l)	outsb((a) + (r), p, (l))
-#define SMC_outw(v, a, r)	outw(v, (a) + (r))
-#define SMC_outsw(a, r, p, l)	outsw((a) + (r), p, l)
+#define SMC_inb(a, r)		readb((a) + (r))
+#define SMC_insb(a, r, p, l)	readsb((a) + (r), p, (l))
+#define SMC_inw(a, r)		readw((a) + (r))
+#define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
+#define SMC_outb(v, a, r)	writeb(v, (a) + (r))
+#define SMC_outsb(a, r, p, l)	writesb((a) + (r), p, (l))
+#define SMC_outw(v, a, r)	writew(v, (a) + (r))
+#define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
 
 #define set_irq_type(irq, type) do {} while (0)
 

@@ -208,6 +208,7 @@ extern struct bus_type bttv_sub_bus_type;
 int bttv_sub_add_device(struct bttv_core *core, char *name);
 int bttv_sub_del_devices(struct bttv_core *core);
 void bttv_gpio_irq(struct bttv_core *core);
+int bttv_any_irq(struct bttv_core *core);
 
 
 /* ---------------------------------------------------------- */
@@ -273,6 +274,7 @@ struct bttv {
 	struct bttv_pll_info pll;
 	int triton1;
 	int gpioirq;
+	int any_irq;
 	int use_i2c_hw;
 
 	/* old gpio interface */

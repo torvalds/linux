@@ -80,5 +80,6 @@ V_FUNCTION_BEGIN(__kernel_get_tbfreq)
 	bl	V_LOCAL_FUNC(__get_datapage)
 	ld	r3,CFG_TB_TICKS_PER_SEC(r3)
 	mtlr	r12
+	blr
   .cfi_endproc
 V_FUNCTION_END(__kernel_get_tbfreq)

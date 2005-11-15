@@ -111,6 +111,8 @@ extern unsigned int nmi_watchdog;
 
 extern int disable_timer_pin_1;
 
+extern void setup_threshold_lvt(unsigned long lvt_off);
+
 #endif /* CONFIG_X86_LOCAL_APIC */
 
 extern unsigned boot_cpu_id;

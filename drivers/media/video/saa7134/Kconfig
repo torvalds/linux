@@ -1,10 +1,11 @@
 config VIDEO_SAA7134
 	tristate "Philips SAA7134 support"
-	depends on VIDEO_DEV && PCI && I2C && SOUND
+	depends on VIDEO_DEV && PCI && I2C && SOUND && SND
 	select VIDEO_BUF
 	select VIDEO_IR
 	select VIDEO_TUNER
 	select CRC32
+	select SND_PCM_OSS
 	---help---
 	  This is a video4linux driver for Philips SAA713x based
 	  TV cards.

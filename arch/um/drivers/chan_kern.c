@@ -89,8 +89,7 @@ static int not_configged_write(int fd, const char *buf, int len, void *data)
 	return(-EIO);
 }
 
-static int not_configged_console_write(int fd, const char *buf, int len,
-				       void *data)
+static int not_configged_console_write(int fd, const char *buf, int len)
 {
 	my_puts("Using a channel type which is configured out of "
 	       "UML\n");
@@ -299,7 +298,7 @@ int console_write_chan(struct list_head *chans, const char *buf, int len)
 		chan = list_entry(ele, struct chan, list);
 		if(!chan->output || (chan->ops->console_write == NULL))
 			continue;
-		n = chan->ops->console_write(chan->fd, buf, len, chan->data);
+		n = chan->ops->console_write(chan->fd, buf, len);
 		if(chan->primary) ret = n;
 	}
 	return(ret);

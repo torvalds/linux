@@ -687,6 +687,7 @@ static void sil24_port_stop(struct ata_port *ap)
 	struct sil24_port_priv *pp = ap->private_data;
 
 	sil24_cblk_free(pp, dev);
+	ata_pad_free(ap, dev);
 	kfree(pp);
 }
 

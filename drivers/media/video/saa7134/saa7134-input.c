@@ -485,64 +485,6 @@ static IR_KEYTAB_TYPE ir_codes_purpletv[IR_KEYTAB_SIZE] = {
 
 };
 
-static IR_KEYTAB_TYPE ir_codes_pinnacle[IR_KEYTAB_SIZE] = {
-	[ 0x59 ] = KEY_MUTE,
-	[ 0x4a ] = KEY_POWER,
-
-	[ 0x18 ] = KEY_TEXT,
-	[ 0x26 ] = KEY_TV,
-	[ 0x3d ] = KEY_PRINT,
-
-	[ 0x48 ] = KEY_RED,
-	[ 0x04 ] = KEY_GREEN,
-	[ 0x11 ] = KEY_YELLOW,
-	[ 0x00 ] = KEY_BLUE,
-
-	[ 0x2d ] = KEY_VOLUMEUP,
-	[ 0x1e ] = KEY_VOLUMEDOWN,
-
-	[ 0x49 ] = KEY_MENU,
-
-	[ 0x16 ] = KEY_CHANNELUP,
-	[ 0x17 ] = KEY_CHANNELDOWN,
-
-	[ 0x20 ] = KEY_UP,
-	[ 0x21 ] = KEY_DOWN,
-	[ 0x22 ] = KEY_LEFT,
-	[ 0x23 ] = KEY_RIGHT,
-	[ 0x0d ] = KEY_SELECT,
-
-
-
-	[ 0x08 ] = KEY_BACK,
-	[ 0x07 ] = KEY_REFRESH,
-
-	[ 0x2f ] = KEY_ZOOM,
-	[ 0x29 ] = KEY_RECORD,
-
-	[ 0x4b ] = KEY_PAUSE,
-	[ 0x4d ] = KEY_REWIND,
-	[ 0x2e ] = KEY_PLAY,
-	[ 0x4e ] = KEY_FORWARD,
-	[ 0x53 ] = KEY_PREVIOUS,
-	[ 0x4c ] = KEY_STOP,
-	[ 0x54 ] = KEY_NEXT,
-
-	[ 0x69 ] = KEY_KP0,
-	[ 0x6a ] = KEY_KP1,
-	[ 0x6b ] = KEY_KP2,
-	[ 0x6c ] = KEY_KP3,
-	[ 0x6d ] = KEY_KP4,
-	[ 0x6e ] = KEY_KP5,
-	[ 0x6f ] = KEY_KP6,
-	[ 0x70 ] = KEY_KP7,
-	[ 0x71 ] = KEY_KP8,
-	[ 0x72 ] = KEY_KP9,
-
-	[ 0x74 ] = KEY_CHANNEL,
-	[ 0x0a ] = KEY_BACKSPACE,
-};
-
 /* Mapping for the 28 key remote control as seen at
    http://www.sednacomputer.com/photo/cardbus-tv.jpg
    Pavel Mihaylov <bin@bash.info> */
@@ -634,57 +576,6 @@ static int get_key_purpletv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	*ir_raw = b;
 	return 1;
 }
-
-/* The new pinnacle PCTV remote (with the colored buttons)
- *
- * Ricardo Cerqueira <v4l@cerqueira.org>
- */
-
-static int get_key_pinnacle(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
-{
-	unsigned char b[4];
-	unsigned int start = 0,parity = 0,code = 0;
-
-	/* poll IR chip */
-	if (4 != i2c_master_recv(&ir->c,b,4)) {
-		i2cdprintk("read error\n");
-		return -EIO;
-	}
-
-	for (start = 0; start<4; start++) {
-		if (b[start] == 0x80) {
-			code=b[(start+3)%4];
-			parity=b[(start+2)%4];
-		}
-	}
-
-	/* Empty Request */
-	if (parity==0)
-		return 0;
-
-	/* Repeating... */
-	if (ir->old == parity)
-		return 0;
-
-
-	ir->old = parity;
-
-	/* Reduce code value to fit inside IR_KEYTAB_SIZE
-	 *
-	 * this is the only value that results in 42 unique
-	 * codes < 128
-	 */
-
-	code %= 0x88;
-
-	*ir_raw = code;
-	*ir_key = code;
-
-	i2cdprintk("Pinnacle PCTV key %02x\n", code);
-
-	return 1;
-}
-
 
 void saa7134_input_irq(struct saa7134_dev *dev)
 {

@@ -3667,6 +3667,10 @@ static irqreturn_t bttv_irq(int irq, void *dev_id, struct pt_regs * regs)
 	int handled = 0;
 
 	btv=(struct bttv *)dev_id;
+
+	if (btv->any_irq)
+		handled = bttv_any_irq(&btv->c);
+
 	count=0;
 	while (1) {
 		/* get/clear interrupt status bits */

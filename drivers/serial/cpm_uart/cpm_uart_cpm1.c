@@ -3,7 +3,7 @@
  *
  *  Driver for CPM (SCC/SMC) serial ports; CPM1 definitions
  *
- *  Maintainer: Kumar Gala (kumar.gala@freescale.com) (CPM2)
+ *  Maintainer: Kumar Gala (galak@kernel.crashing.org) (CPM2)
  *              Pantelis Antoniou (panto@intracom.gr) (CPM1)
  *
  *  Copyright (C) 2004 Freescale Semiconductor, Inc.

@@ -1188,7 +1188,7 @@ static void pkt_count_states(struct pktcdvd_device *pd, int *states)
 	struct packet_data *pkt;
 	int i;
 
-	for (i = 0; i <= PACKET_NUM_STATES; i++)
+	for (i = 0; i < PACKET_NUM_STATES; i++)
 		states[i] = 0;
 
 	spin_lock(&pd->cdrw.active_list_lock);
