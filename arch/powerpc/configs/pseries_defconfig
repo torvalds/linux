@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
 # Linux kernel version: 2.6.15-rc1
-# Mon Nov 14 15:27:00 2005
+# Tue Nov 15 14:36:55 2005
 #
 CONFIG_PPC64=y
 CONFIG_64BIT=y
@@ -144,7 +144,7 @@ CONFIG_FORCE_MAX_ZONEORDER=13
 CONFIG_IOMMU_VMERGE=y
 CONFIG_HOTPLUG_CPU=y
 CONFIG_KEXEC=y
-# CONFIG_IRQ_ALL_CPUS is not set
+CONFIG_IRQ_ALL_CPUS=y
 CONFIG_PPC_SPLPAR=y
 CONFIG_EEH=y
 CONFIG_SCANLOG=m
