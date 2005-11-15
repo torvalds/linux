@@ -76,7 +76,6 @@
  * registers from *regs.  This is what we need
  * to do when a signal has been delivered.
  */
-#define sigreturn_exit(regs)	return 0
 
 #define GP_REGS_SIZE	min(sizeof(elf_gregset_t32), sizeof(struct pt_regs32))
 #undef __SIGNAL_FRAMESIZE
@@ -156,9 +155,17 @@ static inline int save_general_regs(struct pt_regs *regs,
 	elf_greg_t64 *gregs = (elf_greg_t64 *)regs;
 	int i;
 
-	for (i = 0; i <= PT_RESULT; i ++)
+	if (!FULL_REGS(regs)) {
+		set_thread_flag(TIF_SAVE_NVGPRS);
+		current_thread_info()->nvgprs_frame = frame->mc_gregs;
+	}
+
+	for (i = 0; i <= PT_RESULT; i ++) {
+		if (i == 14 && !FULL_REGS(regs))
+			i = 32;
 		if (__put_user((unsigned int)gregs[i], &frame->mc_gregs[i]))
 			return -EFAULT;
+	}
 	return 0;
 }
 
@@ -178,8 +185,6 @@ static inline int restore_general_regs(struct pt_regs *regs,
 }
 
 #else /* CONFIG_PPC64 */
-
-extern void sigreturn_exit(struct pt_regs *);
 
 #define GP_REGS_SIZE	min(sizeof(elf_gregset_t), sizeof(struct pt_regs))
 
@@ -256,8 +261,10 @@ long sys_sigsuspend(old_sigset_t mask, int p2, int p3, int p4, int p6, int p7,
 	while (1) {
 		current->state = TASK_INTERRUPTIBLE;
 		schedule();
-		if (do_signal(&saveset, regs))
-			sigreturn_exit(regs);
+		if (do_signal(&saveset, regs)) {
+			set_thread_flag(TIF_RESTOREALL);
+			return 0;
+		}
 	}
 }
 
@@ -292,8 +299,10 @@ long sys_rt_sigsuspend(
 	while (1) {
 		current->state = TASK_INTERRUPTIBLE;
 		schedule();
-		if (do_signal(&saveset, regs))
-			sigreturn_exit(regs);
+		if (do_signal(&saveset, regs)) {
+			set_thread_flag(TIF_RESTOREALL);
+			return 0;
+		}
 	}
 }
 
@@ -391,9 +400,6 @@ struct rt_sigframe {
 static int save_user_regs(struct pt_regs *regs, struct mcontext __user *frame,
 		int sigret)
 {
-#ifdef CONFIG_PPC32
-	CHECK_FULL_REGS(regs);
-#endif
 	/* Make sure floating point registers are stored in regs */
 	flush_fp_to_thread(current);
 
@@ -828,12 +834,6 @@ static int handle_rt_signal(unsigned long sig, struct k_sigaction *ka,
 	regs->gpr[6] = (unsigned long) rt_sf;
 	regs->nip = (unsigned long) ka->sa.sa_handler;
 	regs->trap = 0;
-#ifdef CONFIG_PPC64
-	regs->result = 0;
-
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
-#endif
 	return 1;
 
 badframe:
@@ -911,8 +911,8 @@ long sys_swapcontext(struct ucontext __user *old_ctx,
 	 */
 	if (do_setcontext(new_ctx, regs, 0))
 		do_exit(SIGSEGV);
-	sigreturn_exit(regs);
-	/* doesn't actually return back to here */
+
+	set_thread_flag(TIF_RESTOREALL);
 	return 0;
 }
 
@@ -945,12 +945,11 @@ long sys_rt_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 	 * nobody does any...
 	 */
 	compat_sys_sigaltstack((u32)(u64)&rt_sf->uc.uc_stack, 0, 0, 0, 0, 0, regs);
-	return (int)regs->result;
 #else
 	do_sigaltstack(&rt_sf->uc.uc_stack, NULL, regs->gpr[1]);
-	sigreturn_exit(regs);		/* doesn't return here */
-	return 0;
 #endif
+	set_thread_flag(TIF_RESTOREALL);
+	return 0;
 
  bad:
 	force_sig(SIGSEGV, current);
@@ -1041,9 +1040,7 @@ int sys_debug_setcontext(struct ucontext __user *ctx,
 	 */
 	do_sigaltstack(&ctx->uc_stack, NULL, regs->gpr[1]);
 
-	sigreturn_exit(regs);
-	/* doesn't actually return back to here */
-
+	set_thread_flag(TIF_RESTOREALL);
  out:
 	return 0;
 }
@@ -1107,12 +1104,6 @@ static int handle_signal(unsigned long sig, struct k_sigaction *ka,
 	regs->gpr[4] = (unsigned long) sc;
 	regs->nip = (unsigned long) ka->sa.sa_handler;
 	regs->trap = 0;
-#ifdef CONFIG_PPC64
-	regs->result = 0;
-
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
-#endif
 
 	return 1;
 
@@ -1160,12 +1151,8 @@ long sys_sigreturn(int r3, int r4, int r5, int r6, int r7, int r8,
 	    || restore_user_regs(regs, sr, 1))
 		goto badframe;
 
-#ifdef CONFIG_PPC64
-	return (int)regs->result;
-#else
-	sigreturn_exit(regs);		/* doesn't return */
+	set_thread_flag(TIF_RESTOREALL);
 	return 0;
-#endif
 
 badframe:
 	force_sig(SIGSEGV, current);

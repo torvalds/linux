@@ -92,9 +92,9 @@ int main(void)
 
 	DEFINE(TI_FLAGS, offsetof(struct thread_info, flags));
 	DEFINE(TI_PREEMPT, offsetof(struct thread_info, preempt_count));
-	DEFINE(TI_SC_NOERR, offsetof(struct thread_info, syscall_noerror));
-#ifdef CONFIG_PPC32
+	DEFINE(TI_SIGFRAME, offsetof(struct thread_info, nvgprs_frame));
 	DEFINE(TI_TASK, offsetof(struct thread_info, task));
+#ifdef CONFIG_PPC32
 	DEFINE(TI_EXECDOMAIN, offsetof(struct thread_info, exec_domain));
 	DEFINE(TI_CPU, offsetof(struct thread_info, cpu));
 #endif /* CONFIG_PPC32 */

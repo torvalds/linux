@@ -96,8 +96,10 @@ long sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize, int p3, int 
 	while (1) {
 		current->state = TASK_INTERRUPTIBLE;
 		schedule();
-		if (do_signal(&saveset, regs))
+		if (do_signal(&saveset, regs)) {
+			set_thread_flag(TIF_RESTOREALL);
 			return 0;
+		}
 	}
 }
 
@@ -152,6 +154,14 @@ static long setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
 	err |= __put_user(0, &sc->v_regs);
 #endif /* CONFIG_ALTIVEC */
 	err |= __put_user(&sc->gp_regs, &sc->regs);
+	if (!FULL_REGS(regs)) {
+		/* Zero out the unsaved GPRs to avoid information
+		   leak, and set TIF_SAVE_NVGPRS to ensure that the
+		   registers do actually get saved later. */
+		memset(&regs->gpr[14], 0, 18 * sizeof(unsigned long));
+		set_thread_flag(TIF_SAVE_NVGPRS);
+		current_thread_info()->nvgprs_frame = &sc->gp_regs;
+	}
 	err |= __copy_to_user(&sc->gp_regs, regs, GP_REGS_SIZE);
 	err |= __copy_to_user(&sc->fp_regs, &current->thread.fpr, FP_REGS_SIZE);
 	err |= __put_user(signr, &sc->signal);
@@ -340,6 +350,7 @@ int sys_swapcontext(struct ucontext __user *old_ctx,
 		do_exit(SIGSEGV);
 
 	/* This returns like rt_sigreturn */
+	set_thread_flag(TIF_RESTOREALL);
 	return 0;
 }
 
@@ -372,7 +383,8 @@ int sys_rt_sigreturn(unsigned long r3, unsigned long r4, unsigned long r5,
 	 */
 	do_sigaltstack(&uc->uc_stack, NULL, regs->gpr[1]);
 
-	return regs->result;
+	set_thread_flag(TIF_RESTOREALL);
+	return 0;
 
 badframe:
 #if DEBUG_SIG
@@ -454,9 +466,6 @@ static int setup_rt_frame(int signr, struct k_sigaction *ka, siginfo_t *info,
 	if (err)
 		goto badframe;
 
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
-
 	return 1;
 
 badframe:
@@ -502,6 +511,8 @@ static inline void syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 		 * we only get here if there is a handler, we dont restart.
 		 */
 		regs->result = -EINTR;
+		regs->gpr[3] = EINTR;
+		regs->ccr |= 0x10000000;
 		break;
 	case -ERESTARTSYS:
 		/* ERESTARTSYS means to restart the syscall if there is no
@@ -509,6 +520,8 @@ static inline void syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 		 */
 		if (!(ka->sa.sa_flags & SA_RESTART)) {
 			regs->result = -EINTR;
+			regs->gpr[3] = EINTR;
+			regs->ccr |= 0x10000000;
 			break;
 		}
 		/* fallthrough */
