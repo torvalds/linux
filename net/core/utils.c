@@ -175,7 +175,7 @@ __u32 in_aton(const char *str)
 		if (*str != '\0')
 		{
 			val = 0;
-			while (*str != '\0' && *str != '.')
+			while (*str != '\0' && *str != '.' && *str != '\n')
 			{
 				val *= 10;
 				val += *str - '0';

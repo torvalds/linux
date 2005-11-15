@@ -198,20 +198,21 @@ static int tlb_initialize(struct bonding *bond)
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
 	int size = TLB_HASH_TABLE_SIZE * sizeof(struct tlb_client_info);
+	struct tlb_client_info *new_hashtbl;
 	int i;
 
 	spin_lock_init(&(bond_info->tx_hashtbl_lock));
 
-	_lock_tx_hashtbl(bond);
-
-	bond_info->tx_hashtbl = kmalloc(size, GFP_KERNEL);
-	if (!bond_info->tx_hashtbl) {
+	new_hashtbl = kmalloc(size, GFP_KERNEL);
+	if (!new_hashtbl) {
 		printk(KERN_ERR DRV_NAME
-		       ": Error: %s: Failed to allocate TLB hash table\n",
+		       ": %s: Error: Failed to allocate TLB hash table\n",
 		       bond->dev->name);
-		_unlock_tx_hashtbl(bond);
 		return -1;
 	}
+	_lock_tx_hashtbl(bond);
+
+	bond_info->tx_hashtbl = new_hashtbl;
 
 	memset(bond_info->tx_hashtbl, 0, size);
 
@@ -513,7 +514,8 @@ static void rlb_update_client(struct rlb_client_info *client_info)
 				 client_info->mac_dst);
 		if (!skb) {
 			printk(KERN_ERR DRV_NAME
-			       ": Error: failed to create an ARP packet\n");
+			       ": %s: Error: failed to create an ARP packet\n",
+			       client_info->slave->dev->master->name);
 			continue;
 		}
 
@@ -523,7 +525,8 @@ static void rlb_update_client(struct rlb_client_info *client_info)
 			skb = vlan_put_tag(skb, client_info->vlan_id);
 			if (!skb) {
 				printk(KERN_ERR DRV_NAME
-				       ": Error: failed to insert VLAN tag\n");
+				       ": %s: Error: failed to insert VLAN tag\n",
+				       client_info->slave->dev->master->name);
 				continue;
 			}
 		}
@@ -606,8 +609,9 @@ static void rlb_req_update_subnet_clients(struct bonding *bond, u32 src_ip)
 
 		if (!client_info->slave) {
 			printk(KERN_ERR DRV_NAME
-			       ": Error: found a client with no channel in "
-			       "the client's hash table\n");
+			       ": %s: Error: found a client with no channel in "
+			       "the client's hash table\n",
+			       bond->dev->name);
 			continue;
 		}
 		/*update all clients using this src_ip, that are not assigned
@@ -797,21 +801,22 @@ static int rlb_initialize(struct bonding *bond)
 {
 	struct alb_bond_info *bond_info = &(BOND_ALB_INFO(bond));
 	struct packet_type *pk_type = &(BOND_ALB_INFO(bond).rlb_pkt_type);
+	struct rlb_client_info	*new_hashtbl;
 	int size = RLB_HASH_TABLE_SIZE * sizeof(struct rlb_client_info);
 	int i;
 
 	spin_lock_init(&(bond_info->rx_hashtbl_lock));
 
-	_lock_rx_hashtbl(bond);
-
-	bond_info->rx_hashtbl = kmalloc(size, GFP_KERNEL);
-	if (!bond_info->rx_hashtbl) {
+	new_hashtbl = kmalloc(size, GFP_KERNEL);
+	if (!new_hashtbl) {
 		printk(KERN_ERR DRV_NAME
-		       ": Error: %s: Failed to allocate RLB hash table\n",
+		       ": %s: Error: Failed to allocate RLB hash table\n",
 		       bond->dev->name);
-		_unlock_rx_hashtbl(bond);
 		return -1;
 	}
+	_lock_rx_hashtbl(bond);
+
+	bond_info->rx_hashtbl = new_hashtbl;
 
 	bond_info->rx_hashtbl_head = RLB_NULL_INDEX;
 
@@ -927,7 +932,8 @@ static void alb_send_learning_packets(struct slave *slave, u8 mac_addr[])
 			skb = vlan_put_tag(skb, vlan->vlan_id);
 			if (!skb) {
 				printk(KERN_ERR DRV_NAME
-				       ": Error: failed to insert VLAN tag\n");
+				       ": %s: Error: failed to insert VLAN tag\n",
+				       bond->dev->name);
 				continue;
 			}
 		}
@@ -956,11 +962,11 @@ static int alb_set_slave_mac_addr(struct slave *slave, u8 addr[], int hw)
 	s_addr.sa_family = dev->type;
 	if (dev_set_mac_address(dev, &s_addr)) {
 		printk(KERN_ERR DRV_NAME
-		       ": Error: dev_set_mac_address of dev %s failed! ALB "
+		       ": %s: Error: dev_set_mac_address of dev %s failed! ALB "
 		       "mode requires that the base driver support setting "
 		       "the hw address also when the network device's "
 		       "interface is open\n",
-		       dev->name);
+		       dev->master->name, dev->name);
 		return -EOPNOTSUPP;
 	}
 	return 0;
@@ -1153,16 +1159,16 @@ static int alb_handle_addr_collision_on_attach(struct bonding *bond, struct slav
 				       bond->alb_info.rlb_enabled);
 
 		printk(KERN_WARNING DRV_NAME
-		       ": Warning: the hw address of slave %s is in use by "
+		       ": %s: Warning: the hw address of slave %s is in use by "
 		       "the bond; giving it the hw address of %s\n",
-		       slave->dev->name, free_mac_slave->dev->name);
+		       bond->dev->name, slave->dev->name, free_mac_slave->dev->name);
 
 	} else if (has_bond_addr) {
 		printk(KERN_ERR DRV_NAME
-		       ": Error: the hw address of slave %s is in use by the "
+		       ": %s: Error: the hw address of slave %s is in use by the "
 		       "bond; couldn't find a slave with a free hw address to "
 		       "give it (this should not have happened)\n",
-		       slave->dev->name);
+		       bond->dev->name, slave->dev->name);
 		return -EFAULT;
 	}
 
@@ -1250,6 +1256,8 @@ int bond_alb_initialize(struct bonding *bond, int rlb_enabled)
 			tlb_deinitialize(bond);
 			return res;
 		}
+	} else {
+		bond->alb_info.rlb_enabled = 0;
 	}
 
 	return 0;
@@ -1409,7 +1417,7 @@ void bond_alb_monitor(struct bonding *bond)
 		read_lock(&bond->curr_slave_lock);
 
 		bond_for_each_slave(bond, slave, i) {
-			alb_send_learning_packets(slave,slave->dev->dev_addr);
+			alb_send_learning_packets(slave, slave->dev->dev_addr);
 		}
 
 		read_unlock(&bond->curr_slave_lock);

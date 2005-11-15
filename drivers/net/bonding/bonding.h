@@ -29,6 +29,10 @@
  * 2005/05/05 - Jason Gabler <jygabler at lbl dot gov>
  *      - added "xmit_policy" kernel parameter for alternate hashing policy
  *	  support for mode 2
+ *
+ * 2005/09/27 - Mitch Williams <mitch.a.williams at intel dot com>
+ *		Radheka Godse <radheka.godse at intel dot com>
+ *      - Added bonding sysfs interface
  */
 
 #ifndef _LINUX_BONDING_H
@@ -37,11 +41,12 @@
 #include <linux/timer.h>
 #include <linux/proc_fs.h>
 #include <linux/if_bonding.h>
+#include <linux/kobject.h>
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
-#define DRV_VERSION	"2.6.5"
-#define DRV_RELDATE	"November 4, 2005"
+#define DRV_VERSION	"3.0.0"
+#define DRV_RELDATE	"November 8, 2005"
 #define DRV_NAME	"bonding"
 #define DRV_DESCRIPTION	"Ethernet Channel Bonding Driver"
 
@@ -152,6 +157,11 @@ struct bond_params {
 	u32 arp_targets[BOND_MAX_ARP_TARGETS];
 };
 
+struct bond_parm_tbl {
+	char *modename;
+	int mode;
+};
+
 struct vlan_entry {
 	struct list_head vlan_list;
 	u32 vlan_ip;
@@ -159,7 +169,7 @@ struct vlan_entry {
 };
 
 struct slave {
-	struct net_device *dev; /* first - usefull for panic debug */
+	struct net_device *dev; /* first - useful for panic debug */
 	struct slave *next;
 	struct slave *prev;
 	s16    delay;
@@ -185,7 +195,7 @@ struct slave {
  *    beforehand.
  */
 struct bonding {
-	struct   net_device *dev; /* first - usefull for panic debug */
+	struct   net_device *dev; /* first - useful for panic debug */
 	struct   slave *first_slave;
 	struct   slave *curr_active_slave;
 	struct   slave *current_arp_slave;
@@ -255,6 +265,25 @@ extern inline void bond_set_slave_active_flags(struct slave *slave)
 
 struct vlan_entry *bond_next_vlan(struct bonding *bond, struct vlan_entry *curr);
 int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb, struct net_device *slave_dev);
+int bond_create(char *name, struct bond_params *params, struct bonding **newbond);
+void bond_deinit(struct net_device *bond_dev);
+int bond_create_sysfs(void);
+void bond_destroy_sysfs(void);
+void bond_destroy_sysfs_entry(struct bonding *bond);
+int bond_create_sysfs_entry(struct bonding *bond);
+int bond_create_slave_symlinks(struct net_device *master, struct net_device *slave);
+void bond_destroy_slave_symlinks(struct net_device *master, struct net_device *slave);
+int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev);
+int bond_release(struct net_device *bond_dev, struct net_device *slave_dev);
+int bond_sethwaddr(struct net_device *bond_dev, struct net_device *slave_dev);
+void bond_mii_monitor(struct net_device *bond_dev);
+void bond_loadbalance_arp_mon(struct net_device *bond_dev);
+void bond_activebackup_arp_mon(struct net_device *bond_dev);
+void bond_set_mode_ops(struct bonding *bond, int mode);
+int bond_parse_parm(char *mode_arg, struct bond_parm_tbl *tbl);
+const char *bond_mode_name(int mode);
+void bond_select_active_slave(struct bonding *bond);
+void bond_change_active_slave(struct bonding *bond, struct slave *new_active);
 
 #endif /* _LINUX_BONDING_H */
 
