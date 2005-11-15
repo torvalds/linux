@@ -45,7 +45,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v0.6.12 (2005/01/13)"
+#define DRIVER_VERSION "v0.6.13 (2005/11/13)"
 #define DRIVER_AUTHOR "Petko Manolov <petkan@users.sourceforge.net>"
 #define DRIVER_DESC "Pegasus/Pegasus II USB Ethernet driver"
 
@@ -113,7 +113,7 @@ static void ctrl_callback(struct urb *urb, struct pt_regs *regs)
 		break;
 	default:
 		if (netif_msg_drv(pegasus))
-			dev_err(&pegasus->intf->dev, "%s, status %d\n",
+			dev_dbg(&pegasus->intf->dev, "%s, status %d\n",
 				__FUNCTION__, urb->status);
 	}
 	pegasus->flags &= ~ETH_REGS_CHANGED;
@@ -308,9 +308,9 @@ static int read_mii_word(pegasus_t * pegasus, __u8 phy, __u8 indx, __u16 * regd)
 	__le16 regdi;
 	int ret;
 
-	ret = set_register(pegasus, PhyCtrl, 0);
-	ret = set_registers(pegasus, PhyAddr, sizeof (data), data);
-	ret = set_register(pegasus, PhyCtrl, (indx | PHY_READ));
+	set_register(pegasus, PhyCtrl, 0);
+	set_registers(pegasus, PhyAddr, sizeof (data), data);
+	set_register(pegasus, PhyCtrl, (indx | PHY_READ));
 	for (i = 0; i < REG_TIMEOUT; i++) {
 		ret = get_registers(pegasus, PhyCtrl, 1, data);
 		if (data[0] & PHY_DONE)
@@ -319,12 +319,12 @@ static int read_mii_word(pegasus_t * pegasus, __u8 phy, __u8 indx, __u16 * regd)
 	if (i < REG_TIMEOUT) {
 		ret = get_registers(pegasus, PhyData, 2, &regdi);
 		*regd = le16_to_cpu(regdi);
-		return 1;
+		return ret;
 	}
 	if (netif_msg_drv(pegasus))
 		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
 
-	return 0;
+	return ret;
 }
 
 static int mdio_read(struct net_device *dev, int phy_id, int loc)
@@ -344,20 +344,20 @@ static int write_mii_word(pegasus_t * pegasus, __u8 phy, __u8 indx, __u16 regd)
 
 	data[1] = (u8) regd;
 	data[2] = (u8) (regd >> 8);
-	ret = set_register(pegasus, PhyCtrl, 0);
-	ret = set_registers(pegasus, PhyAddr, sizeof(data), data);
-	ret = set_register(pegasus, PhyCtrl, (indx | PHY_WRITE));
+	set_register(pegasus, PhyCtrl, 0);
+	set_registers(pegasus, PhyAddr, sizeof(data), data);
+	set_register(pegasus, PhyCtrl, (indx | PHY_WRITE));
 	for (i = 0; i < REG_TIMEOUT; i++) {
 		ret = get_registers(pegasus, PhyCtrl, 1, data);
 		if (data[0] & PHY_DONE)
 			break;
 	}
 	if (i < REG_TIMEOUT)
-		return 0;
+		return ret;
 
 	if (netif_msg_drv(pegasus))
 		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
-	return 1;
+	return -ETIMEDOUT;
 }
 
 static void mdio_write(struct net_device *dev, int phy_id, int loc, int val)
@@ -374,9 +374,9 @@ static int read_eprom_word(pegasus_t * pegasus, __u8 index, __u16 * retdata)
 	__le16 retdatai;
 	int ret;
 
-	ret = set_register(pegasus, EpromCtrl, 0);
-	ret = set_register(pegasus, EpromOffset, index);
-	ret = set_register(pegasus, EpromCtrl, EPROM_READ);
+	set_register(pegasus, EpromCtrl, 0);
+	set_register(pegasus, EpromOffset, index);
+	set_register(pegasus, EpromCtrl, EPROM_READ);
 
 	for (i = 0; i < REG_TIMEOUT; i++) {
 		ret = get_registers(pegasus, EpromCtrl, 1, &tmp);
@@ -386,12 +386,12 @@ static int read_eprom_word(pegasus_t * pegasus, __u8 index, __u16 * retdata)
 	if (i < REG_TIMEOUT) {
 		ret = get_registers(pegasus, EpromData, 2, &retdatai);
 		*retdata = le16_to_cpu(retdatai);
-		return 0;
+		return ret;
 	}
 
 	if (netif_msg_drv(pegasus))
 		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
-	return -1;
+	return -ETIMEDOUT;
 }
 
 #ifdef	PEGASUS_WRITE_EEPROM
@@ -400,8 +400,8 @@ static inline void enable_eprom_write(pegasus_t * pegasus)
 	__u8 tmp;
 	int ret;
 
-	ret = get_registers(pegasus, EthCtrl2, 1, &tmp);
-	ret = set_register(pegasus, EthCtrl2, tmp | EPROM_WR_ENABLE);
+	get_registers(pegasus, EthCtrl2, 1, &tmp);
+	set_register(pegasus, EthCtrl2, tmp | EPROM_WR_ENABLE);
 }
 
 static inline void disable_eprom_write(pegasus_t * pegasus)
@@ -409,9 +409,9 @@ static inline void disable_eprom_write(pegasus_t * pegasus)
 	__u8 tmp;
 	int ret;
 
-	ret = get_registers(pegasus, EthCtrl2, 1, &tmp);
-	ret = set_register(pegasus, EpromCtrl, 0);
-	ret = set_register(pegasus, EthCtrl2, tmp & ~EPROM_WR_ENABLE);
+	get_registers(pegasus, EthCtrl2, 1, &tmp);
+	set_register(pegasus, EpromCtrl, 0);
+	set_register(pegasus, EthCtrl2, tmp & ~EPROM_WR_ENABLE);
 }
 
 static int write_eprom_word(pegasus_t * pegasus, __u8 index, __u16 data)
@@ -420,11 +420,11 @@ static int write_eprom_word(pegasus_t * pegasus, __u8 index, __u16 data)
 	__u8 tmp, d[4] = { 0x3f, 0, 0, EPROM_WRITE };
 	int ret;
 
-	ret = set_registers(pegasus, EpromOffset, 4, d);
+	set_registers(pegasus, EpromOffset, 4, d);
 	enable_eprom_write(pegasus);
-	ret = set_register(pegasus, EpromOffset, index);
-	ret = set_registers(pegasus, EpromData, 2, &data);
-	ret = set_register(pegasus, EpromCtrl, EPROM_WRITE);
+	set_register(pegasus, EpromOffset, index);
+	set_registers(pegasus, EpromData, 2, &data);
+	set_register(pegasus, EpromCtrl, EPROM_WRITE);
 
 	for (i = 0; i < REG_TIMEOUT; i++) {
 		ret = get_registers(pegasus, EpromCtrl, 1, &tmp);
@@ -433,10 +433,10 @@ static int write_eprom_word(pegasus_t * pegasus, __u8 index, __u16 data)
 	}
 	disable_eprom_write(pegasus);
 	if (i < REG_TIMEOUT)
-		return 0;
+		return ret;
 	if (netif_msg_drv(pegasus))
 		dev_warn(&pegasus->intf->dev, "fail %s\n", __FUNCTION__);
-	return -1;
+	return -ETIMEDOUT;
 }
 #endif				/* PEGASUS_WRITE_EEPROM */
 
@@ -454,10 +454,9 @@ static inline void get_node_id(pegasus_t * pegasus, __u8 * id)
 static void set_ethernet_addr(pegasus_t * pegasus)
 {
 	__u8 node_id[6];
-	int ret;
 
 	get_node_id(pegasus, node_id);
-	ret = set_registers(pegasus, EthID, sizeof (node_id), node_id);
+	set_registers(pegasus, EthID, sizeof (node_id), node_id);
 	memcpy(pegasus->net->dev_addr, node_id, sizeof (node_id));
 }
 
@@ -465,30 +464,29 @@ static inline int reset_mac(pegasus_t * pegasus)
 {
 	__u8 data = 0x8;
 	int i;
-	int ret;
 
-	ret = set_register(pegasus, EthCtrl1, data);
+	set_register(pegasus, EthCtrl1, data);
 	for (i = 0; i < REG_TIMEOUT; i++) {
-		ret = get_registers(pegasus, EthCtrl1, 1, &data);
+		get_registers(pegasus, EthCtrl1, 1, &data);
 		if (~data & 0x08) {
 			if (loopback & 1)
 				break;
 			if (mii_mode && (pegasus->features & HAS_HOME_PNA))
-				ret = set_register(pegasus, Gpio1, 0x34);
+				set_register(pegasus, Gpio1, 0x34);
 			else
-				ret = set_register(pegasus, Gpio1, 0x26);
-			ret = set_register(pegasus, Gpio0, pegasus->features);
-			ret = set_register(pegasus, Gpio0, DEFAULT_GPIO_SET);
+				set_register(pegasus, Gpio1, 0x26);
+			set_register(pegasus, Gpio0, pegasus->features);
+			set_register(pegasus, Gpio0, DEFAULT_GPIO_SET);
 			break;
 		}
 	}
 	if (i == REG_TIMEOUT)
-		return 1;
+		return -ETIMEDOUT;
 
 	if (usb_dev_id[pegasus->dev_index].vendor == VENDOR_LINKSYS ||
 	    usb_dev_id[pegasus->dev_index].vendor == VENDOR_DLINK) {
-		ret = set_register(pegasus, Gpio0, 0x24);
-		ret = set_register(pegasus, Gpio0, 0x26);
+		set_register(pegasus, Gpio0, 0x24);
+		set_register(pegasus, Gpio0, 0x26);
 	}
 	if (usb_dev_id[pegasus->dev_index].vendor == VENDOR_ELCON) {
 		__u16 auxmode;
@@ -527,7 +525,7 @@ static int enable_net_traffic(struct net_device *dev, struct usb_device *usb)
 		write_mii_word(pegasus, 0, 0x1b, auxmode | 4);
 	}
 
-	return 0;
+	return ret;
 }
 
 static void fill_skb_pool(pegasus_t * pegasus)
@@ -881,9 +879,8 @@ static struct net_device_stats *pegasus_netdev_stats(struct net_device *dev)
 static inline void disable_net_traffic(pegasus_t * pegasus)
 {
 	int tmp = 0;
-	int ret;
 
-	ret = set_registers(pegasus, EthCtrl0, 2, &tmp);
+	set_registers(pegasus, EthCtrl0, 2, &tmp);
 }
 
 static inline void get_interrupt_interval(pegasus_t * pegasus)
@@ -1206,18 +1203,17 @@ static __u8 mii_phy_probe(pegasus_t * pegasus)
 static inline void setup_pegasus_II(pegasus_t * pegasus)
 {
 	__u8 data = 0xa5;
-	int ret;
 	
-	ret = set_register(pegasus, Reg1d, 0);
-	ret = set_register(pegasus, Reg7b, 1);
+	set_register(pegasus, Reg1d, 0);
+	set_register(pegasus, Reg7b, 1);
 	mdelay(100);
 	if ((pegasus->features & HAS_HOME_PNA) && mii_mode)
-		ret = set_register(pegasus, Reg7b, 0);
+		set_register(pegasus, Reg7b, 0);
 	else
-		ret = set_register(pegasus, Reg7b, 2);
+		set_register(pegasus, Reg7b, 2);
 
-	ret = set_register(pegasus, 0x83, data);
-	ret = get_registers(pegasus, 0x83, 1, &data);
+	set_register(pegasus, 0x83, data);
+	get_registers(pegasus, 0x83, 1, &data);
 
 	if (data == 0xa5) {
 		pegasus->chip = 0x8513;
@@ -1225,14 +1221,14 @@ static inline void setup_pegasus_II(pegasus_t * pegasus)
 		pegasus->chip = 0;
 	}
 
-	ret = set_register(pegasus, 0x80, 0xc0);
-	ret = set_register(pegasus, 0x83, 0xff);
-	ret = set_register(pegasus, 0x84, 0x01);
+	set_register(pegasus, 0x80, 0xc0);
+	set_register(pegasus, 0x83, 0xff);
+	set_register(pegasus, 0x84, 0x01);
 	
 	if (pegasus->features & HAS_HOME_PNA && mii_mode)
-		ret = set_register(pegasus, Reg81, 6);
+		set_register(pegasus, Reg81, 6);
 	else
-		ret = set_register(pegasus, Reg81, 2);
+		set_register(pegasus, Reg81, 2);
 }
 
 
