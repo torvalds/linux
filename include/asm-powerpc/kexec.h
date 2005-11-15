@@ -40,6 +40,7 @@ extern note_buf_t crash_notes[];
 #ifdef __powerpc64__
 extern void kexec_smp_wait(void);	/* get and clear naca physid, wait for
 					  master to copy new code to 0 */
+extern void __init kexec_setup(void);
 #else
 struct kimage;
 extern void machine_kexec_simple(struct kimage *image);
