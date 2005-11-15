@@ -23,6 +23,4 @@
 #define SEADINT_UART0     2
 #define SEADINT_UART1     3
 
-extern void seadint_init(void);
-
 #endif /* !(_MIPS_SEADINT_H) */
