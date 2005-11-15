@@ -62,7 +62,9 @@ static int __spu_trap_error(struct spu *spu)
 static void spu_restart_dma(struct spu *spu)
 {
 	struct spu_priv2 __iomem *priv2 = spu->priv2;
-	out_be64(&priv2->mfc_control_RW, MFC_CNTL_RESTART_DMA_COMMAND);
+
+	if (!test_bit(SPU_CONTEXT_SWITCH_PENDING_nr, &spu->flags))
+		out_be64(&priv2->mfc_control_RW, MFC_CNTL_RESTART_DMA_COMMAND);
 }
 
 static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
@@ -71,6 +73,11 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 	struct mm_struct *mm;
 
 	pr_debug("%s\n", __FUNCTION__);
+
+	if (test_bit(SPU_CONTEXT_SWITCH_ACTIVE_nr, &spu->flags)) {
+		printk("%s: invalid access during switch!\n", __func__);
+		return 1;
+	}
 
 	if (REGION_ID(ea) != USER_REGION_ID) {
 		pr_debug("invalid region access at %016lx\n", ea);
@@ -98,6 +105,7 @@ static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 	return 0;
 }
 
+extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap); //XXX
 static int __spu_trap_data_map(struct spu *spu, unsigned long ea)
 {
 	unsigned long dsisr;
@@ -107,8 +115,21 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea)
 	priv1 = spu->priv1;
 	dsisr = in_be64(&priv1->mfc_dsisr_RW);
 
-	wake_up(&spu->stop_wq);
+	/* Handle kernel space hash faults immediately.
+	   User hash faults need to be deferred to process context. */
+	if ((dsisr & MFC_DSISR_PTE_NOT_FOUND)
+	    && REGION_ID(ea) != USER_REGION_ID
+	    && hash_page(ea, _PAGE_PRESENT, 0x300) == 0) {
+		spu_restart_dma(spu);
+		return 0;
+	}
 
+	if (test_bit(SPU_CONTEXT_SWITCH_ACTIVE_nr, &spu->flags)) {
+		printk("%s: invalid access during switch!\n", __func__);
+		return 1;
+	}
+
+	wake_up(&spu->stop_wq);
 	return 0;
 }
 
@@ -382,7 +403,6 @@ void spu_free(struct spu *spu)
 }
 EXPORT_SYMBOL(spu_free);
 
-extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap); //XXX
 static int spu_handle_mm_fault(struct spu *spu)
 {
 	struct spu_priv1 __iomem *priv1;
@@ -650,6 +670,7 @@ static int __init create_spu(struct device_node *spe)
 	spu->slb_replace = 0;
 	spu->mm = NULL;
 	spu->class_0_pending = 0;
+	spu->flags = 0UL;
 	spin_lock_init(&spu->register_lock);
 
 	out_be64(&spu->priv1->mfc_sdr_RW, mfspr(SPRN_SDR1));

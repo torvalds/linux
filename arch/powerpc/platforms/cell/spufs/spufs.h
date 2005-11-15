@@ -28,6 +28,7 @@
 #include <linux/fs.h>
 
 #include <asm/spu.h>
+#include <asm/spu_csa.h>
 
 /* The magic number for our file system */
 enum {
@@ -36,6 +37,7 @@ enum {
 
 struct spu_context {
 	struct spu *spu;		  /* pointer to a physical SPU */
+	struct spu_state csa;		  /* SPU context save area. */
 	struct rw_semaphore backing_sema; /* protects the above */
 	spinlock_t mmio_lock;		  /* protects mmio access */
 

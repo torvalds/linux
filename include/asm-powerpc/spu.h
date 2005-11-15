@@ -29,6 +29,81 @@
 #define LS_ORDER (6)		/* 256 kb */
 
 #define LS_SIZE (PAGE_SIZE << LS_ORDER)
+#define LS_ADDR_MASK (LS_SIZE - 1)
+
+#define MFC_PUT_CMD             0x20
+#define MFC_PUTS_CMD            0x28
+#define MFC_PUTR_CMD            0x30
+#define MFC_PUTF_CMD            0x22
+#define MFC_PUTB_CMD            0x21
+#define MFC_PUTFS_CMD           0x2A
+#define MFC_PUTBS_CMD           0x29
+#define MFC_PUTRF_CMD           0x32
+#define MFC_PUTRB_CMD           0x31
+#define MFC_PUTL_CMD            0x24
+#define MFC_PUTRL_CMD           0x34
+#define MFC_PUTLF_CMD           0x26
+#define MFC_PUTLB_CMD           0x25
+#define MFC_PUTRLF_CMD          0x36
+#define MFC_PUTRLB_CMD          0x35
+
+#define MFC_GET_CMD             0x40
+#define MFC_GETS_CMD            0x48
+#define MFC_GETF_CMD            0x42
+#define MFC_GETB_CMD            0x41
+#define MFC_GETFS_CMD           0x4A
+#define MFC_GETBS_CMD           0x49
+#define MFC_GETL_CMD            0x44
+#define MFC_GETLF_CMD           0x46
+#define MFC_GETLB_CMD           0x45
+
+#define MFC_SDCRT_CMD           0x80
+#define MFC_SDCRTST_CMD         0x81
+#define MFC_SDCRZ_CMD           0x89
+#define MFC_SDCRS_CMD           0x8D
+#define MFC_SDCRF_CMD           0x8F
+
+#define MFC_GETLLAR_CMD         0xD0
+#define MFC_PUTLLC_CMD          0xB4
+#define MFC_PUTLLUC_CMD         0xB0
+#define MFC_PUTQLLUC_CMD        0xB8
+#define MFC_SNDSIG_CMD          0xA0
+#define MFC_SNDSIGB_CMD         0xA1
+#define MFC_SNDSIGF_CMD         0xA2
+#define MFC_BARRIER_CMD         0xC0
+#define MFC_EIEIO_CMD           0xC8
+#define MFC_SYNC_CMD            0xCC
+
+#define MFC_MIN_DMA_SIZE_SHIFT  4       /* 16 bytes */
+#define MFC_MAX_DMA_SIZE_SHIFT  14      /* 16384 bytes */
+#define MFC_MIN_DMA_SIZE        (1 << MFC_MIN_DMA_SIZE_SHIFT)
+#define MFC_MAX_DMA_SIZE        (1 << MFC_MAX_DMA_SIZE_SHIFT)
+#define MFC_MIN_DMA_SIZE_MASK   (MFC_MIN_DMA_SIZE - 1)
+#define MFC_MAX_DMA_SIZE_MASK   (MFC_MAX_DMA_SIZE - 1)
+#define MFC_MIN_DMA_LIST_SIZE   0x0008  /*   8 bytes */
+#define MFC_MAX_DMA_LIST_SIZE   0x4000  /* 16K bytes */
+
+#define MFC_TAGID_TO_TAGMASK(tag_id)  (1 << (tag_id & 0x1F))
+
+/* Events for Channels 0-2 */
+#define MFC_DMA_TAG_STATUS_UPDATE_EVENT     0x00000001
+#define MFC_DMA_TAG_CMD_STALL_NOTIFY_EVENT  0x00000002
+#define MFC_DMA_QUEUE_AVAILABLE_EVENT       0x00000008
+#define MFC_SPU_MAILBOX_WRITTEN_EVENT       0x00000010
+#define MFC_DECREMENTER_EVENT               0x00000020
+#define MFC_PU_INT_MAILBOX_AVAILABLE_EVENT  0x00000040
+#define MFC_PU_MAILBOX_AVAILABLE_EVENT      0x00000080
+#define MFC_SIGNAL_2_EVENT                  0x00000100
+#define MFC_SIGNAL_1_EVENT                  0x00000200
+#define MFC_LLR_LOST_EVENT                  0x00000400
+#define MFC_PRIV_ATTN_EVENT                 0x00000800
+#define MFC_MULTI_SRC_EVENT                 0x00001000
+
+/* Flags indicating progress during context switch. */
+#define SPU_CONTEXT_SWITCH_PENDING_nr	0UL
+#define SPU_CONTEXT_SWITCH_ACTIVE_nr	1UL
+#define SPU_CONTEXT_SWITCH_PENDING	(1UL << SPU_CONTEXT_SWITCH_PENDING_nr)
+#define SPU_CONTEXT_SWITCH_ACTIVE	(1UL << SPU_CONTEXT_SWITCH_ACTIVE_nr)
 
 struct spu {
 	char *name;
@@ -41,6 +116,7 @@ struct spu {
 	int number;
 	u32 isrc;
 	u32 node;
+	u64 flags;
 	struct kref kref;
 	size_t ls_size;
 	unsigned int slb_replace;
