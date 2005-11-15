@@ -200,7 +200,6 @@ struct spu_priv2_collapsed {
 	u64 spu_chnlcnt_RW;
 	u64 spu_chnldata_RW;
 	u64 spu_cfg_RW;
-	u64 spu_pm_trace_tag_status_RW;
 	u64 spu_tag_status_query_RW;
 	u64 spu_cmd_buf1_RW;
 	u64 spu_cmd_buf2_RW;
