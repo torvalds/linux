@@ -2267,6 +2267,8 @@ int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	return handle_pte_fault(mm, vma, address, pte, pmd, write_access);
 }
 
+EXPORT_SYMBOL_GPL(__handle_mm_fault);
+
 #ifndef __PAGETABLE_PUD_FOLDED
 /*
  * Allocate page upper directory.

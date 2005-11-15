@@ -90,3 +90,5 @@ cond_syscall(sys_pciconfig_iobase);
 cond_syscall(sys32_ipc);
 cond_syscall(sys32_sysctl);
 cond_syscall(ppc_rtas);
+cond_syscall(sys_spu_run);
+cond_syscall(sys_spu_create);

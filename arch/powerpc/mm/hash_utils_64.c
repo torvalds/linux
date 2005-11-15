@@ -644,6 +644,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap)
 	DBG_LOW(" -> rc=%d\n", rc);
 	return rc;
 }
+EXPORT_SYMBOL_GPL(hash_page);
 
 void hash_preload(struct mm_struct *mm, unsigned long ea,
 		  unsigned long access, unsigned long trap)

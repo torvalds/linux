@@ -296,6 +296,8 @@
 #define __NR_inotify_init	275
 #define __NR_inotify_add_watch	276
 #define __NR_inotify_rm_watch	277
+#define __NR_spu_run		278
+#define __NR_spu_create		279
 
 #define __NR_syscalls		278
 

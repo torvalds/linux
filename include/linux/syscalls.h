@@ -512,4 +512,9 @@ asmlinkage long sys_ioprio_get(int which, int who);
 asmlinkage long sys_set_mempolicy(int mode, unsigned long __user *nmask,
 					unsigned long maxnode);
 
+asmlinkage long sys_spu_run(int fd, __u32 __user *unpc,
+				 __u32 __user *ustatus);
+asmlinkage long sys_spu_create(const char __user *name,
+		unsigned int flags, mode_t mode);
+
 #endif
