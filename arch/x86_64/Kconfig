@@ -226,22 +226,42 @@ config SCHED_SMT
 
 source "kernel/Kconfig.preempt"
 
-config K8_NUMA
-       bool "K8 NUMA support"
-       select NUMA
+config NUMA
+       bool "Non Uniform Memory Access (NUMA) Support"
        depends on SMP
        help
-	  Enable NUMA (Non Unified Memory Architecture) support for
-	  AMD Opteron Multiprocessor systems. The kernel will try to allocate
-	  memory used by a CPU on the local memory controller of the CPU
-	  and add some more NUMA awareness to the kernel.
-	  This code is recommended on all multiprocessor Opteron systems
-	  and normally doesn't hurt on others.
+	 Enable NUMA (Non Uniform Memory Access) support. The kernel 
+	 will try to allocate memory used by a CPU on the local memory 
+	 controller of the CPU and add some more NUMA awareness to the kernel.
+	 This code is recommended on all multiprocessor Opteron systems.
+	 If the system is EM64T, you should say N unless your system is EM64T 
+	 NUMA. 
+
+config K8_NUMA
+       bool "Old style AMD Opteron NUMA detection"
+       depends on NUMA
+       default y
+       help
+	 Enable K8 NUMA node topology detection.  You should say Y here if
+	 you have a multi processor AMD K8 system. This uses an old
+	 method to read the NUMA configurtion directly from the builtin
+	 Northbridge of Opteron. It is recommended to use X86_64_ACPI_NUMA
+	 instead, which also takes priority if both are compiled in.   
+
+# Dummy CONFIG option to select ACPI_NUMA from drivers/acpi/Kconfig.
+
+config X86_64_ACPI_NUMA
+       bool "ACPI NUMA detection"
+       depends on NUMA
+       select ACPI 
+       select ACPI_NUMA
+       default y
+       help
+	 Enable ACPI SRAT based node topology detection.
 
 config NUMA_EMU
-	bool "NUMA emulation support"
-	select NUMA
-	depends on SMP
+	bool "NUMA emulation"
+	depends on NUMA
 	help
 	  Enable NUMA emulation. A flat machine will be split
 	  into virtual nodes when booted with "numa=fake=N", where N is the
@@ -252,9 +272,6 @@ config ARCH_DISCONTIGMEM_ENABLE
        depends on NUMA
        default y
 
-config NUMA
-       bool
-       default n
 
 config ARCH_DISCONTIGMEM_ENABLE
 	def_bool y
@@ -373,6 +390,14 @@ config X86_MCE_INTEL
 	help
 	   Additional support for intel specific MCE features such as
 	   the thermal monitor.
+
+config X86_MCE_AMD
+	bool "AMD MCE features"
+	depends on X86_MCE && X86_LOCAL_APIC
+	default y
+	help
+	   Additional support for AMD specific MCE features such as
+	   the DRAM Error Threshold.
 
 config PHYSICAL_START
 	hex "Physical address where the kernel is loaded" if EMBEDDED
@@ -502,7 +527,7 @@ config IA32_EMULATION
 	  left.
 
 config IA32_AOUT
-       bool "IA32 a.out support"
+       tristate "IA32 a.out support"
        depends on IA32_EMULATION
        help
          Support old a.out binaries in the 32bit emulation.

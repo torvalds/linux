@@ -196,7 +196,7 @@ static __u32 __init search_agp_bridge(u32 *order, int *valid_agp)
 void __init iommu_hole_init(void) 
 { 
 	int fix, num; 
-	u32 aper_size, aper_alloc = 0, aper_order, last_aper_order = 0;
+	u32 aper_size, aper_alloc = 0, aper_order = 0, last_aper_order = 0;
 	u64 aper_base, last_aper_base = 0;
 	int valid_agp = 0;
 

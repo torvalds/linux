@@ -28,6 +28,8 @@ extern int __node_distance(int, int);
 #define pcibus_to_node(bus)		((long)(bus->sysdata))	
 #define pcibus_to_cpumask(bus)		node_to_cpumask(pcibus_to_node(bus));
 
+#define numa_node_id()			read_pda(nodenumber)
+
 /* sched_domains SD_NODE_INIT for x86_64 machines */
 #define SD_NODE_INIT (struct sched_domain) {		\
 	.span			= CPU_MASK_NONE,	\
