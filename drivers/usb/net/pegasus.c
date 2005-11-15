@@ -57,12 +57,14 @@ static const char driver_name[] = "pegasus";
 
 static int loopback = 0;
 static int mii_mode = 0;
+static char *devid=NULL;
 
 static struct usb_eth_dev usb_dev_id[] = {
 #define	PEGASUS_DEV(pn, vid, pid, flags)	\
 	{.name = pn, .vendor = vid, .device = pid, .private = flags},
 #include "pegasus.h"
 #undef	PEGASUS_DEV
+	{NULL, 0, 0, 0},
 	{NULL, 0, 0, 0}
 };
 
@@ -71,6 +73,7 @@ static struct usb_device_id pegasus_ids[] = {
 	{.match_flags = USB_DEVICE_ID_MATCH_DEVICE, .idVendor = vid, .idProduct = pid},
 #include "pegasus.h"
 #undef	PEGASUS_DEV
+	{},
 	{}
 };
 
@@ -79,8 +82,10 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 module_param(loopback, bool, 0);
 module_param(mii_mode, bool, 0);
+module_param(devid, charp, 0);
 MODULE_PARM_DESC(loopback, "Enable MAC loopback mode (bit 0)");
 MODULE_PARM_DESC(mii_mode, "Enable HomePNA mode (bit 0),default=MII mode = 0");
+MODULE_PARM_DESC(devid, "The format is: 'DEV_name:VendorID:DeviceID:Flags'");
 
 /* use ethtool to change the level for any given device */
 static int msg_level = -1;
@@ -1410,9 +1415,42 @@ static struct usb_driver pegasus_driver = {
 	.resume = pegasus_resume,
 };
 
+static void parse_id(char *id)
+{
+	unsigned int vendor_id=0, device_id=0, flags=0, i=0;
+	char *token, *name=NULL;
+
+	if ((token = strsep(&id, ":")) != NULL)
+		name = token;
+	/* name now points to a null terminated string*/
+	if ((token = strsep(&id, ":")) != NULL)
+		vendor_id = simple_strtoul(token, NULL, 16);
+	if ((token = strsep(&id, ":")) != NULL)
+		device_id = simple_strtoul(token, NULL, 16);
+	flags = simple_strtoul(id, NULL, 16);
+	pr_info("%s: new device %s, vendor ID 0x%04x, device ID 0x%04x, flags: 0x%x\n",
+	        driver_name, name, vendor_id, device_id, flags);
+
+	if (vendor_id > 0x10000 || vendor_id == 0)
+		return;
+	if (device_id > 0x10000 || device_id == 0)
+		return;
+
+	for (i=0; usb_dev_id[i].name; i++);
+	usb_dev_id[i].name = name;
+	usb_dev_id[i].vendor = vendor_id;
+	usb_dev_id[i].device = device_id;
+	usb_dev_id[i].private = flags;
+	pegasus_ids[i].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
+	pegasus_ids[i].idVendor = vendor_id;
+	pegasus_ids[i].idProduct = device_id;
+}
+
 static int __init pegasus_init(void)
 {
 	pr_info("%s: %s, " DRIVER_DESC "\n", driver_name, DRIVER_VERSION);
+	if (devid)
+		parse_id(devid);
 	pegasus_workqueue = create_singlethread_workqueue("pegasus");
 	if (!pegasus_workqueue)
 		return -ENOMEM;
