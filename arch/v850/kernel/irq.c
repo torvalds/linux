@@ -1,8 +1,8 @@
 /*
  * arch/v850/kernel/irq.c -- High-level interrupt handling
  *
- *  Copyright (C) 2001,02,03,04  NEC Electronics Corporation
- *  Copyright (C) 2001,02,03,04  Miles Bader <miles@gnu.org>
+ *  Copyright (C) 2001,02,03,04,05  NEC Electronics Corporation
+ *  Copyright (C) 2001,02,03,04,05  Miles Bader <miles@gnu.org>
  *  Copyright (C) 1994-2000  Ralf Baechle
  *  Copyright (C) 1992  Linus Torvalds
  *
@@ -84,50 +84,55 @@ volatile unsigned long irq_err_count, spurious_count;
 
 int show_interrupts(struct seq_file *p, void *v)
 {
-	int i = *(loff_t *) v;
-	struct irqaction * action;
-	unsigned long flags;
+	int irq = *(loff_t *) v;
 
-	if (i == 0) {
+	if (irq == 0) {
+		int cpu;
 		seq_puts(p, "           ");
-		for (i=0; i < 1 /*smp_num_cpus*/; i++)
-			seq_printf(p, "CPU%d       ", i);
+		for (cpu=0; cpu < 1 /*smp_num_cpus*/; cpu++)
+			seq_printf(p, "CPU%d       ", cpu);
 		seq_putc(p, '\n');
 	}
 
-	if (i < NR_IRQS) {
-		int j, count, num;
-		const char *type_name = irq_desc[i].handler->typename;
-		spin_lock_irqsave(&irq_desc[j].lock, flags);
-		action = irq_desc[i].action;
-		if (!action) 
-			goto skip;
+	if (irq < NR_IRQS) {
+		unsigned long flags;
+		struct irqaction *action;
 
-		count = 0;
-		num = -1;
-		for (j = 0; j < NR_IRQS; j++)
-			if (irq_desc[j].handler->typename == type_name) {
-				if (i == j)
-					num = count;
-				count++;
-			}
+		spin_lock_irqsave(&irq_desc[irq].lock, flags);
 
-		seq_printf(p, "%3d: ",i);
-		seq_printf(p, "%10u ", kstat_irqs(i));
-		if (count > 1) {
-			int prec = (num >= 100 ? 3 : num >= 10 ? 2 : 1);
-			seq_printf(p, " %*s%d", 14 - prec, type_name, num);
-		} else
-			seq_printf(p, " %14s", type_name);
+		action = irq_desc[irq].action;
+		if (action) {
+			int j;
+			int count = 0;
+			int num = -1;
+			const char *type_name = irq_desc[irq].handler->typename;
+
+			for (j = 0; j < NR_IRQS; j++)
+				if (irq_desc[j].handler->typename == type_name){
+					if (irq == j)
+						num = count;
+					count++;
+				}
+
+			seq_printf(p, "%3d: ",irq);
+			seq_printf(p, "%10u ", kstat_irqs(irq));
+			if (count > 1) {
+				int prec = (num >= 100 ? 3 : num >= 10 ? 2 : 1);
+				seq_printf(p, " %*s%d", 14 - prec,
+					   type_name, num);
+			} else
+				seq_printf(p, " %14s", type_name);
 		
-		seq_printf(p, "  %s", action->name);
-		for (action=action->next; action; action = action->next)
-			seq_printf(p, ", %s", action->name);
-		seq_putc(p, '\n');
-skip:
-		spin_unlock_irqrestore(&irq_desc[j].lock, flags);
-	} else if (i == NR_IRQS)
+			seq_printf(p, "  %s", action->name);
+			for (action=action->next; action; action = action->next)
+				seq_printf(p, ", %s", action->name);
+			seq_putc(p, '\n');
+		}
+
+		spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
+	} else if (irq == NR_IRQS)
 		seq_printf(p, "ERR: %10lu\n", irq_err_count);
+
 	return 0;
 }
 
