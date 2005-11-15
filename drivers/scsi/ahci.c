@@ -565,6 +565,17 @@ static void ahci_intr_error(struct ata_port *ap, u32 irq_stat)
 	u32 tmp;
 	int work;
 
+	printk(KERN_WARNING "ata%u: port reset, "
+	       "p_is %x is %x pis %x cmd %x tf %x ss %x se %x\n",
+		ap->id,
+		irq_stat,
+		readl(mmio + HOST_IRQ_STAT),
+		readl(port_mmio + PORT_IRQ_STAT),
+		readl(port_mmio + PORT_CMD),
+		readl(port_mmio + PORT_TFDATA),
+		readl(port_mmio + PORT_SCR_STAT),
+		readl(port_mmio + PORT_SCR_ERR));
+
 	/* stop DMA */
 	tmp = readl(port_mmio + PORT_CMD);
 	tmp &= ~PORT_CMD_START;
@@ -602,13 +613,6 @@ static void ahci_intr_error(struct ata_port *ap, u32 irq_stat)
 	tmp |= PORT_CMD_START;
 	writel(tmp, port_mmio + PORT_CMD);
 	readl(port_mmio + PORT_CMD); /* flush */
-
-	printk(KERN_WARNING "ata%u: error occurred, port reset (%s%s%s%s)\n",
-	       ap->id,
-	       irq_stat & PORT_IRQ_TF_ERR ? "taskf " : "",
-	       irq_stat & PORT_IRQ_HBUS_ERR ? "hbus " : "",
-	       irq_stat & PORT_IRQ_HBUS_DATA_ERR ? "hbus_data " : "",
-	       irq_stat & PORT_IRQ_IF_ERR ? "if " : "");
 }
 
 static void ahci_eng_timeout(struct ata_port *ap)
@@ -619,7 +623,7 @@ static void ahci_eng_timeout(struct ata_port *ap)
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
 
-	DPRINTK("ENTER\n");
+	printk(KERN_WARNING "ata%u: handling error/timeout\n", ap->id);
 
 	spin_lock_irqsave(&host_set->lock, flags);
 
@@ -672,8 +676,9 @@ static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 		else
 			err_mask = AC_ERR_HOST_BUS;
 
-		if (err_mask != AC_ERR_DEV)
-			ahci_intr_error(ap, status);
+		/* command processing has stopped due to error; restart */
+		ahci_intr_error(ap, status);
+
 		if (qc)
 			ata_qc_complete(qc, err_mask);
 	}
