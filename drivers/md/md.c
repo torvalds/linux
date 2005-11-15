@@ -3156,7 +3156,7 @@ static int md_ioctl(struct inode *inode, struct file *file,
 		if (cnt > 0 ) {
 			printk(KERN_WARNING
 			       "md: %s(pid %d) used deprecated START_ARRAY ioctl. "
-			       "This will not be supported beyond 2.6\n",
+			       "This will not be supported beyond July 2006\n",
 			       current->comm, current->pid);
 			cnt--;
 		}
