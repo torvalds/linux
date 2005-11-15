@@ -24,4 +24,6 @@ typedef struct {
 # error HARDIRQ_BITS is too low!
 #endif
 
+void ack_bad_irq(unsigned int irq);
+
 #endif /* __V850_HARDIRQ_H__ */
