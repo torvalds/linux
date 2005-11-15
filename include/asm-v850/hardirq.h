@@ -5,6 +5,8 @@
 #include <linux/threads.h>
 #include <linux/cache.h>
 
+#include <asm/irq.h>
+
 typedef struct {
 	unsigned int __softirq_pending;
 } ____cacheline_aligned irq_cpustat_t;
