@@ -35,14 +35,49 @@ enum {
 	SPUFS_MAGIC = 0x23c9b64e,
 };
 
+struct spu_context_ops;
+
 struct spu_context {
 	struct spu *spu;		  /* pointer to a physical SPU */
 	struct spu_state csa;		  /* SPU context save area. */
-	struct rw_semaphore backing_sema; /* protects the above */
 	spinlock_t mmio_lock;		  /* protects mmio access */
+	struct address_space *local_store;/* local store backing store */
+
+	enum { SPU_STATE_RUNNABLE, SPU_STATE_SAVED } state;
+	struct rw_semaphore state_sema;
+
+	struct mm_struct *owner;
 
 	struct kref kref;
+	wait_queue_head_t ibox_wq;
+	wait_queue_head_t wbox_wq;
+	struct fasync_struct *ibox_fasync;
+	struct fasync_struct *wbox_fasync;
+	struct spu_context_ops *ops;
 };
+
+/* SPU context query/set operations. */
+struct spu_context_ops {
+	int (*mbox_read) (struct spu_context * ctx, u32 * data);
+	 u32(*mbox_stat_read) (struct spu_context * ctx);
+	int (*ibox_read) (struct spu_context * ctx, u32 * data);
+	int (*wbox_write) (struct spu_context * ctx, u32 data);
+	 u32(*signal1_read) (struct spu_context * ctx);
+	void (*signal1_write) (struct spu_context * ctx, u32 data);
+	 u32(*signal2_read) (struct spu_context * ctx);
+	void (*signal2_write) (struct spu_context * ctx, u32 data);
+	void (*signal1_type_set) (struct spu_context * ctx, u64 val);
+	 u64(*signal1_type_get) (struct spu_context * ctx);
+	void (*signal2_type_set) (struct spu_context * ctx, u64 val);
+	 u64(*signal2_type_get) (struct spu_context * ctx);
+	 u32(*npc_read) (struct spu_context * ctx);
+	void (*npc_write) (struct spu_context * ctx, u32 data);
+	 u32(*status_read) (struct spu_context * ctx);
+	char*(*get_ls) (struct spu_context * ctx);
+};
+
+extern struct spu_context_ops spu_hw_ops;
+extern struct spu_context_ops spu_backing_ops;
 
 struct spufs_inode_info {
 	struct spu_context *i_ctx;
@@ -60,14 +95,28 @@ long spufs_create_thread(struct nameidata *nd, const char *name,
 			 unsigned int flags, mode_t mode);
 
 /* context management */
-struct spu_context * alloc_spu_context(void);
+struct spu_context * alloc_spu_context(struct address_space *local_store);
 void destroy_spu_context(struct kref *kref);
 struct spu_context * get_spu_context(struct spu_context *ctx);
 int put_spu_context(struct spu_context *ctx);
 
+void spu_forget(struct spu_context *ctx);
 void spu_acquire(struct spu_context *ctx);
 void spu_release(struct spu_context *ctx);
-void spu_acquire_runnable(struct spu_context *ctx);
+int spu_acquire_runnable(struct spu_context *ctx);
 void spu_acquire_saved(struct spu_context *ctx);
+
+int spu_activate(struct spu_context *ctx, u64 flags);
+void spu_deactivate(struct spu_context *ctx);
+void spu_yield(struct spu_context *ctx);
+int __init spu_sched_init(void);
+void __exit spu_sched_exit(void);
+
+size_t spu_wbox_write(struct spu_context *ctx, u32 data);
+size_t spu_ibox_read(struct spu_context *ctx, u32 *data);
+
+/* irq callback funcs. */
+void spufs_ibox_callback(struct spu *spu);
+void spufs_wbox_callback(struct spu *spu);
 
 #endif

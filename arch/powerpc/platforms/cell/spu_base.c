@@ -69,51 +69,49 @@ static void spu_restart_dma(struct spu *spu)
 
 static int __spu_trap_data_seg(struct spu *spu, unsigned long ea)
 {
-	struct spu_priv2 __iomem *priv2;
-	struct mm_struct *mm;
+	struct spu_priv2 __iomem *priv2 = spu->priv2;
+	struct mm_struct *mm = spu->mm;
+	u64 esid, vsid;
 
 	pr_debug("%s\n", __FUNCTION__);
 
 	if (test_bit(SPU_CONTEXT_SWITCH_ACTIVE_nr, &spu->flags)) {
+		/* SLBs are pre-loaded for context switch, so
+		 * we should never get here!
+		 */
 		printk("%s: invalid access during switch!\n", __func__);
 		return 1;
 	}
-
-	if (REGION_ID(ea) != USER_REGION_ID) {
+	if (!mm || (REGION_ID(ea) != USER_REGION_ID)) {
+		/* Future: support kernel segments so that drivers
+		 * can use SPUs.
+		 */
 		pr_debug("invalid region access at %016lx\n", ea);
 		return 1;
 	}
 
-	priv2 = spu->priv2;
-	mm = spu->mm;
+	esid = (ea & ESID_MASK) | SLB_ESID_V;
+	vsid = (get_vsid(mm->context.id, ea) << SLB_VSID_SHIFT) | SLB_VSID_USER;
+	if (in_hugepage_area(mm->context, ea))
+		vsid |= SLB_VSID_L;
 
+	out_be64(&priv2->slb_index_W, spu->slb_replace);
+	out_be64(&priv2->slb_vsid_RW, vsid);
+	out_be64(&priv2->slb_esid_RW, esid);
+
+	spu->slb_replace++;
 	if (spu->slb_replace >= 8)
 		spu->slb_replace = 0;
 
-	out_be64(&priv2->slb_index_W, spu->slb_replace);
-	out_be64(&priv2->slb_vsid_RW,
-		(get_vsid(mm->context.id, ea) << SLB_VSID_SHIFT)
-						 | SLB_VSID_USER);
-	out_be64(&priv2->slb_esid_RW, (ea & ESID_MASK) | SLB_ESID_V);
-
 	spu_restart_dma(spu);
 
-	pr_debug("set slb %d context %lx, ea %016lx, vsid %016lx, esid %016lx\n",
-		spu->slb_replace, mm->context.id, ea,
-		(get_vsid(mm->context.id, ea) << SLB_VSID_SHIFT)| SLB_VSID_USER,
-		 (ea & ESID_MASK) | SLB_ESID_V);
 	return 0;
 }
 
 extern int hash_page(unsigned long ea, unsigned long access, unsigned long trap); //XXX
-static int __spu_trap_data_map(struct spu *spu, unsigned long ea)
+static int __spu_trap_data_map(struct spu *spu, unsigned long ea, u64 dsisr)
 {
-	unsigned long dsisr;
-	struct spu_priv1 __iomem *priv1;
-
 	pr_debug("%s\n", __FUNCTION__);
-	priv1 = spu->priv1;
-	dsisr = in_be64(&priv1->mfc_dsisr_RW);
 
 	/* Handle kernel space hash faults immediately.
 	   User hash faults need to be deferred to process context. */
@@ -129,14 +127,17 @@ static int __spu_trap_data_map(struct spu *spu, unsigned long ea)
 		return 1;
 	}
 
+	spu->dar = ea;
+	spu->dsisr = dsisr;
+	mb();
 	wake_up(&spu->stop_wq);
 	return 0;
 }
 
 static int __spu_trap_mailbox(struct spu *spu)
 {
-	wake_up_all(&spu->ibox_wq);
-	kill_fasync(&spu->ibox_fasync, SIGIO, POLLIN);
+	if (spu->ibox_callback)
+		spu->ibox_callback(spu);
 
 	/* atomically disable SPU mailbox interrupts */
 	spin_lock(&spu->register_lock);
@@ -171,8 +172,8 @@ static int __spu_trap_tag_group(struct spu *spu)
 
 static int __spu_trap_spubox(struct spu *spu)
 {
-	wake_up_all(&spu->wbox_wq);
-	kill_fasync(&spu->wbox_fasync, SIGIO, POLLOUT);
+	if (spu->wbox_callback)
+		spu->wbox_callback(spu);
 
 	/* atomically disable SPU mailbox interrupts */
 	spin_lock(&spu->register_lock);
@@ -220,17 +221,25 @@ static irqreturn_t
 spu_irq_class_1(int irq, void *data, struct pt_regs *regs)
 {
 	struct spu *spu;
-	unsigned long stat, dar;
+	unsigned long stat, mask, dar, dsisr;
 
 	spu = data;
-	stat  = in_be64(&spu->priv1->int_stat_class1_RW);
+
+	/* atomically read & clear class1 status. */
+	spin_lock(&spu->register_lock);
+	mask  = in_be64(&spu->priv1->int_mask_class1_RW);
+	stat  = in_be64(&spu->priv1->int_stat_class1_RW) & mask;
 	dar   = in_be64(&spu->priv1->mfc_dar_RW);
+	dsisr = in_be64(&spu->priv1->mfc_dsisr_RW);
+	out_be64(&spu->priv1->mfc_dsisr_RW, 0UL);
+	out_be64(&spu->priv1->int_stat_class1_RW, stat);
+	spin_unlock(&spu->register_lock);
 
 	if (stat & 1) /* segment fault */
 		__spu_trap_data_seg(spu, dar);
 
 	if (stat & 2) { /* mapping fault */
-		__spu_trap_data_map(spu, dar);
+		__spu_trap_data_map(spu, dar, dsisr);
 	}
 
 	if (stat & 4) /* ls compare & suspend on get */
@@ -239,7 +248,6 @@ spu_irq_class_1(int irq, void *data, struct pt_regs *regs)
 	if (stat & 8) /* ls compare & suspend on put */
 		;
 
-	out_be64(&spu->priv1->int_stat_class1_RW, stat);
 	return stat ? IRQ_HANDLED : IRQ_NONE;
 }
 
@@ -396,8 +404,6 @@ EXPORT_SYMBOL(spu_alloc);
 void spu_free(struct spu *spu)
 {
 	down(&spu_mutex);
-	spu->ibox_fasync = NULL;
-	spu->wbox_fasync = NULL;
 	list_add_tail(&spu->list, &spu_list);
 	up(&spu_mutex);
 }
@@ -405,15 +411,13 @@ EXPORT_SYMBOL(spu_free);
 
 static int spu_handle_mm_fault(struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1;
 	struct mm_struct *mm = spu->mm;
 	struct vm_area_struct *vma;
 	u64 ea, dsisr, is_write;
 	int ret;
 
-	priv1 = spu->priv1;
-	ea = in_be64(&priv1->mfc_dar_RW);
-	dsisr = in_be64(&priv1->mfc_dsisr_RW);
+	ea = spu->dar;
+	dsisr = spu->dsisr;
 #if 0
 	if (!IS_VALID_EA(ea)) {
 		return -EFAULT;
@@ -476,15 +480,14 @@ bad_area:
 
 static int spu_handle_pte_fault(struct spu *spu)
 {
-	struct spu_priv1 __iomem *priv1;
 	u64 ea, dsisr, access, error = 0UL;
 	int ret = 0;
 
-	priv1 = spu->priv1;
-	ea = in_be64(&priv1->mfc_dar_RW);
-	dsisr = in_be64(&priv1->mfc_dsisr_RW);
-	access = (_PAGE_PRESENT | _PAGE_USER);
+	ea = spu->dar;
+	dsisr = spu->dsisr;
 	if (dsisr & MFC_DSISR_PTE_NOT_FOUND) {
+		access = (_PAGE_PRESENT | _PAGE_USER);
+		access |= (dsisr & MFC_DSISR_ACCESS_PUT) ? _PAGE_RW : 0UL;
 		if (hash_page(ea, access, 0x300) != 0)
 			error |= CLASS1_ENABLE_STORAGE_FAULT_INTR;
 	}
@@ -495,10 +498,25 @@ static int spu_handle_pte_fault(struct spu *spu)
 		else
 			error &= ~CLASS1_ENABLE_STORAGE_FAULT_INTR;
 	}
-	if (!error)
+	spu->dar = 0UL;
+	spu->dsisr = 0UL;
+	if (!error) {
 		spu_restart_dma(spu);
-
+	} else {
+		__spu_trap_invalid_dma(spu);
+	}
 	return ret;
+}
+
+static inline int spu_pending(struct spu *spu, u32 * stat)
+{
+	struct spu_problem __iomem *prob = spu->problem;
+	u64 pte_fault;
+
+	*stat = in_be32(&prob->spu_status_R);
+	pte_fault = spu->dsisr &
+		    (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED);
+	return (!(*stat & 0x1) || pte_fault || spu->class_0_pending) ? 1 : 0;
 }
 
 int spu_run(struct spu *spu)
@@ -506,7 +524,7 @@ int spu_run(struct spu *spu)
 	struct spu_problem __iomem *prob;
 	struct spu_priv1 __iomem *priv1;
 	struct spu_priv2 __iomem *priv2;
-	unsigned long status;
+	u32 status;
 	int ret;
 
 	prob = spu->problem;
@@ -514,21 +532,15 @@ int spu_run(struct spu *spu)
 	priv2 = spu->priv2;
 
 	/* Let SPU run.  */
-	spu->mm = current->mm;
 	eieio();
 	out_be32(&prob->spu_runcntl_RW, SPU_RUNCNTL_RUNNABLE);
 
 	do {
 		ret = wait_event_interruptible(spu->stop_wq,
-			 (!((status = in_be32(&prob->spu_status_R)) & 0x1))
-			|| (in_be64(&priv1->mfc_dsisr_RW) & MFC_DSISR_PTE_NOT_FOUND)
-			|| spu->class_0_pending);
+					       spu_pending(spu, &status));
 
-		if (status & SPU_STATUS_STOPPED_BY_STOP)
-			ret = -EAGAIN;
-		else if (status & SPU_STATUS_STOPPED_BY_HALT)
-			ret = -EIO;
-		else if (in_be64(&priv1->mfc_dsisr_RW) & MFC_DSISR_PTE_NOT_FOUND)
+		if (spu->dsisr &
+		    (MFC_DSISR_PTE_NOT_FOUND | MFC_DSISR_ACCESS_DENIED))
 			ret = spu_handle_pte_fault(spu);
 
 		if (spu->class_0_pending)
@@ -537,7 +549,9 @@ int spu_run(struct spu *spu)
 		if (!ret && signal_pending(current))
 			ret = -ERESTARTSYS;
 
-	} while (!ret);
+	} while (!ret && !(status &
+			   (SPU_STATUS_STOPPED_BY_STOP |
+			    SPU_STATUS_STOPPED_BY_HALT)));
 
 	/* Ensure SPU is stopped.  */
 	out_be32(&prob->spu_runcntl_RW, SPU_RUNCNTL_STOP);
@@ -548,8 +562,6 @@ int spu_run(struct spu *spu)
 	out_be64(&priv2->slb_invalidate_all_W, 0);
 	out_be64(&priv1->tlb_invalidate_entry_W, 0UL);
 	eieio();
-
-	spu->mm = NULL;
 
 	/* Check for SPU breakpoint.  */
 	if (unlikely(current->ptrace & PT_PTRACED)) {
@@ -669,19 +681,21 @@ static int __init create_spu(struct device_node *spe)
 	spu->stop_code = 0;
 	spu->slb_replace = 0;
 	spu->mm = NULL;
+	spu->ctx = NULL;
+	spu->rq = NULL;
+	spu->pid = 0;
 	spu->class_0_pending = 0;
 	spu->flags = 0UL;
+	spu->dar = 0UL;
+	spu->dsisr = 0UL;
 	spin_lock_init(&spu->register_lock);
 
 	out_be64(&spu->priv1->mfc_sdr_RW, mfspr(SPRN_SDR1));
 	out_be64(&spu->priv1->mfc_sr1_RW, 0x33);
 
 	init_waitqueue_head(&spu->stop_wq);
-	init_waitqueue_head(&spu->wbox_wq);
-	init_waitqueue_head(&spu->ibox_wq);
-
-	spu->ibox_fasync = NULL;
-	spu->wbox_fasync = NULL;
+	spu->ibox_callback = NULL;
+	spu->wbox_callback = NULL;
 
 	down(&spu_mutex);
 	spu->number = number++;

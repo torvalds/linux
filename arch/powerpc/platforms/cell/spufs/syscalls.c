@@ -36,7 +36,7 @@ long do_spu_run(struct file *filp, __u32 __user *unpc, __u32 __user *ustatus)
 	u32 npc, status;
 
 	ret = -EFAULT;
-	if (get_user(npc, unpc))
+	if (get_user(npc, unpc) || get_user(status, ustatus))
 		goto out;
 
 	ret = -EINVAL;
@@ -46,13 +46,7 @@ long do_spu_run(struct file *filp, __u32 __user *unpc, __u32 __user *ustatus)
 	i = SPUFS_I(filp->f_dentry->d_inode);
 	ret = spufs_run_spu(filp, i->i_ctx, &npc, &status);
 
-	if (ret ==-EAGAIN || ret == -EIO)
-		ret = status;
-
-	if (put_user(npc, unpc))
-		ret = -EFAULT;
-
-	if (ustatus && put_user(status, ustatus))
+	if (put_user(npc, unpc) || put_user(status, ustatus))
 		ret = -EFAULT;
 out:
 	return ret;

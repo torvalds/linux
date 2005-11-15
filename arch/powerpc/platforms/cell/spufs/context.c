@@ -20,39 +20,38 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/fs.h>
+#include <linux/mm.h>
 #include <linux/slab.h>
 #include <asm/spu.h>
 #include <asm/spu_csa.h>
 #include "spufs.h"
 
-struct spu_context *alloc_spu_context(void)
+struct spu_context *alloc_spu_context(struct address_space *local_store)
 {
 	struct spu_context *ctx;
 	ctx = kmalloc(sizeof *ctx, GFP_KERNEL);
 	if (!ctx)
 		goto out;
-	/* Future enhancement: do not call spu_alloc()
-	 * here.  This step should be deferred until
-	 * spu_run()!!
-	 *
-	 * More work needs to be done to read(),
-	 * write(), mmap(), etc., so that operations
-	 * are performed on CSA when the context is
-	 * not currently being run.  In this way we
-	 * can support arbitrarily large number of
-	 * entries in /spu, allow state queries, etc.
+	/* Binding to physical processor deferred
+	 * until spu_activate().
 	 */
-	ctx->spu = spu_alloc();
-	if (!ctx->spu)
-		goto out_free;
 	spu_init_csa(&ctx->csa);
 	if (!ctx->csa.lscsa) {
-		spu_free(ctx->spu);
 		goto out_free;
 	}
-	init_rwsem(&ctx->backing_sema);
 	spin_lock_init(&ctx->mmio_lock);
 	kref_init(&ctx->kref);
+	init_rwsem(&ctx->state_sema);
+	init_waitqueue_head(&ctx->ibox_wq);
+	init_waitqueue_head(&ctx->wbox_wq);
+	ctx->ibox_fasync = NULL;
+	ctx->wbox_fasync = NULL;
+	ctx->state = SPU_STATE_SAVED;
+	ctx->local_store = local_store;
+	ctx->spu = NULL;
+	ctx->ops = &spu_backing_ops;
+	ctx->owner = get_task_mm(current);
 	goto out;
 out_free:
 	kfree(ctx);
@@ -65,8 +64,11 @@ void destroy_spu_context(struct kref *kref)
 {
 	struct spu_context *ctx;
 	ctx = container_of(kref, struct spu_context, kref);
-	if (ctx->spu)
-		spu_free(ctx->spu);
+	down_write(&ctx->state_sema);
+	spu_deactivate(ctx);
+	ctx->ibox_fasync = NULL;
+	ctx->wbox_fasync = NULL;
+	up_write(&ctx->state_sema);
 	spu_fini_csa(&ctx->csa);
 	kfree(ctx);
 }
@@ -82,4 +84,80 @@ int put_spu_context(struct spu_context *ctx)
 	return kref_put(&ctx->kref, &destroy_spu_context);
 }
 
+/* give up the mm reference when the context is about to be destroyed */
+void spu_forget(struct spu_context *ctx)
+{
+	struct mm_struct *mm;
+	spu_acquire_saved(ctx);
+	mm = ctx->owner;
+	ctx->owner = NULL;
+	mmput(mm);
+	spu_release(ctx);
+}
 
+void spu_acquire(struct spu_context *ctx)
+{
+	down_read(&ctx->state_sema);
+}
+
+void spu_release(struct spu_context *ctx)
+{
+	up_read(&ctx->state_sema);
+}
+
+static void spu_unmap_mappings(struct spu_context *ctx)
+{
+	unmap_mapping_range(ctx->local_store, 0, LS_SIZE, 1);
+}
+
+int spu_acquire_runnable(struct spu_context *ctx)
+{
+	int ret = 0;
+
+	down_read(&ctx->state_sema);
+	if (ctx->state == SPU_STATE_RUNNABLE)
+		return 0;
+	/* ctx is about to be freed, can't acquire any more */
+	if (!ctx->owner) {
+		ret = -EINVAL;
+		goto out;
+	}
+	up_read(&ctx->state_sema);
+
+	down_write(&ctx->state_sema);
+	if (ctx->state == SPU_STATE_SAVED) {
+		spu_unmap_mappings(ctx);
+		ret = spu_activate(ctx, 0);
+		ctx->state = SPU_STATE_RUNNABLE;
+	}
+	downgrade_write(&ctx->state_sema);
+	if (ret)
+		goto out;
+
+	/* On success, we return holding the lock */
+	return ret;
+out:
+	/* Release here, to simplify calling code. */
+	up_read(&ctx->state_sema);
+
+	return ret;
+}
+
+void spu_acquire_saved(struct spu_context *ctx)
+{
+	down_read(&ctx->state_sema);
+
+	if (ctx->state == SPU_STATE_SAVED)
+		return;
+
+	up_read(&ctx->state_sema);
+	down_write(&ctx->state_sema);
+
+	if (ctx->state == SPU_STATE_RUNNABLE) {
+		spu_unmap_mappings(ctx);
+		spu_deactivate(ctx);
+		ctx->state = SPU_STATE_SAVED;
+	}
+
+	downgrade_write(&ctx->state_sema);
+}

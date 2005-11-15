@@ -41,24 +41,6 @@
 
 static kmem_cache_t *spufs_inode_cache;
 
-/* Information about the backing dev, same as ramfs */
-#if 0
-static struct backing_dev_info spufs_backing_dev_info = {
-	.ra_pages       = 0,    /* No readahead */
-	.capabilities	= BDI_CAP_NO_ACCT_DIRTY | BDI_CAP_NO_WRITEBACK |
-	  BDI_CAP_MAP_DIRECT | BDI_CAP_MAP_COPY | BDI_CAP_READ_MAP |
-	  BDI_CAP_WRITE_MAP,
-};
-
-static struct address_space_operations spufs_aops = {
-	.readpage       = simple_readpage,
-	.prepare_write  = simple_prepare_write,
-	.commit_write   = simple_commit_write,
-};
-#endif
-
-/* Inode operations */
-
 static struct inode *
 spufs_alloc_inode(struct super_block *sb)
 {
@@ -111,9 +93,6 @@ spufs_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = dentry->d_inode;
 
-/*	dump_stack();
-	pr_debug("ia_size %lld, i_size:%lld\n", attr->ia_size, inode->i_size);
-*/
 	if ((attr->ia_valid & ATTR_SIZE) &&
 	    (attr->ia_size != inode->i_size))
 		return -EINVAL;
@@ -127,9 +106,7 @@ spufs_new_file(struct super_block *sb, struct dentry *dentry,
 		struct spu_context *ctx)
 {
 	static struct inode_operations spufs_file_iops = {
-		.getattr = simple_getattr,
 		.setattr = spufs_setattr,
-		.unlink  = simple_unlink,
 	};
 	struct inode *inode;
 	int ret;
@@ -183,21 +160,32 @@ out:
 
 static int spufs_rmdir(struct inode *root, struct dentry *dir_dentry)
 {
-	struct dentry *dentry;
+	struct dentry *dentry, *tmp;
+	struct spu_context *ctx;
 	int err;
 
-	spin_lock(&dcache_lock);
 	/* remove all entries */
 	err = 0;
-	list_for_each_entry(dentry, &dir_dentry->d_subdirs, d_child) {
-		if (d_unhashed(dentry) || !dentry->d_inode)
-			continue;
-		atomic_dec(&dentry->d_count);
+	list_for_each_entry_safe(dentry, tmp, &dir_dentry->d_subdirs, d_child) {
+		spin_lock(&dcache_lock);
 		spin_lock(&dentry->d_lock);
-		__d_drop(dentry);
-		spin_unlock(&dentry->d_lock);
+		if (!(d_unhashed(dentry)) && dentry->d_inode) {
+			dget_locked(dentry);
+			__d_drop(dentry);
+			spin_unlock(&dentry->d_lock);
+			simple_unlink(dir_dentry->d_inode, dentry);
+			spin_unlock(&dcache_lock);
+			dput(dentry);
+		} else {
+			spin_unlock(&dentry->d_lock);
+			spin_unlock(&dcache_lock);
+		}
 	}
-	spin_unlock(&dcache_lock);
+
+	/* We have to give up the mm_struct */
+	ctx = SPUFS_I(dir_dentry->d_inode)->i_ctx;
+	spu_forget(ctx);
+
 	if (!err) {
 		shrink_dcache_parent(dir_dentry);
 		err = simple_rmdir(root, dir_dentry);
@@ -249,7 +237,7 @@ spufs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 		inode->i_gid = dir->i_gid;
 		inode->i_mode &= S_ISGID;
 	}
-	ctx = alloc_spu_context();
+	ctx = alloc_spu_context(inode->i_mapping);
 	SPUFS_I(inode)->i_ctx = ctx;
 	if (!ctx)
 		goto out_iput;
@@ -368,7 +356,8 @@ spufs_parse_options(char *options, struct inode *root)
 }
 
 static int
-spufs_create_root(struct super_block *sb, void *data) {
+spufs_create_root(struct super_block *sb, void *data)
+{
 	struct inode *inode;
 	int ret;
 
@@ -441,6 +430,10 @@ static int spufs_init(void)
 
 	if (!spufs_inode_cache)
 		goto out;
+	if (spu_sched_init() != 0) {
+		kmem_cache_destroy(spufs_inode_cache);
+		goto out;
+	}
 	ret = register_filesystem(&spufs_type);
 	if (ret)
 		goto out_cache;
@@ -459,6 +452,7 @@ module_init(spufs_init);
 
 static void spufs_exit(void)
 {
+	spu_sched_exit();
 	unregister_spu_syscalls(&spufs_calls);
 	unregister_filesystem(&spufs_type);
 	kmem_cache_destroy(spufs_inode_cache);

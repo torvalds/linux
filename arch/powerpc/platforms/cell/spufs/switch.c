@@ -646,7 +646,7 @@ static inline void save_spu_mb(struct spu_state *csa, struct spu *spu)
 	eieio();
 	csa->spu_chnlcnt_RW[29] = in_be64(&priv2->spu_chnlcnt_RW);
 	for (i = 0; i < 4; i++) {
-		csa->pu_mailbox_data[i] = in_be64(&priv2->spu_chnldata_RW);
+		csa->spu_mailbox_data[i] = in_be64(&priv2->spu_chnldata_RW);
 	}
 	out_be64(&priv2->spu_chnlcnt_RW, 0UL);
 	eieio();
@@ -1667,7 +1667,7 @@ static inline void restore_spu_mb(struct spu_state *csa, struct spu *spu)
 	eieio();
 	out_be64(&priv2->spu_chnlcnt_RW, csa->spu_chnlcnt_RW[29]);
 	for (i = 0; i < 4; i++) {
-		out_be64(&priv2->spu_chnldata_RW, csa->pu_mailbox_data[i]);
+		out_be64(&priv2->spu_chnldata_RW, csa->spu_mailbox_data[i]);
 	}
 	eieio();
 }
@@ -2079,7 +2079,10 @@ int spu_save(struct spu_state *prev, struct spu *spu)
 	acquire_spu_lock(spu);	        /* Step 1.     */
 	rc = __do_spu_save(prev, spu);	/* Steps 2-53. */
 	release_spu_lock(spu);
-
+	if (rc) {
+		panic("%s failed on SPU[%d], rc=%d.\n",
+		      __func__, spu->number, rc);
+	}
 	return rc;
 }
 
@@ -2098,34 +2101,31 @@ int spu_restore(struct spu_state *new, struct spu *spu)
 
 	acquire_spu_lock(spu);
 	harvest(NULL, spu);
+	spu->stop_code = 0;
+	spu->dar = 0;
+	spu->dsisr = 0;
+	spu->slb_replace = 0;
+	spu->class_0_pending = 0;
 	rc = __do_spu_restore(new, spu);
 	release_spu_lock(spu);
-
+	if (rc) {
+		panic("%s failed on SPU[%d] rc=%d.\n",
+		       __func__, spu->number, rc);
+	}
 	return rc;
 }
 
 /**
- * spu_switch - SPU context switch (save + restore).
- * @prev: pointer to SPU context save area, to be saved.
- * @new: pointer to SPU context save area, to be restored.
+ * spu_harvest - SPU harvest (reset) operation
  * @spu: pointer to SPU iomem structure.
  *
- * Perform save, then restore.  Only harvest if the
- * save fails, as cleanup is otherwise not needed.
+ * Perform SPU harvest (reset) operation.
  */
-int spu_switch(struct spu_state *prev, struct spu_state *new, struct spu *spu)
+void spu_harvest(struct spu *spu)
 {
-	int rc;
-
-	acquire_spu_lock(spu);	        /* Save, Step 1.     */
-	rc = __do_spu_save(prev, spu);	/* Save, Steps 2-53. */
-	if (rc != 0) {
-		harvest(prev, spu);
-	}
-	rc = __do_spu_restore(new, spu);
+	acquire_spu_lock(spu);
+	harvest(NULL, spu);
 	release_spu_lock(spu);
-
-	return rc;
 }
 
 static void init_prob(struct spu_state *csa)
@@ -2181,6 +2181,7 @@ static void init_priv2(struct spu_state *csa)
 void spu_init_csa(struct spu_state *csa)
 {
 	struct spu_lscsa *lscsa;
+	unsigned char *p;
 
 	if (!csa)
 		return;
@@ -2192,6 +2193,11 @@ void spu_init_csa(struct spu_state *csa)
 
 	memset(lscsa, 0, sizeof(struct spu_lscsa));
 	csa->lscsa = lscsa;
+	csa->register_lock = SPIN_LOCK_UNLOCKED;
+
+	/* Set LS pages reserved to allow for user-space mapping. */
+	for (p = lscsa->ls; p < lscsa->ls + LS_SIZE; p += PAGE_SIZE)
+		SetPageReserved(vmalloc_to_page(p));
 
 	init_prob(csa);
 	init_priv1(csa);
@@ -2200,5 +2206,10 @@ void spu_init_csa(struct spu_state *csa)
 
 void spu_fini_csa(struct spu_state *csa)
 {
+	/* Clear reserved bit before vfree. */
+	unsigned char *p;
+	for (p = csa->lscsa->ls; p < csa->lscsa->ls + LS_SIZE; p += PAGE_SIZE)
+		ClearPageReserved(vmalloc_to_page(p));
+
 	vfree(csa->lscsa);
 }

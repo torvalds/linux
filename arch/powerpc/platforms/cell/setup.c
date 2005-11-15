@@ -68,6 +68,77 @@ void cell_show_cpuinfo(struct seq_file *m)
 	of_node_put(root);
 }
 
+#ifdef CONFIG_SPARSEMEM
+static int __init find_spu_node_id(struct device_node *spe)
+{
+	unsigned int *id;
+#ifdef CONFIG_NUMA
+	struct device_node *cpu;
+	cpu = spe->parent->parent;
+	id = (unsigned int *)get_property(cpu, "node-id", NULL);
+#else
+	id = NULL;
+#endif
+	return id ? *id : 0;
+}
+
+static void __init cell_spuprop_present(struct device_node *spe,
+				       const char *prop, int early)
+{
+	struct address_prop {
+		unsigned long address;
+		unsigned int len;
+	} __attribute__((packed)) *p;
+	int proplen;
+
+	unsigned long start_pfn, end_pfn, pfn;
+	int node_id;
+
+	p = (void*)get_property(spe, prop, &proplen);
+	WARN_ON(proplen != sizeof (*p));
+
+	node_id = find_spu_node_id(spe);
+
+	start_pfn = p->address >> PAGE_SHIFT;
+	end_pfn = (p->address + p->len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+
+	/* We need to call memory_present *before* the call to sparse_init,
+	   but we can initialize the page structs only *after* that call.
+	   Thus, we're being called twice. */
+	if (early)
+		memory_present(node_id, start_pfn, end_pfn);
+	else {
+		/* As the pages backing SPU LS and I/O are outside the range
+		   of regular memory, their page structs were not initialized
+		   by free_area_init. Do it here instead. */
+		for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+			struct page *page = pfn_to_page(pfn);
+			set_page_links(page, ZONE_DMA, node_id, pfn);
+			set_page_count(page, 0);
+			reset_page_mapcount(page);
+			SetPageReserved(page);
+			INIT_LIST_HEAD(&page->lru);
+		}
+	}
+}
+
+static void __init cell_spumem_init(int early)
+{
+	struct device_node *node;
+	for (node = of_find_node_by_type(NULL, "spe");
+			node; node = of_find_node_by_type(node, "spe")) {
+		cell_spuprop_present(node, "local-store", early);
+		cell_spuprop_present(node, "problem", early);
+		cell_spuprop_present(node, "priv1", early);
+		cell_spuprop_present(node, "priv2", early);
+	}
+}
+#else
+static void __init cell_spumem_init(int early)
+{
+}
+#endif
+
 static void cell_progress(char *s, unsigned short hex)
 {
 	printk("*** %04x : %s\n", hex, s ? s : "");
@@ -99,6 +170,8 @@ static void __init cell_setup_arch(void)
 #endif
 
 	mmio_nvram_init();
+
+	cell_spumem_init(0);
 }
 
 /*
@@ -113,6 +186,8 @@ static void __init cell_init_early(void)
 	cell_init_iommu();
 
 	ppc64_interrupt_controller = IC_CELL_PIC;
+
+	cell_spumem_init(1);
 
 	DBG(" <- cell_init_early()\n");
 }

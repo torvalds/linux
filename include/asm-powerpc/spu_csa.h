@@ -241,6 +241,7 @@ struct spu_state {
 	unsigned long suspend_time;
 	u64 slb_esid_RW[8];
 	u64 slb_vsid_RW[8];
+	spinlock_t register_lock;
 };
 
 extern void spu_init_csa(struct spu_state *csa);

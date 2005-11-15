@@ -105,6 +105,9 @@
 #define SPU_CONTEXT_SWITCH_PENDING	(1UL << SPU_CONTEXT_SWITCH_PENDING_nr)
 #define SPU_CONTEXT_SWITCH_ACTIVE	(1UL << SPU_CONTEXT_SWITCH_ACTIVE_nr)
 
+struct spu_context;
+struct spu_runqueue;
+
 struct spu {
 	char *name;
 	unsigned long local_store_phys;
@@ -113,23 +116,28 @@ struct spu {
 	struct spu_priv1 __iomem *priv1;
 	struct spu_priv2 __iomem *priv2;
 	struct list_head list;
+	struct list_head sched_list;
 	int number;
 	u32 isrc;
 	u32 node;
 	u64 flags;
+	u64 dar;
+	u64 dsisr;
 	struct kref kref;
 	size_t ls_size;
 	unsigned int slb_replace;
 	struct mm_struct *mm;
+	struct spu_context *ctx;
+	struct spu_runqueue *rq;
+	pid_t pid;
+	int prio;
 	int class_0_pending;
 	spinlock_t register_lock;
 
 	u32 stop_code;
 	wait_queue_head_t stop_wq;
-	wait_queue_head_t ibox_wq;
-	wait_queue_head_t wbox_wq;
-	struct fasync_struct *ibox_fasync;
-	struct fasync_struct *wbox_fasync;
+	void (* wbox_callback)(struct spu *spu);
+	void (* ibox_callback)(struct spu *spu);
 
 	char irq_c0[8];
 	char irq_c1[8];
@@ -139,9 +147,6 @@ struct spu {
 struct spu *spu_alloc(void);
 void spu_free(struct spu *spu);
 int spu_run(struct spu *spu);
-
-size_t spu_wbox_write(struct spu *spu, u32 data);
-size_t spu_ibox_read(struct spu *spu, u32 *data);
 
 extern struct spufs_calls {
 	asmlinkage long (*create_thread)(const char __user *name,
