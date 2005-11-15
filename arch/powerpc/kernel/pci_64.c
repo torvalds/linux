@@ -30,10 +30,10 @@
 #include <asm/byteorder.h>
 #include <asm/irq.h>
 #include <asm/machdep.h>
-#include <asm/udbg.h>
 #include <asm/ppc-pci.h>
 
 #ifdef DEBUG
+#include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
