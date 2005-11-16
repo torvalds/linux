@@ -48,7 +48,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ahci"
-#define DRV_VERSION	"1.01"
+#define DRV_VERSION	"1.2"
 
 
 enum {
@@ -558,23 +558,25 @@ static void ahci_qc_prep(struct ata_queued_cmd *qc)
 	pp->cmd_slot[0].opts |= cpu_to_le32(n_elem << 16);
 }
 
-static void ahci_intr_error(struct ata_port *ap, u32 irq_stat)
+static void ahci_restart_port(struct ata_port *ap, u32 irq_stat)
 {
 	void __iomem *mmio = ap->host_set->mmio_base;
 	void __iomem *port_mmio = ahci_port_base(mmio, ap->port_no);
 	u32 tmp;
 	int work;
 
-	printk(KERN_WARNING "ata%u: port reset, "
-	       "p_is %x is %x pis %x cmd %x tf %x ss %x se %x\n",
-		ap->id,
-		irq_stat,
-		readl(mmio + HOST_IRQ_STAT),
-		readl(port_mmio + PORT_IRQ_STAT),
-		readl(port_mmio + PORT_CMD),
-		readl(port_mmio + PORT_TFDATA),
-		readl(port_mmio + PORT_SCR_STAT),
-		readl(port_mmio + PORT_SCR_ERR));
+	if ((ap->device[0].class != ATA_DEV_ATAPI) ||
+	    ((irq_stat & PORT_IRQ_TF_ERR) == 0))
+		printk(KERN_WARNING "ata%u: port reset, "
+		       "p_is %x is %x pis %x cmd %x tf %x ss %x se %x\n",
+			ap->id,
+			irq_stat,
+			readl(mmio + HOST_IRQ_STAT),
+			readl(port_mmio + PORT_IRQ_STAT),
+			readl(port_mmio + PORT_CMD),
+			readl(port_mmio + PORT_TFDATA),
+			readl(port_mmio + PORT_SCR_STAT),
+			readl(port_mmio + PORT_SCR_ERR));
 
 	/* stop DMA */
 	tmp = readl(port_mmio + PORT_CMD);
@@ -632,7 +634,7 @@ static void ahci_eng_timeout(struct ata_port *ap)
 		printk(KERN_ERR "ata%u: BUG: timeout without command\n",
 		       ap->id);
 	} else {
-		ahci_intr_error(ap, readl(port_mmio + PORT_IRQ_STAT));
+		ahci_restart_port(ap, readl(port_mmio + PORT_IRQ_STAT));
 
 		/* hack alert!  We cannot use the supplied completion
 	 	 * function from inside the ->eh_strategy_handler() thread.
@@ -677,7 +679,7 @@ static inline int ahci_host_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
 			err_mask = AC_ERR_HOST_BUS;
 
 		/* command processing has stopped due to error; restart */
-		ahci_intr_error(ap, status);
+		ahci_restart_port(ap, status);
 
 		if (qc)
 			ata_qc_complete(qc, err_mask);
