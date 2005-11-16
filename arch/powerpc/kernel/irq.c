@@ -78,10 +78,6 @@ EXPORT_SYMBOL(__irq_offset_value);
 
 static int ppc_spurious_interrupts;
 
-#if defined(CONFIG_PPC_ISERIES) && defined(CONFIG_SMP)
-extern void iSeries_smp_message_recv(struct pt_regs *);
-#endif
-
 #ifdef CONFIG_PPC32
 #define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
 
@@ -195,49 +191,6 @@ void fixup_irqs(cpumask_t map)
 }
 #endif
 
-#ifdef CONFIG_PPC_ISERIES
-void do_IRQ(struct pt_regs *regs)
-{
-	struct paca_struct *lpaca;
-
-	irq_enter();
-
-#ifdef CONFIG_DEBUG_STACKOVERFLOW
-	/* Debugging check for stack overflow: is there less than 2KB free? */
-	{
-		long sp;
-
-		sp = __get_SP() & (THREAD_SIZE-1);
-
-		if (unlikely(sp < (sizeof(struct thread_info) + 2048))) {
-			printk("do_IRQ: stack overflow: %ld\n",
-				sp - sizeof(struct thread_info));
-			dump_stack();
-		}
-	}
-#endif
-
-	lpaca = get_paca();
-#ifdef CONFIG_SMP
-	if (lpaca->lppaca.int_dword.fields.ipi_cnt) {
-		lpaca->lppaca.int_dword.fields.ipi_cnt = 0;
-		iSeries_smp_message_recv(regs);
-	}
-#endif /* CONFIG_SMP */
-	if (hvlpevent_is_pending())
-		process_hvlpevents(regs);
-
-	irq_exit();
-
-	if (lpaca->lppaca.int_dword.fields.decr_int) {
-		lpaca->lppaca.int_dword.fields.decr_int = 0;
-		/* Signal a fake decrementer interrupt */
-		timer_interrupt(regs);
-	}
-}
-
-#else	/* CONFIG_PPC_ISERIES */
-
 void do_IRQ(struct pt_regs *regs)
 {
 	int irq;
@@ -286,16 +239,24 @@ void do_IRQ(struct pt_regs *regs)
 		} else
 #endif
 			__do_IRQ(irq, regs);
-	} else
-#ifdef CONFIG_PPC32
-		if (irq != -2)
-#endif
-			/* That's not SMP safe ... but who cares ? */
-			ppc_spurious_interrupts++;
-        irq_exit();
-}
+	} else if (irq != -2)
+		/* That's not SMP safe ... but who cares ? */
+		ppc_spurious_interrupts++;
 
-#endif	/* CONFIG_PPC_ISERIES */
+        irq_exit();
+
+#ifdef CONFIG_PPC_ISERIES
+	{
+		struct paca_struct *lpaca = get_paca();
+
+		if (lpaca->lppaca.int_dword.fields.decr_int) {
+			lpaca->lppaca.int_dword.fields.decr_int = 0;
+			/* Signal a fake decrementer interrupt */
+			timer_interrupt(regs);
+		}
+	}
+#endif
+}
 
 void __init init_IRQ(void)
 {

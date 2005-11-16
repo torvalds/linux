@@ -35,12 +35,18 @@
 #include <linux/irq.h>
 #include <linux/spinlock.h>
 
+#include <asm/paca.h>
 #include <asm/iseries/hv_types.h>
 #include <asm/iseries/hv_lp_event.h>
 #include <asm/iseries/hv_call_xm.h>
+#include <asm/iseries/it_lp_queue.h>
 
 #include "irq.h"
 #include "call_pci.h"
+
+#if defined(CONFIG_SMP)
+extern void iSeries_smp_message_recv(struct pt_regs *);
+#endif
 
 enum pci_event_type {
 	pe_bus_created		= 0,	/* PHB has been created */
@@ -328,4 +334,25 @@ int __init iSeries_allocate_IRQ(HvBusNumber bus,
 
 	irq_desc[virtirq].handler = &iSeries_IRQ_handler;
 	return virtirq;
+}
+
+/*
+ * Get the next pending IRQ.
+ */
+int iSeries_get_irq(struct pt_regs *regs)
+{
+	struct paca_struct *lpaca;
+
+	lpaca = get_paca();
+#ifdef CONFIG_SMP
+	if (lpaca->lppaca.int_dword.fields.ipi_cnt) {
+		lpaca->lppaca.int_dword.fields.ipi_cnt = 0;
+		iSeries_smp_message_recv(regs);
+	}
+#endif /* CONFIG_SMP */
+	if (hvlpevent_is_pending())
+		process_hvlpevents(regs);
+
+	/* -2 means ignore this interrupt */
+	return -2;
 }
