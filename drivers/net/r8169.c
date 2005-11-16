@@ -1346,10 +1346,8 @@ rtl8169_init_board(struct pci_dev *pdev, struct net_device **dev_out,
 	} else {
 		if (netif_msg_probe(tp)) {
 			printk(KERN_ERR PFX
-			       "Cannot find PowerManagement capability. "
-			       "Aborting.\n");
+			       "PowerManagement capability not found.\n");
 		}
-		goto err_out_mwi;
 	}
 
 	/* make sure PCI base addr 1 is MMIO */
