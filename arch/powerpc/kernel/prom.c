@@ -1368,6 +1368,7 @@ prom_n_addr_cells(struct device_node* np)
 	/* No #address-cells property for the root node, default to 1 */
 	return 1;
 }
+EXPORT_SYMBOL(prom_n_addr_cells);
 
 int
 prom_n_size_cells(struct device_node* np)
@@ -1383,6 +1384,7 @@ prom_n_size_cells(struct device_node* np)
 	/* No #size-cells property for the root node, default to 1 */
 	return 1;
 }
+EXPORT_SYMBOL(prom_n_size_cells);
 
 /**
  * Work out the sense (active-low level / active-high edge)

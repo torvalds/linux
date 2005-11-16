@@ -5,6 +5,11 @@
  *
  * Based on saa7115 driver
  *
+ * Copyright (C) 2005 Hans Verkuil <hverkuil@xs4all.nl>
+ * - Cleanup
+ * - V4L2 API update
+ * - sound fixes
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -31,7 +36,7 @@
 #include <media/audiochip.h>
 
 MODULE_DESCRIPTION("wm8775 driver");
-MODULE_AUTHOR("Ulf Eklund");
+MODULE_AUTHOR("Ulf Eklund, Hans Verkuil");
 MODULE_LICENSE("GPL");
 
 #define wm8775_err(fmt, arg...) do { \

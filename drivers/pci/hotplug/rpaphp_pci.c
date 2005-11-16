@@ -253,7 +253,7 @@ rpaphp_pci_config_slot(struct pci_bus *bus)
 	if (!dn || !dn->child)
 		return NULL;
 
-	if (systemcfg->platform == PLATFORM_PSERIES_LPAR) {
+	if (_machine == PLATFORM_PSERIES_LPAR) {
 		of_scan_bus(dn, bus);
 		if (list_empty(&bus->devices)) {
 			err("%s: No new device found\n", __FUNCTION__);

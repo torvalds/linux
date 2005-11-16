@@ -140,3 +140,12 @@ What:	EXPORT_SYMBOL(lookup_hash)
 When:	January 2006
 Why:	Too low-level interface.  Use lookup_one_len or lookup_create instead.
 Who:	Christoph Hellwig <hch@lst.de>
+
+---------------------------
+
+What:	START_ARRAY ioctl for md
+When:	July 2006
+Files:	drivers/md/md.c
+Why:	Not reliable by design - can fail when most needed.
+	Alternatives exist
+Who:	NeilBrown <neilb@suse.de>

@@ -335,7 +335,8 @@ static void elf32_init(struct pt_regs *regs)
 	me->thread.es = __USER_DS;
 }
 
-int setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top, int executable_stack)
+int ia32_setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top,
+			 int executable_stack)
 {
 	unsigned long stack_base;
 	struct vm_area_struct *mpnt;
@@ -389,6 +390,7 @@ int setup_arg_pages(struct linux_binprm *bprm, unsigned long stack_top, int exec
 	
 	return 0;
 }
+EXPORT_SYMBOL(ia32_setup_arg_pages);
 
 static unsigned long
 elf32_map (struct file *filep, unsigned long addr, struct elf_phdr *eppnt, int prot, int type)

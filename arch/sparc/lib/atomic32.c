@@ -37,17 +37,43 @@ int __atomic_add_return(int i, atomic_t *v)
 	spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
 	return ret;
 }
+EXPORT_SYMBOL(__atomic_add_return);
 
+int atomic_cmpxchg(atomic_t *v, int old, int new)
+{
+	int ret;
+	unsigned long flags;
+
+	spin_lock_irqsave(ATOMIC_HASH(v), flags);
+	ret = v->counter;
+	if (likely(ret == old))
+		v->counter = new;
+
+	spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
+	return ret;
+}
+
+int atomic_add_unless(atomic_t *v, int a, int u)
+{
+	int ret;
+	unsigned long flags;
+
+	spin_lock_irqsave(ATOMIC_HASH(v), flags);
+	ret = v->counter;
+	if (ret != u)
+		v->counter += a;
+	spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
+	return ret != u;
+}
+
+static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
+/* Atomic operations are already serializing */
 void atomic_set(atomic_t *v, int i)
 {
 	unsigned long flags;
+
 	spin_lock_irqsave(ATOMIC_HASH(v), flags);
-
 	v->counter = i;
-
 	spin_unlock_irqrestore(ATOMIC_HASH(v), flags);
 }
-
-EXPORT_SYMBOL(__atomic_add_return);
 EXPORT_SYMBOL(atomic_set);
-

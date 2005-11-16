@@ -44,9 +44,7 @@
 
 #include <asm/asm-offsets.h>
 
-.globl system_call, buserr, trap
-.globl resume, ret_from_exception
-.globl ret_from_signal
+.globl system_call, buserr, trap, resume
 .globl inthandler, sys_call_table
 .globl sys_fork, sys_clone, sys_vfork
 .globl ret_from_interrupt, bad_interrupt
@@ -58,7 +56,7 @@ ENTRY(buserr)
 	movel	%sp,%sp@-		| stack frame pointer argument
 	bsrl	buserr_c
 	addql	#4,%sp
-	jra	ret_from_exception
+	jra	.Lret_from_exception
 
 ENTRY(trap)
 	SAVE_ALL_INT
@@ -66,7 +64,7 @@ ENTRY(trap)
 	movel	%sp,%sp@-		| stack frame pointer argument
 	bsrl	trap_c
 	addql	#4,%sp
-	jra	ret_from_exception
+	jra	.Lret_from_exception
 
 	| After a fork we jump here directly from resume,
 	| so that %d1 contains the previous task
@@ -75,30 +73,31 @@ ENTRY(ret_from_fork)
 	movel	%d1,%sp@-
 	jsr	schedule_tail
 	addql	#4,%sp
-	jra	ret_from_exception
+	jra	.Lret_from_exception
 
-badsys:
-	movel	#-ENOSYS,%sp@(PT_D0)
-	jra	ret_from_exception
-
-do_trace:
+do_trace_entry:
 	movel	#-ENOSYS,%sp@(PT_D0)	| needed for strace
 	subql	#4,%sp
 	SAVE_SWITCH_STACK
 	jbsr	syscall_trace
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
-	movel	%sp@(PT_ORIG_D0),%d1
-	movel	#-ENOSYS,%d0
-	cmpl	#NR_syscalls,%d1
-	jcc	1f
-	jbsr	@(sys_call_table,%d1:l:4)@(0)
-1:	movel	%d0,%sp@(PT_D0)		| save the return value
-	subql	#4,%sp			| dummy return address
+	movel	%sp@(PT_ORIG_D0),%d0
+	cmpl	#NR_syscalls,%d0
+	jcs	syscall
+badsys:
+	movel	#-ENOSYS,%sp@(PT_D0)
+	jra	ret_from_syscall
+
+do_trace_exit:
+	subql	#4,%sp
 	SAVE_SWITCH_STACK
 	jbsr	syscall_trace
+	RESTORE_SWITCH_STACK
+	addql	#4,%sp
+	jra	.Lret_from_exception
 
-ret_from_signal:
+ENTRY(ret_from_signal)
 	RESTORE_SWITCH_STACK
 	addql	#4,%sp
 /* on 68040 complete pending writebacks if any */
@@ -111,7 +110,7 @@ ret_from_signal:
 	addql	#4,%sp
 1:
 #endif
-	jra	ret_from_exception
+	jra	.Lret_from_exception
 
 ENTRY(system_call)
 	SAVE_ALL_SYS
@@ -120,30 +119,34 @@ ENTRY(system_call)
 	| save top of frame
 	movel	%sp,%curptr@(TASK_THREAD+THREAD_ESP0)
 
-	tstb	%curptr@(TASK_SYSCALL_TRACE)
-	jne	do_trace
+	| syscall trace?
+	tstb	%curptr@(TASK_INFO+TINFO_FLAGS+2)
+	jmi	do_trace_entry
 	cmpl	#NR_syscalls,%d0
 	jcc	badsys
+syscall:
 	jbsr	@(sys_call_table,%d0:l:4)@(0)
 	movel	%d0,%sp@(PT_D0)		| save the return value
-
+ret_from_syscall:
 	|oriw	#0x0700,%sr
-	movel	%curptr@(TASK_WORK),%d0
+	movew	%curptr@(TASK_INFO+TINFO_FLAGS+2),%d0
 	jne	syscall_exit_work
 1:	RESTORE_ALL
 
 syscall_exit_work:
 	btst	#5,%sp@(PT_SR)		| check if returning to kernel
 	bnes	1b			| if so, skip resched, signals
-	tstw	%d0
-	jeq	do_signal_return
-	tstb	%d0
-	jne	do_delayed_trace
-
+	lslw	#1,%d0
+	jcs	do_trace_exit
+	jmi	do_delayed_trace
+	lslw	#8,%d0
+	jmi	do_signal_return
 	pea	resume_userspace
-	jmp	schedule
+	jra	schedule
 
-ret_from_exception:
+
+ENTRY(ret_from_exception)
+.Lret_from_exception:
 	btst	#5,%sp@(PT_SR)		| check if returning to kernel
 	bnes	1f			| if so, skip resched, signals
 	| only allow interrupts when we are really the last one on the
@@ -152,19 +155,18 @@ ret_from_exception:
 	andw	#ALLOWINT,%sr
 
 resume_userspace:
-	movel	%curptr@(TASK_WORK),%d0
-	lsrl	#8,%d0
+	moveb	%curptr@(TASK_INFO+TINFO_FLAGS+3),%d0
 	jne	exit_work
 1:	RESTORE_ALL
 
 exit_work:
 	| save top of frame
 	movel	%sp,%curptr@(TASK_THREAD+THREAD_ESP0)
-	tstb	%d0
-	jeq	do_signal_return
-
+	lslb	#1,%d0
+	jmi	do_signal_return
 	pea	resume_userspace
-	jmp	schedule
+	jra	schedule
+
 
 do_signal_return:
 	|andw	#ALLOWINT,%sr
@@ -254,7 +256,7 @@ ret_from_interrupt:
 
 	/* check if we need to do software interrupts */
 	tstl	irq_stat+CPUSTAT_SOFTIRQ_PENDING
-	jeq	ret_from_exception
+	jeq	.Lret_from_exception
 	pea	ret_from_exception
 	jra	do_softirq
 

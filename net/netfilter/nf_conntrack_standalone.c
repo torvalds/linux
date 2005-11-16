@@ -694,7 +694,7 @@ static int init_or_cleanup(int init)
  cleanup_proc_stat:
 #endif
 #ifdef CONFIG_PROC_FS
-	proc_net_remove("nf_conntrack_stat");
+	remove_proc_entry("nf_conntrack", proc_net_stat);
  cleanup_proc_exp:
 	proc_net_remove("nf_conntrack_expect");
  cleanup_proc:

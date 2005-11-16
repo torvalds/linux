@@ -101,7 +101,7 @@ extern struct timespec timespec_trunc(struct timespec t, unsigned gran);
 static inline void
 set_normalized_timespec (struct timespec *ts, time_t sec, long nsec)
 {
-	while (nsec > NSEC_PER_SEC) {
+	while (nsec >= NSEC_PER_SEC) {
 		nsec -= NSEC_PER_SEC;
 		++sec;
 	}

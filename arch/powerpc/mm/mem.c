@@ -200,6 +200,8 @@ void show_mem(void)
 		unsigned long flags;
 		pgdat_resize_lock(pgdat, &flags);
 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
+			if (!pfn_valid(pgdat->node_start_pfn + i))
+				continue;
 			page = pgdat_page_nr(pgdat, i);
 			total++;
 			if (PageHighMem(page))
@@ -336,7 +338,7 @@ void __init mem_init(void)
 	struct page *page;
 	unsigned long reservedpages = 0, codesize, initsize, datasize, bsssize;
 
-	num_physpages = max_pfn;	/* RAM is assumed contiguous */
+	num_physpages = lmb.memory.size >> PAGE_SHIFT;
 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 
 #ifdef CONFIG_NEED_MULTIPLE_NODES
@@ -348,11 +350,13 @@ void __init mem_init(void)
 		}
 	}
 #else
-	max_mapnr = num_physpages;
+	max_mapnr = max_pfn;
 	totalram_pages += free_all_bootmem();
 #endif
 	for_each_pgdat(pgdat) {
 		for (i = 0; i < pgdat->node_spanned_pages; i++) {
+			if (!pfn_valid(pgdat->node_start_pfn + i))
+				continue;
 			page = pgdat_page_nr(pgdat, i);
 			if (PageReserved(page))
 				reservedpages++;

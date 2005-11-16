@@ -491,7 +491,10 @@ __attribute__((weak)) unsigned long long printk_clock(void)
 	return sched_clock();
 }
 
-/*
+/**
+ * printk - print a kernel message
+ * @fmt: format string
+ *
  * This is printk.  It can be called from any context.  We want it to work.
  *
  * We try to grab the console_sem.  If we succeed, it's easy - we log the output and
@@ -503,6 +506,9 @@ __attribute__((weak)) unsigned long long printk_clock(void)
  * One effect of this deferred printing is that code which calls printk() and
  * then changes console_loglevel may break. This is because console_loglevel
  * is inspected when the actual printing occurs.
+ *
+ * See also:
+ * printf(3)
  */
 
 asmlinkage int printk(const char *fmt, ...)
@@ -655,6 +661,9 @@ static void call_console_drivers(unsigned long start, unsigned long end)
 
 /**
  * add_preferred_console - add a device to the list of preferred consoles.
+ * @name: device name
+ * @idx: device index
+ * @options: options for this console
  *
  * The last preferred console added will be used for kernel messages
  * and stdin/out/err for init.  Normally this is used by console_setup
@@ -764,7 +773,8 @@ void release_console_sem(void)
 }
 EXPORT_SYMBOL(release_console_sem);
 
-/** console_conditional_schedule - yield the CPU if required
+/**
+ * console_conditional_schedule - yield the CPU if required
  *
  * If the console code is currently allowed to sleep, and
  * if this CPU should yield the CPU to another task, do
@@ -976,6 +986,8 @@ EXPORT_SYMBOL(unregister_console);
 
 /**
  * tty_write_message - write a message to a certain tty, not just the console.
+ * @tty: the destination tty_struct
+ * @msg: the message to write
  *
  * This is used for messages that need to be redirected to a specific tty.
  * We don't put it into the syslog queue right now maybe in the future if

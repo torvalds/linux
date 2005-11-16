@@ -345,6 +345,16 @@ static void spitz_irda_transceiver_mode(struct device *dev, int mode)
 		reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_IR_ON);
 }
 
+#ifdef CONFIG_MACH_AKITA
+static void akita_irda_transceiver_mode(struct device *dev, int mode)
+{
+	if (mode & IR_OFF)
+		akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_IR_ON);
+	else
+		akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_IR_ON);
+}
+#endif
+
 static struct pxaficp_platform_data spitz_ficp_platform_data = {
 	.transceiver_cap  = IR_SIRMODE | IR_OFF,
 	.transceiver_mode = spitz_irda_transceiver_mode,
@@ -417,6 +427,32 @@ static void __init spitz_init(void)
 	platform_device_register(&spitzscoop2_device);
 }
 
+#ifdef CONFIG_MACH_AKITA
+/*
+ * Akita IO Expander
+ */
+struct platform_device akitaioexp_device = {
+	.name		= "akita-ioexp",
+	.id		= -1,
+};
+
+static void __init akita_init(void)
+{
+	spitz_ficp_platform_data.transceiver_mode = akita_irda_transceiver_mode;
+
+	/* We just pretend the second element of the array doesn't exist */
+	spitz_pcmcia_config.num_devs = 1;
+	platform_scoop_config = &spitz_pcmcia_config;
+	spitz_bl_machinfo.set_bl_intensity = akita_bl_set_intensity;
+
+	platform_device_register(&akitaioexp_device);
+
+	spitzscoop_device.dev.parent = &akitaioexp_device.dev;
+	common_init();
+}
+#endif
+
+
 static void __init fixup_spitz(struct machine_desc *desc,
 		struct tag *tags, char **cmdline, struct meminfo *mi)
 {
@@ -449,6 +485,19 @@ MACHINE_START(BORZOI, "SHARP Borzoi")
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa_init_irq,
 	.init_machine	= spitz_init,
+	.timer		= &pxa_timer,
+MACHINE_END
+#endif
+
+#ifdef CONFIG_MACH_AKITA
+MACHINE_START(AKITA, "SHARP Akita")
+	.phys_ram	= 0xa0000000,
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
+	.fixup		= fixup_spitz,
+	.map_io		= pxa_map_io,
+	.init_irq	= pxa_init_irq,
+	.init_machine	= akita_init,
 	.timer		= &pxa_timer,
 MACHINE_END
 #endif

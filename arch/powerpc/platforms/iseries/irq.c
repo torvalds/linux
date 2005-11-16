@@ -42,13 +42,6 @@
 #include "irq.h"
 #include "call_pci.h"
 
-/* This maps virtual irq numbers to real irqs */
-unsigned int virt_irq_to_real_map[NR_IRQS];
-
-/* The next available virtual irq number */
-/* Note: the pcnet32 driver assumes irq numbers < 2 aren't valid. :( */
-static int next_virtual_irq = 2;
-
 static long Pci_Interrupt_Count;
 static long Pci_Event_Count;
 
@@ -350,26 +343,14 @@ static hw_irq_controller iSeries_IRQ_handler = {
 int __init iSeries_allocate_IRQ(HvBusNumber busNumber,
 		HvSubBusNumber subBusNumber, HvAgentId deviceId)
 {
-	unsigned int realirq, virtirq;
+	int virtirq;
+	unsigned int realirq;
 	u8 idsel = (deviceId >> 4);
 	u8 function = deviceId & 7;
 
-	virtirq = next_virtual_irq++;
 	realirq = ((busNumber - 1) << 6) + ((idsel - 1) << 3) + function;
-	virt_irq_to_real_map[virtirq] = realirq;
+	virtirq = virt_irq_create_mapping(realirq);
 
 	irq_desc[virtirq].handler = &iSeries_IRQ_handler;
 	return virtirq;
-}
-
-int virt_irq_create_mapping(unsigned int real_irq)
-{
-	BUG(); /* Don't call this on iSeries, yet */
-
-	return 0;
-}
-
-void virt_irq_init(void)
-{
-	return;
 }
