@@ -101,9 +101,6 @@ static void int_received(struct pci_event *event, struct pt_regs *regs)
 		} else
 #endif
 			__do_IRQ(irq, regs);
-		HvCallPci_eoi(event->data.slot.bus_number,
-			event->data.slot.sub_bus_number,
-			event->data.slot.dev_id);
 		break;
 		/* Ignore error recovery events for now */
 	case pe_bus_created:
@@ -189,6 +186,7 @@ void __init iSeries_init_IRQ(void)
 				"failed with rc 0x%x\n", ret);
 }
 
+#define REAL_IRQ_TO_SUBBUS(irq)	(((irq) >> 14) & 0xff)
 #define REAL_IRQ_TO_BUS(irq)	((((irq) >> 6) & 0xff) + 1)
 #define REAL_IRQ_TO_IDSEL(irq)	((((irq) >> 3) & 7) + 1)
 #define REAL_IRQ_TO_FUNC(irq)	((irq) & 7)
@@ -294,12 +292,12 @@ static void iseries_disable_IRQ(unsigned int irq)
 	HvCallPci_maskInterrupts(bus, sub_bus, dev_id, mask);
 }
 
-/*
- * This does nothing because there is not enough information
- * provided to do the EOI HvCall.  This is done by XmPciLpEvent.c
- */
 static void iseries_end_IRQ(unsigned int irq)
 {
+	unsigned int rirq = virt_irq_to_real_map[irq];
+
+	HvCallPci_eoi(REAL_IRQ_TO_BUS(rirq), REAL_IRQ_TO_SUBBUS(rirq),
+		(REAL_IRQ_TO_IDSEL(rirq) << 4) + REAL_IRQ_TO_FUNC(rirq));
 }
 
 static hw_irq_controller iSeries_IRQ_handler = {
@@ -314,17 +312,18 @@ static hw_irq_controller iSeries_IRQ_handler = {
 /*
  * This is called out of iSeries_scan_slot to allocate an IRQ for an EADS slot
  * It calculates the irq value for the slot.
- * Note that sub_bus_number is always 0 (at the moment at least).
+ * Note that sub_bus is always 0 (at the moment at least).
  */
-int __init iSeries_allocate_IRQ(HvBusNumber bus_number,
-		HvSubBusNumber sub_bus_number, HvAgentId dev_id)
+int __init iSeries_allocate_IRQ(HvBusNumber bus,
+		HvSubBusNumber sub_bus, HvAgentId dev_id)
 {
 	int virtirq;
 	unsigned int realirq;
 	u8 idsel = (dev_id >> 4);
 	u8 function = dev_id & 7;
 
-	realirq = ((bus_number - 1) << 6) + ((idsel - 1) << 3) + function;
+	realirq = (((((sub_bus << 8) + (bus - 1)) << 3) + (idsel - 1)) << 3)
+		+ function;
 	virtirq = virt_irq_create_mapping(realirq);
 
 	irq_desc[virtirq].handler = &iSeries_IRQ_handler;
