@@ -11,7 +11,7 @@
 #define VDSO32_MBASE	VDSO32_LBASE
 #define VDSO64_MBASE	VDSO64_LBASE
 
-#define VDSO_VERSION_STRING	LINUX_2.6.12
+#define VDSO_VERSION_STRING	LINUX_2.6.15
 
 /* Define if 64 bits VDSO has procedure descriptors */
 #undef VDS64_HAS_DESCRIPTORS
