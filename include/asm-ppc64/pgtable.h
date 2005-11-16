@@ -47,6 +47,13 @@ struct mm_struct;
 #define VMALLOC_END   (VMALLOC_START + VMALLOC_SIZE)
 
 /*
+ * Define the address range of the imalloc VM area.
+ */
+#define PHBS_IO_BASE	VMALLOC_END
+#define IMALLOC_BASE	(PHBS_IO_BASE + 0x80000000ul)	/* Reserve 2 gigs for PHBs */
+#define IMALLOC_END	(VMALLOC_START + PGTABLE_RANGE)
+
+/*
  * Common bits in a linux-style PTE.  These match the bits in the
  * (hardware-defined) PowerPC PTE as closely as possible. Additional
  * bits may be defined in pgtable-*.h
