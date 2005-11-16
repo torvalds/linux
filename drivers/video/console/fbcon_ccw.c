@@ -63,9 +63,9 @@ static inline void ccw_update_attr(u8 *dst, u8 *src, int attribute,
 static void ccw_bmove(struct vc_data *vc, struct fb_info *info, int sy,
 		     int sx, int dy, int dx, int height, int width)
 {
-	struct display *p = &fb_display[vc->vc_num];
+	struct fbcon_ops *ops = info->fbcon_par;
 	struct fb_copyarea area;
-	u32 vyres = GETVYRES(p->scrollmode, info);
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 
 	area.sx = sy * vc->vc_font.height;
 	area.sy = vyres - ((sx + width) * vc->vc_font.width);
@@ -80,10 +80,10 @@ static void ccw_bmove(struct vc_data *vc, struct fb_info *info, int sy,
 static void ccw_clear(struct vc_data *vc, struct fb_info *info, int sy,
 		     int sx, int height, int width)
 {
-	struct display *p = &fb_display[vc->vc_num];
+	struct fbcon_ops *ops = info->fbcon_par;
 	struct fb_fillrect region;
 	int bgshift = (vc->vc_hi_font_mask) ? 13 : 12;
-	u32 vyres = GETVYRES(p->scrollmode, info);
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 
 	region.color = attr_bgcol_ec(bgshift,vc);
 	region.dx = sy * vc->vc_font.height;
@@ -131,7 +131,6 @@ static void ccw_putcs(struct vc_data *vc, struct fb_info *info,
 		      int fg, int bg)
 {
 	struct fb_image image;
-	struct display *p = &fb_display[vc->vc_num];
 	struct fbcon_ops *ops = info->fbcon_par;
 	u32 width = (vc->vc_font.height + 7)/8;
 	u32 cellsize = width * vc->vc_font.width;
@@ -141,7 +140,7 @@ static void ccw_putcs(struct vc_data *vc, struct fb_info *info,
 	u32 cnt, pitch, size;
 	u32 attribute = get_attribute(info, scr_readw(s));
 	u8 *dst, *buf = NULL;
-	u32 vyres = GETVYRES(p->scrollmode, info);
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 
 	if (!ops->fontbuffer)
 		return;
@@ -397,9 +396,8 @@ static void ccw_cursor(struct vc_data *vc, struct fb_info *info,
 int ccw_update_start(struct fb_info *info)
 {
 	struct fbcon_ops *ops = info->fbcon_par;
-	struct display *p = &fb_display[ops->currcon];
 	u32 yoffset;
-	u32 vyres = GETVYRES(p->scrollmode, info);
+	u32 vyres = GETVYRES(ops->p->scrollmode, info);
 	int err;
 
 	yoffset = (vyres - info->var.yres) - ops->var.xoffset;

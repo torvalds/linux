@@ -107,6 +107,7 @@
 #define I2C_DRIVERID_CX25840	71	/* cx2584x video encoder	*/
 #define I2C_DRIVERID_SAA7127	72	/* saa7124 video encoder	*/
 #define I2C_DRIVERID_SAA711X	73	/* saa711x video encoders	*/
+#define I2C_DRIVERID_AKITAIOEXP	74	/* IO Expander on Sharp SL-C1000 */
 
 #define I2C_DRIVERID_EXP0	0xF0	/* experimental use id's	*/
 #define I2C_DRIVERID_EXP1	0xF1

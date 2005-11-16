@@ -19,6 +19,15 @@ config PM
 	  will issue the hlt instruction if nothing is to be done, thereby
 	  sending the processor to sleep and saving power.
 
+config PM_LEGACY
+	bool "Legacy Power Management API"
+	depends on PM
+	default y
+	---help---
+	   Support for pm_register() and friends.
+
+	   If unsure, say Y.
+
 config PM_DEBUG
 	bool "Power Management Debug Support"
 	depends on PM

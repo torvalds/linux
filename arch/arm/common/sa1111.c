@@ -1266,7 +1266,7 @@ static void __exit sa1111_exit(void)
 	bus_unregister(&sa1111_bus_type);
 }
 
-module_init(sa1111_init);
+subsys_initcall(sa1111_init);
 module_exit(sa1111_exit);
 
 MODULE_DESCRIPTION("Intel Corporation SA1111 core driver");

@@ -71,10 +71,11 @@ struct per_cpu_pageset {
 #endif
 
 #define ZONE_DMA		0
-#define ZONE_NORMAL		1
-#define ZONE_HIGHMEM		2
+#define ZONE_DMA32		1
+#define ZONE_NORMAL		2
+#define ZONE_HIGHMEM		3
 
-#define MAX_NR_ZONES		3	/* Sync this with ZONES_SHIFT */
+#define MAX_NR_ZONES		4	/* Sync this with ZONES_SHIFT */
 #define ZONES_SHIFT		2	/* ceil(log2(MAX_NR_ZONES)) */
 
 
@@ -108,9 +109,10 @@ struct per_cpu_pageset {
 
 /*
  * On machines where it is needed (eg PCs) we divide physical memory
- * into multiple physical zones. On a PC we have 3 zones:
+ * into multiple physical zones. On a PC we have 4 zones:
  *
  * ZONE_DMA	  < 16 MB	ISA DMA capable memory
+ * ZONE_DMA32	     0 MB 	Empty
  * ZONE_NORMAL	16-896 MB	direct mapped by the kernel
  * ZONE_HIGHMEM	 > 896 MB	only page cache and user processes
  */
@@ -329,7 +331,7 @@ void get_zone_counts(unsigned long *active, unsigned long *inactive,
 void build_all_zonelists(void);
 void wakeup_kswapd(struct zone *zone, int order);
 int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
-		int alloc_type, int can_try_harder, gfp_t gfp_high);
+		int classzone_idx, int alloc_flags);
 
 #ifdef CONFIG_HAVE_MEMORY_PRESENT
 void memory_present(int nid, unsigned long start, unsigned long end);
@@ -433,7 +435,9 @@ int lowmem_reserve_ratio_sysctl_handler(struct ctl_table *, int, struct file *,
 
 #include <linux/topology.h>
 /* Returns the number of the current Node. */
+#ifndef numa_node_id
 #define numa_node_id()		(cpu_to_node(raw_smp_processor_id()))
+#endif
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
 
@@ -453,12 +457,12 @@ extern struct pglist_data contig_page_data;
 #include <asm/sparsemem.h>
 #endif
 
-#if BITS_PER_LONG == 32 || defined(ARCH_HAS_ATOMIC_UNSIGNED)
+#if BITS_PER_LONG == 32
 /*
- * with 32 bit page->flags field, we reserve 8 bits for node/zone info.
- * there are 3 zones (2 bits) and this leaves 8-2=6 bits for nodes.
+ * with 32 bit page->flags field, we reserve 9 bits for node/zone info.
+ * there are 4 zones (3 bits) and this leaves 9-3=6 bits for nodes.
  */
-#define FLAGS_RESERVED		8
+#define FLAGS_RESERVED		9
 
 #elif BITS_PER_LONG == 64
 /*

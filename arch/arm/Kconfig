@@ -652,25 +652,11 @@ endmenu
 
 menu "Power management options"
 
-config PM
-	bool "Power Management support"
-	---help---
-	  "Power Management" means that parts of your computer are shut
-	  off or put into a power conserving "sleep" mode if they are not
-	  being used.  There are two competing standards for doing this: APM
-	  and ACPI.  If you want to use either one, say Y here and then also
-	  to the requisite support below.
-
-	  Power Management is most important for battery powered laptop
-	  computers; if you have a laptop, check out the Linux Laptop home
-	  page on the WWW at <http://www.linux-on-laptops.com/> or
-	  Tuxmobil - Linux on Mobile Computers at <http://www.tuxmobil.org/>
-	  and the Battery Powered Linux mini-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto>.
+source "kernel/power/Kconfig"
 
 config APM
 	tristate "Advanced Power Management Emulation"
-	depends on PM
+	depends on PM_LEGACY
 	---help---
 	  APM is a BIOS specification for saving power using several different
 	  techniques. This is mostly useful for battery powered laptops with
@@ -701,6 +687,8 @@ source "net/Kconfig"
 menu "Device Drivers"
 
 source "drivers/base/Kconfig"
+
+source "drivers/connector/Kconfig"
 
 if ALIGNMENT_TRAP
 source "drivers/mtd/Kconfig"

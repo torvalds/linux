@@ -195,7 +195,7 @@ static int show_map_internal(struct seq_file *m, void *v, struct mem_size_stats 
 
 static int show_map(struct seq_file *m, void *v)
 {
-	return show_map_internal(m, v, 0);
+	return show_map_internal(m, v, NULL);
 }
 
 static void smaps_pte_range(struct vm_area_struct *vma, pmd_t *pmd,

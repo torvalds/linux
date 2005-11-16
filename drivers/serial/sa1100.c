@@ -156,7 +156,7 @@ static void sa1100_stop_tx(struct uart_port *port)
 }
 
 /*
- * interrupts may not be disabled on entry
+ * port locked and interrupts disabled
  */
 static void sa1100_start_tx(struct uart_port *port)
 {
@@ -164,11 +164,9 @@ static void sa1100_start_tx(struct uart_port *port)
 	unsigned long flags;
 	u32 utcr3;
 
-	spin_lock_irqsave(&sport->port.lock, flags);
 	utcr3 = UART_GET_UTCR3(sport);
 	sport->port.read_status_mask |= UTSR0_TO_SM(UTSR0_TFS);
 	UART_PUT_UTCR3(sport, utcr3 | UTCR3_TIE);
-	spin_unlock_irqrestore(&sport->port.lock, flags);
 }
 
 /*

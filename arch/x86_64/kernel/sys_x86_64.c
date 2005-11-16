@@ -154,17 +154,3 @@ asmlinkage long sys_uname(struct new_utsname __user * name)
 		err |= copy_to_user(&name->machine, "i686", 5); 		
 	return err ? -EFAULT : 0;
 }
-
-asmlinkage long sys_time64(long __user * tloc)
-{
-	struct timeval now; 
-	int i; 
-
-	do_gettimeofday(&now);
-	i = now.tv_sec;
-	if (tloc) {
-		if (put_user(i,tloc))
-			i = -EFAULT;
-	}
-	return i;
-}

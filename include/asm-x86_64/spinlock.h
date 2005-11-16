@@ -18,22 +18,22 @@
  */
 
 #define __raw_spin_is_locked(x) \
-		(*(volatile signed char *)(&(x)->slock) <= 0)
+		(*(volatile signed int *)(&(x)->slock) <= 0)
 
 #define __raw_spin_lock_string \
 	"\n1:\t" \
-	"lock ; decb %0\n\t" \
+	"lock ; decl %0\n\t" \
 	"js 2f\n" \
 	LOCK_SECTION_START("") \
 	"2:\t" \
 	"rep;nop\n\t" \
-	"cmpb $0,%0\n\t" \
+	"cmpl $0,%0\n\t" \
 	"jle 2b\n\t" \
 	"jmp 1b\n" \
 	LOCK_SECTION_END
 
 #define __raw_spin_unlock_string \
-	"movb $1,%0" \
+	"movl $1,%0" \
 		:"=m" (lock->slock) : : "memory"
 
 static inline void __raw_spin_lock(raw_spinlock_t *lock)
@@ -47,10 +47,10 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 
 static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 {
-	char oldval;
+	int oldval;
 
 	__asm__ __volatile__(
-		"xchgb %b0,%1"
+		"xchgl %0,%1"
 		:"=q" (oldval), "=m" (lock->slock)
 		:"0" (0) : "memory");
 

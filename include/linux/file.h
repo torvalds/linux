@@ -33,13 +33,13 @@ struct fdtable {
  * Open file table structure
  */
 struct files_struct {
-        atomic_t count;
-        spinlock_t file_lock;     /* Protects all the below members.  Nests inside tsk->alloc_lock */
+	atomic_t count;
 	struct fdtable *fdt;
 	struct fdtable fdtab;
-        fd_set close_on_exec_init;
-        fd_set open_fds_init;
-        struct file * fd_array[NR_OPEN_DEFAULT];
+	fd_set close_on_exec_init;
+	fd_set open_fds_init;
+	struct file * fd_array[NR_OPEN_DEFAULT];
+	spinlock_t file_lock;     /* Protects concurrent writers.  Nests inside tsk->alloc_lock */
 };
 
 #define files_fdtable(files) (rcu_dereference((files)->fdt))

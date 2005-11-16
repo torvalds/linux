@@ -1045,9 +1045,10 @@ int ipv6_dev_get_saddr(struct net_device *daddr_dev,
 			}
 #endif
 			/* Rule 8: Use longest matching prefix */
-			if (hiscore.rule < 8)
+			if (hiscore.rule < 8) {
 				hiscore.matchlen = ipv6_addr_diff(&ifa_result->addr, daddr);
-			score.rule++;
+				hiscore.rule++;
+			}
 			score.matchlen = ipv6_addr_diff(&ifa->addr, daddr);
 			if (score.matchlen > hiscore.matchlen) {
 				score.rule = 8;

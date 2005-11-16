@@ -59,6 +59,7 @@
 #include <asm/firmware.h>
 #include <asm/xmon.h>
 #include <asm/udbg.h>
+#include <asm/kexec.h>
 
 #include "setup.h"
 
@@ -414,6 +415,10 @@ void __init setup_system(void)
 	 * Unflatten the device-tree passed by prom_init or kexec
 	 */
 	unflatten_device_tree();
+
+#ifdef CONFIG_KEXEC
+	kexec_setup();	/* requires unflattened device tree. */
+#endif
 
 	/*
 	 * Fill the ppc64_caches & systemcfg structures with informations

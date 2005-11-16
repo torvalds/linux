@@ -195,6 +195,8 @@ rcu_torture_writer(void *arg)
 	static DEFINE_RCU_RANDOM(rand);
 
 	VERBOSE_PRINTK_STRING("rcu_torture_writer task started");
+	set_user_nice(current, 19);
+
 	do {
 		schedule_timeout_uninterruptible(1);
 		if (rcu_batches_completed() == oldbatch)
@@ -238,6 +240,8 @@ rcu_torture_reader(void *arg)
 	int pipe_count;
 
 	VERBOSE_PRINTK_STRING("rcu_torture_reader task started");
+	set_user_nice(current, 19);
+
 	do {
 		rcu_read_lock();
 		completed = rcu_batches_completed();

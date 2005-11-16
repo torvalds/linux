@@ -202,12 +202,9 @@ default_idle (void)
 {
 	local_irq_enable();
 	while (!need_resched()) {
-		if (can_do_pal_halt) {
-			local_irq_disable();
-			if (!need_resched())
-				safe_halt();
-			local_irq_enable();
-		} else
+		if (can_do_pal_halt)
+			safe_halt();
+		else
 			cpu_relax();
 	}
 }
@@ -272,10 +269,14 @@ cpu_idle (void)
 {
 	void (*mark_idle)(int) = ia64_mark_idle;
   	int cpu = smp_processor_id();
-	set_thread_flag(TIF_POLLING_NRFLAG);
 
 	/* endless idle loop with no priority at all */
 	while (1) {
+		if (can_do_pal_halt)
+			clear_thread_flag(TIF_POLLING_NRFLAG);
+		else
+			set_thread_flag(TIF_POLLING_NRFLAG);
+
 		if (!need_resched()) {
 			void (*idle)(void);
 #ifdef CONFIG_SMP

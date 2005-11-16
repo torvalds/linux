@@ -164,6 +164,33 @@ static __inline__ int atomic_dec_return(atomic_t *v)
 	return t;
 }
 
+#define atomic_cmpxchg(v, o, n) ((int)cmpxchg(&((v)->counter), (o), (n)))
+
+/**
+ * atomic_add_unless - add unless the number is a given value
+ * @v: pointer of type atomic_t
+ * @a: the amount to add to v...
+ * @u: ...unless v is equal to u.
+ *
+ * Atomically adds @a to @v, so long as it was not @u.
+ * Returns non-zero if @v was not @u, and zero otherwise.
+ */
+#define atomic_add_unless(v, a, u)							 \
+({															 \
+	   int c, old;											 \
+	   c = atomic_read(v);									 \
+	   for (;;) {											  \
+			   if (unlikely(c == (u)))						 \
+					   break;								  \
+			   old = atomic_cmpxchg((v), c, c + (a));		  \
+			   if (likely(old == c))						   \
+					   break;								  \
+			   c = old;										\
+	   }													   \
+	   c != (u);											   \
+})
+#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
+
 #define atomic_sub_and_test(a, v)	(atomic_sub_return((a), (v)) == 0)
 #define atomic_dec_and_test(v)		(atomic_dec_return((v)) == 0)
 

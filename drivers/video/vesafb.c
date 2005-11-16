@@ -413,6 +413,7 @@ static int __init vesafb_probe(struct platform_device *dev)
 	 * region already (FIXME) */
 	request_region(0x3c0, 32, "vesafb");
 
+#ifdef CONFIG_MTRR
 	if (mtrr) {
 		unsigned int temp_size = size_total;
 		unsigned int type = 0;
@@ -450,6 +451,7 @@ static int __init vesafb_probe(struct platform_device *dev)
 			} while (temp_size >= PAGE_SIZE && rc == -EINVAL);
 		}
 	}
+#endif
 	
 	info->fbops = &vesafb_ops;
 	info->var = vesafb_defined;

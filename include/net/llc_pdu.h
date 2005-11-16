@@ -357,7 +357,7 @@ static inline void llc_pdu_init_as_test_rsp(struct sk_buff *skb,
 
 /* LLC Type 1 XID command/response information fields format */
 struct llc_xid_info {
-	u8 fmt_id;	/* always 0x18 for LLC */
+	u8 fmt_id;	/* always 0x81 for LLC */
 	u8 type;	/* different if NULL/non-NULL LSAP */
 	u8 rw;		/* sender receive window */
 };

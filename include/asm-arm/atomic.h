@@ -80,6 +80,23 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 	return result;
 }
 
+static inline int atomic_cmpxchg(atomic_t *ptr, int old, int new)
+{
+	u32 oldval, res;
+
+	do {
+		__asm__ __volatile__("@ atomic_cmpxchg\n"
+		"ldrex	%1, [%2]\n"
+		"teq	%1, %3\n"
+		"strexeq %0, %4, [%2]\n"
+		    : "=&r" (res), "=&r" (oldval)
+		    : "r" (&ptr->counter), "Ir" (old), "r" (new)
+		    : "cc");
+	} while (res);
+
+	return oldval;
+}
+
 static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 {
 	unsigned long tmp, tmp2;
@@ -131,6 +148,20 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 	return val;
 }
 
+static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
+{
+	int ret;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	ret = v->counter;
+	if (likely(ret == old))
+		v->counter = new;
+	local_irq_restore(flags);
+
+	return ret;
+}
+
 static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 {
 	unsigned long flags;
@@ -141,6 +172,17 @@ static inline void atomic_clear_mask(unsigned long mask, unsigned long *addr)
 }
 
 #endif /* __LINUX_ARM_ARCH__ */
+
+static inline int atomic_add_unless(atomic_t *v, int a, int u)
+{
+	int c, old;
+
+	c = atomic_read(v);
+	while (c != u && (old = atomic_cmpxchg((v), c, c + a)) != c)
+		c = old;
+	return c != u;
+}
+#define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 #define atomic_add(i, v)	(void) atomic_add_return(i, v)
 #define atomic_inc(v)		(void) atomic_add_return(1, v)

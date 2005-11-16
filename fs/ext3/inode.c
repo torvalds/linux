@@ -1384,8 +1384,10 @@ static int ext3_journalled_writepage(struct page *page,
 		ClearPageChecked(page);
 		ret = block_prepare_write(page, 0, PAGE_CACHE_SIZE,
 					ext3_get_block);
-		if (ret != 0)
+		if (ret != 0) {
+			ext3_journal_stop(handle);
 			goto out_unlock;
+		}
 		ret = walk_page_buffers(handle, page_buffers(page), 0,
 			PAGE_CACHE_SIZE, NULL, do_journal_get_write_access);
 
