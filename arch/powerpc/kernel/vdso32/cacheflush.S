@@ -35,6 +35,7 @@ V_FUNCTION_BEGIN(__kernel_sync_dicache)
 	subf	r8,r6,r4		/* compute length */
 	add	r8,r8,r5		/* ensure we get enough */
 	srwi.	r8,r8,7			/* compute line count */
+	crclr	cr0*4+so
 	beqlr				/* nothing to do? */
 	mtctr	r8
 	mr	r3,r6
@@ -58,6 +59,7 @@ V_FUNCTION_END(__kernel_sync_dicache)
  */
 V_FUNCTION_BEGIN(__kernel_sync_dicache_p5)
   .cfi_startproc
+	crclr	cr0*4+so
 	sync
 	isync
 	li	r3,0

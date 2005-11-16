@@ -30,10 +30,10 @@
 #include <asm/byteorder.h>
 #include <asm/irq.h>
 #include <asm/machdep.h>
-#include <asm/udbg.h>
 #include <asm/ppc-pci.h>
 
 #ifdef DEBUG
+#include <asm/udbg.h>
 #define DBG(fmt...) udbg_printf(fmt)
 #else
 #define DBG(fmt...)
@@ -187,7 +187,7 @@ static DEFINE_SPINLOCK(hose_spinlock);
 /*
  * pci_controller(phb) initialized common variables.
  */
-void __devinit pci_setup_pci_controller(struct pci_controller *hose)
+static void __devinit pci_setup_pci_controller(struct pci_controller *hose)
 {
 	memset(hose, 0, sizeof(struct pci_controller));
 
@@ -195,6 +195,65 @@ void __devinit pci_setup_pci_controller(struct pci_controller *hose)
 	hose->global_number = global_phb_number++;
 	list_add_tail(&hose->list_node, &hose_list);
 	spin_unlock(&hose_spinlock);
+}
+
+static void add_linux_pci_domain(struct device_node *dev,
+				 struct pci_controller *phb)
+{
+	struct property *of_prop;
+	unsigned int size;
+
+	of_prop = (struct property *)
+		get_property(dev, "linux,pci-domain", &size);
+	if (of_prop != NULL)
+		return;
+	WARN_ON(of_prop && size < sizeof(int));
+	if (of_prop && size < sizeof(int))
+		of_prop = NULL;
+	size = sizeof(struct property) + sizeof(int);
+	if (of_prop == NULL) {
+		if (mem_init_done)
+			of_prop = kmalloc(size, GFP_KERNEL);
+		else
+			of_prop = alloc_bootmem(size);
+	}
+	memset(of_prop, 0, sizeof(struct property));
+	of_prop->name = "linux,pci-domain";
+	of_prop->length = sizeof(int);
+	of_prop->value = (unsigned char *)&of_prop[1];
+	*((int *)of_prop->value) = phb->global_number;
+	prom_add_property(dev, of_prop);
+}
+
+struct pci_controller * pcibios_alloc_controller(struct device_node *dev)
+{
+	struct pci_controller *phb;
+
+	if (mem_init_done)
+		phb = kmalloc(sizeof(struct pci_controller), GFP_KERNEL);
+	else
+		phb = alloc_bootmem(sizeof (struct pci_controller));
+	if (phb == NULL)
+		return NULL;
+	pci_setup_pci_controller(phb);
+	phb->arch_data = dev;
+	phb->is_dynamic = mem_init_done;
+	if (dev)
+		add_linux_pci_domain(dev, phb);
+	return phb;
+}
+
+void pcibios_free_controller(struct pci_controller *phb)
+{
+	if (phb->arch_data) {
+		struct device_node *np = phb->arch_data;
+		int *domain = (int *)get_property(np,
+						  "linux,pci-domain", NULL);
+		if (domain)
+			*domain = -1;
+	}
+	if (phb->is_dynamic)
+		kfree(phb);
 }
 
 static void __init pcibios_claim_one_bus(struct pci_bus *b)
@@ -907,9 +966,10 @@ void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	 *			(size depending on dev->n_addr_cells)
 	 *   cells 4+5 or 5+6:	the size of the range
 	 */
-	rlen = 0;
-	hose->io_base_phys = 0;
 	ranges = (unsigned int *) get_property(dev, "ranges", &rlen);
+	if (ranges == NULL)
+		return;
+	hose->io_base_phys = 0;
 	while ((rlen -= np * sizeof(unsigned int)) >= 0) {
 		res = NULL;
 		pci_space = ranges[0];
@@ -1106,6 +1166,8 @@ int remap_bus_range(struct pci_bus *bus)
 	
 	
 	if (get_bus_io_range(bus, &start_phys, &start_virt, &size))
+		return 1;
+	if (start_phys == 0)
 		return 1;
 	printk("mapping IO %lx -> %lx, size: %lx\n", start_phys, start_virt, size);
 	if (__ioremap_explicit(start_phys, start_virt, size,
