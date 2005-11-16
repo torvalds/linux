@@ -155,6 +155,7 @@ static struct usb_driver keyspan_pda_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
+	.no_dynamic_id = 	1,
 };
 
 static struct usb_device_id id_table_std [] = {

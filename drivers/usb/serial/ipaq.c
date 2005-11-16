@@ -547,6 +547,7 @@ static struct usb_driver ipaq_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	ipaq_id_table,
+	.no_dynamic_id = 	1,
 };
 
 

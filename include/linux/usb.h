@@ -561,6 +561,8 @@ struct usb_dynids {
  * @dynids: used internally to hold the list of dynamically added device
  *	ids for this driver.
  * @driver: the driver model core driver structure.
+ * @no_dynamic_id: if set to 1, the USB core will not allow dynamic ids to be
+ *	added to this driver by preventing the sysfs file from being created.
  *
  * USB drivers must provide a name, probe() and disconnect() methods,
  * and an id_table.  Other driver fields are optional.
@@ -597,6 +599,7 @@ struct usb_driver {
 
 	struct usb_dynids dynids;
 	struct device_driver driver;
+	unsigned int no_dynamic_id:1;
 };
 #define	to_usb_driver(d) container_of(d, struct usb_driver, driver)
 

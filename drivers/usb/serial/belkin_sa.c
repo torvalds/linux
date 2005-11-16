@@ -118,6 +118,7 @@ static struct usb_driver belkin_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
+	.no_dynamic_id = 	1,
 };
 
 /* All of the device info needed for the serial converters */

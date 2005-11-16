@@ -112,10 +112,24 @@ static int usb_create_newid_file(struct usb_driver *usb_drv)
 {
 	int error = 0;
 
+	if (usb_drv->no_dynamic_id)
+		goto exit;
+
 	if (usb_drv->probe != NULL)
 		error = sysfs_create_file(&usb_drv->driver.kobj,
 					  &driver_attr_new_id.attr);
+exit:
 	return error;
+}
+
+static void usb_remove_newid_file(struct usb_driver *usb_drv)
+{
+	if (usb_drv->no_dynamic_id)
+		return;
+
+	if (usb_drv->probe != NULL)
+		sysfs_remove_file(&usb_drv->driver.kobj,
+				  &driver_attr_new_id.attr);
 }
 
 static void usb_free_dynids(struct usb_driver *usb_drv)
@@ -133,6 +147,10 @@ static void usb_free_dynids(struct usb_driver *usb_drv)
 static inline int usb_create_newid_file(struct usb_driver *usb_drv)
 {
 	return 0;
+}
+
+static void usb_remove_newid_file(struct usb_driver *usb_drv)
+{
 }
 
 static inline void usb_free_dynids(struct usb_driver *usb_drv)
@@ -447,6 +465,7 @@ void usb_deregister(struct usb_driver *driver)
 	pr_info("%s: deregistering driver %s\n", usbcore_name, driver->name);
 
 	usb_lock_all_devices();
+	usb_remove_newid_file(driver);
 	usb_free_dynids(driver);
 	driver_unregister(&driver->driver);
 	usb_unlock_all_devices();

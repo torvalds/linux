@@ -253,6 +253,7 @@ static struct usb_driver ti_usb_driver = {
 	.probe			= usb_serial_probe,
 	.disconnect		= usb_serial_disconnect,
 	.id_table		= ti_id_table_combined,
+	.no_dynamic_id = 	1,
 };
 
 static struct usb_serial_driver ti_1port_device = {

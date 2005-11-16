@@ -46,6 +46,7 @@ static struct usb_driver usb_serial_driver = {
 	.name =		"usbserial",
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
+	.no_dynamic_id = 	1,
 };
 
 /* There is no MODULE_DEVICE_TABLE for usbserial.c.  Instead

@@ -165,6 +165,7 @@ static struct usb_driver safe_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
+	.no_dynamic_id = 	1,
 };
 
 static __u16 crc10_table[256] = {

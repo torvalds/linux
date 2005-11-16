@@ -42,6 +42,7 @@ static struct usb_driver hp49gp_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
+	.no_dynamic_id = 	1,
 };
 
 static struct usb_serial_driver hp49gp_device = {

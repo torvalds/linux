@@ -73,6 +73,7 @@ static struct usb_driver generic_driver = {
 	.probe =	generic_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	generic_serial_ids,
+	.no_dynamic_id = 	1,
 };
 #endif
 

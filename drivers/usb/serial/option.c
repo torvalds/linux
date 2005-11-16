@@ -100,6 +100,7 @@ static struct usb_driver option_driver = {
 	.probe      = usb_serial_probe,
 	.disconnect = usb_serial_disconnect,
 	.id_table   = option_ids,
+	.no_dynamic_id = 	1,
 };
 
 /* The card has three separate interfaces, wich the serial driver

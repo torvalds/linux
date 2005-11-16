@@ -132,6 +132,7 @@ static struct usb_driver whiteheat_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
+	.no_dynamic_id = 	1,
 };
 
 /* function prototypes for the Connect Tech WhiteHEAT prerenumeration device */

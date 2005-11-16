@@ -72,6 +72,7 @@ static struct usb_driver cp2101_driver = {
 	.probe		= usb_serial_probe,
 	.disconnect	= usb_serial_disconnect,
 	.id_table	= id_table,
+	.no_dynamic_id	= 	1,
 };
 
 static struct usb_serial_driver cp2101_device = {

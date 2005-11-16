@@ -178,6 +178,7 @@ static struct usb_driver visor_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
+	.no_dynamic_id = 	1,
 };
 
 /* All of the device info needed for the Handspring Visor, and Palm 4.0 devices */

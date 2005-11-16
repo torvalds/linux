@@ -157,6 +157,7 @@ static struct usb_driver usb_ipw_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	usb_ipw_ids,
+	.no_dynamic_id = 	1,
 };
 
 static int debug;

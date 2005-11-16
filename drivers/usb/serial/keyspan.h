@@ -525,6 +525,7 @@ static struct usb_driver keyspan_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	keyspan_ids_combined,
+	.no_dynamic_id = 	1,
 };
 
 /* usb_device_id table for the pre-firmware download keyspan devices */

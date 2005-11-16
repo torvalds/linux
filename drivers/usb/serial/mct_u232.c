@@ -130,6 +130,7 @@ static struct usb_driver mct_u232_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
+	.no_dynamic_id = 	1,
 };
 
 static struct usb_serial_driver mct_u232_device = {
