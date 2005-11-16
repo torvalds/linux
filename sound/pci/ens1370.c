@@ -19,6 +19,13 @@
  *
  */
 
+/* Power-Management-Code ( CONFIG_PM )
+ * for ens1371 only ( FIXME )
+ * derived from cs4281.c, atiixp.c and via82xx.c
+ * using http://www.alsa-project.org/~iwai/writing-an-alsa-driver/c1540.htm
+ * by Kurt J. Bosch
+ */
+
 #include <sound/driver.h>
 #include <asm/io.h>
 #include <linux/delay.h>
@@ -1924,6 +1931,117 @@ static struct {
 };
 #endif
 
+static void snd_ensoniq_chip_init(ensoniq_t * ensoniq)
+{
+#ifdef CHIP1371
+	int idx;
+	struct pci_dev *pci = ensoniq->pci;
+#endif
+// this code was part of snd_ensoniq_create before intruduction of suspend/resume
+#ifdef CHIP1370
+	outl(ensoniq->ctrl, ES_REG(ensoniq, CONTROL));
+	outl(ensoniq->sctrl, ES_REG(ensoniq, SERIAL));
+	outl(ES_MEM_PAGEO(ES_PAGE_ADC), ES_REG(ensoniq, MEM_PAGE));
+	outl(ensoniq->dma_bug.addr, ES_REG(ensoniq, PHANTOM_FRAME));
+	outl(0, ES_REG(ensoniq, PHANTOM_COUNT));
+#else
+	outl(ensoniq->ctrl, ES_REG(ensoniq, CONTROL));
+	outl(ensoniq->sctrl, ES_REG(ensoniq, SERIAL));
+	outl(0, ES_REG(ensoniq, 1371_LEGACY));
+	for (idx = 0; es1371_ac97_reset_hack[idx].vid != (unsigned short)PCI_ANY_ID; idx++)
+		if (pci->vendor == es1371_ac97_reset_hack[idx].vid &&
+		    pci->device == es1371_ac97_reset_hack[idx].did &&
+		    ensoniq->rev == es1371_ac97_reset_hack[idx].rev) {
+			outl(ensoniq->cssr, ES_REG(ensoniq, STATUS));
+			/* need to delay around 20ms(bleech) to give
+			some CODECs enough time to wakeup */
+			msleep(20);
+			break;
+		}
+	/* AC'97 warm reset to start the bitclk */
+	outl(ensoniq->ctrl | ES_1371_SYNC_RES, ES_REG(ensoniq, CONTROL));
+	inl(ES_REG(ensoniq, CONTROL));
+	udelay(20);
+	outl(ensoniq->ctrl, ES_REG(ensoniq, CONTROL));
+	/* Init the sample rate converter */
+	snd_es1371_wait_src_ready(ensoniq);	
+	outl(ES_1371_SRC_DISABLE, ES_REG(ensoniq, 1371_SMPRATE));
+	for (idx = 0; idx < 0x80; idx++)
+		snd_es1371_src_write(ensoniq, idx, 0);
+	snd_es1371_src_write(ensoniq, ES_SMPREG_DAC1 + ES_SMPREG_TRUNC_N, 16 << 4);
+	snd_es1371_src_write(ensoniq, ES_SMPREG_DAC1 + ES_SMPREG_INT_REGS, 16 << 10);
+	snd_es1371_src_write(ensoniq, ES_SMPREG_DAC2 + ES_SMPREG_TRUNC_N, 16 << 4);
+	snd_es1371_src_write(ensoniq, ES_SMPREG_DAC2 + ES_SMPREG_INT_REGS, 16 << 10);
+	snd_es1371_src_write(ensoniq, ES_SMPREG_VOL_ADC, 1 << 12);
+	snd_es1371_src_write(ensoniq, ES_SMPREG_VOL_ADC + 1, 1 << 12);
+	snd_es1371_src_write(ensoniq, ES_SMPREG_VOL_DAC1, 1 << 12);
+	snd_es1371_src_write(ensoniq, ES_SMPREG_VOL_DAC1 + 1, 1 << 12);
+	snd_es1371_src_write(ensoniq, ES_SMPREG_VOL_DAC2, 1 << 12);
+	snd_es1371_src_write(ensoniq, ES_SMPREG_VOL_DAC2 + 1, 1 << 12);
+	snd_es1371_adc_rate(ensoniq, 22050);
+	snd_es1371_dac1_rate(ensoniq, 22050);
+	snd_es1371_dac2_rate(ensoniq, 22050);
+	/* WARNING:
+	 * enabling the sample rate converter without properly programming
+	 * its parameters causes the chip to lock up (the SRC busy bit will
+	 * be stuck high, and I've found no way to rectify this other than
+	 * power cycle) - Thomas Sailer
+	 */
+	snd_es1371_wait_src_ready(ensoniq);
+	outl(0, ES_REG(ensoniq, 1371_SMPRATE));
+	/* try reset codec directly */
+	outl(ES_1371_CODEC_WRITE(0, 0), ES_REG(ensoniq, 1371_CODEC));
+#endif
+	outb(ensoniq->uartc = 0x00, ES_REG(ensoniq, UART_CONTROL));
+	outb(0x00, ES_REG(ensoniq, UART_RES));
+	outl(ensoniq->cssr, ES_REG(ensoniq, STATUS));
+	synchronize_irq(ensoniq->irq);
+}
+
+#ifdef CONFIG_PM
+static int snd_ensoniq_suspend (snd_card_t * card,
+                                pm_message_t state)
+{
+	ensoniq_t *ensoniq = card->pm_private_data;
+	
+	snd_pcm_suspend_all(ensoniq->pcm1);
+	snd_pcm_suspend_all(ensoniq->pcm2);
+	
+#ifdef CHIP1371	
+	if (ensoniq->u.es1371.ac97)
+		snd_ac97_suspend(ensoniq->u.es1371.ac97);
+#else
+	/* FIXME */
+#endif	
+        pci_set_power_state(ensoniq->pci, 3);
+	pci_disable_device(ensoniq->pci);
+        // snd_power_change_state(card, SNDRV_CTL_POWER_D3hot); // only 2.6.10
+	return 0;
+}
+
+static int snd_ensoniq_resume (snd_card_t * card
+                              )
+{
+	ensoniq_t *ensoniq = card->pm_private_data;
+
+	pci_enable_device(ensoniq->pci);
+	pci_set_power_state(ensoniq->pci, 0);	
+	pci_set_master(ensoniq->pci);
+
+	snd_ensoniq_chip_init(ensoniq);
+
+#ifdef CHIP1371	
+	if (ensoniq->u.es1371.ac97)
+		snd_ac97_resume(ensoniq->u.es1371.ac97);
+#else
+	/* FIXME */
+#endif	
+	// snd_power_change_state(card, SNDRV_CTL_POWER_D0); // only 2.6.10
+	return 0;
+}
+#endif /* CONFIG_PM */
+
+
 static int __devinit snd_ensoniq_create(snd_card_t * card,
 				     struct pci_dev *pci,
 				     ensoniq_t ** rensoniq)
@@ -1986,12 +2104,6 @@ static int __devinit snd_ensoniq_create(snd_card_t * card,
 	ensoniq->ctrl = ES_1370_CDC_EN | ES_1370_PCLKDIVO(ES_1370_SRTODIV(8000));
 #endif
 	ensoniq->sctrl = 0;
-	/* initialize the chips */
-	outl(ensoniq->ctrl, ES_REG(ensoniq, CONTROL));
-	outl(ensoniq->sctrl, ES_REG(ensoniq, SERIAL));
-	outl(ES_MEM_PAGEO(ES_PAGE_ADC), ES_REG(ensoniq, MEM_PAGE));
-	outl(ensoniq->dma_bug.addr, ES_REG(ensoniq, PHANTOM_FRAME));
-	outl(0, ES_REG(ensoniq, PHANTOM_COUNT));
 #else
 	ensoniq->ctrl = 0;
 	ensoniq->sctrl = 0;
@@ -2002,59 +2114,16 @@ static int __devinit snd_ensoniq_create(snd_card_t * card,
 			ensoniq->ctrl |= ES_1371_GPIO_OUT(1);	/* turn amplifier on */
 			break;
 		}
-	/* initialize the chips */
-	outl(ensoniq->ctrl, ES_REG(ensoniq, CONTROL));
-	outl(ensoniq->sctrl, ES_REG(ensoniq, SERIAL));
-	outl(0, ES_REG(ensoniq, 1371_LEGACY));
 	for (idx = 0; es1371_ac97_reset_hack[idx].vid != (unsigned short)PCI_ANY_ID; idx++)
 		if (pci->vendor == es1371_ac97_reset_hack[idx].vid &&
 		    pci->device == es1371_ac97_reset_hack[idx].did &&
 		    ensoniq->rev == es1371_ac97_reset_hack[idx].rev) {
 			ensoniq->cssr |= ES_1371_ST_AC97_RST;
-			outl(ensoniq->cssr, ES_REG(ensoniq, STATUS));
-			/* need to delay around 20ms(bleech) to give
-			some CODECs enough time to wakeup */
-			msleep(20);
 			break;
 		}
-	/* AC'97 warm reset to start the bitclk */
-	outl(ensoniq->ctrl | ES_1371_SYNC_RES, ES_REG(ensoniq, CONTROL));
-	inl(ES_REG(ensoniq, CONTROL));
-	udelay(20);
-	outl(ensoniq->ctrl, ES_REG(ensoniq, CONTROL));
-	/* Init the sample rate converter */
-	snd_es1371_wait_src_ready(ensoniq);	
-	outl(ES_1371_SRC_DISABLE, ES_REG(ensoniq, 1371_SMPRATE));
-	for (idx = 0; idx < 0x80; idx++)
-		snd_es1371_src_write(ensoniq, idx, 0);
-	snd_es1371_src_write(ensoniq, ES_SMPREG_DAC1 + ES_SMPREG_TRUNC_N, 16 << 4);
-	snd_es1371_src_write(ensoniq, ES_SMPREG_DAC1 + ES_SMPREG_INT_REGS, 16 << 10);
-	snd_es1371_src_write(ensoniq, ES_SMPREG_DAC2 + ES_SMPREG_TRUNC_N, 16 << 4);
-	snd_es1371_src_write(ensoniq, ES_SMPREG_DAC2 + ES_SMPREG_INT_REGS, 16 << 10);
-	snd_es1371_src_write(ensoniq, ES_SMPREG_VOL_ADC, 1 << 12);
-	snd_es1371_src_write(ensoniq, ES_SMPREG_VOL_ADC + 1, 1 << 12);
-	snd_es1371_src_write(ensoniq, ES_SMPREG_VOL_DAC1, 1 << 12);
-	snd_es1371_src_write(ensoniq, ES_SMPREG_VOL_DAC1 + 1, 1 << 12);
-	snd_es1371_src_write(ensoniq, ES_SMPREG_VOL_DAC2, 1 << 12);
-	snd_es1371_src_write(ensoniq, ES_SMPREG_VOL_DAC2 + 1, 1 << 12);
-	snd_es1371_adc_rate(ensoniq, 22050);
-	snd_es1371_dac1_rate(ensoniq, 22050);
-	snd_es1371_dac2_rate(ensoniq, 22050);
-	/* WARNING:
-	 * enabling the sample rate converter without properly programming
-	 * its parameters causes the chip to lock up (the SRC busy bit will
-	 * be stuck high, and I've found no way to rectify this other than
-	 * power cycle) - Thomas Sailer
-	 */
-	snd_es1371_wait_src_ready(ensoniq);
-	outl(0, ES_REG(ensoniq, 1371_SMPRATE));
-	/* try reset codec directly */
-	outl(ES_1371_CODEC_WRITE(0, 0), ES_REG(ensoniq, 1371_CODEC));
 #endif
-	outb(ensoniq->uartc = 0x00, ES_REG(ensoniq, UART_CONTROL));
-	outb(0x00, ES_REG(ensoniq, UART_RES));
-	outl(ensoniq->cssr, ES_REG(ensoniq, STATUS));
-	synchronize_irq(ensoniq->irq);
+
+	snd_ensoniq_chip_init(ensoniq);
 
 	if ((err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, ensoniq, &ops)) < 0) {
 		snd_ensoniq_free(ensoniq);
@@ -2062,6 +2131,8 @@ static int __devinit snd_ensoniq_create(snd_card_t * card,
 	}
 
 	snd_ensoniq_proc_init(ensoniq);
+
+	snd_card_set_pm_callback(card, snd_ensoniq_suspend, snd_ensoniq_resume, ensoniq);
 
 	snd_card_set_dev(card, &pci->dev);
 
@@ -2389,6 +2460,7 @@ static struct pci_driver driver = {
 	.id_table = snd_audiopci_ids,
 	.probe = snd_audiopci_probe,
 	.remove = __devexit_p(snd_audiopci_remove),
+	SND_PCI_PM_CALLBACKS
 };
 	
 static int __init alsa_card_ens137x_init(void)
