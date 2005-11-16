@@ -26,8 +26,6 @@
 #include <asm/leds.h>
 #include <asm/io.h>
 
-#define __io_address(n)		__io(IO_ADDRESS(n))
-
 extern struct sys_timer realview_timer;
 
 #define AMBA_DEVICE(name,busid,base,plat)			\
