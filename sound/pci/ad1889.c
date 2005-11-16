@@ -623,14 +623,6 @@ snd_ad1889_interrupt(int irq,
 	return IRQ_HANDLED;
 }
 
-static void 
-snd_ad1889_pcm_free(snd_pcm_t *pcm)
-{
-	struct snd_ad1889 *chip = pcm->private_data;
-	chip->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int __devinit
 snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device, snd_pcm_t **rpcm)
 {
@@ -650,7 +642,6 @@ snd_ad1889_pcm_init(struct snd_ad1889 *chip, int device, snd_pcm_t **rpcm)
 			&snd_ad1889_capture_ops);
 
 	pcm->private_data = chip;
-	pcm->private_free = snd_ad1889_pcm_free;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, chip->card->shortname);
 	

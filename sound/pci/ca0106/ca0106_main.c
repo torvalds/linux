@@ -1069,13 +1069,6 @@ static irqreturn_t snd_ca0106_interrupt(int irq, void *dev_id,
 	return IRQ_HANDLED;
 }
 
-static void snd_ca0106_pcm_free(snd_pcm_t *pcm)
-{
-	ca0106_t *emu = pcm->private_data;
-	emu->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int __devinit snd_ca0106_pcm(ca0106_t *emu, int device, snd_pcm_t **rpcm)
 {
 	snd_pcm_t *pcm;
@@ -1088,7 +1081,6 @@ static int __devinit snd_ca0106_pcm(ca0106_t *emu, int device, snd_pcm_t **rpcm)
 		return err;
   
 	pcm->private_data = emu;
-	pcm->private_free = snd_ca0106_pcm_free;
 
 	switch (device) {
 	case 0:

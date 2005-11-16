@@ -959,13 +959,6 @@ static snd_pcm_ops_t snd_ad1848_capture_ops = {
 	.pointer =	snd_ad1848_capture_pointer,
 };
 
-static void snd_ad1848_pcm_free(snd_pcm_t *pcm)
-{
-	ad1848_t *chip = pcm->private_data;
-	chip->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 int snd_ad1848_pcm(ad1848_t *chip, int device, snd_pcm_t **rpcm)
 {
 	snd_pcm_t *pcm;
@@ -977,7 +970,6 @@ int snd_ad1848_pcm(ad1848_t *chip, int device, snd_pcm_t **rpcm)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ad1848_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ad1848_capture_ops);
 
-	pcm->private_free = snd_ad1848_pcm_free;
 	pcm->private_data = chip;
 	pcm->info_flags = SNDRV_PCM_INFO_HALF_DUPLEX;
 	strcpy(pcm->name, snd_ad1848_chip_id(chip));

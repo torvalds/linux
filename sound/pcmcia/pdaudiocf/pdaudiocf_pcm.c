@@ -325,15 +325,6 @@ static snd_pcm_ops_t pdacf_pcm_capture_ops = {
 
 
 /*
- * free callback for pcm
- */
-static void snd_pdacf_pcm_free(snd_pcm_t *pcm)
-{
-	pdacf_t *chip = pcm->private_data;
-	chip->pcm = NULL;
-}
-
-/*
  * snd_pdacf_pcm_new - create and initialize a pcm
  */
 int snd_pdacf_pcm_new(pdacf_t *chip)
@@ -348,7 +339,6 @@ int snd_pdacf_pcm_new(pdacf_t *chip)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &pdacf_pcm_capture_ops);
 
 	pcm->private_data = chip;
-	pcm->private_free = snd_pdacf_pcm_free;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, chip->card->shortname);
 	chip->pcm = pcm;

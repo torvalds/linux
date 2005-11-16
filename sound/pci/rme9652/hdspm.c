@@ -3336,15 +3336,6 @@ static int __devinit snd_hdspm_preallocate_memory(hdspm_t * hdspm)
 	return 0;
 }
 
-static int snd_hdspm_memory_free(hdspm_t * hdspm)
-{
-	snd_printdd("memory_free_for_all %p\n", hdspm->pcm);
-
-	snd_pcm_lib_preallocate_free_for_all(hdspm->pcm);
-	return 0;
-}
-
-
 static void hdspm_set_sgbuf(hdspm_t * hdspm, struct snd_sg_buf *sgbuf,
 			     unsigned int reg, int channels)
 {
@@ -3567,8 +3558,6 @@ static int snd_hdspm_free(hdspm_t * hdspm)
 
 	if (hdspm->iobase)
 		iounmap(hdspm->iobase);
-
-	snd_hdspm_memory_free(hdspm);
 
 	if (hdspm->port)
 		pci_release_regions(hdspm->pci);

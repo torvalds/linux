@@ -662,13 +662,6 @@ static snd_pcm_ops_t snd_ad1816a_capture_ops = {
 	.pointer =	snd_ad1816a_capture_pointer,
 };
 
-static void snd_ad1816a_pcm_free(snd_pcm_t *pcm)
-{
-	ad1816a_t *chip = pcm->private_data;
-	chip->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 int snd_ad1816a_pcm(ad1816a_t *chip, int device, snd_pcm_t **rpcm)
 {
 	int error;
@@ -681,7 +674,6 @@ int snd_ad1816a_pcm(ad1816a_t *chip, int device, snd_pcm_t **rpcm)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ad1816a_capture_ops);
 
 	pcm->private_data = chip;
-	pcm->private_free = snd_ad1816a_pcm_free;
 	pcm->info_flags = (chip->dma1 == chip->dma2 ) ? SNDRV_PCM_INFO_JOINT_DUPLEX : 0;
 
 	strcpy(pcm->name, snd_ad1816a_chip_id(chip));

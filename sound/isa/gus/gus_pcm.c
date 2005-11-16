@@ -727,13 +727,6 @@ static int snd_gf1_pcm_capture_close(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static void snd_gf1_pcm_free(snd_pcm_t *pcm)
-{
-	snd_gus_card_t *gus = pcm->private_data;
-	gus->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int snd_gf1_pcm_volume_info(snd_kcontrol_t *kcontrol, snd_ctl_elem_info_t * uinfo)
 {
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
@@ -860,7 +853,6 @@ int snd_gf1_pcm_new(snd_gus_card_t * gus, int pcm_dev, int control_index, snd_pc
 	if (err < 0)
 		return err;
 	pcm->private_data = gus;
-	pcm->private_free = snd_gf1_pcm_free;
 	/* playback setup */
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_gf1_pcm_playback_ops);
 

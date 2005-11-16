@@ -1693,11 +1693,6 @@ static snd_pcm_ops_t snd_cmipci_capture_spdif_ops = {
 /*
  */
 
-static void snd_cmipci_pcm_free(snd_pcm_t *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int __devinit snd_cmipci_pcm_new(cmipci_t *cm, int device)
 {
 	snd_pcm_t *pcm;
@@ -1711,7 +1706,6 @@ static int __devinit snd_cmipci_pcm_new(cmipci_t *cm, int device)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_cmipci_capture_ops);
 
 	pcm->private_data = cm;
-	pcm->private_free = snd_cmipci_pcm_free;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "C-Media PCI DAC/ADC");
 	cm->pcm = pcm;
@@ -1734,7 +1728,6 @@ static int __devinit snd_cmipci_pcm2_new(cmipci_t *cm, int device)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_cmipci_playback2_ops);
 
 	pcm->private_data = cm;
-	pcm->private_free = snd_cmipci_pcm_free;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "C-Media PCI 2nd DAC");
 	cm->pcm2 = pcm;
@@ -1758,7 +1751,6 @@ static int __devinit snd_cmipci_pcm_spdif_new(cmipci_t *cm, int device)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_cmipci_capture_spdif_ops);
 
 	pcm->private_data = cm;
-	pcm->private_free = snd_cmipci_pcm_free;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "C-Media PCI IEC958");
 	cm->pcm_spdif = pcm;

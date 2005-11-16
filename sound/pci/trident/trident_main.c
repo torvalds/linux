@@ -2118,37 +2118,6 @@ static snd_pcm_ops_t snd_trident_spdif_7018_ops = {
 };
 
 /*---------------------------------------------------------------------------
-   snd_trident_pcm_free
-  
-   Description: This routine release the 4DWave private data.
-                
-   Paramters:   private_data - pointer to 4DWave device info.
-
-   Returns:     None
-  
-  ---------------------------------------------------------------------------*/
-static void snd_trident_pcm_free(snd_pcm_t *pcm)
-{
-	trident_t *trident = pcm->private_data;
-	trident->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
-static void snd_trident_foldback_pcm_free(snd_pcm_t *pcm)
-{
-	trident_t *trident = pcm->private_data;
-	trident->foldback = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
-static void snd_trident_spdif_pcm_free(snd_pcm_t *pcm)
-{
-	trident_t *trident = pcm->private_data;
-	trident->spdif = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
-/*---------------------------------------------------------------------------
    snd_trident_pcm
   
    Description: This routine registers the 4DWave device for PCM support.
@@ -2170,7 +2139,6 @@ int __devinit snd_trident_pcm(trident_t * trident, int device, snd_pcm_t ** rpcm
 		return err;
 
 	pcm->private_data = trident;
-	pcm->private_free = snd_trident_pcm_free;
 
 	if (trident->tlb.entries) {
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_trident_nx_playback_ops);
@@ -2232,7 +2200,6 @@ int __devinit snd_trident_foldback_pcm(trident_t * trident, int device, snd_pcm_
 		return err;
 
 	foldback->private_data = trident;
-	foldback->private_free = snd_trident_foldback_pcm_free;
 	if (trident->tlb.entries)
 		snd_pcm_set_ops(foldback, SNDRV_PCM_STREAM_CAPTURE, &snd_trident_nx_foldback_ops);
 	else
@@ -2285,7 +2252,6 @@ int __devinit snd_trident_spdif_pcm(trident_t * trident, int device, snd_pcm_t *
 		return err;
 
 	spdif->private_data = trident;
-	spdif->private_free = snd_trident_spdif_pcm_free;
 	if (trident->device != TRIDENT_DEVICE_ID_SI7018) {
 		snd_pcm_set_ops(spdif, SNDRV_PCM_STREAM_PLAYBACK, &snd_trident_spdif_ops);
 	} else {

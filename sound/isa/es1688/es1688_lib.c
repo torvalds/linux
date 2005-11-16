@@ -724,13 +724,6 @@ static snd_pcm_ops_t snd_es1688_capture_ops = {
 	.pointer =		snd_es1688_capture_pointer,
 };
 
-static void snd_es1688_pcm_free(snd_pcm_t *pcm)
-{
-	es1688_t *chip = pcm->private_data;
-	chip->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 int snd_es1688_pcm(es1688_t * chip, int device, snd_pcm_t ** rpcm)
 {
 	snd_pcm_t *pcm;
@@ -743,7 +736,6 @@ int snd_es1688_pcm(es1688_t * chip, int device, snd_pcm_t ** rpcm)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_es1688_capture_ops);
 
 	pcm->private_data = chip;
-	pcm->private_free = snd_es1688_pcm_free;
 	pcm->info_flags = SNDRV_PCM_INFO_HALF_DUPLEX;
 	sprintf(pcm->name, snd_es1688_chip_id(chip));
 	chip->pcm = pcm;

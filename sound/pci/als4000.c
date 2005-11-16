@@ -490,13 +490,6 @@ static snd_pcm_ops_t snd_als4000_capture_ops = {
 	.pointer =	snd_als4000_capture_pointer
 };
 
-static void snd_als4000_pcm_free(snd_pcm_t *pcm)
-{
-	sb_t *chip = pcm->private_data;
-	chip->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int __devinit snd_als4000_pcm(sb_t *chip, int device)
 {
 	snd_pcm_t *pcm;
@@ -504,7 +497,6 @@ static int __devinit snd_als4000_pcm(sb_t *chip, int device)
 
 	if ((err = snd_pcm_new(chip->card, "ALS4000 DSP", device, 1, 1, &pcm)) < 0)
 		return err;
-	pcm->private_free = snd_als4000_pcm_free;
 	pcm->private_data = chip;
 	pcm->info_flags = SNDRV_PCM_INFO_JOINT_DUPLEX;
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_als4000_playback_ops);

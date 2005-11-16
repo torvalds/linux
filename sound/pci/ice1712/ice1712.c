@@ -859,13 +859,6 @@ static snd_pcm_ops_t snd_ice1712_capture_ops = {
 	.pointer =	snd_ice1712_capture_pointer,
 };
 
-static void snd_ice1712_pcm_free(snd_pcm_t *pcm)
-{
-	ice1712_t *ice = pcm->private_data;
-	ice->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int __devinit snd_ice1712_pcm(ice1712_t * ice, int device, snd_pcm_t ** rpcm)
 {
 	snd_pcm_t *pcm;
@@ -881,7 +874,6 @@ static int __devinit snd_ice1712_pcm(ice1712_t * ice, int device, snd_pcm_t ** r
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ice1712_capture_ops);
 
 	pcm->private_data = ice;
-	pcm->private_free = snd_ice1712_pcm_free;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "ICE1712 consumer");
 	ice->pcm = pcm;
@@ -895,13 +887,6 @@ static int __devinit snd_ice1712_pcm(ice1712_t * ice, int device, snd_pcm_t ** r
 	printk(KERN_WARNING "Consumer PCM code does not work well at the moment --jk\n");
 
 	return 0;
-}
-
-static void snd_ice1712_pcm_free_ds(snd_pcm_t *pcm)
-{
-	ice1712_t *ice = pcm->private_data;
-	ice->pcm_ds = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
 static int __devinit snd_ice1712_pcm_ds(ice1712_t * ice, int device, snd_pcm_t ** rpcm)
@@ -918,7 +903,6 @@ static int __devinit snd_ice1712_pcm_ds(ice1712_t * ice, int device, snd_pcm_t *
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ice1712_playback_ds_ops);
 
 	pcm->private_data = ice;
-	pcm->private_free = snd_ice1712_pcm_free_ds;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "ICE1712 consumer (DS)");
 	ice->pcm_ds = pcm;
@@ -1223,13 +1207,6 @@ static int snd_ice1712_capture_pro_close(snd_pcm_substream_t * substream)
 	return 0;
 }
 
-static void snd_ice1712_pcm_profi_free(snd_pcm_t *pcm)
-{
-	ice1712_t *ice = pcm->private_data;
-	ice->pcm_pro = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static snd_pcm_ops_t snd_ice1712_playback_pro_ops = {
 	.open =		snd_ice1712_playback_pro_open,
 	.close =	snd_ice1712_playback_pro_close,
@@ -1267,7 +1244,6 @@ static int __devinit snd_ice1712_pcm_profi(ice1712_t * ice, int device, snd_pcm_
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ice1712_capture_pro_ops);
 
 	pcm->private_data = ice;
-	pcm->private_free = snd_ice1712_pcm_profi_free;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "ICE1712 multi");
 

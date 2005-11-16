@@ -1566,13 +1566,6 @@ static snd_pcm_ops_t snd_es18xx_capture_ops = {
 	.pointer =	snd_es18xx_capture_pointer,
 };
 
-static void snd_es18xx_pcm_free(snd_pcm_t *pcm)
-{
-	es18xx_t *codec = pcm->private_data;
-	codec->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int __devinit snd_es18xx_pcm(es18xx_t *chip, int device, snd_pcm_t ** rpcm)
 {
         snd_pcm_t *pcm;
@@ -1595,7 +1588,6 @@ static int __devinit snd_es18xx_pcm(es18xx_t *chip, int device, snd_pcm_t ** rpc
 
 	/* global setup */
         pcm->private_data = chip;
-	pcm->private_free = snd_es18xx_pcm_free;
         pcm->info_flags = 0;
 	if (chip->caps & ES18XX_DUPLEX_SAME)
 		pcm->info_flags |= SNDRV_PCM_INFO_JOINT_DUPLEX;

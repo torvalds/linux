@@ -1605,13 +1605,6 @@ static snd_pcm_ops_t snd_cs4231_capture_ops = {
 	.pointer =	snd_cs4231_capture_pointer,
 };
 
-static void snd_cs4231_pcm_free(snd_pcm_t *pcm)
-{
-	cs4231_t *chip = pcm->private_data;
-	chip->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 int snd_cs4231_pcm(cs4231_t *chip, int device, snd_pcm_t **rpcm)
 {
 	snd_pcm_t *pcm;
@@ -1629,7 +1622,6 @@ int snd_cs4231_pcm(cs4231_t *chip, int device, snd_pcm_t **rpcm)
 	
 	/* global setup */
 	pcm->private_data = chip;
-	pcm->private_free = snd_cs4231_pcm_free;
 	pcm->info_flags = 0;
 	if (chip->single_dma)
 		pcm->info_flags |= SNDRV_PCM_INFO_HALF_DUPLEX;

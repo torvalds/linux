@@ -1249,13 +1249,6 @@ static snd_pcm_ops_t snd_emu10k1_efx_playback_ops = {
 	.page =			snd_pcm_sgbuf_ops_page,
 };
 
-static void snd_emu10k1_pcm_free(snd_pcm_t *pcm)
-{
-	emu10k1_t *emu = pcm->private_data;
-	emu->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 int __devinit snd_emu10k1_pcm(emu10k1_t * emu, int device, snd_pcm_t ** rpcm)
 {
 	snd_pcm_t *pcm;
@@ -1269,7 +1262,6 @@ int __devinit snd_emu10k1_pcm(emu10k1_t * emu, int device, snd_pcm_t ** rpcm)
 		return err;
 
 	pcm->private_data = emu;
-	pcm->private_free = snd_emu10k1_pcm_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_emu10k1_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_emu10k1_capture_ops);
@@ -1305,7 +1297,6 @@ int __devinit snd_emu10k1_pcm_multi(emu10k1_t * emu, int device, snd_pcm_t ** rp
 		return err;
 
 	pcm->private_data = emu;
-	pcm->private_free = snd_emu10k1_pcm_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_emu10k1_efx_playback_ops);
 
@@ -1336,13 +1327,6 @@ static snd_pcm_ops_t snd_emu10k1_capture_mic_ops = {
 	.pointer =		snd_emu10k1_capture_pointer,
 };
 
-static void snd_emu10k1_pcm_mic_free(snd_pcm_t *pcm)
-{
-	emu10k1_t *emu = pcm->private_data;
-	emu->pcm_mic = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 int __devinit snd_emu10k1_pcm_mic(emu10k1_t * emu, int device, snd_pcm_t ** rpcm)
 {
 	snd_pcm_t *pcm;
@@ -1355,7 +1339,6 @@ int __devinit snd_emu10k1_pcm_mic(emu10k1_t * emu, int device, snd_pcm_t ** rpcm
 		return err;
 
 	pcm->private_data = emu;
-	pcm->private_free = snd_emu10k1_pcm_mic_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_emu10k1_capture_mic_ops);
 
@@ -1673,13 +1656,6 @@ static snd_pcm_ops_t snd_emu10k1_fx8010_playback_ops = {
 	.ack =			snd_emu10k1_fx8010_playback_transfer,
 };
 
-static void snd_emu10k1_pcm_efx_free(snd_pcm_t *pcm)
-{
-	emu10k1_t *emu = pcm->private_data;
-	emu->pcm_efx = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 int __devinit snd_emu10k1_pcm_efx(emu10k1_t * emu, int device, snd_pcm_t ** rpcm)
 {
 	snd_pcm_t *pcm;
@@ -1693,7 +1669,6 @@ int __devinit snd_emu10k1_pcm_efx(emu10k1_t * emu, int device, snd_pcm_t ** rpcm
 		return err;
 
 	pcm->private_data = emu;
-	pcm->private_free = snd_emu10k1_pcm_efx_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_emu10k1_fx8010_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_emu10k1_capture_efx_ops);

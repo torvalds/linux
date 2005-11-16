@@ -637,11 +637,6 @@ static snd_pcm_ops_t snd_pmac_capture_ops = {
 	.pointer =	snd_pmac_capture_pointer,
 };
 
-static void pmac_pcm_free(snd_pcm_t *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 int __init snd_pmac_pcm_new(pmac_t *chip)
 {
 	snd_pcm_t *pcm;
@@ -659,7 +654,6 @@ int __init snd_pmac_pcm_new(pmac_t *chip)
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_pmac_capture_ops);
 
 	pcm->private_data = chip;
-	pcm->private_free = pmac_pcm_free;
 	pcm->info_flags = SNDRV_PCM_INFO_JOINT_DUPLEX;
 	strcpy(pcm->name, chip->card->shortname);
 	chip->pcm = pcm;

@@ -388,11 +388,6 @@ static int snd_cmi8330_capture_open(snd_pcm_substream_t * substream)
 	return chip->streams[SNDRV_PCM_STREAM_CAPTURE].open(substream);
 }
 
-static void snd_cmi8330_pcm_free(snd_pcm_t *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int __devinit snd_cmi8330_pcm(snd_card_t *card, struct snd_cmi8330 *chip)
 {
 	snd_pcm_t *pcm;
@@ -407,7 +402,6 @@ static int __devinit snd_cmi8330_pcm(snd_card_t *card, struct snd_cmi8330 *chip)
 		return err;
 	strcpy(pcm->name, "CMI8330");
 	pcm->private_data = chip;
-	pcm->private_free = snd_cmi8330_pcm_free;
 	
 	/* SB16 */
 	ops = snd_sb16dsp_get_pcm_ops(CMI_SB_STREAM);

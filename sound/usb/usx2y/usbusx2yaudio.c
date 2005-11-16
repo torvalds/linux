@@ -941,10 +941,8 @@ static void usX2Y_audio_stream_free(snd_usX2Y_substream_t **usX2Y_substream)
 static void snd_usX2Y_pcm_private_free(snd_pcm_t *pcm)
 {
 	snd_usX2Y_substream_t **usX2Y_stream = pcm->private_data;
-	if (usX2Y_stream) {
-		snd_pcm_lib_preallocate_free_for_all(pcm);
+	if (usX2Y_stream)
 		usX2Y_audio_stream_free(usX2Y_stream);
-	}
 }
 
 static int usX2Y_audio_stream_new(snd_card_t *card, int playback_endpoint, int capture_endpoint)

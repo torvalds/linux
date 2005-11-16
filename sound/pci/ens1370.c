@@ -1214,13 +1214,6 @@ static snd_pcm_ops_t snd_ensoniq_capture_ops = {
 	.pointer =	snd_ensoniq_capture_pointer,
 };
 
-static void snd_ensoniq_pcm_free(snd_pcm_t *pcm)
-{
-	ensoniq_t *ensoniq = pcm->private_data;
-	ensoniq->pcm1 = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int __devinit snd_ensoniq_pcm(ensoniq_t * ensoniq, int device, snd_pcm_t ** rpcm)
 {
 	snd_pcm_t *pcm;
@@ -1244,7 +1237,6 @@ static int __devinit snd_ensoniq_pcm(ensoniq_t * ensoniq, int device, snd_pcm_t 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ensoniq_capture_ops);
 
 	pcm->private_data = ensoniq;
-	pcm->private_free = snd_ensoniq_pcm_free;
 	pcm->info_flags = 0;
 #ifdef CHIP1370
 	strcpy(pcm->name, "ES1370 DAC2/ADC");
@@ -1259,13 +1251,6 @@ static int __devinit snd_ensoniq_pcm(ensoniq_t * ensoniq, int device, snd_pcm_t 
 	if (rpcm)
 		*rpcm = pcm;
 	return 0;
-}
-
-static void snd_ensoniq_pcm_free2(snd_pcm_t *pcm)
-{
-	ensoniq_t *ensoniq = pcm->private_data;
-	ensoniq->pcm2 = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
 }
 
 static int __devinit snd_ensoniq_pcm2(ensoniq_t * ensoniq, int device, snd_pcm_t ** rpcm)
@@ -1289,7 +1274,6 @@ static int __devinit snd_ensoniq_pcm2(ensoniq_t * ensoniq, int device, snd_pcm_t
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ensoniq_playback2_ops);
 #endif
 	pcm->private_data = ensoniq;
-	pcm->private_free = snd_ensoniq_pcm_free2;
 	pcm->info_flags = 0;
 #ifdef CHIP1370
 	strcpy(pcm->name, "ES1370 DAC1");

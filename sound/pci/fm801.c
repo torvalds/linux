@@ -665,13 +665,6 @@ static snd_pcm_ops_t snd_fm801_capture_ops = {
 	.pointer =	snd_fm801_capture_pointer,
 };
 
-static void snd_fm801_pcm_free(snd_pcm_t *pcm)
-{
-	fm801_t *chip = pcm->private_data;
-	chip->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int __devinit snd_fm801_pcm(fm801_t *chip, int device, snd_pcm_t ** rpcm)
 {
 	snd_pcm_t *pcm;
@@ -686,7 +679,6 @@ static int __devinit snd_fm801_pcm(fm801_t *chip, int device, snd_pcm_t ** rpcm)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_fm801_capture_ops);
 
 	pcm->private_data = chip;
-	pcm->private_free = snd_fm801_pcm_free;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "FM801");
 	chip->pcm = pcm;

@@ -844,13 +844,6 @@ static snd_pcm_ops_t snd_sonicvibes_capture_ops = {
 	.pointer =	snd_sonicvibes_capture_pointer,
 };
 
-static void snd_sonicvibes_pcm_free(snd_pcm_t *pcm)
-{
-	sonicvibes_t *sonic = pcm->private_data;
-	sonic->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int __devinit snd_sonicvibes_pcm(sonicvibes_t * sonic, int device, snd_pcm_t ** rpcm)
 {
 	snd_pcm_t *pcm;
@@ -864,7 +857,6 @@ static int __devinit snd_sonicvibes_pcm(sonicvibes_t * sonic, int device, snd_pc
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_sonicvibes_capture_ops);
 
 	pcm->private_data = sonic;
-	pcm->private_free = snd_sonicvibes_pcm_free;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "S3 SonicVibes");
 	sonic->pcm = pcm;

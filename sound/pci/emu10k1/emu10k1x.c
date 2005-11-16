@@ -836,13 +836,6 @@ static irqreturn_t snd_emu10k1x_interrupt(int irq, void *dev_id,
 	return IRQ_HANDLED;
 }
 
-static void snd_emu10k1x_pcm_free(snd_pcm_t *pcm)
-{
-	emu10k1x_t *emu = pcm->private_data;
-	emu->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int __devinit snd_emu10k1x_pcm(emu10k1x_t *emu, int device, snd_pcm_t **rpcm)
 {
 	snd_pcm_t *pcm;
@@ -858,7 +851,6 @@ static int __devinit snd_emu10k1x_pcm(emu10k1x_t *emu, int device, snd_pcm_t **r
 		return err;
   
 	pcm->private_data = emu;
-	pcm->private_free = snd_emu10k1x_pcm_free;
 	
 	switch(device) {
 	case 0:

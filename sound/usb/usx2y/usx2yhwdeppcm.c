@@ -740,12 +740,6 @@ static void snd_usX2Y_hwdep_pcm_private_free(snd_hwdep_t *hwdep)
 }
 
 
-static void snd_usX2Y_usbpcm_private_free(snd_pcm_t *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
-
 int usX2Y_hwdep_pcm_new(snd_card_t* card)
 {
 	int err;
@@ -776,7 +770,6 @@ int usX2Y_hwdep_pcm_new(snd_card_t* card)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_usX2Y_usbpcm_ops);
 
 	pcm->private_data = usX2Y(card)->subs;
-	pcm->private_free = snd_usX2Y_usbpcm_private_free;
 	pcm->info_flags = 0;
 
 	sprintf(pcm->name, NAME_ALLCAPS" hwdep Audio");
@@ -788,7 +781,6 @@ int usX2Y_hwdep_pcm_new(snd_card_t* card)
 	    					     SNDRV_DMA_TYPE_CONTINUOUS,
 	    					     snd_dma_continuous_data(GFP_KERNEL),
 						     64*1024, 128*1024))) {
-		snd_usX2Y_usbpcm_private_free(pcm);
 		return err;
 	}
 

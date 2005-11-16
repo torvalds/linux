@@ -1071,13 +1071,6 @@ static snd_pcm_ops_t snd_ymfpci_capture_rec_ops = {
 	.pointer =		snd_ymfpci_capture_pointer,
 };
 
-static void snd_ymfpci_pcm_free(snd_pcm_t *pcm)
-{
-	ymfpci_t *chip = pcm->private_data;
-	chip->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 int __devinit snd_ymfpci_pcm(ymfpci_t *chip, int device, snd_pcm_t ** rpcm)
 {
 	snd_pcm_t *pcm;
@@ -1088,7 +1081,6 @@ int __devinit snd_ymfpci_pcm(ymfpci_t *chip, int device, snd_pcm_t ** rpcm)
 	if ((err = snd_pcm_new(chip->card, "YMFPCI", device, 32, 1, &pcm)) < 0)
 		return err;
 	pcm->private_data = chip;
-	pcm->private_free = snd_ymfpci_pcm_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ymfpci_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ymfpci_capture_rec_ops);
@@ -1117,13 +1109,6 @@ static snd_pcm_ops_t snd_ymfpci_capture_ac97_ops = {
 	.pointer =		snd_ymfpci_capture_pointer,
 };
 
-static void snd_ymfpci_pcm2_free(snd_pcm_t *pcm)
-{
-	ymfpci_t *chip = pcm->private_data;
-	chip->pcm2 = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 int __devinit snd_ymfpci_pcm2(ymfpci_t *chip, int device, snd_pcm_t ** rpcm)
 {
 	snd_pcm_t *pcm;
@@ -1134,7 +1119,6 @@ int __devinit snd_ymfpci_pcm2(ymfpci_t *chip, int device, snd_pcm_t ** rpcm)
 	if ((err = snd_pcm_new(chip->card, "YMFPCI - PCM2", device, 0, 1, &pcm)) < 0)
 		return err;
 	pcm->private_data = chip;
-	pcm->private_free = snd_ymfpci_pcm2_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_ymfpci_capture_ac97_ops);
 
@@ -1163,13 +1147,6 @@ static snd_pcm_ops_t snd_ymfpci_playback_spdif_ops = {
 	.pointer =		snd_ymfpci_playback_pointer,
 };
 
-static void snd_ymfpci_pcm_spdif_free(snd_pcm_t *pcm)
-{
-	ymfpci_t *chip = pcm->private_data;
-	chip->pcm_spdif = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 int __devinit snd_ymfpci_pcm_spdif(ymfpci_t *chip, int device, snd_pcm_t ** rpcm)
 {
 	snd_pcm_t *pcm;
@@ -1180,7 +1157,6 @@ int __devinit snd_ymfpci_pcm_spdif(ymfpci_t *chip, int device, snd_pcm_t ** rpcm
 	if ((err = snd_pcm_new(chip->card, "YMFPCI - IEC958", device, 1, 0, &pcm)) < 0)
 		return err;
 	pcm->private_data = chip;
-	pcm->private_free = snd_ymfpci_pcm_spdif_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ymfpci_playback_spdif_ops);
 
@@ -1208,13 +1184,6 @@ static snd_pcm_ops_t snd_ymfpci_playback_4ch_ops = {
 	.pointer =		snd_ymfpci_playback_pointer,
 };
 
-static void snd_ymfpci_pcm_4ch_free(snd_pcm_t *pcm)
-{
-	ymfpci_t *chip = pcm->private_data;
-	chip->pcm_4ch = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 int __devinit snd_ymfpci_pcm_4ch(ymfpci_t *chip, int device, snd_pcm_t ** rpcm)
 {
 	snd_pcm_t *pcm;
@@ -1225,7 +1194,6 @@ int __devinit snd_ymfpci_pcm_4ch(ymfpci_t *chip, int device, snd_pcm_t ** rpcm)
 	if ((err = snd_pcm_new(chip->card, "YMFPCI - Rear", device, 1, 0, &pcm)) < 0)
 		return err;
 	pcm->private_data = chip;
-	pcm->private_free = snd_ymfpci_pcm_4ch_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_ymfpci_playback_4ch_ops);
 

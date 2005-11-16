@@ -1346,13 +1346,6 @@ static snd_pcm_ops_t snd_opti93x_capture_ops = {
 	.pointer =	snd_opti93x_capture_pointer,
 };
 
-static void snd_opti93x_pcm_free(snd_pcm_t *pcm)
-{
-	opti93x_t *codec = pcm->private_data;
-	codec->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int snd_opti93x_pcm(opti93x_t *codec, int device, snd_pcm_t **rpcm)
 {
 	int error;
@@ -1365,7 +1358,6 @@ static int snd_opti93x_pcm(opti93x_t *codec, int device, snd_pcm_t **rpcm)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_opti93x_capture_ops);
 
 	pcm->private_data = codec;
-	pcm->private_free = snd_opti93x_pcm_free;
 	pcm->info_flags = SNDRV_PCM_INFO_JOINT_DUPLEX;
 
 	strcpy(pcm->name, snd_opti93x_chip_id(codec));

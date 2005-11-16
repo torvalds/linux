@@ -587,14 +587,6 @@ int snd_p16v_free(emu10k1_t *chip)
 	return 0;
 }
 
-static void snd_p16v_pcm_free(snd_pcm_t *pcm)
-{
-	emu10k1_t *emu = pcm->private_data;
-	//snd_printk("snd_p16v_pcm_free pcm: called\n");
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-	emu->pcm = NULL;
-}
-
 int snd_p16v_pcm(emu10k1_t *emu, int device, snd_pcm_t **rpcm)
 {
 	snd_pcm_t *pcm;
@@ -611,7 +603,6 @@ int snd_p16v_pcm(emu10k1_t *emu, int device, snd_pcm_t **rpcm)
 		return err;
   
 	pcm->private_data = emu;
-	pcm->private_free = snd_p16v_pcm_free;
 	// Single playback 8 channel device.
 	// Single capture 2 channel device.
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_p16v_playback_front_ops);

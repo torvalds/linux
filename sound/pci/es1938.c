@@ -1000,11 +1000,6 @@ static snd_pcm_ops_t snd_es1938_capture_ops = {
 	.copy =		snd_es1938_capture_copy,
 };
 
-static void snd_es1938_free_pcm(snd_pcm_t *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int __devinit snd_es1938_new_pcm(es1938_t *chip, int device)
 {
 	snd_pcm_t *pcm;
@@ -1016,7 +1011,6 @@ static int __devinit snd_es1938_new_pcm(es1938_t *chip, int device)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_es1938_capture_ops);
 	
 	pcm->private_data = chip;
-	pcm->private_free = snd_es1938_free_pcm;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, "ESS Solo-1");
 

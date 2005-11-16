@@ -1574,35 +1574,7 @@ static snd_pcm_ops_t snd_cs46xx_capture_indirect_ops = {
 	.ack =			snd_cs46xx_capture_transfer,
 };
 
-static void snd_cs46xx_pcm_free(snd_pcm_t *pcm)
-{
-	cs46xx_t *chip = pcm->private_data;
-	chip->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
-static void snd_cs46xx_pcm_rear_free(snd_pcm_t *pcm)
-{
-	cs46xx_t *chip = pcm->private_data;
-	chip->pcm_rear = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
-static void snd_cs46xx_pcm_center_lfe_free(snd_pcm_t *pcm)
-{
-	cs46xx_t *chip = pcm->private_data;
-	chip->pcm_center_lfe = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
-static void snd_cs46xx_pcm_iec958_free(snd_pcm_t *pcm)
-{
-	cs46xx_t *chip = pcm->private_data;
-	chip->pcm_iec958 = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 #define MAX_PLAYBACK_CHANNELS	(DSP_MAX_PCM_CHANNELS - 1)
 #else
 #define MAX_PLAYBACK_CHANNELS	1
@@ -1619,7 +1591,6 @@ int __devinit snd_cs46xx_pcm(cs46xx_t *chip, int device, snd_pcm_t ** rpcm)
 		return err;
 
 	pcm->private_data = chip;
-	pcm->private_free = snd_cs46xx_pcm_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_cs46xx_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_cs46xx_capture_ops);
@@ -1652,7 +1623,6 @@ int __devinit snd_cs46xx_pcm_rear(cs46xx_t *chip, int device, snd_pcm_t ** rpcm)
 		return err;
 
 	pcm->private_data = chip;
-	pcm->private_free = snd_cs46xx_pcm_rear_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_cs46xx_playback_rear_ops);
 
@@ -1682,7 +1652,6 @@ int __devinit snd_cs46xx_pcm_center_lfe(cs46xx_t *chip, int device, snd_pcm_t **
 		return err;
 
 	pcm->private_data = chip;
-	pcm->private_free = snd_cs46xx_pcm_center_lfe_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_cs46xx_playback_clfe_ops);
 
@@ -1712,7 +1681,6 @@ int __devinit snd_cs46xx_pcm_iec958(cs46xx_t *chip, int device, snd_pcm_t ** rpc
 		return err;
 
 	pcm->private_data = chip;
-	pcm->private_free = snd_cs46xx_pcm_iec958_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_cs46xx_playback_iec958_ops);
 

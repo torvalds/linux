@@ -851,11 +851,6 @@ static snd_pcm_ops_t snd_sb16_capture_ops = {
 	.pointer =	snd_sb16_capture_pointer,
 };
 
-static void snd_sb16dsp_pcm_free(snd_pcm_t *pcm)
-{
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 int snd_sb16dsp_pcm(sb_t * chip, int device, snd_pcm_t ** rpcm)
 {
 	snd_card_t *card = chip->card;
@@ -869,7 +864,6 @@ int snd_sb16dsp_pcm(sb_t * chip, int device, snd_pcm_t ** rpcm)
 	sprintf(pcm->name, "DSP v%i.%i", chip->version >> 8, chip->version & 0xff);
 	pcm->info_flags = SNDRV_PCM_INFO_JOINT_DUPLEX;
 	pcm->private_data = chip;
-	pcm->private_free = snd_sb16dsp_pcm_free;
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_sb16_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_sb16_capture_ops);

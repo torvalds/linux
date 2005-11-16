@@ -755,14 +755,6 @@ static snd_pcm_ops_t snd_amd7930_capture_ops = {
 	.pointer	=	snd_amd7930_capture_pointer,
 };
 
-static void snd_amd7930_pcm_free(snd_pcm_t *pcm)
-{
-	amd7930_t *amd = pcm->private_data;
-
-	amd->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int __init snd_amd7930_pcm(amd7930_t *amd)
 {
 	snd_pcm_t *pcm;
@@ -780,7 +772,6 @@ static int __init snd_amd7930_pcm(amd7930_t *amd)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_amd7930_capture_ops);
 
 	pcm->private_data = amd;
-	pcm->private_free = snd_amd7930_pcm_free;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, amd->card->shortname);
 	amd->pcm = pcm;

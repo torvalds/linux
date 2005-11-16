@@ -1365,14 +1365,6 @@ static snd_pcm_ops_t snd_azf3328_capture_ops = {
 	.pointer =	snd_azf3328_capture_pointer
 };
 
-static void
-snd_azf3328_pcm_free(snd_pcm_t *pcm)
-{
-	azf3328_t *chip = pcm->private_data;
-	chip->pcm = NULL;
-	snd_pcm_lib_preallocate_free_for_all(pcm);
-}
-
 static int __devinit
 snd_azf3328_pcm(azf3328_t *chip, int device)
 {
@@ -1386,7 +1378,6 @@ snd_azf3328_pcm(azf3328_t *chip, int device)
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_azf3328_capture_ops);
 
 	pcm->private_data = chip;
-	pcm->private_free = snd_azf3328_pcm_free;
 	pcm->info_flags = 0;
 	strcpy(pcm->name, chip->card->shortname);
 	chip->pcm = pcm;
