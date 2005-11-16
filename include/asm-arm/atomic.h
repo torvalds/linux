@@ -83,7 +83,7 @@ static inline int atomic_sub_return(int i, atomic_t *v)
 
 static inline int atomic_cmpxchg(atomic_t *ptr, int old, int new)
 {
-	u32 oldval, res;
+	unsigned long oldval, res;
 
 	do {
 		__asm__ __volatile__("@ atomic_cmpxchg\n"
