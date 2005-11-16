@@ -97,9 +97,9 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 		inode = *pinode;
 		cifsInfo = CIFS_I(inode);
 
-		cFYI(1, (" Old time %ld ", cifsInfo->time));
+		cFYI(1, ("Old time %ld ", cifsInfo->time));
 		cifsInfo->time = jiffies;
-		cFYI(1, (" New time %ld ", cifsInfo->time));
+		cFYI(1, ("New time %ld ", cifsInfo->time));
 		/* this is ok to set on every inode revalidate */
 		atomic_set(&cifsInfo->inUse,1);
 
@@ -195,6 +195,55 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 	return rc;
 }
 
+static int decode_sfu_inode(struct inode * inode, __u64 size,
+			    const unsigned char *path,
+			    struct cifs_sb_info *cifs_sb, int xid)
+{
+	int rc;
+	int oplock = FALSE;
+	__u16 netfid;
+	struct cifsTconInfo *pTcon = cifs_sb->tcon;
+	char buf[8];
+	unsigned int bytes_read;
+	char * pbuf;
+
+	pbuf = buf;
+
+	if(size == 0) {
+		inode->i_mode |= S_IFIFO;
+		return 0;
+	} else if (size < 8) {
+		return -EINVAL;	 /* EOPNOTSUPP? */
+	}
+		
+	rc = CIFSSMBOpen(xid, pTcon, path, FILE_OPEN, GENERIC_READ,
+			 CREATE_NOT_DIR, &netfid, &oplock, NULL,
+			 cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags &
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
+	if (rc==0) {
+			/* Read header */
+		rc = CIFSSMBRead(xid, pTcon,
+			         netfid,
+				 8 /* length */, 0 /* offset */,
+				 &bytes_read, &pbuf);
+		if((rc == 0) && (bytes_read == 8)) {
+			/* if memcmp(IntxCHR\000, pbuf, 8)
+			   else if memcmp(IntxBLK\000, pbuf, 8)
+			   else if memcmp(IntxLNK\001, pbuf, 8) */
+		}
+		
+		CIFSSMBClose(xid, pTcon, netfid);
+	
+
+	/* inode->i_rdev = MKDEV(le64_to_cpu(DevMajor),
+                            le64_to_cpu(DevMinor) & MINORMASK);*/
+/*	inode->i_mode |= S_IFBLK; */
+	}
+	return rc;
+	
+}
+
 int cifs_get_inode_info(struct inode **pinode,
 	const unsigned char *search_path, FILE_ALL_INFO *pfindData,
 	struct super_block *sb, int xid)
@@ -207,7 +256,7 @@ int cifs_get_inode_info(struct inode **pinode,
 	char *buf = NULL;
 
 	pTcon = cifs_sb->tcon;
-	cFYI(1,("Getting info on %s ", search_path));
+	cFYI(1,("Getting info on %s", search_path));
 
 	if ((pfindData == NULL) && (*pinode != NULL)) {
 		if (CIFS_I(*pinode)->clientCanCacheRead) {
@@ -345,10 +394,15 @@ int cifs_get_inode_info(struct inode **pinode,
 			   (pfindData->EndOfFile == 0)) {
 			inode->i_mode = cifs_sb->mnt_file_mode;
 			inode->i_mode |= S_IFIFO;
-/* BB Finish for SFU style symlinks and devies */
-/*		} else if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) &&
-			   (cifsInfo->cifsAttrs & ATTR_SYSTEM) && ) */
-
+/* BB Finish for SFU style symlinks and devices */
+		} else if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_UNX_EMUL) &&
+			   (cifsInfo->cifsAttrs & ATTR_SYSTEM)) {
+			if (decode_sfu_inode(inode, 
+					 le64_to_cpu(pfindData->EndOfFile),
+					 search_path,
+					 cifs_sb, xid)) {
+				cFYI(1,("Unrecognized sfu inode type"));
+			}
 		} else {
 			inode->i_mode |= S_IFREG;
 			/* treat the dos attribute of read-only as read-only
@@ -382,7 +436,7 @@ int cifs_get_inode_info(struct inode **pinode,
 		}
 
 		if (S_ISREG(inode->i_mode)) {
-			cFYI(1, (" File inode "));
+			cFYI(1, ("File inode"));
 			inode->i_op = &cifs_file_inode_ops;
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO) {
 				if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_BRL)
@@ -400,11 +454,11 @@ int cifs_get_inode_info(struct inode **pinode,
 			     4096 + MAX_CIFS_HDR_SIZE)
 				inode->i_data.a_ops->readpages = NULL;
 		} else if (S_ISDIR(inode->i_mode)) {
-			cFYI(1, (" Directory inode "));
+			cFYI(1, ("Directory inode"));
 			inode->i_op = &cifs_dir_inode_ops;
 			inode->i_fop = &cifs_dir_ops;
 		} else if (S_ISLNK(inode->i_mode)) {
-			cFYI(1, (" Symbolic Link inode "));
+			cFYI(1, ("Symbolic Link inode"));
 			inode->i_op = &cifs_symlink_inode_ops;
 		} else {
 			init_special_inode(inode, inode->i_mode,
