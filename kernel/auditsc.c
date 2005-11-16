@@ -892,21 +892,20 @@ static void audit_log_task_context(struct audit_buffer *ab, gfp_t gfp_mask)
 	}
 
 	ctx = kmalloc(len, gfp_mask);
-	if (!ctx) {
+	if (!ctx)
 		goto error_path;
-		return;
-	}
 
 	len = security_getprocattr(current, "current", ctx, len);
 	if (len < 0 )
 		goto error_path;
 
 	audit_log_format(ab, " subj=%s", ctx);
+	return;
 
 error_path:
 	if (ctx)
 		kfree(ctx);
-	audit_panic("security_getprocattr error in audit_log_task_context");
+	audit_panic("error in audit_log_task_context");
 	return;
 }
 
@@ -1304,13 +1303,16 @@ void audit_putname(const char *name)
 void audit_inode_context(int idx, const struct inode *inode)
 {
 	struct audit_context *context = current->audit_context;
+	const char *suffix = security_inode_xattr_getsuffix();
 	char *ctx = NULL;
 	int len = 0;
 
-	if (!security_inode_xattr_getsuffix())
-		return;
+	if (!suffix)
+		goto ret;
 
-	len = security_inode_getsecurity(inode, (char *)security_inode_xattr_getsuffix(), NULL, 0, 0);
+	len = security_inode_getsecurity(inode, suffix, NULL, 0, 0);
+	if (len == -EOPNOTSUPP)
+		goto ret;
 	if (len < 0) 
 		goto error_path;
 
@@ -1318,18 +1320,19 @@ void audit_inode_context(int idx, const struct inode *inode)
 	if (!ctx) 
 		goto error_path;
 
-	len = security_inode_getsecurity(inode, (char *)security_inode_xattr_getsuffix(), ctx, len, 0);
+	len = security_inode_getsecurity(inode, suffix, ctx, len, 0);
 	if (len < 0)
 		goto error_path;
 
 	kfree(context->names[idx].ctx);
 	context->names[idx].ctx = ctx;
-	return;
+	goto ret;
 
 error_path:
 	if (ctx)
 		kfree(ctx);
 	audit_panic("error in audit_inode_context");
+ret:
 	return;
 }
 

@@ -2247,7 +2247,7 @@ static const char *selinux_inode_xattr_getsuffix(void)
  *
  * Permission check is handled by selinux_inode_getxattr hook.
  */
-static int selinux_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size, int err)
+static int selinux_inode_getsecurity(const struct inode *inode, const char *name, void *buffer, size_t size, int err)
 {
 	struct inode_security_struct *isec = inode->i_security;
 

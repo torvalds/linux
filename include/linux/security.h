@@ -1173,8 +1173,8 @@ struct security_operations {
 	int (*inode_getxattr) (struct dentry *dentry, char *name);
 	int (*inode_listxattr) (struct dentry *dentry);
 	int (*inode_removexattr) (struct dentry *dentry, char *name);
-	char *(*inode_xattr_getsuffix) (void);
-  	int (*inode_getsecurity)(struct inode *inode, const char *name, void *buffer, size_t size, int err);
+	const char *(*inode_xattr_getsuffix) (void);
+  	int (*inode_getsecurity)(const struct inode *inode, const char *name, void *buffer, size_t size, int err);
   	int (*inode_setsecurity)(struct inode *inode, const char *name, const void *value, size_t size, int flags);
   	int (*inode_listsecurity)(struct inode *inode, char *buffer, size_t buffer_size);
 
@@ -1686,7 +1686,7 @@ static inline const char *security_inode_xattr_getsuffix(void)
 	return security_ops->inode_xattr_getsuffix();
 }
 
-static inline int security_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size, int err)
+static inline int security_inode_getsecurity(const struct inode *inode, const char *name, void *buffer, size_t size, int err)
 {
 	if (unlikely (IS_PRIVATE (inode)))
 		return 0;
@@ -2338,7 +2338,7 @@ static inline const char *security_inode_xattr_getsuffix (void)
 	return NULL ;
 }
 
-static inline int security_inode_getsecurity(struct inode *inode, const char *name, void *buffer, size_t size, int err)
+static inline int security_inode_getsecurity(const struct inode *inode, const char *name, void *buffer, size_t size, int err)
 {
 	return -EOPNOTSUPP;
 }
