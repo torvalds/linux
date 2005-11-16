@@ -1142,7 +1142,9 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 	int bytes_returned, wct;
 	int smb_hdr_len;
 
-	cFYI(1,("write2 at %lld %d bytes",offset,count)); /* BB removeme BB */
+	/* BB removeme BB */
+	cFYI(1,("write2 at %lld %d bytes", (long long)offset, count));
+
 	if(tcon->ses->capabilities & CAP_LARGE_FILES)
 		wct = 14;
 	else
@@ -1983,9 +1985,9 @@ qreparse_out:
 static void cifs_convert_ace(posix_acl_xattr_entry * ace, struct cifs_posix_ace * cifs_ace)
 {
 	/* u8 cifs fields do not need le conversion */
-	ace->e_perm = (__u16)cifs_ace->cifs_e_perm; 
-	ace->e_tag  = (__u16)cifs_ace->cifs_e_tag;
-	ace->e_id   = (__u32)le64_to_cpu(cifs_ace->cifs_uid);
+	ace->e_perm = cpu_to_le16(cifs_ace->cifs_e_perm);
+	ace->e_tag  = cpu_to_le16(cifs_ace->cifs_e_tag);
+	ace->e_id   = cpu_to_le32(le64_to_cpu(cifs_ace->cifs_uid));
 	/* cFYI(1,("perm %d tag %d id %d",ace->e_perm,ace->e_tag,ace->e_id)); */
 
 	return;
@@ -2037,7 +2039,7 @@ static int cifs_copy_posix_acl(char * trgt,char * src, const int buflen,
 	} else if(size > buflen) {
 		return -ERANGE;
 	} else /* buffer big enough */ {
-		local_acl->a_version = POSIX_ACL_XATTR_VERSION;
+		local_acl->a_version = cpu_to_le32(POSIX_ACL_XATTR_VERSION);
 		for(i = 0;i < count ;i++) {
 			cifs_convert_ace(&local_acl->a_entries[i],pACE);
 			pACE ++;
@@ -2051,14 +2053,14 @@ static __u16 convert_ace_to_cifs_ace(struct cifs_posix_ace * cifs_ace,
 {
 	__u16 rc = 0; /* 0 = ACL converted ok */
 
-	cifs_ace->cifs_e_perm = (__u8)cpu_to_le16(local_ace->e_perm);
-	cifs_ace->cifs_e_tag =  (__u8)cpu_to_le16(local_ace->e_tag);
+	cifs_ace->cifs_e_perm = le16_to_cpu(local_ace->e_perm);
+	cifs_ace->cifs_e_tag =  le16_to_cpu(local_ace->e_tag);
 	/* BB is there a better way to handle the large uid? */
-	if(local_ace->e_id == -1) {
+	if(local_ace->e_id == cpu_to_le32(-1)) {
 	/* Probably no need to le convert -1 on any arch but can not hurt */
 		cifs_ace->cifs_uid = cpu_to_le64(-1);
 	} else 
-		cifs_ace->cifs_uid = (__u64)cpu_to_le32(local_ace->e_id);
+		cifs_ace->cifs_uid = cpu_to_le64(le32_to_cpu(local_ace->e_id));
         /*cFYI(1,("perm %d tag %d id %d",ace->e_perm,ace->e_tag,ace->e_id));*/
 	return rc;
 }
@@ -2078,16 +2080,17 @@ static __u16 ACL_to_cifs_posix(char * parm_data,const char * pACL,const int bufl
 
 	count = posix_acl_xattr_count((size_t)buflen);
 	cFYI(1,("setting acl with %d entries from buf of length %d and version of %d",
-		count,buflen,local_acl->a_version));
-	if(local_acl->a_version != 2) {
-		cFYI(1,("unknown POSIX ACL version %d",local_acl->a_version));
+		count, buflen, le32_to_cpu(local_acl->a_version)));
+	if(le32_to_cpu(local_acl->a_version) != 2) {
+		cFYI(1,("unknown POSIX ACL version %d",
+		     le32_to_cpu(local_acl->a_version)));
 		return 0;
 	}
 	cifs_acl->version = cpu_to_le16(1);
 	if(acl_type == ACL_TYPE_ACCESS) 
-		cifs_acl->access_entry_count = count;
+		cifs_acl->access_entry_count = cpu_to_le16(count);
 	else if(acl_type == ACL_TYPE_DEFAULT)
-		cifs_acl->default_entry_count = count;
+		cifs_acl->default_entry_count = cpu_to_le16(count);
 	else {
 		cFYI(1,("unknown ACL type %d",acl_type));
 		return 0;
