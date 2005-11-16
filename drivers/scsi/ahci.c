@@ -48,7 +48,7 @@
 #include <asm/io.h>
 
 #define DRV_NAME	"ahci"
-#define DRV_VERSION	"1.01"
+#define DRV_VERSION	"1.2"
 
 
 enum {
