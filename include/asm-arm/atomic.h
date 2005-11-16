@@ -12,6 +12,7 @@
 #define __ASM_ARM_ATOMIC_H
 
 #include <linux/config.h>
+#include <linux/compiler.h>
 
 typedef struct { volatile int counter; } atomic_t;
 
