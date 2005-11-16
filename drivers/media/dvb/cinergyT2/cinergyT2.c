@@ -779,6 +779,8 @@ static int cinergyt2_register_rc(struct cinergyt2 *cinergyt2)
 
 	input_register_device(cinergyt2->rc_input_dev);
 	schedule_delayed_work(&cinergyt2->rc_query_work, HZ/2);
+
+	return 0;
 }
 
 static void cinergyt2_unregister_rc(struct cinergyt2 *cinergyt2)
