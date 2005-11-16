@@ -27,6 +27,15 @@
 #include "hcd.h"
 #include "usb.h"
 
+static int usb_match_one_id(struct usb_interface *interface,
+			    const struct usb_device_id *id);
+
+struct usb_dynid {
+	struct list_head node;
+	struct usb_device_id id;
+};
+
+
 static int generic_probe(struct device *dev)
 {
 	return 0;
@@ -58,6 +67,96 @@ struct device_driver usb_generic_driver = {
  * usb device or a usb interface. */
 int usb_generic_driver_data;
 
+#ifdef CONFIG_HOTPLUG
+
+/*
+ * Adds a new dynamic USBdevice ID to this driver,
+ * and cause the driver to probe for all devices again.
+ */
+static ssize_t store_new_id(struct device_driver *driver,
+			    const char *buf, size_t count)
+{
+	struct usb_driver *usb_drv = to_usb_driver(driver);
+	struct usb_dynid *dynid;
+	u32 idVendor = 0;
+	u32 idProduct = 0;
+	int fields = 0;
+
+	fields = sscanf(buf, "%x %x", &idVendor, &idProduct);
+	if (fields < 2)
+		return -EINVAL;
+
+	dynid = kzalloc(sizeof(*dynid), GFP_KERNEL);
+	if (!dynid)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&dynid->node);
+	dynid->id.idVendor = idVendor;
+	dynid->id.idProduct = idProduct;
+	dynid->id.match_flags = USB_DEVICE_ID_MATCH_DEVICE;
+
+	spin_lock(&usb_drv->dynids.lock);
+	list_add_tail(&usb_drv->dynids.list, &dynid->node);
+	spin_unlock(&usb_drv->dynids.lock);
+
+	if (get_driver(driver)) {
+		driver_attach(driver);
+		put_driver(driver);
+	}
+
+	return count;
+}
+static DRIVER_ATTR(new_id, S_IWUSR, NULL, store_new_id);
+
+static int usb_create_newid_file(struct usb_driver *usb_drv)
+{
+	int error = 0;
+
+	if (usb_drv->probe != NULL)
+		error = sysfs_create_file(&usb_drv->driver.kobj,
+					  &driver_attr_new_id.attr);
+	return error;
+}
+
+static void usb_free_dynids(struct usb_driver *usb_drv)
+{
+	struct usb_dynid *dynid, *n;
+
+	spin_lock(&usb_drv->dynids.lock);
+	list_for_each_entry_safe(dynid, n, &usb_drv->dynids.list, node) {
+		list_del(&dynid->node);
+		kfree(dynid);
+	}
+	spin_unlock(&usb_drv->dynids.lock);
+}
+#else
+static inline int usb_create_newid_file(struct usb_driver *usb_drv)
+{
+	return 0;
+}
+
+static inline void usb_free_dynids(struct usb_driver *usb_drv)
+{
+}
+#endif
+
+static const struct usb_device_id *usb_match_dynamic_id(struct usb_interface *intf,
+							struct usb_driver *drv)
+{
+	struct usb_dynid *dynid;
+
+	spin_lock(&drv->dynids.lock);
+	list_for_each_entry(dynid, &drv->dynids.list, node) {
+		if (usb_match_one_id(intf, &dynid->id)) {
+			spin_unlock(&drv->dynids.lock);
+			return &dynid->id;
+		}
+	}
+	spin_unlock(&drv->dynids.lock);
+	return NULL;
+}
+
+
 /* called from driver core with usb_bus_type.subsys writelock */
 static int usb_probe_interface(struct device *dev)
 {
@@ -75,6 +174,8 @@ static int usb_probe_interface(struct device *dev)
 		return -EHOSTUNREACH;
 
 	id = usb_match_id(intf, driver->id_table);
+	if (!id)
+		id = usb_match_dynamic_id(intf, driver);
 	if (id) {
 		dev_dbg(dev, "%s - got id\n", __FUNCTION__);
 
@@ -120,6 +221,64 @@ static int usb_unbind_interface(struct device *dev)
 	return 0;
 }
 
+/* returns 0 if no match, 1 if match */
+static int usb_match_one_id(struct usb_interface *interface,
+			    const struct usb_device_id *id)
+{
+	struct usb_host_interface *intf;
+	struct usb_device *dev;
+
+	/* proc_connectinfo in devio.c may call us with id == NULL. */
+	if (id == NULL)
+		return 0;
+
+	intf = interface->cur_altsetting;
+	dev = interface_to_usbdev(interface);
+
+	if ((id->match_flags & USB_DEVICE_ID_MATCH_VENDOR) &&
+	    id->idVendor != le16_to_cpu(dev->descriptor.idVendor))
+		return 0;
+
+	if ((id->match_flags & USB_DEVICE_ID_MATCH_PRODUCT) &&
+	    id->idProduct != le16_to_cpu(dev->descriptor.idProduct))
+		return 0;
+
+	/* No need to test id->bcdDevice_lo != 0, since 0 is never
+	   greater than any unsigned number. */
+	if ((id->match_flags & USB_DEVICE_ID_MATCH_DEV_LO) &&
+	    (id->bcdDevice_lo > le16_to_cpu(dev->descriptor.bcdDevice)))
+		return 0;
+
+	if ((id->match_flags & USB_DEVICE_ID_MATCH_DEV_HI) &&
+	    (id->bcdDevice_hi < le16_to_cpu(dev->descriptor.bcdDevice)))
+		return 0;
+
+	if ((id->match_flags & USB_DEVICE_ID_MATCH_DEV_CLASS) &&
+	    (id->bDeviceClass != dev->descriptor.bDeviceClass))
+		return 0;
+
+	if ((id->match_flags & USB_DEVICE_ID_MATCH_DEV_SUBCLASS) &&
+	    (id->bDeviceSubClass!= dev->descriptor.bDeviceSubClass))
+		return 0;
+
+	if ((id->match_flags & USB_DEVICE_ID_MATCH_DEV_PROTOCOL) &&
+	    (id->bDeviceProtocol != dev->descriptor.bDeviceProtocol))
+		return 0;
+
+	if ((id->match_flags & USB_DEVICE_ID_MATCH_INT_CLASS) &&
+	    (id->bInterfaceClass != intf->desc.bInterfaceClass))
+		return 0;
+
+	if ((id->match_flags & USB_DEVICE_ID_MATCH_INT_SUBCLASS) &&
+	    (id->bInterfaceSubClass != intf->desc.bInterfaceSubClass))
+		return 0;
+
+	if ((id->match_flags & USB_DEVICE_ID_MATCH_INT_PROTOCOL) &&
+	    (id->bInterfaceProtocol != intf->desc.bInterfaceProtocol))
+		return 0;
+
+	return 1;
+}
 /**
  * usb_match_id - find first usb_device_id matching device or interface
  * @interface: the interface of interest
@@ -184,15 +343,9 @@ static int usb_unbind_interface(struct device *dev)
 const struct usb_device_id *usb_match_id(struct usb_interface *interface,
 					 const struct usb_device_id *id)
 {
-	struct usb_host_interface *intf;
-	struct usb_device *dev;
-
 	/* proc_connectinfo in devio.c may call us with id == NULL. */
 	if (id == NULL)
 		return NULL;
-
-	intf = interface->cur_altsetting;
-	dev = interface_to_usbdev(interface);
 
 	/* It is important to check that id->driver_info is nonzero,
 	   since an entry that is all zeroes except for a nonzero
@@ -201,50 +354,8 @@ const struct usb_device_id *usb_match_id(struct usb_interface *interface,
 	   device and interface. */
 	for (; id->idVendor || id->bDeviceClass || id->bInterfaceClass ||
 	       id->driver_info; id++) {
-
-		if ((id->match_flags & USB_DEVICE_ID_MATCH_VENDOR) &&
-		    id->idVendor != le16_to_cpu(dev->descriptor.idVendor))
-			continue;
-
-		if ((id->match_flags & USB_DEVICE_ID_MATCH_PRODUCT) &&
-		    id->idProduct != le16_to_cpu(dev->descriptor.idProduct))
-			continue;
-
-		/* No need to test id->bcdDevice_lo != 0, since 0 is never
-		   greater than any unsigned number. */
-		if ((id->match_flags & USB_DEVICE_ID_MATCH_DEV_LO) &&
-		    (id->bcdDevice_lo > le16_to_cpu(dev->descriptor.bcdDevice)))
-			continue;
-
-		if ((id->match_flags & USB_DEVICE_ID_MATCH_DEV_HI) &&
-		    (id->bcdDevice_hi < le16_to_cpu(dev->descriptor.bcdDevice)))
-			continue;
-
-		if ((id->match_flags & USB_DEVICE_ID_MATCH_DEV_CLASS) &&
-		    (id->bDeviceClass != dev->descriptor.bDeviceClass))
-			continue;
-
-		if ((id->match_flags & USB_DEVICE_ID_MATCH_DEV_SUBCLASS) &&
-		    (id->bDeviceSubClass!= dev->descriptor.bDeviceSubClass))
-			continue;
-
-		if ((id->match_flags & USB_DEVICE_ID_MATCH_DEV_PROTOCOL) &&
-		    (id->bDeviceProtocol != dev->descriptor.bDeviceProtocol))
-			continue;
-
-		if ((id->match_flags & USB_DEVICE_ID_MATCH_INT_CLASS) &&
-		    (id->bInterfaceClass != intf->desc.bInterfaceClass))
-			continue;
-
-		if ((id->match_flags & USB_DEVICE_ID_MATCH_INT_SUBCLASS) &&
-		    (id->bInterfaceSubClass != intf->desc.bInterfaceSubClass))
-			continue;
-
-		if ((id->match_flags & USB_DEVICE_ID_MATCH_INT_PROTOCOL) &&
-		    (id->bInterfaceProtocol != intf->desc.bInterfaceProtocol))
-			continue;
-
-		return id;
+		if (usb_match_one_id(interface, id))
+			return id;
 	}
 
 	return NULL;
@@ -268,6 +379,9 @@ int usb_device_match(struct device *dev, struct device_driver *drv)
 	if (id)
 		return 1;
 
+	id = usb_match_dynamic_id(intf, usb_drv);
+	if (id)
+		return 1;
 	return 0;
 }
 
@@ -296,6 +410,8 @@ int usb_register(struct usb_driver *new_driver)
 	new_driver->driver.probe = usb_probe_interface;
 	new_driver->driver.remove = usb_unbind_interface;
 	new_driver->driver.owner = new_driver->owner;
+	spin_lock_init(&new_driver->dynids.lock);
+	INIT_LIST_HEAD(&new_driver->dynids.list);
 
 	usb_lock_all_devices();
 	retval = driver_register(&new_driver->driver);
@@ -305,6 +421,7 @@ int usb_register(struct usb_driver *new_driver)
 		pr_info("%s: registered new driver %s\n",
 			usbcore_name, new_driver->name);
 		usbfs_update_special();
+		usb_create_newid_file(new_driver);
 	} else {
 		printk(KERN_ERR "%s: error %d registering driver %s\n",
 			usbcore_name, retval, new_driver->name);
@@ -330,6 +447,7 @@ void usb_deregister(struct usb_driver *driver)
 	pr_info("%s: deregistering driver %s\n", usbcore_name, driver->name);
 
 	usb_lock_all_devices();
+	usb_free_dynids(driver);
 	driver_unregister(&driver->driver);
 	usb_unlock_all_devices();
 

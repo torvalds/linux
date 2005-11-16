@@ -529,6 +529,11 @@ static inline int usb_make_path (struct usb_device *dev, char *buf,
 
 /* ----------------------------------------------------------------------- */
 
+struct usb_dynids {
+	spinlock_t lock;
+	struct list_head list;
+};
+
 /**
  * struct usb_driver - identifies USB driver to usbcore
  * @owner: Pointer to the module owner of this driver; initialize
@@ -553,6 +558,8 @@ static inline int usb_make_path (struct usb_device *dev, char *buf,
  * @id_table: USB drivers use ID table to support hotplugging.
  *	Export this with MODULE_DEVICE_TABLE(usb,...).  This must be set
  *	or your driver's probe function will never get called.
+ * @dynids: used internally to hold the list of dynamically added device
+ *	ids for this driver.
  * @driver: the driver model core driver structure.
  *
  * USB drivers must provide a name, probe() and disconnect() methods,
@@ -588,6 +595,7 @@ struct usb_driver {
 
 	const struct usb_device_id *id_table;
 
+	struct usb_dynids dynids;
 	struct device_driver driver;
 };
 #define	to_usb_driver(d) container_of(d, struct usb_driver, driver)
