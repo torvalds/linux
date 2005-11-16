@@ -4,7 +4,7 @@ Defer close of a file handle slightly if pending writes depend on that file hand
 (this reduces the EBADF bad file handle errors that can be logged under heavy
 stress on writes). Modify cifs Kconfig options to expose CONFIG_CIFS_STATS2 
 Fix SFU style symlinks and mknod needed for servers which do not support the CIFS
-Unix Extensions.
+Unix Extensions.  Fix setfacl/getfacl on bigendian. 
 
 Version 1.38
 ------------

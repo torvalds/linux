@@ -522,7 +522,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 			    sizeof (struct smb_hdr) -
 			    4 /* do not count RFC1001 header */  +
 			    (2 * in_buf->WordCount) + 2 /* bcc */ )
-				BCC(in_buf) = le16_to_cpu(BCC(in_buf));
+				BCC(in_buf) = le16_to_cpu(BCC_LE(in_buf));
 		} else {
 			rc = -EIO;
 			cFYI(1,("Bad MID state?"));
@@ -786,7 +786,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 			    sizeof (struct smb_hdr) -
 			    4 /* do not count RFC1001 header */  +
 			    (2 * out_buf->WordCount) + 2 /* bcc */ )
-				BCC(out_buf) = le16_to_cpu(BCC(out_buf));
+				BCC(out_buf) = le16_to_cpu(BCC_LE(out_buf));
 		} else {
 			rc = -EIO;
 			cERROR(1,("Bad MID state? "));
