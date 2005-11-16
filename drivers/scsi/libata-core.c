@@ -1570,10 +1570,12 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 
 	/*
 	 * Find the mode. 
-	*/
+	 */
 
 	if (!(s = ata_timing_find_mode(speed)))
 		return -EINVAL;
+
+	memcpy(t, s, sizeof(*s));
 
 	/*
 	 * If the drive is an EIDE drive, it can tell us it needs extended
@@ -1595,7 +1597,7 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	 * Convert the timing to bus clock counts.
 	 */
 
-	ata_timing_quantize(s, t, T, UT);
+	ata_timing_quantize(t, t, T, UT);
 
 	/*
 	 * Even in DMA/UDMA modes we still use PIO access for IDENTIFY, S.M.A.R.T
