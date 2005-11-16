@@ -1,5 +1,5 @@
-#ifndef _PPC64_DELAY_H
-#define _PPC64_DELAY_H
+#ifndef _ASM_POWERPC_DELAY_H
+#define _ASM_POWERPC_DELAY_H
 
 /*
  * Copyright 1996, Paul Mackerras.
@@ -15,10 +15,17 @@
 
 extern unsigned long tb_ticks_per_usec;
 
-/* define these here to prevent circular dependencies */ 
+#ifdef CONFIG_PPC64
+/* define these here to prevent circular dependencies */
+/* these instructions control the thread priority on multi-threaded cpus */
 #define __HMT_low()	asm volatile("or 1,1,1")
 #define __HMT_medium()	asm volatile("or 2,2,2")
-#define __barrier()	asm volatile("":::"memory")
+#else
+#define __HMT_low()
+#define __HMT_medium()
+#endif
+
+#define __barrier()	asm volatile("" ::: "memory")
 
 static inline unsigned long __get_tb(void)
 {
@@ -32,7 +39,7 @@ static inline void __delay(unsigned long loops)
 {
 	unsigned long start = __get_tb();
 
-	while((__get_tb()-start) < loops)
+	while((__get_tb() - start) < loops)
 		__HMT_low();
 	__HMT_medium();
 	__barrier();
@@ -45,4 +52,4 @@ static inline void udelay(unsigned long usecs)
 	__delay(loops);
 }
 
-#endif /* _PPC64_DELAY_H */
+#endif /* _ASM_POWERPC_DELAY_H */

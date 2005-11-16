@@ -357,6 +357,10 @@ nfattr_failure:
 	return -1;
 }
 
+static const size_t cta_min_tcp[CTA_PROTOINFO_TCP_MAX] = {
+	[CTA_PROTOINFO_TCP_STATE-1]	= sizeof(u_int8_t),
+};
+
 static int nfattr_to_tcp(struct nfattr *cda[], struct ip_conntrack *ct)
 {
 	struct nfattr *attr = cda[CTA_PROTOINFO_TCP-1];
@@ -368,6 +372,9 @@ static int nfattr_to_tcp(struct nfattr *cda[], struct ip_conntrack *ct)
 		return 0;
 
         nfattr_parse_nested(tb, CTA_PROTOINFO_TCP_MAX, attr);
+
+	if (nfattr_bad_size(tb, CTA_PROTOINFO_TCP_MAX, cta_min_tcp))
+		return -EINVAL;
 
 	if (!tb[CTA_PROTOINFO_TCP_STATE-1])
 		return -EINVAL;

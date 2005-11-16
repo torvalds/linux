@@ -612,6 +612,9 @@ retint_kernel:
 ENTRY(thermal_interrupt)
 	apicinterrupt THERMAL_APIC_VECTOR,smp_thermal_interrupt
 
+ENTRY(threshold_interrupt)
+	apicinterrupt THRESHOLD_APIC_VECTOR,mce_threshold_interrupt
+
 #ifdef CONFIG_SMP	
 ENTRY(reschedule_interrupt)
 	apicinterrupt RESCHEDULE_VECTOR,smp_reschedule_interrupt

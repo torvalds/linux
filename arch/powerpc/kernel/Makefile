@@ -25,7 +25,7 @@ obj-$(CONFIG_PPC_OF)		+= of_device.o
 procfs-$(CONFIG_PPC64)		:= proc_ppc64.o
 obj-$(CONFIG_PROC_FS)		+= $(procfs-y)
 rtaspci-$(CONFIG_PPC64)		:= rtas_pci.o
-obj-$(CONFIG_PPC_RTAS)		+= rtas.o $(rtaspci-y)
+obj-$(CONFIG_PPC_RTAS)		+= rtas.o rtas-rtc.o $(rtaspci-y)
 obj-$(CONFIG_RTAS_FLASH)	+= rtas_flash.o
 obj-$(CONFIG_RTAS_PROC)		+= rtas-proc.o
 obj-$(CONFIG_LPARCFG)		+= lparcfg.o
@@ -49,12 +49,23 @@ extra-y				+= vmlinux.lds
 obj-y				+= process.o init_task.o time.o \
 				   prom.o traps.o setup-common.o
 obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o misc_32.o systbl.o
-obj-$(CONFIG_PPC64)		+= misc_64.o
+obj-$(CONFIG_PPC64)		+= misc_64.o dma_64.o iommu.o
 obj-$(CONFIG_PPC_OF)		+= prom_init.o
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 obj-$(CONFIG_6xx)		+= idle_6xx.o
 obj-$(CONFIG_SMP)		+= smp.o
+obj-$(CONFIG_KPROBES)		+= kprobes.o
+
+module-$(CONFIG_PPC64)		+= module_64.o
+obj-$(CONFIG_MODULES)		+= $(module-y)
+
+pci64-$(CONFIG_PPC64)		+= pci_64.o pci_dn.o pci_iommu.o \
+				   pci_direct_iommu.o iomap.o
+obj-$(CONFIG_PCI)		+= $(pci64-y)
+
+kexec64-$(CONFIG_PPC64)		+= machine_kexec_64.o
+obj-$(CONFIG_KEXEC)		+= $(kexec64-y)
 
 ifeq ($(CONFIG_PPC_ISERIES),y)
 $(obj)/head_64.o: $(obj)/lparmap.s
@@ -62,11 +73,8 @@ AFLAGS_head_64.o += -I$(obj)
 endif
 
 else
-# stuff used from here for ARCH=ppc or ARCH=ppc64
+# stuff used from here for ARCH=ppc
 smpobj-$(CONFIG_SMP)		+= smp.o
-obj-$(CONFIG_PPC64)		+= traps.o process.o init_task.o time.o \
-				   setup-common.o $(smpobj-y)
-
 
 endif
 

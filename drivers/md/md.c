@@ -3156,7 +3156,7 @@ static int md_ioctl(struct inode *inode, struct file *file,
 		if (cnt > 0 ) {
 			printk(KERN_WARNING
 			       "md: %s(pid %d) used deprecated START_ARRAY ioctl. "
-			       "This will not be supported beyond 2.6\n",
+			       "This will not be supported beyond July 2006\n",
 			       current->comm, current->pid);
 			cnt--;
 		}
@@ -3437,10 +3437,19 @@ static int md_thread(void * arg)
 	allow_signal(SIGKILL);
 	while (!kthread_should_stop()) {
 
-		wait_event_timeout(thread->wqueue,
-				   test_bit(THREAD_WAKEUP, &thread->flags)
-				   || kthread_should_stop(),
-				   thread->timeout);
+		/* We need to wait INTERRUPTIBLE so that
+		 * we don't add to the load-average.
+		 * That means we need to be sure no signals are
+		 * pending
+		 */
+		if (signal_pending(current))
+			flush_signals(current);
+
+		wait_event_interruptible_timeout
+			(thread->wqueue,
+			 test_bit(THREAD_WAKEUP, &thread->flags)
+			 || kthread_should_stop(),
+			 thread->timeout);
 		try_to_freeze();
 
 		clear_bit(THREAD_WAKEUP, &thread->flags);

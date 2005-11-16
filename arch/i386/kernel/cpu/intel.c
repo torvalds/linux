@@ -158,7 +158,7 @@ static void __devinit init_intel(struct cpuinfo_x86 *c)
 	if ( p )
 		strcpy(c->x86_model_id, p);
 	
-	c->x86_num_cores = num_cpu_cores(c);
+	c->x86_max_cores = num_cpu_cores(c);
 
 	detect_ht(c);
 

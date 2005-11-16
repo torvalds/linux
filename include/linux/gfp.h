@@ -14,6 +14,13 @@ struct vm_area_struct;
 /* Zone modifiers in GFP_ZONEMASK (see linux/mmzone.h - low two bits) */
 #define __GFP_DMA	((__force gfp_t)0x01u)
 #define __GFP_HIGHMEM	((__force gfp_t)0x02u)
+#ifdef CONFIG_DMA_IS_DMA32
+#define __GFP_DMA32	((__force gfp_t)0x01)	/* ZONE_DMA is ZONE_DMA32 */
+#elif BITS_PER_LONG < 64
+#define __GFP_DMA32	((__force gfp_t)0x00)	/* ZONE_NORMAL is ZONE_DMA32 */
+#else
+#define __GFP_DMA32	((__force gfp_t)0x04)	/* Has own ZONE_DMA32 */
+#endif
 
 /*
  * Action modifiers - doesn't change the zoning
@@ -62,6 +69,10 @@ struct vm_area_struct;
    platforms, used as appropriate on others */
 
 #define GFP_DMA		__GFP_DMA
+
+/* 4GB DMA on some platforms */
+#define GFP_DMA32	__GFP_DMA32
+
 
 #define gfp_zone(mask) ((__force int)((mask) & (__force gfp_t)GFP_ZONEMASK))
 

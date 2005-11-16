@@ -14,18 +14,18 @@
 #define HPET_CFG	0x010
 #define HPET_STATUS	0x020
 #define HPET_COUNTER	0x0f0
-#define HPET_T0_CFG	0x100
-#define HPET_T0_CMP	0x108
-#define HPET_T0_ROUTE	0x110
-#define HPET_T1_CFG	0x120
-#define HPET_T1_CMP	0x128
-#define HPET_T1_ROUTE	0x130
-#define HPET_T2_CFG	0x140
-#define HPET_T2_CMP	0x148
-#define HPET_T2_ROUTE	0x150
+#define HPET_Tn_OFFSET	0x20
+#define HPET_Tn_CFG(n)	 (0x100 + (n) * HPET_Tn_OFFSET)
+#define HPET_Tn_ROUTE(n) (0x104 + (n) * HPET_Tn_OFFSET)
+#define HPET_Tn_CMP(n)	 (0x108 + (n) * HPET_Tn_OFFSET)
+#define HPET_T0_CFG	HPET_Tn_CFG(0)
+#define HPET_T0_CMP	HPET_Tn_CMP(0)
+#define HPET_T1_CFG	HPET_Tn_CFG(1)
+#define HPET_T1_CMP	HPET_Tn_CMP(1)
 
 #define HPET_ID_VENDOR	0xffff0000
 #define HPET_ID_LEGSUP	0x00008000
+#define HPET_ID_64BIT	0x00002000
 #define HPET_ID_NUMBER	0x00001f00
 #define HPET_ID_REV	0x000000ff
 #define	HPET_ID_NUMBER_SHIFT	8
@@ -38,11 +38,18 @@
 #define	HPET_LEGACY_8254	2
 #define	HPET_LEGACY_RTC		8
 
-#define HPET_TN_ENABLE		0x004
-#define HPET_TN_PERIODIC	0x008
-#define HPET_TN_PERIODIC_CAP	0x010
-#define HPET_TN_SETVAL		0x040
-#define HPET_TN_32BIT		0x100
+#define HPET_TN_LEVEL		0x0002
+#define HPET_TN_ENABLE		0x0004
+#define HPET_TN_PERIODIC	0x0008
+#define HPET_TN_PERIODIC_CAP	0x0010
+#define HPET_TN_64BIT_CAP	0x0020
+#define HPET_TN_SETVAL		0x0040
+#define HPET_TN_32BIT		0x0100
+#define HPET_TN_ROUTE		0x3e00
+#define HPET_TN_FSB		0x4000
+#define HPET_TN_FSB_CAP		0x8000
+
+#define HPET_TN_ROUTE_SHIFT	9
 
 extern int is_hpet_enabled(void);
 extern int hpet_rtc_timer_init(void);
