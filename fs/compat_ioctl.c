@@ -121,6 +121,11 @@
 
 #include <linux/hiddev.h>
 
+#include <linux/dvb/audio.h>
+#include <linux/dvb/dmx.h>
+#include <linux/dvb/frontend.h>
+#include <linux/dvb/video.h>
+
 #undef INCLUDES
 #endif
 
@@ -410,6 +415,128 @@ static int do_video_ioctl(unsigned int fd, unsigned int cmd, unsigned long arg)
 		};
 	}
 out:
+	return err;
+}
+
+struct compat_dmx_event {
+	dmx_event_t	event;
+	compat_time_t	timeStamp;
+	union
+	{
+		dmx_scrambling_status_t scrambling;
+	} u;
+};
+
+static int do_dmx_get_event(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct dmx_event kevent;
+	mm_segment_t old_fs = get_fs();
+	int err;
+
+	set_fs(KERNEL_DS);
+	err = sys_ioctl(fd, cmd, (unsigned long) &kevent);
+	set_fs(old_fs);
+
+	if (!err) {
+		struct compat_dmx_event __user *up = compat_ptr(arg);
+
+		err  = put_user(kevent.event, &up->event);
+		err |= put_user(kevent.timeStamp, &up->timeStamp);
+		err |= put_user(kevent.u.scrambling, &up->u.scrambling);
+		if (err)
+			err = -EFAULT;
+	}
+
+	return err;
+}
+
+struct compat_video_event {
+	int32_t		type;
+	compat_time_t	timestamp;
+	union {
+	        video_size_t size;
+		unsigned int frame_rate;
+	} u;
+};
+
+static int do_video_get_event(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct video_event kevent;
+	mm_segment_t old_fs = get_fs();
+	int err;
+
+	set_fs(KERNEL_DS);
+	err = sys_ioctl(fd, cmd, (unsigned long) &kevent);
+	set_fs(old_fs);
+
+	if (!err) {
+		struct compat_video_event __user *up = compat_ptr(arg);
+
+		err  = put_user(kevent.type, &up->type);
+		err |= put_user(kevent.timestamp, &up->timestamp);
+		err |= put_user(kevent.u.size.w, &up->u.size.w);
+		err |= put_user(kevent.u.size.h, &up->u.size.h);
+		err |= put_user(kevent.u.size.aspect_ratio,
+				&up->u.size.aspect_ratio);
+		if (err)
+			err = -EFAULT;
+	}
+
+	return err;
+}
+
+struct compat_video_still_picture {
+        compat_uptr_t iFrame;
+        int32_t size;
+};
+
+static int do_video_stillpicture(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct compat_video_still_picture __user *up;
+	struct video_still_picture __user *up_native;
+	compat_uptr_t fp;
+	int32_t size;
+	int err;
+
+	up = (struct compat_video_still_picture __user *) arg;
+	err  = get_user(fp, &up->iFrame);
+	err |= get_user(size, &up->size);
+	if (err)
+		return -EFAULT;
+
+	up_native =
+		compat_alloc_user_space(sizeof(struct video_still_picture));
+
+	put_user(compat_ptr(fp), &up_native->iFrame);
+	put_user(size, &up_native->size);
+
+	err = sys_ioctl(fd, cmd, (unsigned long) up_native);
+
+	return err;
+}
+
+struct compat_video_spu_palette {
+	int length;
+	compat_uptr_t palette;
+};
+
+static int do_video_set_spu_palette(unsigned int fd, unsigned int cmd, unsigned long arg)
+{
+	struct compat_video_spu_palette __user *up;
+	struct video_spu_palette __user *up_native;
+	compat_uptr_t palp;
+	int length, err;
+
+	up = (struct compat_video_spu_palette __user *) arg;
+	err  = get_user(palp, &up->palette);
+	err |= get_user(length, &up->length);
+
+	up_native = compat_alloc_user_space(sizeof(struct video_spu_palette));
+	put_user(compat_ptr(palp), &up_native->palette);
+	put_user(length, &up_native->length);
+
+	err = sys_ioctl(fd, cmd, (unsigned long) up_native);
+
 	return err;
 }
 
@@ -2953,6 +3080,12 @@ HANDLE_IOCTL(NCP_IOC_SETOBJECTNAME_32, do_ncp_setobjectname)
 HANDLE_IOCTL(NCP_IOC_GETPRIVATEDATA_32, do_ncp_getprivatedata)
 HANDLE_IOCTL(NCP_IOC_SETPRIVATEDATA_32, do_ncp_setprivatedata)
 #endif
+
+/* dvb */
+HANDLE_IOCTL(DMX_GET_EVENT, do_dmx_get_event)
+HANDLE_IOCTL(VIDEO_GET_EVENT, do_video_get_event)
+HANDLE_IOCTL(VIDEO_STILLPICTURE, do_video_stillpicture)
+HANDLE_IOCTL(VIDEO_SET_SPU_PALETTE, do_video_set_spu_palette)
 
 #undef DECLARES
 #endif
