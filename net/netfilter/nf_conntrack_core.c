@@ -1395,6 +1395,13 @@ void nf_conntrack_cleanup(void)
 	kmem_cache_destroy(nf_conntrack_expect_cachep);
 	free_conntrack_hash(nf_conntrack_hash, nf_conntrack_vmalloc,
 			    nf_conntrack_htable_size);
+
+	/* free l3proto protocol tables */
+	for (i = 0; i < PF_MAX; i++)
+		if (nf_ct_protos[i]) {
+			kfree(nf_ct_protos[i]);
+			nf_ct_protos[i] = NULL;
+		}
 }
 
 static struct list_head *alloc_hashtable(int size, int *vmalloced)
