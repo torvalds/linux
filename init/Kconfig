@@ -197,14 +197,6 @@ config AUDITSYSCALL
 	  can be used independently or with another kernel subsystem,
 	  such as SELinux.
 
-config HOTPLUG
-	bool "Support for hot-pluggable devices" if !ARCH_S390
-	default ARCH_S390
-	help
-	  This option is provided for the case where no in-kernel-tree
-	  modules require HOTPLUG functionality, but a module built
-	  outside the kernel tree does. Such modules require Y here.
-
 config IKCONFIG
 	bool "Kernel .config support"
 	---help---
@@ -288,6 +280,15 @@ config KALLSYMS_EXTRA_PASS
 	   reported.  KALLSYMS_EXTRA_PASS is only a temporary workaround while
 	   you wait for kallsyms to be fixed.
 
+
+config HOTPLUG
+	bool "Support for hot-pluggable devices" if EMBEDDED
+	default y
+	help
+	  This option is provided for the case where no hotplug or uevent
+	  capabilities is wanted by the kernel.  You should only consider
+	  disabling this option for embedded systems that do not use modules, a
+	  dynamic /dev tree, or dynamic device discovery.  Just say Y.
 
 config PRINTK
 	default y
