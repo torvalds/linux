@@ -124,7 +124,7 @@ enum
 	KERN_OVERFLOWUID=46,	/* int: overflow UID */
 	KERN_OVERFLOWGID=47,	/* int: overflow GID */
 	KERN_SHMPATH=48,	/* string: path to shm fs */
-	KERN_HOTPLUG=49,	/* string: path to hotplug policy agent */
+	KERN_HOTPLUG=49,	/* string: path to uevent helper (deprecated) */
 	KERN_IEEE_EMULATION_WARNINGS=50, /* int: unimplemented ieee instructions */
 	KERN_S390_USER_DEBUG_LOGGING=51,  /* int: dumps of user faults */
 	KERN_CORE_USES_PID=52,		/* int: use core or core.%pid */

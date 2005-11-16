@@ -369,14 +369,14 @@ static struct attribute_group wireless_group = {
 #endif
 
 #ifdef CONFIG_HOTPLUG
-static int netdev_hotplug(struct class_device *cd, char **envp,
-			  int num_envp, char *buf, int size)
+static int netdev_uevent(struct class_device *cd, char **envp,
+			 int num_envp, char *buf, int size)
 {
 	struct net_device *dev = to_net_dev(cd);
 	int i = 0;
 	int n;
 
-	/* pass interface in env to hotplug. */
+	/* pass interface to uevent. */
 	envp[i++] = buf;
 	n = snprintf(buf, size, "INTERFACE=%s", dev->name) + 1;
 	buf += n;
@@ -408,7 +408,7 @@ static struct class net_class = {
 	.name = "net",
 	.release = netdev_release,
 #ifdef CONFIG_HOTPLUG
-	.hotplug = netdev_hotplug,
+	.uevent = netdev_uevent,
 #endif
 };
 

@@ -226,7 +226,7 @@ static struct sysfs_ops part_sysfs_ops = {
 static ssize_t part_uevent_store(struct hd_struct * p,
 				 const char *page, size_t count)
 {
-	kobject_hotplug(&p->kobj, KOBJ_ADD);
+	kobject_uevent(&p->kobj, KOBJ_ADD);
 	return count;
 }
 static ssize_t part_dev_read(struct hd_struct * p, char *page)
@@ -360,7 +360,7 @@ void register_disk(struct gendisk *disk)
 	if ((err = kobject_add(&disk->kobj)))
 		return;
 	disk_sysfs_symlinks(disk);
-	kobject_hotplug(&disk->kobj, KOBJ_ADD);
+	kobject_uevent(&disk->kobj, KOBJ_ADD);
 
 	/* No minors to use for partitions */
 	if (disk->minors == 1) {
@@ -465,6 +465,6 @@ void del_gendisk(struct gendisk *disk)
 		sysfs_remove_link(&disk->driverfs_dev->kobj, "block");
 		put_device(disk->driverfs_dev);
 	}
-	kobject_hotplug(&disk->kobj, KOBJ_REMOVE);
+	kobject_uevent(&disk->kobj, KOBJ_REMOVE);
 	kobject_del(&disk->kobj);
 }

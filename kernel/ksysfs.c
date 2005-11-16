@@ -26,23 +26,23 @@ static struct subsys_attribute _name##_attr = \
 /* current uevent sequence number */
 static ssize_t uevent_seqnum_show(struct subsystem *subsys, char *page)
 {
-	return sprintf(page, "%llu\n", (unsigned long long)hotplug_seqnum);
+	return sprintf(page, "%llu\n", (unsigned long long)uevent_seqnum);
 }
 KERNEL_ATTR_RO(uevent_seqnum);
 
 /* uevent helper program, used during early boo */
 static ssize_t uevent_helper_show(struct subsystem *subsys, char *page)
 {
-	return sprintf(page, "%s\n", hotplug_path);
+	return sprintf(page, "%s\n", uevent_helper);
 }
 static ssize_t uevent_helper_store(struct subsystem *subsys, const char *page, size_t count)
 {
-	if (count+1 > HOTPLUG_PATH_LEN)
+	if (count+1 > UEVENT_HELPER_PATH_LEN)
 		return -ENOENT;
-	memcpy(hotplug_path, page, count);
-	hotplug_path[count] = '\0';
-	if (count && hotplug_path[count-1] == '\n')
-		hotplug_path[count-1] = '\0';
+	memcpy(uevent_helper, page, count);
+	uevent_helper[count] = '\0';
+	if (count && uevent_helper[count-1] == '\n')
+		uevent_helper[count-1] = '\0';
 	return count;
 }
 KERNEL_ATTR_RW(uevent_helper);

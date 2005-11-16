@@ -293,6 +293,6 @@ static int vio_hotplug(struct device *dev, char **envp, int num_envp,
 
 struct bus_type vio_bus_type = {
 	.name = "vio",
-	.hotplug = vio_hotplug,
+	.uevent = vio_hotplug,
 	.match = vio_bus_match,
 };

@@ -26,15 +26,14 @@
 #include <linux/kernel.h>
 #include <asm/atomic.h>
 
-#define KOBJ_NAME_LEN	20
-
-#define HOTPLUG_PATH_LEN	256
+#define KOBJ_NAME_LEN			20
+#define UEVENT_HELPER_PATH_LEN		256
 
 /* path to the userspace helper executed on an event */
-extern char hotplug_path[];
+extern char uevent_helper[];
 
-/* counter to tag the hotplug event, read only except for the kobject core */
-extern u64 hotplug_seqnum;
+/* counter to tag the uevent, read only except for the kobject core */
+extern u64 uevent_seqnum;
 
 /* the actions here must match the proper string in lib/kobject_uevent.c */
 typedef int __bitwise kobject_action_t;
@@ -101,15 +100,14 @@ struct kobj_type {
  *	of object; multiple ksets can belong to one subsystem. All 
  *	ksets of a subsystem share the subsystem's lock.
  *
- *      Each kset can support hotplugging; if it does, it will be given
- *      the opportunity to filter out specific kobjects from being
- *      reported, as well as to add its own "data" elements to the
- *      environment being passed to the hotplug helper.
+ *	Each kset can support specific event variables; it can
+ *	supress the event generation or add subsystem specific
+ *	variables carried with the event.
  */
-struct kset_hotplug_ops {
+struct kset_uevent_ops {
 	int (*filter)(struct kset *kset, struct kobject *kobj);
 	const char *(*name)(struct kset *kset, struct kobject *kobj);
-	int (*hotplug)(struct kset *kset, struct kobject *kobj, char **envp,
+	int (*uevent)(struct kset *kset, struct kobject *kobj, char **envp,
 			int num_envp, char *buffer, int buffer_size);
 };
 
@@ -119,7 +117,7 @@ struct kset {
 	struct list_head	list;
 	spinlock_t		list_lock;
 	struct kobject		kobj;
-	struct kset_hotplug_ops	* hotplug_ops;
+	struct kset_uevent_ops	* uevent_ops;
 };
 
 
@@ -167,20 +165,20 @@ struct subsystem {
 	struct rw_semaphore	rwsem;
 };
 
-#define decl_subsys(_name,_type,_hotplug_ops) \
+#define decl_subsys(_name,_type,_uevent_ops) \
 struct subsystem _name##_subsys = { \
 	.kset = { \
 		.kobj = { .name = __stringify(_name) }, \
 		.ktype = _type, \
-		.hotplug_ops =_hotplug_ops, \
+		.uevent_ops =_uevent_ops, \
 	} \
 }
-#define decl_subsys_name(_varname,_name,_type,_hotplug_ops) \
+#define decl_subsys_name(_varname,_name,_type,_uevent_ops) \
 struct subsystem _varname##_subsys = { \
 	.kset = { \
 		.kobj = { .name = __stringify(_name) }, \
 		.ktype = _type, \
-		.hotplug_ops =_hotplug_ops, \
+		.uevent_ops =_uevent_ops, \
 	} \
 }
 
@@ -256,16 +254,16 @@ extern int subsys_create_file(struct subsystem * , struct subsys_attribute *);
 extern void subsys_remove_file(struct subsystem * , struct subsys_attribute *);
 
 #ifdef CONFIG_HOTPLUG
-void kobject_hotplug(struct kobject *kobj, enum kobject_action action);
+void kobject_uevent(struct kobject *kobj, enum kobject_action action);
 
-int add_hotplug_env_var(char **envp, int num_envp, int *cur_index,
+int add_uevent_var(char **envp, int num_envp, int *cur_index,
 			char *buffer, int buffer_size, int *cur_len,
 			const char *format, ...)
 	__attribute__((format (printf, 7, 8)));
 #else
-static inline void kobject_hotplug(struct kobject *kobj, enum kobject_action action) { }
+static inline void kobject_uevent(struct kobject *kobj, enum kobject_action action) { }
 
-static inline int add_hotplug_env_var(char **envp, int num_envp, int *cur_index, 
+static inline int add_uevent_var(char **envp, int num_envp, int *cur_index,
 				      char *buffer, int buffer_size, int *cur_len, 
 				      const char *format, ...)
 { return 0; }

@@ -610,10 +610,10 @@ static void input_dev_release(struct class_device *class_dev)
 }
 
 /*
- * Input hotplugging interface - loading event handlers based on
+ * Input uevent interface - loading event handlers based on
  * device bitfields.
  */
-static int input_add_hotplug_bm_var(char **envp, int num_envp, int *cur_index,
+static int input_add_uevent_bm_var(char **envp, int num_envp, int *cur_index,
 				    char *buffer, int buffer_size, int *cur_len,
 				    const char *name, unsigned long *bitmap, int max)
 {
@@ -638,7 +638,7 @@ static int input_add_hotplug_bm_var(char **envp, int num_envp, int *cur_index,
 
 #define INPUT_ADD_HOTPLUG_VAR(fmt, val...)				\
 	do {								\
-		int err = add_hotplug_env_var(envp, num_envp, &i,	\
+		int err = add_uevent_var(envp, num_envp, &i,	\
 					buffer, buffer_size, &len,	\
 					fmt, val);			\
 		if (err)						\
@@ -647,15 +647,15 @@ static int input_add_hotplug_bm_var(char **envp, int num_envp, int *cur_index,
 
 #define INPUT_ADD_HOTPLUG_BM_VAR(name, bm, max)				\
 	do {								\
-		int err = input_add_hotplug_bm_var(envp, num_envp, &i,	\
+		int err = input_add_uevent_bm_var(envp, num_envp, &i,	\
 					buffer, buffer_size, &len,	\
 					name, bm, max);			\
 		if (err)						\
 			return err;					\
 	} while (0)
 
-static int input_dev_hotplug(struct class_device *cdev, char **envp,
-			     int num_envp, char *buffer, int buffer_size)
+static int input_dev_uevent(struct class_device *cdev, char **envp,
+			    int num_envp, char *buffer, int buffer_size)
 {
 	struct input_dev *dev = to_input_dev(cdev);
 	int i = 0;
@@ -697,7 +697,7 @@ static int input_dev_hotplug(struct class_device *cdev, char **envp,
 struct class input_class = {
 	.name			= "input",
 	.release		= input_dev_release,
-	.hotplug		= input_dev_hotplug,
+	.uevent			= input_dev_uevent,
 };
 
 struct input_dev *input_allocate_device(void)

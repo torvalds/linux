@@ -22,12 +22,12 @@
 #include <linux/kobject.h>
 #include <net/sock.h>
 
-#define BUFFER_SIZE	1024	/* buffer for the hotplug env */
+#define BUFFER_SIZE	1024	/* buffer for the variables */
 #define NUM_ENVP	32	/* number of env pointers */
 
 #if defined(CONFIG_HOTPLUG)
-char hotplug_path[HOTPLUG_PATH_LEN] = "/sbin/hotplug";
-u64 hotplug_seqnum;
+char uevent_helper[UEVENT_HELPER_PATH_LEN] = "/sbin/hotplug";
+u64 uevent_seqnum;
 static DEFINE_SPINLOCK(sequence_lock);
 static struct sock *uevent_sock;
 
@@ -50,12 +50,12 @@ static char *action_to_string(enum kobject_action action)
 }
 
 /**
- * kobject_hotplug - notify userspace by executing /sbin/hotplug
+ * kobject_uevent - notify userspace by ending an uevent
  *
- * @action: action that is happening (usually "ADD" or "REMOVE")
+ * @action: action that is happening (usually KOBJ_ADD and KOBJ_REMOVE)
  * @kobj: struct kobject that the action is happening to
  */
-void kobject_hotplug(struct kobject *kobj, enum kobject_action action)
+void kobject_uevent(struct kobject *kobj, enum kobject_action action)
 {
 	char **envp;
 	char *buffer;
@@ -65,7 +65,7 @@ void kobject_hotplug(struct kobject *kobj, enum kobject_action action)
 	const char *subsystem;
 	struct kobject *top_kobj;
 	struct kset *kset;
-	struct kset_hotplug_ops *hotplug_ops;
+	struct kset_uevent_ops *uevent_ops;
 	u64 seq;
 	char *seq_buff;
 	int i = 0;
@@ -88,11 +88,11 @@ void kobject_hotplug(struct kobject *kobj, enum kobject_action action)
 		return;
 
 	kset = top_kobj->kset;
-	hotplug_ops = kset->hotplug_ops;
+	uevent_ops = kset->uevent_ops;
 
 	/*  skip the event, if the filter returns zero. */
-	if (hotplug_ops && hotplug_ops->filter)
-		if (!hotplug_ops->filter(kset, kobj))
+	if (uevent_ops && uevent_ops->filter)
+		if (!uevent_ops->filter(kset, kobj))
 			return;
 
 	/* environment index */
@@ -111,8 +111,8 @@ void kobject_hotplug(struct kobject *kobj, enum kobject_action action)
 		goto exit;
 
 	/* originating subsystem */
-	if (hotplug_ops && hotplug_ops->name)
-		subsystem = hotplug_ops->name(kset, kobj);
+	if (uevent_ops && uevent_ops->name)
+		subsystem = uevent_ops->name(kset, kobj);
 	else
 		subsystem = kobject_name(&kset->kobj);
 
@@ -134,12 +134,12 @@ void kobject_hotplug(struct kobject *kobj, enum kobject_action action)
 	scratch += strlen("SEQNUM=18446744073709551616") + 1;
 
 	/* let the kset specific function add its stuff */
-	if (hotplug_ops && hotplug_ops->hotplug) {
-		retval = hotplug_ops->hotplug (kset, kobj,
+	if (uevent_ops && uevent_ops->uevent) {
+		retval = uevent_ops->uevent(kset, kobj,
 				  &envp[i], NUM_ENVP - i, scratch,
 				  BUFFER_SIZE - (scratch - buffer));
 		if (retval) {
-			pr_debug ("%s - hotplug() returned %d\n",
+			pr_debug ("%s - uevent() returned %d\n",
 				  __FUNCTION__, retval);
 			goto exit;
 		}
@@ -147,7 +147,7 @@ void kobject_hotplug(struct kobject *kobj, enum kobject_action action)
 
 	/* we will send an event, request a new sequence number */
 	spin_lock(&sequence_lock);
-	seq = ++hotplug_seqnum;
+	seq = ++uevent_seqnum;
 	spin_unlock(&sequence_lock);
 	sprintf(seq_buff, "SEQNUM=%llu", (unsigned long long)seq);
 
@@ -177,10 +177,10 @@ void kobject_hotplug(struct kobject *kobj, enum kobject_action action)
 	}
 
 	/* call uevent_helper, usually only enabled during early boot */
-	if (hotplug_path[0]) {
+	if (uevent_helper[0]) {
 		char *argv [3];
 
-		argv [0] = hotplug_path;
+		argv [0] = uevent_helper;
 		argv [1] = (char *)subsystem;
 		argv [2] = NULL;
 		call_usermodehelper (argv[0], argv, envp, 0);
@@ -192,39 +192,39 @@ exit:
 	kfree(envp);
 	return;
 }
-EXPORT_SYMBOL(kobject_hotplug);
+EXPORT_SYMBOL_GPL(kobject_uevent);
 
 /**
- * add_hotplug_env_var - helper for creating hotplug environment variables
+ * add_uevent_var - helper for creating event variables
  * @envp: Pointer to table of environment variables, as passed into
- * hotplug() method.
+ * uevent() method.
  * @num_envp: Number of environment variable slots available, as
- * passed into hotplug() method.
+ * passed into uevent() method.
  * @cur_index: Pointer to current index into @envp.  It should be
- * initialized to 0 before the first call to add_hotplug_env_var(),
+ * initialized to 0 before the first call to add_uevent_var(),
  * and will be incremented on success.
  * @buffer: Pointer to buffer for environment variables, as passed
- * into hotplug() method.
- * @buffer_size: Length of @buffer, as passed into hotplug() method.
+ * into uevent() method.
+ * @buffer_size: Length of @buffer, as passed into uevent() method.
  * @cur_len: Pointer to current length of space used in @buffer.
  * Should be initialized to 0 before the first call to
- * add_hotplug_env_var(), and will be incremented on success.
+ * add_uevent_var(), and will be incremented on success.
  * @format: Format for creating environment variable (of the form
  * "XXX=%x") for snprintf().
  *
  * Returns 0 if environment variable was added successfully or -ENOMEM
  * if no space was available.
  */
-int add_hotplug_env_var(char **envp, int num_envp, int *cur_index,
-			char *buffer, int buffer_size, int *cur_len,
-			const char *format, ...)
+int add_uevent_var(char **envp, int num_envp, int *cur_index,
+		   char *buffer, int buffer_size, int *cur_len,
+		   const char *format, ...)
 {
 	va_list args;
 
 	/*
 	 * We check against num_envp - 1 to make sure there is at
-	 * least one slot left after we return, since the hotplug
-	 * method needs to set the last slot to NULL.
+	 * least one slot left after we return, since kobject_uevent()
+	 * needs to set the last slot to NULL.
 	 */
 	if (*cur_index >= num_envp - 1)
 		return -ENOMEM;
@@ -243,7 +243,7 @@ int add_hotplug_env_var(char **envp, int num_envp, int *cur_index,
 	(*cur_index)++;
 	return 0;
 }
-EXPORT_SYMBOL(add_hotplug_env_var);
+EXPORT_SYMBOL_GPL(add_uevent_var);
 
 static int __init kobject_uevent_init(void)
 {

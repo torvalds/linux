@@ -395,8 +395,8 @@ static ctl_table kern_table[] = {
 	{
 		.ctl_name	= KERN_HOTPLUG,
 		.procname	= "hotplug",
-		.data		= &hotplug_path,
-		.maxlen		= HOTPLUG_PATH_LEN,
+		.data		= &uevent_helper,
+		.maxlen		= UEVENT_HELPER_PATH_LEN,
 		.mode		= 0644,
 		.proc_handler	= &proc_dostring,
 		.strategy	= &sysctl_string,

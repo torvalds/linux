@@ -225,7 +225,7 @@ struct usb_interface_cache {
  * Device drivers should not attempt to activate configurations.  The choice
  * of which configuration to install is a policy decision based on such
  * considerations as available power, functionality provided, and the user's
- * desires (expressed through hotplug scripts).  However, drivers can call
+ * desires (expressed through userspace tools).  However, drivers can call
  * usb_reset_configuration() to reinitialize the current configuration and
  * all its interfaces.
  */
