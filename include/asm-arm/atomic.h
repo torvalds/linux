@@ -87,6 +87,7 @@ static inline int atomic_cmpxchg(atomic_t *ptr, int old, int new)
 	do {
 		__asm__ __volatile__("@ atomic_cmpxchg\n"
 		"ldrex	%1, [%2]\n"
+		"mov	%0, #0\n"
 		"teq	%1, %3\n"
 		"strexeq %0, %4, [%2]\n"
 		    : "=&r" (res), "=&r" (oldval)
