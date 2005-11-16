@@ -2516,7 +2516,7 @@ rtl8169_interrupt(int irq, void *dev_instance, struct pt_regs *regs)
 	} while (boguscnt > 0);
 
 	if (boguscnt <= 0) {
-		if (net_ratelimit() && netif_msg_intr(tp)) {
+		if (netif_msg_intr(tp) && net_ratelimit() ) {
 			printk(KERN_WARNING
 			       "%s: Too much work at interrupt!\n", dev->name);
 		}
