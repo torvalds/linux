@@ -384,6 +384,13 @@ config IBMVIO
 	bool
 	default y
 
+config IBMEBUS
+	depends on PPC_PSERIES
+	bool "Support for GX bus based adapters"
+	default y
+	help
+	  Bus device driver for GX bus based adapters.
+
 config PPC_MPC106
 	bool
 	default n
