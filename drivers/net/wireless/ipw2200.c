@@ -8926,6 +8926,10 @@ static int ipw_request_direct_scan(struct ipw_priv *priv, char *essid,
 	struct ipw_scan_request_ext scan;
 	int err = 0, scan_type;
 
+	if (!(priv->status & STATUS_INIT) ||
+	    (priv->status & STATUS_EXIT_PENDING))
+		return 0;
+
 	down(&priv->sem);
 
 	if (priv->status & STATUS_RF_KILL_MASK) {
