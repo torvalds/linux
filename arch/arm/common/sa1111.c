@@ -32,6 +32,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
+#include <asm/sizes.h>
 
 #include <asm/hardware/sa1111.h>
 
